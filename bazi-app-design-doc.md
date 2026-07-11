@@ -505,13 +505,15 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
 4. **AI 缓存层**：D2 → 客户端 + 后端 SQLite（决策 4）
 5. **喜忌 10% 从格边界**：D3 → 检测特征 + 诚实降级（决策 1b）
 
-**P1/P2 未决（plan-eng-review 标记，不阻塞开工）**：
-6. **大运第一步（童限）展示**：跳过？还是单独标注"起运前"？
-7. **神煞代码化工作量**：决策 2 的 20 个神煞起法各异（按日干/年支/月支/时支），原估 2-3 天可能不够
-8. **iOS 最低版本**：SwiftData 在 iOS 17.0 有已知 bug（FetchDescriptor 内存泄漏、Relationships crash），17.1/17.2 才稳定。最低版本设 17.2+ 还是 17.0+？
-9. **每日运势冷启动 UX**：用户打开 App 等 Claude 出 200-300 字 = 3-5 秒空白。考虑"瞬时显示流日基本信息（流日柱/冲/黄历宜忌，0 延迟）+ AI 解读异步流式追加"
-10. **lunar_python 同步库 × FastAPI async**：lunar_python 是同步 CPU-bound 库，FastAPI 是 async 框架。排盘调用必须用 `anyio.to_thread.run_sync()` 或 `starlette.concurrency.run_in_threadpool` 包，否则阻塞 event loop。实现 note
-11. **30 个对盘测试用例的 ground truth 数据源**：从问真八字手抄？命理论坛样本？需要确定数据源 + 校验流程
+**P1 已锁定（plan-eng-review 后续 2026-07-10）**：
+6. **神煞代码化工作量**：**2.5-3 工作日**。先写通用模板（日干查表/三合局查表）+ 对盘脚手架（1 天）→ 填数据（1-1.5 天）→ 对盘测试（0.5 天）。原估合理，不调整
+7. **iOS 最低版本**：**iOS 17.2+**（Xcode `IPHONEOS_DEPLOYMENT_TARGET = 17.2`）。SwiftData `@Relationship` 在 17.0/17.1 有 crash；D1 减轻了 VersionedSchema 依赖，但 `@Relationship`（UserSnapshotLink ↔ ChartSnapshot）仍要用
+8. **对盘 ground truth 数据源**：**lunar_python 测试套件（主）+ 问真八字 App 抽样 5-10 个（辅）**。库的 `test/` 目录有 22 个测试文件，`LunarTest.py` 含完整 `toFullString` 断言（自带四柱/纳音/方位/冲煞全字段答案），可信度极高
+
+**P1/P2 未决（不阻塞开工）**：
+9. **大运第一步（童限）展示**：跳过？还是单独标注"起运前"？
+10. **每日运势冷启动 UX**：用户打开 App 等 Claude 出 200-300 字 = 3-5 秒空白。考虑"瞬时显示流日基本信息（流日柱/冲/黄历宜忌，0 延迟）+ AI 解读异步流式追加"
+11. **lunar_python 同步库 × FastAPI async**：lunar_python 是同步 CPU-bound 库，FastAPI 是 async 框架。排盘调用必须用 `anyio.to_thread.run_sync()` 或 `starlette.concurrency.run_in_threadpool` 包，否则阻塞 event loop。实现 note
 12. **CI/CD**：Xcode Cloud（与 Xcode 集成深，但贵）vs GitHub Actions（灵活，免费额度），待拍板
 13. **喜忌规则引擎权重**：得令/得地/得势的权重值需要标定（spike 阶段跑 50 个真实命盘）
 14. **从格检测阈值**：决策 1b 的初值（专旺 ≥6/8、从格 ≥5/8）需用真实命盘验证
@@ -521,7 +523,9 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
 
 - TestFlight 可用，三模块跑通端到端
 - 排盘确定性：同一输入跑 100 次，结果完全一致（含规则快照）
-- 与问真八字 App 对盘：30 个标准测试用例，四柱、十神、纳音、大运 100% 一致（注意 `sect=1` 默认值）
+- **对盘验证（双重 ground truth）**：
+  - **lunar_python 测试套件**（30-50 个用例自带答案）：我们的封装输出 = 测试套件期望答案，四柱/十神/纳音/大运 100% 一致
+  - **问真八字 App 抽样**（5-10 个真实命盘）：与行业标杆 100% 一致（注意 `sect=1` 默认值）
 - AI 命书：包含五行分析、十神配置、神煞提示、大运流年走势、后端给出的喜忌，无硬性格局结论
 - 首次使用到出深度解析 < 30 秒
 - 每日运势冷启动 < 5 秒（按需生成）
@@ -530,17 +534,18 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
 
 1. ~~库选型 spike~~ ✅ 完成（lunar_python 1.3.6，所有期望字段已验证）
 2. ~~plan-eng-review P0~~ ✅ 完成（2026-07-10，D1/D2/D3 三项锁定）
-3. **后端排盘原型**（3-4 天）：FastAPI + lunar_python + `setSect(1)` + 内容寻址 ID + 跳过 index=0 童限 + `run_in_threadpool` 包同步调用 + D2 后端 SQLite 缓存层
-4. **喜忌规则引擎**（2-3 天）：扶抑 + 调候 + **D3 从格检测**（专旺/从格阈值），50 个真实命盘标定权重
-5. **神煞查表**（2-3 天，可能更长）：《三命通会》20 个神煞代码化（起法各异，参 Open Question 7）
-6. **Prompt 验证 spike**（2-3 天）：20 个真实命盘跑深度解析 prompt，请懂命理的人审核输出质量。**特别测试 D3 special_pattern 触发时的诚实告知是否到位**
-7. **Xcode 项目脚手架**（1 天）：SwiftUI + SwiftData（iOS 17.2+，参 Open Question 8）+ Tab 结构 + D1 schemaVersion + D2 InterpretationCache 客户端表
-8. **深度解析模块**（1 周）
-9. **每日运势模块**（3-4 天）：参 Open Question 9 的"瞬时显示 + AI 流式追加"
-10. **合盘模块**（1 周）
-11. **MVP 视觉打磨**（3-5 天）
-12. **TestFlight 内测**
-13. **根据真实命书质量迭代 prompt**
+3. ~~plan-eng-review P1~~ ✅ 完成（2026-07-10，神煞工作量/iOS 17.2/对盘数据源三项锁定）
+4. **后端排盘原型**（3-4 天）：FastAPI + lunar_python + `setSect(1)` + 内容寻址 ID + 跳过 index=0 童限 + `run_in_threadpool` 包同步调用 + D2 后端 SQLite 缓存层
+5. **喜忌规则引擎**（2-3 天）：扶抑 + 调候 + **D3 从格检测**（专旺/从格阈值），用 lunar_python 测试套件 + 问真八字抽样对盘
+6. **神煞查表**（2.5-3 天）：《三命通会》20 个神煞代码化。先写通用模板（日干查表/三合局查表）+ 对盘脚手架（1 天），再填数据（1-1.5 天），最后对盘测试（0.5 天，用 lunar_python 测试套件 + 问真八字抽样）
+7. **Prompt 验证 spike**（2-3 天）：20 个真实命盘跑深度解析 prompt，请懂命理的人审核输出质量。**特别测试 D3 special_pattern 触发时的诚实告知是否到位**
+8. **Xcode 项目脚手架**（1 天）：SwiftUI + SwiftData（**iOS 17.2+**）+ Tab 结构 + D1 schemaVersion + D2 InterpretationCache 客户端表
+9. **深度解析模块**（1 周）
+10. **每日运势模块**（3-4 天）：参 Open Question 10 的"瞬时显示 + AI 流式追加"
+11. **合盘模块**（1 周）
+12. **MVP 视觉打磨**（3-5 天）
+13. **TestFlight 内测**
+14. **根据真实命书质量迭代 prompt**
 
 ## V1 Minimum Viable Aesthetic
 
