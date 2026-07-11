@@ -1,0 +1,70 @@
+# QiCompass — 玄机问道
+
+AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
+
+## 关键文档
+
+- `bazi-app-design-doc.md` — 主设计文档（架构 / API 契约 / SwiftData / prompt 模板 / Next Steps）
+- `命理引擎设计决策.md` — 命理层决策（决策 1 喜忌 / 决策 2 神煞 / 决策 3 ChartSnapshot / 决策 3b Schema 演化 / 决策 4 AI 缓存 / 决策 1b 从格边界）
+- `archive/` — 旧"玄机问道"卷轴方案归档（参考用，不复用）
+
+## 全局约束（继承 ~/.claude/CLAUDE.md）
+
+- **Git commit 三段式**：每个 commit 必须含 Description body，覆盖 Why（动机）/ What（改了哪些函数/类/文件）/ Impact（设计影响）
+- **错误显式传播**：不静默吞异常，该报错就报错，该向上抛就向上抛。禁止空 catch / 吞异常 / 用默认值掩盖失败
+- **不擅自加依赖**：引入任何新库/框架/外部依赖前必须征得同意。提出时说明：引入理由 / 替代方案 / 不引入的代价
+
+## 项目特定约束
+
+### 八字计算必须确定性
+
+- 同一输入永远同一输出（含 `calcRuleSnapshot` 规则快照）
+- 所有排盘走后端 `lunar_python`，客户端不做历法计算
+- `lunar_python` **强制 `setSect(1)`**（库默认 `sect=2` 早晚子时，与产品决策"默认 23:00 换日"冲突）
+- 大运 `index=0` 的 `ganZhi=""` 是童限过渡，前端跳过，从 `index=1` 开始展示
+
+### LLM 边界：只润色不判断
+
+- **喜忌**：后端确定性规则引擎（扶抑法 + 调候法 + 从格检测 D3），LLM 只润色话术，**禁止**自行推断喜忌
+- **格局**：MVP 砍掉，LLM 用"命局呈现××倾向"模糊叙事，**禁止**给出"正官格 / 偏印格"等硬分类结论
+- **神煞**：20 个固定清单（11 吉 + 9 凶），《三命通会》单一来源，自写查表（库不给）
+- **从格检测**：3-4 条 if 检测特征（专旺：日主同气 ≥6/8；从格：日主孤立 + 某行 ≥5/8），命中输出 `day_master_strength="special_pattern"`，喜忌留空，LLM 诚实告知
+
+### SwiftData
+
+- 最低 iOS 17.2（17.0/17.1 SwiftData `@Relationship` 有 crash）
+- `IPHONEOS_DEPLOYMENT_TARGET = 17.2`
+- **ChartSnapshot 用 D1 设计**：`contentHash`（按出生信息算，**不含** schema_version）+ `schemaVersion` 独立字段 + `payload` JSON Data 承载易变结构（pillars/十神/纳音/神煞/喜忌/luck_pillars）
+- **不用** VersionedSchema / SchemaMigrationPlan（D1 减轻依赖，演化靠 JSON payload + lazy 重算）
+
+### AI 解读缓存（D2）
+
+- 客户端 SwiftData `InterpretationCache` + 后端 SQLite 两级缓存
+- 缓存键：`(content_hash, module, prompt_version)`，每日运势多一维 `target_date`
+- prompt 改 → `prompt_version +1` → 老缓存自然失效（desired behavior）
+- **不做** singleflight / Redis（v2 再说）
+
+### 后端
+
+- FastAPI + `lunar_python`（同步 CPU-bound 库，用 `anyio.to_thread.run_sync()` 或 `starlette.concurrency.run_in_threadpool` 包，避免阻塞 event loop）
+- 排盘调用 + AI 解读调用都走后端，API key 不进客户端
+
+### 测试策略
+
+- **对盘 ground truth**：`6tail/lunar-python` 仓库 `test/` 目录 22 个测试文件（含 `LunarTest.py` 完整 `toFullString` 断言）作为主数据源
+- 辅以问真八字 App 抽样 5-10 个真实命盘做行业标杆对标
+- 三层对盘验证：封装层 / 库层 / 行业层
+
+## 不做的事（v1 范围外，明确砍掉）
+
+- 六爻 / 灵签 / 卷轴命运地图（旧"玄机问道"方案已归档到 `archive/`）
+- 格局判定规则引擎（延后立项，等付费用户反馈）
+- 紫微斗数 / 流月流年深度运势 / 账号系统 + 云同步 / 英文国际化 / 命盘导出图片（v2+）
+- 多人命盘管理 UI（v1 通过 `UserSnapshotLink` 数据层支持多 snapshot，UI 进 v2）
+- Background Tasks 预生成每日运势（iOS 不可靠，改用按需生成 + 24h 缓存）
+
+## 当前阶段
+
+设计文档已完成并经过 plan-eng-review（P0 D1/D2/D3 + P1 神煞工作量/iOS 17.2/对盘数据源 已锁定）。
+库选型 spike 已完成（`lunar_python` 1.3.6 实测字段对照表已校准 API 契约）。
+准备进入实现阶段，按 10 个 vertical slice 推进（见 `bazi-app-design-doc.md` Next Steps）。
