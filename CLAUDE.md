@@ -66,5 +66,5 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 ## 当前阶段
 
 设计文档已完成并经过 plan-eng-review（P0 D1/D2/D3 + P1 神煞工作量/iOS 17.2/对盘数据源 已锁定）。
-库选型 spike 已完成（`lunar_python` 1.3.6 实测字段对照表已校准 API 契约）。
-准备进入实现阶段，按 10 个 vertical slice 推进（见 `bazi-app-design-doc.md` Next Steps）。
+库选型 spike 已完成（`lunar_python` 1.4.8 实测字段对照表已校准 API 契约）。后端排盘核心 slice 已实现（`backend/`,30 用例对盘通过:库层 20 + 封装层 10）。
+准备进入下一 slice,按 10 个 vertical slice 推进(见 `bazi-app-design-doc.md` Next Steps)。

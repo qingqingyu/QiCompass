@@ -143,13 +143,14 @@ Response: {
   "current_day_pillar": "甲申",   // 当日流日
   "current_hour_pillar": "辛未",  // 当前流时
   "calc_rule_snapshot": {
-    "library": "lunar_python 1.3.6",
+    "library": "lunar_python 1.4.8",
     "sect": 1,  // 子时换日规则
     "zi_hour_rule": "zi_next_day",
-    "true_solar_city": "北京",
     "true_solar_longitude": 116.41,
-    "true_solar_offset_minutes": 3.2,
-    "calculated_at": "2026-07-09T12:00:00+08:00"
+    "true_solar_offset_minutes": -24.01,
+    "schema_version": 1
+    // 注:不含 calculated_at —— CLAUDE.md 确定性约束「同一输入永远同一输出」
+    // 时间戳进日志,不进 snapshot。offset 示例为北京 3 月真值,文档示例数值为示意
   },
   "boundary_warning": null
 }
@@ -217,7 +218,7 @@ Response: { "interpretation": "... 中文命书 ..." }
 
 **GET /api/health**
 ```json
-Response: { "status": "ok", "lunar_python_version": "1.3.6", "model": "claude-sonnet-4-6" }
+Response: { "status": "ok", "lunar_python_version": "1.4.8", "model": "bazi-calculate-v1" }
 ```
 
 ## Module Specifications
@@ -382,7 +383,7 @@ class DailyFortuneSnapshot {
 | 字体 | ZCOOL XiaoWei（显示）/ 系统衬线（正文） |
 | 触感 | UIImpactFeedbackGenerator |
 | 后端 | Python FastAPI |
-| 八字计算 | **lunar_python 1.3.6+**（已 spike 验证） |
+| 八字计算 | **lunar_python 1.4.8+**（已 spike 验证 + 后端排盘核心已实现 + 30 用例对盘通过） |
 | AI | Claude API（claude-sonnet-4-6）经后端代理 |
 | 部署 | TestFlight → App Store |
 
@@ -532,7 +533,7 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
 
 ## Next Steps
 
-1. ~~库选型 spike~~ ✅ 完成（lunar_python 1.3.6，所有期望字段已验证）
+1. ~~库选型 spike~~ ✅ 完成（lunar_python 1.4.8，所有期望字段已验证）
 2. ~~plan-eng-review P0~~ ✅ 完成（2026-07-10，D1/D2/D3 三项锁定）
 3. ~~plan-eng-review P1~~ ✅ 完成（2026-07-10，神煞工作量/iOS 17.2/对盘数据源三项锁定）
 4. **后端排盘原型**（3-4 天）：FastAPI + lunar_python + `setSect(1)` + 内容寻址 ID + 跳过 index=0 童限 + `run_in_threadpool` 包同步调用 + D2 后端 SQLite 缓存层
