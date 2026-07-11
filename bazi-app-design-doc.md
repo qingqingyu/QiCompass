@@ -270,39 +270,37 @@ Response: { "status": "ok", "lunar_python_version": "1.3.6", "model": "claude-so
 1. **子时换日**：默认 `sect=1`（子时属次日），可配置 `sect=2`（早晚子时）。规则随盘存档
 2. **真太阳时**：城市经度表 + 均时差。边界提示
 3. **十神**：直接用 `lunar_python` 的 `getXxxShiShenGan` / `getXxxShiShenZhi`（库自带，不必自己查表）
-4. **喜忌**：后端确定性规则引擎，扶抑法 + 调候法（详见决策 1）
+4. **喜忌**：后端确定性规则引擎，扶抑法 + 调候法（详见决策 1）。**从格/专旺检测命中**时输出 `day_master_strength="special_pattern"`，喜忌留空，LLM 诚实告知（详见决策 1b）
 5. **格局判定**：MVP 砍掉，LLM 模糊叙事（详见决策 5）
 6. **神煞**：20 个固定清单，《三命通会》单一来源，自写查表（详见决策 2）
+7. **AI 缓存**：客户端 SwiftData + 后端 SQLite 两级缓存，按 `(content_hash, module, prompt_version)` 索引（详见决策 4）
 
-## Data Model（SwiftData，按决策 3 内容寻址）
+## Data Model（SwiftData，按决策 3 + 3b 内容寻址 + schema 演化）
 
-详细字段规范见 `命理引擎设计决策.md` §3。摘要：
+详细字段规范见 `命理引擎设计决策.md` §3 + §3b。摘要：
 
 ```swift
 @Model
 class ChartSnapshot {
-    @Attribute(.unique) var contentHash: String  // 内容寻址 ID
+    @Attribute(.unique) var contentHash: String  // SHA(birth+gender+lon+rule)，不含 schema_version
+    var schemaVersion: Int = 1                   // 决策 3b：数据结构版本，独立字段
     var birthSolarTime: Date
     var gender: String
     var cityLongitude: Double
     var ziHourRule: String  // zi_next_day | zero_oclock
-    
-    var pillars: Data  // 四柱完整结构（含 gan/zhi/wuxing/hide_gan/shishen_gan/shishen_zhi/nayin/dishi/xunkong）
-    var mingGong: Data
-    var shenGong: Data
-    var taiYuan: Data
-    var elementBalance: [String: Int]
-    
-    // 决策 1 喜忌
-    var dayMasterStrength: String
-    var favorableElements: [String]
-    var unfavorableElements: [String]
-    var tiaoshouApplied: Bool
-    
-    var shensha: Data  // 决策 2 神煞列表
-    var luckPillars: Data  // 跳过 index=0
-    
-    var calcRuleSnapshot: Data
+
+    var calcRuleSnapshot: Data  // JSON: library 版本、sect、offset、calculated_at
+    var payload: Data           // JSON: pillars/mingGong/shenGong/taiYuan/elementBalance/喜忌/神煞/luckPillars（决策 3b 易变结构集中）
+    // payload schema:
+    //   {
+    //     "pillars": {...}, "mingGong": {...}, "shenGong": {...}, "taiYuan": {...},
+    //     "elementBalance": {...},
+    //     "favorable_elements": [...], "unfavorable_elements": [...],
+    //     "day_master_strength": "strong|weak|balanced|special_pattern",  // 决策 1b
+    //     "tiaoshou_applied": false,
+    //     "shensha": [...],
+    //     "luck_pillars": [...]  // 跳过 index=0 童限
+    //   }
 }
 
 @Model
@@ -312,6 +310,17 @@ class UserSnapshotLink {
     var snapshotHash: String  // FK → ChartSnapshot.contentHash
     var alias: String  // "我自己" | "妈妈" | "男友"
     var createdAt: Date
+}
+
+@Model
+class InterpretationCache {  // 决策 4：客户端 AI 缓存
+    @Attribute(.unique) var id: UUID
+    var contentHash: String       // 单盘 hash / 合盘 compatibility_hash
+    var module: String            // bazi_deep | compatibility | daily_fortune
+    var promptVersion: String     // 后端 prompt 改了，老缓存失效
+    var targetDate: Date?         // 每日运势专用，其他模块 nil
+    var interpretation: String
+    var generatedAt: Date
 }
 
 @Model
@@ -340,6 +349,10 @@ class DailyFortuneSnapshot {
     var cachedUntil: Date  // 24h
 }
 ```
+
+**演化策略**（决策 3b）：加字段 = `payload` JSON 加 key + `schemaVersion +1`，老 snapshot lazy 重算。SwiftData 核心 schema 几乎不变。
+
+**AI 缓存层**（决策 4）：客户端 `InterpretationCache` + 后端 SQLite 两级缓存，按 `(content_hash, module, prompt_version)` 索引；每日运势多一维 `target_date`。
 
 ## 阅读次数限制
 
@@ -483,12 +496,26 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
 
 ## Open Questions
 
+**已拍板（参考 `命理引擎设计决策.md`）**：
 1. **产品名**：保留"玄机问道"（决策 B，MVP 跑通后再决定）
 2. **付费模型**：MVP 全免费（决策 B）
-3. **大运第一步（童限）展示**：跳过？还是单独标注"起运前"？
-4. **神煞起法的代码化**：决策 2 的 20 个神煞要从《三命通会》代码化，工作量未估
-5. **喜忌规则引擎的权重**：得令/得地/得势的权重值需要标定（spike 阶段跑 50 个真实命盘）
-6. **城市经度表数据源**：自己整理 vs 用现成 cities.json
+
+**P0 已锁定（plan-eng-review 2026-07-10）**：
+3. **Schema 演化策略**：D1 → B+C 融合（决策 3b）
+4. **AI 缓存层**：D2 → 客户端 + 后端 SQLite（决策 4）
+5. **喜忌 10% 从格边界**：D3 → 检测特征 + 诚实降级（决策 1b）
+
+**P1/P2 未决（plan-eng-review 标记，不阻塞开工）**：
+6. **大运第一步（童限）展示**：跳过？还是单独标注"起运前"？
+7. **神煞代码化工作量**：决策 2 的 20 个神煞起法各异（按日干/年支/月支/时支），原估 2-3 天可能不够
+8. **iOS 最低版本**：SwiftData 在 iOS 17.0 有已知 bug（FetchDescriptor 内存泄漏、Relationships crash），17.1/17.2 才稳定。最低版本设 17.2+ 还是 17.0+？
+9. **每日运势冷启动 UX**：用户打开 App 等 Claude 出 200-300 字 = 3-5 秒空白。考虑"瞬时显示流日基本信息（流日柱/冲/黄历宜忌，0 延迟）+ AI 解读异步流式追加"
+10. **lunar_python 同步库 × FastAPI async**：lunar_python 是同步 CPU-bound 库，FastAPI 是 async 框架。排盘调用必须用 `anyio.to_thread.run_sync()` 或 `starlette.concurrency.run_in_threadpool` 包，否则阻塞 event loop。实现 note
+11. **30 个对盘测试用例的 ground truth 数据源**：从问真八字手抄？命理论坛样本？需要确定数据源 + 校验流程
+12. **CI/CD**：Xcode Cloud（与 Xcode 集成深，但贵）vs GitHub Actions（灵活，免费额度），待拍板
+13. **喜忌规则引擎权重**：得令/得地/得势的权重值需要标定（spike 阶段跑 50 个真实命盘）
+14. **从格检测阈值**：决策 1b 的初值（专旺 ≥6/8、从格 ≥5/8）需用真实命盘验证
+15. **城市经度表数据源**：自己整理 vs 用现成 cities.json
 
 ## Success Criteria
 
@@ -502,17 +529,18 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
 ## Next Steps
 
 1. ~~库选型 spike~~ ✅ 完成（lunar_python 1.3.6，所有期望字段已验证）
-2. **后端排盘原型**（3-4 天）：FastAPI + lunar_python + `setSect(1)` + 内容寻址 ID + 跳过 index=0 童限
-3. **喜忌规则引擎**（2-3 天）：扶抑 + 调候，50 个真实命盘标定权重
-4. **神煞查表**（2-3 天）：《三命通会》20 个神煞代码化
-5. **Prompt 验证 spike**（2-3 天）：20 个真实命盘跑深度解析 prompt，请懂命理的人审核输出质量
-6. **Xcode 项目脚手架**（1 天）：SwiftUI + SwiftData + Tab 结构
-7. **深度解析模块**（1 周）
-8. **每日运势模块**（3-4 天）
-9. **合盘模块**（1 周）
-10. **MVP 视觉打磨**（3-5 天）
-11. **TestFlight 内测**
-12. **根据真实命书质量迭代 prompt**
+2. ~~plan-eng-review P0~~ ✅ 完成（2026-07-10，D1/D2/D3 三项锁定）
+3. **后端排盘原型**（3-4 天）：FastAPI + lunar_python + `setSect(1)` + 内容寻址 ID + 跳过 index=0 童限 + `run_in_threadpool` 包同步调用 + D2 后端 SQLite 缓存层
+4. **喜忌规则引擎**（2-3 天）：扶抑 + 调候 + **D3 从格检测**（专旺/从格阈值），50 个真实命盘标定权重
+5. **神煞查表**（2-3 天，可能更长）：《三命通会》20 个神煞代码化（起法各异，参 Open Question 7）
+6. **Prompt 验证 spike**（2-3 天）：20 个真实命盘跑深度解析 prompt，请懂命理的人审核输出质量。**特别测试 D3 special_pattern 触发时的诚实告知是否到位**
+7. **Xcode 项目脚手架**（1 天）：SwiftUI + SwiftData（iOS 17.2+，参 Open Question 8）+ Tab 结构 + D1 schemaVersion + D2 InterpretationCache 客户端表
+8. **深度解析模块**（1 周）
+9. **每日运势模块**（3-4 天）：参 Open Question 9 的"瞬时显示 + AI 流式追加"
+10. **合盘模块**（1 周）
+11. **MVP 视觉打磨**（3-5 天）
+12. **TestFlight 内测**
+13. **根据真实命书质量迭代 prompt**
 
 ## V1 Minimum Viable Aesthetic
 
