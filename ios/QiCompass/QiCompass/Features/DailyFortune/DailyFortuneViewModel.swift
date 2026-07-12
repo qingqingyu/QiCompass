@@ -231,7 +231,12 @@ final class DailyFortuneViewModel {
             )
             // 缓存 chartPayload 供阶段 2 复用
             do {
-                let snapshot = try chartStore.get(contentHash: chartHash)
+                guard let snapshot = try chartStore.get(contentHash: chartHash) else {
+                    throw NSError(
+                        domain: "DailyFortune", code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: "命盘存档未找到"]
+                    )
+                }
                 let bazi = try chartStore.decodeResponse(from: snapshot)
                 cachedChartPayload = ChartPayloadDTO.from(baziResponse: bazi)
             } catch {

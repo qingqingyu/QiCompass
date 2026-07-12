@@ -21,6 +21,10 @@ final class AppEnvironment: ObservableObject {
     let dailyFortuneSnapshotStore: DailyFortuneSnapshotStore
     let dailyFortuneOrchestrator: DailyFortuneOrchestrator
 
+    // 合盘编排链路(slice 7 装配,共享 chartStore/interpretStore/counter)
+    let compatibilitySnapshotStore: CompatibilitySnapshotStore
+    let compatibilityOrchestrator: CompatibilityOrchestrator
+
     init(modelContainer: ModelContainer, apiClient: APIClient, useMockClient: Bool) {
         self.modelContainer = modelContainer
         self.apiClient = apiClient
@@ -47,6 +51,17 @@ final class AppEnvironment: ObservableObject {
             dailyStore: dailyStore,
             interpretStore: interpretStore,
             chartStore: chartStore,
+            counter: counter
+        )
+        // slice 7 装配:合盘独享 compatibilityStore,共享 chartStore(隐式落地 B)/
+        // interpretStore/counter。AI 次数独立限额(D11:3/天,与 deep/daily 不互相挤占)。
+        let compatibilityStore = CompatibilitySnapshotStore(context: context)
+        self.compatibilitySnapshotStore = compatibilityStore
+        self.compatibilityOrchestrator = CompatibilityOrchestrator(
+            apiClient: apiClient,
+            compatibilityStore: compatibilityStore,
+            chartStore: chartStore,
+            interpretStore: interpretStore,
             counter: counter
         )
     }

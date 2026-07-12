@@ -64,6 +64,19 @@
 		9C0000000000000000000026 /* TomorrowPreviewSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000026 /* TomorrowPreviewSection.swift */; };
 		9C0000000000000000000027 /* DailyFortuneHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000027 /* DailyFortuneHistoryView.swift */; };
 		9C0000000000000000000028 /* DailyFortuneVerifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000028 /* DailyFortuneVerifier.swift */; };
+		9C0000000000000000000029 /* InterpretState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000029 /* InterpretState.swift */; };
+		9C000000000000000000002A /* CompatibilitySnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000002A /* CompatibilitySnapshotStore.swift */; };
+		9C000000000000000000002B /* CompatibilityOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000002B /* CompatibilityOrchestrator.swift */; };
+		9C000000000000000000002C /* PromptContextBuilder+Compatibility.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000002C /* PromptContextBuilder+Compatibility.swift */; };
+		9C000000000000000000002D /* CompatibilityViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000002D /* CompatibilityViewModel.swift */; };
+		9C000000000000000000002E /* CompatibilityConfigView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000002E /* CompatibilityConfigView.swift */; };
+		9C000000000000000000002F /* CompatibilityMainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000002F /* CompatibilityMainView.swift */; };
+		9C0000000000000000000030 /* ChartArchivePickerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000030 /* ChartArchivePickerView.swift */; };
+		9C0000000000000000000031 /* DualPillarsTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000031 /* DualPillarsTable.swift */; };
+		9C0000000000000000000032 /* AssessmentCardGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000032 /* AssessmentCardGrid.swift */; };
+		9C0000000000000000000033 /* SyncedFortuneTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000033 /* SyncedFortuneTable.swift */; };
+		9C0000000000000000000034 /* CompatibilityInterpretationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000034 /* CompatibilityInterpretationSection.swift */; };
+		9C0000000000000000000035 /* CompatibilityEmptyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000035 /* CompatibilityEmptyView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -126,6 +139,19 @@
 		9C1000000000000000000026 /* TomorrowPreviewSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TomorrowPreviewSection.swift; path = QiCompass/Features/DailyFortune/TomorrowPreviewSection.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000027 /* DailyFortuneHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneHistoryView.swift; path = QiCompass/Features/DailyFortune/DailyFortuneHistoryView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000028 /* DailyFortuneVerifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneVerifier.swift; path = QiCompass/Persistence/DailyFortuneVerifier.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000029 /* InterpretState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretState.swift; sourceTree = "<group>"; };
+		9C100000000000000000002A /* CompatibilitySnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilitySnapshotStore.swift; path = QiCompass/Services/CompatibilitySnapshotStore.swift; sourceTree = SOURCE_ROOT; };
+		9C100000000000000000002B /* CompatibilityOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilityOrchestrator.swift; path = QiCompass/Services/CompatibilityOrchestrator.swift; sourceTree = SOURCE_ROOT; };
+		9C100000000000000000002C /* PromptContextBuilder+Compatibility.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "PromptContextBuilder+Compatibility.swift"; path = "QiCompass/Services/PromptContextBuilder+Compatibility.swift"; sourceTree = SOURCE_ROOT; };
+		9C100000000000000000002D /* CompatibilityViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilityViewModel.swift; path = QiCompass/Features/Compatibility/CompatibilityViewModel.swift; sourceTree = SOURCE_ROOT; };
+		9C100000000000000000002E /* CompatibilityConfigView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilityConfigView.swift; path = QiCompass/Features/Compatibility/CompatibilityConfigView.swift; sourceTree = SOURCE_ROOT; };
+		9C100000000000000000002F /* CompatibilityMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilityMainView.swift; path = QiCompass/Features/Compatibility/CompatibilityMainView.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000030 /* ChartArchivePickerView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartArchivePickerView.swift; path = QiCompass/Features/Compatibility/ChartArchivePickerView.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000031 /* DualPillarsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DualPillarsTable.swift; path = QiCompass/Features/Compatibility/DualPillarsTable.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000032 /* AssessmentCardGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AssessmentCardGrid.swift; path = QiCompass/Features/Compatibility/AssessmentCardGrid.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000033 /* SyncedFortuneTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SyncedFortuneTable.swift; path = QiCompass/Features/Compatibility/SyncedFortuneTable.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000034 /* CompatibilityInterpretationSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilityInterpretationSection.swift; path = QiCompass/Features/Compatibility/CompatibilityInterpretationSection.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000035 /* CompatibilityEmptyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilityEmptyView.swift; path = QiCompass/Features/Compatibility/CompatibilityEmptyView.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -165,6 +191,9 @@
 				9C100000000000000000001C /* BusinessDateCalculator.swift */,
 				9C100000000000000000001D /* DailyFortuneSnapshotStore.swift */,
 				9C100000000000000000001E /* DailyFortuneOrchestrator.swift */,
+				9C100000000000000000002A /* CompatibilitySnapshotStore.swift */,
+				9C100000000000000000002B /* CompatibilityOrchestrator.swift */,
+				9C100000000000000000002C /* PromptContextBuilder+Compatibility.swift */,
 			);
 			sourceTree = "<group>";
 		};
@@ -202,6 +231,7 @@
 				9C1000000000000000000007 /* CompatibilitySnapshot.swift */,
 				9C1000000000000000000008 /* DailyFortuneSnapshot.swift */,
 				9C1000000000000000000009 /* SchemaRegistry.swift */,
+				9C1000000000000000000029 /* InterpretState.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -261,6 +291,15 @@
 			isa = PBXGroup;
 			children = (
 				9C1000000000000000000015 /* CompatibilityView.swift */,
+				9C100000000000000000002D /* CompatibilityViewModel.swift */,
+				9C100000000000000000002E /* CompatibilityConfigView.swift */,
+				9C100000000000000000002F /* CompatibilityMainView.swift */,
+				9C1000000000000000000030 /* ChartArchivePickerView.swift */,
+				9C1000000000000000000031 /* DualPillarsTable.swift */,
+				9C1000000000000000000032 /* AssessmentCardGrid.swift */,
+				9C1000000000000000000033 /* SyncedFortuneTable.swift */,
+				9C1000000000000000000034 /* CompatibilityInterpretationSection.swift */,
+				9C1000000000000000000035 /* CompatibilityEmptyView.swift */,
 			);
 			path = Compatibility;
 			sourceTree = "<group>";
@@ -441,6 +480,19 @@
 				9C0000000000000000000026 /* TomorrowPreviewSection.swift in Sources */,
 				9C0000000000000000000027 /* DailyFortuneHistoryView.swift in Sources */,
 				9C0000000000000000000028 /* DailyFortuneVerifier.swift in Sources */,
+				9C0000000000000000000029 /* InterpretState.swift in Sources */,
+				9C000000000000000000002A /* CompatibilitySnapshotStore.swift in Sources */,
+				9C000000000000000000002B /* CompatibilityOrchestrator.swift in Sources */,
+				9C000000000000000000002C /* PromptContextBuilder+Compatibility.swift in Sources */,
+				9C000000000000000000002D /* CompatibilityViewModel.swift in Sources */,
+				9C000000000000000000002E /* CompatibilityConfigView.swift in Sources */,
+				9C000000000000000000002F /* CompatibilityMainView.swift in Sources */,
+				9C0000000000000000000030 /* ChartArchivePickerView.swift in Sources */,
+				9C0000000000000000000031 /* DualPillarsTable.swift in Sources */,
+				9C0000000000000000000032 /* AssessmentCardGrid.swift in Sources */,
+				9C0000000000000000000033 /* SyncedFortuneTable.swift in Sources */,
+				9C0000000000000000000034 /* CompatibilityInterpretationSection.swift in Sources */,
+				9C0000000000000000000035 /* CompatibilityEmptyView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

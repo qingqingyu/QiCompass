@@ -41,14 +41,6 @@ enum LoadingStage: Equatable {
     }
 }
 
-/// AI 命书子状态(方案 §一 interpretState)。
-enum InterpretState: Equatable {
-    case idle
-    case fetching
-    case ok(text: String, cached: Bool)
-    case failed(message: String)
-}
-
 // MARK: - ViewModel
 
 /// 深度解析 ViewModel:@Observable + 状态机驱动。

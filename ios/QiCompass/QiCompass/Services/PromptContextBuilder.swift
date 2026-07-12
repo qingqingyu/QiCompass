@@ -149,16 +149,16 @@ enum PromptContextBuilder {
         ]
     }
 
-    // MARK: - Private
+    // MARK: - Internal helpers(供 +Compatibility extension 复用)
 
-    private static let dateTimeFormatter: DateFormatter = {
+    static let dateTimeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd HH:mm"
         f.timeZone = .current
         return f
     }()
 
-    private static let dateOnlyFormatter: DateFormatter = {
+    static let dateOnlyFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy年M月d日"
         f.timeZone = .current
@@ -166,13 +166,13 @@ enum PromptContextBuilder {
     }()
 
     /// 后端 prompt 模板期望中文"男"/"女",request.gender 是 "male"/"female"
-    private static func genderToChinese(_ gender: String) -> String {
+    static func genderToChinese(_ gender: String) -> String {
         gender == "male" ? "男" : "女"
     }
 
     /// 五行英文 → 中文(后端 gan_element/zhi_element 用英文,prompt 期望中文与
     /// element_balance/favorable_elements 统一)。未知值原样返回(不吞,便于排障)。
-    private static func elementToChinese(_ element: String) -> String {
+    static func elementToChinese(_ element: String) -> String {
         switch element {
         case "wood": return "木"
         case "fire": return "火"
@@ -183,12 +183,12 @@ enum PromptContextBuilder {
         }
     }
 
-    private static func formatShensha(_ items: [ShenshaItemDTO]) -> String {
+    static func formatShensha(_ items: [ShenshaItemDTO]) -> String {
         if items.isEmpty { return "无" }
         return items.map { "\($0.name)(\($0.position))" }.joined(separator: "、")
     }
 
-    private static func formatElementBalance(_ balance: ElementBalanceDTO) -> String {
+    static func formatElementBalance(_ balance: ElementBalanceDTO) -> String {
         "木:\(balance.wood) 火:\(balance.fire) 土:\(balance.earth) 金:\(balance.metal) 水:\(balance.water)"
     }
 }

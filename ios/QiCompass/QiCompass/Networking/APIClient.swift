@@ -171,12 +171,7 @@ final class MockAPIClient: APIClient {
 
     func compatibility(request: CompatibilityRequest) async throws -> CompatibilityResponse {
         try? await Task.sleep(nanoseconds: 300_000_000)
-        // stub:后端未实现,Mock 返回最小占位
-        throw APIError.backendError(
-            code: "NOT_IMPLEMENTED",
-            message: "合盘端点尚未实现(后端 stub)",
-            requestId: nil
-        )
+        return Self.mockCompatibilityResponse(for: request)
     }
 
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse {
@@ -223,6 +218,79 @@ final class MockAPIClient: APIClient {
             currentLuckPillar: nil, currentYearPillar: nil, currentDayPillar: nil, currentHourPillar: nil,
             calcRuleSnapshot: calcRule,
             boundaryWarning: nil
+        )
+    }
+
+    /// 合盘 mock:模式 A 不返 personBChart(B 从本地存档渲染);模式 B 返 personBChart(后端现排)。
+    /// 双盘定性评估固定为「互补佳 / 同气 / 六合 / 无冲无刑」,3 年流年同步表固定。
+    private static func mockCompatibilityResponse(
+        for req: CompatibilityRequest
+    ) -> CompatibilityResponse {
+        let calcRule = CalcRuleSnapshotDTO(
+            library: "lunar_python", sect: 1, ziHourRule: "zi_next_day",
+            trueSolarLongitude: 116.4, trueSolarOffsetMinutes: -14.4, schemaVersion: 1
+        )
+
+        // 模式 B:构造一个独立的 B 盘响应(供客户端隐式落地 + UI 渲染)
+        let personBChart: BaziResponse?
+        if req.personB != nil {
+            let pillar = PillarDTO(
+                ganZhi: "丙午", gan: "丙", zhi: "午",
+                ganElement: "fire", zhiElement: "fire",
+                hideGan: ["丁", "己"], shishenGan: "食神", shishenZhi: ["劫财", "伤官"],
+                nayin: "天河水", dishi: "帝旺", xunkong: "寅卯"
+            )
+            let pillars = PillarsDTO(year: pillar, month: pillar, day: pillar, hour: pillar)
+            let ganzhi = GanZhiNaYinDTO(ganZhi: "丙午", nayin: "天河水")
+            let balance = ElementBalanceDTO(wood: 1, fire: 3, earth: 1, metal: 1, water: 2)
+            personBChart = BaziResponse(
+                contentHash: "mock_b_\(req.personB?.birthDatetime.timeIntervalSince1970 ?? 0)",
+                trueSolarTime: req.personB?.birthDatetime ?? .now,
+                trueSolarOffsetMinutes: -14.4,
+                pillars: pillars,
+                mingGong: ganzhi, shenGong: ganzhi, taiYuan: ganzhi,
+                elementBalance: balance,
+                favorableElements: ["火", "土"], unfavorableElements: ["水"],
+                dayMasterStrength: "strong", tiaoshouApplied: false,
+                xijiMethod: "扶抑", patternHint: nil,
+                shensha: [],
+                luckPillars: [LuckPillarDTO(ganZhi: "丙午", startYear: 2000, endYear: 2009, startAge: 10, endAge: 19)],
+                currentLuckPillar: nil, currentYearPillar: nil, currentDayPillar: nil, currentHourPillar: nil,
+                calcRuleSnapshot: calcRule,
+                boundaryWarning: nil
+            )
+        } else {
+            personBChart = nil
+        }
+
+        let assessment = QualitativeAssessmentDTO(
+            fiveElements: "互补佳",
+            dayMasterRelation: "同气",
+            zodiacMatch: "六合",
+            branchHarmony: "无冲无刑"
+        )
+
+        let currentYear = Calendar.current.component(.year, from: .now)
+        let synced: [SyncedFortuneDTO] = (0..<3).map { offset in
+            SyncedFortuneDTO(
+                year: currentYear + offset,
+                personA: "甲子运 \(currentYear + offset)年",
+                personB: "丙午运 \(currentYear + offset)年",
+                sync: offset == 0 ? "同步走强" : (offset == 1 ? "运势分化" : "节奏错位")
+            )
+        }
+
+        // 合盘 hash:简单用 personAHash + (personBHash ?? personB?.birthDatetime) + context 拼接
+        let bKey = req.personBHash ?? "tmp_\(req.personB?.birthDatetime.timeIntervalSince1970 ?? 0)"
+        let compatibilityHash = "mock_compat_\(req.personAHash)_\(bKey)_\(req.context)"
+
+        return CompatibilityResponse(
+            compatibilityHash: compatibilityHash,
+            personAChart: nil,
+            personBChart: personBChart,
+            qualitativeAssessment: assessment,
+            syncedFortune: synced,
+            calcRuleSnapshot: calcRule
         )
     }
 

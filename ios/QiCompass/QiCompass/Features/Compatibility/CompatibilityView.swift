@@ -1,11 +1,18 @@
 import SwiftUI
+import SwiftData
 
-/// Tab 2:合盘(占位)。
-/// 四态:loading / empty / error / success。
-/// 脚手架阶段:CTA "选择命盘" 演示 stub 端点错误传播(后端未实现)。
+/// Tab 2:合盘。状态机驱动(D2 五态)。
+///
+/// 状态:
+/// - .loading → 命盘列表加载中
+/// - .empty → 0 存档,引导去深度解析
+/// - .configuring → 配置态(A/B/context)
+/// - .computing → 调 /api/bazi/compatibility 中
+/// - .resultReady(response, interpretState) → 结果 + AI 子状态
+/// - .failed(msg) → 错误态
 struct CompatibilityView: View {
     @EnvironmentObject private var env: AppEnvironment
-    @State private var state: LoadingState<String> = .empty
+    @State private var vm: CompatibilityViewModel?
 
     var body: some View {
         NavigationStack {
@@ -13,56 +20,102 @@ struct CompatibilityView: View {
                 BaziTheme.backgroundGradient.ignoresSafeArea()
                 content
             }
-            .navigationTitle("合盘")
+            .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbar {
+                if case .resultReady = vm?.state {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("返回修改") { vm?.backToConfig() }
+                            .foregroundStyle(BaziTheme.gold)
+                    }
+                }
+            }
+        }
+        .task {
+            if vm == nil {
+                vm = CompatibilityViewModel(
+                    orchestrator: env.compatibilityOrchestrator,
+                    chartStore: env.chartSnapshotStore,
+                    compatibilityStore: env.compatibilitySnapshotStore,
+                    modelContext: env.modelContainer.mainContext
+                )
+            }
+            vm?.loadArchivedCharts()
+        }
+    }
+
+    private var navigationTitle: String {
+        switch vm?.state {
+        case .resultReady: return "合盘结果"
+        default:           return "合盘"
         }
     }
 
     @ViewBuilder
     private var content: some View {
-        switch state {
-        case .empty:
-            EmptyStateView(
-                title: "双人合盘",
-                subtitle: "选择两个命盘,分析五行生克与流年同步性",
-                ctaTitle: "选择命盘",
-                action: triggerStub
-            )
-        case .loading:
-            LoadingStateView(title: "正在合盘…")
-        case .error(let error):
-            ErrorStateView(error: error, retry: triggerStub)
-        case .success(let msg):
-            SuccessCardView(
-                title: "合盘完成",
-                bodyText: msg,
-                ctaTitle: nil,
-                action: nil
-            )
+        if let vm {
+            switch vm.state {
+            case .loading:
+                LoadingStateView(title: "准备中…")
+            case .empty:
+                CompatibilityEmptyView {
+                    NotificationCenter.default.post(
+                        name: .switchTab, object: nil, userInfo: ["tab": "deepAnalysis"]
+                    )
+                }
+            case .configuring:
+                CompatibilityConfigView(vm: vm) {
+                    vm.compute()
+                }
+            case .computing:
+                LoadingStateView(title: "推演合盘中…")
+            case .resultReady(let response, let interpretState):
+                if let chartA = vm.archivedCharts[safe: vm.selectedChartAIndex]?.snapshot,
+                   let chartB = vm.bChartSnapshot {
+                    CompatibilityMainView(
+                        vm: vm,
+                        response: response,
+                        interpretState: interpretState,
+                        chartASnapshot: chartA,
+                        chartBSnapshot: chartB,
+                        onBackToConfig: { vm.backToConfig() },
+                        onGenerateInterpret: { vm.generateInterpretation() }
+                    )
+                } else {
+                    ErrorStateView(
+                        error: NSError(
+                            domain: "Compatibility", code: -1,
+                            userInfo: [NSLocalizedDescriptionKey: "命盘数据读取失败"]
+                        ),
+                        retry: { vm.backToConfig() }
+                    )
+                }
+            case .failed(let message):
+                ErrorStateView(
+                    error: NSError(
+                        domain: "Compatibility", code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: message]
+                    ),
+                    retry: { vm.loadArchivedCharts() }
+                )
+            }
+        } else {
+            ProgressView().tint(BaziTheme.gold)
         }
     }
+}
 
-    private func triggerStub() {
-        state = .loading
-        Task {
-            do {
-                // stub:后端未实现 /api/bazi/compatibility,预期 throw
-                let req = CompatibilityRequest(
-                    personAHash: "stub_a",
-                    personB: PersonBInput(
-                        birthDatetime: Date(),
-                        gender: "male",
-                        city: "北京",
-                        ziHourRule: "zi_next_day"
-                    ),
-                    context: "general"
-                )
-                let resp = try await env.apiClient.compatibility(request: req)
-                state = .success("compatibility_hash=\(resp.compatibilityHash)")
-            } catch {
-                state = .error(error)
-            }
-        }
+// MARK: - switchTab Notification
+
+extension Notification.Name {
+    /// 切 Tab 通知(rawValue 唯一命名,决策 D1 / 风险 #4)。
+    /// userInfo: ["tab": "deepAnalysis" / "compatibility" / "dailyFortune"]
+    static let switchTab = Notification.Name("com.qicompass.switchTab")
+}
+
+private extension Array {
+    subscript(safe index: Int) -> Element? {
+        indices.contains(index) ? self[index] : nil
     }
 }

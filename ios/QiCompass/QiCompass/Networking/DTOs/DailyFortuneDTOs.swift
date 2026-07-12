@@ -40,6 +40,10 @@ struct PillarRefDTO: Codable, Sendable {
 }
 
 /// 客户端从存档 ChartSnapshot.payload 解出的核心字段,作为可信源传给后端。
+///
+/// 兼容字段(合盘用,daily-fortune 不填不影响):
+/// - `luckPillars`:合盘算「{大运} {流年}」必需
+/// - `calcRuleSnapshot`:合盘 response 需要回显规则快照
 struct ChartPayloadDTO: Codable, Sendable {
     let dayMaster: String
     let dayMasterElement: String
@@ -47,6 +51,8 @@ struct ChartPayloadDTO: Codable, Sendable {
     let favorableElements: [String]
     let unfavorableElements: [String]
     let fourPillars: [String: PillarRefDTO]
+    let luckPillars: [LuckPillarDTO]?
+    let calcRuleSnapshot: CalcRuleSnapshotDTO?
 
     enum CodingKeys: String, CodingKey {
         case dayMaster = "day_master"
@@ -55,9 +61,51 @@ struct ChartPayloadDTO: Codable, Sendable {
         case favorableElements = "favorable_elements"
         case unfavorableElements = "unfavorable_elements"
         case fourPillars = "four_pillars"
+        case luckPillars = "luck_pillars"
+        case calcRuleSnapshot = "calc_rule_snapshot"
     }
 
-    /// MockAPIClient / 测试用占位(日主甲木 weak)。
+    /// daily-fortune 路径主构造器(不带扩展字段)。
+    init(
+        dayMaster: String,
+        dayMasterElement: String,
+        dayMasterStrength: String,
+        favorableElements: [String],
+        unfavorableElements: [String],
+        fourPillars: [String: PillarRefDTO]
+    ) {
+        self.dayMaster = dayMaster
+        self.dayMasterElement = dayMasterElement
+        self.dayMasterStrength = dayMasterStrength
+        self.favorableElements = favorableElements
+        self.unfavorableElements = unfavorableElements
+        self.fourPillars = fourPillars
+        self.luckPillars = nil
+        self.calcRuleSnapshot = nil
+    }
+
+    /// 合盘路径完整构造器(带扩展字段)。
+    init(
+        dayMaster: String,
+        dayMasterElement: String,
+        dayMasterStrength: String,
+        favorableElements: [String],
+        unfavorableElements: [String],
+        fourPillars: [String: PillarRefDTO],
+        luckPillars: [LuckPillarDTO],
+        calcRuleSnapshot: CalcRuleSnapshotDTO
+    ) {
+        self.dayMaster = dayMaster
+        self.dayMasterElement = dayMasterElement
+        self.dayMasterStrength = dayMasterStrength
+        self.favorableElements = favorableElements
+        self.unfavorableElements = unfavorableElements
+        self.fourPillars = fourPillars
+        self.luckPillars = luckPillars
+        self.calcRuleSnapshot = calcRuleSnapshot
+    }
+
+    /// MockAPIClient / 测试用占位(日主甲木 balanced)。
     static let placeholder = ChartPayloadDTO(
         dayMaster: "甲",
         dayMasterElement: "wood",

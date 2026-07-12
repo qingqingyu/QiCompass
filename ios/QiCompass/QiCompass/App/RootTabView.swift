@@ -2,27 +2,48 @@ import SwiftUI
 
 /// 根 TabView:三 Tab(深度解析 / 合盘 / 每日运势)。
 /// 视觉 token:主背景渐变 `#0d0b08 → #12100d → #0a0c10`,主金 `#c9a03c`。
+///
+/// 监听 `.switchTab` Notification(决策 D3):合盘空态 CTA → 切到深度解析。
 struct RootTabView: View {
     @EnvironmentObject private var env: AppEnvironment
+    @State private var selectedTab: Tab = .deepAnalysis
+
+    enum Tab: Hashable {
+        case deepAnalysis
+        case compatibility
+        case dailyFortune
+    }
 
     var body: some View {
-        TabView {
+        TabView(selection: $selectedTab) {
             DeepAnalysisView()
+                .tag(Tab.deepAnalysis)
                 .tabItem {
                     Label("深度解析", systemImage: "chart.bar.xaxis")
                 }
 
             CompatibilityView()
+                .tag(Tab.compatibility)
                 .tabItem {
                     Label("合盘", systemImage: "person.2")
                 }
 
             DailyFortuneView()
+                .tag(Tab.dailyFortune)
                 .tabItem {
                     Label("每日运势", systemImage: "sun.max")
                 }
         }
         .tint(BaziTheme.gold)
+        .onReceive(NotificationCenter.default.publisher(for: .switchTab)) { note in
+            guard let raw = note.userInfo?["tab"] as? String else { return }
+            switch raw {
+            case "deepAnalysis":  selectedTab = .deepAnalysis
+            case "compatibility": selectedTab = .compatibility
+            case "dailyFortune":  selectedTab = .dailyFortune
+            default: break
+            }
+        }
     }
 }
 
