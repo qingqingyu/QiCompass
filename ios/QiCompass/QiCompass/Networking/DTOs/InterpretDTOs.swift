@@ -34,6 +34,56 @@ struct InterpretRequest: Codable, Sendable {
         self.targetDate = targetDate
         self.question = question
     }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        contentHash = try container.decode(String.self, forKey: .contentHash)
+        module = try container.decode(String.self, forKey: .module)
+        context = try container.decode([String: AnyCodableJSON].self, forKey: .context)
+        if let targetDateString = try container.decodeIfPresent(String.self, forKey: .targetDate) {
+            guard let parsed = Self.parseTargetDate(targetDateString) else {
+                throw DecodingError.dataCorruptedError(
+                    forKey: .targetDate,
+                    in: container,
+                    debugDescription: "target_date must be yyyy-MM-dd"
+                )
+            }
+            targetDate = parsed
+        } else {
+            targetDate = nil
+        }
+        question = try container.decodeIfPresent(AnyCodableJSON.self, forKey: .question)
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(contentHash, forKey: .contentHash)
+        try container.encode(module, forKey: .module)
+        try container.encode(context, forKey: .context)
+        if let targetDate {
+            try container.encode(Self.formatTargetDate(targetDate), forKey: .targetDate)
+        } else {
+            try container.encodeNil(forKey: .targetDate)
+        }
+        try container.encodeIfPresent(question, forKey: .question)
+    }
+
+    private static func formatTargetDate(_ date: Date) -> String {
+        targetDateFormatter().string(from: date)
+    }
+
+    private static func parseTargetDate(_ value: String) -> Date? {
+        targetDateFormatter().date(from: value)
+    }
+
+    private static func targetDateFormatter() -> DateFormatter {
+        let f = DateFormatter()
+        f.calendar = Calendar(identifier: .gregorian)
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = .current
+        f.dateFormat = "yyyy-MM-dd"
+        return f
+    }
 }
 
 // MARK: - Response
@@ -82,7 +132,10 @@ struct AnyCodableJSON: Codable, Equatable, @unchecked Sendable {
         } else if let v = try? container.decode([String: AnyCodableJSON].self) {
             self.value = v.mapValues { $0.value }
         } else {
-            self.value = NSNull()
+            throw DecodingError.dataCorruptedError(
+                in: container,
+                debugDescription: "Unsupported JSON value"
+            )
         }
     }
 
@@ -104,7 +157,13 @@ struct AnyCodableJSON: Codable, Equatable, @unchecked Sendable {
         case let v as [String: Any]:
             try container.encode(v.mapValues { AnyCodableJSON($0) })
         default:
-            try container.encodeNil()
+            throw EncodingError.invalidValue(
+                value,
+                EncodingError.Context(
+                    codingPath: encoder.codingPath,
+                    debugDescription: "Unsupported JSON value type: \(type(of: value))"
+                )
+            )
         }
     }
 

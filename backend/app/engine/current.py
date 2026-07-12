@@ -8,7 +8,6 @@
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Any, Optional
 
 from lunar_python import Solar
 
@@ -36,7 +35,7 @@ def build_current_hour_pillar(now: datetime) -> str:
 
 
 def locate_current_luck_pillar(luck_pillars: list[LuckPillar],
-                                now: datetime) -> Optional[CurrentPillar]:
+                                now: datetime) -> CurrentPillar | None:
     """在 luck_pillars 里定位当前大运。
 
     匹配条件:start_year <= now.year <= end_year。

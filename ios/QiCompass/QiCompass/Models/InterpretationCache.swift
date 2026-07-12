@@ -13,7 +13,7 @@ final class InterpretationCache {
     @Attribute(.unique) var id: UUID
     var contentHash: String
     var module: String
-    var promptVersion: String
+    var promptVersion: Int
     var targetDate: Date?
     var interpretation: String
     var generatedAt: Date
@@ -22,7 +22,7 @@ final class InterpretationCache {
         id: UUID = UUID(),
         contentHash: String,
         module: String,
-        promptVersion: String,
+        promptVersion: Int,
         targetDate: Date? = nil,
         interpretation: String,
         generatedAt: Date = .now

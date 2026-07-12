@@ -1,15 +1,15 @@
 """八字排盘 Pydantic v2 schema。
 
 字段对齐 bazi-app-design-doc.md:96-156。
-本阶段喜忌/神煞占位返回确定性空值,后续 slice 再填充。
+喜忌/神煞由确定性规则引擎填充(决策 1 扶抑+调候+从格检测 / 决策 2 《三命通会》20 神煞)。
 """
 
 from __future__ import annotations
 
 from datetime import datetime
-from typing import Literal, Optional
+from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, Field, field_serializer, field_validator, model_validator
 
 
 # ---------- Request ----------
@@ -20,10 +20,10 @@ class BaziCalculateRequest(BaseModel):
     birth_datetime: datetime = Field(
         ..., description="ISO 8601,必须含时区,例 1990-03-15T14:30:00+08:00")
     gender: Literal["male", "female"]
-    city: Optional[str] = Field(None, description="城市名,与 longitude 至少传一个")
-    longitude: Optional[float] = Field(
+    city: str | None = Field(None, description="城市名,与 longitude 至少传一个")
+    longitude: float | None = Field(
         None, description="经度(东正西负),优先级高于 city")
-    zi_hour_rule: Literal["zi_next_day", "zi_same_day"] = Field(
+    zi_hour_rule: Literal["zi_next_day"] = Field(
         "zi_next_day", description="MVP 固定 zi_next_day,内部 setSect(1)")
 
     @field_validator("birth_datetime")
@@ -35,7 +35,7 @@ class BaziCalculateRequest(BaseModel):
 
     @field_validator("longitude")
     @classmethod
-    def longitude_range(cls, v: Optional[float]) -> Optional[float]:
+    def longitude_range(cls, v: float | None) -> float | None:
         if v is not None and not (-180.0 <= v <= 180.0):
             raise ValueError("longitude 必须在 [-180, 180] 区间")
         return v
@@ -112,6 +112,16 @@ class CalcRuleSnapshot(BaseModel):
     schema_version: int
 
 
+# ---------- 神煞 ----------
+
+class ShenshaItem(BaseModel):
+    """单条神煞命中(决策 2 《三命通会》单一来源)。"""
+
+    name: str
+    position: Literal["年柱", "月柱", "日柱", "时柱"]
+    source: str = "三命通会"
+
+
 # ---------- Response ----------
 
 class BaziCalculateResponse(BaseModel):
@@ -120,29 +130,36 @@ class BaziCalculateResponse(BaseModel):
     content_hash: str
     true_solar_time: datetime
     true_solar_offset_minutes: float
+
+    @field_serializer("true_solar_time")
+    def _serialize_true_solar_time(self, dt: datetime) -> str:
+        """去微秒:iOS .iso8601 dateDecodingStrategy 不支持小数秒。"""
+        return dt.replace(microsecond=0).isoformat()
     pillars: Pillars
     ming_gong: GanZhiNaYin
     shen_gong: GanZhiNaYin
     tai_yuan: GanZhiNaYin
     element_balance: ElementBalance
 
-    # 决策 1 喜忌占位 —— 后续 slice 填充
+    # 决策 1 喜忌 —— 扶抑+调候+从格检测(D3)
     favorable_elements: list[str] = Field(default_factory=list)
     unfavorable_elements: list[str] = Field(default_factory=list)
-    day_master_strength: Optional[str] = None
+    day_master_strength: Literal["strong", "weak", "balanced", "special_pattern"] | None = None
     tiaoshou_applied: bool = False
+    xiji_method: str | None = None  # "扶抑+调候" | "扶抑+调候(从格特征检测命中,未判定具体格局)"
+    pattern_hint: Literal["zhuanwang", "cong"] | None = None
 
-    # 决策 2 神煞占位 —— 独立 slice 填充(20 个查表,2.5-3 天)
-    shensha: list[dict] = Field(default_factory=list)
+    # 决策 2 神煞 —— 《三命通会》20 个固定清单
+    shensha: list[ShenshaItem] = Field(default_factory=list)
 
     luck_pillars: list[LuckPillar]
-    current_luck_pillar: Optional[CurrentPillar] = None
-    current_year_pillar: Optional[str] = None
-    current_day_pillar: Optional[str] = None
-    current_hour_pillar: Optional[str] = None
+    current_luck_pillar: CurrentPillar | None = None
+    current_year_pillar: str | None = None
+    current_day_pillar: str | None = None
+    current_hour_pillar: str | None = None
 
     calc_rule_snapshot: CalcRuleSnapshot
-    boundary_warning: Optional[str] = None
+    boundary_warning: str | None = None
 
 
 # ---------- Error ----------
@@ -150,8 +167,8 @@ class BaziCalculateResponse(BaseModel):
 class ErrorBody(BaseModel):
     code: str
     message: str
-    request_id: Optional[str] = None
-    content_hash: Optional[str] = None
+    request_id: str | None = None
+    content_hash: str | None = None
 
 
 class ErrorResponse(BaseModel):

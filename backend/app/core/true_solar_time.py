@@ -12,8 +12,6 @@ import math
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 
-from ..config import DEFAULT_TIMEZONE_CENTRAL_LONGITUDE
-
 
 @dataclass(frozen=True)
 class SolarTimeResult:
@@ -44,6 +42,15 @@ def timezone_central_longitude(dt: datetime) -> float:
     return offset_hours * 15.0
 
 
+def shichen_bucket(hour: int) -> int:
+    """传统时辰桶序号(0=子, 1=丑, ..., 11=亥)。
+
+    (hour+1)%24//2 对齐传统时辰:子时=23/0→0,丑时=1/2→1,寅时=3/4→2...
+    content_hash.py 与本文件的边界检测共享此函数,避免公式分叉。
+    """
+    return (hour + 1) % 24 // 2
+
+
 def compute_true_solar_time(birth: datetime, longitude: float) -> SolarTimeResult:
     """计算真太阳时。
 
@@ -62,42 +69,19 @@ def compute_true_solar_time(birth: datetime, longitude: float) -> SolarTimeResul
 
     # 边界检测:对比 birth 与 adjusted 是否跨时辰(2h桶)/日/月/年
     # 时辰桶用本地日历组件(adjusted 已在同一时区)
+    # 注意:b_key != a_key 不等同于"跨时辰"——日期不同但 shichen_bucket 相同
+    # (如 23:50→次日 00:10 同属子时桶0)只算跨日,不算跨时辰
     boundary: set[str] = set()
-    b2h, a2h = birth.hour // 2, adjusted.hour // 2
-    # 注意:跨日后的时辰桶可能不同,但用日期+小时共同比较
-    b_key = (birth.year, birth.month, birth.day, birth.hour // 2)
-    a_key = (adjusted.year, adjusted.month, adjusted.day, adjusted.hour // 2)
-    if b_key != a_key:
-        # 分辨跨了哪一层
-        if birth.year != adjusted.year:
-            boundary.add("年")
+    if shichen_bucket(birth.hour) != shichen_bucket(adjusted.hour):
+        boundary.add("时辰")
+    b_date = (birth.year, birth.month, birth.day)
+    a_date = (adjusted.year, adjusted.month, adjusted.day)
+    if b_date != a_date:
+        boundary.add("日")
         if (birth.year, birth.month) != (adjusted.year, adjusted.month):
             boundary.add("月")
-        if (birth.year, birth.month, birth.day) != (
-            adjusted.year,
-            adjusted.month,
-            adjusted.day,
-        ):
-            boundary.add("日")
-        # 桶不同但日期相同 → 仅跨时辰
-        if (birth.year, birth.month, birth.day) == (
-            adjusted.year,
-            adjusted.month,
-            adjusted.day,
-        ) and birth.hour // 2 != adjusted.hour // 2:
-            boundary.add("时辰")
-        elif (birth.year, birth.month, birth.day) != (
-            adjusted.year,
-            adjusted.month,
-            adjusted.day,
-        ):
-            # 跨日的同时必然跨时辰桶
-            boundary.add("时辰")
+            if birth.year != adjusted.year:
+                boundary.add("年")
 
     return SolarTimeResult(adjusted=adjusted, offset_minutes=round(offset, 2),
                             boundary_crossed=boundary)
-
-
-def default_timezone_central_longitude() -> float:
-    """暴露默认值(测试与 snapshot 用)。"""
-    return DEFAULT_TIMEZONE_CENTRAL_LONGITUDE

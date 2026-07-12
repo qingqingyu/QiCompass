@@ -10,6 +10,7 @@ from __future__ import annotations
 import logging
 import time
 import uuid
+from typing import NoReturn
 
 from fastapi import APIRouter, Request
 from starlette.concurrency import run_in_threadpool
@@ -69,7 +70,7 @@ async def calculate_bazi(req: BaziCalculateRequest, request: Request) -> BaziCal
 
 
 def _log_and_reraise(e: Exception, input_log: dict, start: float,
-                      content_hash: str | None) -> None:
+                      content_hash: str | None) -> NoReturn:
     """记错误日志后重新抛出(全局 handler 接管响应)。"""
     elapsed_ms = (time.perf_counter() - start) * 1000
     logger.exception(

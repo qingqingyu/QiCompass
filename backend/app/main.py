@@ -3,16 +3,21 @@
 from __future__ import annotations
 
 import logging
+import os
 import uuid
+from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
+from .ai.cache import InterpretationCache
+from .ai.claude_client import ClaudeClient
 from .api import bazi as bazi_api
 from .api import health as health_api
-from .config import MODEL_ID
+from .api import interpret as interpret_api
+from .config import ANTHROPIC_API_KEY, CLAUDE_MODEL, DB_PATH, MODEL_ID
 from .errors import BaziError
 from .models.bazi import ErrorBody, ErrorResponse
 
@@ -20,6 +25,8 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s %(message)s",
 )
+
+logger = logging.getLogger(__name__)
 
 
 class RequestIdMiddleware(BaseHTTPMiddleware):
@@ -33,11 +40,39 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
         return response
 
 
-app = FastAPI(title="QiCompass Bazi Backend", version=MODEL_ID)
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """lifespan 启动:
+    - mkdir -p data/ 目录
+    - 初始化 SQLite 表(CREATE TABLE IF NOT EXISTS,幂等)
+    - 构造 ClaudeClient(api_key 缺失也构造,调用时显式报 503)
+    - 构造 InterpretationCache 挂 app.state
+    """
+    db_dir = os.path.dirname(DB_PATH)
+    if db_dir:
+        os.makedirs(db_dir, exist_ok=True)
+
+    cache = InterpretationCache(DB_PATH)
+    cache.init_schema()  # 幂等;失败则启动报错(不吞)
+    app.state.cache = cache
+
+    app.state.claude_client = ClaudeClient(
+        api_key=ANTHROPIC_API_KEY, model=CLAUDE_MODEL,
+    )
+    logger.info(
+        "startup ok db_path=%s claude_model=%s api_key_configured=%s",
+        DB_PATH, CLAUDE_MODEL, bool(ANTHROPIC_API_KEY),
+    )
+    yield
+    # 无特殊清理(SQLite / httpx 均为短连接)
+
+
+app = FastAPI(title="QiCompass Bazi Backend", version=MODEL_ID, lifespan=lifespan)
 app.add_middleware(RequestIdMiddleware)
 
 app.include_router(health_api.router)
 app.include_router(bazi_api.router)
+app.include_router(interpret_api.router)
 
 
 # ---------- 异常 handler(错误显式传播,统一响应结构)----------

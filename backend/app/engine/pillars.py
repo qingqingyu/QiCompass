@@ -27,13 +27,6 @@ ZHI_ELEMENT: dict[str, str] = {
     "辰": "earth", "戌": "earth", "丑": "earth", "未": "earth",
 }
 
-# 五行中文 → 英文(统计用)
-WUXING_CN_TO_EN: dict[str, str] = {
-    "金": "metal", "木": "wood", "水": "water",
-    "火": "fire", "土": "earth",
-}
-WUXING_EN_TO_CN: dict[str, str] = {v: k for k, v in WUXING_CN_TO_EN.items()}
-
 
 def _build_pillar(ec: Any, prefix: str) -> Pillar:
     """从 EightChar 构造单柱。
@@ -43,6 +36,12 @@ def _build_pillar(ec: Any, prefix: str) -> Pillar:
     gan_zhi: str = getattr(ec, f"get{prefix}")()
     gan: str = getattr(ec, f"get{prefix}Gan")()
     zhi: str = getattr(ec, f"get{prefix}Zhi")()
+    gan_element = GAN_ELEMENT.get(gan)
+    if gan_element is None:
+        raise ValueError(f"未知天干: {gan!r}")
+    zhi_element = ZHI_ELEMENT.get(zhi)
+    if zhi_element is None:
+        raise ValueError(f"未知地支: {zhi!r}")
     hide_gan: list[str] = list(getattr(ec, f"get{prefix}HideGan")())
     shishen_gan: str = getattr(ec, f"get{prefix}ShiShenGan")()
     shishen_zhi: list[str] = list(getattr(ec, f"get{prefix}ShiShenZhi")())
@@ -54,8 +53,8 @@ def _build_pillar(ec: Any, prefix: str) -> Pillar:
         gan_zhi=gan_zhi,
         gan=gan,
         zhi=zhi,
-        gan_element=GAN_ELEMENT.get(gan, "unknown"),
-        zhi_element=ZHI_ELEMENT.get(zhi, "unknown"),
+        gan_element=gan_element,
+        zhi_element=zhi_element,
         hide_gan=hide_gan,
         shishen_gan=shishen_gan,
         shishen_zhi=shishen_zhi,
@@ -82,10 +81,16 @@ def compute_element_balance(pillars: Pillars) -> ElementBalance:
     """
     counts = {"wood": 0, "fire": 0, "earth": 0, "metal": 0, "water": 0}
     for p in (pillars.year, pillars.month, pillars.day, pillars.hour):
-        if p.gan_element in counts:
-            counts[p.gan_element] += 1
-        if p.zhi_element in counts:
-            counts[p.zhi_element] += 1
+        if p.gan_element not in counts:
+            raise ValueError(
+                f"未知天干五行: {p.gan_element!r}, pillar={p.gan_zhi!r}"
+            )
+        if p.zhi_element not in counts:
+            raise ValueError(
+                f"未知地支五行: {p.zhi_element!r}, pillar={p.gan_zhi!r}"
+            )
+        counts[p.gan_element] += 1
+        counts[p.zhi_element] += 1
     return ElementBalance(**counts)
 
 

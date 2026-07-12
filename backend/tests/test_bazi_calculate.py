@@ -5,7 +5,7 @@
 - content_hash 一致性(同输入)
 - 不同经度不同 hash
 - longitude 优先级高于 city
-- 占位空值(喜忌/神煞)
+- 喜忌/神煞已填充(决策 1 + 决策 2 规则引擎输出)
 - 大运第一个非空(已跳 index=0)
 - calc_rule_snapshot 确定性(无 calculated_at)
 - boundary_warning 非空
@@ -23,6 +23,7 @@ from datetime import datetime, timedelta, timezone
 import pytest
 from httpx import ASGITransport, AsyncClient
 
+import app.engine.bazi_engine as bazi_engine
 from app.main import app
 
 TZ8 = timezone(timedelta(hours=8))
@@ -71,14 +72,33 @@ async def test_calculate_doc_example_full_response():
     assert sum(eb.values()) == 8
 
 
-async def test_calculate_placeholder_empty_values():
-    """喜忌/神煞占位返回确定性空值,前端不崩。"""
+async def test_calculate_xiji_shensha_filled():
+    """喜忌/神煞已由规则引擎填充(不再是占位空值)。
+
+    DOC_EXAMPLE:1990-03-15 14:30 北京,男,庚午己卯己卯辛未,日干己土 weak。
+    """
     _, body, _ = await _post(DOC_EXAMPLE)
-    assert body["favorable_elements"] == []
-    assert body["unfavorable_elements"] == []
-    assert body["day_master_strength"] is None
-    assert body["tiaoshou_applied"] is False
-    assert body["shensha"] == []
+    # 喜忌:普通盘非空 + 合法枚举
+    assert body["day_master_strength"] in ("strong", "weak", "balanced", "special_pattern")
+    assert body["xiji_method"] is not None
+    assert "扶抑+调候" in body["xiji_method"]
+    if body["day_master_strength"] != "special_pattern":
+        assert body["favorable_elements"], "普通盘喜用不应为空"
+        assert body["unfavorable_elements"], "普通盘忌讳不应为空"
+        valid = {"木", "火", "土", "金", "水"}
+        assert all(e in valid for e in body["favorable_elements"])
+        assert all(e in valid for e in body["unfavorable_elements"])
+        assert body["pattern_hint"] is None
+    else:
+        assert body["favorable_elements"] == []
+        assert body["unfavorable_elements"] == []
+        assert body["pattern_hint"] in ("zhuanwang", "cong")
+    # 神煞:至少有结构化字段(可能为空列表,但必须是 list[ShenshaItem])
+    assert isinstance(body["shensha"], list)
+    for s in body["shensha"]:
+        assert s["name"], "神煞 name 不应为空"
+        assert s["position"] in ("年柱", "月柱", "日柱", "时柱")
+        assert s["source"] == "三命通会"
 
 
 async def test_calculate_luck_pillars_skip_index0():
@@ -97,6 +117,25 @@ async def test_calculate_content_hash_deterministic():
     _, b1, _ = await _post(DOC_EXAMPLE)
     _, b2, _ = await _post(DOC_EXAMPLE)
     assert b1["content_hash"] == b2["content_hash"]
+
+
+async def test_calculate_true_solar_time_no_microseconds():
+    """true_solar_time 序列化不含微秒(iOS .iso8601 dateDecodingStrategy 不支持小数秒)。"""
+    _, body, _ = await _post(DOC_EXAMPLE)
+    tst = body["true_solar_time"]
+    assert "." not in tst, f"true_solar_time 含微秒(iOS 解码会失败): {tst}"
+
+
+async def test_calculate_xiji_shensha_deterministic():
+    """相同输入两次调用,喜忌/神煞结果完全一致(确定性)。"""
+    _, b1, _ = await _post(DOC_EXAMPLE)
+    _, b2, _ = await _post(DOC_EXAMPLE)
+    assert b1["favorable_elements"] == b2["favorable_elements"]
+    assert b1["unfavorable_elements"] == b2["unfavorable_elements"]
+    assert b1["day_master_strength"] == b2["day_master_strength"]
+    assert b1["xiji_method"] == b2["xiji_method"]
+    assert b1["pattern_hint"] == b2["pattern_hint"]
+    assert b1["shensha"] == b2["shensha"]
 
 
 async def test_calculate_calc_rule_snapshot_deterministic_no_calculated_at():
@@ -196,6 +235,31 @@ async def test_error_invalid_gender_returns_422():
         "city": "北京",
     })
     assert code == 422
+
+
+async def test_error_unsupported_zi_hour_rule_returns_422():
+    """MVP 只实现 zi_next_day;不允许请求声明未实现的 zi_same_day。"""
+    code, body, _ = await _post({**DOC_EXAMPLE, "zi_hour_rule": "zi_same_day"})
+    assert code == 422
+    assert body["error"]["code"] == "INVALID_INPUT"
+    assert "zi_hour_rule" in body["error"]["message"]
+
+
+async def test_error_rule_engine_failure_keeps_content_hash(monkeypatch):
+    """规则引擎失败时仍把已计算的 content_hash 传到 UI 错误层。"""
+
+    def fail_compute_xiji(_pillars, _element_balance):
+        raise RuntimeError("forced xiji failure")
+
+    monkeypatch.setattr(bazi_engine, "compute_xiji", fail_compute_xiji)
+
+    code, body, _ = await _post(DOC_EXAMPLE)
+
+    assert code == 500
+    err = body["error"]
+    assert err["code"] == "BAZI_CALCULATION_FAILED"
+    assert err["content_hash"]
+    assert "RuntimeError" in err["message"]
 
 
 async def test_error_response_envelope_structure():

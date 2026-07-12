@@ -3,17 +3,38 @@ import SwiftUI
 import SwiftData
 
 /// App 级依赖注入容器。
-/// 持有 ModelContainer + APIClient,通过 EnvironmentKey 注入 View 树。
+/// 持有 ModelContainer + APIClient + 深度解析编排链路(store/counter/orchestrator),
+/// 通过 EnvironmentKey 注入 View 树。
 @MainActor
 final class AppEnvironment: ObservableObject {
     let modelContainer: ModelContainer
     let apiClient: APIClient
     let useMockClient: Bool
 
+    // 深度解析编排链路(方案 §六 步骤 13 装配)
+    let chartSnapshotStore: ChartSnapshotStore
+    let interpretationCacheStore: InterpretationCacheStore
+    let dailyReadCounter: DailyReadCounter
+    let deepAnalysisOrchestrator: DeepAnalysisOrchestrator
+
     init(modelContainer: ModelContainer, apiClient: APIClient, useMockClient: Bool) {
         self.modelContainer = modelContainer
         self.apiClient = apiClient
         self.useMockClient = useMockClient
+
+        let context = modelContainer.mainContext
+        let chartStore = ChartSnapshotStore(context: context)
+        let interpretStore = InterpretationCacheStore(context: context)
+        let counter = DailyReadCounter()
+        self.chartSnapshotStore = chartStore
+        self.interpretationCacheStore = interpretStore
+        self.dailyReadCounter = counter
+        self.deepAnalysisOrchestrator = DeepAnalysisOrchestrator(
+            apiClient: apiClient,
+            chartStore: chartStore,
+            interpretStore: interpretStore,
+            counter: counter
+        )
     }
 
     /// 从 Info.plist 读取 BackendBaseURL(Debug: localhost HTTP / Release: 生产域名)。

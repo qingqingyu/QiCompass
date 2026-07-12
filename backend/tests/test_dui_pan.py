@@ -17,15 +17,44 @@ from tests.fixtures.lunar_test_cases import LUNAR_CASES
 from tests.fixtures.yun_test_cases import YUN_CASES
 
 _BUILDERS = {"Solar": Solar, "Lunar": Lunar}
-# 方法链白名单:只允许 obj.xxx().yyy()[i] 形式(防 eval 注入)
-_CHAIN_RE = re.compile(r"^obj(?:\.[a-zA-Z_]\w*\(\))*(?:\[\d+\])?$")
+# 方法链白名单:只允许 obj.xxx().yyy()[i] 形式
+_CHAIN_RE = re.compile(r"^obj(?:\.[a-zA-Z]\w*\(\))+(?:\[\d+\])?$")
 
 
 def _eval_chain(obj, chain: str):
-    """安全执行方法链(白名单校验,无 __builtins__)。"""
+    """安全执行方法链(白名单校验,不用 eval)。"""
     if not _CHAIN_RE.match(chain):
         raise ValueError(f"非法方法链: {chain}")
-    return eval(chain, {"__builtins__": {}}, {"obj": obj})
+    # 解析 "obj.getLunar().toString()" → ["getLunar()", "toString()"]
+    # 解析 "obj.getFestivals()[0]" → ["getFestivals()[0]"]
+    tokens = chain.split(".")[1:]  # 去掉 "obj"
+    result = obj
+    for token in tokens:
+        if token.endswith("()"):
+            result = getattr(result, token[:-2])()
+        elif token.endswith("]"):
+            # 形如 "getFestivals()[0]"
+            method_part, index_part = token.split("[")
+            if method_part:
+                # method_part 形如 "getFestivals()",去掉尾部的 "()"
+                result = getattr(result, method_part[:-2])()
+            idx = int(index_part.rstrip("]"))
+            result = result[idx]
+        else:
+            raise ValueError(f"无法解析 token: {token}")
+    return result
+
+
+def test_eval_chain_rejects_private_method_names():
+    """方法链只允许公开方法名,避免测试 fixture 误调用 dunder/private API。"""
+    with pytest.raises(ValueError):
+        _eval_chain(object(), "obj.__class__()")
+
+
+def test_eval_chain_rejects_direct_object_indexing():
+    """方法链必须至少调用一个公开方法,不能直接索引 obj 本身。"""
+    with pytest.raises(ValueError):
+        _eval_chain(["unexpected"], "obj[0]")
 
 
 # ===== 库层对盘 20 用例 =====

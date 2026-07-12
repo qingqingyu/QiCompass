@@ -37,5 +37,10 @@ Icon?
 *.tmp
 *.bak
 
+# 后端 SQLite 缓存(/api/interpret D2)
+data/
+
 # 本地开发工具（不进 git）
 /dev-flow.sh
+/run-slices.sh
+/dev-flow-logs/

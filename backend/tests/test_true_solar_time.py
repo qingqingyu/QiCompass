@@ -40,6 +40,13 @@ def test_timezone_central_longitude_cst_is_120():
     assert timezone_central_longitude(dt) == pytest.approx(120.0)
 
 
+def test_timezone_central_longitude_uses_datetime_offset():
+    """西五区中心经度 = 75°W,覆盖海外出生地/非东八区路径。"""
+    tz5_west = timezone(timedelta(hours=-5))
+    dt = datetime(2020, 6, 1, 12, 0, tzinfo=tz5_west)
+    assert timezone_central_longitude(dt) == pytest.approx(-75.0)
+
+
 def test_true_solar_time_beijing_offset_negative():
     """北京(116.41)经度时差 = (116.41-120)*4 ≈ -14.36 分钟。
 
@@ -67,6 +74,25 @@ def test_true_solar_time_boundary_cross_hour_bucket():
     dt = datetime(1990, 3, 15, 1, 50, tzinfo=TZ8)
     r = compute_true_solar_time(dt, 87.62)
     assert "时辰" in r.boundary_crossed
+    assert "日" in r.boundary_crossed
+
+
+def test_true_solar_time_same_zi_hour_across_midnight_no_shichen_boundary():
+    """同子时跨午夜:23:50 → 次日 00:10(同子时桶0)→ 只跨日,不跨时辰。
+
+    回归测试:防止边界检测把"日期不同但 shichen_bucket 相同"误判为跨时辰。
+    构造:11 月初 EoT ≈ +16 分钟,经度 121° → 经度时差 +4 分钟 → offset ≈ +20 分钟。
+    birth=23:50 → adjusted ≈ 00:10 次日。
+    """
+    dt = datetime(2020, 11, 3, 23, 50, tzinfo=TZ8)
+    r = compute_true_solar_time(dt, 121.0)
+    # adjusted 应在次日 00:00 附近
+    assert r.adjusted.day != dt.day, "测试前提:应跨日"
+    # 同子时桶(shichen_bucket(23)=0, shichen_bucket(0)=0)→ 不应报跨时辰
+    assert "时辰" not in r.boundary_crossed, (
+        f"同子时跨午夜不应报跨时辰,boundary={r.boundary_crossed}"
+    )
+    # 但应报跨日
     assert "日" in r.boundary_crossed
 
 

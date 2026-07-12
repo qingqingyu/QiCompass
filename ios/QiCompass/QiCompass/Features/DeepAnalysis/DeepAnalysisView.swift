@@ -1,12 +1,18 @@
 import SwiftUI
 import SwiftData
 
-/// Tab 1:深度解析(占位)。
-/// 四态:loading / empty / error / success。
-/// 脚手架阶段调用 apiClient.health() 验证链路;正式 slice 替换为排盘表单。
+/// Tab 1:深度解析(状态机根,方案 §一)。
+///
+/// 主状态机:
+/// - .empty / .formInvalid → BirthFormView
+/// - .calculating(stage) → 分阶段加载文案
+/// - .chartReady(response, _) → DeepAnalysisResultView(AI 子状态独立)
+/// - .chartFailed(message) → 原始错误 + 重试
+///
+/// VM 首次 appear 时用 env.deepAnalysisOrchestrator 创建(@State + .task)。
 struct DeepAnalysisView: View {
     @EnvironmentObject private var env: AppEnvironment
-    @State private var state: LoadingState<HealthResponse> = .empty
+    @State private var vm: DeepAnalysisViewModel?
 
     var body: some View {
         NavigationStack {
@@ -28,46 +34,87 @@ struct DeepAnalysisView: View {
             }
             #endif
         }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        switch state {
-        case .empty:
-            EmptyStateView(
-                title: "四柱八字深度解析",
-                subtitle: "输入出生信息,排盘解析命局",
-                ctaTitle: "开始排盘",
-                action: checkHealth
-            )
-        case .loading:
-            LoadingStateView(title: "正在排盘…")
-        case .error(let error):
-            ErrorStateView(error: error, retry: checkHealth)
-        case .success(let resp):
-            SuccessCardView(
-                title: "命盘已就绪",
-                bodyText: "后端连通:\(resp.lunarPythonVersion)\n模型:\(resp.model)",
-                ctaTitle: nil,
-                action: nil
-            )
-        }
-    }
-
-    private func checkHealth() {
-        state = .loading
-        Task {
-            do {
-                let resp = try await env.apiClient.health()
-                state = .success(resp)
-            } catch {
-                state = .error(error)
+        .task {
+            if vm == nil {
+                vm = DeepAnalysisViewModel(orchestrator: env.deepAnalysisOrchestrator)
             }
         }
     }
+
+    @ViewBuilder
+    @MainActor
+    private var content: some View {
+        if let vm {
+            switch vm.state {
+            case .empty, .formInvalid:
+                BirthFormView(vm: vm, onSubmit: vm.calculate)
+            case .calculating(let stage):
+                calculatingView(stage: stage)
+            case .chartReady(let response, _):
+                if let request = vm.lastRequest {
+                    DeepAnalysisResultView(vm: vm, response: response, request: request)
+                } else {
+                    VStack {
+                        Text("数据异常:无请求记录")
+                            .foregroundStyle(.red)
+                        Button("返回表单") { vm.reset() }
+                            .foregroundStyle(BaziTheme.gold)
+                    }
+                }
+            case .chartFailed(let message):
+                errorView(message: message, retry: vm.retryCalculation, onBack: vm.reset)
+            }
+        } else {
+            ProgressView()
+                .tint(BaziTheme.gold)
+        }
+    }
+
+    private func calculatingView(stage: LoadingStage) -> some View {
+        VStack(spacing: 16) {
+            ProgressView()
+                .tint(BaziTheme.gold)
+            Text(stage.text)
+                .font(.body)
+                .foregroundStyle(BaziTheme.textDim)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+
+    private func errorView(
+        message: String,
+        retry: @escaping () -> Void,
+        onBack: @escaping () -> Void
+    ) -> some View {
+        VStack(spacing: 16) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 40))
+                .foregroundStyle(BaziTheme.gold.opacity(0.8))
+            Text("排盘失败")
+                .font(.title2.weight(.semibold))
+                .foregroundStyle(BaziTheme.goldLight)
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(BaziTheme.textDim)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal)
+            Button("重试", action: retry)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(BaziTheme.bgTop)
+                .padding(.horizontal, 32)
+                .padding(.vertical, 12)
+                .background(BaziTheme.gold, in: Capsule())
+            Button("返回表单", action: onBack)
+                .font(.caption)
+                .foregroundStyle(BaziTheme.gold)
+                .padding(.top, 8)
+        }
+        .padding()
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
 }
 
-// MARK: - Shared State Views
+// MARK: - Shared State Views(四态共用,被 Compatibility/DailyFortune/CRUDView 复用)
 
 /// 四态共用:加载中
 struct LoadingStateView: View {

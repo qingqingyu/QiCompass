@@ -93,7 +93,7 @@ final class SwiftDataCRUDVerifier {
             let cache = InterpretationCache(
                 contentHash: testHash,
                 module: "bazi_deep",
-                promptVersion: "1",
+                promptVersion: 1,
                 targetDate: nil,
                 interpretation: "CRUD 测试文本"
             )
@@ -163,7 +163,7 @@ final class SwiftDataCRUDVerifier {
         try await measure("read.InterpretationCache", hash: hash) {
             // 四元组 Predicate:(contentHash, module, promptVersion, targetDate)
             let module = "bazi_deep"
-            let promptVersion = "1"
+            let promptVersion = 1
             let desc = FetchDescriptor<InterpretationCache>(
                 predicate: #Predicate {
                     $0.contentHash == hash && $0.module == module && $0.promptVersion == promptVersion

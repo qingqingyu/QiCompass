@@ -4,7 +4,7 @@
 查不到 → 抛 CityNotFoundError(不静默用默认值)。
 """
 
-from ..errors import CityNotFoundError
+from ..errors import CityNotFoundError, InvalidInputError
 
 # 约 30 个常用城市(中国主要城市 + 部分海外华人聚集地)
 CITY_LONGITUDE: dict[str, float] = {
@@ -80,9 +80,6 @@ def resolve_longitude(city: str | None, longitude: float | None) -> float:
         CityNotFoundError: city 非空但查表失败
         InvalidInputError: city 和 longitude 都为空
     """
-    # 延迟导入避免循环引用
-    from ..errors import InvalidInputError
-
     if longitude is not None:
         return longitude
     if city is None:

@@ -27,3 +27,54 @@ def request_id() -> str:
 @pytest.fixture
 def tz8():
     return timezone(timedelta(hours=8))
+
+
+# ---------- /api/interpret 测试 fixtures ----------
+
+from tests.fixtures.mock_claude import MockClaudeClient  # noqa: E402
+
+
+@pytest.fixture
+def mock_claude_client() -> MockClaudeClient:
+    """默认 mock:返回固定文本,计数调用次数。"""
+    return MockClaudeClient()
+
+
+@pytest.fixture
+def tmp_cache(tmp_path) -> "InterpretationCache":
+    """临时 SQLite 缓存(用 tmp_path,测完即弃)。
+
+    Returns:
+        已 init_schema 的 InterpretationCache
+    """
+    from app.ai.cache import InterpretationCache
+    cache = InterpretationCache(str(tmp_path / "test_interpret.db"))
+    cache.init_schema()
+    return cache
+
+
+@pytest.fixture
+async def interpret_client(mock_claude_client, tmp_cache):
+    """FastAPI TestClient(ASGITransport),app.state 替换为 mock + tmp_db。
+
+    用法:
+        async with interpret_client as ac:
+            resp = await ac.post("/api/interpret", json={...})
+    """
+    from httpx import ASGITransport, AsyncClient
+    from app.main import app
+
+    # 保存原始 state(测试后恢复,避免污染其他测试)
+    saved_cache = getattr(app.state, "cache", None)
+    saved_claude = getattr(app.state, "claude_client", None)
+
+    app.state.cache = tmp_cache
+    app.state.claude_client = mock_claude_client
+
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app),
+                               base_url="http://test") as ac:
+            yield ac
+    finally:
+        app.state.cache = saved_cache
+        app.state.claude_client = saved_claude
