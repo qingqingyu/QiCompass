@@ -14,6 +14,8 @@ from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
+from .bazi import CalcRuleSnapshot, LuckPillar
+
 
 # ---------- chart_payload（客户端 → 后端，可信源）----------
 
@@ -29,6 +31,10 @@ class ChartPayload(BaseModel):
 
     后端**不**重新跑 BaziEngine.calculate，**不**反推 birth，**不**做完整性校验，
     只信任客户端传来的日主/喜忌/四柱。chart_hash 不参与完整性断言。
+
+    兼容字段（合盘用，daily_fortune 不填不影响）:
+    - luck_pillars: 合盘算「{大运} {流年}」必需
+    - calc_rule_snapshot: 合盘 response 需要回显规则快照
     """
 
     day_master: str = Field(..., description="日主天干，如「甲」")
@@ -38,6 +44,14 @@ class ChartPayload(BaseModel):
     unfavorable_elements: list[str] = Field(default_factory=list)
     four_pillars: dict[str, PillarRef] = Field(
         ..., description="{year,month,day,hour} 四柱，每柱含 gan/zhi。用于 chong_targets 命中检测")
+
+    # 合盘扩展字段（daily_fortune 不填; compatibility 必填）
+    luck_pillars: list[LuckPillar] = Field(
+        default_factory=list,
+        description="合盘用:daily_fortune 不填; compatibility 用于定位未来年份的大运")
+    calc_rule_snapshot: CalcRuleSnapshot | None = Field(
+        None,
+        description="合盘用:daily_fortune 不填; compatibility response 回显所需")
 
 
 # ---------- Response ----------
