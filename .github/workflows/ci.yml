@@ -1,0 +1,147 @@
+# QiCompass CI
+#
+# 设计目标(详见 bazi-app-design-doc.md §Distribution Plan):
+#   - backend pytest 每次 push + PR 都跑(ubuntu-latest,1x 计费)
+#   - iOS 编译检查仅在 ios/** 或 ci.yml 变更时跑(macos-latest,10x 计费)
+#   - iOS job 做 build-only(CODE_SIGNING_ALLOWED=NO),不签名不打包不 archive
+#   - 不做自动 TestFlight upload(side project 阶段手动 archive,详见 docs/archive-testflight.md)
+#
+# 前置条件(用户必须先做,否则 ios-build job 会失败):
+#   - 在 Xcode → Product → Scheme → Manage Schemes 勾选 Shared
+#   - commit ios/QiCompass/QiCompass.xcodeproj/xcshareddata/xcschemes/QiCompass.xcscheme
+#   - 详见 README.md "CI 前置条件" 章节
+#
+# 省 macOS minute 策略(私有 repo 关键):
+#   - 首选把 repo 设为 public(macOS runner 对 public repo 免费、无限制)
+#   - 私有时:iOS job 只在 ios/** 或 ci.yml 变更时跑(见 detect-ios-changes job)
+#   - backend job 跑在 ubuntu(1x 计费),每次都跑
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# 同一分支新 run 自动取消旧 run,省 minute
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  # ──────────────────────────────────────────────────────────────
+  # Job A: 后端 pytest(每次 push + PR 都跑,ubuntu 1x 计费)
+  # ──────────────────────────────────────────────────────────────
+  backend-test:
+    name: Backend pytest (ubuntu)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Run pytest
+        # 以 pytest 退出码为准,失败即 job 失败,不静默吞错
+        run: pytest -q
+
+  # ──────────────────────────────────────────────────────────────
+  # 变更检测:ios/** 或 .github/workflows/ci.yml 是否变更
+  # 原生 bash 实现,避免引入第三方 paths-filter action
+  # ──────────────────────────────────────────────────────────────
+  detect-ios-changes:
+    name: Detect ios/** changes
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.detect.outputs.changed }}
+
+    steps:
+      - name: Checkout (full history for diff)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changes in ios/** or .github/workflows/ci.yml
+        id: detect
+        run: |
+          set -uo pipefail
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            BASE="${{ github.event.pull_request.base.sha }}"
+            HEAD="${{ github.event.pull_request.head.sha }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            BASE="${{ github.event.before }}"
+            HEAD="${{ github.event.after }}"
+          else
+            # workflow_dispatch:手动触发总是跑 iOS job
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 新分支 / 首次 push:before 全零 → 总是跑
+          if [ -z "$BASE" ] || [ "$BASE" = "0000000000000000000000000000000000000000" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          CHANGED=$(git diff --name-only "$BASE" "$HEAD" | grep -E '^(\.github/workflows/ci\.yml|ios/)' || true)
+          if [ -n "$CHANGED" ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  # ──────────────────────────────────────────────────────────────
+  # Job B: iOS 编译检查(仅 ios/** 或 ci.yml 变更时跑)
+  # build-only,不签名不打包不 archive
+  # ──────────────────────────────────────────────────────────────
+  ios-build:
+    name: iOS build (compile check, macos)
+    needs: detect-ios-changes
+    if: needs.detect-ios-changes.outputs.changed == 'true'
+    runs-on: macos-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Print build metadata
+        # 显式输出 project/scheme/destination/version,失败时上下文完整(质量基线)
+        run: |
+          echo "=== Build metadata ==="
+          echo "Project:     ios/QiCompass/QiCompass.xcodeproj"
+          echo "Scheme:      QiCompass"
+          echo "Config:      Debug"
+          echo "Destination: platform=iOS Simulator,name=iPhone 15,OS=latest"
+          echo "Signing:     CODE_SIGNING_ALLOWED=NO (compile check only)"
+          echo "--- Xcode version ---"
+          xcodebuild -version
+          echo "--- Available iPhone simulators ---"
+          xcrun simctl list devices available | grep iPhone || echo "(no iPhone simulator found)"
+
+      - name: Build (compile check, no signing)
+        # 以 xcodebuild 退出码为准,失败即 job 失败
+        run: |
+          set -euo pipefail
+          xcodebuild \
+            -scheme QiCompass \
+            -project ios/QiCompass/QiCompass.xcodeproj \
+            -configuration Debug \
+            -destination 'platform=iOS Simulator,name=iPhone 15,OS=latest' \
+            CODE_SIGNING_ALLOWED=NO \
+            build

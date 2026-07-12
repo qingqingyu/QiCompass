@@ -515,7 +515,7 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
 9. **大运第一步（童限）展示**：跳过？还是单独标注"起运前"？
 10. **每日运势冷启动 UX**：用户打开 App 等 Claude 出 200-300 字 = 3-5 秒空白。考虑"瞬时显示流日基本信息（流日柱/冲/黄历宜忌，0 延迟）+ AI 解读异步流式追加"
 11. **lunar_python 同步库 × FastAPI async**：lunar_python 是同步 CPU-bound 库，FastAPI 是 async 框架。排盘调用必须用 `anyio.to_thread.run_sync()` 或 `starlette.concurrency.run_in_threadpool` 包，否则阻塞 event loop。实现 note
-12. **CI/CD**：Xcode Cloud（与 Xcode 集成深，但贵）vs GitHub Actions（灵活，免费额度），待拍板
+12. **~~CI/CD~~** ✅ 已拍板（2026-07-13）：选 **GitHub Actions**。理由：后端 pytest 必须在 Linux/macOS 跑（Xcode Cloud 完全管不到 backend）；单 workflow 同时覆盖 backend + iOS 符合本项目双端形态。详见 §Distribution Plan
 13. **喜忌规则引擎权重**：得令/得地/得势的权重值需要标定（spike 阶段跑 50 个真实命盘）
 14. **从格检测阈值**：决策 1b 的初值（专旺 ≥6/8、从格 ≥5/8）需用真实命盘验证
 15. **城市经度表数据源**：自己整理 vs 用现成 cities.json
@@ -531,6 +531,57 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
 - 首次使用到出深度解析 < 30 秒
 - 每日运势冷启动 < 5 秒（按需生成）
 
+## Distribution Plan
+
+> 2026-07-13 拍板。原 Open Question 12（CI/CD 选型）结论并入本章节，集中描述 CI + TestFlight 发布路径。操作级细节见 repo 根 `README.md`、`docs/archive-testflight.md`、`docs/testflight-seed-users.md`。
+
+### CI/CD 选型：GitHub Actions
+
+| 维度 | Xcode Cloud | GitHub Actions（选） |
+|---|---|---|
+| 与 Xcode 集成 | 原生 | 写 YAML |
+| 后端 pytest | ❌ 完全管不到 | ✅ ubuntu 跑 |
+| 一站式覆盖 backend + iOS | 不行 | 单 workflow 双 job |
+| 计费（私有 repo） | 25 compute min/mo 免费 | Free 2000 min/mo，macOS runner 10x 计费 |
+
+**选 GitHub Actions 的理由**：本项目有 FastAPI 后端，Xcode Cloud 无法覆盖 backend pytest；单 workflow 同时跑 backend（ubuntu）+ iOS（macos）符合双端形态。
+
+### CI workflow（`.github/workflows/ci.yml`）
+
+| Job | Runner | 触发 | 做什么 |
+|---|---|---|---|
+| `backend-test` | `ubuntu-latest`（1x 计费） | 每次 push + PR | `pip install` + `pytest -q` |
+| `ios-build` | `macos-latest`（10x 计费） | `ios/**` 或 ci.yml 变更 | `xcodebuild build CODE_SIGNING_ALLOWED=NO`（编译检查，不签名） |
+
+**前置条件（用户必须先做）**：iOS scheme 当前未 Shared（`xcshareddata/xcschemes/` 不存在）。用户必须在 Xcode → Product → Scheme → Manage Schemes 勾 Shared，并 commit `QiCompass.xcscheme` 到 repo，否则 CI `xcodebuild -scheme QiCompass` 找不到 scheme。
+
+**省 macOS minute 策略**（私有 repo 关键，macOS runner 10x 计费）：
+- 首选：repo 设为 **public**（macOS 免费、无限制）
+- 私有降级：iOS job 仅在 `ios/**` 或 ci.yml 变更时跑（见 ci.yml 的 `detect-ios-changes` job，原生 bash 实现，零第三方 action）；backend 跑在 ubuntu（1x）每次都跑
+- 接近上限：升级 GitHub Pro（$4/mo → 3000 min）
+
+**CI 不做的事**：不做 signing/archive/upload（本地手动或后续 release workflow）；不跑 iOS unit test（目前无）；不自动上传 TestFlight（side project 阶段手动）。
+
+### TestFlight 发布路径（手动 archive 主路径）
+
+完整步骤见 `docs/archive-testflight.md`，操作流：
+1. **前置**：Apple Developer Program 会员（$99/年）+ Xcode 选 Signing Team（填 `DEVELOPMENT_TEAM`，当前为空）+ Bundle ID `com.qicompass.app` 注册 + App Store Connect 创建 App
+2. **递增 build number**：每次上传前 `CURRENT_PROJECT_VERSION` +1（Apple 强制），否则拒收
+3. **Archive**：Xcode → Any iOS Device → Product → Archive → Distribute App → App Store Connect → Upload
+4. **Processing**：Apple 服务端处理 ~15-30 min → TestFlight 标签页可见
+5. **邀请 tester**：外部测试组，首次 build 需 beta review（~1 天）
+
+### 种子用户（5 人，外部测试组）
+
+详见 `docs/testflight-seed-users.md`。选外部测试组（非内部）：只需 email 不占 Team 席位，代价首次 build 需 beta review。反馈主推 TestFlight 内置反馈（自动带截图 + build 号 + 设备信息），SLA：单人开发 48h ack / 1 周集中回复。
+
+### v1 不做的事（Distribution 相关）
+
+- CI 自动 upload TestFlight（secrets 维护成本 + macOS archive 时间，side project 一周一次手动更简单）
+- 内部测试组（tester 必须在 Apple Team，占席位 / 权限风险）
+- TestFlight 公开邀请链接默认启用（泄露则任何人可装，默认关闭，需要时临时开）
+- App Store 正式上架（TestFlight 内测验证后再说）
+
 ## Next Steps
 
 1. ~~库选型 spike~~ ✅ 完成（lunar_python 1.4.8，所有期望字段已验证）
@@ -545,7 +596,7 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
 10. **每日运势模块**（3-4 天）：参 Open Question 10 的"瞬时显示 + AI 流式追加"
 11. **合盘模块**（1 周）
 12. **MVP 视觉打磨**（3-5 天）
-13. **TestFlight 内测**
+13. **TestFlight 内测**（流程见 §Distribution Plan）
 14. **根据真实命书质量迭代 prompt**
 
 ## V1 Minimum Viable Aesthetic
