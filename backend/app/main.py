@@ -15,6 +15,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from .ai.cache import InterpretationCache
 from .ai.claude_client import ClaudeClient
 from .api import bazi as bazi_api
+from .api import daily_fortune as daily_fortune_api
 from .api import health as health_api
 from .api import interpret as interpret_api
 from .config import ANTHROPIC_API_KEY, CLAUDE_MODEL, DB_PATH, MODEL_ID
@@ -72,6 +73,7 @@ app.add_middleware(RequestIdMiddleware)
 
 app.include_router(health_api.router)
 app.include_router(bazi_api.router)
+app.include_router(daily_fortune_api.router)
 app.include_router(interpret_api.router)
 
 
