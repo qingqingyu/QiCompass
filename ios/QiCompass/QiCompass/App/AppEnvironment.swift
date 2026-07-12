@@ -17,6 +17,10 @@ final class AppEnvironment: ObservableObject {
     let dailyReadCounter: DailyReadCounter
     let deepAnalysisOrchestrator: DeepAnalysisOrchestrator
 
+    // 每日运势编排链路(slice 6 装配,与深度解析共享 chartStore/interpretStore/counter)
+    let dailyFortuneSnapshotStore: DailyFortuneSnapshotStore
+    let dailyFortuneOrchestrator: DailyFortuneOrchestrator
+
     init(modelContainer: ModelContainer, apiClient: APIClient, useMockClient: Bool) {
         self.modelContainer = modelContainer
         self.apiClient = apiClient
@@ -33,6 +37,16 @@ final class AppEnvironment: ObservableObject {
             apiClient: apiClient,
             chartStore: chartStore,
             interpretStore: interpretStore,
+            counter: counter
+        )
+        // slice 6 装配:每日运势复用 chartStore/interpretStore/counter(决策 §3.8)
+        let dailyStore = DailyFortuneSnapshotStore(context: context)
+        self.dailyFortuneSnapshotStore = dailyStore
+        self.dailyFortuneOrchestrator = DailyFortuneOrchestrator(
+            apiClient: apiClient,
+            dailyStore: dailyStore,
+            interpretStore: interpretStore,
+            chartStore: chartStore,
             counter: counter
         )
     }

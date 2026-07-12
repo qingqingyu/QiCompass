@@ -76,11 +76,91 @@ enum PromptContextBuilder {
         ]
     }
 
+    // MARK: - Daily Fortune
+
+    /// 构造 daily_fortune module 的 prompt context。覆盖后端 `REQUIRED_FIELDS["daily_fortune"]`
+    /// 全部 17 字段(见 backend/app/ai/prompts.py:158-167)。
+    ///
+    /// 输入:
+    /// - `chartPayload`:从存档 ChartSnapshot.payload 解出的日主/喜忌/四柱
+    /// - `response`:后端 /api/bazi/daily-fortune 返回的 DailyFortuneResponse
+    /// - `businessDate`:客户端按 zi_hour_rule 算好的业务日期
+    static func buildDailyFortune(
+        chartPayload: ChartPayloadDTO,
+        response: DailyFortuneResponse,
+        businessDate: Date
+    ) -> [String: AnyCodableJSON] {
+        // 公历格式化
+        let dateStr = Self.dateOnlyFormatter.string(from: businessDate)
+
+        // 拆 day_pillar 前后 1 字
+        let dayPillar = response.dayPillar
+        let dayStem = String(dayPillar.prefix(1))
+        let dayBranch = String(dayPillar.suffix(1))
+        let dayStemElement = ElementColors.ofGan(dayStem).map { Self.elementToChinese($0) } ?? dayStem
+        let dayBranchElement = ElementColors.fromZh(dayBranch).map { Self.elementToChinese($0) } ?? dayBranch
+
+        // 流日冲(含命中位置)
+        let dayChongDisplay: String
+        if let chong = response.dayChong {
+            let targets = response.dayChongTargets.isEmpty
+                ? ""
+                : "(冲\(response.dayChongTargets.joined(separator: "、")))"
+            dayChongDisplay = "\(chong)\(targets)"
+        } else {
+            dayChongDisplay = "无"
+        }
+
+        // 12 时辰条格式化
+        let hourPillarsStr = response.hourPillars.map { hp -> String in
+            var line = "- \(hp.hour)时(\(hp.timeRange)):\(hp.pillar) \(hp.relation)"
+            if let chong = hp.chong {
+                let targets = hp.chongTargets.isEmpty
+                    ? ""
+                    : "(冲\(hp.chongTargets.joined(separator: "、")))"
+                line += " 冲\(chong)\(targets)"
+            }
+            return line
+        }.joined(separator: "\n")
+
+        return [
+            // 命主(从 chart_payload)
+            "day_master": AnyCodableJSON(chartPayload.dayMaster),
+            "day_master_element": AnyCodableJSON(chartPayload.dayMasterElement),
+            "day_master_strength": AnyCodableJSON(chartPayload.dayMasterStrength),
+            "favorable_elements": AnyCodableJSON(chartPayload.favorableElements.joined(separator: ", ")),
+            "unfavorable_elements": AnyCodableJSON(chartPayload.unfavorableElements.joined(separator: ", ")),
+            // 日期
+            "date": AnyCodableJSON(dateStr),
+            "lunar_date": AnyCodableJSON(response.lunarDate),
+            // 流日柱
+            "day_pillar": AnyCodableJSON(response.dayPillar),
+            "day_stem": AnyCodableJSON(dayStem),
+            "day_stem_element": AnyCodableJSON(dayStemElement),
+            "day_branch": AnyCodableJSON(dayBranch),
+            "day_branch_element": AnyCodableJSON(dayBranchElement),
+            // 流日对日主关系
+            "day_relation": AnyCodableJSON(response.dayRelationToDayMaster),
+            "day_chong": AnyCodableJSON(dayChongDisplay),
+            // 12 时辰条 + 黄历
+            "hour_pillars_with_relations": AnyCodableJSON(hourPillarsStr),
+            "huangli_yi": AnyCodableJSON(response.huangliYi.joined(separator: "、")),
+            "huangli_ji": AnyCodableJSON(response.huangliJi.joined(separator: "、")),
+        ]
+    }
+
     // MARK: - Private
 
     private static let dateTimeFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd HH:mm"
+        f.timeZone = .current
+        return f
+    }()
+
+    private static let dateOnlyFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy年M月d日"
         f.timeZone = .current
         return f
     }()

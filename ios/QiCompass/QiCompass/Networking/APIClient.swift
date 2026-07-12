@@ -181,11 +181,7 @@ final class MockAPIClient: APIClient {
 
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse {
         try? await Task.sleep(nanoseconds: 300_000_000)
-        throw APIError.backendError(
-            code: "NOT_IMPLEMENTED",
-            message: "每日运势端点尚未实现(后端 stub)",
-            requestId: nil
-        )
+        return Self.mockDailyFortuneResponse(for: request)
     }
 
     func interpret(request: InterpretRequest) async throws -> InterpretResponse {
@@ -227,6 +223,61 @@ final class MockAPIClient: APIClient {
             currentLuckPillar: nil, currentYearPillar: nil, currentDayPillar: nil, currentHourPillar: nil,
             calcRuleSnapshot: calcRule,
             boundaryWarning: nil
+        )
+    }
+
+    /// 每日运势 mock:生成 12 时辰固定数据 + 当日柱。
+    /// 用 Calendar 算 target_date 对应的日柱(避免依赖后端 mock 数据完整)。
+    private static func mockDailyFortuneResponse(
+        for req: DailyFortuneRequest
+    ) -> DailyFortuneResponse {
+        let dayStem = "甲"
+        let dayBranch = "子"
+        let dayPillar = "\(dayStem)\(dayBranch)"
+
+        let hourNames = ["子", "丑", "寅", "卯", "辰", "巳",
+                          "午", "未", "申", "酉", "戌", "亥"]
+        let timeRanges = ["23:00-01:00", "01:00-03:00", "03:00-05:00",
+                           "05:00-07:00", "07:00-09:00", "09:00-11:00",
+                           "11:00-13:00", "13:00-15:00", "15:00-17:00",
+                           "17:00-19:00", "19:00-21:00", "21:00-23:00"]
+        let relations = ["比肩", "劫财", "食神", "伤官", "偏财", "正财",
+                          "七杀", "正官", "偏印", "正印", "比肩", "劫财"]
+        let stems = ["甲", "乙", "丙", "丁", "戊", "己",
+                      "庚", "辛", "壬", "癸", "甲", "乙"]
+
+        let hourPillars: [HourPillarDTO] = (0..<12).map { idx in
+            HourPillarDTO(
+                hour: hourNames[idx],
+                timeRange: timeRanges[idx],
+                pillar: "\(stems[idx])\(hourNames[idx])",
+                relation: relations[idx],
+                chong: nil,
+                chongTargets: [],
+            )
+        }
+
+        let tomorrow = TomorrowPreviewDTO(
+            dayPillar: "乙丑", dayRelation: "劫财", dayChong: nil,
+        )
+        let calcRule = CalcRuleSnapshotDTO(
+            library: "lunar_python 1.4.8 (mock)", sect: 1,
+            ziHourRule: "client_decided",
+            trueSolarLongitude: 0, trueSolarOffsetMinutes: 0,
+            schemaVersion: 1,
+        )
+        return DailyFortuneResponse(
+            dayPillar: dayPillar,
+            dayRelationToDayMaster: "比肩",
+            dayChong: "午",
+            dayChongTargets: [],
+            hourPillars: hourPillars,
+            currentHourIndex: nil,
+            lunarDate: "六月廿八(mock)",
+            huangliYi: ["祭祀", "祈福", "求嗣", "开光"],
+            huangliJi: ["嫁娶", "栽种"],
+            tomorrowPreview: tomorrow,
+            calcRuleSnapshot: calcRule,
         )
     }
 }

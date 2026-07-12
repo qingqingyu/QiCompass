@@ -1,11 +1,20 @@
 import SwiftUI
+import SwiftData
 
-/// Tab 3:每日运势(占位)。
-/// 四态:loading / empty / error / success。
-/// 脚手架阶段:CTA "查看今日运势" 演示 stub 端点错误传播(后端未实现)。
+/// Tab 3:每日运势。状态机驱动 + 顶部 7 天历史 pill + 下拉刷新 + 子时换日三重触发。
+///
+/// 主状态:
+/// - .empty → 首次进入(等 onAppear 检查命盘)
+/// - .loading → 排盘中(阶段 1)
+/// - .chartMissing → CTA「先做深度解析」
+/// - .fortuneReady(response, interpretState, businessDate) → 主视图 + AI 子状态
+/// - .failed(msg) → 错误态
 struct DailyFortuneView: View {
     @EnvironmentObject private var env: AppEnvironment
-    @State private var state: LoadingState<String> = .empty
+    @Environment(\.scenePhase) private var scenePhase
+    @State private var vm: DailyFortuneViewModel?
+    @State private var currentChartHash: String?
+    @State private var currentZiHourRule: String = "zi_next_day"
 
     var body: some View {
         NavigationStack {
@@ -17,46 +26,129 @@ struct DailyFortuneView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.dark, for: .navigationBar)
         }
-    }
-
-    @ViewBuilder
-    private var content: some View {
-        switch state {
-        case .empty:
-            EmptyStateView(
-                title: "今日流日运势",
-                subtitle: "需先完成深度解析,基于命盘推演流日",
-                ctaTitle: "查看今日运势",
-                action: triggerStub
+        .task {
+            if vm == nil {
+                vm = DailyFortuneViewModel(
+                    orchestrator: env.dailyFortuneOrchestrator,
+                    chartStore: env.chartSnapshotStore,
+                    dailyStore: env.dailyFortuneSnapshotStore,
+                )
+            }
+            await resolveCurrentChart()
+        }
+        .onChange(of: scenePhase) { _, newPhase in
+            if newPhase == .active {
+                vm?.checkBusinessDateChanged(
+                    currentChartHash: currentChartHash,
+                    ziHourRule: currentZiHourRule,
+                )
+            }
+        }
+        .onReceive(
+            NotificationCenter.default.publisher(
+                for: .NSCalendarDayChanged
             )
-        case .loading:
-            LoadingStateView(title: "正在推演流日…")
-        case .error(let error):
-            ErrorStateView(error: error, retry: triggerStub)
-        case .success(let msg):
-            SuccessCardView(
-                title: "运势已显",
-                bodyText: msg,
-                ctaTitle: nil,
-                action: nil
+        ) { _ in
+            vm?.checkBusinessDateChanged(
+                currentChartHash: currentChartHash,
+                ziHourRule: currentZiHourRule,
             )
         }
     }
 
-    private func triggerStub() {
-        state = .loading
-        Task {
-            do {
-                // stub:后端未实现 /api/bazi/daily-fortune,预期 throw
-                let req = DailyFortuneRequest(
-                    chartHash: "stub_chart",
-                    targetDate: Date()
-                )
-                let resp = try await env.apiClient.dailyFortune(request: req)
-                state = .success("日柱:\(resp.dayPillar)")
-            } catch {
-                state = .error(error)
+    /// 从 UserSnapshotLink 取当前用户的命盘 hash + zi_hour_rule。
+    /// MVP 单用户 → 取最近一条 link。
+    @MainActor
+    private func resolveCurrentChart() async {
+        let ctx = env.modelContainer.mainContext
+        do {
+            let links = try ctx.fetch(FetchDescriptor<UserSnapshotLink>(
+                sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+            ))
+            guard let link = links.first else {
+                currentChartHash = nil
+                vm?.state = .chartMissing
+                return
             }
+            // 取对应 ChartSnapshot 的 ziHourRule
+            // SwiftData #Predicate 不能捕获外部属性,先提取为局部 let
+            let snapshotHash = link.snapshotHash
+            let charts = try ctx.fetch(FetchDescriptor<ChartSnapshot>(
+                predicate: #Predicate { $0.contentHash == snapshotHash }
+            ))
+            if let chart = charts.first {
+                currentZiHourRule = chart.ziHourRule
+            }
+            currentChartHash = snapshotHash
+            vm?.onAppear(
+                currentChartHash: currentChartHash,
+                ziHourRule: currentZiHourRule,
+            )
+        } catch {
+            AppLogger.persistence.error(
+                "op=dailyFortune.resolveChart failed error=\(String(describing: error), privacy: .public)"
+            )
+            // 不静默吞:把失败传给 UI
+            vm?.state = .failed("读取命盘存档失败:\(error.localizedDescription)")
+        }
+    }
+
+    @ViewBuilder
+    @MainActor
+    private var content: some View {
+        if let vm {
+            switch vm.state {
+            case .empty:
+                LoadingStateView(title: "准备中…")
+            case .loading:
+                LoadingStateView(title: "推演流日中…")
+            case .chartMissing:
+                DailyFortuneEmptyView()
+            case .fortuneReady(let response, let interpretState, let businessDate):
+                DailyFortuneMainView(
+                    vm: vm,
+                    response: response,
+                    interpretState: interpretState,
+                    businessDate: businessDate,
+                    chartHash: currentChartHash,
+                    ziHourRule: currentZiHourRule,
+                    onRefresh: { handleRefresh() },
+                    onHistorySelect: { date in
+                        vm.selectHistoryDate(
+                            date,
+                            currentChartHash: currentChartHash,
+                            ziHourRule: currentZiHourRule,
+                        )
+                    },
+                    onGenerateInterpret: {
+                        vm.generateInterpretation(currentChartHash: currentChartHash)
+                    },
+                )
+            case .failed(let message):
+                ErrorStateView(
+                    error: NSError(
+                        domain: "DailyFortune", code: -1,
+                        userInfo: [NSLocalizedDescriptionKey: message]
+                    ),
+                    retry: {
+                        vm.onAppear(
+                            currentChartHash: currentChartHash,
+                            ziHourRule: currentZiHourRule,
+                        )
+                    }
+                )
+            }
+        } else {
+            ProgressView().tint(BaziTheme.gold)
+        }
+    }
+
+    private func handleRefresh() {
+        Task {
+            await vm?.refresh(
+                currentChartHash: currentChartHash,
+                ziHourRule: currentZiHourRule,
+            )
         }
     }
 }
