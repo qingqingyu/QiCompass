@@ -17,7 +17,7 @@ from fastapi import APIRouter, Request
 from starlette.concurrency import run_in_threadpool
 
 from ..engine.daily_fortune import compute_daily_fortune
-from ..errors import BaziError
+from ..errors import BaziError, InvalidInputError
 from ..models.daily_fortune import DailyFortuneRequest, DailyFortuneResponse
 
 router = APIRouter()
@@ -50,7 +50,6 @@ async def daily_fortune(
         _log_and_reraise(e, input_log, start, chart_hash=req.chart_hash)
     except ValueError as e:
         # chart_payload 字段非法 → 转 BaziError(走全局 handler)
-        from ..errors import InvalidInputError
         wrapped = InvalidInputError(
             f"chart_payload 字段非法: {e}",
         )

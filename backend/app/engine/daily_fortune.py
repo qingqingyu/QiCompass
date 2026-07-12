@@ -14,14 +14,13 @@
 from __future__ import annotations
 
 import logging
-from datetime import date, datetime, timedelta
+from datetime import date, timedelta
 from typing import Any
 
 from lunar_python import Solar
 from lunar_python.util.LunarUtil import LunarUtil as _LunarUtil
 
 from ..core.calc_rule_snapshot import build_calc_rule_snapshot
-from ..engine.pillars import GAN_ELEMENT
 from ..errors import BaziCalculationFailedError
 from ..models.daily_fortune import (
     ChartPayload,
@@ -85,7 +84,6 @@ def compute_daily_fortune(
         day_ec.setSect(1)
         day_pillar = day_ec.getDay()
         day_gan = day_ec.getDayGan()
-        day_zhi = day_ec.getDayZhi()
         day_chong: str | None = day_lunar.getDayChong() or None
 
         # 2. 流日对日主十神

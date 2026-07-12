@@ -141,7 +141,15 @@ final class DailyFortuneViewModel {
     func generateInterpretation(currentChartHash: String?) {
         guard let hash = currentChartHash else { return }
         guard case .fortuneReady(let response, _, let businessDate) = state else { return }
-        guard let chartPayload = cachedChartPayload else { return }
+        guard let chartPayload = cachedChartPayload else {
+            // chartPayload 解码失败(见 runFullPipeline 的 catch)→ 显式报错,不静默返回
+            state = .fortuneReady(
+                response,
+                .failed(message: "命盘数据读取失败,请下拉刷新重试"),
+                businessDate,
+            )
+            return
+        }
 
         interpretTask?.cancel()
         state = .fortuneReady(response, .fetching, businessDate)
@@ -222,17 +230,32 @@ final class DailyFortuneViewModel {
                 forceRefresh: forceRefresh,
             )
             // 缓存 chartPayload 供阶段 2 复用
-            if let snapshot = try? chartStore.get(contentHash: chartHash),
-                let bazi = try? chartStore.decodeResponse(from: snapshot) {
+            do {
+                let snapshot = try chartStore.get(contentHash: chartHash)
+                let bazi = try chartStore.decodeResponse(from: snapshot)
                 cachedChartPayload = ChartPayloadDTO.from(baziResponse: bazi)
+            } catch {
+                // chartStore 读取/解码失败:阶段 1 已成功(说明 runDeterministic 内部
+                // 的同样调用成功了),此处失败属异常。不静默吞,记录日志。
+                // cachedChartPayload 保持 nil,用户点"今日解读"时 guard 会拦截。
+                AppLogger.persistence.error(
+                    "daily.runFullPipeline.chartPayload_failed hash=\(chartHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                )
             }
 
             // 若本地已有 AI 解读(24h 内)→ 直接显示 ok(cached=true),否则 idle
             var interpretState: InterpretState = .idle
-            if let cached = try? orchestrator.cachedInterpretationIfFresh(
-                chartHash: chartHash, targetDate: businessDate
-            ) {
-                interpretState = .ok(text: cached.text, cached: true)
+            do {
+                if let cached = try orchestrator.cachedInterpretationIfFresh(
+                    chartHash: chartHash, targetDate: businessDate
+                ) {
+                    interpretState = .ok(text: cached.text, cached: true)
+                }
+            } catch {
+                // 非关键路径:缓存读取失败只 log,不影响主流程(interpretState 保持 idle)
+                AppLogger.persistence.error(
+                    "daily.cachedInterpretation_read_failed hash=\(chartHash, privacy: .public) targetDate=\(businessDate, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                )
             }
 
             if !Task.isCancelled {

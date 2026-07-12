@@ -66,6 +66,18 @@ enum ElementColors: String {
         default: return nil
         }
     }
+
+    /// 地支 → 五行英文 key(纯展示查表,非历法计算)。
+    static func ofZhi(_ zhi: String) -> String? {
+        switch zhi {
+        case "子", "亥": return "water"
+        case "寅", "卯": return "wood"
+        case "巳", "午": return "fire"
+        case "申", "酉": return "metal"
+        case "辰", "戌", "丑", "未": return "earth"
+        default: return nil
+        }
+    }
 }
 
 // MARK: - BaziTheme 扩展(五行色 + chip 样式)

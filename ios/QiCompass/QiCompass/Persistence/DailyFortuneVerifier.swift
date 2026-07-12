@@ -52,15 +52,15 @@ final class DailyFortuneVerifier {
             now: d2300, ziHourRule: "zi_next_day", calendar: cal)
         let r0000 = BusinessDateCalculator.businessDate(
             now: d0000, ziHourRule: "zi_next_day", calendar: cal)
-        XCTAssertTrue(r2259 == baseDay, "22:59 zi_next_day → 当日")
-        XCTAssertTrue(r2300 == next, "23:00 zi_next_day → 次日")
-        XCTAssertTrue(r0000 == baseDay, "00:00 zi_next_day → 当日")
+        try XCTAssertTrue(r2259 == baseDay, "22:59 zi_next_day → 当日")
+        try XCTAssertTrue(r2300 == next, "23:00 zi_next_day → 次日")
+        try XCTAssertTrue(r0000 == baseDay, "00:00 zi_next_day → 当日")
         log.append("✓ BusinessDate zi_next_day 22:59/23:00/00:00 三边界")
 
         // zero_oclock
         let r2300z = BusinessDateCalculator.businessDate(
             now: d2300, ziHourRule: "zero_oclock", calendar: cal)
-        XCTAssertTrue(r2300z == baseDay, "23:00 zero_oclock → 当日")
+        try XCTAssertTrue(r2300z == baseDay, "23:00 zero_oclock → 当日")
         log.append("✓ BusinessDate zero_oclock 23:00 边界")
     }
 
@@ -76,20 +76,20 @@ final class DailyFortuneVerifier {
 
         let idxEarly = BusinessDateCalculator.currentHourIndex(
             now: d0030, ziHourRule: "zi_next_day", calendar: cal)
-        XCTAssertTrue(idxEarly == 0, "00:30 → 子(0)")
+        try XCTAssertTrue(idxEarly == 0, "00:30 → 子(0)")
 
         let idxLate = BusinessDateCalculator.currentHourIndex(
             now: d2330, ziHourRule: "zi_next_day", calendar: cal)
-        XCTAssertTrue(idxLate == 0, "23:30 zi_next_day → 子(0)")
+        try XCTAssertTrue(idxLate == 0, "23:30 zi_next_day → 子(0)")
 
         let idxNoon = BusinessDateCalculator.currentHourIndex(
             now: d1200, ziHourRule: "zi_next_day", calendar: cal)
-        XCTAssertTrue(idxNoon == 6, "12:00 → 午(6)")
+        try XCTAssertTrue(idxNoon == 6, "12:00 → 午(6)")
 
         // zero_oclock 下 23:30 → 亥(11)
         let idxLateHai = BusinessDateCalculator.currentHourIndex(
             now: d2330, ziHourRule: "zero_oclock", calendar: cal)
-        XCTAssertTrue(idxLateHai == 11, "23:30 zero_oclock → 亥(11)")
+        try XCTAssertTrue(idxLateHai == 11, "23:30 zero_oclock → 亥(11)")
         log.append("✓ currentHourIndex zi_next_day/zero_oclock 边界")
     }
 
@@ -100,7 +100,7 @@ final class DailyFortuneVerifier {
             forBusinessDate: baseDay, calendar: cal)
         // 应是次日 00:00 (= baseDay + 1 day)
         let expected = cal.date(byAdding: .day, value: 1, to: baseDay)!
-        XCTAssertTrue(cachedUntil == expected, "cachedUntil = 次日 00:00")
+        try XCTAssertTrue(cachedUntil == expected, "cachedUntil = 次日 00:00")
         log.append("✓ cachedUntil = target_date 本地 23:59:59 + 1s")
     }
 
@@ -149,7 +149,7 @@ final class DailyFortuneVerifier {
                     "buildDailyFortune 缺字段:\(field)")
             }
         }
-        XCTAssertTrue(context.count >= 17, "至少 17 字段,实际=\(context.count)")
+        try XCTAssertTrue(context.count >= 17, "至少 17 字段,实际=\(context.count)")
         log.append("✓ PromptContextBuilder.buildDailyFortune 17 字段齐")
     }
 
@@ -189,7 +189,7 @@ final class DailyFortuneVerifier {
         guard let fetched = try store.get(chartHash: testHash, targetDate: targetDate) else {
             throw CRUDVerifyError.readFailed("get after upsert 返回 nil")
         }
-        XCTAssertTrue(fetched.dayPillar == "甲子", "fetched.dayPillar 应 == 甲子")
+        try XCTAssertTrue(fetched.dayPillar == "甲子", "fetched.dayPillar 应 == 甲子")
         log.append("✓ get by (hash, targetDate) ok")
 
         // getCachedIfFresh:cachedUntil > now 才返回
@@ -199,25 +199,25 @@ final class DailyFortuneVerifier {
         ) else {
             throw CRUDVerifyError.readFailed("getCachedIfFresh 应命中(now < cachedUntil)")
         }
-        XCTAssertTrue(fresh.interpretation == "原解读", "fresh.interpretation 错")
+        try XCTAssertTrue(fresh.interpretation == "原解读", "fresh.interpretation 错")
         // 过期不返回
         let stale = try store.getCachedIfFresh(
             chartHash: testHash, targetDate: targetDate,
             now: cachedUntil.addingTimeInterval(1)
         )
-        XCTAssertTrue(stale == nil, "now > cachedUntil 应返回 nil")
+        try XCTAssertTrue(stale == nil, "now > cachedUntil 应返回 nil")
         log.append("✓ getCachedIfFresh fresh/stale 判据")
 
         // updateInterpretation
         try store.updateInterpretation(
             "更新后", forChartHash: testHash, targetDate: targetDate)
         let afterUpdate = try store.get(chartHash: testHash, targetDate: targetDate)
-        XCTAssertTrue(afterUpdate?.interpretation == "更新后", "updateInterpretation 未生效")
+        try XCTAssertTrue(afterUpdate?.interpretation == "更新后", "updateInterpretation 未生效")
         log.append("✓ updateInterpretation ok")
 
         // getHistory
         let history = try store.getHistory(chartHash: testHash, limit: 7)
-        XCTAssertTrue(history.count >= 1, "history 应含 1+ 条")
+        try XCTAssertTrue(history.count >= 1, "history 应含 1+ 条")
         log.append("✓ getHistory ok count=\(history.count)")
 
         // 清理
@@ -226,15 +226,15 @@ final class DailyFortuneVerifier {
             try context.save()
         }
         let afterDelete = try store.get(chartHash: testHash, targetDate: targetDate)
-        XCTAssertTrue(afterDelete == nil, "delete 后应返回 nil")
+        try XCTAssertTrue(afterDelete == nil, "delete 后应返回 nil")
         log.append("✓ delete ok")
     }
 }
 
-/// 轻量断言(失败 throw,不依赖 XCTest)。
-private func XCTAssertTrue(_ condition: Bool, _ message: String) {
+/// 轻量断言(失败 throw CRUDVerifyError,不依赖 XCTest)。
+private func XCTAssertTrue(_ condition: Bool, _ message: String) throws {
     if !condition {
-        // 不静默吞:失败立即抛
-        assertionFailure("DailyFortuneVerifier: \(message)")
+        // 不静默吞:失败立即抛(Release build 也会报错,不靠 assertionFailure)
+        throw CRUDVerifyError.assertFailed("DailyFortuneVerifier: \(message)")
     }
 }

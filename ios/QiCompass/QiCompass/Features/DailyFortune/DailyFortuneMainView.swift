@@ -26,6 +26,12 @@ struct DailyFortuneMainView: View {
                     snapshots: historySnapshots,
                     onSelect: onHistorySelect,
                 )
+                if let historyError {
+                    Text(historyError)
+                        .font(.caption2)
+                        .foregroundStyle(BaziTheme.textDim.opacity(0.7))
+                        .frame(maxWidth: .infinity, alignment: .center)
+                }
 
                 // 头部:公历 + 农历 + 流日柱 + 关系 chip + 冲 chip
                 DailyFortuneHeaderView(
@@ -91,13 +97,4 @@ struct DailyFortuneMainView: View {
             )
         }
     }
-}
-
-// MARK: - 子模型别名(避免与 DailyFortuneSnapshot SwiftData 类名冲突,这里只做 View 层引用)
-
-/// 历史列表单元引用(从 DailyFortuneSnapshot 取需要的字段)。
-struct DailyFortuneHistoryItem: Identifiable, Equatable {
-    let id: UUID
-    let targetDate: Date
-    let dayPillar: String
 }

@@ -181,22 +181,36 @@ final class DailyFortuneOrchestrator {
                 counter.refund(module: module)
             }
 
-            // 写本地 AI 缓存(失败必须传导,不静默假成功)
-            try interpretStore.upsert(
-                contentHash: chartHash,
-                module: module,
-                promptVersion: resp.promptVersion,
-                targetDate: targetDate,
-                interpretation: resp.interpretation,
-                generatedAt: resp.generatedAt
-            )
+            // 写本地 AI 缓存。非关键路径:失败只 log,不影响已成功的 AI 解读返回。
+            // (API 已成功返回解读,缓存写失败不应导致用户丢失阅读次数)
+            do {
+                try interpretStore.upsert(
+                    contentHash: chartHash,
+                    module: module,
+                    promptVersion: resp.promptVersion,
+                    targetDate: targetDate,
+                    interpretation: resp.interpretation,
+                    generatedAt: resp.generatedAt
+                )
+            } catch {
+                AppLogger.persistence.error(
+                    "daily.interpret.cacheWrite_failed hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                )
+            }
 
-            // 同步更新 DailyFortuneSnapshot.interpretation,让历史回看直接显示
-            try dailyStore.updateInterpretation(
-                resp.interpretation,
-                forChartHash: chartHash,
-                targetDate: targetDate
-            )
+            // 同步更新 DailyFortuneSnapshot.interpretation,让历史回看直接显示。
+            // 非关键路径:失败只 log,不影响已成功的 AI 解读返回(24h 缓存已写 interpretStore)。
+            do {
+                try dailyStore.updateInterpretation(
+                    resp.interpretation,
+                    forChartHash: chartHash,
+                    targetDate: targetDate
+                )
+            } catch {
+                AppLogger.persistence.error(
+                    "daily.interpret.snapshotSync_failed hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                )
+            }
 
             return resp
         } catch let error as DeepAnalysisError {

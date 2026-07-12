@@ -12,7 +12,7 @@ from __future__ import annotations
 from datetime import date
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field, model_validator
+from pydantic import BaseModel, Field
 
 
 # ---------- chart_payload（客户端 → 后端，可信源）----------

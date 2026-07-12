@@ -68,11 +68,15 @@ struct DailyFortuneHistoryView: View {
         return (0..<7).compactMap { calendar.date(byAdding: .day, value: -$0, to: today) }
     }
 
-    private func shortWeekday(_ date: Date) -> String {
+    private static let weekdayFormatter: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "zh_CN")
         f.dateFormat = "E"
-        return f.string(from: date)
+        return f
+    }()
+
+    private func shortWeekday(_ date: Date) -> String {
+        Self.weekdayFormatter.string(from: date)
     }
 
     private func dayString(_ date: Date) -> String {

@@ -227,11 +227,11 @@ async def test_endpoint_happy_path():
 
 
 async def test_endpoint_chart_payload_invalid_returns_422():
-    """chart_payload 字段非法(未知天干) → 422。"""
+    """chart_payload 字段非法(未知天干) → ValueError → API 层 InvalidInputError → 422。"""
     bad_req = _make_request(date(2026, 7, 12))
     bad_req["chart_payload"]["day_master"] = "X"  # 非法天干
     code, body, _ = await _post(bad_req)
-    assert code == 422 or code == 500, body
+    assert code == 422, f"非法天干应走 ValueError→InvalidInputError→422,实际={code} body={body}"
     # 走全局 handler,ErrorBody 结构
     assert "error" in body
 
@@ -251,8 +251,8 @@ async def test_engine_exception_propagates():
             "hour": PillarRef(gan="辛", zhi="未"),
         },
     )
-    # 引擎直接调用应抛 ValueError
-    with pytest.raises((ValueError, Exception)):
+    # 引擎直接调用应抛 ValueError(十神查表失败)
+    with pytest.raises(ValueError):
         compute_daily_fortune(
             chart_hash="t_exc", target_date=date(2026, 7, 12),
             chart_payload=bad_chart,

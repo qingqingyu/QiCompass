@@ -171,9 +171,23 @@ final class DailyFortuneSnapshotStore {
             AppLogger.persistence.error(
                 "op=dailyFortune.updateInterpretation hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public) reason=snapshot_missing"
             )
-            return
+            throw DailyFortuneSnapshotError.snapshotMissing(
+                chartHash: chartHash, targetDate: targetDate
+            )
         }
         snapshot.interpretation = interpretation
         try context.save()
+    }
+}
+
+/// DailyFortuneSnapshotStore 领域错误。
+enum DailyFortuneSnapshotError: Error, LocalizedError {
+    case snapshotMissing(chartHash: String, targetDate: Date)
+
+    var errorDescription: String? {
+        switch self {
+        case .snapshotMissing(let hash, let date):
+            return "每日运势快照未找到(hash=\(hash), date=\(date)),可能已被清理"
+        }
     }
 }

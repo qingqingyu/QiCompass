@@ -98,7 +98,7 @@ enum PromptContextBuilder {
         let dayStem = String(dayPillar.prefix(1))
         let dayBranch = String(dayPillar.suffix(1))
         let dayStemElement = ElementColors.ofGan(dayStem).map { Self.elementToChinese($0) } ?? dayStem
-        let dayBranchElement = ElementColors.fromZh(dayBranch).map { Self.elementToChinese($0) } ?? dayBranch
+        let dayBranchElement = ElementColors.ofZhi(dayBranch).map { Self.elementToChinese($0) } ?? dayBranch
 
         // 流日冲(含命中位置)
         let dayChongDisplay: String

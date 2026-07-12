@@ -90,6 +90,6 @@ enum BusinessDateCalculator {
     /// 00:00-00:59 已在外层处理为 0;此处只处理 01:00-22:59。
     private static func shichenIndex(hour: Int) -> Int {
         // 1-2 → 1(丑),3-4 → 2(寅),...,21-22 → 11(亥)
-        return max(0, min(11, (hour - 1) / 2))
+        return max(0, min(11, (hour + 1) / 2))
     }
 }
