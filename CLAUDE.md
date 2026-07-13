@@ -7,6 +7,7 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - `bazi-app-design-doc.md` — 主设计文档（架构 / API 契约 / SwiftData / prompt 模板 / Next Steps）
 - `命理引擎设计决策.md` — 命理层决策（决策 1 喜忌 / 决策 2 神煞 / 决策 3 ChartSnapshot / 决策 3b Schema 演化 / 决策 4 AI 缓存 / 决策 1b 从格边界）
 - `archive/` — 旧"玄机问道"卷轴方案归档（参考用，不复用）
+- `DESIGN.md` — 视觉设计系统事实源(美学 / 色板 / 字体 / 间距 / iOS SwiftUI 落地计划)
 
 ## 全局约束（继承 ~/.claude/CLAUDE.md）
 
@@ -68,3 +69,21 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 设计文档已完成并经过 plan-eng-review（P0 D1/D2/D3 + P1 神煞工作量/iOS 17.2/对盘数据源 已锁定）。
 库选型 spike 已完成（`lunar_python` 1.4.8 实测字段对照表已校准 API 契约）。后端排盘核心 slice 已实现（`backend/`,30 用例对盘通过:库层 20 + 封装层 10）。
 准备进入下一 slice,按 10 个 vertical slice 推进(见 `bazi-app-design-doc.md` Next Steps)。
+
+## Design System
+
+**强制**:任何 UI / 视觉决策(颜色 / 字体 / 间距 / 圆角 / 动效)必须先读 `DESIGN.md`,偏离须用户明确批准。
+
+关键约束(摘自 `DESIGN.md`):
+
+- **美学方向**:现代东方极简(宋瓷气质),不是国内命理黑金套路
+- **Memorable Thing**:"专业不忽悠,不像算命软件" — 每个设计决策服务这件事
+- **色板**:`#F5EFE1` 宣纸米(主背景,替代黑渐变) / `#C33B3B` 朱砂(主 CTA,替代金) / `#2C5F3F` 墨青(吉神) / `#1D3A5F` 黛蓝 / `#1C1C1C` 浓墨文字
+- **字体**:Songti SC(标题/八字,衬线文化分量) + PingFang SC(正文) + SF Pro Text tabular-nums(数字),iOS 系统自带,**不打包自定义字体**
+- **间距**:8pt 基准网格,comfortable 密度
+- **圆角**:默认 4pt(克制),Capsule 只留给 chip
+- **分隔**:0.5pt hairline `#6B6557 @ 30%`,**不用阴影/neumorphism/玻璃态**
+- **渐变**:禁止 `backgroundGradient` 渐变背景,纯色 only
+- **AI slop 反模式**:不堆叠黑金/卷轴纹/古纹装饰,不用 Inter/Roboto 系列字体
+
+iOS 落地代码骨架见 `DESIGN.md` § iOS SwiftUI 落地计划(BaziTheme token 重构 + 散点修复 + 逐模块优先级 + 验收清单)。
