@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 合盘 AI 解读段(D9)。
+/// 合盘 AI 解读段(D9 + DESIGN.md §Color)。
 ///
 /// **独立 error 态 + 禁词拦截提示**:定性评估 + 流年同步表已就绪即视为合盘成功;
 /// AI 子状态独立 error,可单独重试,不污染整体 resultReady。
@@ -21,7 +21,7 @@ struct CompatibilityInterpretationSection: View {
                 Spacer()
                 Text("剩余 \(remainingReads)/10 次")
                     .font(.caption)
-                    .foregroundStyle(BaziTheme.textDim)
+                    .foregroundStyle(BaziTheme.inkMuted)
             }
 
             switch state {
@@ -29,10 +29,10 @@ struct CompatibilityInterpretationSection: View {
                 emptyIdleView
             case .fetching:
                 HStack(spacing: 12) {
-                    ProgressView().tint(BaziTheme.gold)
+                    ProgressView().tint(BaziTheme.cinnabar)
                     Text("推演中…")
                         .font(.subheadline)
-                        .foregroundStyle(BaziTheme.textDim)
+                        .foregroundStyle(BaziTheme.inkMuted)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 24)
@@ -48,13 +48,13 @@ struct CompatibilityInterpretationSection: View {
                         Text("24h 内已缓存,不消耗次数")
                     }
                     .font(.caption)
-                    .foregroundStyle(BaziTheme.textDim)
+                    .foregroundStyle(BaziTheme.inkMuted)
                 }
                 HStack {
                     Spacer()
                     Button("重新生成", action: onRetry)
                         .font(.caption)
-                        .foregroundStyle(BaziTheme.gold)
+                        .foregroundStyle(BaziTheme.cinnabar)
                 }
             case .failed(let message):
                 VStack(spacing: 8) {
@@ -63,7 +63,7 @@ struct CompatibilityInterpretationSection: View {
                         .foregroundStyle(BaziTheme.shenshaInauspicious)
                     Button("重试", action: onRetry)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(BaziTheme.gold)
+                        .foregroundStyle(BaziTheme.cinnabar)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
@@ -80,10 +80,10 @@ struct CompatibilityInterpretationSection: View {
             }
         }
         .padding(16)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
+        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(BaziTheme.cardBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
+                .stroke(BaziTheme.cardBorder, lineWidth: 0.5)
         )
     }
 
@@ -91,7 +91,7 @@ struct CompatibilityInterpretationSection: View {
         VStack(spacing: 12) {
             Text("点击生成合盘解读(约 400-500 字,涵盖五行、日主、流年同步)")
                 .font(.subheadline)
-                .foregroundStyle(BaziTheme.textDim)
+                .foregroundStyle(BaziTheme.inkMuted)
                 .multilineTextAlignment(.center)
 
             Button(action: { HapticEngine.medium(); onGenerate() }) {
@@ -100,10 +100,10 @@ struct CompatibilityInterpretationSection: View {
                     Text("生成合盘解读")
                 }
                 .font(.body.weight(.semibold))
-                .foregroundStyle(BaziTheme.bgTop)
+                .foregroundStyle(BaziTheme.paper)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
-                .background(BaziTheme.gold, in: Capsule())
+                .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
             }
         }
         .frame(maxWidth: .infinity)

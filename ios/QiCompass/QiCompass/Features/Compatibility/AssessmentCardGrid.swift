@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// 4 项定性评估的 2×2 网格(D7)。
+/// 4 项定性评估的 2×2 网格(D7 + DESIGN.md §Color)。
 ///
-/// 每张卡:标题 + 评估值(goldLight 高亮)+ 一行简短解释(ViewModel 维护映射)。
+/// 每张卡:标题(inkMuted)+ 评估值(ink 主色 semibold)+ 一行简短解释。
 /// **不给数字分、不引入百分比**。
 struct AssessmentCardGrid: View {
     let assessment: QualitativeAssessmentDTO
@@ -55,21 +55,21 @@ struct AssessmentCardGrid: View {
                     VStack(alignment: .leading, spacing: 6) {
                         Text(card.title)
                             .font(.caption)
-                            .foregroundStyle(BaziTheme.textDim)
+                            .foregroundStyle(BaziTheme.inkMuted)
                         Text(card.value)
                             .font(.body.weight(.semibold))
-                            .foregroundStyle(BaziTheme.goldLight)
+                            .foregroundStyle(BaziTheme.ink)
                         if !card.explanation.isEmpty {
                             Text(card.explanation)
                                 .font(.system(size: 10))
-                                .foregroundStyle(BaziTheme.textDim.opacity(0.85))
+                                .foregroundStyle(BaziTheme.inkMuted.opacity(0.85))
                                 .lineLimit(2)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(10)
-                    .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 10))
-                    .overlay(RoundedRectangle(cornerRadius: 10).stroke(BaziTheme.cardBorder, lineWidth: 1))
+                    .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                    .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.sm).stroke(BaziTheme.cardBorder, lineWidth: 0.5))
                 }
             }
         }

@@ -20,7 +20,7 @@ struct DualPillarSource: Identifiable, Equatable {
     var id: String { position }
 }
 
-/// A 上 B 下紧凑双盘表(D6)。
+/// A 上 B 下紧凑双盘表(D6 + DESIGN.md §Color + §Ganzhi)。
 ///
 /// iPhone 屏宽 ~375pt,8 列(2 人 × 4 柱)挤;改用「每柱一列,每列内 A 行上 B 行下」紧凑表。
 /// 不复用 PillarsTable(信息密度过高)。
@@ -40,8 +40,8 @@ struct DualPillarsTable: View {
             }
             .padding(12)
             .frame(maxWidth: .infinity)
-            .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(BaziTheme.cardBorder, lineWidth: 1))
+            .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+            .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.cardBorder, lineWidth: 0.5))
         }
     }
 
@@ -51,7 +51,7 @@ struct DualPillarsTable: View {
             // 位置标签
             Text(p.position)
                 .font(.caption2)
-                .foregroundStyle(BaziTheme.textDim)
+                .foregroundStyle(BaziTheme.inkMuted)
 
             // A 盘
             pillarCell(
@@ -75,7 +75,7 @@ struct DualPillarsTable: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// 单人柱单元格:标签 + 干支 + 纳音。
+    /// 单人柱单元格:标签 + 干支(Songti SC)+ 纳音。
     private func pillarCell(
         gan: String, zhi: String, nayin: String,
         ganElement: String, zhiElement: String,
@@ -84,17 +84,17 @@ struct DualPillarsTable: View {
         VStack(spacing: 2) {
             Text(label)
                 .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(BaziTheme.gold.opacity(0.7))
+                .foregroundStyle(BaziTheme.inkMuted)
             HStack(spacing: 2) {
                 Text(gan)
                     .foregroundStyle(BaziTheme.elementColor(ganElement))
                 Text(zhi)
                     .foregroundStyle(BaziTheme.elementColor(zhiElement))
             }
-            .font(.body.weight(.semibold))
+            .font(BaziFont.ganzhi(size: 16))
             Text(nayin)
                 .font(.system(size: 9))
-                .foregroundStyle(BaziTheme.textDim)
+                .foregroundStyle(BaziTheme.inkMuted)
                 .lineLimit(1)
         }
     }

@@ -15,7 +15,7 @@ struct CompatibilityMainView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
+            VStack(spacing: BaziTheme.Spacing.lg) {
                 // 双盘对比(D6)
                 if let dualPillars = makeDualPillars() {
                     DualPillarsTable(pillars: dualPillars)
