@@ -77,6 +77,14 @@
 		9C0000000000000000000033 /* SyncedFortuneTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000033 /* SyncedFortuneTable.swift */; };
 		9C0000000000000000000034 /* CompatibilityInterpretationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000034 /* CompatibilityInterpretationSection.swift */; };
 		9C0000000000000000000035 /* CompatibilityEmptyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000035 /* CompatibilityEmptyView.swift */; };
+		9C0000000000000000000036 /* InkSplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000036 /* InkSplashView.swift */; };
+		9C0000000000000000000037 /* HapticEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000037 /* HapticEngine.swift */; };
+		9C0000000000000000000038 /* MotionPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000038 /* MotionPreferences.swift */; };
+		9C0000000000000000000039 /* UserFacingError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000039 /* UserFacingError.swift */; };
+		9C000000000000000000003A /* BaziFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003A /* BaziFont.swift */; };
+		9C000000000000000000003B /* FadeInModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003B /* FadeInModifier.swift */; };
+		9C000000000000000000003C /* CountdownResetLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003C /* CountdownResetLabel.swift */; };
+		9C000000000000000000003D /* ErrorStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003D /* ErrorStateView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -152,6 +160,14 @@
 		9C1000000000000000000033 /* SyncedFortuneTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SyncedFortuneTable.swift; path = QiCompass/Features/Compatibility/SyncedFortuneTable.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000034 /* CompatibilityInterpretationSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilityInterpretationSection.swift; path = QiCompass/Features/Compatibility/CompatibilityInterpretationSection.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000035 /* CompatibilityEmptyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilityEmptyView.swift; path = QiCompass/Features/Compatibility/CompatibilityEmptyView.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000036 /* InkSplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InkSplashView.swift; path = QiCompass/Shared/InkSplashView.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000037 /* HapticEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HapticEngine.swift; path = QiCompass/Shared/HapticEngine.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000038 /* MotionPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MotionPreferences.swift; path = QiCompass/Shared/MotionPreferences.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000039 /* UserFacingError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserFacingError.swift; path = QiCompass/Shared/UserFacingError.swift; sourceTree = SOURCE_ROOT; };
+		9C100000000000000000003A /* BaziFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BaziFont.swift; path = QiCompass/Shared/BaziFont.swift; sourceTree = SOURCE_ROOT; };
+		9C100000000000000000003B /* FadeInModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FadeInModifier.swift; path = QiCompass/Shared/FadeInModifier.swift; sourceTree = SOURCE_ROOT; };
+		9C100000000000000000003C /* CountdownResetLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CountdownResetLabel.swift; path = QiCompass/Shared/CountdownResetLabel.swift; sourceTree = SOURCE_ROOT; };
+		9C100000000000000000003D /* ErrorStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ErrorStateView.swift; path = QiCompass/Shared/ErrorStateView.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -309,6 +325,14 @@
 			children = (
 				9C1000000000000000000017 /* LoadingState.swift */,
 				9C1000000000000000000018 /* Logger.swift */,
+				9C1000000000000000000036 /* InkSplashView.swift */,
+				9C1000000000000000000037 /* HapticEngine.swift */,
+				9C1000000000000000000038 /* MotionPreferences.swift */,
+				9C1000000000000000000039 /* UserFacingError.swift */,
+				9C100000000000000000003A /* BaziFont.swift */,
+				9C100000000000000000003B /* FadeInModifier.swift */,
+				9C100000000000000000003C /* CountdownResetLabel.swift */,
+				9C100000000000000000003D /* ErrorStateView.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -493,6 +517,14 @@
 				9C0000000000000000000033 /* SyncedFortuneTable.swift in Sources */,
 				9C0000000000000000000034 /* CompatibilityInterpretationSection.swift in Sources */,
 				9C0000000000000000000035 /* CompatibilityEmptyView.swift in Sources */,
+				9C0000000000000000000036 /* InkSplashView.swift in Sources */,
+				9C0000000000000000000037 /* HapticEngine.swift in Sources */,
+				9C0000000000000000000038 /* MotionPreferences.swift in Sources */,
+				9C0000000000000000000039 /* UserFacingError.swift in Sources */,
+				9C000000000000000000003A /* BaziFont.swift in Sources */,
+				9C000000000000000000003B /* FadeInModifier.swift in Sources */,
+				9C000000000000000000003C /* CountdownResetLabel.swift in Sources */,
+				9C000000000000000000003D /* ErrorStateView.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

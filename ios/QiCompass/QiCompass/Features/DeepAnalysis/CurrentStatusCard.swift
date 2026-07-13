@@ -10,8 +10,7 @@ struct CurrentStatusCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("当前柱")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
+                .zcoolCardTitle()
             row("大运", response.currentLuckPillar?.ganZhi)
             row("流年", response.currentYearPillar)
             row("流日", response.currentDayPillar)

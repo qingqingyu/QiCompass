@@ -16,8 +16,7 @@ struct XijiCard: View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
                 Text(isSpecialPattern ? "命局呈现从格特征" : "喜忌分析")
-                    .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(BaziTheme.goldLight)
+                    .zcoolCardTitle()
                 Spacer()
                 strengthBadge
             }

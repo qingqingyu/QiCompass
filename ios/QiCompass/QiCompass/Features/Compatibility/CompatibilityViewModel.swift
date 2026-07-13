@@ -21,7 +21,7 @@ enum CompatibilityViewState: Equatable {
     case configuring
     case computing
     case resultReady(CompatibilityResponse, InterpretState)
-    case failed(String)
+    case failed(UserFacingError)
 
     static func == (lhs: CompatibilityViewState, rhs: CompatibilityViewState) -> Bool {
         switch (lhs, rhs) {
@@ -84,8 +84,6 @@ final class CompatibilityViewModel {
 
     /// 阶段 1 完成后的元数据(供阶段 2 / UI 使用)
     private var lastCompatibilityHash: String?
-    private var lastPersonAHash: String?
-    private var lastPersonBHash: String?
     private var lastBChartSnapshot: ChartSnapshot?
     private var lastIsSnapshotNew: Bool = false
 
@@ -115,9 +113,14 @@ final class CompatibilityViewModel {
                 let hash = link.snapshotHash
                 let pred = #Predicate<ChartSnapshot> { $0.contentHash == hash }
                 let snapshots = try modelContext.fetch(FetchDescriptor<ChartSnapshot>(predicate: pred))
-                guard let snapshot = snapshots.first else { continue }
-                let bazi = try? chartStore.decodeResponse(from: snapshot)
-                let dayMaster = bazi?.pillars.day.gan ?? "?"
+                guard let snapshot = snapshots.first else {
+                    AppLogger.persistence.error(
+                        "op=compatibility.loadArchivedCharts missing_snapshot hash=\(hash, privacy: .public)"
+                    )
+                    throw CompatibilityViewModelError.archivedSnapshotMissing(hash: hash)
+                }
+                let bazi = try chartStore.decodeResponse(from: snapshot)
+                let dayMaster = bazi.pillars.day.gan
                 charts.append(ArchivedChart(
                     snapshotHash: hash,
                     alias: link.alias,
@@ -134,6 +137,8 @@ final class CompatibilityViewModel {
                 selectedChartAIndex = 0
                 if case .loading = state {
                     state = .configuring
+                } else if case .failed = state {
+                    state = .configuring
                 }
             }
         } catch {
@@ -141,7 +146,7 @@ final class CompatibilityViewModel {
                 "op=compatibility.loadArchivedCharts failed error=\(String(describing: error), privacy: .public)"
             )
             // 不静默吞:错误显式传到 UI
-            state = .failed("读取命盘存档失败:\(error.localizedDescription)")
+            state = .failed(.generic(message: "读取命盘存档失败:\(error.localizedDescription)"))
         }
     }
 
@@ -154,22 +159,22 @@ final class CompatibilityViewModel {
             return
         }
         guard selectedChartAIndex < archivedCharts.count else {
-            state = .failed("A 盘选择越界,请重新选择")
+            state = .failed(.generic(message: "A 盘选择越界,请重新选择"))
             return
         }
 
         // 表单校验(模式 B)
         if bMode == .tempInput {
             if tempBirthDate > Date() {
-                state = .failed("B 盘出生时间不能晚于当下")
+                state = .failed(.generic(message: "B 盘出生时间不能晚于当下"))
                 return
             }
             if !tempUseManualLongitude && tempSelectedCity.trimmingCharacters(in: .whitespaces).isEmpty {
-                state = .failed("请选择 B 盘城市,或开启手动经度输入")
+                state = .failed(.generic(message: "请选择 B 盘城市,或开启手动经度输入"))
                 return
             }
             if tempUseManualLongitude && !(-180.0...180.0).contains(tempManualLongitude) {
-                state = .failed("B 盘经度需在 -180 到 180 之间")
+                state = .failed(.generic(message: "B 盘经度需在 -180 到 180 之间"))
                 return
             }
         }
@@ -189,7 +194,7 @@ final class CompatibilityViewModel {
                 switch bMode {
                 case .archived:
                     guard selectedChartBIndex < archivedCharts.count else {
-                        state = .failed("B 盘选择越界,请重新选择")
+                        state = .failed(.generic(message: "B 盘选择越界,请重新选择"))
                         return
                     }
                     let chartB = archivedCharts[selectedChartBIndex]
@@ -230,12 +235,16 @@ final class CompatibilityViewModel {
                 // 模式 B:B snapshot 是新隐式落地的,从 chartStore 取回
                 if bSnapshotForUI == nil {
                     bSnapshotForUI = try chartStore.get(contentHash: result.personBHash)
+                    // 不静默吞:刚隐式落地的 B snapshot 取不回说明持久化失败,
+                    // 后续阶段 2 无法进行,显式抛错让 UI 进入 error 态。
+                    if bSnapshotForUI == nil {
+                        state = .failed(.generic(message: "B 盘隐式落地后取回失败,请重试"))
+                        return
+                    }
                 }
 
                 // 缓存元数据
                 lastCompatibilityHash = result.response.compatibilityHash
-                lastPersonAHash = result.personAHash
-                lastPersonBHash = result.personBHash
                 lastBChartSnapshot = bSnapshotForUI
                 lastIsSnapshotNew = result.isSnapshotNew
 
@@ -255,8 +264,9 @@ final class CompatibilityViewModel {
                     }
                 } catch {
                     AppLogger.persistence.error(
-                        "compat.cachedInterpretation_read_failed error=\(String(describing: error), privacy: .public)"
+                        "compat.cachedInterpretation_read_failed compatibility_hash=\(result.response.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
                     )
+                    interpretState = .failed(message: "读取合盘解读缓存失败:\(error.localizedDescription)")
                 }
 
                 if !Task.isCancelled {
@@ -266,7 +276,7 @@ final class CompatibilityViewModel {
                 return
             } catch {
                 if !Task.isCancelled {
-                    state = .failed(error.localizedDescription)
+                    state = .failed(UserFacingError.from(error, stage: .compatibilityDeterministic))
                 }
             }
         }
@@ -277,11 +287,13 @@ final class CompatibilityViewModel {
     /// 触发 AI 解读:用户点「生成合盘解读」。
     func generateInterpretation() {
         guard case .resultReady(let response, _) = state else { return }
-        guard let compatHash = lastCompatibilityHash else { return }
-        guard let aHash = lastPersonAHash,
-              let chartASnapshot = archivedCharts[safe: selectedChartAIndex]?.snapshot,
-              let bSnapshot = lastBChartSnapshot,
-              let bHash = lastPersonBHash else {
+        guard let compatHash = lastCompatibilityHash else {
+            state = .resultReady(response, .failed(message: "合盘缓存键缺失,请重新合盘"))
+            return
+        }
+        guard let chartASnapshot = archivedCharts[safe: selectedChartAIndex]?.snapshot,
+              let bSnapshot = lastBChartSnapshot else {
+            state = .resultReady(response, .failed(message: "命盘快照缺失,请重新合盘"))
             return
         }
 
@@ -302,8 +314,6 @@ final class CompatibilityViewModel {
                     gender: bSnapshot.gender,
                     cityDisplay: cityDisplay(for: bSnapshot)
                 )
-                _ = aHash
-                _ = bHash
 
                 let resp = try await orchestrator.runInterpretation(
                     compatibilityHash: compatHash,
@@ -326,13 +336,23 @@ final class CompatibilityViewModel {
                 }
             } catch let error as DeepAnalysisError {
                 if !Task.isCancelled {
-                    state = .resultReady(response, .failed(message: error.errorDescription ?? "未知错误"))
+                    // dailyLimitReached 独立形态(方案 step 4):禁用生成按钮、不显示重试
+                    if case .dailyLimitReached(let reset, _) = error {
+                        state = .resultReady(response, .dailyLimitReached(nextReset: reset))
+                    } else {
+                        state = .resultReady(response, .failed(message: error.errorDescription ?? "未知错误"))
+                    }
                 }
             } catch is CancellationError {
                 return
             } catch {
                 if !Task.isCancelled {
-                    state = .resultReady(response, .failed(message: error.localizedDescription))
+                    let userError = UserFacingError.from(error, stage: .interpret)
+                    if case .dailyLimitReached(let reset) = userError {
+                        state = .resultReady(response, .dailyLimitReached(nextReset: reset))
+                    } else {
+                        state = .resultReady(response, .failed(message: userError.errorDescription ?? "未知错误"))
+                    }
                 }
             }
         }
@@ -353,6 +373,16 @@ final class CompatibilityViewModel {
     var nextDailyReset: Date { orchestrator.nextDailyReset() }
     var bChartSnapshot: ChartSnapshot? { lastBChartSnapshot }
     var isSnapshotNew: Bool { lastIsSnapshotNew }
+
+    /// 供结果页构造双盘对比;View 不直接访问 ChartSnapshotStore。
+    func makeDualPillars(
+        chartASnapshot: ChartSnapshot,
+        chartBSnapshot: ChartSnapshot
+    ) throws -> [DualPillarSource] {
+        let baziA = try chartStore.decodeResponse(from: chartASnapshot)
+        let baziB = try chartStore.decodeResponse(from: chartBSnapshot)
+        return DualPillarSource.from(a: baziA, b: baziB)
+    }
 
     // MARK: - Private
 
@@ -379,6 +409,17 @@ struct ArchivedChart: Identifiable, Hashable {
     var id: String { snapshotHash }
 }
 
+enum CompatibilityViewModelError: LocalizedError {
+    case archivedSnapshotMissing(hash: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .archivedSnapshotMissing(let hash):
+            return "命盘存档缺少快照:\(hash)"
+        }
+    }
+}
+
 /// B 模式选择。
 enum BModeSelection: String, CaseIterable, Identifiable {
     case archived    // 已存档
@@ -394,7 +435,12 @@ enum BModeSelection: String, CaseIterable, Identifiable {
     }
 }
 
-private extension Array {
+/// App 模块内共享的安全下标。
+///
+/// 注:Swift 无法把 extension 限定到「仅本文件/仅某些 Array」，
+/// 此扩展在 App target 内对所有 Array 生效（internal，不出模块）。
+/// 若后续拆 SDK 需收窄，改用 wrapper 类型或 free function。
+internal extension Array {
     subscript(safe index: Int) -> Element? {
         indices.contains(index) ? self[index] : nil
     }

@@ -18,20 +18,17 @@ final class DeepAnalysisOrchestrator {
     private let chartStore: ChartSnapshotStore
     private let interpretStore: InterpretationCacheStore
     private let counter: DailyReadCounter
-    private let dailyLimit: Int
 
     init(
         apiClient: APIClient,
         chartStore: ChartSnapshotStore,
         interpretStore: InterpretationCacheStore,
-        counter: DailyReadCounter,
-        dailyLimit: Int = 1
+        counter: DailyReadCounter
     ) {
         self.apiClient = apiClient
         self.chartStore = chartStore
         self.interpretStore = interpretStore
         self.counter = counter
-        self.dailyLimit = dailyLimit
     }
 
     // MARK: - 阶段 1:排盘 + 存档
@@ -69,13 +66,15 @@ final class DeepAnalysisOrchestrator {
     ) async throws -> InterpretResponse {
         let module = "bazi_deep"
 
-        // 次数检查
-        guard counter.tryConsume(module: module, limit: dailyLimit) else {
+        // 次数检查(全局池口径,方案 §D1)
+        guard counter.tryConsume(module: module) else {
             throw DeepAnalysisError.dailyLimitReached(
                 nextReset: counter.nextResetDate(),
                 remaining: 0
             )
         }
+
+        var shouldRefundOnFailure = true
 
         do {
             let context = PromptContextBuilder.build(response: response, request: request)
@@ -99,9 +98,11 @@ final class DeepAnalysisOrchestrator {
 
             AppLogger.app.info("interpret.ok contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) pv=\(resp.promptVersion) cached=\(resp.cached)")
 
-            // 命中后端缓存 → 退款(命中缓存不消耗每日次数)
+            // 命中后端缓存 → 退款(命中缓存不消耗每日次数)。
+            // 后续本地写失败不能再次退款,避免多还一次全局额度。
             if resp.cached {
                 counter.refund(module: module)
+                shouldRefundOnFailure = false
             }
 
             // 存本地缓存。失败必须传导到 UI,不能返回"命书成功但缓存失败"的假成功。
@@ -130,7 +131,9 @@ final class DeepAnalysisOrchestrator {
             throw error
         } catch {
             // AI / 本地缓存失败 → 退款(重试不消耗)
-            counter.refund(module: module)
+            if shouldRefundOnFailure {
+                counter.refund(module: module)
+            }
             AppLogger.app.error("interpret.pipeline_failed contentHash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public)")
             throw error
         }
@@ -152,9 +155,9 @@ final class DeepAnalysisOrchestrator {
         }
     }
 
-    /// 剩余次数(VM 用于 UI 展示)。
-    func remainingReads(module: String = "bazi_deep") -> Int {
-        counter.remaining(module: module, limit: dailyLimit)
+    /// 剩余次数(全局池,VM 用于 UI 展示)。
+    func remainingReads() -> Int {
+        counter.remaining()
     }
 
     /// 下次重置时间(达上限时用于倒计时)。

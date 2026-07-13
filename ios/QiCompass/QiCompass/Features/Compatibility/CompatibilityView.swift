@@ -84,19 +84,13 @@ struct CompatibilityView: View {
                     )
                 } else {
                     ErrorStateView(
-                        error: NSError(
-                            domain: "Compatibility", code: -1,
-                            userInfo: [NSLocalizedDescriptionKey: "命盘数据读取失败"]
-                        ),
+                        userFacingError: .generic(message: "命盘数据读取失败"),
                         retry: { vm.backToConfig() }
                     )
                 }
-            case .failed(let message):
+            case .failed(let userError):
                 ErrorStateView(
-                    error: NSError(
-                        domain: "Compatibility", code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: message]
-                    ),
+                    userFacingError: userError,
                     retry: { vm.loadArchivedCharts() }
                 )
             }
@@ -112,10 +106,4 @@ extension Notification.Name {
     /// 切 Tab 通知(rawValue 唯一命名,决策 D1 / 风险 #4)。
     /// userInfo: ["tab": "deepAnalysis" / "compatibility" / "dailyFortune"]
     static let switchTab = Notification.Name("com.qicompass.switchTab")
-}
-
-private extension Array {
-    subscript(safe index: Int) -> Element? {
-        indices.contains(index) ? self[index] : nil
-    }
 }

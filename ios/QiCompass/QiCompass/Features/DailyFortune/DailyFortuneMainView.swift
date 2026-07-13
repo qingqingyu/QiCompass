@@ -20,6 +20,19 @@ struct DailyFortuneMainView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
+                // 离线查看角标(方案 step 6):网络失败 fallback 到本地缓存时显示。
+                if vm.isOffline {
+                    HStack(spacing: 6) {
+                        Image(systemName: "wifi.slash")
+                        Text("离线查看(展示本地缓存,不扣次数)")
+                    }
+                    .font(.caption2)
+                    .foregroundStyle(BaziTheme.gold)
+                    .frame(maxWidth: .infinity, alignment: .center)
+                    .padding(.vertical, 6)
+                    .background(BaziTheme.gold.opacity(0.08), in: Capsule())
+                }
+
                 // 顶部 7 天历史 pill(决策 §1.D)
                 DailyFortuneHistoryView(
                     selectedDate: businessDate,

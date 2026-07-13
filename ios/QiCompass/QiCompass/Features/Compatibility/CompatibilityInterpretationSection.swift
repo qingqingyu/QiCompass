@@ -17,10 +17,9 @@ struct CompatibilityInterpretationSection: View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
                 Text("合盘解读")
-                    .font(.headline)
-                    .foregroundStyle(BaziTheme.goldLight)
+                    .zcoolCardTitle()
                 Spacer()
-                Text("剩余 \(remainingReads)/3 次")
+                Text("剩余 \(remainingReads)/10 次")
                     .font(.caption)
                     .foregroundStyle(BaziTheme.textDim)
             }
@@ -39,10 +38,10 @@ struct CompatibilityInterpretationSection: View {
                 .padding(.vertical, 24)
             case .ok(let text, let cached):
                 Text(text)
-                    .font(.body)
-                    .foregroundStyle(BaziTheme.text)
+                    .bodySerifText()
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
+                    .fadeIn()
                 if cached {
                     HStack {
                         Image(systemName: "checkmark.seal")
@@ -62,12 +61,19 @@ struct CompatibilityInterpretationSection: View {
                     Text(message)
                         .font(.subheadline)
                         .foregroundStyle(BaziTheme.shenshaInauspicious)
-                    if message.contains("机缘已尽") {
-                        countdownView
-                    }
                     Button("重试", action: onRetry)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(BaziTheme.gold)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 16)
+            case .dailyLimitReached(let nextReset):
+                VStack(spacing: 8) {
+                    Text("今日机缘已尽,明日再来")
+                        .font(.subheadline)
+                        .foregroundStyle(BaziTheme.shenshaInauspicious)
+                    CountdownResetLabel(nextReset: nextReset)
+                    // 达上限:**禁用生成按钮、不显示重试**(方案 step 4)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
@@ -88,39 +94,19 @@ struct CompatibilityInterpretationSection: View {
                 .foregroundStyle(BaziTheme.textDim)
                 .multilineTextAlignment(.center)
 
-            Button(action: onGenerate) {
+            Button(action: { HapticEngine.medium(); onGenerate() }) {
                 HStack {
                     Image(systemName: "sparkles")
-                    Text(remainingReads > 0 ? "生成合盘解读" : "今日机缘已尽")
+                    Text("生成合盘解读")
                 }
                 .font(.body.weight(.semibold))
                 .foregroundStyle(BaziTheme.bgTop)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
-                .background(
-                    remainingReads > 0 ? BaziTheme.gold : BaziTheme.textDim.opacity(0.4),
-                    in: Capsule()
-                )
+                .background(BaziTheme.gold, in: Capsule())
             }
-            .disabled(remainingReads <= 0)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
-    }
-
-    /// 倒计时到午夜(TimelineView,每分钟刷新,无 Timer 泄漏)。
-    private var countdownView: some View {
-        TimelineView(.periodic(from: .now, by: 60)) { context in
-            let remaining = nextReset.timeIntervalSince(context.date)
-            Text("距重置:\(formatCountdown(max(0, remaining)))")
-                .font(.caption2)
-                .foregroundStyle(BaziTheme.textDim)
-        }
-    }
-
-    private func formatCountdown(_ seconds: TimeInterval) -> String {
-        let h = Int(seconds) / 3600
-        let m = (Int(seconds) % 3600) / 60
-        return String(format: "%d 时 %d 分", h, m)
     }
 }

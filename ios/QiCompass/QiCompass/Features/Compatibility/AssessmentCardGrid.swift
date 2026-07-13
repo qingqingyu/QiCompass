@@ -42,8 +42,7 @@ struct AssessmentCardGrid: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("定性评估")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
+                .zcoolCardTitle()
 
             LazyVGrid(
                 columns: [
@@ -74,6 +73,7 @@ struct AssessmentCardGrid: View {
                 }
             }
         }
+        .fadeIn()
     }
 
     /// 评估值 → 简短解释映射(后端枚举取值集,见 compatibility.py:107-119)。
@@ -89,7 +89,6 @@ struct AssessmentCardGrid: View {
         "同气": "日主同五行,性情相近",
         "相生": "日主相生,彼此扶助",
         "相克": "日主相克,易起摩擦",
-        "生扶偏单向": "生扶单向,需留意平衡",
 
         // zodiac_match
         "六合": "地支六合,性情默契",
@@ -105,5 +104,6 @@ struct AssessmentCardGrid: View {
         "多冲少合": "多冲少合,需多调理",
         "多合少冲": "多合少冲,性情和谐",
         "多刑多害": "刑害较多,需谨慎",
+        "略有冲刑害": "略有冲刑害,注意沟通",
     ]
 }

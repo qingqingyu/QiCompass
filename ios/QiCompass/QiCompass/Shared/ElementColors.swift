@@ -17,13 +17,16 @@ enum ElementColors: String {
     case water
 
     /// 五行对应色。未知 rawValue 兜底为 textDim(不静默用主金,避免与金元素混淆)。
+    ///
+    /// 色值对齐设计文档 §Visual Design Tokens(暗金主题调暗版):
+    /// - 土行旧值 `#c9a03c` 与主金重合,现校正为 `#b8881a`(必改项)
     var color: Color {
         switch self {
-        case .wood:  return Color(red: 0x4a/255, green: 0x9d/255, blue: 0x5f/255)
-        case .fire:  return Color(red: 0xc4/255, green: 0x45/255, blue: 0x45/255)
-        case .earth: return Color(red: 0xc9/255, green: 0xa0/255, blue: 0x3c/255)
-        case .metal: return Color(red: 0xd4/255, green: 0xc8/255, blue: 0xa8/255)
-        case .water: return Color(red: 0x3a/255, green: 0x6b/255, blue: 0x9c/255)
+        case .wood:  return Color(red: 0x5d/255, green: 0x9d/255, blue: 0x6b/255)
+        case .fire:  return Color(red: 0xc0/255, green: 0x4e/255, blue: 0x3a/255)
+        case .earth: return Color(red: 0xb8/255, green: 0x88/255, blue: 0x1a/255)
+        case .metal: return Color(red: 0x8c/255, green: 0x83/255, blue: 0x6e/255)
+        case .water: return Color(red: 0x3a/255, green: 0x7c/255, blue: 0xa5/255)
         }
     }
 
@@ -102,4 +105,7 @@ extension BaziTheme {
 
     /// 分隔线色。
     static let separator = Color.white.opacity(0.08)
+
+    /// 流年压力警示色(合盘 SyncedFortuneTable 用,区别于吉神金色)。
+    static let pressureWarning = Color(red: 0xe0/255, green: 0x70/255, blue: 0x70/255)
 }

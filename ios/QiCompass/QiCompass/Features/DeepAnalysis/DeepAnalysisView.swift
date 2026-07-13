@@ -61,8 +61,8 @@ struct DeepAnalysisView: View {
                             .foregroundStyle(BaziTheme.gold)
                     }
                 }
-            case .chartFailed(let message):
-                errorView(message: message, retry: vm.retryCalculation, onBack: vm.reset)
+            case .chartFailed(let userError):
+                errorView(error: userError, retry: vm.retryCalculation, onBack: vm.reset)
             }
         } else {
             ProgressView()
@@ -82,28 +82,12 @@ struct DeepAnalysisView: View {
     }
 
     private func errorView(
-        message: String,
+        error: UserFacingError,
         retry: @escaping () -> Void,
         onBack: @escaping () -> Void
     ) -> some View {
         VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 40))
-                .foregroundStyle(BaziTheme.gold.opacity(0.8))
-            Text("排盘失败")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
-            Text(message)
-                .font(.subheadline)
-                .foregroundStyle(BaziTheme.textDim)
-                .multilineTextAlignment(.center)
-                .padding(.horizontal)
-            Button("重试", action: retry)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(BaziTheme.bgTop)
-                .padding(.horizontal, 32)
-                .padding(.vertical, 12)
-                .background(BaziTheme.gold, in: Capsule())
+            ErrorStateView(error: error, retry: retry)
             Button("返回表单", action: onBack)
                 .font(.caption)
                 .foregroundStyle(BaziTheme.gold)
@@ -158,47 +142,6 @@ struct EmptyStateView: View {
                     .padding(.vertical, 12)
                     .background(BaziTheme.gold, in: Capsule())
             }
-        }
-        .padding()
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-}
-
-/// 四态共用:错误态(显式展示错误,不吞)
-struct ErrorStateView: View {
-    let error: Error
-    let retry: () -> Void
-    @State private var showDetail = false
-
-    var body: some View {
-        VStack(spacing: 16) {
-            Image(systemName: "exclamationmark.triangle")
-                .font(.system(size: 40))
-                .foregroundStyle(BaziTheme.gold.opacity(0.8))
-            Text("天意未明")
-                .font(.title2.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
-            Text(error.localizedDescription)
-                .font(.subheadline)
-                .foregroundStyle(BaziTheme.textDim)
-                .multilineTextAlignment(.center)
-                .lineLimit(showDetail ? nil : 2)
-            Button(showDetail ? "收起详情" : "展开详情") {
-                showDetail.toggle()
-            }
-            .font(.caption)
-            .foregroundStyle(BaziTheme.gold)
-            if showDetail {
-                Text(String(describing: error))
-                    .font(.system(.caption, design: .monospaced))
-                    .foregroundStyle(BaziTheme.textDim)
-                    .padding(12)
-                    .background(Color.white.opacity(0.05), in: RoundedRectangle(cornerRadius: 8))
-            }
-            Button("重试", action: retry)
-                .font(.body.weight(.semibold))
-                .foregroundStyle(BaziTheme.gold)
-                .padding(.top, 8)
         }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)

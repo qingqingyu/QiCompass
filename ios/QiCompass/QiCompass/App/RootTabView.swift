@@ -50,7 +50,8 @@ struct RootTabView: View {
 // MARK: - BaziTheme
 
 /// 命理主题视觉 token(按设计文档 §Visual Design Tokens)。
-/// 脚手架阶段只打底色 + 主金强调,不做字体/动画打磨。
+/// 全局唯一色值事实源:背景渐变 / 主金 / 亮金 / 正文 / 弱说明 + 扩展(卡片/描边/分隔线/神煞/压势力)。
+/// 散落 `Color.white.opacity(0.0x)` 应替换为 `cardBackground`;五行色走 `ElementColors`。
 enum BaziTheme {
     static let bgTop     = Color(red: 0x0d/255, green: 0x0b/255, blue: 0x08/255)
     static let bgMid     = Color(red: 0x12/255, green: 0x10/255, blue: 0x0d/255)

@@ -5,15 +5,14 @@ import SwiftUI
 /// 颜色编码:
 /// - 同步走强 → gold 背景
 /// - 同步承压 → 红色文字
-/// - 运势分化 / 节奏错位 / 难以定性 → textDim
+/// - 运势分化 / 难以定性 → textDim
 struct SyncedFortuneTable: View {
     let synced: [SyncedFortuneDTO]
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("流年同步(未来 3 年)")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
+                .zcoolCardTitle()
 
             VStack(spacing: 0) {
                 // 表头
@@ -36,6 +35,7 @@ struct SyncedFortuneTable: View {
             .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
             .overlay(RoundedRectangle(cornerRadius: 12).stroke(BaziTheme.cardBorder, lineWidth: 1))
         }
+        .fadeIn()
     }
 
     /// 单行:年份 + A + B + 同步标签(颜色编码)。
@@ -63,7 +63,7 @@ struct SyncedFortuneTable: View {
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(
                     isStrong ? BaziTheme.bgTop :
-                    isPressure ? Color(red: 0xe0/255, green: 0x70/255, blue: 0x70/255) :
+                    isPressure ? BaziTheme.pressureWarning :
                     BaziTheme.textDim
                 )
                 .padding(.horizontal, 6)

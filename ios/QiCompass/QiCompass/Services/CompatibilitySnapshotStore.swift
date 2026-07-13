@@ -12,7 +12,7 @@ struct CompatibilitySnapshotUpsertResult {
 ///
 /// 内容寻址语义(D13):
 /// - `compatibilityHash`(主 key)= response.compatibilityHash,由后端用
-///   `SHA-256(min(a,b) + "|" + max(a,b) + "|" + context)` 规范化生成,A/B 互换不产生重复快照
+///   `SHA-256(utf8len(h1):h1|utf8len(h2):h2|utf8len(ctx):ctx)` 规范化生成(h1=min,h2=max,utf8len=UTF-8 字节数),A/B 互换不产生重复快照
 /// - `personAHash` / `personBHash` 保留**调用时 UI 顺序**(A=发起方,B=对端),便于展示
 /// - `qualitativeAssessment` / `syncedFortune` 编码为 JSON Data 存
 /// - `interpretation` 长期命书,默认 nil,AI 阶段写入后覆盖
@@ -138,11 +138,14 @@ final class CompatibilitySnapshotStore {
 
     /// 客户端 SHA-256 复刻后端 `compute_compatibility_hash`。
     /// 用于 A/B 已知但 API 未调用时预查(D13 对称性验证测试亦用)。
-    /// 公式:`SHA-256(min(a,b) + "|" + max(a,b) + "|" + context)`。
+    /// 公式:`SHA-256(utf8len(h1):h1|utf8len(h2):h2|utf8len(ctx):ctx)`(h1=min,h2=max)。
+    /// **长度必须按 UTF-8 字节数**(`.utf8.count`),与后端 `len(s.encode("utf-8"))` 对齐;
+    /// 不能用 `.count`(字形簇数),否则 ZWJ emoji / 肤色调修饰等场景与 Python `len()`
+    /// 不一致 → hash 分歧 → 预查 cache miss。
     static func canonicalKey(aHash: String, bHash: String, context: String) -> String {
-        let a = aHash < bHash ? aHash : bHash
-        let b = aHash < bHash ? bHash : aHash
-        let payload = "\(a)|\(b)|\(context)"
+        let h1 = aHash < bHash ? aHash : bHash
+        let h2 = aHash < bHash ? bHash : aHash
+        let payload = "\(h1.utf8.count):\(h1)|\(h2.utf8.count):\(h2)|\(context.utf8.count):\(context)"
         let digest = SHA256.hash(data: Data(payload.utf8))
         return digest.map { String(format: "%02x", $0) }.joined()
     }

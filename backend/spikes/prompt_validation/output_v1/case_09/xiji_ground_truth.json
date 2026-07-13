@@ -1,0 +1,84 @@
+{
+  "day_master_strength": "weak",
+  "favorable_elements": [
+    "木",
+    "水"
+  ],
+  "unfavorable_elements": [
+    "火",
+    "土",
+    "金"
+  ],
+  "pattern_hint": null,
+  "tiaoshou_applied": false,
+  "element_balance": {
+    "wood": 2,
+    "fire": 2,
+    "earth": 3,
+    "metal": 0,
+    "water": 1
+  },
+  "shensha": [
+    {
+      "name": "文昌",
+      "position": "时柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "天德",
+      "position": "月柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "月德",
+      "position": "月柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "驿马",
+      "position": "时柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "华盖",
+      "position": "月柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "华盖",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "劫煞",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "亡神",
+      "position": "时柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "寡宿",
+      "position": "月柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "寡宿",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "天罗地网",
+      "position": "月柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "天罗地网",
+      "position": "日柱",
+      "source": "三命通会"
+    }
+  ],
+  "expected_strength": "weak"
+}

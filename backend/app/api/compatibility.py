@@ -32,7 +32,7 @@ async def compatibility(
     request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
     start = time.perf_counter()
 
-    b_mode = "archived" if req.person_b_hash else "temporary"
+    b_mode = "archived" if req.person_b_hash is not None else "temporary"
     input_log = {
         "request_id": request_id,
         "person_a_hash": req.person_a_hash,

@@ -19,22 +19,19 @@ final class DailyFortuneOrchestrator {
     private let interpretStore: InterpretationCacheStore
     private let chartStore: ChartSnapshotStore
     private let counter: DailyReadCounter
-    private let dailyLimit: Int
 
     init(
         apiClient: APIClient,
         dailyStore: DailyFortuneSnapshotStore,
         interpretStore: InterpretationCacheStore,
         chartStore: ChartSnapshotStore,
-        counter: DailyReadCounter,
-        dailyLimit: Int = 1
+        counter: DailyReadCounter
     ) {
         self.apiClient = apiClient
         self.dailyStore = dailyStore
         self.interpretStore = interpretStore
         self.chartStore = chartStore
         self.counter = counter
-        self.dailyLimit = dailyLimit
     }
 
     // MARK: - 阶段 1:确定性排盘
@@ -139,13 +136,15 @@ final class DailyFortuneOrchestrator {
             return resp
         }
 
-        // 2. 次数检查
-        guard counter.tryConsume(module: module, limit: dailyLimit) else {
+        // 2. 次数检查(全局池口径,方案 §D1)
+        guard counter.tryConsume(module: module) else {
             throw DeepAnalysisError.dailyLimitReached(
                 nextReset: counter.nextResetDate(),
                 remaining: 0
             )
         }
+
+        var shouldRefundOnFailure = true
 
         do {
             let context = PromptContextBuilder.buildDailyFortune(
@@ -176,13 +175,13 @@ final class DailyFortuneOrchestrator {
                 "daily.interpret.ok hash=\(chartHash, privacy: .public) pv=\(resp.promptVersion) cached=\(resp.cached)"
             )
 
-            // 命中后端缓存 → refund
+            // 命中后端缓存 → refund。后续失败不能再次 refund,避免双退款多还一次额度。
             if resp.cached {
                 counter.refund(module: module)
+                shouldRefundOnFailure = false
             }
 
-            // 写本地 AI 缓存。非关键路径:失败只 log,不影响已成功的 AI 解读返回。
-            // (API 已成功返回解读,缓存写失败不应导致用户丢失阅读次数)
+            // 写本地 AI 缓存。失败必须传导到 UI,避免返回假成功。
             do {
                 try interpretStore.upsert(
                     contentHash: chartHash,
@@ -196,10 +195,11 @@ final class DailyFortuneOrchestrator {
                 AppLogger.persistence.error(
                     "daily.interpret.cacheWrite_failed hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public) error=\(String(describing: error), privacy: .public)"
                 )
+                throw error
             }
 
             // 同步更新 DailyFortuneSnapshot.interpretation,让历史回看直接显示。
-            // 非关键路径:失败只 log,不影响已成功的 AI 解读返回(24h 缓存已写 interpretStore)。
+            // 失败必须传导到 UI,避免本地状态与成功提示不一致。
             do {
                 try dailyStore.updateInterpretation(
                     resp.interpretation,
@@ -210,13 +210,16 @@ final class DailyFortuneOrchestrator {
                 AppLogger.persistence.error(
                     "daily.interpret.snapshotSync_failed hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public) error=\(String(describing: error), privacy: .public)"
                 )
+                throw error
             }
 
             return resp
         } catch let error as DeepAnalysisError {
             throw error
         } catch {
-            counter.refund(module: module)
+            if shouldRefundOnFailure {
+                counter.refund(module: module)
+            }
             AppLogger.app.error(
                 "daily.interpret.failed hash=\(chartHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
@@ -224,9 +227,9 @@ final class DailyFortuneOrchestrator {
         }
     }
 
-    /// 剩余次数(VM 用于 UI 展示)。
+    /// 剩余次数(全局池,VM 用于 UI 展示)。
     func remainingReads() -> Int {
-        counter.remaining(module: "daily_fortune", limit: dailyLimit)
+        counter.remaining()
     }
 
     /// 下次重置时间(本地午夜,达上限时用于倒计时)。
@@ -235,7 +238,7 @@ final class DailyFortuneOrchestrator {
     }
 
     /// 查询本地 24h AI 缓存(用于阶段 1 完成后立即显示已缓存解读)。
-    /// 失败 throw 上抛,但调用方 try? 容忍 —— 这是 UI 优化,非关键路径。
+    /// 失败 throw 上抛,由调用方转换为解读错误态。
     func cachedInterpretationIfFresh(
         chartHash: String, targetDate: Date
     ) throws -> (text: String, promptVersion: Int)? {

@@ -86,7 +86,7 @@ struct BirthFormView: View {
                     .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
                 }
 
-                Button(action: onSubmit) {
+                Button(action: { HapticEngine.medium(); onSubmit() }) {
                     Text("开始排盘")
                         .font(.body.weight(.semibold))
                         .foregroundStyle(BaziTheme.bgTop)

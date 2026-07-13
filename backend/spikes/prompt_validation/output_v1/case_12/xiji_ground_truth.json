@@ -1,0 +1,54 @@
+{
+  "day_master_strength": "weak",
+  "favorable_elements": [
+    "火",
+    "木",
+    "水"
+  ],
+  "unfavorable_elements": [
+    "土",
+    "金"
+  ],
+  "pattern_hint": null,
+  "tiaoshou_applied": true,
+  "element_balance": {
+    "wood": 1,
+    "fire": 3,
+    "earth": 2,
+    "metal": 1,
+    "water": 1
+  },
+  "shensha": [
+    {
+      "name": "驿马",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "驿马",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "驿马",
+      "position": "时柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "华盖",
+      "position": "月柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "金舆",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "金舆",
+      "position": "时柱",
+      "source": "三命通会"
+    }
+  ],
+  "expected_strength": "weak"
+}

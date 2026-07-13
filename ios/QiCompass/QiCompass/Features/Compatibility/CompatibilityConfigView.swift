@@ -65,8 +65,8 @@ struct CompatibilityConfigView: View {
                         .foregroundStyle(BaziTheme.textDim)
                 }
 
-                if case .failed(let message) = vm.state {
-                    Text(message)
+                if case .failed(let userError) = vm.state {
+                    Text(userError.errorDescription ?? "未知错误")
                         .font(.caption)
                         .foregroundStyle(Color.red.opacity(0.9))
                         .frame(maxWidth: .infinity, alignment: .leading)

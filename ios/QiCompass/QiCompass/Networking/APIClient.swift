@@ -116,7 +116,7 @@ final class LiveAPIClient: APIClient {
             (data, response) = try await session.data(for: req)
         } catch let urlError as URLError {
             let elapsed = start.duration(to: .now)
-            AppLogger.networking.error("network failed endpoint=\(endpoint.path, privacy: .public) elapsed=\(elapsed) error=\(urlError.localizedDescription, privacy: .public)")
+            AppLogger.networking.error("network failed endpoint=\(endpoint.path, privacy: .public) elapsed=\(elapsed) error=\(String(describing: urlError), privacy: .public)")
             throw APIError.networkError(urlError)
         }
 
@@ -276,7 +276,7 @@ final class MockAPIClient: APIClient {
                 year: currentYear + offset,
                 personA: "甲子运 \(currentYear + offset)年",
                 personB: "丙午运 \(currentYear + offset)年",
-                sync: offset == 0 ? "同步走强" : (offset == 1 ? "运势分化" : "节奏错位")
+                sync: offset == 0 ? "同步走强" : (offset == 1 ? "运势分化" : "难以定性")
             )
         }
 

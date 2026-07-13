@@ -89,7 +89,7 @@ struct DailyFortuneView: View {
                 "op=dailyFortune.resolveChart failed error=\(String(describing: error), privacy: .public)"
             )
             // 不静默吞:把失败传给 UI
-            vm?.state = .failed("读取命盘存档失败:\(error.localizedDescription)")
+            vm?.state = .failed(.generic(message: "读取命盘存档失败:\(error.localizedDescription)"))
         }
     }
 
@@ -124,12 +124,9 @@ struct DailyFortuneView: View {
                         vm.generateInterpretation(currentChartHash: currentChartHash)
                     },
                 )
-            case .failed(let message):
+            case .failed(let userError):
                 ErrorStateView(
-                    error: NSError(
-                        domain: "DailyFortune", code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: message]
-                    ),
+                    userFacingError: userError,
                     retry: {
                         vm.onAppear(
                             currentChartHash: currentChartHash,

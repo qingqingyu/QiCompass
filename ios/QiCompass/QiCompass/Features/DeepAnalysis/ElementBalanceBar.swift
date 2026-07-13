@@ -23,8 +23,7 @@ struct ElementBalanceBar: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("五行分布")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
+                .zcoolCardTitle()
 
             GeometryReader { geo in
                 HStack(spacing: 2) {

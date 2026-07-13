@@ -18,33 +18,26 @@ import logging
 from datetime import datetime, timezone
 
 from lunar_python import Solar
-from lunar_python.util.LunarUtil import LunarUtil as _LunarUtil
 
-from ..core.calc_rule_snapshot import build_calc_rule_snapshot
 from ..core.city_longitude import resolve_longitude
 from ..engine.bazi_engine import BaziEngine
-from ..engine.current import locate_current_luck_pillar
 from ..engine.pillars import GAN_ELEMENT, ZHI_ELEMENT
-from ..errors import BaziCalculationFailedError
-from ..models.bazi import CalcRuleSnapshot, LuckPillar
+from ..errors import BaziCalculationFailedError, BaziError
+from ..models.bazi import BaziCalculateResponse, CalcRuleSnapshot, LuckPillar
 from ..models.compatibility import (
     CompatibilityRequest,
     CompatibilityResponse,
     QualitativeAssessment,
     SyncedFortune,
 )
-from ..models.daily_fortune import ChartPayload
+from ..models.daily_fortune import ChartPayload, PillarRef
 
 logger = logging.getLogger(__name__)
 
-# 复用 daily_fortune 的 SHI_SHEN 表(已被 assert 校验过 100 条)
-SHISHEN_GAN: dict[str, str] = dict(_LunarUtil.SHI_SHEN)
-
-# 中→英五行反向映射(favorable/unfavorable 是中文, 流年五行需对比英文)
-ZH2EN_ELEMENT: dict[str, str] = {
-    "木": "wood", "火": "fire", "土": "earth", "金": "metal", "水": "water",
+# 英→中五行映射(favorable/unfavorable 是中文, 流年五行需对比英文)
+EN2ZH_ELEMENT: dict[str, str] = {
+    "wood": "木", "fire": "火", "earth": "土", "metal": "金", "water": "水",
 }
-EN2ZH_ELEMENT: dict[str, str] = {v: k for k, v in ZH2EN_ELEMENT.items()}
 
 # ---------- 生肖(年支)合冲表 ----------
 
@@ -126,13 +119,8 @@ def _assess_five_elements(
     if not a_unfav or not b_unfav:
         return "信息不足"
 
-    # A 忌的五行若是 B 喜的 → B 能补 A
-    # B 忌的五行若是 A 喜的 → A 能补 B
-    a_need_b_has = a_unfav & b_fav    # A 忌 ∩ B 喜 → 但这逻辑反了
-    # 重新理解: 互补指的是"A 喜的五行恰好是 B 喜的"或者"A 缺(忌)的五行 B 能提供(喜)"
-    # 命理上"互补"指: A 的喜用五行与 B 的喜用五行不冲突, 或 B 的命局五行恰好补 A 之需
-    # 这里采用经典定义: A 忌 ∩ B 喜 的大小 + B 忌 ∩ A 喜 的大小
-    # A 忌的五行 B 喜 → B 命局多此五行 → 自然补 A 所缺
+    # 互补: A 忌的五行 B 喜 → B 命局多此五行, 自然补 A 所缺
+    #       B 忌的五行 A 喜 → A 命局多此五行, 自然补 B 所缺
     mutual_supply = (a_unfav & b_fav) | (b_unfav & a_fav)
     count = len(mutual_supply)
 
@@ -146,13 +134,15 @@ def _assess_five_elements(
 # ---------- 评估 2: 日主关系 ----------
 
 def _assess_day_master(a_day_gan: str, b_day_gan: str) -> str:
-    """日主关系评估(A 视角十神 → 反向验证 B 视角, 取交集标签)。
+    """日主关系评估(A/B 日干五行生克对称映射)。
 
-    算法: A 日干 + B 日干查 SHI_SHEN 表得 A 视角关系,
-    再对比 B 视角关系判断是否单向。
+    算法: A 日干 + B 日干查五行生克关系。
+
+    五行生克是对称关系: 两日干要么同气, 要么相生, 要么相克。
+    不存在"单向"标签(相生是 A→B 或 B→A 都标"相生")。
 
     Returns:
-        "同气" / "相生" / "相克" / "生扶偏单向"
+        "同气" / "相生" / "相克"
     """
     a_elem = GAN_ELEMENT.get(a_day_gan)
     b_elem = GAN_ELEMENT.get(b_day_gan)
@@ -168,7 +158,7 @@ def _assess_day_master(a_day_gan: str, b_day_gan: str) -> str:
     a_generates_b = SHENG.get(a_elem) == b_elem
     b_generates_a = SHENG.get(b_elem) == a_elem
     if a_generates_b or b_generates_a:
-        # 互生不存在(生克是单向), 这里只要有一方生另一方就标"相生"
+        # 相生关系是对称标签: 无论 A→B 还是 B→A 都标「相生」
         return "相生"
 
     # 相克: A→B 或 B→A
@@ -203,11 +193,10 @@ def _assess_zodiac(a_year_zhi: str, b_year_zhi: str) -> str:
     if pair in LIUCHONG:
         return "六冲"
 
-    # 三刑
-    if len(pair) == 2:
-        for xing in SANXING:
-            if pair <= xing:
-                return "三刑"
+    # 三刑(2 支命中三刑集合)
+    for xing in SANXING:
+        if pair <= xing:
+            return "三刑"
 
     # 相害
     if pair in XIANGHAI:
@@ -228,23 +217,23 @@ def _assess_zodiac(a_year_zhi: str, b_year_zhi: str) -> str:
 # ---------- 评估 4: 地支合冲(全 16 对) ----------
 
 def _assess_branch_harmony(
-    a_pillars: dict, b_pillars: dict,
+    a_pillars: dict[str, PillarRef], b_pillars: dict[str, PillarRef],
 ) -> str:
     """四柱地支合冲扫描(4×4=16 对)。
 
-    统计 16 对里的合/冲/刑/害次数(去重), 按规则打标签:
+    统计 16 对里的合/冲/刑/害次数(不去重, 每对独立柱位关系), 按规则打标签:
     - 多冲少合: 冲次数 >= 2 且 冲 > 合
     - 多合少冲: 合次数 >= 2 且 合 > 冲
     - 多刑多害: 刑+害 >= 3
     - 一冲一合: 冲 = 1 且 合 = 1
-    - 无冲无刑: 冲+刑+害 = 0
-    - 其他: 默认"无冲无刑"
+    - 略有冲刑害: 上述均不匹配但有冲/刑/害(单冲无合 / 单刑 / 单害 / 冲合均势等)
+    - 无冲无刑: 冲+刑+害 = 0(纯中性或纯合)
 
     Args:
         a_pillars/b_pillars: {year, month, day, hour} 四柱, 每柱含 zhi
 
     Returns:
-        "无冲无刑" / "一冲一合" / "多冲少合" / "多合少冲" / "多刑多害"
+        "无冲无刑" / "一冲一合" / "多冲少合" / "多合少冲" / "多刑多害" / "略有冲刑害"
     """
     a_zhis = [a_pillars[k].zhi for k in ("year", "month", "day", "hour")]
     b_zhis = [b_pillars[k].zhi for k in ("year", "month", "day", "hour")]
@@ -283,7 +272,7 @@ def _assess_branch_harmony(
                         xing_count += 1
                         break
 
-    # 标签优先级
+    # 标签优先级(从重到轻)
     if chong_count >= 2 and chong_count > he_count:
         return "多冲少合"
     if he_count >= 2 and he_count > chong_count:
@@ -294,8 +283,9 @@ def _assess_branch_harmony(
         return "一冲一合"
     if chong_count == 0 and xing_count == 0 and hai_count == 0:
         return "无冲无刑"
-    # 默认兜底(理论不走到这里, 防御性)
-    return "无冲无刑"
+    # 兜底: 有冲/刑/害但不匹配上述标签(单冲无合 / 单刑 / 单害 / 冲合均势等)。
+    # 不再误判为"无冲无刑",用"略有冲刑害"诚实呈现。
+    return "略有冲刑害"
 
 
 # ---------- 流年同步性 ----------
@@ -354,8 +344,10 @@ def _sync_label(
 ) -> str:
     """单年同步性标签。
 
+    一利一不利统称"运势分化"(不细分节奏差异, MVP 简化)。
+
     Returns:
-        "同步走强" / "同步承压" / "运势分化" / "节奏错位" / "难以定性"
+        "同步走强" / "同步承压" / "运势分化" / "难以定性"
     """
     a_good = _is_favorable_for(year_gz, a_favorable)
     b_good = _is_favorable_for(year_gz, b_favorable)
@@ -378,13 +370,25 @@ def _sync_label(
 def compute_compatibility_hash(a_hash: str, b_hash: str, context: str) -> str:
     """合盘缓存键 hash。
 
-    公式: sha256(min(a,b) + "|" + max(a,b) + "|" + context)
+    公式: sha256(utf8len(h1):h1|utf8len(h2):h2|utf8len(ctx):ctx)
+    其中 h1=min(a,b), h2=max(a,b), utf8len 按 UTF-8 字节数计。
+
+    用 UTF-8 字节长度前缀消除分隔符歧义: 即使 hash 或 context 含 ``|`` 字符,
+    也不会发生碰撞歧义。**必须用 UTF-8 字节数**(而非 Unicode 码点数/字形簇数):
+    Python ``len(str)`` 按码点、Swift ``String.count`` 按字形簇, 两者在 ZWJ 拼接
+    emoji / 肤色调修饰等场景下不一致 → 跨平台 hash 分歧 → iOS 预查 cache miss。
+    UTF-8 字节数两端定义唯一, 锁死跨平台一致性。
 
     - min/max 规范化 → A/B 顺序无关
     - context 参与: 同对夫妻不同 context 各自独立缓存
     - 不加 calc_rule_version: content_hash 已编码各自规则, 冗余
     """
-    payload = f"{min(a_hash, b_hash)}|{max(a_hash, b_hash)}|{context}"
+    h1, h2 = min(a_hash, b_hash), max(a_hash, b_hash)
+    payload = (
+        f"{len(h1.encode('utf-8'))}:{h1}"
+        f"|{len(h2.encode('utf-8'))}:{h2}"
+        f"|{len(context.encode('utf-8'))}:{context}"
+    )
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 
@@ -418,11 +422,7 @@ def compute_compatibility(
             # 模式 B: 后端现排 B
             assert req.person_b is not None  # model_validator 已校验
             pb = req.person_b
-            try:
-                longitude = resolve_longitude(pb.city, pb.longitude)
-            except Exception:
-                # city 解析失败 → 不吞, 原样向上抛(全局 handler 接管)
-                raise
+            longitude = resolve_longitude(pb.city, pb.longitude)
 
             engine = BaziEngine(now=now)
             b_result = engine.calculate(
@@ -430,7 +430,6 @@ def compute_compatibility(
                 longitude=longitude, zi_hour_rule=pb.zi_hour_rule,
             )
             # BaziEngine.calculate 返回 dict, 转为 BaziCalculateResponse
-            from ..models.bazi import BaziCalculateResponse
             b_full_response = BaziCalculateResponse(**b_result)
             # 把 B 排盘结果转为 ChartPayload(供后续评估用)
             b_payload = ChartPayload(
@@ -490,18 +489,14 @@ def compute_compatibility(
         comp_hash = compute_compatibility_hash(
             req.person_a_hash, b_hash, req.context)
 
-        # 5. calc_rule_snapshot: 模式 A 用默认; 模式 B 用 B 的
+        # 5. calc_rule_snapshot: 模式 A 用 A payload 的(可能为 None); 模式 B 用 B 的。
+        # 模式 A 若 payload 未带 → None(不塞占位值,避免破坏"同输入同输出"确定性契约)。
         if b_full_response is not None:
             calc_rule_snapshot = b_full_response.calc_rule_snapshot
         elif a_payload.calc_rule_snapshot is not None:
             calc_rule_snapshot = a_payload.calc_rule_snapshot
         else:
-            # 模式 A 兜底(payload 没带 calc_rule_snapshot)
-            calc_rule_snapshot = CalcRuleSnapshot(
-                **build_calc_rule_snapshot(
-                    sect=1, zi_hour_rule="zi_next_day",
-                    longitude=0.0, offset_minutes=0.0,
-                ))
+            calc_rule_snapshot = None
 
         logger.info(
             "compatibility.ok a_hash=%s b_hash=%s context=%s comp_hash=%s "
@@ -519,8 +514,9 @@ def compute_compatibility(
             synced_fortune=synced,
             calc_rule_snapshot=calc_rule_snapshot,
         )
-    except (BaziCalculationFailedError, ValueError):
-        # 已是结构化错误或 ValueError, 原样向上抛
+    except (BaziError, ValueError):
+        # 已是结构化错误或 ValueError, 原样向上抛。
+        # 例如城市查表失败应保留 CITY_NOT_FOUND/404,不能包装成排盘 500。
         raise
     except Exception as e:
         # 不吞: 把 lunar_python / 内部异常向上抛为结构化错误

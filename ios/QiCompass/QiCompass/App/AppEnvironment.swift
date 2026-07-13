@@ -54,7 +54,7 @@ final class AppEnvironment: ObservableObject {
             counter: counter
         )
         // slice 7 装配:合盘独享 compatibilityStore,共享 chartStore(隐式落地 B)/
-        // interpretStore/counter。AI 次数独立限额(D11:3/天,与 deep/daily 不互相挤占)。
+        // interpretStore/counter。三模块共用 DailyReadCounter 的每日 10 次全局池。
         let compatibilityStore = CompatibilitySnapshotStore(context: context)
         self.compatibilitySnapshotStore = compatibilityStore
         self.compatibilityOrchestrator = CompatibilityOrchestrator(

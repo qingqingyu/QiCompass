@@ -10,8 +10,7 @@ struct ShenshaChips: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("神煞")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
+                .zcoolCardTitle()
 
             if shensha.isEmpty {
                 Text("本命盘未命中神煞")
@@ -19,7 +18,7 @@ struct ShenshaChips: View {
                     .foregroundStyle(BaziTheme.textDim)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(12)
-                    .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 8))
+                    .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 8))
             } else {
                 LazyVGrid(
                     columns: [GridItem(.adaptive(minimum: 90), spacing: 8)],

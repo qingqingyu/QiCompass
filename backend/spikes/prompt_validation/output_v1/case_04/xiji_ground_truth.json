@@ -1,0 +1,49 @@
+{
+  "day_master_strength": "strong",
+  "favorable_elements": [
+    "金",
+    "水",
+    "木"
+  ],
+  "unfavorable_elements": [
+    "土",
+    "火"
+  ],
+  "pattern_hint": null,
+  "tiaoshou_applied": false,
+  "element_balance": {
+    "wood": 1,
+    "fire": 2,
+    "earth": 3,
+    "metal": 2,
+    "water": 0
+  },
+  "shensha": [
+    {
+      "name": "太极贵人",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "文昌",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "天德",
+      "position": "月柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "将星",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "华盖",
+      "position": "年柱",
+      "source": "三命通会"
+    }
+  ],
+  "expected_strength": "strong"
+}

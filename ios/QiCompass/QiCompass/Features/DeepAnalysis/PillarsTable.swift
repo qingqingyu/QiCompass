@@ -10,8 +10,7 @@ struct PillarsTable: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("四柱")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
+                .zcoolCardTitle()
             HStack(alignment: .top, spacing: 10) {
                 PillarColumn(title: "年", pillar: pillars.year)
                 PillarColumn(title: "月", pillar: pillars.month)
@@ -37,14 +36,14 @@ private struct PillarColumn: View {
                 .foregroundStyle(BaziTheme.textDim)
             // 天干
             Text(pillar.gan)
-                .font(.title2.weight(.bold))
+                .font(BaziFont.zcoolTitle(size: 22))
                 .foregroundStyle(ganColor)
             Text(pillar.shishenGan)
                 .font(.caption2)
                 .foregroundStyle(BaziTheme.textDim)
             // 地支
             Text(pillar.zhi)
-                .font(.title2.weight(.bold))
+                .font(BaziFont.zcoolTitle(size: 22))
                 .foregroundStyle(zhiColor)
             // 地支十神(可能多个)
             VStack(spacing: 2) {
@@ -80,7 +79,7 @@ private struct PillarColumn: View {
         }
         .frame(maxWidth: .infinity)
         .padding(8)
-        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 8))
+        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 8))
     }
 
     private var ganColor: Color {

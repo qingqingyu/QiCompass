@@ -10,7 +10,7 @@ enum DailyFortuneViewState: Equatable {
     case loading            // 首次 / 下拉刷新 / 跨业务日
     case chartMissing       // 显式提示「先做深度解析」
     case fortuneReady(DailyFortuneResponse, InterpretState, Date)  // 第三个 = 当前展示的 businessDate
-    case failed(String)
+    case failed(UserFacingError)
 
     static func == (lhs: DailyFortuneViewState, rhs: DailyFortuneViewState) -> Bool {
         switch (lhs, rhs) {
@@ -39,6 +39,9 @@ final class DailyFortuneViewModel {
     // MARK: 主状态
 
     var state: DailyFortuneViewState = .empty
+
+    /// 离线查看角标(网络失败 fallback 到本地缓存时为 true)。
+    var isOffline: Bool = false
 
     // MARK: 历史日期选择
 
@@ -114,6 +117,7 @@ final class DailyFortuneViewModel {
             state = .chartMissing
             return
         }
+        isOffline = false
         selectedDate = BusinessDateCalculator.businessDate(
             now: .now, ziHourRule: ziHourRule,
         )
@@ -169,21 +173,41 @@ final class DailyFortuneViewModel {
                         businessDate,
                     )
                 }
+            } catch is CancellationError {
+                return
             } catch let error as DeepAnalysisError {
                 if !Task.isCancelled {
-                    state = .fortuneReady(
-                        response,
-                        .failed(message: error.errorDescription ?? "未知错误"),
-                        businessDate,
-                    )
+                    // dailyLimitReached 独立形态(方案 step 4):禁用生成按钮、不显示重试
+                    if case .dailyLimitReached(let reset, _) = error {
+                        state = .fortuneReady(
+                            response,
+                            .dailyLimitReached(nextReset: reset),
+                            businessDate,
+                        )
+                    } else {
+                        state = .fortuneReady(
+                            response,
+                            .failed(message: error.errorDescription ?? "未知错误"),
+                            businessDate,
+                        )
+                    }
                 }
             } catch {
                 if !Task.isCancelled {
-                    state = .fortuneReady(
-                        response,
-                        .failed(message: error.localizedDescription),
-                        businessDate,
-                    )
+                    let userError = UserFacingError.from(error, stage: .interpret)
+                    if case .dailyLimitReached(let reset) = userError {
+                        state = .fortuneReady(
+                            response,
+                            .dailyLimitReached(nextReset: reset),
+                            businessDate,
+                        )
+                    } else {
+                        state = .fortuneReady(
+                            response,
+                            .failed(message: userError.errorDescription ?? "未知错误"),
+                            businessDate,
+                        )
+                    }
                 }
             }
         }
@@ -208,6 +232,7 @@ final class DailyFortuneViewModel {
     ) {
         determinantTask?.cancel()
         state = .loading
+        isOffline = false
 
         determinantTask = Task {
             await runFullPipeline(
@@ -221,6 +246,8 @@ final class DailyFortuneViewModel {
         chartHash: String, ziHourRule: String,
         businessDate: Date, forceRefresh: Bool
     ) async {
+        cachedChartPayload = nil
+
         // 阶段 1
         do {
             let (response, _) = try await orchestrator.runDeterministic(
@@ -241,11 +268,11 @@ final class DailyFortuneViewModel {
                 cachedChartPayload = ChartPayloadDTO.from(baziResponse: bazi)
             } catch {
                 // chartStore 读取/解码失败:阶段 1 已成功(说明 runDeterministic 内部
-                // 的同样调用成功了),此处失败属异常。不静默吞,记录日志。
-                // cachedChartPayload 保持 nil,用户点"今日解读"时 guard 会拦截。
+                // 的同样调用成功了),此处失败属异常。不静默吞,记录日志并传到 UI。
                 AppLogger.persistence.error(
                     "daily.runFullPipeline.chartPayload_failed hash=\(chartHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
                 )
+                throw error
             }
 
             // 若本地已有 AI 解读(24h 内)→ 直接显示 ok(cached=true),否则 idle
@@ -257,10 +284,11 @@ final class DailyFortuneViewModel {
                     interpretState = .ok(text: cached.text, cached: true)
                 }
             } catch {
-                // 非关键路径:缓存读取失败只 log,不影响主流程(interpretState 保持 idle)
+                // 缓存读取失败必须传到 UI 的解读错误态,避免成功页隐藏异常。
                 AppLogger.persistence.error(
                     "daily.cachedInterpretation_read_failed hash=\(chartHash, privacy: .public) targetDate=\(businessDate, privacy: .public) error=\(String(describing: error), privacy: .public)"
                 )
+                interpretState = .failed(message: "读取每日解读缓存失败:\(error.localizedDescription)")
             }
 
             if !Task.isCancelled {
@@ -273,10 +301,104 @@ final class DailyFortuneViewModel {
         } catch is CancellationError {
             return
         } catch {
+            await handleNetworkFailureFallback(
+                error: error, chartHash: chartHash, businessDate: businessDate
+            )
+        }
+    }
+
+    /// 离线 fallback(方案 step 6):
+    /// - 网络/超时错误 + 同 chartHash + businessDate 有缓存(即使 `cachedUntil` 已过)→ 展示缓存
+    ///   + 不触发 AI、不扣次数 + isOffline 角标
+    /// - 无缓存 → 进入 .failed(UserFacingError)
+    /// 缓存中已有 `interpretation` → 直接展示 AI 文本(标 cached 角标)。
+    private func handleNetworkFailureFallback(
+        error: Error, chartHash: String, businessDate: Date
+    ) async {
+        // 非网络类错误不进 fallback
+        let isNetworkError: Bool = {
+            if case .networkError(let urlError)? = error as? APIError,
+               UserFacingError.isOffline(urlError) {
+                return true
+            }
+            if let urlError = error as? URLError, UserFacingError.isOffline(urlError) {
+                return true
+            }
+            return false
+        }()
+
+        guard isNetworkError else {
+            // 非网络错误 → 显示"天意未明"墨溅卡
             if !Task.isCancelled {
-                state = .failed(error.localizedDescription)
+                state = .failed(UserFacingError.from(error, stage: .dailyDeterministic))
+            }
+            return
+        }
+
+        // 网络错误：尝试宽容缓存（即使 cachedUntil 已过也展示）。
+        // 存储读失败与"真无缓存"分开处理：前者 log 后按无缓存 UI 走。
+        let cached: DailyFortuneSnapshot
+        let cachedResponse: DailyFortuneResponse
+        do {
+            guard let snap = try dailyStore.get(chartHash: chartHash, targetDate: businessDate) else {
+                // 真无缓存 → 显示"天意未明"墨溅卡
+                if !Task.isCancelled {
+                    state = .failed(UserFacingError.from(error, stage: .dailyDeterministic))
+                }
+                return
+            }
+            cached = snap
+            cachedResponse = try dailyStore.response(from: cached)
+        } catch {
+            AppLogger.persistence.error(
+                "daily.offline_fallback.store_read_failed hash=\(chartHash, privacy: .public) targetDate=\(businessDate, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            if !Task.isCancelled {
+                state = .failed(UserFacingError.from(error, stage: .dailyDeterministic))
+            }
+            return
+        }
+
+        // 缓存里有 AI 解读 → 直接展示(不扣次数、不调 AI)
+        // 用 trimmed 判空防止纯空白字符串渲染为看似空的解读区
+        let hasInterpretation = !cached.interpretation.trimmingCharacters(in: .whitespaces).isEmpty
+        var interpState: InterpretState = hasInterpretation
+            ? .ok(text: cached.interpretation, cached: true)
+            : .idle
+
+        // 同步刷新 chartPayload(用户在线恢复后点"今日解读"可触发 AI)。
+        // 先清空旧值,避免读取失败时沿用上一张命盘的 prompt 上下文。
+        // chartStore 读取失败不阻塞已有离线解读展示;若没有离线解读,则把 AI 子态
+        // 显式置为 failed,让用户知道当前不能生成新解读。
+        cachedChartPayload = nil
+        do {
+            if let chartSnapshot = try chartStore.get(contentHash: chartHash) {
+                let bazi = try chartStore.decodeResponse(from: chartSnapshot)
+                cachedChartPayload = ChartPayloadDTO.from(baziResponse: bazi)
+            } else {
+                AppLogger.persistence.error(
+                    "daily.offline_fallback.chartSnapshot_missing hash=\(chartHash, privacy: .public)"
+                )
+                if !hasInterpretation {
+                    interpState = .failed(message: "命盘数据读取失败,请联网后下拉刷新重试")
+                }
+            }
+        } catch {
+            AppLogger.persistence.error(
+                "daily.offline_fallback.chartPayload_failed hash=\(chartHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            if !hasInterpretation {
+                interpState = .failed(message: "命盘数据读取失败,请联网后下拉刷新重试")
             }
         }
+
+        isOffline = true
+        if !Task.isCancelled {
+            state = .fortuneReady(cachedResponse, interpState, businessDate)
+        }
+        AppLogger.app.info(
+            "daily.offline_fallback hash=\(chartHash, privacy: .public) targetDate=\(businessDate, privacy: .public) hasInterpretation=\(hasInterpretation)"
+        )
     }
 
     private func isToday(_ date: Date) -> Bool {

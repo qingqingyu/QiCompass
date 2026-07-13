@@ -1,0 +1,59 @@
+{
+  "day_master_strength": "balanced",
+  "favorable_elements": [
+    "火",
+    "木"
+  ],
+  "unfavorable_elements": [
+    "土",
+    "金",
+    "水"
+  ],
+  "pattern_hint": null,
+  "tiaoshou_applied": true,
+  "element_balance": {
+    "wood": 3,
+    "fire": 3,
+    "earth": 2,
+    "metal": 0,
+    "water": 0
+  },
+  "shensha": [
+    {
+      "name": "太极贵人",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "太极贵人",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "驿马",
+      "position": "时柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "将星",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "将星",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "孤辰",
+      "position": "时柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "寡宿",
+      "position": "月柱",
+      "source": "三命通会"
+    }
+  ],
+  "expected_strength": "balanced"
+}

@@ -9,8 +9,7 @@ struct AuxiliaryCards: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("辅柱")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
+                .zcoolCardTitle()
             HStack(spacing: 10) {
                 AuxiliaryCard(title: "命宫", ganzhi: mingGong)
                 AuxiliaryCard(title: "身宫", ganzhi: shenGong)
@@ -34,7 +33,7 @@ private struct AuxiliaryCard: View {
                 .font(.caption)
                 .foregroundStyle(BaziTheme.textDim)
             Text(ganzhi.ganZhi)
-                .font(.title3.weight(.semibold))
+                .font(BaziFont.zcoolTitle(size: 20))
                 .foregroundStyle(BaziTheme.goldLight)
             Text(ganzhi.nayin)
                 .font(.caption2)
@@ -42,7 +41,7 @@ private struct AuxiliaryCard: View {
         }
         .frame(maxWidth: .infinity)
         .padding(10)
-        .background(Color.white.opacity(0.03), in: RoundedRectangle(cornerRadius: 10))
+        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 10))
         .overlay(RoundedRectangle(cornerRadius: 10).stroke(BaziTheme.cardBorder, lineWidth: 1))
     }
 }

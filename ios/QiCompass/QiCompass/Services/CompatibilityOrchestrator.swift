@@ -20,22 +20,19 @@ final class CompatibilityOrchestrator {
     private let chartStore: ChartSnapshotStore
     private let interpretStore: InterpretationCacheStore
     private let counter: DailyReadCounter
-    private let dailyLimit: Int
 
     init(
         apiClient: APIClient,
         compatibilityStore: CompatibilitySnapshotStore,
         chartStore: ChartSnapshotStore,
         interpretStore: InterpretationCacheStore,
-        counter: DailyReadCounter,
-        dailyLimit: Int = 3
+        counter: DailyReadCounter
     ) {
         self.apiClient = apiClient
         self.compatibilityStore = compatibilityStore
         self.chartStore = chartStore
         self.interpretStore = interpretStore
         self.counter = counter
-        self.dailyLimit = dailyLimit
     }
 
     // MARK: - 阶段 1:确定性合盘
@@ -76,14 +73,21 @@ final class CompatibilityOrchestrator {
             // 模式 A:B hash 来自请求
             personBHashFinal = bModeBHash
         } else if let bResponse = response.personBChart {
-            // 模式 B:隐式落地
+            // 模式 B:隐式落地。后端 model_validator 已强制 mode B 下 person_b 非空,
+            // 此处用 guard 显式解包,违反 invariant 即抛错(不静默用默认 gender/ziHourRule)。
+            guard let personB = request.personB else {
+                AppLogger.app.error(
+                    "compat.mode_b_missing_person_b_input a_hash=\(personAHash, privacy: .public)"
+                )
+                throw CompatibilityError.modeBMissingPersonBInput
+            }
             personBHashFinal = bResponse.contentHash
             let bRequest = BaziCalculateRequest(
                 birthDatetime: bResponse.trueSolarTime,
-                gender: request.personB?.gender ?? "male",
-                city: request.personB?.city,
-                longitude: request.personB?.longitude,
-                ziHourRule: request.personB?.ziHourRule ?? "zi_next_day"
+                gender: personB.gender,
+                city: personB.city,
+                longitude: personB.longitude,
+                ziHourRule: personB.ziHourRule
             )
             _ = try chartStore.upsert(response: bResponse, request: bRequest)
             AppLogger.persistence.info(
@@ -160,19 +164,26 @@ final class CompatibilityOrchestrator {
                 cached: true,
                 generatedAt: cached.generatedAt
             )
+            try syncCompatibilityInterpretation(
+                cached.interpretation,
+                compatibilityHash: compatibilityHash,
+                source: "cache_hit"
+            )
             AppLogger.app.info(
                 "compat.interpret.cache_hit compatibility_hash=\(compatibilityHash, privacy: .public)"
             )
             return resp
         }
 
-        // 2. 次数检查
-        guard counter.tryConsume(module: module, limit: dailyLimit) else {
+        // 2. 次数检查(全局池口径,方案 §D1)
+        guard counter.tryConsume(module: module) else {
             throw DeepAnalysisError.dailyLimitReached(
                 nextReset: counter.nextResetDate(),
                 remaining: 0
             )
         }
+
+        var shouldRefundOnFailure = true
 
         do {
             let contextLabel = PromptContextBuilder.contextLabel(context)
@@ -216,12 +227,13 @@ final class CompatibilityOrchestrator {
                 "compat.interpret.ok compatibility_hash=\(compatibilityHash, privacy: .public) pv=\(resp.promptVersion) cached=\(resp.cached) words=\(resp.interpretation.count)"
             )
 
-            // 4. 命中后端缓存 → refund
+            // 4. 命中后端缓存 → refund。后续失败不能再次 refund,避免双退款。
             if resp.cached {
                 counter.refund(module: module)
+                shouldRefundOnFailure = false
             }
 
-            // 5. 写本地 24h AI 缓存。非关键路径:失败只 log,不影响已成功的解读返回。
+            // 5. 写本地 24h AI 缓存。失败必须传导到 UI,避免返回假成功。
             do {
                 try interpretStore.upsert(
                     contentHash: compatibilityHash,
@@ -235,20 +247,16 @@ final class CompatibilityOrchestrator {
                 AppLogger.persistence.error(
                     "compat.interpret.cacheWrite_failed compatibility_hash=\(compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
                 )
+                throw error
             }
 
             // 6. 同步更新 CompatibilitySnapshot.interpretation(长期命书)。
-            // 非关键路径:失败只 log(24h 缓存已写 interpretStore)。
-            do {
-                try compatibilityStore.updateInterpretation(
-                    resp.interpretation,
-                    forCompatibilityHash: compatibilityHash
-                )
-            } catch {
-                AppLogger.persistence.error(
-                    "compat.interpret.snapshotSync_failed compatibility_hash=\(compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
-                )
-            }
+            // 失败必须传导到 UI,避免本地状态与成功提示不一致。
+            try syncCompatibilityInterpretation(
+                resp.interpretation,
+                compatibilityHash: compatibilityHash,
+                source: "network"
+            )
 
             return resp
         } catch let error as CompatibilityError {
@@ -256,7 +264,9 @@ final class CompatibilityOrchestrator {
         } catch let error as DeepAnalysisError {
             throw error
         } catch {
-            counter.refund(module: module)
+            if shouldRefundOnFailure {
+                counter.refund(module: module)
+            }
             AppLogger.app.error(
                 "compat.interpret.failed compatibility_hash=\(compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
@@ -264,9 +274,9 @@ final class CompatibilityOrchestrator {
         }
     }
 
-    /// 剩余次数(VM 用于 UI 展示)。
+    /// 剩余次数(全局池,VM 用于 UI 展示)。
     func remainingReads() -> Int {
-        counter.remaining(module: "compatibility", limit: dailyLimit)
+        counter.remaining()
     }
 
     /// 下次重置时间(本地午夜,达上限时用于倒计时)。
@@ -274,7 +284,11 @@ final class CompatibilityOrchestrator {
         counter.nextResetDate()
     }
 
-    /// 查询本地 24h AI 缓存(用于阶段 1 完成后立即显示已缓存解读)。
+    /// 查询本地 24h AI 缓存,命中时同步长期 CompatibilitySnapshot 后返回。
+    /// 用于阶段 1 完成后立即显示已缓存解读。
+    ///
+    /// 同步失败必须上抛给 VM 转成解读错误态,避免 UI 显示“缓存成功”但长期命书
+    /// 没有实际落地。缓存读取本身(`interpretStore.getLatest`)失败也上抛。
     func cachedInterpretationIfFresh(
         compatibilityHash: String
     ) throws -> (text: String, promptVersion: Int)? {
@@ -287,8 +301,32 @@ final class CompatibilityOrchestrator {
         else {
             return nil
         }
+        try syncCompatibilityInterpretation(
+            cached.interpretation,
+            compatibilityHash: compatibilityHash,
+            source: "prefetch_cache"
+        )
         return (cached.interpretation, cached.promptVersion)
     }
+
+    private func syncCompatibilityInterpretation(
+        _ interpretation: String,
+        compatibilityHash: String,
+        source: String
+    ) throws {
+        do {
+            try compatibilityStore.updateInterpretation(
+                interpretation,
+                forCompatibilityHash: compatibilityHash
+            )
+        } catch {
+            AppLogger.persistence.error(
+                "compat.interpret.snapshotSync_failed compatibility_hash=\(compatibilityHash, privacy: .public) source=\(source, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            throw error
+        }
+    }
+
 }
 
 // MARK: - CompatibilityError
@@ -297,6 +335,8 @@ final class CompatibilityOrchestrator {
 enum CompatibilityError: Error, LocalizedError {
     /// 模式 B 后端未返回 person_b_chart(理论不应发生)
     case modeBMissingPersonBChart
+    /// 模式 B 请求构造时缺 person_b 字段(invariant 违反,后端 model_validator 应已拦截)
+    case modeBMissingPersonBInput
     /// AI 解读包含禁词(D10 拦截)
     case forbiddenWordsHit(words: [String])
 
@@ -304,6 +344,8 @@ enum CompatibilityError: Error, LocalizedError {
         switch self {
         case .modeBMissingPersonBChart:
             return "模式 B 后端响应缺少 B 盘数据"
+        case .modeBMissingPersonBInput:
+            return "模式 B 请求缺少 B 盘输入字段"
         case .forbiddenWordsHit:
             return "解读包含不合规绝对结论,请重试"
         }

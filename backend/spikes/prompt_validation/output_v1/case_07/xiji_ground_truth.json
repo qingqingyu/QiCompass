@@ -1,0 +1,74 @@
+{
+  "day_master_strength": "strong",
+  "favorable_elements": [
+    "木",
+    "火",
+    "土"
+  ],
+  "unfavorable_elements": [
+    "水",
+    "金"
+  ],
+  "pattern_hint": null,
+  "tiaoshou_applied": false,
+  "element_balance": {
+    "wood": 3,
+    "fire": 1,
+    "earth": 1,
+    "metal": 1,
+    "water": 2
+  },
+  "shensha": [
+    {
+      "name": "天乙贵人",
+      "position": "时柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "太极贵人",
+      "position": "时柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "桃花",
+      "position": "月柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "将星",
+      "position": "月柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "将星",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "华盖",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "金舆",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "羊刃",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "劫煞",
+      "position": "时柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "红艳",
+      "position": "日柱",
+      "source": "三命通会"
+    }
+  ],
+  "expected_strength": "strong"
+}

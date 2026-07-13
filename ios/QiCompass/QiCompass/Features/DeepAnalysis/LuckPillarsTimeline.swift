@@ -15,8 +15,7 @@ struct LuckPillarsTimeline: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("大运")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
+                .zcoolCardTitle()
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(alignment: .top, spacing: 12) {
                     ForEach(Array(validPillars.enumerated()), id: \.offset) { _, lp in
@@ -38,7 +37,7 @@ struct LuckPillarsTimeline: View {
                 .font(.caption2)
                 .foregroundStyle(BaziTheme.textDim)
             Text(lp.ganZhi)
-                .font(.body.weight(.semibold))
+                .font(BaziFont.zcoolTitle(size: 17))
                 .foregroundStyle(isCurrent ? BaziTheme.gold : BaziTheme.goldLight)
             Text("\(lp.startYear)-\(lp.endYear)")
                 .font(.caption2)
@@ -52,7 +51,7 @@ struct LuckPillarsTimeline: View {
         .frame(width: 64)
         .padding(8)
         .background(
-            isCurrent ? BaziTheme.gold.opacity(0.15) : Color.white.opacity(0.03),
+            isCurrent ? BaziTheme.gold.opacity(0.15) : BaziTheme.cardBackground,
             in: RoundedRectangle(cornerRadius: 8)
         )
         .overlay(

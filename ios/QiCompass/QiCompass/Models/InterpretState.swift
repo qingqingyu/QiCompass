@@ -8,9 +8,12 @@ import Foundation
 /// - fetching:已发起 /api/interpret 调用
 /// - ok(text, cached):成功,cached 标识是否命中缓存(命中不消耗次数)
 /// - failed(message):独立 error 态,可单独重试
+/// - dailyLimitReached(nextReset):全局每日 10 次已用完,**禁用生成按钮、不显示重试**,
+///   用 `TimelineView(.everyMinute)` 渲染到本地午夜倒计时
 enum InterpretState: Equatable {
     case idle
     case fetching
     case ok(text: String, cached: Bool)
     case failed(message: String)
+    case dailyLimitReached(nextReset: Date)
 }

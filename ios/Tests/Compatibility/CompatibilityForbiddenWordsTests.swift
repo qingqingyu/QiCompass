@@ -86,4 +86,9 @@ final class CompatibilityForbiddenWordsTests: XCTestCase {
         let err = CompatibilityError.modeBMissingPersonBChart
         XCTAssertEqual(err.errorDescription, "模式 B 后端响应缺少 B 盘数据")
     }
+
+    func testCompatibilityError_modeBMissingPersonBInput_错误描述() {
+        let err = CompatibilityError.modeBMissingPersonBInput
+        XCTAssertEqual(err.errorDescription, "模式 B 请求缺少 B 盘输入字段")
+    }
 }

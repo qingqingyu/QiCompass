@@ -9,7 +9,7 @@ struct ChartHeaderView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(genderLabel)
-                    .font(.title3.weight(.semibold))
+                    .font(BaziFont.zcoolTitle(size: 20))
                     .foregroundStyle(BaziTheme.goldLight)
                 Spacer()
                 Text("真太阳时偏差 \(offsetString)")

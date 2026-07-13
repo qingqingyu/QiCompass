@@ -8,19 +8,19 @@ struct HourPillarsSection: View {
     let ziHourRule: String
     let businessDate: Date
 
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isExpanded = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             Button {
-                withAnimation(.easeInOut) {
+                withAnimation(MotionPreferences.animation(reduceMotion: reduceMotion)) {
                     isExpanded.toggle()
                 }
             } label: {
                 HStack {
                     Text("12 时辰")
-                        .font(.headline)
-                        .foregroundStyle(BaziTheme.goldLight)
+                        .zcoolCardTitle()
                     Spacer()
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
@@ -69,7 +69,7 @@ struct HourPillarsSection: View {
         HStack(alignment: .top, spacing: 12) {
             // 时辰字 + 高亮
             Text(hp.hour)
-                .font(.system(size: 20, weight: .semibold, design: .serif))
+                .font(BaziFont.zcoolTitle(size: 20))
                 .foregroundStyle(isCurrent ? BaziTheme.gold : BaziTheme.text)
                 .frame(width: 28, alignment: .center)
                 .padding(4)

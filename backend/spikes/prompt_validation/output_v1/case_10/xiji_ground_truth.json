@@ -1,0 +1,54 @@
+{
+  "day_master_strength": "weak",
+  "favorable_elements": [
+    "土",
+    "火"
+  ],
+  "unfavorable_elements": [
+    "金",
+    "水",
+    "木"
+  ],
+  "pattern_hint": null,
+  "tiaoshou_applied": false,
+  "element_balance": {
+    "wood": 2,
+    "fire": 3,
+    "earth": 1,
+    "metal": 2,
+    "water": 0
+  },
+  "shensha": [
+    {
+      "name": "天德",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "月德",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "将星",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "禄神",
+      "position": "时柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "羊刃",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "亡神",
+      "position": "时柱",
+      "source": "三命通会"
+    }
+  ],
+  "expected_strength": "weak"
+}

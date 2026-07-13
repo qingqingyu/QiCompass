@@ -25,6 +25,7 @@ from app.engine.compatibility import (
     compute_compatibility,
     compute_compatibility_hash,
 )
+from app.errors import CityNotFoundError
 from app.main import app
 from app.models.bazi import CalcRuleSnapshot, LuckPillar
 from app.models.compatibility import (
@@ -142,6 +143,20 @@ def test_hash_same_input_deterministic():
     assert h1 == h2
 
 
+def test_hash_length_prefixed_no_collision():
+    """长度前缀消除分隔符歧义: 旧公式 (min|max|ctx) 在含 ``|`` 字符时会碰撞,
+    新公式 (len(h1):h1|len(h2):h2|len(ctx):ctx) 不会。
+
+    此测试用旧公式会碰撞、新公式不碰撞的输入对, 锁定公式不被回退。
+    也作为跨平台一致性回归: iOS ``canonicalKey`` 必须用同一公式。
+    """
+    # 旧公式对这两组输入都会拼接成 "a|b|c|x" → 碰撞
+    # 新公式: "1:a|3:b|c|1:x" vs "3:a|b|1:c|1:x" → 不碰撞
+    h_a = compute_compatibility_hash("a", "b|c", "x")
+    h_b = compute_compatibility_hash("a|b", "c", "x")
+    assert h_a != h_b, "长度前缀应防止含 ``|`` 输入的碰撞"
+
+
 # ===== 单元测试:四项评估 =====
 
 def test_assess_five_elements_complementary():
@@ -198,6 +213,25 @@ def test_assess_branch_harmony_no_chong():
     # 子丑六合 → 多合
     label = _assess_branch_harmony(a, b)
     assert label == "多合少冲", f"4 对子丑应多合少冲, 实际={label}"
+
+
+def test_assess_branch_harmony_equal_chong_he_falls_through():
+    """冲合均势(chong==he>=2)不匹配 多冲少合 / 多合少冲 严格 > 条件,
+    应得到 '略有冲刑害' 兜底标签(而非误判为 '无冲无刑')。
+
+    回归测试: Round 4 修复前此场景返回 '无冲无刑',误导用户。
+    """
+    a = {k: PillarRef(gan="甲", zhi="子") for k in ("year", "month", "day", "hour")}
+    b = {
+        "year": PillarRef(gan="甲", zhi="午"),
+        "month": PillarRef(gan="甲", zhi="午"),
+        "day": PillarRef(gan="甲", zhi="丑"),
+        "hour": PillarRef(gan="甲", zhi="丑"),
+    }
+    # A=子×4 × B: 午×2 + 丑×2 → 8 个子午冲 + 8 个子丑合(chong==he==8)
+    label = _assess_branch_harmony(a, b)
+    assert label == "略有冲刑害", (
+        f"冲合均势应得 '略有冲刑害' 兜底, 实际={label}")
 
 
 # ===== 端到端:模式 A(零排盘) =====
@@ -287,7 +321,7 @@ def test_context_isolation_qualitative_invariant():
 def test_same_chart_a_equals_b():
     """A=B 同盘合: hash 合法, 评估字段合理。"""
     req = CompatibilityRequest(
-        person_a_hash="x" * 64, person_b_hash="x" * 64,
+        person_a_hash="a" * 64, person_b_hash="a" * 64,
         chart_payload_a=DOC_A, chart_payload_b=DOC_A,
         context="general",
     )
@@ -321,7 +355,7 @@ def test_synced_fortune_format():
 
 def test_synced_fortune_sync_label_set():
     """sync 标签在固定集合内。"""
-    valid = {"同步走强", "同步承压", "运势分化", "节奏错位", "难以定性"}
+    valid = {"同步走强", "同步承压", "运势分化", "难以定性"}
     req = _make_archived_request()
     resp = compute_compatibility(req)
     for s in resp.synced_fortune:
@@ -408,6 +442,34 @@ async def test_endpoint_mode_a_missing_chart_payload_b_returns_422():
     assert code == 422
 
 
+async def test_endpoint_empty_hash_returns_422():
+    """content_hash 不能为空,否则会把空字符串误判为有效模式 A key。"""
+    payload = {
+        "person_a_hash": "",
+        "person_b_hash": "",
+        "chart_payload_a": DOC_A.model_dump(),
+        "chart_payload_b": DOC_B.model_dump(),
+        "context": "general",
+    }
+    code, body = await _post(payload)
+    assert code == 422, f"空 hash 应 422, 实际={code} body={body}"
+
+
+async def test_endpoint_malformed_hash_returns_422():
+    """content_hash 必须是 64 位小写 sha256 hex,不能接受任意非空字符串。"""
+    for bad_hash in ("abc", "g" * 64, "A" * 64):
+        payload = {
+            "person_a_hash": bad_hash,
+            "person_b_hash": "b" * 64,
+            "chart_payload_a": DOC_A.model_dump(),
+            "chart_payload_b": DOC_B.model_dump(),
+            "context": "general",
+        }
+        code, body = await _post(payload)
+        assert code == 422, (
+            f"非法 hash {bad_hash!r} 应 422, 实际={code} body={body}")
+
+
 async def test_endpoint_chart_payload_a_missing_returns_422():
     """缺 chart_payload_a → 422。"""
     payload = {
@@ -418,6 +480,22 @@ async def test_endpoint_chart_payload_a_missing_returns_422():
     }
     code, body = await _post(payload)
     assert code == 422
+
+
+def test_mode_b_unknown_city_preserves_city_not_found_error():
+    """城市查表失败应保留 CITY_NOT_FOUND/404,不能包装成 BAZI_CALCULATION_FAILED/500。"""
+    req = CompatibilityRequest(
+        person_a_hash="a" * 64,
+        person_b=PersonBInput(
+            birth_datetime=datetime(1990, 3, 15, 14, 30, tzinfo=TZ8),
+            gender="female",
+            city="不存在的城市",
+        ),
+        chart_payload_a=DOC_A,
+        context="general",
+    )
+    with pytest.raises(CityNotFoundError):
+        compute_compatibility(req)
 
 
 # ===== 端点注册 =====

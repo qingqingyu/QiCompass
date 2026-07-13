@@ -22,8 +22,8 @@ struct DailyFortuneHeaderView: View {
             // 公历 + 农历
             HStack(alignment: .firstTextBaseline, spacing: 12) {
                 Text(Self.gregorianFormatter.string(from: businessDate))
-                    .font(.headline)
-                    .foregroundStyle(BaziTheme.text)
+                    .font(BaziFont.zcoolTitle(size: 17))
+                    .foregroundStyle(BaziTheme.goldLight)
                 Text("农历 \(lunarDate)")
                     .font(.subheadline)
                     .foregroundStyle(BaziTheme.textDim)
@@ -35,7 +35,7 @@ struct DailyFortuneHeaderView: View {
                     .font(.caption)
                     .foregroundStyle(BaziTheme.textDim)
                 Text(dayPillar)
-                    .font(.system(size: 32, weight: .semibold, design: .serif))
+                    .font(BaziFont.zcoolTitle(size: 32))
                     .foregroundStyle(BaziTheme.gold)
             }
 

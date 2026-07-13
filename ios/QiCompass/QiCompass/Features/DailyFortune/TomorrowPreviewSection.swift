@@ -8,15 +8,14 @@ struct TomorrowPreviewSection: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text("明日预告")
-                    .font(.headline)
-                    .foregroundStyle(BaziTheme.goldLight)
+                    .zcoolCardTitle()
                 Spacer()
                 Image(systemName: "moon.stars")
                     .foregroundStyle(BaziTheme.gold.opacity(0.7))
             }
             HStack(spacing: 12) {
                 Text(preview.dayPillar)
-                    .font(.system(size: 18, weight: .semibold, design: .serif))
+                    .font(BaziFont.zcoolTitle(size: 18))
                     .foregroundStyle(BaziTheme.gold)
                 Text(preview.dayRelation)
                     .font(.caption.weight(.medium))

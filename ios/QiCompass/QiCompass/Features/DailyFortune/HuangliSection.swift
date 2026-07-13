@@ -23,7 +23,7 @@ struct HuangliSection: View {
     private func row(label: String, items: [String], tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
-                .font(.headline)
+                .font(BaziFont.zcoolTitle(size: 17))
                 .foregroundStyle(tint)
             if items.isEmpty {
                 Text("—")

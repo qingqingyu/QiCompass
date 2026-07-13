@@ -47,27 +47,18 @@ struct CompatibilityMainView: View {
 
     /// 从两个 ChartSnapshot 解码 BaziResponse,构造双盘对比源。
     /// 解码失败显式返回 nil(由 UI 提示),不静默用占位。
+    /// 走 VM 暴露的窄方法,避免 View 直访 SwiftData payload/store。
     private func makeDualPillars() -> [DualPillarSource]? {
         do {
-            let baziA = try vm_decode(chartASnapshot)
-            let baziB = try vm_decode(chartBSnapshot)
-            return DualPillarSource.from(a: baziA, b: baziB)
+            return try vm.makeDualPillars(
+                chartASnapshot: chartASnapshot,
+                chartBSnapshot: chartBSnapshot
+            )
         } catch {
             AppLogger.persistence.error(
                 "op=compatibility.makeDualPillars failed error=\(String(describing: error), privacy: .public)"
             )
             return nil
         }
-    }
-
-    /// 包装一层,避免 View 直接访问 store(VM 提供)。
-    private func vm_decode(_ snapshot: ChartSnapshot) throws -> BaziResponse {
-        try CompatibilityMainView.decodeChart(snapshot)
-    }
-
-    /// 静态解码(供 View 调用,通过环境注入的 chartStore 解)。
-    /// 这里用一个简化的本地实现,实际 decode 逻辑在 ChartSnapshotStore。
-    static func decodeChart(_ snapshot: ChartSnapshot) throws -> BaziResponse {
-        try APICoder.decoder.decode(BaziResponse.self, from: snapshot.payload)
     }
 }

@@ -1,0 +1,74 @@
+{
+  "day_master_strength": "balanced",
+  "favorable_elements": [
+    "火",
+    "土",
+    "金"
+  ],
+  "unfavorable_elements": [
+    "木",
+    "水"
+  ],
+  "pattern_hint": null,
+  "tiaoshou_applied": false,
+  "element_balance": {
+    "wood": 2,
+    "fire": 2,
+    "earth": 3,
+    "metal": 1,
+    "water": 0
+  },
+  "shensha": [
+    {
+      "name": "太极贵人",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "文昌",
+      "position": "时柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "月德",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "桃花",
+      "position": "月柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "将星",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "华盖",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "羊刃",
+      "position": "月柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "亡神",
+      "position": "时柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "天罗地网",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "红艳",
+      "position": "年柱",
+      "source": "三命通会"
+    }
+  ],
+  "expected_strength": "balanced"
+}

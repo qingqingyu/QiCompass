@@ -1,0 +1,69 @@
+{
+  "day_master_strength": "strong",
+  "favorable_elements": [
+    "水",
+    "木",
+    "火"
+  ],
+  "unfavorable_elements": [
+    "金",
+    "土"
+  ],
+  "pattern_hint": null,
+  "tiaoshou_applied": true,
+  "element_balance": {
+    "wood": 1,
+    "fire": 1,
+    "earth": 3,
+    "metal": 2,
+    "water": 1
+  },
+  "shensha": [
+    {
+      "name": "天乙贵人",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "天乙贵人",
+      "position": "月柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "华盖",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "华盖",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "金舆",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "亡神",
+      "position": "时柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "寡宿",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "天罗地网",
+      "position": "日柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "红艳",
+      "position": "日柱",
+      "source": "三命通会"
+    }
+  ],
+  "expected_strength": "strong"
+}

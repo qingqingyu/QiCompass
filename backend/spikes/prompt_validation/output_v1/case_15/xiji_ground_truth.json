@@ -1,0 +1,42 @@
+{
+  "day_master_strength": "special_pattern",
+  "favorable_elements": [],
+  "unfavorable_elements": [],
+  "pattern_hint": "zhuanwang",
+  "tiaoshou_applied": false,
+  "element_balance": {
+    "wood": 1,
+    "fire": 0,
+    "earth": 0,
+    "metal": 0,
+    "water": 7
+  },
+  "shensha": [
+    {
+      "name": "天乙贵人",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "文昌",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "桃花",
+      "position": "时柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "将星",
+      "position": "年柱",
+      "source": "三命通会"
+    },
+    {
+      "name": "禄神",
+      "position": "时柱",
+      "source": "三命通会"
+    }
+  ],
+  "expected_strength": "special_pattern"
+}

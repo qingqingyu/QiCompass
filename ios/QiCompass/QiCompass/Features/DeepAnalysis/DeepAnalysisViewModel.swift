@@ -11,7 +11,7 @@ enum DeepAnalysisViewState: Equatable {
     case empty
     case calculating(stage: LoadingStage)
     case chartReady(BaziResponse, InterpretState)
-    case chartFailed(String)
+    case chartFailed(UserFacingError)
     case formInvalid([String])
 
     static func == (lhs: DeepAnalysisViewState, rhs: DeepAnalysisViewState) -> Bool {
@@ -148,7 +148,7 @@ final class DeepAnalysisViewModel {
                 // 被取消,不更新状态(新 Task 会接管)
             } catch {
                 if !Task.isCancelled {
-                    state = .chartFailed(error.localizedDescription)
+                    state = .chartFailed(UserFacingError.from(error, stage: .chart))
                 }
             }
         }
@@ -183,11 +183,21 @@ final class DeepAnalysisViewModel {
                 // 被取消,不更新状态
             } catch let error as DeepAnalysisError {
                 if !Task.isCancelled {
-                    state = .chartReady(response, .failed(message: error.errorDescription ?? "未知错误"))
+                    // dailyLimitReached 独立形态(方案 step 4):禁用生成按钮、不显示重试
+                    if case .dailyLimitReached(let reset, _) = error {
+                        state = .chartReady(response, .dailyLimitReached(nextReset: reset))
+                    } else {
+                        state = .chartReady(response, .failed(message: error.errorDescription ?? "未知错误"))
+                    }
                 }
             } catch {
                 if !Task.isCancelled {
-                    state = .chartReady(response, .failed(message: error.localizedDescription))
+                    let userError = UserFacingError.from(error, stage: .interpret)
+                    if case .dailyLimitReached(let reset) = userError {
+                        state = .chartReady(response, .dailyLimitReached(nextReset: reset))
+                    } else {
+                        state = .chartReady(response, .failed(message: userError.errorDescription ?? "未知错误"))
+                    }
                 }
             }
         }

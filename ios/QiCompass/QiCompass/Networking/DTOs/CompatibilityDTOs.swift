@@ -127,7 +127,7 @@ struct CompatibilityResponse: Codable, Sendable {
     let personBChart: BaziResponse?
     let qualitativeAssessment: QualitativeAssessmentDTO
     let syncedFortune: [SyncedFortuneDTO]
-    let calcRuleSnapshot: CalcRuleSnapshotDTO
+    let calcRuleSnapshot: CalcRuleSnapshotDTO?
 
     enum CodingKeys: String, CodingKey {
         case compatibilityHash = "compatibility_hash"

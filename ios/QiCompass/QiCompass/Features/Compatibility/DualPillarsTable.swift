@@ -30,8 +30,7 @@ struct DualPillarsTable: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text("双盘对比")
-                .font(.subheadline.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
+                .zcoolCardTitle()
 
             // 4 列横向均分
             HStack(alignment: .top, spacing: 8) {
