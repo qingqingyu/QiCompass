@@ -23,7 +23,7 @@ struct BirthFormView: View {
                         displayedComponents: [.date, .hourAndMinute]
                     )
                     .datePickerStyle(.compact)
-                    .foregroundStyle(BaziTheme.text)
+                    .foregroundStyle(BaziTheme.ink)
                 }
 
                 section(title: "时辰快捷选(可选)") {
@@ -40,38 +40,38 @@ struct BirthFormView: View {
 
                 section(title: "出生地") {
                     Toggle("手动输入经度", isOn: $vm.useManualLongitude)
-                        .foregroundStyle(BaziTheme.text)
+                        .foregroundStyle(BaziTheme.ink)
                     if vm.useManualLongitude {
                         HStack {
-                            Text("经度").foregroundStyle(BaziTheme.textDim)
+                            Text("经度").foregroundStyle(BaziTheme.inkMuted)
                             TextField("东正西负", value: $vm.manualLongitude, format: .number)
                                 .keyboardType(.numbersAndPunctuation)
-                                .foregroundStyle(BaziTheme.text)
+                                .foregroundStyle(BaziTheme.ink)
                                 .padding(8)
-                                .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 8))
+                                .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                         }
                         Text("海外用户或设备时区与出生地不一致时使用。")
                             .font(.caption)
-                            .foregroundStyle(BaziTheme.textDim)
+                            .foregroundStyle(BaziTheme.inkMuted)
                     } else {
                         Picker("城市", selection: $vm.selectedCity) {
                             ForEach(CityList.cities, id: \.self) { city in
                                 Text(city).tag(city)
                             }
                         }
-                        .foregroundStyle(BaziTheme.text)
+                        .foregroundStyle(BaziTheme.ink)
                     }
                 }
 
                 section(title: "子时规则") {
                     HStack {
                         Text("23:00 换日(早子时归当日)")
-                            .foregroundStyle(BaziTheme.textDim)
+                            .foregroundStyle(BaziTheme.inkMuted)
                         Spacer()
                     }
                     Text("MVP 固定规则,后端 setSect(1)。")
                         .font(.caption)
-                        .foregroundStyle(BaziTheme.textDim)
+                        .foregroundStyle(BaziTheme.inkMuted)
                 }
 
                 if case .formInvalid(let errors) = vm.state {
@@ -89,10 +89,10 @@ struct BirthFormView: View {
                 Button(action: { HapticEngine.medium(); onSubmit() }) {
                     Text("开始排盘")
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(BaziTheme.bgTop)
+                        .foregroundStyle(BaziTheme.paper)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(BaziTheme.gold, in: Capsule())
+                        .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
             }
             .padding()
@@ -109,12 +109,12 @@ struct BirthFormView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
+                .foregroundStyle(BaziTheme.ink)
             content()
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(BaziTheme.cardBorder, lineWidth: 1))
+                .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+                .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.cardBorder, lineWidth: 0.5))
         }
     }
 
@@ -137,9 +137,9 @@ struct BirthFormView: View {
                     Text(shichen.name)
                         .font(.body.weight(.medium))
                         .frame(width: 44, height: 44)
-                        .foregroundStyle(BaziTheme.gold)
+                        .foregroundStyle(BaziTheme.cinnabar)
                         .background(BaziTheme.cardBackground, in: Circle())
-                        .overlay(Circle().stroke(BaziTheme.cardBorder, lineWidth: 1))
+                        .overlay(Circle().stroke(BaziTheme.cardBorder, lineWidth: 0.5))
                 }
             }
         }

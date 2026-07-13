@@ -86,26 +86,26 @@ enum ElementColors: String {
 // MARK: - BaziTheme 扩展(五行色 + chip 样式)
 
 extension BaziTheme {
-    /// 五行色便捷访问(通过 ElementColors 转发)。
+    /// 五行色便捷访问(通过 ElementColors 转发)。未知 key 兜底 inkMuted。
     static func elementColor(_ key: String) -> Color {
-        ElementColors.from(key)?.color ?? textDim
+        ElementColors.from(key)?.color ?? inkMuted
     }
 
-    /// 吉神 chip 背景描边色。
-    static let shenshaAuspicious = gold
+    /// 吉神 chip 描边色(墨青,DESIGN.md §Color)。
+    static let shenshaAuspicious = jade
 
-    /// 凶煞 chip 背景描边色(暗红,与吉神金色区分)。
+    /// 凶煞 chip 描边色(暗朱砂,与吉神墨青区分)。
     static let shenshaInauspicious = Color(red: 0x8a/255, green: 0x2b/255, blue: 0x2b/255)
 
-    /// 卡片底色(半透明白叠加,用于命盘各区域分组)。
-    static let cardBackground = Color.white.opacity(0.04)
+    /// 卡片底色(浅宣,DESIGN.md §Color cardSurface)。
+    static let cardBackground = cardSurface
 
-    /// 卡片描边色(主金低透明度)。
-    static let cardBorder = gold.opacity(0.25)
+    /// 卡片描边色(hairline,DESIGN.md §Layout 0.5pt 细线)。
+    static let cardBorder = inkMuted.opacity(0.3)
 
-    /// 分隔线色。
-    static let separator = Color.white.opacity(0.08)
+    /// 分隔线色(对齐 hairline)。
+    static let separator = inkMuted.opacity(0.3)
 
-    /// 流年压力警示色(合盘 SyncedFortuneTable 用,区别于吉神金色)。
+    /// 流年压力警示色(合盘 SyncedFortuneTable 用,区别于吉神墨青)。
     static let pressureWarning = Color(red: 0xe0/255, green: 0x70/255, blue: 0x70/255)
 }
