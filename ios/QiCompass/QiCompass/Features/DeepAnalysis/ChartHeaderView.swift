@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 命盘头部:命主信息 + 真太阳时偏差 + 边界 warning(方案 §一 ChartHeaderView)。
+/// 命盘头部:命主信息 + 真太阳时偏差 + 边界 warning(DESIGN.md §Color + 方案 §一 ChartHeaderView)。
 struct ChartHeaderView: View {
     let response: BaziResponse
     let request: BaziCalculateRequest
@@ -9,34 +9,34 @@ struct ChartHeaderView: View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Text(genderLabel)
-                    .font(BaziFont.zcoolTitle(size: 20))
-                    .foregroundStyle(BaziTheme.goldLight)
+                    .font(BaziFont.display(size: 20))
+                    .foregroundStyle(BaziTheme.ink)
                 Spacer()
                 Text("真太阳时偏差 \(offsetString)")
                     .font(.caption)
-                    .foregroundStyle(BaziTheme.textDim)
+                    .foregroundStyle(BaziTheme.inkMuted)
             }
             Text("真太阳时:\(trueSolarTimeString)")
                 .font(.subheadline)
-                .foregroundStyle(BaziTheme.text)
+                .foregroundStyle(BaziTheme.ink)
             Text("出生地:\(cityDisplay)")
                 .font(.caption)
-                .foregroundStyle(BaziTheme.textDim)
+                .foregroundStyle(BaziTheme.inkMuted)
             Text("hash: \(String(response.contentHash.prefix(12)))…")
                 .font(.system(.caption2, design: .monospaced))
-                .foregroundStyle(BaziTheme.textDim)
+                .foregroundStyle(BaziTheme.inkMuted)
             if let warning = response.boundaryWarning {
                 Text("⚠ \(warning)")
                     .font(.caption)
-                    .foregroundStyle(BaziTheme.gold)
+                    .foregroundStyle(BaziTheme.cinnabar)
                     .padding(8)
-                    .background(BaziTheme.gold.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+                    .background(BaziTheme.cinnabarSoft, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(BaziTheme.cardBorder, lineWidth: 1))
+        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.cardBorder, lineWidth: 0.5))
     }
 
     private var genderLabel: String {

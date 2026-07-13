@@ -83,7 +83,7 @@ struct BirthFormView: View {
                         }
                     }
                     .padding(12)
-                    .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+                    .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
 
                 Button(action: { HapticEngine.medium(); onSubmit() }) {

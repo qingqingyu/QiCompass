@@ -11,7 +11,7 @@ struct DeepAnalysisResultView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 12) {
+            VStack(spacing: BaziTheme.Spacing.md) {
                 ChartHeaderView(response: response, request: request)
                 PillarsTable(pillars: response.pillars)
                 AuxiliaryCards(
@@ -33,7 +33,7 @@ struct DeepAnalysisResultView: View {
                     vm.reset()
                 }
                 .font(.caption)
-                .foregroundStyle(BaziTheme.gold)
+                .foregroundStyle(BaziTheme.cinnabar)
                 .padding(.top, 8)
                 .padding(.bottom, 20)
             }

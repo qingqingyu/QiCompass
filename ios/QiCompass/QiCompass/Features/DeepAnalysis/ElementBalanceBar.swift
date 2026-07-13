@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// 五行条形图(方案 §一 ElementBalanceBar)。
+/// 五行条形图(DESIGN.md §Color 五行色保持 + 方案 §一 ElementBalanceBar)。
 ///
 /// 横向 5 段,按五行计数比例显示,5 色 + 图例。
+/// 五行色由 `ElementColors.color` 提供,已是降饱和版本(适配宣纸米底)。
 struct ElementBalanceBar: View {
     let balance: ElementBalanceDTO
 
@@ -48,8 +49,8 @@ struct ElementBalanceBar: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(BaziTheme.cardBorder, lineWidth: 1))
+        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.cardBorder, lineWidth: 0.5))
     }
 
     private func legendItem(color: Color, label: String, value: Int) -> some View {
@@ -59,7 +60,7 @@ struct ElementBalanceBar: View {
                 .frame(width: 8, height: 8)
             Text("\(label)\(value)")
                 .font(.caption2)
-                .foregroundStyle(BaziTheme.text)
+                .foregroundStyle(BaziTheme.ink)
         }
     }
 }
