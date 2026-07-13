@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 明日预告(单行展示流日柱 / 关系 / 冲)。
+/// 明日预告(单行展示流日柱 / 关系 / 冲)。DESIGN.md §Color 流日柱 cinnabar 强调。
 struct TomorrowPreviewSection: View {
     let preview: TomorrowPreviewDTO
 
@@ -11,18 +11,18 @@ struct TomorrowPreviewSection: View {
                     .zcoolCardTitle()
                 Spacer()
                 Image(systemName: "moon.stars")
-                    .foregroundStyle(BaziTheme.gold.opacity(0.7))
+                    .foregroundStyle(BaziTheme.inkMuted)
             }
             HStack(spacing: 12) {
                 Text(preview.dayPillar)
-                    .font(BaziFont.zcoolTitle(size: 18))
-                    .foregroundStyle(BaziTheme.gold)
+                    .font(BaziFont.ganzhi(size: 18))
+                    .foregroundStyle(BaziTheme.cinnabar)
                 Text(preview.dayRelation)
                     .font(.caption.weight(.medium))
-                    .foregroundStyle(BaziTheme.gold)
+                    .foregroundStyle(BaziTheme.jade)
                     .padding(.horizontal, 8)
                     .padding(.vertical, 3)
-                    .background(BaziTheme.gold.opacity(0.1), in: Capsule())
+                    .background(BaziTheme.cinnabarSoft, in: Capsule())
                 if let chong = preview.dayChong {
                     Text("冲\(chong)")
                         .font(.caption)
@@ -31,10 +31,10 @@ struct TomorrowPreviewSection: View {
             }
         }
         .padding(16)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
+        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(BaziTheme.cardBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
+                .stroke(BaziTheme.cardBorder, lineWidth: 0.5)
         )
     }
 }

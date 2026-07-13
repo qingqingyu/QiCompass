@@ -22,7 +22,7 @@ struct CompatibilityView: View {
             }
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarColorScheme(.light, for: .navigationBar)
             .toolbar {
                 if case .resultReady = vm?.state {
                     ToolbarItem(placement: .topBarLeading) {

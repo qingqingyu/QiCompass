@@ -22,7 +22,7 @@ struct DailyInterpretationSection: View {
                 Spacer()
                 Text("剩余 \(remainingReads)/10 次")
                     .font(.caption)
-                    .foregroundStyle(BaziTheme.textDim)
+                    .foregroundStyle(BaziTheme.inkMuted)
             }
 
             switch state {
@@ -30,10 +30,10 @@ struct DailyInterpretationSection: View {
                 EmptyInterpretationView(onGenerate: onGenerate)
             case .fetching:
                 HStack(spacing: 12) {
-                    ProgressView().tint(BaziTheme.gold)
+                    ProgressView().tint(BaziTheme.cinnabar)
                     Text("推演中…")
                         .font(.subheadline)
-                        .foregroundStyle(BaziTheme.textDim)
+                        .foregroundStyle(BaziTheme.inkMuted)
                 }
                 .frame(maxWidth: .infinity, alignment: .center)
                 .padding(.vertical, 24)
@@ -49,7 +49,7 @@ struct DailyInterpretationSection: View {
                         Text("24h 内已缓存,不消耗次数")
                     }
                     .font(.caption)
-                    .foregroundStyle(BaziTheme.textDim)
+                    .foregroundStyle(BaziTheme.inkMuted)
                 }
             case .failed(let message):
                 VStack(spacing: 8) {
@@ -58,7 +58,7 @@ struct DailyInterpretationSection: View {
                         .foregroundStyle(BaziTheme.shenshaInauspicious)
                     Button("重试", action: onRetry)
                         .font(.caption.weight(.semibold))
-                        .foregroundStyle(BaziTheme.gold)
+                        .foregroundStyle(BaziTheme.cinnabar)
                 }
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
@@ -75,10 +75,10 @@ struct DailyInterpretationSection: View {
             }
         }
         .padding(16)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
+        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(BaziTheme.cardBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
+                .stroke(BaziTheme.cardBorder, lineWidth: 0.5)
         )
     }
 }
@@ -90,7 +90,7 @@ private struct EmptyInterpretationView: View {
         VStack(spacing: 12) {
             Text("点击生成今日流日解读(约 150-200 字)")
                 .font(.subheadline)
-                .foregroundStyle(BaziTheme.textDim)
+                .foregroundStyle(BaziTheme.inkMuted)
                 .multilineTextAlignment(.center)
 
             Button(action: { HapticEngine.medium(); onGenerate() }) {
@@ -99,10 +99,10 @@ private struct EmptyInterpretationView: View {
                     Text("今日解读")
                 }
                 .font(.body.weight(.semibold))
-                .foregroundStyle(BaziTheme.bgTop)
+                .foregroundStyle(BaziTheme.paper)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
-                .background(BaziTheme.gold, in: Capsule())
+                .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
             }
         }
         .frame(maxWidth: .infinity)

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 12 时辰条(决策 §1.E):
+/// 12 时辰条(决策 §1.E + DESIGN.md §Color 当前时辰 cinnabar):
 /// - 默认折叠,展开后显示 12 行
 /// - 当前时辰高亮**仅今日**显示,历史回看不高亮
 struct HourPillarsSection: View {
@@ -24,7 +24,7 @@ struct HourPillarsSection: View {
                     Spacer()
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
-                        .foregroundStyle(BaziTheme.textDim)
+                        .foregroundStyle(BaziTheme.inkMuted)
                 }
             }
             .buttonStyle(.plain)
@@ -42,16 +42,16 @@ struct HourPillarsSection: View {
                 } else {
                     Text("展开查看 12 时辰详情")
                         .font(.caption)
-                        .foregroundStyle(BaziTheme.textDim.opacity(0.7))
+                        .foregroundStyle(BaziTheme.inkMuted.opacity(0.7))
                         .padding(.vertical, 8)
                 }
             }
         }
         .padding(16)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
+        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(BaziTheme.cardBorder, lineWidth: 1)
+            RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
+                .stroke(BaziTheme.cardBorder, lineWidth: 0.5)
         )
     }
 
@@ -67,15 +67,15 @@ struct HourPillarsSection: View {
     private func hourRow(idx: Int, hp: HourPillarDTO) -> some View {
         let isCurrent = currentHourIndexToday == idx
         HStack(alignment: .top, spacing: 12) {
-            // 时辰字 + 高亮
+            // 时辰字 + 高亮(当前时辰 cinnabar,DESIGN.md §Color)
             Text(hp.hour)
-                .font(BaziFont.zcoolTitle(size: 20))
-                .foregroundStyle(isCurrent ? BaziTheme.gold : BaziTheme.text)
+                .font(BaziFont.ganzhi(size: 20))
+                .foregroundStyle(isCurrent ? BaziTheme.cinnabar : BaziTheme.ink)
                 .frame(width: 28, alignment: .center)
                 .padding(4)
                 .background(
                     isCurrent
-                        ? BaziTheme.gold.opacity(0.15)
+                        ? BaziTheme.cinnabarSoft
                         : Color.clear,
                     in: Circle()
                 )
@@ -84,20 +84,20 @@ struct HourPillarsSection: View {
                 HStack {
                     Text(hp.timeRange)
                         .font(.caption)
-                        .foregroundStyle(BaziTheme.textDim)
+                        .foregroundStyle(BaziTheme.inkMuted)
                     Text(hp.pillar)
                         .font(.subheadline.weight(.medium))
-                        .foregroundStyle(BaziTheme.text)
+                        .foregroundStyle(BaziTheme.ink)
                     Text(hp.relation)
                         .font(.caption)
-                        .foregroundStyle(BaziTheme.gold)
+                        .foregroundStyle(BaziTheme.jade)
                     if isCurrent {
                         Text("当下")
                             .font(.caption2.weight(.semibold))
-                            .foregroundStyle(BaziTheme.bgTop)
+                            .foregroundStyle(BaziTheme.paper)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(BaziTheme.gold, in: Capsule())
+                            .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                     }
                 }
                 if let chong = hp.chong {

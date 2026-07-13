@@ -22,7 +22,7 @@ struct DeepAnalysisView: View {
             }
             .navigationTitle("深度解析")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarColorScheme(.light, for: .navigationBar)
             #if DEBUG
             .toolbar {
                 NavigationLink {

@@ -1,7 +1,7 @@
 import SwiftUI
 
-/// 顶部 7 天历史日期 pill(决策 §1.D):
-/// 今日 + 过去 6 天。选中态高亮。命中本地 snapshot 的日带圆点指示。
+/// 顶部 7 天历史日期 pill(决策 §1.D + DESIGN.md §Color):
+/// 今日 + 过去 6 天。选中态 cinnabar 高亮。命中本地 snapshot 的日带圆点指示。
 struct DailyFortuneHistoryView: View {
     let selectedDate: Date
     let snapshots: [DailyFortuneSnapshot]
@@ -31,13 +31,13 @@ struct DailyFortuneHistoryView: View {
             VStack(spacing: 4) {
                 Text(shortWeekday(date))
                     .font(.caption2)
-                    .foregroundStyle(isSelected ? BaziTheme.bgTop : BaziTheme.textDim)
+                    .foregroundStyle(isSelected ? BaziTheme.paper : BaziTheme.inkMuted)
                 Text(dayString(date))
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(isSelected ? BaziTheme.bgTop : BaziTheme.text)
+                    .foregroundStyle(isSelected ? BaziTheme.paper : BaziTheme.ink)
                 if hasSnapshot {
                     Circle()
-                        .fill(isSelected ? BaziTheme.bgTop : BaziTheme.gold)
+                        .fill(isSelected ? BaziTheme.paper : BaziTheme.cinnabar)
                         .frame(width: 4, height: 4)
                 } else {
                     Color.clear.frame(width: 4, height: 4)
@@ -47,15 +47,15 @@ struct DailyFortuneHistoryView: View {
             .padding(.vertical, 8)
             .background(
                 isSelected
-                    ? BaziTheme.gold
+                    ? BaziTheme.cinnabar
                     : BaziTheme.cardBackground,
-                in: RoundedRectangle(cornerRadius: 10)
+                in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
             )
             .overlay(
-                RoundedRectangle(cornerRadius: 10)
+                RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
                     .stroke(
-                        isToday ? BaziTheme.gold.opacity(0.6) : BaziTheme.cardBorder,
-                        lineWidth: isToday && !isSelected ? 1 : 0.5
+                        isToday ? BaziTheme.cinnabar.opacity(0.5) : BaziTheme.cardBorder,
+                        lineWidth: 0.5
                     )
             )
         }

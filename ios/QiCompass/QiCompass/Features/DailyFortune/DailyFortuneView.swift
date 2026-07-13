@@ -24,7 +24,7 @@ struct DailyFortuneView: View {
             }
             .navigationTitle("每日运势")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarColorScheme(.light, for: .navigationBar)
         }
         .task {
             if vm == nil {
@@ -136,7 +136,7 @@ struct DailyFortuneView: View {
                 )
             }
         } else {
-            ProgressView().tint(BaziTheme.gold)
+            ProgressView().tint(BaziTheme.cinnabar)
         }
     }
 

@@ -19,7 +19,7 @@ struct SwiftDataCRUDView: View {
             }
             .navigationTitle("存储验证")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.dark, for: .navigationBar)
+            .toolbarColorScheme(.light, for: .navigationBar)
         }
     }
 
