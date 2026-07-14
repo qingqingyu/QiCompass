@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 四态共用:错误态(三态分类渲染,方案 step 3)。
+/// 四态共用:错误态(三态分类渲染,方案 step 3 + DESIGN.md §Color)。
 ///
 /// 图标映射(方案 §D2):
 /// - `InkSplashView` 墨溅:networkUnavailable / generic
@@ -42,13 +42,13 @@ struct ErrorStateView: View {
 
             Text(userFacingError.errorDescription ?? "未知错误")
                 .font(.title2.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
+                .foregroundStyle(BaziTheme.ink)
 
             // subtitle 与 errorDescription 相同时(.generic)不重复展示
             if userFacingError.subtitle != (userFacingError.errorDescription ?? "") {
                 Text(userFacingError.subtitle)
                     .font(.subheadline)
-                    .foregroundStyle(BaziTheme.textDim)
+                    .foregroundStyle(BaziTheme.inkMuted)
                     .multilineTextAlignment(.center)
                     .padding(.horizontal)
             }
@@ -59,10 +59,10 @@ struct ErrorStateView: View {
                 Button(action: { HapticEngine.light(); retry() }) {
                     Text("重试")
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(BaziTheme.bgTop)
+                        .foregroundStyle(BaziTheme.paper)
                         .padding(.horizontal, 32)
                         .padding(.vertical, 12)
-                        .background(BaziTheme.gold, in: Capsule())
+                        .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
             }
 
@@ -72,13 +72,13 @@ struct ErrorStateView: View {
                     showDetail.toggle()
                 }
                 .font(.caption)
-                .foregroundStyle(BaziTheme.gold)
+                .foregroundStyle(BaziTheme.cinnabar)
                 if showDetail {
                     Text(detailText)
                         .font(.system(.caption, design: .monospaced))
-                        .foregroundStyle(BaziTheme.textDim)
+                        .foregroundStyle(BaziTheme.inkMuted)
                         .padding(12)
-                        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 8))
+                        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
             }
         }
@@ -115,15 +115,15 @@ struct ErrorStateView: View {
         case .chartFailed:
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 40))
-                .foregroundStyle(BaziTheme.gold.opacity(0.8))
+                .foregroundStyle(BaziTheme.cinnabar.opacity(0.7))
         case .interpretFailed:
             Image(systemName: "book.closed")
                 .font(.system(size: 40))
-                .foregroundStyle(BaziTheme.gold.opacity(0.8))
+                .foregroundStyle(BaziTheme.cinnabar.opacity(0.7))
         case .dailyLimitReached:
             Image(systemName: "hourglass")
                 .font(.system(size: 40))
-                .foregroundStyle(BaziTheme.gold.opacity(0.8))
+                .foregroundStyle(BaziTheme.cinnabar.opacity(0.7))
         }
     }
 }

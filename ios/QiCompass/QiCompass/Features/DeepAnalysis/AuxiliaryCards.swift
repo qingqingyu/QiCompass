@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 命宫 / 身宫 / 胎元 三小卡(方案 §一 AuxiliaryCards)。
+/// 命宫 / 身宫 / 胎元 三小卡(方案 §一 AuxiliaryCards + DESIGN.md §Color + §Ganzhi)。
 struct AuxiliaryCards: View {
     let mingGong: GanZhiNaYinDTO
     let shenGong: GanZhiNaYinDTO
@@ -18,8 +18,8 @@ struct AuxiliaryCards: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
-        .overlay(RoundedRectangle(cornerRadius: 12).stroke(BaziTheme.cardBorder, lineWidth: 1))
+        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.cardBorder, lineWidth: 0.5))
     }
 }
 
@@ -31,17 +31,17 @@ private struct AuxiliaryCard: View {
         VStack(spacing: 6) {
             Text(title)
                 .font(.caption)
-                .foregroundStyle(BaziTheme.textDim)
+                .foregroundStyle(BaziTheme.inkMuted)
             Text(ganzhi.ganZhi)
-                .font(BaziFont.zcoolTitle(size: 20))
-                .foregroundStyle(BaziTheme.goldLight)
+                .font(BaziFont.ganzhi(size: 20))
+                .foregroundStyle(BaziTheme.ink)
             Text(ganzhi.nayin)
                 .font(.caption2)
-                .foregroundStyle(BaziTheme.gold.opacity(0.8))
+                .foregroundStyle(BaziTheme.inkMuted)
         }
         .frame(maxWidth: .infinity)
         .padding(10)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 10))
-        .overlay(RoundedRectangle(cornerRadius: 10).stroke(BaziTheme.cardBorder, lineWidth: 1))
+        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.sm).stroke(BaziTheme.cardBorder, lineWidth: 0.5))
     }
 }

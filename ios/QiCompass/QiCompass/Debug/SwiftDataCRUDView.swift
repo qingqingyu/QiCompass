@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// Debug 面板:SwiftData CRUD 验证。
+/// Debug 面板:SwiftData CRUD 验证(DESIGN.md §Color)。
 ///
 /// - App 启动后**不自动污染数据**,由 Debug 按钮显式触发
 /// - 四态:loading / success / error(失败时保留错误详情)
@@ -30,20 +30,20 @@ struct SwiftDataCRUDView: View {
             VStack(spacing: 20) {
                 Image(systemName: "internaldrive")
                     .font(.system(size: 48))
-                    .foregroundStyle(BaziTheme.gold.opacity(0.6))
+                    .foregroundStyle(BaziTheme.ink.opacity(0.4))
                 Text("本地存储验证")
                     .font(.title2.weight(.semibold))
-                    .foregroundStyle(BaziTheme.goldLight)
+                    .foregroundStyle(BaziTheme.ink)
                 Text("覆盖 5 个 SwiftData 模型的 Create / Read / Update / Delete + Assert,验证后自动清理测试数据。")
                     .font(.subheadline)
-                    .foregroundStyle(BaziTheme.textDim)
+                    .foregroundStyle(BaziTheme.inkMuted)
                     .multilineTextAlignment(.center)
                 Button("运行本地存储验证", action: runVerify)
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(BaziTheme.bgTop)
+                    .foregroundStyle(BaziTheme.paper)
                     .padding(.horizontal, 32)
                     .padding(.vertical, 12)
-                    .background(BaziTheme.gold, in: Capsule())
+                    .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
             }
             .padding()
             .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -59,20 +59,20 @@ struct SwiftDataCRUDView: View {
                 VStack(alignment: .leading, spacing: 12) {
                     HStack {
                         Image(systemName: "checkmark.seal.fill")
-                            .foregroundStyle(BaziTheme.gold)
+                            .foregroundStyle(BaziTheme.jade)
                         Text(result.summary)
                             .font(.headline)
-                            .foregroundStyle(BaziTheme.goldLight)
+                            .foregroundStyle(BaziTheme.ink)
                     }
-                    Divider().background(BaziTheme.gold.opacity(0.3))
+                    Divider().background(BaziTheme.separator)
                     ForEach(result.details, id: \.self) { line in
                         Text(line)
                             .font(.system(.caption, design: .monospaced))
-                            .foregroundStyle(BaziTheme.text)
+                            .foregroundStyle(BaziTheme.ink)
                     }
                     Button("重新验证", action: runVerify)
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(BaziTheme.gold)
+                        .foregroundStyle(BaziTheme.cinnabar)
                         .padding(.top, 16)
                 }
                 .padding()

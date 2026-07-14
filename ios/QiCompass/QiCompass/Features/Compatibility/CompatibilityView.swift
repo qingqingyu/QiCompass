@@ -27,7 +27,7 @@ struct CompatibilityView: View {
                 if case .resultReady = vm?.state {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("返回修改") { vm?.backToConfig() }
-                            .foregroundStyle(BaziTheme.gold)
+                            .foregroundStyle(BaziTheme.cinnabar)
                     }
                 }
             }
@@ -95,7 +95,7 @@ struct CompatibilityView: View {
                 )
             }
         } else {
-            ProgressView().tint(BaziTheme.gold)
+            ProgressView().tint(BaziTheme.cinnabar)
         }
     }
 }

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 墨溅装饰视图(Canvas + Path 自绘,无外部依赖)。
+/// 墨溅装饰视图(Canvas + Path 自绘,无外部依赖,DESIGN.md §Color)。
 ///
 /// 设计(方案 §D2):
 /// - seed 化轮廓让不同 instance 产生稳定的微变化(每次构建看起来一致)
@@ -11,8 +11,8 @@ import SwiftUI
 struct InkSplashView: View {
     /// 轮廓 seed(决定墨溅形状)。同 seed 出同形状。
     let seed: UInt64
-    /// 主色(默认金色,与项目主题对齐)。
-    var color: Color = BaziTheme.gold
+    /// 主色(默认朱砂,DESIGN.md §Color 与错误态主色对齐)。
+    var color: Color = BaziTheme.cinnabar
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -64,6 +64,6 @@ struct InkSplashView: View {
 #Preview {
     InkSplashView(seed: 42)
         .frame(width: 160, height: 160)
-        .background(Color.black)
+        .background(BaziTheme.paper)
 }
 #endif

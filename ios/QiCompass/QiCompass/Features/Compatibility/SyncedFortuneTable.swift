@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// 3 年流年同步表(D8)。
+/// 3 年流年同步表(D8 + DESIGN.md §Color)。
 ///
 /// 颜色编码:
-/// - 同步走强 → gold 背景
+/// - 同步走强 → jade 背景(吉兆墨青)
 /// - 同步承压 → 红色文字
-/// - 运势分化 / 难以定性 → textDim
+/// - 运势分化 / 难以定性 → inkMuted
 struct SyncedFortuneTable: View {
     let synced: [SyncedFortuneDTO]
 
@@ -23,7 +23,7 @@ struct SyncedFortuneTable: View {
                     Text("同步").frame(maxWidth: .infinity, alignment: .trailing)
                 }
                 .font(.caption2.weight(.semibold))
-                .foregroundStyle(BaziTheme.textDim)
+                .foregroundStyle(BaziTheme.inkMuted)
                 .padding(.horizontal, 12)
                 .padding(.vertical, 8)
 
@@ -32,8 +32,8 @@ struct SyncedFortuneTable: View {
                     row(sf)
                 }
             }
-            .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(BaziTheme.cardBorder, lineWidth: 1))
+            .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+            .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.cardBorder, lineWidth: 0.5))
         }
         .fadeIn()
     }
@@ -46,30 +46,30 @@ struct SyncedFortuneTable: View {
         return HStack(alignment: .top) {
             Text(String(sf.year))
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(BaziTheme.text)
+                .foregroundStyle(BaziTheme.ink)
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(sf.personA)
                 .font(.caption)
-                .foregroundStyle(BaziTheme.text.opacity(0.85))
+                .foregroundStyle(BaziTheme.ink.opacity(0.85))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(sf.personB)
                 .font(.caption)
-                .foregroundStyle(BaziTheme.text.opacity(0.85))
+                .foregroundStyle(BaziTheme.ink.opacity(0.85))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
             Text(sf.sync)
                 .font(.system(size: 10, weight: .semibold))
                 .foregroundStyle(
-                    isStrong ? BaziTheme.bgTop :
+                    isStrong ? BaziTheme.paper :
                     isPressure ? BaziTheme.pressureWarning :
-                    BaziTheme.textDim
+                    BaziTheme.inkMuted
                 )
                 .padding(.horizontal, 6)
                 .padding(.vertical, 2)
                 .background(
-                    isStrong ? BaziTheme.gold : Color.clear,
+                    isStrong ? BaziTheme.jade : Color.clear,
                     in: Capsule()
                 )
                 .frame(maxWidth: .infinity, alignment: .trailing)

@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 倒计时标签(每日上限重置到本地午夜)。
+/// 倒计时标签(每日上限重置到本地午夜,DESIGN.md §Color)。
 ///
 /// `TimelineView(.periodic)` 每分钟刷新,无 Timer 泄漏。
 /// 三模块(深度解析 / 合盘 / 每日运势)的达上限态共用此组件,
@@ -13,7 +13,7 @@ struct CountdownResetLabel: View {
             let remaining = nextReset.timeIntervalSince(context.date)
             Text("距重置:\(Self.format(max(0, remaining)))")
                 .font(.caption2)
-                .foregroundStyle(BaziTheme.textDim)
+                .foregroundStyle(BaziTheme.inkMuted)
         }
     }
 

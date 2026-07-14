@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// Tab 1:深度解析(状态机根,方案 §一)。
+/// Tab 1:深度解析(状态机根,方案 §一 + DESIGN.md §Color)。
 ///
 /// 主状态机:
 /// - .empty / .formInvalid → BirthFormView
@@ -29,7 +29,7 @@ struct DeepAnalysisView: View {
                     SwiftDataCRUDView()
                 } label: {
                     Image(systemName: "ladybug")
-                        .foregroundStyle(BaziTheme.gold)
+                        .foregroundStyle(BaziTheme.cinnabar)
                 }
             }
             #endif
@@ -58,7 +58,7 @@ struct DeepAnalysisView: View {
                         Text("数据异常:无请求记录")
                             .foregroundStyle(.red)
                         Button("返回表单") { vm.reset() }
-                            .foregroundStyle(BaziTheme.gold)
+                            .foregroundStyle(BaziTheme.cinnabar)
                     }
                 }
             case .chartFailed(let userError):
@@ -66,17 +66,17 @@ struct DeepAnalysisView: View {
             }
         } else {
             ProgressView()
-                .tint(BaziTheme.gold)
+                .tint(BaziTheme.cinnabar)
         }
     }
 
     private func calculatingView(stage: LoadingStage) -> some View {
         VStack(spacing: 16) {
             ProgressView()
-                .tint(BaziTheme.gold)
+                .tint(BaziTheme.cinnabar)
             Text(stage.text)
                 .font(.body)
-                .foregroundStyle(BaziTheme.textDim)
+                .foregroundStyle(BaziTheme.inkMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -90,7 +90,7 @@ struct DeepAnalysisView: View {
             ErrorStateView(error: error, retry: retry)
             Button("返回表单", action: onBack)
                 .font(.caption)
-                .foregroundStyle(BaziTheme.gold)
+                .foregroundStyle(BaziTheme.cinnabar)
                 .padding(.top, 8)
         }
         .padding()
@@ -106,10 +106,10 @@ struct LoadingStateView: View {
     var body: some View {
         VStack(spacing: 16) {
             ProgressView()
-                .tint(BaziTheme.gold)
+                .tint(BaziTheme.cinnabar)
             Text(title)
                 .font(.body)
-                .foregroundStyle(BaziTheme.textDim)
+                .foregroundStyle(BaziTheme.inkMuted)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -126,21 +126,21 @@ struct EmptyStateView: View {
         VStack(spacing: 20) {
             Image(systemName: "wind")
                 .font(.system(size: 48))
-                .foregroundStyle(BaziTheme.gold.opacity(0.6))
+                .foregroundStyle(BaziTheme.ink.opacity(0.4))
             Text(title)
                 .font(.title2.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
+                .foregroundStyle(BaziTheme.ink)
             Text(subtitle)
                 .font(.subheadline)
-                .foregroundStyle(BaziTheme.textDim)
+                .foregroundStyle(BaziTheme.inkMuted)
                 .multilineTextAlignment(.center)
             Button(action: action) {
                 Text(ctaTitle)
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(BaziTheme.bgTop)
+                    .foregroundStyle(BaziTheme.paper)
                     .padding(.horizontal, 32)
                     .padding(.vertical, 12)
-                    .background(BaziTheme.gold, in: Capsule())
+                    .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
             }
         }
         .padding()
@@ -159,22 +159,22 @@ struct SuccessCardView: View {
         VStack(spacing: 16) {
             Image(systemName: "checkmark.seal")
                 .font(.system(size: 40))
-                .foregroundStyle(BaziTheme.gold)
+                .foregroundStyle(BaziTheme.jade)
             Text(title)
                 .font(.title2.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
+                .foregroundStyle(BaziTheme.ink)
             Text(bodyText)
                 .font(.subheadline)
-                .foregroundStyle(BaziTheme.text)
+                .foregroundStyle(BaziTheme.ink)
                 .multilineTextAlignment(.center)
             if let ctaTitle, let action {
                 Button(action: action) {
                     Text(ctaTitle)
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(BaziTheme.bgTop)
+                        .foregroundStyle(BaziTheme.paper)
                         .padding(.horizontal, 32)
                         .padding(.vertical, 12)
-                        .background(BaziTheme.gold, in: Capsule())
+                        .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
             }
         }

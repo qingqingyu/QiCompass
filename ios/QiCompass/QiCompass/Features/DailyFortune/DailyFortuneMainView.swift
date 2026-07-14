@@ -27,10 +27,10 @@ struct DailyFortuneMainView: View {
                         Text("离线查看(展示本地缓存,不扣次数)")
                     }
                     .font(.caption2)
-                    .foregroundStyle(BaziTheme.gold)
+                    .foregroundStyle(BaziTheme.cinnabar)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 6)
-                    .background(BaziTheme.gold.opacity(0.08), in: Capsule())
+                    .background(BaziTheme.cinnabarSoft, in: Capsule())
                 }
 
                 // 顶部 7 天历史 pill(决策 §1.D)
@@ -42,7 +42,7 @@ struct DailyFortuneMainView: View {
                 if let historyError {
                     Text(historyError)
                         .font(.caption2)
-                        .foregroundStyle(BaziTheme.textDim.opacity(0.7))
+                        .foregroundStyle(BaziTheme.inkMuted.opacity(0.7))
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
 

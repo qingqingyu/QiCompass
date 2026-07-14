@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// 合盘配置态:选 A 盘 + B 模式切换 + context picker + 底部「开始合盘」CTA。
+/// 合盘配置态:选 A 盘 + B 模式切换 + context picker + 底部「开始合盘」CTA(DESIGN.md §Color)。
 ///
 /// 决策 D1:配置态与结果态共享同一个 ViewModel,结果态顶部「返回修改」切回此视图。
 /// 决策 D4:`zi_hour_rule` 不暴露给用户,MVP 固定 `zi_next_day`,显示只读提示。
@@ -50,19 +50,19 @@ struct CompatibilityConfigView: View {
 
                     Text(contextDescription)
                         .font(.caption)
-                        .foregroundStyle(BaziTheme.textDim)
+                        .foregroundStyle(BaziTheme.inkMuted)
                 }
 
                 // 子时规则只读提示
                 section(title: "子时规则") {
                     HStack {
                         Text("23:00 换日(早子时归当日)")
-                            .foregroundStyle(BaziTheme.textDim)
+                            .foregroundStyle(BaziTheme.inkMuted)
                         Spacer()
                     }
                     Text("MVP 固定规则,后端 setSect(1)。")
                         .font(.caption)
-                        .foregroundStyle(BaziTheme.textDim)
+                        .foregroundStyle(BaziTheme.inkMuted)
                 }
 
                 if case .failed(let userError) = vm.state {
@@ -71,7 +71,7 @@ struct CompatibilityConfigView: View {
                         .foregroundStyle(Color.red.opacity(0.9))
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(12)
-                        .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: 8))
+                        .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
             }
             .padding(.horizontal)
@@ -84,13 +84,13 @@ struct CompatibilityConfigView: View {
                     Text("开始合盘")
                         .font(.body.weight(.semibold))
                 }
-                .foregroundStyle(BaziTheme.bgTop)
+                .foregroundStyle(BaziTheme.paper)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(BaziTheme.gold, in: Capsule())
+                .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 .padding(.horizontal)
                 .padding(.vertical, 8)
-                .background(BaziTheme.bgMid.opacity(0.95))
+                .background(BaziTheme.paper.opacity(0.95))
             }
         }
     }
@@ -106,7 +106,7 @@ struct CompatibilityConfigView: View {
                 displayedComponents: [.date, .hourAndMinute]
             )
             .datePickerStyle(.compact)
-            .foregroundStyle(BaziTheme.text)
+            .foregroundStyle(BaziTheme.ink)
 
             Picker("性别", selection: $vm.tempGender) {
                 Text("男").tag("male")
@@ -115,16 +115,16 @@ struct CompatibilityConfigView: View {
             .pickerStyle(.segmented)
 
             Toggle("手动输入经度", isOn: $vm.tempUseManualLongitude)
-                .foregroundStyle(BaziTheme.text)
+                .foregroundStyle(BaziTheme.ink)
 
             if vm.tempUseManualLongitude {
                 HStack {
-                    Text("经度").foregroundStyle(BaziTheme.textDim)
+                    Text("经度").foregroundStyle(BaziTheme.inkMuted)
                     TextField("东正西负", value: $vm.tempManualLongitude, format: .number)
                         .keyboardType(.numbersAndPunctuation)
-                        .foregroundStyle(BaziTheme.text)
+                        .foregroundStyle(BaziTheme.ink)
                         .padding(8)
-                        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 8))
+                        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
             } else {
                 Picker("城市", selection: $vm.tempSelectedCity) {
@@ -132,12 +132,12 @@ struct CompatibilityConfigView: View {
                         Text(city).tag(city)
                     }
                 }
-                .foregroundStyle(BaziTheme.text)
+                .foregroundStyle(BaziTheme.ink)
             }
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 8))
+        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
     }
 
     // MARK: - context 说明
@@ -161,12 +161,12 @@ struct CompatibilityConfigView: View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
                 .font(.subheadline.weight(.semibold))
-                .foregroundStyle(BaziTheme.goldLight)
+                .foregroundStyle(BaziTheme.ink)
             content()
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: 12))
-                .overlay(RoundedRectangle(cornerRadius: 12).stroke(BaziTheme.cardBorder, lineWidth: 1))
+                .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+                .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.cardBorder, lineWidth: 0.5))
         }
     }
 }
