@@ -8,6 +8,7 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - `命理引擎设计决策.md` — 命理层决策（决策 1 喜忌 / 决策 2 神煞 / 决策 3 ChartSnapshot / 决策 3b Schema 演化 / 决策 4 AI 缓存 / 决策 1b 从格边界）
 - `archive/` — 旧"玄机问道"卷轴方案归档（参考用，不复用）
 - `DESIGN.md` — 视觉设计系统事实源(美学 / 色板 / 字体 / 间距 / iOS SwiftUI 落地计划)
+- `USER_STORIES.md` — 用户故事 + 验收标准 + 旅程地图(review 依据)
 
 ## 全局约束（继承 ~/.claude/CLAUDE.md）
 
