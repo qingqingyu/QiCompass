@@ -14,7 +14,7 @@ struct SwiftDataCRUDView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                BaziTheme.backgroundGradient.ignoresSafeArea()
+                BaziTheme.paper.ignoresSafeArea()
                 content
             }
             .navigationTitle("存储验证")

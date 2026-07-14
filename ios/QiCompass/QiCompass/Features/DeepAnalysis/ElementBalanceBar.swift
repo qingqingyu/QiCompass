@@ -36,7 +36,7 @@ struct ElementBalanceBar: View {
                     }
                 }
                 .frame(height: 24)
-                .clipShape(RoundedRectangle(cornerRadius: 6))
+                .clipShape(RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
             }
             .frame(height: 24)
 

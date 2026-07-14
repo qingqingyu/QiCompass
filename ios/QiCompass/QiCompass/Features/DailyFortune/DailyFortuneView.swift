@@ -19,7 +19,7 @@ struct DailyFortuneView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                BaziTheme.backgroundGradient.ignoresSafeArea()
+                BaziTheme.paper.ignoresSafeArea()
                 content
             }
             .navigationTitle("每日运势")

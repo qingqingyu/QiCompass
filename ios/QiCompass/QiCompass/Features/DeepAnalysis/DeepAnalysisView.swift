@@ -17,7 +17,7 @@ struct DeepAnalysisView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                BaziTheme.backgroundGradient.ignoresSafeArea()
+                BaziTheme.paper.ignoresSafeArea()
                 content
             }
             .navigationTitle("深度解析")
