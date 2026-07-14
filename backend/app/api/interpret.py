@@ -209,7 +209,12 @@ async def _invalidate_poisoned_cache(
     log_ctx: dict,
     **key_kwargs,
 ) -> None:
-    """删除被禁词污染的缓存条目,失败只 log 不抛(不掩盖禁词拦截本身)。"""
+    """删除被禁词污染的缓存条目。失败抛 InterpretationCacheError(不吞,避免坏缓存无限循环)。
+
+    设计决策:删除失败时不静默吞,因为吞掉会导致同一坏缓存被反复命中,
+    用户每次重试都拿到同样的禁词错误,形成无限循环。抛 InterpretationCacheError
+    让用户看到"缓存故障"(不同于"禁词拦截"),知道是基础设施问题。
+    """
     try:
         await run_in_threadpool(cache.delete, **key_kwargs)
     except Exception as e:
@@ -218,3 +223,6 @@ async def _invalidate_poisoned_cache(
             "cached entry remains poisoned, manual cleanup may be needed",
             log_ctx, e,
         )
+        raise InterpretationCacheError(
+            f"删除被禁词污染的缓存失败({type(e).__name__}): {e}"
+        ) from e
