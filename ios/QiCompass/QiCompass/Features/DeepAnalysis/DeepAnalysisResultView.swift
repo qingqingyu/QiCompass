@@ -9,6 +9,11 @@ struct DeepAnalysisResultView: View {
     let response: BaziResponse
     let request: BaziCalculateRequest
 
+    private var interpretState: InterpretState {
+        if case .chartReady(_, let s) = vm.state { return s }
+        return .idle
+    }
+
     var body: some View {
         ScrollView {
             VStack(spacing: BaziTheme.Spacing.md) {
@@ -27,7 +32,13 @@ struct DeepAnalysisResultView: View {
                     currentLuckPillar: response.currentLuckPillar
                 )
                 CurrentStatusCard(response: response)
-                InterpretationSection(vm: vm, response: response)
+                InterpretationSection(
+                    interpretState: interpretState,
+                    remainingReads: vm.remainingReads,
+                    nextReset: vm.nextDailyReset,
+                    onGenerate: { vm.generateInterpretation() },
+                    onRetry: { vm.retryInterpretation() }
+                )
 
                 Button("重新排盘") {
                     vm.reset()

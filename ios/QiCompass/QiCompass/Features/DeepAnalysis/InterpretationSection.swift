@@ -2,24 +2,26 @@ import SwiftUI
 
 /// AI 命书区(方案 §一 InterpretationSection + DESIGN.md §Color)。
 ///
+/// 纯展示组件:接受 let 参数(状态 + 回调),不依赖具体 ViewModel。
+/// 与 CompatibilityInterpretationSection / DailyInterpretationSection 模式一致。
+///
 /// 子状态机:
 /// - idle:显示"生成命书"CTA(remaining > 0 保证;remaining = 0 由 effectiveState 转为 dailyLimitReached)
 /// - fetching:ProgressView + 文案
 /// - ok(text, cached):命书文本 + cached 标记 + 重新生成
-/// - failed(message):错误 + 重试(达上限时显示倒计时到午夜)
+/// - failed(message):错误 + 重试
+/// - dailyLimitReached:达上限态(显示 DailyLimitReachedView)
 struct InterpretationSection: View {
-    @Bindable var vm: DeepAnalysisViewModel
-    let response: BaziResponse
-
-    @MainActor private var interpretState: InterpretState {
-        if case .chartReady(_, let s) = vm.state { return s }
-        return .idle
-    }
+    let interpretState: InterpretState
+    let remainingReads: Int
+    let nextReset: Date
+    let onGenerate: () -> Void
+    let onRetry: () -> Void
 
     /// 有效 interpretState:idle + remaining=0 时自动转为 dailyLimitReached(消除 idle case 的 if/else 判断)。
-    @MainActor private var effectiveState: InterpretState {
-        if case .idle = interpretState, vm.remainingReads <= 0 {
-            return .dailyLimitReached(nextReset: vm.nextDailyReset)
+    private var effectiveState: InterpretState {
+        if case .idle = interpretState, remainingReads <= 0 {
+            return .dailyLimitReached(nextReset: nextReset)
         }
         return interpretState
     }
@@ -30,14 +32,14 @@ struct InterpretationSection: View {
                 Text("AI 命书")
                     .zcoolCardTitle()
                 Spacer()
-                Text("今日剩余 \(vm.remainingReads)/10 次")
+                Text("今日剩余 \(remainingReads)/10 次")
                     .font(.caption2)
                     .foregroundStyle(BaziTheme.inkMuted)
             }
 
             switch effectiveState {
             case .idle:
-                Button(action: { HapticEngine.medium(); vm.generateInterpretation() }) {
+                Button(action: { HapticEngine.medium(); onGenerate() }) {
                     Text("生成命书")
                         .font(.body.weight(.semibold))
                         .foregroundStyle(BaziTheme.paper)
@@ -69,7 +71,7 @@ struct InterpretationSection: View {
                             .foregroundStyle(BaziTheme.inkMuted)
                     }
                     Spacer()
-                    Button("重新生成", action: vm.retryInterpretation)
+                    Button("重新生成", action: onRetry)
                         .font(.caption)
                         .foregroundStyle(BaziTheme.cinnabar)
                 }
@@ -78,7 +80,7 @@ struct InterpretationSection: View {
                 Text(message)
                     .font(.caption)
                     .foregroundStyle(BaziTheme.shenshaInauspicious)
-                Button("重试", action: vm.retryInterpretation)
+                Button("重试", action: onRetry)
                     .font(.caption.weight(.semibold))
                     .foregroundStyle(BaziTheme.cinnabar)
 
