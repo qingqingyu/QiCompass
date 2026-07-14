@@ -58,3 +58,14 @@ class InterpretationCacheError(BaziError):
 
     code = "INTERPRETATION_CACHE_ERROR"
     http_status = 500
+
+
+class InterpretationForbiddenError(BaziError):
+    """AI 解读包含禁词,被后端拦截(US-COMP-04)。
+
+    错误显式传播:不替换文本,不返回原文,直接抛错让客户端进入 error 态。
+    客户端保留二次扫描作防御性兜底,但后端是最终防线(客户端可被绕过)。
+    """
+
+    code = "INTERPRETATION_FORBIDDEN"
+    http_status = 422

@@ -32,11 +32,13 @@ from fastapi import APIRouter, Request
 from starlette.concurrency import run_in_threadpool
 
 from ..ai.cache import InterpretationCache
+from ..ai.forbidden_words import scan as scan_forbidden_words
 from ..ai.prompts import PROMPT_VERSIONS, render_prompt, validate_context
 from ..config import CLAUDE_MODEL
 from ..errors import (
     ClaudeAPIError,
     InterpretationCacheError,
+    InterpretationForbiddenError,
     InvalidInputError,
 )
 from ..models.interpret import InterpretRequest, InterpretResponse
@@ -107,6 +109,17 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
             f"后端缓存读失败({type(e).__name__}): {e}") from e
 
     if cached_row is not None:
+        # 禁词扫描(防止老缓存被污染,US-COMP-04)
+        forbidden_hits = scan_forbidden_words(cached_row["interpretation"])
+        if forbidden_hits:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.warning(
+                "interpret.cache_forbidden elapsed_ms=%.1f %s hits=%s",
+                elapsed_ms, log_ctx, forbidden_hits,
+            )
+            raise InterpretationForbiddenError(
+                f"AI 解读包含禁词,已拦截(命中: {', '.join(forbidden_hits)})"
+            )
         elapsed_ms = (time.perf_counter() - start) * 1000
         logger.info(
             "interpret.cache_hit elapsed_ms=%.1f %s",
@@ -133,6 +146,19 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
         raise
     # 非预期异常(AttributeError/TypeError 等代码 bug)不包装,
     # 向上抛由全局 handler 处理为 500,避免用 503 掩盖代码缺陷
+
+    # 4.5 禁词扫描(LLM 输出守卫,US-COMP-04)
+    # 命中即拦截:不替换文本,不写缓存,不返回原文,直接抛错让客户端进入 error 态
+    forbidden_hits = scan_forbidden_words(interpretation)
+    if forbidden_hits:
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.warning(
+            "interpret.forbidden elapsed_ms=%.1f %s hits=%s",
+            elapsed_ms, log_ctx, forbidden_hits,
+        )
+        raise InterpretationForbiddenError(
+            f"AI 解读包含禁词,已拦截(命中: {', '.join(forbidden_hits)})"
+        )
 
     # 5. 写缓存(同步 → 线程池)
     now_iso = datetime.now(timezone.utc).isoformat()

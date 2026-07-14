@@ -80,24 +80,26 @@ struct XijiCard: View {
                 .font(.caption)
                 .foregroundStyle(BaziTheme.inkMuted)
             ForEach(elements, id: \.self) { elem in
-                elementChip(elem)
+                elementChip(elem, isFavorable: isFavorable)
             }
             Spacer()
         }
     }
 
-    /// 五行 chip:五行色描边 + 半透明底(Capsule 留给 chip)。
-    private func elementChip(_ elem: String) -> some View {
-        let color: Color = {
+    /// 五行 chip(US-DA-02 混合方案):文字保留五行色,底色/描边用喜忌色(jade 喜用 / cinnabar 忌神)。
+    /// 五行信息(文字)+ 喜忌区分(底色/描边)两者兼顾。
+    private func elementChip(_ elem: String, isFavorable: Bool) -> some View {
+        let elementColor: Color = {
             guard let key = ElementColors.fromZh(elem) else { return BaziTheme.inkMuted }
             return ElementColors.from(key)?.color ?? BaziTheme.inkMuted
         }()
+        let polarityColor = isFavorable ? BaziTheme.jade : BaziTheme.cinnabar
         return Text(elem)
             .font(.caption.weight(.medium))
-            .foregroundStyle(color)
+            .foregroundStyle(elementColor)
             .padding(.horizontal, 8)
             .padding(.vertical, 2)
-            .background(color.opacity(0.15), in: Capsule())
-            .overlay(Capsule().stroke(color.opacity(0.4), lineWidth: 0.5))
+            .background(polarityColor.opacity(0.1), in: Capsule())
+            .overlay(Capsule().stroke(polarityColor.opacity(0.4), lineWidth: 0.5))
     }
 }
