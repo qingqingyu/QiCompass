@@ -26,7 +26,14 @@ struct CompatibilityInterpretationSection: View {
 
             switch state {
             case .idle:
-                emptyIdleView
+                if remainingReads <= 0 {
+                    Text("今日机缘已尽,明日再来")
+                        .font(.subheadline)
+                        .foregroundStyle(BaziTheme.shenshaInauspicious)
+                    CountdownResetLabel(nextReset: nextReset)
+                } else {
+                    emptyIdleView
+                }
             case .fetching:
                 HStack(spacing: 12) {
                     ProgressView().tint(BaziTheme.cinnabar)

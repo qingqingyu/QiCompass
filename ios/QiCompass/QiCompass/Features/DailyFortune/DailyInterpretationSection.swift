@@ -27,7 +27,14 @@ struct DailyInterpretationSection: View {
 
             switch state {
             case .idle:
-                EmptyInterpretationView(onGenerate: onGenerate)
+                if remainingReads <= 0 {
+                    Text("今日机缘已尽,明日再来")
+                        .font(.subheadline)
+                        .foregroundStyle(BaziTheme.shenshaInauspicious)
+                    CountdownResetLabel(nextReset: nextReset)
+                } else {
+                    EmptyInterpretationView(onGenerate: onGenerate)
+                }
             case .fetching:
                 HStack(spacing: 12) {
                     ProgressView().tint(BaziTheme.cinnabar)

@@ -3,7 +3,7 @@ import SwiftUI
 /// AI 命书区(方案 §一 InterpretationSection + DESIGN.md §Color)。
 ///
 /// 子状态机:
-/// - idle:"生成命书"按钮(cinnabar CTA)+ 剩余次数
+/// - idle:次数 > 0 → "生成命书"按钮(cinnabar CTA);次数 = 0 → 显示"今日机缘已尽"(避免误导点击)
 /// - fetching:ProgressView + 文案
 /// - ok(text, cached):命书文本 + cached 标记 + 重新生成
 /// - failed(message):错误 + 重试(达上限时显示倒计时到午夜)
@@ -29,13 +29,21 @@ struct InterpretationSection: View {
 
             switch interpretState {
             case .idle:
-                Button(action: { HapticEngine.medium(); vm.generateInterpretation() }) {
-                    Text("生成命书")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(BaziTheme.paper)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                if vm.remainingReads <= 0 {
+                    // 次数已满:显示 dailyLimitReached 文案,不显示 CTA(避免误导点击后一闪而过)
+                    Text("今日机缘已尽,明日再来")
+                        .font(.caption)
+                        .foregroundStyle(BaziTheme.shenshaInauspicious)
+                    CountdownResetLabel(nextReset: vm.nextDailyReset)
+                } else {
+                    Button(action: { HapticEngine.medium(); vm.generateInterpretation() }) {
+                        Text("生成命书")
+                            .font(.body.weight(.semibold))
+                            .foregroundStyle(BaziTheme.paper)
+                            .frame(maxWidth: .infinity)
+                            .padding(.vertical, 10)
+                            .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                    }
                 }
 
             case .fetching:

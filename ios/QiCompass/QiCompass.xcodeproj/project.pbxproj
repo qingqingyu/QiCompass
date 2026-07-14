@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 60;
+	objectVersion = 56;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -44,13 +44,6 @@
 		9C0000000000000000000018 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000018 /* Logger.swift */; };
 		9C0000000000000000000019 /* SwiftDataCRUDView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000019 /* SwiftDataCRUDView.swift */; };
 		9C000000000000000000001A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000001A /* Assets.xcassets */; };
-		A9B245DDB05C779E1238547A /* DeepAnalysisViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F34390B983BDE0003B56E8 /* DeepAnalysisViewModel.swift */; };
-		AC13473A98FFEBD13695E504 /* ElementColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18B14E9FA1316D589ABA9845 /* ElementColors.swift */; };
-		AFD648598ECEA58C6C8A8C8B /* DeepAnalysisOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64414BC9B04112663B97EE16 /* DeepAnalysisOrchestrator.swift */; };
-		B36D4647A938BC37E999E702 /* DailyReadCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23C84BD0B1E670AC7EF54B93 /* DailyReadCounter.swift */; };
-		D26047CCB90DDAA99C1B6D7D /* InterpretationCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AF74383AEB02A4F7ED0C689 /* InterpretationCacheStore.swift */; };
-		E22A4DA18C53C38BBC80783C /* ChartHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */; };
-		E40D46498BC532F986012E83 /* ShenshaChips.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91C4716AE1411C309FEBE65 /* ShenshaChips.swift */; };
 		9C000000000000000000001C /* BusinessDateCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000001C /* BusinessDateCalculator.swift */; };
 		9C000000000000000000001D /* DailyFortuneSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000001D /* DailyFortuneSnapshotStore.swift */; };
 		9C000000000000000000001E /* DailyFortuneOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000001E /* DailyFortuneOrchestrator.swift */; };
@@ -85,6 +78,14 @@
 		9C000000000000000000003B /* FadeInModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003B /* FadeInModifier.swift */; };
 		9C000000000000000000003C /* CountdownResetLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003C /* CountdownResetLabel.swift */; };
 		9C000000000000000000003D /* ErrorStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003D /* ErrorStateView.swift */; };
+		A9B245DDB05C779E1238547A /* DeepAnalysisViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F34390B983BDE0003B56E8 /* DeepAnalysisViewModel.swift */; };
+		AC13473A98FFEBD13695E504 /* ElementColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18B14E9FA1316D589ABA9845 /* ElementColors.swift */; };
+		AFD648598ECEA58C6C8A8C8B /* DeepAnalysisOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64414BC9B04112663B97EE16 /* DeepAnalysisOrchestrator.swift */; };
+		B36D4647A938BC37E999E702 /* DailyReadCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23C84BD0B1E670AC7EF54B93 /* DailyReadCounter.swift */; };
+		D26047CCB90DDAA99C1B6D7D /* InterpretationCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AF74383AEB02A4F7ED0C689 /* InterpretationCacheStore.swift */; };
+		E22A4DA18C53C38BBC80783C /* ChartHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */; };
+		E40D46498BC532F986012E83 /* ShenshaChips.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91C4716AE1411C309FEBE65 /* ShenshaChips.swift */; };
+		F5DE2EFF3006596F0089996B /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5DE2EFE3006596F0089996B /* OnboardingView.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -127,13 +128,6 @@
 		9C1000000000000000000019 /* SwiftDataCRUDView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataCRUDView.swift; sourceTree = "<group>"; };
 		9C100000000000000000001A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9C100000000000000000001B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		9C2000000000000000000001 /* QiCompass.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QiCompass.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		9F614F24B096FF767B7F3934 /* ElementBalanceBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ElementBalanceBar.swift; path = QiCompass/Features/DeepAnalysis/ElementBalanceBar.swift; sourceTree = SOURCE_ROOT; };
-		D91C4716AE1411C309FEBE65 /* ShenshaChips.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ShenshaChips.swift; path = QiCompass/Features/DeepAnalysis/ShenshaChips.swift; sourceTree = SOURCE_ROOT; };
-		F4D24E23A0A8DAE17CCC61CC /* DeepAnalysisResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeepAnalysisResultView.swift; path = QiCompass/Features/DeepAnalysis/DeepAnalysisResultView.swift; sourceTree = SOURCE_ROOT; };
-		F8BC4D749648FC864F2EDB38 /* LuckPillarsTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LuckPillarsTimeline.swift; path = QiCompass/Features/DeepAnalysis/LuckPillarsTimeline.swift; sourceTree = SOURCE_ROOT; };
-		F9AB427085FC26BB41BE756E /* PillarsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PillarsTable.swift; path = QiCompass/Features/DeepAnalysis/PillarsTable.swift; sourceTree = SOURCE_ROOT; };
-		F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartHeaderView.swift; path = QiCompass/Features/DeepAnalysis/ChartHeaderView.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000001C /* BusinessDateCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BusinessDateCalculator.swift; path = QiCompass/Services/BusinessDateCalculator.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000001D /* DailyFortuneSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneSnapshotStore.swift; path = QiCompass/Services/DailyFortuneSnapshotStore.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000001E /* DailyFortuneOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneOrchestrator.swift; path = QiCompass/Services/DailyFortuneOrchestrator.swift; sourceTree = SOURCE_ROOT; };
@@ -168,6 +162,14 @@
 		9C100000000000000000003B /* FadeInModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FadeInModifier.swift; path = QiCompass/Shared/FadeInModifier.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000003C /* CountdownResetLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CountdownResetLabel.swift; path = QiCompass/Shared/CountdownResetLabel.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000003D /* ErrorStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ErrorStateView.swift; path = QiCompass/Shared/ErrorStateView.swift; sourceTree = SOURCE_ROOT; };
+		9C2000000000000000000001 /* QiCompass.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QiCompass.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		9F614F24B096FF767B7F3934 /* ElementBalanceBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ElementBalanceBar.swift; path = QiCompass/Features/DeepAnalysis/ElementBalanceBar.swift; sourceTree = SOURCE_ROOT; };
+		D91C4716AE1411C309FEBE65 /* ShenshaChips.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ShenshaChips.swift; path = QiCompass/Features/DeepAnalysis/ShenshaChips.swift; sourceTree = SOURCE_ROOT; };
+		F4D24E23A0A8DAE17CCC61CC /* DeepAnalysisResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeepAnalysisResultView.swift; path = QiCompass/Features/DeepAnalysis/DeepAnalysisResultView.swift; sourceTree = SOURCE_ROOT; };
+		F5DE2EFE3006596F0089996B /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OnboardingView.swift; path = QiCompass/Features/Onboarding/OnboardingView.swift; sourceTree = SOURCE_ROOT; };
+		F8BC4D749648FC864F2EDB38 /* LuckPillarsTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LuckPillarsTimeline.swift; path = QiCompass/Features/DeepAnalysis/LuckPillarsTimeline.swift; sourceTree = SOURCE_ROOT; };
+		F9AB427085FC26BB41BE756E /* PillarsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PillarsTable.swift; path = QiCompass/Features/DeepAnalysis/PillarsTable.swift; sourceTree = SOURCE_ROOT; };
+		F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartHeaderView.swift; path = QiCompass/Features/DeepAnalysis/ChartHeaderView.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -184,6 +186,7 @@
 		9C4000000000000000000001 = {
 			isa = PBXGroup;
 			children = (
+				F5DE2EFE3006596F0089996B /* OnboardingView.swift */,
 				9C4000000000000000000002 /* QiCompass */,
 				9C400000000000000000000E /* Products */,
 				160B487DB2FB51858CB5F067 /* ChartSnapshotStore.swift */,
@@ -511,6 +514,7 @@
 				9C000000000000000000002D /* CompatibilityViewModel.swift in Sources */,
 				9C000000000000000000002E /* CompatibilityConfigView.swift in Sources */,
 				9C000000000000000000002F /* CompatibilityMainView.swift in Sources */,
+				F5DE2EFF3006596F0089996B /* OnboardingView.swift in Sources */,
 				9C0000000000000000000030 /* ChartArchivePickerView.swift in Sources */,
 				9C0000000000000000000031 /* DualPillarsTable.swift in Sources */,
 				9C0000000000000000000032 /* AssessmentCardGrid.swift in Sources */,
