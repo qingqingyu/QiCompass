@@ -3,7 +3,7 @@ import SwiftUI
 /// AI 命书区(方案 §一 InterpretationSection + DESIGN.md §Color)。
 ///
 /// 子状态机:
-/// - idle:次数 > 0 → "生成命书"按钮(cinnabar CTA);次数 = 0 → 显示"今日机缘已尽"(避免误导点击)
+/// - idle:显示"生成命书"CTA(remaining > 0 保证;remaining = 0 由 effectiveState 转为 dailyLimitReached)
 /// - fetching:ProgressView + 文案
 /// - ok(text, cached):命书文本 + cached 标记 + 重新生成
 /// - failed(message):错误 + 重试(达上限时显示倒计时到午夜)
@@ -14,6 +14,14 @@ struct InterpretationSection: View {
     @MainActor private var interpretState: InterpretState {
         if case .chartReady(_, let s) = vm.state { return s }
         return .idle
+    }
+
+    /// 有效 interpretState:idle + remaining=0 时自动转为 dailyLimitReached(消除 idle case 的 if/else 判断)。
+    @MainActor private var effectiveState: InterpretState {
+        if case .idle = interpretState, vm.remainingReads <= 0 {
+            return .dailyLimitReached(nextReset: vm.nextDailyReset)
+        }
+        return interpretState
     }
 
     var body: some View {
@@ -27,20 +35,15 @@ struct InterpretationSection: View {
                     .foregroundStyle(BaziTheme.inkMuted)
             }
 
-            switch interpretState {
+            switch effectiveState {
             case .idle:
-                if vm.remainingReads <= 0 {
-                    // 次数已满:显示达上限态,不显示 CTA(避免误导点击后一闪而过)
-                    DailyLimitReachedView(nextReset: vm.nextDailyReset)
-                } else {
-                    Button(action: { HapticEngine.medium(); vm.generateInterpretation() }) {
-                        Text("生成命书")
-                            .font(.body.weight(.semibold))
-                            .foregroundStyle(BaziTheme.paper)
-                            .frame(maxWidth: .infinity)
-                            .padding(.vertical, 10)
-                            .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
-                    }
+                Button(action: { HapticEngine.medium(); vm.generateInterpretation() }) {
+                    Text("生成命书")
+                        .font(.body.weight(.semibold))
+                        .foregroundStyle(BaziTheme.paper)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 10)
+                        .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
 
             case .fetching:
