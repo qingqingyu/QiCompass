@@ -7,6 +7,7 @@ import SwiftUI
 struct RootTabView: View {
     @EnvironmentObject private var env: AppEnvironment
     @State private var selectedTab: Tab = .deepAnalysis
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     enum Tab: Hashable {
         case deepAnalysis
@@ -35,6 +36,16 @@ struct RootTabView: View {
                 }
         }
         .tint(BaziTheme.cinnabar)
+        .sheet(isPresented: Binding(
+            get: { !hasSeenOnboarding },
+            set: { newValue in
+                if !newValue { hasSeenOnboarding = true }
+            }
+        )) {
+            OnboardingView(onComplete: {
+                hasSeenOnboarding = true
+            })
+        }
         .onReceive(NotificationCenter.default.publisher(for: .switchTab)) { note in
             guard let raw = note.userInfo?["tab"] as? String else { return }
             switch raw {
