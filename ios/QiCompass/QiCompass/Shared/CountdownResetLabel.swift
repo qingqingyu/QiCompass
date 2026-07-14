@@ -23,3 +23,26 @@ struct CountdownResetLabel: View {
         return String(format: "%d 时 %d 分", h, m)
     }
 }
+
+// MARK: - DailyLimitReachedView
+
+/// 达上限态共用视图(三模块 AI 解读复用)。
+///
+/// 显示"今日机缘已尽,明日再来" + 倒计时到本地午夜。
+/// 用在:
+/// - idle 态 + remainingReads <= 0(避免误导点击 CTA)
+/// - .dailyLimitReached 态
+struct DailyLimitReachedView: View {
+    let nextReset: Date
+
+    var body: some View {
+        VStack(spacing: 4) {
+            Text("今日机缘已尽,明日再来")
+                .font(.subheadline)
+                .foregroundStyle(BaziTheme.shenshaInauspicious)
+            CountdownResetLabel(nextReset: nextReset)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
+    }
+}

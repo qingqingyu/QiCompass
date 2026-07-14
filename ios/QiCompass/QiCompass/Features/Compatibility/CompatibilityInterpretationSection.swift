@@ -27,10 +27,7 @@ struct CompatibilityInterpretationSection: View {
             switch state {
             case .idle:
                 if remainingReads <= 0 {
-                    Text("今日机缘已尽,明日再来")
-                        .font(.subheadline)
-                        .foregroundStyle(BaziTheme.shenshaInauspicious)
-                    CountdownResetLabel(nextReset: nextReset)
+                    DailyLimitReachedView(nextReset: nextReset)
                 } else {
                     emptyIdleView
                 }
@@ -75,15 +72,8 @@ struct CompatibilityInterpretationSection: View {
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 16)
             case .dailyLimitReached(let nextReset):
-                VStack(spacing: 8) {
-                    Text("今日机缘已尽,明日再来")
-                        .font(.subheadline)
-                        .foregroundStyle(BaziTheme.shenshaInauspicious)
-                    CountdownResetLabel(nextReset: nextReset)
-                    // 达上限:**禁用生成按钮、不显示重试**(方案 step 4)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+                DailyLimitReachedView(nextReset: nextReset)
+                // 达上限:**禁用生成按钮、不显示重试**(方案 step 4)
             }
         }
         .padding(16)

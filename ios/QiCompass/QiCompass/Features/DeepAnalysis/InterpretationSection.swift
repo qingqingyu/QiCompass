@@ -30,11 +30,8 @@ struct InterpretationSection: View {
             switch interpretState {
             case .idle:
                 if vm.remainingReads <= 0 {
-                    // 次数已满:显示 dailyLimitReached 文案,不显示 CTA(避免误导点击后一闪而过)
-                    Text("今日机缘已尽,明日再来")
-                        .font(.caption)
-                        .foregroundStyle(BaziTheme.shenshaInauspicious)
-                    CountdownResetLabel(nextReset: vm.nextDailyReset)
+                    // 次数已满:显示达上限态,不显示 CTA(避免误导点击后一闪而过)
+                    DailyLimitReachedView(nextReset: vm.nextDailyReset)
                 } else {
                     Button(action: { HapticEngine.medium(); vm.generateInterpretation() }) {
                         Text("生成命书")
@@ -83,10 +80,7 @@ struct InterpretationSection: View {
                     .foregroundStyle(BaziTheme.cinnabar)
 
             case .dailyLimitReached(let nextReset):
-                Text("今日机缘已尽,明日再来")
-                    .font(.caption)
-                    .foregroundStyle(BaziTheme.shenshaInauspicious)
-                CountdownResetLabel(nextReset: nextReset)
+                DailyLimitReachedView(nextReset: nextReset)
                 // 达上限:**禁用生成按钮、不显示重试**(方案 step 4)
             }
         }
