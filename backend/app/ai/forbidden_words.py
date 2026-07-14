@@ -12,6 +12,12 @@ US-COMP-04 验收标准 4:后端拦截"百分百/一定"等绝对化用语。
 
 from __future__ import annotations
 
+import logging
+
+from ..errors import InterpretationForbiddenError
+
+logger = logging.getLogger(__name__)
+
 # 禁词清单:绝对结论类。LLM 必须用"倾向 / 较易 / 较难"等模糊叙事。
 # 与客户端 ForbiddenWords.absoluteConclusions 保持一致。
 ABSOLUTE_CONCLUSIONS: list[str] = [
@@ -32,3 +38,28 @@ def scan(text: str) -> list[str]:
         if word in text and word not in hits:
             hits.append(word)
     return hits
+
+
+def validate_interpretation(
+    text: str,
+    *,
+    request_id: str | None = None,
+    content_hash: str | None = None,
+    log_ctx: dict | None = None,
+) -> None:
+    """扫描文本,命中禁词则 raise InterpretationForbiddenError。
+
+    纯逻辑(只读 text + 写日志 + raise),无 HTTP/缓存副作用。
+    用于 interpret.py 两处禁词检查(缓存命中后 + Claude 返回后)。
+
+    可独立单元测试:``validate_interpretation("注定分手")`` → assert raises。
+    """
+    hits = scan(text)
+    if hits:
+        if log_ctx:
+            logger.warning("forbidden_words.validate hits=%s %s", hits, log_ctx)
+        raise InterpretationForbiddenError(
+            f"AI 解读包含禁词,已拦截(命中: {', '.join(hits)})",
+            request_id=request_id,
+            content_hash=content_hash,
+        )

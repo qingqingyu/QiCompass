@@ -33,6 +33,7 @@ from starlette.concurrency import run_in_threadpool
 
 from ..ai.cache import InterpretationCache
 from ..ai.forbidden_words import scan as scan_forbidden_words
+from ..ai.forbidden_words import validate_interpretation
 from ..ai.prompts import PROMPT_VERSIONS, render_prompt, validate_context
 from ..config import CLAUDE_MODEL
 from ..errors import (
@@ -168,18 +169,12 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
 
     # 4.5 禁词扫描(LLM 输出守卫,US-COMP-04)
     # 命中即拦截:不替换文本,不写缓存,不返回原文,直接抛错让客户端进入 error 态
-    forbidden_hits = scan_forbidden_words(interpretation)
-    if forbidden_hits:
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        logger.warning(
-            "interpret.forbidden elapsed_ms=%.1f %s hits=%s",
-            elapsed_ms, log_ctx, forbidden_hits,
-        )
-        raise InterpretationForbiddenError(
-            f"AI 解读包含禁词,已拦截(命中: {', '.join(forbidden_hits)})",
-            request_id=request_id,
-            content_hash=req.content_hash,
-        )
+    validate_interpretation(
+        interpretation,
+        request_id=request_id,
+        content_hash=req.content_hash,
+        log_ctx=log_ctx,
+    )
 
     # 5. 写缓存(同步 → 线程池)
     now_iso = datetime.now(timezone.utc).isoformat()
