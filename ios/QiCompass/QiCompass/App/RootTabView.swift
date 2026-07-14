@@ -45,6 +45,7 @@ struct RootTabView: View {
             OnboardingView(onComplete: {
                 hasSeenOnboarding = true
             })
+            .interactiveDismissDisabled()
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchTab)) { note in
             guard let raw = note.userInfo?["tab"] as? String else { return }
