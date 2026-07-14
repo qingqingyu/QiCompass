@@ -118,23 +118,14 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
                 "interpret.cache_forbidden elapsed_ms=%.1f %s hits=%s",
                 elapsed_ms, log_ctx, forbidden_hits,
             )
-            # 删除坏缓存,避免同一 content_hash 永久不可用
-            try:
-                await run_in_threadpool(
-                    cache.delete,
-                    content_hash=req.content_hash,
-                    module=req.module,
-                    prompt_version=prompt_version,
-                    target_date=target_date_str,
-                    prompt_hash=prompt_hash,
-                )
-            except Exception as del_e:
-                logger.exception(
-                    "interpret.cache_forbidden_delete_failed %s error=%s "
-                    "cached entry remains poisoned, manual cleanup may be needed",
-                    log_ctx, del_e,
-                )
-                # 删除失败不掩盖禁词拦截本身,继续抛 InterpretationForbiddenError
+            # 删除坏缓存,避免同一 content_hash 永久不可用(失败只 log,不掩盖禁词拦截)
+            await _invalidate_poisoned_cache(cache, log_ctx,
+                content_hash=req.content_hash,
+                module=req.module,
+                prompt_version=prompt_version,
+                target_date=target_date_str,
+                prompt_hash=prompt_hash,
+            )
             raise InterpretationForbiddenError(
                 f"AI 解读包含禁词,已拦截(命中: {', '.join(forbidden_hits)})",
                 request_id=request_id,
@@ -211,3 +202,19 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
         cached=False,
         generated_at=now_iso,
     )
+
+
+async def _invalidate_poisoned_cache(
+    cache: InterpretationCache,
+    log_ctx: dict,
+    **key_kwargs,
+) -> None:
+    """删除被禁词污染的缓存条目,失败只 log 不抛(不掩盖禁词拦截本身)。"""
+    try:
+        await run_in_threadpool(cache.delete, **key_kwargs)
+    except Exception as e:
+        logger.exception(
+            "interpret.cache_delete_failed %s error=%s "
+            "cached entry remains poisoned, manual cleanup may be needed",
+            log_ctx, e,
+        )
