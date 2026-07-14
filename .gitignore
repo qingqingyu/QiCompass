@@ -46,3 +46,4 @@ data/
 /run-slices-2.sh
 /run-slices-3.sh
 /dev-flow-logs/
+.gstack/
