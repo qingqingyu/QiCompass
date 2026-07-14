@@ -226,3 +226,98 @@ async def test_cache_set_failure_propagates(tmp_cache):
         tmp_cache.set = original_set
         app.state.cache = saved_cache
         app.state.claude_client = saved_claude
+
+
+# ===== 8. 禁词拦截:Claude 返回禁词 → 422 + 不写缓存 =====
+
+
+async def test_claude_returns_forbidden_words_returns_422(tmp_cache):
+    """mock Claude 返回含禁词的文本 → 422,且缓存中无条目。"""
+    from tests.fixtures.mock_claude import MockClaudeClient
+
+    mock = MockClaudeClient(response="你们必定会在一起,百分之百的")
+    saved_cache = getattr(app.state, "cache", None)
+    saved_claude = getattr(app.state, "claude_client", None)
+    app.state.cache = tmp_cache
+    app.state.claude_client = mock
+
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app),
+                               base_url="http://test") as ac:
+            payload = {
+                "content_hash": "test-hash-forbidden-claude",
+                "module": "bazi_deep",
+                "context": BAZI_DEEP_CONTEXT,
+                "target_date": None,
+            }
+            code, body = await _post_interpret(ac, payload)
+        assert code == 422, body
+        assert body["error"]["code"] == "INTERPRETATION_FORBIDDEN"
+        assert "禁词" in body["error"]["message"]
+        assert body["error"]["request_id"]
+        assert body["error"]["content_hash"] == "test-hash-forbidden-claude"
+        # 不写缓存
+        prompt_hash = hashlib.sha256(
+            render_prompt("bazi_deep", BAZI_DEEP_CONTEXT).encode("utf-8")
+        ).hexdigest()
+        row = tmp_cache.get(content_hash="test-hash-forbidden-claude",
+                            module="bazi_deep", prompt_version=1,
+                            target_date=None, prompt_hash=prompt_hash)
+        assert row is None, "禁词命中时不应写缓存"
+    finally:
+        app.state.cache = saved_cache
+        app.state.claude_client = saved_claude
+
+
+# ===== 9. 禁词拦截:缓存命中禁词 → 422 + 删除坏缓存 =====
+
+
+async def test_cache_hit_forbidden_words_returns_422_and_deletes(tmp_cache):
+    """缓存中已有含禁词的条目 → 422,且该条目被删除(下次请求重新调 Claude)。"""
+    from tests.fixtures.mock_claude import MockClaudeClient
+
+    mock = MockClaudeClient(response="正常文本,无禁词")
+    saved_cache = getattr(app.state, "cache", None)
+    saved_claude = getattr(app.state, "claude_client", None)
+    app.state.cache = tmp_cache
+    app.state.claude_client = mock
+
+    content_hash = "test-hash-forbidden-cache"
+    prompt_hash = hashlib.sha256(
+        render_prompt("bazi_deep", BAZI_DEEP_CONTEXT).encode("utf-8")
+    ).hexdigest()
+
+    # 预置含禁词的坏缓存
+    tmp_cache.set(
+        content_hash=content_hash,
+        module="bazi_deep",
+        prompt_version=1,
+        target_date=None,
+        prompt_hash=prompt_hash,
+        model="test-model",
+        interpretation="你们必定会在一起,注定如此",
+        generated_at="2026-01-01T00:00:00+00:00",
+    )
+
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app),
+                               base_url="http://test") as ac:
+            payload = {
+                "content_hash": content_hash,
+                "module": "bazi_deep",
+                "context": BAZI_DEEP_CONTEXT,
+                "target_date": None,
+            }
+            code, body = await _post_interpret(ac, payload)
+        assert code == 422, body
+        assert body["error"]["code"] == "INTERPRETATION_FORBIDDEN"
+        assert body["error"]["content_hash"] == content_hash
+
+        # 坏缓存应被删除
+        row = tmp_cache.get(content_hash=content_hash,
+                            module="bazi_deep", prompt_version=1,
+                            target_date=None, prompt_hash=prompt_hash)
+        assert row is None, "禁词命中的坏缓存应被删除"
+    finally:
+        app.state.cache = saved_cache
+        app.state.claude_client = saved_claude

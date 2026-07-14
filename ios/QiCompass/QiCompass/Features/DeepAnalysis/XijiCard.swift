@@ -94,6 +94,7 @@ struct XijiCard: View {
             return ElementColors.from(key)?.color ?? BaziTheme.inkMuted
         }()
         let polarityColor = isFavorable ? BaziTheme.jade : BaziTheme.cinnabar
+        let polarityLabel = isFavorable ? "喜用" : "忌神"
         return Text(elem)
             .font(.caption.weight(.medium))
             .foregroundStyle(elementColor)
@@ -101,5 +102,6 @@ struct XijiCard: View {
             .padding(.vertical, 2)
             .background(polarityColor.opacity(0.1), in: Capsule())
             .overlay(Capsule().stroke(polarityColor.opacity(0.4), lineWidth: 0.5))
+            .accessibilityLabel("\(polarityLabel) \(elem)")
     }
 }

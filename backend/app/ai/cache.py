@@ -142,6 +142,31 @@ class InterpretationCache:
             )
             conn.commit()
 
+    def delete(self, *, content_hash: str, module: str,
+               prompt_version: int, target_date: str | None,
+               prompt_hash: str) -> None:
+        """删除缓存行(用于清理被禁词污染的坏缓存)。
+
+        Args:
+            content_hash: 命盘 hash / compatibility_hash
+            module: bazi_deep | compatibility | daily_fortune
+            prompt_version: 后端当前版本号
+            target_date: daily_fortune 用 ISO date,其他传 None(内部转空串)
+            prompt_hash: 渲染后 prompt 的 sha256
+
+        Raises:
+            sqlite3.Error: 删失败(不吞,向上抛)
+        """
+        td = target_date or ""
+        with self._connect() as conn:
+            conn.execute(
+                "DELETE FROM interpretation_cache "
+                "WHERE content_hash=? AND module=? AND prompt_version=? "
+                "AND target_date=? AND prompt_hash=?",
+                (content_hash, module, prompt_version, td, prompt_hash),
+            )
+            conn.commit()
+
 
 _EXPECTED_COLUMNS = frozenset({
     "content_hash", "module", "prompt_version", "target_date",

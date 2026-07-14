@@ -117,8 +117,27 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
                 "interpret.cache_forbidden elapsed_ms=%.1f %s hits=%s",
                 elapsed_ms, log_ctx, forbidden_hits,
             )
+            # 删除坏缓存,避免同一 content_hash 永久不可用
+            try:
+                await run_in_threadpool(
+                    cache.delete,
+                    content_hash=req.content_hash,
+                    module=req.module,
+                    prompt_version=prompt_version,
+                    target_date=target_date_str,
+                    prompt_hash=prompt_hash,
+                )
+            except Exception as del_e:
+                logger.exception(
+                    "interpret.cache_forbidden_delete_failed %s error=%s "
+                    "cached entry remains poisoned, manual cleanup may be needed",
+                    log_ctx, del_e,
+                )
+                # 删除失败不掩盖禁词拦截本身,继续抛 InterpretationForbiddenError
             raise InterpretationForbiddenError(
-                f"AI 解读包含禁词,已拦截(命中: {', '.join(forbidden_hits)})"
+                f"AI 解读包含禁词,已拦截(命中: {', '.join(forbidden_hits)})",
+                request_id=request_id,
+                content_hash=req.content_hash,
             )
         elapsed_ms = (time.perf_counter() - start) * 1000
         logger.info(
@@ -157,7 +176,9 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
             elapsed_ms, log_ctx, forbidden_hits,
         )
         raise InterpretationForbiddenError(
-            f"AI 解读包含禁词,已拦截(命中: {', '.join(forbidden_hits)})"
+            f"AI 解读包含禁词,已拦截(命中: {', '.join(forbidden_hits)})",
+            request_id=request_id,
+            content_hash=req.content_hash,
         )
 
     # 5. 写缓存(同步 → 线程池)
