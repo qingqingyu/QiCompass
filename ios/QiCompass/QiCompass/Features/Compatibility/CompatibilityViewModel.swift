@@ -248,20 +248,16 @@ final class CompatibilityViewModel {
                 lastBChartSnapshot = bSnapshotForUI
                 lastIsSnapshotNew = result.isSnapshotNew
 
-                // 若本地 24h AI 缓存已有 → 直接显示 ok(cached)
+                // 查本地 24h AI 缓存(orchestrator 内部含禁词扫描,命中即抛 forbiddenWordsHit)
                 var interpretState: InterpretState = .idle
                 do {
                     if let cached = try orchestrator.cachedInterpretationIfFresh(
                         compatibilityHash: result.response.compatibilityHash
                     ) {
-                        // 二次禁词扫描(防老缓存被污染)
-                        let hits = ForbiddenWords.scan(cached.text)
-                        if hits.isEmpty {
-                            interpretState = .ok(text: cached.text, cached: true)
-                        } else {
-                            interpretState = .failed(message: "解读包含不合规绝对结论,请重试")
-                        }
+                        interpretState = .ok(text: cached.text, cached: true)
                     }
+                } catch CompatibilityError.forbiddenWordsHit {
+                    interpretState = .failed(message: "解读包含不合规绝对结论,请重试")
                 } catch {
                     AppLogger.persistence.error(
                         "compat.cachedInterpretation_read_failed compatibility_hash=\(result.response.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
