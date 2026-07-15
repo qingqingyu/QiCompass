@@ -27,6 +27,37 @@ ZHI_ELEMENT: dict[str, str] = {
     "辰": "earth", "戌": "earth", "丑": "earth", "未": "earth",
 }
 
+# ---------- 五行基础映射(单一事实源,xiji.py / compatibility.py 共用) ----------
+
+# 英→中五行映射
+EN2ZH: dict[str, str] = {
+    "wood": "木", "fire": "火", "earth": "土", "metal": "金", "water": "水",
+}
+
+# 我生(食伤): 木→火→土→金→水→木
+WO_SHENG: dict[str, str] = {
+    "wood": "fire", "fire": "earth", "earth": "metal",
+    "metal": "water", "water": "wood",
+}
+
+# 我克(财): 木→土→水→火→金→木
+WO_KE: dict[str, str] = {
+    "wood": "earth", "fire": "metal", "earth": "water",
+    "metal": "wood", "water": "fire",
+}
+
+# 生我(印): 木←水, 火←木, 土←火, 金←土, 水←金
+SHENG_WO: dict[str, str] = {
+    "wood": "water", "fire": "wood", "earth": "fire",
+    "metal": "earth", "water": "metal",
+}
+
+# 克我(官杀): 木←金, 火←水, 土←木, 金←火, 水←土
+KE_WO: dict[str, str] = {
+    "wood": "metal", "fire": "water", "earth": "wood",
+    "metal": "fire", "water": "earth",
+}
+
 
 def _build_pillar(ec: Any, prefix: str) -> Pillar:
     """从 EightChar 构造单柱。

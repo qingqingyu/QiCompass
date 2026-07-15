@@ -21,7 +21,10 @@ from lunar_python import Solar
 
 from ..core.city_longitude import resolve_longitude
 from ..engine.bazi_engine import BaziEngine
-from ..engine.pillars import GAN_ELEMENT, ZHI_ELEMENT
+from ..engine.pillars import (
+    GAN_ELEMENT, ZHI_ELEMENT,
+    EN2ZH as EN2ZH_ELEMENT, WO_SHENG as SHENG, WO_KE as KE,
+)
 from ..errors import BaziCalculationFailedError, BaziError
 from ..models.bazi import BaziCalculateResponse, CalcRuleSnapshot, LuckPillar
 from ..models.compatibility import (
@@ -33,11 +36,6 @@ from ..models.compatibility import (
 from ..models.daily_fortune import ChartPayload, PillarRef
 
 logger = logging.getLogger(__name__)
-
-# 英→中五行映射(favorable/unfavorable 是中文, 流年五行需对比英文)
-EN2ZH_ELEMENT: dict[str, str] = {
-    "wood": "木", "fire": "火", "earth": "土", "metal": "金", "water": "水",
-}
 
 # ---------- 生肖(年支)合冲表 ----------
 
@@ -76,20 +74,6 @@ XIANGHAI: frozenset[frozenset[str]] = frozenset({
     frozenset({"寅", "巳"}), frozenset({"卯", "辰"}),
     frozenset({"申", "亥"}), frozenset({"酉", "戌"}),
 })
-
-
-# ---------- 五行生克关系(从 xiji.py 复用概念) ----------
-
-# 五行相生: 木→火→土→金→水→木
-SHENG: dict[str, str] = {
-    "wood": "fire", "fire": "earth", "earth": "metal",
-    "metal": "water", "water": "wood",
-}
-# 五行相克: 木→土→水→火→金→木
-KE: dict[str, str] = {
-    "wood": "earth", "earth": "water", "water": "fire",
-    "fire": "metal", "metal": "wood",
-}
 
 
 # ---------- 评估 1: 五行互补 ----------

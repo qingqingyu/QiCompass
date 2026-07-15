@@ -10,37 +10,11 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from ..engine.pillars import GAN_ELEMENT, ZHI_ELEMENT
+from ..engine.pillars import (
+    GAN_ELEMENT, ZHI_ELEMENT,
+    EN2ZH, SHENG_WO, WO_SHENG, WO_KE, KE_WO,
+)
 from ..models.bazi import ElementBalance, Pillars
-
-# ---------- 五行命名映射 ----------
-
-EN2ZH: dict[str, str] = {
-    "wood": "木", "fire": "火", "earth": "土", "metal": "金", "water": "水",
-}
-
-# ---------- 五行生克关系(日主五行 X 的五类关系) ----------
-
-# 生我(印):木←水,火←木,土←火,金←土,水←金
-SHENG_WO: dict[str, str] = {
-    "wood": "water", "fire": "wood", "earth": "fire",
-    "metal": "earth", "water": "metal",
-}
-# 我生(食伤):木→火,火→土,土→金,金→水,水→木
-WO_SHENG: dict[str, str] = {
-    "wood": "fire", "fire": "earth", "earth": "metal",
-    "metal": "water", "water": "wood",
-}
-# 我克(财):木→土,火→金,土→水,金→木,水→火
-WO_KE: dict[str, str] = {
-    "wood": "earth", "fire": "metal", "earth": "water",
-    "metal": "wood", "water": "fire",
-}
-# 克我(官杀):木←金,火←水,土←木,金←火,水←土
-KE_WO: dict[str, str] = {
-    "wood": "metal", "fire": "water", "earth": "wood",
-    "metal": "fire", "water": "earth",
-}
 
 # ---------- 调候用神 ----------
 
