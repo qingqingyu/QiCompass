@@ -20,6 +20,8 @@
 	<string>1</string>
 	<key>BackendBaseURL</key>
 	<string>$(BACKEND_BASE_URL)</string>
+	<key>UseMockAPIClient</key>
+	<string>$(USE_MOCK_API_CLIENT)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSAppTransportSecurity</key>

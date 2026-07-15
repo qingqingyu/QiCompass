@@ -66,6 +66,13 @@ final class AppEnvironment: ObservableObject {
         )
     }
 
+    /// 从 Info.plist 读取是否使用 MockAPIClient(默认 NO = 连真后端)。
+    /// Debug/Release 均可通过 build setting USE_MOCK_API_CLIENT 覆盖为 YES 切回 Mock。
+    static func useMockAPIClient() -> Bool {
+        let raw = Bundle.main.object(forInfoDictionaryKey: "UseMockAPIClient") as? String ?? "NO"
+        return raw.uppercased() == "YES"
+    }
+
     /// 从 Info.plist 读取 BackendBaseURL(Debug: localhost HTTP / Release: 生产域名)。
     static func backendBaseURL() -> URL {
         let raw = Bundle.main.object(forInfoDictionaryKey: "BackendBaseURL") as? String
