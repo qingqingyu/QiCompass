@@ -19,7 +19,7 @@ struct CompatibilityInterpretationSection: View {
                 Text("合盘解读")
                     .zcoolCardTitle()
                 Spacer()
-                Text("剩余 \(remainingReads)/10 次")
+                Text("剩余 \(remainingReads) 次")
                     .font(.caption)
                     .foregroundStyle(BaziTheme.inkMuted)
             }

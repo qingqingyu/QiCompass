@@ -32,7 +32,7 @@ struct InterpretationSection: View {
                 Text("AI 命书")
                     .zcoolCardTitle()
                 Spacer()
-                Text("今日剩余 \(remainingReads)/10 次")
+                Text("今日剩余 \(remainingReads) 次")
                     .font(.caption2)
                     .foregroundStyle(BaziTheme.inkMuted)
             }

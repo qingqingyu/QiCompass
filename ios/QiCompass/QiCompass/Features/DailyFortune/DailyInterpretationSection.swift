@@ -20,7 +20,7 @@ struct DailyInterpretationSection: View {
                 Text("今日解读")
                     .zcoolCardTitle()
                 Spacer()
-                Text("剩余 \(remainingReads)/10 次")
+                Text("剩余 \(remainingReads) 次")
                     .font(.caption)
                     .foregroundStyle(BaziTheme.inkMuted)
             }
