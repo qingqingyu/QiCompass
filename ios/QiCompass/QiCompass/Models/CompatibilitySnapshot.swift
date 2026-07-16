@@ -14,6 +14,8 @@ final class CompatibilitySnapshot {
     var qualitativeAssessment: Data
     var syncedFortune: Data
     var interpretation: String?
+    var interpretationProvider: String?
+    var interpretationModel: String?
     var createdAt: Date
 
     init(
@@ -24,6 +26,8 @@ final class CompatibilitySnapshot {
         qualitativeAssessment: Data,
         syncedFortune: Data,
         interpretation: String? = nil,
+        interpretationProvider: String? = nil,
+        interpretationModel: String? = nil,
         createdAt: Date = .now
     ) {
         self.compatibilityHash = compatibilityHash
@@ -33,6 +37,8 @@ final class CompatibilitySnapshot {
         self.qualitativeAssessment = qualitativeAssessment
         self.syncedFortune = syncedFortune
         self.interpretation = interpretation
+        self.interpretationProvider = interpretationProvider
+        self.interpretationModel = interpretationModel
         self.createdAt = createdAt
     }
 }

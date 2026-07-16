@@ -57,7 +57,11 @@ final class LiveAPIClient: APIClient {
 
     func health() async throws -> HealthResponse {
         // GET 无 body
-        let (data, _) = try await send(.health, body: nil as EmptyBody?)
+        let (data, _) = try await send(
+            .health,
+            body: nil as EmptyBody?,
+            cachePolicy: .reloadIgnoringLocalCacheData
+        )
         return try decode(data, as: HealthResponse.self, endpoint: .health)
     }
 
@@ -89,10 +93,12 @@ final class LiveAPIClient: APIClient {
     /// 错误显式传播:网络错误 / HTTP 错误 / 后端结构化错误 全部 throw,不吞。
     private func send<Body: Codable>(
         _ endpoint: APIEndpoint,
-        body: Body?
+        body: Body?,
+        cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
     ) async throws -> (Data, HTTPURLResponse) {
         let url = baseURL.appendingPathComponent(endpoint.path)
         var req = URLRequest(url: url)
+        req.cachePolicy = cachePolicy
         req.httpMethod = endpoint.method
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
@@ -161,7 +167,13 @@ final class LiveAPIClient: APIClient {
 final class MockAPIClient: APIClient {
     func health() async throws -> HealthResponse {
         try? await Task.sleep(nanoseconds: 200_000_000)
-        return HealthResponse(status: "ok", lunarPythonVersion: "1.4.8-mock", model: "bazi-calculate-v1-mock")
+        return HealthResponse(
+            status: "ok",
+            lunarPythonVersion: "1.4.8-mock",
+            model: "bazi-calculate-v1-mock",
+            aiProvider: "anthropic",
+            aiModel: "mock-anthropic-model"
+        )
     }
 
     func calculateBazi(request: BaziCalculateRequest) async throws -> BaziResponse {
@@ -182,10 +194,12 @@ final class MockAPIClient: APIClient {
     func interpret(request: InterpretRequest) async throws -> InterpretResponse {
         try? await Task.sleep(nanoseconds: 400_000_000)
         return InterpretResponse(
-            interpretation: "[Mock 命书占位] 此命造五行流转,日主得令,喜忌已由后端确定性规则引擎判定。此为脚手架阶段 Mock 文本,正式解读由后端调用 Claude 生成。",
+            interpretation: "[Mock 命书占位] 此命造五行流转,日主得令,喜忌已由后端确定性规则引擎判定。此为脚手架阶段 Mock 文本,正式解读由后端 AI provider 生成。",
             promptVersion: 1,
             cached: false,
-            generatedAt: .now
+            generatedAt: .now,
+            provider: "anthropic",
+            model: "mock-anthropic-model"
         )
     }
 

@@ -31,13 +31,13 @@ def tz8():
 
 # ---------- /api/interpret 测试 fixtures ----------
 
-from tests.fixtures.mock_claude import MockClaudeClient  # noqa: E402
+from tests.fixtures.mock_ai import MockAIClient  # noqa: E402
 
 
 @pytest.fixture
-def mock_claude_client() -> MockClaudeClient:
+def mock_ai_client() -> MockAIClient:
     """默认 mock:返回固定文本,计数调用次数。"""
-    return MockClaudeClient()
+    return MockAIClient()
 
 
 @pytest.fixture
@@ -54,7 +54,7 @@ def tmp_cache(tmp_path) -> "InterpretationCache":
 
 
 @pytest.fixture
-async def interpret_client(mock_claude_client, tmp_cache):
+async def interpret_client(mock_ai_client, tmp_cache):
     """FastAPI TestClient(ASGITransport),app.state 替换为 mock + tmp_db。
 
     用法:
@@ -66,10 +66,10 @@ async def interpret_client(mock_claude_client, tmp_cache):
 
     # 保存原始 state(测试后恢复,避免污染其他测试)
     saved_cache = getattr(app.state, "cache", None)
-    saved_claude = getattr(app.state, "claude_client", None)
+    saved_ai = getattr(app.state, "ai_client", None)
 
     app.state.cache = tmp_cache
-    app.state.claude_client = mock_claude_client
+    app.state.ai_client = mock_ai_client
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app),
@@ -77,4 +77,4 @@ async def interpret_client(mock_claude_client, tmp_cache):
             yield ac
     finally:
         app.state.cache = saved_cache
-        app.state.claude_client = saved_claude
+        app.state.ai_client = saved_ai

@@ -47,6 +47,10 @@ final class DailyFortuneSnapshotStore {
             snapshot.huangliJi = response.huangliJi
             snapshot.tomorrowPreview = tomorrowData
             snapshot.interpretation = interpretation
+            // 此接口没有 AI 身份入参。确定性刷新写入空解读时必须同时清除
+            // 旧来源,避免出现“空文本 + 旧 provider/model”的伪 provenance。
+            snapshot.interpretationProvider = nil
+            snapshot.interpretationModel = nil
             snapshot.generatedAt = .now
             snapshot.cachedUntil = cachedUntil
             try context.save()
@@ -164,7 +168,9 @@ final class DailyFortuneSnapshotStore {
     func updateInterpretation(
         _ interpretation: String,
         forChartHash chartHash: String,
-        targetDate: Date
+        targetDate: Date,
+        provider: String,
+        model: String
     ) throws {
         guard let snapshot = try get(chartHash: chartHash, targetDate: targetDate) else {
             // 不静默吞:阶段 2 完成但本地快照已不存在(罕见,可能被 deleteExpired 清掉)
@@ -176,6 +182,8 @@ final class DailyFortuneSnapshotStore {
             )
         }
         snapshot.interpretation = interpretation
+        snapshot.interpretationProvider = provider
+        snapshot.interpretationModel = model
         try context.save()
     }
 }

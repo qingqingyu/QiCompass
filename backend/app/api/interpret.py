@@ -5,19 +5,19 @@
 2. validate_context + render_prompt(纯 CPU,留 event loop),计算 prompt_hash
 3. 查后端缓存(同步 → run_in_threadpool)
    命中 → 返回 InterpretResponse(cached=True)
-4. 调 Claude(同步 → run_in_threadpool)
+4. 调用选中的 AI provider(同步 → run_in_threadpool)
 5. 写缓存(同步 → run_in_threadpool)
 6. 返回 InterpretResponse(cached=False)
 
 线程池策略:
 - validate_context + render_prompt 纯字符串操作,快,留在 event loop
-- cache.get / cache.set / claude_client.interpret 各自 run_in_threadpool
-  不合并:缓存命中时零 Claude 线程池开销
-- Claude 调用失败时不写缓存(步骤 4 抛异常中断流程)
+- cache.get / cache.set / ai_client.interpret 各自 run_in_threadpool
+  不合并:缓存命中时零 provider 线程池开销
+- provider 调用失败时不写缓存(步骤 4 抛异常中断流程)
 
 错误显式传播:
-- Claude 失败 → ClaudeAPIError(503),不吞不返回假文本
-- SQLite 失败 → InterpretationCacheError(500),不降级为 Claude 调用
+- provider 失败 → AIProviderError(503),不吞不返回假文本
+- SQLite 失败 → InterpretationCacheError(500),不降级调用 provider
 """
 
 from __future__ import annotations
@@ -35,9 +35,8 @@ from ..ai.cache import InterpretationCache
 from ..ai.forbidden_words import scan as scan_forbidden_words
 from ..ai.forbidden_words import validate_interpretation
 from ..ai.prompts import PROMPT_VERSIONS, render_prompt, validate_context
-from ..config import CLAUDE_MODEL
 from ..errors import (
-    ClaudeAPIError,
+    AIProviderError,
     InterpretationCacheError,
     InterpretationForbiddenError,
     InvalidInputError,
@@ -76,6 +75,8 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
 
     prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
 
+    ai_client = request.app.state.ai_client
+
     log_ctx = {
         "request_id": request_id,
         "content_hash": req.content_hash,
@@ -83,12 +84,12 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
         "prompt_version": prompt_version,
         "target_date": target_date_str,
         "prompt_hash": prompt_hash,
-        "model": CLAUDE_MODEL,
+        "provider": ai_client.provider,
+        "model": ai_client.model,
     }
     logger.info("interpret.start %s", log_ctx)
 
     cache: InterpretationCache = request.app.state.cache
-    claude_client = request.app.state.claude_client
 
     # 3. 查后端缓存
     try:
@@ -99,6 +100,8 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
             prompt_version=prompt_version,
             target_date=target_date_str,
             prompt_hash=prompt_hash,
+            provider=ai_client.provider,
+            model=ai_client.model,
         )
     except Exception as e:
         elapsed_ms = (time.perf_counter() - start) * 1000
@@ -125,6 +128,8 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
                 prompt_version=prompt_version,
                 target_date=target_date_str,
                 prompt_hash=prompt_hash,
+                provider=ai_client.provider,
+                model=ai_client.model,
             )
             raise InterpretationForbiddenError(
                 f"AI 解读包含禁词,已拦截(命中: {', '.join(forbidden_hits)})",
@@ -141,16 +146,18 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
             prompt_version=prompt_version,
             cached=True,
             generated_at=cached_row["generated_at"],
+            provider=cached_row["provider"],
+            model=cached_row["model"],
         )
 
-    # 4. 调 Claude(同步 → 线程池)
-    logger.info("interpret.claude_called %s", log_ctx)
+    # 4. 调用选中 provider(同步 → 线程池)
+    logger.info("interpret.provider_called %s", log_ctx)
     try:
-        interpretation = await run_in_threadpool(claude_client.interpret, prompt)
-    except ClaudeAPIError as e:
+        interpretation = await run_in_threadpool(ai_client.interpret, prompt)
+    except AIProviderError as e:
         elapsed_ms = (time.perf_counter() - start) * 1000
         logger.exception(
-            "interpret.claude_failed elapsed_ms=%.1f %s error=%s",
+            "interpret.provider_failed elapsed_ms=%.1f %s error=%s",
             elapsed_ms, log_ctx, e,
         )
         e.request_id = request_id
@@ -177,7 +184,8 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
             prompt_version=prompt_version,
             target_date=target_date_str,
             prompt_hash=prompt_hash,
-            model=CLAUDE_MODEL,
+            provider=ai_client.provider,
+            model=ai_client.model,
             interpretation=interpretation,
             generated_at=now_iso,
         )
@@ -201,6 +209,8 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
         prompt_version=prompt_version,
         cached=False,
         generated_at=now_iso,
+        provider=ai_client.provider,
+        model=ai_client.model,
     )
 
 

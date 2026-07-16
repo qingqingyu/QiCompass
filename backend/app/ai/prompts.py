@@ -215,7 +215,7 @@ def render_prompt(module: str, context: dict) -> str:
         context: prompt 渲染负载(必须含 REQUIRED_FIELDS[module] 所有字段)
 
     Returns:
-        完整 prompt 字符串(可直接送 Claude messages API)
+        完整 provider-neutral prompt 字符串
     """
     validate_context(module, context)
     template = _TEMPLATES[module]

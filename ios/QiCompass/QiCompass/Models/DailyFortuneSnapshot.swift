@@ -26,6 +26,8 @@ final class DailyFortuneSnapshot {
     var huangliJi: [String]
     var tomorrowPreview: Data
     var interpretation: String
+    var interpretationProvider: String?
+    var interpretationModel: String?
     var generatedAt: Date
     var cachedUntil: Date
 
@@ -43,6 +45,8 @@ final class DailyFortuneSnapshot {
         huangliJi: [String],
         tomorrowPreview: Data = Data(),
         interpretation: String = "",
+        interpretationProvider: String? = nil,
+        interpretationModel: String? = nil,
         generatedAt: Date = .now,
         cachedUntil: Date
     ) {
@@ -59,6 +63,8 @@ final class DailyFortuneSnapshot {
         self.huangliJi = huangliJi
         self.tomorrowPreview = tomorrowPreview
         self.interpretation = interpretation
+        self.interpretationProvider = interpretationProvider
+        self.interpretationModel = interpretationModel
         self.generatedAt = generatedAt
         self.cachedUntil = cachedUntil
     }

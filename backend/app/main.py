@@ -13,13 +13,21 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .ai.cache import InterpretationCache
-from .ai.claude_client import ClaudeClient
+from .ai.client import create_ai_client
 from .api import bazi as bazi_api
 from .api import compatibility as compatibility_api
 from .api import daily_fortune as daily_fortune_api
 from .api import health as health_api
 from .api import interpret as interpret_api
-from .config import ANTHROPIC_API_KEY, CLAUDE_MODEL, DB_PATH, MODEL_ID
+from .config import (
+    AI_PROVIDER,
+    ANTHROPIC_API_KEY,
+    ANTHROPIC_MODEL,
+    DB_PATH,
+    MODEL_ID,
+    OPENAI_API_KEY,
+    OPENAI_MODEL,
+)
 from .errors import BaziError
 from .models.bazi import ErrorBody, ErrorResponse
 
@@ -47,7 +55,7 @@ async def lifespan(app: FastAPI):
     """lifespan 启动:
     - mkdir -p data/ 目录
     - 初始化 SQLite 表(CREATE TABLE IF NOT EXISTS,幂等)
-    - 构造 ClaudeClient(api_key 缺失也构造,调用时显式报 503)
+    - 根据 AI_PROVIDER 构造单一 AIClient(key 缺失也构造,调用时显式报 503)
     - 构造 InterpretationCache 挂 app.state
     """
     db_dir = os.path.dirname(DB_PATH)
@@ -58,18 +66,38 @@ async def lifespan(app: FastAPI):
     cache.init_schema()  # 幂等;失败则启动报错(不吞)
     app.state.cache = cache
 
-    app.state.claude_client = ClaudeClient(
-        api_key=ANTHROPIC_API_KEY, model=CLAUDE_MODEL,
+    app.state.ai_client = _build_ai_client()
+    ai_client = app.state.ai_client
+    selected_key_configured = (
+        bool(ANTHROPIC_API_KEY)
+        if ai_client.provider == "anthropic"
+        else bool(OPENAI_API_KEY)
     )
     logger.info(
-        "startup ok db_path=%s claude_model=%s api_key_configured=%s",
-        DB_PATH, CLAUDE_MODEL, bool(ANTHROPIC_API_KEY),
+        "startup ok db_path=%s ai_provider=%s ai_model=%s "
+        "selected_api_key_configured=%s",
+        DB_PATH,
+        ai_client.provider,
+        ai_client.model,
+        selected_key_configured,
     )
     yield
     # 无特殊清理(SQLite / httpx 均为短连接)
 
 
+def _build_ai_client():
+    return create_ai_client(
+        provider=AI_PROVIDER,
+        anthropic_api_key=ANTHROPIC_API_KEY,
+        anthropic_model=ANTHROPIC_MODEL,
+        openai_api_key=OPENAI_API_KEY,
+        openai_model=OPENAI_MODEL,
+    )
+
+
 app = FastAPI(title="QiCompass Bazi Backend", version=MODEL_ID, lifespan=lifespan)
+# ASGITransport 单测不触发 lifespan;先挂默认实例,启动时再重建一次。
+app.state.ai_client = _build_ai_client()
 app.add_middleware(RequestIdMiddleware)
 
 app.include_router(health_api.router)

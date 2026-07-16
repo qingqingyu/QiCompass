@@ -9,7 +9,7 @@ Mode: Builder
 
 ## Problem Statement
 
-原生 iOS App，把中国传统八字命理做成三个深度模块：**深度解析**（单人命盘）、**合盘**（两人兼容性）、**每日运势**（流日 + 流时指引）。所有排盘计算在后端用 `lunar_python`（6tail 出品，纯 Python 无依赖）做**确定性**计算，命书解读由 Claude API 生成。客户端只渲染，不算历法。
+原生 iOS App，把中国传统八字命理做成三个深度模块：**深度解析**（单人命盘）、**合盘**（两人兼容性）、**每日运势**（流日 + 流时指引）。所有排盘计算在后端用 `lunar_python`（6tail 出品，纯 Python 无依赖）做**确定性**计算，命书解读由后端选择的 Anthropic 或 OpenAI 模型生成。客户端只渲染，不算历法。
 
 目标用户：海外华人（25-45）+ 对东方文化好奇的西方人（18-35）。收敛聚焦：从"三占卜工具 + 卷轴自传"改为"八字深度垂直"——做得更深，而不是更宽。
 
@@ -20,7 +20,7 @@ Mode: Builder
 ## Constraints
 
 - 原生 iOS（Swift/SwiftUI，iOS 17+）
-- 后端代理封装 Claude API + lunar_python，API key 不进客户端
+- 后端代理封装 Anthropic/OpenAI API + lunar_python，API key 不进客户端；provider 只能由部署环境选择
 - 八字计算必须**确定性**：同一输入永远同一输出
 - 三模块：深度解析 / 合盘 / 每日运势。不做六爻、灵签、卷轴
 - 单人 side project
@@ -57,9 +57,9 @@ Mode: Builder
 ┌─────────────────────────────────────────────┐
 │              Backend Proxy                  │
 │  ┌────────────────┐  ┌──────────────────┐   │
-│  │ lunar_python   │  │ Claude API       │   │
-│  │ 八字计算       │  │ 命书解读          │   │
-│  │ (确定性)       │  │                  │   │
+│  │ lunar_python   │  │ AIClient         │   │
+│  │ 八字计算       │  │ Anthropic/OpenAI │   │
+│  │ (确定性)       │  │ 命书解读          │   │
 │  └────────────────┘  └──────────────────┘   │
 └─────────────────────────────────────────────┘
 ```
@@ -92,6 +92,22 @@ Mode: Builder
 ### Backend API Contract
 
 所有端点在用户已有的代理后。Bearer token 鉴权（构建时注入或 App 内配置）。
+
+AI provider 为部署级全局配置,不允许客户端指定,也不做自动 fallback:
+
+```bash
+# 默认 Anthropic
+AI_PROVIDER=anthropic
+ANTHROPIC_API_KEY=...
+ANTHROPIC_MODEL=claude-sonnet-4-6
+
+# 切换 OpenAI Responses API
+AI_PROVIDER=openai
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-5.5
+```
+
+`AI_PROVIDER` 非法时启动失败；所选 provider 缺 key 时非 AI 路由仍可用,`/api/interpret` 返回 503。两种适配器共享 15 秒超时和 1024 输出 token 上限。
 
 **POST /api/bazi/calculate** — 单人排盘
 ```json
@@ -209,17 +225,36 @@ Response: {
 **POST /api/interpret** — AI 命书解读（三模块共用）
 ```json
 Request: {
+  "content_hash": "命盘 hash / compatibility_hash",
   "module": "bazi_deep" | "compatibility" | "daily_fortune",
   "context": { ... 排盘结构化数据（含喜忌、神煞等后端确定性输出） ... },
+  "target_date": "2026-07-16" | null,
   "question": null
 }
-Response: { "interpretation": "... 中文命书 ..." }
+Response: {
+  "interpretation": "... 中文命书 ...",
+  "prompt_version": 1,
+  "cached": false,
+  "generated_at": "2026-07-16T12:00:00+00:00",
+  "provider": "anthropic" | "openai",
+  "model": "claude-sonnet-4-6" | "gpt-5.5"
+}
 ```
+
+provider/model 由应用启动时装配的 `AIClient` 决定，请求体不接受 provider。所选 provider 缺 key 或上游调用失败统一返回显式错误，不自动调用另一供应商。
 
 **GET /api/health**
 ```json
-Response: { "status": "ok", "lunar_python_version": "1.4.8", "model": "bazi-calculate-v1" }
+Response: {
+  "status": "ok",
+  "lunar_python_version": "1.4.8",
+  "model": "bazi-calculate-v1",
+  "ai_provider": "anthropic" | "openai",
+  "ai_model": "claude-sonnet-4-6" | "gpt-5.5"
+}
 ```
+
+health 响应固定带 `Cache-Control: no-store`；其中 `model` 仍是排盘 API 版本，`ai_model` 才是当前解读模型。
 
 ## Module Specifications
 
@@ -274,7 +309,7 @@ Response: { "status": "ok", "lunar_python_version": "1.4.8", "model": "bazi-calc
 4. **喜忌**：后端确定性规则引擎，扶抑法 + 调候法（详见决策 1）。**从格/专旺检测命中**时输出 `day_master_strength="special_pattern"`，喜忌留空，LLM 诚实告知（详见决策 1b）
 5. **格局判定**：MVP 砍掉，LLM 模糊叙事（详见决策 5）
 6. **神煞**：20 个固定清单，《三命通会》单一来源，自写查表（详见决策 2）
-7. **AI 缓存**：客户端 SwiftData + 后端 SQLite 两级缓存，按 `(content_hash, module, prompt_version)` 索引（详见决策 4）
+7. **AI 缓存**：客户端 SwiftData + 后端 SQLite 两级缓存，至少按 `(content_hash, module, prompt_version, target_date, provider, model)` 隔离；后端另含 `prompt_hash` 防止不同上下文污染（详见决策 4）
 
 ## Data Model（SwiftData，按决策 3 + 3b 内容寻址 + schema 演化）
 
@@ -318,8 +353,10 @@ class InterpretationCache {  // 决策 4：客户端 AI 缓存
     @Attribute(.unique) var id: UUID
     var contentHash: String       // 单盘 hash / 合盘 compatibility_hash
     var module: String            // bazi_deep | compatibility | daily_fortune
-    var promptVersion: String     // 后端 prompt 改了，老缓存失效
+    var promptVersion: Int        // 后端 prompt 改了，老缓存失效
     var targetDate: Date?         // 每日运势专用，其他模块 nil
+    var provider: String?         // optional 仅为轻量迁移；nil 旧行永不命中
+    var model: String?            // 新写入必须有非空身份
     var interpretation: String
     var generatedAt: Date
 }
@@ -333,6 +370,8 @@ class CompatibilitySnapshot {
     var qualitativeAssessment: Data
     var syncedFortune: Data
     var interpretation: String?
+    var interpretationProvider: String?  // 旧历史文本可为 nil
+    var interpretationModel: String?
     var createdAt: Date
 }
 
@@ -347,13 +386,15 @@ class DailyFortuneSnapshot {
     var huangliYi: [String]
     var huangliJi: [String]
     var interpretation: String
+    var interpretationProvider: String?  // 旧历史文本可为 nil
+    var interpretationModel: String?
     var cachedUntil: Date  // 24h
 }
 ```
 
 **演化策略**（决策 3b）：加字段 = `payload` JSON 加 key + `schemaVersion +1`，老 snapshot lazy 重算。SwiftData 核心 schema 几乎不变。
 
-**AI 缓存层**（决策 4）：客户端 `InterpretationCache` + 后端 SQLite 两级缓存，按 `(content_hash, module, prompt_version)` 索引；每日运势多一维 `target_date`。
+**AI 缓存层**（决策 4）：客户端 `InterpretationCache` + 后端 SQLite 两级缓存。iOS 每次读取本地 AI 缓存前都用忽略 URL 缓存的 health 请求解析当前身份，只接受 provider/model 完全匹配的行；health 失败进入 AI error 状态。后端键为 `(content_hash, module, prompt_version, target_date, prompt_hash, provider, model)`，每日运势使用非空 `target_date`。旧 nil 身份行和历史 snapshot 文本可回看，但不能充当当前 provider 的缓存命中。
 
 ## 阅读次数限制
 
@@ -384,7 +425,7 @@ class DailyFortuneSnapshot {
 | 触感 | UIImpactFeedbackGenerator |
 | 后端 | Python FastAPI |
 | 八字计算 | **lunar_python 1.4.8+**（已 spike 验证 + 后端排盘核心已实现 + 30 用例对盘通过） |
-| AI | Claude API（claude-sonnet-4-6）经后端代理 |
+| AI | provider-neutral `AIClient`；Anthropic Messages API（默认 `claude-sonnet-4-6`）或 OpenAI Responses API（默认 `gpt-5.5`）经后端代理 |
 | 部署 | TestFlight → App Store |
 
 ## Visual Design Tokens
@@ -403,7 +444,7 @@ class DailyFortuneSnapshot {
 | 金 | `#8c836e` | 金五行 |
 | 水 | `#3a7ca5` | 水五行 |
 
-## Claude API Prompt 模板
+## AI Prompt 模板
 
 ### 深度解析
 
@@ -513,7 +554,7 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
 
 **P1/P2 未决（不阻塞开工）**：
 9. **大运第一步（童限）展示**：跳过？还是单独标注"起运前"？
-10. **每日运势冷启动 UX**：用户打开 App 等 Claude 出 200-300 字 = 3-5 秒空白。考虑"瞬时显示流日基本信息（流日柱/冲/黄历宜忌，0 延迟）+ AI 解读异步流式追加"
+10. **每日运势冷启动 UX**：用户打开 App 等 AI 出 200-300 字 = 3-5 秒空白。考虑"瞬时显示流日基本信息（流日柱/冲/黄历宜忌，0 延迟）+ AI 解读异步流式追加"
 11. **lunar_python 同步库 × FastAPI async**：lunar_python 是同步 CPU-bound 库，FastAPI 是 async 框架。排盘调用必须用 `anyio.to_thread.run_sync()` 或 `starlette.concurrency.run_in_threadpool` 包，否则阻塞 event loop。实现 note
 12. **~~CI/CD~~** ✅ 已拍板（2026-07-13）：选 **GitHub Actions**。理由：后端 pytest 必须在 Linux/macOS 跑（Xcode Cloud 完全管不到 backend）；单 workflow 同时覆盖 backend + iOS 符合本项目双端形态。详见 §Distribution Plan
 13. **喜忌规则引擎权重**：得令/得地/得势的权重值需要标定（spike 阶段跑 50 个真实命盘）

@@ -9,6 +9,7 @@ import XCTest
 /// - context 隔离(同对夫妻不同 context 各自独立)
 /// - JSON round-trip(encode/decode 不丢字段)
 /// - A=B 退化(同盘合退化为单 hash + context)
+@MainActor
 final class CompatibilitySnapshotStoreTests: XCTestCase {
 
     // MARK: - canonicalKey 对称性(D13 核心)

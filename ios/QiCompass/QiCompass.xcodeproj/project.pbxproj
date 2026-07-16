@@ -78,6 +78,7 @@
 		9C000000000000000000003B /* FadeInModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003B /* FadeInModifier.swift */; };
 		9C000000000000000000003C /* CountdownResetLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003C /* CountdownResetLabel.swift */; };
 		9C000000000000000000003D /* ErrorStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003D /* ErrorStateView.swift */; };
+		9C000000000000000000003E /* AIIdentityResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003E /* AIIdentityResolver.swift */; };
 		A9B245DDB05C779E1238547A /* DeepAnalysisViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F34390B983BDE0003B56E8 /* DeepAnalysisViewModel.swift */; };
 		AC13473A98FFEBD13695E504 /* ElementColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18B14E9FA1316D589ABA9845 /* ElementColors.swift */; };
 		AFD648598ECEA58C6C8A8C8B /* DeepAnalysisOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64414BC9B04112663B97EE16 /* DeepAnalysisOrchestrator.swift */; };
@@ -86,7 +87,25 @@
 		E22A4DA18C53C38BBC80783C /* ChartHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */; };
 		E40D46498BC532F986012E83 /* ShenshaChips.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91C4716AE1411C309FEBE65 /* ShenshaChips.swift */; };
 		F5DE2EFF3006596F0089996B /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5DE2EFE3006596F0089996B /* OnboardingView.swift */; };
+		A00000000000000000000001 /* AIIdentityCacheTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000001 /* AIIdentityCacheTests.swift */; };
+		A00000000000000000000002 /* CompatibilityDTOTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000002 /* CompatibilityDTOTests.swift */; };
+		A00000000000000000000003 /* CompatibilityForbiddenWordsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000003 /* CompatibilityForbiddenWordsTests.swift */; };
+		A00000000000000000000004 /* CompatibilityOrchestratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000004 /* CompatibilityOrchestratorTests.swift */; };
+		A00000000000000000000005 /* CompatibilitySnapshotStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000005 /* CompatibilitySnapshotStoreTests.swift */; };
+		A00000000000000000000006 /* DailyReadCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000006 /* DailyReadCounterTests.swift */; };
+		A00000000000000000000007 /* UserFacingErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000007 /* UserFacingErrorTests.swift */; };
+		A00000000000000000000008 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A21000000000000000000001 /* XCTest.framework */; };
 /* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		A81000000000000000000001 /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 9C8000000000000000000001 /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 9C5000000000000000000001;
+			remoteInfo = QiCompass;
+		};
+/* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
 		160B487DB2FB51858CB5F067 /* ChartSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartSnapshotStore.swift; path = QiCompass/Services/ChartSnapshotStore.swift; sourceTree = SOURCE_ROOT; };
@@ -162,6 +181,7 @@
 		9C100000000000000000003B /* FadeInModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FadeInModifier.swift; path = QiCompass/Shared/FadeInModifier.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000003C /* CountdownResetLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CountdownResetLabel.swift; path = QiCompass/Shared/CountdownResetLabel.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000003D /* ErrorStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ErrorStateView.swift; path = QiCompass/Shared/ErrorStateView.swift; sourceTree = SOURCE_ROOT; };
+		9C100000000000000000003E /* AIIdentityResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AIIdentityResolver.swift; path = QiCompass/Services/AIIdentityResolver.swift; sourceTree = SOURCE_ROOT; };
 		9C2000000000000000000001 /* QiCompass.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QiCompass.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9F614F24B096FF767B7F3934 /* ElementBalanceBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ElementBalanceBar.swift; path = QiCompass/Features/DeepAnalysis/ElementBalanceBar.swift; sourceTree = SOURCE_ROOT; };
 		D91C4716AE1411C309FEBE65 /* ShenshaChips.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ShenshaChips.swift; path = QiCompass/Features/DeepAnalysis/ShenshaChips.swift; sourceTree = SOURCE_ROOT; };
@@ -170,6 +190,15 @@
 		F8BC4D749648FC864F2EDB38 /* LuckPillarsTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LuckPillarsTimeline.swift; path = QiCompass/Features/DeepAnalysis/LuckPillarsTimeline.swift; sourceTree = SOURCE_ROOT; };
 		F9AB427085FC26BB41BE756E /* PillarsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PillarsTable.swift; path = QiCompass/Features/DeepAnalysis/PillarsTable.swift; sourceTree = SOURCE_ROOT; };
 		F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartHeaderView.swift; path = QiCompass/Features/DeepAnalysis/ChartHeaderView.swift; sourceTree = SOURCE_ROOT; };
+		A11000000000000000000001 /* AIIdentityCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AI/AIIdentityCacheTests.swift; sourceTree = "<group>"; };
+		A11000000000000000000002 /* CompatibilityDTOTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityDTOTests.swift; sourceTree = "<group>"; };
+		A11000000000000000000003 /* CompatibilityForbiddenWordsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityForbiddenWordsTests.swift; sourceTree = "<group>"; };
+		A11000000000000000000004 /* CompatibilityOrchestratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityOrchestratorTests.swift; sourceTree = "<group>"; };
+		A11000000000000000000005 /* CompatibilitySnapshotStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilitySnapshotStoreTests.swift; sourceTree = "<group>"; };
+		A11000000000000000000006 /* DailyReadCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DailyReadCounterTests.swift; sourceTree = "<group>"; };
+		A11000000000000000000007 /* UserFacingErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/UserFacingErrorTests.swift; sourceTree = "<group>"; };
+		A20000000000000000000001 /* QiCompassTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QiCompassTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		A21000000000000000000001 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -177,6 +206,14 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A30000000000000000000001 /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000008 /* XCTest.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -189,8 +226,11 @@
 				F5DE2EFE3006596F0089996B /* OnboardingView.swift */,
 				9C4000000000000000000002 /* QiCompass */,
 				9C400000000000000000000E /* Products */,
+				A40000000000000000000001 /* Tests */,
+				A21000000000000000000001 /* XCTest.framework */,
 				160B487DB2FB51858CB5F067 /* ChartSnapshotStore.swift */,
 				2AF74383AEB02A4F7ED0C689 /* InterpretationCacheStore.swift */,
+				9C100000000000000000003E /* AIIdentityResolver.swift */,
 				23C84BD0B1E670AC7EF54B93 /* DailyReadCounter.swift */,
 				616A4E1F906685BBB03FABAA /* PromptContextBuilder.swift */,
 				64414BC9B04112663B97EE16 /* DeepAnalysisOrchestrator.swift */,
@@ -361,6 +401,7 @@
 			isa = PBXGroup;
 			children = (
 				9C2000000000000000000001 /* QiCompass.app */,
+				A20000000000000000000001 /* QiCompassTests.xctest */,
 			);
 			name = Products;
 			sourceTree = "<group>";
@@ -382,6 +423,21 @@
 			path = DailyFortune;
 			sourceTree = "<group>";
 		};
+		A40000000000000000000001 /* Tests */ = {
+			isa = PBXGroup;
+			children = (
+				A11000000000000000000001 /* AIIdentityCacheTests.swift */,
+				A11000000000000000000002 /* CompatibilityDTOTests.swift */,
+				A11000000000000000000003 /* CompatibilityForbiddenWordsTests.swift */,
+				A11000000000000000000004 /* CompatibilityOrchestratorTests.swift */,
+				A11000000000000000000005 /* CompatibilitySnapshotStoreTests.swift */,
+				A11000000000000000000006 /* DailyReadCounterTests.swift */,
+				A11000000000000000000007 /* UserFacingErrorTests.swift */,
+			);
+			name = Tests;
+			path = ../Tests;
+			sourceTree = SOURCE_ROOT;
+		};
 /* End PBXGroup section */
 
 /* Begin PBXNativeTarget section */
@@ -402,6 +458,24 @@
 			productReference = 9C2000000000000000000001 /* QiCompass.app */;
 			productType = "com.apple.product-type.application";
 		};
+		A50000000000000000000001 /* QiCompassTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = A70000000000000000000001 /* Build configuration list for PBXNativeTarget "QiCompassTests" */;
+			buildPhases = (
+				A60000000000000000000001 /* Sources */,
+				A30000000000000000000001 /* Frameworks */,
+				A60000000000000000000002 /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				A82000000000000000000001 /* PBXTargetDependency */,
+			);
+			name = QiCompassTests;
+			productName = QiCompassTests;
+			productReference = A20000000000000000000001 /* QiCompassTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
 /* End PBXNativeTarget section */
 
 /* Begin PBXProject section */
@@ -414,6 +488,10 @@
 				TargetAttributes = {
 					9C5000000000000000000001 = {
 						CreatedOnToolsVersion = 15.0;
+					};
+					A50000000000000000000001 = {
+						CreatedOnToolsVersion = 15.0;
+						TestTargetID = 9C5000000000000000000001;
 					};
 				};
 			};
@@ -431,6 +509,7 @@
 			projectRoot = "";
 			targets = (
 				9C5000000000000000000001 /* QiCompass */,
+				A50000000000000000000001 /* QiCompassTests */,
 			);
 		};
 /* End PBXProject section */
@@ -441,6 +520,13 @@
 			buildActionMask = 2147483647;
 			files = (
 				9C000000000000000000001A /* Assets.xcassets in Resources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A60000000000000000000002 /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -529,10 +615,33 @@
 				9C000000000000000000003B /* FadeInModifier.swift in Sources */,
 				9C000000000000000000003C /* CountdownResetLabel.swift in Sources */,
 				9C000000000000000000003D /* ErrorStateView.swift in Sources */,
+				9C000000000000000000003E /* AIIdentityResolver.swift in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		A60000000000000000000001 /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				A00000000000000000000001 /* AIIdentityCacheTests.swift in Sources */,
+				A00000000000000000000002 /* CompatibilityDTOTests.swift in Sources */,
+				A00000000000000000000003 /* CompatibilityForbiddenWordsTests.swift in Sources */,
+				A00000000000000000000004 /* CompatibilityOrchestratorTests.swift in Sources */,
+				A00000000000000000000005 /* CompatibilitySnapshotStoreTests.swift in Sources */,
+				A00000000000000000000006 /* DailyReadCounterTests.swift in Sources */,
+				A00000000000000000000007 /* UserFacingErrorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		A82000000000000000000001 /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 9C5000000000000000000001 /* QiCompass */;
+			targetProxy = A81000000000000000000001 /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
 
 /* Begin XCBuildConfiguration section */
 		9C9000000000000000000001 /* Debug */ = {
@@ -729,6 +838,49 @@
 			};
 			name = Release;
 		};
+		A90000000000000000000001 /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.qicompass.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_ACTIVE_COMPILATION_CONDITIONS = "DEBUG $(inherited)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/QiCompass.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/QiCompass";
+			};
+			name = Debug;
+		};
+		A90000000000000000000002 /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				BUNDLE_LOADER = "$(TEST_HOST)";
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = "";
+				GENERATE_INFOPLIST_FILE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.2;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.qicompass.app.tests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+				TEST_HOST = "$(BUILT_PRODUCTS_DIR)/QiCompass.app/$(BUNDLE_EXECUTABLE_FOLDER_PATH)/QiCompass";
+			};
+			name = Release;
+		};
 /* End XCBuildConfiguration section */
 
 /* Begin XCConfigurationList section */
@@ -746,6 +898,15 @@
 			buildConfigurations = (
 				9C9000000000000000000001 /* Debug */,
 				9C9000000000000000000002 /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		A70000000000000000000001 /* Build configuration list for PBXNativeTarget "QiCompassTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				A90000000000000000000001 /* Debug */,
+				A90000000000000000000002 /* Release */,
 			);
 			defaultConfigurationIsVisible = 0;
 			defaultConfigurationName = Release;

@@ -278,7 +278,7 @@ final class DailyFortuneViewModel {
             // 若本地已有 AI 解读(24h 内)→ 直接显示 ok(cached=true),否则 idle
             var interpretState: InterpretState = .idle
             do {
-                if let cached = try orchestrator.cachedInterpretationIfFresh(
+                if let cached = try await orchestrator.cachedInterpretationIfFresh(
                     chartHash: chartHash, targetDate: businessDate
                 ) {
                     interpretState = .ok(text: cached.text, cached: true)
@@ -311,7 +311,8 @@ final class DailyFortuneViewModel {
     /// - 网络/超时错误 + 同 chartHash + businessDate 有缓存(即使 `cachedUntil` 已过)→ 展示缓存
     ///   + 不触发 AI、不扣次数 + isOffline 角标
     /// - 无缓存 → 进入 .failed(UserFacingError)
-    /// 缓存中已有 `interpretation` → 直接展示 AI 文本(标 cached 角标)。
+    /// 快照中的历史 AI 文本不作为当前身份缓存命中；无法联网确认身份时,
+    /// 确定性内容仍可展示,AI 子状态显式进入 error。
     private func handleNetworkFailureFallback(
         error: Error, chartHash: String, businessDate: Date
     ) async {
@@ -359,11 +360,11 @@ final class DailyFortuneViewModel {
             return
         }
 
-        // 缓存里有 AI 解读 → 直接展示(不扣次数、不调 AI)
-        // 用 trimmed 判空防止纯空白字符串渲染为看似空的解读区
+        // 快照中的 AI 文本是历史记录。离线时无法通过 health 确认
+        // 当前 provider/model,不能把它标成当前供应商缓存命中。
         let hasInterpretation = !cached.interpretation.trimmingCharacters(in: .whitespaces).isEmpty
         var interpState: InterpretState = hasInterpretation
-            ? .ok(text: cached.interpretation, cached: true)
+            ? .failed(message: "已保留历史解读,联网后可确认当前 AI 来源")
             : .idle
 
         // 同步刷新 chartPayload(用户在线恢复后点"今日解读"可触发 AI)。

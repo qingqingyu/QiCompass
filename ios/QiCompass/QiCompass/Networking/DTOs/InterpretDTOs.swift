@@ -94,12 +94,16 @@ struct InterpretResponse: Codable, Sendable {
     let promptVersion: Int
     let cached: Bool
     let generatedAt: Date
+    let provider: String
+    let model: String
 
     enum CodingKeys: String, CodingKey {
         case interpretation
         case promptVersion = "prompt_version"
         case cached
         case generatedAt = "generated_at"
+        case provider
+        case model
     }
 }
 

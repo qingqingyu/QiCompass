@@ -14,6 +14,7 @@ final class AppEnvironment: ObservableObject {
     // 深度解析编排链路(方案 §六 步骤 13 装配)
     let chartSnapshotStore: ChartSnapshotStore
     let interpretationCacheStore: InterpretationCacheStore
+    let aiIdentityResolver: AIIdentityResolver
     let dailyReadCounter: DailyReadCounter
     let deepAnalysisOrchestrator: DeepAnalysisOrchestrator
 
@@ -33,15 +34,18 @@ final class AppEnvironment: ObservableObject {
         let context = modelContainer.mainContext
         let chartStore = ChartSnapshotStore(context: context)
         let interpretStore = InterpretationCacheStore(context: context)
+        let identityResolver = AIIdentityResolver(apiClient: apiClient)
         let counter = DailyReadCounter()
         self.chartSnapshotStore = chartStore
         self.interpretationCacheStore = interpretStore
+        self.aiIdentityResolver = identityResolver
         self.dailyReadCounter = counter
         self.deepAnalysisOrchestrator = DeepAnalysisOrchestrator(
             apiClient: apiClient,
             chartStore: chartStore,
             interpretStore: interpretStore,
-            counter: counter
+            counter: counter,
+            aiIdentityResolver: identityResolver
         )
         // slice 6 装配:每日运势复用 chartStore/interpretStore/counter(决策 §3.8)
         let dailyStore = DailyFortuneSnapshotStore(context: context)
@@ -51,7 +55,8 @@ final class AppEnvironment: ObservableObject {
             dailyStore: dailyStore,
             interpretStore: interpretStore,
             chartStore: chartStore,
-            counter: counter
+            counter: counter,
+            aiIdentityResolver: identityResolver
         )
         // slice 7 装配:合盘独享 compatibilityStore,共享 chartStore(隐式落地 B)/
         // interpretStore/counter。三模块共用 DailyReadCounter 的每日 10 次全局池。
@@ -62,7 +67,8 @@ final class AppEnvironment: ObservableObject {
             compatibilityStore: compatibilityStore,
             chartStore: chartStore,
             interpretStore: interpretStore,
-            counter: counter
+            counter: counter,
+            aiIdentityResolver: identityResolver
         )
     }
 

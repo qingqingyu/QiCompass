@@ -210,9 +210,16 @@ final class DailyFortuneVerifier {
 
         // updateInterpretation
         try store.updateInterpretation(
-            "更新后", forChartHash: testHash, targetDate: targetDate)
+            "更新后",
+            forChartHash: testHash,
+            targetDate: targetDate,
+            provider: "anthropic",
+            model: "verifier-model"
+        )
         let afterUpdate = try store.get(chartHash: testHash, targetDate: targetDate)
         try XCTAssertTrue(afterUpdate?.interpretation == "更新后", "updateInterpretation 未生效")
+        try XCTAssertTrue(afterUpdate?.interpretationProvider == "anthropic", "provider 未持久化")
+        try XCTAssertTrue(afterUpdate?.interpretationModel == "verifier-model", "model 未持久化")
         log.append("✓ updateInterpretation ok")
 
         // getHistory

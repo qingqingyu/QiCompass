@@ -231,8 +231,8 @@ final class DeepAnalysisViewModel {
     }
 
     /// 本地缓存的命书(用于 UI 瞬时显示,方案 §4.5 v1 不跳过网络)。
-    func localCachedText(for response: BaziResponse) throws -> String? {
-        try orchestrator.localCachedInterpretation(
+    func localCachedText(for response: BaziResponse) async throws -> String? {
+        try await orchestrator.localCachedInterpretation(
             contentHash: response.contentHash,
             module: "bazi_deep"
         )?.text

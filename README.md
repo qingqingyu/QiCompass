@@ -1,6 +1,6 @@
 # QiCompass — 玄机问道
 
-AI 八字命理 iOS App:深度解析 / 合盘 / 每日运势 三模块。Python FastAPI 后端(`lunar_python` 排盘 + Claude API 解读代理)+ SwiftUI 前端(iOS 17.2+,SwiftData 持久化)。
+AI 八字命理 iOS App:深度解析 / 合盘 / 每日运势 三模块。Python FastAPI 后端(`lunar_python` 排盘 + Anthropic/OpenAI 解读代理)+ SwiftUI 前端(iOS 17.2+,SwiftData 持久化)。
 
 主设计文档:[`bazi-app-design-doc.md`](./bazi-app-design-doc.md) · 命理引擎决策:[`命理引擎设计决策.md`](./命理引擎设计决策.md)
 
@@ -9,9 +9,9 @@ AI 八字命理 iOS App:深度解析 / 合盘 / 每日运势 三模块。Python 
 ## 项目结构
 
 ```
-backend/                     # FastAPI + lunar_python 排盘 + Claude API 代理
+backend/                     # FastAPI + lunar_python 排盘 + 双 AI provider 代理
   app/                       # 应用代码(api/engine/models)
-  tests/                     # pytest 测试(15 个文件)
+  tests/                     # pytest 测试
   requirements.txt
   pytest.ini
 ios/QiCompass/               # SwiftUI App
@@ -31,6 +31,26 @@ docs/                        # CI/CD + TestFlight 操作指南
 - **iOS**:Xcode 15+ · Swift 5.9+ · iOS 17.2+ 部署目标 · 打开 `ios/QiCompass/QiCompass.xcodeproj`
 - **排盘对盘**:`lunar_python` 测试套件(主)+ 问真八字 App 抽样(辅)
 
+### AI provider 配置
+
+AI provider 由后端部署环境统一选择,客户端不能逐请求指定:
+
+```bash
+# Anthropic(默认,AI_PROVIDER 可省略)
+AI_PROVIDER=anthropic
+ANTHROPIC_API_KEY=...
+ANTHROPIC_MODEL=claude-sonnet-4-6
+
+# OpenAI Responses API
+AI_PROVIDER=openai
+OPENAI_API_KEY=...
+OPENAI_MODEL=gpt-5.5
+```
+
+`AI_PROVIDER` 只接受 `anthropic` 或 `openai`,非法值会阻止应用启动。所选 provider 缺少 key 时,排盘与 health 等非 AI 路由仍可用,`POST /api/interpret` 明确返回 503;不会使用另一家的 key 自动 fallback。两家当前统一使用 15 秒超时和最多 1024 个输出 token。
+
+`GET /api/health` 返回当前 `ai_provider` / `ai_model` 并设置 `Cache-Control: no-store`。iOS 在读取本地 AI 缓存前先解析该身份;客户端与后端缓存都按 `provider + model` 隔离,部署切换后不会误用另一供应商或另一模型生成的内容。
+
 ---
 
 ## CI
@@ -42,15 +62,17 @@ docs/                        # CI/CD + TestFlight 操作指南
 | `backend-test` | `ubuntu-latest`(1x 计费) | 每次 push + PR | `pip install` + `pytest -q` |
 | `ios-build` | `macos-latest`(10x 计费) | ios/** 或 ci.yml 变更 | `xcodebuild build CODE_SIGNING_ALLOWED=NO`(编译检查,不签名) |
 
-### CI 前置条件(用户必须先做,否则 ios-build 会失败)
+### iOS 自动化
 
-iOS scheme 当前**未 Shared**(`ios/QiCompass/QiCompass.xcodeproj/xcshareddata/xcschemes/` 不存在)。CI 上 `xcodebuild -scheme QiCompass` 会找不到 scheme。处理:
+`QiCompass` shared scheme 已包含 `QiCompassTests` target。除无签名编译检查外,本地可执行:
 
-1. Xcode 打开 `ios/QiCompass/QiCompass.xcodeproj`
-2. 菜单 **Product → Scheme → Manage Schemes**
-3. 勾选 `QiCompass` 行的 **Shared** 复选框
-4. 确认生成 `ios/QiCompass/QiCompass.xcodeproj/xcshareddata/xcschemes/QiCompass.xcscheme`
-5. commit 该文件到 repo
+```bash
+xcodebuild test \
+  -scheme QiCompass \
+  -project ios/QiCompass/QiCompass.xcodeproj \
+  -destination 'platform=iOS Simulator,name=iPhone 17,OS=latest' \
+  CODE_SIGNING_ALLOWED=NO
+```
 
 ### 省 macOS minute 策略
 
@@ -63,7 +85,7 @@ macOS runner 对私有 repo **10x 计费**(Free 计划 2000 min/mo 实际只够 
 ### CI 不做的事
 
 - 不做 signing / archive / upload(那是本地或 release workflow 的事)
-- 不跑 iOS unit test(目前**没有** iOS 测试,只有 backend pytest)
+- 当前 workflow 仍只做 iOS 无签名编译检查;`QiCompassTests` 可在本地或后续 CI 执行
 - 不自动上传 TestFlight(side project 阶段手动 archive 更简单,见下)
 
 ---

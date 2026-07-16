@@ -50,7 +50,7 @@ def validate_interpretation(
     """扫描文本,命中禁词则 raise InterpretationForbiddenError。
 
     纯逻辑(只读 text + 写日志 + raise),无 HTTP/缓存副作用。
-    用于 interpret.py 两处禁词检查(缓存命中后 + Claude 返回后)。
+    用于 interpret.py 两处禁词检查(缓存命中后 + provider 返回后)。
 
     可独立单元测试:``validate_interpretation("注定分手")`` → assert raises。
     """

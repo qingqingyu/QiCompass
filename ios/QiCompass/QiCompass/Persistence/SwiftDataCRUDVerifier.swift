@@ -95,6 +95,8 @@ final class SwiftDataCRUDVerifier {
                 module: "bazi_deep",
                 promptVersion: 1,
                 targetDate: nil,
+                provider: "anthropic",
+                model: "verifier-model",
                 interpretation: "CRUD 测试文本"
             )
             self.context.insert(cache)

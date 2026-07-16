@@ -88,7 +88,9 @@ final class CompatibilitySnapshotStore {
     /// 不静默吞:快照缺失时 throw(让调用方知道 interpretation 未持久化)。
     func updateInterpretation(
         _ interpretation: String,
-        forCompatibilityHash compatibilityHash: String
+        forCompatibilityHash compatibilityHash: String,
+        provider: String,
+        model: String
     ) throws {
         guard let snapshot = try get(compatibilityHash: compatibilityHash) else {
             AppLogger.persistence.error(
@@ -97,6 +99,8 @@ final class CompatibilitySnapshotStore {
             throw CompatibilitySnapshotError.snapshotMissing(compatibilityHash: compatibilityHash)
         }
         snapshot.interpretation = interpretation
+        snapshot.interpretationProvider = provider
+        snapshot.interpretationModel = model
         try context.save()
     }
 

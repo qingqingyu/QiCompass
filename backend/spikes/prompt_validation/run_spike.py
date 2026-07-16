@@ -5,16 +5,19 @@
 1. 遍历 SPIKE_CASES(20 盘)
 2. 调 BaziEngine.calculate() → 组装完整 bazi_deep context
 3. 调 render_prompt() 生成完整 prompt
-4. 调真实 Claude API(不 mock)生成解读
+4. 调真实 AI provider API(不 mock)生成解读
 5. 每盘落盘:input_context / rendered_prompt / llm_response / metadata
 6. special_pattern 硬断言(方案 §1.4)
 7. 输出 results.jsonl
 
 用法:
     cd backend
-    ANTHROPIC_API_KEY=sk-ant-... python -m spikes.prompt_validation.run_spike
+    AI_PROVIDER=anthropic ANTHROPIC_API_KEY=sk-ant-... \
+      python -m spikes.prompt_validation.run_spike
+    AI_PROVIDER=openai OPENAI_API_KEY=sk-... \
+      python -m spikes.prompt_validation.run_spike
 
-    # dry-run(不调 Claude,只验证 context 组装 + prompt 渲染)
+    # dry-run(不调 AI,只验证 context 组装 + prompt 渲染)
     python -m spikes.prompt_validation.run_spike --dry-run
 
     # 指定输出目录
@@ -36,9 +39,15 @@ from typing import Any
 # 确保从 backend/ 目录运行时能找到 app 包
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
-from app.ai.claude_client import ClaudeClient
+from app.ai.client import AIClient, create_ai_client
 from app.ai.prompts import PROMPT_VERSIONS, render_prompt, validate_context
-from app.config import ANTHROPIC_API_KEY, CLAUDE_MODEL
+from app.config import (
+    AI_PROVIDER,
+    ANTHROPIC_API_KEY,
+    ANTHROPIC_MODEL,
+    OPENAI_API_KEY,
+    OPENAI_MODEL,
+)
 from app.engine.bazi_engine import BaziEngine
 
 from .fixtures import SPIKE_CASES, parse_birth
@@ -195,14 +204,14 @@ def assert_special_pattern_constraints(
 def run_spike(
     output_dir: Path,
     dry_run: bool = False,
-    claude_client: ClaudeClient | None = None,
+    ai_client: AIClient | None = None,
 ) -> None:
     """跑完整 20 盘 spike。
 
     Args:
         output_dir: 输出目录
-        dry_run: True=不调 Claude,只验证 context + prompt 渲染
-        claude_client: 注入的 client(测试用);None=用真实 ANTHROPIC_API_KEY
+        dry_run: True=不调 AI,只验证 context + prompt 渲染
+        ai_client: 注入的 client(测试用);None=按当前 env 构造
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     results_path = output_dir / "results.jsonl"
@@ -211,11 +220,14 @@ def run_spike(
     fixed_now = datetime(2025, 1, 15, 12, 0, tzinfo=timezone.utc)
     engine = BaziEngine(now=fixed_now)
 
-    if claude_client is None and not dry_run:
-        if not ANTHROPIC_API_KEY:
-            logger.error("ANTHROPIC_API_KEY 未配置,无法调 Claude。用 --dry-run 跑 context 验证。")
-            sys.exit(1)
-        claude_client = ClaudeClient(api_key=ANTHROPIC_API_KEY)
+    if ai_client is None:
+        ai_client = create_ai_client(
+            provider=AI_PROVIDER,
+            anthropic_api_key=ANTHROPIC_API_KEY,
+            anthropic_model=ANTHROPIC_MODEL,
+            openai_api_key=OPENAI_API_KEY,
+            openai_model=OPENAI_MODEL,
+        )
 
     prompt_version = PROMPT_VERSIONS["bazi_deep"]
     all_results: list[dict[str, Any]] = []
@@ -233,7 +245,8 @@ def run_spike(
                 "gender": case["gender"],
                 "expected_strength": case["expected_strength"],
                 "prompt_version": prompt_version,
-                "model": CLAUDE_MODEL,
+                "provider": ai_client.provider,
+                "model": ai_client.model,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
             }
 
@@ -271,17 +284,16 @@ def run_spike(
                     if sp_failures:
                         logger.warning("[%s] special_pattern 断言失败: %s", case_id, sp_failures)
 
-                # 4. 调 Claude(真实 API)
+                # 4. 调用当前 provider(真实 API)
                 if dry_run:
                     result_entry["llm_response"] = None
                     result_entry["request_duration_ms"] = 0
                     result_entry["error"] = None
-                    logger.info("[%s] dry-run:跳过 Claude 调用", case_id)
+                    logger.info("[%s] dry-run:跳过 AI provider 调用", case_id)
                 else:
-                    assert claude_client is not None
                     llm_start = time.perf_counter()
                     try:
-                        llm_response = claude_client.interpret(rendered_prompt)
+                        llm_response = ai_client.interpret(rendered_prompt)
                         llm_ms = (time.perf_counter() - llm_start) * 1000
                         result_entry["llm_response"] = llm_response
                         result_entry["request_duration_ms"] = round(llm_ms, 1)
@@ -291,7 +303,10 @@ def run_spike(
                         result_entry["llm_response"] = None
                         result_entry["request_duration_ms"] = round(llm_ms, 1)
                         result_entry["error"] = f"{type(e).__name__}: {e}"
-                        logger.error("[%s] Claude 调用失败: %s", case_id, e)
+                        logger.exception(
+                            "[%s] AI provider 调用失败 provider=%s model=%s error=%s",
+                            case_id, ai_client.provider, ai_client.model, e,
+                        )
 
                 # 5. 落盘单盘文件
                 case_dir = output_dir / case_id
@@ -365,7 +380,7 @@ def _print_summary(results: list[dict[str, Any]], dry_run: bool) -> None:
     if not dry_run and success > 0:
         durations = [r["request_duration_ms"] for r in results if r.get("request_duration_ms", 0) > 0]
         if durations:
-            print(f"Claude 调用耗时: avg={sum(durations)/len(durations):.0f}ms min={min(durations):.0f}ms max={max(durations):.0f}ms")
+            print(f"AI provider 调用耗时: avg={sum(durations)/len(durations):.0f}ms min={min(durations):.0f}ms max={max(durations):.0f}ms")
 
     print("=" * 60)
 
@@ -380,7 +395,7 @@ def main() -> None:
     parser.add_argument(
         "--dry-run",
         action="store_true",
-        help="不调 Claude,只验证 context 组装 + prompt 渲染 + special_pattern 断言",
+        help="不调 AI provider,只验证 context 组装 + prompt 渲染 + special_pattern 断言",
     )
     parser.add_argument(
         "--output-dir",

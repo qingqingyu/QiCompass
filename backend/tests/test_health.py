@@ -17,6 +17,9 @@ async def test_health_returns_ok():
     assert body["status"] == "ok"
     assert body["lunar_python_version"] == LUNAR_PYTHON_VERSION
     assert body["model"] == MODEL_ID
+    assert body["ai_provider"] == app.state.ai_client.provider
+    assert body["ai_model"] == app.state.ai_client.model
+    assert resp.headers["Cache-Control"] == "no-store"
 
 
 async def test_health_has_request_id_header():

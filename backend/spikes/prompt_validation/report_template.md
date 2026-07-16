@@ -8,7 +8,7 @@
 
 - **日期**: {YYYY-MM-DD}
 - **Prompt 版本**: v{N}
-- **Claude 模型**: {model}
+- **AI provider / 模型**: {provider} / {model}
 - **样本数**: 20(15 普通盘 + 2 专旺 + 3 从格)
 - **Spike 轮次**: 第 {N} 轮(上限 3 轮)
 

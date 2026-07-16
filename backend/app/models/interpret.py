@@ -64,6 +64,10 @@ class InterpretResponse(BaseModel):
         ..., description="是否命中后端缓存(调试/验收用)")
     generated_at: datetime = Field(
         ..., description="ISO 8601 UTC,解读生成时间(缓存命中时为原生成时间)")
+    provider: Literal["anthropic", "openai"] = Field(
+        ..., description="本次解读实际使用的 AI provider")
+    model: str = Field(
+        ..., min_length=1, description="本次解读实际使用的模型")
 
     @field_serializer("generated_at")
     def _serialize_generated_at(self, dt: datetime) -> str:

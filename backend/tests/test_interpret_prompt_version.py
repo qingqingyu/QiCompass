@@ -1,7 +1,7 @@
 """POST /api/interpret prompt_version 失效 + 请求校验测试。
 
 验收用例(最终方案 §10):
-2. test_prompt_version_invalidation(主验收):bump version → 老缓存失效重调 Claude
+2. test_prompt_version_invalidation(主验收):bump version → 老缓存失效重调 provider
 8. test_target_date_module_mismatch:bazi_deep + target_date 非空 → 422
 9. test_context_missing_fields:context 缺字段 → 422,错误信息含字段名
 10. test_api_key_not_configured:api_key=None → 503
@@ -25,9 +25,9 @@ async def _post_interpret(ac: AsyncClient, payload: dict) -> tuple[int, dict]:
 # ===== 2. 主验收:prompt_version 失效 =====
 
 
-async def test_prompt_version_invalidation(interpret_client, mock_claude_client,
+async def test_prompt_version_invalidation(interpret_client, mock_ai_client,
                                             monkeypatch):
-    """bump prompt_version → 老缓存失效重调 Claude;新版本再请求命中。"""
+    """bump prompt_version → 老缓存失效重调 provider;新版本再请求命中。"""
     payload = {
         "content_hash": "test-hash-version-001",
         "module": "bazi_deep",
@@ -35,30 +35,30 @@ async def test_prompt_version_invalidation(interpret_client, mock_claude_client,
         "target_date": None,
     }
 
-    # 第一次:v1 miss → 调 Claude
+    # 第一次:v1 miss → 调 provider
     assert PROMPT_VERSIONS["bazi_deep"] == 1
     code1, b1 = await _post_interpret(interpret_client, payload)
     assert code1 == 200, b1
     assert b1["cached"] is False
     assert b1["prompt_version"] == 1
-    assert mock_claude_client.call_count == 1
+    assert mock_ai_client.call_count == 1
 
     # bump version 1 → 2
     monkeypatch.setitem(PROMPT_VERSIONS, "bazi_deep", 2)
 
-    # 同 content_hash 再请求:v2 miss(老 v1 缓存不命中)→ 重调 Claude
+    # 同 content_hash 再请求:v2 miss(老 v1 缓存不命中)→ 重调 provider
     code2, b2 = await _post_interpret(interpret_client, payload)
     assert code2 == 200, b2
     assert b2["cached"] is False
     assert b2["prompt_version"] == 2
-    assert mock_claude_client.call_count == 2
+    assert mock_ai_client.call_count == 2
 
     # 再请求一次:v2 hit
     code3, b3 = await _post_interpret(interpret_client, payload)
     assert code3 == 200, b3
     assert b3["cached"] is True
     assert b3["prompt_version"] == 2
-    assert mock_claude_client.call_count == 2, "v2 缓存命中不应再调 Claude"
+    assert mock_ai_client.call_count == 2, "v2 缓存命中不应再调 provider"
 
 
 # ===== 8. target_date 与 module 不匹配 → 422 =====
@@ -140,14 +140,14 @@ def test_content_hash_is_stripped_before_cache_key():
 
 
 async def test_api_key_not_configured(tmp_cache):
-    """ClaudeClient(api_key=None) → 调 /api/interpret 返回 503。"""
-    from app.ai.claude_client import ClaudeClient
+    """AnthropicClient(api_key=None) → 调 /api/interpret 返回 503。"""
+    from app.ai.anthropic_client import AnthropicClient
 
-    no_key_client = ClaudeClient(api_key=None)
+    no_key_client = AnthropicClient(api_key=None)
     saved_cache = getattr(app.state, "cache", None)
-    saved_claude = getattr(app.state, "claude_client", None)
+    saved_ai = getattr(app.state, "ai_client", None)
     app.state.cache = tmp_cache
-    app.state.claude_client = no_key_client
+    app.state.ai_client = no_key_client
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app),
@@ -160,15 +160,15 @@ async def test_api_key_not_configured(tmp_cache):
             }
             code, body = await _post_interpret(ac, payload)
         assert code == 503, body
-        assert body["error"]["code"] == "CLAUDE_API_ERROR"
+        assert body["error"]["code"] == "AI_PROVIDER_ERROR"
         assert "ANTHROPIC_API_KEY not configured" in body["error"]["message"]
     finally:
         app.state.cache = saved_cache
-        app.state.claude_client = saved_claude
+        app.state.ai_client = saved_ai
 
 
 async def test_interpret_generated_at_no_microseconds(interpret_client,
-                                                       mock_claude_client):
+                                                       mock_ai_client):
     """generated_at 序列化不含微秒(iOS .iso8601 dateDecodingStrategy 不支持小数秒)。"""
     payload = {
         "content_hash": "test-hash-no-microseconds",

@@ -118,7 +118,7 @@ final class DailyReadCounterTests: XCTestCase {
         let reset = counter.nextResetDate(date: now)
 
         let cal = Calendar.autoupdatingCurrent
-        let expectedMidnight = cal.startOfDay(
+        let expectedMidnight = cal.startOfDay(for:
             cal.date(byAdding: .day, value: 1, to: now)!
         )
         XCTAssertEqual(reset, expectedMidnight)

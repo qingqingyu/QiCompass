@@ -19,19 +19,22 @@ final class DailyFortuneOrchestrator {
     private let interpretStore: InterpretationCacheStore
     private let chartStore: ChartSnapshotStore
     private let counter: DailyReadCounter
+    private let aiIdentityResolver: AIIdentityResolver
 
     init(
         apiClient: APIClient,
         dailyStore: DailyFortuneSnapshotStore,
         interpretStore: InterpretationCacheStore,
         chartStore: ChartSnapshotStore,
-        counter: DailyReadCounter
+        counter: DailyReadCounter,
+        aiIdentityResolver: AIIdentityResolver
     ) {
         self.apiClient = apiClient
         self.dailyStore = dailyStore
         self.interpretStore = interpretStore
         self.chartStore = chartStore
         self.counter = counter
+        self.aiIdentityResolver = aiIdentityResolver
     }
 
     // MARK: - 阶段 1:确定性排盘
@@ -117,18 +120,29 @@ final class DailyFortuneOrchestrator {
         let targetDate = businessDate
 
         // 1. 查本地 24h AI 缓存
+        let identity = try await aiIdentityResolver.resolve()
         if let cached = try interpretStore.getLatest(
-            contentHash: chartHash, module: module
+            contentHash: chartHash,
+            module: module,
+            targetDate: targetDate,
+            identity: identity
         ),
-            let cachedTarget = cached.targetDate,
-            cachedTarget == targetDate,
             cached.generatedAt.addingTimeInterval(24 * 3600) > .now {
             // 命中本地 24h 缓存:构造 InterpretResponse(标 cached=true,generatedAt=原时间)
             let resp = InterpretResponse(
                 interpretation: cached.interpretation,
                 promptVersion: cached.promptVersion,
                 cached: true,
-                generatedAt: cached.generatedAt
+                generatedAt: cached.generatedAt,
+                provider: identity.provider,
+                model: identity.model
+            )
+            try dailyStore.updateInterpretation(
+                cached.interpretation,
+                forChartHash: chartHash,
+                targetDate: targetDate,
+                provider: identity.provider,
+                model: identity.model
             )
             AppLogger.app.info(
                 "daily.interpret.cache_hit hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public)"
@@ -188,6 +202,8 @@ final class DailyFortuneOrchestrator {
                     module: module,
                     promptVersion: resp.promptVersion,
                     targetDate: targetDate,
+                    provider: resp.provider,
+                    model: resp.model,
                     interpretation: resp.interpretation,
                     generatedAt: resp.generatedAt
                 )
@@ -204,7 +220,9 @@ final class DailyFortuneOrchestrator {
                 try dailyStore.updateInterpretation(
                     resp.interpretation,
                     forChartHash: chartHash,
-                    targetDate: targetDate
+                    targetDate: targetDate,
+                    provider: resp.provider,
+                    model: resp.model
                 )
             } catch {
                 AppLogger.persistence.error(
@@ -241,17 +259,26 @@ final class DailyFortuneOrchestrator {
     /// 失败 throw 上抛,由调用方转换为解读错误态。
     func cachedInterpretationIfFresh(
         chartHash: String, targetDate: Date
-    ) throws -> (text: String, promptVersion: Int)? {
+    ) async throws -> (text: String, promptVersion: Int)? {
         let module = "daily_fortune"
+        let identity = try await aiIdentityResolver.resolve()
         guard let cached = try interpretStore.getLatest(
-            contentHash: chartHash, module: module
+            contentHash: chartHash,
+            module: module,
+            targetDate: targetDate,
+            identity: identity
         ),
-            let cachedTarget = cached.targetDate,
-            cachedTarget == targetDate,
             cached.generatedAt.addingTimeInterval(24 * 3600) > .now
         else {
             return nil
         }
+        try dailyStore.updateInterpretation(
+            cached.interpretation,
+            forChartHash: chartHash,
+            targetDate: targetDate,
+            provider: identity.provider,
+            model: identity.model
+        )
         return (cached.interpretation, cached.promptVersion)
     }
 

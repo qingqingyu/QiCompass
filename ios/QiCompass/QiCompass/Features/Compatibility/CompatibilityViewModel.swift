@@ -251,7 +251,7 @@ final class CompatibilityViewModel {
                 // 查本地 24h AI 缓存(orchestrator 内部含禁词扫描,命中即抛 forbiddenWordsHit)
                 var interpretState: InterpretState = .idle
                 do {
-                    if let cached = try orchestrator.cachedInterpretationIfFresh(
+                    if let cached = try await orchestrator.cachedInterpretationIfFresh(
                         compatibilityHash: result.response.compatibilityHash
                     ) {
                         interpretState = .ok(text: cached.text, cached: true)

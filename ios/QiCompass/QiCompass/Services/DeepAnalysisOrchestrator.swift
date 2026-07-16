@@ -18,17 +18,20 @@ final class DeepAnalysisOrchestrator {
     private let chartStore: ChartSnapshotStore
     private let interpretStore: InterpretationCacheStore
     private let counter: DailyReadCounter
+    private let aiIdentityResolver: AIIdentityResolver
 
     init(
         apiClient: APIClient,
         chartStore: ChartSnapshotStore,
         interpretStore: InterpretationCacheStore,
-        counter: DailyReadCounter
+        counter: DailyReadCounter,
+        aiIdentityResolver: AIIdentityResolver
     ) {
         self.apiClient = apiClient
         self.chartStore = chartStore
         self.interpretStore = interpretStore
         self.counter = counter
+        self.aiIdentityResolver = aiIdentityResolver
     }
 
     // MARK: - 阶段 1:排盘 + 存档
@@ -120,6 +123,8 @@ final class DeepAnalysisOrchestrator {
                     module: module,
                     promptVersion: resp.promptVersion,
                     targetDate: nil,
+                    provider: resp.provider,
+                    model: resp.model,
                     interpretation: resp.interpretation,
                     generatedAt: resp.generatedAt
                 )
@@ -141,9 +146,18 @@ final class DeepAnalysisOrchestrator {
 
     /// 查询本地缓存最新一条(用于 UI 瞬时显示,方案 §4.5 v1 简化:不跳过网络)。
     /// 错误处理:fetch 失败记录日志后继续 throw,调用方必须进入 UI 错误路径。
-    func localCachedInterpretation(contentHash: String, module: String) throws -> (text: String, promptVersion: Int)? {
+    func localCachedInterpretation(
+        contentHash: String,
+        module: String
+    ) async throws -> (text: String, promptVersion: Int)? {
         do {
-            guard let cache = try interpretStore.getLatest(contentHash: contentHash, module: module) else {
+            let identity = try await aiIdentityResolver.resolve()
+            guard let cache = try interpretStore.getLatest(
+                contentHash: contentHash,
+                module: module,
+                targetDate: nil,
+                identity: identity
+            ) else {
                 return nil
             }
             return (cache.interpretation, cache.promptVersion)
