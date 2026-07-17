@@ -10,6 +10,11 @@ env/
 *.egg-info/
 .pytest_cache/
 
+# 环境变量 / API key(后端 .env 含付费凭据,绝不提交)
+.env
+.env.*
+!.env.example
+
 # Xcode (前瞻)
 build/
 DerivedData/

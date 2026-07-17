@@ -29,6 +29,7 @@ def create_ai_client(
     anthropic_model: str,
     openai_api_key: str | None,
     openai_model: str,
+    openai_base_url: str = "https://api.openai.com/v1",
 ) -> AIClient:
     """只构造配置选中的 provider;另一家不作 fallback。"""
     normalized = provider.strip().lower()
@@ -41,6 +42,7 @@ def create_ai_client(
         return OpenAIClient(
             api_key=openai_api_key,
             model=openai_model,
+            base_url=openai_base_url,
         )
     raise ValueError(
         "AI provider must be one of: anthropic, openai "

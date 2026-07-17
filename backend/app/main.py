@@ -26,6 +26,7 @@ from .config import (
     DB_PATH,
     MODEL_ID,
     OPENAI_API_KEY,
+    OPENAI_BASE_URL,
     OPENAI_MODEL,
 )
 from .errors import BaziError
@@ -92,6 +93,7 @@ def _build_ai_client():
         anthropic_model=ANTHROPIC_MODEL,
         openai_api_key=OPENAI_API_KEY,
         openai_model=OPENAI_MODEL,
+        openai_base_url=OPENAI_BASE_URL,
     )
 
 

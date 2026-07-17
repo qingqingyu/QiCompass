@@ -46,6 +46,7 @@ from app.config import (
     ANTHROPIC_API_KEY,
     ANTHROPIC_MODEL,
     OPENAI_API_KEY,
+    OPENAI_BASE_URL,
     OPENAI_MODEL,
 )
 from app.engine.bazi_engine import BaziEngine
@@ -227,6 +228,7 @@ def run_spike(
             anthropic_model=ANTHROPIC_MODEL,
             openai_api_key=OPENAI_API_KEY,
             openai_model=OPENAI_MODEL,
+            openai_base_url=OPENAI_BASE_URL,
         )
 
     prompt_version = PROMPT_VERSIONS["bazi_deep"]

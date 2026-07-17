@@ -25,6 +25,7 @@ def _create(provider: str):
         anthropic_model="claude-test",
         openai_api_key="openai-key",
         openai_model="gpt-test",
+        openai_base_url="https://api.openai.com/v1",
     )
 
 
@@ -82,6 +83,7 @@ def test_missing_selected_key_does_not_use_other_provider_key():
         anthropic_model="claude-test",
         openai_api_key=None,
         openai_model="gpt-test",
+        openai_base_url="https://api.openai.com/v1",
     )
     with pytest.raises(AIProviderError, match="OPENAI_API_KEY not configured"):
         client.interpret("prompt")

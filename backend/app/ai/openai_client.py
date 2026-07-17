@@ -1,4 +1,8 @@
-"""OpenAI Responses API 同步客户端(httpx)。"""
+"""OpenAI Chat Completions API 同步客户端(httpx)。
+
+支持自定义 base_url,兼容官方 / Azure / 第三方代理(如 clawto.link)。
+注意:不用 Responses API(/v1/responses),因为大多数第三方网关不支持。
+"""
 
 from __future__ import annotations
 
@@ -9,40 +13,48 @@ from ..errors import AIProviderError
 
 
 class OpenAIClient:
-    """OpenAI Responses API 适配器。"""
+    """OpenAI Chat Completions API 适配器。"""
 
     provider = "openai"
 
-    def __init__(self, api_key: str | None, model: str = OPENAI_MODEL):
+    def __init__(
+        self,
+        api_key: str | None,
+        model: str = OPENAI_MODEL,
+        base_url: str = "https://api.openai.com/v1",
+    ):
         if not model.strip():
             raise ValueError("OpenAI model must not be blank")
+        if not base_url.strip():
+            raise ValueError("OpenAI base_url must not be blank")
         self._api_key = api_key
         self._model = model
+        self._base_url = base_url.rstrip("/")
 
     @property
     def model(self) -> str:
         return self._model
 
     def interpret(self, prompt: str) -> str:
-        """调 OpenAI Responses API,返回第一个非空 output_text。"""
+        """调 OpenAI Chat Completions API,返回 choices[0].message.content。"""
         if not self._api_key:
             raise AIProviderError(
                 "OPENAI_API_KEY not configured"
                 "(后端未设置 API key,无法调用 OpenAI)"
             )
 
+        url = f"{self._base_url}/chat/completions"
         try:
             resp = httpx.post(
-                "https://api.openai.com/v1/responses",
+                url,
                 headers={
                     "Authorization": f"Bearer {self._api_key}",
                     "Content-Type": "application/json",
                 },
                 json={
                     "model": self._model,
-                    "input": prompt,
-                    "max_output_tokens": AI_MAX_OUTPUT_TOKENS,
-                    "store": False,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "max_tokens": AI_MAX_OUTPUT_TOKENS,
                 },
                 timeout=AI_TIMEOUT_SECONDS,
             )
@@ -83,44 +95,33 @@ class OpenAIClient:
                 f"(type={type(payload).__name__})"
             )
 
-        status = payload.get("status")
-        if status != "completed":
-            safe_status = status if isinstance(status, str) else type(status).__name__
+        choices = payload.get("choices")
+        if not isinstance(choices, list) or not choices:
+            raise AIProviderError("OpenAI 返回空 choices(无 message)")
+
+        first = choices[0]
+        if not isinstance(first, dict):
             raise AIProviderError(
-                f"OpenAI response 未完成(status={safe_status})"
+                f"OpenAI choices[0] 不是 object(type={type(first).__name__})"
             )
 
-        output = payload.get("output")
-        if not isinstance(output, list) or not output:
-            raise AIProviderError("OpenAI 返回空 output(无 message)")
+        # content_filter 优先抛错(类比 Responses API 的 refusal 处理):
+        # 即使有部分文本,只要被 filter 拦截就视为解读不可用,不能展示半截。
+        finish_reason = first.get("finish_reason")
+        if finish_reason == "content_filter":
+            raise AIProviderError("OpenAI 拒绝生成解读(content_filter)")
 
-        # refusal 的优先级高于任何文本。先完整扫描,避免畸形/混合响应中
-        # 先遇到 output_text 就提前返回,把随后出现的 refusal 漏掉。
-        for item in output:
-            if not isinstance(item, dict) or item.get("type") != "message":
-                continue
-            content = item.get("content")
-            if not isinstance(content, list):
-                continue
-            if any(
-                isinstance(block, dict) and block.get("type") == "refusal"
-                for block in content
-            ):
-                raise AIProviderError("OpenAI 拒绝生成解读(refusal)")
+        message = first.get("message")
+        if not isinstance(message, dict):
+            raise AIProviderError(
+                f"OpenAI message 不是 object(type={type(message).__name__})"
+            )
 
-        for item in output:
-            if not isinstance(item, dict) or item.get("type") != "message":
-                continue
-            content = item.get("content")
-            if not isinstance(content, list):
-                continue
-            for block in content:
-                if not isinstance(block, dict):
-                    continue
-                if block.get("type") != "output_text":
-                    continue
-                text = block.get("text")
-                if isinstance(text, str) and text.strip():
-                    return text
-
-        raise AIProviderError("OpenAI 返回 output 无非空 output_text")
+        content = message.get("content")
+        if isinstance(content, str) and content.strip():
+            return content
+        # content 可能是 None / 空串 / 非预期类型(如 tool_calls 触发)
+        raise AIProviderError(
+            "OpenAI 返回 message.content 为空"
+            f"(finish_reason={finish_reason!r}, type={type(content).__name__})"
+        )
