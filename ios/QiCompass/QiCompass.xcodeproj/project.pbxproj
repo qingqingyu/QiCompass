@@ -80,6 +80,11 @@
 		9C000000000000000000003D /* ErrorStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003D /* ErrorStateView.swift */; };
 		9C000000000000000000003E /* AIIdentityResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003E /* AIIdentityResolver.swift */; };
 		9C000000000000000000003F /* PrimaryCTAButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003F /* PrimaryCTAButton.swift */; };
+		9C0000000000000000000040 /* Entitlement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000040 /* Entitlement.swift */; };
+		9C0000000000000000000041 /* UserIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000041 /* UserIdentity.swift */; };
+		9C0000000000000000000042 /* EntitlementStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000042 /* EntitlementStore.swift */; };
+		9C0000000000000000000043 /* EntitlementDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000043 /* EntitlementDTOs.swift */; };
+		9C0000000000000000000044 /* PurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000044 /* PurchaseManager.swift */; };
 		A9B245DDB05C779E1238547A /* DeepAnalysisViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F34390B983BDE0003B56E8 /* DeepAnalysisViewModel.swift */; };
 		AC13473A98FFEBD13695E504 /* ElementColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18B14E9FA1316D589ABA9845 /* ElementColors.swift */; };
 		AFD648598ECEA58C6C8A8C8B /* DeepAnalysisOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64414BC9B04112663B97EE16 /* DeepAnalysisOrchestrator.swift */; };
@@ -184,6 +189,11 @@
 		9C100000000000000000003D /* ErrorStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ErrorStateView.swift; path = QiCompass/Shared/ErrorStateView.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000003E /* AIIdentityResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AIIdentityResolver.swift; path = QiCompass/Services/AIIdentityResolver.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000003F /* PrimaryCTAButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrimaryCTAButton.swift; path = QiCompass/Shared/PrimaryCTAButton.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000040 /* Entitlement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Entitlement.swift; path = QiCompass/Models/Entitlement.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000041 /* UserIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserIdentity.swift; path = QiCompass/Services/UserIdentity.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000042 /* EntitlementStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EntitlementStore.swift; path = QiCompass/Services/EntitlementStore.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000043 /* EntitlementDTOs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EntitlementDTOs.swift; path = QiCompass/Networking/DTOs/EntitlementDTOs.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000044 /* PurchaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PurchaseManager.swift; path = QiCompass/Services/PurchaseManager.swift; sourceTree = SOURCE_ROOT; };
 		9C2000000000000000000001 /* QiCompass.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = QiCompass.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		9F614F24B096FF767B7F3934 /* ElementBalanceBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ElementBalanceBar.swift; path = QiCompass/Features/DeepAnalysis/ElementBalanceBar.swift; sourceTree = SOURCE_ROOT; };
 		D91C4716AE1411C309FEBE65 /* ShenshaChips.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ShenshaChips.swift; path = QiCompass/Features/DeepAnalysis/ShenshaChips.swift; sourceTree = SOURCE_ROOT; };
@@ -232,6 +242,9 @@
 				A21000000000000000000001 /* XCTest.framework */,
 				160B487DB2FB51858CB5F067 /* ChartSnapshotStore.swift */,
 				2AF74383AEB02A4F7ED0C689 /* InterpretationCacheStore.swift */,
+				9C1000000000000000000041 /* UserIdentity.swift */,
+				9C1000000000000000000042 /* EntitlementStore.swift */,
+				9C1000000000000000000044 /* PurchaseManager.swift */,
 				9C100000000000000000003E /* AIIdentityResolver.swift */,
 				23C84BD0B1E670AC7EF54B93 /* DailyReadCounter.swift */,
 				616A4E1F906685BBB03FABAA /* PromptContextBuilder.swift */,
@@ -293,6 +306,7 @@
 				9C1000000000000000000008 /* DailyFortuneSnapshot.swift */,
 				9C1000000000000000000009 /* SchemaRegistry.swift */,
 				9C1000000000000000000029 /* InterpretState.swift */,
+				9C1000000000000000000040 /* Entitlement.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -336,6 +350,7 @@
 				9C1000000000000000000011 /* DailyFortuneDTOs.swift */,
 				9C1000000000000000000012 /* InterpretDTOs.swift */,
 				9C1000000000000000000013 /* HealthDTO.swift */,
+				9C1000000000000000000043 /* EntitlementDTOs.swift */,
 			);
 			path = DTOs;
 			sourceTree = "<group>";
@@ -620,6 +635,11 @@
 				9C000000000000000000003D /* ErrorStateView.swift in Sources */,
 				9C000000000000000000003E /* AIIdentityResolver.swift in Sources */,
 				9C000000000000000000003F /* PrimaryCTAButton.swift in Sources */,
+				9C0000000000000000000040 /* Entitlement.swift in Sources */,
+				9C0000000000000000000041 /* UserIdentity.swift in Sources */,
+				9C0000000000000000000042 /* EntitlementStore.swift in Sources */,
+				9C0000000000000000000043 /* EntitlementDTOs.swift in Sources */,
+				9C0000000000000000000044 /* PurchaseManager.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

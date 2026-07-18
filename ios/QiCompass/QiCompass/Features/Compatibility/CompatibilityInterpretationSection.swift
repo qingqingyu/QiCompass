@@ -33,7 +33,7 @@ struct CompatibilityInterpretationSection: View {
                 }
             case .fetching:
                 interpretationCTABlock(isLoading: true)
-            case .ok(let text, let cached):
+            case .okFree(let text, let cached), .okPaid(let text, let cached):
                 Text(text)
                     .bodySerifText()
                     .multilineTextAlignment(.leading)
@@ -53,6 +53,9 @@ struct CompatibilityInterpretationSection: View {
                         .font(.caption)
                         .foregroundStyle(BaziTheme.cinnabar)
                 }
+            case .lockedPaid:
+                // M4 合盘付费时填充锁标 UI;M3a 占位空实现
+                EmptyView()
             case .failed(let message):
                 VStack(spacing: 8) {
                     Text(message)

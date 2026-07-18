@@ -26,6 +26,10 @@ final class AppEnvironment: ObservableObject {
     let compatibilitySnapshotStore: CompatibilitySnapshotStore
     let compatibilityOrchestrator: CompatibilityOrchestrator
 
+    // M3a 新增:付费授权链路
+    let entitlementStore: EntitlementStore
+    let purchaseManager: PurchaseManager
+
     init(modelContainer: ModelContainer, apiClient: APIClient, useMockClient: Bool) {
         self.modelContainer = modelContainer
         self.apiClient = apiClient
@@ -69,6 +73,13 @@ final class AppEnvironment: ObservableObject {
             interpretStore: interpretStore,
             counter: counter,
             aiIdentityResolver: identityResolver
+        )
+        // M3a 装配:EntitlementStore(共享 modelContext)+ PurchaseManager(Mock 模式)
+        let entitlementStore = EntitlementStore(modelContext: context)
+        self.entitlementStore = entitlementStore
+        self.purchaseManager = PurchaseManager(
+            entitlementStore: entitlementStore,
+            apiClient: apiClient
         )
     }
 

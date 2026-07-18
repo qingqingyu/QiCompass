@@ -54,7 +54,7 @@ struct InterpretationSection: View {
                     action: {}
                 )
 
-            case .ok(let text, let cached):
+            case .okFree(let text, let cached), .okPaid(let text, let cached):
                 Text(text)
                     .bodySerifText()
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -70,6 +70,17 @@ struct InterpretationSection: View {
                         .font(.caption)
                         .foregroundStyle(BaziTheme.cinnabar)
                 }
+            case .lockedPaid(let previewChapters):
+                // M3c 阶段填充锁标 UI(PaidChaptersLockView)
+                // M3a 占位:仅显示章节标题列表
+                VStack(alignment: .leading, spacing: 4) {
+                    ForEach(previewChapters, id: \.self) { ch in
+                        Text("🔒 \(ch)")
+                            .font(.caption)
+                            .foregroundStyle(BaziTheme.inkMuted)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
 
             case .failed(let message):
                 Text(message)

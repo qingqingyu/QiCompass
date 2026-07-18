@@ -189,7 +189,7 @@ final class DeepAnalysisViewModel {
                     request: request
                 )
                 if !Task.isCancelled {
-                    state = .chartReady(response, .ok(text: resp.interpretation, cached: resp.cached))
+                    state = .chartReady(response, .okFree(text: resp.interpretation, cached: resp.cached))
                 }
             } catch is CancellationError {
                 // 被取消,不更新状态

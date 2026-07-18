@@ -9,6 +9,7 @@ protocol APIClient: Sendable {
     func compatibility(request: CompatibilityRequest) async throws -> CompatibilityResponse
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse
     func interpret(request: InterpretRequest) async throws -> InterpretResponse
+    func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse
 }
 
 // MARK: - Shared JSONCoder
@@ -87,6 +88,11 @@ final class LiveAPIClient: APIClient {
     func interpret(request: InterpretRequest) async throws -> InterpretResponse {
         let (data, _) = try await send(.interpret, body: request)
         return try decode(data, as: InterpretResponse.self, endpoint: .interpret)
+    }
+
+    func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse {
+        let (data, _) = try await send(.entitlementRedeem, body: request)
+        return try decode(data, as: EntitlementRedeemResponse.self, endpoint: .entitlementRedeem)
     }
 
     // MARK: - Internal
@@ -204,6 +210,17 @@ final class MockAPIClient: APIClient {
             generatedAt: .now,
             provider: "anthropic",
             model: "mock-anthropic-model"
+        )
+    }
+
+    func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse {
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        // Mock 永远返回成功(M3b 接真 SDK 时,真实流程在 PurchaseManager 里实现)
+        return EntitlementRedeemResponse(
+            entitled: true,
+            transactionId: request.transactionId,
+            purchasedAt: .now,
+            originalPurchaseDate: .now
         )
     }
 

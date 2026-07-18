@@ -10,6 +10,7 @@ enum SchemaRegistry {
         InterpretationCache.self,
         CompatibilitySnapshot.self,
         DailyFortuneSnapshot.self,
+        Entitlement.self,  // M3a 新增:付费授权
     ]
 
     static func makeSchema() -> Schema {

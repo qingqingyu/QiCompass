@@ -5,7 +5,7 @@ import SwiftUI
 /// 子状态独立(决策 §3.1):
 /// - .idle → CTA「今日解读」按钮(显示剩余次数)
 /// - .fetching → ProgressView + 「推演中…」
-/// - .ok(text, cached) → 解读文本 + cached 标识
+/// - .okFree(text, cached) → 解读文本 + cached 标识
 /// - .failed(msg) → 错误 + 重试
 struct DailyInterpretationSection: View {
     let state: InterpretState
@@ -34,7 +34,7 @@ struct DailyInterpretationSection: View {
                 }
             case .fetching:
                 interpretationCTABlock(isLoading: true)
-            case .ok(let text, let cached):
+            case .okFree(let text, let cached), .okPaid(let text, let cached):
                 Text(text)
                     .bodySerifText()
                     .multilineTextAlignment(.leading)
@@ -48,6 +48,9 @@ struct DailyInterpretationSection: View {
                     .font(.caption)
                     .foregroundStyle(BaziTheme.inkMuted)
                 }
+            case .lockedPaid:
+                // 每日运势付费推后;M3a 占位空实现
+                EmptyView()
             case .failed(let message):
                 VStack(spacing: 8) {
                     Text(message)

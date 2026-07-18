@@ -12,6 +12,9 @@ struct InterpretRequest: Codable, Sendable {
     let context: [String: AnyCodableJSON]
     let targetDate: Date?
     let question: AnyCodableJSON?
+    /// M3 新增:付费 module(`*_paid`)必填,免费 module 可选。
+    /// 用于 entitlement 查询(`(content_hash, module, user_local_id)` 三元组)。
+    let userLocalId: String?
 
     enum CodingKeys: String, CodingKey {
         case contentHash = "content_hash"
@@ -19,6 +22,7 @@ struct InterpretRequest: Codable, Sendable {
         case context
         case targetDate = "target_date"
         case question
+        case userLocalId = "user_local_id"
     }
 
     init(
@@ -26,13 +30,15 @@ struct InterpretRequest: Codable, Sendable {
         module: String,
         context: [String: AnyCodableJSON],
         targetDate: Date? = nil,
-        question: AnyCodableJSON? = nil
+        question: AnyCodableJSON? = nil,
+        userLocalId: String? = nil
     ) {
         self.contentHash = contentHash
         self.module = module
         self.context = context
         self.targetDate = targetDate
         self.question = question
+        self.userLocalId = userLocalId
     }
 
     init(from decoder: Decoder) throws {
@@ -53,6 +59,7 @@ struct InterpretRequest: Codable, Sendable {
             targetDate = nil
         }
         question = try container.decodeIfPresent(AnyCodableJSON.self, forKey: .question)
+        userLocalId = try container.decodeIfPresent(String.self, forKey: .userLocalId)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -66,6 +73,7 @@ struct InterpretRequest: Codable, Sendable {
             try container.encodeNil(forKey: .targetDate)
         }
         try container.encodeIfPresent(question, forKey: .question)
+        try container.encodeIfPresent(userLocalId, forKey: .userLocalId)
     }
 
     private static func formatTargetDate(_ date: Date) -> String {

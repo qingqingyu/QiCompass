@@ -254,7 +254,7 @@ final class CompatibilityViewModel {
                     if let cached = try await orchestrator.cachedInterpretationIfFresh(
                         compatibilityHash: result.response.compatibilityHash
                     ) {
-                        interpretState = .ok(text: cached.text, cached: true)
+                        interpretState = .okFree(text: cached.text, cached: true)
                     }
                 } catch CompatibilityError.forbiddenWordsHit {
                     interpretState = .failed(message: "解读包含不合规绝对结论,请重试")
@@ -327,7 +327,7 @@ final class CompatibilityViewModel {
                 if !Task.isCancelled {
                     state = .resultReady(
                         response,
-                        .ok(text: resp.interpretation, cached: resp.cached)
+                        .okFree(text: resp.interpretation, cached: resp.cached)
                     )
                 }
             } catch let error as CompatibilityError {

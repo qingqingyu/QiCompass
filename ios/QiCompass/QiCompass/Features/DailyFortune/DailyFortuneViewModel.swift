@@ -185,7 +185,7 @@ final class DailyFortuneViewModel {
                 if !Task.isCancelled {
                     state = .fortuneReady(
                         response,
-                        .ok(text: resp.interpretation, cached: resp.cached),
+                        .okFree(text: resp.interpretation, cached: resp.cached),
                         businessDate,
                     )
                 }
@@ -297,7 +297,7 @@ final class DailyFortuneViewModel {
                 if let cached = try await orchestrator.cachedInterpretationIfFresh(
                     chartHash: chartHash, targetDate: businessDate
                 ) {
-                    interpretState = .ok(text: cached.text, cached: true)
+                    interpretState = .okFree(text: cached.text, cached: true)
                 }
             } catch {
                 // 缓存读取失败必须传到 UI 的解读错误态,避免成功页隐藏异常。
