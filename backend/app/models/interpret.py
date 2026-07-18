@@ -1,8 +1,12 @@
 """POST /api/interpret Pydantic v2 schema。
 
-契约对齐最终方案 §3:
+契约对齐最终方案 §3 + MONETIZATION.md(M2 拆分):
 - content_hash 提升为顶层必填(设计文档 :209 未显式列出,D2 缓存键需要)
-- module ∈ 三值;target_date 与 module 交叉校验(daily_fortune 必填,其他必须 null)
+- module ∈ 五值:bazi_deep / bazi_deep_free / bazi_deep_paid / compatibility / daily_fortune
+  - bazi_deep 保留作 alias(决策 B:向后兼容,iOS M3 跟上之前不破坏)
+  - bazi_deep_free(2 章免费)/ bazi_deep_paid(5 章付费)= MONETIZATION.md M2 拆分
+- target_date 与 module 交叉校验(daily_fortune 必填,其他必须 null)
+- user_local_id 与 module 交叉校验(*_paid 必填,其他可选)
 - context 是 dict,渲染前由 ai/prompts.py 的 validate_context 显式校验必填字段
 - prompt_version 不在 Request 中(必须来自后端 config.PROMPT_VERSIONS,禁止客户端决定)
 """
@@ -15,7 +19,13 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field, field_serializer, field_validator, model_validator
 
 
-Module = Literal["bazi_deep", "compatibility", "daily_fortune"]
+Module = Literal[
+    "bazi_deep",          # alias(M2 决策 B 保留,旧 iOS 兼容)
+    "bazi_deep_free",     # M2 拆分:2 章免费
+    "bazi_deep_paid",     # M2 拆分:5 章付费(需 entitlement)
+    "compatibility",
+    "daily_fortune",
+]
 
 
 class InterpretRequest(BaseModel):
@@ -29,6 +39,9 @@ class InterpretRequest(BaseModel):
         ..., description="prompt 渲染负载(各 module 形状不同,由 ai/prompts.py 校验)")
     target_date: date | None = Field(
         None, description="daily_fortune 必填(ISO date),其他 module 必须为 null")
+    user_local_id: str | None = Field(
+        None, description="付费 module(*_paid)必填,其他可选;"
+                          "用于 entitlement 查询(MONETIZATION.md)")
     question: Any | None = Field(
         None, description="保留字段,MVP 忽略")
 
@@ -39,6 +52,15 @@ class InterpretRequest(BaseModel):
         if not normalized:
             raise ValueError("content_hash 不能为空")
         return normalized
+
+    @field_validator("user_local_id")
+    @classmethod
+    def user_local_id_stripped(cls, v: str | None) -> str | None:
+        """strip 后非空校验(传入 "  " 视为 None,避免 is not None 误判)。"""
+        if v is None:
+            return None
+        normalized = v.strip()
+        return normalized or None
 
     @model_validator(mode="after")
     def target_date_matches_module(self) -> "InterpretRequest":
@@ -51,6 +73,19 @@ class InterpretRequest(BaseModel):
                 raise ValueError(
                     f"module={self.module} 时 target_date 必须为 null"
                     f"(仅 daily_fortune 使用 target_date)")
+        return self
+
+    @model_validator(mode="after")
+    def paid_module_requires_user_local_id(self) -> "InterpretRequest":
+        """付费 module 必须带 user_local_id(entitlement 查询需要)。
+
+        路由层(/api/interpret)在步骤 2.5 会用 (content_hash, module, user_local_id)
+        查 entitlement,缺一不可。这里在 schema 层先拦,返 422 比 403 更准确。
+        """
+        if self.module.endswith("_paid") and not self.user_local_id:
+            raise ValueError(
+                f"module={self.module} 时 user_local_id 必填"
+                f"(付费内容需要 entitlement 校验)")
         return self
 
 

@@ -29,6 +29,7 @@ from .config import (
     OPENAI_BASE_URL,
     OPENAI_MODEL,
 )
+from .entitlement import EntitlementStore, MockAppleServerAPI
 from .errors import BaziError
 from .models.bazi import ErrorBody, ErrorResponse
 
@@ -56,8 +57,11 @@ async def lifespan(app: FastAPI):
     """lifespan 启动:
     - mkdir -p data/ 目录
     - 初始化 SQLite 表(CREATE TABLE IF NOT EXISTS,幂等)
+      - InterpretationCache(ai/cache.py)
+      - EntitlementStore(entitlement/store.py,M2 新增)
     - 根据 AI_PROVIDER 构造单一 AIClient(key 缺失也构造,调用时显式报 503)
-    - 构造 InterpretationCache 挂 app.state
+    - 构造 InterpretationCache + EntitlementStore 挂 app.state
+    - M2a 阶段 apple_server_api 挂 Mock(M2b 切真 SDK 包装)
     """
     db_dir = os.path.dirname(DB_PATH)
     if db_dir:
@@ -66,6 +70,16 @@ async def lifespan(app: FastAPI):
     cache = InterpretationCache(DB_PATH)
     cache.init_schema()  # 幂等;失败则启动报错(不吞)
     app.state.cache = cache
+
+    # M2a 新增:EntitlementStore(与 InterpretationCache 共用同一 SQLite 文件,
+    # 不同表:entitlement vs interpretation_cache)
+    entitlement_store = EntitlementStore(DB_PATH)
+    entitlement_store.init_schema()
+    app.state.entitlement_store = entitlement_store
+
+    # M2a:Apple Server API 挂 Mock(不真调 Apple,dev/test 用)
+    # M2b 实施时改为 AppleServerAPIClient(包装 app-store-server-library)
+    app.state.apple_server_api = MockAppleServerAPI()
 
     app.state.ai_client = _build_ai_client()
     ai_client = app.state.ai_client
@@ -76,7 +90,7 @@ async def lifespan(app: FastAPI):
     )
     logger.info(
         "startup ok db_path=%s ai_provider=%s ai_model=%s "
-        "selected_api_key_configured=%s",
+        "selected_api_key_configured=%s apple_server_api=mock",
         DB_PATH,
         ai_client.provider,
         ai_client.model,
@@ -99,7 +113,12 @@ def _build_ai_client():
 
 app = FastAPI(title="QiCompass Bazi Backend", version=MODEL_ID, lifespan=lifespan)
 # ASGITransport 单测不触发 lifespan;先挂默认实例,启动时再重建一次。
+# entitlement_store / apple_server_api 也挂 fallback(测试 fixture 可覆盖)。
 app.state.ai_client = _build_ai_client()
+_default_entitlement_store = EntitlementStore(DB_PATH)
+_default_entitlement_store.init_schema()
+app.state.entitlement_store = _default_entitlement_store
+app.state.apple_server_api = MockAppleServerAPI()
 app.add_middleware(RequestIdMiddleware)
 
 app.include_router(health_api.router)

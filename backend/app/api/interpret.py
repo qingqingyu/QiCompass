@@ -35,8 +35,10 @@ from ..ai.cache import InterpretationCache
 from ..ai.forbidden_words import scan as scan_forbidden_words
 from ..ai.forbidden_words import validate_interpretation
 from ..ai.prompts import PROMPT_VERSIONS, render_prompt, validate_context
+from ..entitlement import EntitlementStore
 from ..errors import (
     AIProviderError,
+    EntitlementNotFoundError,
     InterpretationCacheError,
     InterpretationForbiddenError,
     InvalidInputError,
@@ -74,6 +76,41 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
         raise
 
     prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+
+    # 2.5 Entitlement 检查(仅 *_paid module;MONETIZATION.md M2 越狱保护核心防线)
+    # 越狱设备绕过 iOS UI 直调 /api/interpret bazi_deep_paid → 此处拦下
+    # 决策 B:alias / _free 不走 entitlement(免费内容)
+    if req.module.endswith("_paid"):
+        base_module = req.module.removesuffix("_paid")  # bazi_deep_paid → bazi_deep
+        entitlement_store: EntitlementStore = request.app.state.entitlement_store
+        try:
+            entitlement = await run_in_threadpool(
+                entitlement_store.get_active,
+                content_hash=req.content_hash,
+                module=base_module,
+                user_local_id=req.user_local_id,  # type: ignore[arg-type]
+                # user_local_id 由 Pydantic model_validator 保证非空(付费 module 必填)
+            )
+        except Exception as e:
+            # sqlite3 异常不吞(对齐 ai/cache.py:11-14 错误显式传播)
+            logger.exception(
+                "interpret.entitlement_check_failed request_id=%s "
+                "content_hash=%s module=%s error=%r",
+                request_id, req.content_hash, req.module, e)
+            raise InterpretationCacheError(
+                f"entitlement 查询失败({type(e).__name__}): {e}",
+                request_id=request_id, content_hash=req.content_hash,
+            ) from e
+        if entitlement is None:
+            logger.warning(
+                "interpret.entitlement_not_found request_id=%s "
+                "content_hash=%s base_module=%s",
+                request_id, req.content_hash, base_module)
+            raise EntitlementNotFoundError(
+                f"未找到有效 entitlement(module={base_module} "
+                f"content_hash={req.content_hash})",
+                request_id=request_id, content_hash=req.content_hash,
+            )
 
     ai_client = request.app.state.ai_client
 

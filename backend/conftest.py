@@ -54,8 +54,22 @@ def tmp_cache(tmp_path) -> "InterpretationCache":
 
 
 @pytest.fixture
-async def interpret_client(mock_ai_client, tmp_cache):
+def tmp_entitlement_store(tmp_path) -> "EntitlementStore":
+    """临时 EntitlementStore(用 tmp_path,测完即弃)。
+
+    与 tmp_cache 共用同一 tmp_path 目录但不同 db 文件,避免表锁冲突。
+    """
+    from app.entitlement import EntitlementStore
+    store = EntitlementStore(str(tmp_path / "test_entitlement.db"))
+    store.init_schema()
+    return store
+
+
+@pytest.fixture
+async def interpret_client(mock_ai_client, tmp_cache, tmp_entitlement_store):
     """FastAPI TestClient(ASGITransport),app.state 替换为 mock + tmp_db。
+
+    同时替换 cache + entitlement_store + ai_client,确保测试隔离。
 
     用法:
         async with interpret_client as ac:
@@ -67,9 +81,11 @@ async def interpret_client(mock_ai_client, tmp_cache):
     # 保存原始 state(测试后恢复,避免污染其他测试)
     saved_cache = getattr(app.state, "cache", None)
     saved_ai = getattr(app.state, "ai_client", None)
+    saved_entitlement = getattr(app.state, "entitlement_store", None)
 
     app.state.cache = tmp_cache
     app.state.ai_client = mock_ai_client
+    app.state.entitlement_store = tmp_entitlement_store
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app),
@@ -78,3 +94,4 @@ async def interpret_client(mock_ai_client, tmp_cache):
     finally:
         app.state.cache = saved_cache
         app.state.ai_client = saved_ai
+        app.state.entitlement_store = saved_entitlement
