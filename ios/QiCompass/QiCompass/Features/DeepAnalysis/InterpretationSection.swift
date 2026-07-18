@@ -39,25 +39,20 @@ struct InterpretationSection: View {
 
             switch effectiveState {
             case .idle:
-                Button(action: { HapticEngine.medium(); onGenerate() }) {
-                    Text("生成命书")
-                        .font(.body.weight(.semibold))
-                        .foregroundStyle(BaziTheme.paper)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 10)
-                        .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
-                }
+                PrimaryCTAButton(
+                    title: "生成命书",
+                    loadingTitle: "生成命书中…",
+                    isLoading: false,
+                    action: onGenerate
+                )
 
             case .fetching:
-                HStack(spacing: 8) {
-                    ProgressView()
-                        .tint(BaziTheme.cinnabar)
-                    Text("生成命书中…")
-                        .font(.subheadline)
-                        .foregroundStyle(BaziTheme.inkMuted)
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, 12)
+                PrimaryCTAButton(
+                    title: "生成命书",
+                    loadingTitle: "生成命书中…",
+                    isLoading: true,
+                    action: {}
+                )
 
             case .ok(let text, let cached):
                 Text(text)

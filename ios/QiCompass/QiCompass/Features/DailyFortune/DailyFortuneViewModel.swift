@@ -18,7 +18,16 @@ enum DailyFortuneViewState: Equatable {
         case (.loading, .loading): return true
         case (.chartMissing, .chartMissing): return true
         case (.failed(let a), .failed(let b)): return a == b
-        case (.fortuneReady, .fortuneReady): return true
+        case (.fortuneReady(let a1, let a2, let a3), .fortuneReady(let b1, let b2, let b3)):
+            // DailyFortuneResponse 无 hash 字段,用业务关键字段做相等性代理
+            // (dayPillar + lunarDate + currentHourIndex 在同一 businessDate 内能唯一定位一次响应)
+            // 关键:必须比较 InterpretState(a2 == b2),否则 .idle → .fetching 会被判等,
+            // 导致 @Observable 不触发 View 重渲染,"今日解读"按钮看起来"完全没反应"
+            return a1.dayPillar == b1.dayPillar
+                && a1.lunarDate == b1.lunarDate
+                && a1.currentHourIndex == b1.currentHourIndex
+                && a2 == b2
+                && a3 == b3
         default: return false
         }
     }
@@ -143,8 +152,15 @@ final class DailyFortuneViewModel {
 
     /// 用户点「今日解读」按钮 → 触发 AI 阶段(若已命中缓存则直接显示)。
     func generateInterpretation(currentChartHash: String?) {
-        guard let hash = currentChartHash else { return }
-        guard case .fortuneReady(let response, _, let businessDate) = state else { return }
+        guard let hash = currentChartHash else {
+            // 不静默吞(CLAUDE.md 全局约束):UI 收到点击说明调用方传 nil 是逻辑错乱,显式记录
+            AppLogger.app.error("op=dailyFortune.generateInterpretation missing_chartHash state=\(String(describing: self.state), privacy: .public)")
+            return
+        }
+        guard case .fortuneReady(let response, _, let businessDate) = state else {
+            AppLogger.app.error("op=dailyFortune.generateInterpretation invalid_state state=\(String(describing: self.state), privacy: .public)")
+            return
+        }
         guard let chartPayload = cachedChartPayload else {
             // chartPayload 解码失败(见 runFullPipeline 的 catch)→ 显式报错,不静默返回
             state = .fortuneReady(

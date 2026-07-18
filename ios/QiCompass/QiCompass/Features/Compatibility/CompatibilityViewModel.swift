@@ -282,7 +282,11 @@ final class CompatibilityViewModel {
 
     /// 触发 AI 解读:用户点「生成合盘解读」。
     func generateInterpretation() {
-        guard case .resultReady(let response, _) = state else { return }
+        guard case .resultReady(let response, _) = state else {
+            // 不静默吞(CLAUDE.md 全局约束):UI 收到点击说明状态机错乱,显式记录
+            AppLogger.app.error("op=compatibility.generateInterpretation invalid_state state=\(String(describing: self.state), privacy: .public)")
+            return
+        }
         guard let compatHash = lastCompatibilityHash else {
             state = .resultReady(response, .failed(message: "合盘缓存键缺失,请重新合盘"))
             return
