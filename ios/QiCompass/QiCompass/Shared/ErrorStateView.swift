@@ -82,6 +82,13 @@ struct ErrorStateView: View {
                 }
             }
         }
+        .onAppear {
+            // 规则 1:错误显示日志。ErrorStateView 出现 = 用户看到错误,
+            // 必须可追溯是哪种错误类型 + 描述(便于排查 UI 错误态问题)
+            let kind = String(describing: userFacingError)
+            let message = userFacingError.errorDescription ?? "nil"
+            AppLogger.app.warning("errorStateView.shown kind=\(kind.prefix(80), privacy: .public) message=\(message.prefix(120), privacy: .public)")
+        }
         .padding()
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .baziAnimation(value: userFacingError)
