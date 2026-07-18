@@ -2,11 +2,17 @@ import SwiftUI
 
 /// 首启动 onboarding sheet(DESIGN.md §现代东方极简 · 宋瓷气质)。
 ///
+/// 2026-07-18 重写方向(用户决策):**克制安静 + 东方质感**。
+/// - 文案从"工程师腔"改为"用户腔":不堆术语,讲"对你意味着什么"
+/// - 视觉砍掉 4 行 bullet 圆点 → 改 3 行"留白叙事"(无圆点,主+副两行)
+/// - 印章作为视觉记忆点(Welcome + Start),中间两页只留标题 + 留白
+/// - 不在 onboarding 提付费(让用户进入 App 后自己发现锁标)
+///
 /// 4 页滑动:
-/// 1. 欢迎页(产品名 + memorable thing)
-/// 2. 产品姿态(4 条核心承诺,区别于算命软件)
-/// 3. 数据归属(4 条隐私说明)
-/// 4. 开始排盘(CTA)
+/// 1. 欢迎页(印章「玄」+ 产品名 + 一句话定调)
+/// 2. 立场页(不是算命软件 — 3 条留白叙事)
+/// 3. 隐私页(数据归属 — 3 条留白叙事)
+/// 4. 开始页(印章「始」+ CTA)
 ///
 /// 首启动由 RootTabView 检测 `@AppStorage("hasSeenOnboarding") = false` 弹出。
 /// 完成后设 true,后续启动不再弹。Sheet 禁止下滑 dismiss(必须点 CTA)。
@@ -30,30 +36,52 @@ struct OnboardingView: View {
     }
 }
 
-// MARK: - Shared bullet row
+// MARK: - Shared: 朱砂印章
 
-/// Onboarding 通用 bullet 行(圆点 + 标题 + 说明)。
-/// Stance 页传 cinnabar,Privacy 页传 jade,保持视觉语义区分。
-private struct OnboardingBulletRow: View {
-    let color: Color
-    let title: String
-    let desc: String
+/// 朱砂印章:淡底圆 + 朱砂细圈 + Songti SC 单字。
+/// 用作 Welcome / Start 页的视觉记忆点(DESIGN.md §现代东方极简装饰核心)。
+/// 细圈 0.5pt hairline 与 DESIGN.md §Border 一致,不加阴影。
+private struct SealStamp: View {
+    let character: String
+    var size: CGFloat = 96
+
+    var body: some View {
+        ZStack {
+            Circle()
+                .fill(BaziTheme.cinnabarSoft)
+                .frame(width: size, height: size)
+            Circle()
+                .stroke(BaziTheme.cinnabar.opacity(0.35), lineWidth: 0.5)
+                .frame(width: size - 10, height: size - 10)
+            Text(character)
+                .font(BaziFont.display(size: size * 0.46))
+                .foregroundStyle(BaziTheme.cinnabar)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+// MARK: - Shared: 留白叙事行
+
+/// 一句一行,无 bullet 圆点,无 title+desc 双行结构。
+/// 主句 Songti SC Medium + 浓墨;副句 PingFang SC + 灰墨。
+/// spacing 驱动留白节奏,符合"克制安静"。
+private struct BreathLine: View {
+    let main: String
+    var sub: String? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.xs) {
-            HStack(spacing: BaziTheme.Spacing.sm) {
-                Circle()
-                    .fill(color)
-                    .frame(width: 4, height: 4)
-                Text(title)
-                    .font(BaziFont.body().weight(.semibold))
-                    .foregroundStyle(BaziTheme.ink)
-            }
-            Text(desc)
-                .font(BaziFont.caption())
-                .foregroundStyle(BaziTheme.inkMuted)
-                .padding(.leading, BaziTheme.Spacing.md)
+            Text(main)
+                .font(BaziFont.display(size: 19, weight: .medium))
+                .foregroundStyle(BaziTheme.ink)
                 .fixedSize(horizontal: false, vertical: true)
+            if let sub {
+                Text(sub)
+                    .font(BaziFont.caption(size: 13))
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
         }
     }
 }
@@ -65,38 +93,25 @@ private struct WelcomePage: View {
         VStack(spacing: BaziTheme.Spacing.xl) {
             Spacer()
 
-            // 朱砂印章式装饰
-            ZStack {
-                Circle()
-                    .fill(BaziTheme.cinnabarSoft)
-                    .frame(width: 120, height: 120)
-                Text("玄")
-                    .font(BaziFont.display(size: 56))
-                    .foregroundStyle(BaziTheme.cinnabar)
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("玄机问道印章")
+            SealStamp(character: "玄", size: 108)
+                .accessibilityLabel("玄机问道印章")
 
             VStack(spacing: BaziTheme.Spacing.sm) {
                 Text("玄机问道")
-                    .font(BaziFont.display(size: 40))
+                    .font(BaziFont.display(size: 36))
                     .foregroundStyle(BaziTheme.ink)
                 Text("QICOMPASS")
-                    .font(BaziFont.caption(size: 11))
+                    .font(BaziFont.caption(size: 10))
                     .foregroundStyle(BaziTheme.inkMuted)
-                    .tracking(6)
+                    .tracking(4)
             }
 
-            Text("一款克制的八字研究工具")
-                .font(BaziFont.body())
+            // 副标题克制,不用 cinnabar 红字(原"专业不忽悠"过刺眼)
+            Text("读懂你的命局,不夸大,不忽悠")
+                .font(BaziFont.body(size: 15))
                 .foregroundStyle(BaziTheme.inkMuted)
 
             Spacer()
-
-            Text("专业不忽悠,不像算命软件")
-                .font(BaziFont.display(size: 17, weight: .medium))
-                .foregroundStyle(BaziTheme.cinnabar)
-                .padding(.bottom, 60)
         }
         .padding(.horizontal, BaziTheme.Spacing.xl)
     }
@@ -106,33 +121,25 @@ private struct WelcomePage: View {
 
 private struct StancePage: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: BaziTheme.Spacing.lg) {
+        VStack(alignment: .leading, spacing: BaziTheme.Spacing.xxl) {
             Spacer()
 
             Text("不是算命软件")
                 .font(BaziFont.display(size: 28))
                 .foregroundStyle(BaziTheme.ink)
 
-            VStack(alignment: .leading, spacing: BaziTheme.Spacing.lg) {
-                OnboardingBulletRow(
-                    color: BaziTheme.cinnabar,
-                    title: "确定性排盘",
-                    desc: "后端 lunar_python 引擎,同一输入永远同一输出"
+            VStack(alignment: .leading, spacing: BaziTheme.Spacing.xl) {
+                BreathLine(
+                    main: "同一组生辰,排出来的盘永远一样",
+                    sub: "后端规则引擎,不随机,不玄学"
                 )
-                OnboardingBulletRow(
-                    color: BaziTheme.cinnabar,
-                    title: "规则引擎给喜忌",
-                    desc: "扶抑法 + 调候法 + 从格检测,LLM 只润色话术,不自行推断"
+                BreathLine(
+                    main: "喜忌由规则判定,AI 只润色话术",
+                    sub: "不交给 AI 现场猜,避免流派争议"
                 )
-                OnboardingBulletRow(
-                    color: BaziTheme.cinnabar,
-                    title: "从格诚实降级",
-                    desc: "命中从格特征时,喜忌留空,LLM 明确告知,不编造"
-                )
-                OnboardingBulletRow(
-                    color: BaziTheme.cinnabar,
-                    title: "格局 v1 不硬分",
-                    desc: "用「命局呈现××倾向」模糊叙事,不给正官格 / 偏印格等硬分类"
+                BreathLine(
+                    main: "遇特殊命局,诚实说「不下结论」",
+                    sub: "不编造,不牵强附会"
                 )
             }
 
@@ -146,33 +153,25 @@ private struct StancePage: View {
 
 private struct PrivacyPage: View {
     var body: some View {
-        VStack(alignment: .leading, spacing: BaziTheme.Spacing.lg) {
+        VStack(alignment: .leading, spacing: BaziTheme.Spacing.xxl) {
             Spacer()
 
-            Text("数据归属")
+            Text("数据在你设备上")
                 .font(BaziFont.display(size: 28))
                 .foregroundStyle(BaziTheme.ink)
 
-            VStack(alignment: .leading, spacing: BaziTheme.Spacing.lg) {
-                OnboardingBulletRow(
-                    color: BaziTheme.jade,
-                    title: "本地存储",
-                    desc: "命盘数据走 SwiftData,存在你的设备上"
+            VStack(alignment: .leading, spacing: BaziTheme.Spacing.xl) {
+                BreathLine(
+                    main: "命盘只存在你的手机上,不上传",
+                    sub: "没有账号,没有云同步"
                 )
-                OnboardingBulletRow(
-                    color: BaziTheme.jade,
-                    title: "AI 解读有缓存",
-                    desc: "客户端 + 后端 SQLite 两级缓存,prompt 改版自动失效"
+                BreathLine(
+                    main: "AI 解读经我们的服务器",
+                    sub: "密钥保管在后端,不进客户端"
                 )
-                OnboardingBulletRow(
-                    color: BaziTheme.jade,
-                    title: "API key 不进客户端",
-                    desc: "所有排盘 + AI 解读走后端,iOS App 不持有密钥"
-                )
-                OnboardingBulletRow(
-                    color: BaziTheme.jade,
-                    title: "不做云同步(v1)",
-                    desc: "无账号系统,数据不离开本设备"
+                BreathLine(
+                    main: "不跟踪,不画像,不卖数据",
+                    sub: "v1 范围内不做用户行为分析"
                 )
             }
 
@@ -191,24 +190,15 @@ private struct StartPage: View {
         VStack(spacing: BaziTheme.Spacing.xl) {
             Spacer()
 
-            // 朱砂印章式装饰(与 WelcomePage 呼应,收束 onboarding)
-            ZStack {
-                Circle()
-                    .fill(BaziTheme.cinnabarSoft)
-                    .frame(width: 120, height: 120)
-                Text("始")
-                    .font(BaziFont.display(size: 56))
-                    .foregroundStyle(BaziTheme.cinnabar)
-            }
-            .accessibilityElement(children: .combine)
-            .accessibilityLabel("始字印章,象征开始排盘")
+            SealStamp(character: "始", size: 108)
+                .accessibilityLabel("始字印章,象征开始排盘")
 
             VStack(spacing: BaziTheme.Spacing.md) {
                 Text("开始你的第一次排盘")
-                    .font(BaziFont.display(size: 24))
+                    .font(BaziFont.display(size: 26))
                     .foregroundStyle(BaziTheme.ink)
-                Text("填写出生信息,深度解析会自动生成。")
-                    .font(BaziFont.body(size: 15))
+                Text("填写出生信息,生成你的第一份命书。")
+                    .font(BaziFont.body(size: 14))
                     .foregroundStyle(BaziTheme.inkMuted)
                     .multilineTextAlignment(.center)
             }
