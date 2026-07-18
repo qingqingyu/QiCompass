@@ -33,6 +33,16 @@ struct OnboardingView: View {
         .indexViewStyle(.page(backgroundDisplayMode: .interactive))
         .background(BaziTheme.paper)
         .tint(BaziTheme.cinnabar)
+        .onAppear {
+            // 首启 onboarding 呈现的入口日志,用于排查"没弹"问题
+            AppLogger.app.info("OnboardingView.onAppear 首启动引导呈现")
+        }
+        .onChange(of: currentPage) { _, newPage in
+            // 翻页日志:排查"卡在第 N 页 / 用户中途退出"等问题
+            let pageNames = ["Welcome", "Stance", "Privacy", "Start"]
+            let name = newPage < pageNames.count ? pageNames[newPage] : "Unknown"
+            AppLogger.app.info("OnboardingView 翻页 currentPage=\(newPage, privacy: .public) name=\(name, privacy: .public)")
+        }
     }
 }
 
@@ -205,7 +215,11 @@ private struct StartPage: View {
 
             Spacer()
 
-            Button(action: onComplete) {
+            Button(action: {
+                // 用户主动点 CTA 完成,记录日志(区别于下滑 dismiss,后者被禁)
+                AppLogger.app.info("StartPage CTA 点击 → 触发 onComplete")
+                onComplete()
+            }) {
                 Text("开始排盘")
                     .font(BaziFont.button())
                     .foregroundStyle(BaziTheme.paper)
