@@ -154,11 +154,17 @@ final class CompatibilityViewModel {
 
     /// 触发合盘:校验配置 → 构造请求 → orchestrator.runDeterministic。
     func compute() {
+        // 规则 2:用户主动触发的入口日志
+        let bMode = self.bMode
+        let context = self.context
+        AppLogger.app.info("compatVM.compute.start bMode=\(String(describing: bMode), privacy: .public) context=\(context, privacy: .public) archivedCount=\(self.archivedCharts.count)")
         guard !archivedCharts.isEmpty else {
+            AppLogger.app.warning("compatVM.compute.skip reason=empty_archive")
             state = .empty
             return
         }
         guard selectedChartAIndex < archivedCharts.count else {
+            AppLogger.app.warning("compatVM.compute.skip reason=a_index_out_of_bounds selectedAIndex=\(self.selectedChartAIndex)")
             state = .failed(.generic(message: "A 盘选择越界,请重新选择"))
             return
         }

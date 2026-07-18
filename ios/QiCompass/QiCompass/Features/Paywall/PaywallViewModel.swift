@@ -46,7 +46,17 @@ final class PaywallViewModel {
     }
 
     func purchase() async {
-        guard state != .purchasing else { return }  // 防重复点击
+        guard state != .purchasing else {
+            // 规则 1:防重复点击的 silent return 改成 info 日志(便于排查 UI 双击)
+            AppLogger.app.info("paywall.purchase.skip reason=already_purchasing")
+            return
+        }
+        // 规则 2:函数入口日志(付费关键路径,Console 必须可追溯)
+        // 技术坑:OSLogMessage 字符串插值是 lazy capture,instance property 必须先提到 local
+        let productId = self.productId
+        let contentHash = self.contentHash
+        let module = self.module
+        AppLogger.app.info("paywall.purchase.start product=\(productId, privacy: .public) content_hash=\(contentHash, privacy: .public) module=\(module, privacy: .public)")
         state = .purchasing
         do {
             _ = try await purchaseManager.purchase(
@@ -54,12 +64,13 @@ final class PaywallViewModel {
                 contentHash: contentHash,
                 module: module
             )
+            AppLogger.app.info("paywall.purchase.ok product=\(productId, privacy: .public)")
             state = .success
             onPurchaseSuccess?()
         } catch {
             // 错误显式传播:PurchaseManager 抛 PurchaseError,这里 catch 转 UI state
             AppLogger.app.error(
-                "paywall.purchase_failed error=\(String(describing: error), privacy: .public)"
+                "paywall.purchase_failed product=\(productId, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
             state = .failed(error.localizedDescription)
         }
