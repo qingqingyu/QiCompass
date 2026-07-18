@@ -79,7 +79,10 @@ final class ChartSnapshotStore {
         let desc = FetchDescriptor<ChartSnapshot>(
             predicate: #Predicate { $0.contentHash == hash }
         )
-        return try context.fetch(desc).first
+        let result = try context.fetch(desc).first
+        // 规则 2:hit/miss 业务分支日志(排查"snapshot 找不到"问题)
+        AppLogger.persistence.info("op=chartSnapshot.get hash=\(hash, privacy: .public) hit=\(result != nil, privacy: .public)")
+        return result
     }
 
     /// decode payload 回 BaziResponse(用于从快照重建 UI)。

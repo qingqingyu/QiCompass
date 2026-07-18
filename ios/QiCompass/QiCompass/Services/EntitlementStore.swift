@@ -29,6 +29,8 @@ final class EntitlementStore {
         module: String,
         userLocalId: String
     ) -> Entitlement? {
+        // 规则 2:函数入口日志(付费授权查询是付费链路关键路径)
+        AppLogger.persistence.info("op=entitlementStore.getActive.start content_hash=\(contentHash, privacy: .public) module=\(module, privacy: .public)")
         var descriptor = FetchDescriptor<Entitlement>(
             predicate: #Predicate {
                 $0.contentHash == contentHash
@@ -42,7 +44,9 @@ final class EntitlementStore {
         descriptor.fetchLimit = 1
         do {
             let results = try modelContext.fetch(descriptor)
-            return results.first
+            let hit = results.first
+            AppLogger.persistence.info("op=entitlementStore.getActive.ok hit=\(hit != nil, privacy: .public) tx=\(hit?.transactionId ?? "nil", privacy: .public)")
+            return hit
         } catch {
             AppLogger.persistence.error(
                 "op=entitlementStore.getActive failed error=\(String(describing: error), privacy: .public)"
@@ -66,6 +70,8 @@ final class EntitlementStore {
         purchasedAt: Date,
         originalPurchaseDate: Date
     ) throws {
+        // 规则 2:函数入口日志(付费授权写入是付费链路关键路径)
+        AppLogger.persistence.info("op=entitlementStore.upsert.start tx=\(transactionId, privacy: .public) product=\(productId, privacy: .public) module=\(module, privacy: .public)")
         // 先查同 transactionId 是否已存在(幂等)
         let existing = try _findByTransactionId(transactionId)
         if let existing = existing {
@@ -92,6 +98,7 @@ final class EntitlementStore {
             modelContext.insert(entitlement)
         }
         try modelContext.save()
+        AppLogger.persistence.info("op=entitlementStore.upsert.ok tx=\(transactionId, privacy: .public) is_new=\(existing == nil, privacy: .public)")
     }
 
     /// 标记 entitlement 为 inactive(退款/撤销)。
@@ -102,15 +109,20 @@ final class EntitlementStore {
     /// - Returns: True = 实际更新了行;False = tx 不存在或已 inactive(幂等)
     @discardableResult
     func deactivate(transactionId: String) -> Bool {
+        // 规则 2:函数入口日志(退款/撤销路径)
+        AppLogger.persistence.info("op=entitlementStore.deactivate.start tx=\(transactionId, privacy: .public)")
         do {
             guard let entitlement = try _findByTransactionId(transactionId) else {
+                AppLogger.persistence.info("op=entitlementStore.deactivate.skip tx_not_found")
                 return false
             }
             guard entitlement.isActive else {
+                AppLogger.persistence.info("op=entitlementStore.deactivate.skip already_inactive")
                 return false  // 已 inactive,幂等
             }
             entitlement.isActive = false
             try modelContext.save()
+            AppLogger.persistence.info("op=entitlementStore.deactivate.ok tx=\(transactionId, privacy: .public)")
             return true
         } catch {
             AppLogger.persistence.error(
