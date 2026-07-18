@@ -22,12 +22,18 @@ final class AIIdentityResolver {
     }
 
     func resolve() async throws -> AIIdentity {
+        // 规则 2:函数入口日志。AI 身份解析是缓存写入前置,失败必须可追溯。
+        AppLogger.networking.info("aiIdentity.resolve.start")
         let start = ContinuousClock().now
         do {
             let health = try await apiClient.health()
             let provider = health.aiProvider.trimmingCharacters(in: .whitespacesAndNewlines)
             let model = health.aiModel.trimmingCharacters(in: .whitespacesAndNewlines)
             guard ["anthropic", "openai"].contains(provider), !model.isEmpty else {
+                // 规则 1:抛错前打 error 日志(原 throw 直接走外层 catch,这里补具体原因)
+                AppLogger.networking.error(
+                    "aiIdentity.resolve.invalid_identity provider=\(health.aiProvider, privacy: .public) model=\(health.aiModel, privacy: .public)"
+                )
                 throw AIIdentityError.invalidHealthIdentity(
                     provider: health.aiProvider,
                     model: health.aiModel

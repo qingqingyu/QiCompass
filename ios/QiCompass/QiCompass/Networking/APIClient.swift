@@ -101,6 +101,9 @@ final class LiveAPIClient: APIClient {
 
     /// 统一发送:编码 body → 构造 URLRequest → 发送 → 检查 HTTP 状态。
     /// 错误显式传播:网络错误 / HTTP 错误 / 后端结构化错误 全部 throw,不吞。
+    ///
+    /// 日志策略(用户规则 2 + 3):start/ok 都打 info,所有 fail 打 error。
+    /// 一个 send 调用对应一对 start/ok 或 start/fail,不会缺漏。
     private func send<Body: Codable>(
         _ endpoint: APIEndpoint,
         body: Body?,
@@ -126,6 +129,9 @@ final class LiveAPIClient: APIClient {
         }
 
         let start = ContinuousClock().now
+        // 规则 3:第三方接口调起日志(每个 endpoint 进入网络栈前打)
+        AppLogger.networking.info("api.call.start endpoint=\(endpoint.path, privacy: .public) method=\(endpoint.method, privacy: .public)")
+
         let data: Data
         let response: URLResponse
         do {
@@ -137,6 +143,8 @@ final class LiveAPIClient: APIClient {
         }
 
         guard let http = response as? HTTPURLResponse else {
+            // 非预期:URLSession 返回非 HTTP 响应(理论上不会发生,但显式报错)
+            AppLogger.networking.error("api.cast_http_failed endpoint=\(endpoint.path, privacy: .public) response_type=\(String(describing: type(of: response)), privacy: .public)")
             throw APIError.httpError(statusCode: -1, body: nil)
         }
 
@@ -156,6 +164,9 @@ final class LiveAPIClient: APIClient {
             throw APIError.httpError(statusCode: http.statusCode, body: bodyString)
         }
 
+        let elapsed = start.duration(to: .now)
+        // 规则 3:第三方接口成功返回日志(含 elapsed 便于排查慢请求)
+        AppLogger.networking.info("api.call.ok endpoint=\(endpoint.path, privacy: .public) status=\(http.statusCode) elapsed=\(elapsed)")
         return (data, http)
     }
 
@@ -176,6 +187,7 @@ final class LiveAPIClient: APIClient {
 /// Debug 默认用 Mock,可手动切换 LiveAPIClient 验证真实链路。
 final class MockAPIClient: APIClient {
     func health() async throws -> HealthResponse {
+        AppLogger.networking.debug("mock.health 调起")
         try? await Task.sleep(nanoseconds: 200_000_000)
         return HealthResponse(
             status: "ok",
@@ -187,21 +199,25 @@ final class MockAPIClient: APIClient {
     }
 
     func calculateBazi(request: BaziCalculateRequest) async throws -> BaziResponse {
+        AppLogger.networking.debug("mock.calculateBazi 调起 birth_datetime=\(request.birthDatetime.description, privacy: .public)")
         try? await Task.sleep(nanoseconds: 300_000_000)
         return Self.mockBaziResponse(for: request)
     }
 
     func compatibility(request: CompatibilityRequest) async throws -> CompatibilityResponse {
+        AppLogger.networking.debug("mock.compatibility 调起 personAHash=\(request.personAHash.prefix(12), privacy: .public) personBProvided=\(request.personB != nil)")
         try? await Task.sleep(nanoseconds: 300_000_000)
         return Self.mockCompatibilityResponse(for: request)
     }
 
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse {
+        AppLogger.networking.debug("mock.dailyFortune 调起 chart_hash=\(request.chartHash.prefix(12), privacy: .public) target_date=\(request.targetDate.description, privacy: .public)")
         try? await Task.sleep(nanoseconds: 300_000_000)
         return Self.mockDailyFortuneResponse(for: request)
     }
 
     func interpret(request: InterpretRequest) async throws -> InterpretResponse {
+        AppLogger.networking.debug("mock.interpret 调起 content_hash=\(request.contentHash.prefix(12), privacy: .public) module=\(request.module, privacy: .public)")
         try? await Task.sleep(nanoseconds: 400_000_000)
         return InterpretResponse(
             interpretation: "[Mock 命书占位] 此命造五行流转,日主得令,喜忌已由后端确定性规则引擎判定。此为脚手架阶段 Mock 文本,正式解读由后端 AI provider 生成。",
@@ -214,6 +230,7 @@ final class MockAPIClient: APIClient {
     }
 
     func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse {
+        AppLogger.networking.debug("mock.redeem 调起 tx=\(request.transactionId, privacy: .public) product=\(request.productId, privacy: .public)")
         try? await Task.sleep(nanoseconds: 300_000_000)
         // Mock 永远返回成功(M3b 接真 SDK 时,真实流程在 PurchaseManager 里实现)
         return EntitlementRedeemResponse(
