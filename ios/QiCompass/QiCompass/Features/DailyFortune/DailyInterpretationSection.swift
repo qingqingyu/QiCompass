@@ -30,17 +30,10 @@ struct DailyInterpretationSection: View {
                 if remainingReads <= 0 {
                     DailyLimitReachedView(nextReset: nextReset)
                 } else {
-                    EmptyInterpretationView(onGenerate: onGenerate)
+                    interpretationCTABlock(isLoading: false)
                 }
             case .fetching:
-                HStack(spacing: 12) {
-                    ProgressView().tint(BaziTheme.cinnabar)
-                    Text("推演中…")
-                        .font(.subheadline)
-                        .foregroundStyle(BaziTheme.inkMuted)
-                }
-                .frame(maxWidth: .infinity, alignment: .center)
-                .padding(.vertical, 24)
+                interpretationCTABlock(isLoading: true)
             case .ok(let text, let cached):
                 Text(text)
                     .bodySerifText()
@@ -80,27 +73,22 @@ struct DailyInterpretationSection: View {
     }
 }
 
-private struct EmptyInterpretationView: View {
-    let onGenerate: () -> Void
-
-    var body: some View {
+private extension DailyInterpretationSection {
+    /// idle/fetching 共享 CTA 区(说明文字 + PrimaryCTAButton,loading 时也保留说明)。
+    @ViewBuilder
+    func interpretationCTABlock(isLoading: Bool) -> some View {
         VStack(spacing: 12) {
             Text("点击生成今日流日解读(约 150-200 字)")
                 .font(.subheadline)
                 .foregroundStyle(BaziTheme.inkMuted)
                 .multilineTextAlignment(.center)
 
-            Button(action: { HapticEngine.medium(); onGenerate() }) {
-                HStack {
-                    Image(systemName: "sparkles")
-                    Text("今日解读")
-                }
-                .font(.body.weight(.semibold))
-                .foregroundStyle(BaziTheme.paper)
-                .padding(.horizontal, 24)
-                .padding(.vertical, 10)
-                .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
-            }
+            PrimaryCTAButton(
+                title: "今日解读",
+                loadingTitle: "推演中…",
+                isLoading: isLoading,
+                action: isLoading ? {} : onGenerate
+            )
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)

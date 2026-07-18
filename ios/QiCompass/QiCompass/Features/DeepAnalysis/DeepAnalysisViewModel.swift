@@ -20,7 +20,11 @@ enum DeepAnalysisViewState: Equatable {
         case (.calculating(let a), .calculating(let b)): return a == b
         case (.chartFailed(let a), .chartFailed(let b)): return a == b
         case (.formInvalid(let a), .formInvalid(let b)): return a == b
-        case (.chartReady, .chartReady): return true
+        case (.chartReady(let a1, let a2), .chartReady(let b1, let b2)):
+            // response 用 contentHash 作相等性代理(完整比较太重,对齐 CompatibilityViewModel 实现)
+            // 关键:必须比较 InterpretState(a2 == b2),否则 .idle → .fetching 会被判等,
+            // 导致 @Observable 不触发 View 重渲染,按钮看起来"完全没反应"
+            return a1.contentHash == b1.contentHash && a2 == b2
         default: return false
         }
     }
@@ -163,8 +167,16 @@ final class DeepAnalysisViewModel {
     /// 触发 AI 命书生成(用户点"生成命书"按钮)。
     /// 取消旧 Task 避免竞态(快速点击两次时后完成者不应覆盖新状态)。
     func generateInterpretation() {
-        guard case .chartReady(let response, _) = state else { return }
-        guard let request = lastRequest else { return }
+        guard case .chartReady(let response, _) = state else {
+            // 不静默吞(CLAUDE.md 全局约束):UI 收到点击说明状态机错乱,显式记录
+            AppLogger.app.error("op=deepAnalysis.generateInterpretation invalid_state state=\(String(describing: self.state), privacy: .public)")
+            return
+        }
+        guard let request = lastRequest else {
+            AppLogger.app.error("op=deepAnalysis.generateInterpretation missing_request")
+            state = .chartReady(response, .failed(message: "请求记录缺失,请重新排盘"))
+            return
+        }
 
         interpretTask?.cancel()
 
