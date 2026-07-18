@@ -17,17 +17,25 @@ from .ai.client import create_ai_client
 from .api import bazi as bazi_api
 from .api import compatibility as compatibility_api
 from .api import daily_fortune as daily_fortune_api
+from .api import entitlement as entitlement_api
 from .api import health as health_api
 from .api import interpret as interpret_api
 from .config import (
     AI_PROVIDER,
     ANTHROPIC_API_KEY,
     ANTHROPIC_MODEL,
+    APP_STORE_APP_APPLE_ID,
+    APP_STORE_BUNDLE_ID,
+    APP_STORE_ENVIRONMENT,
+    APP_STORE_ISSUER_ID,
+    APP_STORE_KEY_ID,
+    APP_STORE_PRIVATE_KEY,
     DB_PATH,
     MODEL_ID,
     OPENAI_API_KEY,
     OPENAI_BASE_URL,
     OPENAI_MODEL,
+    apple_env_configured,
 )
 from .entitlement import EntitlementStore, MockAppleServerAPI
 from .errors import BaziError
@@ -77,9 +85,11 @@ async def lifespan(app: FastAPI):
     entitlement_store.init_schema()
     app.state.entitlement_store = entitlement_store
 
-    # M2a:Apple Server API 挂 Mock(不真调 Apple,dev/test 用)
-    # M2b 实施时改为 AppleServerAPIClient(包装 app-store-server-library)
-    app.state.apple_server_api = MockAppleServerAPI()
+    # M2b:Apple Server API 切换
+    # - env 配齐(5 个 Apple env)+ SDK 已装 → AppleServerAPIClient(真调 Apple)
+    # - 否则 → MockAppleServerAPI(dev/test,iOS 用 mock transaction_id 走通链路)
+    # M6 TestFlight 阶段才需要真 SDK;M2b 骨架阶段用户未 pip install
+    app.state.apple_server_api = _build_apple_server_api()
 
     app.state.ai_client = _build_ai_client()
     ai_client = app.state.ai_client
@@ -88,16 +98,51 @@ async def lifespan(app: FastAPI):
         if ai_client.provider == "anthropic"
         else bool(OPENAI_API_KEY)
     )
+    apple_kind = "mock" if isinstance(
+        app.state.apple_server_api, MockAppleServerAPI) else "apple_sdk"
     logger.info(
         "startup ok db_path=%s ai_provider=%s ai_model=%s "
-        "selected_api_key_configured=%s apple_server_api=mock",
+        "selected_api_key_configured=%s apple_server_api=%s",
         DB_PATH,
         ai_client.provider,
         ai_client.model,
         selected_key_configured,
+        apple_kind,
     )
     yield
     # 无特殊清理(SQLite / httpx 均为短连接)
+
+
+def _build_apple_server_api():
+    """根据 env + SDK 安装情况构造 Apple Server API。
+
+    返回:
+        AppleServerAPIClient(若 env 齐 + SDK 装)
+        MockAppleServerAPI(否则,dev/test 模式)
+    """
+    if not apple_env_configured():
+        logger.info(
+            "apple_server_api=mock reason=env_incomplete "
+            "(M6 TestFlight 前正常,填齐 5 个 APP_STORE_* env 自动切真)"
+        )
+        return MockAppleServerAPI()
+
+    # env 齐,尝试构造真 SDK 客户端
+    try:
+        from .entitlement.apple_client import AppleServerAPIClient
+        return AppleServerAPIClient(
+            bundle_id=APP_STORE_BUNDLE_ID,  # type: ignore[arg-type]
+            key_id=APP_STORE_KEY_ID,  # type: ignore[arg-type]
+            issuer_id=APP_STORE_ISSUER_ID,  # type: ignore[arg-type]
+            private_key=APP_STORE_PRIVATE_KEY,  # type: ignore[arg-type]
+            environment=APP_STORE_ENVIRONMENT,  # type: ignore[arg-type]
+            app_apple_id=APP_STORE_APP_APPLE_ID,  # type: ignore[arg-type]
+        )
+    except RuntimeError as e:
+        # SDK 未安装或初始化失败(私钥格式不对等)→ fallback Mock
+        logger.warning(
+            "apple_server_api=mock reason=sdk_init_failed error=%s", e)
+        return MockAppleServerAPI()
 
 
 def _build_ai_client():
@@ -126,6 +171,7 @@ app.include_router(bazi_api.router)
 app.include_router(compatibility_api.router)
 app.include_router(daily_fortune_api.router)
 app.include_router(interpret_api.router)
+app.include_router(entitlement_api.router)
 
 
 # ---------- 异常 handler(错误显式传播,统一响应结构)----------
