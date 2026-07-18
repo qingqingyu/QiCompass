@@ -31,6 +31,8 @@ final class AppEnvironment: ObservableObject {
     let purchaseManager: PurchaseManager
 
     init(modelContainer: ModelContainer, apiClient: APIClient, useMockClient: Bool) {
+        // 规则 2:函数入口日志。AppEnvironment 装配是启动关键路径,失败会让整个 App 不可用。
+        AppLogger.app.info("AppEnvironment.init 开始 useMockClient=\(useMockClient, privacy: .public)")
         self.modelContainer = modelContainer
         self.apiClient = apiClient
         self.useMockClient = useMockClient
@@ -81,6 +83,7 @@ final class AppEnvironment: ObservableObject {
             entitlementStore: entitlementStore,
             apiClient: apiClient
         )
+        AppLogger.app.info("AppEnvironment.init 完成(orchestrator + store 全部装配)")
     }
 
     /// 从 Info.plist 读取是否使用 MockAPIClient(默认 NO = 连真后端)。
@@ -96,6 +99,8 @@ final class AppEnvironment: ObservableObject {
             ?? "http://localhost:8000"
         guard let url = URL(string: raw) else {
             // 不吞错:配置非法时 fatal,暴露问题而非静默用默认值
+            // fatal 前打 error 日志(fatalError 只输出 stderr,无 subsystem 不便过滤)
+            AppLogger.app.error("BackendBaseURL 非法 raw=\(raw, privacy: .public)")
             fatalError("BackendBaseURL 非法: \(raw)")
         }
         return url

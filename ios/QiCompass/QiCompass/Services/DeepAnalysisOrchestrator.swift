@@ -38,6 +38,8 @@ final class DeepAnalysisOrchestrator {
 
     /// 排盘 → 存档 ChartSnapshot。任一失败 throw(→ `.chartFailed`)。
     func runCalculation(request: BaziCalculateRequest) async throws -> BaziResponse {
+        // 规则 2:函数入口日志(网络调用内部已通过 AppLogger.measure 覆盖 start/ok/failed)
+        AppLogger.app.info("deep.runCalculation.start birth=\(Self.isoFormatter.string(from: request.birthDatetime), privacy: .public) gender=\(request.gender, privacy: .public) city=\(request.city ?? "nil", privacy: .public)")
         let response = try await AppLogger.measure(
             AppLogger.networking,
             operation: "calculateBazi",
@@ -72,11 +74,18 @@ final class DeepAnalysisOrchestrator {
         request: BaziCalculateRequest,
         module: String = "bazi_deep"
     ) async throws -> InterpretResponse {
+        // 规则 2:函数入口日志
+        AppLogger.app.info("deep.runInterpretation.start contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public)")
         // 次数检查(全局池口径,固定基础名;_free / _paid 共享每日 10 次)
         let counterModule = "bazi_deep"
         guard counter.tryConsume(module: counterModule) else {
+            // 规则 1:抛错前打 warning(用户预期行为,非系统错误,但需要监控)
+            // 注意:OSLogMessage 的字符串插值是 lazy capture,instance property
+            // (counter.nextResetDate())必须先提到 local 变量
+            let nextReset = counter.nextResetDate()
+            AppLogger.app.warning("deep.runInterpretation.daily_limit_reached contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) nextReset=\(nextReset.description, privacy: .public)")
             throw DeepAnalysisError.dailyLimitReached(
-                nextReset: counter.nextResetDate(),
+                nextReset: nextReset,
                 remaining: 0
             )
         }

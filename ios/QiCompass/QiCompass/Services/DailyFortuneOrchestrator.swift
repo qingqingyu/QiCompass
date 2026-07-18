@@ -53,8 +53,12 @@ final class DailyFortuneOrchestrator {
         businessDate: Date,
         forceRefresh: Bool = false
     ) async throws -> (response: DailyFortuneResponse, fromCache: Bool) {
+        // 规则 2:函数入口日志
+        AppLogger.app.info("daily.runDeterministic.start chartHash=\(chartHash, privacy: .public) targetDate=\(Self.dateFormatter.string(from: businessDate), privacy: .public) forceRefresh=\(forceRefresh, privacy: .public)")
         // 1. 取存档 ChartSnapshot(无 → chartMissing)
         guard let snapshot = try chartStore.get(contentHash: chartHash) else {
+            // 规则 1:抛错前打 warning(用户预期业务异常,需先排盘)
+            AppLogger.app.warning("daily.runDeterministic.chart_missing chartHash=\(chartHash, privacy: .public)")
             throw DailyFortuneError.chartMissing
         }
         let baziResponse = try chartStore.decodeResponse(from: snapshot)
@@ -116,6 +120,8 @@ final class DailyFortuneOrchestrator {
         dailyResponse: DailyFortuneResponse,
         businessDate: Date
     ) async throws -> InterpretResponse {
+        // 规则 2:函数入口日志
+        AppLogger.app.info("daily.runInterpretation.start chartHash=\(chartHash, privacy: .public) targetDate=\(Self.dateFormatter.string(from: businessDate), privacy: .public)")
         let module = "daily_fortune"
         let targetDate = businessDate
 
@@ -152,8 +158,11 @@ final class DailyFortuneOrchestrator {
 
         // 2. 次数检查(全局池口径,方案 §D1)
         guard counter.tryConsume(module: module) else {
+            // 规则 1:抛错前打 warning
+            let nextReset = counter.nextResetDate()
+            AppLogger.app.warning("daily.runInterpretation.daily_limit_reached chartHash=\(chartHash, privacy: .public) targetDate=\(Self.dateFormatter.string(from: targetDate), privacy: .public) nextReset=\(nextReset.description, privacy: .public)")
             throw DeepAnalysisError.dailyLimitReached(
-                nextReset: counter.nextResetDate(),
+                nextReset: nextReset,
                 remaining: 0
             )
         }
