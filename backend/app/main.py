@@ -20,6 +20,7 @@ from .api import daily_fortune as daily_fortune_api
 from .api import entitlement as entitlement_api
 from .api import health as health_api
 from .api import interpret as interpret_api
+from .api import webhooks as webhooks_api
 from .config import (
     AI_PROVIDER,
     ANTHROPIC_API_KEY,
@@ -172,6 +173,7 @@ app.include_router(compatibility_api.router)
 app.include_router(daily_fortune_api.router)
 app.include_router(interpret_api.router)
 app.include_router(entitlement_api.router)
+app.include_router(webhooks_api.router)
 
 
 # ---------- 异常 handler(错误显式传播,统一响应结构)----------
