@@ -36,24 +36,37 @@ struct RootTabView: View {
                 }
         }
         .tint(BaziTheme.cinnabar)
+        .onAppear {
+            // 首启 / 后续启动分流日志,便于定位"onboarding 没弹 / 反复弹"等异常
+            AppLogger.app.info("RootTabView.onAppear hasSeenOnboarding=\(hasSeenOnboarding, privacy: .public)")
+        }
         .sheet(isPresented: Binding(
             get: { !hasSeenOnboarding },
             set: { newValue in
+                // isPresented 变化都打:呈现(true)/ dismiss(false)
+                AppLogger.app.info("Onboarding sheet isPresented=\(newValue, privacy: .public) hasSeenOnboarding=\(hasSeenOnboarding, privacy: .public)")
                 if !newValue { hasSeenOnboarding = true }
             }
         )) {
             OnboardingView(onComplete: {
+                AppLogger.app.info("OnboardingView onComplete 触发 → hasSeenOnboarding=true")
                 hasSeenOnboarding = true
             })
             .interactiveDismissDisabled()
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchTab)) { note in
-            guard let raw = note.userInfo?["tab"] as? String else { return }
+            // guard 失败也要打日志:之前 silent return,出问题排查无据
+            guard let raw = note.userInfo?["tab"] as? String else {
+                AppLogger.app.error("收到 .switchTab 通知但 userInfo 无 tab 字段,忽略 userInfoKeys=\(String(describing: note.userInfo?.keys), privacy: .public)")
+                return
+            }
+            AppLogger.app.info("收到 .switchTab tab=\(raw, privacy: .public)")
             switch raw {
             case "deepAnalysis":  selectedTab = .deepAnalysis
             case "compatibility": selectedTab = .compatibility
             case "dailyFortune":  selectedTab = .dailyFortune
-            default: break
+            default:
+                AppLogger.app.error(".switchTab 收到未知 tab=\(raw, privacy: .public),忽略")
             }
         }
     }

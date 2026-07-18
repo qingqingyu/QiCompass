@@ -145,6 +145,8 @@ final class CompatibilityOrchestrator {
         syncedFortune: [SyncedFortuneDTO],
         context: String
     ) async throws -> InterpretResponse {
+        // 规则 2:函数入口日志
+        AppLogger.app.info("compat.runInterpretation.start compatibilityHash=\(compatibilityHash, privacy: .public) context=\(context, privacy: .public)")
         let module = "compatibility"
 
         // 1. 查本地 24h AI 缓存(命中不消耗次数)
@@ -187,8 +189,11 @@ final class CompatibilityOrchestrator {
 
         // 2. 次数检查(全局池口径,方案 §D1)
         guard counter.tryConsume(module: module) else {
+            // 规则 1:抛错前打 warning(用户预期行为,非系统错误)
+            let nextReset = counter.nextResetDate()
+            AppLogger.app.warning("compat.runInterpretation.daily_limit_reached compatibilityHash=\(compatibilityHash, privacy: .public) nextReset=\(nextReset.description, privacy: .public)")
             throw DeepAnalysisError.dailyLimitReached(
-                nextReset: counter.nextResetDate(),
+                nextReset: nextReset,
                 remaining: 0
             )
         }

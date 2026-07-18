@@ -122,7 +122,10 @@ final class DailyFortuneViewModel {
 
     /// 强制重调后端两层缓存(决策 §3.5)。
     func refresh(currentChartHash: String?, ziHourRule: String) async {
+        // 规则 2:用户主动触发(下拉刷新)入口日志
+        AppLogger.app.info("dailyVM.refresh.start currentChartHash=\(currentChartHash ?? "nil", privacy: .public) ziHourRule=\(ziHourRule, privacy: .public)")
         guard let hash = currentChartHash else {
+            AppLogger.app.warning("dailyVM.refresh.skip reason=no_chart_hash")
             state = .chartMissing
             return
         }

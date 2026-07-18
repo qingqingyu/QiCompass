@@ -49,13 +49,18 @@ final class DailyReadCounter: @unchecked Sendable {
         defer { lock.unlock() }
         let gKey = globalKey(date: date)
         let gConsumed = defaults.integer(forKey: gKey)
-        guard gConsumed < ReadLimit.globalDaily else { return false }
+        guard gConsumed < ReadLimit.globalDaily else {
+            // 规则 1+2:达上限分支(用户预期行为,warning 级别)
+            AppLogger.app.warning("dailyReadCounter.tryConsume.rejected module=\(module, privacy: .public) consumed=\(gConsumed) limit=\(ReadLimit.globalDaily)")
+            return false
+        }
         defaults.set(gConsumed + 1, forKey: gKey)
 
         // 模块埋点(失败不影响限流)
         let mKey = moduleKey(module: module, date: date)
         let mConsumed = defaults.integer(forKey: mKey)
         defaults.set(mConsumed + 1, forKey: mKey)
+        AppLogger.app.info("dailyReadCounter.tryConsume.ok module=\(module, privacy: .public) consumed_after=\(gConsumed + 1) remaining=\(ReadLimit.globalDaily - gConsumed - 1)")
         return true
     }
 
@@ -74,6 +79,8 @@ final class DailyReadCounter: @unchecked Sendable {
         if mConsumed > 0 {
             defaults.set(mConsumed - 1, forKey: mKey)
         }
+        // 规则 2:refund 路径日志(命中后端缓存 / AI 失败,排查配额错乱)
+        AppLogger.app.info("dailyReadCounter.refund module=\(module, privacy: .public) consumed_after=\(max(0, gConsumed - 1))")
     }
 
     // MARK: - 查询

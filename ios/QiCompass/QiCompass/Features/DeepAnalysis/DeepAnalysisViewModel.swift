@@ -133,8 +133,17 @@ final class DeepAnalysisViewModel {
     /// 触发排盘:先校验表单,再调 orchestrator.runCalculation。
     /// 取消旧 Task 避免竞态(快速点击两次时后完成者不应覆盖新状态)。
     func calculate() {
+        // 规则 2:用户主动触发的入口日志
+        // 技术坑:OSLogMessage 字符串插值是 lazy capture,instance property 必须先提到 local
+        let birthDate = self.birthDate
+        let gender = self.gender
+        let selectedCity = self.selectedCity
+        let useManualLongitude = self.useManualLongitude
+        AppLogger.app.info("deepVM.calculate.start birth=\(birthDate.description) gender=\(gender, privacy: .public) city=\(selectedCity, privacy: .public) useManualLon=\(useManualLongitude, privacy: .public)")
         let errors = validateForm()
         if !errors.isEmpty {
+            // 规则 1:表单校验失败抛错前打 warning(用户预期)
+            AppLogger.app.warning("deepVM.calculate.form_invalid errors=\(errors.joined(separator: "; "), privacy: .public)")
             state = .formInvalid(errors)
             return
         }
@@ -149,12 +158,16 @@ final class DeepAnalysisViewModel {
             do {
                 let response = try await orchestrator.runCalculation(request: request)
                 if !Task.isCancelled {
+                    AppLogger.app.info("deepVM.calculate.ok contentHash=\(response.contentHash, privacy: .public)")
                     state = .chartReady(response, .idle)
                 }
             } catch is CancellationError {
                 // 被取消,不更新状态(新 Task 会接管)
+                AppLogger.app.info("deepVM.calculate.cancelled")
             } catch {
                 if !Task.isCancelled {
+                    // 规则 1:抛错前打 error(orchestrator 内部已打,VM 层再打 state 转换)
+                    AppLogger.app.error("deepVM.calculate.failed error=\(String(describing: error), privacy: .public)")
                     state = .chartFailed(UserFacingError.from(error, stage: .chart))
                 }
             }
@@ -193,6 +206,8 @@ final class DeepAnalysisViewModel {
             userLocalId: UserIdentity.userLocalId
         ) != nil
         let module = hasEntitlement ? "bazi_deep_paid" : "bazi_deep_free"
+        // 规则 2:用户主动触发 + 付费分支决策日志
+        AppLogger.app.info("deepVM.generateInterpretation.start contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) hasEntitlement=\(hasEntitlement, privacy: .public)")
 
         interpretTask?.cancel()
 
@@ -214,8 +229,11 @@ final class DeepAnalysisViewModel {
                 }
             } catch is CancellationError {
                 // 被取消,不更新状态
+                AppLogger.app.info("deepVM.generateInterpretation.cancelled")
             } catch let error as DeepAnalysisError {
                 if !Task.isCancelled {
+                    // 规则 1:DeepAnalysisError 抛错前打日志
+                    AppLogger.app.warning("deepVM.generateInterpretation.deepAnalysisError error=\(String(describing: error), privacy: .public)")
                     // dailyLimitReached 独立形态(方案 step 4):禁用生成按钮、不显示重试
                     if case .dailyLimitReached(let reset, _) = error {
                         state = .chartReady(response, .dailyLimitReached(nextReset: reset))
@@ -225,6 +243,8 @@ final class DeepAnalysisViewModel {
                 }
             } catch {
                 if !Task.isCancelled {
+                    // 规则 1:其他错误抛错前打日志
+                    AppLogger.app.error("deepVM.generateInterpretation.failed error=\(String(describing: error), privacy: .public)")
                     let userError = UserFacingError.from(error, stage: .interpret)
                     if case .dailyLimitReached(let reset) = userError {
                         state = .chartReady(response, .dailyLimitReached(nextReset: reset))

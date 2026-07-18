@@ -43,6 +43,9 @@ final class PurchaseManager {
         contentHash: String,
         module: String
     ) async throws -> Entitlement {
+        // 规则 2:函数入口日志。购买是付费关键路径,出问题必须可追溯。
+        AppLogger.app.info("purchase.start product=\(productId, privacy: .public) content_hash=\(contentHash, privacy: .public) module=\(module, privacy: .public)")
+
         let userLocalId = UserIdentity.userLocalId
 
         // ───── M3a/c Mock:跳过 StoreKit,但 mock 一个 transactionId ─────
@@ -100,6 +103,10 @@ final class PurchaseManager {
             module: module,
             userLocalId: userLocalId
         ) else {
+            // 规则 1:抛错前打 error 日志(原有 fatalError 没打 structured log)
+            AppLogger.app.error(
+                "purchase.get_active_returned_nil tx=\(mockTransactionId, privacy: .public) content_hash=\(contentHash, privacy: .public) module=\(module, privacy: .public)"
+            )
             throw PurchaseError.entitlementStoreFailed(
                 underlying: NSError(
                     domain: "PurchaseManager",
@@ -108,6 +115,7 @@ final class PurchaseManager {
                 )
             )
         }
+        AppLogger.app.info("purchase.ok tx=\(mockTransactionId, privacy: .public) entitlement_transactionId=\(entitlement.transactionId, privacy: .public) isActive=\(entitlement.isActive, privacy: .public)")
         return entitlement
     }
 }

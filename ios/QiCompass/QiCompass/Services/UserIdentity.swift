@@ -14,10 +14,14 @@ enum UserIdentity {
     static let userLocalId: String = {
         let key = "com.qicompass.user_local_id"
         if let existing = UserDefaults.standard.string(forKey: key) {
+            // 规则 2:函数入口日志(已存在身份,常规路径)
+            AppLogger.app.info("UserIdentity.userLocalId loaded existing=\(existing.prefix(8), privacy: .public)")
             return existing
         }
         let new = UUID().uuidString
         UserDefaults.standard.set(new, forKey: key)
+        // 规则 2:首次生成分支日志(首启 / 重装后)
+        AppLogger.app.info("UserIdentity.userLocalId generated new=\(new.prefix(8), privacy: .public)")
         return new
     }()
 }

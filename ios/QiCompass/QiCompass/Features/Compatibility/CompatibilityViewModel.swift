@@ -154,11 +154,17 @@ final class CompatibilityViewModel {
 
     /// 触发合盘:校验配置 → 构造请求 → orchestrator.runDeterministic。
     func compute() {
+        // 规则 2:用户主动触发的入口日志
+        let bMode = self.bMode
+        let context = self.context
+        AppLogger.app.info("compatVM.compute.start bMode=\(String(describing: bMode), privacy: .public) context=\(context, privacy: .public) archivedCount=\(self.archivedCharts.count)")
         guard !archivedCharts.isEmpty else {
+            AppLogger.app.warning("compatVM.compute.skip reason=empty_archive")
             state = .empty
             return
         }
         guard selectedChartAIndex < archivedCharts.count else {
+            AppLogger.app.warning("compatVM.compute.skip reason=a_index_out_of_bounds selectedAIndex=\(self.selectedChartAIndex)")
             state = .failed(.generic(message: "A 盘选择越界,请重新选择"))
             return
         }
@@ -166,14 +172,17 @@ final class CompatibilityViewModel {
         // 表单校验(模式 B)
         if bMode == .tempInput {
             if tempBirthDate > Date() {
+                AppLogger.app.warning("compatVM.compute.skip reason=b_birth_future")
                 state = .failed(.generic(message: "B 盘出生时间不能晚于当下"))
                 return
             }
             if !tempUseManualLongitude && tempSelectedCity.trimmingCharacters(in: .whitespaces).isEmpty {
+                AppLogger.app.warning("compatVM.compute.skip reason=b_city_empty")
                 state = .failed(.generic(message: "请选择 B 盘城市,或开启手动经度输入"))
                 return
             }
             if tempUseManualLongitude && !(-180.0...180.0).contains(tempManualLongitude) {
+                AppLogger.app.warning("compatVM.compute.skip reason=b_longitude_out_of_range")
                 state = .failed(.generic(message: "B 盘经度需在 -180 到 180 之间"))
                 return
             }

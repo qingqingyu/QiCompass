@@ -29,7 +29,7 @@ final class InterpretationCacheStore {
             }
         )
         let results = try context.fetch(desc)
-        return results
+        let hit = results
             .filter { cache in
                 let targetMatches: Bool
                 if targetDate == nil && cache.targetDate == nil {
@@ -44,6 +44,9 @@ final class InterpretationCacheStore {
                     && cache.model == identity.model
             }
             .max(by: { $0.promptVersion < $1.promptVersion })
+        // 规则 2:hit/miss 业务分支日志
+        AppLogger.persistence.info("op=interpretationCache.getLatest hash=\(contentHash, privacy: .public) module=\(module, privacy: .public) hit=\(hit != nil, privacy: .public) pv=\(hit?.promptVersion ?? -1)")
+        return hit
     }
 
     /// upsert:同完整缓存键存在则更新 interpretation/generatedAt,不存在则新建。
