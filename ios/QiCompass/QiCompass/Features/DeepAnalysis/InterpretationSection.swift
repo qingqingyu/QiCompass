@@ -56,7 +56,33 @@ struct InterpretationSection: View {
                     action: {}
                 )
 
-            case .okFree(let text, let cached), .okPaid(let text, let cached):
+            case .okFree(let text, let cached):
+                // 免费用户:显示免费 2 章 + 付费 5 章锁标引导购买(M3c 关键设计)
+                // 用户看完 2 章感知"AI 真有料",自然看到下方 5 章被锁,点解锁触发 PaywallView
+                Text(text)
+                    .bodySerifText()
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .fadeIn()
+                HStack {
+                    if cached {
+                        Text("◎ 缓存命中(不消耗次数)")
+                            .font(.caption2)
+                            .foregroundStyle(BaziTheme.inkMuted)
+                    }
+                    Spacer()
+                    Button("重新生成", action: onRetry)
+                        .font(.caption)
+                        .foregroundStyle(BaziTheme.cinnabar)
+                }
+                Divider()
+                    .background(BaziTheme.hairline)
+                PaidChaptersLockView(
+                    previewChapters: ["财运", "爱情", "健康", "六亲", "晚年"],
+                    onUnlock: onShowPaywall
+                )
+
+            case .okPaid(let text, let cached):
+                // 已购买用户:直接显示付费 5 章内容,不显示锁标
                 Text(text)
                     .bodySerifText()
                     .frame(maxWidth: .infinity, alignment: .leading)
