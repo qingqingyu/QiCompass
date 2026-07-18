@@ -63,14 +63,18 @@ final class DeepAnalysisOrchestrator {
     /// AI 命书:次数检查 → /api/interpret → 存本地缓存。
     /// - 达上限抛 `DeepAnalysisError.dailyLimitReached`
     /// - 其他失败抛原 error(AI 失败退款,重试不消耗)
+    ///
+    /// M3c 新增:`module` 参数让 DeepAnalysisViewModel 切 `bazi_deep_free` / `_paid`。
+    /// 默认 `bazi_deep` alias(向后兼容老调用方)。
+    /// counter 共享配额用基础名 `bazi_deep`,与 module 参数解耦。
     func runInterpretation(
         response: BaziResponse,
-        request: BaziCalculateRequest
+        request: BaziCalculateRequest,
+        module: String = "bazi_deep"
     ) async throws -> InterpretResponse {
-        let module = "bazi_deep"
-
-        // 次数检查(全局池口径,方案 §D1)
-        guard counter.tryConsume(module: module) else {
+        // 次数检查(全局池口径,固定基础名;_free / _paid 共享每日 10 次)
+        let counterModule = "bazi_deep"
+        guard counter.tryConsume(module: counterModule) else {
             throw DeepAnalysisError.dailyLimitReached(
                 nextReset: counter.nextResetDate(),
                 remaining: 0
@@ -86,7 +90,8 @@ final class DeepAnalysisOrchestrator {
                 module: module,
                 context: context,
                 targetDate: nil,
-                question: nil
+                question: nil,
+                userLocalId: UserIdentity.userLocalId
             )
             let resp = try await AppLogger.measure(
                 AppLogger.networking,
@@ -104,7 +109,7 @@ final class DeepAnalysisOrchestrator {
             // 命中后端缓存 → 退款(命中缓存不消耗每日次数)。
             // 后续本地写失败不能再次退款,避免多还一次全局额度。
             if resp.cached {
-                counter.refund(module: module)
+                counter.refund(module: counterModule)
                 shouldRefundOnFailure = false
             }
 
@@ -137,7 +142,7 @@ final class DeepAnalysisOrchestrator {
         } catch {
             // AI / 本地缓存失败 → 退款(重试不消耗)
             if shouldRefundOnFailure {
-                counter.refund(module: module)
+                counter.refund(module: counterModule)
             }
             AppLogger.app.error("interpret.pipeline_failed contentHash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public)")
             throw error

@@ -36,7 +36,10 @@ struct DeepAnalysisView: View {
         }
         .task {
             if vm == nil {
-                vm = DeepAnalysisViewModel(orchestrator: env.deepAnalysisOrchestrator)
+                vm = DeepAnalysisViewModel(
+                    orchestrator: env.deepAnalysisOrchestrator,
+                    entitlementStore: env.entitlementStore
+                )
             }
         }
     }

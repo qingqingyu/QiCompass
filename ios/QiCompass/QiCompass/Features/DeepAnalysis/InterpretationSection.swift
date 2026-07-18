@@ -17,6 +17,8 @@ struct InterpretationSection: View {
     let nextReset: Date
     let onGenerate: () -> Void
     let onRetry: () -> Void
+    /// M3c 新增:点击付费章节锁标的"解锁"CTA 时触发,由父 View 装配 PaywallView sheet。
+    var onShowPaywall: () -> Void = {}
 
     /// 有效 interpretState:idle + remaining=0 时自动转为 dailyLimitReached(消除 idle case 的 if/else 判断)。
     private var effectiveState: InterpretState {
@@ -71,16 +73,7 @@ struct InterpretationSection: View {
                         .foregroundStyle(BaziTheme.cinnabar)
                 }
             case .lockedPaid(let previewChapters):
-                // M3c 阶段填充锁标 UI(PaidChaptersLockView)
-                // M3a 占位:仅显示章节标题列表
-                VStack(alignment: .leading, spacing: 4) {
-                    ForEach(previewChapters, id: \.self) { ch in
-                        Text("🔒 \(ch)")
-                            .font(.caption)
-                            .foregroundStyle(BaziTheme.inkMuted)
-                    }
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
+                PaidChaptersLockView(previewChapters: previewChapters, onUnlock: onShowPaywall)
 
             case .failed(let message):
                 Text(message)

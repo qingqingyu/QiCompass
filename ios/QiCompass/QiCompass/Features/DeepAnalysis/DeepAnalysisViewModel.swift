@@ -71,12 +71,15 @@ final class DeepAnalysisViewModel {
     // MARK: 依赖
 
     private let orchestrator: DeepAnalysisOrchestrator
+    /// M3c 新增:entitlement 查询(决定 module 切 _free / _paid)
+    private let entitlementStore: EntitlementStore
     private(set) var lastRequest: BaziCalculateRequest?
     private var calculateTask: Task<Void, Never>?
     private var interpretTask: Task<Void, Never>?
 
-    init(orchestrator: DeepAnalysisOrchestrator) {
+    init(orchestrator: DeepAnalysisOrchestrator, entitlementStore: EntitlementStore) {
         self.orchestrator = orchestrator
+        self.entitlementStore = entitlementStore
     }
 
     // MARK: - 表单校验
@@ -164,8 +167,13 @@ final class DeepAnalysisViewModel {
 
     // MARK: - AI 命书
 
-    /// 触发 AI 命书生成(用户点"生成命书"按钮)。
+    /// 触发 AI 命书生成(用户点"生成命书"按钮 / 购买成功后重新触发)。
     /// 取消旧 Task 避免竞态(快速点击两次时后完成者不应覆盖新状态)。
+    ///
+    /// M3c 改造:查本地 entitlement 决定 module
+    /// - 有 active entitlement → `bazi_deep_paid` → 成功显示 .okPaid(5 章)
+    /// - 无 entitlement → `bazi_deep_free` → 成功显示 .okFree(2 章)
+    /// 购买成功后(PaywallView dismiss)再次调用本方法,自动切到 _paid。
     func generateInterpretation() {
         guard case .chartReady(let response, _) = state else {
             // 不静默吞(CLAUDE.md 全局约束):UI 收到点击说明状态机错乱,显式记录
@@ -178,6 +186,14 @@ final class DeepAnalysisViewModel {
             return
         }
 
+        // M3c 新增:查本地 entitlement 决定 module(基础名 "bazi_deep")
+        let hasEntitlement = entitlementStore.getActive(
+            contentHash: response.contentHash,
+            module: EntitlementModule.baziDeep,
+            userLocalId: UserIdentity.userLocalId
+        ) != nil
+        let module = hasEntitlement ? "bazi_deep_paid" : "bazi_deep_free"
+
         interpretTask?.cancel()
 
         state = .chartReady(response, .fetching)
@@ -186,10 +202,15 @@ final class DeepAnalysisViewModel {
             do {
                 let resp = try await orchestrator.runInterpretation(
                     response: response,
-                    request: request
+                    request: request,
+                    module: module
                 )
                 if !Task.isCancelled {
-                    state = .chartReady(response, .okFree(text: resp.interpretation, cached: resp.cached))
+                    if hasEntitlement {
+                        state = .chartReady(response, .okPaid(text: resp.interpretation, cached: resp.cached))
+                    } else {
+                        state = .chartReady(response, .okFree(text: resp.interpretation, cached: resp.cached))
+                    }
                 }
             } catch is CancellationError {
                 // 被取消,不更新状态
