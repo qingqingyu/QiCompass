@@ -138,7 +138,8 @@ final class LiveAPIClient: APIClient {
             (data, response) = try await session.data(for: req)
         } catch let urlError as URLError {
             let elapsed = start.duration(to: .now)
-            AppLogger.networking.error("network failed endpoint=\(endpoint.path, privacy: .public) elapsed=\(elapsed) error=\(String(describing: urlError), privacy: .public)")
+            let elapsedMs = elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000
+            AppLogger.networking.error("network failed endpoint=\(endpoint.path, privacy: .public) elapsed_ms=\(elapsedMs, privacy: .public) error=\(String(describing: urlError), privacy: .public)")
             throw APIError.networkError(urlError)
         }
 
@@ -160,13 +161,14 @@ final class LiveAPIClient: APIClient {
                 )
             }
             let bodyString = String(data: data, encoding: .utf8)
-            AppLogger.networking.error("http error endpoint=\(endpoint.path, privacy: .public) status=\(http.statusCode) body=\(bodyString ?? "nil", privacy: .public)")
+            AppLogger.networking.error("http error endpoint=\(endpoint.path, privacy: .public) status=\(http.statusCode) body=\(bodyString?.prefix(200) ?? "nil", privacy: .public)")
             throw APIError.httpError(statusCode: http.statusCode, body: bodyString)
         }
 
         let elapsed = start.duration(to: .now)
+        let elapsedMs = elapsed.components.seconds * 1000 + elapsed.components.attoseconds / 1_000_000_000_000_000
         // 规则 3:第三方接口成功返回日志(含 elapsed 便于排查慢请求)
-        AppLogger.networking.info("api.call.ok endpoint=\(endpoint.path, privacy: .public) status=\(http.statusCode) elapsed=\(elapsed)")
+        AppLogger.networking.info("api.call.ok endpoint=\(endpoint.path, privacy: .public) status=\(http.statusCode) elapsed_ms=\(elapsedMs, privacy: .public)")
         return (data, http)
     }
 
@@ -199,13 +201,13 @@ final class MockAPIClient: APIClient {
     }
 
     func calculateBazi(request: BaziCalculateRequest) async throws -> BaziResponse {
-        AppLogger.networking.debug("mock.calculateBazi 调起 birth_datetime=\(request.birthDatetime.description, privacy: .public)")
+        AppLogger.networking.debug("mock.calculateBazi 调起 birth_datetime=\(request.birthDatetime.description)")
         try? await Task.sleep(nanoseconds: 300_000_000)
         return Self.mockBaziResponse(for: request)
     }
 
     func compatibility(request: CompatibilityRequest) async throws -> CompatibilityResponse {
-        AppLogger.networking.debug("mock.compatibility 调起 personAHash=\(request.personAHash.prefix(12), privacy: .public) personBProvided=\(request.personB != nil)")
+        AppLogger.networking.debug("mock.compatibility 调起 personAHash=\(request.personAHash.prefix(12), privacy: .public) personBProvided=\(String(describing: request.personB != nil), privacy: .public)")
         try? await Task.sleep(nanoseconds: 300_000_000)
         return Self.mockCompatibilityResponse(for: request)
     }

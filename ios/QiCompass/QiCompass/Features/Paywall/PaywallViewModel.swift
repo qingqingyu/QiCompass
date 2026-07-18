@@ -70,7 +70,7 @@ final class PaywallViewModel {
         } catch {
             // 错误显式传播:PurchaseManager 抛 PurchaseError,这里 catch 转 UI state
             AppLogger.app.error(
-                "paywall.purchase_failed product=\(productId, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                "paywall.purchase.failed product=\(productId, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
             state = .failed(error.localizedDescription)
         }

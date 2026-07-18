@@ -39,7 +39,7 @@ final class DeepAnalysisOrchestrator {
     /// 排盘 → 存档 ChartSnapshot。任一失败 throw(→ `.chartFailed`)。
     func runCalculation(request: BaziCalculateRequest) async throws -> BaziResponse {
         // 规则 2:函数入口日志(网络调用内部已通过 AppLogger.measure 覆盖 start/ok/failed)
-        AppLogger.app.info("deep.runCalculation.start birth=\(Self.isoFormatter.string(from: request.birthDatetime), privacy: .public) gender=\(request.gender, privacy: .public) city=\(request.city ?? "nil", privacy: .public)")
+        AppLogger.app.info("deep.runCalculation.start birth=\(Self.isoFormatter.string(from: request.birthDatetime)) gender=\(request.gender, privacy: .public) city=\(request.city ?? "nil", privacy: .public)")
         let response = try await AppLogger.measure(
             AppLogger.networking,
             operation: "calculateBazi",

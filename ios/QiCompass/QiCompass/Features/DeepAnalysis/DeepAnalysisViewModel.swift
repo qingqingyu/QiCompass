@@ -139,7 +139,7 @@ final class DeepAnalysisViewModel {
         let gender = self.gender
         let selectedCity = self.selectedCity
         let useManualLongitude = self.useManualLongitude
-        AppLogger.app.info("deepVM.calculate.start birth=\(birthDate.description, privacy: .public) gender=\(gender, privacy: .public) city=\(selectedCity, privacy: .public) useManualLon=\(useManualLongitude, privacy: .public)")
+        AppLogger.app.info("deepVM.calculate.start birth=\(birthDate.description) gender=\(gender, privacy: .public) city=\(selectedCity, privacy: .public) useManualLon=\(useManualLongitude, privacy: .public)")
         let errors = validateForm()
         if !errors.isEmpty {
             // 规则 1:表单校验失败抛错前打 warning(用户预期)

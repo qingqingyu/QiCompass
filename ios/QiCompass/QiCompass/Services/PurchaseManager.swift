@@ -87,7 +87,7 @@ final class PurchaseManager {
         ) else {
             // 规则 1:抛错前打 error 日志(原有 fatalError 没打 structured log)
             AppLogger.app.error(
-                "purchase.get_getActive_returned_nil tx=\(mockTransactionId, privacy: .public) content_hash=\(contentHash, privacy: .public) module=\(module, privacy: .public)"
+                "purchase.get_active_returned_nil tx=\(mockTransactionId, privacy: .public) content_hash=\(contentHash, privacy: .public) module=\(module, privacy: .public)"
             )
             throw PurchaseError.entitlementStoreFailed(
                 underlying: NSError(
