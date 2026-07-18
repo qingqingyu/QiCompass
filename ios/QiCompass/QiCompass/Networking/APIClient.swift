@@ -35,8 +35,10 @@ enum APICoder {
 
 // MARK: - LiveAPIClient
 
-/// 真实 API 客户端:async/await + URLSession,timeout 15s,显式 throws。
+/// 真实 API 客户端:async/await + URLSession,timeout 90s,显式 throws。
 ///
+/// timeout 跟后端 AI_TIMEOUT_SECONDS=90 对齐:推理模型(gpt-5.x / claude-sonnet)
+/// 生成命书 20-50s,之前 15s 会在后端返回前提前 timeout。
 /// 不重试(脚手架阶段,重试策略留待各模块 slice)。
 /// 返回 DTO,不直接返回 SwiftData @Model;DTO 与 @Model 转换由调用方显式映射。
 final class LiveAPIClient: APIClient {
@@ -46,8 +48,10 @@ final class LiveAPIClient: APIClient {
 
     init(baseURL: URL, bearerToken: String? = nil) {
         let config = URLSessionConfiguration.default
-        config.timeoutIntervalForRequest = 15
-        config.timeoutIntervalForResource = 30
+        // 跟后端 AI_TIMEOUT_SECONDS=90 对齐。推理模型生成命书 20-50s,
+        // 15s 会在后端返回前提前 timeout。resource timeout 留 120s 容错。
+        config.timeoutIntervalForRequest = 90
+        config.timeoutIntervalForResource = 120
         self.session = URLSession(configuration: config)
         self.baseURL = baseURL
         // 脚手架阶段:Bearer Token 暂用传入参数占位(正式 slice 替换为 Keychain)。

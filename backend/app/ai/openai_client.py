@@ -45,6 +45,10 @@ class OpenAIClient:
 
         url = f"{self._base_url}/chat/completions"
         try:
+            # trust_env=False:不读 HTTPS_PROXY/HTTP_PROXY 环境变量。
+            # 原因:本地开发用的代理软件(Clash/Surge/V2Ray)TLS-in-TLS 隧道
+            # 经常出 SSL EOF,而 clawto.link 这种国内/亚洲 endpoint 本就不需要代理。
+            # 部署到生产后,服务器一般也不该走用户级代理。
             resp = httpx.post(
                 url,
                 headers={
@@ -57,6 +61,7 @@ class OpenAIClient:
                     "max_tokens": AI_MAX_OUTPUT_TOKENS,
                 },
                 timeout=AI_TIMEOUT_SECONDS,
+                trust_env=False,
             )
             resp.raise_for_status()
         except httpx.TimeoutException as e:
