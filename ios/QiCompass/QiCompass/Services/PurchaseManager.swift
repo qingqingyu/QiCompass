@@ -33,6 +33,11 @@ final class PurchaseManager {
     ///   - module: 基础名(`bazi_deep` / `compatibility`),不含 _free/_paid
     /// - Returns: 写入后的 Entitlement(M3a/c Mock 直接查回)
     /// - Throws: PurchaseError
+    ///
+    /// M3a/c Mock 模式:跳过 StoreKit 2,但仍调后端 `/api/entitlement/redeem`。
+    /// **不能跳过 redeem**:后端 M2a `/api/interpret` 步骤 2.5 会查后端 SQLite
+    /// entitlement 表(防越狱),iOS 只写本地不同步后端会 403。
+    /// M3b 接 StoreKit 时,把"构造 mockTransactionId"换成"拿 StoreKit Transaction.id"。
     func purchase(
         productId: String,
         contentHash: String,
@@ -40,38 +45,51 @@ final class PurchaseManager {
     ) async throws -> Entitlement {
         let userLocalId = UserIdentity.userLocalId
 
-        // ───── M3a/c Mock 模式 ─────
-        // 不调 StoreKit,直接构造 mock transactionId + 写 SwiftData
-        // M3b 替换:把这块换成 StoreKit 2 真流程(见类注释)
+        // ───── M3a/c Mock:跳过 StoreKit,但 mock 一个 transactionId ─────
+        // M3b 替换:这里换成 Product.purchase() → VerificationResult<Transaction>
+        //          拿 transaction.id 作为 transactionId
         let mockTransactionId = "mock_tx_\(UUID().uuidString.prefix(8))"
-        let now = Date()
 
         AppLogger.app.info(
-            "purchase.mock_write product=\(productId, privacy: .public) content_hash=\(contentHash, privacy: .public) module=\(module, privacy: .public) tx=\(mockTransactionId, privacy: .public)"
+            "purchase.mock_start product=\(productId, privacy: .public) content_hash=\(contentHash, privacy: .public) module=\(module, privacy: .public) tx=\(mockTransactionId, privacy: .public)"
         )
 
-        // M3a/c:跳过 apiClient.redeem(后端 Mock 模式)
-        // M3b 改为:
-        //   let resp = try await apiClient.redeem(request: EntitlementRedeemRequest(
-        //       transactionId: <StoreKit transactionId>, productId: productId,
-        //       contentHash: contentHash, module: module, userLocalId: userLocalId))
-        //   try await entitlementStore.upsert(
-        //       transactionId: resp.transactionId, ...,
-        //       purchasedAt: resp.purchasedAt, originalPurchaseDate: resp.originalPurchaseDate)
-        //   await transaction.finish()  // StoreKit Transaction
+        // ───── 调后端 /api/entitlement/redeem(必须,后端要写 entitlement 表)─────
+        // 后端 M2b AppleServerAPIClient 默认挂 MockAppleServerAPI(返 mock info),
+        // 所以 redeem 会成功(不真调 Apple)。
+        // M3b 接 StoreKit 时,这里改成 StoreKit Transaction.id + Product.purchase 真流程。
+        let redeemResp: EntitlementRedeemResponse
+        do {
+            redeemResp = try await apiClient.redeem(
+                request: EntitlementRedeemRequest(
+                    transactionId: mockTransactionId,
+                    productId: productId,
+                    contentHash: contentHash,
+                    module: module,
+                    userLocalId: userLocalId
+                )
+            )
+        } catch {
+            AppLogger.app.error(
+                "purchase.redeem_failed error=\(String(describing: error), privacy: .public)"
+            )
+            throw PurchaseError.backendRedeemFailed(underlying: error)
+        }
+
+        // ───── 写本地 SwiftData(镜像后端 entitlement 表)─────
         do {
             try await entitlementStore.upsert(
-                transactionId: mockTransactionId,
+                transactionId: redeemResp.transactionId,
                 productId: productId,
                 contentHash: contentHash,
                 module: module,
                 userLocalId: userLocalId,
-                purchasedAt: now,
-                originalPurchaseDate: now
+                purchasedAt: redeemResp.purchasedAt,
+                originalPurchaseDate: redeemResp.originalPurchaseDate
             )
         } catch {
             AppLogger.app.error(
-                "purchase.mock_write_failed error=\(String(describing: error), privacy: .public)"
+                "purchase.local_write_failed error=\(String(describing: error), privacy: .public)"
             )
             throw PurchaseError.entitlementStoreFailed(underlying: error)
         }
@@ -98,15 +116,17 @@ final class PurchaseManager {
 
 enum PurchaseError: LocalizedError {
     case entitlementStoreFailed(underlying: Error)
+    case backendRedeemFailed(underlying: Error)
     // M3b 接手时再加 StoreKit 相关 case:
     // case storeKitPurchaseFailed(underlying: Error)
     // case appleVerificationFailed(message: String)
-    // case backendRedeemFailed(underlying: Error)
 
     var errorDescription: String? {
         switch self {
         case .entitlementStoreFailed(let underlying):
             return "授权数据写入失败:\(underlying.localizedDescription)"
+        case .backendRedeemFailed(let underlying):
+            return "后端授权同步失败:\(underlying.localizedDescription)"
         }
     }
 }

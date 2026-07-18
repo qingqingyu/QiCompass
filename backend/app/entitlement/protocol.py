@@ -12,7 +12,7 @@ M2a 阶段只 import 这个文件 + store.py,M2b 才 import apple_client.py(真 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Literal, Protocol
 
 
@@ -82,7 +82,10 @@ class MockAppleServerAPI:
         self._default_tx_info = tx_info or AppleTransactionInfo(
             transaction_id="<mock>",
             product_id="com.qicompass.deep_analysis.single",
-            original_purchase_date=datetime(2026, 1, 1),
+            # ⚠️ 必须 aware datetime(tzinfo=UTC):naive datetime 序列化无时区后缀,
+            # iOS JSONDecoder.iso8601 拒绝无时区字符串(实测会抛
+            # "Expected date string to be ISO8601-formatted")
+            original_purchase_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
             is_refunded=False,
         )
         self._default_notification = notification or AppleNotificationPayload(

@@ -61,6 +61,15 @@ struct PaywallView: View {
 
             Spacer()
 
+            // 失败时显示错误文案(诊断 + UX:避免按钮恢复 idle 让用户以为"没反应")
+            if case .failed(let message) = viewModel.state {
+                Text(message)
+                    .font(.caption)
+                    .foregroundStyle(BaziTheme.shenshaInauspicious)
+                    .multilineTextAlignment(.center)
+                    .frame(maxWidth: .infinity)
+            }
+
             // CTA(M3c 用 PrimaryCTAButton,M3b 接真 StoreKit 后 loading 态会真生效)
             PrimaryCTAButton(
                 title: "解锁深度命书(¥128)",
