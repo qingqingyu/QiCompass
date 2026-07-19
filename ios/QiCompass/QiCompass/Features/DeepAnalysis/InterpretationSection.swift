@@ -59,7 +59,7 @@ struct InterpretationSection: View {
             case .okFree(let text, let cached):
                 // 免费用户:显示免费 2 章 + 付费 5 章锁标引导购买(M3c 关键设计)
                 // 用户看完 2 章感知"AI 真有料",自然看到下方 5 章被锁,点解锁触发 PaywallView
-                Text(text)
+                Text(MarkdownSanitizer.rendered(text))
                     .bodySerifText()
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fadeIn()
@@ -83,7 +83,7 @@ struct InterpretationSection: View {
 
             case .okPaid(let text, let cached):
                 // 已购买用户:直接显示付费 5 章内容,不显示锁标
-                Text(text)
+                Text(MarkdownSanitizer.rendered(text))
                     .bodySerifText()
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fadeIn()
