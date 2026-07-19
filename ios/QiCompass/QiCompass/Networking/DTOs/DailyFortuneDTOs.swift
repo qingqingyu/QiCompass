@@ -6,6 +6,13 @@ import Foundation
 ///
 /// chart_payload 模式(决策 §1.A):客户端传存档解出的日主/喜忌/四柱,
 /// 后端不反推 birth,不持久化 ChartSnapshot,纯函数排盘。
+///
+/// `targetDate` 字段类型保留 `Date`,但**单字段自定义 encode/decode** 为
+/// `yyyy-MM-dd` 字符串(本地时区):
+/// - 后端 `target_date: datetime.date`,Pydantic v2 严格拒绝带时间分量的字符串
+///   ("Datetimes provided to dates should have zero time")
+/// - `APICoder.encoder` 全局 `.iso8601` 策略会带时分秒 → 后端 422
+/// - 此处 override encode/decode 只覆盖 `target_date`,其他 DTO 仍走全局策略
 struct DailyFortuneRequest: Codable, Sendable {
     let chartHash: String
     let targetDate: Date
@@ -16,6 +23,16 @@ struct DailyFortuneRequest: Codable, Sendable {
         case targetDate = "target_date"
         case chartPayload = "chart_payload"
     }
+
+    /// 业务日期序列化器:固定 `yyyy-MM-dd`,本地时区解释。
+    /// Locale 锁 `en_US_POSIX` 避免 12/24h 或区域格式干扰(苹果官方推荐)。
+    private static let isoDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = .current
+        f.locale = Locale(identifier: "en_US_POSIX")
+        return f
+    }()
 
     init(chartHash: String, targetDate: Date, chartPayload: ChartPayloadDTO) {
         self.chartHash = chartHash
@@ -30,6 +47,29 @@ struct DailyFortuneRequest: Codable, Sendable {
             targetDate: targetDate,
             chartPayload: ChartPayloadDTO.placeholder
         )
+    }
+
+    // MARK: Codable override(target_date 单字段 yyyy-MM-dd,绕开 APICoder.encoder 全局 .iso8601)
+
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(chartHash, forKey: .chartHash)
+        try c.encode(Self.isoDateFormatter.string(from: targetDate), forKey: .targetDate)
+        try c.encode(chartPayload, forKey: .chartPayload)
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        chartHash = try c.decode(String.self, forKey: .chartHash)
+        let dateStr = try c.decode(String.self, forKey: .targetDate)
+        guard let parsed = Self.isoDateFormatter.date(from: dateStr) else {
+            throw DecodingError.dataCorruptedError(
+                forKey: .targetDate, in: c,
+                debugDescription: "target_date 无法按 yyyy-MM-dd 解析: \(dateStr)"
+            )
+        }
+        targetDate = parsed
+        chartPayload = try c.decode(ChartPayloadDTO.self, forKey: .chartPayload)
     }
 }
 
