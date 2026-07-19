@@ -44,7 +44,7 @@ extension View {
 ///
 /// 跟 `FadeInModifier` 的区别:除了 opacity 0→1 还叠加 8pt 上移(offset y: 8→0),
 /// 让元素像"从下方浮出"。用于 onboarding 各页元素依次入场(印章 → 标题 → 副标题 → CTA),
-/// 营造克制节奏感(2026-07-19 入门动画优化,方向:克制安静 + 东方质感)。
+/// 营造克制节奏感(2026-07-16 入门动画优化,方向:克制安静 + 东方质感)。
 ///
 /// 设计:
 /// - `.easeInOut(duration: 0.35)` + `.opacity` + `offset(y: 8)`
@@ -60,6 +60,9 @@ struct BreathInModifier: ViewModifier {
             .opacity(visible ? 1 : 0)
             .offset(y: (visible || reduceMotion) ? 0 : 8)
             .onAppear {
+                // TabView .page 预渲染相邻页时 onAppear 可能提前触发,
+                // 预渲染期间动画已在用户看到前播完,无需特殊处理。
+                // 不加 onDisappear 重置:避免来回翻页时 opacity:1→0→1 的视觉跳跃。
                 withAnimation(
                     .easeInOut(duration: reduceMotion ? 0.15 : 0.35)
                     .delay(reduceMotion ? 0 : delay)

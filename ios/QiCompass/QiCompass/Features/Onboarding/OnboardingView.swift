@@ -104,7 +104,7 @@ private struct WelcomePage: View {
             Spacer()
 
             SealStamp(character: "玄", size: 108)
-                .breathIn(delay: 0)
+                .breathIn()
                 .accessibilityLabel("玄机问道印章")
 
             VStack(spacing: BaziTheme.Spacing.sm) {
@@ -140,7 +140,7 @@ private struct StancePage: View {
             Text("不是算命软件")
                 .font(BaziFont.display(size: 28))
                 .foregroundStyle(BaziTheme.ink)
-                .breathIn(delay: 0)
+                .breathIn()
 
             VStack(alignment: .leading, spacing: BaziTheme.Spacing.xl) {
                 BreathLine(
@@ -176,7 +176,7 @@ private struct PrivacyPage: View {
             Text("数据在你设备上")
                 .font(BaziFont.display(size: 28))
                 .foregroundStyle(BaziTheme.ink)
-                .breathIn(delay: 0)
+                .breathIn()
 
             VStack(alignment: .leading, spacing: BaziTheme.Spacing.xl) {
                 BreathLine(
@@ -212,7 +212,7 @@ private struct StartPage: View {
             Spacer()
 
             SealStamp(character: "始", size: 108)
-                .breathIn(delay: 0)
+                .breathIn()
                 .accessibilityLabel("始字印章,象征开始排盘")
 
             VStack(spacing: BaziTheme.Spacing.md) {
@@ -241,8 +241,9 @@ private struct StartPage: View {
                     .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
             }
             .accessibilityHint("点击开始你的第一次排盘,填写出生信息")
-            // CTA 延迟 0.6s 入场,跟前面元素拉开节奏,强调"现在可以开始了"
-            .breathIn(delay: 0.6)
+            // CTA 延迟 0.3s 入场:跟前面元素拉开节奏,但保证主要操作 ≤300ms 可见,
+            // 避免用户翻到末页等待过久以为没加载完
+            .breathIn(delay: 0.3)
             .padding(.bottom, 60)
         }
         .padding(.horizontal, BaziTheme.Spacing.xl)
