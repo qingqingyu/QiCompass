@@ -98,35 +98,99 @@ private struct NarrationLine: View {
 
 // MARK: - Page 1: Welcome
 
+/// 首屏欢迎页(2026-07-19 重构):
+/// - 全屏背景图(壁画佛手 + 宣纸留白) + 宣纸色兜底防露边
+/// - 上半部:印章「玄」+ 标题 + 副标题(叠在壁画佛手区)
+/// - 下半部宣纸留白区:经文(`SutraView` 自动按系统语言切排版)
+/// - 错峰 riseIn 淡入:印章 0s → 标题 0.15s → 副标题 0.3s → 经文 0.45s
 private struct WelcomePage: View {
     var body: some View {
-        VStack(spacing: BaziTheme.Spacing.xl) {
-            Spacer()
+        ZStack {
+            // 底层宣纸色兜底:图片加载延迟 / scaledToFill 在宽屏机型仍可能露边
+            BaziTheme.paper
+                .ignoresSafeArea()
 
-            SealStamp(character: "玄", size: 108)
-                .riseIn()
-                .accessibilityLabel("玄机问道印章")
+            // 背景图:scaledToFill + 居中,所有 iPhone 机型(含 Pro Max)覆盖到底
+            Image("WelcomeBackground")
+                .resizable()
+                .scaledToFill()
+                .ignoresSafeArea()
 
-            VStack(spacing: BaziTheme.Spacing.sm) {
-                Text("玄机问道")
-                    .font(BaziFont.display(size: 36))
-                    .foregroundStyle(BaziTheme.ink)
-                Text("QICOMPASS")
-                    .font(BaziFont.caption(size: 10))
-                    .foregroundStyle(BaziTheme.inkMuted)
-                    .tracking(4)
+            // 内容层
+            VStack(spacing: 0) {
+                // 上半部:印章 + 标题 + 副标题(叠在壁画佛手区)
+                VStack(spacing: BaziTheme.Spacing.sm) {
+                    Spacer().frame(height: 60)
+
+                    SealStamp(character: "玄", size: 108)
+                        .riseIn()
+                        .accessibilityLabel("玄机问道印章")
+
+                    VStack(spacing: BaziTheme.Spacing.xs) {
+                        Text("玄机问道")
+                            .font(BaziFont.display(size: 36))
+                            .foregroundStyle(BaziTheme.ink)
+                        Text("QICOMPASS")
+                            .font(BaziFont.caption(size: 10))
+                            .foregroundStyle(BaziTheme.inkMuted)
+                            .tracking(4)
+                    }
+                    .riseIn(delay: 0.15)
+
+                    // 副标题克制,不用 cinnabar 红字(原"专业不忽悠"过刺眼)
+                    Text("读懂你的命局,不夸大,不忽悠")
+                        .font(BaziFont.body(size: 15))
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .riseIn(delay: 0.3)
+                }
+
+                Spacer()
+
+                // 下半部:宣纸留白区经文
+                SutraView()
+                    .padding(.horizontal, BaziTheme.Spacing.xl)
+                    .padding(.bottom, 100)
             }
-            .riseIn(delay: 0.15)
-
-            // 副标题克制,不用 cinnabar 红字(原"专业不忽悠"过刺眼)
-            Text("读懂你的命局,不夸大,不忽悠")
-                .font(BaziFont.body(size: 15))
-                .foregroundStyle(BaziTheme.inkMuted)
-                .riseIn(delay: 0.3)
-
-            Spacer()
         }
-        .padding(.horizontal, BaziTheme.Spacing.xl)
+    }
+}
+
+// MARK: - Welcome: 经文区
+
+/// 金刚经第五品「凡所有相，皆是虚妄」。
+/// - 中文系统(zh-*):竖排逐字,古书排版气质
+/// - 非中文系统:横排整句,英文等语言的自然阅读方向
+/// 字符串走 `Localizable.xcstrings` 的 `welcome_sutra` key,不硬编码。
+private struct SutraView: View {
+    @Environment(\.locale) private var locale
+
+    private var isChinese: Bool {
+        locale.language.languageCode?.identifier.hasPrefix("zh") == true
+    }
+
+    var body: some View {
+        if isChinese {
+            // 中文竖排逐字(String(localized:) 取本地化值后逐字堆叠)
+            VStack(spacing: 6) {
+                ForEach(
+                    Array(String(localized: "welcome_sutra").map(String.init).enumerated()),
+                    id: \.offset
+                ) { _, char in
+                    Text(char)
+                        .font(BaziFont.display(size: 22, weight: .medium))
+                        .foregroundStyle(BaziTheme.ink)
+                }
+            }
+            .riseIn(delay: 0.45)
+        } else {
+            // 非中文:横排整句,italic 加文学感
+            Text("welcome_sutra")
+                .font(BaziFont.caption(size: 13))
+                .foregroundStyle(BaziTheme.inkMuted)
+                .multilineTextAlignment(.center)
+                .italic()
+                .riseIn(delay: 0.45)
+        }
     }
 }
 
