@@ -52,3 +52,11 @@ data/
 /run-slices-3.sh
 /dev-flow-logs/
 .gstack/
+
+# Codex CLI / npx skills 工具产物(本地工具配置,非项目代码)
+# - .agents/skills/ 来自 thkt/claude-config GitHub 仓库(npx skills install 装的)
+# - AGENTS.md 是 Codex CLI 项目指令(类似 CLAUDE.md 但本地维护)
+# - skills-lock.json 是 npx skills lockfile
+.agents/
+AGENTS.md
+skills-lock.json
