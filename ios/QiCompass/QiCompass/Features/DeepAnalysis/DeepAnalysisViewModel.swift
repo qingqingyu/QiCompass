@@ -77,6 +77,11 @@ final class DeepAnalysisViewModel {
     private var calculateTask: Task<Void, Never>?
     private var interpretTask: Task<Void, Never>?
 
+    /// 排盘 + 存档(UserSnapshotLink)成功后回调一次。
+    /// DeepAnalysisView 用它消费 `env.pendingReturnTab`,把用户切回原 Tab(合盘 / 每日运势)。
+    /// nil 时无操作,保持当前 Tab。
+    var onChartArchived: (() -> Void)?
+
     init(orchestrator: DeepAnalysisOrchestrator, entitlementStore: EntitlementStore) {
         self.orchestrator = orchestrator
         self.entitlementStore = entitlementStore
@@ -160,6 +165,8 @@ final class DeepAnalysisViewModel {
                 if !Task.isCancelled {
                     AppLogger.app.info("deepVM.calculate.ok contentHash=\(response.contentHash, privacy: .public)")
                     state = .chartReady(response, .idle)
+                    // 命盘 + link 已落档。若用户从合盘/每日运势 CTA 切来,触发切回。
+                    onChartArchived?()
                 }
             } catch is CancellationError {
                 // 被取消,不更新状态(新 Task 会接管)

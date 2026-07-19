@@ -13,10 +13,15 @@ final class AppEnvironment: ObservableObject {
 
     // 深度解析编排链路(方案 §六 步骤 13 装配)
     let chartSnapshotStore: ChartSnapshotStore
+    let userSnapshotLinkStore: UserSnapshotLinkStore
     let interpretationCacheStore: InterpretationCacheStore
     let aiIdentityResolver: AIIdentityResolver
     let dailyReadCounter: DailyReadCounter
     let deepAnalysisOrchestrator: DeepAnalysisOrchestrator
+
+    /// 用户从哪个 Tab 的 CTA 切到深度解析,完成后自动切回该 Tab(nil = 不切回)。
+    /// 合盘 / 每日运势 空态 CTA 触发时设值;DeepAnalysisViewModel 完成后消费并清零。
+    var pendingReturnTab: RootTabView.Tab?
 
     // 每日运势编排链路(slice 6 装配,与深度解析共享 chartStore/interpretStore/counter)
     let dailyFortuneSnapshotStore: DailyFortuneSnapshotStore
@@ -39,10 +44,12 @@ final class AppEnvironment: ObservableObject {
 
         let context = modelContainer.mainContext
         let chartStore = ChartSnapshotStore(context: context)
+        let userLinkStore = UserSnapshotLinkStore(context: context)
         let interpretStore = InterpretationCacheStore(context: context)
         let identityResolver = AIIdentityResolver(apiClient: apiClient)
         let counter = DailyReadCounter()
         self.chartSnapshotStore = chartStore
+        self.userSnapshotLinkStore = userLinkStore
         self.interpretationCacheStore = interpretStore
         self.aiIdentityResolver = identityResolver
         self.dailyReadCounter = counter
@@ -51,7 +58,8 @@ final class AppEnvironment: ObservableObject {
             chartStore: chartStore,
             interpretStore: interpretStore,
             counter: counter,
-            aiIdentityResolver: identityResolver
+            aiIdentityResolver: identityResolver,
+            userLinkStore: userLinkStore
         )
         // slice 6 装配:每日运势复用 chartStore/interpretStore/counter(决策 §3.8)
         let dailyStore = DailyFortuneSnapshotStore(context: context)

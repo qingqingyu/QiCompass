@@ -104,7 +104,8 @@ final class AIIdentityCacheTests: XCTestCase {
             chartStore: ChartSnapshotStore(context: container.mainContext),
             interpretStore: interpretStore,
             counter: DailyReadCounter(),
-            aiIdentityResolver: AIIdentityResolver(apiClient: apiClient)
+            aiIdentityResolver: AIIdentityResolver(apiClient: apiClient),
+            userLinkStore: UserSnapshotLinkStore(context: container.mainContext)
         )
 
         do {
@@ -140,7 +141,8 @@ final class AIIdentityCacheTests: XCTestCase {
             chartStore: ChartSnapshotStore(context: container.mainContext),
             interpretStore: interpretStore,
             counter: DailyReadCounter(),
-            aiIdentityResolver: AIIdentityResolver(apiClient: apiClient)
+            aiIdentityResolver: AIIdentityResolver(apiClient: apiClient),
+            userLinkStore: UserSnapshotLinkStore(context: container.mainContext)
         )
 
         let beforeSwitch = try await orchestrator.localCachedInterpretation(

@@ -13,6 +13,16 @@ struct RootTabView: View {
         case deepAnalysis
         case compatibility
         case dailyFortune
+
+        /// 对应 .switchTab Notification 的 userInfo["tab"] 字符串。
+        /// 集中映射,避免字符串散落在 post / 监听两侧。
+        var switchKey: String {
+            switch self {
+            case .deepAnalysis:  return "deepAnalysis"
+            case .compatibility: return "compatibility"
+            case .dailyFortune:  return "dailyFortune"
+            }
+        }
     }
 
     var body: some View {
@@ -62,9 +72,9 @@ struct RootTabView: View {
             }
             AppLogger.app.info("收到 .switchTab tab=\(raw, privacy: .public)")
             switch raw {
-            case "deepAnalysis":  selectedTab = .deepAnalysis
-            case "compatibility": selectedTab = .compatibility
-            case "dailyFortune":  selectedTab = .dailyFortune
+            case Tab.deepAnalysis.switchKey:  selectedTab = .deepAnalysis
+            case Tab.compatibility.switchKey: selectedTab = .compatibility
+            case Tab.dailyFortune.switchKey:  selectedTab = .dailyFortune
             default:
                 AppLogger.app.error(".switchTab 收到未知 tab=\(raw, privacy: .public),忽略")
             }

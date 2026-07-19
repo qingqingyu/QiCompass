@@ -19,19 +19,22 @@ final class DeepAnalysisOrchestrator {
     private let interpretStore: InterpretationCacheStore
     private let counter: DailyReadCounter
     private let aiIdentityResolver: AIIdentityResolver
+    private let userLinkStore: UserSnapshotLinkStore
 
     init(
         apiClient: APIClient,
         chartStore: ChartSnapshotStore,
         interpretStore: InterpretationCacheStore,
         counter: DailyReadCounter,
-        aiIdentityResolver: AIIdentityResolver
+        aiIdentityResolver: AIIdentityResolver,
+        userLinkStore: UserSnapshotLinkStore
     ) {
         self.apiClient = apiClient
         self.chartStore = chartStore
         self.interpretStore = interpretStore
         self.counter = counter
         self.aiIdentityResolver = aiIdentityResolver
+        self.userLinkStore = userLinkStore
     }
 
     // MARK: - 阶段 1:排盘 + 存档
@@ -56,6 +59,15 @@ final class DeepAnalysisOrchestrator {
 
         // 存档(失败 throw → chartFailed,不提示"命盘已保存")
         _ = try chartStore.upsert(response: response, request: request)
+
+        // 写 UserSnapshotLink 标记归属(MVP 单用户 alias="我自己")。
+        // 不写 link 会让合盘 / 每日运势查不到本命盘(它们都按 UserSnapshotLink 取列表)。
+        // upsert 按 (userId, snapshotHash) 去重:同盘重排不重复 insert。
+        _ = try userLinkStore.upsert(
+            userId: UserIdentity.userLocalId,
+            snapshotHash: response.contentHash,
+            alias: "我自己"
+        )
 
         return response
     }

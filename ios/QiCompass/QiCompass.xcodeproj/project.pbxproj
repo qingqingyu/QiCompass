@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA5500000000000000000001 /* UserSnapshotLinkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000002 /* UserSnapshotLinkStore.swift */; };
 		0EA046839120A0D077C1BE52 /* PromptContextBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 616A4E1F906685BBB03FABAA /* PromptContextBuilder.swift */; };
 		1BFE422382557948367ACDEF /* BirthFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 643A486D97B60329C7050463 /* BirthFormView.swift */; };
 		21AC43B586C598B1FBD82F89 /* InterpretationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D294D4B91EA07ABB037F7BE /* InterpretationSection.swift */; };
@@ -117,6 +118,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		AA5500000000000000000002 /* UserSnapshotLinkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserSnapshotLinkStore.swift; path = QiCompass/Services/UserSnapshotLinkStore.swift; sourceTree = SOURCE_ROOT; };
 		160B487DB2FB51858CB5F067 /* ChartSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartSnapshotStore.swift; path = QiCompass/Services/ChartSnapshotStore.swift; sourceTree = SOURCE_ROOT; };
 		18B14E9FA1316D589ABA9845 /* ElementColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ElementColors.swift; path = QiCompass/Shared/ElementColors.swift; sourceTree = SOURCE_ROOT; };
 		23C84BD0B1E670AC7EF54B93 /* DailyReadCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyReadCounter.swift; path = QiCompass/Services/DailyReadCounter.swift; sourceTree = SOURCE_ROOT; };
@@ -249,6 +251,7 @@
 				9C400000000000000000000E /* Products */,
 				A40000000000000000000001 /* Tests */,
 				A21000000000000000000001 /* XCTest.framework */,
+				AA5500000000000000000002 /* UserSnapshotLinkStore.swift */,
 				160B487DB2FB51858CB5F067 /* ChartSnapshotStore.swift */,
 				2AF74383AEB02A4F7ED0C689 /* InterpretationCacheStore.swift */,
 				9C1000000000000000000041 /* UserIdentity.swift */,
@@ -590,6 +593,7 @@
 				9C0000000000000000000018 /* Logger.swift in Sources */,
 				9C0000000000000000000019 /* SwiftDataCRUDView.swift in Sources */,
 				2CF14E7694F9DC7818B883FA /* ChartSnapshotStore.swift in Sources */,
+				AA5500000000000000000001 /* UserSnapshotLinkStore.swift in Sources */,
 				D26047CCB90DDAA99C1B6D7D /* InterpretationCacheStore.swift in Sources */,
 				B36D4647A938BC37E999E702 /* DailyReadCounter.swift in Sources */,
 				0EA046839120A0D077C1BE52 /* PromptContextBuilder.swift in Sources */,
