@@ -104,6 +104,7 @@ private struct WelcomePage: View {
             Spacer()
 
             SealStamp(character: "玄", size: 108)
+                .breathIn(delay: 0)
                 .accessibilityLabel("玄机问道印章")
 
             VStack(spacing: BaziTheme.Spacing.sm) {
@@ -115,11 +116,13 @@ private struct WelcomePage: View {
                     .foregroundStyle(BaziTheme.inkMuted)
                     .tracking(4)
             }
+            .breathIn(delay: 0.15)
 
             // 副标题克制,不用 cinnabar 红字(原"专业不忽悠"过刺眼)
             Text("读懂你的命局,不夸大,不忽悠")
                 .font(BaziFont.body(size: 15))
                 .foregroundStyle(BaziTheme.inkMuted)
+                .breathIn(delay: 0.3)
 
             Spacer()
         }
@@ -137,20 +140,24 @@ private struct StancePage: View {
             Text("不是算命软件")
                 .font(BaziFont.display(size: 28))
                 .foregroundStyle(BaziTheme.ink)
+                .breathIn(delay: 0)
 
             VStack(alignment: .leading, spacing: BaziTheme.Spacing.xl) {
                 BreathLine(
                     main: "同一组生辰,排出来的盘永远一样",
                     sub: "后端规则引擎,不随机,不玄学"
                 )
+                .breathIn(delay: 0.15)
                 BreathLine(
                     main: "喜忌由规则判定,AI 只润色话术",
                     sub: "不交给 AI 现场猜,避免流派争议"
                 )
+                .breathIn(delay: 0.3)
                 BreathLine(
                     main: "遇特殊命局,诚实说「不下结论」",
                     sub: "不编造,不牵强附会"
                 )
+                .breathIn(delay: 0.45)
             }
 
             Spacer()
@@ -169,20 +176,24 @@ private struct PrivacyPage: View {
             Text("数据在你设备上")
                 .font(BaziFont.display(size: 28))
                 .foregroundStyle(BaziTheme.ink)
+                .breathIn(delay: 0)
 
             VStack(alignment: .leading, spacing: BaziTheme.Spacing.xl) {
                 BreathLine(
                     main: "命盘只存在你的手机上,不上传",
                     sub: "没有账号,没有云同步"
                 )
+                .breathIn(delay: 0.15)
                 BreathLine(
                     main: "AI 解读经我们的服务器",
                     sub: "密钥保管在后端,不进客户端"
                 )
+                .breathIn(delay: 0.3)
                 BreathLine(
                     main: "不跟踪,不画像,不卖数据",
                     sub: "v1 范围内不做用户行为分析"
                 )
+                .breathIn(delay: 0.45)
             }
 
             Spacer()
@@ -201,6 +212,7 @@ private struct StartPage: View {
             Spacer()
 
             SealStamp(character: "始", size: 108)
+                .breathIn(delay: 0)
                 .accessibilityLabel("始字印章,象征开始排盘")
 
             VStack(spacing: BaziTheme.Spacing.md) {
@@ -212,6 +224,7 @@ private struct StartPage: View {
                     .foregroundStyle(BaziTheme.inkMuted)
                     .multilineTextAlignment(.center)
             }
+            .breathIn(delay: 0.2)
 
             Spacer()
 
@@ -228,6 +241,8 @@ private struct StartPage: View {
                     .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
             }
             .accessibilityHint("点击开始你的第一次排盘,填写出生信息")
+            // CTA 延迟 0.6s 入场,跟前面元素拉开节奏,强调"现在可以开始了"
+            .breathIn(delay: 0.6)
             .padding(.bottom, 60)
         }
         .padding(.horizontal, BaziTheme.Spacing.xl)
