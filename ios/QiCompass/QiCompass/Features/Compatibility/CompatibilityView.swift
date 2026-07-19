@@ -60,8 +60,11 @@ struct CompatibilityView: View {
                 LoadingStateView(title: "准备中…")
             case .empty:
                 CompatibilityEmptyView {
+                    // 设返回标志,深度解析完成后 DeepAnalysisView 据此切回合盘
+                    env.pendingReturnTab = .compatibility
                     NotificationCenter.default.post(
-                        name: .switchTab, object: nil, userInfo: ["tab": "deepAnalysis"]
+                        name: .switchTab, object: nil,
+                        userInfo: ["tab": RootTabView.Tab.deepAnalysis.switchKey]
                     )
                 }
             case .configuring:

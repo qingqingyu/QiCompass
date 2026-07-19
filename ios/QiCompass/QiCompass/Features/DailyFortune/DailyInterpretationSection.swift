@@ -35,7 +35,7 @@ struct DailyInterpretationSection: View {
             case .fetching:
                 interpretationCTABlock(isLoading: true)
             case .okFree(let text, let cached), .okPaid(let text, let cached):
-                Text(text)
+                Text(MarkdownSanitizer.rendered(text))
                     .bodySerifText()
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)

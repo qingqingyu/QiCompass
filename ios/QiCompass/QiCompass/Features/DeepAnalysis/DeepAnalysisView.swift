@@ -36,10 +36,25 @@ struct DeepAnalysisView: View {
         }
         .task {
             if vm == nil {
-                vm = DeepAnalysisViewModel(
+                let newVM = DeepAnalysisViewModel(
                     orchestrator: env.deepAnalysisOrchestrator,
                     entitlementStore: env.entitlementStore
                 )
+                // 命盘存档后消费 pendingReturnTab:若有则切回原 Tab + 清零。
+                // 用 [weak env] 避免持有 EnvironmentObject 生命周期错乱。
+                newVM.onChartArchived = { [weak env] in
+                    guard let env else { return }
+                    guard let returnTab = env.pendingReturnTab else { return }
+                    env.pendingReturnTab = nil
+                    AppLogger.app.info(
+                        "deepVM.onChartArchived switch_back tab=\(returnTab.switchKey, privacy: .public)"
+                    )
+                    NotificationCenter.default.post(
+                        name: .switchTab, object: nil,
+                        userInfo: ["tab": returnTab.switchKey]
+                    )
+                }
+                vm = newVM
             }
         }
     }

@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		AA5500000000000000000001 /* UserSnapshotLinkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000002 /* UserSnapshotLinkStore.swift */; };
 		0EA046839120A0D077C1BE52 /* PromptContextBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 616A4E1F906685BBB03FABAA /* PromptContextBuilder.swift */; };
 		1BFE422382557948367ACDEF /* BirthFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 643A486D97B60329C7050463 /* BirthFormView.swift */; };
 		21AC43B586C598B1FBD82F89 /* InterpretationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D294D4B91EA07ABB037F7BE /* InterpretationSection.swift */; };
@@ -90,6 +91,7 @@
 		9C0000000000000000000047 /* PaidChaptersLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000047 /* PaidChaptersLockView.swift */; };
 		A9B245DDB05C779E1238547A /* DeepAnalysisViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F34390B983BDE0003B56E8 /* DeepAnalysisViewModel.swift */; };
 		AC13473A98FFEBD13695E504 /* ElementColors.swift in Sources */ = {isa = PBXBuildFile; fileRef = 18B14E9FA1316D589ABA9845 /* ElementColors.swift */; };
+		AA5600000000000000000001 /* MarkdownSanitizer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5600000000000000000002 /* MarkdownSanitizer.swift */; };
 		AFD648598ECEA58C6C8A8C8B /* DeepAnalysisOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 64414BC9B04112663B97EE16 /* DeepAnalysisOrchestrator.swift */; };
 		B36D4647A938BC37E999E702 /* DailyReadCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23C84BD0B1E670AC7EF54B93 /* DailyReadCounter.swift */; };
 		D26047CCB90DDAA99C1B6D7D /* InterpretationCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AF74383AEB02A4F7ED0C689 /* InterpretationCacheStore.swift */; };
@@ -117,8 +119,10 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
+		AA5500000000000000000002 /* UserSnapshotLinkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserSnapshotLinkStore.swift; path = QiCompass/Services/UserSnapshotLinkStore.swift; sourceTree = SOURCE_ROOT; };
 		160B487DB2FB51858CB5F067 /* ChartSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartSnapshotStore.swift; path = QiCompass/Services/ChartSnapshotStore.swift; sourceTree = SOURCE_ROOT; };
 		18B14E9FA1316D589ABA9845 /* ElementColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ElementColors.swift; path = QiCompass/Shared/ElementColors.swift; sourceTree = SOURCE_ROOT; };
+		AA5600000000000000000002 /* MarkdownSanitizer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MarkdownSanitizer.swift; path = QiCompass/Shared/MarkdownSanitizer.swift; sourceTree = SOURCE_ROOT; };
 		23C84BD0B1E670AC7EF54B93 /* DailyReadCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyReadCounter.swift; path = QiCompass/Services/DailyReadCounter.swift; sourceTree = SOURCE_ROOT; };
 		2AF74383AEB02A4F7ED0C689 /* InterpretationCacheStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InterpretationCacheStore.swift; path = QiCompass/Services/InterpretationCacheStore.swift; sourceTree = SOURCE_ROOT; };
 		36F14142AE8D5D39E818F777 /* CurrentStatusCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CurrentStatusCard.swift; path = QiCompass/Features/DeepAnalysis/CurrentStatusCard.swift; sourceTree = SOURCE_ROOT; };
@@ -249,6 +253,7 @@
 				9C400000000000000000000E /* Products */,
 				A40000000000000000000001 /* Tests */,
 				A21000000000000000000001 /* XCTest.framework */,
+				AA5500000000000000000002 /* UserSnapshotLinkStore.swift */,
 				160B487DB2FB51858CB5F067 /* ChartSnapshotStore.swift */,
 				2AF74383AEB02A4F7ED0C689 /* InterpretationCacheStore.swift */,
 				9C1000000000000000000041 /* UserIdentity.swift */,
@@ -259,6 +264,7 @@
 				616A4E1F906685BBB03FABAA /* PromptContextBuilder.swift */,
 				64414BC9B04112663B97EE16 /* DeepAnalysisOrchestrator.swift */,
 				18B14E9FA1316D589ABA9845 /* ElementColors.swift */,
+				AA5600000000000000000002 /* MarkdownSanitizer.swift */,
 				58F34390B983BDE0003B56E8 /* DeepAnalysisViewModel.swift */,
 				643A486D97B60329C7050463 /* BirthFormView.swift */,
 				F4D24E23A0A8DAE17CCC61CC /* DeepAnalysisResultView.swift */,
@@ -590,11 +596,13 @@
 				9C0000000000000000000018 /* Logger.swift in Sources */,
 				9C0000000000000000000019 /* SwiftDataCRUDView.swift in Sources */,
 				2CF14E7694F9DC7818B883FA /* ChartSnapshotStore.swift in Sources */,
+				AA5500000000000000000001 /* UserSnapshotLinkStore.swift in Sources */,
 				D26047CCB90DDAA99C1B6D7D /* InterpretationCacheStore.swift in Sources */,
 				B36D4647A938BC37E999E702 /* DailyReadCounter.swift in Sources */,
 				0EA046839120A0D077C1BE52 /* PromptContextBuilder.swift in Sources */,
 				AFD648598ECEA58C6C8A8C8B /* DeepAnalysisOrchestrator.swift in Sources */,
 				AC13473A98FFEBD13695E504 /* ElementColors.swift in Sources */,
+				AA5600000000000000000001 /* MarkdownSanitizer.swift in Sources */,
 				A9B245DDB05C779E1238547A /* DeepAnalysisViewModel.swift in Sources */,
 				1BFE422382557948367ACDEF /* BirthFormView.swift in Sources */,
 				62E8415D901964D6058D4FBB /* DeepAnalysisResultView.swift in Sources */,
