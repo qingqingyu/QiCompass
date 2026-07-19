@@ -63,11 +63,23 @@ final class DeepAnalysisOrchestrator {
         // 写 UserSnapshotLink 标记归属(MVP 单用户 alias="我自己")。
         // 不写 link 会让合盘 / 每日运势查不到本命盘(它们都按 UserSnapshotLink 取列表)。
         // upsert 按 (userId, snapshotHash) 去重:同盘重排不重复 insert。
-        _ = try userLinkStore.upsert(
-            userId: UserIdentity.userLocalId,
-            snapshotHash: response.contentHash,
-            alias: "我自己"
-        )
+        //
+        // 降级策略(避免 UX 不一致):ChartSnapshot 已存档 → 视为排盘成功。
+        // link 写入失败时不 throw(否则 UI 看到 chartFailed 但盘已落库,重排会去重),
+        // 改为显式 error 日志,便于运维追踪合盘查不到盘的根因。link 不写入不影响 Chart
+        // 重排(下次重排 chartStore.upsert 命中,link upsert 重试)。
+        do {
+            _ = try userLinkStore.upsert(
+                userId: UserIdentity.userLocalId,
+                snapshotHash: response.contentHash,
+                alias: "我自己"
+            )
+        } catch {
+            // 不吞错:显式 error 日志,运维可据 traceId 定位合盘空列表根因。
+            AppLogger.persistence.error(
+                "op=deepAnalysis.runCalculation userLink.upsert.failed contentHash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+        }
 
         return response
     }

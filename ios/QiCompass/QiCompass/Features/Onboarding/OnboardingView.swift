@@ -103,6 +103,9 @@ private struct NarrationLine: View {
 /// - 上半部:印章「玄」+ 标题 + 副标题(叠在壁画佛手区)
 /// - 下半部宣纸留白区:经文(`SutraView` 自动按系统语言切排版)
 /// - 错峰 riseIn 淡入:印章 0s → 标题 0.15s → 副标题 0.3s → 经文 0.45s
+///
+/// TODO(assets):WelcomeBackground.png 当前为 4MB 单倍图(仅 1x slice),
+/// 在 2x/3x 机型会拉伸糊化,需补 2x/3x 切片 + 压缩到 ≤500KB/张。
 private struct WelcomePage: View {
     var body: some View {
         ZStack {
@@ -138,7 +141,7 @@ private struct WelcomePage: View {
                     .riseIn(delay: 0.15)
 
                     // 副标题克制,不用 cinnabar 红字(原"专业不忽悠"过刺眼)
-                    Text("读懂你的命局,不夸大,不忽悠")
+                    Text("读懂你的命局，不夸大，不忽悠")
                         .font(BaziFont.body(size: 15))
                         .foregroundStyle(BaziTheme.inkMuted)
                         .riseIn(delay: 0.3)

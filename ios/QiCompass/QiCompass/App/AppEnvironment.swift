@@ -20,7 +20,8 @@ final class AppEnvironment: ObservableObject {
     let deepAnalysisOrchestrator: DeepAnalysisOrchestrator
 
     /// 用户从哪个 Tab 的 CTA 切到深度解析,完成后自动切回该 Tab(nil = 不切回)。
-    /// 合盘 / 每日运势 空态 CTA 触发时设值;DeepAnalysisViewModel 完成后消费并清零。
+    /// 当前仅合盘空态 CTA 触发时设值;DeepAnalysisViewModel 完成后消费并清零。
+    /// 每日运势空态 v1 无 CTA,故未接入(后续若加 CTA 在 DailyFortuneView 设值即可)。
     var pendingReturnTab: RootTabView.Tab?
 
     // 每日运势编排链路(slice 6 装配,与深度解析共享 chartStore/interpretStore/counter)

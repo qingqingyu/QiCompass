@@ -43,8 +43,15 @@ struct DeepAnalysisView: View {
                 // 命盘存档后消费 pendingReturnTab:若有则切回原 Tab + 清零。
                 // 用 [weak env] 避免持有 EnvironmentObject 生命周期错乱。
                 newVM.onChartArchived = { [weak env] in
-                    guard let env else { return }
-                    guard let returnTab = env.pendingReturnTab else { return }
+                    guard let env else {
+                        AppLogger.app.error("deepVM.onChartArchived env 已释放,无法消费 pendingReturnTab")
+                        return
+                    }
+                    guard let returnTab = env.pendingReturnTab else {
+                        // nil = 用户从深度解析 Tab 直接触发,无切回需求。打 debug 便于排查。
+                        AppLogger.app.debug("deepVM.onChartArchived pendingReturnTab=nil,保持当前 Tab")
+                        return
+                    }
                     env.pendingReturnTab = nil
                     AppLogger.app.info(
                         "deepVM.onChartArchived switch_back tab=\(returnTab.switchKey, privacy: .public)"

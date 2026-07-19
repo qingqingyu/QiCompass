@@ -34,9 +34,34 @@ final class UserSnapshotLinkStore {
             $0.userId == userId && $0.snapshotHash == snapshotHash
         }
         let desc = FetchDescriptor<UserSnapshotLink>(predicate: pred)
-        let existing = try context.fetch(desc).first
+        let matches = try context.fetch(desc)
 
-        if let link = existing {
+        // 防御:fetch+insert 之间若被并发逻辑(将来合盘 B 盘 link 写入等)
+        // 插入重复 (userId, snapshotHash),取 first 并 cleanup 多余记录。
+        // 当前调用方(DeepAnalysisOrchestrator)由 calculateTask 串行化,
+        // 实际无双 insert,但本层应自保。
+        if matches.count > 1 {
+            AppLogger.persistence.warning(
+                "op=userLink.upsert user=\(userId.prefix(8), privacy: .public) hash=\(snapshotHash, privacy: .public) duplicate_count=\(matches.count, privacy: .public) cleaning_up"
+            )
+            // 保留最早的那条(createdAt 最小),删其余。count > 1 保证 min 非空。
+            guard let keep = matches.min(by: { $0.createdAt < $1.createdAt }) else {
+                // 理论不可达(matches.count > 1 已保证),防御式 throw 让上层感知
+                throw NSError(
+                    domain: "UserSnapshotLinkStore",
+                    code: 1,
+                    userInfo: [NSLocalizedDescriptionKey: "matches.count>1 但 min 返回 nil(不应发生)"]
+                )
+            }
+            for extra in matches where extra.persistentModelID != keep.persistentModelID {
+                context.delete(extra)
+            }
+            keep.alias = alias
+            try context.save()
+            return (keep, false)
+        }
+
+        if let link = matches.first {
             // alias 可能用户后续修改("我自己" → "妈妈"),保留 createdAt
             link.alias = alias
             try context.save()

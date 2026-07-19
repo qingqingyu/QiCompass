@@ -20,6 +20,7 @@ import SwiftUI
 enum MarkdownSanitizer {
 
     /// atx 标题前缀:`#` ~ `######` + 至少一个空白。
+    // try!:Regex 字面量在编译期校验,语法错误会编译失败,运行期永不抛(参考 SE-0354)。
     private static let atxHeader = try! Regex(#"^#{1,6}\s+"#)
     /// 无序列表标记:`-` / `*` / `+` + 空白。
     private static let bulletList = try! Regex(#"^[-*+]\s+"#)
@@ -38,10 +39,13 @@ enum MarkdownSanitizer {
     /// 3. 失败 fallback 到 inline strip + verbatim
     static func rendered(_ raw: String) -> AttributedString {
         let cleaned = stripBlockMarkers(raw)
-        if let attr = try? AttributedString(markdown: cleaned) {
-            return attr
+        do {
+            return try AttributedString(markdown: cleaned)
+        } catch {
+            // 不静默吞:记录失败原因便于排查 prompt/LLM 输出异常
+            AppLogger.app.warning("MarkdownSanitizer AttributedString(markdown:) 失败,降级 strip inline error=\(String(describing: error), privacy: .public)")
+            return AttributedString(stripInlineMarkers(cleaned))
         }
-        return AttributedString(stripInlineMarkers(cleaned))
     }
 
     // MARK: - Private

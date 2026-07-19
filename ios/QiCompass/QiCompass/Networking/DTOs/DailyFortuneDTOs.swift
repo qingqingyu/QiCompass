@@ -25,6 +25,12 @@ struct DailyFortuneRequest: Codable, Sendable {
     }
 
     /// 业务日期序列化器:固定 `yyyy-MM-dd`,本地时区解释。
+    ///
+    /// 业务语义:"今日运势" = 用户所在地当天的流日柱(后端推算),
+    /// 用本地时区是合理默认。副作用:用户跨时区旅行时本地日期变化,
+    /// 缓存 key (`target_date`) 会变,可能生成两份运势(昨天/今天),
+    /// 不影响正确性,只是缓存命中率下降。
+    ///
     /// Locale 锁 `en_US_POSIX` 避免 12/24h 或区域格式干扰(苹果官方推荐)。
     private static let isoDateFormatter: DateFormatter = {
         let f = DateFormatter()
