@@ -1,4 +1,9 @@
-"""OpenAIClient Chat Completions API 请求/响应边界测试。"""
+"""OpenAIClient Chat Completions API 请求/响应边界测试。
+
+注:`interpret` 是 async(client 走 httpx.AsyncClient),所有用例需 await。
+monkeypatch 策略:替换 `openai_module.httpx.AsyncClient` 为 fake 类,
+其 `.post()` 直接调测试注入的 handler,不真发网络请求。
+"""
 
 from __future__ import annotations
 
@@ -33,21 +38,43 @@ def _completed(text: object = "命书文本") -> dict:
     }
 
 
-def test_openai_client_request_contract(monkeypatch):
+def _install_fake_async_client(monkeypatch, handler):
+    """把 openai_module.httpx.AsyncClient 替换成走 handler 的假 client。
+
+    handler: (url, **kwargs) -> _FakeResponse 或 raise 异常
+    """
+
+    class _FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass  # 忽略 timeout / trust_env(测试不关心)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, url, **kwargs):
+            return handler(url, **kwargs)
+
+    monkeypatch.setattr(openai_module.httpx, "AsyncClient", _FakeAsyncClient)
+
+
+async def test_openai_client_request_contract(monkeypatch):
     captured = {}
 
-    def fake_post(url, **kwargs):
+    def handler(url, **kwargs):
         captured.update(url=url, **kwargs)
         return _FakeResponse(_completed())
 
-    monkeypatch.setattr(openai_module.httpx, "post", fake_post)
+    _install_fake_async_client(monkeypatch, handler)
     client = OpenAIClient(
         api_key="secret",
         model="gpt-test",
         base_url="https://api.example.com/v1",
     )
 
-    assert client.interpret("完整 prompt") == "命书文本"
+    assert await client.interpret("完整 prompt") == "命书文本"
     assert client.provider == "openai"
     assert client.model == "gpt-test"
     assert captured["url"] == "https://api.example.com/v1/chat/completions"
@@ -59,20 +86,20 @@ def test_openai_client_request_contract(monkeypatch):
     }
 
 
-def test_openai_client_strips_trailing_slash_from_base_url(monkeypatch):
+async def test_openai_client_strips_trailing_slash_from_base_url(monkeypatch):
     captured = {}
 
-    def fake_post(url, **kwargs):
+    def handler(url, **kwargs):
         captured.update(url=url)
         return _FakeResponse(_completed())
 
-    monkeypatch.setattr(openai_module.httpx, "post", fake_post)
+    _install_fake_async_client(monkeypatch, handler)
     client = OpenAIClient(
         api_key="k",
         model="m",
         base_url="https://api.example.com/v1/",
     )
-    client.interpret("p")
+    await client.interpret("p")
     # 末尾斜杠必须被去掉,避免 //chat/completions
     assert captured["url"] == "https://api.example.com/v1/chat/completions"
 
@@ -91,22 +118,20 @@ def test_openai_client_strips_trailing_slash_from_base_url(monkeypatch):
         "finish_reason": "content_filter",
     }]}, "content_filter"),
 ])
-def test_openai_client_rejects_non_success_payload(monkeypatch, payload, match):
-    monkeypatch.setattr(
-        openai_module.httpx,
-        "post",
-        lambda *args, **kwargs: _FakeResponse(payload),
+async def test_openai_client_rejects_non_success_payload(monkeypatch, payload, match):
+    _install_fake_async_client(
+        monkeypatch,
+        lambda url, **kwargs: _FakeResponse(payload),
     )
     with pytest.raises(AIProviderError, match=match):
-        OpenAIClient(api_key="test-key").interpret("prompt")
+        await OpenAIClient(api_key="test-key").interpret("prompt")
 
 
-def test_openai_client_treats_length_truncation_as_success(monkeypatch):
+async def test_openai_client_treats_length_truncation_as_success(monkeypatch):
     # finish_reason=length 表示被 max_tokens 截断,但已有文本应正常返回
-    monkeypatch.setattr(
-        openai_module.httpx,
-        "post",
-        lambda *args, **kwargs: _FakeResponse({
+    _install_fake_async_client(
+        monkeypatch,
+        lambda url, **kwargs: _FakeResponse({
             "choices": [{
                 "index": 0,
                 "message": {"role": "assistant", "content": "截断的部分命书"},
@@ -114,17 +139,16 @@ def test_openai_client_treats_length_truncation_as_success(monkeypatch):
             }],
         }),
     )
-    assert OpenAIClient(api_key="test-key").interpret("prompt") == "截断的部分命书"
+    assert await OpenAIClient(api_key="test-key").interpret("prompt") == "截断的部分命书"
 
 
-def test_openai_client_rejects_non_json(monkeypatch):
-    monkeypatch.setattr(
-        openai_module.httpx,
-        "post",
-        lambda *args, **kwargs: _FakeResponse(ValueError("bad json")),
+async def test_openai_client_rejects_non_json(monkeypatch):
+    _install_fake_async_client(
+        monkeypatch,
+        lambda url, **kwargs: _FakeResponse(ValueError("bad json")),
     )
     with pytest.raises(AIProviderError, match="非 JSON"):
-        OpenAIClient(api_key="test-key").interpret("prompt")
+        await OpenAIClient(api_key="test-key").interpret("prompt")
 
 
 @pytest.mark.parametrize("status,match", [
@@ -132,33 +156,32 @@ def test_openai_client_rejects_non_json(monkeypatch):
     (429, "限流"),
     (500, "HTTP 500"),
 ])
-def test_openai_client_maps_http_errors(monkeypatch, status, match):
+async def test_openai_client_maps_http_errors(monkeypatch, status, match):
     request = httpx.Request("POST", "https://api.openai.com/v1/chat/completions")
     response = httpx.Response(status, request=request)
 
-    def fake_post(*args, **kwargs):
+    def handler(*args, **kwargs):
         raise httpx.HTTPStatusError("upstream", request=request, response=response)
 
-    monkeypatch.setattr(openai_module.httpx, "post", fake_post)
+    _install_fake_async_client(monkeypatch, handler)
     with pytest.raises(AIProviderError, match=match):
-        OpenAIClient(api_key="test-key").interpret("prompt")
+        await OpenAIClient(api_key="test-key").interpret("prompt")
 
 
-def test_openai_client_maps_timeout_and_preserves_cause(monkeypatch):
+async def test_openai_client_maps_timeout_and_preserves_cause(monkeypatch):
     timeout = httpx.ReadTimeout("slow")
-    monkeypatch.setattr(
-        openai_module.httpx,
-        "post",
+    _install_fake_async_client(
+        monkeypatch,
         lambda *args, **kwargs: (_ for _ in ()).throw(timeout),
     )
     with pytest.raises(AIProviderError, match="超时") as exc_info:
-        OpenAIClient(api_key="test-key").interpret("prompt")
+        await OpenAIClient(api_key="test-key").interpret("prompt")
     assert exc_info.value.__cause__ is timeout
 
 
-def test_openai_client_missing_key_is_explicit():
+async def test_openai_client_missing_key_is_explicit():
     with pytest.raises(AIProviderError, match="OPENAI_API_KEY not configured"):
-        OpenAIClient(api_key=None).interpret("prompt")
+        await OpenAIClient(api_key=None).interpret("prompt")
 
 
 def test_openai_client_rejects_blank_base_url():

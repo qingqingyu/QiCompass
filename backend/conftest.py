@@ -82,10 +82,14 @@ async def interpret_client(mock_ai_client, tmp_cache, tmp_entitlement_store):
     saved_cache = getattr(app.state, "cache", None)
     saved_ai = getattr(app.state, "ai_client", None)
     saved_entitlement = getattr(app.state, "entitlement_store", None)
+    saved_sf = getattr(app.state, "llm_singleflight", None)
 
+    # 每个测试用独立 singleflight 实例,避免 inflight 跨测试残留
+    from app.ai.singleflight import SingleflightCoalescer
     app.state.cache = tmp_cache
     app.state.ai_client = mock_ai_client
     app.state.entitlement_store = tmp_entitlement_store
+    app.state.llm_singleflight = SingleflightCoalescer()
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app),
@@ -95,3 +99,4 @@ async def interpret_client(mock_ai_client, tmp_cache, tmp_entitlement_store):
         app.state.cache = saved_cache
         app.state.ai_client = saved_ai
         app.state.entitlement_store = saved_entitlement
+        app.state.llm_singleflight = saved_sf

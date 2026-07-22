@@ -1,4 +1,9 @@
-"""AnthropicClient 外部请求/响应边界测试。"""
+"""AnthropicClient 外部请求/响应边界测试。
+
+注:`interpret` 是 async(client 走 httpx.AsyncClient),所有用例需 await。
+monkeypatch 策略:替换 `anthropic_module.httpx.AsyncClient` 为 fake 类,
+其 `.post()` 直接调测试注入的 handler,不真发网络请求。
+"""
 
 from __future__ import annotations
 
@@ -20,17 +25,39 @@ class _FakeResponse:
         return self._payload
 
 
-def test_anthropic_client_request_contract(monkeypatch):
+def _install_fake_async_client(monkeypatch, handler):
+    """把 anthropic_module.httpx.AsyncClient 替换成走 handler 的假 client。
+
+    handler: (url, **kwargs) -> _FakeResponse 或 raise 异常
+    """
+
+    class _FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass  # 忽略 timeout 等参数(测试不关心)
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, url, **kwargs):
+            return handler(url, **kwargs)
+
+    monkeypatch.setattr(anthropic_module.httpx, "AsyncClient", _FakeAsyncClient)
+
+
+async def test_anthropic_client_request_contract(monkeypatch):
     captured = {}
 
-    def fake_post(url, **kwargs):
+    def handler(url, **kwargs):
         captured.update(url=url, **kwargs)
         return _FakeResponse({"content": [{"type": "text", "text": "命书"}]})
 
-    monkeypatch.setattr(anthropic_module.httpx, "post", fake_post)
+    _install_fake_async_client(monkeypatch, handler)
     client = AnthropicClient(api_key="secret", model="claude-test")
 
-    assert client.interpret("prompt") == "命书"
+    assert await client.interpret("prompt") == "命书"
     assert client.provider == "anthropic"
     assert client.model == "claude-test"
     assert captured["url"] == "https://api.anthropic.com/v1/messages"
@@ -46,30 +73,30 @@ def test_anthropic_client_request_contract(monkeypatch):
     ({"content": [{"type": "text", "text": "   "}]}, "无 text 字段"),
     ({"content": [{"type": "text", "text": 123}]}, "无 text 字段"),
 ])
-def test_anthropic_client_rejects_malformed_payload(monkeypatch, payload, match):
-    monkeypatch.setattr(
-        anthropic_module.httpx,
-        "post",
-        lambda *args, **kwargs: _FakeResponse(payload),
+async def test_anthropic_client_rejects_malformed_payload(
+    monkeypatch, payload, match,
+):
+    _install_fake_async_client(
+        monkeypatch,
+        lambda url, **kwargs: _FakeResponse(payload),
     )
     with pytest.raises(AIProviderError, match=match):
-        AnthropicClient(api_key="test-key").interpret("prompt")
+        await AnthropicClient(api_key="test-key").interpret("prompt")
 
 
-def test_anthropic_client_uses_first_non_empty_text_block(monkeypatch):
-    monkeypatch.setattr(
-        anthropic_module.httpx,
-        "post",
-        lambda *args, **kwargs: _FakeResponse({
+async def test_anthropic_client_uses_first_non_empty_text_block(monkeypatch):
+    _install_fake_async_client(
+        monkeypatch,
+        lambda url, **kwargs: _FakeResponse({
             "content": [
                 {"type": "thinking"},
                 {"type": "text", "text": "命书文本"},
             ],
         }),
     )
-    assert AnthropicClient(api_key="test-key").interpret("prompt") == "命书文本"
+    assert await AnthropicClient(api_key="test-key").interpret("prompt") == "命书文本"
 
 
-def test_anthropic_client_missing_key_is_explicit():
+async def test_anthropic_client_missing_key_is_explicit():
     with pytest.raises(AIProviderError, match="ANTHROPIC_API_KEY not configured"):
-        AnthropicClient(api_key=None).interpret("prompt")
+        await AnthropicClient(api_key=None).interpret("prompt")

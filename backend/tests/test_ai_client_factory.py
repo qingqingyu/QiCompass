@@ -76,7 +76,7 @@ def test_config_rejects_invalid_provider_at_import_time():
     assert "AI_PROVIDER must be one of: anthropic, openai" in result.stderr
 
 
-def test_missing_selected_key_does_not_use_other_provider_key():
+async def test_missing_selected_key_does_not_use_other_provider_key():
     client = create_ai_client(
         provider="openai",
         anthropic_api_key="available-but-must-not-fallback",
@@ -86,4 +86,4 @@ def test_missing_selected_key_does_not_use_other_provider_key():
         openai_base_url="https://api.openai.com/v1",
     )
     with pytest.raises(AIProviderError, match="OPENAI_API_KEY not configured"):
-        client.interpret("prompt")
+        await client.interpret("prompt")

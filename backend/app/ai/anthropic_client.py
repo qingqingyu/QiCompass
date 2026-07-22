@@ -23,7 +23,7 @@ class AnthropicClient:
     def model(self) -> str:
         return self._model
 
-    def interpret(self, prompt: str) -> str:
+    async def interpret(self, prompt: str) -> str:
         """调 Anthropic Messages API,返回第一个非空文本块。"""
         if not self._api_key:
             raise AIProviderError(
@@ -32,21 +32,21 @@ class AnthropicClient:
             )
 
         try:
-            resp = httpx.post(
-                "https://api.anthropic.com/v1/messages",
-                headers={
-                    "x-api-key": self._api_key,
-                    "anthropic-version": "2023-06-01",
-                    "content-type": "application/json",
-                },
-                json={
-                    "model": self._model,
-                    "max_tokens": AI_MAX_OUTPUT_TOKENS,
-                    "messages": [{"role": "user", "content": prompt}],
-                },
-                timeout=AI_TIMEOUT_SECONDS,
-            )
-            resp.raise_for_status()
+            async with httpx.AsyncClient(timeout=AI_TIMEOUT_SECONDS) as client:
+                resp = await client.post(
+                    "https://api.anthropic.com/v1/messages",
+                    headers={
+                        "x-api-key": self._api_key,
+                        "anthropic-version": "2023-06-01",
+                        "content-type": "application/json",
+                    },
+                    json={
+                        "model": self._model,
+                        "max_tokens": AI_MAX_OUTPUT_TOKENS,
+                        "messages": [{"role": "user", "content": prompt}],
+                    },
+                )
+                resp.raise_for_status()
         except httpx.TimeoutException as e:
             raise AIProviderError(
                 f"Anthropic API 超时({type(e).__name__}): {e}"
