@@ -3,10 +3,9 @@ import SwiftUI
 /// 出生信息表单(方案 §一 empty 态)。
 ///
 /// - DatePicker dateAndTime(方案 §4.2/4.3:拿精确时间,真太阳时由后端按经度修正)
-/// - 时辰快捷选(只知时辰的用户,填该时辰中点)
+/// - 时辰快捷选(默认折叠;只知时辰的用户展开后选,填该时辰中点)
 /// - 性别 Picker
 /// - 城市表(客户端副本 52 条,纯展示不存经度;决策 4.1)+ 手动经度开关
-/// - 子时规则固定 zi_next_day(只读展示)
 /// - 校验错误内联提示
 struct BirthFormView: View {
     @Bindable var vm: DeepAnalysisViewModel
@@ -14,8 +13,8 @@ struct BirthFormView: View {
 
     var body: some View {
         ScrollView {
-            VStack(alignment: .leading, spacing: 20) {
-                section(title: "出生时间") {
+            VStack(alignment: .leading, spacing: 28) {
+                section(title: "出生时间", level: .primary) {
                     DatePicker(
                         "日期与时辰",
                         selection: $vm.birthDate,
@@ -27,7 +26,14 @@ struct BirthFormView: View {
                 }
 
                 section(title: "时辰快捷选(可选)") {
-                    shichenGrid
+                    DisclosureGroup {
+                        shichenGrid
+                            .padding(.top, 8)
+                    } label: {
+                        Text("只知时辰不知精确时间?点此选")
+                    }
+                    .tint(BaziTheme.ink)
+                    .foregroundStyle(BaziTheme.ink)
                 }
 
                 section(title: "性别") {
@@ -63,17 +69,6 @@ struct BirthFormView: View {
                     }
                 }
 
-                section(title: "子时规则") {
-                    HStack {
-                        Text("23:00 换日(早子时归当日)")
-                            .foregroundStyle(BaziTheme.inkMuted)
-                        Spacer()
-                    }
-                    Text("MVP 固定规则,后端 setSect(1)。")
-                        .font(.caption)
-                        .foregroundStyle(BaziTheme.inkMuted)
-                }
-
                 if case .formInvalid(let errors) = vm.state {
                     VStack(alignment: .leading, spacing: 4) {
                         ForEach(errors, id: \.self) { err in
@@ -101,21 +96,34 @@ struct BirthFormView: View {
 
     // MARK: - Section wrapper
 
+    /// Section 层级(反馈 2026-07-22):出生时间是核心输入,用 .primary 突出;
+    /// 其余 section 用 .standard。形成"primary 间距 28+16=44pt / standard 间距 28pt"的节奏。
+    enum SectionLevel {
+        case primary   // 标题更大(.headline)+ 上方 16pt 呼吸 + 描边略强(0.8pt)
+        case standard  // 当前样式:subheadline + 默认间距 + 描边 0.5pt
+    }
+
     @ViewBuilder
     private func section<Content: View>(
         title: String,
+        level: SectionLevel = .standard,
         @ViewBuilder content: () -> Content
     ) -> some View {
+        let isPrimary = level == .primary
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(.subheadline.weight(.semibold))
+                .font(isPrimary ? .headline : .subheadline.weight(.semibold))
                 .foregroundStyle(BaziTheme.ink)
             content()
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-                .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.cardBorder, lineWidth: 0.5))
+                .overlay(
+                    RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
+                        .stroke(BaziTheme.cardBorder, lineWidth: isPrimary ? 0.8 : 0.5)
+                )
         }
+        .padding(.top, isPrimary ? BaziTheme.Spacing.md : 0)
     }
 
     // MARK: - 时辰快捷选
@@ -126,23 +134,38 @@ struct BirthFormView: View {
             ("辰", 8), ("巳", 10), ("午", 12), ("未", 14),
             ("申", 16), ("酉", 18), ("戌", 20), ("亥", 22),
         ]
+        let selectedHour = currentShichenHour()
         return LazyVGrid(
             columns: Array(repeating: GridItem(.flexible()), count: 6),
             spacing: 8
         ) {
             ForEach(shichens, id: \.hour) { shichen in
+                let isSelected = selectedHour == shichen.hour
                 Button {
                     vm.setShichenHour(shichen.hour)
                 } label: {
                     Text(shichen.name)
                         .font(.body.weight(.medium))
                         .frame(width: 44, height: 44)
-                        .foregroundStyle(BaziTheme.cinnabar)
-                        .background(BaziTheme.cardBackground, in: Circle())
-                        .overlay(Circle().stroke(BaziTheme.cardBorder, lineWidth: 0.5))
+                        .foregroundStyle(isSelected ? BaziTheme.paper : BaziTheme.ink)
+                        .background {
+                            Circle().fill(isSelected ? BaziTheme.cinnabar : Color.clear)
+                        }
+                        .overlay(
+                            Circle().stroke(BaziTheme.cardBorder, lineWidth: isSelected ? 0 : 0.5)
+                        )
                 }
             }
         }
+    }
+
+    /// 从 vm.birthDate 的当前 hour 反推用户选了哪个时辰(用于圆圈选中态显示)。
+    /// 时辰边界:[23,0,1]→子(0),[2,3]→丑(2),[4,5]→寅(4)... 奇数 hour 向下取偶到中点。
+    /// 23 点归子时跨日(对齐后端 setSect(1) 规则)。
+    private func currentShichenHour() -> Int {
+        let hour = Calendar.current.component(.hour, from: vm.birthDate)
+        if hour == 23 { return 0 }
+        return (hour / 2) * 2
     }
 }
 

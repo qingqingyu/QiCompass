@@ -91,8 +91,8 @@ struct RootTabView: View {
 enum BaziTheme {
     // MARK: - DESIGN.md §Color 主事实源
 
-    /// 主背景(宣纸米,替代黑渐变)。
-    static let paper         = Color(red: 0xF5/255, green: 0xEF/255, blue: 0xE1/255)
+    /// 主背景(极浅暖白,2026-07-22 由宣纸米 #F5EFE1 调浅 — 大面积留白驱动,暖色调收进卡片)。
+    static let paper         = Color(red: 0xFD/255, green: 0xFC/255, blue: 0xFA/255)
     /// 卡片底色(浅宣)。
     static let cardSurface   = Color(red: 0xEB/255, green: 0xE3/255, blue: 0xD0/255)
     /// 主文字(浓墨)。
