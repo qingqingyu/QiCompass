@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// AI 解读区(150-200 字,决策 F)。
+/// AI 解读区(50-80 字 Medium voice)。
 ///
 /// 子状态独立(决策 §3.1):
 /// - .idle → CTA「今日解读」按钮(显示剩余次数)
@@ -81,7 +81,7 @@ private extension DailyInterpretationSection {
     @ViewBuilder
     func interpretationCTABlock(isLoading: Bool) -> some View {
         VStack(spacing: 12) {
-            Text("点击生成今日流日解读(约 150-200 字)")
+            Text("点击生成今日流日解读(约 50-80 字)")
                 .font(.subheadline)
                 .foregroundStyle(BaziTheme.inkMuted)
                 .multilineTextAlignment(.center)
