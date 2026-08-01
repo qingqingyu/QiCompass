@@ -1,11 +1,11 @@
 import SwiftUI
 
-/// 根 TabView:三 Tab(今日运势 / 深度解析 / 合盘)。
+/// 根 TabView:四 Tab(今日运势 / 深度解析 / 合盘 / 我的)。
 /// 视觉 token(DESIGN.md §现代东方极简 · 宋瓷气质):主背景极浅暖白 `#FDFCFA`,主强调朱砂 `#C33B3B`。
 ///
 /// 2026-08-01 grill-me 决策:
 /// - 默认 Tab 改为 `.dailyFortune`(原 `.deepAnalysis`)。今日运势是视觉入口 + 高频回访。
-/// - Tab 顺序调整:今日运势在最左(默认选中位置),深度解析第二,合盘第三。
+/// - Tab 顺序:今日运势在最左(默认选中位置),深度解析第二,合盘第三,**"我的"第四**(决策 #17)。
 /// - Onboarding 流改 B2:StartPage CTA 后**不**直接 dismiss,而是呈现 FirstLaunchBirthFormView
 ///   作为 fullScreenCover;表单提交成功(只触发排盘,不跑深度解析 AI)后才 dismiss 全部 + 落地今日运势。
 ///
@@ -23,6 +23,7 @@ struct RootTabView: View {
         case dailyFortune
         case deepAnalysis
         case compatibility
+        case profile
 
         /// 对应 .switchTab Notification 的 userInfo["tab"] 字符串。
         /// 集中映射,避免字符串散落在 post / 监听两侧。
@@ -31,6 +32,7 @@ struct RootTabView: View {
             case .dailyFortune:  return "dailyFortune"
             case .deepAnalysis:  return "deepAnalysis"
             case .compatibility: return "compatibility"
+            case .profile:       return "profile"
             }
         }
     }
@@ -53,6 +55,12 @@ struct RootTabView: View {
                 .tag(Tab.compatibility)
                 .tabItem {
                     Label("合盘", systemImage: "person.2")
+                }
+
+            ProfileView()
+                .tag(Tab.profile)
+                .tabItem {
+                    Label("我的", systemImage: "person.crop.circle")
                 }
         }
         .tint(BaziTheme.cinnabar)
@@ -100,6 +108,7 @@ struct RootTabView: View {
             case Tab.dailyFortune.switchKey:  selectedTab = .dailyFortune
             case Tab.deepAnalysis.switchKey:  selectedTab = .deepAnalysis
             case Tab.compatibility.switchKey: selectedTab = .compatibility
+            case Tab.profile.switchKey:       selectedTab = .profile
             default:
                 AppLogger.app.error(".switchTab 收到未知 tab=\(raw, privacy: .public),忽略")
             }
