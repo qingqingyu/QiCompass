@@ -195,9 +195,12 @@ async def test_paid_paid_same_hash_uses_cache(
 
 
 async def test_alias_bazi_deep_still_works(interpret_client):
-    """决策 B:module=bazi_deep(alias)仍可用,走老的 300-500 字综合 prompt。"""
+    """决策 B:module=bazi_deep(alias)仍可用,走综合 prompt。
+
+    注:2026-08-01 grill-me V2 后 alias prompt_version = 2(Medium-deep voice)。
+    """
     resp = await interpret_client.post("/api/interpret", json=_alias_payload())
     assert resp.status_code == 200, resp.json()
     body = resp.json()
-    assert body["prompt_version"] == 1  # alias 仍 version 1
+    assert body["prompt_version"] == 2  # alias V2 (2026-08-01 grill-me)
     assert body["interpretation"]

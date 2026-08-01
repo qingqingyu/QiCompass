@@ -35,7 +35,7 @@ class OpenAIClient:
     def model(self) -> str:
         return self._model
 
-    def interpret(self, prompt: str) -> str:
+    async def interpret(self, prompt: str) -> str:
         """调 OpenAI Chat Completions API,返回 choices[0].message.content。"""
         if not self._api_key:
             raise AIProviderError(
@@ -49,21 +49,22 @@ class OpenAIClient:
             # 原因:本地开发用的代理软件(Clash/Surge/V2Ray)TLS-in-TLS 隧道
             # 经常出 SSL EOF,而 clawto.link 这种国内/亚洲 endpoint 本就不需要代理。
             # 部署到生产后,服务器一般也不该走用户级代理。
-            resp = httpx.post(
-                url,
-                headers={
-                    "Authorization": f"Bearer {self._api_key}",
-                    "Content-Type": "application/json",
-                },
-                json={
-                    "model": self._model,
-                    "messages": [{"role": "user", "content": prompt}],
-                    "max_tokens": AI_MAX_OUTPUT_TOKENS,
-                },
-                timeout=AI_TIMEOUT_SECONDS,
-                trust_env=False,
-            )
-            resp.raise_for_status()
+            async with httpx.AsyncClient(
+                timeout=AI_TIMEOUT_SECONDS, trust_env=False,
+            ) as client:
+                resp = await client.post(
+                    url,
+                    headers={
+                        "Authorization": f"Bearer {self._api_key}",
+                        "Content-Type": "application/json",
+                    },
+                    json={
+                        "model": self._model,
+                        "messages": [{"role": "user", "content": prompt}],
+                        "max_tokens": AI_MAX_OUTPUT_TOKENS,
+                    },
+                )
+                resp.raise_for_status()
         except httpx.TimeoutException as e:
             raise AIProviderError(
                 f"OpenAI API 超时({type(e).__name__}): {e}"

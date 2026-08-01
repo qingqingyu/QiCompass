@@ -14,6 +14,7 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 from .ai.cache import InterpretationCache
 from .ai.client import create_ai_client
+from .ai.singleflight import SingleflightCoalescer
 from .api import bazi as bazi_api
 from .api import compatibility as compatibility_api
 from .api import daily_fortune as daily_fortune_api
@@ -79,6 +80,7 @@ async def lifespan(app: FastAPI):
     cache = InterpretationCache(DB_PATH)
     cache.init_schema()  # 幂等;失败则启动报错(不吞)
     app.state.cache = cache
+    app.state.llm_singleflight = SingleflightCoalescer()
 
     # M2a 新增:EntitlementStore(与 InterpretationCache 共用同一 SQLite 文件,
     # 不同表:entitlement vs interpretation_cache)
@@ -161,10 +163,19 @@ app = FastAPI(title="QiCompass Bazi Backend", version=MODEL_ID, lifespan=lifespa
 # ASGITransport 单测不触发 lifespan;先挂默认实例,启动时再重建一次。
 # entitlement_store / apple_server_api 也挂 fallback(测试 fixture 可覆盖)。
 app.state.ai_client = _build_ai_client()
+# 模块加载时确保 DB 目录存在(对齐 lifespan 内 makedirs,fix CI 全新 checkout
+# 没有 data/ 目录导致 sqlite3 open 失败)。lifespan 内同名调用保留作 production
+# startup 的 defense-in-depth。
+_db_dir = os.path.dirname(DB_PATH)
+if _db_dir:
+    os.makedirs(_db_dir, exist_ok=True)
 _default_entitlement_store = EntitlementStore(DB_PATH)
 _default_entitlement_store.init_schema()
 app.state.entitlement_store = _default_entitlement_store
 app.state.apple_server_api = MockAppleServerAPI()
+# 测试环境 fallback:ASGITransport 单测不触发 lifespan,挂默认 singleflight 实例
+# 避免路由层 AttributeError(与 cache / entitlement_store 同策略)
+app.state.llm_singleflight = SingleflightCoalescer()
 app.add_middleware(RequestIdMiddleware)
 
 app.include_router(health_api.router)

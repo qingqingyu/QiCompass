@@ -5,14 +5,15 @@
 2. validate_context + render_prompt(纯 CPU,留 event loop),计算 prompt_hash
 3. 查后端缓存(同步 → run_in_threadpool)
    命中 → 返回 InterpretResponse(cached=True)
-4. 调用选中的 AI provider(同步 → run_in_threadpool)
+4. 调用选中的 AI provider(async httpx,直接 await,不走线程池)
 5. 写缓存(同步 → run_in_threadpool)
 6. 返回 InterpretResponse(cached=False)
 
 线程池策略:
 - validate_context + render_prompt 纯字符串操作,快,留在 event loop
-- cache.get / cache.set / ai_client.interpret 各自 run_in_threadpool
-  不合并:缓存命中时零 provider 线程池开销
+- ai_client.interpret 走 async httpx 直接 await(不再占线程池,根除并发瓶颈)
+- cache.get / cache.set 仍走 run_in_threadpool(SQLite 同步)
+  不与 provider 调用合并:缓存命中时零 LLM 调用
 - provider 调用失败时不写缓存(步骤 4 抛异常中断流程)
 
 错误显式传播:
@@ -35,6 +36,7 @@ from ..ai.cache import InterpretationCache
 from ..ai.forbidden_words import scan as scan_forbidden_words
 from ..ai.forbidden_words import validate_interpretation
 from ..ai.prompts import PROMPT_VERSIONS, render_prompt, validate_context
+from ..ai.singleflight import SingleflightCoalescer
 from ..entitlement import EntitlementStore
 from ..errors import (
     AIProviderError,
@@ -187,10 +189,20 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
             model=cached_row["model"],
         )
 
-    # 4. 调用选中 provider(同步 → 线程池)
+    # 4. 调用选中 provider(async httpx 直接 await,不走线程池)
+    #    singleflight 合并:同 key 并发只调一次 LLM,所有等待者共享结果
+    #    (成本 + 延迟双省;多 worker 下各自独立,跨进程合并是 v2 Redis 的事)
     logger.info("interpret.provider_called %s", log_ctx)
+    sf: SingleflightCoalescer = request.app.state.llm_singleflight
+    sf_key = (
+        req.content_hash, req.module, prompt_version,
+        target_date_str, prompt_hash,
+        ai_client.provider, ai_client.model,
+    )
     try:
-        interpretation = await run_in_threadpool(ai_client.interpret, prompt)
+        interpretation = await sf.coalesce(
+            sf_key, lambda: ai_client.interpret(prompt),
+        )
     except AIProviderError as e:
         elapsed_ms = (time.perf_counter() - start) * 1000
         logger.exception(

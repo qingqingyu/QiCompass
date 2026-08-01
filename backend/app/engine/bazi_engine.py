@@ -128,6 +128,16 @@ class BaziEngine:
             # 7. boundary_warning
             boundary_warning = _format_boundary_warning(solar_result.boundary_crossed)
 
+            # 8. anchor sentence(2026-08-01 grill-me 决策 #13)
+            # 后端确定性拼接(0 AI 成本),iOS 深度解析 Tab 顶部 instant 显示
+            anchor_sentence = _build_anchor_sentence(
+                day_gan=pillars.day.gan,
+                day_gan_element=pillars.day.gan_element,
+                day_master_strength=xiji.day_master_strength,
+                favorable=xiji.favorable_elements,
+                unfavorable=xiji.unfavorable_elements,
+            )
+
             return {
                 "content_hash": content_hash,
                 "true_solar_time": adjusted,
@@ -146,6 +156,8 @@ class BaziEngine:
                 "pattern_hint": xiji.pattern_hint,
                 # 决策 2 神煞(《三命通会》20 个查表)
                 "shensha": [s.model_dump() for s in shensha_items],
+                # 决策 #13 anchor sentence
+                "anchor_sentence": anchor_sentence,
                 "luck_pillars": [lp.model_dump() for lp in luck_pillars],
                 "current_luck_pillar": (
                     current_luck.model_dump() if current_luck else None
@@ -174,3 +186,66 @@ def _format_boundary_warning(boundary_crossed: set[str]) -> str | None:
         return None
     ordered = [b for b in ("时辰", "日", "月", "年") if b in boundary_crossed]
     return "真太阳时调整导致跨越边界:" + "/".join(ordered)
+
+
+# 2026-08-01 grill-me 决策 #13:chart anchor sentence 后端确定性拼接
+# 覆盖 xiji.compute_xiji 全部 4 个返回值 + None 兜底(理论上 compute_xiji 必返回非 None,
+# 但 BaziCalculateResponse.day_master_strength 类型为 str | None,这里显式列 None 防御)
+_STRENGTH_LABEL: dict[str | None, str] = {
+    "strong": "偏旺",
+    "weak": "偏弱",
+    "balanced": "中和",
+    "special_pattern": "呈现从格特征",
+    None: "旺衰未判定",
+}
+
+
+def _build_anchor_sentence(
+    day_gan: str,
+    day_gan_element: str,
+    day_master_strength: str | None,
+    favorable: list[str],
+    unfavorable: list[str],
+) -> str:
+    """构建深度解析 Tab 顶部 anchor sentence(0 AI 成本,纯字符串拼接)。
+
+    模板(用户 Q2 拍板 A 完整版):
+      "你的日主是 {day_gan}（{day_gan_element}），命局整体 {label}，喜 {a/b}、忌 {x/y}。"
+
+    **从格诚实降级**(对齐 CLAUDE.md "从格检测…LLM 诚实告知"):
+    day_master_strength == "special_pattern" 时,只输出"呈现从格特征",
+    不下硬性喜忌结论(避免编造扶抑法喜忌)。
+
+    Args:
+        day_gan: 日柱天干(如 "庚")
+        day_gan_element: 日主五行(如 "金")
+        day_master_strength: strong / weak / balanced / special_pattern / None
+        favorable: 喜用五行 list(如 ["火", "土"])
+        unfavorable: 忌讳五行 list(如 ["水", "金"])
+
+    Returns:
+        拼接好的 anchor sentence,始终非空(至少含日主 + 五行 + label)
+
+    Note:
+        用 .get(default="旺衰未判定") 而非 [] strict 查找 —— xiji 未来可能扩展新 strength
+        取值(如极旺/极弱),strict 会让 anchor 生成抛 KeyError 中断整个排盘。anchor 是
+        辅助显示,strength 扩展时 anchor 自动降级到"旺衰未判定"是可接受 graceful degrade。
+        真正的契约违反(未知 strength)由 xiji 自身的 Literal 类型注解 + mypy 在编译期捕获。
+    """
+    label = _STRENGTH_LABEL.get(day_master_strength, "旺衰未判定")
+    base = f"你的日主是 **{day_gan}**（{day_gan_element}），命局整体 **{label}**"
+
+    # 从格诚实降级:不下硬性喜忌
+    if day_master_strength == "special_pattern":
+        return base + "。"
+
+    # 防御:喜/忌任一为空(理论上普通盘不应为空,但保护)
+    parts: list[str] = []
+    if favorable:
+        parts.append("**喜** " + "/".join(favorable))
+    if unfavorable:
+        parts.append("**忌** " + "/".join(unfavorable))
+
+    if not parts:
+        return base + "。"
+    return base + "，" + "、".join(parts) + "。"

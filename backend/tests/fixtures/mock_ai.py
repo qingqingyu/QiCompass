@@ -21,7 +21,7 @@ class MockAIClient:
         self.call_count = 0
         self.last_prompt: str | None = None
 
-    def interpret(self, prompt: str) -> str:
+    async def interpret(self, prompt: str) -> str:
         self.call_count += 1
         self.last_prompt = prompt
         return self._response
@@ -34,7 +34,7 @@ class FailingAIClient(MockAIClient):
         super().__init__(**kwargs)
         self._error = error
 
-    def interpret(self, prompt: str) -> str:
+    async def interpret(self, prompt: str) -> str:
         self.call_count += 1
         self.last_prompt = prompt
         if self._error:

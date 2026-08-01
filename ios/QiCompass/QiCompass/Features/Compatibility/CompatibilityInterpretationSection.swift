@@ -5,7 +5,8 @@ import SwiftUI
 /// **独立 error 态 + 禁词拦截提示**:定性评估 + 流年同步表已就绪即视为合盘成功;
 /// AI 子状态独立 error,可单独重试,不污染整体 resultReady。
 ///
-/// 不复用 DailyInterpretationSection:字数(400-500)/ 标题 / 模块不同。
+/// 不复用 DailyInterpretationSection:字数(2026-08-01 grill-me V2 后 1200-1800 字,
+/// 6 章 × 200-300 字 Medium voice)/ 标题 / 模块不同。
 struct CompatibilityInterpretationSection: View {
     let state: InterpretState
     let remainingReads: Int
@@ -47,12 +48,9 @@ struct CompatibilityInterpretationSection: View {
                     .font(.caption)
                     .foregroundStyle(BaziTheme.inkMuted)
                 }
-                HStack {
-                    Spacer()
-                    Button("重新生成", action: onRetry)
-                        .font(.caption)
-                        .foregroundStyle(BaziTheme.cinnabar)
-                }
+                // 2026-08-01 grill-me 决策 #15:不做"再生成"按钮(任何模块)。
+                // 用户不能换 prompt 风格重跑同一命盘。失败重试走 .failed case 的"重试"按钮,
+                // 符合 CLAUDE.md "AI 失败重试不消耗次数"原则。
             case .lockedPaid:
                 // M4 合盘付费时填充锁标 UI;M3a 占位空实现
                 EmptyView()
@@ -84,7 +82,7 @@ struct CompatibilityInterpretationSection: View {
     @ViewBuilder
     private func interpretationCTABlock(isLoading: Bool) -> some View {
         VStack(spacing: 12) {
-            Text("点击生成合盘解读(约 400-500 字,涵盖五行、日主、流年同步)")
+            Text("6 章解读:基础相处 / 互补冲突 / 爱情深度 / 合作事业 / 财运合拍 / 流年同步")
                 .font(.subheadline)
                 .foregroundStyle(BaziTheme.inkMuted)
                 .multilineTextAlignment(.center)

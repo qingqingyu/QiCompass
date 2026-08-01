@@ -15,9 +15,10 @@ import SwiftUI
 /// 4. 开始页(印章「始」+ CTA)
 ///
 /// 首启动由 RootTabView 检测 `@AppStorage("hasSeenOnboarding") = false` 弹出。
-/// 完成后设 true,后续启动不再弹。Sheet 禁止下滑 dismiss(必须点 CTA)。
+/// B2 流(2026-08-01):onComplete 不再直接设 hasSeenOnboarding,而是触发 FirstLaunchBirthFormView
+/// fullScreenCover;表单提交成功后才设 true。Sheet 禁止下滑 dismiss(必须点 CTA)。
 struct OnboardingView: View {
-    /// 完成回调(由 RootTabView 设 hasSeenOnboarding = true)。
+    /// 完成回调(B2 流:由 RootTabView 设 showFirstLaunchForm = true 进入出生表单 fullScreenCover)。
     let onComplete: () -> Void
 
     @State private var currentPage = 0
