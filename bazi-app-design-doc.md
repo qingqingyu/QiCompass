@@ -1,9 +1,11 @@
 # Design: 玄机问道 — AI 八字深度解析 / 合盘 / 每日运势
 
-Generated on 2026-07-09 (revised after lunar-python spike)
+Generated on 2026-07-09 (revised after lunar-python spike; last revised 2026-08-01 after grill-me strategic review)
 Repo: QiCompass (greenfield)
 Status: DRAFT — API 契约已用 lunar-python 实测字段校准
 Mode: Builder
+
+> **2026-08-01 grill-me 决策**：本 doc 已同步战略 review 结论——入口改为今日运势 / B2 强制轻注册 / 深度解析改为 β 点击触发 / 三模块统一 Medium/Medium-deep 短句节奏 voice。详见 §Tab 结构 + 默认 Tab + Onboarding 流 + §Module Specifications 各模块 voice 注记。代码 diff 待办见 `STRATEGIC_DIFF.md`。
 
 > **配套文档**：`命理引擎设计决策.md` 含喜忌/神煞/ChartSnapshot 三项核心命理决策的详细规范。本设计文档与之分工：本文件管"产品形态 + 工程实现"，决策文件管"命理算法"。
 
@@ -15,7 +17,7 @@ Mode: Builder
 
 ## What Makes This Cool
 
-三个模块共享同一份用户命盘数据——做完一次深度解析，合盘和每日运势都能复用。每日运势是高频回访入口（每天子时更新），合盘是社交裂变入口（两人才能完成），深度解析是基础。宫观古董美学继承自旧方案，V1 先上 MVP 视觉。
+三个模块共享同一份用户命盘数据——B2 强制轻注册生成 chart 后，今日运势 / 深度解析 / 合盘都能复用。今日运势是**高频回访入口 + 默认 Tab**（2026-08-01 决策），合盘是社交裂变入口（两人才能完成），深度解析是**可选功能**（β 点击触发，不再自动跑）。视觉方向见 `DESIGN.md`（宋瓷气质，现代东方极简）。
 
 ## Constraints
 
@@ -29,19 +31,22 @@ Mode: Builder
 
 1. **八字垂直 > 多占卜横向**
 2. **后端权威计算 + 客户端纯渲染**。所有排盘走后端，客户端不算历法
-3. **每日运势依赖已存档的命盘**。用户必须先做深度解析生成命盘，每日运势 = 命盘 × 流日柱
-4. **合盘前置**：用户自己的命盘必须已存档，对方命盘可临时输入（"半游客模式"）
+3. **每日运势依赖已存档的命盘**。B2 强制轻注册（2026-08-01 决策）后，用户填出生表单即生成 `ChartSnapshot` 存档——**不要求**跑深度解析 AI 命书。每日运势 = 命盘 × 流日柱
+4. **合盘前置**：用户自己的命盘必须已存档（B2 表单提交后 `ChartSnapshot` 即视为存档，不要求跑过深度解析 AI），对方命盘可临时输入（"半游客模式"）
 5. **格局判定延后**（详见 `命理引擎设计决策.md` §4）
-6. **感觉即产品**——宫观古董美学是核心差异化
+6. **感觉即产品**——美学方向以 `DESIGN.md` 为事实源（宋瓷气质，现代东方极简；**预先存在的 drift**：本 doc 早期版本写"宫观古董美学"，已在 DESIGN.md 演化为宋瓷基调，此 Premise 措辞待下次视觉 slice 清理）
 
 ## Architecture Overview
 
-```
+> 下图展示**数据流**（三模块共享 ChartSnapshot），不是 Tab 顺序。Tab 顺序见 §App 结构 + Onboarding 流。
+
+```text
 ┌─────────────────────────────────────────────┐
 │             iOS App (SwiftUI)               │
 │                                             │
 │  ┌──────────┐ ┌──────────┐ ┌────────────┐  │
-│  │ 深度解析  │ │  合盘    │ │ 每日运势    │  │
+│  │ 今日运势  │ │ 深度解析  │ │  合盘      │  │
+│  │ (默认Tab) │ │ (β触发)  │ │            │  │
 │  └────┬─────┘ └────┬─────┘ └─────┬──────┘  │
 │       └────────────┼─────────────┘         │
 │                    ▼                        │
@@ -262,8 +267,10 @@ health 响应固定带 `Cache-Control: no-store`；其中 `model` 仍是排盘 A
 
 - **输入**：出生日期（DatePicker）、出生时辰（时辰选择器）、性别、出生城市（从城市经度表选）、子时规则（默认 zi_next_day，可改 zero_oclock）
 - **计算**：后端 `lunar_python` 排盘，强制 `setSect(1)` 默认值
+- **触发**：**β 点击触发**（2026-08-01 决策，对齐 B2"强制轻注册但不立刻跑深度 AI"）。用户切到深度解析 Tab → chart 立即可见（pillars/五行/十神/神煞，deterministic，instant）→ 顶部加 deterministic anchor sentence（"日主 X，命局 Y，喜 Z 忌 W"，0 AI 成本，字符串拼接）→ "生成免费解读"按钮显眼 → 用户点 → ~10s 跑免费 2 章 → fade in。返回用户走 `InterpretationCache`（决策 4）instant 命中缓存
 - **显示**：
   - 顶部：命主信息 + 真太阳时（标注与输入时间的偏差分钟数）
+  - **deterministic anchor sentence**（新增 2026-08-01）：1 句话总览，由后端 `day_master_strength` + `favorable_elements` + `unfavorable_elements` 拼接返回，0 AI 成本，instant（文案模板候选见 `STRATEGIC_DIFF.md` Open implementation question #2）
   - 四柱表：年/月/日/时四列，每列天干上 / 地支下，十神标在天干旁边，纳音小字在底部，藏干 chip 列表
   - 命宫/身宫/胎元小卡片（lunar_python 自带）
   - 五行平衡条形图
@@ -271,7 +278,9 @@ health 响应固定带 `Cache-Control: no-store`；其中 `model` 仍是排盘 A
   - 大运横向时间轴（跳过 index=0 童限）
   - 神煞 chip 列表（决策 2，20 个固定清单）
   - 流年/流日/流时当前状态小卡片
-  - AI 命书区：300-500 字（MVP 压缩 30%）
+  - **"生成免费解读"按钮**（β 点击触发点）：默认显示，用户点击后跑 2 章免费 AI；点击后变成 disabled + "生成中..." skeleton
+  - AI 命书区：**Medium-deep voice**（2026-08-01 决策）——每章 200-300 字，分 3-5 段，每段 2-3 短句，每段聚焦一个具体洞察（短句节奏 + 研究深度兼得，既不像 CoStar 那样 vague 短箴言，也不像传统命理师长文）。**砍掉旧 "300-500 字 + MVP 压缩 30%"**。7 章总 AI 内容 = 1400-2100 字/命盘（2 免费 400-600 + 5 付费 1000-1500，详见 §AI Voice 规范 表格）
+  - **不做"再生成"按钮**（2026-08-01 决策）：用户不能换 prompt 风格再跑一次
 - **持久化**：按决策 3 内容寻址生成 `ChartSnapshot`，不可变
 
 ### 2. 合盘（两人兼容）
@@ -279,25 +288,76 @@ health 响应固定带 `Cache-Control: no-store`；其中 `model` 仍是排盘 A
 - **输入**：A 盘从已存档 snapshot 选（必须），B 盘可临时输入或选已存档
 - **context 选项**：general / marriage / business（**不影响计算**，只影响 LLM 命书侧重）
 - **计算**：两个单人排盘 + 定性合盘描述 + 流年同步性
+- **付费形态**：**半免费**（决策 2026-07-18 + 重申 2026-08-01）。基础相处模式 + 互补/冲突总览 = 免费；爱情深度 / 合作事业 / 财运合拍 / 流年同步 = 付费（与深度解析同形态）
 - **显示**：
   - 双盘对比：A 盘左、B 盘右，四柱并排
   - 定性卡片（决策 A2）：五行互补、日主关系、生肖匹配、地支合冲——**只给定性描述，不给数字分**
   - 流年同步表：未来 3 年定性同步性
-  - AI 合盘解读：400-500 字
+  - AI 合盘解读：**Medium voice**（2026-08-01 决策）——同短句节奏（每段 2-3 短句）但比深度解析 Medium-deep 更简洁，每章 200-300 字围绕相处场景 actionable。**砍掉旧 "400-500 字"**
 - **持久化**：合盘结果按 `(min(a_hash, b_hash), max(a_hash, b_hash), context)` 内容寻址缓存
 
-### 3. 每日运势（高频回访入口）
+### 3. 每日运势（高频回访入口 / 视觉入口）
 
-- **前置**：必须先完成深度解析生成命盘（无命盘显示 CTA）
-- **触发**：App 打开按需生成 + 24h 缓存（决策 A3，iOS Background Tasks 不可靠）
-- **显示**：
+- **角色**：**默认 Tab + 首次注册后落地页**（2026-08-01 决策）。冷启动直接进入今日运势，不进深度解析
+- **前置**：必须先完成 B2 强制轻注册（5 字段表单），生成 `ChartSnapshot` 存档。**不要求**跑深度解析 AI 命书——只要 chart 存在，今日运势就能拿到个性化层（流日对日主关系 + 喜忌层）
+- **触发**：App 打开按需生成 + 24h 缓存（决策 A3，iOS Background Tasks 不可靠）。**瞬时层 + 异步 AI 流式追加**模式（Open Question 10 结论）：流日柱/冲/黄历宜忌 0 延迟显示，AI 总览 3-5s 流式追加
+- **显示**：**Medium voice**（2026-08-01 决策，砍掉旧 150-200 字长段）：
   - 顶部：今日日期（农历 + 公历）+ 今日流日柱 + 流日对日主的关系（如"偏官日"）+ 流日冲
-  - 中部：今日总览（AI 生成 ~150-200 字）
+  - 中部：**AI 总览 50-80 字（3-5 短句，直言不绕弯）**——结合命局喜忌写"今日倾向 + 行动建议"，不堆术语
+  - **宜/忌主视觉锚点**：每条 2-3 字 actionable bullet（如 "宜 果断 独处 / 忌 犹豫 争论"），东方黄历传统现代化，对应 CoStar 短句 actionable 但不是复制。**数据源待定**（Open implementation question）：候选 a = 后端基于 `favorable_elements` + 流日关系确定性映射到 actionable 词表（如 喜火+偏官日 → "宜 果断"）；候选 b = 由 AI 总览 50-80 字一起生成（但违背"UI 渲染而非 AI 输出"原则）；候选 c = 仍用 `getDayYi/Ji` 但前端做词汇风格转换。**推荐 a**（后端确定性 + iOS 渲染，与 anchor sentence 同源）
   - 12 时辰条：默认折叠，展开后显示每个时辰的流时柱 + 关系 + 冲。**当前时辰高亮**，手动下拉刷新（决策 B）
   - 通用黄历宜忌：lunar_python `getDayYi/Ji`（所有人一样，不个性化）
   - 底部：明日预告
 - **缓存**：当日生成后缓存到 SwiftData，24h 内不重算
 - **历史**：可回看过去 7 天（决策 B）
+- **不做**：不在今日页强制阅读长命书段（CoStar 节奏）；不堆叠 12 时辰点评（保持折叠）
+
+## App 结构 + Onboarding 流（2026-08-01 grill-me 决策）
+
+### Tab 结构
+
+4 个 Tab，从左到右：
+
+| 顺序 | Tab | 角色 |
+|---|---|---|
+| 1 | **今日运势** | 默认 Tab（冷启动落地），高频回访入口 |
+| 2 | **深度解析** | 第二功能，2 章 free + 5 章 paid |
+| 3 | **合盘** | 第三功能，half-free |
+| 4 | **我的** | 新增。多命盘管理（`UserSnapshotLink`）/ 已购 entitlements / 设置（zi_hour_rule default / 主题 / 语言）/ 关于。v1 无账号系统，此 Tab 不含账号功能 |
+
+**默认选中**：`.dailyFortune`（2026-08-01 决策，旧 `.deepAnalysis` 改掉）。
+
+**不做**：不做"再生成"按钮（任何模块）——用户不能换 prompt 风格重跑同一命盘。
+
+### Onboarding 流（B2 强制轻注册）
+
+```text
+首次启动
+  ↓
+OnboardingView（4 页 sheet，禁下滑 dismiss）
+  ├─ Page 1: WelcomePage（背景图 + 印章「玄」+ 经文）
+  ├─ Page 2: StancePage（"不是算命软件" 留白叙事）
+  ├─ Page 3: PrivacyPage（"数据在你设备上" 留白叙事）
+  └─ Page 4: StartPage（印章「始」+ CTA "开始排盘")
+       ↓ CTA 点击
+BirthFormView（5 字段强制轻注册）
+  ├─ 出生日期（DatePicker）
+  ├─ 出生时辰（时辰选择器）
+  ├─ 性别
+  ├─ 出生城市（城市经度表）
+  └─ 子时规则（默认 zi_next_day，可改 zero_oclock）
+       ↓ 表单提交
+后端 /api/bazi/calculate → ChartSnapshot 存档
+       ↓
+落地默认 Tab = 今日运势（已个性化，因 chart 已建）
+       ↓
+首次进入今日运势，AI 总览异步流式追加（3-5s）
+```
+
+**关键约束**：
+- B2 表单**只**触发排盘计算（deterministic，instant），**不**触发深度解析 AI 命书生成
+- 深度解析 AI 命书延后到用户**主动**切到深度解析 Tab + 点"生成免费解读"按钮（β 点击触发，2026-08-01 决策）
+- 第二次冷启动起，`hasSeenOnboarding = true`，跳过 OnboardingView 直接到 TabView（落地今日运势）
 
 ## 排盘规则（Deterministic Calculation Rules）
 
@@ -444,97 +504,47 @@ class DailyFortuneSnapshot {
 | 金 | `#8c836e` | 金五行 |
 | 水 | `#3a7ca5` | 水五行 |
 
-## AI Prompt 模板
+## AI Voice 规范（2026-08-01 grill-me 决策）
 
-### 深度解析
+**实施源**：`backend/app/ai/prompts.py` 是 prompt 模板的单一事实源。本节是 voice spec，不复制模板原文（避免双份维护漂移）。
 
-```
-你是一位精通中国传统四柱八字命理的大师。请基于以下排盘数据进行深度命书解读。
+### 通用原则（所有 module 共享）
 
-命主：{gender}，出生于 {city}，真太阳时 {true_solar_time}
+- **短句节奏**：每段 2-3 句，每句尽量短（避免 50+ 字长句）
+- **直言不绕弯**：不用"传统认为..."、"古人云..."；直接"你是..."
+- **核心术语保留但不主动解释**：日主 / 十神 / 喜忌 / 流日等术语直接用，假设读者基础（对齐目标用户"想认真研究命理"画像）
+- **不确定性保留**：用"倾向 / 可能 / 容易"，禁用"必 / 一定 / 肯定"
+- **段落聚焦洞察**：每段聚焦一个具体 actionable 洞察，不泛泛
 
-四柱：
-- 年柱：{year_gan}{year_zhi}（{year_gan_element}/{year_zhi_element}），十神 {year_shishen_gan}，藏干 {year_hide_gan}
-- 月柱：{month_gan}{month_zhi}（...），十神 {month_shishen_gan}
-- 日柱：{day_gan}{day_zhi}（日主 {day_gan_element}），地支十神 {day_shishen_zhi}
-- 时柱：{hour_gan}{hour_zhi}（...），十神 {hour_shishen_gan}
+### Module-specific voice
 
-纳音：年 {year_nayin} / 月 {month_nayin} / 日 {day_nayin} / 时 {hour_nayin}
-命宫：{ming_gong}（{ming_gong_nayin}）
-神煞：{shensha_list}  // 决策 2 输出
-五行统计：{element_balance}
-日主旺衰：{day_master_strength}  // 决策 1 确定性输出
-喜用五行：{favorable_elements}  // 决策 1 确定性输出，你只需润色
-忌讳五行：{unfavorable_elements}
-调候是否触发：{tiaoshou_applied}
-当前大运：{current_luck_pillar}
-当前流年：{current_year_pillar}
+| Module | 篇幅 | 段落结构 | Voice |
+|---|---|---|---|
+| `bazi_deep_free`（2 章免费：性格底色 / 事业） | 200-300 字/章 × 2 = **400-600 字总** | 每章 3-5 段 × 2-3 短句 | **Medium-deep**：每段聚焦"日主本质 / 事业倾向"的一个具体 actionable 洞察 |
+| `bazi_deep_paid`（5 章付费：财运 / 爱情 / 健康 / 六亲 / 晚年） | 200-300 字/章 × 5 = **1000-1500 字总** | 每章 3-5 段 × 2-3 短句 | **Medium-deep**：每章聚焦该领域的具体倾向 + 流年时间窗口 |
+| `compatibility` | 200-300 字/章 × 6 章（2 免费 + 4 付费，详见 `MONETIZATION.md` §合盘）= **1200-1800 字总** | 每章 3-5 段 × 2-3 短句 | **Medium**：合盘特化，围绕相处模式 + 互补/冲突具体场景。免费章节给基础相处总览，付费章节给爱情/合作/财运/流年同步 |
+| `daily_fortune` | **50-80 字** | 3-5 短句（不分段或弱分段） | **Medium**：今日倾向 + 行动建议，直言 actionable。**砍掉旧 150-200 字 + 12 时辰点评** |
 
-写作要求：
-1. 日主旺衰、喜忌、神煞、大运流年走势
-2. **重要：格局作为叙事概念模糊处理**，用"命局呈现××倾向"，**不得**给出"正官格/偏印格"等硬性分类
-3. **重要：喜忌已由后端确定性给出，你必须严格按后端的 favorable/unfavorable 写**，不得自行推断或修改
-4. 古朴典雅，引用术语配解释，面向有基础的海外华人用户
-5. 约 300-500 字（MVP 压缩 30%）
-```
+**为什么 Medium-deep 而不是 CoStar 式极短**（2026-08-01 决策）：
 
-### 合盘
+- 今日页 = 高频回访入口 → 50-80 字短句匹配 CoStar 节奏
+- 深度解析章节 = 低频深读场景 + 付费内容载体 → 200-300 字保留研究深度，但用短句节奏避免长文迂回感
+- 全栈一致 CoStar 化会让 $18 = 5 章 × 80 字 = 400 字总，价值感薄
+- 短句 ≠ 必须短文——一段 200 字如果用短句分段写，仍然有 CoStar 的节奏感
 
-```
-你是一位精通八字合婚/合盘的大师。请基于以下两人命盘进行 {context_label} 合盘解读。
+### 禁止事项（所有 module 共享）
 
-A 盘（{gender_a}，{city_a}，{birth_a}）：日主 {day_master_a}，{day_master_strength_a}，喜 {favorable_a}
-- 年柱：{year_a} 月柱：{month_a} 日柱：{day_a} 时柱：{hour_a}
-- 五行：{element_balance_a}
+- 不堆 5+ 字术语链（"伤官见官" 需拆开或换说法）
+- 不写"必成 / 必分 / 必破财 / 必有大灾"等绝对结论
+- 不自创格局硬分类（"正官格 / 偏印格" 禁用，用"命局呈现××倾向"模糊叙事）
+- **喜忌不得自行推断或修改**——严格按后端 `favorable_elements` / `unfavorable_elements`
+- **从格诚实降级**：`day_master_strength == "special_pattern"` 时只叙事不下硬性喜忌结论（对齐 CLAUDE.md "从格检测…LLM 诚实告知"）
 
-B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_master_strength_b}，喜 {favorable_b}
-- 年柱：{year_b} 月柱：{month_b} 日柱：{day_b} 时柱：{hour_b}
-- 五行：{element_balance_b}
+### B2 触发约束（2026-08-01 决策）
 
-定性评估（后端已给，你负责展开）：
-- 五行互补：{five_elements_assessment}  // 如"互补佳"
-- 日主关系：{day_master_relation}  // 如"相生"
-- 生肖匹配：{zodiac_match}  // 如"六合"
-- 地支合冲：{branch_harmony}
-
-流年同步性（未来 3 年）：
-{synced_fortune_table}
-
-写作要求：
-1. 围绕 {context_label} 维度展开
-2. 客观陈述五行互补、日主关系、地支合冲的具体表现
-3. 流年同步性：指出同步进好运/坏运的年份
-4. **绝对禁忌**：不得给出"必成 / 必分 / 必破财"等绝对结论
-5. 约 400-500 字
-```
-
-### 每日运势
-
-```
-你是一位精通流日推断的命理师。请基于以下信息为命主解读今日运势。
-
-命主：日主 {day_master}（{day_master_element}），{day_master_strength}
-命局喜：{favorable_elements}  // 后端确定性输出
-命局忌：{unfavorable_elements}
-
-今日：{date}（农历 {lunar_date}）
-今日流日柱：{day_pillar}（流日天干 {day_stem} 属 {day_stem_element}，流日地支 {day_branch} 属 {day_branch_element}）
-流日对日主关系：{day_relation}（如偏官日 / 正印日）
-流日冲：{day_chong}  // lunar_python getDayChong
-
-12 时辰（按 zi_hour_rule 排序）：
-{hour_pillars_with_relations}
-
-通用黄历宜：{huangli_yi}
-通用黄历忌：{huangli_ji}
-
-写作要求：
-1. 今日总览：流日对日主的生克影响（结合后端给出的喜忌），是否冲克命局、是否有贵人扶持
-2. 个性化宜忌（结合命主命局，**不是通用黄历的复述**）：3-5 条
-3. 情绪/状态提示：基于流日对日主的关系
-4. 12 时辰强弱：简短点评（一句话/时辰）
-5. 约 200-300 字 + 12 句时辰点评
-```
+- **深度解析 AI 命书不在表单提交时自动跑**——延后到用户主动点深度解析 Tab 的"生成免费解读"按钮（β 点击触发）
+- **今日运势 AI 总览在表单提交后立即异步触发**——用户落地今日页时流式追加（3-5s）
+- chart 排盘本身是 deterministic + instant，不阻塞 B2 流程
 
 ## Open Questions
 
@@ -552,14 +562,33 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
 7. **iOS 最低版本**：**iOS 17.2+**（Xcode `IPHONEOS_DEPLOYMENT_TARGET = 17.2`）。SwiftData `@Relationship` 在 17.0/17.1 有 crash；D1 减轻了 VersionedSchema 依赖，但 `@Relationship`（UserSnapshotLink ↔ ChartSnapshot）仍要用
 8. **对盘 ground truth 数据源**：**lunar_python 测试套件（主）+ 问真八字 App 抽样 5-10 个（辅）**。库的 `test/` 目录有 22 个测试文件，`LunarTest.py` 含完整 `toFullString` 断言（自带四柱/纳音/方位/冲煞全字段答案），可信度极高
 
+**2026-08-01 grill-me 战略 review 锁定**：
+9. **视觉层不动**：DESIGN.md "宋瓷气质，不取 CoStar 纯黑白" 决策保持。CoStar 启发只取表层 copy 腔调，不动 IA / 视觉 token / 色板
+10. **CoStar 腔调 = 宜/忌传统现代化**（不是复制 CoStar）：短句 actionable + 直言不绕弯 + 每段聚焦一个具体洞察。深度 + 短句 可共存（不推翻"研究型用户"画像）
+11. **入口 = 今日运势**（默认 Tab）：旧"深度解析为基础"叙事改为"今日运势为视觉入口，深度解析为可选功能"
+12. **B2 强制轻注册**：首次打开必须填出生信息（5 字段）→ chart 创建（deterministic, instant）→ 落地今日运势（已个性化）。**不**立刻跑深度解析 AI
+13. **深度解析 Tab = β 点击触发**：用户切 Tab → chart 可见 + deterministic anchor sentence → 点"生成免费解读"按钮 → 跑免费 2 章。**不**自动跑（cost control + 显式 intent 匹配研究型用户心理）
+14. **三模块统一 Medium / Medium-deep voice**：今日页 AI 总览 50-80 字 / 深度章节 200-300 字 × 7 章 / 合盘 200-300 字 × 6 章。**砍掉旧 300-500 字 / 400-500 字 / 150-200 字**
+15. **不做"再生成"按钮**：任何模块都不放。用户不能换 prompt 风格重跑同一命盘
+16. **每日一问出 v1**：移到 v2 backlog（详见 `MONETIZATION.md` 标记 + §Next Steps 调整）
+17. **Tab 结构 4 个**：今日运势 / 深度解析 / 合盘 / 我的（新增"我的"含多命盘管理 / entitlements / 设置 / 关于）
+18. **Onboarding 保留现有 4 页设计**：WelcomePage（背景图 + 印章「玄」+ 经文）/ StancePage / PrivacyPage / StartPage。`hasSeenOnboarding` 已实现首启动 flag
+
 **P1/P2 未决（不阻塞开工）**：
-9. **大运第一步（童限）展示**：跳过？还是单独标注"起运前"？
-10. **每日运势冷启动 UX**：用户打开 App 等 AI 出 200-300 字 = 3-5 秒空白。考虑"瞬时显示流日基本信息（流日柱/冲/黄历宜忌，0 延迟）+ AI 解读异步流式追加"
-11. **lunar_python 同步库 × FastAPI async**：lunar_python 是同步 CPU-bound 库，FastAPI 是 async 框架。排盘调用必须用 `anyio.to_thread.run_sync()` 或 `starlette.concurrency.run_in_threadpool` 包，否则阻塞 event loop。实现 note
-12. **~~CI/CD~~** ✅ 已拍板（2026-07-13）：选 **GitHub Actions**。理由：后端 pytest 必须在 Linux/macOS 跑（Xcode Cloud 完全管不到 backend）；单 workflow 同时覆盖 backend + iOS 符合本项目双端形态。详见 §Distribution Plan
-13. **喜忌规则引擎权重**：得令/得地/得势的权重值需要标定（spike 阶段跑 50 个真实命盘）
-14. **从格检测阈值**：决策 1b 的初值（专旺 ≥6/8、从格 ≥5/8）需用真实命盘验证
-15. **城市经度表数据源**：自己整理 vs 用现成 cities.json
+19. **大运第一步（童限）展示**：跳过？还是单独标注"起运前"？
+20. **lunar_python 同步库 × FastAPI async**：lunar_python 是同步 CPU-bound 库，FastAPI 是 async 框架。排盘调用必须用 `anyio.to_thread.run_sync()` 或 `starlette.concurrency.run_in_threadpool` 包，否则阻塞 event loop。实现 note
+21. **喜忌规则引擎权重**：得令/得地/得势的权重值需要标定（spike 阶段跑 50 个真实命盘）
+22. **从格检测阈值**：决策 1b 的初值（专旺 ≥6/8、从格 ≥5/8）需用真实命盘验证
+23. **城市经度表数据源**：自己整理 vs 用现成 cities.json
+
+**已关闭的 P1/P2 项**（保留索引，不占未决编号）：
+- ~~每日运势冷启动 UX~~ ✅ 已拍板（2026-08-01 grill-me 决策 #14 配套）：瞬时显示流日基本信息（流日柱/冲/黄历宜忌，0 延迟）+ AI 总览异步流式追加（3-5s）。已并入 §Module Specifications §3
+- ~~CI/CD~~ ✅ 已拍板（2026-07-13）：选 **GitHub Actions**。详见 §Distribution Plan
+
+**预先存在的 doc drift（2026-08-01 grill 发现，单独清理）**：
+- §Visual Design Tokens（line ~488-502）写的还是旧黑金色板（bgTop / bgMid / gold / 亮金 等），与 `DESIGN.md` 的 paper / cinnabar / jade 决策**直接矛盾**
+- §V1 Minimum Viable Aesthetic（line ~678+）写的还是"金底深色（不可协商）"，与 DESIGN.md "极浅暖白 paper 不取纯黑白" 决策**直接矛盾**
+- 这两处是 2026-07-22 paper 调浅决策后没同步的 drift，不在本次 grill 范围。已在 `STRATEGIC_DIFF.md` flag。下次视觉相关 slice 起手时一并清理
 
 ## Success Criteria
 
@@ -569,8 +598,8 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
   - **lunar_python 测试套件**（30-50 个用例自带答案）：我们的封装输出 = 测试套件期望答案，四柱/十神/纳音/大运 100% 一致
   - **问真八字 App 抽样**（5-10 个真实命盘）：与行业标杆 100% 一致（注意 `sect=1` 默认值）
 - AI 命书：包含五行分析、十神配置、神煞提示、大运流年走势、后端给出的喜忌，无硬性格局结论
-- 首次使用到出深度解析 < 30 秒
-- 每日运势冷启动 < 5 秒（按需生成）
+- 首次使用（B2 流）到落地今日运势：瞬时层（流日柱/冲/黄历）< 1 秒，AI 总览流式完成 < 5 秒（2026-08-01 决策更新：不再测 "首次到出深度解析"，深度解析改为 β 点击触发）
+- 深度解析 β 点击触发后：免费 2 章 < 15 秒（~10s AI + 渲染）
 
 ## Distribution Plan
 
@@ -628,17 +657,26 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
 1. ~~库选型 spike~~ ✅ 完成（lunar_python 1.4.8，所有期望字段已验证）
 2. ~~plan-eng-review P0~~ ✅ 完成（2026-07-10，D1/D2/D3 三项锁定）
 3. ~~plan-eng-review P1~~ ✅ 完成（2026-07-10，神煞工作量/iOS 17.2/对盘数据源三项锁定）
-4. **后端排盘原型**（3-4 天）：FastAPI + lunar_python + `setSect(1)` + 内容寻址 ID + 跳过 index=0 童限 + `run_in_threadpool` 包同步调用 + D2 后端 SQLite 缓存层
-5. **喜忌规则引擎**（2-3 天）：扶抑 + 调候 + **D3 从格检测**（专旺/从格阈值），用 lunar_python 测试套件 + 问真八字抽样对盘
-6. **神煞查表**（2.5-3 天）：《三命通会》20 个神煞代码化。先写通用模板（日干查表/三合局查表）+ 对盘脚手架（1 天），再填数据（1-1.5 天），最后对盘测试（0.5 天，用 lunar_python 测试套件 + 问真八字抽样）
-7. **Prompt 验证 spike**（2-3 天）：20 个真实命盘跑深度解析 prompt，请懂命理的人审核输出质量。**特别测试 D3 special_pattern 触发时的诚实告知是否到位**
-8. **Xcode 项目脚手架**（1 天）：SwiftUI + SwiftData（**iOS 17.2+**）+ Tab 结构 + D1 schemaVersion + D2 InterpretationCache 客户端表
-9. **深度解析模块**（1 周）
-10. **每日运势模块**（3-4 天）：参 Open Question 10 的"瞬时显示 + AI 流式追加"
-11. **合盘模块**（1 周）
-12. **MVP 视觉打磨**（3-5 天）
-13. **TestFlight 内测**（流程见 §Distribution Plan）
-14. **根据真实命书质量迭代 prompt**
+4. ~~后端排盘原型~~ ✅ 完成（30 用例对盘通过：库层 20 + 封装层 10）
+5. ~~喜忌规则引擎~~ ✅ 完成（扶抑 + 调候 + D3 从格检测）
+6. ~~神煞查表~~ ✅ 完成（《三命通会》20 个神煞）
+7. ~~三模块 + 付费 + 可观测性~~ ✅ 完成（深度解析 / 合盘 / 每日运势 / M3 付费墙 / iOS 全量日志）
+8. ~~CI/CD + TestFlight 基础设施~~ ✅ 完成（GitHub Actions，详见 §Distribution Plan）
+9. ~~2026-08-01 grill-me 战略 review~~ ✅ 完成（详见 §Open Questions §2026-08-01 锁定段）
+10. **B2 onboarding 重构**（中等）：RootTabView 改 default Tab = `.dailyFortune` + 加 `.profile`（我的）Tab + onboarding CTA 后接 BirthFormView 强制轻注册 + 表单提交后落地今日运势（不跑深度解析 AI）。代码 diff 见 `STRATEGIC_DIFF.md`
+11. **深度解析 β 点击触发重构**（中等）：DeepAnalysisView / ViewModel 从 auto-generate 改为 click-to-generate（"生成免费解读"按钮），加 chart 顶部 deterministic anchor sentence
+12. **三模块 prompt voice 重写**（中等）：`backend/app/ai/prompts.py` 5 个模板按 §AI Voice 规范 重写。bump `PROMPT_VERSIONS` 让老缓存自动失效。**必须用真实命盘 spike 验证**：跑 20 个盘看输出 voice 是否落地 Medium / Medium-deep，长句占比 < 20%
+13. **今日页 UI Medium 重排**（小）：DailyFortuneView 重排——AI 总览压到 50-80 字 / 宜/忌升为主视觉锚点 / 12 时辰保持默认折叠。参 §Module Specifications §3
+14. **合盘页 UI Medium 重排**（小）：CompatibilityView 同 Medium 节奏调整
+15. **MVP 视觉打磨**（3-5 天）
+16. **TestFlight 内测**（流程见 §Distribution Plan）
+17. **根据真实命书质量迭代 prompt**
+
+**移到 v2 backlog**（2026-08-01 决策）：
+- 每日一问（详见 `MONETIZATION.md` Slice M5 标记）
+
+**预先存在的 doc drift 待清理**（不在本次 grill 范围）：
+- §Visual Design Tokens + §V1 Minimum Viable Aesthetic 还是旧黑金色板，与 DESIGN.md 决策矛盾。下次视觉相关 slice 起手时清理
 
 ## V1 Minimum Viable Aesthetic
 

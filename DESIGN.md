@@ -279,3 +279,4 @@ extension BaziTheme {
 | 2026-07-13 | 五行色全部降饱和 20-30% | 鲜艳五行色落入"算命软件"气质,降饱和匹配宋瓷基调 |
 | 2026-07-13 | 不打包自定义字体 | iOS 系统 Songti SC + PingFang SC + SF Pro 已够用,免打包体积 |
 | 2026-07-22 | 主背景 `paper` 由宣纸米 `#F5EFE1` 调浅为极浅暖白 `#FDFCFA` | 外部 UI 反馈指出整页低饱和暖色铺满(米黄背景+灰褐卡片+红字)违反"大面积留白+极少量高饱和点缀"原则,发土。根因不是单条 token 错而是视觉策略错。调浅背景后,暖色调收进 `cardSurface` 卡片内,朱砂收窄到强调态(选中/CTA/当前柱),形成留白驱动层级 |
+| 2026-08-01 | Copy voice 规范**不进** DESIGN.md，由后端 prompt 文件 `backend/app/ai/prompts.py` 单独管 | 用户决策：voice 是 prompt 工程范畴，视觉 token 与 voice 解耦避免双份维护。DESIGN.md 只管视觉（色/字/间距/圆角/动效），voice spec 由 `bazi-app-design-doc.md` §AI Voice 规范定义 + `prompts.py` 实施。本次决策不涉及视觉 token，DESIGN.md 视觉部分不动 |
