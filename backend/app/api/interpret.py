@@ -33,6 +33,7 @@ from fastapi import APIRouter, Request
 from starlette.concurrency import run_in_threadpool
 
 from ..ai.cache import InterpretationCache
+from ..ai.cache_key import CacheKey
 from ..ai.forbidden_words import scan as scan_forbidden_words
 from ..ai.forbidden_words import validate_interpretation
 from ..ai.prompts import PROMPT_VERSIONS, render_prompt, validate_context
@@ -128,20 +129,21 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
     }
     logger.info("interpret.start %s", log_ctx)
 
+    cache_key = CacheKey(
+        content_hash=req.content_hash,
+        module=req.module,
+        prompt_version=prompt_version,
+        target_date=target_date_str,
+        prompt_hash=prompt_hash,
+        provider=ai_client.provider,
+        model=ai_client.model,
+    )
+
     cache: InterpretationCache = request.app.state.cache
 
     # 3. 查后端缓存
     try:
-        cached_row = await run_in_threadpool(
-            cache.get,
-            content_hash=req.content_hash,
-            module=req.module,
-            prompt_version=prompt_version,
-            target_date=target_date_str,
-            prompt_hash=prompt_hash,
-            provider=ai_client.provider,
-            model=ai_client.model,
-        )
+        cached_row = await run_in_threadpool(cache.get, cache_key)
     except Exception as e:
         elapsed_ms = (time.perf_counter() - start) * 1000
         logger.exception(
@@ -161,15 +163,7 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
                 elapsed_ms, log_ctx, forbidden_hits,
             )
             # 删除坏缓存,避免同一 content_hash 永久不可用(失败只 log,不掩盖禁词拦截)
-            await _invalidate_poisoned_cache(cache, log_ctx,
-                content_hash=req.content_hash,
-                module=req.module,
-                prompt_version=prompt_version,
-                target_date=target_date_str,
-                prompt_hash=prompt_hash,
-                provider=ai_client.provider,
-                model=ai_client.model,
-            )
+            await _invalidate_poisoned_cache(cache, cache_key, log_ctx)
             raise InterpretationForbiddenError(
                 f"AI 解读包含禁词,已拦截(命中: {', '.join(forbidden_hits)})",
                 request_id=request_id,
@@ -194,11 +188,9 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
     #    (成本 + 延迟双省;多 worker 下各自独立,跨进程合并是 v2 Redis 的事)
     logger.info("interpret.provider_called %s", log_ctx)
     sf: SingleflightCoalescer = request.app.state.llm_singleflight
-    sf_key = (
-        req.content_hash, req.module, prompt_version,
-        target_date_str, prompt_hash,
-        ai_client.provider, ai_client.model,
-    )
+    # CacheKey 是 frozen dataclass,自动 hashable,直接作 singleflight dict key
+    # (语义对齐:同 cache key 的并发 LLM 调用合并为一次)
+    sf_key = cache_key
     try:
         interpretation = await sf.coalesce(
             sf_key, lambda: ai_client.interpret(prompt),
@@ -227,16 +219,7 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
     now_iso = datetime.now(timezone.utc).isoformat()
     try:
         await run_in_threadpool(
-            cache.set,
-            content_hash=req.content_hash,
-            module=req.module,
-            prompt_version=prompt_version,
-            target_date=target_date_str,
-            prompt_hash=prompt_hash,
-            provider=ai_client.provider,
-            model=ai_client.model,
-            interpretation=interpretation,
-            generated_at=now_iso,
+            cache.set, cache_key, interpretation, now_iso,
         )
     except Exception as e:
         elapsed_ms = (time.perf_counter() - start) * 1000
@@ -265,8 +248,8 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
 
 async def _invalidate_poisoned_cache(
     cache: InterpretationCache,
+    cache_key: CacheKey,
     log_ctx: dict,
-    **key_kwargs,
 ) -> None:
     """删除被禁词污染的缓存条目。失败抛 InterpretationCacheError(不吞,避免坏缓存无限循环)。
 
@@ -275,7 +258,7 @@ async def _invalidate_poisoned_cache(
     让用户看到"缓存故障"(不同于"禁词拦截"),知道是基础设施问题。
     """
     try:
-        await run_in_threadpool(cache.delete, **key_kwargs)
+        await run_in_threadpool(cache.delete, cache_key)
     except Exception as e:
         logger.exception(
             "interpret.cache_delete_failed %s error=%s "

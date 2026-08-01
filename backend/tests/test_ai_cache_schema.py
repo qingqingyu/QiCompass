@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import sqlite3
+from dataclasses import replace
 
 from app.ai.cache import InterpretationCache
+from app.ai.cache_key import CacheKey
 
 
 def test_legacy_cache_table_is_dropped_and_rebuilt(tmp_path):
@@ -51,27 +53,17 @@ def test_legacy_cache_table_is_dropped_and_rebuilt(tmp_path):
 def test_cache_key_includes_provider_and_model(tmp_path):
     cache = InterpretationCache(str(tmp_path / "identity.db"))
     cache.init_schema()
-    common = dict(
+    base_key = CacheKey(
         content_hash="hash",
         module="bazi_deep",
         prompt_version=1,
         target_date=None,
         prompt_hash="prompt-hash",
-    )
-    cache.set(
-        **common,
         provider="anthropic",
         model="claude-test",
-        interpretation="anthropic text",
-        generated_at="2026-01-01T00:00:00+00:00",
     )
+    cache.set(base_key, "anthropic text", "2026-01-01T00:00:00+00:00")
 
-    assert cache.get(
-        **common, provider="anthropic", model="claude-test"
-    )["interpretation"] == "anthropic text"
-    assert cache.get(
-        **common, provider="openai", model="gpt-test"
-    ) is None
-    assert cache.get(
-        **common, provider="anthropic", model="claude-other"
-    ) is None
+    assert cache.get(base_key)["interpretation"] == "anthropic text"
+    assert cache.get(replace(base_key, provider="openai", model="gpt-test")) is None
+    assert cache.get(replace(base_key, model="claude-other")) is None

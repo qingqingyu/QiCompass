@@ -23,6 +23,8 @@ from __future__ import annotations
 import sqlite3
 from typing import Any
 
+from .cache_key import CacheKey
+
 # 建表语句(幂等,lifespan 启动时执行)
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS interpretation_cache (
@@ -79,19 +81,12 @@ class InterpretationCache:
             conn.execute(CREATE_TABLE_SQL)
             conn.commit()
 
-    def get(self, *, content_hash: str, module: str,
-            prompt_version: int, target_date: str | None,
-            prompt_hash: str, provider: str, model: str) -> dict[str, Any] | None:
+    def get(self, key: CacheKey) -> dict[str, Any] | None:
         """查缓存。
 
         Args:
-            content_hash: 命盘 hash / compatibility_hash
-            module: bazi_deep | compatibility | daily_fortune
-            prompt_version: 后端当前版本号
-            target_date: daily_fortune 用 ISO date,其他传 None(内部转空串)
-            prompt_hash: 渲染后 prompt 的 sha256
-            provider: AI provider 身份
-            model: AI model 身份
+            key: 七维度缓存键(content_hash/module/prompt_version/target_date/
+                prompt_hash/provider/model)
 
         Returns:
             命中 → dict(provider, model, interpretation, generated_at)
@@ -100,7 +95,7 @@ class InterpretationCache:
         Raises:
             sqlite3.Error: 读失败(不吞,向上抛,路由层转 500)
         """
-        td = target_date or ""
+        td = key.target_date or ""
         with self._connect() as conn:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
@@ -109,8 +104,8 @@ class InterpretationCache:
                 "WHERE content_hash=? AND module=? AND prompt_version=? "
                 "AND target_date=? AND prompt_hash=? "
                 "AND provider=? AND model=?",
-                (content_hash, module, prompt_version, td, prompt_hash,
-                 provider, model),
+                (key.content_hash, key.module, key.prompt_version, td,
+                 key.prompt_hash, key.provider, key.model),
             ).fetchone()
         if row is None:
             return None
@@ -121,61 +116,48 @@ class InterpretationCache:
             "generated_at": row["generated_at"],
         }
 
-    def set(self, *, content_hash: str, module: str, prompt_version: int,
-            target_date: str | None, prompt_hash: str, provider: str, model: str,
-            interpretation: str, generated_at: str) -> None:
+    def set(self, key: CacheKey, interpretation: str, generated_at: str) -> None:
         """写缓存(INSERT OR REPLACE,同 key 覆盖,幂等)。
 
         Args:
-            content_hash: 命盘 hash / compatibility_hash
-            module: bazi_deep | compatibility | daily_fortune
-            prompt_version: 后端当前版本号
-            target_date: daily_fortune 用 ISO date,其他传 None(内部转空串)
-            prompt_hash: 渲染后 prompt 的 sha256
-            provider: 生成时使用的 AI provider
-            model: 生成时使用的 model 名
+            key: 七维度缓存键
             interpretation: AI 解读文本
             generated_at: ISO 8601 UTC 时间字符串
 
         Raises:
             sqlite3.Error: 写失败(不吞,向上抛,路由层转 500)
         """
-        td = target_date or ""
+        td = key.target_date or ""
         with self._connect() as conn:
             conn.execute(
                 "INSERT OR REPLACE INTO interpretation_cache "
                 "(content_hash, module, prompt_version, target_date, prompt_hash, "
                 " provider, model, interpretation, generated_at) "
                 "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-                (content_hash, module, prompt_version, td, prompt_hash,
-                 provider, model, interpretation, generated_at),
+                (key.content_hash, key.module, key.prompt_version, td,
+                 key.prompt_hash, key.provider, key.model,
+                 interpretation, generated_at),
             )
             conn.commit()
 
-    def delete(self, *, content_hash: str, module: str,
-               prompt_version: int, target_date: str | None,
-               prompt_hash: str, provider: str, model: str) -> None:
+    def delete(self, key: CacheKey) -> None:
         """删除缓存行(用于清理被禁词污染的坏缓存)。
 
         Args:
-            content_hash: 命盘 hash / compatibility_hash
-            module: bazi_deep | compatibility | daily_fortune
-            prompt_version: 后端当前版本号
-            target_date: daily_fortune 用 ISO date,其他传 None(内部转空串)
-            prompt_hash: 渲染后 prompt 的 sha256
+            key: 七维度缓存键
 
         Raises:
             sqlite3.Error: 删失败(不吞,向上抛)
         """
-        td = target_date or ""
+        td = key.target_date or ""
         with self._connect() as conn:
             conn.execute(
                 "DELETE FROM interpretation_cache "
                 "WHERE content_hash=? AND module=? AND prompt_version=? "
                 "AND target_date=? AND prompt_hash=? "
                 "AND provider=? AND model=?",
-                (content_hash, module, prompt_version, td, prompt_hash,
-                 provider, model),
+                (key.content_hash, key.module, key.prompt_version, td,
+                 key.prompt_hash, key.provider, key.model),
             )
             conn.commit()
 

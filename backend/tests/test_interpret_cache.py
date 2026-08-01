@@ -15,6 +15,7 @@ import logging
 
 from httpx import ASGITransport, AsyncClient
 
+from app.ai.cache_key import CacheKey
 from app.ai.prompts import render_prompt
 from app.main import app
 from tests.fixtures.interpret_cases import BAZI_DEEP_CONTEXT, DAILY_FORTUNE_CONTEXT
@@ -211,10 +212,12 @@ async def test_provider_failure_propagates(tmp_cache):
         prompt_hash = hashlib.sha256(
             render_prompt("bazi_deep", BAZI_DEEP_CONTEXT).encode("utf-8")
         ).hexdigest()
-        row = tmp_cache.get(content_hash="test-hash-provider-fail",
-                            module="bazi_deep", prompt_version=1,
-                            target_date=None, prompt_hash=prompt_hash,
-                            provider=failing.provider, model=failing.model)
+        row = tmp_cache.get(CacheKey(
+            content_hash="test-hash-provider-fail",
+            module="bazi_deep", prompt_version=1,
+            target_date=None, prompt_hash=prompt_hash,
+            provider=failing.provider, model=failing.model,
+        ))
         assert row is None, "provider 失败时不应写缓存"
     finally:
         app.state.cache = saved_cache
@@ -232,7 +235,7 @@ async def test_cache_get_failure_propagates(tmp_cache, mock_ai_client):
     app.state.ai_client = mock_ai_client
 
     # 让 cache.get 抛异常
-    def boom_get(**kwargs):
+    def boom_get(key):
         raise sqlite3.OperationalError("forced cache read failure")
 
     original_get = tmp_cache.get
@@ -269,7 +272,7 @@ async def test_cache_set_failure_propagates(tmp_cache):
     app.state.ai_client = mock
 
     # cache.get 正常返回 None(miss),但 cache.set 抛异常
-    def boom_set(**kwargs):
+    def boom_set(key, interpretation, generated_at):
         raise sqlite3.OperationalError("forced cache write failure")
 
     original_set = tmp_cache.set
@@ -326,10 +329,12 @@ async def test_provider_returns_forbidden_words_returns_422(tmp_cache):
         prompt_hash = hashlib.sha256(
             render_prompt("bazi_deep", BAZI_DEEP_CONTEXT).encode("utf-8")
         ).hexdigest()
-        row = tmp_cache.get(content_hash="test-hash-forbidden-provider",
-                            module="bazi_deep", prompt_version=1,
-                            target_date=None, prompt_hash=prompt_hash,
-                            provider=mock.provider, model=mock.model)
+        row = tmp_cache.get(CacheKey(
+            content_hash="test-hash-forbidden-provider",
+            module="bazi_deep", prompt_version=1,
+            target_date=None, prompt_hash=prompt_hash,
+            provider=mock.provider, model=mock.model,
+        ))
         assert row is None, "禁词命中时不应写缓存"
     finally:
         app.state.cache = saved_cache
@@ -356,15 +361,17 @@ async def test_cache_hit_forbidden_words_returns_422_and_deletes(tmp_cache):
 
     # 预置含禁词的坏缓存
     tmp_cache.set(
-        content_hash=content_hash,
-        module="bazi_deep",
-        prompt_version=1,
-        target_date=None,
-        prompt_hash=prompt_hash,
-        provider=mock.provider,
-        model=mock.model,
-        interpretation="你们必定会在一起,注定如此",
-        generated_at="2026-01-01T00:00:00+00:00",
+        CacheKey(
+            content_hash=content_hash,
+            module="bazi_deep",
+            prompt_version=1,
+            target_date=None,
+            prompt_hash=prompt_hash,
+            provider=mock.provider,
+            model=mock.model,
+        ),
+        "你们必定会在一起,注定如此",
+        "2026-01-01T00:00:00+00:00",
     )
 
     try:
@@ -382,10 +389,12 @@ async def test_cache_hit_forbidden_words_returns_422_and_deletes(tmp_cache):
         assert body["error"]["content_hash"] == content_hash
 
         # 坏缓存应被删除
-        row = tmp_cache.get(content_hash=content_hash,
-                            module="bazi_deep", prompt_version=1,
-                            target_date=None, prompt_hash=prompt_hash,
-                            provider=mock.provider, model=mock.model)
+        row = tmp_cache.get(CacheKey(
+            content_hash=content_hash,
+            module="bazi_deep", prompt_version=1,
+            target_date=None, prompt_hash=prompt_hash,
+            provider=mock.provider, model=mock.model,
+        ))
         assert row is None, "禁词命中的坏缓存应被删除"
     finally:
         app.state.cache = saved_cache
