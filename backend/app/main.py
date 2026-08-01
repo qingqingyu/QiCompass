@@ -163,6 +163,12 @@ app = FastAPI(title="QiCompass Bazi Backend", version=MODEL_ID, lifespan=lifespa
 # ASGITransport 单测不触发 lifespan;先挂默认实例,启动时再重建一次。
 # entitlement_store / apple_server_api 也挂 fallback(测试 fixture 可覆盖)。
 app.state.ai_client = _build_ai_client()
+# 模块加载时确保 DB 目录存在(对齐 lifespan 内 makedirs,fix CI 全新 checkout
+# 没有 data/ 目录导致 sqlite3 open 失败)。lifespan 内同名调用保留作 production
+# startup 的 defense-in-depth。
+_db_dir = os.path.dirname(DB_PATH)
+if _db_dir:
+    os.makedirs(_db_dir, exist_ok=True)
 _default_entitlement_store = EntitlementStore(DB_PATH)
 _default_entitlement_store.init_schema()
 app.state.entitlement_store = _default_entitlement_store
