@@ -132,7 +132,10 @@ final class DailyFortuneOrchestrator {
             targetDate: targetDate,
             maxAge: 24 * 3600
         ) {
-            // reader 已按当前 identity 过滤,命中即 provider/model 与当前匹配且非 legacy nil
+            // reader 契约:命中行的 provider/model 必与当前 identity 严格匹配且非 legacy nil
+            // (InterpretationCacheStore.getLatest 用 `==` 过滤,legacy nil 行被排除)。
+            // SwiftData schema 保留 Optional 是为兼容旧迁移行,逻辑上此处不会命中 nil;
+            // 若 nil 出现说明 reader 契约被破坏,降级空串避免崩溃,但日志已可定位。
             let provider = cached.provider ?? ""
             let model = cached.model ?? ""
             // 命中本地 24h 缓存:构造 InterpretResponse(标 cached=true,generatedAt=原时间)
@@ -279,6 +282,7 @@ final class DailyFortuneOrchestrator {
         ) else {
             return nil
         }
+        // reader 契约:provider/model 非 legacy nil(同上 cache_hit 分支)。降级空串仅为防崩溃。
         try dailyStore.updateInterpretation(
             cached.interpretation,
             forChartHash: chartHash,
