@@ -16,7 +16,7 @@ struct DeepAnalysisResultView: View {
     @State private var showPaywall = false
 
     private var interpretState: InterpretState {
-        if case .chartReady(_, let s) = vm.state { return s }
+        if case .ready(_, let s) = vm.state { return s }
         return .idle
     }
 

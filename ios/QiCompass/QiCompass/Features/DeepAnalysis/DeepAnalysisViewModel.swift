@@ -6,11 +6,11 @@ import SwiftUI
 /// 深度解析主状态机(方案 §一)。
 ///
 /// 关键解耦:AI 命书失败 ≠ 排盘失败。
-/// 排盘成功 → `.chartReady`(命盘可见);AI 子状态独立 `.failed` 可重试。
+/// 排盘成功 → `.ready`(命盘可见);AI 子状态独立 `.failed` 可重试。
 enum DeepAnalysisViewState: Equatable {
     case empty
     case calculating(stage: LoadingStage)
-    case chartReady(BaziResponse, InterpretState)
+    case ready(BaziResponse, InterpretState)
     case chartFailed(UserFacingError)
     case formInvalid([String])
 
@@ -20,7 +20,7 @@ enum DeepAnalysisViewState: Equatable {
         case (.calculating(let a), .calculating(let b)): return a == b
         case (.chartFailed(let a), .chartFailed(let b)): return a == b
         case (.formInvalid(let a), .formInvalid(let b)): return a == b
-        case (.chartReady(let a1, let a2), .chartReady(let b1, let b2)):
+        case (.ready(let a1, let a2), .ready(let b1, let b2)):
             // response 用 contentHash 作相等性代理(完整比较太重,对齐 CompatibilityViewModel 实现)
             // 关键:必须比较 InterpretState(a2 == b2),否则 .idle → .fetching 会被判等,
             // 导致 @Observable 不触发 View 重渲染,按钮看起来"完全没反应"
@@ -164,7 +164,7 @@ final class DeepAnalysisViewModel {
                 let response = try await orchestrator.runCalculation(request: request)
                 if !Task.isCancelled {
                     AppLogger.app.info("deepVM.calculate.ok contentHash=\(response.contentHash, privacy: .public)")
-                    state = .chartReady(response, .idle)
+                    state = .ready(response, .idle)
                     // 命盘 + link 已落档。若用户从合盘/每日运势 CTA 切来,触发切回。
                     onChartArchived?()
                 }
@@ -195,14 +195,14 @@ final class DeepAnalysisViewModel {
     /// - 无 entitlement → `bazi_deep_free` → 成功显示 .okFree(2 章)
     /// 购买成功后(PaywallView dismiss)再次调用本方法,自动切到 _paid。
     func generateInterpretation() {
-        guard case .chartReady(let response, _) = state else {
+        guard case .ready(let response, _) = state else {
             // 不静默吞(CLAUDE.md 全局约束):UI 收到点击说明状态机错乱,显式记录
             AppLogger.app.error("op=deepAnalysis.generateInterpretation invalid_state state=\(String(describing: self.state), privacy: .public)")
             return
         }
         guard let request = lastRequest else {
             AppLogger.app.error("op=deepAnalysis.generateInterpretation missing_request")
-            state = .chartReady(response, .failed(message: "请求记录缺失,请重新排盘"))
+            state = .ready(response, .failed(message: "请求记录缺失,请重新排盘"))
             return
         }
 
@@ -218,7 +218,7 @@ final class DeepAnalysisViewModel {
 
         interpretTask?.cancel()
 
-        state = .chartReady(response, .fetching)
+        state = .ready(response, .fetching)
 
         interpretTask = Task {
             do {
@@ -229,9 +229,9 @@ final class DeepAnalysisViewModel {
                 )
                 if !Task.isCancelled {
                     if hasEntitlement {
-                        state = .chartReady(response, .okPaid(text: resp.interpretation, cached: resp.cached))
+                        state = .ready(response, .okPaid(text: resp.interpretation, cached: resp.cached))
                     } else {
-                        state = .chartReady(response, .okFree(text: resp.interpretation, cached: resp.cached))
+                        state = .ready(response, .okFree(text: resp.interpretation, cached: resp.cached))
                     }
                 }
             } catch is CancellationError {
@@ -243,9 +243,9 @@ final class DeepAnalysisViewModel {
                     AppLogger.app.warning("deepVM.generateInterpretation.deepAnalysisError error=\(String(describing: error), privacy: .public)")
                     // dailyLimitReached 独立形态(方案 step 4):禁用生成按钮、不显示重试
                     if case .dailyLimitReached(let reset, _) = error {
-                        state = .chartReady(response, .dailyLimitReached(nextReset: reset))
+                        state = .ready(response, .dailyLimitReached(nextReset: reset))
                     } else {
-                        state = .chartReady(response, .failed(message: error.errorDescription ?? "未知错误"))
+                        state = .ready(response, .failed(message: error.errorDescription ?? "未知错误"))
                     }
                 }
             } catch {
@@ -254,9 +254,9 @@ final class DeepAnalysisViewModel {
                     AppLogger.app.error("deepVM.generateInterpretation.failed error=\(String(describing: error), privacy: .public)")
                     let userError = UserFacingError.from(error, stage: .interpret)
                     if case .dailyLimitReached(let reset) = userError {
-                        state = .chartReady(response, .dailyLimitReached(nextReset: reset))
+                        state = .ready(response, .dailyLimitReached(nextReset: reset))
                     } else {
-                        state = .chartReady(response, .failed(message: userError.errorDescription ?? "未知错误"))
+                        state = .ready(response, .failed(message: userError.errorDescription ?? "未知错误"))
                     }
                 }
             }

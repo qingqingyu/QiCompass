@@ -3,7 +3,7 @@ import SwiftUI
 /// 合盘 AI 解读段(D9 + DESIGN.md §Color)。
 ///
 /// **独立 error 态 + 禁词拦截提示**:定性评估 + 流年同步表已就绪即视为合盘成功;
-/// AI 子状态独立 error,可单独重试,不污染整体 resultReady。
+/// AI 子状态独立 error,可单独重试,不污染整体 ready。
 ///
 /// 不复用 DailyInterpretationSection:字数(400-500)/ 标题 / 模块不同。
 struct CompatibilityInterpretationSection: View {

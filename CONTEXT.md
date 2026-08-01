@@ -161,9 +161,13 @@ _Avoid_: relationship reading / synastry
 基于已存档命盘 × 当日流日柱的每日运势模块。Tab 3。**按需生成 + 24h 缓存**(iOS Background Tasks 不可靠,不用)。包含流日柱 / 12 时辰 / 通用黄历宜忌 / AI 解读 / 7 天历史回看。
 _Avoid_: daily horoscope
 
-**每日一问 (Daily Question / daily_question)**:
+**每日一问 (Daily question / daily_question)**:
 基于命盘 + 当日运势回答用户具体提问的模块(规划中,M5 slice)。每天 1 次,跟 `DailyReadCounter` 共用全局每日 10 次池。
 _Avoid_: ask feature
+
+**ViewModel ready state**:
+三模块 ViewModel 的"数据就绪"状态统一命名 `.ready` — DeepAnalysis: `.ready(BaziResponse, InterpretState)` / Compatibility: `.ready(CompatibilityResponse, InterpretState)` / DailyFortune: `.ready(DailyFortuneResponse, InterpretState, businessDate)`。其他状态(`.loading` / `.calculating` / `.failed` / `.configuring` / `.chartMissing` 等)各模块独立,业务语义不同不强行统一。
+_Avoid_: chartReady / resultReady / fortuneReady(旧名,已收敛)
 
 ### AI 边界 (AI Boundary)
 

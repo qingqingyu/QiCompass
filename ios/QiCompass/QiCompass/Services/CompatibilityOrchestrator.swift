@@ -10,7 +10,7 @@ import Foundation
 ///   写 InterpretationCache + 更新 CompatibilitySnapshot.interpretation
 ///
 /// 关键解耦:
-/// - 定性评估成功 ≠ AI 成功;AI 子状态独立 error,不影响 resultReady
+/// - 定性评估成功 ≠ AI 成功;AI 子状态独立 error,不影响 ready
 /// - 命中后端缓存 cached=True → refund;失败 → refund
 /// - 禁词拦截显式失败(D10):不做正则替换,直接抛错让 UI 进入 error 态
 @MainActor

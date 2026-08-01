@@ -7,7 +7,7 @@ import SwiftData
 /// - .empty → 首次进入(等 onAppear 检查命盘)
 /// - .loading → 排盘中(阶段 1)
 /// - .chartMissing → CTA「先做深度解析」
-/// - .fortuneReady(response, interpretState, businessDate) → 主视图 + AI 子状态
+/// - .ready(response, interpretState, businessDate) → 主视图 + AI 子状态
 /// - .failed(msg) → 错误态
 struct DailyFortuneView: View {
     @EnvironmentObject private var env: AppEnvironment
@@ -104,7 +104,7 @@ struct DailyFortuneView: View {
                 LoadingStateView(title: "推演流日中…")
             case .chartMissing:
                 DailyFortuneEmptyView()
-            case .fortuneReady(let response, let interpretState, let businessDate):
+            case .ready(let response, let interpretState, let businessDate):
                 DailyFortuneMainView(
                     vm: vm,
                     response: response,

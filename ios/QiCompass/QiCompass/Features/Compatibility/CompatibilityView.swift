@@ -8,7 +8,7 @@ import SwiftData
 /// - .empty → 0 存档,引导去深度解析
 /// - .configuring → 配置态(A/B/context)
 /// - .computing → 调 /api/bazi/compatibility 中
-/// - .resultReady(response, interpretState) → 结果 + AI 子状态
+/// - .ready(response, interpretState) → 结果 + AI 子状态
 /// - .failed(msg) → 错误态
 struct CompatibilityView: View {
     @EnvironmentObject private var env: AppEnvironment
@@ -24,7 +24,7 @@ struct CompatibilityView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.light, for: .navigationBar)
             .toolbar {
-                if case .resultReady = vm?.state {
+                if case .ready = vm?.state {
                     ToolbarItem(placement: .topBarLeading) {
                         Button("返回修改") { vm?.backToConfig() }
                             .foregroundStyle(BaziTheme.cinnabar)
@@ -47,7 +47,7 @@ struct CompatibilityView: View {
 
     private var navigationTitle: String {
         switch vm?.state {
-        case .resultReady: return "合盘结果"
+        case .ready: return "合盘结果"
         default:           return "合盘"
         }
     }
@@ -73,7 +73,7 @@ struct CompatibilityView: View {
                 }
             case .computing:
                 LoadingStateView(title: "推演合盘中…")
-            case .resultReady(let response, let interpretState):
+            case .ready(let response, let interpretState):
                 if let chartA = vm.archivedCharts[safe: vm.selectedChartAIndex]?.snapshot,
                    let chartB = vm.bChartSnapshot {
                     CompatibilityMainView(

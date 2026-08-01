@@ -9,7 +9,7 @@ enum DailyFortuneViewState: Equatable {
     case empty              // 无命盘 → CTA
     case loading            // 首次 / 下拉刷新 / 跨业务日
     case chartMissing       // 显式提示「先做深度解析」
-    case fortuneReady(DailyFortuneResponse, InterpretState, Date)  // 第三个 = 当前展示的 businessDate
+    case ready(DailyFortuneResponse, InterpretState, Date)  // 第三个 = 当前展示的 businessDate
     case failed(UserFacingError)
 
     static func == (lhs: DailyFortuneViewState, rhs: DailyFortuneViewState) -> Bool {
@@ -18,7 +18,7 @@ enum DailyFortuneViewState: Equatable {
         case (.loading, .loading): return true
         case (.chartMissing, .chartMissing): return true
         case (.failed(let a), .failed(let b)): return a == b
-        case (.fortuneReady(let a1, let a2, let a3), .fortuneReady(let b1, let b2, let b3)):
+        case (.ready(let a1, let a2, let a3), .ready(let b1, let b2, let b3)):
             // DailyFortuneResponse 无 hash 字段,用业务关键字段做相等性代理
             // (dayPillar + lunarDate + currentHourIndex 在同一 businessDate 内能唯一定位一次响应)
             // 关键:必须比较 InterpretState(a2 == b2),否则 .idle → .fetching 会被判等,
@@ -87,7 +87,7 @@ final class DailyFortuneViewModel {
             return
         }
         // 仅当当前没数据时进入 loading(避免每次切 Tab 都闪 loading)
-        if case .fortuneReady = state { return }
+        if case .ready = state { return }
         if case .loading = state { return }
         load(chartHash: hash, ziHourRule: ziHourRule, forceRefresh: false)
     }
@@ -104,7 +104,7 @@ final class DailyFortuneViewModel {
         )
         // 若当前展示的是 selectedDate=today 且 now 已跨日 → 自动 refetch
         // 历史回看不自动切
-        if case .fortuneReady(_, _, let showing) = state {
+        if case .ready(_, _, let showing) = state {
             let showingNorm = Calendar.current.startOfDay(for: showing)
             let newNorm = Calendar.current.startOfDay(for: newBusinessDate)
             if showingNorm != newNorm, isToday(showing) == false {
@@ -160,13 +160,13 @@ final class DailyFortuneViewModel {
             AppLogger.app.error("op=dailyFortune.generateInterpretation missing_chartHash state=\(String(describing: self.state), privacy: .public)")
             return
         }
-        guard case .fortuneReady(let response, _, let businessDate) = state else {
+        guard case .ready(let response, _, let businessDate) = state else {
             AppLogger.app.error("op=dailyFortune.generateInterpretation invalid_state state=\(String(describing: self.state), privacy: .public)")
             return
         }
         guard let chartPayload = cachedChartPayload else {
             // chartPayload 解码失败(见 runFullPipeline 的 catch)→ 显式报错,不静默返回
-            state = .fortuneReady(
+            state = .ready(
                 response,
                 .failed(message: "命盘数据读取失败,请下拉刷新重试"),
                 businessDate,
@@ -175,7 +175,7 @@ final class DailyFortuneViewModel {
         }
 
         interpretTask?.cancel()
-        state = .fortuneReady(response, .fetching, businessDate)
+        state = .ready(response, .fetching, businessDate)
 
         interpretTask = Task {
             do {
@@ -186,7 +186,7 @@ final class DailyFortuneViewModel {
                     businessDate: businessDate,
                 )
                 if !Task.isCancelled {
-                    state = .fortuneReady(
+                    state = .ready(
                         response,
                         .okFree(text: resp.interpretation, cached: resp.cached),
                         businessDate,
@@ -198,13 +198,13 @@ final class DailyFortuneViewModel {
                 if !Task.isCancelled {
                     // dailyLimitReached 独立形态(方案 step 4):禁用生成按钮、不显示重试
                     if case .dailyLimitReached(let reset, _) = error {
-                        state = .fortuneReady(
+                        state = .ready(
                             response,
                             .dailyLimitReached(nextReset: reset),
                             businessDate,
                         )
                     } else {
-                        state = .fortuneReady(
+                        state = .ready(
                             response,
                             .failed(message: error.errorDescription ?? "未知错误"),
                             businessDate,
@@ -215,13 +215,13 @@ final class DailyFortuneViewModel {
                 if !Task.isCancelled {
                     let userError = UserFacingError.from(error, stage: .interpret)
                     if case .dailyLimitReached(let reset) = userError {
-                        state = .fortuneReady(
+                        state = .ready(
                             response,
                             .dailyLimitReached(nextReset: reset),
                             businessDate,
                         )
                     } else {
-                        state = .fortuneReady(
+                        state = .ready(
                             response,
                             .failed(message: userError.errorDescription ?? "未知错误"),
                             businessDate,
@@ -311,7 +311,7 @@ final class DailyFortuneViewModel {
             }
 
             if !Task.isCancelled {
-                state = .fortuneReady(response, interpretState, businessDate)
+                state = .ready(response, interpretState, businessDate)
             }
         } catch let error as DailyFortuneError where error == .chartMissing {
             if !Task.isCancelled {
@@ -414,7 +414,7 @@ final class DailyFortuneViewModel {
 
         isOffline = true
         if !Task.isCancelled {
-            state = .fortuneReady(cachedResponse, interpState, businessDate)
+            state = .ready(cachedResponse, interpState, businessDate)
         }
         AppLogger.app.info(
             "daily.offline_fallback hash=\(chartHash, privacy: .public) targetDate=\(businessDate, privacy: .public) hasInterpretation=\(hasInterpretation)"

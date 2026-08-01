@@ -6,7 +6,7 @@ import SwiftData
 /// 主状态机:
 /// - .empty / .formInvalid → BirthFormView
 /// - .calculating(stage) → 分阶段加载文案
-/// - .chartReady(response, _) → DeepAnalysisResultView(AI 子状态独立)
+/// - .ready(response, _) → DeepAnalysisResultView(AI 子状态独立)
 /// - .chartFailed(message) → 原始错误 + 重试
 ///
 /// VM 首次 appear 时用 env.deepAnalysisOrchestrator 创建(@State + .task)。
@@ -75,7 +75,7 @@ struct DeepAnalysisView: View {
                 BirthFormView(vm: vm, onSubmit: vm.calculate)
             case .calculating(let stage):
                 calculatingView(stage: stage)
-            case .chartReady(let response, _):
+            case .ready(let response, _):
                 if let request = vm.lastRequest {
                     DeepAnalysisResultView(vm: vm, response: response, request: request)
                 } else {

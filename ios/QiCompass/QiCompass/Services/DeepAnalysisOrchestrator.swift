@@ -8,7 +8,7 @@ import Foundation
 ///   AI 失败 ≠ 排盘失败,独立 throw(由 VM 转 `.interpretFailed`,排盘已存档可见)。
 ///
 /// 关键解耦(方案 §一):
-/// - 排盘成功立即存档 + 进 chartReady;AI 子状态独立
+/// - 排盘成功立即存档 + 进 ready;AI 子状态独立
 /// - 命中后端缓存 cached=True → refund(不消耗每日次数)
 /// - AI 失败 → refund(重试不消耗)
 /// - 存档失败也 throw(不提示"命盘已保存")

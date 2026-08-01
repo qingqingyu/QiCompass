@@ -11,7 +11,7 @@ import SwiftData
 /// - empty:0 存档,引导去深度解析
 /// - configuring:配置态(A/B/context)
 /// - computing:调 /api/bazi/compatibility 中
-/// - resultReady(response, interpretState):结果 + AI 子状态
+/// - ready(response, interpretState):结果 + AI 子状态
 /// - failed(message):显式错误
 ///
 /// `.configuring` 是主动配置态(合盘不像 daily 进入即触发)。
@@ -20,7 +20,7 @@ enum CompatibilityViewState: Equatable {
     case empty
     case configuring
     case computing
-    case resultReady(CompatibilityResponse, InterpretState)
+    case ready(CompatibilityResponse, InterpretState)
     case failed(UserFacingError)
 
     static func == (lhs: CompatibilityViewState, rhs: CompatibilityViewState) -> Bool {
@@ -30,7 +30,7 @@ enum CompatibilityViewState: Equatable {
         case (.configuring, .configuring): return true
         case (.computing, .computing): return true
         case (.failed(let a), .failed(let b)): return a == b
-        case (.resultReady(let a1, let a2), .resultReady(let b1, let b2)):
+        case (.ready(let a1, let a2), .ready(let b1, let b2)):
             // response 用 compatibilityHash 作相等性代理(完整比较太重)
             return a1.compatibilityHash == b1.compatibilityHash && a2 == b2
         default: return false
@@ -275,7 +275,7 @@ final class CompatibilityViewModel {
                 }
 
                 if !Task.isCancelled {
-                    state = .resultReady(result.response, interpretState)
+                    state = .ready(result.response, interpretState)
                 }
             } catch is CancellationError {
                 return
@@ -291,23 +291,23 @@ final class CompatibilityViewModel {
 
     /// 触发 AI 解读:用户点「生成合盘解读」。
     func generateInterpretation() {
-        guard case .resultReady(let response, _) = state else {
+        guard case .ready(let response, _) = state else {
             // 不静默吞(CLAUDE.md 全局约束):UI 收到点击说明状态机错乱,显式记录
             AppLogger.app.error("op=compatibility.generateInterpretation invalid_state state=\(String(describing: self.state), privacy: .public)")
             return
         }
         guard let compatHash = lastCompatibilityHash else {
-            state = .resultReady(response, .failed(message: "合盘缓存键缺失,请重新合盘"))
+            state = .ready(response, .failed(message: "合盘缓存键缺失,请重新合盘"))
             return
         }
         guard let chartASnapshot = archivedCharts[safe: selectedChartAIndex]?.snapshot,
               let bSnapshot = lastBChartSnapshot else {
-            state = .resultReady(response, .failed(message: "命盘快照缺失,请重新合盘"))
+            state = .ready(response, .failed(message: "命盘快照缺失,请重新合盘"))
             return
         }
 
         interpretTask?.cancel()
-        state = .resultReady(response, .fetching)
+        state = .ready(response, .fetching)
 
         interpretTask = Task {
             do {
@@ -334,22 +334,22 @@ final class CompatibilityViewModel {
                 )
 
                 if !Task.isCancelled {
-                    state = .resultReady(
+                    state = .ready(
                         response,
                         .okFree(text: resp.interpretation, cached: resp.cached)
                     )
                 }
             } catch let error as CompatibilityError {
                 if !Task.isCancelled {
-                    state = .resultReady(response, .failed(message: error.errorDescription ?? "未知错误"))
+                    state = .ready(response, .failed(message: error.errorDescription ?? "未知错误"))
                 }
             } catch let error as DeepAnalysisError {
                 if !Task.isCancelled {
                     // dailyLimitReached 独立形态(方案 step 4):禁用生成按钮、不显示重试
                     if case .dailyLimitReached(let reset, _) = error {
-                        state = .resultReady(response, .dailyLimitReached(nextReset: reset))
+                        state = .ready(response, .dailyLimitReached(nextReset: reset))
                     } else {
-                        state = .resultReady(response, .failed(message: error.errorDescription ?? "未知错误"))
+                        state = .ready(response, .failed(message: error.errorDescription ?? "未知错误"))
                     }
                 }
             } catch is CancellationError {
@@ -358,9 +358,9 @@ final class CompatibilityViewModel {
                 if !Task.isCancelled {
                     let userError = UserFacingError.from(error, stage: .interpret)
                     if case .dailyLimitReached(let reset) = userError {
-                        state = .resultReady(response, .dailyLimitReached(nextReset: reset))
+                        state = .ready(response, .dailyLimitReached(nextReset: reset))
                     } else {
-                        state = .resultReady(response, .failed(message: userError.errorDescription ?? "未知错误"))
+                        state = .ready(response, .failed(message: userError.errorDescription ?? "未知错误"))
                     }
                 }
             }
