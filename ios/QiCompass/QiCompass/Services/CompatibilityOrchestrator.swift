@@ -20,7 +20,7 @@ final class CompatibilityOrchestrator {
     private let chartStore: ChartSnapshotStore
     private let interpretStore: InterpretationCacheStore
     private let counter: DailyReadCounter
-    private let aiIdentityResolver: AIIdentityResolver
+    private let interpretationReader: CachedInterpretationReader
 
     init(
         apiClient: APIClient,
@@ -28,14 +28,14 @@ final class CompatibilityOrchestrator {
         chartStore: ChartSnapshotStore,
         interpretStore: InterpretationCacheStore,
         counter: DailyReadCounter,
-        aiIdentityResolver: AIIdentityResolver
+        interpretationReader: CachedInterpretationReader
     ) {
         self.apiClient = apiClient
         self.compatibilityStore = compatibilityStore
         self.chartStore = chartStore
         self.interpretStore = interpretStore
         self.counter = counter
-        self.aiIdentityResolver = aiIdentityResolver
+        self.interpretationReader = interpretationReader
     }
 
     // MARK: - 阶段 1:确定性合盘
@@ -150,14 +150,14 @@ final class CompatibilityOrchestrator {
         let module = "compatibility"
 
         // 1. 查本地 24h AI 缓存(命中不消耗次数)
-        let identity = try await aiIdentityResolver.resolve()
-        if let cached = try interpretStore.getLatest(
+        if let cached = try await interpretationReader.read(
             contentHash: compatibilityHash,
             module: module,
-            targetDate: nil,
-            identity: identity
-        ),
-            cached.generatedAt.addingTimeInterval(24 * 3600) > .now {
+            maxAge: 24 * 3600
+        ) {
+            // reader 已按当前 identity 过滤,命中即 provider/model 与当前匹配且非 legacy nil
+            let provider = cached.provider ?? ""
+            let model = cached.model ?? ""
             // 二次禁词扫描(防止老缓存被污染)
             let hits = ForbiddenWords.scan(cached.interpretation)
             if !hits.isEmpty {
@@ -171,15 +171,15 @@ final class CompatibilityOrchestrator {
                 promptVersion: cached.promptVersion,
                 cached: true,
                 generatedAt: cached.generatedAt,
-                provider: identity.provider,
-                model: identity.model
+                provider: provider,
+                model: model
             )
             try syncCompatibilityInterpretation(
                 cached.interpretation,
                 compatibilityHash: compatibilityHash,
                 source: "cache_hit",
-                provider: identity.provider,
-                model: identity.model
+                provider: provider,
+                model: model
             )
             AppLogger.app.info(
                 "compat.interpret.cache_hit compatibility_hash=\(compatibilityHash, privacy: .public)"
@@ -312,23 +312,19 @@ final class CompatibilityOrchestrator {
         compatibilityHash: String
     ) async throws -> (text: String, promptVersion: Int)? {
         let module = "compatibility"
-        let identity = try await aiIdentityResolver.resolve()
-        guard let cached = try interpretStore.getLatest(
+        guard let cached = try await interpretationReader.read(
             contentHash: compatibilityHash,
             module: module,
-            targetDate: nil,
-            identity: identity
-        ),
-            cached.generatedAt.addingTimeInterval(24 * 3600) > .now
-        else {
+            maxAge: 24 * 3600
+        ) else {
             return nil
         }
         try syncCompatibilityInterpretation(
             cached.interpretation,
             compatibilityHash: compatibilityHash,
             source: "prefetch_cache",
-            provider: identity.provider,
-            model: identity.model
+            provider: cached.provider ?? "",
+            model: cached.model ?? ""
         )
         return (cached.interpretation, cached.promptVersion)
     }

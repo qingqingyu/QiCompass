@@ -19,7 +19,7 @@ final class DailyFortuneOrchestrator {
     private let interpretStore: InterpretationCacheStore
     private let chartStore: ChartSnapshotStore
     private let counter: DailyReadCounter
-    private let aiIdentityResolver: AIIdentityResolver
+    private let interpretationReader: CachedInterpretationReader
 
     init(
         apiClient: APIClient,
@@ -27,14 +27,14 @@ final class DailyFortuneOrchestrator {
         interpretStore: InterpretationCacheStore,
         chartStore: ChartSnapshotStore,
         counter: DailyReadCounter,
-        aiIdentityResolver: AIIdentityResolver
+        interpretationReader: CachedInterpretationReader
     ) {
         self.apiClient = apiClient
         self.dailyStore = dailyStore
         self.interpretStore = interpretStore
         self.chartStore = chartStore
         self.counter = counter
-        self.aiIdentityResolver = aiIdentityResolver
+        self.interpretationReader = interpretationReader
     }
 
     // MARK: - 阶段 1:确定性排盘
@@ -126,29 +126,30 @@ final class DailyFortuneOrchestrator {
         let targetDate = businessDate
 
         // 1. 查本地 24h AI 缓存
-        let identity = try await aiIdentityResolver.resolve()
-        if let cached = try interpretStore.getLatest(
+        if let cached = try await interpretationReader.read(
             contentHash: chartHash,
             module: module,
             targetDate: targetDate,
-            identity: identity
-        ),
-            cached.generatedAt.addingTimeInterval(24 * 3600) > .now {
+            maxAge: 24 * 3600
+        ) {
+            // reader 已按当前 identity 过滤,命中即 provider/model 与当前匹配且非 legacy nil
+            let provider = cached.provider ?? ""
+            let model = cached.model ?? ""
             // 命中本地 24h 缓存:构造 InterpretResponse(标 cached=true,generatedAt=原时间)
             let resp = InterpretResponse(
                 interpretation: cached.interpretation,
                 promptVersion: cached.promptVersion,
                 cached: true,
                 generatedAt: cached.generatedAt,
-                provider: identity.provider,
-                model: identity.model
+                provider: provider,
+                model: model
             )
             try dailyStore.updateInterpretation(
                 cached.interpretation,
                 forChartHash: chartHash,
                 targetDate: targetDate,
-                provider: identity.provider,
-                model: identity.model
+                provider: provider,
+                model: model
             )
             AppLogger.app.info(
                 "daily.interpret.cache_hit hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public)"
@@ -270,23 +271,20 @@ final class DailyFortuneOrchestrator {
         chartHash: String, targetDate: Date
     ) async throws -> (text: String, promptVersion: Int)? {
         let module = "daily_fortune"
-        let identity = try await aiIdentityResolver.resolve()
-        guard let cached = try interpretStore.getLatest(
+        guard let cached = try await interpretationReader.read(
             contentHash: chartHash,
             module: module,
             targetDate: targetDate,
-            identity: identity
-        ),
-            cached.generatedAt.addingTimeInterval(24 * 3600) > .now
-        else {
+            maxAge: 24 * 3600
+        ) else {
             return nil
         }
         try dailyStore.updateInterpretation(
             cached.interpretation,
             forChartHash: chartHash,
             targetDate: targetDate,
-            provider: identity.provider,
-            model: identity.model
+            provider: cached.provider ?? "",
+            model: cached.model ?? ""
         )
         return (cached.interpretation, cached.promptVersion)
     }

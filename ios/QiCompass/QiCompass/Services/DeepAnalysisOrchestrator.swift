@@ -18,7 +18,7 @@ final class DeepAnalysisOrchestrator {
     private let chartStore: ChartSnapshotStore
     private let interpretStore: InterpretationCacheStore
     private let counter: DailyReadCounter
-    private let aiIdentityResolver: AIIdentityResolver
+    private let interpretationReader: CachedInterpretationReader
     private let userLinkStore: UserSnapshotLinkStore
 
     init(
@@ -26,14 +26,14 @@ final class DeepAnalysisOrchestrator {
         chartStore: ChartSnapshotStore,
         interpretStore: InterpretationCacheStore,
         counter: DailyReadCounter,
-        aiIdentityResolver: AIIdentityResolver,
+        interpretationReader: CachedInterpretationReader,
         userLinkStore: UserSnapshotLinkStore
     ) {
         self.apiClient = apiClient
         self.chartStore = chartStore
         self.interpretStore = interpretStore
         self.counter = counter
-        self.aiIdentityResolver = aiIdentityResolver
+        self.interpretationReader = interpretationReader
         self.userLinkStore = userLinkStore
     }
 
@@ -189,19 +189,17 @@ final class DeepAnalysisOrchestrator {
         module: String
     ) async throws -> (text: String, promptVersion: Int)? {
         do {
-            let identity = try await aiIdentityResolver.resolve()
-            guard let cache = try interpretStore.getLatest(
+            // maxAge=nil 不过期(DeepAnalysis 瞬时显示,§4.5 v1 简化)
+            guard let cache = try await interpretationReader.read(
                 contentHash: contentHash,
-                module: module,
-                targetDate: nil,
-                identity: identity
+                module: module
             ) else {
                 return nil
             }
             return (cache.interpretation, cache.promptVersion)
         } catch {
             AppLogger.persistence.error(
-                "interpretationCache.getLatest failed hash=\(contentHash, privacy: .public) module=\(module, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                "interpretationReader.read failed hash=\(contentHash, privacy: .public) module=\(module, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
             throw error
         }

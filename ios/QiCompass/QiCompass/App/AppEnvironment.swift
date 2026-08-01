@@ -15,7 +15,7 @@ final class AppEnvironment: ObservableObject {
     let chartSnapshotStore: ChartSnapshotStore
     let userSnapshotLinkStore: UserSnapshotLinkStore
     let interpretationCacheStore: InterpretationCacheStore
-    let aiIdentityResolver: AIIdentityResolver
+    let cachedInterpretationReader: CachedInterpretationReader
     let dailyReadCounter: DailyReadCounter
     let deepAnalysisOrchestrator: DeepAnalysisOrchestrator
 
@@ -48,18 +48,22 @@ final class AppEnvironment: ObservableObject {
         let userLinkStore = UserSnapshotLinkStore(context: context)
         let interpretStore = InterpretationCacheStore(context: context)
         let identityResolver = AIIdentityResolver(apiClient: apiClient)
+        let interpretationReader = CachedInterpretationReader(
+            identityResolver: identityResolver,
+            cacheStore: interpretStore
+        )
         let counter = DailyReadCounter()
         self.chartSnapshotStore = chartStore
         self.userSnapshotLinkStore = userLinkStore
         self.interpretationCacheStore = interpretStore
-        self.aiIdentityResolver = identityResolver
+        self.cachedInterpretationReader = interpretationReader
         self.dailyReadCounter = counter
         self.deepAnalysisOrchestrator = DeepAnalysisOrchestrator(
             apiClient: apiClient,
             chartStore: chartStore,
             interpretStore: interpretStore,
             counter: counter,
-            aiIdentityResolver: identityResolver,
+            interpretationReader: interpretationReader,
             userLinkStore: userLinkStore
         )
         // slice 6 装配:每日运势复用 chartStore/interpretStore/counter(决策 §3.8)
@@ -71,7 +75,7 @@ final class AppEnvironment: ObservableObject {
             interpretStore: interpretStore,
             chartStore: chartStore,
             counter: counter,
-            aiIdentityResolver: identityResolver
+            interpretationReader: interpretationReader
         )
         // slice 7 装配:合盘独享 compatibilityStore,共享 chartStore(隐式落地 B)/
         // interpretStore/counter。三模块共用 DailyReadCounter 的每日 10 次全局池。
@@ -83,7 +87,7 @@ final class AppEnvironment: ObservableObject {
             chartStore: chartStore,
             interpretStore: interpretStore,
             counter: counter,
-            aiIdentityResolver: identityResolver
+            interpretationReader: interpretationReader
         )
         // M3a 装配:EntitlementStore(共享 modelContext)+ PurchaseManager(Mock 模式)
         let entitlementStore = EntitlementStore(modelContext: context)

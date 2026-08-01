@@ -2,6 +2,10 @@ import SwiftData
 import XCTest
 @testable import QiCompass
 
+/// InterpretationCacheStore 的身份过滤单元测试(纯 SwiftData,不依赖网络 mock)。
+///
+/// reader pipeline(resolve → getLatest → maxAge)的测试见
+/// `CachedInterpretationReaderTests`。这里只覆盖 cache store 本身的身份语义。
 @MainActor
 final class AIIdentityCacheTests: XCTestCase {
     func testProviderAndModelArePartOfLocalCacheIdentity() throws {
@@ -83,126 +87,5 @@ final class AIIdentityCacheTests: XCTestCase {
         let response = try APICoder.decoder.decode(InterpretResponse.self, from: json)
         XCTAssertEqual(response.provider, "openai")
         XCTAssertEqual(response.model, "gpt-5.5")
-    }
-
-    func testHealthFailurePreventsLocalCacheRead() async throws {
-        let container = try ModelContainerFactory.makeInMemory()
-        let interpretStore = InterpretationCacheStore(context: container.mainContext)
-        try interpretStore.upsert(
-            contentHash: "cached-hash",
-            module: "bazi_deep",
-            promptVersion: 1,
-            targetDate: nil,
-            provider: "anthropic",
-            model: "claude-test",
-            interpretation: "must not be used",
-            generatedAt: .now
-        )
-        let apiClient = IdentityAPIClient(healthResults: [.failure(.healthUnavailable)])
-        let orchestrator = DeepAnalysisOrchestrator(
-            apiClient: apiClient,
-            chartStore: ChartSnapshotStore(context: container.mainContext),
-            interpretStore: interpretStore,
-            counter: DailyReadCounter(),
-            aiIdentityResolver: AIIdentityResolver(apiClient: apiClient),
-            userLinkStore: UserSnapshotLinkStore(context: container.mainContext)
-        )
-
-        do {
-            _ = try await orchestrator.localCachedInterpretation(
-                contentHash: "cached-hash",
-                module: "bazi_deep"
-            )
-            XCTFail("health 失败时不得读取本地 AI 缓存")
-        } catch let error as IdentityTestError {
-            XCTAssertEqual(error, .healthUnavailable)
-        }
-    }
-
-    func testProviderSwitchMakesNextLocalReadMiss() async throws {
-        let container = try ModelContainerFactory.makeInMemory()
-        let interpretStore = InterpretationCacheStore(context: container.mainContext)
-        try interpretStore.upsert(
-            contentHash: "switch-hash",
-            module: "bazi_deep",
-            promptVersion: 1,
-            targetDate: nil,
-            provider: "anthropic",
-            model: "claude-test",
-            interpretation: "anthropic text",
-            generatedAt: .now
-        )
-        let apiClient = IdentityAPIClient(healthResults: [
-            .success(Self.health(provider: "anthropic", model: "claude-test")),
-            .success(Self.health(provider: "openai", model: "gpt-test")),
-        ])
-        let orchestrator = DeepAnalysisOrchestrator(
-            apiClient: apiClient,
-            chartStore: ChartSnapshotStore(context: container.mainContext),
-            interpretStore: interpretStore,
-            counter: DailyReadCounter(),
-            aiIdentityResolver: AIIdentityResolver(apiClient: apiClient),
-            userLinkStore: UserSnapshotLinkStore(context: container.mainContext)
-        )
-
-        let beforeSwitch = try await orchestrator.localCachedInterpretation(
-            contentHash: "switch-hash",
-            module: "bazi_deep"
-        )
-        let afterSwitch = try await orchestrator.localCachedInterpretation(
-            contentHash: "switch-hash",
-            module: "bazi_deep"
-        )
-        let healthCallCount = await apiClient.healthCallCount
-
-        XCTAssertEqual(beforeSwitch?.text, "anthropic text")
-        XCTAssertNil(afterSwitch)
-        XCTAssertEqual(healthCallCount, 2)
-    }
-
-    private static func health(provider: String, model: String) -> HealthResponse {
-        HealthResponse(
-            status: "ok",
-            lunarPythonVersion: "1.4.8",
-            model: "bazi-calculate-v1",
-            aiProvider: provider,
-            aiModel: model
-        )
-    }
-}
-
-private enum IdentityTestError: Error, Equatable {
-    case healthUnavailable
-    case unexpectedCall
-}
-
-private actor IdentityAPIClient: APIClient {
-    private var healthResults: [Result<HealthResponse, IdentityTestError>]
-    private(set) var healthCallCount = 0
-
-    init(healthResults: [Result<HealthResponse, IdentityTestError>]) {
-        self.healthResults = healthResults
-    }
-
-    func health() async throws -> HealthResponse {
-        healthCallCount += 1
-        guard !healthResults.isEmpty else { throw IdentityTestError.unexpectedCall }
-        return try healthResults.removeFirst().get()
-    }
-
-    func calculateBazi(request: BaziCalculateRequest) async throws -> BaziResponse {
-        throw IdentityTestError.unexpectedCall
-    }
-
-    func compatibility(request: CompatibilityRequest) async throws -> CompatibilityResponse {
-        throw IdentityTestError.unexpectedCall
-    }
-
-    func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse {
-        throw IdentityTestError.unexpectedCall
-    }
-
-    func interpret(request: InterpretRequest) async throws -> InterpretResponse {
-        throw IdentityTestError.unexpectedCall
     }
 }
