@@ -7,13 +7,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "All appearances are illusory"
+            "value" : "He who does not know his fate cannot be a gentleman"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "凡所有相，皆是虚妄"
+            "value" : "不知命，无以为君子也"
           }
         }
       }
