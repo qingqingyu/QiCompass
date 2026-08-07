@@ -63,17 +63,13 @@ struct InterpretationSection: View {
                     .bodySerifText()
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fadeIn()
-                HStack {
-                    if cached {
-                        Text("◎ 缓存命中(不消耗次数)")
-                            .font(.caption2)
-                            .foregroundStyle(BaziTheme.inkMuted)
-                    }
-                    Spacer()
-                    Button("重新生成", action: onRetry)
-                        .font(.caption)
-                        .foregroundStyle(BaziTheme.cinnabar)
+                if cached {
+                    Text("◎ 缓存命中(不消耗次数)")
+                        .font(.caption2)
+                        .foregroundStyle(BaziTheme.inkMuted)
                 }
+                // 2026-08-01 grill-me 决策 #15:不做"再生成"按钮。
+                // 失败重试走 .failed case 的"重试"按钮(CLAUDE.md "AI 失败重试不消耗次数"原则)。
                 Divider()
                     .background(BaziTheme.hairline)
                 PaidChaptersLockView(
@@ -87,17 +83,12 @@ struct InterpretationSection: View {
                     .bodySerifText()
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .fadeIn()
-                HStack {
-                    if cached {
-                        Text("◎ 缓存命中(不消耗次数)")
-                            .font(.caption2)
-                            .foregroundStyle(BaziTheme.inkMuted)
-                    }
-                    Spacer()
-                    Button("重新生成", action: onRetry)
-                        .font(.caption)
-                        .foregroundStyle(BaziTheme.cinnabar)
+                if cached {
+                    Text("◎ 缓存命中(不消耗次数)")
+                        .font(.caption2)
+                        .foregroundStyle(BaziTheme.inkMuted)
                 }
+                // 2026-08-01 grill-me 决策 #15:不做"再生成"按钮。
             case .lockedPaid(let previewChapters):
                 PaidChaptersLockView(previewChapters: previewChapters, onUnlock: onShowPaywall)
 

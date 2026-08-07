@@ -23,6 +23,21 @@ struct DeepAnalysisResultView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: BaziTheme.Spacing.md) {
+                // 2026-08-01 grill-me 决策 #13:chart 顶部 deterministic anchor sentence
+                // 后端拼接(0 AI 成本),iOS MarkdownSanitizer 渲染 **加粗** emphasis
+                if let anchor = response.anchorSentence {
+                    Text(MarkdownSanitizer.rendered(anchor))
+                        .bodySerifText()
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(BaziTheme.Spacing.md)
+                        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
+                                .stroke(BaziTheme.cinnabar.opacity(0.3), lineWidth: 0.5)
+                        )
+                }
                 ChartHeaderView(response: response, request: request)
                 PillarsTable(pillars: response.pillars)
                 AuxiliaryCards(

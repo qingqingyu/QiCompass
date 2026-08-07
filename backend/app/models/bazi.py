@@ -152,6 +152,10 @@ class BaziCalculateResponse(BaseModel):
     # 决策 2 神煞 —— 《三命通会》20 个固定清单
     shensha: list[ShenshaItem] = Field(default_factory=list)
 
+    # 2026-08-01 grill-me 决策 #13 chart anchor sentence
+    # 后端确定性拼接(0 AI 成本),iOS 在深度解析 Tab 顶部 instant 显示
+    anchor_sentence: str | None = None
+
     luck_pillars: list[LuckPillar]
     current_luck_pillar: CurrentPillar | None = None
     current_year_pillar: str | None = None

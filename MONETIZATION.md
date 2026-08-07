@@ -1,8 +1,10 @@
 # 付费系统设计决策(MONETIZATION)
 
-Generated on 2026-07-18, last updated 2026-07-18
+Generated on 2026-07-18, last updated 2026-08-01
 Status: DRAFT(待用户 review 通过,通过后转 ACCEPTED)
 关联文档: `CLAUDE.md` / `bazi-app-design-doc.md` / `命理引擎设计决策.md` / `DESIGN.md`
+
+> **2026-08-01 grill-me 更新**：每日一问(原 §每日一问 + Slice M5 + 验收标准相关条目)移出 v1,进 v2 backlog。其他付费结构(深度解析 2+5 / 合盘 half-free / 消耗型 IAP per-命盘 / $17.99 / $11.99 / 后端 entitlement 校验)**全部保持不变**。三模块 voice 改 Medium / Medium-deep 短句节奏（今日运势=Medium 50-80 字 / 深度解析=Medium-deep 200-300 字×7 章 / 合盘=Medium 200-300 字×6 章，详见 `bazi-app-design-doc.md` §AI Voice 规范），不影响付费结构。
 
 ## 设计哲学
 
@@ -22,7 +24,7 @@ Status: DRAFT(待用户 review 通过,通过后转 ACCEPTED)
 | 深度解析免费章节 | **性格底色 + 事业(2 章)** | 用户能从免费内容感知"AI 真有料"才肯买 |
 | 深度解析付费章节 | **财运 / 爱情 / 健康 / 六亲 / 晚年(5 章)** | 具体领域预测是用户付费动力 |
 | 合盘付费形态 | **跟深度解析同形态(半免费)** | UX 一致,降低实现复杂度 |
-| 每日一问 | **开放问题 + 留历史** | 留历史提升回访率,与"每日运势"形成"看运势 → 提具体问题"的链路 |
+| 每日一问 | **开放问题 + 留历史** — ~~v1~~ **移出 v1，进 v2 backlog（2026-08-01 grill-me）** | 原计划留历史提升回访率;v1 三模块核心 + Medium voice 重写已占满工作量,且与今日运势有重叠,等 v1 用户反馈再决定是否做 |
 | 定价基准 | **深度解析 $17.99 / 合盘 $11.99(USD)** | 高端定位,跟 `DESIGN.md` 的"克制、专业"对齐;合盘内容更少所以更便宜 |
 | 上架区域 | **全球,苹果 Price Tier 自动换算(基准 $17.99/$11.99)** | 苹果自动按 Tier 处理汇率,文案保持中文(v1 范围) |
 | 后端校验 | **接 App Store Server API + 退款 webhook** | 越狱不可白嫖,收入保护优先;v1 用户量虽小但此基础设施一次建好,v2 复用 |
@@ -163,7 +165,9 @@ CREATE INDEX idx_entitlement_user ON entitlement(user_local_id, is_active);
 - **旧 entitlement 不失效**(用户还能看回旧命盘的付费内容)
 - iOS UI:改生辰前弹确认 — "修改生辰需重新购买深度解析,旧命盘已购内容保留。确认修改?"
 
-## 每日一问(新功能)
+## 每日一问(新功能) — **v2 backlog，2026-08-01 grill-me 决策移出 v1**
+
+> **状态变更**：本节原为 v1 Slice M5 范围，2026-08-01 grill-me 战略 review 期间用户决定**移出 v1**。理由：(1) 三模块核心 + Medium voice 重写已占满 v1 工作量；(2) 每日一问与"今日运势"功能定位有部分重叠，等 v1 用户反馈再决定是否做以及如何差异化。下方原始设计保留作为 v2 参考。
 
 ### Prompt 模板
 
@@ -219,7 +223,7 @@ CREATE INDEX idx_entitlement_user ON entitlement(user_local_id, is_active);
 | **M2** | 后端:entitlement 表 + `/api/entitlement/redeem` + App Store Server API 集成 + 退款 webhook + prompt 拆分(`bazi_deep_free` / `_paid`) | 大 | M1 |
 | **M3** | iOS:StoreKit 2 + PurchaseManager + 购买 UI + 锁标 + 付费章节展开 UI + Entitlement SwiftData model | 中 | M2 |
 | **M4** | 合盘付费(M2/M3 复制粘贴 + 价格档 + 合盘 prompt 拆分) | 中 | M3 |
-| **M5** | 每日一问(后端 prompt + 接口 + 限制 + iOS UI + 历史) | 中 | - |
+| **M5** | ~~每日一问(后端 prompt + 接口 + 限制 + iOS UI + 历史)~~ — **2026-08-01 移出 v1，进 v2 backlog** | - | - |
 | **M6** | App Store Connect 配置两个 Consumable + TestFlight 沙盒账号验证购买/退款流程 | 小 | M2-M4 |
 
 ### 新依赖待用户同意
@@ -269,6 +273,6 @@ CREATE INDEX idx_entitlement_user ON entitlement(user_local_id, is_active);
 - [ ] 修改生辰 → content_hash 变 → 付费章节重新锁住,需重新购买
 - [ ] 沙盒模拟退款 → 后端 webhook 收到 → entitlement `is_active=0` → 付费章节 403
 - [ ] 越狱设备(或调试模式跳过 StoreKit)直接调 `/api/interpret bazi_deep_paid` → 403
-- [ ] 每日一问:第 1 次成功,第 2 次当天返回 429 `DAILY_LIMIT_REACHED`
-- [ ] 每日一问历史 SwiftData 持久化,跨启动能回看
+- [ ] ~~每日一问:第 1 次成功,第 2 次当天返回 429 `DAILY_LIMIT_REACHED`~~ — **2026-08-01 移出 v1**
+- [ ] ~~每日一问历史 SwiftData 持久化,跨启动能回看~~ — **2026-08-01 移出 v1**
 - [ ] App Store Connect 两个 product 配置正确,在 TestFlight build 上可见可购

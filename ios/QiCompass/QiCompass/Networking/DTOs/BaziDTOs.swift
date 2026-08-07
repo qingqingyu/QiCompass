@@ -154,6 +154,9 @@ struct BaziResponse: Codable, Sendable {
     let currentHourPillar: String?
     let calcRuleSnapshot: CalcRuleSnapshotDTO
     let boundaryWarning: String?
+    /// 2026-08-01 grill-me 决策 #13:chart anchor sentence(后端确定性拼接,0 AI 成本)
+    /// 默认 nil 兼容老 mock/test 构造(APIClient.swift mock 不需手填)
+    var anchorSentence: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case contentHash = "content_hash"
@@ -178,6 +181,7 @@ struct BaziResponse: Codable, Sendable {
         case currentHourPillar = "current_hour_pillar"
         case calcRuleSnapshot = "calc_rule_snapshot"
         case boundaryWarning = "boundary_warning"
+        case anchorSentence = "anchor_sentence"
     }
 }
 

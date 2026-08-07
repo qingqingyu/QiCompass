@@ -9,15 +9,16 @@ import SwiftUI
 /// - 不在 onboarding 提付费(让用户进入 App 后自己发现锁标)
 ///
 /// 4 页滑动:
-/// 1. 欢迎页(印章「玄」+ 产品名 + 一句话定调)
-/// 2. 立场页(不是算命软件 — 3 条留白叙事)
+/// 1. 欢迎页(印章「玄」+ 产品名 + 一句话定调 + 论语经文)
+/// 2. 立场页(排盘确定性 — 3 条留白叙事)
 /// 3. 隐私页(数据归属 — 3 条留白叙事)
 /// 4. 开始页(印章「始」+ CTA)
 ///
 /// 首启动由 RootTabView 检测 `@AppStorage("hasSeenOnboarding") = false` 弹出。
-/// 完成后设 true,后续启动不再弹。Sheet 禁止下滑 dismiss(必须点 CTA)。
+/// B2 流(2026-08-01):onComplete 不再直接设 hasSeenOnboarding,而是触发 FirstLaunchBirthFormView
+/// fullScreenCover;表单提交成功后才设 true。Sheet 禁止下滑 dismiss(必须点 CTA)。
 struct OnboardingView: View {
-    /// 完成回调(由 RootTabView 设 hasSeenOnboarding = true)。
+    /// 完成回调(B2 流:由 RootTabView 设 showFirstLaunchForm = true 进入出生表单 fullScreenCover)。
     let onComplete: () -> Void
 
     @State private var currentPage = 0
@@ -141,7 +142,7 @@ private struct WelcomePage: View {
                     .riseIn(delay: 0.15)
 
                     // 副标题克制,不用 cinnabar 红字(原"专业不忽悠"过刺眼)
-                    Text("读懂你的命局，不夸大，不忽悠")
+                    Text("读懂你的命局")
                         .font(BaziFont.body(size: 15))
                         .foregroundStyle(BaziTheme.inkMuted)
                         .riseIn(delay: 0.3)
@@ -160,7 +161,7 @@ private struct WelcomePage: View {
 
 // MARK: - Welcome: 经文区
 
-/// 金刚经第五品「凡所有相，皆是虚妄」。
+/// 论语·尧曰「不知命，无以为君子也」。
 /// - 中文系统(zh-*):竖排逐字,古书排版气质
 /// - 非中文系统:横排整句,英文等语言的自然阅读方向
 /// 字符串走 `Localizable.xcstrings` 的 `welcome_sutra` key,不硬编码。
@@ -204,25 +205,25 @@ private struct StancePage: View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.xxl) {
             Spacer()
 
-            Text("不是算命软件")
+            Text("你的盘，算得出，也算得准")
                 .font(BaziFont.display(size: 28))
                 .foregroundStyle(BaziTheme.ink)
                 .riseIn()
 
             VStack(alignment: .leading, spacing: BaziTheme.Spacing.xl) {
                 NarrationLine(
-                    main: "同一组生辰,排出来的盘永远一样",
-                    sub: "后端规则引擎,不随机,不玄学"
+                    main: "同一组生辰，同一张盘",
+                    sub: "后端规则引擎，稳定可复现"
                 )
                 .riseIn(delay: 0.15)
                 NarrationLine(
-                    main: "喜忌由规则判定,AI 只润色话术",
-                    sub: "不交给 AI 现场猜,避免流派争议"
+                    main: "喜忌由规则判，AI 只润色",
+                    sub: "命理逻辑可追溯"
                 )
                 .riseIn(delay: 0.3)
                 NarrationLine(
-                    main: "遇特殊命局,诚实说「不下结论」",
-                    sub: "不编造,不牵强附会"
+                    main: "命局有特例，如实标注",
+                    sub: "该说清的说清，该留白的留白"
                 )
                 .riseIn(delay: 0.45)
             }
@@ -240,25 +241,25 @@ private struct PrivacyPage: View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.xxl) {
             Spacer()
 
-            Text("数据在你设备上")
+            Text("你的盘，只属于你")
                 .font(BaziFont.display(size: 28))
                 .foregroundStyle(BaziTheme.ink)
                 .riseIn()
 
             VStack(alignment: .leading, spacing: BaziTheme.Spacing.xl) {
                 NarrationLine(
-                    main: "命盘只存在你的手机上,不上传",
-                    sub: "没有账号,没有云同步"
+                    main: "命盘只在你手机上",
+                    sub: "无账号，无云同步"
                 )
                 .riseIn(delay: 0.15)
                 NarrationLine(
-                    main: "AI 解读经我们的服务器",
-                    sub: "密钥保管在后端,不进客户端"
+                    main: "AI 解读走我们服务器",
+                    sub: "密钥保管在后端"
                 )
                 .riseIn(delay: 0.3)
                 NarrationLine(
-                    main: "不跟踪,不画像,不卖数据",
-                    sub: "v1 范围内不做用户行为分析"
+                    main: "没有跟踪，没有画像",
+                    sub: "数据归属你"
                 )
                 .riseIn(delay: 0.45)
             }
@@ -286,7 +287,8 @@ private struct StartPage: View {
                 Text("开始你的第一次排盘")
                     .font(BaziFont.display(size: 26))
                     .foregroundStyle(BaziTheme.ink)
-                Text("填写出生信息,生成你的第一份命书。")
+                // 命盘:对齐 B2 流表单实际产物(命书/AI 解读延后到深度解析 Tab)
+                Text("填写出生信息，生成你的命盘。")
                     .font(BaziFont.body(size: 14))
                     .foregroundStyle(BaziTheme.inkMuted)
                     .multilineTextAlignment(.center)
