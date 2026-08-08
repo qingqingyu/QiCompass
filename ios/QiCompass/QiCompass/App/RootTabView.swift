@@ -200,28 +200,44 @@ private struct FirstLaunchBirthFormView: View {
 /// 所有 token 直接映射 DESIGN.md §Color 色板。五行色走 `ElementColors`。
 /// Capsule 只留给 chip;其余圆角默认 4pt(见 `BaziTheme.Radius.sm`)。
 enum BaziTheme {
-    // MARK: - DESIGN.md §Color 主事实源
+    // MARK: - DESIGN.md §Color 主事实源(Light + Dark 双值,墨夜瓷釉配色)
 
-    /// 主背景(极浅暖白,2026-07-22 由宣纸米 #F5EFE1 调浅 — 大面积留白驱动,暖色调收进卡片)。
-    static let paper         = Color(red: 0xFD/255, green: 0xFC/255, blue: 0xFA/255)
-    /// 卡片底色(浅宣)。
-    static let cardSurface   = Color(red: 0xEB/255, green: 0xE3/255, blue: 0xD0/255)
-    /// 主文字(浓墨)。
-    static let ink           = Color(red: 0x1C/255, green: 0x1C/255, blue: 0x1C/255)
-    /// 弱说明文字(灰墨)。
-    static let inkMuted      = Color(red: 0x6B/255, green: 0x65/255, blue: 0x57/255)
-    /// 主强调 / CTA / 当前柱(朱砂红)。
-    static let cinnabar      = Color(red: 0xC3/255, green: 0x3B/255, blue: 0x3B/255)
-    /// 朱砂淡(当前柱 / 选中态底色)。
+    /// 动态色 helper:traitCollection 切换时自动 Light/Dark 反转。
+    /// 色值仍集中在 RootTabView.swift 单文件,与 DESIGN.md §Color 一一对应(单一事实源)。
+    private static func dyn(_ light: Color, _ dark: Color) -> Color {
+        Color(uiColor: UIColor { tc in
+            tc.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
+        })
+    }
+
+    /// 主背景。Light 极浅暖白 / Dark 暖墨(非纯黑,保留宋瓷温润感)。
+    static let paper         = dyn(Color(red: 0xFD/255, green: 0xFC/255, blue: 0xFA/255),
+                                   Color(red: 0x1A/255, green: 0x18/255, blue: 0x15/255))
+    /// 卡片底色。Light 浅宣 / Dark 深纸(比 paper 深 1 级,卡片在背景上仍可辨,不靠阴影)。
+    static let cardSurface   = dyn(Color(red: 0xEB/255, green: 0xE3/255, blue: 0xD0/255),
+                                   Color(red: 0x25/255, green: 0x22/255, blue: 0x1D/255))
+    /// 主文字。Light 浓墨 / Dark 暖白(带暖调避免纯白刺眼,呼应 paper 的暖)。
+    static let ink           = dyn(Color(red: 0x1C/255, green: 0x1C/255, blue: 0x1C/255),
+                                   Color(red: 0xE8/255, green: 0xE0/255, blue: 0xCC/255))
+    /// 弱说明文字。Light 灰墨 / Dark 浅灰墨(= Dark ink × 0.72 亮度,保持"弱说明"层级)。
+    static let inkMuted      = dyn(Color(red: 0x6B/255, green: 0x65/255, blue: 0x57/255),
+                                   Color(red: 0xA8/255, green: 0x9F/255, blue: 0x89/255))
+    /// 主强调 / CTA / 当前柱(朱砂红)。Dark 提亮 +6 保持识别。
+    static let cinnabar      = dyn(Color(red: 0xC3/255, green: 0x3B/255, blue: 0x3B/255),
+                                   Color(red: 0xD4/255, green: 0x4A/255, blue: 0x4A/255))
+    /// 朱砂淡(当前柱 / 选中态底色)。opacity 跟随 cinnabar 自动反转,实测后可能 Dark 调到 12%。
     static let cinnabarSoft  = cinnabar.opacity(0.08)
-    /// 次强调 / 吉神 / 木行(墨青)。
-    static let jade          = Color(red: 0x2C/255, green: 0x5F/255, blue: 0x3F/255)
-    /// 三强调 / 水行 / 链接(黛蓝)。
-    static let daiBlue       = Color(red: 0x1D/255, green: 0x3A/255, blue: 0x5F/255)
-    /// 0.5pt 细线(灰墨 @ 30%)。
-    static let hairline      = Color(red: 0x6B/255, green: 0x65/255, blue: 0x57/255).opacity(0.3)
+    /// 次强调 / 吉神 / 木行(墨青)。Dark 提亮保持识别。
+    static let jade          = dyn(Color(red: 0x2C/255, green: 0x5F/255, blue: 0x3F/255),
+                                   Color(red: 0x5A/255, green: 0x99/255, blue: 0x78/255))
+    /// 三强调 / 水行 / 链接(黛蓝)。Dark 提亮保持识别。
+    static let daiBlue       = dyn(Color(red: 0x1D/255, green: 0x3A/255, blue: 0x5F/255),
+                                   Color(red: 0x6A/255, green: 0x8E/255, blue: 0xB5/255))
+    /// 0.5pt 细线(灰墨 @ 30%)。opacity 跟随 inkMuted 自动反转。
+    static let hairline      = inkMuted.opacity(0.3)
     /// 错误 / 破坏性操作(iOS `.destructive` 习惯,与 cinnabar 同值,语义独立便于未来调色)。
-    static let destructive   = Color(red: 0xC3/255, green: 0x3B/255, blue: 0x3B/255)
+    static let destructive   = dyn(Color(red: 0xC3/255, green: 0x3B/255, blue: 0x3B/255),
+                                   Color(red: 0xD4/255, green: 0x4A/255, blue: 0x4A/255))
 }
 
 // MARK: - BaziTheme.Spacing / Radius

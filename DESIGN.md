@@ -59,17 +59,22 @@ iOS 系统字体,**不打包任何自定义字体**(避免体积 + 保持原生�
 
 **Approach:** restrained(克制)— 1 主强调色(朱砂) + 2 次强调色(墨青/黛蓝),颜色出现频率稀少且有意义。
 
-| 角色 | Hex | 用途 | SwiftUI 名 |
-|---|---|---|---|
-| 极浅暖白 | `#FDFCFA` | 主背景(大面积留白驱动,2026-07-22 由宣纸米 `#F5EFE1` 调浅) | `BaziTheme.paper` |
-| 浅宣 | `#EBE3D0` | 卡片底色 | `BaziTheme.cardSurface` |
-| 浓墨 | `#1C1C1C` | 主文字 | `BaziTheme.ink` |
-| 灰墨 | `#6B6557` | 弱说明文字 | `BaziTheme.inkMuted` |
-| 朱砂红 | `#C33B3B` | 主强调 / CTA / 当前柱 | `BaziTheme.cinnabar` |
-| 墨青 | `#2C5F3F` | 次强调 / 吉神 / 木行 | `BaziTheme.jade` |
-| 黛蓝 | `#1D3A5F` | 三强调 / 水行 / 链接 | `BaziTheme.daiBlue` |
-| 细线 | `#6B6557 @ 30%` | 0.5pt hairline divider | `BaziTheme.hairline` |
-| 朱砂淡 | `#C33B3B @ 8%` | 当前柱 / 选中态底色 | `BaziTheme.cinnabarSoft` |
+| 角色 | Light Hex | Dark Hex(墨夜瓷釉) | 用途 | SwiftUI 名 |
+|---|---|---|---|---|
+| 极浅暖白 / 暖墨 | `#FDFCFA` | `#1A1815` | 主背景(大面积留白驱动,2026-07-22 由宣纸米 `#F5EFE1` 调浅) | `BaziTheme.paper` |
+| 浅宣 / 深纸 | `#EBE3D0` | `#25221D` | 卡片底色 | `BaziTheme.cardSurface` |
+| 浓墨 / 暖白 | `#1C1C1C` | `#E8E0CC` | 主文字 | `BaziTheme.ink` |
+| 灰墨 / 浅灰墨 | `#6B6557` | `#A89F89` | 弱说明文字 | `BaziTheme.inkMuted` |
+| 朱砂红 / 亮朱砂 | `#C33B3B` | `#D44A4A` | 主强调 / CTA / 当前柱 | `BaziTheme.cinnabar` |
+| 墨青 / 亮墨青 | `#2C5F3F` | `#5A9978` | 次强调 / 吉神 / 木行 | `BaziTheme.jade` |
+| 黛蓝 / 亮黛蓝 | `#1D3A5F` | `#6A8EB5` | 三强调 / 水行 / 链接 | `BaziTheme.daiBlue` |
+| 细线 | `#6B6557 @ 30%` | `#A89F89 @ 30%` | 0.5pt hairline divider | `BaziTheme.hairline` |
+| 朱砂淡 | `#C33B3B @ 8%` | `#D44A4A @ 8%` | 当前柱 / 选中态底色 | `BaziTheme.cinnabarSoft` |
+| 破坏红 | `#C33B3B` | `#D44A4A` | 错误 / 破坏性操作(与 cinnabar 同值,语义独立) | `BaziTheme.destructive` |
+
+**Dark mode 实现策略:** 走 `Color(UIColor { traitCollection in ... })` 动态色(见 `RootTabView.swift` `BaziTheme.dyn` helper)。
+色值集中在 RootTabView.swift 单文件,与本表一一对应(单一事实源)。`cinnabarSoft` / `hairline` 是基于 cinnabar / inkMuted 的 `.opacity()`,Dark 下自动跟随。
+未在主色板中的语义专用 token(`shenshaInauspicious` / `pressureWarning` / 五行色)暂保留静态色,T5 实测后决定是否动态化。
 
 **五行色映射(用于五行平衡条 / 元素标签):**
 
