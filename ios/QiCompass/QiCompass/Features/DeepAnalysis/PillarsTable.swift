@@ -21,8 +21,8 @@ struct PillarsTable: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(12)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.cardBorder, lineWidth: 0.5))
+        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
     }
 }
 
@@ -82,12 +82,12 @@ private struct PillarColumn: View {
         .frame(maxWidth: .infinity)
         .padding(8)
         .background(
-            isDay ? BaziTheme.cinnabarSoft : BaziTheme.cardBackground,
+            isDay ? BaziTheme.cinnabarSoft : BaziTheme.cardSurface,
             in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
         )
         .overlay(
             RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
-                .stroke(isDay ? BaziTheme.cinnabar.opacity(0.4) : BaziTheme.cardBorder,
+                .stroke(isDay ? BaziTheme.cinnabar.opacity(0.4) : BaziTheme.hairline,
                         lineWidth: 0.5)
         )
     }

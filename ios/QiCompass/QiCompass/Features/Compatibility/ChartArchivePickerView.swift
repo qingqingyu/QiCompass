@@ -53,12 +53,12 @@ struct ChartArchivePickerView: View {
                         )
                     }
                     if idx < charts.count - 1 {
-                        Divider().background(BaziTheme.separator)
+                        Divider().background(BaziTheme.hairline)
                     }
                 }
             }
-            .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-            .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.cardBorder, lineWidth: 0.5))
+            .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+            .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
         }
     }
 

@@ -51,12 +51,12 @@ struct PaywallView: View {
             .padding(BaziTheme.Spacing.md)
             .frame(maxWidth: .infinity, alignment: .leading)
             .background(
-                BaziTheme.cardBackground,
+                BaziTheme.cardSurface,
                 in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-                    .stroke(BaziTheme.cardBorder, lineWidth: 0.5)
+                    .stroke(BaziTheme.hairline, lineWidth: 0.5)
             )
 
             Spacer()

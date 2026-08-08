@@ -124,7 +124,7 @@ struct CompatibilityConfigView: View {
                         .keyboardType(.numbersAndPunctuation)
                         .foregroundStyle(BaziTheme.ink)
                         .padding(8)
-                        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
             } else {
                 Picker("城市", selection: $vm.tempSelectedCity) {
@@ -137,7 +137,7 @@ struct CompatibilityConfigView: View {
         }
         .padding(12)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
     }
 
     // MARK: - context 说明
@@ -165,8 +165,8 @@ struct CompatibilityConfigView: View {
             content()
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-                .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.cardBorder, lineWidth: 0.5))
+                .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+                .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
         }
     }
 }

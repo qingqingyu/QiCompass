@@ -48,10 +48,10 @@ struct HourPillarsSection: View {
             }
         }
         .padding(16)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(
             RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-                .stroke(BaziTheme.cardBorder, lineWidth: 0.5)
+                .stroke(BaziTheme.hairline, lineWidth: 0.5)
         )
     }
 
@@ -112,7 +112,7 @@ struct HourPillarsSection: View {
         }
         .padding(.vertical, 4)
         if idx < hourPillars.count - 1 {
-            Divider().background(BaziTheme.separator)
+            Divider().background(BaziTheme.hairline)
         }
     }
 }

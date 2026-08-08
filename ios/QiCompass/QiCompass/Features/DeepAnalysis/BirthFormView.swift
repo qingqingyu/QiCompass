@@ -54,7 +54,7 @@ struct BirthFormView: View {
                                 .keyboardType(.numbersAndPunctuation)
                                 .foregroundStyle(BaziTheme.ink)
                                 .padding(8)
-                                .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                                .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                         }
                         Text("海外用户或设备时区与出生地不一致时使用。")
                             .font(.caption)
@@ -117,10 +117,10 @@ struct BirthFormView: View {
             content()
                 .padding(12)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+                .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
                 .overlay(
                     RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-                        .stroke(BaziTheme.cardBorder, lineWidth: isPrimary ? 0.8 : 0.5)
+                        .stroke(BaziTheme.hairline, lineWidth: isPrimary ? 0.8 : 0.5)
                 )
         }
         .padding(.top, isPrimary ? BaziTheme.Spacing.md : 0)
@@ -152,7 +152,7 @@ struct BirthFormView: View {
                             Circle().fill(isSelected ? BaziTheme.cinnabar : Color.clear)
                         }
                         .overlay(
-                            Circle().stroke(BaziTheme.cardBorder, lineWidth: isSelected ? 0 : 0.5)
+                            Circle().stroke(BaziTheme.hairline, lineWidth: isSelected ? 0 : 0.5)
                         )
                 }
             }
