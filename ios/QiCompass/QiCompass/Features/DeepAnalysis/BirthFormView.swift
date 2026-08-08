@@ -53,8 +53,8 @@ struct BirthFormView: View {
                             TextField("东正西负", value: $vm.manualLongitude, format: .number)
                                 .keyboardType(.numbersAndPunctuation)
                                 .foregroundStyle(BaziTheme.ink)
-                                .padding(8)
-                                .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                                .padding(BaziTheme.Spacing.sm)
+                                .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                         }
                         Text("海外用户或设备时区与出生地不一致时使用。")
                             .font(.caption)
@@ -74,11 +74,11 @@ struct BirthFormView: View {
                         ForEach(errors, id: \.self) { err in
                             Text("• \(err)")
                                 .font(.caption)
-                                .foregroundStyle(Color.red.opacity(0.9))
+                                .foregroundStyle(BaziTheme.destructive)
                         }
                     }
-                    .padding(12)
-                    .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                    .padding(BaziTheme.Spacing.md)
+                    .background(BaziTheme.destructive.opacity(0.1), in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
 
                 Button(action: { HapticEngine.medium(); onSubmit() }) {
@@ -115,12 +115,12 @@ struct BirthFormView: View {
                 .font(isPrimary ? .headline : .subheadline.weight(.semibold))
                 .foregroundStyle(BaziTheme.ink)
             content()
-                .padding(12)
+                .padding(BaziTheme.Spacing.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+                .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
                 .overlay(
                     RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-                        .stroke(BaziTheme.cardBorder, lineWidth: isPrimary ? 0.8 : 0.5)
+                        .stroke(BaziTheme.hairline, lineWidth: isPrimary ? 0.8 : 0.5)
                 )
         }
         .padding(.top, isPrimary ? BaziTheme.Spacing.md : 0)
@@ -152,7 +152,7 @@ struct BirthFormView: View {
                             Circle().fill(isSelected ? BaziTheme.cinnabar : Color.clear)
                         }
                         .overlay(
-                            Circle().stroke(BaziTheme.cardBorder, lineWidth: isSelected ? 0 : 0.5)
+                            Circle().stroke(BaziTheme.hairline, lineWidth: isSelected ? 0 : 0.5)
                         )
                 }
             }

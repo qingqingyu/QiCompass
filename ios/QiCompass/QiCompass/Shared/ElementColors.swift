@@ -97,15 +97,6 @@ extension BaziTheme {
     /// 凶煞 chip 描边色(暗朱砂,与吉神墨青区分)。
     static let shenshaInauspicious = Color(red: 0x8a/255, green: 0x2b/255, blue: 0x2b/255)
 
-    /// 卡片底色(浅宣,DESIGN.md §Color cardSurface)。
-    static let cardBackground = cardSurface
-
-    /// 卡片描边色(hairline,DESIGN.md §Layout 0.5pt 细线)。
-    static let cardBorder = inkMuted.opacity(0.3)
-
-    /// 分隔线色(对齐 hairline)。
-    static let separator = inkMuted.opacity(0.3)
-
     /// 流年压力警示色(合盘 SyncedFortuneTable 用,区别于吉神墨青)。
     static let pressureWarning = Color(red: 0xe0/255, green: 0x70/255, blue: 0x70/255)
 }

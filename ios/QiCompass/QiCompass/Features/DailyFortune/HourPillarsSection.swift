@@ -47,11 +47,11 @@ struct HourPillarsSection: View {
                 }
             }
         }
-        .padding(16)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+        .padding(BaziTheme.Spacing.md)
+        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(
             RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-                .stroke(BaziTheme.cardBorder, lineWidth: 0.5)
+                .stroke(BaziTheme.hairline, lineWidth: 0.5)
         )
     }
 
@@ -72,7 +72,7 @@ struct HourPillarsSection: View {
                 .font(BaziFont.ganzhi(size: 20))
                 .foregroundStyle(isCurrent ? BaziTheme.cinnabar : BaziTheme.ink)
                 .frame(width: 28, alignment: .center)
-                .padding(4)
+                .padding(BaziTheme.Spacing.xs)
                 .background(
                     isCurrent
                         ? BaziTheme.cinnabarSoft
@@ -112,7 +112,7 @@ struct HourPillarsSection: View {
         }
         .padding(.vertical, 4)
         if idx < hourPillars.count - 1 {
-            Divider().background(BaziTheme.separator)
+            Divider().background(BaziTheme.hairline)
         }
     }
 }

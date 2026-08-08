@@ -67,11 +67,11 @@ struct DailyInterpretationSection: View {
                 // 达上限:**禁用生成按钮、不显示重试**(方案 step 4)
             }
         }
-        .padding(16)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+        .padding(BaziTheme.Spacing.md)
+        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(
             RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-                .stroke(BaziTheme.cardBorder, lineWidth: 0.5)
+                .stroke(BaziTheme.hairline, lineWidth: 0.5)
         )
     }
 }

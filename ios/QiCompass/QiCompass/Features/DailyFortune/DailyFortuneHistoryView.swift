@@ -48,13 +48,13 @@ struct DailyFortuneHistoryView: View {
             .background(
                 isSelected
                     ? BaziTheme.cinnabar
-                    : BaziTheme.cardBackground,
+                    : BaziTheme.cardSurface,
                 in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
                     .stroke(
-                        isToday ? BaziTheme.cinnabar.opacity(0.5) : BaziTheme.cardBorder,
+                        isToday ? BaziTheme.cinnabar.opacity(0.5) : BaziTheme.hairline,
                         lineWidth: 0.5
                     )
             )

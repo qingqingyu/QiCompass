@@ -68,10 +68,10 @@ struct CompatibilityConfigView: View {
                 if case .failed(let userError) = vm.state {
                     Text(userError.errorDescription ?? "未知错误")
                         .font(.caption)
-                        .foregroundStyle(Color.red.opacity(0.9))
+                        .foregroundStyle(BaziTheme.destructive)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
-                        .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                        .padding(BaziTheme.Spacing.md)
+                        .background(BaziTheme.destructive.opacity(0.1), in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
             }
             .padding(.horizontal)
@@ -123,8 +123,8 @@ struct CompatibilityConfigView: View {
                     TextField("东正西负", value: $vm.tempManualLongitude, format: .number)
                         .keyboardType(.numbersAndPunctuation)
                         .foregroundStyle(BaziTheme.ink)
-                        .padding(8)
-                        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                        .padding(BaziTheme.Spacing.sm)
+                        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
             } else {
                 Picker("城市", selection: $vm.tempSelectedCity) {
@@ -135,9 +135,9 @@ struct CompatibilityConfigView: View {
                 .foregroundStyle(BaziTheme.ink)
             }
         }
-        .padding(12)
+        .padding(BaziTheme.Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
     }
 
     // MARK: - context 说明
@@ -163,10 +163,10 @@ struct CompatibilityConfigView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(BaziTheme.ink)
             content()
-                .padding(12)
+                .padding(BaziTheme.Spacing.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-                .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.cardBorder, lineWidth: 0.5))
+                .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+                .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
         }
     }
 }

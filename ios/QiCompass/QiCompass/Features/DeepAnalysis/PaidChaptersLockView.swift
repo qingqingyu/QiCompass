@@ -36,12 +36,12 @@ struct PaidChaptersLockView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(BaziTheme.Spacing.md)
         .background(
-            BaziTheme.cardBackground,
+            BaziTheme.cardSurface,
             in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
         )
         .overlay(
             RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-                .stroke(BaziTheme.cardBorder, lineWidth: 0.5)
+                .stroke(BaziTheme.hairline, lineWidth: 0.5)
         )
 
         // 解锁 CTA(不受 opacity 影响,朱砂红强引导)

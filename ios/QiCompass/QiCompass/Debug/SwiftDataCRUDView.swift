@@ -64,7 +64,7 @@ struct SwiftDataCRUDView: View {
                             .font(.headline)
                             .foregroundStyle(BaziTheme.ink)
                     }
-                    Divider().background(BaziTheme.separator)
+                    Divider().background(BaziTheme.hairline)
                     ForEach(result.details, id: \.self) { line in
                         Text(line)
                             .font(.system(.caption, design: .monospaced))

@@ -38,10 +38,10 @@ struct DualPillarsTable: View {
                     pillarColumn(p)
                 }
             }
-            .padding(12)
+            .padding(BaziTheme.Spacing.cmd)
             .frame(maxWidth: .infinity)
-            .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-            .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.cardBorder, lineWidth: 0.5))
+            .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+            .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
         }
     }
 
@@ -62,7 +62,7 @@ struct DualPillarsTable: View {
 
             // 分隔点
             Circle()
-                .fill(BaziTheme.separator)
+                .fill(BaziTheme.hairline)
                 .frame(width: 4, height: 4)
 
             // B 盘

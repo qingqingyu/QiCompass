@@ -8,14 +8,14 @@ struct HuangliSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             row(label: "宜", items: yi, tint: BaziTheme.jade)
-            Divider().background(BaziTheme.separator)
+            Divider().background(BaziTheme.hairline)
             row(label: "忌", items: ji, tint: BaziTheme.shenshaInauspicious)
         }
-        .padding(16)
-        .background(BaziTheme.cardBackground, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+        .padding(BaziTheme.Spacing.md)
+        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(
             RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-                .stroke(BaziTheme.cardBorder, lineWidth: 0.5)
+                .stroke(BaziTheme.hairline, lineWidth: 0.5)
         )
     }
 
