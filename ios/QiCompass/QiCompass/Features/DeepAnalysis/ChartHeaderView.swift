@@ -29,12 +29,12 @@ struct ChartHeaderView: View {
                 Text("⚠ \(warning)")
                     .font(.caption)
                     .foregroundStyle(BaziTheme.cinnabar)
-                    .padding(8)
+                    .padding(BaziTheme.Spacing.sm)
                     .background(BaziTheme.cinnabarSoft, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
+        .padding(BaziTheme.Spacing.md)
         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
     }

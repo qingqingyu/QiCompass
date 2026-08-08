@@ -17,7 +17,7 @@ struct AuxiliaryCards: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
+        .padding(BaziTheme.Spacing.md)
         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
     }
@@ -40,7 +40,7 @@ private struct AuxiliaryCard: View {
                 .foregroundStyle(BaziTheme.inkMuted)
         }
         .frame(maxWidth: .infinity)
-        .padding(10)
+        .padding(BaziTheme.Spacing.sm)
         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
         .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.sm).stroke(BaziTheme.hairline, lineWidth: 0.5))
     }

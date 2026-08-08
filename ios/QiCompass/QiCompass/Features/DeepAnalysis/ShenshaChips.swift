@@ -17,7 +17,7 @@ struct ShenshaChips: View {
                     .font(.caption)
                     .foregroundStyle(BaziTheme.inkMuted)
                     .frame(maxWidth: .infinity, alignment: .center)
-                    .padding(12)
+                    .padding(BaziTheme.Spacing.md)
                     .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
             } else {
                 LazyVGrid(
@@ -31,7 +31,7 @@ struct ShenshaChips: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
+        .padding(BaziTheme.Spacing.md)
         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
     }

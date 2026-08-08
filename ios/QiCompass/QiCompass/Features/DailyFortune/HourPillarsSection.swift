@@ -47,7 +47,7 @@ struct HourPillarsSection: View {
                 }
             }
         }
-        .padding(16)
+        .padding(BaziTheme.Spacing.md)
         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(
             RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
@@ -72,7 +72,7 @@ struct HourPillarsSection: View {
                 .font(BaziFont.ganzhi(size: 20))
                 .foregroundStyle(isCurrent ? BaziTheme.cinnabar : BaziTheme.ink)
                 .frame(width: 28, alignment: .center)
-                .padding(4)
+                .padding(BaziTheme.Spacing.xs)
                 .background(
                     isCurrent
                         ? BaziTheme.cinnabarSoft

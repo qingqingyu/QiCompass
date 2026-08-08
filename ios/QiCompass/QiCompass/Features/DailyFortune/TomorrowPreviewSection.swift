@@ -30,7 +30,7 @@ struct TomorrowPreviewSection: View {
                 }
             }
         }
-        .padding(16)
+        .padding(BaziTheme.Spacing.md)
         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(
             RoundedRectangle(cornerRadius: BaziTheme.Radius.md)

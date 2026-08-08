@@ -53,7 +53,7 @@ struct BirthFormView: View {
                             TextField("东正西负", value: $vm.manualLongitude, format: .number)
                                 .keyboardType(.numbersAndPunctuation)
                                 .foregroundStyle(BaziTheme.ink)
-                                .padding(8)
+                                .padding(BaziTheme.Spacing.sm)
                                 .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                         }
                         Text("海外用户或设备时区与出生地不一致时使用。")
@@ -77,7 +77,7 @@ struct BirthFormView: View {
                                 .foregroundStyle(BaziTheme.destructive)
                         }
                     }
-                    .padding(12)
+                    .padding(BaziTheme.Spacing.md)
                     .background(BaziTheme.destructive.opacity(0.1), in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
 
@@ -115,7 +115,7 @@ struct BirthFormView: View {
                 .font(isPrimary ? .headline : .subheadline.weight(.semibold))
                 .foregroundStyle(BaziTheme.ink)
             content()
-                .padding(12)
+                .padding(BaziTheme.Spacing.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
                 .overlay(

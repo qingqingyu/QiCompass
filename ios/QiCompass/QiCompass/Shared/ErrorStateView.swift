@@ -77,7 +77,7 @@ struct ErrorStateView: View {
                     Text(detailText)
                         .font(.system(.caption, design: .monospaced))
                         .foregroundStyle(BaziTheme.inkMuted)
-                        .padding(12)
+                        .padding(BaziTheme.Spacing.md)
                         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
             }

@@ -20,7 +20,7 @@ struct PillarsTable: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(12)
+        .padding(BaziTheme.Spacing.cmd)
         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
     }
@@ -80,7 +80,7 @@ private struct PillarColumn: View {
             }
         }
         .frame(maxWidth: .infinity)
-        .padding(8)
+        .padding(BaziTheme.Spacing.sm)
         .background(
             isDay ? BaziTheme.cinnabarSoft : BaziTheme.cardSurface,
             in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)

@@ -231,6 +231,8 @@ extension BaziTheme {
     enum Spacing {
         static let xs: CGFloat = 4
         static let sm: CGFloat = 8
+        /// compact-md,表格高密度场景专用(非标准 8pt 网格值,实测期批准)。
+        static let cmd: CGFloat = 12
         static let md: CGFloat = 16
         static let lg: CGFloat = 24
         static let xl: CGFloat = 32

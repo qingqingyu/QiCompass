@@ -70,7 +70,7 @@ struct CompatibilityConfigView: View {
                         .font(.caption)
                         .foregroundStyle(BaziTheme.destructive)
                         .frame(maxWidth: .infinity, alignment: .leading)
-                        .padding(12)
+                        .padding(BaziTheme.Spacing.md)
                         .background(BaziTheme.destructive.opacity(0.1), in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
             }
@@ -123,7 +123,7 @@ struct CompatibilityConfigView: View {
                     TextField("东正西负", value: $vm.tempManualLongitude, format: .number)
                         .keyboardType(.numbersAndPunctuation)
                         .foregroundStyle(BaziTheme.ink)
-                        .padding(8)
+                        .padding(BaziTheme.Spacing.sm)
                         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
             } else {
@@ -135,7 +135,7 @@ struct CompatibilityConfigView: View {
                 .foregroundStyle(BaziTheme.ink)
             }
         }
-        .padding(12)
+        .padding(BaziTheme.Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
     }
@@ -163,7 +163,7 @@ struct CompatibilityConfigView: View {
                 .font(.subheadline.weight(.semibold))
                 .foregroundStyle(BaziTheme.ink)
             content()
-                .padding(12)
+                .padding(BaziTheme.Spacing.md)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
                 .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))

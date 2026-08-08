@@ -11,7 +11,7 @@ struct HuangliSection: View {
             Divider().background(BaziTheme.hairline)
             row(label: "忌", items: ji, tint: BaziTheme.shenshaInauspicious)
         }
-        .padding(16)
+        .padding(BaziTheme.Spacing.md)
         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(
             RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
