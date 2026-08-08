@@ -74,11 +74,11 @@ struct BirthFormView: View {
                         ForEach(errors, id: \.self) { err in
                             Text("• \(err)")
                                 .font(.caption)
-                                .foregroundStyle(Color.red.opacity(0.9))
+                                .foregroundStyle(BaziTheme.destructive)
                         }
                     }
                     .padding(12)
-                    .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                    .background(BaziTheme.destructive.opacity(0.1), in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
 
                 Button(action: { HapticEngine.medium(); onSubmit() }) {

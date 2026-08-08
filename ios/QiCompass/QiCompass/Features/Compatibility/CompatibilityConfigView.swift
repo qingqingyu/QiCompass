@@ -68,10 +68,10 @@ struct CompatibilityConfigView: View {
                 if case .failed(let userError) = vm.state {
                     Text(userError.errorDescription ?? "未知错误")
                         .font(.caption)
-                        .foregroundStyle(Color.red.opacity(0.9))
+                        .foregroundStyle(BaziTheme.destructive)
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(12)
-                        .background(Color.red.opacity(0.1), in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                        .background(BaziTheme.destructive.opacity(0.1), in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
             }
             .padding(.horizontal)

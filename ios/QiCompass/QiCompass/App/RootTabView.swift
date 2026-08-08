@@ -220,6 +220,8 @@ enum BaziTheme {
     static let daiBlue       = Color(red: 0x1D/255, green: 0x3A/255, blue: 0x5F/255)
     /// 0.5pt 细线(灰墨 @ 30%)。
     static let hairline      = Color(red: 0x6B/255, green: 0x65/255, blue: 0x57/255).opacity(0.3)
+    /// 错误 / 破坏性操作(iOS `.destructive` 习惯,与 cinnabar 同值,语义独立便于未来调色)。
+    static let destructive   = Color(red: 0xC3/255, green: 0x3B/255, blue: 0x3B/255)
 }
 
 // MARK: - BaziTheme.Spacing / Radius
