@@ -566,20 +566,19 @@ class DailyFortuneSnapshot {
 18. **Onboarding 保留现有 4 页设计**：WelcomePage（背景图 + 印章「玄」+ 经文）/ StancePage / PrivacyPage / StartPage。`hasSeenOnboarding` 已实现首启动 flag
 
 **P1/P2 未决（不阻塞开工）**：
-19. **大运第一步（童限）展示**：跳过？还是单独标注"起运前"？
-20. **lunar_python 同步库 × FastAPI async**：lunar_python 是同步 CPU-bound 库，FastAPI 是 async 框架。排盘调用必须用 `anyio.to_thread.run_sync()` 或 `starlette.concurrency.run_in_threadpool` 包，否则阻塞 event loop。实现 note
 21. **喜忌规则引擎权重**：得令/得地/得势的权重值需要标定（spike 阶段跑 50 个真实命盘）
 22. **从格检测阈值**：决策 1b 的初值（专旺 ≥6/8、从格 ≥5/8）需用真实命盘验证
-23. **城市经度表数据源**：自己整理 vs 用现成 cities.json
 
 **已关闭的 P1/P2 项**（保留索引，不占未决编号）：
 - ~~每日运势冷启动 UX~~ ✅ 已拍板（2026-08-01 grill-me 决策 #14 配套）：瞬时显示流日基本信息（流日柱/冲/黄历宜忌，0 延迟）+ AI 总览异步流式追加（3-5s）。已并入 §Module Specifications §3
 - ~~CI/CD~~ ✅ 已拍板（2026-07-13）：选 **GitHub Actions**。详见 §Distribution Plan
+- ~~19. 大运第一步（童限）展示~~ ✅ 已关闭（2026-08-09）：选**跳过 index=0**。后端 `backend/app/engine/luck.py` 已跳过 `ganZhi=""` 童限项，测试 `test_bazi_calculate.py` / `test_dui_pan.py` 验证；iOS `LuckPillarsTimeline.swift` 防御性二次过滤
+- ~~20. lunar_python 同步库 × FastAPI async~~ ✅ 已实现：排盘调用已用 `starlette.concurrency.run_in_threadpool` 包（详见 backend 排盘代码）
+- ~~23. 城市经度表数据源~~ ✅ 已关闭（2026-08-09）：选**自己整理**。`BirthFormView.swift` `CityList.cities` 50+ 个城市(中国一线/省会/重要城市 + 海外主要城市)，未引入外部 cities.json 依赖
 
-**预先存在的 doc drift（2026-08-01 grill 发现，单独清理）**：
-- §Visual Design Tokens（line ~488-502）写的还是旧黑金色板（bgTop / bgMid / gold / 亮金 等），与 `DESIGN.md` 的 paper / cinnabar / jade 决策**直接矛盾**
-- §V1 Minimum Viable Aesthetic（line ~678+）写的还是"金底深色（不可协商）"，与 DESIGN.md "极浅暖白 paper 不取纯黑白" 决策**直接矛盾**
-- 这两处是 2026-07-22 paper 调浅决策后没同步的 drift，不在本次 grill 范围。已在 `STRATEGIC_DIFF.md` flag。下次视觉相关 slice 起手时一并清理
+**已清理的 doc drift**（2026-08-09 PR #12 完成）：
+- ~~§Visual Design Tokens 旧黑金色板~~ ✅ 已清理，本节改为引用 `DESIGN.md` §Color
+- ~~§V1 Minimum Viable Aesthetic "金底深色 + ZCOOL XiaoWei"~~ ✅ 已清理，本节改为已实现范围清单
 
 ## Success Criteria
 
