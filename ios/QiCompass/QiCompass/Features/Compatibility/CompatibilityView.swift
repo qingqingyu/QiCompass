@@ -38,6 +38,7 @@ struct CompatibilityView: View {
                     orchestrator: env.compatibilityOrchestrator,
                     chartStore: env.chartSnapshotStore,
                     compatibilityStore: env.compatibilitySnapshotStore,
+                    entitlementStore: env.entitlementStore,
                     modelContext: env.modelContainer.mainContext
                 )
             }

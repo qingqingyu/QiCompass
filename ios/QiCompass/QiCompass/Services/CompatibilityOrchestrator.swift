@@ -137,17 +137,20 @@ final class CompatibilityOrchestrator {
     ///
     /// 禁词扫描(D10):命中即拦截,**不展示原文**,抛 `CompatibilityError.forbiddenWordsHit`,
     /// 由 VM 转 interpretState = .failed。AI 失败不影响已成功的定性结果。
+    ///
+    /// - Parameter module: `compatibility` / `compatibility_free` / `compatibility_paid`
+    ///   (M4 拆分 _free/_paid,VM 按 entitlement 状态传入)
     func runInterpretation(
         compatibilityHash: String,
         chartA: ChartPromptContext,
         chartB: ChartPromptContext,
         assessment: QualitativeAssessmentDTO,
         syncedFortune: [SyncedFortuneDTO],
-        context: String
+        context: String,
+        module: String = "compatibility"
     ) async throws -> InterpretResponse {
         // 规则 2:函数入口日志
-        AppLogger.app.info("compat.runInterpretation.start compatibilityHash=\(compatibilityHash, privacy: .public) context=\(context, privacy: .public)")
-        let module = "compatibility"
+        AppLogger.app.info("compat.runInterpretation.start compatibilityHash=\(compatibilityHash, privacy: .public) context=\(context, privacy: .public) module=\(module, privacy: .public)")
 
         // 1. 查本地 24h AI 缓存(命中不消耗次数)
         if let cached = try await interpretationReader.read(

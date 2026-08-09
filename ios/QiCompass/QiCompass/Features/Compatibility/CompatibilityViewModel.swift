@@ -77,6 +77,7 @@ final class CompatibilityViewModel {
     private let orchestrator: CompatibilityOrchestrator
     private let chartStore: ChartSnapshotStore
     private let compatibilityStore: CompatibilitySnapshotStore
+    private let entitlementStore: EntitlementStore
     private let modelContext: ModelContext
 
     private var computeTask: Task<Void, Never>?
@@ -91,11 +92,13 @@ final class CompatibilityViewModel {
         orchestrator: CompatibilityOrchestrator,
         chartStore: ChartSnapshotStore,
         compatibilityStore: CompatibilitySnapshotStore,
+        entitlementStore: EntitlementStore,
         modelContext: ModelContext
     ) {
         self.orchestrator = orchestrator
         self.chartStore = chartStore
         self.compatibilityStore = compatibilityStore
+        self.entitlementStore = entitlementStore
         self.modelContext = modelContext
     }
 
@@ -306,6 +309,16 @@ final class CompatibilityViewModel {
             return
         }
 
+        // M4 新增:查本地 entitlement 决定 module(基础名 "compatibility")
+        let hasEntitlement = entitlementStore.getActive(
+            contentHash: compatHash,
+            module: EntitlementModule.compatibility,
+            userLocalId: UserIdentity.userLocalId
+        ) != nil
+        let module = hasEntitlement ? "compatibility_paid" : "compatibility_free"
+        // 规则 2:用户主动触发 + 付费分支决策日志
+        AppLogger.app.info("compatVM.generateInterpretation.start compatibilityHash=\(compatHash, privacy: .public) module=\(module, privacy: .public) hasEntitlement=\(hasEntitlement, privacy: .public)")
+
         interpretTask?.cancel()
         state = .ready(response, .fetching)
 
@@ -330,14 +343,22 @@ final class CompatibilityViewModel {
                     chartB: chartB,
                     assessment: response.qualitativeAssessment,
                     syncedFortune: response.syncedFortune,
-                    context: context
+                    context: context,
+                    module: module
                 )
 
                 if !Task.isCancelled {
-                    state = .ready(
-                        response,
-                        .okFree(text: resp.interpretation, cached: resp.cached)
-                    )
+                    if hasEntitlement {
+                        state = .ready(
+                            response,
+                            .okPaid(text: resp.interpretation, cached: resp.cached)
+                        )
+                    } else {
+                        state = .ready(
+                            response,
+                            .okFree(text: resp.interpretation, cached: resp.cached)
+                        )
+                    }
                 }
             } catch let error as CompatibilityError {
                 if !Task.isCancelled {
