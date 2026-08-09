@@ -88,6 +88,9 @@ final class CompatibilityViewModel {
     private var lastBChartSnapshot: ChartSnapshot?
     private var lastIsSnapshotNew: Bool = false
 
+    /// M4:PaywallView 注入用(暴露最近一次合盘 hash 给购买流程绑定 entitlement)。
+    var lastCompatibilityHashForPaywall: String? { lastCompatibilityHash }
+
     init(
         orchestrator: CompatibilityOrchestrator,
         chartStore: ChartSnapshotStore,

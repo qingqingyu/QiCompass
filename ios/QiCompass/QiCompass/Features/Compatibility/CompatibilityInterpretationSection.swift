@@ -13,6 +13,7 @@ struct CompatibilityInterpretationSection: View {
     let nextReset: Date
     let onGenerate: () -> Void
     let onRetry: () -> Void
+    let onShowPaywall: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -34,7 +35,30 @@ struct CompatibilityInterpretationSection: View {
                 }
             case .fetching:
                 interpretationCTABlock(isLoading: true)
-            case .okFree(let text, let cached), .okPaid(let text, let cached):
+            case .okFree(let text, let cached):
+                Text(MarkdownSanitizer.rendered(text))
+                    .bodySerifText()
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .fadeIn()
+                if cached {
+                    HStack {
+                        Image(systemName: "checkmark.seal")
+                        Text("24h 内已缓存,不消耗次数")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(BaziTheme.inkMuted)
+                }
+                Divider()
+                    .background(BaziTheme.hairline)
+                // M4:未购买 → 显示付费 4 章锁标 + "解锁合盘解读" CTA
+                PaidChaptersLockView(
+                    previewChapters: ["爱情深度", "合作事业", "财运合拍", "流年同步"],
+                    title: "合盘解读·付费章节",
+                    ctaTitle: "解锁合盘解读",
+                    onUnlock: onShowPaywall
+                )
+            case .okPaid(let text, let cached):
                 Text(MarkdownSanitizer.rendered(text))
                     .bodySerifText()
                     .multilineTextAlignment(.leading)
@@ -49,10 +73,8 @@ struct CompatibilityInterpretationSection: View {
                     .foregroundStyle(BaziTheme.inkMuted)
                 }
                 // 2026-08-01 grill-me 决策 #15:不做"再生成"按钮(任何模块)。
-                // 用户不能换 prompt 风格重跑同一命盘。失败重试走 .failed case 的"重试"按钮,
-                // 符合 CLAUDE.md "AI 失败重试不消耗次数"原则。
             case .lockedPaid:
-                // M4 合盘付费时填充锁标 UI;M3a 占位空实现
+                // M4 后 .lockedPaid case 不再使用(改用 .okFree 内嵌锁标),保留 case 兼容性
                 EmptyView()
             case .failed(let message):
                 VStack(spacing: 8) {

@@ -12,6 +12,7 @@ struct CompatibilityMainView: View {
     let chartBSnapshot: ChartSnapshot
     let onBackToConfig: () -> Void
     let onGenerateInterpret: () -> Void
+    let onShowPaywall: () -> Void
 
     var body: some View {
         ScrollView {
@@ -37,7 +38,8 @@ struct CompatibilityMainView: View {
                     remainingReads: vm.remainingReads,
                     nextReset: vm.nextDailyReset,
                     onGenerate: onGenerateInterpret,
-                    onRetry: onGenerateInterpret
+                    onRetry: onGenerateInterpret,
+                    onShowPaywall: onShowPaywall
                 )
             }
             .padding(.horizontal)
