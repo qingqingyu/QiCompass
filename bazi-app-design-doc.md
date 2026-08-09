@@ -479,9 +479,9 @@ class DailyFortuneSnapshot {
 
 | 层 | 技术 |
 |---|---|
-| 前端 | Swift 5.9+ / SwiftUI / iOS 17+ |
-| 持久化 | SwiftData（VersionedSchema） |
-| 字体 | ZCOOL XiaoWei（显示）/ 系统衬线（正文） |
+| 前端 | Swift 5.9+ / SwiftUI / iOS 17.2+ |
+| 持久化 | SwiftData（D1 设计：JSON payload + lazy 重算，**不用** VersionedSchema / SchemaMigrationPlan） |
+| 字体 | iOS 系统衬线 Songti SC（显示/标题）+ PingFang SC（正文）+ SF Pro Text tabular-nums（数字），不打包自定义字体（详见 `DESIGN.md` §Typography） |
 | 触感 | UIImpactFeedbackGenerator |
 | 后端 | Python FastAPI |
 | 八字计算 | **lunar_python 1.4.8+**（已 spike 验证 + 后端排盘核心已实现 + 30 用例对盘通过） |
@@ -490,19 +490,10 @@ class DailyFortuneSnapshot {
 
 ## Visual Design Tokens
 
-继承自旧方案（不变）：
-
-| Token | 值 | 用途 |
-|---|---|---|
-| 背景 | `#0d0b08 → #12100d → #0a0c10` | 主渐变 |
-| 主金 | `#c9a03c` | 强调、边框、按钮 |
-| 亮金 | `#f5d785` | 标题、激活态 |
-| 正文 | `#e8dcc8` | 命书、描述 |
-| 木 | `#5d9b6b` | 木五行 |
-| 火 | `#c04e3a` | 火五行 |
-| 土 | `#b8881a` | 土五行 |
-| 金 | `#8c836e` | 金五行 |
-| 水 | `#3a7ca5` | 水五行 |
+> **2026-08-09 清理**：本节原列旧黑金色板（bgTop/bgMid/gold/亮金 等），与 `DESIGN.md` 决策的"现代东方极简 · 宋瓷气质"（paper #FDFCFA / cinnabar #C33B3B / jade #2C5F3F）**直接矛盾**。
+> 视觉事实源已迁移到 `DESIGN.md` §Color（含 Light + Dark 墨夜瓷釉双值色板）/ §Typography / §Spacing / §Layout。
+> iOS SwiftUI 落地 token 见 `ios/QiCompass/QiCompass/App/RootTabView.swift` `enum BaziTheme`，与 DESIGN.md 一一对应。
+> 本节不再维护色板表，所有视觉决策以 `DESIGN.md` 为准。
 
 ## AI Voice 规范（2026-08-01 grill-me 决策）
 
@@ -680,12 +671,17 @@ class DailyFortuneSnapshot {
 
 ## V1 Minimum Viable Aesthetic
 
-继承旧方案：
-- 金底深色（不可协商）
-- ZCOOL XiaoWei 显示字体，系统衬线正文
-- 淡入过渡（不做粒子/笔锋）
-- 触感反馈
-- 后期迭代 backlog：粒子、笔锋、烟雾、SVG 动画
+> **2026-08-09 清理**：本节原写"金底深色（不可协商）+ ZCOOL XiaoWei 显示字体"，与 `DESIGN.md` 决策的"极浅暖白 paper + Songti SC 系统衬线"**直接矛盾**。
+> V1 视觉方向已锁定为"现代东方极简 · 宋瓷气质"，详见 `DESIGN.md` §现代东方极简装饰核心。
+> 落地范围（已实现）：
+> - 8pt 基准网格 + 圆角 4pt 克制层级 + 0.5pt hairline 分隔
+> - 朱砂 / 墨青 / 黛蓝 三强调色克制使用（CTA + 当前柱 + 吉神）
+> - Songti SC + PingFang SC 双字体分工（标题/八字 vs 正文）
+> - Dark mode 墨夜瓷釉（Light/Dark 双值 token，PR #9 落地）
+> - 淡入过渡（fadeIn / riseIn modifier，不做粒子/笔锋/烟雾）
+> - 触感反馈（UIImpactFeedbackGenerator.medium 在 CTA + 错误重试）
+>
+> 后期迭代 backlog（v2+）：粒子、笔锋、烟雾、SVG 动画
 
 ## Future Considerations（v2+，不在 v1 数据模型里）
 

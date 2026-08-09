@@ -1,7 +1,7 @@
 # 付费系统设计决策(MONETIZATION)
 
-Generated on 2026-07-18, last updated 2026-08-01
-Status: DRAFT(待用户 review 通过,通过后转 ACCEPTED)
+Generated on 2026-07-18, last updated 2026-08-09
+Status: ACCEPTED（M2a/b/c + M3a/b/c + M4 已实现并合并 main，M6 TestFlight 待沙盒验证）
 关联文档: `CLAUDE.md` / `bazi-app-design-doc.md` / `命理引擎设计决策.md` / `DESIGN.md`
 
 > **2026-08-01 grill-me 更新**：每日一问(原 §每日一问 + Slice M5 + 验收标准相关条目)移出 v1,进 v2 backlog。其他付费结构(深度解析 2+5 / 合盘 half-free / 消耗型 IAP per-命盘 / $17.99 / $11.99 / 后端 entitlement 校验)**全部保持不变**。三模块 voice 改 Medium / Medium-deep 短句节奏（今日运势=Medium 50-80 字 / 深度解析=Medium-deep 200-300 字×7 章 / 合盘=Medium 200-300 字×6 章，详见 `bazi-app-design-doc.md` §AI Voice 规范），不影响付费结构。
