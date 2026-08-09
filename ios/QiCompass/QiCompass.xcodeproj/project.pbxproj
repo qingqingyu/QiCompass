@@ -227,6 +227,7 @@
 		F8BC4D749648FC864F2EDB38 /* LuckPillarsTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LuckPillarsTimeline.swift; path = QiCompass/Features/DeepAnalysis/LuckPillarsTimeline.swift; sourceTree = SOURCE_ROOT; };
 		F9AB427085FC26BB41BE756E /* PillarsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PillarsTable.swift; path = QiCompass/Features/DeepAnalysis/PillarsTable.swift; sourceTree = SOURCE_ROOT; };
 		F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartHeaderView.swift; path = QiCompass/Features/DeepAnalysis/ChartHeaderView.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000048 /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text.json.storekit; name = Products.storekit; path = QiCompass/Products.storekit; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -291,6 +292,7 @@
 				9C100000000000000000002A /* CompatibilitySnapshotStore.swift */,
 				9C100000000000000000002B /* CompatibilityOrchestrator.swift */,
 				9C100000000000000000002C /* PromptContextBuilder+Compatibility.swift */,
+				9C1000000000000000000048 /* Products.storekit */,
 			);
 			sourceTree = "<group>";
 		};
