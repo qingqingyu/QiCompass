@@ -75,9 +75,8 @@ struct DeepAnalysisResultView: View {
         .sheet(isPresented: $showPaywall) {
             PaywallView(
                 viewModel: PaywallViewModel(
+                    module: .deepAnalysis,
                     contentHash: response.contentHash,
-                    module: EntitlementModule.baziDeep,
-                    productId: AppleProductID.deepAnalysisSingle,
                     purchaseManager: env.purchaseManager,
                     onPurchaseSuccess: {
                         // 购买成功 → dismiss + 重新调 _paid(查到 entitlement 自动切)

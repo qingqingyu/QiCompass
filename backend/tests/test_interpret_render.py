@@ -75,10 +75,11 @@ def test_daily_fortune_render_replaces_placeholders():
 
 
 def test_three_modules_all_fields_required():
-    """五 module 的 REQUIRED_FIELDS 非空;bazi_deep 系列(alias/_free/_paid)共享字段清单。"""
+    """七 module 的 REQUIRED_FIELDS 非空;bazi_deep / compatibility 系列(alias/_free/_paid)各共享字段清单。"""
     assert set(REQUIRED_FIELDS.keys()) == {
         "bazi_deep", "bazi_deep_free", "bazi_deep_paid",
-        "compatibility", "daily_fortune",
+        "compatibility", "compatibility_free", "compatibility_paid",
+        "daily_fortune",
     }
     for module, fields in REQUIRED_FIELDS.items():
         assert fields, f"{module} REQUIRED_FIELDS 不应为空"
@@ -89,6 +90,9 @@ def test_three_modules_all_fields_required():
     # M2 拆分:bazi_deep / _free / _paid 共用同一份字段清单(共享 header)
     assert REQUIRED_FIELDS["bazi_deep"] is REQUIRED_FIELDS["bazi_deep_free"]
     assert REQUIRED_FIELDS["bazi_deep"] is REQUIRED_FIELDS["bazi_deep_paid"]
+    # M4 拆分:compatibility / _free / _paid 共用同一份字段清单(共享 header)
+    assert REQUIRED_FIELDS["compatibility"] is REQUIRED_FIELDS["compatibility_free"]
+    assert REQUIRED_FIELDS["compatibility"] is REQUIRED_FIELDS["compatibility_paid"]
 
 
 def test_bazi_deep_free_render_replaces_placeholders():
@@ -131,6 +135,54 @@ def test_bazi_deep_alias_still_works():
     # 不含 M2 新加的章节关键词
     assert "免费 2 章" not in prompt
     assert "付费 5 章" not in prompt
+
+
+def test_compatibility_free_render_replaces_placeholders():
+    """compatibility_free context → render 输出含 header 占位符值 + 免费 2 章写作要求。"""
+    prompt = render_prompt("compatibility_free", COMPATIBILITY_CONTEXT)
+    # header 字段已替换(共享同 compatibility)
+    assert COMPATIBILITY_CONTEXT["context_label"] in prompt
+    assert COMPATIBILITY_CONTEXT["gender_a"] in prompt
+    assert COMPATIBILITY_CONTEXT["day_master_a"] in prompt
+    assert COMPATIBILITY_CONTEXT["five_elements_assessment"] in prompt
+    assert COMPATIBILITY_CONTEXT["synced_fortune_table"] in prompt
+    # 免费 2 章写作要求存在(MONETIZATION.md §合盘 §免费/付费内容分界)
+    assert "基础相处模式" in prompt
+    assert "互补与冲突总览" in prompt
+    assert "免费 2 章" in prompt
+    # 不应包含付费章节关键词
+    assert "爱情深度" not in prompt
+    assert "合作事业" not in prompt
+    assert "{" not in prompt
+
+
+def test_compatibility_paid_render_replaces_placeholders():
+    """compatibility_paid context → render 输出含 header 占位符值 + 付费 4 章写作要求。"""
+    prompt = render_prompt("compatibility_paid", COMPATIBILITY_CONTEXT)
+    # header 字段已替换
+    assert COMPATIBILITY_CONTEXT["context_label"] in prompt
+    assert COMPATIBILITY_CONTEXT["day_master_a"] in prompt
+    # 付费 4 章写作要求存在
+    assert "爱情深度" in prompt
+    assert "合作事业" in prompt
+    assert "财运合拍" in prompt
+    assert "流年同步" in prompt
+    assert "付费 4 章" in prompt
+    # 不应包含免费章节关键词作为章节标题(免费段已拆走)
+    assert "免费 2 章" not in prompt
+    assert "{" not in prompt
+
+
+def test_compatibility_alias_still_works():
+    """M4:compatibility alias 仍可用,渲染老的 6 章综合版本(向后兼容)。"""
+    prompt = render_prompt("compatibility", COMPATIBILITY_CONTEXT)
+    # 老模板的 6 章写作要求存在
+    assert "6 章" in prompt
+    assert "基础相处模式" in prompt
+    assert "流年同步" in prompt
+    # 不含 M4 新加的拆分关键词
+    assert "免费 2 章" not in prompt
+    assert "付费 4 章" not in prompt
 
 
 # ===== 4. 从格诚实降级 =====

@@ -13,9 +13,6 @@ import SwiftUI
 struct PaywallView: View {
     @State private var viewModel: PaywallViewModel
 
-    /// 5 章付费内容标题(对齐后端 BAZI_DEEP_PAID_TEMPLATE 章节)
-    private let paidChapters = ["财运", "爱情", "健康", "六亲", "晚年"]
-
     init(viewModel: PaywallViewModel) {
         _viewModel = State(initialValue: viewModel)
     }
@@ -28,16 +25,16 @@ struct PaywallView: View {
                 .frame(width: 36, height: 4)
                 .padding(.top, BaziTheme.Spacing.sm)
 
-            Text("深度命书")
+            Text(viewModel.module.title)
                 .zcoolPageTitle(size: 22)
 
-            Text("解锁 5 章付费深度内容")
+            Text("解锁 \(viewModel.module.paidChapters.count) 章付费深度内容")
                 .font(.subheadline)
                 .foregroundStyle(BaziTheme.inkMuted)
 
             // 章节预览(锁标 + 标题列表)
             VStack(alignment: .leading, spacing: BaziTheme.Spacing.sm) {
-                ForEach(paidChapters, id: \.self) { chapter in
+                ForEach(viewModel.module.paidChapters, id: \.self) { chapter in
                     HStack(spacing: BaziTheme.Spacing.sm) {
                         Image(systemName: "lock.fill")
                             .foregroundStyle(BaziTheme.inkMuted)

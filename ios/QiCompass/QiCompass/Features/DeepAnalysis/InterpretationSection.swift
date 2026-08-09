@@ -74,6 +74,8 @@ struct InterpretationSection: View {
                     .background(BaziTheme.hairline)
                 PaidChaptersLockView(
                     previewChapters: ["财运", "爱情", "健康", "六亲", "晚年"],
+                    title: "深度命书·付费章节",
+                    ctaTitle: "解锁深度命书",
                     onUnlock: onShowPaywall
                 )
 
@@ -90,7 +92,12 @@ struct InterpretationSection: View {
                 }
                 // 2026-08-01 grill-me 决策 #15:不做"再生成"按钮。
             case .lockedPaid(let previewChapters):
-                PaidChaptersLockView(previewChapters: previewChapters, onUnlock: onShowPaywall)
+                PaidChaptersLockView(
+                    previewChapters: previewChapters,
+                    title: "深度命书·付费章节",
+                    ctaTitle: "解锁深度命书",
+                    onUnlock: onShowPaywall
+                )
 
             case .failed(let message):
                 Text(message)

@@ -13,6 +13,7 @@ import SwiftData
 struct CompatibilityView: View {
     @EnvironmentObject private var env: AppEnvironment
     @State private var vm: CompatibilityViewModel?
+    @State private var showPaywall = false
 
     var body: some View {
         NavigationStack {
@@ -31,6 +32,22 @@ struct CompatibilityView: View {
                     }
                 }
             }
+            .sheet(isPresented: $showPaywall) {
+                if let compatHash = vm?.lastCompatibilityHashForPaywall {
+                    PaywallView(
+                        viewModel: PaywallViewModel(
+                            module: .compatibility,
+                            contentHash: compatHash,
+                            purchaseManager: env.purchaseManager,
+                            onPurchaseSuccess: {
+                                // 购买成功 → dismiss + 重新调 _paid(查到 entitlement 自动切)
+                                showPaywall = false
+                                vm?.generateInterpretation()
+                            }
+                        )
+                    )
+                }
+            }
         }
         .task {
             if vm == nil {
@@ -38,6 +55,7 @@ struct CompatibilityView: View {
                     orchestrator: env.compatibilityOrchestrator,
                     chartStore: env.chartSnapshotStore,
                     compatibilityStore: env.compatibilitySnapshotStore,
+                    entitlementStore: env.entitlementStore,
                     modelContext: env.modelContainer.mainContext
                 )
             }
@@ -83,7 +101,8 @@ struct CompatibilityView: View {
                         chartASnapshot: chartA,
                         chartBSnapshot: chartB,
                         onBackToConfig: { vm.backToConfig() },
-                        onGenerateInterpret: { vm.generateInterpretation() }
+                        onGenerateInterpret: { vm.generateInterpretation() },
+                        onShowPaywall: { showPaywall = true }
                     )
                 } else {
                     ErrorStateView(
