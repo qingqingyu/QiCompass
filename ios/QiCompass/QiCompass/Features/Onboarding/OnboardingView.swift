@@ -105,8 +105,9 @@ private struct NarrationLine: View {
 /// - 下半部宣纸留白区:经文(`SutraView` 自动按系统语言切排版)
 /// - 错峰 riseIn 淡入:印章 0s → 标题 0.15s → 副标题 0.3s → 经文 0.45s
 ///
-/// TODO(assets):WelcomeBackground.png 当前为 4MB 单倍图(仅 1x slice),
-/// 在 2x/3x 机型会拉伸糊化,需补 2x/3x 切片 + 压缩到 ≤500KB/张。
+/// TODO(assets):WelcomeBackground 1x/2x/3x 切片已生成(2026-08-09),
+/// 当前 PNG 无损压缩单张仍偏大(@3x 4MB / @2x 2.1MB / @1x 648KB),
+/// 若需进一步瘦身可考虑 pngquant 有损压缩或重新导出(用户操作)。
 private struct WelcomePage: View {
     var body: some View {
         ZStack {

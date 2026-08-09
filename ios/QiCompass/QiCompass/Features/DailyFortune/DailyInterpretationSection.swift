@@ -35,6 +35,8 @@ struct DailyInterpretationSection: View {
             case .fetching:
                 interpretationCTABlock(isLoading: true)
             case .okFree(let text, let cached), .okPaid(let text, let cached):
+                // 每日运势 v1 全免费(MONETIZATION.md 不在 SKU 列表),后端只调 daily_fortune module,
+                // .okPaid 永不触发;合并处理避免重复代码。
                 Text(MarkdownSanitizer.rendered(text))
                     .bodySerifText()
                     .multilineTextAlignment(.leading)
@@ -49,7 +51,7 @@ struct DailyInterpretationSection: View {
                     .foregroundStyle(BaziTheme.inkMuted)
                 }
             case .lockedPaid:
-                // 每日运势付费推后;M3a 占位空实现
+                // 每日运势 v1 全免费,.lockedPaid 永不触发;保留 case 维护 switch 完整性。
                 EmptyView()
             case .failed(let message):
                 VStack(spacing: 8) {
