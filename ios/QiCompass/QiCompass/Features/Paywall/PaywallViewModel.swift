@@ -67,10 +67,24 @@ final class PaywallViewModel {
             AppLogger.app.info("paywall.purchase.ok product=\(productId, privacy: .public)")
             state = .success
             onPurchaseSuccess?()
+        } catch let error as PurchaseError {
+            // PurchaseError 分类:userCancelled 静默回 .idle(Apple HIG 建议取消不打扰);
+            // 其他显式显错(.networkFailed / .verificationFailed / .productNotFound / .pending /
+            // .backendRedeemFailed / .entitlementStoreFailed)。
+            if error.isSilent {
+                AppLogger.app.info("paywall.purchase.silent_cancel product=\(productId, privacy: .public)")
+                state = .idle
+            } else {
+                AppLogger.app.error(
+                    "paywall.purchase.failed product=\(productId, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                )
+                // errorDescription 不为 nil(isSilent=false 时一定有值),兜底"购买失败"
+                state = .failed(error.localizedDescription ?? "购买失败")
+            }
         } catch {
-            // 错误显式传播:PurchaseManager 抛 PurchaseError,这里 catch 转 UI state
+            // 非 PurchaseError 系统级错误兜底
             AppLogger.app.error(
-                "paywall.purchase.failed product=\(productId, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                "paywall.purchase.unknown_error product=\(productId, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
             state = .failed(error.localizedDescription)
         }
