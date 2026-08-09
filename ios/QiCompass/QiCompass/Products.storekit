@@ -1,0 +1,25 @@
+{
+  "identifier" : "Products",
+  "type" : "Default",
+  "version" : 3,
+  "products" : [
+    {
+      "displayPrice" : "17.99",
+      "familyShareable" : false,
+      "internalID" : "B0AEBADA-0001-4QIC-OMPA-SS000000001",
+      "referenceName" : "Deep Analysis Single",
+      "type" : "Consumable",
+      "id" : "com.qicompass.deep_analysis.single",
+      "description" : "Single deep analysis unlock (per content_hash)"
+    },
+    {
+      "displayPrice" : "11.99",
+      "familyShareable" : false,
+      "internalID" : "B0AEBADA-0002-4QIC-OMPA-SS000000002",
+      "referenceName" : "Compatibility Single",
+      "type" : "Consumable",
+      "id" : "com.qicompass.compatibility.single",
+      "description" : "Single compatibility unlock (per compatibility_hash)"
+    }
+  ]
+}

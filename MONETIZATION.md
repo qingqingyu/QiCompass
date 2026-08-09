@@ -276,3 +276,4 @@ CREATE INDEX idx_entitlement_user ON entitlement(user_local_id, is_active);
 - [ ] ~~每日一问:第 1 次成功,第 2 次当天返回 429 `DAILY_LIMIT_REACHED`~~ — **2026-08-01 移出 v1**
 - [ ] ~~每日一问历史 SwiftData 持久化,跨启动能回看~~ — **2026-08-01 移出 v1**
 - [ ] App Store Connect 两个 product 配置正确,在 TestFlight build 上可见可购
+- [ ] **M6 配 ASC 时 product_id 与 `ios/QiCompass/QiCompass/Products.storekit` 1:1 校对**(product_id / displayPrice / type=Consumable 三字段对齐,防止 .storekit 与 ASC 漂移)
