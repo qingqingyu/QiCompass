@@ -1,6 +1,58 @@
 import Foundation
 import StoreKit
 
+/// 付费 module 枚举(M4 抽出):集中管理深度解析 / 合盘两个付费场景的差异字段。
+///
+/// - productId:Apple StoreKit SKU(M3b PurchaseManager.purchase 用)
+/// - entitlementModule:后端 redeem 的 module 字段(bazi_deep / compatibility,不含 _free/_paid 后缀)
+/// - title:UI 标题(深度命书 / 合盘解读)
+/// - paidChapters:付费章节列表(PaywallView 锁标显示)
+/// - fallbackPrice:Product 加载失败时的兜底价格(MONETIZATION.md §商品 SKU 中国区估)
+enum PaywallModule {
+    case deepAnalysis
+    case compatibility
+
+    /// Apple StoreKit product id
+    var productId: String {
+        switch self {
+        case .deepAnalysis: return AppleProductID.deepAnalysisSingle
+        case .compatibility: return AppleProductID.compatibilitySingle
+        }
+    }
+
+    /// 后端 entitlement module 字段(传 redeem,不含 _free/_paid 后缀)
+    var entitlementModule: String {
+        switch self {
+        case .deepAnalysis: return EntitlementModule.baziDeep
+        case .compatibility: return EntitlementModule.compatibility
+        }
+    }
+
+    /// UI 标题
+    var title: String {
+        switch self {
+        case .deepAnalysis: return "深度命书"
+        case .compatibility: return "合盘解读"
+        }
+    }
+
+    /// 付费章节列表
+    var paidChapters: [String] {
+        switch self {
+        case .deepAnalysis: return ["财运", "爱情", "健康", "六亲", "晚年"]
+        case .compatibility: return ["爱情深度", "合作事业", "财运合拍", "流年同步"]
+        }
+    }
+
+    /// 价格加载失败 fallback(MONETIZATION.md §商品 SKU 中国区估)
+    var fallbackPrice: String {
+        switch self {
+        case .deepAnalysis: return "¥128"
+        case .compatibility: return "¥88"
+        }
+    }
+}
+
 /// PaywallView 的状态机(M3c)。
 ///
 /// 流程:
@@ -33,24 +85,21 @@ final class PaywallViewModel {
     var state: State = .idle
     var productState: ProductState = .loading
 
+    let module: PaywallModule
     private let contentHash: String
-    private let module: String
-    private let productId: String
     private let purchaseManager: PurchaseManager
 
-    /// 购买成功回调(由 DeepAnalysisResultView 注入:dismiss sheet + 重新调 _paid)。
+    /// 购买成功回调(由调用方注入:dismiss sheet + 重新调 _paid)。
     var onPurchaseSuccess: (() -> Void)?
 
     init(
+        module: PaywallModule,
         contentHash: String,
-        module: String,
-        productId: String,
         purchaseManager: PurchaseManager,
         onPurchaseSuccess: (() -> Void)? = nil
     ) {
-        self.contentHash = contentHash
         self.module = module
-        self.productId = productId
+        self.contentHash = contentHash
         self.purchaseManager = purchaseManager
         self.onPurchaseSuccess = onPurchaseSuccess
     }
@@ -59,7 +108,7 @@ final class PaywallViewModel {
     func loadProduct() async {
         guard productState == .loading else { return }
         // 闭包捕获 instance property 需先提到 local(对齐 purchase() 风格)
-        let productId = self.productId
+        let productId = module.productId
         do {
             let products = try await Product.products(for: [productId])
             if let product = products.first {
@@ -75,15 +124,16 @@ final class PaywallViewModel {
         }
     }
 
-    /// CTA 文案(加载完显示真价,加载中/失败 fallback ¥128,MONETIZATION.md §商品 SKU 中国区估)。
-    /// TODO(M4): 合盘参数化 module,深度命书 vs 合盘文案区分。
+    /// CTA 文案(加载完显示真价,加载中/失败 fallback,文案随 module 切换)。
     var displayPriceText: String {
+        let price: String
         switch productState {
-        case .loaded(let price):
-            return "解锁深度命书(\(price))"
+        case .loaded(let displayPrice):
+            price = displayPrice
         case .loading, .failed:
-            return "解锁深度命书(¥128)"
+            price = module.fallbackPrice
         }
+        return "解锁\(module.title)(\(price))"
     }
 
     func purchase() async {
@@ -94,16 +144,16 @@ final class PaywallViewModel {
         }
         // 规则 2:函数入口日志(付费关键路径,Console 必须可追溯)
         // 技术坑:OSLogMessage 字符串插值是 lazy capture,instance property 必须先提到 local
-        let productId = self.productId
+        let productId = module.productId
+        let entitlementModule = module.entitlementModule
         let contentHash = self.contentHash
-        let module = self.module
-        AppLogger.app.info("paywall.purchase.start product=\(productId, privacy: .public) content_hash=\(contentHash, privacy: .public) module=\(module, privacy: .public)")
+        AppLogger.app.info("paywall.purchase.start product=\(productId, privacy: .public) content_hash=\(contentHash, privacy: .public) module=\(entitlementModule, privacy: .public)")
         state = .purchasing
         do {
             _ = try await purchaseManager.purchase(
                 productId: productId,
                 contentHash: contentHash,
-                module: module
+                module: entitlementModule
             )
             AppLogger.app.info("paywall.purchase.ok product=\(productId, privacy: .public)")
             state = .success
