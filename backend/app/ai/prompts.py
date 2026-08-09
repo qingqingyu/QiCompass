@@ -24,7 +24,9 @@ PROMPT_VERSIONS: dict[str, int] = {
     "bazi_deep": 2,        # alias(决策 B 保留,向后兼容老 iOS)
     "bazi_deep_free": 2,   # M2 拆分:2 章免费,Medium-deep voice(200-300 字/章)
     "bazi_deep_paid": 2,   # M2 拆分:5 章付费,Medium-deep voice(200-300 字/章)
-    "compatibility": 2,    # Medium voice(200-300 字/章 × 6 章)
+    "compatibility": 2,    # alias(M4 拆分前单 template 6 章,向后兼容老 iOS)
+    "compatibility_free": 2,  # M4 拆分:2 章免费,Medium voice(200-300 字/章)
+    "compatibility_paid": 2,  # M4 拆分:4 章付费,Medium voice(200-300 字/章)
     "daily_fortune": 2,    # Medium voice(50-80 字,砍宜忌+砍时辰点评)
 }
 
@@ -133,8 +135,9 @@ BAZI_DEEP_SPECIAL_PATTERN_SUFFIX = """
 
 # ---------- 合盘 ----------
 # 对齐 bazi-app-design-doc.md:440-468 + 2026-08-01 grill-me V2 voice 改 Medium
-# 注:当前为单 template 输出 6 章;free/paid 拆分留待 Slice M4(详见 MONETIZATION.md §合盘)
-COMPATIBILITY_TEMPLATE = """你是一位精通八字合婚/合盘的大师。请基于以下两人命盘进行 {context_label} 合盘解读。
+# Slice M4(2026-08-09):拆分 _FREE(2 章) + _PAID(4 章),与深度解析同形态(MONETIZATION.md §合盘)
+# 三个模板(alias / _free / _paid)共用此 header
+_COMPATIBILITY_HEADER = """你是一位精通八字合婚/合盘的大师。请基于以下两人命盘进行 {context_label} 合盘解读。
 
 A 盘（{gender_a}，{city_a}，{birth_a}）：日主 {day_master_a}，{day_master_strength_a}，喜 {favorable_a}
 - 年柱：{year_a} 月柱：{month_a} 日柱：{day_a} 时柱：{hour_a}
@@ -153,7 +156,11 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
 流年同步性（未来 3 年）：
 {synced_fortune_table}
 
-写作要求（6 章，每章 200-300 字，总 1200-1800 字）：
+"""
+
+# alias 模板(向后兼容老客户端,对齐 BAZI_DEEP_TEMPLATE 模式)
+# M4 拆分后 iOS 改用 _free / _paid,此 alias 可后续删除
+COMPATIBILITY_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（6 章，每章 200-300 字，总 1200-1800 字）：
 
 **第一章：基础相处模式**（200-300 字）
 两人日常互动的基调。分 3-5 段，每段一个相处场景洞察。
@@ -171,6 +178,55 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
 金钱观契合度 + 共同财运趋势。分 3-5 段。
 
 **第六章：流年同步**（200-300 字）
+未来 3 年流年同步性，每年一段，指出同步走强 / 走弱的窗口。
+
+通用要求：
+- 短句节奏：每段 2-3 句，每句尽量 <50 字，不写长句堆术语
+- 直言不绕弯，不堆 5+ 字术语链
+- 围绕 {context_label} 维度展开
+- 流年同步：指出同步进好运 / 坏运的年份
+- **绝对禁忌**：不得给出"必成 / 必分 / 必破财"等绝对结论
+- 不确定性保留：用"倾向 / 可能 / 容易"，禁用"必 / 一定 / 肯定"
+"""
+
+# M4 拆分:免费 2 章(对齐 MONETIZATION.md §合盘 §免费/付费内容分界)
+# 章节:1. 基础相处模式 2. 互补与冲突总览
+# 免费内容必须真有料,让用户感知"AI 真有料"才肯买(对齐深度解析免费 2 章策略)
+COMPATIBILITY_FREE_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（免费 2 章，每章 200-300 字，总 400-600 字）：
+
+**第一章：基础相处模式**（200-300 字）
+两人日常互动的基调。分 3-5 段，每段一个相处场景洞察。
+每段聚焦具体 actionable 洞察（沟通模式 / 决策风格 / 日常节奏契合度）。
+
+**第二章：互补与冲突总览**（200-300 字）
+五行互补 + 日主关系 + 地支合冲的具体表现。分 3-5 段。
+每段聚焦一个具体维度（互补点给关系带来的资源 / 冲突点需注意的雷区）。
+
+通用要求：
+- 短句节奏：每段 2-3 句，每句尽量 <50 字，不写长句堆术语
+- 直言不绕弯：不用"传统认为..."；直接"你们..."
+- 围绕 {context_label} 维度展开
+- 核心术语保留但不主动解释
+- **绝对禁忌**：不得给出"必成 / 必分"等绝对结论
+- 不确定性保留：用"倾向 / 可能 / 容易"，禁用"必 / 一定 / 肯定"
+"""
+
+# M4 拆分:付费 4 章(需 entitlement 才能调用)
+# 章节:3. 爱情深度 4. 合作事业 5. 财运合拍 6. 流年同步
+# 具体领域预测是用户付费动力(对齐深度解析付费 5 章策略)
+COMPATIBILITY_PAID_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（付费 4 章，每章 200-300 字，总 800-1200 字）：
+
+**第一章：爱情深度**（200-300 字）
+情感互动模式 + 长期相处的趋势。分 3-5 段，每段 2-3 短句。
+每段聚焦一个具体洞察（情感节奏 / 亲密倾向 / 长期走势）。
+
+**第二章：合作事业**（200-300 字）
+事业 / 工作合作的契合度 + 协作建议。分 3-5 段，每段 2-3 短句。
+
+**第三章：财运合拍**（200-300 字）
+金钱观契合度 + 共同财运趋势。分 3-5 段，每段 2-3 短句。
+
+**第四章：流年同步**（200-300 字）
 未来 3 年流年同步性，每年一段，指出同步走强 / 走弱的窗口。
 
 通用要求：
@@ -227,6 +283,8 @@ _TEMPLATES: dict[str, str] = {
     "bazi_deep_free": BAZI_DEEP_FREE_TEMPLATE,
     "bazi_deep_paid": BAZI_DEEP_PAID_TEMPLATE,
     "compatibility": COMPATIBILITY_TEMPLATE,
+    "compatibility_free": COMPATIBILITY_FREE_TEMPLATE,
+    "compatibility_paid": COMPATIBILITY_PAID_TEMPLATE,
     "daily_fortune": DAILY_FORTUNE_TEMPLATE,
 }
 
@@ -250,22 +308,27 @@ _BAZI_DEEP_REQUIRED_FIELDS = [
     "current_luck_pillar", "current_year_pillar",
 ]
 
+# 注:compatibility / compatibility_free / compatibility_paid 共用同一份字段清单(共享 header)
+_COMPATIBILITY_REQUIRED_FIELDS = [
+    "context_label",
+    "gender_a", "city_a", "birth_a", "day_master_a",
+    "day_master_strength_a", "favorable_a",
+    "year_a", "month_a", "day_a", "hour_a", "element_balance_a",
+    "gender_b", "city_b", "birth_b", "day_master_b",
+    "day_master_strength_b", "favorable_b",
+    "year_b", "month_b", "day_b", "hour_b", "element_balance_b",
+    "five_elements_assessment", "day_master_relation",
+    "zodiac_match", "branch_harmony",
+    "synced_fortune_table",
+]
+
 REQUIRED_FIELDS: dict[str, list[str]] = {
     "bazi_deep": _BAZI_DEEP_REQUIRED_FIELDS,
     "bazi_deep_free": _BAZI_DEEP_REQUIRED_FIELDS,
     "bazi_deep_paid": _BAZI_DEEP_REQUIRED_FIELDS,
-    "compatibility": [
-        "context_label",
-        "gender_a", "city_a", "birth_a", "day_master_a",
-        "day_master_strength_a", "favorable_a",
-        "year_a", "month_a", "day_a", "hour_a", "element_balance_a",
-        "gender_b", "city_b", "birth_b", "day_master_b",
-        "day_master_strength_b", "favorable_b",
-        "year_b", "month_b", "day_b", "hour_b", "element_balance_b",
-        "five_elements_assessment", "day_master_relation",
-        "zodiac_match", "branch_harmony",
-        "synced_fortune_table",
-    ],
+    "compatibility": _COMPATIBILITY_REQUIRED_FIELDS,
+    "compatibility_free": _COMPATIBILITY_REQUIRED_FIELDS,
+    "compatibility_paid": _COMPATIBILITY_REQUIRED_FIELDS,
     "daily_fortune": [
         "day_master", "day_master_element", "day_master_strength",
         "favorable_elements", "unfavorable_elements",
