@@ -18,9 +18,75 @@ final class PurchaseManager {
     private let entitlementStore: EntitlementStore
     private let apiClient: APIClient
 
+    /// Transaction.updates listener 任务引用。
+    /// `nonisolated(unsafe)`:Swift 6 严格模式下 deinit(@MainActor isolation 外)访问需要此标注。
+    /// 实际并发安全:仅 deinit 单点访问 + Task 自身 Sendable。
+    nonisolated(unsafe) private var transactionListenerTask: Task<Void, Never>?
+
     init(entitlementStore: EntitlementStore, apiClient: APIClient) {
         self.entitlementStore = entitlementStore
         self.apiClient = apiClient
+    }
+
+    deinit {
+        transactionListenerTask?.cancel()
+    }
+
+    /// 启动 Transaction.updates listener(由 AppEnvironment.init 调一次)。
+    ///
+    /// 处理三种场景:
+    /// (a) 退款/撤销:`tx.revocationDate != nil` → 本地 deactivate + finish(后端 webhook 已先处理)
+    /// (b) unfinished transaction 续接:purchaseStoreKitPath redeem 失败时不 finish,下次启动 listener 重试
+    /// (c) 跨设备同步:新设备看到已有 purchase,本地无 entitlement → 调 redeem(后端 idempotent)
+    ///
+    /// **v1 简化**:listener 主要处理 revoke + 简单 finish 续接。
+    /// 完整跨设备 redeem 续接需后端 transactionId → content_hash 反查接口,v1 没有,推 M6/v2。
+    func startTransactionListener() {
+        transactionListenerTask = Task.detached { [weak self] in
+            for await update in Transaction.updates {
+                guard let self else { continue }
+                await MainActor.run {
+                    self.handleTransactionUpdate(update)
+                }
+            }
+        }
+        AppLogger.app.info("purchase.storekit.listener_started")
+    }
+
+    private func handleTransactionUpdate(_ update: VerificationResult<Transaction>) {
+        switch update {
+        case .verified(let tx):
+            let txId = String(tx.id)
+            if tx.revocationDate != nil {
+                AppLogger.app.info("purchase.storekit.update.revoked tx=\(txId, privacy: .public)")
+                Task { await handleRevocation(tx) }
+            } else {
+                AppLogger.app.info("purchase.storekit.update.continuation tx=\(txId, privacy: .public)")
+                Task { await handleRedeemContinuation(tx) }
+            }
+        case .unverified(_, let error):
+            // 验签失败不 finish(防诈骗),等下次重试或人工干预
+            AppLogger.app.error("purchase.storekit.update.unverified error=\(String(describing: error), privacy: .public)")
+        }
+    }
+
+    /// 退款/撤销同步:本地 deactivate(后端 webhook 已先处理)。
+    private func handleRevocation(_ tx: Transaction) async {
+        let txId = String(tx.id)
+        _ = entitlementStore.deactivate(transactionId: txId)
+        await tx.finish()
+        AppLogger.app.info("purchase.storekit.revocation_handled tx=\(txId, privacy: .public)")
+    }
+
+    /// unfinished transaction 续接。
+    /// v1 简化:直接 finish(本地 entitlement 在 purchaseStoreKitPath 主路径已写或未写)。
+    /// 完整续接需后端 transactionId → content_hash 反查接口(M6/v2 补),这里至少清掉 unfinished 状态。
+    private func handleRedeemContinuation(_ tx: Transaction) async {
+        let txId = String(tx.id)
+        // 若本地已有此 transactionId 的 active entitlement,说明主路径已写完,只是 finish 漏调
+        // 若没有,可能是 redeem 失败 → 这里 finish 掉,用户需重新购买(v1 容忍,完整续接 M6/v2)
+        await tx.finish()
+        AppLogger.app.info("purchase.storekit.continuation_finished tx=\(txId, privacy: .public)")
     }
 
     /// 发起购买。

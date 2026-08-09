@@ -96,6 +96,9 @@ final class AppEnvironment: ObservableObject {
             entitlementStore: entitlementStore,
             apiClient: apiClient
         )
+        // M3b:启动 Transaction.updates listener(退款同步 + unfinished 续接)
+        // Mock 模式下 Transaction.updates 不会有事件,但 listener 启动无害
+        purchaseManager.startTransactionListener()
         AppLogger.app.info("AppEnvironment.init 完成(orchestrator + store 全部装配)")
     }
 
