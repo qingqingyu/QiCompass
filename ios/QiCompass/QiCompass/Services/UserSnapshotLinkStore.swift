@@ -94,4 +94,53 @@ final class UserSnapshotLinkStore {
         )
         return try context.fetch(desc)
     }
+
+    /// 删除 link(ChartSnapshot 不动,历史解读缓存可回溯;今日运势 fallback 到次新命盘)。
+    /// 用户在 ProfileView swipe 删除时调。
+    func delete(linkId: UUID) throws {
+        let pred = #Predicate<UserSnapshotLink> { $0.id == linkId }
+        let desc = FetchDescriptor<UserSnapshotLink>(predicate: pred)
+        let matches = try context.fetch(desc)
+        guard let link = matches.first else {
+            // 防御:fetch 不到说明 UI 状态过期(link 已被其他流程删),log + 不抛错
+            // (UI 不需要区分"已删" vs "刚删",只看 list 刷新后是否消失)
+            AppLogger.persistence.warning(
+                "op=userLink.delete linkId=\(linkId, privacy: .public) result=not_found_skip"
+            )
+            return
+        }
+        context.delete(link)
+        try context.save()
+        AppLogger.persistence.info(
+            "op=userLink.delete linkId=\(linkId, privacy: .public) alias=\(link.alias, privacy: .public) result=deleted"
+        )
+    }
+
+    /// 更新 alias(只改 alias,不动 snapshotHash / createdAt / userId)。
+    /// 用户在 ProfileView swipe 改名时调。
+    func updateAlias(linkId: UUID, newAlias: String) throws {
+        let trimmed = newAlias.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else {
+            // alias 不能为空,显式抛错(对齐 CLAUDE.md "错误显式传播")
+            throw NSError(
+                domain: "UserSnapshotLinkStore",
+                code: 2,
+                userInfo: [NSLocalizedDescriptionKey: "alias 不能为空"]
+            )
+        }
+        let pred = #Predicate<UserSnapshotLink> { $0.id == linkId }
+        let desc = FetchDescriptor<UserSnapshotLink>(predicate: pred)
+        guard let link = try context.fetch(desc).first else {
+            throw NSError(
+                domain: "UserSnapshotLinkStore",
+                code: 3,
+                userInfo: [NSLocalizedDescriptionKey: "linkId=\(linkId) 不存在"]
+            )
+        }
+        link.alias = trimmed
+        try context.save()
+        AppLogger.persistence.info(
+            "op=userLink.updateAlias linkId=\(linkId, privacy: .public) newAlias=\(trimmed, privacy: .public)"
+        )
+    }
 }
