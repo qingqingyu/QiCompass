@@ -70,9 +70,9 @@ struct PaywallView: View {
                     .frame(maxWidth: .infinity)
             }
 
-            // CTA(M3c 用 PrimaryCTAButton,M3b 接真 StoreKit 后 loading 态会真生效)
+            // CTA(价格动态化:加载完显示 Product.displayPrice,加载中/失败 fallback ¥128)
             PrimaryCTAButton(
-                title: "解锁深度命书(¥128)",
+                title: viewModel.displayPriceText,
                 loadingTitle: "处理中…",
                 isLoading: viewModel.state == .purchasing,
                 action: { Task { await viewModel.purchase() } }
@@ -88,5 +88,6 @@ struct PaywallView: View {
         .padding(.bottom, BaziTheme.Spacing.lg)
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
+        .task { await viewModel.loadProduct() }
     }
 }
