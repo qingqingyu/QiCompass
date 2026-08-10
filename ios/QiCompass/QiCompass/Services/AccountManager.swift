@@ -84,8 +84,20 @@ final class AccountManager {
     /// 三个 @MainActor 入口同步更新。
     nonisolated(unsafe) private(set) var lastKnownJwtToken: String?
 
+    /// PR2.5:APIClient 引用(调 /api/auth/sign-in 换自家 JWT)。
+    /// strong(AppEnvironment 持有 apiClient + accountManager,生命周期相同,
+    /// 不会循环;LiveAPIClient 反向引用 accountManager 是 weak)。
+    /// 由 AppEnvironment 装配后调用 setAPIClient 注入。
+    var apiClient: APIClient?
+
     init() {
         restoreFromKeychain()
+    }
+
+    /// AppEnvironment 装配 APIClient 后调(在 setAccountManager 之前/之后均可)。
+    func setAPIClient(_ client: APIClient) {
+        apiClient = client
+        AppLogger.app.info("account.apiClient_injected")
     }
 
     /// 启动时从 Keychain 恢复登录态(同步,Keychain API 快)。
@@ -139,6 +151,9 @@ final class AccountManager {
                 state = .signedIn(user)
                 lastKnownJwtToken = user.identityToken.isEmpty ? nil : user.identityToken
                 AppLogger.app.info("account.signIn.ok appleUserId=\(user.appleUserId.prefix(8), privacy: .public)")
+                // PR2.5:登录成功后异步调 /api/auth/sign-in 换自家 JWT
+                // 失败不阻断登录(用户可重试 / 降级用 identityToken)
+                Task { await exchangeJwtToken(user: user) }
             } catch let error as AppleAuthError {
                 AppLogger.app.error(
                     "account.signIn.failed error=\(error.errorDescription ?? "未知", privacy: .public)"
@@ -198,6 +213,33 @@ final class AccountManager {
     }
 
     // MARK: - 内部
+
+    /// PR2.5:调 /api/auth/sign-in 把 Apple identity_token 换成自家 JWT。
+    /// 成功 → KeychainHelper.jwtToken 替换为自家 JWT + lastKnownJwtToken 同步更新。
+    /// 失败 → 保留原 identityToken(降级,不阻断登录态)。
+    private func exchangeJwtToken(user: AppleUser) async {
+        guard let client = apiClient else {
+            AppLogger.app.warning("account.exchangeJwtToken.skip reason=no_api_client")
+            return
+        }
+        do {
+            AppLogger.app.info("account.exchangeJwtToken.start appleUserId=\(user.appleUserId.prefix(8), privacy: .public)")
+            let resp = try await client.signIn(
+                request: SignInRequest(identityToken: user.identityToken)
+            )
+            try KeychainHelper.saveString(resp.accessToken, for: .jwtToken)
+            // 同步更新 lastKnownJwtToken(APIClient 后续请求用自家 JWT 而非 identityToken)
+            lastKnownJwtToken = resp.accessToken
+            AppLogger.app.info(
+                "account.exchangeJwtToken.ok userId=\(resp.userId.prefix(8), privacy: .public) expiresAt=\(resp.expiresAt, privacy: .public)"
+            )
+        } catch {
+            // 失败保留原 identityToken,用户已登录态不破(降级)。下次启动可重试(后端可能短暂不可达)
+            AppLogger.app.error(
+                "account.exchangeJwtToken.failed error=\(String(describing: error), privacy: .public) — 降级用 identityToken"
+            )
+        }
+    }
 
     /// 解析 ASAuthorizationAppleIDCredential → AppleUser。
     private func parseCredential(_ credential: ASAuthorizationAppleIDCredential) throws -> AppleUser {

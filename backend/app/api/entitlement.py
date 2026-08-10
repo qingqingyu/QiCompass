@@ -23,7 +23,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from starlette.concurrency import run_in_threadpool
 
 from ..entitlement import AppleServerAPI, EntitlementStore
@@ -32,6 +32,7 @@ from ..errors import (
     EntitlementError,
     InterpretationCacheError,
 )
+from ..auth.dependencies import get_current_user_id
 from ..models.entitlement import EntitlementRedeemRequest, EntitlementRedeemResponse
 
 router = APIRouter()
@@ -41,6 +42,7 @@ logger = logging.getLogger(__name__)
 @router.post("/api/entitlement/redeem", response_model=EntitlementRedeemResponse)
 async def redeem(
     req: EntitlementRedeemRequest, request: Request,
+    current_user_id: str | None = Depends(get_current_user_id),
 ) -> EntitlementRedeemResponse:
     request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
     start = time.perf_counter()
@@ -141,6 +143,7 @@ async def redeem(
             content_hash=req.content_hash,
             module=req.module,
             user_local_id=req.user_local_id,
+            user_id=current_user_id,  # PR2.5:登录用户填此(老 iOS / 老数据为 None)
             purchased_at=purchased_at_iso,
             original_purchase_date=original_purchase_date_iso,
         )

@@ -29,7 +29,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from starlette.concurrency import run_in_threadpool
 
 from ..ai.cache import InterpretationCache
@@ -37,6 +37,7 @@ from ..ai.cache_key import CacheKey
 from ..ai.forbidden_words import scan as scan_forbidden_words
 from ..ai.forbidden_words import validate_interpretation
 from ..ai.prompts import PROMPT_VERSIONS, render_prompt, validate_context
+from ..auth.dependencies import get_current_user_id
 from ..ai.singleflight import SingleflightCoalescer
 from ..entitlement import EntitlementStore
 from ..errors import (
@@ -53,7 +54,11 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/api/interpret", response_model=InterpretResponse)
-async def interpret(req: InterpretRequest, request: Request) -> InterpretResponse:
+async def interpret(
+    req: InterpretRequest,
+    request: Request,
+    current_user_id: str | None = Depends(get_current_user_id),
+) -> InterpretResponse:
     request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
     start = time.perf_counter()
 
@@ -93,6 +98,8 @@ async def interpret(req: InterpretRequest, request: Request) -> InterpretRespons
                 module=base_module,
                 user_local_id=req.user_local_id,  # type: ignore[arg-type]
                 # user_local_id 由 Pydantic model_validator 保证非空(付费 module 必填)
+                # PR2.5:登录用户优先按 user_id 查(老 iOS / 老 entitlement 行兜底 user_local_id)
+                user_id=current_user_id,
             )
         except Exception as e:
             # sqlite3 异常不吞(对齐 ai/cache.py:11-14 错误显式传播)

@@ -91,4 +91,32 @@ def apple_env_configured() -> bool:
         APP_STORE_APP_APPLE_ID,
     ])
 
+
+# ---------- 自家 JWT + Sign in with Apple(PR2.5 后端账号系统)----------
+# JWT_SECRET_KEY 必填,缺失启动失败(对齐 CLAUDE.md "错误显式传播")
+JWT_SECRET_KEY: str = os.environ.get("JWT_SECRET_KEY") or ""
+if not JWT_SECRET_KEY:
+    raise ValueError(
+        "JWT_SECRET_KEY 必填(PR2.5 后端账号系统)。"
+        "本地开发:在 backend/.env 设置任意长字符串(如 'dev-secret-change-me-<random>')。"
+        "生产:用 openssl rand -hex 32 生成,不要 commit .env"
+    )
+
+JWT_ALGORITHM = "HS256"  # 共享密钥(对齐 PR2.5 plan 决策)
+JWT_EXP_MINUTES = int(os.environ.get("JWT_EXP_MINUTES") or "43200")  # 默认 30 天
+if JWT_EXP_MINUTES <= 0:
+    raise ValueError(f"JWT_EXP_MINUTES must be positive (got {JWT_EXP_MINUTES})")
+
+# Sign in with Apple ID Token 验证
+# Bundle ID 作 expected audience(Apple aud claim)
+APPLE_SIGN_IN_CLIENT_ID: str = (
+    os.environ.get("APPLE_SIGN_IN_CLIENT_ID")
+    or APP_STORE_BUNDLE_ID
+    or "com.qicompass.app"
+)
+# Apple 公钥缓存 TTL(秒),默认 1 小时
+APPLE_PUBLIC_KEYS_CACHE_TTL = int(
+    os.environ.get("APPLE_PUBLIC_KEYS_CACHE_TTL") or "3600"
+)
+
 # prompt 版本号单一事实源:ai/prompts.py 的 PROMPT_VERSIONS,路由层从那里导入

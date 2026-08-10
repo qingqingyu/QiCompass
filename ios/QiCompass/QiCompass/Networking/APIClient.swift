@@ -10,6 +10,8 @@ protocol APIClient: Sendable {
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse
     func interpret(request: InterpretRequest) async throws -> InterpretResponse
     func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse
+    /// PR2.5:Apple identity_token 换自家 JWT(后端验签 + upsert User + 发 JWT)
+    func signIn(request: SignInRequest) async throws -> SignInResponse
 }
 
 // MARK: - Shared JSONCoder
@@ -98,6 +100,12 @@ final class LiveAPIClient: APIClient {
     func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse {
         let (data, _) = try await send(.entitlementRedeem, body: request)
         return try decode(data, as: EntitlementRedeemResponse.self, endpoint: .entitlementRedeem)
+    }
+
+    // PR2.5:Apple identity_token → 自家 JWT(后端验签 + upsert User + 发 access_token)
+    func signIn(request: SignInRequest) async throws -> SignInResponse {
+        let (data, _) = try await send(.authSignIn, body: request)
+        return try decode(data, as: SignInResponse.self, endpoint: .authSignIn)
     }
 
     // MARK: - Internal
@@ -248,6 +256,18 @@ final class MockAPIClient: APIClient {
             transactionId: request.transactionId,
             purchasedAt: .now,
             originalPurchaseDate: .now
+        )
+    }
+
+    // PR2.5:Mock sign-in 返 fake JWT(测试用,不真调后端 /api/auth/sign-in)
+    func signIn(request: SignInRequest) async throws -> SignInResponse {
+        AppLogger.networking.debug("mock.signIn 调起 token_prefix=\(request.identityToken.prefix(20), privacy: .public)")
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        return SignInResponse(
+            accessToken: "mock.jwt.\(UUID().uuidString.prefix(8))",
+            tokenType: "Bearer",
+            userId: "mock-user-\(UUID().uuidString.prefix(8))",
+            expiresAt: "2099-12-31T00:00:00+00:00"
         )
     }
 
