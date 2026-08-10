@@ -844,6 +844,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				BACKEND_BASE_URL = "http://localhost:8000";
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = QiCompass/QiCompass.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = W63YS53777;
 				ENABLE_PREVIEWS = YES;
@@ -882,6 +883,7 @@
 				ASSETCATALOG_COMPILER_GLOBAL_ACCENT_COLOR_NAME = AccentColor;
 				BACKEND_BASE_URL = "https://api.qicompass.example.com";
 				CODE_SIGN_STYLE = Automatic;
+				CODE_SIGN_ENTITLEMENTS = QiCompass/QiCompass.entitlements;
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_TEAM = W63YS53777;
 				ENABLE_PREVIEWS = YES;

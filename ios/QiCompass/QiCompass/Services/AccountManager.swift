@@ -79,6 +79,11 @@ final class AccountManager {
     /// 当前登录状态(UI 观察用)。
     private(set) var state: State = .loading
 
+    /// last-known JWT token 快照(nonisolated(unsafe) 让 LiveAPIClient 在 background URLSession
+    /// 线程读 token,不用 MainActor.run 切上下文)。仅 init / handleAuthorization / signOut
+    /// 三个 @MainActor 入口同步更新。
+    nonisolated(unsafe) private(set) var lastKnownJwtToken: String?
+
     init() {
         restoreFromKeychain()
     }
@@ -101,6 +106,7 @@ final class AccountManager {
                 identityToken: identityToken
             )
             state = .signedIn(user)
+            lastKnownJwtToken = user.identityToken.isEmpty ? nil : user.identityToken
             AppLogger.app.info("account.restore.ok appleUserId=\(appleUserId.prefix(8), privacy: .public)")
         } catch let error as KeychainError {
             AppLogger.persistence.error(
@@ -131,6 +137,7 @@ final class AccountManager {
                 let user = try parseCredential(credential)
                 try persist(user: user)
                 state = .signedIn(user)
+                lastKnownJwtToken = user.identityToken.isEmpty ? nil : user.identityToken
                 AppLogger.app.info("account.signIn.ok appleUserId=\(user.appleUserId.prefix(8), privacy: .public)")
             } catch let error as AppleAuthError {
                 AppLogger.app.error(
@@ -173,6 +180,7 @@ final class AccountManager {
             // 不阻断登出,Keychain 残留不致命(下次登录覆盖)
         }
         state = .signedOut
+        lastKnownJwtToken = nil
         AppLogger.app.info("account.signOut.ok")
     }
 

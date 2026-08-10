@@ -45,9 +45,11 @@ enum APICoder {
 final class LiveAPIClient: APIClient {
     private let session: URLSession
     private let baseURL: URL
-    private let bearerToken: String?
+    // v2 PR2:AccountManager weak 引用,避免 retain cycle(AppEnvironment 持两者)
+    // 后端 PR2.5 接 JWT middleware 前此 token 不会被验证,iOS 仍正常工作
+    weak var accountManager: AccountManager?
 
-    init(baseURL: URL, bearerToken: String? = nil) {
+    init(baseURL: URL) {
         let config = URLSessionConfiguration.default
         // 跟后端 AI_TIMEOUT_SECONDS=90 对齐。推理模型生成命书 20-50s,
         // 15s 会在后端返回前提前 timeout。resource timeout 留 120s 容错。
@@ -55,9 +57,12 @@ final class LiveAPIClient: APIClient {
         config.timeoutIntervalForResource = 120
         self.session = URLSession(configuration: config)
         self.baseURL = baseURL
-        // 脚手架阶段:Bearer Token 暂用传入参数占位(正式 slice 替换为 Keychain)。
-        // TODO: 账号 slice 引入 Keychain 封装(需先征得依赖同意)。
-        self.bearerToken = bearerToken
+    }
+
+    /// AppEnvironment 装配 AccountManager 后注入(运行时取 jwtToken 加 Authorization header)。
+    func setAccountManager(_ manager: AccountManager) {
+        accountManager = manager
+        AppLogger.networking.info("api.live.accountManager_injected")
     }
 
     func health() async throws -> HealthResponse {
@@ -115,7 +120,10 @@ final class LiveAPIClient: APIClient {
         req.httpMethod = endpoint.method
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
-        if let token = bearerToken {
+        // v2 PR2:从 AccountManager 取 lastKnownJwtToken(已登录时注入 Authorization header)
+        // 用 nonisolated(unsafe) 属性避免 main actor 切换(APIClient.send 可能在 background 线程)
+        // 后端 PR2.5 接 JWT middleware 前此 header 不被验证,iOS 仍正常工作
+        if let token = accountManager?.lastKnownJwtToken {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 

@@ -105,6 +105,10 @@ final class AppEnvironment: ObservableObject {
         // v2 PR2:装配 AccountManager(init 自动从 Keychain 恢复登录态)
         let accountManager = AccountManager()
         self.accountManager = accountManager
+        // LiveAPIClient 注入 accountManager(运行时取 jwtToken 加 Authorization header)
+        if let liveClient = apiClient as? LiveAPIClient {
+            liveClient.setAccountManager(accountManager)
+        }
         AppLogger.app.info("AppEnvironment.init 完成(orchestrator + store + account 全部装配)")
     }
 
