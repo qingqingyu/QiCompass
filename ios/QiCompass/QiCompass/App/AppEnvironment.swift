@@ -36,6 +36,9 @@ final class AppEnvironment: ObservableObject {
     let entitlementStore: EntitlementStore
     let purchaseManager: PurchaseManager
 
+    // v2 PR2 新增:Apple 账号系统
+    let accountManager: AccountManager
+
     init(modelContainer: ModelContainer, apiClient: APIClient, useMockClient: Bool) {
         // 规则 2:函数入口日志。AppEnvironment 装配是启动关键路径,失败会让整个 App 不可用。
         AppLogger.app.info("AppEnvironment.init 开始 useMockClient=\(useMockClient, privacy: .public)")
@@ -99,7 +102,14 @@ final class AppEnvironment: ObservableObject {
         // M3b:启动 Transaction.updates listener(退款同步 + unfinished 续接)
         // Mock 模式下 Transaction.updates 不会有事件,但 listener 启动无害
         purchaseManager.startTransactionListener()
-        AppLogger.app.info("AppEnvironment.init 完成(orchestrator + store 全部装配)")
+        // v2 PR2:装配 AccountManager(init 自动从 Keychain 恢复登录态)
+        let accountManager = AccountManager()
+        self.accountManager = accountManager
+        // LiveAPIClient 注入 accountManager(运行时取 jwtToken 加 Authorization header)
+        if let liveClient = apiClient as? LiveAPIClient {
+            liveClient.setAccountManager(accountManager)
+        }
+        AppLogger.app.info("AppEnvironment.init 完成(orchestrator + store + account 全部装配)")
     }
 
     /// 从 Info.plist 读取是否使用 MockAPIClient(默认 NO = 连真后端)。
