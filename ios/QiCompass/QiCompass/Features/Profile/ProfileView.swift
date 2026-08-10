@@ -38,6 +38,7 @@ struct ProfileView: View {
             ZStack {
                 BaziTheme.paper.ignoresSafeArea()
                 List {
+                    accountSection
                     snapshotLinksSection
                     entitlementsSection
                     settingsSection
@@ -77,6 +78,53 @@ struct ProfileView: View {
             } message: {
                 Text("命盘数据会保留(历史解读可回溯),仅从此列表移除。")
             }
+        }
+    }
+
+    // MARK: - Section 0: 账号(v2 PR2)
+
+    private var accountSection: some View {
+        Section {
+            switch env.accountManager.state {
+            case .loading:
+                Text("加载中…")
+                    .foregroundStyle(BaziTheme.inkMuted)
+            case .signedOut:
+                AppleSignInButton { result in
+                    env.accountManager.handleAuthorization(result)
+                }
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(BaziTheme.paper)
+            case .signedIn(let user):
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(user.fullName ?? user.email ?? "Apple 用户")
+                        .foregroundStyle(BaziTheme.ink)
+                    if let email = user.email, user.fullName != nil {
+                        Text(email)
+                            .font(.caption)
+                            .foregroundStyle(BaziTheme.inkMuted)
+                    }
+                    Text("Apple ID:\(user.appleUserId.prefix(12))")
+                        .font(.caption2.monospaced())
+                        .foregroundStyle(BaziTheme.inkMuted)
+                }
+                Button("退出登录", role: .destructive) {
+                    env.accountManager.signOut()
+                }
+            case .failed(let message):
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(message)
+                        .font(.caption)
+                        .foregroundStyle(BaziTheme.destructive)
+                    AppleSignInButton { result in
+                        env.accountManager.handleAuthorization(result)
+                    }
+                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                    .listRowBackground(BaziTheme.paper)
+                }
+            }
+        } header: {
+            sectionHeader("账号")
         }
     }
 
