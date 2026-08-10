@@ -23,6 +23,7 @@ from .api import health as health_api
 from .api import interpret as interpret_api
 from .api import webhooks as webhooks_api
 from .api import auth as auth_api
+from .api import sync as sync_api
 from .config import (
     AI_PROVIDER,
     ANTHROPIC_API_KEY,
@@ -178,6 +179,11 @@ from app.auth.user_store import UserStore  # noqa: E402
 _default_user_store = UserStore(DB_PATH)
 _default_user_store.init_schema()
 app.state.user_store = _default_user_store
+# PR3.1:UserChartSyncStore(命盘跨设备同步,同 DB_PATH)
+from app.sync.store import UserChartSyncStore  # noqa: E402
+_default_chart_sync_store = UserChartSyncStore(DB_PATH)
+_default_chart_sync_store.init_schema()
+app.state.user_chart_sync_store = _default_chart_sync_store
 app.state.apple_server_api = MockAppleServerAPI()
 # 测试环境 fallback:ASGITransport 单测不触发 lifespan,挂默认 singleflight 实例
 # 避免路由层 AttributeError(与 cache / entitlement_store 同策略)
@@ -192,6 +198,7 @@ app.include_router(interpret_api.router)
 app.include_router(entitlement_api.router)
 app.include_router(webhooks_api.router)
 app.include_router(auth_api.router)
+app.include_router(sync_api.router)
 
 
 # ---------- 异常 handler(错误显式传播,统一响应结构)----------
