@@ -214,6 +214,8 @@ struct ProfileView: View {
                     AppLogger.app.info("profile.newChart.ready alias=\(vm.alias, privacy: .public) — dismiss sheet")
                     newChartVM = nil
                     showNewChartSheet = false
+                    // PR3.2:新建命盘后 push(同步到云端)
+                    Task { await env.syncManager.push() }
                 }
             }
         }
@@ -223,6 +225,8 @@ struct ProfileView: View {
         do {
             try env.userSnapshotLinkStore.delete(linkId: linkId)
             // @Query 自动刷新 list,无需手动处理
+            // PR3.2:删除后 push(同步到云端)
+            Task { await env.syncManager.push() }
         } catch {
             AppLogger.persistence.error(
                 "op=profile.deleteLink failed linkId=\(linkId, privacy: .public) error=\(String(describing: error), privacy: .public)"
@@ -234,6 +238,8 @@ struct ProfileView: View {
         do {
             try env.userSnapshotLinkStore.updateAlias(linkId: linkId, newAlias: newAlias)
             // @Query 自动刷新 list
+            // PR3.2:改名后 push(同步到云端)
+            Task { await env.syncManager.push() }
         } catch {
             AppLogger.persistence.error(
                 "op=profile.saveAlias failed linkId=\(linkId, privacy: .public) newAlias=\(newAlias, privacy: .public) error=\(String(describing: error), privacy: .public)"
