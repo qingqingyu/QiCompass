@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import os
 import uuid
 from datetime import datetime, timedelta, timezone
 
-import pytest
+# PR2.5:测试默认设 JWT_SECRET_KEY(必须在 import app.config 之前;
+# app.config 模块加载时校验缺失会启动失败)
+os.environ.setdefault("JWT_SECRET_KEY", "test-secret-fixed-for-pytest-do-not-use-in-prod")
+
+import pytest  # noqa: E402
 
 
 @pytest.fixture
