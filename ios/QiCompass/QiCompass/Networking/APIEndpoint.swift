@@ -1,9 +1,10 @@
 import Foundation
 
-/// API 端点路由(6 个端点)。
+/// API 端点路由(7 个端点)。
 ///
 /// 后端已实现:`/api/health`、`/api/bazi/calculate`、`/api/bazi/compatibility`、
 /// `/api/bazi/daily-fortune`、`/api/interpret`、`/api/entitlement/redeem`(M2b)、
+/// `/api/auth/sign-in`(PR2.5)、
 /// `/api/webhooks/appstore`(M2c,Apple 调,iOS 不调)
 enum APIEndpoint: Sendable {
     case health
@@ -12,6 +13,7 @@ enum APIEndpoint: Sendable {
     case dailyFortune
     case interpret
     case entitlementRedeem  // M3a 新增
+    case authSignIn          // PR2.5 新增(Apple identity_token → 自家 JWT)
 
     var path: String {
         switch self {
@@ -21,6 +23,7 @@ enum APIEndpoint: Sendable {
         case .dailyFortune:      return "/api/bazi/daily-fortune"
         case .interpret:         return "/api/interpret"
         case .entitlementRedeem: return "/api/entitlement/redeem"
+        case .authSignIn:        return "/api/auth/sign-in"
         }
     }
 

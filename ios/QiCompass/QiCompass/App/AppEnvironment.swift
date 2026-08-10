@@ -109,6 +109,9 @@ final class AppEnvironment: ObservableObject {
         if let liveClient = apiClient as? LiveAPIClient {
             liveClient.setAccountManager(accountManager)
         }
+        // PR2.5:AccountManager 反向注入 APIClient(调 /api/auth/sign-in 换自家 JWT)
+        // 双向 weak(LiveAPIClient.accountManager ↔ AccountManager.apiClient)避免循环
+        accountManager.setAPIClient(apiClient)
         AppLogger.app.info("AppEnvironment.init 完成(orchestrator + store + account 全部装配)")
     }
 
