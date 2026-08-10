@@ -22,6 +22,7 @@ from .api import entitlement as entitlement_api
 from .api import health as health_api
 from .api import interpret as interpret_api
 from .api import webhooks as webhooks_api
+from .api import auth as auth_api
 from .config import (
     AI_PROVIDER,
     ANTHROPIC_API_KEY,
@@ -172,6 +173,11 @@ if _db_dir:
 _default_entitlement_store = EntitlementStore(DB_PATH)
 _default_entitlement_store.init_schema()
 app.state.entitlement_store = _default_entitlement_store
+# PR2.5:UserStore(同 DB_PATH,共用 SQLite 文件,不同表 qicompass_user)
+from app.auth.user_store import UserStore  # noqa: E402
+_default_user_store = UserStore(DB_PATH)
+_default_user_store.init_schema()
+app.state.user_store = _default_user_store
 app.state.apple_server_api = MockAppleServerAPI()
 # 测试环境 fallback:ASGITransport 单测不触发 lifespan,挂默认 singleflight 实例
 # 避免路由层 AttributeError(与 cache / entitlement_store 同策略)
@@ -185,6 +191,7 @@ app.include_router(daily_fortune_api.router)
 app.include_router(interpret_api.router)
 app.include_router(entitlement_api.router)
 app.include_router(webhooks_api.router)
+app.include_router(auth_api.router)
 
 
 # ---------- 异常 handler(错误显式传播,统一响应结构)----------
