@@ -1,0 +1,22 @@
+{
+  "images": [
+    {
+      "filename": "Zodiac_Dragon.webp",
+      "idiom": "universal"
+    },
+    {
+      "appearances": [
+        {
+          "appearance": "luminosity",
+          "value": "dark"
+        }
+      ],
+      "filename": "Zodiac_Dragon_dark.webp",
+      "idiom": "universal"
+    }
+  ],
+  "info": {
+    "author": "xcode",
+    "version": 1
+  }
+}
