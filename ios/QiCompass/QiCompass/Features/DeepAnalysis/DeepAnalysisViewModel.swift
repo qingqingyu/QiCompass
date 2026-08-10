@@ -63,6 +63,9 @@ final class DeepAnalysisViewModel {
     var useManualLongitude: Bool = false
     var manualLongitude: Double = 116.41
     var ziHourRule: String = "zi_next_day"
+    /// 命盘别名(v2 PR1):默认"我自己",用户可改为"妈妈"/"男友"等区分多命盘。
+    /// 提交时传给 orchestrator.runCalculation 写入 UserSnapshotLink。
+    var alias: String = "我自己"
 
     // MARK: 主状态
 
@@ -161,7 +164,7 @@ final class DeepAnalysisViewModel {
 
         calculateTask = Task {
             do {
-                let response = try await orchestrator.runCalculation(request: request)
+                let response = try await orchestrator.runCalculation(request: request, alias: alias)
                 if !Task.isCancelled {
                     AppLogger.app.info("deepVM.calculate.ok contentHash=\(response.contentHash, privacy: .public)")
                     state = .ready(response, .idle)

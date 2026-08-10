@@ -40,7 +40,10 @@ final class DeepAnalysisOrchestrator {
     // MARK: - 阶段 1:排盘 + 存档
 
     /// 排盘 → 存档 ChartSnapshot。任一失败 throw(→ `.chartFailed`)。
-    func runCalculation(request: BaziCalculateRequest) async throws -> BaziResponse {
+    ///
+    /// - Parameter alias: 命盘展示别名("我自己" / "妈妈" / "男友"),默认"我自己" 向后兼容。
+    ///   v2 PR1 起由调用方传入(BirthFormView 表单顶部 TextField 收集)。
+    func runCalculation(request: BaziCalculateRequest, alias: String = "我自己") async throws -> BaziResponse {
         // 规则 2:函数入口日志(网络调用内部已通过 AppLogger.measure 覆盖 start/ok/failed)
         AppLogger.app.info("deep.runCalculation.start birth=\(Self.isoFormatter.string(from: request.birthDatetime)) gender=\(request.gender, privacy: .public) city=\(request.city ?? "nil", privacy: .public)")
         let response = try await AppLogger.measure(
@@ -60,9 +63,9 @@ final class DeepAnalysisOrchestrator {
         // 存档(失败 throw → chartFailed,不提示"命盘已保存")
         _ = try chartStore.upsert(response: response, request: request)
 
-        // 写 UserSnapshotLink 标记归属(MVP 单用户 alias="我自己")。
+        // 写 UserSnapshotLink 标记归属(alias 由调用方传入,默认"我自己")。
         // 不写 link 会让合盘 / 每日运势查不到本命盘(它们都按 UserSnapshotLink 取列表)。
-        // upsert 按 (userId, snapshotHash) 去重:同盘重排不重复 insert。
+        // upsert 按 (userId, snapshotHash) 去重:同盘重排不重复 insert,但 alias 会更新。
         //
         // 降级策略(避免 UX 不一致):ChartSnapshot 已存档 → 视为排盘成功。
         // link 写入失败时不 throw(否则 UI 看到 chartFailed 但盘已落库,重排会去重),
@@ -72,7 +75,7 @@ final class DeepAnalysisOrchestrator {
             _ = try userLinkStore.upsert(
                 userId: UserIdentity.userLocalId,
                 snapshotHash: response.contentHash,
-                alias: "我自己"
+                alias: alias
             )
         } catch {
             // 不吞错:显式 error 日志,运维可据 traceId 定位合盘空列表根因。

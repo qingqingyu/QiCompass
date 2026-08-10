@@ -11,6 +11,7 @@ import SwiftData
 ///
 /// 退化态:无命盘/无 entitlements 时显示 placeholder 文案,不报错(状态显式表达)。
 struct ProfileView: View {
+    @EnvironmentObject private var env: AppEnvironment
     @Query(sort: \UserSnapshotLink.createdAt, order: .reverse)
     private var snapshotLinks: [UserSnapshotLink]
 
@@ -20,6 +21,17 @@ struct ProfileView: View {
     /// 子时规则默认值。BirthFormView 后续 slice 起手读此 @AppStorage 作为初始值。
     /// 默认 zi_next_day(对齐 CLAUDE.md 项目约束 + 既有 DeepAnalysisViewModel 默认值)。
     @AppStorage("defaultZiHourRule") private var defaultZiHourRule = "zi_next_day"
+
+    // MARK: v2 PR1 多人命盘管理 UI state
+
+    /// 新建命盘 sheet(弹 BirthFormView)。
+    @State private var showNewChartSheet = false
+    /// 新建命盘用临时 VM(独立于 DeepAnalysisView 的 VM,避免相互污染)。
+    @State private var newChartVM: DeepAnalysisViewModel?
+    /// 待删 link(swipe 触发 → confirmationDialog 二次确认)。
+    @State private var linkToDelete: UserSnapshotLink?
+    /// 待编辑 link(swipe 触发 → 弹 AliasEditView)。
+    @State private var linkToEdit: UserSnapshotLink?
 
     var body: some View {
         NavigationStack {
@@ -37,6 +49,34 @@ struct ProfileView: View {
             .navigationTitle("我的")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.light, for: .navigationBar)
+            .sheet(isPresented: $showNewChartSheet) {
+                newChartSheet
+            }
+            .sheet(item: $linkToEdit) { link in
+                AliasEditView(initialAlias: link.alias) { newAlias in
+                    saveAlias(linkId: link.id, newAlias: newAlias)
+                }
+            }
+            .confirmationDialog(
+                "确认删除「\(linkToDelete?.alias ?? "")」?",
+                isPresented: Binding(
+                    get: { linkToDelete != nil },
+                    set: { if !$0 { linkToDelete = nil } }
+                ),
+                titleVisibility: .visible
+            ) {
+                Button("删除", role: .destructive) {
+                    if let link = linkToDelete {
+                        deleteLink(linkId: link.id)
+                    }
+                    linkToDelete = nil
+                }
+                Button("取消", role: .cancel) {
+                    linkToDelete = nil
+                }
+            } message: {
+                Text("命盘数据会保留(历史解读可回溯),仅从此列表移除。")
+            }
         }
     }
 
@@ -57,10 +97,99 @@ struct ProfileView: View {
                             .font(.caption.monospaced())
                             .foregroundStyle(BaziTheme.inkMuted)
                     }
+                    .swipeActions(edge: .trailing) {
+                        Button(role: .destructive) {
+                            linkToDelete = link
+                        } label: {
+                            Label("删除", systemImage: "trash")
+                        }
+                    }
+                    .swipeActions(edge: .leading) {
+                        Button {
+                            linkToEdit = link
+                        } label: {
+                            Label("改名", systemImage: "pencil")
+                        }
+                        .tint(BaziTheme.daiBlue)
+                    }
                 }
             }
         } header: {
-            sectionHeader("我的命盘")
+            HStack {
+                sectionHeader("我的命盘")
+                Spacer()
+                Button {
+                    openNewChartSheet()
+                } label: {
+                    Image(systemName: "plus")
+                        .foregroundStyle(BaziTheme.cinnabar)
+                }
+                .accessibilityLabel("新建命盘")
+            }
+        }
+    }
+
+    // MARK: - v2 PR1 操作
+
+    /// 弹新建命盘 sheet,初始化临时 VM(用户取消/完成会自动释放)。
+    private func openNewChartSheet() {
+        let vm = DeepAnalysisViewModel(
+            orchestrator: env.deepAnalysisOrchestrator,
+            entitlementStore: env.entitlementStore
+        )
+        // 默认 alias "我自己" 由 VM 自带,用户可在表单 TextField 改
+        newChartVM = vm
+        showNewChartSheet = true
+    }
+
+    /// 新建命盘 sheet 内容:BirthFormView + 监听 VM.state 变化(ready 时 dismiss)。
+    @ViewBuilder
+    private var newChartSheet: some View {
+        if let vm = newChartVM {
+            NavigationStack {
+                BirthFormView(vm: vm, onSubmit: vm.calculate)
+                    .navigationTitle("新建命盘")
+                    .navigationBarTitleDisplayMode(.inline)
+                    .toolbar {
+                        ToolbarItem(placement: .topBarLeading) {
+                            Button("取消") {
+                                newChartVM = nil
+                                showNewChartSheet = false
+                            }
+                            .foregroundStyle(BaziTheme.cinnabar)
+                        }
+                    }
+            }
+            .onChange(of: vm.state) { _, newState in
+                if case .ready = newState {
+                    // 排盘成功 → link 已写入 → 关 sheet(@Query 自动刷新 list)
+                    AppLogger.app.info("profile.newChart.ready alias=\(vm.alias, privacy: .public) — dismiss sheet")
+                    newChartVM = nil
+                    showNewChartSheet = false
+                }
+            }
+        }
+    }
+
+    private func deleteLink(linkId: UUID) {
+        do {
+            try env.userSnapshotLinkStore.delete(linkId: linkId)
+            // @Query 自动刷新 list,无需手动处理
+        } catch {
+            AppLogger.persistence.error(
+                "op=profile.deleteLink failed linkId=\(linkId, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+        }
+    }
+
+    private func saveAlias(linkId: UUID, newAlias: String) {
+        do {
+            try env.userSnapshotLinkStore.updateAlias(linkId: linkId, newAlias: newAlias)
+            // @Query 自动刷新 list
+        } catch {
+            AppLogger.persistence.error(
+                "op=profile.saveAlias failed linkId=\(linkId, privacy: .public) newAlias=\(newAlias, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
         }
     }
 

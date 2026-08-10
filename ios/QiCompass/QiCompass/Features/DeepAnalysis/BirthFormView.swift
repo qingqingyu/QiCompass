@@ -14,6 +14,12 @@ struct BirthFormView: View {
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 28) {
+                section(title: "命盘别名", level: .primary) {
+                    TextField("我自己 / 妈妈 / 男友", text: $vm.alias)
+                        .foregroundStyle(BaziTheme.ink)
+                        .submitLabel(.next)
+                }
+
                 section(title: "出生时间", level: .primary) {
                     DatePicker(
                         "日期与时辰",
