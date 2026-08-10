@@ -100,6 +100,10 @@ final class AccountManager {
         AppLogger.app.info("account.apiClient_injected")
     }
 
+    /// PR3.2:登录成功回调(AppEnvironment 装配时注入 SyncManager.pull)。
+    /// handleAuthorization 成功 + exchangeJwtToken 完成后调用。
+    var onSignedIn: (() async -> Void)?
+
     /// 启动时从 Keychain 恢复登录态(同步,Keychain API 快)。
     private func restoreFromKeychain() {
         do {
@@ -238,6 +242,10 @@ final class AccountManager {
             AppLogger.app.error(
                 "account.exchangeJwtToken.failed error=\(String(describing: error), privacy: .public) — 降级用 identityToken"
             )
+        }
+        // PR3.2:换 JWT 完成后(无论成功失败)触发 onSignedIn 回调(SyncManager.pull)
+        if let onSignedIn {
+            await onSignedIn()
         }
     }
 

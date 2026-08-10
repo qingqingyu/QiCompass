@@ -39,6 +39,9 @@ final class AppEnvironment: ObservableObject {
     // v2 PR2 新增:Apple 账号系统
     let accountManager: AccountManager
 
+    // v2 PR3.2 新增:跨设备命盘同步
+    let syncManager: SyncManager
+
     init(modelContainer: ModelContainer, apiClient: APIClient, useMockClient: Bool) {
         // 规则 2:函数入口日志。AppEnvironment 装配是启动关键路径,失败会让整个 App 不可用。
         AppLogger.app.info("AppEnvironment.init 开始 useMockClient=\(useMockClient, privacy: .public)")
@@ -112,7 +115,18 @@ final class AppEnvironment: ObservableObject {
         // PR2.5:AccountManager 反向注入 APIClient(调 /api/auth/sign-in 换自家 JWT)
         // 双向 weak(LiveAPIClient.accountManager ↔ AccountManager.apiClient)避免循环
         accountManager.setAPIClient(apiClient)
-        AppLogger.app.info("AppEnvironment.init 完成(orchestrator + store + account 全部装配)")
+        // PR3.2:装配 SyncManager + 登录后触发 pull
+        let syncManager = SyncManager(
+            apiClient: apiClient,
+            accountManager: accountManager,
+            modelContext: context
+        )
+        self.syncManager = syncManager
+        accountManager.onSignedIn = { [weak syncManager] in
+            // 登录成功后首次 pull(拉云端所有命盘到本地)
+            await syncManager?.pull()
+        }
+        AppLogger.app.info("AppEnvironment.init 完成(orchestrator + store + account + sync 全部装配)")
     }
 
     /// 从 Info.plist 读取是否使用 MockAPIClient(默认 NO = 连真后端)。

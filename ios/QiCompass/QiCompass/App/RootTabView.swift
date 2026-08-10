@@ -67,6 +67,8 @@ struct RootTabView: View {
         .onAppear {
             // 首启 / 后续启动分流日志,便于定位"onboarding 没弹 / 反复弹"等异常
             AppLogger.app.info("RootTabView.onAppear hasSeenOnboarding=\(hasSeenOnboarding, privacy: .public) selectedTab=\(selectedTab.switchKey, privacy: .public)")
+            // PR3.2:App 启动(若已登录)→ 后台静默 pull(同步云端命盘)
+            Task { await env.syncManager.pull() }
         }
         .sheet(isPresented: Binding(
             get: { !hasSeenOnboarding && !showFirstLaunchForm },

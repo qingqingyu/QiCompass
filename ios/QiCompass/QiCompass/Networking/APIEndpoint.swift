@@ -14,6 +14,8 @@ enum APIEndpoint: Sendable {
     case interpret
     case entitlementRedeem  // M3a 新增
     case authSignIn          // PR2.5 新增(Apple identity_token → 自家 JWT)
+    case syncPull            // PR3.2 新增(拉云端命盘)
+    case syncPush            // PR3.2 新增(上传本地命盘)
 
     var path: String {
         switch self {
@@ -24,6 +26,8 @@ enum APIEndpoint: Sendable {
         case .interpret:         return "/api/interpret"
         case .entitlementRedeem: return "/api/entitlement/redeem"
         case .authSignIn:        return "/api/auth/sign-in"
+        case .syncPull:          return "/api/sync/pull"
+        case .syncPush:          return "/api/sync/push"
         }
     }
 
