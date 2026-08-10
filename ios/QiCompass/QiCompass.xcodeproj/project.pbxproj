@@ -114,6 +114,7 @@
 		9C0000000000000000000053 /* AccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000053 /* AccountManager.swift */; };
 		9C0000000000000000000054 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000054 /* SignInView.swift */; };
 		9C0000000000000000000055 /* AuthDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000055 /* AuthDTOs.swift */; };
+		9C0000000000000000000056 /* SyncDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000056 /* SyncDTOs.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -234,6 +235,7 @@
 		9C1000000000000000000053 /* AccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AccountManager.swift; path = QiCompass/Services/AccountManager.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000054 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SignInView.swift; path = QiCompass/Features/Account/SignInView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000055 /* AuthDTOs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AuthDTOs.swift; path = QiCompass/Networking/DTOs/AuthDTOs.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000056 /* SyncDTOs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SyncDTOs.swift; path = QiCompass/Networking/DTOs/SyncDTOs.swift; sourceTree = SOURCE_ROOT; };
 		F8BC4D749648FC864F2EDB38 /* LuckPillarsTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LuckPillarsTimeline.swift; path = QiCompass/Features/DeepAnalysis/LuckPillarsTimeline.swift; sourceTree = SOURCE_ROOT; };
 		F9AB427085FC26BB41BE756E /* PillarsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PillarsTable.swift; path = QiCompass/Features/DeepAnalysis/PillarsTable.swift; sourceTree = SOURCE_ROOT; };
 		F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartHeaderView.swift; path = QiCompass/Features/DeepAnalysis/ChartHeaderView.swift; sourceTree = SOURCE_ROOT; };
@@ -269,6 +271,7 @@
 				9C1000000000000000000053 /* AccountManager.swift */,
 				9C1000000000000000000054 /* SignInView.swift */,
 				9C1000000000000000000055 /* AuthDTOs.swift */,
+				9C1000000000000000000056 /* SyncDTOs.swift */,
 				9C1000000000000000000045 /* PaywallView.swift */,
 				9C1000000000000000000046 /* PaywallViewModel.swift */,
 				9C1000000000000000000047 /* PaidChaptersLockView.swift */,
@@ -669,6 +672,7 @@
 				9C0000000000000000000053 /* AccountManager.swift in Sources */,
 				9C0000000000000000000054 /* SignInView.swift in Sources */,
 				9C0000000000000000000055 /* AuthDTOs.swift in Sources */,
+				9C0000000000000000000056 /* SyncDTOs.swift in Sources */,
 				9C0000000000000000000030 /* ChartArchivePickerView.swift in Sources */,
 				9C0000000000000000000031 /* DualPillarsTable.swift in Sources */,
 				9C0000000000000000000032 /* AssessmentCardGrid.swift in Sources */,

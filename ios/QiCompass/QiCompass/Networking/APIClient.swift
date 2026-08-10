@@ -12,6 +12,10 @@ protocol APIClient: Sendable {
     func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse
     /// PR2.5:Apple identity_token 换自家 JWT(后端验签 + upsert User + 发 JWT)
     func signIn(request: SignInRequest) async throws -> SignInResponse
+    /// PR3.2:拉云端所有命盘(登录用户,全量)
+    func syncPull() async throws -> SyncPullResponse
+    /// PR3.2:上传本地命盘到云端(全量 UPSERT)
+    func syncPush(request: SyncPushRequest) async throws -> SyncPushResponse
 }
 
 // MARK: - Shared JSONCoder
@@ -106,6 +110,18 @@ final class LiveAPIClient: APIClient {
     func signIn(request: SignInRequest) async throws -> SignInResponse {
         let (data, _) = try await send(.authSignIn, body: request)
         return try decode(data, as: SignInResponse.self, endpoint: .authSignIn)
+    }
+
+    // PR3.2:拉云端命盘
+    func syncPull() async throws -> SyncPullResponse {
+        let (data, _) = try await send(.syncPull, body: EmptyBody())
+        return try decode(data, as: SyncPullResponse.self, endpoint: .syncPull)
+    }
+
+    // PR3.2:上传本地命盘到云端
+    func syncPush(request: SyncPushRequest) async throws -> SyncPushResponse {
+        let (data, _) = try await send(.syncPush, body: request)
+        return try decode(data, as: SyncPushResponse.self, endpoint: .syncPush)
     }
 
     // MARK: - Internal
@@ -268,6 +284,23 @@ final class MockAPIClient: APIClient {
             tokenType: "Bearer",
             userId: "mock-user-\(UUID().uuidString.prefix(8))",
             expiresAt: "2099-12-31T00:00:00+00:00"
+        )
+    }
+
+    // PR3.2:Mock sync 返空(Mock 模式下后端不存在,返空让 SyncManager 跳过合并)
+    func syncPull() async throws -> SyncPullResponse {
+        AppLogger.networking.debug("mock.syncPull 返空 charts")
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        return SyncPullResponse(userId: "mock-user", charts: [])
+    }
+
+    func syncPush(request: SyncPushRequest) async throws -> SyncPushResponse {
+        AppLogger.networking.debug("mock.syncPush 调起 count=\(request.charts.count, privacy: .public)")
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        return SyncPushResponse(
+            userId: "mock-user",
+            upsertedCount: request.charts.count,
+            totalCount: request.charts.count
         )
     }
 
