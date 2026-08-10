@@ -13,4 +13,7 @@ app-store-server-library>=1.3.0,<2.0.0
 # 用户 2026-08-10 同意引入(plan 中明确征求同意)
 # Python JWT 标准库(50M+ downloads/month,MIT 协议,纯 Python)
 pyjwt>=2.8.0,<3.0.0
+# RS256 验签(Apple 公钥)需要 cryptography(pyjwt[_crypto] 隐含)
+# venv 装 cryptography 在 Rosetta 上慢,用 --only-binary=:all: 装预编译 wheel
+cryptography>=41.0.0
 
