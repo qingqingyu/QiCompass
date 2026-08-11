@@ -171,20 +171,27 @@ private struct FirstLaunchBirthFormView: View {
             case .calculating(let stage):
                 LoadingStateView(title: stage.text)
             case .ready:
-                // 排盘成功 → chart 已存档。触发 onComplete 让 RootTabView 落地今日运势。
-                // 用 Color.clear + onAppear 触发一次性回调,避免在 body 里直接调副作用。
-                // hasTriggeredComplete 防护:SwiftUI 重渲染时 onAppear 可重复调用,
-                // 确保 onComplete 只触发一次(副作用幂等契约)。
-                Color.clear
-                    .onAppear {
+                // 排盘成功 → chart 已存档。呈现生肖反馈屏(Q11 β + Q15 盖章动效)。
+                // 用户主动点 CTA 触发 onComplete → RootTabView 落地今日运势 + dismiss 全部覆盖层。
+                // hasTriggeredComplete 防护:SwiftUI 重渲染时确保 onComplete 只触发一次(副作用幂等契约)。
+                let zodiac = tempZodiacData(
+                    forBirthYear: Calendar.current.component(.year, from: vm.birthDate),
+                    gender: vm.gender
+                )
+                ZodiacRevealView(
+                    zodiacAssetName: zodiac.asset,
+                    mainLabel: zodiac.main,
+                    subLabel: zodiac.sub,
+                    onComplete: {
                         guard !hasTriggeredComplete else {
-                            AppLogger.app.warning("FirstLaunchBirthFormView state=ready onAppear 已触发过 onComplete,跳过重复调用")
+                            AppLogger.app.warning("ZodiacRevealView onComplete 已触发过,跳过重复调用")
                             return
                         }
                         hasTriggeredComplete = true
-                        AppLogger.app.info("FirstLaunchBirthFormView state=ready → 触发 onComplete")
+                        AppLogger.app.info("ZodiacRevealView CTA 点击 → 触发 onComplete")
                         onComplete()
                     }
+                )
             case .chartFailed(let userError):
                 ErrorStateView(error: userError, retry: vm.retryCalculation)
             }
@@ -192,6 +199,45 @@ private struct FirstLaunchBirthFormView: View {
             ProgressView()
                 .tint(BaziTheme.cinnabar)
         }
+    }
+
+    // MARK: - 阶段 4 mock:客户端生肖推导
+
+    /// **TEMPORARY**:阶段 4(本 slice)的 mock 客户端生肖推导。
+    ///
+    /// 阶段 2 数据层就绪后,从 `BaziResponse.year_branch_zodiac` + `year_pillar_gan_zhi`
+    /// 取值,删除此 helper。当前为开发期正确性(避免 dev 看到固定 mock 困惑)。
+    ///
+    /// **已知边界 bug**:1月-2月初出生的用户,公历年 ≠ 立春后的农历年,生肖可能差 1 年。
+    /// 后端 `lunar_python` 按立春算,阶段 2 wire up 后自动修正。
+    ///
+    /// 算法:1984 = 甲子鼠年(基准)。`animalIdx = (year % 12 + 8) % 12`,`ganzhiIdx = ((year - 1984) % 60 + 60) % 60`。
+    private func tempZodiacData(
+        forBirthYear year: Int,
+        gender: String
+    ) -> (asset: String, main: String, sub: String) {
+        let animals = ["Rat", "Ox", "Tiger", "Rabbit", "Dragon", "Snake",
+                       "Horse", "Goat", "Monkey", "Rooster", "Dog", "Pig"]
+        let branches = ["子", "丑", "寅", "卯", "辰", "巳",
+                        "午", "未", "申", "酉", "戌", "亥"]
+        let animalChars = ["鼠", "牛", "虎", "兔", "龙", "蛇",
+                           "马", "羊", "猴", "鸡", "狗", "猪"]
+        let ganzhi60 = ["甲子", "乙丑", "丙寅", "丁卯", "戊辰", "己巳", "庚午", "辛未", "壬申", "癸酉",
+                        "甲戌", "乙亥", "丙子", "丁丑", "戊寅", "己卯", "庚辰", "辛巳", "壬午", "癸未",
+                        "甲申", "乙酉", "丙戌", "丁亥", "戊子", "己丑", "庚寅", "辛卯", "壬辰", "癸巳",
+                        "甲午", "乙未", "丙申", "丁酉", "戊戌", "己亥", "庚子", "辛丑", "壬寅", "癸卯",
+                        "甲辰", "乙巳", "丙午", "丁未", "戊申", "己酉", "庚戌", "辛亥", "壬子", "癸丑",
+                        "甲寅", "乙卯", "丙辰", "丁巳", "戊午", "己未", "庚申", "辛酉", "壬戌", "癸亥"]
+
+        let animalIdx = (year % 12 + 8) % 12
+        let ganzhiIdx = ((year - 1984) % 60 + 60) % 60
+
+        let asset = "Zodiac_\(animals[animalIdx])"
+        let main = "\(branches[animalIdx]) · \(animalChars[animalIdx])"
+        let genderLabel = gender == "male" ? "乾造(男)" : "坤造(女)"
+        let sub = "\(genderLabel) · \(ganzhi60[ganzhiIdx])年(\(year))"
+
+        return (asset, main, sub)
     }
 }
 
