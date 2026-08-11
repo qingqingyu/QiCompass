@@ -8,9 +8,14 @@ struct ChartHeaderView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(genderLabel)
+                // Q16 δ:主标嵌入年柱干支(乾造(男) · 庚辰年)。ganZhi 来自后端 lunar_python,确定性。
+                // 不加公历年注释:birthDatetime 公历年跟年柱农历年在立春边界附近会冲突,
+                // 阶段 2 数据层若需要可加后端字段 gregorian_year_for_year_pillar 再 wire up。
+                Text("\(genderLabel) · \(yearPillarLabel)")
                     .font(BaziFont.display(size: 20))
                     .foregroundStyle(BaziTheme.ink)
+                    // 重写 VoiceOver 文案:中点 · 和括号会让读屏不连贯,改用空格分隔
+                    .accessibilityLabel("\(genderLabel) \(yearPillarLabel)")
                 Spacer()
                 Text("真太阳时偏差 \(offsetString)")
                     .font(.caption)
@@ -41,6 +46,14 @@ struct ChartHeaderView: View {
 
     private var genderLabel: String {
         request.gender == "male" ? "乾造(男)" : "坤造(女)"
+    }
+
+    /// Q16 δ + Q12/13:年柱文字(如 `庚辰年`)。ganZhi 来自后端 lunar_python 确定性推算。
+    /// 仅显示年柱干支 + "年"字,不加公历年注释(避免立春边界冲突)。
+    /// 防御 ganZhi 为空(对齐项目范式:LuckPillarsTimeline / PromptContextBuilder 都做防御)。
+    private var yearPillarLabel: String {
+        let gz = response.pillars.year.ganZhi
+        return gz.isEmpty ? "—" : "\(gz)年"
     }
 
     private var cityDisplay: String {

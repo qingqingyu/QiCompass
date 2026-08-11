@@ -3,10 +3,11 @@ import SwiftData
 
 /// "我的" Tab(2026-08-01 grill-me 决策 #17 新增的第 4 个 Tab)。
 ///
-/// v1 无账号系统,内容含 4 个 section(详见 issue #3 + STRATEGIC_DIFF.md §iOS App 入口):
+/// v1 无账号系统,内容含 4 个 section + 命主卡(2026-08-10 阶段 6 新增):
+/// 0. **命主卡**(Q16 δ + Q17):生肖图 + alias + 出生年 + 今日 anchor
 /// 1. **我的命盘**:UserSnapshotLink list("我自己" / "妈妈" / "男友" 等 alias)
 /// 2. **已购**:active Entitlement list(按 purchasedAt DESC)
-/// 3. **设置**:zi_hour_rule default(子时规则,后续 BirthFormView 读取作为默认值)
+/// 3. **设置**:zi_hour_rule default + 重置命盘按钮(Q20 B fallback)
 /// 4. **关于**:app 版本 + build 号
 ///
 /// 退化态:无命盘/无 entitlements 时显示 placeholder 文案,不报错(状态显式表达)。
@@ -17,6 +18,19 @@ struct ProfileView: View {
 
     @Query(sort: \Entitlement.purchasedAt, order: .reverse)
     private var entitlements: [Entitlement]
+
+    /// 命主卡需要 ChartSnapshot 取 birthSolarTime / gender 推生肖(Q16 δ + Q17)。
+    @Query
+    private var chartSnapshots: [ChartSnapshot]
+
+    /// 重置命盘清空所有 SwiftData model(Q20 B)。
+    @Environment(\.modelContext) private var context
+
+    /// 重置命盘二次确认 alert 触发。
+    @State private var showResetConfirm = false
+
+    /// 重置命盘失败时显示的错误 alert 文案(CLAUDE.md 错误显式传播:不静默吞)。
+    @State private var resetError: String?
 
     /// 子时规则默认值。BirthFormView 后续 slice 起手读此 @AppStorage 作为初始值。
     /// 默认 zi_next_day(对齐 CLAUDE.md 项目约束 + 既有 DeepAnalysisViewModel 默认值)。
@@ -33,11 +47,28 @@ struct ProfileView: View {
     /// 待编辑 link(swipe 触发 → 弹 AliasEditView)。
     @State private var linkToEdit: UserSnapshotLink?
 
+    /// onboarding flag(RootTabView 用同 key 监听 onboarding sheet 触发)。
+    /// 用 @AppStorage 而非 UserDefaults.standard 让 RootTabView 立即响应(避免 1 runloop 同步延迟)。
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
+
     var body: some View {
         NavigationStack {
             ZStack {
                 BaziTheme.paper.ignoresSafeArea()
                 List {
+                    if let primary = primarySnapshot {
+                        let birthYear = Calendar.current.component(.year, from: primary.snapshot.birthSolarTime)
+                        Section {
+                            IdentityCard(
+                                zodiacAssetName: zodiacAssetName(forBirthYear: birthYear),
+                                alias: primary.link.alias,
+                                birthYear: birthYear
+                            )
+                            .listRowInsets(EdgeInsets(top: BaziTheme.Spacing.sm, leading: BaziTheme.Spacing.md, bottom: BaziTheme.Spacing.sm, trailing: BaziTheme.Spacing.md))
+                            .listRowBackground(Color.clear)
+                            .listRowSeparator(.hidden)
+                        }
+                    }
                     accountSection
                     snapshotLinksSection
                     entitlementsSection
@@ -77,6 +108,22 @@ struct ProfileView: View {
                 }
             } message: {
                 Text("命盘数据会保留(历史解读可回溯),仅从此列表移除。")
+            }
+            // 双 .alert 修饰符:iOS 17.2+ 原生支持(部署目标满足)。
+            // showResetConfirm 与 resetError 不会同时为 true(确认 alert dismiss 后才同步执行 resetAllData)。
+            .alert("确定要清空所有命盘和解读记录吗?", isPresented: $showResetConfirm) {
+                Button("取消", role: .cancel) {}
+                Button("确定重置", role: .destructive) { resetAllData() }
+            } message: {
+                Text("此操作不可恢复。所有命盘、合盘记录、解读缓存都会被清空。购买记录保留在 App Store,重新 onboarding 后可恢复。")
+            }
+            .alert("重置失败", isPresented: Binding(
+                get: { resetError != nil },
+                set: { newValue in if !newValue { resetError = nil } }
+            )) {
+                Button("好的", role: .cancel) {}
+            } message: {
+                Text(resetError ?? "")
             }
         }
     }
@@ -126,6 +173,19 @@ struct ProfileView: View {
         } header: {
             sectionHeader("账号")
         }
+    }
+
+    // MARK: - Section 0: 命主卡数据
+
+    /// 命主卡主 snapshot(最新 UserSnapshotLink + 对应 ChartSnapshot)。
+    /// v1 单用户,snapshotLinks.first 即"我自己"。userId 字段为 v2 多用户 UI 预留,此处不参与过滤
+    /// (v2 实现 multi-user 时,需先取 `UserIdentity.current` 再 filter `link.userId == current`)。
+    private var primarySnapshot: (link: UserSnapshotLink, snapshot: ChartSnapshot)? {
+        guard let link = snapshotLinks.first,
+              let snap = chartSnapshots.first(where: { $0.contentHash == link.snapshotHash }) else {
+            return nil
+        }
+        return (link, snap)
     }
 
     // MARK: - Section 1: 我的命盘
@@ -283,10 +343,17 @@ struct ProfileView: View {
                 Text("早晚子时(00:00 换日)").tag("zero_oclock")
             }
             .foregroundStyle(BaziTheme.ink)
+
+            // Q20 B:重置命盘 fallback。用户输错生日时清空所有数据重新 onboarding。
+            Button(role: .destructive) {
+                showResetConfirm = true
+            } label: {
+                Text("重置命盘")
+            }
         } header: {
             sectionHeader("设置")
         } footer: {
-            Text("影响新表单的初始值。已存档命盘不受影响(其规则随 snapshot 持久化)。")
+            Text("影响新表单的初始值。已存档命盘不受影响(其规则随 snapshot 持久化)。重置命盘会清空所有数据并重新走 onboarding。")
                 .font(.caption)
                 .foregroundStyle(BaziTheme.inkMuted)
         }
@@ -326,5 +393,140 @@ struct ProfileView: View {
         case "compatibility": return "合盘"
         default:              return module
         }
+    }
+
+    /// Q20 B:重置命盘 — 清空所有 SwiftData @Model + 重置 onboarding flag。
+    /// 用户重新打开 app 走 onboarding 流程。
+    /// 购买记录保留在 StoreKit App Store,不在 SwiftData 范围,重新 onboarding 后恢复。
+    /// InterpretState 是 ViewModel UI enum(非 PersistentModel),不在删除范围。
+    /// 用 fetch + loop delete 范式(与 UserSnapshotLinkStore / DailyFortuneSnapshotStore 一致,
+    /// SwiftData batch `delete(T.self)` 在当前 Swift 编译器推断失败)。
+    ///
+    /// **失败处理**(CLAUDE.md 错误显式传播):catch 回滚 pending changes,
+    /// 不设 hasSeenOnboarding,弹错误 alert 让用户知道操作没成功。
+    private func resetAllData() {
+        do {
+            // 显式逐类型 fetch + delete(对齐项目其他 Store 范式)
+            try fetchAndDeleteAll(UserSnapshotLink.self)
+            try fetchAndDeleteAll(ChartSnapshot.self)
+            try fetchAndDeleteAll(CompatibilitySnapshot.self)
+            try fetchAndDeleteAll(DailyFortuneSnapshot.self)
+            try fetchAndDeleteAll(Entitlement.self)
+            try fetchAndDeleteAll(InterpretationCache.self)
+            try context.save()
+            // 用 @AppStorage 写,RootTabView 的 @AppStorage("hasSeenOnboarding") 立即响应触发 onboarding sheet
+            hasSeenOnboarding = false
+            AppLogger.app.info("重置命盘完成,hasSeenOnboarding=false,RootTabView 应立即弹 onboarding sheet")
+        } catch {
+            // 失败回滚 pending changes,避免部分 delete 标记残留导致脏状态
+            context.rollback()
+            AppLogger.app.error("重置命盘失败: \(error)")
+            // 向用户显式报错,不静默吞
+            resetError = "重置未完成,数据未变更。原因:\(error.localizedDescription)"
+        }
+    }
+
+    /// 通用 helper:fetch 所有 instance + 逐个 delete。
+    /// 对齐项目其他 Store(UserSnapshotLinkStore / DailyFortuneSnapshotStore)的 instance-based 删除范式。
+    private func fetchAndDeleteAll<T: PersistentModel>(_ type: T.Type) throws {
+        let instances = try context.fetch(FetchDescriptor<T>())
+        for instance in instances {
+            context.delete(instance)
+        }
+    }
+
+    /// 阶段 4 mock(TEMPORARY):公历年份 → 生肖图 asset name。
+    /// 阶段 2 数据层就绪后改用 BaziResponse.year_branch_zodiac,届时删除此 helper。
+    /// **TODO(阶段 2)**:RootTabView.tempZodiacData 与此处的生肖 idx 算法重复,
+    /// 阶段 2 重构时一并抽到 Shared/,避免两处分别修改导致生肖图不一致。
+    /// 已知边界 bug:1-2 月初立春前用户生肖可能差 1 年。
+    private func zodiacAssetName(forBirthYear year: Int) -> String {
+        let animals = ["Rat", "Ox", "Tiger", "Rabbit", "Dragon", "Snake",
+                       "Horse", "Goat", "Monkey", "Rooster", "Dog", "Pig"]
+        let idx = (year % 12 + 8) % 12  // 1984=甲子鼠年,故 offset=8
+        return "Zodiac_\(animals[idx])"
+    }
+}
+
+// MARK: - IdentityCard(命主卡)
+
+/// Q16 δ + Q17:ProfileView 顶部命主卡。
+///
+/// **阶段 6 简化版**(2026-08-10):
+/// 当前实现 = 印章图 + alias + 出生年 + 跳转今日 anchor。
+///
+/// TODO(spec Q11 β mockup + Q17 完整版,后续 slice 补):
+/// - **真太阳时行**:数据可得(ChartSnapshot.birthSolarTime 格式化),接口需扩展
+/// - **出生地行**:数据不可得 — ChartSnapshot 当前只有 `cityLongitude: Double`(没城市名字符串),
+///   需 SwiftData schema 变更加 `city: String?` 字段 + migration
+/// - **今日宜/忌一句话 anchor**:需 query DailyFortuneSnapshot 跨模块解码宜/忌内容,
+///   替代当前的纯"查看今日运势"跳转按钮
+///
+/// 生肖图(视觉锚点,呼应 ZodiacRevealView)+ alias + 出生年 + 今日 anchor 跳转(点击切 .dailyFortune tab)。
+private struct IdentityCard: View {
+    let zodiacAssetName: String
+    let alias: String
+    let birthYear: Int?
+
+    var body: some View {
+        VStack(spacing: BaziTheme.Spacing.md) {
+            // 印章图 + 文字组合。.accessibilityElement(.combine) 把 Image + 文字 VStack 合并成
+            // 单一 VoiceOver element(读"我的命盘 alias 2000 年生"一气呵成)。
+            // 下方 Button(查看今日运势)是 VStack 的另一个 child,在 combine 外部,VoiceOver 可单独聚焦。
+            HStack(spacing: BaziTheme.Spacing.md) {
+                Image(zodiacAssetName)
+                    .resizable()
+                    .scaledToFit()
+                    .frame(width: 64, height: 64)
+                    .accessibilityHidden(true)
+
+                VStack(alignment: .leading, spacing: BaziTheme.Spacing.xs) {
+                    Text("我的命盘")
+                        .font(BaziFont.caption(size: 12))
+                        .foregroundStyle(BaziTheme.inkMuted)
+                    Text(alias)
+                        .font(BaziFont.display(size: 18, weight: .medium))
+                        .foregroundStyle(BaziTheme.ink)
+                    if let year = birthYear {
+                        Text("\(year) 年生")
+                            .font(BaziFont.caption(size: 12))
+                            .foregroundStyle(BaziTheme.inkMuted)
+                    }
+                }
+
+                Spacer()
+            }
+            .accessibilityElement(children: .combine)
+
+            Rectangle()
+                .fill(BaziTheme.hairline)
+                .frame(height: 0.5)
+
+            Button {
+                // 项目按钮触感范式(PrimaryCTAButton / BirthFormView / ZodiacRevealView / ErrorStateView 都用)
+                HapticEngine.medium()
+                // 类型安全:用 RootTabView.Tab.dailyFortune.switchKey 而非硬编码字符串,
+                // 避免 Tab.switchKey 值改动时跳转静默失效
+                NotificationCenter.default.post(
+                    name: .switchTab,
+                    object: nil,
+                    userInfo: ["tab": RootTabView.Tab.dailyFortune.switchKey]
+                )
+            } label: {
+                HStack {
+                    Text("查看今日运势")
+                        .font(BaziFont.body(size: 14))
+                        .foregroundStyle(BaziTheme.ink)
+                    Spacer()
+                    Image(systemName: "chevron.right")
+                        .font(.caption)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                }
+            }
+            .accessibilityHint("跳转到今日运势 Tab")
+        }
+        .padding(BaziTheme.Spacing.md)
+        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
     }
 }
