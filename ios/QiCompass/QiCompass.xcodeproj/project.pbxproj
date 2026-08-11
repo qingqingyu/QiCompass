@@ -115,6 +115,7 @@
 		9C0000000000000000000053 /* AccountManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000053 /* AccountManager.swift */; };
 		9C0000000000000000000054 /* SignInView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000054 /* SignInView.swift */; };
 		9C0000000000000000000055 /* AuthDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000055 /* AuthDTOs.swift */; };
+		9C0000000000000000000060 /* ZodiacHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000060 /* ZodiacHelper.swift */; };
 		9C0000000000000000000056 /* SyncDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000056 /* SyncDTOs.swift */; };
 		9C0000000000000000000057 /* SyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000057 /* SyncManager.swift */; };
 /* End PBXBuildFile section */
@@ -232,6 +233,7 @@
 		F4D24E23A0A8DAE17CCC61CC /* DeepAnalysisResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeepAnalysisResultView.swift; path = QiCompass/Features/DeepAnalysis/DeepAnalysisResultView.swift; sourceTree = SOURCE_ROOT; };
 		F5DE2EFE3006596F0089996B /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OnboardingView.swift; path = QiCompass/Features/Onboarding/OnboardingView.swift; sourceTree = SOURCE_ROOT; };
 		619ABB04451C4F04AF97A80F /* ZodiacRevealView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ZodiacRevealView.swift; path = QiCompass/Features/Onboarding/ZodiacRevealView.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000060 /* ZodiacHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ZodiacHelper.swift; path = QiCompass/Shared/ZodiacHelper.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000050 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProfileView.swift; path = QiCompass/Features/Profile/ProfileView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000051 /* AliasEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AliasEditView.swift; path = QiCompass/Features/Profile/AliasEditView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000052 /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KeychainHelper.swift; path = QiCompass/Services/KeychainHelper.swift; sourceTree = SOURCE_ROOT; };
@@ -443,6 +445,7 @@
 				9C100000000000000000003C /* CountdownResetLabel.swift */,
 				9C100000000000000000003D /* ErrorStateView.swift */,
 				9C100000000000000000003F /* PrimaryCTAButton.swift */,
+				9C1000000000000000000060 /* ZodiacHelper.swift */,
 			);
 			path = Shared;
 			sourceTree = "<group>";
@@ -706,6 +709,7 @@
 				9C0000000000000000000045 /* PaywallView.swift in Sources */,
 				9C0000000000000000000046 /* PaywallViewModel.swift in Sources */,
 				9C0000000000000000000047 /* PaidChaptersLockView.swift in Sources */,
+				9C0000000000000000000060 /* ZodiacHelper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

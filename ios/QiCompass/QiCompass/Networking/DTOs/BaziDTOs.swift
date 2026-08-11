@@ -157,6 +157,10 @@ struct BaziResponse: Codable, Sendable {
     /// 2026-08-01 grill-me 决策 #13:chart anchor sentence(后端确定性拼接,0 AI 成本)
     /// 默认 nil 兼容老 mock/test 构造(APIClient.swift mock 不需手填)
     var anchorSentence: String? = nil
+    /// 2026-08-11 生肖 wire up:年柱地支对应生肖英文(如 "Dragon")。
+    /// 后端 lunar_python 已按立春算 pillars.year.zhi,这里仅查表暴露。
+    /// 非 optional:后端语义保证非空。mock 构造须手填(对齐其他非 optional 字段)。
+    let yearBranchZodiac: String
 
     enum CodingKeys: String, CodingKey {
         case contentHash = "content_hash"
@@ -182,6 +186,7 @@ struct BaziResponse: Codable, Sendable {
         case calcRuleSnapshot = "calc_rule_snapshot"
         case boundaryWarning = "boundary_warning"
         case anchorSentence = "anchor_sentence"
+        case yearBranchZodiac = "year_branch_zodiac"
     }
 }
 

@@ -332,7 +332,8 @@ final class MockAPIClient: APIClient {
             luckPillars: [LuckPillarDTO(ganZhi: "甲子", startYear: 1990, endYear: 1999, startAge: 1, endAge: 10)],
             currentLuckPillar: nil, currentYearPillar: nil, currentDayPillar: nil, currentHourPillar: nil,
             calcRuleSnapshot: calcRule,
-            boundaryWarning: nil
+            boundaryWarning: nil,
+            yearBranchZodiac: "Rat"  // mock 主盘 pillar.zhi=子 → Rat(对齐 mock 数据)
         )
     }
 
@@ -372,7 +373,8 @@ final class MockAPIClient: APIClient {
                 luckPillars: [LuckPillarDTO(ganZhi: "丙午", startYear: 2000, endYear: 2009, startAge: 10, endAge: 19)],
                 currentLuckPillar: nil, currentYearPillar: nil, currentDayPillar: nil, currentHourPillar: nil,
                 calcRuleSnapshot: calcRule,
-                boundaryWarning: nil
+                boundaryWarning: nil,
+                yearBranchZodiac: "Horse"  // mock B 盘 pillar.zhi=午 → Horse(对齐 mock 数据)
             )
         } else {
             personBChart = nil
