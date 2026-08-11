@@ -45,6 +45,9 @@ Icon?
 # 后端 SQLite 缓存(/api/interpret D2)
 data/
 
+# v1 链式 spike 输出(每次运行动态产出,不进 git;老的 output_v1/ 已被跟踪)
+backend/spikes/prompt_validation/output_v1_chain/
+
 # 本地开发工具（不进 git）
 /dev-flow.sh
 /run-slices.sh
