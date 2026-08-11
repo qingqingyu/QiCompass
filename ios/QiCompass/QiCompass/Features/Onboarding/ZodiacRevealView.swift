@@ -13,9 +13,10 @@ import SwiftUI
 /// - **暗色**(Q18 A):zodiacAssetName 走 Asset Catalog appearance set,系统自动选 light/dark variant
 /// - **失败路径**(Q19 A):此 view 不处理错误,数据由调用方保证完整(字段缺失视为开发期 bug)
 ///
-/// **数据来源**:调用方(`FirstLaunchBirthFormView`)从 `BaziResponse.pillars.year.zhi`
-/// 经 `ZodiacCalculator` 推导三个参数(commit `1b683f6` 阶段 2 数据层接通后,自动修复
-/// 立春边界 bug;原阶段 4 mock 公历年 idx 算法已删除)。
+/// **数据来源**:调用方(`FirstLaunchBirthFormView`)从后端 `BaziResponse.yearBranchZodiac`
+/// (英文 asset name,如 `Dragon`) + `pillars.year.ganZhi` + `pillars.year.zhi` 推导三个参数。
+/// 后端 `year_branch_zodiac` 由 `lunar_python` 按立春算,自动修复立春边界 bug
+/// (commit `e3dfba9` + `a36582e`,1-2 月初用户生肖不再差 1 年)。
 struct ZodiacRevealView: View {
     /// 生肖图 asset name(如 `Zodiac_Dragon`)。Asset Catalog appearance set 自动选 light/dark variant。
     let zodiacAssetName: String
