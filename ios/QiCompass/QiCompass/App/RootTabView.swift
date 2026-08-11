@@ -170,21 +170,31 @@ private struct FirstLaunchBirthFormView: View {
                 BirthFormView(vm: vm, onSubmit: vm.calculate)
             case .calculating(let stage):
                 LoadingStateView(title: stage.text)
-            case .ready:
-                // 排盘成功 → chart 已存档。触发 onComplete 让 RootTabView 落地今日运势。
-                // 用 Color.clear + onAppear 触发一次性回调,避免在 body 里直接调副作用。
-                // hasTriggeredComplete 防护:SwiftUI 重渲染时 onAppear 可重复调用,
-                // 确保 onComplete 只触发一次(副作用幂等契约)。
-                Color.clear
-                    .onAppear {
+            case .ready(let response, _):
+                // 排盘成功 → chart 已存档。呈现生肖反馈屏(Q11 β + Q15 盖章动效)。
+                // 用户主动点 CTA 触发 onComplete → RootTabView 落地今日运势 + dismiss 全部覆盖层。
+                // hasTriggeredComplete 防护:SwiftUI 重渲染时确保 onComplete 只触发一次(副作用幂等契约)。
+                //
+                // 数据源(2026-08-11 wire up):后端 BaziResponse.year_branch_zodiac
+                // + pillars.year.ganZhi + pillars.year.zhi(均按立春算,修客户端公历年推算 bug)。
+                ZodiacRevealView(
+                    zodiacAssetName: "Zodiac_\(response.yearBranchZodiac)",
+                    mainLabel: mainLabel(from: response),
+                    subLabel: subLabel(
+                        from: response,
+                        gender: vm.gender,
+                        birthYear: Calendar.current.component(.year, from: vm.birthDate)
+                    ),
+                    onComplete: {
                         guard !hasTriggeredComplete else {
-                            AppLogger.app.warning("FirstLaunchBirthFormView state=ready onAppear 已触发过 onComplete,跳过重复调用")
+                            AppLogger.app.warning("ZodiacRevealView onComplete 已触发过,跳过重复调用")
                             return
                         }
                         hasTriggeredComplete = true
-                        AppLogger.app.info("FirstLaunchBirthFormView state=ready → 触发 onComplete")
+                        AppLogger.app.info("ZodiacRevealView CTA 点击 → 触发 onComplete")
                         onComplete()
                     }
+                )
             case .chartFailed(let userError):
                 ErrorStateView(error: userError, retry: vm.retryCalculation)
             }
@@ -192,6 +202,27 @@ private struct FirstLaunchBirthFormView: View {
             ProgressView()
                 .tint(BaziTheme.cinnabar)
         }
+    }
+
+    // MARK: - ZodiacRevealView 文案 helper(后端真值推导)
+
+    /// 主文字(Q12 iii):`辰 · 龙`(中点分隔)。
+    /// 地支汉字从 `response.pillars.year.zhi`(后端 lunar_python 按立春算),
+    /// 生肖汉字从 `ZodiacHelper.animalChar(forZodiac:)`(英文 asset name → 中文)。
+    private func mainLabel(from response: BaziResponse) -> String {
+        let zhi = response.pillars.year.zhi  // 如 "辰"
+        let animalChar = ZodiacHelper.animalChar(forZodiac: response.yearBranchZodiac)  // "Dragon" → "龙"
+        return "\(zhi) · \(animalChar)"
+    }
+
+    /// 次文字(Q13 C+ii):`乾造(男) · 庚辰年(2000)`(命理 + 公历双轨)。
+    /// 年柱干支从 `response.pillars.year.ganZhi`(按立春算,可能与公历年不对应 —
+    /// 立春前的公历年会显示上一年的年柱,这是正确行为,不是 bug)。
+    /// 公历年份由调用方传(从 vm.birthDate 取,用于用户认知锚点)。
+    private func subLabel(from response: BaziResponse, gender: String, birthYear: Int) -> String {
+        let genderLabel = gender == "male" ? "乾造(男)" : "坤造(女)"
+        let ganzhi = response.pillars.year.ganZhi  // 如 "庚辰"
+        return "\(genderLabel) · \(ganzhi)年(\(birthYear))"
     }
 }
 

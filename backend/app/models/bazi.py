@@ -156,6 +156,10 @@ class BaziCalculateResponse(BaseModel):
     # 后端确定性拼接(0 AI 成本),iOS 在深度解析 Tab 顶部 instant 显示
     anchor_sentence: str | None = None
 
+    # 2026-08-11 生肖 wire up:年柱地支对应生肖(英文,对齐 iOS Zodiac_*.imageset)
+    # pillars.year.zhi 已按立春算,这里仅查表暴露(修正客户端公历年推算的立春边界 bug)
+    year_branch_zodiac: str
+
     luck_pillars: list[LuckPillar]
     current_luck_pillar: CurrentPillar | None = None
     current_year_pillar: str | None = None
