@@ -48,6 +48,36 @@ AI_MAX_OUTPUT_TOKENS = 1024
 # 15s 会 read-timeout。给 90s 留足余量(超时即报 503,不会无限挂)。
 AI_TIMEOUT_SECONDS = 90.0
 
+# v1 prompt 系统 §1 temperature 分级:
+# - M0-M2 结构判断要稳,低 temperature 抑制创造性
+# - M3-M7 叙述要有质感,适度放开创造性
+# 老模块(bazi_deep_*/compatibility_*/daily_fortune)走默认值 0.6(向后兼容)
+AI_DEFAULT_TEMPERATURE = 0.6
+MODULE_TEMPERATURES: dict[str, float] = {
+    # 老模块(向后兼容,不传 temperature 时也走 0.6)
+    "bazi_deep": 0.6, "bazi_deep_free": 0.6, "bazi_deep_paid": 0.6,
+    "compatibility": 0.6, "compatibility_free": 0.6, "compatibility_paid": 0.6,
+    "daily_fortune": 0.6,
+    # v1 新模块:M0-M2 结构层稳, M3-M7 叙述层放
+    "m0_structure": 0.3, "m1_talent": 0.3, "m2_high_low": 0.3,
+    "m3_system": 0.6, "m4_health": 0.6, "m5_wealth": 0.6,
+    "m6_dynamics": 0.6, "m7_manual": 0.6,
+}
+
+
+def resolve_temperature(module: str) -> float:
+    """取 module 对应 temperature;未知 module 返回 AI_DEFAULT_TEMPERATURE。
+
+    设计:不抛错(向后兼容老模块/未知 module),未知 module 静默走默认值;
+    通过测试断言所有当前 module 都在字典里(test_ai_client_factory.py
+    的 test_module_temperatures_covers_all_known_modules)。
+
+    TODO(Stage 4):路由层 interpret.py 的 ai_client.interpret(prompt) 调用
+    改为 ai_client.interpret(prompt, temperature=resolve_temperature(req.module)),
+    把 module → temperature 分级真正接通。Stage 2 只铺基础设施,不接入路由。
+    """
+    return MODULE_TEMPERATURES.get(module, AI_DEFAULT_TEMPERATURE)
+
 # 后端 SQLite 缓存路径(D2 第二级);可被 env 覆盖
 DB_PATH = os.environ.get("QICOMPASS_DB_PATH", "data/qicompass.db")
 

@@ -83,6 +83,7 @@ async def test_openai_client_request_contract(monkeypatch):
         "model": "gpt-test",
         "messages": [{"role": "user", "content": "完整 prompt"}],
         "max_tokens": 1024,
+        "temperature": 0.6,  # v1 prompt 系统默认值(老模块向后兼容)
     }
 
 
@@ -187,3 +188,34 @@ async def test_openai_client_missing_key_is_explicit():
 def test_openai_client_rejects_blank_base_url():
     with pytest.raises(ValueError, match="base_url"):
         OpenAIClient(api_key="k", model="m", base_url="   ")
+
+
+# ===== v1 prompt 系统:temperature 分级 =====
+
+
+async def test_openai_client_default_temperature_is_0_6(monkeypatch):
+    """默认 temperature=0.6(老模块向后兼容)。"""
+    captured = _capture_request(monkeypatch)
+    client = OpenAIClient(api_key="test-key")
+    await client.interpret("prompt")
+    assert captured["json"]["temperature"] == 0.6
+
+
+async def test_openai_client_passes_temperature_to_payload(monkeypatch):
+    """显式 temperature=0.3(M0-M2 结构层)被正确传入 json payload。"""
+    captured = _capture_request(monkeypatch)
+    client = OpenAIClient(api_key="test-key")
+    await client.interpret("prompt", temperature=0.3)
+    assert captured["json"]["temperature"] == 0.3
+
+
+def _capture_request(monkeypatch):
+    """安装 fake client 并返回 captured dict,handler 写入请求字段。"""
+    captured: dict = {}
+
+    def handler(url, **kwargs):
+        captured.update(url=url, **kwargs)
+        return _FakeResponse(_completed())
+
+    _install_fake_async_client(monkeypatch, handler)
+    return captured

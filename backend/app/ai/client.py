@@ -19,7 +19,9 @@ class AIClient(Protocol):
     @property
     def model(self) -> str: ...
 
-    async def interpret(self, prompt: str) -> str: ...
+    async def interpret(
+        self, prompt: str, *, temperature: float = 0.6,
+    ) -> str: ...
 
 
 def create_ai_client(
