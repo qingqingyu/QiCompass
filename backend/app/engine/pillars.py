@@ -27,6 +27,25 @@ ZHI_ELEMENT: dict[str, str] = {
     "辰": "earth", "戌": "earth", "丑": "earth", "未": "earth",
 }
 
+# 地支 → 英文生肖名(对齐 iOS Assets.xcassets/Zodiac_*.imageset 命名)
+# 单一事实源:后端 lunar_python 已按立春算 year.zhi,这里仅做地支→动物查表暴露
+ZODIAC_NAME: dict[str, str] = {
+    "子": "Rat", "丑": "Ox", "寅": "Tiger", "卯": "Rabbit",
+    "辰": "Dragon", "巳": "Snake", "午": "Horse", "未": "Goat",
+    "申": "Monkey", "酉": "Rooster", "戌": "Dog", "亥": "Pig",
+}
+
+
+def compute_year_zodiac(year_zhi: str) -> str:
+    """年柱地支 → 英文生肖名(如 '辰' → 'Dragon')。
+
+    由调用方保证 year_zhi 来自 pillars.year.zhi(lunar_python 已按立春算)。
+    未知地支 → ValueError(对齐 _build_pillar 范式,不静默吞)。
+    """
+    if year_zhi not in ZODIAC_NAME:
+        raise ValueError(f"未知年柱地支: {year_zhi!r}")
+    return ZODIAC_NAME[year_zhi]
+
 # ---------- 五行基础映射(单一事实源,xiji.py / compatibility.py 共用) ----------
 
 # 英→中五行映射
