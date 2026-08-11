@@ -56,11 +56,12 @@ struct ProfileView: View {
             ZStack {
                 BaziTheme.paper.ignoresSafeArea()
                 List {
-                    if let primary = primarySnapshot {
+                    if let primary = primarySnapshot,
+                       let zodiacAssetName = primaryZodiacAssetName {
                         let birthYear = Calendar.current.component(.year, from: primary.snapshot.birthSolarTime)
                         Section {
                             IdentityCard(
-                                zodiacAssetName: zodiacAssetName(forBirthYear: birthYear),
+                                zodiacAssetName: zodiacAssetName,
                                 alias: primary.link.alias,
                                 birthYear: birthYear
                             )
@@ -188,6 +189,26 @@ struct ProfileView: View {
             return nil
         }
         return (link, snap)
+    }
+
+    /// 命主卡生肖图 asset name(从 ChartSnapshot.payload decode BaziResponse 取 yearBranchZodiac)。
+    ///
+    /// 数据源(2026-08-11 wire up):后端 lunar_python 已按立春算 year_branch_zodiac,
+    /// 修客户端公历年推算的立春边界 bug(1-2 月初立春前用户生肖差 1 年)。
+    ///
+    /// **错误处理**:decode 失败返回 nil(对齐"错误显式传播" — decode 失败的具体 error 已由
+    /// `ChartSnapshotStore.decodeResponse` 内部 Logger.error 记录,这里返回 nil 让 UI 隐藏命主卡
+    /// section,而非显示错图或 crash)。生产环境 decode 失败极少(仅 schema 不兼容时,
+    /// 当前 schema_version=1 未演化过)。
+    private var primaryZodiacAssetName: String? {
+        guard let primary = primarySnapshot else { return nil }
+        do {
+            let response = try env.chartSnapshotStore.decodeResponse(from: primary.snapshot)
+            return "Zodiac_\(response.yearBranchZodiac)"
+        } catch {
+            // error 已在 ChartSnapshotStore.decodeResponse 内 Logger.error,这里不重复记
+            return nil
+        }
     }
 
     // MARK: - Section 1: 我的命盘
@@ -451,18 +472,6 @@ struct ProfileView: View {
         for instance in instances {
             context.delete(instance)
         }
-    }
-
-    /// 阶段 4 mock(TEMPORARY):公历年份 → 生肖图 asset name。
-    /// 阶段 2 数据层就绪后改用 BaziResponse.year_branch_zodiac,届时删除此 helper。
-    /// **TODO(阶段 2)**:RootTabView.tempZodiacData 与此处的生肖 idx 算法重复,
-    /// 阶段 2 重构时一并抽到 Shared/,避免两处分别修改导致生肖图不一致。
-    /// 已知边界 bug:1-2 月初立春前用户生肖可能差 1 年。
-    private func zodiacAssetName(forBirthYear year: Int) -> String {
-        let animals = ["Rat", "Ox", "Tiger", "Rabbit", "Dragon", "Snake",
-                       "Horse", "Goat", "Monkey", "Rooster", "Dog", "Pig"]
-        let idx = (year % 12 + 8) % 12  // 1984=甲子鼠年,故 offset=8
-        return "Zodiac_\(animals[idx])"
     }
 }
 
