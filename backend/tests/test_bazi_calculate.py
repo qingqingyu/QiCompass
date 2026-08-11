@@ -112,6 +112,31 @@ async def test_calculate_luck_pillars_skip_index0():
         assert lp["start_age"] and lp["end_age"]
 
 
+async def test_calculate_year_branch_zodiac_normal():
+    """生肖字段已暴露(后端按立春算):1990-03-15 立春后 → 庚午马年。"""
+    _, body, _ = await _post(DOC_EXAMPLE)
+    assert body["year_branch_zodiac"] == "Horse"
+    assert body["pillars"]["year"]["gan_zhi"] == "庚午"
+
+
+async def test_calculate_year_branch_zodiac_lichun_boundary():
+    """立春边界回归:1985-02-03(立春前)应归 1984 甲子鼠年,不是 1985 乙丑牛年。
+
+    lunar_python 按节气立春算年柱(不是公历 1 月 1 日)。这是 wire up 的核心回归点:
+    客户端公历年推算会错,后端 lunar_python 不会。
+    """
+    payload = {
+        "birth_datetime": "1985-02-03T12:00:00+08:00",
+        "gender": "male",
+        "city": "北京",
+        "zi_hour_rule": "zi_next_day",
+    }
+    code, body, _ = await _post(payload)
+    assert code == 200, body
+    assert body["year_branch_zodiac"] == "Rat", "立春前应归上一年生肖"
+    assert body["pillars"]["year"]["gan_zhi"] == "甲子", "立春前年柱应为甲子"
+
+
 async def test_calculate_content_hash_deterministic():
     """相同输入两次调用 content_hash 一致。"""
     _, b1, _ = await _post(DOC_EXAMPLE)

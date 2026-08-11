@@ -55,6 +55,10 @@ struct ErrorStateView: View {
 
             if case .dailyLimitReached(let nextReset) = userFacingError {
                 CountdownResetLabel(nextReset: nextReset)
+            } else if case .persistentFailure = userFacingError {
+                // 生肖阶段 3:反复失败硬性故障。不显示 retry,文案已在 subtitle 引导重启 App。
+                // 与 dailyLimitReached 同款模式:不暴露重试入口,避免用户陷入死循环。
+                EmptyView()
             } else {
                 Button(action: { HapticEngine.light(); retry() }) {
                     Text("重试")
@@ -110,6 +114,8 @@ struct ErrorStateView: View {
             return "网络异常"
         case .dailyLimitReached:
             return "每日 10 次已用完"
+        case .persistentFailure:
+            return "连续 3 次排盘失败"
         }
     }
 
@@ -129,6 +135,11 @@ struct ErrorStateView: View {
                 .foregroundStyle(BaziTheme.cinnabar.opacity(0.7))
         case .dailyLimitReached:
             Image(systemName: "hourglass")
+                .font(.system(size: 40))
+                .foregroundStyle(BaziTheme.cinnabar.opacity(0.7))
+        case .persistentFailure:
+            // 八边形硬停标志,区别于单次 chartFailed 的三角警告:传达"硬性故障,不再重试"语义
+            Image(systemName: "exclamationmark.octagon.fill")
                 .font(.system(size: 40))
                 .foregroundStyle(BaziTheme.cinnabar.opacity(0.7))
         }

@@ -192,4 +192,13 @@ private actor ReaderTestAPIClient: APIClient {
     func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse {
         throw ReaderTestError.unexpectedCall
     }
+    func signIn(request: SignInRequest) async throws -> SignInResponse {
+        throw ReaderTestError.unexpectedCall
+    }
+    func syncPull() async throws -> SyncPullResponse {
+        throw ReaderTestError.unexpectedCall
+    }
+    func syncPush(request: SyncPushRequest) async throws -> SyncPushResponse {
+        throw ReaderTestError.unexpectedCall
+    }
 }

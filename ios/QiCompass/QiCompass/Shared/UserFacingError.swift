@@ -18,6 +18,9 @@ enum UserFacingError: Error, Equatable, LocalizedError {
     case interpretFailed(originalDescription: String)
     /// 每日次数达上限。
     case dailyLimitReached(nextReset: Date)
+    /// 反复失败(生肖阶段 3 决策:连续 ≥3 次排盘失败视为持久故障,不显示 retry,
+    /// 引导用户重启 App)。区别于单次 .chartFailed —— 单次允许重试,本 case 不允许。
+    case persistentFailure
     /// 兜底。
     case generic(message: String)
 
@@ -100,6 +103,8 @@ enum UserFacingError: Error, Equatable, LocalizedError {
             return "命书生成失败"
         case .dailyLimitReached:
             return "今日机缘已尽,明日再来"
+        case .persistentFailure:
+            return "反复失败"
         case .generic(let m):
             return m
         }
@@ -116,6 +121,8 @@ enum UserFacingError: Error, Equatable, LocalizedError {
             return "命书暂未能成形,可单独重试(命盘已就绪)"
         case .dailyLimitReached:
             return "每日 10 次已用完,午夜重置"
+        case .persistentFailure:
+            return "多次排盘未成功,请检查网络后重启 App"
         case .generic(let m):
             return m
         }

@@ -32,6 +32,7 @@ from ..engine.pillars import (
     build_auxiliary_gong,
     build_pillars,
     compute_element_balance,
+    compute_year_zodiac,
 )
 from ..engine.shensha import compute_shensha
 from ..engine.xiji import compute_xiji
@@ -79,6 +80,10 @@ class BaziEngine:
             pillars = build_pillars(ec)
             ming_gong, shen_gong, tai_yuan = build_auxiliary_gong(ec)
             element_balance = compute_element_balance(pillars)
+
+            # 3.1 生肖:年柱地支 → 英文生肖名(对齐 iOS Zodiac_*.imageset)
+            # lunar_python 已按立春算 year.zhi,这里仅做查表(修正 iOS 客户端按公历年推算的立春边界 bug)
+            year_branch_zodiac = compute_year_zodiac(pillars.year.zhi)
 
             # 3.5 contentHash(提前算,供后续日志关联;用输入时间,非真太阳时)
             content_hash = compute_content_hash(
@@ -173,6 +178,8 @@ class BaziEngine:
                 "ten_god_weights": xiji.ten_god_weights,
                 "useful_god_candidates": xiji.useful_god_candidates,
                 "meta": meta_block.model_dump(),
+                # 生肖(英文,对齐 iOS Zodiac_*.imageset):lunar_python 已按立春算
+                "year_branch_zodiac": year_branch_zodiac,
                 "luck_pillars": [lp.model_dump() for lp in luck_pillars],
                 "current_luck_pillar": (
                     current_luck.model_dump() if current_luck else None

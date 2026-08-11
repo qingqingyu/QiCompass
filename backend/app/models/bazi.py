@@ -180,6 +180,9 @@ class BaziCalculateResponse(BaseModel):
     ten_god_weights: dict[str, int] = Field(default_factory=dict)
     useful_god_candidates: list[str] = Field(default_factory=list)
     meta: MetaBlock | None = None
+    # 2026-08-11 生肖 wire up:年柱地支对应生肖(英文,对齐 iOS Zodiac_*.imageset)
+    # pillars.year.zhi 已按立春算,这里仅查表暴露(修正客户端公历年推算的立春边界 bug)
+    year_branch_zodiac: str
 
     luck_pillars: list[LuckPillar]
     current_luck_pillar: CurrentPillar | None = None
