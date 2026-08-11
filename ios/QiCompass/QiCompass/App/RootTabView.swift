@@ -170,18 +170,21 @@ private struct FirstLaunchBirthFormView: View {
                 BirthFormView(vm: vm, onSubmit: vm.calculate)
             case .calculating(let stage):
                 LoadingStateView(title: stage.text)
-            case .ready:
+            case .ready(let response, _):
                 // 排盘成功 → chart 已存档。呈现生肖反馈屏(Q11 β + Q15 盖章动效)。
                 // 用户主动点 CTA 触发 onComplete → RootTabView 落地今日运势 + dismiss 全部覆盖层。
                 // hasTriggeredComplete 防护:SwiftUI 重渲染时确保 onComplete 只触发一次(副作用幂等契约)。
-                let zodiac = tempZodiacData(
-                    forBirthYear: Calendar.current.component(.year, from: vm.birthDate),
-                    gender: vm.gender
-                )
+                //
+                // 数据源(2026-08-11 wire up):后端 BaziResponse.year_branch_zodiac
+                // + pillars.year.ganZhi + pillars.year.zhi(均按立春算,修客户端公历年推算 bug)。
                 ZodiacRevealView(
-                    zodiacAssetName: zodiac.asset,
-                    mainLabel: zodiac.main,
-                    subLabel: zodiac.sub,
+                    zodiacAssetName: "Zodiac_\(response.yearBranchZodiac)",
+                    mainLabel: mainLabel(from: response),
+                    subLabel: subLabel(
+                        from: response,
+                        gender: vm.gender,
+                        birthYear: Calendar.current.component(.year, from: vm.birthDate)
+                    ),
                     onComplete: {
                         guard !hasTriggeredComplete else {
                             AppLogger.app.warning("ZodiacRevealView onComplete 已触发过,跳过重复调用")
@@ -201,43 +204,25 @@ private struct FirstLaunchBirthFormView: View {
         }
     }
 
-    // MARK: - 阶段 4 mock:客户端生肖推导
+    // MARK: - ZodiacRevealView 文案 helper(后端真值推导)
 
-    /// **TEMPORARY**:阶段 4(本 slice)的 mock 客户端生肖推导。
-    ///
-    /// 阶段 2 数据层就绪后,从 `BaziResponse.year_branch_zodiac` + `year_pillar_gan_zhi`
-    /// 取值,删除此 helper。当前为开发期正确性(避免 dev 看到固定 mock 困惑)。
-    ///
-    /// **已知边界 bug**:1月-2月初出生的用户,公历年 ≠ 立春后的农历年,生肖可能差 1 年。
-    /// 后端 `lunar_python` 按立春算,阶段 2 wire up 后自动修正。
-    ///
-    /// 算法:1984 = 甲子鼠年(基准)。`animalIdx = (year % 12 + 8) % 12`,`ganzhiIdx = ((year - 1984) % 60 + 60) % 60`。
-    private func tempZodiacData(
-        forBirthYear year: Int,
-        gender: String
-    ) -> (asset: String, main: String, sub: String) {
-        let animals = ["Rat", "Ox", "Tiger", "Rabbit", "Dragon", "Snake",
-                       "Horse", "Goat", "Monkey", "Rooster", "Dog", "Pig"]
-        let branches = ["子", "丑", "寅", "卯", "辰", "巳",
-                        "午", "未", "申", "酉", "戌", "亥"]
-        let animalChars = ["鼠", "牛", "虎", "兔", "龙", "蛇",
-                           "马", "羊", "猴", "鸡", "狗", "猪"]
-        let ganzhi60 = ["甲子", "乙丑", "丙寅", "丁卯", "戊辰", "己巳", "庚午", "辛未", "壬申", "癸酉",
-                        "甲戌", "乙亥", "丙子", "丁丑", "戊寅", "己卯", "庚辰", "辛巳", "壬午", "癸未",
-                        "甲申", "乙酉", "丙戌", "丁亥", "戊子", "己丑", "庚寅", "辛卯", "壬辰", "癸巳",
-                        "甲午", "乙未", "丙申", "丁酉", "戊戌", "己亥", "庚子", "辛丑", "壬寅", "癸卯",
-                        "甲辰", "乙巳", "丙午", "丁未", "戊申", "己酉", "庚戌", "辛亥", "壬子", "癸丑",
-                        "甲寅", "乙卯", "丙辰", "丁巳", "戊午", "己未", "庚申", "辛酉", "壬戌", "癸亥"]
+    /// 主文字(Q12 iii):`辰 · 龙`(中点分隔)。
+    /// 地支汉字从 `response.pillars.year.zhi`(后端 lunar_python 按立春算),
+    /// 生肖汉字从 `ZodiacHelper.animalChar(forZodiac:)`(英文 asset name → 中文)。
+    private func mainLabel(from response: BaziResponse) -> String {
+        let zhi = response.pillars.year.zhi  // 如 "辰"
+        let animalChar = ZodiacHelper.animalChar(forZodiac: response.yearBranchZodiac)  // "Dragon" → "龙"
+        return "\(zhi) · \(animalChar)"
+    }
 
-        let animalIdx = (year % 12 + 8) % 12
-        let ganzhiIdx = ((year - 1984) % 60 + 60) % 60
-
-        let asset = "Zodiac_\(animals[animalIdx])"
-        let main = "\(branches[animalIdx]) · \(animalChars[animalIdx])"
+    /// 次文字(Q13 C+ii):`乾造(男) · 庚辰年(2000)`(命理 + 公历双轨)。
+    /// 年柱干支从 `response.pillars.year.ganZhi`(按立春算,可能与公历年不对应 —
+    /// 立春前的公历年会显示上一年的年柱,这是正确行为,不是 bug)。
+    /// 公历年份由调用方传(从 vm.birthDate 取,用于用户认知锚点)。
+    private func subLabel(from response: BaziResponse, gender: String, birthYear: Int) -> String {
         let genderLabel = gender == "male" ? "乾造(男)" : "坤造(女)"
-        let sub = "\(genderLabel) · \(ganzhi60[ganzhiIdx])年(\(year))"
-
-        return (asset, main, sub)
+        let ganzhi = response.pillars.year.ganZhi  // 如 "庚辰"
+        return "\(genderLabel) · \(ganzhi)年(\(birthYear))"
     }
 }
 
