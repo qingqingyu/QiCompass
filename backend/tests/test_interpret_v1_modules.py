@@ -219,32 +219,32 @@ async def test_m5_without_preference_returns_422(interpret_client):
     assert "m5_preference" in str(resp.json())
 
 
-# ===== 422:PROMPT_VERSIONS 未注册(Stage 5 落地前的保护伞)=====
+# ===== Stage 5 落地后:m0-m7 已注册到 PROMPT_VERSIONS,context 校验生效 =====
 
 
 @pytest.mark.parametrize("module", [
     "m0_structure", "m1_talent", "m2_high_low", "m3_system",
     "m4_health", "m5_wealth", "m6_dynamics", "m7_manual",
 ])
-async def test_v1_module_returns_422_prompt_not_registered(
+async def test_v1_module_with_legacy_context_returns_422_missing_fields(
     interpret_client, module, tmp_entitlement_store,
 ):
-    """m0-m7 在 PROMPT_VERSIONS 未注册(Stage 5 才加)→ 422 "尚未支持"。
+    """m0-m7 已注册到 PROMPT_VERSIONS(Stage 5);用老 BAZI_DEEP_CONTEXT 调用
+    会因缺 chart / structure_fingerprint 等 v1 必填字段返 422。
 
-    显式错误优于 KeyError → 500。每个 module 必填字段都补齐,
-    避免 Schema 层 422 掩盖 PROMPT_VERSIONS 未注册的真实原因。
+    Stage 4 期间这些测试断言"尚未支持";Stage 5 落地后 PROMPT_VERSIONS
+    已注册,行为变为 validate_context 拦截 context 缺字段。
     """
     payload = {
-        "content_hash": f"hash-{module}-not-registered",
+        "content_hash": f"hash-{module}-legacy-ctx",
         "module": module,
-        "context": BAZI_DEEP_CONTEXT,
+        "context": BAZI_DEEP_CONTEXT,  # 不含 chart / structure_fingerprint 等
         "target_date": None,
     }
     if module in V1_CHILDREN_MODULES:
         payload["parent_fingerprint"] = "fp"
     if module in PAID_MODULES:
         payload["user_local_id"] = "user-1"
-        # 补 entitlement(避免被 PAID_MODULES 校验拦下而非 PROMPT_VERSIONS)
         _seed_entitlement_for_v1(
             tmp_entitlement_store,
             content_hash=payload["content_hash"],
@@ -261,8 +261,12 @@ async def test_v1_module_returns_422_prompt_not_registered(
     resp = await interpret_client.post("/api/interpret", json=payload)
     assert resp.status_code == 422
     body = resp.json()
-    assert "尚未支持" in str(body) or "PROMPT_VERSIONS" in str(body), (
-        f"应明确告知 module 未注册,body={body}"
+    # 不再返"尚未支持"(PROMPT_VERSIONS 已注册);返"prompt 渲染缺字段"
+    assert "尚未支持" not in str(body), (
+        f"Stage 5 后 PROMPT_VERSIONS 已注册 {module},不应返'尚未支持': {body}"
+    )
+    assert "缺字段" in str(body) or "chart" in str(body).lower(), (
+        f"应返 validate_context 的缺字段错误,body={body}"
     )
 
 
