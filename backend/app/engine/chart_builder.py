@@ -20,8 +20,14 @@ from typing import Any
 from .pillars import EN2ZH  # 英文五行 → 中文
 
 # day_master_strength(engine 返回值) → 中文 label(对齐设计文档示例"偏弱/偏旺/中和")
-# 与 bazi_engine._STRENGTH_LABEL 同源,但那是私有不导出;此处独立维护一份
-# (两处一致性由 test_v1_prompt_render.py 覆盖)
+# 与 bazi_engine._STRENGTH_LABEL 同源但**不共用**,两者语义不同:
+# - bazi_engine 那份用于 anchor sentence(整句谓语"命局整体呈现从格特征"),
+#   用 .get(default) graceful degrade,因 anchor 是辅助显示
+# - chart_builder 这份用于 prompt JSON 的 strength_label 字段(短标签),
+#   用 strict raise,因 prompt 数据契约未知值必须显式暴露
+# 措辞差异(从格特征 vs 呈现从格特征)源自此语义差异,非 bug
+# 若 bazi_engine 加新 strength 取值,需同步更新此 dict(回归由
+# test_v1_prompt_render.py::test_chart_builder_normal_strength_keeps_* 覆盖)
 _STRENGTH_LABEL_ZH: dict[str, str] = {
     "strong": "偏旺",
     "weak": "偏弱",
@@ -121,7 +127,12 @@ def build_v1_chart(snapshot: dict[str, Any]) -> dict[str, Any]:
         })
 
     # ----- current_luck(可能为 None:用户未入运/已出运) -----
-    clp = snapshot.get("current_luck_pillar")
+    # 显式校验 key 存在:违反"错误显式传播"原则的话,.get() 会把 schema 缺字段
+    # 静默吞为 None → current_luck=None 输出。这里 key 缺失必须抛 KeyError。
+    if "current_luck_pillar" not in snapshot:
+        raise KeyError(
+            "snapshot 缺 current_luck_pillar 字段(数据损坏或 schema 不完整)")
+    clp = snapshot["current_luck_pillar"]
     current_luck: dict[str, Any] | None = None
     if clp is not None:
         gz = clp["gan_zhi"]
@@ -145,7 +156,15 @@ def build_v1_chart(snapshot: dict[str, Any]) -> dict[str, Any]:
         }
 
     # ----- current_year(字符串 "丙午" → stem "丙" + branch "午") -----
+    # models/bazi.py:186 声明 current_year_pillar: str | None,引擎当前实现
+    # 总是返回非 None 字符串,但 model 类型允许 None(防御性)。None 时显式
+    # 抛 ValueError,而非 len(None) → TypeError(违反 build_v1_chart docstring
+    # 承诺的 ValueError 契约)
     cyp_str = snapshot["current_year_pillar"]
+    if cyp_str is None:
+        raise ValueError(
+            "current_year_pillar 为 None(snapshot 未含流年柱),"
+            "chart_builder 暂不支持此场景")
     if len(cyp_str) != 2:
         raise ValueError(
             f"current_year_pillar 长度异常: {cyp_str!r}(期望 2 字符)")
@@ -157,8 +176,8 @@ def build_v1_chart(snapshot: dict[str, Any]) -> dict[str, Any]:
 
     return {
         "meta": snapshot["meta"],
-        # pillars 传完整 Pillar(含 gan/zhi/gan_element/zhi_element/hide_gan/
-        # shishen_gan/shishen_zhi/nayin/dishi/xunkong),不缩减为 stem/branch
+        # pillars 传完整 Pillar(含 gan_zhi/gan/zhi/gan_element/zhi_element/
+        # hide_gan/shishen_gan/shishen_zhi/nayin/dishi/xunkong),不缩减为 stem/branch
         # 设计文档 §1 示例是简化,完整信息对 LLM 更友好
         "pillars": pillars_dict,
         "day_master": day_master,

@@ -103,8 +103,8 @@ def test_three_modules_all_fields_required():
     # v1 module 特有字段断言
     assert REQUIRED_FIELDS["m0_structure"] == ["chart"], "M0 只需 chart"
     assert "structure_fingerprint" in REQUIRED_FIELDS["m1_talent"]
-    assert "m4_age_placeholder" not in REQUIRED_FIELDS["m4_health"], (
-        "M4 context 用 age / current_concern(对齐模板占位符),不是 m4_age")
+    assert "current_concern" in REQUIRED_FIELDS["m4_health"], (
+        "M4 context 含 current_concern(对齐模板占位符)")
     assert "age" in REQUIRED_FIELDS["m4_health"]
     assert "assets_summary" in REQUIRED_FIELDS["m5_wealth"]
     assert "chart" not in REQUIRED_FIELDS["m7_manual"], "M7 不需 chart(基于 M1-M6 结论)"

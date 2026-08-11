@@ -211,7 +211,7 @@ def test_v1_chart_field_is_injected_as_json_string():
     """M0 context['chart'] 是 JSON 字符串,渲染后 chart 内容出现在 prompt 里。"""
     prompt = render_prompt("m0_structure", _M0_CONTEXT)
     # chart JSON 内的中文字段会被注入 prompt(ensure_ascii=False)
-    assert "惊蛴后" or "惊蛰后" in prompt
+    assert "惊蛰后" in prompt
     assert "甲" in prompt  # day_master.stem
 
 
@@ -426,6 +426,31 @@ def test_chart_builder_missing_key_raises_key_error():
     bad_snapshot = _make_snapshot()
     del bad_snapshot["pillars"]
     with pytest.raises(KeyError):
+        build_v1_chart(bad_snapshot)
+
+
+def test_chart_builder_missing_current_luck_pillar_key_raises_key_error():
+    """snapshot 缺 current_luck_pillar key → KeyError(不静默当作 None)。
+
+    覆盖 chart_builder.py 第 132-134 行防御:违反"错误显式传播"的话,
+    .get() 会把 schema 缺字段静默吞为 None → current_luck=None 输出。
+    """
+    bad_snapshot = _make_snapshot()
+    del bad_snapshot["current_luck_pillar"]
+    with pytest.raises(KeyError, match="current_luck_pillar"):
+        build_v1_chart(bad_snapshot)
+
+
+def test_chart_builder_none_current_year_pillar_raises_value_error():
+    """current_year_pillar = None → ValueError(不抛 TypeError)。
+
+    覆盖 chart_builder.py 第 164-167 行防御:models/bazi.py:186 允许
+    current_year_pillar: str | None,None 时应显式抛 ValueError,
+    而非 len(None) → TypeError(违反 docstring 承诺的 ValueError 契约)。
+    """
+    bad_snapshot = _make_snapshot()
+    bad_snapshot["current_year_pillar"] = None
+    with pytest.raises(ValueError, match="None"):
         build_v1_chart(bad_snapshot)
 
 
