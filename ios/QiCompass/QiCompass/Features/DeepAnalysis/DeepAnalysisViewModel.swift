@@ -80,6 +80,10 @@ final class DeepAnalysisViewModel {
     private var calculateTask: Task<Void, Never>?
     private var interpretTask: Task<Void, Never>?
 
+    /// 排盘连续失败计数(生肖阶段 3:连续 ≥3 次切 `.persistentFailure`,隐藏 retry 引导重启)。
+    /// 生命周期 = VM 实例;成功一次即归零。非持久化(重启 App 自然重置,避免用户陷入死循环)。
+    private var failureCount: Int = 0
+
     /// 排盘 + 存档(UserSnapshotLink)成功后回调一次。
     /// DeepAnalysisView 用它消费 `env.pendingReturnTab`,把用户切回原 Tab(合盘 / 每日运势)。
     /// nil 时无操作,保持当前 Tab。
@@ -167,6 +171,7 @@ final class DeepAnalysisViewModel {
                 let response = try await orchestrator.runCalculation(request: request, alias: alias)
                 if !Task.isCancelled {
                     AppLogger.app.info("deepVM.calculate.ok contentHash=\(response.contentHash, privacy: .public)")
+                    failureCount = 0
                     state = .ready(response, .idle)
                     // 命盘 + link 已落档。若用户从合盘/每日运势 CTA 切来,触发切回。
                     onChartArchived?()
@@ -176,9 +181,14 @@ final class DeepAnalysisViewModel {
                 AppLogger.app.info("deepVM.calculate.cancelled")
             } catch {
                 if !Task.isCancelled {
-                    // 规则 1:抛错前打 error(orchestrator 内部已打,VM 层再打 state 转换)
-                    AppLogger.app.error("deepVM.calculate.failed error=\(String(describing: error), privacy: .public)")
-                    state = .chartFailed(UserFacingError.from(error, stage: .chart))
+                    failureCount += 1
+                    // 规则 1:抛错前打 error + 当前失败次数(orchestrator 内部已打,VM 层再打 state 转换)
+                    AppLogger.app.error("deepVM.calculate.failed count=\(self.failureCount) error=\(String(describing: error), privacy: .public)")
+                    // 生肖阶段 3:连续 ≥3 次失败切 persistentFailure,引导重启 App(不显示 retry)
+                    let userError: UserFacingError = failureCount >= 3
+                        ? .persistentFailure
+                        : UserFacingError.from(error, stage: .chart)
+                    state = .chartFailed(userError)
                 }
             }
         }
@@ -274,11 +284,13 @@ final class DeepAnalysisViewModel {
 
     /// 回到表单态(保留表单输入)。
     /// 取消进行中的 Task,避免状态回退后被旧结果覆盖。
+    /// failureCount 也清零(用户主动重置 ≠ 网络故障持续,不应被永久标记)。
     func reset() {
         calculateTask?.cancel()
         interpretTask?.cancel()
         state = .empty
         lastRequest = nil
+        failureCount = 0
     }
 
     // MARK: - 查询

@@ -137,6 +137,9 @@ private struct FirstLaunchBirthFormView: View {
     @State private var vm: DeepAnalysisViewModel?
     /// 防止 ready → onAppear 多次触发 onComplete(SwiftUI 重渲染时 onAppear 可重复调用)。
     @State private var hasTriggeredComplete = false
+    /// 生肖阶段 3:提交前二次确认 sheet 触发态。
+    /// 仅 onboarding 加(主 tab BirthFormView 不受影响),决策:防新用户首次输错 → 重置命盘代价大。
+    @State private var showSubmitConfirm = false
 
     var body: some View {
         NavigationStack {
@@ -147,6 +150,23 @@ private struct FirstLaunchBirthFormView: View {
             .navigationTitle("开始排盘")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.light, for: .navigationBar)
+            .sheet(isPresented: $showSubmitConfirm) {
+                if let vm {
+                    BirthInfoConfirmSheet(
+                        vm: vm,
+                        onConfirm: {
+                            showSubmitConfirm = false
+                            AppLogger.app.info("FirstLaunchBirthFormView 二次确认 → 触发 vm.calculate")
+                            vm.calculate()
+                        },
+                        onCancel: {
+                            showSubmitConfirm = false
+                        }
+                    )
+                    .presentationDetents([.medium])
+                    .presentationDragIndicator(.visible)
+                }
+            }
         }
         .task {
             if vm == nil {
@@ -167,7 +187,9 @@ private struct FirstLaunchBirthFormView: View {
         if let vm {
             switch vm.state {
             case .empty, .formInvalid:
-                BirthFormView(vm: vm, onSubmit: vm.calculate)
+                // 阶段 3:onSubmit 走二次确认 sheet,不直接 vm.calculate。
+                // 用户确认后 sheet 内部回调 vm.calculate()。
+                BirthFormView(vm: vm, onSubmit: { showSubmitConfirm = true })
             case .calculating(let stage):
                 LoadingStateView(title: stage.text)
             case .ready(let response, _):

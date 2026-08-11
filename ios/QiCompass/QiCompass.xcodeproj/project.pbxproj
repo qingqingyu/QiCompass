@@ -109,6 +109,7 @@
 		E40D46498BC532F986012E83 /* ShenshaChips.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91C4716AE1411C309FEBE65 /* ShenshaChips.swift */; };
 		F5DE2EFF3006596F0089996B /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5DE2EFE3006596F0089996B /* OnboardingView.swift */; };
 		AF59C09168664E0CB00F1C99 /* ZodiacRevealView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 619ABB04451C4F04AF97A80F /* ZodiacRevealView.swift */; };
+		B1RTH2C0NF1RM0001 /* BirthInfoConfirmSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1RTH2C0NF1RM0000 /* BirthInfoConfirmSheet.swift */; };
 		9C0000000000000000000050 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000050 /* ProfileView.swift */; };
 		9C0000000000000000000051 /* AliasEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000051 /* AliasEditView.swift */; };
 		9C0000000000000000000052 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000052 /* KeychainHelper.swift */; };
@@ -233,6 +234,7 @@
 		F4D24E23A0A8DAE17CCC61CC /* DeepAnalysisResultView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeepAnalysisResultView.swift; path = QiCompass/Features/DeepAnalysis/DeepAnalysisResultView.swift; sourceTree = SOURCE_ROOT; };
 		F5DE2EFE3006596F0089996B /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OnboardingView.swift; path = QiCompass/Features/Onboarding/OnboardingView.swift; sourceTree = SOURCE_ROOT; };
 		619ABB04451C4F04AF97A80F /* ZodiacRevealView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ZodiacRevealView.swift; path = QiCompass/Features/Onboarding/ZodiacRevealView.swift; sourceTree = SOURCE_ROOT; };
+		B1RTH2C0NF1RM0000 /* BirthInfoConfirmSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BirthInfoConfirmSheet.swift; path = QiCompass/Features/Onboarding/BirthInfoConfirmSheet.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000060 /* ZodiacHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ZodiacHelper.swift; path = QiCompass/Shared/ZodiacHelper.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000050 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProfileView.swift; path = QiCompass/Features/Profile/ProfileView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000051 /* AliasEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AliasEditView.swift; path = QiCompass/Features/Profile/AliasEditView.swift; sourceTree = SOURCE_ROOT; };
@@ -272,6 +274,7 @@
 			children = (
 				F5DE2EFE3006596F0089996B /* OnboardingView.swift */,
 				619ABB04451C4F04AF97A80F /* ZodiacRevealView.swift */,
+				B1RTH2C0NF1RM0000 /* BirthInfoConfirmSheet.swift */,
 				9C1000000000000000000050 /* ProfileView.swift */,
 				9C1000000000000000000051 /* AliasEditView.swift */,
 				9C1000000000000000000052 /* KeychainHelper.swift */,
@@ -676,6 +679,7 @@
 				9C000000000000000000002F /* CompatibilityMainView.swift in Sources */,
 				F5DE2EFF3006596F0089996B /* OnboardingView.swift in Sources */,
 				AF59C09168664E0CB00F1C99 /* ZodiacRevealView.swift in Sources */,
+				B1RTH2C0NF1RM0001 /* BirthInfoConfirmSheet.swift in Sources */,
 				9C0000000000000000000050 /* ProfileView.swift in Sources */,
 				9C0000000000000000000051 /* AliasEditView.swift in Sources */,
 				9C0000000000000000000052 /* KeychainHelper.swift in Sources */,
