@@ -23,8 +23,17 @@ class AnthropicClient:
     def model(self) -> str:
         return self._model
 
-    async def interpret(self, prompt: str) -> str:
-        """调 Anthropic Messages API,返回第一个非空文本块。"""
+    async def interpret(
+        self, prompt: str, *, temperature: float = 0.6,
+    ) -> str:
+        """调 Anthropic Messages API,返回第一个非空文本块。
+
+        Args:
+            prompt: 用户 prompt 文本
+            temperature: 0.0-1.0(Anthropic 范围);v1 prompt 系统按 module 分级,
+                M0-M2 结构层 0.3,M3-M7 叙述层 0.6。调用方通过
+                config.resolve_temperature(module) 取值后传入。
+        """
         if not self._api_key:
             raise AIProviderError(
                 "ANTHROPIC_API_KEY not configured"
@@ -43,6 +52,7 @@ class AnthropicClient:
                     json={
                         "model": self._model,
                         "max_tokens": AI_MAX_OUTPUT_TOKENS,
+                        "temperature": temperature,
                         "messages": [{"role": "user", "content": prompt}],
                     },
                 )

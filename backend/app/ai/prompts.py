@@ -1,7 +1,8 @@
 """AI 命书 prompt 模板 + 渲染 + 字段校验。
 
-三个常量字符串模板,结构对齐 bazi-app-design-doc.md:410-496(设计文档原文 "..." 处
-展开为完整字段引用,让 LLM 拿到完整信息而非省略)。
+老 7 个模板(bazi_deep × 3 + compatibility × 3 + daily_fortune),结构对齐
+bazi-app-design-doc.md:410-496。v1 prompt 系统 8 个模板(M0-M7),设计源
+bazi-prompt-system-v1.md §2-3(双轨保留,iOS 切换后下线老的)。
 
 PROMPT_VERSIONS 与模板常量放同文件邻近位置:改模板时必须 bump 对应版本号,
 否则老用户拿到旧解读(老 key 永不命中,老条目自然死,不主动删)。
@@ -9,6 +10,8 @@ PROMPT_VERSIONS 与模板常量放同文件邻近位置:改模板时必须 bump 
 从格诚实降级(对齐 CLAUDE.md "从格检测…LLM 诚实告知"):
 - bazi_deep 模板渲染时检查 day_master_strength == "special_pattern"
 - 命中则在 prompt 末尾追加降级约束段,要求 LLM 诚实告知未下硬性喜忌结论
+- v1 prompt 系统不需此 suffix:设计文档 §2 全局 Prompt 已要求"字段缺失就说明缺失",
+  从格命中时 chart_builder 会把 useful_god_candidates=[],由 LLM 自然降级
 """
 
 from __future__ import annotations
@@ -28,6 +31,17 @@ PROMPT_VERSIONS: dict[str, int] = {
     "compatibility_free": 2,  # M4 拆分:2 章免费,Medium voice(200-300 字/章)
     "compatibility_paid": 2,  # M4 拆分:4 章付费,Medium voice(200-300 字/章)
     "daily_fortune": 2,    # Medium voice(50-80 字,砍宜忌+砍时辰点评)
+    # v1 prompt 系统(Stage 5 落地,设计源 /Users/TWJ/Downloads/bazi-prompt-system-v1.md)
+    # M0-M7 共 8 模块,双轨保留:老 7 module 不动,iOS 切换后可下线老的
+    # 链式调用:M0 产 structure_fingerprint → M1-M7 各自带 parent_fingerprint 注入
+    "m0_structure": 1,     # 免费:识别主线结构 + 产 structure_fingerprint
+    "m1_talent": 1,        # 免费:天赋能力(innate/trained/defensive + one_leverage)
+    "m2_high_low": 1,      # 付费:高配/低配 + 阈值(环境/信念/觉察)
+    "m3_system": 1,        # 付费:人生系统模式(运行模式/失效环境/理想结构)
+    "m4_health": 1,        # 付费:健康续航(需 age + current_concern)
+    "m5_wealth": 1,        # 付费:财富结构(需 assets_summary + preference)
+    "m6_dynamics": 1,      # 付费:结构动力学高阶(能量路径/杠杆/易损点/升级路径)
+    "m7_manual": 1,        # 付费:落地手册(true_leverage + 90 天行动)
 }
 
 # ---------- 深度解析 ----------
@@ -276,6 +290,301 @@ DAILY_FORTUNE_TEMPLATE = """你是一位精通流日推断的命理师。请基�
 - 不确定性保留：用"倾向 / 可能 / 容易"，禁用"必 / 一定 / 肯定"
 """
 
+# ---------- v1 prompt 系统(Stage 5,设计源 bazi-prompt-system-v1.md)----------
+# 双轨保留:老 7 module 不动,本段是新 v1 系统的 8 个 module
+# 渲染策略:JSON schema 大括号用 {{ }} 转义,str.format_map 自动还原为单花括号
+# → 与老 module 共用同一渲染路径,占位符({chart} 等)走 format_map 标准机制
+# 全局 System Prompt 与 8 模板拼在 _TEMPLATES[module] 里(避免 render 时再拼一次)
+
+# 设计文档 §2 全局 System Prompt(所有 v1 模块共用的世界观约束)
+_V1_SYSTEM_PROMPT = """你是一位命理结构分析师，工作方式接近系统分析师，而不是算命先生。
+
+【你的输入】
+用户的八字排盘结果已由确定性引擎算好，以 JSON 提供。你只负责解释结构，绝不自行推算、修正或质疑干支、十神、旺衰、大运流年。字段缺失就说明缺失。
+
+【你的世界观】（必须贯穿所有输出）
+1. 命是底盘，运是时机。结构描述的是倾向与能量分布，不是既定结局。
+2. 同一个结构，在不同环境、不同资源、不同内在信念下，会跑出完全不同的结果。
+3. 有人不是没有天赋，而是没有允许自己发展的空间。发挥上限受自我觉察影响，并不完全由命局决定。
+4. 你的目标是让用户"看清自己怎么运转"，从而做出更清醒的选择，而不是让他等待或接受某个结局。
+
+【禁止】
+- 不讲吉凶、神煞、刑冲破害的凶险叙事
+- 不预测具体事件、时间点、金额、寿命
+- 不断言婚姻、生死、疾病，不做医学诊断，不推荐具体投资标的
+- 不使用：注定、必然、命中该、逃不掉、破财、血光、克夫、大凶、劫难、寿元、绝症、必赚、稳赚、包治
+- 不写安慰话和空泛鼓励；没有依据的话就不写
+
+【表达要求】
+- 每一个判断都必须能追溯到输入中的具体字段（某个十神、五行力量、日主强弱、大运），在 evidence 字段写明依据
+- 用可观察的行为描述能力，不要用形容词堆砌
+  ✗"你很有创造力"  ✓"你会在别人还在确认需求时，先做出一个能跑的版本"
+- 第二人称"你"，句子短，不用文言腔
+- 严格按要求的 JSON 输出，不加 markdown 代码块围栏，不加任何前言后语
+"""
+
+# M0 · 识别主线结构(免费,产 structure_fingerprint 供 M1-M7 链式注入)
+M0_STRUCTURE_TEMPLATE = _V1_SYSTEM_PROMPT + """
+
+===== 模块 M0:识别主线结构 =====
+
+{chart}
+
+请从十神结构出发分析这个命局，不要讲吉凶和神煞。
+
+1. 十神主线是什么？（区分主导、次要、潜伏三层，各自依据是什么）
+2. 哪两个十神形成了核心循环结构？写出能量流向（A → B → A），并说明这个循环靠什么驱动、在哪里损耗。
+3. 这个结构在命理中属于什么类型？给它一个能概括运转方式的名字。
+4. 这类结构的人，核心能力通常来自哪里？（来自循环的哪一段）
+
+输出 JSON：
+{{
+  "main_axis": {{ "dominant": "", "secondary": "", "latent": "", "evidence": "" }},
+  "core_loop": {{ "from": "", "to": "", "flow": "", "driver": "", "leak": "", "evidence": "" }},
+  "structure_type": {{ "name": "", "one_line": "" }},
+  "capability_source": {{ "text": "", "evidence": "" }},
+  "structure_fingerprint": ""
+}}
+
+structure_fingerprint:一句话,不超过 40 字,概括这个人的运转方式。后续所有模块都会继承它,因此必须精确、可复用、不含形容词。
+
+校验:core_loop.from / core_loop.to 必须是十神名;structure_fingerprint 不含吉凶词与形容词。
+"""
+
+# v1 prompt 系统篇幅约束(2026-08-11 用户决策:M1/M2/M3/M5/M7 加长至 1500-2500 字)
+# M0/M6 保持精简(M0 结构识别要凝练,M6 高阶动力学字段本身少)
+# 设计文档 §4 原上限 600 字 → 这 5 个用户高频模块加长至 1500-2500 字
+_V1_LENGTH_HINT_LONG = """
+
+篇幅要求(必须遵守):
+- 本模块总输出 1500-2500 字(中文字符计)
+- 每个字段值 150-300 字,含具体场景/案例/依据,不写空泛结论
+- evidence 字段必须详细:指向具体十神/五行力量/日主强弱/大运等输入字段
+- behavior / how_it_shows / trigger 等行为描述句占比 ≥ 60%
+- 每个判断都要让用户能"看到自己怎么运转",不是抽象形容词
+- 列表类字段至少给 2-3 个完整条目,每条目 100-200 字
+"""
+
+# M1 · 找到天赋能力(免费,产 one_leverage 供 M7 链式注入)
+M1_TALENT_TEMPLATE = _V1_SYSTEM_PROMPT + """
+
+===== 模块 M1:找到天赋能力 =====
+
+{chart}
+
+已确定的结构:{structure_fingerprint}
+主线:{main_axis}　核心循环:{core_loop}
+
+基于以上十神结构:
+1. 我最自然、不费力的能力是什么?(2-3 项,按自然度排序)
+2. 这种能力在现实中通常表现为什么行为?(写具体场景动作,不写形容词)
+3. 哪种能力是天生的?(由结构原生长出,做起来不耗元气)
+4. 哪种能力是后天环境训练出来的?说明它是被什么环境压力逼出来的,以及长期使用它的代价。
+
+注意区分两类:
+- 天赋能力:使用时能量是回升的
+- 防御/代偿能力:外人看着像优点,但使用时能量是消耗的,往往源于早期环境压力
+
+输出 JSON:
+{{
+  "innate": [{{ "name": "", "behavior": "", "evidence": "", "energy": "gain" }}],
+  "trained": [{{ "name": "", "behavior": "", "trained_by": "", "evidence": "" }}],
+  "defensive": [{{ "name": "", "looks_like": "", "actual_cost": "", "evidence": "" }}],
+  "one_leverage": ""
+}}
+
+one_leverage:如果只能保留一项能力当作杠杆,是哪一项,为什么。
+""" + _V1_LENGTH_HINT_LONG
+
+# M2 · 高配版 vs 低配版(付费,产 threshold 供 M6 链式注入)
+M2_HIGH_LOW_TEMPLATE = _V1_SYSTEM_PROMPT + """
+
+===== 模块 M2:高配版 vs 低配版 =====
+
+{chart}
+
+结构:{structure_fingerprint}　天赋:{innate}　防御能力:{defensive}
+
+请分析:
+1. 我的命局走高配版会表现成什么样?(行为画像 + 外部可观察的信号)
+2. 走低配版会变成什么?(同样写行为,不写惨状)
+3. 两者的分界点在哪里?请按以下三个变量分别说明:
+   - 环境资源匹配度:什么样的环境让这个结构跑得开,什么样的会压制它
+   - 内在信念:这个结构最容易长出的限制性信念是什么(它往往是防御能力的副产品),这个信念如何压低发挥上限
+   - 自我觉察:在什么节点上意识到什么,就能切换轨道
+4. 低配化的 3 个早期信号(用户能在日常中自查的具体现象)
+5. 从低配切回高配的 3 个动作(可在两周内开始做)
+
+重要:不要把高低配写成命定的两条路。它是同一个结构在不同环境与信念下的两种跑法。
+
+输出 JSON:
+{{
+  "high_config": {{ "portrait": "", "observable_signals": [] }},
+  "low_config": {{ "portrait": "", "observable_signals": [] }},
+  "threshold": {{
+    "environment": {{ "enables": "", "suppresses": "" }},
+    "belief": {{ "limiting_belief": "", "origin": "", "ceiling_effect": "" }},
+    "awareness": {{ "key_moment": "", "what_to_notice": "" }}
+  }},
+  "early_warnings": [],
+  "switch_actions": []
+}}
+""" + _V1_LENGTH_HINT_LONG
+
+# M3 · 人生系统模式(付费,产 ideal_life_structure 供 M5 链式注入)
+M3_SYSTEM_TEMPLATE = _V1_SYSTEM_PROMPT + """
+
+===== 模块 M3:人生系统模式 =====
+
+{chart}
+
+结构:{structure_fingerprint}
+
+如果把我的命局当成一个系统:
+1. 它最自然的运行模式是什么?(输入什么、加工什么、输出什么、靠什么回血)
+2. 它最怕什么环境?说明失效机制,而不是"不适合"三个字。
+3. 它最适合什么类型的生活结构?(时间结构、协作密度、反馈周期、收入节奏)
+4. 它更适合稳定型人生,还是高变量人生?给出理由与前提条件。
+5. 给我一份"环境筛选清单":在接受一份工作、一个合作、一次搬迁前,我应该先问自己的 5 个判断题。每题都要能用是/否回答。
+
+输出 JSON:
+{{
+  "operating_mode": {{ "input": "", "processing": "", "output": "", "recovery": "" }},
+  "failure_environments": [{{ "env": "", "mechanism": "" }}],
+  "ideal_life_structure": {{ "time": "", "collaboration": "", "feedback_cycle": "", "income_rhythm": "" }},
+  "stability_vs_volatility": {{ "verdict": "", "reason": "", "precondition": "" }},
+  "environment_checklist": []
+}}
+""" + _V1_LENGTH_HINT_LONG
+
+# M4 · 健康续航系统(付费,需 age + current_concern 用户输入)
+M4_HEALTH_TEMPLATE = _V1_SYSTEM_PROMPT + """
+
+===== 模块 M4:健康续航系统 =====
+
+{chart}
+
+结构:{structure_fingerprint}
+年龄:{age}　当前最困扰:{current_concern}
+
+你是我的健康与能量教练。请基于命局强弱与五行偏性,输出:
+
+1) 我的"电池类型"(爆发 / 爬坡 / 波动)及依据,说明我的能量补充与耗尽规律
+2) 我最容易失衡的 3 个身体系统(睡眠 / 炎症 / 消化 / 焦虑等)+ 各自的触发条件(触发条件要写成具体情境,比如"连续三天以上高强度对外沟通")
+3) 我最有效的 3 个恢复杠杆——最省力但见效快的,按性价比排序
+4) 一份 7 天复位方案 + 一份可长期每周执行的维护方案
+
+严格约束:
+- 你不是医生。不诊断疾病、不命名病症、不涉及任何药物、补剂或剂量。
+- 只使用作息、节律、强度管理、恢复方式层面的语言。
+- 若用户描述的是持续或加重的身体症状,在 medical_note 中明确建议就医,并且不要给出替代方案。
+- 五行与身体系统的对应只是传统框架下的类比,不要写成生理学事实。
+
+输出 JSON:
+{{
+  "battery_type": {{ "type": "", "evidence": "", "charge_pattern": "", "drain_pattern": "" }},
+  "imbalance_risks": [{{ "system": "", "trigger": "", "early_sign": "" }}],
+  "recovery_levers": [{{ "action": "", "why_it_works_for_you": "", "cost": "low|mid" }}],
+  "reset_7day": [{{ "day": 1, "focus": "", "action": "" }}],
+  "weekly_maintenance": [],
+  "medical_note": ""
+}}
+"""
+
+# M5 · 财富结构(付费,需 assets_summary + preference 用户输入)
+M5_WEALTH_TEMPLATE = _V1_SYSTEM_PROMPT + """
+
+===== 模块 M5:财富结构 =====
+
+{chart}
+
+结构:{structure_fingerprint}
+天赋:{innate}　生活结构:{ideal_life_structure}
+当前资产/收入概况:{assets_summary}　我的偏好:{preference}
+
+请用十神结构给我做财富系统分析:
+
+1) 我更适合哪种收入形态?对【工资 / 项目 / 咨询 / 投资 / 股权 / 内容】排序,每一项都要解释它和我结构的匹配或冲突在哪里,而不只是给结论。
+2) 我的漏财点在哪里(合作 / 人情 / 冲动 / 风险暴露)?每个漏财点配一条规则化止损,写成 if-then 形式,能直接执行。
+3) 我的财富增长最优策略:保守 / 平衡 / 进攻各给一套,说明各自的适用前提。
+4) 给我 3 个可落地的"资产化产品 / 服务"点子。硬性要求:必须同时匹配我的天赋能力和我的生活结构,并注明每个点子的启动成本、我最可能卡住的环节。
+
+严格约束:
+- 不推荐任何具体股票、基金、币种、平台或标的
+- 不预测市场涨跌,不给收益率、回报周期或金额承诺
+- 只讨论"收入形态与个人结构的匹配度",这是自我认知,不是投资建议
+- 涉及重大财务决策时,在 disclaimer 中说明应咨询持牌专业人士
+
+输出 JSON:
+{{
+  "income_forms": [{{ "form": "", "rank": 1, "fit": "", "friction": "", "evidence": "" }}],
+  "leaks": [{{ "type": "", "how_it_shows": "", "rule": "如果……就……" }}],
+  "strategies": {{ "conservative": {{}}, "balanced": {{}}, "aggressive": {{}} }},
+  "asset_ideas": [{{ "idea": "", "uses_talent": "", "fits_life_structure": "", "startup_cost": "", "likely_blocker": "" }}],
+  "disclaimer": ""
+}}
+""" + _V1_LENGTH_HINT_LONG
+
+# M6 · 结构动力学(付费,高阶,需 M1+M2 输出注入)
+M6_DYNAMICS_TEMPLATE = _V1_SYSTEM_PROMPT + """
+
+===== 模块 M6:结构动力学(高阶版) =====
+
+{chart}
+
+结构:{structure_fingerprint}　循环:{core_loop}
+天赋:{innate}　防御:{defensive}　高低配分界:{threshold}
+
+请用"结构动力学"的方式解释我的命局:
+
+- 我的命局能量循环路径是什么?画出完整链路,标出增益段与损耗段
+- 我的优势杠杆在哪里?(投入一分能撬动多少,为什么)
+- 我的易损点在哪里?(在什么条件下这个结构会自我损耗,机制是什么)
+- 我的升级路线是什么?分阶段,每阶段给出进入条件和完成标志
+
+不要用比喻代替机制。每一段都要说清"什么导致什么"。
+
+输出 JSON:
+{{
+  "energy_path": [{{ "stage": "", "gain_or_loss": "gain|loss", "mechanism": "" }}],
+  "leverage": {{ "point": "", "input": "", "output": "", "why": "" }},
+  "vulnerability": {{ "point": "", "condition": "", "mechanism": "", "self_check": "" }},
+  "upgrade_path": [{{ "phase": "", "entry_condition": "", "work": "", "done_signal": "" }}]
+}}
+"""
+
+# M7 · 落地手册(付费,基于 M1-M6 结论的总结,不需要 chart)
+M7_MANUAL_TEMPLATE = _V1_SYSTEM_PROMPT + """
+
+===== 模块 M7:落地手册 =====
+
+基于以上全部结论:
+one_leverage: {one_leverage}
+switch_actions: {switch_actions}
+environment_checklist: {environment_checklist}
+leverage(M6 杠杆点): {leverage}
+
+请输出一份使用手册,不要复述前面的分析:
+1. 我真正的杠杆是哪一项能力?用一句话说清楚,并说明为什么不是其他那几项。
+2. 我该如何使用它?给出 3 个具体的使用场景,每个写清楚我该做什么动作。
+3. 未来 90 天,如果只做一件事来放大这个杠杆,是什么?给出可验证的完成标志。
+4. 什么情况下这份分析应该被推翻?(列出 2 个反例信号)
+
+第 4 点必须认真写。它提醒用户:这是参考工具,不是判决书。
+
+输出 JSON:
+{{
+  "true_leverage": {{}},
+  "use_cases": [],
+  "next_90_days": {{}},
+  "falsification_signals": []
+}}
+""" + _V1_LENGTH_HINT_LONG
+
+# 注:v1 模板里 JSON schema 的大括号全部用 {{ }} 转义,str.format_map 会
+# 自动还原为单花括号。占位符({chart}/{structure_fingerprint} 等)走老路径,
+# render_prompt 不需要分流,_StrictFormatDict 已覆盖缺失守卫。
+
 # ---------- 模板注册表 ----------
 
 _TEMPLATES: dict[str, str] = {
@@ -286,6 +595,15 @@ _TEMPLATES: dict[str, str] = {
     "compatibility_free": COMPATIBILITY_FREE_TEMPLATE,
     "compatibility_paid": COMPATIBILITY_PAID_TEMPLATE,
     "daily_fortune": DAILY_FORTUNE_TEMPLATE,
+    # v1 prompt 系统(Stage 5):M0-M7 共 8 模块
+    "m0_structure": M0_STRUCTURE_TEMPLATE,
+    "m1_talent": M1_TALENT_TEMPLATE,
+    "m2_high_low": M2_HIGH_LOW_TEMPLATE,
+    "m3_system": M3_SYSTEM_TEMPLATE,
+    "m4_health": M4_HEALTH_TEMPLATE,
+    "m5_wealth": M5_WEALTH_TEMPLATE,
+    "m6_dynamics": M6_DYNAMICS_TEMPLATE,
+    "m7_manual": M7_MANUAL_TEMPLATE,
 }
 
 # 各 module 必填字段清单(渲染前 validate_context 逐项检查)
@@ -339,6 +657,27 @@ REQUIRED_FIELDS: dict[str, list[str]] = {
         "hour_pillars_with_relations",
         "huangli_yi", "huangli_ji",
     ],
+    # v1 prompt 系统(Stage 5):链式注入字段都是 JSON 字符串(标量 str),
+    # 由客户端从上一级 M 的 JSON 输出里取出后塞进 context。
+    # chart = json.dumps(snapshot_dict, ensure_ascii=False, indent=2)
+    "m0_structure": ["chart"],
+    "m1_talent": ["chart", "structure_fingerprint", "main_axis", "core_loop"],
+    "m2_high_low": ["chart", "structure_fingerprint", "innate", "defensive"],
+    "m3_system": ["chart", "structure_fingerprint"],
+    "m4_health": ["chart", "structure_fingerprint", "age", "current_concern"],
+    "m5_wealth": [
+        "chart", "structure_fingerprint", "innate", "ideal_life_structure",
+        "assets_summary", "preference",
+    ],
+    "m6_dynamics": [
+        "chart", "structure_fingerprint", "core_loop",
+        "innate", "defensive", "threshold",
+    ],
+    # M7 不传 chart:基于 M1-M6 结论的总结,不再读盘
+    "m7_manual": [
+        "one_leverage", "switch_actions",
+        "environment_checklist", "leverage",
+    ],
 }
 
 
@@ -353,7 +692,7 @@ def validate_context(module: str, context: dict) -> None:
     """渲染前显式校验必填字段 + 值类型。
 
     Args:
-        module: 三 module 之一
+        module: 注册到 REQUIRED_FIELDS 的任一 module(老 7 + v1 8)
         context: prompt 渲染负载
 
     Raises:
@@ -383,9 +722,12 @@ def render_prompt(module: str, context: dict) -> str:
     bazi_deep 系列(alias / _free / _paid)命中 day_master_strength ==
     "special_pattern" 时追加从格诚实降级约束段。
 
+    v1 prompt 系统(M0-M7)模板内含 JSON schema 大括号,已用 {{ }} 转义,
+    format_map 会自动还原为单花括号;占位符({chart} / {structure_fingerprint}
+    等)与老模板共用同一渲染路径,无需分流。
+
     Args:
-        module: 五 module 之一(bazi_deep / bazi_deep_free / bazi_deep_paid /
-            compatibility / daily_fortune)
+        module: 注册到 _TEMPLATES 的任一 module(老 7 个 + v1 8 个)
         context: prompt 渲染负载(必须含 REQUIRED_FIELDS[module] 所有字段)
 
     Returns:

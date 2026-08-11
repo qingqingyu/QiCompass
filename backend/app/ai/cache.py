@@ -2,11 +2,13 @@
 
 - 表结构:
 - PK = (content_hash, module, prompt_version, target_date, prompt_hash,
-        provider, model)
+        provider, model, parent_hash, user_input_hash)
 - target_date 非 daily_fortune 时存空串(避免 NULL 进 PK 歧义)
 - prompt_hash 由渲染后的 prompt sha256 得到,避免客户端用同一 content_hash
   携带不同 context 污染跨用户缓存
 - provider/model 是缓存身份,切换后不会误用另一家/另一模型的结果
+- v1 prompt 系统:parent_hash 隔离 M0 fingerprint 变化;user_input_hash 隔离
+  M4/M5 用户输入变化。两字段对老模块默认空串,行为不变。
 
 错误显式传播(严格遵守 CLAUDE.md):
 - sqlite3 异常不吞,向上抛 → 路由层包成 InterpretationCacheError(500)
@@ -28,18 +30,20 @@ from .cache_key import CacheKey
 # 建表语句(幂等,lifespan 启动时执行)
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS interpretation_cache (
-    content_hash   TEXT NOT NULL,
-    module         TEXT NOT NULL,
-    prompt_version INTEGER NOT NULL,
-    target_date    TEXT NOT NULL DEFAULT '',
-    prompt_hash    TEXT NOT NULL,
-    provider       TEXT NOT NULL,
-    model          TEXT NOT NULL,
-    interpretation TEXT NOT NULL,
-    generated_at   TEXT NOT NULL,
+    content_hash    TEXT NOT NULL,
+    module          TEXT NOT NULL,
+    prompt_version  INTEGER NOT NULL,
+    target_date     TEXT NOT NULL DEFAULT '',
+    prompt_hash     TEXT NOT NULL,
+    provider        TEXT NOT NULL,
+    model           TEXT NOT NULL,
+    parent_hash     TEXT NOT NULL DEFAULT '',
+    user_input_hash TEXT NOT NULL DEFAULT '',
+    interpretation  TEXT NOT NULL,
+    generated_at    TEXT NOT NULL,
     PRIMARY KEY (
         content_hash, module, prompt_version, target_date, prompt_hash,
-        provider, model
+        provider, model, parent_hash, user_input_hash
     )
 );
 """
@@ -85,8 +89,8 @@ class InterpretationCache:
         """查缓存。
 
         Args:
-            key: 七维度缓存键(content_hash/module/prompt_version/target_date/
-                prompt_hash/provider/model)
+            key: 九维度缓存键(content_hash/module/prompt_version/target_date/
+                prompt_hash/provider/model/parent_hash/user_input_hash)
 
         Returns:
             命中 → dict(provider, model, interpretation, generated_at)
@@ -103,9 +107,11 @@ class InterpretationCache:
                 "FROM interpretation_cache "
                 "WHERE content_hash=? AND module=? AND prompt_version=? "
                 "AND target_date=? AND prompt_hash=? "
-                "AND provider=? AND model=?",
+                "AND provider=? AND model=? "
+                "AND parent_hash=? AND user_input_hash=?",
                 (key.content_hash, key.module, key.prompt_version, td,
-                 key.prompt_hash, key.provider, key.model),
+                 key.prompt_hash, key.provider, key.model,
+                 key.parent_hash, key.user_input_hash),
             ).fetchone()
         if row is None:
             return None
@@ -120,7 +126,7 @@ class InterpretationCache:
         """写缓存(INSERT OR REPLACE,同 key 覆盖,幂等)。
 
         Args:
-            key: 七维度缓存键
+            key: 九维度缓存键
             interpretation: AI 解读文本
             generated_at: ISO 8601 UTC 时间字符串
 
@@ -132,10 +138,12 @@ class InterpretationCache:
             conn.execute(
                 "INSERT OR REPLACE INTO interpretation_cache "
                 "(content_hash, module, prompt_version, target_date, prompt_hash, "
-                " provider, model, interpretation, generated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                " provider, model, parent_hash, user_input_hash, "
+                " interpretation, generated_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (key.content_hash, key.module, key.prompt_version, td,
                  key.prompt_hash, key.provider, key.model,
+                 key.parent_hash, key.user_input_hash,
                  interpretation, generated_at),
             )
             conn.commit()
@@ -144,7 +152,7 @@ class InterpretationCache:
         """删除缓存行(用于清理被禁词污染的坏缓存)。
 
         Args:
-            key: 七维度缓存键
+            key: 九维度缓存键
 
         Raises:
             sqlite3.Error: 删失败(不吞,向上抛)
@@ -155,16 +163,20 @@ class InterpretationCache:
                 "DELETE FROM interpretation_cache "
                 "WHERE content_hash=? AND module=? AND prompt_version=? "
                 "AND target_date=? AND prompt_hash=? "
-                "AND provider=? AND model=?",
+                "AND provider=? AND model=? "
+                "AND parent_hash=? AND user_input_hash=?",
                 (key.content_hash, key.module, key.prompt_version, td,
-                 key.prompt_hash, key.provider, key.model),
+                 key.prompt_hash, key.provider, key.model,
+                 key.parent_hash, key.user_input_hash),
             )
             conn.commit()
 
 
 _EXPECTED_COLUMNS = frozenset({
     "content_hash", "module", "prompt_version", "target_date",
-    "prompt_hash", "provider", "model", "interpretation", "generated_at",
+    "prompt_hash", "provider", "model",
+    "parent_hash", "user_input_hash",
+    "interpretation", "generated_at",
 })
 
 

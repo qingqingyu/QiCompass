@@ -35,8 +35,17 @@ class OpenAIClient:
     def model(self) -> str:
         return self._model
 
-    async def interpret(self, prompt: str) -> str:
-        """调 OpenAI Chat Completions API,返回 choices[0].message.content。"""
+    async def interpret(
+        self, prompt: str, *, temperature: float = 0.6,
+    ) -> str:
+        """调 OpenAI Chat Completions API,返回 choices[0].message.content。
+
+        Args:
+            prompt: 用户 prompt 文本
+            temperature: 0.0-2.0(OpenAI 范围,本系统实际只用 0.3 / 0.6 两档);
+                v1 prompt 系统按 module 分级,M0-M2 结构层 0.3,M3-M7 叙述层 0.6。
+                调用方通过 config.resolve_temperature(module) 取值后传入。
+        """
         if not self._api_key:
             raise AIProviderError(
                 "OPENAI_API_KEY not configured"
@@ -62,6 +71,7 @@ class OpenAIClient:
                         "model": self._model,
                         "messages": [{"role": "user", "content": prompt}],
                         "max_tokens": AI_MAX_OUTPUT_TOKENS,
+                        "temperature": temperature,
                     },
                 )
                 resp.raise_for_status()

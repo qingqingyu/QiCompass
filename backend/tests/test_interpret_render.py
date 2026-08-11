@@ -7,10 +7,13 @@
 
 from __future__ import annotations
 
+import re
+
 import pytest
 
 from app.ai.prompts import (
     BAZI_DEEP_SPECIAL_PATTERN_SUFFIX,
+    PROMPT_VERSIONS,
     REQUIRED_FIELDS,
     render_prompt,
     validate_context,
@@ -75,11 +78,15 @@ def test_daily_fortune_render_replaces_placeholders():
 
 
 def test_three_modules_all_fields_required():
-    """七 module 的 REQUIRED_FIELDS 非空;bazi_deep / compatibility 系列(alias/_free/_paid)各共享字段清单。"""
+    """十五 module(老 7 + v1 8)的 REQUIRED_FIELDS 非空;bazi_deep / compatibility 系列(alias/_free/_paid)各共享字段清单。"""
     assert set(REQUIRED_FIELDS.keys()) == {
+        # 老 module
         "bazi_deep", "bazi_deep_free", "bazi_deep_paid",
         "compatibility", "compatibility_free", "compatibility_paid",
         "daily_fortune",
+        # v1 prompt 系统(Stage 5 落地)
+        "m0_structure", "m1_talent", "m2_high_low", "m3_system",
+        "m4_health", "m5_wealth", "m6_dynamics", "m7_manual",
     }
     for module, fields in REQUIRED_FIELDS.items():
         assert fields, f"{module} REQUIRED_FIELDS 不应为空"
@@ -93,6 +100,14 @@ def test_three_modules_all_fields_required():
     # M4 拆分:compatibility / _free / _paid 共用同一份字段清单(共享 header)
     assert REQUIRED_FIELDS["compatibility"] is REQUIRED_FIELDS["compatibility_free"]
     assert REQUIRED_FIELDS["compatibility"] is REQUIRED_FIELDS["compatibility_paid"]
+    # v1 module 特有字段断言
+    assert REQUIRED_FIELDS["m0_structure"] == ["chart"], "M0 只需 chart"
+    assert "structure_fingerprint" in REQUIRED_FIELDS["m1_talent"]
+    assert "current_concern" in REQUIRED_FIELDS["m4_health"], (
+        "M4 context 含 current_concern(对齐模板占位符)")
+    assert "age" in REQUIRED_FIELDS["m4_health"]
+    assert "assets_summary" in REQUIRED_FIELDS["m5_wealth"]
+    assert "chart" not in REQUIRED_FIELDS["m7_manual"], "M7 不需 chart(基于 M1-M6 结论)"
 
 
 def test_bazi_deep_free_render_replaces_placeholders():
@@ -261,3 +276,176 @@ def test_validate_context_scalar_types_accepted():
     """标量类型(str/int/float/bool)均应通过校验。"""
     mixed = {**BAZI_DEEP_CONTEXT, "tiaoshou_applied": True, "favorable_elements": "火"}
     validate_context("bazi_deep", mixed)  # 不抛即通过
+
+
+# ===== v1 prompt 系统(Stage 5):M0-M7 模板渲染 =====
+
+
+# 全局 System Prompt 必须含的关键短语(任何 v1 模板渲染后都应包含)
+_V1_SYSTEM_PROMPT_MARKERS = (
+    "命理结构分析师",
+    "命是底盘，运是时机",
+    "禁止",
+    "严格按要求的 JSON 输出",
+)
+
+
+def _v1_chart_json() -> str:
+    """v1 chart JSON 字符串(对齐 v1 §1 schema 简化版,标量 str 即可)。"""
+    return (
+        '{"meta":{"locale":"zh-CN","gender":"female",'
+        '"solar_term_boundary":"雨水后"},'
+        '"pillars":{"year":{"stem":"庚","branch":"午"}},'
+        '"day_master":{"stem":"己","element":"土","strength_label":"中和"},'
+        '"ten_god_weights":{"比肩":8,"劫财":22}}'
+    )
+
+
+def test_v1_m0_renders_with_chart_only():
+    """M0 只需 chart context,渲染后含 _V1_SYSTEM_PROMPT + chart JSON。"""
+    prompt = render_prompt("m0_structure", {"chart": _v1_chart_json()})
+    # 全局 system prompt 关键短语
+    for marker in _V1_SYSTEM_PROMPT_MARKERS:
+        assert marker in prompt, f"M0 prompt 缺 SYSTEM_PROMPT 关键短语 {marker!r}"
+    # chart JSON 已注入(用 chart 特有字段名断言,避免 system prompt 里的"自己"误通过)
+    assert "雨水后" in prompt
+    assert '"stem":"己"' in prompt
+    # M0 模块标识
+    assert "M0" in prompt or "主线结构" in prompt
+    # 输出 JSON schema 在 prompt 里(双花括号 escape 后应还原为单花括号)
+    assert '"structure_fingerprint"' in prompt
+    # 无未填充占位符(通用检查:不含任何 {word} 形式的单花括号残留)
+    leftover = re.findall(r'(?<!\{)\{[a-z_][a-z0-9_]*\}(?!\})', prompt)
+    assert not leftover, f"M0 prompt 中仍有未填充占位符: {leftover}"
+
+
+def test_v1_m1_renders_with_chain_inputs():
+    """M1 需 chart + structure_fingerprint + main_axis + core_loop。"""
+    ctx = {
+        "chart": _v1_chart_json(),
+        "structure_fingerprint": "伤官生财循环,外显执行力",
+        "main_axis": '{"dominant":"伤官","secondary":"财"}',
+        "core_loop": '{"from":"伤官","to":"财"}',
+    }
+    prompt = render_prompt("m1_talent", ctx)
+    assert "伤官生财循环" in prompt
+    assert '"dominant":"伤官"' in prompt
+    assert "innate" in prompt
+    assert "one_leverage" in prompt
+    # 无未填充占位符(与 M0/M2-M6 同标准检查)
+    leftover = re.findall(r'(?<!\{)\{[a-z_][a-z0-9_]*\}(?!\})', prompt)
+    assert not leftover, f"M1 prompt 中仍有未填充占位符: {leftover}"
+    # M1 追加了 _V1_LENGTH_HINT_LONG(篇幅约束 1500-2500 字)
+    assert "1500-2500" in prompt, "M1 应含篇幅约束(加长版)"
+
+
+def test_v1_m2_to_m6_render_with_chain_inputs():
+    """M2-M6 各自的链式注入字段都能渲染(无未填充占位符)。"""
+    # 每 module 的"输出 JSON schema 标志字段"(验证双花括号 escape 已正确还原)
+    expected_json_markers = {
+        "m2_high_low": '"threshold"',
+        "m3_system": '"operating_mode"',
+        "m4_health": '"battery_type"',
+        "m5_wealth": '"income_forms"',
+        "m6_dynamics": '"energy_path"',
+    }
+    test_cases = [
+        ("m2_high_low", {
+            "chart": _v1_chart_json(), "structure_fingerprint": "fp",
+            "innate": '[{"name":"创造力"}]', "defensive": '[{"name":"讨好"}]',
+        }),
+        ("m3_system", {
+            "chart": _v1_chart_json(), "structure_fingerprint": "fp",
+        }),
+        ("m4_health", {
+            "chart": _v1_chart_json(), "structure_fingerprint": "fp",
+            "age": 30, "current_concern": "睡眠不好",
+        }),
+        ("m5_wealth", {
+            "chart": _v1_chart_json(), "structure_fingerprint": "fp",
+            "innate": '[{"name":"创造力"}]',
+            "ideal_life_structure": '{"time":"灵活"}',
+            "assets_summary": "中等收入", "preference": "平衡",
+        }),
+        ("m6_dynamics", {
+            "chart": _v1_chart_json(), "structure_fingerprint": "fp",
+            "core_loop": '{"from":"伤官","to":"财"}',
+            "innate": '[{"name":"创造力"}]', "defensive": '[{"name":"讨好"}]',
+            "threshold": '{"environment":{"enables":"自主权"}}',
+        }),
+    ]
+    for module, ctx in test_cases:
+        prompt = render_prompt(module, ctx)
+        marker = expected_json_markers[module]
+        assert marker in prompt, (
+            f"{module} 渲染后应含 JSON schema marker {marker!r},"
+            f"实际:{prompt[:300]}"
+        )
+        # 无未填充 context 占位符(通用检查:不含任何 {word} 形式的单花括号残留)
+        leftover = re.findall(r'(?<!\{)\{[a-z_][a-z0-9_]*\}(?!\})', prompt)
+        assert not leftover, f"{module} prompt 中仍有未填充占位符: {leftover}"
+
+
+def test_v1_m7_renders_without_chart():
+    """M7 不需要 chart(基于 M1-M6 结论的总结)。"""
+    ctx = {
+        "one_leverage": "伤官生财",
+        "switch_actions": '["减少讨好"]',
+        "environment_checklist": '["是否需要自主权"]',
+        "leverage": '{"point":"伤官"}',
+    }
+    prompt = render_prompt("m7_manual", ctx)
+    assert "伤官生财" in prompt
+    assert "90 天" in prompt or "90天" in prompt
+    # M7 模板不含 {chart} 占位符,渲染后也不应出现 chart JSON 数据
+    assert "{chart}" not in prompt
+    assert '"pillars"' not in prompt, "M7 不应含 chart 数据(pillars 字段)"
+
+
+def test_v1_m4_accepts_int_age():
+    """M4 age 字段可以是 int(validate_context 允许标量)。"""
+    ctx = {
+        "chart": _v1_chart_json(),
+        "structure_fingerprint": "fp",
+        "age": 35,  # int
+        "current_concern": "焦虑",
+    }
+    prompt = render_prompt("m4_health", ctx)
+    assert "35" in prompt
+
+
+def test_v1_m0_missing_chart_returns_invalid_input_error():
+    """M0 缺 chart 字段 → InvalidInputError(422)。"""
+    with pytest.raises(InvalidInputError, match="缺字段"):
+        render_prompt("m0_structure", {})  # 缺 chart
+
+
+def test_v1_m1_missing_chain_field_returns_invalid_input_error():
+    """M1 缺 main_axis → InvalidInputError(422)。"""
+    ctx = {
+        "chart": _v1_chart_json(),
+        "structure_fingerprint": "fp",
+        # 故意缺 main_axis / core_loop
+    }
+    with pytest.raises(InvalidInputError, match="缺字段"):
+        render_prompt("m1_talent", ctx)
+
+
+def test_v1_m0_rejects_non_scalar_chart():
+    """v1 module 仍要求标量 context(dict 类型 chart 应被拒)。"""
+    bad_ctx = {"chart": {"meta": "not a string"}}  # dict 不是标量
+    with pytest.raises(InvalidInputError, match="类型非法"):
+        render_prompt("m0_structure", bad_ctx)
+
+
+def test_v1_prompt_versions_registered():
+    """所有 m0-m7 必须在 PROMPT_VERSIONS 注册(Stage 5 落地后)。"""
+    for module in (
+        "m0_structure", "m1_talent", "m2_high_low", "m3_system",
+        "m4_health", "m5_wealth", "m6_dynamics", "m7_manual",
+    ):
+        assert module in PROMPT_VERSIONS, (
+            f"{module} 必须在 PROMPT_VERSIONS 注册"
+        )
+        assert isinstance(PROMPT_VERSIONS[module], int)
+        assert PROMPT_VERSIONS[module] >= 1

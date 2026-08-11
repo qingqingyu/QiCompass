@@ -144,6 +144,77 @@ def compute_element_balance(pillars: Pillars) -> ElementBalance:
     return ElementBalance(**counts)
 
 
+# v1 prompt 系统 §1 chart.ten_god_weights
+# 10 个十神固定清单(顺序与 lunar_python 八字保持一致)
+TEN_GODS: tuple[str, ...] = (
+    "比肩", "劫财", "食神", "伤官", "偏财",
+    "正财", "七杀", "正官", "偏印", "正印",
+)
+
+# 日主字面值(lunar_python 日柱 shishen_gan 固定返回此值,非十神)
+DAY_MASTER_LITERAL = "日主"
+# 日柱在 (year, month, day, hour) 元组中的索引
+_DAY_PILLAR_INDEX = 2
+
+# 权重初值(待 prompt_validation spike 标定,目前是相对计数,LLM 看相对大小足够)
+_GAN_WEIGHT = 5        # 天干十神:年/月/时柱 shishen_gan(日柱跳过,值是"日主")
+_ZHI_MAIN_WEIGHT = 3   # 地支主气:shishen_zhi[0]
+_ZHI_RESIDUAL_WEIGHT = 1  # 地支余气:shishen_zhi[1:]
+
+
+def compute_ten_god_weights(pillars: Pillars) -> dict[str, int]:
+    """全局十神权重统计(v1 prompt 系统 chart.ten_god_weights)。
+
+    数据源:
+    - 4 柱天干 shishen_gan 各 +_GAN_WEIGHT(日柱返回字面值"日主"非十神,跳过)
+    - 4 柱地支主气 shishen_zhi[0] 各 +_ZHI_MAIN_WEIGHT
+    - 4 柱地支余气 shishen_zhi[1:] 每个 +_ZHI_RESIDUAL_WEIGHT
+
+    Returns:
+        完整 10 个十神 → 计数 dict(未出现的十神为 0)。同输入同输出(确定性)。
+
+    Raises:
+        ValueError: 某柱 shishen_zhi 为空列表(地支必有藏干,空则数据异常);
+            或某柱 shishen_gan 不在 TEN_GODS 且日柱不为"日主"(数据异常)
+    """
+    weights = {name: 0 for name in TEN_GODS}
+
+    # 用 enumerate 索引显式跳过日柱,不依赖 Pydantic model 对象身份比较
+    # (未来若 Pillars 改为 frozen / validate_all / __getattr__ 重建,"is" 比较会静默失败)
+    all_pillars = (pillars.year, pillars.month, pillars.day, pillars.hour)
+    for idx, p in enumerate(all_pillars):
+        # 天干十神:跳过日柱("日主"非十神)
+        if idx == _DAY_PILLAR_INDEX:
+            # 防御:日柱 shishen_gan 必须是"日主";若数据异常返回其它值,
+            # 不能静默跳过(CLAUDE.md 错误显式传播)
+            if p.shishen_gan != DAY_MASTER_LITERAL:
+                raise ValueError(
+                    f"日柱 shishen_gan 应为 {DAY_MASTER_LITERAL!r},实得 "
+                    f"{p.shishen_gan!r}, pillar={p.gan_zhi!r}"
+                )
+        else:
+            if p.shishen_gan not in weights:
+                raise ValueError(
+                    f"未知天干十神: {p.shishen_gan!r}, pillar={p.gan_zhi!r}"
+                )
+            weights[p.shishen_gan] += _GAN_WEIGHT
+
+        # 地支十神(藏干十神):主气 + 余气
+        if not p.shishen_zhi:
+            # 地支必有藏干,空则数据异常(不吞,显式抛)
+            raise ValueError(
+                f"地支藏干十神为空: pillar={p.gan_zhi!r} zhi={p.zhi!r}"
+            )
+        for zhi_idx, name in enumerate(p.shishen_zhi):
+            if name not in weights:
+                raise ValueError(
+                    f"未知地支十神: {name!r}, pillar={p.gan_zhi!r}"
+                )
+            weights[name] += _ZHI_MAIN_WEIGHT if zhi_idx == 0 else _ZHI_RESIDUAL_WEIGHT
+
+    return weights
+
+
 def build_auxiliary_gong(ec: Any) -> tuple[GanZhiNaYin, GanZhiNaYin, GanZhiNaYin]:
     """命宫 / 身宫 / 胎元(库自带)。"""
     ming = GanZhiNaYin(gan_zhi=ec.getMingGong(), nayin=ec.getMingGongNaYin())

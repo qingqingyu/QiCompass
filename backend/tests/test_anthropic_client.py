@@ -100,3 +100,34 @@ async def test_anthropic_client_uses_first_non_empty_text_block(monkeypatch):
 async def test_anthropic_client_missing_key_is_explicit():
     with pytest.raises(AIProviderError, match="ANTHROPIC_API_KEY not configured"):
         await AnthropicClient(api_key=None).interpret("prompt")
+
+
+# ===== v1 prompt 系统:temperature 分级 =====
+
+
+async def test_anthropic_client_default_temperature_is_0_6(monkeypatch):
+    """默认 temperature=0.6(老模块向后兼容,不传 temperature 时走 0.6)。"""
+    captured = _capture_request(monkeypatch)
+    client = AnthropicClient(api_key="test-key")
+    await client.interpret("prompt")
+    assert captured["json"]["temperature"] == 0.6
+
+
+async def test_anthropic_client_passes_temperature_to_payload(monkeypatch):
+    """显式 temperature=0.3(M0-M2 结构层)被正确传入 json payload。"""
+    captured = _capture_request(monkeypatch)
+    client = AnthropicClient(api_key="test-key")
+    await client.interpret("prompt", temperature=0.3)
+    assert captured["json"]["temperature"] == 0.3
+
+
+def _capture_request(monkeypatch):
+    """安装 fake client 并返回 captured dict,handler 写入请求字段。"""
+    captured: dict = {}
+
+    def handler(url, **kwargs):
+        captured.update(url=url, **kwargs)
+        return _FakeResponse({"content": [{"type": "text", "text": "命书"}]})
+
+    _install_fake_async_client(monkeypatch, handler)
+    return captured
