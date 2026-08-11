@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 from ..engine.pillars import (
     GAN_ELEMENT, ZHI_ELEMENT,
     EN2ZH, SHENG_WO, WO_SHENG, WO_KE, KE_WO,
+    compute_ten_god_weights,
 )
 from ..models.bazi import ElementBalance, Pillars
 
@@ -56,6 +57,12 @@ class XijiResult:
     pattern_hint: str | None = None  # "zhuanwang"|"cong"|None
     # 内部字段(不进 API):扶抑打分,special_pattern 时为 -1 表示未计算
     score: int = -1
+    # v1 prompt 系统:M0 chart 注入字段
+    # ten_god_weights: 全局十神权重(从 pillars.compute_ten_god_weights 透传)
+    # useful_god_candidates: 喜用五行中文 list(普通盘 = favorable_elements 拷贝;
+    #   special_pattern 时为空,对齐"从格诚实降级")
+    ten_god_weights: dict[str, int] = field(default_factory=dict)
+    useful_god_candidates: list[str] = field(default_factory=list)
 
 
 # ---------- 内部辅助 ----------
@@ -226,6 +233,9 @@ def compute_xiji(pillars: Pillars, element_balance: ElementBalance) -> XijiResul
     day_element = _element_of_gan(day_gan)
     counts = element_balance.model_dump()
 
+    # v1 prompt 系统:ten_god_weights 确定性统计(独立于强弱/从格判定)
+    ten_god_weights = compute_ten_god_weights(pillars)
+
     # 1. 从格检测(优先于扶抑)
     pattern = _detect_special_pattern(pillars, counts, day_element)
     if pattern is not None:
@@ -236,6 +246,10 @@ def compute_xiji(pillars: Pillars, element_balance: ElementBalance) -> XijiResul
             tiaoshou_applied=False,
             xiji_method="扶抑+调候(从格特征检测命中,未判定具体格局)",
             pattern_hint=pattern,
+            # v1 字段:ten_god_weights 是客观统计(保留),useful_god_candidates
+            # 留空对齐"从格诚实降级"(不下硬性喜用结论)
+            ten_god_weights=ten_god_weights,
+            useful_god_candidates=[],
         )
 
     # 2. 扶抑打分
@@ -275,4 +289,7 @@ def compute_xiji(pillars: Pillars, element_balance: ElementBalance) -> XijiResul
         xiji_method=xiji_method,
         pattern_hint=None,
         score=score,
+        # v1 字段:useful_god_candidates 直接复用 favorable_elements(中文五行 list)
+        ten_god_weights=ten_god_weights,
+        useful_god_candidates=list(favorable),
     )

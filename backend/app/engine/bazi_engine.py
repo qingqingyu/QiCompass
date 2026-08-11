@@ -36,6 +36,7 @@ from ..engine.pillars import (
 from ..engine.shensha import compute_shensha
 from ..engine.xiji import compute_xiji
 from ..errors import BaziCalculationFailedError
+from ..models.bazi import MetaBlock
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +71,8 @@ class BaziEngine:
             # 2. lunar_python 排盘(用真太阳时调整后的时间)
             # lunar_python 按本地日历组件算,naive datetime 即可
             adjusted_naive = adjusted.replace(tzinfo=None)
-            ec = Solar.fromDate(adjusted_naive).getLunar().getEightChar()
+            lunar = Solar.fromDate(adjusted_naive).getLunar()
+            ec = lunar.getEightChar()
             ec.setSect(SECT)  # 强制(坑1)
 
             # 3. 四柱 + 命宫/身宫/胎元 + 五行
@@ -138,6 +140,15 @@ class BaziEngine:
                 unfavorable=xiji.unfavorable_elements,
             )
 
+            # 9. v1 prompt 系统:meta 块 + chart 注入字段
+            meta_block = _build_meta_block(
+                lunar=lunar,
+                gender=gender,
+                birth=birth,
+                adjusted=adjusted,
+                zi_hour_rule=zi_hour_rule,
+            )
+
             return {
                 "content_hash": content_hash,
                 "true_solar_time": adjusted,
@@ -158,6 +169,10 @@ class BaziEngine:
                 "shensha": [s.model_dump() for s in shensha_items],
                 # 决策 #13 anchor sentence
                 "anchor_sentence": anchor_sentence,
+                # v1 prompt 系统:M0 chart 注入字段
+                "ten_god_weights": xiji.ten_god_weights,
+                "useful_god_candidates": xiji.useful_god_candidates,
+                "meta": meta_block.model_dump(),
                 "luck_pillars": [lp.model_dump() for lp in luck_pillars],
                 "current_luck_pillar": (
                     current_luck.model_dump() if current_luck else None
@@ -249,3 +264,73 @@ def _build_anchor_sentence(
     if not parts:
         return base + "。"
     return base + "，" + "、".join(parts) + "。"
+
+
+# v1 prompt 系统 §1 chart.meta 块
+# zi_hour_rule API 字面值 → meta.late_zishi_rule 映射
+# 当前 MVP 只支持 zi_next_day(对应 setSect(1) + day_change_at_23);
+# zi_same_day 留作未来扩展占位,TypeSystem 已 Literal 约束。
+# TODO(未来扩展 zi_same_day):若开放 zi_same_day,必须同时调整 SECT 常量
+# (zi_same_day 对应 setSect(2) 早晚子时),且 BaziCalculateRequest Literal
+# 需扩展;否则 meta 映射会与排盘规则脱钩。
+_ZI_HOUR_RULE_TO_META: dict[str, str] = {
+    "zi_next_day": "day_change_at_23",
+    "zi_same_day": "zi_same_day",
+}
+
+
+def _build_meta_block(
+    *,
+    lunar: Any,
+    gender: str,
+    birth: datetime,
+    adjusted: datetime,
+    zi_hour_rule: str,
+) -> MetaBlock:
+    """构建 v1 prompt 系统 chart.meta 块(确定性,无 LLM)。
+
+    字段说明:
+    - locale: 固定 "zh-CN"(产品当前仅中文)
+    - gender: 入参 male/female 透传
+    - birth_local: 用户输入的出生时间(含时区 ISO 8601)
+    - true_solar_time: 真太阳时调整后的本地时间(ISO 8601 naive)
+    - late_zishi_rule: 从 zi_hour_rule 映射,v1 语义统一为 "day_change_at_23"
+    - solar_term_boundary: 上一个节/气名 + "后"(从 lunar.getPrevJieQi() 取,
+      返回 24 节气中的任一个;注意:非严格月界"节",含月中"气",供 LLM 上下文参考)
+
+    Args:
+        lunar: lunar_python Lunar 对象(用于节气查询)
+        gender: "male" / "female"
+        birth: 输入时间(offset-aware)
+        adjusted: 真太阳时调整后时间(offset-aware,会剥离时区序列化)
+        zi_hour_rule: "zi_next_day" / "zi_same_day"
+
+    Raises:
+        ValueError: zi_hour_rule 未在 _ZI_HOUR_RULE_TO_META 中(防御 — 应该不可达,
+            BaziCalculateRequest 的 Literal 已约束;但显式抛错避免静默走默认值)
+    """
+    late_zishi_rule = _ZI_HOUR_RULE_TO_META.get(zi_hour_rule)
+    if late_zishi_rule is None:
+        raise ValueError(
+            f"未知 zi_hour_rule: {zi_hour_rule!r},无法映射为 meta.late_zishi_rule"
+        )
+
+    # 节气边界:lunar.getPrevJieQi() 返回 JieQi 对象,getName() 拿节气名
+    prev_jieqi = lunar.getPrevJieQi()
+    if prev_jieqi is None:
+        # 理论上不可达(任何日期都有前一个节气),防御抛错不静默
+        raise ValueError(
+            f"lunar.getPrevJieQi() 返回 None,无法计算 solar_term_boundary: {adjusted!r}"
+        )
+    solar_term_boundary = f"{prev_jieqi.getName()}后"
+
+    # 微秒剥离对齐 BaziCalculateResponse.true_solar_time 的 field_serializer(去微秒)
+    # iOS .iso8601 dateDecodingStrategy 不支持小数秒,两处必须保持一致
+    return MetaBlock(
+        locale="zh-CN",
+        gender=gender,
+        birth_local=birth.replace(microsecond=0).isoformat(),
+        true_solar_time=adjusted.replace(microsecond=0, tzinfo=None).isoformat(),
+        late_zishi_rule=late_zishi_rule,
+        solar_term_boundary=solar_term_boundary,
+    )

@@ -112,6 +112,23 @@ class CalcRuleSnapshot(BaseModel):
     schema_version: int
 
 
+# ---------- Meta 块(v1 prompt 系统:M0 chart JSON 注入) ----------
+
+class MetaBlock(BaseModel):
+    """v1 prompt 系统 §1 chart.meta 块。
+
+    描述出生时间/空间/规则上下文,LLM 用其判断 solar_term_boundary 等结构信号。
+    所有字段确定性产出(同输入同输出),不含 calculated_at。
+    """
+
+    locale: str = "zh-CN"
+    gender: Literal["male", "female"]
+    birth_local: str  # ISO 8601,含时区
+    true_solar_time: str  # ISO 8601,naive(已剥离时区,真太阳时本地)
+    late_zishi_rule: Literal["day_change_at_23", "zi_same_day"]
+    solar_term_boundary: str  # 如 "雨水后",取 lunar.getPrevJieQi().getName() + "后"
+
+
 # ---------- 神煞 ----------
 
 class ShenshaItem(BaseModel):
@@ -155,6 +172,14 @@ class BaziCalculateResponse(BaseModel):
     # 2026-08-01 grill-me 决策 #13 chart anchor sentence
     # 后端确定性拼接(0 AI 成本),iOS 在深度解析 Tab 顶部 instant 显示
     anchor_sentence: str | None = None
+
+    # v1 prompt 系统:M0 chart JSON 注入字段(供 LLM 结构分析)
+    # ten_god_weights: 全局十神权重,4 柱天干+地支藏干统计(10 个十神 → 计数)
+    # useful_god_candidates: 喜用五行中文 list(从 favorable_elements 复用)
+    # meta: 出生上下文(locale/gender/birth_local/true_solar_time/late_zishi_rule/solar_term_boundary)
+    ten_god_weights: dict[str, int] = Field(default_factory=dict)
+    useful_god_candidates: list[str] = Field(default_factory=list)
+    meta: MetaBlock | None = None
 
     luck_pillars: list[LuckPillar]
     current_luck_pillar: CurrentPillar | None = None

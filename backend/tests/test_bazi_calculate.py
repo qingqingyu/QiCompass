@@ -151,6 +151,92 @@ async def test_calculate_calc_rule_snapshot_deterministic_no_calculated_at():
     assert "schema_version" in snap
 
 
+# ===== v1 prompt 系统:meta + ten_god_weights + useful_god_candidates =====
+
+
+_TEN_GOD_NAMES = {
+    "比肩", "劫财", "食神", "伤官", "偏财",
+    "正财", "七杀", "正官", "偏印", "正印",
+}
+
+
+async def test_calculate_meta_block_complete():
+    """v1 prompt 系统:meta 块字段完整 + 确定性。
+
+    DOC_EXAMPLE:1990-03-15 14:30 北京(116.41 经度),男。
+    """
+    _, body, _ = await _post(DOC_EXAMPLE)
+    meta = body["meta"]
+    assert meta is not None, "meta 块不应为 None"
+    # locale 固定
+    assert meta["locale"] == "zh-CN"
+    # gender 透传
+    assert meta["gender"] == "male"
+    # birth_local:ISO 8601 含时区(Python isoformat() 输出 +08:00 带冒号)
+    assert "+08:00" in meta["birth_local"]
+    # true_solar_time:ISO 8601 naive(无时区后缀)
+    assert "+" not in meta["true_solar_time"]
+    assert "Z" not in meta["true_solar_time"]
+    # late_zishi_rule:zi_next_day → "day_change_at_23"
+    assert meta["late_zishi_rule"] == "day_change_at_23"
+    # solar_term_boundary:非空,以"后"结尾
+    assert meta["solar_term_boundary"]
+    assert meta["solar_term_boundary"].endswith("后"), (
+        f"solar_term_boundary 应以'后'结尾,实得 {meta['solar_term_boundary']!r}"
+    )
+
+
+async def test_calculate_ten_god_weights_complete():
+    """v1 prompt 系统:ten_god_weights 含完整 10 个十神 + 计数 ≥ 0。"""
+    _, body, _ = await _post(DOC_EXAMPLE)
+    weights = body["ten_god_weights"]
+    assert isinstance(weights, dict)
+    assert set(weights.keys()) == _TEN_GOD_NAMES, (
+        f"缺十神 key: {_TEN_GOD_NAMES - set(weights.keys())}"
+    )
+    for name, count in weights.items():
+        assert isinstance(count, int), f"{name} 计数应为 int"
+        assert count >= 0, f"{name} 计数应 ≥ 0,实得 {count}"
+
+
+async def test_calculate_useful_god_candidates_matches_favorable():
+    """v1 prompt 系统:普通盘 useful_god_candidates = favorable_elements 拷贝。"""
+    _, body, _ = await _post(DOC_EXAMPLE)
+    # DOC_EXAMPLE 是普通盘(己土 weak),favorable 非空
+    if body["day_master_strength"] != "special_pattern":
+        assert body["useful_god_candidates"] == body["favorable_elements"], (
+            "普通盘 useful_god_candidates 应等于 favorable_elements"
+        )
+    else:
+        # 从格诚实降级:留空
+        assert body["useful_god_candidates"] == []
+
+
+async def test_calculate_meta_block_deterministic():
+    """meta 块 + ten_god_weights 确定性(同输入同输出)。"""
+    _, b1, _ = await _post(DOC_EXAMPLE)
+    _, b2, _ = await _post(DOC_EXAMPLE)
+    assert b1["meta"] == b2["meta"]
+    assert b1["ten_god_weights"] == b2["ten_god_weights"]
+    assert b1["useful_god_candidates"] == b2["useful_god_candidates"]
+
+
+async def test_calculate_meta_solar_term_boundary_correct_for_known_date():
+    """已知日期节气边界正确性:1990-03-15 在"惊蛰后"(惊蛰是 1990-03-06)。
+
+    1990 年惊蛰:1990-03-06 05:14(UTC+8);3-15 显然在其后。
+    前一个节气 = 惊蛰 → boundary = "惊蛰后"。
+    """
+    payload = {
+        "birth_datetime": "1990-03-15T14:30:00+08:00",
+        "gender": "male",
+        "city": "北京",
+        "zi_hour_rule": "zi_next_day",
+    }
+    _, body, _ = await _post(payload)
+    assert body["meta"]["solar_term_boundary"] == "惊蛰后"
+
+
 async def test_calculate_different_city_different_hash():
     """不同城市(不同经度)content_hash 不同。"""
     _, b1, _ = await _post(DOC_EXAMPLE)
