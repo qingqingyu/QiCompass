@@ -14,8 +14,8 @@ struct ChartHeaderView: View {
                 Text("\(genderLabel) · \(yearPillarLabel)")
                     .font(BaziFont.display(size: 20))
                     .foregroundStyle(BaziTheme.ink)
-                    // 重写 VoiceOver 文案:中点 · 和括号会让读屏不连贯,改用空格分隔
-                    .accessibilityLabel("\(genderLabel) \(yearPillarLabel)")
+                    // 重写 VoiceOver 文案:中点 · 和括号会让读屏不连贯,改用空格分隔 + 去括号
+                    .accessibilityLabel("\(genderLabelVoiceOver) \(yearPillarLabel)")
                 Spacer()
                 Text("真太阳时偏差 \(offsetString)")
                     .font(.caption)
@@ -46,6 +46,13 @@ struct ChartHeaderView: View {
 
     private var genderLabel: String {
         request.gender == "male" ? "乾造(男)" : "坤造(女)"
+    }
+
+    /// VoiceOver 用:去括号,空格分隔,避免读屏读"左括号 男 右括号"不连贯。
+    private var genderLabelVoiceOver: String {
+        genderLabel
+            .replacingOccurrences(of: "(", with: " ")
+            .replacingOccurrences(of: ")", with: "")
     }
 
     /// Q16 δ + Q12/13:年柱文字(如 `庚辰年`)。ganZhi 来自后端 lunar_python 确定性推算。
