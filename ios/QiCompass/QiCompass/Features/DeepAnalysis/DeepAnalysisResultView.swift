@@ -59,7 +59,13 @@ struct DeepAnalysisResultView: View {
                     nextReset: vm.nextDailyReset,
                     onGenerate: { vm.generateInterpretation() },
                     onRetry: { vm.retryInterpretation() },
-                    onShowPaywall: { showPaywall = true }
+                    onShowPaywall: { showPaywall = true },
+                    // Stage 7c:传 v1 moduleStates 启用 v1 模式(ForEach 8 ModuleCardView)
+                    // moduleStates 为空时返 nil → 走老 legacyInterpretationBody 路径
+                    // (向后兼容合盘/每日运势/老 bazi_deep 用户)
+                    v1ModuleStates: vm.moduleStates.isEmpty ? nil : vm.moduleStates,
+                    onGenerateV1: { vm.generateV1AllModules() },
+                    onRetryV1: { module in vm.retryV1Module(module) }
                 )
 
                 Button("重新排盘") {

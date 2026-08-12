@@ -71,6 +71,21 @@ final class DeepAnalysisViewModel {
 
     var state: DeepAnalysisViewState = .empty
 
+    // MARK: v1 prompt 系统状态(Stage 7c 引入)
+
+    /// 8 模块独立状态(M0-M7),与现有 InterpretState 并存。
+    /// VM 用 generateV1AllModules() 链式编排,失败可单独重试(retryV1Module)。
+    /// 老路径(generateInterpretation)用现有 InterpretState,不受此字段影响。
+    var moduleStates: [ModuleID: ModuleState] = [:]
+
+    /// v1 链式调用累积的字段(M0 输出的 structure_fingerprint / main_axis / core_loop 等),
+    /// 跨多次 runV1Module 调用共享。M0 成功后填充,M1-M7 各自从这里取注入 context。
+    /// 失败重试时复用已成功的上游字段(不重跑整个链)。
+    private var v1ChainFields: [String: String] = [:]
+
+    /// v1 链式调用 Task(用户重新触发或 reset 时取消)。
+    private var v1ChainTask: Task<Void, Never>?
+
     // MARK: 依赖
 
     private let orchestrator: DeepAnalysisOrchestrator
@@ -280,17 +295,230 @@ final class DeepAnalysisViewModel {
         generateInterpretation()
     }
 
+    // MARK: - v1 prompt 系统链式调用(Stage 7c)
+
+    /// 触发 v1 prompt 系统全链路调用(M0 → M1-M7 按依赖图执行)。
+    ///
+    /// 设计要点:
+    /// - 8 模块独立状态机(`moduleStates` 字典),失败可单独重试
+    /// - M0 失败 → 整链中断,标 M1-M7 保持 .pending(等用户重试 M0)
+    /// - 其他模块失败 → 仅标自身 .failed,不影响其他模块(但下游可能因缺依赖卡 pending)
+    /// - 链式字段保存在 v1ChainFields,跨重试累积(M0 重跑后会覆盖老 fingerprint)
+    /// - 串行执行(简化版,M2/M3/M4/M5 理论可并行但 v1 先稳串行,优化留 v2)
+    ///
+    /// 计费:每模块独立消耗 1 次每日配额(orchestrator.runV1Module 实现),
+    /// 全套 = 8 次/天。命中后端缓存 refund + 失败 refund。
+    ///
+    /// 用户场景:
+    /// - 排盘成功后点 "开始 M0 分析"(ModuleCardView M0 pending 态 CTA)
+    /// - 或购买 entitlement 后自动触发(M0+M1 免费,M2-M7 解锁)
+    func generateV1AllModules() {
+        guard case .ready(let response, _) = state else {
+            AppLogger.app.error("op=deepAnalysis.generateV1AllModules invalid_state state=\(String(describing: self.state), privacy: .public)")
+            return
+        }
+
+        AppLogger.app.info("deepVM.generateV1AllModules.start contentHash=\(response.contentHash, privacy: .public)")
+
+        v1ChainTask?.cancel()
+
+        // 重置所有模块为 .pending(全新开始;单模块重试走 retryV1Module)
+        for module in ModuleID.allCases {
+            moduleStates[module] = .pending
+        }
+        v1ChainFields.removeAll()
+
+        v1ChainTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.runV1Chain(response: response)
+        }
+    }
+
+    /// 单模块重试(用户点 ModuleCardView 的"重试"CTA)。
+    ///
+    /// 复用 v1ChainFields 中已成功的上游字段,不重跑整个链。
+    /// 例:M4 失败,用户重试 → 只跑 M4,从 v1ChainFields 取 structure_fingerprint 注入。
+    /// 若必需的上游字段缺失(罕见,理论上不会发生),抛错并标 .failed。
+    func retryV1Module(_ module: ModuleID) {
+        guard case .ready(let response, _) = state else {
+            AppLogger.app.error("op=deepAnalysis.retryV1Module invalid_state state=\(String(describing: self.state), privacy: .public)")
+            return
+        }
+
+        AppLogger.app.info("deepVM.retryV1Module.start module=\(module.rawValue, privacy: .public)")
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.runSingleV1Module(module, response: response)
+        }
+    }
+
+    /// 链式调用主循环:按 ModuleID.allCases 顺序串行执行(M0 → M1 → ... → M7)。
+    ///
+    /// 注:简化版采用全串行;v2 可优化为按依赖图并行(M2/M3/M4/M5 可同时跑)。
+    /// 串行好处:状态机简单,失败定位清晰,无并发竞争。
+    @MainActor
+    private func runV1Chain(response: BaziResponse) async {
+        for module in ModuleID.allCases {
+            if Task.isCancelled { return }
+            await runSingleV1Module(module, response: response)
+            // M0 失败 → 中断链(下游缺 structure_fingerprint 无法跑)
+            if module == .m0 && moduleStates[.m0]?.isOk != true {
+                AppLogger.app.warning("deepVM.runV1Chain m0_failed_breaking_chain contentHash=\(response.contentHash, privacy: .public)")
+                return
+            }
+        }
+    }
+
+    /// 跑单个 v1 module。从 moduleStates 取依赖状态,从 v1ChainFields 取链式字段。
+    /// 成功后解析 JSON 提取链式字段(structure_fingerprint 等)写入 v1ChainFields。
+    @MainActor
+    private func runSingleV1Module(_ module: ModuleID, response: BaziResponse) async {
+        moduleStates[module] = .fetching
+
+        do {
+            let parentFingerprint: String? = module.requiresParentFingerprint
+                ? v1ChainFields["structure_fingerprint"]
+                : nil
+            // M4/M5 用户输入:Stage 7c 暂用占位值(M4=30岁+睡眠 / M5=中等+平衡)
+            // Stage 8 接入 HealthInputForm / WealthInputForm sheet 后由用户填
+            let m4Input: (age: Int, concern: String)? = module == .m4
+                ? (30, "睡眠质量差,工作日长期疲劳")
+                : nil
+            let m5Input: (assets: String, preference: String)? = module == .m5
+                ? ("中等收入,有些积蓄", "平衡")
+                : nil
+
+            let resp = try await orchestrator.runV1Module(
+                response: response,
+                module: module.rawValue,
+                parentFingerprint: parentFingerprint,
+                m4Input: m4Input,
+                m5Input: m5Input
+            )
+
+            if Task.isCancelled { return }
+
+            // 解析 LLM 输出 JSON,提取链式字段给下游模块用
+            // 失败不抛(下游模块可能仍能跑,只是字段缺失会触发后端 validate_context 422)
+            extractChainFields(from: resp.interpretation, for: module)
+
+            moduleStates[module] = .ok(text: resp.interpretation, cached: resp.cached)
+            AppLogger.app.info("deepVM.runSingleV1Module.ok module=\(module.rawValue, privacy: .public) cached=\(resp.cached, privacy: .public)")
+        } catch is CancellationError {
+            AppLogger.app.info("deepVM.runSingleV1Module.cancelled module=\(module.rawValue, privacy: .public)")
+        } catch let error as DeepAnalysisError {
+            if !Task.isCancelled {
+                AppLogger.app.warning("deepVM.runSingleV1Module.deepAnalysisError module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
+                moduleStates[module] = .failed(message: error.errorDescription ?? "未知错误")
+            }
+        } catch {
+            if !Task.isCancelled {
+                AppLogger.app.error("deepVM.runSingleV1Module.failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
+                let userError = UserFacingError.from(error, stage: .interpret)
+                moduleStates[module] = .failed(message: userError.errorDescription ?? "未知错误")
+            }
+        }
+    }
+
+    /// 解析 LLM JSON 输出,提取下游模块需要的链式字段写入 v1ChainFields。
+    /// 失败只 log 不抛(下游模块缺字段会触发后端 422,VM 收到再标 .failed)。
+    @MainActor
+    private func extractChainFields(from llmOutput: String, for module: ModuleID) {
+        guard let data = llmOutput.data(using: .utf8),
+              let parsed = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+            AppLogger.app.warning("deepVM.extractChainFields.parse_failed module=\(module.rawValue, privacy: .public)")
+            return
+        }
+
+        switch module {
+        case .m0:
+            // M0 产出:structure_fingerprint(字符串)+ main_axis + core_loop(dict)
+            if let fp = parsed["structure_fingerprint"] as? String {
+                v1ChainFields["structure_fingerprint"] = fp
+            }
+            if let mainAxis = parsed["main_axis"] {
+                if let data = try? JSONSerialization.data(withJSONObject: mainAxis),
+                   let str = String(data: data, encoding: .utf8) {
+                    v1ChainFields["main_axis"] = str
+                }
+            }
+            if let coreLoop = parsed["core_loop"] {
+                if let data = try? JSONSerialization.data(withJSONObject: coreLoop),
+                   let str = String(data: data, encoding: .utf8) {
+                    v1ChainFields["core_loop"] = str
+                }
+            }
+        case .m1:
+            // M1 产出:innate / defensive(数组)+ one_leverage(字符串)
+            for field in ["innate", "defensive", "trained"] {
+                if let value = parsed[field] {
+                    if let data = try? JSONSerialization.data(withJSONObject: value),
+                       let str = String(data: data, encoding: .utf8) {
+                        v1ChainFields[field] = str
+                    }
+                }
+            }
+            if let leverage = parsed["one_leverage"] as? String {
+                v1ChainFields["one_leverage"] = leverage
+            }
+        case .m2:
+            // M2 产出:threshold(dict)+ switch_actions(数组)
+            if let threshold = parsed["threshold"] {
+                if let data = try? JSONSerialization.data(withJSONObject: threshold),
+                   let str = String(data: data, encoding: .utf8) {
+                    v1ChainFields["threshold"] = str
+                }
+            }
+            if let actions = parsed["switch_actions"] {
+                if let data = try? JSONSerialization.data(withJSONObject: actions),
+                   let str = String(data: data, encoding: .utf8) {
+                    v1ChainFields["switch_actions"] = str
+                }
+            }
+        case .m3:
+            // M3 产出:ideal_life_structure(dict)+ environment_checklist(数组)
+            if let ideal = parsed["ideal_life_structure"] {
+                if let data = try? JSONSerialization.data(withJSONObject: ideal),
+                   let str = String(data: data, encoding: .utf8) {
+                    v1ChainFields["ideal_life_structure"] = str
+                }
+            }
+            if let checklist = parsed["environment_checklist"] {
+                if let data = try? JSONSerialization.data(withJSONObject: checklist),
+                   let str = String(data: data, encoding: .utf8) {
+                    v1ChainFields["environment_checklist"] = str
+                }
+            }
+        case .m6:
+            // M6 产出:leverage(dict)
+            if let leverage = parsed["leverage"] {
+                if let data = try? JSONSerialization.data(withJSONObject: leverage),
+                   let str = String(data: data, encoding: .utf8) {
+                    v1ChainFields["leverage"] = str
+                }
+            }
+        case .m4, .m5, .m7:
+            // M4/M5/M7 不产出下游需要的链式字段
+            break
+        }
+    }
+
     // MARK: - 重置
 
     /// 回到表单态(保留表单输入)。
     /// 取消进行中的 Task,避免状态回退后被旧结果覆盖。
     /// failureCount 也清零(用户主动重置 ≠ 网络故障持续,不应被永久标记)。
+    /// Stage 7c:同时取消 v1 链式调用 + 清 moduleStates + v1ChainFields。
     func reset() {
         calculateTask?.cancel()
         interpretTask?.cancel()
+        v1ChainTask?.cancel()
         state = .empty
         lastRequest = nil
         failureCount = 0
+        moduleStates.removeAll()
+        v1ChainFields.removeAll()
     }
 
     // MARK: - 查询
