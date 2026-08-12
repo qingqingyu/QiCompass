@@ -119,6 +119,11 @@
 		9C0000000000000000000060 /* ZodiacHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000060 /* ZodiacHelper.swift */; };
 		9C0000000000000000000056 /* SyncDTOs.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000056 /* SyncDTOs.swift */; };
 		9C0000000000000000000057 /* SyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000057 /* SyncManager.swift */; };
+		9C0000000000000000000070 /* ModuleDefinitions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000070 /* ModuleDefinitions.swift */; };
+		9C0000000000000000000071 /* ModuleState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000071 /* ModuleState.swift */; };
+		9C0000000000000000000072 /* ModuleCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000072 /* ModuleCardView.swift */; };
+		9C0000000000000000000073 /* HealthInputForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000073 /* HealthInputForm.swift */; };
+		9C0000000000000000000074 /* WealthInputForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000074 /* WealthInputForm.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -248,6 +253,11 @@
 		F9AB427085FC26BB41BE756E /* PillarsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PillarsTable.swift; path = QiCompass/Features/DeepAnalysis/PillarsTable.swift; sourceTree = SOURCE_ROOT; };
 		F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartHeaderView.swift; path = QiCompass/Features/DeepAnalysis/ChartHeaderView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000048 /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text.json.storekit; name = Products.storekit; path = QiCompass/Products.storekit; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000070 /* ModuleDefinitions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModuleDefinitions.swift; path = QiCompass/Models/ModuleDefinitions.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000071 /* ModuleState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModuleState.swift; path = QiCompass/Models/ModuleState.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000072 /* ModuleCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModuleCardView.swift; path = QiCompass/Features/DeepAnalysis/ModuleCardView.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000073 /* HealthInputForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HealthInputForm.swift; path = QiCompass/Features/DeepAnalysis/HealthInputForm.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000074 /* WealthInputForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WealthInputForm.swift; path = QiCompass/Features/DeepAnalysis/WealthInputForm.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -315,6 +325,9 @@
 				F8BC4D749648FC864F2EDB38 /* LuckPillarsTimeline.swift */,
 				36F14142AE8D5D39E818F777 /* CurrentStatusCard.swift */,
 				6D294D4B91EA07ABB037F7BE /* InterpretationSection.swift */,
+				9C1000000000000000000072 /* ModuleCardView.swift */,
+				9C1000000000000000000073 /* HealthInputForm.swift */,
+				9C1000000000000000000074 /* WealthInputForm.swift */,
 				9C100000000000000000001C /* BusinessDateCalculator.swift */,
 				9C100000000000000000001D /* DailyFortuneSnapshotStore.swift */,
 				9C100000000000000000001E /* DailyFortuneOrchestrator.swift */,
@@ -361,6 +374,8 @@
 				9C1000000000000000000009 /* SchemaRegistry.swift */,
 				9C1000000000000000000029 /* InterpretState.swift */,
 				9C1000000000000000000040 /* Entitlement.swift */,
+				9C1000000000000000000070 /* ModuleDefinitions.swift */,
+				9C1000000000000000000071 /* ModuleState.swift */,
 			);
 			path = Models;
 			sourceTree = "<group>";
@@ -657,6 +672,11 @@
 				8BBC49F7AA9A880E2DDC47DF /* LuckPillarsTimeline.swift in Sources */,
 				53C04EBCAC6489458F4D4AC9 /* CurrentStatusCard.swift in Sources */,
 				21AC43B586C598B1FBD82F89 /* InterpretationSection.swift in Sources */,
+				9C0000000000000000000070 /* ModuleDefinitions.swift in Sources */,
+				9C0000000000000000000071 /* ModuleState.swift in Sources */,
+				9C0000000000000000000072 /* ModuleCardView.swift in Sources */,
+				9C0000000000000000000073 /* HealthInputForm.swift in Sources */,
+				9C0000000000000000000074 /* WealthInputForm.swift in Sources */,
 				9C000000000000000000001C /* BusinessDateCalculator.swift in Sources */,
 				9C000000000000000000001D /* DailyFortuneSnapshotStore.swift in Sources */,
 				9C000000000000000000001E /* DailyFortuneOrchestrator.swift in Sources */,

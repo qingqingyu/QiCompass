@@ -76,6 +76,198 @@ enum PromptContextBuilder {
         ]
     }
 
+    // MARK: - v1 Prompt System(Stage 7b)
+
+    /// 构造 v1 prompt 系统的 chart JSON 字符串(对齐 bazi-prompt-system-v1.md §1 schema
+    /// + backend `app/engine/chart_builder.py:build_v1_chart` 输出结构)。
+    ///
+    /// 输出 JSON 结构(与 backend chart_builder.build_v1_chart() 完全一致):
+    /// - meta:出生上下文(透传 BaziResponse.meta,Stage 1 后端引入)
+    /// - pillars:完整 Pillar(含 gan_zhi/gan/zhi/gan_element/zhi_element/hide_gan/
+    ///   shishen_gan/shishen_zhi/nayin/dishi/xunkong),不缩减为 stem/branch
+    ///   (backend chart_builder.py:179-182 明确注释"完整信息对 LLM 更友好")
+    /// - day_master:{stem, element, strength_score=null, strength_label}
+    ///   (strength_score 留 null,BaziResponse 不透传 xiji.score,LLM 走 label 判断)
+    /// - ten_gods:{year_stem, month_stem, hour_stem, hidden: {year_branch, ...}}
+    ///   (不含 day_stem:lunar_python 日柱 shishen_gan 固定返回"日主"非十神)
+    /// - ten_god_weights:全局十神权重(透传 BaziResponse.tenGodWeights)
+    /// - five_elements:{木, 火, 土, 金, 水} 计数(英文 key → 中文)
+    /// - useful_god_candidates:喜用五行中文 list(透传,special_pattern 时为空)
+    /// - luck_pillars:[{start_age, stem, branch}] (gan_zhi 拆前后 1 字)
+    /// - current_luck:{start_age, stem, branch, ten_god=null} | null
+    ///   (ten_god 留 null,后端没现成工具算 gan-vs-gan 十神,LLM 自推)
+    /// - current_year:{stem, branch, ten_god=null}
+    ///
+    /// - Parameter response:后端 BaziResponse(必须含 meta / tenGodWeights /
+    ///   usefulGodCandidates,即 Stage 1+ 后端返回的完整 schema)
+    /// - Returns:JSON 字符串(供 render_prompt 的 chart 占位符注入)
+    /// - Throws:`PromptContextError.missingMetaBlock` 当 response.meta = nil
+    ///   (老 response 兼容性破坏时显式暴露,对齐 CLAUDE.md 错误显式传播)
+    static func buildV1ChartJSON(response: BaziResponse) throws -> String {
+        guard let meta = response.meta else {
+            throw PromptContextError.missingMetaBlock(
+                contentHash: response.contentHash
+            )
+        }
+
+        let p = response.pillars
+
+        // 拆 gan_zhi 2 字为 stem + branch(大运/流年)。
+        // 长度异常显式抛错(对齐 backend chart_builder.py:120-122 的 ValueError,
+        // 不静默兜底空字符串 — 那会让 LLM 看到空 stem/branch 困惑且难追踪根因)。
+        func splitGanZhi(_ gz: String, field: String) throws -> [String: String] {
+            guard gz.count == 2 else {
+                throw PromptContextError.invalidGanZhi(
+                    contentHash: response.contentHash,
+                    field: field,
+                    value: gz
+                )
+            }
+            return [
+                "stem": String(gz.prefix(1)),
+                "branch": String(gz.suffix(1)),
+            ]
+        }
+
+        // 完整 Pillar dict(对齐 backend chart_builder.py:182 "pillars 传完整 Pillar")
+        func pillarDict(_ pillar: PillarDTO) -> [String: Any] {
+            return [
+                "gan_zhi": pillar.ganZhi,
+                "gan": pillar.gan,
+                "zhi": pillar.zhi,
+                "gan_element": pillar.ganElement,
+                "zhi_element": pillar.zhiElement,
+                "hide_gan": pillar.hideGan,
+                "shishen_gan": pillar.shishenGan,
+                "shishen_zhi": pillar.shishenZhi,
+                "nayin": pillar.nayin,
+                "dishi": pillar.dishi,
+                "xunkong": pillar.xunkong,
+            ]
+        }
+
+        // luck_pillars 拆 gan_zhi
+        let luckPillars: [[String: Any]] = try response.luckPillars.map { lp in
+            var dict: [String: Any] = ["start_age": lp.startAge]
+            dict.merge(try splitGanZhi(lp.ganZhi, field: "luck_pillar")) { _, new in new }
+            return dict
+        }
+
+        // current_luck(可能为 nil)+ 反查 start_age
+        let currentLuck: [String: Any]?
+        if let clp = response.currentLuckPillar {
+            let startAge = response.luckPillars.first { $0.startYear == clp.startYear }?.startAge
+            var dict: [String: Any] = try splitGanZhi(clp.ganZhi, field: "current_luck_pillar")
+            dict["start_age"] = startAge ?? NSNull()
+            // ten_god 留 null:后端没现成工具算 gan-vs-gan 十神,LLM 自推
+            // (对齐 backend chart_builder.py:153-156)
+            dict["ten_god"] = NSNull()
+            currentLuck = dict
+        } else {
+            currentLuck = nil
+        }
+
+        // current_year 拆 gan_zhi(后端语义保证非空,但 mock / 老 response 可能 nil)
+        // nil 时显式抛错(对齐 backend chart_builder.py:163-167)
+        guard let cypStr = response.currentYearPillar else {
+            throw PromptContextError.missingCurrentYear(
+                contentHash: response.contentHash
+            )
+        }
+        var currentYear: [String: Any] = try splitGanZhi(cypStr, field: "current_year_pillar")
+        currentYear["ten_god"] = NSNull()
+
+        // day_master.strength_label:英文枚举 → 中文 label(对齐 backend chart_builder.py:69-72
+        // + _STRENGTH_LABEL_ZH 映射)。response.dayMasterStrength 是英文枚举
+        // (strong/weak/balanced/special_pattern),需映射为中文。
+        // nil = 老 response,兜底"未判定";非 nil 但不在已知枚举 = 代码 bug,显式抛错。
+        let strengthLabel: String
+        if let strength = response.dayMasterStrength {
+            switch strength {
+            case "strong": strengthLabel = "偏旺"
+            case "weak": strengthLabel = "偏弱"
+            case "balanced": strengthLabel = "中和"
+            case "special_pattern": strengthLabel = "从格特征"
+            default:
+                throw PromptContextError.unknownDayMasterStrength(
+                    contentHash: response.contentHash,
+                    value: strength
+                )
+            }
+        } else {
+            // 老 response 兜底(对齐 BaziResponse.dayMasterStrength: String? 的 optional 语义)
+            strengthLabel = "未判定"
+        }
+
+        let chart: [String: Any] = [
+            "meta": [
+                "locale": meta.locale,
+                "gender": meta.gender,
+                "birth_local": meta.birthLocal,
+                "true_solar_time": meta.trueSolarTime,
+                "late_zishi_rule": meta.lateZishiRule,
+                "solar_term_boundary": meta.solarTermBoundary,
+            ],
+            "pillars": [
+                "year": pillarDict(p.year),
+                "month": pillarDict(p.month),
+                "day": pillarDict(p.day),
+                "hour": pillarDict(p.hour),
+            ],
+            "day_master": [
+                "stem": p.day.gan,
+                "element": Self.elementToChinese(p.day.ganElement),
+                // strength_score 留 null:BaziResponse 不透传 xiji.score,
+                // LLM 走 strength_label 判断(对齐 backend chart_builder.py:76-79)
+                "strength_score": NSNull(),
+                "strength_label": strengthLabel,
+            ],
+            "ten_gods": [
+                "year_stem": p.year.shishenGan,
+                "month_stem": p.month.shishenGan,
+                "hour_stem": p.hour.shishenGan,
+                "hidden": [
+                    "year_branch": p.year.shishenZhi,
+                    "month_branch": p.month.shishenZhi,
+                    "day_branch": p.day.shishenZhi,
+                    "hour_branch": p.hour.shishenZhi,
+                ],
+            ],
+            "ten_god_weights": response.tenGodWeights,
+            "five_elements": [
+                "木": response.elementBalance.wood,
+                "火": response.elementBalance.fire,
+                "土": response.elementBalance.earth,
+                "金": response.elementBalance.metal,
+                "水": response.elementBalance.water,
+            ],
+            "useful_god_candidates": response.usefulGodCandidates,
+            "luck_pillars": luckPillars,
+            "current_luck": currentLuck ?? NSNull(),
+            "current_year": currentYear,
+        ]
+
+        do {
+            let data = try JSONSerialization.data(
+                withJSONObject: chart,
+                options: [.prettyPrinted, .sortedKeys]
+            )
+            guard let jsonString = String(data: data, encoding: .utf8) else {
+                throw PromptContextError.jsonEncodingFailed(
+                    contentHash: response.contentHash
+                )
+            }
+            return jsonString
+        } catch let error as PromptContextError {
+            throw error
+        } catch {
+            throw PromptContextError.jsonEncodingFailed(
+                contentHash: response.contentHash,
+                underlying: error
+            )
+        }
+    }
+
     // MARK: - Daily Fortune
 
     /// 构造 daily_fortune module 的 prompt context。覆盖后端 `REQUIRED_FIELDS["daily_fortune"]`
@@ -190,5 +382,42 @@ enum PromptContextBuilder {
 
     static func formatElementBalance(_ balance: ElementBalanceDTO) -> String {
         "木:\(balance.wood) 火:\(balance.fire) 土:\(balance.earth) 金:\(balance.metal) 水:\(balance.water)"
+    }
+}
+
+// MARK: - PromptContextError
+
+/// v1 prompt 系统 chart 构建错误(Stage 7b)。
+///
+/// 显式错误传播(对齐 CLAUDE.md):不静默吞错。buildV1ChartJSON 失败时由
+/// Orchestrator throw 透传,VM 转为 UI 错误路径(DeepAnalysisViewModel
+/// 在 Stage 7c 接入时用 UserFacingError.from 包装显示给用户)。
+enum PromptContextError: Error, LocalizedError {
+    /// response.meta 为 nil(老 response 或后端版本未升级到 Stage 1+)
+    case missingMetaBlock(contentHash: String)
+    /// response.currentYearPillar 为 nil(后端语义保证非空,nil = 数据损坏)
+    case missingCurrentYear(contentHash: String)
+    /// gan_zhi 长度异常(期望 2 字符天干+地支)。splitGanZhi 拒绝静默兜底空字符串。
+    case invalidGanZhi(contentHash: String, field: String, value: String)
+    /// dayMasterStrength 非 nil 但不在已知枚举(strong/weak/balanced/special_pattern)
+    /// 代码 bug 显式暴露(对齐 backend chart_builder._STRENGTH_LABEL_ZH 严格性)
+    case unknownDayMasterStrength(contentHash: String, value: String)
+    /// JSONSerialization 失败(理论不可达,Dict 结构都是 JSON-safe)
+    case jsonEncodingFailed(contentHash: String, underlying: Error? = nil)
+
+    var errorDescription: String? {
+        switch self {
+        case .missingMetaBlock(let hash):
+            return "命盘缺 meta 块(contentHash=\(hash.prefix(8))),可能后端版本未升级到 Stage 1+,或 response 过期"
+        case .missingCurrentYear(let hash):
+            return "命盘缺 current_year_pillar(contentHash=\(hash.prefix(8))),数据损坏"
+        case .invalidGanZhi(let hash, let field, let value):
+            return "命盘 \(field) gan_zhi 长度异常(期望 2 字符):\(value)(contentHash=\(hash.prefix(8)))"
+        case .unknownDayMasterStrength(let hash, let value):
+            return "命盘 day_master_strength 未知值:\(value)(contentHash=\(hash.prefix(8))),期望 strong/weak/balanced/special_pattern"
+        case .jsonEncodingFailed(let hash, let underlying):
+            let detail = underlying.map { "(\(type(of: $0)): \($0))" } ?? ""
+            return "chart JSON 序列化失败(contentHash=\(hash.prefix(8)))\(detail)"
+        }
     }
 }

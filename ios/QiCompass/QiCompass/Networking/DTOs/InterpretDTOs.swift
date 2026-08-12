@@ -6,6 +6,10 @@ import Foundation
 ///
 /// 注意:promptVersion 不在 Request 中(必须来自后端 config.PROMPT_VERSIONS,
 /// 禁止客户端决定)。
+///
+/// Stage 7b 扩展:加 v1 prompt 系统链式调用字段(parentFingerprint)+ 按需模块
+/// 用户输入(m4Age/m4CurrentConcern/m5AssetsSummary/m5Preference)。默认 nil
+/// 向后兼容老 module(bazi_deep_*/compatibility_*/daily_fortune)调用。
 struct InterpretRequest: Codable, Sendable {
     let contentHash: String
     let module: String
@@ -16,6 +20,19 @@ struct InterpretRequest: Codable, Sendable {
     /// 用于 entitlement 查询(`(content_hash, module, user_local_id)` 三元组)。
     let userLocalId: String?
 
+    // v1 prompt 系统链式调用字段(Stage 7b 引入)
+    /// M0 产出的 structure_fingerprint;M1-M7 必填(M0 自身不需要)。
+    /// 用于链式调用缓存隔离 parent_hash 维度。老 module 留 nil。
+    let parentFingerprint: String?
+    /// M4 健康模块必填:年龄。仅 m4_health module 用。
+    let m4Age: Int?
+    /// M4 健康模块必填:当前困扰(睡眠/疲劳/体重/情绪)。
+    let m4CurrentConcern: String?
+    /// M5 财富模块必填:资产/收入概况(可粗略)。
+    let m5AssetsSummary: String?
+    /// M5 财富模块必填:偏好(保守/平衡/进攻)。
+    let m5Preference: String?
+
     enum CodingKeys: String, CodingKey {
         case contentHash = "content_hash"
         case module
@@ -23,6 +40,11 @@ struct InterpretRequest: Codable, Sendable {
         case targetDate = "target_date"
         case question
         case userLocalId = "user_local_id"
+        case parentFingerprint = "parent_fingerprint"
+        case m4Age = "m4_age"
+        case m4CurrentConcern = "m4_current_concern"
+        case m5AssetsSummary = "m5_assets_summary"
+        case m5Preference = "m5_preference"
     }
 
     init(
@@ -31,7 +53,13 @@ struct InterpretRequest: Codable, Sendable {
         context: [String: AnyCodableJSON],
         targetDate: Date? = nil,
         question: AnyCodableJSON? = nil,
-        userLocalId: String? = nil
+        userLocalId: String? = nil,
+        // v1 prompt 系统链式调用字段(默认 nil 向后兼容老 module 调用)
+        parentFingerprint: String? = nil,
+        m4Age: Int? = nil,
+        m4CurrentConcern: String? = nil,
+        m5AssetsSummary: String? = nil,
+        m5Preference: String? = nil
     ) {
         self.contentHash = contentHash
         self.module = module
@@ -39,6 +67,11 @@ struct InterpretRequest: Codable, Sendable {
         self.targetDate = targetDate
         self.question = question
         self.userLocalId = userLocalId
+        self.parentFingerprint = parentFingerprint
+        self.m4Age = m4Age
+        self.m4CurrentConcern = m4CurrentConcern
+        self.m5AssetsSummary = m5AssetsSummary
+        self.m5Preference = m5Preference
     }
 
     init(from decoder: Decoder) throws {
@@ -60,6 +93,12 @@ struct InterpretRequest: Codable, Sendable {
         }
         question = try container.decodeIfPresent(AnyCodableJSON.self, forKey: .question)
         userLocalId = try container.decodeIfPresent(String.self, forKey: .userLocalId)
+        // v1 字段(向后兼容:老 response 不含这些 key,decodeIfPresent 返 nil)
+        parentFingerprint = try container.decodeIfPresent(String.self, forKey: .parentFingerprint)
+        m4Age = try container.decodeIfPresent(Int.self, forKey: .m4Age)
+        m4CurrentConcern = try container.decodeIfPresent(String.self, forKey: .m4CurrentConcern)
+        m5AssetsSummary = try container.decodeIfPresent(String.self, forKey: .m5AssetsSummary)
+        m5Preference = try container.decodeIfPresent(String.self, forKey: .m5Preference)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -74,6 +113,12 @@ struct InterpretRequest: Codable, Sendable {
         }
         try container.encodeIfPresent(question, forKey: .question)
         try container.encodeIfPresent(userLocalId, forKey: .userLocalId)
+        // v1 字段:nil 不编码(后端 model_validator 按 None 处理,默认空校验通过)
+        try container.encodeIfPresent(parentFingerprint, forKey: .parentFingerprint)
+        try container.encodeIfPresent(m4Age, forKey: .m4Age)
+        try container.encodeIfPresent(m4CurrentConcern, forKey: .m4CurrentConcern)
+        try container.encodeIfPresent(m5AssetsSummary, forKey: .m5AssetsSummary)
+        try container.encodeIfPresent(m5Preference, forKey: .m5Preference)
     }
 
     private static func formatTargetDate(_ date: Date) -> String {
