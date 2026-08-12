@@ -189,17 +189,17 @@ struct BaziResponse: Codable, Sendable {
     let yearBranchZodiac: String
 
     // v1 prompt 系统 chart 注入字段(Stage 1 后端引入,iOS Stage 7b 接入)
-    // 默认值兼容老 mock / 老 response:Swift synthesized Codable 对 let + 默认值
-    // 用 decodeIfPresent + ?? default,缺 key 时用默认值(对齐 backend bazi_engine
-    // Stage 1+ 总是返回非空值的语义)
-    // 注:用 let + 默认值(不用 var)以保持 BaziResponse 的 Sendable 合成
+    // 不在声明处给默认值(否则 init(from decoder:) + 默认值会触发"immutable value
+    // may only be initialized once"编译错误),由 memberwise init 的默认参数 +
+    // init(from decoder:) 的 decodeIfPresent ?? default 两处分别提供。
+    // 注:用 let(不用 var)以保持 BaziResponse 的 Sendable 合成
     // (Swift 严格并发检查要求 Sendable struct 所有 stored property 是 let 或自身 Sendable)
     /// 全局十神权重(10 个十神 → 计数)。空 dict = 老 response 或 special_pattern 时未算
-    let tenGodWeights: [String: Int] = [:]
+    let tenGodWeights: [String: Int]
     /// 喜用五行中文 list(special_pattern 时为空)
-    let usefulGodCandidates: [String] = []
+    let usefulGodCandidates: [String]
     /// 出生上下文 meta 块。nil = 老 response 未含此字段
-    let meta: MetaBlockDTO? = nil
+    let meta: MetaBlockDTO?
 
     enum CodingKeys: String, CodingKey {
         case contentHash = "content_hash"
