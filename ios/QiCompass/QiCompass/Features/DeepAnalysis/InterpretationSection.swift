@@ -34,6 +34,9 @@ struct InterpretationSection: View {
     var onGenerateV1: () -> Void = {}
     /// v1 模式:用户点 ModuleCardView 单模块"重试"CTA 时触发单模块重跑。
     var onRetryV1: (ModuleID) -> Void = { _ in }
+    /// v1 模式:用户点 ModuleCardView 的"提供输入"CTA 时触发(M4/M5 .needsInput)。
+    /// ResultView 接收后弹 HealthInputForm / WealthInputForm sheet(Stage 8)。
+    var onProvideInput: (ModuleID) -> Void = { _ in }
 
     /// 有效 interpretState:idle + remaining=0 时自动转为 dailyLimitReached(消除 idle case 的 if/else 判断)。
     private var effectiveState: InterpretState {
@@ -84,12 +87,7 @@ struct InterpretationSection: View {
                         onGenerate: onGenerateV1,
                         onRetry: { onRetryV1(module) },
                         onUnlock: onShowPaywall,
-                        onProvideInput: {
-                            // Stage 8 接入 HealthInputForm / WealthInputForm sheet
-                            // 当前 placeholder:log 提示(对齐 CLAUDE.md 错误显式传播,
-                            // 不静默吞 — 用户能看到日志知道功能未接入)
-                            AppLogger.app.info("deepVM.v1ModuleCard.onProvideInput module=\(module.rawValue, privacy: .public) (Stage 8 待接入)")
-                        }
+                        onProvideInput: { onProvideInput(module) }
                     )
                 }
             }

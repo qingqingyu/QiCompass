@@ -83,6 +83,16 @@ final class DeepAnalysisViewModel {
     /// 失败重试时复用已成功的上游字段(不重跑整个链)。
     private var v1ChainFields: [String: String] = [:]
 
+    /// M4 用户输入(Stage 8):用户通过 HealthInputForm sheet 填写。
+    /// nil = 用户尚未填 → M4 模块标 .needsInput,等用户填。
+    /// 非 nil = 用户填过 → runSingleV1Module(.m4) 用此值调 orchestrator。
+    /// 外部只读(submitM4Input 写入),避免绕过 submit 路径(不会触发 retry)。
+    private(set) var m4UserInput: (age: Int, concern: String)?
+    /// M5 用户输入(Stage 8):用户通过 WealthInputForm sheet 填写。
+    /// nil = 用户尚未填 → M5 模块标 .needsInput,等用户填。
+    /// 外部只读(submitM5Input 写入),避免绕过 submit 路径(不会触发 retry)。
+    private(set) var m5UserInput: (assets: String, preference: String)?
+
     /// v1 链式调用 Task(用户重新触发或 reset 时取消)。
     private var v1ChainTask: Task<Void, Never>?
 
@@ -295,6 +305,32 @@ final class DeepAnalysisViewModel {
         generateInterpretation()
     }
 
+    // MARK: - v1 prompt 系统用户输入提交(Stage 8)
+
+    /// M4 用户输入提交(HealthInputForm sheet 的 onSubmit 回调)。
+    /// 写入 m4UserInput + 若 M4 当前是 .needsInput 则触发自动重试。
+    /// 注:上游依赖(M0)是否 ok 由 runSingleV1Module 内部守卫处理(缺失时标 .pending)。
+    func submitM4Input(age: Int, concern: String) {
+        m4UserInput = (age, concern)
+        // age 非敏感(concern 含健康信息 → privacy)
+        AppLogger.app.info("deepVM.submitM4Input age=\(age) concern=\(concern, privacy: .private)")
+        if moduleStates[.m4] == .needsInput {
+            retryV1Module(.m4)
+        }
+    }
+
+    /// M5 用户输入提交(WealthInputForm sheet 的 onSubmit 回调)。
+    /// 写入 m5UserInput + 若 M5 当前是 .needsInput 则触发自动重试。
+    /// 注:上游依赖(M0+M1+M3)是否 ok 由 runSingleV1Module 内部守卫处理。
+    func submitM5Input(assets: String, preference: String) {
+        m5UserInput = (assets, preference)
+        // assets 含财务信息 → privacy;preference 三选一非敏感但跟随 private 保持一致
+        AppLogger.app.info("deepVM.submitM5Input assets=\(assets, privacy: .private) preference=\(preference, privacy: .private)")
+        if moduleStates[.m5] == .needsInput {
+            retryV1Module(.m5)
+        }
+    }
+
     // MARK: - v1 prompt 系统链式调用(Stage 7c)
 
     /// 触发 v1 prompt 系统全链路调用(M0 → M1-M7 按依赖图执行)。
@@ -372,29 +408,48 @@ final class DeepAnalysisViewModel {
 
     /// 跑单个 v1 module。从 moduleStates 取依赖状态,从 v1ChainFields 取链式字段。
     /// 成功后解析 JSON 提取链式字段(structure_fingerprint 等)写入 v1ChainFields。
+    ///
+    /// Stage 8 改造:M4/M5 用户输入从 VM 状态字段(m4UserInput / m5UserInput)取,
+    /// 替代 Stage 7c 的硬编码占位值。若 M4/M5 用户输入为 nil → 标 .needsInput,
+    /// 不调 orchestrator(等用户填 sheet 提交后再重试)。
     @MainActor
     private func runSingleV1Module(_ module: ModuleID, response: BaziResponse) async {
+        // M4 缺用户输入 → 标 .needsInput,不调 orchestrator
+        if module == .m4 && m4UserInput == nil {
+            moduleStates[module] = .needsInput
+            AppLogger.app.info("deepVM.runSingleV1Module.m4_needs_input contentHash=\(response.contentHash, privacy: .public)")
+            return
+        }
+        // M5 缺用户输入 → 标 .needsInput
+        if module == .m5 && m5UserInput == nil {
+            moduleStates[module] = .needsInput
+            AppLogger.app.info("deepVM.runSingleV1Module.m5_needs_input contentHash=\(response.contentHash, privacy: .public)")
+            return
+        }
+
+        // 上游依赖守卫:M1-M7 需要 structure_fingerprint;若 M0 未成功(v1ChainFields 缺字段),
+        // 不发注定 422 的请求,标 .pending 等用户先重试 M0。
+        // 场景:用户在 M4 needsInput 时填了输入 → submitM4Input 自动调 retryV1Module(.m4),
+        // 但 M0 可能已失败(网络断 / 日限) → 此处拦回 .pending,不浪费次数。
+        if module.requiresParentFingerprint && v1ChainFields["structure_fingerprint"] == nil {
+            moduleStates[module] = .pending
+            AppLogger.app.warning("deepVM.runSingleV1Module.missing_parent module=\(module.rawValue, privacy: .public) — 标 .pending 等上游重试")
+            return
+        }
+
         moduleStates[module] = .fetching
 
         do {
             let parentFingerprint: String? = module.requiresParentFingerprint
                 ? v1ChainFields["structure_fingerprint"]
                 : nil
-            // M4/M5 用户输入:Stage 7c 暂用占位值(M4=30岁+睡眠 / M5=中等+平衡)
-            // Stage 8 接入 HealthInputForm / WealthInputForm sheet 后由用户填
-            let m4Input: (age: Int, concern: String)? = module == .m4
-                ? (30, "睡眠质量差,工作日长期疲劳")
-                : nil
-            let m5Input: (assets: String, preference: String)? = module == .m5
-                ? ("中等收入,有些积蓄", "平衡")
-                : nil
 
             let resp = try await orchestrator.runV1Module(
                 response: response,
                 module: module.rawValue,
                 parentFingerprint: parentFingerprint,
-                m4Input: m4Input,
-                m5Input: m5Input
+                m4Input: m4UserInput,
+                m5Input: m5UserInput
             )
 
             if Task.isCancelled { return }
@@ -519,6 +574,10 @@ final class DeepAnalysisViewModel {
         failureCount = 0
         moduleStates.removeAll()
         v1ChainFields.removeAll()
+        // Stage 8 修复:清 M4/M5 用户输入,避免跨命盘污染
+        // (排盘 A 填的 concern 不能给排盘 B 用,违反「八字计算必须确定性」语义)
+        m4UserInput = nil
+        m5UserInput = nil
     }
 
     // MARK: - 查询
