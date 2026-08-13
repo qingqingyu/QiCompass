@@ -76,7 +76,7 @@ struct PaywallView: View {
             )
 
             // 法律免责(DESIGN.md 反 AI slop + 命理类审核要求)
-            Text("玄学娱乐,理性参考。\n订阅即视为同意 Apple 标准用户协议。")
+            Text("玄学娱乐,理性参考。\n购买即视为同意 Apple 标准用户协议。")
                 .font(.caption2)
                 .foregroundStyle(BaziTheme.inkMuted)
                 .multilineTextAlignment(.center)
