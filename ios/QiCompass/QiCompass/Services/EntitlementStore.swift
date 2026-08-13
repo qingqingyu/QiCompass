@@ -1,10 +1,11 @@
 import Foundation
 import SwiftData
 
-/// Entitlement SwiftData 查询 wrapper(M3a)。
+/// Entitlement SwiftData 查询 wrapper(M3a + Slice 3 双轨查询)。
 ///
 /// 对齐后端 `EntitlementStore` (`backend/app/entitlement/store.py`)语义:
-/// - `getActive(contentHash:module:userLocalId:)`:查命盘维度的 active 授权
+/// - `getActive(contentHash:module:userLocalId:userId:)`:双轨查命盘维度 active 授权
+///   (userId 优先,userLocalId 兜底)
 /// - `upsert(...)`:写入(M3a/c Mock 用 + M3b 真购买流程也用)
 /// - `deactivate(transactionId:)`:M3a/c 不实际调用(M3b 接 Server Notifications 时用)
 ///
@@ -20,17 +21,47 @@ final class EntitlementStore {
 
     /// 查命盘维度的 active entitlement(用于 /api/interpret 客户端拦截 + UI 锁标判断)。
     ///
-    /// 一个 (content_hash, module, user_local_id) 可能有多笔(用户改生辰重购),
-    /// 任意一笔 active 即视为有权。取最近一笔(purchasedAt DESC LIMIT 1)。
+    /// **双轨策略**(Slice 3,对齐后端 store.get_active):
+    /// - 已登录(userId != nil)→ 优先按 userId 查(跨设备 / 重装 / 退登回登场景)
+    /// - userId 未命中或未传 → 兜底按 userLocalId 查(老数据 / 未登录购买场景)
+    /// - 一个 (content_hash, module, user_*) 可能有多笔(用户改生辰重购),
+    ///   任意一笔 active 即视为有权。取最近一笔(purchasedAt DESC LIMIT 1)。
     ///
     /// - Returns: 命中 active → Entitlement;未命中 → nil
     func getActive(
         contentHash: String,
         module: String,
-        userLocalId: String
+        userLocalId: String,
+        userId: String? = nil
     ) -> Entitlement? {
-        // 规则 2:函数入口日志(付费授权查询是付费链路关键路径)
-        AppLogger.persistence.info("op=entitlementStore.getActive.start content_hash=\(contentHash, privacy: .public) module=\(module, privacy: .public)")
+        AppLogger.persistence.info("op=entitlementStore.getActive.start content_hash=\(contentHash, privacy: .public) module=\(module, privacy: .public) has_user_id=\(userId != nil, privacy: .public)")
+
+        // 双轨优先:userId(登录用户)
+        if let userId {
+            var descriptor = FetchDescriptor<Entitlement>(
+                predicate: #Predicate {
+                    $0.contentHash == contentHash
+                        && $0.module == module
+                        && $0.userId == userId
+                        && $0.isActive == true
+                },
+                sortBy: [SortDescriptor(\.purchasedAt, order: .reverse)]
+            )
+            descriptor.fetchLimit = 1
+            do {
+                if let hit = try modelContext.fetch(descriptor).first {
+                    AppLogger.persistence.info("op=entitlementStore.getActive.ok hit=true source=userId tx=\(hit.transactionId, privacy: .public)")
+                    return hit
+                }
+            } catch {
+                AppLogger.persistence.error(
+                    "op=entitlementStore.getActive userId_query_failed error=\(String(describing: error), privacy: .public)"
+                )
+                // 不 return,继续走 userLocalId 兜底(降级,避免完全查不到)
+            }
+        }
+
+        // 兜底:userLocalId(老数据 / 未登录购买)
         var descriptor = FetchDescriptor<Entitlement>(
             predicate: #Predicate {
                 $0.contentHash == contentHash
@@ -40,16 +71,14 @@ final class EntitlementStore {
             },
             sortBy: [SortDescriptor(\.purchasedAt, order: .reverse)]
         )
-        // LIMIT 1:fetch 后取 first
         descriptor.fetchLimit = 1
         do {
-            let results = try modelContext.fetch(descriptor)
-            let hit = results.first
-            AppLogger.persistence.info("op=entitlementStore.getActive.ok hit=\(hit != nil, privacy: .public) tx=\(hit?.transactionId ?? "nil", privacy: .public)")
+            let hit = try modelContext.fetch(descriptor).first
+            AppLogger.persistence.info("op=entitlementStore.getActive.ok hit=\(hit != nil, privacy: .public) source=userLocalId tx=\(hit?.transactionId ?? "nil", privacy: .public)")
             return hit
         } catch {
             AppLogger.persistence.error(
-                "op=entitlementStore.getActive failed error=\(String(describing: error), privacy: .public)"
+                "op=entitlementStore.getActive userLocalId_query_failed error=\(String(describing: error), privacy: .public)"
             )
             return nil
         }
@@ -67,11 +96,12 @@ final class EntitlementStore {
         contentHash: String,
         module: String,
         userLocalId: String,
+        userId: String? = nil,
         purchasedAt: Date,
         originalPurchaseDate: Date
     ) throws {
         // 规则 2:函数入口日志(付费授权写入是付费链路关键路径)
-        AppLogger.persistence.info("op=entitlementStore.upsert.start tx=\(transactionId, privacy: .public) product=\(productId, privacy: .public) module=\(module, privacy: .public)")
+        AppLogger.persistence.info("op=entitlementStore.upsert.start tx=\(transactionId, privacy: .public) product=\(productId, privacy: .public) module=\(module, privacy: .public) has_user_id=\(userId != nil, privacy: .public)")
         // 先查同 transactionId 是否已存在(幂等)
         let existing = try _findByTransactionId(transactionId)
         if let existing = existing {
@@ -80,6 +110,7 @@ final class EntitlementStore {
             existing.contentHash = contentHash
             existing.module = module
             existing.userLocalId = userLocalId
+            existing.userId = userId ?? existing.userId  // 不覆盖已有 userId(避免 backfill 后被清空)
             existing.purchasedAt = purchasedAt
             existing.originalPurchaseDate = originalPurchaseDate
             existing.isActive = true
@@ -91,6 +122,7 @@ final class EntitlementStore {
                 contentHash: contentHash,
                 module: module,
                 userLocalId: userLocalId,
+                userId: userId,
                 purchasedAt: purchasedAt,
                 originalPurchaseDate: originalPurchaseDate,
                 isActive: true
