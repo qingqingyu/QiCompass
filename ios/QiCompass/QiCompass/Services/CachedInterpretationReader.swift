@@ -32,6 +32,9 @@ final class CachedInterpretationReader {
     ///   - maxAge: 新鲜度上限,`nil` = 不过期(`DeepAnalysis` 瞬时显示用);其他传 `24 * 3600`
     /// - Returns: 命中的完整 `InterpretationCache`;miss / 过期 / 身份不匹配(cacheStore 内 filter)都返回 nil
     /// - Throws: identity 解析失败或 SwiftData 读失败向上抛
+    ///
+    /// i18n:language 由 `AppLanguage.current` 自动注入(i18n 决策 10 方案 3:
+    /// 查询缓存时用客户端 locale 推断)。调用方不需要传 language。
     func read(
         contentHash: String,
         module: String,
@@ -43,6 +46,7 @@ final class CachedInterpretationReader {
             contentHash: contentHash,
             module: module,
             targetDate: targetDate,
+            language: AppLanguage.current,
             identity: identity
         ) else {
             return nil

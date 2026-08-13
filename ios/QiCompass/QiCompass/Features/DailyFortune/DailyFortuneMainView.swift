@@ -24,7 +24,7 @@ struct DailyFortuneMainView: View {
                 if vm.isOffline {
                     HStack(spacing: 6) {
                         Image(systemName: "wifi.slash")
-                        Text("离线查看(展示本地缓存,不扣次数)")
+                        Text(L10n.DailyFortune.mainOffline)
                     }
                     .font(.caption2)
                     .foregroundStyle(BaziTheme.cinnabar)
@@ -108,7 +108,7 @@ struct DailyFortuneMainView: View {
             historyError = nil
         } catch {
             // 不静默吞:错误显示在 chip 旁(不影响主流程)
-            historyError = "历史加载失败"
+            historyError = L10n.DailyFortune.mainHistoryError
             AppLogger.persistence.error(
                 "op=dailyFortune.loadHistory failed error=\(String(describing: error), privacy: .public)"
             )
@@ -133,8 +133,9 @@ private struct YiJiAnchorSection: View {
     let dayRelation: String
 
     /// 十神→宜/忌 actionable 关键词映射(10 神,对齐后端 lunar_python 命名)。
-    /// 每条 2-3 字 actionable,与今日页 Medium voice 节奏一致。
-    private static let mapping: [String: (yi: String, ji: String)] = [
+    /// 十神 key 始终用中文(后端 `dayRelationToDayMaster` 不翻译,见 i18n 决策 7);
+    /// values 按 `AppLanguage.current` 切换中英文。
+    private static let mappingZh: [String: (yi: String, ji: String)] = [
         "比肩": ("独立", "争执"),
         "劫财": ("行动", "冲动"),
         "食神": ("创造", "拖延"),
@@ -147,8 +148,29 @@ private struct YiJiAnchorSection: View {
         "正印": ("学习", "依赖"),
     ]
 
+    private static let mappingEn: [String: (yi: String, ji: String)] = [
+        "比肩": ("Independence", "Conflict"),
+        "劫财": ("Action", "Impulse"),
+        "食神": ("Creation", "Procrastination"),
+        "伤官": ("Expression", "Confrontation"),
+        "偏财": ("Expansion", "Overreach"),
+        "正财": ("Consolidation", "Short-sightedness"),
+        "七杀": ("Decisiveness", "Hesitation"),
+        "正官": ("Responsibility", "Retreat"),
+        "偏印": ("Reflection", "Stubbornness"),
+        "正印": ("Learning", "Dependency"),
+    ]
+
+    private static var mapping: [String: (yi: String, ji: String)] {
+        AppLanguage.current == "en" ? mappingEn : mappingZh
+    }
+
     /// 防御:未知关系(理论上后端必返回十神之一,但保护)。
-    private static let fallback = (yi: "顺势", ji: "强求")
+    private static var fallback: (yi: String, ji: String) {
+        AppLanguage.current == "en"
+            ? ("Go with the flow", "Forcing")
+            : ("顺势", "强求")
+    }
 
     /// 查表命中失败时记日志,不静默 fallback(对齐 CLAUDE.md 错误显式传播约束)。
     private var pair: (yi: String, ji: String) {
@@ -164,8 +186,8 @@ private struct YiJiAnchorSection: View {
     var body: some View {
         let resolved = pair
         HStack(spacing: BaziTheme.Spacing.md) {
-            anchorColumn(label: "宜", keyword: resolved.yi, color: BaziTheme.cinnabar)
-            anchorColumn(label: "忌", keyword: resolved.ji, color: BaziTheme.inkMuted)
+            anchorColumn(label: L10n.DailyFortune.yiLabel, keyword: resolved.yi, color: BaziTheme.cinnabar)
+            anchorColumn(label: L10n.DailyFortune.jiLabel, keyword: resolved.ji, color: BaziTheme.inkMuted)
         }
         .padding(BaziTheme.Spacing.md)
         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))

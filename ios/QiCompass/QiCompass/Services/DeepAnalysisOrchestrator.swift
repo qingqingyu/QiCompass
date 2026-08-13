@@ -164,6 +164,9 @@ final class DeepAnalysisOrchestrator {
                     module: module,
                     promptVersion: resp.promptVersion,
                     targetDate: nil,
+                    // i18n TODO(Slice 2):bazi_deep 未实现英文翻译,
+                    // 缓存暂时走 default language="zh"(InterpretationCacheStore.upsert 默认值)。
+                    // Slice 2 补齐 bazi_deep 翻译后改 language: resp.language
                     provider: resp.provider,
                     model: resp.model,
                     interpretation: resp.interpretation,

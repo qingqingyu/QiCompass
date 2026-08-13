@@ -70,7 +70,7 @@ struct DailyFortuneHistoryView: View {
 
     private static let weekdayFormatter: DateFormatter = {
         let f = DateFormatter()
-        f.locale = Locale(identifier: "zh_CN")
+        f.locale = Locale.current
         f.dateFormat = "E"
         return f
     }()

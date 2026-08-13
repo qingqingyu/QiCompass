@@ -39,15 +39,18 @@ from ..ai.forbidden_words import validate_interpretation
 from ..ai.prompts import PROMPT_VERSIONS, render_prompt, validate_context
 from ..auth.dependencies import get_current_user_id
 from ..ai.singleflight import SingleflightCoalescer
+from ..engine.term_translations import translate_context
 from ..entitlement import EntitlementStore
 from ..errors import (
     AIProviderError,
+    BaziCalculationFailedError,
     EntitlementNotFoundError,
     InterpretationCacheError,
     InterpretationForbiddenError,
     InvalidInputError,
 )
 from ..models.interpret import InterpretRequest, InterpretResponse
+from .language import resolve_language
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -66,11 +69,21 @@ async def interpret(
     prompt_version = PROMPT_VERSIONS[req.module]
     target_date_str = str(req.target_date) if req.target_date else None
 
+    # 1.5 i18n:解析目标语言(从 X-QiCompass-Lang / Accept-Language header)
+    # 解析层见 backend/app/api/language.py(i18n 决策 2:方案 4 双 header 混合)
+    language = resolve_language(request)
+
     # 2. 校验 context + 渲染 prompt。缓存键必须覆盖 prompt 内容,否则同一
     # content_hash 携带不同 context 会污染跨用户缓存。
+    # translate_context 放在 try 内:未注册术语抛 KeyError 时,
+    # 包成 BaziCalculationFailedError(500)而非裸 KeyError 栈(术语表是后端配置,
+    # 不是用户输入错误)。
     try:
-        validate_context(req.module, req.context)
-        prompt = render_prompt(req.module, req.context)
+        # 1.6 i18n:context 数据翻译层(i18n 决策 1:方案 3b 后端翻译责任)
+        # 把 lunar_python 输出的中文术语按 language 翻译,让 LLM 拿到全目标语言的 prompt
+        translated_context = translate_context(req.context, language, req.module)
+        validate_context(req.module, translated_context)
+        prompt = render_prompt(req.module, translated_context, language=language)
     except InvalidInputError as e:
         e.request_id = request_id
         elapsed_ms = (time.perf_counter() - start) * 1000
@@ -82,6 +95,34 @@ async def interpret(
             exc_info=True,
         )
         raise
+    except KeyError as e:
+        # translate_context 术语未注册 → 500(后端配置问题,非用户错误)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.error(
+            "interpret.translate_context_failed elapsed_ms=%.1f request_id=%s "
+            "content_hash=%s module=%s language=%s error=%r",
+            elapsed_ms, request_id, req.content_hash, req.module,
+            language, e,
+            exc_info=True,
+        )
+        raise BaziCalculationFailedError(
+            f"术语翻译失败({e}),需补齐 term_translations.py 翻译表",
+            request_id=request_id, content_hash=req.content_hash,
+        ) from e
+    except FileNotFoundError as e:
+        # render_prompt 模板文件缺失 → 500(后端配置问题)
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.error(
+            "interpret.template_missing elapsed_ms=%.1f request_id=%s "
+            "content_hash=%s module=%s language=%s error=%r",
+            elapsed_ms, request_id, req.content_hash, req.module,
+            language, e,
+            exc_info=True,
+        )
+        raise BaziCalculationFailedError(
+            f"prompt 模板缺失({e}),需补齐 prompts/{{language}}/ 目录",
+            request_id=request_id, content_hash=req.content_hash,
+        ) from e
 
     prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
 
@@ -133,6 +174,7 @@ async def interpret(
         "prompt_hash": prompt_hash,
         "provider": ai_client.provider,
         "model": ai_client.model,
+        "language": language,
     }
     logger.info("interpret.start %s", log_ctx)
 
@@ -144,6 +186,7 @@ async def interpret(
         prompt_hash=prompt_hash,
         provider=ai_client.provider,
         model=ai_client.model,
+        language=language,
     )
 
     cache: InterpretationCache = request.app.state.cache
@@ -188,6 +231,7 @@ async def interpret(
             generated_at=cached_row["generated_at"],
             provider=cached_row["provider"],
             model=cached_row["model"],
+            language=language,
         )
 
     # 4. 调用选中 provider(async httpx 直接 await,不走线程池)
@@ -250,6 +294,7 @@ async def interpret(
         generated_at=now_iso,
         provider=ai_client.provider,
         model=ai_client.model,
+        language=language,
     )
 
 

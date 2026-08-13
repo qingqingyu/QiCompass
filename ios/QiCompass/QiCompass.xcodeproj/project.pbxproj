@@ -44,6 +44,7 @@
 		9C0000000000000000000018 /* Logger.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000018 /* Logger.swift */; };
 		9C0000000000000000000019 /* SwiftDataCRUDView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000019 /* SwiftDataCRUDView.swift */; };
 		9C000000000000000000001A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000001A /* Assets.xcassets */; };
+		9C000000000000000000005B /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005B /* Localizable.xcstrings */; };
 		9C000000000000000000001C /* BusinessDateCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000001C /* BusinessDateCalculator.swift */; };
 		9C000000000000000000001D /* DailyFortuneSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000001D /* DailyFortuneSnapshotStore.swift */; };
 		9C000000000000000000001E /* DailyFortuneOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000001E /* DailyFortuneOrchestrator.swift */; };
@@ -75,6 +76,9 @@
 		9C0000000000000000000038 /* MotionPreferences.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000038 /* MotionPreferences.swift */; };
 		9C0000000000000000000039 /* UserFacingError.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000039 /* UserFacingError.swift */; };
 		9C000000000000000000003A /* BaziFont.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003A /* BaziFont.swift */; };
+		9C0000000000000000000058 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000058 /* AppLanguage.swift */; };
+		9C0000000000000000000059 /* BaziDateFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000059 /* BaziDateFormatter.swift */; };
+		9C000000000000000000005A /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005A /* L10n.swift */; };
 		9C000000000000000000003B /* FadeInModifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003B /* FadeInModifier.swift */; };
 		9C000000000000000000003C /* CountdownResetLabel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003C /* CountdownResetLabel.swift */; };
 		9C000000000000000000003D /* ErrorStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003D /* ErrorStateView.swift */; };
@@ -167,6 +171,7 @@
 		9C1000000000000000000018 /* Logger.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Logger.swift; sourceTree = "<group>"; };
 		9C1000000000000000000019 /* SwiftDataCRUDView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataCRUDView.swift; sourceTree = "<group>"; };
 		9C100000000000000000001A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
+		9C100000000000000000005B /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		9C100000000000000000001B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		9C100000000000000000001C /* BusinessDateCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BusinessDateCalculator.swift; path = QiCompass/Services/BusinessDateCalculator.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000001D /* DailyFortuneSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneSnapshotStore.swift; path = QiCompass/Services/DailyFortuneSnapshotStore.swift; sourceTree = SOURCE_ROOT; };
@@ -199,6 +204,9 @@
 		9C1000000000000000000038 /* MotionPreferences.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = MotionPreferences.swift; path = QiCompass/Shared/MotionPreferences.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000039 /* UserFacingError.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserFacingError.swift; path = QiCompass/Shared/UserFacingError.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000003A /* BaziFont.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BaziFont.swift; path = QiCompass/Shared/BaziFont.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000058 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppLanguage.swift; path = QiCompass/L10n/AppLanguage.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000059 /* BaziDateFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BaziDateFormatter.swift; path = QiCompass/L10n/BaziDateFormatter.swift; sourceTree = SOURCE_ROOT; };
+		9C100000000000000000005A /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = L10n.swift; path = QiCompass/L10n/L10n.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000003B /* FadeInModifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = FadeInModifier.swift; path = QiCompass/Shared/FadeInModifier.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000003C /* CountdownResetLabel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CountdownResetLabel.swift; path = QiCompass/Shared/CountdownResetLabel.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000003D /* ErrorStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ErrorStateView.swift; path = QiCompass/Shared/ErrorStateView.swift; sourceTree = SOURCE_ROOT; };
@@ -436,6 +444,9 @@
 				9C1000000000000000000038 /* MotionPreferences.swift */,
 				9C1000000000000000000039 /* UserFacingError.swift */,
 				9C100000000000000000003A /* BaziFont.swift */,
+				9C1000000000000000000058 /* AppLanguage.swift */,
+				9C1000000000000000000059 /* BaziDateFormatter.swift */,
+				9C100000000000000000005A /* L10n.swift */,
 				9C100000000000000000003B /* FadeInModifier.swift */,
 				9C100000000000000000003C /* CountdownResetLabel.swift */,
 				9C100000000000000000003D /* ErrorStateView.swift */,
@@ -456,6 +467,7 @@
 			isa = PBXGroup;
 			children = (
 				9C100000000000000000001A /* Assets.xcassets */,
+				9C100000000000000000005B /* Localizable.xcstrings */,
 				9C100000000000000000001B /* Info.plist */,
 			);
 			path = Resources;
@@ -586,6 +598,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				9C000000000000000000001A /* Assets.xcassets in Resources */,
+				9C000000000000000000005B /* Localizable.xcstrings in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -688,6 +701,9 @@
 				9C0000000000000000000038 /* MotionPreferences.swift in Sources */,
 				9C0000000000000000000039 /* UserFacingError.swift in Sources */,
 				9C000000000000000000003A /* BaziFont.swift in Sources */,
+				9C0000000000000000000058 /* AppLanguage.swift in Sources */,
+				9C0000000000000000000059 /* BaziDateFormatter.swift in Sources */,
+				9C000000000000000000005A /* L10n.swift in Sources */,
 				9C000000000000000000003B /* FadeInModifier.swift in Sources */,
 				9C000000000000000000003C /* CountdownResetLabel.swift in Sources */,
 				9C000000000000000000003D /* ErrorStateView.swift in Sources */,

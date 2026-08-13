@@ -11,16 +11,13 @@ struct CountdownResetLabel: View {
     var body: some View {
         TimelineView(.periodic(from: .now, by: 60)) { context in
             let remaining = nextReset.timeIntervalSince(context.date)
-            Text("距重置:\(Self.format(max(0, remaining)))")
+            let secs = max(0, remaining)
+            let h = Int(secs) / 3600
+            let m = (Int(secs) % 3600) / 60
+            Text(L10n.Common.countdownLabel(hours: h, minutes: m))
                 .font(.caption2)
                 .foregroundStyle(BaziTheme.inkMuted)
         }
-    }
-
-    private static func format(_ seconds: TimeInterval) -> String {
-        let h = Int(seconds) / 3600
-        let m = (Int(seconds) % 3600) / 60
-        return String(format: "%d 时 %d 分", h, m)
     }
 }
 
@@ -37,7 +34,7 @@ struct DailyLimitReachedView: View {
 
     var body: some View {
         VStack(spacing: 4) {
-            Text("今日机缘已尽,明日再来")
+            Text(L10n.Common.limitReached)
                 .font(.subheadline)
                 .foregroundStyle(BaziTheme.shenshaInauspicious)
             CountdownResetLabel(nextReset: nextReset)

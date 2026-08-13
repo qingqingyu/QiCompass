@@ -7,9 +7,9 @@ struct HuangliSection: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            row(label: "宜", items: yi, tint: BaziTheme.jade)
+            row(label: L10n.DailyFortune.yiLabel, items: yi, tint: BaziTheme.jade)
             Divider().background(BaziTheme.hairline)
-            row(label: "忌", items: ji, tint: BaziTheme.shenshaInauspicious)
+            row(label: L10n.DailyFortune.jiLabel, items: ji, tint: BaziTheme.shenshaInauspicious)
         }
         .padding(BaziTheme.Spacing.md)
         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))

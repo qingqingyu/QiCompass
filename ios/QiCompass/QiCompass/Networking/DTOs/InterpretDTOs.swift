@@ -104,6 +104,9 @@ struct InterpretResponse: Codable, Sendable {
     let generatedAt: Date
     let provider: String
     let model: String
+    /// i18n 决策 10(方案 3):后端实际使用的语言(从 Accept-Language 解析)。
+    /// 客户端存入 SwiftData 缓存键对齐用,避免客户端自己解析 Locale 导致不一致。
+    let language: String
 
     enum CodingKeys: String, CodingKey {
         case interpretation
@@ -112,6 +115,7 @@ struct InterpretResponse: Codable, Sendable {
         case generatedAt = "generated_at"
         case provider
         case model
+        case language
     }
 }
 

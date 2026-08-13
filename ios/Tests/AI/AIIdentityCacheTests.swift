@@ -80,12 +80,15 @@ final class AIIdentityCacheTests: XCTestCase {
           "cached": false,
           "generated_at": "2026-07-16T00:00:00+00:00",
           "provider": "openai",
-          "model": "gpt-5.5"
+          "model": "gpt-5.5",
+          "language": "zh"
         }
         """.data(using: .utf8)!
 
         let response = try APICoder.decoder.decode(InterpretResponse.self, from: json)
         XCTAssertEqual(response.provider, "openai")
         XCTAssertEqual(response.model, "gpt-5.5")
+        // i18n:language 字段正确解码
+        XCTAssertEqual(response.language, "zh")
     }
 }
