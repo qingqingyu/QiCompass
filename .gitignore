@@ -56,6 +56,9 @@ backend/spikes/prompt_validation/output_v1_chain/
 /dev-flow-logs/
 .gstack/
 
+# 宣传网站内部工具（不进 git；2026-08-12 加，用户拍板顶层忽略）
+/tmp/
+
 # Codex CLI / npx skills 工具产物(本地工具配置,非项目代码)
 # - .agents/skills/ 来自 thkt/claude-config GitHub 仓库(npx skills install 装的)
 # - AGENTS.md 是 Codex CLI 项目指令(类似 CLAUDE.md 但本地维护)
