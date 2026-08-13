@@ -19,6 +19,7 @@ enum KeychainHelper {
         case jwtToken            // 后端 PR2.5 返回的自家 JWT(本 PR 暂时与 appleIdentityToken 同值)
         case userEmail           // Apple 返回的 email(首次登录,后续不再返回)
         case userFullName        // Apple 返回的 fullName(首次登录,后续不再返回)
+        case qicompassUserId     // 后端 qicompass_user.id(UUID,entitlement 绑账号用)
     }
 
     // MARK: - Data 接口
@@ -111,6 +112,7 @@ enum KeychainHelper {
         var errors: [KeychainError] = []
         for key in [
             Key.appleUserId, .appleIdentityToken, .jwtToken, .userEmail, .userFullName,
+            .qicompassUserId,
         ] {
             do {
                 try delete(key)
