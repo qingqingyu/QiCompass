@@ -323,7 +323,7 @@ health 响应固定带 `Cache-Control: no-store`；其中 `model` 仍是排盘 A
 | 1 | **今日运势** | 默认 Tab（冷启动落地），高频回访入口 |
 | 2 | **深度解析** | 第二功能，2 章 free + 5 章 paid |
 | 3 | **合盘** | 第三功能，half-free |
-| 4 | **我的** | 新增。多命盘管理（`UserSnapshotLink`）/ 已购 entitlements / 设置（zi_hour_rule default / 主题 / 语言）/ 关于。v1 无账号系统，此 Tab 不含账号功能 |
+| 4 | **我的** | 新增。多命盘管理（`UserSnapshotLink`）/ 已购 entitlements / 设置（zi_hour_rule default / 主题 / 语言）/ 关于。v1.5 起含 Sign in with Apple 账号系统(ProfileView),entitlement + 命盘同步按 apple user 维度 |
 
 **默认选中**：`.dailyFortune`（2026-08-01 决策，旧 `.deepAnalysis` 改掉）。
 

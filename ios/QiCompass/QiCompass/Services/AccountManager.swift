@@ -84,6 +84,12 @@ final class AccountManager {
     /// 三个 @MainActor 入口同步更新。
     nonisolated(unsafe) private(set) var lastKnownJwtToken: String?
 
+    /// 后端 qicompass_user.id(UUID,entitlement 绑账号用)。
+    /// PR2.5 exchangeJwtToken 成功后填充,失败时为 nil(降级:UserIdentity.currentUserId
+    /// 兜底用客户端 UUID)。nonisolated(unsafe) 同 lastKnownJwtToken 模式:属性是
+    /// immutable String(Sendable),多线程读安全;仅 @MainActor 入口同步写。
+    nonisolated(unsafe) private(set) var qicompassUserId: String?
+
     /// PR2.5:APIClient 引用(调 /api/auth/sign-in 换自家 JWT)。
     /// strong(AppEnvironment 持有 apiClient + accountManager,生命周期相同,
     /// 不会循环;LiveAPIClient 反向引用 accountManager 是 weak)。
@@ -123,6 +129,9 @@ final class AccountManager {
             )
             state = .signedIn(user)
             lastKnownJwtToken = user.identityToken.isEmpty ? nil : user.identityToken
+            // PR2.5+:恢复 qicompass_user.id(entitlement 绑账号用);缺失表示
+            // exchangeJwtToken 还没跑成功过(或 backfill 失败),UserIdentity 会兜底。
+            qicompassUserId = try KeychainHelper.loadString(.qicompassUserId)
             AppLogger.app.info("account.restore.ok appleUserId=\(appleUserId.prefix(8), privacy: .public)")
         } catch let error as KeychainError {
             AppLogger.persistence.error(
@@ -200,6 +209,7 @@ final class AccountManager {
         }
         state = .signedOut
         lastKnownJwtToken = nil
+        qicompassUserId = nil
         AppLogger.app.info("account.signOut.ok")
     }
 
@@ -207,6 +217,15 @@ final class AccountManager {
     var isLoggedIn: Bool {
         if case .signedIn = state { return true }
         return false
+    }
+
+    /// 当前用户的后端 user_id(qicompass_user.id),已登录时返值,未登录返 nil。
+    ///
+    /// 用于 entitlement / 同步等需要 user 维度的场景(PurchaseManager 传 appAccountToken、
+    /// EntitlementStore 双轨查询)。调用方若需要"未登录兜底",用
+    /// `UserIdentity.currentUserId`(内部优先 Keychain.qicompassUserId,fallback userLocalId)。
+    var currentUserId: String? {
+        qicompassUserId
     }
 
     /// 当前 JWT token(APIClient 注入 Authorization header 用)。
@@ -229,11 +248,18 @@ final class AccountManager {
         do {
             AppLogger.app.info("account.exchangeJwtToken.start appleUserId=\(user.appleUserId.prefix(8), privacy: .public)")
             let resp = try await client.signIn(
-                request: SignInRequest(identityToken: user.identityToken)
+                request: SignInRequest(
+                    identityToken: user.identityToken,
+                    userLocalId: UserIdentity.userLocalId
+                )
             )
             try KeychainHelper.saveString(resp.accessToken, for: .jwtToken)
             // 同步更新 lastKnownJwtToken(APIClient 后续请求用自家 JWT 而非 identityToken)
             lastKnownJwtToken = resp.accessToken
+            // Slice 2:持久化后端 user_id(entitlement 绑账号的核心标识)。
+            // PurchaseManager / EntitlementStore 通过 UserIdentity.currentUserId 读 Keychain。
+            try KeychainHelper.saveString(resp.userId, for: .qicompassUserId)
+            qicompassUserId = resp.userId
             AppLogger.app.info(
                 "account.exchangeJwtToken.ok userId=\(resp.userId.prefix(8), privacy: .public) expiresAt=\(resp.expiresAt, privacy: .public)"
             )

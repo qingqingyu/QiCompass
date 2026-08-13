@@ -12,6 +12,7 @@ import SwiftUI
 /// M3b 接 StoreKit 后改用 `Product.displayPrice`(App Store Connect 真价)。
 struct PaywallView: View {
     @State private var viewModel: PaywallViewModel
+    @EnvironmentObject private var env: AppEnvironment
 
     init(viewModel: PaywallViewModel) {
         _viewModel = State(initialValue: viewModel)
@@ -67,16 +68,30 @@ struct PaywallView: View {
                     .frame(maxWidth: .infinity)
             }
 
-            // CTA(价格动态化:加载完显示 Product.displayPrice,加载中/失败 fallback ¥128)
-            PrimaryCTAButton(
-                title: viewModel.displayPriceText,
-                loadingTitle: "处理中…",
-                isLoading: viewModel.state == .purchasing,
-                action: { Task { await viewModel.purchase() } }
-            )
+            // CTA:已登录走 purchase,未登录走 AppleSignInButton(Slice 5 决策:强制登录购买)
+            if env.accountManager.isLoggedIn {
+                PrimaryCTAButton(
+                    title: viewModel.displayPriceText,
+                    loadingTitle: "处理中…",
+                    isLoading: viewModel.state == .purchasing,
+                    action: { Task { await viewModel.purchase() } }
+                )
+            } else {
+                // 未登录:登录后 @Observable AccountManager 触发 view 重渲染,
+                // 自动切回 PrimaryCTAButton;不需要手动 dismiss / 跳转。
+                VStack(spacing: BaziTheme.Spacing.sm) {
+                    Text("登录后即可购买,已购内容跨设备同步")
+                        .font(.caption)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .multilineTextAlignment(.center)
+                    AppleSignInButton(onResult: { result in
+                        env.accountManager.handleAuthorization(result)
+                    })
+                }
+            }
 
             // 法律免责(DESIGN.md 反 AI slop + 命理类审核要求)
-            Text("玄学娱乐,理性参考。\n订阅即视为同意 Apple 标准用户协议。")
+            Text("玄学娱乐,理性参考。\n购买即视为同意 Apple 标准用户协议。")
                 .font(.caption2)
                 .foregroundStyle(BaziTheme.inkMuted)
                 .multilineTextAlignment(.center)

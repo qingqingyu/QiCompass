@@ -122,9 +122,16 @@ final class AppEnvironment: ObservableObject {
             modelContext: context
         )
         self.syncManager = syncManager
-        accountManager.onSignedIn = { [weak syncManager] in
-            // 登录成功后首次 pull(拉云端所有命盘到本地)
+        accountManager.onSignedIn = { [weak syncManager, weak entitlementStore] in
+            // Slice 6:登录成功后链式同步:
+            // 1. pull:拉云端所有命盘到本地(SyncManager 内部触发 backfillLocalLinks 迁移老 link)
+            // 2. entitlementStore.synchronizeFromBackend:拉云端 entitlement 写本地 SwiftData
+            //    (跨设备 / 重装 / 退登回登场景的购买找回)
+            // 3. push:把本地 backfill 过的命盘 + 新建命盘推回云端(让其他设备能拉到)
+            // 各步独立 try?/await,失败不阻断后续(对齐 SyncManager 错误处理风格)
             await syncManager?.pull()
+            await entitlementStore?.synchronizeFromBackend(apiClient: apiClient)
+            await syncManager?.push()
         }
         AppLogger.app.info("AppEnvironment.init 完成(orchestrator + store + account + sync 全部装配)")
     }

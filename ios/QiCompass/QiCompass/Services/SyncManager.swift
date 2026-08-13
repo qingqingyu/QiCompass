@@ -55,6 +55,9 @@ final class SyncManager {
         AppLogger.app.info("sync.pull.start")
 
         do {
+            // Slice 6:pull 前先 backfill 老 link.userId(从 userLocalId 升级到 currentUserId)
+            // 确保后续 collectLocalCharts 按 currentUserId 过滤能命中老命盘
+            backfillLocalLinks()
             let resp = try await apiClient.syncPull()
             let pulledCount = resp.charts.count
             let insertedCount = await mergeToLocal(resp.charts)
@@ -67,6 +70,43 @@ final class SyncManager {
                 "sync.pull.failed error=\(String(describing: error), privacy: .public)"
             )
             state = .failed("同步拉取失败:\(error.localizedDescription)")
+        }
+    }
+
+    /// Slice 6 backfill:把本地 UserSnapshotLink.userId 从 userLocalId 升级到 currentUserId(后端 user_id)。
+    ///
+    /// 触发时机:登录后 pull 前调一次。让匿名时期建的 link 跟随账号迁移,后续
+    /// collectLocalCharts 按 currentUserId 过滤能命中。
+    ///
+    /// 幂等:currentUserId == userLocalId(未登录)时直接 return,不做无意义写入。
+    /// 已迁移过的 link(currentUserId)不会被再匹配 WHERE userId == userLocalId,自动跳过。
+    private func backfillLocalLinks() {
+        let currentUserId = UserIdentity.currentUserId
+        let userLocalId = UserIdentity.userLocalId
+        guard currentUserId != userLocalId else {
+            // 未登录或 Keychain 数据缺失,currentUserId 兜底返 userLocalId → 无需迁移
+            return
+        }
+
+        let pred = #Predicate<UserSnapshotLink> { $0.userId == userLocalId }
+        let desc = FetchDescriptor<UserSnapshotLink>(predicate: pred)
+        guard let legacyLinks = try? modelContext.fetch(desc),
+              !legacyLinks.isEmpty else {
+            AppLogger.app.info("sync.backfillLocalLinks.skip reason=no_legacy_links")
+            return
+        }
+        for link in legacyLinks {
+            link.userId = currentUserId
+        }
+        do {
+            try modelContext.save()
+            AppLogger.app.info(
+                "sync.backfillLocalLinks.ok migrated=\(legacyLinks.count, privacy: .public) from=userLocalId to=backendUserId"
+            )
+        } catch {
+            AppLogger.persistence.error(
+                "sync.backfillLocalLinks.save_failed error=\(String(describing: error), privacy: .public)"
+            )
         }
     }
 
@@ -95,7 +135,7 @@ final class SyncManager {
             modelContext.insert(snapshot)
 
             let link = UserSnapshotLink(
-                userId: UserIdentity.userLocalId,
+                userId: UserIdentity.currentUserId,
                 snapshotHash: remote.contentHash,
                 alias: remote.alias
             )
@@ -168,9 +208,15 @@ final class SyncManager {
     }
 
     /// 收集本地所有命盘(UserSnapshotLink + 对应 ChartSnapshot)→ [ChartSyncData]。
+    ///
+    /// **Slice 6 修复隐藏 bug**:按 `link.userId == UserIdentity.currentUserId` 严格过滤,
+    /// 不返其他用户的命盘(老代码无 filter,若同设备多用户会推送错数据 — v1 单账号不暴露,
+    /// 但账号系统接通后必须修)。
     /// 缺失 ChartSnapshot 的 link 跳过(数据异常,不阻断同步)。
     private func collectLocalCharts() -> [ChartSyncData] {
+        let currentUserId = UserIdentity.currentUserId
         let linkDesc = FetchDescriptor<UserSnapshotLink>(
+            predicate: #Predicate { $0.userId == currentUserId },
             sortBy: [SortDescriptor(\.createdAt, order: .forward)]
         )
         let links = (try? modelContext.fetch(linkDesc)) ?? []

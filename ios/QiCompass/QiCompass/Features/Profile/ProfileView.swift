@@ -3,7 +3,7 @@ import SwiftData
 
 /// "我的" Tab(2026-08-01 grill-me 决策 #17 新增的第 4 个 Tab)。
 ///
-/// v1 无账号系统,内容含 4 个 section + 命主卡(2026-08-10 阶段 6 新增):
+/// v1.5 起 Sign in with Apple 接通,内容含账号 section + 命主卡(2026-08-10 阶段 6 新增):
 /// 0. **命主卡**(Q16 δ + Q17):生肖图 + alias + 出生年 + 今日 anchor
 /// 1. **我的命盘**:UserSnapshotLink list("我自己" / "妈妈" / "男友" 等 alias)
 /// 2. **已购**:active Entitlement list(按 purchasedAt DESC)
