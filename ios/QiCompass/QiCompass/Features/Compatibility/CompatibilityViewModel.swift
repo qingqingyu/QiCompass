@@ -88,6 +88,9 @@ final class CompatibilityViewModel {
     /// 进入 detail 时不清空,closeDetail 后仍可用。
     var summaries: [PairSummary] = []
 
+    /// S03:正在重试的对 id 集合(UI 据此 disable 重试按钮,避免同对并发双请求)。
+    var retryingIds: Set<String> = []
+
     // MARK: 依赖
 
     private let orchestrator: CompatibilityOrchestrator
@@ -318,29 +321,131 @@ final class CompatibilityViewModel {
                         contextValue: contextValue
                     )
                     newSummaries.append(summary)
-                    if !Task.isCancelled {
-                        self.state = .computing(completed: idx + 1, total: total)
-                    }
                 } catch is CancellationError {
                     return
                 } catch {
+                    // S03(决策 D10):对级错误隔离——单对失败不拖垮列表,
+                    // 该对 PairSummary 置 .failed + 单对重试,循环继续跑剩余对。
                     if !Task.isCancelled {
                         AppLogger.app.error(
-                            "op=compatibility.compute_pair_failed idx=\(idx) error=\(String(describing: error), privacy: .public)"
+                            "op=compatibility.compute_pair_failed idx=\(idx) entry_id=\(entry.id, privacy: .public) error=\(String(describing: error), privacy: .public)"
                         )
-                        // S01:单对失败整体 failed(S03 改对级隔离)
-                        self.state = .failed(UserFacingError.from(error, stage: .compatibilityDeterministic))
+                        newSummaries.append(self.makeFailedSummary(entry: entry, error: error))
                     }
-                    return
+                }
+                if !Task.isCancelled {
+                    self.state = .computing(completed: idx + 1, total: total)
                 }
             }
 
             if !Task.isCancelled {
-                AppLogger.app.info("compatVM.compute.ok pairs=\(newSummaries.count, privacy: .public)")
+                let successCount = newSummaries.filter(\.isComputed).count
+                AppLogger.app.info("compatVM.compute.ok total=\(newSummaries.count, privacy: .public) success=\(successCount, privacy: .public)")
                 self.summaries = newSummaries
                 self.state = .list
             }
         }
+    }
+
+    // MARK: - 单对重试(S03 决策 D10)
+
+    /// 单对重试:针对 `.failed` 状态的 PairSummary 单发一次确定性合盘。
+    ///
+    /// 红线(S03):
+    /// - **不触碰付费 / 次数 / 后端**——只调 deterministic 接口(免费部分)。
+    /// - **不静默吞**——重试失败再次置 `.failed`(用新错误摘要)。
+    /// - **并发互斥**——重试期间该对 id 进 `retryingIds`,UI disable 按钮避免双请求。
+    func retryPair(summary: PairSummary) {
+        guard case .list = state else {
+            AppLogger.app.warning("op=compatibility.retryPair skip reason=not_list state=\(String(describing: self.state), privacy: .public)")
+            return
+        }
+        guard case .failed = summary.status else {
+            AppLogger.app.warning("op=compatibility.retryPair skip reason=not_failed summary_id=\(summary.id, privacy: .public)")
+            return
+        }
+        guard !retryingIds.contains(summary.id) else {
+            AppLogger.app.warning("op=compatibility.retryPair skip reason=already_retrying summary_id=\(summary.id, privacy: .public)")
+            return
+        }
+        guard let chartA = archivedCharts[safe: selectedChartAIndex] else {
+            AppLogger.app.warning("op=compatibility.retryPair skip reason=a_index_out_of_bounds")
+            return
+        }
+
+        retryingIds.insert(summary.id)
+        let entry = summary.entry
+        let contextValue = context
+        let summaryId = summary.id
+
+        Task { [weak self] in
+            guard let self else { return }
+            defer {
+                Task { @MainActor [weak self] in
+                    self?.retryingIds.remove(summaryId)
+                }
+            }
+            do {
+                let baziA = try self.chartStore.decodeResponse(from: chartA.snapshot)
+                let payloadA = ChartPayloadDTO.from(baziResponse: baziA)
+                let newSummary = try await self.computePair(
+                    entry: entry,
+                    chartA: chartA,
+                    payloadA: payloadA,
+                    contextValue: contextValue
+                )
+                if !Task.isCancelled {
+                    AppLogger.app.info("op=compatibility.retryPair.ok summary_id=\(summaryId, privacy: .public)")
+                    self.replaceSummary(id: summaryId, with: newSummary)
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                if !Task.isCancelled {
+                    AppLogger.app.error(
+                        "op=compatibility.retryPair.failed summary_id=\(summaryId, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                    )
+                    // 不静默吞:重试仍失败 → 替换为新 failed summary(用新错误摘要,用户可继续重试)
+                    let newFailed = self.makeFailedSummary(entry: entry, error: error)
+                    self.replaceSummary(id: summaryId, with: newFailed)
+                }
+            }
+        }
+    }
+
+    /// 列表内替换某对 summary(重试成功 / 失败后用)。
+    private func replaceSummary(id: String, with newSummary: PairSummary) {
+        guard let idx = summaries.firstIndex(where: { $0.id == id }) else {
+            AppLogger.app.warning("op=compatibility.replaceSummary skip reason=not_found id=\(id, privacy: .public)")
+            return
+        }
+        summaries[idx] = newSummary
+    }
+
+    /// 失败 PairSummary 构造(占位字段 + .failed(UserFacingError))。
+    /// 失败卡片不展示 birthDate / fiveElements / dayMasterRelation(status 决定 UI)。
+    private func makeFailedSummary(entry: RosterEntry, error: Error) -> PairSummary {
+        let displayName: String
+        switch entry {
+        case .archived(let bHash):
+            displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? "对方"
+        case .temp(_, let alias):
+            displayName = alias?.isEmpty == false ? alias! : "对方"
+        }
+        let userError = UserFacingError.from(error, stage: .compatibilityDeterministic)
+        return PairSummary(
+            id: "failed:\(entry.id)",
+            entry: entry,
+            personBHash: "",
+            displayName: displayName,
+            birthDate: nil,
+            dayMaster: "—",
+            fiveElements: "",
+            dayMasterRelation: "",
+            compatibilityHash: "",
+            isInterpreted: false,
+            status: .failed(userError)
+        )
     }
 
     /// 计算单对并构造 PairSummary。
@@ -430,7 +535,8 @@ final class CompatibilityViewModel {
             fiveElements: result.response.qualitativeAssessment.fiveElements,
             dayMasterRelation: result.response.qualitativeAssessment.dayMasterRelation,
             compatibilityHash: result.response.compatibilityHash,
-            isInterpreted: isInterpreted
+            isInterpreted: isInterpreted,
+            status: .computed
         )
     }
 
@@ -646,7 +752,8 @@ final class CompatibilityViewModel {
             fiveElements: old.fiveElements,
             dayMasterRelation: old.dayMasterRelation,
             compatibilityHash: old.compatibilityHash,
-            isInterpreted: true
+            isInterpreted: true,
+            status: old.status
         )
     }
 

@@ -102,7 +102,7 @@
 		A00000000000000000000003 /* Compatibility/CompatibilityForbiddenWordsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000003 /* Compatibility/CompatibilityForbiddenWordsTests.swift */; };
 		A00000000000000000000004 /* Compatibility/CompatibilityOrchestratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000004 /* Compatibility/CompatibilityOrchestratorTests.swift */; };
 		A00000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift */; };
-		A00000000000000000000009 /* Compatibility/CompatibilityViewModelBatchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000009 /* Compatibility/CompatibilityViewModelBatchTests.swift */; };
+		A0000000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */; };
 		A00000000000000000000006 /* Shared/DailyReadCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */; };
 		A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */; };
 		A00000000000000000000008 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A21000000000000000000001 /* XCTest.framework */; };
@@ -244,7 +244,7 @@
 		A11000000000000000000003 /* Compatibility/CompatibilityForbiddenWordsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityForbiddenWordsTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000004 /* Compatibility/CompatibilityOrchestratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityOrchestratorTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilitySnapshotStoreTests.swift; sourceTree = "<group>"; };
-		A11000000000000000000009 /* Compatibility/CompatibilityViewModelBatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityViewModelBatchTests.swift; sourceTree = "<group>"; };
+		A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityViewModelBatchTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DailyReadCounterTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/UserFacingErrorTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000001 /* QiCompassTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QiCompassTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -543,7 +543,7 @@
 				A11000000000000000000003 /* Compatibility/CompatibilityForbiddenWordsTests.swift */,
 				A11000000000000000000004 /* Compatibility/CompatibilityOrchestratorTests.swift */,
 				A11000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift */,
-				A11000000000000000000009 /* Compatibility/CompatibilityViewModelBatchTests.swift */,
+				A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */,
 				A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */,
 				A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */,
 			);
@@ -778,7 +778,7 @@
 				A00000000000000000000003 /* Compatibility/CompatibilityForbiddenWordsTests.swift in Sources */,
 				A00000000000000000000004 /* Compatibility/CompatibilityOrchestratorTests.swift in Sources */,
 				A00000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift in Sources */,
-				A00000000000000000000009 /* Compatibility/CompatibilityViewModelBatchTests.swift in Sources */,
+				A0000000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift in Sources */,
 				A00000000000000000000006 /* Shared/DailyReadCounterTests.swift in Sources */,
 				A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */,
 			);

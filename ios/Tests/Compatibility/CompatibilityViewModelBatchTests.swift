@@ -252,7 +252,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             fiveElements: "互补",
             dayMasterRelation: "同气",
             compatibilityHash: "compat_hash_1",
-            isInterpreted: false
+            isInterpreted: false,
+            status: .computed
         )
 
         vm.openDetail(summary)
@@ -294,7 +295,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             fiveElements: "互补佳",
             dayMasterRelation: "同气",
             compatibilityHash: snapshot.compatibilityHash,
-            isInterpreted: false
+            isInterpreted: false,
+            status: .computed
         )
 
         vm.openDetail(summary)
@@ -326,7 +328,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             fiveElements: "互补",
             dayMasterRelation: "同气",
             compatibilityHash: "compat_hash_3",
-            isInterpreted: false
+            isInterpreted: false,
+            status: .computed
         )
         vm.summaries = [summary]
         vm.state = .list
@@ -345,6 +348,75 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             XCTFail("closeDetail 应返回 list 态,实际:\(vm.state)")
         }
         XCTAssertEqual(vm.summaries.count, 1, "closeDetail 后 summaries 应保留")
+    }
+
+    // MARK: - S03 对级错误隔离
+
+    func testRetryPair_非failed态_拒绝重试() {
+        // computed 态调 retryPair 应跳过
+        let summary = PairSummary(
+            id: "compat_ok",
+            entry: .archived(snapshotHash: "h_b"),
+            personBHash: "h_b",
+            displayName: "对方",
+            birthDate: nil,
+            dayMaster: "甲",
+            fiveElements: "互补",
+            dayMasterRelation: "同气",
+            compatibilityHash: "compat_ok",
+            isInterpreted: false,
+            status: .computed
+        )
+        vm.summaries = [summary]
+        vm.state = .list
+
+        vm.retryPair(summary: summary)
+        XCTAssertTrue(vm.retryingIds.isEmpty, "computed 态不应进入重试")
+    }
+
+    func testRetryPair_非list态_拒绝重试() {
+        let summary = PairSummary(
+            id: "failed:h_b",
+            entry: .archived(snapshotHash: "h_b"),
+            personBHash: "",
+            displayName: "对方",
+            birthDate: nil,
+            dayMaster: "—",
+            fiveElements: "",
+            dayMasterRelation: "",
+            compatibilityHash: "",
+            isInterpreted: false,
+            status: .failed(.generic(message: "test"))
+        )
+        vm.state = .configuring  // 非 list
+        vm.retryPair(summary: summary)
+        XCTAssertTrue(vm.retryingIds.isEmpty, "非 list 态不应进入重试")
+    }
+
+    func testMakeFailedSummary_可以通过构造验证字段() {
+        // 间接测:retryPair 在非 list 态会失败,但 makeFailedSummary 字段对失败卡片展示是关键
+        // 这里直接构造一个 failed summary 验证字段语义
+        let entry: RosterEntry = .archived(snapshotHash: "h_b")
+        let summary = PairSummary(
+            id: "failed:h_b",
+            entry: entry,
+            personBHash: "",
+            displayName: "对方",
+            birthDate: nil,
+            dayMaster: "—",
+            fiveElements: "",
+            dayMasterRelation: "",
+            compatibilityHash: "",
+            isInterpreted: false,
+            status: .failed(.networkUnavailable)
+        )
+        XCTAssertEqual(summary.id, "failed:h_b")
+        XCTAssertTrue(summary.isComputed == false)
+        if case .failed(let err) = summary.status {
+            XCTAssertEqual(err, .networkUnavailable)
+        } else {
+            XCTFail("status 应为 .failed")
+        }
     }
 
     func testGenerateInterpretation_非detail态_不静默吞() {
