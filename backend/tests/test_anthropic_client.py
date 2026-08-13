@@ -67,6 +67,30 @@ async def test_anthropic_client_request_contract(monkeypatch):
     ]
 
 
+async def test_anthropic_client_custom_base_url(monkeypatch):
+    """自定义 base_url(Anthropic 协议中转,如 z.ai):/v1/messages 拼在 base 后。
+
+    默认(不传 base_url)仍走官方 endpoint,由
+    test_anthropic_client_request_contract 覆盖。
+    """
+    captured = _capture_request(monkeypatch)
+    client = AnthropicClient(
+        api_key="secret", model="glm-5.2",
+        base_url="https://api.z.ai/api/anthropic/",
+    )
+
+    await client.interpret("prompt")
+
+    assert captured["url"] == "https://api.z.ai/api/anthropic/v1/messages"
+    assert captured["headers"]["x-api-key"] == "secret"
+    assert captured["json"]["model"] == "glm-5.2"
+
+
+async def test_anthropic_client_blank_base_url_rejected():
+    with pytest.raises(ValueError, match="base_url must not be blank"):
+        AnthropicClient(api_key="secret", base_url="   ")
+
+
 @pytest.mark.parametrize("payload,match", [
     ([], "JSON 顶层不是 object"),
     ({"content": {"text": "bad"}}, "空 content"),

@@ -1,4 +1,7 @@
-"""Anthropic Messages API 同步客户端(httpx)。"""
+"""Anthropic Messages API 同步客户端(httpx)。
+
+支持自定义 base_url(Anthropic 协议中转,如 z.ai /api/anthropic)。
+"""
 
 from __future__ import annotations
 
@@ -12,12 +15,23 @@ class AnthropicClient:
     """Anthropic Messages API 适配器。"""
 
     provider = "anthropic"
+    _DEFAULT_BASE_URL = "https://api.anthropic.com"
 
-    def __init__(self, api_key: str | None, model: str = ANTHROPIC_MODEL):
+    def __init__(
+        self,
+        api_key: str | None,
+        model: str = ANTHROPIC_MODEL,
+        base_url: str | None = None,
+    ):
         if not model.strip():
             raise ValueError("Anthropic model must not be blank")
+        if base_url is not None and not base_url.strip():
+            raise ValueError("Anthropic base_url must not be blank")
         self._api_key = api_key
         self._model = model
+        # 中转 endpoint 传根地址(如 https://api.z.ai/api/anthropic),
+        # /v1/messages 由本类拼接,与官方 URL 形状保持一致。
+        self._base_url = (base_url or self._DEFAULT_BASE_URL).rstrip("/")
 
     @property
     def model(self) -> str:
@@ -43,7 +57,7 @@ class AnthropicClient:
         try:
             async with httpx.AsyncClient(timeout=AI_TIMEOUT_SECONDS) as client:
                 resp = await client.post(
-                    "https://api.anthropic.com/v1/messages",
+                    f"{self._base_url}/v1/messages",
                     headers={
                         "x-api-key": self._api_key,
                         "anthropic-version": "2023-06-01",
