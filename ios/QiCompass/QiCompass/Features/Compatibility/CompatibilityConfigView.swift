@@ -151,7 +151,7 @@ struct CompatibilityConfigView: View {
         switch entry {
         case .archived(let hash):
             return vm.archivedCharts.first { $0.snapshotHash == hash }?.alias ?? "未知存档"
-        case .temp(let input, let alias):
+        case .temp(let input, let alias, _):
             if let alias, !alias.isEmpty { return alias }
             let loc = input.city ?? "经度 \(String(format: "%.1f", input.longitude ?? 0))"
             let dateStr = Self.tempDateFormatter.string(from: input.birthDatetime)
@@ -166,7 +166,7 @@ struct CompatibilityConfigView: View {
         }
     }
 
-    // MARK: - 临时表单(模式 B,S01 限 1 条)
+    // MARK: - 临时表单(模式 B,S04 多条独立)
 
     @ViewBuilder
     private var tempInputArea: some View {
@@ -176,8 +176,8 @@ struct CompatibilityConfigView: View {
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(BaziTheme.ink)
                 Spacer()
-                if vm.hasTempInRoster {
-                    Text("已有 1 条,再次添加会替换")
+                if vm.tempCountInRoster > 0 {
+                    Text("已加入 \(vm.tempCountInRoster) 条")
                         .font(.caption2)
                         .foregroundStyle(BaziTheme.inkMuted)
                 }
@@ -190,7 +190,7 @@ struct CompatibilityConfigView: View {
                 } label: {
                     HStack {
                         Image(systemName: "plus.circle.fill")
-                        Text(vm.hasTempInRoster ? "替换临时对方" : "添加到名单")
+                        Text("添加到名单")
                     }
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(BaziTheme.cinnabar)
@@ -198,6 +198,7 @@ struct CompatibilityConfigView: View {
                     .padding(.vertical, 10)
                     .background(BaziTheme.cinnabarSoft, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
+                .disabled(vm.roster.count >= CompatibilityViewModel.rosterMax)
             } else {
                 Button {
                     showTempForm = true
@@ -211,6 +212,7 @@ struct CompatibilityConfigView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 8)
                 }
+                .disabled(vm.roster.count >= CompatibilityViewModel.rosterMax)
             }
 
             if let tempFormError {
@@ -224,6 +226,16 @@ struct CompatibilityConfigView: View {
 
     private var tempInputForm: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // S04 新增:可选「称呼」字段(留空走兜底名「对方+出生日期」)
+            HStack {
+                Text("称呼").foregroundStyle(BaziTheme.inkMuted)
+                TextField("可选,如「相亲对象甲」", text: $vm.tempAlias)
+                    .foregroundStyle(BaziTheme.ink)
+                    .padding(BaziTheme.Spacing.sm)
+                    .background(BaziTheme.paper, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                    .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.sm).stroke(BaziTheme.hairline, lineWidth: 0.5))
+            }
+
             DatePicker(
                 "出生时间",
                 selection: $vm.tempBirthDate,
@@ -269,7 +281,8 @@ struct CompatibilityConfigView: View {
         do {
             try vm.addTempToRoster()
             tempFormError = nil
-            showTempForm = false
+            // S04:多条模式 → 添加成功后清空草稿(让用户继续添加下一个)
+            vm.resetTempDraftForm()
         } catch {
             // 不静默吞(CLAUDE.md):展示真实错误
             tempFormError = error.localizedDescription

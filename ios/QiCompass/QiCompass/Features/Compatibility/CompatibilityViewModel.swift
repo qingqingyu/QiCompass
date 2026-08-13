@@ -69,13 +69,16 @@ final class CompatibilityViewModel {
     /// 上限 8 人(`rosterMax`,决策 D2 全局池配套)。
     var roster: [RosterEntry] = []
 
-    /// 单临时人表单(S01 限 1 条,已存在名单中的 temp 会被新添加覆盖)。
-    /// S04 扩为多条独立表单。
+    /// 单临时人表单(S04 草稿态:每次「添加」push 一条 .temp 到 roster,然后表单清空)。
+    /// 多条独立 .temp 在 roster 内互不干扰。
     var tempBirthDate: Date = Date(timeIntervalSince1970: 638_000_000)
     var tempGender: String = "male"
     var tempSelectedCity: String = "北京"
     var tempUseManualLongitude: Bool = false
     var tempManualLongitude: Double = 116.41
+    /// S04 新增:临时人可选「称呼」字段(会话内显示)。
+    /// 空字符串视为未填 → 跨启动兜底名「对方+出生日期」。
+    var tempAlias: String = ""
 
     /// context picker(通用 / 婚姻 / 事业;决策 D8 配置页全局)
     var context: String = "general"
@@ -189,9 +192,14 @@ final class CompatibilityViewModel {
         })
     }
 
-    /// 名单内是否已有临时人(S01 限 1 条;S04 扩多条后此 helper 改语义或废弃)。
+    /// 名单内是否已有临时人(S04 后多条,此处仅用于 UI 展示提示)。
     var hasTempInRoster: Bool {
         roster.contains { $0.isTemp }
+    }
+
+    /// 名单内临时人数量(S04 后多条)。
+    var tempCountInRoster: Int {
+        roster.filter(\.isTemp).count
     }
 
     /// 勾选 / 取消勾选存档对方。
@@ -213,13 +221,11 @@ final class CompatibilityViewModel {
         roster.append(.archived(snapshotHash: hash))
     }
 
-    /// 添加临时对方到名单。
-    /// S01 限 1 条:已有临时人则先移除再加入(不抛错,允许用户改输入后覆盖)。
+    /// 添加临时对方到名单(S04:多条,每次 append 一条独立 .temp)。
     /// 校验失败抛 `UserFacingError`(不静默吞,CLAUDE.md 错误显式传播)。
+    /// 调用方负责成功后清空表单字段。
     func addTempToRoster() throws {
         try validateTempForm()
-        // S01 限 1 条:已有临时人先移除
-        roster.removeAll { $0.isTemp }
         guard roster.count < Self.rosterMax else {
             throw UserFacingError.generic(message: "名单已达上限 \(Self.rosterMax) 人")
         }
@@ -231,7 +237,19 @@ final class CompatibilityViewModel {
             city: city,
             longitude: longitude
         )
-        roster.append(.temp(input: input, alias: nil))
+        // alias 空字符串视为 nil(统一兜底名判定)
+        let alias = tempAlias.trimmingCharacters(in: .whitespaces)
+        roster.append(.temp(input: input, alias: alias.isEmpty ? nil : alias, resolvedHash: nil))
+    }
+
+    /// S04:添加后清空草稿表单(让用户能继续添加下一个)。
+    func resetTempDraftForm() {
+        tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        tempGender = "male"
+        tempSelectedCity = "北京"
+        tempUseManualLongitude = false
+        tempManualLongitude = 116.41
+        tempAlias = ""
     }
 
     /// 移除名单一项。
@@ -429,8 +447,14 @@ final class CompatibilityViewModel {
         switch entry {
         case .archived(let bHash):
             displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? "对方"
-        case .temp(_, let alias):
-            displayName = alias?.isEmpty == false ? alias! : "对方"
+        case .temp(let input, let alias, _):
+            if let alias, !alias.isEmpty {
+                displayName = alias
+            } else {
+                // S04 兜底名:用 input 的出生时间(input 已校验未来不会出现)
+                let dateStr = Self.fallbackDateFormatter.string(from: input.birthDatetime)
+                displayName = "对方 · \(dateStr)"
+            }
         }
         let userError = UserFacingError.from(error, stage: .compatibilityDeterministic)
         return PairSummary(
@@ -447,6 +471,37 @@ final class CompatibilityViewModel {
             status: .failed(userError)
         )
     }
+
+    /// S04:回填临时人 resolvedHash 到 roster 内对应 entry(为 S05 增量预查 / S06 持久化铺路)。
+    /// 用 input + alias 定位(id 不变 → ForEach 不重建)。
+    private func backfillTempResolvedHash(input: PersonBInput, alias: String?, resolvedHash: String) {
+        guard let idx = roster.firstIndex(where: { entry in
+            if case .temp(let existingInput, let existingAlias, _) = entry,
+               existingInput.birthDatetime == input.birthDatetime,
+               existingInput.gender == input.gender,
+               (existingInput.city ?? "") == (input.city ?? ""),
+               (existingInput.longitude ?? 0) == (input.longitude ?? 0),
+               (existingAlias ?? "") == (alias ?? "") {
+                return true
+            }
+            return false
+        }) else {
+            AppLogger.app.warning("op=compatibility.backfillTempResolvedHash not_found alias=\(alias ?? "nil", privacy: .public)")
+            return
+        }
+        roster[idx] = .temp(input: input, alias: alias, resolvedHash: resolvedHash)
+        AppLogger.app.info(
+            "op=compatibility.backfillTempResolvedHash ok idx=\(idx) resolved_hash=\(resolvedHash, privacy: .public)"
+        )
+    }
+
+    /// S04:兜底名「对方+出生日期」用的日期格式器。
+    private static let fallbackDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = .current
+        return f
+    }()
 
     /// 计算单对并构造 PairSummary。
     /// - 模式 A:存档对方 → 直接解 B snapshot
@@ -476,7 +531,7 @@ final class CompatibilityViewModel {
             )
             bSnapshotForUI = bChart.snapshot
 
-        case .temp(let input, _):
+        case .temp(let input, _, _):
             request = CompatibilityRequest(
                 personAHash: chartA.snapshotHash,
                 personB: input,
@@ -507,13 +562,28 @@ final class CompatibilityViewModel {
         let baziB = try chartStore.decodeResponse(from: bSnapshot)
         let dayMaster = baziB.pillars.day.gan
 
-        // 显示名(存档 = alias;临时 = alias 或「对方」—— S04 兜底名扩为「对方+出生日期」)
+        // 显示名(存档 = alias;临时 = alias 或「对方+出生日期」—— S04 兜底名策略)
         let displayName: String
         switch entry {
         case .archived(let bHash):
             displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? "对方"
-        case .temp(_, let alias):
-            displayName = alias?.isEmpty == false ? alias! : "对方"
+        case .temp(_, let alias, _):
+            if let alias, !alias.isEmpty {
+                displayName = alias
+            } else {
+                // S04 兜底名:「对方+出生日期」(从 ChartSnapshot.birthSolarTime 读)
+                let dateStr = Self.fallbackDateFormatter.string(from: bSnapshot.birthSolarTime)
+                displayName = "对方 · \(dateStr)"
+            }
+        }
+
+        // S04:临时人首次计算后回填 resolvedHash 到 roster(为 S05 增量预查 / S06 持久化铺路)
+        if case .temp(let input, let alias, _) = entry {
+            backfillTempResolvedHash(
+                input: input,
+                alias: alias,
+                resolvedHash: result.personBHash
+            )
         }
 
         // 已解读标记:查 CompatibilitySnapshot.interpretation

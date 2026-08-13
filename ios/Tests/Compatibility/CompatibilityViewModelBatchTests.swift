@@ -149,7 +149,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         }
     }
 
-    func testAddTempToRoster_已有临时_先移除再加入_S01限1条() {
+    func testAddTempToRoster_多条独立_不替换_S04改造() {
+        // S04 改造:不再替换,而是 append 多条
         vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
         vm.tempGender = "male"
         vm.tempSelectedCity = "北京"
@@ -157,10 +158,105 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         try? vm.addTempToRoster()
         XCTAssertEqual(vm.roster.filter(\.isTemp).count, 1)
 
-        // 再加一次,出生时间不同
+        // S04:再加一次,出生时间不同 → 名单内 2 条独立 temp
         vm.tempBirthDate = Date(timeIntervalSince1970: 700_000_000)
+        vm.tempSelectedCity = "上海"
         try? vm.addTempToRoster()
-        XCTAssertEqual(vm.roster.filter(\.isTemp).count, 1, "S01 限 1 条:已有临时人再添加会替换")
+        XCTAssertEqual(vm.roster.filter(\.isTemp).count, 2, "S04 改造:多条独立 temp,不再替换")
+    }
+
+    // MARK: - S04 多临时人 + 称呼 + resolvedHash 回填
+
+    func testAddTempToRoster_多条不重复_直到上限8() {
+        vm.archivedCharts = [Self.makeChart(hash: "h_a", alias: "A")]
+        vm.selectedChartAIndex = 0
+
+        // 加 7 个不同 temp(配合 1 个存档 = 8 满员)
+        for i in 0..<7 {
+            vm.tempBirthDate = Date(timeIntervalSince1970: TimeInterval(638_000_000 + i * 86400))
+            vm.tempSelectedCity = "城市\(i)"
+            try? vm.addTempToRoster()
+        }
+        XCTAssertEqual(vm.tempCountInRoster, 7)
+        XCTAssertEqual(vm.roster.count, 7)
+
+        // 第 8 个 temp(总第 8 名额,可加入)
+        vm.tempBirthDate = Date(timeIntervalSince1970: 1_000_000_000)
+        vm.tempSelectedCity = "城市8"
+        try? vm.addTempToRoster()
+        XCTAssertEqual(vm.roster.count, 8)
+
+        // 第 9 个 temp 触发上限
+        vm.tempBirthDate = Date(timeIntervalSince1970: 1_100_000_000)
+        vm.tempSelectedCity = "城市9"
+        XCTAssertThrowsError(try vm.addTempToRoster(), "上限 8 必须拦截第 9 个 temp")
+    }
+
+    func testAddTempToRoster_称呼字段_空字符串视为nil() {
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempSelectedCity = "北京"
+        vm.tempAlias = "   "  // 全空白
+        try? vm.addTempToRoster()
+
+        if case .temp(_, let alias, _) = vm.roster.first(where: { $0.isTemp }) {
+            XCTAssertNil(alias, "空白 alias 应被 trim 为 nil(走兜底名策略)")
+        } else {
+            XCTFail("roster 应有一个 temp")
+        }
+    }
+
+    func testAddTempToRoster_称呼字段_保留非空值() {
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempSelectedCity = "北京"
+        vm.tempAlias = "  相亲对象甲  "  // 带空格
+        try? vm.addTempToRoster()
+
+        if case .temp(_, let alias, _) = vm.roster.first(where: { $0.isTemp }) {
+            XCTAssertEqual(alias, "相亲对象甲", "alias 应被 trim 保留非空值")
+        }
+    }
+
+    func testResetTempDraftForm_字段全部重置() {
+        // 先污染字段
+        vm.tempBirthDate = Date(timeIntervalSince1970: 999_999_999)
+        vm.tempGender = "female"
+        vm.tempSelectedCity = "测试城市"
+        vm.tempUseManualLongitude = true
+        vm.tempManualLongitude = 88.88
+        vm.tempAlias = "测试"
+
+        vm.resetTempDraftForm()
+
+        XCTAssertEqual(vm.tempBirthDate, Date(timeIntervalSince1970: 638_000_000))
+        XCTAssertEqual(vm.tempGender, "male")
+        XCTAssertEqual(vm.tempSelectedCity, "北京")
+        XCTAssertFalse(vm.tempUseManualLongitude)
+        XCTAssertEqual(vm.tempManualLongitude, 116.41)
+        XCTAssertEqual(vm.tempAlias, "")
+    }
+
+    func testRosterEntry_resolvedHash_默认nil_符合S04契约() {
+        // 验证 entry 字段语义,不依赖计算回填(mock orchestrator 留后续)
+        let entry: RosterEntry = .temp(
+            input: PersonBInput(
+                birthDatetime: Date(timeIntervalSince1970: 638_000_000),
+                gender: "male",
+                city: "北京",
+                longitude: nil
+            ),
+            alias: nil,
+            resolvedHash: nil
+        )
+        XCTAssertNil(entry.resolvedContentHash, "首次输入 resolvedHash 必须为 nil,等计算后回填")
+        XCTAssertEqual(entry.tempAlias, nil)
+        XCTAssertNotNil(entry.tempInput)
+    }
+
+    func testRosterEntry_archived_resolvedHash等于snapshotHash() {
+        let entry: RosterEntry = .archived(snapshotHash: "abc123")
+        XCTAssertEqual(entry.resolvedContentHash, "abc123", "archived 的 resolvedHash 就是 snapshotHash")
+        XCTAssertEqual(entry.archivedSnapshotHash, "abc123")
+        XCTAssertNil(entry.tempAlias)
     }
 
     func testAddTempToRoster_存档加临时_混合名单() {
