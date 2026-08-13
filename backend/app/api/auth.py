@@ -2,30 +2,31 @@
 
 流程:
 1. iOS PR2 拿到 Apple identityToken
-2. POST /api/auth/sign-in 提交 identity_token
+2. POST /api/auth/sign-in 提交 identity_token(+ 可选 user_local_id 用于 backfill)
 3. 后端 verify_apple_identity_token → AppleUserInfo(apple_user_id + email)
 4. UserStore.upsert_by_apple_user_id → User(服务端 id)
-5. jwt_service.create_access_token(user.id) → 自家 JWT
-6. 返回 {access_token, user_id, expires_at} 给 iOS
+5. (可选)EntitlementStore.backfill_user_id_by_local_id → 老 entitlement 补 user_id
+6. jwt_service.create_access_token(user.id) → 自家 JWT
+7. 返回 {access_token, user_id, expires_at} 给 iOS
 
 iOS 拿到 access_token 后存 Keychain,后续 API 调用 Authorization: Bearer <access_token>。
 """
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Request
 from fastapi.concurrency import run_in_threadpool
-from pydantic import BaseModel
 
 from ..auth.apple_signin import verify_apple_identity_token
 from ..auth.jwt_service import create_access_token
 from ..config import APPLE_SIGN_IN_CLIENT_ID, JWT_EXP_MINUTES
-from ..errors import BaziError
 from ..models.auth import SignInRequest, SignInResponse
 
 router = APIRouter(tags=["auth"])
+logger = logging.getLogger(__name__)
 
 
 @router.post("/api/auth/sign-in", response_model=SignInResponse)
@@ -54,10 +55,36 @@ async def sign_in(req: SignInRequest, request: Request) -> SignInResponse:
     # 3. 签发自家 JWT
     access_token = create_access_token(user.id)
 
-    # 4. 计算过期时间(返给客户端便于 UI 显示)
+    # 4. Backfill 老 entitlement:客户端传 user_local_id 时,把该 UUID 下
+    #    既有但 user_id 为 NULL 的购买记录补上 user_id,让匿名时期的购买
+    #    跟随 Apple 账号迁移。失败不阻断登录(降级:user_id 仍 NULL,
+    #    老数据继续按 user_local_id 兜底查询,见 store.get_active)。
+    backfilled_count = 0
+    if req.user_local_id:
+        entitlement_store = request.app.state.entitlement_store
+        try:
+            backfilled_count = await run_in_threadpool(
+                entitlement_store.backfill_user_id_by_local_id,
+                user_id=user.id,
+                user_local_id=req.user_local_id,
+            )
+        except Exception as e:
+            # 失败不阻断登录,但显式记日志(对齐 CLAUDE.md "错误显式传播":不静默吞,
+            # 但 backfill 是辅助路径,降级比 fail-the-login 用户体验更好)
+            logger.exception(
+                "auth.sign_in.backfill_failed user_id=%s user_local_id=%s error=%r",
+                user.id, req.user_local_id, e,
+            )
+
+    # 5. 计算过期时间(返给客户端便于 UI 显示)
     expires_at = (
         datetime.now(timezone.utc) + timedelta(minutes=JWT_EXP_MINUTES)
     ).isoformat()
+
+    logger.info(
+        "auth.sign_in.ok user_id=%s apple_user_id_prefix=%s backfilled=%d",
+        user.id, apple_user.apple_user_id[:8], backfilled_count,
+    )
 
     return SignInResponse(
         access_token=access_token,

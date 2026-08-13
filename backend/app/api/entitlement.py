@@ -32,8 +32,13 @@ from ..errors import (
     EntitlementError,
     InterpretationCacheError,
 )
-from ..auth.dependencies import get_current_user_id
-from ..models.entitlement import EntitlementRedeemRequest, EntitlementRedeemResponse
+from ..auth.dependencies import require_authenticated_user
+from ..models.entitlement import (
+    EntitlementListItem,
+    EntitlementListResponse,
+    EntitlementRedeemRequest,
+    EntitlementRedeemResponse,
+)
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -42,7 +47,7 @@ logger = logging.getLogger(__name__)
 @router.post("/api/entitlement/redeem", response_model=EntitlementRedeemResponse)
 async def redeem(
     req: EntitlementRedeemRequest, request: Request,
-    current_user_id: str | None = Depends(get_current_user_id),
+    current_user_id: str = Depends(require_authenticated_user),
 ) -> EntitlementRedeemResponse:
     request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
     start = time.perf_counter()
@@ -143,7 +148,7 @@ async def redeem(
             content_hash=req.content_hash,
             module=req.module,
             user_local_id=req.user_local_id,
-            user_id=current_user_id,  # PR2.5:登录用户填此(老 iOS / 老数据为 None)
+            user_id=current_user_id,  # 强制登录后必有值(redeem 走 require_authenticated_user)
             purchased_at=purchased_at_iso,
             original_purchase_date=original_purchase_date_iso,
         )
@@ -166,3 +171,62 @@ async def redeem(
         purchased_at=now_utc,
         original_purchase_date=apple_info.original_purchase_date,
     )
+
+
+@router.get("/api/entitlement/list", response_model=EntitlementListResponse)
+async def list_entitlements(
+    request: Request,
+    current_user_id: str = Depends(require_authenticated_user),
+) -> EntitlementListResponse:
+    """拉取当前登录用户的全部 entitlement(跨设备 / 重装 / 退登回登同步用)。
+
+    流程:
+    1. JWT 验签(require_authenticated_user)→ current_user_id = qicompass_user.id
+    2. store.list_by_user_id(user_id) → list[dict](按 purchased_at DESC)
+    3. 包装成 EntitlementListResponse 返回
+
+    iOS 客户端在 onSignedIn 回调里调用此接口,把远端 entitlement 批量写入
+    本地 SwiftData。包含 inactive 记录(客户端自行筛选,用于正确同步退款状态)。
+
+    **未带 JWT / 验签失败** → require_authenticated_user 抛 401(对齐强制登录决策)。
+    """
+    request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
+    start = time.perf_counter()
+
+    store: EntitlementStore = request.app.state.entitlement_store
+
+    log_ctx = {"request_id": request_id, "user_id": current_user_id}
+    logger.info("entitlement.list.start %s", log_ctx)
+
+    try:
+        rows = await run_in_threadpool(store.list_by_user_id, current_user_id)
+    except Exception as e:
+        logger.exception(
+            "entitlement.list.lookup_failed %s error=%r", log_ctx, e)
+        raise InterpretationCacheError(
+            f"entitlement 列表查询失败({type(e).__name__}): {e}",
+            request_id=request_id,
+        ) from e
+
+    entitlements: list[EntitlementListItem] = []
+    for row in rows:
+        # is_active 在 DB 里是 INTEGER(0/1),转 bool 给 Pydantic schema
+        row["is_active"] = bool(row["is_active"])
+        # datetime 字段从 ISO 字符串解析回去(对齐 EntitlementRedeemResponse 的 datetime 类型)
+        row["purchased_at"] = datetime.fromisoformat(row["purchased_at"])
+        row["original_purchase_date"] = datetime.fromisoformat(
+            row["original_purchase_date"])
+        if row.get("refunded_at"):
+            row["refunded_at"] = datetime.fromisoformat(row["refunded_at"])
+        if row.get("revoked_at"):
+            row["revoked_at"] = datetime.fromisoformat(row["revoked_at"])
+        entitlements.append(EntitlementListItem(**row))
+
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    logger.info(
+        "entitlement.list.ok elapsed_ms=%.1f %s count=%d is_active_count=%d",
+        elapsed_ms, log_ctx, len(entitlements),
+        sum(1 for e in entitlements if e.is_active),
+    )
+
+    return EntitlementListResponse(entitlements=entitlements)

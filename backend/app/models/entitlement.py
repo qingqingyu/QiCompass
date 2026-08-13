@@ -82,3 +82,48 @@ class EntitlementRedeemResponse(BaseModel):
     @field_serializer("original_purchase_date")
     def _serialize_original_purchase_date(self, dt: datetime) -> str:
         return dt.replace(microsecond=0).isoformat()
+
+
+class EntitlementListItem(BaseModel):
+    """GET /api/entitlement/list 单条记录。
+
+    iOS 登录后批量同步用:把当前 user_id 下所有 entitlement 拉回本地 SwiftData,
+    支持跨设备 / 重装 / 退登回登场景的购买找回。
+    """
+
+    transaction_id: str = Field(..., description="Apple JWS transactionId(全局唯一 PK)")
+    product_id: ProductId = Field(..., description="Apple product_id")
+    content_hash: str = Field(..., description="命盘 hash(深度解析)或 compatibility_hash(合盘)")
+    module: EntitlementModule = Field(..., description="基础 module 名")
+    user_local_id: str = Field(..., description="客户端 UUID(老数据;新数据也有,留作历史溯源)")
+    user_id: str | None = Field(default=None, description="后端 qicompass_user.id(新数据填,老数据可能为 None)")
+    purchased_at: datetime = Field(..., description="ISO 8601 UTC,后端写表时间")
+    original_purchase_date: datetime = Field(..., description="ISO 8601 UTC,Apple 返回的原始购买时间")
+    is_active: bool = Field(..., description="true=有效;false=已退款/撤销")
+    refunded_at: datetime | None = Field(default=None, description="退款时间(仅 is_active=false 且 reason=refund)")
+    revoked_at: datetime | None = Field(default=None, description="撤销时间(仅 is_active=false 且 reason=revoke)")
+
+    @field_serializer("purchased_at")
+    def _serialize_purchased_at(self, dt: datetime) -> str:
+        return dt.replace(microsecond=0).isoformat()
+
+    @field_serializer("original_purchase_date")
+    def _serialize_original_purchase_date(self, dt: datetime) -> str:
+        return dt.replace(microsecond=0).isoformat()
+
+    @field_serializer("refunded_at")
+    def _serialize_refunded_at(self, dt: datetime | None) -> str | None:
+        return dt.replace(microsecond=0).isoformat() if dt else None
+
+    @field_serializer("revoked_at")
+    def _serialize_revoked_at(self, dt: datetime | None) -> str | None:
+        return dt.replace(microsecond=0).isoformat() if dt else None
+
+
+class EntitlementListResponse(BaseModel):
+    """GET /api/entitlement/list 响应。"""
+
+    entitlements: list[EntitlementListItem] = Field(
+        default_factory=list,
+        description="当前 user_id 下的全部 entitlement(含 inactive,客户端自行筛选)",
+    )

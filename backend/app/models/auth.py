@@ -13,6 +13,15 @@ class SignInRequest(BaseModel):
         description="Apple 返回的 identityToken(JWT 字符串,iOS 调 ASAuthorization 后拿到)",
         min_length=1,
     )
+    user_local_id: str | None = Field(
+        default=None,
+        description=(
+            "客户端 lazy 生成的 UUID(可选)。登录时传入用于 backfill 老 entitlement:"
+            "把仅有 user_local_id、user_id 为 NULL 的老数据补上 user_id,"
+            "让用户既有的匿名购买能跟随 Apple 账号迁移过来。"
+        ),
+        min_length=1,
+    )
 
 
 class SignInResponse(BaseModel):

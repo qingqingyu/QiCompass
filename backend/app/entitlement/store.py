@@ -165,8 +165,8 @@ class EntitlementStore:
             conn.row_factory = sqlite3.Row
             row = conn.execute(
                 "SELECT transaction_id, product_id, content_hash, module, "
-                "       user_local_id, purchased_at, original_purchase_date, "
-                "       is_active, refunded_at, revoked_at "
+                "       user_local_id, user_id, purchased_at, "
+                "       original_purchase_date, is_active, refunded_at, revoked_at "
                 "FROM entitlement WHERE transaction_id=?",
                 (transaction_id,),
             ).fetchone()
@@ -296,3 +296,65 @@ class EntitlementStore:
             )
             conn.commit()
             return cursor.rowcount > 0
+
+    def list_by_user_id(self, user_id: str) -> list[dict[str, Any]]:
+        """按 user_id 拉当前用户的全部 entitlement(含 inactive)。
+
+        用于 GET /api/entitlement/list:iOS 登录后批量同步本地 SwiftData,
+        支持跨设备 / 重装 / 退登回登场景的购买找回。
+
+        **包含 inactive 记录**:客户端拿到后自行筛选。这样客户端能正确把
+        "远端已退款但本地仍 active" 的记录同步成 inactive(避免显示已退款内容)。
+
+        Args:
+            user_id: 后端 qicompass_user.id(JWT sub)
+
+        Returns:
+            list[dict]:按 purchased_at DESC 排序;空列表表示该用户暂无 entitlement
+
+        Raises:
+            sqlite3.Error: 读失败(不吞)
+        """
+        with self._connect() as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT transaction_id, product_id, content_hash, module, "
+                "       user_local_id, user_id, purchased_at, "
+                "       original_purchase_date, is_active, refunded_at, revoked_at "
+                "FROM entitlement WHERE user_id=? "
+                "ORDER BY purchased_at DESC",
+                (user_id,),
+            ).fetchall()
+        return [dict(r) for r in rows]
+
+    def backfill_user_id_by_local_id(
+        self, *, user_id: str, user_local_id: str,
+    ) -> int:
+        """把老 entitlement(仅有 user_local_id,user_id 为 NULL)补上 user_id。
+
+        用于 /api/auth/sign-in 流程:用户登录时若客户端传了 user_local_id,
+        后端把该 UUID 下既有但未绑账号的购买记录补绑到当前 qicompass_user.id。
+        让匿名时期的购买能跟随 Apple 账号迁移。
+
+        **幂等**:仅更新 user_id IS NULL 的行;已有 user_id 的不动(避免覆盖)。
+        **不影响 backfill 后的 redeem**:redeem 走 INSERT OR IGNORE,同 transaction_id
+        不会重复插入,backfill 只是补字段。
+
+        Args:
+            user_id: 后端 qicompass_user.id
+            user_local_id: 客户端 lazy UUID
+
+        Returns:
+            实际更新行数(0 = 无老数据需要 backfill)
+
+        Raises:
+            sqlite3.Error: 写失败(不吞)
+        """
+        with self._connect() as conn:
+            cursor = conn.execute(
+                "UPDATE entitlement SET user_id=? "
+                "WHERE user_local_id=? AND user_id IS NULL",
+                (user_id, user_local_id),
+            )
+            conn.commit()
+            return cursor.rowcount
