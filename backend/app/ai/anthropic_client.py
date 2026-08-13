@@ -1,4 +1,7 @@
-"""Anthropic Messages API 同步客户端(httpx)。"""
+"""Anthropic Messages API 同步客户端(httpx)。
+
+支持自定义 base_url(Anthropic 协议中转,如 z.ai /api/anthropic)。
+"""
 
 from __future__ import annotations
 
@@ -12,12 +15,23 @@ class AnthropicClient:
     """Anthropic Messages API 适配器。"""
 
     provider = "anthropic"
+    _DEFAULT_BASE_URL = "https://api.anthropic.com"
 
-    def __init__(self, api_key: str | None, model: str = ANTHROPIC_MODEL):
+    def __init__(
+        self,
+        api_key: str | None,
+        model: str = ANTHROPIC_MODEL,
+        base_url: str | None = None,
+    ):
         if not model.strip():
             raise ValueError("Anthropic model must not be blank")
+        if base_url is not None and not base_url.strip():
+            raise ValueError("Anthropic base_url must not be blank")
         self._api_key = api_key
         self._model = model
+        # 中转 endpoint 传根地址(如 https://api.z.ai/api/anthropic),
+        # /v1/messages 由本类拼接,与官方 URL 形状保持一致。
+        self._base_url = (base_url or self._DEFAULT_BASE_URL).rstrip("/")
 
     @property
     def model(self) -> str:
@@ -25,6 +39,8 @@ class AnthropicClient:
 
     async def interpret(
         self, prompt: str, *, temperature: float = 0.6,
+        max_tokens: int | None = None,
+        timeout: float | None = None,
     ) -> str:
         """调 Anthropic Messages API,返回第一个非空文本块。
 
@@ -33,17 +49,31 @@ class AnthropicClient:
             temperature: 0.0-1.0(Anthropic 范围);v1 prompt 系统按 module 分级,
                 M0-M2 结构层 0.3,M3-M7 叙述层 0.6。调用方通过
                 config.resolve_temperature(module) 取值后传入。
+            max_tokens: 输出 token 上限;None 用 config.AI_MAX_OUTPUT_TOKENS(App 1024)。
+                长文调用方(如 promo-site 加长版)按需放大。
+            timeout: 请求超时秒数;None 用 config.AI_TIMEOUT_SECONDS(App 90s)。
+                长 max_tokens 生成耗时更长,调用方应同步放大。
         """
         if not self._api_key:
             raise AIProviderError(
                 "ANTHROPIC_API_KEY not configured"
                 "(后端未设置 API key,无法调用 Anthropic)"
             )
+        if max_tokens is not None and max_tokens <= 0:
+            raise ValueError(
+                f"max_tokens must be a positive integer (got {max_tokens})"
+            )
+        if timeout is not None and timeout <= 0:
+            raise ValueError(
+                f"timeout must be a positive number of seconds (got {timeout})"
+            )
 
         try:
-            async with httpx.AsyncClient(timeout=AI_TIMEOUT_SECONDS) as client:
+            async with httpx.AsyncClient(
+                timeout=timeout if timeout is not None else AI_TIMEOUT_SECONDS,
+            ) as client:
                 resp = await client.post(
-                    "https://api.anthropic.com/v1/messages",
+                    f"{self._base_url}/v1/messages",
                     headers={
                         "x-api-key": self._api_key,
                         "anthropic-version": "2023-06-01",
@@ -51,7 +81,7 @@ class AnthropicClient:
                     },
                     json={
                         "model": self._model,
-                        "max_tokens": AI_MAX_OUTPUT_TOKENS,
+                        "max_tokens": max_tokens if max_tokens is not None else AI_MAX_OUTPUT_TOKENS,
                         "temperature": temperature,
                         "messages": [{"role": "user", "content": prompt}],
                     },

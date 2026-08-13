@@ -37,6 +37,8 @@ class OpenAIClient:
 
     async def interpret(
         self, prompt: str, *, temperature: float = 0.6,
+        max_tokens: int | None = None,
+        timeout: float | None = None,
     ) -> str:
         """调 OpenAI Chat Completions API,返回 choices[0].message.content。
 
@@ -45,11 +47,23 @@ class OpenAIClient:
             temperature: 0.0-2.0(OpenAI 范围,本系统实际只用 0.3 / 0.6 两档);
                 v1 prompt 系统按 module 分级,M0-M2 结构层 0.3,M3-M7 叙述层 0.6。
                 调用方通过 config.resolve_temperature(module) 取值后传入。
+            max_tokens: 输出 token 上限;None 用 config.AI_MAX_OUTPUT_TOKENS(App 1024)。
+                长文调用方(如 promo-site 加长版)按需放大。
+            timeout: 请求超时秒数;None 用 config.AI_TIMEOUT_SECONDS(App 90s)。
+                长 max_tokens 生成耗时更长,调用方应同步放大。
         """
         if not self._api_key:
             raise AIProviderError(
                 "OPENAI_API_KEY not configured"
                 "(后端未设置 API key,无法调用 OpenAI)"
+            )
+        if max_tokens is not None and max_tokens <= 0:
+            raise ValueError(
+                f"max_tokens must be a positive integer (got {max_tokens})"
+            )
+        if timeout is not None and timeout <= 0:
+            raise ValueError(
+                f"timeout must be a positive number of seconds (got {timeout})"
             )
 
         url = f"{self._base_url}/chat/completions"
@@ -59,7 +73,8 @@ class OpenAIClient:
             # 经常出 SSL EOF,而 clawto.link 这种国内/亚洲 endpoint 本就不需要代理。
             # 部署到生产后,服务器一般也不该走用户级代理。
             async with httpx.AsyncClient(
-                timeout=AI_TIMEOUT_SECONDS, trust_env=False,
+                timeout=timeout if timeout is not None else AI_TIMEOUT_SECONDS,
+                trust_env=False,
             ) as client:
                 resp = await client.post(
                     url,
@@ -70,7 +85,7 @@ class OpenAIClient:
                     json={
                         "model": self._model,
                         "messages": [{"role": "user", "content": prompt}],
-                        "max_tokens": AI_MAX_OUTPUT_TOKENS,
+                        "max_tokens": max_tokens if max_tokens is not None else AI_MAX_OUTPUT_TOKENS,
                         "temperature": temperature,
                     },
                 )

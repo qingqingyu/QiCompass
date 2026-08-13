@@ -32,6 +32,13 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - **神煞**：20 个固定清单（11 吉 + 9 凶），《三命通会》单一来源，自写查表（库不给）
 - **从格检测**：3-4 条 if 检测特征（专旺：日主同气 ≥6/8；从格：日主孤立 + 某行 ≥5/8），命中输出 `day_master_strength="special_pattern"`，喜忌留空，LLM 诚实告知
 
+### prompt 三边一致性（2026-08-14 拍板）
+
+- prompt 文本单一事实源在 backend（`app/ai/prompts.py`），iOS 与 promo-site（`tmp/promo-site/`，gitignore）都只是消费者；但**上下文字段映射**有三份实现（backend `REQUIRED_FIELDS` / iOS `PromptContextBuilder*.swift` / promo `context_builder.py`），v1 module 清单也是三处各写
+- **强制**：动了以下任一文件，必须跑 `python3 tools/check_prompt_sync.py` 且 PASS 才算完成——backend `app/ai/prompts.py`（REQUIRED_FIELDS / PROMPT_VERSIONS / 模板）、iOS `PromptContextBuilder*.swift` / `ModuleDefinitions.swift`、promo `context_builder.py` / `v1_chain.py`
+- 校验内容：三模块 REQUIRED ⊆ builder keys（iOS 静态提取，promo 运行时调 builder）+ v1 module ID 三边相等；promo 缺失（CI 场景）自动 SKIP
+- 不接 GitHub Actions（用户工作流本地优先，2026-08-14 决定），拦截靠本规则
+
 ### SwiftData
 
 - 最低 iOS 17.2（17.0/17.1 SwiftData `@Relationship` 有 crash）
