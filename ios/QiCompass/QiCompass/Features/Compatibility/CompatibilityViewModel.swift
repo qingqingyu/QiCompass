@@ -503,7 +503,58 @@ final class CompatibilityViewModel {
         return f
     }()
 
+    /// S05:命中本地快照时用其重建 PairSummary(无 API 调用,内容寻址的自然收益)。
+    /// 不静默吞:decode 失败 / B ChartSnapshot 缺失 → throw 走该对失败路径(S03 隔离)。
+    private func rebuildSummaryFromCache(
+        entry: RosterEntry,
+        aHash: String,
+        bHash: String,
+        snapshot: CompatibilitySnapshot
+    ) throws -> PairSummary {
+        let qualitative = try compatibilityStore.decodeQualitative(from: snapshot)
+
+        // 从 chartStore 取 B ChartSnapshot(算 birthSolarTime / dayMaster / displayName)
+        guard let bChartSnapshot = try chartStore.get(contentHash: bHash) else {
+            AppLogger.persistence.error(
+                "op=compatibility.rebuildSummaryFromCache missing_b_chart b_hash=\(bHash, privacy: .public)"
+            )
+            throw UserFacingError.generic(message: "对方命盘快照缺失,请重新选择")
+        }
+        let baziB = try chartStore.decodeResponse(from: bChartSnapshot)
+        let dayMaster = baziB.pillars.day.gan
+
+        // displayName(与 computePair API 路径一致)
+        let displayName: String
+        switch entry {
+        case .archived:
+            displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? "对方"
+        case .temp(_, let alias, _):
+            if let alias, !alias.isEmpty {
+                displayName = alias
+            } else {
+                let dateStr = Self.fallbackDateFormatter.string(from: bChartSnapshot.birthSolarTime)
+                displayName = "对方 · \(dateStr)"
+            }
+        }
+
+        return PairSummary(
+            id: snapshot.compatibilityHash,
+            entry: entry,
+            personBHash: bHash,
+            displayName: displayName,
+            birthDate: bChartSnapshot.birthSolarTime,
+            dayMaster: dayMaster,
+            fiveElements: qualitative.fiveElements,
+            dayMasterRelation: qualitative.dayMasterRelation,
+            compatibilityHash: snapshot.compatibilityHash,
+            isInterpreted: snapshot.interpretation != nil,
+            status: .computed
+        )
+    }
+
     /// 计算单对并构造 PairSummary。
+    /// - S05 预查:本地 canonicalKey 命中 → 直接重建 PairSummary,不调 API
+    /// - 未命中 / 临时人首次无 resolvedHash:走现状 API 流程
     /// - 模式 A:存档对方 → 直接解 B snapshot
     /// - 模式 B:临时对方 → 后端隐式落地后取回 B snapshot
     private func computePair(
@@ -512,6 +563,34 @@ final class CompatibilityViewModel {
         payloadA: ChartPayloadDTO,
         contextValue: String
     ) async throws -> PairSummary {
+        let aHash = chartA.snapshotHash
+
+        // S05 增量预查(决策 D7):有 resolvedHash 时本地查 canonicalKey 命中跳过 API
+        if let bHash = entry.resolvedContentHash {
+            let canonicalKey = CompatibilitySnapshotStore.canonicalKey(
+                aHash: aHash, bHash: bHash, context: contextValue
+            )
+            do {
+                if let existing = try compatibilityStore.get(compatibilityHash: canonicalKey) {
+                    AppLogger.app.info(
+                        "op=compatibility.computePair.cache_hit canonicalKey=\(canonicalKey, privacy: .public) entry_id=\(entry.id, privacy: .public)"
+                    )
+                    return try rebuildSummaryFromCache(
+                        entry: entry,
+                        aHash: aHash,
+                        bHash: bHash,
+                        snapshot: existing
+                    )
+                }
+            } catch {
+                // 不静默吞(S05 红线):本地查询失败 → 显式 throw 走该对失败路径(S03 隔离)
+                AppLogger.persistence.error(
+                    "op=compatibility.computePair.prefetch_failed canonicalKey=\(canonicalKey, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                )
+                throw error
+            }
+        }
+
         let request: CompatibilityRequest
         var bSnapshotForUI: ChartSnapshot?
 
@@ -523,7 +602,7 @@ final class CompatibilityViewModel {
             let baziB = try chartStore.decodeResponse(from: bChart.snapshot)
             let payloadB = ChartPayloadDTO.from(baziResponse: baziB)
             request = CompatibilityRequest(
-                personAHash: chartA.snapshotHash,
+                personAHash: aHash,
                 personBHash: bChart.snapshotHash,
                 chartPayloadA: payloadA,
                 chartPayloadB: payloadB,
@@ -533,7 +612,7 @@ final class CompatibilityViewModel {
 
         case .temp(let input, _, _):
             request = CompatibilityRequest(
-                personAHash: chartA.snapshotHash,
+                personAHash: aHash,
                 personB: input,
                 chartPayloadA: payloadA,
                 context: contextValue

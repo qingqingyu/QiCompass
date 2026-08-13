@@ -1,4 +1,5 @@
 import XCTest
+import SwiftData
 @testable import QiCompass
 
 /// CompatibilitySnapshotStore 单元测试(方案 §阶段 6)。
@@ -185,5 +186,116 @@ final class CompatibilitySnapshotStoreTests: XCTestCase {
         let json = try XCTUnwrap(String(data: data, encoding: .utf8))
         XCTAssertFalse(json.contains("\"luck_pillars\""), "daily 路径不含 luck_pillars(默认 nil)")
         XCTAssertFalse(json.contains("\"calc_rule_snapshot\""))
+    }
+
+    // MARK: - S05 list(personAHash:context:) 查询
+
+    @MainActor
+    func testList_按A和context过滤_排序CreatedAtDESC() throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = CompatibilitySnapshotStore(context: container.mainContext)
+        let ctx = container.mainContext
+
+        let now = Date()
+        let earlier = now.addingTimeInterval(-3600)
+        let earlier2 = now.addingTimeInterval(-7200)
+
+        // 插入 3 条:(A1, general) x 2 不同时间 + (A1, marriage) x 1
+        try insertSnapshot(modelContext: ctx, hash: "h1", aHash: "A1", bHash: "B1", context: "general", createdAt: earlier2)
+        try insertSnapshot(modelContext: ctx, hash: "h2", aHash: "A1", bHash: "B2", context: "general", createdAt: earlier)
+        try insertSnapshot(modelContext: ctx, hash: "h3", aHash: "A1", bHash: "B3", context: "marriage", createdAt: now)
+
+        let generalResults = try store.list(personAHash: "A1", context: "general")
+        XCTAssertEqual(generalResults.count, 2, "general 应有 2 条")
+        XCTAssertEqual(generalResults.first?.compatibilityHash, "h2", "createdAt DESC:更晚的 h2 排前")
+        XCTAssertEqual(generalResults.last?.compatibilityHash, "h1")
+
+        let marriageResults = try store.list(personAHash: "A1", context: "marriage")
+        XCTAssertEqual(marriageResults.count, 1)
+        XCTAssertEqual(marriageResults.first?.compatibilityHash, "h3")
+
+        // 不同 A 不应命中
+        let otherA = try store.list(personAHash: "A2", context: "general")
+        XCTAssertTrue(otherA.isEmpty, "不同 A hash 不应命中")
+    }
+
+    @MainActor
+    func testList_空结果返回空数组() throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = CompatibilitySnapshotStore(context: container.mainContext)
+
+        let results = try store.list(personAHash: "nobody", context: "general")
+        XCTAssertTrue(results.isEmpty, "无快照时应返回空数组")
+    }
+
+    @MainActor
+    func testList_换context全部未命中_D8配套() throws {
+        // 决策 D8:hash 含 context → 换 context 全部未命中
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = CompatibilitySnapshotStore(context: container.mainContext)
+        let ctx = container.mainContext
+
+        try insertSnapshot(modelContext: ctx, hash: "h_general", aHash: "A1", bHash: "B1", context: "general")
+        try insertSnapshot(modelContext: ctx, hash: "h_marriage", aHash: "A1", bHash: "B1", context: "marriage")
+
+        let general = try store.list(personAHash: "A1", context: "general")
+        XCTAssertEqual(general.count, 1)
+        XCTAssertEqual(general.first?.compatibilityHash, "h_general")
+
+        let marriage = try store.list(personAHash: "A1", context: "marriage")
+        XCTAssertEqual(marriage.count, 1)
+        XCTAssertEqual(marriage.first?.compatibilityHash, "h_marriage")
+
+        let business = try store.list(personAHash: "A1", context: "business")
+        XCTAssertTrue(business.isEmpty, "business context 无快照 → 空")
+    }
+
+    @MainActor
+    func testCanonicalKey_与list配套_预查路径可用() throws {
+        // S05 预查路径:canonicalKey(aHash, bHash, context) == 后端 compatibilityHash
+        // 插入快照后用 canonicalKey 能 get 到
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = CompatibilitySnapshotStore(context: container.mainContext)
+        let ctx = container.mainContext
+
+        let canonicalKey = CompatibilitySnapshotStore.canonicalKey(
+            aHash: "A1", bHash: "B1", context: "general"
+        )
+        try insertSnapshot(modelContext: ctx, hash: canonicalKey, aHash: "A1", bHash: "B1", context: "general")
+
+        let found = try store.get(compatibilityHash: canonicalKey)
+        XCTAssertNotNil(found, "canonicalKey 算出的 hash 应能 get 到对应快照")
+        XCTAssertEqual(found?.compatibilityHash, canonicalKey)
+    }
+
+    // MARK: - 辅助
+
+    /// 直接用 ModelContext 插入快照(支持自定义 createdAt)。
+    @MainActor
+    private func insertSnapshot(
+        modelContext: ModelContext,
+        hash: String,
+        aHash: String,
+        bHash: String,
+        context: String,
+        createdAt: Date = .now
+    ) throws {
+        let assessmentData = try APICoder.encoder.encode(QualitativeAssessmentDTO(
+            fiveElements: "test", dayMasterRelation: "test",
+            zodiacMatch: "test", branchHarmony: "test"
+        ))
+        let syncedData = try APICoder.encoder.encode([SyncedFortuneDTO]())
+        let snapshot = CompatibilitySnapshot(
+            compatibilityHash: hash,
+            personAHash: aHash,
+            personBHash: bHash,
+            context: context,
+            qualitativeAssessment: assessmentData,
+            syncedFortune: syncedData,
+            interpretation: nil
+        )
+        snapshot.createdAt = createdAt
+        modelContext.insert(snapshot)
+        try modelContext.save()
     }
 }
