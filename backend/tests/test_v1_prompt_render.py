@@ -255,10 +255,14 @@ def test_v1_prompt_versions_all_registered_as_1():
 
 
 def test_v1_modules_all_registered_in_templates_and_required_fields():
-    """8 个 v1 module 同时在 _TEMPLATES / REQUIRED_FIELDS / PROMPT_VERSIONS 注册。"""
-    from app.ai.prompts import _TEMPLATES
+    """8 个 v1 module 同时在 _LEGACY_TEMPLATES / REQUIRED_FIELDS / PROMPT_VERSIONS 注册。
+
+    Slice 1 i18n 后 _TEMPLATES 改名 _LEGACY_TEMPLATES(zh fallback 表),
+    英文模板走外部 prompts/en/*.md 文件。
+    """
+    from app.ai.prompts import _LEGACY_TEMPLATES
     for module in _V1_MODULES:
-        assert module in _TEMPLATES, f"{module} 未注册 _TEMPLATES"
+        assert module in _LEGACY_TEMPLATES, f"{module} 未注册 _LEGACY_TEMPLATES"
         assert module in REQUIRED_FIELDS, f"{module} 未注册 REQUIRED_FIELDS"
         assert module in PROMPT_VERSIONS, f"{module} 未注册 PROMPT_VERSIONS"
 

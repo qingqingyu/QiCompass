@@ -3,12 +3,12 @@
 i18n 决策 9(`i18n-implementation-plan.md` § 2):以 Joey Yap 体系为英文八字圈事实标准。
 所有术语必须显式注册,未注册的术语抛 KeyError(显式失败,不静默返回中文)。
 
-Slice 1 范围:每日运势所需最小术语集(43 项)。
+Slice 1 范围:每日运势所需最小术语集(42 项)。
 - HEAVENLY_STEMS_EN: 天干 10
 - EARTHLY_BRANCHES_EN: 地支 12
 - FIVE_ELEMENTS_EN: 五行 5
 - TEN_GODS_EN: 十神 11(含偏官/七杀同义映射)
-- STRENGTH_LABEL_EN: 旺衰 label 5(对齐 bazi_engine.py:194-200 _STRENGTH_LABEL)
+- STRENGTH_LABEL_EN: 旺衰 label 4(raw key:strong/weak/balanced/special_pattern)
 - MISC_TERMS_EN: 空(Slice 1 无独立杂项;day_chong 由 EARTHLY_BRANCHES_EN 覆盖)
 
 后续 Slice 2/3/4 扩展神煞 20 + 纳音 30 + 合盘术语。
@@ -69,15 +69,17 @@ TEN_GODS_EN: Final[dict[str, str]] = {
     "偏印": "Indirect Resource",
 }
 
-# ---------- 旺衰 label(对齐 bazi_engine.py:194-200 _STRENGTH_LABEL) ----------
-# 这些是后端已转好的中文 label,会被填入 prompt context 的 day_master_strength。
-# 英文翻译保持语义一致,以便 LLM 在英文 prompt 下生成对应话术。
+# ---------- 旺衰 label(对齐 bazi_engine.py _STRENGTH_LABEL 的 raw key) ----------
+# 注意:iOS 客户端 PromptContextBuilder 发送到 /api/interpret 的 context 里
+# day_master_strength 字段值是 **raw key**(strong / weak / balanced / special_pattern),
+# 不是 bazi_engine._STRENGTH_LABEL 转换后的中文 label(偏旺 / 偏弱 / 中和 / 呈现从格特征)。
+# 中文 label 只用于 _build_anchor_sentence(UI 显示),不进 prompt context。
+# 因此此表的 key 必须是 raw key,与客户端实际发送值对齐。
 STRENGTH_LABEL_EN: Final[dict[str, str]] = {
-    "偏旺": "Slightly Strong",
-    "偏弱": "Slightly Weak",
-    "中和": "Balanced",
-    "呈现从格特征": "Shows Special Pattern Characteristics",
-    "旺衰未判定": "Strength Undetermined",
+    "strong": "Strong",
+    "weak": "Weak",
+    "balanced": "Balanced",
+    "special_pattern": "Special Pattern",
 }
 
 # ---------- 杂项核心术语 ----------
@@ -111,7 +113,7 @@ def translate_term(zh_term: str, target_language: str) -> str:
     - 未注册的中文术语 → 抛 KeyError(避免静默返回中文,污染 LLM prompt)
 
     Args:
-        zh_term: 中文术语(如 "甲"/"比肩"/"偏旺")
+        zh_term: 中文术语或 raw key(如 "甲"/"比肩"/"strong")
         target_language: 目标语言代码("zh" / "en",未来扩展 "ja" / "es")
 
     Returns:

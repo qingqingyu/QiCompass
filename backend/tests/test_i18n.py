@@ -49,7 +49,7 @@ class TestTranslateTerm:
         """中文目标语言直接返回原文(identity map)。"""
         assert translate_term("甲", "zh") == "甲"
         assert translate_term("比肩", "zh") == "比肩"
-        assert translate_term("偏旺", "zh") == "偏旺"
+        assert translate_term("strong", "zh") == "strong"
 
     def test_heavenly_stems_en(self):
         """天干 10 个拼音翻译。"""
@@ -93,12 +93,11 @@ class TestTranslateTerm:
         assert translate_term("偏印", "en") == "Indirect Resource"
 
     def test_strength_label_en(self):
-        """旺衰 label 翻译(对齐 bazi_engine.py _STRENGTH_LABEL)。"""
-        assert translate_term("偏旺", "en") == "Slightly Strong"
-        assert translate_term("偏弱", "en") == "Slightly Weak"
-        assert translate_term("中和", "en") == "Balanced"
-        assert translate_term("呈现从格特征", "en") == "Shows Special Pattern Characteristics"
-        assert translate_term("旺衰未判定", "en") == "Strength Undetermined"
+        """旺衰 label 翻译(raw key 对齐 iOS 客户端实际发送值)。"""
+        assert translate_term("strong", "en") == "Strong"
+        assert translate_term("weak", "en") == "Weak"
+        assert translate_term("balanced", "en") == "Balanced"
+        assert translate_term("special_pattern", "en") == "Special Pattern"
 
     def test_unregistered_term_raises_keyerror(self):
         """未注册术语抛 KeyError(显式失败,不静默返回中文)。"""
@@ -117,13 +116,13 @@ class TestTranslateTerm:
         assert is_language_supported("es") is False
 
     def test_en_table_completeness(self):
-        """en 表至少 43 项(覆盖 Slice 1 每日运势最小集)。
+        """en 表至少 42 项(覆盖 Slice 1 每日运势最小集)。
 
         明细:天干 10 + 地支 12 + 五行 5 + 十神 11(含偏官/七杀同义) +
-        旺衰 label 5 = 43 项。
+        旺衰 label 4(raw key:strong/weak/balanced/special_pattern)= 42 项。
         """
-        assert len(TERM_TRANSLATIONS["en"]) >= 43, (
-            f"en 表应至少 43 项,实际 {len(TERM_TRANSLATIONS['en'])} 项")
+        assert len(TERM_TRANSLATIONS["en"]) >= 42, (
+            f"en 表应至少 42 项,实际 {len(TERM_TRANSLATIONS['en'])} 项")
 
 
 # ---------- 共享测试 helper ----------
@@ -232,7 +231,7 @@ class TestRenderPromptI18n:
         return {
             "day_master": "甲",
             "day_master_element": "木",
-            "day_master_strength": "偏旺",
+            "day_master_strength": "strong",
             "favorable_elements": "水",
             "unfavorable_elements": "金",
             "date": "2026-08-12",
@@ -376,7 +375,7 @@ class TestEndToEndI18nFlow:
     def daily_fortune_context(self) -> dict:
         return {
             "day_master": "甲", "day_master_element": "木",
-            "day_master_strength": "偏旺",
+            "day_master_strength": "strong",
             "favorable_elements": "水", "unfavorable_elements": "金",
             "date": "2026-08-12", "lunar_date": "七月初十",
             "day_pillar": "甲子", "day_stem": "甲", "day_stem_element": "木",
@@ -427,7 +426,7 @@ class TestTranslateContext:
     def daily_fortune_context(self) -> dict:
         return {
             "day_master": "甲", "day_master_element": "木",
-            "day_master_strength": "偏旺",
+            "day_master_strength": "strong",
             "favorable_elements": "木火", "unfavorable_elements": "金水",
             "date": "2026-08-12", "lunar_date": "七月初十",
             "day_pillar": "甲子", "day_stem": "甲", "day_stem_element": "木",
@@ -447,7 +446,7 @@ class TestTranslateContext:
         result = translate_context(daily_fortune_context, "en", "daily_fortune")
         assert result["day_master"] == "Jia"
         assert result["day_master_element"] == "Wood"
-        assert result["day_master_strength"] == "Slightly Strong"
+        assert result["day_master_strength"] == "Strong"
         assert result["day_stem"] == "Jia"
         assert result["day_branch"] == "Zi"
         assert result["day_stem_element"] == "Wood"
@@ -515,7 +514,7 @@ class TestEndToEndI18nFullFlow:
     def daily_fortune_context(self) -> dict:
         return {
             "day_master": "甲", "day_master_element": "木",
-            "day_master_strength": "偏旺",
+            "day_master_strength": "strong",
             "favorable_elements": "木火", "unfavorable_elements": "金水",
             "date": "2026-08-12", "lunar_date": "七月初十",
             "day_pillar": "甲子", "day_stem": "甲", "day_stem_element": "木",
@@ -542,7 +541,7 @@ class TestEndToEndI18nFullFlow:
         assert "Day Master Jia" in prompt
         assert "Day Pillar: Jia Zi" in prompt
         assert "Companion" in prompt  # day_relation
-        assert "Slightly Strong" in prompt  # day_master_strength
+        assert "Strong" in prompt  # day_master_strength
         assert "Wood Fire" in prompt  # favorable_elements
         assert "Metal Water" in prompt  # unfavorable_elements
 

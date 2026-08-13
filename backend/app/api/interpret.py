@@ -93,7 +93,7 @@ def _hash_user_input(req: InterpretRequest) -> str:
                 f"age={req.m4_age!r} concern={req.m4_current_concern!r} "
                 f"(schema validator should have caught this)")
         payload = f"age={req.m4_age}|concern={req.m4_current_concern}"
-    else:  # m5_wealth(V1_NEEDS_USER_INPUT 只有 M4/M5)
+    elif req.module == "m5_wealth":
         if req.m5_assets_summary is None or req.m5_preference is None:
             raise RuntimeError(
                 f"_hash_user_input invariant violated: m5_wealth with "
@@ -104,6 +104,13 @@ def _hash_user_input(req: InterpretRequest) -> str:
             f"assets={req.m5_assets_summary}"
             f"|preference={req.m5_preference}"
         )
+    else:
+        # V1_NEEDS_USER_INPUT 扩展时漏加 handler 会显式暴露,
+        # 避免新 module 被静默当 m5_wealth 处理导致缓存隔离失效
+        raise RuntimeError(
+            f"_hash_user_input invariant violated: module={req.module!r} "
+            f"in V1_NEEDS_USER_INPUT but no hash handler "
+            f"(需在 _hash_user_input 加 elif 分支)")
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
 
 

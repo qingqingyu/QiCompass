@@ -28,6 +28,9 @@ Package.resolved
 # Git worktrees(本地工作树,不进 git)
 .worktrees/
 
+# 临时文件 / 工具产物(logo 草稿、截图、API 响应缓存等,不进 git)
+tmp/
+
 # macOS
 .DS_Store
 .AppleDouble

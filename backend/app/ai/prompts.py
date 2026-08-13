@@ -275,7 +275,7 @@ COMPATIBILITY_PAID_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（付费 4
 # 双轨保留:老 7 module 不动,本段是新 v1 系统的 8 个 module
 # 渲染策略:JSON schema 大括号用 {{ }} 转义,str.format_map 自动还原为单花括号
 # → 与老 module 共用同一渲染路径,占位符({chart} 等)走 format_map 标准机制
-# 全局 System Prompt 与 8 模板拼在 _TEMPLATES[module] 里(避免 render 时再拼一次)
+# 全局 System Prompt 与 8 模板拼在 _LEGACY_TEMPLATES[module] 里(避免 render 时再拼一次)
 
 # 设计文档 §2 全局 System Prompt(所有 v1 模块共用的世界观约束)
 _V1_SYSTEM_PROMPT = """你是一位命理结构分析师，工作方式接近系统分析师，而不是算命先生。
@@ -757,7 +757,7 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
     等)与老模板共用同一渲染路径,无需分流。
 
     Args:
-        module: 注册到 _TEMPLATES 的任一 module(老 7 个 + v1 8 个)
+        module: 注册到 _LEGACY_TEMPLATES 的任一 module(老 7 个 + v1 8 个)
         context: prompt 渲染负载(必须含 REQUIRED_FIELDS[module] 所有字段)
         language: 目标语言代码(默认 "zh" 向后兼容;i18n 决策 9)
 
