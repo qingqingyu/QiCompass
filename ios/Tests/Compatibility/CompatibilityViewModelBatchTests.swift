@@ -230,6 +230,135 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         }
     }
 
+    // MARK: - S02 detail 态(openDetail / closeDetail / paywall 按对绑定)
+
+    func testLastCompatibilityHashForPaywall_非detail态_返回nil() {
+        // S02 红线:paywall 按对绑定 → 非 detail 态无 hash
+        vm.state = .configuring
+        XCTAssertNil(vm.lastCompatibilityHashForPaywall)
+        vm.state = .list
+        XCTAssertNil(vm.lastCompatibilityHashForPaywall)
+    }
+
+    func testOpenDetail_快照缺失_进入detailFailed态_不静默吞() throws {
+        // 不构造 CompatibilitySnapshot → openDetail 走 fallback response + .failed interpretState
+        let summary = PairSummary(
+            id: "compat_hash_1",
+            entry: .archived(snapshotHash: "h_b"),
+            personBHash: "h_b",
+            displayName: "对方",
+            birthDate: nil,
+            dayMaster: "甲",
+            fiveElements: "互补",
+            dayMasterRelation: "同气",
+            compatibilityHash: "compat_hash_1",
+            isInterpreted: false
+        )
+
+        vm.openDetail(summary)
+
+        if case .detail(let s, _, let interpret) = vm.state {
+            XCTAssertEqual(s.id, "compat_hash_1")
+            if case .failed(let msg) = interpret {
+                XCTAssertTrue(msg.contains("合盘"), "detail 快照缺失应显式 .failed interpretState")
+            } else {
+                XCTFail("快照缺失应进入 .failed interpretState,实际:\(interpret)")
+            }
+        } else {
+            XCTFail("openDetail 应进入 .detail 态,实际:\(vm.state)")
+        }
+    }
+
+    func testOpenDetail_有快照_进入detailIdle态() throws {
+        // 构造 CompatibilitySnapshot
+        let response = CompatibilityResponse(
+            compatibilityHash: "compat_hash_2",
+            personAChart: nil,
+            personBChart: nil,
+            qualitativeAssessment: QualitativeAssessmentDTO(
+                fiveElements: "互补佳", dayMasterRelation: "同气",
+                zodiacMatch: "六合", branchHarmony: "无冲无刑"
+            ),
+            syncedFortune: [],
+            calcRuleSnapshot: nil
+        )
+        let snapshot = try insertCompatibilitySnapshot(response: response, aHash: "h_a", bHash: "h_b", context: "general")
+
+        let summary = PairSummary(
+            id: snapshot.compatibilityHash,
+            entry: .archived(snapshotHash: "h_b"),
+            personBHash: "h_b",
+            displayName: "对方",
+            birthDate: nil,
+            dayMaster: "甲",
+            fiveElements: "互补佳",
+            dayMasterRelation: "同气",
+            compatibilityHash: snapshot.compatibilityHash,
+            isInterpreted: false
+        )
+
+        vm.openDetail(summary)
+
+        if case .detail(let s, _, let interpret) = vm.state {
+            XCTAssertEqual(s.id, snapshot.compatibilityHash)
+            if case .idle = interpret {
+                // 期望 idle(后台 cache 查询是 async,本同步断言只看 idle 初始)
+            } else {
+                XCTFail("快照存在但无 24h cache 时应进入 .idle,实际:\(interpret)")
+            }
+        } else {
+            XCTFail("openDetail 应进入 .detail 态,实际:\(vm.state)")
+        }
+
+        // paywall hash 按对化:detail 态返回该对 hash
+        XCTAssertEqual(vm.lastCompatibilityHashForPaywall, snapshot.compatibilityHash)
+    }
+
+    func testCloseDetail_返回list态_保留summaries() {
+        // 先模拟 list 态 + summaries
+        let summary = PairSummary(
+            id: "compat_hash_3",
+            entry: .archived(snapshotHash: "h_b"),
+            personBHash: "h_b",
+            displayName: "对方",
+            birthDate: nil,
+            dayMaster: "甲",
+            fiveElements: "互补",
+            dayMasterRelation: "同气",
+            compatibilityHash: "compat_hash_3",
+            isInterpreted: false
+        )
+        vm.summaries = [summary]
+        vm.state = .list
+
+        vm.openDetail(summary)
+        if case .detail = vm.state {
+            // 期望进入 detail
+        } else {
+            XCTFail("应进入 detail 态")
+        }
+
+        vm.closeDetail()
+        if case .list = vm.state {
+            // 期望返回 list
+        } else {
+            XCTFail("closeDetail 应返回 list 态,实际:\(vm.state)")
+        }
+        XCTAssertEqual(vm.summaries.count, 1, "closeDetail 后 summaries 应保留")
+    }
+
+    func testGenerateInterpretation_非detail态_不静默吞() {
+        // 状态机错乱调用 → 不静默吞,显式日志(此测试断言不崩)
+        vm.state = .configuring
+        vm.generateInterpretation()
+        // state 不变(避免误进 fetching)
+        if case .configuring = vm.state {
+            // 期望
+        } else {
+            XCTFail("非 detail 态调用 generateInterpretation 不应改变 state")
+        }
+    }
+
     // MARK: - 辅助
 
     /// 构造最小 ArchivedChart(只含 hash + alias,够 toggleArchived 用)。
@@ -253,5 +382,22 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             dayMaster: "甲",
             snapshot: placeholder
         )
+    }
+
+    /// 插入一个 CompatibilitySnapshot(S02 detail 测试用)。
+    @discardableResult
+    private func insertCompatibilitySnapshot(
+        response: CompatibilityResponse,
+        aHash: String,
+        bHash: String,
+        context: String
+    ) throws -> CompatibilitySnapshot {
+        let result = try compatibilityStore.upsertQualitative(
+            response: response,
+            personAHash: aHash,
+            personBHash: bHash,
+            context: context
+        )
+        return result.snapshot
     }
 }

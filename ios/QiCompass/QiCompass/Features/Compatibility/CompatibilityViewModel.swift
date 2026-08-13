@@ -4,23 +4,25 @@ import SwiftData
 
 // MARK: - 状态机
 
-/// 合盘主状态机(决策 D2 + 多选改造 D10)。
+/// 合盘主状态机(多选改造 D10 + S02 detail 态)。
 ///
-/// 七态(多选改造后):
+/// 七态:
 /// - loading:命盘列表加载中
 /// - empty:0 存档,引导去深度解析
 /// - configuring:配置态(A 单选 + B 名单 + context)
 /// - computing(completed, total):批量确定性合盘进行中(决策 D3 串行)
-/// - list([PairSummary]):结果列表(决策 D9 每对方一张卡)
-/// - ready(response, interpretState):旧 1 对 1 详情态(S01 后无新代码进入;S02 改 detail)
+/// - list:结果列表(决策 D9 卡片;summaries 存 VM 字段,便于 detail ↔ list 切换)
+/// - detail(summary, response, interpretState):单对详情(S02 新增),复用 CompatibilityMainView
 /// - failed(message):显式错误(S01 整体级;S03 后仅系统级)
+///
+/// `.list` 不内嵌 summaries:summaries 存 VM 字段,detail 返回 list 时无需重新构造。
 enum CompatibilityViewState: Equatable {
     case loading
     case empty
     case configuring
     case computing(completed: Int, total: Int)
-    case list([PairSummary])
-    case ready(CompatibilityResponse, InterpretState)
+    case list
+    case detail(PairSummary, CompatibilityResponse, InterpretState)
     case failed(UserFacingError)
 
     static func == (lhs: CompatibilityViewState, rhs: CompatibilityViewState) -> Bool {
@@ -30,13 +32,11 @@ enum CompatibilityViewState: Equatable {
         case (.configuring, .configuring): return true
         case (.computing(let c1, let t1), .computing(let c2, let t2)):
             return c1 == c2 && t1 == t2
-        case (.list(let a), .list(let b)):
-            // PairSummary 用 id 作相等性代理(完整比较太重)
-            return a.map(\.id) == b.map(\.id)
-        case (.failed(let a), .failed(let b)): return a == b
-        case (.ready(let a1, let a2), .ready(let b1, let b2)):
+        case (.list, .list): return true
+        case (.detail(let s1, let r1, let i1), .detail(let s2, let r2, let i2)):
             // response 用 compatibilityHash 作相等性代理(完整比较太重)
-            return a1.compatibilityHash == b1.compatibilityHash && a2 == b2
+            return s1.id == s2.id && r1.compatibilityHash == r2.compatibilityHash && i1 == i2
+        case (.failed(let a), .failed(let b)): return a == b
         default: return false
         }
     }
@@ -44,15 +44,17 @@ enum CompatibilityViewState: Equatable {
 
 // MARK: - ViewModel
 
-/// 合盘 ViewModel:@Observable + 状态机驱动(多选改造)。
+/// 合盘 ViewModel:@Observable + 状态机驱动(多选改造 + S02 detail 按对化)。
 ///
-/// 多选核心:
+/// 多选 + detail 核心:
 /// - `roster: [RosterEntry]`(决策 D2 混合名单,上限 8)
-/// - `compute()` 串行批量调 orchestrator.runDeterministic(决策 D3)
-/// - 单对失败 → 整体 failed(S01 现状语义);S03 改对级隔离
+/// - `summaries: [PairSummary]`(list 态用,detail 切换时保留)
+/// - `compute()` 串行批量 → list 态
+/// - `openDetail(summary)` → detail 态(查 cache + 解 response + 构造 InterpretState)
+/// - `generateInterpretation()` 按 detail 态的 summary.compatibilityHash 触发(决策 D3 AI 逐对按需)
 /// - 临时人隐式落地 ChartSnapshot **不建 UserSnapshotLink**(红线 D6)
 ///
-/// 错误显式传播:名单校验失败、快照 upsert 失败照常 throw / 上抛,不用默认值掩盖。
+/// 错误显式传播:名单校验失败、快照 upsert 失败、cache decode 失败照常 throw / 上抛,不用默认值掩盖。
 @Observable
 @MainActor
 final class CompatibilityViewModel {
@@ -78,9 +80,13 @@ final class CompatibilityViewModel {
     /// context picker(通用 / 婚姻 / 事业;决策 D8 配置页全局)
     var context: String = "general"
 
-    // MARK: 主状态
+    // MARK: 主状态 + summaries
 
     var state: CompatibilityViewState = .loading
+
+    /// list 态的卡片摘要(也用于 detail 返回 list 时恢复)。
+    /// 进入 detail 时不清空,closeDetail 后仍可用。
+    var summaries: [PairSummary] = []
 
     // MARK: 依赖
 
@@ -92,17 +98,8 @@ final class CompatibilityViewModel {
 
     private var computeTask: Task<Void, Never>?
     private var interpretTask: Task<Void, Never>?
-
-    /// 阶段 1 完成后的元数据(供阶段 2 / UI 使用)。
-    /// 多选改造后:这些字段只在 S02 详情态按对使用,届时会按对化。
-    /// S01 阶段 compute() 走 list 路径,不进入 ready,故这些字段保持初始值。
-    private var lastCompatibilityHash: String?
-    private var lastBChartSnapshot: ChartSnapshot?
-    private var lastIsSnapshotNew: Bool = false
-
-    /// M4:PaywallView 注入用(暴露最近一次合盘 hash 给购买流程绑定 entitlement)。
-    /// 多选改造后 S02 会按对化,当前保留 1 对 1 语义(S01 不进入 ready,不会触发)。
-    var lastCompatibilityHashForPaywall: String? { lastCompatibilityHash }
+    /// detail 态进入时的 cache 查询 task(完成后续刷新 interpretState)。
+    private var cacheReadTask: Task<Void, Never>?
 
     init(
         orchestrator: CompatibilityOrchestrator,
@@ -308,8 +305,8 @@ final class CompatibilityViewModel {
                 return
             }
 
-            var summaries: [PairSummary] = []
-            summaries.reserveCapacity(rosterSnapshot.count)
+            var newSummaries: [PairSummary] = []
+            newSummaries.reserveCapacity(rosterSnapshot.count)
 
             for (idx, entry) in rosterSnapshot.enumerated() {
                 if Task.isCancelled { return }
@@ -320,7 +317,7 @@ final class CompatibilityViewModel {
                         payloadA: payloadA,
                         contextValue: contextValue
                     )
-                    summaries.append(summary)
+                    newSummaries.append(summary)
                     if !Task.isCancelled {
                         self.state = .computing(completed: idx + 1, total: total)
                     }
@@ -339,8 +336,9 @@ final class CompatibilityViewModel {
             }
 
             if !Task.isCancelled {
-                AppLogger.app.info("compatVM.compute.ok pairs=\(summaries.count, privacy: .public)")
-                self.state = .list(summaries)
+                AppLogger.app.info("compatVM.compute.ok pairs=\(newSummaries.count, privacy: .public)")
+                self.summaries = newSummaries
+                self.state = .list
             }
         }
     }
@@ -436,27 +434,128 @@ final class CompatibilityViewModel {
         )
     }
 
-    // MARK: - AI 合盘解读(旧 1 对 1 路径,多选改造后由 S02 按对化)
+    // MARK: - 详情态(S02)
 
-    /// 触发 AI 解读:用户点「生成合盘解读」。
-    /// 多选改造后由 S02 在 detail 态按对触发;当前 S01 不进入 ready,此方法不会被调用。
+    /// 进入指定对的详情(决策 D1:点卡片进详情;D3:AI 逐对按需)。
+    ///
+    /// 流程:
+    /// 1. 取 CompatibilitySnapshot + chartA/chartB snapshots
+    /// 2. decode qualitative + syncedFortune 构造 CompatibilityResponse
+    /// 3. 同步进入 detail(.idle);后台查 24h AI 缓存,命中更新 .okFree/.okPaid(cached:true)
+    ///
+    /// 失败显式抛出:compatibility snapshot 缺失 / decode 失败 → detail 态降级为
+    /// `(.failed interpretState)` 让 UI 显错(决策 S02 红线:不静默降级)。
+    func openDetail(_ summary: PairSummary) {
+        AppLogger.app.info("compatVM.openDetail.start hash=\(summary.compatibilityHash, privacy: .public) entry_id=\(summary.entry.id, privacy: .public)")
+
+        let compatSnapshot: CompatibilitySnapshot?
+        do {
+            compatSnapshot = try compatibilityStore.get(compatibilityHash: summary.compatibilityHash)
+        } catch {
+            AppLogger.persistence.error(
+                "op=compatibility.openDetail get_failed hash=\(summary.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            // 进入 detail 但 interpretState 显式错误(不静默吞)
+            let response = Self.fallbackResponse(for: summary)
+            state = .detail(summary, response, .failed(message: "读取合盘快照失败:\(error.localizedDescription)"))
+            return
+        }
+        guard let snapshot = compatSnapshot else {
+            // 不静默吞:快照缺失(理论上不会发生,compute() 刚 upsert 过)
+            AppLogger.app.error("op=compatibility.openDetail missing_snapshot hash=\(summary.compatibilityHash, privacy: .public)")
+            let response = Self.fallbackResponse(for: summary)
+            state = .detail(summary, response, .failed(message: "合盘快照缺失,请重新合盘"))
+            return
+        }
+
+        // decode qualitative + syncedFortune 构造 CompatibilityResponse
+        // (CompatibilityMainView 只用 qualitativeAssessment + syncedFortune,其他字段可 nil)
+        do {
+            let qualitative = try compatibilityStore.decodeQualitative(from: snapshot)
+            let synced = try compatibilityStore.decodeSyncedFortune(from: snapshot)
+            let response = CompatibilityResponse(
+                compatibilityHash: summary.compatibilityHash,
+                personAChart: nil,
+                personBChart: nil,
+                qualitativeAssessment: qualitative,
+                syncedFortune: synced,
+                calcRuleSnapshot: nil
+            )
+            state = .detail(summary, response, .idle)
+        } catch {
+            AppLogger.persistence.error(
+                "op=compatibility.openDetail decode_failed hash=\(summary.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            let response = Self.fallbackResponse(for: summary)
+            state = .detail(summary, response, .failed(message: "合盘数据解码失败:\(error.localizedDescription)"))
+            return
+        }
+
+        // 后台查 24h AI 缓存(命中 → interpretState 刷新为 .okFree/.okPaid cached:true)
+        cacheReadTask?.cancel()
+        let summaryHash = summary.compatibilityHash
+        cacheReadTask = Task { [weak self] in
+            guard let self else { return }
+            do {
+                if let cached = try await self.orchestrator.cachedInterpretationIfFresh(
+                    compatibilityHash: summaryHash
+                ) {
+                    guard case .detail(let currentSummary, let response, _) = self.state,
+                          currentSummary.id == summary.id else { return }
+                    let hasEntitlement = self.entitlementStore.getActive(
+                        contentHash: summaryHash,
+                        module: EntitlementModule.compatibility,
+                        userLocalId: UserIdentity.userLocalId
+                    ) != nil
+                    let newState: InterpretState = hasEntitlement
+                        ? .okPaid(text: cached.text, cached: true)
+                        : .okFree(text: cached.text, cached: true)
+                    if !Task.isCancelled {
+                        self.state = .detail(currentSummary, response, newState)
+                    }
+                }
+            } catch CompatibilityError.forbiddenWordsHit {
+                guard case .detail(let currentSummary, let response, _) = self.state,
+                      currentSummary.id == summary.id else { return }
+                if !Task.isCancelled {
+                    self.state = .detail(currentSummary, response, .failed(message: "解读包含不合规绝对结论,请重试"))
+                }
+            } catch is CancellationError {
+                return
+            } catch {
+                AppLogger.persistence.error(
+                    "op=compatibility.openDetail cache_read_failed hash=\(summaryHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                )
+                // 缓存读失败不阻塞 detail 态(用户可手动触发 AI 解读)
+            }
+        }
+    }
+
+    /// 返回 list 态(保留 summaries)。
+    func closeDetail() {
+        cacheReadTask?.cancel()
+        interpretTask?.cancel()
+        state = .list
+    }
+
+    // MARK: - AI 合盘解读(按对触发,决策 D3)
+
+    /// 触发该对 AI 解读(只对 detail 态当前对生效)。
+    /// 购买成功后由 PaywallView onPurchaseSuccess 调用,亦按当前 detail 态对触发。
     func generateInterpretation() {
-        guard case .ready(let response, _) = state else {
+        guard case .detail(let summary, let response, _) = state else {
             // 不静默吞(CLAUDE.md 全局约束):UI 收到点击说明状态机错乱,显式记录
             AppLogger.app.error("op=compatibility.generateInterpretation invalid_state state=\(String(describing: self.state), privacy: .public)")
             return
         }
-        guard let compatHash = lastCompatibilityHash else {
-            state = .ready(response, .failed(message: "合盘缓存键缺失,请重新合盘"))
-            return
-        }
+        let compatHash = summary.compatibilityHash
         guard let chartASnapshot = archivedCharts[safe: selectedChartAIndex]?.snapshot,
-              let bSnapshot = lastBChartSnapshot else {
-            state = .ready(response, .failed(message: "命盘快照缺失,请重新合盘"))
+              let bSnapshot = try? chartStore.get(contentHash: summary.personBHash) else {
+            state = .detail(summary, response, .failed(message: "命盘快照缺失,请重新合盘"))
             return
         }
 
-        // M4 新增:查本地 entitlement 决定 module(基础名 "compatibility")
+        // M4:查本地 entitlement 决定 module(基础名 "compatibility")
         let hasEntitlement = entitlementStore.getActive(
             contentHash: compatHash,
             module: EntitlementModule.compatibility,
@@ -466,58 +565,56 @@ final class CompatibilityViewModel {
         // 规则 2:用户主动触发 + 付费分支决策日志
         AppLogger.app.info("compatVM.generateInterpretation.start compatibilityHash=\(compatHash, privacy: .public) module=\(module, privacy: .public) hasEntitlement=\(hasEntitlement, privacy: .public)")
 
+        cacheReadTask?.cancel()
         interpretTask?.cancel()
-        state = .ready(response, .fetching)
+        state = .detail(summary, response, .fetching)
 
-        interpretTask = Task {
+        interpretTask = Task { [weak self] in
+            guard let self else { return }
             do {
-                let baziA = try chartStore.decodeResponse(from: chartASnapshot)
-                let baziB = try chartStore.decodeResponse(from: bSnapshot)
+                let baziA = try self.chartStore.decodeResponse(from: chartASnapshot)
+                let baziB = try self.chartStore.decodeResponse(from: bSnapshot)
                 let chartA = PromptContextBuilder.chartContext(
                     from: baziA,
                     gender: chartASnapshot.gender,
-                    cityDisplay: cityDisplay(for: chartASnapshot)
+                    cityDisplay: self.cityDisplay(for: chartASnapshot)
                 )
                 let chartB = PromptContextBuilder.chartContext(
                     from: baziB,
                     gender: bSnapshot.gender,
-                    cityDisplay: cityDisplay(for: bSnapshot)
+                    cityDisplay: self.cityDisplay(for: bSnapshot)
                 )
 
-                let resp = try await orchestrator.runInterpretation(
+                let resp = try await self.orchestrator.runInterpretation(
                     compatibilityHash: compatHash,
                     chartA: chartA,
                     chartB: chartB,
                     assessment: response.qualitativeAssessment,
                     syncedFortune: response.syncedFortune,
-                    context: context,
+                    context: self.context,
                     module: module
                 )
 
-                if !Task.isCancelled {
-                    if hasEntitlement {
-                        state = .ready(
-                            response,
-                            .okPaid(text: resp.interpretation, cached: resp.cached)
-                        )
-                    } else {
-                        state = .ready(
-                            response,
-                            .okFree(text: resp.interpretation, cached: resp.cached)
-                        )
-                    }
-                }
+                if Task.isCancelled { return }
+
+                let newState: InterpretState = hasEntitlement
+                    ? .okPaid(text: resp.interpretation, cached: resp.cached)
+                    : .okFree(text: resp.interpretation, cached: resp.cached)
+                self.state = .detail(summary, response, newState)
+
+                // 解读成功 → 同步刷新 summaries 中该对的 isInterpreted
+                // (返回 list 时卡片立刻显示「已解读」标记)
+                self.markSummaryInterpreted(id: summary.id)
             } catch let error as CompatibilityError {
                 if !Task.isCancelled {
-                    state = .ready(response, .failed(message: error.errorDescription ?? "未知错误"))
+                    self.state = .detail(summary, response, .failed(message: error.errorDescription ?? "未知错误"))
                 }
             } catch let error as DeepAnalysisError {
                 if !Task.isCancelled {
-                    // dailyLimitReached 独立形态(方案 step 4):禁用生成按钮、不显示重试
                     if case .dailyLimitReached(let reset, _) = error {
-                        state = .ready(response, .dailyLimitReached(nextReset: reset))
+                        self.state = .detail(summary, response, .dailyLimitReached(nextReset: reset))
                     } else {
-                        state = .ready(response, .failed(message: error.errorDescription ?? "未知错误"))
+                        self.state = .detail(summary, response, .failed(message: error.errorDescription ?? "未知错误"))
                     }
                 }
             } catch is CancellationError {
@@ -526,31 +623,69 @@ final class CompatibilityViewModel {
                 if !Task.isCancelled {
                     let userError = UserFacingError.from(error, stage: .interpret)
                     if case .dailyLimitReached(let reset) = userError {
-                        state = .ready(response, .dailyLimitReached(nextReset: reset))
+                        self.state = .detail(summary, response, .dailyLimitReached(nextReset: reset))
                     } else {
-                        state = .ready(response, .failed(message: userError.errorDescription ?? "未知错误"))
+                        self.state = .detail(summary, response, .failed(message: userError.errorDescription ?? "未知错误"))
                     }
                 }
             }
         }
     }
 
+    /// 解读成功后同步标记 summaries 中该对为已解读(返回 list 时卡片立刻显示标记)。
+    private func markSummaryInterpreted(id: String) {
+        guard let idx = summaries.firstIndex(where: { $0.id == id }) else { return }
+        let old = summaries[idx]
+        summaries[idx] = PairSummary(
+            id: old.id,
+            entry: old.entry,
+            personBHash: old.personBHash,
+            displayName: old.displayName,
+            birthDate: old.birthDate,
+            dayMaster: old.dayMaster,
+            fiveElements: old.fiveElements,
+            dayMasterRelation: old.dayMasterRelation,
+            compatibilityHash: old.compatibilityHash,
+            isInterpreted: true
+        )
+    }
+
     // MARK: - 重置
 
-    /// 从结果态切回配置态(顶部「修改名单」 toolbar / detail 返回)。
-    /// 兼容三种结果态:ready(旧)/ list(新)/ computing(中断)。
+    /// 从 list 态切回配置态(顶部「修改名单」toolbar)。
+    /// 兼容 detail(detail → list → config 两步,用户单按钮直达 config)。
     func backToConfig() {
         computeTask?.cancel()
         interpretTask?.cancel()
+        cacheReadTask?.cancel()
         state = .configuring
     }
 
-    // MARK: - 查询
+    // MARK: - 查询(detail 态用)
 
     var remainingReads: Int { orchestrator.remainingReads() }
     var nextDailyReset: Date { orchestrator.nextDailyReset() }
-    var bChartSnapshot: ChartSnapshot? { lastBChartSnapshot }
-    var isSnapshotNew: Bool { lastIsSnapshotNew }
+
+    /// 当前 detail 态的 B 盘 ChartSnapshot(供 CompatibilityMainView 渲染双盘对比)。
+    /// 非 detail 态 / snapshot 缺失返回 nil(UI 显式提示)。
+    var currentDetailBSnapshot: ChartSnapshot? {
+        guard case .detail(let summary, _, _) = state else { return nil }
+        return try? chartStore.get(contentHash: summary.personBHash)
+    }
+
+    /// 当前 detail 态的 A 盘 ChartSnapshot。
+    var currentDetailASnapshot: ChartSnapshot? {
+        archivedCharts[safe: selectedChartAIndex]?.snapshot
+    }
+
+    /// PaywallView 注入用:按对化语义,仅 detail 态返回该对 hash。
+    /// S01 之前是单对 1 对 1 语义(全局 lastCompatibilityHash);S02 改为按对。
+    var lastCompatibilityHashForPaywall: String? {
+        if case .detail(let summary, _, _) = state {
+            return summary.compatibilityHash
+        }
+        return nil
+    }
 
     /// 供结果页构造双盘对比;View 不直接访问 ChartSnapshotStore。
     func makeDualPillars(
@@ -563,6 +698,24 @@ final class CompatibilityViewModel {
     }
 
     // MARK: - Private
+
+    /// openDetail 失败时的兜底 response(qualitative/syncedFortune 为占位空值)。
+    /// 用户看到错误 interpretState,MainView 不崩(qualitative 字段为空字符串,syncedFortune 空数组)。
+    private static func fallbackResponse(for summary: PairSummary) -> CompatibilityResponse {
+        CompatibilityResponse(
+            compatibilityHash: summary.compatibilityHash,
+            personAChart: nil,
+            personBChart: nil,
+            qualitativeAssessment: QualitativeAssessmentDTO(
+                fiveElements: summary.fiveElements,
+                dayMasterRelation: summary.dayMasterRelation,
+                zodiacMatch: "—",
+                branchHarmony: "—"
+            ),
+            syncedFortune: [],
+            calcRuleSnapshot: nil
+        )
+    }
 
     /// ChartSnapshot 城市可读展示(用经度或 cityLongitude 兜底)。
     private func cityDisplay(for snapshot: ChartSnapshot) -> String {

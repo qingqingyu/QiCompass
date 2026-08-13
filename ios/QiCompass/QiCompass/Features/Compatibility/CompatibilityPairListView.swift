@@ -8,12 +8,19 @@ struct CompatibilityPairListView: View {
     @Bindable var vm: CompatibilityViewModel
     let summaries: [PairSummary]
     let onBackToConfig: () -> Void
+    /// S02:点卡片进详情。
+    let onOpenSummary: (PairSummary) -> Void
 
     var body: some View {
         ScrollView {
             VStack(spacing: BaziTheme.Spacing.md) {
                 ForEach(summaries) { summary in
-                    PairSummaryCard(summary: summary)
+                    Button {
+                        onOpenSummary(summary)
+                    } label: {
+                        PairSummaryCard(summary: summary)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
             .padding(.horizontal)
