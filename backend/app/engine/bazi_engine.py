@@ -26,6 +26,7 @@ from ..engine.current import (
     build_current_year_pillar,
     locate_current_luck_pillar,
 )
+from ..engine.branch_relations import compute_friends_and_clash
 from ..engine.luck import build_luck_pillars
 from ..engine.pillars import (
     GAN_ELEMENT,
@@ -84,6 +85,12 @@ class BaziEngine:
             # 3.1 生肖:年柱地支 → 英文生肖名(对齐 iOS Zodiac_*.imageset)
             # lunar_python 已按立春算 year.zhi,这里仅做查表(修正 iOS 客户端按公历年推算的立春边界 bug)
             year_branch_zodiac = compute_year_zodiac(pillars.year.zhi)
+
+            # 3.2 生肖关系(2026-08-13 onboarding 反馈屏「好朋友 / 需磨合」):
+            # 复用 branch_relations.py(合盘引擎同一事实源),地支 → 英文生肖名
+            friends_zhi, clash_zhi = compute_friends_and_clash(pillars.year.zhi)
+            year_branch_friends = [compute_year_zodiac(z) for z in friends_zhi]
+            year_branch_clash = compute_year_zodiac(clash_zhi)
 
             # 3.5 contentHash(提前算,供后续日志关联;用输入时间,非真太阳时)
             content_hash = compute_content_hash(
@@ -180,6 +187,9 @@ class BaziEngine:
                 "meta": meta_block.model_dump(),
                 # 生肖(英文,对齐 iOS Zodiac_*.imageset):lunar_python 已按立春算
                 "year_branch_zodiac": year_branch_zodiac,
+                # 生肖关系(2026-08-13 onboarding 反馈屏):好朋友 3 + 需磨合 1
+                "year_branch_friends": year_branch_friends,
+                "year_branch_clash": year_branch_clash,
                 "luck_pillars": [lp.model_dump() for lp in luck_pillars],
                 "current_luck_pillar": (
                     current_luck.model_dump() if current_luck else None

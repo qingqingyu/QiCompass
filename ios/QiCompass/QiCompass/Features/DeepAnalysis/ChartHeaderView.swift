@@ -45,7 +45,8 @@ struct ChartHeaderView: View {
     }
 
     private var genderLabel: String {
-        request.gender == "male" ? "乾造(男)" : "坤造(女)"
+        // 2026-08-13 收拢:与 OnboardingView 共用 ZodiacHelper.genderLabel(单一事实源)
+        ZodiacHelper.genderLabel(forGender: request.gender)
     }
 
     /// VoiceOver 用:去括号,空格分隔,避免读屏读"左括号 男 右括号"不连贯。

@@ -187,6 +187,12 @@ struct BaziResponse: Codable, Sendable {
     /// 后端 lunar_python 已按立春算 pillars.year.zhi,这里仅查表暴露。
     /// 非 optional:后端语义保证非空。mock 构造须手填(对齐其他非 optional 字段)。
     let yearBranchZodiac: String
+    /// 2026-08-13 onboarding 反馈屏「好朋友 / 需磨合」:
+    /// 好朋友 = 六合 1 + 三合 2 = 3 个英文生肖名;需磨合 = 六冲 1 个。
+    /// 后端复用 branch_relations.py(合盘引擎同一事实源)。
+    /// 非 optional:后端恒填充,mock 构造须手填(对齐 yearBranchZodiac)。
+    let yearBranchFriends: [String]
+    let yearBranchClash: String
 
     // v1 prompt 系统 chart 注入字段(Stage 1 后端引入,iOS Stage 7b 接入)
     // 不在声明处给默认值(否则 init(from decoder:) + 默认值会触发"immutable value
@@ -226,6 +232,8 @@ struct BaziResponse: Codable, Sendable {
         case boundaryWarning = "boundary_warning"
         case anchorSentence = "anchor_sentence"
         case yearBranchZodiac = "year_branch_zodiac"
+        case yearBranchFriends = "year_branch_friends"
+        case yearBranchClash = "year_branch_clash"
         case tenGodWeights = "ten_god_weights"
         case usefulGodCandidates = "useful_god_candidates"
         case meta
@@ -264,6 +272,8 @@ struct BaziResponse: Codable, Sendable {
         boundaryWarning = try c.decodeIfPresent(String.self, forKey: .boundaryWarning)
         anchorSentence = try c.decodeIfPresent(String.self, forKey: .anchorSentence)
         yearBranchZodiac = try c.decode(String.self, forKey: .yearBranchZodiac)
+        yearBranchFriends = try c.decode([String].self, forKey: .yearBranchFriends)
+        yearBranchClash = try c.decode(String.self, forKey: .yearBranchClash)
         // v1 字段:decodeIfPresent + 默认值,缺 key 走默认(对齐 backend Stage 1+ 语义)
         tenGodWeights = try c.decodeIfPresent([String: Int].self, forKey: .tenGodWeights) ?? [:]
         usefulGodCandidates = try c.decodeIfPresent([String].self, forKey: .usefulGodCandidates) ?? []
@@ -296,6 +306,8 @@ struct BaziResponse: Codable, Sendable {
         calcRuleSnapshot: CalcRuleSnapshotDTO,
         boundaryWarning: String?,
         yearBranchZodiac: String,
+        yearBranchFriends: [String],
+        yearBranchClash: String,
         anchorSentence: String? = nil,
         tenGodWeights: [String: Int] = [:],
         usefulGodCandidates: [String] = [],
@@ -324,6 +336,8 @@ struct BaziResponse: Codable, Sendable {
         self.calcRuleSnapshot = calcRuleSnapshot
         self.boundaryWarning = boundaryWarning
         self.yearBranchZodiac = yearBranchZodiac
+        self.yearBranchFriends = yearBranchFriends
+        self.yearBranchClash = yearBranchClash
         self.anchorSentence = anchorSentence
         self.tenGodWeights = tenGodWeights
         self.usefulGodCandidates = usefulGodCandidates

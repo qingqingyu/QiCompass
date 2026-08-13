@@ -212,20 +212,21 @@
 
 ### 模块四:Onboarding / 首启动
 
-#### US-ON-01:首启动了解产品姿态
-**作为**新用户,**我想**首次打开 app 时了解产品定位,**以便**决定是否继续使用。
+#### US-ON-01:首启动被吸引 → 体验出生输入 → 收到生肖反馈
+**作为**新用户,**我想**首次打开 app 时被吸引、快速体验出生信息输入,**以便**立刻收到"我的生肖 + 人格 + 好朋友/需磨合"反馈并进入 app。
 
-**验收标准:**
-- 4 页滑动(`.page` style TabView):
-  1. Welcome:朱砂印章 "玄" + "玄机问道" + memorable thing "专业不忽悠,不像算命软件"
-  2. Stance:4 条产品姿态(确定性排盘 / 规则引擎给喜忌 / 从格诚实降级 / 格局 v1 不硬分),朱砂小圆点
-  3. Privacy:4 条数据归属(本地存储 / AI 缓存 / API key 不进客户端 / 不做云同步),墨青小圆点
-  4. Start:朱砂印章 "始" + CTA "开始排盘"
-- `@AppStorage("hasSeenOnboarding")` 检测,首启动 = false → sheet 弹出
-- **禁止下滑 dismiss**(`.interactiveDismissDisabled()`),必须点 CTA
-- 点 CTA 后设 `hasSeenOnboarding = true`,二次启动不再弹
-- 圆点 indicator cinnabar 色(`.tint`)
-- 无障碍:VoiceOver labels(印章 + CTA hint),Reduce Motion 系统自动处理
+**验收标准(2026-08-13 grill-me 三屏重构,6 屏压 3 屏):**
+- 三屏流程:
+  1. **Welcome**(吸引屏,不变):朱砂印章 "玄" + "玄机问道" + 副标题 "读懂你的命局" + 论语经文
+  2. **出生表单**(TabView 第 2 页):出生时间 / 时辰快捷选 / 性别 / 出生地 / 提交 CTA;底部隐私微文案 "命盘只存你手机 · 无账号"
+  3. **生肖反馈**(终态屏,提交成功后整体切换,无 swipe 回退):生肖印章图(盖章动效)+ "辰 · 龙" + "乾造(男) · 庚辰年(2000)" + 人格段落 + 好朋友 3 chips + 需磨合 1 chip + 立场微文案 + CTA "查看今日运势"(钉底)
+- 信任文案下沉:隐私微文案 → 表单页底;立场微文案 → 反馈屏底;完整版 → Profile 关于页
+- `@AppStorage("hasSeenOnboarding")` 只做启动 gate;sheet 显示由 `showOnboarding` 独立 @State 控制
+- 提交成功(chart 已存档)即设 `hasSeenOnboarding = true`(kill 重启不重走 onboarding,避免重复排盘)
+- 点反馈屏 CTA → dismiss sheet + 落地今日运势 Tab
+- **禁止下滑 dismiss**(`.interactiveDismissDisabled()`)
+- 提交前二次确认 sheet(防首次输错 → 重置代价大)
+- 无障碍:VoiceOver labels(印章 + CTA hint),Reduce Motion 跳过盖章动效
 
 ---
 
@@ -236,22 +237,17 @@
 ```
 首启动
   ↓
-Onboarding sheet(4 页,禁止下滑 dismiss)
-  ├─ Page 1 Welcome(玄字印章 + memorable thing)
-  ├─ Page 2 Stance(4 条产品姿态)
-  ├─ Page 3 Privacy(4 条数据归属)
-  └─ Page 4 Start(始字印章 + CTA "开始排盘")
-  ↓ 点 CTA,dismiss sheet,hasSeenOnboarding = true
-Tab 1 深度解析(.empty 态,默认 Tab)
+Onboarding sheet(3 屏,禁止下滑 dismiss;2026-08-13 三屏重构)
+  ├─ 屏 1 Welcome(玄字印章 + 副标题 + 论语经文)
+  ├─ 屏 2 出生表单(出生时间 / 时辰快捷选 / 性别 / 出生地 + 隐私微文案;
+  │          提交 → 二次确认 sheet → 排盘 + chart 存档)
+  └─ 屏 3 生肖反馈(提交成功整体切换,终态无回退:
+     盖章动效印章图 + 辰·龙 + 乾造·庚辰年 + 人格段落 +
+     好朋友 3 chips + 需磨合 1 chip + 立场微文案 + CTA 钉底)
+  ↓ 点 CTA "查看今日运势",dismiss sheet,落地每日运势 Tab(默认 Tab)
+每日运势 Tab
   ↓
-BirthFormView
-  ├─ 出生时间(DatePicker dateAndTime)
-  ├─ 时辰快捷选(12 时辰 grid,Circle 按钮)
-  ├─ 性别(segmented:男 / 女)
-  ├─ 出生地(52 城市 Picker / 手动经度 Toggle)
-  └─ 子时规则(只读提示:"23:00 换日(早子时归当日)")
-  ↓ 点 "开始排盘" CTA(cinnabar + RoundedRectangle Radius.sm)
-calculating 态(分阶段加载文案,ProgressView cinnabar)
+用户主动进深度解析 Tab → 已排盘直接看结果 → 点 "生成命书" β 触发 AI 解读
   ↓
 DeepAnalysisResultView(ScrollView)
   ├─ ChartHeaderView(命主信息 + 真太阳时偏差 + 边界 warning)
@@ -263,16 +259,12 @@ DeepAnalysisResultView(ScrollView)
   ├─ LuckPillarsTimeline(大运,当前柱 cinnabar)
   ├─ CurrentStatusCard(当下大运/流年/流日/流时)
   └─ InterpretationSection(AI 命书,idle 态显示 CTA "生成命书")
-  ↓ 点 "生成命书" CTA
-AI 命书生成(fetching → ok)
-  ↓
-用户阅读命书(可"重新生成")
 ```
 
 **断点风险:**
 - BirthFormView 校验失败 → `.formInvalid` 显示内联错误(Color.red)
-- 排盘失败 → `.chartFailed` 显示 ErrorStateView + "返回表单" cinnabar
-- 数据异常(无请求记录)→ 显示 "数据异常:无请求记录" + "返回表单"
+- 排盘失败 → `.chartFailed` 显示 ErrorStateView + retry(连续 3 次 → persistentFailure 引导重启)
+- 反馈屏 kill App → 提交成功已设 hasSeenOnboarding=true,重启直接进主 App(不重复排盘)
 
 ---
 
@@ -382,11 +374,11 @@ AI 解读生成(400-500 字)
 - [ ] US-DF-04:黄历宜/忌 + chip 样式
 - [ ] US-DF-05:今日 AI 解读 + 离线 fallback
 - [ ] US-DF-06:明日预告 + cinnabar
-- [ ] US-ON-01:4 页 onboarding + 禁止下滑 + 二次启动不弹
+- [ ] US-ON-01:三屏 onboarding(Welcome → 表单 → 生肖反馈)+ 禁止下滑 + 提交成功即 hasSeenOnboarding=true(2026-08-13 三屏重构)
 
 ### 流程 review(对照旅程地图)
 
-- [ ] 旅程 A:首启动 → onboarding → BirthFormView → 排盘 → ResultView(无断点)
+- [ ] 旅程 A:首启动 → 三屏 onboarding(表单排盘 → 生肖反馈)→ CTA 落地今日运势 → 深度解析(无断点)
 - [ ] 旅程 B:打开 app → Tab 3 → 今日运势 → AI 解读(无断点)
 - [ ] 旅程 C:Tab 2 → 配置 → 合盘 → 4 维定性 → AI 解读(无断点)
 - [ ] 三旅程状态切换平滑(loading / empty / error / success)

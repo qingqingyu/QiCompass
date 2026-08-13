@@ -137,6 +137,55 @@ async def test_calculate_year_branch_zodiac_lichun_boundary():
     assert body["pillars"]["year"]["gan_zhi"] == "甲子", "立春前年柱应为甲子"
 
 
+# 12 生肖 → 年柱干支(公历年份,出生日取 05-01 安全落在立春后)
+# 事实源:branch_relations.py 六合/三合/六冲 + pillars.py ZODIAC_NAME
+_ZODIAC_SWEEP = [
+    ("Rat",     1984, ["Ox", "Dragon", "Monkey"],  "Horse"),
+    ("Ox",      1985, ["Rat", "Snake", "Rooster"], "Goat"),
+    ("Tiger",   1986, ["Pig", "Horse", "Dog"],     "Monkey"),
+    ("Rabbit",  1987, ["Dog", "Goat", "Pig"],      "Rooster"),
+    ("Dragon",  1988, ["Rooster", "Rat", "Monkey"], "Dog"),
+    ("Snake",   1989, ["Monkey", "Ox", "Rooster"], "Pig"),
+    ("Horse",   1990, ["Goat", "Tiger", "Dog"],    "Rat"),
+    ("Goat",    1991, ["Horse", "Rabbit", "Pig"],  "Ox"),
+    ("Monkey",  1992, ["Snake", "Rat", "Dragon"],  "Tiger"),
+    ("Rooster", 1993, ["Dragon", "Ox", "Snake"],   "Rabbit"),
+    ("Dog",     1994, ["Rabbit", "Tiger", "Horse"], "Dragon"),
+    ("Pig",     1995, ["Tiger", "Rabbit", "Goat"], "Snake"),
+]
+
+
+@pytest.mark.parametrize(
+    "zodiac, year, friends, clash",
+    _ZODIAC_SWEEP,
+    ids=[z for z, *_ in _ZODIAC_SWEEP],
+)
+async def test_calculate_year_branch_friends_clash_sweep(
+    zodiac, year, friends, clash,
+):
+    """12 生肖全量:year_branch_friends / year_branch_clash 英文名正确。
+
+    2026-08-13 onboarding 反馈屏「好朋友 / 需磨合」契约:
+    - friends = [六合, 三合×2(按地支顺序)] 英文生肖名
+    - clash = 六冲 英文生肖名
+    """
+    payload = {
+        "birth_datetime": f"{year}-05-01T12:00:00+08:00",
+        "gender": "male",
+        "city": "北京",
+        "zi_hour_rule": "zi_next_day",
+    }
+    code, body, _ = await _post(payload)
+    assert code == 200, body
+    assert body["year_branch_zodiac"] == zodiac
+    assert body["year_branch_friends"] == friends, (
+        f"{zodiac} 好朋友应为 {friends},实得 {body['year_branch_friends']}"
+    )
+    assert body["year_branch_clash"] == clash, (
+        f"{zodiac} 需磨合应为 {clash},实得 {body['year_branch_clash']}"
+    )
+
+
 async def test_calculate_content_hash_deterministic():
     """相同输入两次调用 content_hash 一致。"""
     _, b1, _ = await _post(DOC_EXAMPLE)

@@ -20,6 +20,54 @@ import Foundation
 /// Text(L10n.DailyFortune.chongLabel(chong: "午", targets: []))  // 替代 Text("冲午")
 /// ```
 enum L10n {
+    // MARK: - Onboarding(2026-08-13 三屏重构新增)
+
+    /// Onboarding 模块。
+    enum Onboarding {
+        // -- 表单页(第 2 屏)--
+
+        /// 表单页标题。
+        /// zh: "你的出生信息";en: "Your birth details"
+        static let formTitle = String(localized: "onboarding.form.title")
+
+        /// 隐私微文案(表单页底部,Q1 拆分下沉:隐私信息在用户交出生信息那一刻出现)。
+        /// zh: "命盘只存你手机 · 无账号";en: "Your chart stays on your phone · No account"
+        static let formPrivacyLine = String(localized: "onboarding.form.privacyLine")
+
+        // -- 生肖反馈屏(第 3 屏)--
+
+        /// 好朋友区块标题(三合六合)。
+        /// zh: "好朋友";en: "Natural friends"
+        static let revealFriendsTitle = String(localized: "onboarding.reveal.friendsTitle")
+
+        /// 需磨合区块标题(六冲,软化措辞,不用「不和谐/相冲」避免恐吓)。
+        /// zh: "需磨合";en: "Needs patience"
+        static let revealClashTitle = String(localized: "onboarding.reveal.clashTitle")
+
+        /// 立场微文案(反馈屏底部,Q1 拆分下沉:收到结论那一刻给可信度背书)。
+        /// zh: "同一组生辰,同一张盘 · 喜忌由规则判,AI 只润色"
+        /// en: "Same birth data, same chart · Rules decide, AI polishes"
+        static let revealStanceLine = String(localized: "onboarding.reveal.stanceLine")
+
+        /// 反馈屏 CTA(zh="查看今日运势", en="See today's fortune")
+        static let revealCTA = String(localized: "onboarding.reveal.cta")
+
+        // -- 12 生肖人格文案(静态善意正面画像,Q6 锁定:1-2 句,不吹天命不写负面)--
+
+        static let personalityRat = String(localized: "onboarding.personality.rat")
+        static let personalityOx = String(localized: "onboarding.personality.ox")
+        static let personalityTiger = String(localized: "onboarding.personality.tiger")
+        static let personalityRabbit = String(localized: "onboarding.personality.rabbit")
+        static let personalityDragon = String(localized: "onboarding.personality.dragon")
+        static let personalitySnake = String(localized: "onboarding.personality.snake")
+        static let personalityHorse = String(localized: "onboarding.personality.horse")
+        static let personalityGoat = String(localized: "onboarding.personality.goat")
+        static let personalityMonkey = String(localized: "onboarding.personality.monkey")
+        static let personalityRooster = String(localized: "onboarding.personality.rooster")
+        static let personalityDog = String(localized: "onboarding.personality.dog")
+        static let personalityPig = String(localized: "onboarding.personality.pig")
+    }
+
     // MARK: - 每日运势模块
 
     /// 每日运势模块。
@@ -118,6 +166,45 @@ enum L10n {
 
         /// 历史加载失败(zh="历史加载失败", en="Failed to load history")
         static let mainHistoryError = String(localized: "dailyfortune.main.historyError")
+    }
+
+    // MARK: - Profile(2026-08-13 onboarding 三屏重构:立场/隐私完整版下沉到关于页)
+
+    /// Profile 模块。
+    enum Profile {
+        /// 立场标题(为什么可信)。
+        /// zh: "为什么可信";en: "Why trust it"
+        static let aboutStanceTitle = String(localized: "profile.about.stanceTitle")
+
+        /// 立场 1(排盘确定性)。
+        /// zh: "同一组生辰,同一张盘";en: "Same birth data, same chart"
+        static let aboutStance1 = String(localized: "profile.about.stance1")
+
+        /// 立场 2(喜忌规则引擎)。
+        /// zh: "喜忌由规则判,AI 只润色";en: "Rules decide, AI polishes"
+        static let aboutStance2 = String(localized: "profile.about.stance2")
+
+        /// 立场 3(特例如实标注)。
+        /// zh: "命局有特例,如实标注";en: "Edge cases are labeled honestly"
+        static let aboutStance3 = String(localized: "profile.about.stance3")
+
+        /// 隐私标题。
+        /// zh: "隐私与数据";en: "Privacy & data"
+        static let aboutPrivacyTitle = String(localized: "profile.about.privacyTitle")
+
+        /// 隐私 1(无账号无云同步)。
+        /// zh: "命盘只在你手机上,无账号,无云同步"
+        /// en: "Your chart lives on your phone. No account, no cloud sync"
+        static let aboutPrivacy1 = String(localized: "profile.about.privacy1")
+
+        /// 隐私 2(AI 走后端)。
+        /// zh: "AI 解读走我们服务器,密钥保管在后端"
+        /// en: "AI readings run on our servers; keys stay server-side"
+        static let aboutPrivacy2 = String(localized: "profile.about.privacy2")
+
+        /// 隐私 3(无跟踪)。
+        /// zh: "没有跟踪,没有画像";en: "No tracking, no profiling"
+        static let aboutPrivacy3 = String(localized: "profile.about.privacy3")
     }
 
     // MARK: - 共享组件

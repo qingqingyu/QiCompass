@@ -183,6 +183,12 @@ class BaziCalculateResponse(BaseModel):
     # 2026-08-11 生肖 wire up:年柱地支对应生肖(英文,对齐 iOS Zodiac_*.imageset)
     # pillars.year.zhi 已按立春算,这里仅查表暴露(修正客户端公历年推算的立春边界 bug)
     year_branch_zodiac: str
+    # 2026-08-13 onboarding 反馈屏「好朋友 / 需磨合」:
+    # 好朋友 = 六合 1 + 三合 2 = 3 支;需磨合 = 六冲 1 支。
+    # 英文生肖名,复用 branch_relations.py(合盘引擎同一事实源)。
+    # 非 Optional:引擎恒填充(对齐 year_branch_zodiac,缺失视为开发期 bug)
+    year_branch_friends: list[str]
+    year_branch_clash: str
 
     luck_pillars: list[LuckPillar]
     current_luck_pillar: CurrentPillar | None = None

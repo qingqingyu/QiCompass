@@ -384,8 +384,35 @@ struct ProfileView: View {
 
     // MARK: - Section 4: 关于
 
+    /// 2026-08-13 onboarding 三屏重构(Q1 拆分下沉):
+    /// 立场/隐私完整版(原 onboarding 第 2/3 页)移到这里。
+    /// onboarding 里只留关键时刻微文案(表单页隐私一行 / 反馈屏立场一行)。
     private var aboutSection: some View {
         Section {
+            // 立场(为什么可信 — Memorable Thing "专业不忽悠"的完整落点)
+            Text(L10n.Profile.aboutStanceTitle)
+                .font(.caption)
+                .foregroundStyle(BaziTheme.inkMuted)
+            ForEach(
+                [L10n.Profile.aboutStance1, L10n.Profile.aboutStance2, L10n.Profile.aboutStance3],
+                id: \.self
+            ) { line in
+                Text(line)
+                    .font(.subheadline)
+                    .foregroundStyle(BaziTheme.ink)
+            }
+            // 隐私与数据(完整版)
+            Text(L10n.Profile.aboutPrivacyTitle)
+                .font(.caption)
+                .foregroundStyle(BaziTheme.inkMuted)
+            ForEach(
+                [L10n.Profile.aboutPrivacy1, L10n.Profile.aboutPrivacy2, L10n.Profile.aboutPrivacy3],
+                id: \.self
+            ) { line in
+                Text(line)
+                    .font(.subheadline)
+                    .foregroundStyle(BaziTheme.ink)
+            }
             LabeledContent("版本", value: appVersion)
             LabeledContent("Build", value: buildNumber)
         } header: {

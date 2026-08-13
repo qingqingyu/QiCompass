@@ -44,7 +44,7 @@ extension View {
 
     /// 淡入 + 上移过渡(从下方浮入,onboarding 专用"呼吸感"入场)。
     /// Reduce Motion 开启时压缩 duration 到 0.15s、去 delay、去位移。
-    /// 命名跟 NarrationLine(内容组件)区分,riseIn 是动画动作。
+    /// 命名与内容组件区分,riseIn 是动画动作。
     func riseIn(delay: Double = 0) -> some View {
         modifier(FadeInModifier(delay: delay, yOffset: 8))
     }

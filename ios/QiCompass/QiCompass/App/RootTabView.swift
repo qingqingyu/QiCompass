@@ -6,8 +6,13 @@ import SwiftUI
 /// 2026-08-01 grill-me 决策:
 /// - 默认 Tab 改为 `.dailyFortune`(原 `.deepAnalysis`)。今日运势是视觉入口 + 高频回访。
 /// - Tab 顺序:今日运势在最左(默认选中位置),深度解析第二,合盘第三,**"我的"第四**(决策 #17)。
-/// - Onboarding 流改 B2:StartPage CTA 后**不**直接 dismiss,而是呈现 FirstLaunchBirthFormView
-///   作为 fullScreenCover;表单提交成功(只触发排盘,不跑深度解析 AI)后才 dismiss 全部 + 落地今日运势。
+///
+/// 2026-08-13 onboarding 三屏重构:
+/// - 6 屏压成 3 屏:Welcome → 出生表单(嵌 onboarding sheet 第 2 页)→ 生肖反馈(终态屏)。
+///   原 fullScreenCover 表单流删除。
+/// - showOnboarding 与 hasSeenOnboarding 解耦:hasSeenOnboarding 只做「下次启动还弹不弹」
+///   gate;sheet 显示由 showOnboarding 独立控制。提交成功 → hasSeenOnboarding=true(修复
+///   "反馈屏 kill App → 重启重走 onboarding → 重复排盘" bug);CTA 点击 → dismiss + 落地今日运势。
 ///
 /// 监听 `.switchTab` Notification(决策 D3):合盘空态 CTA → 切到深度解析。
 struct RootTabView: View {
@@ -15,9 +20,9 @@ struct RootTabView: View {
     @State private var selectedTab: Tab = .dailyFortune
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
-    /// B2 流:StartPage CTA 点击后呈现出生表单 fullScreenCover。
-    /// hasSeenOnboarding 保持 false 直到表单提交成功,确保中途 kill 进程后下次重启仍走 onboarding。
-    @State private var showFirstLaunchForm = false
+    /// onboarding sheet 显示状态(2026-08-13 与 hasSeenOnboarding 解耦)。
+    /// 启动时 !hasSeenOnboarding → true;反馈屏 CTA 点击 → false。
+    @State private var showOnboarding = false
 
     enum Tab: Hashable {
         case dailyFortune
@@ -67,33 +72,27 @@ struct RootTabView: View {
         .onAppear {
             // 首启 / 后续启动分流日志,便于定位"onboarding 没弹 / 反复弹"等异常
             AppLogger.app.info("RootTabView.onAppear hasSeenOnboarding=\(hasSeenOnboarding, privacy: .public) selectedTab=\(selectedTab.switchKey, privacy: .public)")
+            // 2026-08-13:首启(未看过 onboarding)弹三屏 onboarding sheet。
+            // showOnboarding 独立于 hasSeenOnboarding,提交成功不再自动 dismiss(否则反馈屏没机会展示)。
+            if !hasSeenOnboarding {
+                showOnboarding = true
+            }
             // PR3.2:App 启动(若已登录)→ 后台静默 pull(同步云端命盘)
             Task { await env.syncManager.pull() }
         }
-        .sheet(isPresented: Binding(
-            get: { !hasSeenOnboarding && !showFirstLaunchForm },
-            set: { newValue in
-                // isPresented 变化都打:呈现(true)/ dismiss(false)
-                AppLogger.app.info("Onboarding sheet isPresented=\(newValue, privacy: .public) hasSeenOnboarding=\(hasSeenOnboarding, privacy: .public) showFirstLaunchForm=\(showFirstLaunchForm, privacy: .public)")
-                // B2 流:sheet 不主动设 hasSeenOnboarding(改由 FirstLaunchBirthFormView 表单提交成功设)。
-                // 仅打日志,实际 dismiss 由 hasSeenOnboarding 翻 true 驱动。
-            }
-        )) {
-            OnboardingView(onComplete: {
-                // StartPage CTA 点击 → 进入 B2 出生表单流(不设 hasSeenOnboarding)
-                AppLogger.app.info("OnboardingView onComplete 触发 → 进入 B2 出生表单流")
-                showFirstLaunchForm = true
-            })
-            .interactiveDismissDisabled()
-        }
-        .fullScreenCover(isPresented: $showFirstLaunchForm) {
-            FirstLaunchBirthFormView(
+        .sheet(isPresented: $showOnboarding) {
+            OnboardingView(
                 onComplete: {
-                    // 表单提交成功 → chart 已存档。dismiss 全部 + 落地今日运势。
-                    AppLogger.app.info("FirstLaunchBirthFormView onComplete 触发 → hasSeenOnboarding=true + 落地 .dailyFortune")
-                    hasSeenOnboarding = true
-                    showFirstLaunchForm = false
+                    // 反馈屏 CTA 点击 → chart 已存档。dismiss sheet + 落地今日运势。
+                    AppLogger.app.info("OnboardingView onComplete 触发 → dismiss sheet + 落地 .dailyFortune")
+                    showOnboarding = false
                     selectedTab = .dailyFortune
+                },
+                onChartArchived: {
+                    // 提交成功(chart 已存档)即设 true:kill 重启后不再重走 onboarding,
+                    // 避免重复排盘存档两张盘。反馈屏中途退出 = 错过 reveal 但可接受(盘已在)。
+                    AppLogger.app.info("OnboardingView onChartArchived 触发 → hasSeenOnboarding=true")
+                    hasSeenOnboarding = true
                 }
             )
             .environmentObject(env)
@@ -115,136 +114,6 @@ struct RootTabView: View {
                 AppLogger.app.error(".switchTab 收到未知 tab=\(raw, privacy: .public),忽略")
             }
         }
-    }
-}
-
-// MARK: - FirstLaunchBirthFormView(B2 强制轻注册)
-
-/// B2 流的出生表单容器(2026-08-01 grill-me 决策 #12)。
-///
-/// 包装 BirthFormView + 状态观察。提交成功(vm.state → .ready)时调用 onComplete,
-/// 由 RootTabView 落地今日运势 + dismiss 全部覆盖层。
-///
-/// 关键约束:
-/// - 只触发 `/api/bazi/calculate` 排盘 + chart 存档(orchestrator.runCalculation)
-/// - **不**触发 `/api/interpret`(深度解析 AI 命书延后到用户主动进深度解析 Tab 触发,β 点击触发)
-/// - 用户中途 kill 进程 → hasSeenOnboarding 仍为 false → 下次重启重新走 onboarding(可接受)
-/// - chart 创建失败 → 显示 ErrorStateView + 重试,不进入主 App(用户必须有 chart 才能用)
-private struct FirstLaunchBirthFormView: View {
-    @EnvironmentObject private var env: AppEnvironment
-    let onComplete: () -> Void
-
-    @State private var vm: DeepAnalysisViewModel?
-    /// 防止 ready → onAppear 多次触发 onComplete(SwiftUI 重渲染时 onAppear 可重复调用)。
-    @State private var hasTriggeredComplete = false
-    /// 生肖阶段 3:提交前二次确认 sheet 触发态。
-    /// 仅 onboarding 加(主 tab BirthFormView 不受影响),决策:防新用户首次输错 → 重置命盘代价大。
-    @State private var showSubmitConfirm = false
-
-    var body: some View {
-        NavigationStack {
-            ZStack {
-                BaziTheme.paper.ignoresSafeArea()
-                content
-            }
-            .navigationTitle("开始排盘")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.light, for: .navigationBar)
-            .sheet(isPresented: $showSubmitConfirm) {
-                if let vm {
-                    BirthInfoConfirmSheet(
-                        vm: vm,
-                        onConfirm: {
-                            showSubmitConfirm = false
-                            AppLogger.app.info("FirstLaunchBirthFormView 二次确认 → 触发 vm.calculate")
-                            vm.calculate()
-                        },
-                        onCancel: {
-                            showSubmitConfirm = false
-                        }
-                    )
-                    .presentationDetents([.medium])
-                    .presentationDragIndicator(.visible)
-                }
-            }
-        }
-        .task {
-            if vm == nil {
-                let newVM = DeepAnalysisViewModel(
-                    orchestrator: env.deepAnalysisOrchestrator,
-                    entitlementStore: env.entitlementStore
-                )
-                // B2 流不消费 pendingReturnTab(没有"原 Tab"可切回);onChartArchived 留 nil。
-                vm = newVM
-                AppLogger.app.info("FirstLaunchBirthFormView VM 创建完成")
-            }
-        }
-    }
-
-    @ViewBuilder
-    @MainActor
-    private var content: some View {
-        if let vm {
-            switch vm.state {
-            case .empty, .formInvalid:
-                // 阶段 3:onSubmit 走二次确认 sheet,不直接 vm.calculate。
-                // 用户确认后 sheet 内部回调 vm.calculate()。
-                BirthFormView(vm: vm, onSubmit: { showSubmitConfirm = true })
-            case .calculating(let stage):
-                LoadingStateView(title: stage.text)
-            case .ready(let response, _):
-                // 排盘成功 → chart 已存档。呈现生肖反馈屏(Q11 β + Q15 盖章动效)。
-                // 用户主动点 CTA 触发 onComplete → RootTabView 落地今日运势 + dismiss 全部覆盖层。
-                // hasTriggeredComplete 防护:SwiftUI 重渲染时确保 onComplete 只触发一次(副作用幂等契约)。
-                //
-                // 数据源(2026-08-11 wire up):后端 BaziResponse.year_branch_zodiac
-                // + pillars.year.ganZhi + pillars.year.zhi(均按立春算,修客户端公历年推算 bug)。
-                ZodiacRevealView(
-                    zodiacAssetName: "Zodiac_\(response.yearBranchZodiac)",
-                    mainLabel: mainLabel(from: response),
-                    subLabel: subLabel(
-                        from: response,
-                        gender: vm.gender,
-                        birthYear: Calendar.current.component(.year, from: vm.birthDate)
-                    ),
-                    onComplete: {
-                        guard !hasTriggeredComplete else {
-                            AppLogger.app.warning("ZodiacRevealView onComplete 已触发过,跳过重复调用")
-                            return
-                        }
-                        hasTriggeredComplete = true
-                        AppLogger.app.info("ZodiacRevealView CTA 点击 → 触发 onComplete")
-                        onComplete()
-                    }
-                )
-            case .chartFailed(let userError):
-                ErrorStateView(error: userError, retry: vm.retryCalculation)
-            }
-        } else {
-            ProgressView()
-                .tint(BaziTheme.cinnabar)
-        }
-    }
-
-    // MARK: - ZodiacRevealView 文案 helper(后端真值推导)
-
-    /// 主文字(Q12 iii):`辰 · 龙`(中点分隔)。
-    /// 地支汉字从 `response.pillars.year.zhi`(后端 lunar_python 按立春算),
-    /// 生肖汉字从 `ZodiacHelper.animalChar(forZodiac:)`(英文 asset name → 中文)。
-    private func mainLabel(from response: BaziResponse) -> String {
-        let zhi = response.pillars.year.zhi  // 如 "辰"
-        let animalChar = ZodiacHelper.animalChar(forZodiac: response.yearBranchZodiac)  // "Dragon" → "龙"
-        return "\(zhi) · \(animalChar)"
-    }
-
-    /// 次文字(Q13 C+ii):`乾造(男) · 庚辰年(2000)`(命理 + 公历双轨)。
-    /// 年柱干支从 `response.pillars.year.ganZhi`(按立春算,可能与公历年不对应 —
-    /// 立春前的公历年会显示上一年的年柱,这是正确行为,不是 bug)。
-    /// 公历年份由调用方传(从 vm.birthDate 取,用于用户认知锚点)。
-    private func subLabel(from response: BaziResponse, gender: String, birthYear: Int) -> String {
-        let genderLabel = gender == "male" ? "乾造(男)" : "坤造(女)"
-        let ganzhi = response.pillars.year.ganZhi  // 如 "庚辰"
-        return "\(genderLabel) · \(ganzhi)年(\(birthYear))"
     }
 }
 

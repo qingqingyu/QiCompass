@@ -334,7 +334,9 @@ final class MockAPIClient: APIClient {
             currentLuckPillar: nil, currentYearPillar: nil, currentDayPillar: nil, currentHourPillar: nil,
             calcRuleSnapshot: calcRule,
             boundaryWarning: nil,
-            yearBranchZodiac: "Rat"  // mock 主盘 pillar.zhi=子 → Rat(对齐 mock 数据)
+            yearBranchZodiac: "Rat",  // mock 主盘 pillar.zhi=子 → Rat(对齐 mock 数据)
+            yearBranchFriends: ["Ox", "Dragon", "Monkey"],  // 子:六合丑 + 三合申辰
+            yearBranchClash: "Horse"  // 子午冲
         )
     }
 
@@ -375,7 +377,9 @@ final class MockAPIClient: APIClient {
                 currentLuckPillar: nil, currentYearPillar: nil, currentDayPillar: nil, currentHourPillar: nil,
                 calcRuleSnapshot: calcRule,
                 boundaryWarning: nil,
-                yearBranchZodiac: "Horse"  // mock B 盘 pillar.zhi=午 → Horse(对齐 mock 数据)
+                yearBranchZodiac: "Horse",  // mock B 盘 pillar.zhi=午 → Horse(对齐 mock 数据)
+                yearBranchFriends: ["Goat", "Tiger", "Dog"],  // 午:六合未 + 三合寅戌
+                yearBranchClash: "Rat"  // 子午冲
             )
         } else {
             personBChart = nil

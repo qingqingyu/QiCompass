@@ -1,56 +1,187 @@
 import SwiftUI
 
-/// 首启动 onboarding sheet(DESIGN.md §现代东方极简 · 宋瓷气质)。
+/// 首启动 onboarding sheet(2026-08-13 三屏重构,6 屏压成 3 屏)。
 ///
-/// 2026-07-18 重写方向(用户决策):**克制安静 + 东方质感**。
-/// - 文案从"工程师腔"改为"用户腔":不堆术语,讲"对你意味着什么"
-/// - 视觉砍掉 4 行 bullet 圆点 → 改 3 行"留白叙事"(无圆点,主+副两行)
-/// - 印章作为视觉记忆点(Welcome + Start),中间两页只留标题 + 留白
-/// - 不在 onboarding 提付费(让用户进入 App 后自己发现锁标)
+/// 2026-08-13 grill-me 重构(用户决策,事实源 `生肖设计决策.md`):
+/// 1. **Welcome**(吸引屏,不变:印章「玄」+ 壁画佛手 + 经文)
+/// 2. **出生表单**(嵌 TabView 第 2 页:用户直接体验输入出生信息)
+/// 3. **生肖反馈**(终态屏:生肖 + 人格 + 好朋友/需磨合 + CTA,无 swipe 回退)
 ///
-/// 4 页滑动:
-/// 1. 欢迎页(印章「玄」+ 产品名 + 一句话定调 + 论语经文)
-/// 2. 立场页(排盘确定性 — 3 条留白叙事)
-/// 3. 隐私页(数据归属 — 3 条留白叙事)
-/// 4. 开始页(印章「始」+ CTA)
+/// 结构决策(Q2):TabView 只放 [Welcome, 表单] 两页;提交成功(vm.state → .ready)
+/// 整体切换成 ZodiacRevealView 终态屏。反馈屏不可回退,CTA 是唯一出路,
+/// 编辑走 Profile 重置命盘(与 2026-08-10 生肖决策 Q20 v1 不开放编辑一致)。
 ///
-/// 首启动由 RootTabView 检测 `@AppStorage("hasSeenOnboarding") = false` 弹出。
-/// B2 流(2026-08-01):onComplete 不再直接设 hasSeenOnboarding,而是触发 FirstLaunchBirthFormView
-/// fullScreenCover;表单提交成功后才设 true。Sheet 禁止下滑 dismiss(必须点 CTA)。
+/// 信任文案下沉(Q1):隐私微文案 → 表单页底;立场微文案 → 反馈屏底;
+/// 完整版立场+隐私 → Profile 关于页。
+///
+/// 状态边界(Q7):提交成功即回调 onChartArchived(RootTabView 设 hasSeenOnboarding=true),
+/// 修复"反馈屏 kill App → 重启重走 onboarding → 重复排盘"bug。
+///
+/// B2 约束保留(2026-08-01):只触发排盘 + chart 存档,**不**触发深度解析 AI 命书
+/// (延后到用户主动进深度解析 Tab,β 点击触发)。
 struct OnboardingView: View {
-    /// 完成回调(B2 流:由 RootTabView 设 showFirstLaunchForm = true 进入出生表单 fullScreenCover)。
+    /// 反馈屏 CTA 点击回调(RootTabView:dismiss sheet + 落地 .dailyFortune)。
     let onComplete: () -> Void
+    /// 提交成功(chart 已存档)回调(RootTabView:hasSeenOnboarding = true)。
+    let onChartArchived: () -> Void
+
+    @EnvironmentObject private var env: AppEnvironment
 
     @State private var currentPage = 0
+    @State private var vm: DeepAnalysisViewModel?
+    /// 防止 ready → 多次触发 onComplete(SwiftUI 重渲染时可重复调用)。
+    @State private var hasTriggeredComplete = false
+    /// 提交前二次确认 sheet 触发态(生肖阶段 3:防新用户首次输错 → 重置命盘代价大)。
+    @State private var showSubmitConfirm = false
 
     var body: some View {
-        TabView(selection: $currentPage) {
-            WelcomePage().tag(0)
-            StancePage().tag(1)
-            PrivacyPage().tag(2)
-            StartPage(onComplete: onComplete).tag(3)
+        ZStack {
+            BaziTheme.paper.ignoresSafeArea()
+            content
         }
-        .tabViewStyle(.page(indexDisplayMode: .always))
-        .indexViewStyle(.page(backgroundDisplayMode: .interactive))
-        .background(BaziTheme.paper)
-        .tint(BaziTheme.cinnabar)
+        .sheet(isPresented: $showSubmitConfirm) {
+            if let vm {
+                BirthInfoConfirmSheet(
+                    vm: vm,
+                    onConfirm: {
+                        showSubmitConfirm = false
+                        AppLogger.app.info("OnboardingView 二次确认 → 触发 vm.calculate")
+                        vm.calculate()
+                    },
+                    onCancel: {
+                        showSubmitConfirm = false
+                    }
+                )
+                .presentationDetents([.medium])
+                .presentationDragIndicator(.visible)
+            }
+        }
         .onAppear {
             // 首启 onboarding 呈现的入口日志,用于排查"没弹"问题
             AppLogger.app.info("OnboardingView.onAppear 首启动引导呈现")
         }
         .onChange(of: currentPage) { _, newPage in
             // 翻页日志:排查"卡在第 N 页 / 用户中途退出"等问题
-            let pageNames = ["Welcome", "Stance", "Privacy", "Start"]
+            let pageNames = ["Welcome", "BirthForm"]
             let name = newPage < pageNames.count ? pageNames[newPage] : "Unknown"
             AppLogger.app.info("OnboardingView 翻页 currentPage=\(newPage, privacy: .public) name=\(name, privacy: .public)")
         }
+        .task {
+            if vm == nil {
+                let newVM = DeepAnalysisViewModel(
+                    orchestrator: env.deepAnalysisOrchestrator,
+                    entitlementStore: env.entitlementStore
+                )
+                // 提交成功 → RootTabView 设 hasSeenOnboarding=true(Q7 状态边界)
+                newVM.onChartArchived = { onChartArchived() }
+                vm = newVM
+                AppLogger.app.info("OnboardingView VM 创建完成")
+            }
+        }
+    }
+
+    // MARK: - 状态机内容
+
+    @ViewBuilder
+    @MainActor
+    private var content: some View {
+        if let vm {
+            switch vm.state {
+            case .empty, .formInvalid:
+                // 第 1/2 屏:Welcome + 出生表单(两页 TabView)
+                TabView(selection: $currentPage) {
+                    WelcomePage().tag(0)
+                    formPage(vm: vm).tag(1)
+                }
+                .tabViewStyle(.page(indexDisplayMode: .always))
+                .indexViewStyle(.page(backgroundDisplayMode: .interactive))
+                .tint(BaziTheme.cinnabar)
+            case .calculating(let stage):
+                LoadingStateView(title: stage.text)
+            case .ready(let response, _):
+                // 第 3 屏:生肖反馈终态屏(提交成功 → 整体切换,无 swipe 回退)
+                ZodiacRevealView(
+                    zodiac: response.yearBranchZodiac,
+                    mainLabel: mainLabel(from: response),
+                    subLabel: subLabel(
+                        from: response,
+                        gender: vm.gender,
+                        birthYear: Calendar.current.component(.year, from: vm.birthDate)
+                    ),
+                    friendZodiacs: response.yearBranchFriends,
+                    clashZodiac: response.yearBranchClash,
+                    onComplete: {
+                        guard !hasTriggeredComplete else {
+                            AppLogger.app.warning("ZodiacRevealView onComplete 已触发过,跳过重复调用")
+                            return
+                        }
+                        hasTriggeredComplete = true
+                        AppLogger.app.info("ZodiacRevealView CTA 点击 → 触发 onComplete")
+                        onComplete()
+                    }
+                )
+            case .chartFailed(let userError):
+                ErrorStateView(error: userError, retry: vm.retryCalculation)
+            }
+        } else {
+            ProgressView()
+                .tint(BaziTheme.cinnabar)
+        }
+    }
+
+    // MARK: - 第 2 屏:出生表单页
+
+    /// 表单页 = 页标题(固定)+ BirthFormView(自带 ScrollView,弹性)+ 隐私微文案(固定)。
+    /// 隐私微文案放这里(Q1 拆分下沉):用户交出生信息那一刻最关心隐私。
+    private func formPage(vm: DeepAnalysisViewModel) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            Text(L10n.Onboarding.formTitle)
+                .font(BaziFont.display(size: 28))
+                .foregroundStyle(BaziTheme.ink)
+                .padding(.horizontal, BaziTheme.Spacing.xl)
+                .padding(.top, BaziTheme.Spacing.xl)
+                .padding(.bottom, BaziTheme.Spacing.md)
+
+            // 表单主体:复用 DeepAnalysis 的 BirthFormView(自带 ScrollView)
+            BirthFormView(vm: vm, onSubmit: { showSubmitConfirm = true })
+
+            // 隐私微文案(Q1):一行为止,不说教
+            Text(L10n.Onboarding.formPrivacyLine)
+                .font(BaziFont.caption(size: 12))
+                .foregroundStyle(BaziTheme.inkMuted)
+                .frame(maxWidth: .infinity)
+                .multilineTextAlignment(.center)
+                .padding(.horizontal, BaziTheme.Spacing.xl)
+                .padding(.vertical, BaziTheme.Spacing.md)
+        }
+    }
+
+    // MARK: - ZodiacRevealView 文案 helper(后端真值推导)
+
+    /// 主文字(生肖决策 Q12 iii):`辰 · 龙`(中点分隔)。
+    /// 地支汉字从 `response.pillars.year.zhi`(后端 lunar_python 按立春算),
+    /// 生肖汉字从 `ZodiacHelper.animalChar(forZodiac:)`(英文 asset name → 中文)。
+    private func mainLabel(from response: BaziResponse) -> String {
+        let zhi = response.pillars.year.zhi  // 如 "辰"
+        let animalChar = ZodiacHelper.animalChar(forZodiac: response.yearBranchZodiac)  // "Dragon" → "龙"
+        return "\(zhi) · \(animalChar)"
+    }
+
+    /// 次文字(生肖决策 Q13 C+ii):`乾造(男) · 庚辰年(2000)`(命理 + 公历双轨)。
+    /// 年柱干支从 `response.pillars.year.ganZhi`(按立春算,可能与公历年不对应 —
+    /// 立春前的公历年会显示上一年的年柱,这是正确行为,不是 bug)。
+    /// 公历年份由调用方传(从 vm.birthDate 取,用于用户认知锚点)。
+    private func subLabel(from response: BaziResponse, gender: String, birthYear: Int) -> String {
+        let genderLabel = ZodiacHelper.genderLabel(forGender: gender)
+        let ganzhi = response.pillars.year.ganZhi  // 如 "庚辰"
+        return "\(genderLabel) · \(ganzhi)年(\(birthYear))"
     }
 }
 
 // MARK: - Shared: 朱砂印章
 
 /// 朱砂印章:淡底圆 + 朱砂细圈 + Songti SC 单字。
-/// 用作 Welcome / Start 页的视觉记忆点(DESIGN.md §现代东方极简装饰核心)。
+/// 用作 Welcome 页的视觉记忆点(DESIGN.md §现代东方极简装饰核心)。
 /// 细圈 0.5pt hairline 与 DESIGN.md §Border 一致,不加阴影。
 private struct SealStamp: View {
     let character: String
@@ -72,34 +203,9 @@ private struct SealStamp: View {
     }
 }
 
-// MARK: - Shared: 留白叙事行
-
-/// 一句一行,无 bullet 圆点,无 title+desc 双行结构。
-/// 主句 Songti SC Medium + 浓墨;副句 PingFang SC + 灰墨。
-/// spacing 驱动留白节奏,符合"克制安静"。
-private struct NarrationLine: View {
-    let main: String
-    var sub: String? = nil
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: BaziTheme.Spacing.xs) {
-            Text(main)
-                .font(BaziFont.display(size: 19, weight: .medium))
-                .foregroundStyle(BaziTheme.ink)
-                .fixedSize(horizontal: false, vertical: true)
-            if let sub {
-                Text(sub)
-                    .font(BaziFont.caption(size: 13))
-                    .foregroundStyle(BaziTheme.inkMuted)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-        }
-    }
-}
-
 // MARK: - Page 1: Welcome
 
-/// 首屏欢迎页(2026-07-19 重构):
+/// 首屏欢迎页(2026-07-19 重构,2026-08-13 三屏重构保留不动):
 /// - 全屏背景图(壁画佛手 + 宣纸留白) + 宣纸色兜底防露边
 /// - 上半部:印章「玄」+ 标题 + 副标题(叠在壁画佛手区)
 /// - 下半部宣纸留白区:经文(`SutraView` 自动按系统语言切排版)
@@ -196,126 +302,5 @@ private struct SutraView: View {
                 .italic()
                 .riseIn(delay: 0.45)
         }
-    }
-}
-
-// MARK: - Page 2: Stance
-
-private struct StancePage: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: BaziTheme.Spacing.xxl) {
-            Spacer()
-
-            Text("你的盘，算得出，也算得准")
-                .font(BaziFont.display(size: 28))
-                .foregroundStyle(BaziTheme.ink)
-                .riseIn()
-
-            VStack(alignment: .leading, spacing: BaziTheme.Spacing.xl) {
-                NarrationLine(
-                    main: "同一组生辰，同一张盘",
-                    sub: "后端规则引擎，稳定可复现"
-                )
-                .riseIn(delay: 0.15)
-                NarrationLine(
-                    main: "喜忌由规则判，AI 只润色",
-                    sub: "命理逻辑可追溯"
-                )
-                .riseIn(delay: 0.3)
-                NarrationLine(
-                    main: "命局有特例，如实标注",
-                    sub: "该说清的说清，该留白的留白"
-                )
-                .riseIn(delay: 0.45)
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal, BaziTheme.Spacing.xl)
-    }
-}
-
-// MARK: - Page 3: Privacy
-
-private struct PrivacyPage: View {
-    var body: some View {
-        VStack(alignment: .leading, spacing: BaziTheme.Spacing.xxl) {
-            Spacer()
-
-            Text("你的盘，只属于你")
-                .font(BaziFont.display(size: 28))
-                .foregroundStyle(BaziTheme.ink)
-                .riseIn()
-
-            VStack(alignment: .leading, spacing: BaziTheme.Spacing.xl) {
-                NarrationLine(
-                    main: "命盘只在你手机上",
-                    sub: "无账号，无云同步"
-                )
-                .riseIn(delay: 0.15)
-                NarrationLine(
-                    main: "AI 解读走我们服务器",
-                    sub: "密钥保管在后端"
-                )
-                .riseIn(delay: 0.3)
-                NarrationLine(
-                    main: "没有跟踪，没有画像",
-                    sub: "数据归属你"
-                )
-                .riseIn(delay: 0.45)
-            }
-
-            Spacer()
-        }
-        .padding(.horizontal, BaziTheme.Spacing.xl)
-    }
-}
-
-// MARK: - Page 4: Start
-
-private struct StartPage: View {
-    let onComplete: () -> Void
-
-    var body: some View {
-        VStack(spacing: BaziTheme.Spacing.xl) {
-            Spacer()
-
-            SealStamp(character: "始", size: 108)
-                .riseIn()
-                .accessibilityLabel("始字印章,象征开始排盘")
-
-            VStack(spacing: BaziTheme.Spacing.md) {
-                Text("开始你的第一次排盘")
-                    .font(BaziFont.display(size: 26))
-                    .foregroundStyle(BaziTheme.ink)
-                // 命盘:对齐 B2 流表单实际产物(命书/AI 解读延后到深度解析 Tab)
-                Text("填写出生信息，生成你的命盘。")
-                    .font(BaziFont.body(size: 14))
-                    .foregroundStyle(BaziTheme.inkMuted)
-                    .multilineTextAlignment(.center)
-            }
-            .riseIn(delay: 0.2)
-
-            Spacer()
-
-            Button(action: {
-                // 用户主动点 CTA 完成,记录日志(区别于下滑 dismiss,后者被禁)
-                AppLogger.app.info("StartPage CTA 点击 → 触发 onComplete")
-                onComplete()
-            }) {
-                Text("开始排盘")
-                    .font(BaziFont.button())
-                    .foregroundStyle(BaziTheme.paper)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, BaziTheme.Spacing.md)
-                    .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
-            }
-            .accessibilityHint("点击开始你的第一次排盘,填写出生信息")
-            // CTA 延迟 0.3s 入场:跟前面元素拉开节奏,但保证主要操作 ≤300ms 可见,
-            // 避免用户翻到末页等待过久以为没加载完
-            .riseIn(delay: 0.3)
-            .padding(.bottom, 60)
-        }
-        .padding(.horizontal, BaziTheme.Spacing.xl)
     }
 }

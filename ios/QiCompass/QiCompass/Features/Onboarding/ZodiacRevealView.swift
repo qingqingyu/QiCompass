@@ -1,29 +1,37 @@
 import SwiftUI
 
-/// 生肖反馈屏(B2 流提交成功后呈现的过渡屏)。
+/// 生肖反馈屏(onboarding 第 3 屏,终态;提交成功后呈现)。
 ///
-/// 设计事实源:repo 根 `生肖设计决策.md` Q4-Q21。
+/// 设计事实源:repo 根 `生肖设计决策.md` Q4-Q21 + 2026-08-13 三屏重构 grill。
 /// - **时序**(Q4 Z):oneshot 仪式(此屏)+ 低调常驻(ChartHeader 文字 + ProfileView 命主卡)
-/// - **布局**(Q11 β):印章图 + 主文字 + 次文字 + 朱砂 CTA
+/// - **布局**(Q11 β → 2026-08-13 Q5 改):hero 压缩 ~140pt + 内容滚动 + CTA 钉底
+///   [hero(印章图 + 主/次文字)→ 人格段落 → 好朋友 3 chips → 需磨合 1 chip → 立场微文案]
 /// - **主文字**(Q12 iii):`辰 · 龙`(中点分隔,Songti SC display)
 /// - **次文字**(Q13 C+ii):`乾造(男) · 庚辰年(2000)`(命理 + 公历双轨)
-/// - **CTA**(Q14 α):手动点击 `查看今日运势` → onComplete
+/// - **好朋友**(2026-08-13 Q3/Q4):六合 1 + 三合 2 = 3 个生肖 chip,墨青 jade(吉神色)
+/// - **需磨合**(2026-08-13 Q4):六冲 1 个生肖 chip,中性灰(不用朱砂红,避免恐吓)
+/// - **人格**(2026-08-13 Q6):12 生肖静态善意正面画像,1-2 句,ZodiacHelper.personalityText 取
+/// - **CTA**(Q14 α):手动点击「查看今日运势」→ onComplete
 /// - **动效**(Q15 B):盖章动效 — scale 0.8 → 1.05 (spring overshoot) → 1.0 + 朱砂光晕扩散
-///   + 文字/CTA 错峰淡入,总时长 ~1.15s;落定瞬间触发 HapticEngine.medium() 仪式感"砰"
-/// - **暗色**(Q18 A):zodiacAssetName 走 Asset Catalog appearance set,系统自动选 light/dark variant
+///   + 文字/内容错峰淡入;落定瞬间触发 HapticEngine.medium() 仪式感"砰"
+/// - **暗色**(Q18 A):zodiac asset 走 Asset Catalog appearance set,系统自动选 light/dark variant
 /// - **失败路径**(Q19 A):此 view 不处理错误,数据由调用方保证完整(字段缺失视为开发期 bug)
 ///
-/// **数据来源**:调用方(`FirstLaunchBirthFormView`)从后端 `BaziResponse.yearBranchZodiac`
-/// (英文 asset name,如 `Dragon`) + `pillars.year.ganZhi` + `pillars.year.zhi` 推导三个参数。
-/// 后端 `year_branch_zodiac` 由 `lunar_python` 按立春算,自动修复立春边界 bug
-/// (commit `e3dfba9` + `a36582e`,1-2 月初用户生肖不再差 1 年)。
+/// **数据来源**:调用方(OnboardingView)从后端 `BaziResponse.yearBranchZodiac`(英文 asset name,
+/// 如 `Dragon`)+ `year_branch_friends` / `year_branch_clash`(复用 branch_relations.py)
+/// + `pillars.year.ganZhi` + `pillars.year.zhi` 推导参数。
+/// 后端 `year_branch_zodiac` 由 `lunar_python` 按立春算,自动修复立春边界 bug。
 struct ZodiacRevealView: View {
-    /// 生肖图 asset name(如 `Zodiac_Dragon`)。Asset Catalog appearance set 自动选 light/dark variant。
-    let zodiacAssetName: String
+    /// 本命生肖英文名(如 "Dragon")。asset = "Zodiac_\(zodiac)",人格文案按此取。
+    let zodiac: String
     /// 主文字(如 `辰 · 龙`)。
     let mainLabel: String
     /// 次文字(如 `乾造(男) · 庚辰年(2000)`)。
     let subLabel: String
+    /// 好朋友英文生肖名(六合 1 + 三合 2 = 3 个,后端算)。
+    let friendZodiacs: [String]
+    /// 需磨合英文生肖名(六冲 1 个,后端算)。
+    let clashZodiac: String
     /// CTA 点击回调(进今日运势 tab)。
     let onComplete: () -> Void
 
@@ -38,42 +46,86 @@ struct ZodiacRevealView: View {
     @State private var textOpacity: Double = 0
     @State private var ctaOpacity: Double = 0
 
-    // MARK: - 视觉尺寸(Q11 β 布局,留白驱动)
+    // MARK: - 视觉尺寸(2026-08-13 Q5:hero 压缩 ~140pt,内容滚动,CTA 钉底)
 
-    /// 印章图尺寸。spec 阶段 4 checklist 锁定 280pt。
-    private let stampSize: CGFloat = 280
+    /// 印章图尺寸。2026-08-13 从 280pt 压缩到 140pt(为下方人格/好友内容让出空间)。
+    private let stampSize: CGFloat = 140
     /// 光晕直径,比印章大一圈让扩散可见。
-    private let haloSize: CGFloat = 320
+    private let haloSize: CGFloat = 160
+    /// chip 内生肖小图尺寸。
+    private let chipImageSize: CGFloat = 28
 
     var body: some View {
         ZStack {
             BaziTheme.paper.ignoresSafeArea()
 
-            VStack(spacing: BaziTheme.Spacing.xl) {
-                Spacer()
+            VStack(spacing: 0) {
+                ScrollView {
+                    VStack(spacing: BaziTheme.Spacing.lg) {
+                        stampComposition
+                            .padding(.top, BaziTheme.Spacing.xxl)
 
-                stampComposition
+                        // MARK: 主/次文字(Q12 iii + Q13 C+ii)
+                        VStack(spacing: BaziTheme.Spacing.xs) {
+                            Text(mainLabel)
+                                .font(BaziFont.display(size: 40))
+                                .foregroundStyle(BaziTheme.ink)
+                            Text(subLabel)
+                                .font(BaziFont.body(size: 15))
+                                .foregroundStyle(BaziTheme.inkMuted)
+                        }
+                        .opacity(textOpacity)
 
-                // MARK: 主文字(Q12 iii)
-                Text(mainLabel)
-                    .font(BaziFont.display(size: 44))
-                    .foregroundStyle(BaziTheme.ink)
-                    .opacity(textOpacity)
+                        // MARK: 人格段落(2026-08-13 Q6:无标题,紧接主标)
+                        Text(ZodiacHelper.personalityText(forZodiac: zodiac))
+                            .font(BaziFont.body(size: 15))
+                            .foregroundStyle(BaziTheme.ink)
+                            .lineSpacing(6)
+                            .multilineTextAlignment(.center)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .opacity(textOpacity)
 
-                // MARK: 次文字(Q13 C+ii)
-                Text(subLabel)
-                    .font(BaziFont.body(size: 16))
-                    .foregroundStyle(BaziTheme.inkMuted)
-                    .opacity(textOpacity)
+                        // MARK: 好朋友(2026-08-13 Q3/Q4:六合+三合,jade 吉神色)
+                        section(
+                            title: L10n.Onboarding.revealFriendsTitle,
+                            content: {
+                                chipRow(friendZodiacs, tint: BaziTheme.jade)
+                            }
+                        )
+                        .opacity(textOpacity)
 
-                Spacer()
+                        // MARK: 需磨合(2026-08-13 Q4:六冲,中性灰不恐吓)
+                        section(
+                            title: L10n.Onboarding.revealClashTitle,
+                            content: {
+                                zodiacChip(clashZodiac, tint: BaziTheme.inkMuted)
+                            }
+                        )
+                        .opacity(textOpacity)
 
-                // MARK: CTA(Q14 α,朱砂手动按钮)
+                        // MARK: 立场微文案(Q1 拆分下沉:收到结论那一刻给可信度背书)
+                        VStack(spacing: BaziTheme.Spacing.md) {
+                            Rectangle()
+                                .fill(BaziTheme.hairline)
+                                .frame(height: 0.5)
+                            Text(L10n.Onboarding.revealStanceLine)
+                                .font(BaziFont.caption(size: 12))
+                                .foregroundStyle(BaziTheme.inkMuted)
+                                .multilineTextAlignment(.center)
+                        }
+                        .opacity(textOpacity)
+                        .padding(.top, BaziTheme.Spacing.sm)
+                    }
+                    .padding(.horizontal, BaziTheme.Spacing.xl)
+                    .padding(.bottom, BaziTheme.Spacing.lg)
+                }
+
+                // MARK: CTA(Q14 α,朱砂手动按钮,钉底部不进滚动)
                 Button(action: {
                     HapticEngine.medium()
                     onComplete()
                 }) {
-                    Text("查看今日运势")
+                    Text(L10n.Onboarding.revealCTA)
                         .font(BaziFont.button())
                         .foregroundStyle(BaziTheme.paper)
                         .frame(maxWidth: .infinity)
@@ -83,7 +135,8 @@ struct ZodiacRevealView: View {
                 .accessibilityHint("查看你的今日运势")
                 .opacity(ctaOpacity)
                 .padding(.horizontal, BaziTheme.Spacing.xl)
-                .padding(.bottom, 60)
+                .padding(.top, BaziTheme.Spacing.sm)
+                .padding(.bottom, 24)
             }
         }
         .task {
@@ -107,7 +160,7 @@ struct ZodiacRevealView: View {
             // 圆环生肖图(Q8/Q18:细线 stroke + 圆环外框,asset 已含外观)
             // accessibilityLabel 不加在图上:下方 Text(mainLabel) 已被 VoiceOver 读出,
             // 图再贴同名 label 会"辰 龙"读两次。整个组合对 VoiceOver 隐藏,主/次文字负责朗读。
-            Image(zodiacAssetName)
+            Image("Zodiac_\(zodiac)")
                 .resizable()
                 .scaledToFit()
                 .frame(width: stampSize, height: stampSize)
@@ -118,6 +171,57 @@ struct ZodiacRevealView: View {
         .frame(width: haloSize + 40, height: haloSize + 40)
     }
 
+    // MARK: - 区块(chip 行标题)
+
+    /// 小标题 + 内容。标题 caption semibold inkMuted,低调不抢主标。
+    private func section<Content: View>(
+        title: String,
+        @ViewBuilder content: () -> Content
+    ) -> some View {
+        VStack(spacing: BaziTheme.Spacing.sm) {
+            Text(title)
+                .font(BaziFont.caption(size: 12))
+                .fontWeight(.semibold)
+                .foregroundStyle(BaziTheme.inkMuted)
+            content()
+        }
+    }
+
+    // MARK: - 生肖 chip(小图 + 名)
+
+    /// chip 行:优先横排,放不下(英文长名 × 窄屏)降级竖排居中。
+    /// ViewThatFits 是系统内置,不引入新依赖。
+    private func chipRow(_ names: [String], tint: Color) -> some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: BaziTheme.Spacing.sm) {
+                ForEach(names, id: \.self) { zodiacChip($0, tint: tint) }
+            }
+            VStack(spacing: BaziTheme.Spacing.sm) {
+                ForEach(names, id: \.self) { zodiacChip($0, tint: tint) }
+            }
+        }
+    }
+
+    /// Capsule chip(设计系统:Capsule 只留给 chip)。
+    /// 好朋友 → jade(吉神色);需磨合 → inkMuted(中性,不恐吓)。
+    private func zodiacChip(_ name: String, tint: Color) -> some View {
+        HStack(spacing: BaziTheme.Spacing.sm) {
+            Image("Zodiac_\(name)")
+                .resizable()
+                .scaledToFit()
+                .frame(width: chipImageSize, height: chipImageSize)
+            Text(ZodiacHelper.displayName(forZodiac: name))
+                .font(BaziFont.body(size: 14))
+                .fontWeight(.medium)
+                .foregroundStyle(BaziTheme.ink)
+        }
+        .padding(.horizontal, BaziTheme.Spacing.md)
+        .padding(.vertical, BaziTheme.Spacing.sm)
+        .background(tint.opacity(0.08), in: Capsule())
+        .overlay(Capsule().stroke(tint.opacity(0.35), lineWidth: 0.5))
+        .accessibilityElement(children: .combine)
+    }
+
     // MARK: - 盖章动效(Q15 B)
 
     /// 时序(总 ~1.15s):
@@ -126,7 +230,7 @@ struct ZodiacRevealView: View {
     ///                光晕 opacity 0.6 显现
     /// 3. t=0.25s   — HapticEngine.medium() 仪式感"砰" + 印章开始落定到 1.0;
     ///                光晕开始扩散 scale 1.4 + 消散 opacity 0
-    /// 4. t=0.55-0.85s — 主/次文字淡入
+    /// 4. t=0.55-0.85s — 主/次文字 + 内容区(人格/好友/微文案)淡入
     /// 5. t=0.85-1.15s — CTA 淡入
     ///
     /// **取消语义**:`.task` 在 view disappear 时被取消,`Task.sleep` 抛 `CancellationError`。
@@ -175,7 +279,7 @@ struct ZodiacRevealView: View {
 
         if await !sleepOrCancel(.milliseconds(300)) { return }
 
-        // Phase 3:主/次文字淡入
+        // Phase 3:主/次文字 + 内容区(人格/好友/微文案)淡入
         withAnimation(.easeOut(duration: 0.3)) {
             textOpacity = 1.0
         }
@@ -205,18 +309,22 @@ struct ZodiacRevealView: View {
 
 #Preview {
     ZodiacRevealView(
-        zodiacAssetName: "Zodiac_Dragon",
+        zodiac: "Dragon",
         mainLabel: "辰 · 龙",
         subLabel: "乾造(男) · 庚辰年(2000)",
+        friendZodiacs: ["Rooster", "Rat", "Monkey"],
+        clashZodiac: "Dog",
         onComplete: { print("onComplete") }
     )
 }
 
 #Preview("Dark Mode") {
     ZodiacRevealView(
-        zodiacAssetName: "Zodiac_Dragon",
+        zodiac: "Dragon",
         mainLabel: "辰 · 龙",
         subLabel: "乾造(男) · 庚辰年(2000)",
+        friendZodiacs: ["Rooster", "Rat", "Monkey"],
+        clashZodiac: "Dog",
         onComplete: { print("onComplete") }
     )
     .preferredColorScheme(.dark)
