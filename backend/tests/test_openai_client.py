@@ -38,15 +38,18 @@ def _completed(text: object = "命书文本") -> dict:
     }
 
 
-def _install_fake_async_client(monkeypatch, handler):
+def _install_fake_async_client(monkeypatch, handler, *, ctor_sink=None):
     """把 openai_module.httpx.AsyncClient 替换成走 handler 的假 client。
 
     handler: (url, **kwargs) -> _FakeResponse 或 raise 异常
+    ctor_sink: 可选 dict;若提供,把 httpx.AsyncClient(...) 的 kwargs 写入
+        (用于长文超时测试验证 timeout 透传)。
     """
 
     class _FakeAsyncClient:
         def __init__(self, *args, **kwargs):
-            pass  # 忽略 timeout / trust_env(测试不关心)
+            if ctor_sink is not None:
+                ctor_sink.update(kwargs)
 
         async def __aenter__(self):
             return self
@@ -209,13 +212,53 @@ async def test_openai_client_passes_temperature_to_payload(monkeypatch):
     assert captured["json"]["temperature"] == 0.3
 
 
-def _capture_request(monkeypatch):
-    """安装 fake client 并返回 captured dict,handler 写入请求字段。"""
+def _capture_request(monkeypatch, *, ctor_sink=None):
+    """安装 fake client 并返回 captured dict,handler 写入请求字段。
+
+    ctor_sink: 可选 dict;若提供,同时捕获 httpx.AsyncClient 构造 kwargs。
+    """
     captured: dict = {}
 
     def handler(url, **kwargs):
         captured.update(url=url, **kwargs)
         return _FakeResponse(_completed())
 
-    _install_fake_async_client(monkeypatch, handler)
+    _install_fake_async_client(monkeypatch, handler, ctor_sink=ctor_sink)
     return captured
+
+
+# ===== 长文调用方(promo-site 加长版):max_tokens / timeout 透传 =====
+
+
+async def test_openai_client_defaults_are_config_values(monkeypatch):
+    """不传 max_tokens/timeout 时用 config 默认(App 路径行为不变)。"""
+    ctor: dict = {}
+    captured = _capture_request(monkeypatch, ctor_sink=ctor)
+    await OpenAIClient(api_key="test-key").interpret("prompt")
+    assert captured["json"]["max_tokens"] == 1024
+    assert ctor["timeout"] == 90.0
+    assert ctor["trust_env"] is False
+
+
+async def test_openai_client_passes_max_tokens_and_timeout(monkeypatch):
+    """显式 max_tokens/timeout 透传到 payload 与 httpx 超时(promo 长文用)。"""
+    ctor: dict = {}
+    captured = _capture_request(monkeypatch, ctor_sink=ctor)
+    await OpenAIClient(api_key="test-key").interpret(
+        "prompt", max_tokens=16384, timeout=420.0,
+    )
+    assert captured["json"]["max_tokens"] == 16384
+    assert ctor["timeout"] == 420.0
+    assert ctor["trust_env"] is False
+
+
+async def test_openai_client_rejects_non_positive_max_tokens():
+    """max_tokens <= 0 显式报错,不静默发畸形 payload。"""
+    with pytest.raises(ValueError, match="max_tokens"):
+        await OpenAIClient(api_key="test-key").interpret("prompt", max_tokens=0)
+
+
+async def test_openai_client_rejects_non_positive_timeout():
+    """timeout <= 0 显式报错,不立即超时。"""
+    with pytest.raises(ValueError, match="timeout"):
+        await OpenAIClient(api_key="test-key").interpret("prompt", timeout=-1.0)

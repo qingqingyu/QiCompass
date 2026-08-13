@@ -39,6 +39,8 @@ class AnthropicClient:
 
     async def interpret(
         self, prompt: str, *, temperature: float = 0.6,
+        max_tokens: int | None = None,
+        timeout: float | None = None,
     ) -> str:
         """调 Anthropic Messages API,返回第一个非空文本块。
 
@@ -47,15 +49,29 @@ class AnthropicClient:
             temperature: 0.0-1.0(Anthropic 范围);v1 prompt 系统按 module 分级,
                 M0-M2 结构层 0.3,M3-M7 叙述层 0.6。调用方通过
                 config.resolve_temperature(module) 取值后传入。
+            max_tokens: 输出 token 上限;None 用 config.AI_MAX_OUTPUT_TOKENS(App 1024)。
+                长文调用方(如 promo-site 加长版)按需放大。
+            timeout: 请求超时秒数;None 用 config.AI_TIMEOUT_SECONDS(App 90s)。
+                长 max_tokens 生成耗时更长,调用方应同步放大。
         """
         if not self._api_key:
             raise AIProviderError(
                 "ANTHROPIC_API_KEY not configured"
                 "(后端未设置 API key,无法调用 Anthropic)"
             )
+        if max_tokens is not None and max_tokens <= 0:
+            raise ValueError(
+                f"max_tokens must be a positive integer (got {max_tokens})"
+            )
+        if timeout is not None and timeout <= 0:
+            raise ValueError(
+                f"timeout must be a positive number of seconds (got {timeout})"
+            )
 
         try:
-            async with httpx.AsyncClient(timeout=AI_TIMEOUT_SECONDS) as client:
+            async with httpx.AsyncClient(
+                timeout=timeout if timeout is not None else AI_TIMEOUT_SECONDS,
+            ) as client:
                 resp = await client.post(
                     f"{self._base_url}/v1/messages",
                     headers={
@@ -65,7 +81,7 @@ class AnthropicClient:
                     },
                     json={
                         "model": self._model,
-                        "max_tokens": AI_MAX_OUTPUT_TOKENS,
+                        "max_tokens": max_tokens if max_tokens is not None else AI_MAX_OUTPUT_TOKENS,
                         "temperature": temperature,
                         "messages": [{"role": "user", "content": prompt}],
                     },
