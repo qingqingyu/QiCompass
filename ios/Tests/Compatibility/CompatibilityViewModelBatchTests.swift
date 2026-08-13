@@ -64,6 +64,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         compatibilityStore = nil
         entitlementStore = nil
         container = nil
+        // S06 测试会写 UserDefaults.standard,清掉避免污染其他测试
+        CompatibilityRosterPersistence.clear()
         super.tearDown()
     }
 
@@ -257,6 +259,165 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertEqual(entry.resolvedContentHash, "abc123", "archived 的 resolvedHash 就是 snapshotHash")
         XCTAssertEqual(entry.archivedSnapshotHash, "abc123")
         XCTAssertNil(entry.tempAlias)
+    }
+
+    // MARK: - S06 跨启动恢复与名单持久化
+
+    func testRosterPersistence_roundTrip_save后load一致() {
+        CompatibilityRosterPersistence.clear()
+        CompatibilityRosterPersistence.save(
+            personAHash: "hash_a",
+            context: "marriage",
+            rosterHashes: ["h1", "h2", "h3"]
+        )
+        let loaded = CompatibilityRosterPersistence.load()
+        XCTAssertEqual(loaded.personAHash, "hash_a")
+        XCTAssertEqual(loaded.context, "marriage")
+        XCTAssertEqual(loaded.rosterHashes, ["h1", "h2", "h3"])
+    }
+
+    func testRosterPersistence_无数据时_load返回默认() {
+        CompatibilityRosterPersistence.clear()
+        let loaded = CompatibilityRosterPersistence.load()
+        XCTAssertNil(loaded.personAHash)
+        XCTAssertEqual(loaded.context, "general", "无持久化 context 时 fallback default")
+        XCTAssertTrue(loaded.rosterHashes.isEmpty)
+    }
+
+    func testRosterPersistence_cleanupInvalidHashes_剔除并写回() {
+        CompatibilityRosterPersistence.clear()
+        CompatibilityRosterPersistence.save(
+            personAHash: "hash_a",
+            context: "general",
+            rosterHashes: ["valid_1", "invalid_x", "valid_2", "invalid_y"]
+        )
+        let isValid: (String) -> Bool = { hash in
+            hash.hasPrefix("valid_")
+        }
+        let cleaned = CompatibilityRosterPersistence.cleanupInvalidHashes(
+            persistedHashes: ["valid_1", "invalid_x", "valid_2", "invalid_y"],
+            isValid: isValid
+        )
+        XCTAssertEqual(cleaned, ["valid_1", "valid_2"])
+
+        // 写回应生效
+        let reloaded = CompatibilityRosterPersistence.load()
+        XCTAssertEqual(reloaded.rosterHashes, ["valid_1", "valid_2"])
+    }
+
+    @MainActor
+    func testRestoreRosterStateIfAvailable_context和Ahash和名单预填() throws {
+        CompatibilityRosterPersistence.clear()
+        // 构造存档 + 同步 insert ChartSnapshot 到 SwiftData(让 chartStore.get 能找到)
+        let hashes = ["a_real", "b_real", "c_real"]
+        var archived: [ArchivedChart] = []
+        for hash in hashes {
+            let snapshot = ChartSnapshot(
+                contentHash: hash,
+                birthSolarTime: Date(timeIntervalSince1970: 638_000_000),
+                gender: "male",
+                cityLongitude: 116.41,
+                ziHourRule: "zi_next_day",
+                calcRuleSnapshot: Data(),
+                payload: Data()
+            )
+            container.mainContext.insert(snapshot)
+            archived.append(ArchivedChart(
+                snapshotHash: hash, alias: hash.uppercased(),
+                birthDate: snapshot.birthSolarTime, gender: "male",
+                dayMaster: "甲", snapshot: snapshot
+            ))
+        }
+        try container.mainContext.save()
+        vm.archivedCharts = archived
+
+        // 持久化设置 a_real 为 A,context = marriage,名单 [b_real, c_real]
+        CompatibilityRosterPersistence.save(
+            personAHash: "a_real",
+            context: "marriage",
+            rosterHashes: ["b_real", "c_real"]
+        )
+
+        vm.restoreRosterStateIfAvailable()
+
+        XCTAssertEqual(vm.context, "marriage")
+        XCTAssertEqual(vm.currentPersonAHash, "a_real")
+        XCTAssertEqual(vm.roster.count, 2)
+        XCTAssertTrue(vm.selectedArchivedHashes.contains("b_real"))
+        XCTAssertTrue(vm.selectedArchivedHashes.contains("c_real"))
+    }
+
+    @MainActor
+    func testRestoreRosterStateIfAvailable_Ahash失效_fallback最新link() {
+        CompatibilityRosterPersistence.clear()
+        // 构造存档:archivedCharts 已是 createdAt DESC(模拟 loadArchivedCharts 行为)
+        // A hash 失效 fallback 不需要 ChartSnapshot 存在,因为名单空,不会触发 isValid 校验
+        vm.archivedCharts = [
+            Self.makeChart(hash: "new_link", alias: "New"),
+            Self.makeChart(hash: "old_link", alias: "Old"),
+        ]
+        // 持久化一个失效的 A hash
+        CompatibilityRosterPersistence.save(
+            personAHash: "deleted_link",
+            context: "general",
+            rosterHashes: []
+        )
+
+        vm.restoreRosterStateIfAvailable()
+
+        // 失效 → fallback 最新 link = new_link(archivedCharts 首位)
+        XCTAssertEqual(vm.currentPersonAHash, "new_link")
+    }
+
+    @MainActor
+    func testRestoreRosterStateIfAvailable_名单含无效hash_静默剔除() throws {
+        CompatibilityRosterPersistence.clear()
+        // 真存档:把 a_real ChartSnapshot 插入(让 aHash 有效),不插 ghost_hash
+        let aSnapshot = ChartSnapshot(
+            contentHash: "a_real",
+            birthSolarTime: Date(timeIntervalSince1970: 638_000_000),
+            gender: "male",
+            cityLongitude: 116.41,
+            ziHourRule: "zi_next_day",
+            calcRuleSnapshot: Data(),
+            payload: Data()
+        )
+        container.mainContext.insert(aSnapshot)
+        try container.mainContext.save()
+        vm.archivedCharts = [ArchivedChart(
+            snapshotHash: "a_real", alias: "A",
+            birthDate: aSnapshot.birthSolarTime, gender: "male",
+            dayMaster: "甲", snapshot: aSnapshot
+        )]
+
+        // 持久化名单含无效 hash(无 ChartSnapshot 对应)
+        CompatibilityRosterPersistence.save(
+            personAHash: "a_real",
+            context: "general",
+            rosterHashes: ["ghost_hash"]  // 没有 ChartSnapshot,校验失败
+        )
+
+        vm.restoreRosterStateIfAvailable()
+
+        XCTAssertEqual(vm.roster.count, 0, "无效 hash 应剔除,名单变空")
+        XCTAssertTrue(vm.selectedArchivedHashes.isEmpty)
+
+        // 持久化名单也应已写回干净(空数组)
+        let reloaded = CompatibilityRosterPersistence.load()
+        XCTAssertTrue(reloaded.rosterHashes.isEmpty)
+    }
+
+    @MainActor
+    func testRestoreRosterStateIfAvailable_0存档_不恢复() {
+        CompatibilityRosterPersistence.clear()
+        CompatibilityRosterPersistence.save(
+            personAHash: "x", context: "general", rosterHashes: ["y"]
+        )
+        vm.archivedCharts = []  // 0 存档
+        vm.restoreRosterStateIfAvailable()
+        // 应跳过(走 .empty 流程)
+        XCTAssertEqual(vm.context, "general")  // context 仍是 VM 默认
+        XCTAssertTrue(vm.roster.isEmpty)
     }
 
     func testAddTempToRoster_存档加临时_混合名单() {

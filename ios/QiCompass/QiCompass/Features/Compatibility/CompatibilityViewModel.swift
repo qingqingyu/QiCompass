@@ -361,7 +361,124 @@ final class CompatibilityViewModel {
                 AppLogger.app.info("compatVM.compute.ok total=\(newSummaries.count, privacy: .public) success=\(successCount, privacy: .public)")
                 self.summaries = newSummaries
                 self.state = .list
+                // S06:持久化 A / context / 名单 hash(compute() 成功后)
+                self.persistRosterState(summaries: newSummaries)
             }
+        }
+    }
+
+    // MARK: - S06 跨启动持久化与恢复
+
+    /// 写入 UserDefaults(决策 D5)。
+    /// 名单 hash 来自 summaries 的 personBHash(临时人已用 resolvedHash)。
+    private func persistRosterState(summaries: [PairSummary]) {
+        let aHash = currentPersonAHash ?? ""
+        let hashes = summaries
+            .filter(\.isComputed)
+            .map(\.personBHash)
+            .filter { !$0.isEmpty }
+        CompatibilityRosterPersistence.save(
+            personAHash: aHash,
+            context: context,
+            rosterHashes: hashes
+        )
+    }
+
+    /// S06:跨启动恢复名单 + A + context(决策 D5/D8/D11/D13)。
+    /// 调用时机:`loadArchivedCharts()` 完成后,0 存档外(进 .configuring 态时)。
+    ///
+    /// 流程:
+    /// 1. 读持久化(context / aHash / rosterHashes)
+    /// 2. 预填 context(默认 "general")
+    /// 3. A hash 失效 fallback 最新 link(D13)
+    /// 4. 名单 hash 清理无效项(D5 防脏数据;D6 红线:不转 link)
+    /// 5. 名单非空 → 尝试恢复 list 态(零 API 调用)
+    func restoreRosterStateIfAvailable() {
+        guard !archivedCharts.isEmpty else { return }  // 0 存档走 .empty,不恢复
+
+        let persisted = CompatibilityRosterPersistence.load()
+
+        // 1. context
+        context = persisted.context
+
+        // 2. A hash 失效则 fallback 最新 link(D13)
+        if let aHash = persisted.personAHash,
+           let idx = archivedCharts.firstIndex(where: { $0.snapshotHash == aHash }) {
+            selectedChartAIndex = idx
+        } else {
+            // 持久化 A 失效或未存 → fallback 最新 link(archivedCharts 已 createdAt DESC)
+            if persisted.personAHash != nil {
+                AppLogger.app.warning(
+                    "op=compatibility.restore.a_hash_invalid fallback to latest link a_hash=\(persisted.personAHash ?? "nil", privacy: .public)"
+                )
+            }
+            selectedChartAIndex = 0
+        }
+
+        // 3. 名单 hash 清理 + 预填(D5 防脏数据 + D6 不转 link)
+        let validHashes = CompatibilityRosterPersistence.cleanupInvalidHashes(
+            persistedHashes: persisted.rosterHashes
+        ) { hash in
+            // 校验:ChartSnapshot 存在(无论是否有 link,临时人隐式落地的 snapshot 也算)
+            (try? self.chartStore.get(contentHash: hash)) != nil
+        }
+        roster = validHashes.map { .archived(snapshotHash: $0) }
+
+        AppLogger.app.info(
+            "op=compatibility.restore.ok a_hash=\(self.currentPersonAHash ?? "nil", privacy: .public) context=\(self.context, privacy: .public) roster_count=\(self.roster.count, privacy: .public)"
+        )
+
+        // 4. 名单非空 → 尝试恢复 list 态(零 API 调用)
+        if !roster.isEmpty {
+            tryRestoreList()
+        }
+    }
+
+    /// S06:从 store.list(A, context) ∩ 名单 恢复 summaries + .list 态(零 API 调用)。
+    /// 失败不静默吞:decode 失败的 snapshot 跳过该对(其他对仍恢复);list 查询失败保留 .configuring。
+    private func tryRestoreList() {
+        guard let aHash = currentPersonAHash else { return }
+        do {
+            let snapshots = try compatibilityStore.list(personAHash: aHash, context: context)
+            // 名单过滤(D5 核心:删掉的对方不从快照库「复活」)
+            let rosterHashes = Set(roster.compactMap { $0.resolvedContentHash })
+            let filteredSnapshots = snapshots.filter { rosterHashes.contains($0.personBHash) }
+
+            if filteredSnapshots.isEmpty { return }
+
+            var restoredSummaries: [PairSummary] = []
+            for snapshot in filteredSnapshots {
+                // 跨启动恢复:entry 都是 .archived(snapshotHash:)(临时人持久化为 hash)
+                // rebuildSummaryFromCache 内 displayName 会自动 fallback 兜底名
+                let entry: RosterEntry = .archived(snapshotHash: snapshot.personBHash)
+                do {
+                    let summary = try rebuildSummaryFromCache(
+                        entry: entry,
+                        aHash: aHash,
+                        bHash: snapshot.personBHash,
+                        snapshot: snapshot
+                    )
+                    restoredSummaries.append(summary)
+                } catch {
+                    AppLogger.persistence.error(
+                        "op=compatibility.tryRestoreList.decode_failed hash=\(snapshot.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                    )
+                    // 不静默吞:跳过该对,继续恢复其他对
+                }
+            }
+
+            if !restoredSummaries.isEmpty {
+                summaries = restoredSummaries
+                state = .list
+                AppLogger.app.info(
+                    "op=compatibility.tryRestoreList.ok restored_count=\(restoredSummaries.count, privacy: .public) zero_api=true"
+                )
+            }
+        } catch {
+            AppLogger.persistence.error(
+                "op=compatibility.tryRestoreList.list_query_failed a_hash=\(aHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            // 不静默吞:保留 configuring 态,用户可手动重新计算
         }
     }
 
@@ -524,10 +641,17 @@ final class CompatibilityViewModel {
         let dayMaster = baziB.pillars.day.gan
 
         // displayName(与 computePair API 路径一致)
+        // S06:archived 在 archivedCharts 找不到时(跨启动恢复的临时人持久化为 .archived
+        // 风格 hash)→ fallback 到兜底名「对方+出生日期」
         let displayName: String
         switch entry {
         case .archived:
-            displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? "对方"
+            if let chart = archivedCharts.first(where: { $0.snapshotHash == bHash }) {
+                displayName = chart.alias
+            } else {
+                let dateStr = Self.fallbackDateFormatter.string(from: bChartSnapshot.birthSolarTime)
+                displayName = "对方 · \(dateStr)"
+            }
         case .temp(_, let alias, _):
             if let alias, !alias.isEmpty {
                 displayName = alias

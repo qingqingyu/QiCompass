@@ -67,6 +67,8 @@ struct CompatibilityView: View {
                 )
             }
             vm?.loadArchivedCharts()
+            // S06:loadArchivedCharts 完成后恢复名单 + 尝试恢复 list 态
+            vm?.restoreRosterStateIfAvailable()
         }
     }
 

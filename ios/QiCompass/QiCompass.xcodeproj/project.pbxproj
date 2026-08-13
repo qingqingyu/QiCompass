@@ -69,6 +69,7 @@
 		9C0000000000000000000075 /* RosterEntry.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000075 /* RosterEntry.swift */; };
 		9C0000000000000000000076 /* PairSummary.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000076 /* PairSummary.swift */; };
 		9C0000000000000000000077 /* CompatibilityPairListView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000077 /* CompatibilityPairListView.swift */; };
+		9C0000000000000000000078 /* CompatibilityRosterPersistence.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000078 /* CompatibilityRosterPersistence.swift */; };
 		9C0000000000000000000031 /* DualPillarsTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000031 /* DualPillarsTable.swift */; };
 		9C0000000000000000000032 /* AssessmentCardGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000032 /* AssessmentCardGrid.swift */; };
 		9C0000000000000000000033 /* SyncedFortuneTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000033 /* SyncedFortuneTable.swift */; };
@@ -209,6 +210,7 @@
 		9C1000000000000000000075 /* RosterEntry.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = RosterEntry.swift; path = QiCompass/Features/Compatibility/RosterEntry.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000076 /* PairSummary.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PairSummary.swift; path = QiCompass/Features/Compatibility/PairSummary.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000077 /* CompatibilityPairListView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilityPairListView.swift; path = QiCompass/Features/Compatibility/CompatibilityPairListView.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000078 /* CompatibilityRosterPersistence.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilityRosterPersistence.swift; path = QiCompass/Features/Compatibility/CompatibilityRosterPersistence.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000031 /* DualPillarsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DualPillarsTable.swift; path = QiCompass/Features/Compatibility/DualPillarsTable.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000032 /* AssessmentCardGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AssessmentCardGrid.swift; path = QiCompass/Features/Compatibility/AssessmentCardGrid.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000033 /* SyncedFortuneTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SyncedFortuneTable.swift; path = QiCompass/Features/Compatibility/SyncedFortuneTable.swift; sourceTree = SOURCE_ROOT; };
@@ -464,6 +466,7 @@
 				9C1000000000000000000075 /* RosterEntry.swift */,
 				9C1000000000000000000076 /* PairSummary.swift */,
 				9C1000000000000000000077 /* CompatibilityPairListView.swift */,
+				9C1000000000000000000078 /* CompatibilityRosterPersistence.swift */,
 			);
 			path = Compatibility;
 			sourceTree = "<group>";
@@ -737,6 +740,7 @@
 				9C0000000000000000000075 /* RosterEntry.swift in Sources */,
 				9C0000000000000000000076 /* PairSummary.swift in Sources */,
 				9C0000000000000000000077 /* CompatibilityPairListView.swift in Sources */,
+				9C0000000000000000000078 /* CompatibilityRosterPersistence.swift in Sources */,
 				9C0000000000000000000031 /* DualPillarsTable.swift in Sources */,
 				9C0000000000000000000032 /* AssessmentCardGrid.swift in Sources */,
 				9C0000000000000000000033 /* SyncedFortuneTable.swift in Sources */,
