@@ -75,7 +75,8 @@ Status: ACCEPTED（M2a/b/c + M3a/b/c + M4 已实现并合并 main，M6 TestFligh
     var productId: String       // "com.qicompass.deep_analysis.single" / ".compatibility.single"
     var contentHash: String     // 绑定到具体命盘(content_hash 或 compatibility_hash)
     var module: String          // "bazi_deep" / "compatibility"
-    var userLocalId: String     // 客户端生成的 UUID(无账号系统的占位)
+    var userLocalId: String     // 客户端生成的 UUID(未登录购买兜底;登录后跟 userId 共存,留作历史溯源)
+    var userId: String?         // 后端 qicompass_user.id(Slice 3 加,登录后写入;老数据为 nil)
     var purchasedAt: Date       // 后端写入 entitlement 表的时间
     var originalPurchaseDate: Date  // Apple 返回的原始购买时间
     var isActive: Bool          // 退款/撤销后置 false
@@ -90,7 +91,8 @@ CREATE TABLE entitlement (
     product_id             TEXT NOT NULL,
     content_hash           TEXT NOT NULL,       -- 绑定到命盘
     module                 TEXT NOT NULL,       -- "bazi_deep" / "compatibility"
-    user_local_id          TEXT NOT NULL,       -- 客户端 UUID(v1 无账号)
+    user_local_id          TEXT NOT NULL,       -- 客户端 UUID(未登录兜底,登录后跟 user_id 共存)
+    user_id                TEXT,                -- 后端 qicompass_user.id(登录后填,可空=老数据)
     purchased_at           TEXT NOT NULL,       -- ISO 8601 UTC(后端写)
     original_purchase_date TEXT NOT NULL,       -- Apple 原始购买时间
     is_active              INTEGER NOT NULL DEFAULT 1,
@@ -240,7 +242,10 @@ CREATE INDEX idx_entitlement_user ON entitlement(user_local_id, is_active);
 
 - **订阅制**(月 / 年 / 终身买断)— v1 只做消耗型
 - **家庭共享** — 苹果自动支持家庭共享消耗型 IAP,但 v1 不主动配置(`IS_FAMILY_SHAREABLE = false`)
-- **跨设备 entitlement 同步** — v1 无账号系统,entitlement 只在本机 + 后端;换机/重装后无法证明"是自己"(v2 加账号后通过 `appAccountToken` 关联)
+- ~~**跨设备 entitlement 同步** — v1 无账号系统~~ **已实现(Slice 1-6)**:v1.5 接 Sign in with Apple
+  + entitlement.user_id 字段 + /api/entitlement/list 批量同步 + 登录时 backfill + PurchaseManager
+  传 appAccountToken(qicompass_user.id)。换设备 / 重装 / 退登回登场景全部 work:登录触发
+  onSignedIn 链式 syncManager.pull → entitlementStore.synchronizeFromBackend → syncManager.push
 - **优惠码 / 推广活动** — v2
 - **礼物卡 / 赠送** — v2
 - **苹果促销代码** — v1 不主动发(App Store Connect 默认支持)

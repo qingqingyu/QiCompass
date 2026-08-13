@@ -45,7 +45,7 @@ class EntitlementRedeemRequest(BaseModel):
     module: EntitlementModule = Field(
         ..., description="基础 module 名(bazi_deep / compatibility),不含 _free/_paid")
     user_local_id: str = Field(
-        ..., description="客户端生成的 UUID(v1 无账号系统的占位)",
+        ..., description="客户端生成的 UUID(未登录购买兜底维度;登录后跟 user_id 共存用于历史溯源)",
         min_length=1)
 
     @field_validator("transaction_id", "content_hash", "user_local_id")
