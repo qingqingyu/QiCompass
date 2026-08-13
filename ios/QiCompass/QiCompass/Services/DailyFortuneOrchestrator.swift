@@ -145,7 +145,8 @@ final class DailyFortuneOrchestrator {
                 cached: true,
                 generatedAt: cached.generatedAt,
                 provider: provider,
-                model: model
+                model: model,
+                language: cached.language ?? AppLanguage.current  // i18n:老缓存行 nil 视为当前 locale(对齐 Q13)
             )
             try dailyStore.updateInterpretation(
                 cached.interpretation,
@@ -215,6 +216,7 @@ final class DailyFortuneOrchestrator {
                     module: module,
                     promptVersion: resp.promptVersion,
                     targetDate: targetDate,
+                    language: resp.language,  // i18n:用后端实际响应的语言(事实源,决策 10)
                     provider: resp.provider,
                     model: resp.model,
                     interpretation: resp.interpretation,

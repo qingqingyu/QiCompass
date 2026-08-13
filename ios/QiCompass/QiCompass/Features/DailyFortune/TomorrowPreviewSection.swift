@@ -7,7 +7,7 @@ struct TomorrowPreviewSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text("明日预告")
+                Text(L10n.DailyFortune.tomorrowTitle)
                     .zcoolCardTitle()
                 Spacer()
                 Image(systemName: "moon.stars")
@@ -24,7 +24,7 @@ struct TomorrowPreviewSection: View {
                     .padding(.vertical, 3)
                     .background(BaziTheme.cinnabarSoft, in: Capsule())
                 if let chong = preview.dayChong {
-                    Text("冲\(chong)")
+                    Text(L10n.DailyFortune.chongLabel(chong: chong, targets: []))
                         .font(.caption)
                         .foregroundStyle(BaziTheme.shenshaInauspicious)
                 }

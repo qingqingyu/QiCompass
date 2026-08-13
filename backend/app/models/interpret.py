@@ -263,6 +263,11 @@ class InterpretResponse(BaseModel):
         ..., description="本次解读实际使用的 AI provider")
     model: str = Field(
         ..., min_length=1, description="本次解读实际使用的模型")
+    language: str = Field(
+        ...,
+        description="本次解读实际使用的语言代码(规范化:zh / en,未来扩展 ja / es)。"
+                   "从 Accept-Language header 解析;客户端存入 SwiftData 缓存键对齐用"
+                   "(i18n 决策 10 方案 3:后端是 language 事实源)")
 
     @field_serializer("generated_at")
     def _serialize_generated_at(self, dt: datetime) -> str:

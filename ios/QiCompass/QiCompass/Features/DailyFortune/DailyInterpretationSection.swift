@@ -17,10 +17,10 @@ struct DailyInterpretationSection: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
             HStack {
-                Text("今日解读")
+                Text(L10n.DailyFortune.interpretTitle)
                     .zcoolCardTitle()
                 Spacer()
-                Text("剩余 \(remainingReads) 次")
+                Text(L10n.DailyFortune.interpretRemaining(remainingReads))
                     .font(.caption)
                     .foregroundStyle(BaziTheme.inkMuted)
             }
@@ -45,7 +45,7 @@ struct DailyInterpretationSection: View {
                 if cached {
                     HStack {
                         Image(systemName: "checkmark.seal")
-                        Text("24h 内已缓存,不消耗次数")
+                        Text(L10n.DailyFortune.interpretCached)
                     }
                     .font(.caption)
                     .foregroundStyle(BaziTheme.inkMuted)
@@ -58,7 +58,7 @@ struct DailyInterpretationSection: View {
                     Text(message)
                         .font(.subheadline)
                         .foregroundStyle(BaziTheme.shenshaInauspicious)
-                    Button("重试", action: onRetry)
+                    Button(L10n.DailyFortune.interpretRetry, action: onRetry)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(BaziTheme.cinnabar)
                 }
@@ -83,14 +83,14 @@ private extension DailyInterpretationSection {
     @ViewBuilder
     func interpretationCTABlock(isLoading: Bool) -> some View {
         VStack(spacing: 12) {
-            Text("点击生成今日流日解读(约 50-80 字)")
+            Text(L10n.DailyFortune.interpretCTA)
                 .font(.subheadline)
                 .foregroundStyle(BaziTheme.inkMuted)
                 .multilineTextAlignment(.center)
 
             PrimaryCTAButton(
-                title: "今日解读",
-                loadingTitle: "推演中…",
+                title: L10n.DailyFortune.interpretTitle,
+                loadingTitle: L10n.DailyFortune.interpretLoading,
                 isLoading: isLoading,
                 action: isLoading ? {} : onGenerate
             )

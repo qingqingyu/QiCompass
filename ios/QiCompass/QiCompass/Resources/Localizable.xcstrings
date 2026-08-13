@@ -1,6 +1,488 @@
 {
   "sourceLanguage" : "zh-Hans",
   "strings" : {
+    "—" : {
+
+    },
+    "%@ %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ %2$@"
+          }
+        }
+      }
+    },
+    "%@%lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@%2$lld"
+          }
+        }
+      }
+    },
+    "%lld-%lld" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld-%2$lld"
+          }
+        }
+      }
+    },
+    "%lld-%lld岁" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$lld-%2$lld岁"
+          }
+        }
+      }
+    },
+    "• %@" : {
+
+    },
+    "◎ 缓存命中(不消耗次数)" : {
+
+    },
+    "◎ 调候用神已触发" : {
+
+    },
+    "⚠ %@" : {
+
+    },
+    "6 章解读:基础相处 / 互补冲突 / 爱情深度 / 合作事业 / 财运合拍 / 流年同步" : {
+
+    },
+    "23:00 换日(早子时归当日)" : {
+
+    },
+    "24h 内已缓存,不消耗次数" : {
+
+    },
+    "A 流年" : {
+
+    },
+    "AI 命书" : {
+
+    },
+    "Apple ID:%@" : {
+
+    },
+    "B 流年" : {
+
+    },
+    "B 盘模式" : {
+
+    },
+    "Build" : {
+
+    },
+    "common.countdown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Resets in %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "距重置:%@"
+          }
+        }
+      }
+    },
+    "common.countdown.timeFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lldh %lldm"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 时 %lld 分"
+          }
+        }
+      }
+    },
+    "common.limitReached" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today's free readings are used up. Come back tomorrow."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日机缘已尽,明日再来"
+          }
+        }
+      }
+    },
+    "dailyfortune.empty.subtitle1" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Complete a deep analysis first to reveal your daily fortune."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需先完成深度解析,基于命盘推演流日。"
+          }
+        }
+      }
+    },
+    "dailyfortune.empty.subtitle2" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily fortune appears here once deep analysis is complete."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成深度解析后,本页将自动生成每日运势。"
+          }
+        }
+      }
+    },
+    "dailyfortune.empty.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today's Daily Fortune"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日流日运势"
+          }
+        }
+      }
+    },
+    "dailyfortune.header.chongPrefix" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clashes: "
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "冲"
+          }
+        }
+      }
+    },
+    "dailyfortune.header.dayPillarLabel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day Pillar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "流日柱"
+          }
+        }
+      }
+    },
+    "dailyfortune.header.lunarPrefix" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Lunar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "农历"
+          }
+        }
+      }
+    },
+    "dailyfortune.hour.expandHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Expand to see all 12 hourly pillars"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "展开查看 12 时辰详情"
+          }
+        }
+      }
+    },
+    "dailyfortune.hour.now" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Now"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当下"
+          }
+        }
+      }
+    },
+    "dailyfortune.hour.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "12 Hourly Pillars"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "12 时辰"
+          }
+        }
+      }
+    },
+    "dailyfortune.interpret.cached" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cached within 24h, no quota consumed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "24h 内已缓存,不消耗次数"
+          }
+        }
+      }
+    },
+    "dailyfortune.interpret.cta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to generate today's reading (~50–80 words)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点击生成今日流日解读(约 50-80 字)"
+          }
+        }
+      }
+    },
+    "dailyfortune.interpret.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Divining…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推演中…"
+          }
+        }
+      }
+    },
+    "dailyfortune.interpret.remaining" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld reads left"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剩余 %lld 次"
+          }
+        }
+      }
+    },
+    "dailyfortune.interpret.retry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重试"
+          }
+        }
+      }
+    },
+    "dailyfortune.interpret.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today's Reading"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日解读"
+          }
+        }
+      }
+    },
+    "dailyfortune.label.ji" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Inauspicious"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "忌"
+          }
+        }
+      }
+    },
+    "dailyfortune.label.yi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Auspicious"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "宜"
+          }
+        }
+      }
+    },
+    "dailyfortune.main.historyError" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Failed to load history"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "历史加载失败"
+          }
+        }
+      }
+    },
+    "dailyfortune.main.offline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Offline — showing cached data, no quota consumed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "离线查看(展示本地缓存,不扣次数)"
+          }
+        }
+      }
+    },
+    "dailyfortune.tomorrow.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tomorrow's Preview"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "明日预告"
+          }
+        }
+      }
+    },
+    "hash: %@…" : {
+
+    },
+    "MVP 固定规则,后端 setSect(1)。" : {
+
+    },
+    "QICOMPASS" : {
+
+    },
     "welcome_sutra" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -17,6 +499,273 @@
           }
         }
       }
+    },
+    "东正西负" : {
+
+    },
+    "事业" : {
+
+    },
+    "五行分布" : {
+
+    },
+    "今日剩余 %lld 次" : {
+
+    },
+    "你的盘，只属于你" : {
+
+    },
+    "你的盘，算得出，也算得准" : {
+
+    },
+    "使用 Apple 登录" : {
+
+    },
+    "出生地:%@" : {
+
+    },
+    "出生时间" : {
+
+    },
+    "删除" : {
+
+    },
+    "剩余 %lld 次" : {
+
+    },
+    "加载中…" : {
+
+    },
+    "去深度解析" : {
+
+    },
+    "双人合盘" : {
+
+    },
+    "双盘对比" : {
+
+    },
+    "双盘数据读取失败" : {
+
+    },
+    "取消" : {
+
+    },
+    "只知时辰不知精确时间?点此选" : {
+
+    },
+    "合盘" : {
+
+    },
+    "合盘维度" : {
+
+    },
+    "合盘解读" : {
+
+    },
+    "同步" : {
+
+    },
+    "命局呈现从格特征" : {
+
+    },
+    "命盘别名" : {
+
+    },
+    "命盘数据会保留(历史解读可回溯),仅从此列表移除。" : {
+
+    },
+    "喜忌分析" : {
+
+    },
+    "喜忌结论留空,详见命书。" : {
+
+    },
+    "四柱" : {
+
+    },
+    "城市" : {
+
+    },
+    "填写出生信息，生成你的命盘。" : {
+
+    },
+    "大运" : {
+
+    },
+    "女" : {
+
+    },
+    "始字印章,象征开始排盘" : {
+
+    },
+    "婚姻" : {
+
+    },
+    "子时属次日(23:00 换日)" : {
+
+    },
+    "子时规则默认" : {
+
+    },
+    "定性评估" : {
+
+    },
+    "展开详情" : {
+
+    },
+    "年份" : {
+
+    },
+    "开始你的第一次排盘" : {
+
+    },
+    "开始合盘" : {
+
+    },
+    "开始排盘" : {
+
+    },
+    "当前" : {
+
+    },
+    "当前柱" : {
+
+    },
+    "影响新表单的初始值。已存档命盘不受影响(其规则随 snapshot 持久化)。" : {
+
+    },
+    "性别" : {
+
+    },
+    "我的" : {
+
+    },
+    "我自己 / 妈妈 / 男友" : {
+
+    },
+    "手动输入经度" : {
+
+    },
+    "收起详情" : {
+
+    },
+    "改名" : {
+
+    },
+    "数据异常:无请求记录" : {
+
+    },
+    "新建命盘" : {
+
+    },
+    "日主 %@" : {
+
+    },
+    "日期与时辰" : {
+
+    },
+    "早晚子时(00:00 换日)" : {
+
+    },
+    "旬空:%@" : {
+
+    },
+    "本命盘未命中神煞" : {
+
+    },
+    "每日运势" : {
+
+    },
+    "流年同步(未来 3 年)" : {
+
+    },
+    "海外用户或设备时区与出生地不一致时使用。" : {
+
+    },
+    "深度解析" : {
+
+    },
+    "点击开始你的第一次排盘,填写出生信息" : {
+
+    },
+    "版本" : {
+
+    },
+    "特征:%@" : {
+
+    },
+    "玄学娱乐,理性参考。\n订阅即视为同意 Apple 标准用户协议。" : {
+
+    },
+    "玄机问道" : {
+
+    },
+    "玄机问道印章" : {
+
+    },
+    "男" : {
+
+    },
+    "真太阳时:%@" : {
+
+    },
+    "真太阳时偏差 %@" : {
+
+    },
+    "确认删除「%@」?" : {
+
+    },
+    "神煞" : {
+
+    },
+    "算法:%@" : {
+
+    },
+    "经度" : {
+
+    },
+    "解锁 %lld 章付费深度内容" : {
+
+    },
+    "读懂你的命局" : {
+
+    },
+    "购买于" : {
+
+    },
+    "辅柱" : {
+
+    },
+    "返回修改" : {
+
+    },
+    "返回表单" : {
+
+    },
+    "还没有命盘" : {
+
+    },
+    "还没有购买" : {
+
+    },
+    "退出登录" : {
+
+    },
+    "通用" : {
+
+    },
+    "重新排盘" : {
+
+    },
+    "重试" : {
+
+    },
+    "长生:%@" : {
+
+    },
+    "需先在深度解析中创建命盘,才能选择 A/B 盘合盘。" : {
+
     }
   },
   "version" : "1.0"

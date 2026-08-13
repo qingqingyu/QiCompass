@@ -1,14 +1,16 @@
-"""后端 AI 解读 SQLite 缓存(D2 第二级)。
+"""后端 AI 解读 SQLite 缓存(D2 第二级 + i18n 第 8 维度 language)。
 
 - 表结构:
 - PK = (content_hash, module, prompt_version, target_date, prompt_hash,
-        provider, model, parent_hash, user_input_hash)
+        provider, model, parent_hash, user_input_hash, language)
 - target_date 非 daily_fortune 时存空串(避免 NULL 进 PK 歧义)
 - prompt_hash 由渲染后的 prompt sha256 得到,避免客户端用同一 content_hash
   携带不同 context 污染跨用户缓存
 - provider/model 是缓存身份,切换后不会误用另一家/另一模型的结果
 - v1 prompt 系统:parent_hash 隔离 M0 fingerprint 变化;user_input_hash 隔离
   M4/M5 用户输入变化。两字段对老模块默认空串,行为不变。
+- language 是 i18n 身份(i18n 决策 3),同 content_hash 不同 language 独立缓存,
+  避免英文用户拿到中文缓存
 
 错误显式传播(严格遵守 CLAUDE.md):
 - sqlite3 异常不吞,向上抛 → 路由层包成 InterpretationCacheError(500)
@@ -28,6 +30,9 @@ from typing import Any
 from .cache_key import CacheKey
 
 # 建表语句(幂等,lifespan 启动时执行)
+# i18n 改造:新增 language 列 + 加入 PRIMARY KEY
+# 注:_drop_legacy_cache_if_needed 会检测老表(缺 language 列)并 drop,
+# 老缓存丢失但可重新生成,符合 D2 决策"缓存可再生成,不冒险复用"。
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS interpretation_cache (
     content_hash    TEXT NOT NULL,
@@ -39,11 +44,12 @@ CREATE TABLE IF NOT EXISTS interpretation_cache (
     model           TEXT NOT NULL,
     parent_hash     TEXT NOT NULL DEFAULT '',
     user_input_hash TEXT NOT NULL DEFAULT '',
+    language        TEXT NOT NULL DEFAULT 'zh',
     interpretation  TEXT NOT NULL,
     generated_at    TEXT NOT NULL,
     PRIMARY KEY (
         content_hash, module, prompt_version, target_date, prompt_hash,
-        provider, model, parent_hash, user_input_hash
+        provider, model, parent_hash, user_input_hash, language
     )
 );
 """
@@ -89,8 +95,8 @@ class InterpretationCache:
         """查缓存。
 
         Args:
-            key: 九维度缓存键(content_hash/module/prompt_version/target_date/
-                prompt_hash/provider/model/parent_hash/user_input_hash)
+            key: 十维度缓存键(content_hash/module/prompt_version/target_date/
+                prompt_hash/provider/model/parent_hash/user_input_hash/language)
 
         Returns:
             命中 → dict(provider, model, interpretation, generated_at)
@@ -108,10 +114,10 @@ class InterpretationCache:
                 "WHERE content_hash=? AND module=? AND prompt_version=? "
                 "AND target_date=? AND prompt_hash=? "
                 "AND provider=? AND model=? "
-                "AND parent_hash=? AND user_input_hash=?",
+                "AND parent_hash=? AND user_input_hash=? AND language=?",
                 (key.content_hash, key.module, key.prompt_version, td,
                  key.prompt_hash, key.provider, key.model,
-                 key.parent_hash, key.user_input_hash),
+                 key.parent_hash, key.user_input_hash, key.language),
             ).fetchone()
         if row is None:
             return None
@@ -126,7 +132,7 @@ class InterpretationCache:
         """写缓存(INSERT OR REPLACE,同 key 覆盖,幂等)。
 
         Args:
-            key: 九维度缓存键
+            key: 十维度缓存键
             interpretation: AI 解读文本
             generated_at: ISO 8601 UTC 时间字符串
 
@@ -138,12 +144,12 @@ class InterpretationCache:
             conn.execute(
                 "INSERT OR REPLACE INTO interpretation_cache "
                 "(content_hash, module, prompt_version, target_date, prompt_hash, "
-                " provider, model, parent_hash, user_input_hash, "
+                " provider, model, parent_hash, user_input_hash, language, "
                 " interpretation, generated_at) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
                 (key.content_hash, key.module, key.prompt_version, td,
                  key.prompt_hash, key.provider, key.model,
-                 key.parent_hash, key.user_input_hash,
+                 key.parent_hash, key.user_input_hash, key.language,
                  interpretation, generated_at),
             )
             conn.commit()
@@ -152,7 +158,7 @@ class InterpretationCache:
         """删除缓存行(用于清理被禁词污染的坏缓存)。
 
         Args:
-            key: 九维度缓存键
+            key: 十维度缓存键
 
         Raises:
             sqlite3.Error: 删失败(不吞,向上抛)
@@ -164,18 +170,20 @@ class InterpretationCache:
                 "WHERE content_hash=? AND module=? AND prompt_version=? "
                 "AND target_date=? AND prompt_hash=? "
                 "AND provider=? AND model=? "
-                "AND parent_hash=? AND user_input_hash=?",
+                "AND parent_hash=? AND user_input_hash=? AND language=?",
                 (key.content_hash, key.module, key.prompt_version, td,
                  key.prompt_hash, key.provider, key.model,
-                 key.parent_hash, key.user_input_hash),
+                 key.parent_hash, key.user_input_hash, key.language),
             )
             conn.commit()
 
 
+# i18n 改造:_EXPECTED_COLUMNS 同步加 "language",
+# 否则 _drop_legacy_cache_if_needed 会误判新表为 legacy 而 drop。
 _EXPECTED_COLUMNS = frozenset({
     "content_hash", "module", "prompt_version", "target_date",
     "prompt_hash", "provider", "model",
-    "parent_hash", "user_input_hash",
+    "parent_hash", "user_input_hash", "language",
     "interpretation", "generated_at",
 })
 

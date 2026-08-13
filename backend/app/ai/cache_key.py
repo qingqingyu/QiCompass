@@ -1,4 +1,4 @@
-"""AI 缓存键 value object(九维度身份 = 七维基础 + parent_hash + user_input_hash)。
+"""AI 缓存键 value object(十维度身份 = 七维基础 + parent_hash + user_input_hash + language)。
 
 把原本散落在 interpret.py 3 处 + cache.py 3 方法签名 + singleflight key 的参数
 收敛到一个 frozen dataclass,防止漏维度(典型 bug:加新维度时漏改一处)。
@@ -20,10 +20,12 @@ from dataclasses import dataclass
 
 @dataclass(frozen=True)
 class CacheKey:
-    """AI 解读缓存键(九维度身份)。
+    """AI 解读缓存键(十维度身份)。
 
-    九个字段全部参与 SQL PRIMARY KEY + singleflight dict key,任一不同即视为不同缓存条目。
+    十个字段全部参与 SQL PRIMARY KEY + singleflight dict key,任一不同即视为不同缓存条目。
     ADR-0009 强约束"切换 provider/model 后旧结果不冒充当前模型缓存"由 provider/model 两字段保证。
+    i18n 决策 3:同一 content_hash + module + prompt_version 但不同 language = 不同缓存条目
+    (避免英文用户拿到中文缓存,反之亦然)。
 
     Attributes:
         content_hash: ChartSnapshot hash 或 compatibility_hash
@@ -40,6 +42,7 @@ class CacheKey:
         user_input_hash: v1 按需模块 — M4/M5 用户输入的 sha256。
             M4 = age + current_concern;M5 = assets_summary + preference。
             非按需模块留空串。
+        language: 目标语言代码("zh" / "en",未来扩展 "ja" / "es")
     """
 
     content_hash: str
@@ -52,3 +55,4 @@ class CacheKey:
     # v1 prompt 系统新增字段(默认空串 → 老模块行为不变)
     parent_hash: str = ""
     user_input_hash: str = ""
+    language: str = "zh"  # 默认 zh(向后兼容老 CacheKey 调用,i18n 决策 3)

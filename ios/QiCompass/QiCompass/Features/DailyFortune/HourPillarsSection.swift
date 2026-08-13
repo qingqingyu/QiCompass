@@ -19,7 +19,7 @@ struct HourPillarsSection: View {
                 }
             } label: {
                 HStack {
-                    Text("12 时辰")
+                    Text(L10n.DailyFortune.hourTitle)
                         .zcoolCardTitle()
                     Spacer()
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
@@ -40,7 +40,7 @@ struct HourPillarsSection: View {
                         hourRow(idx: todayIdx, hp: hourPillars[todayIdx])
                     }
                 } else {
-                    Text("展开查看 12 时辰详情")
+                    Text(L10n.DailyFortune.hourExpandHint)
                         .font(.caption)
                         .foregroundStyle(BaziTheme.inkMuted.opacity(0.7))
                         .padding(.vertical, 8)
@@ -92,7 +92,7 @@ struct HourPillarsSection: View {
                         .font(.caption)
                         .foregroundStyle(BaziTheme.jade)
                     if isCurrent {
-                        Text("当下")
+                        Text(L10n.DailyFortune.hourNow)
                             .font(.caption2.weight(.semibold))
                             .foregroundStyle(BaziTheme.paper)
                             .padding(.horizontal, 6)
@@ -101,9 +101,7 @@ struct HourPillarsSection: View {
                     }
                 }
                 if let chong = hp.chong {
-                    let label = hp.chongTargets.isEmpty
-                        ? "冲\(chong)"
-                        : "冲\(chong) (\(hp.chongTargets.joined(separator: "、")))"
+                    let label = L10n.DailyFortune.chongLabel(chong: chong, targets: hp.chongTargets)
                     Text(label)
                         .font(.caption2)
                         .foregroundStyle(BaziTheme.shenshaInauspicious)
