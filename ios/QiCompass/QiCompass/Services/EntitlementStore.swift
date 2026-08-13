@@ -172,4 +172,77 @@ final class EntitlementStore {
         descriptor.fetchLimit = 1
         return try modelContext.fetch(descriptor).first
     }
+
+    // MARK: - Slice 6:登录后批量同步(跨设备 / 重装 / 退登回登)
+
+    /// 从后端批量拉当前 user 的全部 entitlement 写入本地 SwiftData。
+    ///
+    /// 触发时机:`AppEnvironment.accountManager.onSignedIn` 回调里调,登录成功后立即同步,
+    /// 让新设备 / 重装 / 退登回登场景的购买记录能跟随 Apple 账号回到本地。
+    ///
+    /// 合并策略:
+    /// - 远端 active → 本地 upsert(同 tx 覆盖;新 tx 插入)
+    /// - 远端 inactive → 本地若存在同 tx 且 active,deactivate(同步退款状态)
+    /// - 本地有但远端无 → 不动(可能刚买未 sync 上,稍后 push 或下次 sync 再校对)
+    ///
+    /// **错误处理**:失败不阻断 onSignedIn 链路(对齐 SyncManager 现有模式),记日志,
+    /// 下次 App 启动 onAppear 时 syncManager.pull() 再次触发本方法重试。
+    func synchronizeFromBackend(apiClient: APIClient) async {
+        AppLogger.app.info("entitlementStore.syncFromBackend.start")
+        let remoteEntitlements: [EntitlementListItemDTO]
+        do {
+            let resp = try await apiClient.entitlementList()
+            remoteEntitlements = resp.entitlements
+        } catch {
+            AppLogger.app.error(
+                "entitlementStore.syncFromBackend.fetch_failed error=\(String(describing: error), privacy: .public)"
+            )
+            return
+        }
+
+        var upsertedCount = 0
+        var deactivatedCount = 0
+        for item in remoteEntitlements {
+            // upsert(active + inactive 都写,本地需要知道退款状态)
+            do {
+                try upsert(
+                    transactionId: item.transactionId,
+                    productId: item.productId,
+                    contentHash: item.contentHash,
+                    module: item.module,
+                    userLocalId: item.userLocalId,
+                    userId: item.userId,
+                    purchasedAt: item.purchasedAt,
+                    originalPurchaseDate: item.originalPurchaseDate
+                )
+                upsertedCount += 1
+            } catch {
+                AppLogger.persistence.error(
+                    "entitlementStore.syncFromBackend.upsert_failed tx=\(item.transactionId, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                )
+                continue
+            }
+
+            // upsert 会强制 isActive=true,但远端可能 inactive → 手动 deactivate 校准
+            if !item.isActive {
+                if deactivate(transactionId: item.transactionId) {
+                    deactivatedCount += 1
+                }
+            }
+        }
+
+        // 持久化(单次 save;upsert 内部已 save,这里 defense-in-depth)
+        do {
+            try modelContext.save()
+        } catch {
+            AppLogger.persistence.error(
+                "entitlementStore.syncFromBackend.final_save_failed error=\(String(describing: error), privacy: .public)"
+            )
+        }
+
+        let activeRemote = remoteEntitlements.filter(\.isActive).count
+        AppLogger.app.info(
+            "entitlementStore.syncFromBackend.ok remote_total=\(remoteEntitlements.count, privacy: .public) remote_active=\(activeRemote, privacy: .public) upserted=\(upsertedCount, privacy: .public) deactivated=\(deactivatedCount, privacy: .public)"
+        )
+    }
 }

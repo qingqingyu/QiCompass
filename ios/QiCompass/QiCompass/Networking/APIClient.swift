@@ -10,6 +10,8 @@ protocol APIClient: Sendable {
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse
     func interpret(request: InterpretRequest) async throws -> InterpretResponse
     func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse
+    /// Slice 1:登录后批量拉当前 user 的全部 entitlement(跨设备 / 重装 / 退登回登同步)
+    func entitlementList() async throws -> EntitlementListResponse
     /// PR2.5:Apple identity_token 换自家 JWT(后端验签 + upsert User + 发 JWT)
     func signIn(request: SignInRequest) async throws -> SignInResponse
     /// PR3.2:拉云端所有命盘(登录用户,全量)
@@ -104,6 +106,12 @@ final class LiveAPIClient: APIClient {
     func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse {
         let (data, _) = try await send(.entitlementRedeem, body: request)
         return try decode(data, as: EntitlementRedeemResponse.self, endpoint: .entitlementRedeem)
+    }
+
+    // Slice 1:GET /api/entitlement/list — 登录后批量拉 entitlement,跨设备同步用
+    func entitlementList() async throws -> EntitlementListResponse {
+        let (data, _) = try await send(.entitlementList, body: nil as EmptyBody?)
+        return try decode(data, as: EntitlementListResponse.self, endpoint: .entitlementList)
     }
 
     // PR2.5:Apple identity_token → 自家 JWT(后端验签 + upsert User + 发 access_token)
@@ -274,6 +282,13 @@ final class MockAPIClient: APIClient {
             purchasedAt: .now,
             originalPurchaseDate: .now
         )
+    }
+
+    // Slice 1:Mock 返空列表(Mock 模式后端不存在,SyncManager 跳过同步)
+    func entitlementList() async throws -> EntitlementListResponse {
+        AppLogger.networking.debug("mock.entitlementList 返空")
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        return EntitlementListResponse(entitlements: [])
     }
 
     // PR2.5:Mock sign-in 返 fake JWT(测试用,不真调后端 /api/auth/sign-in)

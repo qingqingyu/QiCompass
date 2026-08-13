@@ -56,3 +56,40 @@ enum EntitlementModule {
     static let baziDeep = "bazi_deep"
     static let compatibility = "compatibility"
 }
+
+// MARK: - List(Slice 1 新增,登录后批量同步用)
+
+/// GET /api/entitlement/list 单条记录。
+/// 对齐 backend/app/models/entitlement.py:EntitlementListItem
+struct EntitlementListItemDTO: Codable, Sendable {
+    let transactionId: String
+    let productId: String
+    let contentHash: String
+    let module: String
+    let userLocalId: String
+    let userId: String?  // 老数据可能 nil;新数据必有值
+    let purchasedAt: Date
+    let originalPurchaseDate: Date
+    let isActive: Bool
+    let refundedAt: Date?
+    let revokedAt: Date?
+
+    enum CodingKeys: String, CodingKey {
+        case transactionId = "transaction_id"
+        case productId = "product_id"
+        case contentHash = "content_hash"
+        case module
+        case userLocalId = "user_local_id"
+        case userId = "user_id"
+        case purchasedAt = "purchased_at"
+        case originalPurchaseDate = "original_purchase_date"
+        case isActive = "is_active"
+        case refundedAt = "refunded_at"
+        case revokedAt = "revoked_at"
+    }
+}
+
+/// GET /api/entitlement/list 响应。
+struct EntitlementListResponse: Codable, Sendable {
+    let entitlements: [EntitlementListItemDTO]
+}

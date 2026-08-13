@@ -22,7 +22,9 @@ final class UserSnapshotLinkStore {
     /// 已存在 → 更新 alias(保留 createdAt);不存在 → 新建。
     ///
     /// - Parameters:
-    ///   - userId:用户本地 ID(`UserIdentity.userLocalId`)
+    ///   - userId:用户身份 ID。Slice 6 起调用方应传 `UserIdentity.currentUserId`
+    ///     (已登录返后端 user_id,未登录兜底返 userLocalId);老代码传 userLocalId
+    ///     由 SyncManager.backfillLocalLinks 在登录后批量迁移到 user_id。
     ///   - snapshotHash:命盘 contentHash
     ///   - alias:展示别名("我自己" / "妈妈" / "男友")
     /// - Returns:(link, isNew)
