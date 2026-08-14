@@ -69,7 +69,7 @@ struct ChartArchiveMultiPickerView: View {
 
             // 决策 D13:对方池空(只有自己 / 全部被排除)→ 引导
             if charts.isEmpty || charts.allSatisfy({ $0.snapshotHash == excludedHash }) {
-                Text("暂无对方命盘。可在下方添加临时对方,或去「我的」新建命盘。")
+                Text("暂无对方命盘。可在下方快速添加,或去「我的」新建命盘。")
                     .font(.caption)
                     .foregroundStyle(BaziTheme.inkMuted)
                     .frame(maxWidth: .infinity, alignment: .leading)

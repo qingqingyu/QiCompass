@@ -178,9 +178,9 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         try? vm.addTempToRoster()
         XCTAssertEqual(vm.roster.count, 1)
 
-        // 同输入再调一次 → 应抛错
+        // 同输入再调一次 → 应抛错(文案 2026-08-14 去「临时」)
         XCTAssertThrowsError(try vm.addTempToRoster(), "相同 entry.id 必须拒绝") { error in
-            XCTAssertTrue(error.localizedDescription.contains("已存在相同的临时对方"))
+            XCTAssertTrue(error.localizedDescription.contains("已存在相同的对方"))
         }
         XCTAssertEqual(vm.roster.count, 1, "去重:roster 不应增加重复条目")
     }

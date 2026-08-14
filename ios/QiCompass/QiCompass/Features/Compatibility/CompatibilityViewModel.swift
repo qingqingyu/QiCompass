@@ -249,7 +249,7 @@ final class CompatibilityViewModel {
         // 避免 ForEach 重复 id 警告 + 列表少卡 + 冗余 API 调用(内容寻址 → 同 hash)
         if roster.contains(where: { $0.id == newEntry.id }) {
             AppLogger.app.warning("op=compatibility.addTempToRoster skip reason=duplicate entry_id=\(newEntry.id, privacy: .public)")
-            throw UserFacingError.generic(message: "名单已存在相同的临时对方")
+            throw UserFacingError.generic(message: "名单已存在相同的对方")
         }
         // UX:保存当前字段为草稿(下次添加时默认值用这次的,加多个临时人时只改称呼/时间)
         CompatibilityRosterPersistence.saveTempDraft(
