@@ -8,7 +8,7 @@ import SwiftData
 /// - .empty → 0 存档,引导去深度解析
 /// - .configuring → 配置态(A 单选 + B 名单 / context)
 /// - .computing(completed, total) → 批量确定性合盘中(决策 D3 串行 + i/N 进度)
-/// - .list → 结果列表(决策 D9 卡片;D11 纯展示 + toolbar 修改名单;点卡片进 detail)
+/// - .list → 结果列表(决策 D9 卡片;D11 纯展示 + toolbar 编辑名单;点卡片进 detail)
 /// - .detail(summary, response, interpretState) → 单对详情(S02 新增,复用 CompatibilityMainView)
 /// - .failed(msg) → 错误态
 struct CompatibilityView: View {
@@ -28,7 +28,7 @@ struct CompatibilityView: View {
             .toolbar {
                 if case .list = vm?.state {
                     ToolbarItem(placement: .topBarLeading) {
-                        Button("修改名单") { vm?.backToConfig() }
+                        Button("编辑名单") { vm?.backToConfig() }
                             .foregroundStyle(BaziTheme.cinnabar)
                     }
                 }

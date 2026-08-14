@@ -46,7 +46,7 @@ struct CompatibilityPairListView: View {
             Button(action: onBackToConfig) {
                 HStack {
                     Image(systemName: "square.and.pencil")
-                    Text("修改名单")
+                    Text("编辑名单")
                         .font(.body.weight(.semibold))
                 }
                 .foregroundStyle(BaziTheme.cinnabar)
