@@ -77,7 +77,7 @@ Parent 设计事实源：`docs/合盘五行共振章节决策.md`（Q1-Q7 已 AC
 
 ## 测试
 
-- `test_interpret_render.py` 断言替换（paid 含「五行共振」/ free 不含「五行深度」与「爱情深度」）
+- `test_interpret_render.py` 断言替换（paid 含「五行共振」/ free 不含「五行共振」与「爱情深度」）
 - 后端全量 `pytest` 无回归
 - iOS `build-for-testing` 编译通过（本 slice 无新增 iOS 测试，纯文案）
 

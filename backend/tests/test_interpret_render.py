@@ -217,6 +217,8 @@ def test_compatibility_global_guardrail_in_all_three_templates():
         prompt = render_prompt(module, COMPATIBILITY_CONTEXT)
         assert "不预设关系类型（婚恋/友谊/合作/亲情）" in prompt, f"{module} 缺全局护栏句"
         assert "情侣/夫妻/朋友/合伙人" in prompt, f"{module} 缺「两人」叙事约束"
+        # S2 验收标准:护栏句位于通用要求段首项(挪到中部会弱化 LLM 注意力,测试必须锁位置)
+        assert "通用要求：\n- 叙事用「两人」而非" in prompt, f"{module} 护栏句不在通用要求首项"
 
 
 def test_compatibility_local_guardrails_two_high_risk_chapters():
@@ -232,9 +234,15 @@ def test_compatibility_local_guardrails_two_high_risk_chapters():
         prompt = render_prompt(module, COMPATIBILITY_CONTEXT)
         assert "涵盖夫妻共业/朋友共谋/合伙人共事" in prompt, f"{module} 合作事业缺局部护栏"
 
-    # 中低风险章节不加局部护栏(互补冲突/财运合拍/流年同步/五行共振无额外护栏句)
+    # 中低风险章节不加局部护栏(互补冲突/财运合拍/流年同步/五行共振无额外护栏句)。
+    # 计数断言锁「只加指定章节」:多一处/漏一处都红。
     paid_prompt = render_prompt("compatibility_paid", COMPATIBILITY_CONTEXT)
+    alias_prompt = render_prompt("compatibility", COMPATIBILITY_CONTEXT)
     assert paid_prompt.count("不写具体关系预设") == 1, "paid 只应有合作事业一处「不写具体关系预设」"
+    assert alias_prompt.count("不写具体关系预设") == 1, "alias 只应有合作事业一处「不写具体关系预设」"
+    assert free_prompt.count("不写具体关系预设") == 0, "free 无合作事业章,不应出现该护栏句式"
+    assert free_prompt.count("不写同居/伴侣等具体生活场景预设") == 1, "free 基础相处模式护栏只应一处"
+    assert alias_prompt.count("不写同居/伴侣等具体生活场景预设") == 0, "alias 基础相处模式按 §Q5 不加局部护栏"
 
 
 # ===== 4. 从格诚实降级 =====

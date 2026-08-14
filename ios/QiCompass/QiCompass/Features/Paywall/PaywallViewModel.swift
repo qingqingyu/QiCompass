@@ -40,7 +40,8 @@ enum PaywallModule {
     var paidChapters: [String] {
         switch self {
         case .deepAnalysis: return ["财运", "爱情", "健康", "六亲", "晚年"]
-        case .compatibility: return ["爱情深度", "合作事业", "财运合拍", "流年同步"]
+        // 五行共振改造(S1):第一章「爱情深度」→「五行共振」,与锁标 previewChapters 对齐
+        case .compatibility: return ["五行共振", "合作事业", "财运合拍", "流年同步"]
         }
     }
 

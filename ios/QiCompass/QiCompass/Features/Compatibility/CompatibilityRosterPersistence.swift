@@ -27,7 +27,7 @@ struct CompatibilityRosterPersistence {
     /// 默认 context(决策 D8;持久化无 context 时 fallback)。
     static let defaultContext = "general"
 
-    /// 临时表单默认草稿(无持久化时 fallback;1990-05-15 是成年适婚占位)。
+    /// 临时表单默认草稿(无持久化时 fallback;1990-03-21 是成年适婚占位)。
     static let defaultTempDraft = TempDraftState(
         birthDate: Date(timeIntervalSince1970: 638_000_000),
         gender: "male",
@@ -132,9 +132,10 @@ struct CompatibilityRosterPersistence {
 
     /// 写入草稿(addTempToRoster 成功后调)。
     static func saveTempDraft(_ state: TempDraftState) {
+        let defaults = UserDefaults.standard
         do {
             let data = try JSONEncoder().encode(state)
-            UserDefaults.standard.set(data, forKey: Key.tempDraft)
+            defaults.set(data, forKey: Key.tempDraft)
         } catch {
             // 不静默吞:JSON 编码失败说明 TempDraftState 类型异常
             AppLogger.persistence.error(
@@ -145,7 +146,8 @@ struct CompatibilityRosterPersistence {
 
     /// 读出草稿;无数据 / JSON 损坏时 fallback defaultTempDraft(显式日志)。
     static func loadTempDraft() -> TempDraftState {
-        guard let data = UserDefaults.standard.data(forKey: Key.tempDraft) else {
+        let defaults = UserDefaults.standard
+        guard let data = defaults.data(forKey: Key.tempDraft) else {
             return defaultTempDraft
         }
         do {
@@ -154,7 +156,7 @@ struct CompatibilityRosterPersistence {
             AppLogger.persistence.error(
                 "op=compatibility.rosterPersistence.tempDraft.load_failed error=\(String(describing: error), privacy: .public)"
             )
-            UserDefaults.standard.removeObject(forKey: Key.tempDraft)
+            defaults.removeObject(forKey: Key.tempDraft)
             return defaultTempDraft
         }
     }

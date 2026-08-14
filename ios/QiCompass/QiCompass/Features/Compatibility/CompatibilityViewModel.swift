@@ -71,11 +71,12 @@ final class CompatibilityViewModel {
 
     /// 单临时人表单(S04 草稿态:每次「添加」push 一条 .temp 到 roster,然后表单清空)。
     /// 多条独立 .temp 在 roster 内互不干扰。
-    var tempBirthDate: Date = Date(timeIntervalSince1970: 638_000_000)
-    var tempGender: String = "male"
-    var tempSelectedCity: String = "北京"
-    var tempUseManualLongitude: Bool = false
-    var tempManualLongitude: Double = 116.41
+    /// 默认值单一事实源:`CompatibilityRosterPersistence.defaultTempDraft`(VM init 会用持久化草稿覆盖)。
+    var tempBirthDate: Date = CompatibilityRosterPersistence.defaultTempDraft.birthDate
+    var tempGender: String = CompatibilityRosterPersistence.defaultTempDraft.gender
+    var tempSelectedCity: String = CompatibilityRosterPersistence.defaultTempDraft.city
+    var tempUseManualLongitude: Bool = CompatibilityRosterPersistence.defaultTempDraft.useManualLongitude
+    var tempManualLongitude: Double = CompatibilityRosterPersistence.defaultTempDraft.manualLongitude
     /// S04 新增:临时人可选「称呼」字段(会话内显示)。
     /// 空字符串视为未填 → 跨启动兜底名「对方+出生日期」。
     var tempAlias: String = ""
@@ -122,12 +123,7 @@ final class CompatibilityViewModel {
 
         // UX:临时表单默认值改"上次填过的"(加第二个临时人时只改称呼/时间)。
         // alias 不持久化(每次默认空,避免连续加多个相同 alias)。
-        let draft = CompatibilityRosterPersistence.loadTempDraft()
-        self.tempBirthDate = draft.birthDate
-        self.tempGender = draft.gender
-        self.tempSelectedCity = draft.city
-        self.tempUseManualLongitude = draft.useManualLongitude
-        self.tempManualLongitude = draft.manualLongitude
+        applyTempDraft(CompatibilityRosterPersistence.loadTempDraft())
     }
 
     // MARK: - 常量
@@ -271,13 +267,17 @@ final class CompatibilityViewModel {
     /// 添加成功后由 View 调:重置表单为"上次填过的"(本次刚保存的草稿)。
     /// alias 不持久化,每次清空(避免连续加多个相同 alias 触发去重)。
     func resetTempDraftForm() {
-        let draft = CompatibilityRosterPersistence.loadTempDraft()
+        applyTempDraft(CompatibilityRosterPersistence.loadTempDraft())
+        tempAlias = ""
+    }
+
+    /// 把草稿字段回填临时表单(init 与 resetTempDraftForm 共用;alias 不在内,永远单独处理)。
+    private func applyTempDraft(_ draft: CompatibilityRosterPersistence.TempDraftState) {
         tempBirthDate = draft.birthDate
         tempGender = draft.gender
         tempSelectedCity = draft.city
         tempUseManualLongitude = draft.useManualLongitude
         tempManualLongitude = draft.manualLongitude
-        tempAlias = ""
     }
 
     /// 移除名单一项。
