@@ -1056,7 +1056,7 @@ final class CompatibilityViewModel {
 
     // MARK: - 重置
 
-    /// 从 list 态切回配置态(顶部「修改名单」toolbar)。
+    /// 从 list 态切回配置态(顶部「编辑名单」toolbar)。
     /// 兼容 detail(detail → list → config 两步,用户单按钮直达 config)。
     func backToConfig() {
         computeTask?.cancel()
