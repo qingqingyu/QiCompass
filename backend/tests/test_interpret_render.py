@@ -210,6 +210,15 @@ def test_compatibility_alias_still_works():
     assert "付费 4 章" not in prompt
 
 
+def test_compatibility_global_guardrail_in_all_three_templates():
+    """S2 全局护栏(决策 §Q5):3 个合盘 module 的通用要求首项均为
+    「叙事用『两人』而非关系预设词;不预设关系类型」。"""
+    for module in ("compatibility", "compatibility_free", "compatibility_paid"):
+        prompt = render_prompt(module, COMPATIBILITY_CONTEXT)
+        assert "不预设关系类型（婚恋/友谊/合作/亲情）" in prompt, f"{module} 缺全局护栏句"
+        assert "情侣/夫妻/朋友/合伙人" in prompt, f"{module} 缺「两人」叙事约束"
+
+
 # ===== 4. 从格诚实降级 =====
 
 
