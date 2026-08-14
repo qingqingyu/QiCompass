@@ -165,7 +165,8 @@ def test_compatibility_free_render_replaces_placeholders():
     assert "基础相处模式" in prompt
     assert "互补与冲突总览" in prompt
     assert "免费 2 章" in prompt
-    # 不应包含付费章节关键词
+    # 不应包含付费章节关键词(S1:爱情深度已全局替换为五行共振,两者都不得泄漏到免费)
+    assert "五行共振" not in prompt
     assert "爱情深度" not in prompt
     assert "合作事业" not in prompt
     assert "{" not in prompt
@@ -177,8 +178,13 @@ def test_compatibility_paid_render_replaces_placeholders():
     # header 字段已替换
     assert COMPATIBILITY_CONTEXT["context_label"] in prompt
     assert COMPATIBILITY_CONTEXT["day_master_a"] in prompt
-    # 付费 4 章写作要求存在
-    assert "爱情深度" in prompt
+    # 付费 4 章写作要求存在(S1:第一章已替换为五行共振)
+    assert "五行共振" in prompt
+    # 五行共振章内容要素(决策 §Q4:机制 + 互动体现 + 护栏句)
+    assert "补喜神" in prompt
+    assert "日主生克" in prompt
+    assert "不预设关系类型" in prompt
+    assert "爱情深度" not in prompt
     assert "合作事业" in prompt
     assert "财运合拍" in prompt
     assert "流年同步" in prompt
@@ -195,6 +201,10 @@ def test_compatibility_alias_still_works():
     assert "6 章" in prompt
     assert "基础相处模式" in prompt
     assert "流年同步" in prompt
+    # S1:第三章已替换为五行共振(决策 §Q3/§Q4)
+    assert "五行共振" in prompt
+    assert "不预设关系类型" in prompt
+    assert "爱情深度" not in prompt
     # 不含 M4 新加的拆分关键词
     assert "免费 2 章" not in prompt
     assert "付费 4 章" not in prompt
