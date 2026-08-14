@@ -119,6 +119,15 @@ final class CompatibilityViewModel {
         self.compatibilityStore = compatibilityStore
         self.entitlementStore = entitlementStore
         self.modelContext = modelContext
+
+        // UX:临时表单默认值改"上次填过的"(加第二个临时人时只改称呼/时间)。
+        // alias 不持久化(每次默认空,避免连续加多个相同 alias)。
+        let draft = CompatibilityRosterPersistence.loadTempDraft()
+        self.tempBirthDate = draft.birthDate
+        self.tempGender = draft.gender
+        self.tempSelectedCity = draft.city
+        self.tempUseManualLongitude = draft.useManualLongitude
+        self.tempManualLongitude = draft.manualLongitude
     }
 
     // MARK: - 常量
@@ -223,7 +232,7 @@ final class CompatibilityViewModel {
 
     /// 添加临时对方到名单(S04:多条,每次 append 一条独立 .temp)。
     /// 校验失败抛 `UserFacingError`(不静默吞,CLAUDE.md 错误显式传播)。
-    /// 调用方负责成功后清空表单字段。
+    /// 成功后:写入 tempDraft 持久化 + 重置表单为"上次填过的"(alias 清空)。
     func addTempToRoster() throws {
         try validateTempForm()
         guard roster.count < Self.rosterMax else {
@@ -246,16 +255,28 @@ final class CompatibilityViewModel {
             AppLogger.app.warning("op=compatibility.addTempToRoster skip reason=duplicate entry_id=\(newEntry.id, privacy: .public)")
             throw UserFacingError.generic(message: "名单已存在相同的临时对方")
         }
+        // UX:保存当前字段为草稿(下次添加时默认值用这次的,加多个临时人时只改称呼/时间)
+        CompatibilityRosterPersistence.saveTempDraft(
+            .init(
+                birthDate: tempBirthDate,
+                gender: tempGender,
+                city: tempSelectedCity,
+                useManualLongitude: tempUseManualLongitude,
+                manualLongitude: tempManualLongitude
+            )
+        )
         roster.append(newEntry)
     }
 
-    /// S04:添加后清空草稿表单(让用户能继续添加下一个)。
+    /// 添加成功后由 View 调:重置表单为"上次填过的"(本次刚保存的草稿)。
+    /// alias 不持久化,每次清空(避免连续加多个相同 alias 触发去重)。
     func resetTempDraftForm() {
-        tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
-        tempGender = "male"
-        tempSelectedCity = "北京"
-        tempUseManualLongitude = false
-        tempManualLongitude = 116.41
+        let draft = CompatibilityRosterPersistence.loadTempDraft()
+        tempBirthDate = draft.birthDate
+        tempGender = draft.gender
+        tempSelectedCity = draft.city
+        tempUseManualLongitude = draft.useManualLongitude
+        tempManualLongitude = draft.manualLongitude
         tempAlias = ""
     }
 

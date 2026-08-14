@@ -1,12 +1,14 @@
 import Foundation
 
-/// 合盘名单 + A 盘 + context 跨启动持久化(决策 D5)。
+/// 合盘名单 + A 盘 + context + 临时表单草稿 跨启动持久化(决策 D5)。
 ///
-/// 持久化 3 个 UserDefaults key:
+/// 持久化 4 类 UserDefaults key:
 /// - `compat.lastPersonAHash`:上次 A 盘 contentHash(失效则 VM fallback 最新 link)
 /// - `compat.lastContext`:上次 context(默认 "general")
 /// - `compat.roster`:JSON `[personBHash]`(临时人用 S04 回填的 resolvedHash,
 ///   跨启动后恢复为 `.archived` 风格 entry,显示名走兜底名「对方+出生日期」)
+/// - `compat.tempDraft`:JSON `TempDraftState`(临时表单上次填过的字段,
+///   加第二个临时人时默认值用上次的,用户只改称呼/时间)
 ///
 /// 红线 D6:名单只存 hash 字符串,**不存完整 RosterEntry**(临时人 alias 不持久化,
 /// 会话内场景已过;不转 UserSnapshotLink)。这是深思后的保守选择——
@@ -19,10 +21,20 @@ struct CompatibilityRosterPersistence {
         static let personAHash = "compat.lastPersonAHash"
         static let context = "compat.lastContext"
         static let rosterHashes = "compat.roster"
+        static let tempDraft = "compat.tempDraft"
     }
 
     /// 默认 context(决策 D8;持久化无 context 时 fallback)。
     static let defaultContext = "general"
+
+    /// 临时表单默认草稿(无持久化时 fallback;1990-05-15 是成年适婚占位)。
+    static let defaultTempDraft = TempDraftState(
+        birthDate: Date(timeIntervalSince1970: 638_000_000),
+        gender: "male",
+        city: "北京",
+        useManualLongitude: false,
+        manualLongitude: 116.41
+    )
 
     // MARK: - Save
 
@@ -104,5 +116,46 @@ struct CompatibilityRosterPersistence {
         defaults.removeObject(forKey: Key.personAHash)
         defaults.removeObject(forKey: Key.context)
         defaults.removeObject(forKey: Key.rosterHashes)
+        defaults.removeObject(forKey: Key.tempDraft)
+    }
+
+    // MARK: - 临时表单草稿(下次添加时默认值用上次填过的)
+
+    /// 临时表单草稿。alias 不持久化(每次默认空,避免连续加多个相同 alias)。
+    struct TempDraftState: Codable, Equatable {
+        let birthDate: Date
+        let gender: String
+        let city: String
+        let useManualLongitude: Bool
+        let manualLongitude: Double
+    }
+
+    /// 写入草稿(addTempToRoster 成功后调)。
+    static func saveTempDraft(_ state: TempDraftState) {
+        do {
+            let data = try JSONEncoder().encode(state)
+            UserDefaults.standard.set(data, forKey: Key.tempDraft)
+        } catch {
+            // 不静默吞:JSON 编码失败说明 TempDraftState 类型异常
+            AppLogger.persistence.error(
+                "op=compatibility.rosterPersistence.tempDraft.save_failed error=\(String(describing: error), privacy: .public)"
+            )
+        }
+    }
+
+    /// 读出草稿;无数据 / JSON 损坏时 fallback defaultTempDraft(显式日志)。
+    static func loadTempDraft() -> TempDraftState {
+        guard let data = UserDefaults.standard.data(forKey: Key.tempDraft) else {
+            return defaultTempDraft
+        }
+        do {
+            return try JSONDecoder().decode(TempDraftState.self, from: data)
+        } catch {
+            AppLogger.persistence.error(
+                "op=compatibility.rosterPersistence.tempDraft.load_failed error=\(String(describing: error), privacy: .public)"
+            )
+            UserDefaults.standard.removeObject(forKey: Key.tempDraft)
+            return defaultTempDraft
+        }
     }
 }
