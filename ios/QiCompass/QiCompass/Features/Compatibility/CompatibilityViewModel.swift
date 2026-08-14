@@ -239,7 +239,14 @@ final class CompatibilityViewModel {
         )
         // alias 空字符串视为 nil(统一兜底名判定)
         let alias = tempAlias.trimmingCharacters(in: .whitespaces)
-        roster.append(.temp(input: input, alias: alias.isEmpty ? nil : alias, resolvedHash: nil))
+        let newEntry: RosterEntry = .temp(input: input, alias: alias.isEmpty ? nil : alias, resolvedHash: nil)
+        // 去重:同 id entry 已在 roster → 抛错
+        // 避免 ForEach 重复 id 警告 + 列表少卡 + 冗余 API 调用(内容寻址 → 同 hash)
+        if roster.contains(where: { $0.id == newEntry.id }) {
+            AppLogger.app.warning("op=compatibility.addTempToRoster skip reason=duplicate entry_id=\(newEntry.id, privacy: .public)")
+            throw UserFacingError.generic(message: "名单已存在相同的临时对方")
+        }
+        roster.append(newEntry)
     }
 
     /// S04:添加后清空草稿表单(让用户能继续添加下一个)。
@@ -454,7 +461,6 @@ final class CompatibilityViewModel {
                 do {
                     let summary = try rebuildSummaryFromCache(
                         entry: entry,
-                        aHash: aHash,
                         bHash: snapshot.personBHash,
                         snapshot: snapshot
                     )
@@ -515,10 +521,9 @@ final class CompatibilityViewModel {
 
         Task { [weak self] in
             guard let self else { return }
+            // VM @MainActor + Task 继承 actor → defer 同步执行已在 MainActor,无需嵌套 Task 派发
             defer {
-                Task { @MainActor [weak self] in
-                    self?.retryingIds.remove(summaryId)
-                }
+                self.retryingIds.remove(summaryId)
             }
             do {
                 let baziA = try self.chartStore.decodeResponse(from: chartA.snapshot)
@@ -624,7 +629,6 @@ final class CompatibilityViewModel {
     /// 不静默吞:decode 失败 / B ChartSnapshot 缺失 → throw 走该对失败路径(S03 隔离)。
     private func rebuildSummaryFromCache(
         entry: RosterEntry,
-        aHash: String,
         bHash: String,
         snapshot: CompatibilitySnapshot
     ) throws -> PairSummary {
@@ -701,7 +705,6 @@ final class CompatibilityViewModel {
                     )
                     return try rebuildSummaryFromCache(
                         entry: entry,
-                        aHash: aHash,
                         bHash: bHash,
                         snapshot: existing
                     )
@@ -1047,10 +1050,17 @@ final class CompatibilityViewModel {
     var nextDailyReset: Date { orchestrator.nextDailyReset() }
 
     /// 当前 detail 态的 B 盘 ChartSnapshot(供 CompatibilityMainView 渲染双盘对比)。
-    /// 非 detail 态 / snapshot 缺失返回 nil(UI 显式提示)。
+    /// 非 detail 态 / snapshot 缺失返回 nil(UI 显式提示);fetch 失败显式日志(不静默吞)。
     var currentDetailBSnapshot: ChartSnapshot? {
         guard case .detail(let summary, _, _) = state else { return nil }
-        return try? chartStore.get(contentHash: summary.personBHash)
+        do {
+            return try chartStore.get(contentHash: summary.personBHash)
+        } catch {
+            AppLogger.persistence.error(
+                "op=compatibility.currentDetailBSnapshot fetch_failed b_hash=\(summary.personBHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            return nil
+        }
     }
 
     /// 当前 detail 态的 A 盘 ChartSnapshot。

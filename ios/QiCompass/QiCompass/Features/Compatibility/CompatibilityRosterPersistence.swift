@@ -88,9 +88,10 @@ struct CompatibilityRosterPersistence {
             AppLogger.app.warning(
                 "op=compatibility.rosterPersistence.cleanup_invalid_hashes before=\(persistedHashes.count, privacy: .public) after=\(cleaned.count, privacy: .public)"
             )
-            // 写回干净名单(用首位 A + context 暂用持久化值,save 失败不影响主流程)
-            if let aHash = load().personAHash {
-                save(personAHash: aHash, context: load().context, rosterHashes: cleaned)
+            // 写回干净名单:单次 load() 避免重复 UserDefaults 读 + JSON decode
+            let state = load()
+            if let aHash = state.personAHash {
+                save(personAHash: aHash, context: state.context, rosterHashes: cleaned)
             }
         }
         return cleaned

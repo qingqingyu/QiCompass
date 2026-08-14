@@ -167,6 +167,22 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertEqual(vm.roster.filter(\.isTemp).count, 2, "S04 改造:多条独立 temp,不再替换")
     }
 
+    func testAddTempToRoster_相同临时人_去重拒绝() {
+        // review 修复 1:两个完全相同 input(同时间/性别/城市/alias)→ 同 entry.id → 第二次抛错
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempGender = "male"
+        vm.tempSelectedCity = "北京"
+        vm.tempAlias = "相亲对象甲"
+        try? vm.addTempToRoster()
+        XCTAssertEqual(vm.roster.count, 1)
+
+        // 同输入再调一次 → 应抛错
+        XCTAssertThrowsError(try vm.addTempToRoster(), "相同 entry.id 必须拒绝") { error in
+            XCTAssertTrue(error.localizedDescription.contains("已存在相同的临时对方"))
+        }
+        XCTAssertEqual(vm.roster.count, 1, "去重:roster 不应增加重复条目")
+    }
+
     // MARK: - S04 多临时人 + 称呼 + resolvedHash 回填
 
     func testAddTempToRoster_多条不重复_直到上限8() {
