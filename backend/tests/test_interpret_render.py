@@ -219,6 +219,24 @@ def test_compatibility_global_guardrail_in_all_three_templates():
         assert "情侣/夫妻/朋友/合伙人" in prompt, f"{module} 缺「两人」叙事约束"
 
 
+def test_compatibility_local_guardrails_two_high_risk_chapters():
+    """S3 局部护栏(决策 §Q5):仅 2 个高风险章节加针对性护栏——
+    免费「基础相处模式」(防同居/伴侣场景预设) + paid/alias「合作事业」
+    (公共目标协作涵盖多种关系);其余章节不加(避免过度工程)。"""
+    # 免费模板:基础相处模式局部护栏
+    free_prompt = render_prompt("compatibility_free", COMPATIBILITY_CONTEXT)
+    assert "不写同居/伴侣等具体生活场景预设" in free_prompt, "free 基础相处模式缺局部护栏"
+
+    # paid + alias:合作事业局部护栏
+    for module in ("compatibility_paid", "compatibility"):
+        prompt = render_prompt(module, COMPATIBILITY_CONTEXT)
+        assert "涵盖夫妻共业/朋友共谋/合伙人共事" in prompt, f"{module} 合作事业缺局部护栏"
+
+    # 中低风险章节不加局部护栏(互补冲突/财运合拍/流年同步/五行共振无额外护栏句)
+    paid_prompt = render_prompt("compatibility_paid", COMPATIBILITY_CONTEXT)
+    assert paid_prompt.count("不写具体关系预设") == 1, "paid 只应有合作事业一处「不写具体关系预设」"
+
+
 # ===== 4. 从格诚实降级 =====
 
 
