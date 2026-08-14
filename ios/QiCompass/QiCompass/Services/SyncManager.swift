@@ -90,8 +90,16 @@ final class SyncManager {
 
         let pred = #Predicate<UserSnapshotLink> { $0.userId == userLocalId }
         let desc = FetchDescriptor<UserSnapshotLink>(predicate: pred)
-        guard let legacyLinks = try? modelContext.fetch(desc),
-              !legacyLinks.isEmpty else {
+        let legacyLinks: [UserSnapshotLink]
+        do {
+            legacyLinks = try modelContext.fetch(desc)
+        } catch {
+            AppLogger.persistence.error(
+                "sync.backfillLocalLinks.fetch_failed error=\(String(describing: error), privacy: .public)"
+            )
+            return
+        }
+        guard !legacyLinks.isEmpty else {
             AppLogger.app.info("sync.backfillLocalLinks.skip reason=no_legacy_links")
             return
         }

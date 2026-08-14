@@ -231,7 +231,8 @@ final class EntitlementStore {
             }
         }
 
-        // 持久化(单次 save;upsert 内部已 save,这里 defense-in-depth)
+        // 最终 save 仅 defense-in-depth(upsert/deactivate 内部已各 save 一次)。
+        // 正常路径下无未提交变更,save 是 no-op;异常路径下兜底持久化。
         do {
             try modelContext.save()
         } catch {

@@ -128,7 +128,7 @@ final class AppEnvironment: ObservableObject {
             // 2. entitlementStore.synchronizeFromBackend:拉云端 entitlement 写本地 SwiftData
             //    (跨设备 / 重装 / 退登回登场景的购买找回)
             // 3. push:把本地 backfill 过的命盘 + 新建命盘推回云端(让其他设备能拉到)
-            // 各步独立 try?/await,失败不阻断后续(对齐 SyncManager 错误处理风格)
+            // 各步内部自行 catch,失败记日志不阻断后续(对齐 SyncManager 错误处理风格)
             await syncManager?.pull()
             await entitlementStore?.synchronizeFromBackend(apiClient: apiClient)
             await syncManager?.push()
