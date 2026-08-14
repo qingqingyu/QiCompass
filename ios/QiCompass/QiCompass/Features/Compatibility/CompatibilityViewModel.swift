@@ -71,11 +71,12 @@ final class CompatibilityViewModel {
 
     /// 单临时人表单(S04 草稿态:每次「添加」push 一条 .temp 到 roster,然后表单清空)。
     /// 多条独立 .temp 在 roster 内互不干扰。
-    var tempBirthDate: Date = Date(timeIntervalSince1970: 638_000_000)
-    var tempGender: String = "male"
-    var tempSelectedCity: String = "北京"
-    var tempUseManualLongitude: Bool = false
-    var tempManualLongitude: Double = 116.41
+    /// 默认值单一事实源:`CompatibilityRosterPersistence.defaultTempDraft`(VM init 会用持久化草稿覆盖)。
+    var tempBirthDate: Date = CompatibilityRosterPersistence.defaultTempDraft.birthDate
+    var tempGender: String = CompatibilityRosterPersistence.defaultTempDraft.gender
+    var tempSelectedCity: String = CompatibilityRosterPersistence.defaultTempDraft.city
+    var tempUseManualLongitude: Bool = CompatibilityRosterPersistence.defaultTempDraft.useManualLongitude
+    var tempManualLongitude: Double = CompatibilityRosterPersistence.defaultTempDraft.manualLongitude
     /// S04 新增:临时人可选「称呼」字段(会话内显示)。
     /// 空字符串视为未填 → 跨启动兜底名「对方+出生日期」。
     var tempAlias: String = ""
@@ -119,6 +120,10 @@ final class CompatibilityViewModel {
         self.compatibilityStore = compatibilityStore
         self.entitlementStore = entitlementStore
         self.modelContext = modelContext
+
+        // UX:临时表单默认值改"上次填过的"(加第二个临时人时只改称呼/时间)。
+        // alias 不持久化(每次默认空,避免连续加多个相同 alias)。
+        applyTempDraft(CompatibilityRosterPersistence.loadTempDraft())
     }
 
     // MARK: - 常量
@@ -223,7 +228,7 @@ final class CompatibilityViewModel {
 
     /// 添加临时对方到名单(S04:多条,每次 append 一条独立 .temp)。
     /// 校验失败抛 `UserFacingError`(不静默吞,CLAUDE.md 错误显式传播)。
-    /// 调用方负责成功后清空表单字段。
+    /// 成功后:写入 tempDraft 持久化 + 重置表单为"上次填过的"(alias 清空)。
     func addTempToRoster() throws {
         try validateTempForm()
         guard roster.count < Self.rosterMax else {
@@ -244,19 +249,35 @@ final class CompatibilityViewModel {
         // 避免 ForEach 重复 id 警告 + 列表少卡 + 冗余 API 调用(内容寻址 → 同 hash)
         if roster.contains(where: { $0.id == newEntry.id }) {
             AppLogger.app.warning("op=compatibility.addTempToRoster skip reason=duplicate entry_id=\(newEntry.id, privacy: .public)")
-            throw UserFacingError.generic(message: "名单已存在相同的临时对方")
+            throw UserFacingError.generic(message: "名单已存在相同的对方")
         }
+        // UX:保存当前字段为草稿(下次添加时默认值用这次的,加多个临时人时只改称呼/时间)
+        CompatibilityRosterPersistence.saveTempDraft(
+            .init(
+                birthDate: tempBirthDate,
+                gender: tempGender,
+                city: tempSelectedCity,
+                useManualLongitude: tempUseManualLongitude,
+                manualLongitude: tempManualLongitude
+            )
+        )
         roster.append(newEntry)
     }
 
-    /// S04:添加后清空草稿表单(让用户能继续添加下一个)。
+    /// 添加成功后由 View 调:重置表单为"上次填过的"(本次刚保存的草稿)。
+    /// alias 不持久化,每次清空(避免连续加多个相同 alias 触发去重)。
     func resetTempDraftForm() {
-        tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
-        tempGender = "male"
-        tempSelectedCity = "北京"
-        tempUseManualLongitude = false
-        tempManualLongitude = 116.41
+        applyTempDraft(CompatibilityRosterPersistence.loadTempDraft())
         tempAlias = ""
+    }
+
+    /// 把草稿字段回填临时表单(init 与 resetTempDraftForm 共用;alias 不在内,永远单独处理)。
+    private func applyTempDraft(_ draft: CompatibilityRosterPersistence.TempDraftState) {
+        tempBirthDate = draft.birthDate
+        tempGender = draft.gender
+        tempSelectedCity = draft.city
+        tempUseManualLongitude = draft.useManualLongitude
+        tempManualLongitude = draft.manualLongitude
     }
 
     /// 移除名单一项。

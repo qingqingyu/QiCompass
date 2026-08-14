@@ -167,7 +167,8 @@ def test_compatibility_free_render_replaces_placeholders():
     assert "基础相处模式" in prompt
     assert "互补与冲突总览" in prompt
     assert "免费 2 章" in prompt
-    # 不应包含付费章节关键词
+    # 不应包含付费章节关键词(S1:爱情深度已全局替换为五行共振,两者都不得泄漏到免费)
+    assert "五行共振" not in prompt
     assert "爱情深度" not in prompt
     assert "合作事业" not in prompt
     assert "{" not in prompt
@@ -179,8 +180,13 @@ def test_compatibility_paid_render_replaces_placeholders():
     # header 字段已替换
     assert COMPATIBILITY_CONTEXT["context_label"] in prompt
     assert COMPATIBILITY_CONTEXT["day_master_a"] in prompt
-    # 付费 4 章写作要求存在
-    assert "爱情深度" in prompt
+    # 付费 4 章写作要求存在(S1:第一章已替换为五行共振)
+    assert "五行共振" in prompt
+    # 五行共振章内容要素(决策 §Q4:机制 + 互动体现 + 护栏句)
+    assert "补喜神" in prompt
+    assert "日主生克" in prompt
+    assert "不预设关系类型" in prompt
+    assert "爱情深度" not in prompt
     assert "合作事业" in prompt
     assert "财运合拍" in prompt
     assert "流年同步" in prompt
@@ -197,9 +203,48 @@ def test_compatibility_alias_still_works():
     assert "6 章" in prompt
     assert "基础相处模式" in prompt
     assert "流年同步" in prompt
+    # S1:第三章已替换为五行共振(决策 §Q3/§Q4)
+    assert "五行共振" in prompt
+    assert "不预设关系类型" in prompt
+    assert "爱情深度" not in prompt
     # 不含 M4 新加的拆分关键词
     assert "免费 2 章" not in prompt
     assert "付费 4 章" not in prompt
+
+
+def test_compatibility_global_guardrail_in_all_three_templates():
+    """S2 全局护栏(决策 §Q5):3 个合盘 module 的通用要求首项均为
+    「叙事用『两人』而非关系预设词;不预设关系类型」。"""
+    for module in ("compatibility", "compatibility_free", "compatibility_paid"):
+        prompt = render_prompt(module, COMPATIBILITY_CONTEXT)
+        assert "不预设关系类型（婚恋/友谊/合作/亲情）" in prompt, f"{module} 缺全局护栏句"
+        assert "情侣/夫妻/朋友/合伙人" in prompt, f"{module} 缺「两人」叙事约束"
+        # S2 验收标准:护栏句位于通用要求段首项(挪到中部会弱化 LLM 注意力,测试必须锁位置)
+        assert "通用要求：\n- 叙事用「两人」而非" in prompt, f"{module} 护栏句不在通用要求首项"
+
+
+def test_compatibility_local_guardrails_two_high_risk_chapters():
+    """S3 局部护栏(决策 §Q5):仅 2 个高风险章节加针对性护栏——
+    免费「基础相处模式」(防同居/伴侣场景预设) + paid/alias「合作事业」
+    (公共目标协作涵盖多种关系);其余章节不加(避免过度工程)。"""
+    # 免费模板:基础相处模式局部护栏
+    free_prompt = render_prompt("compatibility_free", COMPATIBILITY_CONTEXT)
+    assert "不写同居/伴侣等具体生活场景预设" in free_prompt, "free 基础相处模式缺局部护栏"
+
+    # paid + alias:合作事业局部护栏
+    for module in ("compatibility_paid", "compatibility"):
+        prompt = render_prompt(module, COMPATIBILITY_CONTEXT)
+        assert "涵盖夫妻共业/朋友共谋/合伙人共事" in prompt, f"{module} 合作事业缺局部护栏"
+
+    # 中低风险章节不加局部护栏(互补冲突/财运合拍/流年同步/五行共振无额外护栏句)。
+    # 计数断言锁「只加指定章节」:多一处/漏一处都红。
+    paid_prompt = render_prompt("compatibility_paid", COMPATIBILITY_CONTEXT)
+    alias_prompt = render_prompt("compatibility", COMPATIBILITY_CONTEXT)
+    assert paid_prompt.count("不写具体关系预设") == 1, "paid 只应有合作事业一处「不写具体关系预设」"
+    assert alias_prompt.count("不写具体关系预设") == 1, "alias 只应有合作事业一处「不写具体关系预设」"
+    assert free_prompt.count("不写具体关系预设") == 0, "free 无合作事业章,不应出现该护栏句式"
+    assert free_prompt.count("不写同居/伴侣等具体生活场景预设") == 1, "free 基础相处模式护栏只应一处"
+    assert alias_prompt.count("不写同居/伴侣等具体生活场景预设") == 0, "alias 基础相处模式按 §Q5 不加局部护栏"
 
 
 # ===== 4. 从格诚实降级 =====

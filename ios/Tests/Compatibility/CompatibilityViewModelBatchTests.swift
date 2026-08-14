@@ -25,6 +25,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
     override func setUpWithError() throws {
         try super.setUpWithError()
+        // 防止上个测试的 UserDefaults 持久化污染本测试
+        CompatibilityRosterPersistence.clear()
         container = try ModelContainerFactory.makeInMemory()
         let context = container.mainContext
         chartStore = ChartSnapshotStore(context: context)
@@ -176,9 +178,9 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         try? vm.addTempToRoster()
         XCTAssertEqual(vm.roster.count, 1)
 
-        // 同输入再调一次 → 应抛错
+        // 同输入再调一次 → 应抛错(文案 2026-08-14 去「临时」)
         XCTAssertThrowsError(try vm.addTempToRoster(), "相同 entry.id 必须拒绝") { error in
-            XCTAssertTrue(error.localizedDescription.contains("已存在相同的临时对方"))
+            XCTAssertTrue(error.localizedDescription.contains("已存在相同的对方"))
         }
         XCTAssertEqual(vm.roster.count, 1, "去重:roster 不应增加重复条目")
     }
@@ -245,12 +247,98 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
         vm.resetTempDraftForm()
 
+        // setUp 已 clear persistence → loadTempDraft 返回 default(硬编码)
         XCTAssertEqual(vm.tempBirthDate, Date(timeIntervalSince1970: 638_000_000))
         XCTAssertEqual(vm.tempGender, "male")
         XCTAssertEqual(vm.tempSelectedCity, "北京")
         XCTAssertFalse(vm.tempUseManualLongitude)
         XCTAssertEqual(vm.tempManualLongitude, 116.41)
-        XCTAssertEqual(vm.tempAlias, "")
+        XCTAssertEqual(vm.tempAlias, "")  // alias 永远清空(不持久化)
+    }
+
+    // MARK: - tempDraft 持久化(下次添加默认值用上次填过的)
+
+    func testTempDraft_roundTrip_save后load一致() {
+        CompatibilityRosterPersistence.clear()
+        let state = CompatibilityRosterPersistence.TempDraftState(
+            birthDate: Date(timeIntervalSince1970: 700_000_000),
+            gender: "female",
+            city: "上海",
+            useManualLongitude: true,
+            manualLongitude: 121.47
+        )
+        CompatibilityRosterPersistence.saveTempDraft(state)
+        let loaded = CompatibilityRosterPersistence.loadTempDraft()
+        XCTAssertEqual(loaded, state)
+    }
+
+    func testTempDraft_无持久化时_load返回default() {
+        CompatibilityRosterPersistence.clear()
+        let loaded = CompatibilityRosterPersistence.loadTempDraft()
+        XCTAssertEqual(loaded, CompatibilityRosterPersistence.defaultTempDraft)
+        XCTAssertEqual(loaded.city, "北京")
+        XCTAssertEqual(loaded.gender, "male")
+    }
+
+    func testAddTempToRoster_成功后草稿持久化_下次读到上次值() throws {
+        CompatibilityRosterPersistence.clear()
+        // 模拟用户改字段后添加
+        vm.tempBirthDate = Date(timeIntervalSince1970: 700_000_000)
+        vm.tempGender = "female"
+        vm.tempSelectedCity = "上海"
+        vm.tempAlias = "相亲对象甲"
+
+        try vm.addTempToRoster()  // 成功 → saveTempDraft
+
+        // 重新 load 草稿:应得到上面的字段值
+        let loaded = CompatibilityRosterPersistence.loadTempDraft()
+        XCTAssertEqual(loaded.birthDate, Date(timeIntervalSince1970: 700_000_000))
+        XCTAssertEqual(loaded.gender, "female")
+        XCTAssertEqual(loaded.city, "上海")
+    }
+
+    @MainActor
+    func testVMInit_从持久化加载草稿字段() throws {
+        CompatibilityRosterPersistence.clear()
+        // 先存一个草稿
+        CompatibilityRosterPersistence.saveTempDraft(.init(
+            birthDate: Date(timeIntervalSince1970: 800_000_000),
+            gender: "female",
+            city: "广州",
+            useManualLongitude: true,
+            manualLongitude: 113.23
+        ))
+        // 新建 VM(init body 会 loadTempDraft)
+        let newVM = CompatibilityViewModel(
+            orchestrator: orchestrator,
+            chartStore: chartStore,
+            compatibilityStore: compatibilityStore,
+            entitlementStore: entitlementStore,
+            modelContext: container.mainContext
+        )
+        XCTAssertEqual(newVM.tempBirthDate, Date(timeIntervalSince1970: 800_000_000))
+        XCTAssertEqual(newVM.tempGender, "female")
+        XCTAssertEqual(newVM.tempSelectedCity, "广州")
+        XCTAssertTrue(newVM.tempUseManualLongitude)
+        XCTAssertEqual(newVM.tempManualLongitude, 113.23)
+        XCTAssertEqual(newVM.tempAlias, "", "alias 不持久化,VM init 后默认空")
+    }
+
+    func testResetTempDraftForm_添加成功后_读到本次填过的字段() throws {
+        CompatibilityRosterPersistence.clear()
+        vm.tempBirthDate = Date(timeIntervalSince1970: 750_000_000)
+        vm.tempGender = "female"
+        vm.tempSelectedCity = "深圳"
+        vm.tempAlias = "对象A"
+
+        try vm.addTempToRoster()
+        vm.resetTempDraftForm()  // View 在 addTemp 成功后会调
+
+        // reset 后字段应回填本次保存的草稿值(不是硬编码默认)
+        XCTAssertEqual(vm.tempBirthDate, Date(timeIntervalSince1970: 750_000_000))
+        XCTAssertEqual(vm.tempGender, "female")
+        XCTAssertEqual(vm.tempSelectedCity, "深圳")
+        XCTAssertEqual(vm.tempAlias, "", "alias 永远清空")
     }
 
     func testRosterEntry_resolvedHash_默认nil_符合S04契约() {

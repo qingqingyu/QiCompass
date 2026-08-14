@@ -52,9 +52,10 @@ struct CompatibilityInterpretationSection: View {
                 Divider()
                     .background(BaziTheme.hairline)
                 // M4:未购买 → 显示付费 4 章锁标 + "解锁合盘解读" CTA
+                // 五行共振改造(S1):第一章「爱情深度」→「五行共振」,title 对齐产品新定位
                 PaidChaptersLockView(
-                    previewChapters: ["爱情深度", "合作事业", "财运合拍", "流年同步"],
-                    title: "合盘解读·付费章节",
+                    previewChapters: ["五行共振", "合作事业", "财运合拍", "流年同步"],
+                    title: "五行共振·付费章节",
                     ctaTitle: "解锁合盘解读",
                     onUnlock: onShowPaywall
                 )
@@ -104,7 +105,7 @@ struct CompatibilityInterpretationSection: View {
     @ViewBuilder
     private func interpretationCTABlock(isLoading: Bool) -> some View {
         VStack(spacing: 12) {
-            Text("6 章解读:基础相处 / 互补冲突 / 爱情深度 / 合作事业 / 财运合拍 / 流年同步")
+            Text("6 章解读:基础相处 / 互补冲突 / 五行共振 / 合作事业 / 财运合拍 / 流年同步")
                 .font(.subheadline)
                 .foregroundStyle(BaziTheme.inkMuted)
                 .multilineTextAlignment(.center)

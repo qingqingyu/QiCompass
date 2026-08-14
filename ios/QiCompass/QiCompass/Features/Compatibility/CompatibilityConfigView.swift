@@ -155,29 +155,29 @@ struct CompatibilityConfigView: View {
             if let alias, !alias.isEmpty { return alias }
             let loc = input.city ?? "经度 \(String(format: "%.1f", input.longitude ?? 0))"
             let dateStr = Self.tempDateFormatter.string(from: input.birthDatetime)
-            return "临时对方 · \(dateStr) · \(loc)"
+            return "对方 · \(dateStr) · \(loc)"
         }
     }
 
     private func kindLabel(for entry: RosterEntry) -> String {
         switch entry {
         case .archived: return "存档"
-        case .temp: return "临时输入"
+        case .temp: return "快速"
         }
     }
 
-    // MARK: - 临时表单(模式 B,S04 多条独立)
+    // MARK: - 快速添加区(模式 B,S04 多条独立;2026-08-14 文案改「快速添加」,原「临时输入」)
 
     @ViewBuilder
     private var tempInputArea: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.sm) {
             HStack {
-                Text("临时输入对方")
+                Text("快速添加")
                     .font(.subheadline.weight(.semibold))
                     .foregroundStyle(BaziTheme.ink)
                 Spacer()
                 if vm.tempCountInRoster > 0 {
-                    Text("已加入 \(vm.tempCountInRoster) 条")
+                    Text("已加入 \(vm.tempCountInRoster) 位")
                         .font(.caption2)
                         .foregroundStyle(BaziTheme.inkMuted)
                 }
@@ -205,7 +205,7 @@ struct CompatibilityConfigView: View {
                 } label: {
                     HStack {
                         Image(systemName: "plus")
-                        Text("添加临时对方")
+                        Text("填写对方信息")
                     }
                     .font(.subheadline)
                     .foregroundStyle(BaziTheme.cinnabar)
