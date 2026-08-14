@@ -4,6 +4,16 @@
     "—" : {
 
     },
+    "%@ · %@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        }
+      }
+    },
     "%@ %@" : {
       "localizations" : {
         "zh-Hans" : {
@@ -23,6 +33,15 @@
           }
         }
       }
+    },
+    "%lld / 500" : {
+
+    },
+    "%lld 岁" : {
+
+    },
+    "%lld 年生" : {
+
     },
     "%lld-%lld" : {
       "localizations" : {
@@ -45,6 +64,9 @@
       }
     },
     "• %@" : {
+
+    },
+    "◎ 缓存" : {
 
     },
     "◎ 缓存命中(不消耗次数)" : {
@@ -477,110 +499,317 @@
     "hash: %@…" : {
 
     },
+    "M4 健康输入" : {
+
+    },
+    "M5 财富输入" : {
+
+    },
     "MVP 固定规则,后端 setSect(1)。" : {
 
     },
-    "QICOMPASS" : {
-
-    },
-    "welcome_sutra" : {
+    "onboarding.form.privacyLine" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "He who does not know his fate cannot be a gentleman"
+            "value" : "Your chart stays on your phone · No account"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "不知命，无以为君子也"
+            "value" : "命盘只存你手机 · 无账号"
           }
         }
       }
     },
-    "profile.about.stanceTitle" : {
+    "onboarding.form.title" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Why trust it"
+            "value" : "Your birth details"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "为什么可信"
+            "value" : "你的出生信息"
           }
         }
       }
     },
-    "profile.about.stance1" : {
+    "onboarding.personality.dog" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Same birth data, same chart"
+            "value" : "Loyal and faithful, you commit wholeheartedly. When a friend is in need, you're the first to show up."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "同一组生辰，同一张盘"
+            "value" : "忠诚念旧，认定了就一心一意；讲义气，朋友有难第一个到。"
           }
         }
       }
     },
-    "profile.about.stance2" : {
+    "onboarding.personality.dragon" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Rules decide, AI polishes"
+            "value" : "You carry an inner compass — once committed, you don't look back. With a natural sense of order, you do things properly."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "喜忌由规则判，AI 只润色"
+            "value" : "心里有杆秤，认定的事不回头；天生的秩序感，做事要做得漂亮。"
           }
         }
       }
     },
-    "profile.about.stance3" : {
+    "onboarding.personality.goat" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Edge cases are labeled honestly"
+            "value" : "Soft-hearted, you can't stand seeing others struggle. With a fine eye for beauty, you turn ordinary days warm."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命局有特例，如实标注"
+            "value" : "心软细腻，见不得别人为难；审美在线，能把寻常日子过出温度。"
           }
         }
       }
     },
-    "profile.about.privacyTitle" : {
+    "onboarding.personality.horse" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Privacy & data"
+            "value" : "Warm and open, you light up every room. Freedom-loving, you chase your goals with unstoppable drive."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "隐私与数据"
+            "value" : "热情坦荡，走到哪都自带气氛；向往自由，追起目标来拦都拦不住。"
+          }
+        }
+      }
+    },
+    "onboarding.personality.monkey" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick-minded and inventive, you find a way out of any corner. A natural entertainer, you keep every room alive."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "脑子活，点子多，再难的局面也能转出活路；天生的开心果，有你在不冷场。"
+          }
+        }
+      }
+    },
+    "onboarding.personality.ox" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Slow to warm but rock-steady, you take things one solid step at a time. Quiet, yet the one everyone leans on."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "慢热但稳，认准的事一步一个脚印；话不多，却是身边人最靠得住的那一个。"
+          }
+        }
+      }
+    },
+    "onboarding.personality.pig" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Big-hearted and easygoing, you don't hold grudges — life flows gently. Generous to all, you're the warmth in your circle."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心宽福厚，不记仇不较劲，日子过得松弛；对人对己都慷慨，是朋友圈里的暖流。"
+          }
+        }
+      }
+    },
+    "onboarding.personality.rabbit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gentle and perceptive, you care for others in quiet ways. Soft on the surface, firm within."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "温和细腻，照顾人于无声处；看似柔软，心里却有自己的坚持。"
+          }
+        }
+      }
+    },
+    "onboarding.personality.rat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sharp-eyed and quick-witted, you see through to the heart of things. Attentive and family-minded, you have a knack for making daily life thrive."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "机敏灵动，一眼看穿事情的门道；心思细，顾家，能把小日子盘活。"
+          }
+        }
+      }
+    },
+    "onboarding.personality.rooster" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sharp-eyed and organized, you get things done cleanly. You value standards — and you stand up for the people you care about."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "眼里有活，做事利落不拖泥带水；讲究体面，也肯为在意的人出头。"
+          }
+        }
+      }
+    },
+    "onboarding.personality.snake" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You think deep and see far, planning before you act. Beneath the calm lies sharp judgment."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "想得深，看得远，凡事谋定而后动；安静的外表下，藏着敏锐的判断力。"
+          }
+        }
+      }
+    },
+    "onboarding.personality.tiger" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A born doer — you see it and you go. Your presence gives people confidence."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天生的行动派，说干就干，眼里有光；有你在场，大家心里就有底。"
+          }
+        }
+      }
+    },
+    "onboarding.reveal.clashTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Needs patience"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需磨合"
+          }
+        }
+      }
+    },
+    "onboarding.reveal.cta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See today's fortune"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看今日运势"
+          }
+        }
+      }
+    },
+    "onboarding.reveal.friendsTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Natural friends"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "好朋友"
+          }
+        }
+      }
+    },
+    "onboarding.reveal.stanceLine" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Same birth data, same chart · Rules decide, AI polishes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同一组生辰，同一张盘 · 喜忌由规则判，AI 只润色"
           }
         }
       }
@@ -636,308 +865,107 @@
         }
       }
     },
-    "onboarding.form.title" : {
+    "profile.about.privacyTitle" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your birth details"
+            "value" : "Privacy & data"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你的出生信息"
+            "value" : "隐私与数据"
           }
         }
       }
     },
-    "onboarding.form.privacyLine" : {
+    "profile.about.stance1" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your chart stays on your phone · No account"
+            "value" : "Same birth data, same chart"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盘只存你手机 · 无账号"
+            "value" : "同一组生辰，同一张盘"
           }
         }
       }
     },
-    "onboarding.reveal.friendsTitle" : {
+    "profile.about.stance2" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Natural friends"
+            "value" : "Rules decide, AI polishes"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "好朋友"
+            "value" : "喜忌由规则判，AI 只润色"
           }
         }
       }
     },
-    "onboarding.reveal.clashTitle" : {
+    "profile.about.stance3" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Needs patience"
+            "value" : "Edge cases are labeled honestly"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "需磨合"
+            "value" : "命局有特例，如实标注"
           }
         }
       }
     },
-    "onboarding.reveal.stanceLine" : {
+    "profile.about.stanceTitle" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Same birth data, same chart · Rules decide, AI polishes"
+            "value" : "Why trust it"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "同一组生辰，同一张盘 · 喜忌由规则判，AI 只润色"
+            "value" : "为什么可信"
           }
         }
       }
     },
-    "onboarding.reveal.cta" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "See today's fortune"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "查看今日运势"
-          }
-        }
-      }
+    "QICOMPASS" : {
+
     },
-    "onboarding.personality.rat" : {
+    "welcome_sutra" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Sharp-eyed and quick-witted, you see through to the heart of things. Attentive and family-minded, you have a knack for making daily life thrive."
+            "value" : "He who does not know his fate cannot be a gentleman"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "机敏灵动，一眼看穿事情的门道；心思细，顾家，能把小日子盘活。"
-          }
-        }
-      }
-    },
-    "onboarding.personality.ox" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Slow to warm but rock-steady, you take things one solid step at a time. Quiet, yet the one everyone leans on."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "慢热但稳，认准的事一步一个脚印；话不多，却是身边人最靠得住的那一个。"
-          }
-        }
-      }
-    },
-    "onboarding.personality.tiger" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A born doer — you see it and you go. Your presence gives people confidence."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "天生的行动派，说干就干，眼里有光；有你在场，大家心里就有底。"
-          }
-        }
-      }
-    },
-    "onboarding.personality.rabbit" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gentle and perceptive, you care for others in quiet ways. Soft on the surface, firm within."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "温和细腻，照顾人于无声处；看似柔软，心里却有自己的坚持。"
-          }
-        }
-      }
-    },
-    "onboarding.personality.dragon" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You carry an inner compass — once committed, you don't look back. With a natural sense of order, you do things properly."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "心里有杆秤，认定的事不回头；天生的秩序感，做事要做得漂亮。"
-          }
-        }
-      }
-    },
-    "onboarding.personality.snake" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You think deep and see far, planning before you act. Beneath the calm lies sharp judgment."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "想得深，看得远，凡事谋定而后动；安静的外表下，藏着敏锐的判断力。"
-          }
-        }
-      }
-    },
-    "onboarding.personality.horse" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Warm and open, you light up every room. Freedom-loving, you chase your goals with unstoppable drive."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "热情坦荡，走到哪都自带气氛；向往自由，追起目标来拦都拦不住。"
-          }
-        }
-      }
-    },
-    "onboarding.personality.goat" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Soft-hearted, you can't stand seeing others struggle. With a fine eye for beauty, you turn ordinary days warm."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "心软细腻，见不得别人为难；审美在线，能把寻常日子过出温度。"
-          }
-        }
-      }
-    },
-    "onboarding.personality.monkey" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quick-minded and inventive, you find a way out of any corner. A natural entertainer, you keep every room alive."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "脑子活，点子多，再难的局面也能转出活路；天生的开心果，有你在不冷场。"
-          }
-        }
-      }
-    },
-    "onboarding.personality.rooster" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sharp-eyed and organized, you get things done cleanly. You value standards — and you stand up for the people you care about."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "眼里有活，做事利落不拖泥带水；讲究体面，也肯为在意的人出头。"
-          }
-        }
-      }
-    },
-    "onboarding.personality.dog" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loyal and faithful, you commit wholeheartedly. When a friend is in need, you're the first to show up."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "忠诚念旧，认定了就一心一意；讲义气，朋友有难第一个到。"
-          }
-        }
-      }
-    },
-    "onboarding.personality.pig" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Big-hearted and easygoing, you don't hold grudges — life flows gently. Generous to all, you're the warmth in your circle."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "心宽福厚，不记仇不较劲，日子过得松弛；对人对己都慷慨，是朋友圈里的暖流。"
+            "value" : "不知命，无以为君子也"
           }
         }
       }
@@ -954,10 +982,10 @@
     "今日剩余 %lld 次" : {
 
     },
-    "你的盘，只属于你" : {
+    "付费" : {
 
     },
-    "你的盘，算得出，也算得准" : {
+    "付费内容,解锁后可生成" : {
 
     },
     "使用 Apple 登录" : {
@@ -996,6 +1024,9 @@
     "只知时辰不知精确时间?点此选" : {
 
     },
+    "可粗略,不需精确数字" : {
+
+    },
     "合盘" : {
 
     },
@@ -1026,10 +1057,13 @@
     "四柱" : {
 
     },
+    "回到表单修改出生信息" : {
+
+    },
     "城市" : {
 
     },
-    "填写出生信息，生成你的命盘。" : {
+    "基于命局的能量规律与恢复杠杆。请先提供当前状态,LLM 才能给针对性建议(不替代医生,仅作自我觉察参考)。" : {
 
     },
     "大运" : {
@@ -1038,7 +1072,10 @@
     "女" : {
 
     },
-    "始字印章,象征开始排盘" : {
+    "好的" : {
+
+    },
+    "如:中等收入,有积蓄,无房产" : {
 
     },
     "婚姻" : {
@@ -1059,9 +1096,6 @@
     "年份" : {
 
     },
-    "开始你的第一次排盘" : {
-
-    },
     "开始合盘" : {
 
     },
@@ -1074,7 +1108,7 @@
     "当前柱" : {
 
     },
-    "影响新表单的初始值。已存档命盘不受影响(其规则随 snapshot 持久化)。" : {
+    "影响新表单的初始值。已存档命盘不受影响(其规则随 snapshot 持久化)。重置命盘会清空所有数据并重新走 onboarding。" : {
 
     },
     "性别" : {
@@ -1083,10 +1117,19 @@
     "我的" : {
 
     },
+    "我的命盘" : {
+
+    },
     "我自己 / 妈妈 / 男友" : {
 
     },
     "手动输入经度" : {
+
+    },
+    "提交" : {
+
+    },
+    "收入形态匹配度与漏财止损规则。请先提供当前状态,LLM 才能给针对性建议(不构成投资建议,自我认知用)。" : {
 
     },
     "收起详情" : {
@@ -1116,6 +1159,18 @@
     "本命盘未命中神煞" : {
 
     },
+    "查看今日运势" : {
+
+    },
+    "查看你的今日运势" : {
+
+    },
+    "正在生成…" : {
+
+    },
+    "此操作不可恢复。所有命盘、合盘记录、解读缓存都会被清空。购买记录保留在 App Store,重新 onboarding 后可恢复。" : {
+
+    },
     "每日运势" : {
 
     },
@@ -1126,9 +1181,6 @@
 
     },
     "深度解析" : {
-
-    },
-    "点击开始你的第一次排盘,填写出生信息" : {
 
     },
     "版本" : {
@@ -1146,6 +1198,9 @@
     "玄机问道印章" : {
 
     },
+    "用以上信息排盘,进入今日运势" : {
+
+    },
     "男" : {
 
     },
@@ -1155,10 +1210,25 @@
     "真太阳时偏差 %@" : {
 
     },
+    "确定要清空所有命盘和解读记录吗?" : {
+
+    },
+    "确定重置" : {
+
+    },
+    "确认出生信息" : {
+
+    },
     "确认删除「%@」?" : {
 
     },
+    "确认排盘" : {
+
+    },
     "神煞" : {
+
+    },
+    "等待上游模块完成…" : {
 
     },
     "算法:%@" : {
@@ -1170,10 +1240,16 @@
     "解锁 %lld 章付费深度内容" : {
 
     },
+    "试用新版模块化分析(M0-M7 八模块)" : {
+
+    },
     "读懂你的命局" : {
 
     },
     "购买于" : {
+
+    },
+    "跳转到今日运势 Tab" : {
 
     },
     "辅柱" : {
@@ -1198,6 +1274,12 @@
 
     },
     "重新排盘" : {
+
+    },
+    "重置命盘" : {
+
+    },
+    "重置失败" : {
 
     },
     "重试" : {
