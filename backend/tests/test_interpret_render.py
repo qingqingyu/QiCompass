@@ -127,18 +127,20 @@ def test_bazi_deep_free_render_replaces_placeholders():
 
 
 def test_bazi_deep_paid_render_replaces_placeholders():
-    """bazi_deep_paid context → render 输出含 header 占位符值 + 付费 5 章写作要求。"""
+    """bazi_deep_paid context → render 输出含 header 占位符值 + 付费 6 章写作要求。"""
     prompt = render_prompt("bazi_deep_paid", BAZI_DEEP_CONTEXT)
     # header 字段已替换
     assert BAZI_DEEP_CONTEXT["gender"] in prompt
     assert BAZI_DEEP_CONTEXT["shensha_list"] in prompt
     # 付费章节写作要求存在(MONETIZATION.md §付费章节)
+    # 2026-08-14 加第一章「十神结构与命局主线」(5 章 → 6 章,prompt_version 3)
+    assert "十神结构与命局主线" in prompt
     assert "财运" in prompt
     assert "爱情" in prompt
     assert "健康" in prompt
     assert "六亲" in prompt
     assert "晚年" in prompt
-    assert "付费 5 章" in prompt
+    assert "付费 6 章" in prompt
     assert "{" not in prompt
 
 
