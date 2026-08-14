@@ -1,14 +1,15 @@
 import SwiftUI
 import SwiftData
 
-/// Tab 2:合盘。状态机驱动(D2 五态)。
+/// Tab 2:合盘。状态机驱动(多选改造 + S02 detail 态)。
 ///
 /// 状态:
 /// - .loading → 命盘列表加载中
 /// - .empty → 0 存档,引导去深度解析
-/// - .configuring → 配置态(A/B/context)
-/// - .computing → 调 /api/bazi/compatibility 中
-/// - .ready(response, interpretState) → 结果 + AI 子状态
+/// - .configuring → 配置态(A 单选 + B 名单 / context)
+/// - .computing(completed, total) → 批量确定性合盘中(决策 D3 串行 + i/N 进度)
+/// - .list → 结果列表(决策 D9 卡片;D11 纯展示 + toolbar 修改名单;点卡片进 detail)
+/// - .detail(summary, response, interpretState) → 单对详情(S02 新增,复用 CompatibilityMainView)
 /// - .failed(msg) → 错误态
 struct CompatibilityView: View {
     @EnvironmentObject private var env: AppEnvironment
@@ -25,9 +26,15 @@ struct CompatibilityView: View {
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.light, for: .navigationBar)
             .toolbar {
-                if case .ready = vm?.state {
+                if case .list = vm?.state {
                     ToolbarItem(placement: .topBarLeading) {
-                        Button("返回修改") { vm?.backToConfig() }
+                        Button("修改名单") { vm?.backToConfig() }
+                            .foregroundStyle(BaziTheme.cinnabar)
+                    }
+                }
+                if case .detail = vm?.state {
+                    ToolbarItem(placement: .topBarLeading) {
+                        Button("返回列表") { vm?.closeDetail() }
                             .foregroundStyle(BaziTheme.cinnabar)
                     }
                 }
@@ -40,7 +47,7 @@ struct CompatibilityView: View {
                             contentHash: compatHash,
                             purchaseManager: env.purchaseManager,
                             onPurchaseSuccess: {
-                                // 购买成功 → dismiss + 重新调 _paid(查到 entitlement 自动切)
+                                // 购买成功 → dismiss + 重新调该对的解读(决策 D4 按对绑定)
                                 showPaywall = false
                                 vm?.generateInterpretation()
                             }
@@ -60,13 +67,17 @@ struct CompatibilityView: View {
                 )
             }
             vm?.loadArchivedCharts()
+            // S06:loadArchivedCharts 完成后恢复名单 + 尝试恢复 list 态
+            vm?.restoreRosterStateIfAvailable()
         }
     }
 
     private var navigationTitle: String {
         switch vm?.state {
-        case .ready: return "合盘结果"
-        default:           return "合盘"
+        case .list:    return "合盘结果"
+        case .detail:  return "合盘结果"
+        case .computing: return "推演中"
+        default:       return "合盘"
         }
     }
 
@@ -89,25 +100,34 @@ struct CompatibilityView: View {
                 CompatibilityConfigView(vm: vm) {
                     vm.compute()
                 }
-            case .computing:
-                LoadingStateView(title: "推演合盘中…")
-            case .ready(let response, let interpretState):
-                if let chartA = vm.archivedCharts[safe: vm.selectedChartAIndex]?.snapshot,
-                   let chartB = vm.bChartSnapshot {
+            case .computing(let completed, let total):
+                LoadingStateView(title: "推演合盘中… (\(completed)/\(total))")
+            case .list:
+                CompatibilityPairListView(
+                    vm: vm,
+                    summaries: vm.summaries,
+                    onBackToConfig: { vm.backToConfig() },
+                    onOpenSummary: { vm.openDetail($0) }
+                )
+            case .detail(_, let response, let interpretState):
+                // 复用 CompatibilityMainView(零改动),入参从当前对快照构造。
+                if let chartA = vm.currentDetailASnapshot,
+                   let chartB = vm.currentDetailBSnapshot {
                     CompatibilityMainView(
                         vm: vm,
                         response: response,
                         interpretState: interpretState,
                         chartASnapshot: chartA,
                         chartBSnapshot: chartB,
-                        onBackToConfig: { vm.backToConfig() },
+                        onBackToConfig: { vm.closeDetail() },
                         onGenerateInterpret: { vm.generateInterpretation() },
                         onShowPaywall: { showPaywall = true }
                     )
                 } else {
+                    // 不静默吞:detail 态但快照缺失 → 显式错误态
                     ErrorStateView(
                         userFacingError: .generic(message: "命盘数据读取失败"),
-                        retry: { vm.backToConfig() }
+                        retry: { vm.closeDetail() }
                     )
                 }
             case .failed(let userError):

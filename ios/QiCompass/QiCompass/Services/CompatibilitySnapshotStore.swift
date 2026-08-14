@@ -84,6 +84,20 @@ final class CompatibilitySnapshotStore {
         return try context.fetch(desc).first
     }
 
+    /// S05 新增:按 A hash + context 查询全部 CompatibilitySnapshot(createdAt DESC)。
+    /// 供 S06 跨启动恢复使用(恢复列表 = list 结果 ∩ 持久化名单)。
+    /// personAHash 是调用时 UI 顺序的 A(决策 D8:context 作用域;per-pair context 不做,v2)。
+    func list(personAHash: String, context: String) throws -> [CompatibilitySnapshot] {
+        let pred = #Predicate<CompatibilitySnapshot> {
+            $0.personAHash == personAHash && $0.context == context
+        }
+        let desc = FetchDescriptor<CompatibilitySnapshot>(
+            predicate: pred,
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        return try self.context.fetch(desc)
+    }
+
     /// 同步更新 AI 解读文本(长期命书)。
     /// 不静默吞:快照缺失时 throw(让调用方知道 interpretation 未持久化)。
     func updateInterpretation(

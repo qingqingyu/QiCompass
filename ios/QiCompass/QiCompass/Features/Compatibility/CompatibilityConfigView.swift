@@ -1,45 +1,41 @@
 import SwiftUI
 
-/// 合盘配置态:选 A 盘 + B 模式切换 + context picker + 底部「开始合盘」CTA(DESIGN.md §Color)。
+/// 合盘配置态(多选改造):A 盘单选 + B 名单(存档勾选 + 临时输入)+ context picker + 底部「开始合盘」CTA。
 ///
-/// 决策 D1:配置态与结果态共享同一个 ViewModel,结果态顶部「返回修改」切回此视图。
+/// 决策 D1:A 单选不变 / B 改多选名单。
+/// 决策 D2:名单 = 存档勾选 + 临时输入(可多个);上限 8 人。
+/// 决策 D11:增删入口统一在配置页(结果列表纯展示)。
 /// 决策 D4:`zi_hour_rule` 不暴露给用户,MVP 固定 `zi_next_day`,显示只读提示。
 struct CompatibilityConfigView: View {
     @Bindable var vm: CompatibilityViewModel
     let onStart: () -> Void
 
+    @State private var tempFormError: String?
+    @State private var showTempForm: Bool = false
+
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 20) {
-                // A 盘选择
+                // A 盘选择(单选不变)
                 ChartArchivePickerView(
                     title: "A 盘(你)",
                     charts: vm.archivedCharts,
                     selectedIndex: $vm.selectedChartAIndex
                 )
-
-                // B 模式切换
-                section(title: "B 盘(对方)") {
-                    Picker("B 盘模式", selection: $vm.bMode) {
-                        ForEach(BModeSelection.allCases) { mode in
-                            Text(mode.label).tag(mode)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-
-                    switch vm.bMode {
-                    case .archived:
-                        ChartArchivePickerView(
-                            title: "从存档选择 B 盘",
-                            charts: vm.archivedCharts,
-                            selectedIndex: $vm.selectedChartBIndex
-                        )
-                    case .tempInput:
-                        tempInputForm
+                .onChange(of: vm.selectedChartAIndex) { _, _ in
+                    // A 盘切换后,如果名单里有勾选了同 hash(理论上不会,因为 picker 排除了)做兜底剔除
+                    if let aHash = vm.currentPersonAHash,
+                       vm.selectedArchivedHashes.contains(aHash) {
+                        vm.toggleArchived(hash: aHash)
                     }
                 }
 
-                // context picker
+                // B 名单(决策 D2 混合名单)
+                section(title: "B 盘(对方)名单 · \(vm.roster.count)/\(CompatibilityViewModel.rosterMax)") {
+                    rosterSection
+                }
+
+                // context picker(决策 D8 配置页全局)
                 section(title: "合盘维度") {
                     Picker("合盘维度", selection: $vm.context) {
                         Text("通用").tag("general")
@@ -95,10 +91,151 @@ struct CompatibilityConfigView: View {
         }
     }
 
-    // MARK: - 临时输入表单(模式 B)
+    // MARK: - 名单区(存档多选 + 临时表单 + 已加入名单展示)
+
+    @ViewBuilder
+    private var rosterSection: some View {
+        VStack(alignment: .leading, spacing: BaziTheme.Spacing.md) {
+            // 存档多选(A 盘自己排除;D13 对方池空时 picker 内置引导文案)
+            ChartArchiveMultiPickerView(
+                title: "从存档选择",
+                charts: vm.archivedCharts,
+                excludedHash: vm.currentPersonAHash,
+                selectedHashes: vm.selectedArchivedHashes,
+                onToggle: { vm.toggleArchived(hash: $0) }
+            )
+
+            // 临时输入入口(S01 限 1 条;S04 扩多条 + 称呼字段)
+            tempInputArea
+
+            // 已加入名单展示(可移除;D11 配置页单一入口)
+            if !vm.roster.isEmpty {
+                VStack(alignment: .leading, spacing: BaziTheme.Spacing.xs) {
+                    Text("已加入名单")
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(BaziTheme.inkMuted)
+                    ForEach(vm.roster) { entry in
+                        rosterRow(entry)
+                    }
+                }
+            }
+        }
+    }
+
+    @ViewBuilder
+    private func rosterRow(_ entry: RosterEntry) -> some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(displayLabel(for: entry))
+                    .font(.subheadline)
+                    .foregroundStyle(BaziTheme.ink)
+                Text(kindLabel(for: entry))
+                    .font(.caption)
+                    .foregroundStyle(BaziTheme.inkMuted)
+            }
+            Spacer()
+            Button {
+                vm.removeRosterEntry(entry)
+            } label: {
+                Image(systemName: "minus.circle")
+                    .foregroundStyle(BaziTheme.destructive)
+            }
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background(BaziTheme.paper, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.sm).stroke(BaziTheme.hairline, lineWidth: 0.5))
+    }
+
+    private func displayLabel(for entry: RosterEntry) -> String {
+        switch entry {
+        case .archived(let hash):
+            return vm.archivedCharts.first { $0.snapshotHash == hash }?.alias ?? "未知存档"
+        case .temp(let input, let alias, _):
+            if let alias, !alias.isEmpty { return alias }
+            let loc = input.city ?? "经度 \(String(format: "%.1f", input.longitude ?? 0))"
+            let dateStr = Self.tempDateFormatter.string(from: input.birthDatetime)
+            return "临时对方 · \(dateStr) · \(loc)"
+        }
+    }
+
+    private func kindLabel(for entry: RosterEntry) -> String {
+        switch entry {
+        case .archived: return "存档"
+        case .temp: return "临时输入"
+        }
+    }
+
+    // MARK: - 临时表单(模式 B,S04 多条独立)
+
+    @ViewBuilder
+    private var tempInputArea: some View {
+        VStack(alignment: .leading, spacing: BaziTheme.Spacing.sm) {
+            HStack {
+                Text("临时输入对方")
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(BaziTheme.ink)
+                Spacer()
+                if vm.tempCountInRoster > 0 {
+                    Text("已加入 \(vm.tempCountInRoster) 条")
+                        .font(.caption2)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                }
+            }
+
+            if showTempForm {
+                tempInputForm
+                Button {
+                    addTemp()
+                } label: {
+                    HStack {
+                        Image(systemName: "plus.circle.fill")
+                        Text("添加到名单")
+                    }
+                    .font(.subheadline.weight(.semibold))
+                    .foregroundStyle(BaziTheme.cinnabar)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 10)
+                    .background(BaziTheme.cinnabarSoft, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                }
+                .disabled(vm.roster.count >= CompatibilityViewModel.rosterMax)
+            } else {
+                Button {
+                    showTempForm = true
+                } label: {
+                    HStack {
+                        Image(systemName: "plus")
+                        Text("添加临时对方")
+                    }
+                    .font(.subheadline)
+                    .foregroundStyle(BaziTheme.cinnabar)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.vertical, 8)
+                }
+                .disabled(vm.roster.count >= CompatibilityViewModel.rosterMax)
+            }
+
+            if let tempFormError {
+                Text(tempFormError)
+                    .font(.caption)
+                    .foregroundStyle(BaziTheme.destructive)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
+        }
+    }
 
     private var tempInputForm: some View {
         VStack(alignment: .leading, spacing: 12) {
+            // S04 新增:可选「称呼」字段(留空走兜底名「对方+出生日期」)
+            HStack {
+                Text("称呼").foregroundStyle(BaziTheme.inkMuted)
+                TextField("可选,如「相亲对象甲」", text: $vm.tempAlias)
+                    .foregroundStyle(BaziTheme.ink)
+                    .padding(BaziTheme.Spacing.sm)
+                    .background(BaziTheme.paper, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                    .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.sm).stroke(BaziTheme.hairline, lineWidth: 0.5))
+            }
+
             DatePicker(
                 "出生时间",
                 selection: $vm.tempBirthDate,
@@ -140,6 +277,18 @@ struct CompatibilityConfigView: View {
         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
     }
 
+    private func addTemp() {
+        do {
+            try vm.addTempToRoster()
+            tempFormError = nil
+            // S04:多条模式 → 添加成功后清空草稿(让用户继续添加下一个)
+            vm.resetTempDraftForm()
+        } catch {
+            // 不静默吞(CLAUDE.md):展示真实错误
+            tempFormError = error.localizedDescription
+        }
+    }
+
     // MARK: - context 说明
 
     private var contextDescription: String {
@@ -169,4 +318,11 @@ struct CompatibilityConfigView: View {
                 .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
         }
     }
+
+    private static let tempDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        f.timeZone = .current
+        return f
+    }()
 }
