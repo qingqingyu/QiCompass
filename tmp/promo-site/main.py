@@ -82,11 +82,14 @@ from v1_chain import (  # noqa: E402
 )
 
 from promo_prompts import (  # noqa: E402
+    CHART_QA_MAX_OUTPUT_TOKENS,
+    CHART_QA_TIMEOUT_SECONDS,
     LENGTH_TIERS,
     LENGTH_TIER_LABELS,
     LENGTH_TIER_PROMO,
     PROMO_MAX_OUTPUT_TOKENS,
     PROMO_TIMEOUT_SECONDS,
+    render_chart_qa_prompt,
     render_prompt_with_length,
 )
 
@@ -590,6 +593,11 @@ async def bazi_handler(request: Request):
         if module_tier not in {"paid", "free"}:
             module_tier = "paid"
         module = f"bazi_deep_{module_tier}"
+        # 现实对照变体(2026-08-15 方案 A+C):付费+加长版 且 填了现状 → 第七阶段
+        reality = (form.get("reality_summary") or "").strip()
+        if reality and module == "bazi_deep_paid" and length_tier == LENGTH_TIER_PROMO:
+            module = "bazi_deep_paid_reality"
+            context["reality_summary"] = reality
         prompt = render_prompt_with_length(module, context, length_tier)
         markdown_text = await _interpret_with_tier(client, prompt, length_tier)
 
@@ -973,6 +981,96 @@ async def daily_handler(request: Request):
             "daily_result.html",
             _forbidden_error_ctx(request, e, "/daily"),
             status_code=422,
+        )
+
+
+# ---------- 命盘问答(2026-08-15 加,用户模板拆解方案 B) ----------
+
+
+@app.get("/ask", response_class=HTMLResponse)
+async def ask_form(request: Request):
+    """命盘问答输入表单(出生信息 + 任意问题)。"""
+    return templates.TemplateResponse(
+        "ask_form.html", {"request": request},
+    )
+
+
+@app.post("/ask", response_class=HTMLResponse)
+async def ask_handler(request: Request):
+    """命盘问答主流程:出生信息 → BaziEngine → QA prompt(结论/根因/行动/反直觉/反问)→ AI。
+
+    错误显式传播,与三模块同口径(engine/AI/禁词分别渲染错误页)。
+    """
+    form = await request.form()
+    try:
+        birth, gender, longitude = _parse_birth_from_form(form)
+        question = (form.get("question") or "").strip()
+        if not question:
+            raise ValueError("问题不能为空")
+    except (ValueError, TypeError) as e:
+        logger.warning("ask.form_parse_failed error=%s", e)
+        return templates.TemplateResponse(
+            "ask_result.html",
+            _form_error_ctx(request, e, "/ask"),
+            status_code=400,
+        )
+
+    try:
+        engine = BaziEngine()
+        chart = await run_in_threadpool(
+            engine.calculate,
+            birth=birth,
+            gender=gender,
+            longitude=longitude,
+            zi_hour_rule="zi_next_day",
+        )
+        city = form.get("city") or None
+        context = build_bazi_context(chart, birth, gender, longitude, city=city)
+
+        client, used_provider, used_model = _get_client_for_request(form)
+        prompt = render_chart_qa_prompt(context, question)
+        markdown_text = await client.interpret(
+            prompt,
+            temperature=0.6,
+            max_tokens=CHART_QA_MAX_OUTPUT_TOKENS,
+            timeout=CHART_QA_TIMEOUT_SECONDS,
+        )
+
+        validate_interpretation(markdown_text)
+        _prepare_chart_for_template(chart)
+
+        logger.info(
+            "ask.ok content_hash=%s question_len=%d",
+            chart["content_hash"][:8], len(question),
+        )
+        return templates.TemplateResponse(
+            "ask_result.html",
+            {
+                "request": request,
+                "chart": chart,
+                "content_hash_short": chart["content_hash"][:8],
+                "question": question,
+                "markdown_html": _render_markdown_to_html(markdown_text),
+                "markdown_text": markdown_text,
+                "ai_provider": used_provider,
+                "ai_model": used_model,
+            },
+        )
+
+    except BaziCalculationFailedError as e:
+        logger.error("ask.engine_failed error=%s", e)
+        return templates.TemplateResponse(
+            "ask_result.html", _engine_error_ctx(request, e, "/ask"), status_code=500,
+        )
+    except AIProviderError as e:
+        logger.error("ask.ai_failed error=%s", e)
+        return templates.TemplateResponse(
+            "ask_result.html", _ai_error_ctx(request, e, "/ask"), status_code=503,
+        )
+    except InterpretationForbiddenError as e:
+        logger.warning("ask.forbidden_words_hit error=%s", e)
+        return templates.TemplateResponse(
+            "ask_result.html", _forbidden_error_ctx(request, e, "/ask"), status_code=422,
         )
 
 

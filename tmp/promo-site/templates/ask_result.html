@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+
+{% block title %}命盘问答结果 · QiCompass{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/markdown.css?v=20260815a">
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <a href="/ask" class="back-link">← 再问一个</a>
+    <h1 class="page-title">命盘问答{% if not error %} · {{ ai_provider | upper }} / {{ ai_model }}{% endif %}</h1>
+    {% if not error %}
+    <p class="page-subtitle">chart {{ content_hash_short }} · 日主 {{ chart.pillars.day.gan }}({{ chart.pillars.day.gan_element_zh }}) · {{ chart.strength_label }}</p>
+    {% endif %}
+</section>
+
+{% if error %}
+{% include "partials/error_box.html" %}
+{% else %}
+
+{% set module = 'ask' %}
+{% include "partials/export_toolbar.html" %}
+
+<div class="capture-target">
+    <div class="capture-target__brand">QiCompass · 命盘问答</div>
+
+    <div class="qa-question">
+        <span class="qa-question__label">问</span>
+        <p class="qa-question__text">{{ question }}</p>
+    </div>
+
+    <article class="markdown-body">
+        {{ markdown_html }}
+    </article>
+
+    <div class="caption" aria-hidden="true">
+        下载 iOS App 搜索「QiCompass」获取完整命理解析
+    </div>
+    <div class="watermark" aria-hidden="true">
+        <span class="watermark__brand">QiCompass · 玄机问道</span>
+        <span class="watermark__url">qicompass.app</span>
+    </div>
+</div>
+
+<section class="actions">
+    <a href="/ask" class="btn btn--secondary">换个问题再问</a>
+</section>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script>window.__promoMarkdown = {{ markdown_text | tojson }};</script>
+<script src="/static/export.js?v=20260815a"></script>
+{% endblock %}
