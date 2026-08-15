@@ -6,6 +6,9 @@
 雪梨	Sydney	AU
 munchen	Munich	DE
 muenchen	Munich	DE
+# S06 golden queries 闭环:GeoNames 简中数据缺口(GB 剑桥只有繁体劍橋、NYC 只有紐約市)
+剑桥	Cambridge	GB
+纽约	New York City	US
 # 北京(区县)
 海淀	Beijing	CN
 朝阳	Beijing	CN
@@ -56,7 +59,21 @@ muenchen	Munich	DE
 渝中	Chongqing	CN
 万州	Chongqing	CN
 汉沽	Tianjin	CN
-# ===== 第 4 列 = 中文显示名兜底(GeoNames 缺 zh 的正经县级市/地级市)=====
+# S06 三查 review 闭环:海外主要城市简中名缺口(GeoNames 只有繁体/台湾译名/正式名或缺 zh)
+温哥华	Vancouver	CA
+西雅图	Seattle	US
+维也纳	Vienna	AT
+奥克兰	Auckland	NZ
+河内	Hanoi	VN
+卢森堡	Luxembourg	LU
+利雅得	Riyadh	SA
+科威特城	Kuwait City	KW
+阿拉木图	Almaty	KZ
+万象	Vientiane	LA
+冲绳	Okinawa	JP
+# ===== 第 4 列 = 中文显示名兜底(GeoNames 缺 zh 的县级市/地级市/海外大城)=====
+米兰	Milan	IT	米兰
+摩纳哥	Monaco	MC	摩纳哥
 常熟	Changshu	CN	常熟市
 慈溪	Cixi	CN	慈溪市
 诸城	Zhu Cheng City	CN	诸城市

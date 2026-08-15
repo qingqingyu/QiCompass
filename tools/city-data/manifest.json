@@ -3,11 +3,11 @@
   "dataset": "cities1000",
   "pypinyin_version": "0.55.0",
   "cities": 169873,
-  "search_keys": 275019,
+  "search_keys": 275037,
   "timezones": 392,
   "countries": 246,
-  "curated_aliases": 64,
+  "curated_aliases": 79,
   "geonames_moddate_max": "2026-08-15",
-  "sqlite_sha256": "463c7ea11825811776784d37f935e354ccad8aa67654e88cbfd921104128b630",
+  "sqlite_sha256": "c1171f7e8f248cbc8f395a0a66178a711cc6de9e6c71e8f45e29b6d340ac274b",
   "sqlite_bytes": 23523328
 }
