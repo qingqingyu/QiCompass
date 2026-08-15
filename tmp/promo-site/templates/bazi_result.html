@@ -1,0 +1,207 @@
+{% extends "base.html" %}
+
+{% block title %}深度解析结果 · QiCompass{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/markdown.css?v=20260815a">
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <a href="/bazi" class="back-link">← 重新生成</a>
+    <h1 class="page-title">深度解析结果</h1>
+    {% if not error %}
+    <p class="page-subtitle">AI Provider {{ ai_provider | upper }} / {{ ai_model }} · prompt_version {{ prompt_version }} · 篇幅 {{ length_label }}</p>
+    {% endif %}
+</section>
+
+{% if error %}
+{% include "partials/error_box.html" %}
+{% else %}
+
+{% set module = 'bazi' %}
+{% include "partials/export_toolbar.html" %}
+
+<div class="capture-target">
+    <div class="capture-target__brand">QiCompass · 深度解析</div>
+
+    {# 1. Anchor sentence(顶部,朱砂卡片,对齐 iOS DeepAnalysisResultView line 38-50) #}
+    <div class="anchor-card">{{ chart.anchor_sentence | safe }}</div>
+
+    {# 2. ChartHeader(性别+真太阳时+hash,对齐 iOS ChartHeaderView) #}
+    <div class="chart-header">
+        <span class="chart-header__item">{{ '男' if gender == 'male' else '女' }}命</span>
+        <span class="chart-header__sep">·</span>
+        <span class="chart-header__item">真太阳时 {{ chart.true_solar_time_str }}</span>
+        <span class="chart-header__sep">·</span>
+        <span class="chart-header__hash">#{{ chart.content_hash[:12] }}</span>
+    </div>
+
+    {# 3. PillarsTable(横排 4 列,含十神/藏干/十二长生/旬空,日柱朱砂高亮) #}
+    <div class="pillars-table">
+        {% set labels = {'year':'年柱', 'month':'月柱', 'day':'日柱', 'hour':'时柱'} %}
+        {% for pos, label in labels.items() %}
+        {% set p = chart.pillars[pos] %}
+        <div class="pillar-table__col {{ 'pillar-table__col--day' if pos == 'day' else '' }}">
+            <div class="pillar-table__label">{{ label }}</div>
+            <div class="pillar-table__gan">
+                <span class="ganzhi-character">{{ p.gan }}</span>
+                <span class="ganzhi-element">{{ p.gan_element_zh }}</span>
+            </div>
+            <div class="pillar-table__gan-shishen">{{ p.shishen_gan }}</div>
+            <div class="pillar-table__zhi">
+                <span class="ganzhi-character">{{ p.zhi }}</span>
+                <span class="ganzhi-element">{{ p.zhi_element_zh }}</span>
+            </div>
+            <div class="pillar-table__hide-gan">
+                {% for gan, shishen in p.hide_gan_with_shishen %}
+                <div class="hide-gan-row">
+                    <span class="hide-gan-row__gan">{{ gan }}</span>
+                    <span class="hide-gan-row__shishen">{{ shishen }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="pillar-table__nayin">{{ p.nayin }}</div>
+            <div class="pillar-table__meta">
+                <span>{{ p.dishi }}</span>
+                <span>旬空 {{ p.xunkong }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# 4. AuxiliaryCards(命宫/身宫/胎元,对齐 iOS line 53-57) #}
+    <div class="aux-grid">
+        <div class="aux-card">
+            <span class="aux-card__label">命宫</span>
+            <span class="aux-card__ganzhi">{{ chart.ming_gong.gan_zhi }}</span>
+            <span class="aux-card__nayin">{{ chart.ming_gong.nayin }}</span>
+        </div>
+        <div class="aux-card">
+            <span class="aux-card__label">身宫</span>
+            <span class="aux-card__ganzhi">{{ chart.shen_gong.gan_zhi }}</span>
+            <span class="aux-card__nayin">{{ chart.shen_gong.nayin }}</span>
+        </div>
+        <div class="aux-card">
+            <span class="aux-card__label">胎元</span>
+            <span class="aux-card__ganzhi">{{ chart.tai_yuan.gan_zhi }}</span>
+            <span class="aux-card__nayin">{{ chart.tai_yuan.nayin }}</span>
+        </div>
+    </div>
+
+    {# 5. ElementBalanceBar(五行分布条,对齐 iOS ElementBalanceBar) #}
+    <div class="element-balance">
+        <div class="element-balance__title">五行分布</div>
+        <div class="element-balance__bar">
+            {% set elems = [('wood','木'), ('fire','火'), ('earth','土'), ('metal','金'), ('water','水')] %}
+            {% for key, label in elems %}
+            {% set count = chart.element_balance[key] %}
+            {% if count > 0 %}
+            {% set pct = (count * 100 / chart.element_total) | round %}
+            <div class="element-bar element-bar--{{ key }}" style="width: {{ pct }}%">
+                <span class="element-bar__label">{{ label }} {{ count }}</span>
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+
+    {# 6. XijiCard(旺衰 badge + 喜忌,对齐 iOS XijiCard) #}
+    <div class="xiji-card">
+        <div class="xiji-card__strength">
+            <span class="xiji-card__strength-label">日主旺衰</span>
+            <span class="xiji-card__strength-badge xiji-card__strength-badge--{{ chart.day_master_strength }}">{{ chart.strength_label }}</span>
+        </div>
+        <div class="xiji-card__section">
+            <span class="xiji-card__label">喜用</span>
+            <span class="xiji-card__value xiji-card__value--jade">{{ chart.favorable_zh }}</span>
+        </div>
+        <div class="xiji-card__section">
+            <span class="xiji-card__label">忌神</span>
+            <span class="xiji-card__value xiji-card__value--cinnabar">{{ chart.unfavorable_zh }}</span>
+        </div>
+    </div>
+
+    {# 7. ShenshaChips(吉凶分组 + 位置标签,对齐 iOS ShenshaChips) #}
+    {% if chart.shensha_ji or chart.shensha_xiong %}
+    <div class="shensha-section">
+        <div class="shensha-section__title">神煞({{ chart.shensha_ji | length }} 吉 + {{ chart.shensha_xiong | length }} 凶)</div>
+        {% if chart.shensha_ji %}
+        <div class="shensha-group shensha-group--ji">
+            <div class="shensha-group__label">吉神</div>
+            <div class="shensha-group__chips">
+                {% for s in chart.shensha_ji %}
+                <span class="shensha-chip shensha-chip--ji">
+                    <span class="shensha-chip__name">{{ s.name }}</span>
+                    <span class="shensha-chip__pos">{{ s.position }}</span>
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+        {% if chart.shensha_xiong %}
+        <div class="shensha-group shensha-group--xiong">
+            <div class="shensha-group__label">凶煞</div>
+            <div class="shensha-group__chips">
+                {% for s in chart.shensha_xiong %}
+                <span class="shensha-chip shensha-chip--xiong">
+                    <span class="shensha-chip__name">{{ s.name }}</span>
+                    <span class="shensha-chip__pos">{{ s.position }}</span>
+                </span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {# 8. LuckPillarsTimeline(大运,横向,跳过 index=0 童限) #}
+    {% if chart.luck_pillars and chart.luck_pillars | length > 1 %}
+    <div class="luck-section">
+        <div class="luck-section__title">大运 timeline</div>
+        <div class="luck-timeline">
+            {% for lp in chart.luck_pillars %}
+            {% if loop.index0 > 0 %}
+            {% set is_current = chart.current_luck_pillar and lp.gan_zhi == chart.current_luck_pillar.gan_zhi %}
+            <div class="luck-pillar {{ 'luck-pillar--current' if is_current else '' }}">
+                <div class="luck-pillar__age">{{ lp.start_age }}-{{ lp.end_age }}岁</div>
+                <div class="luck-pillar__ganzhi">{{ lp.gan_zhi }}</div>
+                <div class="luck-pillar__year">{{ lp.start_year }}-{{ lp.end_year }}</div>
+                {% if is_current %}<div class="luck-pillar__current-tag">当前</div>{% endif %}
+            </div>
+            {% endif %}
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
+
+    {# 9. InterpretationSection(AI 解读) #}
+    <section class="interpretation">
+        <h2 class="section-title">AI 解读</h2>
+        <div class="markdown-body">
+            {{ markdown_html | safe }}
+        </div>
+    </section>
+
+    <div class="caption" aria-hidden="true">
+        下载 iOS App 搜索「QiCompass」获取完整命理解析
+    </div>
+    <div class="watermark" aria-hidden="true">
+        <span class="watermark__brand">QiCompass · 玄机问道</span>
+        <span class="watermark__url">qicompass.app</span>
+    </div>
+</div>
+
+<section class="actions">
+    <a href="/bazi" class="btn btn--secondary">换一个命盘</a>
+</section>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if markdown_text %}
+<script>window.__promoMarkdown = {{ markdown_text | tojson | safe }};</script>
+{% endif %}
+<script src="/static/export.js?v=20260815a"></script>
+{% endblock %}

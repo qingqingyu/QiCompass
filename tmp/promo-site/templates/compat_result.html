@@ -1,0 +1,163 @@
+{% extends "base.html" %}
+
+{% block title %}合盘结果 · QiCompass{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/markdown.css?v=20260815a">
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <a href="/compat" class="back-link">← 重新生成</a>
+    <h1 class="page-title">合盘结果{% if context_label_zh %} · {{ context_label_zh }}{% endif %}</h1>
+    {% if not error %}
+    <p class="page-subtitle">AI Provider {{ ai_provider | upper }} / {{ ai_model }} · prompt_version {{ prompt_version }} · 篇幅 {{ length_label }}</p>
+    {% endif %}
+</section>
+
+{% if error %}
+{% include "partials/error_box.html" %}
+{% else %}
+
+{% set module = 'compat' %}
+{% include "partials/export_toolbar.html" %}
+
+<div class="capture-target">
+    <div class="capture-target__brand">QiCompass · 合盘 · {{ context_label_zh }}</div>
+
+    {# 1. DualPillarsTable(每柱一列,A上B下,对齐 iOS DualPillarsTable line 49-76) #}
+    <div class="dual-pillars">
+        <div class="dual-pillars__row dual-pillars__row--header">
+            <div class="dual-pillars__cell"></div>
+            <div class="dual-pillars__cell dual-pillars__cell--label">年柱</div>
+            <div class="dual-pillars__cell dual-pillars__cell--label">月柱</div>
+            <div class="dual-pillars__cell dual-pillars__cell--label">日柱</div>
+            <div class="dual-pillars__cell dual-pillars__cell--label">时柱</div>
+        </div>
+        {% for chart, label, hash_prefix in [(chart_a, 'A', chart_a.content_hash[:8]), (chart_b, 'B', chart_b.content_hash[:8])] %}
+        {% set which = 'a' if label == 'A' else 'b' %}
+        <div class="dual-pillars__person dual-pillars__person--{{ which }}">
+            <div class="dual-pillars__person-label">
+                <span class="dual-pillars__person-letter">{{ label }}</span>
+                <span class="dual-pillars__person-daymaster">{{ chart.pillars.day.gan }}{{ chart.pillars.day.zhi }}</span>
+                <span class="dual-pillars__person-strength">{{ chart.strength_label }}</span>
+                <span class="dual-pillars__person-hash">#{{ hash_prefix }}</span>
+            </div>
+            <div class="dual-pillars__cell">
+                <span class="ganzhi-character">{{ chart.pillars.year.gan }}{{ chart.pillars.year.zhi }}</span>
+                <span class="dual-pillars__nayin">{{ chart.pillars.year.nayin }}</span>
+            </div>
+            <div class="dual-pillars__cell">
+                <span class="ganzhi-character">{{ chart.pillars.month.gan }}{{ chart.pillars.month.zhi }}</span>
+                <span class="dual-pillars__nayin">{{ chart.pillars.month.nayin }}</span>
+            </div>
+            <div class="dual-pillars__cell dual-pillars__cell--day">
+                <span class="ganzhi-character">{{ chart.pillars.day.gan }}{{ chart.pillars.day.zhi }}</span>
+                <span class="dual-pillars__nayin">{{ chart.pillars.day.nayin }}</span>
+            </div>
+            <div class="dual-pillars__cell">
+                <span class="ganzhi-character">{{ chart.pillars.hour.gan }}{{ chart.pillars.hour.zhi }}</span>
+                <span class="dual-pillars__nayin">{{ chart.pillars.hour.nayin }}</span>
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+
+    {# 2. 喜忌对比(A vs B,显示五行互补基础) #}
+    <div class="dual-xiji">
+        <div class="dual-xiji__person">
+            <span class="dual-xiji__label">A 盘 · {{ chart_a.pillars.day.gan }}</span>
+            <span class="dual-xiji__row"><span class="dual-xiji__hint">喜</span> <span class="dual-xiji__value dual-xiji__value--jade">{{ chart_a.favorable_zh }}</span></span>
+            <span class="dual-xiji__row"><span class="dual-xiji__hint">忌</span> <span class="dual-xiji__value dual-xiji__value--cinnabar">{{ chart_a.unfavorable_zh }}</span></span>
+        </div>
+        <div class="dual-xiji__person">
+            <span class="dual-xiji__label">B 盘 · {{ chart_b.pillars.day.gan }}</span>
+            <span class="dual-xiji__row"><span class="dual-xiji__hint">喜</span> <span class="dual-xiji__value dual-xiji__value--jade">{{ chart_b.favorable_zh }}</span></span>
+            <span class="dual-xiji__row"><span class="dual-xiji__hint">忌</span> <span class="dual-xiji__value dual-xiji__value--cinnabar">{{ chart_b.unfavorable_zh }}</span></span>
+        </div>
+    </div>
+
+    {# 3. AssessmentCardGrid(2×2 网格,对齐 iOS AssessmentCardGrid line 47-53) #}
+    <div class="assessment-box">
+        <div class="assessment-box__title">四项定性评估</div>
+        <div class="assessment-grid assessment-grid--2x2">
+            <div class="assessment-item">
+                <span class="assessment-item__label">五行互补</span>
+                <span class="assessment-item__value">{{ assessment.five_elements }}</span>
+                <span class="assessment-item__hint">A 忌 ∩ B 喜 ∪ B 忌 ∩ A 喜 的五行数</span>
+            </div>
+            <div class="assessment-item">
+                <span class="assessment-item__label">日主关系</span>
+                <span class="assessment-item__value">{{ assessment.day_master_relation }}</span>
+                <span class="assessment-item__hint">同气 / 相生 / 相克</span>
+            </div>
+            <div class="assessment-item">
+                <span class="assessment-item__label">生肖匹配</span>
+                <span class="assessment-item__value">{{ assessment.zodiac_match }}</span>
+                <span class="assessment-item__hint">六合 / 三合 / 六冲 / 三刑 / 相害 / 无特殊</span>
+            </div>
+            <div class="assessment-item">
+                <span class="assessment-item__label">地支合冲</span>
+                <span class="assessment-item__value">{{ assessment.branch_harmony }}</span>
+                <span class="assessment-item__hint">四柱地支合冲刑害总览</span>
+            </div>
+        </div>
+    </div>
+
+    {# 4. SyncedFortuneTable(3 年流年同步表,对齐 iOS SyncedFortuneTable line 18-24) #}
+    <div class="synced-section">
+        <div class="synced-section__title">流年同步(未来 3 年)</div>
+        <table class="synced-table">
+            <thead>
+                <tr>
+                    <th class="synced-table__th">年份</th>
+                    <th class="synced-table__th">A 盘流年</th>
+                    <th class="synced-table__th">B 盘流年</th>
+                    <th class="synced-table__th">同步性</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for sf in synced_fortune %}
+                <tr class="synced-table__row synced-table__row--{{ sf.sync }}">
+                    <td class="synced-table__td synced-table__td--year">{{ sf.year }}</td>
+                    <td class="synced-table__td">{{ sf.person_a }}</td>
+                    <td class="synced-table__td">{{ sf.person_b }}</td>
+                    <td class="synced-table__td">
+                        <span class="synced-tag synced-tag--{{ sf.sync }}">{{ sf.sync }}</span>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    {# 5. AI 合盘解读 #}
+    <section class="interpretation">
+        <h2 class="section-title">AI 合盘解读</h2>
+        <div class="markdown-body">
+            {{ markdown_html | safe }}
+        </div>
+    </section>
+
+    <div class="caption" aria-hidden="true">
+        下载 iOS App 搜索「QiCompass」获取完整命理解析
+    </div>
+    <div class="watermark" aria-hidden="true">
+        <span class="watermark__brand">QiCompass · 玄机问道</span>
+        <span class="watermark__url">qicompass.app</span>
+    </div>
+</div>
+
+<section class="actions">
+    <a href="/compat" class="btn btn--secondary">换一对命盘</a>
+</section>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if markdown_text %}
+<script>window.__promoMarkdown = {{ markdown_text | tojson | safe }};</script>
+{% endif %}
+<script src="/static/export.js?v=20260815a"></script>
+{% endblock %}

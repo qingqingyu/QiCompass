@@ -1,0 +1,16 @@
+{# 篇幅档选择(三模块表单共用)— 2026-08-13 用户决策:App 输出太短,宣传物料默认长文 #}
+{# 用法:{% set length_hint = "..." %}(可选)后 {% include "partials/length_tier.html" %} #}
+<fieldset class="form__group">
+    <legend class="form__legend">篇幅 <span class="form__legend-hint">决定写作要求的字数档</span></legend>
+    <div class="segmented">
+        <label class="segmented__option">
+            <input type="radio" name="length_tier" value="promo" checked>
+            <span class="segmented__label">加长版(宣传长文)</span>
+        </label>
+        <label class="segmented__option">
+            <input type="radio" name="length_tier" value="app">
+            <span class="segmented__label">App 标准</span>
+        </label>
+    </div>
+    <p class="form__hint">{{ length_hint | default("加长版 = 每章 1000-1500 字长文(本章页主用途);App 标准 = iOS 实际输出(每章 200-300 字,Medium voice)。加长版生成耗时约 1-5 分钟,token 成本更高。") }}</p>
+</fieldset>

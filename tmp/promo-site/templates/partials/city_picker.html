@@ -1,0 +1,22 @@
+{# 全量城市选择器 partial(2026-08-15:GeoNames 23.5 万聚落)
+ #
+ # 调用方前置 set:sfx('' 或 '_a'/'_b')、default_city、default_lng
+ # JS(form.js initCityPicker)维护 hidden:
+ #   city(展示名)/ longitude / city_tz(IANA 名)/ tz_offset(按出生时刻算,含历史夏令时)
+ # 数据链:输入 → /geo/search(中文/拼音/英模糊,人口优先)→ 选中 → /geo/tz_offset
+ #}
+<div id="city-wrap{{ sfx }}" class="form__row">
+    <label class="form__field form__field--wide">
+        <span class="form__label">出生城市(全球 23.5 万聚落 — 中文 / 拼音 / 英文搜索)</span>
+        <div class="city-picker">
+            <input type="text" id="city_query{{ sfx }}" class="form__input" autocomplete="off"
+                   placeholder="如:青岛 / 宗加乡 / Shanghai / Soldeu" value="{{ default_city }}">
+            <div id="city-dropdown{{ sfx }}" class="city-dropdown" hidden></div>
+        </div>
+        <span class="form__hint">选中后自动填经度 + 按出生时间算时区偏移(含历史夏令时,如 1986-1991 中国夏令时按当年真实规则)</span>
+    </label>
+</div>
+<input type="hidden" id="city{{ sfx }}" name="city{{ sfx }}" value="{{ default_city }}">
+<input type="hidden" id="longitude{{ sfx }}" name="longitude{{ sfx }}" value="{{ default_lng }}">
+<input type="hidden" id="city_tz{{ sfx }}" value="Asia/Shanghai">
+<input type="hidden" id="tz_offset{{ sfx }}" name="tz_offset{{ sfx }}" value="8">

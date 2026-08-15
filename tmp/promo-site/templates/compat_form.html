@@ -1,0 +1,120 @@
+{% extends "base.html" %}
+{% set optgroups = [
+    ('一线 / 新一线', ['北京','上海','广州','深圳','成都','重庆','杭州','武汉','西安','南京','天津','苏州','长沙','郑州','青岛']),
+    ('省会 / 重要城市', ['沈阳','哈尔滨','长春','大连','济南','福州','厦门','合肥','南昌','太原','石家庄','呼和浩特','兰州','西宁','银川','乌鲁木齐','拉萨','昆明','贵阳','南宁','海口','三亚','台北','香港','澳门']),
+    ('海外', ['新加坡','东京','首尔','纽约','旧金山','洛杉矶','温哥华','多伦多','伦敦','巴黎','悉尼','墨尔本']),
+] %}
+
+{% block title %}合盘 · QiCompass{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <a href="/" class="back-link">← 返回首页</a>
+    <h1 class="page-title">合盘</h1>
+    <p class="page-subtitle">输入两人出生信息,生成 compatibility_paid(4 章)AI 合盘解读。篇幅可选:加长版(每章 1000-1500 字)或 App 标准(每章 200-300 字)。</p>
+</section>
+
+<form method="post" action="/compat" class="form">
+    {% include "partials/ai_config.html" %}
+
+    <fieldset class="form__group">
+        <legend class="form__legend">Module 版本 <span class="form__legend-hint">决定生成 compatibility_paid(4 章)还是 _free(2 章)</span></legend>
+        <div class="segmented">
+            <label class="segmented__option">
+                <input type="radio" name="module_tier" value="paid" checked>
+                <span class="segmented__label">付费版(4 章完整)</span>
+            </label>
+            <label class="segmented__option">
+                <input type="radio" name="module_tier" value="free">
+                <span class="segmented__label">免费版(2 章预览)</span>
+            </label>
+        </div>
+        <p class="form__hint">付费版 = iOS 付费用户(爱情/事业/财运/流年);免费版 = iOS 免费用户(基础相处 + 互补冲突 2 章)。</p>
+    </fieldset>
+
+    {% include "partials/length_tier.html" %}
+
+    <fieldset class="form__group">
+        <legend class="form__legend">合盘维度</legend>
+        <div class="segmented">
+            <label class="segmented__option">
+                <input type="radio" name="context_label" value="general" checked>
+                <span class="segmented__label">通用</span>
+            </label>
+            <label class="segmented__option">
+                <input type="radio" name="context_label" value="marriage">
+                <span class="segmented__label">婚姻</span>
+            </label>
+            <label class="segmented__option">
+                <input type="radio" name="context_label" value="business">
+                <span class="segmented__label">事业</span>
+            </label>
+        </div>
+        <p class="form__hint">通用:基础相处 + 互补冲突;婚姻:情感深度优先;事业:合作事业优先。后端定性评估算法相同,差异只在 AI 叙事侧重。</p>
+    </fieldset>
+
+    {% for prefix in ['a', 'b'] %}
+    {% set p = prefix %}
+    {% set defaults = {'a': {'date':'1990-01-15','time':'12:00','gender':'male','city':'北京','lng':116.41},
+                       'b': {'date':'1992-07-20','time':'15:30','gender':'female','city':'上海','lng':121.47}}[p] %}
+    <fieldset class="form__group">
+        <legend class="form__legend">{{ 'A 盘(你)' if p == 'a' else 'B 盘(对方)' }}</legend>
+
+        <div class="form__row">
+            <label class="form__field">
+                <span class="form__label">出生日期</span>
+                <input type="date" id="birth_date_{{ p }}" name="birth_date_{{ p }}" required value="{{ defaults.date }}" class="form__input">
+            </label>
+            <label class="form__field">
+                <span class="form__label">时间(时:分)</span>
+                <input type="time" id="birth_time_{{ p }}" name="birth_time_{{ p }}" required value="{{ defaults.time }}" class="form__input">
+            </label>
+        </div>
+
+        <details class="shichen-collapse">
+            <summary class="shichen-collapse__summary">时辰快捷选</summary>
+            <div id="shichen-grid_{{ p }}" class="shichen-grid"></div>
+        </details>
+
+        <div class="segmented">
+            <label class="segmented__option">
+                <input type="radio" name="gender_{{ p }}" value="male" {{ 'checked' if defaults.gender == 'male' else '' }}>
+                <span class="segmented__label">男</span>
+            </label>
+            <label class="segmented__option">
+                <input type="radio" name="gender_{{ p }}" value="female" {{ 'checked' if defaults.gender == 'female' else '' }}>
+                <span class="segmented__label">女</span>
+            </label>
+        </div>
+
+        <label class="form__field form__field--inline-check">
+            <input type="checkbox" id="manual_longitude_{{ p }}" name="use_manual_longitude_{{ p }}" value="1">
+            <span class="form__label">手动输入经度</span>
+        </label>
+
+        {% set sfx = '_' ~ p %}{% set default_city = defaults.city %}{% set default_lng = defaults.lng %}
+            {% include 'partials/city_picker.html' %}
+
+        <div id="manual-longitude-wrap_{{ p }}" class="form__row" style="display:none">
+            <label class="form__field form__field--wide">
+                <span class="form__label">经度(东正西负)</span>
+                <input type="number" id="manual_longitude_value_{{ p }}" step="0.0001" min="-180" max="180" value="116.41" class="form__input form__input--numeric">
+            </label>
+        </div>
+
+        <input type="hidden" id="longitude_{{ p }}" name="longitude_{{ p }}" value="116.41">
+        <input type="hidden" id="tz_offset_{{ p }}" name="tz_offset_{{ p }}" value="8">
+    </fieldset>
+    {% endfor %}
+
+    <div class="form__actions">
+        <button type="submit" class="btn btn--primary">开始合盘</button>
+        <span class="form__meta">调用 compatibility_paid v2 · 加长版预计 2-5 分钟 / App 标准 30-50 秒</span>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/form.js?v=20260815a"></script>
+<script src="/static/key_manager.js?v=20260815a"></script>
+{% endblock %}

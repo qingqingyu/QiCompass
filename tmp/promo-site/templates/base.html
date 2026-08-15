@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="icon" type="image/svg+xml" href="/static/favicon.svg">
+    <title>{% block title %}QiCompass · 玄机问道{% endblock %}</title>
+    <link rel="stylesheet" href="/static/styles.css?v=20260815a">
+    {% block head_extra %}{% endblock %}
+</head>
+<body>
+    <header class="site-header">
+        <div class="container site-header__inner">
+            <a href="/" class="brand">
+                <span class="brand__name">QiCompass</span>
+                <span class="brand__tagline">玄机问道</span>
+            </a>
+            <nav class="site-nav">
+                <a href="/bazi" class="site-nav__link">深度解析</a>
+                <a href="/compat" class="site-nav__link">合盘</a>
+                <a href="/daily" class="site-nav__link">每日运势</a>
+            </nav>
+        </div>
+    </header>
+
+    <main class="container main-content">
+        {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+        <div class="container site-footer__inner">
+            <span class="site-footer__hint">内部宣传工具 · 不公开</span>
+            <span class="site-footer__brandmark">QiCompass · 玄机问道</span>
+        </div>
+    </footer>
+
+    {% block scripts %}{% endblock %}
+</body>
+</html>

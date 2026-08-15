@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% set optgroups = [
+    ('一线 / 新一线', ['北京','上海','广州','深圳','成都','重庆','杭州','武汉','西安','南京','天津','苏州','长沙','郑州','青岛']),
+    ('省会 / 重要城市', ['沈阳','哈尔滨','长春','大连','济南','福州','厦门','合肥','南昌','太原','石家庄','呼和浩特','兰州','西宁','银川','乌鲁木齐','拉萨','昆明','贵阳','南宁','海口','三亚','台北','香港','澳门']),
+    ('海外', ['新加坡','东京','首尔','纽约','旧金山','洛杉矶','温哥华','多伦多','伦敦','巴黎','悉尼','墨尔本']),
+] %}
+
+{% block title %}每日运势 · QiCompass{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <a href="/" class="back-link">← 返回首页</a>
+    <h1 class="page-title">每日运势</h1>
+    <p class="page-subtitle">输入出生信息 + 目标日期,生成 daily_fortune 解读。篇幅可选:加长版(400-600 字)或 App 标准(50-80 字)。</p>
+</section>
+
+<form method="post" action="/daily" class="form">
+    {% include "partials/ai_config.html" %}
+
+    {% set length_hint = "加长版 = 400-600 字完整今日解读(含行动建议 + 时段节奏);App 标准 = iOS 实际输出(50-80 字,3-5 短句)。加长版生成耗时约 30-90 秒。" %}
+    {% include "partials/length_tier.html" %}
+
+    <fieldset class="form__group">
+        <legend class="form__legend">出生时间</legend>
+
+        <div class="form__row">
+            <label class="form__field">
+                <span class="form__label">出生日期</span>
+                <input type="date" id="birth_date" name="birth_date" required value="1990-01-15" class="form__input">
+            </label>
+            <label class="form__field">
+                <span class="form__label">时间(时:分)</span>
+                <input type="time" id="birth_time" name="birth_time" required value="12:00" class="form__input">
+            </label>
+        </div>
+
+        <details class="shichen-collapse">
+            <summary class="shichen-collapse__summary">只知时辰不知精确时间?点此选</summary>
+            <div id="shichen-grid" class="shichen-grid"></div>
+            <p class="form__hint">点选时辰后自动填该时辰中点时间(子时→00:00 / 午时→12:00)。子时跨日规则:23:00 换日(早子时归当日)。</p>
+        </details>
+    </fieldset>
+
+    <fieldset class="form__group">
+        <legend class="form__legend">性别</legend>
+        <div class="segmented">
+            <label class="segmented__option">
+                <input type="radio" name="gender" value="male" checked>
+                <span class="segmented__label">男</span>
+            </label>
+            <label class="segmented__option">
+                <input type="radio" name="gender" value="female">
+                <span class="segmented__label">女</span>
+            </label>
+        </div>
+    </fieldset>
+
+    <fieldset class="form__group">
+        <legend class="form__legend">出生地</legend>
+
+        <label class="form__field form__field--inline-check">
+            <input type="checkbox" id="manual_longitude" name="use_manual_longitude" value="1">
+            <span class="form__label">手动输入经度(海外 / 设备时区与出生地不一致时使用)</span>
+        </label>
+
+        {% set sfx = '' %}{% set default_city = '北京' %}{% set default_lng = 116.41 %}
+        {% include 'partials/city_picker.html' %}
+
+        <div id="manual-longitude-wrap" class="form__row" style="display:none">
+            <label class="form__field form__field--wide">
+                <span class="form__label">经度(东正西负)</span>
+                <input type="number" id="manual_longitude_value" step="0.0001" min="-180" max="180" value="116.41" class="form__input form__input--numeric">
+            </label>
+        </div>
+
+    </fieldset>
+
+    <fieldset class="form__group">
+        <legend class="form__legend">目标日期</legend>
+        <div class="form__row">
+            <label class="form__field form__field--wide">
+                <span class="form__label">查看哪一天的运势?</span>
+                <input type="date" name="target_date" required value="2026-08-13" class="form__input">
+            </label>
+        </div>
+    </fieldset>
+
+    <div class="form__actions">
+        <button type="submit" class="btn btn--primary">生成每日运势</button>
+        <span class="form__meta">调用 daily_fortune v2 · 加长版预计 30-90 秒 / App 标准 10-20 秒</span>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/form.js?v=20260815a"></script>
+<script src="/static/key_manager.js?v=20260815a"></script>
+{% endblock %}

@@ -1,0 +1,34 @@
+{# 共用截图工具栏 + 水印/引导 partial
+ #
+ # 用法:{% include "partials/export_toolbar.html" with context %}
+ # 调用方需提供:module(字符串:bazi/compat/daily)
+ #
+ # 截图工作流:
+ # 1. 点"切换截图模式" → 隐藏 nav/footer,锁宽 1080,显示水印
+ # 2. 点"导出 PNG" → html2canvas 截图,自动下载
+ #}
+<section class="export-toolbar">
+    <div class="export-toolbar__inner">
+        <span class="export-toolbar__hint">导出:</span>
+        <button type="button" class="btn btn--primary" data-action="toggle-capture">切换截图模式</button>
+        <button type="button" class="btn btn--secondary" data-action="export-png" data-module="{{ module }}">导出 PNG</button>
+        <button type="button" class="btn btn--secondary" data-action="copy-markdown">复制 Markdown</button>
+    </div>
+    <div class="export-status" data-export-status hidden></div>
+    <div class="export-toolbar__note">
+        <strong>截图模式</strong>:隐藏 nav/footer + 锁宽 1080 + 显示水印,适合发 Reddit 图片<br>
+        <strong>导出 PNG</strong>:html2canvas 截图,自动下载(文件名 qicompass_<module>_<时间戳>.png)<br>
+        <strong>复制 Markdown</strong>:复制 AI 解读原始文本到剪贴板,适合发 Reddit text post 或论坛
+    </div>
+</section>
+
+{# 水印(只在 .capture-mode 下显示,CSS 控制) #}
+<div class="watermark" aria-hidden="true">
+    <span class="watermark__brand">QiCompass · 玄机问道</span>
+    <span class="watermark__url">qicompass.app</span>
+</div>
+
+{# 引导文字(只在 .capture-mode 下显示) #}
+<div class="caption" aria-hidden="true">
+    下载 iOS App 搜索「QiCompass」获取完整命理解析
+</div>

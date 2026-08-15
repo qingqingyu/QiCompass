@@ -56,8 +56,12 @@ backend/spikes/prompt_validation/output_v1_chain/
 /dev-flow-logs/
 .gstack/
 
-# 宣传网站内部工具（不进 git；2026-08-12 加，用户拍板顶层忽略）
-/tmp/
+# 宣传物料与工具(2026-08-12 曾整体忽略 tmp/;2026-08-15 用户拍板改:代码与素材进 git,
+# 仅忽略可再生大文件与缓存)
+/tmp/promo-site/data/
+/tmp/promo-site/tools/cities500.*
+__pycache__/
+*.pyc
 
 # Codex CLI / npx skills 工具产物(本地工具配置,非项目代码)
 # - .agents/skills/ 来自 thkt/claude-config GitHub 仓库(npx skills install 装的)

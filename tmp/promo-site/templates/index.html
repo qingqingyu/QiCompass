@@ -1,0 +1,54 @@
+{% extends "base.html" %}
+
+{% block title %}QiCompass · 宣传物料生成{% endblock %}
+
+{% block content %}
+<section class="hero">
+    <h1 class="hero__title">八字解析物料生成</h1>
+    <p class="hero__subtitle">复用 QiCompass 命理引擎,生 Reddit/X 宣传用网页物料。</p>
+    <div class="hero__meta">
+        <span class="chip chip--info">AI Provider:{{ ai_provider }}</span>
+        <span class="chip chip--info">Model:{{ ai_model }}</span>
+    </div>
+</section>
+
+<section class="module-grid module-grid--4">
+    <a href="/bazi" class="module-card">
+        <div class="module-card__number">01</div>
+        <h2 class="module-card__title">深度解析</h2>
+        <p class="module-card__desc">单命盘 5 章完整解读(性格 / 事业 / 财运 / 健康 / 六亲)</p>
+        <div class="module-card__meta">bazi_deep_paid · 200-300 字/章</div>
+    </a>
+
+    <a href="/compat" class="module-card">
+        <div class="module-card__number">02</div>
+        <h2 class="module-card__title">合盘</h2>
+        <p class="module-card__desc">双人命盘四项定性评估 + 流年同步性</p>
+        <div class="module-card__meta">compatibility_paid · 4 章</div>
+    </a>
+
+    <a href="/daily" class="module-card">
+        <div class="module-card__number">03</div>
+        <h2 class="module-card__title">每日运势</h2>
+        <p class="module-card__desc">单日流日柱 + 12 时辰 + 黄历宜忌 + AI 解读</p>
+        <div class="module-card__meta">daily_fortune · 50-80 字</div>
+    </a>
+
+    <a href="/bazi-v1" class="module-card module-card--highlight">
+        <div class="module-card__number">04</div>
+        <h2 class="module-card__title">深度解析 v1 <span class="module-card__tag">链式</span></h2>
+        <p class="module-card__desc">M0-M7 串行 8 module,输出结构化 JSON(更深更细)</p>
+        <div class="module-card__meta">v1 chain · 4-7 分钟</div>
+    </a>
+</section>
+
+<section class="note">
+    <h3 class="note__title">使用说明</h3>
+    <ul class="note__list">
+        <li>填表 → 自动排盘 + AI 解读 → 网页展示</li>
+        <li>结果页支持「切换 Reddit 卡片版式」(隐藏 nav/footer)</li>
+        <li>支持 html2canvas 一键导出 PNG(阶段 4 上线)</li>
+        <li>所有解读过 forbidden_words 禁词扫描(发公开平台必过)</li>
+    </ul>
+</section>
+{% endblock %}

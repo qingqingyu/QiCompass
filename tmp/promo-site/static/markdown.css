@@ -1,0 +1,168 @@
+/* AI markdown 输出渲染样式
+ * 衬在 card-surface 上的"古籍阅读"体验
+ * 标题用 Songti SC,正文 PingFang SC
+ */
+
+.markdown-body {
+    font-family: var(--font-body);
+    font-size: var(--text-body);
+    line-height: 1.8;
+    color: var(--ink);
+    background: var(--card-surface);
+    padding: var(--space-lg);
+    border-radius: var(--radius-md);
+}
+
+/* 标题:LLM 输出 ### 三级标题 / ## 二级标题 */
+.markdown-body h1,
+.markdown-body h2,
+.markdown-body h3,
+.markdown-body h4 {
+    font-family: var(--font-display);
+    color: var(--ink);
+    line-height: 1.4;
+    margin-top: var(--space-lg);
+    margin-bottom: var(--space-md);
+    font-weight: 600;
+}
+
+.markdown-body h1:first-child,
+.markdown-body h2:first-child,
+.markdown-body h3:first-child {
+    margin-top: 0;
+}
+
+.markdown-body h1 { font-size: var(--text-h1); }
+.markdown-body h2 { font-size: var(--text-h2); color: var(--cinnabar); }
+.markdown-body h3 { font-size: var(--text-h3); font-weight: 500; }
+.markdown-body h4 { font-size: var(--text-body); font-weight: 600; }
+
+/* 段落 */
+.markdown-body p {
+    margin-bottom: var(--space-md);
+}
+
+.markdown-body p:last-child {
+    margin-bottom: 0;
+}
+
+/* 加粗 — 朱砂强调(克制使用) */
+.markdown-body strong {
+    color: var(--cinnabar);
+    font-weight: 600;
+}
+
+/* 斜体 — 灰墨弱化 */
+.markdown-body em {
+    color: var(--ink-muted);
+    font-style: italic;
+}
+
+/* 列表 */
+.markdown-body ul,
+.markdown-body ol {
+    padding-left: var(--space-lg);
+    margin-bottom: var(--space-md);
+}
+
+.markdown-body ul li,
+.markdown-body ol li {
+    margin-bottom: var(--space-xs);
+    line-height: 1.7;
+}
+
+.markdown-body ul li::marker {
+    color: var(--ink-muted);
+}
+
+.markdown-body ol li::marker {
+    font-family: var(--font-numeric);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink-muted);
+}
+
+/* 引用块 — 灰墨边线 */
+.markdown-body blockquote {
+    border-left: 2px solid var(--cinnabar);
+    padding: var(--space-xs) var(--space-md);
+    margin: var(--space-md) 0;
+    color: var(--ink-muted);
+    font-style: italic;
+}
+
+/* 行内代码 */
+.markdown-body code {
+    font-family: 'SF Mono', Menlo, monospace;
+    font-size: 0.92em;
+    background: rgba(107, 101, 87, 0.1);
+    padding: 2px 6px;
+    border-radius: var(--radius-sm);
+    color: var(--ink);
+}
+
+/* 代码块 */
+.markdown-body pre {
+    background: rgba(107, 101, 87, 0.08);
+    padding: var(--space-md);
+    border-radius: var(--radius-sm);
+    overflow-x: auto;
+    margin-bottom: var(--space-md);
+    border: 0.5px solid var(--hairline);
+}
+
+.markdown-body pre code {
+    background: transparent;
+    padding: 0;
+    font-size: var(--text-caption);
+}
+
+/* 水平线 — hairline */
+.markdown-body hr {
+    border: none;
+    border-top: 0.5px solid var(--hairline);
+    margin: var(--space-lg) 0;
+}
+
+/* 链接 — 黛蓝 */
+.markdown-body a {
+    color: var(--dai-blue);
+    text-decoration: underline;
+    text-decoration-thickness: 0.5px;
+    text-underline-offset: 3px;
+}
+
+.markdown-body a:hover {
+    color: var(--cinnabar);
+}
+
+/* 表格 */
+.markdown-body table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: var(--space-md);
+    font-size: var(--text-caption);
+}
+
+.markdown-body th,
+.markdown-body td {
+    padding: var(--space-xs) var(--space-sm);
+    text-align: left;
+    border-bottom: 0.5px solid var(--hairline);
+}
+
+.markdown-body th {
+    font-family: var(--font-display);
+    font-weight: 500;
+    color: var(--ink);
+}
+
+.markdown-body td {
+    color: var(--ink-muted);
+}
+
+.markdown-body td.numeric,
+.markdown-body th.numeric {
+    font-family: var(--font-numeric);
+    font-variant-numeric: tabular-nums;
+    text-align: right;
+}
