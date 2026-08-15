@@ -45,6 +45,7 @@
 		9C0000000000000000000019 /* SwiftDataCRUDView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000019 /* SwiftDataCRUDView.swift */; };
 		9C000000000000000000001A /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000001A /* Assets.xcassets */; };
 		9C000000000000000000005B /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005B /* Localizable.xcstrings */; };
+		9C000000000000000000005C /* cities.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005C /* cities.sqlite */; };
 		9C000000000000000000001C /* BusinessDateCalculator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000001C /* BusinessDateCalculator.swift */; };
 		9C000000000000000000001D /* DailyFortuneSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000001D /* DailyFortuneSnapshotStore.swift */; };
 		9C000000000000000000001E /* DailyFortuneOrchestrator.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000001E /* DailyFortuneOrchestrator.swift */; };
@@ -185,6 +186,7 @@
 		9C1000000000000000000019 /* SwiftDataCRUDView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SwiftDataCRUDView.swift; sourceTree = "<group>"; };
 		9C100000000000000000001A /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		9C100000000000000000005B /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		9C100000000000000000005C /* cities.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = cities.sqlite; sourceTree = "<group>"; };
 		9C100000000000000000001B /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		9C100000000000000000001C /* BusinessDateCalculator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BusinessDateCalculator.swift; path = QiCompass/Services/BusinessDateCalculator.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000001D /* DailyFortuneSnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneSnapshotStore.swift; path = QiCompass/Services/DailyFortuneSnapshotStore.swift; sourceTree = SOURCE_ROOT; };
@@ -506,6 +508,7 @@
 			children = (
 				9C100000000000000000001A /* Assets.xcassets */,
 				9C100000000000000000005B /* Localizable.xcstrings */,
+				9C100000000000000000005C /* cities.sqlite */,
 				9C100000000000000000001B /* Info.plist */,
 			);
 			path = Resources;
@@ -638,6 +641,7 @@
 			files = (
 				9C000000000000000000001A /* Assets.xcassets in Resources */,
 				9C000000000000000000005B /* Localizable.xcstrings in Resources */,
+				9C000000000000000000005C /* cities.sqlite in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

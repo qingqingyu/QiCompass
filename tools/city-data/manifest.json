@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "dataset": "cities1000",
+  "pypinyin_version": "0.55.0",
+  "cities": 169873,
+  "search_keys": 275019,
+  "timezones": 392,
+  "countries": 246,
+  "curated_aliases": 64,
+  "geonames_moddate_max": "2026-08-15",
+  "sqlite_sha256": "463c7ea11825811776784d37f935e354ccad8aa67654e88cbfd921104128b630",
+  "sqlite_bytes": 23523328
+}
