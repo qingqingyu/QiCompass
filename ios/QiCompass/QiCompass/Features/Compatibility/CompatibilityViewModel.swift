@@ -74,12 +74,37 @@ final class CompatibilityViewModel {
     /// 默认值单一事实源:`CompatibilityRosterPersistence.defaultTempDraft`(VM init 会用持久化草稿覆盖)。
     var tempBirthDate: Date = CompatibilityRosterPersistence.defaultTempDraft.birthDate
     var tempGender: String = CompatibilityRosterPersistence.defaultTempDraft.gender
-    var tempSelectedCity: String = CompatibilityRosterPersistence.defaultTempDraft.city
+    /// 出生地(全球城市搜索,S04;无默认城市,必选)
+    var tempPlace: CityRecord? = CompatibilityRosterPersistence.defaultTempDraft.place
     var tempUseManualLongitude: Bool = CompatibilityRosterPersistence.defaultTempDraft.useManualLongitude
     var tempManualLongitude: Double = CompatibilityRosterPersistence.defaultTempDraft.manualLongitude
     /// S04 新增:临时人可选「称呼」字段(会话内显示)。
     /// 空字符串视为未填 → 跨启动兜底名「对方+出生日期」。
     var tempAlias: String = ""
+
+    /// 临时人出生城市时区 Calendar(WYSIWYG:表盘与钟面提取按出生地,不随设备漂移)。
+    /// 手动经度开启时回退设备时区(与请求构造的过渡语义一致,避免表盘/请求时区分裂)。
+    var tempPlaceCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        let tzName = BirthPlaceResolver.effectiveTimezoneName(
+            place: tempPlace, useManualLongitude: tempUseManualLongitude
+        )
+        if let tz = tzName.flatMap({ TimeZone(identifier: $0) }) {
+            calendar.timeZone = tz
+        } else {
+            calendar.timeZone = .current
+        }
+        return calendar
+    }
+
+    /// 临时人钟面 → 裸钟面字符串(S02 契约;城市时区优先,手动经度过渡期设备时区)。
+    private func tempWallTimeString() -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        formatter.timeZone = tempPlaceCalendar.timeZone
+        return formatter.string(from: tempBirthDate)
+    }
 
     /// context picker(通用 / 婚姻 / 事业;决策 D8 配置页全局)
     var context: String = "general"
@@ -234,13 +259,21 @@ final class CompatibilityViewModel {
         guard roster.count < Self.rosterMax else {
             throw UserFacingError.generic(message: "名单已达上限 \(Self.rosterMax) 人")
         }
-        let city: String? = tempUseManualLongitude ? nil : tempSelectedCity
-        let longitude: Double? = tempUseManualLongitude ? tempManualLongitude : nil
+        // 出生地字段解析走单一事实源(S04 review):手动经度开关优先于残留 tempPlace,
+        // 草稿恢复的上次城市不得静默覆盖手动值(错误显式传播)。
+        let resolved = BirthPlaceResolver.resolve(
+            place: tempPlace,
+            useManualLongitude: tempUseManualLongitude,
+            manualLongitude: tempManualLongitude
+        )
         let input = PersonBInput(
-            birthDatetime: tempBirthDate,
+            birthDatetime: tempWallTimeString(),
+            timezone: resolved.timezone,
             gender: tempGender,
-            city: city,
-            longitude: longitude
+            longitude: resolved.longitude,
+            latitude: resolved.latitude,
+            placeName: resolved.placeName,
+            geonameId: resolved.geonameId
         )
         // alias 空字符串视为 nil(统一兜底名判定)
         let alias = tempAlias.trimmingCharacters(in: .whitespaces)
@@ -256,7 +289,7 @@ final class CompatibilityViewModel {
             .init(
                 birthDate: tempBirthDate,
                 gender: tempGender,
-                city: tempSelectedCity,
+                place: tempPlace,
                 useManualLongitude: tempUseManualLongitude,
                 manualLongitude: tempManualLongitude
             )
@@ -275,7 +308,7 @@ final class CompatibilityViewModel {
     private func applyTempDraft(_ draft: CompatibilityRosterPersistence.TempDraftState) {
         tempBirthDate = draft.birthDate
         tempGender = draft.gender
-        tempSelectedCity = draft.city
+        tempPlace = draft.place
         tempUseManualLongitude = draft.useManualLongitude
         tempManualLongitude = draft.manualLongitude
     }
@@ -292,9 +325,9 @@ final class CompatibilityViewModel {
             AppLogger.app.warning("op=compatibility.validateTemp skip reason=b_birth_future")
             throw UserFacingError.generic(message: "B 盘出生时间不能晚于当下")
         }
-        if !tempUseManualLongitude && tempSelectedCity.trimmingCharacters(in: .whitespaces).isEmpty {
+        if !tempUseManualLongitude && tempPlace == nil {
             AppLogger.app.warning("op=compatibility.validateTemp skip reason=b_city_empty")
-            throw UserFacingError.generic(message: "请选择 B 盘城市,或开启手动经度输入")
+            throw UserFacingError.generic(message: "请选择出生城市,或开启手动经度输入")
         }
         if tempUseManualLongitude && !(-180.0...180.0).contains(tempManualLongitude) {
             AppLogger.app.warning("op=compatibility.validateTemp skip reason=b_longitude_out_of_range")
@@ -594,9 +627,8 @@ final class CompatibilityViewModel {
             if let alias, !alias.isEmpty {
                 displayName = alias
             } else {
-                // S04 兜底名:用 input 的出生时间(input 已校验未来不会出现)
-                let dateStr = Self.fallbackDateFormatter.string(from: input.birthDatetime)
-                displayName = "对方 · \(dateStr)"
+                // S04 兜底名:birthDatetime 已是裸钟面字符串,直接读(出生地钟面)
+                displayName = "对方 · \(input.wallClockDisplay)"
             }
         }
         let userError = UserFacingError.from(error, stage: .compatibilityDeterministic)
@@ -621,9 +653,9 @@ final class CompatibilityViewModel {
         guard let idx = roster.firstIndex(where: { entry in
             if case .temp(let existingInput, let existingAlias, _) = entry,
                existingInput.birthDatetime == input.birthDatetime,
+               existingInput.timezone == input.timezone,
                existingInput.gender == input.gender,
-               (existingInput.city ?? "") == (input.city ?? ""),
-               (existingInput.longitude ?? 0) == (input.longitude ?? 0),
+               existingInput.longitude == input.longitude,
                (existingAlias ?? "") == (alias ?? "") {
                 return true
             }
@@ -638,13 +670,14 @@ final class CompatibilityViewModel {
         )
     }
 
-    /// S04:兜底名「对方+出生日期」用的日期格式器。
-    private static let fallbackDateFormatter: DateFormatter = {
+    /// S04 兜底名「对方+出生日期」:真太阳时按**出生城市时区**格式化
+    /// (birthSolarTime 现存真太阳时,设备时区渲染会在西部城市错一天)。
+    private static func fallbackDateString(_ date: Date, timezoneName: String?) -> String {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
-        f.timeZone = .current
-        return f
-    }()
+        f.timeZone = timezoneName.flatMap(TimeZone.init(identifier:)) ?? .current
+        return f.string(from: date)
+    }
 
     /// S05:命中本地快照时用其重建 PairSummary(无 API 调用,内容寻址的自然收益)。
     /// 不静默吞:decode 失败 / B ChartSnapshot 缺失 → throw 走该对失败路径(S03 隔离)。
@@ -674,14 +707,16 @@ final class CompatibilityViewModel {
             if let chart = archivedCharts.first(where: { $0.snapshotHash == bHash }) {
                 displayName = chart.alias
             } else {
-                let dateStr = Self.fallbackDateFormatter.string(from: bChartSnapshot.birthSolarTime)
+                let dateStr = Self.fallbackDateString(bChartSnapshot.birthSolarTime,
+                                                      timezoneName: bChartSnapshot.cityTimezone)
                 displayName = "对方 · \(dateStr)"
             }
         case .temp(_, let alias, _):
             if let alias, !alias.isEmpty {
                 displayName = alias
             } else {
-                let dateStr = Self.fallbackDateFormatter.string(from: bChartSnapshot.birthSolarTime)
+                let dateStr = Self.fallbackDateString(bChartSnapshot.birthSolarTime,
+                                                      timezoneName: bChartSnapshot.cityTimezone)
                 displayName = "对方 · \(dateStr)"
             }
         }
@@ -798,8 +833,9 @@ final class CompatibilityViewModel {
             if let alias, !alias.isEmpty {
                 displayName = alias
             } else {
-                // S04 兜底名:「对方+出生日期」(从 ChartSnapshot.birthSolarTime 读)
-                let dateStr = Self.fallbackDateFormatter.string(from: bSnapshot.birthSolarTime)
+                // S04 兜底名:「对方+出生日期」(按出生城市时区格式化真太阳时)
+                let dateStr = Self.fallbackDateString(bSnapshot.birthSolarTime,
+                                                      timezoneName: bSnapshot.cityTimezone)
                 displayName = "对方 · \(dateStr)"
             }
         }

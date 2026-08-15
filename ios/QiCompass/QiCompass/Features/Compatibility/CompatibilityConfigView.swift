@@ -153,9 +153,9 @@ struct CompatibilityConfigView: View {
             return vm.archivedCharts.first { $0.snapshotHash == hash }?.alias ?? "未知存档"
         case .temp(let input, let alias, _):
             if let alias, !alias.isEmpty { return alias }
-            let loc = input.city ?? "经度 \(String(format: "%.1f", input.longitude ?? 0))"
-            let dateStr = Self.tempDateFormatter.string(from: input.birthDatetime)
-            return "对方 · \(dateStr) · \(loc)"
+            // S04:birthDatetime 已是裸钟面字符串,直接读(= 出生地钟面,无时区换算问题)
+            let loc = input.placeName ?? "经度 \(String(format: "%.1f", input.longitude))"
+            return "对方 · \(input.wallClockDisplay) · \(loc)"
         }
     }
 
@@ -244,6 +244,8 @@ struct CompatibilityConfigView: View {
             )
             .datePickerStyle(.compact)
             .foregroundStyle(BaziTheme.ink)
+            // WYSIWYG:表盘按对方出生城市时区(S04;解释责任在后端 zoneinfo)
+            .environment(\.calendar, vm.tempPlaceCalendar)
 
             Picker("性别", selection: $vm.tempGender) {
                 Text("男").tag("male")
@@ -264,12 +266,8 @@ struct CompatibilityConfigView: View {
                         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
             } else {
-                Picker("城市", selection: $vm.tempSelectedCity) {
-                    ForEach(CityList.cities, id: \.self) { city in
-                        Text(city).tag(city)
-                    }
-                }
-                .foregroundStyle(BaziTheme.ink)
+                // S04:全球城市搜索(与深度解析同一组件)
+                CityPickerField(selection: $vm.tempPlace)
             }
         }
         .padding(BaziTheme.Spacing.md)
@@ -318,11 +316,4 @@ struct CompatibilityConfigView: View {
                 .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
         }
     }
-
-    private static let tempDateFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd HH:mm"
-        f.timeZone = .current
-        return f
-    }()
 }

@@ -126,19 +126,18 @@ final class DeepAnalysisViewModel {
 
     /// 出生城市时区 Calendar:DatePicker/时辰快捷选挂它,表盘即出生地钟面。
     /// 只做显示与钟面提取,**不做 naive→UTC 换算**(后端 zoneinfo 负责,S02 契约)。
+    /// 时区解析走 `BirthPlaceResolver` 单一事实源(手动经度 → 设备时区,S04 review)。
     var placeCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
-        if let tzName = effectiveTimezoneName, let tz = TimeZone(identifier: tzName) {
+        let tzName = BirthPlaceResolver.effectiveTimezoneName(
+            place: selectedPlace, useManualLongitude: useManualLongitude
+        )
+        if let tzName, let tz = TimeZone(identifier: tzName) {
             calendar.timeZone = tz
         } else {
             calendar.timeZone = .current
         }
         return calendar
-    }
-
-    /// 请求用的 IANA 时区名:城市优先;手动经度过渡期用设备时区(S05 换掉)。
-    private var effectiveTimezoneName: String? {
-        selectedPlace?.timezone
     }
 
     /// 从 birthDate(绝对时刻)提取出生地**裸钟面**字符串(yyyy-MM-dd'T'HH:mm:ss)。
@@ -172,36 +171,22 @@ final class DeepAnalysisViewModel {
 
     /// 从表单构造请求(S02 契约:裸钟面 + timezone + 物理真值)。
     /// place_name/geoname_id/latitude 是存档展示元数据,不参与 content_hash。
+    /// 出生地字段解析走 `BirthPlaceResolver` 单一事实源(S04 review):
+    /// 手动经度开关优先于残留 selectedPlace,手动值不得被静默覆盖。
     func buildRequest() -> BaziCalculateRequest {
-        let timezone: String
-        let longitude: Double
-        let latitude: Double?
-        let placeName: String?
-        let geonameId: Int?
-
-        if let place = selectedPlace {
-            timezone = place.timezone
-            longitude = place.longitude
-            latitude = place.latitude
-            placeName = place.displayName
-            geonameId = place.geonameId
-        } else {
-            // 手动经度过渡路径(S05 升级):时区暂用设备时区
-            timezone = TimeZone.current.identifier
-            longitude = manualLongitude
-            latitude = nil
-            placeName = nil
-            geonameId = nil
-        }
-
+        let resolved = BirthPlaceResolver.resolve(
+            place: selectedPlace,
+            useManualLongitude: useManualLongitude,
+            manualLongitude: manualLongitude
+        )
         return BaziCalculateRequest(
             birthDatetime: wallTimeString(for: birthDate),
-            timezone: timezone,
+            timezone: resolved.timezone,
             gender: gender,
-            longitude: longitude,
-            latitude: latitude,
-            placeName: placeName,
-            geonameId: geonameId,
+            longitude: resolved.longitude,
+            latitude: resolved.latitude,
+            placeName: resolved.placeName,
+            geonameId: resolved.geonameId,
             ziHourRule: ziHourRule
         )
     }

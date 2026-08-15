@@ -72,45 +72,68 @@ struct CompatibilityRequest: Codable, Sendable {
 
 /// 模式 B 输入(B 临时输入,字段子集复用 BaziCalculateRequest)。
 ///
-/// `city` 与 `longitude` 至少传一个(后端 `city_or_longitude_required` 兜底,422)。
-/// `longitude` 优先级高于 `city`。`ziHourRule` MVP 固定 `zi_next_day`。
-struct PersonBInput: Codable, Sendable {
-    let birthDatetime: Date
+/// S02 契约(与 /api/bazi/calculate 同一套):birthDatetime **裸钟面字符串**
+/// (yyyy-MM-dd'T'HH:mm:ss)+ timezone(后端 zoneinfo 解释)+ longitude 必填;
+/// latitude/placeName/geonameId 存档展示用。`ziHourRule` MVP 固定 `zi_next_day`。
+struct PersonBInput: Codable, Sendable, Equatable {
+    let birthDatetime: String
+    let timezone: String
     let gender: String
-    let city: String?
-    let longitude: Double?
+    let longitude: Double
+    let latitude: Double?
+    let placeName: String?
+    let geonameId: Int?
     let ziHourRule: String
 
     enum CodingKeys: String, CodingKey {
         case birthDatetime = "birth_datetime"
+        case timezone
         case gender
-        case city
         case longitude
+        case latitude
+        case placeName = "place_name"
+        case geonameId = "geoname_id"
         case ziHourRule = "zi_hour_rule"
     }
 
     init(
-        birthDatetime: Date,
+        birthDatetime: String,
+        timezone: String,
         gender: String,
-        city: String?,
-        longitude: Double?,
+        longitude: Double,
+        latitude: Double? = nil,
+        placeName: String? = nil,
+        geonameId: Int? = nil,
         ziHourRule: String = "zi_next_day"
     ) {
         self.birthDatetime = birthDatetime
+        self.timezone = timezone
         self.gender = gender
-        self.city = city
         self.longitude = longitude
+        self.latitude = latitude
+        self.placeName = placeName
+        self.geonameId = geonameId
         self.ziHourRule = ziHourRule
     }
 
-    /// 编码:跳过 nil 字段(避免传 null 干扰后端 city/longitude 互斥校验)。
+    /// 编码:跳过 nil 字段(避免传 null 干扰后端互斥校验,对齐后端 extra=forbid)。
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(birthDatetime, forKey: .birthDatetime)
+        try container.encode(timezone, forKey: .timezone)
         try container.encode(gender, forKey: .gender)
-        try container.encodeIfPresent(city, forKey: .city)
-        try container.encodeIfPresent(longitude, forKey: .longitude)
+        try container.encode(longitude, forKey: .longitude)
+        try container.encodeIfPresent(latitude, forKey: .latitude)
+        try container.encodeIfPresent(placeName, forKey: .placeName)
+        try container.encodeIfPresent(geonameId, forKey: .geonameId)
         try container.encode(ziHourRule, forKey: .ziHourRule)
+    }
+
+    /// 裸钟面字符串 → 展示格式(yyyy-MM-dd HH:mm,去秒)。
+    /// 格式固定 19 字符(yyyy-MM-dd'T'HH:mm:ss),dropLast(3) 去 ":ss" 安全。
+    /// 名单行 / 失败卡片兜底名共用,避免各处内联重复(S04 review)。
+    var wallClockDisplay: String {
+        String(birthDatetime.dropLast(3)).replacingOccurrences(of: "T", with: " ")
     }
 }
 

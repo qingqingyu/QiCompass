@@ -27,7 +27,9 @@ enum APICoder {
     /// (convertToSnakeCase 会对 CodingKey stringValue 再做一次转换,可能 double-convert)。
     static let encoder: JSONEncoder = {
         let e = JSONEncoder()
-        // ISO 8601 with timezone(对齐后端 birth_datetime offset-aware 要求)
+        // ISO 8601 只作用于仍为 Date 类型的 DTO 字段(如 trueSolarTime)。
+        // birth_datetime 是 S02 裸钟面字符串(yyyy-MM-dd'T'HH:mm:ss,无 offset,
+        // 时区走 timezone 字段),不经此策略(S04 review 修正过时注释)。
         e.dateEncodingStrategy = .iso8601
         return e
     }()
@@ -391,8 +393,8 @@ final class MockAPIClient: APIClient {
             let ganzhi = GanZhiNaYinDTO(ganZhi: "丙午", nayin: "天河水")
             let balance = ElementBalanceDTO(wood: 1, fire: 3, earth: 1, metal: 1, water: 2)
             personBChart = BaziResponse(
-                contentHash: "mock_b_\(req.personB?.birthDatetime.timeIntervalSince1970 ?? 0)",
-                trueSolarTime: req.personB?.birthDatetime ?? .now,
+                contentHash: "mock_b_\(req.personB?.birthDatetime ?? "nil")_\(req.personB?.timezone ?? "")",
+                trueSolarTime: req.personB.flatMap { Self.mockWallDate($0.birthDatetime) } ?? .now,
                 trueSolarOffsetMinutes: -14.4,
                 pillars: pillars,
                 mingGong: ganzhi, shenGong: ganzhi, taiYuan: ganzhi,
@@ -431,7 +433,7 @@ final class MockAPIClient: APIClient {
         }
 
         // 合盘 hash:简单用 personAHash + (personBHash ?? personB?.birthDatetime) + context 拼接
-        let bKey = req.personBHash ?? "tmp_\(req.personB?.birthDatetime.timeIntervalSince1970 ?? 0)"
+        let bKey = req.personBHash ?? "tmp_\(req.personB?.birthDatetime ?? "nil")"
         let compatibilityHash = "mock_compat_\(req.personAHash)_\(bKey)_\(req.context)"
 
         return CompatibilityResponse(

@@ -85,19 +85,15 @@ final class CompatibilityOrchestrator {
                 throw CompatibilityError.modeBMissingPersonBInput
             }
             personBHashFinal = bResponse.contentHash
-            // TODO(S04): person_b 契约迁移(裸钟面+timezone+place)后此处换真实字段。
-            // 过渡策略:PersonBInput 仍是旧形态(Date+city),钟面按设备时区提取 naive 字符串。
-            let bWallFormatter = DateFormatter()
-            bWallFormatter.locale = Locale(identifier: "en_US_POSIX")
-            bWallFormatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+            // S04:PersonBInput 已迁 S02 契约(裸钟面+timezone+物理真值),直传存档
             let bRequest = BaziCalculateRequest(
-                birthDatetime: bWallFormatter.string(from: personB.birthDatetime),
-                timezone: TimeZone.current.identifier,
+                birthDatetime: personB.birthDatetime,
+                timezone: personB.timezone,
                 gender: personB.gender,
-                longitude: personB.longitude ?? bResponse.calcRuleSnapshot.trueSolarLongitude,
-                latitude: nil,
-                placeName: personB.city,
-                geonameId: nil,
+                longitude: personB.longitude,
+                latitude: personB.latitude,
+                placeName: personB.placeName,
+                geonameId: personB.geonameId,
                 ziHourRule: personB.ziHourRule
             )
             _ = try chartStore.upsert(response: bResponse, request: bRequest)

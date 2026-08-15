@@ -165,6 +165,28 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         XCTAssertNil(request.geonameId)
     }
 
+    func testBuildRequestManualLongitudeOverridesStalePlace() {
+        // S04 review:先选城后开手动经度 → 残留 selectedPlace 不得静默覆盖手动值
+        // (三入口一致;表单 UI 开关 ON 时隐藏城市选择,place 只能是残留)
+        vm.selectedPlace = Self.losAngeles
+        vm.useManualLongitude = true
+        vm.manualLongitude = 87.62
+        let request = vm.buildRequest()
+        XCTAssertEqual(request.timezone, TimeZone.current.identifier)
+        XCTAssertEqual(request.longitude, 87.62, accuracy: 1e-9,
+                       "手动经度必须优先于残留城市经度")
+        XCTAssertNil(request.placeName)
+        XCTAssertNil(request.geonameId)
+    }
+
+    func testPlaceCalendarFallsBackToCurrentWhenManualLongitudeOn() {
+        // WYSIWYG 同源:手动经度模式表盘 = 设备时区(与 buildRequest 的 timezone 一致)
+        vm.selectedPlace = Self.losAngeles
+        vm.useManualLongitude = true
+        XCTAssertEqual(vm.placeCalendar.timeZone.identifier, TimeZone.current.identifier,
+                       "手动经度模式表盘不得沿用残留城市时区")
+    }
+
     // MARK: - 时辰快捷选挂城市时区(WYSIWYG)
 
     func testSetShichenHourUsesPlaceCalendar() throws {
