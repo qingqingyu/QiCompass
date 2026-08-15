@@ -19,7 +19,7 @@ from datetime import datetime, timezone
 
 from lunar_python import Solar
 
-from ..core.city_longitude import resolve_longitude
+from ..core.tz_resolution import resolve_wall_time
 from ..engine.bazi_engine import BaziEngine
 from ..engine.pillars import (
     GAN_ELEMENT, ZHI_ELEMENT,
@@ -367,15 +367,16 @@ def compute_compatibility(
             b_payload = req.chart_payload_b
             b_hash = req.person_b_hash
         else:
-            # 模式 B: 后端现排 B
+            # 模式 B: 后端现排 B(S02 契约:钟面 + timezone 由 zoneinfo 解释)
             assert req.person_b is not None  # model_validator 已校验
             pb = req.person_b
-            longitude = resolve_longitude(pb.city, pb.longitude)
+            resolved_b = resolve_wall_time(pb.birth_datetime, pb.timezone)
 
             engine = BaziEngine(now=now)
             b_result = engine.calculate(
-                birth=pb.birth_datetime, gender=pb.gender,
-                longitude=longitude, zi_hour_rule=pb.zi_hour_rule,
+                birth=resolved_b.aware, gender=pb.gender,
+                longitude=pb.longitude, zi_hour_rule=pb.zi_hour_rule,
+                dst_flags=resolved_b.dst_flags, birth_timezone=pb.timezone,
             )
             # BaziEngine.calculate 返回 dict, 转为 BaziCalculateResponse
             b_full_response = BaziCalculateResponse(**b_result)
@@ -463,8 +464,8 @@ def compute_compatibility(
             calc_rule_snapshot=calc_rule_snapshot,
         )
     except (BaziError, ValueError):
-        # 已是结构化错误或 ValueError, 原样向上抛。
-        # 例如城市查表失败应保留 CITY_NOT_FOUND/404,不能包装成排盘 500。
+        # 已是结构化错误或 ValueError(如模式 B 字段非法), 原样向上抛,
+        # 不包装成排盘 500(S02 后城市查表路径已删,时区/经度校验在 Pydantic 层)。
         raise
     except Exception as e:
         # 不吞: 把 lunar_python / 内部异常向上抛为结构化错误

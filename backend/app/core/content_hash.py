@@ -1,10 +1,14 @@
 """D1 内容寻址 hash。
 
-定义:`sha256(birth_2h_bucket + gender + longitude + zi_hour_rule)`
+定义:`sha256(birth_2h_bucket + utcoffset + gender + longitude + zi_hour_rule)`
 - birth_2h_bucket = f"{bucket_date}|{shichen_bucket(hour)}"  —— 传统时辰桶
 - zi_next_day 下 23:00-23:59 的子时桶日期归次日,避免与同日 00:00-00:59 碰撞
 - 桶函数 shichen_bucket 在 true_solar_time.py 中定义,两处共享
 - 用输入时间(原值),不用真太阳时调整后的时间
+- utcoffset(S02 增):同一墙钟桶在不同时区解释下是**不同绝对时刻**,
+  真太阳时(UTC + 经度×4min + EoT)随之不同,可能落在不同时辰桶 →
+  不带 offset 会 hash 碰撞(Asia/Shanghai 夏令时 +9 vs Etc/GMT-8 同桶同经度)。
+  offset 进 hash 后,不同时区解释的盘自然分叉;同区同时辰仍共享(D1 语义保留)
 - 不含 schema_version(D1:跨用户共享缓存命中率最大)
 - canonical JSON:sort_keys + 固定精度(经度 6 位)+ UTF-8
 
@@ -53,9 +57,19 @@ def compute_content_hash(birth: datetime, gender: str, longitude: float,
 
     Returns:
         64 字符 hex sha256
+
+    Raises:
+        ValueError: birth 非 offset-aware(utcoffset 是 hash 输入,
+                    naive 时间属于契约违反,显式报错不静默)
     """
+    if birth.utcoffset() is None:
+        raise ValueError(
+            f"compute_content_hash 要求 offset-aware birth(收到 naive {birth});"
+            "钟面→绝对时刻的解释在 API 层完成(S02 契约)")
     payload = {
         "birth_2h_bucket": birth_two_hour_bucket(birth, zi_hour_rule),
+        # S02:绝对时刻归因(防同墙钟不同时区解释的 hash 碰撞,见模块 docstring)
+        "utcoffset_minutes": int(birth.utcoffset().total_seconds() // 60),
         "gender": gender,
         # 经度固定 6 位小数,避免浮点抖动影响 hash 稳定性
         "longitude": round(longitude, 6),
