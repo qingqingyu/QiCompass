@@ -12,7 +12,7 @@
 1. **`tools/city-data/golden_queries.json`**(进 repo):搜索质量的单一事实源,格式建议:
    ```json
    [
-     {"query": "乌木", "expect_top1": "乌鲁木齐", "note": "简体包含"},
+     {"query": "乌鲁", "expect_top1": "乌鲁木齐", "note": "简体前缀"},
      {"query": "wlmq", "expect_top1": "乌鲁木齐", "note": "拼音首字母"},
      {"query": "三藩市", "expect_top1": "旧金山", "note": "别名"}
    ]

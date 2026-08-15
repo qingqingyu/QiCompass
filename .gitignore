@@ -31,6 +31,9 @@ Package.resolved
 # 临时文件 / 工具产物(logo 草稿、截图、API 响应缓存等,不进 git)
 tmp/
 
+# 城市数据库构建缓存(GeoNames 原始 dump ~200MB,不进 git;产物 manifest/别名表进 git)
+tools/city-data/cache/
+
 # macOS
 .DS_Store
 .AppleDouble

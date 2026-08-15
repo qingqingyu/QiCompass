@@ -1,0 +1,77 @@
+# curated_aliases.tsv — 人工精选别名(构建期合并进搜索键,格式: 别名 <TAB> GeoNames主名 <TAB> 国家码)
+# Parent: docs/城市搜索设计决策.md Q7(别名表进 git)/ Q3(重点城市区县别名)
+# 改本文件后必须重跑 tools/build_city_db.py + tools/check_city_db.py
+# 海外华人口语名 + 变音符折叠补充(GeoNames 只保留 zh/en 别名,de 等语种被裁掉)
+三藩市	San Francisco	US
+雪梨	Sydney	AU
+munchen	Munich	DE
+muenchen	Munich	DE
+# 北京(区县)
+海淀	Beijing	CN
+朝阳	Beijing	CN
+丰台	Beijing	CN
+东城	Beijing	CN
+西城	Beijing	CN
+石景山	Beijing	CN
+通州	Beijing	CN
+昌平	Beijing	CN
+大兴	Beijing	CN
+顺义	Beijing	CN
+# 上海(区县/地标)
+浦东	Shanghai	CN
+徐汇	Shanghai	CN
+静安	Shanghai	CN
+黄浦	Shanghai	CN
+长宁	Shanghai	CN
+虹桥	Shanghai	CN
+# 广州
+天河	Guangzhou	CN
+番禺	Guangzhou	CN
+白云	Guangzhou	CN
+越秀	Guangzhou	CN
+# 深圳
+福田	Shenzhen	CN
+南山	Shenzhen	CN
+罗湖	Shenzhen	CN
+宝安	Shenzhen	CN
+龙岗	Shenzhen	CN
+# 成都
+武侯	Chengdu	CN
+锦江	Chengdu	CN
+金牛	Chengdu	CN
+# 杭州
+西湖	Hangzhou	CN
+滨江	Hangzhou	CN
+余杭	Hangzhou	CN
+# 武汉(含历史三镇)
+汉口	Wuhan	CN
+武昌	Wuhan	CN
+汉阳	Wuhan	CN
+光谷	Wuhan	CN
+# 西安 / 南京 / 天津 / 重庆(注:GeoNames 里西安写作 Xi'an,U+2019 弯撇号)
+曲江	Xi’an	CN
+江宁	Nanjing	CN
+浦口	Nanjing	CN
+滨海新区	Tianjin	CN
+渝中	Chongqing	CN
+万州	Chongqing	CN
+汉沽	Tianjin	CN
+# ===== 第 4 列 = 中文显示名兜底(GeoNames 缺 zh 的正经县级市/地级市)=====
+常熟	Changshu	CN	常熟市
+慈溪	Cixi	CN	慈溪市
+诸城	Zhu Cheng City	CN	诸城市
+太仓	Taicang	CN	太仓市
+长治	Changzhi	CN	长治市
+胶州	Jiaozhou	CN	胶州市
+寿光	Shouguang	CN	寿光市
+瓦房店	Wafangdian	CN	瓦房店市
+永济	Yongji	CN	永济市
+北安	Bei’an	CN	北安市
+固原	Guyuan	CN	固原市
+高密	Gaomi	CN	高密市
+凤凰	Fenghuang	CN	凤凰县
+安丘	Anqiu	CN	安丘市
+彭泽	Pengze	CN	彭泽县
+大冶	Daye	CN	大冶市
+邳州	Pizhou	CN	邳州市
+莱西	Laixi	CN	莱西市
