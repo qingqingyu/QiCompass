@@ -201,12 +201,14 @@ struct BaziResponse: Codable, Sendable {
     var anchorSentence: String? = nil
     /// 2026-08-11 生肖 wire up:年柱地支对应生肖英文(如 "Dragon")。
     /// 后端 lunar_python 已按立春算 pillars.year.zhi,这里仅查表暴露。
-    /// 非 optional:后端语义保证非空。mock 构造须手填(对齐其他非 optional 字段)。
+    /// 非 optional:新响应后端语义保证非空;老缓存缺 key 时从 pillars.year.zhi
+    /// 本地查表兜底(见 init(from:))。mock 构造须手填(对齐其他非 optional 字段)。
     let yearBranchZodiac: String
     /// 2026-08-13 onboarding 反馈屏「好朋友 / 需磨合」:
     /// 好朋友 = 六合 1 + 三合 2 = 3 个英文生肖名;需磨合 = 六冲 1 个。
     /// 后端复用 branch_relations.py(合盘引擎同一事实源)。
-    /// 非 optional:后端恒填充,mock 构造须手填(对齐 yearBranchZodiac)。
+    /// 非 optional:新响应后端恒填充;老缓存缺 key 时本地查表兜底(见 init(from:))。
+    /// mock 构造须手填(对齐 yearBranchZodiac)。
     let yearBranchFriends: [String]
     let yearBranchClash: String
 
@@ -287,9 +289,32 @@ struct BaziResponse: Codable, Sendable {
         calcRuleSnapshot = try c.decode(CalcRuleSnapshotDTO.self, forKey: .calcRuleSnapshot)
         boundaryWarning = try c.decodeIfPresent(String.self, forKey: .boundaryWarning)
         anchorSentence = try c.decodeIfPresent(String.self, forKey: .anchorSentence)
-        yearBranchZodiac = try c.decode(String.self, forKey: .yearBranchZodiac)
-        yearBranchFriends = try c.decode([String].self, forKey: .yearBranchFriends)
-        yearBranchClash = try c.decode(String.self, forKey: .yearBranchClash)
+        // 2026-08-15 老缓存兼容:生肖三字段(08-11 zodiac / 08-13 friends+clash)
+        // 上线前落库的 ChartSnapshot.payload 缺 key,强制 decode 会 keyNotFound
+        // → 全模块「排盘异常」。decodeIfPresent + 从已解码的 pillars.year.zhi
+        // 本地查表兜底(ZodiacHelper.legacyYearBranchFields,语义对齐 backend
+        // pillars.py:ZODIAC_NAME / branch_relations.py:compute_friends_and_clash)。
+        // 三字段独立兜底:两批字段落地日期不同,存在只有部分 key 的中间缓存。
+        // 仅当至少一个 key 缺失才查 legacy(key 齐全的合法响应不依赖兜底表求值);
+        // 需要兜底但年支不在表内 → 显式抛 DecodingError(不静默吞)。
+        let decodedZodiac = try c.decodeIfPresent(String.self, forKey: .yearBranchZodiac)
+        let decodedFriends = try c.decodeIfPresent([String].self, forKey: .yearBranchFriends)
+        let decodedClash = try c.decodeIfPresent(String.self, forKey: .yearBranchClash)
+        if let decodedZodiac, let decodedFriends, let decodedClash {
+            yearBranchZodiac = decodedZodiac
+            yearBranchFriends = decodedFriends
+            yearBranchClash = decodedClash
+        } else {
+            guard let legacy = ZodiacHelper.legacyYearBranchFields(forYearZhi: pillars.year.zhi) else {
+                throw DecodingError.dataCorrupted(.init(
+                    codingPath: [CodingKeys.yearBranchZodiac],
+                    debugDescription: "老缓存缺生肖字段且年柱地支 \(pillars.year.zhi) 不在兜底表,无法推导"
+                ))
+            }
+            yearBranchZodiac = decodedZodiac ?? legacy.zodiac
+            yearBranchFriends = decodedFriends ?? legacy.friends
+            yearBranchClash = decodedClash ?? legacy.clash
+        }
         // v1 字段:decodeIfPresent + 默认值,缺 key 走默认(对齐 backend Stage 1+ 语义)
         tenGodWeights = try c.decodeIfPresent([String: Int].self, forKey: .tenGodWeights) ?? [:]
         usefulGodCandidates = try c.decodeIfPresent([String].self, forKey: .usefulGodCandidates) ?? []
