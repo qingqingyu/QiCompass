@@ -16,6 +16,12 @@ final class ChartSnapshot {
     var birthSolarTime: Date
     var gender: String
     var cityLongitude: Double
+    /// 出生地 IANA 时区(S03 契约;老快照 nil)
+    var cityTimezone: String?
+    /// 出生地显示名(如「北京」/「San Francisco」;自定义地点 nil)
+    var cityName: String?
+    /// 出生地纬度(存档用,下游计算不用;老快照 nil)
+    var cityLatitude: Double?
     var ziHourRule: String
     var calcRuleSnapshot: Data
     var payload: Data
@@ -27,6 +33,9 @@ final class ChartSnapshot {
         birthSolarTime: Date,
         gender: String,
         cityLongitude: Double,
+        cityTimezone: String? = nil,
+        cityName: String? = nil,
+        cityLatitude: Double? = nil,
         ziHourRule: String,
         calcRuleSnapshot: Data,
         payload: Data,
@@ -37,6 +46,9 @@ final class ChartSnapshot {
         self.birthSolarTime = birthSolarTime
         self.gender = gender
         self.cityLongitude = cityLongitude
+        self.cityTimezone = cityTimezone
+        self.cityName = cityName
+        self.cityLatitude = cityLatitude
         self.ziHourRule = ziHourRule
         self.calcRuleSnapshot = calcRuleSnapshot
         self.payload = payload

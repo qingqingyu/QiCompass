@@ -9,6 +9,9 @@
 /* Begin PBXBuildFile section */
 		0EA046839120A0D077C1BE52 /* PromptContextBuilder.swift in Sources */ = {isa = PBXBuildFile; fileRef = 616A4E1F906685BBB03FABAA /* PromptContextBuilder.swift */; };
 		1BFE422382557948367ACDEF /* BirthFormView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 643A486D97B60329C7050463 /* BirthFormView.swift */; };
+		7C1700000000000000000001 /* CitySearchEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C2700000000000000000001 /* CitySearchEngine.swift */; };
+		7C1700000000000000000002 /* CityPickerField.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C2700000000000000000002 /* CityPickerField.swift */; };
+		7C1700000000000000000003 /* CitySearchSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7C2700000000000000000003 /* CitySearchSheet.swift */; };
 		21AC43B586C598B1FBD82F89 /* InterpretationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6D294D4B91EA07ABB037F7BE /* InterpretationSection.swift */; };
 		2CF14E7694F9DC7818B883FA /* ChartSnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 160B487DB2FB51858CB5F067 /* ChartSnapshotStore.swift */; };
 		4CBA413486050C87638346A8 /* PillarsTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9AB427085FC26BB41BE756E /* PillarsTable.swift */; };
@@ -106,6 +109,8 @@
 		A00000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift */; };
 		A0000000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */; };
 		A00000000000000000000006 /* Shared/DailyReadCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */; };
+		A0000000000000000000000B /* Shared/CitySearchEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000B /* Shared/CitySearchEngineTests.swift */; };
+		A0000000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */; };
 		A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */; };
 		A00000000000000000000008 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A21000000000000000000001 /* XCTest.framework */; };
 		A9B245DDB05C779E1238547A /* DeepAnalysisViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F34390B983BDE0003B56E8 /* DeepAnalysisViewModel.swift */; };
@@ -157,6 +162,9 @@
 		58F34390B983BDE0003B56E8 /* DeepAnalysisViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeepAnalysisViewModel.swift; path = QiCompass/Features/DeepAnalysis/DeepAnalysisViewModel.swift; sourceTree = SOURCE_ROOT; };
 		616A4E1F906685BBB03FABAA /* PromptContextBuilder.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PromptContextBuilder.swift; path = QiCompass/Services/PromptContextBuilder.swift; sourceTree = SOURCE_ROOT; };
 		643A486D97B60329C7050463 /* BirthFormView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BirthFormView.swift; path = QiCompass/Features/DeepAnalysis/BirthFormView.swift; sourceTree = SOURCE_ROOT; };
+		7C2700000000000000000001 /* CitySearchEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CitySearchEngine.swift; path = QiCompass/Features/Place/CitySearchEngine.swift; sourceTree = SOURCE_ROOT; };
+		7C2700000000000000000002 /* CityPickerField.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CityPickerField.swift; path = QiCompass/Features/Place/CityPickerField.swift; sourceTree = SOURCE_ROOT; };
+		7C2700000000000000000003 /* CitySearchSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CitySearchSheet.swift; path = QiCompass/Features/Place/CitySearchSheet.swift; sourceTree = SOURCE_ROOT; };
 		64414BC9B04112663B97EE16 /* DeepAnalysisOrchestrator.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeepAnalysisOrchestrator.swift; path = QiCompass/Services/DeepAnalysisOrchestrator.swift; sourceTree = SOURCE_ROOT; };
 		6D294D4B91EA07ABB037F7BE /* InterpretationSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InterpretationSection.swift; path = QiCompass/Features/DeepAnalysis/InterpretationSection.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000001 /* QiCompassApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QiCompassApp.swift; sourceTree = "<group>"; };
@@ -250,6 +258,8 @@
 		A11000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilitySnapshotStoreTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityViewModelBatchTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DailyReadCounterTests.swift; sourceTree = "<group>"; };
+		A110000000000000000000B /* Shared/CitySearchEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/CitySearchEngineTests.swift; sourceTree = "<group>"; };
+		A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisViewModelFormTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/UserFacingErrorTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000001 /* QiCompassTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QiCompassTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A21000000000000000000001 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
@@ -335,6 +345,9 @@
 				AA5600000000000000000002 /* MarkdownSanitizer.swift */,
 				58F34390B983BDE0003B56E8 /* DeepAnalysisViewModel.swift */,
 				643A486D97B60329C7050463 /* BirthFormView.swift */,
+				7C2700000000000000000001 /* CitySearchEngine.swift */,
+				7C2700000000000000000002 /* CityPickerField.swift */,
+				7C2700000000000000000003 /* CitySearchSheet.swift */,
 				F4D24E23A0A8DAE17CCC61CC /* DeepAnalysisResultView.swift */,
 				F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */,
 				F9AB427085FC26BB41BE756E /* PillarsTable.swift */,
@@ -551,6 +564,8 @@
 				A11000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift */,
 				A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */,
 				A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */,
+				A110000000000000000000B /* Shared/CitySearchEngineTests.swift */,
+				A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */,
 				A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */,
 			);
 			name = Tests;
@@ -694,6 +709,9 @@
 				AA5600000000000000000001 /* MarkdownSanitizer.swift in Sources */,
 				A9B245DDB05C779E1238547A /* DeepAnalysisViewModel.swift in Sources */,
 				1BFE422382557948367ACDEF /* BirthFormView.swift in Sources */,
+				7C1700000000000000000001 /* CitySearchEngine.swift in Sources */,
+				7C1700000000000000000002 /* CityPickerField.swift in Sources */,
+				7C1700000000000000000003 /* CitySearchSheet.swift in Sources */,
 				62E8415D901964D6058D4FBB /* DeepAnalysisResultView.swift in Sources */,
 				E22A4DA18C53C38BBC80783C /* ChartHeaderView.swift in Sources */,
 				4CBA413486050C87638346A8 /* PillarsTable.swift in Sources */,
@@ -788,6 +806,8 @@
 				A00000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift in Sources */,
 				A0000000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift in Sources */,
 				A00000000000000000000006 /* Shared/DailyReadCounterTests.swift in Sources */,
+				A0000000000000000000000B /* Shared/CitySearchEngineTests.swift in Sources */,
+				A0000000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift in Sources */,
 				A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

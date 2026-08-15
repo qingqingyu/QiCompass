@@ -106,7 +106,8 @@ struct OnboardingView: View {
                     subLabel: subLabel(
                         from: response,
                         gender: vm.gender,
-                        birthYear: Calendar.current.component(.year, from: vm.birthDate)
+                        // 年份按出生城市钟面取(S03 WYSIWYG;Calendar.current 会跨年漂移)
+                        birthYear: vm.placeCalendar.component(.year, from: vm.birthDate)
                     ),
                     friendZodiacs: response.yearBranchFriends,
                     clashZodiac: response.yearBranchClash,

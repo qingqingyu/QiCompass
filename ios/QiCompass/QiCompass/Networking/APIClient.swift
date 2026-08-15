@@ -241,7 +241,7 @@ final class MockAPIClient: APIClient {
     }
 
     func calculateBazi(request: BaziCalculateRequest) async throws -> BaziResponse {
-        AppLogger.networking.debug("mock.calculateBazi 调起 birth_datetime=\(request.birthDatetime.description)")
+        AppLogger.networking.debug("mock.calculateBazi 调起 birth_datetime=\(request.birthDatetime, privacy: .public) tz=\(request.timezone, privacy: .public)")
         try? await Task.sleep(nanoseconds: 300_000_000)
         return Self.mockBaziResponse(for: request)
     }
@@ -320,6 +320,15 @@ final class MockAPIClient: APIClient {
         )
     }
 
+    /// mock helper:裸钟面字符串 → Date(设备时区解释;仅 mock 展示,
+    /// 真实钟面→绝对时刻解释在后端 zoneinfo,S02 契约)。
+    private static func mockWallDate(_ wall: String) -> Date? {
+        let fmt = DateFormatter()
+        fmt.locale = Locale(identifier: "en_US_POSIX")
+        fmt.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return fmt.date(from: wall)
+    }
+
     private static func mockBaziResponse(for req: BaziCalculateRequest) -> BaziResponse {
         let pillar = PillarDTO(
             ganZhi: "甲子", gan: "甲", zhi: "子",
@@ -332,11 +341,15 @@ final class MockAPIClient: APIClient {
         let balance = ElementBalanceDTO(wood: 2, fire: 1, earth: 1, metal: 1, water: 3)
         let calcRule = CalcRuleSnapshotDTO(
             library: "lunar_python", sect: 1, ziHourRule: req.ziHourRule,
-            trueSolarLongitude: 116.4, trueSolarOffsetMinutes: -14.4, schemaVersion: 1
+            trueSolarLongitude: req.longitude, trueSolarOffsetMinutes: -14.4,
+            schemaVersion: 1, birthTimezone: req.timezone
         )
+        // mock 真太阳时 = 钟面字符串解析回 Date(naive → 设备时区解释,仅 mock 展示用)
+        let mockSolarDate = Self.mockWallDate(req.birthDatetime) ?? .now
+        // contentHash 用确定性输入拼 itself(String.hashValue 每进程随机种子,跨启动会变)
         return BaziResponse(
-            contentHash: "mock_\(req.birthDatetime.timeIntervalSince1970)",
-            trueSolarTime: req.birthDatetime,
+            contentHash: "mock_\(req.birthDatetime)_\(req.timezone)_\(req.longitude)",
+            trueSolarTime: mockSolarDate,
             trueSolarOffsetMinutes: -14.4,
             pillars: pillars,
             mingGong: ganzhi, shenGong: ganzhi, taiYuan: ganzhi,

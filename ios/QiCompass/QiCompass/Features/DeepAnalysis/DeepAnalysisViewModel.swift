@@ -59,7 +59,10 @@ final class DeepAnalysisViewModel {
 
     var birthDate: Date = Date(timeIntervalSince1970: 638_000_000) // 默认 1990-03-15
     var gender: String = "male"
-    var selectedCity: String = "北京"
+    /// 出生地(S03:城市搜索选择;无默认城市,必选——砍「北京」默认是数据质量决策)
+    var selectedPlace: CityRecord?
+    /// 旧「手动经度」过渡开关(S05 升级为「自定义地点」:经度+时区必填)。
+    /// 过渡期 timezone 用设备时区——出生地与设备时区一致的常见场景下正确。
     var useManualLongitude: Bool = false
     var manualLongitude: Double = 116.41
     var ziHourRule: String = "zi_next_day"
@@ -119,6 +122,37 @@ final class DeepAnalysisViewModel {
         self.entitlementStore = entitlementStore
     }
 
+    // MARK: - 出生地时区(WYSIWYG)
+
+    /// 出生城市时区 Calendar:DatePicker/时辰快捷选挂它,表盘即出生地钟面。
+    /// 只做显示与钟面提取,**不做 naive→UTC 换算**(后端 zoneinfo 负责,S02 契约)。
+    var placeCalendar: Calendar {
+        var calendar = Calendar(identifier: .gregorian)
+        if let tzName = effectiveTimezoneName, let tz = TimeZone(identifier: tzName) {
+            calendar.timeZone = tz
+        } else {
+            calendar.timeZone = .current
+        }
+        return calendar
+    }
+
+    /// 请求用的 IANA 时区名:城市优先;手动经度过渡期用设备时区(S05 换掉)。
+    private var effectiveTimezoneName: String? {
+        selectedPlace?.timezone
+    }
+
+    /// 从 birthDate(绝对时刻)提取出生地**裸钟面**字符串(yyyy-MM-dd'T'HH:mm:ss)。
+    /// S02 契约:钟面解释在后端 zoneinfo 完成。
+    private static let wallFormatTemplate = "yyyy-MM-dd'T'HH:mm:ss"
+
+    private func wallTimeString(for date: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = Self.wallFormatTemplate
+        formatter.timeZone = placeCalendar.timeZone
+        return formatter.string(from: date)
+    }
+
     // MARK: - 表单校验
 
     /// 校验表单,返回错误信息数组(空 = 通过)。
@@ -127,8 +161,8 @@ final class DeepAnalysisViewModel {
         if birthDate > Date() {
             errors.append("出生时间不能晚于当下")
         }
-        if !useManualLongitude && selectedCity.trimmingCharacters(in: .whitespaces).isEmpty {
-            errors.append("请选择城市,或开启手动经度输入")
+        if !useManualLongitude && selectedPlace == nil {
+            errors.append("请选择出生城市")
         }
         if useManualLongitude && !(-180.0...180.0).contains(manualLongitude) {
             errors.append("经度需在 -180 到 180 之间")
@@ -136,15 +170,38 @@ final class DeepAnalysisViewModel {
         return errors
     }
 
-    /// 从表单构造请求(useManualLongitude 时 city=nil,否则 longitude=nil)。
+    /// 从表单构造请求(S02 契约:裸钟面 + timezone + 物理真值)。
+    /// place_name/geoname_id/latitude 是存档展示元数据,不参与 content_hash。
     func buildRequest() -> BaziCalculateRequest {
-        let city: String? = useManualLongitude ? nil : selectedCity
-        let longitude: Double? = useManualLongitude ? manualLongitude : nil
+        let timezone: String
+        let longitude: Double
+        let latitude: Double?
+        let placeName: String?
+        let geonameId: Int?
+
+        if let place = selectedPlace {
+            timezone = place.timezone
+            longitude = place.longitude
+            latitude = place.latitude
+            placeName = place.displayName
+            geonameId = place.geonameId
+        } else {
+            // 手动经度过渡路径(S05 升级):时区暂用设备时区
+            timezone = TimeZone.current.identifier
+            longitude = manualLongitude
+            latitude = nil
+            placeName = nil
+            geonameId = nil
+        }
+
         return BaziCalculateRequest(
-            birthDatetime: birthDate,
+            birthDatetime: wallTimeString(for: birthDate),
+            timezone: timezone,
             gender: gender,
-            city: city,
             longitude: longitude,
+            latitude: latitude,
+            placeName: placeName,
+            geonameId: geonameId,
             ziHourRule: ziHourRule
         )
     }
@@ -153,9 +210,9 @@ final class DeepAnalysisViewModel {
 
     /// 时辰快捷选:把 birthDate 的 hour 设为指定值(方案 §4.3)。
     /// 传入该时辰的中点小时(子=0, 丑=2, 寅=4 ... 亥=22)。
+    /// 用出生城市 Calendar —— 表盘是出生地钟面(WYSIWYG),不随设备时区漂移。
     func setShichenHour(_ hour: Int) {
-        let calendar = Calendar.current
-        if let newDate = calendar.date(
+        if let newDate = placeCalendar.date(
             bySettingHour: hour,
             minute: 0,
             second: 0,
@@ -174,9 +231,9 @@ final class DeepAnalysisViewModel {
         // 技术坑:OSLogMessage 字符串插值是 lazy capture,instance property 必须先提到 local
         let birthDate = self.birthDate
         let gender = self.gender
-        let selectedCity = self.selectedCity
+        let selectedPlace = self.selectedPlace
         let useManualLongitude = self.useManualLongitude
-        AppLogger.app.info("deepVM.calculate.start birth=\(birthDate.description) gender=\(gender, privacy: .public) city=\(selectedCity, privacy: .public) useManualLon=\(useManualLongitude, privacy: .public)")
+        AppLogger.app.info("deepVM.calculate.start birth=\(birthDate.description) gender=\(gender, privacy: .public) place=\(selectedPlace?.displayName ?? "nil", privacy: .public) tz=\(selectedPlace?.timezone ?? TimeZone.current.identifier, privacy: .public) useManualLon=\(useManualLongitude, privacy: .public)")
         let errors = validateForm()
         if !errors.isEmpty {
             // 规则 1:表单校验失败抛错前打 warning(用户预期)

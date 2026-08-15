@@ -415,6 +415,10 @@ struct ProfileView: View {
             }
             LabeledContent("版本", value: appVersion)
             LabeledContent("Build", value: buildNumber)
+            // S03:GeoNames CC-BY 4.0 attribution(决策 Q2,关于页一行)
+            Text(String(localized: "city.about.geonames"))
+                .font(.caption2)
+                .foregroundStyle(BaziTheme.inkMuted)
         } header: {
             sectionHeader("关于")
         }

@@ -20,7 +20,8 @@ enum PromptContextBuilder {
     ) -> [String: AnyCodableJSON] {
         let p = response.pillars
         let trueSolarTimeStr = Self.dateTimeFormatter.string(from: response.trueSolarTime)
-        let cityDisplay = request.city ?? "手动经度(\(request.longitude ?? 0))"
+        // S03:city key 保留(prompt 契约不变),取值换物理真值来源(Q4)
+        let cityDisplay = request.placeName ?? "自定义地点(经度 \(request.longitude))"
 
         return [
             // 命主(gender 转中文,prompt 模板期望"男"/"女"而非"male"/"female")

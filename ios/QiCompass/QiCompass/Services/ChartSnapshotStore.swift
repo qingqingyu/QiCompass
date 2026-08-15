@@ -25,8 +25,10 @@ final class ChartSnapshotStore {
     /// upsert:存在则覆盖 payload + schemaVersion(保留 createdAt),不存在则新建。
     ///
     /// - contentHash 来自 response(@Attribute(.unique) 自动去重)
-    /// - cityLongitude 来自 response.calcRuleSnapshot.trueSolarLongitude
-    ///   (后端 resolve_longitude 是经度单一事实源,客户端不查表 —— 决策 4.1)
+    /// - cityLongitude 来自 response.calcRuleSnapshot.trueSolarLongitude(物理真值回填)
+    /// - cityTimezone/cityName/cityLatitude 来自 request(S03:出生地存档元数据)
+    /// - birthSolarTime = response.trueSolarTime(字段语义即「真太阳时出生时间」,
+    ///   S03 起不再存输入墙钟——request.birthDatetime 已是 naive 字符串)
     /// - payload = 整个 BaziResponse JSON(重建 UI 只需 decode BaziResponse)
     func upsert(response: BaziResponse, request: BaziCalculateRequest) throws -> ChartSnapshotUpsertResult {
         let hash = response.contentHash
@@ -42,9 +44,12 @@ final class ChartSnapshotStore {
         if let snapshot = existing {
             // 覆盖:保留 createdAt
             snapshot.schemaVersion = response.calcRuleSnapshot.schemaVersion
-            snapshot.birthSolarTime = request.birthDatetime
+            snapshot.birthSolarTime = response.trueSolarTime
             snapshot.gender = request.gender
             snapshot.cityLongitude = cityLongitude
+            snapshot.cityTimezone = request.timezone
+            snapshot.cityName = request.placeName
+            snapshot.cityLatitude = request.latitude
             snapshot.ziHourRule = request.ziHourRule
             snapshot.calcRuleSnapshot = calcRuleData
             snapshot.payload = payloadData
@@ -57,9 +62,12 @@ final class ChartSnapshotStore {
             let snapshot = ChartSnapshot(
                 contentHash: hash,
                 schemaVersion: response.calcRuleSnapshot.schemaVersion,
-                birthSolarTime: request.birthDatetime,
+                birthSolarTime: response.trueSolarTime,
                 gender: request.gender,
                 cityLongitude: cityLongitude,
+                cityTimezone: request.timezone,
+                cityName: request.placeName,
+                cityLatitude: request.latitude,
                 ziHourRule: request.ziHourRule,
                 calcRuleSnapshot: calcRuleData,
                 payload: payloadData
