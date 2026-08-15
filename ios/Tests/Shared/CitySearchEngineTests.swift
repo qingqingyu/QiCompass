@@ -153,3 +153,57 @@ final class CitySearchEngineTests: XCTestCase {
         XCTAssertNil(json["city"], "旧 city 字段必须消失(S02 零兼容垫片)")
     }
 }
+
+/// S05 自定义地点测试:PlaceSelection 解析 + CommonTimezones 静态表合法性 +
+/// Etc/GMT 反符号按**系统 TimeZone 真值**解析回偏移钉死(不依赖 cities.sqlite)。
+final class PlaceSelectionTimezoneTests: XCTestCase {
+
+    // MARK: - Etc/GMT 反符号(IANA 坑:名字符号与实际偏移相反)
+
+    func testEtcGmtReverseSignParsesBackToOffset() throws {
+        // 验收 S05:选「GMT+8 固定偏移」发出的 tz 名,用系统解析回偏移恰为 +8h
+        let gmt8 = try XCTUnwrap(TimeZone(identifier: "Etc/GMT-8"))
+        XCTAssertEqual(gmt8.secondsFromGMT(), 8 * 3600, "Etc/GMT-8 必须解析回 UTC+8(IANA 反符号)")
+        let gmtMinus5 = try XCTUnwrap(TimeZone(identifier: "Etc/GMT+5"))
+        XCTAssertEqual(gmtMinus5.secondsFromGMT(), -5 * 3600, "Etc/GMT+5 必须解析回 UTC-5(IANA 反符号)")
+    }
+
+    func testFixedOffsetsLabelMatchesResolvedOffset() throws {
+        // 全表钉死:label 的 GMT±X 与系统解析偏移一致(防任何人「顺手改符号」);
+        // 同时兜住非法 IANA 名(拼写错要到后端 422 才暴露,这里提前拦截)
+        XCTAssertFalse(CommonTimezones.fixedOffsets.isEmpty)
+        for item in CommonTimezones.fixedOffsets {
+            let tz = try XCTUnwrap(TimeZone(identifier: item.iana), "非法 IANA 名: \(item.iana)")
+            let hours = tz.secondsFromGMT() / 3600
+            let expected = hours >= 0 ? "GMT+\(hours)" : "GMT-\(-hours)"
+            XCTAssertTrue(item.label.hasPrefix(expected),
+                          "\(item.iana): label=\(item.label) 与系统解析偏移 \(expected) 不符")
+        }
+    }
+
+    // MARK: - 常用地区表合法性(防拼写错 / 防重复)
+
+    func testRegionTimezonesAllValidIANANoDuplicates() throws {
+        let ianas = CommonTimezones.regions.map(\.iana)
+        XCTAssertEqual(Set(ianas).count, ianas.count, "regions 存在重复 IANA 名")
+        for item in CommonTimezones.regions {
+            XCTAssertNotNil(TimeZone(identifier: item.iana), "非法 IANA 名: \(item.iana)")
+        }
+        // 与固定偏移组也不得重复(同一 IANA 名两条 picker 选项会破坏 tag 唯一性)
+        let fixed = Set(CommonTimezones.fixedOffsets.map(\.iana))
+        XCTAssertTrue(Set(ianas).isDisjoint(with: fixed), "regions 与 fixedOffsets 存在重复")
+    }
+
+    // MARK: - gmtLabel(回显简写;Etc 反符号 + 半时区 :30 写法)
+
+    func testGmtLabel() {
+        XCTAssertEqual(PlaceSelection.gmtLabel("Etc/GMT-8"), "GMT+8")
+        XCTAssertEqual(PlaceSelection.gmtLabel("Etc/GMT+5"), "GMT-5")
+        XCTAssertEqual(PlaceSelection.gmtLabel("Etc/GMT-0"), "GMT+0")
+        // 非整点地区:对齐 picker 文案的 :30 写法(印度/伊朗)
+        XCTAssertEqual(PlaceSelection.gmtLabel("Asia/Kolkata"), "GMT+5:30")
+        XCTAssertEqual(PlaceSelection.gmtLabel("Asia/Tehran"), "GMT+3:30")
+        // 解析失败(非 IANA 名)原样返回,不吞不猜
+        XCTAssertEqual(PlaceSelection.gmtLabel("Not/AZone"), "Not/AZone")
+    }
+}

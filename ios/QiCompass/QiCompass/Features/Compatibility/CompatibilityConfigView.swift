@@ -244,7 +244,7 @@ struct CompatibilityConfigView: View {
             )
             .datePickerStyle(.compact)
             .foregroundStyle(BaziTheme.ink)
-            // WYSIWYG:表盘按对方出生城市时区(S04;解释责任在后端 zoneinfo)
+            // WYSIWYG:表盘按对方出生地时区(S05;解释责任在后端 zoneinfo)
             .environment(\.calendar, vm.tempPlaceCalendar)
 
             Picker("性别", selection: $vm.tempGender) {
@@ -253,22 +253,8 @@ struct CompatibilityConfigView: View {
             }
             .pickerStyle(.segmented)
 
-            Toggle("手动输入经度", isOn: $vm.tempUseManualLongitude)
-                .foregroundStyle(BaziTheme.ink)
-
-            if vm.tempUseManualLongitude {
-                HStack {
-                    Text("经度").foregroundStyle(BaziTheme.inkMuted)
-                    TextField("东正西负", value: $vm.tempManualLongitude, format: .number)
-                        .keyboardType(.numbersAndPunctuation)
-                        .foregroundStyle(BaziTheme.ink)
-                        .padding(BaziTheme.Spacing.sm)
-                        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
-                }
-            } else {
-                // S04:全球城市搜索(与深度解析同一组件)
-                CityPickerField(selection: $vm.tempPlace)
-            }
+            // S05:全球城市搜索 + sheet 内自定义地点(与深度解析同一组件)
+            CityPickerField(selection: $vm.tempPlace)
         }
         .padding(BaziTheme.Spacing.md)
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -92,6 +92,42 @@ enum L10n {
         static func noResults(_ query: String) -> String {
             String(format: String(localized: "city.search.noResults"), query)
         }
+
+        // -- 自定义地点(S05:经度 + IANA 时区必填)--
+
+        /// 自定义地点入口。zh: "找不到出生地?自定义地点";en: "Can't find it? Custom location"
+        static let customEntry = String(localized: "city.search.custom.entry")
+
+        /// 出生地卡片内自定义地点提示(BirthFormView)。
+        /// zh: "搜不到?搜索页底部可自定义地点(经度 + 时区)。";en: "Can't find it? Custom location (longitude + time zone) at the bottom of search."
+        static let customEntryHint = String(localized: "city.search.custom.entryHint")
+
+        /// 经度字段标题。zh: "经度(东正西负)";en: "Longitude (E+/W−)"
+        static let customLongitude = String(localized: "city.search.custom.longitude")
+
+        /// 经度输入占位。zh: "如 116.4074 或 -118.24";en: "e.g. 116.4074 or -118.24"
+        static let customLongitudeHint = String(localized: "city.search.custom.longitudeHint")
+
+        /// 经度脚注。zh: "4 位小数足够(约 10 米);出生在医院基地、船上等冷门地点时使用"
+        static let customLongitudeFooter = String(localized: "city.search.custom.longitudeFooter")
+
+        /// 时区字段标题。zh: "时区(必选)";en: "Time zone (required)"
+        static let customTimezone = String(localized: "city.search.custom.timezone")
+
+        /// 时区选择占位。zh: "选择出生地时区";en: "Choose a time zone"
+        static let customTimezonePrompt = String(localized: "city.search.custom.timezonePrompt")
+
+        /// 确认按钮。zh: "使用自定义地点";en: "Use custom location"
+        static let customConfirm = String(localized: "city.search.custom.confirm")
+
+        /// 返回搜索按钮。zh: "返回搜索";en: "Back to search"
+        static let customBack = String(localized: "city.search.custom.back")
+
+        /// 经度校验错误。zh: "经度需为 -180 到 180 之间的数字"
+        static let customErrorLongitude = String(localized: "city.search.custom.errorLongitude")
+
+        /// 时区校验错误。zh: "请选择时区"
+        static let customErrorTimezone = String(localized: "city.search.custom.errorTimezone")
     }
 
     // MARK: - 每日运势模块

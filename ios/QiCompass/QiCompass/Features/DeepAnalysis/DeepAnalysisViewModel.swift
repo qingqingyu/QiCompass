@@ -59,12 +59,8 @@ final class DeepAnalysisViewModel {
 
     var birthDate: Date = Date(timeIntervalSince1970: 638_000_000) // 默认 1990-03-15
     var gender: String = "male"
-    /// 出生地(S03:城市搜索选择;无默认城市,必选——砍「北京」默认是数据质量决策)
-    var selectedPlace: CityRecord?
-    /// 旧「手动经度」过渡开关(S05 升级为「自定义地点」:经度+时区必填)。
-    /// 过渡期 timezone 用设备时区——出生地与设备时区一致的常见场景下正确。
-    var useManualLongitude: Bool = false
-    var manualLongitude: Double = 116.41
+    /// 出生地(S03 城市搜索 / S05 自定义地点;无默认,必选——砍「北京」默认是数据质量决策)
+    var selectedPlace: PlaceSelection?
     var ziHourRule: String = "zi_next_day"
     /// 命盘别名(v2 PR1):默认"我自己",用户可改为"妈妈"/"男友"等区分多命盘。
     /// 提交时传给 orchestrator.runCalculation 写入 UserSnapshotLink。
@@ -124,14 +120,12 @@ final class DeepAnalysisViewModel {
 
     // MARK: - 出生地时区(WYSIWYG)
 
-    /// 出生城市时区 Calendar:DatePicker/时辰快捷选挂它,表盘即出生地钟面。
+    /// 出生地时区 Calendar:DatePicker/时辰快捷选挂它,表盘即出生地钟面。
     /// 只做显示与钟面提取,**不做 naive→UTC 换算**(后端 zoneinfo 负责,S02 契约)。
-    /// 时区解析走 `BirthPlaceResolver` 单一事实源(手动经度 → 设备时区,S04 review)。
+    /// 时区解析走 `BirthPlaceResolver` 单一事实源(城市/自定义地点,S05)。
     var placeCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
-        let tzName = BirthPlaceResolver.effectiveTimezoneName(
-            place: selectedPlace, useManualLongitude: useManualLongitude
-        )
+        let tzName = BirthPlaceResolver.effectiveTimezoneName(selectedPlace)
         if let tzName, let tz = TimeZone(identifier: tzName) {
             calendar.timeZone = tz
         } else {
@@ -160,10 +154,10 @@ final class DeepAnalysisViewModel {
         if birthDate > Date() {
             errors.append("出生时间不能晚于当下")
         }
-        if !useManualLongitude && selectedPlace == nil {
+        if selectedPlace == nil {
             errors.append("请选择出生城市")
         }
-        if useManualLongitude && !(-180.0...180.0).contains(manualLongitude) {
+        if let selectedPlace, !selectedPlace.isCustomLongitudeValid {
             errors.append("经度需在 -180 到 180 之间")
         }
         return errors
@@ -171,14 +165,13 @@ final class DeepAnalysisViewModel {
 
     /// 从表单构造请求(S02 契约:裸钟面 + timezone + 物理真值)。
     /// place_name/geoname_id/latitude 是存档展示元数据,不参与 content_hash。
-    /// 出生地字段解析走 `BirthPlaceResolver` 单一事实源(S04 review):
-    /// 手动经度开关优先于残留 selectedPlace,手动值不得被静默覆盖。
-    func buildRequest() -> BaziCalculateRequest {
-        let resolved = BirthPlaceResolver.resolve(
-            place: selectedPlace,
-            useManualLongitude: useManualLongitude,
-            manualLongitude: manualLongitude
-        )
+    /// 出生地字段解析走 `BirthPlaceResolver` 单一事实源(S05:城市/自定义地点)。
+    func buildRequest() throws -> BaziCalculateRequest {
+        guard let selectedPlace else {
+            // validateForm 先行拦截,理论不可达;显式抛错不静默(错误显式传播)
+            throw UserFacingError.generic(message: "请选择出生城市")
+        }
+        let resolved = BirthPlaceResolver.resolve(selectedPlace)
         return BaziCalculateRequest(
             birthDatetime: wallTimeString(for: birthDate),
             timezone: resolved.timezone,
@@ -217,8 +210,7 @@ final class DeepAnalysisViewModel {
         let birthDate = self.birthDate
         let gender = self.gender
         let selectedPlace = self.selectedPlace
-        let useManualLongitude = self.useManualLongitude
-        AppLogger.app.info("deepVM.calculate.start birth=\(birthDate.description) gender=\(gender, privacy: .public) place=\(selectedPlace?.displayName ?? "nil", privacy: .public) tz=\(selectedPlace?.timezone ?? TimeZone.current.identifier, privacy: .public) useManualLon=\(useManualLongitude, privacy: .public)")
+        AppLogger.app.info("deepVM.calculate.start birth=\(birthDate.description) gender=\(gender, privacy: .public) place=\(selectedPlace?.displayLabel ?? "nil", privacy: .public)")
         let errors = validateForm()
         if !errors.isEmpty {
             // 规则 1:表单校验失败抛错前打 warning(用户预期)
@@ -229,7 +221,11 @@ final class DeepAnalysisViewModel {
 
         calculateTask?.cancel()
 
-        let request = buildRequest()
+        // validateForm 已拦截未选地点;buildRequest throws 属防御性显式传播
+        guard let request = try? buildRequest() else {
+            state = .formInvalid(["请选择出生城市"])
+            return
+        }
         lastRequest = request
         state = .calculating(stage: .calculatingChart)
 

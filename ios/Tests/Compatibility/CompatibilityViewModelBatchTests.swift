@@ -150,16 +150,14 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
     func testAddTempToRoster_未选城市_抛错() {
         vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
         vm.tempPlace = nil
-        vm.tempUseManualLongitude = false
         XCTAssertThrowsError(try vm.addTempToRoster()) { error in
             XCTAssertTrue(error.localizedDescription.contains("出生城市"))
         }
     }
 
-    func testAddTempToRoster_经度越界_抛错() {
+    func testAddTempToRoster_自定义地点经度越界_抛错() {
         vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
-        vm.tempUseManualLongitude = true
-        vm.tempManualLongitude = 999.0
+        vm.tempPlace = .custom(longitude: 999.0, timezone: "Etc/GMT-8")
         XCTAssertThrowsError(try vm.addTempToRoster()) { error in
             XCTAssertTrue(error.localizedDescription.contains("经度"))
         }
@@ -169,14 +167,14 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         // S04 改造:不再替换,而是 append 多条
         vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
         vm.tempGender = "male"
-        vm.tempPlace = Self.makePlace(displayName: "北京", gid: 1816670)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京", gid: 1816670))
 
         try? vm.addTempToRoster()
         XCTAssertEqual(vm.roster.filter(\.isTemp).count, 1)
 
         // S04:再加一次,出生时间不同 → 名单内 2 条独立 temp
         vm.tempBirthDate = Date(timeIntervalSince1970: 700_000_000)
-        vm.tempPlace = Self.makePlace(displayName: "上海", longitude: 121.4737, gid: 1796236)
+        vm.tempPlace = .city(Self.makePlace(displayName: "上海", longitude: 121.4737, gid: 1796236))
         try? vm.addTempToRoster()
         XCTAssertEqual(vm.roster.filter(\.isTemp).count, 2, "S04 改造:多条独立 temp,不再替换")
     }
@@ -185,7 +183,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         // review 修复 1:两个完全相同 input(同时间/性别/城市/alias)→ 同 entry.id → 第二次抛错
         vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
         vm.tempGender = "male"
-        vm.tempPlace = Self.makePlace(displayName: "北京", gid: 1816670)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京", gid: 1816670))
         vm.tempAlias = "相亲对象甲"
         try? vm.addTempToRoster()
         XCTAssertEqual(vm.roster.count, 1)
@@ -206,7 +204,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         // 加 7 个不同 temp(配合 1 个存档 = 8 满员)
         for i in 0..<7 {
             vm.tempBirthDate = Date(timeIntervalSince1970: TimeInterval(638_000_000 + i * 86400))
-            vm.tempPlace = Self.makePlace(displayName: "城市\(i)", gid: 100 + i)
+            vm.tempPlace = .city(Self.makePlace(displayName: "城市\(i)", gid: 100 + i))
             try? vm.addTempToRoster()
         }
         XCTAssertEqual(vm.tempCountInRoster, 7)
@@ -214,49 +212,43 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
         // 第 8 个 temp(总第 8 名额,可加入)
         vm.tempBirthDate = Date(timeIntervalSince1970: 1_000_000_000)
-        vm.tempPlace = Self.makePlace(displayName: "城市8", gid: 108)
+        vm.tempPlace = .city(Self.makePlace(displayName: "城市8", gid: 108))
         try? vm.addTempToRoster()
         XCTAssertEqual(vm.roster.count, 8)
 
         // 第 9 个 temp 触发上限
         vm.tempBirthDate = Date(timeIntervalSince1970: 1_100_000_000)
-        vm.tempPlace = Self.makePlace(displayName: "城市9", gid: 109)
+        vm.tempPlace = .city(Self.makePlace(displayName: "城市9", gid: 109))
         XCTAssertThrowsError(try vm.addTempToRoster(), "上限 8 必须拦截第 9 个 temp")
     }
 
-    func testAddTempToRoster_手动经度优先于残留城市() throws {
-        // S04 review:草稿会恢复上次城市;开了手动经度后手动值必须生效,
-        // 不能被残留 tempPlace 静默覆盖(错误显式传播:用户输入不得丢弃)
+    func testAddTempToRoster_自定义地点显式时区() throws {
+        // S05:自定义地点 timezone 显式(不再默认设备时区);place_name=自定义地点
         vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
-        vm.tempPlace = Self.makePlace(displayName: "上海", longitude: 121.4737, gid: 1796236)
-        vm.tempUseManualLongitude = true
-        vm.tempManualLongitude = 87.62
+        vm.tempPlace = .custom(longitude: 87.62, timezone: "Asia/Urumqi")
 
         try vm.addTempToRoster()
 
         let input = try XCTUnwrap(vm.roster.first?.tempInput)
-        XCTAssertEqual(input.timezone, TimeZone.current.identifier, "手动经度过渡路径用设备时区")
-        XCTAssertEqual(input.longitude, 87.62, accuracy: 1e-9, "手动经度必须优先于残留城市经度")
+        XCTAssertEqual(input.timezone, "Asia/Urumqi")
+        XCTAssertEqual(input.longitude, 87.62, accuracy: 1e-9)
         XCTAssertNil(input.latitude)
-        XCTAssertNil(input.placeName)
+        XCTAssertEqual(input.placeName, "自定义地点")
         XCTAssertNil(input.geonameId)
     }
 
-    func testTempPlaceCalendar_手动经度开启回退设备时区() {
-        // WYSIWYG:表盘时区必须与请求 timezone 同源,防「表盘城市时区 / 请求设备时区」分裂
-        vm.tempPlace = Self.makePlace(displayName: "洛杉矶", longitude: -118.2437,
-                                      timezone: "America/Los_Angeles", gid: 5368361)
-        vm.tempUseManualLongitude = false
-        XCTAssertEqual(vm.tempPlaceCalendar.timeZone.identifier, "America/Los_Angeles",
-                       "城市模式表盘 = 出生城市时区")
-        vm.tempUseManualLongitude = true
-        XCTAssertEqual(vm.tempPlaceCalendar.timeZone.identifier, TimeZone.current.identifier,
-                       "手动经度模式表盘 = 设备时区(与请求构造一致)")
+    func testTempPlaceCalendar_自定义地点用显式时区() {
+        // WYSIWYG:表盘时区必须与请求 timezone 同源(城市 / 自定义地点两分支)
+        vm.tempPlace = .custom(longitude: 87.62, timezone: "Asia/Urumqi")
+        XCTAssertEqual(vm.tempPlaceCalendar.timeZone.identifier, "Asia/Urumqi")
+        vm.tempPlace = .city(Self.makePlace(displayName: "洛杉矶", longitude: -118.2437,
+                                             timezone: "America/Los_Angeles", gid: 5368361))
+        XCTAssertEqual(vm.tempPlaceCalendar.timeZone.identifier, "America/Los_Angeles")
     }
 
     func testAddTempToRoster_称呼字段_空字符串视为nil() {
         vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
-        vm.tempPlace = Self.makePlace(displayName: "北京")
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京"))
         vm.tempAlias = "   "  // 全空白
         try? vm.addTempToRoster()
 
@@ -269,7 +261,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
     func testAddTempToRoster_称呼字段_保留非空值() {
         vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
-        vm.tempPlace = Self.makePlace(displayName: "北京")
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京"))
         vm.tempAlias = "  相亲对象甲  "  // 带空格
         try? vm.addTempToRoster()
 
@@ -282,9 +274,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         // 先污染字段
         vm.tempBirthDate = Date(timeIntervalSince1970: 999_999_999)
         vm.tempGender = "female"
-        vm.tempPlace = Self.makePlace(displayName: "测试城市", gid: 999)
-        vm.tempUseManualLongitude = true
-        vm.tempManualLongitude = 88.88
+        vm.tempPlace = .city(Self.makePlace(displayName: "测试城市", gid: 999))
         vm.tempAlias = "测试"
 
         vm.resetTempDraftForm()
@@ -292,9 +282,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         // setUp 已 clear persistence → loadTempDraft 返回 default(硬编码)
         XCTAssertEqual(vm.tempBirthDate, Date(timeIntervalSince1970: 638_000_000))
         XCTAssertEqual(vm.tempGender, "male")
-        XCTAssertNil(vm.tempPlace, "默认草稿无城市(S04 砍默认,必选)")
-        XCTAssertFalse(vm.tempUseManualLongitude)
-        XCTAssertEqual(vm.tempManualLongitude, 116.41)
+        XCTAssertNil(vm.tempPlace, "默认草稿无地点(S04 砍默认,必选)")
         XCTAssertEqual(vm.tempAlias, "")  // alias 永远清空(不持久化)
     }
 
@@ -305,13 +293,26 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         let state = CompatibilityRosterPersistence.TempDraftState(
             birthDate: Date(timeIntervalSince1970: 700_000_000),
             gender: "female",
-            place: Self.makePlace(displayName: "上海", longitude: 121.4737, gid: 1796236),
-            useManualLongitude: true,
-            manualLongitude: 121.47
+            place: .city(Self.makePlace(displayName: "上海", longitude: 121.4737, gid: 1796236))
         )
         CompatibilityRosterPersistence.saveTempDraft(state)
         let loaded = CompatibilityRosterPersistence.loadTempDraft()
         XCTAssertEqual(loaded, state)
+    }
+
+    func testTempDraft_roundTrip_自定义地点_place编码形状钉死() {
+        // S05:PlaceSelection.custom 的 Codable 是编译器合成,round-trip 钉住编码形状
+        // (合成行为变化不应静默走「日志+草稿丢失」降级路径)
+        CompatibilityRosterPersistence.clear()
+        let state = CompatibilityRosterPersistence.TempDraftState(
+            birthDate: Date(timeIntervalSince1970: 700_000_000),
+            gender: "female",
+            place: .custom(longitude: 87.62, timezone: "Asia/Urumqi")
+        )
+        CompatibilityRosterPersistence.saveTempDraft(state)
+        let loaded = CompatibilityRosterPersistence.loadTempDraft()
+        XCTAssertEqual(loaded, state)
+        XCTAssertEqual(loaded.place?.displayLabel, "自定义地点 · GMT+6")
     }
 
     func testTempDraft_无持久化时_load返回default() {
@@ -327,7 +328,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         // 模拟用户改字段后添加
         vm.tempBirthDate = Date(timeIntervalSince1970: 700_000_000)
         vm.tempGender = "female"
-        vm.tempPlace = Self.makePlace(displayName: "上海", longitude: 121.4737, gid: 1796236)
+        vm.tempPlace = .city(Self.makePlace(displayName: "上海", longitude: 121.4737, gid: 1796236))
         vm.tempAlias = "相亲对象甲"
 
         try vm.addTempToRoster()  // 成功 → saveTempDraft
@@ -336,7 +337,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         let loaded = CompatibilityRosterPersistence.loadTempDraft()
         XCTAssertEqual(loaded.birthDate, Date(timeIntervalSince1970: 700_000_000))
         XCTAssertEqual(loaded.gender, "female")
-        XCTAssertEqual(loaded.place?.displayName, "上海")
+        XCTAssertEqual(loaded.place?.displayLabel, "上海, 中国")
     }
 
     @MainActor
@@ -346,9 +347,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         CompatibilityRosterPersistence.saveTempDraft(.init(
             birthDate: Date(timeIntervalSince1970: 800_000_000),
             gender: "female",
-            place: Self.makePlace(displayName: "广州", longitude: 113.2644, gid: 1809858),
-            useManualLongitude: true,
-            manualLongitude: 113.23
+            place: .city(Self.makePlace(displayName: "广州", longitude: 113.2644, gid: 1809858))
         ))
         // 新建 VM(init body 会 loadTempDraft)
         let newVM = CompatibilityViewModel(
@@ -360,9 +359,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         )
         XCTAssertEqual(newVM.tempBirthDate, Date(timeIntervalSince1970: 800_000_000))
         XCTAssertEqual(newVM.tempGender, "female")
-        XCTAssertEqual(newVM.tempPlace?.displayName, "广州")
-        XCTAssertTrue(newVM.tempUseManualLongitude)
-        XCTAssertEqual(newVM.tempManualLongitude, 113.23)
+        XCTAssertEqual(newVM.tempPlace?.displayLabel, "广州, 中国")
         XCTAssertEqual(newVM.tempAlias, "", "alias 不持久化,VM init 后默认空")
     }
 
@@ -370,7 +367,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         CompatibilityRosterPersistence.clear()
         vm.tempBirthDate = Date(timeIntervalSince1970: 750_000_000)
         vm.tempGender = "female"
-        vm.tempPlace = Self.makePlace(displayName: "深圳", longitude: 114.0579, gid: 1795565)
+        vm.tempPlace = .city(Self.makePlace(displayName: "深圳", longitude: 114.0579, gid: 1795565))
         vm.tempAlias = "对象A"
 
         try vm.addTempToRoster()
@@ -379,7 +376,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         // reset 后字段应回填本次保存的草稿值(不是硬编码默认)
         XCTAssertEqual(vm.tempBirthDate, Date(timeIntervalSince1970: 750_000_000))
         XCTAssertEqual(vm.tempGender, "female")
-        XCTAssertEqual(vm.tempPlace?.displayName, "深圳")
+        XCTAssertEqual(vm.tempPlace?.displayLabel, "深圳, 中国")
         XCTAssertEqual(vm.tempAlias, "", "alias 永远清空")
     }
 
@@ -576,7 +573,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.toggleArchived(hash: "h_b")
 
         vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
-        vm.tempPlace = Self.makePlace(displayName: "上海", longitude: 121.4737, gid: 1796236)
+        vm.tempPlace = .city(Self.makePlace(displayName: "上海", longitude: 121.4737, gid: 1796236))
         try? vm.addTempToRoster()
 
         XCTAssertEqual(vm.roster.count, 2, "混合名单 = 1 存档 + 1 临时")
@@ -591,7 +588,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.selectedChartAIndex = 0
         vm.toggleArchived(hash: "h_b")
         vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
-        vm.tempPlace = Self.makePlace(displayName: "北京")
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京"))
         try? vm.addTempToRoster()
         XCTAssertEqual(vm.roster.count, 2)
 
