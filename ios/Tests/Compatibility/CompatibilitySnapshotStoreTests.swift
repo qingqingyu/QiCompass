@@ -109,10 +109,10 @@ final class CompatibilitySnapshotStoreTests: XCTestCase {
     func testCompatibilityRequest_模式B_encode含BObject() throws {
         let payloadA = ChartPayloadDTO.placeholder
         let personB = PersonBInput(
-            birthDatetime: Date(timeIntervalSince1970: 638_000_000),
+            birthDatetime: "1990-03-15T14:30:00",
+            timezone: "Asia/Shanghai",
             gender: "female",
-            city: "上海",
-            longitude: nil
+            longitude: 121.4737
         )
         let req = CompatibilityRequest(
             personAHash: "a_hash",

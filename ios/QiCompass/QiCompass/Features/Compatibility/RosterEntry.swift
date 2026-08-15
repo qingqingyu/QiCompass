@@ -33,8 +33,10 @@ enum RosterEntry: Identifiable {
         case .archived(let hash):
             return "archived:\(hash)"
         case .temp(let input, let alias, _):
-            let loc = input.city ?? "lon\(input.longitude ?? 0)"
-            return "temp:\(Int(input.birthDatetime.timeIntervalSince1970)):\(input.gender):\(loc):\(alias ?? "")"
+            // 经度并入 id:同名同市区城市(同 placeName + 同 timezone)靠经度消歧,
+            // 避免误判「名单已存在相同的对方」(S04 review)
+            let loc = "\(input.placeName ?? "lon")@\(input.longitude)"
+            return "temp:\(input.birthDatetime):\(input.timezone):\(input.gender):\(loc):\(alias ?? "")"
         }
     }
 

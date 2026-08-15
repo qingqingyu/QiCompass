@@ -5,7 +5,8 @@ import SQLite3
 
 /// cities 表一行(countries/timezones join 后的展示视图)。
 /// Parent 决策: docs/城市搜索设计决策.md Q4(客户端发物理真值)/ Q7(显示命名)。
-struct CityRecord: Identifiable, Equatable, Sendable {
+/// Codable:合盘 TempDraftState 持久化 UserDefaults 需要(S04)。
+struct CityRecord: Identifiable, Equatable, Sendable, Codable {
     let geonameId: Int
     /// GeoNames 主名(原文,如 "Xi'an" / "Corvallis")
     let name: String
@@ -34,6 +35,59 @@ struct CityRecord: Identifiable, Equatable, Sendable {
     }
     /// 表单回显:「城市, 国家」(Q8,只显示这两项)
     var displayLabel: String { "\(displayName), \(countryNameZh)" }
+}
+
+// MARK: - 出生地解析(城市 / 手动经度,单一事实源)
+
+/// 出生地物理真值解析(S02 契约字段组;S04 review 抽出)。
+///
+/// 规则:**手动经度开关优先**——开启时用「设备时区 + 手动经度」(过渡语义,S05
+/// 升级「自定义地点:经度+IANA 时区必填」后此分支整体换掉);残留 place(UI 开关
+/// ON 时城市选择被隐藏,草稿还会恢复上次城市)不得静默覆盖手动值(错误显式传播)。
+/// 深度解析 / onboarding / 合盘快速添加三入口共用,防各自实现漂移
+/// (S04 合盘迁移时曾因双份实现漏改开关语义而回归,故收拢)。
+enum BirthPlaceResolver {
+
+    /// 解析结果(S02 契约五字段,timezone/longitude 必填,余为存档展示元数据)。
+    struct Resolved {
+        let timezone: String
+        let longitude: Double
+        let latitude: Double?
+        let placeName: String?
+        let geonameId: Int?
+    }
+
+    /// 出生地字段解析:城市优先;手动经度开启 → 设备时区 + 手动经度。
+    static func resolve(
+        place: CityRecord?,
+        useManualLongitude: Bool,
+        manualLongitude: Double
+    ) -> Resolved {
+        if !useManualLongitude, let place {
+            return Resolved(
+                timezone: place.timezone,
+                longitude: place.longitude,
+                latitude: place.latitude,
+                placeName: place.displayName,
+                geonameId: place.geonameId
+            )
+        }
+        // 手动经度过渡路径(S05 升级):时区暂用设备时区
+        return Resolved(
+            timezone: TimeZone.current.identifier,
+            longitude: manualLongitude,
+            latitude: nil,
+            placeName: nil,
+            geonameId: nil
+        )
+    }
+
+    /// 表盘 / 请求共用的 IANA 时区名(手动经度 → nil,调用方回退设备时区)。
+    /// WYSIWYG:DatePicker 表盘时区必须与请求 timezone 同源,防「表盘城市时区 /
+    /// 请求设备时区」分裂(钟面提取会错时辰)。
+    static func effectiveTimezoneName(place: CityRecord?, useManualLongitude: Bool) -> String? {
+        useManualLongitude ? nil : place?.timezone
+    }
 }
 
 // MARK: - 搜索引擎

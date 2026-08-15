@@ -27,11 +27,12 @@ struct CompatibilityRosterPersistence {
     /// 默认 context(决策 D8;持久化无 context 时 fallback)。
     static let defaultContext = "general"
 
-    /// 临时表单默认草稿(无持久化时 fallback;1990-03-21 是成年适婚占位)。
+    /// 临时表单默认草稿(无持久化时 fallback;1990-03-15 占位)。
+    /// S04:出生地无默认城市(与深度解析一致,必选;城市由 CityPickerField 选)。
     static let defaultTempDraft = TempDraftState(
         birthDate: Date(timeIntervalSince1970: 638_000_000),
         gender: "male",
-        city: "北京",
+        place: nil,
         useManualLongitude: false,
         manualLongitude: 116.41
     )
@@ -122,10 +123,12 @@ struct CompatibilityRosterPersistence {
     // MARK: - 临时表单草稿(下次添加时默认值用上次填过的)
 
     /// 临时表单草稿。alias 不持久化(每次默认空,避免连续加多个相同 alias)。
+    /// S04:city: String → place: CityRecord?(结构化地点,含时区/经纬度)。
+    /// 老草稿(含 city 键)解码失败 → loadTempDraft fallback 默认草稿(pre-launch 零兼容)。
     struct TempDraftState: Codable, Equatable {
         let birthDate: Date
         let gender: String
-        let city: String
+        let place: CityRecord?
         let useManualLongitude: Bool
         let manualLongitude: Double
     }

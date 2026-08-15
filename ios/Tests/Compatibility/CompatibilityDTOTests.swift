@@ -6,38 +6,59 @@ import XCTest
 /// 验证:
 /// - 模式 A:encode 含 person_b_hash + chart_payload_b,不含 person_b
 /// - 模式 B:encode 含 person_b,不含 person_b_hash + chart_payload_b
-/// - PersonBInput.city 与 longitude 至少传一个(后端校验,客户端编码层不强制)
+/// - PersonBInput S02 契约:裸钟面 + timezone + longitude 必填,nil 字段不编码
 /// - 可空 chart 字段对齐后端(person_a_chart 始终 None / person_b_chart 模式相关)
 /// - 扩展字段 luck_pillars + calc_rule_snapshot 正确编码
 final class CompatibilityDTOTests: XCTestCase {
 
     // MARK: - PersonBInput
 
-    func testPersonBInput_带城市_编码() throws {
+    func testPersonBInput_完整字段_编码() throws {
         let input = PersonBInput(
-            birthDatetime: Date(timeIntervalSince1970: 638_000_000),
+            birthDatetime: "1990-03-15T14:30:00",
+            timezone: "Asia/Shanghai",
             gender: "male",
-            city: "北京",
-            longitude: nil
+            longitude: 116.4074,
+            latitude: 39.9042,
+            placeName: "北京",
+            geonameId: 1816670
         )
         let data = try APICoder.encoder.encode(input)
         let json = try XCTUnwrap(String(data: data, encoding: .utf8))
-        XCTAssertTrue(json.contains("\"city\":\"北京\""))
-        XCTAssertFalse(json.contains("\"longitude\""), "longitude 为 nil 不编码")
+        // 注:JSONEncoder 会把 "/" 转义为 "\/"(Asia\/Shanghai,后端解码等价),
+        // 故 timezone 用解析回字典断言,其余用 contains
+        XCTAssertTrue(json.contains("\"birth_datetime\":\"1990-03-15T14:30:00\""))
+        let obj = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        XCTAssertEqual(obj["timezone"] as? String, "Asia/Shanghai")
+        XCTAssertTrue(json.contains("\"longitude\":116.4074"))
+        XCTAssertTrue(json.contains("\"place_name\":\"北京\""))
         XCTAssertTrue(json.contains("\"zi_hour_rule\":\"zi_next_day\""))
+        XCTAssertFalse(json.contains("\"city\""), "旧 city 字段必须消失(S02 零兼容)")
     }
 
-    func testPersonBInput_带经度_编码() throws {
+    func testPersonBInput_可选字段nil不编码() throws {
         let input = PersonBInput(
-            birthDatetime: Date(timeIntervalSince1970: 638_000_000),
+            birthDatetime: "1990-03-15T14:30:00",
+            timezone: "Etc/GMT-8",
             gender: "female",
-            city: nil,
-            longitude: 116.41
+            longitude: 87.62
         )
         let data = try APICoder.encoder.encode(input)
         let json = try XCTUnwrap(String(data: data, encoding: .utf8))
-        XCTAssertTrue(json.contains("\"longitude\":116.41"))
-        XCTAssertFalse(json.contains("\"city\""), "city 为 nil 不编码")
+        XCTAssertFalse(json.contains("\"latitude\""), "latitude 为 nil 不编码")
+        XCTAssertFalse(json.contains("\"place_name\""), "place_name 为 nil 不编码")
+        XCTAssertFalse(json.contains("\"geoname_id\""), "geoname_id 为 nil 不编码")
+    }
+
+    func testPersonBInput_wallClockDisplay_去秒展示() {
+        // 名单行 / 失败卡片兜底名共用格式(yyyy-MM-dd HH:mm,无秒)
+        let input = PersonBInput(
+            birthDatetime: "1990-03-15T14:30:00",
+            timezone: "Asia/Shanghai",
+            gender: "male",
+            longitude: 116.4074
+        )
+        XCTAssertEqual(input.wallClockDisplay, "1990-03-15 14:30")
     }
 
     // MARK: - CompatibilityRequest 模式 A
@@ -67,10 +88,10 @@ final class CompatibilityDTOTests: XCTestCase {
     func testRequest_模式B_编码完整() throws {
         let payloadA = Self.makePayload(dayMaster: "甲", element: "wood")
         let personB = PersonBInput(
-            birthDatetime: Date(timeIntervalSince1970: 638_000_000),
+            birthDatetime: "1990-03-15T14:30:00",
+            timezone: "Asia/Shanghai",
             gender: "female",
-            city: "上海",
-            longitude: nil
+            longitude: 121.4737
         )
         let req = CompatibilityRequest(
             personAHash: "alpha",
