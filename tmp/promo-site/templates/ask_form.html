@@ -1,33 +1,28 @@
 {% extends "base.html" %}
 
-{% block title %}深度解析 · QiCompass{% endblock %}
+{% block title %}命盘问答 · QiCompass{% endblock %}
 
 {% block content %}
 <section class="page-header">
     <a href="/" class="back-link">← 返回首页</a>
-    <h1 class="page-title">深度解析</h1>
-    <p class="page-subtitle">输入出生信息,生成深度解析 AI 解读。篇幅可选:加长版(付费 6 章/免费 3 章,每章 1000-1500 字,含十神结构章)或 App 标准(付费 5 章/免费 2 章,每章 200-300 字,即 iOS 实际输出)。</p>
+    <h1 class="page-title">命盘问答</h1>
+    <p class="page-subtitle">带着你的命盘问任何问题——AI 以结构分析师口吻直答:结论先行、根因落到柱位、分期给行动。800-1500 字,约 30-120 秒。</p>
 </section>
 
-<form method="post" action="/bazi" class="form">
+<form method="post" action="/ask" class="form">
     {% include "partials/ai_config.html" %}
 
     <fieldset class="form__group">
-        <legend class="form__legend">Module 版本 <span class="form__legend-hint">决定生成 bazi_deep_paid 还是 _free</span></legend>
-        <div class="segmented">
-            <label class="segmented__option">
-                <input type="radio" name="module_tier" value="paid" checked>
-                <span class="segmented__label">付费版(完整版)</span>
-            </label>
-            <label class="segmented__option">
-                <input type="radio" name="module_tier" value="free">
-                <span class="segmented__label">免费版(预览)</span>
+        <legend class="form__legend">你的问题</legend>
+        <div class="form__row">
+            <label class="form__field form__field--wide">
+                <span class="form__label">针对这个命盘,你想问什么?</span>
+                <textarea name="question" required rows="3" class="form__input"
+                          placeholder="例:为什么我总觉得找不到同频的伙伴? / 我现在主业稳定、想做副业,结构上该怎么取舍?"></textarea>
+                <span class="form__hint">问得越具体,回答越能落到结构(泛问「我运势如何」只能得到泛答)</span>
             </label>
         </div>
-        <p class="form__hint">付费版 = iOS 付费用户完整解读(财运/爱情/健康/六亲/晚年);免费版 = iOS 免费用户首次体验(性格 + 事业)。加长版会在开头多一章「十神结构与命局主线」(仅 promo,App 无此章)。宣传物料推荐用付费版展示完整价值。</p>
     </fieldset>
-
-    {% include "partials/length_tier.html" %}
 
     <fieldset class="form__group">
         <legend class="form__legend">出生时间</legend>
@@ -72,7 +67,7 @@
             <span class="form__label">手动输入经度(海外 / 设备时区与出生地不一致时使用)</span>
         </label>
 
-        {% set sfx = '' %}{% set default_city = '青岛' %}{% set default_lng = 120.38 %}
+        {% set sfx = '' %}{% set default_city = '北京' %}{% set default_lng = 116.41 %}
         {% include 'partials/city_picker.html' %}
 
         <div id="manual-longitude-wrap" class="form__row" style="display:none">
@@ -84,21 +79,9 @@
 
     </fieldset>
 
-    <fieldset class="form__group">
-        <legend class="form__legend">现实对照(选填,仅付费 + 加长版生效)</legend>
-        <div class="form__row">
-            <label class="form__field form__field--wide">
-                <span class="form__label">你目前在做什么?</span>
-                <textarea name="reality_summary" rows="3" class="form__input"
-                          placeholder="例:银行后端程序员(主业)+ 公众号/小红书内容 + 在做虚拟产品和 iOS App。如实写,越具体对照越准。"></textarea>
-                <span class="form__hint">填写后生成会多一个「第七阶段:命局×现实对照」——把你在做的事逐项映射到命局结构,给匹配度、张力点和优先级取舍。留空则跳过该阶段。</span>
-            </label>
-        </div>
-    </fieldset>
-
     <div class="form__actions">
-        <button type="submit" class="btn btn--primary">开始排盘</button>
-        <span class="form__meta">调用 bazi_deep_paid v2 · 加长版预计 2-5 分钟 / App 标准 30-50 秒</span>
+        <button type="submit" class="btn btn--primary">问命盘</button>
+        <span class="form__meta">结论 → 柱位根因 → 分期行动 → 反直觉提醒 → 追问 · 约 30-120 秒</span>
     </div>
 </form>
 {% endblock %}

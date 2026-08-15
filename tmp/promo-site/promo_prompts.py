@@ -125,7 +125,19 @@ _BAZI_V1_STRUCTURE_CHAPTERS = """**第二阶段：天赋能力**（1000-1500 字
 **收尾：落地手册**（1000-1500 字）
 不复述前文。三件事：① 真正的杠杆是哪一项能力，一句话说清，并说明为什么不是其他几项；
 ② 怎么用：3 个具体使用场景，每个写清楚该做什么动作；③ 未来 90 天只做一件事来放大杠杆，给可验证的完成标志。
+加一段**反直觉提醒**：一个与直觉相反的视角（如"你现在缺的这样东西，可能正是这个阶段该有的状态"），说清为什么。
 最后认真回答：什么情况下这份分析应该被推翻（2 个反例信号）——提醒这是参考工具不是判决书。
+以一个**向读者的反问**收尾：一个能把分析推进下去的具体问题（如"如果 12 个月只做一件事，你第一反应是哪件？"）。
+
+"""
+
+_BAZI_REALITY_CHECK_STAGE = """**第七阶段：命局×现实对照**（1000-1500 字）
+用户现状（如实引用，不自行补写）：{reality_summary}
+
+把用户正在做的事逐项映射到命局结构：每件事对应哪个十神/哪段能量链（如"主业=印星基座、内容输出=伤官出口、产品变现=财星收获"），判断现实配置与命局主线的**匹配度**与**张力点**。
+指出当前最大的问题（往往不是"做什么"而是"分配"），给优先级排序（第一/第二/第三/最低，各自理由落到盘面依据）。
+给一道"减法判断题"（如"如果未来 3 年只让一件事起来，是哪件"），并给基于结构的取舍建议。
+风险点如实点名（哪件事最可能变成消耗），不加安慰话。
 
 """
 
@@ -134,6 +146,16 @@ BAZI_DEEP_PAID_PROMO_REQUIREMENTS = """写作要求（五阶段叙事 · 长文�
 """ + _BAZI_TEN_GOD_CHAPTER.replace(
     "第一章：十神结构与命局主线", "第一阶段：主线结构",
 ) + _BAZI_V1_STRUCTURE_CHAPTERS + _BAZI_DEEP_PROMO_COMMON
+
+# 现实对照变体(2026-08-15,用户模板拆解方案 A+C):表单填了「你目前在做什么」时用。
+# 在落地手册前插入第七阶段(六阶段+高阶+现实对照+落地手册,总 9 段,上限 13500 字)。
+BAZI_DEEP_PAID_REALITY_PROMO_REQUIREMENTS = """写作要求（五阶段叙事+现实对照 · 长文版，每段 1000-1500 字，总 9000-13500 字）：
+
+""" + _BAZI_TEN_GOD_CHAPTER.replace(
+    "第一章：十神结构与命局主线", "第一阶段：主线结构",
+) + _BAZI_V1_STRUCTURE_CHAPTERS.replace(
+    "**收尾：落地手册**", _BAZI_REALITY_CHECK_STAGE + "**收尾：落地手册**",
+) + _BAZI_DEEP_PROMO_COMMON
 
 # ---------- 合盘 ----------
 
@@ -200,11 +222,13 @@ DAILY_FORTUNE_PROMO_REQUIREMENTS = """写作要求（长文版，**总 400-600 �
 - 不确定性保留：用"倾向 / 可能 / 容易"，禁用"必 / 一定 / 肯定"
 """
 
-# module → 加长版写作要求块(promo 表单实际用到的 5 个 module;
+# module → 加长版写作要求块(promo 表单实际用到的 module;
 # v1 链 M0-M7 有自己的篇幅体系(1500-2500 字),不在此列)
+# `*_reality` 后缀 = promo 本地变体(表单带额外输入时用;HEADER/校验取去后缀的 base module)
 PROMO_REQUIREMENTS: dict[str, str] = {
     "bazi_deep_free": BAZI_DEEP_FREE_PROMO_REQUIREMENTS,
     "bazi_deep_paid": BAZI_DEEP_PAID_PROMO_REQUIREMENTS,
+    "bazi_deep_paid_reality": BAZI_DEEP_PAID_REALITY_PROMO_REQUIREMENTS,
     "compatibility_free": COMPATIBILITY_FREE_PROMO_REQUIREMENTS,
     "compatibility_paid": COMPATIBILITY_PAID_PROMO_REQUIREMENTS,
     "daily_fortune": DAILY_FORTUNE_PROMO_REQUIREMENTS,
@@ -217,8 +241,10 @@ def render_prompt_with_length(
     """按篇幅档渲染 prompt。
 
     Args:
-        module: backend 注册的 module 名(此处仅老 7 模块中的 5 个有加长版)
-        context: prompt 渲染负载(与 backend render_prompt 同一份)
+        module: PROMO_REQUIREMENTS 的 key。backend 注册 module 名,或带
+            `_reality` 后缀的 promo 本地变体(HEADER 与字段校验取 base module)
+        context: prompt 渲染负载(与 backend render_prompt 同一份;变体额外
+            字段如 reality_summary 也走 format_map 注入)
         length_tier: "app"(App 标准,backend 原样) / "promo"(加长版)
 
     Returns:
@@ -227,8 +253,13 @@ def render_prompt_with_length(
     Raises:
         ValueError: length_tier 非法,或该 module 没有加长版(显式报错,不静默降级)
     """
+    if module.endswith("_reality") and length_tier != LENGTH_TIER_PROMO:
+        raise ValueError(
+            f"module {module!r} 是 promo 专属变体,只有加长版"
+        )
+    base_module = module.removesuffix("_reality")
     if length_tier == LENGTH_TIER_APP:
-        return render_prompt(module, context)
+        return render_prompt(base_module, context)
     if length_tier != LENGTH_TIER_PROMO:
         raise ValueError(
             f"未知 length_tier: {length_tier!r}(必须 {LENGTH_TIER_APP} 或 {LENGTH_TIER_PROMO})"
@@ -239,23 +270,75 @@ def render_prompt_with_length(
             f"(可用: {sorted(PROMO_REQUIREMENTS)})"
         )
 
-    template = _TEMPLATES[module]
+    template = _TEMPLATES[base_module]
     if _REQUIREMENTS_MARKER not in template:
         # backend 模板结构变了(split 标记丢失),显式报错而不是渲染出残缺 prompt
         raise ValueError(
-            f"backend 模板 {module!r} 不含写作要求标记 {_REQUIREMENTS_MARKER!r},"
+            f"backend 模板 {base_module!r} 不含写作要求标记 {_REQUIREMENTS_MARKER!r},"
             "promo 换块机制失效,需同步检查 promo_prompts.py"
         )
     header = template.split(_REQUIREMENTS_MARKER, 1)[0]
     promo_template = header + PROMO_REQUIREMENTS[module]
 
-    # 与 backend render_prompt 同一套校验 + 渲染路径
-    validate_context(module, context)
+    # 与 backend render_prompt 同一套校验(base module 的必填字段)+ 渲染路径
+    validate_context(base_module, context)
     rendered = promo_template.format_map(_StrictFormatDict(context))
 
     # 从格诚实降级(与 backend render_prompt 的 bazi_deep 系列行为对齐)
-    if (module in ("bazi_deep", "bazi_deep_free", "bazi_deep_paid")
+    if (base_module in ("bazi_deep", "bazi_deep_free", "bazi_deep_paid")
             and context.get("day_master_strength") == "special_pattern"):
         rendered += BAZI_DEEP_SPECIAL_PATTERN_SUFFIX
 
     return rendered
+
+
+# ---------- 命盘问答(2026-08-15,用户模板拆解方案 B) ----------
+
+_CHART_QA_REQUIREMENTS = """写作要求（命盘问答 · 直答模式，总 800-1500 字）：
+
+用户针对自己命盘的问题：{question}
+
+回答结构（严格按此顺序）：
+1. **先说结论**（2-3 句直接回答，不铺垫不绕弯）
+2. **结构根因**：为什么会这样——落到具体柱位 / 十神 / 藏干 / 合冲依据（引用排盘数据，不得自行改排或补算）
+3. **现阶段定位**：这个问题在命局结构里处于什么位置（如"某十神的窗口期""某段能量链未激活"），点明用户此刻感受到它说明什么
+4. **行动建议**：短期（1-2 年）/ 中期 / 长期三层，每层 1-3 条，可执行、有取舍
+5. **反直觉提醒**：一个与直觉相反的视角（如"你现在缺的这样东西，可能正是这个阶段该有的状态"），说清为什么
+6. **结尾反问**：向用户提一个能把分析推进下去的具体问题
+
+通用要求：
+- 直言不绕弯，第二人称"你"，短句节奏
+- 每个判断落到盘面依据；不确定就明说不确定，需对方命盘的明说"需结合对方命盘"
+- 不预测具体事件 / 时间点 / 金额；格局模糊叙事（"命局呈现××倾向"），不得给"正官格 / 偏印格"等硬分类
+- 喜忌已由后端确定性给出，必须严格按 favorable / unfavorable 写，不得自行推断或修改
+- 不确定性保留：用"倾向 / 可能 / 容易"，禁用"必 / 一定 / 肯定"
+"""
+
+# 命盘问答调用参数:800-1500 字直答 → 8192 token / 300s(单问体量小,不必用长文参数)
+CHART_QA_MAX_OUTPUT_TOKENS = 8192
+CHART_QA_TIMEOUT_SECONDS = 300.0
+
+
+def render_chart_qa_prompt(context: dict, question: str) -> str:
+    """命盘问答 prompt(复用 bazi_deep HEADER + 直答要求块)。
+
+    与 render_prompt_with_length 同一套校验/渲染路径;question 经 format_map
+    注入,排盘字段校验走 bazi_deep_paid 的 REQUIRED_FIELDS。
+
+    Raises:
+        ValueError: question 为空(显式拒绝空问题,不生成万能废话)
+    """
+    q = question.strip()
+    if not q:
+        raise ValueError("question 不能为空(空问题的回答没有价值,拒绝生成)")
+    template = _TEMPLATES["bazi_deep_paid"]
+    if _REQUIREMENTS_MARKER not in template:
+        raise ValueError(
+            f"backend 模板 bazi_deep_paid 不含写作要求标记 {_REQUIREMENTS_MARKER!r},"
+            "promo 换块机制失效,需同步检查 promo_prompts.py"
+        )
+    header = template.split(_REQUIREMENTS_MARKER, 1)[0]
+    validate_context("bazi_deep_paid", context)
+    ctx = dict(context)
+    ctx["question"] = q
+    return (header + _CHART_QA_REQUIREMENTS).format_map(_StrictFormatDict(ctx))
