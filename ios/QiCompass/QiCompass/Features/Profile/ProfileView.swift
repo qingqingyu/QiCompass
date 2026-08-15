@@ -56,8 +56,11 @@ struct ProfileView: View {
             ZStack {
                 BaziTheme.paper.ignoresSafeArea()
                 List {
+                    // 生肖 asset name 单次求值,共享给命主卡 Section 与账号头像
+                    // (primaryZodiacAssetName 每次访问都 decode payload JSON,不提取会每 body 求值 decode 两次)。
+                    let zodiacAssetName = primaryZodiacAssetName
                     if let primary = primarySnapshot,
-                       let zodiacAssetName = primaryZodiacAssetName {
+                       let zodiacAssetName {
                         let birthYear = Calendar.current.component(.year, from: primary.snapshot.birthSolarTime)
                         Section {
                             IdentityCard(
@@ -70,7 +73,7 @@ struct ProfileView: View {
                             .listRowSeparator(.hidden)
                         }
                     }
-                    accountSection
+                    accountSection(zodiacAssetName: zodiacAssetName)
                     snapshotLinksSection
                     entitlementsSection
                     settingsSection
@@ -133,7 +136,8 @@ struct ProfileView: View {
 
     // MARK: - Section 0: 账号(v2 PR2)
 
-    private var accountSection: some View {
+    /// - Parameter zodiacAssetName: body 已求值的生肖 asset name(单次 decode 共享,见 body 内注释)。
+    private func accountSection(zodiacAssetName: String?) -> some View {
         Section {
             switch env.accountManager.state {
             case .loading:
@@ -146,17 +150,29 @@ struct ProfileView: View {
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 .listRowBackground(BaziTheme.paper)
             case .signedIn(let user):
-                VStack(alignment: .leading, spacing: 4) {
-                    Text(user.fullName ?? user.email ?? "Apple 用户")
-                        .foregroundStyle(BaziTheme.ink)
-                    if let email = user.email, user.fullName != nil {
-                        Text(email)
-                            .font(.caption)
+                HStack(spacing: BaziTheme.Spacing.md) {
+                    // 2026-08-15 决策:Sign in with Apple 不提供 Apple ID 头像(credential 无照片字段),
+                    // 账号头像位放生肖印章图(与命主卡 primaryZodiacAssetName 同一取图逻辑);
+                    // 无命盘(如重置后未重新 onboarding)时返回 nil,头像位留空、仅显示文本。
+                    if let zodiacAssetName {
+                        Image(zodiacAssetName)
+                            .resizable()
+                            .scaledToFit()
+                            .frame(width: 40, height: 40)
+                            .accessibilityHidden(true)
+                    }
+                    VStack(alignment: .leading, spacing: 4) {
+                        Text(user.fullName ?? user.email ?? "Apple 用户")
+                            .foregroundStyle(BaziTheme.ink)
+                        if let email = user.email, user.fullName != nil {
+                            Text(email)
+                                .font(.caption)
+                                .foregroundStyle(BaziTheme.inkMuted)
+                        }
+                        Text("Apple ID:\(user.appleUserId.prefix(12))")
+                            .font(.caption2.monospaced())
                             .foregroundStyle(BaziTheme.inkMuted)
                     }
-                    Text("Apple ID:\(user.appleUserId.prefix(12))")
-                        .font(.caption2.monospaced())
-                        .foregroundStyle(BaziTheme.inkMuted)
                 }
                 Button("退出登录", role: .destructive) {
                     env.accountManager.signOut()
