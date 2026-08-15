@@ -74,21 +74,17 @@ final class CompatibilityViewModel {
     /// 默认值单一事实源:`CompatibilityRosterPersistence.defaultTempDraft`(VM init 会用持久化草稿覆盖)。
     var tempBirthDate: Date = CompatibilityRosterPersistence.defaultTempDraft.birthDate
     var tempGender: String = CompatibilityRosterPersistence.defaultTempDraft.gender
-    /// 出生地(全球城市搜索,S04;无默认城市,必选)
-    var tempPlace: CityRecord? = CompatibilityRosterPersistence.defaultTempDraft.place
-    var tempUseManualLongitude: Bool = CompatibilityRosterPersistence.defaultTempDraft.useManualLongitude
-    var tempManualLongitude: Double = CompatibilityRosterPersistence.defaultTempDraft.manualLongitude
+    /// 出生地(全球城市搜索 / S05 自定义地点;无默认,必选)
+    var tempPlace: PlaceSelection? = CompatibilityRosterPersistence.defaultTempDraft.place
     /// S04 新增:临时人可选「称呼」字段(会话内显示)。
     /// 空字符串视为未填 → 跨启动兜底名「对方+出生日期」。
     var tempAlias: String = ""
 
-    /// 临时人出生城市时区 Calendar(WYSIWYG:表盘与钟面提取按出生地,不随设备漂移)。
-    /// 手动经度开启时回退设备时区(与请求构造的过渡语义一致,避免表盘/请求时区分裂)。
+    /// 临时人出生地时区 Calendar(WYSIWYG:表盘与钟面提取按出生地,不随设备漂移)。
+    /// 城市与自定义地点共用 BirthPlaceResolver 单一事实源(S05)。
     var tempPlaceCalendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
-        let tzName = BirthPlaceResolver.effectiveTimezoneName(
-            place: tempPlace, useManualLongitude: tempUseManualLongitude
-        )
+        let tzName = BirthPlaceResolver.effectiveTimezoneName(tempPlace)
         if let tz = tzName.flatMap({ TimeZone(identifier: $0) }) {
             calendar.timeZone = tz
         } else {
@@ -97,7 +93,7 @@ final class CompatibilityViewModel {
         return calendar
     }
 
-    /// 临时人钟面 → 裸钟面字符串(S02 契约;城市时区优先,手动经度过渡期设备时区)。
+    /// 临时人钟面 → 裸钟面字符串(S02 契约;城市/自定义地点时区,S05)。
     private func tempWallTimeString() -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
@@ -259,13 +255,11 @@ final class CompatibilityViewModel {
         guard roster.count < Self.rosterMax else {
             throw UserFacingError.generic(message: "名单已达上限 \(Self.rosterMax) 人")
         }
-        // 出生地字段解析走单一事实源(S04 review):手动经度开关优先于残留 tempPlace,
-        // 草稿恢复的上次城市不得静默覆盖手动值(错误显式传播)。
-        let resolved = BirthPlaceResolver.resolve(
-            place: tempPlace,
-            useManualLongitude: tempUseManualLongitude,
-            manualLongitude: tempManualLongitude
-        )
+        // 出生地字段解析走单一事实源(S05:城市/自定义地点;validateTempForm 已保证非空)
+        guard let place = tempPlace else {
+            throw UserFacingError.generic(message: "请选择出生城市")
+        }
+        let resolved = BirthPlaceResolver.resolve(place)
         let input = PersonBInput(
             birthDatetime: tempWallTimeString(),
             timezone: resolved.timezone,
@@ -289,9 +283,7 @@ final class CompatibilityViewModel {
             .init(
                 birthDate: tempBirthDate,
                 gender: tempGender,
-                place: tempPlace,
-                useManualLongitude: tempUseManualLongitude,
-                manualLongitude: tempManualLongitude
+                place: tempPlace
             )
         )
         roster.append(newEntry)
@@ -309,8 +301,6 @@ final class CompatibilityViewModel {
         tempBirthDate = draft.birthDate
         tempGender = draft.gender
         tempPlace = draft.place
-        tempUseManualLongitude = draft.useManualLongitude
-        tempManualLongitude = draft.manualLongitude
     }
 
     /// 移除名单一项。
@@ -319,17 +309,17 @@ final class CompatibilityViewModel {
     }
 
     /// 临时表单校验(不静默吞)。
-    /// - 出生时间未来 / 城市 / 经度越界 → 抛 UserFacingError
+    /// - 出生时间未来 / 未选地点 / 自定义经度越界 → 抛 UserFacingError
     private func validateTempForm() throws {
         if tempBirthDate > Date() {
             AppLogger.app.warning("op=compatibility.validateTemp skip reason=b_birth_future")
             throw UserFacingError.generic(message: "B 盘出生时间不能晚于当下")
         }
-        if !tempUseManualLongitude && tempPlace == nil {
-            AppLogger.app.warning("op=compatibility.validateTemp skip reason=b_city_empty")
-            throw UserFacingError.generic(message: "请选择出生城市,或开启手动经度输入")
+        if tempPlace == nil {
+            AppLogger.app.warning("op=compatibility.validateTemp skip reason=b_place_empty")
+            throw UserFacingError.generic(message: "请选择出生城市,或在搜索页底部自定义地点")
         }
-        if tempUseManualLongitude && !(-180.0...180.0).contains(tempManualLongitude) {
+        if let tempPlace, !tempPlace.isCustomLongitudeValid {
             AppLogger.app.warning("op=compatibility.validateTemp skip reason=b_longitude_out_of_range")
             throw UserFacingError.generic(message: "B 盘经度需在 -180 到 180 之间")
         }

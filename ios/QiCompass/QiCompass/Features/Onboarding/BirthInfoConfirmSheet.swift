@@ -31,11 +31,7 @@ struct BirthInfoConfirmSheet: View {
             VStack(spacing: BaziTheme.Spacing.md) {
                 infoRow(label: "出生时间", value: birthWallTimeString)
                 infoRow(label: "性别", value: vm.gender == "male" ? "男" : "女")
-                if vm.useManualLongitude {
-                    infoRow(label: "出生地", value: "经度 \(formattedLongitude(vm.manualLongitude))")
-                } else {
-                    infoRow(label: "出生地", value: vm.selectedPlace?.displayLabel ?? "—")
-                }
+                infoRow(label: "出生地", value: vm.selectedPlace?.displayLabel ?? "—")
             }
 
             VStack(spacing: BaziTheme.Spacing.sm) {
@@ -67,7 +63,7 @@ struct BirthInfoConfirmSheet: View {
         .background(BaziTheme.paper)
         .onAppear {
             // 规则 1:用户主动触发的入口日志(便于排查"sheet 没弹 / 反复弹")
-            AppLogger.app.info("BirthInfoConfirmSheet.shown birth=\(birthWallTimeString) gender=\(vm.gender, privacy: .public) place=\(vm.selectedPlace?.displayName ?? "nil", privacy: .public) useManualLon=\(vm.useManualLongitude, privacy: .public)")
+            AppLogger.app.info("BirthInfoConfirmSheet.shown birth=\(birthWallTimeString) gender=\(vm.gender, privacy: .public) place=\(vm.selectedPlace?.displayLabel ?? "nil", privacy: .public)")
         }
     }
 
@@ -94,11 +90,5 @@ struct BirthInfoConfirmSheet: View {
     private var birthWallTimeString: String {
         dateFormatter.timeZone = vm.placeCalendar.timeZone
         return dateFormatter.string(from: vm.birthDate)
-    }
-
-    /// 经度格式化:保留 2 位小数(如 `116.41`)。
-    /// manualLongitude 是 Double,直接 String(format:) 渲染。
-    private func formattedLongitude(_ value: Double) -> String {
-        String(format: "%.2f", value)
     }
 }

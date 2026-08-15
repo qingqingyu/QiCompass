@@ -4,10 +4,10 @@ import XCTest
 
 /// S03 深度解析表单 VM 测试:必选城市校验 + 请求构造(裸钟面 / timezone / 经纬度)。
 ///
-/// 对应 S03 验收:
-/// - 未选城市提交 → 「请选择出生城市」;无任何默认城市
+/// 对应 S03/S05 验收:
+/// - 未选出生地提交 → 「请选择出生城市」;无任何默认城市
 /// - 选中城市后 `birthDatetime` 为出生城市裸钟面(WYSIWYG),timezone/经纬度来自城市记录
-/// - 手动经度过渡路径:timezone=设备时区(S05 升级前过渡)
+/// - S05 自定义地点:timezone 显式必选(城市/自定义地点两分支)
 @MainActor
 final class DeepAnalysisViewModelFormTests: XCTestCase {
 
@@ -94,26 +94,24 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
     // MARK: - 必选校验(砍「北京」默认)
 
     func testValidateNoPlaceRequiresCity() {
-        vm.useManualLongitude = false
         vm.selectedPlace = nil
         let errors = vm.validateForm()
-        XCTAssertTrue(errors.contains("请选择出生城市"), "未选城市且未开手动经度 → 必须拦截: \(errors)")
+        XCTAssertTrue(errors.contains("请选择出生城市"), "未选出生地 → 必须拦截: \(errors)")
         XCTAssertTrue(vm.selectedPlace == nil, "无任何默认城市(初始态必须 nil)")
     }
 
     func testValidatePlaceSelectedPasses() {
-        vm.selectedPlace = Self.losAngeles
+        vm.selectedPlace = .city(Self.losAngeles)
         vm.birthDate = Date(timeIntervalSince1970: 580_262_400) // 1988-05-15 前后,早于当下
         let errors = vm.validateForm()
         XCTAssertFalse(errors.contains("请选择出生城市"), errors.description)
     }
 
-    func testValidateManualLongitudeSkipsCityRequirement() {
-        vm.useManualLongitude = true
-        vm.manualLongitude = 116.41
+    func testValidateCustomPlaceSkipsCityRequirement() {
+        vm.selectedPlace = .custom(longitude: 116.41, timezone: "Asia/Shanghai")
         XCTAssertFalse(vm.validateForm().contains("请选择出生城市"))
         // 越界经度仍拦截
-        vm.manualLongitude = 200
+        vm.selectedPlace = .custom(longitude: 200, timezone: "Asia/Shanghai")
         XCTAssertTrue(vm.validateForm().contains("经度需在 -180 到 180 之间"))
     }
 
@@ -122,9 +120,9 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
     func testBuildRequestExtractsWallClockInPlaceTimezone() throws {
         let birth = Date(timeIntervalSince1970: 580_262_400)
         vm.birthDate = birth
-        vm.selectedPlace = Self.losAngeles
+        vm.selectedPlace = .city(Self.losAngeles)
 
-        let request = vm.buildRequest()
+        let request = try vm.buildRequest()
 
         let laTZ = try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))
         XCTAssertEqual(request.birthDatetime, Self.expectedWall(birth, timeZone: laTZ),
@@ -141,10 +139,10 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         let birth = Date(timeIntervalSince1970: 580_262_400)
         vm.birthDate = birth
 
-        vm.selectedPlace = Self.losAngeles
-        let laWall = vm.buildRequest().birthDatetime
-        vm.selectedPlace = Self.beijing
-        let bjWall = vm.buildRequest().birthDatetime
+        vm.selectedPlace = .city(Self.losAngeles)
+        let laWall = try vm.buildRequest().birthDatetime
+        vm.selectedPlace = .city(Self.beijing)
+        let bjWall = try vm.buildRequest().birthDatetime
 
         let laTZ = try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))
         let bjTZ = try XCTUnwrap(TimeZone(identifier: "Asia/Shanghai"))
@@ -153,44 +151,41 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         XCTAssertNotEqual(laWall, bjWall)
     }
 
-    func testBuildRequestManualLongitudeUsesDeviceTimezone() {
-        // 手动经度过渡路径(S05 升级前):timezone=设备时区,物理值=手动经度
-        vm.useManualLongitude = true
-        vm.manualLongitude = 87.62
-        let request = vm.buildRequest()
-        XCTAssertEqual(request.timezone, TimeZone.current.identifier)
+    func testBuildRequestCustomPlaceUsesExplicitTimezone() throws {
+        // S05 自定义地点:timezone 显式必选(不再默认设备时区),物理值=手输经度
+        vm.selectedPlace = .custom(longitude: 87.62, timezone: "Asia/Urumqi")
+        let request = try vm.buildRequest()
+        XCTAssertEqual(request.timezone, "Asia/Urumqi")
         XCTAssertEqual(request.longitude, 87.62, accuracy: 1e-9)
         XCTAssertNil(request.latitude)
-        XCTAssertNil(request.placeName)
+        XCTAssertEqual(request.placeName, "自定义地点")
         XCTAssertNil(request.geonameId)
     }
 
-    func testBuildRequestManualLongitudeOverridesStalePlace() {
-        // S04 review:先选城后开手动经度 → 残留 selectedPlace 不得静默覆盖手动值
-        // (三入口一致;表单 UI 开关 ON 时隐藏城市选择,place 只能是残留)
-        vm.selectedPlace = Self.losAngeles
-        vm.useManualLongitude = true
-        vm.manualLongitude = 87.62
-        let request = vm.buildRequest()
-        XCTAssertEqual(request.timezone, TimeZone.current.identifier)
-        XCTAssertEqual(request.longitude, 87.62, accuracy: 1e-9,
-                       "手动经度必须优先于残留城市经度")
-        XCTAssertNil(request.placeName)
-        XCTAssertNil(request.geonameId)
+    func testBuildRequestCustomPlaceExplicitFields() throws {
+        // S05:自定义地点回显 / 时区简写(Etc/GMT-8 = UTC+8 反符号)
+        let custom = PlaceSelection.custom(longitude: 117.3, timezone: "Etc/GMT-8")
+        XCTAssertEqual(custom.displayLabel, "自定义地点 · GMT+8")
+        XCTAssertEqual(custom.timezone, "Etc/GMT-8")
+        XCTAssertTrue(custom.isCustomLongitudeValid)
+        XCTAssertFalse(PlaceSelection.custom(longitude: 200, timezone: "Etc/GMT-8").isCustomLongitudeValid)
+        vm.selectedPlace = custom
+        let request = try vm.buildRequest()
+        XCTAssertEqual(request.timezone, "Etc/GMT-8")
+        XCTAssertEqual(request.longitude, 117.3, accuracy: 1e-9)
     }
 
-    func testPlaceCalendarFallsBackToCurrentWhenManualLongitudeOn() {
-        // WYSIWYG 同源:手动经度模式表盘 = 设备时区(与 buildRequest 的 timezone 一致)
-        vm.selectedPlace = Self.losAngeles
-        vm.useManualLongitude = true
-        XCTAssertEqual(vm.placeCalendar.timeZone.identifier, TimeZone.current.identifier,
-                       "手动经度模式表盘不得沿用残留城市时区")
+    func testPlaceCalendarUsesCustomPlaceTimezone() {
+        // WYSIWYG 同源:自定义地点表盘 = 其显式时区(与 buildRequest 的 timezone 一致)
+        vm.selectedPlace = .custom(longitude: 87.62, timezone: "Asia/Urumqi")
+        XCTAssertEqual(vm.placeCalendar.timeZone.identifier, "Asia/Urumqi",
+                       "自定义地点表盘必须用显式时区")
     }
 
     // MARK: - 时辰快捷选挂城市时区(WYSIWYG)
 
     func testSetShichenHourUsesPlaceCalendar() throws {
-        vm.selectedPlace = Self.losAngeles
+        vm.selectedPlace = .city(Self.losAngeles)
         vm.setShichenHour(10)
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))

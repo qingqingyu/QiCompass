@@ -37,15 +37,84 @@ struct CityRecord: Identifiable, Equatable, Sendable, Codable {
     var displayLabel: String { "\(displayName), \(countryNameZh)" }
 }
 
-// MARK: - 出生地解析(城市 / 手动经度,单一事实源)
+// MARK: - 出生地选择(城市 / 自定义地点,S05)
 
-/// 出生地物理真值解析(S02 契约字段组;S04 review 抽出)。
-///
-/// 规则:**手动经度开关优先**——开启时用「设备时区 + 手动经度」(过渡语义,S05
-/// 升级「自定义地点:经度+IANA 时区必填」后此分支整体换掉);残留 place(UI 开关
-/// ON 时城市选择被隐藏,草稿还会恢复上次城市)不得静默覆盖手动值(错误显式传播)。
-/// 深度解析 / onboarding / 合盘快速添加三入口共用,防各自实现漂移
-/// (S04 合盘迁移时曾因双份实现漏改开关语义而回归,故收拢)。
+/// 出生地统一模型:全球城市 或 自定义地点(经度 + IANA 时区必填)。
+/// 三入口(深度解析/合盘快速添加/onboarding)共用;Codable 供 TempDraftState 持久化。
+enum PlaceSelection: Equatable, Codable, Sendable {
+    /// 城市库选择(cities.sqlite 记录)
+    case city(CityRecord)
+    /// 自定义地点(冷门出生地逃生舱;时区显式必填,不再默认设备时区)
+    case custom(longitude: Double, timezone: String)
+
+    /// IANA 时区名(请求 timezone 字段)。
+    var timezone: String {
+        switch self {
+        case .city(let record): return record.timezone
+        case .custom(_, let timezone): return timezone
+        }
+    }
+
+    /// 经度(东正西负)。
+    var longitude: Double {
+        switch self {
+        case .city(let record): return record.longitude
+        case .custom(let longitude, _): return longitude
+        }
+    }
+
+    /// 表单回显:城市「北京, 中国」/ 自定义「自定义地点 · GMT+8」。
+    var displayLabel: String {
+        switch self {
+        case .city(let record): return record.displayLabel
+        case .custom(_, let timezone):
+            return "自定义地点 · \(Self.gmtLabel(timezone))"
+        }
+    }
+
+    /// IANA 名 → GMT 简称(Etc/GMT-X 按反符号解析;其余按系统 TimeZone 解析的
+    /// UTC 偏移计算;解析失败原样返回输入,不吞不猜)。
+    static func gmtLabel(_ iana: String) -> String {
+        if iana.hasPrefix("Etc/GMT-") || iana.hasPrefix("Etc/GMT+") {
+            // Etc/GMT-8 → "+8";Etc/GMT+5 → "-5"(IANA 反符号)
+            let raw = iana.replacingOccurrences(of: "Etc/GMT", with: "")
+            let sign = raw.hasPrefix("-") ? "+" : "-"
+            let hours = raw.replacingOccurrences(of: "-", with: "")
+                .replacingOccurrences(of: "+", with: "")
+            return "GMT\(sign)\(hours)"
+        }
+        if let tz = TimeZone(identifier: iana) {
+            let seconds = tz.secondsFromGMT(for: Date(timeIntervalSince1970: 0))
+            let hours = Double(seconds) / 3600.0
+            let sign = hours >= 0 ? "+" : "-"
+            let absH = abs(hours)
+            if absH.truncatingRemainder(dividingBy: 1) == 0 {
+                return String(format: "GMT%@%.0f", sign, absH)
+            }
+            if absH.truncatingRemainder(dividingBy: 1) == 0.5 {
+                // 半时区(印度 +5:30 / 伊朗 +3:30):对齐 picker 文案的 :30 写法。
+                // 小时用 Int() 截断——%.0f 会把 5.5 四舍五入成 6(got GMT+6:30 的实测教训)
+                return "GMT\(sign)\(Int(absH)):30"
+            }
+            return String(format: "GMT%@%.2f", sign, absH)
+        }
+        return iana
+    }
+
+    /// 自定义地点经度合法性(范围 + 非 NaN)。
+    var isCustomLongitudeValid: Bool {
+        switch self {
+        case .city: return true
+        case .custom(let longitude, _):
+            return longitude.isFinite && (-180.0...180.0).contains(longitude)
+        }
+    }
+}
+
+// MARK: - 出生地解析(单一事实源)
+
+/// 出生地 → S02 契约字段组(S04 review 抽出;S05 手动经度开关整体替换为
+/// PlaceSelection.custom——时区显式必填,消灭「设备时区静默顶替」的过渡语义)。
 enum BirthPlaceResolver {
 
     /// 解析结果(S02 契约五字段,timezone/longitude 必填,余为存档展示元数据)。
@@ -57,36 +126,32 @@ enum BirthPlaceResolver {
         let geonameId: Int?
     }
 
-    /// 出生地字段解析:城市优先;手动经度开启 → 设备时区 + 手动经度。
-    static func resolve(
-        place: CityRecord?,
-        useManualLongitude: Bool,
-        manualLongitude: Double
-    ) -> Resolved {
-        if !useManualLongitude, let place {
+    static func resolve(_ selection: PlaceSelection) -> Resolved {
+        switch selection {
+        case .city(let record):
             return Resolved(
-                timezone: place.timezone,
-                longitude: place.longitude,
-                latitude: place.latitude,
-                placeName: place.displayName,
-                geonameId: place.geonameId
+                timezone: record.timezone,
+                longitude: record.longitude,
+                latitude: record.latitude,
+                placeName: record.displayName,
+                geonameId: record.geonameId
+            )
+        case .custom(let longitude, let timezone):
+            return Resolved(
+                timezone: timezone,
+                longitude: longitude,
+                latitude: nil,
+                placeName: "自定义地点",
+                geonameId: nil
             )
         }
-        // 手动经度过渡路径(S05 升级):时区暂用设备时区
-        return Resolved(
-            timezone: TimeZone.current.identifier,
-            longitude: manualLongitude,
-            latitude: nil,
-            placeName: nil,
-            geonameId: nil
-        )
     }
 
-    /// 表盘 / 请求共用的 IANA 时区名(手动经度 → nil,调用方回退设备时区)。
+    /// 表盘 / 请求共用的 IANA 时区名(未选 → nil,调用方回退设备时区)。
     /// WYSIWYG:DatePicker 表盘时区必须与请求 timezone 同源,防「表盘城市时区 /
     /// 请求设备时区」分裂(钟面提取会错时辰)。
-    static func effectiveTimezoneName(place: CityRecord?, useManualLongitude: Bool) -> String? {
-        useManualLongitude ? nil : place?.timezone
+    static func effectiveTimezoneName(_ selection: PlaceSelection?) -> String? {
+        selection?.timezone
     }
 }
 

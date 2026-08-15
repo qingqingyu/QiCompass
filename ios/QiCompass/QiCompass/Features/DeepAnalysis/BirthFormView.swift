@@ -53,25 +53,11 @@ struct BirthFormView: View {
                 }
 
                 section(title: "出生地") {
-                    // S03 文案对齐:开关升级为「自定义经度」(S05 再升级「自定义地点」:经度+时区必填)
-                    Toggle("自定义经度", isOn: $vm.useManualLongitude)
-                        .foregroundStyle(BaziTheme.ink)
-                    if vm.useManualLongitude {
-                        HStack {
-                            Text("经度").foregroundStyle(BaziTheme.inkMuted)
-                            TextField("东正西负", value: $vm.manualLongitude, format: .number)
-                                .keyboardType(.numbersAndPunctuation)
-                                .foregroundStyle(BaziTheme.ink)
-                                .padding(BaziTheme.Spacing.sm)
-                                .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
-                        }
-                        Text("城市搜不到时使用;时区按设备时区(S05 升级为可选时区)。")
-                            .font(.caption)
-                            .foregroundStyle(BaziTheme.inkMuted)
-                    } else {
-                        // S03:全球城市搜索(无默认城市,必选;Q8 sheet 交互)
-                        CityPickerField(selection: $vm.selectedPlace)
-                    }
+                    // S05:全球城市搜索 + sheet 内「自定义地点」(经度+时区必填)
+                    CityPickerField(selection: $vm.selectedPlace)
+                    Text(L10n.CitySearch.customEntryHint)
+                        .font(.caption)
+                        .foregroundStyle(BaziTheme.inkMuted)
                 }
 
                 if case .formInvalid(let errors) = vm.state {
