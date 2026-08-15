@@ -1,10 +1,12 @@
 # 付费系统设计决策(MONETIZATION)
 
-Generated on 2026-07-18, last updated 2026-08-14
+Generated on 2026-07-18, last updated 2026-08-15
 Status: ACCEPTED（M2a/b/c + M3a/b/c + M4 已实现并合并 main，M6 TestFlight 待沙盒验证）
 关联文档: `CLAUDE.md` / `bazi-app-design-doc.md` / `命理引擎设计决策.md` / `DESIGN.md`
 
 > **2026-08-01 grill-me 更新**：每日一问(原 §每日一问 + Slice M5 + 验收标准相关条目)移出 v1,进 v2 backlog。其他付费结构(深度解析 2+5 / 合盘 half-free / 消耗型 IAP per-命盘 / $17.99 / $11.99 / 后端 entitlement 校验)**全部保持不变**。三模块 voice 改 Medium / Medium-deep 短句节奏（今日运势=Medium 50-80 字 / 深度解析=Medium-deep 200-300 字×7 章 / 合盘=Medium 200-300 字×6 章，详见 `bazi-app-design-doc.md` §AI Voice 规范），不影响付费结构。
+>
+> **2026-08-15 更新**：深度解析付费再加 3 章——「天赋能力 / 高配版与低配版 / 人生系统模式」（v1 链 M1/M2/M3 结构叙事的 200-300 字精华版，完整 1500-2500 字版仍归 v1 链独占），付费 6 章→9 章，总 11 章（2 免费 + 9 付费）。`bazi_deep_paid` prompt_version 3→4。付费结构（消耗型 IAP / 价格 / entitlement 校验）不变。
 >
 > **2026-08-14 更新**：深度解析付费新增第一章「十神结构与命局主线」（承接 v1 设计文档 M0 叙事），付费 5 章→6 章，总 8 章（2 免费 + 6 付费）。`bazi_deep_paid` prompt_version 2→3。付费结构（消耗型 IAP / 价格 / entitlement 校验）不变。
 
@@ -24,7 +26,7 @@ Status: ACCEPTED（M2a/b/c + M3a/b/c + M4 已实现并合并 main，M6 TestFligh
 |---|---|---|
 | Entitlement 模型 | **消耗型 IAP per-命盘** | 用户原话"修改生辰要重新购买";严格按 `content_hash` 绑定,每次新增/修改命盘都消耗一次购买 |
 | 深度解析免费章节 | **性格底色 + 事业(2 章)** | 用户能从免费内容感知"AI 真有料"才肯买 |
-| 深度解析付费章节 | **十神结构 / 财运 / 爱情 / 健康 / 六亲 / 晚年(6 章)** | 具体领域预测是用户付费动力;十神结构章承接 v1 M0 叙事(2026-08-14 新增) |
+| 深度解析付费章节 | **十神结构 / 天赋能力 / 高配低配 / 系统模式 / 财运 / 爱情 / 健康 / 六亲 / 晚年(9 章)** | 自我认知 4 章 + 生活领域 5 章(2026-08-14 加十神结构,2026-08-15 加 v1 叙事 3 章) |
 | 合盘付费形态 | **跟深度解析同形态(半免费)** | UX 一致,降低实现复杂度 |
 | 每日一问 | **开放问题 + 留历史** — ~~v1~~ **移出 v1，进 v2 backlog（2026-08-01 grill-me）** | 原计划留历史提升回访率;v1 三模块核心 + Medium voice 重写已占满工作量,且与今日运势有重叠,等 v1 用户反馈再决定是否做 |
 | 定价基准 | **深度解析 $17.99 / 合盘 $11.99(USD)** | 高端定位,跟 `DESIGN.md` 的"克制、专业"对齐;合盘内容更少所以更便宜 |
@@ -48,7 +50,7 @@ Status: ACCEPTED（M2a/b/c + M3a/b/c + M4 已实现并合并 main，M6 TestFligh
 
 ## 免费 / 付费内容分界
 
-### 深度解析(8 章 → 2 免费 + 6 付费)
+### 深度解析(11 章 → 2 免费 + 9 付费)
 
 **免费预览**(无 entitlement 也能看):
 1. **性格底色** — 日主 + 五行倾向 + 整体格局倾向
@@ -56,11 +58,14 @@ Status: ACCEPTED（M2a/b/c + M3a/b/c + M4 已实现并合并 main，M6 TestFligh
 
 **付费章节**(需 entitlement):
 3. **十神结构与命局主线** — 十神三层主线 + 核心循环(2026-08-14 新增,承接 v1 M0 叙事)
-4. **财运** — 正财/偏财倾向 + 富贵层级 + 流年财星触发
-5. **爱情** — 婚姻方向 + 配偶特征 + 婚期窗口
-6. **健康** — 体质倾向 + 注意部位 + 调候建议
-7. **六亲** — 父母 / 兄弟 / 子女缘
-8. **晚年** — 晚运倾向 + 中年转折点
+4. **天赋能力** — 天生/训练/防御三类 + 杠杆点(2026-08-15 新增,v1 M1 精华)
+5. **高配版与低配版** — 两种跑法 + 分界变量 + 早期信号(2026-08-15 新增,v1 M2 精华)
+6. **人生系统模式** — 输入加工输出回血 + 失效机制(2026-08-15 新增,v1 M3 精华)
+7. **财运** — 正财/偏财倾向 + 富贵层级 + 流年财星触发
+8. **爱情** — 婚姻方向 + 配偶特征 + 婚期窗口
+9. **健康** — 体质倾向 + 注意部位 + 调候建议
+10. **六亲** — 父母 / 兄弟 / 子女缘
+11. **晚年** — 晚运倾向 + 中年转折点
 
 ### 合盘(待 Slice M4 细化)
 
@@ -136,12 +141,12 @@ CREATE INDEX idx_entitlement_user ON entitlement(user_local_id, is_active);
 | 请求 | entitlement 要求 |
 |---|---|
 | `module=bazi_deep`,prompt=`bazi_deep_free` | **无要求**,返回免费 2 章 |
-| `module=bazi_deep`,prompt=`bazi_deep_paid` | **要求 entitlement active**,返回付费 6 章 |
+| `module=bazi_deep`,prompt=`bazi_deep_paid` | **要求 entitlement active**,返回付费 9 章 |
 | `module=compatibility`,prompt=`compatibility_free` | **无要求**,返回免费章节 |
 | `module=compatibility`,prompt=`compatibility_paid` | **要求 entitlement active**,返回付费章节 |
 
 **实现关键**:
-- 现在的 `bazi_deep` prompt 拆成 `bazi_deep_free`(2 章)+ `bazi_deep_paid`(6 章,2026-08-14 加十神结构章)
+- 现在的 `bazi_deep` prompt 拆成 `bazi_deep_free`(2 章)+ `bazi_deep_paid`(9 章,2026-08-14 加十神结构、08-15 加 v1 叙事 3 章)
 - 客户端调 `/api/interpret` 时传 `module=bazi_deep_free` 或 `bazi_deep_paid`,后端根据 module 检查 entitlement
 - 缓存键 `(content_hash, module, ...)` 自动分开两份,不会污染
 
