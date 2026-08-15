@@ -66,4 +66,69 @@ enum ZodiacHelper {
     static func genderLabel(forGender gender: String) -> String {
         gender == "male" ? "乾造(男)" : "坤造(女)"
     }
+
+    // MARK: - 老缓存兜底(2026-08-15 排盘异常修复)
+
+    /// 地支顺序(子→亥),三合组内两友按此序稳定输出(对齐 backend ZHI_ORDER)。
+    private static let zhiOrder: [String] = "子丑寅卯辰巳午未申酉戌亥".map(String.init)
+
+    /// 地支 → 英文生肖名(对齐 backend `app/engine/pillars.py:ZODIAC_NAME`)。
+    private static let zhiToZodiac: [String: String] = [
+        "子": "Rat", "丑": "Ox", "寅": "Tiger", "卯": "Rabbit",
+        "辰": "Dragon", "巳": "Snake", "午": "Horse", "未": "Goat",
+        "申": "Monkey", "酉": "Rooster", "戌": "Dog", "亥": "Pig",
+    ]
+
+    /// 六合(双向):子丑 / 寅亥 / 卯戌 / 辰酉 / 巳申 / 午未。
+    private static let liuhe: [String: String] = [
+        "子": "丑", "丑": "子", "寅": "亥", "亥": "寅",
+        "卯": "戌", "戌": "卯", "辰": "酉", "酉": "辰",
+        "巳": "申", "申": "巳", "午": "未", "未": "午",
+    ]
+
+    /// 六冲(双向):子午 / 丑未 / 寅申 / 卯酉 / 辰戌 / 巳亥。
+    private static let liuchong: [String: String] = [
+        "子": "午", "午": "子", "丑": "未", "未": "丑",
+        "寅": "申", "申": "寅", "卯": "酉", "酉": "卯",
+        "辰": "戌", "戌": "辰", "巳": "亥", "亥": "巳",
+    ]
+
+    /// 三合局(4 组,每组 3 支):申子辰 / 寅午戌 / 巳酉丑 / 亥卯未。
+    private static let sanheGroups: [[String]] = [
+        ["申", "子", "辰"], ["寅", "午", "戌"], ["巳", "酉", "丑"], ["亥", "卯", "未"],
+    ]
+
+    /// 年支 → (生肖, 好朋友 3 支, 六冲 1 支)英文生肖名。
+    ///
+    /// 用途:`year_branch_zodiac`(2026-08-11)与 `year_branch_friends/clash`
+    /// (2026-08-13)上线**之前**落库的 ChartSnapshot.payload 不含这些 key,
+    /// `BaziResponse.init(from:)` 强制解码 keyNotFound → 全模块「排盘异常」。
+    /// 修复:缺 key 时从已解码的 `pillars.year.zhi` 本地查表兜底——三字段均为
+    /// 年支的纯查表函数,兜底值与新响应后端计算值一致。
+    ///
+    /// 语义事实源对齐 backend `app/engine/branch_relations.py:compute_friends_and_clash`:
+    /// 好朋友 = 六合 1 支(排第一)+ 三合 2 支(按地支顺序);需磨合 = 六冲 1 支。
+    /// 新响应恒含这三字段,不走本路径;任一侧关系表变更需同步(命理固定关系,预期不变)。
+    ///
+    /// 未知地支 → nil(调用方抛 DecodingError,不静默吞)。
+    static func legacyYearBranchFields(
+        forYearZhi zhi: String
+    ) -> (zodiac: String, friends: [String], clash: String)? {
+        guard let zodiac = zhiToZodiac[zhi],
+              let liuheZhi = liuhe[zhi],
+              let clashZhi = liuchong[zhi] else {
+            return nil
+        }
+        guard let sanheGroup = sanheGroups.first(where: { $0.contains(zhi) }) else {
+            return nil
+        }
+        let sanheTwo = sanheGroup
+            .filter { $0 != zhi }
+            .sorted { zhiOrder.firstIndex(of: $0)! < zhiOrder.firstIndex(of: $1)! }
+        let friends = ([liuheZhi] + sanheTwo).compactMap { zhiToZodiac[$0] }
+        guard let clashZodiac = zhiToZodiac[clashZhi] else { return nil }
+        // 3 支全部映射成功才算兜底数据完整(任一 nil 说明表不同步,显式失败)
+        guard friends.count == 3 else { return nil }
+        return (zodiac: zodiac, friends: friends, clash: clashZodiac)
+    }
 }
