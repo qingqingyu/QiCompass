@@ -56,7 +56,8 @@ final class LiveAPIClient: APIClient {
     private let session: URLSession
     private let baseURL: URL
     // v2 PR2:AccountManager weak 引用,避免 retain cycle(AppEnvironment 持两者)
-    // 后端 PR2.5 接 JWT middleware 前此 token 不会被验证,iOS 仍正常工作
+    // 后端 PR2.5 已接 JWT 验签:Authorization 存在但验签失败会硬 401
+    // (无 header 才走 user_local_id 兜底),所以只发自家 JWT,见 AccountManager token 策略
     weak var accountManager: AccountManager?
 
     init(baseURL: URL) {
@@ -69,7 +70,7 @@ final class LiveAPIClient: APIClient {
         self.baseURL = baseURL
     }
 
-    /// AppEnvironment 装配 AccountManager 后注入(运行时取 jwtToken 加 Authorization header)。
+    /// AppEnvironment 装配 AccountManager 后注入(运行时取 lastKnownJwtToken 加 Authorization header)。
     func setAccountManager(_ manager: AccountManager) {
         accountManager = manager
         AppLogger.networking.info("api.live.accountManager_injected")
@@ -154,9 +155,9 @@ final class LiveAPIClient: APIClient {
         req.httpMethod = endpoint.method
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
-        // v2 PR2:从 AccountManager 取 lastKnownJwtToken(已登录时注入 Authorization header)
+        // v2 PR2:从 AccountManager 取 lastKnownJwtToken(只承载自家 JWT,已登录且 exchange 成功时注入)
         // 用 nonisolated(unsafe) 属性避免 main actor 切换(APIClient.send 可能在 background 线程)
-        // 后端 PR2.5 接 JWT middleware 前此 header 不被验证,iOS 仍正常工作
+        // 后端会验签:过期 / 非法 token 硬 401,无 header 才走 user_local_id 兜底
         if let token = accountManager?.lastKnownJwtToken {
             req.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
