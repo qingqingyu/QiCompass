@@ -1,0 +1,119 @@
+{% extends "base.html" %}
+{% set optgroups = [
+    ('一线 / 新一线', ['北京','上海','广州','深圳','成都','重庆','杭州','武汉','西安','南京','天津','苏州','长沙','郑州','青岛']),
+    ('省会 / 重要城市', ['沈阳','哈尔滨','长春','大连','济南','福州','厦门','合肥','南昌','太原','石家庄','呼和浩特','兰州','西宁','银川','乌鲁木齐','拉萨','昆明','贵阳','南宁','海口','三亚','台北','香港','澳门']),
+    ('海外', ['新加坡','东京','首尔','纽约','旧金山','洛杉矶','温哥华','多伦多','伦敦','巴黎','悉尼','墨尔本']),
+] %}
+
+{% block title %}深度解析 v1(链式)· QiCompass{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <a href="/" class="back-link">← 返回首页</a>
+    <h1 class="page-title">深度解析 v1 <span class="page-title__badge">链式 M0-M7</span></h1>
+    <p class="page-subtitle">8 个 AI module 串行调用(~4-7 分钟),输出结构化 JSON。**比老 bazi_deep 更深入**。</p>
+</section>
+
+<div class="note note--warn">
+    <p><strong>耗时提示</strong>:全链 4-7 分钟,浏览器会一直 loading。请耐心等待,不要刷新页面。</p>
+    <p>建议:先用 <a href="/bazi">/bazi(老链)</a> 验证 API key 通,再来跑 v1。</p>
+</div>
+
+<form method="post" action="/bazi-v1" class="form">
+    {% include "partials/ai_config.html" %}
+
+    <fieldset class="form__group">
+        <legend class="form__legend">出生时间</legend>
+
+        <div class="form__row">
+            <label class="form__field">
+                <span class="form__label">出生日期</span>
+                <input type="date" id="birth_date" name="birth_date" required value="1990-01-15" class="form__input">
+            </label>
+            <label class="form__field">
+                <span class="form__label">时间(时:分)</span>
+                <input type="time" id="birth_time" name="birth_time" required value="12:00" class="form__input">
+            </label>
+        </div>
+
+        <details class="shichen-collapse">
+            <summary class="shichen-collapse__summary">只知时辰不知精确时间?点此选</summary>
+            <div id="shichen-grid" class="shichen-grid"></div>
+        </details>
+    </fieldset>
+
+    <fieldset class="form__group">
+        <legend class="form__legend">性别</legend>
+        <div class="segmented">
+            <label class="segmented__option">
+                <input type="radio" name="gender" value="male" checked>
+                <span class="segmented__label">男</span>
+            </label>
+            <label class="segmented__option">
+                <input type="radio" name="gender" value="female">
+                <span class="segmented__label">女</span>
+            </label>
+        </div>
+    </fieldset>
+
+    <fieldset class="form__group">
+        <legend class="form__legend">出生地</legend>
+
+        <label class="form__field form__field--inline-check">
+            <input type="checkbox" id="manual_longitude" name="use_manual_longitude" value="1">
+            <span class="form__label">手动输入经度</span>
+        </label>
+
+        {% set sfx = '' %}{% set default_city = '北京' %}{% set default_lng = 116.41 %}
+        {% include 'partials/city_picker.html' %}
+
+        <div id="manual-longitude-wrap" class="form__row" style="display:none">
+            <label class="form__field form__field--wide">
+                <span class="form__label">经度(东正西负)</span>
+                <input type="number" id="manual_longitude_value" step="0.0001" min="-180" max="180" value="116.41" class="form__input form__input--numeric">
+            </label>
+        </div>
+
+    </fieldset>
+
+    <fieldset class="form__group">
+        <legend class="form__legend">M4 健康输入 <span class="form__legend-hint">(必填,M4_health 模板要求)</span></legend>
+        <div class="form__row">
+            <label class="form__field">
+                <span class="form__label">年龄</span>
+                <input type="number" name="m4_age" min="0" max="150" value="35" class="form__input form__input--numeric">
+            </label>
+            <label class="form__field form__field--wide">
+                <span class="form__label">当前健康关注点</span>
+                <input type="text" name="m4_current_concern" maxlength="200" value="工作压力大,睡眠一般,久坐" class="form__input">
+            </label>
+        </div>
+    </fieldset>
+
+    <fieldset class="form__group">
+        <legend class="form__legend">M5 财富输入 <span class="form__legend-hint">(必填,M5_wealth 模板要求)</span></legend>
+        <div class="form__row">
+            <label class="form__field form__field--wide">
+                <span class="form__label">资产概况</span>
+                <input type="text" name="m5_assets_summary" maxlength="200" value="工资收入 + 少量存款 + 一套自住房" class="form__input">
+            </label>
+        </div>
+        <div class="form__row">
+            <label class="form__field form__field--wide">
+                <span class="form__label">财富偏好</span>
+                <input type="text" name="m5_preference" maxlength="200" value="稳健型,优先保障,追求被动收入" class="form__input">
+            </label>
+        </div>
+    </fieldset>
+
+    <div class="form__actions">
+        <button type="submit" class="btn btn--primary">开始 v1 链(8 module)</button>
+        <span class="form__meta">M0 → M1 → M2 → M3 → M4 → M5 → M6 → M7 · 预计 4-7 分钟</span>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/form.js?v=20260815a"></script>
+<script src="/static/key_manager.js?v=20260815a"></script>
+{% endblock %}

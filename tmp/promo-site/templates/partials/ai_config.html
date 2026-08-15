@@ -1,0 +1,95 @@
+{# 共用 AI 配置区 partial
+ #
+ # 字段(provider/api_key/base_url/model)在表单提交时一起 POST 到后端。
+ # 后端 main.py._get_client_for_request() 读这些字段,有 api_key 就临时构造 client,
+ # 否则 fallback 到启动时构造的 _ai_client(env key)。
+ #
+ # localStorage 策略(2026-08-13 拍板;08-13 晚改为显式保存):
+ #   - 页面打开时 input 留空(不主动暴露上次 key)
+ #   - 填完后点 "💾 保存配置" → 存 localStorage(输入不自动存)
+ #   - 点 "🔄 自动填上次配置" 按钮 → 从 localStorage 恢复
+ #   - 点 "🔌 测试连接" → POST /ai/test(max_tokens=1 ping),验证 URL/key/模型
+ #}
+<section class="ai-config">
+    <div class="ai-config__header">
+        <button type="button"
+                class="ai-config__toggle"
+                data-action="toggle-ai-config"
+                aria-expanded="false">⚙ AI 配置(可选 — 不填走环境变量)</button>
+        <button type="button"
+                class="btn btn--secondary ai-config__restore"
+                data-action="restore-last-config"
+                title="从浏览器 localStorage 恢复上次保存的配置">🔄 自动填上次配置</button>
+    </div>
+
+    <div class="ai-config__body" data-ai-config-body style="display:none">
+        <div class="form__row">
+            <label class="form__field">
+                <span class="form__label">Provider <span class="form__required">*</span></span>
+                <div class="segmented" data-ai-provider>
+                    <label class="segmented__option">
+                        <input type="radio" name="ai_provider" value="anthropic" checked>
+                        <span class="segmented__label">Anthropic</span>
+                    </label>
+                    <label class="segmented__option">
+                        <input type="radio" name="ai_provider" value="openai">
+                        <span class="segmented__label">OpenAI</span>
+                    </label>
+                </div>
+            </label>
+        </div>
+
+        <div class="form__row">
+            <label class="form__field form__field--wide">
+                <span class="form__label">API Key <span class="form__required">*</span></span>
+                <div class="ai-config__key-wrap">
+                    <input type="password"
+                           name="ai_api_key"
+                           placeholder="sk-ant-... / sk-..."
+                           autocomplete="off"
+                           data-ai-key
+                           class="form__input form__input--numeric">
+                    <button type="button"
+                            class="ai-config__key-toggle"
+                            data-action="toggle-key-visibility"
+                            title="显示/隐藏 key">👁</button>
+                </div>
+                <span class="form__hint">不填 → 后端用启动时 export 的 ANTHROPIC_API_KEY / OPENAI_API_KEY(环境变量 fallback)</span>
+            </label>
+        </div>
+
+        <div class="form__row">
+            <label class="form__field">
+                <span class="form__label">Base URL(可选)</span>
+                <input type="text"
+                       name="ai_base_url"
+                       placeholder="默认官方 endpoint"
+                       data-ai-base-url
+                       class="form__input">
+            </label>
+            <label class="form__field">
+                <span class="form__label">Model 名(可选)</span>
+                <input type="text"
+                       name="ai_model"
+                       placeholder="默认 claude-sonnet-4-6 / gpt-4o"
+                       data-ai-model
+                       class="form__input">
+            </label>
+        </div>
+
+        <div class="ai-config__actions">
+            <button type="button"
+                    class="btn btn--secondary"
+                    data-action="save-ai-config"
+                    title="把当前填写的配置存到本机 localStorage">💾 保存配置</button>
+            <button type="button"
+                    class="btn btn--secondary"
+                    data-action="test-ai-config"
+                    title="用当前配置向 LLM endpoint 发一次 max_tokens=1 的 ping,验证 URL/key/模型可用">🔌 测试连接</button>
+        </div>
+
+        <div class="ai-config__status" data-ai-status hidden></div>
+
+        <p class="ai-config__privacy">key 仅当前浏览器 localStorage 保存,不上传到任何第三方(除你填的 LLM endpoint)。填完点「保存配置」,下次用「自动填上次配置」恢复。</p>
+    </div>
+</section>

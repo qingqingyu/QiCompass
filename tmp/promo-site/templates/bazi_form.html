@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+
+{% block title %}深度解析 · QiCompass{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <a href="/" class="back-link">← 返回首页</a>
+    <h1 class="page-title">深度解析</h1>
+    <p class="page-subtitle">输入出生信息,生成深度解析 AI 解读。篇幅可选:加长版(付费 6 章/免费 3 章,每章 1000-1500 字,含十神结构章)或 App 标准(付费 5 章/免费 2 章,每章 200-300 字,即 iOS 实际输出)。</p>
+</section>
+
+<form method="post" action="/bazi" class="form">
+    {% include "partials/ai_config.html" %}
+
+    <fieldset class="form__group">
+        <legend class="form__legend">Module 版本 <span class="form__legend-hint">决定生成 bazi_deep_paid 还是 _free</span></legend>
+        <div class="segmented">
+            <label class="segmented__option">
+                <input type="radio" name="module_tier" value="paid" checked>
+                <span class="segmented__label">付费版(完整版)</span>
+            </label>
+            <label class="segmented__option">
+                <input type="radio" name="module_tier" value="free">
+                <span class="segmented__label">免费版(预览)</span>
+            </label>
+        </div>
+        <p class="form__hint">付费版 = iOS 付费用户完整解读(财运/爱情/健康/六亲/晚年);免费版 = iOS 免费用户首次体验(性格 + 事业)。加长版会在开头多一章「十神结构与命局主线」(仅 promo,App 无此章)。宣传物料推荐用付费版展示完整价值。</p>
+    </fieldset>
+
+    {% include "partials/length_tier.html" %}
+
+    <fieldset class="form__group">
+        <legend class="form__legend">出生时间</legend>
+
+        <div class="form__row">
+            <label class="form__field">
+                <span class="form__label">出生日期</span>
+                <input type="date" id="birth_date" name="birth_date" required value="1990-01-15" class="form__input">
+            </label>
+            <label class="form__field">
+                <span class="form__label">时间(时:分)</span>
+                <input type="time" id="birth_time" name="birth_time" required value="12:00" class="form__input">
+            </label>
+        </div>
+
+        <details class="shichen-collapse">
+            <summary class="shichen-collapse__summary">只知时辰不知精确时间?点此选</summary>
+            <div id="shichen-grid" class="shichen-grid"></div>
+            <p class="form__hint">点选时辰后自动填该时辰中点时间(子时→00:00 / 午时→12:00)。子时跨日规则:23:00 换日(早子时归当日)。</p>
+        </details>
+    </fieldset>
+
+    <fieldset class="form__group">
+        <legend class="form__legend">性别</legend>
+        <div class="segmented">
+            <label class="segmented__option">
+                <input type="radio" name="gender" value="male" checked>
+                <span class="segmented__label">男</span>
+            </label>
+            <label class="segmented__option">
+                <input type="radio" name="gender" value="female">
+                <span class="segmented__label">女</span>
+            </label>
+        </div>
+    </fieldset>
+
+    <fieldset class="form__group">
+        <legend class="form__legend">出生地</legend>
+
+        <label class="form__field form__field--inline-check">
+            <input type="checkbox" id="manual_longitude" name="use_manual_longitude" value="1">
+            <span class="form__label">手动输入经度(海外 / 设备时区与出生地不一致时使用)</span>
+        </label>
+
+        {% set sfx = '' %}{% set default_city = '青岛' %}{% set default_lng = 120.38 %}
+        {% include 'partials/city_picker.html' %}
+
+        <div id="manual-longitude-wrap" class="form__row" style="display:none">
+            <label class="form__field form__field--wide">
+                <span class="form__label">经度(东正西负)</span>
+                <input type="number" id="manual_longitude_value" step="0.0001" min="-180" max="180" value="116.41" class="form__input form__input--numeric">
+            </label>
+        </div>
+
+    </fieldset>
+
+    <div class="form__actions">
+        <button type="submit" class="btn btn--primary">开始排盘</button>
+        <span class="form__meta">调用 bazi_deep_paid v2 · 加长版预计 2-5 分钟 / App 标准 30-50 秒</span>
+    </div>
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/form.js?v=20260815a"></script>
+<script src="/static/key_manager.js?v=20260815a"></script>
+{% endblock %}

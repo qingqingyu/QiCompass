@@ -1,0 +1,7 @@
+fastapi>=0.110
+uvicorn[standard]>=0.27
+jinja2>=3.1
+markdown>=3.5
+pydantic>=2.5
+# FastAPI Request.form() 需要此库(HTML form 解析,backend 不需要因为走 JSON)
+python-multipart>=0.0.9

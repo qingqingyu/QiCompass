@@ -1,0 +1,146 @@
+{% extends "base.html" %}
+
+{% block title %}每日运势结果 · QiCompass{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/markdown.css?v=20260815a">
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <a href="/daily" class="back-link">← 重新生成</a>
+    <h1 class="page-title">每日运势{% if not error %} · {{ target_date.year }}-{{ "%02d"|format(target_date.month) }}-{{ "%02d"|format(target_date.day) }}{% endif %}</h1>
+    {% if not error %}
+    <p class="page-subtitle">AI Provider {{ ai_provider | upper }} / {{ ai_model }} · prompt v{{ prompt_version }} · 篇幅 {{ length_label }}</p>
+    {% endif %}
+</section>
+
+{% if error %}
+{% include "partials/error_box.html" %}
+{% else %}
+
+{% set module = 'daily' %}
+{% include "partials/export_toolbar.html" %}
+
+<div class="capture-target">
+    <div class="capture-target__brand">QiCompass · 每日运势 · {{ target_date.year }}-{{ "%02d"|format(target_date.month) }}-{{ "%02d"|format(target_date.day) }}</div>
+
+    {# 1. DailyFortuneHeaderView(公历+农历+流日柱+关系 chip+冲 chip) #}
+    <div class="daily-header">
+        <div class="daily-header__date">
+            <span class="daily-header__gregorian">{{ target_date.year }}年{{ target_date.month }}月{{ target_date.day }}日</span>
+            <span class="daily-header__sep">·</span>
+            <span class="daily-header__lunar">农历 {{ daily_resp.lunar_date }}</span>
+        </div>
+        <div class="daily-header__pillar">
+            <span class="daily-header__pillar-label">流日柱</span>
+            <span class="daily-header__pillar-ganzhi">{{ daily_resp.day_pillar }}</span>
+            <span class="daily-header__relation">{{ daily_resp.day_relation_to_day_master }}</span>
+            {% if daily_resp.day_chong %}
+            <span class="daily-header__chong">冲 {{ daily_resp.day_chong }}{% if daily_resp.day_chong_targets %}({{ daily_resp.day_chong_targets | join('、') }}){% endif %}</span>
+            {% endif %}
+        </div>
+    </div>
+
+    {# 2. 命主概览(日主/旺衰/喜忌 4 卡,沿用 iOS 一致结构) #}
+    <div class="chart-summary">
+        <h2 class="section-title">命主</h2>
+        <div class="chart-summary__grid">
+            <div class="chart-summary__item">
+                <span class="chart-summary__label">日主</span>
+                <span class="chart-summary__value chart-summary__value--ganzhi">{{ chart.pillars.day.gan }}</span>
+                <span class="chart-summary__sub">{{ chart.pillars.day.gan_element_zh }}</span>
+            </div>
+            <div class="chart-summary__item">
+                <span class="chart-summary__label">旺衰</span>
+                <span class="chart-summary__value">{{ chart.strength_label }}</span>
+            </div>
+            <div class="chart-summary__item">
+                <span class="chart-summary__label">喜</span>
+                <span class="chart-summary__value chart-summary__value--jade">{{ chart.favorable_zh }}</span>
+            </div>
+            <div class="chart-summary__item">
+                <span class="chart-summary__label">忌</span>
+                <span class="chart-summary__value chart-summary__value--dai">{{ chart.unfavorable_zh }}</span>
+            </div>
+        </div>
+    </div>
+
+    {# 3. YiJiAnchorSection(宜忌 main anchor,对齐 iOS line 61) #}
+    <div class="yiji-anchor">
+        <div class="yiji-anchor__block yiji-anchor__block--yi">
+            <span class="yiji-anchor__legend">宜</span>
+            <span class="yiji-anchor__content">{{ daily_resp.huangli_yi | join('、') or '—' }}</span>
+        </div>
+        <div class="yiji-anchor__block yiji-anchor__block--ji">
+            <span class="yiji-anchor__legend">忌</span>
+            <span class="yiji-anchor__content">{{ daily_resp.huangli_ji | join('、') or '—' }}</span>
+        </div>
+    </div>
+
+    {# 4. AI 流日解读(普通位置,对齐 iOS line 64-70) #}
+    <section class="interpretation">
+        <h2 class="section-title">AI 流日解读</h2>
+        <div class="markdown-body">
+            {{ markdown_html | safe }}
+        </div>
+    </section>
+
+    {# 5. 12 时辰(折叠,对齐 iOS HourPillarsSection line 12-13) #}
+    <details class="hours-collapse">
+        <summary class="hours-collapse__summary">12 时辰排盘(点开查看)</summary>
+        <div class="hours-list">
+            {% for hp in daily_resp.hour_pillars %}
+            <div class="hour-row">
+                <div class="hour-row__time">
+                    <span class="hour-row__name">{{ hp.hour }}时</span>
+                    <span class="hour-row__range">{{ hp.time_range }}</span>
+                </div>
+                <div class="hour-row__pillar">
+                    <span class="ganzhi-character">{{ hp.pillar }}</span>
+                    <span class="hour-row__relation">{{ hp.relation }}</span>
+                </div>
+                <div class="hour-row__chong">
+                    {% if hp.chong %}
+                    <span class="hour-row__chong-tag">冲 {{ hp.chong }}{% if hp.chong_targets %}({{ hp.chong_targets | join('、') }}){% endif %}</span>
+                    {% endif %}
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </details>
+
+    {# 6. 明日预告(对齐 iOS line 83) #}
+    {% if daily_resp.tomorrow_preview %}
+    <div class="tomorrow-preview">
+        <span class="tomorrow-preview__label">明日预告</span>
+        <span class="tomorrow-preview__pillar">{{ daily_resp.tomorrow_preview.day_pillar }}</span>
+        <span class="tomorrow-preview__relation">{{ daily_resp.tomorrow_preview.day_relation }}</span>
+        {% if daily_resp.tomorrow_preview.day_chong %}
+        <span class="tomorrow-preview__chong">冲 {{ daily_resp.tomorrow_preview.day_chong }}</span>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    <div class="caption" aria-hidden="true">
+        下载 iOS App 搜索「QiCompass」获取完整命理解析
+    </div>
+    <div class="watermark" aria-hidden="true">
+        <span class="watermark__brand">QiCompass · 玄机问道</span>
+        <span class="watermark__url">qicompass.app</span>
+    </div>
+</div>
+
+<section class="actions">
+    <a href="/daily" class="btn btn--secondary">换一天</a>
+</section>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+{% if markdown_text %}
+<script>window.__promoMarkdown = {{ markdown_text | tojson | safe }};</script>
+{% endif %}
+<script src="/static/export.js?v=20260815a"></script>
+{% endblock %}

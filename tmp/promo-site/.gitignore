@@ -1,0 +1,6 @@
+# 2026-08-15 改:promo-site 进 git(此前 * 全忽略是顶层 /tmp/ 的双保险)。
+# 只忽略可再生/缓存产物:
+data/            # cities.db 25MB,由 tools/build_city_db.py 重新生成
+tools/cities500.*
+__pycache__/
+*.pyc

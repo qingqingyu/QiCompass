@@ -1,0 +1,26 @@
+{# 共用错误框 partial
+ #
+ # 调用方需提供:
+ #   error: 错误消息(必填)
+ #   back_url: 返回链接(必填,如 "/bazi")
+ #   error_hint: 可选引导提示(如何修复)
+ #   error_type: 可选错误类型标签(如 "AI 调用失败" / "禁词拦截")
+ #}
+<section class="error-box">
+    <div class="error-box__header">
+        <span class="error-box__icon" aria-hidden="true">⚠</span>
+        <h2 class="error-box__title">{% if error_type %}{{ error_type }}{% else %}生成失败{% endif %}</h2>
+    </div>
+    <p class="error-box__msg">{{ error }}</p>
+
+    {% if error_hint %}
+    <div class="error-box__hint">
+        <span class="error-box__hint-label">排查建议</span>
+        <p class="error-box__hint-text">{{ error_hint | safe }}</p>
+    </div>
+    {% endif %}
+
+    <div class="error-box__actions">
+        <a href="{{ back_url }}" class="btn btn--secondary">返回表单</a>
+    </div>
+</section>

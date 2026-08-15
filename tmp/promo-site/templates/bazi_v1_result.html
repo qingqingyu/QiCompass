@@ -1,0 +1,128 @@
+{% extends "base.html" %}
+
+{% block title %}v1 链式解析结果 · QiCompass{% endblock %}
+
+{% block head_extra %}
+<link rel="stylesheet" href="/static/markdown.css?v=20260815a">
+{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <a href="/bazi-v1" class="back-link">← 重新生成</a>
+    <h1 class="page-title">v1 链式结果{% if not error %} · {{ ok_count }}/{{ total_count }} module OK{% endif %}</h1>
+    {% if not error %}
+    <p class="page-subtitle">AI Provider {{ ai_provider | upper }} / {{ ai_model }}</p>
+    {% endif %}
+</section>
+
+{% if error %}
+{% include "partials/error_box.html" %}
+{% else %}
+
+{% set module = 'bazi-v1' %}
+{% include "partials/export_toolbar.html" %}
+
+<div class="capture-target">
+    <div class="capture-target__brand">QiCompass · 深度解析 v1(链式)</div>
+
+    {# 命盘概览(精简版,只为识别人物背景) #}
+    <div class="v1-chart-summary">
+        <div class="v1-chart-summary__line">
+            <span class="v1-chart-summary__item"><span class="v1-chart-summary__label">日主</span> <strong>{{ chart.pillars.day.gan }}</strong>({{ chart.pillars.day.gan_element_zh }})</span>
+            <span class="v1-chart-summary__sep">·</span>
+            <span class="v1-chart-summary__item"><span class="v1-chart-summary__label">旺衰</span> {{ chart.strength_label }}</span>
+            <span class="v1-chart-summary__sep">·</span>
+            <span class="v1-chart-summary__item"><span class="v1-chart-summary__label">喜</span> <span class="v1-chart-summary__jade">{{ chart.favorable_zh }}</span></span>
+            <span class="v1-chart-summary__sep">·</span>
+            <span class="v1-chart-summary__item"><span class="v1-chart-summary__label">忌</span> <span class="v1-chart-summary__cinnabar">{{ chart.unfavorable_zh }}</span></span>
+        </div>
+        <div class="v1-chart-summary__pillars">
+            {% for pos, label in [('year','年'), ('month','月'), ('day','日'), ('hour','时')] %}
+            <span class="v1-chart-summary__pillar {{ 'v1-chart-summary__pillar--day' if pos == 'day' else '' }}">
+                {{ label }}:<strong>{{ chart.pillars[pos].gan }}{{ chart.pillars[pos].zhi }}</strong>
+            </span>
+            {% endfor %}
+        </div>
+    </div>
+
+    {# 8 module 卡片(对齐 iOS ModuleCardView) #}
+    <div class="v1-modules">
+        {% for s in statuses %}
+        {% set meta = module_meta.get(s.module, {'title': s.module, 'desc': ''}) %}
+        <section class="v1-module-card {{ 'v1-module-card--ok' if s.ok else 'v1-module-card--fail' }}">
+            <header class="v1-module-card__header">
+                <div class="v1-module-card__title-block">
+                    <h2 class="v1-module-card__title">{{ meta.title }}</h2>
+                    <p class="v1-module-card__desc">{{ meta.desc }}</p>
+                </div>
+                <div class="v1-module-card__status">
+                    {% if s.ok %}
+                    <span class="v1-status v1-status--ok">OK</span>
+                    {% else %}
+                    <span class="v1-status v1-status--fail">FAIL</span>
+                    {% endif %}
+                    <span class="v1-module-card__elapsed">{{ s.elapsed_ms | round(0) | int }}ms</span>
+                </div>
+            </header>
+
+            {% if s.errors %}
+            <div class="v1-module-card__errors">
+                <strong>错误:</strong>
+                <ul>
+                    {% for err in s.errors %}
+                    <li>{{ err }}</li>
+                    {% endfor %}
+                </ul>
+            </div>
+            {% endif %}
+
+            {% if s.parsed %}
+            <div class="v1-module-card__body">
+                {% for key, value in s.parsed.items() %}
+                <div class="v1-field">
+                    <span class="v1-field__key">{{ key }}</span>
+                    <span class="v1-field__value v1-field__value--md">
+                        {# LLM 输出的字符串含 markdown(**粗体** 等),走 md 过滤器渲染 #}
+                        {% if value is string %}
+                            {{ value | md }}
+                        {% elif value is mapping %}
+                            <pre class="v1-field__json">{{ value | tojson(indent=2) }}</pre>
+                        {% elif value is sequence and value | length > 0 %}
+                            <ul class="v1-field__list">
+                                {% for item in value %}
+                                <li>{% if item is mapping %}<pre class="v1-field__json">{{ item | tojson(indent=2) }}</pre>{% else %}{{ item | md }}{% endif %}</li>
+                                {% endfor %}
+                            </ul>
+                        {% elif value is sequence %}
+                            <span class="v1-field__empty">[]</span>
+                        {% else %}
+                            {{ value }}
+                        {% endif %}
+                    </span>
+                </div>
+                {% endfor %}
+            </div>
+            {% endif %}
+        </section>
+        {% endfor %}
+    </div>
+
+    <div class="caption" aria-hidden="true">
+        下载 iOS App 搜索「QiCompass」获取完整命理解析
+    </div>
+    <div class="watermark" aria-hidden="true">
+        <span class="watermark__brand">QiCompass · 玄机问道</span>
+        <span class="watermark__url">qicompass.app</span>
+    </div>
+</div>
+
+<section class="actions">
+    <a href="/bazi-v1" class="btn btn--secondary">换一个命盘重跑 v1</a>
+</section>
+
+{% endif %}
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/export.js?v=20260815a"></script>
+{% endblock %}
