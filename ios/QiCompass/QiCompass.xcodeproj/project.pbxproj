@@ -110,6 +110,8 @@
 		A0000000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */; };
 		A00000000000000000000006 /* Shared/DailyReadCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */; };
 		A0000000000000000000000B /* Shared/CitySearchEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000B /* Shared/CitySearchEngineTests.swift */; };
+		A0000000000000000000000D /* Shared/GoldenQueriesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000D /* Shared/GoldenQueriesTests.swift */; };
+		A0000000000000000000000E /* golden_queries.json in Resources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000E /* golden_queries.json */; };
 		A0000000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */; };
 		A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */; };
 		A00000000000000000000008 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A21000000000000000000001 /* XCTest.framework */; };
@@ -259,6 +261,8 @@
 		A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityViewModelBatchTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DailyReadCounterTests.swift; sourceTree = "<group>"; };
 		A110000000000000000000B /* Shared/CitySearchEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/CitySearchEngineTests.swift; sourceTree = "<group>"; };
+		A110000000000000000000D /* Shared/GoldenQueriesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/GoldenQueriesTests.swift; sourceTree = "<group>"; };
+		A110000000000000000000E /* golden_queries.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = golden_queries.json; path = ../../tools/city-data/golden_queries.json; sourceTree = SOURCE_ROOT; };
 		A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisViewModelFormTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/UserFacingErrorTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000001 /* QiCompassTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QiCompassTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -565,6 +569,8 @@
 				A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */,
 				A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */,
 				A110000000000000000000B /* Shared/CitySearchEngineTests.swift */,
+				A110000000000000000000D /* Shared/GoldenQueriesTests.swift */,
+				A110000000000000000000E /* golden_queries.json */,
 				A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */,
 				A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */,
 			);
@@ -664,6 +670,7 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				A0000000000000000000000E /* golden_queries.json in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -807,6 +814,7 @@
 				A0000000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift in Sources */,
 				A00000000000000000000006 /* Shared/DailyReadCounterTests.swift in Sources */,
 				A0000000000000000000000B /* Shared/CitySearchEngineTests.swift in Sources */,
+				A0000000000000000000000D /* Shared/GoldenQueriesTests.swift in Sources */,
 				A0000000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift in Sources */,
 				A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */,
 			);

@@ -39,6 +39,15 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - 校验内容：三模块 REQUIRED ⊆ builder keys（iOS 静态提取，promo 运行时调 builder）+ v1 module ID 三边相等；promo 缺失（CI 场景）自动 SKIP
 - 不接 GitHub Actions（用户工作流本地优先，2026-08-14 决定），拦截靠本规则
 
+### 城市数据库守护栏（2026-08-15，城市搜索 S06）
+
+- **强制**：动了 `tools/build_city_db.py` / `tools/city-data/`（curated_aliases.tsv / golden_queries.json / countries_zh.tsv）/ `cities.sqlite` / iOS `CitySearchEngine.swift` 排序逻辑任一，必须全过才算完成：
+  1. `python3 tools/build_city_db.py`（数据或脚本变更时重跑，产出 byte-identical）
+  2. `python3 tools/check_city_db.py` PASS（结构 / manifest hash / 抽查）
+  3. `python3 tools/check_golden_queries.py` PASS（全量条目 ≥80，XCTest 前的快速预检）
+  4. iOS `GoldenQueriesTests` PASS（读同一份 golden_queries.json）
+- 搜索质量缺口修复路径：优先补 `curated_aliases.tsv` 回管线重建；**禁止**为单条 query 改排序公式特例（排序公式变更必须显式过全量 golden 表）
+
 ### SwiftData
 
 - 最低 iOS 17.2（17.0/17.1 SwiftData `@Relationship` 有 crash）
