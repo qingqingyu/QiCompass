@@ -3,19 +3,32 @@ import Foundation
 // MARK: - Request
 
 /// POST /api/bazi/calculate 请求。
-/// 对齐 backend/app/models/bazi.py:BaziCalculateRequest
-struct BaziCalculateRequest: Codable, Sendable {
-    let birthDatetime: Date
+/// 对齐 backend/app/models/bazi.py:BaziCalculateRequest(S02 契约)
+///
+/// - birthDatetime:**裸钟面时间字符串**(yyyy-MM-dd'T'HH:mm:ss,无 offset),
+///   时区由 timezone 字段解释(后端 zoneinfo,历史夏令时自动套用)。
+///   iOS 端用出生城市 Calendar 提取钟面(WYSIWYG),不做 naive→UTC 换算
+///   (「客户端不做历法计算」红线)
+/// - longitude/latitude/placeName/geonameId:物理真值(S01 cities.sqlite 或
+///   自定义输入),后端零城市表
+struct BaziCalculateRequest: Codable, Sendable, Equatable {
+    let birthDatetime: String
+    let timezone: String
     let gender: String
-    let city: String?
-    let longitude: Double?
+    let longitude: Double
+    let latitude: Double?
+    let placeName: String?
+    let geonameId: Int?
     let ziHourRule: String
 
     enum CodingKeys: String, CodingKey {
         case birthDatetime = "birth_datetime"
+        case timezone
         case gender
-        case city
         case longitude
+        case latitude
+        case placeName = "place_name"
+        case geonameId = "geoname_id"
         case ziHourRule = "zi_hour_rule"
     }
 }
@@ -111,6 +124,8 @@ struct CalcRuleSnapshotDTO: Codable, Sendable, Equatable {
     let trueSolarLongitude: Double
     let trueSolarOffsetMinutes: Double
     let schemaVersion: Int
+    /// 出生地 IANA 时区(S02 契约;老快照/mock 缺省 nil)
+    var birthTimezone: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case library
@@ -119,6 +134,7 @@ struct CalcRuleSnapshotDTO: Codable, Sendable, Equatable {
         case trueSolarLongitude = "true_solar_longitude"
         case trueSolarOffsetMinutes = "true_solar_offset_minutes"
         case schemaVersion = "schema_version"
+        case birthTimezone = "birth_timezone"
     }
 }
 

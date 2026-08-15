@@ -68,6 +68,32 @@ enum L10n {
         static let personalityPig = String(localized: "onboarding.personality.pig")
     }
 
+    // MARK: - 城市搜索模块(S03,全球城市选择)
+
+    /// 城市搜索(出生地选择,sheet 交互;决策 docs/城市搜索设计决策.md Q8)。
+    enum CitySearch {
+        /// sheet 标题。zh: "出生城市";en: "Birth city"
+        static let title = String(localized: "city.search.title")
+
+        /// 搜索框占位。zh: "搜索出生城市";en: "Search birth city"
+        static let placeholder = String(localized: "city.search.placeholder")
+
+        /// 取消按钮。zh: "取消";en: "Cancel"
+        static let cancel = String(localized: "city.search.cancel")
+
+        /// 最近选择区标题。zh: "最近选择";en: "Recent"
+        static let recents = String(localized: "city.search.recents")
+
+        /// 热门城市区标题。zh: "热门城市";en: "Popular"
+        static let hot = String(localized: "city.search.hot")
+
+        /// 无结果文案(带查询词)。
+        /// zh: "未找到「%@」,试试拼音或英文名";en: "No results for \"%@\" — try pinyin or English"
+        static func noResults(_ query: String) -> String {
+            String(format: String(localized: "city.search.noResults"), query)
+        }
+    }
+
     // MARK: - 每日运势模块
 
     /// 每日运势模块。

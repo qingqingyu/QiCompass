@@ -5,7 +5,7 @@ import SwiftUI
 /// - DatePicker dateAndTime(方案 §4.2/4.3:拿精确时间,真太阳时由后端按经度修正)
 /// - 时辰快捷选(默认折叠;只知时辰的用户展开后选,填该时辰中点)
 /// - 性别 Picker
-/// - 城市表(客户端副本 52 条,纯展示不存经度;决策 4.1)+ 手动经度开关
+/// - 出生地:全球城市搜索(S03,cities.sqlite;无默认必选)+ 自定义经度开关(S05 升级为自定义地点)
 /// - 校验错误内联提示
 struct BirthFormView: View {
     @Bindable var vm: DeepAnalysisViewModel
@@ -29,6 +29,8 @@ struct BirthFormView: View {
                     )
                     .datePickerStyle(.compact)
                     .foregroundStyle(BaziTheme.ink)
+                    // WYSIWYG:表盘按出生城市时区显示(S03;换算责任在后端 zoneinfo)
+                    .environment(\.calendar, vm.placeCalendar)
                 }
 
                 section(title: "时辰快捷选(可选)") {
@@ -51,7 +53,8 @@ struct BirthFormView: View {
                 }
 
                 section(title: "出生地") {
-                    Toggle("手动输入经度", isOn: $vm.useManualLongitude)
+                    // S03 文案对齐:开关升级为「自定义经度」(S05 再升级「自定义地点」:经度+时区必填)
+                    Toggle("自定义经度", isOn: $vm.useManualLongitude)
                         .foregroundStyle(BaziTheme.ink)
                     if vm.useManualLongitude {
                         HStack {
@@ -62,16 +65,12 @@ struct BirthFormView: View {
                                 .padding(BaziTheme.Spacing.sm)
                                 .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                         }
-                        Text("海外用户或设备时区与出生地不一致时使用。")
+                        Text("城市搜不到时使用;时区按设备时区(S05 升级为可选时区)。")
                             .font(.caption)
                             .foregroundStyle(BaziTheme.inkMuted)
                     } else {
-                        Picker("城市", selection: $vm.selectedCity) {
-                            ForEach(CityList.cities, id: \.self) { city in
-                                Text(city).tag(city)
-                            }
-                        }
-                        .foregroundStyle(BaziTheme.ink)
+                        // S03:全球城市搜索(无默认城市,必选;Q8 sheet 交互)
+                        CityPickerField(selection: $vm.selectedPlace)
                     }
                 }
 
@@ -168,20 +167,19 @@ struct BirthFormView: View {
     /// 从 vm.birthDate 的当前 hour 反推用户选了哪个时辰(用于圆圈选中态显示)。
     /// 时辰边界:[23,0,1]→子(0),[2,3]→丑(2),[4,5]→寅(4)... 奇数 hour 向下取偶到中点。
     /// 23 点归子时跨日(对齐后端 setSect(1) 规则)。
+    /// hour 按出生城市时区取(S03 WYSIWYG,不随设备时区漂移)。
     private func currentShichenHour() -> Int {
-        let hour = Calendar.current.component(.hour, from: vm.birthDate)
+        let hour = vm.placeCalendar.component(.hour, from: vm.birthDate)
         if hour == 23 { return 0 }
         return (hour / 2) * 2
     }
 }
 
-// MARK: - CityList
+// MARK: - CityList(S04 删除)
 
-/// 城市表客户端副本(决策 4.1)。
-///
-/// 纯展示用,不存经度,不参与计算。与后端 `CITY_LONGITUDE`(52 条)同步。
-/// 用户选城市 → 客户端只传 `city: String` 给后端,后端查表得经度。
-/// 查不到的城市走"手动输入经度"开关。
+/// 旧 52 城硬编码表 — **已停用**(S03 起出生地走 CityPickerField 全球搜索)。
+/// 仅剩合盘快速添加(CompatibilityConfigView)一处引用,S04 入口换装后整删。
+/// 注意:旧契约(city 字符串 → 后端查表经度)已在 S02 删除,勿在新代码引用。
 enum CityList {
     static let cities: [String] = [
         // 一线 / 新一线

@@ -15,7 +15,8 @@ struct BirthInfoConfirmSheet: View {
     let onCancel: () -> Void
 
     /// 复用 ZodiacRevealView 的 dateFormatter 风格(`yyyy-MM-dd HH:mm`)。
-    private static let dateFormatter: DateFormatter = {
+    /// 实例持有(每次访问按出生城市覆写 timeZone;静态共享可变状态有隐患)。
+    private let dateFormatter: DateFormatter = {
         let fmt = DateFormatter()
         fmt.dateFormat = "yyyy-MM-dd HH:mm"
         return fmt
@@ -28,12 +29,12 @@ struct BirthInfoConfirmSheet: View {
                 .foregroundStyle(BaziTheme.ink)
 
             VStack(spacing: BaziTheme.Spacing.md) {
-                infoRow(label: "出生时间", value: Self.dateFormatter.string(from: vm.birthDate))
+                infoRow(label: "出生时间", value: birthWallTimeString)
                 infoRow(label: "性别", value: vm.gender == "male" ? "男" : "女")
                 if vm.useManualLongitude {
                     infoRow(label: "出生地", value: "经度 \(formattedLongitude(vm.manualLongitude))")
                 } else {
-                    infoRow(label: "出生地", value: vm.selectedCity)
+                    infoRow(label: "出生地", value: vm.selectedPlace?.displayLabel ?? "—")
                 }
             }
 
@@ -66,7 +67,7 @@ struct BirthInfoConfirmSheet: View {
         .background(BaziTheme.paper)
         .onAppear {
             // 规则 1:用户主动触发的入口日志(便于排查"sheet 没弹 / 反复弹")
-            AppLogger.app.info("BirthInfoConfirmSheet.shown birth=\(Self.dateFormatter.string(from: vm.birthDate)) gender=\(vm.gender, privacy: .public) city=\(vm.selectedCity, privacy: .public) useManualLon=\(vm.useManualLongitude, privacy: .public)")
+            AppLogger.app.info("BirthInfoConfirmSheet.shown birth=\(birthWallTimeString) gender=\(vm.gender, privacy: .public) place=\(vm.selectedPlace?.displayName ?? "nil", privacy: .public) useManualLon=\(vm.useManualLongitude, privacy: .public)")
         }
     }
 
@@ -88,6 +89,12 @@ struct BirthInfoConfirmSheet: View {
     }
 
     // MARK: - 格式化 helper
+
+    /// 出生时间按出生城市时区格式化(S03 WYSIWYG)。
+    private var birthWallTimeString: String {
+        dateFormatter.timeZone = vm.placeCalendar.timeZone
+        return dateFormatter.string(from: vm.birthDate)
+    }
 
     /// 经度格式化:保留 2 位小数(如 `116.41`)。
     /// manualLongitude 是 Double,直接 String(format:) 渲染。

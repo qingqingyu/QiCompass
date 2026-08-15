@@ -65,7 +65,8 @@ struct ChartHeaderView: View {
     }
 
     private var cityDisplay: String {
-        request.city ?? "手动经度 \(request.longitude ?? 0)"
+        // S03:物理真值契约——城市显示名或自定义经度
+        request.placeName ?? "自定义经度 \(request.longitude)"
     }
 
     private var offsetString: String {

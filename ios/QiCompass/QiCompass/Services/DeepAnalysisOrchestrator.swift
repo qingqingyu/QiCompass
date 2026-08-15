@@ -45,14 +45,15 @@ final class DeepAnalysisOrchestrator {
     ///   v2 PR1 起由调用方传入(BirthFormView 表单顶部 TextField 收集)。
     func runCalculation(request: BaziCalculateRequest, alias: String = "我自己") async throws -> BaziResponse {
         // 规则 2:函数入口日志(网络调用内部已通过 AppLogger.measure 覆盖 start/ok/failed)
-        AppLogger.app.info("deep.runCalculation.start birth=\(Self.isoFormatter.string(from: request.birthDatetime)) gender=\(request.gender, privacy: .public) city=\(request.city ?? "nil", privacy: .public)")
+        AppLogger.app.info("deep.runCalculation.start birth=\(request.birthDatetime, privacy: .public) tz=\(request.timezone, privacy: .public) gender=\(request.gender, privacy: .public) place=\(request.placeName ?? "nil", privacy: .public) lon=\(request.longitude, privacy: .public)")
         let response = try await AppLogger.measure(
             AppLogger.networking,
             operation: "calculateBazi",
             context: [
-                "birth": Self.isoFormatter.string(from: request.birthDatetime),
+                "birth": request.birthDatetime,
                 "gender": request.gender,
-                "city": request.city ?? "nil",
+                "timezone": request.timezone,
+                "place": request.placeName ?? "nil",
             ]
         ) {
             try await self.apiClient.calculateBazi(request: request)
@@ -423,12 +424,6 @@ final class DeepAnalysisOrchestrator {
     }
 
     // MARK: - Private
-
-    private static let isoFormatter: ISO8601DateFormatter = {
-        let f = ISO8601DateFormatter()
-        f.formatOptions = [.withInternetDateTime]
-        return f
-    }()
 }
 
 // MARK: - DeepAnalysisError

@@ -7,13 +7,15 @@ import Foundation
 /// - calcRuleSnapshot(Data)→ Base64 字符串
 /// - payload(Data,本身是 JSON)→ UTF-8 字符串
 /// - birthSolarTime / createdAt(Date)→ ISO 8601 字符串
-struct ChartSyncData: Codable, Sendable {
+struct ChartSyncData: Codable, Sendable, Equatable {
     let contentHash: String
     let alias: String
     let schemaVersion: Int
     let birthSolarTime: String       // ISO 8601
     let gender: String
     let cityLongitude: Double
+    /// 出生地 IANA 时区(S03;老数据 nil → 后端可空)
+    var cityTimezone: String? = nil
     let ziHourRule: String
     let calcRuleSnapshotBase64: String
     let payloadJson: String
@@ -26,6 +28,7 @@ struct ChartSyncData: Codable, Sendable {
         case birthSolarTime = "birth_solar_time"
         case gender
         case cityLongitude = "city_longitude"
+        case cityTimezone = "city_timezone"
         case ziHourRule = "zi_hour_rule"
         case calcRuleSnapshotBase64 = "calc_rule_snapshot_base64"
         case payloadJson = "payload_json"
