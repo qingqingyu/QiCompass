@@ -25,6 +25,8 @@ class ChartSyncData(BaseModel):
     birth_solar_time: str = Field(..., description="ISO 8601 真太阳时出生时间")
     gender: str = Field(..., description="male / female")
     city_longitude: float = Field(..., description="城市经度")
+    city_timezone: str | None = Field(
+        None, description="出生地 IANA 时区(S02 契约,S03 起 iOS 随快照同步;老数据 NULL)")
     zi_hour_rule: str = Field(..., description="zi_next_day / zero_oclock")
     calc_rule_snapshot_base64: str = Field(
         ..., description="ChartSnapshot.calcRuleSnapshot(Data)→ Base64 字符串"

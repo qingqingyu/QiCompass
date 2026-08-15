@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from app.core.content_hash import birth_two_hour_bucket, compute_content_hash
 
@@ -71,6 +72,30 @@ def test_hash_same_for_contiguous_zi_hour_across_midnight():
     h1 = compute_content_hash(late_zi, "male", 116.41, "zi_next_day")
     h2 = compute_content_hash(early_next_day_zi, "male", 116.41, "zi_next_day")
     assert h1 == h2
+
+
+def test_hash_differs_by_utcoffset_same_wall_bucket():
+    """S02:同墙钟桶 + 同经度,不同时区解释(+9 夏令时 vs 固定 +8)→ 不同 hash。
+
+    真太阳时 = UTC + 经度×4min + EoT 是绝对时刻的函数;两个解释相差 1 小时,
+    可能落在不同时辰桶。utcoffset 不进 hash 就会碰撞(不同盘同 hash)。
+    """
+    wall_dst = datetime(1988, 7, 1, 12, 0, tzinfo=ZoneInfo("Asia/Shanghai"))  # +09:00
+    wall_fixed = datetime(1988, 7, 1, 12, 0, tzinfo=ZoneInfo("Etc/GMT-8"))  # +08:00
+    h1 = compute_content_hash(wall_dst, "male", 116.4074, "zi_next_day")
+    h2 = compute_content_hash(wall_fixed, "male", 116.4074, "zi_next_day")
+    assert h1 != h2, "不同时区解释的同一墙钟必须分叉(S02 hash 碰撞修复)"
+
+
+def test_hash_same_for_same_zone_dst_stable():
+    """同区同时辰桶内 hash 稳定(D1 共享语义不受 utcoffset 字段影响)。
+
+    12:00 与 12:30 同属午时桶((12+1)//2=(12.5+1)//2=6);13:00 已入未时不能用。
+    """
+    b1 = datetime(1988, 7, 1, 12, 0, tzinfo=ZoneInfo("Asia/Shanghai"))
+    b2 = datetime(1988, 7, 1, 12, 30, tzinfo=ZoneInfo("Asia/Shanghai"))
+    assert compute_content_hash(b1, "male", 116.4074, "zi_next_day") == \
+        compute_content_hash(b2, "male", 116.4074, "zi_next_day")
 
 
 def test_hash_does_not_include_schema_version():

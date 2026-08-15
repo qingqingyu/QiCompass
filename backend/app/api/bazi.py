@@ -1,8 +1,11 @@
 """POST /api/bazi/calculate
 
-- city/longitude 解析(longitude 优先级高于 city)
+S02 契约(docs/城市搜索设计决策.md Q4/Q5):
+- 客户端发物理真值(longitude/latitude/timezone/place_name),后端零城市表
+- birth_datetime 为裸钟面时间,此处用 zoneinfo 解释成绝对时刻
+  (历史夏令时规则自动套用;歧义/跳过小时降级 boundary_warning)
 - BaziEngine.calculate 是同步 CPU-bound,用 run_in_threadpool 包,不阻塞 event loop
-- 错误显式传播:CityNotFound → 404;InvalidInput → 422;引擎异常 → 500
+- 错误显式传播:非法时区/带 offset 时间 → Pydantic 422;引擎异常 → 500
 """
 
 from __future__ import annotations
@@ -15,9 +18,9 @@ from typing import NoReturn
 from fastapi import APIRouter, Request
 from starlette.concurrency import run_in_threadpool
 
-from ..core.city_longitude import resolve_longitude
+from ..core.tz_resolution import resolve_wall_time
 from ..engine.bazi_engine import BaziEngine
-from ..errors import BaziError, CityNotFoundError, InvalidInputError
+from ..errors import BaziError
 from ..models.bazi import BaziCalculateRequest, BaziCalculateResponse
 
 router = APIRouter()
@@ -32,29 +35,31 @@ async def calculate_bazi(req: BaziCalculateRequest, request: Request) -> BaziCal
     input_log = {
         "request_id": request_id,
         "birth_datetime": req.birth_datetime.isoformat(),
+        "timezone": req.timezone,
         "gender": req.gender,
-        "city": req.city,
         "longitude": req.longitude,
+        "latitude": req.latitude,
+        "place_name": req.place_name,
+        "geoname_id": req.geoname_id,
         "zi_hour_rule": req.zi_hour_rule,
     }
     logger.info("bazi.calculate.start %s", input_log)
 
-    # 1. 经度解析(longitude 优先级高于 city;二者至少传一个)
-    try:
-        longitude = resolve_longitude(req.city, req.longitude)
-    except (CityNotFoundError, InvalidInputError) as e:
-        e.request_id = request_id
-        _log_and_reraise(e, input_log, start, content_hash=None)
+    # 1. 钟面 → 绝对时刻(timezone 合法性已由 Pydantic validator 保证;
+    #    此处再验是双保险,触发即 invariant 破坏 → 500 暴露 bug,不静默)
+    resolved = resolve_wall_time(req.birth_datetime, req.timezone)
 
     # 2. 引擎排盘(同步 CPU-bound → 线程池)
     engine = BaziEngine()
     try:
         result = await run_in_threadpool(
             engine.calculate,
-            birth=req.birth_datetime,
+            birth=resolved.aware,
             gender=req.gender,
-            longitude=longitude,
+            longitude=req.longitude,
             zi_hour_rule=req.zi_hour_rule,
+            dst_flags=resolved.dst_flags,
+            birth_timezone=req.timezone,
         )
     except BaziError as e:
         e.request_id = request_id
@@ -63,8 +68,8 @@ async def calculate_bazi(req: BaziCalculateRequest, request: Request) -> BaziCal
 
     elapsed_ms = (time.perf_counter() - start) * 1000
     logger.info(
-        "bazi.calculate.ok request_id=%s content_hash=%s elapsed_ms=%.1f",
-        request_id, result["content_hash"], elapsed_ms,
+        "bazi.calculate.ok request_id=%s content_hash=%s dst_flags=%s elapsed_ms=%.1f",
+        request_id, result["content_hash"], sorted(resolved.dst_flags), elapsed_ms,
     )
     return BaziCalculateResponse(**result)
 

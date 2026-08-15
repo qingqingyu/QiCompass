@@ -12,7 +12,8 @@ from ..config import LUNAR_PYTHON_VERSION, SCHEMA_VERSION
 
 def build_calc_rule_snapshot(sect: int, zi_hour_rule: str,
                               longitude: float,
-                              offset_minutes: float) -> dict:
+                              offset_minutes: float,
+                              birth_timezone: str | None = None) -> dict:
     """构造 calcRuleSnapshot。
 
     Args:
@@ -20,6 +21,7 @@ def build_calc_rule_snapshot(sect: int, zi_hour_rule: str,
         zi_hour_rule: 子时规则
         longitude: 真太阳时所用经度
         offset_minutes: 真太阳时偏移分钟数
+        birth_timezone: 出生地 IANA 时区名(S02 契约,审计/展示用;可为 None)
 
     Returns:
         dict,可直接作为响应字段
@@ -31,4 +33,5 @@ def build_calc_rule_snapshot(sect: int, zi_hour_rule: str,
         "true_solar_longitude": round(longitude, 6),
         "true_solar_offset_minutes": round(offset_minutes, 2),
         "schema_version": SCHEMA_VERSION,
+        "birth_timezone": birth_timezone,
     }

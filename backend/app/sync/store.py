@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS user_chart_sync (
     birth_solar_time    TEXT NOT NULL,
     gender              TEXT NOT NULL,
     city_longitude      REAL NOT NULL,
+    city_timezone       TEXT,
     zi_hour_rule        TEXT NOT NULL,
     calc_rule_snapshot  TEXT NOT NULL,
     payload             TEXT NOT NULL,
@@ -39,6 +40,11 @@ CREATE TABLE IF NOT EXISTS user_chart_sync (
     UNIQUE(user_id, content_hash)
 );
 """
+
+# 老库迁移:CREATE IF NOT EXISTS 不会给已存在的表补列,显式 ALTER(幂等)
+MIGRATE_ADD_CITY_TIMEZONE_SQL = (
+    "ALTER TABLE user_chart_sync ADD COLUMN city_timezone TEXT"
+)
 
 CREATE_INDEX_USER_SQL = """
 CREATE INDEX IF NOT EXISTS idx_user_chart_sync_user
@@ -58,6 +64,7 @@ class UserChartSync:
     birth_solar_time: str
     gender: str
     city_longitude: float
+    city_timezone: str | None  # S02 契约;老数据 NULL
     zi_hour_rule: str
     calc_rule_snapshot: str  # Base64
     payload: str  # JSON 字符串
@@ -83,10 +90,14 @@ class UserChartSyncStore:
         return conn
 
     def init_schema(self) -> None:
-        """lifespan 启动时调用,幂等建表。"""
+        """lifespan 启动时调用,幂等建表 + 老库补列。"""
         with self._connect() as conn:
             conn.execute(CREATE_TABLE_SQL)
             conn.execute(CREATE_INDEX_USER_SQL)
+            cols = {r[1] for r in conn.execute(
+                "PRAGMA table_info(user_chart_sync)")}
+            if "city_timezone" not in cols:
+                conn.execute(MIGRATE_ADD_CITY_TIMEZONE_SQL)
 
     def upsert(
         self,
@@ -98,6 +109,7 @@ class UserChartSyncStore:
         birth_solar_time: str,
         gender: str,
         city_longitude: float,
+        city_timezone: str | None,
         zi_hour_rule: str,
         calc_rule_snapshot: str,
         payload: str,
@@ -124,18 +136,21 @@ class UserChartSyncStore:
                 conn.execute(
                     """INSERT INTO user_chart_sync
                        (id, user_id, content_hash, alias, schema_version,
-                        birth_solar_time, gender, city_longitude, zi_hour_rule,
+                        birth_solar_time, gender, city_longitude,
+                        city_timezone, zi_hour_rule,
                         calc_rule_snapshot, payload, created_at, updated_at)
-                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
+                       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)""",
                     (new_id, user_id, content_hash, alias, schema_version,
-                     birth_solar_time, gender, city_longitude, zi_hour_rule,
+                     birth_solar_time, gender, city_longitude,
+                     city_timezone, zi_hour_rule,
                      calc_rule_snapshot, payload, created_at, now),
                 )
                 return UserChartSync(
                     id=new_id, user_id=user_id, content_hash=content_hash,
                     alias=alias, schema_version=schema_version,
                     birth_solar_time=birth_solar_time, gender=gender,
-                    city_longitude=city_longitude, zi_hour_rule=zi_hour_rule,
+                    city_longitude=city_longitude, city_timezone=city_timezone,
+                    zi_hour_rule=zi_hour_rule,
                     calc_rule_snapshot=calc_rule_snapshot, payload=payload,
                     created_at=created_at, updated_at=now,
                 )
@@ -144,11 +159,11 @@ class UserChartSyncStore:
                 conn.execute(
                     """UPDATE user_chart_sync SET
                          alias=?, schema_version=?, birth_solar_time=?,
-                         gender=?, city_longitude=?, zi_hour_rule=?,
+                         gender=?, city_longitude=?, city_timezone=?, zi_hour_rule=?,
                          calc_rule_snapshot=?, payload=?, updated_at=?
                        WHERE user_id=? AND content_hash=?""",
                     (alias, schema_version, birth_solar_time,
-                     gender, city_longitude, zi_hour_rule,
+                     gender, city_longitude, city_timezone, zi_hour_rule,
                      calc_rule_snapshot, payload, now,
                      user_id, content_hash),
                 )
@@ -156,7 +171,8 @@ class UserChartSyncStore:
                     id=existing["id"], user_id=user_id, content_hash=content_hash,
                     alias=alias, schema_version=schema_version,
                     birth_solar_time=birth_solar_time, gender=gender,
-                    city_longitude=city_longitude, zi_hour_rule=zi_hour_rule,
+                    city_longitude=city_longitude, city_timezone=city_timezone,
+                    zi_hour_rule=zi_hour_rule,
                     calc_rule_snapshot=calc_rule_snapshot, payload=payload,
                     created_at=existing["created_at"], updated_at=now,
                 )
@@ -174,7 +190,8 @@ class UserChartSyncStore:
                 id=r["id"], user_id=r["user_id"], content_hash=r["content_hash"],
                 alias=r["alias"], schema_version=r["schema_version"],
                 birth_solar_time=r["birth_solar_time"], gender=r["gender"],
-                city_longitude=r["city_longitude"], zi_hour_rule=r["zi_hour_rule"],
+                city_longitude=r["city_longitude"],
+                city_timezone=r["city_timezone"], zi_hour_rule=r["zi_hour_rule"],
                 calc_rule_snapshot=r["calc_rule_snapshot"], payload=r["payload"],
                 created_at=r["created_at"], updated_at=r["updated_at"],
             )

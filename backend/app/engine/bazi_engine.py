@@ -58,8 +58,17 @@ class BaziEngine:
         self._now = now if now is not None else datetime.now(timezone.utc)
 
     def calculate(self, *, birth: datetime, gender: str,
-                  longitude: float, zi_hour_rule: str) -> dict[str, Any]:
+                  longitude: float, zi_hour_rule: str,
+                  dst_flags: frozenset[str] = frozenset(),
+                  birth_timezone: str | None = None) -> dict[str, Any]:
         """主流程。返回结构化 dict(API 层转 BaziCalculateResponse)。
+
+        Args:
+            birth: 出生绝对时刻(offset-aware)。钟面→绝对时刻的时区解释
+                   在 API 层完成(app/core/tz_resolution,S02 契约),
+                   引擎只消费 aware 时刻 —— 对盘 fixtures 直喂 aware 不变
+            dst_flags: 时区解析边角(歧义/跳过/切换附近),并入 boundary_warning
+            birth_timezone: 出生地 IANA 时区名(进 calc_rule_snapshot)
 
         Raises:
             BaziCalculationFailedError: lunar_python 内部异常(不吞,向上抛)
@@ -137,10 +146,13 @@ class BaziEngine:
             calc_rule_snapshot = build_calc_rule_snapshot(
                 sect=SECT, zi_hour_rule=zi_hour_rule,
                 longitude=longitude, offset_minutes=solar_result.offset_minutes,
+                birth_timezone=birth_timezone,
             )
 
-            # 7. boundary_warning
-            boundary_warning = _format_boundary_warning(solar_result.boundary_crossed)
+            # 7. boundary_warning(真太阳时跨边界 + 时区解析边角,不静默吞)
+            boundary_warning = _format_boundary_warning(
+                solar_result.boundary_crossed, dst_flags,
+            )
 
             # 8. anchor sentence(2026-08-01 grill-me 决策 #13)
             # 后端确定性拼接(0 AI 成本),iOS 深度解析 Tab 顶部 instant 显示
@@ -212,12 +224,31 @@ class BaziEngine:
             ) from e
 
 
-def _format_boundary_warning(boundary_crossed: set[str]) -> str | None:
-    """把跨边界集合拼成人类可读 warning。无跨越 → None。"""
-    if not boundary_crossed:
-        return None
-    ordered = [b for b in ("时辰", "日", "月", "年") if b in boundary_crossed]
-    return "真太阳时调整导致跨越边界:" + "/".join(ordered)
+def _format_boundary_warning(boundary_crossed: set[str],
+                             dst_flags: frozenset[str] | set[str] = frozenset(),
+                             ) -> str | None:
+    """把跨边界集合 + 时区边角拼成人类可读 warning。两者皆空 → None。
+
+    dst_flags 语义(docs/城市搜索设计决策.md Q5,错误显式传播):
+    - dst_ambiguous: 钟面在秋令时回拨段重复出现,已按较早的一次解释
+    - dst_nonexistent: 钟面在春令时跳过段不存在,已按切换前偏移解释
+    - dst_transition: 出生时间处于时制切换点附近
+    """
+    parts: list[str] = []
+    if boundary_crossed:
+        ordered = [b for b in ("时辰", "日", "月", "年") if b in boundary_crossed]
+        parts.append("真太阳时调整导致跨越边界:" + "/".join(ordered))
+    dst_notes: list[str] = []
+    if "dst_ambiguous" in dst_flags:
+        dst_notes.append("该时间在当年重复出现过(夏令时回拨),已按较早的一次解释")
+    if "dst_nonexistent" in dst_flags:
+        dst_notes.append("该时间在当年不存在(夏令时跳过),已按切换前偏移解释")
+    if "dst_transition" in dst_flags:
+        dst_notes.append("出生时间处于时制切换点附近")
+    if dst_notes:
+        # 中文文案标点对齐 anchor sentence(全角标点)
+        parts.append("；".join(dst_notes) + "，请核对原始出生记录")
+    return " ".join(parts) if parts else None
 
 
 # 2026-08-01 grill-me 决策 #13:chart anchor sentence 后端确定性拼接

@@ -6,6 +6,7 @@ import logging
 import os
 import uuid
 from contextlib import asynccontextmanager
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
@@ -62,6 +63,28 @@ class RequestIdMiddleware(BaseHTTPMiddleware):
         response = await call_next(request)
         response.headers["X-Request-ID"] = request_id
         return response
+
+
+def _ensure_tzdata_available() -> None:
+    """S02 时区解释前置自检:系统 tzdata 缺失 → 启动即失败(错误显式归因部署)。
+
+    否则 stdlib zoneinfo 对所有合法 IANA 时区名抛 ZoneInfoNotFoundError,
+    会被 validate_timezone 误判为客户端 422「非法时区名」——部署故障伪装成
+    用户输入错误。Alpine 容器需 apk add tzdata(见 backend/README.md)。
+    """
+    try:
+        ZoneInfo("Asia/Shanghai")
+    except (ZoneInfoNotFoundError, ValueError, OSError) as e:
+        # ValueError/OSError = tzdb 文件损坏等,同属部署层故障,统一归因
+        raise RuntimeError(
+            "系统 tzdata 不可用(zoneinfo 找不到 Asia/Shanghai):"
+            "Alpine 容器请 apk add tzdata(backend/README.md 部署备忘)"
+        ) from e
+
+
+# 模块加载即自检(对齐下方 store 模块级初始化策略:测试 ASGITransport
+# 不触发 lifespan,缺失时测试也应立即失败而非逐请求 422)
+_ensure_tzdata_available()
 
 
 @asynccontextmanager

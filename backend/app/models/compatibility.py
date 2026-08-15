@@ -16,8 +16,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal
 
-from pydantic import BaseModel, Field, field_validator, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from ..core.tz_resolution import validate_timezone
 from .bazi import BaziCalculateResponse, CalcRuleSnapshot
 from .daily_fortune import ChartPayload
 
@@ -30,37 +31,58 @@ Context = Literal["general", "marriage", "business"]
 class PersonBInput(BaseModel):
     """模式 B（B 临时输入）：字段子集复用 BaziCalculateRequest。
 
-    后端按 birth_datetime + gender + (city|longitude) + zi_hour_rule 现排 B。
+    S02 契约:裸钟面 birth_datetime + timezone + 物理真值 longitude,
+    后端按 zoneinfo 解释后现排 B(与 /api/bazi/calculate 同一套规则)。
     """
 
+    # S02 零兼容垫片:未知字段(含旧 city)直接 422,不静默丢弃
+    model_config = ConfigDict(extra="forbid")
+
     birth_datetime: datetime = Field(
-        ..., description="ISO 8601, 必须含时区, 例 1990-03-15T14:30:00+08:00")
+        ..., description="出生钟面时间(ISO 8601, naive 无 offset), "
+                         "例 1990-03-15T14:30:00;时区由 timezone 字段解释")
+    timezone: str = Field(
+        ..., description="出生地 IANA 时区名, 例 Asia/Shanghai")
     gender: Literal["male", "female"]
-    city: str | None = Field(None, description="城市名, 与 longitude 至少传一个")
-    longitude: float | None = Field(
-        None, description="经度（东正西负）, 优先级高于 city")
+    longitude: float = Field(
+        ..., description="出生地经度(东正西负)")
+    latitude: float | None = Field(
+        None, description="存档用")
+    place_name: str | None = Field(
+        None, description="展示用城市名, 不参与 hash")
+    geoname_id: int | None = Field(
+        None, description="GeoNames ID, 仅日志/诊断")
     zi_hour_rule: Literal["zi_next_day"] = Field(
         "zi_next_day", description="MVP 固定 zi_next_day, 内部 setSect(1)")
 
     @field_validator("birth_datetime")
     @classmethod
-    def must_be_timezone_aware(cls, v: datetime) -> datetime:
-        if v.tzinfo is None or v.utcoffset() is None:
-            raise ValueError("birth_datetime 必须含时区(offset-aware)")
+    def must_be_naive(cls, v: datetime) -> datetime:
+        if v.tzinfo is not None or v.utcoffset() is not None:
+            raise ValueError(
+                "birth_datetime 必须为裸钟面时间(naive, 不带 offset);"
+                "时区走 timezone 字段(S02 契约)")
+        return v
+
+    @field_validator("timezone")
+    @classmethod
+    def timezone_must_be_iana(cls, v: str) -> str:
+        validate_timezone(v)
         return v
 
     @field_validator("longitude")
     @classmethod
-    def longitude_range(cls, v: float | None) -> float | None:
-        if v is not None and not (-180.0 <= v <= 180.0):
+    def longitude_range(cls, v: float) -> float:
+        if not (-180.0 <= v <= 180.0):
             raise ValueError("longitude 必须在 [-180, 180] 区间")
         return v
 
-    @model_validator(mode="after")
-    def city_or_longitude_required(self) -> "PersonBInput":
-        if self.city is None and self.longitude is None:
-            raise ValueError("city 和 longitude 至少传一个")
-        return self
+    @field_validator("latitude")
+    @classmethod
+    def latitude_range(cls, v: float | None) -> float | None:
+        if v is not None and not (-90.0 <= v <= 90.0):
+            raise ValueError("latitude 必须在 [-90, 90] 区间")
+        return v
 
 
 class CompatibilityRequest(BaseModel):

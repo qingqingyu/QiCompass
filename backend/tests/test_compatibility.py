@@ -25,7 +25,6 @@ from app.engine.compatibility import (
     compute_compatibility,
     compute_compatibility_hash,
 )
-from app.errors import CityNotFoundError
 from app.main import app
 from app.models.bazi import CalcRuleSnapshot, LuckPillar
 from app.models.compatibility import (
@@ -267,8 +266,9 @@ def test_mode_b_end_to_end():
     req = CompatibilityRequest(
         person_a_hash="a" * 64,
         person_b=PersonBInput(
-            birth_datetime=datetime(1990, 3, 15, 14, 30, tzinfo=TZ8),
-            gender="male", city="北京",
+            birth_datetime=datetime(1990, 3, 15, 14, 30),
+            timezone="Asia/Shanghai",
+            gender="male", longitude=116.4074,
             zi_hour_rule="zi_next_day",
         ),
         chart_payload_a=DOC_A,
@@ -407,8 +407,9 @@ async def test_endpoint_both_b_modes_returns_422():
         "person_a_hash": "a" * 64,
         "person_b_hash": "b" * 64,
         "person_b": {
-            "birth_datetime": "1990-03-15T14:30:00+08:00",
-            "gender": "male", "city": "北京",
+            "birth_datetime": "1990-03-15T14:30:00",
+            "timezone": "Asia/Shanghai",
+            "gender": "male", "longitude": 116.4074,
             "zi_hour_rule": "zi_next_day",
         },
         "chart_payload_a": DOC_A.model_dump(),
@@ -482,20 +483,38 @@ async def test_endpoint_chart_payload_a_missing_returns_422():
     assert code == 422
 
 
-def test_mode_b_unknown_city_preserves_city_not_found_error():
-    """城市查表失败应保留 CITY_NOT_FOUND/404,不能包装成 BAZI_CALCULATION_FAILED/500。"""
-    req = CompatibilityRequest(
-        person_a_hash="a" * 64,
-        person_b=PersonBInput(
-            birth_datetime=datetime(1990, 3, 15, 14, 30, tzinfo=TZ8),
+def test_mode_b_invalid_timezone_rejected_at_model_layer():
+    """非法时区名在 Pydantic 层拦截(ValueError → 422),替代已删除的 CITY_NOT_FOUND 路径。"""
+    with pytest.raises(ValueError, match="IANA"):
+        PersonBInput(
+            birth_datetime=datetime(1990, 3, 15, 14, 30),
+            timezone="Mars/Olympus",
             gender="female",
-            city="不存在的城市",
-        ),
-        chart_payload_a=DOC_A,
-        context="general",
-    )
-    with pytest.raises(CityNotFoundError):
-        compute_compatibility(req)
+            longitude=116.4074,
+        )
+
+
+def test_mode_b_aware_datetime_rejected_at_model_layer():
+    """S02 契约:person_b.birth_datetime 带 offset 必须被拒(防双源时区)。"""
+    with pytest.raises(ValueError, match="naive"):
+        PersonBInput(
+            birth_datetime=datetime(1990, 3, 15, 14, 30, tzinfo=TZ8),
+            timezone="Asia/Shanghai",
+            gender="female",
+            longitude=116.4074,
+        )
+
+
+def test_mode_b_legacy_city_field_rejected_at_model_layer():
+    """S02 零兼容垫片:已删 city 字段 → 422,不静默丢弃(extra="forbid")。"""
+    with pytest.raises(ValueError, match="city"):
+        PersonBInput(
+            birth_datetime=datetime(1990, 3, 15, 14, 30),
+            timezone="Asia/Shanghai",
+            gender="female",
+            longitude=116.4074,
+            city="北京",
+        )
 
 
 # ===== 端点注册 =====
@@ -530,8 +549,9 @@ async def test_endpoint_mode_b_happy_path():
     payload = {
         "person_a_hash": "a" * 64,
         "person_b": {
-            "birth_datetime": "1990-03-15T14:30:00+08:00",
-            "gender": "female", "city": "上海",
+            "birth_datetime": "1990-03-15T14:30:00",
+            "timezone": "Asia/Shanghai",
+            "gender": "female", "longitude": 121.4737,
             "zi_hour_rule": "zi_next_day",
         },
         "chart_payload_a": DOC_A.model_dump(),

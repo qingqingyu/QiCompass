@@ -48,7 +48,8 @@ async def compatibility(
         e.request_id = request_id
         _log_and_reraise(e, input_log, start)
     except ValueError as e:
-        # chart_payload 字段非法 / 查表缺失 → 转 BaziError(走全局 handler)
+        # chart_payload 字段非法(如未知天干)→ 转 BaziError(走全局 handler);
+        # S02 后时区/经度校验已在 Pydantic 层 422,引擎不再有查表路径
         wrapped = InvalidInputError(
             f"合盘请求字段非法: {e}",
         )
