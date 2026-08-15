@@ -127,17 +127,18 @@ def test_bazi_deep_free_render_replaces_placeholders():
 
 
 def test_bazi_deep_paid_render_replaces_placeholders():
-    """bazi_deep_paid context → render 输出含 header 占位符值 + 付费 9 章写作要求。"""
+    """bazi_deep_paid context → render 输出含 header 占位符值 + 付费 8 章(命书框架)写作要求。"""
     prompt = render_prompt("bazi_deep_paid", BAZI_DEEP_CONTEXT)
     # header 字段已替换
     assert BAZI_DEEP_CONTEXT["gender"] in prompt
     assert BAZI_DEEP_CONTEXT["shensha_list"] in prompt
-    # 付费章节写作要求存在(MONETIZATION.md §付费章节)
-    # 2026-08-14 加「十神结构与命局主线」;2026-08-15 加天赋/高低配/系统模式(6→9 章,v4)
-    for ch in ("十神结构与命局主线", "天赋能力", "高配版与低配版", "人生系统模式",
-               "财运", "爱情", "健康", "六亲", "晚年"):
-        assert ch in prompt
-    assert "付费 9 章" in prompt
+    # 付费章节写作要求存在(2026-08-15 晚命书 8 章框架,v5)
+    for ch in ("命盘", "日元", "五行", "格局倾向",
+               "事业与财富", "婚姻感情", "学习成长", "身体健康"):
+        assert f"章：{ch}" in prompt
+    assert "付费 8 章" in prompt
+    # 格局章红线:模糊叙事,模板里必须保留禁硬分类约束
+    assert "正官格" in prompt  # 出现在禁止条款里
     assert "{" not in prompt
 
 
