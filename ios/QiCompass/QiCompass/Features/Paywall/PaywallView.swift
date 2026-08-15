@@ -61,11 +61,7 @@ struct PaywallView: View {
 
             // 失败时显示错误文案(诊断 + UX:避免按钮恢复 idle 让用户以为"没反应")
             if case .failed(let message) = viewModel.state {
-                Text(message)
-                    .font(.caption)
-                    .foregroundStyle(BaziTheme.shenshaInauspicious)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: .infinity)
+                errorCaption(message)
             }
 
             // CTA:已登录走 purchase,未登录走 AppleSignInButton(Slice 5 决策:强制登录购买)
@@ -80,10 +76,17 @@ struct PaywallView: View {
                 // 未登录:登录后 @Observable AccountManager 触发 view 重渲染,
                 // 自动切回 PrimaryCTAButton;不需要手动 dismiss / 跳转。
                 VStack(spacing: BaziTheme.Spacing.sm) {
-                    Text("登录后即可购买,已购内容跨设备同步")
-                        .font(.caption)
-                        .foregroundStyle(BaziTheme.inkMuted)
-                        .multilineTextAlignment(.center)
+                    // 登录失败显式显错(行为对齐 ProfileView accountSection .failed 分支:
+                    // 显错 + 保留重试按钮;样式见 errorCaption)。
+                    // 不渲染的话 SIWA 失败后 UI 无任何反馈,用户只看到按钮"没反应"。
+                    if case .failed(let message) = env.accountManager.state {
+                        errorCaption(message)
+                    } else {
+                        Text("登录后即可购买,已购内容跨设备同步")
+                            .font(.caption)
+                            .foregroundStyle(BaziTheme.inkMuted)
+                            .multilineTextAlignment(.center)
+                    }
                     AppleSignInButton(onResult: { result in
                         env.accountManager.handleAuthorization(result)
                     })
@@ -101,5 +104,16 @@ struct PaywallView: View {
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .task { await viewModel.loadProduct() }
+    }
+
+    /// 错误文案(购买失败 / 登录失败共用):caption + 凶色 + 居中。
+    /// 颜色用 shenshaInauspicious(与 ProfileView 的 destructive 不同,
+    /// 跟本 sheet 内既有购买失败文案保持一致)。
+    private func errorCaption(_ message: String) -> some View {
+        Text(message)
+            .font(.caption)
+            .foregroundStyle(BaziTheme.shenshaInauspicious)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity)
     }
 }
