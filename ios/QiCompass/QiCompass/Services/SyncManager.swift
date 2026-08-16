@@ -69,7 +69,7 @@ final class SyncManager {
             AppLogger.app.error(
                 "sync.pull.failed error=\(String(describing: error), privacy: .public)"
             )
-            state = .failed("同步拉取失败:\(error.localizedDescription)")
+            state = .failed("同步拉取失败,请稍后重试")
         }
     }
 
@@ -212,7 +212,7 @@ final class SyncManager {
             AppLogger.app.error(
                 "sync.push.failed error=\(String(describing: error), privacy: .public)"
             )
-            state = .failed("同步上传失败:\(error.localizedDescription)")
+            state = .failed("同步上传失败,请稍后重试")
         }
     }
 

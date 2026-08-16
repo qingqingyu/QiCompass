@@ -374,8 +374,14 @@ struct CitySearchSheet: View {
                 let found = try engine?.search(trimmed) ?? []
                 if !Task.isCancelled { results = found }
             } catch {
-                // 查询失败显式进入错误态(不静默空列表)
-                if !Task.isCancelled { errorMessage = error.localizedDescription }
+                // 查询失败显式进入错误态(不静默空列表);人话文案,
+                // 原始 error(sqlite code/message)记日志不进 UI
+                if !Task.isCancelled {
+                    AppLogger.app.error(
+                        "citySearch.search.failed query=\(trimmed, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                    )
+                    errorMessage = String(localized: "city.error.queryFailed")
+                }
             }
         }
     }
@@ -383,14 +389,24 @@ struct CitySearchSheet: View {
     /// 空态数据:最近选择 + 热门网格。任一失败 → 错误态。
     private func reloadStaticSections() async {
         guard let engine else {
-            errorMessage = initError ?? CitySearchError.databaseMissing.localizedDescription
+            // initError 是引擎构造失败的原始 error 文案,在此记日志留痕;
+            // 用户只见人话:库缺失/打开失败统一走 queryFailed 文案
+            if let initError {
+                AppLogger.app.error(
+                    "citySearch.engine.init error=\(initError, privacy: .public)"
+                )
+            }
+            errorMessage = String(localized: "city.error.queryFailed")
             return
         }
         do {
             recentRecords = try engine.records(ids: CityRecentStore.load())
             hotRecords = try engine.records(ids: CitySearchEngine.hotGeonameIds)
         } catch {
-            errorMessage = error.localizedDescription
+            AppLogger.app.error(
+                "citySearch.staticSections.failed error=\(String(describing: error), privacy: .public)"
+            )
+            errorMessage = String(localized: "city.error.queryFailed")
         }
     }
 }
