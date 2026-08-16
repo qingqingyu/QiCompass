@@ -128,6 +128,9 @@ enum KeychainHelper {
 
 // MARK: - KeychainError
 
+/// errorDescription 是**用户可见文案**(2026-08-16:代码性错误不进 UI)。
+/// 技术细节(OSStatus)留在 associated value,日志侧用 String(describing:) 记
+/// (errorDescription 已不含 OSStatus,不能当日志细节用)。
 enum KeychainError: LocalizedError {
     case osStatus(OSStatus)
     case invalidStringEncoding
@@ -135,16 +138,8 @@ enum KeychainError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .osStatus(let status):
-            // SecCopyErrorMessageString 返回 CFString,转 Swift String
-            if let msg = SecCopyErrorMessageString(status, nil) as String? {
-                return "Keychain 操作失败(OSStatus \(status)):\(msg)"
-            }
-            return "Keychain 操作失败(OSStatus \(status))"
-        case .invalidStringEncoding:
-            return "Keychain 数据 UTF-8 编解码失败"
-        case .unknown(let underlying):
-            return "Keychain 未知错误:\(underlying.localizedDescription)"
+        case .osStatus, .invalidStringEncoding, .unknown:
+            return "登录信息读写失败,请重试"
         }
     }
 }
