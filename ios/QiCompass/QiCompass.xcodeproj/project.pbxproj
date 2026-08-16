@@ -141,6 +141,9 @@
 		9C0000000000000000000072 /* ModuleCardView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000072 /* ModuleCardView.swift */; };
 		9C0000000000000000000073 /* HealthInputForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000073 /* HealthInputForm.swift */; };
 		9C0000000000000000000074 /* WealthInputForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000074 /* WealthInputForm.swift */; };
+		9D0000000000000000000001 /* GoogleSignInConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D1000000000000000000001 /* GoogleSignInConfig.swift */; };
+		9D0000000000000000000002 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 9D3000000000000000000001 /* GoogleSignIn */; };
+		9D0000000000000000000003 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 9D3000000000000000000002 /* GoogleSignInSwift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -279,6 +282,7 @@
 		9C1000000000000000000051 /* AliasEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AliasEditView.swift; path = QiCompass/Features/Profile/AliasEditView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000052 /* KeychainHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = KeychainHelper.swift; path = QiCompass/Services/KeychainHelper.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000053 /* AccountManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AccountManager.swift; path = QiCompass/Services/AccountManager.swift; sourceTree = SOURCE_ROOT; };
+		9D1000000000000000000001 /* GoogleSignInConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = GoogleSignInConfig.swift; path = QiCompass/Services/GoogleSignInConfig.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000054 /* SignInView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SignInView.swift; path = QiCompass/Features/Account/SignInView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000055 /* AuthDTOs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AuthDTOs.swift; path = QiCompass/Networking/DTOs/AuthDTOs.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000056 /* SyncDTOs.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SyncDTOs.swift; path = QiCompass/Networking/DTOs/SyncDTOs.swift; sourceTree = SOURCE_ROOT; };
@@ -299,6 +303,8 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				9D0000000000000000000002 /* GoogleSignIn in Frameworks */,
+				9D0000000000000000000003 /* GoogleSignInSwift in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -323,6 +329,7 @@
 				9C1000000000000000000051 /* AliasEditView.swift */,
 				9C1000000000000000000052 /* KeychainHelper.swift */,
 				9C1000000000000000000053 /* AccountManager.swift */,
+				9D1000000000000000000001 /* GoogleSignInConfig.swift */,
 				9C1000000000000000000054 /* SignInView.swift */,
 				9C1000000000000000000055 /* AuthDTOs.swift */,
 				9C1000000000000000000056 /* SyncDTOs.swift */,
@@ -594,6 +601,10 @@
 			dependencies = (
 			);
 			name = QiCompass;
+			packageProductDependencies = (
+				9D3000000000000000000001 /* GoogleSignIn */,
+				9D3000000000000000000002 /* GoogleSignInSwift */,
+			);
 			productName = QiCompass;
 			productReference = 9C2000000000000000000001 /* QiCompass.app */;
 			productType = "com.apple.product-type.application";
@@ -645,6 +656,9 @@
 				Base,
 			);
 			mainGroup = 9C4000000000000000000001;
+			packageReferences = (
+				9D2000000000000000000001 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */,
+			);
 			productRefGroup = 9C400000000000000000000E /* Products */;
 			projectDirPath = "";
 			projectRoot = "";
@@ -761,6 +775,7 @@
 				9C0000000000000000000051 /* AliasEditView.swift in Sources */,
 				9C0000000000000000000052 /* KeychainHelper.swift in Sources */,
 				9C0000000000000000000053 /* AccountManager.swift in Sources */,
+				9D0000000000000000000001 /* GoogleSignInConfig.swift in Sources */,
 				9C0000000000000000000054 /* SignInView.swift in Sources */,
 				9C0000000000000000000055 /* AuthDTOs.swift in Sources */,
 				9C0000000000000000000056 /* SyncDTOs.swift in Sources */,
@@ -1101,6 +1116,30 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		9D2000000000000000000001 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/google/GoogleSignIn-iOS";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 9.2.0;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		9D3000000000000000000001 /* GoogleSignIn */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9D2000000000000000000001 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignIn;
+		};
+		9D3000000000000000000002 /* GoogleSignInSwift */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 9D2000000000000000000001 /* XCRemoteSwiftPackageReference "GoogleSignIn-iOS" */;
+			productName = GoogleSignInSwift;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 9C8000000000000000000001 /* Project object */;
 }

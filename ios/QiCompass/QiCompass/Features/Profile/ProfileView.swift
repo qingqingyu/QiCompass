@@ -144,8 +144,13 @@ struct ProfileView: View {
                 Text("加载中…")
                     .foregroundStyle(BaziTheme.inkMuted)
             case .signedOut:
-                AppleSignInButton { result in
-                    env.accountManager.handleAuthorization(result)
+                VStack(spacing: BaziTheme.Spacing.sm) {
+                    AppleSignInButton { result in
+                        env.accountManager.handleAuthorization(result)
+                    }
+                    GoogleSignInButton {
+                        env.accountManager.handleGoogleSignIn()
+                    }
                 }
                 .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
                 .listRowBackground(BaziTheme.paper)
@@ -162,14 +167,14 @@ struct ProfileView: View {
                             .accessibilityHidden(true)
                     }
                     VStack(alignment: .leading, spacing: 4) {
-                        Text(user.fullName ?? user.email ?? "Apple 用户")
+                        Text(user.fullName ?? user.email ?? "\(user.provider.displayName) 用户")
                             .foregroundStyle(BaziTheme.ink)
                         if let email = user.email, user.fullName != nil {
                             Text(email)
                                 .font(.caption)
                                 .foregroundStyle(BaziTheme.inkMuted)
                         }
-                        Text("Apple ID:\(user.appleUserId.prefix(12))")
+                        Text("\(user.provider.displayName) ID:\(user.providerUserId.prefix(12))")
                             .font(.caption2.monospaced())
                             .foregroundStyle(BaziTheme.inkMuted)
                     }
@@ -185,9 +190,12 @@ struct ProfileView: View {
                     AppleSignInButton { result in
                         env.accountManager.handleAuthorization(result)
                     }
-                    .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
-                    .listRowBackground(BaziTheme.paper)
+                    GoogleSignInButton {
+                        env.accountManager.handleGoogleSignIn()
+                    }
                 }
+                .listRowInsets(EdgeInsets(top: 8, leading: 16, bottom: 8, trailing: 16))
+                .listRowBackground(BaziTheme.paper)
             }
         } header: {
             sectionHeader("账号")
