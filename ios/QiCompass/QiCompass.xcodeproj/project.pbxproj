@@ -113,6 +113,7 @@
 		A0000000000000000000000D /* Shared/GoldenQueriesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000D /* Shared/GoldenQueriesTests.swift */; };
 		A0000000000000000000000E /* golden_queries.json in Resources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000E /* golden_queries.json */; };
 		A0000000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */; };
+		A0000000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */; };
 		A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */; };
 		A00000000000000000000008 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A21000000000000000000001 /* XCTest.framework */; };
 		A9B245DDB05C779E1238547A /* DeepAnalysisViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F34390B983BDE0003B56E8 /* DeepAnalysisViewModel.swift */; };
@@ -264,6 +265,7 @@
 		A110000000000000000000D /* Shared/GoldenQueriesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/GoldenQueriesTests.swift; sourceTree = "<group>"; };
 		A110000000000000000000E /* golden_queries.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = golden_queries.json; path = ../../tools/city-data/golden_queries.json; sourceTree = SOURCE_ROOT; };
 		A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisViewModelFormTests.swift; sourceTree = "<group>"; };
+		A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisArchiveLoadTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/UserFacingErrorTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000001 /* QiCompassTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QiCompassTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A21000000000000000000001 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
@@ -573,6 +575,7 @@
 				A110000000000000000000E /* golden_queries.json */,
 				A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */,
 				A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */,
+				A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */,
 			);
 			name = Tests;
 			path = ../Tests;
@@ -817,6 +820,7 @@
 				A0000000000000000000000D /* Shared/GoldenQueriesTests.swift in Sources */,
 				A0000000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift in Sources */,
 				A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */,
+				A0000000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

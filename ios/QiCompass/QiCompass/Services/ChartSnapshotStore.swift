@@ -106,3 +106,39 @@ final class ChartSnapshotStore {
         }
     }
 }
+
+// MARK: - 存档请求重建(2026-08-16 深度解析直读存档)
+
+extension ChartSnapshot {
+
+    /// 从存档字段重建 BaziCalculateRequest(与 `decodeResponse(from:)` 配对,
+    /// 共同支撑「深度解析 Tab 直读存档,不重复填表」)。
+    ///
+    /// **用途边界(重要)**:此请求只喂给展示层与 prompt context 构建链路 ——
+    /// 下游实际只消费 gender / placeName / longitude 三个字段
+    /// (ChartHeaderView + PromptContextBuilder.build)。**绝不回传 /api/bazi/calculate**:
+    /// birthDatetime 由真太阳时(birthSolarTime)在出生城市时区下派生,是近似钟面,
+    /// 不是用户当初输入的裸墙钟(S02 契约),用它重排会得到错误的 contentHash。
+    ///
+    /// 字段映射:cityLongitude→longitude、cityLatitude→latitude、cityName→placeName、
+    /// cityTimezone→timezone(老快照 nil 兜底设备时区)、geonameId 不入存档(→ nil,
+    /// 属展示元数据,不参与任何计算)。
+    var archivedDisplayRequest: BaziCalculateRequest {
+        let tzName = cityTimezone ?? TimeZone.current.identifier
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        // tzName 非法标识符时兜底设备时区,保证 formatter 行为确定
+        formatter.timeZone = TimeZone(identifier: tzName) ?? .current
+        return BaziCalculateRequest(
+            birthDatetime: formatter.string(from: birthSolarTime),
+            timezone: tzName,
+            gender: gender,
+            longitude: cityLongitude,
+            latitude: cityLatitude,
+            placeName: cityName,
+            geonameId: nil,
+            ziHourRule: ziHourRule
+        )
+    }
+}
