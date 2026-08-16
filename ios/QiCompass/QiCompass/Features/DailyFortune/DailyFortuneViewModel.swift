@@ -8,7 +8,7 @@ import SwiftData
 enum DailyFortuneViewState: Equatable {
     case empty              // 无命盘 → CTA
     case loading            // 首次 / 下拉刷新 / 跨业务日
-    case chartMissing       // 显式提示「先做深度解析」
+    case chartMissing       // 无命盘存档 → 空态(B2 后正常路径不可达)
     case ready(DailyFortuneResponse, InterpretState, Date)  // 第三个 = 当前展示的 businessDate
     case failed(UserFacingError)
 

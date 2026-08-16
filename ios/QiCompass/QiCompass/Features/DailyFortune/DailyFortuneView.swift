@@ -6,7 +6,7 @@ import SwiftData
 /// 主状态:
 /// - .empty → 首次进入(等 onAppear 检查命盘)
 /// - .loading → 排盘中(阶段 1)
-/// - .chartMissing → CTA「先做深度解析」
+/// - .chartMissing → 空态(无命盘存档;B2 后正常路径不可达)
 /// - .ready(response, interpretState, businessDate) → 主视图 + AI 子状态
 /// - .failed(msg) → 错误态
 struct DailyFortuneView: View {
@@ -15,6 +15,10 @@ struct DailyFortuneView: View {
     @State private var vm: DailyFortuneViewModel?
     @State private var currentChartHash: String?
     @State private var currentZiHourRule: String = "zi_next_day"
+    /// onboarding 覆盖层下本 view 随启动即 render,.task 在出生表单提交前就跑过
+    /// (当时无命盘 → .chartMissing);onboarding 完成时 flag 翻 true,此处重查命盘,
+    /// 否则落地今日运势停在过时空态(2026-08-16 修)。
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     var body: some View {
         NavigationStack {
@@ -43,6 +47,13 @@ struct DailyFortuneView: View {
                     ziHourRule: currentZiHourRule,
                 )
             }
+        }
+        .onChange(of: hasSeenOnboarding) { _, seen in
+            // 时序安全:chart 在 calculate → .ready → 生肖屏 CTA 时已存档,
+            // RootTabView 设 flag 在其后,重查时 UserSnapshotLink 必已存在。
+            guard seen else { return }
+            AppLogger.app.info("daily.onboarding_completed → 重新解析命盘存档")
+            Task { await resolveCurrentChart() }
         }
         .onReceive(
             NotificationCenter.default.publisher(
