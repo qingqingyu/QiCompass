@@ -88,8 +88,8 @@ struct DailyFortuneView: View {
             AppLogger.persistence.error(
                 "op=dailyFortune.resolveChart failed error=\(String(describing: error), privacy: .public)"
             )
-            // 不静默吞:把失败传给 UI
-            vm?.state = .failed(.generic(message: "读取命盘存档失败:\(error.localizedDescription)"))
+            // 不静默吞:把失败传给 UI(人话文案,原始 error 已记上方日志)
+            vm?.state = .failed(.generic(message: "读取命盘存档失败,请重试"))
         }
     }
 

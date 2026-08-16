@@ -189,13 +189,15 @@ final class DailyFortuneSnapshotStore {
 }
 
 /// DailyFortuneSnapshotStore 领域错误。
+/// errorDescription 是**用户可见文案**(2026-08-16:代码性错误不进 UI);
+/// hash/date 留在 associated value,调用方 catch 已记 String(describing: error) 日志。
 enum DailyFortuneSnapshotError: Error, LocalizedError {
     case snapshotMissing(chartHash: String, targetDate: Date)
 
     var errorDescription: String? {
         switch self {
-        case .snapshotMissing(let hash, let date):
-            return "每日运势快照未找到(hash=\(hash), date=\(date)),可能已被清理"
+        case .snapshotMissing:
+            return "运势数据已过期,请重新获取"
         }
     }
 }
