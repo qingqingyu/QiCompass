@@ -149,4 +149,15 @@ APPLE_PUBLIC_KEYS_CACHE_TTL = int(
     os.environ.get("APPLE_PUBLIC_KEYS_CACHE_TTL") or "3600"
 )
 
+# Sign in with Google ID Token 验证
+# 无兜底默认(与 Apple 不同):Google client ID 是 Google Cloud Console 发的
+# 一串 .apps.googleusercontent.com,没有可推导的默认值。未配置时
+# provider=google 的登录显式抛 GOOGLE_SIGN_IN_NOT_CONFIGURED(503),
+# 不静默放行也不阻断 Apple 登录(错误显式传播)。
+GOOGLE_SIGN_IN_CLIENT_ID: str | None = os.environ.get("GOOGLE_SIGN_IN_CLIENT_ID") or None
+# Google 公钥缓存 TTL(秒),默认 1 小时
+GOOGLE_PUBLIC_KEYS_CACHE_TTL = int(
+    os.environ.get("GOOGLE_PUBLIC_KEYS_CACHE_TTL") or "3600"
+)
+
 # prompt 版本号单一事实源:ai/prompts.py 的 PROMPT_VERSIONS,路由层从那里导入
