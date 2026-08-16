@@ -259,7 +259,7 @@ final class PurchaseManager {
                 transaction = tx
             case .unverified(_, let error):
                 AppLogger.app.error("purchase.storekit.verification_failed error=\(String(describing: error), privacy: .public)")
-                throw PurchaseError.verificationFailed(message: "StoreKit 验签失败:\(error.localizedDescription)")
+                throw PurchaseError.verificationFailed(message: "购买验证失败,请重试")
             }
         case .userCancelled:
             AppLogger.app.info("purchase.storekit.user_cancelled product=\(productId, privacy: .public)")
@@ -270,7 +270,7 @@ final class PurchaseManager {
             throw PurchaseError.pending
         @unknown default:
             AppLogger.app.error("purchase.storekit.unknown_result product=\(productId, privacy: .public)")
-            throw PurchaseError.verificationFailed(message: "未知 PurchaseResult case")
+            throw PurchaseError.verificationFailed(message: "购买未完成,请重试")
         }
 
         // 4. 调后端 redeem(transaction.id 是 UInt64,转 String 对齐后端 schema transaction_id TEXT)
@@ -341,6 +341,9 @@ final class PurchaseManager {
 
 // MARK: - PurchaseError
 
+/// errorDescription 是**用户可见文案**(2026-08-16:代码性错误不进 UI)。
+/// 技术细节(底层 error / productId)留在 associated value,由 PurchaseManager
+/// 各 catch 的 AppLogger.error(String(describing: error))记录,不进 UI。
 enum PurchaseError: LocalizedError {
     // M3a/c 已有
     case entitlementStoreFailed(underlying: Error)
@@ -358,19 +361,22 @@ enum PurchaseError: LocalizedError {
 
     var errorDescription: String? {
         switch self {
-        case .entitlementStoreFailed(let underlying):
-            return "授权数据写入失败:\(underlying.localizedDescription)"
-        case .backendRedeemFailed(let underlying):
-            return "后端授权同步失败:\(underlying.localizedDescription)"
+        case .entitlementStoreFailed:
+            // redeem 已成功(钱已付、后端已有 entitlement),仅本地 SwiftData 写失败;
+            // 防漏单设计:transaction 未 finish,下次启动 listener 续接
+            return "购买记录保存失败,请重启 App 后在「已购」中查看"
+        case .backendRedeemFailed:
+            // 后端 redeem 失败未 finish,不会丢钱;重新购买前可先稍候重试
+            return "购买验证失败,请稍后重试"
         case .userCancelled:
             // 静默:Apple HIG 建议 IAP 取消不要打扰用户
             return nil
-        case .networkFailed(let underlying):
-            return "网络连接失败,请检查网络后重试:\(underlying.localizedDescription)"
+        case .networkFailed:
+            return "网络连接失败,请检查网络后重试"
         case .verificationFailed(let message):
             return message
-        case .productNotFound(let productId):
-            return "商品配置异常(\(productId)),请联系客服"
+        case .productNotFound:
+            return "商品暂不可用,请稍后再试"
         case .pending:
             return "购买请求已提交,等待批准后生效"
         case .notSignedIn:
