@@ -6,9 +6,9 @@ import SwiftData
 
 /// 每日运势主状态机(决策 §3.1)。
 enum DailyFortuneViewState: Equatable {
-    case empty              // 无命盘 → CTA
+    case empty              // 瞬态:等命盘解析(onboarding 落地强制重载也走这里)
     case loading            // 首次 / 下拉刷新 / 跨业务日
-    case chartMissing       // 显式提示「先做深度解析」
+    case chartMissing       // 命盘存档缺失(首启被 onboarding sheet 盖住、完成即自动重载;重置后重走 onboarding 前可见;不引导先做深度解析)
     case ready(DailyFortuneResponse, InterpretState, Date)  // 第三个 = 当前展示的 businessDate
     case failed(UserFacingError)
 

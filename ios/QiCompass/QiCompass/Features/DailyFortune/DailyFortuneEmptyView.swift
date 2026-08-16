@@ -1,6 +1,8 @@
 import SwiftUI
 
-/// 每日运势 CTA 空态:无命盘时引导先完成深度解析。DESIGN.md §Color 浓墨主色。
+/// 每日运势空态:命盘存档缺失。首启被 onboarding sheet 盖住、完成即自动重载,
+/// 通常仅重置后重走 onboarding 前/存档异常时可见;不引导"先做深度解析"——那不是本模块的前置。
+/// DESIGN.md §Color 浓墨主色。
 struct DailyFortuneEmptyView: View {
     var body: some View {
         VStack(spacing: 20) {

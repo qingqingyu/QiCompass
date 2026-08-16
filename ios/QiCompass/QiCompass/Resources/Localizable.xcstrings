@@ -499,13 +499,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Complete a deep analysis first to reveal your daily fortune."
+            "value" : "No chart archive was found."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "需先完成深度解析,基于命盘推演流日。"
+            "value" : "未找到你的命盘存档。"
           }
         }
       }
@@ -516,13 +516,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Daily fortune appears here once deep analysis is complete."
+            "value" : "Reset your chart in Profile to enter your birth info again."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "完成深度解析后,本页将自动生成每日运势。"
+            "value" : "可在「我的」重置命盘,重新填写出生信息。"
           }
         }
       }
