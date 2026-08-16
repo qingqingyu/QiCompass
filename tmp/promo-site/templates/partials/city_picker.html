@@ -18,5 +18,8 @@
 </div>
 <input type="hidden" id="city{{ sfx }}" name="city{{ sfx }}" value="{{ default_city }}">
 <input type="hidden" id="longitude{{ sfx }}" name="longitude{{ sfx }}" value="{{ default_lng }}">
-<input type="hidden" id="city_tz{{ sfx }}" value="Asia/Shanghai">
-<input type="hidden" id="tz_offset{{ sfx }}" name="tz_offset{{ sfx }}" value="8">
+{# city_tz 加 name(2026-08-16):命书→问答预填需要 IANA 时区名随表单提交,
+   否则 /ask 页加载时 recomputeTzOffset 按 Asia/Shanghai 重算 → 海外盘静默换时区。
+   default_city_tz / default_tz 由调用方可选 set,不 set 走原默认(向后兼容)。 #}
+<input type="hidden" id="city_tz{{ sfx }}" name="city_tz{{ sfx }}" value="{{ default_city_tz if default_city_tz is defined else 'Asia/Shanghai' }}">
+<input type="hidden" id="tz_offset{{ sfx }}" name="tz_offset{{ sfx }}" value="{{ default_tz if default_tz is defined else 8 }}">

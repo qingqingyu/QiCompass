@@ -26,6 +26,7 @@ import time
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
@@ -483,6 +484,28 @@ def _parse_length_tier(form) -> str:
     return tier
 
 
+# ---------- 命盘问答预填(2026-08-16:命书结果页内嵌提问框) ----------
+
+# 出生信息字段白名单:命书 → 问答 同一张盘的携带口径。
+# 故意不含 ai_api_key / ai_base_url 等(key 不落页面源码,/ask 走 env fallback)。
+_ASK_PREFILL_KEYS = (
+    "birth_date", "birth_time", "gender", "longitude", "tz_offset", "city", "city_tz",
+)
+
+
+def _ask_prefill_from_form(form) -> dict[str, str]:
+    """从已验证的出生表单取原始字符串,供内嵌提问框隐藏携带。
+
+    city / city_tz 手动经度模式下可能缺失 → 不带该键(GET /ask 端不预填那两项)。
+    """
+    return {k: form[k] for k in _ASK_PREFILL_KEYS if form.get(k)}
+
+
+def _ask_prefill_url(prefill: dict[str, str]) -> str:
+    """/ask 预填回链(query 参数化,供「再问一个」/ 错误页返回不断链)。"""
+    return "/ask?" + urlencode(prefill)
+
+
 async def _interpret_with_tier(client: Any, prompt: str, length_tier: str) -> str:
     """按篇幅档调 AI:加长版放大 max_tokens + 超时,App 标准走 config 默认。
 
@@ -625,6 +648,8 @@ async def bazi_handler(request: Request):
                 "ai_provider": client.provider,
                 "ai_model": client.model,
                 "prompt_version": PROMPT_VERSIONS[module],
+                # 内嵌提问框隐藏携带(命书 → 问答 同一张盘)
+                "ask_prefill": _ask_prefill_from_form(form),
             },
         )
 
@@ -989,9 +1014,14 @@ async def daily_handler(request: Request):
 
 @app.get("/ask", response_class=HTMLResponse)
 async def ask_form(request: Request):
-    """命盘问答输入表单(出生信息 + 任意问题)。"""
+    """命盘问答输入表单(出生信息 + 任意问题)。
+
+    支持 query 预填(_ASK_PREFILL_KEYS 同名字段):命书结果页内嵌提问框
+    提交出错、或 ask_result「再问一个」回链携带,避免重复填出生信息。
+    """
+    prefill = {k: request.query_params[k] for k in _ASK_PREFILL_KEYS if k in request.query_params}
     return templates.TemplateResponse(
-        "ask_form.html", {"request": request},
+        "ask_form.html", {"request": request, "prefill": prefill},
     )
 
 
@@ -1000,6 +1030,8 @@ async def ask_handler(request: Request):
     """命盘问答主流程:出生信息 → BaziEngine → QA prompt(结论/根因/行动/反直觉/反问)→ AI。
 
     错误显式传播,与三模块同口径(engine/AI/禁词分别渲染错误页)。
+    表单解析成功后错误页返回链带出生信息预填(不断链);解析失败返回裸 /ask
+    (此时字段值本身可疑,预填无意义)。
     """
     form = await request.form()
     try:
@@ -1014,6 +1046,8 @@ async def ask_handler(request: Request):
             _form_error_ctx(request, e, "/ask"),
             status_code=400,
         )
+    prefill = _ask_prefill_from_form(form)
+    ask_back_url = _ask_prefill_url(prefill)
 
     try:
         engine = BaziEngine()
@@ -1054,23 +1088,24 @@ async def ask_handler(request: Request):
                 "markdown_text": markdown_text,
                 "ai_provider": used_provider,
                 "ai_model": used_model,
+                "prefill": prefill,
             },
         )
 
     except BaziCalculationFailedError as e:
         logger.error("ask.engine_failed error=%s", e)
         return templates.TemplateResponse(
-            "ask_result.html", _engine_error_ctx(request, e, "/ask"), status_code=500,
+            "ask_result.html", _engine_error_ctx(request, e, ask_back_url), status_code=500,
         )
     except AIProviderError as e:
         logger.error("ask.ai_failed error=%s", e)
         return templates.TemplateResponse(
-            "ask_result.html", _ai_error_ctx(request, e, "/ask"), status_code=503,
+            "ask_result.html", _ai_error_ctx(request, e, ask_back_url), status_code=503,
         )
     except InterpretationForbiddenError as e:
         logger.warning("ask.forbidden_words_hit error=%s", e)
         return templates.TemplateResponse(
-            "ask_result.html", _forbidden_error_ctx(request, e, "/ask"), status_code=422,
+            "ask_result.html", _forbidden_error_ctx(request, e, ask_back_url), status_code=422,
         )
 
 
