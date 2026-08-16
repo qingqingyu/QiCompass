@@ -9,7 +9,7 @@ import SwiftData
 /// 七态:
 /// - loading:命盘列表加载中
 /// - empty:0 存档,引导去深度解析
-/// - configuring:配置态(A 单选 + B 名单 + context)
+/// - configuring:配置态(A 单选 + B 名单;2026-08-16 起 context 恒 "general" 不再是配置项)
 /// - computing(completed, total):批量确定性合盘进行中(决策 D3 串行)
 /// - list:结果列表(决策 D9 卡片;summaries 存 VM 字段,便于 detail ↔ list 切换)
 /// - detail(summary, response, interpretState):单对详情(S02 新增),复用 CompatibilityMainView
@@ -102,8 +102,11 @@ final class CompatibilityViewModel {
         return formatter.string(from: tempBirthDate)
     }
 
-    /// context picker(通用 / 婚姻 / 事业;决策 D8 配置页全局)
-    var context: String = "general"
+    /// 合盘维度。2026-08-16 决策:维度 picker(通用/婚姻/事业)移除,固定 "general"。
+    /// 原因:context 参与 compatibilityHash,可切换导致同一对人换维度重复付 $11.99;
+    /// 且「婚姻/事业」预设与 08-14「两人磁场」单轨定位矛盾。
+    /// 数据层/后端契约保留 context 字段,仅客户端源头固定(历史非 general 快照不再恢复展示)。
+    let context = "general"
 
     // MARK: 主状态 + summaries
 
@@ -435,24 +438,21 @@ final class CompatibilityViewModel {
         )
     }
 
-    /// S06:跨启动恢复名单 + A + context(决策 D5/D8/D11/D13)。
+    /// S06:跨启动恢复名单 + A(决策 D5/D8/D11/D13)。
     /// 调用时机:`loadArchivedCharts()` 完成后,0 存档外(进 .configuring 态时)。
     ///
     /// 流程:
-    /// 1. 读持久化(context / aHash / rosterHashes)
-    /// 2. 预填 context(默认 "general")
-    /// 3. A hash 失效 fallback 最新 link(D13)
-    /// 4. 名单 hash 清理无效项(D5 防脏数据;D6 红线:不转 link)
-    /// 5. 名单非空 → 尝试恢复 list 态(零 API 调用)
+    /// 1. 读持久化(aHash / rosterHashes;context 恒 "general" 不再恢复,
+    ///    2026-08-16 维度 picker 移除,老持久化值忽略)
+    /// 2. A hash 失效 fallback 最新 link(D13)
+    /// 3. 名单 hash 清理无效项(D5 防脏数据;D6 红线:不转 link)
+    /// 4. 名单非空 → 尝试恢复 list 态(零 API 调用)
     func restoreRosterStateIfAvailable() {
         guard !archivedCharts.isEmpty else { return }  // 0 存档走 .empty,不恢复
 
         let persisted = CompatibilityRosterPersistence.load()
 
-        // 1. context
-        context = persisted.context
-
-        // 2. A hash 失效则 fallback 最新 link(D13)
+        // 1. A hash 失效则 fallback 最新 link(D13)
         if let aHash = persisted.personAHash,
            let idx = archivedCharts.firstIndex(where: { $0.snapshotHash == aHash }) {
             selectedChartAIndex = idx
@@ -466,7 +466,7 @@ final class CompatibilityViewModel {
             selectedChartAIndex = 0
         }
 
-        // 3. 名单 hash 清理 + 预填(D5 防脏数据 + D6 不转 link)
+        // 2. 名单 hash 清理 + 预填(D5 防脏数据 + D6 不转 link)
         let validHashes = CompatibilityRosterPersistence.cleanupInvalidHashes(
             persistedHashes: persisted.rosterHashes
         ) { hash in
@@ -479,7 +479,7 @@ final class CompatibilityViewModel {
             "op=compatibility.restore.ok a_hash=\(self.currentPersonAHash ?? "nil", privacy: .public) context=\(self.context, privacy: .public) roster_count=\(self.roster.count, privacy: .public)"
         )
 
-        // 4. 名单非空 → 尝试恢复 list 态(零 API 调用)
+        // 3. 名单非空 → 尝试恢复 list 态(零 API 调用)
         if !roster.isEmpty {
             tryRestoreList()
         }
