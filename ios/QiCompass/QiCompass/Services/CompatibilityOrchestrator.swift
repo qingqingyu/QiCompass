@@ -379,12 +379,15 @@ enum CompatibilityError: Error, LocalizedError {
     /// AI 解读包含禁词(D10 拦截)
     case forbiddenWordsHit(words: [String])
 
+    /// errorDescription 是**用户可见文案**(2026-08-16:代码性错误不进 UI)。
+    /// 「模式 B」等内部架构术语只进日志(orchestrator 各 throw 点已记
+    /// compat.mode_b_missing_* 日志,含 a_hash)。
     var errorDescription: String? {
         switch self {
         case .modeBMissingPersonBChart:
-            return "模式 B 后端响应缺少 B 盘数据"
+            return "合盘数据异常,请重试"
         case .modeBMissingPersonBInput:
-            return "模式 B 请求缺少 B 盘输入字段"
+            return "合盘数据异常,请重试"
         case .forbiddenWordsHit:
             return "解读包含不合规绝对结论,请重试"
         }
