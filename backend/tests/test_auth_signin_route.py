@@ -201,7 +201,7 @@ async def test_signin_backfill_idempotent_second_login_no_change(
     assert r2.status_code == 200
     user_id_2 = r2.json()["user_id"]
 
-    # 同 apple_user_id → 同 backend user_id(upsert_by_apple_user_id)
+    # 同 apple_user_id → 同 backend user_id(upsert_by_provider,provider 默认 apple)
     assert user_id_1 == user_id_2
 
     # entitlement 表 user_id 依然是 backend user_id(没被覆盖)

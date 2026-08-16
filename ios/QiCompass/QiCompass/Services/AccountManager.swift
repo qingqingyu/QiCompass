@@ -442,7 +442,7 @@ final class AccountManager {
     // MARK: - 内部
 
     /// 取 key window 的 rootViewController(GIDSignIn 的 presenting 参数要 VC,
-    /// 纯 SwiftUI 无直接入口,走 connectedScences 查询)。
+    /// 纯 SwiftUI 无直接入口,走 connectedScenes 查询)。
     @MainActor
     private static func rootViewController() -> UIViewController? {
         UIApplication.shared.connectedScenes
@@ -522,13 +522,18 @@ final class AccountManager {
             }
             identityToken = s
         }
-        // email / fullName 仅首次返回(后续 nil),保留 Keychain 已有值
-        let email = credential.email ?? (try? KeychainHelper.loadString(.userEmail))
+        // email / fullName 仅首次返回(后续 nil),保留 Keychain 已有值。
+        // 回退仅在"同一账号重登"时成立(sub 与 Keychain 一致);账号切换时
+        // Keychain 里是旧账号的画像,不能带进新账号(跨账号数据混淆)
+        let storedAppleUserId = try? KeychainHelper.loadString(.appleUserId)
+        let isSameAccountRelogin = storedAppleUserId == credential.user
+        let email = credential.email
+            ?? (isSameAccountRelogin ? (try? KeychainHelper.loadString(.userEmail)) : nil)
         let fullName: String? = {
             if let components = credential.fullName {
                 return PersonNameComponentsFormatter().string(from: components)
             }
-            return try? KeychainHelper.loadString(.userFullName)
+            return isSameAccountRelogin ? (try? KeychainHelper.loadString(.userFullName)) : nil
         }()
         return AccountUser(
             provider: .apple,
@@ -563,15 +568,24 @@ final class AccountManager {
             if isAccountSwitch {
                 try KeychainHelper.delete(.jwtToken)
                 try KeychainHelper.delete(.qicompassUserId)
+                // 旧账号画像字段一并清:新账号首登可能不回传 email/fullName
+                // (Apple 仅首登返;Google profile 极端可为 nil),persist 下方
+                // `if let` 不会覆盖,不清会跨账号残留旧账号 email/姓名 —
+                // 与 token/user_id 同属"跨账号数据混淆"防线
+                try KeychainHelper.delete(.userEmail)
+                try KeychainHelper.delete(.userFullName)
                 if user.provider == .apple {
                     try KeychainHelper.delete(.googleUserId)
                 } else {
                     try KeychainHelper.delete(.appleUserId)
+                    // 离开 Apple 账号:清已持久化的 Apple identityToken
+                    // (~10 分钟过期,Google 会话永不读它,残留只是过期凭证)
+                    try KeychainHelper.delete(.appleIdentityToken)
                 }
                 lastKnownJwtToken = nil
                 qicompassUserId = nil
                 AppLogger.app.warning(
-                    "account.switch_detected provider=\(user.provider.rawValue, privacy: .public) providerUserId=\(user.providerUserId.prefix(8), privacy: .public) — 已清旧账号 token/user_id"
+                    "account.switch_detected provider=\(user.provider.rawValue, privacy: .public) providerUserId=\(user.providerUserId.prefix(8), privacy: .public) — 已清旧账号 token/user_id/画像"
                 )
             }
             switch user.provider {

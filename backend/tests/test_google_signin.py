@@ -59,6 +59,25 @@ def patched_jwks(monkeypatch, mock_keypair):
     return mock_client
 
 
+def test_get_jwks_client_constructs_real_client_no_typename_error(monkeypatch):
+    """回归:真调 _get_jwks_client()(不 mock)验证 PyJWKClient 构造参数名正确。
+
+    背景:曾照抄了不存在于 PyJWT 的 lifespan_keys_cache_seconds 参数,构造即
+    TypeError → 生产首次 Google 登录 500。全 mock _get_jwks_client 的测试
+    抓不到(构造 PyJWKClient 不发网络请求,只有首次取 key 才拉 JWKS)。
+    """
+    from jwt import PyJWKClient
+
+    from app.auth import google_signin
+
+    # 还原模块级缓存全局态,避免真实 client 泄漏到其他测试
+    monkeypatch.setattr(google_signin, "_jwks_client", None)
+    monkeypatch.setattr(google_signin, "_jwks_client_created_at", 0.0)
+
+    client = google_signin._get_jwks_client()
+    assert isinstance(client, PyJWKClient)
+
+
 def test_verify_normal_token_returns_user_info(patched_jwks, mock_keypair):
     """正常 id_token → GoogleUserInfo(google_user_id + email + email_verified)。"""
     token = generate_google_identity_token(
@@ -149,6 +168,28 @@ def test_verify_token_missing_sub_raises_invalid(patched_jwks, mock_keypair):
         headers={"kid": mock_keypair.kid},
     )
     with pytest.raises(GoogleSignInInvalidTokenError, match="sub"):
+        verify_google_identity_token(token, expected_audience=_TEST_AUDIENCE)
+
+
+def test_verify_token_missing_exp_claim_raises_invalid(patched_jwks, mock_keypair):
+    """payload 缺 exp claim(options require exp 防御纵深)→ InvalidTokenError。"""
+    import time
+    import jwt
+
+    payload = {
+        "iss": "accounts.google.com",
+        "aud": _TEST_AUDIENCE,
+        "sub": "google-user-no-exp",
+        "iat": int(time.time()) - 100,
+        # 故意缺 exp:无过期时间的 token 必须拒收
+    }
+    token = jwt.encode(
+        payload,
+        mock_keypair.private_key_pem,
+        algorithm="RS256",
+        headers={"kid": mock_keypair.kid},
+    )
+    with pytest.raises(GoogleSignInInvalidTokenError, match="验签失败"):
         verify_google_identity_token(token, expected_audience=_TEST_AUDIENCE)
 
 

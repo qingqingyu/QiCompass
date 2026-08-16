@@ -158,3 +158,33 @@ def test_upsert_new_user_and_get_by_id_roundtrip(tmp_path):
     assert fetched.email == "user@gmail.com"
 
     assert store.get_by_id("nonexistent") is None
+
+
+def test_concurrent_upsert_same_account_no_integrity_error(tmp_path):
+    """并发 TOCTOU 回归:同 (provider, sub) 并发首登 → 不抛 IntegrityError。
+
+    背景:upsert 是 SELECT-then-INSERT,两个请求同时首登同一账号时双方
+    SELECT 都未见行,后 INSERT 撞 UNIQUE(provider, provider_user_id)。
+    修复:INSERT 捕 IntegrityError → 重查走更新路径。断言:全部调用成功、
+    拿到同一 user_id、表里只有一行。
+    """
+    import concurrent.futures
+
+    db_path = str(tmp_path / "race_user.db")
+    store = UserStore(db_path)
+    store.init_schema()
+
+    def _login(_: int):
+        return store.upsert_by_provider("google", "google-sub-race-001", "race@gmail.com")
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=8) as ex:
+        users = list(ex.map(_login, range(16)))
+
+    assert len({u.id for u in users}) == 1  # 全部同一账号
+    conn = sqlite3.connect(db_path)
+    count = conn.execute(
+        "SELECT COUNT(*) FROM qicompass_user WHERE provider='google' "
+        "AND provider_user_id='google-sub-race-001'"
+    ).fetchone()[0]
+    conn.close()
+    assert count == 1

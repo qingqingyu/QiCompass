@@ -152,37 +152,49 @@ class UserStore:
             if existing is None:
                 # 新用户
                 new_id = str(uuid.uuid4())
-                conn.execute(
-                    """INSERT INTO qicompass_user
-                       (id, provider, provider_user_id, email, created_at, last_login_at)
-                       VALUES (?, ?, ?, ?, ?, ?)""",
-                    (new_id, provider, provider_user_id, email, now, now),
-                )
-                return User(
-                    id=new_id,
-                    provider=provider,
-                    provider_user_id=provider_user_id,
-                    email=email,
-                    created_at=now,
-                    last_login_at=now,
-                )
-            else:
-                # 老用户:更新 last_login_at + email(若提供)
-                new_email = email if email is not None else existing["email"]
-                conn.execute(
-                    """UPDATE qicompass_user
-                       SET last_login_at = ?, email = ?
-                       WHERE provider = ? AND provider_user_id = ?""",
-                    (now, new_email, provider, provider_user_id),
-                )
-                return User(
-                    id=existing["id"],
-                    provider=provider,
-                    provider_user_id=provider_user_id,
-                    email=new_email,
-                    created_at=existing["created_at"],
-                    last_login_at=now,
-                )
+                try:
+                    conn.execute(
+                        """INSERT INTO qicompass_user
+                           (id, provider, provider_user_id, email, created_at, last_login_at)
+                           VALUES (?, ?, ?, ?, ?, ?)""",
+                        (new_id, provider, provider_user_id, email, now, now),
+                    )
+                    return User(
+                        id=new_id,
+                        provider=provider,
+                        provider_user_id=provider_user_id,
+                        email=email,
+                        created_at=now,
+                        last_login_at=now,
+                    )
+                except sqlite3.IntegrityError:
+                    # 并发首登竞态(SELECT-then-INSERT 的 TOCTOU 窗口):另一请求
+                    # 刚插入了同 (provider, provider_user_id) 行,后到者撞 UNIQUE。
+                    # 重查走更新路径(与"已存在"同语义);若重查仍无行说明
+                    # IntegrityError 另有原因,原样上抛不吞(错误显式传播)。
+                    existing = conn.execute(
+                        "SELECT * FROM qicompass_user WHERE provider = ? AND provider_user_id = ?",
+                        (provider, provider_user_id),
+                    ).fetchone()
+                    if existing is None:
+                        raise
+
+            # 老用户(或竞态后已存在):更新 last_login_at + email(若提供)
+            new_email = email if email is not None else existing["email"]
+            conn.execute(
+                """UPDATE qicompass_user
+                   SET last_login_at = ?, email = ?
+                   WHERE provider = ? AND provider_user_id = ?""",
+                (now, new_email, provider, provider_user_id),
+            )
+            return User(
+                id=existing["id"],
+                provider=provider,
+                provider_user_id=provider_user_id,
+                email=new_email,
+                created_at=existing["created_at"],
+                last_login_at=now,
+            )
 
     def get_by_id(self, user_id: str) -> User | None:
         """按服务端 id 查(JWT middleware 验签后用)。"""

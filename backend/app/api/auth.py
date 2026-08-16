@@ -1,4 +1,4 @@
-"""PR2.5 /api/auth/sign-in 路由(Apple)/ Google 双 provider,2026-08-16 起)。
+"""PR2.5 /api/auth/sign-in 路由(Apple / Google 双 provider,2026-08-16 起)。
 
 流程:
 1. iOS 拿到 provider 的 identityToken/idToken
@@ -75,7 +75,7 @@ async def sign_in(req: SignInRequest, request: Request) -> SignInResponse:
 
     # 4. Backfill 老 entitlement:客户端传 user_local_id 时,把该 UUID 下
     #    既有但 user_id 为 NULL 的购买记录补上 user_id,让匿名时期的购买
-    #    跟随 Apple 账号迁移。失败不阻断登录(降级:user_id 仍 NULL,
+    #    跟随登录账号(provider 无关)迁移。失败不阻断登录(降级:user_id 仍 NULL,
     #    老数据继续按 user_local_id 兜底查询,见 store.get_active)。
     backfilled_count = 0
     if req.user_local_id:

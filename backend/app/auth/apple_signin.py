@@ -68,11 +68,11 @@ def _get_jwks_client() -> PyJWKClient:
 
     now = time.time()
     if _jwks_client is None or (now - _jwks_client_created_at) > APPLE_PUBLIC_KEYS_CACHE_TTL:
-        # lifespan_keys_cache_seconds 控 PyJWKClient 内部 keys 缓存,
-        # 设比外层 TTL 短一点(60s),便于外层 TTL 过期后立即拉新
-        _jwks_client = PyJWKClient(
-            _APPLE_JWKS_URL, lifespan_keys_cache_seconds=60
-        )
+        # lifespan 控 PyJWKClient 内部 JWKS set 缓存(参数名是 lifespan,
+        # 不是 lifespan_keys_cache_seconds —— 后者在 PyJWT 2.13 会 TypeError,
+        # 见 test_apple_signin.py 的构造回归测试),设比外层 TTL 短(60s),
+        # 便于外层 TTL 过期后立即拉新
+        _jwks_client = PyJWKClient(_APPLE_JWKS_URL, lifespan=60)
         _jwks_client_created_at = now
     return _jwks_client
 

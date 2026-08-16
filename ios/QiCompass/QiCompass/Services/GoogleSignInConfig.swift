@@ -14,18 +14,14 @@ enum GoogleSignInConfig {
     /// Bundle 主资源里没有 GoogleService-Info.plist 或缺 CLIENT_ID → nil(未配置)。
     static var clientID: String? {
         guard
-            let path = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist"),
-            let dict = NSDictionary(contentsOfFile: path),
+            // url(forResource:) 而非已弃用的 path(forResource:)(iOS 16+)
+            let url = Bundle.main.url(forResource: "GoogleService-Info", withExtension: "plist"),
+            let dict = NSDictionary(contentsOf: url),
             let clientID = dict["CLIENT_ID"] as? String,
             !clientID.isEmpty
         else {
             return nil
         }
         return clientID
-    }
-
-    /// Google 登录是否可用(配置就位)。
-    static var isConfigured: Bool {
-        clientID != nil
     }
 }

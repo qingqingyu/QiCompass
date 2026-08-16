@@ -54,6 +54,25 @@ def patched_jwks(monkeypatch, mock_keypair):
     return mock_client
 
 
+def test_get_jwks_client_constructs_real_client_no_typename_error(monkeypatch):
+    """回归:真调 _get_jwks_client()(不 mock)验证 PyJWKClient 构造参数名正确。
+
+    背景:曾用不存在于 PyJWT 的 lifespan_keys_cache_seconds 参数,构造即
+    TypeError → 生产首次 Apple 登录 500。全 mock _get_jwks_client 的测试
+    抓不到(构造 PyJWKClient 不发网络请求,只有首次取 key 才拉 JWKS)。
+    """
+    from jwt import PyJWKClient
+
+    from app.auth import apple_signin
+
+    # 还原模块级缓存全局态,避免真实 client 泄漏到其他测试
+    monkeypatch.setattr(apple_signin, "_jwks_client", None)
+    monkeypatch.setattr(apple_signin, "_jwks_client_created_at", 0.0)
+
+    client = apple_signin._get_jwks_client()
+    assert isinstance(client, PyJWKClient)
+
+
 def test_verify_normal_token_returns_user_info(patched_jwks, mock_keypair):
     """正常 identity_token → AppleUserInfo(apple_user_id + email + email_verified)。"""
     token = generate_apple_identity_token(
