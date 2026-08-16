@@ -92,19 +92,29 @@ struct CitySearchSheet: View {
     @State private var customTimezone: String?
     @State private var customError: String?
 
-    /// 引擎不可用(库缺失/损坏/打开失败)时为 nil → 错误态;initError 保留具体原因
-    /// (不加区分地显示「缺失」会掩盖真实故障,违背错误显式传播)。
+    /// 引擎不可用(库缺失/损坏/打开失败)时为 nil → 错误态。initError 保留构造失败的
+    /// 原始 `CitySearchError`(含 sqlite code 关联值):日志用 `String(describing:)`
+    /// 记技术细节,UI 用其 `errorDescription`(人话;databaseMissing 带专用
+    /// 「重装」指引,不与其他失败混同)。
     private let engine: CitySearchEngine?
-    private let initError: String?
+    private let initError: CitySearchError?
 
     init(selection: Binding<PlaceSelection?>) {
         self._selection = selection
         do {
             self.engine = try CitySearchEngine()
             self.initError = nil
-        } catch {
+        } catch let error as CitySearchError {
             self.engine = nil
-            self.initError = error.localizedDescription
+            self.initError = error
+        } catch {
+            // init 契约只抛 CitySearchError;其他类型属不变量破坏,
+            // 细节进日志(不静默吞),UI 走 queryFailed 兜底文案。
+            self.engine = nil
+            self.initError = nil
+            AppLogger.app.error(
+                "citySearch.engine.init.unexpected error=\(String(describing: error), privacy: .public)"
+            )
         }
     }
 
@@ -389,14 +399,18 @@ struct CitySearchSheet: View {
     /// 空态数据:最近选择 + 热门网格。任一失败 → 错误态。
     private func reloadStaticSections() async {
         guard let engine else {
-            // initError 是引擎构造失败的原始 error 文案,在此记日志留痕;
-            // 用户只见人话:库缺失/打开失败统一走 queryFailed 文案
+            // initError 是引擎构造失败的原始 CitySearchError(含 sqlite code),
+            // 在此记 String(describing:) 日志留痕;UI 用其 errorDescription 人话
+            // (databaseMissing → 「数据库不可用,请重新安装」专用指引;
+            //  打开失败等其余 → queryFailed 统一文案)。
             if let initError {
                 AppLogger.app.error(
-                    "citySearch.engine.init error=\(initError, privacy: .public)"
+                    "citySearch.engine.init error=\(String(describing: initError), privacy: .public)"
                 )
+                errorMessage = initError.errorDescription ?? String(localized: "city.error.queryFailed")
+            } else {
+                errorMessage = String(localized: "city.error.queryFailed")
             }
-            errorMessage = String(localized: "city.error.queryFailed")
             return
         }
         do {

@@ -362,9 +362,11 @@ enum PurchaseError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .entitlementStoreFailed:
-            // redeem 已成功(钱已付、后端已有 entitlement),仅本地 SwiftData 写失败;
-            // 防漏单设计:transaction 未 finish,下次启动 listener 续接
-            return "购买记录保存失败,请重启 App 后在「已购」中查看"
+            // redeem 已成功(钱已付、后端已有 entitlement),仅本地 SwiftData 写失败。
+            // 「已购」读本地 SwiftData,重启不会回补(冷启动不触发 onSignedIn;
+            // listener 续接 v1 简化为直接 finish 不补写)——唯一自动恢复路径是
+            // 重新登录(触发 synchronizeFromBackend 从后端拉回),文案必须指向它。
+            return "购买已成功,本地记录保存失败,请退出登录后重新登录恢复"
         case .backendRedeemFailed:
             // 后端 redeem 失败未 finish,不会丢钱;重新购买前可先稍候重试
             return "购买验证失败,请稍后重试"
