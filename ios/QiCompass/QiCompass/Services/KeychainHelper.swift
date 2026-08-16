@@ -16,7 +16,7 @@ enum KeychainHelper {
     enum Key: String {
         case appleUserId         // Apple 返回的 userIdentifier(sub)
         case appleIdentityToken  // Apple ID Token(JWT 字符串)
-        case jwtToken            // 后端 PR2.5 返回的自家 JWT(本 PR 暂时与 appleIdentityToken 同值)
+        case jwtToken            // 后端 /api/auth/sign-in 返回的自家 JWT(仅 exchange 成功时写入;API 调用唯一 token 来源)
         case userEmail           // Apple 返回的 email(首次登录,后续不再返回)
         case userFullName        // Apple 返回的 fullName(首次登录,后续不再返回)
         case qicompassUserId     // 后端 qicompass_user.id(UUID,entitlement 绑账号用)

@@ -61,10 +61,15 @@ enum AppleAuthError: LocalizedError {
 /// - 成功 → 存 Keychain + state = .signedIn(user)
 /// - 失败 → state = .signedOut + 错误回调(对齐"错误显式传播")
 ///
-/// **启动时恢复**:init 时从 Keychain 读 appleUserId + identityToken,有则恢复登录态。
+/// **启动时恢复**:init 时从 Keychain 读 appleUserId(+ email/fullName),有则恢复登录态;
+/// API 调用 token 从 `.jwtToken` 读(exchange 成功后落地的自家 JWT)。
 ///
-/// **本 PR 策略**:后端 PR2.5 未接 /api/auth/sign-in,identityToken 直接当 jwtToken 用
-/// (后端没真验,但 UI 完整)。PR2.5 接真后端后再调 /api/auth/sign-in 换自家 JWT。
+/// **token 策略(PR2.5 后端已接)**:`lastKnownJwtToken` 只承载自家 JWT,不回退 identityToken —
+/// Apple identityToken 约 10 分钟过期,且后端对"Authorization 存在但验签失败"硬 401
+/// (user_local_id 兜底仅覆盖无 header 场景),发过期 token 会断整条 API 链。
+/// `.jwtToken` 缺失(exchange 从未成功)→ 无 Authorization header → 后端按端点分两档:
+/// interpret 等可选鉴权端点走 user_local_id 兜底(老客户端兼容,链路仍通);
+/// redeem / entitlement-list / sync 系强制登录端点,直接 401(重新登录换到 JWT 后恢复)。
 @Observable
 @MainActor
 final class AccountManager {
@@ -76,12 +81,39 @@ final class AccountManager {
         case failed(String)  // 登录失败(非取消),显错给 UI
     }
 
+    /// 购买就绪状态(qicompassUserId 是否已通过 exchange 落地)。
+    ///
+    /// 背景:SIWA 成功(state = .signedIn)≠ 购买就绪 — PurchaseManager 的购买 gate
+    /// 与后端 redeem / entitlement / sync 端点都要求自家 JWT + qicompass_user.id,
+    /// 两者只在 exchange(/api/auth/sign-in)成功后落地。购买类 UI 用它而非
+    /// isLoggedIn 判断,否则会出现"显示可购买、点了却报『请先登录』"的死锁
+    /// (2026-08-16 Fix#3 统一购买判据)。
+    enum ExchangeState: Equatable, CustomStringConvertible {
+        case idle            // 未登录(无 appleUserId)
+        case inFlight        // SIWA 成功,exchange 进行中
+        case failed(String)  // exchange 失败(qicompassUserId 未落地;重新登录可重试)
+        case done            // qicompassUserId 已落地(可购买)
+
+        var description: String {
+            switch self {
+            case .idle: return "idle"
+            case .inFlight: return "inFlight"
+            case .failed: return "failed"
+            case .done: return "done"
+            }
+        }
+    }
+
     /// 当前登录状态(UI 观察用)。
     private(set) var state: State = .loading
 
+    /// exchange 进度(购买 gate 用;@Observable 驱动 PaywallView 自动切按钮)。
+    private(set) var exchangeState: ExchangeState = .idle
+
     /// last-known JWT token 快照(nonisolated(unsafe) 让 LiveAPIClient 在 background URLSession
-    /// 线程读 token,不用 MainActor.run 切上下文)。仅 init / handleAuthorization / signOut
-    /// 三个 @MainActor 入口同步更新。
+    /// 线程读 token,不用 MainActor.run 切上下文)。仅 init(restoreFromKeychain) /
+    /// exchangeJwtToken(成功) / persist(账号切换时清空旧账号 token) / signOut
+    /// 四个 @MainActor 入口同步更新,只承载自家 JWT。
     nonisolated(unsafe) private(set) var lastKnownJwtToken: String?
 
     /// 后端 qicompass_user.id(UUID,entitlement 绑账号用)。
@@ -107,7 +139,8 @@ final class AccountManager {
     }
 
     /// PR3.2:登录成功回调(AppEnvironment 装配时注入 SyncManager.pull)。
-    /// handleAuthorization 成功 + exchangeJwtToken 完成后调用。
+    /// 仅 exchange 成功后调用(失败不触发:同步链路的 redeem/entitlement/sync
+    /// 都是强制登录端点,无自家 JWT 时触发只会连串 401)。
     var onSignedIn: (() async -> Void)?
 
     /// 启动时从 Keychain 恢复登录态(同步,Keychain API 快)。
@@ -116,6 +149,7 @@ final class AccountManager {
             guard let appleUserId = try KeychainHelper.loadString(.appleUserId),
                   !appleUserId.isEmpty else {
                 state = .signedOut
+                exchangeState = .idle
                 return
             }
             let email = try KeychainHelper.loadString(.userEmail)
@@ -128,22 +162,39 @@ final class AccountManager {
                 identityToken: identityToken
             )
             state = .signedIn(user)
-            lastKnownJwtToken = user.identityToken.isEmpty ? nil : user.identityToken
+            // API 调用 token:自家 JWT(exchange 成功落地,JWT_EXP_MINUTES=30 天)。
+            // 缺失/空串 → nil → 请求不带 Authorization header(可选鉴权端点走 user_local_id
+            // 兜底,强制登录端点 401,见类头 token 策略:不回退 identityToken)。
+            // 空串过滤:旧版 build 曾把可能为 "" 的 identityToken 写进 .jwtToken,
+            // 残留 "" 会让 "Bearer " 触发后端硬 401。
+            lastKnownJwtToken = try KeychainHelper.loadString(.jwtToken)
+                .flatMap { $0.isEmpty ? nil : $0 }
             // PR2.5+:恢复 qicompass_user.id(entitlement 绑账号用);缺失表示
             // exchangeJwtToken 还没跑成功过(或 backfill 失败),UserIdentity 会兜底。
             qicompassUserId = try KeychainHelper.loadString(.qicompassUserId)
-            AppLogger.app.info("account.restore.ok appleUserId=\(appleUserId.prefix(8), privacy: .public)")
+            // 购买就绪:qicompassUserId 落地 = done;缺失 = failed(identityToken
+            // 已过期无法后台重 exchange,唯一补救路径是重新走 SIWA)
+            if let qicompassUserId, !qicompassUserId.isEmpty {
+                exchangeState = .done
+            } else {
+                exchangeState = .failed("账号同步未完成,请重新登录")
+            }
+            // OSLogMessage 插值 lazy capture,实例属性先提到 local(项目既有惯例)
+            let restoredExchange = exchangeState
+            AppLogger.app.info("account.restore.ok appleUserId=\(appleUserId.prefix(8), privacy: .public) exchange=\(restoredExchange, privacy: .public)")
         } catch let error as KeychainError {
             AppLogger.persistence.error(
                 "account.restore.keychain_failed error=\(error.errorDescription ?? "未知", privacy: .public)"
             )
             // Keychain 读失败不阻断 App(降级 signedOut,用户重新登录即可)
             state = .signedOut
+            exchangeState = .idle
         } catch {
             AppLogger.persistence.error(
                 "account.restore.unknown_error error=\(String(describing: error), privacy: .public)"
             )
             state = .signedOut
+            exchangeState = .idle
         }
     }
 
@@ -162,10 +213,15 @@ final class AccountManager {
                 let user = try parseCredential(credential)
                 try persist(user: user)
                 state = .signedIn(user)
-                lastKnownJwtToken = user.identityToken.isEmpty ? nil : user.identityToken
+                // 购买就绪状态机:SIWA 成功 → inFlight(exchangeJwtToken 内部终结为
+                // done/failed)。token 不在此处设置:exchange 成功前无自家 JWT,
+                // 保持现值(可能为上次 exchange 的有效 token 或 nil;切换账号时
+                // persist 已清空旧账号值),见类头 token 策略。
+                exchangeState = .inFlight
                 AppLogger.app.info("account.signIn.ok appleUserId=\(user.appleUserId.prefix(8), privacy: .public)")
                 // PR2.5:登录成功后异步调 /api/auth/sign-in 换自家 JWT
-                // 失败不阻断登录(用户可重试 / 降级用 identityToken)
+                // 失败不阻断登录态(token 为 nil 时 API 请求无 header,
+                // 可选鉴权端点兜底 user_local_id,强制登录端点 401,见类头)
                 Task { await exchangeJwtToken(user: user) }
             } catch let error as AppleAuthError {
                 AppLogger.app.error(
@@ -210,6 +266,7 @@ final class AccountManager {
         state = .signedOut
         lastKnownJwtToken = nil
         qicompassUserId = nil
+        exchangeState = .idle
         AppLogger.app.info("account.signOut.ok")
     }
 
@@ -228,23 +285,19 @@ final class AccountManager {
         qicompassUserId
     }
 
-    /// 当前 JWT token(APIClient 注入 Authorization header 用)。
-    /// 本 PR 暂时返 identityToken(Apple ID Token)。PR2.5 接后端后改为返自家 JWT。
-    var jwtToken: String? {
-        guard case .signedIn(let user) = state else { return nil }
-        return user.identityToken.isEmpty ? nil : user.identityToken
-    }
-
     // MARK: - 内部
 
     /// PR2.5:调 /api/auth/sign-in 把 Apple identity_token 换成自家 JWT。
-    /// 成功 → KeychainHelper.jwtToken 替换为自家 JWT + lastKnownJwtToken 同步更新。
-    /// 失败 → 保留原 identityToken(降级,不阻断登录态)。
+    /// 成功(accessToken 非空)→ KeychainHelper.jwtToken 替换为自家 JWT + lastKnownJwtToken 同步更新。
+    /// 失败(含空 accessToken 拒收)→ token 保持现值(旧的自家 JWT 或 nil;nil 时 API
+    /// 请求无 Authorization,可选鉴权端点兜底 user_local_id / 强制登录端点 401,见类头),登录态不破。
     private func exchangeJwtToken(user: AppleUser) async {
         guard let client = apiClient else {
             AppLogger.app.warning("account.exchangeJwtToken.skip reason=no_api_client")
+            exchangeState = .failed("账号同步未就绪,请重新登录")
             return
         }
+        var exchangeSucceeded = false
         do {
             AppLogger.app.info("account.exchangeJwtToken.start appleUserId=\(user.appleUserId.prefix(8), privacy: .public)")
             let resp = try await client.signIn(
@@ -253,24 +306,39 @@ final class AccountManager {
                     userLocalId: UserIdentity.userLocalId
                 )
             )
-            try KeychainHelper.saveString(resp.accessToken, for: .jwtToken)
-            // 同步更新 lastKnownJwtToken(APIClient 后续请求用自家 JWT 而非 identityToken)
-            lastKnownJwtToken = resp.accessToken
-            // Slice 2:持久化后端 user_id(entitlement 绑账号的核心标识)。
-            // PurchaseManager / EntitlementStore 通过 UserIdentity.currentUserId 读 Keychain。
-            try KeychainHelper.saveString(resp.userId, for: .qicompassUserId)
-            qicompassUserId = resp.userId
-            AppLogger.app.info(
-                "account.exchangeJwtToken.ok userId=\(resp.userId.prefix(8), privacy: .public) expiresAt=\(resp.expiresAt, privacy: .public)"
-            )
+            // 空串防御:后端契约 accessToken 非空;空串会让 "Bearer " 触发后端硬 401
+            // (断整条 API 链),整个 exchange 拒收(token + userId 都不落地)—
+            // 与网络失败同一降级语义,显式记日志非静默。
+            if resp.accessToken.isEmpty {
+                AppLogger.app.error(
+                    "account.exchangeJwtToken.empty_access_token userId=\(resp.userId.prefix(8), privacy: .public) — 拒收,token 保持现值"
+                )
+                exchangeState = .failed("账号同步返回异常,请重新登录重试")
+            } else {
+                try KeychainHelper.saveString(resp.accessToken, for: .jwtToken)
+                // 同步更新 lastKnownJwtToken(APIClient 后续请求用自家 JWT 而非 identityToken)
+                lastKnownJwtToken = resp.accessToken
+                // Slice 2:持久化后端 user_id(entitlement 绑账号的核心标识)。
+                // PurchaseManager / EntitlementStore 通过 UserIdentity.currentUserId 读 Keychain。
+                try KeychainHelper.saveString(resp.userId, for: .qicompassUserId)
+                qicompassUserId = resp.userId
+                exchangeState = .done
+                exchangeSucceeded = true
+                AppLogger.app.info(
+                    "account.exchangeJwtToken.ok userId=\(resp.userId.prefix(8), privacy: .public) expiresAt=\(resp.expiresAt, privacy: .public)"
+                )
+            }
         } catch {
-            // 失败保留原 identityToken,用户已登录态不破(降级)。下次启动可重试(后端可能短暂不可达)
+            // 失败 token 保持现值(旧自家 JWT 或 nil → 无 header,兜底行为见类头
+            // 两档后端鉴权),登录态不破。重新登录可重试(后端可能短暂不可达)。
             AppLogger.app.error(
-                "account.exchangeJwtToken.failed error=\(String(describing: error), privacy: .public) — 降级用 identityToken"
+                "account.exchangeJwtToken.failed error=\(String(describing: error), privacy: .public) — token 保持现值"
             )
+            exchangeState = .failed("账号同步失败,请重新登录重试")
         }
-        // PR3.2:换 JWT 完成后(无论成功失败)触发 onSignedIn 回调(SyncManager.pull)
-        if let onSignedIn {
+        // PR3.2:仅 exchange 成功才触发 onSignedIn(同步链路端点全部强制登录,
+        // 无自家 JWT 时触发只会连串 401)
+        if exchangeSucceeded, let onSignedIn {
             await onSignedIn()
         }
     }
@@ -307,10 +375,24 @@ final class AccountManager {
     /// 持久化 AppleUser 到 Keychain(逐字段存,失败抛 KeychainError)。
     private func persist(user: AppleUser) throws {
         do {
+            // 账号切换守卫:appleUserId 变化时清旧账号的 token / user_id。
+            // `.jwtToken` 不再被登录覆盖(只由 exchangeJwtToken 写),不清会残留旧账号
+            // 30 天有效 JWT(signOut 清理部分失败 + 换号登录场景),重启后挂进
+            // 新账号会话 → 跨账号数据混淆。
+            let previousAppleUserId = try KeychainHelper.loadString(.appleUserId)
+            if let previousAppleUserId, previousAppleUserId != user.appleUserId {
+                try KeychainHelper.delete(.jwtToken)
+                try KeychainHelper.delete(.qicompassUserId)
+                lastKnownJwtToken = nil
+                qicompassUserId = nil
+                AppLogger.app.warning(
+                    "account.switch_detected old=\(previousAppleUserId.prefix(8), privacy: .public) new=\(user.appleUserId.prefix(8), privacy: .public) — 已清旧账号 token/user_id"
+                )
+            }
             try KeychainHelper.saveString(user.appleUserId, for: .appleUserId)
             try KeychainHelper.saveString(user.identityToken, for: .appleIdentityToken)
-            // jwtToken 与 appleIdentityToken 同值(本 PR 后端 PR2.5 前策略)
-            try KeychainHelper.saveString(user.identityToken, for: .jwtToken)
+            // 注:不写 .jwtToken — 它只承载 exchange 成功后的自家 JWT(exchangeJwtToken 写),
+            // 同一账号重复登录但 exchange 失败时不覆盖旧的有效 token(跨账号场景由上方守卫清)。
             if let email = user.email {
                 try KeychainHelper.saveString(email, for: .userEmail)
             }
