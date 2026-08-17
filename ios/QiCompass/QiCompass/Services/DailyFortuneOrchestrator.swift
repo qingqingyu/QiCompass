@@ -309,13 +309,13 @@ final class DailyFortuneOrchestrator {
 
 /// 每日运势领域错误。
 enum DailyFortuneError: Error, LocalizedError {
-    /// 找不到当前用户的 ChartSnapshot(需先完成深度解析)
+    /// 找不到当前用户的 ChartSnapshot(命盘存档缺失)
     case chartMissing
 
     var errorDescription: String? {
         switch self {
         case .chartMissing:
-            return "需先完成深度解析,才能查看每日运势"
+            return "未找到命盘存档,无法查看每日运势"
         }
     }
 }

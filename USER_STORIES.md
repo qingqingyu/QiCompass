@@ -280,7 +280,7 @@ Tab 3 每日运势
 状态机:
   - .empty → LoadingStateView("准备中…")
   - .loading → LoadingStateView("推演流日中…")
-  - .chartMissing → DailyFortuneEmptyView(CTA 引导去深度解析)
+  - .chartMissing → DailyFortuneEmptyView(命盘存档缺失空态;首启被 onboarding sheet 盖住、完成落地本 Tab 时经 hasSeenOnboarding onChange 自动加载,正常流程基本不可见)
   - .fortuneReady → DailyFortuneMainView
   - .failed → ErrorStateView
 

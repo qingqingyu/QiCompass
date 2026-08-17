@@ -6,12 +6,17 @@ import SwiftData
 /// 主状态:
 /// - .empty → 首次进入(等 onAppear 检查命盘)
 /// - .loading → 排盘中(阶段 1)
-/// - .chartMissing → CTA「先做深度解析」
+/// - .chartMissing → 空态(命盘存档缺失;首启被 onboarding sheet 盖住、完成即自动重载,重置后重走 onboarding 前可见)
 /// - .ready(response, interpretState, businessDate) → 主视图 + AI 子状态
 /// - .failed(msg) → 错误态
 struct DailyFortuneView: View {
     @EnvironmentObject private var env: AppEnvironment
     @Environment(\.scenePhase) private var scenePhase
+    /// onboarding 存档成功(→true)与 Profile 重置命盘(→false)都会改这个 flag,
+    /// @AppStorage 跨视图联动。本 Tab 是默认 Tab,onboarding sheet 盖上来时视图
+    /// 从未消失,`.task` 在 sheet 弹出前已跑过(当时无命盘 → 卡 .chartMissing),
+    /// dismiss 落地也不会重跑 → 靠这个 onChange 补一次重解析(2026-08-16 修复)。
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
     @State private var vm: DailyFortuneViewModel?
     @State private var currentChartHash: String?
     @State private var currentZiHourRule: String = "zi_next_day"
@@ -35,6 +40,14 @@ struct DailyFortuneView: View {
                 )
             }
             await resolveCurrentChart()
+        }
+        .onChange(of: hasSeenOnboarding) { _, newValue in
+            // 命盘存档增删的两个时刻(onboarding 提交成功 / Profile 重置)都落到这里。
+            // 重解析会按 hash 是否变化决定是否强制重载(见 resolveCurrentChart)。
+            AppLogger.app.info(
+                "DailyFortuneView hasSeenOnboarding 变化 →\(newValue, privacy: .public),重新解析命盘"
+            )
+            Task { await resolveCurrentChart() }
         }
         .onChange(of: scenePhase) { _, newPhase in
             if newPhase == .active {
@@ -79,7 +92,14 @@ struct DailyFortuneView: View {
             if let chart = charts.first {
                 currentZiHourRule = chart.ziHourRule
             }
+            // 命盘身份变化(onboarding 落地 / 重置后重排换盘)时,必须先脱离旧状态,
+            // 否则 VM.onAppear 的「已 ready 就跳过」守卫会让旧盘数据(或过期
+            // .chartMissing)一直挂在屏幕上。同盘重进则不动,避免切 Tab 闪 loading。
+            let hashChanged = snapshotHash != currentChartHash
             currentChartHash = snapshotHash
+            if hashChanged {
+                vm?.state = .empty
+            }
             vm?.onAppear(
                 currentChartHash: currentChartHash,
                 ziHourRule: currentZiHourRule,

@@ -169,10 +169,10 @@ enum L10n {
         /// 空态标题(zh="今日流日运势", en="Today's Daily Fortune")
         static let emptyTitle = String(localized: "dailyfortune.empty.title")
 
-        /// 空态副标题 1(zh="需先完成深度解析,基于命盘推演流日。")
+        /// 空态副标题 1(zh="未找到你的命盘存档。")
         static let emptySubtitle1 = String(localized: "dailyfortune.empty.subtitle1")
 
-        /// 空态副标题 2(zh="完成深度解析后,本页将自动生成每日运势。")
+        /// 空态副标题 2(zh="可在「我的」重置命盘,重新填写出生信息。")
         static let emptySubtitle2 = String(localized: "dailyfortune.empty.subtitle2")
 
         // -- Interpretation Section --
