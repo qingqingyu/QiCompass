@@ -1,12 +1,15 @@
 import Foundation
 
+/// errorDescription 是**用户可见文案**(2026-08-16:代码性错误不进 UI)。
+/// provider/model 留在 associated value,resolve() 抛错前已记
+/// aiIdentity.resolve.invalid_identity 日志。
 enum AIIdentityError: Error, LocalizedError {
     case invalidHealthIdentity(provider: String, model: String)
 
     var errorDescription: String? {
         switch self {
-        case .invalidHealthIdentity(let provider, let model):
-            return "AI 服务身份无效(provider=\(provider), model=\(model))"
+        case .invalidHealthIdentity:
+            return "解读服务暂时不可用,请稍后重试"
         }
     }
 }

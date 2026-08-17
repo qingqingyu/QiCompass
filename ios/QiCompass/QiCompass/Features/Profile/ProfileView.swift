@@ -508,12 +508,14 @@ struct ProfileView: View {
         } catch {
             // 失败回滚 pending changes,避免部分 delete 标记残留导致脏状态
             context.rollback()
-            AppLogger.app.error("重置命盘失败: \(error)")
-            // 向用户显式报错,不静默吞。
+            AppLogger.app.error("重置命盘失败 error=\(String(describing: error), privacy: .public)")
+            // 向用户显式报错,不静默吞。人话文案(2026-08-16 ErrorCode 清理:
+            // SwiftData 原始 localizedDescription 是英文技术细节,不进 UI;
+            // 原始 error 已记上方日志)。
             // 延迟一帧赋值:iOS 17 在同一 runloop 内连续呈现两个 alert(确认 alert dismiss → 错误 alert present)
             // 可能被吞掉。Task { @MainActor in } 让出当前 runloop,经实证可规避此问题。
             // 注意:这不是 SwiftUI 契约保证,而是 iOS 17 实测有效的经验性 workaround。
-            let msg = "重置未完成,数据未变更。原因:\(error.localizedDescription)"
+            let msg = "重置未完成,数据未变更,请重试"
             Task { @MainActor in
                 resetError = msg
             }

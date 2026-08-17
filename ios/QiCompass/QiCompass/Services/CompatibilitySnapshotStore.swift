@@ -170,13 +170,15 @@ final class CompatibilitySnapshotStore {
 }
 
 /// CompatibilitySnapshotStore 领域错误。
+/// errorDescription 是**用户可见文案**(2026-08-16:代码性错误不进 UI);
+/// hash 留在 associated value,调用方 catch 已记 String(describing: error) 日志。
 enum CompatibilitySnapshotError: Error, LocalizedError {
     case snapshotMissing(compatibilityHash: String)
 
     var errorDescription: String? {
         switch self {
-        case .snapshotMissing(let hash):
-            return "合盘快照未找到(hash=\(hash))"
+        case .snapshotMissing:
+            return "合盘数据未找到,请重新计算"
         }
     }
 }

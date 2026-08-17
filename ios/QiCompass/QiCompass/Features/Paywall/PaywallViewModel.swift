@@ -174,11 +174,11 @@ final class PaywallViewModel {
                 state = .failed(error.localizedDescription)
             }
         } catch {
-            // 非 PurchaseError 系统级错误兜底
+            // 非 PurchaseError 系统级错误兜底:人话文案(原始 error 已记日志,不进 UI)
             AppLogger.app.error(
                 "paywall.purchase.unknown_error product=\(productId, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
-            state = .failed(error.localizedDescription)
+            state = .failed("购买未完成,请重试")
         }
     }
 }

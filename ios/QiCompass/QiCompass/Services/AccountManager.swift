@@ -37,6 +37,10 @@ struct AccountUser: Equatable {
 }
 
 /// Apple 账号登录错误(v2 PR2)。
+///
+/// errorDescription 是**用户可见文案**(2026-08-16 拍板:代码性错误绝不进 UI)。
+/// 技术细节(domain/code/OSStatus)保留在 associated value,由 AccountManager 各
+/// catch 的 AppLogger 记录(String(describing:) 拿完整 case + 关联值),不进 UI。
 enum AppleAuthError: LocalizedError {
     case credentialMissing
     case identityTokenDecodingFailed
@@ -48,17 +52,20 @@ enum AppleAuthError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .credentialMissing:
-            return "Apple 登录凭证缺失(ASAuthorizationAppleIDCredential 为 nil)"
+            return "Apple 登录未完成,请重试"
         case .identityTokenDecodingFailed:
-            return "Apple ID Token 解码失败(非 UTF-8)"
+            return "登录凭证读取失败,请重试"
         case .appleUserIdEmpty:
-            return "Apple 返回的 userIdentifier(sub)为空"
-        case .keychainPersistFailed(let underlying):
-            return "登录态写入 Keychain 失败:\(underlying.errorDescription ?? "未知")"
+            return "Apple 登录未完成,请重试"
+        case .keychainPersistFailed:
+            return "登录信息保存失败,请重试"
         case .canceled:
             return nil  // 用户取消,静默
-        case .appleError(let underlying):
-            return "Apple 登录失败:\(underlying.localizedDescription)"
+        case .appleError:
+            // 含模拟器高频的 ASWebAuthenticationSession code 1000(会话中断/取消类):
+            // 按非静默处理,显人话提示(2026-08-16 拍板,与 Fix#1 显错精神一致),
+            // 原始 domain/code 只进 AccountManager 日志。
+            return "Apple 登录未完成,请重试"
         }
     }
 
@@ -275,8 +282,9 @@ final class AccountManager {
             let restoredProvider = provider
             AppLogger.app.info("account.restore.ok provider=\(restoredProvider.rawValue, privacy: .public) providerUserId=\(providerUserId.prefix(8), privacy: .public) exchange=\(restoredExchange, privacy: .public)")
         } catch let error as KeychainError {
+            // String(describing:) 拿 case + OSStatus(errorDescription 已改用户文案,不含技术细节)
             AppLogger.persistence.error(
-                "account.restore.keychain_failed error=\(error.errorDescription ?? "未知", privacy: .public)"
+                "account.restore.keychain_failed error=\(String(describing: error), privacy: .public)"
             )
             // Keychain 读失败不阻断 App(降级 signedOut,用户重新登录即可)
             state = .signedOut
@@ -316,8 +324,10 @@ final class AccountManager {
                 // 可选鉴权端点兜底 user_local_id,强制登录端点 401,见类头)
                 Task { await exchangeJwtToken(user: user) }
             } catch let error as AppleAuthError {
+                // String(describing:) 拿完整 case + 关联值(含 KeychainError OSStatus),
+                // errorDescription 已改用户文案,不能当日志细节用。
                 AppLogger.app.error(
-                    "account.signIn.failed error=\(error.errorDescription ?? "未知", privacy: .public)"
+                    "account.signIn.failed error=\(String(describing: error), privacy: .public)"
                 )
                 if !error.isSilent {
                     state = .failed(error.errorDescription ?? "登录失败")
@@ -328,7 +338,7 @@ final class AccountManager {
                 AppLogger.app.error(
                     "account.signIn.unknown_error error=\(String(describing: error), privacy: .public)"
                 )
-                state = .failed(error.localizedDescription)
+                state = .failed("Apple 登录未完成,请重试")
             }
 
         case .failure(let asError):
@@ -340,7 +350,7 @@ final class AccountManager {
                 return
             }
             AppLogger.app.error(
-                "account.signIn.apple_error code=\((asError as NSError).code) msg=\(asError.localizedDescription, privacy: .public)"
+                "account.signIn.apple_error domain=\((asError as NSError).domain, privacy: .public) code=\((asError as NSError).code) msg=\(asError.localizedDescription, privacy: .public)"
             )
             state = .failed(AppleAuthError.appleError(underlying: asError).errorDescription ?? "登录失败")
         }

@@ -198,8 +198,8 @@ final class CompatibilityViewModel {
             AppLogger.persistence.error(
                 "op=compatibility.loadArchivedCharts failed error=\(String(describing: error), privacy: .public)"
             )
-            // 不静默吞:错误显式传到 UI
-            state = .failed(.generic(message: "读取命盘存档失败:\(error.localizedDescription)"))
+            // 不静默吞:错误显式传到 UI(人话文案,原始 error 已记上方日志)
+            state = .failed(.generic(message: "读取命盘存档失败,请重试"))
         }
     }
 
@@ -884,9 +884,9 @@ final class CompatibilityViewModel {
             AppLogger.persistence.error(
                 "op=compatibility.openDetail get_failed hash=\(summary.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
-            // 进入 detail 但 interpretState 显式错误(不静默吞)
+            // 进入 detail 但 interpretState 显式错误(不静默吞;人话文案,原始 error 已记上方日志)
             let response = Self.fallbackResponse(for: summary)
-            state = .detail(summary, response, .failed(message: "读取合盘快照失败:\(error.localizedDescription)"))
+            state = .detail(summary, response, .failed(message: "读取合盘数据失败,请重试"))
             return
         }
         guard let snapshot = compatSnapshot else {
@@ -916,7 +916,7 @@ final class CompatibilityViewModel {
                 "op=compatibility.openDetail decode_failed hash=\(summary.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
             let response = Self.fallbackResponse(for: summary)
-            state = .detail(summary, response, .failed(message: "合盘数据解码失败:\(error.localizedDescription)"))
+            state = .detail(summary, response, .failed(message: "合盘数据异常,请重新计算"))
             return
         }
 
@@ -1177,13 +1177,15 @@ struct ArchivedChart: Identifiable, Hashable {
     var id: String { snapshotHash }
 }
 
+/// errorDescription 是**用户可见文案**(2026-08-16:代码性错误不进 UI)。
+/// hash 留在 associated value,throw 点已记 missing_snapshot 日志。
 enum CompatibilityViewModelError: LocalizedError {
     case archivedSnapshotMissing(hash: String)
 
     var errorDescription: String? {
         switch self {
-        case .archivedSnapshotMissing(let hash):
-            return "命盘存档缺少快照:\(hash)"
+        case .archivedSnapshotMissing:
+            return "命盘数据异常,请重新排盘"
         }
     }
 }

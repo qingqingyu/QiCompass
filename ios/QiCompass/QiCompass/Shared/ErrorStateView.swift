@@ -15,14 +15,21 @@ struct ErrorStateView: View {
     let retry: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+#if DEBUG
     @State private var showDetail = false
+#endif
 
     /// 便利 init:接受任意 Error(SwiftDataCRUDView 等仍可调用,自动转 generic)。
+    /// 非 UserFacingError 的原始 error 不进 UI(2026-08-16:代码性错误不进用户面前),
+    /// 全量细节记日志后人话兜底。
     init(error: Error, retry: @escaping () -> Void) {
         if let userError = error as? UserFacingError {
             self.userFacingError = userError
         } else {
-            self.userFacingError = .generic(message: error.localizedDescription)
+            AppLogger.app.warning(
+                "errorStateView.generic_fallback error=\(String(describing: error), privacy: .public)"
+            )
+            self.userFacingError = .generic(message: "操作未完成,请重试")
         }
         self.retry = retry
     }
@@ -70,7 +77,10 @@ struct ErrorStateView: View {
                 }
             }
 
-            // 详情展开(帮助诊断):非 networkUnavailable 时显示
+#if DEBUG
+            // 详情展开(帮助诊断):仅 DEBUG build 编译。发布 build 用户不可见
+            // (2026-08-16 拍板:原始错误文本属代码性信息,绝不进用户 UI;
+            // 生产排查走 AppLogger 日志)。
             if showsDetailSection {
                 Button(showDetail ? "收起详情" : "展开详情") {
                     showDetail.toggle()
@@ -85,6 +95,7 @@ struct ErrorStateView: View {
                         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                 }
             }
+#endif
         }
         .onAppear {
             // 规则 1:错误显示日志。ErrorStateView 出现 = 用户看到错误,
@@ -98,6 +109,7 @@ struct ErrorStateView: View {
         .baziAnimation(value: userFacingError)
     }
 
+#if DEBUG
     /// networkUnavailable 时无需展示原始 URLError 细节;其余允许展开。
     private var showsDetailSection: Bool {
         switch userFacingError {
@@ -118,6 +130,7 @@ struct ErrorStateView: View {
             return "连续 3 次排盘失败"
         }
     }
+#endif
 
     @ViewBuilder
     private var iconView: some View {

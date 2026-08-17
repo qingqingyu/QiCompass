@@ -406,6 +406,9 @@ final class CitySearchEngine {
 
 // MARK: - 错误
 
+/// errorDescription 是**用户可见文案**(2026-08-16:代码性错误不进 UI)。
+/// sqlite code / 原始 message 留在 associated value,由调用方 catch 记
+/// String(describing: error) 日志(CitySearchSheet 各 catch 已补)。
 enum CitySearchError: LocalizedError {
     case databaseMissing
     case databaseOpenFailed(code: Int32)
@@ -415,10 +418,10 @@ enum CitySearchError: LocalizedError {
         switch self {
         case .databaseMissing:
             return String(localized: "city.error.databaseMissing")
-        case .databaseOpenFailed(let code):
-            return String(localized: "city.error.queryFailed") + " (sqlite \(code))"
-        case .queryFailed(let message):
-            return String(localized: "city.error.queryFailed") + " (\(message))"
+        case .databaseOpenFailed:
+            return String(localized: "city.error.queryFailed")
+        case .queryFailed:
+            return String(localized: "city.error.queryFailed")
         }
     }
 }

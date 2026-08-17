@@ -77,6 +77,8 @@ final class CompatibilityForbiddenWordsTests: XCTestCase {
 
     // MARK: - 错误态描述
 
+    // 2026-08-16 ErrorCode 清理:errorDescription 是用户可见文案,固定人话,
+    // 不含「模式 B」等内部术语(技术上下文由 orchestrator throw 点日志记录)。
     func testCompatibilityError_forbiddenWordsHit_错误描述() {
         let err = CompatibilityError.forbiddenWordsHit(words: ["必成", "必分"])
         XCTAssertEqual(err.errorDescription, "解读包含不合规绝对结论,请重试")
@@ -84,11 +86,11 @@ final class CompatibilityForbiddenWordsTests: XCTestCase {
 
     func testCompatibilityError_modeBMissingPersonBChart_错误描述() {
         let err = CompatibilityError.modeBMissingPersonBChart
-        XCTAssertEqual(err.errorDescription, "模式 B 后端响应缺少 B 盘数据")
+        XCTAssertEqual(err.errorDescription, "合盘数据异常,请重试")
     }
 
     func testCompatibilityError_modeBMissingPersonBInput_错误描述() {
         let err = CompatibilityError.modeBMissingPersonBInput
-        XCTAssertEqual(err.errorDescription, "模式 B 请求缺少 B 盘输入字段")
+        XCTAssertEqual(err.errorDescription, "合盘数据异常,请重试")
     }
 }
