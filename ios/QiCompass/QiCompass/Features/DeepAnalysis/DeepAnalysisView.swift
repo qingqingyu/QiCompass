@@ -4,7 +4,9 @@ import SwiftData
 /// Tab 1:深度解析(状态机根,方案 §一 + DESIGN.md §Color)。
 ///
 /// 主状态机:
-/// - .empty / .formInvalid → BirthFormView
+/// - .empty / .formInvalid → BirthFormView(2026-08-16 起仅**无存档盘**时兜底:
+///   有存档则 resolveArchivedChart 直读 → .ready,对齐 2026-08-01 决策 #4
+///   「chart 立即可见 + β 点击触发」;表单新建他人的盘走「我的」Tab)
 /// - .calculating(stage) → 分阶段加载文案
 /// - .ready(response, _) → DeepAnalysisResultView(AI 子状态独立)
 /// - .chartFailed(message) → 原始错误 + 重试
@@ -13,6 +15,14 @@ import SwiftData
 struct DeepAnalysisView: View {
     @EnvironmentObject private var env: AppEnvironment
     @State private var vm: DeepAnalysisViewModel?
+    /// 存档直读只跑一次(.task 在 TabView 下每次切 Tab 重触发)。兼作表单渲染闸门:
+    /// resolve 完成前 .empty 显示「准备中…」,避免表单闪一帧再切 .ready。
+    @State private var hasResolvedArchive = false
+    /// 当前 .chartFailed 是否源于存档读取失败(区别于 calculate 网络失败)。
+    /// 决定 errorView 的「重试」语义:存档失败 → 重跑 resolveArchivedChart;
+    /// 排盘失败 → vm.retryCalculation。任何离开错误态的动作都清零(返回表单 /
+    /// 重新 resolve),避免残留 flag 误劫持后续 calculate 失败的重试。
+    @State private var archiveLoadFailed = false
 
     var body: some View {
         NavigationStack {
@@ -63,7 +73,76 @@ struct DeepAnalysisView: View {
                 }
                 vm = newVM
             }
+            await resolveArchivedChart()
         }
+    }
+
+    /// 从存档直读当前命盘(2026-08-16 改造,落地 2026-08-01 决策 #4 前半句
+    /// 「chart 立即可见」):最新 UserSnapshotLink → ChartSnapshot → decode payload
+    /// → .ready,免去 onboarding 后重复填表。取盘语义与 DailyFortuneView
+    /// .resolveCurrentChart 一致(createdAt 倒序第一条 = 最近一张)。
+    ///
+    /// 分支:
+    /// - 无任何 link → 保持 .empty(BirthFormView 兜底;合盘空态 / 今日运势
+    ///   chartMissing CTA 引流都只在无盘时发生,走表单路径不受影响)
+    /// - link 有但 ChartSnapshot 缺失 / payload decode 失败 → .chartFailed 显式
+    ///   报错(错误显式传播,不静默回落表单;现有 UI 带「返回表单」逃生口)
+    @MainActor
+    private func resolveArchivedChart() async {
+        guard !hasResolvedArchive else { return }
+        guard let vm else {
+            // 不先置 hasResolvedArchive:vm 缺失时保持闸门开启,下次 .task 重试,
+            // 避免 UI 永久卡「准备中…」(防御性顺序,理论不可达)
+            AppLogger.app.error("deepView.resolveArchive vm_missing(理论不可达,.task 先建 VM)")
+            return
+        }
+        hasResolvedArchive = true
+        archiveLoadFailed = false
+        let ctx = env.modelContainer.mainContext
+        do {
+            // links 取盘刻意与 DailyFortuneView.resolveCurrentChart 同款裸 fetch
+            // (createdAt 倒序第一条),不走 UserSnapshotLinkStore.list(userId:):
+            // 单方面按 userId 过滤会在登录迁移中间态(link.userId 从 userLocalId
+            // 迁到 user_id)与今日运势的取盘语义分叉,两 Tab 判定不一致。
+            let links = try ctx.fetch(FetchDescriptor<UserSnapshotLink>(
+                sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+            ))
+            guard let link = links.first else {
+                AppLogger.app.info("deepView.resolveArchive no_links → 表单兜底")
+                return
+            }
+            // snapshot 查询走 store 抽象(规则 2 hit/miss 日志 + 与 decodeResponse
+            // 同源;不裸写 FetchDescriptor 造成一半 store 一半裸查的割裂)
+            let snapshotHash = link.snapshotHash
+            guard let snapshot = try env.chartSnapshotStore.get(contentHash: snapshotHash) else {
+                AppLogger.persistence.error(
+                    "op=deepView.resolveArchive snapshot_missing hash=\(snapshotHash, privacy: .public) alias=\(link.alias, privacy: .private)"
+                )
+                archiveLoadFailed = true
+                vm.state = .chartFailed(.generic(message: "命盘存档读取失败,请重新排盘"))
+                return
+            }
+            let response = try env.chartSnapshotStore.decodeResponse(from: snapshot)
+            vm.loadArchivedChart(response: response, request: snapshot.archivedDisplayRequest)
+        } catch {
+            AppLogger.persistence.error(
+                "op=deepView.resolveArchive failed error=\(String(describing: error), privacy: .public)"
+            )
+            archiveLoadFailed = true
+            vm.state = .chartFailed(.generic(message: "命盘存档读取失败,请重新排盘"))
+        }
+    }
+
+    /// 存档读取失败的「重试」:重跑 resolveArchivedChart(而非 vm.retryCalculation —
+    /// 存档直读路径下表单字段从未填充,calculate 只会撞 validateForm 落 formInvalid,
+    /// 对用户是驴唇不对马嘴的报错)。先 reset 回 .empty + 关闸门,resolve 期间显示
+    /// 「准备中…」,重跑结果覆盖状态(成功 → .ready;再失败 → .chartFailed)。
+    @MainActor
+    private func retryArchiveResolve() {
+        archiveLoadFailed = false
+        hasResolvedArchive = false
+        vm?.reset()
+        Task { await resolveArchivedChart() }
     }
 
     @ViewBuilder
@@ -72,7 +151,12 @@ struct DeepAnalysisView: View {
         if let vm {
             switch vm.state {
             case .empty, .formInvalid:
-                BirthFormView(vm: vm, onSubmit: vm.calculate)
+                // 存档 resolve 完成前显示加载态;resolve 后无盘才落到表单(兜底)
+                if hasResolvedArchive {
+                    BirthFormView(vm: vm, onSubmit: vm.calculate)
+                } else {
+                    LoadingStateView(title: "准备中…")
+                }
             case .calculating(let stage):
                 calculatingView(stage: stage)
             case .ready(let response, _):
@@ -87,7 +171,16 @@ struct DeepAnalysisView: View {
                     }
                 }
             case .chartFailed(let userError):
-                errorView(error: userError, retry: vm.retryCalculation, onBack: vm.reset)
+                // 重试语义按失败来源分派:存档读取失败 → 重跑 resolve;
+                // 排盘(calculate)失败 → 重跑网络计算。返回表单时清残留 flag。
+                errorView(
+                    error: userError,
+                    retry: archiveLoadFailed ? retryArchiveResolve : vm.retryCalculation,
+                    onBack: {
+                        archiveLoadFailed = false
+                        vm.reset()
+                    }
+                )
             }
         } else {
             ProgressView()

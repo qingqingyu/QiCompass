@@ -261,6 +261,24 @@ final class DeepAnalysisViewModel {
         calculate()
     }
 
+    // MARK: - 存档直读(2026-08-16 深度解析 Tab 免重复填表)
+
+    /// 从本地存档直读命盘(DeepAnalysisView 启动时 resolve 到最新 UserSnapshotLink 后调用)。
+    ///
+    /// 与 calculate() 的区别:不发网络请求、不重复存档(盘 + link 已在),只把 VM
+    /// 拉到 .ready —— 对齐 2026-08-01 决策 #4「chart 立即可见」;AI 命书仍走
+    /// β 点击触发(InterpretState 从 .idle 起步)。
+    /// request 由 `ChartSnapshot.archivedDisplayRequest` 重建(仅展示/prompt context 用)。
+    /// 不触发 onChartArchived:非新建存档;pendingReturnTab 消费场景只在无盘走表单
+    /// 路径时发生(合盘空态 / 今日运势 chartMissing CTA 引流)。
+    func loadArchivedChart(response: BaziResponse, request: BaziCalculateRequest) {
+        AppLogger.app.info(
+            "deepVM.loadArchivedChart contentHash=\(response.contentHash, privacy: .public)"
+        )
+        lastRequest = request
+        state = .ready(response, .idle)
+    }
+
     // MARK: - AI 命书
 
     /// 触发 AI 命书生成(用户点"生成命书"按钮 / 购买成功后重新触发)。
