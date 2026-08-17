@@ -326,9 +326,7 @@ CompatibilityConfigView(ScrollView + 底部 CTA)
   ├─ A 盘选择(ChartArchivePickerView,checkmark cinnabar)
   ├─ B 盘模式切换(segmented)
   │   ├─ .archived → ChartArchivePickerView
-  │   └─ .tempInput → 临时输入表单(DatePicker / 性别 / 经度 / 城市)
-  ├─ context picker(通用 / 婚姻 / 事业)
-  ├─ 子时规则(只读提示)
+  │   └── .tempInput → 临时输入表单(DatePicker / 性别 / 经度 / 城市)
   └─ 底部 CTA "开始合盘"(cinnabar + RoundedRectangle Radius.sm)
   ↓ 点 CTA
 .computing → .resultReady
