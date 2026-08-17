@@ -449,7 +449,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
     }
 
     @MainActor
-    func testRestoreRosterStateIfAvailable_context和Ahash和名单预填() throws {
+    func testRestoreRosterStateIfAvailable_持久化context被忽略_Ahash和名单预填() throws {
         CompatibilityRosterPersistence.clear()
         // 构造存档 + 同步 insert ChartSnapshot 到 SwiftData(让 chartStore.get 能找到)
         let hashes = ["a_real", "b_real", "c_real"]
@@ -483,7 +483,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
         vm.restoreRosterStateIfAvailable()
 
-        XCTAssertEqual(vm.context, "marriage")
+        // 2026-08-16 维度 picker 移除:context 固定 "general",持久化的 marriage 被忽略
+        XCTAssertEqual(vm.context, "general")
         XCTAssertEqual(vm.currentPersonAHash, "a_real")
         XCTAssertEqual(vm.roster.count, 2)
         XCTAssertTrue(vm.selectedArchivedHashes.contains("b_real"))

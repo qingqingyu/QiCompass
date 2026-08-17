@@ -1,11 +1,13 @@
 import SwiftUI
 
-/// 合盘配置态(多选改造):A 盘单选 + B 名单(存档勾选 + 临时输入)+ context picker + 底部「开始合盘」CTA。
+/// 合盘配置态(多选改造):A 盘单选 + B 名单(存档勾选 + 临时输入)+ 底部「开始合盘」CTA。
+/// 2026-08-16:「合盘维度」picker 移除,context 固定 "general"(见 CompatibilityViewModel.context 注释)。
 ///
 /// 决策 D1:A 单选不变 / B 改多选名单。
 /// 决策 D2:名单 = 存档勾选 + 临时输入(可多个);上限 8 人。
 /// 决策 D11:增删入口统一在配置页(结果列表纯展示)。
-/// 决策 D4:`zi_hour_rule` 不暴露给用户,MVP 固定 `zi_next_day`,显示只读提示。
+/// 决策 D4:`zi_hour_rule` 不暴露给用户,MVP 固定 `zi_next_day`(2026-08-16 起配置页
+/// 不再显示只读提示——「我的」tab 已有全局设置,此处冗余;规则仍后端固定 setSect(1))。
 struct CompatibilityConfigView: View {
     @Bindable var vm: CompatibilityViewModel
     let onStart: () -> Void
@@ -33,32 +35,6 @@ struct CompatibilityConfigView: View {
                 // B 名单(决策 D2 混合名单)
                 section(title: "B 盘(对方)名单 · \(vm.roster.count)/\(CompatibilityViewModel.rosterMax)") {
                     rosterSection
-                }
-
-                // context picker(决策 D8 配置页全局)
-                section(title: "合盘维度") {
-                    Picker("合盘维度", selection: $vm.context) {
-                        Text("通用").tag("general")
-                        Text("婚姻").tag("marriage")
-                        Text("事业").tag("business")
-                    }
-                    .pickerStyle(.segmented)
-
-                    Text(contextDescription)
-                        .font(.caption)
-                        .foregroundStyle(BaziTheme.inkMuted)
-                }
-
-                // 子时规则只读提示
-                section(title: "子时规则") {
-                    HStack {
-                        Text("23:00 换日(早子时归当日)")
-                            .foregroundStyle(BaziTheme.inkMuted)
-                        Spacer()
-                    }
-                    Text("MVP 固定规则,后端 setSect(1)。")
-                        .font(.caption)
-                        .foregroundStyle(BaziTheme.inkMuted)
                 }
 
                 if case .failed(let userError) = vm.state {
@@ -278,17 +254,6 @@ struct CompatibilityConfigView: View {
                 )
                 tempFormError = "添加失败,请重试"
             }
-        }
-    }
-
-    // MARK: - context 说明
-
-    private var contextDescription: String {
-        switch vm.context {
-        case "general":  return "整体缘分概览"
-        case "marriage": return "侧重感情质量与家庭节奏"
-        case "business": return "侧重合作契合与利益节奏"
-        default:         return ""
         }
     }
 

@@ -6,7 +6,7 @@ import SwiftData
 /// 状态:
 /// - .loading → 命盘列表加载中
 /// - .empty → 0 存档,引导去深度解析
-/// - .configuring → 配置态(A 单选 + B 名单 / context)
+/// - .configuring → 配置态(A 单选 + B 名单;2026-08-16 起 context 恒 "general" 不再是配置项)
 /// - .computing(completed, total) → 批量确定性合盘中(决策 D3 串行 + i/N 进度)
 /// - .list → 结果列表(决策 D9 卡片;D11 纯展示 + toolbar 编辑名单;点卡片进 detail)
 /// - .detail(summary, response, interpretState) → 单对详情(S02 新增,复用 CompatibilityMainView)

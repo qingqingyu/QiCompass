@@ -4,7 +4,7 @@ import SwiftData
 /// "我的" Tab(2026-08-01 grill-me 决策 #17 新增的第 4 个 Tab)。
 ///
 /// v1.5 起 Sign in with Apple 接通,内容含账号 section + 命主卡(2026-08-10 阶段 6 新增):
-/// 0. **命主卡**(Q16 δ + Q17):生肖图 + alias + 出生年 + 今日 anchor
+/// 0. **命主卡**(Q16 δ + Q17):生肖图 + alias + 出生年(2026-08-16 起无今日 anchor,见 IdentityCard 注释)
 /// 1. **我的命盘**:UserSnapshotLink list("我自己" / "妈妈" / "男友" 等 alias)
 /// 2. **已购**:active Entitlement list(按 purchasedAt DESC)
 /// 3. **设置**:zi_hour_rule default + 重置命盘按钮(Q20 B fallback)
@@ -537,78 +537,48 @@ struct ProfileView: View {
 /// Q16 δ + Q17:ProfileView 顶部命主卡。
 ///
 /// **阶段 6 简化版**(2026-08-10):
-/// 当前实现 = 印章图 + alias + 出生年 + 跳转今日 anchor。
+/// 当前实现 = 印章图 + alias + 出生年(2026-08-16 移除「查看今日运势」跳转按钮,用户反馈多余)。
 ///
 /// TODO(spec Q11 β mockup + Q17 完整版,后续 slice 补):
 /// - **真太阳时行**:数据可得(ChartSnapshot.birthSolarTime 格式化),接口需扩展
 /// - **出生地行**:数据不可得 — ChartSnapshot 当前只有 `cityLongitude: Double`(没城市名字符串),
 ///   需 SwiftData schema 变更加 `city: String?` 字段 + migration
-/// - **今日宜/忌一句话 anchor**:需 query DailyFortuneSnapshot 跨模块解码宜/忌内容,
-///   替代当前的纯"查看今日运势"跳转按钮
+/// - **今日宜/忌一句话 anchor**(Q17 完整版):需 query DailyFortuneSnapshot 跨模块解码宜/忌内容
 ///
-/// 生肖图(视觉锚点,呼应 ZodiacRevealView)+ alias + 出生年 + 今日 anchor 跳转(点击切 .dailyFortune tab)。
+/// 生肖图(视觉锚点,呼应 ZodiacRevealView)+ alias + 出生年。
 private struct IdentityCard: View {
     let zodiacAssetName: String
     let alias: String
     let birthYear: Int?
 
     var body: some View {
-        VStack(spacing: BaziTheme.Spacing.md) {
-            // 印章图 + 文字组合。.accessibilityElement(.combine) 把 Image + 文字 VStack 合并成
-            // 单一 VoiceOver element(读"我的命盘 alias 2000 年生"一气呵成)。
-            // 下方 Button(查看今日运势)是 VStack 的另一个 child,在 combine 外部,VoiceOver 可单独聚焦。
-            HStack(spacing: BaziTheme.Spacing.md) {
-                Image(zodiacAssetName)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 64, height: 64)
-                    .accessibilityHidden(true)
+        // 印章图 + 文字组合。.accessibilityElement(.combine) 把 Image + 文字 VStack 合并成
+        // 单一 VoiceOver element(读"我的命盘 alias 2000 年生"一气呵成)。
+        // (2026-08-16 按钮删除后原外层 VStack 只剩单 child,已拍平。)
+        HStack(spacing: BaziTheme.Spacing.md) {
+            Image(zodiacAssetName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: 64, height: 64)
+                .accessibilityHidden(true)
 
-                VStack(alignment: .leading, spacing: BaziTheme.Spacing.xs) {
-                    Text("我的命盘")
+            VStack(alignment: .leading, spacing: BaziTheme.Spacing.xs) {
+                Text("我的命盘")
+                    .font(BaziFont.caption(size: 12))
+                    .foregroundStyle(BaziTheme.inkMuted)
+                Text(alias)
+                    .font(BaziFont.display(size: 18, weight: .medium))
+                    .foregroundStyle(BaziTheme.ink)
+                if let year = birthYear {
+                    Text("\(year) 年生")
                         .font(BaziFont.caption(size: 12))
                         .foregroundStyle(BaziTheme.inkMuted)
-                    Text(alias)
-                        .font(BaziFont.display(size: 18, weight: .medium))
-                        .foregroundStyle(BaziTheme.ink)
-                    if let year = birthYear {
-                        Text("\(year) 年生")
-                            .font(BaziFont.caption(size: 12))
-                            .foregroundStyle(BaziTheme.inkMuted)
-                    }
-                }
-
-                Spacer()
-            }
-            .accessibilityElement(children: .combine)
-
-            Rectangle()
-                .fill(BaziTheme.hairline)
-                .frame(height: 0.5)
-
-            Button {
-                // 项目按钮触感范式(PrimaryCTAButton / BirthFormView / ZodiacRevealView / ErrorStateView 都用)
-                HapticEngine.medium()
-                // 类型安全:用 RootTabView.Tab.dailyFortune.switchKey 而非硬编码字符串,
-                // 避免 Tab.switchKey 值改动时跳转静默失效
-                NotificationCenter.default.post(
-                    name: .switchTab,
-                    object: nil,
-                    userInfo: ["tab": RootTabView.Tab.dailyFortune.switchKey]
-                )
-            } label: {
-                HStack {
-                    Text("查看今日运势")
-                        .font(BaziFont.body(size: 14))
-                        .foregroundStyle(BaziTheme.ink)
-                    Spacer()
-                    Image(systemName: "chevron.right")
-                        .font(.caption)
-                        .foregroundStyle(BaziTheme.inkMuted)
                 }
             }
-            .accessibilityHint("跳转到今日运势 Tab")
+
+            Spacer()
         }
+        .accessibilityElement(children: .combine)
         .padding(BaziTheme.Spacing.md)
         .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
         .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
