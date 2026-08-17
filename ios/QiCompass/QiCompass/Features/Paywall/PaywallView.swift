@@ -98,6 +98,9 @@ struct PaywallView: View {
                         AppleSignInButton(onResult: { result in
                             env.accountManager.handleAuthorization(result)
                         })
+                        GoogleSignInButton {
+                            env.accountManager.handleGoogleSignIn()
+                        }
                     }
                 case .idle, .done:
                     // 防御:signedIn 但 exchangeState 未定义(不变量破坏,正常不应出现)
@@ -132,7 +135,7 @@ struct PaywallView: View {
             .frame(maxWidth: .infinity)
     }
 
-    /// 未登录态的登录区(中性提示或 SIWA 失败显错 + 登录按钮)。
+    /// 未登录态的登录区(中性提示或登录失败显错 + 登录按钮)。
     private var signInPrompt: some View {
         VStack(spacing: BaziTheme.Spacing.sm) {
             // 登录失败显式显错(行为对齐 ProfileView accountSection .failed 分支:
@@ -149,6 +152,9 @@ struct PaywallView: View {
             AppleSignInButton(onResult: { result in
                 env.accountManager.handleAuthorization(result)
             })
+            GoogleSignInButton {
+                env.accountManager.handleGoogleSignIn()
+            }
         }
     }
 }

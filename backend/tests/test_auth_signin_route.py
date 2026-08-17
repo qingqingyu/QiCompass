@@ -72,6 +72,21 @@ def _patch_apple_verify(monkeypatch, *, apple_user_id: str = "apple-sub-001"):
     monkeypatch.setattr(auth_api_module, "verify_apple_identity_token", _fake_verify)
 
 
+def _patch_google_verify(monkeypatch, *, google_user_id: str = "google-sub-001"):
+    """让 verify_google_identity_token 返 mock GoogleUserInfo(同 _patch_apple_verify 模式)。"""
+    from app.auth.google_signin import GoogleUserInfo
+    import app.api.auth as auth_api_module
+
+    def _fake_verify(token: str, expected_audience: str | None = None) -> GoogleUserInfo:
+        return GoogleUserInfo(
+            google_user_id=google_user_id,
+            email="user@gmail.com",
+            email_verified=True,
+        )
+
+    monkeypatch.setattr(auth_api_module, "verify_google_identity_token", _fake_verify)
+
+
 # ===== 不带 user_local_id:向后兼容 =====
 
 
@@ -186,9 +201,90 @@ async def test_signin_backfill_idempotent_second_login_no_change(
     assert r2.status_code == 200
     user_id_2 = r2.json()["user_id"]
 
-    # 同 apple_user_id → 同 backend user_id(upsert_by_apple_user_id)
+    # 同 apple_user_id → 同 backend user_id(upsert_by_provider,provider 默认 apple)
     assert user_id_1 == user_id_2
 
     # entitlement 表 user_id 依然是 backend user_id(没被覆盖)
     row = tmp_entitlement_store.get_by_transaction("tx-idem-001")
     assert row["user_id"] == user_id_1
+
+
+# ===== provider 字段(Apple / Google 双登录,2026-08-16 起)=====
+
+
+async def test_signin_explicit_apple_provider_backward_compatible(
+    signin_client, tmp_entitlement_store, monkeypatch,
+):
+    """provider="apple" 显式传 → 与不传(默认)行为一致,向后兼容。"""
+    _patch_apple_verify(monkeypatch, apple_user_id="apple-sub-explicit-001")
+
+    resp = await signin_client.post(
+        "/api/auth/sign-in",
+        json={"identity_token": "fake-token", "provider": "apple"},
+    )
+    assert resp.status_code == 200, resp.json()
+    assert resp.json()["user_id"]
+
+
+async def test_signin_google_provider_returns_200(
+    signin_client, tmp_entitlement_store, monkeypatch,
+):
+    """provider="google" → 验签 mock 通过 → 200 + 自家 JWT;二次登录同 user_id。"""
+    _patch_google_verify(monkeypatch, google_user_id="google-sub-route-001")
+
+    r1 = await signin_client.post(
+        "/api/auth/sign-in",
+        json={"identity_token": "fake-google-token", "provider": "google"},
+    )
+    assert r1.status_code == 200, r1.json()
+    body1 = r1.json()
+    assert "access_token" in body1 and body1["user_id"]
+
+    # 同 google sub 二次登录 → upsert 命中同一账号
+    r2 = await signin_client.post(
+        "/api/auth/sign-in",
+        json={"identity_token": "fake-google-token", "provider": "google"},
+    )
+    assert r2.status_code == 200
+    assert r2.json()["user_id"] == body1["user_id"]
+
+
+async def test_signin_same_sub_different_provider_separate_accounts(
+    signin_client, tmp_entitlement_store, monkeypatch,
+):
+    """同一 sub 值在 apple / google 两个 provider → 两个独立账号(v1 账号隔离决策)。"""
+    shared_sub = "shared-sub-xyz"
+    _patch_apple_verify(monkeypatch, apple_user_id=shared_sub)
+    _patch_google_verify(monkeypatch, google_user_id=shared_sub)
+
+    r_apple = await signin_client.post(
+        "/api/auth/sign-in",
+        json={"identity_token": "fake", "provider": "apple"},
+    )
+    r_google = await signin_client.post(
+        "/api/auth/sign-in",
+        json={"identity_token": "fake", "provider": "google"},
+    )
+    assert r_apple.status_code == 200
+    assert r_google.status_code == 200
+    assert r_apple.json()["user_id"] != r_google.json()["user_id"]
+
+
+async def test_signin_google_not_configured_returns_503(
+    signin_client, tmp_entitlement_store, monkeypatch,
+):
+    """provider=google 但 GOOGLE_SIGN_IN_CLIENT_ID 未配置 → 503 显式报错(不静默)。
+
+    不 patch verify:让真 verify_google_identity_token 收到 expected_audience=None
+    抛 GoogleSignInNotConfiguredError(BaziError handler → 503)。
+    """
+    import app.api.auth as auth_api_module
+
+    monkeypatch.setattr(auth_api_module, "GOOGLE_SIGN_IN_CLIENT_ID", None)
+
+    resp = await signin_client.post(
+        "/api/auth/sign-in",
+        json={"identity_token": "fake-token", "provider": "google"},
+    )
+    assert resp.status_code == 503, resp.json()
+    assert "GOOGLE_SIGN_IN_NOT_CONFIGURED" in resp.text

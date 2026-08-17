@@ -2,15 +2,21 @@
 
 from __future__ import annotations
 
+from typing import Literal
+
 from pydantic import BaseModel, Field
 
 
 class SignInRequest(BaseModel):
     """POST /api/auth/sign-in 请求体。"""
 
+    provider: Literal["apple", "google"] = Field(
+        default="apple",
+        description="登录方式。默认 apple(老客户端不带此字段 → Apple,向后兼容)。",
+    )
     identity_token: str = Field(
         ...,
-        description="Apple 返回的 identityToken(JWT 字符串,iOS 调 ASAuthorization 后拿到)",
+        description="provider 返回的 identityToken/idToken(JWT 字符串,iOS 调系统 ASAuthorization 或 GoogleSignIn SDK 后拿到)",
         min_length=1,
     )
     user_local_id: str | None = Field(
