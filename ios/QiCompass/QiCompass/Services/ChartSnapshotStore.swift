@@ -124,12 +124,15 @@ extension ChartSnapshot {
     /// cityTimezone→timezone(老快照 nil 兜底设备时区)、geonameId 不入存档(→ nil,
     /// 属展示元数据,不参与任何计算)。
     var archivedDisplayRequest: BaziCalculateRequest {
-        let tzName = cityTimezone ?? TimeZone.current.identifier
+        // 标识符只解析一次,timezone 字段与 formatter 共用同一结果:
+        // cityTimezone 为 nil(老快照)或非法标识符(损坏数据)时统一兜底设备
+        // 时区,避免「timezone 声明 X、birthDatetime 却按设备时区渲染」的自相矛盾。
+        let resolvedTZ = cityTimezone.flatMap(TimeZone.init(identifier:)) ?? .current
+        let tzName = resolvedTZ.identifier
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
-        // tzName 非法标识符时兜底设备时区,保证 formatter 行为确定
-        formatter.timeZone = TimeZone(identifier: tzName) ?? .current
+        formatter.timeZone = resolvedTZ
         return BaziCalculateRequest(
             birthDatetime: formatter.string(from: birthSolarTime),
             timezone: tzName,
