@@ -268,8 +268,16 @@ struct CompatibilityConfigView: View {
             // S04:多条模式 → 添加成功后清空草稿(让用户继续添加下一个)
             vm.resetTempDraftForm()
         } catch {
-            // 不静默吞(CLAUDE.md):展示真实错误
-            tempFormError = error.localizedDescription
+            // 不静默吞(CLAUDE.md):UserFacingError(表单校验)文案原样展示;
+            // 其他意外错误(如存储层)用人话兜底,原始 error 记日志不进 UI
+            if let userError = error as? UserFacingError {
+                tempFormError = userError.errorDescription
+            } else {
+                AppLogger.app.error(
+                    "compat.addTemp.unexpected_error error=\(String(describing: error), privacy: .public)"
+                )
+                tempFormError = "添加失败,请重试"
+            }
         }
     }
 

@@ -429,6 +429,9 @@ final class DeepAnalysisOrchestrator {
 // MARK: - DeepAnalysisError
 
 /// 深度解析领域错误。
+/// errorDescription 是**用户可见文案**(2026-08-16:代码性错误不进 UI);
+/// invalidV1ModuleInput 的契约违反详情留在 associated value,由 VM 各 catch
+/// 的 AppLogger(String(describing: error))记录。
 enum DeepAnalysisError: Error, LocalizedError {
     /// 每日次数已达上限。nextReset: 本地午夜;remaining: 剩余次数(0)。
     case dailyLimitReached(nextReset: Date, remaining: Int)
@@ -440,8 +443,8 @@ enum DeepAnalysisError: Error, LocalizedError {
         switch self {
         case .dailyLimitReached:
             return "今日机缘已尽,明日再来"
-        case .invalidV1ModuleInput(let message):
-            return message
+        case .invalidV1ModuleInput:
+            return "解读生成失败,请重试"
         }
     }
 }

@@ -307,7 +307,7 @@ final class DailyFortuneViewModel {
                 AppLogger.persistence.error(
                     "daily.cachedInterpretation_read_failed hash=\(chartHash, privacy: .public) targetDate=\(businessDate, privacy: .public) error=\(String(describing: error), privacy: .public)"
                 )
-                interpretState = .failed(message: "读取每日解读缓存失败:\(error.localizedDescription)")
+                interpretState = .failed(message: "读取解读缓存失败,请重试")
             }
 
             if !Task.isCancelled {
