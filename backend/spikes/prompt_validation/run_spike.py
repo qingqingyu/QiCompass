@@ -1,6 +1,12 @@
 #!/usr/bin/env python3
 """Prompt 验证 Spike 驱动脚本(方案 §1.2)。
 
+⚠️ 已知失效(2026-08-17 审计):第 298 行同步调用 async 的 ai_client.interpret,
+真跑会把 coroutine 存进 result_entry 后被 json.dumps 炸掉。output_v1/results.jsonl
+全部 llm_response=null 即证据(只跑过 --dry-run)。
+本脚本服务老 3 模块,不在 evalkit 系列范围内,故只标注不修。
+v1 链式评测请用 backend/evalkit/(见 docs/prompt评测机设计决策.md)。
+
 一次性脚本(不进生产)。职责:
 1. 遍历 SPIKE_CASES(20 盘)
 2. 调 BaziEngine.calculate() → 组装完整 bazi_deep context

@@ -161,3 +161,40 @@ GOOGLE_PUBLIC_KEYS_CACHE_TTL = int(
 )
 
 # prompt 版本号单一事实源:ai/prompts.py 的 PROMPT_VERSIONS,路由层从那里导入
+
+# ---------- evalkit L3 裁判(S05,2026-08-18;默认回落生成侧,现有部署零感知) ----------
+# 独立 env:同模型自评有系统性偏袒;独立配置才能"用更强的模型当裁判",
+# 也才能做「Anthropic 生成 / OpenAI 裁判」交叉验证。换裁判 = 换一批分数,
+# 不与旧分数混比(JUDGE_MODEL 进 evalkit RunIdentity)。
+# ADR-0010「provider 单选无 fallback」评测侧同样适用。
+JUDGE_PROVIDER: str = (
+    os.environ.get("JUDGE_PROVIDER") or AI_PROVIDER
+).strip().lower()
+if JUDGE_PROVIDER not in {"anthropic", "openai"}:
+    raise ValueError(
+        "JUDGE_PROVIDER must be one of: anthropic, openai "
+        f"(got {JUDGE_PROVIDER!r})"
+    )
+
+# 默认回落对应 provider 的生成侧 model
+JUDGE_MODEL: str = (
+    os.environ.get("JUDGE_MODEL")
+    or (ANTHROPIC_MODEL if JUDGE_PROVIDER == "anthropic" else OPENAI_MODEL)
+).strip()
+if not JUDGE_MODEL:
+    raise ValueError("JUDGE_MODEL must not be blank")
+
+# 默认回落对应 provider 的生成侧 key
+JUDGE_API_KEY: str | None = (
+    os.environ.get("JUDGE_API_KEY")
+    or (ANTHROPIC_API_KEY if JUDGE_PROVIDER == "anthropic" else OPENAI_API_KEY)
+)
+
+# 裁判 base_url 覆盖(默认回落生成侧;跨 provider 交叉验证时裁判流量
+# 可指向不同网关,避免生成侧中转只代理特定模型导致裁判莫名 4xx)。
+# 仅 openai 裁判分支消费(anthropic 裁判走官方默认 endpoint)。
+JUDGE_BASE_URL: str = (
+    os.environ.get("JUDGE_BASE_URL") or OPENAI_BASE_URL
+).strip().rstrip("/")
+if not JUDGE_BASE_URL:
+    raise ValueError("JUDGE_BASE_URL must not be blank")

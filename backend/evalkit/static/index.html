@@ -1,0 +1,408 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>evalkit — prompt 回归评测机</title>
+<style>
+  /* DESIGN.md 色板:纸白/浅宣/朱砂/墨青;禁渐变禁阴影;系统字体 */
+  :root {
+    --paper: #FDFCFA; --card: #EBE3D0; --ink: #1C1C1C;
+    --cinnabar: #C33B3B; --green: #2C5F3F; --hairline: rgba(107,101,87,.3);
+    --muted: #6B6557; --warn: #A67C00;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--paper); color: var(--ink);
+    font-family: -apple-system, "PingFang SC", "Songti SC", "SF Pro Text", sans-serif;
+    font-size: 14px; line-height: 1.6;
+  }
+  .wrap { max-width: 1080px; margin: 0 auto; padding: 24px 20px 80px; }
+  h1 { font-family: "Songti SC", serif; font-size: 20px; margin: 0 0 4px; }
+  .sub { color: var(--muted); font-size: 12px; margin-bottom: 20px; }
+  .card {
+    background: var(--card); border-radius: 4px; padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .row { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+  label { font-size: 12px; color: var(--muted); }
+  select, input[type=number], input[type=text], button {
+    font: inherit; border: 0.5pt solid var(--hairline); border-radius: 4px;
+    background: var(--paper); color: var(--ink); padding: 4px 8px;
+  }
+  button { cursor: pointer; }
+  button.primary {
+    background: var(--cinnabar); color: #fff; border-color: var(--cinnabar);
+  }
+  button:disabled { opacity: .5; cursor: default; }
+  .banner {
+    border-left: 3px solid var(--warn); background: rgba(166,124,0,.08);
+    padding: 8px 12px; border-radius: 4px; margin-bottom: 12px; font-size: 13px;
+  }
+  .stats { display: flex; flex-wrap: wrap; gap: 18px; font-size: 13px; }
+  .stats b { font-family: "SF Pro Text", monospace; font-size: 18px; }
+  .stat-pass b { color: var(--green); }
+  .stat-fail b, .stat-reg b { color: var(--cinnabar); }
+  .stat-warn b { color: var(--warn); }
+  h2 { font-family: "Songti SC", serif; font-size: 16px; margin: 24px 0 10px; }
+  .regressed-list { list-style: none; margin: 0; padding: 0; }
+  .regressed-list li {
+    padding: 6px 10px; border-bottom: 0.5pt solid var(--hairline);
+    color: var(--cinnabar); cursor: pointer; font-size: 13px;
+  }
+  .regressed-list li:hover { background: rgba(195,59,59,.06); }
+  .ok-note { color: var(--green); font-size: 13px; }
+  table.matrix { border-collapse: collapse; font-size: 12px; }
+  .matrix th, .matrix td {
+    border: 0.5pt solid var(--hairline); padding: 3px 6px; text-align: left;
+  }
+  .matrix thead th { font-weight: 500; color: var(--muted); }
+  .matrix td.cell { cursor: pointer; text-align: center; width: 34px;
+    font-family: "SF Pro Text", monospace; }
+  td.v-pass { background: var(--green); color: #fff; }
+  td.v-warn { background: var(--warn); color: #fff; }
+  td.v-fail { background: var(--cinnabar); color: #fff; }
+  td.v-error, td.v-skip { background: var(--muted); color: #fff; }
+  .legend { display: flex; gap: 14px; font-size: 12px; color: var(--muted);
+    margin: 8px 0; }
+  .legend i { display: inline-block; width: 12px; height: 12px;
+    border-radius: 2px; margin-right: 4px; vertical-align: -1px; }
+  .drawer {
+    position: fixed; right: 0; top: 0; bottom: 0; width: min(720px, 92vw);
+    background: var(--paper); border-left: 0.5pt solid var(--hairline);
+    padding: 20px; overflow-y: auto; display: none;
+  }
+  .drawer.open { display: block; }
+  .drawer h3 { font-family: "Songti SC", serif; margin-top: 0; }
+  .drawer pre {
+    background: var(--card); border-radius: 4px; padding: 10px;
+    font-size: 12px; overflow-x: auto; white-space: pre-wrap;
+    max-height: 280px;
+  }
+  .failure { color: var(--cinnabar); font-size: 13px; margin: 2px 0; }
+  .layer { margin: 12px 0; }
+  .layer .title { font-weight: 600; font-size: 13px; }
+  .close-x { float: right; cursor: pointer; color: var(--muted);
+    font-size: 16px; padding: 0 6px; }
+  .progress-line { font-size: 13px; color: var(--muted); }
+  details summary { cursor: pointer; color: var(--muted); font-size: 12px; }
+  .muted { color: var(--muted); font-size: 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>evalkit</h1>
+  <div class="sub">prompt 回归评测机 · v1 链式 M0-M7 · 本地工具(127.0.0.1)</div>
+
+  <div class="card">
+    <div class="row">
+      <label>current
+        <select id="sel-current"></select></label>
+      <label>baseline
+        <select id="sel-baseline"></select></label>
+      <button id="btn-set-baseline">设为基线</button>
+      <span style="flex:1"></span>
+      <button id="btn-run" class="primary">跑新 run</button>
+      <label><input type="checkbox" id="opt-no-cache"> no-cache</label>
+      <label><input type="checkbox" id="opt-skip-judge"> skip-judge</label>
+      <label>盘数 <input type="number" id="opt-case-limit" min="1" max="20"
+        style="width:56px" placeholder="全部"></label>
+    </div>
+    <div class="progress-line" id="progress-line"></div>
+  </div>
+
+  <div id="dry-banner"></div>
+  <div id="identity-banner"></div>
+
+  <div class="card" id="overview">
+    <div class="stats">
+      <span class="stat-pass">pass <b id="st-pass">–</b></span>
+      <span class="stat-warn">warn <b id="st-warn">–</b></span>
+      <span class="stat-fail">fail <b id="st-fail">–</b></span>
+      <span>error <b id="st-error">–</b></span>
+      <span class="stat-reg">regressed <b id="st-reg">–</b></span>
+      <span>fixed <b id="st-fixed">–</b></span>
+      <span class="muted" id="st-cost"></span>
+    </div>
+  </div>
+
+  <h2>退化清单</h2>
+  <div class="card"><ul class="regressed-list" id="regressed"></ul></div>
+
+  <h2>矩阵 <span class="muted" id="matrix-sub"></span></h2>
+  <div class="legend">
+    <span><i style="background:var(--green)"></i>pass</span>
+    <span><i style="background:var(--warn)"></i>warn</span>
+    <span><i style="background:var(--cinnabar)"></i>fail</span>
+    <span><i style="background:var(--muted)"></i>error</span>
+  </div>
+  <div style="overflow-x:auto"><table class="matrix" id="matrix"></table></div>
+</div>
+
+<div class="drawer" id="drawer">
+  <span class="close-x" id="drawer-close">✕</span>
+  <h3 id="drawer-title"></h3>
+  <div id="drawer-body"></div>
+</div>
+
+<script>
+"use strict";
+const $ = (id) => document.getElementById(id);
+const MODULES = ["m0_structure","m1_talent","m2_high_low","m3_system",
+                 "m4_health","m5_wealth","m6_dynamics","m7_manual"];
+let currentRun = null, baselineRun = null;
+let results = [], meta = {}, diffData = null;
+
+async function api(path, opts) {
+  const res = await fetch(path, opts);
+  if (!res.ok) {
+    let detail = res.statusText;
+    try { detail = (await res.json()).detail || detail; } catch (e) {}
+    throw new Error(`${res.status}: ${detail}`);
+  }
+  return res.json();
+}
+
+async function loadRuns() {
+  const runs = await api("/api/runs");
+  const cur = $("sel-current"), base = $("sel-baseline");
+  cur.innerHTML = ""; base.innerHTML = "";
+  let baselineId = null;
+  for (const r of runs) {
+    if (r.is_baseline) baselineId = r.run_id;
+    cur.add(new Option(r.run_id + (r.dry_run ? " (dry)" : ""), r.run_id));
+    base.add(new Option(r.run_id, r.run_id));
+  }
+  if (baselineId) { base.value = baselineId; baselineRun = baselineId; }
+  if (runs.length) { cur.selectedIndex = 0; currentRun = cur.value; }
+  if (baselineId === currentRun && runs.length > 1) {
+    cur.selectedIndex = 1; currentRun = cur.value;
+  }
+  await refresh();
+}
+
+async function refresh() {
+  if (!currentRun) return;
+  const data = await api(`/api/runs/${encodeURIComponent(currentRun)}`);
+  results = data.results; meta = data.meta;
+  // dry-run 横幅独立于 diff 渲染(首轮 dry-run 必然无基线,diff 早退时横幅也要在)
+  $("dry-banner").innerHTML = meta.dry_run
+    ? '<div class="banner">dry-run run:未调 AI,矩阵全绿仅表示排盘/渲染/链式注入跑通,不代表质量判定</div>'
+    : "";
+  renderOverview(); renderMatrix();
+  await loadDiff();
+}
+
+async function loadDiff() {
+  const el = $("regressed"); el.innerHTML = "";
+  $("st-reg").textContent = "–"; $("st-fixed").textContent = "–";
+  $("identity-banner").innerHTML = ""; diffData = null;
+  if (!baselineRun) {
+    el.innerHTML = '<li style="color:var(--muted);cursor:default">'
+      + '未设置基线(选中一个 run 后点「设为基线」)</li>';
+    return;
+  }
+  if (baselineRun === currentRun) {
+    el.innerHTML = '<li style="color:var(--muted);cursor:default">'
+      + '当前 run 即基线(把 current 切到其他 run 才有对比)</li>';
+    return;
+  }
+  try {
+    diffData = await api(`/api/runs/${encodeURIComponent(currentRun)}`
+      + `/diff?baseline=${encodeURIComponent(baselineRun)}`);
+  } catch (e) {
+    el.innerHTML = `<li style="color:var(--muted);cursor:default">`
+      + `diff 不可用:${e.message}</li>`;
+    return;
+  }
+  $("st-reg").textContent = diffData.regressed.length;
+  $("st-fixed").textContent = diffData.fixed.length;
+  if (Object.keys(diffData.identity_diff || {}).length) {
+    const rows = Object.entries(diffData.identity_diff)
+      .map(([k, v]) =>
+        `<div>${esc(k)}: ${esc(v[0])} → ${esc(v[1])}</div>`).join("");
+    $("identity-banner").innerHTML =
+      `<div class="banner">⚠️ 本次对比跨了 run 身份差异,退化可能是环境差异而非模板问题:${rows}</div>`;
+  }
+  if (!diffData.regressed.length) {
+    el.innerHTML = '<li class="ok-note" style="cursor:default">无退化</li>';
+    return;
+  }
+  for (const [caseId, module] of diffData.regressed) {
+    const li = document.createElement("li");
+    const entry = results.find(r => r.case_id === caseId && r.module === module);
+    const first = entry && (entry.l1 && entry.l1.failures[0]
+      || entry.l2 && entry.l2.failures[0] || entry.error || "");
+    li.textContent = `${caseId} / ${module} — ${first}`;
+    li.onclick = () => openDrawer(caseId, module);
+    el.appendChild(li);
+  }
+}
+
+function renderOverview() {
+  const c = meta.counts || {};
+  $("st-pass").textContent = c.pass ?? "–";
+  $("st-warn").textContent = c.warn ?? "–";
+  $("st-fail").textContent = c.fail ?? "–";
+  $("st-error").textContent = c.error ?? "–";
+  $("st-cost").textContent =
+    `${meta.api_calls ?? "?"} 次调用 · ${meta.cache_hits ?? 0} 命中缓存`
+    + (meta.judge_calls ? ` · 裁判 ${meta.judge_calls} 次` : "")
+    + ` · ${meta.elapsed_ms ? Math.round(meta.elapsed_ms / 1000) : "?"}s`
+    + (meta.judge_enabled ? " · 裁判已启用" : "");
+  $("matrix-sub").textContent =
+    `${meta.identity ? meta.identity.provider + " / " + meta.identity.model : ""}`
+    + (meta.identity && meta.identity.judge_model
+       ? ` / judge:${meta.identity.judge_model}` : "");
+}
+
+function renderMatrix() {
+  const byKey = {};
+  for (const e of results) byKey[e.case_id + "/" + e.module] = e;
+  const cases = [...new Set(results.map(e => e.case_id))].sort();
+  let html = "<thead><tr><th>case</th>";
+  for (const m of MODULES) html += `<th>${m.replace(/^m(\d)_/, "M$1 ")}</th>`;
+  html += "</tr></thead><tbody>";
+  for (const c of cases) {
+    const e0 = results.find(e => e.case_id === c);
+    html += `<tr><th>${esc(c)}<div class="muted">${e0.category === "normal"
+      ? "普通" : "特殊"} · ${esc(e0.expected_strength)}</div></th>`;
+    for (const m of MODULES) {
+      const e = byKey[c + "/" + m];
+      if (!e) { html += `<td class="cell v-skip">·</td>`; continue; }
+      const v = e.verdict;
+      html += `<td class="cell v-${v}" title="${esc(c)} ${esc(m)} → ${esc(v)}">`
+        + (v === "pass" ? "✓" : v === "warn" ? "!" : v === "fail" ? "✕"
+           : v === "error" ? "E" : "·") + "</td>";
+    }
+    html += "</tr>";
+  }
+  $("matrix").innerHTML = html + "</tbody>";
+  for (const td of document.querySelectorAll("#matrix td.cell")) {
+    td.onclick = () => {
+      const th = td.parentElement.firstElementChild;
+      openDrawer(th.firstChild.textContent.trim(), MODULES[td.cellIndex - 1]);
+    };
+  }
+}
+
+async function openDrawer(caseId, module) {
+  $("drawer").classList.add("open");
+  $("drawer-title").textContent = `${caseId} / ${module}`;
+  $("drawer-body").textContent = "加载中…";
+  const url = `/api/cases/${encodeURIComponent(caseId)}`
+    + `/${encodeURIComponent(module)}?run=${encodeURIComponent(currentRun)}`;
+  let detail;
+  try { detail = await api(url); }
+  catch (e) { $("drawer-body").textContent = "加载失败:" + e.message; return; }
+  const e = detail.entry;
+  let html = `<div class="muted">verdict: <b>${esc(e.verdict)}</b>`
+    + ` · ${esc(String(e.elapsed_ms))}ms${e.cached ? " · 缓存命中" : ""}</div>`;
+  html += layerHtml("L1 确定性", e.l1);
+  html += layerHtml("L2 接地", e.l2);
+  html += layerHtml("L3 裁判", e.l3 && {
+    passed: e.l3.passed,
+    // 这行整体会被 layerHtml 再 esc 一次,此处不做内层转义(避免双重转义)
+    failures: e.l3.failures.concat(
+      `overall=${e.l3.overall}(${e.l3.judge_model}`
+      + ` rubric v${e.l3.rubric_version})`),
+  });
+  if (e.error) html += `<p class="failure">error: ${esc(e.error)}</p>`;
+  html += `<details><summary>rendered prompt</summary>
+    <pre>${esc(detail.prompt || "(无)")}</pre></details>`;
+  html += `<details><summary>response JSON</summary>
+    <pre>${detail.response != null
+      ? esc(JSON.stringify(detail.response, null, 2)) : "(无)"}</pre></details>`;
+  if (baselineRun && baselineRun !== currentRun && diffData) {
+    const key = caseId + "/" + module;
+    const inReg = diffData.regressed.some(
+      ([c, m]) => c === caseId && m === module);
+    html += `<div class="layer"><div class="title">vs 基线(${baselineRun})</div>`
+      + `<div class="muted">${inReg ? "该格退化(baseline pass → current 非 pass)"
+      : "非退化格(或基线未覆盖)"}</div></div>`;
+  }
+  $("drawer-body").innerHTML = html;
+}
+
+function layerHtml(title, layer) {
+  if (!layer) return `<div class="layer"><div class="title">${title}</div>
+    <div class="muted">null(无输出可判或未启用)</div></div>`;
+  const cls = layer.passed ? "ok-note" : "failure";
+  const items = (layer.failures || []).map(f =>
+    `<div class="failure">· ${esc(f)}</div>`).join("");
+  return `<div class="layer"><div class="title">${title}
+    <span class="${cls}">${layer.passed ? "PASS" : "FAIL"}</span></div>${items}</div>`;
+}
+
+function esc(s) {
+  return String(s).replace(/[&<>"]/g,
+    c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
+}
+
+$("sel-current").onchange = async (ev) => {
+  currentRun = ev.target.value;
+  try {
+    await refresh();
+  } catch (e) {
+    // 选中 meta 损坏的 run 等场景:显式提示,不静默悬空
+    $("progress-line").textContent = "加载 run 失败:" + e.message;
+  }
+};
+$("sel-baseline").onchange = (ev) => { baselineRun = ev.target.value; loadDiff(); };
+$("btn-set-baseline").onclick = async () => {
+  if (!currentRun) return;
+  try {
+    await api("/api/baseline", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({run_id: currentRun}),
+    });
+  } catch (e) { alert("设基线失败:" + e.message); return; }
+  await loadRuns();
+};
+$("btn-run").onclick = async () => {
+  const body = {
+    no_cache: $("opt-no-cache").checked,
+    skip_judge: $("opt-skip-judge").checked,
+  };
+  const limitRaw = $("opt-case-limit").value.trim();
+  if (limitRaw !== "") {
+    const limit = parseInt(limitRaw, 10);
+    // 与后端 ge=1 对齐:0/负数/非数显式拒绝,不静默当"全部"烧满 20 盘
+    if (!(limit >= 1)) { alert("盘数必须 ≥ 1(留空 = 全部)"); return; }
+    body.case_limit = limit;
+  }
+  try {
+    await api("/api/runs", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify(body),
+    });
+  } catch (e) { alert("触发失败:" + e.message); return; }
+  $("btn-run").disabled = true;
+  pollProgress();
+};
+$("drawer-close").onclick = () => $("drawer").classList.remove("open");
+
+function pollProgress() {
+  const timer = setInterval(async () => {
+    try {
+      const p = await api("/api/runs/progress");
+      $("progress-line").textContent = p.running
+        ? `运行中 ${p.run_id}: ${p.done}/${p.total}(${p.case_id ?? "…"})`
+        : (p.error ? "上次 run 失败:" + p.error : "就绪");
+      if (!p.running) {
+        clearInterval(timer); $("btn-run").disabled = false;
+        await loadRuns();
+      }
+    } catch (e) {
+      clearInterval(timer); $("btn-run").disabled = false;
+      $("progress-line").textContent = "轮询失败:" + e.message;
+    }
+  }, 1500);
+}
+
+loadRuns().catch(e => {
+  $("progress-line").textContent = "加载失败:" + e.message;
+});
+</script>
+</body>
+</html>

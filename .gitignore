@@ -57,6 +57,12 @@ data/
 # v1 链式 spike 输出(每次运行动态产出,不进 git;老的 output_v1/ 已被跟踪)
 backend/spikes/prompt_validation/output_v1_chain/
 
+# evalkit 运行产物(可再生,不进 git)。
+# 注意:必须内容式忽略(runs/*)——目录式 runs/ 会让 git 不下探该目录,
+# 下方 BASELINE 例外(基线指针进 git)永远不生效。
+backend/evalkit/runs/*
+!backend/evalkit/runs/BASELINE
+
 # 本地开发工具（不进 git）
 /dev-flow.sh
 /run-slices.sh

@@ -1,7 +1,7 @@
 # Prompt 回归评测机(evalkit)设计决策
 
 Generated on 2026-08-17
-Status: **ACCEPTED**(2026-08-17,待实施;slice 明细见 `docs/prompt评测机-slices/`)
+Status: **IMPLEMENTED**(2026-08-18,S01-S06 代码落地,pytest 全绿;首轮真实基线与裁判校准待跑——见文末「实施偏差记录」与 CLAUDE.md「Prompt 回归守护栏」;slice 明细见 `docs/prompt评测机-slices/`)
 关联文档: `bazi-app-design-doc.md` / `命理引擎设计决策.md` / `DESIGN.md` / `CLAUDE.md`(红线:确定性 / LLM 只润色不判断 / 错误显式传播 / 不擅自加依赖)
 关联 ADR: `docs/adr/0004`(喜忌确定性)/ `0005`(神煞 20 固定清单)/ `0006`(格局砍掉模糊叙事)/ `0007`(从格诚实降级)/ `0009`(AI 两级缓存)/ `0010`(AI provider 单选无 fallback)
 
@@ -200,6 +200,25 @@ JUDGE_API_KEY    默认 = 对应 provider 的 key
 ## Q9 落地:S01-S06
 
 见 `docs/prompt评测机-slices/`。收尾时 CLAUDE.md 增补守护栏:动了 `app/ai/prompts.py` 的 M0-M7 模板 → 必须跑 evalkit 且无 regression。沿用现有「本地优先、不接 GitHub Actions」的约定(2026-08-14 决定),拦截靠规则不靠 CI。
+
+---
+
+## 实施偏差记录(2026-08-18,S01-S06 落地时)
+
+设计总体按文档执行,以下为实施中的有意偏差与实测校准:
+
+1. **`parse_llm_json` 独立成 `evalkit/llm_json.py`**(文档写在 runner.py 迁入):S05 的 judge.py 也要复用,放 runner 会形成 runner→judge→runner 循环 import。判据零改动,纯位置调整
+2. **engine 喜忌字段实测输出中文**(Q3/S03 文档写"英文 element 名需经中英映射",实测 `favorable_elements` 直接是 `['金','土']`):`grounding._element_to_zh` 兼容中英两种输入,未知值显式 raise
+3. **judge overall 本地重算**(N/A 维剔除后取平均,保留 1 位小数),不采信裁判自报算术;scores 是唯一事实源。裁判自报的 `overall` 字段仍校验"必须存在且为数字"(结构完整性),`passed` 一律由重算值推导
+4. **神煞"越界"检测是 8 词 watchlist**(天医/国印/天厨/金匮/三奇贵人/福星贵人/天喜/红鸾):清单外编造词无法穷举扫描,只扫常见项;首轮基线人工复核后按实际误报/漏报扩充
+5. **L2 喜忌信号词「泄/克」未启用**:文档词表含之,但方向有歧义("宜用金泄土"里金是被推荐的),按「宁可漏报」立场首轮不启用;同句兼有推荐+规避信号 → 整句跳过
+6. **run_id 时间戳到秒**(`%Y%m%dT%H%M%S`,文档示例到分):避免同分钟内两次同身份 run 目录互相覆盖
+7. **server 路由顺序**:`GET /api/runs/progress` 必须注册在 `GET /api/runs/{run_id}` 之前(FastAPI 按注册顺序匹配,否则 "progress" 会被当作 run_id)
+8. **l1/l2/l3 的 null 语义**:dry-run / 生成异常 / JSON 解析失败时对应层为 null(无输出可判),文档未显式定义,实现取"null = 未判"而非"空 failures = 通过"
+9. **裁判调用不做缓存**(双 review 2026-08-18 确认为有意取舍):生成响应有 Q6 缓存,但 L3 每轮重打(上界 160 次)。缓存判据结果违反「只存原始响应」原则,而裁判对同一 (response, rubric, judge) 的输出本身有随机性,缓存它等于固化一次抖动。若后续成本敏感,v2 可按 (response_sha, rubric_version, judge_model) 缓存并接受分数固化
+10. **L2 判据代码异常按条目隔离**(与生成侧同粒度):grounding 抛错(如未知五行)不中断整轮 run,记进该条目 error 字段——钱已花的盘不因判据 bug 丢报告,错误仍通过 CLI 退出码 1 显式暴露
+
+遗留真人步骤(代码已就绪):首轮真实基线(160 次调用)前需完成 S05 裁判校准三步 + S06 的 L2 failure 全量人工复核。
 
 ---
 
