@@ -48,6 +48,16 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
   4. iOS `GoldenQueriesTests` PASS（读同一份 golden_queries.json）
 - 搜索质量缺口修复路径：优先补 `curated_aliases.tsv` 回管线重建；**禁止**为单条 query 改排序公式特例（排序公式变更必须显式过全量 golden 表）
 
+### Prompt 回归守护栏（2026-08-18，evalkit S06）
+
+- **强制**：动了 `app/ai/prompts.py` 的 M0-M7 模板（`m0_structure` ~ `m7_manual`）任一，必须 `cd backend && python -m evalkit.runner` 跑一轮且**无 regression**（退出码 0）才算完成
+- 改模板必须同时 bump 对应 `PROMPT_VERSIONS`（老缓存自然失效，同时让 run 身份可辨认；evalkit 响应缓存按渲染后 prompt hash 失效，只重跑改动模块及下游）
+- 有 regression 的正确处理：`cd backend && ./eval.sh` 起 UI（127.0.0.1:8899）看退化清单逐条判断——真退化就改模板，判据误报就修 `evalkit/checks/`；**禁止**直接改 BASELINE 掩盖退化
+- 首轮基线未定（真实跑 20 盘 × 8 模块 = 160 次调用 + L2 failure 全量人工复核 + S05 裁判校准，属真人步骤）；基线定了之后 `backend/evalkit/runs/BASELINE` 进 git
+- L3 裁判配置：`JUDGE_PROVIDER` / `JUDGE_MODEL` / `JUDGE_API_KEY`（默认回落 `AI_*`）；真实 run 默认开裁判，`--skip-judge` 跳过
+- 不接 GitHub Actions（对齐 2026-08-14「本地优先」决定），拦截靠本规则
+- 事实源：`docs/prompt评测机设计决策.md`（含实施偏差记录）+ `docs/prompt评测机-slices/`
+
 ### SwiftData
 
 - 最低 iOS 17.2（17.0/17.1 SwiftData `@Relationship` 有 crash）
@@ -86,6 +96,7 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 设计文档已完成并经过 plan-eng-review（P0 D1/D2/D3 + P1 神煞工作量/iOS 17.2/对盘数据源 已锁定）。
 库选型 spike 已完成（`lunar_python` 1.4.8 实测字段对照表已校准 API 契约）。后端排盘核心 slice 已实现（`backend/`,30 用例对盘通过:库层 20 + 封装层 10）。
 准备进入下一 slice,按 10 个 vertical slice 推进(见 `bazi-app-design-doc.md` Next Steps)。
+2026-08-18:prompt 回归评测机 evalkit 已落地（S01-S06,`backend/evalkit/`,pytest 全绿;见上方「Prompt 回归守护栏」与 `docs/prompt评测机设计决策.md`）,首轮真实基线待跑。
 
 ## Design System
 

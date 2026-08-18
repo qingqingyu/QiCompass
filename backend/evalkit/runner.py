@@ -510,6 +510,7 @@ async def execute_run(
     no_cache: bool = False,
     skip_judge: bool = False,
     judge_client: Any | None = None,
+    progress_cb: Any = None,
 ) -> dict[str, Any]:
     """跑一次完整评测,落盘 runs/<run_id>/,并与基线 diff(若已设置)。
 
@@ -592,6 +593,13 @@ async def execute_run(
                 if entry.get("cached"):
                     cache_hits += 1
             results_file.flush()
+            if progress_cb is not None:
+                # S06 server 进度轮询:每盘完成回调一次(盘粒度足够)
+                progress_cb(
+                    case_id=case_id,
+                    done=sum(verdict_counts.values()),
+                    total=len(cases) * len(selected),
+                )
 
     finished_at = datetime.now(timezone.utc)
     total = sum(verdict_counts.values())
