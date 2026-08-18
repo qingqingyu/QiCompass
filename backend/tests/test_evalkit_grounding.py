@@ -240,3 +240,14 @@ def test_unknown_element_in_ground_truth_raises():
     out = {"s": "宜多用金。"}
     with pytest.raises(ValueError, match="未知五行"):
         check_xiji_consistency("m1_talent", out, engine)
+
+
+def test_chinese_elements_in_ground_truth_accepted():
+    """engine 实测输出中文五行('金'/'土'),直接可用(2026-08-18 实测校准)。"""
+    engine = _engine(favorable_elements=["金", "土"],
+                     unfavorable_elements=["水", "木", "火"])
+    ok = {"s": "金有利,宜多用金。"}
+    assert check_xiji_consistency("m1_talent", ok, engine) == []
+    bad = {"s": "宜多用火,提升行动力。"}
+    failures = check_xiji_consistency("m1_talent", bad, engine)
+    assert any("喜忌矛盾" in f and "火" in f for f in failures)

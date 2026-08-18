@@ -22,8 +22,10 @@ from typing import Any, Iterator
 
 from app.engine.shensha import SHENSHA_NAMES
 
-# ---------- 五行英文→中文(迁自 spikes/prompt_validation/run_spike.py) ----------
-# 单一事实源在 evalkit;run_spike.py 已标失效,其本地拷贝不再动它。
+# ---------- 五行中英映射 ----------
+# 实测(2026-08-18):BaziEngine 的 favorable_elements/unfavorable_elements
+# 直接输出中文('金'/'土');英文映射保留兼容( Spike/老模块语境)。
+# run_spike.py 的 _ELEMENT_ZH 已随其失效标注冻结,此处是 evalkit 侧唯一一份。
 
 _ELEMENT_ZH = {"wood": "木", "fire": "火", "earth": "土",
                "metal": "金", "water": "水"}
@@ -31,13 +33,18 @@ _ELEMENT_CHARS = ("木", "火", "土", "金", "水")
 
 
 def _element_to_zh(element: str) -> str:
-    """五行英文 → 中文。未知值显式 raise(ground truth 出了问题要暴露)。"""
-    try:
+    """五行 → 中文。接受英文(wood/…)或中文(木/…)输入。
+
+    未知值显式 raise(ground truth 出了问题要暴露,不静默跳过)。
+    """
+    if element in _ELEMENT_ZH:
         return _ELEMENT_ZH[element]
-    except KeyError as e:
-        raise ValueError(
-            f"未知五行英文值: {element!r}(合法值: {sorted(_ELEMENT_ZH)})"
-        ) from e
+    if element in _ELEMENT_CHARS:
+        return element
+    raise ValueError(
+        f"未知五行值: {element!r}"
+        f"(合法: 英文 {sorted(_ELEMENT_ZH)} 或中文 {list(_ELEMENT_CHARS)})"
+    )
 
 
 # ---------- 共享文本工具 ----------

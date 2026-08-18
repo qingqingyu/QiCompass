@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
-"""evalkit runner:编排 排盘 → v1 链式生成(M0-M7)→ 判据 → 落盘。
+"""evalkit runner:编排 排盘 → v1 链式生成(M0-M7)→ 判据 → 缓存/落盘/diff。
 
 提炼自 spikes/prompt_validation/run_v1_chain_spike.py(async 用法正确的那条线;
 老 run_spike.py 的同步调用 async bug 见其 docstring 标注)。判据层:
-L1 确定性(S02)/ L2 接地(S03)/ L3 裁判(S05)在各自 slice 接线。
+L1 确定性(checks/deterministic)/ L2 接地(checks/grounding)/ L3 裁判(S05)。
 
 用法:
     cd backend
@@ -14,6 +14,9 @@ L1 确定性(S02)/ L2 接地(S03)/ L3 裁判(S05)在各自 slice 接线。
     set -a; source .env; set +a
     python -m evalkit.runner --case-limit 1
 
+    # 跑完自动与 runs/BASELINE 对比;有 regressed → 退出码 1
+    python -m evalkit.runner
+
 依赖图(与 app/ai/prompts.py REQUIRED_FIELDS 对齐;上游输出写回 chain_ctx):
     M0 → [structure_fingerprint, main_axis, core_loop]
     M1 (M0) → [innate, defensive, one_leverage]
@@ -23,14 +26,14 @@ L1 确定性(S02)/ L2 接地(S03)/ L3 裁判(S05)在各自 slice 接线。
     M5 (M0 + M1 + M3 + 用户输入)
     M6 (M0 + M1 + M2) → [leverage]
     M7 (M1 + M2 + M3 + M6,不传 chart)
-    M4/M5 的输出不写回 chain_ctx(无下游)。
+    M4/M5 的输出不写回 chain_ctx(无下游)。改 M2 模板 → 缓存只失效
+    M2 及下游 M6/M7;改 M5 → 只失效 M5(无下游)。
 """
 
 from __future__ import annotations
 
 import argparse
 import asyncio
-import hashlib
 import json
 import logging
 import sys
@@ -43,7 +46,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.ai.client import AIClient, create_ai_client
-from app.ai.prompts import PROMPT_VERSIONS, render_prompt
+from app.ai.prompts import PROMPT_VERSIONS, REQUIRED_FIELDS, render_prompt
 from app.config import (
     AI_PROVIDER,
     ANTHROPIC_API_KEY,
@@ -60,10 +63,19 @@ from .cases import CASES, CASES_HASH, parse_birth
 from .checks.deterministic import validate_v1_module_output
 from .checks.grounding import check_grounding
 from .llm_json import parse_llm_json
+from .store import (
+    RUNS_DIR,
+    build_run_identity,
+    cache_get,
+    cache_put,
+    compute_verdict,
+    diff_runs,
+    make_cache_key,
+    make_run_id,
+    read_baseline,
+)
 
 logger = logging.getLogger("evalkit.runner")
-
-RUNS_DIR = Path(__file__).parent / "runs"
 
 V1_MODULES: tuple[str, ...] = (
     "m0_structure", "m1_talent", "m2_high_low", "m3_system",
@@ -122,33 +134,6 @@ def _apply_dry_run_placeholders(chain_ctx: dict[str, Any]) -> None:
         chain_ctx.setdefault(key, value)
 
 
-# ---------- run 身份(Q5 六维) ----------
-
-def build_run_identity(
-    provider: str, model: str, *,
-    rubric_version: int = 0, judge_model: str = "",
-) -> dict[str, Any]:
-    """六维身份:任一维变 = 新 run。S05 接裁判后 rubric/judge 为真实值。"""
-    return {
-        "prompt_versions": {m: PROMPT_VERSIONS[m] for m in V1_MODULES},
-        "provider": provider,
-        "model": model,
-        "rubric_version": rubric_version,
-        "judge_model": judge_model,
-        "cases_hash": CASES_HASH,
-    }
-
-
-def make_run_id(identity: dict[str, Any]) -> str:
-    """时间戳(可排序)+ 身份摘要短 hash(同身份可辨认)。"""
-    canonical = json.dumps(
-        identity, ensure_ascii=False, sort_keys=True, separators=(",", ":"),
-    )
-    digest = hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:6]
-    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M")
-    return f"{stamp}-{digest}"
-
-
 # ---------- 模块选择 ----------
 
 def resolve_selected_modules(spec: list[str] | None) -> list[str]:
@@ -188,29 +173,54 @@ async def _call_module(
     *,
     module: str,
     context: dict[str, Any],
-    ai_client: AIClient,
+    ai_client: Any,
     dry_run: bool,
-) -> tuple[str, dict[str, Any] | None, list[str]]:
-    """单模块调用:render_prompt → LLM → parse → validate。
+    case_id: str,
+    use_cache: bool,
+    runs_dir: Path,
+) -> tuple[str, dict[str, Any] | None, list[str], bool]:
+    """单模块调用:render → (缓存 | LLM) → parse → validate。
 
     Returns:
-        (rendered_prompt, parsed_json, validation_failures)
-        dry_run 模式下 parsed_json=None,failures=[]
+        (rendered_prompt, parsed_json, validation_failures, cached)
+        dry_run 模式下 parsed_json=None,failures=[],cached=False
+
+    缓存键含渲染后 prompt sha256 + 上游注入内容 sha256:只改某模块模板
+    → 只该模块(及输出注入下游的模块)miss,其余命中。
     """
     rendered = render_prompt(module, context)
     if dry_run:
-        return rendered, None, []
+        return rendered, None, [], False
 
-    temperature = resolve_temperature(module)
-    response = await ai_client.interpret(rendered, temperature=temperature)
+    upstream_payload = {
+        k: context[k] for k in REQUIRED_FIELDS[module] if k != "chart"
+    }
+    key = make_cache_key(
+        case_id=case_id, module=module,
+        prompt_version=PROMPT_VERSIONS[module],
+        provider=ai_client.provider, model=ai_client.model,
+        rendered_prompt=rendered, upstream_payload=upstream_payload,
+    )
+
+    cached = False
+    if use_cache:
+        response = cache_get(key, runs_dir)
+        if response is not None:
+            cached = True
+    if not cached:
+        temperature = resolve_temperature(module)
+        response = await ai_client.interpret(
+            rendered, temperature=temperature)
+        if use_cache:
+            cache_put(key, response, runs_dir)
 
     try:
         parsed = parse_llm_json(response)
     except ValueError as e:
-        return rendered, None, [f"JSON 解析失败: {e}"]
+        return rendered, None, [f"JSON 解析失败: {e}"], cached
 
     failures = validate_v1_module_output(module, parsed)
-    return rendered, parsed, failures
+    return rendered, parsed, failures, cached
 
 
 async def _run_one_module(
@@ -218,13 +228,16 @@ async def _run_one_module(
     module: str,
     context: dict[str, Any],
     case_dir: Path,
-    ai_client: AIClient,
+    ai_client: Any,
     dry_run: bool,
+    case_id: str,
+    use_cache: bool,
+    runs_dir: Path,
 ) -> dict[str, Any]:
     """跑单个模块,落盘 prompt + response,返回 status dict。
 
-    status: {ok, elapsed_ms, failures(schema/禁词类质量问题),
-              error(异常类,与 fail 区分), parsed}
+    status: {ok, elapsed_ms, failures(L1 质量), error(异常,与 fail 区分),
+              parsed, cached}
     """
     module_dir = case_dir / module
     module_dir.mkdir(parents=True, exist_ok=True)
@@ -234,13 +247,15 @@ async def _run_one_module(
     parsed: dict[str, Any] | None = None
     failures: list[str] = []
     error: str | None = None
+    cached = False
     try:
-        rendered, parsed, failures = await _call_module(
+        rendered, parsed, failures, cached = await _call_module(
             module=module, context=context,
             ai_client=ai_client, dry_run=dry_run,
+            case_id=case_id, use_cache=use_cache, runs_dir=runs_dir,
         )
     except Exception as e:
-        logger.error("[%s] %s 异常", case_dir.name, module, exc_info=True)
+        logger.error("[%s] %s 异常", case_id, module, exc_info=True)
         error = f"{type(e).__name__}: {e}"
 
     elapsed_ms = round((time.perf_counter() - start) * 1000, 1)
@@ -258,6 +273,7 @@ async def _run_one_module(
         "failures": failures,
         "error": error,
         "parsed": parsed,
+        "cached": cached,
     }
 
 
@@ -301,6 +317,8 @@ async def run_chain_for_case(
     case_dir: Path,
     dry_run: bool,
     selected_modules: list[str],
+    use_cache: bool,
+    runs_dir: Path,
 ) -> list[dict[str, Any]]:
     """跑一盘 × 选中模块全链路,返回每 (case, module) 一条的 entries。
 
@@ -331,7 +349,8 @@ async def run_chain_for_case(
         logger.error("[%s] 排盘失败", case_id, exc_info=True)
         return [
             {**common, "module": m, "prompt_version": PROMPT_VERSIONS[m],
-             "elapsed_ms": 0.0, "ok": False, "l1": None, "l2": None,
+             "elapsed_ms": 0.0, "l1": None, "l2": None, "cached": False,
+             "verdict": "error",
              "error": f"排盘失败: {type(e).__name__}: {e}"}
             for m in selected_modules
         ]
@@ -354,7 +373,8 @@ async def run_chain_for_case(
             entries.append({
                 **common, "module": module,
                 "prompt_version": PROMPT_VERSIONS[module],
-                "elapsed_ms": 0.0, "ok": False, "l1": None, "l2": None,
+                "elapsed_ms": 0.0, "l1": None, "l2": None,
+                "cached": False, "verdict": "error",
                 "error": "链路中断:M0 失败,下游未执行",
             })
             continue
@@ -371,7 +391,9 @@ async def run_chain_for_case(
         status = await _run_one_module(
             module=module, context=context, case_dir=case_dir,
             ai_client=ai_client, dry_run=dry_run,
+            case_id=case_id, use_cache=use_cache, runs_dir=runs_dir,
         )
+
         # L1 接线:dry-run 无输出可判;异常(error)无输出可判 → l1 均为 null
         l1 = None
         if not dry_run and status["error"] is None:
@@ -386,13 +408,16 @@ async def run_chain_for_case(
             )
             l2 = {"passed": not grounding_failures,
                   "failures": grounding_failures}
+
+        verdict = compute_verdict(
+            l1=l1, l2=l2, error=status["error"], judge_enabled=False)
         entries.append({
             **common, "module": module,
             "prompt_version": PROMPT_VERSIONS[module],
             "elapsed_ms": status["elapsed_ms"],
-            "l1": l1,
-            "l2": l2,
-            "ok": status["ok"],
+            "l1": l1, "l2": l2,
+            "cached": status["cached"],
+            "verdict": verdict,
             "error": status["error"],
         })
 
@@ -449,8 +474,9 @@ async def execute_run(
     run_id: str | None = None,
     runs_dir: Path | None = None,
     ai_client: Any | None = None,
+    no_cache: bool = False,
 ) -> dict[str, Any]:
-    """跑一次完整评测,落盘 runs/<run_id>/。
+    """跑一次完整评测,落盘 runs/<run_id>/,并与基线 diff(若已设置)。
 
     Args:
         dry_run: 不调 AI(排盘 + 渲染 + 链式注入验证)
@@ -458,9 +484,10 @@ async def execute_run(
         modules: 选中模块(None=全部 8 个;上游必须齐全)
         run_id / runs_dir: 测试注入(默认按身份生成 / evalkit/runs/)
         ai_client: 测试注入的 client(None=按 env 构造 / dry-run 占位)
+        no_cache: 忽略并绕过响应缓存,强制全量调 API(换模型/验证抖动用)
 
     Returns:
-        summary(run_id / 总数 / ok / fail / error 计数)
+        summary(run_id / 计数 / 缓存命中 / diff 结果)
     """
     runs_dir = runs_dir if runs_dir is not None else RUNS_DIR
     selected = resolve_selected_modules(modules)
@@ -479,17 +506,22 @@ async def execute_run(
             openai_base_url=OPENAI_BASE_URL,
         ))
 
-    identity = build_run_identity(client.provider, client.model)
+    identity = build_run_identity(
+        client.provider, client.model,
+        modules=V1_MODULES, cases_hash=CASES_HASH,
+    )
     run_id = run_id or make_run_id(identity)
     run_dir = runs_dir / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
 
+    use_cache = (not dry_run) and (not no_cache)
     started_at = datetime.now(timezone.utc)
     cases = CASES[:case_limit] if case_limit else CASES
 
     engine = BaziEngine(now=_FIXED_NOW)
     results_path = run_dir / "results.jsonl"
-    total = ok_count = fail_count = error_count = 0
+    verdict_counts = {"pass": 0, "warn": 0, "fail": 0, "error": 0}
+    cache_hits = 0
 
     with open(results_path, "w", encoding="utf-8") as results_file:
         for idx, case in enumerate(cases):
@@ -502,20 +534,18 @@ async def execute_run(
                 case=case, case_id=case_id, engine=engine,
                 ai_client=client, case_dir=run_dir / case_id,
                 dry_run=dry_run, selected_modules=selected,
+                use_cache=use_cache, runs_dir=runs_dir,
             )
             for entry in entries:
                 results_file.write(
                     json.dumps(entry, ensure_ascii=False) + "\n")
-                total += 1
-                if entry["error"] is not None:
-                    error_count += 1
-                elif entry["ok"]:
-                    ok_count += 1
-                else:
-                    fail_count += 1
+                verdict_counts[entry["verdict"]] += 1
+                if entry.get("cached"):
+                    cache_hits += 1
             results_file.flush()
 
     finished_at = datetime.now(timezone.utc)
+    total = sum(verdict_counts.values())
     meta = {
         "run_id": run_id,
         "identity": identity,
@@ -525,25 +555,42 @@ async def execute_run(
         "started_at": started_at.isoformat(),
         "finished_at": finished_at.isoformat(),
         "api_calls": client.calls,
+        "cache_hits": cache_hits,
         "elapsed_ms": round(
             (finished_at - started_at).total_seconds() * 1000, 1),
-        "counts": {"total": total, "ok": ok_count,
-                   "fail": fail_count, "error": error_count},
+        "counts": {"total": total, **verdict_counts},
     }
     (run_dir / "meta.json").write_text(
         json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
 
-    return {
+    summary: dict[str, Any] = {
         "run_id": run_id, "run_dir": run_dir, "dry_run": dry_run,
-        "total": total, "ok": ok_count,
-        "fail": fail_count, "error": error_count,
-        "api_calls": client.calls,
+        "total": total, **verdict_counts,
+        "api_calls": client.calls, "cache_hits": cache_hits,
     }
 
-
-def _log_case_summary(case_id: str, entries: list[dict[str, Any]]) -> None:
-    ok = sum(1 for e in entries if e["ok"])
-    logger.info("[%s] modules ok: %d/%d", case_id, ok, len(entries))
+    # 与基线 diff(只在真实 run 后;dry-run 无判据,diff 无意义)
+    if not dry_run:
+        try:
+            baseline = read_baseline(runs_dir)
+        except RuntimeError as e:
+            summary["diff_error"] = str(e)
+            return summary
+        if baseline is None:
+            summary["baseline"] = None
+        else:
+            summary["baseline"] = baseline
+            diff = diff_runs(baseline, run_id, runs_dir)
+            summary["diff"] = {
+                "regressed": diff.regressed,
+                "fixed": diff.fixed,
+                "still_failing": diff.still_failing,
+                "unchanged": diff.unchanged_count,
+                "skipped": diff.skipped,
+                "new": diff.new,
+                "identity_diff": diff.identity_diff,
+            }
+    return summary
 
 
 def main() -> None:
@@ -573,6 +620,10 @@ def main() -> None:
         "--output-dir", type=str, default=None,
         help="run 输出目录(默认 evalkit/runs/<run_id>)",
     )
+    parser.add_argument(
+        "--no-cache", action="store_true",
+        help="绕过响应缓存强制全量调 API(换模型/验证温度抖动时用)",
+    )
     args = parser.parse_args()
 
     modules_list: list[str] | None = None
@@ -598,21 +649,45 @@ def main() -> None:
         modules=modules_list,
         run_id=run_id,
         runs_dir=runs_dir,
+        no_cache=args.no_cache,
     ))
 
     print("=" * 64)
     print(f"run: {summary['run_id']}")
     print(f"模式: {'dry-run(不调 AI)' if summary['dry_run'] else 'real API'}")
-    print(f"条目: {summary['total']}(ok={summary['ok']} "
-          f"fail={summary['fail']} error={summary['error']})")
-    print(f"API 调用: {summary['api_calls']}")
+    print(f"条目: {summary['total']}(pass={summary['pass']} "
+          f"warn={summary['warn']} fail={summary['fail']} "
+          f"error={summary['error']})")
+    print(f"API 调用: {summary['api_calls']}"
+          + (f"(缓存命中 {summary['cache_hits']})" if not summary["dry_run"] else ""))
     print("=" * 64)
-    if summary["fail"] == 0 and summary["error"] == 0:
-        print(f"结果: PASS({summary['ok']}/{summary['total']})")
+
+    if "diff_error" in summary:
+        print(f"ERROR(diff): {summary['diff_error']}")
+        sys.exit(2)
+
+    diff = summary.get("diff")
+    if summary.get("baseline") is None and not summary["dry_run"]:
+        print("基线: 未设置(首个 run 可用 python -m evalkit.store "
+              "--set-baseline <run_id> 设为基线)")
+    elif diff is not None:
+        if diff["identity_diff"]:
+            print("⚠️ 与基线的 run 身份有差异(退化可能是环境差异而非模板问题):")
+            for dim, (b, c) in diff["identity_diff"].items():
+                print(f"  {dim}: {b} → {c}")
+        print(f"vs 基线 {summary['baseline']}: regressed={len(diff['regressed'])} "
+              f"fixed={len(diff['fixed'])} still_failing={len(diff['still_failing'])} "
+              f"unchanged={diff['unchanged']}")
+        for case_id, module in diff["regressed"]:
+            print(f"  REGRESSED  {case_id} / {module}")
+
+    if summary["fail"] == 0 and summary["error"] == 0 and (
+            diff is None or not diff["regressed"]):
+        print(f"结果: PASS({summary['pass']}/{summary['total']})")
         sys.exit(0)
     else:
-        print(f"结果: FAIL(fail={summary['fail']} "
-              f"error={summary['error']})")
+        print(f"结果: FAIL(fail={summary['fail']} error={summary['error']}"
+              + (f" regressed={len(diff['regressed'])}" if diff else "") + ")")
         sys.exit(1)
 
 
