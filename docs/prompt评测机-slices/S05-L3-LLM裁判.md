@@ -62,6 +62,7 @@ JUDGE_API_KEY    默认 = 对应 provider 的 key
   }
   ```
 - `verdict` 补全(S04 留的口子):L1/L2 任一 fail → `fail`;`error` 非空 → `error`;否则 L3 `overall >= 4.0` → `pass`,`< 4.0` → `warn`
+- **diff 语义(与 S04 四分类的衔接,2026-08-18 review 补)**:`warn` 视同 `pass` 参与 diff——baseline pass → current warn **不计入** regressed。理由:L3 裁判分数有随机抖动,4.0 边界来回摆会把 regressed 变成"闪烁红",违背「红色必须可信」;两轮的 L3 overall 分差在 UI 详情抽屉展示,缓变退化(如 4.5→3.9)可见但不染红。硬退化由 L1/L2 fail 与 error 兜底
 - `RunIdentity` 的 `rubric_version` / `judge_model` 从占位值改为真实值
 
 ## 裁判校准(本 slice 的硬验收)

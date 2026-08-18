@@ -49,7 +49,7 @@ QiCompass 是**确定性排盘 + LLM 叙事**的混合结构。两层的回归�
 | Q3 | 判据分层 | **L1 确定性 / L2 接地 / L3 LLM 裁判** 三层,越往上越贵;新失败模式优先下沉到 L2 |
 | Q4 | 裁判配置 | 独立 `JUDGE_PROVIDER` / `JUDGE_MODEL` / `JUDGE_API_KEY`,默认回落现有 `AI_*`;复用 `create_ai_client()`,**不新写 HTTP client** |
 | Q5 | Run 身份 | `(prompt_versions 快照, provider, model, rubric_version, judge_model, cases_hash)`;任一维变了即新 run |
-| Q6 | 成本控制 | 响应缓存键含**渲染后 prompt 的 sha256 + 上游注入内容**;只改 M5 → 只重跑 M5 及下游 M7 |
+| Q6 | 成本控制 | 响应缓存键含**渲染后 prompt 的 sha256 + 上游注入内容**;只改 M2 → 只重跑 M2 及下游 M6/M7 |
 | Q7 | 基线与 diff | `runs/BASELINE` 单行 run_id **进 git**,`runs/*/` 其余 gitignore;diff 四分类 regressed / fixed / still_failing / unchanged |
 | Q8 | UI | vanilla HTML/JS 单页,零构建零新依赖;退化清单置顶 + 20×8 矩阵;遵循 `DESIGN.md` 色板 |
 | Q9 | 落地 | S01-S06 vertical slice;CLAUDE.md 增补守护栏(动 M0-M7 模板必跑 evalkit 且无 regression) |
@@ -115,7 +115,7 @@ backend/evalkit/
 | **神煞不超界** | 输出中出现的神煞名 ⊆ `SHENSHA_NAMES`(20 固定清单)∩ 本盘 `engine_result["shensha"]` 实际命中项 | ADR-0005 |
 | **格局红线** | 扫"正官格 / 偏印格 / 七杀格 / 伤官格"等硬分类,命中即 fail | ADR-0006、CLAUDE.md「只准命局呈现××倾向」 |
 | **special_pattern 诚实** | 5 个特殊盘上 `favorable_elements` 为空时不得编造喜忌,且须出现"不入常格"类表述 | ADR-0007 |
-| **链式一致性** | M1-M6 上下文里注入的 `structure_fingerprint` 逐字等于 M0 产出;M7 引用的 M1/M2/M3/M6 字段同理 | v1 链式设计 |
+| **链式一致性** | M1-M6 上下文里注入的 `structure_fingerprint` 逐字等于 M0 产出。M7 **不做逐字判**(模板明写"不要复述前面的分析",输出是改写非 echo,见 S03) | v1 链式设计 |
 
 神煞清单**从 `app/engine/shensha.py:240 SHENSHA_NAMES` 取,不复制第二份**——复制即引入第二事实源,与城市搜索系列的「单一事实源」红线同理。
 
@@ -165,7 +165,9 @@ JUDGE_API_KEY    默认 = 对应 provider 的 key
 
 含「渲染后 prompt 的 sha256」而非只含 `prompt_version`,理由同 `app/ai/cache_key.py` 的 `prompt_hash` 维度:防止同 `content_hash` 不同 context 污染。含「上游注入内容」是链式特有——M0 输出变了,M1-M7 的缓存必须失效。
 
-效果:只改了 M5 的模板 → 只重跑 M5 及其下游 M7,其余 6 模块全部命中缓存。
+效果:只改了 M2 的模板 → 只重跑 M2 及其下游 M6/M7(threshold → M6、switch_actions → M7),其余 5 模块全部命中缓存。
+
+> 2026-08-18 review 勘误:原文写「只改 M5 → 重跑 M5 及下游 M7」有误。实际依赖图(S01 / `run_v1_chain_spike.py` chain_ctx 注入)中 **M5 的输出不写回 chain_ctx,M5 没有下游**——只改 M5 则仅 M5 重跑。逐模块下游:M0→全部;M1→M2/M5/M6/M7;M2→M6/M7;M3→M5/M7;M6→M7;M4/M5→无。
 
 `--no-cache` 强制全量重跑(换模型、验证温度抖动时用)。
 
@@ -179,6 +181,8 @@ JUDGE_API_KEY    默认 = 对应 provider 的 key
 | `fixed` | baseline fail → current pass | 次要区域,墨青 |
 | `still_failing` | 两边都 fail | 折叠区 |
 | `unchanged` | 两边都 pass | 只计数 |
+
+> S05 引入第四态 `warn`(L3 overall < 4.0)后的 diff 语义:**`warn` 视同 `pass` 参与上表四分类,不计入 regressed**。理由:L3 裁判分数有随机抖动,4.0 边界来回摆会把 regressed 变成"闪烁红",违背「红色必须可信」;两轮 L3 overall 分差在 UI 详情抽屉展示,缓变退化可见但不染红。硬退化由 L1/L2 fail 与 error 兜底。
 
 `runs/BASELINE` 单行文本记当前基线 run_id,**进 git**(团队/多机共享同一基线);`runs/*/` 其余内容 gitignore(体积大且可重生成)。
 

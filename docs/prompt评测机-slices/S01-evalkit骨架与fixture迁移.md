@@ -62,7 +62,14 @@
    ```
    **只改 docstring,不动代码**。
 
-6. **`.gitignore`** 增补:`backend/evalkit/runs/` 忽略,但 `!backend/evalkit/runs/BASELINE` 例外(S04 才写入,此处先留规则)。
+6. **`.gitignore`** 增补(S04 才写入 BASELINE,此处先留规则)。**注意写法**——git 不下探被目录级规则忽略的目录,`backend/evalkit/runs/`(目录式)忽略会让 `!` 例外永远不生效;必须忽略目录**内容**:
+
+   ```
+   backend/evalkit/runs/*
+   !backend/evalkit/runs/BASELINE
+   ```
+
+   落地后用 `git check-ignore -v backend/evalkit/runs/BASELINE` 验证例外确实生效(2026-08-18 review 修正)。
 
 ## Acceptance criteria
 
@@ -72,7 +79,7 @@
 - [ ] dry-run 产物齐:每个 `case_NN/<module>/prompt.txt` 存在且非空,`meta.json` 含 Q5 六维身份
 - [ ] `--case-limit 3` / `--modules m0_structure` 生效;`--modules m1_talent`(缺上游 M0)**显式报错**,不静默注入空 fingerprint
 - [ ] `run_spike.py` docstring 顶部有失效标注,**代码零改动**(`git diff` 只有 docstring 行)
-- [ ] `.gitignore` 规则就位
+- [ ] `.gitignore` 规则就位且 `git check-ignore -v` 确认 BASELINE 不被忽略(目录式 `runs/` 写法会让例外失效)
 - [ ] 现有测试全绿:`cd backend && pytest`(确认没影响 30 用例对盘与既有 spike 测试)
 
 ## 实现锚点(现状快照 2026-08-17,实施以代码为准)

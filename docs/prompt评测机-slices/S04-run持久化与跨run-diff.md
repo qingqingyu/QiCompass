@@ -78,7 +78,9 @@ backend/evalkit/runs/
 - `--no-cache` 强制全量重跑(换模型、验证温度抖动时用)
 - `meta.json` 记录缓存命中数,CLI 摘要打印"本轮 N 次调用,M 次命中缓存"
 
-**验收效果**:只改 M5 模板 + bump `PROMPT_VERSIONS["m5_wealth"]` → 只重跑 M5 及下游 M7,其余 6 模块全部命中。
+**验收效果**:只改 M2 模板 + bump `PROMPT_VERSIONS["m2_high_low"]` → 只重跑 M2 及下游 M6/M7(threshold → M6、switch_actions → M7),其余 5 模块全部命中。
+
+> 2026-08-18 review 勘误:原文写「只改 M5 → 重跑 M5 及下游 M7」有误。实际依赖图中 **M5 的输出不写回 chain_ctx,M5 没有下游**(只改 M5 则仅 M5 重跑);逐模块下游:M0→全部;M1→M2/M5/M6/M7;M2→M6/M7;M3→M5/M7;M6→M7;M4/M5→无。
 
 ### 4. 跨 run diff(Q7)
 
@@ -94,6 +96,8 @@ def diff_runs(baseline_run_id: str, current_run_id: str) -> DiffResult
 | `fixed` | baseline `fail`/`error` → current `pass` | 次要展示 |
 | `still_failing` | 两边都非 pass | 折叠 |
 | `unchanged` | 两边都 pass | 只计数 |
+
+> S05 引入第四态 `warn` 后:本表四分类定义不变,**`warn` 视同 `pass` 参与 diff**(baseline pass → current warn 不算 regressed,详见设计决策 Q7 的 diff 语义注)。
 
 - baseline 有而 current 没有的键(如 current 用了 `--modules` 子集)→ 归入 `skipped`,**不计入 regressed**(否则跑子集会误报一片红)
 - current 有而 baseline 没有的键(新增模块/新增盘)→ 归入 `new`
@@ -116,7 +120,7 @@ def diff_runs(baseline_run_id: str, current_run_id: str) -> DiffResult
 - [ ] `--no-cache` 强制全量
 - [ ] `diff_runs()` 四分类 + `skipped` + `new` 正确;跑 `--modules` 子集**不误报 regressed**
 - [ ] 有退化时 CLI 退出码 1,无退化 0,脚本错误 2
-- [ ] `--set-baseline` 写入 `runs/BASELINE`;`.gitignore` 规则确认(runs/ 忽略但 BASELINE 例外)
+- [ ] `--set-baseline` 写入 `runs/BASELINE`;`.gitignore` 规则确认(`runs/*` 内容式忽略 + BASELINE 例外,`git check-ignore -v` 验证例外生效)
 - [ ] 单测全绿(见「测试」),**零 API 调用**
 - [ ] `pytest backend/tests/` 全绿
 
@@ -128,7 +132,7 @@ def diff_runs(baseline_run_id: str, current_run_id: str) -> DiffResult
 - `backend/evalkit/cases.py` — S01 产出的 `CASES_HASH`
 - `backend/evalkit/runner.py` — S01 产出,本 slice 接线
 - `tools/check_prompt_sync.py` — 退出码约定参考(0 PASS / 1 FAIL / 2 脚本自身错误)
-- `.gitignore` — S01 已加 `backend/evalkit/runs/` + `!.../BASELINE` 例外,本 slice 确认生效
+- `.gitignore` — S01 已加 `backend/evalkit/runs/*` + `!.../BASELINE` 例外(必须内容式忽略,目录式 `runs/` 会让例外失效),本 slice 确认生效
 
 ## 红线与约束
 
@@ -151,4 +155,4 @@ def diff_runs(baseline_run_id: str, current_run_id: str) -> DiffResult
 - 缓存文件损坏(写入非法 JSON)→ `pytest.raises`,不静默 miss
 - `BASELINE` 指向不存在 run → `pytest.raises`
 
-手工验收(需 API key,S05/S06 前可选):跑一轮 → 改一个模块的模板 + bump 版本 → 重跑,确认 CLI 摘要显示"仅 2 次调用(M5、M7),6 次命中缓存"。
+手工验收(需 API key,S05/S06 前可选):跑一轮 → 改一个模块的模板 + bump 版本 → 重跑,确认 CLI 摘要显示"仅 3 次调用(M2、M6、M7),5 次命中缓存"。
