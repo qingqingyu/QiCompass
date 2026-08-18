@@ -58,6 +58,7 @@ from app.engine.chart_builder import build_v1_chart
 
 from .cases import CASES, CASES_HASH, parse_birth
 from .checks.deterministic import validate_v1_module_output
+from .checks.grounding import check_grounding
 from .llm_json import parse_llm_json
 
 logger = logging.getLogger("evalkit.runner")
@@ -330,7 +331,7 @@ async def run_chain_for_case(
         logger.error("[%s] 排盘失败", case_id, exc_info=True)
         return [
             {**common, "module": m, "prompt_version": PROMPT_VERSIONS[m],
-             "elapsed_ms": 0.0, "ok": False, "l1": None,
+             "elapsed_ms": 0.0, "ok": False, "l1": None, "l2": None,
              "error": f"排盘失败: {type(e).__name__}: {e}"}
             for m in selected_modules
         ]
@@ -342,6 +343,8 @@ async def run_chain_for_case(
 
     entries: list[dict[str, Any]] = []
     chain_broken = False
+    # 已完成模块的 parsed 输出(L2 链式一致性需要上游结论做 ground truth)
+    chain_outputs: dict[str, dict[str, Any]] = {}
 
     for module in V1_MODULES:
         if module not in selected_modules:
@@ -351,7 +354,7 @@ async def run_chain_for_case(
             entries.append({
                 **common, "module": module,
                 "prompt_version": PROMPT_VERSIONS[module],
-                "elapsed_ms": 0.0, "ok": False, "l1": None,
+                "elapsed_ms": 0.0, "ok": False, "l1": None, "l2": None,
                 "error": "链路中断:M0 失败,下游未执行",
             })
             continue
@@ -374,11 +377,21 @@ async def run_chain_for_case(
         if not dry_run and status["error"] is None:
             l1 = {"passed": not status["failures"],
                   "failures": status["failures"]}
+        # L2 接线:有 parsed 输出才判(解析失败/异常 → null)
+        l2 = None
+        if not dry_run and status["error"] is None and status["parsed"] is not None:
+            grounding_failures = check_grounding(
+                module, status["parsed"], engine_result,
+                chain_context=dict(chain_outputs),
+            )
+            l2 = {"passed": not grounding_failures,
+                  "failures": grounding_failures}
         entries.append({
             **common, "module": module,
             "prompt_version": PROMPT_VERSIONS[module],
             "elapsed_ms": status["elapsed_ms"],
             "l1": l1,
+            "l2": l2,
             "ok": status["ok"],
             "error": status["error"],
         })
@@ -386,6 +399,7 @@ async def run_chain_for_case(
         parsed = status["parsed"]
         if status["ok"] and not dry_run and parsed is not None:
             _write_back_chain_ctx(chain_ctx, module, parsed)
+            chain_outputs[module] = parsed
         elif module == "m0_structure" and not status["ok"]:
             chain_broken = True
 
