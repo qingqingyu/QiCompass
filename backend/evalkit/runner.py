@@ -43,7 +43,6 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.ai.client import AIClient, create_ai_client
-from app.ai.forbidden_words import scan as scan_forbidden_words
 from app.ai.prompts import PROMPT_VERSIONS, render_prompt
 from app.config import (
     AI_PROVIDER,
@@ -58,6 +57,7 @@ from app.engine.bazi_engine import BaziEngine
 from app.engine.chart_builder import build_v1_chart
 
 from .cases import CASES, CASES_HASH, parse_birth
+from .checks.deterministic import validate_v1_module_output
 from .llm_json import parse_llm_json
 
 logger = logging.getLogger("evalkit.runner")
@@ -119,110 +119,6 @@ def _apply_dry_run_placeholders(chain_ctx: dict[str, Any]) -> None:
     """dry-run 模式:把所有链式字段填 placeholder(模拟上游 LLM 输出)。"""
     for key, value in _DRY_RUN_PLACEHOLDERS.items():
         chain_ctx.setdefault(key, value)
-
-
-# ---------- v1 模块 schema 校验(S01 暂驻 runner,S02 迁入 checks/) ----------
-
-_MODULE_REQUIRED_FIELDS: dict[str, tuple[str, ...]] = {
-    "m0_structure": (
-        "main_axis", "core_loop", "structure_type",
-        "capability_source", "structure_fingerprint",
-    ),
-    "m1_talent": ("innate", "trained", "defensive", "one_leverage"),
-    "m2_high_low": (
-        "high_config", "low_config", "threshold",
-        "early_warnings", "switch_actions",
-    ),
-    "m3_system": (
-        "operating_mode", "failure_environments",
-        "ideal_life_structure", "stability_vs_volatility",
-        "environment_checklist",
-    ),
-    "m4_health": (
-        "battery_type", "imbalance_risks", "recovery_levers",
-        "reset_7day", "weekly_maintenance", "medical_note",
-    ),
-    "m5_wealth": (
-        "income_forms", "leaks", "strategies",
-        "asset_ideas", "disclaimer",
-    ),
-    "m6_dynamics": (
-        "energy_path", "leverage", "vulnerability", "upgrade_path",
-    ),
-    "m7_manual": (
-        "true_leverage", "use_cases", "next_90_days",
-        "falsification_signals",
-    ),
-}
-
-# v1 §4 扩展禁词(生产 app/ai/forbidden_words.py 当前只含 ABSOLUTE_CONCLUSIONS,
-# 不含寿元/绝症/必赚/稳赚/包治/血光/克夫/大凶/劫难/破财 等)。
-# evalkit 用扩展列表做更严的校验,识别"v1 §4 禁止但生产未禁"的输出。
-# 生产是否同步扩展由后续决策(暂不扩,避免影响老 module)。
-_V1_EXTENDED_FORBIDDEN_WORDS: tuple[str, ...] = (
-    "注定", "必然", "命中该", "逃不掉", "破财", "血光",
-    "克夫", "大凶", "劫难", "寿元", "绝症", "必赚", "稳赚", "包治",
-)
-
-
-def validate_v1_module_output(module: str, parsed: dict[str, Any]) -> list[str]:
-    """校验 LLM 输出 JSON 是否符合 v1 §3 schema。
-
-    Returns:
-        failures 列表(空 = 全过)
-    """
-    failures: list[str] = []
-
-    # 1. 必填顶层字段
-    required = _MODULE_REQUIRED_FIELDS.get(module, ())
-    missing = [f for f in required if f not in parsed]
-    if missing:
-        failures.append(f"缺字段:{missing}")
-
-    # 2. structure_fingerprint 长度(M0 必填,≤ 40 字)
-    if module == "m0_structure":
-        fp = parsed.get("structure_fingerprint", "")
-        if not isinstance(fp, str) or not fp:
-            failures.append("structure_fingerprint 为空或非 str")
-        elif len(fp) > 40:
-            failures.append(
-                f"structure_fingerprint 长度 {len(fp)} 超 40 字: {fp!r}"
-            )
-
-    # 3. 数组字段长度约束
-    array_constraints = {
-        "m2_high_low": [("early_warnings", 3), ("switch_actions", 3)],
-        "m3_system": [("environment_checklist", 5)],
-        "m4_health": [
-            ("imbalance_risks", 3), ("recovery_levers", 3),
-            ("reset_7day", 7),
-        ],
-        "m5_wealth": [("income_forms", 6), ("asset_ideas", 3)],
-        "m7_manual": [("use_cases", 3), ("falsification_signals", 2)],
-    }
-    for field, expected_len in array_constraints.get(module, []):
-        value = parsed.get(field)
-        if not isinstance(value, list):
-            failures.append(
-                f"{field} 非 list(类型={type(value).__name__})"
-            )
-        elif len(value) != expected_len:
-            failures.append(
-                f"{field} 长度 {len(value)} != 期望 {expected_len}"
-            )
-
-    # 4. 禁词扫描(双层)
-    # 4a. 生产 ABSOLUTE_CONCLUSIONS(走 app.ai.forbidden_words.scan)
-    text_blob = json.dumps(parsed, ensure_ascii=False)
-    production_hits = scan_forbidden_words(text_blob)
-    if production_hits:
-        failures.append(f"生产禁词命中:{production_hits}")
-    # 4b. v1 §4 扩展禁词(evalkit 侧列表,不动生产词表)
-    extended_hits = [w for w in _V1_EXTENDED_FORBIDDEN_WORDS if w in text_blob]
-    if extended_hits:
-        failures.append(f"v1 §4 扩展禁词命中:{extended_hits}")
-
-    return failures
 
 
 # ---------- run 身份(Q5 六维) ----------
@@ -434,7 +330,7 @@ async def run_chain_for_case(
         logger.error("[%s] 排盘失败", case_id, exc_info=True)
         return [
             {**common, "module": m, "prompt_version": PROMPT_VERSIONS[m],
-             "elapsed_ms": 0.0, "ok": False, "failures": [],
+             "elapsed_ms": 0.0, "ok": False, "l1": None,
              "error": f"排盘失败: {type(e).__name__}: {e}"}
             for m in selected_modules
         ]
@@ -455,7 +351,7 @@ async def run_chain_for_case(
             entries.append({
                 **common, "module": module,
                 "prompt_version": PROMPT_VERSIONS[module],
-                "elapsed_ms": 0.0, "ok": False, "failures": [],
+                "elapsed_ms": 0.0, "ok": False, "l1": None,
                 "error": "链路中断:M0 失败,下游未执行",
             })
             continue
@@ -473,12 +369,17 @@ async def run_chain_for_case(
             module=module, context=context, case_dir=case_dir,
             ai_client=ai_client, dry_run=dry_run,
         )
+        # L1 接线:dry-run 无输出可判;异常(error)无输出可判 → l1 均为 null
+        l1 = None
+        if not dry_run and status["error"] is None:
+            l1 = {"passed": not status["failures"],
+                  "failures": status["failures"]}
         entries.append({
             **common, "module": module,
             "prompt_version": PROMPT_VERSIONS[module],
             "elapsed_ms": status["elapsed_ms"],
+            "l1": l1,
             "ok": status["ok"],
-            "failures": status["failures"],
             "error": status["error"],
         })
 
