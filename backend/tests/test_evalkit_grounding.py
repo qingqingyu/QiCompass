@@ -251,3 +251,11 @@ def test_chinese_elements_in_ground_truth_accepted():
     bad = {"s": "宜多用火,提升行动力。"}
     failures = check_xiji_consistency("m1_talent", bad, engine)
     assert any("喜忌矛盾" in f and "火" in f for f in failures)
+
+
+def test_chain_m7_exempt_from_verbatim_check():
+    """M7 不做逐字判(模板要求改写不复述):改写引用半个指纹也不 fail。"""
+    chain = {"m0_structure": {"structure_fingerprint": "伤官生财循环驱动,外显创造力"}}
+    out = {"note": "以「伤官生财循环驱动」为底色的落地手册,不复述分析。"}
+    assert check_chain_consistency(
+        "m7_manual", out, _engine(), chain_context=chain) == []

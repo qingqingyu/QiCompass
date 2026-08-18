@@ -24,8 +24,8 @@ def _engine_result():
         "shensha": [
             {"name": "文昌", "position": "日柱", "source": "三命通会"},
         ],
-        "current_luck_pillar": {"gan_zhi": "庚午", "start_age": 6,
-                                "end_age": 16},
+        "current_luck_pillar": {"gan_zhi": "庚午", "start_year": 1996,
+                                "end_year": 2006},
         "current_year_pillar": "乙巳",
         "tiaoshou_applied": False,
         "pattern_hint": None,
@@ -324,6 +324,7 @@ async def test_execute_run_judge_wiring_warn_and_error(tmp_path):
     )
     assert gen.calls == 1
     assert summary["warn"] == 1
+    assert summary["judge_calls"] == 1  # 裁判调用独立计数(成本口径)
     assert summary["identity"]["judge_model"] == "judge-model-x"
     assert summary["identity"]["rubric_version"] == RUBRIC_VERSION
     entry = json.loads(
@@ -347,3 +348,59 @@ async def test_execute_run_judge_wiring_warn_and_error(tmp_path):
     assert entry2["verdict"] == "error"
     assert "裁判失败" in entry2["error"]
     assert entry2["l3"] is None
+
+
+async def test_skip_judge_overrides_injected_client(tmp_path):
+    """skip_judge 是唯一真值源:显式跳过时注入的 judge_client 也不跑。"""
+    from evalkit.runner import execute_run
+
+    gen = _M0OnlyGenClient()
+    judge = _MockJudge(_valid_judge_json())
+    summary = await execute_run(
+        dry_run=False, case_limit=1, runs_dir=tmp_path,
+        modules=["m0_structure"], ai_client=gen,
+        skip_judge=True, judge_client=judge,
+    )
+    assert judge.calls == 0
+    assert summary["judge_calls"] == 0
+    assert summary["identity"]["judge_model"] == ""
+
+
+async def test_judge_sp_chart_cannot_na_honesty_dimension():
+    """special_pattern 盘:裁判给 special_pattern_诚实 = N/A → raise(不许躲)。"""
+    engine = _engine_result()
+    engine["day_master_strength"] = "special_pattern"
+    engine["favorable_elements"] = []
+    engine["unfavorable_elements"] = []
+    client = _MockJudge(_valid_judge_json(sp_score="N/A"))
+    with pytest.raises(ValueError, match="不适用 N/A"):
+        await judge_one(
+            module="m1_talent", parsed_output=_parsed_output(),
+            engine_result=engine, judge_client=client)
+
+
+async def test_judge_normal_chart_na_honesty_still_ok():
+    """普通盘 N/A 照旧合法(对照组,防止修过头)。"""
+    client = _MockJudge(_valid_judge_json(sp_score="N/A"))
+    result = await judge_one(
+        module="m1_talent", parsed_output=_parsed_output(),
+        engine_result=_engine_result(), judge_client=client)
+    assert result.scores["special_pattern_诚实"] == "N/A"
+
+
+def test_build_judge_prompt_luck_pillar_year_fields():
+    """CurrentPillar 真实字段是 start_year/end_year(非 start_age):
+    年份区间必须渲染出来,不允许 "?-?" 丢失上下文。"""
+    prompt = build_judge_prompt(
+        "m0_structure", _parsed_output(), _engine_result())
+    assert "庚午(year 1996-2006)" in prompt
+    assert "(year ?" not in prompt and "age ?" not in prompt
+
+
+def test_build_judge_prompt_tongxian_pillar():
+    """童限(index=0, gan_zhi="")显式渲染童限文案,不给裁判一个空干支。"""
+    engine = _engine_result()
+    engine["current_luck_pillar"] = {"gan_zhi": "", "start_year": 1990,
+                                     "end_year": 1996}
+    prompt = build_judge_prompt("m0_structure", _parsed_output(), engine)
+    assert "童限过渡" in prompt

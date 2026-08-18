@@ -109,7 +109,12 @@ def read_meta(run_id: str, runs_dir: Path | None = None) -> dict[str, Any]:
     path = run_dir_for(run_id, runs_dir) / "meta.json"
     if not path.exists():
         raise RuntimeError(f"run 不存在或缺 meta.json: {run_id}(路径 {path})")
-    return json.loads(path.read_text(encoding="utf-8"))
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as e:
+        # 包装成 RuntimeError(与 load_results 同做法):调用方(HTTP 层)统一
+        # except RuntimeError → 4xx 显式报错,而不是裸 500
+        raise RuntimeError(f"meta.json 损坏: {path}({e})") from e
 
 
 def load_results(run_id: str, runs_dir: Path | None = None) -> list[dict[str, Any]]:
@@ -132,15 +137,27 @@ def load_results(run_id: str, runs_dir: Path | None = None) -> list[dict[str, An
 
 
 def list_runs(runs_dir: Path | None = None) -> list[str]:
-    """run_id 列表(按名字倒序 = 时间倒序)。"""
+    """run_id 列表(按 started_at 倒序;同秒 tie 用名字倒序)。
+
+    某个 run 的 meta.json 损坏时该 run 排序键退化为空串(排最后),
+    不拖垮列表——详情接口(read_meta)会显式报错。
+    """
     base = runs_dir or RUNS_DIR
     if not base.exists():
         return []
-    return sorted(
-        (p.name for p in base.iterdir()
-         if p.is_dir() and (p / "meta.json").exists()),
-        reverse=True,
-    )
+    entries: list[tuple[str, str]] = []
+    for p in base.iterdir():
+        if not (p.is_dir() and (p / "meta.json").exists()):
+            continue
+        started = ""
+        try:
+            started = json.loads(
+                (p / "meta.json").read_text(encoding="utf-8")
+            ).get("started_at", "")
+        except (json.JSONDecodeError, OSError, ValueError):
+            pass
+        entries.append((started, p.name))
+    return [name for _, name in sorted(entries, reverse=True)]
 
 
 # ---------- Q6 响应缓存 ----------

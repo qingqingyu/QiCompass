@@ -180,3 +180,83 @@ def test_post_run_executes_background_and_updates_progress(
 def test_progress_endpoint_shape(client):
     body = client.get("/api/runs/progress").json()
     assert set(body) >= {"running", "run_id", "case_id", "done", "total"}
+
+
+def test_post_run_case_limit_zero_422(client):
+    """case_limit ≤ 0 由 pydantic ge=1 拦截(422),不静默烧满 20 盘。"""
+    res = client.post("/api/runs", json={"case_limit": 0})
+    assert res.status_code == 422
+    res = client.post("/api/runs", json={"case_limit": -3})
+    assert res.status_code == 422
+
+
+def test_path_traversal_run_id_rejected(client, tmp_path):
+    """run_id/case_id 白名单:防路径拼接越出 runs 目录(本地工具,纵深防御)。"""
+    assert client.get("/api/runs/%2e%2e").status_code == 400
+    assert client.get("/api/runs/..%2Fetc%2Fpasswd").status_code in (400, 404)
+    assert client.post("/api/baseline",
+                       json={"run_id": "../outside"}).status_code == 400
+    _seed_run(tmp_path, "run-a", [_entry("case_00", "m0_structure")])
+    assert client.get(
+        "/api/cases/case_00/m0_structure?run=run-a").status_code == 200
+    # httpx 客户端侧会规范化 ../(404);服务端正则对不规范的客户端 400——两者都是防御
+    assert client.get(
+        "/api/cases/..%2Fx/m0_structure?run=run-a").status_code in (400, 404)
+
+
+def test_list_runs_orders_by_started_at(client, tmp_path):
+    """列表按 started_at 倒序(同秒 tie 名字倒序),新 run 置顶。"""
+    _seed_run(tmp_path, "run-old", [_entry("c", "m0_structure")])
+    # 造一个 started_at 更新的 run
+    import json as _json
+    meta_path = tmp_path / "run-new"
+    _seed_run(tmp_path, "run-new", [_entry("c", "m0_structure")])
+    meta = _json.loads((meta_path / "meta.json").read_text(encoding="utf-8"))
+    meta["started_at"] = "2026-08-18T23:59:59+00:00"
+    (meta_path / "meta.json").write_text(
+        _json.dumps(meta, ensure_ascii=False), encoding="utf-8")
+    runs = client.get("/api/runs").json()
+    assert [r["run_id"] for r in runs][:2] == ["run-new", "run-old"]
+
+
+def test_list_runs_degrades_on_corrupt_meta(client, tmp_path):
+    """单个 run 的 meta.json 损坏:列表降级为占位条目,不 500。"""
+    _seed_run(tmp_path, "run-good", [_entry("c", "m0_structure")])
+    bad_dir = tmp_path / "run-bad"
+    bad_dir.mkdir()
+    (bad_dir / "meta.json").write_text("{不是 json", encoding="utf-8")
+    res = client.get("/api/runs")
+    assert res.status_code == 200
+    runs = res.json()
+    ids = [r["run_id"] for r in runs]
+    assert "run-good" in ids and "run-bad" in ids
+    bad_entry = next(r for r in runs if r["run_id"] == "run-bad")
+    assert "meta 损坏" in bad_entry["error"]
+
+
+def test_corrupt_meta_detail_returns_explicit_404(client, tmp_path):
+    """损坏 meta 的 run:详情端点显式 404 + 指明文件损坏(不是裸 500)。"""
+    bad_dir = tmp_path / "run-bad"
+    bad_dir.mkdir()
+    (bad_dir / "meta.json").write_text("{不是 json", encoding="utf-8")
+    res = client.get("/api/runs/run-bad")
+    assert res.status_code == 404
+    assert "meta.json 损坏" in res.json()["detail"]
+
+
+def test_diff_baseline_dangling_returns_explicit_404(client, tmp_path):
+    """BASELINE 指向不存在的 run:diff 端点显式 404 带原因(不是裸 500)。"""
+    _seed_run(tmp_path, "run-a", [_entry("case_00", "m0_structure")])
+    (tmp_path / "BASELINE").write_text("ghost-run\n", encoding="utf-8")
+    res = client.get("/api/runs/run-a/diff")
+    assert res.status_code == 404
+    assert "指向不存在" in res.json()["detail"]
+
+
+def test_corrupt_results_jsonl_returns_explicit_404(client, tmp_path):
+    """meta 完好但 results.jsonl 损坏:详情端点显式 404 带行号(不是裸 500)。"""
+    run_dir = _seed_run(tmp_path, "run-x", [_entry("c", "m0")])
+    (run_dir / "results.jsonl").write_text("{坏行\n", encoding="utf-8")
+    res = client.get("/api/runs/run-x")
+    assert res.status_code == 404
+    assert "results.jsonl" in res.json()["detail"]

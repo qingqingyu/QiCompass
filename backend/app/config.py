@@ -189,3 +189,12 @@ JUDGE_API_KEY: str | None = (
     os.environ.get("JUDGE_API_KEY")
     or (ANTHROPIC_API_KEY if JUDGE_PROVIDER == "anthropic" else OPENAI_API_KEY)
 )
+
+# 裁判 base_url 覆盖(默认回落生成侧;跨 provider 交叉验证时裁判流量
+# 可指向不同网关,避免生成侧中转只代理特定模型导致裁判莫名 4xx)。
+# 仅 openai 裁判分支消费(anthropic 裁判走官方默认 endpoint)。
+JUDGE_BASE_URL: str = (
+    os.environ.get("JUDGE_BASE_URL") or OPENAI_BASE_URL
+).strip().rstrip("/")
+if not JUDGE_BASE_URL:
+    raise ValueError("JUDGE_BASE_URL must not be blank")

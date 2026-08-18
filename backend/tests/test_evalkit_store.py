@@ -359,3 +359,107 @@ async def test_no_cache_forces_full_api(tmp_path):
     )
     assert second.calls == 8
     assert summary["cache_hits"] == 0
+
+
+async def test_case_limit_below_one_raises(tmp_path):
+    """case_limit 0/负数:函数级契约显式拒绝(0 是 falsy 会烧满 20 盘)。"""
+    with pytest.raises(ValueError, match="case_limit 必须"):
+        await execute_run(dry_run=True, case_limit=0, runs_dir=tmp_path)
+    with pytest.raises(ValueError, match="case_limit 必须"):
+        await execute_run(dry_run=True, case_limit=-1, runs_dir=tmp_path)
+
+
+async def test_l2_check_exception_isolated_per_entry(tmp_path, monkeypatch):
+    """L2 判据代码异常:按条目隔离记 error,不毁掉整轮 run(与生成侧同粒度)。"""
+    import evalkit.runner as runner_mod
+
+    def _boom(*args, **kwargs):
+        raise ValueError("grounding 判据 bug(模拟)")
+
+    monkeypatch.setattr(runner_mod, "check_grounding", _boom)
+
+    class _M0Gen:
+        provider, model = "stub", "stub-model"
+
+        async def interpret(self, prompt: str, **kwargs) -> str:
+            return json.dumps({
+                "main_axis": {}, "core_loop": {}, "structure_type": {},
+                "capability_source": {}, "structure_fingerprint": "指纹",
+            }, ensure_ascii=False)
+
+    summary = await execute_run(
+        dry_run=False, case_limit=1, runs_dir=tmp_path,
+        modules=["m0_structure"], ai_client=_M0Gen(), skip_judge=True,
+    )
+    # run 完成,该条目 verdict=error 且 error 带 L2 判据异常原因
+    assert summary["error"] == 1
+    entry = json.loads(
+        (tmp_path / summary["run_id"] / "results.jsonl")
+        .read_text(encoding="utf-8").splitlines()[0])
+    assert entry["verdict"] == "error"
+    assert "L2 判据异常" in entry["error"]
+    assert "grounding 判据 bug" in entry["error"]
+    assert entry["l2"] is None
+
+
+async def test_run_dir_reuse_rejected(tmp_path):
+    """复用已有 results.jsonl 的 run 目录 → 显式拒绝(w 模式会截断旧结果)。"""
+    first = await execute_run(
+        dry_run=True, case_limit=1, run_id="same-id", runs_dir=tmp_path)
+    assert first["total"] == 8
+    with pytest.raises(RuntimeError, match="复用会截断"):
+        await execute_run(
+            dry_run=True, case_limit=1, run_id="same-id", runs_dir=tmp_path)
+
+
+async def test_identity_reflects_module_subset(tmp_path):
+    """子集 run 的身份 prompt_versions 只含选中模块(diff 不跨范围混淆)。"""
+    summary = await execute_run(
+        dry_run=True, case_limit=1, runs_dir=tmp_path, run_id="subset-run")
+    full = summary["identity"]["prompt_versions"]
+    assert set(full) == {
+        "m0_structure", "m1_talent", "m2_high_low", "m3_system",
+        "m4_health", "m5_wealth", "m6_dynamics", "m7_manual"}
+
+    class _M0Gen:
+        provider, model = "stub", "stub-model"
+
+        async def interpret(self, prompt: str, **kwargs) -> str:
+            return "{}"
+
+    sub = await execute_run(
+        dry_run=False, case_limit=1, runs_dir=tmp_path, run_id="subset-m0",
+        modules=["m0_structure"], ai_client=_M0Gen(), skip_judge=True)
+    assert set(sub["identity"]["prompt_versions"]) == {"m0_structure"}
+
+
+async def test_unparseable_response_not_cached(tmp_path):
+    """不可解析响应不进缓存(防毒缓存永久 fail):重跑会重新调 API 重试。"""
+    from evalkit.store import cache_clear
+
+    class _BadJsonClient:
+        provider, model = "stub", "stub-model"
+
+        def __init__(self):
+            self.calls = 0
+
+        async def interpret(self, prompt: str, **kwargs) -> str:
+            self.calls += 1
+            return "我不是 JSON"
+
+    bad = _BadJsonClient()
+    summary_a = await execute_run(
+        dry_run=False, case_limit=1, runs_dir=tmp_path, run_id="bad-run-a",
+        modules=["m0_structure"], ai_client=bad, skip_judge=True)
+    assert summary_a["fail"] == 1
+    assert "JSON 解析失败" in json.loads(
+        (tmp_path / summary_a["run_id"] / "results.jsonl")
+        .read_text(encoding="utf-8").splitlines()[0])["l1"]["failures"][0]
+
+    bad2 = _BadJsonClient()
+    summary_b = await execute_run(
+        dry_run=False, case_limit=1, runs_dir=tmp_path, run_id="bad-run-b",
+        modules=["m0_structure"], ai_client=bad2, skip_judge=True)
+    # 未缓存 → 第二次仍真实调用(可自愈重试),而非命中毒缓存
+    assert bad2.calls == 1
+    assert summary_b["cache_hits"] == 0

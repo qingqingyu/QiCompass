@@ -88,3 +88,19 @@ def test_judge_blank_model_raises(config_module):
     os.environ["JUDGE_MODEL"] = "   "
     with pytest.raises(ValueError, match="JUDGE_MODEL"):
         _reload(cfg)
+
+
+def test_judge_base_url_falls_back_to_openai(config_module):
+    cfg = config_module
+    os.environ.pop("JUDGE_BASE_URL", None)
+    os.environ["OPENAI_BASE_URL"] = "https://api.openai.com/v1/"
+    reloaded = _reload(cfg)
+    assert reloaded.JUDGE_BASE_URL == "https://api.openai.com/v1"  # 去尾斜杠
+
+
+def test_judge_base_url_explicit_override(config_module):
+    cfg = config_module
+    os.environ["OPENAI_BASE_URL"] = "https://gen-gateway.example/v1"
+    os.environ["JUDGE_BASE_URL"] = "https://judge-gateway.example/v1"
+    reloaded = _reload(cfg)
+    assert reloaded.JUDGE_BASE_URL == "https://judge-gateway.example/v1"

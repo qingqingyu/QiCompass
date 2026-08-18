@@ -18,10 +18,9 @@ from typing import Any
 from app.ai.client import AIClient, create_ai_client
 from app.config import (
     JUDGE_API_KEY,
+    JUDGE_BASE_URL,
     JUDGE_MODEL,
     JUDGE_PROVIDER,
-    OPENAI_BASE_URL,
-    OPENAI_MODEL,
 )
 
 from .llm_json import parse_llm_json
@@ -46,14 +45,18 @@ class JudgeResult:
 
 
 def create_judge_client() -> AIClient:
-    """按 JUDGE_* env 构造裁判 client(默认回落生成侧 AI_*)。"""
+    """按 JUDGE_* env 构造裁判 client(默认回落生成侧 AI_*)。
+
+    openai 裁判走 JUDGE_BASE_URL(独立网关覆盖);anthropic 裁判走官方
+    默认 endpoint(create_ai_client 对 anthropic 分支不消费 openai_base_url)。
+    """
     return create_ai_client(
         provider=JUDGE_PROVIDER,
         anthropic_api_key=JUDGE_API_KEY if JUDGE_PROVIDER == "anthropic" else None,
         anthropic_model=JUDGE_MODEL,
         openai_api_key=JUDGE_API_KEY if JUDGE_PROVIDER == "openai" else None,
         openai_model=JUDGE_MODEL,
-        openai_base_url=OPENAI_BASE_URL,
+        openai_base_url=JUDGE_BASE_URL,
     )
 
 
@@ -104,6 +107,13 @@ async def judge_one(
     parsed = parse_llm_json(response)
 
     scores = _validate_scores(parsed["scores"])
+    # special_pattern 盘的诚实维度是红线,不允许裁判用 N/A 躲掉
+    # (N/A 是给普通盘的;L2 虽兜底,但裁判侧也不应留下逃逸口)
+    if (engine_result.get("day_master_strength") == "special_pattern"
+            and scores["special_pattern_诚实"] == "N/A"):
+        raise ValueError(
+            "special_pattern 盘的「special_pattern_诚实」维度不适用 N/A"
+            "(该盘必须评诚实度)")
 
     overall_reported = parsed.get("overall")
     if isinstance(overall_reported, bool) or not isinstance(
@@ -157,8 +167,11 @@ async def judge_case_modules(
         *(_one(m, p, e) for m, p, e in items), return_exceptions=True)
     results: dict[str, JudgeResult | str] = {}
     for (module, _, _), outcome in zip(items, raw):
-        if isinstance(outcome, BaseException):
+        if isinstance(outcome, Exception):
             results[module] = f"{type(outcome).__name__}: {outcome}"
+        elif isinstance(outcome, BaseException):
+            # CancelledError / KeyboardInterrupt 传播,不吞成"裁判失败"
+            raise outcome
         else:
             results[module] = outcome
     return results

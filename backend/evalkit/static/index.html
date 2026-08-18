@@ -111,6 +111,7 @@
     <div class="progress-line" id="progress-line"></div>
   </div>
 
+  <div id="dry-banner"></div>
   <div id="identity-banner"></div>
 
   <div class="card" id="overview">
@@ -184,6 +185,10 @@ async function refresh() {
   if (!currentRun) return;
   const data = await api(`/api/runs/${encodeURIComponent(currentRun)}`);
   results = data.results; meta = data.meta;
+  // dry-run 横幅独立于 diff 渲染(首轮 dry-run 必然无基线,diff 早退时横幅也要在)
+  $("dry-banner").innerHTML = meta.dry_run
+    ? '<div class="banner">dry-run run:未调 AI,矩阵全绿仅表示排盘/渲染/链式注入跑通,不代表质量判定</div>'
+    : "";
   renderOverview(); renderMatrix();
   await loadDiff();
 }
@@ -192,9 +197,14 @@ async function loadDiff() {
   const el = $("regressed"); el.innerHTML = "";
   $("st-reg").textContent = "–"; $("st-fixed").textContent = "–";
   $("identity-banner").innerHTML = ""; diffData = null;
-  if (!baselineRun || baselineRun === currentRun) {
+  if (!baselineRun) {
     el.innerHTML = '<li style="color:var(--muted);cursor:default">'
       + '未设置基线(选中一个 run 后点「设为基线」)</li>';
+    return;
+  }
+  if (baselineRun === currentRun) {
+    el.innerHTML = '<li style="color:var(--muted);cursor:default">'
+      + '当前 run 即基线(把 current 切到其他 run 才有对比)</li>';
     return;
   }
   try {
@@ -209,7 +219,8 @@ async function loadDiff() {
   $("st-fixed").textContent = diffData.fixed.length;
   if (Object.keys(diffData.identity_diff || {}).length) {
     const rows = Object.entries(diffData.identity_diff)
-      .map(([k, v]) => `<div>${k}: ${v[0]} → ${v[1]}</div>`).join("");
+      .map(([k, v]) =>
+        `<div>${esc(k)}: ${esc(v[0])} → ${esc(v[1])}</div>`).join("");
     $("identity-banner").innerHTML =
       `<div class="banner">⚠️ 本次对比跨了 run 身份差异,退化可能是环境差异而非模板问题:${rows}</div>`;
   }
@@ -236,6 +247,7 @@ function renderOverview() {
   $("st-error").textContent = c.error ?? "–";
   $("st-cost").textContent =
     `${meta.api_calls ?? "?"} 次调用 · ${meta.cache_hits ?? 0} 命中缓存`
+    + (meta.judge_calls ? ` · 裁判 ${meta.judge_calls} 次` : "")
     + ` · ${meta.elapsed_ms ? Math.round(meta.elapsed_ms / 1000) : "?"}s`
     + (meta.judge_enabled ? " · 裁判已启用" : "");
   $("matrix-sub").textContent =
@@ -253,13 +265,13 @@ function renderMatrix() {
   html += "</tr></thead><tbody>";
   for (const c of cases) {
     const e0 = results.find(e => e.case_id === c);
-    html += `<tr><th>${c}<div class="muted">${e0.category === "normal"
-      ? "普通" : "特殊"} · ${e0.expected_strength}</div></th>`;
+    html += `<tr><th>${esc(c)}<div class="muted">${e0.category === "normal"
+      ? "普通" : "特殊"} · ${esc(e0.expected_strength)}</div></th>`;
     for (const m of MODULES) {
       const e = byKey[c + "/" + m];
       if (!e) { html += `<td class="cell v-skip">·</td>`; continue; }
       const v = e.verdict;
-      html += `<td class="cell v-${v}" title="${c} ${m} → ${v}">`
+      html += `<td class="cell v-${v}" title="${esc(c)} ${esc(m)} → ${esc(v)}">`
         + (v === "pass" ? "✓" : v === "warn" ? "!" : v === "fail" ? "✕"
            : v === "error" ? "E" : "·") + "</td>";
     }
@@ -284,20 +296,23 @@ async function openDrawer(caseId, module) {
   try { detail = await api(url); }
   catch (e) { $("drawer-body").textContent = "加载失败:" + e.message; return; }
   const e = detail.entry;
-  let html = `<div class="muted">verdict: <b>${e.verdict}</b>`
-    + ` · ${e.elapsed_ms}ms${e.cached ? " · 缓存命中" : ""}</div>`;
+  let html = `<div class="muted">verdict: <b>${esc(e.verdict)}</b>`
+    + ` · ${esc(String(e.elapsed_ms))}ms${e.cached ? " · 缓存命中" : ""}</div>`;
   html += layerHtml("L1 确定性", e.l1);
   html += layerHtml("L2 接地", e.l2);
   html += layerHtml("L3 裁判", e.l3 && {
     passed: e.l3.passed,
+    // 这行整体会被 layerHtml 再 esc 一次,此处不做内层转义(避免双重转义)
     failures: e.l3.failures.concat(
-      `overall=${e.l3.overall}(${e.l3.judge_model} rubric v${e.l3.rubric_version})`),
+      `overall=${e.l3.overall}(${e.l3.judge_model}`
+      + ` rubric v${e.l3.rubric_version})`),
   });
-  if (e.error) html += `<p class="failure">error: ${e.error}</p>`;
+  if (e.error) html += `<p class="failure">error: ${esc(e.error)}</p>`;
   html += `<details><summary>rendered prompt</summary>
     <pre>${esc(detail.prompt || "(无)")}</pre></details>`;
   html += `<details><summary>response JSON</summary>
-    <pre>${esc(JSON.stringify(detail.response, null, 2) || "(无)")}</pre></details>`;
+    <pre>${detail.response != null
+      ? esc(JSON.stringify(detail.response, null, 2)) : "(无)"}</pre></details>`;
   if (baselineRun && baselineRun !== currentRun && diffData) {
     const key = caseId + "/" + module;
     const inReg = diffData.regressed.some(
@@ -324,14 +339,24 @@ function esc(s) {
     c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));
 }
 
-$("sel-current").onchange = (ev) => { currentRun = ev.target.value; refresh(); };
+$("sel-current").onchange = async (ev) => {
+  currentRun = ev.target.value;
+  try {
+    await refresh();
+  } catch (e) {
+    // 选中 meta 损坏的 run 等场景:显式提示,不静默悬空
+    $("progress-line").textContent = "加载 run 失败:" + e.message;
+  }
+};
 $("sel-baseline").onchange = (ev) => { baselineRun = ev.target.value; loadDiff(); };
 $("btn-set-baseline").onclick = async () => {
   if (!currentRun) return;
-  await api("/api/baseline", {
-    method: "POST", headers: {"Content-Type": "application/json"},
-    body: JSON.stringify({run_id: currentRun}),
-  });
+  try {
+    await api("/api/baseline", {
+      method: "POST", headers: {"Content-Type": "application/json"},
+      body: JSON.stringify({run_id: currentRun}),
+    });
+  } catch (e) { alert("设基线失败:" + e.message); return; }
   await loadRuns();
 };
 $("btn-run").onclick = async () => {
@@ -339,8 +364,13 @@ $("btn-run").onclick = async () => {
     no_cache: $("opt-no-cache").checked,
     skip_judge: $("opt-skip-judge").checked,
   };
-  const limit = parseInt($("opt-case-limit").value, 10);
-  if (limit >= 1) body.case_limit = limit;
+  const limitRaw = $("opt-case-limit").value.trim();
+  if (limitRaw !== "") {
+    const limit = parseInt(limitRaw, 10);
+    // 与后端 ge=1 对齐:0/负数/非数显式拒绝,不静默当"全部"烧满 20 盘
+    if (!(limit >= 1)) { alert("盘数必须 ≥ 1(留空 = 全部)"); return; }
+    body.case_limit = limit;
+  }
   try {
     await api("/api/runs", {
       method: "POST", headers: {"Content-Type": "application/json"},
@@ -358,12 +388,15 @@ function pollProgress() {
       const p = await api("/api/runs/progress");
       $("progress-line").textContent = p.running
         ? `运行中 ${p.run_id}: ${p.done}/${p.total}(${p.case_id ?? "…"})`
-        : "就绪";
+        : (p.error ? "上次 run 失败:" + p.error : "就绪");
       if (!p.running) {
         clearInterval(timer); $("btn-run").disabled = false;
         await loadRuns();
       }
-    } catch (e) { clearInterval(timer); $("btn-run").disabled = false; }
+    } catch (e) {
+      clearInterval(timer); $("btn-run").disabled = false;
+      $("progress-line").textContent = "轮询失败:" + e.message;
+    }
   }, 1500);
 }
 

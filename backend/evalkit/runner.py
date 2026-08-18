@@ -60,7 +60,7 @@ from app.engine.bazi_engine import BaziEngine
 from app.engine.chart_builder import build_v1_chart
 
 from .cases import CASES, CASES_HASH, parse_birth
-from .checks.deterministic import validate_v1_module_output
+from .checks.deterministic import check_deterministic
 from .checks.grounding import check_grounding
 from .judge import JudgeResult, create_judge_client, judge_case_modules
 from .llm_json import parse_llm_json
@@ -180,6 +180,7 @@ async def _call_module(
     case_id: str,
     use_cache: bool,
     runs_dir: Path,
+    engine_result: dict[str, Any] | None = None,
 ) -> tuple[str, dict[str, Any] | None, list[str], bool]:
     """单模块调用:render → (缓存 | LLM) → parse → validate。
 
@@ -213,15 +214,23 @@ async def _call_module(
         temperature = resolve_temperature(module)
         response = await ai_client.interpret(
             rendered, temperature=temperature)
-        if use_cache:
-            cache_put(key, response, runs_dir)
 
     try:
         parsed = parse_llm_json(response)
     except ValueError as e:
-        return rendered, None, [f"JSON 解析失败: {e}"], cached
+        # 不可解析的响应不进缓存(毒缓存会让该格永久 fail 不自愈);
+        # cached=True 只可能来自旧版缓存残留/手改缓存文件——按实际来源给文案
+        hint = ("该响应来自缓存,建议 cache_clear 后重跑"
+                if cached else "响应未进缓存,重跑可重试")
+        return rendered, None, [
+            f"JSON 解析失败: {e}({hint})"], cached
+    if not cached and use_cache:
+        cache_put(key, response, runs_dir)
 
-    failures = validate_v1_module_output(module, parsed)
+    # 走 module-agnostic 聚合入口(check_deterministic):runner 不再直接
+    # 调 validate_v1_module_output,避免双入口漂移(未知 module 防护生效)
+    failures = check_deterministic(
+        module, parsed, engine_result if engine_result is not None else {})
     return rendered, parsed, failures, cached
 
 
@@ -235,6 +244,7 @@ async def _run_one_module(
     case_id: str,
     use_cache: bool,
     runs_dir: Path,
+    engine_result: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     """跑单个模块,落盘 prompt + response,返回 status dict。
 
@@ -255,6 +265,7 @@ async def _run_one_module(
             module=module, context=context,
             ai_client=ai_client, dry_run=dry_run,
             case_id=case_id, use_cache=use_cache, runs_dir=runs_dir,
+            engine_result=engine_result,
         )
     except Exception as e:
         logger.error("[%s] %s 异常", case_id, module, exc_info=True)
@@ -395,6 +406,7 @@ async def run_chain_for_case(
             module=module, context=context, case_dir=case_dir,
             ai_client=ai_client, dry_run=dry_run,
             case_id=case_id, use_cache=use_cache, runs_dir=runs_dir,
+            engine_result=engine_result,
         )
 
         # L1 接线:dry-run 无输出可判;异常(error)无输出可判 → l1 均为 null
@@ -402,18 +414,28 @@ async def run_chain_for_case(
         if not dry_run and status["error"] is None:
             l1 = {"passed": not status["failures"],
                   "failures": status["failures"]}
-        # L2 接线:有 parsed 输出才判(解析失败/异常 → null)
+        # L2 接线:有 parsed 输出才判(解析失败/异常 → null)。
+        # 判据代码自身异常按条目隔离(与生成侧同粒度):不毁掉整轮已付费 run,
+        # 但显式记 error(不吞,CLI 退出码 1 可见)
         l2 = None
+        l2_error: str | None = None
         if not dry_run and status["error"] is None and status["parsed"] is not None:
-            grounding_failures = check_grounding(
-                module, status["parsed"], engine_result,
-                chain_context=dict(chain_outputs),
-            )
-            l2 = {"passed": not grounding_failures,
-                  "failures": grounding_failures}
+            try:
+                grounding_failures = check_grounding(
+                    module, status["parsed"], engine_result,
+                    chain_context=dict(chain_outputs),
+                )
+            except Exception as e:
+                logger.error(
+                    "[%s] %s L2 判据异常", case_id, module, exc_info=True)
+                l2_error = f"L2 判据异常: {type(e).__name__}: {e}"
+            else:
+                l2 = {"passed": not grounding_failures,
+                      "failures": grounding_failures}
 
+        entry_error = status["error"] or l2_error
         verdict = compute_verdict(
-            l1=l1, l2=l2, error=status["error"], judge_enabled=False)
+            l1=l1, l2=l2, error=entry_error, judge_enabled=False)
         entries.append({
             **common, "module": module,
             "prompt_version": PROMPT_VERSIONS[module],
@@ -421,7 +443,7 @@ async def run_chain_for_case(
             "l1": l1, "l2": l2, "l3": None,
             "cached": status["cached"],
             "verdict": verdict,
-            "error": status["error"],
+            "error": entry_error,
         })
 
         parsed = status["parsed"]
@@ -431,13 +453,18 @@ async def run_chain_for_case(
         elif module == "m0_structure" and not status["ok"]:
             chain_broken = True
 
-    # L3 接线:只裁判 L1/L2 已过的条目(fail/error 的裁判是浪费);
-    # 同盘各模块并发(信号量限流在 judge_case_modules 内),逐条隔离失败。
+    # L3 接线:只裁判 L1/L2 都过的条目(verdict=="pass" 的生成条目;
+    # L2 fail / error 的裁判是浪费);同盘各模块并发(信号量限流在
+    # judge_case_modules 内),逐条隔离失败。
     if judge_client is not None and chain_outputs:
-        judged = await judge_case_modules(
-            [(m, p, engine_result) for m, p in chain_outputs.items()],
-            judge_client=judge_client,
-        )
+        eligible = {e["module"] for e in entries if e["verdict"] == "pass"}
+        to_judge = [(m, p) for m, p in chain_outputs.items() if m in eligible]
+        judged: dict[str, Any] = {}
+        if to_judge:
+            judged = await judge_case_modules(
+                [(m, p, engine_result) for m, p in to_judge],
+                judge_client=judge_client,
+            )
         for entry in entries:
             module = entry["module"]
             if module not in judged:
@@ -530,6 +557,11 @@ async def execute_run(
     runs_dir = runs_dir if runs_dir is not None else RUNS_DIR
     selected = resolve_selected_modules(modules)
 
+    if case_limit is not None and case_limit < 1:
+        # 0 是 falsy 会被当"全部"烧满 20 盘,负数会从尾部静默丢盘——
+        # 函数级契约统一拒绝(CLI 与 HTTP 层各自还有一道前置校验)
+        raise ValueError(f"case_limit 必须 ≥ 1(得到 {case_limit};不传 = 全部)")
+
     if ai_client is not None:
         client = _CountingClient(ai_client)
     elif dry_run:
@@ -544,28 +576,50 @@ async def execute_run(
             openai_base_url=OPENAI_BASE_URL,
         ))
 
-    # L3:真实 run 默认开裁判;身份带 rubric/judge 维度(换裁判 = 新 run)
+    # L3:真实 run 默认开裁判;身份带 rubric/judge 维度(换裁判 = 新 run)。
+    # 裁判调用也过 _CountingClient(成本口径:api_calls 之外单列 judge_calls,
+    # UI 与 meta 都要能如实反映"开裁判时成本≈翻倍")。
+    # skip_judge 是唯一真值源:显式跳过时注入的 judge_client 也置 None,
+    # 不允许参数注入绕过布尔标志(否则 meta 谎报 judge_enabled 且照烧钱)
     judge_enabled = (not dry_run) and (not skip_judge)
-    if judge_enabled and judge_client is None:
+    if not judge_enabled:
+        judge_client = None
+    elif judge_client is None:
         judge_client = create_judge_client()
+    judge_counter: _CountingClient | None = None
+    if judge_client is not None:
+        judge_counter = _CountingClient(judge_client)
+        judge_client = judge_counter
+    # 身份的 prompt_versions 维用 selected(子集 run 与全量 run 身份不同,
+    # diff 的 identity_diff 会显式提示"对比跨了覆盖范围差异",不靠 skipped 兜底)
     if judge_client is not None:
         identity = build_run_identity(
             client.provider, client.model,
-            modules=V1_MODULES, cases_hash=CASES_HASH,
+            modules=selected, cases_hash=CASES_HASH,
             rubric_version=RUBRIC_VERSION, judge_model=judge_client.model,
         )
     else:
         identity = build_run_identity(
             client.provider, client.model,
-            modules=V1_MODULES, cases_hash=CASES_HASH,
+            modules=selected, cases_hash=CASES_HASH,
         )
     run_id = run_id or make_run_id(identity)
     run_dir = runs_dir / run_id
+    if (run_dir / "results.jsonl").exists():
+        # 复用 run 目录会被 "w" 模式静默截断旧结果——显式拒绝
+        raise RuntimeError(
+            f"run 目录已存在 results.jsonl: {run_dir}"
+            f"(复用会截断旧结果;请删除该目录或让它用新 run_id)")
     run_dir.mkdir(parents=True, exist_ok=True)
 
     use_cache = (not dry_run) and (not no_cache)
     started_at = datetime.now(timezone.utc)
     cases = CASES[:case_limit] if case_limit else CASES
+
+    if progress_cb is not None:
+        # 首帧回调:让轮询方(server UI)拿到真实 run_id,而不是一直 pending
+        progress_cb(case_id=None, done=0,
+                    total=len(cases) * len(selected), run_id=run_id)
 
     engine = BaziEngine(now=_FIXED_NOW)
     results_path = run_dir / "results.jsonl"
@@ -613,6 +667,7 @@ async def execute_run(
         "started_at": started_at.isoformat(),
         "finished_at": finished_at.isoformat(),
         "api_calls": client.calls,
+        "judge_calls": judge_counter.calls if judge_counter else 0,
         "cache_hits": cache_hits,
         "elapsed_ms": round(
             (finished_at - started_at).total_seconds() * 1000, 1),
@@ -626,6 +681,7 @@ async def execute_run(
         "identity": identity,
         "total": total, **verdict_counts,
         "api_calls": client.calls, "cache_hits": cache_hits,
+        "judge_calls": meta["judge_calls"],
     }
 
     # 与基线 diff(只在真实 run 后;dry-run 无判据,diff 无意义)
@@ -728,7 +784,10 @@ def main() -> None:
           f"warn={summary['warn']} fail={summary['fail']} "
           f"error={summary['error']})")
     print(f"API 调用: {summary['api_calls']}"
-          + (f"(缓存命中 {summary['cache_hits']})" if not summary["dry_run"] else ""))
+          + (f"(缓存命中 {summary['cache_hits']})"
+             + (f",裁判 {summary['judge_calls']} 次"
+                if summary["judge_calls"] else "")
+             if not summary["dry_run"] else ""))
     print("=" * 64)
 
     if "diff_error" in summary:

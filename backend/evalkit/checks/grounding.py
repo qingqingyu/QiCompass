@@ -294,8 +294,8 @@ def check_chain_consistency(
     """
     if chain_context is None:
         return []
-    if module == "m0_structure":
-        return []
+    if module in ("m0_structure", "m7_manual"):
+        return []  # M0 是 fingerprint 生产者;M7 不做逐字判(见 docstring)
 
     m0 = chain_context.get("m0_structure")
     fp = m0.get("structure_fingerprint") if isinstance(m0, dict) else None

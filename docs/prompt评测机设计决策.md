@@ -215,6 +215,8 @@ JUDGE_API_KEY    默认 = 对应 provider 的 key
 6. **run_id 时间戳到秒**(`%Y%m%dT%H%M%S`,文档示例到分):避免同分钟内两次同身份 run 目录互相覆盖
 7. **server 路由顺序**:`GET /api/runs/progress` 必须注册在 `GET /api/runs/{run_id}` 之前(FastAPI 按注册顺序匹配,否则 "progress" 会被当作 run_id)
 8. **l1/l2/l3 的 null 语义**:dry-run / 生成异常 / JSON 解析失败时对应层为 null(无输出可判),文档未显式定义,实现取"null = 未判"而非"空 failures = 通过"
+9. **裁判调用不做缓存**(双 review 2026-08-18 确认为有意取舍):生成响应有 Q6 缓存,但 L3 每轮重打(上界 160 次)。缓存判据结果违反「只存原始响应」原则,而裁判对同一 (response, rubric, judge) 的输出本身有随机性,缓存它等于固化一次抖动。若后续成本敏感,v2 可按 (response_sha, rubric_version, judge_model) 缓存并接受分数固化
+10. **L2 判据代码异常按条目隔离**(与生成侧同粒度):grounding 抛错(如未知五行)不中断整轮 run,记进该条目 error 字段——钱已花的盘不因判据 bug 丢报告,错误仍通过 CLI 退出码 1 显式暴露
 
 遗留真人步骤(代码已就绪):首轮真实基线(160 次调用)前需完成 S05 裁判校准三步 + S06 的 L2 failure 全量人工复核。
 

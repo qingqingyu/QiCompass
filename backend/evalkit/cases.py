@@ -113,12 +113,15 @@ def _build_cases() -> list[dict[str, Any]]:
 
 CASES: list[dict[str, Any]] = _build_cases()
 
-# 配额断言(启动时校验,数量不对立即报错,不静默)
+# 配额守卫(启动期校验;不用裸 assert——python -O 会剥掉,数量漂移要立即暴露)
 _NORMAL_COUNT = sum(1 for c in CASES if c["category"] == "normal")
 _SPECIAL_COUNT = sum(1 for c in CASES if c["category"] == "special_pattern")
-assert len(CASES) == 20, f"期望 20 盘,实际 {len(CASES)}"
-assert _NORMAL_COUNT == 15, f"期望 15 普通盘,实际 {_NORMAL_COUNT}"
-assert _SPECIAL_COUNT == 5, f"期望 5 special_pattern,实际 {_SPECIAL_COUNT}"
+if len(CASES) != 20:
+    raise RuntimeError(f"期望 20 盘,实际 {len(CASES)}")
+if _NORMAL_COUNT != 15:
+    raise RuntimeError(f"期望 15 普通盘,实际 {_NORMAL_COUNT}")
+if _SPECIAL_COUNT != 5:
+    raise RuntimeError(f"期望 5 special_pattern,实际 {_SPECIAL_COUNT}")
 
 
 def _cases_hash() -> str:

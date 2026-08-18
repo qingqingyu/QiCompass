@@ -116,10 +116,21 @@ def _format_shensha(shensha: list[dict[str, Any]]) -> str:
 
 
 def _format_luck_pillar(pillar: dict[str, Any] | None) -> str:
+    """CurrentPillar 字段是 gan_zhi/start_year/end_year(models/bazi.py:128)。
+
+    注意不是 start_age/end_age——chart_builder 为 chart 做过反查补 age,
+    evalkit 直接喂 engine_result 不走那条链,用 year 区间展示。
+    童限(index=0, gan_zhi="")显式标注,评分维度 4 要求裁判判断童限过渡。
+    """
     if not pillar:
         return "无(童限内,index=0 为过渡)"
-    gan_zhi = pillar.get("gan_zhi") or "?"
-    return f"{gan_zhi}(age {pillar.get('start_age', '?')}-{pillar.get('end_age', '?')})"
+    gan_zhi = pillar.get("gan_zhi") or ""
+    if not gan_zhi:
+        return "童限过渡(index=0,大运未起)"
+    start, end = pillar.get("start_year"), pillar.get("end_year")
+    years = (f"(year {start}-{end})"
+             if start is not None and end is not None else "")
+    return f"{gan_zhi}{years}"
 
 
 def build_judge_prompt(
