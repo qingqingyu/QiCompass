@@ -62,7 +62,9 @@ from app.engine.chart_builder import build_v1_chart
 from .cases import CASES, CASES_HASH, parse_birth
 from .checks.deterministic import validate_v1_module_output
 from .checks.grounding import check_grounding
+from .judge import JudgeResult, create_judge_client, judge_case_modules
 from .llm_json import parse_llm_json
+from .rubric import RUBRIC_VERSION
 from .store import (
     RUNS_DIR,
     build_run_identity,
@@ -319,6 +321,7 @@ async def run_chain_for_case(
     selected_modules: list[str],
     use_cache: bool,
     runs_dir: Path,
+    judge_client: Any | None = None,
 ) -> list[dict[str, Any]]:
     """跑一盘 × 选中模块全链路,返回每 (case, module) 一条的 entries。
 
@@ -349,8 +352,8 @@ async def run_chain_for_case(
         logger.error("[%s] 排盘失败", case_id, exc_info=True)
         return [
             {**common, "module": m, "prompt_version": PROMPT_VERSIONS[m],
-             "elapsed_ms": 0.0, "l1": None, "l2": None, "cached": False,
-             "verdict": "error",
+             "elapsed_ms": 0.0, "l1": None, "l2": None, "l3": None,
+             "cached": False, "verdict": "error",
              "error": f"排盘失败: {type(e).__name__}: {e}"}
             for m in selected_modules
         ]
@@ -373,7 +376,7 @@ async def run_chain_for_case(
             entries.append({
                 **common, "module": module,
                 "prompt_version": PROMPT_VERSIONS[module],
-                "elapsed_ms": 0.0, "l1": None, "l2": None,
+                "elapsed_ms": 0.0, "l1": None, "l2": None, "l3": None,
                 "cached": False, "verdict": "error",
                 "error": "链路中断:M0 失败,下游未执行",
             })
@@ -415,7 +418,7 @@ async def run_chain_for_case(
             **common, "module": module,
             "prompt_version": PROMPT_VERSIONS[module],
             "elapsed_ms": status["elapsed_ms"],
-            "l1": l1, "l2": l2,
+            "l1": l1, "l2": l2, "l3": None,
             "cached": status["cached"],
             "verdict": verdict,
             "error": status["error"],
@@ -427,6 +430,36 @@ async def run_chain_for_case(
             chain_outputs[module] = parsed
         elif module == "m0_structure" and not status["ok"]:
             chain_broken = True
+
+    # L3 接线:只裁判 L1/L2 已过的条目(fail/error 的裁判是浪费);
+    # 同盘各模块并发(信号量限流在 judge_case_modules 内),逐条隔离失败。
+    if judge_client is not None and chain_outputs:
+        judged = await judge_case_modules(
+            [(m, p, engine_result) for m, p in chain_outputs.items()],
+            judge_client=judge_client,
+        )
+        for entry in entries:
+            module = entry["module"]
+            if module not in judged:
+                continue
+            outcome = judged[module]
+            if isinstance(outcome, JudgeResult):
+                entry["l3"] = {
+                    "scores": outcome.scores,
+                    "overall": outcome.overall,
+                    "failures": outcome.failures,
+                    "passed": outcome.passed,
+                    "judge_provider": outcome.judge_provider,
+                    "judge_model": outcome.judge_model,
+                    "rubric_version": outcome.rubric_version,
+                }
+                entry["verdict"] = compute_verdict(
+                    l1=entry["l1"], l2=entry["l2"], l3=entry["l3"],
+                    error=entry["error"], judge_enabled=True)
+            else:
+                # 裁判解析/结构失败:不给默认分,显式记 error(CLI 退出码 1)
+                entry["error"] = f"裁判失败: {outcome}"
+                entry["verdict"] = "error"
 
     return entries
 
@@ -475,6 +508,8 @@ async def execute_run(
     runs_dir: Path | None = None,
     ai_client: Any | None = None,
     no_cache: bool = False,
+    skip_judge: bool = False,
+    judge_client: Any | None = None,
 ) -> dict[str, Any]:
     """跑一次完整评测,落盘 runs/<run_id>/,并与基线 diff(若已设置)。
 
@@ -485,6 +520,8 @@ async def execute_run(
         run_id / runs_dir: 测试注入(默认按身份生成 / evalkit/runs/)
         ai_client: 测试注入的 client(None=按 env 构造 / dry-run 占位)
         no_cache: 忽略并绕过响应缓存,强制全量调 API(换模型/验证抖动用)
+        skip_judge: 跳过 L3 裁判(真实 run 默认开裁判)
+        judge_client: 测试注入的裁判 client(None 且未跳过 = 按 JUDGE_* env 构造)
 
     Returns:
         summary(run_id / 计数 / 缓存命中 / diff 结果)
@@ -506,10 +543,21 @@ async def execute_run(
             openai_base_url=OPENAI_BASE_URL,
         ))
 
-    identity = build_run_identity(
-        client.provider, client.model,
-        modules=V1_MODULES, cases_hash=CASES_HASH,
-    )
+    # L3:真实 run 默认开裁判;身份带 rubric/judge 维度(换裁判 = 新 run)
+    judge_enabled = (not dry_run) and (not skip_judge)
+    if judge_enabled and judge_client is None:
+        judge_client = create_judge_client()
+    if judge_client is not None:
+        identity = build_run_identity(
+            client.provider, client.model,
+            modules=V1_MODULES, cases_hash=CASES_HASH,
+            rubric_version=RUBRIC_VERSION, judge_model=judge_client.model,
+        )
+    else:
+        identity = build_run_identity(
+            client.provider, client.model,
+            modules=V1_MODULES, cases_hash=CASES_HASH,
+        )
     run_id = run_id or make_run_id(identity)
     run_dir = runs_dir / run_id
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -535,6 +583,7 @@ async def execute_run(
                 ai_client=client, case_dir=run_dir / case_id,
                 dry_run=dry_run, selected_modules=selected,
                 use_cache=use_cache, runs_dir=runs_dir,
+                judge_client=judge_client,
             )
             for entry in entries:
                 results_file.write(
@@ -552,6 +601,7 @@ async def execute_run(
         "dry_run": dry_run,
         "modules": selected,
         "case_count": len(cases),
+        "judge_enabled": judge_client is not None,
         "started_at": started_at.isoformat(),
         "finished_at": finished_at.isoformat(),
         "api_calls": client.calls,
@@ -565,6 +615,7 @@ async def execute_run(
 
     summary: dict[str, Any] = {
         "run_id": run_id, "run_dir": run_dir, "dry_run": dry_run,
+        "identity": identity,
         "total": total, **verdict_counts,
         "api_calls": client.calls, "cache_hits": cache_hits,
     }
@@ -624,6 +675,10 @@ def main() -> None:
         "--no-cache", action="store_true",
         help="绕过响应缓存强制全量调 API(换模型/验证温度抖动时用)",
     )
+    parser.add_argument(
+        "--skip-judge", action="store_true",
+        help="跳过 L3 裁判(真实 run 默认开裁判;需 JUDGE_* 或 AI_* env)",
+    )
     args = parser.parse_args()
 
     modules_list: list[str] | None = None
@@ -643,14 +698,20 @@ def main() -> None:
     else:
         run_id, runs_dir = None, None
 
-    summary = asyncio.run(execute_run(
-        dry_run=args.dry_run,
-        case_limit=args.case_limit,
-        modules=modules_list,
-        run_id=run_id,
-        runs_dir=runs_dir,
-        no_cache=args.no_cache,
-    ))
+    try:
+        summary = asyncio.run(execute_run(
+            dry_run=args.dry_run,
+            case_limit=args.case_limit,
+            modules=modules_list,
+            run_id=run_id,
+            runs_dir=runs_dir,
+            no_cache=args.no_cache,
+            skip_judge=args.skip_judge,
+        ))
+    except Exception as e:
+        # CLI 自身错误(缺 key / 模块校验等)统一退出码 2
+        print(f"ERROR: {type(e).__name__}: {e}")
+        sys.exit(2)
 
     print("=" * 64)
     print(f"run: {summary['run_id']}")

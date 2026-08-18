@@ -321,11 +321,15 @@ class _ExplodingClient(_StaticChainClient):
 
 
 async def test_replay_from_cache_zero_api_calls(tmp_path):
-    """缓存重放:同输入第二次 run 零 API 调用,判据全部重算。"""
+    """缓存重放:同输入第二次 run 零 API 调用,判据全部重算。
+
+    skip_judge=True:本测试只测生成缓存;S05 后真实 run 默认开裁判,
+    不显式跳过会真调 JUDGE API(测试零真实调用红线)。
+    """
     first = _StaticChainClient()
     summary_a = await execute_run(
         dry_run=False, case_limit=1, run_id="run-a",
-        runs_dir=tmp_path, ai_client=first,
+        runs_dir=tmp_path, ai_client=first, skip_judge=True,
     )
     assert first.calls == 8  # 1 盘 × 8 模块
     assert summary_a["api_calls"] == 8
@@ -334,7 +338,7 @@ async def test_replay_from_cache_zero_api_calls(tmp_path):
 
     summary_b = await execute_run(
         dry_run=False, case_limit=1, run_id="run-b",
-        runs_dir=tmp_path, ai_client=_ExplodingClient(),
+        runs_dir=tmp_path, ai_client=_ExplodingClient(), skip_judge=True,
     )
     assert summary_b["api_calls"] == 0
     assert summary_b["cache_hits"] == 8
@@ -345,12 +349,13 @@ async def test_no_cache_forces_full_api(tmp_path):
     first = _StaticChainClient()
     await execute_run(
         dry_run=False, case_limit=1, run_id="run-a",
-        runs_dir=tmp_path, ai_client=first,
+        runs_dir=tmp_path, ai_client=first, skip_judge=True,
     )
     second = _StaticChainClient()
     summary = await execute_run(
         dry_run=False, case_limit=1, run_id="run-b",
         runs_dir=tmp_path, ai_client=second, no_cache=True,
+        skip_judge=True,
     )
     assert second.calls == 8
     assert summary["cache_hits"] == 0
