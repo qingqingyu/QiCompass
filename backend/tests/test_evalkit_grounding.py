@@ -259,3 +259,60 @@ def test_chain_m7_exempt_from_verbatim_check():
     out = {"note": "以「伤官生财循环驱动」为底色的落地手册,不复述分析。"}
     assert check_chain_consistency(
         "m7_manual", out, _engine(), chain_context=chain) == []
+
+
+# ===== P1 修复回归(2026-08-19 review:非五行复合词误报 + 「不宜」死信号) =====
+
+# (文本, 涉及的五行字)。对抗样本取自 review 实测会误报的措辞,
+# 全部是日常复合词/成语,不是五行义。
+_ADVERSARIAL_NON_WUXING = [
+    ("适合金融行业或投资顾问方向", "金"),    # 金融
+    ("增强金融素养,建立稳定现金流", "金"),  # 金融 / 现金流
+    ("适合水产养殖与文旅结合的副业", "水"),  # 水产
+    ("宜土地相关的长期持有资产", "土"),      # 土地
+    ("适合木工手作类的个人品牌", "木"),      # 木工
+    ("避免火中取栗式的短线操作", "火"),      # 成语,非五行火
+]
+
+
+@pytest.mark.parametrize("text,element", _ADVERSARIAL_NON_WUXING)
+def test_xiji_non_wuxing_compound_not_flagged(text, element):
+    """P1-1:非五行复合词里的五行字不得判为喜忌推荐/规避。
+
+    目标五行同时压进 favorable 和 unfavorable:无论句子是推荐向还是
+    规避向,该五行字都落在被扫描的集合里,判据真扫到了才算过关。
+    """
+    engine = _engine(favorable_elements=[element],
+                     unfavorable_elements=[element])
+    assert check_xiji_consistency("m5_wealth", {"summary": text}, engine) == []
+
+
+@pytest.mark.parametrize("text,element", _ADVERSARIAL_NON_WUXING)
+def test_special_pattern_non_wuxing_compound_not_flagged(text, element):
+    """P1-1 最大暴露面:special_pattern 规则 1 遍历全部五行,同样不得误报。
+
+    (m5_wealth 天然高频出现金融/现金流/水产/土地措辞,5 个 special 盘
+    × 任何模块命中任一样本 = 误报"编造喜忌"。)
+    """
+    out = {"summary": text, "note": "本盘为从格,不入常格。"}
+    failures = check_special_pattern_honesty("m5_wealth", out, _special_engine())
+    assert failures == []
+
+
+def test_special_pattern_real_fabrication_still_fails():
+    """否决表只放行复合词:真五行推荐(「宜补火」)在 special 盘上必须仍被抓。"""
+    out = {"note": "宜补火,多接触暖色环境。本盘为从格,不入常格。"}
+    failures = check_special_pattern_honesty("m1_talent", out, _special_engine())
+    assert any("编造喜忌" in f and "火" in f for f in failures)
+
+
+def test_xiji_buyi_now_produces_failure():
+    """P1-2:「不宜用金」(金 favorable)必须产出 failure。
+
+    修复前 `宜` 是 `不宜` 的子串 → 句子被判"推荐+规避并存"的歧义句
+    整句跳过,以「不宜」为唯一规避信号的判据静默失效。
+    """
+    out = {"summary": "不宜用金,改用银饰替代。"}
+    failures = check_xiji_consistency("m1_talent", out, _engine())
+    assert any("喜忌矛盾" in f and "金" in f and "favorable" in f
+               for f in failures)

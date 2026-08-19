@@ -6,7 +6,8 @@
 
 关于误报的立场(宁可漏报,不可误报):
 - 模式匹配一律保守:证据不足就不判(歧义句跳过、信号词与五行必须
-  近距共现、"泄/克"类有方向歧义的关系动词不启用)
+  近距共现、"泄/克"类有方向歧义的关系动词不启用、非五行复合词
+  二次否决——金融/土地/火车这类日常词里的五行字不算五行义)
 - 每条 failure 自带命中原文片段 + 冲突的 ground truth 值,可在 UI 人工复核
 - 首轮基线(S06)后人工复核全部 L2 failure;误报优先收紧模式
 
@@ -86,33 +87,93 @@ _AVOID_SIGNALS_FIRST = ("忌", "避", "不宜", "克制")
 _AVOID_SIGNALS_LAST = ("不利", "为忌")
 
 
+def _signal_regex(sig: str) -> str:
+    """信号词 → 正则片段。
+
+    单字「宜」加负向后顾:不许命中「不宜」内部的宜。否则任何以
+    「不宜」为唯一规避信号的句子都被判成"推荐+规避并存"的歧义句
+    整句跳过,规避判据静默失效(P1-2,2026-08-19 review 修复)。
+    """
+    if sig == "宜":
+        return r"(?<!不)宜"
+    return re.escape(sig)
+
+
+_RECO_SIGNAL_RES = tuple(re.compile(_signal_regex(s))
+                         for s in _RECO_SIGNALS_FIRST + _RECO_SIGNALS_LAST)
+_AVOID_SIGNAL_RES = tuple(re.compile(_signal_regex(s))
+                          for s in _AVOID_SIGNALS_FIRST + _AVOID_SIGNALS_LAST)
+
+
+# ---------- 非五行复合词否决表(P1-1) ----------
+#
+# 五行单字大量出现在日常复合词里:财富/事业模块天然高频出现
+# 金融、资金、水产、土地、木工、火车……"信号词.{0,2}五行字"的
+# 近距共现挡不住这类误报。命中后做二次否决:五行字的前/后一位
+# 若与它构成下表中的常见复合词,不算五行义。
+# 立场:宁可漏报——否决从宽;首轮基线人工复核后按误报样本扩充。
+
+_NON_WUXING_SUFFIX: dict[str, tuple[str, ...]] = {
+    "金": ("融", "额", "属"),            # 金融 金额 金属
+    "水": ("产", "平", "准", "果"),      # 水产 水平 水准 水果
+    "土": ("地", "壤"),                  # 土地 土壤
+    "木": ("工", "材"),                  # 木工 木材
+    "火": ("车", "力", "中", "候"),      # 火车 火力 火中取栗 火候
+}
+_NON_WUXING_PREFIX: dict[str, tuple[str, ...]] = {
+    "金": ("资", "现", "黄", "奖", "基", "佣"),  # 资金 现金 黄金 奖金 基金 佣金
+    "水": ("薪",),                      # 薪水
+    "土": ("本",),                      # 本土
+    "火": ("上",),                      # 上火
+}
+
+
+def _is_non_wuxing_compound(sentence: str, idx: int, element_zh: str) -> bool:
+    """sentence[idx] 处的五行字是否与相邻一字构成常见非五行复合词。"""
+    prefix = sentence[idx - 1: idx]
+    suffix = sentence[idx + 1: idx + 2]
+    return (prefix in _NON_WUXING_PREFIX.get(element_zh, ())
+            or suffix in _NON_WUXING_SUFFIX.get(element_zh, ()))
+
+
 def _reco_hits(sentence: str, element_zh: str) -> list[str]:
-    """句内"推荐某五行"的命中模式(信号在前或在后,近距共现 ≤2 字)。"""
+    """句内"推荐某五行"的命中模式(信号在前或在后,近距共现 ≤2 字)。
+
+    命中后经 _is_non_wuxing_compound 二次否决(金融/土地类不算五行义)。
+    """
     hits: list[str] = []
     for sig in _RECO_SIGNALS_FIRST:
-        for m in re.finditer(rf"{re.escape(sig)}.{{0,2}}{element_zh}", sentence):
-            hits.append(m.group(0))
+        pattern = rf"{_signal_regex(sig)}.{{0,2}}{re.escape(element_zh)}"
+        for m in re.finditer(pattern, sentence):
+            if not _is_non_wuxing_compound(sentence, m.end() - 1, element_zh):
+                hits.append(m.group(0))
     for sig in _RECO_SIGNALS_LAST:
-        for m in re.finditer(rf"{element_zh}.{{0,2}}{re.escape(sig)}", sentence):
-            hits.append(m.group(0))
+        pattern = rf"{re.escape(element_zh)}.{{0,2}}{_signal_regex(sig)}"
+        for m in re.finditer(pattern, sentence):
+            if not _is_non_wuxing_compound(sentence, m.start(), element_zh):
+                hits.append(m.group(0))
     return hits
 
 
 def _avoid_hits(sentence: str, element_zh: str) -> list[str]:
-    """句内"规避某五行"的命中模式。"""
+    """句内"规避某五行"的命中模式(同样过复合词二次否决)。"""
     hits: list[str] = []
     for sig in _AVOID_SIGNALS_FIRST:
-        for m in re.finditer(rf"{re.escape(sig)}.{{0,2}}{element_zh}", sentence):
-            hits.append(m.group(0))
+        pattern = rf"{_signal_regex(sig)}.{{0,2}}{re.escape(element_zh)}"
+        for m in re.finditer(pattern, sentence):
+            if not _is_non_wuxing_compound(sentence, m.end() - 1, element_zh):
+                hits.append(m.group(0))
     for sig in _AVOID_SIGNALS_LAST:
-        for m in re.finditer(rf"{element_zh}.{{0,2}}{re.escape(sig)}", sentence):
-            hits.append(m.group(0))
+        pattern = rf"{re.escape(element_zh)}.{{0,2}}{_signal_regex(sig)}"
+        for m in re.finditer(pattern, sentence):
+            if not _is_non_wuxing_compound(sentence, m.start(), element_zh):
+                hits.append(m.group(0))
     return hits
 
 
 def _sentence_has_reco_or_avoid(sentence: str) -> tuple[bool, bool]:
-    has_reco = any(s in sentence for s in _RECO_SIGNALS_FIRST + _RECO_SIGNALS_LAST)
-    has_avoid = any(s in sentence for s in _AVOID_SIGNALS_FIRST + _AVOID_SIGNALS_LAST)
+    has_reco = any(r.search(sentence) for r in _RECO_SIGNAL_RES)
+    has_avoid = any(r.search(sentence) for r in _AVOID_SIGNAL_RES)
     return has_reco, has_avoid
 
 
