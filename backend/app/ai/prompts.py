@@ -16,7 +16,20 @@ PROMPT_VERSIONS 与模板常量放同文件邻近位置:改模板时必须 bump 
 
 from __future__ import annotations
 
+import logging
+from functools import lru_cache
+from pathlib import Path
+
 from ..errors import InvalidInputError
+
+logger = logging.getLogger(__name__)
+
+# ---------- 外部模板文件根目录 ----------
+# 结构:prompts/{lang}/{module}_v{version}.md
+# i18n 决策 4(方案 B):模板/代码分离,加语言只加目录,git diff 清晰。
+# Slice 1 已迁移:daily_fortune(zh + en)。
+# Slice 2/3/4 将迁移:bazi_deep(_free/_paid)、compatibility(_free/_paid)。
+PROMPTS_DIR = Path(__file__).parent / "prompts"
 
 # ---------- prompt 版本号(改模板/换模型时 bump)----------
 # 本模块是 PROMPT_VERSIONS 的单一事实源,路由层从此处导入
@@ -27,9 +40,9 @@ PROMPT_VERSIONS: dict[str, int] = {
     "bazi_deep": 2,        # alias(决策 B 保留,向后兼容老 iOS)
     "bazi_deep_free": 2,   # M2 拆分:2 章免费,Medium-deep voice(200-300 字/章)
     "bazi_deep_paid": 5,   # 8 章命书框架(2026-08-15 晚重构:9 章→8 章拆并,格局章按模糊叙事红线)
-    "compatibility": 2,    # alias(M4 拆分前单 template 6 章,向后兼容老 iOS)
-    "compatibility_free": 2,  # M4 拆分:2 章免费,Medium voice(200-300 字/章)
-    "compatibility_paid": 2,  # M4 拆分:4 章付费,Medium voice(200-300 字/章)
+    "compatibility": 3,    # alias(M4 拆分前单 template 6 章,向后兼容老 iOS);v3=五行共振章节替换
+    "compatibility_free": 3,  # M4 拆分:2 章免费,Medium voice(200-300 字/章);v3=随系列统一升
+    "compatibility_paid": 3,  # M4 拆分:4 章付费,Medium voice(200-300 字/章);v3=第一章爱情深度→五行共振
     "daily_fortune": 2,    # Medium voice(50-80 字,砍宜忌+砍时辰点评)
     # v1 prompt 系统(Stage 5 落地,设计源 /Users/TWJ/Downloads/bazi-prompt-system-v1.md)
     # M0-M7 共 8 模块,双轨保留:老 7 module 不动,iOS 切换后可下线老的
@@ -197,11 +210,15 @@ COMPATIBILITY_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（6 章，每�
 **第二章：互补与冲突总览**（200-300 字）
 五行互补 + 日主关系 + 地支合冲的具体表现。分 3-5 段。
 
-**第三章：爱情深度**（200-300 字）
-情感互动模式 + 长期相处的趋势。分 3-5 段。
+**第三章：五行共振**（200-300 字）
+两人五行的生克共振：谁给谁补喜神、谁的旺相消耗对方、日主生克链路，
+以及这些共振在两人互动中的体现。分 3-5 段，每段 2-3 短句。
+每段聚焦一个具体共振点（滋养点 / 张力点 / 时间维度的稳定性）。
+不预设关系类型（婚恋/友谊/合作），聚焦能量互动本身。
 
 **第四章：合作事业**（200-300 字）
 事业 / 工作合作的契合度 + 协作建议。分 3-5 段。
+聚焦公共目标层面的协作（涵盖夫妻共业/朋友共谋/合伙人共事），不写具体关系预设。
 
 **第五章：财运合拍**（200-300 字）
 金钱观契合度 + 共同财运趋势。分 3-5 段。
@@ -210,6 +227,7 @@ COMPATIBILITY_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（6 章，每�
 未来 3 年流年同步性，每年一段，指出同步走强 / 走弱的窗口。
 
 通用要求：
+- 叙事用「两人」而非「情侣/夫妻/朋友/合伙人」；不预设关系类型（婚恋/友谊/合作/亲情）
 - 短句节奏：每段 2-3 句，每句尽量 <50 字，不写长句堆术语
 - 直言不绕弯，不堆 5+ 字术语链
 - 围绕 {context_label} 维度展开
@@ -226,12 +244,14 @@ COMPATIBILITY_FREE_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（免费 2
 **第一章：基础相处模式**（200-300 字）
 两人日常互动的基调。分 3-5 段，每段一个相处场景洞察。
 每段聚焦具体 actionable 洞察（沟通模式 / 决策风格 / 日常节奏契合度）。
+聚焦互动节奏本身，不写同居/伴侣等具体生活场景预设。
 
 **第二章：互补与冲突总览**（200-300 字）
 五行互补 + 日主关系 + 地支合冲的具体表现。分 3-5 段。
 每段聚焦一个具体维度（互补点给关系带来的资源 / 冲突点需注意的雷区）。
 
 通用要求：
+- 叙事用「两人」而非「情侣/夫妻/朋友/合伙人」；不预设关系类型（婚恋/友谊/合作/亲情）
 - 短句节奏：每段 2-3 句，每句尽量 <50 字，不写长句堆术语
 - 直言不绕弯：不用"传统认为..."；直接"你们..."
 - 围绕 {context_label} 维度展开
@@ -241,16 +261,19 @@ COMPATIBILITY_FREE_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（免费 2
 """
 
 # M4 拆分:付费 4 章(需 entitlement 才能调用)
-# 章节:3. 爱情深度 4. 合作事业 5. 财运合拍 6. 流年同步
+# 章节:1. 五行共振(S1 替换原「爱情深度」,决策 §Q3/§Q4) 2. 合作事业 3. 财运合拍 4. 流年同步
 # 具体领域预测是用户付费动力(对齐深度解析付费 5 章策略)
 COMPATIBILITY_PAID_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（付费 4 章，每章 200-300 字，总 800-1200 字）：
 
-**第一章：爱情深度**（200-300 字）
-情感互动模式 + 长期相处的趋势。分 3-5 段，每段 2-3 短句。
-每段聚焦一个具体洞察（情感节奏 / 亲密倾向 / 长期走势）。
+**第一章：五行共振**（200-300 字）
+两人五行的生克共振：谁给谁补喜神、谁的旺相消耗对方、日主生克链路，
+以及这些共振在两人互动中的体现。分 3-5 段，每段 2-3 短句。
+每段聚焦一个具体共振点（滋养点 / 张力点 / 时间维度的稳定性）。
+不预设关系类型（婚恋/友谊/合作），聚焦能量互动本身。
 
 **第二章：合作事业**（200-300 字）
 事业 / 工作合作的契合度 + 协作建议。分 3-5 段，每段 2-3 短句。
+聚焦公共目标层面的协作（涵盖夫妻共业/朋友共谋/合伙人共事），不写具体关系预设。
 
 **第三章：财运合拍**（200-300 字）
 金钱观契合度 + 共同财运趋势。分 3-5 段，每段 2-3 短句。
@@ -259,6 +282,7 @@ COMPATIBILITY_PAID_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（付费 4
 未来 3 年流年同步性，每年一段，指出同步走强 / 走弱的窗口。
 
 通用要求：
+- 叙事用「两人」而非「情侣/夫妻/朋友/合伙人」；不预设关系类型（婚恋/友谊/合作/亲情）
 - 短句节奏：每段 2-3 句，每句尽量 <50 字，不写长句堆术语
 - 直言不绕弯，不堆 5+ 字术语链
 - 围绕 {context_label} 维度展开
@@ -268,48 +292,16 @@ COMPATIBILITY_PAID_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（付费 4
 """
 
 # ---------- 每日运势 ----------
-# 对齐 bazi-app-design-doc.md:470-496 + 2026-08-01 grill-me V2 voice 改 Medium
-# 关键变化:砍掉"个性化宜忌 3-5 条"和"12 时辰点评"要求(改由前端 UI 渲染承接)
-# AI 输出仅 50-80 字总(3-5 短句直言 actionable)
-DAILY_FORTUNE_TEMPLATE = """你是一位精通流日推断的命理师。请基于以下信息为命主解读今日运势。
-
-命主：日主 {day_master}（{day_master_element}），{day_master_strength}
-命局喜：{favorable_elements}
-命局忌：{unfavorable_elements}
-
-今日：{date}（农历 {lunar_date}）
-今日流日柱：{day_pillar}（流日天干 {day_stem} 属 {day_stem_element}，流日地支 {day_branch} 属 {day_branch_element}）
-流日对日主关系：{day_relation}
-流日冲：{day_chong}
-
-12 时辰（按 zi_hour_rule 排序）：
-{hour_pillars_with_relations}
-
-通用黄历宜：{huangli_yi}
-通用黄历忌：{huangli_ji}
-
-写作要求（**仅 50-80 字总**，3-5 短句）：
-
-- 今日倾向：流日对日主的生克影响（结合后端给出的喜忌），直言会发生什么
-- 行动建议：今日适合 / 不适合做什么（具体，不空泛）
-- 情绪 / 状态提示：基于流日对日主的关系（如偏官日容易紧绷、印星日适合学习）
-
-通用要求：
-- **总字数严格 50-80 字**，不超
-- 3-5 短句，可以一行一句
-- 直言不绕弯：不用"传统认为..."；直接"今日你..."
-- 核心术语保留（流日 / 偏官 / 喜忌等）但不主动解释
-- **重要**：喜忌已由后端确定性给出，你必须严格按后端的 favorable/unfavorable 写，不得自行推断或修改
-- **不要**输出"个性化宜忌列表"（宜/忌 main anchor 由前端 UI 渲染，不靠 AI 输出）
-- **不要**逐时辰点评 12 时辰（时辰数据展示是前端的事，AI 不点评）
-- 不确定性保留：用"倾向 / 可能 / 容易"，禁用"必 / 一定 / 肯定"
-"""
+# Slice 1 i18n 迁移:DAILY_FORTUNE_TEMPLATE 已迁移到外部 Markdown 文件
+# - prompts/zh/daily_fortune_v2.md(中文版,与原硬编码内容一致)
+# - prompts/en/daily_fortune_v2.md(英文版,术语用 Joey Yap 体系)
+# 后续 Slice 2/3/4 同步迁移 bazi_deep / compatibility 系列。
 
 # ---------- v1 prompt 系统(Stage 5,设计源 bazi-prompt-system-v1.md)----------
 # 双轨保留:老 7 module 不动,本段是新 v1 系统的 8 个 module
 # 渲染策略:JSON schema 大括号用 {{ }} 转义,str.format_map 自动还原为单花括号
 # → 与老 module 共用同一渲染路径,占位符({chart} 等)走 format_map 标准机制
-# 全局 System Prompt 与 8 模板拼在 _TEMPLATES[module] 里(避免 render 时再拼一次)
+# 全局 System Prompt 与 8 模板拼在 _LEGACY_TEMPLATES[module] 里(避免 render 时再拼一次)
 
 # 设计文档 §2 全局 System Prompt(所有 v1 模块共用的世界观约束)
 _V1_SYSTEM_PROMPT = """你是一位命理结构分析师，工作方式接近系统分析师，而不是算命先生。
@@ -602,14 +594,18 @@ leverage(M6 杠杆点): {leverage}
 
 # ---------- 模板注册表 ----------
 
-_TEMPLATES: dict[str, str] = {
+# Slice 1 i18n 改造:_TEMPLATES → _LEGACY_TEMPLATES
+# daily_fortune 已迁移到外部 Markdown 文件(prompts/{zh,en}/daily_fortune_v2.md)。
+# 其他 module(bazi_deep / compatibility 系列)仍走硬编码常量,等 Slice 2/3/4 迁移。
+# _load_template 加载失败时,中文 fallback 到此 dict;英文显式抛错(避免英文 prompt 误用中文)。
+_LEGACY_TEMPLATES: dict[str, str] = {
     "bazi_deep": BAZI_DEEP_TEMPLATE,
     "bazi_deep_free": BAZI_DEEP_FREE_TEMPLATE,
     "bazi_deep_paid": BAZI_DEEP_PAID_TEMPLATE,
     "compatibility": COMPATIBILITY_TEMPLATE,
     "compatibility_free": COMPATIBILITY_FREE_TEMPLATE,
     "compatibility_paid": COMPATIBILITY_PAID_TEMPLATE,
-    "daily_fortune": DAILY_FORTUNE_TEMPLATE,
+    # daily_fortune 已迁移到外部 Markdown 文件(prompts/{zh,en}/daily_fortune_v2.md)
     # v1 prompt 系统(Stage 5):M0-M7 共 8 模块
     "m0_structure": M0_STRUCTURE_TEMPLATE,
     "m1_talent": M1_TALENT_TEMPLATE,
@@ -731,8 +727,53 @@ def validate_context(module: str, context: dict) -> None:
                 f"期望 str/int/float/bool(module={module})")
 
 
-def render_prompt(module: str, context: dict) -> str:
-    """渲染 prompt:先校验必填字段,再 str.format_map 填充。
+@lru_cache(maxsize=None)
+def _load_template(module: str, language: str, version: int) -> str:
+    """加载模板并内存缓存。
+
+    i18n 决策 4(方案 B):模板存外部 Markdown 文件,按 (module, language, version) 寻址。
+
+    fallback 策略(严格区分 zh / 非 zh):
+    - 优先读 prompts/{language}/{module}_v{version}.md
+    - 中文(zh)文件不存在时,fallback 到 _LEGACY_TEMPLATES[module](Slice 1 过渡期,
+      其他 module 未文件化),log warning
+    - 非中文(如 en)文件不存在时,**显式抛 FileNotFoundError**(绝不静默 fallback
+      到中文,避免英文 prompt 误用中文模板)
+
+    Args:
+        module: 7 module 之一
+        language: "zh" / "en"(未来扩展)
+        version: prompt_version 数字
+
+    Returns:
+        模板字符串(含 {xxx} 占位符,由 str.format_map 填充)
+
+    Raises:
+        FileNotFoundError: 模板文件缺失且无法 fallback
+    """
+    primary_path = PROMPTS_DIR / language / f"{module}_v{version}.md"
+    if primary_path.exists():
+        return primary_path.read_text(encoding="utf-8")
+
+    # 文件不存在时的处理
+    if language == "zh" and module in _LEGACY_TEMPLATES:
+        # 中文 fallback 到硬编码常量(Slice 1 阶段过渡,等 Slice 2/3/4 迁移)
+        logger.warning(
+            "prompt 模板 module=%s v%s 缺 zh 文件版,fallback 到 _LEGACY_TEMPLATES"
+            "(后续 slice 迁移到 prompts/zh/)",
+            module, version,
+        )
+        return _LEGACY_TEMPLATES[module]
+
+    # 非中文或缺中文硬编码 → 显式抛错(避免英文 prompt 误用中文)
+    raise FileNotFoundError(
+        f"prompt 模板缺失: module={module!r} language={language!r} version=v{version}"
+        f"(需在 prompts/{language}/{module}_v{version}.md 补齐)"
+    )
+
+
+def render_prompt(module: str, context: dict, language: str = "zh") -> str:
+    """渲染 prompt:先校验必填字段,按 language 加载模板,再 str.format_map 填充。
 
     bazi_deep 系列(alias / _free / _paid)命中 day_master_strength ==
     "special_pattern" 时追加从格诚实降级约束段。
@@ -742,14 +783,21 @@ def render_prompt(module: str, context: dict) -> str:
     等)与老模板共用同一渲染路径,无需分流。
 
     Args:
-        module: 注册到 _TEMPLATES 的任一 module(老 7 个 + v1 8 个)
+        module: 注册到 _LEGACY_TEMPLATES 的任一 module(老 7 个 + v1 8 个)
         context: prompt 渲染负载(必须含 REQUIRED_FIELDS[module] 所有字段)
+        language: 目标语言代码(默认 "zh" 向后兼容;i18n 决策 9)
 
     Returns:
-        完整 provider-neutral prompt 字符串
+        完整 provider-neutral prompt 字符串(目标语言)
+
+    Raises:
+        FileNotFoundError: 目标 language 的模板文件缺失(且非 zh 能 fallback)
+        InvalidInputError: context 缺字段或值类型非法
+        ValueError: module 未注册
     """
     validate_context(module, context)
-    template = _TEMPLATES[module]
+    version = PROMPT_VERSIONS[module]
+    template = _load_template(module, language, version)
     # str.format_map 用 _StrictFormatDict:即使 validate_context 漏了某个字段
     # (模板有占位符但 REQUIRED_FIELDS 没列),也会抛清晰 KeyError 而非静默填空
     rendered = template.format_map(_StrictFormatDict(context))
@@ -757,6 +805,17 @@ def render_prompt(module: str, context: dict) -> str:
     # 从格诚实降级(bazi_deep 系列三个 module 共用同一份 suffix)
     if (module in ("bazi_deep", "bazi_deep_free", "bazi_deep_paid")
             and context.get("day_master_strength") == "special_pattern"):
+        if language != "zh":
+            # 从格降级 suffix 目前只有中文版(Slice 2 迁移)。
+            # 非中文请求显式报错,避免英文 prompt 尾部追加中文 suffix。
+            raise FileNotFoundError(
+                f"从格降级 suffix 尚无 {language!r} 版本"
+                f"(module={module!r},需 Slice 2 补齐"
+                f" prompts/{language}/_special_pattern_suffix_v{version}.md)"
+            )
+        # TODO(Slice 2):先在 prompts/zh/_special_pattern_suffix_v{version}.md 落地文件,
+        # 再改成 rendered += _load_template("_special_pattern_suffix", language, version)
+        # (届时 zh 也走文件路径,删除此处的硬编码 BAZI_DEEP_SPECIAL_PATTERN_SUFFIX 拼接)
         rendered = rendered + BAZI_DEEP_SPECIAL_PATTERN_SUFFIX
 
     return rendered
