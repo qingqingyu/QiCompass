@@ -225,7 +225,11 @@ final class CompatibilityOrchestrator {
                 module: module,
                 context: promptContext,
                 targetDate: nil,
-                question: nil
+                question: nil,
+                // 2026-08-23:compatibility_paid 进后端 PAID_MODULES 后 user_local_id
+                // 必填(entitlement 查询维度);免费 module 统一传无副作用,
+                // 对齐 DeepAnalysisOrchestrator 的做法
+                userLocalId: UserIdentity.userLocalId
             )
             let resp = try await AppLogger.measure(
                 AppLogger.networking,

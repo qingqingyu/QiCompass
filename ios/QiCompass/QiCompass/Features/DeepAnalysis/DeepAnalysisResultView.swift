@@ -113,9 +113,15 @@ struct DeepAnalysisResultView: View {
                     contentHash: response.contentHash,
                     purchaseManager: env.purchaseManager,
                     onPurchaseSuccess: {
-                        // 购买成功 → dismiss + 重新调 _paid(查到 entitlement 自动切)
+                        // 购买成功 → dismiss;按当前模式分流(2026-08-23 断链修复):
+                        // v1 模式重跑 .locked 模块(守卫重查 entitlement 放行),
+                        // 老路径重新调 generateInterpretation(查到 entitlement 自动切 _paid)
                         showPaywall = false
-                        vm.generateInterpretation()
+                        if v1ModeEnabled {
+                            vm.retryLockedV1Modules()
+                        } else {
+                            vm.generateInterpretation()
+                        }
                     }
                 )
             )

@@ -273,15 +273,18 @@ async def test_v1_module_with_legacy_context_returns_422_missing_fields(
 def _seed_entitlement_for_v1(
     store, *, content_hash: str, module: str, user_local_id: str,
 ) -> None:
-    """给 v1 付费 module 塞 entitlement(避免 422 卡在 entitlement 层)。
+    """给 v1 付费 module 塞 entitlement(避免 403 卡在 entitlement 层)。
 
-    module 用原名(m2_high_low 等,不去后缀,因为路由层对 v1 module 不去后缀)。
+    2026-08-23 断链修复:module 一律存 base 名 "bazi_deep"——路由层对 v1
+    module 也映射回 bazi_deep 查询(单 SKU 解锁全部深度付费内容),iOS
+    redeem 恒写 bazi_deep,seed 形态与生产数据一致。module 参数保留
+    (用于 tx_id 区分),不再进 entitlement 行。
     """
     store.insert(
         transaction_id=f"tx-{module}-{content_hash[:8]}",
         product_id="com.qicompass.deep_analysis.single",
         content_hash=content_hash,
-        module=module,
+        module="bazi_deep",
         user_local_id=user_local_id,
         purchased_at="2026-08-01T00:00:00+00:00",
         original_purchase_date="2026-08-01T00:00:00+00:00",
@@ -428,3 +431,119 @@ def test_hash_user_input_m5_different_preference_different_hash():
         m5_assets_summary="中等", m5_preference="进攻",
     )
     assert _hash_user_input(req_balanced) != _hash_user_input(req_aggressive)
+
+
+# ===== 2026-08-23 断链修复:entitlement base module 映射 =====
+
+
+def test_entitlement_base_module_mapping_covers_all_paid_modules():
+    """映射键域与 PAID_MODULES 严格一致(加白名单漏映射会 RuntimeError,
+    此处提前在测试层暴露)。"""
+    from app.models.interpret import _ENTITLEMENT_BASE_MODULE
+    assert set(_ENTITLEMENT_BASE_MODULE) == PAID_MODULES, (
+        f"PAID_MODULES 与 _ENTITLEMENT_BASE_MODULE 键域漂移:"
+        f"仅白名单={PAID_MODULES - set(_ENTITLEMENT_BASE_MODULE)} "
+        f"仅映射={set(_ENTITLEMENT_BASE_MODULE) - PAID_MODULES}"
+    )
+
+
+def test_entitlement_base_module_deep_modules_map_to_bazi_deep():
+    """bazi_deep_paid + v1 M2-M7 → bazi_deep(单 SKU 解锁全部深度付费内容,
+    MONETIZATION.md 设计本意;iOS redeem 恒写 bazi_deep)。"""
+    from app.models.interpret import entitlement_base_module
+    assert entitlement_base_module("bazi_deep_paid") == "bazi_deep"
+    for m in ("m2_high_low", "m3_system", "m4_health",
+              "m5_wealth", "m6_dynamics", "m7_manual"):
+        assert entitlement_base_module(m) == "bazi_deep", (
+            f"{m} 应映射到 bazi_deep"
+        )
+
+
+def test_entitlement_base_module_compatibility_modules_map_to_compatibility():
+    """compatibility_paid + compatibility alias → compatibility。"""
+    from app.models.interpret import entitlement_base_module
+    assert entitlement_base_module("compatibility_paid") == "compatibility"
+    assert entitlement_base_module("compatibility") == "compatibility"
+
+
+def test_entitlement_base_module_unknown_raises_runtime_error():
+    """未知付费 module → RuntimeError(代码 bug 显式暴露,不静默兜底)。"""
+    from app.models.interpret import entitlement_base_module
+    with pytest.raises(RuntimeError, match="需同步补映射"):
+        entitlement_base_module("not_a_real_module")
+
+
+# 能过 validate_context 的最小 m2 context(全部标量;内容值任意)
+_V1_M2_CONTEXT = {
+    "chart": '{"pillars": "test-chart"}',
+    "structure_fingerprint": "fp-test",
+    "innate": '["天赋A"]',
+    "defensive": '["防御B"]',
+}
+
+
+def test_module_literal_accepts_compatibility_split_modules():
+    """M4 拆分:compatibility_free / compatibility_paid 必须过 Literal
+    (2026-08-23 修复:此前 iOS 发这两值会被 Literal 422,合盘 AI 解读
+    对真后端全量不可用)。"""
+    base_kwargs = dict(
+        content_hash="hash-compat-split",
+        context=BAZI_DEEP_CONTEXT,  # Literal 层测试,context 内容无关
+        target_date=None,
+    )
+    InterpretRequest(module="compatibility_free", **base_kwargs)
+    InterpretRequest(
+        module="compatibility_paid", user_local_id="user-1", **base_kwargs,
+    )
+    # compatibility alias 进 PAID_MODULES 后也要求 user_local_id
+    InterpretRequest(
+        module="compatibility", user_local_id="user-1", **base_kwargs,
+    )
+
+
+async def test_v1_paid_module_no_entitlement_returns_403(interpret_client):
+    """v1 付费 module 无 entitlement → 403(越狱保护覆盖 v1 链)。
+
+    用能过 validate_context 的最小 v1 context,确保请求走到 entitlement
+    检查(步骤 2.5)而非提前 422。
+    """
+    payload = {
+        "content_hash": "hash-m2-no-ent",
+        "module": "m2_high_low",
+        "context": _V1_M2_CONTEXT,
+        "target_date": None,
+        "parent_fingerprint": "fp",
+        "user_local_id": "user-1",
+    }
+    resp = await interpret_client.post("/api/interpret", json=payload)
+    assert resp.status_code == 403, resp.json()
+    assert resp.json()["error"]["code"] == "ENTITLEMENT_NOT_FOUND"
+
+
+async def test_v1_paid_module_with_bazi_deep_entitlement_passes_gate(
+    interpret_client, tmp_entitlement_store,
+):
+    """断链修复核心回归:一条 module="bazi_deep" 的 entitlement
+    (iOS redeem 实际写入形态)→ v1 付费 module(m2)过门控 → 200。
+
+    修复前:路由按 m2_high_low 原名查 entitlement,已购用户同样 403;
+    修复后:映射回 bazi_deep,与 iOS 写入形态对齐。
+    """
+    content_hash = "hash-m2-ent-pass"
+    payload = {
+        "content_hash": content_hash,
+        "module": "m2_high_low",
+        "context": _V1_M2_CONTEXT,
+        "target_date": None,
+        "parent_fingerprint": "fp",
+        "user_local_id": "user-1",
+    }
+    _seed_entitlement_for_v1(
+        tmp_entitlement_store,
+        content_hash=content_hash,
+        module="m2_high_low",
+        user_local_id="user-1",
+    )
+    resp = await interpret_client.post("/api/interpret", json=payload)
+    assert resp.status_code == 200, resp.json()
+    assert resp.json()["interpretation"]

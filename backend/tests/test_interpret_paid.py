@@ -8,13 +8,16 @@
 - module=bazi_deep_paid 退款后(is_active=0)→ 403
 - 缓存隔离:bazi_deep_free vs bazi_deep_paid 不串缓存(module 是缓存键的一部分)
 - alias 向后兼容:bazi_deep 仍可用(决策 B)
+- 合盘 M4 拆分(2026-08-23 补):compatibility_free 免费直通;
+  compatibility_paid / compatibility alias 无 entitlement → 403;
+  compatibility_paid 有 entitlement → 200
 """
 
 from __future__ import annotations
 
 import pytest
 
-from tests.fixtures.interpret_cases import BAZI_DEEP_CONTEXT
+from tests.fixtures.interpret_cases import BAZI_DEEP_CONTEXT, COMPATIBILITY_CONTEXT
 
 
 PAID_PAYLOAD_TEMPLATE = {
@@ -54,13 +57,18 @@ def _alias_payload(content_hash: str = "test-hash-alias-001") -> dict:
 
 
 def _seed_entitlement(store, *, content_hash: str, user_local_id: str = "user-1",
-                      transaction_id: str = "tx-001", is_active: bool = True):
+                      transaction_id: str = "tx-001", is_active: bool = True,
+                      module: str = "bazi_deep"):
     """往 store 插一条 entitlement,返回 None。"""
+    product_id = (
+        "com.qicompass.deep_analysis.single" if module == "bazi_deep"
+        else "com.qicompass.compatibility.single"
+    )
     store.insert(
         transaction_id=transaction_id,
-        product_id="com.qicompass.deep_analysis.single",
+        product_id=product_id,
         content_hash=content_hash,
-        module="bazi_deep",
+        module=module,
         user_local_id=user_local_id,
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
@@ -198,9 +206,118 @@ async def test_alias_bazi_deep_still_works(interpret_client):
     """决策 B:module=bazi_deep(alias)仍可用,走综合 prompt。
 
     注:2026-08-01 grill-me V2 后 alias prompt_version = 2(Medium-deep voice)。
+    bazi_deep alias 不在 PAID_MODULES(综合版内容量 ≈ 免费 2 章,无门控必要;
+    与合盘 compatibility alias 不同——那个是 6 章全文,必须门控)。
     """
     resp = await interpret_client.post("/api/interpret", json=_alias_payload())
     assert resp.status_code == 200, resp.json()
     body = resp.json()
     assert body["prompt_version"] == 2  # alias V2 (2026-08-01 grill-me)
     assert body["interpretation"]
+
+
+# ===== 合盘 M4 拆分门控(2026-08-23 补)=====
+
+
+def _compat_free_payload(content_hash: str = "test-hash-compat-free-001") -> dict:
+    return {
+        "content_hash": content_hash,
+        "module": "compatibility_free",
+        "context": COMPATIBILITY_CONTEXT,
+        "target_date": None,
+    }
+
+
+def _compat_paid_payload(content_hash: str = "test-hash-compat-paid-001",
+                         user_local_id: str | None = "user-1") -> dict:
+    return {
+        "content_hash": content_hash,
+        "module": "compatibility_paid",
+        "context": COMPATIBILITY_CONTEXT,
+        "target_date": None,
+        "user_local_id": user_local_id,
+    }
+
+
+def _compat_alias_payload(content_hash: str = "test-hash-compat-alias-001",
+                          user_local_id: str | None = "user-1") -> dict:
+    return {
+        "content_hash": content_hash,
+        "module": "compatibility",  # M4 拆分前 alias(6 章全文)
+        "context": COMPATIBILITY_CONTEXT,
+        "target_date": None,
+        "user_local_id": user_local_id,
+    }
+
+
+async def test_compatibility_free_no_entitlement_passes(interpret_client):
+    """compatibility_free 免费,不走 entitlement 检查(对齐 bazi_deep_free)。"""
+    resp = await interpret_client.post(
+        "/api/interpret", json=_compat_free_payload())
+    assert resp.status_code == 200, resp.json()
+    body = resp.json()
+    assert body["prompt_version"] == 3  # M4 拆分免费版
+    assert body["interpretation"]
+
+
+async def test_compatibility_paid_no_entitlement_returns_403(interpret_client):
+    """compatibility_paid 无 entitlement → 403(越狱保护覆盖合盘付费)。"""
+    resp = await interpret_client.post(
+        "/api/interpret", json=_compat_paid_payload())
+    assert resp.status_code == 403, resp.json()
+    assert resp.json()["error"]["code"] == "ENTITLEMENT_NOT_FOUND"
+
+
+async def test_compatibility_paid_missing_user_local_id_returns_422(
+    interpret_client,
+):
+    """compatibility_paid 缺 user_local_id → 422(PAID_MODULES 交叉校验)。"""
+    resp = await interpret_client.post(
+        "/api/interpret", json=_compat_paid_payload(user_local_id=None))
+    assert resp.status_code == 422, resp.json()
+
+
+async def test_compatibility_paid_with_entitlement_passes(
+    interpret_client, tmp_entitlement_store,
+):
+    """compatibility_paid 有 module="compatibility" entitlement → 200。"""
+    _seed_entitlement(
+        tmp_entitlement_store,
+        content_hash="test-hash-compat-paid-001",
+        module="compatibility",
+    )
+    resp = await interpret_client.post(
+        "/api/interpret", json=_compat_paid_payload())
+    assert resp.status_code == 200, resp.json()
+    body = resp.json()
+    assert body["prompt_version"] == 3
+    assert body["interpretation"]
+
+
+async def test_compatibility_alias_no_entitlement_returns_403(
+    interpret_client,
+):
+    """拆分前 alias(6 章全文)无 entitlement → 403。
+
+    2026-08-23 修复回归:alias 此前不在 PAID_MODULES,直调可白拿
+    含付费 4 章内容的 6 章全文(合盘越狱防线缺失)。
+    """
+    resp = await interpret_client.post(
+        "/api/interpret", json=_compat_alias_payload())
+    assert resp.status_code == 403, resp.json()
+    assert resp.json()["error"]["code"] == "ENTITLEMENT_NOT_FOUND"
+
+
+async def test_compatibility_alias_with_entitlement_passes(
+    interpret_client, tmp_entitlement_store,
+):
+    """拆分前 alias 有 entitlement → 200(老客户端向后兼容)。"""
+    _seed_entitlement(
+        tmp_entitlement_store,
+        content_hash="test-hash-compat-alias-001",
+        module="compatibility",
+    )
+    resp = await interpret_client.post(
+        "/api/interpret", json=_compat_alias_payload())
+    assert resp.status_code == 200, resp.json()
+    assert resp.json()["prompt_version"] == 3
