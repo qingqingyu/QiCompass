@@ -250,6 +250,33 @@ ol, ul {
     margin: 0;
 }
 
+/* ---------- 禁词柔化提示横幅(2026-08-23,导出边界外) ---------- */
+.soften-note {
+    background: var(--cinnabar-soft);
+    border-left: 2px solid var(--cinnabar);
+    border-radius: var(--radius-sm);
+    padding: var(--space-sm) var(--space-md);
+    margin: var(--space-md) 0;
+    font-size: var(--text-caption);
+    color: var(--ink);
+}
+
+.soften-note strong {
+    font-weight: 600;
+    color: var(--cinnabar);
+}
+
+.soften-note__list {
+    margin: var(--space-xs) 0 0;
+    padding-left: 20px;
+    color: var(--ink-muted);
+}
+
+.soften-note__list li {
+    line-height: 1.7;
+    font-variant-numeric: tabular-nums;
+}
+
 /* ---------- 命书结果页内嵌提问框(2026-08-16,导出边界外) ---------- */
 .ask-cta {
     background: var(--card-surface);

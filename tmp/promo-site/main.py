@@ -57,6 +57,7 @@ from fastapi.templating import Jinja2Templates  # noqa: E402
 # backend 模块复用(注意:不 import app.config,JWT_SECRET_KEY 会 raise)
 from app.ai.client import create_ai_client  # noqa: E402
 from app.ai.forbidden_words import validate_interpretation  # noqa: E402
+from app.ai.forbidden_words import scan as scan_forbidden  # noqa: E402
 from app.ai.prompts import PROMPT_VERSIONS  # noqa: E402
 from app.engine.bazi_engine import BaziEngine  # noqa: E402
 from app.engine.compatibility import compute_compatibility  # noqa: E402
@@ -532,6 +533,41 @@ def _ask_prefill_url(prefill: dict[str, str]) -> str:
     return "/ask?" + urlencode(prefill)
 
 
+# ---------- 禁词柔化(2026-08-23,用户决策) ----------
+# backend D10(App 路径)保持「命中即拦截」不变 — 那是产品防线,替换会掩盖 AI 故障。
+# promo-site 不同:用户本人过目后才导出发平台,命中一个词整篇作废太狠。
+# 策略:替换成产品口径的模糊叙事词(倾向/大概率)→ 复扫 → 仍有残留(backend
+# 词表新增且本表没跟上映射)才走原 422 拦截。替换情况在结果页横幅明示,不静默。
+_FORBIDDEN_SOFTENERS: dict[str, str] = {
+    "必成": "大概率会成",
+    "必分": "大概率会分",
+    "必破财": "大概率破财",
+    "必定": "大概率",
+    "一定会": "很可能会",
+    "一定不会": "很可能不会",
+    "必然": "大概率",
+    "绝对": "基本",
+    "百分之百": "十有八九",
+    "铁定": "大概率",
+    "注定": "大概率",
+}
+
+
+def _soften_forbidden(text: str) -> tuple[str, list[str]]:
+    """替换禁词为模糊叙事词,返回 (新文本, 替换说明 如 '必然→大概率 ×2')。
+
+    无命中文本原样返回。替换词本身不含任何禁词子串,替换后必过复扫;
+    复扫(由调用方调 validate_interpretation)仍命中 = 词表有未映射新词,显式拦截。
+    """
+    notes: list[str] = []
+    for word, soft in _FORBIDDEN_SOFTENERS.items():
+        count = text.count(word)
+        if count:
+            text = text.replace(word, soft)
+            notes.append(f"{word} → {soft} ×{count}")
+    return text, notes
+
+
 async def _interpret_with_tier(client: Any, prompt: str, length_tier: str) -> str:
     """按篇幅档调 AI:加长版放大 max_tokens + 超时,App 标准走 config 默认。
 
@@ -651,7 +687,11 @@ async def bazi_handler(request: Request):
         markdown_text = await _interpret_with_tier(client, prompt, length_tier)
 
         # ④ 禁词校验(强制:promo 物料上公开平台,命中即 raise)
+        # 禁词柔化(2026-08-23):先替换,残留才拦(见 _soften_forbidden 注释)
+        markdown_text, forbidden_notes = _soften_forbidden(markdown_text)
         validate_interpretation(markdown_text)
+        if forbidden_notes:
+            logger.warning("promo.forbidden_softened notes=%s", forbidden_notes)
 
         # ⑤ 给模板加派生字段(中文映射 + 神煞分组 + 五行总数 + 藏干 zip)
         _prepare_chart_for_template(chart)
@@ -673,6 +713,7 @@ async def bazi_handler(request: Request):
                 "length_label": LENGTH_TIER_LABELS[length_tier],
                 "ai_provider": client.provider,
                 "ai_model": client.model,
+                "forbidden_notes": forbidden_notes,
                 # `_reality` 是 promo 本地变体名,不在 backend PROMPT_VERSIONS 里;
                 # 直接用 module 查会 KeyError → AI 生成完之后裸 500(2026-08-23 修,
                 # 取 base module 的版本号)
@@ -843,7 +884,11 @@ async def compat_handler(request: Request):
         markdown_text = await _interpret_with_tier(client, prompt, length_tier)
 
         # ④ 禁词校验
+        # 禁词柔化(2026-08-23):先替换,残留才拦(见 _soften_forbidden 注释)
+        markdown_text, forbidden_notes = _soften_forbidden(markdown_text)
         validate_interpretation(markdown_text)
+        if forbidden_notes:
+            logger.warning("promo.forbidden_softened notes=%s", forbidden_notes)
 
         # 给两人 chart 加派生字段(供模板对齐 iOS DualPillarsTable)
         _prepare_chart_for_template(chart_a)
@@ -870,6 +915,7 @@ async def compat_handler(request: Request):
                 "length_label": LENGTH_TIER_LABELS[length_tier],
                 "ai_provider": client.provider,
                 "ai_model": client.model,
+                "forbidden_notes": forbidden_notes,
                 "prompt_version": PROMPT_VERSIONS[module],
             },
         )
@@ -988,7 +1034,11 @@ async def daily_handler(request: Request):
         markdown_text = await _interpret_with_tier(client, prompt, length_tier)
 
         # ⑤ 禁词校验
+        # 禁词柔化(2026-08-23):先替换,残留才拦(见 _soften_forbidden 注释)
+        markdown_text, forbidden_notes = _soften_forbidden(markdown_text)
         validate_interpretation(markdown_text)
+        if forbidden_notes:
+            logger.warning("promo.forbidden_softened notes=%s", forbidden_notes)
 
         # ⑥ 给 chart 加派生字段(供模板对齐 iOS)
         _prepare_chart_for_template(chart)
@@ -1011,6 +1061,7 @@ async def daily_handler(request: Request):
                 "length_label": LENGTH_TIER_LABELS[length_tier],
                 "ai_provider": client.provider,
                 "ai_model": client.model,
+                "forbidden_notes": forbidden_notes,
                 "prompt_version": PROMPT_VERSIONS[module],
             },
         )
@@ -1099,7 +1150,11 @@ async def ask_handler(request: Request):
             timeout=CHART_QA_TIMEOUT_SECONDS,
         )
 
+        # 禁词柔化(2026-08-23):先替换,残留才拦(见 _soften_forbidden 注释)
+        markdown_text, forbidden_notes = _soften_forbidden(markdown_text)
         validate_interpretation(markdown_text)
+        if forbidden_notes:
+            logger.warning("promo.forbidden_softened notes=%s", forbidden_notes)
         _prepare_chart_for_template(chart)
 
         logger.info(
@@ -1117,6 +1172,7 @@ async def ask_handler(request: Request):
                 "markdown_text": markdown_text,
                 "ai_provider": used_provider,
                 "ai_model": used_model,
+                "forbidden_notes": forbidden_notes,
                 "prefill": prefill,
             },
         )
