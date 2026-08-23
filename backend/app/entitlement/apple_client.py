@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any, Literal
 
 from ..errors import AppleVerificationError, EntitlementError
@@ -30,6 +31,9 @@ from .protocol import (
 )
 
 logger = logging.getLogger(__name__)
+
+# Apple Root CA 证书目录(与本文件同包;证书文件不入 git 的场景见部署文档)
+_CERTS_DIR = Path(__file__).parent / "certs"
 
 
 def _parse_apple_date(ms_timestamp: int | None) -> datetime:
@@ -43,20 +47,15 @@ def _parse_apple_date(ms_timestamp: int | None) -> datetime:
     return datetime.fromtimestamp(ms_timestamp / 1000, tz=timezone.utc)
 
 
-# Apple App Store Server API statusField(来自 SDK 文档)
-# 1 = active,2 = expired,3 = in billing retry,4 = in grace period,
-# 5 = revoked
-_TRANSACTION_REFUND_STATUSES = set()  # type: set[int]
-# Apple 用 type 字段区分是否 refund:REFUND 通知会带 REFUNDED flag;
-# getTransactionInfo 的 statusField 不直接表达 "refunded",
-# 但 we'll check via the env receipt info. M2c webhook 是退款主信号。
-
-
 class AppleServerAPIClient:
     """真 SDK 包装类。实现 AppleServerAPI Protocol。
 
     构造时实际 import SDK + 实例化 AppStoreServerAPIClient + SignedDataVerifier。
-    缺 SDK 或 env 配置时抛 RuntimeError(由 main.py lifespan 捕获,挂 Mock)。
+    缺 SDK / env 配置 / Root CA 证书时抛 RuntimeError。
+
+    2026-08-23 起 main.py 对本类构造失败**不降级 Mock**(fail-fast 启动失败):
+    Mock 验证全通过,env 配齐的生产环境降级 = entitlement 校验形同虚设。
+    Mock 只服务 env 未配齐的 dev/test 场景(由 main.py 按 env 判断)。
     """
 
     def __init__(
@@ -234,23 +233,60 @@ class AppleServerAPIClient:
         )
 
 
-def _load_apple_root_certs() -> list[bytes]:
-    """加载 Apple Root CA 证书列表。
+def _load_apple_root_certs(certs_dir: Path | None = None) -> list[bytes]:
+    """加载 Apple Root CA 证书列表(DER .cer,全量读入返回)。
 
-    Apple 官方提供两个 Root CA(G3 + Root ECDSA):
-    https://www.apple.com/certificateauthority/
+    证书来源:https://www.apple.com/certificateauthority/
+    (App Store Server API JWS 与 Server Notifications V2 验签链的根证书,
+    当前为 Apple Root CA - G3)。放置路径:backend/app/entitlement/certs/*.cer。
 
-    实施选项:
-    - 选项 A:打包 .cer 文件到 backend/data/certs/(需用户下载)
-    - 选项 B:运行时从 Apple URL 下载(每次启动慢,网络故障阻塞)
-    - 选项 C:SDK 内置(部分版本支持)
+    失败语义(2026-08-23 重写,fail-fast):
+    - 目录缺失 / 无 .cer / 文件无法按 DER X.509 解析 → RuntimeError。
+    - 不再返回空 list:SDK _ChainVerifier 对空 root 列表**必抛**
+      VerificationException(已对照 app-store-server-library 1.x 源码
+      _verify_chain_without_caching 确认,fail-closed 而非跳过校验)——
+      老实现"空 list 只做签名格式校验"是对库行为的误记。env 配齐后走
+      真支付路径,证书缺失属部署错误,应启动即失败而非运行期全部 502。
 
-    M2b 骨架阶段用空 list + log warning,M6 TestFlight 阶段补真证书:
-    SignedDataVerifier 在空 list 时只做签名格式校验,不做 trust chain 校验
-    (适合 dev/test;生产必须填真证书)。
+    certs_dir 参数仅供测试注入;生产恒用包内 _CERTS_DIR。
     """
-    logger.warning(
-        "apple_client.root_certs_empty M2b 骨架模式:Apple Root CA 未加载,"
-        "SignedDataVerifier 不做完整 trust chain 校验。M6 TestFlight 前必须补。"
+    directory = certs_dir if certs_dir is not None else _CERTS_DIR
+    if not directory.is_dir():
+        raise RuntimeError(
+            f"Apple Root CA 目录缺失:{directory}。"
+            f"请从 https://www.apple.com/certificateauthority/ 下载"
+            f" Apple Root CA - G3(.cer)放入该目录(env 配齐时必须)")
+    files = sorted(directory.glob("*.cer"))
+    if not files:
+        raise RuntimeError(
+            f"Apple Root CA 目录为空(无 .cer 文件):{directory}。"
+            f"请从 https://www.apple.com/certificateauthority/ 下载"
+            f" Apple Root CA - G3(.cer)放入该目录(env 配齐时必须)")
+
+    # DER 解析校验(cryptography 为 app-store-server-library 的传递依赖,
+    # 本模块仅在此处直接使用;lazy import 对齐文件既有风格)
+    try:
+        from cryptography import x509 as _x509
+    except ImportError as e:
+        raise RuntimeError(
+            f"cryptography 不可用,无法校验 Apple Root CA:"
+            f"pip install app-store-server-library 会一并安装({e})"
+        ) from e
+
+    certs: list[bytes] = []
+    for cert_file in files:
+        data = cert_file.read_bytes()
+        try:
+            _x509.load_der_x509_certificate(data)
+        except Exception as e:
+            raise RuntimeError(
+                f"Apple Root CA 文件无法解析(DER X.509):"
+                f"{cert_file.name}({type(e).__name__}: {e})。"
+                f"请重新从 apple.com/certificateauthority 下载"
+            ) from e
+        certs.append(data)
+    logger.info(
+        "apple_client.root_certs_loaded count=%d dir=%s",
+        len(certs), directory,
     )
-    return []
+    return certs

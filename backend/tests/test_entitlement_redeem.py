@@ -198,6 +198,91 @@ async def test_redeem_inactive_tx_rejected(
     assert len(mock_apple.verify_transaction_calls) == 1
 
 
+# ===== redeem:幂等命中核对(2026-08-23 修复)=====
+
+
+async def test_redeem_idempotent_hit_with_different_content_hash_rejected(
+    redeem_client, mock_apple, tmp_entitlement_store, auth_headers,
+):
+    """幂等命中但请求换了 content_hash → 403(防他人 tx_id 换 hash
+    骗 entitled=true + iOS 本地镜像污染)。"""
+    r1 = await redeem_client.post(
+        "/api/entitlement/redeem", json=_redeem_payload(),
+        headers=auth_headers,
+    )
+    assert r1.status_code == 200
+
+    # 同 tx_id 换 content_hash 重放 → 403
+    r2 = await redeem_client.post(
+        "/api/entitlement/redeem",
+        json=_redeem_payload(content_hash="hash-of-attacker"),
+        headers=auth_headers,
+    )
+    assert r2.status_code == 403
+    assert r2.json()["error"]["code"] == "ENTITLEMENT_ERROR"
+    # 不应再调 Apple(幂等查表阶段已拒)
+    assert len(mock_apple.verify_transaction_calls) == 1
+
+
+async def test_redeem_idempotent_hit_with_different_module_rejected(
+    redeem_client, mock_apple, tmp_entitlement_store, auth_headers,
+):
+    """幂等命中但请求换了 module → 403。"""
+    r1 = await redeem_client.post(
+        "/api/entitlement/redeem", json=_redeem_payload(),
+        headers=auth_headers,
+    )
+    assert r1.status_code == 200
+
+    r2 = await redeem_client.post(
+        "/api/entitlement/redeem",
+        json=_redeem_payload(module="compatibility"),
+        headers=auth_headers,
+    )
+    assert r2.status_code == 403
+
+
+async def test_redeem_idempotent_hit_other_user_rejected(
+    redeem_client, mock_apple, tmp_entitlement_store, auth_headers,
+    other_user_auth_headers,
+):
+    """幂等命中但请求方不是交易所有者(user_id / user_local_id 均不匹配)
+    → 403(防拿他人 tx_id 兑换)。"""
+    r1 = await redeem_client.post(
+        "/api/entitlement/redeem", json=_redeem_payload(),
+        headers=auth_headers,
+    )
+    assert r1.status_code == 200
+
+    # 另一个登录用户拿同 tx_id(且 user_local_id 也换了)→ 403
+    payload = _redeem_payload(user_local_id="user-attacker")
+    r2 = await redeem_client.post(
+        "/api/entitlement/redeem", json=payload,
+        headers=other_user_auth_headers,
+    )
+    assert r2.status_code == 403
+
+
+async def test_redeem_idempotent_hit_same_user_new_device_user_local_id_ok(
+    redeem_client, mock_apple, tmp_entitlement_store, auth_headers,
+):
+    """幂等命中 + 同 user_id(JWT)但新设备 user_local_id → 200(跨设备
+    重装场景合法:user 维度双轨,user_id 命中即认可)。"""
+    r1 = await redeem_client.post(
+        "/api/entitlement/redeem", json=_redeem_payload(),
+        headers=auth_headers,
+    )
+    assert r1.status_code == 200
+
+    payload = _redeem_payload(user_local_id="user-1-new-device")
+    r2 = await redeem_client.post(
+        "/api/entitlement/redeem", json=payload,
+        headers=auth_headers,  # 同一 JWT user
+    )
+    assert r2.status_code == 200
+    assert r2.json()["entitled"] is True
+
+
 # ===== redeem:Apple 校验失败 =====
 
 

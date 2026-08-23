@@ -79,6 +79,35 @@ async def redeem(
 
     if existing is not None:
         if existing["is_active"] == 1:
+            # 幂等命中核对(2026-08-23 修复):请求的 content_hash/module/user
+            # 必须与存量行一致,否则拒绝。防止拿到他人 transaction_id 的调用方
+            # 换自己的 hash 骗 entitled=true 响应(iOS 会据此写一条错配的
+            # 本地镜像,UI 出现假解锁)。user 维度双轨:同 user_id(跨设备新
+            # user_local_id 场景)或同 user_local_id 任一命中即认可。
+            if (existing["content_hash"] != req.content_hash
+                    or existing["module"] != req.module):
+                logger.warning(
+                    "entitlement.redeem.mismatch_reject %s "
+                    "existing_content_hash=%s existing_module=%s",
+                    log_ctx, existing["content_hash"], existing["module"])
+                raise EntitlementError(
+                    f"交易 {req.transaction_id} 已绑定其他 content_hash/module,"
+                    f"与请求不一致,拒绝幂等返回",
+                    request_id=request_id, content_hash=req.content_hash,
+                )
+            user_match = (
+                existing.get("user_id") == current_user_id
+                or existing.get("user_local_id") == req.user_local_id
+            )
+            if not user_match:
+                logger.warning(
+                    "entitlement.redeem.user_mismatch_reject %s "
+                    "existing_user_id=%s",
+                    log_ctx, existing.get("user_id"))
+                raise EntitlementError(
+                    f"交易 {req.transaction_id} 不属于当前用户,拒绝幂等返回",
+                    request_id=request_id, content_hash=req.content_hash,
+                )
             # 已激活 → 幂等返回(不重复调 Apple)
             logger.info(
                 "entitlement.redeem.idempotent_hit %s "

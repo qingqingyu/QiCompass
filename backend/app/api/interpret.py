@@ -55,6 +55,7 @@ from ..models.interpret import (
     InterpretResponse,
     PAID_MODULES,
     V1_NEEDS_USER_INPUT,
+    entitlement_base_module,
 )
 from .language import resolve_language
 
@@ -201,14 +202,13 @@ async def interpret(
 
     # 2.5 Entitlement 检查(仅 PAID_MODULES;MONETIZATION.md M2 越狱保护核心防线)
     # 越狱设备绕过 iOS UI 直调 /api/interpret 付费 module → 此处拦下
-    # PAID_MODULES 替代老 endswith("_paid"):v1 m2-m7 无 _paid 后缀但都是付费
+    # base module 映射(entitlement_base_module 单一事实源):
+    # bazi_deep_paid / v1 m2-m7 → "bazi_deep"(单 SKU 解锁该盘全部深度付费内容)
+    # compatibility_paid / compatibility alias → "compatibility"
+    # 2026-08-23 修复:v1 m2-m7 此前按原名查 entitlement,而 iOS redeem 恒写
+    # "bazi_deep" → 已购用户点 M2-M7 也 403(跨层断链),统一映射后闭合
     if req.module in PAID_MODULES:
-        # 老 module:bazi_deep_paid → bazi_deep(entitlement 存 base module 名,去 _paid 后缀)
-        # v1 module:m2_high_low 等直接用原名(entitlement 不去后缀)
-        if req.module.endswith("_paid"):
-            base_module = req.module.removesuffix("_paid")
-        else:
-            base_module = req.module
+        base_module = entitlement_base_module(req.module)
         entitlement_store: EntitlementStore = request.app.state.entitlement_store
         try:
             entitlement = await run_in_threadpool(

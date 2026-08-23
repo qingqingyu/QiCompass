@@ -105,15 +105,6 @@ def _add_user_id_column_if_needed(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE entitlement ADD COLUMN user_id TEXT")
 
 
-# 列集合校验:旧表 schema 不匹配时丢弃(对齐 ai/cache.py:189-203)
-# 注:entitlement 表是 M2 新建的,无 legacy;但保留校验防御未来 schema 演化
-_EXPECTED_COLUMNS = frozenset({
-    "transaction_id", "product_id", "content_hash", "module", "user_local_id",
-    "purchased_at", "original_purchase_date", "is_active",
-    "refunded_at", "revoked_at", "user_id",
-})
-
-
 class EntitlementStore:
     """Entitlement 表 CRUD + active 查询。
 

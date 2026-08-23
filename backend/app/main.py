@@ -145,8 +145,12 @@ def _build_apple_server_api():
     """根据 env + SDK 安装情况构造 Apple Server API。
 
     返回:
-        AppleServerAPIClient(若 env 齐 + SDK 装)
-        MockAppleServerAPI(否则,dev/test 模式)
+        AppleServerAPIClient(若 env 齐;构造失败直接向上抛,启动 fail-fast)
+        MockAppleServerAPI(env 不齐,dev/test 模式)
+
+    2026-08-23 修复:env 配齐时不再对 SDK/证书失败降级 Mock——Mock 验证
+    全通过,生产降级 = entitlement 校验形同虚设(fail-open,比启动失败更糟)。
+    对齐 CLAUDE.md 错误显式传播:该报错就报错。
     """
     if not apple_env_configured():
         logger.info(
@@ -155,22 +159,17 @@ def _build_apple_server_api():
         )
         return MockAppleServerAPI()
 
-    # env 齐,尝试构造真 SDK 客户端
-    try:
-        from .entitlement.apple_client import AppleServerAPIClient
-        return AppleServerAPIClient(
-            bundle_id=APP_STORE_BUNDLE_ID,  # type: ignore[arg-type]
-            key_id=APP_STORE_KEY_ID,  # type: ignore[arg-type]
-            issuer_id=APP_STORE_ISSUER_ID,  # type: ignore[arg-type]
-            private_key=APP_STORE_PRIVATE_KEY,  # type: ignore[arg-type]
-            environment=APP_STORE_ENVIRONMENT,  # type: ignore[arg-type]
-            app_apple_id=APP_STORE_APP_APPLE_ID,  # type: ignore[arg-type]
-        )
-    except RuntimeError as e:
-        # SDK 未安装或初始化失败(私钥格式不对等)→ fallback Mock
-        logger.warning(
-            "apple_server_api=mock reason=sdk_init_failed error=%s", e)
-        return MockAppleServerAPI()
+    # env 齐:构造真 SDK 客户端。SDK 未装 / 私钥格式不对 / Root CA 缺失
+    # → RuntimeError 向上抛,lifespan 启动失败(不降级 Mock,理由见 docstring)
+    from .entitlement.apple_client import AppleServerAPIClient
+    return AppleServerAPIClient(
+        bundle_id=APP_STORE_BUNDLE_ID,  # type: ignore[arg-type]
+        key_id=APP_STORE_KEY_ID,  # type: ignore[arg-type]
+        issuer_id=APP_STORE_ISSUER_ID,  # type: ignore[arg-type]
+        private_key=APP_STORE_PRIVATE_KEY,  # type: ignore[arg-type]
+        environment=APP_STORE_ENVIRONMENT,  # type: ignore[arg-type]
+        app_apple_id=APP_STORE_APP_APPLE_ID,  # type: ignore[arg-type]
+    )
 
 
 def _build_ai_client():

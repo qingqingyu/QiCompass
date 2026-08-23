@@ -24,11 +24,13 @@ from pydantic import BaseModel, Field, field_serializer, field_validator, model_
 
 
 Module = Literal[
-    # 老 5 个 module(M2 拆分 + alias + 合盘 + 每日)
+    # 老 module(M2 拆分 + alias + 合盘 M4 拆分 + 每日)
     "bazi_deep",          # alias(M2 决策 B 保留,旧 iOS 兼容)
     "bazi_deep_free",     # M2 拆分:2 章免费
-    "bazi_deep_paid",     # M2 拆分:5 章付费(需 entitlement)
-    "compatibility",
+    "bazi_deep_paid",     # M2 拆分:8 章付费(需 entitlement)
+    "compatibility",      # M4 拆分前 alias(付费 6 章全文,需 entitlement)
+    "compatibility_free", # M4 拆分:2 章免费
+    "compatibility_paid", # M4 拆分:4 章付费(需 entitlement)
     "daily_fortune",
     # v1 prompt 系统新 8 个 module(M0 主线 → M7 落地手册)
     # Stage 4 加 Literal + 部分接入;Stage 5 加 PROMPT_VERSIONS + 模板后真正可用
@@ -55,10 +57,47 @@ V1_MODULES: frozenset[str] = frozenset({
 PAID_MODULES: frozenset[str] = frozenset({
     # 老 module:含 _paid 后缀的
     "bazi_deep_paid",
+    # 合盘:M4 拆分付费 + 拆分前 alias(6 章全文含付费内容,同样要门控;
+    # 2026-08-23 修复:alias 此前不在白名单,直调可白拿付费章节)
+    "compatibility_paid",
+    "compatibility",
     # v1 新 module:M2-M7 付费(M0+M1 免费)
     "m2_high_low", "m3_system", "m4_health", "m5_wealth",
     "m6_dynamics", "m7_manual",
 })
+
+# 付费 module → entitlement 表存的 base module 名(单一映射,路由层消费)。
+# 设计依据 MONETIZATION.md §商品 SKU:单 SKU(deep_analysis.single ¥128)解锁
+# 该 content_hash 的**全部**深度付费内容——老 bazi_deep_paid 8 章 + v1 M2-M7
+# 模块共享同一笔 entitlement(MONETIZATION 08-14/08-15 两次章节演化均写明
+# 「付费结构(entitlement 校验)不变」)。合盘同理(compatibility.single ¥88)。
+_ENTITLEMENT_BASE_MODULE: dict[str, str] = {
+    "bazi_deep_paid": "bazi_deep",
+    "compatibility_paid": "compatibility",
+    "compatibility": "compatibility",
+    "m2_high_low": "bazi_deep",
+    "m3_system": "bazi_deep",
+    "m4_health": "bazi_deep",
+    "m5_wealth": "bazi_deep",
+    "m6_dynamics": "bazi_deep",
+    "m7_manual": "bazi_deep",
+}
+
+
+def entitlement_base_module(module: str) -> str:
+    """付费 module → entitlement 查询用的 base module 名。
+
+    仅对 PAID_MODULES 内的 module 有意义(路由层保证);键域与 PAID_MODULES
+    严格一致(测试断言 set 相等)。传入未知付费 module → RuntimeError 显式暴露
+    (说明 PAID_MODULES 加了新值但漏配映射,代码 bug 不静默兜底,对齐
+    CLAUDE.md 错误显式传播)。
+    """
+    try:
+        return _ENTITLEMENT_BASE_MODULE[module]
+    except KeyError:
+        raise RuntimeError(
+            f"module={module!r} 在 PAID_MODULES 但不在 _ENTITLEMENT_BASE_MODULE,"
+            f"需同步补映射(entitlement 查询无法确定 base module 名)") from None
 
 # 需要 parent_fingerprint(M0 输出)的 module:M1-M7(M0 自身不需要)
 V1_CHILDREN_MODULES: frozenset[str] = V1_MODULES - {"m0_structure"}
