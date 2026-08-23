@@ -11,7 +11,7 @@ import SwiftUI
 /// - ✅ lock.fill + inkMuted + opacity 0.5
 /// - ✅ 朱砂红 CTA(PrimaryCTAButton)
 struct PaidChaptersLockView: View {
-    let previewChapters: [String]  // 深度解析 5 章 / 合盘 4 章
+    let previewChapters: [String]  // 深度解析 8 章(bazi_deep_paid v5)/ 合盘 4 章
     let title: String  // "深度命书·付费章节" / "合盘解读·付费章节"
     let ctaTitle: String  // "解锁深度命书" / "解锁合盘解读"
     let onUnlock: () -> Void

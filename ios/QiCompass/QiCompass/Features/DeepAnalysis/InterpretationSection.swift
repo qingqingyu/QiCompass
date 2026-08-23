@@ -116,8 +116,8 @@ struct InterpretationSection: View {
             )
 
         case .okFree(let text, let cached):
-            // 免费用户:显示免费 2 章 + 付费 5 章锁标引导购买(M3c 关键设计)
-            // 用户看完 2 章感知"AI 真有料",自然看到下方 5 章被锁,点解锁触发 PaywallView
+            // 免费用户:显示免费 2 章 + 付费 8 章锁标引导购买(M3c 关键设计)
+            // 用户看完 2 章感知"AI 真有料",自然看到下方 8 章被锁,点解锁触发 PaywallView
             Text(MarkdownSanitizer.rendered(text))
                 .bodySerifText()
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -131,8 +131,10 @@ struct InterpretationSection: View {
             // 失败重试走 .failed case 的"重试"按钮(CLAUDE.md "AI 失败重试不消耗次数"原则)。
             Divider()
                 .background(BaziTheme.hairline)
+            // 2026-08-23 对齐 bazi_deep_paid v5(8 章命书框架,此前还写老 5 章)
             PaidChaptersLockView(
-                previewChapters: ["财运", "爱情", "健康", "六亲", "晚年"],
+                previewChapters: ["命盘", "日元", "五行", "格局倾向",
+                                  "事业与财富", "婚姻感情", "学习成长", "身体健康"],
                 title: "深度命书·付费章节",
                 ctaTitle: "解锁深度命书",
                 onUnlock: onShowPaywall

@@ -445,6 +445,34 @@ final class DeepAnalysisViewModel {
         }
     }
 
+    /// 购买成功后重跑全部 `.locked` 模块(PaywallView onPurchaseSuccess 调,v1 模式)。
+    ///
+    /// runSingleV1Module 顶部的付费守卫会重新求值(entitlement 已写入)→ 放行正常跑。
+    /// 已 ok 的模块不动(不重刷),failed/pending/needsInput 维持原状。
+    /// 2026-08-23 断链修复:M2-M7 此前从不置 .locked、购买成功回调走老路径,
+    /// v1 链付费模块对用户不可达;本方法 + 守卫补全闭环。
+    func retryLockedV1Modules() {
+        guard case .ready(let response, _) = state else {
+            AppLogger.app.error("op=deepAnalysis.retryLockedV1Modules invalid_state state=\(String(describing: self.state), privacy: .public)")
+            return
+        }
+
+        let lockedModules = ModuleID.allCases.filter { moduleStates[$0] == .locked }
+        guard !lockedModules.isEmpty else {
+            AppLogger.app.info("deepVM.retryLockedV1Modules.no_locked_modules")
+            return
+        }
+
+        AppLogger.app.info("deepVM.retryLockedV1Modules.start count=\(lockedModules.count, privacy: .public) contentHash=\(response.contentHash, privacy: .public)")
+
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            for module in lockedModules {
+                await self.runSingleV1Module(module, response: response)
+            }
+        }
+    }
+
     /// 链式调用主循环:按 ModuleID.allCases 顺序串行执行(M0 → M1 → ... → M7)。
     ///
     /// 注:简化版采用全串行;v2 可优化为按依赖图并行(M2/M3/M4/M5 可同时跑)。
@@ -470,6 +498,24 @@ final class DeepAnalysisViewModel {
     /// 不调 orchestrator(等用户填 sheet 提交后再重试)。
     @MainActor
     private func runSingleV1Module(_ module: ModuleID, response: BaziResponse) async {
+        // 付费守卫(2026-08-23 断链修复):M2-M7 无 active entitlement → .locked。
+        // 不发注定 403 的请求、不消耗每日配额;onUnlock(已装配 PaywallView sheet)
+        // 引导购买,购买成功后 retryLockedV1Modules 重跑(此处守卫重查放行)。
+        // 守卫覆盖链式启动 / 单模块重试 / 购买后重跑三条路径(单点强制)。
+        // locked 优先于 M4/M5 needsInput:未付费先引导解锁,再收用户输入。
+        // module 用基础名 "bazi_deep" 查(单 SKU 解锁全部深度付费内容,
+        // 与后端 entitlement_base_module 映射、redeem 写入形态三方对齐)。
+        if module.isPaid,
+           entitlementStore.getActive(
+               contentHash: response.contentHash,
+               module: EntitlementModule.baziDeep,
+               userLocalId: UserIdentity.userLocalId
+           ) == nil {
+            moduleStates[module] = .locked
+            AppLogger.app.info("deepVM.runSingleV1Module.paid_locked module=\(module.rawValue, privacy: .public) contentHash=\(response.contentHash, privacy: .public)")
+            return
+        }
+
         // M4 缺用户输入 → 标 .needsInput,不调 orchestrator
         if module == .m4 && m4UserInput == nil {
             moduleStates[module] = .needsInput

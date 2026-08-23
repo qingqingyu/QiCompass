@@ -39,7 +39,10 @@ enum PaywallModule {
     /// 付费章节列表
     var paidChapters: [String] {
         switch self {
-        case .deepAnalysis: return ["财运", "爱情", "健康", "六亲", "晚年"]
+        // 2026-08-23 对齐 bazi_deep_paid v5(8 章命书框架,prompts.py
+        // 2026-08-15 晚重构;此前锁标还写老 5 章,少承诺多交付但与产品脱节)
+        case .deepAnalysis: return ["命盘", "日元", "五行", "格局倾向",
+                                    "事业与财富", "婚姻感情", "学习成长", "身体健康"]
         // 五行共振改造(S1):第一章「爱情深度」→「五行共振」,与锁标 previewChapters 对齐
         case .compatibility: return ["五行共振", "合作事业", "财运合拍", "流年同步"]
         }
