@@ -23,6 +23,7 @@ import os
 import sqlite3
 import sys
 import time
+import traceback
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
@@ -104,6 +105,31 @@ logger = logging.getLogger("promo-site")
 # ---------- FastAPI app ----------
 
 app = FastAPI(title="QiCompass Promo Site", version="0.1.0")
+
+
+# ---------- 未捕获异常兜底(2026-08-23 加) ----------
+# 背景:handler 只捕获 engine/AI/禁词三类已知错误渲染成样式化错误页;其余异常
+# (如 08-23 修的 _reality KeyError)会变成裸 "Internal Server Error",无页面
+# 无日志细节,只能靠猜。本工具 localhost only(README 明确不部署公网),把
+# traceback 直接显示在 500 页上 + logger.exception 打进 uvicorn 终端。
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    # 用 exc 自带的 __traceback__ 拼(不依赖调用点是否处于 except 块内)
+    tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    logger.exception("unhandled_exception path=%s", request.url.path)
+    return HTMLResponse(
+        status_code=500,
+        content=f"""<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><title>未捕获异常 · QiCompass</title>
+<style>body{{font-family:PingFang SC,-apple-system,sans-serif;background:#FDFCFA;color:#1C1C1C;
+margin:0;padding:40px;}} h1{{font-size:20px;color:#C33B3B;}} pre{{background:#EBE3D0;padding:16px;
+border-radius:4px;white-space:pre-wrap;word-break:break-all;font-size:13px;line-height:1.6;}}
+a{{color:#C33B3B;}}</style></head><body>
+<h1>未捕获异常(请把下方 Traceback 发给开发者)</h1>
+<p><a href="{request.url.path}">← 返回重试</a></p>
+<pre>{tb}</pre>
+</body></html>""",
+    )
 
 templates = Jinja2Templates(directory=str(_PROMO_ROOT / "templates"))
 app.mount("/static", StaticFiles(directory=str(_PROMO_ROOT / "static")), name="static")
@@ -647,7 +673,10 @@ async def bazi_handler(request: Request):
                 "length_label": LENGTH_TIER_LABELS[length_tier],
                 "ai_provider": client.provider,
                 "ai_model": client.model,
-                "prompt_version": PROMPT_VERSIONS[module],
+                # `_reality` 是 promo 本地变体名,不在 backend PROMPT_VERSIONS 里;
+                # 直接用 module 查会 KeyError → AI 生成完之后裸 500(2026-08-23 修,
+                # 取 base module 的版本号)
+                "prompt_version": PROMPT_VERSIONS[module.removesuffix("_reality")],
                 # 内嵌提问框隐藏携带(命书 → 问答 同一张盘)
                 "ask_prefill": _ask_prefill_from_form(form),
             },
