@@ -47,10 +47,13 @@ struct InterpretationSection: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack {
+        // 水墨孤本(deep-p1):开放布局卷轴,kicker 小标 + hairline 分隔
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(alignment: .firstTextBaseline) {
                 Text("AI 命书")
-                    .zcoolCardTitle()
+                    .font(BaziFont.caption(size: 10))
+                    .tracking(4)
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
                 Spacer()
                 Text("今日剩余 \(remainingReads) 次")
                     .font(.caption2)
@@ -66,9 +69,6 @@ struct InterpretationSection: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(BaziTheme.Spacing.md)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
     }
 
     // MARK: - v1 模块列表(Stage 7c)
@@ -79,8 +79,9 @@ struct InterpretationSection: View {
         if case .dailyLimitReached(let nextReset) = effectiveState {
             DailyLimitReachedView(nextReset: nextReset)
         } else {
-            VStack(spacing: BaziTheme.Spacing.md) {
-                ForEach(ModuleID.allCases, id: \.self) { module in
+            // 捌章卷轴:模块行之间 hairline 分隔(deep-p1-modules.html)
+            VStack(spacing: 0) {
+                ForEach(Array(ModuleID.allCases.enumerated()), id: \.element) { idx, module in
                     ModuleCardView(
                         module: module,
                         state: v1States[module] ?? .pending,
@@ -89,6 +90,11 @@ struct InterpretationSection: View {
                         onUnlock: onShowPaywall,
                         onProvideInput: { onProvideInput(module) }
                     )
+                    if idx < ModuleID.allCases.count - 1 {
+                        Rectangle()
+                            .fill(BaziTheme.hairline)
+                            .frame(height: 0.5)
+                    }
                 }
             }
         }
@@ -166,7 +172,7 @@ struct InterpretationSection: View {
                 .foregroundStyle(BaziTheme.shenshaInauspicious)
             Button("重试", action: onRetry)
                 .font(.caption.weight(.semibold))
-                .foregroundStyle(BaziTheme.cinnabar)
+                .foregroundStyle(BaziTheme.ink)
 
         case .dailyLimitReached(let nextReset):
             DailyLimitReachedView(nextReset: nextReset)
