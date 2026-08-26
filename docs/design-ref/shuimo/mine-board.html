@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>玄机问道 · 我的区(水墨孤本语言)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #101014; font-family: "PingFang SC", sans-serif; color: #E8E6E0; min-height: 100vh; padding: 40px 48px 64px; }
+  header { margin-bottom: 36px; }
+  header h1 { font-size: 22px; font-weight: 700; letter-spacing: .06em; }
+  header h1 .tag {
+    font-size: 11px; font-weight: 500; color: #7FA88B; border: 1px solid rgba(127,168,139,.5);
+    padding: 3px 10px; border-radius: 999px; margin-left: 12px; vertical-align: 3px; letter-spacing: .12em;
+  }
+  header p { margin-top: 10px; font-size: 13px; color: #94908A; letter-spacing: .04em; }
+  .flow { display: flex; justify-content: center; align-items: flex-start; overflow-x: auto; padding-bottom: 20px; gap: 44px; }
+  .slot { flex: none; width: 302px; }
+  .phone {
+    width: 302px; height: 630px; background: #1D1D22; border-radius: 50px; padding: 11px; position: relative;
+    box-shadow: 0 24px 60px rgba(0,0,0,.55), inset 0 0 0 1.5px rgba(255,255,255,.07);
+  }
+  .screen { width: 280px; height: 608px; border-radius: 40px; overflow: hidden; position: relative; background: #000; }
+  .screen iframe { width: 390px; height: 844px; border: 0; transform: scale(.7179); transform-origin: top left; pointer-events: none; }
+  .notch { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 88px; height: 24px; background: #1D1D22; border-radius: 0 0 14px 14px; z-index: 2; }
+  .label { margin-top: 20px; text-align: center; }
+  .label .name { font-size: 15px; font-weight: 700; letter-spacing: .1em; }
+  .label .name .id { color: #7FA88B; margin-right: 8px; font-family: Georgia, serif; font-style: italic; }
+  .label .desc { margin-top: 6px; font-size: 12px; color: #94908A; line-height: 1.7; }
+  .label a { display: inline-block; margin-top: 10px; font-size: 11px; color: #7F9BB8; text-decoration: none; border-bottom: 1px dotted rgba(127,155,184,.5); padding-bottom: 1px; }
+  .replay {
+    margin-top: 10px; padding: 5px 14px; border-radius: 999px; cursor: pointer;
+    border: 1px solid rgba(127,168,139,.55); background: transparent; color: #7FA88B;
+    font-size: 11px; letter-spacing: .1em; font-family: inherit; transition: background .2s, color .2s;
+  }
+  .replay:hover { background: #7FA88B; color: #101014; }
+  footer { margin-top: 28px; text-align: center; font-size: 11.5px; color: #6E6A66; letter-spacing: .05em; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>我的 · 账号区 · 两态<span class="tag">ROUND 7 · FINAL</span></h1>
+    <p>生肖头像承 08-15 决策（SIWA 拿不到 Apple 头像，用生肖圆章）；命盘管理 / 已购清单 / 子时设置逐行对齐现有 ProfileView；未登录态用虚线框 + SIWA 引导。</p>
+  </header>
+
+  <div class="flow">
+    <div class="slot">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <iframe src="mine-m1.html" title="M1 已登录" loading="lazy"></iframe>
+      </div></div>
+      <div class="label">
+        <div class="name"><span class="id">M1</span>已登录态</div>
+        <div class="desc">生肖圆章 + 朱角登录标记；命盘三份（命主朱标）<br>+ 新建虚线圈；已购逐条（深度捌章 + 合盘两对）；设置。</div>
+        <a href="mine-m1.html" target="_blank">全屏打开 ↗</a>
+      </div>
+    </div>
+
+    <div class="slot">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <iframe src="mine-m2.html" title="M2 未登录" loading="lazy"></iframe>
+      </div></div>
+      <div class="label">
+        <div class="name"><span class="id">M2</span>未登录态</div>
+        <div class="desc">虚线账号框 + 数据仅存本机提示；命盘标「本机」；<br>「登录后」引导盒：同步价值 + 隐私承诺 + SIWA。</div>
+        <a href="mine-m2.html" target="_blank">全屏打开 ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <footer>至此全 App 旅程已在水墨孤本语言下走完：开机页 → onboarding → 今日运势 → 深度解析+付费墙 → 合盘 → 我的。</footer>
+
+  <script>
+    document.querySelectorAll('.slot').forEach(slot => {
+      const label = slot.querySelector('.label');
+      const btn = document.createElement('button');
+      btn.className = 'replay'; btn.textContent = '↻ 重播入场动画';
+      btn.onclick = () => {
+        const f = slot.querySelector('iframe');
+        f.src = f.getAttribute('src');
+      };
+      label.appendChild(btn);
+    });
+  </script>
+</body>
+</html>

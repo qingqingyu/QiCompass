@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>H1 · 合盘 · 选人</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    width: 390px; height: 844px; overflow: hidden; margin: 0 auto; position: relative;
+    background: radial-gradient(90% 40% at 50% 0%, #F8F7F3 0%, transparent 52%), #F3F1EC;
+    font-family: "Kaiti SC", "STKaiti", serif; color: #1C1B1E;
+    display: flex; flex-direction: column;
+  }
+  .grain { position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: multiply; z-index: 5;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='linear' slope='0.05'/></feComponentTransfer></filter><rect width='240' height='240' filter='url(%23n)'/></svg>"); }
+
+  .head { flex: none; padding: 62px 34px 0; }
+  .kicker { font-size: 10px; letter-spacing: .4em; color: #8B867D; }
+  .title { margin-top: 8px; font-size: 25px; letter-spacing: .16em; }
+  .sub { margin-top: 10px; font-size: 12px; color: #8B867D; letter-spacing: .1em; }
+
+  .selfrow { flex: none; margin: 22px 34px 0; padding: 14px 16px; display: flex; align-items: center; gap: 14px;
+             border: 1px solid rgba(28,27,30,.3); border-radius: 4px; background: rgba(28,27,30,.025); }
+  .avatar { width: 42px; height: 42px; border-radius: 50%; background: #17161A; color: #F3F1EC;
+            display: flex; align-items: center; justify-content: center; font-size: 17px; }
+  .who b { font-size: 15px; font-weight: 500; letter-spacing: .08em; }
+  .who span { display: block; margin-top: 3px; font-size: 10.5px; color: #8B867D; letter-spacing: .06em; }
+  .selftag { margin-left: auto; font-size: 10px; letter-spacing: .24em; color: #A5A098; }
+
+  .pick { flex: none; margin: 22px 34px 0; }
+  .pick .lab { font-size: 10px; letter-spacing: .4em; color: #A5A098; margin-bottom: 4px; }
+  .person { display: flex; align-items: center; gap: 14px; padding: 13px 4px; border-bottom: 1px solid rgba(28,27,30,.1); }
+  .check { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 1.4px solid rgba(28,27,30,.4);
+           display: flex; align-items: center; justify-content: center; }
+  .check.on { background: #A83226; border-color: #A83226; color: #F6F1E7; font-size: 12px; }
+  .pavatar { width: 38px; height: 38px; border-radius: 50%; border: 1px solid rgba(28,27,30,.3);
+             display: flex; align-items: center; justify-content: center; font-size: 15px; color: #55524C; }
+  .person b { font-size: 14.5px; font-weight: 500; letter-spacing: .06em; }
+  .person span { display: block; margin-top: 3px; font-size: 10px; color: #A5A098; }
+  .rel { margin-left: auto; font-size: 10px; color: #A5A098; letter-spacing: .2em; }
+
+  .temp { display: flex; align-items: center; gap: 14px; padding: 14px 4px; }
+  .temp .plus { flex: none; width: 22px; height: 22px; border-radius: 50%; border: 1.4px dashed rgba(28,27,30,.4);
+                display: flex; align-items: center; justify-content: center; color: #8B867D; font-size: 14px; }
+  .temp .t { font-size: 13.5px; color: #77726A; letter-spacing: .06em; }
+  .temp .d { font-size: 10px; color: #B3AEA4; margin-top: 3px; }
+
+  .sp { flex: 1; }
+  .cta-wrap { flex: none; padding: 0 34px 22px; }
+  .cta {
+    height: 54px; background: #17161A; color: #F3F1EC; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    font-size: 16px; letter-spacing: .22em; text-indent: .22em;
+  }
+  .cta .seal-dot { width: 7px; height: 7px; background: #A83226; transform: rotate(45deg); }
+  .cta.dim { background: rgba(28,27,30,.14); color: #8B867D; }
+  .tabbar { flex: none; height: 82px; border-top: 1px solid rgba(28,27,30,.14); display: flex; padding-top: 12px; background: #F3F1EC; }
+  .tab { flex: 1; text-align: center; font-size: 12px; letter-spacing: .18em; color: #A5A098; position: relative; }
+  .tab.on { color: #1C1B1E; font-weight: 600; }
+  .tab.on::after { content: ""; position: absolute; left: 50%; top: -12px; transform: translateX(-50%);
+    width: 4px; height: 4px; background: #A83226; border-radius: 50%; }
+</style>
+</head>
+<body>
+  <div class="grain"></div>
+
+  <div class="head">
+    <div class="kicker">合盘 · 两人磁场合拍</div>
+    <div class="title">与谁合拍，一排便知</div>
+    <div class="sub">选择一位或多位，每对独立成盘 · 各自单独解锁</div>
+  </div>
+
+  <div class="selfrow">
+    <div class="avatar">我</div>
+    <div class="who"><b>我自己</b><span>1995 · 属猪 · 乙亥</span></div>
+    <div class="selftag">命 主</div>
+  </div>
+
+  <div class="pick">
+    <div class="lab">选 择 对 方</div>
+
+    <div class="person">
+      <div class="check on">✓</div>
+      <div class="pavatar">鸡</div>
+      <div><b>男友</b><span>1993 · 属鸡 · 癸酉</span></div>
+      <div class="rel">已存</div>
+    </div>
+
+    <div class="person">
+      <div class="check on">✓</div>
+      <div class="pavatar">虎</div>
+      <div><b>妈妈</b><span>1962 · 属虎 · 壬寅</span></div>
+      <div class="rel">已存</div>
+    </div>
+
+    <div class="person">
+      <div class="check"></div>
+      <div class="pavatar">龙</div>
+      <div><b>合伙人</b><span>1988 · 属龙 · 戊辰</span></div>
+      <div class="rel">已存</div>
+    </div>
+
+    <div class="temp">
+      <div class="plus">＋</div>
+      <div>
+        <div class="t">临时输入一位</div>
+        <div class="d">只出生信息，不建档案 · 合完即走</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sp"></div>
+
+  <div class="cta-wrap">
+    <div class="cta">排 2 对合盘<span class="seal-dot"></span></div>
+  </div>
+
+  <div class="tabbar">
+    <div class="tab">今日</div><div class="tab">深度</div><div class="tab on">合盘</div><div class="tab">我的</div>
+  </div>
+</body>
+</html>

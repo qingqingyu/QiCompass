@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>P2 · 章节阅读 · 天赋能力</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    width: 390px; height: 844px; overflow: hidden; margin: 0 auto; position: relative;
+    background: #F3F1EC;
+    font-family: "Kaiti SC", "STKaiti", serif; color: #26242A;
+    display: flex; flex-direction: column;
+  }
+  .grain { position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: multiply; z-index: 5;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='linear' slope='0.05'/></feComponentTransfer></filter><rect width='240' height='240' filter='url(%23n)'/></svg>"); }
+
+  .navbar {
+    flex: none; height: 96px; padding: 52px 26px 0;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid rgba(28,27,30,.14);
+  }
+  .back { font-size: 22px; color: #55524C; }
+  .navtitle { font-size: 15px; letter-spacing: .24em; text-indent: .24em; }
+  .prog-label { font-size: 10px; letter-spacing: .2em; color: #A5A098; }
+  .progbar { position: absolute; left: 0; bottom: -1px; height: 2px; width: 25%;
+             background: linear-gradient(90deg, #A83226, rgba(168,50,38,.35)); }
+
+  .body { flex: 1; overflow: hidden; padding: 34px 36px 0; }
+  .chapter-head { display: flex; flex-direction: column; align-items: center; margin-bottom: 30px; }
+  .chapter-head .num { font-size: 12px; letter-spacing: .5em; text-indent: .5em; color: #A5A098; }
+  .chapter-head h1 { margin-top: 10px; font-size: 24px; letter-spacing: .3em; text-indent: .3em; font-weight: 500; }
+  .chapter-head .orn { margin-top: 16px; display: flex; align-items: center; gap: 8px; }
+  .orn .l { width: 34px; height: 1px; background: rgba(28,27,30,.3); }
+  .orn .d { width: 5px; height: 5px; background: rgba(28,27,30,.55); transform: rotate(45deg); }
+
+  p { font-size: 15.5px; line-height: 2.15; letter-spacing: .04em; text-indent: 2em; margin-bottom: 20px; }
+  .sep { text-align: center; color: rgba(28,27,30,.3); font-size: 11px; letter-spacing: 1em; text-indent: 1em; margin: 2px 0 20px; }
+
+  .puyu {
+    margin: 24px 8px 24px 0; padding: 14px 0 14px 18px;
+    border-left: 2px solid #A83226; position: relative;
+    display: flex; align-items: center; gap: 14px;
+  }
+  .puyu .txt { writing-mode: vertical-rl; font-size: 14px; letter-spacing: .34em; color: #A83226; height: 128px; }
+  .puyu .seal {
+    align-self: flex-end; width: 20px; height: 20px; background: #A83226; color: #F6F1E7;
+    font-size: 10px; display: flex; align-items: center; justify-content: center;
+    transform: rotate(-3deg); mix-blend-mode: multiply;
+  }
+
+  .next {
+    flex: none; margin: 0 36px; padding: 18px 0 16px; border-top: 1px solid rgba(28,27,30,.14);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  .next .lab { font-size: 10px; letter-spacing: .3em; color: #A5A098; }
+  .next .t { margin-top: 6px; font-size: 14.5px; letter-spacing: .1em; display: flex; align-items: center; gap: 8px; }
+  .next .t .lock { font-size: 10px; color: #A83226; border: 1px solid rgba(168,50,38,.5); padding: 1px 6px; border-radius: 2px; transform: rotate(-2deg); }
+  .next .arrow { font-size: 18px; color: #55524C; }
+
+  .homebar { flex: none; height: 26px; display: flex; align-items: center; justify-content: center; }
+  .homebar::after { content: ""; width: 120px; height: 4px; border-radius: 2px; background: rgba(28,27,30,.3); }
+</style>
+</head>
+<body>
+  <div class="grain"></div>
+
+  <div class="navbar">
+    <div class="back">‹</div>
+    <div class="navtitle">天赋能力</div>
+    <div class="prog-label">贰 / 捌</div>
+    <div class="progbar"></div>
+  </div>
+
+  <div class="body">
+    <div class="chapter-head">
+      <div class="num">第 貳 章</div>
+      <h1>天赋能力</h1>
+      <div class="orn"><span class="l"></span><span class="d"></span><span class="l"></span></div>
+    </div>
+
+    <p>你的命局里，印星贴身而透。这类结构的直觉反应是先理解、再动手——学习对新事物的消化速度，常被身边人低估。</p>
+
+    <div class="sep">· · ·</div>
+
+    <p>天赋能力集中在吸收与转译：把零散信息整理成可用的框架，是你的强项；而需要临场爆发、快速试错的领域，则更依赖后天的刻意训练。</p>
+
+    <div class="puyu">
+      <div class="txt">印贴身者，先立信而后立业</div>
+      <div class="seal">批</div>
+    </div>
+
+    <p>需要留意的，是「防御性能力」——那些你因为不安而练出来、却未必真心喜欢的技能。它们保护过你，但也会悄悄占住你的时间。</p>
+    <p>分清哪些是天赋，哪些是防御，是你接下来做减法的第一步。</p>
+  </div>
+
+  <div class="next">
+    <div>
+      <div class="lab">下一章</div>
+      <div class="t">高配 vs 低配 <span class="lock">付费</span></div>
+    </div>
+    <div class="arrow">›</div>
+  </div>
+
+  <div class="homebar"></div>
+</body>
+</html>

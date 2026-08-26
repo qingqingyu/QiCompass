@@ -70,10 +70,10 @@ struct ErrorStateView: View {
                 Button(action: { HapticEngine.light(); retry() }) {
                     Text("重试")
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(BaziTheme.paper)
+                        .foregroundStyle(BaziTheme.onInkDeep)
                         .padding(.horizontal, 32)
                         .padding(.vertical, 12)
-                        .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                        .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
                 }
             }
 

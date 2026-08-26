@@ -41,10 +41,10 @@ struct BirthInfoConfirmSheet: View {
                 }) {
                     Text("确认排盘")
                         .font(BaziFont.button())
-                        .foregroundStyle(BaziTheme.paper)
+                        .foregroundStyle(BaziTheme.onInkDeep)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, BaziTheme.Spacing.md)
-                        .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                        .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
                 }
                 .accessibilityHint("用以上信息排盘,进入今日运势")
 

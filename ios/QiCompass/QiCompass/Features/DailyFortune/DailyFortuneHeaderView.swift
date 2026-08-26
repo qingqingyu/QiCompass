@@ -1,14 +1,15 @@
 import SwiftUI
 
-/// 每日运势头部:公历 + 农历 + 流日柱 + 关系 chip + 冲 chip(DESIGN.md §Color + 含 chong_targets 个性化提示)。
+/// 每日运势头部(水墨孤本 T1,2026-08-26 重排,参考 daily-t1.html):
+/// 开放布局无卡片——日期行(公历大字 + 农历/年月右对齐)→ 流日行
+/// (小标 + 干支 + 关系 chip 朱色描边 + 冲 chip 灰)。
 ///
-/// i18n 改造(Slice 1.11):
+/// i18n 改造(Slice 1.11)保持:
 /// - 公历日期:`BaziDateFormatter.gregorianWithWeekday`(按 user locale 显示)
 /// - "农历" 前缀:`L10n.DailyFortune.lunarPrefix`(zh="农历",en="Lunar")
 /// - "流日柱" 标签:`L10n.DailyFortune.dayPillarLabel`(zh="流日柱",en="Day Pillar")
-/// - "冲" 前缀:`L10n.DailyFortune.chongLabel(chong:targets:)`(zh="冲X",en="Clashes: X")
+/// - "冲" 前缀:`L10n.DailyFortune.chongLabel(chong:targets:)`
 /// - 农历日期本身(`lunarDate` 参数)永远来自后端中文格式(决策 7:农历是术语不翻译)
-/// - 流日柱/关系/冲字符(`dayPillar`/`dayRelation`/`dayChong`)由后端按 language 翻译
 struct DailyFortuneHeaderView: View {
     let businessDate: Date
     let lunarDate: String
@@ -18,47 +19,41 @@ struct DailyFortuneHeaderView: View {
     let dayChongTargets: [String]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // 公历 + 农历
-            HStack(alignment: .firstTextBaseline, spacing: 12) {
+        VStack(alignment: .leading, spacing: 14) {
+            // 日期行:公历大字左,农历 + 干支年月右(两端)
+            HStack(alignment: .firstTextBaseline) {
                 Text(BaziDateFormatter.gregorianWithWeekday.string(from: businessDate))
-                    .font(BaziFont.display(size: 17, weight: .medium))
+                    .font(BaziFont.display(size: 24))
                     .foregroundStyle(BaziTheme.ink)
-                // 农历前缀本地化,日期本身保留中文(术语)
+                Spacer(minLength: 12)
                 Text(verbatim: "\(L10n.DailyFortune.lunarPrefix) \(lunarDate)")
-                    .font(.subheadline)
+                    .font(BaziFont.caption(size: 10.5))
+                    .tracking(1)
                     .foregroundStyle(BaziTheme.inkMuted)
+                    .lineLimit(1)
             }
 
-            // 流日柱(大字,cinnabar 强调 — 流日柱是本日核心)
-            HStack(alignment: .firstTextBaseline, spacing: 16) {
+            // 流日行:小标 + 干支(浓墨)+ 关系 chip(朱色描边,印章级)+ 冲 chip(灰)
+            HStack(spacing: 10) {
                 Text(L10n.DailyFortune.dayPillarLabel)
-                    .font(.caption)
-                    .foregroundStyle(BaziTheme.inkMuted)
+                    .font(BaziFont.caption(size: 10))
+                    .tracking(3)
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
                 Text(dayPillar)
-                    .font(BaziFont.ganzhi(size: 32))
-                    .foregroundStyle(BaziTheme.cinnabar)
-            }
-
-            // 关系 + 冲 chip
-            HStack(spacing: 8) {
-                ChipView(text: dayRelation, tint: BaziTheme.jade)
+                    .font(BaziFont.ganzhi(size: 17))
+                    .tracking(2)
+                    .foregroundStyle(BaziTheme.ink)
+                ChipView(text: dayRelation, tint: BaziTheme.cinnabar)
                 if let chong = dayChong {
                     let label = L10n.DailyFortune.chongLabel(
                         chong: chong,
                         targets: dayChongTargets
                     )
-                    ChipView(text: label, tint: BaziTheme.shenshaInauspicious)
+                    ChipView(text: label, tint: BaziTheme.inkMuted)
                 }
                 Spacer()
             }
         }
-        .padding(BaziTheme.Spacing.md)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-                .stroke(BaziTheme.hairline, lineWidth: 0.5)
-        )
     }
 }
 
@@ -73,7 +68,7 @@ struct ChipView: View {
             .foregroundStyle(tint)
             .padding(.horizontal, 10)
             .padding(.vertical, 4)
-            .background(tint.opacity(0.1), in: Capsule())
+            .background(tint.opacity(0.06), in: Capsule())
             .overlay(Capsule().stroke(tint.opacity(0.5), lineWidth: 0.5))
     }
 }

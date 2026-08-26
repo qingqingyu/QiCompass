@@ -26,36 +26,43 @@ struct PaywallView: View {
                 .frame(width: 36, height: 4)
                 .padding(.top, BaziTheme.Spacing.sm)
 
-            Text(viewModel.module.title)
-                .zcoolPageTitle(size: 22)
+            // 水墨孤本(deep-p3):「解」印 + 标题 + 副题
+            HStack(spacing: 14) {
+                SealStamp(character: "解", size: 34, rotation: -4, stampDelay: 0.45)
+                VStack(alignment: .leading, spacing: 5) {
+                    Text("解锁余下\(NumeralBadge.numeral(viewModel.module.paidChapters.count))章")
+                        .font(BaziFont.display(size: 19))
+                        .tracking(2)
+                        .foregroundStyle(BaziTheme.ink)
+                    Text("一次买断 · 全设备同步")
+                        .font(BaziFont.caption(size: 10.5))
+                        .tracking(2)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                }
+                Spacer(minLength: 0)
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, BaziTheme.Spacing.xs)
 
-            Text("解锁 \(viewModel.module.paidChapters.count) 章付费深度内容")
-                .font(.subheadline)
-                .foregroundStyle(BaziTheme.inkMuted)
-
-            // 章节预览(锁标 + 标题列表)
-            VStack(alignment: .leading, spacing: BaziTheme.Spacing.sm) {
-                ForEach(viewModel.module.paidChapters, id: \.self) { chapter in
-                    HStack(spacing: BaziTheme.Spacing.sm) {
-                        Image(systemName: "lock.fill")
-                            .foregroundStyle(BaziTheme.inkMuted)
+            // 章节清单:大写数字徽(锁定虚线圆)+ 章名 + dashed hairline 分隔
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(viewModel.module.paidChapters.enumerated()), id: \.element) { idx, chapter in
+                    HStack(spacing: 12) {
+                        NumeralBadge(index: idx + 1, locked: true, size: 28)
                         Text(chapter)
-                            .font(.body)
+                            .font(BaziFont.body(size: 14))
                             .foregroundStyle(BaziTheme.ink)
                         Spacer()
                     }
+                    .padding(.vertical, 9)
+                    if idx < viewModel.module.paidChapters.count - 1 {
+                        Rectangle()
+                            .fill(BaziTheme.hairlineDashed)
+                            .frame(height: 0.5)
+                    }
                 }
             }
-            .padding(BaziTheme.Spacing.md)
             .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                BaziTheme.cardSurface,
-                in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-                    .stroke(BaziTheme.hairline, lineWidth: 0.5)
-            )
 
             Spacer()
 
@@ -83,7 +90,7 @@ struct PaywallView: View {
                 case .inFlight:
                     HStack(spacing: BaziTheme.Spacing.sm) {
                         ProgressView()
-                            .tint(BaziTheme.cinnabar)
+                            .tint(BaziTheme.ink)
                         Text("正在完成登录…")
                             .font(.caption)
                             .foregroundStyle(BaziTheme.inkMuted)
@@ -114,11 +121,13 @@ struct PaywallView: View {
             // 法律免责(DESIGN.md 反 AI slop + 命理类审核要求)
             Text("玄学娱乐,理性参考。\n购买即视为同意 Apple 标准用户协议。")
                 .font(.caption2)
-                .foregroundStyle(BaziTheme.inkMuted)
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
                 .multilineTextAlignment(.center)
+                .tracking(1)
         }
         .padding(.horizontal, BaziTheme.Spacing.lg)
         .padding(.bottom, BaziTheme.Spacing.lg)
+        .presentationBackground(BaziTheme.cardSurface)
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .task { await viewModel.loadProduct() }

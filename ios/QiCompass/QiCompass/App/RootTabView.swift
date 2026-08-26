@@ -24,6 +24,9 @@ struct RootTabView: View {
     /// 启动时 !hasSeenOnboarding → true;反馈屏 CTA 点击 → false。
     @State private var showOnboarding = false
 
+    /// 冷启动品牌转场(水墨孤本开机页,DESIGN.md §Motion)。每次冷启动播放,1.6s 内淡出。
+    @State private var showSplash = true
+
     enum Tab: Hashable {
         case dailyFortune
         case deepAnalysis
@@ -47,28 +50,37 @@ struct RootTabView: View {
             DailyFortuneView()
                 .tag(Tab.dailyFortune)
                 .tabItem {
-                    Label("每日运势", systemImage: "sun.max")
+                    // 水墨孤本:纯文字 tab(DESIGN.md §Layout),不用 SF Symbol 图标
+                    Text("今日")
                 }
 
             DeepAnalysisView()
                 .tag(Tab.deepAnalysis)
                 .tabItem {
-                    Label("深度解析", systemImage: "chart.bar.xaxis")
+                    Text("深度")
                 }
 
             CompatibilityView()
                 .tag(Tab.compatibility)
                 .tabItem {
-                    Label("合盘", systemImage: "person.2")
+                    Text("合盘")
                 }
 
             ProfileView()
                 .tag(Tab.profile)
                 .tabItem {
-                    Label("我的", systemImage: "person.crop.circle")
+                    Text("我的")
                 }
         }
-        .tint(BaziTheme.cinnabar)
+        .tint(BaziTheme.ink)
+        // 纸纹:全 App 一次,overlay 在内容上(multiply 混合,不挡交互)
+        .overlay(PaperGrain())
+        // 冷启动品牌转场(DESIGN.md §Motion 三式:ink-in + stamp,1.6s 内淡出不阻塞)
+        .overlay {
+            if showSplash {
+                SplashTransitionView(onFinished: { showSplash = false })
+            }
+        }
         .onAppear {
             // 首启 / 后续启动分流日志,便于定位"onboarding 没弹 / 反复弹"等异常
             AppLogger.app.info("RootTabView.onAppear hasSeenOnboarding=\(hasSeenOnboarding, privacy: .public) selectedTab=\(selectedTab.switchKey, privacy: .public)")
@@ -119,49 +131,63 @@ struct RootTabView: View {
 
 // MARK: - BaziTheme
 
-/// 命理主题视觉 token(DESIGN.md §现代东方极简 · 宋瓷气质 · 全局唯一色值事实源)。
+/// 命理主题视觉 token(DESIGN.md §水墨孤本 · 全局唯一色值事实源,2026-08-26 换轨)。
 ///
 /// 所有 token 直接映射 DESIGN.md §Color 色板。五行色走 `ElementColors`。
 /// Capsule 只留给 chip;其余圆角默认 4pt(见 `BaziTheme.Radius.sm`)。
+/// **朱红纪律**:`cinnabar` 为印章级专用(SealStamp / 付费标 / 聚焦线 / 当前时辰点 / 在读态),
+/// 禁止 CTA 与大面积底色;CTA 一律 `inkDeep` 底 + `onInkDeep` 字(成对使用,暗色反转)。
 enum BaziTheme {
-    // MARK: - DESIGN.md §Color 主事实源(Light + Dark 双值,墨夜瓷釉配色)
+    // MARK: - DESIGN.md §Color 主事实源(Light + Dark 双值,夜宣纸配色)
 
     /// 动态色 helper:traitCollection 切换时自动 Light/Dark 反转。
     /// 色值仍集中在 RootTabView.swift 单文件,与 DESIGN.md §Color 一一对应(单一事实源)。
-    private static func dyn(_ light: Color, _ dark: Color) -> Color {
+    /// internal:ElementColors.swift 等处的 BaziTheme 扩展共用同一实现,避免 dyn 散两份。
+    static func dyn(_ light: Color, _ dark: Color) -> Color {
         Color(uiColor: UIColor { tc in
             tc.userInterfaceStyle == .dark ? UIColor(dark) : UIColor(light)
         })
     }
 
-    /// 主背景。Light 极浅暖白 / Dark 暖墨(非纯黑,保留宋瓷温润感)。
-    static let paper         = dyn(Color(red: 0xFD/255, green: 0xFC/255, blue: 0xFA/255),
-                                   Color(red: 0x1A/255, green: 0x18/255, blue: 0x15/255))
-    /// 卡片底色。Light 浅宣 / Dark 深纸(比 paper 深 1 级,卡片在背景上仍可辨,不靠阴影)。
-    static let cardSurface   = dyn(Color(red: 0xEB/255, green: 0xE3/255, blue: 0xD0/255),
-                                   Color(red: 0x25/255, green: 0x22/255, blue: 0x1D/255))
-    /// 主文字。Light 浓墨 / Dark 暖白(带暖调避免纯白刺眼,呼应 paper 的暖)。
-    static let ink           = dyn(Color(red: 0x1C/255, green: 0x1C/255, blue: 0x1C/255),
-                                   Color(red: 0xE8/255, green: 0xE0/255, blue: 0xCC/255))
-    /// 弱说明文字。Light 灰墨 / Dark 浅灰墨(= Dark ink × 0.72 亮度,保持"弱说明"层级)。
-    static let inkMuted      = dyn(Color(red: 0x6B/255, green: 0x65/255, blue: 0x57/255),
-                                   Color(red: 0xA8/255, green: 0x9F/255, blue: 0x89/255))
-    /// 主强调 / CTA / 当前柱(朱砂红)。Dark 提亮 +6 保持识别。
-    static let cinnabar      = dyn(Color(red: 0xC3/255, green: 0x3B/255, blue: 0x3B/255),
-                                   Color(red: 0xD4/255, green: 0x4A/255, blue: 0x4A/255))
-    /// 朱砂淡(当前柱 / 选中态底色)。opacity 跟随 cinnabar 自动反转,实测后可能 Dark 调到 12%。
-    static let cinnabarSoft  = cinnabar.opacity(0.08)
-    /// 次强调 / 吉神 / 木行(墨青)。Dark 提亮保持识别。
-    static let jade          = dyn(Color(red: 0x2C/255, green: 0x5F/255, blue: 0x3F/255),
-                                   Color(red: 0x5A/255, green: 0x99/255, blue: 0x78/255))
-    /// 三强调 / 水行 / 链接(黛蓝)。Dark 提亮保持识别。
-    static let daiBlue       = dyn(Color(red: 0x1D/255, green: 0x3A/255, blue: 0x5F/255),
-                                   Color(red: 0x6A/255, green: 0x8E/255, blue: 0xB5/255))
-    /// 0.5pt 细线(灰墨 @ 30%)。opacity 跟随 inkMuted 自动反转。
-    static let hairline      = inkMuted.opacity(0.3)
+    /// 主背景。Light 冷灰宣纸 / Dark 夜宣纸(冷调,非暖墨)。
+    static let paper         = dyn(Color(red: 0xF3/255, green: 0xF1/255, blue: 0xEC/255),
+                                   Color(red: 0x14/255, green: 0x13/255, blue: 0x17/255))
+    /// sheet 底 / 残留卡底。水墨语言下卡片让位 hairline,此 token 逐步收缩到 sheet 与锁框。
+    static let cardSurface   = dyn(Color(red: 0xF7/255, green: 0xF5/255, blue: 0xF0/255),
+                                   Color(red: 0x1E/255, green: 0x1D/255, blue: 0x23/255))
+    /// 主文字。Light 浓墨(冷黑)/ Dark 冷白(非暖白)。
+    static let ink           = dyn(Color(red: 0x1C/255, green: 0x1B/255, blue: 0x1E/255),
+                                   Color(red: 0xE9/255, green: 0xE7/255, blue: 0xE2/255))
+    /// 弱说明文字。
+    static let inkMuted      = dyn(Color(red: 0x77/255, green: 0x72/255, blue: 0x6A/255),
+                                   Color(red: 0x9B/255, green: 0x96/255, blue: 0x8C/255))
+    /// 二级弱注(比 inkMuted 更弱的标签 / 元信息)。
+    static let inkMutedSecondary = dyn(Color(red: 0xA5/255, green: 0xA0/255, blue: 0x98/255),
+                                       Color(red: 0x6E/255, green: 0x6A/255, blue: 0x62/255))
+    /// 焦墨 CTA 底 / enso 笔触。Dark 反转为冷白底(与 onInkDeep 成对使用)。
+    static let inkDeep       = dyn(Color(red: 0x17/255, green: 0x16/255, blue: 0x1A/255),
+                                   Color(red: 0xE9/255, green: 0xE7/255, blue: 0xE2/255))
+    /// CTA 前景(inkDeep 的反色伴生 token)。
+    static let onInkDeep     = dyn(Color(red: 0xF3/255, green: 0xF1/255, blue: 0xEC/255),
+                                   Color(red: 0x17/255, green: 0x16/255, blue: 0x1A/255))
+    /// 印章朱红。**印章级专用,禁止 CTA / 大面积底色**(DESIGN.md §Color)。Dark 提亮保持识别。
+    static let cinnabar      = dyn(Color(red: 0xA8/255, green: 0x32/255, blue: 0x26/255),
+                                   Color(red: 0xC2/255, green: 0x51/255, blue: 0x43/255))
+    /// 朱砂淡(选中态底色,极少量场景)。opacity 跟随 cinnabar 自动反转。
+    static let cinnabarSoft  = cinnabar.opacity(0.10)
+    /// 次强调 / 吉向 / 好朋友 chip / 宜(墨青)。Dark 提亮保持识别。
+    static let jade          = dyn(Color(red: 0x2F/255, green: 0x5E/255, blue: 0x4A/255),
+                                   Color(red: 0x6F/255, green: 0xA0/255, blue: 0x8A/255))
+    /// 三强调 / 水行 / 链接(黛墨蓝,降饱和)。Dark 提亮保持识别。
+    static let daiBlue       = dyn(Color(red: 0x3D/255, green: 0x4A/255, blue: 0x5C/255),
+                                   Color(red: 0x7E/255, green: 0x93/255, blue: 0xAC/255))
+    /// 0.5-1pt hairline。opacity 跟随 ink 自动反转。
+    static let hairline      = ink.opacity(0.18)
+    /// 虚线 hairline(锁定框 / 临时态 / 未登录框,dash [4,3])。
+    static let hairlineDashed = inkMuted.opacity(0.35)
     /// 错误 / 破坏性操作(iOS `.destructive` 习惯,与 cinnabar 同值,语义独立便于未来调色)。
-    static let destructive   = dyn(Color(red: 0xC3/255, green: 0x3B/255, blue: 0x3B/255),
-                                   Color(red: 0xD4/255, green: 0x4A/255, blue: 0x4A/255))
+    static let destructive   = dyn(Color(red: 0xA8/255, green: 0x32/255, blue: 0x26/255),
+                                   Color(red: 0xC2/255, green: 0x51/255, blue: 0x43/255))
 }
 
 // MARK: - BaziTheme.Spacing / Radius

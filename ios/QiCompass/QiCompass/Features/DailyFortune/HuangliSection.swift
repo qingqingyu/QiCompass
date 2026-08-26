@@ -1,29 +1,24 @@
 import SwiftUI
 
-/// 黄历宜/忌 chip 区(DESIGN.md §Color 宜 jade 吉 / 忌 cinnabar 凶)。
+/// 黄历宜/忌 chip 区(水墨孤本 T1:开放布局 hairline 分隔,宜 jade / 忌 灰,参考 daily-t1.html)。
 struct HuangliSection: View {
     let yi: [String]
     let ji: [String]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 0) {
             row(label: L10n.DailyFortune.yiLabel, items: yi, tint: BaziTheme.jade)
-            Divider().background(BaziTheme.hairline)
-            row(label: L10n.DailyFortune.jiLabel, items: ji, tint: BaziTheme.shenshaInauspicious)
+            Rectangle().fill(BaziTheme.hairline).frame(height: 0.5).padding(.vertical, 10)
+            row(label: L10n.DailyFortune.jiLabel, items: ji, tint: BaziTheme.inkMuted)
         }
-        .padding(BaziTheme.Spacing.md)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-                .stroke(BaziTheme.hairline, lineWidth: 0.5)
-        )
     }
 
     @ViewBuilder
     private func row(label: String, items: [String], tint: Color) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             Text(label)
-                .font(BaziFont.display(size: 17, weight: .medium))
+                .font(BaziFont.display(size: 14, weight: .medium))
+                .tracking(4)
                 .foregroundStyle(tint)
             if items.isEmpty {
                 Text("—")

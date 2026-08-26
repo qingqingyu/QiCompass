@@ -56,10 +56,10 @@ struct CompatibilityConfigView: View {
                     Text("开始合盘")
                         .font(.body.weight(.semibold))
                 }
-                .foregroundStyle(BaziTheme.paper)
+                .foregroundStyle(BaziTheme.onInkDeep)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
                 .padding(.horizontal)
                 .padding(.vertical, 8)
                 .background(BaziTheme.paper.opacity(0.95))
@@ -169,7 +169,7 @@ struct CompatibilityConfigView: View {
                         Text("添加到名单")
                     }
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(BaziTheme.cinnabar)
+                    .foregroundStyle(BaziTheme.ink)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
                     .background(BaziTheme.cinnabarSoft, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
@@ -184,7 +184,7 @@ struct CompatibilityConfigView: View {
                         Text("填写对方信息")
                     }
                     .font(.subheadline)
-                    .foregroundStyle(BaziTheme.cinnabar)
+                    .foregroundStyle(BaziTheme.ink)
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.vertical, 8)
                 }

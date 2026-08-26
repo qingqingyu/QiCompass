@@ -75,10 +75,10 @@ struct BirthFormView: View {
                 Button(action: { HapticEngine.medium(); onSubmit() }) {
                     Text("开始排盘")
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(BaziTheme.paper)
+                        .foregroundStyle(BaziTheme.onInkDeep)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 14)
-                        .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                        .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
                 }
             }
             .padding()

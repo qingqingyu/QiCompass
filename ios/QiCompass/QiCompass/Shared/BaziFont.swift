@@ -1,36 +1,46 @@
 import SwiftUI
 import UIKit
 
-/// 统一字体入口(DESIGN.md §Typography + 方案 §2.3)。
+/// 统一字体入口(DESIGN.md §Typography,2026-08-26 水墨孤本换轨)。
 ///
 /// DESIGN.md §Typography 落地:
-/// - **Display / Ganzhi / Heading**:系统衬线(iOS 中文 fallback = Songti SC),Semibold/Medium 字重。
-/// - **Body**:系统默认(iOS 中文 = PingFang SC),Regular 字重。
-/// - **Numeric / Tabular**:系统默认 + `.monospacedDigit()`。
+/// - **Display / Ganzhi / Heading / Body**:`Kaiti SC`(楷体,iOS 系统自带,不打包)。
+///   楷体扛全部中文展示层,书卷手写感呼应水墨孤本。命名缺失时 Font.custom 静默回退系统字体,
+///   模拟器实测以 `UIFont(name: "Kaiti SC")` 探测结果为准(备选名 "STKaiti")。
+/// - **Numeric / Tabular**:系统默认 + `.monospacedDigit()`(SF Pro Text)。
+/// - **LatinCaps**:QICOMPASS 字距标(system + 调用侧 .tracking 大间距)。
 ///
-/// 历史:仓库曾尝试用 ZCOOL XiaoWei 打包,但为减少体积改用 iOS 系统字体(DESIGN.md 决策:
-/// "iOS 系统 Songti SC + PingFang SC 已够用,免打包")。本 enum 保留 `zcool*` API 名作 alias,
-/// 调用点迁移到 `display`/`ganzhi`/`body` 后可统一改名。
+/// 历史:宋瓷时代 display 走系统 `.serif`(Songti SC)——2026-08-26 换轨为 Kaiti SC。
+/// 仓库曾尝试 ZCOOL XiaoWei 打包,已废弃(免打包决策不变)。`zcool*` API 名保留作 alias。
 enum BaziFont {
-    /// ZCOOL XiaoWei 是否已加载(保留探测,如果未来需要打包字体可平滑切换)。
-    private static let zcoolLoaded: Bool = UIFont(name: "ZCOOLXiaoWei", size: 12) != nil
+    /// 楷体首选 PostScript 名;"STKaiti" 为旧名兜底。
+    /// 两者都取不到时返回 nil,调用侧回退系统 .serif(宋体),不至于渲染失败。
+    private static let kaitiName: String? = UIFont(name: "Kaiti SC", size: 12) != nil
+        ? "Kaiti SC"
+        : (UIFont(name: "STKaiti", size: 12) != nil ? "STKaiti" : nil)
 
-    /// 显示字体(DESIGN.md §Display/Hero:Songti SC Semibold)。
-    /// 走系统 `.serif` design — iOS 中文环境 fallback 到 Songti SC。
-    static func display(size: CGFloat, weight: Font.Weight = .semibold) -> Font {
-        zcoolLoaded
-            ? .custom("ZCOOLXiaoWei", size: size)
-            : .system(size: size, weight: weight, design: .serif)
+    /// 楷体字体。kaitiName 不可用时回退系统 .serif(Songti SC),保证永远有衬线兜底。
+    private static func kaiti(size: CGFloat, weight: Font.Weight = .medium) -> Font {
+        if let name = kaitiName {
+            return .custom(name, size: size)
+        }
+        return .system(size: size, weight: weight, design: .serif)
     }
 
-    /// 八字专用干支字体(DESIGN.md §Ganzhi:Songti SC Semibold,与 display 同族)。
-    static func ganzhi(size: CGFloat, weight: Font.Weight = .semibold) -> Font {
+    /// 显示字体(DESIGN.md §Display/Hero:Kaiti SC)。
+    /// 楷体笔画细,展示层默认 Medium(替代宋瓷时代的 Semibold)。
+    static func display(size: CGFloat, weight: Font.Weight = .medium) -> Font {
+        kaiti(size: size, weight: weight)
+    }
+
+    /// 八字专用干支字体(DESIGN.md §Ganzhi:Kaiti SC,与 display 同族)。
+    static func ganzhi(size: CGFloat, weight: Font.Weight = .medium) -> Font {
         display(size: size, weight: weight)
     }
 
-    /// 命书正文(DESIGN.md §Body:PingFang SC Regular,系统默认)。
+    /// 命书正文(DESIGN.md §Body:Kaiti SC,阅读页 15.5pt 行距 2.15× 由调用侧 lineSpacing 控制)。
     static func body(size: CGFloat = 16) -> Font {
-        .system(size: size)
+        kaiti(size: size, weight: .regular)
     }
 
     /// 数字 / 西文(DESIGN.md §Numeric:SF Pro Text + tabular-nums)。
@@ -39,12 +49,17 @@ enum BaziFont {
             .monospacedDigit()
     }
 
+    /// Latin 大字距小标(QICOMPASS 类,8.5-10pt + 调用侧 .tracking(≈字号的 0.55 倍))。
+    static func latinCaps(size: CGFloat = 9.5) -> Font {
+        .system(size: size, weight: .regular)
+    }
+
     /// chip / 标签(系统默认 medium)。
     static func chip(size: CGFloat = 12) -> Font {
         .system(size: size, weight: .medium)
     }
 
-    /// 按钮(系统默认半粗)。
+    /// 按钮(系统默认半粗;楷体按钮字重不足,按钮仍走系统字)。
     static func button(size: CGFloat = 16) -> Font {
         .system(size: size, weight: .semibold)
     }
@@ -69,19 +84,19 @@ enum BaziFont {
 }
 
 extension View {
-    /// 页面标题样式(Songti SC Semibold + 浓墨,DESIGN.md §Display)。
+    /// 页面标题样式(Kaiti SC Medium + 浓墨,DESIGN.md §Display)。
     func zcoolPageTitle(size: CGFloat = 24) -> some View {
         font(BaziFont.display(size: size))
             .foregroundStyle(BaziTheme.ink)
     }
 
-    /// 卡片标题样式(Songti SC Semibold + 浓墨,小一号,DESIGN.md §Heading)。
+    /// 卡片标题样式(Kaiti SC Medium + 浓墨,小一号,DESIGN.md §Heading)。
     func zcoolCardTitle(size: CGFloat = 17) -> some View {
         font(BaziFont.display(size: size, weight: .medium))
             .foregroundStyle(BaziTheme.ink)
     }
 
-    /// 命书正文样式(PingFang SC Regular + 浓墨,DESIGN.md §Body)。
+    /// 命书正文样式(Kaiti SC Regular + 浓墨,DESIGN.md §Body)。
     func bodySerifText(size: CGFloat = 16) -> some View {
         font(BaziFont.body(size: size))
             .foregroundStyle(BaziTheme.ink)

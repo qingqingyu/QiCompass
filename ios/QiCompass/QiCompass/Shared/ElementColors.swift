@@ -7,8 +7,8 @@ import SwiftUI
 /// 后端 `gan_element` / `zhi_element` 返回英文 `metal/wood/water/fire/earth`,
 /// 本枚举的 rawValue 与之对齐,直接 `ElementColors(rawValue: dto.ganElement)` 即可取色。
 ///
-/// 色值按传统五行色选取,并降饱和以适配 App 宋瓷气质(DESIGN.md §Color 五行色映射):
-/// - 木(青绿)/ 火(赤)/ 土(黄)/ 金(白金)/ 水(玄蓝)
+/// 色值按传统五行色选取,降饱和 ~40% 压向墨色以适配水墨孤本气质(DESIGN.md §Color 五行色映射):
+/// - 木(青绿)/ 火(赤)/ 土(黄)/ 金(白金)/ 水(玄蓝);Dark 各提亮约 20% 亮度保持识别。
 enum ElementColors: String {
     case wood
     case fire
@@ -16,17 +16,19 @@ enum ElementColors: String {
     case metal
     case water
 
-    /// 五行对应色。未知 rawValue 兜底为 inkMuted(不静默用主强调色,避免与金元素混淆)。
-    ///
-    /// 色值对齐 DESIGN.md §Color 五行色映射(降饱和版):
-    /// - 土行旧值 `#c9a03c` 与主金重合,现校正为 `#b8881a`(必改项)
+    /// 五行对应色(Light 降饱和 / Dark 提亮;dyn 复用 BaziTheme.dyn)。未知 rawValue 兜底为 inkMuted(不静默用主强调色,避免与金元素混淆)。
     var color: Color {
         switch self {
-        case .wood:  return Color(red: 0x4a/255, green: 0x7a/255, blue: 0x4a/255)
-        case .fire:  return Color(red: 0xb8/255, green: 0x5a/255, blue: 0x3a/255)
-        case .earth: return Color(red: 0xa8/255, green: 0x88/255, blue: 0x48/255)
-        case .metal: return Color(red: 0x8a/255, green: 0x8a/255, blue: 0x82/255)
-        case .water: return Color(red: 0x3a/255, green: 0x5a/255, blue: 0x7a/255)
+        case .wood:  return BaziTheme.dyn(Color(red: 0x46/255, green: 0x6F/255, blue: 0x46/255),
+                                          Color(red: 0x6F/255, green: 0x9A/255, blue: 0x6F/255))
+        case .fire:  return BaziTheme.dyn(Color(red: 0xA8/255, green: 0x5A/255, blue: 0x42/255),
+                                          Color(red: 0xC9/255, green: 0x84/255, blue: 0x6E/255))
+        case .earth: return BaziTheme.dyn(Color(red: 0xA6/255, green: 0x80/255, blue: 0x1E/255),
+                                          Color(red: 0xC4/255, green: 0xA2/255, blue: 0x55/255))
+        case .metal: return BaziTheme.dyn(Color(red: 0x80/255, green: 0x7E/255, blue: 0x76/255),
+                                          Color(red: 0xA8/255, green: 0xA6/255, blue: 0x9E/255))
+        case .water: return BaziTheme.dyn(Color(red: 0x3C/255, green: 0x55/255, blue: 0x68/255),
+                                          Color(red: 0x6E/255, green: 0x8A/255, blue: 0x9E/255))
         }
     }
 
@@ -94,9 +96,11 @@ extension BaziTheme {
     /// 吉神 chip 描边色(墨青,DESIGN.md §Color)。
     static let shenshaAuspicious = jade
 
-    /// 凶煞 chip 描边色(暗朱砂,与吉神墨青区分)。
-    static let shenshaInauspicious = Color(red: 0x8a/255, green: 0x2b/255, blue: 0x2b/255)
+    /// 凶煞 chip 描边色(暗朱,与吉神墨青区分;水墨孤本下微调)。
+    static let shenshaInauspicious = dyn(Color(red: 0x8a/255, green: 0x2b/255, blue: 0x2b/255),
+                                         Color(red: 0xb0/255, green: 0x52/255, blue: 0x52/255))
 
-    /// 流年压力警示色(合盘 SyncedFortuneTable 用,区别于吉神墨青)。
-    static let pressureWarning = Color(red: 0xe0/255, green: 0x70/255, blue: 0x70/255)
+    /// 流年压力警示色(合盘 SyncedFortuneTable 用,降饱和;区别于吉神墨青)。
+    static let pressureWarning = dyn(Color(red: 0xb8/255, green: 0x5a/255, blue: 0x50/255),
+                                     Color(red: 0xd0/255, green: 0x85/255, blue: 0x79/255))
 }

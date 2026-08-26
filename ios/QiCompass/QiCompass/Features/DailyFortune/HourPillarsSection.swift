@@ -12,6 +12,8 @@ struct HourPillarsSection: View {
     @State private var isExpanded = false
 
     var body: some View {
+        // 水墨孤本 T1:开放布局。折叠态 = 十二时辰点带(当前时辰朱点,参考 daily-t1.html);
+        // 展开态 = 12 行明细(hairline 分隔)。
         VStack(alignment: .leading, spacing: 8) {
             Button {
                 withAnimation(MotionPreferences.animation(reduceMotion: reduceMotion)) {
@@ -20,7 +22,9 @@ struct HourPillarsSection: View {
             } label: {
                 HStack {
                     Text(L10n.DailyFortune.hourTitle)
-                        .zcoolCardTitle()
+                        .font(BaziFont.caption(size: 10))
+                        .tracking(4)
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
                     Spacer()
                     Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
                         .font(.caption)
@@ -34,25 +38,34 @@ struct HourPillarsSection: View {
                     hourRow(idx: idx, hp: hp)
                 }
             } else {
-                // 折叠时显示当前时辰一行(仅今日)
-                if let todayIdx = currentHourIndexToday {
-                    if todayIdx < hourPillars.count {
-                        hourRow(idx: todayIdx, hp: hourPillars[todayIdx])
+                // 折叠态:12 时辰点带(当前时辰 = 朱点放大,仅今日)
+                HStack(spacing: 12) {
+                    HStack(spacing: 7) {
+                        ForEach(0..<12, id: \.self) { idx in
+                            let isCurrent = currentHourIndexToday == idx
+                            Circle()
+                                .fill(isCurrent ? BaziTheme.cinnabar : BaziTheme.ink.opacity(0.2))
+                                .frame(width: isCurrent ? 7 : 5, height: isCurrent ? 7 : 5)
+                        }
                     }
-                } else {
-                    Text(L10n.DailyFortune.hourExpandHint)
-                        .font(.caption)
-                        .foregroundStyle(BaziTheme.inkMuted.opacity(0.7))
-                        .padding(.vertical, 8)
+                    Spacer(minLength: 12)
+                    Text(hourSummaryLabel)
+                        .font(BaziFont.caption(size: 11))
+                        .tracking(2)
+                        .foregroundStyle(BaziTheme.inkMuted)
                 }
+                .padding(.vertical, 8)
             }
         }
-        .padding(BaziTheme.Spacing.md)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-                .stroke(BaziTheme.hairline, lineWidth: 0.5)
-        )
+    }
+
+    /// 折叠态右侧文字:「12 时辰 · 当下未 ›」或「12 时辰 ›」(历史回看无当前)。
+    /// 时辰字来自后端(术语不翻译,决策 7);"当下"复用 hourNow 既有 key。
+    private var hourSummaryLabel: String {
+        guard let todayIdx = currentHourIndexToday,
+              todayIdx < hourPillars.count
+        else { return "\(L10n.DailyFortune.hourTitle) ›" }
+        return "\(L10n.DailyFortune.hourTitle) · \(L10n.DailyFortune.hourNow)\(hourPillars[todayIdx].hour) ›"
     }
 
     /// 仅今日(且有时辰算法可算出)才返回当前时辰索引;历史回看返回 nil。
@@ -94,10 +107,10 @@ struct HourPillarsSection: View {
                     if isCurrent {
                         Text(L10n.DailyFortune.hourNow)
                             .font(.caption2.weight(.semibold))
-                            .foregroundStyle(BaziTheme.paper)
+                            .foregroundStyle(BaziTheme.onInkDeep)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                            .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
                     }
                 }
                 if let chong = hp.chong {

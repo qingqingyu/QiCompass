@@ -579,8 +579,10 @@ private struct IdentityCard: View {
             Spacer()
         }
         .accessibilityElement(children: .combine)
-        .padding(BaziTheme.Spacing.md)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
+        .padding(.vertical, BaziTheme.Spacing.sm)
+        // 水墨孤本 M1(mine-m1.html):命主卡改开放头块,底部 hairline 收边
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(BaziTheme.hairline).frame(height: 0.5).padding(.horizontal, -BaziTheme.Spacing.md)
+        }
     }
 }

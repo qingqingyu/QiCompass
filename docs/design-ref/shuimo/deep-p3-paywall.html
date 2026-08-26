@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>P3 · 付费墙</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    width: 390px; height: 844px; overflow: hidden; margin: 0 auto; position: relative;
+    background: #F3F1EC; font-family: "Kaiti SC", "STKaiti", serif; color: #1C1B1E;
+  }
+  .grain { position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: multiply; z-index: 6;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='linear' slope='0.05'/></feComponentTransfer></filter><rect width='240' height='240' filter='url(%23n)'/></svg>"); }
+
+  /* 底层：压暗的列表页（简化示意） */
+  .dim-bg { position: absolute; inset: 0; background: rgba(28,27,30,.42); backdrop-filter: blur(2px); }
+
+  /* sheet */
+  .sheet {
+    position: absolute; left: 0; right: 0; bottom: 0; height: 478px;
+    background: #F6F5F0; border-radius: 18px 18px 0 0;
+    box-shadow: 0 -18px 50px rgba(23,22,26,.3);
+    padding: 0 34px 0; display: flex; flex-direction: column;
+    animation: rise .5s cubic-bezier(.2,.8,.3,1) .1s both;
+  }
+  @keyframes rise { from { transform: translateY(60%); opacity: .4; } to { transform: none; opacity: 1; } }
+  .grabber { width: 40px; height: 4px; border-radius: 2px; background: rgba(28,27,30,.25); margin: 10px auto 0; }
+
+  .head { margin-top: 14px; display: flex; align-items: center; gap: 14px; }
+  .seal {
+    flex: none; width: 34px; height: 34px; background: #A83226; color: #F6F1E7;
+    display: flex; align-items: center; justify-content: center; font-size: 16px;
+    transform: rotate(-4deg); box-shadow: inset 0 0 0 1.5px rgba(246,241,231,.35);
+    animation: stamp .45s cubic-bezier(.3,1.6,.5,1) .55s both;
+  }
+  @keyframes stamp { from { transform: rotate(-4deg) scale(1.9); opacity: 0; } to { transform: rotate(-4deg) scale(1); opacity: 1; } }
+  .ht { font-size: 19px; letter-spacing: .14em; }
+  .hs { margin-top: 4px; font-size: 10.5px; letter-spacing: .2em; color: #8B867D; }
+
+  .chapters { margin-top: 16px; flex: 1; overflow: hidden; }
+  .ch-row { display: flex; align-items: baseline; gap: 12px; padding: 8.5px 0;
+            border-bottom: 1px dashed rgba(28,27,30,.16); }
+  .ch-row .n { flex: none; font-size: 12px; color: #A83226; width: 16px; }
+  .ch-row .t { flex: none; font-size: 14px; letter-spacing: .08em; }
+  .ch-row .d { flex: 1; font-size: 10px; color: #A5A098; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-align: right; }
+
+  .foot { flex: none; padding-bottom: 30px; }
+  .price-line { display: flex; align-items: baseline; justify-content: center; gap: 10px; margin-bottom: 14px; }
+  .price { font-size: 34px; letter-spacing: .04em; font-family: "Songti SC", serif; }
+  .price .cur { font-size: 16px; }
+  .buyall { font-size: 11px; color: #8B867D; letter-spacing: .18em; }
+  .cta {
+    height: 54px; background: #17161A; color: #F3F1EC; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center; gap: 12px;
+    font-size: 16px; letter-spacing: .26em; text-indent: .26em;
+  }
+  .cta .seal-dot { width: 7px; height: 7px; background: #A83226; transform: rotate(45deg); }
+  .aux { margin-top: 12px; display: flex; justify-content: space-between; font-size: 10.5px; color: #77726A; letter-spacing: .08em; }
+  .aux .r { color: #A5A098; }
+  .legal { margin-top: 10px; text-align: center; font-size: 9px; color: #B3AEA4; letter-spacing: .12em; line-height: 1.8; }
+</style>
+</head>
+<body>
+  <div class="grain"></div>
+  <div class="dim-bg"></div>
+
+  <div class="sheet">
+    <div class="grabber"></div>
+
+    <div class="head">
+      <div class="seal">解</div>
+      <div>
+        <div class="ht">解锁余下陆章</div>
+        <div class="hs">叁 至 捌 · 一次买断 · 全设备同步</div>
+      </div>
+    </div>
+
+    <div class="chapters">
+      <div class="ch-row"><span class="n">叁</span><span class="t">高配 vs 低配</span><span class="d">两种环境下的跑法</span></div>
+      <div class="ch-row"><span class="n">肆</span><span class="t">系统模式</span><span class="d">运行模式与失效环境</span></div>
+      <div class="ch-row"><span class="n">伍</span><span class="t">健康续航</span><span class="d">能量规律与恢复杠杆</span></div>
+      <div class="ch-row"><span class="n">陆</span><span class="t">财富结构</span><span class="d">收入匹配与漏财止损</span></div>
+      <div class="ch-row"><span class="n">柒</span><span class="t">结构动力学</span><span class="d">杠杆点与升级路线</span></div>
+      <div class="ch-row"><span class="n">捌</span><span class="t">落地手册</span><span class="d">90 天放大行动</span></div>
+    </div>
+
+    <div class="foot">
+      <div class="price-line">
+        <span class="price"><span class="cur">¥</span>68</span>
+        <span class="buyall">六 章 全 解</span>
+      </div>
+      <div class="cta">立即解锁<span class="seal-dot"></span></div>
+      <div class="aux"><span>通过 Apple 账户登录后购买</span><span class="r">恢复购买</span></div>
+      <div class="legal">玄学娱乐 · 理性参考<br>购买即视为同意 Apple 标准用户协议</div>
+    </div>
+  </div>
+</body>
+</html>

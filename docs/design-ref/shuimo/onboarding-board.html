@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>玄机问道 · onboarding 衔接(水墨孤本语言)</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #101014; font-family: "PingFang SC", sans-serif; color: #E8E6E0;
+    min-height: 100vh; padding: 40px 48px 64px;
+  }
+  header { margin-bottom: 36px; }
+  header h1 { font-size: 22px; font-weight: 700; letter-spacing: .06em; }
+  header h1 .tag {
+    font-size: 11px; font-weight: 500; color: #7FA88B; border: 1px solid rgba(127,168,139,.5);
+    padding: 3px 10px; border-radius: 999px; margin-left: 12px; vertical-align: 3px; letter-spacing: .12em;
+  }
+  header p { margin-top: 10px; font-size: 13px; color: #94908A; letter-spacing: .04em; }
+  .flow {
+    display: flex; gap: 0; justify-content: center; align-items: flex-start;
+    overflow-x: auto; padding-bottom: 20px;
+  }
+  .slot { flex: none; width: 302px; }
+  .arrow {
+    flex: none; width: 44px; display: flex; align-items: center; justify-content: center;
+    height: 630px; color: #4A4A52; font-size: 22px; user-select: none;
+  }
+  .phone {
+    width: 302px; height: 630px; background: #1D1D22; border-radius: 50px; padding: 11px; position: relative;
+    box-shadow: 0 24px 60px rgba(0,0,0,.55), inset 0 0 0 1.5px rgba(255,255,255,.07);
+  }
+  .screen { width: 280px; height: 608px; border-radius: 40px; overflow: hidden; position: relative; background: #000; }
+  .screen iframe { width: 390px; height: 844px; border: 0; transform: scale(.7179); transform-origin: top left; pointer-events: none; }
+  .notch {
+    position: absolute; top: 11px; left: 50%; transform: translateX(-50%);
+    width: 88px; height: 24px; background: #1D1D22; border-radius: 0 0 14px 14px; z-index: 2;
+  }
+  .label { margin-top: 20px; text-align: center; }
+  .label .name { font-size: 15px; font-weight: 700; letter-spacing: .1em; }
+  .label .name .id { color: #7FA88B; margin-right: 8px; font-family: Georgia, serif; font-style: italic; }
+  .label .desc { margin-top: 6px; font-size: 12px; color: #94908A; line-height: 1.7; }
+  .label a { display: inline-block; margin-top: 10px; font-size: 11px; color: #7F9BB8; text-decoration: none; border-bottom: 1px dotted rgba(127,155,184,.5); padding-bottom: 1px; }
+  .replay {
+    margin-top: 10px; padding: 5px 14px; border-radius: 999px; cursor: pointer;
+    border: 1px solid rgba(127,168,139,.55); background: transparent; color: #7FA88B;
+    font-size: 11px; letter-spacing: .1em; font-family: inherit; transition: background .2s, color .2s;
+  }
+  .replay:hover { background: #7FA88B; color: #101014; }
+  footer { margin-top: 28px; text-align: center; font-size: 11.5px; color: #6E6A66; letter-spacing: .05em; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>Onboarding 衔接 · 水墨孤本语言<span class="tag">ROUND 3</span></h1>
+    <p>开机页 → 注册引导的完整链路：墨圆品牌承接 → 生辰表单（下划线极简输入）→ 排盘布算（墨滴涟漪）→ 生肖揭晓（墨圆 + 生肖字 + 合冲 chips）。全程呼应开机页：冷宣纸 / 焦墨 / 竖排点缀 / 小朱印。</p>
+  </header>
+
+  <div class="flow">
+    <div class="slot">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <iframe src="onboarding-o1-welcome.html" title="O1 承接欢迎" loading="lazy"></iframe>
+      </div></div>
+      <div class="label">
+        <div class="name"><span class="id">O1</span>承接 · 欢迎页</div>
+        <div class="desc">开机页墨圆收拢居中，玄印落于圆心；<br>经文竖排成版心。左滑进表单。</div>
+        <a href="onboarding-o1-welcome.html" target="_blank">全屏打开 ↗</a>
+      </div>
+    </div>
+    <div class="arrow">→</div>
+
+    <div class="slot">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <iframe src="onboarding-o2-birthform.html" title="O2 录入生辰" loading="lazy"></iframe>
+      </div></div>
+      <div class="label">
+        <div class="name"><span class="id">O2</span>录入生辰</div>
+        <div class="desc">无框下划线输入，聚焦线朱色；<br>称呼/日期时刻(未时)/性别/城市四字段。</div>
+        <a href="onboarding-o2-birthform.html" target="_blank">全屏打开 ↗</a>
+      </div>
+    </div>
+    <div class="arrow">→</div>
+
+    <div class="slot">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <iframe src="onboarding-o3-calculating.html" title="O3 排盘布算" loading="lazy"></iframe>
+      </div></div>
+      <div class="label">
+        <div class="name"><span class="id">O3</span>排盘布算</div>
+        <div class="desc">墨滴入水，三环涟漪循环；<br>竖排「排盘布算中」+ 推演条目。</div>
+        <a href="onboarding-o3-calculating.html" target="_blank">全屏打开 ↗</a>
+      </div>
+    </div>
+    <div class="arrow">→</div>
+
+    <div class="slot">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <iframe src="onboarding-o4-reveal.html" title="O4 生肖揭晓" loading="lazy"></iframe>
+      </div></div>
+      <div class="label">
+        <div class="name"><span class="id">O4</span>生肖揭晓</div>
+        <div class="desc">墨圆环 + 生肖大字 hero；人格段落；<br>六合三合 chips(墨青) / 六冲 chip(灰) / CTA。</div>
+        <a href="onboarding-o4-reveal.html" target="_blank">全屏打开 ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <footer>合冲关系按真实命理：午马 六合未羊、三合寅虎戌狗、六冲子鼠。CTA 用浓墨而非朱砂——朱色只留给印章级小元素，守住「极少量高饱和点缀」。</footer>
+
+  <script>
+    document.querySelectorAll('.slot').forEach(slot => {
+      const label = slot.querySelector('.label');
+      const btn = document.createElement('button');
+      btn.className = 'replay'; btn.textContent = '↻ 重播入场动画';
+      btn.onclick = () => {
+        const f = slot.querySelector('iframe');
+        f.src = f.getAttribute('src');
+      };
+      label.appendChild(btn);
+    });
+  </script>
+</body>
+</html>

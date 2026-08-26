@@ -27,10 +27,10 @@ struct DailyFortuneMainView: View {
                         Text(L10n.DailyFortune.mainOffline)
                     }
                     .font(.caption2)
-                    .foregroundStyle(BaziTheme.cinnabar)
+                    .foregroundStyle(BaziTheme.inkMuted)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 6)
-                    .background(BaziTheme.cinnabarSoft, in: Capsule())
+                    .background(BaziTheme.ink.opacity(0.05), in: Capsule())
                 }
 
                 // 顶部 7 天历史 pill(决策 §1.D)
@@ -185,26 +185,31 @@ private struct YiJiAnchorSection: View {
 
     var body: some View {
         let resolved = pair
-        HStack(spacing: BaziTheme.Spacing.md) {
-            anchorColumn(label: L10n.DailyFortune.yiLabel, keyword: resolved.yi, color: BaziTheme.cinnabar)
-            anchorColumn(label: L10n.DailyFortune.jiLabel, keyword: resolved.ji, color: BaziTheme.inkMuted)
+        // 水墨孤本 T1:开放布局,宜(jade)/忌(淡朱)双行 + 上下 hairline(参考 daily-t1.html)
+        VStack(spacing: 0) {
+            anchorRow(label: L10n.DailyFortune.yiLabel, keyword: resolved.yi, color: BaziTheme.jade)
+            anchorRow(label: L10n.DailyFortune.jiLabel, keyword: resolved.ji, color: BaziTheme.cinnabar.opacity(0.8))
         }
-        .padding(BaziTheme.Spacing.md)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
-        .overlay(
-            RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
-                .stroke(BaziTheme.hairline, lineWidth: 0.5)
-        )
+        .padding(.vertical, 2)
+        .overlay(alignment: .top) {
+            Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
+        }
     }
 
-    private func anchorColumn(label: String, keyword: String, color: Color) -> some View {
-        HStack(spacing: BaziTheme.Spacing.sm) {
+    private func anchorRow(label: String, keyword: String, color: Color) -> some View {
+        HStack(spacing: 14) {
             Text(label)
-                .font(.subheadline.weight(.semibold))
+                .font(BaziFont.display(size: 14, weight: .medium))
+                .tracking(4)
                 .foregroundStyle(color)
             Text(keyword)
-                .bodySerifText()
+                .bodySerifText(size: 13)
+                .foregroundStyle(BaziTheme.ink)
+            Spacer()
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, 9)
     }
 }

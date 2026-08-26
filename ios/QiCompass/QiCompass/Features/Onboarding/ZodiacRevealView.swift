@@ -127,10 +127,10 @@ struct ZodiacRevealView: View {
                 }) {
                     Text(L10n.Onboarding.revealCTA)
                         .font(BaziFont.button())
-                        .foregroundStyle(BaziTheme.paper)
+                        .foregroundStyle(BaziTheme.onInkDeep)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, BaziTheme.Spacing.md)
-                        .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                        .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
                 }
                 .accessibilityHint("查看你的今日运势")
                 .opacity(ctaOpacity)

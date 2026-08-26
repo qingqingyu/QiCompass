@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>H3 · 合盘 · 详情</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    width: 390px; height: 844px; overflow: hidden; margin: 0 auto; position: relative;
+    background: #F3F1EC;
+    font-family: "Kaiti SC", "STKaiti", serif; color: #1C1B1E;
+    display: flex; flex-direction: column;
+  }
+  .grain { position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: multiply; z-index: 5;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='linear' slope='0.05'/></feComponentTransfer></filter><rect width='240' height='240' filter='url(%23n)'/></svg>"); }
+
+  .navbar { flex: none; height: 92px; padding: 50px 26px 0; display: flex; align-items: center; justify-content: space-between;
+            border-bottom: 1px solid rgba(28,27,30,.14); }
+  .back { font-size: 22px; color: #55524C; }
+  .nt { font-size: 14.5px; letter-spacing: .2em; }
+
+  .body { flex: 1; overflow: hidden; padding: 20px 34px 0; }
+
+  /* 双柱对照 */
+  .pillars { display: flex; justify-content: center; gap: 26px; padding: 6px 0 16px;
+             border-bottom: 1px solid rgba(28,27,30,.12); }
+  .side { text-align: center; }
+  .side .who { font-size: 11px; letter-spacing: .2em; color: #8B867D; margin-bottom: 10px; }
+  .pz { display: flex; gap: 10px; }
+  .pcol { display: flex; flex-direction: column; gap: 4px; font-size: 14px; }
+  .pcol .g { color: #26242A; } .pcol .z { color: #77726A; }
+  .vs { align-self: center; font-size: 10px; color: #A83226; letter-spacing: .1em;
+        width: 22px; height: 22px; border: 1px solid rgba(168,50,38,.5); border-radius: 2px;
+        display: flex; align-items: center; justify-content: center; transform: rotate(-3deg); }
+
+  /* 定性卡 */
+  .sec-k { font-size: 10px; letter-spacing: .4em; color: #A5A098; margin: 20px 0 12px; }
+  .cards { display: flex; gap: 10px; }
+  .card { flex: 1; padding: 12px 10px; border: 1px solid rgba(28,27,30,.2); border-radius: 3px; text-align: center; }
+  .card .v { font-size: 13.5px; letter-spacing: .06em; }
+  .card .l { margin-top: 5px; font-size: 9.5px; color: #A5A098; letter-spacing: .16em; }
+  .card.good { border-color: rgba(47,94,74,.5); }
+  .card.good .v { color: #2F5E4A; }
+
+  .duan { margin-top: 16px; font-size: 13px; line-height: 2.05; color: #33312E; letter-spacing: .02em; }
+  .duan b { color: #2F5E4A; font-weight: 500; }
+
+  /* 付费章 */
+  .lockbox { margin: 20px 0 10px; border: 1px dashed rgba(28,27,30,.3); border-radius: 4px; padding: 16px 16px 14px; position: relative; }
+  .lockbox::before { content: "此对 · 付费四章"; position: absolute; top: -8px; left: 14px; background: #F3F1EC;
+    padding: 0 8px; font-size: 9.5px; letter-spacing: .24em; color: #A83226; }
+  .lrow { display: flex; align-items: baseline; gap: 10px; padding: 8px 0; border-bottom: 1px dashed rgba(28,27,30,.12); }
+  .lrow:last-child { border-bottom: none; }
+  .lrow .n { font-size: 11px; color: #B3AEA4; width: 14px; }
+  .lrow .t { font-size: 13.5px; letter-spacing: .06em; }
+  .lrow .d { margin-left: auto; font-size: 10px; color: #A5A098; }
+  .cta {
+    margin-top: 14px; height: 48px; background: #17161A; color: #F3F1EC; border-radius: 5px;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    font-size: 14.5px; letter-spacing: .2em; text-indent: .2em;
+  }
+  .cta .p { font-size: 12px; text-indent: 0; letter-spacing: .04em; color: #B3AEA4; }
+  .cta .seal-dot { width: 6px; height: 6px; background: #A83226; transform: rotate(45deg); }
+
+  .note { margin-top: 10px; text-align: center; font-size: 9.5px; color: #B3AEA4; letter-spacing: .16em; }
+  .homebar { flex: none; height: 26px; display: flex; align-items: center; justify-content: center; }
+  .homebar::after { content: ""; width: 120px; height: 4px; border-radius: 2px; background: rgba(28,27,30,.3); }
+</style>
+</head>
+<body>
+  <div class="grain"></div>
+
+  <div class="navbar">
+    <div class="back">‹</div>
+    <div class="nt">我自己 与 男友</div>
+    <div class="back" style="opacity:0;">‹</div>
+  </div>
+
+  <div class="body">
+    <div class="pillars">
+      <div class="side">
+        <div class="who">我 · 乙亥</div>
+        <div class="pz">
+          <div class="pcol"><span class="g">乙</span><span class="g">甲</span><span class="g">丙</span><span class="g">乙</span></div>
+          <div class="pcol"><span class="z">亥</span><span class="z">申</span><span class="z">午</span><span class="z">未</span></div>
+        </div>
+      </div>
+      <div class="vs">合</div>
+      <div class="side">
+        <div class="who">他 · 癸酉</div>
+        <div class="pz">
+          <div class="pcol"><span class="g">癸</span><span class="g">戊</span><span class="g">庚</span><span class="g">丁</span></div>
+          <div class="pcol"><span class="z">酉</span><span class="z">午</span><span class="z">辰</span><span class="z">亥</span></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="sec-k">合 拍 定 性</div>
+    <div class="cards">
+      <div class="card good"><div class="v">互补佳</div><div class="l">五 行</div></div>
+      <div class="card"><div class="v">相谈深</div><div class="l">印 星</div></div>
+      <div class="card"><div class="v">需磨合</div><div class="l">节 奏</div></div>
+    </div>
+
+    <div class="duan">他带火与你补温，你以木稳其浮——<b>滋养点在共处，张力点在节奏</b>：你要先想后动，他要边说边定。定性不给分，合不合拍，交给相处验证。</div>
+
+    <div class="lockbox">
+      <div class="lrow"><span class="n">壹</span><span class="t">五行共振</span><span class="d">谁补谁 · 谁耗谁</span></div>
+      <div class="lrow"><span class="n">贰</span><span class="t">合作事业</span><span class="d">分工与决策位</span></div>
+      <div class="lrow"><span class="n">叁</span><span class="t">财运合拍</span><span class="d">花钱观与共同账</span></div>
+      <div class="lrow"><span class="n">肆</span><span class="t">流年同步</span><span class="d">未来一年节奏</span></div>
+      <div class="cta">解锁这一对<span class="p">¥30 · 四章</span><span class="seal-dot"></span></div>
+    </div>
+    <div class="note">每对独立解锁 · 已购跨设备同步</div>
+  </div>
+
+  <div class="homebar"></div>
+</body>
+</html>
