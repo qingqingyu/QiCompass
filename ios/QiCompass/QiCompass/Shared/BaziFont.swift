@@ -1,12 +1,15 @@
 import SwiftUI
 import UIKit
 
-/// 统一字体入口(DESIGN.md §Typography,2026-08-26 水墨孤本换轨)。
+/// 统一字体入口(DESIGN.md §Typography,2026-08-26 水墨孤本换轨 + 英文 locale 路由)。
 ///
 /// DESIGN.md §Typography 落地:
-/// - **Display / Ganzhi / Heading / Body**:`Kaiti SC`(楷体,iOS 系统自带,不打包)。
+/// - **Display / Ganzhi / Heading / Body(中文 UI)**:`Kaiti SC`(楷体,iOS 系统自带,不打包)。
 ///   楷体扛全部中文展示层,书卷手写感呼应水墨孤本。命名缺失时 Font.custom 静默回退系统字体,
 ///   模拟器实测以 `UIFont(name: "Kaiti SC")` 探测结果为准(备选名 "STKaiti")。
+/// - **英文 locale 路由(2026-08-26,DESIGN.md Decisions Log)**:Kaiti 拉丁字形偏楷书衬线,
+///   英文正文可读性差——display/heading 回退系统 `.serif`(New York 系,气质匹配水墨),
+///   body 走系统 sans。品牌字(玄机问道/干支/印章)不走本路由,始终楷体(中文不翻译,决策 7)。
 /// - **Numeric / Tabular**:系统默认 + `.monospacedDigit()`(SF Pro Text)。
 /// - **LatinCaps**:QICOMPASS 字距标(system + 调用侧 .tracking 大间距)。
 ///
@@ -19,6 +22,9 @@ enum BaziFont {
         ? "Kaiti SC"
         : (UIFont(name: "STKaiti", size: 12) != nil ? "STKaiti" : nil)
 
+    /// 当前 UI 是否中文(AppLanguage 实时判定,系统语言切换后下次取值即生效)。
+    private static var isChineseUI: Bool { AppLanguage.current == "zh" }
+
     /// 楷体字体。kaitiName 不可用时回退系统 .serif(Songti SC),保证永远有衬线兜底。
     private static func kaiti(size: CGFloat, weight: Font.Weight = .medium) -> Font {
         if let name = kaitiName {
@@ -27,20 +33,25 @@ enum BaziFont {
         return .system(size: size, weight: weight, design: .serif)
     }
 
-    /// 显示字体(DESIGN.md §Display/Hero:Kaiti SC)。
-    /// 楷体笔画细,展示层默认 Medium(替代宋瓷时代的 Semibold)。
+    /// 显示字体(中文 Kaiti / 英文系统衬线)。楷体笔画细,展示层默认 Medium。
     static func display(size: CGFloat, weight: Font.Weight = .medium) -> Font {
-        kaiti(size: size, weight: weight)
+        guard isChineseUI else {
+            return .system(size: size, weight: weight, design: .serif)
+        }
+        return kaiti(size: size, weight: weight)
     }
 
-    /// 八字专用干支字体(DESIGN.md §Ganzhi:Kaiti SC,与 display 同族)。
+    /// 八字专用干支字体(与 display 同族;干支为中文术语,始终走 display 路由)。
     static func ganzhi(size: CGFloat, weight: Font.Weight = .medium) -> Font {
         display(size: size, weight: weight)
     }
 
-    /// 命书正文(DESIGN.md §Body:Kaiti SC,阅读页 15.5pt 行距 2.15× 由调用侧 lineSpacing 控制)。
+    /// 命书正文(中文 Kaiti / 英文系统 sans;阅读页 15.5pt 行距 2.15× 由调用侧 lineSpacing 控制)。
     static func body(size: CGFloat = 16) -> Font {
-        kaiti(size: size, weight: .regular)
+        guard isChineseUI, let name = kaitiName else {
+            return .system(size: size)
+        }
+        return .custom(name, size: size)
     }
 
     /// 数字 / 西文(DESIGN.md §Numeric:SF Pro Text + tabular-nums)。

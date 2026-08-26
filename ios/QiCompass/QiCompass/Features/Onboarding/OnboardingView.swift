@@ -287,10 +287,10 @@ private struct InkCalculatingView: View {
             VStack(spacing: 0) {
                 Spacer()
 
-                // 主体:墨圆 + 右侧竖排题(非对称,呼应开机页构图)
+                // 主体:墨圆 + 右侧竖排题(非对称,呼应开机页构图;英文 VText 自动横排回退)
                 HStack(alignment: .center, spacing: 26) {
                     EnsoView(size: 190, breathing: true)
-                    VText(phrase: "排盘布算中", size: 19, tracking: 8)
+                    VText(phrase: L10n.Onboarding.calculatingTitle, size: 19, tracking: 8)
                         .padding(.leading, 12)
                         .overlay(alignment: .leading) {
                             Rectangle()
@@ -307,7 +307,7 @@ private struct InkCalculatingView: View {
                         .font(BaziFont.body(size: 12))
                         .tracking(4)
                         .foregroundStyle(BaziTheme.inkMuted)
-                    Text("四柱 · 十神 · 神煞 · 大运")
+                    Text(L10n.Onboarding.calculatingSteps)
                         .font(BaziFont.caption(size: 11))
                         .tracking(4)
                         .foregroundStyle(BaziTheme.inkMutedSecondary)

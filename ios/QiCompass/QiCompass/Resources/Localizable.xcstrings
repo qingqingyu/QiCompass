@@ -856,6 +856,40 @@
         }
       }
     },
+    "onboarding.calculating.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charting your destiny"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盘布算中"
+          }
+        }
+      }
+    },
+    "onboarding.calculating.steps" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pillars · Ten Gods · Omens · Luck cycles"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "四柱 · 十神 · 神煞 · 大运"
+          }
+        }
+      }
+    },
     "onboarding.form.title" : {
       "extractionState" : "manual",
       "localizations" : {

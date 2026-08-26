@@ -14,24 +14,46 @@ import SwiftUI
 ///
 /// 适用 ≤20 字的标题 / 经文 / 批语 / 加载文案。标点不做字角位修正(v1 取舍:
 /// 短句中标点少,竖排逐字已足够古籍感)。长文横排走常规 Text。
+///
+/// **英文回退(2026-08-26,DESIGN.md Decisions Log)**:拉丁字母逐字竖排不可读,
+/// 短语不含 CJK 字符时自动横排 italic(沿用 SutraView 非中文分支的文学感处理)。
+/// 品牌字(玄机问道/干支)始终中文,不受影响。
 struct VText: View {
     let phrase: String
     var size: CGFloat
-    /// 字间距(pt,竖排即行进方向间距)。
+    /// 字间距(pt,竖排即行进方向间距;横排回退时用作 kerning 近似)。
     var tracking: CGFloat = 6
     var color: Color = BaziTheme.ink
 
     var body: some View {
-        VStack(spacing: tracking) {
-            ForEach(Array(phrase.enumerated()), id: \.offset) { _, char in
-                Text(String(char))
-                    .font(BaziFont.display(size: size, weight: .medium))
-                    .foregroundStyle(color)
+        if Self.containsCJK(phrase) {
+            VStack(spacing: tracking) {
+                ForEach(Array(phrase.enumerated()), id: \.offset) { _, char in
+                    Text(String(char))
+                        .font(BaziFont.display(size: size, weight: .medium))
+                        .foregroundStyle(color)
+                }
             }
+            .fixedSize()
+            .accessibilityElement(children: .combine)
+            .accessibilityLabel(phrase)
+        } else {
+            Text(phrase)
+                .font(BaziFont.display(size: size, weight: .medium))
+                .tracking(min(tracking, size * 0.18))
+                .italic()
+                .foregroundStyle(color)
+                .multilineTextAlignment(.center)
         }
-        .fixedSize()
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(phrase)
+    }
+
+    /// 是否含 CJK 表意字符(汉/扩展 A/兼容表意)。纯拉丁/数字/标点 → false 走横排。
+    private static func containsCJK(_ phrase: String) -> Bool {
+        phrase.unicodeScalars.contains { scalar in
+            (0x4E00...0x9FFF).contains(scalar.value)
+                || (0x3400...0x4DBF).contains(scalar.value)
+                || (0xF900...0xFAFF).contains(scalar.value)
+        }
     }
 }
 

@@ -34,6 +34,16 @@ enum L10n {
         /// zh: "命盘只存你手机 · 无账号";en: "Your chart stays on your phone · No account"
         static let formPrivacyLine = String(localized: "onboarding.form.privacyLine")
 
+        // -- 排盘布算屏(O3,水墨孤本 InkCalculatingView)--
+
+        /// 布算主标(中文竖排 / 英文 VText 自动横排回退)。
+        /// zh: "排盘布算中";en: "Charting your destiny"
+        static let calculatingTitle = String(localized: "onboarding.calculating.title")
+
+        /// 推演条目行。
+        /// zh: "四柱 · 十神 · 神煞 · 大运";en: "Pillars · Ten Gods · Omens · Luck cycles"
+        static let calculatingSteps = String(localized: "onboarding.calculating.steps")
+
         // -- 生肖反馈屏(第 3 屏)--
 
         /// 好朋友区块标题(三合六合)。
