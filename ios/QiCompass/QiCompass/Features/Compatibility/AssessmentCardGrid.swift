@@ -1,9 +1,9 @@
 import SwiftUI
 
-/// 4 项定性评估的 2×2 网格(D7 + DESIGN.md §Color)。
+/// 4 项定性评估的 2×2 网格(水墨孤本 H3:hairline 网格,无卡片底,参考 hepan-h3-detail.html)。
 ///
-/// 每张卡:标题(inkMuted)+ 评估值(ink 主色 semibold)+ 一行简短解释。
-/// **不给数字分、不引入百分比**。
+/// 每格:标题(淡灰小标)+ 评估值(楷体浓墨)+ 一行简短解释。
+/// **不给数字分、不引入百分比**(定性不给分决策不变)。
 struct AssessmentCardGrid: View {
     let assessment: QualitativeAssessmentDTO
 
@@ -40,36 +40,43 @@ struct AssessmentCardGrid: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("定性评估")
-                .zcoolCardTitle()
+        VStack(alignment: .leading, spacing: 12) {
+            Text("合拍定性 · 无评分")
+                .font(BaziFont.caption(size: 10))
+                .tracking(4)
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
 
             LazyVGrid(
                 columns: [
-                    GridItem(.flexible(), spacing: 8),
-                    GridItem(.flexible(), spacing: 8),
+                    GridItem(.flexible(), spacing: 10),
+                    GridItem(.flexible(), spacing: 10),
                 ],
-                spacing: 8
+                spacing: 10
             ) {
                 ForEach(cards) { card in
-                    VStack(alignment: .leading, spacing: 6) {
+                    VStack(alignment: .leading, spacing: 5) {
                         Text(card.title)
-                            .font(.caption)
-                            .foregroundStyle(BaziTheme.inkMuted)
+                            .font(BaziFont.caption(size: 10))
+                            .tracking(2)
+                            .foregroundStyle(BaziTheme.inkMutedSecondary)
                         Text(card.value)
-                            .font(.body.weight(.semibold))
+                            .font(BaziFont.display(size: 14))
+                            .tracking(1)
                             .foregroundStyle(BaziTheme.ink)
                         if !card.explanation.isEmpty {
                             Text(card.explanation)
                                 .font(.system(size: 10))
-                                .foregroundStyle(BaziTheme.inkMuted.opacity(0.85))
+                                .foregroundStyle(BaziTheme.inkMuted)
                                 .lineLimit(2)
                         }
                     }
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(BaziTheme.Spacing.sm)
-                    .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
-                    .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.sm).stroke(BaziTheme.hairline, lineWidth: 0.5))
+                    .padding(12)
+                    .overlay(alignment: .leading) {
+                        Rectangle()
+                            .fill(BaziTheme.hairline)
+                            .frame(width: 0.5)
+                    }
                 }
             }
         }

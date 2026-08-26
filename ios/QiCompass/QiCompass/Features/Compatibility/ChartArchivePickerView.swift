@@ -134,6 +134,7 @@ struct ArchiveRowContent: View {
             }
             Spacer()
             if isSelected {
+                // 朱色选中圈(印章级点缀);行底改中性墨,不做朱底大块
                 Image(systemName: "checkmark.circle.fill")
                     .foregroundStyle(BaziTheme.cinnabar)
             } else {
@@ -146,7 +147,7 @@ struct ArchiveRowContent: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             isSelected
-                ? BaziTheme.cinnabarSoft
+                ? BaziTheme.ink.opacity(0.04)
                 : Color.clear
         )
     }
