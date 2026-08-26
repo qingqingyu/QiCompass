@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>C3 · 空寂横排</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    width: 390px; height: 844px; overflow: hidden;
+    margin: 0 auto; position: relative;
+    background:
+      radial-gradient(90% 60% at 50% 30%, #F8F7F3 0%, transparent 62%),
+      #F3F1EC;
+    font-family: "Kaiti SC", "STKaiti", serif;
+    color: #1C1B1E;
+  }
+  .grain {
+    position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='linear' slope='0.05'/></feComponentTransfer></filter><rect width='240' height='240' filter='url(%23n)'/></svg>");
+  }
+  /* 水印记墨圆 */
+  .ghost {
+    position: absolute; left: 50%; top: 552px; transform: translate(-50%,-50%);
+    width: 340px; height: 340px; opacity: 0;
+    animation: ghostIn 2.2s ease .5s forwards,
+               ghostBreathe 8s ease-in-out 3s infinite;
+  }
+  @keyframes ghostBreathe { 0%,100% { opacity: .13; } 50% { opacity: .19; } }
+  @keyframes ghostIn { to { opacity: .13; } }
+
+  .content {
+    position: absolute; left: 0; right: 0; top: 186px;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .title {
+    font-size: 21px; font-weight: 500; letter-spacing: .52em; text-indent: .52em;
+    color: #1C1B1E;
+    opacity: 0; animation: textIn 1.3s ease .7s forwards;
+  }
+  .latin {
+    margin-top: 22px; font-family: "Avenir Next", "SF Pro Text", sans-serif;
+    font-size: 8.5px; letter-spacing: .6em; text-indent: .6em; color: #A5A098;
+    opacity: 0; animation: textIn 1.3s ease .95s forwards;
+  }
+  .inkline {
+    margin-top: 30px; width: 38px; height: 1px; background: rgba(28,27,30,.4);
+    opacity: 0; animation: textIn 1.3s ease 1.2s forwards;
+  }
+  @keyframes textIn { from { opacity: 0; transform: translateY(8px); filter: blur(2px);} to { opacity: 1; transform: none; filter: blur(0);} }
+
+  .seal {
+    position: absolute; bottom: 68px; left: 50%; transform: translateX(-50%) rotate(2deg);
+    width: 22px; height: 22px; background: #A83226;
+    color: #F6F1E7; font-size: 10.5px;
+    display: flex; align-items: center; justify-content: center;
+    mix-blend-mode: multiply;
+    box-shadow: inset 0 0 0 1.2px rgba(246,241,231,.35);
+    opacity: 0; animation: stamp .45s cubic-bezier(.3,1.6,.5,1) 1.85s forwards;
+  }
+  @keyframes stamp { from { opacity: 0; transform: translateX(-50%) rotate(2deg) scale(1.8);} to { opacity: .9; transform: translateX(-50%) rotate(2deg) scale(1);} }
+</style>
+</head>
+<body>
+  <div class="grain"></div>
+
+  <svg class="ghost" viewBox="0 0 340 340" aria-hidden="true">
+    <defs>
+      <filter id="roughG">
+        <feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="4" seed="5" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="11"/>
+      </filter>
+    </defs>
+    <path d="M262,64 A128,128 0 1,0 292,190"
+          fill="none" stroke="#2E2C31" stroke-width="21" stroke-linecap="round"
+          filter="url(#roughG)"/>
+  </svg>
+
+  <div class="content">
+    <h1 class="title">玄机问道</h1>
+    <div class="latin">QICOMPASS</div>
+    <div class="inkline"></div>
+  </div>
+
+  <div class="seal">玄</div>
+</body>
+</html>

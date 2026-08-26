@@ -1,6 +1,8 @@
 # Design System — 玄机问道 QiCompass
 
 > 全局视觉事实源。任何 UI 决策(颜色 / 字体 / 间距 / 圆角 / 动效)都必须先读这里,偏离须用户明确批准。
+>
+> **2026-08-26 换轨**:宋瓷暖白 → **水墨孤本**(冷灰宣纸 / 焦墨 / 楷体 / 印章级朱红)。换轨依据:7 轮 design-shotgun 全旅程探索,决策记录与 24 屏参考在 `docs/design-ref/shuimo/`(approved.json 为事实源)。旧宋瓷系统的历史决策见文末 Decisions Log。
 
 ## Product Context
 
@@ -13,275 +15,203 @@
 
 > **"专业不忽悠,不像算命软件。"**
 
-用户第一次打开 3 秒后闭上眼,应该记住的事:这是一个**克制、真诚、像翻一本古籍**的研究工具,不是一个堆叠黑金卷轴纹的算命软件。
+用户第一次打开 3 秒后闭上眼,应该记住的事:一张**冷宣纸上的焦墨圆**,一枚**朱印**,一行**竖排楷体**。安静、克制、像一本还没翻开的手抄孤本。
 
 每个设计决策都要服务这件事。
 
 ## Aesthetic Direction
 
-- **Direction:** 现代东方极简(宋瓷气质)
-- **Decoration level:** minimal — 纯色背景,无渐变,无纸纹,无装饰图案,留白驱动
-- **Mood:** 宋瓷雅致 / 明式克制 / 古籍阅读体验。让命理内容自己说话,UI 不抢戏。
-- **Reference sites / products:**
-  - 精神参考:Co-Star(极简直白的精神) — 取其克制,不取其纯黑白
-  - 视觉参考:宋瓷色(汝窑天青 / 钧窑朱砂 / 龙泉墨青)/ 高端茶品牌目录 / 博物馆宋瓷展览图册
-  - 反面教材:测测 / 知命 / 问真八字(国内命理黑金套路)
+- **Direction:** 水墨孤本(禅意水墨极简)
+- **Decoration level:** minimal — 冷灰宣纸底 + 确定性纸纹噪点(4% 级),无渐变,无装饰图案,留白驱动,**卡片让位于 hairline 分隔**
+- **Mood:** 冷宣纸 / 焦墨 / 竖排古书 / 印章落定。让命理内容自己说话,UI 不抢戏。
+- **Signature elements(品牌指纹,跨模块复用):**
+  - **墨圆 EnsoView** — 开机转场 / onboarding 承接 / 生肖揭晓 hero / 排盘布算
+  - **朱印 SealStamp** — 品牌印「玄」、付费墙「解」印、合盘「合」印、批语「批」印
+  - **竖排楷体 VText** — 标题、经文、批语、加载文案
+  - **大写数字编号 壹-捌** — 深度解析捌章卷轴、付费章清单
+- **Reference:** 探索产物 24 屏 HTML(`docs/design-ref/shuimo/`);精神参考不变(Co-Star 的克制 + 东方古籍气质)
 
 ## Typography
 
-iOS 系统字体,**不打包任何自定义字体**(避免体积 + 保持原生体验)。
+iOS 系统字体,**不打包任何自定义字体**。楷体走 `Font.custom("Kaiti SC")`(iOS 自带;若模拟器不渲染备选 "STKaiti")。
 
-- **Display/Hero(命盘标题):** `Songti SC` Semibold — 衬线宋体压住命理主题的文化分量
-- **Heading(模块标题):** `Songti SC` Medium — 与 Display 同族,降一级权重
-- **Body(正文):** `PingFang SC` Regular — 中文无衬线保证可读性
-- **Ganzhi(干支字符):** `Songti SC` Semibold — 八字专用,字号 ≥22pt
-- **Numeric/Data:** `SF Pro Text` + `tabular-nums` — 西文数字对齐(排盘表格 / 年龄 / 日期)
-- **Code/Mono:** 不使用
+- **Display/Hero/Heading/Ganzhi:** `Kaiti SC` — 楷体扛全部中文展示层,书卷气 + 手写感呼应水墨
+- **Body(正文):** `Kaiti SC` — 阅读页楷体 15.5pt 行距 2.15×,首行缩进 2em(古籍排版)
+- **Latin caps(QICOMPASS 标):** system + `.tracking(大间距)`(约 0.55em),8.5-10pt
+- **Numeric/Data:** `SF Pro Text` + `tabular-nums` — 西文数字对齐(排盘表格 / 日期)
 
 **Type scale(基于 iOS 17.2 Dynamic Type):**
 
 | 角色 | 字号 | 字重 | 用途 |
 |---|---|---|---|
-| Display | 32pt | Semibold | 命盘大标题 |
-| H1 | 28pt | Semibold | 页面标题 |
+| Display | 32pt | Medium | 命盘大标题 |
+| H1 | 28pt | Medium | 页面标题 |
 | H2 | 22pt | Medium | Section 标题 |
 | H3 | 17pt | Medium | 卡片标题 |
-| Body | 16pt | Regular | 正文 |
+| Body | 15.5-16pt | Regular | 正文(楷体,行距 2.1-2.15×) |
 | Caption | 13pt | Regular | 说明 |
-| Micro | 11pt | Regular | 标签 / 元信息 |
-| Ganzhi-L | 30pt | Semibold | 八字天干地支(主显) |
+| Micro | 10-11pt | Regular | 标签 / 元信息 |
+| LatinCaps | 8.5-10pt | Regular | QICOMPASS 字距标 |
+| Ganzhi-L | 30-32pt | Medium | 八字天干地支(主显) |
 | Ganzhi-M | 22pt | Medium | 大运干支 |
-| Ganzhi-S | 14pt | Semibold | 时辰干支 |
+| Ganzhi-S | 14pt | Medium | 时辰干支 |
 
-**SwiftUI 落地:** 用 `.font(.system(size:weight:))` + `.monospacedDigit()`(数字),或定义 `Font` extension。
+**SwiftUI 落地:** `BaziFont.display(size:)` 等既有 API 不变,内部换 Kaiti;新增 `BaziFont.latinCaps(size:)`。
 
 ## Color
 
-**Approach:** restrained(克制)— 1 主强调色(朱砂) + 2 次强调色(墨青/黛蓝),颜色出现频率稀少且有意义。
+**Approach:** restrained(克制)— 焦墨做主角(CTA 一律浓墨),朱红只做**印章级小元素**,墨青做吉向。颜色出现频率稀少且有意义。
 
-| 角色 | Light Hex | Dark Hex(墨夜瓷釉) | 用途 | SwiftUI 名 |
+| 角色 | Light Hex | Dark Hex(夜宣纸) | 用途 | SwiftUI 名 |
 |---|---|---|---|---|
-| 极浅暖白 / 暖墨 | `#FDFCFA` | `#1A1815` | 主背景(大面积留白驱动,2026-07-22 由宣纸米 `#F5EFE1` 调浅) | `BaziTheme.paper` |
-| 浅宣 / 深纸 | `#EBE3D0` | `#25221D` | 卡片底色 | `BaziTheme.cardSurface` |
-| 浓墨 / 暖白 | `#1C1C1C` | `#E8E0CC` | 主文字 | `BaziTheme.ink` |
-| 灰墨 / 浅灰墨 | `#6B6557` | `#A89F89` | 弱说明文字 | `BaziTheme.inkMuted` |
-| 朱砂红 / 亮朱砂 | `#C33B3B` | `#D44A4A` | 主强调 / CTA / 当前柱 | `BaziTheme.cinnabar` |
-| 墨青 / 亮墨青 | `#2C5F3F` | `#5A9978` | 次强调 / 吉神 / 木行 | `BaziTheme.jade` |
-| 黛蓝 / 亮黛蓝 | `#1D3A5F` | `#6A8EB5` | 三强调 / 水行 / 链接 | `BaziTheme.daiBlue` |
-| 细线 | `#6B6557 @ 30%` | `#A89F89 @ 30%` | 0.5pt hairline divider | `BaziTheme.hairline` |
-| 朱砂淡 | `#C33B3B @ 8%` | `#D44A4A @ 8%` | 当前柱 / 选中态底色 | `BaziTheme.cinnabarSoft` |
-| 破坏红 | `#C33B3B` | `#D44A4A` | 错误 / 破坏性操作(与 cinnabar 同值,语义独立) | `BaziTheme.destructive` |
+| 冷灰宣纸 / 夜宣纸 | `#F3F1EC` | `#141317` | 主背景 | `BaziTheme.paper` |
+| 浅纸 / 深浅纸 | `#F7F5F0` | `#1E1D23` | sheet 底 / 残留卡底(让位 hairline 中) | `BaziTheme.cardSurface` |
+| 浓墨 / 冷白 | `#1C1B1E` | `#E9E7E2` | 主文字 | `BaziTheme.ink` |
+| 灰墨 / 浅灰墨 | `#77726A` | `#9B968C` | 弱说明文字 | `BaziTheme.inkMuted` |
+| 淡灰墨(新) | `#A5A098` | `#6E6A62` | 二级弱注 | `BaziTheme.inkMutedSecondary` |
+| 焦墨 / 冷白(新) | `#17161A` | `#E9E7E2` | **CTA 底** / enso 笔触(暗色反转) | `BaziTheme.inkDeep` |
+| CTA 前景(新) | `#F3F1EC` | `#17161A` | CTA 文字(与 inkDeep 成对) | `BaziTheme.onInkDeep` |
+| 印章朱红 / 亮朱红 | `#A83226` | `#C25143` | **印章级专用:SealStamp / 付费标 / 聚焦线 / 当前时辰点 / 在读态。禁止 CTA、禁止大面积** | `BaziTheme.cinnabar` |
+| 墨青 / 亮墨青 | `#2F5E4A` | `#6FA08A` | 吉向 / 好朋友 chip / 宜 | `BaziTheme.jade` |
+| 黛墨蓝 / 亮黛蓝 | `#3D4A5C` | `#7E93AC` | 三强调 / 水行 / 链接(降饱和) | `BaziTheme.daiBlue` |
+| 细线 | ink @ 18% | ink @ 22% | 0.5-1pt hairline divider | `BaziTheme.hairline` |
+| 虚线细线(新) | inkMuted @ 35% | @ 40% | 锁定框 / 临时态虚线 | `BaziTheme.hairlineDashed` |
+| 朱砂淡 | `#A83226 @ 10%` | `#C25143 @ 14%` | 选中态底色(极少量) | `BaziTheme.cinnabarSoft` |
+| 破坏红 | `#A83226` | `#C25143` | 错误 / 破坏性(与 cinnabar 同值,语义独立) | `BaziTheme.destructive` |
 
-**Dark mode 实现策略:** 走 `Color(UIColor { traitCollection in ... })` 动态色(见 `RootTabView.swift` `BaziTheme.dyn` helper)。
-色值集中在 RootTabView.swift 单文件,与本表一一对应(单一事实源)。`cinnabarSoft` / `hairline` 是基于 cinnabar / inkMuted 的 `.opacity()`,Dark 下自动跟随。
-未在主色板中的语义专用 token(`shenshaInauspicious` / `pressureWarning` / 五行色)暂保留静态色,T5 实测后决定是否动态化。
+**Dark mode 实现策略:** 走 `Color(UIColor { traitCollection in ... })` 动态色(`BaziTheme.dyn` helper),色值集中在 RootTabView.swift 单文件与本表一一对应。夜宣纸不是反转而是**冷的**:底 `#141317`、纸面 `#1E1D23`、冷白文字 `#E9E7E2`;**焦墨 CTA 在暗色下反转**(冷白底 + 焦墨字)。
 
-**五行色映射(用于五行平衡条 / 元素标签):**
+**五行色映射(降饱和 ~40%,进一步压向墨色):**
 
 | 五行 | Hex | 用途 |
 |---|---|---|
-| 木 | `#4A7A4A` | 木行段(降饱和绿) |
-| 火 | `#B85A3A` | 火行段(降饱和赤) |
-| 土 | `#A88848` | 土行段(降饱和黄) |
-| 金 | `#8A8A82` | 金行段(降饱和白) |
-| 水 | `#3A5A7A` | 水行段(降饱和玄) |
+| 木 | `#466F46` | 木行段 |
+| 火 | `#A85A42` | 火行段 |
+| 土 | `#A6801E` | 土行段 |
+| 金 | `#807E76` | 金行段 |
+| 水 | `#3C5568` | 水行段 |
 
-> 五行色全部**降饱和 20-30%** — 鲜艳饱和会落入"算命软件"气质,克制的五行色匹配宋瓷基调。
-
-**Dark mode 策略:** 不只是反转,而是"墨夜瓷釉"。
-- 底色由极浅暖白 → 墨色 `#1A1815`(暖墨,非纯黑)
-- 卡片底 `#25221D`
-- 文字反转 `#E8E0CC`
-- 朱砂提亮 `#D44A4A`(暗底需要更亮的红)
-- 墨青 `#5A9978` / 黛蓝 `#6A8EB5`(同步提亮)
+> 暗色各提亮约 20% 亮度。五行色保持"可识别但不鲜艳"。
 
 ## Spacing
 
-- **Base unit:** 8pt(全局 spacing 网格)
-- **Density:** comfortable — 比现有 `VStack(spacing: 16)` 略松
-- **Scale:**
-
-| Token | Value | 用途 |
-|---|---|---|
-| `2xs` | 2pt | 微间距(图标与文字) |
-| `xs` | 4pt | 紧凑间距(chip 内) |
-| `sm` | 8pt | 同一组件内 |
-| `md` | 16pt | 卡片内 padding / 横向 margin |
-| `lg` | 24pt | Section 间距 |
-| `xl` | 32pt | 大 Section 间距 |
-| `2xl` | 48pt | 顶 / 底安全区附加 |
-| `3xl` | 64pt | Hero 区上下 |
-
-**SwiftUI 落地:** 定义 `BaziTheme.Spacing` enum with static lets。
+- **Base unit:** 8pt(不变)
+- **Density:** comfortable,水墨语言下更松——正文区左右 margin 34-36pt,阅读页更宽
+- **Scale:** `xs 4 / sm 8 / cmd 12 / md 16 / lg 24 / xl 32 / xxl 48`(`BaziTheme.Spacing`,不变)
 
 ## Layout
 
-- **Approach:** grid-disciplined(严格网格,不做创意 editorial)
-- **Grid:** 单列垂直流,横向严格 16pt margin(393pt 屏宽内内容区 361pt)
-- **Max content width:** 393pt(iPhone 标准宽度,不做 iPad 自适应 — v1 只支持 iPhone)
-- **全屏 sheet 例外:** onboarding 等全屏 sheet 横向 margin 用 32pt(`Spacing.xl`),而非标准 16pt — 全屏内容需要更宽的呼吸感,16pt 在 sheet 里会显得局促
-- **Border radius(克制层级):**
-
-| Token | Value | 用途 |
-|---|---|---|
-| `sm` | 4pt | 按钮 / 卡片(默认) |
-| `md` | 8pt | 大卡片 / sheet |
-| `lg` | 12pt | Modal |
-| `full` | 9999pt | Capsule(仅 pill chip) |
-
-> 现有代码 `Capsule()` 用得过多 → 改为 4pt 圆角(Capsule 只留给 chip)。
-
-**分隔策略:**
-- **0.5pt hairline**(`Color(red: 0x6b/255, green: 0x65/255, blue: 0x57/255).opacity(0.3)`)做卡片间 / 表格列间分隔
-- **不用阴影**(现有代码无阴影,保持)
-- **不用 neumorphism / 玻璃态**
+- **Approach:** 开放布局优先——**卡片让位于 hairline 分隔**;仅 sheet / 锁框保留容器底色
+- **分隔策略:**
+  - 0.5-1pt hairline(ink @ 18%)做行/段分隔
+  - **dashed hairline**(inkMuted @ 35%,dash [4,3])专用于锁定框 / 临时态 / 未登录框
+  - 不用阴影 / neumorphism / 玻璃态(不变)
+- **Border radius:** `sm 4pt`(默认)/ CTA 5pt / `md 8pt`(sheet)/ `lg 12pt`(modal);Capsule 只留给 chip
+- **章节编号:** 大写数字(壹贰叁肆伍陆柒捌)圆徽——实线圆=可读,虚线圆=锁定(`NumeralBadge`)
+- **付费标识:** `PaidTag`「付费」白字朱底小方标,旋转 -6°,**只此一处用朱底块**
+- **Tab:** 纯文字(今日 / 深度 / 合盘 / 我的),tint=ink;系统 TabView(无 SF Symbol 图标)
 
 ## Motion
 
-- **Approach:** minimal-functional — 只为辅助理解做动效,无装饰动效
-- **Easing:** enter(`.easeOut`) exit(`.easeIn`) move(`.easeInOut`)
-- **Duration:**
+- **Approach:** 墨的物理——入场即墨迹落纸,克制而确定
+- **三式标准动效:**
 
-| 类型 | 时长 | 用途 |
+| 名称 | 参数 | 用途 |
 |---|---|---|
-| micro | 80-100ms | 按钮高亮 / chip 选中 |
-| short | 200ms | 卡片淡入 / 状态切换 |
-| medium | 350ms | sheet 进出 / 大区域切换 |
+| ink-in | opacity 0→1 + blur 7→0,1.2-1.6s easeOut | 墨圆 / 大标题入场 |
+| stamp | scale 1.9→1,spring 回弹,0.5s | 印章落定(SealStamp) |
+| breathe | opacity 1↔0.92,7-8s 循环 | 常驻元素微呼吸(墨圆/水印) |
 
-**禁止:** 弹簧反弹(非必要)、视差滚动、自动轮播、装饰性发光。
-
-**SwiftUI 落地:** `.animation(.easeOut(duration: 0.2), value: state)`。
+- **Reduce Motion:** 全部降级为 0.3s 纯淡入或不动的静态呈现(`MotionPreferences`)
+- **禁止:** 弹簧反弹( stamp 除外)、视差滚动、自动轮播、装饰性发光(不变)
 
 ## SAFE CHOICES(国内用户期待的底线)
 
-1. **保留命理文化感** — Songti SC + 暖白底 + 朱砂红(2026-07-22 由宣纸米底调浅为极浅暖白),不是 Co-Star 式纯黑白(纯黑白会让国内用户觉得"不像命理")
-2. **五行色映射可识别** — 木青 / 火赤 / 土黄 / 金白 / 水玄 用户一眼能读懂
-3. **保留排盘表格结构** — 四柱 / 神煞 / 五行 / 喜忌 / 大运的信息层级符合用户心智
+1. **保留命理文化感** — 楷体 + 墨圆 + 朱印,文化分量比宋瓷更足,且依然不是黑金套路
+2. **五行色映射可识别** — 木青 / 火赤 / 土黄 / 金白 / 水玄,降饱和但保持色相
+3. **保留排盘表格结构** — 四柱 / 神煞 / 五行 / 喜忌 / 大运的信息层级符合用户心智(不因去卡片化破坏)
 
 ## RISKS(差异化来源)
 
-1. **砍掉黑金渐变背景** — 国内命理 App 默认都黑金,QiCompass 改极浅暖白底(2026-07-22 由宣纸米调浅,暖色调收进卡片)。
-   - **得到:** 视觉区隔,显得专业真诚
-   - **代价:** 需要重新教育用户"我们不是算命软件"
-
-2. **用 Songti SC 衬线扛标题** — 国内 App 大多用 PingFang 一招鲜,宋体显得"慢、重、文气"。
-   - **得到:** 文化分量 + 品牌识别,匹配"专业研究工具"定位
-   - **代价:** 信息密度高的页面宋体识别速度比黑体慢 5-10%(可接受,因为产品定位不是工具效率)
-
-3. **朱砂红做主 CTA 而不是金色** — 金色 = 玄学套路,朱砂红 = 古籍印鉴 + 道法镇煞正色,语义更准确。
-   - **得到:** 视觉记忆点 + 文化正确性
-   - **代价:** 朱砂饱和度高,**只能用在 1-2 处**(主 CTA + 当前柱高亮),否则刺眼
+1. **楷体扛全部展示层** — 楷体比宋体更"手写",识别速度略慢
+   - **得到:** 书卷孤本气质,与所有竞品黑体/宋体拉开差距
+   - **代价:** 信息密集页(四柱表)用 Ganzhi 尺度足够大时可接受;`Font.custom("Kaiti SC")` 需模拟器实测
+2. **卡片让位 hairline** — 国内 App 习惯卡片分层
+   - **得到:** 留白驱动的"一卷读完",最不像软件
+   - **代价:** 结构重排工作量大(分四阶段);层级感靠 spacing + hairline + 字重维持
+3. **朱红退出 CTA** — 朱底按钮是行业肌肉记忆
+   - **得到:** 朱印级朱红出现即有意义(付费标 / 印章 / 当前时辰),稀缺即贵
+   - **代价:** CTA 依赖浓墨块的对比度,暗色下反转逻辑必须成对(inkDeep/onInkDeep)
 
 ## iOS SwiftUI 落地计划
 
-### Step 1: 重构 BaziTheme token(根目录优先级 P0)
+### Step 1: BaziTheme token 换值(Phase 1,P0)
 
-**替换** `iOS/QiCompass/QiCompass/App/RootTabView.swift` 内的 `enum BaziTheme`(line 55-71):
+**token 名全部保留**(600+ 引用零改动),就地改值 + 增补新 token。`cinnabar` 语义注释改为「印章级专用,禁止 CTA」。
 
 ```swift
 enum BaziTheme {
-    // 背景(替代黑渐变)
-    static let paper         = Color(red: 0xFD/255, green: 0xFC/255, blue: 0xFA/255)
-    static let cardSurface   = Color(red: 0xEB/255, green: 0xE3/255, blue: 0xD0/255)
-
-    // 文字
-    static let ink           = Color(red: 0x1C/255, green: 0x1C/255, blue: 0x1C/255)
-    static let inkMuted      = Color(red: 0x6B/255, green: 0x65/255, blue: 0x57/255)
-
-    // 强调
-    static let cinnabar      = Color(red: 0xC3/255, green: 0x3B/255, blue: 0x3B/255)
-    static let cinnabarSoft  = cinnabar.opacity(0.08)
-    static let jade          = Color(red: 0x2C/255, green: 0x5F/255, blue: 0x3F/255)
-    static let daiBlue       = Color(red: 0x1D/255, green: 0x3A/255, blue: 0x5F/255)
-
-    // 细线
-    static let hairline      = inkMuted.opacity(0.3)
-
-    // 旧 token(过渡期 alias,逐步替换调用点后删除)
-    static let bgTop         = paper
-    static let bgMid         = paper
-    static let bgBottom      = paper
-    static let gold          = cinnabar        // ⚠️ 语义改变:gold 改指 cinnabar
-    static let goldLight     = paper           // ⚠️ 反色场景由 ink 接管
-    static let text          = ink
-    static let textDim       = inkMuted
-
-    // 背景渐变 → 纯色
-    static var backgroundGradient: LinearGradient {
-        LinearGradient(
-            colors: [paper, paper, paper],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-    }
-}
-
-extension BaziTheme {
-    enum Spacing {
-        static let xs: CGFloat = 4
-        static let sm: CGFloat = 8
-        static let md: CGFloat = 16
-        static let lg: CGFloat = 24
-        static let xl: CGFloat = 32
-        static let xxl: CGFloat = 48
-    }
-    enum Radius {
-        static let sm: CGFloat = 4
-        static let md: CGFloat = 8
-        static let lg: CGFloat = 12
-    }
+    static let paper    = dyn(#F3F1EC, #141317)   // 冷灰宣纸 / 夜宣纸
+    static let cardSurface = dyn(#F7F5F0, #1E1D23)
+    static let ink      = dyn(#1C1B1E, #E9E7E2)
+    static let inkMuted = dyn(#77726A, #9B968C)
+    static let inkMutedSecondary = dyn(#A5A098, #6E6A62)  // 新
+    static let inkDeep  = dyn(#17161A, #E9E7E2)   // 新:焦墨 CTA 底(暗色反转)
+    static let onInkDeep = dyn(#F3F1EC, #17161A)  // 新:CTA 前景
+    static let cinnabar = dyn(#A83226, #C25143)   // 印章级专用,禁止 CTA
+    static let cinnabarSoft = cinnabar.opacity(0.10)
+    static let jade     = dyn(#2F5E4A, #6FA08A)
+    static let daiBlue  = dyn(#3D4A5C, #7E93AC)
+    static let hairline = ink.opacity(0.18)
+    static let hairlineDashed = inkMuted.opacity(0.35)  // 新
+    // Spacing / Radius 不变;PrimaryCTAButton 内部 radius 用 5
 }
 ```
 
-**保留旧 token alias** 是为了**渐进重构**:不会让全代码 base 一夜之间 break,而是一边改 UI 一边把对 `gold` 的调用改成 `cinnabar` / `jade` 等更精确的语义,最后删除 alias。
-
 ### Step 2: 全局散点修复(代码搜索)
 
-搜索以下旧用法,逐个替换:
-
-| 搜索 | 替换 | 语义 |
+| 搜索 | 替换 / 处理 | 语义 |
 |---|---|---|
-| `BaziTheme.gold` 用作主 CTA | `BaziTheme.cinnabar` | 朱砂替代金 |
-| `BaziTheme.gold` 用作吉神 chip | `BaziTheme.jade` | 墨青替代金 |
-| `BaziTheme.goldLight` | `BaziTheme.paper` 或 `Color.white`(看场景) | 反色背景 |
-| `Color.white.opacity(0.0x)` | `BaziTheme.cardSurface` | 散落白底统一 |
-| `BaziTheme.backgroundGradient` | `BaziTheme.paper`(纯色) | 渐变 → 纯色 |
+| `cinnabar` 全部引用 | 逐个复核:强调误用 → `ink`;印章时刻保留 | 朱红语义收窄 |
+| `PrimaryCTAButton` 样式 | bg `inkDeep` / fg `onInkDeep` / radius 5 / 尾端朱色菱形印点 | 全 App CTA 浓墨化 |
+| `Label(_, systemImage:)` tabItem | 纯 `Text`(今日/深度/合盘/我的) + `.tint(ink)` | 文字 tab |
+| `AccentColor.colorset`(#C9A03C 金) | `#F3F1EC`(launch 底色=转场底色) | 启动屏与转场无缝 |
+| `WelcomeBackground` 资产 | 删除(仅 WelcomePage 引用,改原生墨圆构图) | 壁画图与新语言冲突 |
+| `Capsule()` 非 chip 用途 | radius 4-5 圆角 | Capsule 只留 chip |
 
-### Step 3: 逐模块 UI 重构(优先级)
+### Step 3: 逐模块 UI 重构(优先级 = 实施阶段)
 
-| 优先级 | 模块 | 主要工作 | 预期改动 |
+| 阶段 | 模块 | 主要工作 | 参考 |
 |---|---|---|---|
-| P0 | `RootTabView` + `BaziTheme` | token 重构 + 渐变→纯色 | 30 行 |
-| P0 | `BirthFormView`(首屏) | 表单 / 按钮 / 背景 | 50 行 |
-| P1 | `DeepAnalysisResultView` + `PillarsTable` + `ChartHeaderView` | 四柱表 / 字体 / 朱砂高亮 | 80 行 |
-| P1 | `XijiCard` + `ElementBalanceBar` + `ShenshaChips` | 五行色 + chip 样式 | 60 行 |
-| P1 | `LuckPillarsTimeline` | 大运时间线 + 朱砂当前柱标记 | 40 行 |
-| P2 | `DailyFortuneMainView` + 子组件 | 每日运势主页 | 80 行 |
-| P2 | `CompatibilityView` + 子组件 | 合盘对比 / 四维定性 | 100 行 |
-| P3 | 空态 / 加载态 / 错误态 | `EmptyStateView` / `LoadingStateView` / `SuccessCardView` 视觉统一 | 40 行 |
+| Phase 1 | RootTabView + BaziTheme + BaziFont + PrimaryCTAButton + 新组件 InkKit/SplashTransitionView | token/字体/CTA/tab/启动转场 | variant-c-shuimo.html |
+| Phase 2 | Onboarding O1-O4 + DailyFortune T1 | O1 墨圆承接(删壁画图) / O2 下划线表单 / O3 墨圆布算 / O4 换值;今日首页去卡重排 | onboarding-o*.html / daily-t1.html |
+| Phase 3 | DeepAnalysis 捌章卷轴 + PaywallView + 阅读页 | NumeralBadge 行 / 朱字批语 / 「解」印 sheet | deep-p1..p4.html |
+| Phase 4 | Compatibility H1-H3 + Profile M1/M2 | 选人朱圈 / 合印详情 / 虚线锁框 / plain List | hepan-*.html / mine-*.html |
 
-**估算总改动:** ~500 行 SwiftUI 代码,集中在 `Features/` 目录。
+**新组件(Shared/InkKit.swift):** `VText` / `EnsoView` / `SealStamp`(自 OnboardingView 迁出) / `PaperGrain`(Canvas 确定性噪点) / `NumeralBadge` / `PaidTag`;**Shared/SplashTransitionView.swift**。新文件须 pbxproj 4 处登记一致 24 位 ID(objectVersion 56)。
 
 ### Step 4: 验收清单(落地后必须满足)
 
-- [ ] `BaziTheme.gold` 调用次数 = 0(全部迁移到 `cinnabar`/`jade`)
-- [ ] `backgroundGradient` 调用次数 = 0(全部改成 `paper` 纯色)
-- [ ] `Color.white.opacity(...)` 散落写法 = 0(统一 `cardSurface`)
-- [ ] `Songti SC` 用在所有八字字符(`pillar-gan` / `pillar-zhi` / `luck-gz`)
-- [ ] 朱砂红只在 CTA + 当前柱 + 忌神 三类场景出现
-- [ ] 圆角默认 4pt,Capsule 只用在 chip
-- [ ] 0.5pt hairline 替代所有 divider
-- [ ] Dark mode 在所有页面正确显示(墨夜瓷釉配色)
+- [ ] 每阶段 xcodebuild build + 全量测试绿(commits 三段式 Why/What/Impact)
+- [ ] `cinnabar` 零 CTA / 零大面积底色使用(仅 SealStamp / PaidTag / 聚焦线 / 当前时辰点 / 在读态)
+- [ ] 所有 CTA = inkDeep 底 + onInkDeep 字(暗色正确反转)
+- [ ] Kaiti SC 在模拟器真实渲染(非系统回退)
+- [ ] 竖排文字全部走 VText;章节编号全部大写数字
+- [ ] 开机转场:冷启动墨圆 ink-in → 玄印 stamp → 1.6s 内淡出,不阻塞交互(1.4s 后 allowsHitTesting(false)),reduce-motion 降级
+- [ ] Dark mode 夜宣纸全页正确;reduce-motion 全路径可用
+- [ ] `WelcomeBackground` 引用与资产清零
+- [ ] 四 tab 浅/深走查,逐屏对照 docs/design-ref/shuimo/ 对应 board
 
 ## Decisions Log
 
 | Date | Decision | Rationale |
 |---|---|---|
-| 2026-07-13 | 初始设计系统创建 | design-consultation skill 基于 EUREKA 推导(命理 App 默认堆黑金,QiCompass 反向操作走宋瓷极简)+ CLAUDE.md "LLM 只润色不判断 / 诚实告知从格边界" 产品姿态 + 国内(测测/知命/问真)+ 海外(Co-Star/The Pattern)竞品研究 |
-| 2026-07-13 | 砍掉 BaziTheme 黑金渐变 | 黑金是国内命理 App 同质化元凶,EUREKA 推导下 QiCompass 应该走反向 |
-| 2026-07-13 | Songti SC 替代 PingFang 一招鲜 | 宋体压住命理主题文化分量,匹配"专业研究工具"定位 |
-| 2026-07-13 | 朱砂红替代金色做主 CTA | 金色=玄学套路,朱砂=古籍印鉴+道法镇煞正色,语义更准 |
-| 2026-07-13 | 五行色全部降饱和 20-30% | 鲜艳五行色落入"算命软件"气质,降饱和匹配宋瓷基调 |
-| 2026-07-13 | 不打包自定义字体 | iOS 系统 Songti SC + PingFang SC + SF Pro 已够用,免打包体积 |
-| 2026-07-22 | 主背景 `paper` 由宣纸米 `#F5EFE1` 调浅为极浅暖白 `#FDFCFA` | 外部 UI 反馈指出整页低饱和暖色铺满(米黄背景+灰褐卡片+红字)违反"大面积留白+极少量高饱和点缀"原则,发土。根因不是单条 token 错而是视觉策略错。调浅背景后,暖色调收进 `cardSurface` 卡片内,朱砂收窄到强调态(选中/CTA/当前柱),形成留白驱动层级 |
-| 2026-08-01 | Copy voice 规范**不进** DESIGN.md，由后端 prompt 文件 `backend/app/ai/prompts.py` 单独管 | 用户决策：voice 是 prompt 工程范畴，视觉 token 与 voice 解耦避免双份维护。DESIGN.md 只管视觉（色/字/间距/圆角/动效），voice spec 由 `bazi-app-design-doc.md` §AI Voice 规范定义 + `prompts.py` 实施。本次决策不涉及视觉 token，DESIGN.md 视觉部分不动 |
+| 2026-07-13 | 初始设计系统创建(宋瓷极简) | design-consultation 基于 EUREKA 推导 + 竞品研究 |
+| 2026-07-13 | 砍掉黑金渐变 / Songti SC 扛标题 / 朱砂替代金 CTA / 五行降饱和 | 反向操作国内命理套路 |
+| 2026-07-22 | paper 宣纸米 `#F5EFE1` 调浅为 `#FDFCFA` | 留白驱动,暖色收进卡片 |
+| 2026-08-01 | Copy voice 不进 DESIGN.md | voice 归 prompt 工程范畴,视觉与文案解耦 |
+| 2026-08-26 | **换轨:宋瓷暖白 → 水墨孤本** | 7 轮 design-shotgun 全旅程探索(开机页/onboarding/今日/深度付费/合盘/我的),黑金/星空/国潮均未入选,两轮内部迭代回到最留白原案——留白审美是稳定硬约束。事实源 `docs/design-ref/shuimo/approved.json` |
+| 2026-08-26 | 朱红退出 CTA,降为印章级点缀 | 「极少量高饱和点缀」原则;CTA 一律浓墨(inkDeep/onInkDeep 成对,暗色反转) |
+| 2026-08-26 | Songti SC → Kaiti SC(楷体)全展示层 | 孤本手抄气质;竖排/批语/大写数字为品牌指纹 |
+| 2026-08-26 | 卡片让位 hairline;dashed 锁框;纸纹 Canvas 确定性噪点(不引入图片链路) | 开放布局 + 零新依赖 |
+| 2026-08-26 | T3 签纸分享卡 backlog(不做入 v1 换装) | 分享卡是图片生成新功能,与换装解耦;今日首页用 T1 墨白节奏 |

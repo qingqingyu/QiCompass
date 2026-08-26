@@ -102,16 +102,18 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 
 **强制**:任何 UI / 视觉决策(颜色 / 字体 / 间距 / 圆角 / 动效)必须先读 `DESIGN.md`,偏离须用户明确批准。
 
+**2026-08-26 换轨**:宋瓷暖白 → **水墨孤本**。参考屏与决策记录在 `docs/design-ref/shuimo/`(approved.json 为事实源)。
+
 关键约束(摘自 `DESIGN.md`):
 
-- **美学方向**:现代东方极简(宋瓷气质),不是国内命理黑金套路
-- **Memorable Thing**:"专业不忽悠,不像算命软件" — 每个设计决策服务这件事
-- **色板**:`#FDFCFA` 极浅暖白(主背景,2026-07-22 由宣纸米调浅,大面积留白驱动) / `#EBE3D0` 浅宣(卡片底色,暖色调收进卡片) / `#C33B3B` 朱砂(主 CTA,替代金) / `#2C5F3F` 墨青(吉神) / `#1D3A5F` 黛蓝 / `#1C1C1C` 浓墨文字
-- **字体**:Songti SC(标题/八字,衬线文化分量) + PingFang SC(正文) + SF Pro Text tabular-nums(数字),iOS 系统自带,**不打包自定义字体**
-- **间距**:8pt 基准网格,comfortable 密度
-- **圆角**:默认 4pt(克制),Capsule 只留给 chip
-- **分隔**:0.5pt hairline `#6B6557 @ 30%`,**不用阴影/neumorphism/玻璃态**
+- **美学方向**:水墨孤本(禅意水墨极简),不是国内命理黑金套路
+- **Memorable Thing**:"专业不忽悠,不像算命软件" — 冷宣纸上的焦墨圆、一枚朱印、一行竖排楷体
+- **色板**:`#F3F1EC` 冷灰宣纸(主背景) / `#17161A` 焦墨(CTA 底,`inkDeep`;暗色反转) / `#A83226` 印章朱红(`cinnabar`,**仅印章级小元素:SealStamp/付费标/聚焦线/当前时辰点,禁止 CTA 与大面积**) / `#2F5E4A` 墨青(吉) / `#1C1B1E` 浓墨文字;Dark = 夜宣纸(dyn 双值保留)
+- **字体**:Kaiti SC(楷体,全展示层,`Font.custom("Kaiti SC")`,iOS 自带不打包) + SF Pro Text tabular-nums(数字) + latinCaps 大字距小写标(QICOMPASS)
+- **品牌指纹**:墨圆 EnsoView / 朱印 SealStamp / 竖排 VText / 大写数字编号(壹-捌)
+- **布局**:卡片让位 hairline(ink@18%);dashed hairline 专用于锁框/临时态;Capsule 只留 chip;CTA radius 5
+- **动效三式**:ink-in(blur 7→0) / stamp(1.9→1 spring) / breathe(7s);reduce-motion 全降级
 - **渐变**:禁止 `backgroundGradient` 渐变背景,纯色 only
-- **AI slop 反模式**:不堆叠黑金/卷轴纹/古纹装饰,不用 Inter/Roboto 系列字体
+- **AI slop 反模式**:不堆叠黑金/卷轴纹/古纹装饰,不用 Inter/Roboto 系列字体,朱红不做大色块
 
-iOS 落地代码骨架见 `DESIGN.md` § iOS SwiftUI 落地计划(BaziTheme token 重构 + 散点修复 + 逐模块优先级 + 验收清单)。
+iOS 落地代码骨架见 `DESIGN.md` § iOS SwiftUI 落地计划(token 换值 + 散点修复 + 四阶段优先级 + 验收清单)。**新 .swift 文件须 pbxproj 4 处登记一致 24 位 ID**(objectVersion 56 传统结构,漏登记=静默不编译)。

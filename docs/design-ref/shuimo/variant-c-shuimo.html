@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>C · 水墨孤本</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    width: 390px; height: 844px; overflow: hidden;
+    margin: 0 auto; position: relative;
+    background:
+      radial-gradient(90% 60% at 30% 20%, #F8F7F3 0%, transparent 60%),
+      radial-gradient(80% 55% at 80% 85%, #EDEBE4 0%, transparent 55%),
+      #F3F1EC;
+    font-family: "Kaiti SC", "STKaiti", serif;
+    color: #1C1B1E;
+  }
+  /* 纸纹 */
+  .grain {
+    position: absolute; inset: 0; pointer-events: none; opacity: .5; mix-blend-mode: multiply;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='240' height='240'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/><feColorMatrix type='saturate' values='0'/><feComponentTransfer><feFuncA type='linear' slope='0.05'/></feComponentTransfer></filter><rect width='240' height='240' filter='url(%23n)'/></svg>");
+  }
+
+  .enso {
+    position: absolute; left: -34px; bottom: 96px; width: 300px; height: 300px;
+    opacity: 0;
+    animation: inkIn 1.6s cubic-bezier(.2,.6,.2,1) .2s forwards,
+               breathe 7s ease-in-out 2.6s infinite;
+  }
+  @keyframes breathe { 0%,100% { opacity: 1; } 50% { opacity: .92; } }
+  @keyframes inkIn { from { opacity: 0; filter: blur(6px); } to { opacity: 1; filter: blur(0); } }
+
+  .vtitle {
+    position: absolute; top: 128px; right: 62px;
+    writing-mode: vertical-rl;
+    font-size: 31px; font-weight: 500; letter-spacing: .38em;
+    color: #1C1B1E;
+    opacity: 0; animation: textIn 1.2s ease .8s forwards;
+  }
+  .vsub {
+    position: absolute; top: 136px; right: 118px;
+    writing-mode: vertical-rl;
+    font-size: 12px; letter-spacing: .42em; color: #77726A;
+    opacity: 0; animation: textIn 1.2s ease 1.15s forwards;
+  }
+  @keyframes textIn { from { opacity: 0; transform: translateY(10px); filter: blur(2px);} to { opacity: 1; transform: none; filter: blur(0);} }
+
+  .seal {
+    position: absolute; right: 66px; bottom: 236px;
+    width: 30px; height: 30px; background: #A83226;
+    color: #F6F1E7; font-size: 13px; line-height: 1;
+    display: flex; align-items: center; justify-content: center;
+    transform: rotate(3deg); mix-blend-mode: multiply;
+    box-shadow: inset 0 0 0 1.5px rgba(246,241,231,.35);
+    opacity: 0; animation: stamp .5s cubic-bezier(.3,1.6,.5,1) 1.7s forwards;
+  }
+  @keyframes stamp { from { opacity: 0; transform: rotate(3deg) scale(1.8);} to { opacity: .94; transform: rotate(3deg) scale(1);} }
+
+  .hline {
+    position: absolute; left: 0; right: 0; top: 96px; height: 1px;
+    background: linear-gradient(90deg, transparent 10%, rgba(28,27,30,.16) 30%, rgba(28,27,30,.16) 70%, transparent 90%);
+  }
+
+  .footer {
+    position: absolute; bottom: 58px; left: 0; right: 0;
+    display: flex; flex-direction: column; align-items: center; gap: 12px;
+    opacity: 0; animation: textIn 1.2s ease 1.9s forwards;
+  }
+  .footer .latin {
+    font-family: "Avenir Next", "SF Pro Text", sans-serif;
+    font-size: 9px; letter-spacing: .55em; text-indent: .55em; color: #9B968C;
+  }
+  .footer .inkline { width: 54px; height: 1px; background: rgba(28,27,30,.35); }
+</style>
+</head>
+<body>
+  <div class="grain"></div>
+  <div class="hline"></div>
+
+  <svg class="enso" viewBox="0 0 300 300" aria-label="墨圆">
+    <defs>
+      <filter id="rough">
+        <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="4" seed="7" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="9"/>
+      </filter>
+      <filter id="rough2">
+        <feTurbulence type="fractalNoise" baseFrequency="0.08" numOctaves="3" seed="3" result="n"/>
+        <feDisplacementMap in="SourceGraphic" in2="n" scale="7"/>
+      </filter>
+    </defs>
+    <g filter="url(#rough)">
+      <path d="M232,58 A112,112 0 1,0 258,168"
+            fill="none" stroke="#17161A" stroke-width="19" stroke-linecap="round"/>
+    </g>
+    <g filter="url(#rough2)">
+      <path d="M232,58 A112,112 0 1,0 258,168"
+            fill="none" stroke="#17161A" stroke-width="6" stroke-linecap="round" opacity=".55"/>
+      <path d="M150,38 A112,112 0 0,0 42,130"
+            fill="none" stroke="#17161A" stroke-width="3" stroke-linecap="round" opacity=".3"/>
+    </g>
+    <!-- 飞白墨点 -->
+    <g fill="#17161A" filter="url(#rough2)">
+      <ellipse cx="86" cy="212" rx="7" ry="2.4" transform="rotate(-32,86,212)" opacity=".3"/>
+      <ellipse cx="242" cy="196" rx="5" ry="1.8" transform="rotate(52,242,196)" opacity=".24"/>
+      <ellipse cx="118" cy="76" rx="4.4" ry="1.6" transform="rotate(24,118,76)" opacity=".2"/>
+    </g>
+  </svg>
+
+  <h1 class="vtitle">玄机问道</h1>
+  <div class="vsub">问道于心 · 观命如水</div>
+  <div class="seal">玄</div>
+
+  <div class="footer">
+    <div class="inkline"></div>
+    <div class="latin">QICOMPASS</div>
+  </div>
+</body>
+</html>

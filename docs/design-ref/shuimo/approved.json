@@ -1,0 +1,130 @@
+{
+  "approved_variant": "C",
+  "variant_name": "水墨孤本 · 墨圆竖题 (原案)",
+  "variant_file": "variant-c-shuimo.html",
+  "screen": "splash-screen",
+  "rounds": [
+    {
+      "round": 1,
+      "presented": [
+        "A 玄夜鎏金",
+        "B 星轨紫穹",
+        "C 水墨孤本",
+        "D 国潮朱印"
+      ],
+      "picked": "C"
+    },
+    {
+      "round": 2,
+      "presented": [
+        "C 原案",
+        "C2 大字道",
+        "C3 空寂横排",
+        "C4 一笔横墨"
+      ],
+      "picked": "C 原案"
+    },
+    {
+      "round": 3,
+      "purpose": "onboarding 衔接(水墨孤本语言延伸)",
+      "presented": [
+        "O1 承接欢迎",
+        "O2 录入生辰",
+        "O3 排盘布算",
+        "O4 生肖揭晓"
+      ],
+      "picked": "链路整体成立，存档"
+    },
+    {
+      "round": 4,
+      "purpose": "深度解析+付费墙(水墨孤本语言延伸)",
+      "presented": [
+        "P1 捌章卷轴列表",
+        "P2 章节阅读(朱字批语)",
+        "P3 付费墙(解印+¥68)",
+        "P4 M4 因你推演两问"
+      ],
+      "picked": "链路成立，存档"
+    },
+    {
+      "round": 5,
+      "purpose": "今日运势首页三构图",
+      "presented": [
+        "T1 墨白节奏文卷",
+        "T2 时辰为骨横带",
+        "T3 签纸竖排"
+      ],
+      "picked": "T1 为骨 + T3 作分享卡（首页守专业人设，签纸转分享图/每日彩蛋）"
+    },
+    {
+      "round": 6,
+      "purpose": "合盘流程(水墨孤本语言)",
+      "presented": [
+        "H1 多选对方(含临时人)",
+        "H2 结果列表(对级隔离)",
+        "H3 详情(双柱+定性三卡+每对独立解锁)"
+      ],
+      "picked": "链路成立，存档"
+    },
+    {
+      "round": 7,
+      "purpose": "我的/账号区两态",
+      "presented": [
+        "M1 已登录态(生肖圆章+已购清单)",
+        "M2 未登录态(虚线框+SIWA引导)"
+      ],
+      "picked": "成立，存档收尾"
+    }
+  ],
+  "feedback": "离轨探索(未遵循 DESIGN.md)下两轮均选最留白方案；第二轮确认原案构图(左下墨圆+右侧竖题+小朱印)。动效：墨晕浮现→竖题浮现→朱印盖章；常驻极缓呼吸 7s。",
+  "date": "2026-08-26T00:00:00Z",
+  "branch": "yuanxing",
+  "artifacts": {
+    "board_round1": "board.html",
+    "board_round2": "board2.html",
+    "final": "variant-c-shuimo.html",
+    "round1_variants": {
+      "A": "variant-a-heijin.html",
+      "B": "variant-b-xingkong.html",
+      "C": "variant-c-shuimo.html",
+      "D": "variant-d-guochao.html"
+    },
+    "round2_variants": {
+      "C2": "variant-c2-dazi.html",
+      "C3": "variant-c3-kongji.html",
+      "C4": "variant-c4-hengmo.html"
+    },
+    "onboarding_board": "onboarding-board.html",
+    "onboarding_screens": {
+      "O1": "onboarding-o1-welcome.html",
+      "O2": "onboarding-o2-birthform.html",
+      "O3": "onboarding-o3-calculating.html",
+      "O4": "onboarding-o4-reveal.html"
+    },
+    "deep_board": "deep-board.html",
+    "deep_screens": {
+      "P1": "deep-p1-modules.html",
+      "P2": "deep-p2-reading.html",
+      "P3": "deep-p3-paywall.html",
+      "P4": "deep-p4-input.html"
+    },
+    "daily_board": "daily-board.html",
+    "daily_screens": {
+      "T1": "daily-t1.html",
+      "T2": "daily-t2.html",
+      "T3": "daily-t3.html"
+    },
+    "hepan_board": "hepan-board.html",
+    "hepan_screens": {
+      "H1": "hepan-h1-pick.html",
+      "H2": "hepan-h2-list.html",
+      "H3": "hepan-h3-detail.html"
+    },
+    "mine_board": "mine-board.html",
+    "mine_screens": {
+      "M1": "mine-m1.html",
+      "M2": "mine-m2.html"
+    }
+  },
+  "final_state": "全 App 旅程（开机页→onboarding→今日运势→深度解析+付费墙→合盘→我的）已在水墨孤本语言下完整探索，7 轮全部收敛存档"
+}

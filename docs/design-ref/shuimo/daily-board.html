@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>玄机问道 · 今日运势首页三构图</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { background: #101014; font-family: "PingFang SC", sans-serif; color: #E8E6E0; min-height: 100vh; padding: 40px 48px 64px; }
+  header { margin-bottom: 36px; }
+  header h1 { font-size: 22px; font-weight: 700; letter-spacing: .06em; }
+  header h1 .tag {
+    font-size: 11px; font-weight: 500; color: #7FA88B; border: 1px solid rgba(127,168,139,.5);
+    padding: 3px 10px; border-radius: 999px; margin-left: 12px; vertical-align: 3px; letter-spacing: .12em;
+  }
+  header p { margin-top: 10px; font-size: 13px; color: #94908A; letter-spacing: .04em; }
+  .flow { display: flex; justify-content: center; align-items: flex-start; overflow-x: auto; padding-bottom: 20px; gap: 34px; }
+  .slot { flex: none; width: 302px; }
+  .phone {
+    width: 302px; height: 630px; background: #1D1D22; border-radius: 50px; padding: 11px; position: relative;
+    box-shadow: 0 24px 60px rgba(0,0,0,.55), inset 0 0 0 1.5px rgba(255,255,255,.07);
+  }
+  .screen { width: 280px; height: 608px; border-radius: 40px; overflow: hidden; position: relative; background: #000; }
+  .screen iframe { width: 390px; height: 844px; border: 0; transform: scale(.7179); transform-origin: top left; pointer-events: none; }
+  .notch { position: absolute; top: 11px; left: 50%; transform: translateX(-50%); width: 88px; height: 24px; background: #1D1D22; border-radius: 0 0 14px 14px; z-index: 2; }
+  .label { margin-top: 20px; text-align: center; }
+  .label .name { font-size: 15px; font-weight: 700; letter-spacing: .1em; }
+  .label .name .id { color: #7FA88B; margin-right: 8px; font-family: Georgia, serif; font-style: italic; }
+  .label .desc { margin-top: 6px; font-size: 12px; color: #94908A; line-height: 1.7; }
+  .label a { display: inline-block; margin-top: 10px; font-size: 11px; color: #7F9BB8; text-decoration: none; border-bottom: 1px dotted rgba(127,155,184,.5); padding-bottom: 1px; }
+  .replay {
+    margin-top: 10px; padding: 5px 14px; border-radius: 999px; cursor: pointer;
+    border: 1px solid rgba(127,168,139,.55); background: transparent; color: #7FA88B;
+    font-size: 11px; letter-spacing: .1em; font-family: inherit; transition: background .2s, color .2s;
+  }
+  .replay:hover { background: #7FA88B; color: #101014; }
+  footer { margin-top: 28px; text-align: center; font-size: 11.5px; color: #6E6A66; letter-spacing: .05em; }
+</style>
+</head>
+<body>
+  <header>
+    <h1>今日运势首页 · 三构图互抢<span class="tag">ROUND 5</span></h1>
+    <p>同一份运势数据（壬子日 · 七杀 · 冲马 · 宜静思/忌争执）的三种首页骨架：竖向文卷 / 十二时辰横带为骨 / 求签签纸。数据结构完全对齐现有实现（头部/解读/宜忌/时辰/明日预告）。</p>
+  </header>
+
+  <div class="flow">
+    <div class="slot">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <iframe src="daily-t1.html" title="T1 墨白节奏" loading="lazy"></iframe>
+      </div></div>
+      <div class="label">
+        <div class="name"><span class="id">T1</span>墨白节奏 · 文卷</div>
+        <div class="desc">自上而下一卷读完：流日 → 解读（墨圆水印衬底）<br>→ 宜忌双行 → 时辰点带 → 明日。最稳，信息效率最高。</div>
+        <a href="daily-t1.html" target="_blank">全屏打开 ↗</a>
+      </div>
+    </div>
+
+    <div class="slot">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <iframe src="daily-t2.html" title="T2 时辰为骨" loading="lazy"></iframe>
+      </div></div>
+      <div class="label">
+        <div class="name"><span class="id">T2</span>时辰为骨 · 横带</div>
+        <div class="desc">十二时辰做成全天横带（吉/平/滞三色刻度），<br>当前未时高亮 + 时辰短评。一天的结构感最强。</div>
+        <a href="daily-t2.html" target="_blank">全屏打开 ↗</a>
+      </div>
+    </div>
+
+    <div class="slot">
+      <div class="phone"><div class="notch"></div><div class="screen">
+        <iframe src="daily-t3.html" title="T3 签纸" loading="lazy"></iframe>
+      </div></div>
+      <div class="label">
+        <div class="name"><span class="id">T3</span>签纸 · 竖排签文</div>
+        <div class="desc">今日运势化为一支签：毛边签纸 + 竖排签文<br>四字签题 + 宜忌小票 + 落印。仪式感最强、最可传播。</div>
+        <a href="daily-t3.html" target="_blank">全屏打开 ↗</a>
+      </div>
+    </div>
+  </div>
+
+  <footer>注意：T3 的「签」隐喻与产品定位「专业不忽悠，不像算命软件」存在张力——签纸更像求签App。它最出效果，但也许最偏人设；选它等于有意识地调整品牌人格。</footer>
+
+  <script>
+    document.querySelectorAll('.slot').forEach(slot => {
+      const label = slot.querySelector('.label');
+      const btn = document.createElement('button');
+      btn.className = 'replay'; btn.textContent = '↻ 重播入场动画';
+      btn.onclick = () => {
+        const f = slot.querySelector('iframe');
+        f.src = f.getAttribute('src');
+      };
+      label.appendChild(btn);
+    });
+  </script>
+</body>
+</html>
