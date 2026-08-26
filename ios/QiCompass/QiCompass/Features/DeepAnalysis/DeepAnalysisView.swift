@@ -255,10 +255,10 @@ struct EmptyStateView: View {
             Button(action: action) {
                 Text(ctaTitle)
                     .font(.body.weight(.semibold))
-                    .foregroundStyle(BaziTheme.paper)
+                    .foregroundStyle(BaziTheme.onInkDeep)
                     .padding(.horizontal, 32)
                     .padding(.vertical, 12)
-                    .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                    .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
             }
         }
         .padding()
@@ -289,10 +289,10 @@ struct SuccessCardView: View {
                 Button(action: action) {
                     Text(ctaTitle)
                         .font(.body.weight(.semibold))
-                        .foregroundStyle(BaziTheme.paper)
+                        .foregroundStyle(BaziTheme.onInkDeep)
                         .padding(.horizontal, 32)
                         .padding(.vertical, 12)
-                        .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                        .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
                 }
             }
         }

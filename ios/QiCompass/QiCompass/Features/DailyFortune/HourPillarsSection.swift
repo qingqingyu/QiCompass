@@ -94,10 +94,10 @@ struct HourPillarsSection: View {
                     if isCurrent {
                         Text(L10n.DailyFortune.hourNow)
                             .font(.caption2.weight(.semibold))
-                            .foregroundStyle(BaziTheme.paper)
+                            .foregroundStyle(BaziTheme.onInkDeep)
                             .padding(.horizontal, 6)
                             .padding(.vertical, 2)
-                            .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                            .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
                     }
                 }
                 if let chong = hp.chong {

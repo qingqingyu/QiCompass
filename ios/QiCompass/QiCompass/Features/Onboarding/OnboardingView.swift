@@ -181,30 +181,8 @@ struct OnboardingView: View {
 
 // MARK: - Shared: 朱砂印章
 
-/// 朱砂印章:淡底圆 + 朱砂细圈 + Songti SC 单字。
-/// 用作 Welcome 页的视觉记忆点(DESIGN.md §现代东方极简装饰核心)。
-/// 细圈 0.5pt hairline 与 DESIGN.md §Border 一致,不加阴影。
-private struct SealStamp: View {
-    let character: String
-    var size: CGFloat = 96
-
-    var body: some View {
-        ZStack {
-            Circle()
-                .fill(BaziTheme.cinnabarSoft)
-                .frame(width: size, height: size)
-            Circle()
-                .stroke(BaziTheme.cinnabar.opacity(0.35), lineWidth: 0.5)
-                .frame(width: size - 10, height: size - 10)
-            Text(character)
-                .font(BaziFont.display(size: size * 0.46))
-                .foregroundStyle(BaziTheme.cinnabar)
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
-
 // MARK: - Page 1: Welcome
+// SealStamp 已迁移到 Shared/InkKit.swift(水墨孤本版:朱底方印白字 + stamp 落印动画)。
 
 /// 首屏欢迎页(2026-07-19 重构,2026-08-13 三屏重构保留不动):
 /// - 全屏背景图(壁画佛手 + 宣纸留白) + 宣纸色兜底防露边

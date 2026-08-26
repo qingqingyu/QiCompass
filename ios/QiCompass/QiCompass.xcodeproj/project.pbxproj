@@ -93,6 +93,8 @@
 		9C000000000000000000003E /* AIIdentityResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003E /* AIIdentityResolver.swift */; };
 		9CA000000000000000000001 /* CachedInterpretationReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CA100000000000000000001 /* CachedInterpretationReader.swift */; };
 		9C000000000000000000003F /* PrimaryCTAButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003F /* PrimaryCTAButton.swift */; };
+		9C0000000000000000000079 /* InkKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000079 /* InkKit.swift */; };
+		9C000000000000000000007A /* SplashTransitionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000007A /* SplashTransitionView.swift */; };
 		9C0000000000000000000040 /* Entitlement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000040 /* Entitlement.swift */; };
 		9C0000000000000000000041 /* UserIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000041 /* UserIdentity.swift */; };
 		9C0000000000000000000042 /* EntitlementStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000042 /* EntitlementStore.swift */; };
@@ -246,6 +248,8 @@
 		9C100000000000000000003E /* AIIdentityResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AIIdentityResolver.swift; path = QiCompass/Services/AIIdentityResolver.swift; sourceTree = SOURCE_ROOT; };
 		9CA100000000000000000001 /* CachedInterpretationReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CachedInterpretationReader.swift; path = QiCompass/Services/CachedInterpretationReader.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000003F /* PrimaryCTAButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrimaryCTAButton.swift; path = QiCompass/Shared/PrimaryCTAButton.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000079 /* InkKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InkKit.swift; path = QiCompass/Shared/InkKit.swift; sourceTree = SOURCE_ROOT; };
+		9C100000000000000000007A /* SplashTransitionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SplashTransitionView.swift; path = QiCompass/Shared/SplashTransitionView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000040 /* Entitlement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Entitlement.swift; path = QiCompass/Models/Entitlement.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000041 /* UserIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserIdentity.swift; path = QiCompass/Services/UserIdentity.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000042 /* EntitlementStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EntitlementStore.swift; path = QiCompass/Services/EntitlementStore.swift; sourceTree = SOURCE_ROOT; };
@@ -516,6 +520,8 @@
 				9C100000000000000000003C /* CountdownResetLabel.swift */,
 				9C100000000000000000003D /* ErrorStateView.swift */,
 				9C100000000000000000003F /* PrimaryCTAButton.swift */,
+				9C1000000000000000000079 /* InkKit.swift */,
+				9C100000000000000000007A /* SplashTransitionView.swift */,
 				9C1000000000000000000060 /* ZodiacHelper.swift */,
 			);
 			path = Shared;
@@ -807,6 +813,8 @@
 				9C000000000000000000003E /* AIIdentityResolver.swift in Sources */,
 				9CA000000000000000000001 /* CachedInterpretationReader.swift in Sources */,
 				9C000000000000000000003F /* PrimaryCTAButton.swift in Sources */,
+				9C0000000000000000000079 /* InkKit.swift in Sources */,
+				9C000000000000000000007A /* SplashTransitionView.swift in Sources */,
 				9C0000000000000000000040 /* Entitlement.swift in Sources */,
 				9C0000000000000000000041 /* UserIdentity.swift in Sources */,
 				9C0000000000000000000042 /* EntitlementStore.swift in Sources */,

@@ -25,10 +25,10 @@ struct CompatibilityEmptyView: View {
                     Text("去深度解析")
                 }
                 .font(.body.weight(.semibold))
-                .foregroundStyle(BaziTheme.paper)
+                .foregroundStyle(BaziTheme.onInkDeep)
                 .padding(.horizontal, 24)
                 .padding(.vertical, 10)
-                .background(BaziTheme.cinnabar, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+                .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
             }
         }
         .padding()
