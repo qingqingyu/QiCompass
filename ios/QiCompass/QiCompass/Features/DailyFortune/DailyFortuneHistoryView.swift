@@ -31,13 +31,13 @@ struct DailyFortuneHistoryView: View {
             VStack(spacing: 4) {
                 Text(shortWeekday(date))
                     .font(.caption2)
-                    .foregroundStyle(isSelected ? BaziTheme.paper : BaziTheme.inkMuted)
+                    .foregroundStyle(isSelected ? BaziTheme.onInkDeep : BaziTheme.inkMuted)
                 Text(dayString(date))
                     .font(.system(size: 16, weight: .semibold, design: .rounded))
-                    .foregroundStyle(isSelected ? BaziTheme.paper : BaziTheme.ink)
+                    .foregroundStyle(isSelected ? BaziTheme.onInkDeep : BaziTheme.ink)
                 if hasSnapshot {
                     Circle()
-                        .fill(isSelected ? BaziTheme.paper : BaziTheme.cinnabar)
+                        .fill(isSelected ? BaziTheme.onInkDeep : BaziTheme.cinnabar)
                         .frame(width: 4, height: 4)
                 } else {
                     Color.clear.frame(width: 4, height: 4)
@@ -47,14 +47,14 @@ struct DailyFortuneHistoryView: View {
             .padding(.vertical, 8)
             .background(
                 isSelected
-                    ? BaziTheme.cinnabar
-                    : BaziTheme.cardSurface,
+                    ? BaziTheme.inkDeep
+                    : Color.clear,
                 in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
             )
             .overlay(
                 RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
                     .stroke(
-                        isToday ? BaziTheme.cinnabar.opacity(0.5) : BaziTheme.hairline,
+                        isSelected ? BaziTheme.inkDeep : BaziTheme.hairline,
                         lineWidth: 0.5
                     )
             )

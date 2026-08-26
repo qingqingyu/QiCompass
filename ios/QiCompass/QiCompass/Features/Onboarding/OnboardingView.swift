@@ -97,7 +97,7 @@ struct OnboardingView: View {
                 .indexViewStyle(.page(backgroundDisplayMode: .interactive))
                 .tint(BaziTheme.cinnabar)
             case .calculating(let stage):
-                LoadingStateView(title: stage.text)
+                InkCalculatingView(title: stage.text)
             case .ready(let response, _):
                 // 第 3 屏:生肖反馈终态屏(提交成功 → 整体切换,无 swipe 回退)
                 ZodiacRevealView(
@@ -126,7 +126,7 @@ struct OnboardingView: View {
             }
         } else {
             ProgressView()
-                .tint(BaziTheme.cinnabar)
+                .tint(BaziTheme.ink)
         }
     }
 
@@ -179,77 +179,69 @@ struct OnboardingView: View {
     }
 }
 
-// MARK: - Shared: 朱砂印章
-
-// MARK: - Page 1: Welcome
-// SealStamp 已迁移到 Shared/InkKit.swift(水墨孤本版:朱底方印白字 + stamp 落印动画)。
-
-/// 首屏欢迎页(2026-07-19 重构,2026-08-13 三屏重构保留不动):
-/// - 全屏背景图(壁画佛手 + 宣纸留白) + 宣纸色兜底防露边
-/// - 上半部:印章「玄」+ 标题 + 副标题(叠在壁画佛手区)
-/// - 下半部宣纸留白区:经文(`SutraView` 自动按系统语言切排版)
-/// - 错峰 riseIn 淡入:印章 0s → 标题 0.15s → 副标题 0.3s → 经文 0.45s
-///
-/// TODO(assets):WelcomeBackground 1x/2x/3x 切片已生成(2026-08-09),
-/// 当前 PNG 无损压缩单张仍偏大(@3x 4MB / @2x 2.1MB / @1x 648KB),
-/// 若需进一步瘦身可考虑 pngquant 有损压缩或重新导出(用户操作)。
+// MARK: - Page 1: Welcome(水墨孤本 O1,2026-08-26 重写)
+//
+// 参考 docs/design-ref/shuimo/onboarding-o1-welcome.html:
+// 墨圆居中承接开机转场 → 玄印落于圆心 → 楷体标题 → QICOMPASS 字距标 →
+// 副标题 → 竖排经文(版心左 hairline)。壁画佛手背景图退役(与新语言冲突)。
+// 错峰时序(承接 splash 后从简):enso 0s → 标题 0.2s → 副标 0.35s → 经文 0.55s → 印 0.9s。
 private struct WelcomePage: View {
     var body: some View {
         ZStack {
-            // 底层宣纸色兜底:图片加载延迟 / scaledToFill 在宽屏机型仍可能露边
-            BaziTheme.paper
-                .ignoresSafeArea()
+            BaziTheme.paper.ignoresSafeArea()
 
-            // 背景图:scaledToFill + 居中,所有 iPhone 机型(含 Pro Max)覆盖到底
-            Image("WelcomeBackground")
-                .resizable()
-                .scaledToFill()
-                .ignoresSafeArea()
-
-            // 内容层
             VStack(spacing: 0) {
-                // 上半部:印章 + 标题 + 副标题(叠在壁画佛手区)
-                VStack(spacing: BaziTheme.Spacing.sm) {
-                    Spacer().frame(height: 60)
+                Spacer().frame(height: 92)
 
-                    SealStamp(character: "玄", size: 108)
-                        .riseIn()
-                        .accessibilityLabel("玄机问道印章")
-
-                    VStack(spacing: BaziTheme.Spacing.xs) {
-                        Text("玄机问道")
-                            .font(BaziFont.display(size: 36))
-                            .foregroundStyle(BaziTheme.ink)
-                        Text("QICOMPASS")
-                            .font(BaziFont.caption(size: 10))
-                            .foregroundStyle(BaziTheme.inkMuted)
-                            .tracking(4)
+                // 墨圆 + 玄印居中(stamp 落定在墨圆成形之后)
+                EnsoView(size: 172, breathing: true)
+                    .overlay {
+                        SealStamp(character: "玄", size: 34, rotation: 3, stampDelay: 0.9)
                     }
-                    .riseIn(delay: 0.15)
+                    .accessibilityElement(children: .combine)
+                    .accessibilityLabel("玄机问道印章")
 
-                    // 副标题克制,不用 cinnabar 红字(原"专业不忽悠"过刺眼)
-                    Text("读懂你的命局")
-                        .font(BaziFont.body(size: 15))
+                VStack(spacing: 12) {
+                    Text("玄机问道")
+                        .font(BaziFont.display(size: 27))
+                        .tracking(8)
+                        .foregroundStyle(BaziTheme.ink)
+                        .riseIn(delay: 0.2)
+                    Text("QICOMPASS")
+                        .font(BaziFont.latinCaps(size: 8.5))
+                        .tracking(5)
                         .foregroundStyle(BaziTheme.inkMuted)
-                        .riseIn(delay: 0.3)
+                        .riseIn(delay: 0.35)
+                    Text("读懂你的命局")
+                        .font(BaziFont.body(size: 12.5))
+                        .tracking(3)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .riseIn(delay: 0.45)
                 }
+                .padding(.top, 30)
 
                 Spacer()
 
-                // 下半部:宣纸留白区经文
                 SutraView()
-                    .padding(.horizontal, BaziTheme.Spacing.xl)
-                    .padding(.bottom, 100)
+                    .padding(.bottom, 96)
+
+                // 左滑提示(经文之下、系统翻页点之上)
+                Text("左滑录入生辰 ›")
+                    .font(BaziFont.caption(size: 10))
+                    .tracking(3)
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+                    .riseIn(delay: 0.9)
+                    .padding(.bottom, 22)
             }
         }
     }
 }
 
-// MARK: - Welcome: 经文区
+// MARK: - Welcome: 经文区(竖排版心)
 
 /// 论语·尧曰「不知命，无以为君子也」。
-/// - 中文系统(zh-*):竖排逐字,古书排版气质
-/// - 非中文系统:横排整句,英文等语言的自然阅读方向
+/// - 中文系统(zh-*):VText 竖排 + 左侧 hairline(古书版心气质)
+/// - 非中文系统:横排整句,italic 加文学感
 /// 字符串走 `Localizable.xcstrings` 的 `welcome_sutra` key,不硬编码。
 private struct SutraView: View {
     @Environment(\.locale) private var locale
@@ -260,18 +252,15 @@ private struct SutraView: View {
 
     var body: some View {
         if isChinese {
-            // 中文竖排逐字(String(localized:) 取本地化值后逐字堆叠)
-            VStack(spacing: 6) {
-                ForEach(
-                    Array(String(localized: "welcome_sutra").map(String.init).enumerated()),
-                    id: \.offset
-                ) { _, char in
-                    Text(char)
-                        .font(BaziFont.display(size: 22, weight: .medium))
-                        .foregroundStyle(BaziTheme.ink)
+            VText(phrase: String(localized: "welcome_sutra"), size: 17, tracking: 6)
+                .padding(.vertical, 18)
+                .padding(.leading, 10)
+                .overlay(alignment: .leading) {
+                    Rectangle()
+                        .fill(BaziTheme.hairline)
+                        .frame(width: 0.5)
                 }
-            }
-            .riseIn(delay: 0.45)
+                .riseIn(delay: 0.55)
         } else {
             // 非中文:横排整句,italic 加文学感
             Text("welcome_sutra")
@@ -279,7 +268,52 @@ private struct SutraView: View {
                 .foregroundStyle(BaziTheme.inkMuted)
                 .multilineTextAlignment(.center)
                 .italic()
-                .riseIn(delay: 0.45)
+                .riseIn(delay: 0.55)
+        }
+    }
+}
+
+// MARK: - O3: 排盘布算(水墨 loading)
+
+/// 排盘布算中:墨圆缓呼吸 + 竖排「排盘布算中」+ 真实阶段文案。
+/// 参考 docs/design-ref/shuimo/onboarding-o3-calculating.html(墨滴涟漪的水墨等价物)。
+private struct InkCalculatingView: View {
+    let title: String
+
+    var body: some View {
+        ZStack {
+            BaziTheme.paper.ignoresSafeArea()
+
+            VStack(spacing: 0) {
+                Spacer()
+
+                // 主体:墨圆 + 右侧竖排题(非对称,呼应开机页构图)
+                HStack(alignment: .center, spacing: 26) {
+                    EnsoView(size: 190, breathing: true)
+                    VText(phrase: "排盘布算中", size: 19, tracking: 8)
+                        .padding(.leading, 12)
+                        .overlay(alignment: .leading) {
+                            Rectangle()
+                                .fill(BaziTheme.hairline)
+                                .frame(width: 0.5)
+                        }
+                }
+
+                Spacer()
+
+                // 阶段文案(真实后端阶段,横排小字)+ 推演条目
+                VStack(spacing: 14) {
+                    Text(title)
+                        .font(BaziFont.body(size: 12))
+                        .tracking(4)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                    Text("四柱 · 十神 · 神煞 · 大运")
+                        .font(BaziFont.caption(size: 11))
+                        .tracking(4)
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                }
+                .padding(.bottom, 90)
+            }
         }
     }
 }
