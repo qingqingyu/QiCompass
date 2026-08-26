@@ -1,5 +1,9 @@
 # Prompt 回归评测机(evalkit)设计决策
 
+> **2026-08-26 注记**:App 设计已换轨水墨孤本;evalkit WebUI 为内部工具,**沿用本文旧宋瓷配色
+> 不跟随换轨**(避免动 evalkit 代码触发不必要回归),如后续统一再单独立项。
+
+
 Generated on 2026-08-17
 Status: **IMPLEMENTED**(2026-08-18,S01-S06 代码落地,pytest 全绿;首轮真实基线与裁判校准待跑——见文末「实施偏差记录」与 CLAUDE.md「Prompt 回归守护栏」;slice 明细见 `docs/prompt评测机-slices/`)
 关联文档: `bazi-app-design-doc.md` / `命理引擎设计决策.md` / `DESIGN.md` / `CLAUDE.md`(红线:确定性 / LLM 只润色不判断 / 错误显式传播 / 不擅自加依赖)

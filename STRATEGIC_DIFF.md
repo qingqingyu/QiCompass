@@ -1,5 +1,10 @@
 # STRATEGIC_DIFF — 战略决策 → 代码修改点清单
 
+> **2026-08-26 注记**:本文写作时 DESIGN.md 为宋瓷体系。设计已于 2026-08-26 换轨水墨孤本
+> (Kaiti/冷宣纸/浓墨 CTA),文中"宋瓷气质/视觉不动"及旧色板引用为历史快照。
+> 战略与 copy 腔调分析仍有效。
+
+
 > **来源**：2026-08-01 grill-me 战略 review（worktree `grillme`）
 > **范围**：本次 grill 锁定的战略决策对**当前代码**产生的 diff。
 > **不是**：本文档不是战略决策记录（那是 `bazi-app-design-doc.md` §Open Questions §2026-08-01 grill-me 锁定段 的职责）。本文档只管"代码需要改什么"。

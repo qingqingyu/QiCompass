@@ -53,7 +53,7 @@
 - 大运 `index=0` 童限(`ganZhi=""`)跳过,从 `index=1` 开始展示
 - 当前大运 cinnabar 文字 + cinnabarSoft 底 + cinnabar 描边
 - "当前" 标签 cinnabar 色
-- 显示起止年龄 + 干支(Songti SC)+ 起止年份
+- 显示起止年龄 + 干支(Kaiti SC)+ 起止年份
 - 横向滚动,不挤
 
 #### US-DA-04:生成 AI 命书
@@ -72,7 +72,7 @@
 
 **验收标准:**
 - 三小卡横排:命宫 / 身宫 / 胎元
-- 干支 Songti SC + ink 主色
+- 干支 Kaiti SC + ink 主色
 - 纳音 inkMuted 次要信息
 - 圆角 Radius.sm
 
@@ -156,7 +156,7 @@
 **作为**命理爱好者,**我想**每天看今日流日柱 + 与日主的关系,**以便**规划当日活动。
 
 **验收标准:**
-- 流日柱 cinnabar 强调(大字,Songti SC)
+- 流日柱浓墨大字(Kaiti SC)+ 关系 chip 朱色描边
 - 显示流日与日主的关系(正官 / 偏财 等)jade chip
 - 显示冲(如果有)+ 冲目标 chip(暗朱砂)
 - 公历 + 农历日期(公历 display 字体,农历 subheadline)
@@ -178,7 +178,7 @@
 **验收标准:**
 - 默认折叠,展开后显示 12 行
 - 当前时辰(仅今日)cinnabar 文字 + cinnabarSoft 底 + "当下" 标签
-- 显示:时辰字(Songti SC)+ 时间范围 + 干支 + 关系(jade)+ 冲(暗朱砂)
+- 显示:时辰字(Kaiti SC)+ 时间范围 + 干支 + 关系(jade)+ 冲(暗朱砂)
 - 折叠时显示当前时辰一行(仅今日);历史回看显示"展开查看 12 时辰详情"
 
 #### US-DF-04:看黄历宜/忌
@@ -203,7 +203,7 @@
 **作为**命理爱好者,**我想**看明日流日柱预告,**以便**提前规划明日。
 
 **验收标准:**
-- 明日流日柱 cinnabar(Songti SC)
+- 明日流日柱浓墨(Kaiti SC)
 - 关系 chip jade + cinnabarSoft 底
 - 冲(如果有)暗朱砂
 - moon.stars 图标 inkMuted(克制)
@@ -332,7 +332,7 @@ CompatibilityConfigView(ScrollView + 底部 CTA)
 .computing → .resultReady
   ↓
 CompatibilityMainView(ScrollView)
-  ├─ DualPillarsTable(双盘对比,4 柱,A 上 B 下,干支 Songti SC + 五行色)
+  ├─ DualPillarsTable(双盘对比,4 柱,A 上 B 下,干支 Kaiti SC + 五行色)
   ├─ AssessmentCardGrid(4 维定性,2x2,评估值 ink semibold)
   ├─ SyncedFortuneTable(3 年流年同步,走强 jade / 承压 红)
   └─ CompatibilityInterpretationSection(AI 解读,idle 态 CTA)
@@ -358,7 +358,7 @@ AI 解读生成(400-500 字)
 - [ ] US-DA-02:喜忌规则引擎 + LLM 只润色 + 从格降级
 - [ ] US-DA-03:大运童限跳过 + 当前柱 cinnabar
 - [ ] US-DA-04:AI 命书子状态独立 + 24h 缓存 + 每日上限
-- [ ] US-DA-05:辅柱三小卡 + Songti SC
+- [ ] US-DA-05:辅柱三小卡 + Kaiti SC
 - [ ] US-DA-06:五行平衡条 + 降饱和色
 - [ ] US-DA-07:神煞 20 个固定 + 吉凶分色
 - [ ] US-COMP-01:A/B 盘选 + B 模式切换 + context 三选

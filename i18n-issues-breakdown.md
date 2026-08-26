@@ -283,7 +283,7 @@ iOS:
 - [ ] 单元测试覆盖调整后的术语
 
 视觉打磨:
-- [ ] 英文版字体 fallback 验证(Songti SC → 系统衬线 fallback 是否正常)
+- [ ] 英文版字体 fallback 验证(Kaiti SC → 系统衬线 fallback 是否正常)
 - [ ] 数字对齐验证(`.monospacedDigit()` 在英文排版下是否正确)
 - [ ] 长术语折叠(英文术语比中文长,如 "Hurting Officer" vs "伤官",验证 UI 容器是否需要调整)
 - [ ] 跨模块术语一致性(同一术语在每日运势 / 深度解析 / 合盘显示一致)

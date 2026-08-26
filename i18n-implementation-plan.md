@@ -15,7 +15,7 @@
 | UI 语言 | 中文(简)+ 英文 |
 | LLM prompt 语言 | 中文 + 英文(投入调优) |
 | 后端架构 | 按"可扩展多语言"设计(双 header 解析 / 翻译表 / 模板分支) |
-| 字体 | 系统 fallback 自处理(Songti SC + PingFang SC + SF Pro) |
+| 字体 | 系统 fallback 自处理(Kaiti SC + PingFang SC + SF Pro) |
 | 第二波决策点 | v1 上线 60-90 天后看 App Store Connect 国家分布数据 |
 | 第二波候选 | 西班牙语(拉美/西班牙)+ 日语(四柱推命本土市场) |
 
@@ -540,11 +540,11 @@ enum BaziDateFormatter {
 /// 八字 App 字体 token(DESIGN.md 强制:iOS 系统字体,不打包自定义字体)。
 ///
 /// 利用 iOS 系统自动 fallback:
-/// - Songti SC 不支持的字符(拉丁字母)自动 fallback 到系统衬线字体
+/// - Kaiti SC 不支持的字符(拉丁字母)自动 fallback 到系统衬线字体
 /// - PingFang SC 不支持的字符(拉丁字母)自动 fallback 到 SF Pro Text
 /// - v1 阶段只支持 zh+en,不需要复杂 fallback 链
 enum BaziFont {
-    /// 标题 / 八字衬线(Songti SC 系统自带)
+    /// 标题 / 八字衬线(Kaiti SC 系统自带)
     static func serif(size: CGFloat, weight: Font.Weight = .regular) -> Font {
         .system(size: size, weight: weight, design: .serif)
     }
@@ -565,9 +565,9 @@ enum BaziFont {
 
 | 语言 | 字体策略 |
 |---|---|
-| v1 中文 | `.system(... design: .serif)` → Songti SC |
+| v1 中文 | `.system(... design: .serif)` → Kaiti SC |
 | v1 英文 | `.system(... design: .serif)` → New York(系统衬线) |
-| 未来日文 | Songti SC 与日文汉字共用,iOS 自动 fallback Hiragino |
+| 未来日文 | Kaiti SC 与日文汉字共用,iOS 自动 fallback Hiragino |
 | 未来西班牙文 | Latin 字体默认支持,无改动 |
 | 未来阿拉伯文(暂不做) | 系统自动 fallback Geeza Pro,但 RTL 布局要单独做 |
 

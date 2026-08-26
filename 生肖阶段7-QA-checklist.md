@@ -1,5 +1,10 @@
 # 生肖 slice 阶段 7 — 全量 QA Checklist
 
+> **2026-08-26 注记**:本文为宋瓷时代阶段 7 的 QA 快照。2026-08-26 换轨水墨孤本后:
+> 背景验收 #FDFCFA → #F3F1EC;display 字体 Songti → Kaiti;CTA 朱砂 → 浓墨。
+> 作为历史记录保留,重新 QA 时以新 DESIGN.md 为准。
+
+
 > 工程清单(见 `生肖设计决策.md` line 139-143)最后一项。前 6 阶段已落地(commit `1b683f6` 把阶段 2 数据层 + 阶段 3 防错合并提交)。
 >
 > 阶段 7 是**手工 QA pass**,验证 4 件事:12 生肖正确性 / light-dark 视觉 / 失败路径 UX / 重置命盘流程。不写自动化测试(项目无 XCUITest target + 不引入 snapshot 库 + 抽 orchestrator protocol 违反 YAGNI)。

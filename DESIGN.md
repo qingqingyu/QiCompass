@@ -181,26 +181,29 @@ enum BaziTheme {
 
 ### Step 3: 逐模块 UI 重构(优先级 = 实施阶段)
 
-| 阶段 | 模块 | 主要工作 | 参考 |
-|---|---|---|---|
-| Phase 1 | RootTabView + BaziTheme + BaziFont + PrimaryCTAButton + 新组件 InkKit/SplashTransitionView | token/字体/CTA/tab/启动转场 | variant-c-shuimo.html |
-| Phase 2 | Onboarding O1-O4 + DailyFortune T1 | O1 墨圆承接(删壁画图) / O2 下划线表单 / O3 墨圆布算 / O4 换值;今日首页去卡重排 | onboarding-o*.html / daily-t1.html |
-| Phase 3 | DeepAnalysis 捌章卷轴 + PaywallView + 阅读页 | NumeralBadge 行 / 朱字批语 / 「解」印 sheet | deep-p1..p4.html |
-| Phase 4 | Compatibility H1-H3 + Profile M1/M2 | 选人朱圈 / 合印详情 / 虚线锁框 / plain List | hepan-*.html / mine-*.html |
+> **落地状态(2026-08-26):四阶段全部完成并合入 main(merge d9d99d2;Phase 提交 909edbe / ce925f2 / b77d63b / b2e63c5),每阶段 161 测试全绿。**
+
+| 阶段 | 模块 | 主要工作 | 参考 | 状态 |
+|---|---|---|---|---|
+| Phase 1 | RootTabView + BaziTheme + BaziFont + PrimaryCTAButton + 新组件 InkKit/SplashTransitionView | token/字体/CTA/tab/启动转场 | variant-c-shuimo.html | ✅ |
+| Phase 2 | Onboarding O1-O4 + DailyFortune T1 | O1 墨圆承接(删壁画图) / O3 墨圆布算 / T1 去卡重排;**O2 表单与 O4 揭晓为 token 携带**(结构重排遗留) | onboarding-o*.html / daily-t1.html | ✅(含遗留) |
+| Phase 3 | DeepAnalysis 捌章卷轴 + PaywallView + 阅读页 | NumeralBadge 行 / 「解」印 sheet;**朱字批语未做**(需 prompt 输出,动 prompts.py 触发 evalkit 守护栏须先跑基线) | deep-p1..p4.html | ✅(含遗留) |
+| Phase 4 | Compatibility H1-H3 + Profile M1/M2 | 对卡/合印/定性网格/命主块;**双柱合印中轴与 M2 引导盒为 token 携带** | hepan-*.html / mine-*.html | ✅(含遗留) |
 
 **新组件(Shared/InkKit.swift):** `VText` / `EnsoView` / `SealStamp`(自 OnboardingView 迁出) / `PaperGrain`(Canvas 确定性噪点) / `NumeralBadge` / `PaidTag`;**Shared/SplashTransitionView.swift**。新文件须 pbxproj 4 处登记一致 24 位 ID(objectVersion 56)。
 
-### Step 4: 验收清单(落地后必须满足)
+### Step 4: 验收清单(2026-08-26 核对)
 
-- [ ] 每阶段 xcodebuild build + 全量测试绿(commits 三段式 Why/What/Impact)
-- [ ] `cinnabar` 零 CTA / 零大面积底色使用(仅 SealStamp / PaidTag / 聚焦线 / 当前时辰点 / 在读态)
-- [ ] 所有 CTA = inkDeep 底 + onInkDeep 字(暗色正确反转)
-- [ ] Kaiti SC 在模拟器真实渲染(非系统回退)
-- [ ] 竖排文字全部走 VText;章节编号全部大写数字
-- [ ] 开机转场:冷启动墨圆 ink-in → 玄印 stamp → 1.6s 内淡出,不阻塞交互(1.4s 后 allowsHitTesting(false)),reduce-motion 降级
-- [ ] Dark mode 夜宣纸全页正确;reduce-motion 全路径可用
-- [ ] `WelcomeBackground` 引用与资产清零
-- [ ] 四 tab 浅/深走查,逐屏对照 docs/design-ref/shuimo/ 对应 board
+- [x] 每阶段 xcodebuild build + 全量测试绿(161/161 × 4 阶段;commits 三段式 Why/What/Impact)
+- [x] `cinnabar` 零 CTA / 零大面积底色使用(全 App grep 清零,仅印章级授权场景)
+- [x] 所有 CTA = inkDeep 底 + onInkDeep 字(暗色正确反转)
+- [x] Kaiti SC 在模拟器真实渲染(非系统回退;截图核对)
+- [x] 竖排文字全部走 VText;章节编号全部大写数字
+- [x] 开机转场:冷启动墨圆 ink-in → 玄印 stamp → 1.65s 淡出,全程 allowsHitTesting(false),reduce-motion 静态降级
+- [ ] Dark mode 夜宣纸全页走查(转场/欢迎/浅深截图已核,余下三 tab 深色人工走查待用户验收)
+- [x] `WelcomeBackground` 引用与资产清零
+- [x] 对照 docs/design-ref/shuimo/ 逐屏核对(对照板:`~/.gstack/.../compare-ios-vs-html.html`,结构性还原 8 屏 / token 携带 6 屏 / 未做 1 屏)
+- [ ] **英文 locale 走查**:Kaiti 拉丁字形与 VText 竖排的英文适配(见 Decisions Log 待办)
 
 ## Decisions Log
 
@@ -214,4 +217,5 @@ enum BaziTheme {
 | 2026-08-26 | 朱红退出 CTA,降为印章级点缀 | 「极少量高饱和点缀」原则;CTA 一律浓墨(inkDeep/onInkDeep 成对,暗色反转) |
 | 2026-08-26 | Songti SC → Kaiti SC(楷体)全展示层 | 孤本手抄气质;竖排/批语/大写数字为品牌指纹 |
 | 2026-08-26 | 卡片让位 hairline;dashed 锁框;纸纹 Canvas 确定性噪点(不引入图片链路) | 开放布局 + 零新依赖 |
+| 2026-08-26 | **待办:英文 locale 字体路由**——Kaiti SC 拉丁字形偏楷书衬线,英文正文可用性待验证;方向:display 中文 Kaiti / 英文回退系统 serif;body 英文走系统 sans;VText 仅用于中文(英文横排,沿用 SutraView locale 分流模式);印章/品牌字(玄机问道/玄/解/合)保持中文不翻译(决策 7 术语族) | i18n v1 中英开口子(2026-08-12)与新字体体系交叉,落地前须英文截图走查 |
 | 2026-08-26 | T3 签纸分享卡 backlog(不做入 v1 换装) | 分享卡是图片生成新功能,与换装解耦;今日首页用 T1 墨白节奏 |
