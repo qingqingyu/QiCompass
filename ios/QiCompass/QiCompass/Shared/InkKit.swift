@@ -262,6 +262,56 @@ struct NumeralBadge: View {
     }
 }
 
+// MARK: 流式换行布局
+
+/// 流式换行布局(chip 按内容宽逐个排,放不下换行;水墨两问输入的 chip 组用)。
+///
+/// SwiftUI 原生 `Layout` 协议(iOS 16+),零依赖。参考屏
+/// deep-p4-input.html `.chips` 的 flex-wrap 行为:行内/行间同一 spacing,
+/// 不做行末对齐拉伸(chip 保持内容宽,留白驱动)。
+struct FlowLayout: Layout {
+    /// 行内与行间间距(同一值,对齐原型 gap: 10px)。
+    var spacing: CGFloat = 10
+
+    func sizeThatFits(proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) -> CGSize {
+        let maxWidth = proposal.width ?? .infinity
+        var x: CGFloat = 0
+        var y: CGFloat = 0
+        var rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > 0, x + size.width > maxWidth {
+                x = 0
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+        return CGSize(
+            width: proposal.width ?? max(0, x - spacing),
+            height: subviews.isEmpty ? 0 : y + rowHeight
+        )
+    }
+
+    func placeSubviews(in bounds: CGRect, proposal: ProposedViewSize, subviews: Subviews, cache: inout ()) {
+        var x = bounds.minX
+        var y = bounds.minY
+        var rowHeight: CGFloat = 0
+        for subview in subviews {
+            let size = subview.sizeThatFits(.unspecified)
+            if x > bounds.minX, x + size.width > bounds.maxX {
+                x = bounds.minX
+                y += rowHeight + spacing
+                rowHeight = 0
+            }
+            subview.place(at: CGPoint(x: x, y: y), anchor: .topLeading, proposal: ProposedViewSize(size))
+            x += size.width + spacing
+            rowHeight = max(rowHeight, size.height)
+        }
+    }
+}
+
 // MARK: 付费标
 
 /// 「付费」白字朱底小方标,旋转 -6°(全 App 唯一朱底块场景之二,另一是 SealStamp)。
