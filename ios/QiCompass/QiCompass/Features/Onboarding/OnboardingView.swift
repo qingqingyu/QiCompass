@@ -134,26 +134,51 @@ struct OnboardingView: View {
 
     /// 表单页 = 页标题(固定)+ BirthFormView(自带 ScrollView,弹性)+ 隐私微文案(固定)。
     /// 隐私微文案放这里(Q1 拆分下沉):用户交出生信息那一刻最关心隐私。
+    /// 视觉对齐 O2 原型(docs/design-ref/shuimo/onboarding-o2-birthform.html):
+    /// 居中大字距标题 + 小副标 + 左上竖排「問命」版心 + 底部隐私微文案。
     private func formPage(vm: DeepAnalysisViewModel) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(L10n.Onboarding.formTitle)
-                .font(BaziFont.display(size: 28))
-                .foregroundStyle(BaziTheme.ink)
-                .padding(.horizontal, BaziTheme.Spacing.xl)
-                .padding(.top, BaziTheme.Spacing.xl)
-                .padding(.bottom, BaziTheme.Spacing.md)
+            VStack(spacing: BaziTheme.Spacing.xs) {
+                Text(L10n.Onboarding.formTitle)
+                    .font(BaziFont.display(size: 24))
+                    .tracking(6)
+                    .foregroundStyle(BaziTheme.ink)
+                Text("八字 · 由此起算")
+                    .font(BaziFont.caption(size: 11))
+                    .tracking(3)
+                    .foregroundStyle(BaziTheme.inkMuted)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, BaziTheme.Spacing.xl)
+            .padding(.bottom, BaziTheme.Spacing.md)
+            .riseIn(delay: 0.1)
 
             // 表单主体:复用 DeepAnalysis 的 BirthFormView(自带 ScrollView)
             BirthFormView(vm: vm, onSubmit: { showSubmitConfirm = true })
 
             // 隐私微文案(Q1):一行为止,不说教
             Text(L10n.Onboarding.formPrivacyLine)
-                .font(BaziFont.caption(size: 12))
-                .foregroundStyle(BaziTheme.inkMuted)
+                .font(BaziFont.caption(size: 10))
+                .tracking(2)
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, BaziTheme.Spacing.xl)
                 .padding(.vertical, BaziTheme.Spacing.md)
+        }
+        // 左上竖排「問命」小标(原型 .vmark:竖排 + leading hairline,版心元素)
+        .overlay(alignment: .topLeading) {
+            VText(phrase: "問命", size: 13, tracking: 5, color: BaziTheme.inkMuted)
+                .padding(.leading, BaziTheme.Spacing.sm)
+                .overlay(alignment: .leading) {
+                    Rectangle()
+                        .fill(BaziTheme.hairline)
+                        .frame(width: 0.5)
+                }
+                .padding(.leading, BaziTheme.Spacing.xl)
+                .padding(.top, BaziTheme.Spacing.lg)
+                .riseIn(delay: 0.05)
+                .allowsHitTesting(false)
         }
     }
 

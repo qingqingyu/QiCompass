@@ -126,7 +126,8 @@ struct DeepAnalysisResultView: View {
                 )
             )
         }
-        // Stage 8:M4 健康输入 sheet
+        // Stage 8:M4 健康输入 sheet(水墨「生成前两问」,2026-08-29 重排:
+        // grabber + cardSurface sheet 底,对齐 PaywallView sheet 语言)
         .sheet(isPresented: $showM4InputSheet) {
             HealthInputForm(
                 initialAge: vm.m4UserInput?.age ?? 30,
@@ -140,8 +141,10 @@ struct DeepAnalysisResultView: View {
                 }
             )
             .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(BaziTheme.cardSurface)
         }
-        // Stage 8:M5 财富输入 sheet
+        // Stage 8:M5 财富输入 sheet(与 M4 同族两问语言)
         .sheet(isPresented: $showM5InputSheet) {
             WealthInputForm(
                 initialAssetsSummary: vm.m5UserInput?.assets ?? "",
@@ -155,6 +158,8 @@ struct DeepAnalysisResultView: View {
                 }
             )
             .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+            .presentationBackground(BaziTheme.cardSurface)
         }
     }
 
