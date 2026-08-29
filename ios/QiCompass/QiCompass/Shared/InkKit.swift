@@ -116,11 +116,14 @@ struct EnsoView: View {
 
 // MARK: 朱印
 
-/// 朱印:朱底方印白字(水墨孤本版,2026-08-26)。
+/// 朱印:朱底方印白字(水墨孤本版,2026-08-26)+ 朱文空心印变体(outlined)。
 ///
 /// 朱红纪律(DESIGN.md §Color):本组件是 cinnabar 实底的**授权场景之一**
 /// (SealStamp / PaidTag / 聚焦线 / 当前时辰点 / 在读态),其余场景禁朱底。
 /// 入场:stamp(scale 1.9→1 spring 回弹);reduce-motion 直出静态。
+///
+/// 两种印面:`outlined = false` 实印(朱底白字);`outlined = true` 朱文空心印
+/// (朱描边 + 朱字,纸底透出,hepan-h3-detail.html `.vs` 形态),合盘双柱中轴用。
 ///
 /// 注意:OnboardingView.swift 内旧版同名 private 印章(淡底圆)在其文件内遮蔽本组件,
 /// Phase 2 重写 Welcome 页时删除旧版改用本组件。
@@ -131,8 +134,10 @@ struct SealStamp: View {
     var rotation: Double = 3
     /// 落印动画延迟(秒)。nil = 不播动画静态呈现。
     var stampDelay: Double? = 0
-    /// 印面与字之间是否留白边距(小印留 1pt,大印按比例)。
+    /// 印面与字之间是否留白边距(小印留 1pt,大印按比例)。仅实印生效。
     var insetBorder = true
+    /// 朱文空心印变体:朱描边(50%)+ 朱字,无底色(纸底透出)。
+    var outlined = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var stamped = false
@@ -140,17 +145,21 @@ struct SealStamp: View {
     var body: some View {
         Text(character)
             .font(BaziFont.display(size: size * 0.52, weight: .medium))
-            .foregroundStyle(BaziTheme.paper)
+            .foregroundStyle(outlined ? BaziTheme.cinnabar : BaziTheme.paper)
             .frame(width: size, height: size)
             .background(
                 RoundedRectangle(cornerRadius: size * 0.07)
-                    .fill(BaziTheme.cinnabar)
+                    .fill(outlined ? Color.clear : BaziTheme.cinnabar)
             )
             .overlay(
+                // 实印:纸色内衬细框(留白边);空心印:朱描边(50%)即印面本体,1pt 贴框。
                 RoundedRectangle(cornerRadius: size * 0.07)
-                    .stroke(BaziTheme.paper.opacity(0.35), lineWidth: max(1, size * 0.045))
-                    .padding(max(1, size * 0.06))
-                    .opacity(insetBorder ? 1 : 0)
+                    .strokeBorder(
+                        outlined ? BaziTheme.cinnabar.opacity(0.5) : BaziTheme.paper.opacity(0.35),
+                        lineWidth: outlined ? 1 : max(1, size * 0.045)
+                    )
+                    .padding(outlined ? 0 : max(1, size * 0.06))
+                    .opacity(outlined || insetBorder ? 1 : 0)
             )
             .rotationEffect(.degrees(rotation))
             .scaleEffect(stamped ? 1 : 1.9)

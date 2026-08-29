@@ -20,62 +20,81 @@ struct DualPillarSource: Identifiable, Equatable {
     var id: String { position }
 }
 
-/// A 上 B 下紧凑双盘表(D6 + DESIGN.md §Color + §Ganzhi)。
+/// A 上 B 下紧凑双盘表(D6 + DESIGN.md §Color + §Ganzhi + §Layout,水墨孤本 H3 合印中轴版)。
 ///
-/// iPhone 屏宽 ~375pt,8 列(2 人 × 4 柱)挤;改用「每柱一列,每列内 A 行上 B 行下」紧凑表。
+/// iPhone 屏宽 ~375pt,8 列(2 人 × 4 柱)挤;改用「每柱一列,A 行上 B 行下」紧凑表。
+/// 中轴(hepan-h3-detail.html):A/B 两行之间一条 hairline 横贯,中央落 22pt「合」
+/// 朱文空心印——线是分隔,印是连接,双盘对照语义压在这条轴上;整段去卡片底,
+/// 以底部 hairline 收边(卡片让位 hairline)。取数/数据绑定不变(DualPillarSource 原样)。
 /// 不复用 PillarsTable(信息密度过高)。
 struct DualPillarsTable: View {
     let pillars: [DualPillarSource]  // 共 4 条(年/月/日/时)
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 12) {
             Text("双盘对比")
-                .zcoolCardTitle()
+                .font(BaziFont.caption(size: 10))
+                .tracking(4)
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
 
-            // 4 列横向均分
-            HStack(alignment: .top, spacing: 8) {
-                ForEach(pillars) { p in
-                    pillarColumn(p)
+            VStack(spacing: 10) {
+                // 柱位行:年 / 月 / 日 / 时
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(pillars) { p in
+                        Text(p.position)
+                            .font(.caption2)
+                            .foregroundStyle(BaziTheme.inkMuted)
+                            .frame(maxWidth: .infinity)
+                    }
+                }
+
+                // A 盘行(命主)
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(pillars) { p in
+                        pillarCell(
+                            gan: p.ganA, zhi: p.zhiA, nayin: p.nayinA,
+                            ganElement: p.ganElementA, zhiElement: p.zhiElementA,
+                            label: "A"
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
+                }
+
+                // 合印中轴:hairline 分隔 + 「合」印连接(原型 .vs:朱文空心、-3° 微侧)
+                HStack(spacing: 10) {
+                    Rectangle()
+                        .fill(BaziTheme.hairline)
+                        .frame(height: 0.5)
+                    SealStamp(character: "合", size: 22, rotation: -3, stampDelay: nil)
+                    Rectangle()
+                        .fill(BaziTheme.hairline)
+                        .frame(height: 0.5)
+                }
+
+                // B 盘行(对方)
+                HStack(alignment: .top, spacing: 8) {
+                    ForEach(pillars) { p in
+                        pillarCell(
+                            gan: p.ganB, zhi: p.zhiB, nayin: p.nayinB,
+                            ganElement: p.ganElementB, zhiElement: p.zhiElementB,
+                            label: "B"
+                        )
+                        .frame(maxWidth: .infinity)
+                    }
                 }
             }
-            .padding(BaziTheme.Spacing.cmd)
-            .frame(maxWidth: .infinity)
-            .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-            .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
+            .padding(.bottom, 16)
+            .overlay(alignment: .bottom) {
+                // 段落收边 hairline(原型 .pillars border-bottom)
+                Rectangle()
+                    .fill(BaziTheme.hairline)
+                    .frame(height: 0.5)
+            }
         }
+        .fadeIn()
     }
 
-    /// 单柱列:位置 → A 盘 → B 盘。
-    private func pillarColumn(_ p: DualPillarSource) -> some View {
-        VStack(spacing: 6) {
-            // 位置标签
-            Text(p.position)
-                .font(.caption2)
-                .foregroundStyle(BaziTheme.inkMuted)
-
-            // A 盘
-            pillarCell(
-                gan: p.ganA, zhi: p.zhiA, nayin: p.nayinA,
-                ganElement: p.ganElementA, zhiElement: p.zhiElementA,
-                label: "A"
-            )
-
-            // 分隔点
-            Circle()
-                .fill(BaziTheme.hairline)
-                .frame(width: 4, height: 4)
-
-            // B 盘
-            pillarCell(
-                gan: p.ganB, zhi: p.zhiB, nayin: p.nayinB,
-                ganElement: p.ganElementB, zhiElement: p.zhiElementB,
-                label: "B"
-            )
-        }
-        .frame(maxWidth: .infinity)
-    }
-
-    /// 单人柱单元格:标签 + 干支(Songti SC)+ 纳音。
+    /// 单人柱单元格:标签 + 干支(Kaiti SC)+ 纳音。
     private func pillarCell(
         gan: String, zhi: String, nayin: String,
         ganElement: String, zhiElement: String,
