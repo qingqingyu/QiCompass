@@ -1,8 +1,13 @@
 import SwiftUI
 
-/// success 态主布局:7 天历史 pill + 5 个 section + 下拉刷新。
+/// success 态主布局:吸顶历史 pill(方向感知折叠)+ 5 个 section + 下拉刷新。
 ///
 /// 不直接接 state machine,由 DailyFortuneView 切换后传入。
+///
+/// 2026-08-30:
+/// - 历史 pill 带挪进 `.safeAreaInset(edge: .top)`(钉在导航下),滚动方向感知折叠
+///   (往下翻收起 / 往回翻展开 / 页顶强制展开;iOS 17 无 onScrollGeometryChange,用 preference 探针)
+/// - 历史回看解锁(MONETIZATION.md §每日运势历史回看):免费 7 天,任意购买解锁全部
 struct DailyFortuneMainView: View {
     @Bindable var vm: DailyFortuneViewModel
     let response: DailyFortuneResponse
@@ -14,8 +19,19 @@ struct DailyFortuneMainView: View {
     let onHistorySelect: (Date) -> Void
     let onGenerateInterpret: () -> Void
 
+    @EnvironmentObject private var env: AppEnvironment
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
     @State private var historySnapshots: [DailyFortuneSnapshot] = []
     @State private var historyError: String?
+
+    // 历史带折叠(方向感知)
+    @State private var historyCollapsed = false
+    @State private var lastScrollY: CGFloat = 0
+    // 历史回看解锁 + sheet
+    @State private var showingHistorySheet = false
+    @State private var showingPaywall = false
+    @State private var canViewFullHistory = false
 
     var body: some View {
         ScrollView {
@@ -33,12 +49,6 @@ struct DailyFortuneMainView: View {
                     .background(BaziTheme.ink.opacity(0.05), in: Capsule())
                 }
 
-                // 顶部 7 天历史 pill(决策 §1.D)
-                DailyFortuneHistoryView(
-                    selectedDate: businessDate,
-                    snapshots: historySnapshots,
-                    onSelect: onHistorySelect,
-                )
                 if let historyError {
                     Text(historyError)
                         .font(.caption2)
@@ -69,23 +79,82 @@ struct DailyFortuneMainView: View {
                     onRetry: onGenerateInterpret,
                 )
 
-                // 12 时辰(默认折叠,决策 §1.E)
-                HourPillarsSection(
-                    hourPillars: response.hourPillars,
-                    ziHourRule: ziHourRule,
-                    businessDate: businessDate,
-                )
-
-                // 黄历宜/忌
-                HuangliSection(yi: response.huangliYi, ji: response.huangliJi)
-
                 // 明日预告
                 TomorrowPreviewSection(preview: response.tomorrowPreview)
             }
             .padding(.horizontal)
             .padding(.bottom, 32)
+            // 滚动偏移探针(overlay 挂 VStack 顶,不参与 spacing,零布局影响;向下滚动为正值)
+            .overlay(alignment: .top) {
+                GeometryReader { geo in
+                    Color.clear.preference(
+                        key: DailyScrollOffsetKey.self,
+                        value: -geo.frame(in: .named("dailyScroll")).minY
+                    )
+                }
+                .frame(height: 0)
+                .allowsHitTesting(false)
+            }
+        }
+        .coordinateSpace(name: "dailyScroll")
+        .onPreferenceChange(DailyScrollOffsetKey.self) { handleScrollOffset($0) }
+        // 历史 pill 带:钉在导航下方(吸顶),方向感知折叠(高度 0 ↔ 自适应)
+        .safeAreaInset(edge: .top, spacing: 0) {
+            DailyFortuneHistoryView(
+                selectedDate: businessDate,
+                snapshots: historySnapshots,
+                canViewFullHistory: canViewFullHistory,
+                onEarlier: { showingHistorySheet = true },
+                onSelect: onHistorySelect,
+            )
+            .padding(.horizontal, 16)
+            .padding(.top, 4)
+            .padding(.bottom, 12)
+            .background(BaziTheme.paper)
+            .frame(maxHeight: historyCollapsed ? 0 : nil, alignment: .top)
+            .clipped()
+            .opacity(historyCollapsed ? 0 : 1)
+            .allowsHitTesting(!historyCollapsed)
+            .animation(
+                MotionPreferences.animation(.easeInOut(duration: 0.28), reduceMotion: reduceMotion),
+                value: historyCollapsed
+            )
         }
         .refreshable { onRefresh() }
+        // 历史回看 sheet(免费锁定态 / 已购清单态)
+        .sheet(isPresented: $showingHistorySheet) {
+            DailyFortuneHistorySheet(
+                canViewFullHistory: canViewFullHistory,
+                snapshots: historySnapshots,
+                onSelect: onHistorySelect,
+                onUnlock: {
+                    // 付费墙按 contentHash 卖深度解析;hash 缺失说明调用方状态错乱,显式记录不弹
+                    guard chartHash != nil else {
+                        AppLogger.app.warning("op=dailyFortune.historyUnlock.skip reason=no_chart_hash")
+                        return
+                    }
+                    // SwiftUI 竞态规避:历史 sheet 的 dismiss 动画进行中立即 present 付费墙
+                    // 会被静默丢弃(iOS 17 实测行为,三查 🟡),等动画结束(~0.4s)再呈现
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                        showingPaywall = true
+                    }
+                }
+            )
+        }
+        .sheet(isPresented: $showingPaywall) {
+            PaywallView(
+                viewModel: PaywallViewModel(
+                    module: .deepAnalysis,
+                    contentHash: chartHash ?? "",
+                    purchaseManager: env.purchaseManager,
+                    onPurchaseSuccess: {
+                        showingPaywall = false
+                        // 任意购买落地 → 立即重查解锁态(下次打开「更早」即清单态)
+                        refreshUnlockState()
+                    }
+                )
+            )
+        }
         .background(
             TimelineView(.periodic(from: .now, by: 60)) { _ in
                 Color.clear.onAppear {
@@ -98,7 +167,40 @@ struct DailyFortuneMainView: View {
         )
         .task {
             loadHistory()
+            refreshUnlockState()
         }
+    }
+
+    // MARK: - 方向感知折叠
+
+    /// 滚动方向判定(与 HTML 设计稿同阈值):
+    /// - 页顶(y < 8)强制展开
+    /// - 向下位移 > 6pt → 收起
+    /// - 向上位移 > 6pt → 展开
+    private func handleScrollOffset(_ y: CGFloat) {
+        if y < 8 {
+            if historyCollapsed { historyCollapsed = false }
+            lastScrollY = y
+            return
+        }
+        let delta = y - lastScrollY
+        if delta > 6 {
+            if !historyCollapsed { historyCollapsed = true }
+        } else if delta < -6 {
+            if historyCollapsed { historyCollapsed = false }
+        }
+        lastScrollY = y
+    }
+
+    // MARK: - 历史回看解锁
+
+    /// 「任意一笔 active 购买 → 解锁全部历史」判据(MONETIZATION.md §每日运势历史回看)。
+    /// 双轨与 EntitlementStore.getActive 一致:userId 优先,userLocalId 兜底。
+    private func refreshUnlockState() {
+        canViewFullHistory = env.entitlementStore.hasAnyActivePurchase(
+            userLocalId: UserIdentity.userLocalId,
+            userId: UserIdentity.isAuthenticated ? UserIdentity.currentUserId : nil
+        )
     }
 
     private func loadHistory() {
@@ -127,8 +229,9 @@ struct DailyFortuneMainView: View {
 /// TODO 后续:可能挪到后端基于 favorable_elements + 流日关系确定性映射,
 /// 但 v1 不增加后端复杂度,前端 lookup 足够。
 ///
-/// 不复用 HuangliSection(那是通用黄历宜/忌,人人一样);
-/// 本 section 是**个性化**宜/忌(基于流日对日主的关系)。
+/// 全页唯一的宜/忌(2026-08-30 用户拍板删通用黄历块——同屏两套宜/忌语义打架,
+/// 保留本节):**个性化**宜/忌,基于流日对日主的关系,十神查表得单条关键词。
+/// 黄历数据(huangliYi/Ji)后端照常返回并进 AI 上下文,只是不再 UI 展示。
 private struct YiJiAnchorSection: View {
     let dayRelation: String
 
@@ -211,5 +314,17 @@ private struct YiJiAnchorSection: View {
             Spacer()
         }
         .padding(.vertical, 9)
+    }
+}
+
+// MARK: - 滚动偏移探针
+
+/// ScrollView 滚动偏移(向下为正)。
+/// iOS 17.2 无 `onScrollGeometryChange`(iOS 18 API),经典 preference 方案:
+/// 0 高度探针放内容顶部,frame 取 named coordinate space 的 minY 取负。
+private struct DailyScrollOffsetKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = nextValue()
     }
 }

@@ -68,6 +68,17 @@ Status: ACCEPTED（M2a/b/c + M3a/b/c + M4 已实现并合并 main，M6 TestFligh
 9. **学习成长** — 天赋 + 高低配分界 + 充电方式(吸收原天赋/高低配/系统模式)
 10. **身体健康** — 体质 + 调候 + 作息
 
+### 每日运势历史回看(2026-08-30 新增)
+
+**规则**:免费用户可回看 **7 天**(今日 + 过去 6 天,即顶部日期带现状);
+**有过任意一笔 active 购买记录(深度解析或合盘,不限命盘)即解锁全部历史回看**。
+
+- 判据:`EntitlementStore.hasAnyActivePurchase(userLocalId:userId:)` —— 用户维度,不限 contentHash/module;双轨 userId 优先、userLocalId 兜底(与 `getActive` 一致)
+- 入口:日期带末尾「更早」pill。免费 = dashed 锁框(DESIGN.md 虚线=锁定语义)→ 锁定态 sheet(「解」印 + 规则说明 + CTA);已购 = 实线 + chevron → 更早日期清单 sheet
+- 清单窗口:第 8 天起往前 **90 天**(防无边界 on-demand 生成,每行点选都可能触发一次后端调用;窗口是可调产品参数,等用户反馈)
+- 不新增 SKU:历史回看不单独售卖,搭「任意购买」提升整体付费转化
+- 购买成功回调:`onPurchaseSuccess` → `refreshUnlockState()` 重查判据,「更早」立即变清单态
+
 ### 合盘(M4 已拆分,2026-08-14 五行共振改造)
 
 跟深度解析同形态:

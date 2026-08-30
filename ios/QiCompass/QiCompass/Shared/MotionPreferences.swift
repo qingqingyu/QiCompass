@@ -5,8 +5,8 @@ import SwiftUI
 /// 设计:
 /// - `@Environment(\.accessibilityReduceMotion)` 注入到 modifier / 命令式调用
 /// - Reduce Motion 关闭:保留现有过渡;开启:位移/缩放/翻转 → `.opacity` 淡入或无动画
-/// - 现状自定义动画 1 处(`HourPillarsSection.swift` `withAnimation(.easeInOut)`),
-///   改造后新过渡(墨溅出现/错误态切换/结果区切换)统一走本封装。
+/// - 现状自定义动画已全部收敛(HourPillarsSection 于 2026-08-30 删除,
+///   其 withAnimation 用法随之移除),新过渡(墨溅出现/错误态切换/结果区切换)统一走本封装。
 enum MotionPreferences {
     /// Reduce Motion 关:返回原 animation;开:返回 nil(无动画)。
     static func animation(_ animation: Animation = .easeInOut, reduceMotion: Bool) -> Animation? {
