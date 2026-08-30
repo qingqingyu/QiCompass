@@ -36,15 +36,6 @@ struct DailyFortuneMainView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
-                // 滚动偏移探针(0 高度,只为上报;向下滚动为正值)
-                GeometryReader { geo in
-                    Color.clear.preference(
-                        key: DailyScrollOffsetKey.self,
-                        value: -geo.frame(in: .named("dailyScroll")).minY
-                    )
-                }
-                .frame(height: 0)
-
                 // 离线查看角标(方案 step 6):网络失败 fallback 到本地缓存时显示。
                 if vm.isOffline {
                     HStack(spacing: 6) {
@@ -96,6 +87,17 @@ struct DailyFortuneMainView: View {
             }
             .padding(.horizontal)
             .padding(.bottom, 32)
+            // 滚动偏移探针(overlay 挂 VStack 顶,不参与 spacing,零布局影响;向下滚动为正值)
+            .overlay(alignment: .top) {
+                GeometryReader { geo in
+                    Color.clear.preference(
+                        key: DailyScrollOffsetKey.self,
+                        value: -geo.frame(in: .named("dailyScroll")).minY
+                    )
+                }
+                .frame(height: 0)
+                .allowsHitTesting(false)
+            }
         }
         .coordinateSpace(name: "dailyScroll")
         .onPreferenceChange(DailyScrollOffsetKey.self) { handleScrollOffset($0) }
@@ -134,7 +136,11 @@ struct DailyFortuneMainView: View {
                         AppLogger.app.warning("op=dailyFortune.historyUnlock.skip reason=no_chart_hash")
                         return
                     }
-                    showingPaywall = true
+                    // SwiftUI 竞态规避:历史 sheet 的 dismiss 动画进行中立即 present 付费墙
+                    // 会被静默丢弃(iOS 17 实测行为,三查 🟡),等动画结束(~0.4s)再呈现
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
+                        showingPaywall = true
+                    }
                 }
             )
         }
