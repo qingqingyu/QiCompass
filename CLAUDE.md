@@ -117,3 +117,22 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - **AI slop 反模式**:不堆叠黑金/卷轴纹/古纹装饰,不用 Inter/Roboto 系列字体,朱红不做大色块
 
 iOS 落地代码骨架见 `DESIGN.md` § iOS SwiftUI 落地计划(token 换值 + 散点修复 + 四阶段优先级 + 验收清单)。**新 .swift 文件须 pbxproj 4 处登记一致 24 位 ID**(objectVersion 56 传统结构,漏登记=静默不编译)。
+
+## Skill routing
+
+When the user's request matches an available skill, invoke it via the Skill tool. When in doubt, invoke the skill.
+
+Key routing rules:
+- Product ideas/brainstorming → invoke /office-hours
+- Strategy/scope → invoke /plan-ceo-review
+- Architecture → invoke /plan-eng-review
+- Design system/plan review → invoke /design-consultation or /plan-design-review
+- Full review pipeline → invoke /autoplan
+- Bugs/errors → invoke /investigate
+- QA/testing site behavior → invoke /qa or /qa-only
+- Code review/diff check → invoke /review
+- Visual polish → invoke /design-review
+- Ship/deploy/PR → invoke /ship or /land-and-deploy
+- Save progress → invoke /context-save
+- Resume context → invoke /context-restore
+- Author a backlog-ready spec/issue → invoke /spec
