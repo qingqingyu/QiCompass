@@ -1,7 +1,13 @@
 {
   "sourceLanguage" : "zh-Hans",
   "strings" : {
+    "" : {
+
+    },
     "—" : {
+
+    },
+    "· %@" : {
 
     },
     "%@ · %@" : {
@@ -47,10 +53,10 @@
     "%@内容" : {
 
     },
-    "%lld / 500" : {
+    "%@时 ›" : {
 
     },
-    "%lld 岁" : {
+    "%lld / 500" : {
 
     },
     "%lld 年生" : {
@@ -97,14 +103,212 @@
     "24h 内已缓存,不消耗次数" : {
 
     },
-    "A 流年" : {
-
-    },
     "AI 命书" : {
 
     },
-    "B 流年" : {
-
+    "birthform.alias.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chart name"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盘别名"
+          }
+        }
+      }
+    },
+    "birthform.alias.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Me / Mom / Partner"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我自己 / 妈妈 / 男友"
+          }
+        }
+      }
+    },
+    "birthform.birthDatetime.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Birth date & time"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生时间"
+          }
+        }
+      }
+    },
+    "birthform.birthplace.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Birthplace"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生地"
+          }
+        }
+      }
+    },
+    "birthform.cta.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charting…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盘布算中"
+          }
+        }
+      }
+    },
+    "birthform.cta.start" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chart my destiny"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开始排盘"
+          }
+        }
+      }
+    },
+    "birthform.datePicker.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Birth date & time"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生日期与时刻"
+          }
+        }
+      }
+    },
+    "birthform.gender.female" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Female"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "女"
+          }
+        }
+      }
+    },
+    "birthform.gender.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gender"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "性别"
+          }
+        }
+      }
+    },
+    "birthform.gender.male" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Male"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "男"
+          }
+        }
+      }
+    },
+    "birthform.hourQuickPick.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only know the rough hour? Tap to pick"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只知时辰不知精确时间?点此选"
+          }
+        }
+      }
+    },
+    "birthform.hourQuickPick.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Quick hour pick (optional)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时辰快捷选(可选)"
+          }
+        }
+      }
     },
     "Build" : {
 
@@ -445,6 +649,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "出生城市"
+          }
+        }
+      }
+    },
+    "common.cancel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
           }
         }
       }
@@ -843,11 +1064,549 @@
     "hash: %@…" : {
 
     },
-    "M4 健康输入" : {
-
+    "healthform.age.decrease" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Decrease age"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "减小年龄"
+          }
+        }
+      }
     },
-    "M5 财富输入" : {
-
+    "healthform.age.increase" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Increase age"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "增大年龄"
+          }
+        }
+      }
+    },
+    "healthform.age.question" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your age"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的年龄"
+          }
+        }
+      }
+    },
+    "healthform.age.value" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld yrs"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 岁"
+          }
+        }
+      }
+    },
+    "healthform.concern.fatigue" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fatigue"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "疲劳"
+          }
+        }
+      }
+    },
+    "healthform.concern.fatigue.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Running on empty on workdays"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工作日长期精力不济"
+          }
+        }
+      }
+    },
+    "healthform.concern.mood" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Mood"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "情绪"
+          }
+        }
+      }
+    },
+    "healthform.concern.mood.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Anxiety / low mood / irritability"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "焦虑 / 低落 / 易怒"
+          }
+        }
+      }
+    },
+    "healthform.concern.other" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Other"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他"
+          }
+        }
+      }
+    },
+    "healthform.concern.other.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No details for now — just the category"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无法填细节,仅告知大类"
+          }
+        }
+      }
+    },
+    "healthform.concern.question" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How you've been feeling"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "近来的身体状况"
+          }
+        }
+      }
+    },
+    "healthform.concern.sleep" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sleep"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠"
+          }
+        }
+      }
+    },
+    "healthform.concern.sleep.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hard to fall asleep / waking early / unrefreshed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "入睡难 / 醒得早 / 不解乏"
+          }
+        }
+      }
+    },
+    "healthform.concern.weight" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weight"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "体重"
+          }
+        }
+      }
+    },
+    "healthform.concern.weight.detail" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Metabolism / appetite / body shape"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "代谢 / 食欲 / 体型"
+          }
+        }
+      }
+    },
+    "healthform.cta.generate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generate this chapter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生成本章"
+          }
+        }
+      }
+    },
+    "healthform.cta.later" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can also answer later in the chapter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稍后在章节内补答也可"
+          }
+        }
+      }
+    },
+    "healthform.cta.loading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Divining…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生成中…"
+          }
+        }
+      }
+    },
+    "healthform.kicker" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chapter V · Two questions first"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 伍 章 · 生成前两问"
+          }
+        }
+      }
+    },
+    "healthform.required" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Required"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "必答"
+          }
+        }
+      }
+    },
+    "healthform.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This chapter draws on your age and current state. Your answers shape this chapter only. For reference — not medical advice."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这一章结合你的年龄与近况推演,答案只影响本章内容。仅供参考,不替代医生。"
+          }
+        }
+      }
+    },
+    "healthform.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Health & vitality · shaped by you"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "健康续航 · 因你而异"
+          }
+        }
+      }
+    },
+    "hepan.dual.dayPillar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day Pillar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日柱"
+          }
+        }
+      }
+    },
+    "hepan.dual.hourPillar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hour Pillar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时柱"
+          }
+        }
+      }
+    },
+    "hepan.dual.monthPillar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Month Pillar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "月柱"
+          }
+        }
+      }
+    },
+    "hepan.dual.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Two charts, side by side"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "双盘对比"
+          }
+        }
+      }
+    },
+    "hepan.dual.yearPillar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year Pillar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年柱"
+          }
+        }
+      }
+    },
+    "hepan.synced.personAYear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A's year"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A 流年"
+          }
+        }
+      }
+    },
+    "hepan.synced.personBYear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "B's year"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "B 流年"
+          }
+        }
+      }
+    },
+    "hepan.synced.sync" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sync"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步"
+          }
+        }
+      }
+    },
+    "hepan.synced.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yearly sync · the next three years"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "流年同步 · 未来三年"
+          }
+        }
+      }
+    },
+    "hepan.synced.year" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年份"
+          }
+        }
+      }
     },
     "onboarding.calculating.steps" : {
       "extractionState" : "manual",
@@ -896,6 +1655,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "命盘只存你手机 · 无账号"
+          }
+        }
+      }
+    },
+    "onboarding.form.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your BaZi starts here"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "八字 · 由此起算"
           }
         }
       }
@@ -1189,6 +1965,40 @@
         }
       }
     },
+    "onboarding.welcome.swipeHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swipe to enter birth details ›"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左滑录入生辰 ›"
+          }
+        }
+      }
+    },
+    "onboarding.welcome.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Know your chart"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读懂你的命局"
+          }
+        }
+      }
+    },
     "profile.about.privacy1" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1328,6 +2138,227 @@
     "QICOMPASS" : {
 
     },
+    "wealthform.assets.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rough is fine — no exact numbers"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可粗略,不需精确数字"
+          }
+        }
+      }
+    },
+    "wealthform.assets.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "e.g. median income, some savings, no property"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如:中等收入,有积蓄,无房产"
+          }
+        }
+      }
+    },
+    "wealthform.assets.question" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Assets & income snapshot"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "资产 / 收入概况"
+          }
+        }
+      }
+    },
+    "wealthform.kicker" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chapter VI · Two questions first"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 陆 章 · 生成前两问"
+          }
+        }
+      }
+    },
+    "wealthform.risk.aggressive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Aggressive"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "进攻"
+          }
+        }
+      }
+    },
+    "wealthform.risk.aggressive.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "High volatility for a shot at high returns"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高波动换高回报可能"
+          }
+        }
+      }
+    },
+    "wealthform.risk.balanced" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Balanced"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平衡"
+          }
+        }
+      }
+    },
+    "wealthform.risk.balanced.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Moderate risk, steady growth"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中等风险,稳健增长"
+          }
+        }
+      }
+    },
+    "wealthform.risk.conservative" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Conservative"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保守"
+          }
+        }
+      }
+    },
+    "wealthform.risk.conservative.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Capital first — no losses please"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保本为先,不愿承担亏损"
+          }
+        }
+      }
+    },
+    "wealthform.risk.question" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Risk appetite"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "风险偏好"
+          }
+        }
+      }
+    },
+    "wealthform.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This chapter draws on your assets and risk appetite. Your answers shape this chapter only. Self-knowledge only — not investment advice."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这一章结合你的资产概况与风险偏好推演,答案只影响本章内容。自我认知参考,不构成投资建议。"
+          }
+        }
+      }
+    },
+    "wealthform.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Wealth & structure · shaped by you"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "财富结构 · 因你而异"
+          }
+        }
+      }
+    },
     "welcome_sutra" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1403,19 +2434,10 @@
     "双人合盘" : {
 
     },
-    "双盘对比" : {
-
-    },
     "双盘数据读取失败" : {
 
     },
     "取消" : {
-
-    },
-    "只知时辰不知精确时间?点此选" : {
-
-    },
-    "可粗略,不需精确数字" : {
 
     },
     "可选,如「相亲对象甲」" : {
@@ -1428,9 +2450,6 @@
 
     },
     "合盘解读" : {
-
-    },
-    "同步" : {
 
     },
     "命局呈现从格特征" : {
@@ -1454,9 +2473,6 @@
     "回到表单修改出生信息" : {
 
     },
-    "基于命局的能量规律与恢复杠杆。请先提供当前状态,LLM 才能给针对性建议(不替代医生,仅作自我觉察参考)。" : {
-
-    },
     "填写对方信息" : {
 
     },
@@ -1469,16 +2485,10 @@
     "好的" : {
 
     },
-    "如:中等收入,有积蓄,无房产" : {
-
-    },
     "子时属次日(23:00 换日)" : {
 
     },
     "子时规则默认" : {
-
-    },
-    "左滑录入生辰 ›" : {
 
     },
     "已加入 %lld 位" : {
@@ -1490,13 +2500,7 @@
     "已解读" : {
 
     },
-    "年份" : {
-
-    },
     "开始合盘" : {
-
-    },
-    "开始排盘" : {
 
     },
     "当前" : {
@@ -1523,16 +2527,7 @@
     "我的命盘" : {
 
     },
-    "我自己 / 妈妈 / 男友" : {
-
-    },
     "推演失败 · 此对隔离" : {
-
-    },
-    "提交" : {
-
-    },
-    "收入形态匹配度与漏财止损规则。请先提供当前状态,LLM 才能给针对性建议(不构成投资建议,自我认知用)。" : {
 
     },
     "改名" : {
@@ -1545,9 +2540,6 @@
 
     },
     "日主 %@" : {
-
-    },
-    "日期与时辰" : {
 
     },
     "早晚子时(00:00 换日)" : {
@@ -1578,9 +2570,6 @@
 
     },
     "每日运势" : {
-
-    },
-    "流年同步(未来 3 年)" : {
 
     },
     "深度" : {
@@ -1666,9 +2655,6 @@
 
     },
     "试用新版模块化分析(M0-M7 八模块)" : {
-
-    },
-    "读懂你的命局" : {
 
     },
     "购买于" : {

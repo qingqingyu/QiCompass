@@ -20,7 +20,7 @@ struct SyncedFortuneTable: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("流年同步 · 未来三年")
+            Text(L10n.Compatibility.syncedTitle)
                 .font(BaziFont.caption(size: 10))
                 .tracking(4)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
@@ -49,13 +49,13 @@ struct SyncedFortuneTable: View {
     /// 列头:年份 / A 流年 / B 流年 / 同步(caption2 弱墨,同 DualPillarsTable 柱位行)。
     private var header: some View {
         HStack(spacing: 8) {
-            Text("年份")
+            Text(L10n.Compatibility.syncedYear)
                 .frame(width: yearColumnWidth, alignment: .leading)
-            Text("A 流年")
+            Text(L10n.Compatibility.syncedPersonAYear)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Text("B 流年")
+            Text(L10n.Compatibility.syncedPersonBYear)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Text("同步")
+            Text(L10n.Compatibility.syncedSync)
                 .frame(width: syncColumnWidth, alignment: .trailing)
         }
         .font(.caption2)

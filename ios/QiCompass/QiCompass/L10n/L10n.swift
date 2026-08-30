@@ -24,11 +24,25 @@ enum L10n {
 
     /// Onboarding 模块。
     enum Onboarding {
+        // -- Welcome 屏(O1,第 1 屏;i18n 补录 2026-08-29)--
+
+        /// Welcome 副标题(墨圆/玄印之下)。
+        /// zh: "读懂你的命局";en: "Know your chart"
+        static let welcomeTagline = String(localized: "onboarding.welcome.tagline")
+
+        /// 左滑提示(经文之下、系统翻页点之上)。
+        /// zh: "左滑录入生辰 ›";en: "Swipe to enter birth details ›"
+        static let welcomeSwipeHint = String(localized: "onboarding.welcome.swipeHint")
+
         // -- 表单页(第 2 屏)--
 
         /// 表单页标题。
         /// zh: "你的出生信息";en: "Your birth details"
         static let formTitle = String(localized: "onboarding.form.title")
+
+        /// 表单页小副标(标题之下;i18n 补录 2026-08-29)。
+        /// zh: "八字 · 由此起算";en: "Your BaZi starts here"
+        static let formSubtitle = String(localized: "onboarding.form.subtitle")
 
         /// 隐私微文案(表单页底部,Q1 拆分下沉:隐私信息在用户交出生信息那一刻出现)。
         /// zh: "命盘只存你手机 · 无账号";en: "Your chart stays on your phone · No account"
@@ -76,6 +90,60 @@ enum L10n {
         static let personalityRooster = String(localized: "onboarding.personality.rooster")
         static let personalityDog = String(localized: "onboarding.personality.dog")
         static let personalityPig = String(localized: "onboarding.personality.pig")
+    }
+
+    // MARK: - 出生信息表单(BirthFormView;i18n 补录 2026-08-29)
+
+    /// 出生信息表单(onboarding O2 / 深度解析无存档兜底 / Profile 新建命盘三处复用)。
+    /// 品牌/规则类字串不进本表:「問命」「玄」「玄机问道」、干支字符、「X时 ›」。
+    enum BirthForm {
+        /// "出生时间" 字段标签(日期行)。
+        /// zh: "出生时间";en: "Birth date & time"
+        static let birthDatetimeLabel = String(localized: "birthform.birthDatetime.label")
+
+        /// "命盘别名" 字段标签(字段 Micro 标签与 TextField 标题共用同一 key)。
+        /// zh: "命盘别名";en: "Chart name"
+        static let aliasLabel = String(localized: "birthform.alias.label")
+
+        /// 别名输入占位。
+        /// zh: "我自己 / 妈妈 / 男友";en: "Me / Mom / Partner"
+        static let aliasPlaceholder = String(localized: "birthform.alias.placeholder")
+
+        /// 日期 wheel sheet 标题(亦作日期行 accessibilityLabel)。
+        /// zh: "出生日期与时刻";en: "Birth date & time"
+        static let datePickerTitle = String(localized: "birthform.datePicker.title")
+
+        /// 时辰快捷选字段标签。
+        /// zh: "时辰快捷选(可选)";en: "Quick hour pick (optional)"
+        static let hourQuickPickLabel = String(localized: "birthform.hourQuickPick.label")
+
+        /// 时辰快捷选 DisclosureGroup 提示。
+        /// zh: "只知时辰不知精确时间?点此选";en: "Only know the rough hour? Tap to pick"
+        static let hourQuickPickHint = String(localized: "birthform.hourQuickPick.hint")
+
+        /// 性别字段标签。
+        /// zh: "性别";en: "Gender"
+        static let genderLabel = String(localized: "birthform.gender.label")
+
+        /// 性别 chip「男」显示文案(tag 值 "male" 是后端契约,不本地化)。
+        /// zh: "男";en: "Male"
+        static let genderMale = String(localized: "birthform.gender.male")
+
+        /// 性别 chip「女」显示文案(tag 值 "female" 是后端契约,不本地化)。
+        /// zh: "女";en: "Female"
+        static let genderFemale = String(localized: "birthform.gender.female")
+
+        /// 出生地字段标签。
+        /// zh: "出生地";en: "Birthplace"
+        static let birthplaceLabel = String(localized: "birthform.birthplace.label")
+
+        /// CTA 标题。
+        /// zh: "开始排盘";en: "Chart my destiny"
+        static let ctaStart = String(localized: "birthform.cta.start")
+
+        /// CTA loading 文案。
+        /// zh: "排盘布算中";en: "Charting…"
+        static let ctaLoading = String(localized: "birthform.cta.loading")
     }
 
     // MARK: - 城市搜索模块(S03,全球城市选择)
@@ -240,6 +308,56 @@ enum L10n {
         static let mainHistoryError = String(localized: "dailyfortune.main.historyError")
     }
 
+    // MARK: - 合盘模块(DualPillarsTable / SyncedFortuneTable;i18n 补录 2026-08-29)
+
+    /// 合盘结果态(DualPillarsTable 双盘对比 + SyncedFortuneTable 流年同步)。
+    /// 注:行内显示值(personA/personB/sync)来自后端中文真值,iOS 不本地化。
+    enum Compatibility {
+        // -- 双盘对比 --
+
+        /// 区块 kicker。
+        /// zh: "双盘对比";en: "Two charts, side by side"
+        static let dualTitle = String(localized: "hepan.dual.title")
+
+        /// 年柱位标签(DualPillarSource.from(a:b:) 生产数据用)。
+        /// zh: "年柱";en: "Year Pillar"
+        static let dualYearPillar = String(localized: "hepan.dual.yearPillar")
+
+        /// 月柱位标签。
+        /// zh: "月柱";en: "Month Pillar"
+        static let dualMonthPillar = String(localized: "hepan.dual.monthPillar")
+
+        /// 日柱位标签。
+        /// zh: "日柱";en: "Day Pillar"
+        static let dualDayPillar = String(localized: "hepan.dual.dayPillar")
+
+        /// 时柱位标签。
+        /// zh: "时柱";en: "Hour Pillar"
+        static let dualHourPillar = String(localized: "hepan.dual.hourPillar")
+
+        // -- 流年同步 --
+
+        /// 区块 kicker。
+        /// zh: "流年同步 · 未来三年";en: "Yearly sync · the next three years"
+        static let syncedTitle = String(localized: "hepan.synced.title")
+
+        /// 列头「年份」。
+        /// zh: "年份";en: "Year"
+        static let syncedYear = String(localized: "hepan.synced.year")
+
+        /// 列头「A 流年」。
+        /// zh: "A 流年";en: "A's year"
+        static let syncedPersonAYear = String(localized: "hepan.synced.personAYear")
+
+        /// 列头「B 流年」。
+        /// zh: "B 流年";en: "B's year"
+        static let syncedPersonBYear = String(localized: "hepan.synced.personBYear")
+
+        /// 列头「同步」。
+        /// zh: "同步";en: "Sync"
+        static let syncedSync = String(localized: "hepan.synced.sync")
+    }
+
     // MARK: - Profile(2026-08-13 onboarding 三屏重构:立场/隐私完整版下沉到关于页)
 
     /// Profile 模块。
@@ -279,10 +397,163 @@ enum L10n {
         static let aboutPrivacy3 = String(localized: "profile.about.privacy3")
     }
 
+    // MARK: - M4 健康输入表单(HealthInputForm;i18n 补录 2026-08-29)
+
+    /// M4 健康续航「生成前两问」输入 sheet。
+    /// `required` / `cta.*` 与 M5 WealthInputForm 共用引用(key 不重复建)。
+    /// 选项 value(睡眠/疲劳/体重/情绪/其他)是提交 payload,不本地化,不进本表。
+    enum HealthForm {
+        /// 章头 kicker。
+        /// zh: "第 伍 章 · 生成前两问";en: "Chapter V · Two questions first"
+        static let kicker = String(localized: "healthform.kicker")
+
+        /// 章题。
+        /// zh: "健康续航 · 因你而异";en: "Health & vitality · shaped by you"
+        static let title = String(localized: "healthform.title")
+
+        /// 副题(章题之下)。
+        /// zh: "这一章结合你的年龄与近况推演,答案只影响本章内容。仅供参考,不替代医生。"
+        /// en: "This chapter draws on your age and current state. Your answers shape this chapter only. For reference — not medical advice."
+        static let subtitle = String(localized: "healthform.subtitle")
+
+        /// Q1 问题名。
+        /// zh: "你的年龄";en: "Your age"
+        static let ageQuestion = String(localized: "healthform.age.question")
+
+        /// 「必答」朱红小字(M4/M5 共用)。
+        /// zh: "必答";en: "Required"
+        static let required = String(localized: "healthform.required")
+
+        /// 年龄减小按钮 accessibilityLabel。
+        /// zh: "减小年龄";en: "Decrease age"
+        static let ageDecrease = String(localized: "healthform.age.decrease")
+
+        /// 年龄增大按钮 accessibilityLabel。
+        /// zh: "增大年龄";en: "Increase age"
+        static let ageIncrease = String(localized: "healthform.age.increase")
+
+        /// stepper 年龄值(zh "30 岁" / en "30 yrs")。
+        static func ageValue(_ age: Int) -> String {
+            String(format: String(localized: "healthform.age.value"), age)
+        }
+
+        /// Q2 问题名。
+        /// zh: "近来的身体状况";en: "How you've been feeling"
+        static let concernQuestion = String(localized: "healthform.concern.question")
+
+        /// chip「睡眠」短标。zh: "睡眠";en: "Sleep"
+        static let concernSleep = String(localized: "healthform.concern.sleep")
+
+        /// chip「疲劳」短标。zh: "疲劳";en: "Fatigue"
+        static let concernFatigue = String(localized: "healthform.concern.fatigue")
+
+        /// chip「体重」短标。zh: "体重";en: "Weight"
+        static let concernWeight = String(localized: "healthform.concern.weight")
+
+        /// chip「情绪」短标。zh: "情绪";en: "Mood"
+        static let concernMood = String(localized: "healthform.concern.mood")
+
+        /// chip「其他」短标。zh: "其他";en: "Other"
+        static let concernOther = String(localized: "healthform.concern.other")
+
+        /// 「睡眠」选中 detail 注。
+        /// zh: "入睡难 / 醒得早 / 不解乏";en: "Hard to fall asleep / waking early / unrefreshed"
+        static let concernSleepDetail = String(localized: "healthform.concern.sleep.detail")
+
+        /// 「疲劳」选中 detail 注。
+        /// zh: "工作日长期精力不济";en: "Running on empty on workdays"
+        static let concernFatigueDetail = String(localized: "healthform.concern.fatigue.detail")
+
+        /// 「体重」选中 detail 注。
+        /// zh: "代谢 / 食欲 / 体型";en: "Metabolism / appetite / body shape"
+        static let concernWeightDetail = String(localized: "healthform.concern.weight.detail")
+
+        /// 「情绪」选中 detail 注。
+        /// zh: "焦虑 / 低落 / 易怒";en: "Anxiety / low mood / irritability"
+        static let concernMoodDetail = String(localized: "healthform.concern.mood.detail")
+
+        /// 「其他」选中 detail 注。
+        /// zh: "暂无法填细节,仅告知大类";en: "No details for now — just the category"
+        static let concernOtherDetail = String(localized: "healthform.concern.other.detail")
+
+        /// 提交 CTA 标题(M4/M5 共用)。
+        /// zh: "生成本章";en: "Generate this chapter"
+        static let ctaGenerate = String(localized: "healthform.cta.generate")
+
+        /// 提交 CTA loading(M4/M5 共用)。
+        /// zh: "生成中…";en: "Divining…"
+        static let ctaLoading = String(localized: "healthform.cta.loading")
+
+        /// CTA 之下「稍后」Micro 注(M4/M5 共用)。
+        /// zh: "稍后在章节内补答也可";en: "You can also answer later in the chapter"
+        static let ctaLater = String(localized: "healthform.cta.later")
+    }
+
+    // MARK: - M5 财富输入表单(WealthInputForm;i18n 补录 2026-08-29)
+
+    /// M5 财富结构「生成前两问」输入 sheet。
+    /// 章头「取消」走 `L10n.Common.cancel`,「必答」/「生成本章」等走 `L10n.HealthForm`(共用)。
+    /// preference value(保守/平衡/进攻)是提交 payload,不本地化,不进本表。
+    enum WealthForm {
+        /// 章头 kicker。
+        /// zh: "第 陆 章 · 生成前两问";en: "Chapter VI · Two questions first"
+        static let kicker = String(localized: "wealthform.kicker")
+
+        /// 章题。
+        /// zh: "财富结构 · 因你而异";en: "Wealth & structure · shaped by you"
+        static let title = String(localized: "wealthform.title")
+
+        /// 副题(章题之下)。
+        /// zh: "这一章结合你的资产概况与风险偏好推演,答案只影响本章内容。自我认知参考,不构成投资建议。"
+        /// en: "This chapter draws on your assets and risk appetite. Your answers shape this chapter only. Self-knowledge only — not investment advice."
+        static let subtitle = String(localized: "wealthform.subtitle")
+
+        /// Q1 问题名(问题标签与 TextField 标题共用同一 key)。
+        /// zh: "资产 / 收入概况";en: "Assets & income snapshot"
+        static let assetsQuestion = String(localized: "wealthform.assets.question")
+
+        /// Q1 输入占位。
+        /// zh: "如:中等收入,有积蓄,无房产";en: "e.g. median income, some savings, no property"
+        static let assetsPlaceholder = String(localized: "wealthform.assets.placeholder")
+
+        /// Q1 脚注(计数器左侧)。
+        /// zh: "可粗略,不需精确数字";en: "Rough is fine — no exact numbers"
+        static let assetsHint = String(localized: "wealthform.assets.hint")
+
+        /// Q2 问题名。
+        /// zh: "风险偏好";en: "Risk appetite"
+        static let riskQuestion = String(localized: "wealthform.risk.question")
+
+        /// chip「保守」短标。zh: "保守";en: "Conservative"
+        static let riskConservative = String(localized: "wealthform.risk.conservative")
+
+        /// chip「平衡」短标。zh: "平衡";en: "Balanced"
+        static let riskBalanced = String(localized: "wealthform.risk.balanced")
+
+        /// chip「进攻」短标。zh: "进攻";en: "Aggressive"
+        static let riskAggressive = String(localized: "wealthform.risk.aggressive")
+
+        /// 「保守」选中 hint 注。
+        /// zh: "保本为先,不愿承担亏损";en: "Capital first — no losses please"
+        static let riskConservativeHint = String(localized: "wealthform.risk.conservative.hint")
+
+        /// 「平衡」选中 hint 注。
+        /// zh: "中等风险,稳健增长";en: "Moderate risk, steady growth"
+        static let riskBalancedHint = String(localized: "wealthform.risk.balanced.hint")
+
+        /// 「进攻」选中 hint 注。
+        /// zh: "高波动换高回报可能";en: "High volatility for a shot at high returns"
+        static let riskAggressiveHint = String(localized: "wealthform.risk.aggressive.hint")
+    }
+
     // MARK: - 共享组件
 
-    /// 共享文案(跨模块复用:CountdownResetLabel / DailyLimitReachedView)。
+    /// 共享文案(跨模块复用:CountdownResetLabel / DailyLimitReachedView / M4-M5 章头取消)。
     enum Common {
+        /// 取消按钮(M4/M5 输入 sheet 章头等)。
+        /// zh: "取消";en: "Cancel"
+        static let cancel = String(localized: "common.cancel")
+
         /// 达上限提示(zh="今日机缘已尽,明日再来")
         static let limitReached = String(localized: "common.limitReached")
 

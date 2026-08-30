@@ -44,8 +44,8 @@ struct BirthFormView: View {
                 formErrorBlock
 
                 PrimaryCTAButton(
-                    title: "开始排盘",
-                    loadingTitle: "排盘布算中",
+                    title: L10n.BirthForm.ctaStart,
+                    loadingTitle: L10n.BirthForm.ctaLoading,
                     isLoading: false,
                     action: onSubmit
                 )
@@ -60,11 +60,11 @@ struct BirthFormView: View {
     // MARK: - 命盘别名
 
     private var aliasSection: some View {
-        fieldSection(title: "命盘别名", focused: focusedField == .alias) {
+        fieldSection(title: L10n.BirthForm.aliasLabel, focused: focusedField == .alias) {
             TextField(
-                "命盘别名",
+                L10n.BirthForm.aliasLabel,
                 text: $vm.alias,
-                prompt: Text("我自己 / 妈妈 / 男友")
+                prompt: Text(L10n.BirthForm.aliasPlaceholder)
                     .font(BaziFont.body(size: 16))
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
             )
@@ -78,7 +78,7 @@ struct BirthFormView: View {
     // MARK: - 出生日期与时刻
 
     private var dateSection: some View {
-        fieldSection(title: "出生时间") {
+        fieldSection(title: L10n.BirthForm.birthDatetimeLabel) {
             Button {
                 HapticEngine.light()
                 showDatePicker = true
@@ -94,7 +94,7 @@ struct BirthFormView: View {
                 }
             }
             .buttonStyle(.plain)
-            .accessibilityLabel("出生日期与时刻")
+            .accessibilityLabel(L10n.BirthForm.datePickerTitle)
             .accessibilityValue(birthDateText)
         }
         .sheet(isPresented: $showDatePicker) {
@@ -105,7 +105,7 @@ struct BirthFormView: View {
     /// 日期 wheel sheet:与原 compact DatePicker 同一绑定 / 范围 / 时区环境(WYSIWYG)。
     private var datePickerSheet: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.md) {
-            Text("出生日期与时刻")
+            Text(L10n.BirthForm.datePickerTitle)
                 .font(BaziFont.body(size: 15))
                 .foregroundStyle(BaziTheme.ink)
             DatePicker(
@@ -147,12 +147,12 @@ struct BirthFormView: View {
 
     private var shichenSection: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.sm) {
-            fieldLabel("时辰快捷选(可选)")
+            fieldLabel(L10n.BirthForm.hourQuickPickLabel)
             DisclosureGroup {
                 shichenGrid
                     .padding(.top, BaziTheme.Spacing.sm)
             } label: {
-                Text("只知时辰不知精确时间?点此选")
+                Text(L10n.BirthForm.hourQuickPickHint)
                     .font(BaziFont.caption(size: 12))
                     .foregroundStyle(BaziTheme.inkMuted)
             }
@@ -213,10 +213,10 @@ struct BirthFormView: View {
 
     private var genderSection: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.sm) {
-            fieldLabel("性别")
+            fieldLabel(L10n.BirthForm.genderLabel)
             HStack(spacing: 14) {
-                genderChip("男", value: "male")
-                genderChip("女", value: "female")
+                genderChip(L10n.BirthForm.genderMale, value: "male")
+                genderChip(L10n.BirthForm.genderFemale, value: "female")
             }
         }
     }
@@ -251,7 +251,7 @@ struct BirthFormView: View {
 
     private var placeSection: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.sm) {
-            fieldLabel("出生地")
+            fieldLabel(L10n.BirthForm.birthplaceLabel)
             // S05:全球城市搜索 + sheet 内「自定义地点」(经度+时区必填)
             CityPickerField(selection: $vm.selectedPlace, style: .underlined)
             Text(L10n.CitySearch.customEntryHint)

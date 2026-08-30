@@ -28,11 +28,12 @@ struct WealthInputForm: View {
     /// 取消回调
     let onCancel: () -> Void
 
-    /// 偏好三选项(对齐 v1.md M5 任务描述 + backend spike 默认值;value 不变)
+    /// 偏好三选项(对齐 v1.md M5 任务描述 + backend spike 默认值;
+    /// 只本地化 label/hint,value 保持中文字面量不变)
     private let preferenceOptions: [(label: String, value: String, hint: String)] = [
-        ("保守", "保守", "保本为先,不愿承担亏损"),
-        ("平衡", "平衡", "中等风险,稳健增长"),
-        ("进攻", "进攻", "高波动换高回报可能"),
+        (L10n.WealthForm.riskConservative, "保守", L10n.WealthForm.riskConservativeHint),
+        (L10n.WealthForm.riskBalanced, "平衡", L10n.WealthForm.riskBalancedHint),
+        (L10n.WealthForm.riskAggressive, "进攻", L10n.WealthForm.riskAggressiveHint),
     ]
 
     /// 键盘聚焦态(Q1 是唯一真键盘输入框;聚焦下划线转朱红,O2 同规格)
@@ -75,23 +76,23 @@ struct WealthInputForm: View {
     private var headBlock: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
-                Text("第 陆 章 · 生成前两问")
+                Text(L10n.WealthForm.kicker)
                     .font(BaziFont.caption(size: 10))
                     .tracking(4)
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
                 Spacer(minLength: 12)
                 Button(action: onCancel) {
-                    Text("取消")
+                    Text(L10n.Common.cancel)
                         .font(BaziFont.caption(size: 11))
                         .foregroundStyle(BaziTheme.inkMuted)
                         .padding(.vertical, 2)
                 }
             }
-            Text("财富结构 · 因你而异")
+            Text(L10n.WealthForm.title)
                 .font(BaziFont.display(size: 20))
                 .tracking(3)
                 .foregroundStyle(BaziTheme.ink)
-            Text("这一章结合你的资产概况与风险偏好推演,答案只影响本章内容。自我认知参考,不构成投资建议。")
+            Text(L10n.WealthForm.subtitle)
                 .font(BaziFont.caption(size: 11))
                 .tracking(1.3)
                 .lineSpacing(5)
@@ -103,11 +104,11 @@ struct WealthInputForm: View {
 
     private var assetsQuestion: some View {
         VStack(alignment: .leading, spacing: 12) {
-            questionLabel("资产 / 收入概况", requirement: "必答")
+            questionLabel(L10n.WealthForm.assetsQuestion, requirement: L10n.HealthForm.required)
             TextField(
-                "资产 / 收入概况",
+                L10n.WealthForm.assetsQuestion,
                 text: $assetsSummary,
-                prompt: Text("如:中等收入,有积蓄,无房产")
+                prompt: Text(L10n.WealthForm.assetsPlaceholder)
                     .font(BaziFont.body(size: 15))
                     .foregroundStyle(BaziTheme.inkMutedSecondary),
                 axis: .vertical
@@ -138,7 +139,7 @@ struct WealthInputForm: View {
                 }
             }
             HStack(spacing: BaziTheme.Spacing.xs) {
-                Text("可粗略,不需精确数字")
+                Text(L10n.WealthForm.assetsHint)
                     .font(BaziFont.caption(size: 11))
                     .tracking(1)
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
@@ -154,7 +155,7 @@ struct WealthInputForm: View {
 
     private var preferenceQuestion: some View {
         VStack(alignment: .leading, spacing: 12) {
-            questionLabel("风险偏好", requirement: "必答")
+            questionLabel(L10n.WealthForm.riskQuestion, requirement: L10n.HealthForm.required)
             FlowLayout(spacing: 10) {
                 ForEach(preferenceOptions, id: \.value) { option in
                     chip(option)
@@ -200,13 +201,13 @@ struct WealthInputForm: View {
     private var footBlock: some View {
         VStack(spacing: 12) {
             PrimaryCTAButton(
-                title: "生成本章",
-                loadingTitle: "生成中…",
+                title: L10n.HealthForm.ctaGenerate,
+                loadingTitle: L10n.HealthForm.ctaLoading,
                 isLoading: false,
                 isEnabled: isValid,
                 action: { onSubmit(assetsSummary, preference) }
             )
-            Text("稍后在章节内补答也可")
+            Text(L10n.HealthForm.ctaLater)
                 .font(BaziFont.caption(size: 10.5))
                 .tracking(2)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)

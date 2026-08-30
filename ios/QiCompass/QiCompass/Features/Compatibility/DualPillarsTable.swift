@@ -5,7 +5,7 @@ import SwiftUI
 /// 抽出此结构后,DualPillarsTable 不依赖具体数据源:
 /// A 盘从本地 ChartSnapshot 解;模式 A 下 B 盘同;模式 B 下 B 从 response.personBChart 取。
 struct DualPillarSource: Identifiable, Equatable {
-    let position: String       // "年柱" / "月柱" / "日柱" / "时柱"
+    let position: String       // 年/月/日/时柱位标签(L10n.Compatibility.dual*Pillar 本地化)
     let ganA: String
     let zhiA: String
     let nayinA: String
@@ -32,7 +32,7 @@ struct DualPillarsTable: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            Text("双盘对比")
+            Text(L10n.Compatibility.dualTitle)
                 .font(BaziFont.caption(size: 10))
                 .tracking(4)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
@@ -128,28 +128,28 @@ extension DualPillarSource {
         let pb = b.pillars
         return [
             DualPillarSource(
-                position: "年柱",
+                position: L10n.Compatibility.dualYearPillar,
                 ganA: pa.year.gan, zhiA: pa.year.zhi, nayinA: pa.year.nayin,
                 ganElementA: pa.year.ganElement, zhiElementA: pa.year.zhiElement,
                 ganB: pb.year.gan, zhiB: pb.year.zhi, nayinB: pb.year.nayin,
                 ganElementB: pb.year.ganElement, zhiElementB: pb.year.zhiElement
             ),
             DualPillarSource(
-                position: "月柱",
+                position: L10n.Compatibility.dualMonthPillar,
                 ganA: pa.month.gan, zhiA: pa.month.zhi, nayinA: pa.month.nayin,
                 ganElementA: pa.month.ganElement, zhiElementA: pa.month.zhiElement,
                 ganB: pb.month.gan, zhiB: pb.month.zhi, nayinB: pb.month.nayin,
                 ganElementB: pb.month.ganElement, zhiElementB: pb.month.zhiElement
             ),
             DualPillarSource(
-                position: "日柱",
+                position: L10n.Compatibility.dualDayPillar,
                 ganA: pa.day.gan, zhiA: pa.day.zhi, nayinA: pa.day.nayin,
                 ganElementA: pa.day.ganElement, zhiElementA: pa.day.zhiElement,
                 ganB: pb.day.gan, zhiB: pb.day.zhi, nayinB: pb.day.nayin,
                 ganElementB: pb.day.ganElement, zhiElementB: pb.day.zhiElement
             ),
             DualPillarSource(
-                position: "时柱",
+                position: L10n.Compatibility.dualHourPillar,
                 ganA: pa.hour.gan, zhiA: pa.hour.zhi, nayinA: pa.hour.nayin,
                 ganElementA: pa.hour.ganElement, zhiElementA: pa.hour.zhiElement,
                 ganB: pb.hour.gan, zhiB: pb.hour.zhi, nayinB: pb.hour.nayin,

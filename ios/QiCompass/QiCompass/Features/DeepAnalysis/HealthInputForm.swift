@@ -32,13 +32,14 @@ struct HealthInputForm: View {
     /// 取消回调(用户点"取消"或下滑)
     let onCancel: () -> Void
 
-    /// 选项(chip 短标 + detail 选中后下方 Micro 注;value 对齐 backend 契约不变)
+    /// 选项(chip 短标 + detail 选中后下方 Micro 注;value 对齐 backend 契约不变,
+    /// 只本地化 label/detail,value 保持中文字面量)
     private let concernOptions: [(label: String, value: String, detail: String)] = [
-        ("睡眠", "睡眠", "入睡难 / 醒得早 / 不解乏"),
-        ("疲劳", "疲劳", "工作日长期精力不济"),
-        ("体重", "体重", "代谢 / 食欲 / 体型"),
-        ("情绪", "情绪", "焦虑 / 低落 / 易怒"),
-        ("其他", "其他", "暂无法填细节,仅告知大类"),
+        (L10n.HealthForm.concernSleep, "睡眠", L10n.HealthForm.concernSleepDetail),
+        (L10n.HealthForm.concernFatigue, "疲劳", L10n.HealthForm.concernFatigueDetail),
+        (L10n.HealthForm.concernWeight, "体重", L10n.HealthForm.concernWeightDetail),
+        (L10n.HealthForm.concernMood, "情绪", L10n.HealthForm.concernMoodDetail),
+        (L10n.HealthForm.concernOther, "其他", L10n.HealthForm.concernOtherDetail),
     ]
 
     init(
@@ -77,23 +78,23 @@ struct HealthInputForm: View {
     private var headBlock: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline) {
-                Text("第 伍 章 · 生成前两问")
+                Text(L10n.HealthForm.kicker)
                     .font(BaziFont.caption(size: 10))
                     .tracking(4)
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
                 Spacer(minLength: 12)
                 Button(action: onCancel) {
-                    Text("取消")
+                    Text(L10n.Common.cancel)
                         .font(BaziFont.caption(size: 11))
                         .foregroundStyle(BaziTheme.inkMuted)
                         .padding(.vertical, 2)
                 }
             }
-            Text("健康续航 · 因你而异")
+            Text(L10n.HealthForm.title)
                 .font(BaziFont.display(size: 20))
                 .tracking(3)
                 .foregroundStyle(BaziTheme.ink)
-            Text("这一章结合你的年龄与近况推演,答案只影响本章内容。仅供参考,不替代医生。")
+            Text(L10n.HealthForm.subtitle)
                 .font(BaziFont.caption(size: 11))
                 .tracking(1.3)
                 .lineSpacing(5)
@@ -105,7 +106,7 @@ struct HealthInputForm: View {
 
     private var ageQuestion: some View {
         VStack(alignment: .leading, spacing: 12) {
-            questionLabel("你的年龄", requirement: "必答")
+            questionLabel(L10n.HealthForm.ageQuestion, requirement: L10n.HealthForm.required)
             ageStepper
         }
     }
@@ -114,17 +115,17 @@ struct HealthInputForm: View {
     /// 内侧竖 hairline 分隔;按钮边界 clamp 0-150(backend ge=0 le=150)。
     private var ageStepper: some View {
         HStack(spacing: 0) {
-            stepButton("−", accessibilityLabel: "减小年龄") {
+            stepButton("−", accessibilityLabel: L10n.HealthForm.ageDecrease) {
                 if age > 0 { age -= 1 }
             }
             stepDivider
-            Text("\(age) 岁")
+            Text(L10n.HealthForm.ageValue(age))
                 .font(BaziFont.body(size: 15))
                 .foregroundStyle(BaziTheme.ink)
                 .frame(width: 84)
                 .lineLimit(1)
             stepDivider
-            stepButton("＋", accessibilityLabel: "增大年龄") {
+            stepButton("＋", accessibilityLabel: L10n.HealthForm.ageIncrease) {
                 if age < 150 { age += 1 }
             }
         }
@@ -161,7 +162,7 @@ struct HealthInputForm: View {
 
     private var concernQuestion: some View {
         VStack(alignment: .leading, spacing: 12) {
-            questionLabel("近来的身体状况", requirement: "必答")
+            questionLabel(L10n.HealthForm.concernQuestion, requirement: L10n.HealthForm.required)
             FlowLayout(spacing: 10) {
                 ForEach(concernOptions, id: \.value) { option in
                     chip(option)
@@ -208,13 +209,13 @@ struct HealthInputForm: View {
     private var footBlock: some View {
         VStack(spacing: 12) {
             PrimaryCTAButton(
-                title: "生成本章",
-                loadingTitle: "生成中…",
+                title: L10n.HealthForm.ctaGenerate,
+                loadingTitle: L10n.HealthForm.ctaLoading,
                 isLoading: false,
                 isEnabled: isValid,
                 action: { onSubmit(age, currentConcern) }
             )
-            Text("稍后在章节内补答也可")
+            Text(L10n.HealthForm.ctaLater)
                 .font(BaziFont.caption(size: 10.5))
                 .tracking(2)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
