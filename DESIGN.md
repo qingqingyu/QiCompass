@@ -109,7 +109,7 @@ iOS 系统字体,**不打包任何自定义字体**。楷体走 `Font.custom("Ka
 - **Border radius:** `sm 4pt`(默认)/ CTA 5pt / `md 8pt`(sheet)/ `lg 12pt`(modal);Capsule 只留给 chip
 - **章节编号:** 大写数字(壹贰叁肆伍陆柒捌)圆徽——实线圆=可读,虚线圆=锁定(`NumeralBadge`)
 - **付费标识:** `PaidTag`「付费」白字朱底小方标,旋转 -6°,**只此一处用朱底块**
-- **Tab:** 纯文字(今日 / 深度 / 合盘 / 我的),tint=ink;系统 TabView(无 SF Symbol 图标)
+- **Tab:** 墨物线描四枚矢量图标(`TabIcons.swift`)+ 楷体文字,tint=ink;系统 TabView + ImageRenderer 模板渲染(2026-08-30 拍板,替代原纯文字 tab;几何事实源 `~/.gstack/projects/qingqingyu-QiCompass/designs/tab-icons-20260830/finalized.html`。今日=墨圆环抱点(EnsoView 同源)/深度=三叠横墨/合盘=双环交叠/我的=未钤空心印;朱红不出现在 tab 层)
 
 ## Motion
 
@@ -174,7 +174,7 @@ enum BaziTheme {
 |---|---|---|
 | `cinnabar` 全部引用 | 逐个复核:强调误用 → `ink`;印章时刻保留 | 朱红语义收窄 |
 | `PrimaryCTAButton` 样式 | bg `inkDeep` / fg `onInkDeep` / radius 5 / 尾端朱色菱形印点 | 全 App CTA 浓墨化 |
-| `Label(_, systemImage:)` tabItem | 纯 `Text`(今日/深度/合盘/我的) + `.tint(ink)` | 文字 tab |
+| `Label(_, systemImage:)` tabItem | `Label { Text } icon: { TabIcons 模板图 }` + `.tint(ink)` | 墨物线描矢量 tab(2026-08-30 迭代) |
 | `AccentColor.colorset`(#C9A03C 金) | `#F3F1EC`(launch 底色=转场底色) | 启动屏与转场无缝 |
 | `WelcomeBackground` 资产 | 删除(仅 WelcomePage 引用,改原生墨圆构图) | 壁画图与新语言冲突 |
 | `Capsule()` 非 chip 用途 | radius 4-5 圆角 | Capsule 只留 chip |

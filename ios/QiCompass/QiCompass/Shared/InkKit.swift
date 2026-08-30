@@ -70,23 +70,27 @@ struct EnsoView: View {
     /// 主弧笔宽,默认 size × 0.063(参考屏 19/300 比例)。
     var strokeWidth: CGFloat?
     var breathing = false
+    /// false = 跳过入场动画直出完整墨圆(ImageRenderer 静态渲染 / tab 图标场景)。
+    var animated = true
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var progress: CGFloat = 0
     @State private var breathingOn = false
 
     private var stroke: CGFloat { strokeWidth ?? size * 0.063 }
+    /// 非动画模式恒为 1,不依赖 onAppear(ImageRenderer 快照不保证跑 onAppear)。
+    private var effectiveProgress: CGFloat { animated ? progress : 1 }
 
     var body: some View {
         ZStack {
             // 主弧:约 84% 圆周,起收笔留缺口
             Circle()
-                .trim(from: 0.05, to: 0.05 + 0.84 * progress)
+                .trim(from: 0.05, to: 0.05 + 0.84 * effectiveProgress)
                 .stroke(BaziTheme.inkDeep,
                         style: StrokeStyle(lineWidth: stroke, lineCap: .round))
             // 飞白弧:收笔方向的细弧,半透明
             Circle()
-                .trim(from: 0.90, to: 0.90 + 0.085 * progress)
+                .trim(from: 0.90, to: 0.90 + 0.085 * effectiveProgress)
                 .stroke(BaziTheme.inkDeep.opacity(0.55),
                         style: StrokeStyle(lineWidth: stroke * 0.32, lineCap: .round))
             // 枯笔墨点:确定性位置,入场尾段浮现
@@ -94,9 +98,10 @@ struct EnsoView: View {
         }
         .frame(width: size, height: size)
         .rotationEffect(.degrees(-8))
-        .blur(radius: (1 - progress) * 7)
+        .blur(radius: (1 - effectiveProgress) * 7)
         .opacity(breathingOn ? 0.92 : 1)
         .onAppear {
+            guard animated else { return }
             if reduceMotion {
                 progress = 1
             } else {
@@ -116,7 +121,7 @@ struct EnsoView: View {
     /// 三粒枯笔墨点(固定相对坐标,不随布局随机)。
     @ViewBuilder
     private var dryBrushSpecks: some View {
-        let reveal = max(0, Double(progress - 0.85)) / 0.15
+        let reveal = max(0, Double(effectiveProgress - 0.85)) / 0.15
         if reveal > 0 {
             Group {
                 ellipseSpeck(relative: CGPoint(x: 0.28, y: 0.70), w: 0.023, h: 0.008, angle: -32)

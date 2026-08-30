@@ -95,6 +95,7 @@
 		9C000000000000000000003F /* PrimaryCTAButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003F /* PrimaryCTAButton.swift */; };
 		9C0000000000000000000079 /* InkKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000079 /* InkKit.swift */; };
 		9C000000000000000000007A /* SplashTransitionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000007A /* SplashTransitionView.swift */; };
+		9C000000000000000000007B /* TabIcons.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000007B /* TabIcons.swift */; };
 		9C0000000000000000000040 /* Entitlement.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000040 /* Entitlement.swift */; };
 		9C0000000000000000000041 /* UserIdentity.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000041 /* UserIdentity.swift */; };
 		9C0000000000000000000042 /* EntitlementStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000042 /* EntitlementStore.swift */; };
@@ -250,6 +251,7 @@
 		9C100000000000000000003F /* PrimaryCTAButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrimaryCTAButton.swift; path = QiCompass/Shared/PrimaryCTAButton.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000079 /* InkKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InkKit.swift; path = QiCompass/Shared/InkKit.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000007A /* SplashTransitionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SplashTransitionView.swift; path = QiCompass/Shared/SplashTransitionView.swift; sourceTree = SOURCE_ROOT; };
+		9C100000000000000000007B /* TabIcons.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TabIcons.swift; path = QiCompass/Shared/TabIcons.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000040 /* Entitlement.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = Entitlement.swift; path = QiCompass/Models/Entitlement.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000041 /* UserIdentity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserIdentity.swift; path = QiCompass/Services/UserIdentity.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000042 /* EntitlementStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = EntitlementStore.swift; path = QiCompass/Services/EntitlementStore.swift; sourceTree = SOURCE_ROOT; };
@@ -522,6 +524,7 @@
 				9C100000000000000000003F /* PrimaryCTAButton.swift */,
 				9C1000000000000000000079 /* InkKit.swift */,
 				9C100000000000000000007A /* SplashTransitionView.swift */,
+				9C100000000000000000007B /* TabIcons.swift */,
 				9C1000000000000000000060 /* ZodiacHelper.swift */,
 			);
 			path = Shared;
@@ -815,6 +818,7 @@
 				9C000000000000000000003F /* PrimaryCTAButton.swift in Sources */,
 				9C0000000000000000000079 /* InkKit.swift in Sources */,
 				9C000000000000000000007A /* SplashTransitionView.swift in Sources */,
+				9C000000000000000000007B /* TabIcons.swift in Sources */,
 				9C0000000000000000000040 /* Entitlement.swift in Sources */,
 				9C0000000000000000000041 /* UserIdentity.swift in Sources */,
 				9C0000000000000000000042 /* EntitlementStore.swift in Sources */,
