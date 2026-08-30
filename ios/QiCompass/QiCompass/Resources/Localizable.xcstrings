@@ -24,6 +24,16 @@
         }
       }
     },
+    "%@ ID:%@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "%1$@ ID:%2$@"
+          }
+        }
+      }
+    },
     "%@%lld" : {
       "localizations" : {
         "zh-Hans" : {
@@ -33,6 +43,9 @@
           }
         }
       }
+    },
+    "%@内容" : {
+
     },
     "%lld / 500" : {
 
@@ -88,9 +101,6 @@
 
     },
     "AI 命书" : {
-
-    },
-    "Apple ID:%@" : {
 
     },
     "B 流年" : {
@@ -839,19 +849,19 @@
     "M5 财富输入" : {
 
     },
-    "onboarding.form.privacyLine" : {
+    "onboarding.calculating.steps" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your chart stays on your phone · No account"
+            "value" : "Pillars · Ten Gods · Omens · Luck cycles"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盘只存你手机 · 无账号"
+            "value" : "四柱 · 十神 · 神煞 · 大运"
           }
         }
       }
@@ -873,19 +883,19 @@
         }
       }
     },
-    "onboarding.calculating.steps" : {
+    "onboarding.form.privacyLine" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Pillars · Ten Gods · Omens · Luck cycles"
+            "value" : "Your chart stays on your phone · No account"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "四柱 · 十神 · 神煞 · 大运"
+            "value" : "命盘只存你手机 · 无账号"
           }
         }
       }
@@ -1335,22 +1345,38 @@
         }
       }
     },
-    "五行 · %@" : {
+    "一次买断 · 全设备同步" : {
 
+    },
+    "与 %@" : {
+
+    },
+    "五行%@ · 日主%@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "五行%1$@ · 日主%2$@"
+          }
+        }
+      }
     },
     "五行分布" : {
 
     },
-    "今日剩余 %lld 次" : {
+    "今日" : {
 
     },
-    "付费" : {
+    "今日剩余 %lld 次" : {
 
     },
     "付费内容,解锁后可生成" : {
 
     },
     "使用 Apple 登录" : {
+
+    },
+    "使用 Google 登录" : {
 
     },
     "出生地:%@" : {
@@ -1366,6 +1392,9 @@
 
     },
     "加载中…" : {
+
+    },
+    "印章%@" : {
 
     },
     "去深度解析" : {
@@ -1390,6 +1419,9 @@
 
     },
     "可选,如「相亲对象甲」" : {
+
+    },
+    "合拍定性 · 无评分" : {
 
     },
     "合盘" : {
@@ -1446,10 +1478,7 @@
     "子时规则默认" : {
 
     },
-    "定性评估" : {
-
-    },
-    "展开详情" : {
+    "左滑录入生辰 ›" : {
 
     },
     "已加入 %lld 位" : {
@@ -1485,6 +1514,9 @@
     "性别" : {
 
     },
+    "总览可读" : {
+
+    },
     "我的" : {
 
     },
@@ -1494,16 +1526,13 @@
     "我自己 / 妈妈 / 男友" : {
 
     },
-    "推演失败" : {
+    "推演失败 · 此对隔离" : {
 
     },
     "提交" : {
 
     },
     "收入形态匹配度与漏财止损规则。请先提供当前状态,LLM 才能给针对性建议(不构成投资建议,自我认知用)。" : {
-
-    },
-    "收起详情" : {
 
     },
     "改名" : {
@@ -1513,9 +1542,6 @@
 
     },
     "新建命盘" : {
-
-    },
-    "日主 · %@" : {
 
     },
     "日主 %@" : {
@@ -1536,6 +1562,9 @@
     "本命盘未命中神煞" : {
 
     },
+    "查看 ›" : {
+
+    },
     "查看你的今日运势" : {
 
     },
@@ -1552,6 +1581,9 @@
 
     },
     "流年同步(未来 3 年)" : {
+
+    },
+    "深度" : {
 
     },
     "深度解析" : {
@@ -1611,6 +1643,16 @@
     "称呼" : {
 
     },
+    "第%@章%@" : {
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "new",
+            "value" : "第%1$@章%2$@"
+          }
+        }
+      }
+    },
     "等待上游模块完成…" : {
 
     },
@@ -1620,7 +1662,7 @@
     "编辑名单" : {
 
     },
-    "解锁 %lld 章付费深度内容" : {
+    "解锁余下%@章" : {
 
     },
     "试用新版模块化分析(M0-M7 八模块)" : {
@@ -1666,6 +1708,9 @@
 
     },
     "重试中…" : {
+
+    },
+    "重试这一对" : {
 
     },
     "长生:%@" : {
