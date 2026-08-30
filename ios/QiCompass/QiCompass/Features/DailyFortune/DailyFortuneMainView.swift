@@ -88,13 +88,6 @@ struct DailyFortuneMainView: View {
                     onRetry: onGenerateInterpret,
                 )
 
-                // 12 时辰(默认折叠,决策 §1.E)
-                HourPillarsSection(
-                    hourPillars: response.hourPillars,
-                    ziHourRule: ziHourRule,
-                    businessDate: businessDate,
-                )
-
                 // 黄历宜/忌
                 HuangliSection(yi: response.huangliYi, ji: response.huangliJi)
 

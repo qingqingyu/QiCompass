@@ -57,7 +57,6 @@
 		9C0000000000000000000021 /* DailyFortuneMainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000021 /* DailyFortuneMainView.swift */; };
 		9C0000000000000000000022 /* DailyFortuneHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000022 /* DailyFortuneHeaderView.swift */; };
 		9C0000000000000000000023 /* DailyInterpretationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000023 /* DailyInterpretationSection.swift */; };
-		9C0000000000000000000024 /* HourPillarsSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000024 /* HourPillarsSection.swift */; };
 		9C0000000000000000000025 /* HuangliSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000025 /* HuangliSection.swift */; };
 		9C0000000000000000000026 /* TomorrowPreviewSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000026 /* TomorrowPreviewSection.swift */; };
 		9C0000000000000000000027 /* DailyFortuneHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000027 /* DailyFortuneHistoryView.swift */; };
@@ -213,7 +212,6 @@
 		9C1000000000000000000021 /* DailyFortuneMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneMainView.swift; path = QiCompass/Features/DailyFortune/DailyFortuneMainView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000022 /* DailyFortuneHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneHeaderView.swift; path = QiCompass/Features/DailyFortune/DailyFortuneHeaderView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000023 /* DailyInterpretationSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyInterpretationSection.swift; path = QiCompass/Features/DailyFortune/DailyInterpretationSection.swift; sourceTree = SOURCE_ROOT; };
-		9C1000000000000000000024 /* HourPillarsSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HourPillarsSection.swift; path = QiCompass/Features/DailyFortune/HourPillarsSection.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000025 /* HuangliSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HuangliSection.swift; path = QiCompass/Features/DailyFortune/HuangliSection.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000026 /* TomorrowPreviewSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TomorrowPreviewSection.swift; path = QiCompass/Features/DailyFortune/TomorrowPreviewSection.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000027 /* DailyFortuneHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneHistoryView.swift; path = QiCompass/Features/DailyFortune/DailyFortuneHistoryView.swift; sourceTree = SOURCE_ROOT; };
@@ -566,7 +564,6 @@
 				9C1000000000000000000021 /* DailyFortuneMainView.swift */,
 				9C1000000000000000000022 /* DailyFortuneHeaderView.swift */,
 				9C1000000000000000000023 /* DailyInterpretationSection.swift */,
-				9C1000000000000000000024 /* HourPillarsSection.swift */,
 				9C1000000000000000000025 /* HuangliSection.swift */,
 				9C1000000000000000000026 /* TomorrowPreviewSection.swift */,
 				9C1000000000000000000027 /* DailyFortuneHistoryView.swift */,
@@ -768,7 +765,6 @@
 				9C0000000000000000000021 /* DailyFortuneMainView.swift in Sources */,
 				9C0000000000000000000022 /* DailyFortuneHeaderView.swift in Sources */,
 				9C0000000000000000000023 /* DailyInterpretationSection.swift in Sources */,
-				9C0000000000000000000024 /* HourPillarsSection.swift in Sources */,
 				9C0000000000000000000025 /* HuangliSection.swift in Sources */,
 				9C0000000000000000000026 /* TomorrowPreviewSection.swift in Sources */,
 				9C0000000000000000000027 /* DailyFortuneHistoryView.swift in Sources */,

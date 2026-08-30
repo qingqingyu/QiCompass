@@ -925,57 +925,9 @@
         }
       }
     },
-    "dailyfortune.hour.expandHint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Expand to see all 12 hourly pillars"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "展开查看 12 时辰详情"
-          }
-        }
-      }
-    },
-    "dailyfortune.hour.now" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Now"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "当下"
-          }
-        }
-      }
-    },
-    "dailyfortune.hour.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "12 Hourly Pillars"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "12 时辰"
-          }
-        }
-      }
-    },
+
+
+
     "dailyfortune.interpret.cached" : {
       "extractionState" : "manual",
       "localizations" : {

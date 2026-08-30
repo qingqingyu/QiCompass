@@ -275,17 +275,6 @@ enum L10n {
         /// 加载中文字(zh="推演中…", en="Divining…")
         static let interpretLoading = String(localized: "dailyfortune.interpret.loading")
 
-        // -- Hour Pillars Section --
-
-        /// 12 时辰标题(zh="12 时辰", en="12 Hourly Pillars")
-        static let hourTitle = String(localized: "dailyfortune.hour.title")
-
-        /// 折叠提示(zh="展开查看 12 时辰详情")
-        static let hourExpandHint = String(localized: "dailyfortune.hour.expandHint")
-
-        /// 当前时辰标识(zh="当下", en="Now")
-        static let hourNow = String(localized: "dailyfortune.hour.now")
-
         // -- Tomorrow Preview --
 
         /// 明日预告标题(zh="明日预告", en="Tomorrow's Preview")
