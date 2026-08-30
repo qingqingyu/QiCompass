@@ -79,9 +79,6 @@ struct DailyFortuneMainView: View {
                     onRetry: onGenerateInterpret,
                 )
 
-                // 黄历宜/忌
-                HuangliSection(yi: response.huangliYi, ji: response.huangliJi)
-
                 // 明日预告
                 TomorrowPreviewSection(preview: response.tomorrowPreview)
             }
@@ -232,8 +229,9 @@ struct DailyFortuneMainView: View {
 /// TODO 后续:可能挪到后端基于 favorable_elements + 流日关系确定性映射,
 /// 但 v1 不增加后端复杂度,前端 lookup 足够。
 ///
-/// 不复用 HuangliSection(那是通用黄历宜/忌,人人一样);
-/// 本 section 是**个性化**宜/忌(基于流日对日主的关系)。
+/// 全页唯一的宜/忌(2026-08-30 用户拍板删通用黄历块——同屏两套宜/忌语义打架,
+/// 保留本节):**个性化**宜/忌,基于流日对日主的关系,十神查表得单条关键词。
+/// 黄历数据(huangliYi/Ji)后端照常返回并进 AI 上下文,只是不再 UI 展示。
 private struct YiJiAnchorSection: View {
     let dayRelation: String
 
