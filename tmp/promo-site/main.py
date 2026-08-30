@@ -514,7 +514,9 @@ def _parse_length_tier(form) -> str:
 # ---------- 命盘问答预填(2026-08-16:命书结果页内嵌提问框) ----------
 
 # 出生信息字段白名单:命书 → 问答 同一张盘的携带口径。
-# 故意不含 ai_api_key / ai_base_url 等(key 不落页面源码,/ask 走 env fallback)。
+# 故意不含 ai_api_key / ai_base_url 等(key 不落服务端渲染的页面源码)。
+# AI 配置由 key_manager.js 在内嵌框提交瞬间从 localStorage 注入 hidden
+# fields(2026-08-30);未保存过配置则走 env fallback(_get_client_for_request)。
 _ASK_PREFILL_KEYS = (
     "birth_date", "birth_time", "gender", "longitude", "tz_offset", "city", "city_tz",
 )

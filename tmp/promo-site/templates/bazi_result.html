@@ -236,4 +236,6 @@
 <script>window.__promoMarkdown = {{ markdown_text | tojson | safe }};</script>
 {% endif %}
 <script src="/static/export.js?v=20260815a"></script>
+{# 内嵌提问框提交时注入 localStorage 保存的 AI 配置(2026-08-30,详见 key_manager.js 头注释 #7) #}
+<script src="/static/key_manager.js?v=20260830a"></script>
 {% endblock %}
