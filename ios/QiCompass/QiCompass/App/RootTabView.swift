@@ -50,26 +50,35 @@ struct RootTabView: View {
             DailyFortuneView()
                 .tag(Tab.dailyFortune)
                 .tabItem {
-                    // 水墨孤本:纯文字 tab(DESIGN.md §Layout),不用 SF Symbol 图标
-                    Text("今日")
+                    // 墨物线描四枚矢量图标(TabIcons.swift,2026-08-30 定稿),
+                    // 模板渲染交系统着色:tint=ink 选中/系统次级灰未选中,深浅色自动反转
+                    Label { Text("今日") } icon: {
+                        Image(uiImage: TabIcons.cachedToday).renderingMode(.template)
+                    }
                 }
 
             DeepAnalysisView()
                 .tag(Tab.deepAnalysis)
                 .tabItem {
-                    Text("深度")
+                    Label { Text("深度") } icon: {
+                        Image(uiImage: TabIcons.cachedDeep).renderingMode(.template)
+                    }
                 }
 
             CompatibilityView()
                 .tag(Tab.compatibility)
                 .tabItem {
-                    Text("合盘")
+                    Label { Text("合盘") } icon: {
+                        Image(uiImage: TabIcons.cachedHepan).renderingMode(.template)
+                    }
                 }
 
             ProfileView()
                 .tag(Tab.profile)
                 .tabItem {
-                    Text("我的")
+                    Label { Text("我的") } icon: {
+                        Image(uiImage: TabIcons.cachedMe).renderingMode(.template)
+                    }
                 }
         }
         .tint(BaziTheme.ink)
