@@ -306,6 +306,32 @@ enum L10n {
 
         /// 历史加载失败(zh="历史加载失败", en="Failed to load history")
         static let mainHistoryError = String(localized: "dailyfortune.main.historyError")
+
+        // -- History Lookback(2026-08-30,规则:免费 7 天 / 任意购买解锁全部) --
+
+        /// 「更早」pill 标签。
+        /// zh: "更早";en: "Earlier"
+        static let historyEarlier = String(localized: "dailyfortune.history.earlier")
+
+        /// 历史 sheet 标题(锁定态 + 清单态共用)。
+        /// zh: "历史回看";en: "History"
+        static let historySheetTitle = String(localized: "dailyfortune.history.sheetTitle")
+
+        /// sheet 完成按钮。
+        /// zh: "完成";en: "Done"
+        static let historyDone = String(localized: "dailyfortune.history.done")
+
+        /// 锁定态标题。
+        /// zh: "免费回看 7 天";en: "Free: past 7 days"
+        static let historyFreeTitle = String(localized: "dailyfortune.history.freeTitle")
+
+        /// 锁定态说明(规则一句话)。
+        /// zh: "完成任意一次购买,即可解锁全部历史回看。";en: "Any purchase unlocks your full lookback."
+        static let historyUnlockNote = String(localized: "dailyfortune.history.unlockNote")
+
+        /// 锁定态 CTA(打开付费墙;付费墙本身卖深度解析/合盘)。
+        /// zh: "解锁全部历史";en: "Unlock full history"
+        static let historyUnlockCTA = String(localized: "dailyfortune.history.unlockCTA")
     }
 
     // MARK: - 合盘模块(DualPillarsTable / SyncedFortuneTable;i18n 补录 2026-08-29)

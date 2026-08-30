@@ -84,6 +84,61 @@ final class EntitlementStore {
         }
     }
 
+    /// 「有任意一笔 active 购买」判据(每日运势历史回看解锁,MONETIZATION.md §每日运势历史回看)。
+    ///
+    /// 与 `getActive` 不同:**不限定 contentHash / module** —— 规则是
+    /// 「完成任意一次购买(深度解析或合盘,不限命盘),即解锁全部历史回看」,
+    /// 查的是用户维度的购买记录,不是某个命盘的授权。
+    /// 双轨策略与 `getActive` 一致:userId 优先,userLocalId 兜底(查询失败降级不中断)。
+    ///
+    /// - Returns: 任意一笔 active → true;无记录 / 全部 inactive(退款)→ false
+    func hasAnyActivePurchase(userLocalId: String, userId: String? = nil) -> Bool {
+        AppLogger.persistence.info(
+            "op=entitlementStore.hasAnyActivePurchase.start has_user_id=\(userId != nil, privacy: .public)"
+        )
+
+        // 双轨优先:userId(登录用户,跨设备 / 重装场景)
+        if let userId {
+            var descriptor = FetchDescriptor<Entitlement>(
+                predicate: #Predicate {
+                    $0.userId == userId && $0.isActive == true
+                }
+            )
+            descriptor.fetchLimit = 1
+            do {
+                if try modelContext.fetch(descriptor).first != nil {
+                    AppLogger.persistence.info("op=entitlementStore.hasAnyActivePurchase.ok hit=true source=userId")
+                    return true
+                }
+            } catch {
+                AppLogger.persistence.error(
+                    "op=entitlementStore.hasAnyActivePurchase userId_query_failed error=\(String(describing: error), privacy: .public)"
+                )
+                // 不 return,继续走 userLocalId 兜底(与 getActive 降级策略一致)
+            }
+        }
+
+        // 兜底:userLocalId(老数据 / 未登录购买)
+        var descriptor = FetchDescriptor<Entitlement>(
+            predicate: #Predicate {
+                $0.userLocalId == userLocalId && $0.isActive == true
+            }
+        )
+        descriptor.fetchLimit = 1
+        do {
+            let hit = try modelContext.fetch(descriptor).first != nil
+            AppLogger.persistence.info(
+                "op=entitlementStore.hasAnyActivePurchase.ok hit=\(hit, privacy: .public) source=userLocalId"
+            )
+            return hit
+        } catch {
+            AppLogger.persistence.error(
+                "op=entitlementStore.hasAnyActivePurchase userLocalId_query_failed error=\(String(describing: error), privacy: .public)"
+            )
+            return false
+        }
+    }
+
     /// 写入 entitlement(M3a/c Mock + M3b 真购买都用此入口)。
     ///
     /// 幂等:同 transactionId 已存在则覆盖(对齐后端 INSERT OR IGNORE 语义;
