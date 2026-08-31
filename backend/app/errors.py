@@ -98,3 +98,17 @@ class AppleVerificationError(BaziError):
 
     code = "APPLE_VERIFICATION_ERROR"
     http_status = 502
+
+
+# ---------- 每日运势插画(2026-08-30「一幅图」)----------
+
+
+class DailyImageLimitError(BaziError):
+    """当日全局生图量达 DAILY_IMAGE_LIMIT 上限(成本护栏)。
+
+    429 显式拒绝,不静默降级(不偷偷回旧图/不偷偷跳过生成)——
+    上限是运营闸门,触发即该被看见。
+    """
+
+    code = "DAILY_IMAGE_LIMIT"
+    http_status = 429

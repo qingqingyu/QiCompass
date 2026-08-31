@@ -14,11 +14,14 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 from .ai.cache import InterpretationCache
+from .ai.image_cache import DailyImageCache
+from .ai.image_client import ImageGenClient
 from .ai.client import create_ai_client
 from .ai.singleflight import SingleflightCoalescer
 from .api import bazi as bazi_api
 from .api import compatibility as compatibility_api
 from .api import daily_fortune as daily_fortune_api
+from .api import daily_image as daily_image_api
 from .api import entitlement as entitlement_api
 from .api import health as health_api
 from .api import interpret as interpret_api
@@ -34,6 +37,8 @@ from .config import (
     APP_STORE_ENVIRONMENT,
     APP_STORE_ISSUER_ID,
     APP_STORE_KEY_ID,
+    IMAGE_API_BASE_URL,
+    IMAGE_API_KEY,
     APP_STORE_PRIVATE_KEY,
     DB_PATH,
     MODEL_ID,
@@ -106,6 +111,16 @@ async def lifespan(app: FastAPI):
     cache.init_schema()  # 幂等;失败则启动报错(不吞)
     app.state.cache = cache
     app.state.llm_singleflight = SingleflightCoalescer()
+
+    # 每日运势插画(S2):状态缓存 + 生图客户端 + 生图 singleflight。
+    # key/base 缺失也构造,调用端点时显式 503(对齐 ai_client 策略)。
+    daily_image_cache = DailyImageCache(DB_PATH)
+    daily_image_cache.init_schema()
+    app.state.daily_image_cache = daily_image_cache
+    app.state.image_client = ImageGenClient(
+        api_key=IMAGE_API_KEY, base_url=IMAGE_API_BASE_URL,
+    )
+    app.state.image_singleflight = SingleflightCoalescer()
 
     # M2a 新增:EntitlementStore(与 InterpretationCache 共用同一 SQLite 文件,
     # 不同表:entitlement vs interpretation_cache)
@@ -210,12 +225,21 @@ app.state.apple_server_api = MockAppleServerAPI()
 # 测试环境 fallback:ASGITransport 单测不触发 lifespan,挂默认 singleflight 实例
 # 避免路由层 AttributeError(与 cache / entitlement_store 同策略)
 app.state.llm_singleflight = SingleflightCoalescer()
+# S2 每日运势插画:同策略挂默认(测试 fixture 可覆盖 image_client 为 Mock)
+_default_daily_image_cache = DailyImageCache(DB_PATH)
+_default_daily_image_cache.init_schema()
+app.state.daily_image_cache = _default_daily_image_cache
+app.state.image_client = ImageGenClient(
+    api_key=IMAGE_API_KEY, base_url=IMAGE_API_BASE_URL,
+)
+app.state.image_singleflight = SingleflightCoalescer()
 app.add_middleware(RequestIdMiddleware)
 
 app.include_router(health_api.router)
 app.include_router(bazi_api.router)
 app.include_router(compatibility_api.router)
 app.include_router(daily_fortune_api.router)
+app.include_router(daily_image_api.router)
 app.include_router(interpret_api.router)
 app.include_router(entitlement_api.router)
 app.include_router(webhooks_api.router)
