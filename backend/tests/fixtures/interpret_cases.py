@@ -67,6 +67,23 @@ BAZI_DEEP_SPECIAL_PATTERN_CONTEXT = {
     "tiaoshou_applied": False,
 }
 
+# 时辰未知版(S01 引擎输出语义:时柱字段标"未知"占位 + 喜忌留空 + unknown_hour;
+# S05 起 iOS 对无时辰盘的时柱 context 字段即按此形态构造)
+BAZI_DEEP_UNKNOWN_HOUR_CONTEXT = {
+    **BAZI_DEEP_CONTEXT,
+    "hour_gan": "未知",
+    "hour_zhi": "未知",
+    "hour_gan_element": "未知",
+    "hour_zhi_element": "未知",
+    "hour_shishen_gan": "未知",
+    "hour_hide_gan": "未知",
+    "hour_nayin": "未知",
+    "day_master_strength": "unknown_hour",
+    "favorable_elements": "",
+    "unfavorable_elements": "",
+    "tiaoshou_applied": False,
+}
+
 # 合盘 context(合成数据,A/B 两盘)
 COMPATIBILITY_CONTEXT = {
     "context_label": "婚姻",

@@ -12,6 +12,13 @@ PROMPT_VERSIONS 与模板常量放同文件邻近位置:改模板时必须 bump 
 - 命中则在 prompt 末尾追加降级约束段,要求 LLM 诚实告知未下硬性喜忌结论
 - v1 prompt 系统不需此 suffix:设计文档 §2 全局 Prompt 已要求"字段缺失就说明缺失",
   从格命中时 chart_builder 会把 useful_god_candidates=[],由 LLM 自然降级
+
+时辰未知诚实降级(S06,docs/时辰未知-slices/S06,镜像从格先例):
+- day_master_strength == "unknown_hour"(S01 引擎输出,喜忌留空)时,
+  bazi_deep / bazi_deep_free 在 prompt 末尾追加降级约束段:叙事换轴到
+  日主×年月日柱十神结构 + 诚实告知"时辰未知,喜忌与时柱分析需要准确出生时刻"
+- bazi_deep_paid 不追加:无时辰用户在 iOS 付费墙即被拦(S07),到不了付费内容,
+  付费模板不加无意义分支(slice 拍板)
 """
 
 from __future__ import annotations
@@ -37,9 +44,9 @@ PROMPTS_DIR = Path(__file__).parent / "prompts"
 # (短句节奏 + 直言 actionable + 每段聚焦一个洞察),老 iOS 本地缓存按
 # prompt_version 隔离自动失效。详见 bazi-app-design-doc.md §AI Voice 规范。
 PROMPT_VERSIONS: dict[str, int] = {
-    "bazi_deep": 2,        # alias(决策 B 保留,向后兼容老 iOS)
-    "bazi_deep_free": 2,   # M2 拆分:2 章免费,Medium-deep voice(200-300 字/章)
-    "bazi_deep_paid": 5,   # 8 章命书框架(2026-08-15 晚重构:9 章→8 章拆并,格局章按模糊叙事红线)
+    "bazi_deep": 3,        # alias(决策 B 保留,向后兼容老 iOS);v3=随 S06 时辰未知免费降级统一 bump
+    "bazi_deep_free": 3,   # M2 拆分:2 章免费,Medium-deep voice(200-300 字/章);v3=S06 时辰未知降级叙事(日主为轴,喜忌空不谈)
+    "bazi_deep_paid": 6,   # 8 章命书框架(2026-08-15 晚重构:9 章→8 章拆并);v6=随 S06 系列统一 bump(模板未变,老缓存随新版本号自然失效)
     "compatibility": 3,    # alias(M4 拆分前单 template 6 章,向后兼容老 iOS);v3=五行共振章节替换
     "compatibility_free": 3,  # M4 拆分:2 章免费,Medium voice(200-300 字/章);v3=随系列统一升
     "compatibility_paid": 3,  # M4 拆分:4 章付费,Medium voice(200-300 字/章);v3=第一章爱情深度→五行共振
@@ -105,6 +112,9 @@ BAZI_DEEP_TEMPLATE = _BAZI_DEEP_HEADER + """
 # 章节:1. 性格底色 2. 事业方向
 # 免费内容必须真有料,让用户感知"AI 真有料"才肯买(设计哲学 §诚实)
 # 2026-08-01 grill-me V2:voice 改 Medium-deep(短句节奏 + 每段聚焦一个洞察)
+# 2026-08-31 S06:喜忌约束改条件式——喜忌为空(时辰未知/从格)时不再声称"喜忌已给出"
+# (那句话对空喜忌是谎言,LLM 会拿空值硬写),换轴指令由 render_prompt 追加的
+# BAZI_DEEP_UNKNOWN_HOUR_SUFFIX 补全
 BAZI_DEEP_FREE_TEMPLATE = _BAZI_DEEP_HEADER + """
 写作要求（免费 2 章，每章 200-300 字，总 400-600 字）：
 
@@ -122,7 +132,7 @@ BAZI_DEEP_FREE_TEMPLATE = _BAZI_DEEP_HEADER + """
 - 核心术语保留但不主动解释：日主 / 十神 / 喜忌 等术语直接用
 - 不确定性保留：用"倾向 / 可能 / 容易"，禁用"必 / 一定 / 肯定"
 - **重要**：格局作为叙事概念模糊处理，用"命局呈现××倾向"，**不得**给出"正官格/偏印格"等硬性分类
-- **重要**：喜忌已由后端确定性给出，你必须严格按后端的 favorable/unfavorable 写，不得自行推断或修改
+- **重要**：喜忌只按后端给出的写——上下文喜忌非空时，严格按后端的 favorable/unfavorable 展开，不得自行推断或修改；上下文喜忌为空时，不谈喜忌，改以日主与已知柱位的十神结构为叙事轴
 """
 
 # M2 拆分:付费 8 章(需 entitlement 才能调用)
@@ -177,6 +187,17 @@ BAZI_DEEP_PAID_TEMPLATE = _BAZI_DEEP_HEADER + """
 BAZI_DEEP_SPECIAL_PATTERN_SUFFIX = """
 **本命盘呈现从格特征，喜忌结论留空。请诚实告知用户：当前未下硬性喜忌结论，避免编造扶抑法喜忌。
 可围绕命局呈现的从格倾向（如专旺/从强/从弱等）做叙事性描述，但不得给出确定性的"宜×忌×"结论。**
+"""
+
+# 时辰未知诚实降级约束段(day_master_strength == "unknown_hour" 时追加,S06)
+# 免费内容照给但换轴:日主×三柱结构,不谈喜忌(docs/时辰未知设计决策.md D5「降级可讲」)
+# 只挂 bazi_deep / bazi_deep_free(免费面);bazi_deep_paid 不挂:
+# 无时辰用户在 iOS 付费墙即被拦(S07),付费模板不加无意义分支
+BAZI_DEEP_UNKNOWN_HOUR_SUFFIX = """
+**本命盘出生时辰未知，时柱与喜忌均不可用。请诚实告知用户：时辰未知，喜忌与时柱分析需要准确出生时刻。**
+叙事一律以日主为轴，围绕年柱 / 月柱 / 日柱三柱的十神结构与五行分布如实展开；
+排盘数据中的时柱一栏（干支 / 十神 / 藏干 / 纳音）一律不作为叙事依据，**不得**编造或暗示任何时柱影响；
+喜忌未判定，**不得**推断或编造喜忌结论（不出现"宜×忌×"类表述）。
 """
 
 # ---------- 合盘 ----------
@@ -780,7 +801,9 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
     """渲染 prompt:先校验必填字段,按 language 加载模板,再 str.format_map 填充。
 
     bazi_deep 系列(alias / _free / _paid)命中 day_master_strength ==
-    "special_pattern" 时追加从格诚实降级约束段。
+    "special_pattern" 时追加从格诚实降级约束段;
+    命中 "unknown_hour"(时辰未知,S01 引擎输出)时对 alias / _free 追加
+    时辰未知降级约束段——付费 module 不加(iOS S07 付费墙已拦,无意义分支)。
 
     v1 prompt 系统(M0-M7)模板内含 JSON schema 大括号,已用 {{ }} 转义,
     format_map 会自动还原为单花括号;占位符({chart} / {structure_fingerprint}
@@ -821,5 +844,20 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
         # 再改成 rendered += _load_template("_special_pattern_suffix", language, version)
         # (届时 zh 也走文件路径,删除此处的硬编码 BAZI_DEEP_SPECIAL_PATTERN_SUFFIX 拼接)
         rendered = rendered + BAZI_DEEP_SPECIAL_PATTERN_SUFFIX
+
+    # 时辰未知诚实降级(S06):只挂免费面 module(alias + _free)。
+    # bazi_deep_paid 不挂——无时辰用户在 iOS 付费墙即被拦(S07),
+    # 到不了付费内容,付费模板不加无意义分支(slice 拍板)。
+    if (module in ("bazi_deep", "bazi_deep_free")
+            and context.get("day_master_strength") == "unknown_hour"):
+        if language != "zh":
+            # 与从格 suffix 同理:降级段目前只有中文版,非中文显式报错,
+            # 避免英文 prompt 尾部追加中文 suffix(i18n Slice 2 迁移文件时一并处理)
+            raise FileNotFoundError(
+                f"时辰未知降级 suffix 尚无 {language!r} 版本"
+                f"(module={module!r},需补齐"
+                f" prompts/{language}/_unknown_hour_suffix_v{version}.md)"
+            )
+        rendered = rendered + BAZI_DEEP_UNKNOWN_HOUR_SUFFIX
 
     return rendered

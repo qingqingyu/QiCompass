@@ -13,6 +13,7 @@ import pytest
 
 from app.ai.prompts import (
     BAZI_DEEP_SPECIAL_PATTERN_SUFFIX,
+    BAZI_DEEP_UNKNOWN_HOUR_SUFFIX,
     PROMPT_VERSIONS,
     REQUIRED_FIELDS,
     render_prompt,
@@ -22,6 +23,7 @@ from app.errors import InvalidInputError
 from tests.fixtures.interpret_cases import (
     BAZI_DEEP_CONTEXT,
     BAZI_DEEP_SPECIAL_PATTERN_CONTEXT,
+    BAZI_DEEP_UNKNOWN_HOUR_CONTEXT,
     COMPATIBILITY_CONTEXT,
     DAILY_FORTUNE_CONTEXT,
 )
@@ -281,6 +283,85 @@ def test_special_pattern_only_for_bazi_deep_series():
 
     prompt_d = render_prompt("daily_fortune", DAILY_FORTUNE_CONTEXT)
     assert "从格特征" not in prompt_d
+
+
+# ===== 5. 时辰未知诚实降级(S06,免费 2 章换轴叙事)=====
+
+
+def test_unknown_hour_free_honest_degradation():
+    """day_master_strength="unknown_hour" 渲染 free 模板 → prompt 含诚实告知句
+    + 日主为轴的三柱叙事指令 + 双禁止条款(不推喜忌 / 不编时柱)。"""
+    prompt = render_prompt("bazi_deep_free", BAZI_DEEP_UNKNOWN_HOUR_CONTEXT)
+    assert BAZI_DEEP_UNKNOWN_HOUR_CONTEXT["day_master_strength"] == "unknown_hour"
+    # 诚实告知句(D5:喜忌与时柱分析需要准确出生时刻)
+    assert "时辰未知" in prompt
+    assert "喜忌与时柱分析需要准确出生时刻" in prompt
+    # 日主为轴叙事指令:日主 + 年月日三柱十神结构
+    assert "以日主为轴" in prompt
+    assert "年柱 / 月柱 / 日柱三柱的十神结构" in prompt
+    # LLM 边界红线:禁推喜忌 + 禁编时柱
+    assert "推断或编造喜忌结论" in prompt
+    assert "编造或暗示任何时柱影响" in prompt
+    # 降级段确实是 BAZI_DEEP_UNKNOWN_HOUR_SUFFIX
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() in prompt
+
+
+def test_unknown_hour_free_no_hard_xiji_reference():
+    """unknown_hour 渲染 free 模板 → 不含「喜忌已由后端确定性给出」类硬引用
+    (喜忌为空时该句是谎言,LLM 会拿空值硬写;S06 免费模板喜忌约束已改条件式)。"""
+    prompt = render_prompt("bazi_deep_free", BAZI_DEEP_UNKNOWN_HOUR_CONTEXT)
+    assert "喜忌已由后端确定性给出" not in prompt
+    # 条件式约束仍在:喜忌为空分支明确「不谈喜忌」
+    assert "上下文喜忌为空时" in prompt
+    assert "不谈喜忌" in prompt
+
+
+def test_known_hour_free_prompt_semantics_unchanged():
+    """普通盘渲染 free 模板 → 与 S06 前语义一致:严格喜忌约束仍在,
+    无时辰未知降级段(正常用户零变化)。"""
+    prompt = render_prompt("bazi_deep_free", BAZI_DEEP_CONTEXT)
+    assert BAZI_DEEP_CONTEXT["day_master_strength"] == "weak"
+    # LLM 只润色不判断红线保留:非空喜忌必须严格按后端写
+    assert "严格按后端的 favorable/unfavorable 展开" in prompt
+    assert "不得自行推断或修改" in prompt
+    # 降级段与告知句不出现
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() not in prompt
+    assert "时辰未知" not in prompt
+
+
+def test_unknown_hour_suffix_scope_free_side_only():
+    """unknown_hour 降级段只挂免费面:bazi_deep(alias)/ bazi_deep_free 追加;
+    bazi_deep_paid 不追加(iOS S07 付费墙全拦,付费模板不加无意义分支);
+    compatibility / daily_fortune 不受影响;与 special_pattern 互不误触。"""
+    # alias + free 追加
+    for module in ("bazi_deep", "bazi_deep_free"):
+        prompt = render_prompt(module, BAZI_DEEP_UNKNOWN_HOUR_CONTEXT)
+        assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() in prompt, (
+            f"{module} 应追加时辰未知降级段"
+        )
+
+    # paid 不追加(S06 拍板:无时辰用户到不了付费内容)
+    prompt_paid = render_prompt("bazi_deep_paid", BAZI_DEEP_UNKNOWN_HOUR_CONTEXT)
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() not in prompt_paid
+
+    # compatibility / daily_fortune 不受影响(S09 另做)
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() not in render_prompt(
+        "compatibility", COMPATIBILITY_CONTEXT)
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() not in render_prompt(
+        "daily_fortune", DAILY_FORTUNE_CONTEXT)
+
+    # 互斥:special_pattern 不误触 unknown_hour 段;从格既有行为不回归
+    prompt_sp = render_prompt("bazi_deep_free", BAZI_DEEP_SPECIAL_PATTERN_CONTEXT)
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() not in prompt_sp
+    assert BAZI_DEEP_SPECIAL_PATTERN_SUFFIX.strip() in prompt_sp
+
+
+def test_bazi_deep_series_prompt_versions_bumped_s06():
+    """S06 一次 bump 策略:bazi_deep 2→3 / bazi_deep_free 2→3 / bazi_deep_paid 5→6
+    (free 叙事变化最大;alias 与 paid 内容未变但随系列统一 bump,老缓存自然失效)。"""
+    assert PROMPT_VERSIONS["bazi_deep"] == 3
+    assert PROMPT_VERSIONS["bazi_deep_free"] == 3
+    assert PROMPT_VERSIONS["bazi_deep_paid"] == 6
 
 
 # ===== validate_context 单元测试 =====

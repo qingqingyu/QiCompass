@@ -29,8 +29,8 @@ async def test_prompt_version_invalidation(interpret_client, mock_ai_client,
                                             monkeypatch):
     """bump prompt_version → 老缓存失效重调 provider;新版本再请求命中。
 
-    注:2026-08-01 grill-me V2 后 baseline 版本号 = 2(Medium voice)。
-    本测试模拟 2→3 的进一步 bump,验证失效机制。
+    注:2026-08-31 S06(时辰未知免费降级)后 baseline 版本号 = 3(2→3 系列统一 bump)。
+    本测试模拟 3→4 的进一步 bump,验证失效机制。
     """
     payload = {
         "content_hash": "test-hash-version-001",
@@ -39,30 +39,30 @@ async def test_prompt_version_invalidation(interpret_client, mock_ai_client,
         "target_date": None,
     }
 
-    # 第一次:v2 miss → 调 provider(baseline = 2 since 2026-08-01 grill-me)
-    assert PROMPT_VERSIONS["bazi_deep"] == 2
+    # 第一次:v3 miss → 调 provider(baseline = 3 since 2026-08-31 S06)
+    assert PROMPT_VERSIONS["bazi_deep"] == 3
     code1, b1 = await _post_interpret(interpret_client, payload)
     assert code1 == 200, b1
     assert b1["cached"] is False
-    assert b1["prompt_version"] == 2
+    assert b1["prompt_version"] == 3
     assert mock_ai_client.call_count == 1
 
-    # bump version 2 → 3(模拟未来再 bump)
-    monkeypatch.setitem(PROMPT_VERSIONS, "bazi_deep", 3)
+    # bump version 3 → 4(模拟未来再 bump)
+    monkeypatch.setitem(PROMPT_VERSIONS, "bazi_deep", 4)
 
-    # 同 content_hash 再请求:v3 miss(老 v2 缓存不命中)→ 重调 provider
+    # 同 content_hash 再请求:v4 miss(老 v3 缓存不命中)→ 重调 provider
     code2, b2 = await _post_interpret(interpret_client, payload)
     assert code2 == 200, b2
     assert b2["cached"] is False
-    assert b2["prompt_version"] == 3
+    assert b2["prompt_version"] == 4
     assert mock_ai_client.call_count == 2
 
-    # 再请求一次:v3 hit
+    # 再请求一次:v4 hit
     code3, b3 = await _post_interpret(interpret_client, payload)
     assert code3 == 200, b3
     assert b3["cached"] is True
-    assert b3["prompt_version"] == 3
-    assert mock_ai_client.call_count == 2, "v3 缓存命中不应再调 provider"
+    assert b3["prompt_version"] == 4
+    assert mock_ai_client.call_count == 2, "v4 缓存命中不应再调 provider"
 
 
 # ===== 8. target_date 与 module 不匹配 → 422 =====
