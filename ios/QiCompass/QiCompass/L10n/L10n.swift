@@ -649,6 +649,50 @@ enum L10n {
         static let riskAggressiveHint = String(localized: "wealthform.risk.aggressive.hint")
     }
 
+    // MARK: - 付费墙时辰未知拦截态(S07,iOS 一期临时态)
+
+    /// 付费墙/内容拦截态文案(docs/时辰未知设计决策.md D5/D6)。
+    /// 水墨克制表达:一句话 + 占位入口,无红色警示;CTA 一期占位,S10 接线补时辰 sheet。
+    enum PaywallGate {
+        /// 拦截态主句(付费墙 sheet,日柱确定的无时辰用户)。
+        /// zh: "补充出生时刻后解锁";en: "Add your birth hour to unlock"
+        static let title = String(localized: "paywall.hourUnknown.title")
+
+        /// 为什么一句(付费墙 sheet):时辰缺失影响喜忌分析精度。
+        /// zh: "时辰缺失会影响喜忌分析的精度";en: "A missing birth hour reduces the precision of the favorable-elements reading"
+        static let reason = String(localized: "paywall.hourUnknown.reason")
+
+        /// 日柱歧义整拦态主句(深度解析不进内容页)。
+        /// zh: "缺出生时辰,暂时无法解读";en: "Your birth hour is needed before this chart can be read"
+        static let dayAmbiguousTitle = String(localized: "paywall.hourUnknown.dayAmbiguous.title")
+
+        /// 日柱歧义为什么一句:子夜前后无时辰定不了日柱。
+        /// zh: "你的生日落在子夜前后,没有时辰无法确定日柱——日柱是所有解读的起点"
+        /// en: "Born near midnight? Without the hour, the day pillar — the anchor of every reading — can't be settled"
+        static let dayAmbiguousReason = String(localized: "paywall.hourUnknown.dayAmbiguous.reason")
+
+        /// 合盘对级拦截态主句(任一方无时辰,整对拦)。
+        /// zh: "缺出生时辰 · 此对暂不可合盘";en: "Missing birth hour · this pair can't be read yet"
+        static let compatibilityTitle = String(localized: "paywall.hourUnknown.compatibility.title")
+
+        /// 合盘为什么一句:需要双方时柱与喜忌。
+        /// zh: "合盘需要双方的时柱与喜忌;补上时辰即可解锁"
+        /// en: "Compatibility needs both hour pillars and favorable elements — add the missing hour to unlock"
+        static let compatibilityReason = String(localized: "paywall.hourUnknown.compatibility.reason")
+
+        /// CTA 占位(一期轻提示,S10 接线到补时辰 sheet)。
+        /// zh: "补上出生时刻";en: "Add your birth hour"
+        static let cta = String(localized: "paywall.hourUnknown.cta")
+
+        /// CTA 占位点击后的轻提示(S10 上线前的诚实表达)。
+        /// zh: "补时辰入口即将开放";en: "The add-hour flow is coming soon"
+        static let ctaHint = String(localized: "paywall.hourUnknown.ctaHint")
+
+        /// 日柱歧义整拦页的逃生口(回表单重填)。
+        /// zh: "返回表单";en: "Back to form"
+        static let backToForm = String(localized: "paywall.hourUnknown.backToForm")
+    }
+
     // MARK: - 共享组件
 
     /// 共享文案(跨模块复用:CountdownResetLabel / DailyLimitReachedView / M4-M5 章头取消)。

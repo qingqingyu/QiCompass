@@ -496,6 +496,39 @@ struct BaziResponse: Codable, Sendable {
     }
 }
 
+// MARK: - 时辰未知拦截判据(S07)
+
+/// 时辰未知付费墙拦截判据(docs/时辰未知设计决策.md D5/D6,iOS S07 一期临时态)。
+///
+/// **单一事实源**:存档 payload(`calc_rule_snapshot.hour_known` + `pillars.day`),
+/// 由 `BaziResponse.hourUnknownGate` 派生,消费方(PaywallView / 深度解析内容页闸门 /
+/// 合盘 computePair)**只读此判据,不得从表单或别处重复推断**。
+///
+/// 三态对应 Parent D5 的两类无时辰用户 + 有时辰回归:
+/// - `.hourKnown`:四柱完整——付费墙/内容与现状**完全一致**(零拦截,回归基线)
+/// - `.hourUnknownDayDetermined`:时辰未知但日柱确定——免费 2 章照给(S06 降级叙事
+///   以日主为轴,日主完整),付费墙(第 3 章起)进拦截态:不展示价格、不触发 purchase
+/// - `.dayAmbiguous`:日柱歧义(late_night 是/不确定,或节气边界双排盘比对命中)——
+///   没有日主,S06 降级叙事轴不存在,免费 2 章**亦拦**,不进内容页直接拦截态
+enum HourUnknownGate: Equatable {
+    case hourKnown
+    case hourUnknownDayDetermined
+    case dayAmbiguous
+}
+
+extension BaziResponse {
+    /// S07 拦截判据(见 `HourUnknownGate` 文档;单一事实源派生)。
+    ///
+    /// 判定顺序:日柱缺失优先——S05 钉死的不变量 `pillars.day == nil ⟺
+    /// pillar_ambiguity.day == true`,且只在 `hour_known=false` 时出现(老盘四柱恒全);
+    /// 其余按 `calc_rule_snapshot.hour_known`(老 payload 缺 key → true,零拦截)。
+    var hourUnknownGate: HourUnknownGate {
+        if pillars.day == nil { return .dayAmbiguous }
+        if !isHourKnown { return .hourUnknownDayDetermined }
+        return .hourKnown
+    }
+}
+
 // MARK: - Error
 
 /// 后端结构化错误体。对齐 backend ErrorBody / ErrorResponse

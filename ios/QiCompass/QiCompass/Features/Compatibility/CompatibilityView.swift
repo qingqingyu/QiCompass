@@ -46,6 +46,9 @@ struct CompatibilityView: View {
                             module: .compatibility,
                             contentHash: compatHash,
                             purchaseManager: env.purchaseManager,
+                            // S07:任一方无时辰 → 付费墙拦截态(判据 = 双方存档 payload;
+                            // 拦截对正常进不了 detail,此处与 VM 阶段 2 守卫同源防御)
+                            hourUnknownGate: vm?.currentDetailHourUnknownGate ?? .hourKnown,
                             onPurchaseSuccess: {
                                 // 购买成功 → dismiss + 重新调该对的解读(决策 D4 按对绑定)
                                 showPaywall = false

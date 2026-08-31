@@ -873,4 +873,211 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         )
         return result.snapshot
     }
+
+    // MARK: - S07 时辰未知对级拦截(任一方无时辰 → 整对拦,免费亦拦)
+
+    /// 构造指定时辰状态的命盘并落档,返回可直接喂 VM 的 ArchivedChart。
+    /// hourKnown=false 时柱缺失(时辰未知);dayPresent=false 再叠加日柱歧义。
+    @discardableResult
+    private func insertChart(
+        hash: String,
+        alias: String,
+        hourKnown: Bool,
+        dayPresent: Bool = true
+    ) throws -> ArchivedChart {
+        let pillar = PillarDTO(
+            ganZhi: "甲子", gan: "甲", zhi: "子",
+            ganElement: "wood", zhiElement: "water",
+            hideGan: ["癸"], shishenGan: "比肩", shishenZhi: ["正印"],
+            nayin: "海中金", dishi: "沐浴", xunkong: "戌亥"
+        )
+        let ganzhi = GanZhiNaYinDTO(ganZhi: "甲子", nayin: "海中金")
+        let request = BaziCalculateRequest(
+            birthDatetime: "1990-03-15T12:00:00",
+            timezone: "Asia/Shanghai",
+            gender: "male",
+            longitude: 116.4074,
+            latitude: 39.9042,
+            placeName: "北京",
+            geonameId: 1816670,
+            ziHourRule: "zi_next_day",
+            hourKnown: hourKnown
+        )
+        let response = BaziResponse(
+            contentHash: hash,
+            trueSolarTime: nil,
+            trueSolarOffsetMinutes: 0,
+            pillars: PillarsDTO(
+                year: pillar, month: pillar,
+                day: dayPresent ? pillar : nil,
+                hour: hourKnown ? pillar : nil
+            ),
+            mingGong: ganzhi, shenGong: ganzhi, taiYuan: ganzhi,
+            elementBalance: ElementBalanceDTO(wood: 2, fire: 1, earth: 1, metal: 1, water: 3),
+            favorableElements: ["木", "水"], unfavorableElements: ["土"],
+            dayMasterStrength: dayPresent ? "balanced" : "unknown_hour",
+            tiaoshouApplied: false,
+            xijiMethod: "扶抑+调候", patternHint: nil,
+            shensha: [], luckPillars: [],
+            currentLuckPillar: nil, currentYearPillar: nil,
+            currentDayPillar: nil, currentHourPillar: nil,
+            calcRuleSnapshot: CalcRuleSnapshotDTO(
+                library: "lunar_python", sect: 1, ziHourRule: "zi_next_day",
+                trueSolarLongitude: 116.4, trueSolarOffsetMinutes: 0,
+                schemaVersion: 1, birthTimezone: "Asia/Shanghai",
+                hourKnown: hourKnown,
+                pillarAmbiguity: dayPresent ? nil : PillarAmbiguityDTO(day: true)
+            ),
+            boundaryWarning: nil,
+            yearBranchZodiac: "Rat",
+            yearBranchFriends: ["Ox"], yearBranchClash: "Horse"
+        )
+        let result = try chartStore.upsert(response: response, request: request)
+        return ArchivedChart(
+            snapshotHash: hash,
+            alias: alias,
+            birthDate: result.snapshot.birthSolarTime,
+            gender: "male",
+            dayMaster: dayPresent ? "甲" : "—",
+            snapshot: result.snapshot
+        )
+    }
+
+    /// 轮询等待 compute() 的 Task 落到 .list(compute 是 async Task,断言需等待)。
+    private func waitForListState(timeout: TimeInterval = 8) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if vm.state == .list { return true }
+            try? await Task.sleep(nanoseconds: 30_000_000)
+        }
+        return vm.state == .list
+    }
+
+    func testCompute_A盘无时辰_全部对拦截态_零合盘快照() async throws {
+        let chartA = try insertChart(hash: "s07_a_unknown", alias: "A", hourKnown: false)
+        let chartB = try insertChart(hash: "s07_b_known", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        vm.roster = [.archived(snapshotHash: "s07_b_known")]
+
+        vm.compute()
+        let reached = await waitForListState()
+        XCTAssertTrue(reached, "compute 应正常进入 .list,实际:\(vm.state)")
+
+        let summary = try XCTUnwrap(vm.summaries.first)
+        XCTAssertTrue(summary.isHourUnknownBlocked, "A 盘无时辰 → 该对整对拦截(免费亦拦),实际:\(summary.status)")
+        XCTAssertEqual(summary.personBHash, "s07_b_known", "拦截对保留存档对方 hash(roster 持久化需要)")
+
+        // 零 API 调用证明:没有产生任何 CompatibilitySnapshot(阶段 1 从未发起)
+        let snapshots = try compatibilityStore.list(personAHash: "s07_a_unknown", context: "general")
+        XCTAssertTrue(snapshots.isEmpty, "拦截对不得发起确定性合盘(后端契约必 422)")
+
+        // 拦截对的存档 hash 保留在持久化名单(该人仍在名单,补时辰后重算)
+        let persisted = CompatibilityRosterPersistence.load()
+        XCTAssertEqual(persisted.rosterHashes, ["s07_b_known"])
+    }
+
+    func testCompute_B盘无时辰_仅该对拦截_其余照算() async throws {
+        let chartA = try insertChart(hash: "s07_a2_known", alias: "A", hourKnown: true)
+        let chartBUnknown = try insertChart(hash: "s07_b2_unknown", alias: "B无时辰", hourKnown: false)
+        vm.archivedCharts = [chartA, chartBUnknown]
+        vm.selectedChartAIndex = 0
+        vm.roster = [
+            .archived(snapshotHash: "s07_b2_unknown"),
+            .temp(
+                input: PersonBInput(
+                    birthDatetime: "1992-08-08T10:00:00",
+                    timezone: "Asia/Shanghai",
+                    gender: "female",
+                    longitude: 116.4074
+                ),
+                alias: "临时人",
+                resolvedHash: nil
+            ),
+        ]
+
+        vm.compute()
+        let reached = await waitForListState()
+        XCTAssertTrue(reached, "compute 应正常进入 .list,实际:\(vm.state)")
+        XCTAssertEqual(vm.summaries.count, 2)
+
+        let blocked = vm.summaries.first { $0.displayName == "B无时辰" }
+        XCTAssertTrue(blocked?.isHourUnknownBlocked == true, "存档 B 无时辰 → 该对拦截(对级隔离)")
+
+        let tempPair = vm.summaries.first { $0.displayName == "临时人" }
+        XCTAssertTrue(tempPair?.isComputed == true, "双方有时辰的临时对照常计算(回归)")
+
+        // 只有临时对产生快照;拦截对零阶段 1 调用
+        let snapshots = try compatibilityStore.list(personAHash: "s07_a2_known", context: "general")
+        XCTAssertEqual(snapshots.count, 1, "仅临时对落快照")
+    }
+
+    func testCompute_双方有时辰_回归照算() async throws {
+        let chartA = try insertChart(hash: "s07_a3_known", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "s07_b3_known", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        vm.roster = [.archived(snapshotHash: "s07_b3_known")]
+
+        vm.compute()
+        let reached = await waitForListState()
+        XCTAssertTrue(reached, "compute 应正常进入 .list,实际:\(vm.state)")
+
+        let summary = try XCTUnwrap(vm.summaries.first)
+        XCTAssertTrue(summary.isComputed, "双方有时辰 → 行为与现状完全一致,实际:\(summary.status)")
+    }
+
+    func testGenerateInterpretation_任一方无时辰_阶段2拦截_不消耗次数() async throws {
+        // A 无时辰 + B 有时辰的 detail 态(正常路径拦截对进不了 detail,此处直构状态机)
+        let chartA = try insertChart(hash: "s07_a4_unknown", alias: "A", hourKnown: false)
+        let chartB = try insertChart(hash: "s07_b4_known", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+
+        let summary = PairSummary(
+            id: "s07_compat_hash",
+            entry: .archived(snapshotHash: "s07_b4_known"),
+            personBHash: "s07_b4_known",
+            displayName: "B",
+            birthDate: nil,
+            dayMaster: "甲",
+            fiveElements: "互补",
+            dayMasterRelation: "同气",
+            compatibilityHash: "s07_compat_hash",
+            isInterpreted: false,
+            status: .computed
+        )
+        let response = CompatibilityResponse(
+            compatibilityHash: "s07_compat_hash",
+            personAChart: nil,
+            personBChart: nil,
+            qualitativeAssessment: QualitativeAssessmentDTO(
+                fiveElements: "互补", dayMasterRelation: "同气",
+                zodiacMatch: "六合", branchHarmony: "无冲无刑"
+            ),
+            syncedFortune: [],
+            calcRuleSnapshot: nil
+        )
+        vm.state = .detail(summary, response, .idle)
+
+        let readsBefore = vm.remainingReads
+        vm.generateInterpretation()
+
+        // 阶段 2 拦截:interpretState 显式 .failed(免费亦拦,不静默吞)
+        let deadline = Date().addingTimeInterval(5)
+        var blocked = false
+        while Date() < deadline {
+            if case .detail(_, _, .failed) = vm.state { blocked = true; break }
+            try? await Task.sleep(nanoseconds: 30_000_000)
+        }
+        XCTAssertTrue(blocked, "任一方无时辰 → 阶段 2(AI 解读)拦截态,实际:\(vm.state)")
+        if case .detail(_, _, .failed(let message)) = vm.state {
+            // 文案走 L10n(zh「时辰」/ en「hour」),断言按 locale 双语兼容
+            XCTAssertTrue(
+                message.contains("时辰") || message.lowercased().contains("hour"),
+                "拦截文案须指向补时辰,实际:\(message)"
+            )
+        }
+        XCTAssertEqual(vm.remainingReads, readsBefore, "拦截发生在次数检查之前,不得消耗每日配额")
+    }
 }

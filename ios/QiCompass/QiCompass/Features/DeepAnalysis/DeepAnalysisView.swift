@@ -160,7 +160,24 @@ struct DeepAnalysisView: View {
             case .calculating(let stage):
                 calculatingView(stage: stage)
             case .ready(let response, _):
-                if let request = vm.lastRequest {
+                // S07:日柱歧义(late_night 是/不确定或节气边界比对命中)→ 不进内容页,
+                // 免费 2 章亦拦(没有日主,S06 降级叙事轴不存在),直接拦截态
+                // (与付费墙拦截同款表达)。判据单一事实源 = payload(D5 终态语义)。
+                if response.hourUnknownGate == .dayAmbiguous {
+                    VStack(spacing: 24) {
+                        HourUnknownGateNotice(
+                            title: L10n.PaywallGate.dayAmbiguousTitle,
+                            reason: L10n.PaywallGate.dayAmbiguousReason
+                        )
+                        Button(L10n.PaywallGate.backToForm) {
+                            vm.reset()
+                        }
+                        .font(.caption)
+                        .foregroundStyle(BaziTheme.cinnabar)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let request = vm.lastRequest {
                     DeepAnalysisResultView(vm: vm, response: response, request: request)
                 } else {
                     VStack {

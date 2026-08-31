@@ -28,6 +28,14 @@ struct CompatibilityPairListView: View {
                             )
                         }
                         .buttonStyle(.plain)
+                    } else if summary.isHourUnknownBlocked {
+                        // S07 时辰未知拦截态:不进详情(无合盘快照),无重试
+                        // (重试解决不了缺时辰;S10 补时辰 / S11 roster 标记接管后续)
+                        PairSummaryCard(
+                            summary: summary,
+                            isRetrying: false,
+                            onRetry: {}
+                        )
                     } else {
                         // 失败态(S03):不进详情,显示重试按钮
                         PairSummaryCard(
@@ -79,7 +87,35 @@ struct PairSummaryCard: View {
             computedLayout
         case .failed(let error):
             failedLayout(error)
+        case .hourUnknownBlocked:
+            hourUnknownBlockedLayout
         }
+    }
+
+    // MARK: - 时辰未知拦截态(S07,与付费墙拦截同款表达)
+
+    /// 水墨克制:dashed hairline 框 + 留白说明 + 共用拦截组件(无红色警示)。
+    private var hourUnknownBlockedLayout: some View {
+        VStack(alignment: .leading, spacing: BaziTheme.Spacing.sm) {
+            HStack(alignment: .firstTextBaseline, spacing: BaziTheme.Spacing.sm) {
+                Text("与 \(summary.displayName)")
+                    .font(BaziFont.display(size: 15.5))
+                    .tracking(1)
+                    .foregroundStyle(BaziTheme.inkMuted)
+                Spacer()
+            }
+
+            HourUnknownGateNotice(
+                title: L10n.PaywallGate.compatibilityTitle,
+                reason: L10n.PaywallGate.compatibilityReason
+            )
+        }
+        .padding(16)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .overlay(
+            RoundedRectangle(cornerRadius: 4)
+                .stroke(BaziTheme.hairlineDashed, lineWidth: 1)
+        )
     }
 
     // MARK: - 成功态

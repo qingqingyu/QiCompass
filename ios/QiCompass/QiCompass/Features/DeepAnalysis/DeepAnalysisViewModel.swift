@@ -457,6 +457,14 @@ final class DeepAnalysisViewModel {
             AppLogger.app.error("op=deepAnalysis.generateInterpretation invalid_state state=\(String(describing: self.state), privacy: .public)")
             return
         }
+        // S07 纵深防御:日柱歧义 → 免费 2 章亦拦(没有日主,降级叙事轴不存在)。
+        // 正常 UI 路径到不了这里(DeepAnalysisView 不渲染内容页),防御状态机错乱调用。
+        guard response.hourUnknownGate != .dayAmbiguous else {
+            AppLogger.app.warning(
+                "op=deepAnalysis.generateInterpretation.skip reason=day_ambiguous contentHash=\(response.contentHash, privacy: .public)"
+            )
+            return
+        }
         guard let request = lastRequest else {
             AppLogger.app.error("op=deepAnalysis.generateInterpretation missing_request")
             state = .ready(response, .failed(message: "请求记录缺失,请重新排盘"))
@@ -572,6 +580,13 @@ final class DeepAnalysisViewModel {
             AppLogger.app.error("op=deepAnalysis.generateV1AllModules invalid_state state=\(String(describing: self.state), privacy: .public)")
             return
         }
+        // S07 纵深防御:日柱歧义 → 免费 2 章(M0/M1)亦拦,不发任何 interpret 请求
+        guard response.hourUnknownGate != .dayAmbiguous else {
+            AppLogger.app.warning(
+                "op=deepAnalysis.generateV1AllModules.skip reason=day_ambiguous contentHash=\(response.contentHash, privacy: .public)"
+            )
+            return
+        }
 
         AppLogger.app.info("deepVM.generateV1AllModules.start contentHash=\(response.contentHash, privacy: .public)")
 
@@ -597,6 +612,13 @@ final class DeepAnalysisViewModel {
     func retryV1Module(_ module: ModuleID) {
         guard case .ready(let response, _) = state else {
             AppLogger.app.error("op=deepAnalysis.retryV1Module invalid_state state=\(String(describing: self.state), privacy: .public)")
+            return
+        }
+        // S07 纵深防御:日柱歧义 → 免费模块重试亦拦(与 generateV1AllModules 同判据)
+        guard response.hourUnknownGate != .dayAmbiguous else {
+            AppLogger.app.warning(
+                "op=deepAnalysis.retryV1Module.skip reason=day_ambiguous module=\(module.rawValue, privacy: .public)"
+            )
             return
         }
 

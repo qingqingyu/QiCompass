@@ -112,6 +112,10 @@ struct DeepAnalysisResultView: View {
                     module: .deepAnalysis,
                     contentHash: response.contentHash,
                     purchaseManager: env.purchaseManager,
+                    // S07:无时辰用户付费墙拦截态(判据单一事实源 = response payload,
+                    // 日柱确定 → 免费照给 + 付费墙拦;日柱歧义正常到不了本 View,
+                    // 传入仅防御)。有时辰 → .hourKnown,付费墙与现状完全一致。
+                    hourUnknownGate: response.hourUnknownGate,
                     onPurchaseSuccess: {
                         // 购买成功 → dismiss;按当前模式分流(2026-08-23 断链修复):
                         // v1 模式重跑 .locked 模块(守卫重查 entitlement 放行),

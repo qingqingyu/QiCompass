@@ -2421,6 +2421,159 @@
         }
       }
     },
+    "paywall.hourUnknown.backToForm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back to form"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回表单"
+          }
+        }
+      }
+    },
+    "paywall.hourUnknown.compatibility.reason" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compatibility needs both hour pillars and favorable elements — add the missing hour to unlock"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合盘需要双方的时柱与喜忌；补上时辰即可解锁"
+          }
+        }
+      }
+    },
+    "paywall.hourUnknown.compatibility.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Missing birth hour · this pair can't be read yet"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缺出生时辰 · 此对暂不可合盘"
+          }
+        }
+      }
+    },
+    "paywall.hourUnknown.cta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add your birth hour"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "补上出生时刻"
+          }
+        }
+      }
+    },
+    "paywall.hourUnknown.ctaHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The add-hour flow is coming soon"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "补时辰入口即将开放"
+          }
+        }
+      }
+    },
+    "paywall.hourUnknown.dayAmbiguous.reason" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Born near midnight? Without the hour, the day pillar — the anchor of every reading — can't be settled"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的生日落在子夜前后，没有时辰无法确定日柱——日柱是所有解读的起点"
+          }
+        }
+      }
+    },
+    "paywall.hourUnknown.dayAmbiguous.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your birth hour is needed before this chart can be read"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缺出生时辰，暂时无法解读"
+          }
+        }
+      }
+    },
+    "paywall.hourUnknown.reason" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A missing birth hour reduces the precision of the favorable-elements reading"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时辰缺失会影响喜忌分析的精度"
+          }
+        }
+      }
+    },
+    "paywall.hourUnknown.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add your birth hour to unlock"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "补充出生时刻后解锁"
+          }
+        }
+      }
+    },
     "profile.about.privacy1" : {
       "extractionState" : "manual",
       "localizations" : {

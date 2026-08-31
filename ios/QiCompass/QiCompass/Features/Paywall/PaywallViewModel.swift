@@ -93,23 +93,47 @@ final class PaywallViewModel {
     private let contentHash: String
     private let purchaseManager: PurchaseManager
 
+    /// S07 时辰未知拦截判据(单一事实源 = chart 存档 payload,由调用方从
+    /// `BaziResponse.hourUnknownGate` 传入,VM/View 不重复推断)。默认 `.hourKnown`
+    /// = 老调用点(每日运势历史解锁等)零改动,行为与现状完全一致。
+    let hourUnknownGate: HourUnknownGate
+
     /// 购买成功回调(由调用方注入:dismiss sheet + 重新调 _paid)。
     var onPurchaseSuccess: (() -> Void)?
+
+    /// S07:付费墙是否处于拦截态(无时辰用户——不展示价格/不触发 purchase)。
+    /// 日柱确定与日柱歧义的无时辰用户在此同形态(后者正常到不了付费墙,
+    /// 传入只是防御;两类用户的分层拦截在内容页闸门完成,见 slice 文档)。
+    var isPurchaseIntercepted: Bool {
+        hourUnknownGate != .hourKnown
+    }
 
     init(
         module: PaywallModule,
         contentHash: String,
         purchaseManager: PurchaseManager,
+        hourUnknownGate: HourUnknownGate = .hourKnown,
         onPurchaseSuccess: (() -> Void)? = nil
     ) {
         self.module = module
         self.contentHash = contentHash
         self.purchaseManager = purchaseManager
+        self.hourUnknownGate = hourUnknownGate
         self.onPurchaseSuccess = onPurchaseSuccess
     }
 
     /// 加载 Product(显示动态价格)。sheet onAppear 时调,失败时走 fallback。
+    ///
+    /// S07:拦截态**不加载 StoreKit product**(D6 拦购买三件套之一)——
+    /// productState 停留 `.loading`(拦截态 UI 不消费价格,恒走占位布局)。
     func loadProduct() async {
+        guard !isPurchaseIntercepted else {
+            let entitlementModule = module.entitlementModule
+            AppLogger.app.info(
+                "paywall.product.skip reason=hour_unknown_intercepted module=\(entitlementModule, privacy: .public)"
+            )
+            return
+        }
         guard productState == .loading else { return }
         // 闭包捕获 instance property 需先提到 local(对齐 purchase() 风格)
         let productId = module.productId
@@ -141,6 +165,17 @@ final class PaywallViewModel {
     }
 
     func purchase() async {
+        // S07 拦截态守卫(纵深防御):拦截态 UI 不渲染购买按钮,此处保证
+        // `PurchaseManager.purchase` 全程不可达(路径断言见 PaywallHourUnknownGateTests)。
+        // 拦截发生在 purchase 之前,entitlement/purchase 判据零改动(D6)。
+        guard !isPurchaseIntercepted else {
+            let entitlementModule = module.entitlementModule
+            let contentHash = self.contentHash
+            AppLogger.app.warning(
+                "paywall.purchase.skip reason=hour_unknown_intercepted module=\(entitlementModule, privacy: .public) content_hash=\(contentHash, privacy: .public)"
+            )
+            return
+        }
         guard state != .purchasing else {
             // 规则 1:防重复点击的 silent return 改成 info 日志(便于排查 UI 双击)
             AppLogger.app.info("paywall.purchase.skip reason=already_purchasing")
