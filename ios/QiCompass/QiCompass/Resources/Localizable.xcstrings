@@ -4,9 +4,6 @@
     "" : {
 
     },
-    "—" : {
-
-    },
     "· %@" : {
 
     },
@@ -993,9 +990,6 @@
         }
       }
     },
-
-
-
     "dailyfortune.interpret.cached" : {
       "extractionState" : "manual",
       "localizations" : {
