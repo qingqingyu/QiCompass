@@ -146,6 +146,19 @@ struct DailyFortuneMainView: View {
                 // 明日预告
                 TomorrowPreviewSection(preview: response.tomorrowPreview)
                     .padding(.horizontal, 24)
+
+                // S09 末尾静默提示位预留(D7 触点 2,「一行文字,不是弹窗」):
+                // 仅时辰未知·日柱确定的降级版展示(判据 = vm.hourGate,单一事实源)。
+                // 本 slice 只占位静态展示;S10 接线:改成可点击 → 打开补时辰 sheet。
+                if vm.hourGate == .hourUnknownDayDetermined {
+                    Text(L10n.DailyFortune.degradedHint)
+                        .font(BaziFont.caption(size: 10.5))
+                        .tracking(1)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                        .frame(maxWidth: .infinity)
+                        .padding(.top, 26)
+                }
             }
             .padding(.bottom, 32)
         }

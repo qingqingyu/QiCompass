@@ -384,6 +384,11 @@ enum L10n {
         /// 历史加载失败(zh="历史加载失败", en="Failed to load history")
         static let mainHistoryError = String(localized: "dailyfortune.main.historyError")
 
+        /// S09 降级版末尾静默提示(D7 触点 2:一行文字,不是弹窗;S10 接线成可点击)。
+        /// zh: "这份运势只用了你的日柱。补上时辰可以看到时辰运势与喜忌。"
+        /// en: "This reading uses only your day pillar. Add your birth hour to see hourly fortune and favorable elements."
+        static let degradedHint = String(localized: "dailyfortune.main.degradedHint")
+
         // -- History Lookback(2026-08-30,规则:免费 7 天 / 任意购买解锁全部) --
 
         /// 「更早」pill 标签。
@@ -691,6 +696,15 @@ enum L10n {
         /// 日柱歧义整拦页的逃生口(回表单重填)。
         /// zh: "返回表单";en: "Back to form"
         static let backToForm = String(localized: "paywall.hourUnknown.backToForm")
+
+        /// 每日运势日柱歧义整拦态主句(S09,D5 全拦:免费降级亦不成立)。
+        /// zh: "缺出生时辰,暂时无法看每日运势";en: "Your birth hour is needed before daily fortune can be read"
+        static let dailyFortuneTitle = String(localized: "paywall.hourUnknown.dailyFortune.title")
+
+        /// 每日运势为什么一句:日柱定不了,运势的起点就没了。
+        /// zh: "你的生日落在子夜前后,没有时辰无法确定日柱——每日运势以日柱为起点"
+        /// en: "Born near midnight? Without the hour, the day pillar — the anchor of daily fortune — can't be settled"
+        static let dailyFortuneReason = String(localized: "paywall.hourUnknown.dailyFortune.reason")
     }
 
     // MARK: - 共享组件

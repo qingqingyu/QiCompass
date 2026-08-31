@@ -9,6 +9,7 @@ enum DailyFortuneViewState: Equatable {
     case empty              // 瞬态:等命盘解析(onboarding 落地强制重载也走这里)
     case loading            // 首次 / 下拉刷新 / 跨业务日
     case chartMissing       // 命盘存档缺失(首启被 onboarding sheet 盖住、完成即自动重载;重置后重走 onboarding 前可见;不引导先做深度解析)
+    case hourAmbiguousBlocked  // S09:日柱歧义盘全拦(D5)——没有日主,免费降级不成立,两类请求都不发起,直接拦截页
     case ready(DailyFortuneResponse, InterpretState, Date)  // 第三个 = 当前展示的 businessDate
     case failed(UserFacingError)
 
@@ -17,6 +18,7 @@ enum DailyFortuneViewState: Equatable {
         case (.empty, .empty): return true
         case (.loading, .loading): return true
         case (.chartMissing, .chartMissing): return true
+        case (.hourAmbiguousBlocked, .hourAmbiguousBlocked): return true
         case (.failed(let a), .failed(let b)): return a == b
         case (.ready(let a1, let a2, let a3), .ready(let b1, let b2, let b3)):
             // DailyFortuneResponse 无 hash 字段,用业务关键字段做相等性代理
@@ -51,6 +53,12 @@ final class DailyFortuneViewModel {
 
     /// 离线查看角标(网络失败 fallback 到本地缓存时为 true)。
     var isOffline: Bool = false
+
+    /// S09 当前命盘的时辰未知判据(复用 S07 `HourUnknownGate`,单一事实源 =
+    /// 存档 payload,VM/View 不另行推断)。`.ready` 时供 View 决定末尾静默
+    /// 提示位是否显示(D7 触点 2,S10 接线成可点击);`.dayAmbiguous` 由
+    /// runFullPipeline 拦在阶段 1 之前(见该函数注释)。
+    private(set) var hourGate: HourUnknownGate = .hourKnown
 
     // MARK: 历史日期选择
 
@@ -203,12 +211,21 @@ final class DailyFortuneViewModel {
             AppLogger.app.error("op=dailyFortune.generateInterpretation missing_chartHash state=\(String(describing: self.state), privacy: .public)")
             return
         }
+        // S09 纵深防御(D5 全拦,S07 PaywallViewModel.purchase 同款第二把锁):
+        // 日柱歧义盘不发起 interpret。runFullPipeline 已拦在阶段 1 之前
+        // (.hourAmbiguousBlocked 进不了下面的 .ready 分支),能走到这里说明
+        // 状态机被绕过——显式记录并拒绝,不静默放行。
+        guard hourGate != .dayAmbiguous else {
+            AppLogger.app.error("op=dailyFortune.generateInterpretation dayAmbiguous_intercepted hash=\(hash, privacy: .public) state=\(String(describing: self.state), privacy: .public)")
+            return
+        }
         guard case .ready(let response, _, let businessDate) = state else {
             AppLogger.app.error("op=dailyFortune.generateInterpretation invalid_state state=\(String(describing: self.state), privacy: .public)")
             return
         }
         guard let chartPayload = cachedChartPayload else {
-            // chartPayload 解码失败(见 runFullPipeline 的 catch)→ 显式报错,不静默返回
+            // chartPayload 缺失(runFullPipeline 离线兜底路径解档失败会留 nil)
+            // → 显式报错,不静默返回
             state = .ready(
                 response,
                 .failed(message: "命盘数据读取失败,请下拉刷新重试"),
@@ -310,32 +327,40 @@ final class DailyFortuneViewModel {
     ) async {
         cachedChartPayload = nil
 
-        // 阶段 1
         do {
+            // S09 时辰未知判据前置(判据单一事实源 = 存档 payload → S07
+            // `HourUnknownGate`,此处只消费不重推):阶段 1 之前先解存档——
+            // ① 日柱歧义盘全拦(见下方 if);② 顺带缓存 chartPayload 供阶段 2
+            // 复用(原阶段 1 之后的二次取档解码上移到此处,数据口径不变:
+            // 同一 store、同一 decodeResponse,失败走同一错误链)。
+            guard let snapshot = try chartStore.get(contentHash: chartHash) else {
+                throw DailyFortuneError.chartMissing
+            }
+            let bazi = try chartStore.decodeResponse(from: snapshot)
+            hourGate = bazi.hourUnknownGate
+            cachedChartPayload = ChartPayloadDTO.from(baziResponse: bazi)
+
+            // S09 / D5 日柱歧义全拦:没有日主,daily_fortune 的 REQUIRED 里
+            // day_master / day_pillar / day_relation 全塌,「日柱×流日」免费
+            // 降级叙事也不成立 → 拦在阶段 1 之前:daily-fortune 排盘与
+            // interpret 两类请求都不发起(拦截页由 View 层渲染,与深度解析
+            // 整拦页同款表达)。不猜日主、不做半盘运势。
+            if hourGate == .dayAmbiguous {
+                AppLogger.app.warning(
+                    "daily.runFullPipeline.dayAmbiguous_blocked hash=\(chartHash, privacy: .public) note=S09_D5_日柱歧义全拦_两类请求均不发起"
+                )
+                guard !Task.isCancelled else { return }
+                state = .hourAmbiguousBlocked
+                return
+            }
+
+            // 阶段 1
             let (response, _) = try await orchestrator.runDeterministic(
                 chartHash: chartHash,
                 ziHourRule: ziHourRule,
                 businessDate: businessDate,
                 forceRefresh: forceRefresh,
             )
-            // 缓存 chartPayload 供阶段 2 复用
-            do {
-                guard let snapshot = try chartStore.get(contentHash: chartHash) else {
-                    throw NSError(
-                        domain: "DailyFortune", code: -1,
-                        userInfo: [NSLocalizedDescriptionKey: "命盘存档未找到"]
-                    )
-                }
-                let bazi = try chartStore.decodeResponse(from: snapshot)
-                cachedChartPayload = ChartPayloadDTO.from(baziResponse: bazi)
-            } catch {
-                // chartStore 读取/解码失败:阶段 1 已成功(说明 runDeterministic 内部
-                // 的同样调用成功了),此处失败属异常。不静默吞,记录日志并传到 UI。
-                AppLogger.persistence.error(
-                    "daily.runFullPipeline.chartPayload_failed hash=\(chartHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
-                )
-                throw error
-            }
 
             // 若本地已有 AI 解读(24h 内)→ 直接显示 ok(cached=true),否则 idle
             var interpretState: InterpretState = .idle
@@ -438,6 +463,9 @@ final class DailyFortuneViewModel {
             if let chartSnapshot = try chartStore.get(contentHash: chartHash) {
                 let bazi = try chartStore.decodeResponse(from: chartSnapshot)
                 cachedChartPayload = ChartPayloadDTO.from(baziResponse: bazi)
+                // S09:离线兜底路径同步刷新判据(runFullPipeline 网络失败时未走到
+                // 前置判定;此处与主路径同源,不重推)
+                hourGate = bazi.hourUnknownGate
             } else {
                 AppLogger.persistence.error(
                     "daily.offline_fallback.chartSnapshot_missing hash=\(chartHash, privacy: .public)"

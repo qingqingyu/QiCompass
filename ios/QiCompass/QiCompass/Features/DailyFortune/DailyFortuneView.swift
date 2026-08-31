@@ -124,6 +124,16 @@ struct DailyFortuneView: View {
                 LoadingStateView(title: "推演流日中…")
             case .chartMissing:
                 DailyFortuneEmptyView()
+            case .hourAmbiguousBlocked:
+                // S09 日柱歧义全拦(D5):没有日主 → 免费降级不成立,VM 已拦在
+                // 阶段 1 之前(两类请求都不发起)。拦截表达复用 S07 组件:
+                // 一句话 + 补时辰入口占位(CTA 一期轻提示,S10 接线补时辰 sheet)。
+                HourUnknownGateNotice(
+                    title: L10n.PaywallGate.dailyFortuneTitle,
+                    reason: L10n.PaywallGate.dailyFortuneReason
+                )
+                .padding(.horizontal, 32)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .ready(let response, let interpretState, let businessDate):
                 DailyFortuneMainView(
                     vm: vm,

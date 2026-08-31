@@ -1381,6 +1381,23 @@
         }
       }
     },
+    "dailyfortune.main.degradedHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This reading uses only your day pillar. Add your birth hour to see hourly fortune and favorable elements."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这份运势只用了你的日柱。补上时辰可以看到时辰运势与喜忌。"
+          }
+        }
+      }
+    },
     "dailyfortune.main.historyError" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2502,6 +2519,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "补时辰入口即将开放"
+          }
+        }
+      }
+    },
+    "paywall.hourUnknown.dailyFortune.reason" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Born near midnight? Without the hour, the day pillar — the anchor of daily fortune — can't be settled"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的生日落在子夜前后，没有时辰无法确定日柱——每日运势以日柱为起点"
+          }
+        }
+      }
+    },
+    "paywall.hourUnknown.dailyFortune.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your birth hour is needed before daily fortune can be read"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缺出生时辰，暂时无法看每日运势"
           }
         }
       }

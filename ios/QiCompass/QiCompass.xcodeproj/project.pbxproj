@@ -121,6 +121,7 @@
 		A0000000000000000000009C /* Shared/EntitlementStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000009C /* Shared/EntitlementStoreTests.swift */; };
 		A0000000000000000000010 /* Services/DailyImageStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000010 /* Services/DailyImageStoreTests.swift */; };
 		A00000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */; };
+		A00000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */; };
 		A00000000000000000000008 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A21000000000000000000001 /* XCTest.framework */; };
 		A9B245DDB05C779E1238547A /* DeepAnalysisViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F34390B983BDE0003B56E8 /* DeepAnalysisViewModel.swift */; };
 		AA5500000000000000000001 /* UserSnapshotLinkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000002 /* UserSnapshotLinkStore.swift */; };
@@ -282,6 +283,7 @@
 		A1100000000000000000009C /* Shared/EntitlementStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/EntitlementStoreTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000010 /* Services/DailyImageStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/DailyImageStoreTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paywall/PaywallHourUnknownGateTests.swift; sourceTree = "<group>"; };
+		A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFortune/DailyFortuneHourUnknownGateTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000001 /* QiCompassTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QiCompassTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A21000000000000000000001 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 		AA5500000000000000000002 /* UserSnapshotLinkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserSnapshotLinkStore.swift; path = QiCompass/Services/UserSnapshotLinkStore.swift; sourceTree = SOURCE_ROOT; };
@@ -600,6 +602,7 @@
 				A1100000000000000000009C /* Shared/EntitlementStoreTests.swift */,
 				A1100000000000000000010 /* Services/DailyImageStoreTests.swift */,
 				A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */,
+				A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */,
 				A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */,
 			);
 			name = Tests;
@@ -859,6 +862,7 @@
 				A0000000000000000000009C /* Shared/EntitlementStoreTests.swift in Sources */,
 				A0000000000000000000010 /* Services/DailyImageStoreTests.swift in Sources */,
 				A00000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift in Sources */,
+				A00000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift in Sources */,
 				A0000000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
