@@ -67,6 +67,15 @@ enum ZodiacHelper {
         gender == "male" ? "乾造(男)" : "坤造(女)"
     }
 
+    /// 生肖名是否在已知 12 生肖表内(S05 时辰未知)。
+    /// 年柱歧义(S02/D10 立春日 + 时辰未知)→ yearBranchZodiac 为 null/空,
+    /// `animalChar` / `personalityText` 对未知值 fatalError(错误显式传播),
+    /// 调用方必须先经此谓词判空(生肖屏降级表达归 S08)。
+    static func isKnownZodiac(_ zodiac: String?) -> Bool {
+        guard let zodiac, !zodiac.isEmpty else { return false }
+        return zodiacToChar[zodiac] != nil
+    }
+
     // MARK: - 老缓存兜底(2026-08-15 排盘异常修复)
 
     /// 地支顺序(子→亥),三合组内两友按此序稳定输出(对齐 backend ZHI_ORDER)。

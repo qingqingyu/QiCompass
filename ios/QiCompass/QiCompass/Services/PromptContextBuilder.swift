@@ -13,13 +13,21 @@ import Foundation
 /// - shensha_list / element_balance 拼接为可读字符串
 enum PromptContextBuilder {
 
+    /// 时辰未知占位值(S05):柱缺失(时辰未知 / S02 柱歧义)时对应 context key
+    /// 走此占位——**key 只增不删**(REQUIRED ⊆ builder keys 校验恒 PASS),值语义
+    /// 由 S06 模板定稿;不猜任何干支。真太阳时缺失同理(12:00 占位属假精度)。
+    static let hourUnknownPlaceholder = "时辰未知"
+
     /// 构造 bazi_deep module 的 prompt context。
     static func build(
         response: BaziResponse,
         request: BaziCalculateRequest
     ) -> [String: AnyCodableJSON] {
         let p = response.pillars
-        let trueSolarTimeStr = Self.dateTimeFormatter.string(from: response.trueSolarTime)
+        let placeholder = Self.hourUnknownPlaceholder
+        // S05:hour_known=false → 后端 true_solar_time=null,柱缺失走占位
+        let trueSolarTimeStr = response.trueSolarTime
+            .map(Self.dateTimeFormatter.string(from:)) ?? placeholder
         // S03:city key 保留(prompt 契约不变),取值换物理真值来源(Q4)
         let cityDisplay = request.placeName ?? "自定义地点(经度 \(request.longitude))"
 
@@ -28,38 +36,38 @@ enum PromptContextBuilder {
             "gender": AnyCodableJSON(Self.genderToChinese(request.gender)),
             "city": AnyCodableJSON(cityDisplay),
             "true_solar_time": AnyCodableJSON(trueSolarTimeStr),
-            // 年柱
-            "year_gan": AnyCodableJSON(p.year.gan),
-            "year_zhi": AnyCodableJSON(p.year.zhi),
-            "year_gan_element": AnyCodableJSON(Self.elementToChinese(p.year.ganElement)),
-            "year_zhi_element": AnyCodableJSON(Self.elementToChinese(p.year.zhiElement)),
-            "year_shishen_gan": AnyCodableJSON(p.year.shishenGan),
-            "year_hide_gan": AnyCodableJSON(p.year.hideGan.joined(separator: ", ")),
-            // 月柱
-            "month_gan": AnyCodableJSON(p.month.gan),
-            "month_zhi": AnyCodableJSON(p.month.zhi),
-            "month_gan_element": AnyCodableJSON(Self.elementToChinese(p.month.ganElement)),
-            "month_zhi_element": AnyCodableJSON(Self.elementToChinese(p.month.zhiElement)),
-            "month_shishen_gan": AnyCodableJSON(p.month.shishenGan),
-            "month_hide_gan": AnyCodableJSON(p.month.hideGan.joined(separator: ", ")),
-            // 日柱
-            "day_gan": AnyCodableJSON(p.day.gan),
-            "day_zhi": AnyCodableJSON(p.day.zhi),
-            "day_gan_element": AnyCodableJSON(Self.elementToChinese(p.day.ganElement)),
-            "day_shishen_zhi": AnyCodableJSON(p.day.shishenZhi.joined(separator: ", ")),
-            "day_hide_gan": AnyCodableJSON(p.day.hideGan.joined(separator: ", ")),
-            // 时柱
-            "hour_gan": AnyCodableJSON(p.hour.gan),
-            "hour_zhi": AnyCodableJSON(p.hour.zhi),
-            "hour_gan_element": AnyCodableJSON(Self.elementToChinese(p.hour.ganElement)),
-            "hour_zhi_element": AnyCodableJSON(Self.elementToChinese(p.hour.zhiElement)),
-            "hour_shishen_gan": AnyCodableJSON(p.hour.shishenGan),
-            "hour_hide_gan": AnyCodableJSON(p.hour.hideGan.joined(separator: ", ")),
+            // 年柱(歧义 → 占位,不猜)
+            "year_gan": AnyCodableJSON(p.year?.gan ?? placeholder),
+            "year_zhi": AnyCodableJSON(p.year?.zhi ?? placeholder),
+            "year_gan_element": AnyCodableJSON(p.year.map { Self.elementToChinese($0.ganElement) } ?? placeholder),
+            "year_zhi_element": AnyCodableJSON(p.year.map { Self.elementToChinese($0.zhiElement) } ?? placeholder),
+            "year_shishen_gan": AnyCodableJSON(p.year?.shishenGan ?? placeholder),
+            "year_hide_gan": AnyCodableJSON(p.year?.hideGan.joined(separator: ", ") ?? placeholder),
+            // 月柱(歧义 → 占位)
+            "month_gan": AnyCodableJSON(p.month?.gan ?? placeholder),
+            "month_zhi": AnyCodableJSON(p.month?.zhi ?? placeholder),
+            "month_gan_element": AnyCodableJSON(p.month.map { Self.elementToChinese($0.ganElement) } ?? placeholder),
+            "month_zhi_element": AnyCodableJSON(p.month.map { Self.elementToChinese($0.zhiElement) } ?? placeholder),
+            "month_shishen_gan": AnyCodableJSON(p.month?.shishenGan ?? placeholder),
+            "month_hide_gan": AnyCodableJSON(p.month?.hideGan.joined(separator: ", ") ?? placeholder),
+            // 日柱(歧义 → 占位)
+            "day_gan": AnyCodableJSON(p.day?.gan ?? placeholder),
+            "day_zhi": AnyCodableJSON(p.day?.zhi ?? placeholder),
+            "day_gan_element": AnyCodableJSON(p.day.map { Self.elementToChinese($0.ganElement) } ?? placeholder),
+            "day_shishen_zhi": AnyCodableJSON(p.day?.shishenZhi.joined(separator: ", ") ?? placeholder),
+            "day_hide_gan": AnyCodableJSON(p.day?.hideGan.joined(separator: ", ") ?? placeholder),
+            // 时柱(时辰未知 → 占位;7 个 hour_* key 一个不漏,勿漏 hour_nayin)
+            "hour_gan": AnyCodableJSON(p.hour?.gan ?? placeholder),
+            "hour_zhi": AnyCodableJSON(p.hour?.zhi ?? placeholder),
+            "hour_gan_element": AnyCodableJSON(p.hour.map { Self.elementToChinese($0.ganElement) } ?? placeholder),
+            "hour_zhi_element": AnyCodableJSON(p.hour.map { Self.elementToChinese($0.zhiElement) } ?? placeholder),
+            "hour_shishen_gan": AnyCodableJSON(p.hour?.shishenGan ?? placeholder),
+            "hour_hide_gan": AnyCodableJSON(p.hour?.hideGan.joined(separator: ", ") ?? placeholder),
             // 纳音
-            "year_nayin": AnyCodableJSON(p.year.nayin),
-            "month_nayin": AnyCodableJSON(p.month.nayin),
-            "day_nayin": AnyCodableJSON(p.day.nayin),
-            "hour_nayin": AnyCodableJSON(p.hour.nayin),
+            "year_nayin": AnyCodableJSON(p.year?.nayin ?? placeholder),
+            "month_nayin": AnyCodableJSON(p.month?.nayin ?? placeholder),
+            "day_nayin": AnyCodableJSON(p.day?.nayin ?? placeholder),
+            "hour_nayin": AnyCodableJSON(p.hour?.nayin ?? placeholder),
             // 命宫
             "ming_gong": AnyCodableJSON(response.mingGong.ganZhi),
             "ming_gong_nayin": AnyCodableJSON(response.mingGong.nayin),
@@ -147,6 +155,12 @@ enum PromptContextBuilder {
             ]
         }
 
+        // S05 时辰未知:柱缺失 → JSON null 占位(不猜干支,LLM 按设计文档 §2
+        // "字段缺失就说明缺失"降级叙事;字段语义由 S06 模板定稿)
+        func pillarOrNull(_ pillar: PillarDTO?) -> Any {
+            pillar.map(pillarDict) ?? NSNull()
+        }
+
         // luck_pillars 拆 gan_zhi
         let luckPillars: [[String: Any]] = try response.luckPillars.map { lp in
             var dict: [String: Any] = ["start_age": lp.startAge]
@@ -180,8 +194,10 @@ enum PromptContextBuilder {
 
         // day_master.strength_label:英文枚举 → 中文 label(对齐 backend chart_builder.py:69-72
         // + _STRENGTH_LABEL_ZH 映射)。response.dayMasterStrength 是英文枚举
-        // (strong/weak/balanced/special_pattern),需映射为中文。
+        // (strong/weak/balanced/special_pattern/unknown_hour)。
         // nil = 老 response,兜底"未判定";非 nil 但不在已知枚举 = 代码 bug,显式抛错。
+        // unknown_hour(S01):时柱缺失或日柱歧义 → 引擎不硬算,诚实标注(S06 模板
+        // 定稿降级叙事口径)
         let strengthLabel: String
         if let strength = response.dayMasterStrength {
             switch strength {
@@ -189,6 +205,7 @@ enum PromptContextBuilder {
             case "weak": strengthLabel = "偏弱"
             case "balanced": strengthLabel = "中和"
             case "special_pattern": strengthLabel = "从格特征"
+            case "unknown_hour": strengthLabel = "时辰未知"
             default:
                 throw PromptContextError.unknownDayMasterStrength(
                     contentHash: response.contentHash,
@@ -200,6 +217,45 @@ enum PromptContextBuilder {
             strengthLabel = "未判定"
         }
 
+        // S05 日柱歧义(S02/D10):无日主。day_master 是 v1 chart 的轴心字段,
+        // 不编造——显式抛错(D5 全拦截用户由 S07 付费墙拦截在内容页之前,
+        // 走到这里 = 上游拦截缺口,须暴露而非静默降级)
+        guard let dayPillar = p.day else {
+            throw PromptContextError.missingDayPillar(
+                contentHash: response.contentHash
+            )
+        }
+
+        // S05:柱缺失 → null 占位。拆局部子表达式(显式 Any),避免大字典
+        // 字面量 + Optional ?? NSNull 混排触发 type-check 超时
+        let jsonNull: Any = NSNull()
+        let pillarsJSON: [String: Any] = [
+            "year": pillarOrNull(p.year),
+            "month": pillarOrNull(p.month),
+            "day": pillarDict(dayPillar),
+            "hour": pillarOrNull(p.hour),
+        ]
+        let dayMasterJSON: [String: Any] = [
+            "stem": dayPillar.gan,
+            "element": Self.elementToChinese(dayPillar.ganElement),
+            // strength_score 留 null:BaziResponse 不透传 xiji.score,
+            // LLM 走 strength_label 判断(对齐 backend chart_builder.py:76-79)
+            "strength_score": jsonNull,
+            "strength_label": strengthLabel,
+        ]
+        let hiddenTenGods: [String: Any] = [
+            "year_branch": p.year?.shishenZhi ?? jsonNull,
+            "month_branch": p.month?.shishenZhi ?? jsonNull,
+            "day_branch": dayPillar.shishenZhi,
+            "hour_branch": p.hour?.shishenZhi ?? jsonNull,
+        ]
+        let tenGodsJSON: [String: Any] = [
+            "year_stem": p.year?.shishenGan ?? jsonNull,
+            "month_stem": p.month?.shishenGan ?? jsonNull,
+            "hour_stem": p.hour?.shishenGan ?? jsonNull,
+            "hidden": hiddenTenGods,
+        ]
+
         let chart: [String: Any] = [
             "meta": [
                 "locale": meta.locale,
@@ -209,31 +265,9 @@ enum PromptContextBuilder {
                 "late_zishi_rule": meta.lateZishiRule,
                 "solar_term_boundary": meta.solarTermBoundary,
             ],
-            "pillars": [
-                "year": pillarDict(p.year),
-                "month": pillarDict(p.month),
-                "day": pillarDict(p.day),
-                "hour": pillarDict(p.hour),
-            ],
-            "day_master": [
-                "stem": p.day.gan,
-                "element": Self.elementToChinese(p.day.ganElement),
-                // strength_score 留 null:BaziResponse 不透传 xiji.score,
-                // LLM 走 strength_label 判断(对齐 backend chart_builder.py:76-79)
-                "strength_score": NSNull(),
-                "strength_label": strengthLabel,
-            ],
-            "ten_gods": [
-                "year_stem": p.year.shishenGan,
-                "month_stem": p.month.shishenGan,
-                "hour_stem": p.hour.shishenGan,
-                "hidden": [
-                    "year_branch": p.year.shishenZhi,
-                    "month_branch": p.month.shishenZhi,
-                    "day_branch": p.day.shishenZhi,
-                    "hour_branch": p.hour.shishenZhi,
-                ],
-            ],
+            "pillars": pillarsJSON,
+            "day_master": dayMasterJSON,
+            "ten_gods": tenGodsJSON,
             "ten_god_weights": response.tenGodWeights,
             "five_elements": [
                 "木": response.elementBalance.wood,
@@ -244,7 +278,7 @@ enum PromptContextBuilder {
             ],
             "useful_god_candidates": response.usefulGodCandidates,
             "luck_pillars": luckPillars,
-            "current_luck": currentLuck ?? NSNull(),
+            "current_luck": currentLuck ?? jsonNull,
             "current_year": currentYear,
         ]
 
@@ -398,6 +432,9 @@ enum PromptContextError: Error, LocalizedError {
     case missingMetaBlock(contentHash: String)
     /// response.currentYearPillar 为 nil(后端语义保证非空,nil = 数据损坏)
     case missingCurrentYear(contentHash: String)
+    /// response.pillars.day 为 nil(日柱歧义,S02/D10)。无日主不编造 day_master
+    /// 轴心字段;D5 全拦截用户应由 S07 付费墙拦在内容页之前,走到这里 = 上游拦截缺口
+    case missingDayPillar(contentHash: String)
     /// gan_zhi 长度异常(期望 2 字符天干+地支)。splitGanZhi 拒绝静默兜底空字符串。
     case invalidGanZhi(contentHash: String, field: String, value: String)
     /// dayMasterStrength 非 nil 但不在已知枚举(strong/weak/balanced/special_pattern)
@@ -412,6 +449,8 @@ enum PromptContextError: Error, LocalizedError {
             return "命盘缺 meta 块(contentHash=\(hash.prefix(8))),可能后端版本未升级到 Stage 1+,或 response 过期"
         case .missingCurrentYear(let hash):
             return "命盘缺 current_year_pillar(contentHash=\(hash.prefix(8))),数据损坏"
+        case .missingDayPillar(let hash):
+            return "命盘日柱未知(日柱歧义,时辰未知所致,contentHash=\(hash.prefix(8))),该盘不应进入内容页(S07 拦截)"
         case .invalidGanZhi(let hash, let field, let value):
             return "命盘 \(field) gan_zhi 长度异常(期望 2 字符):\(value)(contentHash=\(hash.prefix(8)))"
         case .unknownDayMasterStrength(let hash, let value):

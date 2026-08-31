@@ -100,8 +100,11 @@ struct OnboardingView: View {
                 InkCalculatingView(title: stage.text)
             case .ready(let response, _):
                 // 第 3 屏:生肖反馈终态屏(提交成功 → 整体切换,无 swipe 回退)
+                // S05:年柱歧义(S02/D10)→ 生肖系字段 null,传空串/chip 空数组
+                // 并由 ZodiacRevealView 内部 isKnownZodiac 分支保证不 crash
+                // (animalChar/personalityText 对未知值 fatalError);完整降级表达归 S08
                 ZodiacRevealView(
-                    zodiac: response.yearBranchZodiac,
+                    zodiac: response.yearBranchZodiac ?? "",
                     mainLabel: mainLabel(from: response),
                     subLabel: subLabel(
                         from: response,
@@ -110,8 +113,8 @@ struct OnboardingView: View {
                         // birthDate 已 Optional 化(S03 日期必选):.ready 前置 validateForm 已保证非空
                         birthYear: vm.birthDate.map { vm.placeCalendar.component(.year, from: $0) }
                     ),
-                    friendZodiacs: response.yearBranchFriends,
-                    clashZodiac: response.yearBranchClash,
+                    friendZodiacs: response.yearBranchFriends ?? [],
+                    clashZodiac: response.yearBranchClash ?? "",
                     onComplete: {
                         guard !hasTriggeredComplete else {
                             AppLogger.app.warning("ZodiacRevealView onComplete 已触发过,跳过重复调用")
@@ -188,10 +191,17 @@ struct OnboardingView: View {
     /// 主文字(生肖决策 Q12 iii):`辰 · 龙`(中点分隔)。
     /// 地支汉字从 `response.pillars.year.zhi`(后端 lunar_python 按立春算),
     /// 生肖汉字从 `ZodiacHelper.animalChar(forZodiac:)`(英文 asset name → 中文)。
+    /// S05:年柱歧义(S02/D10)→ 年支/生肖均 null,留白「—」不猜;
+    /// `animalChar` 对未知值 fatalError,必须先经 `isKnownZodiac` 判空
+    /// (保证不 crash;生肖屏完整降级表达归 S08)。
     private func mainLabel(from response: BaziResponse) -> String {
-        let zhi = response.pillars.year.zhi  // 如 "辰"
-        let animalChar = ZodiacHelper.animalChar(forZodiac: response.yearBranchZodiac)  // "Dragon" → "龙"
-        return "\(zhi) · \(animalChar)"
+        guard let zhi = response.pillars.year?.zhi,  // 如 "辰"
+              let zodiac = response.yearBranchZodiac,
+              ZodiacHelper.isKnownZodiac(zodiac) else {
+            AppLogger.app.warning("OnboardingView.mainLabel year_pillar_ambiguous(年柱歧义,S08 降级表达待接入)")
+            return "—"
+        }
+        return "\(zhi) · \(ZodiacHelper.animalChar(forZodiac: zodiac))"  // "Dragon" → "龙"
     }
 
     /// 次文字(生肖决策 Q13 C+ii):`乾造(男) · 庚辰年(2000)`(命理 + 公历双轨)。
@@ -200,9 +210,10 @@ struct OnboardingView: View {
     /// 公历年份由调用方传(从 vm.birthDate 取,用于用户认知锚点)。
     /// birthYear 为 Optional(S03 birthDate Optional 化):nil = 理论不可达(.ready 前置
     /// validateForm 已保证日期非空),显式记录 + 诚实降级去括号,不静默编造年份。
+    /// S05:年柱歧义 → 干支留白「—」不猜(同上,归 S08)。
     private func subLabel(from response: BaziResponse, gender: String, birthYear: Int?) -> String {
         let genderLabel = ZodiacHelper.genderLabel(forGender: gender)
-        let ganzhi = response.pillars.year.ganZhi  // 如 "庚辰"
+        let ganzhi = response.pillars.year?.ganZhi ?? "—"  // 如 "庚辰"
         guard let birthYear else {
             AppLogger.app.error("OnboardingView.subLabel birthDate_missing(理论不可达,请上报)")
             return "\(genderLabel) · \(ganzhi)年"

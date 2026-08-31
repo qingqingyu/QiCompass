@@ -445,4 +445,347 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         XCTAssertTrue(decoded.isHourKnown, "老盘缺 hour_known key → 视为 true")
         XCTAssertNil(decoded.lateNight, "老盘缺 late_night key → nil 不 crash")
     }
+
+    // MARK: - S05 DTO Optional 化(null / 缺字段 / 正常 三态解码)
+
+    /// 单柱 JSON 夹具(zhi=子,供 legacy 生肖兜底断言复用)
+    private static let pillarJSON: [String: Any] = [
+        "gan_zhi": "甲子", "gan": "甲", "zhi": "子",
+        "gan_element": "wood", "zhi_element": "water",
+        "hide_gan": ["癸"], "shishen_gan": "比肩", "shishen_zhi": ["正印"],
+        "nayin": "海中金", "dishi": "沐浴", "xunkong": "戌亥",
+    ]
+
+    /// S02 终态契约形状的响应 JSON(时辰未知 + 年/日柱歧义,显式 null 全量出现)
+    private static func hourUnknownResponseJSON(pillars: [String: Any],
+                                                includeZodiacKeys: Bool = true) throws -> Data {
+        var json: [String: Any] = [
+            "content_hash": "s05_hour_unknown",
+            "true_solar_time": NSNull(),  // S01:占位真太阳时不漏响应
+            "true_solar_offset_minutes": -14.4,
+            "pillars": pillars,
+            "ming_gong": ["gan_zhi": "甲子", "nayin": "海中金"],
+            "shen_gong": ["gan_zhi": "甲子", "nayin": "海中金"],
+            "tai_yuan": ["gan_zhi": "甲子", "nayin": "海中金"],
+            "element_balance": ["wood": 2, "fire": 1, "earth": 1, "metal": 1, "water": 3],
+            "favorable_elements": [],
+            "unfavorable_elements": [],
+            "day_master_strength": "unknown_hour",
+            "tiaoshou_applied": false,
+            "shensha": [],
+            "shensha_incomplete": true,
+            "pillar_ambiguity": ["year": true, "month": false, "day": true],
+            "luck_pillars": [],
+            "calc_rule_snapshot": [
+                "library": "lunar_python", "sect": 1, "zi_hour_rule": "zi_next_day",
+                "true_solar_longitude": 116.4, "true_solar_offset_minutes": -14.4,
+                "schema_version": 1, "hour_known": false,
+                "pillar_ambiguity": ["year": true, "month": false, "day": true],
+            ] as [String: Any],
+            "ten_god_weights": [String: Any](),
+            "useful_god_candidates": [String](),
+        ]
+        if includeZodiacKeys {
+            // S02:年柱歧义 → 生肖系显式 null(不是缺 key)
+            json["year_branch_zodiac"] = NSNull()
+            json["year_branch_friends"] = NSNull()
+            json["year_branch_clash"] = NSNull()
+        }
+        return try JSONSerialization.data(withJSONObject: json)
+    }
+
+    func testHourUnknownResponseDecodesExplicitNulls() throws {
+        // 显式 null 全量:hour/day/year 柱 null + 真太阳时 null + 生肖系 null +
+        // 歧义标记 + 神煞不完整标注(不变量:pillar_ambiguity.<pos>=true ⟺ 柱 null)
+        let data = try Self.hourUnknownResponseJSON(pillars: [
+            "year": NSNull(), "month": Self.pillarJSON,
+            "day": NSNull(), "hour": NSNull(),
+        ])
+        let decoded = try APICoder.decoder.decode(BaziResponse.self, from: data)
+
+        XCTAssertNil(decoded.pillars.hour, "hour_known=false → 时柱 null")
+        XCTAssertNil(decoded.pillars.day, "日柱歧义 → 日柱 null")
+        XCTAssertNil(decoded.pillars.year, "年柱歧义 → 年柱 null")
+        XCTAssertEqual(decoded.pillars.month?.ganZhi, "甲子", "无歧义月柱照常解码")
+        XCTAssertNil(decoded.trueSolarTime, "时辰未知 → 真太阳时 null(占位一致性)")
+        // 显式 null ≠ 缺 key:生肖系原样透传 nil,不被 legacy 兜底覆盖(不猜)
+        XCTAssertNil(decoded.yearBranchZodiac)
+        XCTAssertNil(decoded.yearBranchFriends)
+        XCTAssertNil(decoded.yearBranchClash)
+        XCTAssertTrue(decoded.shenshaIncomplete, "神煞按三柱查的完整性标注")
+        XCTAssertEqual(decoded.pillarAmbiguity, PillarAmbiguityDTO(year: true, month: false, day: true))
+        XCTAssertEqual(decoded.calcRuleSnapshot.pillarAmbiguity, decoded.pillarAmbiguity,
+                       "歧义标记进 calc_rule_snapshot(同 hash 可审计)")
+        XCTAssertFalse(decoded.isHourKnown)
+    }
+
+    func testHourPillarKeyOmittedDecodesAsNil() throws {
+        // 缺字段(非显式 null)路径:decodeIfPresent 不 crash
+        let data = try Self.hourUnknownResponseJSON(pillars: [
+            "year": Self.pillarJSON, "month": Self.pillarJSON, "day": Self.pillarJSON,
+            // "hour" key 整体省略
+        ])
+        let decoded = try APICoder.decoder.decode(BaziResponse.self, from: data)
+        XCTAssertNil(decoded.pillars.hour, "缺 hour key → nil(decodeIfPresent)")
+        XCTAssertEqual(decoded.pillars.day?.zhi, "子")
+    }
+
+    func testLegacyPayloadMissingZodiacKeysFallsBackToYearZhi() throws {
+        // 2026-08-15 教训回归:老缓存缺生肖三 key → pillars.year.zhi 查表兜底,
+        // 行为与 S05 之前一致(含部分 key 的中间缓存按字段独立兜底)
+        let data = try Self.hourUnknownResponseJSON(
+            pillars: ["year": Self.pillarJSON, "month": Self.pillarJSON,
+                      "day": Self.pillarJSON, "hour": Self.pillarJSON],
+            includeZodiacKeys: false
+        )
+        let decoded = try APICoder.decoder.decode(BaziResponse.self, from: data)
+        XCTAssertEqual(decoded.yearBranchZodiac, "Rat", "子 → Rat")
+        XCTAssertEqual(decoded.yearBranchFriends, ["Ox", "Dragon", "Monkey"],
+                       "六合丑 + 三合辰申(按地支序)")
+        XCTAssertEqual(decoded.yearBranchClash, "Horse", "子午冲")
+    }
+
+    func testLegacyPayloadPartialZodiacKeysFallbackOnlyMissingOnes() throws {
+        // 中间缓存:zodiac 有 key、friends/clash 缺 → 只兜底缺失的两个
+        var json = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Self.hourUnknownResponseJSON(
+                pillars: ["year": Self.pillarJSON, "month": Self.pillarJSON,
+                          "day": Self.pillarJSON, "hour": Self.pillarJSON],
+                includeZodiacKeys: false
+            )) as? [String: Any]
+        )
+        json["year_branch_zodiac"] = "Rat"  // 只补回 zodiac key
+        let data = try JSONSerialization.data(withJSONObject: json)
+        let decoded = try APICoder.decoder.decode(BaziResponse.self, from: data)
+        XCTAssertEqual(decoded.yearBranchZodiac, "Rat")
+        XCTAssertEqual(decoded.yearBranchFriends, ["Ox", "Dragon", "Monkey"], "缺失 key 走兜底")
+        XCTAssertEqual(decoded.yearBranchClash, "Horse")
+    }
+
+    // MARK: - S05 PromptContextBuilder unknown 分支
+
+    private static let fixturePillar = PillarDTO(
+        ganZhi: "甲子", gan: "甲", zhi: "子",
+        ganElement: "wood", zhiElement: "water",
+        hideGan: ["癸"], shishenGan: "比肩", shishenZhi: ["正印"],
+        nayin: "海中金", dishi: "沐浴", xunkong: "戌亥"
+    )
+
+    private static func makeResponse(
+        pillars: PillarsDTO,
+        dayMasterStrength: String? = "balanced",
+        trueSolarTime: Date? = Date(timeIntervalSince1970: 580_262_400),
+        meta: MetaBlockDTO? = nil,
+        hourKnown: Bool = true
+    ) -> BaziResponse {
+        BaziResponse(
+            contentHash: "s05_ctx",
+            trueSolarTime: trueSolarTime,
+            trueSolarOffsetMinutes: -14.4,
+            pillars: pillars,
+            mingGong: GanZhiNaYinDTO(ganZhi: "甲子", nayin: "海中金"),
+            shenGong: GanZhiNaYinDTO(ganZhi: "甲子", nayin: "海中金"),
+            taiYuan: GanZhiNaYinDTO(ganZhi: "甲子", nayin: "海中金"),
+            elementBalance: ElementBalanceDTO(wood: 2, fire: 1, earth: 1, metal: 1, water: 3),
+            favorableElements: ["水"], unfavorableElements: ["土"],
+            dayMasterStrength: dayMasterStrength,
+            tiaoshouApplied: false,
+            xijiMethod: "扶抑+调候", patternHint: nil,
+            shensha: [],
+            luckPillars: [],
+            currentLuckPillar: nil,
+            currentYearPillar: "甲子",
+            currentDayPillar: nil, currentHourPillar: nil,
+            calcRuleSnapshot: CalcRuleSnapshotDTO(
+                library: "lunar_python", sect: 1, ziHourRule: "zi_next_day",
+                trueSolarLongitude: 116.4, trueSolarOffsetMinutes: -14.4,
+                schemaVersion: 1, hourKnown: hourKnown
+            ),
+            boundaryWarning: nil,
+            yearBranchZodiac: "Rat",
+            yearBranchFriends: ["Ox", "Dragon", "Monkey"],
+            yearBranchClash: "Horse",
+            meta: meta
+        )
+    }
+
+    private static let fixtureRequest = BaziCalculateRequest(
+        birthDatetime: "1988-05-15T12:00:00",
+        timezone: "Asia/Shanghai",
+        gender: "male",
+        longitude: 116.4,
+        latitude: 39.9,
+        placeName: "北京",
+        geonameId: nil,
+        ziHourRule: "zi_next_day"
+    )
+
+    func testPromptContextBuilderHourUnknownPlaceholders() throws {
+        // hour_known=false:全部 7 个 hour_* key(含 hour_nayin)走占位,
+        // key 只增不删(REQUIRED ⊆ builder keys 校验恒 PASS)
+        let response = Self.makeResponse(pillars: PillarsDTO(
+            year: Self.fixturePillar, month: Self.fixturePillar,
+            day: Self.fixturePillar, hour: nil
+        ), trueSolarTime: nil, hourKnown: false)
+        let context = PromptContextBuilder.build(response: response, request: Self.fixtureRequest)
+
+        let hourKeys = ["hour_gan", "hour_zhi", "hour_gan_element", "hour_zhi_element",
+                        "hour_shishen_gan", "hour_hide_gan", "hour_nayin"]
+        for key in hourKeys {
+            let value = try XCTUnwrap(context[key], "hour_known=false 时 \(key) 必须仍在(只增不删)")
+            XCTAssertEqual(value.value as? String, PromptContextBuilder.hourUnknownPlaceholder,
+                           "\(key) 缺时柱 → 占位值")
+        }
+        XCTAssertEqual(context["true_solar_time"]?.value as? String,
+                       PromptContextBuilder.hourUnknownPlaceholder,
+                       "真太阳时 null → 占位(不漏 12:00 假精度)")
+        // 未歧义柱照常
+        XCTAssertEqual(context["day_gan"]?.value as? String, "甲")
+    }
+
+    func testPromptContextBuilderDayAndYearAmbiguityPlaceholders() throws {
+        // S02 歧义:day null → day_* 占位;year null → year_* 占位(同理不猜)
+        let response = Self.makeResponse(pillars: PillarsDTO(
+            year: nil, month: Self.fixturePillar,
+            day: nil, hour: Self.fixturePillar
+        ), dayMasterStrength: "unknown_hour", hourKnown: false)
+        let context = PromptContextBuilder.build(response: response, request: Self.fixtureRequest)
+
+        for key in ["day_gan", "day_zhi", "day_gan_element", "day_shishen_zhi",
+                    "day_hide_gan", "day_nayin"] {
+            XCTAssertEqual(context[key]?.value as? String,
+                           PromptContextBuilder.hourUnknownPlaceholder, "\(key) 日柱歧义 → 占位")
+        }
+        for key in ["year_gan", "year_zhi", "year_gan_element", "year_zhi_element",
+                    "year_shishen_gan", "year_hide_gan", "year_nayin"] {
+            XCTAssertEqual(context[key]?.value as? String,
+                           PromptContextBuilder.hourUnknownPlaceholder, "\(key) 年柱歧义 → 占位")
+        }
+    }
+
+    func testPromptContextBuilderFullPillarsUnchanged() throws {
+        // 老盘(四柱齐全)context 输出与现状一致(值不走占位)
+        let response = Self.makeResponse(pillars: PillarsDTO(
+            year: Self.fixturePillar, month: Self.fixturePillar,
+            day: Self.fixturePillar, hour: Self.fixturePillar
+        ))
+        let context = PromptContextBuilder.build(response: response, request: Self.fixtureRequest)
+        XCTAssertEqual(context["hour_gan"]?.value as? String, "甲")
+        XCTAssertEqual(context["hour_nayin"]?.value as? String, "海中金")
+        XCTAssertEqual(context["day_gan_element"]?.value as? String, "木")
+        XCTAssertNotEqual(context["true_solar_time"]?.value as? String,
+                          PromptContextBuilder.hourUnknownPlaceholder)
+    }
+
+    func testBuildV1ChartJSONHourUnknownEmitsNulls() throws {
+        // 时柱缺失 → v1 chart 的 pillars.hour / ten_gods.hour_* 为 JSON null;
+        // unknown_hour → strength_label「时辰未知」(S06 模板定稿前的诚实标注)
+        let meta = MetaBlockDTO(
+            locale: "zh-CN", gender: "male",
+            birthLocal: "1988-05-15T12:00:00+08:00",
+            trueSolarTime: "1988-05-15T11:45:00",
+            lateZishiRule: "day_change_at_23", solarTermBoundary: "立夏后"
+        )
+        let response = Self.makeResponse(
+            pillars: PillarsDTO(year: Self.fixturePillar, month: Self.fixturePillar,
+                                day: Self.fixturePillar, hour: nil),
+            dayMasterStrength: "unknown_hour",
+            meta: meta, hourKnown: false
+        )
+        let jsonString = try PromptContextBuilder.buildV1ChartJSON(response: response)
+        let chart = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Data(jsonString.utf8)) as? [String: Any]
+        )
+        let pillarsJSON = try XCTUnwrap(chart["pillars"] as? [String: Any])
+        XCTAssertTrue(pillarsJSON["hour"] is NSNull, "pillars.hour → JSON null(不猜干支)")
+        XCTAssertFalse(pillarsJSON["day"] is NSNull, "日柱在(仅时柱缺)")
+        let tenGods = try XCTUnwrap(chart["ten_gods"] as? [String: Any])
+        XCTAssertTrue(tenGods["hour_stem"] is NSNull)
+        let dayMaster = try XCTUnwrap(chart["day_master"] as? [String: Any])
+        XCTAssertEqual(dayMaster["strength_label"] as? String, "时辰未知")
+    }
+
+    func testBuildV1ChartJSONDayAmbiguousThrowsExplicitly() throws {
+        // 日柱歧义 → 无日主不编造 day_master 轴心字段,显式抛错
+        // (S07 付费墙拦在内容页之前;走到这里 = 上游拦截缺口)
+        let meta = MetaBlockDTO(
+            locale: "zh-CN", gender: "male",
+            birthLocal: "1988-05-15T12:00:00+08:00",
+            trueSolarTime: "1988-05-15T11:45:00",
+            lateZishiRule: "day_change_at_23", solarTermBoundary: "立夏后"
+        )
+        let response = Self.makeResponse(
+            pillars: PillarsDTO(year: Self.fixturePillar, month: Self.fixturePillar,
+                                day: nil, hour: nil),
+            dayMasterStrength: "unknown_hour",
+            meta: meta, hourKnown: false
+        )
+        XCTAssertThrowsError(try PromptContextBuilder.buildV1ChartJSON(response: response)) { error in
+            XCTAssertTrue(error is PromptContextError, "显式错误类型,实际: \(error)")
+        }
+    }
+
+    // MARK: - S05 表格渲染分支(PillarSlotModel / DualPillarSource 纯数据)
+
+    func testPillarSlotModelResolve() {
+        // 渲染分支单一事实源:nil → unknown(留白),有值 → known(照常)
+        XCTAssertEqual(PillarSlotModel.resolve(nil), .unknown)
+        XCTAssertEqual(PillarSlotModel.resolve(Self.fixturePillar), .known(Self.fixturePillar))
+    }
+
+    func testDualPillarSourceFromHourUnknownPair() throws {
+        // A 盘无时柱、B 盘四柱全:时柱行 ganA nil(留白)、ganB 有值;其余行两侧完整
+        let a = Self.makeResponse(pillars: PillarsDTO(
+            year: Self.fixturePillar, month: Self.fixturePillar,
+            day: Self.fixturePillar, hour: nil
+        ), hourKnown: false)
+        let b = Self.makeResponse(pillars: PillarsDTO(
+            year: Self.fixturePillar, month: Self.fixturePillar,
+            day: Self.fixturePillar, hour: Self.fixturePillar
+        ))
+        let sources = DualPillarSource.from(a: a, b: b)
+
+        XCTAssertEqual(sources.count, 4)
+        let hourRow = try XCTUnwrap(sources.first { $0.position == L10n.Compatibility.dualHourPillar })
+        XCTAssertNil(hourRow.ganA, "A 盘时柱未知 → ganA nil(渲染层留白)")
+        XCTAssertNil(hourRow.nayinA)
+        XCTAssertEqual(hourRow.ganB, "甲", "B 盘照常")
+        let dayRow = try XCTUnwrap(sources.first { $0.position == L10n.Compatibility.dualDayPillar })
+        XCTAssertEqual(dayRow.ganA, "甲")
+        XCTAssertEqual(dayRow.ganB, "甲")
+    }
+
+    // MARK: - S05 时辰未知存档(birthSolarTime 回退出生日期锚点)
+
+    func testUpsertHourUnknownArchivesWallClockBirthDate() throws {
+        // 真太阳时 null → birthSolarTime 回退 request.birthDatetime 按出生地时区解析
+        // (存档字段承载「出生日期」锚点,不存假精度真太阳时,也不存垃圾时间)
+        let response = Self.makeResponse(
+            pillars: PillarsDTO(year: Self.fixturePillar, month: Self.fixturePillar,
+                                day: Self.fixturePillar, hour: nil),
+            trueSolarTime: nil, hourKnown: false
+        )
+        let request = BaziCalculateRequest(
+            birthDatetime: "1990-02-04T12:00:00",  // 立春日(节气边界)+ 12:00 占位
+            timezone: "Asia/Shanghai",
+            gender: "female", longitude: 116.4,
+            latitude: nil, placeName: nil, geonameId: nil,
+            ziHourRule: "zi_next_day"
+        )
+        _ = try chartStore.upsert(response: response, request: request)
+
+        let snapshot = try XCTUnwrap(chartStore.get(contentHash: response.contentHash))
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "Asia/Shanghai")!
+        let c = cal.dateComponents([.year, .month, .day, .hour], from: snapshot.birthSolarTime)
+        XCTAssertEqual(c.year, 1990)
+        XCTAssertEqual(c.month, 2)
+        XCTAssertEqual(c.day, 4)
+        XCTAssertEqual(c.hour, 12, "占位 12:00 钟面如实存档(日期锚点)")
+
+        // payload 回读:hour_known=false + true_solar_time 缺省(decodeIfPresent)
+        let decoded = try chartStore.decodeResponse(from: snapshot)
+        XCTAssertFalse(decoded.isHourKnown)
+        XCTAssertNil(decoded.trueSolarTime)
+    }
 }

@@ -77,13 +77,18 @@ struct ZodiacRevealView: View {
                         .opacity(textOpacity)
 
                         // MARK: 人格段落(2026-08-13 Q6:无标题,紧接主标)
-                        Text(ZodiacHelper.personalityText(forZodiac: zodiac))
-                            .font(BaziFont.body(size: 15))
-                            .foregroundStyle(BaziTheme.ink)
-                            .lineSpacing(6)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .opacity(textOpacity)
+                        // S05:年柱歧义(S02/D10)→ zodiac 空串,人格段落整体留白
+                        // 不猜(personalityText 对未知值 fatalError,必须先判;
+                        // 生肖屏完整降级表达归 S08)
+                        if ZodiacHelper.isKnownZodiac(zodiac) {
+                            Text(ZodiacHelper.personalityText(forZodiac: zodiac))
+                                .font(BaziFont.body(size: 15))
+                                .foregroundStyle(BaziTheme.ink)
+                                .lineSpacing(6)
+                                .multilineTextAlignment(.center)
+                                .fixedSize(horizontal: false, vertical: true)
+                                .opacity(textOpacity)
+                        }
 
                         // MARK: 好朋友(2026-08-13 Q3/Q4:六合+三合,jade 吉神色)
                         section(

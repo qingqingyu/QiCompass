@@ -956,6 +956,23 @@
         }
       }
     },
+    "common.hourUnknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Birth hour unknown"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时辰未知"
+          }
+        }
+      }
+    },
     "common.limitReached" : {
       "extractionState" : "manual",
       "localizations" : {

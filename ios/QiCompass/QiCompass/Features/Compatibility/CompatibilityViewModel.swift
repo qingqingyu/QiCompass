@@ -176,7 +176,8 @@ final class CompatibilityViewModel {
                     throw CompatibilityViewModelError.archivedSnapshotMissing(hash: hash)
                 }
                 let bazi = try chartStore.decodeResponse(from: snapshot)
-                let dayMaster = bazi.pillars.day.gan
+                // S05:日柱歧义盘日主留白「—」(不猜;S11 roster 不可合盘标记拦截上游)
+                let dayMaster = bazi.pillars.day?.gan ?? "—"
                 charts.append(ArchivedChart(
                     snapshotHash: hash,
                     alias: link.alias,
@@ -686,7 +687,8 @@ final class CompatibilityViewModel {
             throw UserFacingError.generic(message: "对方命盘快照缺失,请重新选择")
         }
         let baziB = try chartStore.decodeResponse(from: bChartSnapshot)
-        let dayMaster = baziB.pillars.day.gan
+        // S05:日柱歧义盘日主留白「—」(不猜;S11 roster 不可合盘标记拦截上游)
+        let dayMaster = baziB.pillars.day?.gan ?? "—"
 
         // displayName(与 computePair API 路径一致)
         // S06:archived 在 archivedCharts 找不到时(跨启动恢复的临时人持久化为 .archived
@@ -812,7 +814,8 @@ final class CompatibilityViewModel {
         }
 
         let baziB = try chartStore.decodeResponse(from: bSnapshot)
-        let dayMaster = baziB.pillars.day.gan
+        // S05:日柱歧义盘日主留白「—」(不猜;S11 roster 不可合盘标记拦截上游)
+        let dayMaster = baziB.pillars.day?.gan ?? "—"
 
         // 显示名(存档 = alias;临时 = alias 或「对方+出生日期」—— S04 兜底名策略)
         let displayName: String

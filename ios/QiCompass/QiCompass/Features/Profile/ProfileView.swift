@@ -228,7 +228,10 @@ struct ProfileView: View {
         guard let primary = primarySnapshot else { return nil }
         do {
             let response = try env.chartSnapshotStore.decodeResponse(from: primary.snapshot)
-            return "Zodiac_\(response.yearBranchZodiac)"
+            // S05:年柱歧义(S02/D10)→ yearBranchZodiac null → 命主卡生肖图隐藏
+            // (nil = 隐藏 section,沿用 decode 失败的既有降级;完整表达归 S08)
+            guard let zodiac = response.yearBranchZodiac else { return nil }
+            return "Zodiac_\(zodiac)"
         } catch {
             // error 已在 ChartSnapshotStore.decodeResponse 内 Logger.error,这里不重复记
             return nil

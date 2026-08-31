@@ -59,7 +59,8 @@ final class DeepAnalysisOrchestrator {
             try await self.apiClient.calculateBazi(request: request)
         }
 
-        AppLogger.app.info("calc.ok contentHash=\(response.contentHash, privacy: .public) pillars=\(response.pillars.year.ganZhi, privacy: .public)/\(response.pillars.month.ganZhi, privacy: .public)/\(response.pillars.day.ganZhi, privacy: .public)/\(response.pillars.hour.ganZhi, privacy: .public)")
+        // S05:柱缺失(时辰未知/S02 歧义)→ 日志位「—」,不猜干支
+        AppLogger.app.info("calc.ok contentHash=\(response.contentHash, privacy: .public) pillars=\(response.pillars.year?.ganZhi ?? "—", privacy: .public)/\(response.pillars.month?.ganZhi ?? "—", privacy: .public)/\(response.pillars.day?.ganZhi ?? "—", privacy: .public)/\(response.pillars.hour?.ganZhi ?? "—", privacy: .public)")
 
         // 存档(失败 throw → chartFailed,不提示"命盘已保存")
         _ = try chartStore.upsert(response: response, request: request)

@@ -7,6 +7,19 @@ struct ChartSnapshotUpsertResult {
     let isNew: Bool
 }
 
+/// ChartSnapshotStore 错误(显式传播,不静默吞)。
+enum ChartSnapshotStoreError: Error, LocalizedError {
+    /// 时辰未知存档回退路径:请求钟面字符串按出生地时区解析失败(上游 bug,须暴露)
+    case birthDatetimeUnparsable(birthDatetime: String, timezone: String)
+
+    var errorDescription: String? {
+        switch self {
+        case .birthDatetimeUnparsable(let wall, let tz):
+            return "出生钟面字符串按时区解析失败(存档回退路径): \(wall) @ \(tz)"
+        }
+    }
+}
+
 /// ChartSnapshot SwiftData CRUD 封装。
 ///
 /// 内容寻址语义(D1):同一 contentHash 的 upsert 覆盖 payload/schemaVersion,
@@ -28,7 +41,11 @@ final class ChartSnapshotStore {
     /// - cityLongitude 来自 response.calcRuleSnapshot.trueSolarLongitude(物理真值回填)
     /// - cityTimezone/cityName/cityLatitude 来自 request(S03:出生地存档元数据)
     /// - birthSolarTime = response.trueSolarTime(字段语义即「真太阳时出生时间」,
-    ///   S03 起不再存输入墙钟——request.birthDatetime 已是 naive 字符串)
+    ///   S03 起不再存输入墙钟——request.birthDatetime 已是 naive 字符串)。
+    ///   S05 时辰未知:后端 true_solar_time=null(12:00 占位属假精度不漏响应)→
+    ///   回退 request.birthDatetime(时辰未知时是 12:00 占位钟面)按出生地时区解析
+    ///   ——存档字段承载的是「出生日期」锚点(合盘兜底名/Profile 年份),不是假精度
+    ///   真太阳时;解析失败显式 throw(不存垃圾时间)
     /// - payload = 整个 BaziResponse JSON(重建 UI 只需 decode BaziResponse)
     ///   时辰未知存档(S04):hour_known 随后端 calc_rule_snapshot.hour_known 落 payload;
     ///   late_night 是用户输入、后端响应不回显 → 编码前从 request 注入(var lateNight,
@@ -45,11 +62,13 @@ final class ChartSnapshotStore {
         let payloadData = try APICoder.encoder.encode(archivableResponse)
         let calcRuleData = try APICoder.encoder.encode(response.calcRuleSnapshot)
         let cityLongitude = response.calcRuleSnapshot.trueSolarLongitude
+        // S05:真太阳时 null(时辰未知)→ 出生日期锚点回退(见 docstring)
+        let birthDate = try response.trueSolarTime ?? Self.parseBirthDate(from: request)
 
         if let snapshot = existing {
             // 覆盖:保留 createdAt
             snapshot.schemaVersion = response.calcRuleSnapshot.schemaVersion
-            snapshot.birthSolarTime = response.trueSolarTime
+            snapshot.birthSolarTime = birthDate
             snapshot.gender = request.gender
             snapshot.cityLongitude = cityLongitude
             snapshot.cityTimezone = request.timezone
@@ -67,7 +86,7 @@ final class ChartSnapshotStore {
             let snapshot = ChartSnapshot(
                 contentHash: hash,
                 schemaVersion: response.calcRuleSnapshot.schemaVersion,
-                birthSolarTime: response.trueSolarTime,
+                birthSolarTime: birthDate,
                 gender: request.gender,
                 cityLongitude: cityLongitude,
                 cityTimezone: request.timezone,
@@ -96,6 +115,29 @@ final class ChartSnapshotStore {
         // 规则 2:hit/miss 业务分支日志(排查"snapshot 找不到"问题)
         AppLogger.persistence.info("op=chartSnapshot.get hash=\(hash, privacy: .public) hit=\(result != nil, privacy: .public)")
         return result
+    }
+
+    /// request.birthDatetime(裸钟面 yyyy-MM-dd'T'HH:mm:ss,时辰未知时 12:00 占位)
+    /// 按出生地时区解析为 Date(S05 时辰未知存档回退路径)。
+    /// 字符串/时区非法 → 显式 throw(上游 bug,不静默存垃圾时间)。
+    private static func parseBirthDate(from request: BaziCalculateRequest) throws -> Date {
+        guard let tz = TimeZone(identifier: request.timezone) else {
+            throw ChartSnapshotStoreError.birthDatetimeUnparsable(
+                birthDatetime: request.birthDatetime,
+                timezone: request.timezone
+            )
+        }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        formatter.timeZone = tz
+        guard let date = formatter.date(from: request.birthDatetime) else {
+            throw ChartSnapshotStoreError.birthDatetimeUnparsable(
+                birthDatetime: request.birthDatetime,
+                timezone: request.timezone
+            )
+        }
+        return date
     }
 
     /// decode payload 回 BaziResponse(用于从快照重建 UI)。

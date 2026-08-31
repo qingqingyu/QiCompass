@@ -59,8 +59,9 @@ struct ChartHeaderView: View {
     /// Q16 δ + Q12/13:年柱文字(如 `庚辰年`)。ganZhi 来自后端 lunar_python 确定性推算。
     /// 仅显示年柱干支 + "年"字,不加公历年注释(避免立春边界冲突)。
     /// 防御 ganZhi 为空(对齐项目范式:LuckPillarsTimeline / PromptContextBuilder 都做防御)。
+    /// S05:年柱歧义(S02/D10 立春日 + 时辰未知)→ null,留白「—」不猜。
     private var yearPillarLabel: String {
-        let gz = response.pillars.year.ganZhi
+        let gz = response.pillars.year?.ganZhi ?? ""
         return gz.isEmpty ? "—" : "\(gz)年"
     }
 
@@ -75,10 +76,15 @@ struct ChartHeaderView: View {
         return String(format: "%@%.1f 分", sign, mins)
     }
 
+    /// S05:时辰未知 → 后端 true_solar_time=null(占位一致性,不漏假精度),
+    /// 展示「时辰未知」中性陈述(无红字无感叹号,留白不是错误提示)
     private var trueSolarTimeString: String {
+        guard let trueSolarTime = response.trueSolarTime else {
+            return L10n.Common.hourUnknown
+        }
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd HH:mm"
         f.timeZone = .current
-        return f.string(from: response.trueSolarTime)
+        return f.string(from: trueSolarTime)
     }
 }

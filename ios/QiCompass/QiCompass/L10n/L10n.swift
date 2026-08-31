@@ -652,5 +652,10 @@ enum L10n {
             )
             return String(format: String(localized: "common.countdown"), timeStr)
         }
+
+        /// 时辰未知(S05 时辰未知系列:柱留白 VoiceOver 标签 / 真太阳时行)。
+        /// 中性陈述不是错误提示(无红字无感叹号,留白是水墨表达)。
+        /// zh: "时辰未知";en: "Birth hour unknown"
+        static let hourUnknown = String(localized: "common.hourUnknown")
     }
 }

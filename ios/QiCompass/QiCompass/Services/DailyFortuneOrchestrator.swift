@@ -354,20 +354,38 @@ extension DailyFortuneSnapshotStore {
 
 extension ChartPayloadDTO {
     /// 从存档 BaziResponse 解出 chart_payload(决策 §1.A,客户端可信源)。
+    ///
+    /// S05 时辰未知:柱缺失 → four_pillars 对应 key 整体省略(显式缺失,不猜);
+    /// 日柱歧义(无日主)时 dayMaster 落空串 + 显式日志——S09(每日运势)/
+    /// S11(合盘)负责入口拦截,本函数不可 throw(多调用方签名约束),
+    /// 后端 REQUIRED 校验是最后兜底。
     static func from(baziResponse: BaziResponse) -> ChartPayloadDTO {
         let p = baziResponse.pillars
+        if p.day == nil {
+            AppLogger.app.warning(
+                "op=chartPayload.from day_pillar_missing hash=\(baziResponse.contentHash, privacy: .public) note=日柱歧义盘,应被 S09/S11 入口拦截"
+            )
+        }
+        var fourPillars: [String: PillarRefDTO] = [:]
+        if let year = p.year {
+            fourPillars["year"] = PillarRefDTO(gan: year.gan, zhi: year.zhi)
+        }
+        if let month = p.month {
+            fourPillars["month"] = PillarRefDTO(gan: month.gan, zhi: month.zhi)
+        }
+        if let day = p.day {
+            fourPillars["day"] = PillarRefDTO(gan: day.gan, zhi: day.zhi)
+        }
+        if let hour = p.hour {
+            fourPillars["hour"] = PillarRefDTO(gan: hour.gan, zhi: hour.zhi)
+        }
         return ChartPayloadDTO(
-            dayMaster: p.day.gan,
-            dayMasterElement: p.day.ganElement,
+            dayMaster: p.day?.gan ?? "",
+            dayMasterElement: p.day?.ganElement ?? "",
             dayMasterStrength: baziResponse.dayMasterStrength ?? "special_pattern",
             favorableElements: baziResponse.favorableElements,
             unfavorableElements: baziResponse.unfavorableElements,
-            fourPillars: [
-                "year": PillarRefDTO(gan: p.year.gan, zhi: p.year.zhi),
-                "month": PillarRefDTO(gan: p.month.gan, zhi: p.month.zhi),
-                "day": PillarRefDTO(gan: p.day.gan, zhi: p.day.zhi),
-                "hour": PillarRefDTO(gan: p.hour.gan, zhi: p.hour.zhi),
-            ]
+            fourPillars: fourPillars
         )
     }
 }

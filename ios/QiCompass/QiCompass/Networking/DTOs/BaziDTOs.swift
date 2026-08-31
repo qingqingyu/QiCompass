@@ -74,11 +74,45 @@ struct PillarDTO: Codable, Sendable, Equatable {
     }
 }
 
+/// 四柱。全柱 Optional(时辰未知契约 S01/S02,iOS 消费 S05):
+/// - `hour_known=false` → `hour` 为 null(时辰未知,禁哨兵假精度)
+/// - 日柱歧义(D3 答「是/不确定」或西偏换日网)→ `day` 为 null
+/// - 年/月柱歧义(节气边界双排盘比对)→ `year`/`month` 为 null
+/// - 不变量:`pillar_ambiguity.<pos> == true ⟺ 对应柱为 null`
+///
+/// Optional + 合成 Codable 的 decodeIfPresent:显式 null 与缺 key 均得 nil,
+/// 老 payload(四柱齐全)解码不变(2026-08-15 keyNotFound 教训)。
 struct PillarsDTO: Codable, Sendable, Equatable {
-    let year: PillarDTO
-    let month: PillarDTO
-    let day: PillarDTO
-    let hour: PillarDTO
+    let year: PillarDTO?
+    let month: PillarDTO?
+    let day: PillarDTO?
+    let hour: PillarDTO?
+}
+
+/// 柱歧义标记(backend `PillarAmbiguity`,S02/D10)。进响应与 calc_rule_snapshot。
+/// `true` = 该柱因时辰未知歧义被置 null(节气边界双排盘 / 西偏换日网 / late_night)。
+/// 全 false = 无歧义;`hour_known=true` 恒无此对象。
+struct PillarAmbiguityDTO: Codable, Sendable, Equatable {
+    var year: Bool = false
+    var month: Bool = false
+    var day: Bool = false
+
+    enum CodingKeys: String, CodingKey {
+        case year, month, day
+    }
+
+    init(year: Bool = false, month: Bool = false, day: Bool = false) {
+        self.year = year
+        self.month = month
+        self.day = day
+    }
+
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        year = try c.decodeIfPresent(Bool.self, forKey: .year) ?? false
+        month = try c.decodeIfPresent(Bool.self, forKey: .month) ?? false
+        day = try c.decodeIfPresent(Bool.self, forKey: .day) ?? false
+    }
 }
 
 struct GanZhiNaYinDTO: Codable, Sendable, Equatable {
@@ -140,6 +174,10 @@ struct CalcRuleSnapshotDTO: Codable, Sendable, Equatable {
     /// Optional + 合成 Codable 的 decodeIfPresent:老 ChartSnapshot payload 缺 key
     /// 解码不 crash,消费方按 `?? true` 处理(2026-08-15 keyNotFound 教训)。
     var hourKnown: Bool? = nil
+    /// 柱歧义标记(时辰未知 S02/D10;对齐 backend CalcRuleSnapshot.pillar_ambiguity)。
+    /// hour_known=true 恒 nil(老快照形状不变);hour_known=false 必有值(全 false = 零歧义)。
+    /// 歧义状态进快照 → 同 hash 可审计歧义降级口径。
+    var pillarAmbiguity: PillarAmbiguityDTO? = nil
 
     enum CodingKeys: String, CodingKey {
         case library
@@ -150,6 +188,7 @@ struct CalcRuleSnapshotDTO: Codable, Sendable, Equatable {
         case schemaVersion = "schema_version"
         case birthTimezone = "birth_timezone"
         case hourKnown = "hour_known"
+        case pillarAmbiguity = "pillar_ambiguity"
     }
 }
 
@@ -190,7 +229,9 @@ struct MetaBlockDTO: Codable, Sendable, Equatable {
 /// POST /api/bazi/calculate 响应。对齐 backend BaziCalculateResponse
 struct BaziResponse: Codable, Sendable {
     let contentHash: String
-    let trueSolarTime: Date
+    /// 时辰未知(S01)→ 后端显式 null:12:00 占位的真太阳时属假精度,不漏到响应。
+    /// 老 payload 恒有值(decodeIfPresent 兼容)。
+    let trueSolarTime: Date?
     let trueSolarOffsetMinutes: Double
     let pillars: PillarsDTO
     let mingGong: GanZhiNaYinDTO
@@ -216,16 +257,17 @@ struct BaziResponse: Codable, Sendable {
     var anchorSentence: String? = nil
     /// 2026-08-11 生肖 wire up:年柱地支对应生肖英文(如 "Dragon")。
     /// 后端 lunar_python 已按立春算 pillars.year.zhi,这里仅查表暴露。
-    /// 非 optional:新响应后端语义保证非空;老缓存缺 key 时从 pillars.year.zhi
-    /// 本地查表兜底(见 init(from:))。mock 构造须手填(对齐其他非 optional 字段)。
-    let yearBranchZodiac: String
+    /// 时辰未知 S02:年柱歧义(立春日 + 时辰未知)→ 显式 null(年支不确定则生肖
+    /// 不猜,生肖屏降级归 S08)。老缓存缺 key 时从 pillars.year.zhi 本地查表兜底
+    /// (见 init(from:) 的 key-presence 分支)。
+    let yearBranchZodiac: String?
     /// 2026-08-13 onboarding 反馈屏「好朋友 / 需磨合」:
     /// 好朋友 = 六合 1 + 三合 2 = 3 个英文生肖名;需磨合 = 六冲 1 个。
     /// 后端复用 branch_relations.py(合盘引擎同一事实源)。
-    /// 非 optional:新响应后端恒填充;老缓存缺 key 时本地查表兜底(见 init(from:))。
-    /// mock 构造须手填(对齐 yearBranchZodiac)。
-    let yearBranchFriends: [String]
-    let yearBranchClash: String
+    /// 年柱歧义时随生肖一并置 null(对齐 yearBranchZodiac,不猜);
+    /// 老缓存缺 key 时本地查表兜底(见 init(from:))。
+    let yearBranchFriends: [String]?
+    let yearBranchClash: String?
 
     // v1 prompt 系统 chart 注入字段(Stage 1 后端引入,iOS Stage 7b 接入)
     // 不在声明处给默认值(否则 init(from decoder:) + 默认值会触发"immutable value
@@ -237,12 +279,20 @@ struct BaziResponse: Codable, Sendable {
     let tenGodWeights: [String: Int]
     /// 喜用五行中文 list(special_pattern 时为空)
     let usefulGodCandidates: [String]
-    /// 出生上下文 meta 块。nil = 老 response 未含此字段
+    /// 出生上下文 meta 块。nil = 老 response 未含此字段;
+    /// 时辰未知(S01)后端恒 None(birth_local/true_solar_time 均时辰精确,假精度不漏)
     let meta: MetaBlockDTO?
     /// 时辰未知存档字段(S04,D3):「是否半夜出生」三态答案(是→true/否→false/不确定→nil)。
     /// 后端响应**不回显**此字段(只参与日柱歧义判定),由 `ChartSnapshotStore.upsert`
     /// 从 request 注入 payload 存档;老 payload 缺 key decodeIfPresent → nil。
     var lateNight: Bool? = nil
+    /// 神煞完整性标注(时辰未知 S01):按可用柱查表,时支/日支相关条目自然缺失,
+    /// 后端显式标注不静默。老响应缺 key → false(decodeIfPresent)。
+    var shenshaIncomplete: Bool = false
+    /// 柱歧义标记(时辰未知 S02/D10;对齐 backend BaziCalculateResponse.pillar_ambiguity)。
+    /// hour_known=true 恒 nil(老路径响应形状不变);渲染留白以 `pillars.<pos> == nil`
+    /// 为准(不变量:pillar_ambiguity.<pos> == true ⟺ pillars.<pos> 为 null)。
+    var pillarAmbiguity: PillarAmbiguityDTO? = nil
 
     /// 存档/响应是否含时柱(时辰未知 S04)。单一事实源是后端
     /// `calc_rule_snapshot.hour_known`;老 payload 缺 key → true(decodeIfPresent ?? true)。
@@ -281,6 +331,8 @@ struct BaziResponse: Codable, Sendable {
         case usefulGodCandidates = "useful_god_candidates"
         case meta
         case lateNight = "late_night"
+        case shenshaIncomplete = "shensha_incomplete"
+        case pillarAmbiguity = "pillar_ambiguity"
     }
 
     // Stage 7b 关键修复:自定义 init(from:) 让 v1 字段真能解码。
@@ -293,7 +345,8 @@ struct BaziResponse: Codable, Sendable {
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         contentHash = try c.decode(String.self, forKey: .contentHash)
-        trueSolarTime = try c.decode(Date.self, forKey: .trueSolarTime)
+        // 时辰未知(S01)→ 后端显式 null(占位一致性验收);老 payload 恒有值
+        trueSolarTime = try c.decodeIfPresent(Date.self, forKey: .trueSolarTime)
         trueSolarOffsetMinutes = try c.decode(Double.self, forKey: .trueSolarOffsetMinutes)
         pillars = try c.decode(PillarsDTO.self, forKey: .pillars)
         mingGong = try c.decode(GanZhiNaYinDTO.self, forKey: .mingGong)
@@ -320,27 +373,39 @@ struct BaziResponse: Codable, Sendable {
         // → 全模块「排盘异常」。decodeIfPresent + 从已解码的 pillars.year.zhi
         // 本地查表兜底(ZodiacHelper.legacyYearBranchFields,语义对齐 backend
         // pillars.py:ZODIAC_NAME / branch_relations.py:compute_friends_and_clash)。
-        // 三字段独立兜底:两批字段落地日期不同,存在只有部分 key 的中间缓存。
-        // 仅当至少一个 key 缺失才查 legacy(key 齐全的合法响应不依赖兜底表求值);
-        // 需要兜底但年支不在表内 → 显式抛 DecodingError(不静默吞)。
-        let decodedZodiac = try c.decodeIfPresent(String.self, forKey: .yearBranchZodiac)
-        let decodedFriends = try c.decodeIfPresent([String].self, forKey: .yearBranchFriends)
-        let decodedClash = try c.decodeIfPresent(String.self, forKey: .yearBranchClash)
-        if let decodedZodiac, let decodedFriends, let decodedClash {
-            yearBranchZodiac = decodedZodiac
-            yearBranchFriends = decodedFriends
-            yearBranchClash = decodedClash
-        } else {
-            guard let legacy = ZodiacHelper.legacyYearBranchFields(forYearZhi: pillars.year.zhi) else {
+        //
+        // S05 关键区分(时辰未知 S02 契约):decodeIfPresent 对「key 缺失」与
+        // 「显式 null」同返 nil,但两者语义不同——新契约显式 null = 年柱歧义
+        // (生肖系不猜),必须原样透传;只有 **key 缺失**(老缓存)才走查表兜底。
+        // 用 contains(key) 区分;三字段独立兜底(两批字段落地日期不同,存在
+        // 只有部分 key 的中间缓存);需要兜底但年柱缺失/年支不在表 → 显式抛
+        // DecodingError(不静默吞)。
+        let zodiacKeyPresent = c.contains(CodingKeys.yearBranchZodiac)
+        let friendsKeyPresent = c.contains(CodingKeys.yearBranchFriends)
+        let clashKeyPresent = c.contains(CodingKeys.yearBranchClash)
+        // 任一 key 缺失 → 老缓存/中间缓存,查表兜底只补**缺失**的 key;
+        // 需要兜底但年柱缺失(S02 年柱歧义)/年支不在表 → 显式抛 DecodingError
+        var legacy: (zodiac: String, friends: [String], clash: String)?
+        if !zodiacKeyPresent || !friendsKeyPresent || !clashKeyPresent {
+            guard let yearZhi = pillars.year?.zhi,
+                  let fields = ZodiacHelper.legacyYearBranchFields(forYearZhi: yearZhi) else {
                 throw DecodingError.dataCorrupted(.init(
                     codingPath: [CodingKeys.yearBranchZodiac],
-                    debugDescription: "老缓存缺生肖字段且年柱地支 \(pillars.year.zhi) 不在兜底表,无法推导"
+                    debugDescription: "老缓存缺生肖字段且年柱缺失或年支不在兜底表,无法推导"
                 ))
             }
-            yearBranchZodiac = decodedZodiac ?? legacy.zodiac
-            yearBranchFriends = decodedFriends ?? legacy.friends
-            yearBranchClash = decodedClash ?? legacy.clash
+            legacy = fields
         }
+        // key 在 → 解码值(显式 null = 年柱歧义,原样透传 nil);key 缺 → 兜底值
+        func field<T: Decodable>(_ key: CodingKeys, present: Bool, legacy: T?) throws -> T? {
+            if present {
+                return try c.decodeIfPresent(T.self, forKey: key)
+            }
+            return legacy
+        }
+        yearBranchZodiac = try field(.yearBranchZodiac, present: zodiacKeyPresent, legacy: legacy?.zodiac)
+        yearBranchFriends = try field(.yearBranchFriends, present: friendsKeyPresent, legacy: legacy?.friends)
+        yearBranchClash = try field(.yearBranchClash, present: clashKeyPresent, legacy: legacy?.clash)
         // v1 字段:decodeIfPresent + 默认值,缺 key 走默认(对齐 backend Stage 1+ 语义)
         tenGodWeights = try c.decodeIfPresent([String: Int].self, forKey: .tenGodWeights) ?? [:]
         usefulGodCandidates = try c.decodeIfPresent([String].self, forKey: .usefulGodCandidates) ?? []
@@ -348,13 +413,16 @@ struct BaziResponse: Codable, Sendable {
         // 时辰未知存档字段(S04):后端不回显,仅 ChartSnapshotStore.upsert 注入;
         // 老 payload 缺 key → nil(decodeIfPresent,不 crash)
         lateNight = try c.decodeIfPresent(Bool.self, forKey: .lateNight)
+        // 时辰未知 S01/S02:神煞完整性标注 + 柱歧义标记(老 payload 缺 key → 默认值)
+        shenshaIncomplete = try c.decodeIfPresent(Bool.self, forKey: .shenshaIncomplete) ?? false
+        pillarAmbiguity = try c.decodeIfPresent(PillarAmbiguityDTO.self, forKey: .pillarAmbiguity)
     }
 
     // Stage 7b:memberwise init(自定义 init(from:) 后失去合成,手写带默认值
     // 让 mock / test 调用兼容)。v1 字段都有默认值,mock 不传也能构造。
     init(
         contentHash: String,
-        trueSolarTime: Date,
+        trueSolarTime: Date?,
         trueSolarOffsetMinutes: Double,
         pillars: PillarsDTO,
         mingGong: GanZhiNaYinDTO,
@@ -375,14 +443,16 @@ struct BaziResponse: Codable, Sendable {
         currentHourPillar: String?,
         calcRuleSnapshot: CalcRuleSnapshotDTO,
         boundaryWarning: String?,
-        yearBranchZodiac: String,
-        yearBranchFriends: [String],
-        yearBranchClash: String,
+        yearBranchZodiac: String?,
+        yearBranchFriends: [String]?,
+        yearBranchClash: String?,
         anchorSentence: String? = nil,
         tenGodWeights: [String: Int] = [:],
         usefulGodCandidates: [String] = [],
         meta: MetaBlockDTO? = nil,
-        lateNight: Bool? = nil
+        lateNight: Bool? = nil,
+        shenshaIncomplete: Bool = false,
+        pillarAmbiguity: PillarAmbiguityDTO? = nil
     ) {
         self.contentHash = contentHash
         self.trueSolarTime = trueSolarTime
@@ -414,6 +484,8 @@ struct BaziResponse: Codable, Sendable {
         self.usefulGodCandidates = usefulGodCandidates
         self.meta = meta
         self.lateNight = lateNight
+        self.shenshaIncomplete = shenshaIncomplete
+        self.pillarAmbiguity = pillarAmbiguity
     }
 }
 
