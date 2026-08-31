@@ -2042,13 +2042,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "See today's fortune"
+            "value" : "Start deep analysis"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "查看今日运势"
+            "value" : "开始深度解析"
           }
         }
       }

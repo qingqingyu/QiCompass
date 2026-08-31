@@ -11,7 +11,7 @@ import SwiftUI
 /// - **好朋友**(2026-08-13 Q3/Q4):六合 1 + 三合 2 = 3 个生肖 chip,墨青 jade(吉神色)
 /// - **需磨合**(2026-08-13 Q4):六冲 1 个生肖 chip,中性灰(不用朱砂红,避免恐吓)
 /// - **人格**(2026-08-13 Q6):12 生肖静态善意正面画像,1-2 句,ZodiacHelper.personalityText 取
-/// - **CTA**(Q14 α):手动点击「查看今日运势」→ onComplete
+/// - **CTA**(Q14 α,2026-08-31 改文案):手动点击「开始深度解析」→ onComplete(落地深度解析 tab)
 /// - **动效**(Q15 B):盖章动效 — scale 0.8 → 1.05 (spring overshoot) → 1.0 + 朱砂光晕扩散
 ///   + 文字/内容错峰淡入;落定瞬间触发 HapticEngine.medium() 仪式感"砰"
 /// - **暗色**(Q18 A):zodiac asset 走 Asset Catalog appearance set,系统自动选 light/dark variant
@@ -32,7 +32,7 @@ struct ZodiacRevealView: View {
     let friendZodiacs: [String]
     /// 需磨合英文生肖名(六冲 1 个,后端算)。
     let clashZodiac: String
-    /// CTA 点击回调(进今日运势 tab)。
+    /// CTA 点击回调(进深度解析 tab,2026-08-31 改)。
     let onComplete: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion

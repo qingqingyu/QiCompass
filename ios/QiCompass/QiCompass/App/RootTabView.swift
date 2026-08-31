@@ -12,7 +12,7 @@ import SwiftUI
 ///   原 fullScreenCover 表单流删除。
 /// - showOnboarding 与 hasSeenOnboarding 解耦:hasSeenOnboarding 只做「下次启动还弹不弹」
 ///   gate;sheet 显示由 showOnboarding 独立控制。提交成功 → hasSeenOnboarding=true(修复
-///   "反馈屏 kill App → 重启重走 onboarding → 重复排盘" bug);CTA 点击 → dismiss + 落地今日运势。
+///   "反馈屏 kill App → 重启重走 onboarding → 重复排盘" bug);CTA 点击 → dismiss + 落地深度解析(2026-08-31 改,原今日运势)。
 ///
 /// 监听 `.switchTab` Notification(决策 D3):合盘空态 CTA → 切到深度解析。
 struct RootTabView: View {
@@ -104,10 +104,12 @@ struct RootTabView: View {
         .sheet(isPresented: $showOnboarding) {
             OnboardingView(
                 onComplete: {
-                    // 反馈屏 CTA 点击 → chart 已存档。dismiss sheet + 落地今日运势。
-                    AppLogger.app.info("OnboardingView onComplete 触发 → dismiss sheet + 落地 .dailyFortune")
+                    // 反馈屏 CTA 点击 → chart 已存档。dismiss sheet + 落地深度解析
+                    // (2026-08-31 用户拍板:新用户首落深度解析跑第一次解读;
+                    //  冷启动默认 tab 仍为 .dailyFortune,2026-08-01 决策只动这一支)。
+                    AppLogger.app.info("OnboardingView onComplete 触发 → dismiss sheet + 落地 .deepAnalysis")
                     showOnboarding = false
-                    selectedTab = .dailyFortune
+                    selectedTab = .deepAnalysis
                 },
                 onChartArchived: {
                     // 提交成功(chart 已存档)即设 true:kill 重启后不再重走 onboarding,
