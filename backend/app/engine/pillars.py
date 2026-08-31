@@ -125,12 +125,17 @@ def build_pillars(ec: Any) -> Pillars:
 
 
 def compute_element_balance(pillars: Pillars) -> ElementBalance:
-    """五行统计:遍历四柱 8 字(4 天干 + 4 地支)。
+    """五行统计:遍历**已知柱**的天干 + 地支。
 
-    藏干不计入主统计(避免重复加权);文档示例 element_balance 之和 = 8。
+    藏干不计入主统计(避免重复加权);普通盘 4 柱 8 字,和 = 8。
+    时辰未知(docs/时辰未知设计决策.md):时柱 None → 三柱 6 字,和 = 6;
+    日柱亦歧义(hour_known=false 且 late_night != False)→ 两柱 4 字,和 = 4。
+    按已知字数如实计数,不加标注字段(求和即口径)。
     """
     counts = {"wood": 0, "fire": 0, "earth": 0, "metal": 0, "water": 0}
     for p in (pillars.year, pillars.month, pillars.day, pillars.hour):
+        if p is None:
+            continue
         if p.gan_element not in counts:
             raise ValueError(
                 f"未知天干五行: {p.gan_element!r}, pillar={p.gan_zhi!r}"

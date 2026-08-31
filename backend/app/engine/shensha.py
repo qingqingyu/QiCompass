@@ -8,6 +8,10 @@
 《三命通会》元辰(大耗)起法明确分"阳男阴女顺/阴男阳女逆",
 严格单一来源原则下必须传入 gender 才能正确查表。
 方案 5.1 初稿签名 compute_shensha(pillars) 不够,实现时补 gender。
+
+时辰未知(docs/时辰未知设计决策.md D4 附):按**可用柱**查——
+时柱缺失 → 无时支条目;日柱歧义 → 日干系(A 类 7 条)无基准不出,
+三合双查退化为仅年支基准。结果不静默,由响应层 shensha_incomplete=True 标注。
 """
 
 from __future__ import annotations
@@ -30,10 +34,16 @@ _PILLAR_LABELS: tuple[tuple[str, str], ...] = (
 
 
 def _pillar_iter(pillars: Pillars) -> tuple[tuple[str, str, str, str], ...]:
-    """按 年月日时 顺序返回四柱 (attr, label, gan, zhi)。"""
+    """按 年月日时 顺序返回**已知柱** (attr, label, gan, zhi)。
+
+    时辰未知(Pillars.hour/day 为 None)时跳过缺失柱:该柱既不作查表基准、
+    也不产出命中条目(时支条目自然缺失)。不静默:调用方以
+    shensha_incomplete=True 标注(响应层)。
+    """
     return tuple(
-        (attr, label, getattr(pillars, attr).gan, getattr(pillars, attr).zhi)
+        (attr, label, p.gan, p.zhi)
         for attr, label in _PILLAR_LABELS
+        if (p := getattr(pillars, attr)) is not None
     )
 
 
@@ -270,7 +280,12 @@ class ShenshaRule(NamedTuple):
 def _match_day_gan_zhi(table: dict[str, list[str]]) -> Callable[[Pillars, str], list[str]]:
     """A 类:日干查四柱地支。返回命中的 position 列表。"""
     def _matcher(pillars: Pillars, _gender: str) -> list[str]:
-        day_gan = pillars.day.gan
+        day_pillar = pillars.day
+        if day_pillar is None:
+            # 日柱歧义:查表基准(日干)不存在,本条无命中。
+            # 不静默:响应层 shensha_incomplete=True 标注缺失
+            return []
+        day_gan = day_pillar.gan
         targets = table.get(day_gan)
         if targets is None:
             raise ValueError(f"神煞查表缺失:未知日干 {day_gan!r}")
@@ -282,15 +297,18 @@ def _match_day_gan_zhi(table: dict[str, list[str]]) -> Callable[[Pillars, str], 
 def _match_sanhe_dual(table: dict[str, str]) -> Callable[[Pillars, str], list[str]]:
     """B 类:年支 + 日支双查四柱地支(三合局)。同柱命中只算一条(去重)。"""
     def _matcher(pillars: Pillars, _gender: str) -> list[str]:
-        # 预计算年支/日支对应的查表目标(合并去重)
+        # 预计算年支/日支对应的查表目标(合并去重);日柱歧义时仅以年支为基准
+        anchors = [pillars.year.zhi]
+        if pillars.day is not None:
+            anchors.append(pillars.day.zhi)
         targets: set[str] = set()
-        for anchor_zhi in (pillars.year.zhi, pillars.day.zhi):
+        for anchor_zhi in anchors:
             group = _sanhe_group_of(anchor_zhi)
             target = table.get(group)
             if target is None:
                 raise ValueError(f"神煞三合查表缺失:未知三合局 {group!r}")
             targets.add(target)
-        # 按年月日时顺序遍历四柱,命中任一目标即记录(天然去重 + 保序)
+        # 按年月日时顺序遍历已知柱,命中任一目标即记录(天然去重 + 保序)
         return [label for _attr, label, _gan, zhi in _pillar_iter(pillars)
                 if zhi in targets]
     return _matcher
@@ -418,14 +436,14 @@ SHENSHA_RULES: tuple[ShenshaRule, ...] = (
 # ---------- 主入口 ----------
 
 def compute_shensha(pillars: Pillars, gender: str) -> list[ShenshaItem]:
-    """计算 20 神煞命中列表。
+    """计算 20 神煞命中列表(按可用柱,见模块 docstring 时辰未知说明)。
 
     Args:
-        pillars: 四柱(已含干支)
+        pillars: 四柱(已含干支;hour/day 可为 None,跳过缺失柱)
         gender: "male"|"female",用于元辰顺逆查表
 
     Returns:
-        按 20 清单顺序 × 年月日时柱顺序排列的命中列表。
+        按 20 清单顺序 × 年月日时柱顺序排列的命中列表(仅已知柱)。
         未命中返回空列表(不报成功假数据)。
 
     Raises:

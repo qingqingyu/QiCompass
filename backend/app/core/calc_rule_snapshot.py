@@ -13,7 +13,8 @@ from ..config import LUNAR_PYTHON_VERSION, SCHEMA_VERSION
 def build_calc_rule_snapshot(sect: int, zi_hour_rule: str,
                               longitude: float,
                               offset_minutes: float,
-                              birth_timezone: str | None = None) -> dict:
+                              birth_timezone: str | None = None,
+                              hour_known: bool = True) -> dict:
     """构造 calcRuleSnapshot。
 
     Args:
@@ -22,6 +23,9 @@ def build_calc_rule_snapshot(sect: int, zi_hour_rule: str,
         longitude: 真太阳时所用经度
         offset_minutes: 真太阳时偏移分钟数
         birth_timezone: 出生地 IANA 时区名(S02 契约,审计/展示用;可为 None)
+        hour_known: 排盘是否含时柱(时辰未知 S01;缺此字段则补时辰前后
+                    无法从快照分辨,「同一输入永远同一输出 + 快照可审计」被破坏)。
+                    默认 True,daily_fortune 等无命盘时柱概念的调用方零改动
 
     Returns:
         dict,可直接作为响应字段
@@ -34,4 +38,5 @@ def build_calc_rule_snapshot(sect: int, zi_hour_rule: str,
         "true_solar_offset_minutes": round(offset_minutes, 2),
         "schema_version": SCHEMA_VERSION,
         "birth_timezone": birth_timezone,
+        "hour_known": hour_known,
     }

@@ -47,6 +47,21 @@ class BaziCalculateRequest(BaseModel):
     zi_hour_rule: Literal["zi_next_day"] = Field(
         "zi_next_day", description="MVP 固定 zi_next_day,内部 setSect(1)")
 
+    # ---- 时辰未知契约(docs/时辰未知设计决策.md,2026-08-31)----
+    # hour_known 是唯一事实源(不用 00:00:00 哨兵伪装);默认 True 保老客户端不 422
+    hour_known: bool = Field(
+        True, description="是否知道出生时刻。false 时 birth_datetime 的时辰部分"
+        "被忽略(统一按 12:00 占位排盘,离 23:00 换日与 00:00 两个边界最远),"
+        "响应 pillars.hour 置 null,喜忌引擎降级 unknown_hour")
+    late_night: bool | None = Field(
+        None, description="「是否在半夜(约 11 点后)出生」二值问题(D3,三态:"
+        "True=是 / False=否 / None=不确定),仅 hour_known=false 时参与判定;"
+        "hour_known=true 时忽略。**日柱歧义窗口定义**(不硬编码墙钟 23:00-24:00):"
+        "换日发生在真太阳时 23:00,墙钟窗口 = [23:00 − offset, 24:00 − offset)"
+        "(mod 24h),offset 为该出生地真太阳时偏移分钟"
+        "(见 true_solar_time.late_night_wall_window);答 False 即在窗口外,"
+        "日柱照常计算;答 True/None 不能排除窗口 → 日柱置 null(不猜)")
+
     @field_validator("birth_datetime")
     @classmethod
     def must_be_naive(cls, v: datetime) -> datetime:
@@ -96,10 +111,17 @@ class Pillar(BaseModel):
 
 
 class Pillars(BaseModel):
+    """四柱。day/hour 可为 null(时辰未知显式缺失表达,docs/时辰未知设计决策.md):
+
+    - hour_known=false → hour 恒为 null(时辰部分未知,禁用哨兵假精度)
+    - 日柱歧义(hour_known=false 且 late_night != False)→ day 亦为 null
+      (日主无,日主系派生输出一并置空;year/month 恒有值)
+    """
+
     year: Pillar
     month: Pillar
-    day: Pillar
-    hour: Pillar
+    day: Pillar | None = None
+    hour: Pillar | None = None
 
 
 class GanZhiNaYin(BaseModel):
@@ -142,6 +164,10 @@ class CalcRuleSnapshot(BaseModel):
     schema_version: int
     # S02 契约:出生地 IANA 时区(审计/展示;老快照可能为空)
     birth_timezone: str | None = None
+    # 时辰未知 S01:排盘是否含时柱(缺此字段则补时辰前后无法从快照分辨,
+    # 「同一输入永远同一输出 + 快照可审计」被破坏)。默认 True 兼容老
+    # ChartPayload 回显(2026-08-15 教训:payload 加字段必须可缺省)
+    hour_known: bool = True
 
 
 # ---------- Meta 块(v1 prompt 系统:M0 chart JSON 注入) ----------
@@ -177,12 +203,16 @@ class BaziCalculateResponse(BaseModel):
     """POST /api/bazi/calculate 响应。"""
 
     content_hash: str
-    true_solar_time: datetime
+    # 时辰未知时为 null:真太阳时含时辰信息,基于 12:00 占位的值属假精度,
+    # 不漏到响应(占位一致性验收);偏移量本身只由日期+经度+时区决定,保留
+    true_solar_time: datetime | None = None
     true_solar_offset_minutes: float
 
     @field_serializer("true_solar_time")
-    def _serialize_true_solar_time(self, dt: datetime) -> str:
+    def _serialize_true_solar_time(self, dt: datetime | None) -> str | None:
         """去微秒:iOS .iso8601 dateDecodingStrategy 不支持小数秒。"""
+        if dt is None:
+            return None
         return dt.replace(microsecond=0).isoformat()
     pillars: Pillars
     ming_gong: GanZhiNaYin
@@ -193,13 +223,19 @@ class BaziCalculateResponse(BaseModel):
     # 决策 1 喜忌 —— 扶抑+调候+从格检测(D3)
     favorable_elements: list[str] = Field(default_factory=list)
     unfavorable_elements: list[str] = Field(default_factory=list)
-    day_master_strength: Literal["strong", "weak", "balanced", "special_pattern"] | None = None
+    # unknown_hour(D4):时柱缺失或日柱歧义 → 引擎不硬算,喜忌留空
+    # (镜像 special_pattern 从格诚实降级先例)
+    day_master_strength: (Literal[
+        "strong", "weak", "balanced", "special_pattern", "unknown_hour"
+    ] | None) = None
     tiaoshou_applied: bool = False
     xiji_method: str | None = None  # "扶抑+调候" | "扶抑+调候(从格特征检测命中,未判定具体格局)"
     pattern_hint: Literal["zhuanwang", "cong"] | None = None
 
     # 决策 2 神煞 —— 《三命通会》20 个固定清单
     shensha: list[ShenshaItem] = Field(default_factory=list)
+    # 时辰未知 S01:按可用柱查(时支/日支相关条目自然缺失),显式标注不静默
+    shensha_incomplete: bool = False
 
     # 2026-08-01 grill-me 决策 #13 chart anchor sentence
     # 后端确定性拼接(0 AI 成本),iOS 在深度解析 Tab 顶部 instant 显示

@@ -51,6 +51,35 @@ def shichen_bucket(hour: int) -> int:
     return (hour + 1) % 24 // 2
 
 
+# setSect(1) 换日边界:真太阳时 23:00 起日柱归次日(CLAUDE.md「强制 setSect(1)」)
+DAY_CHANGE_TRUE_SOLAR_START_MIN = 23 * 60
+# 换日歧义窗长度:23:00 → 24:00,共 1 小时
+_DAY_CHANGE_WINDOW_MIN = 60
+_MINUTES_PER_DAY = 24 * 60
+
+
+def late_night_wall_window(offset_minutes: float) -> tuple[int, int]:
+    """时辰未知时的「半夜出生」日柱歧义窗口,反算为墙钟分钟数(mod 1440)。
+
+    定义(docs/时辰未知设计决策.md D3,**不硬编码墙钟 23:00-24:00**):
+    换日判定发生在**真太阳时**上,边界为真太阳时 23:00;墙钟窗口
+    = [23:00 − offset, 24:00 − offset)(mod 24h),其中
+    offset = EoT(出生日) + (经度 − 时区中心经度) × 4min/度
+    (即 compute_true_solar_time 的 offset_minutes,时辰未知时按 12:00
+    占位时刻估算 —— EoT 逐日漂移 ≤ 30 秒,对 1 小时窗口判定无影响)。
+
+    出生墙钟落在该窗口内 → 真太阳时已过 23:00,日柱属于次日子时盘,
+    日柱歧义。例:喀什 offset ≈ −176 → 窗口 01:56-02:56(次日)。
+
+    Returns:
+        (start, end) 墙钟分钟数 mod 1440,end = start + 60(mod 1440,
+        跨午夜时 end < start)。调用方拿区间判断时需自行处理回绕。
+    """
+    start = (DAY_CHANGE_TRUE_SOLAR_START_MIN - round(offset_minutes)) % _MINUTES_PER_DAY
+    end = (start + _DAY_CHANGE_WINDOW_MIN) % _MINUTES_PER_DAY
+    return start, end
+
+
 def compute_true_solar_time(birth: datetime, longitude: float) -> SolarTimeResult:
     """计算真太阳时。
 

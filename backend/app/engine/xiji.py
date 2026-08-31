@@ -49,7 +49,7 @@ CONG_THRESHOLD = 5         # 某一行 >= 5 → 从格(需日主孤立)
 class XijiResult:
     """喜忌引擎输出(对应决策 1 输出结构)。"""
 
-    day_master_strength: str  # strong|weak|balanced|special_pattern
+    day_master_strength: str  # strong|weak|balanced|special_pattern|unknown_hour
     favorable_elements: list[str] = field(default_factory=list)
     unfavorable_elements: list[str] = field(default_factory=list)
     tiaoshou_applied: bool = False
@@ -219,16 +219,35 @@ def compute_xiji(pillars: Pillars, element_balance: ElementBalance) -> XijiResul
     """计算喜忌。
 
     Args:
-        pillars: 四柱(已含干支/藏干)
-        element_balance: 五行统计(4 干 + 4 支主气,和 = 8)
+        pillars: 四柱(时柱/日柱可为 None,见 Pillars 说明)
+        element_balance: 五行统计(按已知柱计数,和 = 8/6/4)
 
     Returns:
         XijiResult,普通盘返回 strong/weak/balanced + 喜忌;
-        从格特征命中返回 special_pattern + 空喜忌(诚实降级)。
+        从格特征命中返回 special_pattern + 空喜忌(诚实降级);
+        时柱缺失或日柱歧义返回 unknown_hour + 空喜忌(D4,与从格降级同构)。
 
     Raises:
         ValueError: 未知干支/藏干缺失 —— 由 BaziEngine 包装为 BaziCalculationFailedError
     """
+    # 0. 时辰未知分支(D4):时柱缺失(五行/十神权重缺源)或日柱歧义(日主无)
+    #    → 引擎不硬算,显式降级 unknown_hour。与 special_pattern 完全同构:
+    #    权重公式按 8 字校准,缺字硬算数值意义已变;喜忌是三模块根基,
+    #    可靠性无法验证就不给。ten_god_weights/useful_god_candidates 一并留空
+    #    (客观统计缺时柱/日柱后与 8 字口径不可比,不降级呈现)
+    if pillars.hour is None or pillars.day is None:
+        return XijiResult(
+            day_master_strength="unknown_hour",
+            favorable_elements=[],
+            unfavorable_elements=[],
+            tiaoshou_applied=False,
+            xiji_method="时辰未知,喜忌未计算(需补时辰)",
+            pattern_hint=None,
+            score=-1,
+            ten_god_weights={},
+            useful_god_candidates=[],
+        )
+
     day_gan = pillars.day.gan
     day_element = _element_of_gan(day_gan)
     counts = element_balance.model_dump()
