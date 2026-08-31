@@ -96,9 +96,30 @@ enum L10n {
     /// 出生信息表单(onboarding O2 / 深度解析无存档兜底 / Profile 新建命盘三处复用)。
     /// 品牌/规则类字串不进本表:「問命」「玄」「玄机问道」、干支字符、「X时 ›」。
     enum BirthForm {
-        /// "出生时间" 字段标签(日期行)。
-        /// zh: "出生时间";en: "Birth date & time"
-        static let birthDatetimeLabel = String(localized: "birthform.birthDatetime.label")
+        /// "出生日期" 字段标签(日期行 + 确认 sheet 日期行共用;S03 拆双 picker)。
+        /// zh: "出生日期";en: "Birth date"
+        static let birthDateLabel = String(localized: "birthform.birthDate.label")
+
+        /// "出生时刻" 字段标签(时刻行 + 确认 sheet 时刻行共用;S03 拆双 picker)。
+        /// zh: "出生时刻";en: "Birth time"
+        static let birthTimeLabel = String(localized: "birthform.birthTime.label")
+
+        /// 日期未选择占位(S03 日期必选:nil 初始态的日期行文案)。
+        /// zh: "请选择日期";en: "Select a date"
+        static let birthDatePlaceholder = String(localized: "birthform.birthDate.placeholder")
+
+        /// 日期必选校验错误(S03/D8 默认日期洞修复)。
+        /// zh: "请选择出生日期";en: "Please select your birth date"
+        static let errorDateRequired = String(localized: "birthform.error.dateRequired")
+
+        /// 日期+时刻合成失败防御性错误(理论不可达;错误显式传播用)。
+        /// zh: "出生日期与时刻无法合成,请重新选择";en: "Couldn't combine date and time — please reselect"
+        static let errorCombineFailed = String(localized: "birthform.error.combineFailed")
+
+        /// 日期区教育微文案(D8 把矛盾变成教育;S04 引入时辰未知入口后再补「时刻可跳过」半句)。
+        /// zh: "日期决定年月柱与生肖;时刻决定时柱与喜忌"
+        /// en: "Date sets year & month pillars and your zodiac; time sets the hour pillar and favorable elements"
+        static let dateEducationHint = String(localized: "birthform.date.educationHint")
 
         /// "命盘别名" 字段标签(字段 Micro 标签与 TextField 标题共用同一 key)。
         /// zh: "命盘别名";en: "Chart name"
@@ -108,9 +129,13 @@ enum L10n {
         /// zh: "我自己 / 妈妈 / 男友";en: "Me / Mom / Partner"
         static let aliasPlaceholder = String(localized: "birthform.alias.placeholder")
 
-        /// 日期 wheel sheet 标题(亦作日期行 accessibilityLabel)。
-        /// zh: "出生日期与时刻";en: "Birth date & time"
-        static let datePickerTitle = String(localized: "birthform.datePicker.title")
+        /// 日期 wheel sheet 标题(亦作日期行 accessibilityLabel;S03 拆分后 date-only)。
+        /// zh: "选择出生日期";en: "Birth date"
+        static let datePickerTitleDate = String(localized: "birthform.datePicker.title.date")
+
+        /// 时刻 wheel sheet 标题(亦作时刻行 accessibilityLabel;S03 拆分后 hourAndMinute)。
+        /// zh: "选择出生时刻";en: "Birth time"
+        static let datePickerTitleTime = String(localized: "birthform.datePicker.title.time")
 
         /// 时辰快捷选字段标签。
         /// zh: "时辰快捷选(可选)";en: "Quick hour pick (optional)"

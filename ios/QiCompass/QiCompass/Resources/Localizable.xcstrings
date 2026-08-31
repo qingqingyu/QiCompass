@@ -137,19 +137,53 @@
         }
       }
     },
-    "birthform.birthDatetime.label" : {
+    "birthform.birthDate.label" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Birth date & time"
+            "value" : "Birth date"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "出生时间"
+            "value" : "出生日期"
+          }
+        }
+      }
+    },
+    "birthform.birthDate.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a date"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请选择日期"
+          }
+        }
+      }
+    },
+    "birthform.birthTime.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Birth time"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生时刻"
           }
         }
       }
@@ -205,19 +239,87 @@
         }
       }
     },
-    "birthform.datePicker.title" : {
+    "birthform.date.educationHint" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Birth date & time"
+            "value" : "Date sets year & month pillars and your zodiac; time sets the hour pillar and favorable elements"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "出生日期与时刻"
+            "value" : "日期决定年月柱与生肖;时刻决定时柱与喜忌"
+          }
+        }
+      }
+    },
+    "birthform.datePicker.title.date" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Birth date"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择出生日期"
+          }
+        }
+      }
+    },
+    "birthform.datePicker.title.time" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Birth time"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "选择出生时刻"
+          }
+        }
+      }
+    },
+    "birthform.error.combineFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't combine date and time — please reselect"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生日期与时刻无法合成,请重新选择"
+          }
+        }
+      }
+    },
+    "birthform.error.dateRequired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please select your birth date"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请选择出生日期"
           }
         }
       }

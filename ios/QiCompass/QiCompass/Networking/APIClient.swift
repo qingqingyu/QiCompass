@@ -265,13 +265,13 @@ final class MockAPIClient: APIClient {
     func calculateBazi(request: BaziCalculateRequest) async throws -> BaziResponse {
         AppLogger.networking.debug("mock.calculateBazi 调起 birth_datetime=\(request.birthDatetime, privacy: .public) tz=\(request.timezone, privacy: .public)")
         try? await Task.sleep(nanoseconds: 300_000_000)
-        return Self.mockBaziResponse(for: request)
+        return try Self.mockBaziResponse(for: request)
     }
 
     func compatibility(request: CompatibilityRequest) async throws -> CompatibilityResponse {
         AppLogger.networking.debug("mock.compatibility 调起 personAHash=\(request.personAHash.prefix(12), privacy: .public) personBProvided=\(String(describing: request.personB != nil), privacy: .public)")
         try? await Task.sleep(nanoseconds: 300_000_000)
-        return Self.mockCompatibilityResponse(for: request)
+        return try Self.mockCompatibilityResponse(for: request)
     }
 
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse {
@@ -368,7 +368,9 @@ final class MockAPIClient: APIClient {
         return fmt.date(from: wall)
     }
 
-    private static func mockBaziResponse(for req: BaziCalculateRequest) -> BaziResponse {
+    /// S03 起 throws:钟面字符串解析失败显式抛错(错误显式传播),不再 `?? .now` 静默兜底——
+    /// birthDate Optional 化后字符串由 VM combinedBirthDate 保证非空合成,解析失败=上游 bug,须暴露。
+    private static func mockBaziResponse(for req: BaziCalculateRequest) throws -> BaziResponse {
         let pillar = PillarDTO(
             ganZhi: "甲子", gan: "甲", zhi: "子",
             ganElement: "wood", zhiElement: "water",
@@ -383,8 +385,11 @@ final class MockAPIClient: APIClient {
             trueSolarLongitude: req.longitude, trueSolarOffsetMinutes: -14.4,
             schemaVersion: 1, birthTimezone: req.timezone
         )
-        // mock 真太阳时 = 钟面字符串解析回 Date(naive → 设备时区解释,仅 mock 展示用)
-        let mockSolarDate = Self.mockWallDate(req.birthDatetime) ?? .now
+        // mock 真太阳时 = 钟面字符串解析回 Date(naive → 设备时区解释,仅 mock 展示用);
+        // 解析失败显式抛错(错误显式传播,禁止 .now 静默兜底)
+        guard let mockSolarDate = Self.mockWallDate(req.birthDatetime) else {
+            throw UserFacingError.generic(message: "mock 真太阳时解析失败(钟面字符串非法): \(req.birthDatetime)")
+        }
         // contentHash 用确定性输入拼 itself(String.hashValue 每进程随机种子,跨启动会变)
         return BaziResponse(
             contentHash: "mock_\(req.birthDatetime)_\(req.timezone)_\(req.longitude)",
@@ -409,9 +414,10 @@ final class MockAPIClient: APIClient {
 
     /// 合盘 mock:模式 A 不返 personBChart(B 从本地存档渲染);模式 B 返 personBChart(后端现排)。
     /// 双盘定性评估固定为「互补佳 / 同气 / 六合 / 无冲无刑」,3 年流年同步表固定。
+    /// S03 起 throws:personB 钟面解析失败显式抛错(对齐 mockBaziResponse,禁止 .now 静默兜底)。
     private static func mockCompatibilityResponse(
         for req: CompatibilityRequest
-    ) -> CompatibilityResponse {
+    ) throws -> CompatibilityResponse {
         let calcRule = CalcRuleSnapshotDTO(
             library: "lunar_python", sect: 1, ziHourRule: "zi_next_day",
             trueSolarLongitude: 116.4, trueSolarOffsetMinutes: -14.4, schemaVersion: 1
@@ -419,7 +425,11 @@ final class MockAPIClient: APIClient {
 
         // 模式 B:构造一个独立的 B 盘响应(供客户端隐式落地 + UI 渲染)
         let personBChart: BaziResponse?
-        if req.personB != nil {
+        if let personB = req.personB {
+            // 钟面字符串解析失败显式抛错(错误显式传播,禁止 .now 静默兜底)
+            guard let personBSolarTime = Self.mockWallDate(personB.birthDatetime) else {
+                throw UserFacingError.generic(message: "mock 合盘 B 盘真太阳时解析失败(钟面字符串非法): \(personB.birthDatetime)")
+            }
             let pillar = PillarDTO(
                 ganZhi: "丙午", gan: "丙", zhi: "午",
                 ganElement: "fire", zhiElement: "fire",
@@ -431,7 +441,7 @@ final class MockAPIClient: APIClient {
             let balance = ElementBalanceDTO(wood: 1, fire: 3, earth: 1, metal: 1, water: 2)
             personBChart = BaziResponse(
                 contentHash: "mock_b_\(req.personB?.birthDatetime ?? "nil")_\(req.personB?.timezone ?? "")",
-                trueSolarTime: req.personB.flatMap { Self.mockWallDate($0.birthDatetime) } ?? .now,
+                trueSolarTime: personBSolarTime,
                 trueSolarOffsetMinutes: -14.4,
                 pillars: pillars,
                 mingGong: ganzhi, shenGong: ganzhi, taiYuan: ganzhi,

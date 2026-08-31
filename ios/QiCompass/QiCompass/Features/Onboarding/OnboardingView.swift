@@ -106,8 +106,9 @@ struct OnboardingView: View {
                     subLabel: subLabel(
                         from: response,
                         gender: vm.gender,
-                        // 年份按出生城市钟面取(S03 WYSIWYG;Calendar.current 会跨年漂移)
-                        birthYear: vm.placeCalendar.component(.year, from: vm.birthDate)
+                        // 年份按出生城市钟面取(S03 WYSIWYG;Calendar.current 会跨年漂移)。
+                        // birthDate 已 Optional 化(S03 日期必选):.ready 前置 validateForm 已保证非空
+                        birthYear: vm.birthDate.map { vm.placeCalendar.component(.year, from: $0) }
                     ),
                     friendZodiacs: response.yearBranchFriends,
                     clashZodiac: response.yearBranchClash,
@@ -197,9 +198,15 @@ struct OnboardingView: View {
     /// 年柱干支从 `response.pillars.year.ganZhi`(按立春算,可能与公历年不对应 —
     /// 立春前的公历年会显示上一年的年柱,这是正确行为,不是 bug)。
     /// 公历年份由调用方传(从 vm.birthDate 取,用于用户认知锚点)。
-    private func subLabel(from response: BaziResponse, gender: String, birthYear: Int) -> String {
+    /// birthYear 为 Optional(S03 birthDate Optional 化):nil = 理论不可达(.ready 前置
+    /// validateForm 已保证日期非空),显式记录 + 诚实降级去括号,不静默编造年份。
+    private func subLabel(from response: BaziResponse, gender: String, birthYear: Int?) -> String {
         let genderLabel = ZodiacHelper.genderLabel(forGender: gender)
         let ganzhi = response.pillars.year.ganZhi  // 如 "庚辰"
+        guard let birthYear else {
+            AppLogger.app.error("OnboardingView.subLabel birthDate_missing(理论不可达,请上报)")
+            return "\(genderLabel) · \(ganzhi)年"
+        }
         return "\(genderLabel) · \(ganzhi)年(\(birthYear))"
     }
 }

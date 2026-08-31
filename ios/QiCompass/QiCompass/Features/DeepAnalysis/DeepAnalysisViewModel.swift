@@ -57,7 +57,17 @@ final class DeepAnalysisViewModel {
 
     // MARK: 表单状态
 
-    var birthDate: Date = Date(timeIntervalSince1970: 638_000_000) // 默认 1990-03-15
+    /// 出生日期(S03 拆双 picker:date-only 绑定)。nil = 未选择初始态,
+    /// validateForm 拦截「请选择出生日期」——修「默认 1990-03-15 可不碰就提交」的数据质量洞(D8)。
+    var birthDate: Date?
+
+    /// 出生时刻独立绑定(S03:与日期拆开)。默认锚点只取其钟面时分(出生地钟面),
+    /// 日期分量不参与提交;时辰快捷选(setShichenHour)只改写本绑定。
+    var birthTime: Date = DeepAnalysisViewModel.defaultBirthTimeAnchor
+
+    /// 时刻行初始锚点 = 旧默认 1990-03-15 同一 instant(保留现状默认时刻语义,非提交默认日期)。
+    static let defaultBirthTimeAnchor = Date(timeIntervalSince1970: 638_000_000)
+
     var gender: String = "male"
     /// 出生地(S03 城市搜索 / S05 自定义地点;无默认,必选——砍「北京」默认是数据质量决策)
     var selectedPlace: PlaceSelection?
@@ -146,13 +156,69 @@ final class DeepAnalysisViewModel {
         return formatter.string(from: date)
     }
 
+    // MARK: - 出生日期/时刻展示串(S03 拆双 picker;表单时刻行与确认 sheet 共用)
+
+    /// 出生日期串(yyyy-MM-dd,出生地钟面);未选择 → nil(调用方自行展示占位/—)。
+    var wallBirthDateString: String? {
+        guard let birthDate else { return nil }
+        return Self.fixedWallFormatter(template: "yyyy-MM-dd", timeZone: placeCalendar.timeZone)
+            .string(from: birthDate)
+    }
+
+    /// 出生时刻串(HH:mm,出生地钟面;取 birthTime 的时分)。
+    var wallBirthTimeString: String {
+        Self.fixedWallFormatter(template: "HH:mm", timeZone: placeCalendar.timeZone)
+            .string(from: birthTime)
+    }
+
+    /// 固定模板钟面 formatter(展示用,POSIX locale 防系统格式注入)。
+    private static func fixedWallFormatter(template: String, timeZone: TimeZone) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = template
+        formatter.timeZone = timeZone
+        return formatter
+    }
+
+    /// 合并日期行 + 时刻行 → 完整出生 Date(出生地钟面:Y/M/D 取 birthDate,H/M 取 birthTime,秒归 0)。
+    /// birthDate 未选择 / Calendar 合成失败 → 显式抛错(错误显式传播,禁止 `?? Date()` 静默兜底);
+    /// 提交路径(validateForm 先行)保证走到这里时 birthDate 已非空。
+    private func combinedBirthDate() throws -> Date {
+        guard let birthDate else {
+            throw UserFacingError.generic(message: L10n.BirthForm.errorDateRequired)
+        }
+        let calendar = placeCalendar
+        let hour = calendar.component(.hour, from: birthTime)
+        let minute = calendar.component(.minute, from: birthTime)
+        guard let combined = calendar.date(
+            bySettingHour: hour,
+            minute: minute,
+            second: 0,
+            of: birthDate
+        ) else {
+            throw UserFacingError.generic(message: L10n.BirthForm.errorCombineFailed)
+        }
+        return combined
+    }
+
     // MARK: - 表单校验
 
     /// 校验表单,返回错误信息数组(空 = 通过)。
+    /// S03:日期必选(未选择 → 「请选择出生日期」);「不晚于当下」按日期+时刻合成值校验(语义保留)。
     func validateForm() -> [String] {
         var errors: [String] = []
-        if birthDate > Date() {
-            errors.append("出生时间不能晚于当下")
+        if birthDate == nil {
+            errors.append(L10n.BirthForm.errorDateRequired)
+        }
+        if birthDate != nil {
+            do {
+                if try combinedBirthDate() > Date() {
+                    errors.append("出生时间不能晚于当下")
+                }
+            } catch {
+                // 合成失败(理论不可达):不静默——打日志;提交路径 buildRequest 会显式抛错
+                AppLogger.app.warning("deepVM.validateForm combine_failed error=\(String(describing: error), privacy: .public)")
+            }
         }
         if selectedPlace == nil {
             errors.append("请选择出生城市")
@@ -171,9 +237,11 @@ final class DeepAnalysisViewModel {
             // validateForm 先行拦截,理论不可达;显式抛错不静默(错误显式传播)
             throw UserFacingError.generic(message: "请选择出生城市")
         }
+        // birthDate 未选择 / 合成失败在此显式抛错(combinedBirthDate 文档见上)
+        let birthDateTime = try combinedBirthDate()
         let resolved = BirthPlaceResolver.resolve(selectedPlace)
         return BaziCalculateRequest(
-            birthDatetime: wallTimeString(for: birthDate),
+            birthDatetime: wallTimeString(for: birthDateTime),
             timezone: resolved.timezone,
             gender: gender,
             longitude: resolved.longitude,
@@ -186,17 +254,17 @@ final class DeepAnalysisViewModel {
 
     // MARK: - 时辰快捷选
 
-    /// 时辰快捷选:把 birthDate 的 hour 设为指定值(方案 §4.3)。
+    /// 时辰快捷选:把 birthTime 的 hour 设为指定值(方案 §4.3;S03 起改写时刻绑定,日期不动)。
     /// 传入该时辰的中点小时(子=0, 丑=2, 寅=4 ... 亥=22)。
     /// 用出生城市 Calendar —— 表盘是出生地钟面(WYSIWYG),不随设备时区漂移。
     func setShichenHour(_ hour: Int) {
-        if let newDate = placeCalendar.date(
+        if let newTime = placeCalendar.date(
             bySettingHour: hour,
             minute: 0,
             second: 0,
-            of: birthDate
+            of: birthTime
         ) {
-            birthDate = newDate
+            birthTime = newTime
         }
     }
 
@@ -210,7 +278,7 @@ final class DeepAnalysisViewModel {
         let birthDate = self.birthDate
         let gender = self.gender
         let selectedPlace = self.selectedPlace
-        AppLogger.app.info("deepVM.calculate.start birth=\(birthDate.description) gender=\(gender, privacy: .public) place=\(selectedPlace?.displayLabel ?? "nil", privacy: .public)")
+        AppLogger.app.info("deepVM.calculate.start birth=\(birthDate?.description ?? "nil") gender=\(gender, privacy: .public) place=\(selectedPlace?.displayLabel ?? "nil", privacy: .public)")
         let errors = validateForm()
         if !errors.isEmpty {
             // 规则 1:表单校验失败抛错前打 warning(用户预期)
@@ -221,9 +289,17 @@ final class DeepAnalysisViewModel {
 
         calculateTask?.cancel()
 
-        // validateForm 已拦截未选地点;buildRequest throws 属防御性显式传播
-        guard let request = try? buildRequest() else {
-            state = .formInvalid(["请选择出生城市"])
+        // validateForm 已拦截未选日期/地点;buildRequest throws 属防御性显式传播,
+        // 失败原因透传给 formInvalid(不硬编码城市错误——S03 起也可能是日期/合成错误)
+        let request: BaziCalculateRequest
+        do {
+            request = try buildRequest()
+        } catch {
+            AppLogger.app.warning("deepVM.calculate.buildRequest_failed error=\(String(describing: error), privacy: .public)")
+            let message = (error as? UserFacingError)?.errorDescription
+                ?? (error as? LocalizedError)?.errorDescription
+                ?? "表单信息不完整,请检查后重试"
+            state = .formInvalid([message])
             return
         }
         lastRequest = request

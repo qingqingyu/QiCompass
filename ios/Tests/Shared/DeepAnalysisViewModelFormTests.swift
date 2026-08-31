@@ -120,6 +120,8 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
     func testBuildRequestExtractsWallClockInPlaceTimezone() throws {
         let birth = Date(timeIntervalSince1970: 580_262_400)
         vm.birthDate = birth
+        // S03 拆双绑定:时分取 birthTime;令其= birth 以便断言完整合成钟面(日期+时分同源)
+        vm.birthTime = birth
         vm.selectedPlace = .city(Self.losAngeles)
 
         let request = try vm.buildRequest()
@@ -138,6 +140,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         // 同一绝对时刻,北京与洛杉矶钟面必须不同(防「钟面提取其实用了设备时区」的假绿)
         let birth = Date(timeIntervalSince1970: 580_262_400)
         vm.birthDate = birth
+        vm.birthTime = birth // S03:时分锚同源,断言完整合成钟面
 
         vm.selectedPlace = .city(Self.losAngeles)
         let laWall = try vm.buildRequest().birthDatetime
@@ -153,6 +156,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
 
     func testBuildRequestCustomPlaceUsesExplicitTimezone() throws {
         // S05 自定义地点:timezone 显式必选(不再默认设备时区),物理值=手输经度
+        vm.birthDate = Date(timeIntervalSince1970: 580_262_400) // S03 日期必选:buildRequest 前置非空
         vm.selectedPlace = .custom(longitude: 87.62, timezone: "Asia/Urumqi")
         let request = try vm.buildRequest()
         XCTAssertEqual(request.timezone, "Asia/Urumqi")
@@ -169,6 +173,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         XCTAssertEqual(custom.timezone, "Etc/GMT-8")
         XCTAssertTrue(custom.isCustomLongitudeValid)
         XCTAssertFalse(PlaceSelection.custom(longitude: 200, timezone: "Etc/GMT-8").isCustomLongitudeValid)
+        vm.birthDate = Date(timeIntervalSince1970: 580_262_400) // S03 日期必选:buildRequest 前置非空
         vm.selectedPlace = custom
         let request = try vm.buildRequest()
         XCTAssertEqual(request.timezone, "Etc/GMT-8")
@@ -182,20 +187,105 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
                        "自定义地点表盘必须用显式时区")
     }
 
-    // MARK: - 时辰快捷选挂城市时区(WYSIWYG)
+    // MARK: - 时辰快捷选挂城市时区(WYSIWYG;S03 起改写时刻绑定)
 
-    func testSetShichenHourUsesPlaceCalendar() throws {
+    func testSetShichenHourWritesTimeBindingOnly() throws {
         vm.selectedPlace = .city(Self.losAngeles)
         vm.setShichenHour(10)
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))
-        let hour = calendar.component(.hour, from: vm.birthDate)
-        XCTAssertEqual(hour, 10, "setShichenHour 后洛杉矶钟面小时必须是指定值")
-        XCTAssertEqual(calendar.component(.minute, from: vm.birthDate), 0)
+        XCTAssertEqual(calendar.component(.hour, from: vm.birthTime), 10,
+                       "setShichenHour 后洛杉矶钟面小时必须是指定值(中点小时)")
+        XCTAssertEqual(calendar.component(.minute, from: vm.birthTime), 0)
+        XCTAssertNil(vm.birthDate, "时辰快捷选只改时刻绑定;日期未选态不得被伪造(S03 拆双绑定)")
     }
 
     func testPlaceCalendarFallsBackToCurrentWhenNoPlace() {
         vm.selectedPlace = nil
         XCTAssertEqual(vm.placeCalendar.timeZone.identifier, Calendar.current.timeZone.identifier)
+    }
+
+    // MARK: - S03 日期必选(D8 默认日期洞修复)
+
+    func testValidateRequiresBirthDateWhenUnselected() {
+        // 全新表单不碰日期:日期错误出现;城市未选时两条错误并列展示
+        vm.selectedPlace = nil
+        let errors = vm.validateForm()
+        XCTAssertTrue(errors.contains(L10n.BirthForm.errorDateRequired),
+                      "未选择出生日期 → 必须拦截: \(errors)")
+        XCTAssertTrue(errors.contains("请选择出生城市"),
+                      "日期与城市错误须并列展示: \(errors)")
+        XCTAssertEqual(errors.count, 2, "未选日期 + 未选城市 = 恰两条,不混入其他错误: \(errors)")
+    }
+
+    func testCalculateWithoutDateBlockedAndNoRequest() {
+        // 不碰日期直接提交 → formInvalid,不发起网络请求(lastRequest 不落)
+        vm.selectedPlace = .city(Self.losAngeles)
+        vm.calculate()
+        guard case .formInvalid(let errors) = vm.state else {
+            return XCTFail("未选日期提交必须停在 formInvalid,实际: \(vm.state)")
+        }
+        XCTAssertTrue(errors.contains(L10n.BirthForm.errorDateRequired), errors.description)
+        XCTAssertNil(vm.lastRequest, "校验失败不得构造/发出请求")
+    }
+
+    func testBuildRequestThrowsWhenDateMissing() {
+        // 显式抛错,不静默兜底(错误显式传播)
+        vm.selectedPlace = .city(Self.losAngeles)
+        XCTAssertThrowsError(try vm.buildRequest(), "birthDate 未选择时 buildRequest 必须抛错")
+    }
+
+    func testValidateFutureCombinedDateTimeStillBlocked() {
+        // 「不晚于当下」校验保留:按日期+时刻合成值判定
+        vm.selectedPlace = .city(Self.beijing)
+        vm.birthDate = Date(timeIntervalSince1970: 4_102_244_000) // 2100-01-01 前后,远晚于当下
+        vm.setShichenHour(10)
+        XCTAssertTrue(vm.validateForm().contains("出生时间不能晚于当下"))
+    }
+
+    func testUntouchedTimeKeepsDefaultTimeSemantics() throws {
+        // 日期已选 + 时刻未碰 → 正常提交;时刻默认值语义与现状一致(旧默认 instant 的钟面时分)
+        let birth = Date(timeIntervalSince1970: 580_262_400)
+        vm.birthDate = birth
+        vm.selectedPlace = .city(Self.losAngeles)
+        let request = try vm.buildRequest()
+
+        let laTZ = try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = laTZ
+        var expected = calendar.dateComponents([.year, .month, .day], from: birth)
+        let defaultTime = calendar.dateComponents([.hour, .minute], from: DeepAnalysisViewModel.defaultBirthTimeAnchor)
+        expected.hour = defaultTime.hour
+        expected.minute = defaultTime.minute
+        expected.second = 0
+        XCTAssertEqual(
+            request.birthDatetime,
+            String(format: "%04d-%02d-%02dT%02d:%02d:%02d",
+                   expected.year!, expected.month!, expected.day!, expected.hour!, expected.minute!, expected.second!),
+            "日期分量取 birthDate、时分分量取默认 birthTime、秒归零(合成语义)"
+        )
+    }
+
+    // MARK: - S03 确认 sheet / 表单两行的数值一致性(wallBirthDateString / wallBirthTimeString)
+
+    func testConfirmSheetStringsMatchRequestValues() throws {
+        vm.birthDate = Date(timeIntervalSince1970: 580_262_400)
+        vm.selectedPlace = .city(Self.losAngeles)
+        vm.setShichenHour(10) // 时辰快捷选生效 → 10:00
+
+        let request = try vm.buildRequest()
+        let dateStr = try XCTUnwrap(vm.wallBirthDateString, "已选日期 → 展示串非 nil")
+        let timeStr = vm.wallBirthTimeString
+
+        XCTAssertEqual(timeStr, "10:00", "时辰快捷选中点小时须体现在时刻串")
+        XCTAssertTrue(request.birthDatetime.hasPrefix(dateStr),
+                      "确认 sheet 日期值与提交值同源: \(request.birthDatetime) vs \(dateStr)")
+        XCTAssertTrue(request.birthDatetime.dropFirst(11).hasPrefix(timeStr),
+                      "确认 sheet 时刻值与提交值同源: \(request.birthDatetime) vs \(timeStr)")
+    }
+
+    func testWallBirthDateStringNilWhenUnselected() {
+        XCTAssertNil(vm.wallBirthDateString, "未选择日期 → nil(调用方展示占位,不伪造默认日期)")
+        XCTAssertFalse(vm.wallBirthTimeString.isEmpty, "时刻串始终有默认值(默认锚点)")
     }
 }
