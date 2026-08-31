@@ -23,7 +23,8 @@ struct BirthInfoConfirmSheet: View {
             VStack(spacing: BaziTheme.Spacing.md) {
                 // S03 拆双 picker:日期与时刻分行展示,与表单两行共用同一 VM 事实源(数值一致)
                 infoRow(label: L10n.BirthForm.birthDateLabel, value: vm.wallBirthDateString ?? "—")
-                infoRow(label: L10n.BirthForm.birthTimeLabel, value: vm.wallBirthTimeString)
+                // S04 时辰未知:无时辰态明示「未知(半夜:是/否/不确定)」,防误提交
+                infoRow(label: L10n.BirthForm.birthTimeLabel, value: vm.confirmBirthTimeText)
                 infoRow(label: "性别", value: vm.gender == "male" ? "男" : "女")
                 infoRow(label: "出生地", value: vm.selectedPlace?.displayLabel ?? "—")
             }
@@ -57,7 +58,7 @@ struct BirthInfoConfirmSheet: View {
         .background(BaziTheme.paper)
         .onAppear {
             // 规则 1:用户主动触发的入口日志(便于排查"sheet 没弹 / 反复弹")
-            AppLogger.app.info("BirthInfoConfirmSheet.shown birth=\(vm.wallBirthDateString ?? "nil") \(vm.wallBirthTimeString) gender=\(vm.gender, privacy: .public) place=\(vm.selectedPlace?.displayLabel ?? "nil", privacy: .public)")
+            AppLogger.app.info("BirthInfoConfirmSheet.shown birth=\(vm.wallBirthDateString ?? "nil") time=\(vm.confirmBirthTimeText, privacy: .public) gender=\(vm.gender, privacy: .public) place=\(vm.selectedPlace?.displayLabel ?? "nil", privacy: .public)")
         }
     }
 

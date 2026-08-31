@@ -205,6 +205,40 @@
         }
       }
     },
+    "birthform.confirm.timeUnknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown (late night: %@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知(半夜:%@)"
+          }
+        }
+      }
+    },
+    "birthform.confirm.timeUnknownNoAnswer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown (late night: unanswered)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知(半夜:未答)"
+          }
+        }
+      }
+    },
     "birthform.cta.loading" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -245,13 +279,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Date sets year & month pillars and your zodiac; time sets the hour pillar and favorable elements"
+            "value" : "Date sets year & month pillars and your zodiac; time sets the hour pillar and favorable elements; skip the time if unknown"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "日期决定年月柱与生肖;时刻决定时柱与喜忌"
+            "value" : "日期决定年月柱与生肖;时刻决定时柱与喜忌;不知道时刻可先跳过"
           }
         }
       }
@@ -320,6 +354,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请选择出生日期"
+          }
+        }
+      }
+    },
+    "birthform.error.lateNightRequired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please answer the late-night question"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请选择是否半夜出生"
           }
         }
       }
@@ -405,6 +456,108 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "时辰快捷选(可选)"
+          }
+        }
+      }
+    },
+    "birthform.hourUnknown.toggle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I don't know my birth time"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不知道出生时刻"
+          }
+        }
+      }
+    },
+    "birthform.lateNight.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Born near midnight, the day pillar may fall on the next day — this only settles the day pillar"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "半夜出生的人日柱可能落在次日;这一问只为确认日柱"
+          }
+        }
+      }
+    },
+    "birthform.lateNight.no" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "否"
+          }
+        }
+      }
+    },
+    "birthform.lateNight.question" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Were you born late at night (after about 11 p.m.)?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你是否在半夜(约 11 点之后)出生?"
+          }
+        }
+      }
+    },
+    "birthform.lateNight.unsure" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not sure"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不确定"
+          }
+        }
+      }
+    },
+    "birthform.lateNight.yes" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Yes"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "是"
           }
         }
       }

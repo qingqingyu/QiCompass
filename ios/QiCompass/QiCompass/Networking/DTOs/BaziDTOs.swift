@@ -11,6 +11,10 @@ import Foundation
 ///   (「客户端不做历法计算」红线)
 /// - longitude/latitude/placeName/geonameId:物理真值(S01 cities.sqlite 或
 ///   自定义输入),后端零城市表
+/// - hourKnown/lateNight:时辰未知契约(backend S01 / docs/时辰未知设计决策.md D1+D3)。
+///   hourKnown=false 时 birth_datetime 时辰部分由 iOS 显式传 12:00 占位
+///   (后端归一亦 12:00,双端一致减少歧义);lateNight 是三态映射
+///   是→true / 否→false / 不确定→nil(nil 用 encodeIfPresent 不传,契约两可)
 struct BaziCalculateRequest: Codable, Sendable, Equatable {
     let birthDatetime: String
     let timezone: String
@@ -20,6 +24,10 @@ struct BaziCalculateRequest: Codable, Sendable, Equatable {
     let placeName: String?
     let geonameId: Int?
     let ziHourRule: String
+    /// 是否知道出生时刻(D1 单一入口)。默认 true = 老路径,合盘 B 盘等既有构造零改动
+    var hourKnown: Bool = true
+    /// 「是否半夜出生」二值问题答案(D3);nil = 不确定(编码省略 key)
+    var lateNight: Bool? = nil
 
     enum CodingKeys: String, CodingKey {
         case birthDatetime = "birth_datetime"
@@ -30,6 +38,8 @@ struct BaziCalculateRequest: Codable, Sendable, Equatable {
         case placeName = "place_name"
         case geonameId = "geoname_id"
         case ziHourRule = "zi_hour_rule"
+        case hourKnown = "hour_known"
+        case lateNight = "late_night"
     }
 }
 
@@ -126,6 +136,10 @@ struct CalcRuleSnapshotDTO: Codable, Sendable, Equatable {
     let schemaVersion: Int
     /// 出生地 IANA 时区(S02 契约;老快照/mock 缺省 nil)
     var birthTimezone: String? = nil
+    /// 排盘是否含时柱(时辰未知 S01;对齐 backend CalcRuleSnapshot.hour_known)。
+    /// Optional + 合成 Codable 的 decodeIfPresent:老 ChartSnapshot payload 缺 key
+    /// 解码不 crash,消费方按 `?? true` 处理(2026-08-15 keyNotFound 教训)。
+    var hourKnown: Bool? = nil
 
     enum CodingKeys: String, CodingKey {
         case library
@@ -135,6 +149,7 @@ struct CalcRuleSnapshotDTO: Codable, Sendable, Equatable {
         case trueSolarOffsetMinutes = "true_solar_offset_minutes"
         case schemaVersion = "schema_version"
         case birthTimezone = "birth_timezone"
+        case hourKnown = "hour_known"
     }
 }
 
@@ -224,6 +239,16 @@ struct BaziResponse: Codable, Sendable {
     let usefulGodCandidates: [String]
     /// 出生上下文 meta 块。nil = 老 response 未含此字段
     let meta: MetaBlockDTO?
+    /// 时辰未知存档字段(S04,D3):「是否半夜出生」三态答案(是→true/否→false/不确定→nil)。
+    /// 后端响应**不回显**此字段(只参与日柱歧义判定),由 `ChartSnapshotStore.upsert`
+    /// 从 request 注入 payload 存档;老 payload 缺 key decodeIfPresent → nil。
+    var lateNight: Bool? = nil
+
+    /// 存档/响应是否含时柱(时辰未知 S04)。单一事实源是后端
+    /// `calc_rule_snapshot.hour_known`;老 payload 缺 key → true(decodeIfPresent ?? true)。
+    var isHourKnown: Bool {
+        calcRuleSnapshot.hourKnown ?? true
+    }
 
     enum CodingKeys: String, CodingKey {
         case contentHash = "content_hash"
@@ -255,6 +280,7 @@ struct BaziResponse: Codable, Sendable {
         case tenGodWeights = "ten_god_weights"
         case usefulGodCandidates = "useful_god_candidates"
         case meta
+        case lateNight = "late_night"
     }
 
     // Stage 7b 关键修复:自定义 init(from:) 让 v1 字段真能解码。
@@ -319,6 +345,9 @@ struct BaziResponse: Codable, Sendable {
         tenGodWeights = try c.decodeIfPresent([String: Int].self, forKey: .tenGodWeights) ?? [:]
         usefulGodCandidates = try c.decodeIfPresent([String].self, forKey: .usefulGodCandidates) ?? []
         meta = try c.decodeIfPresent(MetaBlockDTO.self, forKey: .meta)
+        // 时辰未知存档字段(S04):后端不回显,仅 ChartSnapshotStore.upsert 注入;
+        // 老 payload 缺 key → nil(decodeIfPresent,不 crash)
+        lateNight = try c.decodeIfPresent(Bool.self, forKey: .lateNight)
     }
 
     // Stage 7b:memberwise init(自定义 init(from:) 后失去合成,手写带默认值
@@ -352,7 +381,8 @@ struct BaziResponse: Codable, Sendable {
         anchorSentence: String? = nil,
         tenGodWeights: [String: Int] = [:],
         usefulGodCandidates: [String] = [],
-        meta: MetaBlockDTO? = nil
+        meta: MetaBlockDTO? = nil,
+        lateNight: Bool? = nil
     ) {
         self.contentHash = contentHash
         self.trueSolarTime = trueSolarTime
@@ -383,6 +413,7 @@ struct BaziResponse: Codable, Sendable {
         self.tenGodWeights = tenGodWeights
         self.usefulGodCandidates = usefulGodCandidates
         self.meta = meta
+        self.lateNight = lateNight
     }
 }
 

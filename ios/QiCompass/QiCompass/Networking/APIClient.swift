@@ -383,7 +383,9 @@ final class MockAPIClient: APIClient {
         let calcRule = CalcRuleSnapshotDTO(
             library: "lunar_python", sect: 1, ziHourRule: req.ziHourRule,
             trueSolarLongitude: req.longitude, trueSolarOffsetMinutes: -14.4,
-            schemaVersion: 1, birthTimezone: req.timezone
+            schemaVersion: 1, birthTimezone: req.timezone,
+            // S04 契约镜像:后端 calc_rule_snapshot 恒回 hour_known,mock 同步回显
+            hourKnown: req.hourKnown
         )
         // mock 真太阳时 = 钟面字符串解析回 Date(naive → 设备时区解释,仅 mock 展示用);
         // 解析失败显式抛错(错误显式传播,禁止 .now 静默兜底)

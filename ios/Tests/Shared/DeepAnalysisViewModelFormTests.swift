@@ -3,6 +3,8 @@ import XCTest
 @testable import QiCompass
 
 /// S03 深度解析表单 VM 测试:必选城市校验 + 请求构造(裸钟面 / timezone / 经纬度)。
+/// S04 追加:时辰未知入口状态机(D1)+ 二值半夜三态(D3)+ hour_known 契约字段
+/// + payload 存档(decodeIfPresent 老盘兼容)。
 ///
 /// 对应 S03/S05 验收:
 /// - 未选出生地提交 → 「请选择出生城市」;无任何默认城市
@@ -13,13 +15,15 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
 
     private var container: ModelContainer!
     private var vm: DeepAnalysisViewModel!
+    private var apiClient: MockAPIClient!
+    private var chartStore: ChartSnapshotStore!
 
     override func setUpWithError() throws {
         try super.setUpWithError()
         container = try ModelContainerFactory.makeInMemory()
         let context = container.mainContext
-        let apiClient = MockAPIClient()
-        let chartStore = ChartSnapshotStore(context: context)
+        apiClient = MockAPIClient()
+        chartStore = ChartSnapshotStore(context: context)
         let interpretStore = InterpretationCacheStore(context: context)
         let identityResolver = AIIdentityResolver(apiClient: apiClient)
         let counter = DailyReadCounter()
@@ -44,6 +48,8 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
 
     override func tearDownWithError() throws {
         vm = nil
+        chartStore = nil
+        apiClient = nil
         container = nil
         try super.tearDownWithError()
     }
@@ -287,5 +293,156 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
     func testWallBirthDateStringNilWhenUnselected() {
         XCTAssertNil(vm.wallBirthDateString, "未选择日期 → nil(调用方展示占位,不伪造默认日期)")
         XCTAssertFalse(vm.wallBirthTimeString.isEmpty, "时刻串始终有默认值(默认锚点)")
+    }
+
+    // MARK: - S04 时辰未知入口(D1 单一入口)+ 二值半夜问题(D3)
+
+    /// S04 夹具:合法日期 + 洛杉矶城市(两行都齐,只剩时辰未知维度可变)。
+    private func filledForm() {
+        vm.birthDate = Date(timeIntervalSince1970: 580_262_400) // 1988-05-15 前后,早于当下
+        vm.selectedPlace = .city(Self.losAngeles)
+    }
+
+    func testHourKnownDefaultsToOldPath() throws {
+        // 默认 = 老路径:hourKnown true、lateNight 不传(既有盘行为逐字段不变)
+        filledForm()
+        XCTAssertTrue(vm.hourKnown, "默认必须 true(老路径),否则存量表单语义漂移")
+        XCTAssertNil(vm.lateNightChoice)
+        let request = try vm.buildRequest()
+        XCTAssertTrue(request.hourKnown)
+        XCTAssertNil(request.lateNight)
+    }
+
+    func testHourUnknownWithoutChoiceBlockedAndNoRequest() {
+        // 勾选「不知道」但三态未选 → formInvalid,不发起请求(不默认「不确定」)
+        filledForm()
+        vm.setHourKnown(false)
+        vm.calculate()
+        guard case .formInvalid(let errors) = vm.state else {
+            return XCTFail("三态未选提交必须停在 formInvalid,实际: \(vm.state)")
+        }
+        XCTAssertTrue(errors.contains(L10n.BirthForm.errorLateNightRequired), errors.description)
+        XCTAssertNil(vm.lastRequest, "三态未选不得构造/发出请求")
+    }
+
+    func testHourUnknownChoiceNoSendsFalseAndNoonPlaceholder() throws {
+        // 三态「否」→ hour_known=false + late_night=false;时辰显式 12:00 占位(忽略 birthTime)
+        filledForm()
+        vm.setShichenHour(10) // 时刻绑定设为 10:00 —— 必须被 flag 否定
+        vm.setHourKnown(false)
+        vm.lateNightChoice = .no
+        let request = try vm.buildRequest()
+        XCTAssertFalse(request.hourKnown)
+        XCTAssertEqual(request.lateNight, false)
+        XCTAssertTrue(request.birthDatetime.hasSuffix("T12:00:00"),
+                      "hour_known=false 时时辰部分必须显式 12:00(后端归一同值),实际: \(request.birthDatetime)")
+    }
+
+    func testHourUnknownChoiceYesSendsTrue() throws {
+        filledForm()
+        vm.setHourKnown(false)
+        vm.lateNightChoice = .yes
+        let request = try vm.buildRequest()
+        XCTAssertFalse(request.hourKnown)
+        XCTAssertEqual(request.lateNight, true)
+        XCTAssertTrue(request.birthDatetime.hasSuffix("T12:00:00"))
+    }
+
+    func testHourUnknownChoiceUnsureOmitsLateNightKey() throws {
+        // 三态「不确定」→ wire 值 nil 且编码省略 key(encodeIfPresent,契约两可取不传)
+        filledForm()
+        vm.setHourKnown(false)
+        vm.lateNightChoice = .unsure
+        let request = try vm.buildRequest()
+        XCTAssertNil(request.lateNight)
+        let json = try APICoder.encoder.encode(request)
+        let jsonStr = String(data: json, encoding: .utf8) ?? ""
+        XCTAssertFalse(jsonStr.contains("late_night"),
+                       "不确定 → late_night key 必须整体省略,不是显式 null: \(jsonStr)")
+        XCTAssertTrue(jsonStr.contains("\"hour_known\":false"), "hour_known 恒显式传: \(jsonStr)")
+    }
+
+    func testUncheckHourUnknownRestoresTimeAndResetsChoice() throws {
+        // 取消勾选 → 时刻行恢复(birthTime 语义回来)+ 三态答案作废 + 走 hour_known=true 原路径
+        filledForm()
+        vm.setShichenHour(10)
+        vm.setHourKnown(false)
+        vm.lateNightChoice = .yes
+        vm.setHourKnown(true)
+        XCTAssertNil(vm.lateNightChoice, "取消勾选必须重置三态(答案不跨态残留)")
+        XCTAssertNil(vm.lateNight)
+        let request = try vm.buildRequest()
+        XCTAssertTrue(request.hourKnown)
+        XCTAssertNil(request.lateNight)
+        XCTAssertTrue(request.birthDatetime.hasSuffix("T10:00:00"),
+                      "恢复已知路径后时分必须取 birthTime(10:00),实际: \(request.birthDatetime)")
+    }
+
+    func testHourUnknownFutureCheckUsesDateGranularity() {
+        // 时辰未知时「不晚于当下」按日期粒度:未来日拦截;当日不因 12:00 占位误拦
+        filledForm()
+        vm.setHourKnown(false)
+        vm.lateNightChoice = .no
+        vm.birthDate = Date(timeIntervalSince1970: 4_102_244_000) // 2100-01-01 前后
+        XCTAssertTrue(vm.validateForm().contains("出生时间不能晚于当下"))
+
+        vm.birthDate = Date() // 当下:时辰未知,当日出生合法(不能拿 12:00 占位当真实时刻比)
+        XCTAssertFalse(vm.validateForm().contains("出生时间不能晚于当下"))
+    }
+
+    func testConfirmBirthTimeTextCoversAllStates() {
+        // 已知 → HH:mm;未知+已答 → 未知(半夜:是/否/不确定);未知未答 → 诚实展示未答
+        // 期望值用 L10n 组合(与实现同源不同路:一个走 VM、一个走格式函数),不写死语言字面量
+        filledForm()
+        vm.setShichenHour(10)
+        XCTAssertEqual(vm.confirmBirthTimeText, vm.wallBirthTimeString, "已知路径展示串不变")
+
+        vm.setHourKnown(false)
+        vm.lateNightChoice = .yes
+        XCTAssertEqual(vm.confirmBirthTimeText, L10n.BirthForm.confirmTimeUnknown(L10n.BirthForm.lateNightYes))
+
+        vm.lateNightChoice = .unsure
+        XCTAssertEqual(vm.confirmBirthTimeText, L10n.BirthForm.confirmTimeUnknown(L10n.BirthForm.lateNightUnsure))
+
+        vm.lateNightChoice = nil // 确认 sheet 先于校验可见(onSubmit → sheet → calculate)
+        XCTAssertEqual(vm.confirmBirthTimeText, L10n.BirthForm.confirmTimeUnknownNoAnswer)
+    }
+
+    // MARK: - S04 ChartSnapshot 存档(hour_known / late_night 入 payload)
+
+    func testUpsertArchivesHourKnownAndLateNight() async throws {
+        // 全链路:hour_known=false 请求 → mock 响应(calcRule 回显)→ upsert 注入 late_night
+        filledForm()
+        vm.setHourKnown(false)
+        vm.lateNightChoice = .no
+        let request = try vm.buildRequest()
+
+        let response = try await apiClient.calculateBazi(request: request)
+        _ = try chartStore.upsert(response: response, request: request)
+
+        let snapshot = try XCTUnwrap(chartStore.get(contentHash: response.contentHash))
+        let decoded = try chartStore.decodeResponse(from: snapshot)
+        XCTAssertFalse(decoded.isHourKnown, "payload 的 calc_rule_snapshot.hour_known 必须存档 false")
+        XCTAssertEqual(decoded.calcRuleSnapshot.hourKnown, false)
+        XCTAssertEqual(decoded.lateNight, false, "late_night(后端不回显)必须由 upsert 从 request 注入存档")
+    }
+
+    func testLegacyPayloadWithoutNewKeysDecodesAsHourKnown() async throws {
+        // 2026-08-15 教训回归:老盘 payload 缺 hour_known/late_night key → 解码不 crash,
+        // 且按 hour_known=true 处理(decodeIfPresent ?? true,非 keyNotFound)
+        filledForm()
+        let request = try vm.buildRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+
+        var json = try JSONSerialization.jsonObject(with: APICoder.encoder.encode(response)) as? [String: Any]
+        json?.removeValue(forKey: "late_night")
+        var calcRule = json?["calc_rule_snapshot"] as? [String: Any]
+        calcRule?.removeValue(forKey: "hour_known")
+        json?["calc_rule_snapshot"] = calcRule
+        let legacyData = try JSONSerialization.data(withJSONObject: XCTUnwrap(json, "mock 响应必须是可变 JSON 对象"))
+
+        let decoded = try APICoder.decoder.decode(BaziResponse.self, from: legacyData)
+        XCTAssertTrue(decoded.isHourKnown, "老盘缺 hour_known key → 视为 true")
+        XCTAssertNil(decoded.lateNight, "老盘缺 late_night key → nil 不 crash")
     }
 }

@@ -8,6 +8,8 @@ import SwiftUI
 /// - 性别双 chip:未选 hairline 描边空底,选中浓墨实底(对齐原型 .gchip)
 /// - 日期行 + 时刻行 = 两个数值行(S03 拆双 picker:date-only / hourAndMinute 两个 wheel sheet、
 ///   两个绑定;日期必选 birthDate 为 nil 未选择初始态,时刻独立绑定 birthTime 保留默认值语义)
+/// - 「不知道出生时刻」入口(S04,D1):勾选 → 时刻行/时辰快捷选收起 + 半夜三态问题展开(D3);
+///   取消勾选恢复时刻行且三态重置;文案直说「不知道出生时刻」不弱智化
 /// - 出生地 = CityPickerField 下划线变体(城市搜索引擎与排序不动)
 /// - CTA 换 PrimaryCTAButton(inkDeep 底 + onInkDeep 字 + 朱色菱形印点,radius 5)
 ///
@@ -35,8 +37,10 @@ struct BirthFormView: View {
                     .riseIn(delay: 0.10)
                 dateSection
                     .riseIn(delay: 0.18)
-                shichenSection
-                    .riseIn(delay: 0.26)
+                if vm.hourKnown {
+                    shichenSection
+                        .riseIn(delay: 0.26)
+                }
                 genderSection
                     .riseIn(delay: 0.34)
                 placeSection
@@ -76,19 +80,105 @@ struct BirthFormView: View {
         }
     }
 
-    // MARK: - 出生日期与时刻(S03 拆双 picker:日期必选 + 时刻独立绑定)
+    // MARK: - 出生日期与时刻(S03 拆双 picker + S04 时辰未知入口)
 
-    /// 日期区 = 日期行(date-only wheel sheet)+ 时刻行(hourAndMinute wheel sheet)+ 教育微文案(D8)。
+    /// 日期区 = 日期行(date-only wheel sheet)+ 时刻行(hourAndMinute,时辰未知时收起)
+    /// + 「不知道出生时刻」入口(S04,D1)+ 半夜三态问题(勾选后展开,D3)+ 教育微文案(D8)。
+    /// 收起/展开动画:easeOut 0.25s 纯淡入(DESIGN.md 动效约束,无弹簧无位移)。
     private var dateSection: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.sm) {
             dateRow
-            timeRow
-            // D8 把矛盾变成教育:日期为什么必填(S04 引入「不知道出生时刻」后此处再补「时刻可跳过」半句)
+            if vm.hourKnown {
+                timeRow
+            }
+            hourUnknownToggle
+            if !vm.hourKnown {
+                lateNightSection
+                    .transition(.opacity)
+            }
+            // D8 把矛盾变成教育:日期为什么必填、时刻为什么可跳过
             Text(L10n.BirthForm.dateEducationHint)
                 .font(BaziFont.caption(size: 10))
                 .tracking(1)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
         }
+        .animation(.easeOut(duration: 0.25), value: vm.hourKnown)
+    }
+
+    /// 「不知道出生时刻」入口(D1 单一入口系统分流,不做「猜/接受不准」元选择)。
+    /// checkbox 形态的水墨克制版:hairline 空圈 → 选中墨点;文案直说「不知道出生时刻」
+    /// (不弱智化为「跳过」)。勾选后时刻行/时辰快捷选收起,半夜问题展开。
+    private var hourUnknownToggle: some View {
+        Button {
+            HapticEngine.light()
+            withAnimation(.easeOut(duration: 0.25)) {
+                vm.setHourKnown(!vm.hourKnown)
+            }
+        } label: {
+            HStack(spacing: 10) {
+                ZStack {
+                    Circle()
+                        .stroke(BaziTheme.hairline, lineWidth: 1)
+                    if !vm.hourKnown {
+                        Circle()
+                            .fill(BaziTheme.ink)
+                            .frame(width: 8, height: 8)
+                    }
+                }
+                .frame(width: 18, height: 18)
+                Text(L10n.BirthForm.hourUnknownToggle)
+                    .font(BaziFont.body(size: 14))
+                    .foregroundStyle(vm.hourKnown ? BaziTheme.inkMuted : BaziTheme.ink)
+                Spacer()
+            }
+        }
+        .buttonStyle(.plain)
+        .accessibilityLabel(L10n.BirthForm.hourUnknownToggle)
+        .accessibilityAddTraits(vm.hourKnown ? [] : [.isSelected])
+    }
+
+    /// 二值半夜问题(D3):「你是否在半夜(约 11 点之后)出生?」三态 是/否/不确定。
+    /// 默认未选,**必须选一个才可提交**(不把「不确定」设默认——避免又一层默认假答案)。
+    /// chip 形态对齐性别 chip(未选 hairline 描边,选中浓墨实底)。
+    private var lateNightSection: some View {
+        VStack(alignment: .leading, spacing: BaziTheme.Spacing.sm) {
+            fieldLabel(L10n.BirthForm.lateNightQuestion)
+            HStack(spacing: 10) {
+                lateNightChip(L10n.BirthForm.lateNightYes, choice: .yes)
+                lateNightChip(L10n.BirthForm.lateNightNo, choice: .no)
+                lateNightChip(L10n.BirthForm.lateNightUnsure, choice: .unsure)
+            }
+            // D3「用途对用户可见」:这一问只为确认日柱(换日边界),不做别的
+            Text(L10n.BirthForm.lateNightHint)
+                .font(BaziFont.caption(size: 10))
+                .tracking(1)
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
+        }
+    }
+
+    /// 半夜三态 chip(选中态语义与性别 chip 同构;选中值走 LateNightChoice,提交时映射 Bool?)。
+    private func lateNightChip(_ title: String, choice: LateNightChoice) -> some View {
+        let isSelected = vm.lateNightChoice == choice
+        return Button {
+            HapticEngine.light()
+            vm.lateNightChoice = choice
+        } label: {
+            Text(title)
+                .font(BaziFont.body(size: 15))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 11)
+                .foregroundStyle(isSelected ? BaziTheme.paper : BaziTheme.inkMuted)
+                .background(
+                    RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
+                        .fill(isSelected ? BaziTheme.ink : Color.clear)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
+                        .stroke(BaziTheme.ink.opacity(isSelected ? 0 : 0.3), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
     private var dateRow: some View {

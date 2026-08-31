@@ -30,6 +30,9 @@ final class ChartSnapshotStore {
     /// - birthSolarTime = response.trueSolarTime(字段语义即「真太阳时出生时间」,
     ///   S03 起不再存输入墙钟——request.birthDatetime 已是 naive 字符串)
     /// - payload = 整个 BaziResponse JSON(重建 UI 只需 decode BaziResponse)
+    ///   时辰未知存档(S04):hour_known 随后端 calc_rule_snapshot.hour_known 落 payload;
+    ///   late_night 是用户输入、后端响应不回显 → 编码前从 request 注入(var lateNight,
+    ///   nil 时 encodeIfPresent 省 key,老盘形状不变)
     func upsert(response: BaziResponse, request: BaziCalculateRequest) throws -> ChartSnapshotUpsertResult {
         let hash = response.contentHash
         let desc = FetchDescriptor<ChartSnapshot>(
@@ -37,7 +40,9 @@ final class ChartSnapshotStore {
         )
         let existing = try context.fetch(desc).first
 
-        let payloadData = try APICoder.encoder.encode(response)
+        var archivableResponse = response
+        archivableResponse.lateNight = request.lateNight
+        let payloadData = try APICoder.encoder.encode(archivableResponse)
         let calcRuleData = try APICoder.encoder.encode(response.calcRuleSnapshot)
         let cityLongitude = response.calcRuleSnapshot.trueSolarLongitude
 
@@ -123,6 +128,9 @@ extension ChartSnapshot {
     /// 字段映射:cityLongitude→longitude、cityLatitude→latitude、cityName→placeName、
     /// cityTimezone→timezone(老快照 nil 兜底设备时区)、geonameId 不入存档(→ nil,
     /// 属展示元数据,不参与任何计算)。
+    /// 时辰未知存档字段(hour_known / late_night)**不在此重建**——它们只活在
+    /// payload(decodeResponse 可读,BaziResponse.isHourKnown / lateNight);
+    /// display request 的 hourKnown 保持默认 true,不参与任何计算(见上用途边界)。
     var archivedDisplayRequest: BaziCalculateRequest {
         // 标识符只解析一次,timezone 字段与 formatter 共用同一结果:
         // cityTimezone 为 nil(老快照)或非法标识符(损坏数据)时统一兜底设备

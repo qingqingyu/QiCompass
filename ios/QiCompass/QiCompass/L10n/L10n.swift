@@ -116,10 +116,48 @@ enum L10n {
         /// zh: "出生日期与时刻无法合成,请重新选择";en: "Couldn't combine date and time — please reselect"
         static let errorCombineFailed = String(localized: "birthform.error.combineFailed")
 
-        /// 日期区教育微文案(D8 把矛盾变成教育;S04 引入时辰未知入口后再补「时刻可跳过」半句)。
-        /// zh: "日期决定年月柱与生肖;时刻决定时柱与喜忌"
-        /// en: "Date sets year & month pillars and your zodiac; time sets the hour pillar and favorable elements"
+        /// 日期区教育微文案(D8 把矛盾变成教育;S04 补「时刻可跳过」半句)。
+        /// zh: "日期决定年月柱与生肖;时刻决定时柱与喜忌;不知道时刻可先跳过"
+        /// en: "Date sets year & month pillars and your zodiac; time sets the hour pillar and favorable elements; skip the time if unknown"
         static let dateEducationHint = String(localized: "birthform.date.educationHint")
+
+        // -- 时辰未知入口(S04,D1 单一入口 + D3 二值半夜问题)--
+
+        /// 「不知道出生时刻」入口(checkbox 文案;直说不弱智化,不用「跳过」)。
+        /// zh: "不知道出生时刻";en: "I don't know my birth time"
+        static let hourUnknownToggle = String(localized: "birthform.hourUnknown.toggle")
+
+        /// 半夜二值问题(D3 唯一一问,用途 = 日柱歧义判断)。
+        /// zh: "你是否在半夜(约 11 点之后)出生?";en: "Were you born late at night (after about 11 p.m.)?"
+        static let lateNightQuestion = String(localized: "birthform.lateNight.question")
+
+        /// 三态「是」。zh: "是";en: "Yes"
+        static let lateNightYes = String(localized: "birthform.lateNight.yes")
+
+        /// 三态「否」。zh: "否";en: "No"
+        static let lateNightNo = String(localized: "birthform.lateNight.no")
+
+        /// 三态「不确定」。zh: "不确定";en: "Not sure"
+        static let lateNightUnsure = String(localized: "birthform.lateNight.unsure")
+
+        /// 半夜问题用途微注(D3「用途对用户可见」,只讲日柱不讲玄)。
+        /// zh: "半夜出生的人日柱可能落在次日;这一问只为确认日柱"
+        /// en: "Born near midnight, the day pillar may fall on the next day — this only settles the day pillar"
+        static let lateNightHint = String(localized: "birthform.lateNight.hint")
+
+        /// 勾选「不知道」但三态未选的校验错误(不默认「不确定」,必须显式选)。
+        /// zh: "请选择是否半夜出生";en: "Please answer the late-night question"
+        static let errorLateNightRequired = String(localized: "birthform.error.lateNightRequired")
+
+        /// 确认 sheet 无时辰时刻行(带三态答案)。
+        /// zh: "未知(半夜:%@)";en: "Unknown (late night: %@)"
+        static func confirmTimeUnknown(_ answer: String) -> String {
+            String(format: String(localized: "birthform.confirm.timeUnknown"), answer)
+        }
+
+        /// 确认 sheet 无时辰且三态未答(诚实展示未答,提交被 formInvalid 拦)。
+        /// zh: "未知(半夜:未答)";en: "Unknown (late night: unanswered)"
+        static let confirmTimeUnknownNoAnswer = String(localized: "birthform.confirm.timeUnknownNoAnswer")
 
         /// "命盘别名" 字段标签(字段 Micro 标签与 TextField 标题共用同一 key)。
         /// zh: "命盘别名";en: "Chart name"
