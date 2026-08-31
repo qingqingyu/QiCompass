@@ -2302,6 +2302,23 @@
         }
       }
     },
+    "onboarding.reveal.cta.degraded" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continue"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "继续"
+          }
+        }
+      }
+    },
     "onboarding.reveal.friendsTitle" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2332,6 +2349,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "同一组生辰，同一张盘 · 喜忌由规则判，AI 只润色"
+          }
+        }
+      }
+    },
+    "onboarding.reveal.yearAmbiguous.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remember your birth hour later? You can add it anytime"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "想起出生时刻，随时可以补上"
+          }
+        }
+      }
+    },
+    "onboarding.reveal.yearAmbiguous.notice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your birthday falls on the Start-of-Spring boundary — the exact hour is needed to settle your zodiac sign"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的出生日在立春交界，需要准确时辰才能确定属相"
           }
         }
       }

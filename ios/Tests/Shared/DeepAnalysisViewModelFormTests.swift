@@ -1,4 +1,5 @@
 import SwiftData
+import SwiftUI
 import XCTest
 @testable import QiCompass
 
@@ -787,5 +788,229 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         let decoded = try chartStore.decodeResponse(from: snapshot)
         XCTAssertFalse(decoded.isHourKnown)
         XCTAssertNil(decoded.trueSolarTime)
+    }
+
+    // MARK: - S08 生肖屏立春降级路径(D10 年柱歧义 → ZodiacRevealMode 降级不猜)
+    //
+    // 测试 target 无 ViewInspector:视图分支(ZodiacRevealView 降级态 vs 正常态、
+    // Profile 头像三态)单一事实源在 `ZodiacRevealMode.resolve` /
+    // `ZodiacAvatarMode.resolve` 纯函数,对齐 `PillarSlotModel` 范式;
+    // Q7 完成态边界在 `CompleteOnceGate`(S08 从 view 内联 guard 提取为可测类型)。
+    // 降级态 body 求值用 UIHostingController 渲染冒烟兜底 fatalError 路径。
+
+    /// S08 夹具:在 hour_unknown 响应骨架上改写生肖系三 key + hour_known
+    /// (三种业务情形共用同一骨架,只差生肖 key 与时柱)。
+    private static func s08ResponseJSON(
+        pillars: [String: Any],
+        zodiac: Any,
+        friends: Any,
+        clash: Any,
+        hourKnown: Bool
+    ) throws -> Data {
+        var json = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: Self.hourUnknownResponseJSON(
+                pillars: pillars, includeZodiacKeys: false
+            )) as? [String: Any]
+        )
+        json["year_branch_zodiac"] = zodiac
+        json["year_branch_friends"] = friends
+        json["year_branch_clash"] = clash
+        var calcRule = try XCTUnwrap(json["calc_rule_snapshot"] as? [String: Any])
+        calcRule["hour_known"] = hourKnown
+        json["calc_rule_snapshot"] = calcRule
+        return try JSONSerialization.data(withJSONObject: json)
+    }
+
+    func testS08RevealModeDegradesOnYearAmbiguousNull() throws {
+        // 分支 1/3:立春交界日 + hour_known=false → S02 显式 null 全量(年柱 null +
+        // 生肖系 null)→ 降级态。判据用 OnboardingView 传参的同一表达式
+        // (`yearBranchZodiac ?? ""`),保证视图路由与测试断言同源。
+        let data = try Self.hourUnknownResponseJSON(pillars: [
+            "year": NSNull(), "month": Self.pillarJSON,
+            "day": NSNull(), "hour": NSNull(),
+        ])
+        let decoded = try APICoder.decoder.decode(BaziResponse.self, from: data)
+
+        XCTAssertEqual(ZodiacRevealMode.resolve(zodiac: decoded.yearBranchZodiac ?? ""),
+                       .yearAmbiguous,
+                       "zodiac null → 立春降级态(不展示生肖/人格/好朋友/需磨合)")
+        XCTAssertFalse(decoded.isHourKnown)
+        // 降级态无生肖内容来源:friends/clash null → 空数组/空串传参,chip 行无从渲染
+        XCTAssertEqual(decoded.yearBranchFriends ?? [], [])
+        XCTAssertEqual(decoded.yearBranchClash ?? "", "")
+        // 有告知句:三 key 中英均已落 xcstrings,当前语言下解析非空
+        XCTAssertFalse(L10n.Onboarding.revealYearAmbiguousNotice.isEmpty,
+                       "降级态必须有如实告知句(立春交界 + 需时辰)")
+        XCTAssertFalse(L10n.Onboarding.revealYearAmbiguousHint.isEmpty,
+                       "降级态必须有补时辰轻提示(D7 被迫告知触点)")
+        XCTAssertNotEqual(L10n.Onboarding.revealCTADegraded, L10n.Onboarding.revealCTA,
+                          "降级态 CTA「继续」必须与正常态 CTA 区分(完成 onboarding 进 App)")
+    }
+
+    func testS08RevealModeFullWhenHourUnknownButYearDetermined() throws {
+        // 分支 2/3:普通日 + hour_known=false(时柱 null)但年柱确定 → 后端照给生肖
+        // (≈99.7% 时辰未知用户)→ 生肖屏照常「哇」时刻(正常路径零变化)。
+        let data = try Self.s08ResponseJSON(
+            pillars: [
+                "year": Self.pillarJSON, "month": Self.pillarJSON,
+                "day": Self.pillarJSON, "hour": NSNull(),
+            ],
+            zodiac: "Rat", friends: ["Ox", "Dragon", "Monkey"], clash: "Horse",
+            hourKnown: false
+        )
+        let decoded = try APICoder.decoder.decode(BaziResponse.self, from: data)
+
+        XCTAssertNil(decoded.pillars.hour, "前置:时辰未知 → 时柱 null")
+        XCTAssertFalse(decoded.isHourKnown)
+        XCTAssertEqual(decoded.yearBranchZodiac, "Rat", "年柱确定 → 生肖照给(不歧义)")
+        XCTAssertEqual(ZodiacRevealMode.resolve(zodiac: decoded.yearBranchZodiac ?? ""),
+                       .full,
+                       "无时辰但年柱确定 → 生肖屏照常(好朋友/需磨合照常)")
+    }
+
+    func testS08RevealModeFullForHourKnownLichunDay() throws {
+        // 分支 3/3:立春交界日 + hour_known=true → 时辰可判侧,后端恒给生肖
+        // → 完全现状行为(四柱全 + 生肖照给,与 S08 之前逐字段一致)。
+        let data = try Self.s08ResponseJSON(
+            pillars: [
+                "year": Self.pillarJSON, "month": Self.pillarJSON,
+                "day": Self.pillarJSON, "hour": Self.pillarJSON,
+            ],
+            zodiac: "Snake", friends: ["Ox", "Rooster"], clash: "Pig",
+            hourKnown: true
+        )
+        let decoded = try APICoder.decoder.decode(BaziResponse.self, from: data)
+
+        XCTAssertEqual(decoded.pillars.hour?.ganZhi, "甲子", "前置:有时辰 → 四柱全")
+        XCTAssertTrue(decoded.isHourKnown)
+        XCTAssertEqual(ZodiacRevealMode.resolve(zodiac: decoded.yearBranchZodiac ?? ""),
+                       .full,
+                       "有时辰用户(含立春日)生肖屏完全现状行为")
+    }
+
+    func testS08RevealModeResolveKnownZodiacsFullAndUnknownNeverFull() {
+        // resolve 边界:12 生肖全部 → full;nil/空串/未知名 → yearAmbiguous
+        // (未知名不进 full 态是安全不变量:full 态直接调 personalityText/animalChar,
+        // 未知值 fatalError,降级态必须先拦)。未知串 → 降级 = 不猜也不 crash。
+        let allZodiacs = ["Rat", "Ox", "Tiger", "Rabbit", "Dragon", "Snake",
+                          "Horse", "Goat", "Monkey", "Rooster", "Dog", "Pig"]
+        for zodiac in allZodiacs {
+            XCTAssertEqual(ZodiacRevealMode.resolve(zodiac: zodiac), .full, "\(zodiac) → full")
+        }
+        XCTAssertEqual(ZodiacRevealMode.resolve(zodiac: nil), .yearAmbiguous)
+        XCTAssertEqual(ZodiacRevealMode.resolve(zodiac: ""), .yearAmbiguous,
+                       "OnboardingView 对 null 的传参是空串 → 必须降级")
+        XCTAssertEqual(ZodiacRevealMode.resolve(zodiac: "Unicorn"), .yearAmbiguous,
+                       "表外生肖名 → 降级不猜,绝不进 full 触发 fatalError")
+    }
+
+    func testS08AvatarModeThreeStates() {
+        // Profile 命主卡/账号头像三态(纯函数判定,不 crash 不猜):
+        // hidden = 无命盘/decode 失败;inkDot = 有盘但年柱歧义 → 通用墨点;
+        // zodiac = 正常生肖印章图。
+        XCTAssertEqual(ZodiacAvatarMode.resolve(hasChart: false, zodiac: nil), .hidden)
+        XCTAssertEqual(ZodiacAvatarMode.resolve(hasChart: false, zodiac: "Rat"), .hidden,
+                       "无命盘 → 不因生肖字段残值复活头像(头像位留空)")
+        XCTAssertEqual(ZodiacAvatarMode.resolve(hasChart: true, zodiac: nil), .inkDot,
+                       "立春歧义 → 墨点(不猜属相,命主卡不再整体隐藏)")
+        XCTAssertEqual(ZodiacAvatarMode.resolve(hasChart: true, zodiac: ""), .inkDot)
+        XCTAssertEqual(ZodiacAvatarMode.resolve(hasChart: true, zodiac: "Unicorn"), .inkDot,
+                       "表外名 → 墨点,不拼 asset 名猜图")
+        XCTAssertEqual(ZodiacAvatarMode.resolve(hasChart: true, zodiac: "Rat"),
+                       .zodiac("Zodiac_Rat"), "正常态 asset 名拼接(与 ZodiacRevealView 同族)")
+    }
+
+    func testS08ProfileInkDotSurvivesArchiveRoundtrip() throws {
+        // Profile 降级数据链:立春歧义响应 → upsert 存档 → 回读 payload,
+        // 生肖必须仍为 nil(存档往返不得经 legacy 年支兜底把 null 洗成猜测生肖——
+        // 年柱同 null,兜底不可达),resolve → inkDot(墨点表达,不 crash 不猜)。
+        let data = try Self.hourUnknownResponseJSON(pillars: [
+            "year": NSNull(), "month": Self.pillarJSON,
+            "day": NSNull(), "hour": NSNull(),
+        ])
+        let response = try APICoder.decoder.decode(BaziResponse.self, from: data)
+        let request = BaziCalculateRequest(
+            birthDatetime: "1990-02-04T12:00:00",  // 立春日 + 12:00 占位
+            timezone: "Asia/Shanghai",
+            gender: "female", longitude: 116.4,
+            latitude: nil, placeName: nil, geonameId: nil,
+            ziHourRule: "zi_next_day"
+        )
+        _ = try chartStore.upsert(response: response, request: request)
+
+        let snapshot = try XCTUnwrap(chartStore.get(contentHash: response.contentHash))
+        let decoded = try chartStore.decodeResponse(from: snapshot)
+        XCTAssertNil(decoded.yearBranchZodiac,
+                     "存档往返后歧义 null 必须保持 nil(兜底只对「缺 key 且年支在」生效)")
+        XCTAssertEqual(ZodiacAvatarMode.resolve(hasChart: true, zodiac: decoded.yearBranchZodiac),
+                       .inkDot,
+                       "Profile 对 zodiac=null → 通用墨点(不猜不 crash)")
+    }
+
+    func testS08CompleteOnceGateSingleShot() {
+        // Q7 状态边界:降级态 CTA「继续」与正常态 CTA 走同一闸门——
+        // 首次点击放行 onComplete,重渲染/重复点击不再触发(不因降级态重复触发)。
+        var gate = CompleteOnceGate()
+        var fired = 0
+        XCTAssertTrue(gate.fire { fired += 1 }, "首次放行返回 true")
+        XCTAssertEqual(fired, 1)
+        XCTAssertFalse(gate.fire { fired += 1 }, "已落闩 → 拦截返回 false")
+        XCTAssertFalse(gate.fire { fired += 1 })
+        XCTAssertEqual(fired, 1, "onComplete 恰好触发一次(hasSeenOnboarding 不重复置位)")
+        XCTAssertTrue(gate.hasTriggered, "落闩状态可读(断言/日志用)")
+    }
+
+    func testS08ZodiacKeysOmittedWithNullYearPillarDecodesAsNil() throws {
+        // S08 往返缺口回归:生肖 key 缺失 + 年柱 null(encodeIfPresent 存档往返产物)
+        // → 三字段解为 nil(年柱歧义透传,不猜),**不抛错**——否则立春歧义盘存档后
+        // Profile/深度解析回读全部 decode 失败(修复前该形状抛 dataCorrupted)。
+        let data = try Self.hourUnknownResponseJSON(pillars: [
+            "year": NSNull(), "month": Self.pillarJSON,
+            "day": NSNull(), "hour": NSNull(),
+        ], includeZodiacKeys: false)
+        let decoded = try APICoder.decoder.decode(BaziResponse.self, from: data)
+        XCTAssertNil(decoded.yearBranchZodiac)
+        XCTAssertNil(decoded.yearBranchFriends)
+        XCTAssertNil(decoded.yearBranchClash)
+        XCTAssertEqual(ZodiacRevealMode.resolve(zodiac: decoded.yearBranchZodiac ?? ""),
+                       .yearAmbiguous)
+    }
+
+    func testS08ZodiacKeysMissingWithUnknownYearZhiStillThrows() throws {
+        // 真 corruption 仍显式抛错:年柱在但年支不在兜底表(非法地支),
+        // 不静默给 nil 掩盖(CLAUDE.md 错误显式传播)。
+        var pillar = Self.pillarJSON
+        pillar["zhi"] = "奇"  // 表外地支
+        let data = try Self.hourUnknownResponseJSON(pillars: [
+            "year": pillar, "month": Self.pillarJSON,
+            "day": Self.pillarJSON, "hour": Self.pillarJSON,
+        ], includeZodiacKeys: false)
+        XCTAssertThrowsError(try APICoder.decoder.decode(BaziResponse.self, from: data)) { error in
+            XCTAssertTrue(error is DecodingError, "兜底不可达 = 显式 DecodingError,实际: \(error)")
+        }
+    }
+
+    func testS08DegradedRevealViewRendersWithoutCrash() {
+        // 渲染冒烟:zodiac 空串 → 降级分支 body 求值不触发 fatalError
+        // (animalChar/personalityText 对未知值 fatalError,降级态必须根本不走不到;
+        // 正常态渲染已有主路径兜底,此处只兜 S08 新增分支)。
+        let vc = UIHostingController(rootView: ZodiacRevealView(
+            zodiac: "",
+            mainLabel: "—",
+            subLabel: "坤造(女) · —年(1990)",
+            friendZodiacs: [],
+            clashZodiac: "",
+            onComplete: {}
+        ))
+        let size = vc.view.sizeThatFits(CGSize(width: 390, height: 844))
+        XCTAssertGreaterThan(size.height, 0, "降级态 body 求值须产出可布局内容(不 crash)")
+    }
+
+    func testS08InkDotAvatarEnsoRenderSmoke() {
+        // 墨点头像渲染冒烟:inkDot 态用 EnsoView(animated: false 静态直出),
+        // ImageRenderer/列表复用场景不依赖 onAppear 入场动画。
+        let vc = UIHostingController(rootView: EnsoView(size: 64, animated: false))
+        let size = vc.view.sizeThatFits(CGSize(width: 100, height: 100))
+        XCTAssertGreaterThan(size.height, 0, "EnsoView 静态渲染须可布局(不 crash)")
     }
 }

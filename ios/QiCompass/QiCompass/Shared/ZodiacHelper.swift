@@ -70,7 +70,7 @@ enum ZodiacHelper {
     /// 生肖名是否在已知 12 生肖表内(S05 时辰未知)。
     /// 年柱歧义(S02/D10 立春日 + 时辰未知)→ yearBranchZodiac 为 null/空,
     /// `animalChar` / `personalityText` 对未知值 fatalError(错误显式传播),
-    /// 调用方必须先经此谓词判空(生肖屏降级表达归 S08)。
+    /// 调用方必须先经此谓词判空(S08 起由 `ZodiacRevealMode` / `ZodiacAvatarMode` 承接)。
     static func isKnownZodiac(_ zodiac: String?) -> Bool {
         guard let zodiac, !zodiac.isEmpty else { return false }
         return zodiacToChar[zodiac] != nil
@@ -139,5 +139,52 @@ enum ZodiacHelper {
         // 3 支全部映射成功才算兜底数据完整(任一 nil 说明表不同步,显式失败)
         guard friends.count == 3 else { return nil }
         return (zodiac: zodiac, friends: friends, clash: clashZodiac)
+    }
+}
+
+// MARK: - 生肖反馈屏展示模式(S08,D10 年柱歧义降级)
+
+/// ZodiacRevealView(onboarding 第 3 屏)的展示模式。
+///
+/// 事实源:`docs/时辰未知设计决策.md` D10 命中后果 + `docs/时辰未知-slices/S08`。
+/// 测试 target 无 ViewInspector,视图分支经此纯函数断言(对齐 `PillarSlotModel` 范式)。
+enum ZodiacRevealMode: Equatable {
+    /// 正常态:生肖 / 人格 / 好朋友 / 需磨合照常呈现。
+    /// 含**无时辰但年柱确定**的盘(非立春日 ≈99.7% 用户)——无时辰用户的生肖反馈
+    /// 是 onboarding 少数完全不受影响的奖励,保持「哇」时刻(S08 验收:正常路径零变化)。
+    case full
+    /// 立春降级态:年柱歧义(立春交界日 + 时辰未知)→ `year_branch_zodiac=null`,
+    /// 生肖系内容(主标/人格/好朋友/需磨合)全部不展示——**不猜**,
+    /// 两侧候选生肖都不给(「可能是龙可能是蛇」这种表达禁止)。
+    case yearAmbiguous
+
+    /// 判据 = `year_branch_zodiac == null`(S02 立春歧义;friends/clash 级联同源)。
+    /// 有时辰用户(含立春日,时辰可判侧)后端恒给生肖 → 恒 full(完全现状行为)。
+    static func resolve(zodiac: String?) -> ZodiacRevealMode {
+        ZodiacHelper.isKnownZodiac(zodiac) ? .full : .yearAmbiguous
+    }
+}
+
+// MARK: - 命主卡/账号头像展示模式(S08,D10 年柱歧义 → 通用墨点)
+
+/// Profile 生肖图展示模式(命主卡 IdentityCard + 登录态账号头像两个消费点)。
+enum ZodiacAvatarMode: Equatable {
+    /// 正常态:生肖印章图(asset name 如 `Zodiac_Rat`)。
+    case zodiac(String)
+    /// 有命盘但年柱歧义(立春 + 时辰未知)→ 通用墨点(墨圆)表达:不猜属相、
+    /// 不再整体隐藏命主卡(S05 兜底是隐藏,本态给正式表达)。
+    case inkDot
+    /// 无命盘 / payload decode 失败 → 不展示(既有降级,沿用;头像位留空)。
+    case hidden
+
+    /// 展示模式判定(纯函数,便于三态分支测试)。
+    /// - Parameters:
+    ///   - hasChart: 命盘是否存在且 payload 可解码(调用方 decode 失败时传 false)
+    ///   - zodiac: decode 出的 `yearBranchZodiac`(nil = S02 显式 null,
+    ///     或 legacy 缺 key 且年柱亦缺失、查表兜底不可达)
+    static func resolve(hasChart: Bool, zodiac: String?) -> ZodiacAvatarMode {
+        guard hasChart else { return .hidden }
+        guard let zodiac, ZodiacHelper.isKnownZodiac(zodiac) else { return .inkDot }
+        return .zodiac("Zodiac_\(zodiac)")
     }
 }

@@ -378,23 +378,30 @@ struct BaziResponse: Codable, Sendable {
         // 「显式 null」同返 nil,但两者语义不同——新契约显式 null = 年柱歧义
         // (生肖系不猜),必须原样透传;只有 **key 缺失**(老缓存)才走查表兜底。
         // 用 contains(key) 区分;三字段独立兜底(两批字段落地日期不同,存在
-        // 只有部分 key 的中间缓存);需要兜底但年柱缺失/年支不在表 → 显式抛
+        // 只有部分 key 的中间缓存);需要兜底但年支不在表 → 显式抛
         // DecodingError(不静默吞)。
         let zodiacKeyPresent = c.contains(CodingKeys.yearBranchZodiac)
         let friendsKeyPresent = c.contains(CodingKeys.yearBranchFriends)
         let clashKeyPresent = c.contains(CodingKeys.yearBranchClash)
         // 任一 key 缺失 → 老缓存/中间缓存,查表兜底只补**缺失**的 key;
-        // 需要兜底但年柱缺失(S02 年柱歧义)/年支不在表 → 显式抛 DecodingError
+        // 需要兜底但年支不在表 → 显式抛 DecodingError(不静默吞)。
+        //
+        // S08 往返缺口修复:年柱**本身 null** 的 payload 必为 S02 之后产物(老缓存
+        // 四柱恒全),其生肖系原为显式 null(年柱歧义),经 encodeIfPresent 存档往返
+        // 后省 key——此时兜底不可达也不该可达:三字段解为 nil(歧义透传,不猜),
+        // 不再抛错。否则立春歧义盘存档后 Profile/深度解析回读全部 decode 失败。
         var legacy: (zodiac: String, friends: [String], clash: String)?
         if !zodiacKeyPresent || !friendsKeyPresent || !clashKeyPresent {
-            guard let yearZhi = pillars.year?.zhi,
-                  let fields = ZodiacHelper.legacyYearBranchFields(forYearZhi: yearZhi) else {
-                throw DecodingError.dataCorrupted(.init(
-                    codingPath: [CodingKeys.yearBranchZodiac],
-                    debugDescription: "老缓存缺生肖字段且年柱缺失或年支不在兜底表,无法推导"
-                ))
+            if let yearZhi = pillars.year?.zhi {
+                guard let fields = ZodiacHelper.legacyYearBranchFields(forYearZhi: yearZhi) else {
+                    throw DecodingError.dataCorrupted(.init(
+                        codingPath: [CodingKeys.yearBranchZodiac],
+                        debugDescription: "老缓存缺生肖字段且年支不在兜底表,无法推导"
+                    ))
+                }
+                legacy = fields
             }
-            legacy = fields
+            // pillars.year == nil(年柱歧义)→ legacy 保持 nil,缺失 key 解为 nil(不猜)
         }
         // key 在 → 解码值(显式 null = 年柱歧义,原样透传 nil);key 缺 → 兜底值
         func field<T: Decodable>(_ key: CodingKeys, present: Bool, legacy: T?) throws -> T? {

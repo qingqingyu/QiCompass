@@ -75,6 +75,21 @@ enum L10n {
         /// 反馈屏 CTA(zh="查看今日运势", en="See today's fortune")
         static let revealCTA = String(localized: "onboarding.reveal.cta")
 
+        // -- 立春降级态(S08,D10 年柱歧义 → 生肖屏降级,不猜)--
+
+        /// 告知句(一句,如实;两侧候选生肖都不展示——「可能是龙可能是蛇」属猜,禁止)。
+        /// zh: "你的出生日在立春交界，需要准确时辰才能确定属相"
+        /// en: "Your birthday falls on the Start-of-Spring boundary — the exact hour is needed to settle your zodiac sign"
+        static let revealYearAmbiguousNotice = String(localized: "onboarding.reveal.yearAmbiguous.notice")
+
+        /// 补时辰轻提示(D7 降级态例外触点——被迫告知;一期轻提示,S10 接线到补时辰流程)。
+        /// zh: "想起出生时刻，随时可以补上";en: "Remember your birth hour later? You can add it anytime"
+        static let revealYearAmbiguousHint = String(localized: "onboarding.reveal.yearAmbiguous.hint")
+
+        /// 降级态 CTA(完成 onboarding 进 App,四柱页留白表达;正常态 CTA 不变)。
+        /// zh: "继续";en: "Continue"
+        static let revealCTADegraded = String(localized: "onboarding.reveal.cta.degraded")
+
         // -- 12 生肖人格文案(静态善意正面画像,Q6 锁定:1-2 句,不吹天命不写负面)--
 
         static let personalityRat = String(localized: "onboarding.personality.rat")

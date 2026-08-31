@@ -56,15 +56,15 @@ struct ProfileView: View {
             ZStack {
                 BaziTheme.paper.ignoresSafeArea()
                 List {
-                    // 生肖 asset name 单次求值,共享给命主卡 Section 与账号头像
-                    // (primaryZodiacAssetName 每次访问都 decode payload JSON,不提取会每 body 求值 decode 两次)。
-                    let zodiacAssetName = primaryZodiacAssetName
+                    // 生肖展示模式单次求值,共享给命主卡 Section 与账号头像
+                    // (primaryZodiacMode 每次访问都 decode payload JSON,不提取会每 body 求值 decode 两次)。
+                    let zodiacMode = primaryZodiacMode
                     if let primary = primarySnapshot,
-                       let zodiacAssetName {
+                       zodiacMode != .hidden {
                         let birthYear = Calendar.current.component(.year, from: primary.snapshot.birthSolarTime)
                         Section {
                             IdentityCard(
-                                zodiacAssetName: zodiacAssetName,
+                                avatarMode: zodiacMode,
                                 alias: primary.link.alias,
                                 birthYear: birthYear
                             )
@@ -73,7 +73,7 @@ struct ProfileView: View {
                             .listRowSeparator(.hidden)
                         }
                     }
-                    accountSection(zodiacAssetName: zodiacAssetName)
+                    accountSection(zodiacMode: zodiacMode)
                     snapshotLinksSection
                     entitlementsSection
                     settingsSection
@@ -136,8 +136,8 @@ struct ProfileView: View {
 
     // MARK: - Section 0: 账号(v2 PR2)
 
-    /// - Parameter zodiacAssetName: body 已求值的生肖 asset name(单次 decode 共享,见 body 内注释)。
-    private func accountSection(zodiacAssetName: String?) -> some View {
+    /// - Parameter zodiacMode: body 已求值的生肖展示模式(单次 decode 共享,见 body 内注释)。
+    private func accountSection(zodiacMode: ZodiacAvatarMode) -> some View {
         Section {
             switch env.accountManager.state {
             case .loading:
@@ -157,15 +157,10 @@ struct ProfileView: View {
             case .signedIn(let user):
                 HStack(spacing: BaziTheme.Spacing.md) {
                     // 2026-08-15 决策:Sign in with Apple 不提供 Apple ID 头像(credential 无照片字段),
-                    // 账号头像位放生肖印章图(与命主卡 primaryZodiacAssetName 同一取图逻辑);
-                    // 无命盘(如重置后未重新 onboarding)时返回 nil,头像位留空、仅显示文本。
-                    if let zodiacAssetName {
-                        Image(zodiacAssetName)
-                            .resizable()
-                            .scaledToFit()
-                            .frame(width: 40, height: 40)
-                            .accessibilityHidden(true)
-                    }
+                    // 账号头像位放生肖印章图(与命主卡 primaryZodiacMode 同一判定逻辑);
+                    // S08(D10 年柱歧义)→ 通用墨点(墨圆)表达,不猜属相;
+                    // 无命盘(如重置后未重新 onboarding)/ decode 失败 → 头像位留空、仅显示文本。
+                    ZodiacAvatarMark(mode: zodiacMode, size: 40)
                     VStack(alignment: .leading, spacing: 4) {
                         Text(user.fullName ?? user.email ?? "\(user.provider.displayName) 用户")
                             .foregroundStyle(BaziTheme.ink)
@@ -215,28 +210,33 @@ struct ProfileView: View {
         return (link, snap)
     }
 
-    /// 命主卡生肖图 asset name(从 ChartSnapshot.payload decode BaziResponse 取 yearBranchZodiac)。
+    /// 命主卡/账号头像生肖展示模式(从 ChartSnapshot.payload decode BaziResponse 取 yearBranchZodiac)。
     ///
     /// 数据源(2026-08-11 wire up):后端 lunar_python 已按立春算 year_branch_zodiac,
     /// 修客户端公历年推算的立春边界 bug(1-2 月初立春前用户生肖差 1 年)。
     ///
-    /// **错误处理**:decode 失败返回 nil(对齐"错误显式传播" — decode 失败的具体 error 已由
-    /// `ChartSnapshotStore.decodeResponse` 内部 Logger.error 记录,这里返回 nil 让 UI 隐藏命主卡
+    /// 三态(S08,判定纯函数在 `ZodiacAvatarMode.resolve`):
+    /// `.zodiac` 正常生肖图 / `.inkDot` 年柱歧义(立春+时辰未知)→ 通用墨点,
+    /// 命主卡不再整体隐藏(alias/出生年仍有效)且**不猜**属相 / `.hidden` 无命盘或
+    /// decode 失败 → 不展示(沿用既有降级)。
+    ///
+    /// **错误处理**:decode 失败返回 .hidden(对齐"错误显式传播" — decode 失败的具体 error
+    /// 已由 `ChartSnapshotStore.decodeResponse` 内部 Logger.error 记录,这里让 UI 隐藏命主卡
     /// section,而非显示错图或 crash)。生产环境 decode 失败极少(仅 schema 不兼容时,
     /// 当前 schema_version=1 未演化过)。
-    private var primaryZodiacAssetName: String? {
-        guard let primary = primarySnapshot else { return nil }
+    private var primaryZodiacMode: ZodiacAvatarMode {
+        guard let primary = primarySnapshot else { return .hidden }
         do {
             let response = try env.chartSnapshotStore.decodeResponse(from: primary.snapshot)
-            // S05:年柱歧义(S02/D10)→ yearBranchZodiac null → 命主卡生肖图隐藏
-            // (nil = 隐藏 section,沿用 decode 失败的既有降级;完整表达归 S08)
-            guard let zodiac = response.yearBranchZodiac else { return nil }
-            return "Zodiac_\(zodiac)"
+            return ZodiacAvatarMode.resolve(hasChart: true, zodiac: response.yearBranchZodiac)
         } catch {
             // error 已在 ChartSnapshotStore.decodeResponse 内 Logger.error,这里不重复记
-            return nil
+            return .hidden
         }
     }
+
+    // 头像位三态表达(生肖图 / 墨点 / 空)抽成文件级 `ZodiacAvatarMark`,
+    // 账号头像(40pt)与命主卡 IdentityCard(64pt)共用同一表达,判定同源。
 
     // MARK: - Section 1: 我的命盘
 
@@ -549,8 +549,10 @@ struct ProfileView: View {
 /// - **今日宜/忌一句话 anchor**(Q17 完整版):需 query DailyFortuneSnapshot 跨模块解码宜/忌内容
 ///
 /// 生肖图(视觉锚点,呼应 ZodiacRevealView)+ alias + 出生年。
+/// S08:`avatarMode` 三态——正常生肖图 / 年柱歧义 → 通用墨点(不猜,alias/出生年照常)/
+/// hidden(调用方已过滤,防御性空视图)。
 private struct IdentityCard: View {
-    let zodiacAssetName: String
+    let avatarMode: ZodiacAvatarMode
     let alias: String
     let birthYear: Int?
 
@@ -559,11 +561,7 @@ private struct IdentityCard: View {
         // 单一 VoiceOver element(读"我的命盘 alias 2000 年生"一气呵成)。
         // (2026-08-16 按钮删除后原外层 VStack 只剩单 child,已拍平。)
         HStack(spacing: BaziTheme.Spacing.md) {
-            Image(zodiacAssetName)
-                .resizable()
-                .scaledToFit()
-                .frame(width: 64, height: 64)
-                .accessibilityHidden(true)
+            ZodiacAvatarMark(mode: avatarMode, size: 64)
 
             VStack(alignment: .leading, spacing: BaziTheme.Spacing.xs) {
                 Text("我的命盘")
@@ -586,6 +584,34 @@ private struct IdentityCard: View {
         // 水墨孤本 M1(mine-m1.html):命主卡改开放头块,底部 hairline 收边
         .overlay(alignment: .bottom) {
             Rectangle().fill(BaziTheme.hairline).frame(height: 0.5).padding(.horizontal, -BaziTheme.Spacing.md)
+        }
+    }
+}
+
+// MARK: - ZodiacAvatarMark(生肖头像位三态表达,S08)
+
+/// 生肖图/墨点头像位:账号头像(40pt)与命主卡 IdentityCard(64pt)共用。
+/// - `.zodiac` 正常生肖印章图(与 ZodiacRevealView 同一 asset 族)
+/// - `.inkDot` 年柱歧义(立春+时辰未知,D10)→ EnsoView 墨圆(品牌指纹,静态渲染):
+///   有盘但属相待时辰而定,**不猜动物**;留白给正式表达(S05 兜底是整体隐藏命主卡)
+/// - `.hidden` 无命盘 / decode 失败 → 空视图(头像位留空)
+private struct ZodiacAvatarMark: View {
+    let mode: ZodiacAvatarMode
+    let size: CGFloat
+
+    var body: some View {
+        switch mode {
+        case .zodiac(let assetName):
+            Image(assetName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+                .accessibilityHidden(true)
+        case .inkDot:
+            // EnsoView 内部已 accessibilityHidden(纯装饰墨圆,属相信息由上下文文本承载)
+            EnsoView(size: size, animated: false)
+        case .hidden:
+            EmptyView()
         }
     }
 }
