@@ -789,19 +789,19 @@
         }
       }
     },
-    "dailyfortune.header.dayPillarLabel" : {
+    "dailyfortune.header.dayPillarSuffix" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Day Pillar"
+            "value" : " Day"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "流日柱"
+            "value" : "日"
           }
         }
       }
@@ -819,6 +819,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "农历"
+          }
+        }
+      }
+    },
+    "dailyfortune.header.shortLabel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily Fortune"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日运势"
+          }
+        }
+      }
+    },
+    "dailyfortune.hero.disclaimer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For reference only"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解读仅供参照"
           }
         }
       }

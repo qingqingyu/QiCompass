@@ -1,13 +1,14 @@
 import SwiftUI
 
-/// 每日运势头部(水墨孤本 T1,2026-08-26 重排,参考 daily-t1.html):
-/// 开放布局无卡片——日期行(公历大字 + 农历/年月右对齐)→ 流日行
-/// (小标 + 干支 + 关系 chip 朱色描边 + 冲 chip 灰)。
+/// 每日运势头部(V4 三行式,2026-08-30 重排,参考 v4-reference.html):
+/// L1 公历大字(含星期)→ L2 农历 · 干支日 → L3 短标签 chip + 关系 chip(朱)+ 冲 chip(灰)。
+/// 三行紧凑合并沉在 hero 插画上方,与图融为一体(用户参考图 IMG_5129 排布)。
 ///
 /// i18n 改造(Slice 1.11)保持:
 /// - 公历日期:`BaziDateFormatter.gregorianWithWeekday`(按 user locale 显示)
 /// - "农历" 前缀:`L10n.DailyFortune.lunarPrefix`(zh="农历",en="Lunar")
-/// - "流日柱" 标签:`L10n.DailyFortune.dayPillarLabel`(zh="流日柱",en="Day Pillar")
+/// - 短标签:`L10n.DailyFortune.shortLabel`(zh="今日运势",en="Daily Fortune")
+/// - 干支后缀:`L10n.DailyFortune.dayPillarSuffix`(zh="日",en=" Day")
 /// - "冲" 前缀:`L10n.DailyFortune.chongLabel(chong:targets:)`
 /// - 农历日期本身(`lunarDate` 参数)永远来自后端中文格式(决策 7:农历是术语不翻译)
 struct DailyFortuneHeaderView: View {
@@ -19,30 +20,30 @@ struct DailyFortuneHeaderView: View {
     let dayChongTargets: [String]
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            // 日期行:公历大字左,农历 + 干支年月右(两端)
-            HStack(alignment: .firstTextBaseline) {
-                Text(BaziDateFormatter.gregorianWithWeekday.string(from: businessDate))
-                    .font(BaziFont.display(size: 24))
-                    .foregroundStyle(BaziTheme.ink)
-                Spacer(minLength: 12)
-                Text(verbatim: "\(L10n.DailyFortune.lunarPrefix) \(lunarDate)")
-                    .font(BaziFont.caption(size: 10.5))
-                    .tracking(1)
-                    .foregroundStyle(BaziTheme.inkMuted)
-                    .lineLimit(1)
-            }
+        VStack(alignment: .leading, spacing: 5) {
+            // L1 公历大字(含星期;V4 字号 24→19 收敛,视觉主角让位给下方 hero 插画)
+            Text(BaziDateFormatter.gregorianWithWeekday.string(from: businessDate))
+                .font(BaziFont.display(size: 19))
+                .foregroundStyle(BaziTheme.ink)
 
-            // 流日行:小标 + 干支(浓墨)+ 关系 chip(朱色描边,印章级)+ 冲 chip(灰)
-            HStack(spacing: 10) {
-                Text(L10n.DailyFortune.dayPillarLabel)
+            // L2 农历 · 干支日(灰墨小字)
+            Text(verbatim: "\(L10n.DailyFortune.lunarPrefix) \(lunarDate) · \(dayPillar)\(L10n.DailyFortune.dayPillarSuffix)")
+                .font(BaziFont.caption(size: 12.5))
+                .tracking(1)
+                .foregroundStyle(BaziTheme.inkMuted)
+
+            // L3 短标签 chip + 关系 chip(朱色描边,印章级)+ 冲 chip(灰)
+            HStack(spacing: 8) {
+                Text(L10n.DailyFortune.shortLabel)
                     .font(BaziFont.caption(size: 10))
-                    .tracking(3)
-                    .foregroundStyle(BaziTheme.inkMutedSecondary)
-                Text(dayPillar)
-                    .font(BaziFont.ganzhi(size: 17))
                     .tracking(2)
-                    .foregroundStyle(BaziTheme.ink)
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 3)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 3)
+                            .stroke(BaziTheme.hairline, lineWidth: 0.5)
+                    )
                 ChipView(text: dayRelation, tint: BaziTheme.cinnabar)
                 if let chong = dayChong {
                     let label = L10n.DailyFortune.chongLabel(
@@ -53,6 +54,7 @@ struct DailyFortuneHeaderView: View {
                 }
                 Spacer()
             }
+            .padding(.top, 2)
         }
     }
 }

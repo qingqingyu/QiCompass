@@ -15,7 +15,7 @@ import Foundation
 ///
 /// 使用:
 /// ```swift
-/// Text(L10n.DailyFortune.dayPillarLabel)                    // 替代 Text("流日柱")
+/// Text(L10n.DailyFortune.shortLabel)                        // 替代 Text("今日运势")
 /// Text(L10n.DailyFortune.interpretRemaining(3))             // 替代 Text("剩余 \(n) 次")
 /// Text(L10n.DailyFortune.chongLabel(chong: "午", targets: []))  // 替代 Text("冲午")
 /// ```
@@ -218,9 +218,17 @@ enum L10n {
         /// zh: "农历";en: "Lunar"
         static let lunarPrefix = String(localized: "dailyfortune.header.lunarPrefix")
 
-        /// "流日柱" 标签(大字头上方的小字)。
-        /// zh: "流日柱";en: "Day Pillar"
-        static let dayPillarLabel = String(localized: "dailyfortune.header.dayPillarLabel")
+        /// 页首短标签(V4 三行日期区第三行的 chip)。
+        /// zh: "今日运势";en: "Daily Fortune"
+        static let shortLabel = String(localized: "dailyfortune.header.shortLabel")
+
+        /// 干支后缀(L2 行「丙子日」的「日」)。
+        /// zh: "日";en: " Day"
+        static let dayPillarSuffix = String(localized: "dailyfortune.header.dayPillarSuffix")
+
+        /// 解读小注免责(V4 hero 文本区脚注尾部)。
+        /// zh: "解读仅供参照";en: "For reference only"
+        static let disclaimer = String(localized: "dailyfortune.hero.disclaimer")
 
         /// "冲" 前缀(用于 "冲午" / "冲午 (年支午)" 这种拼接)。
         /// zh: "冲";en: "Clashes: "

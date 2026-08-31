@@ -1,12 +1,14 @@
 import SwiftUI
 
-/// success 态主布局:吸顶历史 pill(方向感知折叠)+ 5 个 section + 下拉刷新。
+/// success 态主布局(V4 一幅图为主角,2026-08-30 拍板,参考 v4-reference.html):
+/// 三行日期区 → hero 插画(3:2,静态样图)→ 宜忌单行 → AI 解读 → hairline 小注 →
+/// 大留白 → 第二屏(7 日历史带 + 明日预告)。
 ///
 /// 不直接接 state machine,由 DailyFortuneView 切换后传入。
 ///
-/// 2026-08-30:
-/// - 历史 pill 带挪进 `.safeAreaInset(edge: .top)`(钉在导航下),滚动方向感知折叠
-///   (往下翻收起 / 往回翻展开 / 页顶强制展开;iOS 17 无 onScrollGeometryChange,用 preference 探针)
+/// 2026-08-30 V4:
+/// - 吸顶方向感知折叠带**整体移除**(首屏无带可折,机制空转);历史带随内容进第二屏,
+///   `onHistorySelect` / 历史回看解锁 / sheet 竞态规避全部原样保留
 /// - 历史回看解锁(MONETIZATION.md §每日运势历史回看):免费 7 天,任意购买解锁全部
 struct DailyFortuneMainView: View {
     @Bindable var vm: DailyFortuneViewModel
@@ -20,14 +22,10 @@ struct DailyFortuneMainView: View {
     let onGenerateInterpret: () -> Void
 
     @EnvironmentObject private var env: AppEnvironment
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
     @State private var historySnapshots: [DailyFortuneSnapshot] = []
     @State private var historyError: String?
 
-    // 历史带折叠(方向感知)
-    @State private var historyCollapsed = false
-    @State private var lastScrollY: CGFloat = 0
     // 历史回看解锁 + sheet
     @State private var showingHistorySheet = false
     @State private var showingPaywall = false
@@ -56,7 +54,9 @@ struct DailyFortuneMainView: View {
                         .frame(maxWidth: .infinity, alignment: .center)
                 }
 
-                // 头部:公历 + 农历 + 流日柱 + 关系 chip + 冲 chip
+                // ===== 第一屏(V4:图为主角) =====
+
+                // 三行日期区(公历大字/农历·干支/短标签+关系+冲 chips)
                 DailyFortuneHeaderView(
                     businessDate: businessDate,
                     lunarDate: response.lunarDate,
@@ -65,10 +65,16 @@ struct DailyFortuneMainView: View {
                     dayChong: response.dayChong,
                     dayChongTargets: response.dayChongTargets,
                 )
+                .padding(.horizontal, 24)
 
-                // 宜/忌 main anchor(视觉锚点,非 AI 输出)
-                // 朱砂=宜 / 灰墨=忌,左右并列 layout
+                // hero 插画(五行小景,S0 静态样图;左右 17pt 边距宽于文本区)
+                DailyImageHeroSection(dayPillar: response.dayPillar)
+                    .padding(.horizontal, 17)
+
+                // 宜/忌 main anchor(V4 单行居中;视觉锚点,非 AI 输出)
                 YiJiAnchorSection(dayRelation: response.dayRelationToDayMaster)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 26)
 
                 // AI 解读(50-80 字 Medium voice)
                 DailyInterpretationSection(
@@ -78,47 +84,35 @@ struct DailyFortuneMainView: View {
                     onGenerate: onGenerateInterpret,
                     onRetry: onGenerateInterpret,
                 )
+                .padding(.horizontal, 24)
+
+                // hairline 小注:干支 · 十神 · 免责
+                heroFootnote
+                    .padding(.horizontal, 17)
+                    .padding(.top, 18)
+
+                // ===== 第二屏(历史回看 + 明日预告) =====
+
+                // 大留白后进入第二屏(V4 参考图 CTA 沉底的呼吸节奏)
+                Divider()
+                    .overlay(BaziTheme.hairline)
+                    .padding(.top, 48)
+
+                DailyFortuneHistoryView(
+                    selectedDate: businessDate,
+                    snapshots: historySnapshots,
+                    canViewFullHistory: canViewFullHistory,
+                    onEarlier: { showingHistorySheet = true },
+                    onSelect: onHistorySelect,
+                )
+                .padding(.horizontal, 16)
+                .padding(.top, 4)
 
                 // 明日预告
                 TomorrowPreviewSection(preview: response.tomorrowPreview)
+                    .padding(.horizontal, 24)
             }
-            .padding(.horizontal)
             .padding(.bottom, 32)
-            // 滚动偏移探针(overlay 挂 VStack 顶,不参与 spacing,零布局影响;向下滚动为正值)
-            .overlay(alignment: .top) {
-                GeometryReader { geo in
-                    Color.clear.preference(
-                        key: DailyScrollOffsetKey.self,
-                        value: -geo.frame(in: .named("dailyScroll")).minY
-                    )
-                }
-                .frame(height: 0)
-                .allowsHitTesting(false)
-            }
-        }
-        .coordinateSpace(name: "dailyScroll")
-        .onPreferenceChange(DailyScrollOffsetKey.self) { handleScrollOffset($0) }
-        // 历史 pill 带:钉在导航下方(吸顶),方向感知折叠(高度 0 ↔ 自适应)
-        .safeAreaInset(edge: .top, spacing: 0) {
-            DailyFortuneHistoryView(
-                selectedDate: businessDate,
-                snapshots: historySnapshots,
-                canViewFullHistory: canViewFullHistory,
-                onEarlier: { showingHistorySheet = true },
-                onSelect: onHistorySelect,
-            )
-            .padding(.horizontal, 16)
-            .padding(.top, 4)
-            .padding(.bottom, 12)
-            .background(BaziTheme.paper)
-            .frame(maxHeight: historyCollapsed ? 0 : nil, alignment: .top)
-            .clipped()
-            .opacity(historyCollapsed ? 0 : 1)
-            .allowsHitTesting(!historyCollapsed)
-            .animation(
-                MotionPreferences.animation(.easeInOut(duration: 0.28), reduceMotion: reduceMotion),
-                value: historyCollapsed
-            )
         }
         .refreshable { onRefresh() }
         // 历史回看 sheet(免费锁定态 / 已购清单态)
@@ -171,25 +165,23 @@ struct DailyFortuneMainView: View {
         }
     }
 
-    // MARK: - 方向感知折叠
+    // MARK: - hero 小注
 
-    /// 滚动方向判定(与 HTML 设计稿同阈值):
-    /// - 页顶(y < 8)强制展开
-    /// - 向下位移 > 6pt → 收起
-    /// - 向上位移 > 6pt → 展开
-    private func handleScrollOffset(_ y: CGFloat) {
-        if y < 8 {
-            if historyCollapsed { historyCollapsed = false }
-            lastScrollY = y
-            return
+    /// V4 文本区脚注:hairline + 「丙子日 · 偏印 · 解读仅供参照」。
+    private var heroFootnote: some View {
+        VStack(spacing: 0) {
+            Rectangle()
+                .fill(BaziTheme.hairline)
+                .frame(height: 0.5)
+            Text(
+                verbatim: "\(response.dayPillar)\(L10n.DailyFortune.dayPillarSuffix) · \(response.dayRelationToDayMaster) · \(L10n.DailyFortune.disclaimer)"
+            )
+            .font(BaziFont.caption(size: 10.5))
+            .tracking(1.5)
+            .foregroundStyle(BaziTheme.inkMutedSecondary)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 9)
         }
-        let delta = y - lastScrollY
-        if delta > 6 {
-            if !historyCollapsed { historyCollapsed = true }
-        } else if delta < -6 {
-            if historyCollapsed { historyCollapsed = false }
-        }
-        lastScrollY = y
     }
 
     // MARK: - 历史回看解锁
@@ -222,7 +214,7 @@ struct DailyFortuneMainView: View {
 
 /// 今日运势页宜/忌 main anchor(视觉锚点,非 AI 输出)。
 ///
-/// 朱砂=宜 / 灰墨=忌 + 左右并列 layout。
+/// 墨青(jade)=宜 / 淡朱(cinnabar)=忌,V4 单行左右并列 layout。
 ///
 /// **数据源**(v1 简化):前端十神→关键词映射表。基于 `dayRelationToDayMaster`
 /// 查表得到 actionable 2-3 字 bullet。
@@ -288,43 +280,26 @@ private struct YiJiAnchorSection: View {
 
     var body: some View {
         let resolved = pair
-        // 水墨孤本 T1:开放布局,宜(jade)/忌(淡朱)双行 + 上下 hairline(参考 daily-t1.html)
-        VStack(spacing: 0) {
-            anchorRow(label: L10n.DailyFortune.yiLabel, keyword: resolved.yi, color: BaziTheme.jade)
-            anchorRow(label: L10n.DailyFortune.jiLabel, keyword: resolved.ji, color: BaziTheme.cinnabar.opacity(0.8))
+        // V4 单行居中:宜(jade)思考 · 忌(淡朱)执拗(参考 v4-reference.html,无 hairline)
+        HStack(spacing: 22) {
+            anchorItem(label: L10n.DailyFortune.yiLabel, keyword: resolved.yi, color: BaziTheme.jade)
+            Text(verbatim: "·")
+                .font(BaziFont.caption(size: 12))
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
+            anchorItem(label: L10n.DailyFortune.jiLabel, keyword: resolved.ji, color: BaziTheme.cinnabar.opacity(0.8))
         }
-        .padding(.vertical, 2)
-        .overlay(alignment: .top) {
-            Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
-        }
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
-        }
+        .frame(maxWidth: .infinity)
     }
 
-    private func anchorRow(label: String, keyword: String, color: Color) -> some View {
-        HStack(spacing: 14) {
+    private func anchorItem(label: String, keyword: String, color: Color) -> some View {
+        HStack(spacing: 9) {
             Text(label)
-                .font(BaziFont.display(size: 14, weight: .medium))
+                .font(BaziFont.display(size: 13, weight: .medium))
                 .tracking(4)
                 .foregroundStyle(color)
             Text(keyword)
-                .bodySerifText(size: 13)
+                .bodySerifText(size: 15)
                 .foregroundStyle(BaziTheme.ink)
-            Spacer()
         }
-        .padding(.vertical, 9)
-    }
-}
-
-// MARK: - 滚动偏移探针
-
-/// ScrollView 滚动偏移(向下为正)。
-/// iOS 17.2 无 `onScrollGeometryChange`(iOS 18 API),经典 preference 方案:
-/// 0 高度探针放内容顶部,frame 取 named coordinate space 的 minY 取负。
-private struct DailyScrollOffsetKey: PreferenceKey {
-    static var defaultValue: CGFloat = 0
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = nextValue()
     }
 }
