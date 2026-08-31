@@ -15,18 +15,12 @@ struct DailyInterpretationSection: View {
     let onRetry: () -> Void
 
     var body: some View {
-        // 水墨孤本 T1:开放布局,右上是极淡墨圆水印衬底,正文楷体宽行距(参考 daily-t1.html)
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(L10n.DailyFortune.interpretTitle)
-                    .font(BaziFont.caption(size: 10))
-                    .tracking(4)
-                    .foregroundStyle(BaziTheme.inkMutedSecondary)
-                Spacer()
-                Text(L10n.DailyFortune.interpretRemaining(remainingReads))
-                    .font(.caption)
-                    .foregroundStyle(BaziTheme.inkMuted)
-            }
+        // 今日运势 V1「三框全载」:解读入框,正文楷体宽行距;全免费不上「剩余次数」
+        VStack(alignment: .leading, spacing: 18) {
+            Text(L10n.DailyFortune.interpretTitle)
+                .font(BaziFont.caption(size: 10))
+                .tracking(4)
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
 
             switch state {
             case .idle:
@@ -41,7 +35,7 @@ struct DailyInterpretationSection: View {
                 // 每日运势 v1 全免费(MONETIZATION.md 不在 SKU 列表),后端只调 daily_fortune module,
                 // .okPaid 永不触发;合并处理避免重复代码。
                 Text(MarkdownSanitizer.rendered(text))
-                    .bodySerifText(size: 15.5)
+                    .bodySerifText(size: 16)
                     .lineSpacing(9)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
@@ -73,14 +67,13 @@ struct DailyInterpretationSection: View {
                 // 达上限:**禁用生成按钮、不显示重试**(方案 step 4)
             }
         }
-        .padding(.vertical, BaziTheme.Spacing.xs)
-        .overlay(alignment: .topTrailing) {
-            // 墨圆水印:极淡(8%),解读文字的衬底(DESIGN.md §水墨 Signature elements)
-            EnsoView(size: 150)
-                .opacity(0.08)
-                .offset(x: 16, y: 14)
-                .allowsHitTesting(false)
-        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 22)
+        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
+                .stroke(BaziTheme.hairline, lineWidth: 0.5)
+        )
     }
 }
 

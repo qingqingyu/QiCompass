@@ -2,7 +2,7 @@
 
 > 全局视觉事实源。任何 UI 决策(颜色 / 字体 / 间距 / 圆角 / 动效)都必须先读这里,偏离须用户明确批准。
 >
-> **2026-08-26 换轨**:宋瓷暖白 → **水墨孤本**(冷灰宣纸 / 焦墨 / 楷体 / 印章级朱红)。换轨依据:7 轮 design-shotgun 全旅程探索,决策记录与 24 屏参考在 `docs/design-ref/shuimo/`(approved.json 为事实源)。旧宋瓷系统的历史决策见文末 Decisions Log。
+> **2026-08-26 换轨**:宋瓷暖白 → **水墨孤本**(国画旧宣纸 / 焦墨 / 楷体 / 印章级朱红)。换轨依据:7 轮 design-shotgun 全旅程探索,决策记录与 24 屏参考在 `docs/design-ref/shuimo/`(approved.json 为事实源)。旧宋瓷系统的历史决策见文末 Decisions Log。
 
 ## Product Context
 
@@ -64,8 +64,8 @@ iOS 系统字体,**不打包任何自定义字体**。楷体走 `Font.custom("Ka
 
 | 角色 | Light Hex | Dark Hex(夜宣纸) | 用途 | SwiftUI 名 |
 |---|---|---|---|---|
-| 冷灰宣纸 / 夜宣纸 | `#F3F1EC` | `#141317` | 主背景 | `BaziTheme.paper` |
-| 浅纸 / 深浅纸 | `#F7F5F0` | `#1E1D23` | sheet 底 / 残留卡底(让位 hairline 中) | `BaziTheme.cardSurface` |
+| 国画旧宣纸 / 夜宣纸 | `#E7E2D5` | `#141317` | 主背景 | `BaziTheme.paper` |
+| 浅纸 / 深浅纸 | `#F7F5F0` | `#1E1D23` | sheet 底 / 残留卡底(今日运势 V1 起兼做浮框纸面) | `BaziTheme.cardSurface` |
 | 浓墨 / 冷白 | `#1C1B1E` | `#E9E7E2` | 主文字 | `BaziTheme.ink` |
 | 灰墨 / 浅灰墨 | `#77726A` | `#9B968C` | 弱说明文字 | `BaziTheme.inkMuted` |
 | 淡灰墨(新) | `#A5A098` | `#6E6A62` | 二级弱注 | `BaziTheme.inkMutedSecondary` |
@@ -151,7 +151,7 @@ iOS 系统字体,**不打包任何自定义字体**。楷体走 `Font.custom("Ka
 
 ```swift
 enum BaziTheme {
-    static let paper    = dyn(#F3F1EC, #141317)   // 冷灰宣纸 / 夜宣纸
+    static let paper    = dyn(#E7E2D5, #141317)   // 国画旧宣纸 / 夜宣纸(2026-08-31 换轨)
     static let cardSurface = dyn(#F7F5F0, #1E1D23)
     static let ink      = dyn(#1C1B1E, #E9E7E2)
     static let inkMuted = dyn(#77726A, #9B968C)
@@ -219,3 +219,4 @@ enum BaziTheme {
 | 2026-08-26 | 卡片让位 hairline;dashed 锁框;纸纹 Canvas 确定性噪点(不引入图片链路) | 开放布局 + 零新依赖 |
 | 2026-08-26 | **待办:英文 locale 字体路由**——Kaiti SC 拉丁字形偏楷书衬线,英文正文可用性待验证;方向:display 中文 Kaiti / 英文回退系统 serif;body 英文走系统 sans;VText 仅用于中文(英文横排,沿用 SutraView locale 分流模式);印章/品牌字(玄机问道/玄/解/合)保持中文不翻译(决策 7 术语族) | i18n v1 中英开口子(2026-08-12)与新字体体系交叉,落地前须英文截图走查 |
 | 2026-08-26 | T3 签纸分享卡 backlog(不做入 v1 换装) | 分享卡是图片生成新功能,与换装解耦;今日首页用 T1 墨白节奏 |
+| 2026-08-31 | **paper 冷灰宣纸 `#F3F1EC` → 国画旧宣纸 `#E7E2D5`(全 App)** | 今日运势 V1 画布(daily-fortune-20260830)拍板:「底暗框亮」浮框结构(cardSurface 纸面浮起)依赖压暗一档的暖调底;全 App 换轨避免 tab 切换底色跳变。Dark 夜宣纸不变 |

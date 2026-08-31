@@ -67,7 +67,7 @@ struct DailyFortuneMainView: View {
                 )
 
                 // 宜/忌 main anchor(视觉锚点,非 AI 输出)
-                // 朱砂=宜 / 灰墨=忌,左右并列 layout
+                // V1:入框对仗双列居中,宜=墨青 / 忌=淡朱
                 YiJiAnchorSection(dayRelation: response.dayRelationToDayMaster)
 
                 // AI 解读(50-80 字 Medium voice)
@@ -222,7 +222,7 @@ struct DailyFortuneMainView: View {
 
 /// 今日运势页宜/忌 main anchor(视觉锚点,非 AI 输出)。
 ///
-/// 朱砂=宜 / 灰墨=忌 + 左右并列 layout。
+/// V1「三框全载」:入框 + 对仗双列居中——宜(墨青)/ 忌(淡朱)各占一列。
 ///
 /// **数据源**(v1 简化):前端十神→关键词映射表。基于 `dayRelationToDayMaster`
 /// 查表得到 actionable 2-3 字 bullet。
@@ -288,32 +288,31 @@ private struct YiJiAnchorSection: View {
 
     var body: some View {
         let resolved = pair
-        // 水墨孤本 T1:开放布局,宜(jade)/忌(淡朱)双行 + 上下 hairline(参考 daily-t1.html)
-        VStack(spacing: 0) {
-            anchorRow(label: L10n.DailyFortune.yiLabel, keyword: resolved.yi, color: BaziTheme.jade)
-            anchorRow(label: L10n.DailyFortune.jiLabel, keyword: resolved.ji, color: BaziTheme.cinnabar.opacity(0.8))
+        // 今日运势 V1「三框全载」:宜/忌入框,对仗双列居中(参考 daily-fortune-v1.html)
+        HStack(spacing: 32) {
+            anchorCol(label: L10n.DailyFortune.yiLabel, keyword: resolved.yi, color: BaziTheme.jade)
+            anchorCol(label: L10n.DailyFortune.jiLabel, keyword: resolved.ji, color: BaziTheme.cinnabar.opacity(0.85))
         }
-        .padding(.vertical, 2)
-        .overlay(alignment: .top) {
-            Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
-        }
-        .overlay(alignment: .bottom) {
-            Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
-        }
+        .padding(.horizontal, 20)
+        .padding(.vertical, 22)
+        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
+                .stroke(BaziTheme.hairline, lineWidth: 0.5)
+        )
     }
 
-    private func anchorRow(label: String, keyword: String, color: Color) -> some View {
-        HStack(spacing: 14) {
+    private func anchorCol(label: String, keyword: String, color: Color) -> some View {
+        VStack(spacing: 12) {
             Text(label)
-                .font(BaziFont.display(size: 14, weight: .medium))
-                .tracking(4)
+                .font(BaziFont.display(size: 30))
                 .foregroundStyle(color)
             Text(keyword)
-                .bodySerifText(size: 13)
+                .bodySerifText(size: 17)
+                .tracking(1.4)
                 .foregroundStyle(BaziTheme.ink)
-            Spacer()
         }
-        .padding(.vertical, 9)
+        .frame(maxWidth: .infinity)
     }
 }
 
