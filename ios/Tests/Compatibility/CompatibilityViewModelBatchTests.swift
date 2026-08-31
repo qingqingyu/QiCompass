@@ -1080,4 +1080,143 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         }
         XCTAssertEqual(vm.remainingReads, readsBefore, "拦截发生在次数检查之前,不得消耗每日配额")
     }
+
+    // MARK: - S11 roster 不可合盘标记(判据 = 本地 payload,零网络;与 S07 拦截同源)
+
+    func testToggleArchived_他人无时辰_拒绝入名单() throws {
+        // S11 发起前最早层拦截:无时辰他人不可勾入名单(点击轻提示在 View 层)
+        let chartA = try insertChart(hash: "s11_a_known", alias: "A", hourKnown: true)
+        let chartBUnknown = try insertChart(hash: "s11_b_unknown", alias: "B无时辰", hourKnown: false)
+        vm.archivedCharts = [chartA, chartBUnknown]
+        vm.selectedChartAIndex = 0
+
+        vm.toggleArchived(hash: "s11_b_unknown")
+        XCTAssertTrue(vm.roster.isEmpty, "他人无时辰 → 不可入名单(VM 守卫兜住所有调用路径)")
+    }
+
+    func testToggleArchived_他人无时辰_已在名单_移除照常() throws {
+        // 跨启动恢复的拦截对:hash 保留在名单(S07 语义),移除语义必须照常
+        let chartA = try insertChart(hash: "s11_a2_known", alias: "A", hourKnown: true)
+        let chartBUnknown = try insertChart(hash: "s11_b2_unknown", alias: "B无时辰", hourKnown: false)
+        vm.archivedCharts = [chartA, chartBUnknown]
+        vm.selectedChartAIndex = 0
+        vm.roster = [.archived(snapshotHash: "s11_b2_unknown")]
+
+        vm.toggleArchived(hash: "s11_b2_unknown")
+        XCTAssertTrue(vm.roster.isEmpty, "已在名单的无时辰对方,移除照常(toggle 前半段不受 S11 守卫影响)")
+    }
+
+    func testIsPairHourUnknownBlocked_分支覆盖_对方无时辰_双方有时辰_临时人() throws {
+        let chartA = try insertChart(hash: "s11_a3_known", alias: "A", hourKnown: true)
+        let chartBKnown = try insertChart(hash: "s11_b3_known", alias: "B有时辰", hourKnown: true)
+        let chartBUnknown = try insertChart(hash: "s11_b3_unknown", alias: "C无时辰", hourKnown: false)
+        vm.archivedCharts = [chartA, chartBKnown, chartBUnknown]
+        vm.selectedChartAIndex = 0
+
+        let tempEntry: RosterEntry = .temp(
+            input: PersonBInput(
+                birthDatetime: "1992-08-08T10:00:00",
+                timezone: "Asia/Shanghai",
+                gender: "female",
+                longitude: 116.4074
+            ),
+            alias: nil,
+            resolvedHash: nil
+        )
+
+        XCTAssertFalse(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "s11_b3_known")),
+                       "双方有时辰 → 不标记(行为与现状完全一致)")
+        XCTAssertTrue(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "s11_b3_unknown")),
+                      "他人无时辰 → 该对标记")
+        XCTAssertFalse(vm.isPairHourUnknownBlocked(entry: tempEntry),
+                       "临时人 PersonBInput 恒带完整钟面,无时辰语义不存在 → 不标记")
+    }
+
+    func testIsSelfHourUnknown_自己无时辰_全部对不可用_切换A盘翻转() throws {
+        let chartAUnknown = try insertChart(hash: "s11_a4_unknown", alias: "A无时辰", hourKnown: false)
+        let chartBKnown = try insertChart(hash: "s11_b4_known", alias: "B有时辰", hourKnown: true)
+        let chartAKnown = try insertChart(hash: "s11_a4b_known", alias: "A2有时辰", hourKnown: true)
+        vm.archivedCharts = [chartAUnknown, chartBKnown, chartAKnown]
+        vm.selectedChartAIndex = 0
+
+        XCTAssertTrue(vm.isSelfHourUnknown, "自己无时辰 → 名单整体标记数据源(解释行 + CTA 不可发起)")
+        XCTAssertTrue(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "s11_b4_known")),
+                      "自己无时辰 → 对方有时辰的该对也不可用")
+        let tempEntry: RosterEntry = .temp(
+            input: PersonBInput(
+                birthDatetime: "1993-01-01T09:00:00",
+                timezone: "Asia/Shanghai",
+                gender: "male",
+                longitude: 116.4074
+            ),
+            alias: nil,
+            resolvedHash: nil
+        )
+        XCTAssertTrue(vm.isPairHourUnknownBlocked(entry: tempEntry), "自己无时辰 → 全部对不可用(含临时人)")
+
+        // 切到有时辰的 A 盘 → 整体标记消失(判据随选中盘翻转)
+        vm.selectedChartAIndex = 2
+        XCTAssertFalse(vm.isSelfHourUnknown)
+        XCTAssertFalse(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "s11_b4_known")))
+        XCTAssertFalse(vm.isPairHourUnknownBlocked(entry: tempEntry))
+    }
+
+    func testS11_补时辰翻转_标记消失_可发起() throws {
+        // S10 他人盘补时辰 → payload 替换 → 标记翻转(此处以同 hash 重 upsert 模拟;
+        // 实际 S10 是新 hash 新盘,判据同为「现读 payload」,翻转行为一致)
+        let chartA = try insertChart(hash: "s11_a5_known", alias: "A", hourKnown: true)
+        let chartBUnknown = try insertChart(hash: "s11_b5_unknown", alias: "B", hourKnown: false)
+        vm.archivedCharts = [chartA, chartBUnknown]
+        vm.selectedChartAIndex = 0
+
+        XCTAssertTrue(vm.isArchivedHourUnknown(hash: "s11_b5_unknown"), "补时辰前:该对标记")
+        vm.toggleArchived(hash: "s11_b5_unknown")
+        XCTAssertTrue(vm.roster.isEmpty, "补时辰前:不可入名单")
+
+        // 模拟补时辰:同 hash 重新 upsert 带时辰 payload(upsert 按 contentHash 原地更新)
+        _ = try insertChart(hash: "s11_b5_unknown", alias: "B", hourKnown: true)
+
+        XCTAssertFalse(vm.isArchivedHourUnknown(hash: "s11_b5_unknown"), "补时辰后:标记消失")
+        XCTAssertFalse(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "s11_b5_unknown")),
+                       "补时辰后:该对可发起")
+        vm.toggleArchived(hash: "s11_b5_unknown")
+        XCTAssertEqual(vm.roster.count, 1, "补时辰后:可入名单(按新盘走)")
+    }
+
+    func testIsPairHourUnknownBlocked_跨启动恢复entry_不在archivedCharts_走chartStore判据() throws {
+        // S06 恢复路径:临时人持久化为 .archived hash,无 link 不进 archivedCharts
+        let chartA = try insertChart(hash: "s11_a6_known", alias: "A", hourKnown: true)
+        _ = try insertChart(hash: "s11_b6_unknown", alias: "恢复的无时辰盘", hourKnown: false)
+        vm.archivedCharts = [chartA]
+        vm.selectedChartAIndex = 0
+
+        XCTAssertTrue(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "s11_b6_unknown")),
+                      "不在 archivedCharts 的 hash → 走 chartStore payload 判据")
+        XCTAssertFalse(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "ghost_hash_s11")),
+                       "快照缺失 → 放行不误标(真正错误由 computePair 对级隔离呈现)")
+    }
+
+    func testArchivedHourGate_payload解码失败_放行不误标() throws {
+        // 直接插一个 payload 为垃圾字节的 ChartSnapshot(不经 upsert)
+        let bad = ChartSnapshot(
+            contentHash: "s11_bad_payload",
+            birthSolarTime: Date(timeIntervalSince1970: 638_000_000),
+            gender: "male",
+            cityLongitude: 116.41,
+            ziHourRule: "zi_next_day",
+            calcRuleSnapshot: Data(),
+            payload: Data("not-json".utf8)
+        )
+        container.mainContext.insert(bad)
+        try container.mainContext.save()
+
+        let chartA = try insertChart(hash: "s11_a7_known", alias: "A", hourKnown: true)
+        vm.archivedCharts = [chartA]
+        vm.selectedChartAIndex = 0
+
+        // decode 失败显式记日志后按 .hourKnown 放行(对齐 S07 currentDetailHourUnknownGate
+        // 先例:标记层不用拦截态掩盖解码故障,发起路径会再 decode 并对级传播错误)
+        XCTAssertFalse(vm.isArchivedHourUnknown(hash: "s11_bad_payload"),
+                       "decode 失败 → 放行(日志显式记录,不静默吞)")
+    }
 }

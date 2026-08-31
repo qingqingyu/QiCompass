@@ -234,6 +234,9 @@ final class CompatibilityViewModel {
 
     /// 勾选 / 取消勾选存档对方。
     /// - 排除 A 盘自己(决策 D1:A 盘保持单选,自己不可入名单)
+    /// - S11 发起拦截(更早一层):他人命盘无时辰(payload 判据,与 S07 computePair
+    ///   整对拦截同源)→ 不可入名单,点击轻提示在 View 层,此处 VM 守卫兜住所有调用路径;
+    ///   已在名单的(跨启动恢复的拦截对)不受影响——本函数前半段是移除语义,照常走
     /// - 上限校验:加入时若已达 `rosterMax` 静默拒绝(UI 应提前 disable)
     func toggleArchived(hash: String) {
         if let idx = roster.firstIndex(where: { $0.archivedSnapshotHash == hash }) {
@@ -244,11 +247,80 @@ final class CompatibilityViewModel {
             AppLogger.app.warning("op=compatibility.toggleArchived skip reason=is_person_a hash=\(hash, privacy: .public)")
             return
         }
+        if archivedCharts.contains(where: { $0.snapshotHash == hash }),
+           archivedHourGate(hash: hash) != .hourKnown {
+            AppLogger.app.warning("op=compatibility.toggleArchived skip reason=hour_unknown hash=\(hash, privacy: .public)")
+            return
+        }
         guard roster.count < Self.rosterMax else {
             AppLogger.app.warning("op=compatibility.toggleArchived skip reason=roster_full hash=\(hash, privacy: .public)")
             return
         }
         roster.append(.archived(snapshotHash: hash))
+    }
+
+    // MARK: - S11 roster 不可合盘标记(判据 = 本地存档 payload,零网络)
+
+    /// 当前 A 盘(自己)的时辰判据。
+    /// 自己无时辰 → 名单整体标记 + 解释行 + 「开始合盘」不可发起(全部对不可用)。
+    /// 判据与 S07 computePair 拦截同源(存档 payload `hourUnknownGate`),
+    /// 标记层只是把同一判据提前到配置态;decode 失败显式记日志后按
+    /// `.hourKnown` 放行(发起路径会再次 decode 并显式传播错误,标记层
+    /// 不用拦截态掩盖解码故障,对齐 `currentDetailHourUnknownGate` 先例)。
+    var currentPersonAHourGate: HourUnknownGate {
+        guard let chart = archivedCharts[safe: selectedChartAIndex] else { return .hourKnown }
+        return archivedHourGate(hash: chart.snapshotHash)
+    }
+
+    /// 自己无时辰 → 名单整体标记(全部对不可用)。
+    var isSelfHourUnknown: Bool {
+        currentPersonAHourGate != .hourKnown
+    }
+
+    /// 他人存档命盘自身是否无时辰(与 A 盘选择无关的固有判据)。
+    /// 供存档多选行标记用(对级标记用 `isPairHourUnknownBlocked`,含 A 盘侧)。
+    func isArchivedHourUnknown(hash: String) -> Bool {
+        archivedHourGate(hash: hash) != .hourKnown
+    }
+
+    /// 指定 roster entry 对应的「对」是否标「不可合盘」(任一方无时辰即拦)。
+    /// - 他人无时辰 → 该对标记 + 不可发起
+    /// - 自己无时辰 → 全部对标记(整体解释行由 UI 层渲染)
+    /// - 临时人恒带完整钟面(PersonBInput 契约),无时辰语义不存在 → 仅由 A 盘决定
+    ///
+    /// 每次调用现读 payload(内容寻址 hash → payload 不可变;S10 补时辰换新盘
+    /// 后按新 payload 翻转);名单上限 8,配置态每次渲染 ≤9 次 decode,可接受。
+    func isPairHourUnknownBlocked(entry: RosterEntry) -> Bool {
+        if isSelfHourUnknown { return true }
+        if case .archived(let hash) = entry {
+            return archivedHourGate(hash: hash) != .hourKnown
+        }
+        return false
+    }
+
+    /// 存档 hash → 时辰判据(单一事实源 = ChartSnapshot payload decode,零网络)。
+    /// hash 在 `archivedCharts` 内 → 直接解其 snapshot(加载路径已 fetch);
+    /// 不在(跨启动恢复的临时人持久化为 `.archived` hash,无 link)→ 查 `chartStore`;
+    /// 快照缺失 / decode 失败 → 显式记日志后按 `.hourKnown` 放行
+    /// (缺失快照的真正错误在 computePair 抛「B 盘存档已不存在」,对级隔离呈现)。
+    private func archivedHourGate(hash: String) -> HourUnknownGate {
+        do {
+            if let chart = archivedCharts.first(where: { $0.snapshotHash == hash }) {
+                return try chartStore.decodeResponse(from: chart.snapshot).hourUnknownGate
+            }
+            if let snapshot = try chartStore.get(contentHash: hash) {
+                return try chartStore.decodeResponse(from: snapshot).hourUnknownGate
+            }
+            AppLogger.persistence.warning(
+                "op=compatibility.archivedHourGate snapshot_missing hash=\(hash, privacy: .public)"
+            )
+            return .hourKnown
+        } catch {
+            AppLogger.persistence.error(
+                "op=compatibility.archivedHourGate decode_failed hash=\(hash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            return .hourKnown
+        }
     }
 
     /// 添加临时对方到名单(S04:多条,每次 append 一条独立 .temp)。

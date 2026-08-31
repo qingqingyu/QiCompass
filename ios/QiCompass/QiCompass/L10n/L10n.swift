@@ -707,6 +707,25 @@ enum L10n {
         static let dailyFortuneReason = String(localized: "paywall.hourUnknown.dailyFortune.reason")
     }
 
+    // MARK: - 合盘 roster 不可合盘标记(S11)
+
+    /// 合盘配置态名单标记文案(docs/时辰未知-slices/S11)。
+    /// 水墨克制表达:置灰/留白记号 + 一句解释,无红色警示,无重试按钮。
+    enum CompatibilityRosterGate {
+        /// roster 行 / 存档多选行的「不可合盘」短标(他人无时辰 → 该对不可用)。
+        /// zh: "时辰未知 · 不可合盘";en: "Hour unknown · can't pair yet"
+        static let mark = String(localized: "compatibility.roster.hourUnknown.mark")
+
+        /// 点击被标记行 / 被拦勾选时的轻提示一句(比发起后报错更早一层 UX)。
+        /// zh: "这位命盘缺出生时辰,补上后即可合盘";en: "This chart is missing its birth hour — add it to unlock pairing"
+        static let hint = String(localized: "compatibility.roster.hourUnknown.hint")
+
+        /// 自己无时辰:名单整体标记解释行(全部对不可用 +「开始合盘」不可发起)。
+        /// zh: "你的命盘缺出生时辰,所有对暂不可合盘;补上时刻即可恢复"
+        /// en: "Your chart is missing its birth hour — all pairs are on hold until it's added"
+        static let selfBanner = String(localized: "compatibility.roster.hourUnknown.selfBanner")
+    }
+
     // MARK: - 共享组件
 
     /// 共享文案(跨模块复用:CountdownResetLabel / DailyLimitReachedView / M4-M5 章头取消)。

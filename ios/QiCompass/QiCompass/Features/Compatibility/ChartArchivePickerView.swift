@@ -51,6 +51,8 @@ struct ChartArchivePickerView: View {
 /// - 点击 toggle 而非替换
 /// - 排除 A 盘自己(决策 D1:A 保持单选,自己不可入名单)
 /// - 上限 8(决策 D2):UI 在外层 disable 超量勾选;此处仅视觉显示
+/// - S11:无时辰命盘行标「不可合盘」(置灰 + 留白记号),点击轻提示不勾入
+///   (发起前最早层拦截;VM toggleArchived 同判据守卫兜底)
 struct ChartArchiveMultiPickerView: View {
     let title: String
     let charts: [ArchivedChart]
@@ -58,8 +60,13 @@ struct ChartArchiveMultiPickerView: View {
     let excludedHash: String?
     /// 当前已选 hash 集合。
     let selectedHashes: Set<String>
+    /// S11:hash → 该命盘是否无时辰(本地 payload 判据,VM 派生)。
+    let isHourUnknown: (String) -> Bool
     /// 点击行触发 toggle。
     let onToggle: (String) -> Void
+
+    /// S11:被拦勾选的轻提示(点击被标记行后出现;水墨克制,无红色警示)。
+    @State private var showHourUnknownHint = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -81,8 +88,15 @@ struct ChartArchiveMultiPickerView: View {
                     ForEach(Array(charts.enumerated()), id: \.element.id) { idx, chart in
                         let isExcluded = chart.snapshotHash == excludedHash
                         let isSelected = selectedHashes.contains(chart.snapshotHash)
+                        let isHourUnknownRow = isHourUnknown(chart.snapshotHash)
                         Button {
                             guard !isExcluded else { return }
+                            // S11 发起拦截:无时辰 → 轻提示,不勾入名单(不进计算)
+                            if isHourUnknownRow {
+                                HapticEngine.light()
+                                withAnimation(.easeOut(duration: 0.2)) { showHourUnknownHint = true }
+                                return
+                            }
                             onToggle(chart.snapshotHash)
                         } label: {
                             ArchiveRowContent(
@@ -90,7 +104,8 @@ struct ChartArchiveMultiPickerView: View {
                                 birthDate: chart.birthDate,
                                 dayMaster: chart.dayMaster,
                                 isSelected: isSelected,
-                                isDisabled: isExcluded
+                                isDisabled: isExcluded,
+                                hourUnknownMark: isHourUnknownRow ? L10n.CompatibilityRosterGate.mark : nil
                             )
                         }
                         .disabled(isExcluded)
@@ -101,6 +116,15 @@ struct ChartArchiveMultiPickerView: View {
                 }
                 .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
                 .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
+
+                if showHourUnknownHint {
+                    Text(L10n.CompatibilityRosterGate.hint)
+                        .font(BaziFont.caption(size: 11.5))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .transition(.opacity)
+                }
             }
         }
     }
@@ -110,19 +134,22 @@ struct ChartArchiveMultiPickerView: View {
 
 /// 单行展示:alias + 出生日期 + 日主 + 选中态 checkmark。
 /// 多选/单选共用,通过 `isSelected` / `isDisabled` 控制视觉态。
+/// S11:`hourUnknownMark` 非空 → 置灰 + 留白记号(不画圈,以一行短注代替;无红色警示)。
 struct ArchiveRowContent: View {
     let alias: String
     let birthDate: Date
     let dayMaster: String
     let isSelected: Bool
     var isDisabled: Bool = false
+    /// S11:不可合盘短标(时辰未知);nil = 正常可选行。
+    var hourUnknownMark: String? = nil
 
     var body: some View {
         HStack(spacing: 12) {
             VStack(alignment: .leading, spacing: 4) {
                 Text(alias)
                     .font(.subheadline.weight(.semibold))
-                    .foregroundStyle(isDisabled ? BaziTheme.inkMuted : BaziTheme.ink)
+                    .foregroundStyle(isDisabled || hourUnknownMark != nil ? BaziTheme.inkMuted : BaziTheme.ink)
                 HStack(spacing: 8) {
                     Text(Self.dateFormatter.string(from: birthDate))
                         .font(.caption)
@@ -130,23 +157,33 @@ struct ArchiveRowContent: View {
                     Text("日主 \(dayMaster)")
                         .font(.caption)
                         .foregroundStyle(BaziTheme.inkMuted)
+                    // S11 留白记号:置灰短注随行内联(不上红色,不做警示形态)
+                    if let hourUnknownMark {
+                        Text(hourUnknownMark)
+                            .font(.caption2)
+                            .tracking(1)
+                            .foregroundStyle(BaziTheme.inkMutedSecondary)
+                    }
                 }
             }
             Spacer()
-            if isSelected {
-                // 朱色选中圈(印章级点缀);行底改中性墨,不做朱底大块
-                Image(systemName: "checkmark.circle.fill")
-                    .foregroundStyle(BaziTheme.cinnabar)
-            } else {
-                Image(systemName: "circle")
-                    .foregroundStyle(BaziTheme.inkMuted.opacity(0.5))
+            if hourUnknownMark == nil {
+                if isSelected {
+                    // 朱色选中圈(印章级点缀);行底改中性墨,不做朱底大块
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(BaziTheme.cinnabar)
+                } else {
+                    Image(systemName: "circle")
+                        .foregroundStyle(BaziTheme.inkMuted.opacity(0.5))
+                }
             }
+            // S11 留白:不可选行不画圈(无时辰命盘不提供勾选位,水墨留白表达)
         }
         .padding(.vertical, 10)
         .padding(.horizontal, 12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
-            isSelected
+            isSelected && hourUnknownMark == nil
                 ? BaziTheme.ink.opacity(0.04)
                 : Color.clear
         )

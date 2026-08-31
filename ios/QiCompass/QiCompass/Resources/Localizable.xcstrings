@@ -990,6 +990,57 @@
         }
       }
     },
+    "compatibility.roster.hourUnknown.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This chart is missing its birth hour — add it to unlock pairing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这位命盘缺出生时辰,补上后即可合盘"
+          }
+        }
+      }
+    },
+    "compatibility.roster.hourUnknown.mark" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hour unknown · can't pair yet"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时辰未知 · 不可合盘"
+          }
+        }
+      }
+    },
+    "compatibility.roster.hourUnknown.selfBanner" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your chart is missing its birth hour — all pairs are on hold until it's added"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的命盘缺出生时辰,所有对暂不可合盘;补上时刻即可恢复"
+          }
+        }
+      }
+    },
     "dailyfortune.empty.subtitle1" : {
       "extractionState" : "manual",
       "localizations" : {
