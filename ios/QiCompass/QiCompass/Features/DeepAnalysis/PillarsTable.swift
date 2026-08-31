@@ -20,9 +20,13 @@ enum PillarSlotModel: Equatable {
 /// S05 时辰未知:柱数据缺失(时柱未知 / S02 节气边界或日柱歧义级联)→ 该列
 /// 留白 + dashed hairline 圆位(DESIGN.md dashed = 锁定/临时态语义)。留白是
 /// 水墨表达**不是错误提示**:无红字无感叹号,不渲染任何占位干支(「?」柱或
-/// 默认柱都属「猜」,红线禁止)。时柱列点击进补时辰(D7 触点 1),一期占位。
+/// 默认柱都属「猜」,红线禁止)。时柱列点击进补时辰(D7 触点 1,S10 已接线;
+/// 静默态下留白列同样保留可点击——入口在,提示不在)。
 struct PillarsTable: View {
     let pillars: PillarsDTO
+    /// S10 接线:时柱未知留白列点击 → 打开补时辰 sheet(D7 触点 1)。
+    /// nil = 无宿主(防御/测试渲染),点击仅记日志不 crash。
+    var onAddHour: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -32,8 +36,8 @@ struct PillarsTable: View {
                 PillarColumn(title: "年", pillar: pillars.year)
                 PillarColumn(title: "月", pillar: pillars.month)
                 PillarColumn(title: "日", isDay: true, pillar: pillars.day)
-                // isHourSlot:未知时该列是 D7 补时辰触点 1(S10 接线)
-                PillarColumn(title: "时", isHourSlot: true, pillar: pillars.hour)
+                // isHourSlot:未知时该列是 D7 补时辰触点 1(S10 已接线)
+                PillarColumn(title: "时", isHourSlot: true, pillar: pillars.hour, onAddHour: onAddHour)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
@@ -50,6 +54,8 @@ private struct PillarColumn: View {
     var isHourSlot: Bool = false
     /// S05:nil = 柱未知(时辰未知 / S02 柱歧义)→ 留白表达
     let pillar: PillarDTO?
+    /// S10:触点回调(宿主注入;仅 isHourSlot 且柱未知时消费)
+    var onAddHour: (() -> Void)? = nil
 
     var body: some View {
         switch PillarSlotModel.resolve(pillar) {
@@ -155,8 +161,13 @@ private struct PillarColumn: View {
                     .contentShape(RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
                     .onTapGesture {
                         // S10 接线:点击进补时辰流程(D7 触点 1,只补时辰不重填全表)。
-                        // 一期占位 = 无操作(不 crash;轻提示/跳转在 S10 落地)
-                        AppLogger.app.info("pillarsTable.hourSlotTapped placeholder(S10 未接线)")
+                        // 无宿主回调 = 防御/测试渲染路径,记日志不 crash
+                        guard let onAddHour else {
+                            AppLogger.app.warning("pillarsTable.hourSlotTapped no_handler(S10 回调未注入)")
+                            return
+                        }
+                        HapticEngine.light()
+                        onAddHour()
                     }
             } else {
                 base

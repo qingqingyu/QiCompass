@@ -2557,23 +2557,6 @@
         }
       }
     },
-    "paywall.hourUnknown.ctaHint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The add-hour flow is coming soon"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "补时辰入口即将开放"
-          }
-        }
-      }
-    },
     "paywall.hourUnknown.dailyFortune.reason" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2638,23 +2621,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "缺出生时辰，暂时无法解读"
-          }
-        }
-      }
-    },
-    "paywall.hourUnknown.reason" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A missing birth hour reduces the precision of the favorable-elements reading"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "时辰缺失会影响喜忌分析的精度"
           }
         }
       }
@@ -3381,6 +3347,312 @@
     },
     "需先在深度解析中创建命盘,才能选择 A/B 盘合盘。" : {
 
+    },
+    "addhour.sheet.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add your birth hour"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "补充出生时辰"
+          }
+        }
+      }
+    },
+    "addhour.sheet.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Only the hour changes. Birth date, gender and birthplace stay as they are — the chart recalculates with the new hour, and the old one is kept."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只补时辰这一个字段。出生日期、性别与出生地保持不变,命盘按新时辰重算,原盘归档保留。"
+          }
+        }
+      }
+    },
+    "addhour.sheet.cta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save & recalculate"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存并重算"
+          }
+        }
+      }
+    },
+    "addhour.sheet.ctaLoading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recalculating…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重算中…"
+          }
+        }
+      }
+    },
+    "addhour.sheet.doneCta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成"
+          }
+        }
+      }
+    },
+    "addhour.sheet.giveUp.toggle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I truly don't know my birth hour"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我确实不知道出生时辰"
+          }
+        }
+      }
+    },
+    "addhour.sheet.giveUp.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We'll stop asking. You can always come back and add it."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "开启后不再提示补时辰;想补时随时可以再打开。"
+          }
+        }
+      }
+    },
+    "addhour.sheet.forAlias" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add the birth hour for %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为「%@」补充出生时辰"
+          }
+        }
+      }
+    },
+    "addhour.error.rebuild" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't read the birth record — can't add the hour right now"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生信息读取失败,暂时无法补时辰"
+          }
+        }
+      }
+    },
+    "addhour.error.submit" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recalculation didn't finish — please retry"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重算未完成,请重试"
+          }
+        }
+      }
+    },
+    "addhour.error.silenceSave" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't save the setting — please retry"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "设置未保存,请重试"
+          }
+        }
+      }
+    },
+    "paywall.hourUnknown.paywallReason" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deep readings are rooted in the hour pillar and favorable elements. So you don't pay now and again after adding the hour, the hour comes first."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深度解读以时柱与喜忌为根基。为避免你在信息不全时先付费、补上时辰后还要重新购买,先补时辰再解锁。"
+          }
+        }
+      }
+    },
+    "paywall.hourUnknown.silentTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Hour unknown · full readings aren't purchasable yet"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "时辰未知 · 完整解读暂不可购"
+          }
+        }
+      }
+    },
+    "paywall.hourUnknown.silentReason" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This chart is read with three pillars for now. If the hour comes back to you, add it anytime in Profile."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这份命盘先按三柱解读;想起时辰时,随时可以在「我的」里补上。"
+          }
+        }
+      }
+    },
+    "paywall.hourUnknown.silentCta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add birth hour"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "补充出生时辰"
+          }
+        }
+      }
+    },
+    "dailyfortune.main.degradedHintSilent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This reading is based on your day pillar."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此运势基于你的日柱呈现。"
+          }
+        }
+      }
+    },
+    "profile.addHour.entry" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add birth time"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "补充出生时刻"
+          }
+        }
+      }
+    },
+    "profile.addHour.silentNote" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reminders are off — tap to turn them back on"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已设为不再提醒;点击可重新打开提示"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

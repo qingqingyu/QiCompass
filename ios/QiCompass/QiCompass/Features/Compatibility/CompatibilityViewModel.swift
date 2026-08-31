@@ -323,6 +323,20 @@ final class CompatibilityViewModel {
         }
     }
 
+    /// S10 触点路由:`.hourUnknownBlocked` 卡片 CTA 应给哪张盘开补时辰 sheet。
+    ///
+    /// - 自己(A 盘)无时辰 → 自己的盘(补上后全部对恢复,根因在 A);
+    /// - 他人存档无时辰 → 该对 `personBHash`(S07 拦截卡对存档对方保留 hash);
+    /// - 临时对方(personBHash 空串)→ nil:临时人盘无 link、无触点上下文,
+    ///   CTA 不渲染(换人重填比补时辰更贴场景——临时输入本是完整钟面契约)。
+    func addHourTargetHash(forBlockedPair summary: PairSummary) -> String? {
+        if isSelfHourUnknown { return currentPersonAHash }
+        if case .archived = summary.entry, !summary.personBHash.isEmpty {
+            return summary.personBHash
+        }
+        return nil
+    }
+
     /// 添加临时对方到名单(S04:多条,每次 append 一条独立 .temp)。
     /// 校验失败抛 `UserFacingError`(不静默吞,CLAUDE.md 错误显式传播)。
     /// 成功后:写入 tempDraft 持久化 + 重置表单为"上次填过的"(alias 清空)。

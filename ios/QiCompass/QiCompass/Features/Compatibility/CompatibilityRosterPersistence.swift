@@ -108,6 +108,31 @@ struct CompatibilityRosterPersistence {
         return cleaned
     }
 
+    // MARK: - Hash remap(S10 补时辰换新盘)
+
+    /// 补时辰 hash 重建后,把持久化名单/A 盘里的老 hash 原地换成新 hash。
+    ///
+    /// 他人盘补时辰 → content_hash 变 → 不 remap 的话名单仍指向老三柱盘
+    /// (照旧「不可合盘」标记,人像从名单里消失);remap 后该人带着新盘留在名单,
+    /// 「对级关系自然重算」落到用户重新点「开始合盘」即得完整结果(新对走 S05
+    /// 增量预查未命中 → 正常发起)。自己盘同理(A hash 失效本可 fallback 最新 link,
+    /// remap 让持久化状态与最新 link 直接一致)。
+    ///
+    /// 无命中(A 盘 + 名单都不含老 hash)→ no-op(不写 UserDefaults,无副作用)。
+    static func remapHash(from oldHash: String, to newHash: String) {
+        let state = load()
+        let remappedRoster = state.rosterHashes.map { $0 == oldHash ? newHash : $0 }
+        let remappedA = state.personAHash == oldHash ? newHash : state.personAHash
+        guard remappedRoster != state.rosterHashes || remappedA != state.personAHash else {
+            return
+        }
+        // personAHash 为 nil 时沿用既有「无 A」语义(空串,与 persistRosterState 一致)
+        save(personAHash: remappedA ?? "", context: state.context, rosterHashes: remappedRoster)
+        AppLogger.app.info(
+            "op=compatibility.rosterPersistence.remap_hash old=\(oldHash, privacy: .public) new=\(newHash, privacy: .public) roster_count=\(remappedRoster.count, privacy: .public)"
+        )
+    }
+
     // MARK: - Clear(testing / reset)
 
     static func clear() {

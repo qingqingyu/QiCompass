@@ -145,4 +145,19 @@ final class UserSnapshotLinkStore {
             "op=userLink.updateAlias linkId=\(linkId, privacy: .public) newAlias=\(trimmed, privacy: .public)"
         )
     }
+
+    /// 按 snapshotHash 查展示别名(S10 补时辰:老盘 alias 继承到新盘 + sheet 标题展示)。
+    ///
+    /// 故意**不按 userId 过滤**:用途是「这张盘叫什么名字」——单用户下 hash 唯一
+    /// 对应一条 link;合盘临时人盘(hash 无 link)返回 nil,正是调用方要区分的语义
+    /// (nil → 新盘不建 link,D6 红线)。fetch 失败 throw,不吞。
+    func findAlias(snapshotHash: String) throws -> String? {
+        let pred = #Predicate<UserSnapshotLink> { $0.snapshotHash == snapshotHash }
+        let desc = FetchDescriptor<UserSnapshotLink>(
+            predicate: pred,
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        let matches = try context.fetch(desc)
+        return matches.first?.alias
+    }
 }

@@ -11,6 +11,9 @@ struct CompatibilityPairListView: View {
     let onBackToConfig: () -> Void
     /// S02:点卡片进详情(仅成功态卡片调用)。
     let onOpenSummary: (PairSummary) -> Void
+    /// S10:拦截卡 CTA → 打开该侧(自己/他人盘)的补时辰 sheet,参数 = 目标盘
+    /// content_hash(路由判据 `vm.addHourTargetHash(forBlockedPair:)`)。
+    let onAddHour: (String) -> Void
 
     var body: some View {
         ScrollView {
@@ -30,11 +33,14 @@ struct CompatibilityPairListView: View {
                         .buttonStyle(.plain)
                     } else if summary.isHourUnknownBlocked {
                         // S07 时辰未知拦截态:不进详情(无合盘快照),无重试
-                        // (重试解决不了缺时辰;S10 补时辰 / S11 roster 标记接管后续)
+                        // (重试解决不了缺时辰)。S10:CTA → 补时辰 sheet(目标按
+                        // 拦截侧路由;临时对方无 hash → CTA 不渲染)。
                         PairSummaryCard(
                             summary: summary,
                             isRetrying: false,
-                            onRetry: {}
+                            onRetry: {},
+                            onAddHour: vm.addHourTargetHash(forBlockedPair: summary)
+                                .map { hash in { onAddHour(hash) } }
                         )
                     } else {
                         // 失败态(S03):不进详情,显示重试按钮
@@ -74,12 +80,15 @@ struct CompatibilityPairListView: View {
 /// S03:`summary.status` 决定卡片态:
 /// - .computed → 正常展示(alias / 出生日期 / 日主 / 两句话 / 已解读标记)
 /// - .failed(error) → 失败摘要 + 重试按钮,不展示 birthDate/五行/日主关系
+/// - .hourUnknownBlocked → S07 拦截态 + S10 CTA(目标盘补时辰 sheet)
 struct PairSummaryCard: View {
     let summary: PairSummary
     /// S03:该对是否正在重试中(UI disable 重试按钮)。
     let isRetrying: Bool
     /// S03:失败态卡片的重试回调。
     let onRetry: () -> Void
+    /// S10:拦截态卡片的补时辰回调(被拦侧的盘;nil = 临时对方无 hash → CTA 不渲染)。
+    var onAddHour: (() -> Void)? = nil
 
     var body: some View {
         switch summary.status {
@@ -95,6 +104,7 @@ struct PairSummaryCard: View {
     // MARK: - 时辰未知拦截态(S07,与付费墙拦截同款表达)
 
     /// 水墨克制:dashed hairline 框 + 留白说明 + 共用拦截组件(无红色警示)。
+    /// S10:CTA → 补时辰 sheet(他人盘补时辰同 hash 重建,对级关系自然重算)。
     private var hourUnknownBlockedLayout: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.sm) {
             HStack(alignment: .firstTextBaseline, spacing: BaziTheme.Spacing.sm) {
@@ -107,7 +117,8 @@ struct PairSummaryCard: View {
 
             HourUnknownGateNotice(
                 title: L10n.PaywallGate.compatibilityTitle,
-                reason: L10n.PaywallGate.compatibilityReason
+                reason: L10n.PaywallGate.compatibilityReason,
+                onAddHour: onAddHour
             )
         }
         .padding(16)

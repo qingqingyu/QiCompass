@@ -39,6 +39,9 @@ struct ZodiacRevealView: View {
     let clashZodiac: String
     /// CTA 点击回调(进深度解析 tab,2026-08-31 改)。
     let onComplete: () -> Void
+    /// S10 接线:立春降级态补时辰轻提示点击 → 打开补时辰 sheet(D7 被迫例外触点,
+    /// OnboardingView 注入;nil = 无宿主(测试渲染)→ 纯文本)。
+    var onAddHour: (() -> Void)? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -194,17 +197,29 @@ struct ZodiacRevealView: View {
                 .opacity(textOpacity)
 
             // 补时辰轻提示(D7 降级态例外触点——被迫告知;「一个动作」)
-            // S10 接线:点击进补时辰流程(只补时辰,不重填全表)。一期占位 = 无操作
-            // (不 crash),与 PillarsTable 时柱列占位同款,留日志接线位
-            Text(L10n.Onboarding.revealYearAmbiguousHint)
-                .font(BaziFont.caption(size: 12))
-                .foregroundStyle(BaziTheme.inkMuted)
-                .multilineTextAlignment(.center)
-                .contentShape(Rectangle())
-                .onTapGesture {
-                    AppLogger.app.info("zodiacReveal.hourHintTapped placeholder(S10 未接线)")
+            // S10 已接线:点击进补时辰 sheet(只补时辰,不重填全表;onAddHour 由
+            // OnboardingView 注入。nil = 无宿主(测试渲染)→ 纯文本,无操作不 crash)
+            Group {
+                if let onAddHour {
+                    Button {
+                        HapticEngine.light()
+                        onAddHour()
+                    } label: {
+                        Text(L10n.Onboarding.revealYearAmbiguousHint)
+                            .font(BaziFont.caption(size: 12))
+                            .foregroundStyle(BaziTheme.inkMuted)
+                            .multilineTextAlignment(.center)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Text(L10n.Onboarding.revealYearAmbiguousHint)
+                        .font(BaziFont.caption(size: 12))
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .multilineTextAlignment(.center)
                 }
-                .opacity(textOpacity)
+            }
+            .contentShape(Rectangle())
+            .opacity(textOpacity)
 
             // 立场微文案(与正常态同一收尾:如实告知之后的可信度背书)
             VStack(spacing: BaziTheme.Spacing.md) {

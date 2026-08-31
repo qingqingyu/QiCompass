@@ -11,6 +11,8 @@ import SwiftUI
 struct CompatibilityConfigView: View {
     @Bindable var vm: CompatibilityViewModel
     let onStart: () -> Void
+    /// S10:点击「不可合盘」标记行 → 打开该盘补时辰 sheet(D7 触点 1 的他人盘分支)。
+    var onAddHour: ((String) -> Void)? = nil
 
     @State private var tempFormError: String?
     @State private var showTempForm: Bool = false
@@ -93,14 +95,15 @@ struct CompatibilityConfigView: View {
             }
 
             // 存档多选(A 盘自己排除;D13 对方池空时 picker 内置引导文案;
-            // S11 无时辰行标记 + 点击轻提示不勾入)
+            // S11 无时辰行标记不勾入;S10 标记行点击直达补时辰 sheet)
             ChartArchiveMultiPickerView(
                 title: "从存档选择",
                 charts: vm.archivedCharts,
                 excludedHash: vm.currentPersonAHash,
                 selectedHashes: vm.selectedArchivedHashes,
                 isHourUnknown: { vm.isArchivedHourUnknown(hash: $0) },
-                onToggle: { vm.toggleArchived(hash: $0) }
+                onToggle: { vm.toggleArchived(hash: $0) },
+                onAddHour: onAddHour
             )
 
             // 临时输入入口(S01 限 1 条;S04 扩多条 + 称呼字段)

@@ -56,9 +56,14 @@ final class DailyFortuneViewModel {
 
     /// S09 当前命盘的时辰未知判据(复用 S07 `HourUnknownGate`,单一事实源 =
     /// 存档 payload,VM/View 不另行推断)。`.ready` 时供 View 决定末尾静默
-    /// 提示位是否显示(D7 触点 2,S10 接线成可点击);`.dayAmbiguous` 由
+    /// 提示位是否显示(D7 触点 2,S10 已接线可点击);`.dayAmbiguous` 由
     /// runFullPipeline 拦在阶段 1 之前(见该函数注释)。
     private(set) var hourGate: HourUnknownGate = .hourKnown
+
+    /// S10「我确实不知道」静默态(单一事实源 = 同一 payload 的
+    /// `hour_unknown_accepted`,与 hourGate 同点位刷新)。静默态下末尾行文案
+    /// 降中性(不再主动提示,行保留可点击)。
+    private(set) var isHourUnknownAccepted: Bool = false
 
     // MARK: 历史日期选择
 
@@ -299,6 +304,31 @@ final class DailyFortuneViewModel {
         try dailyStore.getHistory(chartHash: chartHash, limit: 7)
     }
 
+    // MARK: - S10 静默态轻量刷新
+
+    /// 补时辰 sheet 关闭后的轻量刷新(静默态写穿 payload,hash 不变 → 不重跑
+    /// 排盘管线,只重读存档判据;重算换新盘场景由 View 层 resolveCurrentChart 的
+    /// hash 变化走全量重载)。读取失败显式记日志,保留旧判据(不静默吞,
+    /// 也不拿失败掩盖已展示的内容)。
+    func refreshHourFlags(chartHash: String?) {
+        guard let hash = chartHash else { return }
+        do {
+            guard let snapshot = try chartStore.get(contentHash: hash) else {
+                AppLogger.persistence.warning(
+                    "op=dailyFortune.refreshHourFlags snapshot_missing hash=\(hash, privacy: .public)"
+                )
+                return
+            }
+            let bazi = try chartStore.decodeResponse(from: snapshot)
+            hourGate = bazi.hourUnknownGate
+            isHourUnknownAccepted = bazi.isHourSilenced
+        } catch {
+            AppLogger.persistence.error(
+                "op=dailyFortune.refreshHourFlags failed hash=\(hash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+        }
+    }
+
     // MARK: - 查询
 
     var remainingReads: Int { orchestrator.remainingReads() }
@@ -338,6 +368,7 @@ final class DailyFortuneViewModel {
             }
             let bazi = try chartStore.decodeResponse(from: snapshot)
             hourGate = bazi.hourUnknownGate
+            isHourUnknownAccepted = bazi.isHourSilenced
             cachedChartPayload = ChartPayloadDTO.from(baziResponse: bazi)
 
             // S09 / D5 日柱歧义全拦:没有日主,daily_fortune 的 REQUIRED 里
@@ -466,6 +497,7 @@ final class DailyFortuneViewModel {
                 // S09:离线兜底路径同步刷新判据(runFullPipeline 网络失败时未走到
                 // 前置判定;此处与主路径同源,不重推)
                 hourGate = bazi.hourUnknownGate
+                isHourUnknownAccepted = bazi.isHourSilenced
             } else {
                 AppLogger.persistence.error(
                     "daily.offline_fallback.chartSnapshot_missing hash=\(chartHash, privacy: .public)"

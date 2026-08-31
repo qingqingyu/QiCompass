@@ -29,10 +29,13 @@ struct PaywallView: View {
             if viewModel.isPurchaseIntercepted {
                 // S07 时辰未知拦截态(D6):不展示价格、不展示购买按钮、不加载
                 // StoreKit product(purchase 在 VM 层另有守卫,纵深防御)。
-                // 水墨克制:一句话 + 占位入口,无红色警示;CTA 一期占位,S10 接线。
+                // D9 二期正式版文案:为什么拦(双重收费人话版)+ 补时辰引导;
+                // S10 接线 CTA → 补时辰 sheet;静默态文案降中性(入口保留)。
                 HourUnknownGateNotice(
                     title: L10n.PaywallGate.title,
-                    reason: L10n.PaywallGate.reason
+                    reason: L10n.PaywallGate.paywallReason,
+                    silenced: viewModel.hourUnknownSilenced,
+                    onAddHour: viewModel.onAddHour
                 )
                 Spacer(minLength: 0)
             } else {
@@ -186,55 +189,68 @@ struct PaywallView: View {
     }
 }
 
-// MARK: - S07 时辰未知拦截态组件(付费墙 / 深度解析整拦页 / 合盘对卡共用)
+// MARK: - S07 时辰未知拦截态组件(付费墙 / 深度解析整拦页 / 合盘对卡 / 每日运势整拦页共用)
 
-/// 水墨克制拦截表达(DESIGN.md:一句话 + 占位入口,无红色警示)。
+/// 水墨克制拦截表达(DESIGN.md:一句话 + 入口,无红色警示)。
 ///
-/// 三处复用,文案由调用方按场景传入(`L10n.PaywallGate`):
+/// 四处复用,文案由调用方按场景传入(`L10n.PaywallGate`):
 /// - `PaywallView` 拦截态(无时辰·日柱确定 → 付费墙位置)
 /// - `DeepAnalysisView` 日柱歧义整拦页(免费 2 章亦拦,不进内容页)
 /// - `CompatibilityPairListView` 对级拦截卡(任一方无时辰 → 整对拦,免费亦拦)
+/// - `DailyFortuneView` 日柱歧义整拦页(S09)
+///
+/// S10:`onAddHour` 接线补时辰 sheet(D7);`silenced` = 「我确实不知道」静默态,
+/// 文案切换中性版(不再主动提示,入口保留可点击)。
 struct HourUnknownGateNotice: View {
     let title: String
     let reason: String
+    /// S10 静默态(D7 第 4 条):标题/为什么/CTA 切中性文案(通用一组,不分场景)。
+    var silenced: Bool = false
+    /// S10 接线:CTA 打开补时辰 sheet。nil = 无宿主注入(测试渲染)→ CTA 不渲染
+    /// (不可完成动作不展示按钮)。
+    var onAddHour: (() -> Void)? = nil
 
-    /// S10 接线注记:一期 CTA 是占位——点击仅轻提示(不 crash);S10 补时辰
-    /// sheet 上线后把 Button action 换成打开 sheet 即闭环(D7 触点 3,转化最高位置)。
-    @State private var showAddHourHint = false
+    private var effectiveTitle: String {
+        silenced ? L10n.PaywallGate.silentTitle : title
+    }
+
+    private var effectiveReason: String {
+        silenced ? L10n.PaywallGate.silentReason : reason
+    }
+
+    private var effectiveCTA: String {
+        silenced ? L10n.PaywallGate.silentCta : L10n.PaywallGate.cta
+    }
 
     var body: some View {
         VStack(spacing: BaziTheme.Spacing.md) {
             // 「时」印:缺的不是钱,是时辰(朱印仅印章级小元素,符合 DESIGN.md 约束)
             SealStamp(character: "时", size: 34, rotation: -4, stampDelay: 0.2)
-            Text(title)
+            Text(effectiveTitle)
                 .font(BaziFont.display(size: 17))
                 .tracking(2)
                 .foregroundStyle(BaziTheme.ink)
                 .multilineTextAlignment(.center)
-            Text(reason)
+            Text(effectiveReason)
                 .font(BaziFont.caption(size: 11.5))
                 .tracking(1)
                 .foregroundStyle(BaziTheme.inkMuted)
                 .multilineTextAlignment(.center)
 
-            // CTA 占位:capsule hairline chip 形态(占位不是可完成动作,不做实底 CTA)
-            Button {
-                HapticEngine.light()
-                withAnimation(.easeOut(duration: 0.2)) { showAddHourHint = true }
-            } label: {
-                Text(L10n.PaywallGate.cta)
-                    .font(.caption.weight(.semibold))
-                    .tracking(1)
-                    .foregroundStyle(BaziTheme.ink)
-                    .padding(.horizontal, 18)
-                    .padding(.vertical, 8)
-                    .overlay(Capsule().stroke(BaziTheme.hairline, lineWidth: 0.5))
-            }
-            if showAddHourHint {
-                Text(L10n.PaywallGate.ctaHint)
-                    .font(.caption2)
-                    .tracking(1)
-                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+            // CTA(S10 已接线):capsule hairline chip 形态(引导不是强卖,不做实底 CTA)
+            if let onAddHour {
+                Button {
+                    HapticEngine.light()
+                    onAddHour()
+                } label: {
+                    Text(effectiveCTA)
+                        .font(.caption.weight(.semibold))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.ink)
+                        .padding(.horizontal, 18)
+                        .padding(.vertical, 8)
+                        .overlay(Capsule().stroke(BaziTheme.hairline, lineWidth: 0.5))
+                }
             }
         }
         .frame(maxWidth: .infinity)

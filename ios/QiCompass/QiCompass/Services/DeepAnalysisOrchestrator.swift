@@ -46,24 +46,7 @@ final class DeepAnalysisOrchestrator {
     func runCalculation(request: BaziCalculateRequest, alias: String = "我自己") async throws -> BaziResponse {
         // 规则 2:函数入口日志(网络调用内部已通过 AppLogger.measure 覆盖 start/ok/failed)
         AppLogger.app.info("deep.runCalculation.start birth=\(request.birthDatetime, privacy: .public) tz=\(request.timezone, privacy: .public) gender=\(request.gender, privacy: .public) place=\(request.placeName ?? "nil", privacy: .public) lon=\(request.longitude, privacy: .public)")
-        let response = try await AppLogger.measure(
-            AppLogger.networking,
-            operation: "calculateBazi",
-            context: [
-                "birth": request.birthDatetime,
-                "gender": request.gender,
-                "timezone": request.timezone,
-                "place": request.placeName ?? "nil",
-            ]
-        ) {
-            try await self.apiClient.calculateBazi(request: request)
-        }
-
-        // S05:柱缺失(时辰未知/S02 歧义)→ 日志位「—」,不猜干支
-        AppLogger.app.info("calc.ok contentHash=\(response.contentHash, privacy: .public) pillars=\(response.pillars.year?.ganZhi ?? "—", privacy: .public)/\(response.pillars.month?.ganZhi ?? "—", privacy: .public)/\(response.pillars.day?.ganZhi ?? "—", privacy: .public)/\(response.pillars.hour?.ganZhi ?? "—", privacy: .public)")
-
-        // 存档(失败 throw → chartFailed,不提示"命盘已保存")
-        _ = try chartStore.upsert(response: response, request: request)
+        let response = try await calculateAndArchive(request: request)
 
         // 写 UserSnapshotLink 标记归属(alias 由调用方传入,默认"我自己")。
         // 不写 link 会让合盘 / 每日运势查不到本命盘(它们都按 UserSnapshotLink 取列表)。
@@ -86,6 +69,43 @@ final class DeepAnalysisOrchestrator {
             )
         }
 
+        return response
+    }
+
+    /// S10 补时辰重算:calculate + 存档,**不写 UserSnapshotLink**。
+    ///
+    /// link 语义由调用方(`AddHourViewModel.submit`)决定:老盘有 link → 按**原 alias**
+    /// 补写新 link(编辑场景隔离,名字不丢);老盘无 link(合盘临时人隐式落地的盘,
+    /// D6 红线「临时人不建 link」)→ 新盘同样不建。因此不能复用 `runCalculation`
+    /// (它会无条件以默认 alias 写 link,把临时人洗成正式命盘)。
+    ///
+    /// 新 content_hash ≠ 老 hash 的闭环断言在调用方(那里持有老 hash);
+    /// 此处只负责网络 + 存档,失败照常 throw。
+    func runAddHourRecalculation(request: BaziCalculateRequest) async throws -> BaziResponse {
+        AppLogger.app.info("deep.runAddHourRecalculation.start birth=\(request.birthDatetime, privacy: .public) tz=\(request.timezone, privacy: .public) hourKnown=\(request.hourKnown, privacy: .public)")
+        return try await calculateAndArchive(request: request)
+    }
+
+    /// 排盘 + 存档共用核心(runCalculation / runAddHourRecalculation 两条路径共享)。
+    private func calculateAndArchive(request: BaziCalculateRequest) async throws -> BaziResponse {
+        let response = try await AppLogger.measure(
+            AppLogger.networking,
+            operation: "calculateBazi",
+            context: [
+                "birth": request.birthDatetime,
+                "gender": request.gender,
+                "timezone": request.timezone,
+                "place": request.placeName ?? "nil",
+            ]
+        ) {
+            try await self.apiClient.calculateBazi(request: request)
+        }
+
+        // S05:柱缺失(时辰未知/S02 歧义)→ 日志位「—」,不猜干支
+        AppLogger.app.info("calc.ok contentHash=\(response.contentHash, privacy: .public) pillars=\(response.pillars.year?.ganZhi ?? "—", privacy: .public)/\(response.pillars.month?.ganZhi ?? "—", privacy: .public)/\(response.pillars.day?.ganZhi ?? "—", privacy: .public)/\(response.pillars.hour?.ganZhi ?? "—", privacy: .public)")
+
+        // 存档(失败 throw → chartFailed,不提示"命盘已保存")
+        _ = try chartStore.upsert(response: response, request: request)
         return response
     }
 

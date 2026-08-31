@@ -51,8 +51,10 @@ struct ChartArchivePickerView: View {
 /// - 点击 toggle 而非替换
 /// - 排除 A 盘自己(决策 D1:A 保持单选,自己不可入名单)
 /// - 上限 8(决策 D2):UI 在外层 disable 超量勾选;此处仅视觉显示
-/// - S11:无时辰命盘行标「不可合盘」(置灰 + 留白记号),点击轻提示不勾入
-///   (发起前最早层拦截;VM toggleArchived 同判据守卫兜底)
+/// - S11:无时辰命盘行标「不可合盘」(置灰 + 留白记号)
+/// - S10:点击被标记行 → 补时辰 sheet(D7 触点 1 扩展到合盘 roster 里的他人
+///   命盘;他人盘补时辰同 hash 重建,对级关系自然重算)。nil(无宿主)退回
+///   S11 轻提示行为
 struct ChartArchiveMultiPickerView: View {
     let title: String
     let charts: [ArchivedChart]
@@ -64,8 +66,10 @@ struct ChartArchiveMultiPickerView: View {
     let isHourUnknown: (String) -> Bool
     /// 点击行触发 toggle。
     let onToggle: (String) -> Void
+    /// S10:点击被标记行 → 打开该盘补时辰 sheet(参数 = 该盘 content_hash)。
+    var onAddHour: ((String) -> Void)? = nil
 
-    /// S11:被拦勾选的轻提示(点击被标记行后出现;水墨克制,无红色警示)。
+    /// S11:被拦勾选的轻提示(无 S10 宿主时的回退;水墨克制,无红色警示)。
     @State private var showHourUnknownHint = false
 
     var body: some View {
@@ -91,10 +95,16 @@ struct ChartArchiveMultiPickerView: View {
                         let isHourUnknownRow = isHourUnknown(chart.snapshotHash)
                         Button {
                             guard !isExcluded else { return }
-                            // S11 发起拦截:无时辰 → 轻提示,不勾入名单(不进计算)
+                            // S11 发起拦截:无时辰 → 不勾入名单(不进计算)。
+                            // S10 接线:优先直达补时辰 sheet(修复动作比轻提示更短路径);
+                            // 无宿主(测试渲染)退回 S11 轻提示。
                             if isHourUnknownRow {
                                 HapticEngine.light()
-                                withAnimation(.easeOut(duration: 0.2)) { showHourUnknownHint = true }
+                                if let onAddHour {
+                                    onAddHour(chart.snapshotHash)
+                                } else {
+                                    withAnimation(.easeOut(duration: 0.2)) { showHourUnknownHint = true }
+                                }
                                 return
                             }
                             onToggle(chart.snapshotHash)

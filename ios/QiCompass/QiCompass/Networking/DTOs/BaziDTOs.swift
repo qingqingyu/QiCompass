@@ -293,11 +293,23 @@ struct BaziResponse: Codable, Sendable {
     /// hour_known=true 恒 nil(老路径响应形状不变);渲染留白以 `pillars.<pos> == nil`
     /// 为准(不变量:pillar_ambiguity.<pos> == true ⟺ pillars.<pos> 为 null)。
     var pillarAmbiguity: PillarAmbiguityDTO? = nil
+    /// 「我确实不知道」静默态(S10,D7 永久无时辰用户):用户确认补不上时辰后,
+    /// 三触点不再主动提示(留白列保留,运势末尾行/付费墙 CTA 文案降中性),
+    /// Profile 入口保留。**纯 UI 提示偏好,不参与排盘/喜忌/任何计算与 hash**;
+    /// 由 `ChartSnapshotStore.setHourUnknownAccepted` 写入存档 payload(后端响应
+    /// 不回显此字段,与 lateNight 同款注入路径);老 payload 缺 key → nil(decodeIfPresent)。
+    var hourUnknownAccepted: Bool? = nil
 
     /// 存档/响应是否含时柱(时辰未知 S04)。单一事实源是后端
     /// `calc_rule_snapshot.hour_known`;老 payload 缺 key → true(decodeIfPresent ?? true)。
     var isHourKnown: Bool {
         calcRuleSnapshot.hourKnown ?? true
+    }
+
+    /// 静默态判据(S10):`hour_unknown_accepted == true`(缺 key/显式 false → false)。
+    /// 消费方(运势末尾行 / 付费墙拦截文案 / Profile 入口注)只读此派生,不重复推断。
+    var isHourSilenced: Bool {
+        hourUnknownAccepted == true
     }
 
     enum CodingKeys: String, CodingKey {
@@ -333,6 +345,7 @@ struct BaziResponse: Codable, Sendable {
         case lateNight = "late_night"
         case shenshaIncomplete = "shensha_incomplete"
         case pillarAmbiguity = "pillar_ambiguity"
+        case hourUnknownAccepted = "hour_unknown_accepted"
     }
 
     // Stage 7b 关键修复:自定义 init(from:) 让 v1 字段真能解码。
@@ -423,6 +436,9 @@ struct BaziResponse: Codable, Sendable {
         // 时辰未知 S01/S02:神煞完整性标注 + 柱歧义标记(老 payload 缺 key → 默认值)
         shenshaIncomplete = try c.decodeIfPresent(Bool.self, forKey: .shenshaIncomplete) ?? false
         pillarAmbiguity = try c.decodeIfPresent(PillarAmbiguityDTO.self, forKey: .pillarAmbiguity)
+        // S10 静默态 flag(后端不回显,仅 ChartSnapshotStore.setHourUnknownAccepted 注入;
+        // 老 payload 缺 key → nil 不 crash,2026-08-15 keyNotFound 教训)
+        hourUnknownAccepted = try c.decodeIfPresent(Bool.self, forKey: .hourUnknownAccepted)
     }
 
     // Stage 7b:memberwise init(自定义 init(from:) 后失去合成,手写带默认值
@@ -459,7 +475,8 @@ struct BaziResponse: Codable, Sendable {
         meta: MetaBlockDTO? = nil,
         lateNight: Bool? = nil,
         shenshaIncomplete: Bool = false,
-        pillarAmbiguity: PillarAmbiguityDTO? = nil
+        pillarAmbiguity: PillarAmbiguityDTO? = nil,
+        hourUnknownAccepted: Bool? = nil
     ) {
         self.contentHash = contentHash
         self.trueSolarTime = trueSolarTime
@@ -493,6 +510,7 @@ struct BaziResponse: Codable, Sendable {
         self.lateNight = lateNight
         self.shenshaIncomplete = shenshaIncomplete
         self.pillarAmbiguity = pillarAmbiguity
+        self.hourUnknownAccepted = hourUnknownAccepted
     }
 }
 

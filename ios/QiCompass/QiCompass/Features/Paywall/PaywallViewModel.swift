@@ -98,6 +98,16 @@ final class PaywallViewModel {
     /// = 老调用点(每日运势历史解锁等)零改动,行为与现状完全一致。
     let hourUnknownGate: HourUnknownGate
 
+    /// S10「我确实不知道」静默态(单一事实源 = 存档 payload `isHourSilenced`,
+    /// 由调用方传入;默认 false = 老调用点零改动)。拦截页文案降中性(D7 第 4 条:
+    /// 不再主动提示,入口保留)。
+    let hourUnknownSilenced: Bool
+
+    /// S10 补时辰触点(D7 触点 3,转化最高位置):拦截态 CTA → 打开补时辰 sheet。
+    /// 由宿主注入(典型:dismiss 付费墙 + 打开 AddHourSheet);nil = 无宿主注入
+    /// → CTA 不渲染(不可完成动作不展示按钮)。
+    let onAddHour: (() -> Void)?
+
     /// 购买成功回调(由调用方注入:dismiss sheet + 重新调 _paid)。
     var onPurchaseSuccess: (() -> Void)?
 
@@ -113,12 +123,16 @@ final class PaywallViewModel {
         contentHash: String,
         purchaseManager: PurchaseManager,
         hourUnknownGate: HourUnknownGate = .hourKnown,
+        hourUnknownSilenced: Bool = false,
+        onAddHour: (() -> Void)? = nil,
         onPurchaseSuccess: (() -> Void)? = nil
     ) {
         self.module = module
         self.contentHash = contentHash
         self.purchaseManager = purchaseManager
         self.hourUnknownGate = hourUnknownGate
+        self.hourUnknownSilenced = hourUnknownSilenced
+        self.onAddHour = onAddHour
         self.onPurchaseSuccess = onPurchaseSuccess
     }
 

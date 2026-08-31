@@ -152,6 +152,30 @@ final class ChartSnapshotStore {
             throw error
         }
     }
+
+    /// S10 静默态 flag 写回 payload(`hour_unknown_accepted`,D7「我确实不知道」)。
+    ///
+    /// payload 是内容寻址数据,本字段是**纯 UI 提示偏好**(不参与排盘/喜忌/content_hash,
+    /// 见 `BaziResponse.hourUnknownAccepted` 注),覆盖写不破坏「同一输入同一输出」——
+    /// 排盘字段逐字节不动,decode→改 flag→encode 往返保持其余 payload 原样
+    /// (生肖 null 透传等往返语义已有 S08 回归测试兜底)。
+    /// 关闭静默(accepted=false)写 nil:encodeIfPresent 省 key,回到老盘 payload 形状。
+    /// snapshot 缺失 → throw(触点状态错乱,显式暴露不静默)。
+    func setHourUnknownAccepted(contentHash: String, accepted: Bool) throws {
+        let desc = FetchDescriptor<ChartSnapshot>(
+            predicate: #Predicate { $0.contentHash == contentHash }
+        )
+        guard let snapshot = try context.fetch(desc).first else {
+            throw AddHourError.targetSnapshotMissing(contentHash: contentHash)
+        }
+        var response = try decodeResponse(from: snapshot)
+        response.hourUnknownAccepted = accepted ? true : nil
+        snapshot.payload = try APICoder.encoder.encode(response)
+        try context.save()
+        AppLogger.persistence.info(
+            "op=chartSnapshot.setHourUnknownAccepted hash=\(contentHash, privacy: .public) accepted=\(accepted, privacy: .public)"
+        )
+    }
 }
 
 // MARK: - 存档请求重建(2026-08-16 深度解析直读存档)
@@ -192,6 +216,53 @@ extension ChartSnapshot {
             placeName: cityName,
             geonameId: nil,
             ziHourRule: ziHourRule
+        )
+    }
+
+    /// S10 补时辰重算请求(编辑场景隔离,生肖决策 Q20:本入口只管补时辰)。
+    ///
+    /// 「原出生日期 + 新时辰 + 原 gender/place」→ `hourKnown=true`、`lateNight`
+    /// 作废清 nil(补的是确定时辰,D3 二值问题只为日柱歧义判断,时辰确定后无意义)。
+    ///
+    /// **日期来源**(与 `archivedDisplayRequest` 的用途边界关键差异):本请求**会**
+    /// 回传 /api/bazi/calculate,日期必须精确——时辰未知盘的 `birthSolarTime` 是
+    /// request 的 12:00 占位钟面按出生地时区解析的「出生日期锚点」(S05 存档回退
+    /// 路径),取其**日期分量**(出生地钟面)即用户当初输入的真实日期,不经真太阳时
+    /// 近似。时辰分量由调用方传入(wheel/时辰快捷选的出生地钟面时分)。
+    ///
+    /// `cityTimezone` nil / 非法标识符 → 显式 throw:时辰未知盘不可能早于 S03
+    /// (timezone 自 S03 起必存档),出现即数据损坏,不用设备时区静默兜底
+    /// (CLAUDE.md 错误显式传播)。
+    ///
+    /// `geonameId` 不入存档 → nil(展示元数据,不参与 content_hash)。
+    func addHourRequest(hour: Int, minute: Int) throws -> BaziCalculateRequest {
+        guard let tzName = cityTimezone, let tz = TimeZone(identifier: tzName) else {
+            throw AddHourError.timezoneMissing(contentHash: contentHash)
+        }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = tz
+        var comps = calendar.dateComponents([.year, .month, .day], from: birthSolarTime)
+        comps.hour = hour
+        comps.minute = minute
+        comps.second = 0
+        guard let combined = calendar.date(from: comps) else {
+            throw AddHourError.combineFailed(contentHash: contentHash)
+        }
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        formatter.timeZone = tz
+        return BaziCalculateRequest(
+            birthDatetime: formatter.string(from: combined),
+            timezone: tzName,
+            gender: gender,
+            longitude: cityLongitude,
+            latitude: cityLatitude,
+            placeName: cityName,
+            geonameId: nil,
+            ziHourRule: ziHourRule,
+            hourKnown: true,
+            lateNight: nil
         )
     }
 }

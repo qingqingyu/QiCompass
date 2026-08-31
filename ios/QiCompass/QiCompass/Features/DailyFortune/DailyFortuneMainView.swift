@@ -20,6 +20,9 @@ struct DailyFortuneMainView: View {
     let onRefresh: () -> Void
     let onHistorySelect: (Date) -> Void
     let onGenerateInterpret: () -> Void
+    /// S10 补时辰触点(D7 触点 2):末尾静默行点击 → 打开补时辰 sheet(宿主
+    /// DailyFortuneView 注入)。静默行不是弹窗,是可点的一行文字。
+    let onAddHour: () -> Void
 
     @EnvironmentObject private var env: AppEnvironment
 
@@ -36,6 +39,7 @@ struct DailyFortuneMainView: View {
         onRefresh: @escaping () -> Void,
         onHistorySelect: @escaping (Date) -> Void,
         onGenerateInterpret: @escaping () -> Void,
+        onAddHour: @escaping () -> Void,
     ) {
         self._vm = Bindable(wrappedValue: vm)
         self.response = response
@@ -46,6 +50,7 @@ struct DailyFortuneMainView: View {
         self.onRefresh = onRefresh
         self.onHistorySelect = onHistorySelect
         self.onGenerateInterpret = onGenerateInterpret
+        self.onAddHour = onAddHour
         self._imageStore = StateObject(wrappedValue: DailyImageStore(client: imageClient))
     }
 
@@ -147,17 +152,28 @@ struct DailyFortuneMainView: View {
                 TomorrowPreviewSection(preview: response.tomorrowPreview)
                     .padding(.horizontal, 24)
 
-                // S09 末尾静默提示位预留(D7 触点 2,「一行文字,不是弹窗」):
-                // 仅时辰未知·日柱确定的降级版展示(判据 = vm.hourGate,单一事实源)。
-                // 本 slice 只占位静态展示;S10 接线:改成可点击 → 打开补时辰 sheet。
+                // S10 接线(D7 触点 2,「一行文字,不是弹窗」):仅时辰未知·日柱
+                // 确定的降级版展示(判据 = vm.hourGate,单一事实源),点击进补时辰
+                // sheet。静默态(「我确实不知道」)行保留可点击、文案降中性——
+                // 入口在,提示不在。
                 if vm.hourGate == .hourUnknownDayDetermined {
-                    Text(L10n.DailyFortune.degradedHint)
-                        .font(BaziFont.caption(size: 10.5))
-                        .tracking(1)
-                        .multilineTextAlignment(.center)
-                        .foregroundStyle(BaziTheme.inkMutedSecondary)
-                        .frame(maxWidth: .infinity)
-                        .padding(.top, 26)
+                    Button {
+                        HapticEngine.light()
+                        onAddHour()
+                    } label: {
+                        Text(vm.isHourUnknownAccepted
+                             ? L10n.DailyFortune.degradedHintSilent
+                             : L10n.DailyFortune.degradedHint)
+                            .font(BaziFont.caption(size: 10.5))
+                            .tracking(1)
+                            .multilineTextAlignment(.center)
+                            .foregroundStyle(BaziTheme.inkMutedSecondary)
+                            .frame(maxWidth: .infinity)
+                            .padding(.horizontal, 24)
+                            .padding(.top, 26)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(L10n.DailyFortune.degradedHint)
                 }
             }
             .padding(.bottom, 32)

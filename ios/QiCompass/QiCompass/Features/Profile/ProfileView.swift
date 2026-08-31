@@ -51,6 +51,12 @@ struct ProfileView: View {
     /// 用 @AppStorage 而非 UserDefaults.standard 让 RootTabView 立即响应(避免 1 runloop 同步延迟)。
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
+    // S10 补时辰升级闭环(D7 常驻入口:静默态下唯一保留的主动入口)
+    /// 补时辰 sheet VM(nil = 未打开)。
+    @State private var addHourVM: AddHourViewModel?
+    /// 装配失败的人话文案(alert 显式报错,不静默不开)。
+    @State private var addHourError: String?
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -71,6 +77,17 @@ struct ProfileView: View {
                             .listRowInsets(EdgeInsets(top: BaziTheme.Spacing.sm, leading: BaziTheme.Spacing.md, bottom: BaziTheme.Spacing.sm, trailing: BaziTheme.Spacing.md))
                             .listRowBackground(Color.clear)
                             .listRowSeparator(.hidden)
+                            // S10:命盘时辰未知 → 常驻「补充出生时刻」入口
+                            // (静默态保留;判据单一事实源 = payload hourUnknownGate)
+                            if primaryNeedsHour {
+                                addHourRow(
+                                    silenced: primaryIsHourSilenced,
+                                    hash: primary.snapshot.contentHash
+                                )
+                                .listRowInsets(EdgeInsets(top: 0, leading: BaziTheme.Spacing.md, bottom: BaziTheme.Spacing.sm, trailing: BaziTheme.Spacing.md))
+                                .listRowBackground(Color.clear)
+                                .listRowSeparator(.hidden)
+                            }
                         }
                     }
                     accountSection(zodiacMode: zodiacMode)
@@ -85,6 +102,26 @@ struct ProfileView: View {
             .navigationTitle("我的")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.light, for: .navigationBar)
+            // S10:补时辰 sheet(本 Tab 是仓库不是钩子,但静默态用户唯一主动入口在这)。
+            // 关闭无额外刷新:@Query 自动响应存档/link 变化(补时辰 = 新 snapshot + 新 link)。
+            .sheet(item: $addHourVM) { vm in
+                AddHourSheet(
+                    vm: vm,
+                    onCancel: { addHourVM = nil },
+                    onRecalculated: { _ in }
+                )
+            }
+            .alert(
+                "暂时无法补时辰",
+                isPresented: Binding(
+                    get: { addHourError != nil },
+                    set: { if !$0 { addHourError = nil } }
+                )
+            ) {
+                Button("好的", role: .cancel) {}
+            } message: {
+                Text(addHourError ?? "")
+            }
             .sheet(isPresented: $showNewChartSheet) {
                 newChartSheet
             }
@@ -237,6 +274,70 @@ struct ProfileView: View {
 
     // 头像位三态表达(生肖图 / 墨点 / 空)抽成文件级 `ZodiacAvatarMark`,
     // 账号头像(40pt)与命主卡 IdentityCard(64pt)共用同一表达,判定同源。
+
+    // MARK: - S10 补时辰常驻入口(D7)
+
+    /// 命主卡「补充出生时刻」入口行(命盘时辰未知时显示)。
+    /// 静默态如实标注(入口保留;D7:静默是尊重不是惩罚)。
+    private func addHourRow(silenced: Bool, hash: String) -> some View {
+        Button {
+            openAddHourSheet(hash: hash)
+        } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                Text(L10n.Profile.addHourEntry)
+                    .font(.subheadline)
+                    .foregroundStyle(BaziTheme.ink)
+                if silenced {
+                    Text(L10n.Profile.addHourSilentNote)
+                        .font(.caption2)
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+        }
+        .buttonStyle(.plain)
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
+                .padding(.horizontal, -BaziTheme.Spacing.md)
+        }
+    }
+
+    /// 命主盘是否缺时辰(payload 判据;decode 失败 → false 不展示入口——
+    /// decode 失败的具体 error 已由 `ChartSnapshotStore.decodeResponse` 记录,
+    /// 命主卡本身也已按 `.hidden` 降级,入口不单独暴露解码故障)。
+    private var primaryNeedsHour: Bool {
+        guard let primary = primarySnapshot else { return false }
+        guard let response = try? env.chartSnapshotStore.decodeResponse(from: primary.snapshot) else {
+            return false
+        }
+        return response.hourUnknownGate != .hourKnown
+    }
+
+    /// 命主盘静默态(「我确实不知道」;入口注用,与判据同源 decode)。
+    private var primaryIsHourSilenced: Bool {
+        guard let primary = primarySnapshot,
+              let response = try? env.chartSnapshotStore.decodeResponse(from: primary.snapshot) else {
+            return false
+        }
+        return response.isHourSilenced
+    }
+
+    /// 打开补时辰 sheet(装配失败显式 alert,不静默不开)。
+    private func openAddHourSheet(hash: String) {
+        do {
+            addHourVM = try AddHourViewModel.make(
+                snapshotHash: hash,
+                orchestrator: env.deepAnalysisOrchestrator,
+                chartStore: env.chartSnapshotStore,
+                linkStore: env.userSnapshotLinkStore
+            )
+        } catch {
+            AppLogger.app.error(
+                "op=profile.openAddHour failed hash=\(hash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            addHourError = (error as? LocalizedError)?.errorDescription ?? L10n.AddHour.errorRebuild
+        }
+    }
 
     // MARK: - Section 1: 我的命盘
 

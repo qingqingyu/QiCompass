@@ -35,6 +35,12 @@ struct OnboardingView: View {
     /// 提交前二次确认 sheet 触发态(生肖阶段 3:防新用户首次输错 → 重置命盘代价大)。
     @State private var showSubmitConfirm = false
 
+    // S10 补时辰(S08 立春降级态的被迫例外触点,接同一 AddHourSheet):
+    /// 补时辰 sheet VM(nil = 未打开)。
+    @State private var addHourVM: AddHourViewModel?
+    /// 装配失败的人话文案(alert 显式报错,不静默不开)。
+    @State private var addHourError: String?
+
     var body: some View {
         ZStack {
             BaziTheme.paper.ignoresSafeArea()
@@ -56,6 +62,25 @@ struct OnboardingView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
             }
+        }
+        // S10:补时辰 sheet(嵌套 sheet;重算成功在 onRecalculated 里翻转 reveal)。
+        .sheet(item: $addHourVM) { vm in
+            AddHourSheet(
+                vm: vm,
+                onCancel: { addHourVM = nil },
+                onRecalculated: { handleAddHourRecalculated($0) }
+            )
+        }
+        .alert(
+            "暂时无法补时辰",
+            isPresented: Binding(
+                get: { addHourError != nil },
+                set: { if !$0 { addHourError = nil } }
+            )
+        ) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text(addHourError ?? "")
         }
         .onAppear {
             // 首启 onboarding 呈现的入口日志,用于排查"没弹"问题
@@ -105,6 +130,8 @@ struct OnboardingView: View {
                 // S08:`ZodiacRevealMode.resolve` 判空串 → 立春降级态(不展示生肖内容、
                 // 不猜;CTA「继续」照常走 onComplete → CompleteOnceGate 状态边界不变,
                 // 降级态完成 onboarding 不重复触发,Q7 onChartArchived 在提交成功即回调)
+                // S10:.id(contentHash) —— 补时辰换新盘后 reveal 换身份重建:
+                // 降级态翻转为完整 reveal(哇时刻补上),盖章动效随新身份重放。
                 ZodiacRevealView(
                     zodiac: response.yearBranchZodiac ?? "",
                     mainLabel: mainLabel(from: response),
@@ -124,8 +151,11 @@ struct OnboardingView: View {
                         } else {
                             AppLogger.app.warning("ZodiacRevealView onComplete 已触发过,跳过重复调用")
                         }
-                    }
+                    },
+                    // S10:立春降级态补时辰轻提示 → 补时辰 sheet(D7 被迫例外触点)
+                    onAddHour: { openAddHourSheet(hash: response.contentHash) }
                 )
+                .id(response.contentHash)
             case .chartFailed(let userError):
                 ErrorStateView(error: userError, retry: vm.retryCalculation)
             }
@@ -196,6 +226,48 @@ struct OnboardingView: View {
     /// `animalChar` 对未知值 fatalError,必须先经 `isKnownZodiac` 判空。
     /// S08:「—」只在降级态产生,而降级态(`ZodiacRevealMode.yearAmbiguous`)
     /// 不渲染主标 —— 该占位值实际不可见,仅作参数完备传入。
+    // MARK: - S10 补时辰(S08 立春降级态例外触点)
+
+    /// 打开补时辰 sheet(目标 = 刚存档的命盘;装配失败显式 alert,不静默不开)。
+    @MainActor
+    private func openAddHourSheet(hash: String) {
+        do {
+            addHourVM = try AddHourViewModel.make(
+                snapshotHash: hash,
+                orchestrator: env.deepAnalysisOrchestrator,
+                chartStore: env.chartSnapshotStore,
+                linkStore: env.userSnapshotLinkStore
+            )
+        } catch {
+            AppLogger.app.error(
+                "op=onboarding.openAddHour failed hash=\(hash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            addHourError = (error as? LocalizedError)?.errorDescription ?? L10n.AddHour.errorRebuild
+        }
+    }
+
+    /// 补时辰重算成功 → 反馈屏翻转为完整 reveal:新盘四柱全、年柱确定 → 生肖照给,
+    /// 「哇时刻」补上(.id(contentHash) 让 reveal 换身份重放盖章动效)。
+    /// 存档取回失败显式记日志并保持降级 reveal(新盘已落档,用户完成 onboarding
+    /// 后在任何 Tab 都能看到;此处不 crash 不吞错)。
+    @MainActor
+    private func handleAddHourRecalculated(_ newResponse: BaziResponse) {
+        guard let vm else { return }
+        do {
+            guard let snapshot = try env.chartSnapshotStore.get(contentHash: newResponse.contentHash) else {
+                throw AddHourError.targetSnapshotMissing(contentHash: newResponse.contentHash)
+            }
+            vm.loadArchivedChart(response: newResponse, request: snapshot.archivedDisplayRequest)
+            AppLogger.app.info(
+                "op=onboarding.addHourRecalculated reveal_flip newHash=\(newResponse.contentHash, privacy: .public)"
+            )
+        } catch {
+            AppLogger.persistence.error(
+                "op=onboarding.handleAddHourRecalculated failed hash=\(newResponse.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+        }
+    }
+
     private func mainLabel(from response: BaziResponse) -> String {
         guard let zhi = response.pillars.year?.zhi,  // 如 "辰"
               let zodiac = response.yearBranchZodiac,

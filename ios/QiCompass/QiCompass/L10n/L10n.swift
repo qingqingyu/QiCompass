@@ -384,10 +384,16 @@ enum L10n {
         /// 历史加载失败(zh="历史加载失败", en="Failed to load history")
         static let mainHistoryError = String(localized: "dailyfortune.main.historyError")
 
-        /// S09 降级版末尾静默提示(D7 触点 2:一行文字,不是弹窗;S10 接线成可点击)。
+        /// S09 降级版末尾静默提示(D7 触点 2:一行文字,不是弹窗;S10 已接线可点击
+        /// → 打开补时辰 sheet)。
         /// zh: "这份运势只用了你的日柱。补上时辰可以看到时辰运势与喜忌。"
         /// en: "This reading uses only your day pillar. Add your birth hour to see hourly fortune and favorable elements."
         static let degradedHint = String(localized: "dailyfortune.main.degradedHint")
+
+        /// S10 静默态(「我确实不知道」开启)末尾行降中性:如实陈述、不引导不催促
+        /// (行保留可点击——入口在,提示不在)。
+        /// zh: "此运势基于你的日柱呈现。";en: "This reading is based on your day pillar."
+        static let degradedHintSilent = String(localized: "dailyfortune.main.degradedHintSilent")
 
         // -- History Lookback(2026-08-30,规则:免费 7 天 / 任意购买解锁全部) --
 
@@ -503,6 +509,17 @@ enum L10n {
         /// 隐私 3(无跟踪)。
         /// zh: "没有跟踪,没有画像";en: "No tracking, no profiling"
         static let aboutPrivacy3 = String(localized: "profile.about.privacy3")
+
+        // -- S10 补时辰常驻入口(D7:静默态下唯一保留的主动入口)--
+
+        /// 命主卡「补充出生时刻」入口行(命盘时辰未知时显示)。
+        /// zh: "补充出生时刻";en: "Add birth time"
+        static let addHourEntry = String(localized: "profile.addHour.entry")
+
+        /// 静默态开启时入口行的注(入口保留,如实标注状态)。
+        /// zh: "已设为不再提醒;点击可重新打开提示"
+        /// en: "Reminders are off — tap to turn them back on"
+        static let addHourSilentNote = String(localized: "profile.addHour.silentNote")
     }
 
     // MARK: - M4 健康输入表单(HealthInputForm;i18n 补录 2026-08-29)
@@ -657,15 +674,14 @@ enum L10n {
     // MARK: - 付费墙时辰未知拦截态(S07,iOS 一期临时态)
 
     /// 付费墙/内容拦截态文案(docs/时辰未知设计决策.md D5/D6)。
-    /// 水墨克制表达:一句话 + 占位入口,无红色警示;CTA 一期占位,S10 接线补时辰 sheet。
+    /// 水墨克制表达:一句话 + 入口,无红色警示;S10 起 CTA 接线补时辰 sheet,
+    /// 静默态(「我确实不知道」)文案降中性(D7 第 4 条)。
     enum PaywallGate {
         /// 拦截态主句(付费墙 sheet,日柱确定的无时辰用户)。
         /// zh: "补充出生时刻后解锁";en: "Add your birth hour to unlock"
         static let title = String(localized: "paywall.hourUnknown.title")
 
-        /// 为什么一句(付费墙 sheet):时辰缺失影响喜忌分析精度。
-        /// zh: "时辰缺失会影响喜忌分析的精度";en: "A missing birth hour reduces the precision of the favorable-elements reading"
-        static let reason = String(localized: "paywall.hourUnknown.reason")
+        // (S07 一期临时一句话 reason 已由 D9 二期正式版 `paywallReason` 取代,key 删除)
 
         /// 日柱歧义整拦态主句(深度解析不进内容页)。
         /// zh: "缺出生时辰,暂时无法解读";en: "Your birth hour is needed before this chart can be read"
@@ -685,13 +701,29 @@ enum L10n {
         /// en: "Compatibility needs both hour pillars and favorable elements — add the missing hour to unlock"
         static let compatibilityReason = String(localized: "paywall.hourUnknown.compatibility.reason")
 
-        /// CTA 占位(一期轻提示,S10 接线到补时辰 sheet)。
+        /// CTA(S10 已接线:打开补时辰 sheet,D7 触点 3——转化最高位置)。
         /// zh: "补上出生时刻";en: "Add your birth hour"
         static let cta = String(localized: "paywall.hourUnknown.cta")
 
-        /// CTA 占位点击后的轻提示(S10 上线前的诚实表达)。
-        /// zh: "补时辰入口即将开放";en: "The add-hour flow is coming soon"
-        static let ctaHint = String(localized: "paywall.hourUnknown.ctaHint")
+        /// D9 二期正式版为什么拦(付费墙拦截页):双重收费的人话版——拦的不只是
+        /// 精度,更是「先买三柱盘、补时辰换新盘还要再买一次」的必然二次收费。
+        /// zh: "深度解读以时柱与喜忌为根基。为避免你在信息不全时先付费、补上时辰后还要重新购买,先补时辰再解锁。"
+        /// en: "Deep readings are rooted in the hour pillar and favorable elements. So you don't pay now and again after adding the hour, the hour comes first."
+        static let paywallReason = String(localized: "paywall.hourUnknown.paywallReason")
+
+        /// S10 静默态(「我确实不知道」开启)拦截页降中性:如实陈述、不催促
+        /// (「我的」入口保留,想起时辰随时可补)。
+        /// zh: "时辰未知 · 完整解读暂不可购";en: "Hour unknown · full readings aren't purchasable yet"
+        static let silentTitle = String(localized: "paywall.hourUnknown.silentTitle")
+
+        /// 静默态为什么一句(中性陈述,无引导语气)。
+        /// zh: "这份命盘先按三柱解读;想起时辰时,随时可以在「我的」里补上。"
+        /// en: "This chart is read with three pillars for now. If the hour comes back to you, add it anytime in Profile."
+        static let silentReason = String(localized: "paywall.hourUnknown.silentReason")
+
+        /// 静默态 CTA(入口保留、文案中性:不催「补上」,只说可以补)。
+        /// zh: "补充出生时辰";en: "Add birth hour"
+        static let silentCta = String(localized: "paywall.hourUnknown.silentCta")
 
         /// 日柱歧义整拦页的逃生口(回表单重填)。
         /// zh: "返回表单";en: "Back to form"
@@ -724,6 +756,61 @@ enum L10n {
         /// zh: "你的命盘缺出生时辰,所有对暂不可合盘;补上时刻即可恢复"
         /// en: "Your chart is missing its birth hour — all pairs are on hold until it's added"
         static let selfBanner = String(localized: "compatibility.roster.hourUnknown.selfBanner")
+    }
+
+    // MARK: - 补时辰 sheet(S10,D7 补时辰升级闭环)
+
+    /// 补时辰单一入口组件文案(AddHourSheet;四触点共用,编辑场景隔离只补时辰)。
+    /// 静默是尊重不是惩罚:文案中性,无红色警示,不催促。
+    enum AddHour {
+        /// 章头标题(无别名时;老盘有 link 用 `forAlias` 带名字)。
+        /// zh: "补充出生时辰";en: "Add your birth hour"
+        static let title = String(localized: "addhour.sheet.title")
+
+        /// 副题(编辑场景隔离的界面表达:只补时辰,其余不动,重算换新盘)。
+        /// zh: "只补时辰这一个字段。出生日期、性别与出生地保持不变,命盘按新时辰重算,原盘归档保留。"
+        /// en: "Only the hour changes. Birth date, gender and birthplace stay as they are — the chart recalculates with the new hour, and the old one is kept."
+        static let subtitle = String(localized: "addhour.sheet.subtitle")
+
+        /// 提交 CTA(重算)。
+        /// zh: "保存并重算";en: "Save & recalculate"
+        static let cta = String(localized: "addhour.sheet.cta")
+
+        /// 提交 CTA loading。
+        /// zh: "重算中…";en: "Recalculating…"
+        static let ctaLoading = String(localized: "addhour.sheet.ctaLoading")
+
+        /// 静默态开启后的 CTA(无重算可做,仅关闭 sheet)。
+        /// zh: "完成";en: "Done"
+        static let doneCta = String(localized: "addhour.sheet.doneCta")
+
+        /// 「我确实不知道」静默态确认(D7 永久无时辰用户;直说不弱智化)。
+        /// zh: "我确实不知道出生时辰";en: "I truly don't know my birth hour"
+        static let giveUpToggle = String(localized: "addhour.sheet.giveUp.toggle")
+
+        /// 静默态用途微注(可逆,不是一锤子买卖)。
+        /// zh: "开启后不再提示补时辰;想补时随时可以再打开。"
+        /// en: "We'll stop asking. You can always come back and add it."
+        static let giveUpHint = String(localized: "addhour.sheet.giveUp.hint")
+
+        /// 章头标题(带老盘别名;他人盘「为「妈妈」补充出生时辰」)。
+        /// zh: "为「%@」补充出生时辰";en: "Add the birth hour for %@"
+        static func forAlias(_ alias: String) -> String {
+            String(format: String(localized: "addhour.sheet.forAlias"), alias)
+        }
+
+        /// 目标命盘读取失败(存档缺失 / 时区损坏;人话文案,技术细节记日志)。
+        /// zh: "出生信息读取失败,暂时无法补时辰"
+        /// en: "Couldn't read the birth record — can't add the hour right now"
+        static let errorRebuild = String(localized: "addhour.error.rebuild")
+
+        /// 重算失败(网络 / hash 未变守卫)。
+        /// zh: "重算未完成,请重试";en: "Recalculation didn't finish — please retry"
+        static let errorSubmit = String(localized: "addhour.error.submit")
+
+        /// 静默态写档失败。
+        /// zh: "设置未保存,请重试";en: "Couldn't save the setting — please retry"
+        static let errorSilenceSave = String(localized: "addhour.error.silenceSave")
     }
 
     // MARK: - 共享组件
