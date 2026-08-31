@@ -23,8 +23,39 @@ struct DailyFortuneMainView: View {
 
     @EnvironmentObject private var env: AppEnvironment
 
+    /// S3:插画客户端由调用方注入(DailyFortuneView 从 env.apiClient 取),
+    /// @StateObject 由此在 init 一次性建 Store。
+    init(
+        vm: DailyFortuneViewModel,
+        response: DailyFortuneResponse,
+        interpretState: InterpretState,
+        businessDate: Date,
+        chartHash: String?,
+        ziHourRule: String,
+        imageClient: DailyImageAPIClient,
+        onRefresh: @escaping () -> Void,
+        onHistorySelect: @escaping (Date) -> Void,
+        onGenerateInterpret: @escaping () -> Void,
+    ) {
+        self._vm = Bindable(wrappedValue: vm)
+        self.response = response
+        self.interpretState = interpretState
+        self.businessDate = businessDate
+        self.chartHash = chartHash
+        self.ziHourRule = ziHourRule
+        self.onRefresh = onRefresh
+        self.onHistorySelect = onHistorySelect
+        self.onGenerateInterpret = onGenerateInterpret
+        self._imageStore = StateObject(wrappedValue: DailyImageStore(client: imageClient))
+    }
+
     @State private var historySnapshots: [DailyFortuneSnapshot] = []
     @State private var historyError: String?
+
+    // S3 每日运势插画:状态机(loading/ready/failed)+ 轮询,NSCache 当日命中
+    @StateObject private var imageStore: DailyImageStore
+    /// 插画加载触发序号(重试按钮 +1 触发 .task 重跑)
+    @State private var imageLoadToken = 0
 
     // 历史回看解锁 + sheet
     @State private var showingHistorySheet = false
@@ -67,9 +98,13 @@ struct DailyFortuneMainView: View {
                 )
                 .padding(.horizontal, 24)
 
-                // hero 插画(五行小景,S0 静态样图;左右 17pt 边距宽于文本区)
-                DailyImageHeroSection(dayPillar: response.dayPillar)
-                    .padding(.horizontal, 17)
+                // hero 插画(五行小景,S3 动态生成;左右 17pt 边距宽于文本区)
+                DailyImageHeroSection(
+                    dayPillar: response.dayPillar,
+                    imageState: imageStore.state,
+                    onRetry: { imageLoadToken += 1 },
+                )
+                .padding(.horizontal, 17)
 
                 // 宜/忌 main anchor(V4 单行居中;视觉锚点,非 AI 输出)
                 YiJiAnchorSection(dayRelation: response.dayRelationToDayMaster)
@@ -115,6 +150,13 @@ struct DailyFortuneMainView: View {
             .padding(.bottom, 32)
         }
         .refreshable { onRefresh() }
+        // S3:插画加载——命盘/业务日/重试任一变化即重跑(.task 自动取消旧轮询)
+        .task(id: "\(chartHash ?? "nil")-\(businessDate.timeIntervalSince1970)-\(imageLoadToken)") {
+            guard let hash = chartHash,
+                  let request = vm.buildImageRequest(chartHash: hash, businessDate: businessDate)
+            else { return }
+            await imageStore.load(request: request)
+        }
         // 历史回看 sheet(免费锁定态 / 已购清单态)
         .sheet(isPresented: $showingHistorySheet) {
             DailyFortuneHistorySheet(

@@ -8,6 +8,11 @@ protocol APIClient: Sendable {
     func calculateBazi(request: BaziCalculateRequest) async throws -> BaziResponse
     func compatibility(request: CompatibilityRequest) async throws -> CompatibilityResponse
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse
+    /// S3:触发/查询每日运势插画生成状态(200 均带 JSON 状态体)
+    func dailyImageStatus(request: DailyFortuneRequest) async throws -> DailyImageStatusDTO
+    /// S3:取插画内容。200 → png bytes;202 → generating(JSON 体);
+    /// 404/409/429 走 throw(APIError.httpError 携状态码与 body)。
+    func dailyImageContent(chartHash: String, targetDate: String) async throws -> (data: Data, statusCode: Int)
     func interpret(request: InterpretRequest) async throws -> InterpretResponse
     func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse
     /// Slice 1:登录后批量拉当前 user 的全部 entitlement(跨设备 / 重装 / 退登回登同步)
@@ -101,6 +106,20 @@ final class LiveAPIClient: APIClient {
         return try decode(data, as: DailyFortuneResponse.self, endpoint: .dailyFortune)
     }
 
+    func dailyImageStatus(request: DailyFortuneRequest) async throws -> DailyImageStatusDTO {
+        let (data, _) = try await send(.dailyFortuneImage, body: request)
+        return try decode(data, as: DailyImageStatusDTO.self, endpoint: .dailyFortuneImage)
+    }
+
+    func dailyImageContent(chartHash: String, targetDate: String) async throws -> (data: Data, statusCode: Int) {
+        let (data, http) = try await send(
+            .dailyFortuneImageContent(chartHash: chartHash, targetDate: targetDate),
+            body: nil as EmptyBody?,
+            cachePolicy: .reloadIgnoringLocalCacheData
+        )
+        return (data, http.statusCode)
+    }
+
     func interpret(request: InterpretRequest) async throws -> InterpretResponse {
         let (data, _) = try await send(.interpret, body: request)
         return try decode(data, as: InterpretResponse.self, endpoint: .interpret)
@@ -149,7 +168,7 @@ final class LiveAPIClient: APIClient {
         body: Body?,
         cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
     ) async throws -> (Data, HTTPURLResponse) {
-        let url = baseURL.appendingPathComponent(endpoint.path)
+        let url = endpoint.url(base: baseURL)
         var req = URLRequest(url: url)
         req.cachePolicy = cachePolicy
         req.httpMethod = endpoint.method
@@ -259,6 +278,23 @@ final class MockAPIClient: APIClient {
         AppLogger.networking.debug("mock.dailyFortune 调起 chart_hash=\(request.chartHash.prefix(12), privacy: .public) target_date=\(request.targetDate.description, privacy: .public)")
         try? await Task.sleep(nanoseconds: 300_000_000)
         return Self.mockDailyFortuneResponse(for: request)
+    }
+
+    func dailyImageStatus(request: DailyFortuneRequest) async throws -> DailyImageStatusDTO {
+        AppLogger.networking.debug("mock.dailyImageStatus 调起(直接 ready)")
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        return DailyImageStatusDTO(status: "ready", error: nil)
+    }
+
+    func dailyImageContent(chartHash: String, targetDate: String) async throws -> (data: Data, statusCode: Int) {
+        AppLogger.networking.debug("mock.dailyImageContent 调起 hash=\(chartHash.prefix(12), privacy: .public) date=\(targetDate, privacy: .public)")
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        // 1×1 透明 PNG(硬编码 base64):Mock 只求链路走通,不求画面
+        let b64 = "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg=="
+        guard let data = Data(base64Encoded: b64) else {
+            preconditionFailure("mock PNG base64 非法")
+        }
+        return (data, 200)
     }
 
     func interpret(request: InterpretRequest) async throws -> InterpretResponse {

@@ -91,6 +91,7 @@
 		9C000000000000000000003D /* ErrorStateView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003D /* ErrorStateView.swift */; };
 		9C000000000000000000003E /* AIIdentityResolver.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003E /* AIIdentityResolver.swift */; };
 		9CA000000000000000000001 /* CachedInterpretationReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CA100000000000000000001 /* CachedInterpretationReader.swift */; };
+		9CA000000000000000000002 /* DailyImageStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9CA100000000000000000002 /* DailyImageStore.swift */; };
 		9C000000000000000000003F /* PrimaryCTAButton.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000003F /* PrimaryCTAButton.swift */; };
 		9C0000000000000000000079 /* InkKit.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000079 /* InkKit.swift */; };
 		9C000000000000000000007A /* SplashTransitionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000007A /* SplashTransitionView.swift */; };
@@ -118,6 +119,7 @@
 		A0000000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */; };
 		A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */; };
 		A0000000000000000000009C /* Shared/EntitlementStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000009C /* Shared/EntitlementStoreTests.swift */; };
+		A0000000000000000000010 /* Services/DailyImageStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000010 /* Services/DailyImageStoreTests.swift */; };
 		A00000000000000000000008 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A21000000000000000000001 /* XCTest.framework */; };
 		A9B245DDB05C779E1238547A /* DeepAnalysisViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F34390B983BDE0003B56E8 /* DeepAnalysisViewModel.swift */; };
 		AA5500000000000000000001 /* UserSnapshotLinkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000002 /* UserSnapshotLinkStore.swift */; };
@@ -247,6 +249,7 @@
 		9C100000000000000000003D /* ErrorStateView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ErrorStateView.swift; path = QiCompass/Shared/ErrorStateView.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000003E /* AIIdentityResolver.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AIIdentityResolver.swift; path = QiCompass/Services/AIIdentityResolver.swift; sourceTree = SOURCE_ROOT; };
 		9CA100000000000000000001 /* CachedInterpretationReader.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CachedInterpretationReader.swift; path = QiCompass/Services/CachedInterpretationReader.swift; sourceTree = SOURCE_ROOT; };
+		9CA100000000000000000002 /* DailyImageStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyImageStore.swift; path = QiCompass/Services/DailyImageStore.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000003F /* PrimaryCTAButton.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrimaryCTAButton.swift; path = QiCompass/Shared/PrimaryCTAButton.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000079 /* InkKit.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InkKit.swift; path = QiCompass/Shared/InkKit.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000007A /* SplashTransitionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SplashTransitionView.swift; path = QiCompass/Shared/SplashTransitionView.swift; sourceTree = SOURCE_ROOT; };
@@ -276,6 +279,7 @@
 		A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisArchiveLoadTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/UserFacingErrorTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000009C /* Shared/EntitlementStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/EntitlementStoreTests.swift; sourceTree = "<group>"; };
+		A1100000000000000000010 /* Services/DailyImageStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Services/DailyImageStoreTests.swift; sourceTree = "<group>"; };
 		A20000000000000000000001 /* QiCompassTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QiCompassTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A21000000000000000000001 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 		AA5500000000000000000002 /* UserSnapshotLinkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserSnapshotLinkStore.swift; path = QiCompass/Services/UserSnapshotLinkStore.swift; sourceTree = SOURCE_ROOT; };
@@ -357,6 +361,7 @@
 				9C1000000000000000000044 /* PurchaseManager.swift */,
 				9C100000000000000000003E /* AIIdentityResolver.swift */,
 				9CA100000000000000000001 /* CachedInterpretationReader.swift */,
+				9CA100000000000000000002 /* DailyImageStore.swift */,
 				23C84BD0B1E670AC7EF54B93 /* DailyReadCounter.swift */,
 				616A4E1F906685BBB03FABAA /* PromptContextBuilder.swift */,
 				64414BC9B04112663B97EE16 /* DeepAnalysisOrchestrator.swift */,
@@ -591,6 +596,7 @@
 				A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */,
 				A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */,
 				A1100000000000000000009C /* Shared/EntitlementStoreTests.swift */,
+				A1100000000000000000010 /* Services/DailyImageStoreTests.swift */,
 				A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */,
 			);
 			name = Tests;
@@ -814,6 +820,7 @@
 				9C000000000000000000003D /* ErrorStateView.swift in Sources */,
 				9C000000000000000000003E /* AIIdentityResolver.swift in Sources */,
 				9CA000000000000000000001 /* CachedInterpretationReader.swift in Sources */,
+				9CA000000000000000000002 /* DailyImageStore.swift in Sources */,
 				9C000000000000000000003F /* PrimaryCTAButton.swift in Sources */,
 				9C0000000000000000000079 /* InkKit.swift in Sources */,
 				9C000000000000000000007A /* SplashTransitionView.swift in Sources */,
@@ -847,6 +854,7 @@
 				A0000000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift in Sources */,
 				A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */,
 				A0000000000000000000009C /* Shared/EntitlementStoreTests.swift in Sources */,
+				A0000000000000000000010 /* Services/DailyImageStoreTests.swift in Sources */,
 				A0000000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
