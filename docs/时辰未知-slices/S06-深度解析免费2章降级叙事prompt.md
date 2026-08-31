@@ -7,8 +7,8 @@
 
 ## What to build
 
-1. **模板降级分支**(`app/ai/prompts.py`,`_BAZI_DEEP_*` 模板):context 喜忌为空 / strength=unknown_hour 时,免费 2 章(性格底色 / 事业方向)的叙事依据从「喜忌」换成「日主×三柱结构」——模板写明:若上下文喜忌为空,如实按日主与年月日柱十神结构展开,**并诚实告知「时辰未知,喜忌与时柱分析需要准确出生时刻」**;禁止 LLM 推断喜忌或编造时柱影响(LLM 边界红线)
-2. **PV bump**:`PROMPT_VERSIONS` 中 `bazi_deep` / `bazi_deep_free` / `bazi_deep_paid` 统一 +1(同次产品迭代一次 bump,free 虽叙事变化最大、paid 一并失效;老缓存自然失效)
+1. **模板降级分支**(`app/ai/prompts.py`,free 模板为 `BAZI_DEEP_FREE_TEMPLATE`):context 喜忌为空 / strength=unknown_hour 时,免费 2 章(性格底色 / 事业方向)的叙事依据从「喜忌」换成「日主×三柱结构」——模板写明:若上下文喜忌为空,如实按日主与年月日柱十神结构展开,**并诚实告知「时辰未知,喜忌与时柱分析需要准确出生时刻」**;禁止 LLM 推断喜忌或编造时柱影响(LLM 边界红线)。**机制镜像现成先例**:`render_prompt` 已有按 `day_master_strength` 条件追加约束段的机制——`day_master_strength == "special_pattern"` 时追加 `BAZI_DEEP_SPECIAL_PATTERN_SUFFIX`(从格诚实降级);unknown_hour 同款做法(如 `BAZI_DEEP_UNKNOWN_HOUR_SUFFIX`,condition 为 `day_master_strength == "unknown_hour"`)
+2. **PV bump**:`PROMPT_VERSIONS` 中 `bazi_deep` / `bazi_deep_free` / `bazi_deep_paid` 统一 +1(同次产品迭代一次 bump:free 叙事变化最大;paid 内容未变但一并 bump,老缓存随新版本号自然失效)
 3. **双护栏(CLAUDE.md)**:
    - `python3 tools/check_prompt_sync.py` PASS(REQUIRED_FIELDS 不动,builder keys S05 已保证)
    - `cd backend && python -m evalkit.runner` 无 regression——**基线未定则先跑首轮基线(20 盘 × 8 模块 + L2 人工复核,真人步骤,这是本 slice HITL 的原因之一)**;有 regression 走 eval.sh UI 逐条判断,禁止改 BASELINE 掩盖
@@ -27,8 +27,10 @@
 
 ## 实现锚点(现状快照 2026-08-31,实施以代码为准)
 
-- `backend/app/ai/prompts.py:625-643` — `_BAZI_DEEP_REQUIRED_FIELDS` / `_BAZI_DEEP_FREE` 模板 / `PROMPT_VERSIONS`
-- `backend/app/ai/prompts.py` render_prompt(模板 + context,现状无条件机制——降级分支以「上下文事实驱动」措辞实现,或 render 层按 strength 选段,实现时定,验收以上条为准)
+- `backend/app/ai/prompts.py:626-642` — `_BAZI_DEEP_REQUIRED_FIELDS`(REQUIRED 不动,S05 保证 builder keys)
+- `backend/app/ai/prompts.py:108-136` — `BAZI_DEEP_FREE_TEMPLATE`(免费 2 章模板,`_BAZI_DEEP_HEADER` 拼接)
+- `backend/app/ai/prompts.py:39-60` — `PROMPT_VERSIONS`(bazi_deep / bazi_deep_free / bazi_deep_paid 三 key)
+- `backend/app/ai/prompts.py:175-181` + `:811-823` — `BAZI_DEEP_SPECIAL_PATTERN_SUFFIX` 常量 + `render_prompt` 按 `day_master_strength == "special_pattern"` 条件追加的现成机制(**unknown_hour 分支直接镜像此先例**)
 - `backend/evalkit/`(runner / eval.sh)+ `docs/prompt评测机设计决策.md`
 - 参考先例:`docs/合盘五行共振章节决策.md` 的 prompt_version 一次 bump 策略
 

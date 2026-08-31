@@ -36,7 +36,7 @@
 - `iOS/QiCompass/QiCompass/Features/DeepAnalysis/BirthFormView.swift:148-210` — 时辰快捷选 / `currentShichenHour`(23 归子时)
 - `iOS/QiCompass/QiCompass/Features/DeepAnalysis/DeepAnalysisViewModel.swift:60` — `birthDate` 默认 1990-03-15;`:152-158` validateForm;`:192-201` setShichenHour
 - `iOS/QiCompass/QiCompass/Features/Onboarding/OnboardingView.swift:110` — 生肖屏 `placeCalendar.component(.year, from: vm.birthDate)`
-- `iOS/QiCompass/QiCompass/Features/DeepAnalysis/BirthInfoConfirmSheet.swift:92` 附近 — 确认展示
+- `iOS/QiCompass/QiCompass/Features/Onboarding/BirthInfoConfirmSheet.swift:92` 附近 — 确认展示(注意:该文件在 Onboarding 目录不在 DeepAnalysis)
 - `iOS/QiCompass/QiCompass/Networking/APIClient.swift:387` 附近 — mock 路径
 
 ## 红线与约束

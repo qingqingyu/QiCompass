@@ -1,7 +1,7 @@
 # S09 每日运势降级版 prompt
 
 - **类型**: **HITL**(同 S06:evalkit 基线 + 降级叙事 voice 需用户过目;另 REQUIRED_FIELDS 变更牵动三边同步,判据需人工校准)
-- **Blocked by**: S01(契约)、S6→S06(降级叙事 voice 基准先在免费 2 章定调)
+- **Blocked by**: S01(契约)、S06(降级叙事 voice 基准先在免费 2 章定调)
 - **覆盖决策**: D5(每日运势降级提供:日柱×流日十神关系叙事,明示局限;日柱歧义者全拦)/ 契约备注(REQUIRED_FIELDS 三边同步 + evalkit + PV bump)
 - **Parent**: `docs/时辰未知设计决策.md`
 
@@ -28,9 +28,9 @@
 
 ## 实现锚点(现状快照 2026-08-31,实施以代码为准)
 
-- `backend/app/ai/prompts.py:662-673` — daily_fortune REQUIRED_FIELDS(含 day_master/day_pillar/day_relation/hour_pillars_with_relations)
-- `backend/app/ai/prompts.py` daily 模板 + `PROMPT_VERSIONS`
-- `iOS/QiCompass/QiCompass/Services/DailyFortuneOrchestrator.swift` / `DailyFortuneViewModel.swift` — 生成入口(拦截位)
+- `backend/app/ai/prompts.py:665-674` — daily_fortune REQUIRED_FIELDS(含 day_master/day_pillar/day_relation/hour_pillars_with_relations)
+- `backend/app/ai/prompts.py` daily 模板 + `:39-60` `PROMPT_VERSIONS`
+- `iOS/QiCompass/QiCompass/Services/DailyFortuneOrchestrator.swift` / `Features/DailyFortune/DailyFortuneViewModel.swift` — 生成入口(拦截位;注意 ViewModel 在 Features 不在 Services)
 - `iOS/QiCompass/QiCompass/Services/PromptContextBuilder.swift` / `tmp/promo-site/context_builder.py` — 三边另两份
 - `backend/evalkit/` + `docs/prompt评测机设计决策.md`
 

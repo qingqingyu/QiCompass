@@ -9,7 +9,7 @@
 
 1. **入口**(`BirthFormView` 时刻区):「不知道出生时刻」显式选项(checkbox / chip,水墨语言);选中后:
    - 时刻行与时辰快捷选**收起**(不再展示任何看似精确的时刻)
-   - 展开二值问题:「你是否在半夜(约 11 点之后)出生?」三态:是 / 否 / 不确定(默认**不确定**?否——默认未选,必须选一个才可提交,避免又一层默认假答案;未选 → formInvalid)
+   - 展开二值问题:「你是否在半夜(约 11 点之后)出生?」三态:是 / 否 / 不确定。**默认未选,必须选一个才可提交**(不把「不确定」设为默认——避免又一层默认假答案;未选 → formInvalid)
    - 取消勾选 → 恢复时刻行,lateNight 状态保留还是重置:重置(回到有时刻路径,三态答案作废)
 2. **VM 状态**(`DeepAnalysisViewModel`):`hourKnown: Bool`(默认 true)、`lateNight: Bool?`;`buildRequest` 带上 `hour_known` / `late_night`(S01 契约);`hour_known=false` 时 `birth_datetime` 时辰部分传什么由契约定(后端 12:00 占位,iOS 传时刻绑定当前值即可,语义被 flag 否定——**建议 iOS 显式传 12:00** 减少歧义)
 3. **ChartSnapshot payload**:存档 `hour_known` / `late_night`(`decodeIfPresent` 解码,老盘缺字段 → 视为 hour_known=true);content_hash 计算跟随后端语义(S01:flag=false 时时辰桶不参与)——iOS 侧 hash 是算好传后端还是后端算?现状 content_hash 在后端算(契约),iOS 只存档;对齐现状
@@ -32,7 +32,7 @@
 - `iOS/QiCompass/QiCompass/Features/DeepAnalysis/BirthFormView.swift` — 时刻区 / 时辰快捷选(S03 拆分后)
 - `iOS/QiCompass/QiCompass/Features/DeepAnalysis/DeepAnalysisViewModel.swift` — 表单状态 / `buildRequest`
 - `iOS/QiCompass/QiCompass/Models/` ChartSnapshot payload(D1 JSON payload 设计,新字段 decodeIfPresent)
-- `iOS/QiCompass/QiCompass/Features/DeepAnalysis/BirthInfoConfirmSheet.swift` — 确认页
+- `iOS/QiCompass/QiCompass/Features/Onboarding/BirthInfoConfirmSheet.swift` — 确认页(在 Onboarding 目录)
 
 ## 红线与约束
 

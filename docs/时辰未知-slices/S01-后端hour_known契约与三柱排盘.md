@@ -13,12 +13,12 @@
    - `hour_known: bool = True`(默认值必须,否则老客户端 422)
    - `late_night: bool | None = None`(三态:True=是 / False=否 / None=不确定)
 2. **排盘链路**(`bazi_engine.py`):
-   - `hour_known=false` → `birth_datetime` 时辰部分统一替换为 **12:00 占位**喂 `lunar_python`(离 23:00 换日与 00:00 两个边界最远);响应 `pillars.hour` 置 `null`,`Pillars.hour` 改 Optional
+   - `hour_known=false` → `birth_datetime` 时辰部分统一替换为 **12:00 占位**喂 `lunar_python`(离 23:00 换日与 00:00 两个边界最远);响应 `pillars.hour` 置 `null`,`Pillars.hour` 改 Optional;**五行统计按三柱 6 字计**(计数口径 8→6,`element_balance` 各值之和为 6,响应自然呈现,不另加标注字段)
    - `late_night` 日柱歧义:`hour_known=false` 且 `late_night != False`(即 True 或 None)→ **日柱也置 unknown**(响应表达:day 柱歧义标记,日主相关派生输出置空);`late_night=False` → 日柱照常计算。判定窗口定义按该出生地真太阳时 `offset_minutes` 反算墙钟(参考 `true_solar_time.py` `boundary_crossed`),窗口定义写进模型 docstring,**不硬编码 23:00-24:00**
 3. **喜忌引擎**(`xiji.py`):入口处加 unknown_hour 分支——时柱缺失或日柱歧义 → `day_master_strength="unknown_hour"`,favorable/unfavorable 留空。与从格 `special_pattern`(`xiji.py:240` 附近)完全同构:引擎不硬算,显式降级。日柱歧义时日主无,`day_master` 系派生字段一并置空
 4. **神煞**(`shensha.py`):按可用柱查(时柱缺失则无时支条目),响应加神煞完整性标注(如 `shensha_incomplete: true`),不静默
 5. **`calc_rule_snapshot`**(`app/core/calc_rule_snapshot.py`):加 `hour_known`(缺字段则「同一输入永远同一输出 + 快照可审计」被破坏)
-6. **content_hash**(`app/core/content_hash.py`):`hour_known=false` 时 2h 时辰桶**不参与**,日期 + `late_night` 参与;`hour_known=true` 路径 hash 公式不变
+6. **content_hash**(`app/core/content_hash.py`):`hour_known=false` 时 2h 时辰桶**不参与**,日期 + `late_night` + 歧义标记(S02)参与;`hour_known=true` 路径 hash 公式不变。注:Parent 契约备注只写了「日期(含 D10 歧义标记)」,本系列把 `late_night` 补进 hash 是必要扩展——`late_night` 决定日柱歧义状态,不同答案输出不同,不进 hash 会同 hash 不同输出(缓存碰撞),并非对 Parent 的笔误
 7. **大运**(`luck.py`):干支序列与起运年龄**照给**(已知弱依赖误差 ±2-3 个月,v1 接受不加标注)
 
 合盘契约(person B)本 slice **不动**(默认 true 路径,不传字段零影响),归 S11。
@@ -26,7 +26,7 @@
 ## Acceptance criteria
 
 - [ ] 老客户端请求(不传 hour_known/late_night)→ 响应与现状**逐字段一致**(回归对拍)
-- [ ] `hour_known=false, late_night=false` → `pillars.hour=null`、日柱/年月柱正常、`strength="unknown_hour"`、喜忌两列表空、神煞无时支条目 + 完整性标注、大运序列照给
+- [ ] `hour_known=false, late_night=false` → `pillars.hour=null`、日柱/年月柱正常、`strength="unknown_hour"`、喜忌两列表空、神煞无时支条目 + 完整性标注、大运序列照给(对盘样例取东八区中部经度,如 116°E;西偏经度的日柱歧义场景由 S02 覆盖,勿在本用例混入)
 - [ ] `hour_known=false, late_night=true` 与 `late_night=null` → 日柱 unknown 标记 + 日主派生输出置空
 - [ ] `hour_known=false` 时 `birth_datetime` 的时辰部分无论传什么(06:13 / 23:40),输出一致(12:00 占位生效,占位不漏到响应)
 - [ ] `calc_rule_snapshot` 含 `hour_known`;同出生信息 `hour_known` true/false → 不同 content_hash;`hour_known=false` 下 `late_night` true/false/null 三态 → 三个不同 hash
@@ -38,7 +38,7 @@
 - `backend/app/models/bazi.py` — 请求模型 + `must_be_naive` validator(格式不动,只加字段)
 - `backend/app/engine/bazi_engine.py:80-96` — setSect(1) 换日 / 生肖推导(94)
 - `backend/app/engine/xiji.py:30` `DELING_WEIGHT=5` / `:126-154` 扶抑 / `:240` 附近 special_pattern 降级先例
-- `backend/app/engine/pillars.py:127-144` 五行统计(时柱缺失的降权表达)
+- `backend/app/engine/pillars.py:127-144` 五行统计(时柱缺失时按 6 字口径)
 - `backend/app/engine/shensha.py:33-46` 四柱遍历查神煞
 - `backend/app/engine/luck.py:10-38` 大运起排
 - `backend/app/core/calc_rule_snapshot.py` — 现无 hour_known 字段

@@ -10,7 +10,7 @@
 1. **DTO Optional 化**(`BaziDTOs`):`Pillars.hour: PillarDTO?`;同时预留 S02 歧义标记字段的解码位(day/year/month unknown 表达、`year_branch_zodiac?`、神煞完整性标注)——全部 `decodeIfPresent`
 2. **PillarsTable**:时柱列无数据 → 留白 + **dashed hairline 圆位**(DESIGN.md dashed=锁定/临时态语义,现成),点击进补时辰——**一期占位**(轻提示或 disabled,S10 接线);年/月/日柱 unknown(S02 歧义)→ 同款留白表达
 3. **DualPillarsTable**(合盘对卡):同款 Optional 渲染
-4. **PromptContextBuilder unknown 分支**:`hour_known=false` 时 6 个 `hour_*` context key 走占位值(如「时辰未知」/空串,由 S06 模板语义决定——builder 侧 key **只增不删**,保证 REQUIRED ⊆ builder keys 校验持续 PASS);日柱/年柱歧义对应 `day_*` / 年柱 key 同理
+4. **PromptContextBuilder unknown 分支**:`hour_known=false` 时全部 `hour_*` context key 走占位值(如「时辰未知」/空串,由 S06 模板语义决定)——共 **7 个**:builder `:52-57` 六个(`hour_gan/hour_zhi/hour_gan_element/hour_zhi_element/hour_shishen_gan/hour_hide_gan`)+ `:61` 的 `hour_nayin`(**勿漏**,deep REQUIRED 两者都查);builder 侧 key **只增不删**,保证 REQUIRED ⊆ builder keys 校验持续 PASS;日柱/年柱歧义对应 `day_*` / 年柱 key 同理
 5. **其余展示**:五行统计/神煞列表消费后端降级输出(空列表/标注自然呈现);生肖 `year_branch_zodiac=null` 的生肖屏处理归 S08,本 slice 只保证不 crash
 6. **深度解析 Tab 顶部 instant / anchor_sentence**:日主在缺时辰时完整(决策「反向事实」),照常展示;日柱歧义用户的表达(S07 全拦,不进内容页)
 
@@ -29,7 +29,7 @@
 - `iOS/QiCompass/QiCompass/Networking/DTOs/BaziDTOs.swift:71` — `let hour: PillarDTO` 非 Optional
 - `iOS/QiCompass/QiCompass/**/PillarsTable.swift:19` — 时柱列
 - `iOS/QiCompass/QiCompass/**/DualPillarsTable.swift:153-156` — 对卡四柱
-- `iOS/QiCompass/QiCompass/Services/PromptContextBuilder.swift:52-62`(6 个 `hour_*` key)+ `:216`/`:229`
+- `iOS/QiCompass/QiCompass/Services/PromptContextBuilder.swift:52-57`(6 个 `hour_*` key)+ `:61`(`hour_nayin`,合计 7 个)+ `:216`/`:229`(hour 另两处消费)
 - `iOS/QiCompass/QiCompass/Shared/InkKit.swift` — dashed hairline 现成语义
 
 ## 红线与约束
@@ -38,6 +38,7 @@
 - 不猜:任何 unknown 柱禁止渲染占位干支(如「?」柱或默认柱)
 - check_prompt_sync 必须跑且 PASS(CLAUDE.md 护栏,builder 是三份实现之一)
 - 不动 `prompts.py`(那是 S06/S09)
+- 一期轻提示(若采用)文案进 L10n / xcstrings(中英)
 
 ## 测试
 
