@@ -58,6 +58,10 @@ MODULE_TEMPERATURES: dict[str, float] = {
     "bazi_deep": 0.6, "bazi_deep_free": 0.6, "bazi_deep_paid": 0.6,
     "compatibility": 0.6, "compatibility_free": 0.6, "compatibility_paid": 0.6,
     "daily_fortune": 0.6,
+    # 插画走 images/generations,无 temperature 参数——键存在只为
+    # test_module_temperatures_covers_all_known_modules 的全覆盖断言
+    # (PROMPT_VERSIONS 的 key 必须都在,防漂移),值不被消费。
+    "daily_fortune_image": 0.6,
     # v1 新模块:M0-M2 结构层稳, M3-M7 叙述层放
     "m0_structure": 0.3, "m1_talent": 0.3, "m2_high_low": 0.3,
     "m3_system": 0.6, "m4_health": 0.6, "m5_wealth": 0.6,
@@ -80,6 +84,23 @@ def resolve_temperature(module: str) -> float:
 
 # 后端 SQLite 缓存路径(D2 第二级);可被 env 覆盖
 DB_PATH = os.environ.get("QICOMPASS_DB_PATH", "data/qicompass.db")
+
+# ---------- 每日运势插画(gpt-image-2,2026-08-30「一幅图」)----------
+# 独立于文本 AI 的 OPENAI_* 配置:image 专用中转与 key,不共用。
+# 缺失时启动不失败(对齐 AI key 缺失策略),调用生图端点时显式 503。
+IMAGE_API_BASE_URL = (os.environ.get("IMAGE_API_BASE_URL") or "").strip().rstrip("/")
+IMAGE_API_KEY: str | None = os.environ.get("IMAGE_API_KEY") or None
+IMAGE_MODEL = (os.environ.get("IMAGE_MODEL") or "gpt-image-2").strip()
+if not IMAGE_MODEL:
+    raise ValueError("IMAGE_MODEL must not be blank")
+# 实测 63-181s/张(2026-08-30 三方向样图),240s 留余量;超时即显式报错不重试。
+IMAGE_TIMEOUT_SECONDS = 240.0
+# 全局日护栏:当日 generating+ready 行数达上限 → 429(成本护栏,不静默降级)。
+DAILY_IMAGE_LIMIT = int(os.environ.get("DAILY_IMAGE_LIMIT") or "200")
+if DAILY_IMAGE_LIMIT <= 0:
+    raise ValueError(f"DAILY_IMAGE_LIMIT must be positive (got {DAILY_IMAGE_LIMIT})")
+# 插画尺寸:gpt-image-2 无 16:9,1536×1024(3:2)为最接近横幅;与 iOS hero 容器 3:2 一致。
+IMAGE_SIZE = "1536x1024"
 
 # ---------- Apple App Store Server API(M2b 后端付费系统)----------
 # 缺失时启动不失败(M2a/b 测试 / dev 用 MockAppleServerAPI);调用 /api/entitlement/redeem

@@ -44,6 +44,9 @@ PROMPT_VERSIONS: dict[str, int] = {
     "compatibility_free": 3,  # M4 拆分:2 章免费,Medium voice(200-300 字/章);v3=随系列统一升
     "compatibility_paid": 3,  # M4 拆分:4 章付费,Medium voice(200-300 字/章);v3=第一章爱情深度→五行共振
     "daily_fortune": 2,    # Medium voice(50-80 字,砍宜忌+砍时辰点评)
+    # 每日运势插画(gpt-image-2):prompt 由 image_prompt.py 代码拼装(无 .md 模板),
+    # 版本号仍是缓存键维度——意象表/风格后缀改动时 bump 此处。
+    "daily_fortune_image": 1,
     # v1 prompt 系统(Stage 5 落地,设计源 /Users/TWJ/Downloads/bazi-prompt-system-v1.md)
     # M0-M7 共 8 模块,双轨保留:老 7 module 不动,iOS 切换后可下线老的
     # 链式调用:M0 产 structure_fingerprint → M1-M7 各自带 parent_fingerprint 注入
