@@ -49,4 +49,24 @@ enum BaziDateFormatter {
         )
         return f
     }()
+
+    /// 公历短日期(无年份无星期,今日运势 V1 头部大字):zh → "8月30日";en → "August 30"。
+    static let gregorianShort: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale.current
+        f.dateFormat = DateFormatter.dateFormat(
+            fromTemplate: "MMMMdd",
+            options: 0,
+            locale: Locale.current
+        )
+        return f
+    }()
+
+    /// 星期短格式(今日运势 V1 头部次级层级,与历史 pill 同款式式):zh → "周日";en → "Sun"。
+    static let weekdayShort: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale.current
+        f.dateFormat = "E"
+        return f
+    }()
 }

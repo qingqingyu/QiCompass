@@ -160,8 +160,9 @@ enum BaziTheme {
         })
     }
 
-    /// 主背景。Light 冷灰宣纸 / Dark 夜宣纸(冷调,非暖墨)。
-    static let paper         = dyn(Color(red: 0xF3/255, green: 0xF1/255, blue: 0xEC/255),
+    /// 主背景。Light 国画旧宣纸(2026-08-31 换轨,原冷灰宣纸 #F3F1EC;今日运势 V1 画布拍板,
+    /// 浮框结构依赖「底暗框亮」的层次)/ Dark 夜宣纸(冷调,非暖墨)。
+    static let paper         = dyn(Color(red: 0xE7/255, green: 0xE2/255, blue: 0xD5/255),
                                    Color(red: 0x14/255, green: 0x13/255, blue: 0x17/255))
     /// sheet 底 / 残留卡底。水墨语言下卡片让位 hairline,此 token 逐步收缩到 sheet 与锁框。
     static let cardSurface   = dyn(Color(red: 0xF7/255, green: 0xF5/255, blue: 0xF0/255),

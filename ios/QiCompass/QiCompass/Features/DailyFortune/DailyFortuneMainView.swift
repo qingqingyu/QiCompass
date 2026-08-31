@@ -106,7 +106,7 @@ struct DailyFortuneMainView: View {
                 )
                 .padding(.horizontal, 17)
 
-                // 宜/忌 main anchor(V4 单行居中;视觉锚点,非 AI 输出)
+                // 宜/忌 main anchor(V4 单行居中 + V1 入框;视觉锚点,非 AI 输出)
                 YiJiAnchorSection(dayRelation: response.dayRelationToDayMaster)
                     .padding(.horizontal, 24)
                     .padding(.top, 26)
@@ -256,7 +256,7 @@ struct DailyFortuneMainView: View {
 
 /// 今日运势页宜/忌 main anchor(视觉锚点,非 AI 输出)。
 ///
-/// 墨青(jade)=宜 / 淡朱(cinnabar)=忌,V4 单行左右并列 layout。
+/// V4+V1 整合:单行左右并列居中(宜=墨青/忌=淡朱),套 V1 亮纸框。
 ///
 /// **数据源**(v1 简化):前端十神→关键词映射表。基于 `dayRelationToDayMaster`
 /// 查表得到 actionable 2-3 字 bullet。
@@ -322,7 +322,7 @@ private struct YiJiAnchorSection: View {
 
     var body: some View {
         let resolved = pair
-        // V4 单行居中:宜(jade)思考 · 忌(淡朱)执拗(参考 v4-reference.html,无 hairline)
+        // V4+V1 整合:单行居中(宜 jade · 忌 淡朱),套 V1 亮纸框(底暗框亮层次)
         HStack(spacing: 22) {
             anchorItem(label: L10n.DailyFortune.yiLabel, keyword: resolved.yi, color: BaziTheme.jade)
             Text(verbatim: "·")
@@ -331,6 +331,13 @@ private struct YiJiAnchorSection: View {
             anchorItem(label: L10n.DailyFortune.jiLabel, keyword: resolved.ji, color: BaziTheme.cinnabar.opacity(0.8))
         }
         .frame(maxWidth: .infinity)
+        .padding(.horizontal, 20)
+        .padding(.vertical, 18)
+        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
+        .overlay(
+            RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
+                .stroke(BaziTheme.hairline, lineWidth: 0.5)
+        )
     }
 
     private func anchorItem(label: String, keyword: String, color: Color) -> some View {

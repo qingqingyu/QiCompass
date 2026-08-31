@@ -83,9 +83,11 @@ YI_MOTIFS: dict[str, str] = {
 
 # ---------- 构图片段 + 风格后缀(2026-08-30 实测验证;改动须 bump PROMPT_VERSIONS)----------
 COMPOSITION_HINT: str = "wide 3:2 landscape composition, generous negative space"
+# 底色 2026-08-31 随国画旧宣纸换轨(V1 拍板 paper #F3F1EC→#E7E2D5):
+# 生图底色与 App 纸面同值,hero 无色差;版本号 1→2 老缓存自然失效。
 STYLE_SUFFIX: str = (
-    "Zen ink wash painting (sumi-e) on cold gray rice paper, "
-    "background exactly #F3F1EC cold gray, "
+    "Zen ink wash painting (sumi-e) on aged xuan rice paper, "
+    "background exactly #E7E2D5 warm aged paper, "
     "ink tones from #17161A to #77726A, "
     "at most ONE tiny vermilion red #A83226 seal accent, "
     "vast negative space, extremely minimalist, "

@@ -107,8 +107,8 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 关键约束(摘自 `DESIGN.md`):
 
 - **美学方向**:水墨孤本(禅意水墨极简),不是国内命理黑金套路
-- **Memorable Thing**:"专业不忽悠,不像算命软件" — 冷宣纸上的焦墨圆、一枚朱印、一行竖排楷体
-- **色板**:`#F3F1EC` 冷灰宣纸(主背景) / `#17161A` 焦墨(CTA 底,`inkDeep`;暗色反转) / `#A83226` 印章朱红(`cinnabar`,**仅印章级小元素:SealStamp/付费标/聚焦线/当前时辰点,禁止 CTA 与大面积**) / `#2F5E4A` 墨青(吉) / `#1C1B1E` 浓墨文字;Dark = 夜宣纸(dyn 双值保留)
+- **Memorable Thing**:"专业不忽悠,不像算命软件" — 宣纸上的焦墨圆、一枚朱印、一行竖排楷体
+- **色板**:`#E7E2D5` 国画旧宣纸(主背景,2026-08-31 换轨,原冷宣纸 `#F3F1EC`) / `#17161A` 焦墨(CTA 底,`inkDeep`;暗色反转) / `#A83226` 印章朱红(`cinnabar`,**仅印章级小元素:SealStamp/付费标/聚焦线/当前时辰点,禁止 CTA 与大面积**) / `#2F5E4A` 墨青(吉) / `#1C1B1E` 浓墨文字;Dark = 夜宣纸(dyn 双值保留)
 - **字体**:Kaiti SC(楷体,全展示层,`Font.custom("Kaiti SC")`,iOS 自带不打包) + SF Pro Text tabular-nums(数字) + latinCaps 大字距小写标(QICOMPASS)
 - **品牌指纹**:墨圆 EnsoView / 朱印 SealStamp / 竖排 VText / 大写数字编号(壹-捌)
 - **布局**:卡片让位 hairline(ink@18%);dashed hairline 专用于锁框/临时态;Capsule 只留 chip;CTA radius 5

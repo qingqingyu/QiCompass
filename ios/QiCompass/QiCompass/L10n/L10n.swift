@@ -16,7 +16,6 @@ import Foundation
 /// 使用:
 /// ```swift
 /// Text(L10n.DailyFortune.shortLabel)                        // 替代 Text("今日运势")
-/// Text(L10n.DailyFortune.interpretRemaining(3))             // 替代 Text("剩余 \(n) 次")
 /// Text(L10n.DailyFortune.chongLabel(chong: "午", targets: []))  // 替代 Text("冲午")
 /// ```
 enum L10n {
@@ -273,11 +272,6 @@ enum L10n {
 
         /// 解读区标题 + CTA 按钮标题(zh="今日解读", en="Today's Reading")
         static let interpretTitle = String(localized: "dailyfortune.interpret.title")
-
-        /// 剩余次数(zh="剩余 N 次", en="N reads left")
-        static func interpretRemaining(_ count: Int) -> String {
-            String(format: String(localized: "dailyfortune.interpret.remaining"), count)
-        }
 
         /// 缓存标识(zh="24h 内已缓存,不消耗次数")
         static let interpretCached = String(localized: "dailyfortune.interpret.cached")

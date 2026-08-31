@@ -2,7 +2,7 @@
 
 > 全局视觉事实源。任何 UI 决策(颜色 / 字体 / 间距 / 圆角 / 动效)都必须先读这里,偏离须用户明确批准。
 >
-> **2026-08-26 换轨**:宋瓷暖白 → **水墨孤本**(冷灰宣纸 / 焦墨 / 楷体 / 印章级朱红)。换轨依据:7 轮 design-shotgun 全旅程探索,决策记录与 24 屏参考在 `docs/design-ref/shuimo/`(approved.json 为事实源)。旧宋瓷系统的历史决策见文末 Decisions Log。
+> **2026-08-26 换轨**:宋瓷暖白 → **水墨孤本**(国画旧宣纸 / 焦墨 / 楷体 / 印章级朱红)。换轨依据:7 轮 design-shotgun 全旅程探索,决策记录与 24 屏参考在 `docs/design-ref/shuimo/`(approved.json 为事实源)。旧宋瓷系统的历史决策见文末 Decisions Log。
 
 ## Product Context
 
@@ -64,8 +64,8 @@ iOS 系统字体,**不打包任何自定义字体**。楷体走 `Font.custom("Ka
 
 | 角色 | Light Hex | Dark Hex(夜宣纸) | 用途 | SwiftUI 名 |
 |---|---|---|---|---|
-| 冷灰宣纸 / 夜宣纸 | `#F3F1EC` | `#141317` | 主背景 | `BaziTheme.paper` |
-| 浅纸 / 深浅纸 | `#F7F5F0` | `#1E1D23` | sheet 底 / 残留卡底(让位 hairline 中) | `BaziTheme.cardSurface` |
+| 国画旧宣纸 / 夜宣纸 | `#E7E2D5` | `#141317` | 主背景 | `BaziTheme.paper` |
+| 浅纸 / 深浅纸 | `#F7F5F0` | `#1E1D23` | sheet 底 / 残留卡底(今日运势 V1 起兼做浮框纸面) | `BaziTheme.cardSurface` |
 | 浓墨 / 冷白 | `#1C1B1E` | `#E9E7E2` | 主文字 | `BaziTheme.ink` |
 | 灰墨 / 浅灰墨 | `#77726A` | `#9B968C` | 弱说明文字 | `BaziTheme.inkMuted` |
 | 淡灰墨(新) | `#A5A098` | `#6E6A62` | 二级弱注 | `BaziTheme.inkMutedSecondary` |
@@ -110,7 +110,7 @@ iOS 系统字体,**不打包任何自定义字体**。楷体走 `Font.custom("Ka
 - **章节编号:** 大写数字(壹贰叁肆伍陆柒捌)圆徽——实线圆=可读,虚线圆=锁定(`NumeralBadge`)
 - **付费标识:** `PaidTag`「付费」白字朱底小方标,旋转 -6°,**只此一处用朱底块**
 - **Tab:** 墨物线描四枚矢量图标(`TabIcons.swift`)+ 楷体文字,tint=ink;系统 TabView + ImageRenderer 模板渲染(2026-08-30 拍板,替代原纯文字 tab;几何事实源 `~/.gstack/projects/qingqingyu-QiCompass/designs/tab-icons-20260830/finalized.html`。今日=墨圆环抱点(EnsoView 同源)/深度=三叠横墨/合盘=双环交叠/我的=未钤空心印;朱红不出现在 tab 层)
-- **每日运势 V4「一幅图为主角」**(2026-08-30 拍板,事实源 `~/.gstack/projects/qingqingyu-QiCompass/designs/daily-fortune-art-20260830/`,用户参考图像素级复刻):第一屏 = 三行日期区(公历大字 19/农历·干支 12.5/短标签+关系+冲 chips)→ **3:2 五行小景水墨插画**(左右 17pt 边距,右下干支竖排+左下朱印为客户端 Kaiti 矢量叠加,不靠生图写字;深色模式插画保持浅纸底=「暗夜里的一张画」)→ 宜忌单行居中 → AI 解读 → hairline 小注;第二屏 = 7 日历史带 + 明日预告(吸顶方向感知折叠机制随 V4 移除)。插画当前为内置静态样图(`DailyFortuneHeroSample`),后续切后端 gpt-image-2 每命主每日一幅(生成+缓存,详见 `~/.claude/plans/dapper-hopping-puzzle.md`)
+- **每日运势 V4「一幅图为主角」+ V1 元素整合**(2026-08-30 V4 拍板 / 2026-08-31 V1 元素并入,事实源 `~/.gstack/projects/qingqingyu-QiCompass/designs/daily-fortune-art-20260830/`):第一屏 = 三行日期区(公历大字 21+周几小字/符牌图+农历·干支/短标签+关系+冲 chips 含古篆符牌)→ **3:2 五行小景水墨插画**(左右 17pt 边距,右下干支竖排+左下朱印为客户端 Kaiti 矢量叠加,不靠生图写字;深色模式插画保持纸底=「暗夜里的一张画」)→ 宜忌单行居中**入亮纸框** → AI 解读**入框**(无剩余次数)→ hairline 小注;第二屏 = 7 日历史带 + 明日预告(吸顶折叠机制随 V4 移除)。插画已动态化:`DailyImageStore` 轮询后端 gpt-image-2 每命主每日一幅(prompt v2,底色 #E7E2D5 与纸面同值)
 
 ## Motion
 
@@ -152,7 +152,7 @@ iOS 系统字体,**不打包任何自定义字体**。楷体走 `Font.custom("Ka
 
 ```swift
 enum BaziTheme {
-    static let paper    = dyn(#F3F1EC, #141317)   // 冷灰宣纸 / 夜宣纸
+    static let paper    = dyn(#E7E2D5, #141317)   // 国画旧宣纸 / 夜宣纸(2026-08-31 换轨)
     static let cardSurface = dyn(#F7F5F0, #1E1D23)
     static let ink      = dyn(#1C1B1E, #E9E7E2)
     static let inkMuted = dyn(#77726A, #9B968C)
@@ -220,3 +220,4 @@ enum BaziTheme {
 | 2026-08-26 | 卡片让位 hairline;dashed 锁框;纸纹 Canvas 确定性噪点(不引入图片链路) | 开放布局 + 零新依赖 |
 | 2026-08-26 | **待办:英文 locale 字体路由**——Kaiti SC 拉丁字形偏楷书衬线,英文正文可用性待验证;方向:display 中文 Kaiti / 英文回退系统 serif;body 英文走系统 sans;VText 仅用于中文(英文横排,沿用 SutraView locale 分流模式);印章/品牌字(玄机问道/玄/解/合)保持中文不翻译(决策 7 术语族) | i18n v1 中英开口子(2026-08-12)与新字体体系交叉,落地前须英文截图走查 |
 | 2026-08-26 | T3 签纸分享卡 backlog(不做入 v1 换装) | 分享卡是图片生成新功能,与换装解耦;今日首页用 T1 墨白节奏 |
+| 2026-08-31 | **paper 冷灰宣纸 `#F3F1EC` → 国画旧宣纸 `#E7E2D5`(全 App)** | 今日运势 V1 画布(daily-fortune-20260830)拍板:「底暗框亮」浮框结构(cardSurface 纸面浮起)依赖压暗一档的暖调底;全 App 换轨避免 tab 切换底色跳变。Dark 夜宣纸不变 |

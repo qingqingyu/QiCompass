@@ -1041,23 +1041,6 @@
         }
       }
     },
-    "dailyfortune.interpret.remaining" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld reads left"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "剩余 %lld 次"
-          }
-        }
-      }
-    },
     "dailyfortune.interpret.retry" : {
       "extractionState" : "manual",
       "localizations" : {
