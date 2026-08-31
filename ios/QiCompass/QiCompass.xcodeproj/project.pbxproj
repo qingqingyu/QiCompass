@@ -114,6 +114,7 @@
 		A00000000000000000000006 /* Shared/DailyReadCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */; };
 		A0000000000000000000000B /* Shared/CitySearchEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000B /* Shared/CitySearchEngineTests.swift */; };
 		A0000000000000000000000D /* Shared/GoldenQueriesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000D /* Shared/GoldenQueriesTests.swift */; };
+		A0000000000000000000099 /* Shared/PaywallLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000099 /* Shared/PaywallLayoutTests.swift */; };
 		A0000000000000000000000E /* golden_queries.json in Resources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000E /* golden_queries.json */; };
 		A0000000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */; };
 		A0000000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */; };
@@ -274,6 +275,7 @@
 		A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DailyReadCounterTests.swift; sourceTree = "<group>"; };
 		A110000000000000000000B /* Shared/CitySearchEngineTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/CitySearchEngineTests.swift; sourceTree = "<group>"; };
 		A110000000000000000000D /* Shared/GoldenQueriesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/GoldenQueriesTests.swift; sourceTree = "<group>"; };
+		A1100000000000000000099 /* Shared/PaywallLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/PaywallLayoutTests.swift; sourceTree = "<group>"; };
 		A110000000000000000000E /* golden_queries.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = golden_queries.json; path = ../../tools/city-data/golden_queries.json; sourceTree = SOURCE_ROOT; };
 		A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisViewModelFormTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisArchiveLoadTests.swift; sourceTree = "<group>"; };
@@ -592,6 +594,7 @@
 				A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */,
 				A110000000000000000000B /* Shared/CitySearchEngineTests.swift */,
 				A110000000000000000000D /* Shared/GoldenQueriesTests.swift */,
+				A1100000000000000000099 /* Shared/PaywallLayoutTests.swift */,
 				A110000000000000000000E /* golden_queries.json */,
 				A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */,
 				A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */,
@@ -851,6 +854,7 @@
 				A00000000000000000000006 /* Shared/DailyReadCounterTests.swift in Sources */,
 				A0000000000000000000000B /* Shared/CitySearchEngineTests.swift in Sources */,
 				A0000000000000000000000D /* Shared/GoldenQueriesTests.swift in Sources */,
+				A0000000000000000000099 /* Shared/PaywallLayoutTests.swift in Sources */,
 				A0000000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift in Sources */,
 				A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */,
 				A0000000000000000000009C /* Shared/EntitlementStoreTests.swift in Sources */,
