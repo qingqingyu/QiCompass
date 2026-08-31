@@ -31,6 +31,7 @@ from ..engine.current import (
 )
 from ..engine.branch_relations import compute_friends_and_clash
 from ..engine.luck import build_luck_pillars
+from ..engine.pillar_ambiguity import detect_pillar_ambiguity
 from ..engine.pillars import (
     GAN_ELEMENT,
     build_auxiliary_gong,
@@ -93,12 +94,17 @@ class BaziEngine:
             birth_timezone: 出生地 IANA 时区名(进 calc_rule_snapshot)
             hour_known: 是否知道出生时刻(docs/时辰未知设计决策.md)。False 时
                    时辰部分统一替换 12:00 占位喂 lunar_python,响应
-                   pillars.hour=null、喜忌 unknown_hour、五行按已知柱计数
+                   pillars.hour=null、喜忌 unknown_hour、五行按已知柱计数;
+                   并做 D10 节气边界双排盘比对(S02):年/月柱干支在
+                   00:00 与 23:59 探针间不一致 → 该柱亦置 null,
+                   西偏经度(offset < −60min)日柱网命中 → 日柱置 null,
+                   歧义状态进 pillar_ambiguity / calc_rule_snapshot / content_hash
             late_night: 「半夜出生」三态,仅 hour_known=False 时参与判定:
                    != False(True/None)→ 不能排除换日歧义窗
                    (窗口定义见 models/bazi.py late_night 字段与
                    true_solar_time.late_night_wall_window,按真太阳时 offset
-                   反算墙钟,不硬编码 23:00-24:00)→ 日柱置 null,不猜
+                   反算墙钟,不硬编码 23:00-24:00)→ 日柱置 null,不猜。
+                   True 路径(hour_known=true)本参数被忽略且零改动
 
         Raises:
             BaziCalculationFailedError: lunar_python 内部异常(不吞,向上抛)
@@ -108,6 +114,16 @@ class BaziEngine:
             # 0. 时辰未知:12:00 占位归一(单一事实源 helper;API 层已归一,
             #    此处幂等执行,保证「同日期任意时辰输入 → 同一输出」)
             calc_birth = birth if hour_known else hour_unknown_placeholder(birth)
+
+            # 0.5 D10 节气边界歧义检测(S02):仅时辰未知时发生(已知时辰
+            #     零开销零改动)。年/月柱 = 00:00/23:59 双排盘比对;
+            #     日柱 = 西偏换日网 + late_night(同一终态两种来源)
+            pillar_ambiguity = (
+                detect_pillar_ambiguity(
+                    calc_birth=calc_birth, longitude=longitude,
+                    late_night=late_night,
+                ) if not hour_known else None
+            )
 
             # 1. 真太阳时调整(用于排盘)
             solar_result = compute_true_solar_time(calc_birth, longitude)
@@ -122,13 +138,18 @@ class BaziEngine:
 
             # 3. 四柱 + 命宫/身宫/胎元 + 五行
             # 时辰未知:先按占位排满四柱拿年/月柱与辅助宫,再把未知柱显式
-            # 置 null(占位时柱/歧义日柱不冒充真实数据漏到响应)
+            # 置 null(占位时柱/歧义柱不冒充真实数据漏到响应)
             pillars = build_pillars(ec)
             day_pillar_unknown = (
-                (not hour_known) and late_night is not False
+                pillar_ambiguity is not None and pillar_ambiguity.day
             )
             if not hour_known:
                 pillars.hour = None
+                # D10 级联:歧义柱置 null(不猜,禁取任一探针侧结果)
+                if pillar_ambiguity.year:
+                    pillars.year = None
+                if pillar_ambiguity.month:
+                    pillars.month = None
                 if day_pillar_unknown:
                     pillars.day = None
             ming_gong, shen_gong, tai_yuan = build_auxiliary_gong(ec)
@@ -136,21 +157,48 @@ class BaziEngine:
 
             # 3.1 生肖:年柱地支 → 英文生肖名(对齐 iOS Zodiac_*.imageset)
             # lunar_python 已按立春算 year.zhi,这里仅做查表(修正 iOS 客户端按公历年推算的立春边界 bug)
-            year_branch_zodiac = compute_year_zodiac(pillars.year.zhi)
+            # 年柱歧义(立春日 + 时辰未知,D10)→ 年支系派生(生肖/好朋友/
+            # 需磨合)一并置 null,不猜(供 S08 生肖屏降级消费)
+            if pillars.year is not None:
+                year_branch_zodiac = compute_year_zodiac(pillars.year.zhi)
 
-            # 3.2 生肖关系(2026-08-13 onboarding 反馈屏「好朋友 / 需磨合」):
-            # 复用 branch_relations.py(合盘引擎同一事实源),地支 → 英文生肖名
-            friends_zhi, clash_zhi = compute_friends_and_clash(pillars.year.zhi)
-            year_branch_friends = [compute_year_zodiac(z) for z in friends_zhi]
-            year_branch_clash = compute_year_zodiac(clash_zhi)
+                # 3.2 生肖关系(2026-08-13 onboarding 反馈屏「好朋友 / 需磨合」):
+                # 复用 branch_relations.py(合盘引擎同一事实源),地支 → 英文生肖名
+                friends_zhi, clash_zhi = compute_friends_and_clash(
+                    pillars.year.zhi,
+                )
+                year_branch_friends = [compute_year_zodiac(z) for z in friends_zhi]
+                year_branch_clash = compute_year_zodiac(clash_zhi)
+            else:
+                year_branch_zodiac = None
+                year_branch_friends = None
+                year_branch_clash = None
 
             # 3.5 contentHash(提前算,供后续日志关联;用输入时间,非真太阳时。
-            # 时辰未知时 birth 为 12:00 归一值:时辰桶不参与,日期+late_night 参与)
+            # 时辰未知时 birth 为 12:00 归一值:时辰桶不参与,
+            # 日期+late_night+歧义标记参与(S02))
             content_hash = compute_content_hash(
                 birth=calc_birth, gender=gender,
                 longitude=longitude, zi_hour_rule=zi_hour_rule,
                 hour_known=hour_known, late_night=late_night,
+                pillar_ambiguity=(
+                    pillar_ambiguity.model_dump()
+                    if pillar_ambiguity is not None else None
+                ),
             )
+
+            # 歧义审计留痕(S02):任一柱命中 → 记录终态与来源参数
+            if pillar_ambiguity is not None and (
+                pillar_ambiguity.year or pillar_ambiguity.month
+                or pillar_ambiguity.day
+            ):
+                logger.info(
+                    "bazi.pillar_ambiguity content_hash=%s year=%s month=%s "
+                    "day=%s late_night=%s offset_minutes=%.2f",
+                    content_hash, pillar_ambiguity.year,
+                    pillar_ambiguity.month, pillar_ambiguity.day,
+                    late_night, solar_result.offset_minutes,
+                )
 
             # 3.6 喜忌(决策 1:扶抑+调候+从格检测 D3;时辰未知 → unknown_hour)
             xiji_start = time.perf_counter()
@@ -160,15 +208,18 @@ class BaziEngine:
             # compute_xiji 内部 _element_of_gan 也会再次校验,这里不重复抛错
             day_gan = pillars.day.gan if pillars.day is not None else None
             day_element = GAN_ELEMENT.get(day_gan) if day_gan else None
+            month_zhi = pillars.month.zhi if pillars.month is not None else None
             logger.info(
                 "bazi.xiji content_hash=%s day_gan=%s day_element=%s month_zhi=%s "
                 "strength=%s score=%d tiaoshou=%s pattern=%s elapsed_ms=%.2f",
-                content_hash, day_gan, day_element, pillars.month.zhi,
+                content_hash, day_gan, day_element, month_zhi,
                 xiji.day_master_strength, xiji.score, xiji.tiaoshou_applied,
                 xiji.pattern_hint, xiji_elapsed_ms,
             )
             if day_pillar_unknown:
-                # 审计留痕:日柱为何置 null(歧义窗口按该出生地 offset 反算墙钟)
+                # 审计留痕:日柱为何置 null(歧义窗口按该出生地 offset 反算墙钟;
+                # 来源 = late_night 是/不确定(S01)或西偏换日网(S02),见
+                # bazi.pillar_ambiguity 日志)
                 win_start, win_end = late_night_wall_window(
                     solar_result.offset_minutes,
                 )
@@ -188,10 +239,15 @@ class BaziEngine:
                 content_hash, len(shensha_items), shensha_elapsed_ms,
             )
 
-            # 4. 大运(跳 index=0)。时辰未知时干支序列照给(依赖表:不依赖时柱,
-            #    节气交界日除外归 S02);起运年龄按 12:00 占位换算,弱依赖误差
-            #    ±2-3 个月,v1 接受不加标注(docs/时辰未知设计决策.md D3 依赖表)
-            luck_pillars = build_luck_pillars(ec, gender)
+            # 4. 大运(跳 index=0)。时辰未知时干支序列照给(依赖表:不依赖时柱;
+            #    起运年龄按 12:00 占位换算,弱依赖误差 ±2-3 个月,v1 接受不加标注,
+            #    docs/时辰未知设计决策.md D3 依赖表)。**月柱歧义例外**(S02/D10
+            #    级联):大运从月柱起排,月柱 unknown → 干支序列置 unknown
+            #    (空列表,不猜),current_luck_pillar 随之自然为 None
+            if pillar_ambiguity is not None and pillar_ambiguity.month:
+                luck_pillars = []
+            else:
+                luck_pillars = build_luck_pillars(ec, gender)
 
             # 5. 流年/流日/流时 + 当前大运
             # birth.tzinfo 非 None 由 compute_true_solar_time 已保证(第 1 步会抛 ValueError)
@@ -207,6 +263,10 @@ class BaziEngine:
                 longitude=longitude, offset_minutes=solar_result.offset_minutes,
                 birth_timezone=birth_timezone,
                 hour_known=hour_known,
+                pillar_ambiguity=(
+                    pillar_ambiguity.model_dump()
+                    if pillar_ambiguity is not None else None
+                ),
             )
 
             # 7. boundary_warning(真太阳时跨边界 + 时区解析边角,不静默吞)
@@ -262,9 +322,12 @@ class BaziEngine:
                 "pattern_hint": xiji.pattern_hint,
                 # 决策 2 神煞(《三命通会》20 个查表,按可用柱)
                 "shensha": [s.model_dump() for s in shensha_items],
-                # 时辰未知:神煞按可用柱查,显式标注不静默
-                "shensha_incomplete": (
-                    pillars.hour is None or pillars.day is None
+                # 时辰未知:神煞按可用柱查(时/日/月/年柱系查表基准缺失的
+                # 条目自然不出),显式标注不静默
+                "shensha_incomplete": any(
+                    p is None
+                    for p in (pillars.year, pillars.month,
+                              pillars.day, pillars.hour)
                 ),
                 # 决策 #13 anchor sentence
                 "anchor_sentence": anchor_sentence,
@@ -273,10 +336,17 @@ class BaziEngine:
                 "useful_god_candidates": xiji.useful_god_candidates,
                 "meta": meta_block.model_dump() if meta_block is not None else None,
                 # 生肖(英文,对齐 iOS Zodiac_*.imageset):lunar_python 已按立春算
+                # 年柱歧义(立春日 + 时辰未知,D10)→ null,不猜(供 S08 降级)
                 "year_branch_zodiac": year_branch_zodiac,
-                # 生肖关系(2026-08-13 onboarding 反馈屏):好朋友 3 + 需磨合 1
+                # 生肖关系(2026-08-13 onboarding 反馈屏):好朋友 3 + 需磨合 1;
+                # 年柱歧义时随年支系派生一并置 null
                 "year_branch_friends": year_branch_friends,
                 "year_branch_clash": year_branch_clash,
+                # 时辰未知 S02/D10:柱歧义标记(None = 已知时辰老路径,不变)
+                "pillar_ambiguity": (
+                    pillar_ambiguity.model_dump()
+                    if pillar_ambiguity is not None else None
+                ),
                 "luck_pillars": [lp.model_dump() for lp in luck_pillars],
                 "current_luck_pillar": (
                     current_luck.model_dump() if current_luck else None

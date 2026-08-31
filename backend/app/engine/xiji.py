@@ -219,13 +219,15 @@ def compute_xiji(pillars: Pillars, element_balance: ElementBalance) -> XijiResul
     """计算喜忌。
 
     Args:
-        pillars: 四柱(时柱/日柱可为 None,见 Pillars 说明)
-        element_balance: 五行统计(按已知柱计数,和 = 8/6/4)
+        pillars: 四柱(年/月/日/时柱可为 None,见 Pillars 说明;年/月柱
+                 None = D10 节气边界歧义,仅在时辰未知下出现)
+        element_balance: 五行统计(按已知柱计数,和 = 8/6/4/2)
 
     Returns:
         XijiResult,普通盘返回 strong/weak/balanced + 喜忌;
         从格特征命中返回 special_pattern + 空喜忌(诚实降级);
-        时柱缺失或日柱歧义返回 unknown_hour + 空喜忌(D4,与从格降级同构)。
+        任一柱缺失(时柱缺失/日柱歧义/年月柱歧义)返回 unknown_hour +
+        空喜忌(D4,与从格降级同构)。
 
     Raises:
         ValueError: 未知干支/藏干缺失 —— 由 BaziEngine 包装为 BaziCalculationFailedError
@@ -235,7 +237,11 @@ def compute_xiji(pillars: Pillars, element_balance: ElementBalance) -> XijiResul
     #    权重公式按 8 字校准,缺字硬算数值意义已变;喜忌是三模块根基,
     #    可靠性无法验证就不给。ten_god_weights/useful_god_candidates 一并留空
     #    (客观统计缺时柱/日柱后与 8 字口径不可比,不降级呈现)
-    if pillars.hour is None or pillars.day is None:
+    #    月柱歧义(D10 级联,S02):调候(查月支)与得令(DELING_WEIGHT 查
+    #    月支)失去输入;年柱歧义(立春日):扶抑得势项缺年干。经引擎路径
+    #    两者必伴随 hour=None,本守卫使部分柱直调同样诚实降级(不硬算)
+    if (pillars.hour is None or pillars.day is None
+            or pillars.year is None or pillars.month is None):
         return XijiResult(
             day_master_strength="unknown_hour",
             favorable_elements=[],

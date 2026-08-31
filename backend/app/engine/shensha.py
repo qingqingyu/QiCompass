@@ -11,7 +11,10 @@
 
 时辰未知(docs/时辰未知设计决策.md D4 附):按**可用柱**查——
 时柱缺失 → 无时支条目;日柱歧义 → 日干系(A 类 7 条)无基准不出,
-三合双查退化为仅年支基准。结果不静默,由响应层 shensha_incomplete=True 标注。
+三合双查退化为仅年支基准;年柱歧义(S02/D10 立春日)→ 年支系
+(B 类三合年支基准 / D 类孤辰寡宿元辰)无基准不出;月柱歧义
+(S02/D10 节交界日)→ 月支系(C 类天德月德)无基准不出。
+结果不静默,由响应层 shensha_incomplete=True 标注。
 """
 
 from __future__ import annotations
@@ -36,8 +39,8 @@ _PILLAR_LABELS: tuple[tuple[str, str], ...] = (
 def _pillar_iter(pillars: Pillars) -> tuple[tuple[str, str, str, str], ...]:
     """按 年月日时 顺序返回**已知柱** (attr, label, gan, zhi)。
 
-    时辰未知(Pillars.hour/day 为 None)时跳过缺失柱:该柱既不作查表基准、
-    也不产出命中条目(时支条目自然缺失)。不静默:调用方以
+    时辰未知(Pillars 任一柱为 None,含 D10 年/月柱歧义)时跳过缺失柱:
+    该柱既不作查表基准、也不产出命中条目。不静默:调用方以
     shensha_incomplete=True 标注(响应层)。
     """
     return tuple(
@@ -297,10 +300,15 @@ def _match_day_gan_zhi(table: dict[str, list[str]]) -> Callable[[Pillars, str], 
 def _match_sanhe_dual(table: dict[str, str]) -> Callable[[Pillars, str], list[str]]:
     """B 类:年支 + 日支双查四柱地支(三合局)。同柱命中只算一条(去重)。"""
     def _matcher(pillars: Pillars, _gender: str) -> list[str]:
-        # 预计算年支/日支对应的查表目标(合并去重);日柱歧义时仅以年支为基准
-        anchors = [pillars.year.zhi]
+        # 预计算年支/日支对应的查表目标(合并去重);日柱歧义时仅以年支为
+        # 基准,年柱歧义(S02)时仅以日支为基准,双缺则本条无基准不出
+        anchors: list[str] = []
+        if pillars.year is not None:
+            anchors.append(pillars.year.zhi)
         if pillars.day is not None:
             anchors.append(pillars.day.zhi)
+        if not anchors:
+            return []
         targets: set[str] = set()
         for anchor_zhi in anchors:
             group = _sanhe_group_of(anchor_zhi)
@@ -315,7 +323,9 @@ def _match_sanhe_dual(table: dict[str, str]) -> Callable[[Pillars, str], list[st
 
 
 def _match_tiande(pillars: Pillars, _gender: str) -> list[str]:
-    """C 类天德:月支查四柱天干或地支(含四维卦地支)。"""
+    """C 类天德:月支查四柱天干或地支(含四维卦地支)。月柱歧义 → 无基准。"""
+    if pillars.month is None:
+        return []
     month_zhi = pillars.month.zhi
     targets = TIANDE.get(month_zhi)
     if targets is None:
@@ -328,7 +338,9 @@ def _match_tiande(pillars: Pillars, _gender: str) -> list[str]:
 
 
 def _match_yuede(pillars: Pillars, _gender: str) -> list[str]:
-    """C 类月德:月支查四柱天干。"""
+    """C 类月德:月支查四柱天干。月柱歧义 → 无基准。"""
+    if pillars.month is None:
+        return []
     month_zhi = pillars.month.zhi
     targets = YUEDE.get(month_zhi)
     if targets is None:
@@ -338,7 +350,9 @@ def _match_yuede(pillars: Pillars, _gender: str) -> list[str]:
 
 
 def _match_guchen(pillars: Pillars, _gender: str) -> list[str]:
-    """D 类孤辰:年支三会局查四柱地支。"""
+    """D 类孤辰:年支三会局查四柱地支。年柱歧义 → 无基准。"""
+    if pillars.year is None:
+        return []
     year_zhi = pillars.year.zhi
     target = GUCHEN.get(year_zhi)
     if target is None:
@@ -348,7 +362,9 @@ def _match_guchen(pillars: Pillars, _gender: str) -> list[str]:
 
 
 def _match_guashu(pillars: Pillars, _gender: str) -> list[str]:
-    """D 类寡宿:年支三会局查四柱地支。"""
+    """D 类寡宿:年支三会局查四柱地支。年柱歧义 → 无基准。"""
+    if pillars.year is None:
+        return []
     year_zhi = pillars.year.zhi
     target = GUASHU.get(year_zhi)
     if target is None:
@@ -358,10 +374,12 @@ def _match_guashu(pillars: Pillars, _gender: str) -> list[str]:
 
 
 def _match_yuanchen(pillars: Pillars, gender: str) -> list[str]:
-    """D 类元辰:年支 + 性别 + 年干阴阳查四柱地支。
+    """D 类元辰:年支 + 性别 + 年干阴阳查四柱地支。年柱歧义 → 无基准。
 
     《三命通会》阳男阴女取冲前一位(顺),阴男阳女取冲后一位(逆)。
     """
+    if pillars.year is None:
+        return []
     year_gan = pillars.year.gan
     year_zhi = pillars.year.zhi
     is_yang_gan = year_gan in YANG_GAN
@@ -439,7 +457,9 @@ def compute_shensha(pillars: Pillars, gender: str) -> list[ShenshaItem]:
     """计算 20 神煞命中列表(按可用柱,见模块 docstring 时辰未知说明)。
 
     Args:
-        pillars: 四柱(已含干支;hour/day 可为 None,跳过缺失柱)
+        pillars: 四柱(已含干支;任一柱可为 None —— 时柱缺失/日柱歧义 S01、
+                 年月柱节气边界歧义 S02 —— 跳过缺失柱,查表基准缺失的条目
+                 不出,见模块 docstring)
         gender: "male"|"female",用于元辰顺逆查表
 
     Returns:

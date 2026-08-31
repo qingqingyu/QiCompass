@@ -80,6 +80,29 @@ def late_night_wall_window(offset_minutes: float) -> tuple[int, int]:
     return start, end
 
 
+def wall_day_start_before_changeover(offset_minutes: float) -> bool:
+    """墙钟日起点(00:00 经真太阳时调整后)是否早于前一日的 23:00 换日点。
+
+    D10/S02 日柱网判据(docs/时辰未知-slices/S02 对 Parent D10 的有意偏离):
+    日柱歧义不得用 00:00/23:59 探针比对 —— setSect(1) 下墙钟 23:59 的
+    真太阳时几乎必落 [23:00,24:00) 换日窗 → 次日柱,字面实现会让**所有**
+    无时辰用户日柱 unknown。正确判定域是「排除换日窗后的当日主体区间」
+    是否横跨两个日柱,等价判据:
+
+        墙钟 00:00 + offset = 前一日第 (1440 + offset) 分钟
+        早于 23:00(第 1380 分钟)⟺ offset < −60
+
+    命中(西偏场景,如喀什 −176min → 墙钟凌晨段落入前一真太阳日,实证
+    1990-03-15@75.99°E:墙钟 [00:00, 02:06) 日柱=前一日)→ 该墙钟日的
+    主体区间横跨两日柱 → 日柱 unknown。它是 S01 late_night 网的互补层:
+    late_night=否 的用户未必把凌晨出生归入「半夜 11 点之后」。
+
+    东八区标准经度(120°E,EoT ∈ [−15,+17]min)恒不命中(offset ≥ −60
+    与 D3「答否→日柱完全确定」一致),不是漏报。
+    """
+    return offset_minutes < -_DAY_CHANGE_WINDOW_MIN
+
+
 def compute_true_solar_time(birth: datetime, longitude: float) -> SolarTimeResult:
     """计算真太阳时。
 

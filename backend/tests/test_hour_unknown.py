@@ -300,25 +300,36 @@ def test_compute_content_hash_unit():
     """hash 函数单测:true 路径公式不变(时辰桶参与);false 路径日期参与。"""
     b_0613 = datetime(1990, 3, 15, 6, 13, tzinfo=TZ8)
     b_2340 = datetime(1990, 3, 15, 23, 40, tzinfo=TZ8)
+    # 普通日无歧义终态标记(1990-03-15@116.4074 探针无年月分叉,
+    # day 随 late_night:!= False → True)
+    no_amb = {"year": False, "month": False, "day": False}
 
     # true:不同时辰桶 → 不同 hash(既有语义回归)
     assert compute_content_hash(b_0613, "male", 116.4074, "zi_next_day") != \
         compute_content_hash(b_2340, "male", 116.4074, "zi_next_day")
     # false:时辰桶不参与 → 同日期同 hash
     assert compute_content_hash(b_0613, "male", 116.4074, "zi_next_day",
-                                hour_known=False, late_night=False) == \
+                                hour_known=False, late_night=False,
+                                pillar_ambiguity=no_amb) == \
         compute_content_hash(b_2340, "male", 116.4074, "zi_next_day",
-                             hour_known=False, late_night=False)
+                             hour_known=False, late_night=False,
+                             pillar_ambiguity=no_amb)
     # false:跨日期 → 不同 hash
     assert compute_content_hash(b_0613, "male", 116.4074, "zi_next_day",
-                                hour_known=False, late_night=False) != \
+                                hour_known=False, late_night=False,
+                                pillar_ambiguity=no_amb) != \
         compute_content_hash(datetime(1990, 3, 16, 6, 13, tzinfo=TZ8),
                              "male", 116.4074, "zi_next_day",
-                             hour_known=False, late_night=False)
+                             hour_known=False, late_night=False,
+                             pillar_ambiguity=no_amb)
     # false:late_night 三态分叉
     hashes = {
-        compute_content_hash(b_0613, "male", 116.4074, "zi_next_day",
-                             hour_known=False, late_night=v)
+        compute_content_hash(
+            b_0613, "male", 116.4074, "zi_next_day", hour_known=False,
+            late_night=v,
+            pillar_ambiguity={"year": False, "month": False,
+                              "day": v is not False},
+        )
         for v in (True, False, None)
     }
     assert len(hashes) == 3

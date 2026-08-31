@@ -114,14 +114,33 @@ class Pillars(BaseModel):
     """四柱。day/hour 可为 null(时辰未知显式缺失表达,docs/时辰未知设计决策.md):
 
     - hour_known=false → hour 恒为 null(时辰部分未知,禁用哨兵假精度)
-    - 日柱歧义(hour_known=false 且 late_night != False)→ day 亦为 null
-      (日主无,日主系派生输出一并置空;year/month 恒有值)
+    - 日柱歧义(hour_known=false 且(late_night != False 或西偏换日网命中,
+      S02/D10))→ day 亦为 null(日主无,日主系派生输出一并置空)
+    - 年柱/月柱歧义(S02/D10 节气边界双排盘比对:立春日/节交界日出生且
+      时辰未知)→ year/month 亦为 null(生肖系/调候得令/大运序列级联置空,
+      详见 pillar_ambiguity 字段;不猜,禁取 00:00 或 23:59 侧任一结果)
     """
 
-    year: Pillar
-    month: Pillar
+    year: Pillar | None = None
+    month: Pillar | None = None
     day: Pillar | None = None
     hour: Pillar | None = None
+
+
+class PillarAmbiguity(BaseModel):
+    """时辰未知时的柱歧义标记(S02/D10,进响应 + calc_rule_snapshot + content_hash)。
+
+    - year/month:D10 节气边界双排盘比对命中(立春日/节交界日,≈3.3% 用户)
+    - day:两种来源同一终态 —— S01 late_night 是/不确定,或 S02 西偏换日网
+      (真太阳时 offset < −60min,墙钟日凌晨段落入前一真太阳日)
+    - 不命中 → 全 False(响应与 S01 基础态一致);hour_known=true 恒不产生
+      本对象(老路径零改动,响应字段为 null)
+    - 不变量:pillar_ambiguity.<pos> == True ⟺ pillars.<pos> 为 null
+    """
+
+    year: bool = False
+    month: bool = False
+    day: bool = False
 
 
 class GanZhiNaYin(BaseModel):
@@ -168,6 +187,10 @@ class CalcRuleSnapshot(BaseModel):
     # 「同一输入永远同一输出 + 快照可审计」被破坏)。默认 True 兼容老
     # ChartPayload 回显(2026-08-15 教训:payload 加字段必须可缺省)
     hour_known: bool = True
+    # 时辰未知 S02/D10:柱歧义标记(节气边界双排盘 + 西偏换日网命中状态)。
+    # hour_known=true 恒 None(老路径快照不变);hour_known=false 必有值
+    # (全 False = 无歧义)——歧义状态进快照,同 hash 可审计歧义降级口径
+    pillar_ambiguity: PillarAmbiguity | None = None
 
 
 # ---------- Meta 块(v1 prompt 系统:M0 chart JSON 注入) ----------
@@ -250,13 +273,19 @@ class BaziCalculateResponse(BaseModel):
     meta: MetaBlock | None = None
     # 2026-08-11 生肖 wire up:年柱地支对应生肖(英文,对齐 iOS Zodiac_*.imageset)
     # pillars.year.zhi 已按立春算,这里仅查表暴露(修正客户端公历年推算的立春边界 bug)
-    year_branch_zodiac: str
+    # 年柱歧义(S02/D10 立春日 + 时辰未知)→ null(年支不确定则生肖不猜,
+    # 供 S08 生肖屏降级);老响应恒有值,Optional 化不破坏回显
+    year_branch_zodiac: str | None = None
     # 2026-08-13 onboarding 反馈屏「好朋友 / 需磨合」:
     # 好朋友 = 六合 1 + 三合 2 = 3 支;需磨合 = 六冲 1 支。
     # 英文生肖名,复用 branch_relations.py(合盘引擎同一事实源)。
-    # 非 Optional:引擎恒填充(对齐 year_branch_zodiac,缺失视为开发期 bug)
-    year_branch_friends: list[str]
-    year_branch_clash: str
+    # 年柱系派生:年柱歧义时随生肖一并置 null(对齐 year_branch_zodiac,不猜)
+    year_branch_friends: list[str] | None = None
+    year_branch_clash: str | None = None
+    # 时辰未知 S02/D10:柱歧义标记(见 PillarAmbiguity)。hour_known=true
+    # 恒 None(老路径响应形状不变);hour_known=false 必有值(全 False =
+    # 与 S01 基础态一致,零歧义)
+    pillar_ambiguity: PillarAmbiguity | None = None
 
     luck_pillars: list[LuckPillar]
     current_luck_pillar: CurrentPillar | None = None

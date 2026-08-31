@@ -129,8 +129,9 @@ def compute_element_balance(pillars: Pillars) -> ElementBalance:
 
     藏干不计入主统计(避免重复加权);普通盘 4 柱 8 字,和 = 8。
     时辰未知(docs/时辰未知设计决策.md):时柱 None → 三柱 6 字,和 = 6;
-    日柱亦歧义(hour_known=false 且 late_night != False)→ 两柱 4 字,和 = 4。
-    按已知字数如实计数,不加标注字段(求和即口径)。
+    日柱亦歧义(S01 late_night / S02 西偏换日网)→ 两柱 4 字,和 = 4;
+    年/月柱亦歧义(S02/D10 节气边界,如立春日年月双歧义)→ 最少一柱
+    2 字,和 = 2。按已知字数如实计数,不加标注字段(求和即口径)。
     """
     counts = {"wood": 0, "fire": 0, "earth": 0, "metal": 0, "water": 0}
     for p in (pillars.year, pillars.month, pillars.day, pillars.hour):

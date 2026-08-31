@@ -14,7 +14,8 @@ def build_calc_rule_snapshot(sect: int, zi_hour_rule: str,
                               longitude: float,
                               offset_minutes: float,
                               birth_timezone: str | None = None,
-                              hour_known: bool = True) -> dict:
+                              hour_known: bool = True,
+                              pillar_ambiguity: dict | None = None) -> dict:
     """构造 calcRuleSnapshot。
 
     Args:
@@ -26,6 +27,10 @@ def build_calc_rule_snapshot(sect: int, zi_hour_rule: str,
         hour_known: 排盘是否含时柱(时辰未知 S01;缺此字段则补时辰前后
                     无法从快照分辨,「同一输入永远同一输出 + 快照可审计」被破坏)。
                     默认 True,daily_fortune 等无命盘时柱概念的调用方零改动
+        pillar_ambiguity: 柱歧义标记(时辰未知 S02/D10,形如
+                    {"year": bool, "month": bool, "day": bool})。hour_known
+                    =false 时必传(全 False = 无歧义);默认 None =
+                    已知时辰(老调用方/daily_fortune 零改动,快照不含该概念)
 
     Returns:
         dict,可直接作为响应字段
@@ -39,4 +44,5 @@ def build_calc_rule_snapshot(sect: int, zi_hour_rule: str,
         "schema_version": SCHEMA_VERSION,
         "birth_timezone": birth_timezone,
         "hour_known": hour_known,
+        "pillar_ambiguity": pillar_ambiguity,
     }
