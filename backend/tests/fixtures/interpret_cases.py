@@ -139,3 +139,15 @@ DAILY_FORTUNE_CONTEXT = {
     "huangli_yi": "嫁娶, 祭祀, 祈福",
     "huangli_ji": "赴任, 出行",
 }
+
+# 每日运势时辰未知版(S09 降级,docs/时辰未知-slices/S09):
+# 喜忌类/时柱类 3 字段(favorable_elements/unfavorable_elements/
+# hour_pillars_with_relations)**整体不进 context**——降级模板不引用,
+# validate_context 对 unknown_hour context 免检(prompts.py
+# _DAILY_FORTUNE_KNOWN_HOUR_ONLY_FIELDS);此处按「整体不发」的最严形态构造
+DAILY_FORTUNE_UNKNOWN_HOUR_CONTEXT = {
+    **{k: v for k, v in DAILY_FORTUNE_CONTEXT.items()
+       if k not in ("favorable_elements", "unfavorable_elements",
+                    "hour_pillars_with_relations")},
+    "day_master_strength": "unknown_hour",
+}

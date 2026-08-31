@@ -19,6 +19,16 @@ PROMPT_VERSIONS 与模板常量放同文件邻近位置:改模板时必须 bump 
   日主×年月日柱十神结构 + 诚实告知"时辰未知,喜忌与时柱分析需要准确出生时刻"
 - bazi_deep_paid 不追加:无时辰用户在 iOS 付费墙即被拦(S07),到不了付费内容,
   付费模板不加无意义分支(slice 拍板)
+
+时辰未知诚实降级(S09,daily_fortune,镜像 S06 换轨思路但走模板变体而非 suffix):
+- context day_master_strength == "unknown_hour"(S01 引擎输出)时,daily_fortune
+  改载降级模板变体 daily_fortune_unknown_hour_v{version}.md(zh/en 双语):
+  日柱×流日十神关系(日主 vs 当日干支)为叙事轴 + 诚实明示「基于日柱推演,
+  时辰与喜忌维度需准确出生时刻」;喜忌栏与 12 时辰段**整体删除**(不是靠
+  指令压制,数据块不进 prompt);禁止 LLM 自推喜忌
+- REQUIRED_FIELDS 按 context 分字段集:unknown_hour context 不再要求
+  favorable_elements / unfavorable_elements / hour_pillars_with_relations
+  (放宽集与降级模板占位符严格一致);正常 context 语义不变(仍 17 字段)
 """
 
 from __future__ import annotations
@@ -50,7 +60,13 @@ PROMPT_VERSIONS: dict[str, int] = {
     "compatibility": 3,    # alias(M4 拆分前单 template 6 章,向后兼容老 iOS);v3=五行共振章节替换
     "compatibility_free": 3,  # M4 拆分:2 章免费,Medium voice(200-300 字/章);v3=随系列统一升
     "compatibility_paid": 3,  # M4 拆分:4 章付费,Medium voice(200-300 字/章);v3=第一章爱情深度→五行共振
-    "daily_fortune": 2,    # Medium voice(50-80 字,砍宜忌+砍时辰点评)
+    "daily_fortune": 3,    # Medium voice(50-80 字,砍宜忌+砍时辰点评)
+    # v3 2026-08-31 S09 时辰未知降级:unknown_hour context 切降级模板变体
+    # daily_fortune_unknown_hour_v3.md(日柱×流日为轴,删喜忌栏+12 时辰段);
+    # 正常 context 仅「喜忌约束」改条件式(S06 同款,非空语义不变)。
+    # 变体与主模板共用此版本号(同一 module 的两个渲染面,缓存按 prompt_hash 分叉)。
+    # 附带:en context 的 day_master_strength 不再译 label(raw key 原样进
+    # prompt,与 zh 一致)——该字段是渲染层分支控制信号,翻译会破坏降级判定。
     # 每日运势插画(gpt-image-2):prompt 由 image_prompt.py 代码拼装(无 .md 模板),
     # 版本号仍是缓存键维度——意象表/风格后缀改动时 bump 此处。
     # v2 2026-08-31:底色随国画旧宣纸换轨 #F3F1EC→#E7E2D5(与 App paper 同值)。
@@ -318,8 +334,11 @@ COMPATIBILITY_PAID_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（付费 4
 
 # ---------- 每日运势 ----------
 # Slice 1 i18n 迁移:DAILY_FORTUNE_TEMPLATE 已迁移到外部 Markdown 文件
-# - prompts/zh/daily_fortune_v2.md(中文版,与原硬编码内容一致)
-# - prompts/en/daily_fortune_v2.md(英文版,术语用 Joey Yap 体系)
+# - prompts/zh/daily_fortune_v{version}.md(中文版,当前 v3)
+# - prompts/en/daily_fortune_v{version}.md(英文版,术语用 Joey Yap 体系,当前 v3)
+# v3(S09):喜忌约束改条件式(喜忌为空——从格/时辰未知——不再声称"喜忌已给出");
+# 时辰未知降级变体 daily_fortune_unknown_hour_v{version}.md(zh/en 双语,
+# 日柱×流日为轴,数据块无喜忌栏/12 时辰段),由 render_prompt 按 context 切换。
 # 后续 Slice 2/3/4 同步迁移 bazi_deep / compatibility 系列。
 
 # ---------- v1 prompt 系统(Stage 5,设计源 bazi-prompt-system-v1.md)----------
@@ -620,7 +639,8 @@ leverage(M6 杠杆点): {leverage}
 # ---------- 模板注册表 ----------
 
 # Slice 1 i18n 改造:_TEMPLATES → _LEGACY_TEMPLATES
-# daily_fortune 已迁移到外部 Markdown 文件(prompts/{zh,en}/daily_fortune_v2.md)。
+# daily_fortune(含 S09 降级变体 daily_fortune_unknown_hour)已迁移到外部
+# Markdown 文件(prompts/{zh,en}/daily_fortune*_v{version}.md)。
 # 其他 module(bazi_deep / compatibility 系列)仍走硬编码常量,等 Slice 2/3/4 迁移。
 # _load_template 加载失败时,中文 fallback 到此 dict;英文显式抛错(避免英文 prompt 误用中文)。
 _LEGACY_TEMPLATES: dict[str, str] = {
@@ -630,7 +650,7 @@ _LEGACY_TEMPLATES: dict[str, str] = {
     "compatibility": COMPATIBILITY_TEMPLATE,
     "compatibility_free": COMPATIBILITY_FREE_TEMPLATE,
     "compatibility_paid": COMPATIBILITY_PAID_TEMPLATE,
-    # daily_fortune 已迁移到外部 Markdown 文件(prompts/{zh,en}/daily_fortune_v2.md)
+    # daily_fortune 已迁移到外部 Markdown 文件(prompts/{zh,en}/daily_fortune_v{version}.md)
     # v1 prompt 系统(Stage 5):M0-M7 共 8 模块
     "m0_structure": M0_STRUCTURE_TEMPLATE,
     "m1_talent": M1_TALENT_TEMPLATE,
@@ -675,6 +695,19 @@ _COMPATIBILITY_REQUIRED_FIELDS = [
     "zodiac_match", "branch_harmony",
     "synced_fortune_table",
 ]
+
+# 时辰未知降级按 context 分字段集(S09,docs/时辰未知-slices/S09):
+# - 降级可用集 = REQUIRED_FIELDS["daily_fortune"] 去掉下面 3 个喜忌类/时柱类字段
+#   (日柱×流日叙事只需 day_master / day_pillar / day_relation 等日柱轴心字段)
+# - day_master_strength == "unknown_hour"(S01 引擎输出)时,validate_context
+#   对这 3 个字段免检——放宽集与降级模板 daily_fortune_unknown_hour 的占位符
+#   严格一致(校验放宽的字段恰好是降级模板不引用的字段,不会出现「校验通过
+#   但渲染 KeyError」的断链)
+# - REQUIRED_FIELDS 注册表本身保持 known-hour 全集不变:check_prompt_sync 以此
+#   校验三边 builder 覆盖 known-hour 契约(iOS S05 builder 对缺柱发占位,键全量)
+_DAILY_FORTUNE_KNOWN_HOUR_ONLY_FIELDS: tuple[str, ...] = (
+    "favorable_elements", "unfavorable_elements", "hour_pillars_with_relations",
+)
 
 REQUIRED_FIELDS: dict[str, list[str]] = {
     "bazi_deep": _BAZI_DEEP_REQUIRED_FIELDS,
@@ -734,10 +767,19 @@ def validate_context(module: str, context: dict) -> None:
     Raises:
         InvalidInputError(422): 缺字段或值类型非法(非标量),message 含详情
         ValueError: module 未注册(代码 bug,非用户错误)
+
+    daily_fortune 特例(S09):context.day_master_strength == "unknown_hour" 时
+    喜忌类/时柱类字段免检(降级模板不引用;见 _DAILY_FORTUNE_KNOWN_HOUR_ONLY_FIELDS)。
     """
     if module not in REQUIRED_FIELDS:
         raise ValueError(f"未知 module: {module}(代码 bug,需注册到 REQUIRED_FIELDS)")
     required = REQUIRED_FIELDS[module]
+    # S09 时辰未知降级:unknown_hour context 不再要求喜忌类/时柱类字段
+    # (降级模板无这些占位符;iOS S05 对缺柱发占位,字段在也不会被渲染引用)
+    if (module == "daily_fortune"
+            and context.get("day_master_strength") == "unknown_hour"):
+        required = [f for f in required
+                    if f not in _DAILY_FORTUNE_KNOWN_HOUR_ONLY_FIELDS]
     missing = [f for f in required if f not in context]
     if missing:
         raise InvalidInputError(
@@ -803,7 +845,11 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
     bazi_deep 系列(alias / _free / _paid)命中 day_master_strength ==
     "special_pattern" 时追加从格诚实降级约束段;
     命中 "unknown_hour"(时辰未知,S01 引擎输出)时对 alias / _free 追加
-    时辰未知降级约束段——付费 module 不加(iOS S07 付费墙已拦,无意义分支)。
+    时辰未知降级约束段——付费 module 不加(iOS S07 付费墙已拦,无意义分支);
+    daily_fortune 命中 "unknown_hour" 时**整体切换**到降级模板变体
+    daily_fortune_unknown_hour_v{version}.md(S09:日柱×流日为轴,数据块
+    无喜忌栏/12 时辰段——数据不进 prompt,不是靠指令压制;变体与主模板
+    共用 PROMPT_VERSIONS["daily_fortune"] 版本号,缓存按 prompt_hash 分叉)。
 
     v1 prompt 系统(M0-M7)模板内含 JSON schema 大括号,已用 {{ }} 转义,
     format_map 会自动还原为单花括号;占位符({chart} / {structure_fingerprint}
@@ -824,7 +870,16 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
     """
     validate_context(module, context)
     version = PROMPT_VERSIONS[module]
-    template = _load_template(module, language, version)
+    # S09 时辰未知降级:daily_fortune 的 unknown_hour context 整体切降级模板变体
+    # (日柱×流日十神关系为轴;喜忌栏/12 时辰段数据块不进 prompt)。
+    # 变体不在 REQUIRED_FIELDS / _LEGACY_TEMPLATES 注册——它只是主 module 的
+    # 另一个渲染面,共用主 module 的版本号与校验契约,缺文件显式抛
+    # FileNotFoundError(zh 也无 fallback,变体只有文件这一种载体)。
+    if (module == "daily_fortune"
+            and context.get("day_master_strength") == "unknown_hour"):
+        template = _load_template("daily_fortune_unknown_hour", language, version)
+    else:
+        template = _load_template(module, language, version)
     # str.format_map 用 _StrictFormatDict:即使 validate_context 漏了某个字段
     # (模板有占位符但 REQUIRED_FIELDS 没列),也会抛清晰 KeyError 而非静默填空
     rendered = template.format_map(_StrictFormatDict(context))

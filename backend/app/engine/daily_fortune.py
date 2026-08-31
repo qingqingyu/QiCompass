@@ -119,11 +119,18 @@ def compute_daily_fortune(
         )
 
         # 8. calc_rule_snapshot(daily-fortune 无经度/真太阳时,传 0.0)
+        # S09:hour_known 接真实值(S01 遗留恒 True)——chart_payload.
+        # day_master_strength == "unknown_hour" 即时辰未知盘(S01 引擎语义,
+        # 日柱歧义盘按 D5 在客户端全拦不调本接口),补时辰前后快照可分辨。
+        # pillar_ambiguity 恒 None:本链路无出生数据可判歧义(见
+        # build_calc_rule_snapshot docstring 的 daily 例外说明)。
+        hour_known = chart_payload.day_master_strength != "unknown_hour"
         calc_rule_snapshot = build_calc_rule_snapshot(
             sect=1,
             zi_hour_rule="client_decided",  # 业务日期由客户端决定,服务端无 zi 规则
             longitude=0.0,
             offset_minutes=0.0,
+            hour_known=hour_known,
         )
 
         logger.info(

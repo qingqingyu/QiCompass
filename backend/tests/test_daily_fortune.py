@@ -203,6 +203,40 @@ def test_lunar_date_format():
         f"农历日期异常:{resp.lunar_date}(期望「五月廿八」)")
 
 
+def test_calc_rule_snapshot_hour_known_wired_s09():
+    """S09:snapshot.hour_known 接真实值(S01 遗留恒 True 修复)——
+    unknown_hour 盘 False,正常盘 True;补时辰前后快照可分辨。
+    pillar_ambiguity 恒 None(daily 链路无出生数据可判歧义,D5 歧义盘客户端全拦)。"""
+    # 正常盘 → hour_known=True
+    resp_known = compute_daily_fortune(
+        chart_hash="t-snap-1", target_date=date(2026, 7, 12),
+        chart_payload=DOC_CHART,
+    )
+    assert resp_known.calc_rule_snapshot["hour_known"] is True
+    assert resp_known.calc_rule_snapshot["pillar_ambiguity"] is None
+
+    # 时辰未知盘(strength=unknown_hour,四柱缺 hour 键)→ hour_known=False
+    unknown_chart = ChartPayload(
+        day_master="己", day_master_element="earth",
+        day_master_strength="unknown_hour",
+        favorable_elements=[], unfavorable_elements=[],  # S01:喜忌留空
+        four_pillars={
+            "year": PillarRef(gan="庚", zhi="午"),
+            "month": PillarRef(gan="己", zhi="卯"),
+            "day": PillarRef(gan="己", zhi="卯"),
+        },
+    )
+    resp_unknown = compute_daily_fortune(
+        chart_hash="t-snap-2", target_date=date(2026, 7, 12),
+        chart_payload=unknown_chart,
+    )
+    assert resp_unknown.calc_rule_snapshot["hour_known"] is False
+    assert resp_unknown.calc_rule_snapshot["pillar_ambiguity"] is None
+    # 其余快照字段不变(daily 无经度/真太阳时;sect 固定 1)
+    assert resp_unknown.calc_rule_snapshot["sect"] == 1
+    assert resp_unknown.calc_rule_snapshot["zi_hour_rule"] == "client_decided"
+
+
 # ===== 路由层测试 =====
 
 async def test_endpoint_registration():
@@ -274,3 +308,23 @@ async def test_endpoint_missing_target_date_returns_422():
     del bad_req["target_date"]
     code, body, _ = await _post(bad_req)
     assert code == 422
+
+
+async def test_endpoint_accepts_unknown_hour_chart_s09():
+    """S09 契约:unknown_hour 盘可调 daily-fortune(200)——降级发生在
+    interpret 层的 prompt 变体,compute 层照常返回完整数据(12 时辰条
+    是流时数据非出生时柱,与 hour_known 无关);snapshot.hour_known=False。"""
+    unknown_chart = ChartPayload(
+        day_master="己", day_master_element="earth",
+        day_master_strength="unknown_hour",
+        favorable_elements=[], unfavorable_elements=[],
+        four_pillars={
+            "year": PillarRef(gan="庚", zhi="午"),
+            "month": PillarRef(gan="己", zhi="卯"),
+            "day": PillarRef(gan="己", zhi="卯"),
+        },
+    )
+    code, body, _ = await _post(_make_request(date(2026, 7, 12), unknown_chart))
+    assert code == 200, f"unknown_hour 盘应可调,实际={code} body={body}"
+    assert len(body["hour_pillars"]) == 12
+    assert body["calc_rule_snapshot"]["hour_known"] is False

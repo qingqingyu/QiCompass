@@ -39,11 +39,15 @@ class ChartPayload(BaseModel):
 
     day_master: str = Field(..., description="日主天干，如「甲」")
     day_master_element: str = Field(..., description="日主五行英文 key（wood/fire/earth/metal/water）")
-    day_master_strength: Literal["weak", "balanced", "strong", "special_pattern"]
+    # unknown_hour(S09):时辰未知盘(S01 引擎输出,喜忌留空)。日柱歧义盘按
+    # 决策 D5 在客户端全拦,不会调本接口
+    day_master_strength: Literal[
+        "weak", "balanced", "strong", "special_pattern", "unknown_hour"]
     favorable_elements: list[str] = Field(default_factory=list)
     unfavorable_elements: list[str] = Field(default_factory=list)
     four_pillars: dict[str, PillarRef] = Field(
-        ..., description="{year,month,day,hour} 四柱，每柱含 gan/zhi。用于 chong_targets 命中检测")
+        ..., description="{year,month,day,hour} 四柱，每柱含 gan/zhi。用于 chong_targets 命中检测。"
+        "时辰未知盘（day_master_strength=unknown_hour）缺 hour 键（引擎对缺失位置跳过冲合检测）")
 
     # 合盘扩展字段（daily_fortune 不填; compatibility 必填）
     luck_pillars: list[LuckPillar] = Field(

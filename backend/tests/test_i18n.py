@@ -293,6 +293,26 @@ class TestRenderPromptI18n:
         # lru_cache 应返回同一对象(基于 id)
         assert id(t1) == id(t2)
 
+    def test_unknown_hour_degraded_variant_en_full_flow(self,
+                                                        daily_fortune_context):
+        """S09:unknown_hour context 的 en 渲染走降级变体文件;
+        translate_context 先行(strength raw key unknown_hour 已注册,
+        未注册会 KeyError → 500),变体无 12 时辰段/喜忌栏。"""
+        ctx = {k: v for k, v in daily_fortune_context.items()
+               if k not in ("favorable_elements", "unfavorable_elements",
+                            "hour_pillars_with_relations")}
+        ctx["day_master_strength"] = "unknown_hour"
+        # 真实链路:translate_context → render_prompt(变体)。
+        # strength raw key 不被翻译(控制信号翻译不变式),变体切换仍命中
+        translated = translate_context(ctx, "en", "daily_fortune")
+        assert translated["day_master_strength"] == "unknown_hour"
+        prompt = render_prompt("daily_fortune", translated, language="en")
+        assert "Day Pillar only" in prompt          # 诚实局限句(变体标志)
+        assert "birth hour" in prompt.lower()
+        assert "12 Hour Pillars" not in prompt       # 12 时辰段整体删除
+        assert "Favorable Elements:" not in prompt   # 喜忌栏整体删除
+        assert "{" not in prompt
+
 
 # ---------- cache + CacheKey language 维度 ----------
 
@@ -442,11 +462,12 @@ class TestTranslateContext:
         assert result == daily_fortune_context
 
     def test_en_single_term_fields(self, daily_fortune_context):
-        """en 翻译单术语字段。"""
+        """en 翻译单术语字段。day_master_strength 不译(S09:raw key 是渲染层
+        分支控制信号,翻译会破坏 unknown_hour/special_pattern 降级判定)。"""
         result = translate_context(daily_fortune_context, "en", "daily_fortune")
         assert result["day_master"] == "Jia"
         assert result["day_master_element"] == "Wood"
-        assert result["day_master_strength"] == "Strong"
+        assert result["day_master_strength"] == "strong"  # raw key 原样保留
         assert result["day_stem"] == "Jia"
         assert result["day_branch"] == "Zi"
         assert result["day_stem_element"] == "Wood"
@@ -541,7 +562,8 @@ class TestEndToEndI18nFullFlow:
         assert "Day Master Jia" in prompt
         assert "Day Pillar: Jia Zi" in prompt
         assert "Companion" in prompt  # day_relation
-        assert "Strong" in prompt  # day_master_strength
+        # day_master_strength 保留 raw key(S09:渲染层控制信号,不翻译,与 zh 一致)
+        assert "Day Master Jia (Wood), strong" in prompt
         assert "Wood Fire" in prompt  # favorable_elements
         assert "Metal Water" in prompt  # unfavorable_elements
 
