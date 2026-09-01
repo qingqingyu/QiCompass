@@ -7,7 +7,9 @@
 
 ## What to build
 
-1. **模板降级分支**(`app/ai/prompts.py`,free 模板为 `BAZI_DEEP_FREE_TEMPLATE`):context 喜忌为空 / strength=unknown_hour 时,免费 2 章(性格底色 / 事业方向)的叙事依据从「喜忌」换成「日主×三柱结构」——模板写明:若上下文喜忌为空,如实按日主与年月日柱十神结构展开,**并诚实告知「时辰未知,喜忌与时柱分析需要准确出生时刻」**;禁止 LLM 推断喜忌或编造时柱影响(LLM 边界红线)。**机制镜像现成先例**:`render_prompt` 已有按 `day_master_strength` 条件追加约束段的机制——`day_master_strength == "special_pattern"` 时追加 `BAZI_DEEP_SPECIAL_PATTERN_SUFFIX`(从格诚实降级);unknown_hour 同款做法(如 `BAZI_DEEP_UNKNOWN_HOUR_SUFFIX`,condition 为 `day_master_strength == "unknown_hour"`)
+1. **模板降级分支**(`app/ai/prompts.py`,free 模板为 `BAZI_DEEP_FREE_TEMPLATE`):context 喜忌为空 / strength=unknown_hour 时,免费 2 章(性格底色 / 事业方向)的叙事依据从「喜忌」换成「日主×三柱结构」——模板写明:若上下文喜忌为空,如实按日主与年月日柱十神结构展开,**并诚实告知「时辰未知,喜忌与时柱分析需要准确出生时刻」**;禁止 LLM 推断喜忌或编造时柱影响(LLM 边界红线)。**机制镜像现成先例**:`render_prompt` 已有按 `day_master_strength` 条件追加约束段的机制——`day_master_strength == "special_pattern"` 时追加 `BAZI_DEEP_SPECIAL_PATTERN_SUFFIX`(从格诚实降级);unknown_hour 可同款做法(如 `BAZI_DEEP_UNKNOWN_HOUR_SUFFIX`,condition 为 `day_master_strength == "unknown_hour"`)。
+   **但先例有一处不可照抄**(2026-09-01 review):`render_prompt` 现有实现在 `language != "zh"` 时对 special_pattern **直接 `raise FileNotFoundError`**(`prompts.py:811-820`)。`prompts/en/` 是已存在的活语言目录——照抄会让**每个英文用户 + 无时辰 = 硬报错**,不是降级解读。差别在概率:`special_pattern` 是罕见命局,拿 raise 当占位可以接受;`unknown_hour` 是本功能**刻意制造并主动引导**的常态。
+   **要求**:zh / en **两份 suffix 同时落地**(或直接把降级指令写进各语言模板主体,绕开 suffix 拼接这条有历史债的路);无论哪种做法,`language="en"` 必须能渲染出完整 prompt,不得 raise
 2. **PV bump**:`PROMPT_VERSIONS` 中 `bazi_deep` / `bazi_deep_free` / `bazi_deep_paid` 统一 +1(同次产品迭代一次 bump:free 叙事变化最大;paid 内容未变但一并 bump,老缓存随新版本号自然失效)
 3. **双护栏(CLAUDE.md)**:
    - `python3 tools/check_prompt_sync.py` PASS(REQUIRED_FIELDS 不动,builder keys S05 已保证)
@@ -23,6 +25,8 @@
 - [ ] PV 三 key bump;evalkit 响应缓存按新 prompt hash 只重跑 deep 系列
 - [ ] `check_prompt_sync.py` PASS;evalkit 无 regression(或基线流程完成 + 退化逐条裁决)
 - [ ] 真实跑 ≥1 盘无时辰样本:输出不出现喜忌结论、不出现时柱内容、有明示局限句;禁词扫描照常过
+- [ ] **`language="en"` + unknown_hour context 渲染成功**(不 raise FileNotFoundError),英文 prompt 尾部不出现中文 suffix
+- [ ] `language="en"` + special_pattern 的现状行为不被本 slice 改变(该 raise 是既有债,不在本 slice 范围;若顺手补则需单独说明)
 - [ ] 用户过目降级叙事样例并认可(voice 基准)
 
 ## 实现锚点(现状快照 2026-08-31,实施以代码为准)

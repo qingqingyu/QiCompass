@@ -2,8 +2,11 @@ import SwiftUI
 
 /// 购买弹窗(底部 sheet + grabber)。
 ///
-/// M3c 决策(用户拍板):底部 sheet `.presentationDetents([.medium])`,
-/// 而非全屏 sheet(避免与 OnboardingView 视觉重复)。
+/// M3c 决策(用户拍板):底部 sheet(默认 .medium)而非全屏
+/// (避免与 OnboardingView 视觉重复)。2026-08-31 修 bug 加 .large:
+/// 8 章清单 + 登录区理想高度 ~750pt,.medium(~392pt)装不下且无滚动,
+/// 超高内容被 sheet 居中裁切(首章「壹」不可见);内容入 ScrollView
+/// 顶部锚定 + .large 可拉满,彻底消灭裁切。
 ///
 /// 视觉:遵守 DESIGN.md 宋瓷极简美学(无金色 / 无磨砂玻璃),
 /// 锁标用 `lock.fill` + `inkMuted`,CTA 用朱砂红 PrimaryCTAButton。
@@ -19,38 +22,44 @@ struct PaywallView: View {
     }
 
     var body: some View {
-        VStack(spacing: BaziTheme.Spacing.md) {
-            // grabber(底部 sheet 标识)
-            Capsule()
-                .fill(BaziTheme.inkMuted.opacity(0.3))
-                .frame(width: 36, height: 4)
-                .padding(.top, BaziTheme.Spacing.sm)
-
-            if viewModel.isPurchaseIntercepted {
-                // S07 时辰未知拦截态(D6):不展示价格、不展示购买按钮、不加载
-                // StoreKit product(purchase 在 VM 层另有守卫,纵深防御)。
-                // D9 二期正式版文案:为什么拦(双重收费人话版)+ 补时辰引导;
-                // S10 接线 CTA → 补时辰 sheet;静默态文案降中性(入口保留)。
-                HourUnknownGateNotice(
-                    title: L10n.PaywallGate.title,
-                    reason: L10n.PaywallGate.paywallReason,
-                    silenced: viewModel.hourUnknownSilenced,
-                    onAddHour: viewModel.onAddHour
-                )
-                Spacer(minLength: 0)
-            } else {
-                purchaseBody
+        // 2026-08-31 修复:内容整体入 ScrollView(顶部锚定滚动)。
+        // 此前是固定 VStack:8 章清单 + 印章头 + 登录区理想高度 ~750pt,
+        // 远超 .medium 内容区(~392pt),超高内容被 sheet 垂直居中,
+        // 上下两端同时裁掉——顶部丢「解」印 + 标题 + 「壹·命盘」行
+        // (用户看到清单从「贰」开始),底部丢登录按钮 + 法律注。
+        // detents 加 .large:拉起后整屏放下全部捌章(参考屏 deep-p3
+        // 本就是 ~478px 高的 sheet,medium 只装得下前几行)。
+        // S07 拦截态同入此容器(内容短,顶部锚定不受影响)。
+        ScrollView {
+            VStack(spacing: BaziTheme.Spacing.md) {
+                if viewModel.isPurchaseIntercepted {
+                    // S07 时辰未知拦截态(D6):不展示价格、不展示购买按钮、不加载
+                    // StoreKit product(purchase 在 VM 层另有守卫,纵深防御)。
+                    // D9 二期正式版文案:为什么拦(双重收费人话版)+ 补时辰引导;
+                    // S10 接线 CTA → 补时辰 sheet;静默态文案降中性(入口保留)。
+                    HourUnknownGateNotice(
+                        title: L10n.PaywallGate.title,
+                        reason: L10n.PaywallGate.paywallReason,
+                        silenced: viewModel.hourUnknownSilenced,
+                        onAddHour: viewModel.onAddHour
+                    )
+                } else {
+                    purchaseBody
+                }
             }
+            // 顶部留白:给系统 drag indicator 让位(原自定义 Capsule grabber 删:
+            // presentationDragIndicator(.visible) 本就画一个,内容不再被裁后会出现双横条)
+            .padding(.top, BaziTheme.Spacing.md)
+            .padding(.horizontal, BaziTheme.Spacing.lg)
+            .padding(.bottom, BaziTheme.Spacing.lg)
         }
-        .padding(.horizontal, BaziTheme.Spacing.lg)
-        .padding(.bottom, BaziTheme.Spacing.lg)
         .presentationBackground(BaziTheme.cardSurface)
-        .presentationDetents([.medium])
+        .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .task { await viewModel.loadProduct() }
     }
 
-    /// 正常付费墙(有时辰用户):与 S07 前现状完全一致(价格/按钮/购买链路零变化)。
+    /// 正常付费墙内容(有时辰用户):与 S07 前现状完全一致(价格/按钮/购买链路零变化)。
     private var purchaseBody: some View {
         VStack(spacing: BaziTheme.Spacing.md) {
             // 水墨孤本(deep-p3):「解」印 + 标题 + 副题
@@ -90,8 +99,6 @@ struct PaywallView: View {
                 }
             }
             .frame(maxWidth: .infinity, alignment: .leading)
-
-            Spacer()
 
             // 失败时显示错误文案(诊断 + UX:避免按钮恢复 idle 让用户以为"没反应")
             if case .failed(let message) = viewModel.state {
