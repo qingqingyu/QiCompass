@@ -511,10 +511,10 @@ enum L10n {
         static let addHourSilentNote = String(localized: "profile.addHour.silentNote")
     }
 
-    // MARK: - M4 健康输入表单(HealthInputForm;i18n 补录 2026-08-29)
+    // MARK: - M4 健康输入两问(ChapterReadingInputForm 消费;i18n 补录 2026-08-29)
 
-    /// M4 健康续航「生成前两问」输入 sheet。
-    /// `required` / `cta.*` 与 M5 WealthInputForm 共用引用(key 不重复建)。
+    /// M4 健康续航「生成前两问」(阅读页页内表单)。
+    /// `required` / `cta.*` 与 M5 财富两问共用引用(key 不重复建)。
     /// 选项 value(睡眠/疲劳/体重/情绪/其他)是提交 payload,不本地化,不进本表。
     enum HealthForm {
         /// 章头 kicker。

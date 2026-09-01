@@ -37,7 +37,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         let apiClient = MockAPIClient()
         let interpretStore = InterpretationCacheStore(context: context)
         let identityResolver = AIIdentityResolver(apiClient: apiClient)
-        let counter = DailyReadCounter()
+        let counter = DailyReadCounter.makeIsolatedForTesting()
         let reader = CachedInterpretationReader(
             identityResolver: identityResolver,
             cacheStore: interpretStore
@@ -1236,7 +1236,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             compatibilityStore: compatibilityStore,
             chartStore: chartStore,
             interpretStore: interpretStore,
-            counter: DailyReadCounter(),
+            counter: DailyReadCounter.makeIsolatedForTesting(),
             interpretationReader: reader
         )
         return CompatibilityViewModel(

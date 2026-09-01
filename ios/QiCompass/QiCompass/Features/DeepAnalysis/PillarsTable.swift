@@ -29,21 +29,16 @@ struct PillarsTable: View {
     var onAddHour: (() -> Void)? = nil
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("四柱")
-                .zcoolCardTitle()
-            HStack(alignment: .top, spacing: 10) {
-                PillarColumn(title: "年", pillar: pillars.year)
-                PillarColumn(title: "月", pillar: pillars.month)
-                PillarColumn(title: "日", isDay: true, pillar: pillars.day)
-                // isHourSlot:未知时该列是 D7 补时辰触点 1(S10 已接线)
-                PillarColumn(title: "时", isHourSlot: true, pillar: pillars.hour, onAddHour: onAddHour)
-            }
+        // 盘面小景 S1 卸卡:节标「四柱」移入 ChartDetailView 的 HairlineSection,
+        // 卡壳与内边距移除(柱列内部间距不动)
+        HStack(alignment: .top, spacing: 10) {
+            PillarColumn(title: "年", pillar: pillars.year)
+            PillarColumn(title: "月", pillar: pillars.month)
+            PillarColumn(title: "日", isDay: true, pillar: pillars.day)
+            // isHourSlot:未知时该列是 D7 补时辰触点 1(S10 已接线)
+            PillarColumn(title: "时", isHourSlot: true, pillar: pillars.hour, onAddHour: onAddHour)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(BaziTheme.Spacing.cmd)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
     }
 }
 

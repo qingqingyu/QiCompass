@@ -111,6 +111,7 @@ iOS 系统字体,**不打包任何自定义字体**。楷体走 `Font.custom("Ka
 - **付费标识:** `PaidTag`「付费」白字朱底小方标,旋转 -6°,**只此一处用朱底块**
 - **Tab:** 墨物线描四枚矢量图标(`TabIcons.swift`)+ 楷体文字,tint=ink;系统 TabView + ImageRenderer 模板渲染(2026-08-30 拍板,替代原纯文字 tab;几何事实源 `~/.gstack/projects/qingqingyu-QiCompass/designs/tab-icons-20260830/finalized.html`。今日=墨圆环抱点(EnsoView 同源)/深度=三叠横墨/合盘=双环交叠/我的=未钤空心印;朱红不出现在 tab 层)
 - **每日运势 V4「一幅图为主角」+ V1 元素整合**(2026-08-30 V4 拍板 / 2026-08-31 V1 元素并入,事实源 `~/.gstack/projects/qingqingyu-QiCompass/designs/daily-fortune-art-20260830/`):第一屏 = 三行日期区(公历大字 21+周几小字/符牌图+农历·干支/短标签+关系+冲 chips 含古篆符牌)→ **3:2 五行小景水墨插画**(左右 17pt 边距,右下干支竖排+左下朱印为客户端 Kaiti 矢量叠加,不靠生图写字;深色模式插画保持纸底=「暗夜里的一张画」)→ 宜忌单行居中**入亮纸框** → AI 解读**入框**(无剩余次数)→ hairline 小注;第二屏 = 7 日历史带 + 明日预告(吸顶折叠机制随 V4 移除)。2026-09-01 起底图改**单张固定资产**(HeroLandscape,画布定稿浅绛山水):iOS 不再调生图 API,零成本/零延迟/零 IMAGE_API_KEY 依赖;后端生图端点与浅绛 prompt(v3)保留休眠,恢复动态时还原客户端接线(git 931b6b5→本 commit 之间的删除段)
+- **深度解析「盘面小景」读查分离**(2026-09-01 design-shotgun D 拍板,事实源 `~/.gstack/projects/qingqingyu-QiCompass/designs/deep-analysis-20260901/finalized.html` 11 屏):主页 = **hero 盘面仪式感**(右上 EnsoView 淡墨圆出血 + 四柱干支竖列浓淡层次:年/月/时 22pt 灰墨 52%、日主 34pt 浓墨 + 旺衰旁注;左下「玄」印 24;右下竖排喜忌小注,从格 → 「从格 · 喜忌留空」;时柱未知 → dashed 圆位可点补时辰)→ 锚句 15pt → 捌章目录(NumeralBadge 30 实/虚线 + 章名 15pt + 副题 + 已读墨点/付费标/生成中)→ 沉底 CTA 五态(开卷/续读/解印全本/次数用尽 ghost/重读 ghost;状态派生 `HomeCTAModel`);**阅读页** = 独立沉浸页 push(自定义顶 bar 隐藏系统导航;左缘竖章号栏 44pt hairline 分隔 + **正文 15.5pt · 行距 2.15× · 首行缩进 2em · justify**(§Body 古籍排版首次落地,全角空格实现缩进)+ 章末「批」印 26 + 底部翻章条;生成中 = 三墨点 breathe + 竖排「布算中」;失败原地重试;M4/M5 页内亮纸框两问,chip 选中 cinnabarSoft——授权场景);**细目页** = 九卡确定性数据 hairline 分节收编(`HairlineSection`:节标 14.5pt 楷体 + 右小注,边距 32,「卡片让位 hairline」在此落地);付费墙 sheet 挂栈根(阅读页 push 中可触发,购买成功 retryLockedV1Modules 不 pop);legacy 单文本命书 UI 移除(InterpretState 枚举保留;老缓存不清库)。设计稿④「全章待时辰拦截」按产品事实修正为 S07 语义(时辰未知日柱确定 → 免费两章照给,付费墙内引导补时辰)
 
 ## Motion
 
@@ -188,7 +189,7 @@ enum BaziTheme {
 |---|---|---|---|---|
 | Phase 1 | RootTabView + BaziTheme + BaziFont + PrimaryCTAButton + 新组件 InkKit/SplashTransitionView | token/字体/CTA/tab/启动转场 | variant-c-shuimo.html | ✅ |
 | Phase 2 | Onboarding O1-O4 + DailyFortune T1 | O1 墨圆承接(删壁画图) / O3 墨圆布算 / T1 去卡重排;**O2 表单与 O4 揭晓为 token 携带**(结构重排遗留) | onboarding-o*.html / daily-t1.html | ✅(含遗留) |
-| Phase 3 | DeepAnalysis 捌章卷轴 + PaywallView + 阅读页 | NumeralBadge 行 / 「解」印 sheet;**朱字批语未做**(需 prompt 输出,动 prompts.py 触发 evalkit 守护栏须先跑基线) | deep-p1..p4.html | ✅(含遗留) |
+| Phase 3 | DeepAnalysis 捌章卷轴 + PaywallView + 阅读页 | NumeralBadge 行 / 「解」印 sheet;**朱字批语未做**(需 prompt 输出,动 prompts.py 触发 evalkit 守护栏须先跑基线);2026-09-01 盘面小景重排:主页 hero+目录 / 沉浸阅读页 / 细目页(见 §Layout) | deep-p1..p4.html + deep-analysis-20260901/finalized.html | ✅(含遗留) |
 | Phase 4 | Compatibility H1-H3 + Profile M1/M2 | 对卡/合印/定性网格/命主块;**双柱合印中轴与 M2 引导盒为 token 携带** | hepan-*.html / mine-*.html | ✅(含遗留) |
 
 **新组件(Shared/InkKit.swift):** `VText` / `EnsoView` / `SealStamp`(自 OnboardingView 迁出) / `PaperGrain`(Canvas 确定性噪点) / `NumeralBadge` / `PaidTag`;**Shared/SplashTransitionView.swift**。新文件须 pbxproj 4 处登记一致 24 位 ID(objectVersion 56)。
@@ -221,3 +222,4 @@ enum BaziTheme {
 | 2026-08-26 | **待办:英文 locale 字体路由**——Kaiti SC 拉丁字形偏楷书衬线,英文正文可用性待验证;方向:display 中文 Kaiti / 英文回退系统 serif;body 英文走系统 sans;VText 仅用于中文(英文横排,沿用 SutraView locale 分流模式);印章/品牌字(玄机问道/玄/解/合)保持中文不翻译(决策 7 术语族) | i18n v1 中英开口子(2026-08-12)与新字体体系交叉,落地前须英文截图走查 |
 | 2026-08-26 | T3 签纸分享卡 backlog(不做入 v1 换装) | 分享卡是图片生成新功能,与换装解耦;今日首页用 T1 墨白节奏 |
 | 2026-08-31 | **paper 冷灰宣纸 `#F3F1EC` → 国画旧宣纸 `#E7E2D5`(全 App)** | 今日运势 V1 画布(daily-fortune-20260830)拍板:「底暗框亮」浮框结构(cardSurface 纸面浮起)依赖压暗一档的暖调底;全 App 换轨避免 tab 切换底色跳变。Dark 夜宣纸不变 |
+| 2026-09-01 | **深度解析改「盘面小景」读查分离**(hero+捌章目录 / 沉浸阅读页 / 细目页;§Body 古籍排版首次落地) | design-shotgun 5 方向对比 D 5/5 直选;长文排版是核心诉求;legacy 单文本命书 UI 随之移除 |

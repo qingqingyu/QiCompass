@@ -14,22 +14,16 @@ struct LuckPillarsTimeline: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("大运")
-                .zcoolCardTitle()
-            ScrollView(.horizontal, showsIndicators: false) {
-                HStack(alignment: .top, spacing: 12) {
-                    ForEach(Array(validPillars.enumerated()), id: \.offset) { _, lp in
-                        luckColumn(lp, isCurrent: isCurrent(lp))
-                    }
+        // 盘面小景 S1 卸卡:节标「大运」移入 HairlineSection,外层卡壳移除
+        ScrollView(.horizontal, showsIndicators: false) {
+            HStack(alignment: .top, spacing: 12) {
+                ForEach(Array(validPillars.enumerated()), id: \.offset) { _, lp in
+                    luckColumn(lp, isCurrent: isCurrent(lp))
                 }
-                .padding(.vertical, 4)
             }
+            .padding(.vertical, 4)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(BaziTheme.Spacing.cmd)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
     }
 
     private func luckColumn(_ lp: LuckPillarDTO, isCurrent: Bool) -> some View {

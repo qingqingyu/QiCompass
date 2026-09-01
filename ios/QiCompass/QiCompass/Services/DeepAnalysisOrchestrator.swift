@@ -248,8 +248,8 @@ final class DeepAnalysisOrchestrator {
     /// - 命中后端缓存 → refund(同老逻辑)
     /// - 失败 → refund(重试不消耗)
     ///
-    /// 注:M4/M5 的用户输入通过 m4Input / m5Input tuple 传入,VM 在 Stage 8
-    /// 通过 HealthInputForm / WealthInputForm sheet 收集后传入。
+    /// 注:M4/M5 的用户输入通过 m4Input / m5Input tuple 传入,VM 在阅读页
+    /// 页内表单(ChapterReadingInputForm)收集后传入。
     ///
     /// - Parameters:
     ///   - response:排盘响应(必须含 meta / tenGodWeights / usefulGodCandidates,

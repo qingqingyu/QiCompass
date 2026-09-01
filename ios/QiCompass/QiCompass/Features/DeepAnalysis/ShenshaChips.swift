@@ -8,17 +8,14 @@ struct ShenshaChips: View {
     let shensha: [ShenshaItemDTO]
 
     var body: some View {
+        // 盘面小景 S1 卸卡:节标「神煞」移入 HairlineSection,外层卡壳移除
         VStack(alignment: .leading, spacing: 10) {
-            Text("神煞")
-                .zcoolCardTitle()
-
             if shensha.isEmpty {
                 Text("本命盘未命中神煞")
                     .font(.caption)
                     .foregroundStyle(BaziTheme.inkMuted)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(BaziTheme.Spacing.md)
-                    .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
             } else {
                 LazyVGrid(
                     columns: [GridItem(.adaptive(minimum: 90), spacing: 8)],
@@ -31,9 +28,6 @@ struct ShenshaChips: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(BaziTheme.Spacing.md)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
     }
 
     /// 单个神煞 chip(Capsule 留给 chip):吉 jade / 凶 暗朱砂。

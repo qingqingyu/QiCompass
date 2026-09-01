@@ -31,8 +31,14 @@ struct DeepAnalysisView: View {
     /// 不静默不开)。
     @State private var addHourError: String?
 
+    // 盘面小景 S2:阅读页导航(path 单值替换,章间跳转不叠栈)
+    /// 当前阅读的章(nil/空 = 未进阅读页)。开卷/续读/目录行/翻章统一写这里。
+    @State private var path: [ModuleID] = []
+    /// 付费墙 sheet(挂根上:阅读页 push 中也能从翻章/锁态触发)。
+    @State private var showPaywall = false
+
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ZStack {
                 BaziTheme.paper.ignoresSafeArea()
                 content
@@ -40,6 +46,56 @@ struct DeepAnalysisView: View {
             .navigationTitle("深度解析")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.light, for: .navigationBar)
+            // 盘面小景 S2:章节阅读页(全仓首个 navigationDestination,仅本栈)
+            .navigationDestination(for: ModuleID.self) { module in
+                if let vm, case .ready(let response, _) = vm.state {
+                    ChapterReadingView(
+                        vm: vm,
+                        module: module,
+                        response: response,
+                        onShowPaywall: { showPaywall = true },
+                        onNavigate: { target in path = [target] }
+                    )
+                } else {
+                    // 阅读页依赖 .ready;状态机回退时诚实报错不闪空屏
+                    ErrorStateView(
+                        error: UserFacingError.generic(message: "命盘状态已变化,请返回重进"),
+                        retry: { path = [] }
+                    )
+                }
+            }
+            // 盘面小景 S2:付费墙从 ResultView 迁根上(购买成功 → 重跑 locked 模块)
+            .sheet(isPresented: $showPaywall) {
+                if let vm, case .ready(let response, _) = vm.state {
+                    PaywallView(
+                        viewModel: PaywallViewModel(
+                            module: .deepAnalysis,
+                            contentHash: response.contentHash,
+                            purchaseManager: env.purchaseManager,
+                            // S07:时辰未知但日柱确定 → 免费照给 + 付费墙拦
+                            // (墙内显示补时辰引导);日柱歧义到不了内容页。
+                            hourUnknownGate: response.hourUnknownGate,
+                            // S10:静默态 → 墙内拦截文案降中性
+                            hourUnknownSilenced: response.isHourSilenced,
+                            // D7 触点 3:关付费墙 → 开补时辰 sheet
+                            onAddHour: {
+                                showPaywall = false
+                                openAddHourSheet(hash: response.contentHash)
+                            },
+                            onPurchaseSuccess: {
+                                showPaywall = false
+                                // 购买成功 → 重跑 .locked 模块(守卫重查 entitlement 放行);
+                                // 阅读页若正开在锁章上,状态流自动翻 fetching/ok,不 pop
+                                vm.retryLockedV1Modules()
+                            }
+                        )
+                    )
+                } else {
+                    // 理论不可达(showPaywall 只在 .ready 内容层可触发);不静默,显式记录
+                    let _ = AppLogger.app.error("deepView.paywallSheet state_not_ready(付费墙在非 .ready 态被请求)")
+                    EmptyView()
+                }
+            }
             // S10:补时辰 sheet(单一入口组件;关闭即重解析最新 link——补时辰换新
             // 盘 → 新 hash 直读 .ready;静默态写穿 → payload 刷新,拦截文案降级)
             .sheet(item: $addHourVM, onDismiss: { refreshAfterAddHour() }) { vm in
@@ -237,12 +293,24 @@ struct DeepAnalysisView: View {
                     .padding()
                     .frame(maxWidth: .infinity, maxHeight: .infinity)
                 } else if let request = vm.lastRequest {
-                    DeepAnalysisResultView(
+                    // 盘面小景 S2:主页(hero + 捌章目录 + CTA);细目/阅读页走 push
+                    DeepAnalysisHomeView(
                         vm: vm,
                         response: response,
                         request: request,
-                        onAddHour: { openAddHourSheet(hash: response.contentHash) }
+                        onAddHour: { openAddHourSheet(hash: response.contentHash) },
+                        onOpenChapter: { module in path = [module] },
+                        onShowPaywall: { showPaywall = true }
                     )
+                    // 换盘守卫(three-check R2):补时辰重算/存档切换 → 新 hash 时
+                    // VM 已清洗 moduleStates,旧阅读页若还压在栈里会拿到清洗后的
+                    // 空 .pending(「布算中」无人触发)——清 path 弹回主页从新盘开卷
+                    .onChange(of: response.contentHash) { _, _ in
+                        if !path.isEmpty {
+                            path = []
+                            AppLogger.app.info("deepView.chart_changed_clear_reading_path")
+                        }
+                    }
                 } else {
                     VStack {
                         Text("数据异常:无请求记录")

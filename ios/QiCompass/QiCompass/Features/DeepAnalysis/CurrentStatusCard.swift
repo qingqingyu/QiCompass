@@ -8,18 +8,14 @@ struct CurrentStatusCard: View {
     let response: BaziResponse
 
     var body: some View {
+        // 盘面小景 S1 卸卡:节标「当前柱」移入 HairlineSection,外层卡壳移除
         VStack(alignment: .leading, spacing: 10) {
-            Text("当前柱")
-                .zcoolCardTitle()
             row("大运", response.currentLuckPillar?.ganZhi)
             row("流年", response.currentYearPillar)
             row("流日", response.currentDayPillar)
             row("流时", response.currentHourPillar)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(BaziTheme.Spacing.md)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
     }
 
     private func row(_ label: String, _ value: String?) -> some View {

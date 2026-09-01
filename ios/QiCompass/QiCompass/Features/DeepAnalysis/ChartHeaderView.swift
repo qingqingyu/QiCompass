@@ -38,10 +38,10 @@ struct ChartHeaderView: View {
                     .background(BaziTheme.cinnabarSoft, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
             }
         }
+        // 盘面小景 S1 卸卡:原 cardSurface 卡壳移除,进 ChartDetailView 的
+        // hairline 分节排版(边距由宿主统一 32,这里只留纵向呼吸)
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(BaziTheme.Spacing.md)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
+        .padding(.vertical, 4)
     }
 
     private var genderLabel: String {
