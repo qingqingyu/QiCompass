@@ -47,7 +47,7 @@ PROMPT_VERSIONS: dict[str, int] = {
     # 每日运势插画(gpt-image-2):prompt 由 image_prompt.py 代码拼装(无 .md 模板),
     # 版本号仍是缓存键维度——意象表/风格后缀改动时 bump 此处。
     # v2 2026-08-31:底色随国画旧宣纸换轨 #F3F1EC→#E7E2D5(与 App paper 同值)。
-    "daily_fortune_image": 2,
+    "daily_fortune_image": 3,
     # v1 prompt 系统(Stage 5 落地,设计源 /Users/TWJ/Downloads/bazi-prompt-system-v1.md)
     # M0-M7 共 8 模块,双轨保留:老 7 module 不动,iOS 切换后可下线老的
     # 链式调用:M0 产 structure_fingerprint → M1-M7 各自带 parent_fingerprint 注入

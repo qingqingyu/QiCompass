@@ -94,4 +94,4 @@ def test_table_key_domains_locked():
 
 def test_prompt_version_registered():
     """PROMPT_VERSIONS 漂移守卫:意象表/风格后缀改动必须 bump 此版本号。"""
-    assert PROMPT_VERSIONS["daily_fortune_image"] == 2  # v2:底色换轨 #E7E2D5
+    assert PROMPT_VERSIONS["daily_fortune_image"] == 3  # v3:浅绛设色(v2 底色换轨/v1 纯水墨)
