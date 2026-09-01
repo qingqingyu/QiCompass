@@ -7,15 +7,14 @@ import Foundation
 /// `/api/entitlement/list`(Slice 1 新增,登录后批量同步用)、
 /// `/api/auth/sign-in`(PR2.5)、
 /// `/api/webhooks/appstore`(M2c,Apple 调,iOS 不调)
+///
+/// 历史:每日运势插画端点(`/daily-fortune/image*`)随 2026-09-01「单张固定图」
+/// 拍板从客户端移除(后端端点保留休眠);恢复动态生图时连 APIClient 一起还原。
 enum APIEndpoint: Sendable {
     case health
     case baziCalculate
     case compatibility
     case dailyFortune
-    /// S3:触发/查询插画生成状态(POST,同 daily-fortune 请求体)
-    case dailyFortuneImage
-    /// S3:取插画内容(GET,query 参数经 url(base:) 构造)
-    case dailyFortuneImageContent(chartHash: String, targetDate: String)
     case interpret
     case entitlementRedeem  // M3a 新增
     case entitlementList    // Slice 1 新增(登录后批量同步 entitlement)
@@ -29,8 +28,6 @@ enum APIEndpoint: Sendable {
         case .baziCalculate:     return "/api/bazi/calculate"
         case .compatibility:     return "/api/bazi/compatibility"
         case .dailyFortune:      return "/api/bazi/daily-fortune"
-        case .dailyFortuneImage: return "/api/bazi/daily-fortune/image"
-        case .dailyFortuneImageContent: return "/api/bazi/daily-fortune/image/content"
         case .interpret:         return "/api/interpret"
         case .entitlementRedeem: return "/api/entitlement/redeem"
         case .entitlementList:   return "/api/entitlement/list"
@@ -44,35 +41,12 @@ enum APIEndpoint: Sendable {
         switch self {
         case .health:            return "GET"
         case .entitlementList:   return "GET"
-        case .dailyFortuneImageContent: return "GET"
         default:                 return "POST"
         }
     }
 
-    /// 完整 URL。带 query 的端点(content)用 URLComponents 构造——
-    /// `appendingPathComponent` 会把 "?" 编码进 path,不能走那条路。
+    /// 完整 URL(现有端点均为无 query 的纯 path 拼接)。
     func url(base: URL) -> URL {
-        switch self {
-        case .dailyFortuneImageContent(let chartHash, let targetDate):
-            guard var comps = URLComponents(
-                url: base.appendingPathComponent(path),
-                resolvingAgainstBaseURL: false
-            ) else {
-                preconditionFailure("dailyFortuneImageContent URL 构造失败 base=\(base)")
-            }
-            comps.queryItems = [
-                URLQueryItem(name: "chart_hash", value: chartHash),
-                URLQueryItem(name: "target_date", value: targetDate),
-            ]
-            guard let url = comps.url else {
-                preconditionFailure(
-                    "dailyFortuneImageContent query URL 构造失败 hash=\(chartHash) date=\(targetDate)"
-                )
-            }
-            return url
-        default:
-            return base.appendingPathComponent(path)
-        }
+        base.appendingPathComponent(path)
     }
 }
-

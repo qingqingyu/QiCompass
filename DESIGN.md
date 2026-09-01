@@ -110,7 +110,7 @@ iOS 系统字体,**不打包任何自定义字体**。楷体走 `Font.custom("Ka
 - **章节编号:** 大写数字(壹贰叁肆伍陆柒捌)圆徽——实线圆=可读,虚线圆=锁定(`NumeralBadge`)
 - **付费标识:** `PaidTag`「付费」白字朱底小方标,旋转 -6°,**只此一处用朱底块**
 - **Tab:** 墨物线描四枚矢量图标(`TabIcons.swift`)+ 楷体文字,tint=ink;系统 TabView + ImageRenderer 模板渲染(2026-08-30 拍板,替代原纯文字 tab;几何事实源 `~/.gstack/projects/qingqingyu-QiCompass/designs/tab-icons-20260830/finalized.html`。今日=墨圆环抱点(EnsoView 同源)/深度=三叠横墨/合盘=双环交叠/我的=未钤空心印;朱红不出现在 tab 层)
-- **每日运势 V4「一幅图为主角」+ V1 元素整合**(2026-08-30 V4 拍板 / 2026-08-31 V1 元素并入,事实源 `~/.gstack/projects/qingqingyu-QiCompass/designs/daily-fortune-art-20260830/`):第一屏 = 三行日期区(公历大字 21+周几小字/符牌图+农历·干支/短标签+关系+冲 chips 含古篆符牌)→ **3:2 五行小景水墨插画**(左右 17pt 边距,右下干支竖排+左下朱印为客户端 Kaiti 矢量叠加,不靠生图写字;深色模式插画保持纸底=「暗夜里的一张画」)→ 宜忌单行居中**入亮纸框** → AI 解读**入框**(无剩余次数)→ hairline 小注;第二屏 = 7 日历史带 + 明日预告(吸顶折叠机制随 V4 移除)。插画已动态化:`DailyImageStore` 轮询后端 gpt-image-2 每命主每日一幅(prompt v2,底色 #E7E2D5 与纸面同值)
+- **每日运势 V4「一幅图为主角」+ V1 元素整合**(2026-08-30 V4 拍板 / 2026-08-31 V1 元素并入,事实源 `~/.gstack/projects/qingqingyu-QiCompass/designs/daily-fortune-art-20260830/`):第一屏 = 三行日期区(公历大字 21+周几小字/符牌图+农历·干支/短标签+关系+冲 chips 含古篆符牌)→ **3:2 五行小景水墨插画**(左右 17pt 边距,右下干支竖排+左下朱印为客户端 Kaiti 矢量叠加,不靠生图写字;深色模式插画保持纸底=「暗夜里的一张画」)→ 宜忌单行居中**入亮纸框** → AI 解读**入框**(无剩余次数)→ hairline 小注;第二屏 = 7 日历史带 + 明日预告(吸顶折叠机制随 V4 移除)。2026-09-01 起底图改**单张固定资产**(HeroLandscape,画布定稿浅绛山水):iOS 不再调生图 API,零成本/零延迟/零 IMAGE_API_KEY 依赖;后端生图端点与浅绛 prompt(v3)保留休眠,恢复动态时还原客户端接线(git 931b6b5→本 commit 之间的删除段)
 
 ## Motion
 

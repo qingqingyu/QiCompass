@@ -229,14 +229,6 @@ enum L10n {
         /// zh: "解读仅供参照";en: "For reference only"
         static let disclaimer = String(localized: "dailyfortune.hero.disclaimer")
 
-        /// 插画生成中小字(hero 骨架态)。
-        /// zh: "生图中";en: "Painting"
-        static let heroGenerating = String(localized: "dailyfortune.hero.generating")
-
-        /// 插画失败重试按钮。
-        /// zh: "重试";en: "Retry"
-        static let heroRetry = String(localized: "dailyfortune.hero.retry")
-
         /// "冲" 前缀(用于 "冲午" / "冲午 (年支午)" 这种拼接)。
         /// zh: "冲";en: "Clashes: "
         static let chongPrefix = String(localized: "dailyfortune.header.chongPrefix")

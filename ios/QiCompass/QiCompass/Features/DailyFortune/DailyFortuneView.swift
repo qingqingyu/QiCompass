@@ -132,7 +132,6 @@ struct DailyFortuneView: View {
                     businessDate: businessDate,
                     chartHash: currentChartHash,
                     ziHourRule: currentZiHourRule,
-                    imageClient: AnyDailyImageAPIClient(env.apiClient),
                     onRefresh: { handleRefresh() },
                     onHistorySelect: { date in
                         vm.selectHistoryDate(

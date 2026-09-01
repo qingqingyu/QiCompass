@@ -82,46 +82,6 @@ final class DailyFortuneViewModel {
 
     /// S3 每日运势插画:构建与阶段 1 同源的 POST 请求体。
     ///
-    /// payload 不走 `cachedChartPayload`(它在 runFullPipeline 才缓存,本地
-    /// daily 缓存命中路径不经过),直接从 ChartSnapshot 即时解码——与
-    /// `DailyFortuneOrchestrator.runDeterministic` 第 1-2 步同口径,保证
-    /// 图与当日文本出自同一份命盘数据。
-    ///
-    /// - Returns: nil = 命盘存档缺失或解码失败(调用方跳过插画加载,不视为
-    ///   页面错误——命盘层面的问题由阶段 1 的错误链路负责)。
-    func buildImageRequest(chartHash: String, businessDate: Date) -> DailyFortuneRequest? {
-        // 拆开记日志:存档不存在 / 读取抛错 / payload 解码失败是三种根因,
-        // 合并成一条泛化 warning 会让排障无法区分。
-        let snapshot: ChartSnapshot?
-        do {
-            snapshot = try chartStore.get(contentHash: chartHash)
-        } catch {
-            AppLogger.app.warning(
-                "op=dailyFortune.buildImageRequest get_threw chartHash=\(chartHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
-            )
-            return nil
-        }
-        guard let snapshot else {
-            AppLogger.app.warning(
-                "op=dailyFortune.buildImageRequest snapshot_missing chartHash=\(chartHash, privacy: .public)"
-            )
-            return nil
-        }
-        let baziResponse: BaziResponse
-        do {
-            baziResponse = try chartStore.decodeResponse(from: snapshot)
-        } catch {
-            AppLogger.app.warning(
-                "op=dailyFortune.buildImageRequest decode_failed chartHash=\(chartHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
-            )
-            return nil
-        }
-        return DailyFortuneRequest(
-            chartHash: chartHash,
-            targetDate: businessDate,
-            chartPayload: ChartPayloadDTO.from(baziResponse: baziResponse),
-        )
-    }
 
     /// 首次进入页面:检查命盘 → 计算业务日 → 触发链路。
     func onAppear(currentChartHash: String?, ziHourRule: String) {
