@@ -225,51 +225,58 @@ struct DeepAnalysisHomeView: View {
     @ViewBuilder
     private func tocRow(index: Int, module: ModuleID) -> some View {
         let state = vm.moduleStates[module]
-        let isRead = state?.isOk == true
-        // 锁视觉:付费未购(已购 ok 后实线);免费章恒实线
-        let isLockedVisual = module.isPaid && !isRead
-        let isDim = !isRead && module.isPaid
+        let row = ChapterRowModel.resolve(
+            module: module,
+            state: state,
+            hasEntitlement: hasEntitlementForPaid
+        )
 
         Button {
             HapticEngine.light()
             AppLogger.app.info(
-                "deepHome.tocRow.tap module=\(module.rawValue, privacy: .public) state=\(String(describing: state), privacy: .public)"
+                "deepHome.tocRow.tap module=\(module.rawValue, privacy: .public) row=\(row, privacy: .public)"
             )
-            if isLockedVisual {
+            switch row {
+            case .lockedPaid:
                 // 付费未解锁 → 付费墙(时辰未知时墙内自动转补时辰拦截态,S07)
                 onShowPaywall()
-            } else if let state, state != .pending {
+            case .read, .generating, .retryable, .needsInput:
                 // 已生成/生成中/失败/需输入 → 进阅读页(四态自呈现)
                 onOpenChapter(module)
-            } else {
-                // 未开始(或链上游 pending)→ 开卷语义:起链 + 进章
-                vm.generateV1AllModules()
+            case .unreadFree:
+                if state == nil {
+                    // 一章未开始 → 开卷语义:起链;上游 pending(链在跑)只进章
+                    vm.generateV1AllModules()
+                }
                 onOpenChapter(module)
             }
         } label: {
             HStack(spacing: 13) {
-                NumeralBadge(index: index, locked: isLockedVisual, size: 30)
+                NumeralBadge(index: index, locked: row.isBadgeLocked, size: 30)
                 VStack(alignment: .leading, spacing: 1.5) {
                     Text(chapterTitle(module))
                         .font(BaziFont.display(size: 15))
                         .tracking(1.5)
-                        .foregroundStyle(isDim ? BaziTheme.inkMuted : BaziTheme.ink)
+                        .foregroundStyle(row.isDim ? BaziTheme.inkMuted : BaziTheme.ink)
                     Text(module.subtitle)
                         .font(BaziFont.caption(size: 10.5))
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 8)
-                if isRead {
+                switch row {
+                case .read:
                     Circle()
                         .fill(BaziTheme.ink)
                         .frame(width: 4.5, height: 4.5)
-                } else if module.isPaid {
+                case .lockedPaid:
                     PaidTag()
-                } else if state == .fetching {
+                case .generating:
                     Text("生成中…")
                         .font(BaziFont.caption(size: 10))
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
+                case .unreadFree, .retryable, .needsInput:
+                    EmptyView()
                 }
             }
             .padding(.vertical, 10.5)
@@ -318,26 +325,19 @@ struct DeepAnalysisHomeView: View {
         .padding(.top, 16)
     }
 
-    /// 主 CTA 四态:开卷 / 续读 / 解印全本 / 次数用尽(ghost)。
+    /// 主 CTA(状态派生在 HomeCTAModel,视图只渲染):开卷 / 续读 /
+    /// 解印全本 / 次数用尽 ghost / 重读 ghost。
     @ViewBuilder
     private var ctaButton: some View {
-        if vm.remainingReads <= 0 && nextUnreadFreeModule == nil && readCount < freeModuleCount {
-            // 次数用尽且免费章未读完(已读章走缓存不耗次,仍可点)
-            HStack {
-                Text("今日免费次数已用尽 · 已读章节仍可重读")
-                    .font(BaziFont.caption(size: 12))
-                    .foregroundStyle(BaziTheme.inkMuted)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.vertical, 13)
-            .overlay(
-                RoundedRectangle(cornerRadius: 5)
-                    .stroke(BaziTheme.hairlineDashed, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-            )
-        } else if let next = nextUnreadModule {
-            // 开卷(首章未读)或续读(首个未读章)
+        switch HomeCTAModel.resolve(
+            moduleStates: vm.moduleStates,
+            remainingReads: vm.remainingReads,
+            hasEntitlement: hasEntitlementForPaid
+        ) {
+        case .openFirst(let next):
+            // 开卷:起全链 + 进首章
             PrimaryCTAButton(
-                title: readCount == 0 ? "开卷 · \(chapterTitle(next))" : "续读 · \(chapterTitle(next))",
+                title: "开卷 · \(chapterTitle(next))",
                 loadingTitle: "生成中…",
                 isLoading: false,
                 action: {
@@ -345,56 +345,61 @@ struct DeepAnalysisHomeView: View {
                     onOpenChapter(next)
                 }
             )
-        } else {
-            // 全部已读 → 解印全本(有付费未解锁时)或重读(全 ok)
-            if hasLockedChapters {
-                PrimaryCTAButton(
-                    title: "解印全本 · 叁至捌章",
-                    loadingTitle: "处理中…",
-                    isLoading: false,
-                    action: onShowPaywall
-                )
-            } else {
-                Button {
-                    onOpenChapter(.m0)
-                } label: {
-                    Text("重读 · 壹 \(chapterTitle(.m0))")
-                        .font(BaziFont.caption(size: 12))
-                        .foregroundStyle(BaziTheme.inkMuted)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, 13)
-                        .overlay(
-                            RoundedRectangle(cornerRadius: 5)
-                                .stroke(BaziTheme.hairlineDashed, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-                        )
+        case .resume(let next):
+            // 续读:单章触发(不重置整链——已 ok 章保持,缓存不闪 pending)
+            PrimaryCTAButton(
+                title: "续读 · \(chapterTitle(next))",
+                loadingTitle: "生成中…",
+                isLoading: false,
+                action: {
+                    vm.retryV1Module(next)
+                    onOpenChapter(next)
                 }
-                .buttonStyle(.plain)
+            )
+        case .unlockAll:
+            PrimaryCTAButton(
+                title: "解印全本 · 叁至捌章",
+                loadingTitle: "处理中…",
+                isLoading: false,
+                action: onShowPaywall
+            )
+        case .reread:
+            ghostButton("重读 · 壹 \(chapterTitle(.m0))") {
+                onOpenChapter(.m0)
             }
+        case .limitReached:
+            // 次数用尽(已读章走缓存不耗次,仍可从目录行点入)
+            ghostButton("今日免费次数已用尽 · 已读章节仍可重读", action: nil)
         }
     }
 
-    /// 免费章总数(M0+M1)。
-    private var freeModuleCount: Int {
-        ModuleID.allCases.filter { $0.isFree }.count
-    }
-
-    /// 首个未读章(免费优先顺序即 allCases 顺序;付费未购跳过)。
-    private var nextUnreadModule: ModuleID? {
-        ModuleID.allCases.first { module in
-            vm.moduleStates[module]?.isOk != true && !(module.isPaid && !hasEntitlementForPaid)
+    /// dashed ghost 形态(锁定/临时态语义,DESIGN.md §Layout)。
+    @ViewBuilder
+    private func ghostButton(_ title: String, action: (() -> Void)?) -> some View {
+        if let action {
+            Button(action: action) {
+                Text(title)
+                    .font(BaziFont.caption(size: 12))
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, 13)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(BaziTheme.hairlineDashed, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    )
+            }
+            .buttonStyle(.plain)
+        } else {
+            Text(title)
+                .font(BaziFont.caption(size: 12))
+                .foregroundStyle(BaziTheme.inkMuted)
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 13)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(BaziTheme.hairlineDashed, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                )
         }
-    }
-
-    /// 是否存在付费未解锁章(.locked 或未开始)。
-    private var hasLockedChapters: Bool {
-        ModuleID.allCases.contains { module in
-            module.isPaid && vm.moduleStates[module]?.isOk != true
-        }
-    }
-
-    /// 首个未读免费章(次数用尽判定用)。
-    private var nextUnreadFreeModule: ModuleID? {
-        ModuleID.allCases.first { $0.isFree && vm.moduleStates[$0]?.isOk != true }
     }
 
     /// 本地 entitlement 查询(与 VM 付费守卫同源同参;只读,不复制守卫逻辑)。

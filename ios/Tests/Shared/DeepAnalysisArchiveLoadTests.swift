@@ -23,7 +23,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         chartStore = ChartSnapshotStore(context: context)
         let interpretStore = InterpretationCacheStore(context: context)
         let identityResolver = AIIdentityResolver(apiClient: apiClient)
-        let counter = DailyReadCounter()
+        let counter = DailyReadCounter.makeIsolatedForTesting()
         let reader = CachedInterpretationReader(
             identityResolver: identityResolver,
             cacheStore: interpretStore

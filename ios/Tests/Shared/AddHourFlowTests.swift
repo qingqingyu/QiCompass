@@ -32,7 +32,7 @@ final class AddHourFlowTests: XCTestCase {
         linkStore = UserSnapshotLinkStore(context: context)
         let interpretStore = InterpretationCacheStore(context: context)
         let identityResolver = AIIdentityResolver(apiClient: apiClient)
-        let counter = DailyReadCounter()
+        let counter = DailyReadCounter.makeIsolatedForTesting()
         let reader = CachedInterpretationReader(
             identityResolver: identityResolver,
             cacheStore: interpretStore
@@ -335,7 +335,7 @@ final class AddHourFlowTests: XCTestCase {
             compatibilityStore: CompatibilitySnapshotStore(context: context),
             chartStore: chartStore,
             interpretStore: interpretStore,
-            counter: DailyReadCounter(),
+            counter: DailyReadCounter.makeIsolatedForTesting(),
             interpretationReader: reader
         )
         let compatVM = CompatibilityViewModel(
@@ -419,7 +419,7 @@ final class AddHourFlowTests: XCTestCase {
                 dailyStore: DailyFortuneSnapshotStore(context: context),
                 interpretStore: interpretStore,
                 chartStore: chartStore,
-                counter: DailyReadCounter(),
+                counter: DailyReadCounter.makeIsolatedForTesting(),
                 interpretationReader: reader
             ),
             chartStore: chartStore,

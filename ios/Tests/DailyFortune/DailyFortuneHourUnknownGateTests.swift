@@ -42,7 +42,7 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
             dailyStore: dailyStore,
             interpretStore: interpretStore,
             chartStore: chartStore,
-            counter: DailyReadCounter(),
+            counter: DailyReadCounter.makeIsolatedForTesting(),
             interpretationReader: reader
         )
         vm = DailyFortuneViewModel(
