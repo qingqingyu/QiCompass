@@ -78,6 +78,10 @@ struct DailyImageHeroSection: View {
     private var baseLayer: some View {
         // 固定底图(2026-09-01 用户拍板「单张固定图」):画布定稿浅绛山水烘进
         // Asset Catalog,不再调生图 API——零成本/零延迟/零 IMAGE_API_KEY 依赖。
+        // 2026-09-01 晚改竖版:原 3:2 横幅(1536×1024)在 ~0.92:1 卡内 scaledToFill
+        // 要放大到 603pt 宽裁掉 39% 画面;重生成竖版 916×1717(B「极简空灵」,
+        // gpt-image-2)后按卡比例裁 916×1000,山顶落卡高 25%/山脚 63%,整幅完整呈现。
+        // prompt 与裁窗溯源:designs/daily-glass-20260831/hero-provenance.md。
         // 1 基底滤镜 → clip → 2 径向 mask → 墨渗缩放(晕团在玻璃内缓胀)
         Group {
             Image("HeroLandscape")
