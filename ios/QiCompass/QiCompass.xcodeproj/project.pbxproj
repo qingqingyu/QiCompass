@@ -121,6 +121,7 @@
 		9C0000000000000000000090 /* AddHourSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000090 /* AddHourSheet.swift */; };
 		9C0000000000000000000091 /* ChartDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000091 /* ChartDetailView.swift */; };
 		9C0000000000000000000093 /* ChapterReadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000093 /* ChapterReadingView.swift */; };
+		9C0000000000000000000094 /* ChapterReadingInputForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000094 /* ChapterReadingInputForm.swift */; };
 		9C0000000000000000000092 /* DeepAnalysisHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000092 /* DeepAnalysisHomeView.swift */; };
 		A00000000000000000000008 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A21000000000000000000001 /* XCTest.framework */; };
 		A9B245DDB05C779E1238547A /* DeepAnalysisViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F34390B983BDE0003B56E8 /* DeepAnalysisViewModel.swift */; };
@@ -146,8 +147,6 @@
 		9C0000000000000000000057 /* SyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000057 /* SyncManager.swift */; };
 		9C0000000000000000000070 /* ModuleDefinitions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000070 /* ModuleDefinitions.swift */; };
 		9C0000000000000000000071 /* ModuleState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000071 /* ModuleState.swift */; };
-		9C0000000000000000000073 /* HealthInputForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000073 /* HealthInputForm.swift */; };
-		9C0000000000000000000074 /* WealthInputForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000074 /* WealthInputForm.swift */; };
 		9D0000000000000000000001 /* GoogleSignInConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9D1000000000000000000001 /* GoogleSignInConfig.swift */; };
 		9D0000000000000000000002 /* GoogleSignIn in Frameworks */ = {isa = PBXBuildFile; productRef = 9D3000000000000000000001 /* GoogleSignIn */; };
 		9D0000000000000000000003 /* GoogleSignInSwift in Frameworks */ = {isa = PBXBuildFile; productRef = 9D3000000000000000000002 /* GoogleSignInSwift */; };
@@ -283,6 +282,7 @@
 		9C1000000000000000000090 /* AddHourSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AddHourSheet.swift; path = QiCompass/Features/DeepAnalysis/AddHourSheet.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000091 /* ChartDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartDetailView.swift; path = QiCompass/Features/DeepAnalysis/ChartDetailView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000093 /* ChapterReadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChapterReadingView.swift; path = QiCompass/Features/DeepAnalysis/ChapterReadingView.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000094 /* ChapterReadingInputForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChapterReadingInputForm.swift; path = QiCompass/Features/DeepAnalysis/ChapterReadingInputForm.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000092 /* DeepAnalysisHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeepAnalysisHomeView.swift; path = QiCompass/Features/DeepAnalysis/DeepAnalysisHomeView.swift; sourceTree = SOURCE_ROOT; };
 		A20000000000000000000001 /* QiCompassTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QiCompassTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A21000000000000000000001 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
@@ -308,8 +308,6 @@
 		9C1000000000000000000048 /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text.json.storekit; name = Products.storekit; path = QiCompass/Products.storekit; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000070 /* ModuleDefinitions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModuleDefinitions.swift; path = QiCompass/Models/ModuleDefinitions.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000071 /* ModuleState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModuleState.swift; path = QiCompass/Models/ModuleState.swift; sourceTree = SOURCE_ROOT; };
-		9C1000000000000000000073 /* HealthInputForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HealthInputForm.swift; path = QiCompass/Features/DeepAnalysis/HealthInputForm.swift; sourceTree = SOURCE_ROOT; };
-		9C1000000000000000000074 /* WealthInputForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = WealthInputForm.swift; path = QiCompass/Features/DeepAnalysis/WealthInputForm.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -378,6 +376,7 @@
 				9C1000000000000000000090 /* AddHourSheet.swift */,
 				9C1000000000000000000091 /* ChartDetailView.swift */,
 				9C1000000000000000000093 /* ChapterReadingView.swift */,
+				9C1000000000000000000094 /* ChapterReadingInputForm.swift */,
 				9C1000000000000000000092 /* DeepAnalysisHomeView.swift */,
 				4E934C0BB8DC936F13BAC016 /* AuxiliaryCards.swift */,
 				9F614F24B096FF767B7F3934 /* ElementBalanceBar.swift */,
@@ -385,8 +384,6 @@
 				D91C4716AE1411C309FEBE65 /* ShenshaChips.swift */,
 				F8BC4D749648FC864F2EDB38 /* LuckPillarsTimeline.swift */,
 				36F14142AE8D5D39E818F777 /* CurrentStatusCard.swift */,
-				9C1000000000000000000073 /* HealthInputForm.swift */,
-				9C1000000000000000000074 /* WealthInputForm.swift */,
 				9C100000000000000000001C /* BusinessDateCalculator.swift */,
 				9C100000000000000000001D /* DailyFortuneSnapshotStore.swift */,
 				9C100000000000000000001E /* DailyFortuneOrchestrator.swift */,
@@ -759,6 +756,7 @@
 				9C0000000000000000000090 /* AddHourSheet.swift in Sources */,
 				9C0000000000000000000091 /* ChartDetailView.swift in Sources */,
 				9C0000000000000000000093 /* ChapterReadingView.swift in Sources */,
+				9C0000000000000000000094 /* ChapterReadingInputForm.swift in Sources */,
 				9C0000000000000000000092 /* DeepAnalysisHomeView.swift in Sources */,
 				8C8B45F2BC9CEB18B25325BB /* AuxiliaryCards.swift in Sources */,
 				59AC47F39B10B857E9BA4AB6 /* ElementBalanceBar.swift in Sources */,
@@ -768,8 +766,6 @@
 				53C04EBCAC6489458F4D4AC9 /* CurrentStatusCard.swift in Sources */,
 				9C0000000000000000000070 /* ModuleDefinitions.swift in Sources */,
 				9C0000000000000000000071 /* ModuleState.swift in Sources */,
-				9C0000000000000000000073 /* HealthInputForm.swift in Sources */,
-				9C0000000000000000000074 /* WealthInputForm.swift in Sources */,
 				9C000000000000000000001C /* BusinessDateCalculator.swift in Sources */,
 				9C000000000000000000001D /* DailyFortuneSnapshotStore.swift in Sources */,
 				9C000000000000000000001E /* DailyFortuneOrchestrator.swift in Sources */,

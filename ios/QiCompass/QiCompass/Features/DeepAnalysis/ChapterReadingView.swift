@@ -25,8 +25,6 @@ struct ChapterReadingView: View {
 
     @Environment(\.dismiss) private var dismiss
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    // Stage 8 既有 M4/M5 sheet(S2 过渡;S3 换页内表单后删)
-    @State private var showInputSheet = false
 
     /// 章序(0-7,M0=壹 … M7=捌)。
     private var chapterIndex: Int {
@@ -48,8 +46,6 @@ struct ChapterReadingView: View {
         }
         .background(BaziTheme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
-        // S2 过渡:M4/M5 needsInput 用既有 sheet 表单(Stage 8 组件原样)
-        .sheet(isPresented: $showInputSheet) { inputSheet }
     }
 
     // MARK: - 顶 bar(自定义,系统导航栏隐藏)
@@ -265,8 +261,10 @@ struct ChapterReadingView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: - S2 过渡:M4/M5 needsInput(既有 sheet)
+    // MARK: - M4/M5 needsInput(页内两问表单,定稿 ⑧)
 
+    /// 章题 + 副题 + 亮纸框两问表单:原地作答,提交走 VM.submitM4/M5Input
+    /// (内部自动重试,状态流翻到 fetching→ok,不离开阅读页)。
     @ViewBuilder
     private var needsInputBody: some View {
         VStack(alignment: .leading, spacing: 14) {
@@ -279,76 +277,26 @@ struct ChapterReadingView: View {
                 .font(BaziFont.caption(size: 10.5))
                 .tracking(1)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
-            HStack(spacing: 8) {
-                Image(systemName: "square.and.pencil")
-                    .font(.caption)
-                    .foregroundStyle(BaziTheme.inkMutedSecondary)
-                Text(inputPromptText)
-                    .font(BaziFont.caption(size: 12))
-                    .tracking(1)
-                    .foregroundStyle(BaziTheme.inkMuted)
+            if module.needsUserInput {
+                ChapterReadingInputForm(
+                    module: module,
+                    initialM4: vm.m4UserInput,
+                    initialM5: vm.m5UserInput,
+                    onSubmitM4: { age, concern in
+                        vm.submitM4Input(age: age, concern: concern)
+                    },
+                    onSubmitM5: { assets, preference in
+                        vm.submitM5Input(assets: assets, preference: preference)
+                    }
+                )
+            } else {
+                // 目录/CTA 不推 needsInput 态的章;到这说明状态机错乱,显式记录
+                let _ = AppLogger.app.error("chapterReading.needsInputBody unexpected module=\(module.rawValue, privacy: .public)")
             }
-            .padding(.horizontal, 14)
-            .padding(.vertical, 12)
-            .overlay(
-                RoundedRectangle(cornerRadius: 4)
-                    .stroke(BaziTheme.hairlineDashed, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
-            )
-            PrimaryCTAButton(
-                title: "提供信息",
-                loadingTitle: "处理中…",
-                isLoading: false,
-                action: { showInputSheet = true }
-            )
             Spacer()
         }
         .padding(.horizontal, 26)
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-
-    private var inputPromptText: String {
-        switch module {
-        case .m4: return "需要你的年龄与当前困扰(睡眠/疲劳/体重/情绪)"
-        case .m5: return "需要你的资产概况与偏好(保守/平衡/进攻)"
-        default:
-            // 目录/CTA 不推 needsInput 态的章;到这说明状态机错乱,显式记录
-            AppLogger.app.error("chapterReading.needsInputBody unexpected module=\(module.rawValue, privacy: .public)")
-            return "需要补充信息"
-        }
-    }
-
-    @ViewBuilder
-    private var inputSheet: some View {
-        switch module {
-        case .m4:
-            HealthInputForm(
-                initialAge: vm.m4UserInput?.age ?? 30,
-                initialConcern: vm.m4UserInput?.concern ?? "睡眠",
-                onSubmit: { age, concern in
-                    vm.submitM4Input(age: age, concern: concern)
-                    showInputSheet = false
-                },
-                onCancel: { showInputSheet = false }
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .presentationBackground(BaziTheme.cardSurface)
-        case .m5:
-            WealthInputForm(
-                initialAssetsSummary: vm.m5UserInput?.assets ?? "",
-                initialPreference: vm.m5UserInput?.preference ?? "平衡",
-                onSubmit: { assets, preference in
-                    vm.submitM5Input(assets: assets, preference: preference)
-                    showInputSheet = false
-                },
-                onCancel: { showInputSheet = false }
-            )
-            .presentationDetents([.medium, .large])
-            .presentationDragIndicator(.visible)
-            .presentationBackground(BaziTheme.cardSurface)
-        default:
-            EmptyView()
-        }
     }
 
     // MARK: - 底部翻章条
