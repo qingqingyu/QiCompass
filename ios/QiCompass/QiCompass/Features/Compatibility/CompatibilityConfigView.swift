@@ -11,6 +11,8 @@ import SwiftUI
 struct CompatibilityConfigView: View {
     @Bindable var vm: CompatibilityViewModel
     let onStart: () -> Void
+    /// S10:点击「不可合盘」标记行 → 打开该盘补时辰 sheet(D7 触点 1 的他人盘分支)。
+    var onAddHour: ((String) -> Void)? = nil
 
     @State private var tempFormError: String?
     @State private var showTempForm: Bool = false
@@ -59,11 +61,16 @@ struct CompatibilityConfigView: View {
                 .foregroundStyle(BaziTheme.onInkDeep)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
-                .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
+                .background(
+                    // S11:自己无时辰 → 全部对不可发起(置灰;解释行在 B 名单区顶部)
+                    vm.isSelfHourUnknown ? BaziTheme.inkDeep.opacity(0.3) : BaziTheme.inkDeep,
+                    in: RoundedRectangle(cornerRadius: 5)
+                )
                 .padding(.horizontal)
                 .padding(.vertical, 8)
                 .background(BaziTheme.paper.opacity(0.95))
             }
+            .disabled(vm.isSelfHourUnknown)
         }
     }
 
@@ -72,13 +79,31 @@ struct CompatibilityConfigView: View {
     @ViewBuilder
     private var rosterSection: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.md) {
-            // 存档多选(A 盘自己排除;D13 对方池空时 picker 内置引导文案)
+            // S11 名单整体标记:自己无时辰 → 全部对不可用(解释行 + 下方行级置灰
+            // + 底部「开始合盘」不可发起)。dashed hairline = 锁框/临时态(DESIGN.md)
+            if vm.isSelfHourUnknown {
+                Text(L10n.CompatibilityRosterGate.selfBanner)
+                    .font(BaziFont.caption(size: 11.5))
+                    .tracking(1)
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(BaziTheme.Spacing.md)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
+                            .stroke(BaziTheme.hairlineDashed, lineWidth: 1)
+                    )
+            }
+
+            // 存档多选(A 盘自己排除;D13 对方池空时 picker 内置引导文案;
+            // S11 无时辰行标记不勾入;S10 标记行点击直达补时辰 sheet)
             ChartArchiveMultiPickerView(
                 title: "从存档选择",
                 charts: vm.archivedCharts,
                 excludedHash: vm.currentPersonAHash,
                 selectedHashes: vm.selectedArchivedHashes,
-                onToggle: { vm.toggleArchived(hash: $0) }
+                isHourUnknown: { vm.isArchivedHourUnknown(hash: $0) },
+                onToggle: { vm.toggleArchived(hash: $0) },
+                onAddHour: onAddHour
             )
 
             // 临时输入入口(S01 限 1 条;S04 扩多条 + 称呼字段)
@@ -100,14 +125,20 @@ struct CompatibilityConfigView: View {
 
     @ViewBuilder
     private func rosterRow(_ entry: RosterEntry) -> some View {
+        // S11 对级标记:任一方无时辰 → 该行置灰 + 「不可合盘」短注
+        // (他人无时辰 = 该对;自己无时辰 = 全部对,解释行见 rosterSection 顶部)
+        let hourBlocked = vm.isPairHourUnknownBlocked(entry: entry)
         HStack {
             VStack(alignment: .leading, spacing: 2) {
                 Text(displayLabel(for: entry))
                     .font(.subheadline)
-                    .foregroundStyle(BaziTheme.ink)
-                Text(kindLabel(for: entry))
+                    .foregroundStyle(hourBlocked ? BaziTheme.inkMuted : BaziTheme.ink)
+                Text(hourBlocked
+                     ? "\(kindLabel(for: entry)) · \(L10n.CompatibilityRosterGate.mark)"
+                     : kindLabel(for: entry))
                     .font(.caption)
-                    .foregroundStyle(BaziTheme.inkMuted)
+                    .tracking(hourBlocked ? 1 : 0)
+                    .foregroundStyle(hourBlocked ? BaziTheme.inkMutedSecondary : BaziTheme.inkMuted)
             }
             Spacer()
             Button {

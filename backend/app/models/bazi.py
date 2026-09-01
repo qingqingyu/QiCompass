@@ -47,6 +47,22 @@ class BaziCalculateRequest(BaseModel):
     zi_hour_rule: Literal["zi_next_day"] = Field(
         "zi_next_day", description="MVP 固定 zi_next_day,内部 setSect(1)")
 
+    # ---- 时辰未知契约(docs/时辰未知设计决策.md,2026-08-31)----
+    # hour_known 是唯一事实源(不用 00:00:00 哨兵伪装);默认 True 保老客户端不 422
+    hour_known: bool = Field(
+        True, description="是否知道出生时刻。false 时 birth_datetime 的时辰部分"
+        "被忽略(统一按候选区间中点占位排盘:否 11:30 / 是 23:30 / 不确定 12:00,"
+        "D3 2026-09-01 修订),响应 pillars.hour 置 null,喜忌引擎降级 unknown_hour")
+    late_night: bool | None = Field(
+        None, description="「是否在半夜(约 11 点后)出生」二值问题(D3,三态:"
+        "True=是 / False=否 / None=不确定),仅 hour_known=false 时参与判定;"
+        "hour_known=true 时忽略。**日柱歧义判据 = D3 三步区间测试**(2026-09-01 "
+        "修订,非单边阈值):候选墙钟区间(否 [00:00,23:00) / 是 [23:00,24:00) / "
+        "不确定全天)+ 真太阳时 offset_minutes → 真太阳时候选区间,歧义 ⟺ 区间"
+        "内部严格包含一个真太阳时 23:00 换日点(见 true_solar_time."
+        "day_pillar_ambiguous 场景表:西偏答「是」确定,东偏答「否」歧义)。"
+        "歧义 → 日柱置 null(不猜);确定 → 占位中点落在该确定日柱区间内")
+
     @field_validator("birth_datetime")
     @classmethod
     def must_be_naive(cls, v: datetime) -> datetime:
@@ -96,10 +112,39 @@ class Pillar(BaseModel):
 
 
 class Pillars(BaseModel):
-    year: Pillar
-    month: Pillar
-    day: Pillar
-    hour: Pillar
+    """四柱。day/hour 可为 null(时辰未知显式缺失表达,docs/时辰未知设计决策.md):
+
+    - hour_known=false → hour 恒为 null(时辰部分未知,禁用哨兵假精度)
+    - 日柱歧义(hour_known=false 且 D3 区间测试命中:真太阳时候选区间内部
+      含 23:00 换日点,2026-09-01 修订——西偏答「是」/东偏答「否」等场景
+      见 true_solar_time.day_pillar_ambiguous)→ day 亦为 null(日主无,
+      日主系派生输出一并置空)
+    - 年柱/月柱歧义(S02/D10 节气边界双排盘比对:立春日/节交界日出生且
+      时辰未知)→ year/month 亦为 null(生肖系/调候得令/大运序列级联置空,
+      详见 pillar_ambiguity 字段;不猜,禁取 00:00 或 23:59 侧任一结果)
+    """
+
+    year: Pillar | None = None
+    month: Pillar | None = None
+    day: Pillar | None = None
+    hour: Pillar | None = None
+
+
+class PillarAmbiguity(BaseModel):
+    """时辰未知时的柱歧义标记(S02/D10,进响应 + calc_rule_snapshot + content_hash)。
+
+    - year/month:D10 节气边界双排盘比对命中(立春日/节交界日,≈3.3% 用户)
+    - day:D3 区间测试命中(true_solar_time.day_pillar_ambiguous,2026-09-01
+      修订:真太阳时候选区间内部含 23:00 换日点;「不确定」恒命中,西偏答
+      「是」/东偏答「否」等场景见该函数场景表)
+    - 不命中 → 全 False(响应与 S01 基础态一致);hour_known=true 恒不产生
+      本对象(老路径零改动,响应字段为 null)
+    - 不变量:pillar_ambiguity.<pos> == True ⟺ pillars.<pos> 为 null
+    """
+
+    year: bool = False
+    month: bool = False
+    day: bool = False
 
 
 class GanZhiNaYin(BaseModel):
@@ -142,6 +187,14 @@ class CalcRuleSnapshot(BaseModel):
     schema_version: int
     # S02 契约:出生地 IANA 时区(审计/展示;老快照可能为空)
     birth_timezone: str | None = None
+    # 时辰未知 S01:排盘是否含时柱(缺此字段则补时辰前后无法从快照分辨,
+    # 「同一输入永远同一输出 + 快照可审计」被破坏)。默认 True 兼容老
+    # ChartPayload 回显(2026-08-15 教训:payload 加字段必须可缺省)
+    hour_known: bool = True
+    # 时辰未知 S02/D10:柱歧义标记(年/月 = 节气边界双排盘;day = D3 区间测试)。
+    # hour_known=true 恒 None(老路径快照不变);hour_known=false 必有值
+    # (全 False = 无歧义)——歧义状态进快照,同 hash 可审计歧义降级口径
+    pillar_ambiguity: PillarAmbiguity | None = None
 
 
 # ---------- Meta 块(v1 prompt 系统:M0 chart JSON 注入) ----------
@@ -177,12 +230,16 @@ class BaziCalculateResponse(BaseModel):
     """POST /api/bazi/calculate 响应。"""
 
     content_hash: str
-    true_solar_time: datetime
+    # 时辰未知时为 null:真太阳时含时辰信息,基于 12:00 占位的值属假精度,
+    # 不漏到响应(占位一致性验收);偏移量本身只由日期+经度+时区决定,保留
+    true_solar_time: datetime | None = None
     true_solar_offset_minutes: float
 
     @field_serializer("true_solar_time")
-    def _serialize_true_solar_time(self, dt: datetime) -> str:
+    def _serialize_true_solar_time(self, dt: datetime | None) -> str | None:
         """去微秒:iOS .iso8601 dateDecodingStrategy 不支持小数秒。"""
+        if dt is None:
+            return None
         return dt.replace(microsecond=0).isoformat()
     pillars: Pillars
     ming_gong: GanZhiNaYin
@@ -193,13 +250,19 @@ class BaziCalculateResponse(BaseModel):
     # 决策 1 喜忌 —— 扶抑+调候+从格检测(D3)
     favorable_elements: list[str] = Field(default_factory=list)
     unfavorable_elements: list[str] = Field(default_factory=list)
-    day_master_strength: Literal["strong", "weak", "balanced", "special_pattern"] | None = None
+    # unknown_hour(D4):时柱缺失或日柱歧义 → 引擎不硬算,喜忌留空
+    # (镜像 special_pattern 从格诚实降级先例)
+    day_master_strength: (Literal[
+        "strong", "weak", "balanced", "special_pattern", "unknown_hour"
+    ] | None) = None
     tiaoshou_applied: bool = False
     xiji_method: str | None = None  # "扶抑+调候" | "扶抑+调候(从格特征检测命中,未判定具体格局)"
     pattern_hint: Literal["zhuanwang", "cong"] | None = None
 
     # 决策 2 神煞 —— 《三命通会》20 个固定清单
     shensha: list[ShenshaItem] = Field(default_factory=list)
+    # 时辰未知 S01:按可用柱查(时支/日支相关条目自然缺失),显式标注不静默
+    shensha_incomplete: bool = False
 
     # 2026-08-01 grill-me 决策 #13 chart anchor sentence
     # 后端确定性拼接(0 AI 成本),iOS 在深度解析 Tab 顶部 instant 显示
@@ -214,13 +277,19 @@ class BaziCalculateResponse(BaseModel):
     meta: MetaBlock | None = None
     # 2026-08-11 生肖 wire up:年柱地支对应生肖(英文,对齐 iOS Zodiac_*.imageset)
     # pillars.year.zhi 已按立春算,这里仅查表暴露(修正客户端公历年推算的立春边界 bug)
-    year_branch_zodiac: str
+    # 年柱歧义(S02/D10 立春日 + 时辰未知)→ null(年支不确定则生肖不猜,
+    # 供 S08 生肖屏降级);老响应恒有值,Optional 化不破坏回显
+    year_branch_zodiac: str | None = None
     # 2026-08-13 onboarding 反馈屏「好朋友 / 需磨合」:
     # 好朋友 = 六合 1 + 三合 2 = 3 支;需磨合 = 六冲 1 支。
     # 英文生肖名,复用 branch_relations.py(合盘引擎同一事实源)。
-    # 非 Optional:引擎恒填充(对齐 year_branch_zodiac,缺失视为开发期 bug)
-    year_branch_friends: list[str]
-    year_branch_clash: str
+    # 年柱系派生:年柱歧义时随生肖一并置 null(对齐 year_branch_zodiac,不猜)
+    year_branch_friends: list[str] | None = None
+    year_branch_clash: str | None = None
+    # 时辰未知 S02/D10:柱歧义标记(见 PillarAmbiguity)。hour_known=true
+    # 恒 None(老路径响应形状不变);hour_known=false 必有值(全 False =
+    # 与 S01 基础态一致,零歧义)
+    pillar_ambiguity: PillarAmbiguity | None = None
 
     luck_pillars: list[LuckPillar]
     current_luck_pillar: CurrentPillar | None = None

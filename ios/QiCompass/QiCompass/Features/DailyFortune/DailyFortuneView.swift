@@ -21,6 +21,12 @@ struct DailyFortuneView: View {
     @State private var currentChartHash: String?
     @State private var currentZiHourRule: String = "zi_next_day"
 
+    // S10 补时辰升级闭环(D7 触点 2/3):末尾静默行 + 日柱歧义整拦页 CTA 共用。
+    /// 补时辰 sheet VM(nil = 未打开)。
+    @State private var addHourVM: AddHourViewModel?
+    /// 装配失败的人话文案(alert 显式报错,不静默不开)。
+    @State private var addHourError: String?
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -30,6 +36,27 @@ struct DailyFortuneView: View {
             .navigationTitle("每日运势")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.light, for: .navigationBar)
+            // S10:补时辰 sheet。关闭统一刷新——重算换新盘 → resolveCurrentChart
+            // 按 hash 变化全量重载(完整版运势);静默态写穿 → refreshHourFlags
+            /// 轻量重读判据(末尾行文案降中性),不重跑排盘管线。
+            .sheet(item: $addHourVM, onDismiss: { refreshAfterAddHour() }) { vm in
+                AddHourSheet(
+                    vm: vm,
+                    onCancel: { addHourVM = nil },
+                    onRecalculated: { _ in }
+                )
+            }
+            .alert(
+                "暂时无法补时辰",
+                isPresented: Binding(
+                    get: { addHourError != nil },
+                    set: { if !$0 { addHourError = nil } }
+                )
+            ) {
+                Button("好的", role: .cancel) {}
+            } message: {
+                Text(addHourError ?? "")
+            }
         }
         .task {
             if vm == nil {
@@ -124,6 +151,19 @@ struct DailyFortuneView: View {
                 LoadingStateView(title: "推演流日中…")
             case .chartMissing:
                 DailyFortuneEmptyView()
+            case .hourAmbiguousBlocked:
+                // S09 日柱歧义全拦(D5):没有日主 → 免费降级不成立,VM 已拦在
+                // 阶段 1 之前(两类请求都不发起)。拦截表达复用 S07 组件;
+                // S10 接线:CTA → 补时辰 sheet(补上确定时辰即解日柱歧义),
+                // 静默态文案降中性。
+                HourUnknownGateNotice(
+                    title: L10n.PaywallGate.dailyFortuneTitle,
+                    reason: L10n.PaywallGate.dailyFortuneReason,
+                    silenced: vm.isHourUnknownAccepted,
+                    onAddHour: { openAddHourSheet() }
+                )
+                .padding(.horizontal, 32)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
             case .ready(let response, let interpretState, let businessDate):
                 DailyFortuneMainView(
                     vm: vm,
@@ -144,6 +184,8 @@ struct DailyFortuneView: View {
                     onGenerateInterpret: {
                         vm.generateInterpretation(currentChartHash: currentChartHash)
                     },
+                    // S10:D7 触点 2(末尾静默行)→ 补时辰 sheet
+                    onAddHour: { openAddHourSheet() },
                 )
             case .failed(let userError):
                 ErrorStateView(
@@ -167,6 +209,40 @@ struct DailyFortuneView: View {
                 currentChartHash: currentChartHash,
                 ziHourRule: currentZiHourRule,
             )
+        }
+    }
+
+    // MARK: - S10 补时辰(装配 + 关闭刷新)
+
+    /// 打开补时辰 sheet(目标 = 当前命盘;装配失败显式 alert,不静默不开)。
+    @MainActor
+    private func openAddHourSheet() {
+        guard let hash = currentChartHash else {
+            AppLogger.app.warning("op=dailyFortune.openAddHour skip reason=no_chart_hash")
+            return
+        }
+        do {
+            addHourVM = try AddHourViewModel.make(
+                snapshotHash: hash,
+                orchestrator: env.deepAnalysisOrchestrator,
+                chartStore: env.chartSnapshotStore,
+                linkStore: env.userSnapshotLinkStore
+            )
+        } catch {
+            AppLogger.app.error(
+                "op=dailyFortune.openAddHour failed hash=\(hash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            addHourError = (error as? LocalizedError)?.errorDescription ?? L10n.AddHour.errorRebuild
+        }
+    }
+
+    /// sheet 关闭统一刷新:重算换新盘 → hash 变化触发全量重载(完整版运势 +
+    /// 判据翻转);静默态写穿 → 轻量重读判据。取消 → 幂等。
+    @MainActor
+    private func refreshAfterAddHour() {
+        Task {
+            await resolveCurrentChart()
+            vm?.refreshHourFlags(chartHash: currentChartHash)
         }
     }
 }

@@ -40,11 +40,22 @@ struct PairSummary: Identifiable, Equatable {
         /// 该对失败(网络 / 后端 / decode 等),卡片显示失败态 + 单对重试按钮。
         /// 单对重试不触碰付费 / 次数 / 后端(S03 红线)。
         case failed(UserFacingError)
+        /// S07 时辰未知对级拦截(任一方无时辰,含日柱歧义):整对拦,免费亦拦——
+        /// 后端 ChartPayload 契约无法表达无时辰盘(必 422),「免费照给」物理不成立;
+        /// 卡片呈现与付费墙同款拦截态(无重试按钮:重试解决不了缺时辰)。
+        /// roster entry 级标记与发起前拦截归 S11。
+        case hourUnknownBlocked
     }
 
     /// 是否成功(便利 computed)。
     var isComputed: Bool {
         if case .computed = status { return true }
+        return false
+    }
+
+    /// S07:是否时辰未知对级拦截态。
+    var isHourUnknownBlocked: Bool {
+        if case .hourUnknownBlocked = status { return true }
         return false
     }
 }

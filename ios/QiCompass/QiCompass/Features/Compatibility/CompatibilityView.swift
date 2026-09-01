@@ -16,6 +16,12 @@ struct CompatibilityView: View {
     @State private var vm: CompatibilityViewModel?
     @State private var showPaywall = false
 
+    // S10 补时辰升级闭环(D7 触点 1 他人盘分支 + 拦截卡 CTA):
+    /// 补时辰 sheet VM(nil = 未打开)。
+    @State private var addHourVM: AddHourViewModel?
+    /// 装配失败的人话文案(alert 显式报错,不静默不开)。
+    @State private var addHourError: String?
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -46,6 +52,9 @@ struct CompatibilityView: View {
                             module: .compatibility,
                             contentHash: compatHash,
                             purchaseManager: env.purchaseManager,
+                            // S07:任一方无时辰 → 付费墙拦截态(判据 = 双方存档 payload;
+                            // 拦截对正常进不了 detail,此处与 VM 阶段 2 守卫同源防御)
+                            hourUnknownGate: vm?.currentDetailHourUnknownGate ?? .hourKnown,
                             onPurchaseSuccess: {
                                 // 购买成功 → dismiss + 重新调该对的解读(决策 D4 按对绑定)
                                 showPaywall = false
@@ -54,6 +63,27 @@ struct CompatibilityView: View {
                         )
                     )
                 }
+            }
+            // S10:补时辰 sheet(自己盘/他人盘同入口)。关闭统一刷新——
+            // 重算换新盘 → 重载存档列表(标记按新 payload 翻转)+ 配置态恢复名单
+            /// (roster hash 已 remap,该人带着新盘留在名单,重算即完整对)。
+            .sheet(item: $addHourVM, onDismiss: { refreshAfterAddHour() }) { vm in
+                AddHourSheet(
+                    vm: vm,
+                    onCancel: { addHourVM = nil },
+                    onRecalculated: { _ in }
+                )
+            }
+            .alert(
+                "暂时无法补时辰",
+                isPresented: Binding(
+                    get: { addHourError != nil },
+                    set: { if !$0 { addHourError = nil } }
+                )
+            ) {
+                Button("好的", role: .cancel) {}
+            } message: {
+                Text(addHourError ?? "")
             }
         }
         .task {
@@ -68,6 +98,37 @@ struct CompatibilityView: View {
             }
             vm?.loadArchivedCharts()
             // S06:loadArchivedCharts 完成后恢复名单 + 尝试恢复 list 态
+            vm?.restoreRosterStateIfAvailable()
+        }
+    }
+
+    // MARK: - S10 补时辰(装配 + 关闭刷新)
+
+    /// 打开补时辰 sheet(目标 = 参数盘 hash:自己盘或他人盘;装配失败显式 alert)。
+    @MainActor
+    private func openAddHourSheet(hash: String) {
+        do {
+            addHourVM = try AddHourViewModel.make(
+                snapshotHash: hash,
+                orchestrator: env.deepAnalysisOrchestrator,
+                chartStore: env.chartSnapshotStore,
+                linkStore: env.userSnapshotLinkStore
+            )
+        } catch {
+            AppLogger.app.error(
+                "op=compatibility.openAddHour failed hash=\(hash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            addHourError = (error as? LocalizedError)?.errorDescription ?? L10n.AddHour.errorRebuild
+        }
+    }
+
+    /// sheet 关闭统一刷新:重载存档列表(S11 标记按新 payload 翻转)+ 仅配置态
+    /// 恢复名单(list 态不重恢复,避免覆盖当前展示的 summaries;用户回配置态
+    /// 点「开始合盘」即按新盘重算)。
+    @MainActor
+    private func refreshAfterAddHour() {
+        vm?.loadArchivedCharts()
+        if case .configuring = vm?.state {
             vm?.restoreRosterStateIfAvailable()
         }
     }
@@ -97,9 +158,11 @@ struct CompatibilityView: View {
                     )
                 }
             case .configuring:
-                CompatibilityConfigView(vm: vm) {
-                    vm.compute()
-                }
+                CompatibilityConfigView(
+                    vm: vm,
+                    onStart: { vm.compute() },
+                    onAddHour: { openAddHourSheet(hash: $0) }
+                )
             case .computing(let completed, let total):
                 LoadingStateView(title: "推演合盘中… (\(completed)/\(total))")
             case .list:
@@ -107,7 +170,8 @@ struct CompatibilityView: View {
                     vm: vm,
                     summaries: vm.summaries,
                     onBackToConfig: { vm.backToConfig() },
-                    onOpenSummary: { vm.openDetail($0) }
+                    onOpenSummary: { vm.openDetail($0) },
+                    onAddHour: { openAddHourSheet(hash: $0) }
                 )
             case .detail(_, let response, let interpretState):
                 // 复用 CompatibilityMainView(零改动),入参从当前对快照构造。

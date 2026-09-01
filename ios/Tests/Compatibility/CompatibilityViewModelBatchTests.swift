@@ -873,4 +873,572 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         )
         return result.snapshot
     }
+
+    // MARK: - S07 时辰未知对级拦截(任一方无时辰 → 整对拦,免费亦拦)
+
+    /// 构造指定时辰状态的命盘并落档,返回可直接喂 VM 的 ArchivedChart。
+    /// hourKnown=false 时柱缺失(时辰未知);dayPresent=false 再叠加日柱歧义。
+    @discardableResult
+    private func insertChart(
+        hash: String,
+        alias: String,
+        hourKnown: Bool,
+        dayPresent: Bool = true
+    ) throws -> ArchivedChart {
+        let pillar = PillarDTO(
+            ganZhi: "甲子", gan: "甲", zhi: "子",
+            ganElement: "wood", zhiElement: "water",
+            hideGan: ["癸"], shishenGan: "比肩", shishenZhi: ["正印"],
+            nayin: "海中金", dishi: "沐浴", xunkong: "戌亥"
+        )
+        let ganzhi = GanZhiNaYinDTO(ganZhi: "甲子", nayin: "海中金")
+        let request = BaziCalculateRequest(
+            birthDatetime: "1990-03-15T12:00:00",
+            timezone: "Asia/Shanghai",
+            gender: "male",
+            longitude: 116.4074,
+            latitude: 39.9042,
+            placeName: "北京",
+            geonameId: 1816670,
+            ziHourRule: "zi_next_day",
+            hourKnown: hourKnown
+        )
+        let response = BaziResponse(
+            contentHash: hash,
+            trueSolarTime: nil,
+            trueSolarOffsetMinutes: 0,
+            pillars: PillarsDTO(
+                year: pillar, month: pillar,
+                day: dayPresent ? pillar : nil,
+                hour: hourKnown ? pillar : nil
+            ),
+            mingGong: ganzhi, shenGong: ganzhi, taiYuan: ganzhi,
+            elementBalance: ElementBalanceDTO(wood: 2, fire: 1, earth: 1, metal: 1, water: 3),
+            favorableElements: ["木", "水"], unfavorableElements: ["土"],
+            dayMasterStrength: dayPresent ? "balanced" : "unknown_hour",
+            tiaoshouApplied: false,
+            xijiMethod: "扶抑+调候", patternHint: nil,
+            shensha: [], luckPillars: [],
+            currentLuckPillar: nil, currentYearPillar: nil,
+            currentDayPillar: nil, currentHourPillar: nil,
+            calcRuleSnapshot: CalcRuleSnapshotDTO(
+                library: "lunar_python", sect: 1, ziHourRule: "zi_next_day",
+                trueSolarLongitude: 116.4, trueSolarOffsetMinutes: 0,
+                schemaVersion: 1, birthTimezone: "Asia/Shanghai",
+                hourKnown: hourKnown,
+                pillarAmbiguity: dayPresent ? nil : PillarAmbiguityDTO(day: true)
+            ),
+            boundaryWarning: nil,
+            yearBranchZodiac: "Rat",
+            yearBranchFriends: ["Ox"], yearBranchClash: "Horse"
+        )
+        let result = try chartStore.upsert(response: response, request: request)
+        return ArchivedChart(
+            snapshotHash: hash,
+            alias: alias,
+            birthDate: result.snapshot.birthSolarTime,
+            gender: "male",
+            dayMaster: dayPresent ? "甲" : "—",
+            snapshot: result.snapshot
+        )
+    }
+
+    /// 轮询等待 compute() 的 Task 落到 .list(compute 是 async Task,断言需等待)。
+    private func waitForListState(timeout: TimeInterval = 8) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if vm.state == .list { return true }
+            try? await Task.sleep(nanoseconds: 30_000_000)
+        }
+        return vm.state == .list
+    }
+
+    func testCompute_A盘无时辰_全部对拦截态_零合盘快照() async throws {
+        let chartA = try insertChart(hash: "s07_a_unknown", alias: "A", hourKnown: false)
+        let chartB = try insertChart(hash: "s07_b_known", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        vm.roster = [.archived(snapshotHash: "s07_b_known")]
+
+        vm.compute()
+        let reached = await waitForListState()
+        XCTAssertTrue(reached, "compute 应正常进入 .list,实际:\(vm.state)")
+
+        let summary = try XCTUnwrap(vm.summaries.first)
+        XCTAssertTrue(summary.isHourUnknownBlocked, "A 盘无时辰 → 该对整对拦截(免费亦拦),实际:\(summary.status)")
+        XCTAssertEqual(summary.personBHash, "s07_b_known", "拦截对保留存档对方 hash(roster 持久化需要)")
+
+        // 零 API 调用证明:没有产生任何 CompatibilitySnapshot(阶段 1 从未发起)
+        let snapshots = try compatibilityStore.list(personAHash: "s07_a_unknown", context: "general")
+        XCTAssertTrue(snapshots.isEmpty, "拦截对不得发起确定性合盘(后端契约必 422)")
+
+        // 拦截对的存档 hash 保留在持久化名单(该人仍在名单,补时辰后重算)
+        let persisted = CompatibilityRosterPersistence.load()
+        XCTAssertEqual(persisted.rosterHashes, ["s07_b_known"])
+    }
+
+    func testCompute_B盘无时辰_仅该对拦截_其余照算() async throws {
+        let chartA = try insertChart(hash: "s07_a2_known", alias: "A", hourKnown: true)
+        let chartBUnknown = try insertChart(hash: "s07_b2_unknown", alias: "B无时辰", hourKnown: false)
+        vm.archivedCharts = [chartA, chartBUnknown]
+        vm.selectedChartAIndex = 0
+        vm.roster = [
+            .archived(snapshotHash: "s07_b2_unknown"),
+            .temp(
+                input: PersonBInput(
+                    birthDatetime: "1992-08-08T10:00:00",
+                    timezone: "Asia/Shanghai",
+                    gender: "female",
+                    longitude: 116.4074
+                ),
+                alias: "临时人",
+                resolvedHash: nil
+            ),
+        ]
+
+        vm.compute()
+        let reached = await waitForListState()
+        XCTAssertTrue(reached, "compute 应正常进入 .list,实际:\(vm.state)")
+        XCTAssertEqual(vm.summaries.count, 2)
+
+        let blocked = vm.summaries.first { $0.displayName == "B无时辰" }
+        XCTAssertTrue(blocked?.isHourUnknownBlocked == true, "存档 B 无时辰 → 该对拦截(对级隔离)")
+
+        let tempPair = vm.summaries.first { $0.displayName == "临时人" }
+        XCTAssertTrue(tempPair?.isComputed == true, "双方有时辰的临时对照常计算(回归)")
+
+        // 只有临时对产生快照;拦截对零阶段 1 调用
+        let snapshots = try compatibilityStore.list(personAHash: "s07_a2_known", context: "general")
+        XCTAssertEqual(snapshots.count, 1, "仅临时对落快照")
+    }
+
+    func testCompute_双方有时辰_回归照算() async throws {
+        let chartA = try insertChart(hash: "s07_a3_known", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "s07_b3_known", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        vm.roster = [.archived(snapshotHash: "s07_b3_known")]
+
+        vm.compute()
+        let reached = await waitForListState()
+        XCTAssertTrue(reached, "compute 应正常进入 .list,实际:\(vm.state)")
+
+        let summary = try XCTUnwrap(vm.summaries.first)
+        XCTAssertTrue(summary.isComputed, "双方有时辰 → 行为与现状完全一致,实际:\(summary.status)")
+    }
+
+    func testGenerateInterpretation_任一方无时辰_阶段2拦截_不消耗次数() async throws {
+        // A 无时辰 + B 有时辰的 detail 态(正常路径拦截对进不了 detail,此处直构状态机)
+        let chartA = try insertChart(hash: "s07_a4_unknown", alias: "A", hourKnown: false)
+        let chartB = try insertChart(hash: "s07_b4_known", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+
+        let summary = PairSummary(
+            id: "s07_compat_hash",
+            entry: .archived(snapshotHash: "s07_b4_known"),
+            personBHash: "s07_b4_known",
+            displayName: "B",
+            birthDate: nil,
+            dayMaster: "甲",
+            fiveElements: "互补",
+            dayMasterRelation: "同气",
+            compatibilityHash: "s07_compat_hash",
+            isInterpreted: false,
+            status: .computed
+        )
+        let response = CompatibilityResponse(
+            compatibilityHash: "s07_compat_hash",
+            personAChart: nil,
+            personBChart: nil,
+            qualitativeAssessment: QualitativeAssessmentDTO(
+                fiveElements: "互补", dayMasterRelation: "同气",
+                zodiacMatch: "六合", branchHarmony: "无冲无刑"
+            ),
+            syncedFortune: [],
+            calcRuleSnapshot: nil
+        )
+        vm.state = .detail(summary, response, .idle)
+
+        let readsBefore = vm.remainingReads
+        vm.generateInterpretation()
+
+        // 阶段 2 拦截:interpretState 显式 .failed(免费亦拦,不静默吞)
+        let deadline = Date().addingTimeInterval(5)
+        var blocked = false
+        while Date() < deadline {
+            if case .detail(_, _, .failed) = vm.state { blocked = true; break }
+            try? await Task.sleep(nanoseconds: 30_000_000)
+        }
+        XCTAssertTrue(blocked, "任一方无时辰 → 阶段 2(AI 解读)拦截态,实际:\(vm.state)")
+        if case .detail(_, _, .failed(let message)) = vm.state {
+            // 文案走 L10n(zh「时辰」/ en「hour」),断言按 locale 双语兼容
+            XCTAssertTrue(
+                message.contains("时辰") || message.lowercased().contains("hour"),
+                "拦截文案须指向补时辰,实际:\(message)"
+            )
+        }
+        XCTAssertEqual(vm.remainingReads, readsBefore, "拦截发生在次数检查之前,不得消耗每日配额")
+    }
+
+    // MARK: - S11 roster 不可合盘标记(判据 = 本地 payload,零网络;与 S07 拦截同源)
+
+    func testToggleArchived_他人无时辰_拒绝入名单() throws {
+        // S11 发起前最早层拦截:无时辰他人不可勾入名单(点击轻提示在 View 层)
+        let chartA = try insertChart(hash: "s11_a_known", alias: "A", hourKnown: true)
+        let chartBUnknown = try insertChart(hash: "s11_b_unknown", alias: "B无时辰", hourKnown: false)
+        vm.archivedCharts = [chartA, chartBUnknown]
+        vm.selectedChartAIndex = 0
+
+        vm.toggleArchived(hash: "s11_b_unknown")
+        XCTAssertTrue(vm.roster.isEmpty, "他人无时辰 → 不可入名单(VM 守卫兜住所有调用路径)")
+    }
+
+    func testToggleArchived_他人无时辰_已在名单_移除照常() throws {
+        // 跨启动恢复的拦截对:hash 保留在名单(S07 语义),移除语义必须照常
+        let chartA = try insertChart(hash: "s11_a2_known", alias: "A", hourKnown: true)
+        let chartBUnknown = try insertChart(hash: "s11_b2_unknown", alias: "B无时辰", hourKnown: false)
+        vm.archivedCharts = [chartA, chartBUnknown]
+        vm.selectedChartAIndex = 0
+        vm.roster = [.archived(snapshotHash: "s11_b2_unknown")]
+
+        vm.toggleArchived(hash: "s11_b2_unknown")
+        XCTAssertTrue(vm.roster.isEmpty, "已在名单的无时辰对方,移除照常(toggle 前半段不受 S11 守卫影响)")
+    }
+
+    func testIsPairHourUnknownBlocked_分支覆盖_对方无时辰_双方有时辰_临时人() throws {
+        let chartA = try insertChart(hash: "s11_a3_known", alias: "A", hourKnown: true)
+        let chartBKnown = try insertChart(hash: "s11_b3_known", alias: "B有时辰", hourKnown: true)
+        let chartBUnknown = try insertChart(hash: "s11_b3_unknown", alias: "C无时辰", hourKnown: false)
+        vm.archivedCharts = [chartA, chartBKnown, chartBUnknown]
+        vm.selectedChartAIndex = 0
+
+        let tempEntry: RosterEntry = .temp(
+            input: PersonBInput(
+                birthDatetime: "1992-08-08T10:00:00",
+                timezone: "Asia/Shanghai",
+                gender: "female",
+                longitude: 116.4074
+            ),
+            alias: nil,
+            resolvedHash: nil
+        )
+
+        XCTAssertFalse(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "s11_b3_known")),
+                       "双方有时辰 → 不标记(行为与现状完全一致)")
+        XCTAssertTrue(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "s11_b3_unknown")),
+                      "他人无时辰 → 该对标记")
+        XCTAssertFalse(vm.isPairHourUnknownBlocked(entry: tempEntry),
+                       "临时人 PersonBInput 恒带完整钟面,无时辰语义不存在 → 不标记")
+    }
+
+    func testIsSelfHourUnknown_自己无时辰_全部对不可用_切换A盘翻转() throws {
+        let chartAUnknown = try insertChart(hash: "s11_a4_unknown", alias: "A无时辰", hourKnown: false)
+        let chartBKnown = try insertChart(hash: "s11_b4_known", alias: "B有时辰", hourKnown: true)
+        let chartAKnown = try insertChart(hash: "s11_a4b_known", alias: "A2有时辰", hourKnown: true)
+        vm.archivedCharts = [chartAUnknown, chartBKnown, chartAKnown]
+        vm.selectedChartAIndex = 0
+
+        XCTAssertTrue(vm.isSelfHourUnknown, "自己无时辰 → 名单整体标记数据源(解释行 + CTA 不可发起)")
+        XCTAssertTrue(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "s11_b4_known")),
+                      "自己无时辰 → 对方有时辰的该对也不可用")
+        let tempEntry: RosterEntry = .temp(
+            input: PersonBInput(
+                birthDatetime: "1993-01-01T09:00:00",
+                timezone: "Asia/Shanghai",
+                gender: "male",
+                longitude: 116.4074
+            ),
+            alias: nil,
+            resolvedHash: nil
+        )
+        XCTAssertTrue(vm.isPairHourUnknownBlocked(entry: tempEntry), "自己无时辰 → 全部对不可用(含临时人)")
+
+        // 切到有时辰的 A 盘 → 整体标记消失(判据随选中盘翻转)
+        vm.selectedChartAIndex = 2
+        XCTAssertFalse(vm.isSelfHourUnknown)
+        XCTAssertFalse(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "s11_b4_known")))
+        XCTAssertFalse(vm.isPairHourUnknownBlocked(entry: tempEntry))
+    }
+
+    func testS11_补时辰翻转_标记消失_可发起() throws {
+        // S10 他人盘补时辰 → payload 替换 → 标记翻转(此处以同 hash 重 upsert 模拟;
+        // 实际 S10 是新 hash 新盘,判据同为「现读 payload」,翻转行为一致)
+        let chartA = try insertChart(hash: "s11_a5_known", alias: "A", hourKnown: true)
+        let chartBUnknown = try insertChart(hash: "s11_b5_unknown", alias: "B", hourKnown: false)
+        vm.archivedCharts = [chartA, chartBUnknown]
+        vm.selectedChartAIndex = 0
+
+        XCTAssertTrue(vm.isArchivedHourUnknown(hash: "s11_b5_unknown"), "补时辰前:该对标记")
+        vm.toggleArchived(hash: "s11_b5_unknown")
+        XCTAssertTrue(vm.roster.isEmpty, "补时辰前:不可入名单")
+
+        // 模拟补时辰:同 hash 重新 upsert 带时辰 payload(upsert 按 contentHash 原地更新)
+        _ = try insertChart(hash: "s11_b5_unknown", alias: "B", hourKnown: true)
+
+        XCTAssertFalse(vm.isArchivedHourUnknown(hash: "s11_b5_unknown"), "补时辰后:标记消失")
+        XCTAssertFalse(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "s11_b5_unknown")),
+                       "补时辰后:该对可发起")
+        vm.toggleArchived(hash: "s11_b5_unknown")
+        XCTAssertEqual(vm.roster.count, 1, "补时辰后:可入名单(按新盘走)")
+    }
+
+    func testIsPairHourUnknownBlocked_跨启动恢复entry_不在archivedCharts_走chartStore判据() throws {
+        // S06 恢复路径:临时人持久化为 .archived hash,无 link 不进 archivedCharts
+        let chartA = try insertChart(hash: "s11_a6_known", alias: "A", hourKnown: true)
+        _ = try insertChart(hash: "s11_b6_unknown", alias: "恢复的无时辰盘", hourKnown: false)
+        vm.archivedCharts = [chartA]
+        vm.selectedChartAIndex = 0
+
+        XCTAssertTrue(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "s11_b6_unknown")),
+                      "不在 archivedCharts 的 hash → 走 chartStore payload 判据")
+        XCTAssertFalse(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "ghost_hash_s11")),
+                       "快照缺失 → 放行不误标(真正错误由 computePair 对级隔离呈现)")
+    }
+
+    func testArchivedHourGate_payload解码失败_放行不误标() throws {
+        // 直接插一个 payload 为垃圾字节的 ChartSnapshot(不经 upsert)
+        let bad = ChartSnapshot(
+            contentHash: "s11_bad_payload",
+            birthSolarTime: Date(timeIntervalSince1970: 638_000_000),
+            gender: "male",
+            cityLongitude: 116.41,
+            ziHourRule: "zi_next_day",
+            calcRuleSnapshot: Data(),
+            payload: Data("not-json".utf8)
+        )
+        container.mainContext.insert(bad)
+        try container.mainContext.save()
+
+        let chartA = try insertChart(hash: "s11_a7_known", alias: "A", hourKnown: true)
+        vm.archivedCharts = [chartA]
+        vm.selectedChartAIndex = 0
+
+        // decode 失败显式记日志后按 .hourKnown 放行(对齐 S07 currentDetailHourUnknownGate
+        // 先例:标记层不用拦截态掩盖解码故障,发起路径会再 decode 并对级传播错误)
+        XCTAssertFalse(vm.isArchivedHourUnknown(hash: "s11_bad_payload"),
+                       "decode 失败 → 放行(日志显式记录,不静默吞)")
+    }
+
+    // MARK: - S11 发起前拦截 = 唯一防线(2026-09-01 review:S01 已放开 ChartPayload Literal,
+    // 后端不再是 422 兜底,VM 层拦截必须真正拦住)
+
+    /// 用记录型客户端装配第二个 VM(绕过 UI 直调发起的零请求断言用)。
+    private func makeRecordingVM(api: APIClient) -> CompatibilityViewModel {
+        let context = container.mainContext
+        let interpretStore = InterpretationCacheStore(context: context)
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: api),
+            cacheStore: interpretStore
+        )
+        let recordingOrchestrator = CompatibilityOrchestrator(
+            apiClient: api,
+            compatibilityStore: compatibilityStore,
+            chartStore: chartStore,
+            interpretStore: interpretStore,
+            counter: DailyReadCounter(),
+            interpretationReader: reader
+        )
+        return CompatibilityViewModel(
+            orchestrator: recordingOrchestrator,
+            chartStore: chartStore,
+            compatibilityStore: compatibilityStore,
+            entitlementStore: entitlementStore,
+            modelContext: context
+        )
+    }
+
+    /// 轮询等待指定 VM 的 compute() Task 落到 .list(param 版,绕过 UI 用例的第二个 VM 用)。
+    private func waitForListState(
+        of target: CompatibilityViewModel, timeout: TimeInterval = 8
+    ) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if target.state == .list { return true }
+            try? await Task.sleep(nanoseconds: 30_000_000)
+        }
+        return target.state == .list
+    }
+
+    func testS11_绕过UI直调compute_无时辰对_VM层先拦_零网络请求_错误不外溢() async throws {
+        // 录制双打模拟 S01 已放开 Literal 的后端:拦截失效时请求会被放行并记录,
+        // 计数 > 0 即防线失守(不再有 422 兜底,2026-09-01 review 更正)
+        let recording = S11RecordingAPIClient()
+        let rvm = makeRecordingVM(api: recording)
+
+        let chartA = try insertChart(hash: "s11_v_a_known", alias: "A", hourKnown: true)
+        let bUnknown = try insertChart(hash: "s11_v_b_unknown", alias: "B无时辰", hourKnown: false)
+        let bAmbiguous = try insertChart(hash: "s11_v_b_ambiguous", alias: "C日柱歧义", hourKnown: false, dayPresent: false)
+        rvm.archivedCharts = [chartA, bUnknown, bAmbiguous]
+        rvm.selectedChartAIndex = 0
+        // 绕过 UI:toggleArchived 的 S11 守卫被跳过,名单直塞后发起
+        rvm.roster = [
+            .archived(snapshotHash: "s11_v_b_unknown"),
+            .archived(snapshotHash: "s11_v_b_ambiguous"),
+        ]
+
+        rvm.compute()
+        let reached = await waitForListState(of: rvm)
+        XCTAssertTrue(reached, "拦截对不炸整体:compute 照常落 .list,实际:\(rvm.state)")
+
+        XCTAssertEqual(rvm.summaries.count, 2)
+        for summary in rvm.summaries {
+            XCTAssertTrue(summary.isHourUnknownBlocked,
+                          "VM 层先拦:无时辰对产拦截卡(免费亦拦),实际:\(summary.status)")
+        }
+        // 错误不外溢:无对级 .failed、无整体 .failed 态
+        XCTAssertFalse(rvm.summaries.contains { summary in
+            if case .failed = summary.status { return true }
+            return false
+        }, "拦截是设计态不是错误,不得以 .failed 外溢")
+        if case .failed = rvm.state {
+            XCTFail("整体状态不得因拦截对进入 .failed,实际:\(rvm.state)")
+        }
+
+        let compatCalls = await recording.compatibilityCallCount()
+        let interpretCalls = await recording.interpretCallCount()
+        XCTAssertEqual(compatCalls, 0, "发起前拦截 = 唯一防线:零 compatibility 请求(不依赖后端 422)")
+        XCTAssertEqual(interpretCalls, 0, "拦截对连 interpret 也不发起")
+        XCTAssertTrue(
+            try compatibilityStore.list(personAHash: "s11_v_a_known", context: "general").isEmpty,
+            "零网络请求佐证:无任何 CompatibilitySnapshot 落库"
+        )
+    }
+
+    func testS11_绕过UI直调generateInterpretation_无时辰对_零interpret请求() async throws {
+        let recording = S11RecordingAPIClient()
+        let rvm = makeRecordingVM(api: recording)
+
+        let chartA = try insertChart(hash: "s11_v2_a_known", alias: "A", hourKnown: true)
+        let chartBUnknown = try insertChart(hash: "s11_v2_b_unknown", alias: "B无时辰", hourKnown: false)
+        rvm.archivedCharts = [chartA, chartBUnknown]
+        rvm.selectedChartAIndex = 0
+
+        // 直构 detail 态:拦截对正常进不了 detail(computePair 已拦)——
+        // 这正是「绕过 UI」的模拟(购买回调 / 状态机错乱同款路径)
+        let summary = PairSummary(
+            id: "s11_v2_compat",
+            entry: .archived(snapshotHash: "s11_v2_b_unknown"),
+            personBHash: "s11_v2_b_unknown",
+            displayName: "B无时辰",
+            birthDate: nil,
+            dayMaster: "—",
+            fiveElements: "",
+            dayMasterRelation: "",
+            compatibilityHash: "s11_v2_compat",
+            isInterpreted: false,
+            status: .computed
+        )
+        let response = CompatibilityResponse(
+            compatibilityHash: "s11_v2_compat",
+            personAChart: nil,
+            personBChart: nil,
+            qualitativeAssessment: QualitativeAssessmentDTO(
+                fiveElements: "互补", dayMasterRelation: "同气",
+                zodiacMatch: "六合", branchHarmony: "无冲无刑"
+            ),
+            syncedFortune: [],
+            calcRuleSnapshot: nil
+        )
+        rvm.state = .detail(summary, response, .idle)
+
+        rvm.generateInterpretation()
+
+        // 阶段 2 拦截:interpretState 显式 .failed(不静默吞,也不外溢为 crash/整体态)
+        let deadline = Date().addingTimeInterval(5)
+        var blocked = false
+        while Date() < deadline {
+            if case .detail(_, _, .failed) = rvm.state { blocked = true; break }
+            try? await Task.sleep(nanoseconds: 30_000_000)
+        }
+        XCTAssertTrue(blocked, "无时辰对直调 generateInterpretation → 阶段 2 拦截态,实际:\(rvm.state)")
+
+        let interpretCalls = await recording.interpretCallCount()
+        let compatCalls = await recording.compatibilityCallCount()
+        XCTAssertEqual(interpretCalls, 0, "发起前拦截 = 唯一防线:零 interpret 请求")
+        XCTAssertEqual(compatCalls, 0)
+    }
+}
+
+// MARK: - S11 记录型 API 双打(发起前拦截 = 唯一防线断言)
+
+private enum S11TestError: Error {
+    case unexpectedCall
+}
+
+/// compatibility / interpret 记录并返回合法夹具——模拟 S01 已放开 Literal 的
+/// 后端(VM 拦截失效时请求会被放行并记录,计数 > 0 即防线失守);其余端点
+/// 被调即抛错(负向哨兵,对齐 RecordingDailyAPIClient 手法)。
+private actor S11RecordingAPIClient: APIClient {
+    private var compatibilityRequests: [CompatibilityRequest] = []
+    private var interpretRequests: [InterpretRequest] = []
+
+    func compatibilityCallCount() -> Int { compatibilityRequests.count }
+    func interpretCallCount() -> Int { interpretRequests.count }
+
+    func health() async throws -> HealthResponse {
+        HealthResponse(
+            status: "ok",
+            lunarPythonVersion: "1.4.8",
+            model: "s11-recording-test",
+            aiProvider: "anthropic",
+            aiModel: "claude-test"
+        )
+    }
+
+    func compatibility(request: CompatibilityRequest) async throws -> CompatibilityResponse {
+        compatibilityRequests.append(request)
+        return CompatibilityResponse(
+            compatibilityHash: "s11_leaked_pair",
+            personAChart: nil,
+            personBChart: nil,
+            qualitativeAssessment: QualitativeAssessmentDTO(
+                fiveElements: "互补", dayMasterRelation: "同气",
+                zodiacMatch: "六合", branchHarmony: "无冲无刑"
+            ),
+            syncedFortune: [],
+            calcRuleSnapshot: nil
+        )
+    }
+
+    func interpret(request: InterpretRequest) async throws -> InterpretResponse {
+        interpretRequests.append(request)
+        return InterpretResponse(
+            interpretation: "拦截失效哨兵:此解读不应出现",
+            promptVersion: 1,
+            cached: false,
+            generatedAt: .now,
+            provider: "anthropic",
+            model: "claude-test",
+            language: AppLanguage.current
+        )
+    }
+
+    func calculateBazi(request: BaziCalculateRequest) async throws -> BaziResponse {
+        throw S11TestError.unexpectedCall
+    }
+    func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse {
+        throw S11TestError.unexpectedCall
+    }
+    func dailyImageStatus(request: DailyFortuneRequest) async throws -> DailyImageStatusDTO {
+        throw S11TestError.unexpectedCall
+    }
+    func dailyImageContent(chartHash: String, targetDate: String) async throws -> (data: Data, statusCode: Int) {
+        throw S11TestError.unexpectedCall
+    }
+    func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse {
+        throw S11TestError.unexpectedCall
+    }
+    func entitlementList() async throws -> EntitlementListResponse {
+        throw S11TestError.unexpectedCall
+    }
+    func signIn(request: SignInRequest) async throws -> SignInResponse {
+        throw S11TestError.unexpectedCall
+    }
+    func syncPull() async throws -> SyncPullResponse {
+        throw S11TestError.unexpectedCall
+    }
+    func syncPush(request: SyncPushRequest) async throws -> SyncPushResponse {
+        throw S11TestError.unexpectedCall
+    }
 }

@@ -8,7 +8,9 @@ Slice 1 范围:每日运势所需最小术语集(42 项)。
 - EARTHLY_BRANCHES_EN: 地支 12
 - FIVE_ELEMENTS_EN: 五行 5
 - TEN_GODS_EN: 十神 11(含偏官/七杀同义映射)
-- STRENGTH_LABEL_EN: 旺衰 label 4(raw key:strong/weak/balanced/special_pattern)
+- STRENGTH_LABEL_EN: 旺衰 label 5(raw key:strong/weak/balanced/special_pattern/
+  unknown_hour;S09 补 unknown_hour 条目——context 翻译不再覆盖该字段,
+  条目供 translate_term 按需使用)
 - MISC_TERMS_EN: 空(Slice 1 无独立杂项;day_chong 由 EARTHLY_BRANCHES_EN 覆盖)
 
 后续 Slice 2/3/4 扩展神煞 20 + 纳音 30 + 合盘术语。
@@ -71,15 +73,18 @@ TEN_GODS_EN: Final[dict[str, str]] = {
 
 # ---------- 旺衰 label(对齐 bazi_engine.py _STRENGTH_LABEL 的 raw key) ----------
 # 注意:iOS 客户端 PromptContextBuilder 发送到 /api/interpret 的 context 里
-# day_master_strength 字段值是 **raw key**(strong / weak / balanced / special_pattern),
-# 不是 bazi_engine._STRENGTH_LABEL 转换后的中文 label(偏旺 / 偏弱 / 中和 / 呈现从格特征)。
-# 中文 label 只用于 _build_anchor_sentence(UI 显示),不进 prompt context。
-# 因此此表的 key 必须是 raw key,与客户端实际发送值对齐。
+# day_master_strength 字段值是 **raw key**(strong / weak / balanced / special_pattern /
+# unknown_hour),不是 bazi_engine._STRENGTH_LABEL 转换后的中文 label(偏旺 / 偏弱 /
+# 中和 / 呈现从格特征)。中文 label 只用于 _build_anchor_sentence(UI 显示),不进
+# prompt context。因此此表的 key 必须是 raw key,与客户端实际发送值对齐。
+# S09 起 context 翻译不再覆盖该字段(见 _DAILY_FORTUNE_SINGLE_TERM_FIELDS 注释),
+# 表条目保留供 translate_term 按需使用。
 STRENGTH_LABEL_EN: Final[dict[str, str]] = {
     "strong": "Strong",
     "weak": "Weak",
     "balanced": "Balanced",
     "special_pattern": "Special Pattern",
+    "unknown_hour": "Hour Unknown",
 }
 
 # ---------- 杂项核心术语 ----------
@@ -156,6 +161,12 @@ def is_language_supported(language: str) -> bool:
 _TRANSLATION_FAILED = object()
 
 # daily_fortune context 里的"单术语"字段(直接 translate_term)
+# 注意:day_master_strength **不在**此表——它是 raw key(strong/weak/.../
+# unknown_hour),同时是 render_prompt 的模板/降级分支控制信号(unknown_hour
+# 切降级变体、special_pattern 追加从格段)。route 先 translate_context 再
+# render,翻译它会破坏分支判定(S09 实测 en 降级链路 422);raw key 原样
+# 进 prompt 与 zh 行为一致(命主：日主 己（土），weak)。STRENGTH_LABEL_EN
+# 仍并入总表供 translate_term 按需取用。
 _DAILY_FORTUNE_SINGLE_TERM_FIELDS: Final[tuple[str, ...]] = (
     "day_master",         # 日主(单天干)
     "day_stem",           # 流日天干
@@ -164,7 +175,6 @@ _DAILY_FORTUNE_SINGLE_TERM_FIELDS: Final[tuple[str, ...]] = (
     "day_master_element",   # 五行
     "day_stem_element",    # 五行
     "day_branch_element",   # 五行
-    "day_master_strength",  # 旺衰 label
     "day_relation",       # 十神
 )
 

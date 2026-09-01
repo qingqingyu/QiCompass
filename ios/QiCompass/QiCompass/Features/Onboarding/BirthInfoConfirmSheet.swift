@@ -5,22 +5,14 @@ import SwiftUI
 /// 设计意图(生肖设计决策 line 116):新用户首次排盘输错只能"重置命盘"全部重来(Q20),
 /// 代价大。确认 sheet 让用户在 commit 前再核对一次出生信息,降低首次输入错误率。
 ///
-/// 文案模板:"2000-05-03 14:30 男 · 广州"。对齐设计文档原意,不在此 view 内拼接完整句子,
-/// 而是分行展示(更易扫读)。
+/// 文案模板:"2000-05-03 / 14:30 / 男 / 广州"(S03 拆双 picker 后日期与时刻分行)。
+/// 不在此 view 内拼接完整句子,而是分行展示(更易扫读)。
 ///
 /// 视觉:对齐 ZodiacRevealView 同款 BaziTheme / BaziFont,不另起风格。
 struct BirthInfoConfirmSheet: View {
     @Bindable var vm: DeepAnalysisViewModel
     let onConfirm: () -> Void
     let onCancel: () -> Void
-
-    /// 复用 ZodiacRevealView 的 dateFormatter 风格(`yyyy-MM-dd HH:mm`)。
-    /// 实例持有(每次访问按出生城市覆写 timeZone;静态共享可变状态有隐患)。
-    private let dateFormatter: DateFormatter = {
-        let fmt = DateFormatter()
-        fmt.dateFormat = "yyyy-MM-dd HH:mm"
-        return fmt
-    }()
 
     var body: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.xl) {
@@ -29,7 +21,10 @@ struct BirthInfoConfirmSheet: View {
                 .foregroundStyle(BaziTheme.ink)
 
             VStack(spacing: BaziTheme.Spacing.md) {
-                infoRow(label: "出生时间", value: birthWallTimeString)
+                // S03 拆双 picker:日期与时刻分行展示,与表单两行共用同一 VM 事实源(数值一致)
+                infoRow(label: L10n.BirthForm.birthDateLabel, value: vm.wallBirthDateString ?? "—")
+                // S04 时辰未知:无时辰态明示「未知(半夜:是/否/不确定)」,防误提交
+                infoRow(label: L10n.BirthForm.birthTimeLabel, value: vm.confirmBirthTimeText)
                 infoRow(label: "性别", value: vm.gender == "male" ? "男" : "女")
                 infoRow(label: "出生地", value: vm.selectedPlace?.displayLabel ?? "—")
             }
@@ -63,7 +58,7 @@ struct BirthInfoConfirmSheet: View {
         .background(BaziTheme.paper)
         .onAppear {
             // 规则 1:用户主动触发的入口日志(便于排查"sheet 没弹 / 反复弹")
-            AppLogger.app.info("BirthInfoConfirmSheet.shown birth=\(birthWallTimeString) gender=\(vm.gender, privacy: .public) place=\(vm.selectedPlace?.displayLabel ?? "nil", privacy: .public)")
+            AppLogger.app.info("BirthInfoConfirmSheet.shown birth=\(vm.wallBirthDateString ?? "nil") time=\(vm.confirmBirthTimeText, privacy: .public) gender=\(vm.gender, privacy: .public) place=\(vm.selectedPlace?.displayLabel ?? "nil", privacy: .public)")
         }
     }
 
@@ -82,13 +77,5 @@ struct BirthInfoConfirmSheet: View {
             Spacer()
         }
         .padding(.vertical, BaziTheme.Spacing.xs)
-    }
-
-    // MARK: - 格式化 helper
-
-    /// 出生时间按出生城市时区格式化(S03 WYSIWYG)。
-    private var birthWallTimeString: String {
-        dateFormatter.timeZone = vm.placeCalendar.timeZone
-        return dateFormatter.string(from: vm.birthDate)
     }
 }

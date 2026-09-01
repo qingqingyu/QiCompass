@@ -80,25 +80,30 @@ extension PromptContextBuilder {
     /// 从存档 BaziResponse 提炼单人 prompt 上下文。
     /// `gender` 取 "male"/"female" 字符串(由调用方从 ChartSnapshot.gender / request 取)。
     /// `cityDisplay` 取城市名(或经度格式化)。
+    ///
+    /// S05 时辰未知:柱缺失 / 真太阳时 null → 占位值「时辰未知」(不猜干支);
+    /// 展示层兜底——无时辰盘对的内容页拦截归 S11(roster 不可合盘标记)。
     static func chartContext(
         from response: BaziResponse,
         gender: String,
         cityDisplay: String
     ) -> ChartPromptContext {
         let p = response.pillars
+        let placeholder = PromptContextBuilder.hourUnknownPlaceholder
         return ChartPromptContext(
             gender: genderToChinese(gender),
             cityDisplay: cityDisplay,
-            birthDisplay: dateTimeFormatter.string(from: response.trueSolarTime),
-            dayMaster: p.day.gan,
+            birthDisplay: response.trueSolarTime
+                .map(dateTimeFormatter.string(from:)) ?? placeholder,
+            dayMaster: p.day?.gan ?? placeholder,
             dayMasterStrength: response.dayMasterStrength ?? "special_pattern",
             favorable: response.favorableElements.isEmpty
                 ? "—(从格未下喜忌)"
                 : response.favorableElements.joined(separator: ", "),
-            yearPillar: p.year.ganZhi,
-            monthPillar: p.month.ganZhi,
-            dayPillar: p.day.ganZhi,
-            hourPillar: p.hour.ganZhi,
+            yearPillar: p.year?.ganZhi ?? placeholder,
+            monthPillar: p.month?.ganZhi ?? placeholder,
+            dayPillar: p.day?.ganZhi ?? placeholder,
+            hourPillar: p.hour?.ganZhi ?? placeholder,
             elementBalance: formatElementBalance(response.elementBalance)
         )
     }

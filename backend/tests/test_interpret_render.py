@@ -12,7 +12,11 @@ import re
 import pytest
 
 from app.ai.prompts import (
+    _DAILY_FORTUNE_KNOWN_HOUR_ONLY_FIELDS,
+    _load_template,
     BAZI_DEEP_SPECIAL_PATTERN_SUFFIX,
+    BAZI_DEEP_UNKNOWN_HOUR_SUFFIX,
+    BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN,
     PROMPT_VERSIONS,
     REQUIRED_FIELDS,
     render_prompt,
@@ -22,8 +26,10 @@ from app.errors import InvalidInputError
 from tests.fixtures.interpret_cases import (
     BAZI_DEEP_CONTEXT,
     BAZI_DEEP_SPECIAL_PATTERN_CONTEXT,
+    BAZI_DEEP_UNKNOWN_HOUR_CONTEXT,
     COMPATIBILITY_CONTEXT,
     DAILY_FORTUNE_CONTEXT,
+    DAILY_FORTUNE_UNKNOWN_HOUR_CONTEXT,
 )
 
 
@@ -281,6 +287,240 @@ def test_special_pattern_only_for_bazi_deep_series():
 
     prompt_d = render_prompt("daily_fortune", DAILY_FORTUNE_CONTEXT)
     assert "从格特征" not in prompt_d
+
+
+# ===== 5. 时辰未知诚实降级(S06,免费 2 章换轴叙事)=====
+
+
+def test_unknown_hour_free_honest_degradation():
+    """day_master_strength="unknown_hour" 渲染 free 模板 → prompt 含诚实告知句
+    + 日主为轴的三柱叙事指令 + 双禁止条款(不推喜忌 / 不编时柱)。"""
+    prompt = render_prompt("bazi_deep_free", BAZI_DEEP_UNKNOWN_HOUR_CONTEXT)
+    assert BAZI_DEEP_UNKNOWN_HOUR_CONTEXT["day_master_strength"] == "unknown_hour"
+    # 诚实告知句(D5:喜忌与时柱分析需要准确出生时刻)
+    assert "时辰未知" in prompt
+    assert "喜忌与时柱分析需要准确出生时刻" in prompt
+    # 日主为轴叙事指令:日主 + 年月日三柱十神结构
+    assert "以日主为轴" in prompt
+    assert "年柱 / 月柱 / 日柱三柱的十神结构" in prompt
+    # LLM 边界红线:禁推喜忌 + 禁编时柱
+    assert "推断或编造喜忌结论" in prompt
+    assert "编造或暗示任何时柱影响" in prompt
+    # 降级段确实是 BAZI_DEEP_UNKNOWN_HOUR_SUFFIX
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() in prompt
+
+
+def test_unknown_hour_free_no_hard_xiji_reference():
+    """unknown_hour 渲染 free 模板 → 不含「喜忌已由后端确定性给出」类硬引用
+    (喜忌为空时该句是谎言,LLM 会拿空值硬写;S06 免费模板喜忌约束已改条件式)。"""
+    prompt = render_prompt("bazi_deep_free", BAZI_DEEP_UNKNOWN_HOUR_CONTEXT)
+    assert "喜忌已由后端确定性给出" not in prompt
+    # 条件式约束仍在:喜忌为空分支明确「不谈喜忌」
+    assert "上下文喜忌为空时" in prompt
+    assert "不谈喜忌" in prompt
+
+
+def test_known_hour_free_prompt_semantics_unchanged():
+    """普通盘渲染 free 模板 → 与 S06 前语义一致:严格喜忌约束仍在,
+    无时辰未知降级段(正常用户零变化)。"""
+    prompt = render_prompt("bazi_deep_free", BAZI_DEEP_CONTEXT)
+    assert BAZI_DEEP_CONTEXT["day_master_strength"] == "weak"
+    # LLM 只润色不判断红线保留:非空喜忌必须严格按后端写
+    assert "严格按后端的 favorable/unfavorable 展开" in prompt
+    assert "不得自行推断或修改" in prompt
+    # 降级段与告知句不出现
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() not in prompt
+    assert "时辰未知" not in prompt
+
+
+def test_unknown_hour_suffix_scope_free_side_only():
+    """unknown_hour 降级段只挂免费面:bazi_deep(alias)/ bazi_deep_free 追加;
+    bazi_deep_paid 不追加(iOS S07 付费墙全拦,付费模板不加无意义分支);
+    compatibility / daily_fortune 不受影响;与 special_pattern 互不误触。"""
+    # alias + free 追加
+    for module in ("bazi_deep", "bazi_deep_free"):
+        prompt = render_prompt(module, BAZI_DEEP_UNKNOWN_HOUR_CONTEXT)
+        assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() in prompt, (
+            f"{module} 应追加时辰未知降级段"
+        )
+
+    # paid 不追加(S06 拍板:无时辰用户到不了付费内容)
+    prompt_paid = render_prompt("bazi_deep_paid", BAZI_DEEP_UNKNOWN_HOUR_CONTEXT)
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() not in prompt_paid
+
+    # compatibility / daily_fortune 不受影响(S09 另做)
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() not in render_prompt(
+        "compatibility", COMPATIBILITY_CONTEXT)
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() not in render_prompt(
+        "daily_fortune", DAILY_FORTUNE_CONTEXT)
+
+    # 互斥:special_pattern 不误触 unknown_hour 段;从格既有行为不回归
+    prompt_sp = render_prompt("bazi_deep_free", BAZI_DEEP_SPECIAL_PATTERN_CONTEXT)
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() not in prompt_sp
+    assert BAZI_DEEP_SPECIAL_PATTERN_SUFFIX.strip() in prompt_sp
+
+
+def test_bazi_deep_series_prompt_versions_bumped_s06():
+    """S06 一次 bump 策略:bazi_deep 2→3 / bazi_deep_free 2→3 / bazi_deep_paid 5→6
+    (free 叙事变化最大;alias 与 paid 内容未变但随系列统一 bump,老缓存自然失效)。"""
+    assert PROMPT_VERSIONS["bazi_deep"] == 3
+    assert PROMPT_VERSIONS["bazi_deep_free"] == 3
+    assert PROMPT_VERSIONS["bazi_deep_paid"] == 6
+
+
+# ===== 5b. 时辰未知降级 en 路径(S06 修订 2026-09-01:zh/en 双 suffix)=====
+
+
+def _stub_en_template(monkeypatch):
+    """桩掉 _load_template,提供最小 en 模板(含一个占位符)。
+
+    prompts/en/ 目前只有 daily_fortune 系列文件;bazi_deep 系列的 en 模板
+    本体是 i18n Slice 2 既有债(缺失即 FileNotFoundError,test_i18n.py 已锁
+    该现状)。R4 修复目标是 **suffix 机制本身**对 en 不 raise,用模板桩把
+    机制层与模板文件债隔离验证。
+    """
+    import app.ai.prompts as prompts_module
+    monkeypatch.setattr(
+        prompts_module, "_load_template",
+        lambda module, language, version:
+            f"EN TEMPLATE ({module}/{language}) {{day_master_strength}}",
+    )
+
+
+def test_unknown_hour_en_renders_without_raise(monkeypatch):
+    """language=en + unknown_hour context → 渲染成功(不 raise FileNotFoundError),
+    尾部追加英文降级段,不出现中文 suffix。"""
+    _stub_en_template(monkeypatch)
+    prompt = render_prompt("bazi_deep_free", BAZI_DEEP_UNKNOWN_HOUR_CONTEXT,
+                           language="en")
+    # 模板主体渲染成功 + suffix 追加在尾部
+    assert prompt.startswith(
+        "EN TEMPLATE (bazi_deep_free/en) unknown_hour")
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN.strip() in prompt
+    assert prompt.rstrip().endswith('(no "favor X / avoid Y" statements).'), (
+        "英文降级段应位于 prompt 尾部")
+    # 尾部不得出现中文 suffix / 任何中文字符
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() not in prompt
+    body_len = len("EN TEMPLATE (bazi_deep_free/en) unknown_hour")
+    tail = prompt[body_len:]
+    assert not any("\u4e00" <= ch <= "\u9fff" for ch in tail), (
+        "英文 prompt 尾部不得夹带中文"
+    )
+
+
+def test_unknown_hour_suffix_language_selection_unit():
+    """en/zh suffix 内容语义对齐(诚实告知 + 换轴叙事 + 双禁止),
+    且 en 版不含中文字符(防复制中文段当英文版)。"""
+    assert "birth hour is unknown" in BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN
+    assert "day master" in BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN
+    assert "never infer or invent" in BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN
+    assert "hour-pillar influence" in BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN
+    assert not any(
+        "\u4e00" <= ch <= "\u9fff" for ch in BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN)
+
+
+def test_special_pattern_en_raise_debt_unchanged(monkeypatch):
+    """既有债不得被本修改变:en + special_pattern 仍在 suffix 阶段显式
+    FileNotFoundError(不追加中文从格段)。真实链路里 en 模板文件缺失会更早
+    raise(test_i18n.py 已锁),此处用模板桩隔离验证 suffix 阶段行为不变。"""
+    _stub_en_template(monkeypatch)
+    with pytest.raises(FileNotFoundError, match="从格降级 suffix"):
+        render_prompt("bazi_deep_free", BAZI_DEEP_SPECIAL_PATTERN_CONTEXT,
+                      language="en")
+
+
+# ===== 6. 每日运势时辰未知降级(S09,模板变体 + REQUIRED 按 context 分字段集)=====
+
+
+def test_unknown_hour_daily_renders_degraded_variant():
+    """unknown_hour context → 整体切 daily_fortune_unknown_hour 变体:
+    含日柱×流日叙事轴 + 局限明示句;**无**喜忌栏与 12 时辰段
+    (数据块不进 prompt,不是靠指令压制)。"""
+    ctx = DAILY_FORTUNE_UNKNOWN_HOUR_CONTEXT
+    assert ctx["day_master_strength"] == "unknown_hour"
+    prompt = render_prompt("daily_fortune", ctx)
+    # 诚实明示局限(D5:基于日柱推演,时辰与喜忌维度需准确出生时刻)
+    assert "基于日柱推演" in prompt
+    assert "时辰与喜忌维度需准确出生时刻" in prompt
+    # 日柱×流日十神关系为叙事轴:轴心字段已注入
+    assert ctx["day_pillar"] in prompt
+    assert ctx["day_relation"] in prompt
+    # 喜忌栏整体删除:数据块无喜忌行,也无「喜忌已给出」硬引用
+    assert "命局喜" not in prompt
+    assert "命局忌" not in prompt
+    assert "喜忌已由后端确定性给出" not in prompt
+    # 12 时辰段整体删除(时辰柱不可得,不输出)
+    assert "12 时辰" not in prompt
+    assert "hour_pillars" not in prompt
+    # LLM 边界:禁止自推喜忌 + 禁提时辰柱
+    assert "推断、编造或暗示任何喜忌结论" in prompt
+    assert "无从推演" in prompt
+    # 渲染成功本身即证明变体未引用被免检的 3 字段(_StrictFormatDict 会 KeyError)
+    assert "{" not in prompt, f"prompt 中仍有未填充占位符: {prompt}"
+
+
+def test_known_hour_daily_renders_main_template_semantics_unchanged():
+    """正常 context → 主模板(当前 v3):12 时辰段与喜忌栏照常注入;
+    喜忌约束改条件式(S06 同款,非空语义不变);无降级变体内容。"""
+    ctx = DAILY_FORTUNE_CONTEXT
+    assert ctx["day_master_strength"] == "weak"
+    prompt = render_prompt("daily_fortune", ctx)
+    # 主模板数据块完整:喜忌栏 + 12 时辰段
+    assert "命局喜" in prompt
+    assert ctx["favorable_elements"] in prompt
+    assert "12 时辰（按 zi_hour_rule 排序）" in prompt
+    assert ctx["hour_pillars_with_relations"] in prompt
+    # 喜忌约束条件式(S06 同款):非空严格按后端 + 为空不谈喜忌
+    assert "严格按后端的 favorable/unfavorable 展开" in prompt
+    assert "上下文喜忌为空时" in prompt
+    assert "不谈喜忌" in prompt
+    # 降级变体内容不出现(确认真切了主模板而非变体)
+    assert "基于日柱推演" not in prompt
+    assert "出生时辰未知" not in prompt
+    assert "{" not in prompt
+
+
+def test_daily_fortune_variant_files_exist_both_languages():
+    """降级变体模板 zh/en 双语齐载,共用主 module 版本号
+    (PV 注释语义锁定:同一 module 的两个渲染面,缓存按 prompt_hash 分叉)。"""
+    version = PROMPT_VERSIONS["daily_fortune"]
+    zh = _load_template("daily_fortune_unknown_hour", "zh", version)
+    en = _load_template("daily_fortune_unknown_hour", "en", version)
+    assert "基于日柱推演" in zh
+    assert "Day Pillar only" in en
+    assert zh != en, "zh/en 变体应是两个真不同的文件"
+
+
+def test_validate_context_unknown_hour_exempts_known_hour_only_fields():
+    """REQUIRED 新语义(S09):
+    - unknown_hour context 对喜忌类/时柱类 3 字段免检(降级模板不引用)
+    - 降级集内其余 14 字段仍必填
+    - 正常 context 仍 17 字段全集(免检不生效)
+    - 注册表本身保持 known-hour 全集(check_prompt_sync 三边契约)"""
+    # 14 字段集通过(3 个 known-hour-only 字段缺失不报错)
+    validate_context("daily_fortune", DAILY_FORTUNE_UNKNOWN_HOUR_CONTEXT)
+    # 降级集内字段仍必填:缺 day_relation → InvalidInputError
+    broken = {k: v for k, v in DAILY_FORTUNE_UNKNOWN_HOUR_CONTEXT.items()
+              if k != "day_relation"}
+    with pytest.raises(InvalidInputError) as ei:
+        validate_context("daily_fortune", broken)
+    assert "day_relation" in str(ei.value)
+    # 正常 context 免检不生效:strength 正常但缺 favorable_elements → 报错
+    normal_missing = {k: v for k, v in DAILY_FORTUNE_CONTEXT.items()
+                      if k != "favorable_elements"}
+    with pytest.raises(InvalidInputError) as ei2:
+        validate_context("daily_fortune", normal_missing)
+    assert "favorable_elements" in str(ei2.value)
+    # 注册表保持 known-hour 全集(17 字段),免检集是其子集
+    assert len(REQUIRED_FIELDS["daily_fortune"]) == 17
+    assert set(_DAILY_FORTUNE_KNOWN_HOUR_ONLY_FIELDS) <= set(
+        REQUIRED_FIELDS["daily_fortune"])
+
+
+def test_daily_fortune_version_bumped_s09():
+    """S09:daily_fortune 2→3(一次 bump;变体与主模板共用版本号,
+    两个渲染面缓存按 prompt_hash 自然分叉,老缓存随 v3 失效)。"""
+    assert PROMPT_VERSIONS["daily_fortune"] == 3
 
 
 # ===== validate_context 单元测试 =====

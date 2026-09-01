@@ -24,6 +24,13 @@ struct DeepAnalysisView: View {
     /// 重新 resolve),避免残留 flag 误劫持后续 calculate 失败的重试。
     @State private var archiveLoadFailed = false
 
+    // S10 补时辰升级闭环(D7):
+    /// 补时辰 sheet VM(sheet(item:) 装配;nil = 未打开)。
+    @State private var addHourVM: AddHourViewModel?
+    /// 补时辰入口装配失败的人话文案(存档缺失/payload 损坏 → alert 显式报错,
+    /// 不静默不开)。
+    @State private var addHourError: String?
+
     var body: some View {
         NavigationStack {
             ZStack {
@@ -33,6 +40,26 @@ struct DeepAnalysisView: View {
             .navigationTitle("深度解析")
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.light, for: .navigationBar)
+            // S10:补时辰 sheet(单一入口组件;关闭即重解析最新 link——补时辰换新
+            // 盘 → 新 hash 直读 .ready;静默态写穿 → payload 刷新,拦截文案降级)
+            .sheet(item: $addHourVM, onDismiss: { refreshAfterAddHour() }) { vm in
+                AddHourSheet(
+                    vm: vm,
+                    onCancel: { addHourVM = nil },
+                    onRecalculated: { _ in }
+                )
+            }
+            .alert(
+                "暂时无法补时辰",
+                isPresented: Binding(
+                    get: { addHourError != nil },
+                    set: { if !$0 { addHourError = nil } }
+                )
+            ) {
+                Button("好的", role: .cancel) {}
+            } message: {
+                Text(addHourError ?? "")
+            }
             #if DEBUG
             .toolbar {
                 NavigationLink {
@@ -145,6 +172,35 @@ struct DeepAnalysisView: View {
         Task { await resolveArchivedChart() }
     }
 
+    // MARK: - S10 补时辰(装配 + 关闭刷新)
+
+    /// 打开补时辰 sheet(装配失败显式 alert,不静默不开)。
+    @MainActor
+    private func openAddHourSheet(hash: String) {
+        do {
+            addHourVM = try AddHourViewModel.make(
+                snapshotHash: hash,
+                orchestrator: env.deepAnalysisOrchestrator,
+                chartStore: env.chartSnapshotStore,
+                linkStore: env.userSnapshotLinkStore
+            )
+        } catch {
+            AppLogger.app.error(
+                "op=deepView.openAddHour failed hash=\(hash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            addHourError = (error as? LocalizedError)?.errorDescription ?? L10n.AddHour.errorRebuild
+        }
+    }
+
+    /// sheet 关闭(重算换新盘 / 静默态写穿 / 取消)统一重解析最新 link:
+    /// 新盘 → loadArchivedChart 直读 .ready(判据/缓存/付费墙自然翻到新 hash);
+    /// 静默态 → payload 重读,拦截文案刷新;取消 → 幂等无副作用。
+    @MainActor
+    private func refreshAfterAddHour() {
+        hasResolvedArchive = false
+        Task { await resolveArchivedChart() }
+    }
+
     @ViewBuilder
     @MainActor
     private var content: some View {
@@ -160,8 +216,33 @@ struct DeepAnalysisView: View {
             case .calculating(let stage):
                 calculatingView(stage: stage)
             case .ready(let response, _):
-                if let request = vm.lastRequest {
-                    DeepAnalysisResultView(vm: vm, response: response, request: request)
+                // S07:日柱歧义(late_night 是/不确定或节气边界比对命中)→ 不进内容页,
+                // 免费 2 章亦拦(没有日主,S06 降级叙事轴不存在),直接拦截态
+                // (与付费墙拦截同款表达)。判据单一事实源 = payload(D5 终态语义)。
+                // S10:拦截页 CTA → 补时辰 sheet(补上确定时辰即解日柱歧义)。
+                if response.hourUnknownGate == .dayAmbiguous {
+                    VStack(spacing: 24) {
+                        HourUnknownGateNotice(
+                            title: L10n.PaywallGate.dayAmbiguousTitle,
+                            reason: L10n.PaywallGate.dayAmbiguousReason,
+                            silenced: response.isHourSilenced,
+                            onAddHour: { openAddHourSheet(hash: response.contentHash) }
+                        )
+                        Button(L10n.PaywallGate.backToForm) {
+                            vm.reset()
+                        }
+                        .font(.caption)
+                        .foregroundStyle(BaziTheme.cinnabar)
+                    }
+                    .padding()
+                    .frame(maxWidth: .infinity, maxHeight: .infinity)
+                } else if let request = vm.lastRequest {
+                    DeepAnalysisResultView(
+                        vm: vm,
+                        response: response,
+                        request: request,
+                        onAddHour: { openAddHourSheet(hash: response.contentHash) }
+                    )
                 } else {
                     VStack {
                         Text("数据异常:无请求记录")

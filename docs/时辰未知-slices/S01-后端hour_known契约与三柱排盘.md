@@ -21,7 +21,12 @@
 6. **content_hash**(`app/core/content_hash.py`):`hour_known=false` 时 2h 时辰桶**不参与**,日期 + `late_night` + 歧义标记(S02)参与;`hour_known=true` 路径 hash 公式不变。注:Parent 契约备注只写了「日期(含 D10 歧义标记)」,本系列把 `late_night` 补进 hash 是必要扩展——`late_night` 决定日柱歧义状态,不同答案输出不同,不进 hash 会同 hash 不同输出(缓存碰撞),并非对 Parent 的笔误
 7. **大运**(`luck.py`):干支序列与起运年龄**照给**(已知弱依赖误差 ±2-3 个月,v1 接受不加标注)
 
-合盘契约(person B)本 slice **不动**(默认 true 路径,不传字段零影响),归 S11。
+8. **`ChartPayload` 契约同步扩**(2026-09-01 review 补入,原分割漏项——**没有任何 slice 拥有它,而 S09 依赖它**):
+   - `app/models/daily_fortune.py` `ChartPayload.day_master_strength` 的 `Literal` 加 `"unknown_hour"`;`four_pillars` 的 `hour` 键改可缺省(`dict[str, PillarRef]`,校验从「必含 year/month/day/hour」放宽为「必含 year/month/day」)
+   - 该模型被 **每日运势与合盘共用**(`DailyFortuneRequest.chart_payload`,`daily_fortune.py:85`;`compatibility.py:99-101` 的 `chart_payload_a/b`)。不扩则无时辰盘**连每日运势请求都发不出去**(422),而每日运势是默认落地 Tab(`RootTabView.swift:20`)——一期就会撞上,不是二期问题
+   - 合盘的 `PersonBInput`(`app/models/compatibility.py:33`)本 slice **不动**(模式 B 临时输入走 S11 的发起前拦截,请求永不携带无时辰盘)
+
+合盘 `PersonBInput` 契约本 slice **不动**(默认 true 路径,不传字段零影响),归 S11。
 
 ## Acceptance criteria
 
@@ -32,6 +37,8 @@
 - [ ] `calc_rule_snapshot` 含 `hour_known`;同出生信息 `hour_known` true/false → 不同 content_hash;`hour_known=false` 下 `late_night` true/false/null 三态 → 三个不同 hash
 - [ ] 现有 pytest 全绿 + 新增 unknown_hour 用例(含对盘:三柱部分与已知盘比对,时柱/喜忌按 unknown 断言)
 - [ ] `pytest` 里含「占位 12:00 恰不跨换日边界」的样例(如正午出生日 vs 无时辰同日,日柱相同)
+- [ ] `ChartPayload` 接受 `day_master_strength="unknown_hour"` 且 `four_pillars` 缺 `hour` 键 → 不 422;`hour` 存在的老请求逐字段回归一致
+- [ ] `/api/daily-fortune` 收无时辰 `chart_payload` → 不 422(内容侧行为归 S07 一期拦截 / S09 二期降级,本 slice 只保证契约层通)
 
 ## 实现锚点(现状快照 2026-08-31,实施以代码为准)
 
@@ -44,6 +51,8 @@
 - `backend/app/core/calc_rule_snapshot.py` — 现无 hour_known 字段
 - `backend/app/core/content_hash.py:27-45` — 2h 时辰桶
 - `backend/app/core/true_solar_time.py:69,76-90` — offset / `boundary_crossed`
+- `backend/app/models/daily_fortune.py:44,46,85` — `ChartPayload` Literal / `four_pillars` / `DailyFortuneRequest`
+- `backend/app/models/compatibility.py:99-101` — `chart_payload_a/b`(同一模型的另一消费者)
 
 ## 红线与约束
 

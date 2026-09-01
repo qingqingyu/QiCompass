@@ -75,6 +75,21 @@ enum L10n {
         /// 反馈屏 CTA(zh="查看今日运势", en="See today's fortune")
         static let revealCTA = String(localized: "onboarding.reveal.cta")
 
+        // -- 立春降级态(S08,D10 年柱歧义 → 生肖屏降级,不猜)--
+
+        /// 告知句(一句,如实;两侧候选生肖都不展示——「可能是龙可能是蛇」属猜,禁止)。
+        /// zh: "你的出生日在立春交界，需要准确时辰才能确定属相"
+        /// en: "Your birthday falls on the Start-of-Spring boundary — the exact hour is needed to settle your zodiac sign"
+        static let revealYearAmbiguousNotice = String(localized: "onboarding.reveal.yearAmbiguous.notice")
+
+        /// 补时辰轻提示(D7 降级态例外触点——被迫告知;一期轻提示,S10 接线到补时辰流程)。
+        /// zh: "想起出生时刻，随时可以补上";en: "Remember your birth hour later? You can add it anytime"
+        static let revealYearAmbiguousHint = String(localized: "onboarding.reveal.yearAmbiguous.hint")
+
+        /// 降级态 CTA(完成 onboarding 进 App,四柱页留白表达;正常态 CTA 不变)。
+        /// zh: "继续";en: "Continue"
+        static let revealCTADegraded = String(localized: "onboarding.reveal.cta.degraded")
+
         // -- 12 生肖人格文案(静态善意正面画像,Q6 锁定:1-2 句,不吹天命不写负面)--
 
         static let personalityRat = String(localized: "onboarding.personality.rat")
@@ -96,9 +111,68 @@ enum L10n {
     /// 出生信息表单(onboarding O2 / 深度解析无存档兜底 / Profile 新建命盘三处复用)。
     /// 品牌/规则类字串不进本表:「問命」「玄」「玄机问道」、干支字符、「X时 ›」。
     enum BirthForm {
-        /// "出生时间" 字段标签(日期行)。
-        /// zh: "出生时间";en: "Birth date & time"
-        static let birthDatetimeLabel = String(localized: "birthform.birthDatetime.label")
+        /// "出生日期" 字段标签(日期行 + 确认 sheet 日期行共用;S03 拆双 picker)。
+        /// zh: "出生日期";en: "Birth date"
+        static let birthDateLabel = String(localized: "birthform.birthDate.label")
+
+        /// "出生时刻" 字段标签(时刻行 + 确认 sheet 时刻行共用;S03 拆双 picker)。
+        /// zh: "出生时刻";en: "Birth time"
+        static let birthTimeLabel = String(localized: "birthform.birthTime.label")
+
+        /// 日期未选择占位(S03 日期必选:nil 初始态的日期行文案)。
+        /// zh: "请选择日期";en: "Select a date"
+        static let birthDatePlaceholder = String(localized: "birthform.birthDate.placeholder")
+
+        /// 日期必选校验错误(S03/D8 默认日期洞修复)。
+        /// zh: "请选择出生日期";en: "Please select your birth date"
+        static let errorDateRequired = String(localized: "birthform.error.dateRequired")
+
+        /// 日期+时刻合成失败防御性错误(理论不可达;错误显式传播用)。
+        /// zh: "出生日期与时刻无法合成,请重新选择";en: "Couldn't combine date and time — please reselect"
+        static let errorCombineFailed = String(localized: "birthform.error.combineFailed")
+
+        /// 日期区教育微文案(D8 把矛盾变成教育;S04 补「时刻可跳过」半句)。
+        /// zh: "日期决定年月柱与生肖;时刻决定时柱与喜忌;不知道时刻可先跳过"
+        /// en: "Date sets year & month pillars and your zodiac; time sets the hour pillar and favorable elements; skip the time if unknown"
+        static let dateEducationHint = String(localized: "birthform.date.educationHint")
+
+        // -- 时辰未知入口(S04,D1 单一入口 + D3 二值半夜问题)--
+
+        /// 「不知道出生时刻」入口(checkbox 文案;直说不弱智化,不用「跳过」)。
+        /// zh: "不知道出生时刻";en: "I don't know my birth time"
+        static let hourUnknownToggle = String(localized: "birthform.hourUnknown.toggle")
+
+        /// 半夜二值问题(D3 唯一一问,用途 = 日柱歧义判断)。
+        /// zh: "你是否在半夜(约 11 点之后)出生?";en: "Were you born late at night (after about 11 p.m.)?"
+        static let lateNightQuestion = String(localized: "birthform.lateNight.question")
+
+        /// 三态「是」。zh: "是";en: "Yes"
+        static let lateNightYes = String(localized: "birthform.lateNight.yes")
+
+        /// 三态「否」。zh: "否";en: "No"
+        static let lateNightNo = String(localized: "birthform.lateNight.no")
+
+        /// 三态「不确定」。zh: "不确定";en: "Not sure"
+        static let lateNightUnsure = String(localized: "birthform.lateNight.unsure")
+
+        /// 半夜问题用途微注(D3「用途对用户可见」,只讲日柱不讲玄)。
+        /// zh: "半夜出生的人日柱可能落在次日;这一问只为确认日柱"
+        /// en: "Born near midnight, the day pillar may fall on the next day — this only settles the day pillar"
+        static let lateNightHint = String(localized: "birthform.lateNight.hint")
+
+        /// 勾选「不知道」但三态未选的校验错误(不默认「不确定」,必须显式选)。
+        /// zh: "请选择是否半夜出生";en: "Please answer the late-night question"
+        static let errorLateNightRequired = String(localized: "birthform.error.lateNightRequired")
+
+        /// 确认 sheet 无时辰时刻行(带三态答案)。
+        /// zh: "未知(半夜:%@)";en: "Unknown (late night: %@)"
+        static func confirmTimeUnknown(_ answer: String) -> String {
+            String(format: String(localized: "birthform.confirm.timeUnknown"), answer)
+        }
+
+        /// 确认 sheet 无时辰且三态未答(诚实展示未答,提交被 formInvalid 拦)。
+        /// zh: "未知(半夜:未答)";en: "Unknown (late night: unanswered)"
+        static let confirmTimeUnknownNoAnswer = String(localized: "birthform.confirm.timeUnknownNoAnswer")
 
         /// "命盘别名" 字段标签(字段 Micro 标签与 TextField 标题共用同一 key)。
         /// zh: "命盘别名";en: "Chart name"
@@ -108,9 +182,13 @@ enum L10n {
         /// zh: "我自己 / 妈妈 / 男友";en: "Me / Mom / Partner"
         static let aliasPlaceholder = String(localized: "birthform.alias.placeholder")
 
-        /// 日期 wheel sheet 标题(亦作日期行 accessibilityLabel)。
-        /// zh: "出生日期与时刻";en: "Birth date & time"
-        static let datePickerTitle = String(localized: "birthform.datePicker.title")
+        /// 日期 wheel sheet 标题(亦作日期行 accessibilityLabel;S03 拆分后 date-only)。
+        /// zh: "选择出生日期";en: "Birth date"
+        static let datePickerTitleDate = String(localized: "birthform.datePicker.title.date")
+
+        /// 时刻 wheel sheet 标题(亦作时刻行 accessibilityLabel;S03 拆分后 hourAndMinute)。
+        /// zh: "选择出生时刻";en: "Birth time"
+        static let datePickerTitleTime = String(localized: "birthform.datePicker.title.time")
 
         /// 时辰快捷选字段标签。
         /// zh: "时辰快捷选(可选)";en: "Quick hour pick (optional)"
@@ -303,6 +381,17 @@ enum L10n {
         /// 历史加载失败(zh="历史加载失败", en="Failed to load history")
         static let mainHistoryError = String(localized: "dailyfortune.main.historyError")
 
+        /// S09 降级版末尾静默提示(D7 触点 2:一行文字,不是弹窗;S10 已接线可点击
+        /// → 打开补时辰 sheet)。
+        /// zh: "这份运势只用了你的日柱。补上时辰可以看到时辰运势与喜忌。"
+        /// en: "This reading uses only your day pillar. Add your birth hour to see hourly fortune and favorable elements."
+        static let degradedHint = String(localized: "dailyfortune.main.degradedHint")
+
+        /// S10 静默态(「我确实不知道」开启)末尾行降中性:如实陈述、不引导不催促
+        /// (行保留可点击——入口在,提示不在)。
+        /// zh: "此运势基于你的日柱呈现。";en: "This reading is based on your day pillar."
+        static let degradedHintSilent = String(localized: "dailyfortune.main.degradedHintSilent")
+
         // -- History Lookback(2026-08-30,规则:免费 7 天 / 任意购买解锁全部) --
 
         /// 「更早」pill 标签。
@@ -417,6 +506,17 @@ enum L10n {
         /// 隐私 3(无跟踪)。
         /// zh: "没有跟踪,没有画像";en: "No tracking, no profiling"
         static let aboutPrivacy3 = String(localized: "profile.about.privacy3")
+
+        // -- S10 补时辰常驻入口(D7:静默态下唯一保留的主动入口)--
+
+        /// 命主卡「补充出生时刻」入口行(命盘时辰未知时显示)。
+        /// zh: "补充出生时刻";en: "Add birth time"
+        static let addHourEntry = String(localized: "profile.addHour.entry")
+
+        /// 静默态开启时入口行的注(入口保留,如实标注状态)。
+        /// zh: "已设为不再提醒;点击可重新打开提示"
+        /// en: "Reminders are off — tap to turn them back on"
+        static let addHourSilentNote = String(localized: "profile.addHour.silentNote")
     }
 
     // MARK: - M4 健康输入表单(HealthInputForm;i18n 补录 2026-08-29)
@@ -568,6 +668,148 @@ enum L10n {
         static let riskAggressiveHint = String(localized: "wealthform.risk.aggressive.hint")
     }
 
+    // MARK: - 付费墙时辰未知拦截态(S07,iOS 一期临时态)
+
+    /// 付费墙/内容拦截态文案(docs/时辰未知设计决策.md D5/D6)。
+    /// 水墨克制表达:一句话 + 入口,无红色警示;S10 起 CTA 接线补时辰 sheet,
+    /// 静默态(「我确实不知道」)文案降中性(D7 第 4 条)。
+    enum PaywallGate {
+        /// 拦截态主句(付费墙 sheet,日柱确定的无时辰用户)。
+        /// zh: "补充出生时刻后解锁";en: "Add your birth hour to unlock"
+        static let title = String(localized: "paywall.hourUnknown.title")
+
+        // (S07 一期临时一句话 reason 已由 D9 二期正式版 `paywallReason` 取代,key 删除)
+
+        /// 日柱歧义整拦态主句(深度解析不进内容页)。
+        /// zh: "缺出生时辰,暂时无法解读";en: "Your birth hour is needed before this chart can be read"
+        static let dayAmbiguousTitle = String(localized: "paywall.hourUnknown.dayAmbiguous.title")
+
+        /// 日柱歧义为什么一句:子夜前后无时辰定不了日柱。
+        /// zh: "你的生日落在子夜前后,没有时辰无法确定日柱——日柱是所有解读的起点"
+        /// en: "Born near midnight? Without the hour, the day pillar — the anchor of every reading — can't be settled"
+        static let dayAmbiguousReason = String(localized: "paywall.hourUnknown.dayAmbiguous.reason")
+
+        /// 合盘对级拦截态主句(任一方无时辰,整对拦)。
+        /// zh: "缺出生时辰 · 此对暂不可合盘";en: "Missing birth hour · this pair can't be read yet"
+        static let compatibilityTitle = String(localized: "paywall.hourUnknown.compatibility.title")
+
+        /// 合盘为什么一句:需要双方时柱与喜忌。
+        /// zh: "合盘需要双方的时柱与喜忌;补上时辰即可解锁"
+        /// en: "Compatibility needs both hour pillars and favorable elements — add the missing hour to unlock"
+        static let compatibilityReason = String(localized: "paywall.hourUnknown.compatibility.reason")
+
+        /// CTA(S10 已接线:打开补时辰 sheet,D7 触点 3——转化最高位置)。
+        /// zh: "补上出生时刻";en: "Add your birth hour"
+        static let cta = String(localized: "paywall.hourUnknown.cta")
+
+        /// D9 二期正式版为什么拦(付费墙拦截页):双重收费的人话版——拦的不只是
+        /// 精度,更是「先买三柱盘、补时辰换新盘还要再买一次」的必然二次收费。
+        /// zh: "深度解读以时柱与喜忌为根基。为避免你在信息不全时先付费、补上时辰后还要重新购买,先补时辰再解锁。"
+        /// en: "Deep readings are rooted in the hour pillar and favorable elements. So you don't pay now and again after adding the hour, the hour comes first."
+        static let paywallReason = String(localized: "paywall.hourUnknown.paywallReason")
+
+        /// S10 静默态(「我确实不知道」开启)拦截页降中性:如实陈述、不催促
+        /// (「我的」入口保留,想起时辰随时可补)。
+        /// zh: "时辰未知 · 完整解读暂不可购";en: "Hour unknown · full readings aren't purchasable yet"
+        static let silentTitle = String(localized: "paywall.hourUnknown.silentTitle")
+
+        /// 静默态为什么一句(中性陈述,无引导语气)。
+        /// zh: "这份命盘先按三柱解读;想起时辰时,随时可以在「我的」里补上。"
+        /// en: "This chart is read with three pillars for now. If the hour comes back to you, add it anytime in Profile."
+        static let silentReason = String(localized: "paywall.hourUnknown.silentReason")
+
+        /// 静默态 CTA(入口保留、文案中性:不催「补上」,只说可以补)。
+        /// zh: "补充出生时辰";en: "Add birth hour"
+        static let silentCta = String(localized: "paywall.hourUnknown.silentCta")
+
+        /// 日柱歧义整拦页的逃生口(回表单重填)。
+        /// zh: "返回表单";en: "Back to form"
+        static let backToForm = String(localized: "paywall.hourUnknown.backToForm")
+
+        /// 每日运势日柱歧义整拦态主句(S09,D5 全拦:免费降级亦不成立)。
+        /// zh: "缺出生时辰,暂时无法看每日运势";en: "Your birth hour is needed before daily fortune can be read"
+        static let dailyFortuneTitle = String(localized: "paywall.hourUnknown.dailyFortune.title")
+
+        /// 每日运势为什么一句:日柱定不了,运势的起点就没了。
+        /// zh: "你的生日落在子夜前后,没有时辰无法确定日柱——每日运势以日柱为起点"
+        /// en: "Born near midnight? Without the hour, the day pillar — the anchor of daily fortune — can't be settled"
+        static let dailyFortuneReason = String(localized: "paywall.hourUnknown.dailyFortune.reason")
+    }
+
+    // MARK: - 合盘 roster 不可合盘标记(S11)
+
+    /// 合盘配置态名单标记文案(docs/时辰未知-slices/S11)。
+    /// 水墨克制表达:置灰/留白记号 + 一句解释,无红色警示,无重试按钮。
+    enum CompatibilityRosterGate {
+        /// roster 行 / 存档多选行的「不可合盘」短标(他人无时辰 → 该对不可用)。
+        /// zh: "时辰未知 · 不可合盘";en: "Hour unknown · can't pair yet"
+        static let mark = String(localized: "compatibility.roster.hourUnknown.mark")
+
+        /// 点击被标记行 / 被拦勾选时的轻提示一句(比发起后报错更早一层 UX)。
+        /// zh: "这位命盘缺出生时辰,补上后即可合盘";en: "This chart is missing its birth hour — add it to unlock pairing"
+        static let hint = String(localized: "compatibility.roster.hourUnknown.hint")
+
+        /// 自己无时辰:名单整体标记解释行(全部对不可用 +「开始合盘」不可发起)。
+        /// zh: "你的命盘缺出生时辰,所有对暂不可合盘;补上时刻即可恢复"
+        /// en: "Your chart is missing its birth hour — all pairs are on hold until it's added"
+        static let selfBanner = String(localized: "compatibility.roster.hourUnknown.selfBanner")
+    }
+
+    // MARK: - 补时辰 sheet(S10,D7 补时辰升级闭环)
+
+    /// 补时辰单一入口组件文案(AddHourSheet;四触点共用,编辑场景隔离只补时辰)。
+    /// 静默是尊重不是惩罚:文案中性,无红色警示,不催促。
+    enum AddHour {
+        /// 章头标题(无别名时;老盘有 link 用 `forAlias` 带名字)。
+        /// zh: "补充出生时辰";en: "Add your birth hour"
+        static let title = String(localized: "addhour.sheet.title")
+
+        /// 副题(编辑场景隔离的界面表达:只补时辰,其余不动,重算换新盘)。
+        /// zh: "只补时辰这一个字段。出生日期、性别与出生地保持不变,命盘按新时辰重算,原盘归档保留。"
+        /// en: "Only the hour changes. Birth date, gender and birthplace stay as they are — the chart recalculates with the new hour, and the old one is kept."
+        static let subtitle = String(localized: "addhour.sheet.subtitle")
+
+        /// 提交 CTA(重算)。
+        /// zh: "保存并重算";en: "Save & recalculate"
+        static let cta = String(localized: "addhour.sheet.cta")
+
+        /// 提交 CTA loading。
+        /// zh: "重算中…";en: "Recalculating…"
+        static let ctaLoading = String(localized: "addhour.sheet.ctaLoading")
+
+        /// 静默态开启后的 CTA(无重算可做,仅关闭 sheet)。
+        /// zh: "完成";en: "Done"
+        static let doneCta = String(localized: "addhour.sheet.doneCta")
+
+        /// 「我确实不知道」静默态确认(D7 永久无时辰用户;直说不弱智化)。
+        /// zh: "我确实不知道出生时辰";en: "I truly don't know my birth hour"
+        static let giveUpToggle = String(localized: "addhour.sheet.giveUp.toggle")
+
+        /// 静默态用途微注(可逆,不是一锤子买卖)。
+        /// zh: "开启后不再提示补时辰;想补时随时可以再打开。"
+        /// en: "We'll stop asking. You can always come back and add it."
+        static let giveUpHint = String(localized: "addhour.sheet.giveUp.hint")
+
+        /// 章头标题(带老盘别名;他人盘「为「妈妈」补充出生时辰」)。
+        /// zh: "为「%@」补充出生时辰";en: "Add the birth hour for %@"
+        static func forAlias(_ alias: String) -> String {
+            String(format: String(localized: "addhour.sheet.forAlias"), alias)
+        }
+
+        /// 目标命盘读取失败(存档缺失 / 时区损坏;人话文案,技术细节记日志)。
+        /// zh: "出生信息读取失败,暂时无法补时辰"
+        /// en: "Couldn't read the birth record — can't add the hour right now"
+        static let errorRebuild = String(localized: "addhour.error.rebuild")
+
+        /// 重算失败(网络 / hash 未变守卫)。
+        /// zh: "重算未完成,请重试";en: "Recalculation didn't finish — please retry"
+        static let errorSubmit = String(localized: "addhour.error.submit")
+
+        /// 静默态写档失败。
+        /// zh: "设置未保存,请重试";en: "Couldn't save the setting — please retry"
+        static let errorSilenceSave = String(localized: "addhour.error.silenceSave")
+    }
+
     // MARK: - 共享组件
 
     /// 共享文案(跨模块复用:CountdownResetLabel / DailyLimitReachedView / M4-M5 章头取消)。
@@ -586,5 +828,10 @@ enum L10n {
             )
             return String(format: String(localized: "common.countdown"), timeStr)
         }
+
+        /// 时辰未知(S05 时辰未知系列:柱留白 VoiceOver 标签 / 真太阳时行)。
+        /// 中性陈述不是错误提示(无红字无感叹号,留白是水墨表达)。
+        /// zh: "时辰未知";en: "Birth hour unknown"
+        static let hourUnknown = String(localized: "common.hourUnknown")
     }
 }

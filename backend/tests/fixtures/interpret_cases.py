@@ -67,6 +67,23 @@ BAZI_DEEP_SPECIAL_PATTERN_CONTEXT = {
     "tiaoshou_applied": False,
 }
 
+# 时辰未知版(S01 引擎输出语义:时柱字段标"未知"占位 + 喜忌留空 + unknown_hour;
+# S05 起 iOS 对无时辰盘的时柱 context 字段即按此形态构造)
+BAZI_DEEP_UNKNOWN_HOUR_CONTEXT = {
+    **BAZI_DEEP_CONTEXT,
+    "hour_gan": "未知",
+    "hour_zhi": "未知",
+    "hour_gan_element": "未知",
+    "hour_zhi_element": "未知",
+    "hour_shishen_gan": "未知",
+    "hour_hide_gan": "未知",
+    "hour_nayin": "未知",
+    "day_master_strength": "unknown_hour",
+    "favorable_elements": "",
+    "unfavorable_elements": "",
+    "tiaoshou_applied": False,
+}
+
 # 合盘 context(合成数据,A/B 两盘)
 COMPATIBILITY_CONTEXT = {
     "context_label": "婚姻",
@@ -121,4 +138,16 @@ DAILY_FORTUNE_CONTEXT = {
     ),
     "huangli_yi": "嫁娶, 祭祀, 祈福",
     "huangli_ji": "赴任, 出行",
+}
+
+# 每日运势时辰未知版(S09 降级,docs/时辰未知-slices/S09):
+# 喜忌类/时柱类 3 字段(favorable_elements/unfavorable_elements/
+# hour_pillars_with_relations)**整体不进 context**——降级模板不引用,
+# validate_context 对 unknown_hour context 免检(prompts.py
+# _DAILY_FORTUNE_KNOWN_HOUR_ONLY_FIELDS);此处按「整体不发」的最严形态构造
+DAILY_FORTUNE_UNKNOWN_HOUR_CONTEXT = {
+    **{k: v for k, v in DAILY_FORTUNE_CONTEXT.items()
+       if k not in ("favorable_elements", "unfavorable_elements",
+                    "hour_pillars_with_relations")},
+    "day_master_strength": "unknown_hour",
 }

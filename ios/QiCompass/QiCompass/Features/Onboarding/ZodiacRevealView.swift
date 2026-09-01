@@ -16,6 +16,11 @@ import SwiftUI
 ///   + 文字/内容错峰淡入;落定瞬间触发 HapticEngine.medium() 仪式感"砰"
 /// - **暗色**(Q18 A):zodiac asset 走 Asset Catalog appearance set,系统自动选 light/dark variant
 /// - **失败路径**(Q19 A):此 view 不处理错误,数据由调用方保证完整(字段缺失视为开发期 bug)
+/// - **立春降级态**(S08,D10):`year_branch_zodiac == null`(立春交界日 + 时辰未知,
+///   S02 年柱歧义)→ `ZodiacRevealMode.yearAmbiguous`:生肖/人格/好朋友/需磨合全部不展示
+///   (**不猜**,两侧候选生肖都不给),一句如实告知 + 补时辰轻提示(D7 降级态例外触点,
+///   S10 接线)+ CTA「继续」完成 onboarding(四柱页留白表达)。无盖章仪式(哇时刻未发生,
+///   不表演),静穆 ink-in。正常路径(含无时辰但年柱确定的 ≈99.7% 用户)零变化。
 ///
 /// **数据来源**:调用方(OnboardingView)从后端 `BaziResponse.yearBranchZodiac`(英文 asset name,
 /// 如 `Dragon`)+ `year_branch_friends` / `year_branch_clash`(复用 branch_relations.py)
@@ -34,6 +39,9 @@ struct ZodiacRevealView: View {
     let clashZodiac: String
     /// CTA 点击回调(进深度解析 tab,2026-08-31 改)。
     let onComplete: () -> Void
+    /// S10 接线:立春降级态补时辰轻提示点击 → 打开补时辰 sheet(D7 被迫例外触点,
+    /// OnboardingView 注入;nil = 无宿主(测试渲染)→ 纯文本)。
+    var onAddHour: (() -> Void)? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
@@ -55,93 +63,203 @@ struct ZodiacRevealView: View {
     /// chip 内生肖小图尺寸。
     private let chipImageSize: CGFloat = 28
 
+    // MARK: - 展示模式(S08,D10 年柱歧义降级)
+
+    /// `year_branch_zodiac == null` → 立春降级态;判据单一事实源在
+    /// `ZodiacRevealMode.resolve`(纯函数,三分支测试覆盖)。
+    private var revealMode: ZodiacRevealMode {
+        ZodiacRevealMode.resolve(zodiac: zodiac)
+    }
+
     var body: some View {
         ZStack {
             BaziTheme.paper.ignoresSafeArea()
 
             VStack(spacing: 0) {
                 ScrollView {
-                    VStack(spacing: BaziTheme.Spacing.lg) {
-                        stampComposition
-                            .padding(.top, BaziTheme.Spacing.xxl)
-
-                        // MARK: 主/次文字(Q12 iii + Q13 C+ii)
-                        VStack(spacing: BaziTheme.Spacing.xs) {
-                            Text(mainLabel)
-                                .font(BaziFont.display(size: 40))
-                                .foregroundStyle(BaziTheme.ink)
-                            Text(subLabel)
-                                .font(BaziFont.body(size: 15))
-                                .foregroundStyle(BaziTheme.inkMuted)
-                        }
-                        .opacity(textOpacity)
-
-                        // MARK: 人格段落(2026-08-13 Q6:无标题,紧接主标)
-                        Text(ZodiacHelper.personalityText(forZodiac: zodiac))
-                            .font(BaziFont.body(size: 15))
-                            .foregroundStyle(BaziTheme.ink)
-                            .lineSpacing(6)
-                            .multilineTextAlignment(.center)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .opacity(textOpacity)
-
-                        // MARK: 好朋友(2026-08-13 Q3/Q4:六合+三合,jade 吉神色)
-                        section(
-                            title: L10n.Onboarding.revealFriendsTitle,
-                            content: {
-                                chipRow(friendZodiacs, tint: BaziTheme.jade)
-                            }
-                        )
-                        .opacity(textOpacity)
-
-                        // MARK: 需磨合(2026-08-13 Q4:六冲,中性灰不恐吓)
-                        section(
-                            title: L10n.Onboarding.revealClashTitle,
-                            content: {
-                                zodiacChip(clashZodiac, tint: BaziTheme.inkMuted)
-                            }
-                        )
-                        .opacity(textOpacity)
-
-                        // MARK: 立场微文案(Q1 拆分下沉:收到结论那一刻给可信度背书)
-                        VStack(spacing: BaziTheme.Spacing.md) {
-                            Rectangle()
-                                .fill(BaziTheme.hairline)
-                                .frame(height: 0.5)
-                            Text(L10n.Onboarding.revealStanceLine)
-                                .font(BaziFont.caption(size: 12))
-                                .foregroundStyle(BaziTheme.inkMuted)
-                                .multilineTextAlignment(.center)
-                        }
-                        .opacity(textOpacity)
-                        .padding(.top, BaziTheme.Spacing.sm)
+                    if revealMode == .yearAmbiguous {
+                        degradedContent
+                    } else {
+                        fullContent
                     }
-                    .padding(.horizontal, BaziTheme.Spacing.xl)
-                    .padding(.bottom, BaziTheme.Spacing.lg)
                 }
 
-                // MARK: CTA(Q14 α,朱砂手动按钮,钉底部不进滚动)
-                Button(action: {
-                    HapticEngine.medium()
-                    onComplete()
-                }) {
-                    Text(L10n.Onboarding.revealCTA)
-                        .font(BaziFont.button())
-                        .foregroundStyle(BaziTheme.onInkDeep)
-                        .frame(maxWidth: .infinity)
-                        .padding(.vertical, BaziTheme.Spacing.md)
-                        .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
+                // MARK: CTA(Q14 α,朱砂手动按钮,钉底部不进滚动;
+                // S08 降级态换「继续」文案,完成 onboarding 进 App)
+                if revealMode == .yearAmbiguous {
+                    ctaButton
+                } else {
+                    ctaButton
+                        .accessibilityHint("查看你的今日运势")
                 }
-                .accessibilityHint("查看你的今日运势")
-                .opacity(ctaOpacity)
-                .padding(.horizontal, BaziTheme.Spacing.xl)
-                .padding(.top, BaziTheme.Spacing.sm)
-                .padding(.bottom, 24)
             }
         }
         .task {
-            await playStampAnimation()
+            if revealMode == .yearAmbiguous {
+                await playDegradedAnimation()
+            } else {
+                await playStampAnimation()
+            }
         }
+    }
+
+    // MARK: - 正常态内容(与 S08 之前逐字不变;S05 人格留白分支随降级态整体迁走)
+
+    private var fullContent: some View {
+        VStack(spacing: BaziTheme.Spacing.lg) {
+            stampComposition
+                .padding(.top, BaziTheme.Spacing.xxl)
+
+            // MARK: 主/次文字(Q12 iii + Q13 C+ii)
+            VStack(spacing: BaziTheme.Spacing.xs) {
+                Text(mainLabel)
+                    .font(BaziFont.display(size: 40))
+                    .foregroundStyle(BaziTheme.ink)
+                Text(subLabel)
+                    .font(BaziFont.body(size: 15))
+                    .foregroundStyle(BaziTheme.inkMuted)
+            }
+            .opacity(textOpacity)
+
+            // MARK: 人格段落(2026-08-13 Q6:无标题,紧接主标)
+            // S08:full 态由 `ZodiacRevealMode.resolve` 保证 zodiac 已知,
+            // `personalityText` 不会触发 fatalError(判空谓词同源)
+            Text(ZodiacHelper.personalityText(forZodiac: zodiac))
+                .font(BaziFont.body(size: 15))
+                .foregroundStyle(BaziTheme.ink)
+                .lineSpacing(6)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .opacity(textOpacity)
+
+            // MARK: 好朋友(2026-08-13 Q3/Q4:六合+三合,jade 吉神色)
+            section(
+                title: L10n.Onboarding.revealFriendsTitle,
+                content: {
+                    chipRow(friendZodiacs, tint: BaziTheme.jade)
+                }
+            )
+            .opacity(textOpacity)
+
+            // MARK: 需磨合(2026-08-13 Q4:六冲,中性灰不恐吓)
+            section(
+                title: L10n.Onboarding.revealClashTitle,
+                content: {
+                    zodiacChip(clashZodiac, tint: BaziTheme.inkMuted)
+                }
+            )
+            .opacity(textOpacity)
+
+            // MARK: 立场微文案(Q1 拆分下沉:收到结论那一刻给可信度背书)
+            VStack(spacing: BaziTheme.Spacing.md) {
+                Rectangle()
+                    .fill(BaziTheme.hairline)
+                    .frame(height: 0.5)
+                Text(L10n.Onboarding.revealStanceLine)
+                    .font(BaziFont.caption(size: 12))
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .multilineTextAlignment(.center)
+            }
+            .opacity(textOpacity)
+            .padding(.top, BaziTheme.Spacing.sm)
+        }
+        .padding(.horizontal, BaziTheme.Spacing.xl)
+        .padding(.bottom, BaziTheme.Spacing.lg)
+    }
+
+    // MARK: - 立春降级态内容(S08,D10 年柱歧义;一句告知 + 一个动作)
+
+    /// 降级态 = 印章之位空着(dashed hairline 圆位,与 PillarsTable 未知柱同语义:
+    /// 留白是水墨表达**不是错误提示**)+ 一句如实告知 + 补时辰轻提示。
+    /// 生肖/人格/好朋友/需磨合(全部从年支出)一律不渲染,两侧候选生肖都不给(不猜);
+    /// 无朱砂光晕、无盖章动效、无 haptic——哇时刻未发生,不表演(降级文案克制)。
+    private var degradedContent: some View {
+        VStack(spacing: BaziTheme.Spacing.lg) {
+            // 留白圆位:dashed 圆环 = 印章之位空着(VoiceOver 由下方告知句负责朗读)
+            Circle()
+                .stroke(
+                    BaziTheme.hairlineDashed,
+                    style: StrokeStyle(lineWidth: 1, dash: [4, 3])
+                )
+                .frame(width: stampSize, height: stampSize)
+                .padding(.top, BaziTheme.Spacing.xxl)
+                .opacity(stampOpacity)
+                .accessibilityHidden(true)
+
+            // 告知句(一句,如实;主/次文字不再渲染——主标即生肖本身,年干支亦歧义)
+            Text(L10n.Onboarding.revealYearAmbiguousNotice)
+                .font(BaziFont.display(size: 20))
+                .foregroundStyle(BaziTheme.ink)
+                .lineSpacing(8)
+                .multilineTextAlignment(.center)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.horizontal, BaziTheme.Spacing.md)
+                .opacity(textOpacity)
+
+            // 补时辰轻提示(D7 降级态例外触点——被迫告知;「一个动作」)
+            // S10 已接线:点击进补时辰 sheet(只补时辰,不重填全表;onAddHour 由
+            // OnboardingView 注入。nil = 无宿主(测试渲染)→ 纯文本,无操作不 crash)
+            Group {
+                if let onAddHour {
+                    Button {
+                        HapticEngine.light()
+                        onAddHour()
+                    } label: {
+                        Text(L10n.Onboarding.revealYearAmbiguousHint)
+                            .font(BaziFont.caption(size: 12))
+                            .foregroundStyle(BaziTheme.inkMuted)
+                            .multilineTextAlignment(.center)
+                    }
+                    .buttonStyle(.plain)
+                } else {
+                    Text(L10n.Onboarding.revealYearAmbiguousHint)
+                        .font(BaziFont.caption(size: 12))
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .multilineTextAlignment(.center)
+                }
+            }
+            .contentShape(Rectangle())
+            .opacity(textOpacity)
+
+            // 立场微文案(与正常态同一收尾:如实告知之后的可信度背书)
+            VStack(spacing: BaziTheme.Spacing.md) {
+                Rectangle()
+                    .fill(BaziTheme.hairline)
+                    .frame(height: 0.5)
+                Text(L10n.Onboarding.revealStanceLine)
+                    .font(BaziFont.caption(size: 12))
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .multilineTextAlignment(.center)
+            }
+            .opacity(textOpacity)
+            .padding(.top, BaziTheme.Spacing.sm)
+        }
+        .padding(.horizontal, BaziTheme.Spacing.xl)
+        .padding(.bottom, BaziTheme.Spacing.lg)
+    }
+
+    // MARK: - CTA(钉底部不进滚动;正常态「开始深度解析」/ 降级态「继续」)
+
+    private var ctaButton: some View {
+        Button(action: {
+            HapticEngine.medium()
+            onComplete()
+        }) {
+            Text(
+                revealMode == .yearAmbiguous
+                    ? L10n.Onboarding.revealCTADegraded
+                    : L10n.Onboarding.revealCTA
+            )
+            .font(BaziFont.button())
+            .foregroundStyle(BaziTheme.onInkDeep)
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, BaziTheme.Spacing.md)
+            .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
+        }
+        .opacity(ctaOpacity)
+        .padding(.horizontal, BaziTheme.Spacing.xl)
+        .padding(.top, BaziTheme.Spacing.sm)
+        .padding(.bottom, 24)
     }
 
     // MARK: - 印章组合(圆环生肖图 + 朱砂光晕)
@@ -220,6 +338,32 @@ struct ZodiacRevealView: View {
         .background(tint.opacity(0.08), in: Capsule())
         .overlay(Capsule().stroke(tint.opacity(0.35), lineWidth: 0.5))
         .accessibilityElement(children: .combine)
+    }
+
+    // MARK: - 降级态动效(S08)
+
+    /// 降级态动效(S08):静穆 ink-in,三拍错峰(圆位 → 告知句 → CTA)。
+    /// **无**盖章 spring、**无**朱砂光晕、**无** haptic「砰」——哇时刻未发生不表演;
+    /// 取消语义与 `playStampAnimation` 一致(`.task` disappear 取消,后续 phase 不执行)。
+    /// Reduce Motion:全部直出。
+    private func playDegradedAnimation() async {
+        guard !reduceMotion else {
+            stampOpacity = 1
+            textOpacity = 1
+            ctaOpacity = 1
+            return
+        }
+        withAnimation(.easeOut(duration: 0.4)) {
+            stampOpacity = 1
+        }
+        if await !sleepOrCancel(.milliseconds(350)) { return }
+        withAnimation(.easeOut(duration: 0.3)) {
+            textOpacity = 1
+        }
+        if await !sleepOrCancel(.milliseconds(350)) { return }
+        withAnimation(.easeOut(duration: 0.3)) {
+            ctaOpacity = 1
+        }
     }
 
     // MARK: - 盖章动效(Q15 B)
@@ -328,4 +472,16 @@ struct ZodiacRevealView: View {
         onComplete: { print("onComplete") }
     )
     .preferredColorScheme(.dark)
+}
+
+// S08 立春降级态:zodiac 空串(OnboardingView 对 null 的传参)→ 不展示生肖内容
+#Preview("Year Ambiguous (S08)") {
+    ZodiacRevealView(
+        zodiac: "",
+        mainLabel: "—",
+        subLabel: "坤造(女) · —年(1990)",
+        friendZodiacs: [],
+        clashZodiac: "",
+        onComplete: { print("onComplete") }
+    )
 }

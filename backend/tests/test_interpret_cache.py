@@ -16,7 +16,7 @@ import logging
 from httpx import ASGITransport, AsyncClient
 
 from app.ai.cache_key import CacheKey
-from app.ai.prompts import render_prompt
+from app.ai.prompts import PROMPT_VERSIONS, render_prompt
 from app.main import app
 from tests.fixtures.interpret_cases import BAZI_DEEP_CONTEXT, DAILY_FORTUNE_CONTEXT
 
@@ -214,7 +214,7 @@ async def test_provider_failure_propagates(tmp_cache):
         ).hexdigest()
         row = tmp_cache.get(CacheKey(
             content_hash="test-hash-provider-fail",
-            module="bazi_deep", prompt_version=2,
+            module="bazi_deep", prompt_version=PROMPT_VERSIONS["bazi_deep"],
             target_date=None, prompt_hash=prompt_hash,
             provider=failing.provider, model=failing.model,
         ))
@@ -331,7 +331,7 @@ async def test_provider_returns_forbidden_words_returns_422(tmp_cache):
         ).hexdigest()
         row = tmp_cache.get(CacheKey(
             content_hash="test-hash-forbidden-provider",
-            module="bazi_deep", prompt_version=2,
+            module="bazi_deep", prompt_version=PROMPT_VERSIONS["bazi_deep"],
             target_date=None, prompt_hash=prompt_hash,
             provider=mock.provider, model=mock.model,
         ))
@@ -359,12 +359,12 @@ async def test_cache_hit_forbidden_words_returns_422_and_deletes(tmp_cache):
         render_prompt("bazi_deep", BAZI_DEEP_CONTEXT).encode("utf-8")
     ).hexdigest()
 
-    # 预置含禁词的坏缓存(用当前 baseline v2,2026-08-01 grill-me 后)
+    # 预置含禁词的坏缓存(用当前 baseline 版本号,读 PROMPT_VERSIONS 防 bump 漂移)
     tmp_cache.set(
         CacheKey(
             content_hash=content_hash,
             module="bazi_deep",
-            prompt_version=2,
+            prompt_version=PROMPT_VERSIONS["bazi_deep"],
             target_date=None,
             prompt_hash=prompt_hash,
             provider=mock.provider,
@@ -391,7 +391,7 @@ async def test_cache_hit_forbidden_words_returns_422_and_deletes(tmp_cache):
         # 坏缓存应被删除
         row = tmp_cache.get(CacheKey(
             content_hash=content_hash,
-            module="bazi_deep", prompt_version=2,
+            module="bazi_deep", prompt_version=PROMPT_VERSIONS["bazi_deep"],
             target_date=None, prompt_hash=prompt_hash,
             provider=mock.provider, model=mock.model,
         ))

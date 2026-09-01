@@ -45,6 +45,37 @@ enum LoadingStage: Equatable {
     }
 }
 
+// MARK: - 时辰未知(D3 二值半夜问题)
+
+/// 「你是否在半夜(约 11 点之后)出生?」三态答案(docs/时辰未知设计决策.md D3)。
+///
+/// 为什么不是直接 `Bool?`:契约里 nil 同时编码「不确定」与「不传」,但表单必须区分
+/// **未选**(默认态,validateForm 拦截)与**不确定**(合法答案)——用枚举承载选择态,
+/// 映射到 wire 值时才坍缩成 `Bool?`。
+enum LateNightChoice: Equatable {
+    case yes
+    case no
+    case unsure
+
+    /// S01 契约 wire 值:是→true / 否→false / 不确定→nil
+    var wireValue: Bool? {
+        switch self {
+        case .yes: return true
+        case .no: return false
+        case .unsure: return nil
+        }
+    }
+
+    /// 展示文案(确认 sheet「未知(半夜:X)」/ chip 标题共用同一事实源)
+    var displayText: String {
+        switch self {
+        case .yes: return L10n.BirthForm.lateNightYes
+        case .no: return L10n.BirthForm.lateNightNo
+        case .unsure: return L10n.BirthForm.lateNightUnsure
+        }
+    }
+}
+
 // MARK: - ViewModel
 
 /// 深度解析 ViewModel:@Observable + 状态机驱动。
@@ -57,7 +88,35 @@ final class DeepAnalysisViewModel {
 
     // MARK: 表单状态
 
-    var birthDate: Date = Date(timeIntervalSince1970: 638_000_000) // 默认 1990-03-15
+    /// 出生日期(S03 拆双 picker:date-only 绑定)。nil = 未选择初始态,
+    /// validateForm 拦截「请选择出生日期」——修「默认 1990-03-15 可不碰就提交」的数据质量洞(D8)。
+    var birthDate: Date?
+
+    /// 出生时刻独立绑定(S03:与日期拆开)。默认锚点只取其钟面时分(出生地钟面),
+    /// 日期分量不参与提交;时辰快捷选(setShichenHour)只改写本绑定。
+    var birthTime: Date = DeepAnalysisViewModel.defaultBirthTimeAnchor
+
+    /// 时刻行初始锚点 = 旧默认 1990-03-15 同一 instant(保留现状默认时刻语义,非提交默认日期)。
+    static let defaultBirthTimeAnchor = Date(timeIntervalSince1970: 638_000_000)
+
+    // MARK: 时辰未知(S04,D1 单一入口 + D3 二值半夜问题)
+
+    /// 是否知道出生时刻(D1 单一入口系统分流)。默认 true = 老路径;
+    /// false 时时刻行/时辰快捷选收起,提交走三柱降级契约(hour_known=false)。
+    var hourKnown: Bool = true
+
+    /// 半夜三态答案(D3)。nil = **未选**(勾选「不知道」后必须选一个才可提交,
+    /// validateForm 拦截)——与 `.unsure`(合法答案)显式区分,见 `LateNightChoice`。
+    /// 仅 hourKnown=false 时有意义;取消勾选由 `setHourKnown(true)` 重置。
+    var lateNightChoice: LateNightChoice?
+
+    /// 契约值(buildRequest 用):是→true / 否→false / 不确定→nil。
+    /// hourKnown=true 时恒 nil(后端忽略,不传混淆值)。
+    var lateNight: Bool? {
+        guard !hourKnown else { return nil }
+        return lateNightChoice?.wireValue
+    }
+
     var gender: String = "male"
     /// 出生地(S03 城市搜索 / S05 自定义地点;无默认,必选——砍「北京」默认是数据质量决策)
     var selectedPlace: PlaceSelection?
@@ -146,13 +205,92 @@ final class DeepAnalysisViewModel {
         return formatter.string(from: date)
     }
 
+    // MARK: - 出生日期/时刻展示串(S03 拆双 picker;表单时刻行与确认 sheet 共用)
+
+    /// 出生日期串(yyyy-MM-dd,出生地钟面);未选择 → nil(调用方自行展示占位/—)。
+    var wallBirthDateString: String? {
+        guard let birthDate else { return nil }
+        return Self.fixedWallFormatter(template: "yyyy-MM-dd", timeZone: placeCalendar.timeZone)
+            .string(from: birthDate)
+    }
+
+    /// 出生时刻串(HH:mm,出生地钟面;取 birthTime 的时分)。
+    var wallBirthTimeString: String {
+        Self.fixedWallFormatter(template: "HH:mm", timeZone: placeCalendar.timeZone)
+            .string(from: birthTime)
+    }
+
+    /// 固定模板钟面 formatter(展示用,POSIX locale 防系统格式注入)。
+    private static func fixedWallFormatter(template: String, timeZone: TimeZone) -> DateFormatter {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = template
+        formatter.timeZone = timeZone
+        return formatter
+    }
+
+    /// 合并日期行 + 时刻行 → 完整出生 Date(出生地钟面:Y/M/D 取 birthDate,H/M 取 birthTime,秒归 0)。
+    /// birthDate 未选择 / Calendar 合成失败 → 显式抛错(错误显式传播,禁止 `?? Date()` 静默兜底);
+    /// 提交路径(validateForm 先行)保证走到这里时 birthDate 已非空。
+    /// 时辰未知(S04):hourKnown=false 时时分显式用 **12:00 占位**(后端归一同值,
+    /// 双端一致减少歧义;birthTime 的时分被 flag 否定,不参与)。
+    private func combinedBirthDate() throws -> Date {
+        guard let birthDate else {
+            throw UserFacingError.generic(message: L10n.BirthForm.errorDateRequired)
+        }
+        let calendar = placeCalendar
+        let hour = hourKnown ? calendar.component(.hour, from: birthTime) : 12
+        let minute = hourKnown ? calendar.component(.minute, from: birthTime) : 0
+        guard let combined = calendar.date(
+            bySettingHour: hour,
+            minute: minute,
+            second: 0,
+            of: birthDate
+        ) else {
+            throw UserFacingError.generic(message: L10n.BirthForm.errorCombineFailed)
+        }
+        return combined
+    }
+
+    /// 确认 sheet 时刻行文案(S04):已知 → HH:mm;未知 →「未知(半夜:是/否/不确定)」。
+    /// 勾选但三态未选时确认 sheet 仍可先于校验出现(onSubmit → sheet → calculate),
+    /// 此刻诚实展示「半夜:未答」,提交在 calculate 内被 formInvalid 拦截。
+    var confirmBirthTimeText: String {
+        guard !hourKnown else { return wallBirthTimeString }
+        guard let choice = lateNightChoice else {
+            return L10n.BirthForm.confirmTimeUnknownNoAnswer
+        }
+        return L10n.BirthForm.confirmTimeUnknown(choice.displayText)
+    }
+
     // MARK: - 表单校验
 
     /// 校验表单,返回错误信息数组(空 = 通过)。
+    /// S03:日期必选(未选择 → 「请选择出生日期」);「不晚于当下」按日期+时刻合成值校验(语义保留)。
+    /// S04:勾选「不知道出生时刻」后半夜三态**必须选一个**(未选 → 拦截,不默认「不确定」
+    /// ——避免又一层默认假答案);时辰未知时「不晚于当下」降为日期粒度(12:00 占位
+    /// 不参与判定,当日出生不误拦)。
     func validateForm() -> [String] {
         var errors: [String] = []
-        if birthDate > Date() {
-            errors.append("出生时间不能晚于当下")
+        if birthDate == nil {
+            errors.append(L10n.BirthForm.errorDateRequired)
+        }
+        if !hourKnown && lateNightChoice == nil {
+            errors.append(L10n.BirthForm.errorLateNightRequired)
+        }
+        if let birthDate {
+            do {
+                if hourKnown {
+                    if try combinedBirthDate() > Date() {
+                        errors.append("出生时间不能晚于当下")
+                    }
+                } else if placeCalendar.compare(birthDate, to: Date(), toGranularity: .day) == .orderedDescending {
+                    errors.append("出生时间不能晚于当下")
+                }
+            } catch {
+                // 合成失败(理论不可达):不静默——打日志;提交路径 buildRequest 会显式抛错
+                AppLogger.app.warning("deepVM.validateForm combine_failed error=\(String(describing: error), privacy: .public)")
+            }
         }
         if selectedPlace == nil {
             errors.append("请选择出生城市")
@@ -163,7 +301,7 @@ final class DeepAnalysisViewModel {
         return errors
     }
 
-    /// 从表单构造请求(S02 契约:裸钟面 + timezone + 物理真值)。
+    /// 从表单构造请求(S02 契约:裸钟面 + timezone + 物理真值;S04 增 hour_known/late_night)。
     /// place_name/geoname_id/latitude 是存档展示元数据,不参与 content_hash。
     /// 出生地字段解析走 `BirthPlaceResolver` 单一事实源(S05:城市/自定义地点)。
     func buildRequest() throws -> BaziCalculateRequest {
@@ -171,32 +309,49 @@ final class DeepAnalysisViewModel {
             // validateForm 先行拦截,理论不可达;显式抛错不静默(错误显式传播)
             throw UserFacingError.generic(message: "请选择出生城市")
         }
+        // birthDate 未选择 / 合成失败在此显式抛错(combinedBirthDate 文档见上)
+        let birthDateTime = try combinedBirthDate()
         let resolved = BirthPlaceResolver.resolve(selectedPlace)
         return BaziCalculateRequest(
-            birthDatetime: wallTimeString(for: birthDate),
+            birthDatetime: wallTimeString(for: birthDateTime),
             timezone: resolved.timezone,
             gender: gender,
             longitude: resolved.longitude,
             latitude: resolved.latitude,
             placeName: resolved.placeName,
             geonameId: resolved.geonameId,
-            ziHourRule: ziHourRule
+            ziHourRule: ziHourRule,
+            hourKnown: hourKnown,
+            lateNight: lateNight
         )
+    }
+
+    // MARK: - 时辰未知入口(D1)
+
+    /// 切换「不知道出生时刻」。取消勾选(known=true)时**重置**三态答案
+    /// ——回到有时刻路径,半夜答案作废(不残留到下一次勾选,避免假答案跨态泄漏);
+    /// birthTime 保留原值(恢复时刻行时所见即所得)。
+    func setHourKnown(_ known: Bool) {
+        hourKnown = known
+        if known {
+            lateNightChoice = nil
+        }
+        AppLogger.app.info("deepVM.setHourKnown known=\(known, privacy: .public)")
     }
 
     // MARK: - 时辰快捷选
 
-    /// 时辰快捷选:把 birthDate 的 hour 设为指定值(方案 §4.3)。
+    /// 时辰快捷选:把 birthTime 的 hour 设为指定值(方案 §4.3;S03 起改写时刻绑定,日期不动)。
     /// 传入该时辰的中点小时(子=0, 丑=2, 寅=4 ... 亥=22)。
     /// 用出生城市 Calendar —— 表盘是出生地钟面(WYSIWYG),不随设备时区漂移。
     func setShichenHour(_ hour: Int) {
-        if let newDate = placeCalendar.date(
+        if let newTime = placeCalendar.date(
             bySettingHour: hour,
             minute: 0,
             second: 0,
-            of: birthDate
+            of: birthTime
         ) {
-            birthDate = newDate
+            birthTime = newTime
         }
     }
 
@@ -210,7 +365,7 @@ final class DeepAnalysisViewModel {
         let birthDate = self.birthDate
         let gender = self.gender
         let selectedPlace = self.selectedPlace
-        AppLogger.app.info("deepVM.calculate.start birth=\(birthDate.description) gender=\(gender, privacy: .public) place=\(selectedPlace?.displayLabel ?? "nil", privacy: .public)")
+        AppLogger.app.info("deepVM.calculate.start birth=\(birthDate?.description ?? "nil") gender=\(gender, privacy: .public) place=\(selectedPlace?.displayLabel ?? "nil", privacy: .public)")
         let errors = validateForm()
         if !errors.isEmpty {
             // 规则 1:表单校验失败抛错前打 warning(用户预期)
@@ -221,9 +376,17 @@ final class DeepAnalysisViewModel {
 
         calculateTask?.cancel()
 
-        // validateForm 已拦截未选地点;buildRequest throws 属防御性显式传播
-        guard let request = try? buildRequest() else {
-            state = .formInvalid(["请选择出生城市"])
+        // validateForm 已拦截未选日期/地点;buildRequest throws 属防御性显式传播,
+        // 失败原因透传给 formInvalid(不硬编码城市错误——S03 起也可能是日期/合成错误)
+        let request: BaziCalculateRequest
+        do {
+            request = try buildRequest()
+        } catch {
+            AppLogger.app.warning("deepVM.calculate.buildRequest_failed error=\(String(describing: error), privacy: .public)")
+            let message = (error as? UserFacingError)?.errorDescription
+                ?? (error as? LocalizedError)?.errorDescription
+                ?? "表单信息不完整,请检查后重试"
+            state = .formInvalid([message])
             return
         }
         lastRequest = request
@@ -292,6 +455,14 @@ final class DeepAnalysisViewModel {
         guard case .ready(let response, _) = state else {
             // 不静默吞(CLAUDE.md 全局约束):UI 收到点击说明状态机错乱,显式记录
             AppLogger.app.error("op=deepAnalysis.generateInterpretation invalid_state state=\(String(describing: self.state), privacy: .public)")
+            return
+        }
+        // S07 纵深防御:日柱歧义 → 免费 2 章亦拦(没有日主,降级叙事轴不存在)。
+        // 正常 UI 路径到不了这里(DeepAnalysisView 不渲染内容页),防御状态机错乱调用。
+        guard response.hourUnknownGate != .dayAmbiguous else {
+            AppLogger.app.warning(
+                "op=deepAnalysis.generateInterpretation.skip reason=day_ambiguous contentHash=\(response.contentHash, privacy: .public)"
+            )
             return
         }
         guard let request = lastRequest else {
@@ -409,6 +580,13 @@ final class DeepAnalysisViewModel {
             AppLogger.app.error("op=deepAnalysis.generateV1AllModules invalid_state state=\(String(describing: self.state), privacy: .public)")
             return
         }
+        // S07 纵深防御:日柱歧义 → 免费 2 章(M0/M1)亦拦,不发任何 interpret 请求
+        guard response.hourUnknownGate != .dayAmbiguous else {
+            AppLogger.app.warning(
+                "op=deepAnalysis.generateV1AllModules.skip reason=day_ambiguous contentHash=\(response.contentHash, privacy: .public)"
+            )
+            return
+        }
 
         AppLogger.app.info("deepVM.generateV1AllModules.start contentHash=\(response.contentHash, privacy: .public)")
 
@@ -434,6 +612,13 @@ final class DeepAnalysisViewModel {
     func retryV1Module(_ module: ModuleID) {
         guard case .ready(let response, _) = state else {
             AppLogger.app.error("op=deepAnalysis.retryV1Module invalid_state state=\(String(describing: self.state), privacy: .public)")
+            return
+        }
+        // S07 纵深防御:日柱歧义 → 免费模块重试亦拦(与 generateV1AllModules 同判据)
+        guard response.hourUnknownGate != .dayAmbiguous else {
+            AppLogger.app.warning(
+                "op=deepAnalysis.retryV1Module.skip reason=day_ambiguous module=\(module.rawValue, privacy: .public)"
+            )
             return
         }
 

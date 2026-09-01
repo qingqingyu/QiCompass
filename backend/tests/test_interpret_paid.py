@@ -205,14 +205,14 @@ async def test_paid_paid_same_hash_uses_cache(
 async def test_alias_bazi_deep_still_works(interpret_client):
     """决策 B:module=bazi_deep(alias)仍可用,走综合 prompt。
 
-    注:2026-08-01 grill-me V2 后 alias prompt_version = 2(Medium-deep voice)。
+    注:2026-08-31 S06(时辰未知免费降级)后 alias prompt_version = 3(系列统一 bump)。
     bazi_deep alias 不在 PAID_MODULES(综合版内容量 ≈ 免费 2 章,无门控必要;
     与合盘 compatibility alias 不同——那个是 6 章全文,必须门控)。
     """
     resp = await interpret_client.post("/api/interpret", json=_alias_payload())
     assert resp.status_code == 200, resp.json()
     body = resp.json()
-    assert body["prompt_version"] == 2  # alias V2 (2026-08-01 grill-me)
+    assert body["prompt_version"] == 3  # alias v3 (2026-08-31 S06 系列 bump)
     assert body["interpretation"]
 
 

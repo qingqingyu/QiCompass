@@ -15,6 +15,9 @@ struct DeepAnalysisResultView: View {
     @Bindable var vm: DeepAnalysisViewModel
     let response: BaziResponse
     let request: BaziCalculateRequest
+    /// S10 补时辰触点(D7 触点 1 + 付费墙 CTA):打开补时辰 sheet(宿主
+    /// DeepAnalysisView 注入,由它统一装配 AddHourViewModel 与刷新)。
+    let onAddHour: () -> Void
 
     @EnvironmentObject private var env: AppEnvironment
     @State private var showPaywall = false
@@ -49,7 +52,8 @@ struct DeepAnalysisResultView: View {
                         )
                 }
                 ChartHeaderView(response: response, request: request)
-                PillarsTable(pillars: response.pillars)
+                // S10:时柱留白列点击 → 补时辰 sheet(D7 触点 1)
+                PillarsTable(pillars: response.pillars, onAddHour: onAddHour)
                 AuxiliaryCards(
                     mingGong: response.mingGong,
                     shenGong: response.shenGong,
@@ -112,6 +116,17 @@ struct DeepAnalysisResultView: View {
                     module: .deepAnalysis,
                     contentHash: response.contentHash,
                     purchaseManager: env.purchaseManager,
+                    // S07:无时辰用户付费墙拦截态(判据单一事实源 = response payload,
+                    // 日柱确定 → 免费照给 + 付费墙拦;日柱歧义正常到不了本 View,
+                    // 传入仅防御)。有时辰 → .hourKnown,付费墙与现状完全一致。
+                    hourUnknownGate: response.hourUnknownGate,
+                    // S10:静默态(「我确实不知道」)传给拦截文案降中性;CTA → 关付费墙
+                    // 开补时辰 sheet(D7 触点 3)。
+                    hourUnknownSilenced: response.isHourSilenced,
+                    onAddHour: {
+                        showPaywall = false
+                        onAddHour()
+                    },
                     onPurchaseSuccess: {
                         // 购买成功 → dismiss;按当前模式分流(2026-08-23 断链修复):
                         // v1 模式重跑 .locked 模块(守卫重查 entitlement 放行),

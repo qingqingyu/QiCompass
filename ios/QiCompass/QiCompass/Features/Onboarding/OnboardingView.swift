@@ -30,9 +30,16 @@ struct OnboardingView: View {
     @State private var currentPage = 0
     @State private var vm: DeepAnalysisViewModel?
     /// 防止 ready → 多次触发 onComplete(SwiftUI 重渲染时可重复调用)。
-    @State private var hasTriggeredComplete = false
+    /// S08 起降级态 CTA「继续」与正常态 CTA 走同一闸门(Q7 状态边界不分态)。
+    @State private var completeGate = CompleteOnceGate()
     /// 提交前二次确认 sheet 触发态(生肖阶段 3:防新用户首次输错 → 重置命盘代价大)。
     @State private var showSubmitConfirm = false
+
+    // S10 补时辰(S08 立春降级态的被迫例外触点,接同一 AddHourSheet):
+    /// 补时辰 sheet VM(nil = 未打开)。
+    @State private var addHourVM: AddHourViewModel?
+    /// 装配失败的人话文案(alert 显式报错,不静默不开)。
+    @State private var addHourError: String?
 
     var body: some View {
         ZStack {
@@ -55,6 +62,25 @@ struct OnboardingView: View {
                 .presentationDetents([.medium])
                 .presentationDragIndicator(.visible)
             }
+        }
+        // S10:补时辰 sheet(嵌套 sheet;重算成功在 onRecalculated 里翻转 reveal)。
+        .sheet(item: $addHourVM) { vm in
+            AddHourSheet(
+                vm: vm,
+                onCancel: { addHourVM = nil },
+                onRecalculated: { handleAddHourRecalculated($0) }
+            )
+        }
+        .alert(
+            "暂时无法补时辰",
+            isPresented: Binding(
+                get: { addHourError != nil },
+                set: { if !$0 { addHourError = nil } }
+            )
+        ) {
+            Button("好的", role: .cancel) {}
+        } message: {
+            Text(addHourError ?? "")
         }
         .onAppear {
             // 首启 onboarding 呈现的入口日志,用于排查"没弹"问题
@@ -100,27 +126,36 @@ struct OnboardingView: View {
                 InkCalculatingView(title: stage.text)
             case .ready(let response, _):
                 // 第 3 屏:生肖反馈终态屏(提交成功 → 整体切换,无 swipe 回退)
+                // S05:年柱歧义(S02/D10)→ 生肖系字段 null,传空串/chip 空数组(不 crash)
+                // S08:`ZodiacRevealMode.resolve` 判空串 → 立春降级态(不展示生肖内容、
+                // 不猜;CTA「继续」照常走 onComplete → CompleteOnceGate 状态边界不变,
+                // 降级态完成 onboarding 不重复触发,Q7 onChartArchived 在提交成功即回调)
+                // S10:.id(contentHash) —— 补时辰换新盘后 reveal 换身份重建:
+                // 降级态翻转为完整 reveal(哇时刻补上),盖章动效随新身份重放。
                 ZodiacRevealView(
-                    zodiac: response.yearBranchZodiac,
+                    zodiac: response.yearBranchZodiac ?? "",
                     mainLabel: mainLabel(from: response),
                     subLabel: subLabel(
                         from: response,
                         gender: vm.gender,
-                        // 年份按出生城市钟面取(S03 WYSIWYG;Calendar.current 会跨年漂移)
-                        birthYear: vm.placeCalendar.component(.year, from: vm.birthDate)
+                        // 年份按出生城市钟面取(S03 WYSIWYG;Calendar.current 会跨年漂移)。
+                        // birthDate 已 Optional 化(S03 日期必选):.ready 前置 validateForm 已保证非空
+                        birthYear: vm.birthDate.map { vm.placeCalendar.component(.year, from: $0) }
                     ),
-                    friendZodiacs: response.yearBranchFriends,
-                    clashZodiac: response.yearBranchClash,
+                    friendZodiacs: response.yearBranchFriends ?? [],
+                    clashZodiac: response.yearBranchClash ?? "",
                     onComplete: {
-                        guard !hasTriggeredComplete else {
+                        // Q7 闸门:降级态「继续」与正常态 CTA 同一放行逻辑,只放行第一次
+                        if completeGate.fire(onComplete) {
+                            AppLogger.app.info("ZodiacRevealView CTA 点击 → 触发 onComplete")
+                        } else {
                             AppLogger.app.warning("ZodiacRevealView onComplete 已触发过,跳过重复调用")
-                            return
                         }
-                        hasTriggeredComplete = true
-                        AppLogger.app.info("ZodiacRevealView CTA 点击 → 触发 onComplete")
-                        onComplete()
-                    }
+                    },
+                    // S10:立春降级态补时辰轻提示 → 补时辰 sheet(D7 被迫例外触点)
+                    onAddHour: { openAddHourSheet(hash: response.contentHash) }
                 )
+                .id(response.contentHash)
             case .chartFailed(let userError):
                 ErrorStateView(error: userError, retry: vm.retryCalculation)
             }
@@ -187,20 +222,101 @@ struct OnboardingView: View {
     /// 主文字(生肖决策 Q12 iii):`辰 · 龙`(中点分隔)。
     /// 地支汉字从 `response.pillars.year.zhi`(后端 lunar_python 按立春算),
     /// 生肖汉字从 `ZodiacHelper.animalChar(forZodiac:)`(英文 asset name → 中文)。
+    /// S05:年柱歧义(S02/D10)→ 年支/生肖均 null,留白「—」不猜;
+    /// `animalChar` 对未知值 fatalError,必须先经 `isKnownZodiac` 判空。
+    /// S08:「—」只在降级态产生,而降级态(`ZodiacRevealMode.yearAmbiguous`)
+    /// 不渲染主标 —— 该占位值实际不可见,仅作参数完备传入。
+    // MARK: - S10 补时辰(S08 立春降级态例外触点)
+
+    /// 打开补时辰 sheet(目标 = 刚存档的命盘;装配失败显式 alert,不静默不开)。
+    @MainActor
+    private func openAddHourSheet(hash: String) {
+        do {
+            addHourVM = try AddHourViewModel.make(
+                snapshotHash: hash,
+                orchestrator: env.deepAnalysisOrchestrator,
+                chartStore: env.chartSnapshotStore,
+                linkStore: env.userSnapshotLinkStore
+            )
+        } catch {
+            AppLogger.app.error(
+                "op=onboarding.openAddHour failed hash=\(hash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            addHourError = (error as? LocalizedError)?.errorDescription ?? L10n.AddHour.errorRebuild
+        }
+    }
+
+    /// 补时辰重算成功 → 反馈屏翻转为完整 reveal:新盘四柱全、年柱确定 → 生肖照给,
+    /// 「哇时刻」补上(.id(contentHash) 让 reveal 换身份重放盖章动效)。
+    /// 存档取回失败显式记日志并保持降级 reveal(新盘已落档,用户完成 onboarding
+    /// 后在任何 Tab 都能看到;此处不 crash 不吞错)。
+    @MainActor
+    private func handleAddHourRecalculated(_ newResponse: BaziResponse) {
+        guard let vm else { return }
+        do {
+            guard let snapshot = try env.chartSnapshotStore.get(contentHash: newResponse.contentHash) else {
+                throw AddHourError.targetSnapshotMissing(contentHash: newResponse.contentHash)
+            }
+            vm.loadArchivedChart(response: newResponse, request: snapshot.archivedDisplayRequest)
+            AppLogger.app.info(
+                "op=onboarding.addHourRecalculated reveal_flip newHash=\(newResponse.contentHash, privacy: .public)"
+            )
+        } catch {
+            AppLogger.persistence.error(
+                "op=onboarding.handleAddHourRecalculated failed hash=\(newResponse.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+        }
+    }
+
     private func mainLabel(from response: BaziResponse) -> String {
-        let zhi = response.pillars.year.zhi  // 如 "辰"
-        let animalChar = ZodiacHelper.animalChar(forZodiac: response.yearBranchZodiac)  // "Dragon" → "龙"
-        return "\(zhi) · \(animalChar)"
+        guard let zhi = response.pillars.year?.zhi,  // 如 "辰"
+              let zodiac = response.yearBranchZodiac,
+              ZodiacHelper.isKnownZodiac(zodiac) else {
+            AppLogger.app.info("OnboardingView.mainLabel year_pillar_ambiguous(年柱歧义 → ZodiacRevealView 降级态,主标不渲染)")
+            return "—"
+        }
+        return "\(zhi) · \(ZodiacHelper.animalChar(forZodiac: zodiac))"  // "Dragon" → "龙"
     }
 
     /// 次文字(生肖决策 Q13 C+ii):`乾造(男) · 庚辰年(2000)`(命理 + 公历双轨)。
     /// 年柱干支从 `response.pillars.year.ganZhi`(按立春算,可能与公历年不对应 —
     /// 立春前的公历年会显示上一年的年柱,这是正确行为,不是 bug)。
     /// 公历年份由调用方传(从 vm.birthDate 取,用于用户认知锚点)。
-    private func subLabel(from response: BaziResponse, gender: String, birthYear: Int) -> String {
+    /// birthYear 为 Optional(S03 birthDate Optional 化):nil = 理论不可达(.ready 前置
+    /// validateForm 已保证日期非空),显式记录 + 诚实降级去括号,不静默编造年份。
+    /// S05:年柱歧义 → 干支留白「—」不猜。S08:同主标,「—」占位在降级态不渲染
+    /// (降级态用告知句整体替代主/次文字,不用「乾造(男) · —年」的破相表达)。
+    private func subLabel(from response: BaziResponse, gender: String, birthYear: Int?) -> String {
         let genderLabel = ZodiacHelper.genderLabel(forGender: gender)
-        let ganzhi = response.pillars.year.ganZhi  // 如 "庚辰"
+        let ganzhi = response.pillars.year?.ganZhi ?? "—"  // 如 "庚辰"
+        guard let birthYear else {
+            AppLogger.app.error("OnboardingView.subLabel birthDate_missing(理论不可达,请上报)")
+            return "\(genderLabel) · \(ganzhi)年"
+        }
         return "\(genderLabel) · \(ganzhi)年(\(birthYear))"
+    }
+}
+
+// MARK: - onComplete 一次性闸门(Q7 状态边界,可单测)
+
+/// ZodiacRevealView CTA → onComplete 的防重闸门(Q7):SwiftUI 重渲染 / 重复点击
+/// 可能令 onComplete 被多次调用,闸门保证只放行第一次。
+/// S08 起降级态 CTA「继续」与正常态 CTA 走同一闸门——降级态完成 onboarding
+/// 的状态边界与正常态完全一致,不因降级态重复触发(重复触发会让
+/// RootTabView 二次 dismiss/落地)。独立类型而非 view 内联 guard:测试 target
+/// 无 ViewInspector,@State 内联边界不可断言,提取后语义可单测
+/// (对齐 `ZodiacRevealMode` 纯函数范式)。
+struct CompleteOnceGate {
+    /// 是否已放行过(落闩后后续调用全部拦截)。
+    private(set) var hasTriggered = false
+
+    /// 首次调用落闩并执行 action(返回 true);已落闩则静默拦截(返回 false)。
+    @discardableResult
+    mutating func fire(_ action: () -> Void) -> Bool {
+        guard !hasTriggered else { return false }
+        hasTriggered = true
+        action()
+        return true
     }
 }
 

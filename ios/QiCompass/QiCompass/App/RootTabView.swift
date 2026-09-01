@@ -17,7 +17,13 @@ import SwiftUI
 /// 监听 `.switchTab` Notification(决策 D3):合盘空态 CTA → 切到深度解析。
 struct RootTabView: View {
     @EnvironmentObject private var env: AppEnvironment
-    @State private var selectedTab: Tab = .dailyFortune
+    @State private var selectedTab: Tab = RootTabView.defaultTab
+
+    /// 冷启动默认落地 Tab(2026-08-01 决策 #17:今日运势 = 视觉入口 + 高频回访)。
+    /// 提为常量供测试钉死契约——时辰未知 S07 每日运势拦截的整个前提就是
+    /// 「无时辰用户落地默认 Tab 第一屏不能白屏/422/crash」(onboarding CTA
+    /// 2026-08-31 拍板改落 .deepAnalysis,但冷启动默认仍在此,见 onComplete 注释)。
+    static let defaultTab: Tab = .dailyFortune
     @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     /// onboarding sheet 显示状态(2026-08-13 与 hasSeenOnboarding 解耦)。
