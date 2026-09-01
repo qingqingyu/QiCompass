@@ -121,6 +121,7 @@
 		A00000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */; };
 		A00000000000000000000013 /* Shared/AddHourFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000013 /* Shared/AddHourFlowTests.swift */; };
 		9C0000000000000000000090 /* AddHourSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000090 /* AddHourSheet.swift */; };
+		9C0000000000000000000091 /* ChartDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000091 /* ChartDetailView.swift */; };
 		A00000000000000000000008 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A21000000000000000000001 /* XCTest.framework */; };
 		A9B245DDB05C779E1238547A /* DeepAnalysisViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F34390B983BDE0003B56E8 /* DeepAnalysisViewModel.swift */; };
 		AA5500000000000000000001 /* UserSnapshotLinkStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA5500000000000000000002 /* UserSnapshotLinkStore.swift */; };
@@ -282,6 +283,7 @@
 		A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFortune/DailyFortuneHourUnknownGateTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000013 /* Shared/AddHourFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/AddHourFlowTests.swift; sourceTree = "<group>"; };
 		9C1000000000000000000090 /* AddHourSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AddHourSheet.swift; path = QiCompass/Features/DeepAnalysis/AddHourSheet.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000091 /* ChartDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartDetailView.swift; path = QiCompass/Features/DeepAnalysis/ChartDetailView.swift; sourceTree = SOURCE_ROOT; };
 		A20000000000000000000001 /* QiCompassTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QiCompassTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A21000000000000000000001 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
 		AA5500000000000000000002 /* UserSnapshotLinkStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = UserSnapshotLinkStore.swift; path = QiCompass/Services/UserSnapshotLinkStore.swift; sourceTree = SOURCE_ROOT; };
@@ -377,6 +379,7 @@
 				F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */,
 				F9AB427085FC26BB41BE756E /* PillarsTable.swift */,
 				9C1000000000000000000090 /* AddHourSheet.swift */,
+				9C1000000000000000000091 /* ChartDetailView.swift */,
 				4E934C0BB8DC936F13BAC016 /* AuxiliaryCards.swift */,
 				9F614F24B096FF767B7F3934 /* ElementBalanceBar.swift */,
 				4255481FAAC0FE0B73318A8D /* XijiCard.swift */,
@@ -758,6 +761,7 @@
 				E22A4DA18C53C38BBC80783C /* ChartHeaderView.swift in Sources */,
 				4CBA413486050C87638346A8 /* PillarsTable.swift in Sources */,
 				9C0000000000000000000090 /* AddHourSheet.swift in Sources */,
+				9C0000000000000000000091 /* ChartDetailView.swift in Sources */,
 				8C8B45F2BC9CEB18B25325BB /* AuxiliaryCards.swift in Sources */,
 				59AC47F39B10B857E9BA4AB6 /* ElementBalanceBar.swift in Sources */,
 				55954DFCA60CA28A8EA608D2 /* XijiCard.swift in Sources */,

@@ -22,10 +22,8 @@ struct ElementBalanceBar: View {
     }
 
     var body: some View {
+        // 盘面小景 S1 卸卡:节标「五行分布」移入 HairlineSection,外层卡壳移除
         VStack(alignment: .leading, spacing: 10) {
-            Text("五行分布")
-                .zcoolCardTitle()
-
             GeometryReader { geo in
                 HStack(spacing: 2) {
                     ForEach(segments.indices, id: \.self) { idx in
@@ -48,9 +46,6 @@ struct ElementBalanceBar: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(BaziTheme.Spacing.md)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
     }
 
     private func legendItem(color: Color, label: String, value: Int) -> some View {

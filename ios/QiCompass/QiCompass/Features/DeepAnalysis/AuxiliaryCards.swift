@@ -7,19 +7,13 @@ struct AuxiliaryCards: View {
     let taiYuan: GanZhiNaYinDTO
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("辅柱")
-                .zcoolCardTitle()
-            HStack(spacing: 10) {
-                AuxiliaryCard(title: "命宫", ganzhi: mingGong)
-                AuxiliaryCard(title: "身宫", ganzhi: shenGong)
-                AuxiliaryCard(title: "胎元", ganzhi: taiYuan)
-            }
+        // 盘面小景 S1 卸卡:节标「辅柱」移入 HairlineSection,外层卡壳移除
+        HStack(spacing: 10) {
+            AuxiliaryCard(title: "命宫", ganzhi: mingGong)
+            AuxiliaryCard(title: "身宫", ganzhi: shenGong)
+            AuxiliaryCard(title: "胎元", ganzhi: taiYuan)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(BaziTheme.Spacing.md)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
     }
 }
 

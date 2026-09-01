@@ -13,14 +13,9 @@ struct XijiCard: View {
     }
 
     var body: some View {
+        // 盘面小景 S1 卸卡:节标「喜忌分析」与身弱 badge 移入 HairlineSection
+        // (title + trailing 小注);这里只留内容行。从格降级文案保留。
         VStack(alignment: .leading, spacing: 10) {
-            HStack {
-                Text(isSpecialPattern ? "命局呈现从格特征" : "喜忌分析")
-                    .zcoolCardTitle()
-                Spacer()
-                strengthBadge
-            }
-
             if isSpecialPattern {
                 Text("喜忌结论留空,详见命书。")
                     .font(.caption)
@@ -51,27 +46,6 @@ struct XijiCard: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(BaziTheme.Spacing.md)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.md).stroke(BaziTheme.hairline, lineWidth: 0.5))
-    }
-
-    /// 旺衰 badge:jade 底 + jade 字(吉兆语义,DESIGN.md §Color 墨青)。
-    private var strengthBadge: some View {
-        let text: String
-        switch response.dayMasterStrength {
-        case "strong":           text = "身强"
-        case "weak":             text = "身弱"
-        case "balanced":         text = "中和"
-        case "special_pattern":  text = "从格"
-        default:                 text = "—"
-        }
-        return Text(text)
-            .font(.caption.weight(.medium))
-            .padding(.horizontal, 8)
-            .padding(.vertical, 2)
-            .background(BaziTheme.jade.opacity(0.15), in: Capsule())
-            .foregroundStyle(BaziTheme.jade)
     }
 
     private func elementRow(label: String, elements: [String], isFavorable: Bool) -> some View {

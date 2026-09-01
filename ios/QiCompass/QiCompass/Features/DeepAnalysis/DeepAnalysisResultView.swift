@@ -68,6 +68,24 @@ struct DeepAnalysisResultView: View {
                 )
                 CurrentStatusCard(response: response)
 
+                // 盘面小景 S1 过渡入口:确定性数据已 hairline 化收编进细目页,
+                // S2 主页落地后本入口消失(主页常驻「盘面细目 ›」链接)
+                NavigationLink {
+                    ChartDetailView(response: response, request: request, onAddHour: onAddHour)
+                } label: {
+                    HStack(spacing: BaziTheme.Spacing.xs) {
+                        Text("盘面细目(辅柱 · 五行 · 神煞 · 大运全表)")
+                            .font(BaziFont.caption(size: 11))
+                            .tracking(1)
+                            .foregroundStyle(BaziTheme.inkMutedSecondary)
+                        Text("›")
+                            .foregroundStyle(BaziTheme.inkMutedSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, BaziTheme.Spacing.sm)
+                }
+                .buttonStyle(.plain)
+
                 // Stage 8:v1 启用入口(老路径下显示"试用新版"链接)
                 if !v1ModeEnabled {
                     v1EntryButton
