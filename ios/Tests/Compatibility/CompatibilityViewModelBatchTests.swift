@@ -1219,4 +1219,226 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertFalse(vm.isArchivedHourUnknown(hash: "s11_bad_payload"),
                        "decode 失败 → 放行(日志显式记录,不静默吞)")
     }
+
+    // MARK: - S11 发起前拦截 = 唯一防线(2026-09-01 review:S01 已放开 ChartPayload Literal,
+    // 后端不再是 422 兜底,VM 层拦截必须真正拦住)
+
+    /// 用记录型客户端装配第二个 VM(绕过 UI 直调发起的零请求断言用)。
+    private func makeRecordingVM(api: APIClient) -> CompatibilityViewModel {
+        let context = container.mainContext
+        let interpretStore = InterpretationCacheStore(context: context)
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: api),
+            cacheStore: interpretStore
+        )
+        let recordingOrchestrator = CompatibilityOrchestrator(
+            apiClient: api,
+            compatibilityStore: compatibilityStore,
+            chartStore: chartStore,
+            interpretStore: interpretStore,
+            counter: DailyReadCounter(),
+            interpretationReader: reader
+        )
+        return CompatibilityViewModel(
+            orchestrator: recordingOrchestrator,
+            chartStore: chartStore,
+            compatibilityStore: compatibilityStore,
+            entitlementStore: entitlementStore,
+            modelContext: context
+        )
+    }
+
+    /// 轮询等待指定 VM 的 compute() Task 落到 .list(param 版,绕过 UI 用例的第二个 VM 用)。
+    private func waitForListState(
+        of target: CompatibilityViewModel, timeout: TimeInterval = 8
+    ) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if target.state == .list { return true }
+            try? await Task.sleep(nanoseconds: 30_000_000)
+        }
+        return target.state == .list
+    }
+
+    func testS11_绕过UI直调compute_无时辰对_VM层先拦_零网络请求_错误不外溢() async throws {
+        // 录制双打模拟 S01 已放开 Literal 的后端:拦截失效时请求会被放行并记录,
+        // 计数 > 0 即防线失守(不再有 422 兜底,2026-09-01 review 更正)
+        let recording = S11RecordingAPIClient()
+        let rvm = makeRecordingVM(api: recording)
+
+        let chartA = try insertChart(hash: "s11_v_a_known", alias: "A", hourKnown: true)
+        let bUnknown = try insertChart(hash: "s11_v_b_unknown", alias: "B无时辰", hourKnown: false)
+        let bAmbiguous = try insertChart(hash: "s11_v_b_ambiguous", alias: "C日柱歧义", hourKnown: false, dayPresent: false)
+        rvm.archivedCharts = [chartA, bUnknown, bAmbiguous]
+        rvm.selectedChartAIndex = 0
+        // 绕过 UI:toggleArchived 的 S11 守卫被跳过,名单直塞后发起
+        rvm.roster = [
+            .archived(snapshotHash: "s11_v_b_unknown"),
+            .archived(snapshotHash: "s11_v_b_ambiguous"),
+        ]
+
+        rvm.compute()
+        let reached = await waitForListState(of: rvm)
+        XCTAssertTrue(reached, "拦截对不炸整体:compute 照常落 .list,实际:\(rvm.state)")
+
+        XCTAssertEqual(rvm.summaries.count, 2)
+        for summary in rvm.summaries {
+            XCTAssertTrue(summary.isHourUnknownBlocked,
+                          "VM 层先拦:无时辰对产拦截卡(免费亦拦),实际:\(summary.status)")
+        }
+        // 错误不外溢:无对级 .failed、无整体 .failed 态
+        XCTAssertFalse(rvm.summaries.contains { summary in
+            if case .failed = summary.status { return true }
+            return false
+        }, "拦截是设计态不是错误,不得以 .failed 外溢")
+        if case .failed = rvm.state {
+            XCTFail("整体状态不得因拦截对进入 .failed,实际:\(rvm.state)")
+        }
+
+        let compatCalls = await recording.compatibilityCallCount()
+        let interpretCalls = await recording.interpretCallCount()
+        XCTAssertEqual(compatCalls, 0, "发起前拦截 = 唯一防线:零 compatibility 请求(不依赖后端 422)")
+        XCTAssertEqual(interpretCalls, 0, "拦截对连 interpret 也不发起")
+        XCTAssertTrue(
+            try compatibilityStore.list(personAHash: "s11_v_a_known", context: "general").isEmpty,
+            "零网络请求佐证:无任何 CompatibilitySnapshot 落库"
+        )
+    }
+
+    func testS11_绕过UI直调generateInterpretation_无时辰对_零interpret请求() async throws {
+        let recording = S11RecordingAPIClient()
+        let rvm = makeRecordingVM(api: recording)
+
+        let chartA = try insertChart(hash: "s11_v2_a_known", alias: "A", hourKnown: true)
+        let chartBUnknown = try insertChart(hash: "s11_v2_b_unknown", alias: "B无时辰", hourKnown: false)
+        rvm.archivedCharts = [chartA, chartBUnknown]
+        rvm.selectedChartAIndex = 0
+
+        // 直构 detail 态:拦截对正常进不了 detail(computePair 已拦)——
+        // 这正是「绕过 UI」的模拟(购买回调 / 状态机错乱同款路径)
+        let summary = PairSummary(
+            id: "s11_v2_compat",
+            entry: .archived(snapshotHash: "s11_v2_b_unknown"),
+            personBHash: "s11_v2_b_unknown",
+            displayName: "B无时辰",
+            birthDate: nil,
+            dayMaster: "—",
+            fiveElements: "",
+            dayMasterRelation: "",
+            compatibilityHash: "s11_v2_compat",
+            isInterpreted: false,
+            status: .computed
+        )
+        let response = CompatibilityResponse(
+            compatibilityHash: "s11_v2_compat",
+            personAChart: nil,
+            personBChart: nil,
+            qualitativeAssessment: QualitativeAssessmentDTO(
+                fiveElements: "互补", dayMasterRelation: "同气",
+                zodiacMatch: "六合", branchHarmony: "无冲无刑"
+            ),
+            syncedFortune: [],
+            calcRuleSnapshot: nil
+        )
+        rvm.state = .detail(summary, response, .idle)
+
+        rvm.generateInterpretation()
+
+        // 阶段 2 拦截:interpretState 显式 .failed(不静默吞,也不外溢为 crash/整体态)
+        let deadline = Date().addingTimeInterval(5)
+        var blocked = false
+        while Date() < deadline {
+            if case .detail(_, _, .failed) = rvm.state { blocked = true; break }
+            try? await Task.sleep(nanoseconds: 30_000_000)
+        }
+        XCTAssertTrue(blocked, "无时辰对直调 generateInterpretation → 阶段 2 拦截态,实际:\(rvm.state)")
+
+        let interpretCalls = await recording.interpretCallCount()
+        let compatCalls = await recording.compatibilityCallCount()
+        XCTAssertEqual(interpretCalls, 0, "发起前拦截 = 唯一防线:零 interpret 请求")
+        XCTAssertEqual(compatCalls, 0)
+    }
+}
+
+// MARK: - S11 记录型 API 双打(发起前拦截 = 唯一防线断言)
+
+private enum S11TestError: Error {
+    case unexpectedCall
+}
+
+/// compatibility / interpret 记录并返回合法夹具——模拟 S01 已放开 Literal 的
+/// 后端(VM 拦截失效时请求会被放行并记录,计数 > 0 即防线失守);其余端点
+/// 被调即抛错(负向哨兵,对齐 RecordingDailyAPIClient 手法)。
+private actor S11RecordingAPIClient: APIClient {
+    private var compatibilityRequests: [CompatibilityRequest] = []
+    private var interpretRequests: [InterpretRequest] = []
+
+    func compatibilityCallCount() -> Int { compatibilityRequests.count }
+    func interpretCallCount() -> Int { interpretRequests.count }
+
+    func health() async throws -> HealthResponse {
+        HealthResponse(
+            status: "ok",
+            lunarPythonVersion: "1.4.8",
+            model: "s11-recording-test",
+            aiProvider: "anthropic",
+            aiModel: "claude-test"
+        )
+    }
+
+    func compatibility(request: CompatibilityRequest) async throws -> CompatibilityResponse {
+        compatibilityRequests.append(request)
+        return CompatibilityResponse(
+            compatibilityHash: "s11_leaked_pair",
+            personAChart: nil,
+            personBChart: nil,
+            qualitativeAssessment: QualitativeAssessmentDTO(
+                fiveElements: "互补", dayMasterRelation: "同气",
+                zodiacMatch: "六合", branchHarmony: "无冲无刑"
+            ),
+            syncedFortune: [],
+            calcRuleSnapshot: nil
+        )
+    }
+
+    func interpret(request: InterpretRequest) async throws -> InterpretResponse {
+        interpretRequests.append(request)
+        return InterpretResponse(
+            interpretation: "拦截失效哨兵:此解读不应出现",
+            promptVersion: 1,
+            cached: false,
+            generatedAt: .now,
+            provider: "anthropic",
+            model: "claude-test",
+            language: AppLanguage.current
+        )
+    }
+
+    func calculateBazi(request: BaziCalculateRequest) async throws -> BaziResponse {
+        throw S11TestError.unexpectedCall
+    }
+    func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse {
+        throw S11TestError.unexpectedCall
+    }
+    func dailyImageStatus(request: DailyFortuneRequest) async throws -> DailyImageStatusDTO {
+        throw S11TestError.unexpectedCall
+    }
+    func dailyImageContent(chartHash: String, targetDate: String) async throws -> (data: Data, statusCode: Int) {
+        throw S11TestError.unexpectedCall
+    }
+    func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse {
+        throw S11TestError.unexpectedCall
+    }
+    func entitlementList() async throws -> EntitlementListResponse {
+        throw S11TestError.unexpectedCall
+    }
+    func signIn(request: SignInRequest) async throws -> SignInResponse {
+        throw S11TestError.unexpectedCall
+    }
+    func syncPull() async throws -> SyncPullResponse {
+        throw S11TestError.unexpectedCall
+    }
+    func syncPush(request: SyncPushRequest) async throws -> SyncPushResponse {
+        throw S11TestError.unexpectedCall
+    }
 }
