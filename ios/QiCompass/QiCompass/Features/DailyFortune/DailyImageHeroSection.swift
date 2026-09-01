@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// glass-v2 玻璃全信息卡(2026-08-31 用户拍板「完全完全作为 iOS 目标形态」,
+/// glass-v2 玻璃全信息卡(2026-08-31 用户拍板;2026-09-01 底图改单张固定资产,
 /// 事实源 `~/.gstack/projects/qingqingyu-QiCompass/designs/daily-glass-20260831/glass-v2.html`):
 /// 一张玻璃山水承载全部主信息——顶部大数字日期 + 周几/农历·干支 | 右上关系/冲 chips;
 /// 中部呼吸留白;底部宜/忌双列清单(宋体,各 3 条)。外部三行头部取消(其信息全部入图)。
@@ -24,9 +24,6 @@ struct DailyImageHeroSection: View {
     let dayRelation: String
     let dayChong: String?
     let dayChongTargets: [String]
-    /// 插画加载状态(DailyImageStore.state;三态都在同一张玻璃卡里呈现)。
-    let imageState: DailyImageStore.HeroImageState
-    let onRetry: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
@@ -57,7 +54,7 @@ struct DailyImageHeroSection: View {
             grainLayer
             birdLayer
 
-            // 内容浮层:三态都保留(骨架/失败态也有当日身份,同 V4 overlayMarks 口径)
+            // 内容浮层
             contentOverlay
                 .accessibilityHidden(true)
         }
@@ -65,21 +62,25 @@ struct DailyImageHeroSection: View {
         .frame(maxWidth: .infinity)
         .clipped()
         .onAppear(perform: startCycles)
-        // 无障碍:failed 态含唯一可操作控件(重试),.contain 让 VoiceOver 可达;
-        // 其余态合并为单元素,宜忌词一并进 label(不被 .ignore 吞掉)。
-        .modifier(HeroAccessibility(imageState: imageState, dayPillar: dayPillar, dayRelation: dayRelation))
+        // 无障碍:合并为单元素,宜忌词一并进 label(不被 .ignore 吞掉)。
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: heroAccessibilityLabel))
+    }
+
+    /// 无障碍合并 label:干支 + 页首短标 + 宜/忌词。
+    private var heroAccessibilityLabel: String {
+        let yiJi = HeroYiJiColumns.mapping[dayRelation] ?? HeroYiJiColumns.fallback
+        return "\(dayPillar) \(L10n.DailyFortune.shortLabel), \(L10n.DailyFortune.yiLabel) \(yiJi.yi.joined(separator: "、")), \(L10n.DailyFortune.jiLabel) \(yiJi.ji.joined(separator: "、"))"
     }
 
     // MARK: - 玻璃图层
 
-    @ViewBuilder
     private var baseLayer: some View {
-        switch imageState {
-        case .loading:
-            generatingSkeleton
-        case .ready(let image):
-            // 1 基底滤镜 → clip → 2 径向 mask → 墨渗缩放(晕团在玻璃内缓胀)
-            Image(uiImage: image)
+        // 固定底图(2026-09-01 用户拍板「单张固定图」):画布定稿浅绛山水烘进
+        // Asset Catalog,不再调生图 API——零成本/零延迟/零 IMAGE_API_KEY 依赖。
+        // 1 基底滤镜 → clip → 2 径向 mask → 墨渗缩放(晕团在玻璃内缓胀)
+        Group {
+            Image("HeroLandscape")
                 .resizable()
                 .scaledToFill()
                 .saturation(Self.gSaturation)
@@ -91,8 +92,6 @@ struct DailyImageHeroSection: View {
                 .clipped()
                 .mask { bloomMask }
                 .scaleEffect(soak ? 1.05 : 1.01)
-        case .failed(let message):
-            failedPlaceholder(message: message)
         }
     }
 
@@ -202,46 +201,6 @@ struct DailyImageHeroSection: View {
         withAnimation(.easeInOut(duration: 5.5).repeatForever(autoreverses: true)) { soak = true }
         withAnimation(.easeInOut(duration: 13).repeatForever(autoreverses: true)) { mistA = true }
         withAnimation(.easeInOut(duration: 17).repeatForever(autoreverses: true)) { mistB = true }
-    }
-
-    // MARK: - 骨架 / 失败态
-
-    /// 生图中:墨圆呼吸 + 小字(玻璃卡高内居中)。
-    private var generatingSkeleton: some View {
-        ZStack {
-            Rectangle().fill(BaziTheme.paper)
-            VStack(spacing: 14) {
-                EnsoView(size: 84, breathing: !reduceMotion)
-                Text(L10n.DailyFortune.heroGenerating)
-                    .font(BaziFont.caption(size: 11))
-                    .tracking(3)
-                    .foregroundStyle(BaziTheme.inkMutedSecondary)
-            }
-        }
-    }
-
-    /// 失败态:静态墨圆 + 错误一行 + 重试(内容浮层照常,当日身份不丢)。
-    private func failedPlaceholder(message: String) -> some View {
-        ZStack {
-            Rectangle().fill(BaziTheme.paper)
-            VStack(spacing: 12) {
-                EnsoView(size: 84, animated: false)
-                    .opacity(0.45)
-                Text(message)
-                    .font(BaziFont.caption(size: 11))
-                    .foregroundStyle(BaziTheme.inkMuted)
-                    .multilineTextAlignment(.center)
-                    .padding(.horizontal, 24)
-                Button(action: onRetry) {
-                    Text(L10n.DailyFortune.heroRetry)
-                        .font(BaziFont.display(size: 12))
-                        .tracking(2)
-                        .foregroundStyle(BaziTheme.ink)
-                        .underline()
-                }
-            }
-            .padding(.bottom, 60) // 避开底部宜忌双列
-        }
     }
 
     // MARK: - 内容浮层(日期区 + 宜忌双列)
@@ -383,27 +342,6 @@ private struct HeroYiJiColumns: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-// MARK: - 无障碍包装
-
-/// failed 态 .contain(重试可达);其余态 .ignore + 合并 label(干支 + 页首短标 + 宜忌词)。
-private struct HeroAccessibility: ViewModifier {
-    let imageState: DailyImageStore.HeroImageState
-    let dayPillar: String
-    let dayRelation: String
-
-    func body(content: Content) -> some View {
-        let yiJi = HeroYiJiColumns.mapping[dayRelation] ?? HeroYiJiColumns.fallback
-        let label = "\(dayPillar) \(L10n.DailyFortune.shortLabel), \(L10n.DailyFortune.yiLabel) \(yiJi.yi.joined(separator: "、")), \(L10n.DailyFortune.jiLabel) \(yiJi.ji.joined(separator: "、"))"
-        if case .failed = imageState {
-            content.accessibilityElement(children: .contain)
-        } else {
-            content
-                .accessibilityElement(children: .ignore)
-                .accessibilityLabel(Text(verbatim: label))
-        }
     }
 }
 

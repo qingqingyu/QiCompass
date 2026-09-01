@@ -186,12 +186,6 @@ private actor ReaderTestAPIClient: APIClient {
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse {
         throw ReaderTestError.unexpectedCall
     }
-    func dailyImageStatus(request: DailyFortuneRequest) async throws -> DailyImageStatusDTO {
-        throw ReaderTestError.unexpectedCall
-    }
-    func dailyImageContent(chartHash: String, targetDate: String) async throws -> (data: Data, statusCode: Int) {
-        throw ReaderTestError.unexpectedCall
-    }
     func interpret(request: InterpretRequest) async throws -> InterpretResponse {
         throw ReaderTestError.unexpectedCall
     }

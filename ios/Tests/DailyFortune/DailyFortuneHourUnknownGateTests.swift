@@ -592,13 +592,7 @@ private actor RecordingDailyAPIClient: APIClient {
     func compatibility(request: CompatibilityRequest) async throws -> CompatibilityResponse {
         throw DailyTestError.unexpectedCall
     }
-    func dailyImageStatus(request: DailyFortuneRequest) async throws -> DailyImageStatusDTO {
-        throw DailyTestError.unexpectedCall
-    }
-    func dailyImageContent(chartHash: String, targetDate: String) async throws -> (data: Data, statusCode: Int) {
-        throw DailyTestError.unexpectedCall
-    }
-    func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse {
+            func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse {
         throw DailyTestError.unexpectedCall
     }
     func entitlementList() async throws -> EntitlementListResponse {

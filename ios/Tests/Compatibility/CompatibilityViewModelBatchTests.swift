@@ -1420,13 +1420,7 @@ private actor S11RecordingAPIClient: APIClient {
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse {
         throw S11TestError.unexpectedCall
     }
-    func dailyImageStatus(request: DailyFortuneRequest) async throws -> DailyImageStatusDTO {
-        throw S11TestError.unexpectedCall
-    }
-    func dailyImageContent(chartHash: String, targetDate: String) async throws -> (data: Data, statusCode: Int) {
-        throw S11TestError.unexpectedCall
-    }
-    func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse {
+            func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse {
         throw S11TestError.unexpectedCall
     }
     func entitlementList() async throws -> EntitlementListResponse {

@@ -3045,6 +3045,7 @@
       }
     }
   },
+  "sourceLanguage": "zh-Hans",
   "strings": {
     "": {},
     "%@ %@": {
@@ -4370,40 +4371,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "解读仅供参照"
-          }
-        }
-      }
-    },
-    "dailyfortune.hero.generating": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Painting"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "生图中"
-          }
-        }
-      }
-    },
-    "dailyfortune.hero.retry": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Retry"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重试"
           }
         }
       }
@@ -6443,6 +6410,7 @@
     "长生:%@": {},
     "需先在深度解析中创建命盘,才能选择 A/B 盘合盘。": {}
   },
+  "version": "1.0",
   "wealthform.assets.hint": {
     "extractionState": "manual",
     "localizations": {
