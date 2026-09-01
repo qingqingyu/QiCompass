@@ -117,7 +117,7 @@ struct ChapterReadingInputForm: View {
         case .m4:
             return (0...150).contains(age) && !concern.isEmpty
         case .m5:
-            return !assets.trimmingCharacters(in: .whitespaces).isEmpty && !preference.isEmpty
+            return !assets.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && !preference.isEmpty
         default:
             return false
         }

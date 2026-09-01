@@ -12,7 +12,7 @@ import SwiftUI
 /// - .ok:正文 + 章末「批」印
 /// - .fetching / .pending:三墨点 breathe + 竖排「布算中」+ 小注(reduce-motion 静态)
 /// - .failed:人话错误 + 原地重试 CTA + 「重试不消耗今日次数」
-/// - .needsInput:S3 前沿用 M4/M5 sheet 表单(Stage 8 既有组件),S3 换页内表单
+/// - .needsInput:M4/M5 页内两问表单(ChapterReadingInputForm,原地作答)
 /// - .locked:防御态(目录不推锁章,但购买回退/状态错乱时诚实呈现解锁 CTA)
 struct ChapterReadingView: View {
     @Bindable var vm: DeepAnalysisViewModel
@@ -24,7 +24,12 @@ struct ChapterReadingView: View {
     var onNavigate: (ModuleID) -> Void
 
     @Environment(\.dismiss) private var dismiss
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// 本地 entitlement 查询:VM 单源方法(与付费守卫/主页目录行同口径),只读。
+    /// 翻章条 🔒 判定用——已购用户的付费章翻章不弹墙,进章布算/原地重试。
+    private var hasEntitlementForPaid: Bool {
+        vm.hasDeepEntitlement(contentHash: response.contentHash)
+    }
 
     /// 章序(0-7,M0=壹 … M7=捌)。
     private var chapterIndex: Int {
@@ -312,7 +317,13 @@ struct ChapterReadingView: View {
             }
             Spacer()
             if let next {
-                let nextLocked = next.isPaid && vm.moduleStates[next]?.isOk != true
+                // 🔒 判定走 ChapterRowModel 单一事实源(与主页目录行同语义):
+                // 已购用户的付费章不锁(进章布算/原地重试),未购才弹付费墙
+                let nextLocked = ChapterRowModel.resolve(
+                    module: next,
+                    state: vm.moduleStates[next],
+                    hasEntitlement: hasEntitlementForPaid
+                ) == .lockedPaid
                 if nextLocked {
                     Button {
                         onShowPaywall()

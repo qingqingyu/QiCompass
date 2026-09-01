@@ -91,6 +91,8 @@ struct DeepAnalysisView: View {
                         )
                     )
                 } else {
+                    // 理论不可达(showPaywall 只在 .ready 内容层可触发);不静默,显式记录
+                    let _ = AppLogger.app.error("deepView.paywallSheet state_not_ready(付费墙在非 .ready 态被请求)")
                     EmptyView()
                 }
             }
@@ -300,6 +302,15 @@ struct DeepAnalysisView: View {
                         onOpenChapter: { module in path = [module] },
                         onShowPaywall: { showPaywall = true }
                     )
+                    // 换盘守卫(three-check R2):补时辰重算/存档切换 → 新 hash 时
+                    // VM 已清洗 moduleStates,旧阅读页若还压在栈里会拿到清洗后的
+                    // 空 .pending(「布算中」无人触发)——清 path 弹回主页从新盘开卷
+                    .onChange(of: response.contentHash) { _, _ in
+                        if !path.isEmpty {
+                            path = []
+                            AppLogger.app.info("deepView.chart_changed_clear_reading_path")
+                        }
+                    }
                 } else {
                     VStack {
                         Text("数据异常:无请求记录")

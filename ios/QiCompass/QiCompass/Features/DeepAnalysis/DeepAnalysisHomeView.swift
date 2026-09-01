@@ -22,8 +22,6 @@ struct DeepAnalysisHomeView: View {
     /// 付费墙触点(解印 CTA / 锁章行):sheet 挂在宿主根上,阅读页 push 中也可触发。
     var onShowPaywall: () -> Void
 
-    @EnvironmentObject private var env: AppEnvironment
-
     /// 从格:hero 竖注与喜忌行降级(喜忌留空,详见命书)。
     private var isSpecialPattern: Bool {
         response.dayMasterStrength == "special_pattern"
@@ -104,7 +102,9 @@ struct DeepAnalysisHomeView: View {
                     .font(BaziFont.caption(size: 10.5))
                     .foregroundStyle(BaziTheme.inkMuted)
             } else {
-                // 时柱空位:dashed 圆环 = 干支之位空着(D7 触点 1)
+                // 柱位空缺:dashed 圆环 = 干支之位空着。常态是时柱未知(D7 触点 1);
+                // 年/月柱也可能因节气边界歧义(S02,立春日+时辰未知)留空——
+                // 点击同样进补时辰(补上确定时辰即一并解年/月歧义)。
                 Circle()
                     .stroke(
                         BaziTheme.hairlineDashed,
@@ -116,7 +116,7 @@ struct DeepAnalysisHomeView: View {
                         HapticEngine.light()
                         onAddHour()
                     }
-                    .accessibilityLabel(L10n.Common.hourUnknown)
+                    .accessibilityLabel(label == "时" ? L10n.Common.hourUnknown : "\(label)柱未定,点击补时辰")
             }
         }
     }
@@ -192,7 +192,7 @@ struct DeepAnalysisHomeView: View {
 
     /// 目录右侧状态:已读 x/8 → 次数余量 → 达上限(cinnabar)。
     private var tocStatusText: String {
-        if readCount > 0 || readCount == ModuleID.allCases.count {
+        if readCount > 0 {
             return "已读 \(readCount) / \(ModuleID.allCases.count)"
         }
         if vm.remainingReads <= 0 {
@@ -402,12 +402,8 @@ struct DeepAnalysisHomeView: View {
         }
     }
 
-    /// 本地 entitlement 查询(与 VM 付费守卫同源同参;只读,不复制守卫逻辑)。
+    /// 本地 entitlement 查询:VM 单源方法(与付费守卫/阅读页翻章同口径),只读。
     private var hasEntitlementForPaid: Bool {
-        env.entitlementStore.getActive(
-            contentHash: response.contentHash,
-            module: EntitlementModule.baziDeep,
-            userLocalId: UserIdentity.userLocalId
-        ) != nil
+        vm.hasDeepEntitlement(contentHash: response.contentHash)
     }
 }

@@ -138,8 +138,8 @@ final class DeepAnalysisChapterRowTests: XCTestCase {
         )
     }
 
-    func test_cta_limitDoesNotBlockEntitledPaidResume() {
-        // 次数耗尽但已购:续读付费章被次数拦(v1 全模块计次)→ limitReached
+    func test_cta_limitReached_blocksEntitledPaidResume() {
+        // 次数耗尽但已购:续读付费章同样被次数拦(v1 全模块计次)→ limitReached
         let states: [ModuleID: ModuleState] = [
             .m0: .ok(text: "a", cached: true),
             .m1: .ok(text: "b", cached: true),

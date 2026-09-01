@@ -8,6 +8,8 @@ import Foundation
 /// 两条「interpret 必须被调用」用例假红(main 同样复现,与业务代码无关)。
 /// 本工厂:固定 suite + 创建即 removePersistentDomain → 每个用例从零配额起,
 /// 不跨用例/跨运行污染,也不随运行次数堆积 plist。
+/// **约束**:同一测试方法内只建一个 counter——所有工厂产品共享同一 suite,
+/// 第二次创建会把第一个的已计数一并清零(现有用例均单 counter 或不断言配额)。
 extension DailyReadCounter {
     static func makeIsolatedForTesting() -> DailyReadCounter {
         let suiteName = "test.dailyReadCounter.isolated"

@@ -141,12 +141,12 @@ final class DeepAnalysisViewModel {
     /// 失败重试时复用已成功的上游字段(不重跑整个链)。
     private var v1ChainFields: [String: String] = [:]
 
-    /// M4 用户输入(Stage 8):用户通过 HealthInputForm sheet 填写。
+    /// M4 用户输入(Stage 8;盘面小景 S3 起由阅读页页内表单 ChapterReadingInputForm 填写)。
     /// nil = 用户尚未填 → M4 模块标 .needsInput,等用户填。
     /// 非 nil = 用户填过 → runSingleV1Module(.m4) 用此值调 orchestrator。
     /// 外部只读(submitM4Input 写入),避免绕过 submit 路径(不会触发 retry)。
     private(set) var m4UserInput: (age: Int, concern: String)?
-    /// M5 用户输入(Stage 8):用户通过 WealthInputForm sheet 填写。
+    /// M5 用户输入(Stage 8;盘面小景 S3 起由阅读页页内表单填写)。
     /// nil = 用户尚未填 → M5 模块标 .needsInput,等用户填。
     /// 外部只读(submitM5Input 写入),避免绕过 submit 路径(不会触发 retry)。
     private(set) var m5UserInput: (assets: String, preference: String)?
@@ -434,6 +434,19 @@ final class DeepAnalysisViewModel {
     /// 不触发 onChartArchived:非新建存档;pendingReturnTab 消费场景只在无盘走表单
     /// 路径时发生(合盘空态 / 今日运势 chartMissing CTA 引流)。
     func loadArchivedChart(response: BaziResponse, request: BaziCalculateRequest) {
+        // 换盘守卫(S10 补时辰 → 新 contentHash):旧盘的 moduleStates(章节文本)与
+        // v1ChainFields(structure_fingerprint)对新盘失真——章节文本是 LLM 按旧盘
+        // (无时辰)生成的,fingerprint 属旧盘结构;不清洗会让新盘目录显示旧盘「已读」、
+        // 阅读页展示旧盘正文、续读把旧 fingerprint 注入新盘请求。同 hash 重入
+        // (取消补时辰 / Tab 重挂)不清,保住既有章节态。
+        if case .ready(let old, _) = state, old.contentHash != response.contentHash {
+            v1ChainTask?.cancel()
+            moduleStates.removeAll()
+            v1ChainFields.removeAll()
+            AppLogger.app.info(
+                "deepVM.loadArchivedChart chart_changed oldHash=\(old.contentHash, privacy: .public) newHash=\(response.contentHash, privacy: .public) — v1 链状态已清洗"
+            )
+        }
         AppLogger.app.info(
             "deepVM.loadArchivedChart contentHash=\(response.contentHash, privacy: .public)"
         )
@@ -450,7 +463,7 @@ final class DeepAnalysisViewModel {
 
     // MARK: - v1 prompt 系统用户输入提交(Stage 8)
 
-    /// M4 用户输入提交(HealthInputForm sheet 的 onSubmit 回调)。
+    /// M4 用户输入提交(ChapterReadingView 页内表单的 onSubmit 回调)。
     /// 写入 m4UserInput + 若 M4 当前是 .needsInput 则触发自动重试。
     /// 注:上游依赖(M0)是否 ok 由 runSingleV1Module 内部守卫处理(缺失时标 .pending)。
     func submitM4Input(age: Int, concern: String) {
@@ -462,7 +475,7 @@ final class DeepAnalysisViewModel {
         }
     }
 
-    /// M5 用户输入提交(WealthInputForm sheet 的 onSubmit 回调)。
+    /// M5 用户输入提交(ChapterReadingView 页内表单的 onSubmit 回调)。
     /// 写入 m5UserInput + 若 M5 当前是 .needsInput 则触发自动重试。
     /// 注:上游依赖(M0+M1+M3)是否 ok 由 runSingleV1Module 内部守卫处理。
     func submitM5Input(assets: String, preference: String) {
@@ -599,6 +612,18 @@ final class DeepAnalysisViewModel {
     /// 不调 orchestrator(等用户填 sheet 提交后再重试)。
     @MainActor
     private func runSingleV1Module(_ module: ModuleID, response: BaziResponse) async {
+        // 同盘守卫(双 review P1 修复):retryV1Module / retryLockedV1Modules 的
+        // 任务 fire-and-forget 不被持有,loadArchivedChart 换盘清洗只 cancel
+        // v1ChainTask——旧盘在飞任务若不清拦,会把旧盘的 locked/needsInput/
+        // fetching/ok/failed 写进新盘 moduleStates(跨盘污染:新盘目录显示旧盘
+        // 「已读」、阅读页展示旧盘正文)。入口 + await 返回后双检,覆盖全部写点。
+        guard isCurrentChart(response) else {
+            AppLogger.app.warning(
+                "deepVM.runSingleV1Module.stale_chart module=\(module.rawValue, privacy: .public) hash=\(response.contentHash, privacy: .public) — 旧盘任务丢弃"
+            )
+            return
+        }
+
         // 付费守卫(2026-08-23 断链修复):M2-M7 无 active entitlement → .locked。
         // 不发注定 403 的请求、不消耗每日配额;onUnlock(已装配 PaywallView sheet)
         // 引导购买,购买成功后 retryLockedV1Modules 重跑(此处守卫重查放行)。
@@ -606,12 +631,7 @@ final class DeepAnalysisViewModel {
         // locked 优先于 M4/M5 needsInput:未付费先引导解锁,再收用户输入。
         // module 用基础名 "bazi_deep" 查(单 SKU 解锁全部深度付费内容,
         // 与后端 entitlement_base_module 映射、redeem 写入形态三方对齐)。
-        if module.isPaid,
-           entitlementStore.getActive(
-               contentHash: response.contentHash,
-               module: EntitlementModule.baziDeep,
-               userLocalId: UserIdentity.userLocalId
-           ) == nil {
+        if module.isPaid, !hasDeepEntitlement(contentHash: response.contentHash) {
             moduleStates[module] = .locked
             AppLogger.app.info("deepVM.runSingleV1Module.paid_locked module=\(module.rawValue, privacy: .public) contentHash=\(response.contentHash, privacy: .public)")
             return
@@ -656,6 +676,13 @@ final class DeepAnalysisViewModel {
             )
 
             if Task.isCancelled { return }
+            // 同盘守卫第二检:await 期间可能已换盘(loadArchivedChart 清洗过状态)
+            guard isCurrentChart(response) else {
+                AppLogger.app.warning(
+                    "deepVM.runSingleV1Module.stale_chart_after_await module=\(module.rawValue, privacy: .public) hash=\(response.contentHash, privacy: .public) — 旧盘结果丢弃"
+                )
+                return
+            }
 
             // 解析 LLM 输出 JSON,提取链式字段给下游模块用
             // 失败不抛(下游模块可能仍能跑,只是字段缺失会触发后端 validate_context 422)
@@ -666,17 +693,26 @@ final class DeepAnalysisViewModel {
         } catch is CancellationError {
             AppLogger.app.info("deepVM.runSingleV1Module.cancelled module=\(module.rawValue, privacy: .public)")
         } catch let error as DeepAnalysisError {
-            if !Task.isCancelled {
+            if !Task.isCancelled && isCurrentChart(response) {
                 AppLogger.app.warning("deepVM.runSingleV1Module.deepAnalysisError module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
                 moduleStates[module] = .failed(message: error.errorDescription ?? "未知错误")
             }
         } catch {
-            if !Task.isCancelled {
+            if !Task.isCancelled && isCurrentChart(response) {
                 AppLogger.app.error("deepVM.runSingleV1Module.failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
                 let userError = UserFacingError.from(error, stage: .interpret)
                 moduleStates[module] = .failed(message: userError.errorDescription ?? "未知错误")
             }
         }
+    }
+
+    /// 同盘判定:入参 response 是否仍是当前 .ready 的命盘(换盘清洗的配套守卫)。
+    @MainActor
+    private func isCurrentChart(_ response: BaziResponse) -> Bool {
+        if case .ready(let now, _) = state {
+            return now.contentHash == response.contentHash
+        }
+        return false
     }
 
     /// 解析 LLM JSON 输出,提取下游模块需要的链式字段写入 v1ChainFields。
@@ -783,6 +819,18 @@ final class DeepAnalysisViewModel {
     }
 
     // MARK: - 查询
+
+    /// 本地 deep entitlement 只读查询(单源):VM 付费守卫(runSingleV1Module)、
+    /// 主页目录行 / 沉底 CTA(DeepAnalysisHomeView)、阅读页翻章条 🔒 判定
+    /// (ChapterReadingView)三处消费同一参数口径——单 SKU "bazi_deep" 解锁全部
+    /// 深度付费章。只读不写,购买成功后 entitlementStore 写入即反映。
+    func hasDeepEntitlement(contentHash: String) -> Bool {
+        entitlementStore.getActive(
+            contentHash: contentHash,
+            module: EntitlementModule.baziDeep,
+            userLocalId: UserIdentity.userLocalId
+        ) != nil
+    }
 
     /// 剩余每日次数(用于 UI 展示)。
     var remainingReads: Int {
