@@ -1,7 +1,7 @@
 # S09 每日运势降级版 prompt
 
 - **类型**: **HITL**(同 S06:evalkit 基线 + 降级叙事 voice 需用户过目;另 REQUIRED_FIELDS 变更牵动三边同步,判据需人工校准)
-- **Blocked by**: S01(契约)、S06(降级叙事 voice 基准先在免费 2 章定调)
+- **Blocked by**: S01(契约——**含 `ChartPayload` 的 `unknown_hour` Literal 与 hour 可缺省;没有它本 slice 的「可生成」验收物理上无法达成**)、S06(降级叙事 voice 基准先在免费 2 章定调)、S07(一期已把无时辰用户的每日运势拦住,本 slice 是把「日柱确定」那一支从拦截换成降级)
 - **覆盖决策**: D5(每日运势降级提供:日柱×流日十神关系叙事,明示局限;日柱歧义者全拦)/ 契约备注(REQUIRED_FIELDS 三边同步 + evalkit + PV bump)
 - **Parent**: `docs/时辰未知设计决策.md`
 
@@ -14,10 +14,12 @@
 5. **iOS 半边**:
    - 无时辰用户每日运势照常入口与生成(降级内容),末尾一行静默提示位预留(S10 接线文案)
    - **日柱歧义用户(hour_known=false + 日柱 unknown)每日运势全拦**:拦截页一句话 + 补时辰入口占位(REQUIRED_FIELDS 里 `day_master` / `day_pillar` / `day_relation` 全塌,免费降级不成立——决策 D5 明确)
-6. **历史/缓存**:24h 缓存与 content_hash 语义自动适配(S01 hash 分叉);历史 7 天回看对无时辰盘照常(降级内容)
+6. **前置契约(不在本 slice,验收前须确认已落地)**:`ChartPayload.day_master_strength` 含 `"unknown_hour"`、`four_pillars` 允许缺 `hour`(S01);iOS `ChartPayloadDTO.from` 已显式处理(S05)。二者缺任一,本 slice 的请求一律 422——**开工前先跑一次无时辰 `chart_payload` 打通性验证**
+7. **历史/缓存**:24h 缓存与 content_hash 语义自动适配(S01 hash 分叉);历史 7 天回看对无时辰盘照常(降级内容)
 
 ## Acceptance criteria
 
+- [ ] 前置确认:无时辰 `chart_payload` 直打 `/api/daily-fortune` 不 422(S01 契约已落地)
 - [ ] 无时辰盘每日运势:可生成,内容为日柱×流日叙事 + 明示局限句;**无**喜忌结论、无 12 时辰段;禁词扫描照常
 - [ ] 日柱歧义盘每日运势:拦截态,不发起 interpret 请求
 - [ ] 有时辰盘:输出与现状一致(模板对正常 context 语义不变)
