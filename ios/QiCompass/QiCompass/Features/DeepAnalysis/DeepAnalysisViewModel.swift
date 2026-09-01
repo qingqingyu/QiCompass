@@ -161,7 +161,6 @@ final class DeepAnalysisViewModel {
     private let entitlementStore: EntitlementStore
     private(set) var lastRequest: BaziCalculateRequest?
     private var calculateTask: Task<Void, Never>?
-    private var interpretTask: Task<Void, Never>?
 
     /// 排盘连续失败计数(生肖阶段 3:连续 ≥3 次切 `.persistentFailure`,隐藏 retry 引导重启)。
     /// 生命周期 = VM 实例;成功一次即归零。非持久化(重启 App 自然重置,避免用户陷入死循环)。
@@ -442,95 +441,12 @@ final class DeepAnalysisViewModel {
         state = .ready(response, .idle)
     }
 
-    // MARK: - AI 命书
+    // MARK: - AI 命书(盘面小景 S2:legacy 单文本路径已删,UI 只走 v1 捌章)
 
-    /// 触发 AI 命书生成(用户点"生成命书"按钮 / 购买成功后重新触发)。
-    /// 取消旧 Task 避免竞态(快速点击两次时后完成者不应覆盖新状态)。
-    ///
-    /// M3c 改造:查本地 entitlement 决定 module
-    /// - 有 active entitlement → `bazi_deep_paid` → 成功显示 .okPaid(5 章)
-    /// - 无 entitlement → `bazi_deep_free` → 成功显示 .okFree(2 章)
-    /// 购买成功后(PaywallView dismiss)再次调用本方法,自动切到 _paid。
-    func generateInterpretation() {
-        guard case .ready(let response, _) = state else {
-            // 不静默吞(CLAUDE.md 全局约束):UI 收到点击说明状态机错乱,显式记录
-            AppLogger.app.error("op=deepAnalysis.generateInterpretation invalid_state state=\(String(describing: self.state), privacy: .public)")
-            return
-        }
-        // S07 纵深防御:日柱歧义 → 免费 2 章亦拦(没有日主,降级叙事轴不存在)。
-        // 正常 UI 路径到不了这里(DeepAnalysisView 不渲染内容页),防御状态机错乱调用。
-        guard response.hourUnknownGate != .dayAmbiguous else {
-            AppLogger.app.warning(
-                "op=deepAnalysis.generateInterpretation.skip reason=day_ambiguous contentHash=\(response.contentHash, privacy: .public)"
-            )
-            return
-        }
-        guard let request = lastRequest else {
-            AppLogger.app.error("op=deepAnalysis.generateInterpretation missing_request")
-            state = .ready(response, .failed(message: "请求记录缺失,请重新排盘"))
-            return
-        }
-
-        // M3c 新增:查本地 entitlement 决定 module(基础名 "bazi_deep")
-        let hasEntitlement = entitlementStore.getActive(
-            contentHash: response.contentHash,
-            module: EntitlementModule.baziDeep,
-            userLocalId: UserIdentity.userLocalId
-        ) != nil
-        let module = hasEntitlement ? "bazi_deep_paid" : "bazi_deep_free"
-        // 规则 2:用户主动触发 + 付费分支决策日志
-        AppLogger.app.info("deepVM.generateInterpretation.start contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) hasEntitlement=\(hasEntitlement, privacy: .public)")
-
-        interpretTask?.cancel()
-
-        state = .ready(response, .fetching)
-
-        interpretTask = Task {
-            do {
-                let resp = try await orchestrator.runInterpretation(
-                    response: response,
-                    request: request,
-                    module: module
-                )
-                if !Task.isCancelled {
-                    if hasEntitlement {
-                        state = .ready(response, .okPaid(text: resp.interpretation, cached: resp.cached))
-                    } else {
-                        state = .ready(response, .okFree(text: resp.interpretation, cached: resp.cached))
-                    }
-                }
-            } catch is CancellationError {
-                // 被取消,不更新状态
-                AppLogger.app.info("deepVM.generateInterpretation.cancelled")
-            } catch let error as DeepAnalysisError {
-                if !Task.isCancelled {
-                    // 规则 1:DeepAnalysisError 抛错前打日志
-                    AppLogger.app.warning("deepVM.generateInterpretation.deepAnalysisError error=\(String(describing: error), privacy: .public)")
-                    // dailyLimitReached 独立形态(方案 step 4):禁用生成按钮、不显示重试
-                    if case .dailyLimitReached(let reset, _) = error {
-                        state = .ready(response, .dailyLimitReached(nextReset: reset))
-                    } else {
-                        state = .ready(response, .failed(message: error.errorDescription ?? "未知错误"))
-                    }
-                }
-            } catch {
-                if !Task.isCancelled {
-                    // 规则 1:其他错误抛错前打日志
-                    AppLogger.app.error("deepVM.generateInterpretation.failed error=\(String(describing: error), privacy: .public)")
-                    let userError = UserFacingError.from(error, stage: .interpret)
-                    if case .dailyLimitReached(let reset) = userError {
-                        state = .ready(response, .dailyLimitReached(nextReset: reset))
-                    } else {
-                        state = .ready(response, .failed(message: userError.errorDescription ?? "未知错误"))
-                    }
-                }
-            }
-        }
-    }
-
-    func retryInterpretation() {
-        generateInterpretation()
-    }
+    // generateInterpretation / retryInterpretation / localCachedText(bazi_deep
+    // 单文本老路径)随 DeepAnalysisResultView 删除一并移除:新 UI(主页目录 +
+    // ChapterReadingView)只消费 moduleStates 的 v1 模块化路径。InterpretState
+    // 枚举保留(state 机 .ready 关联值依赖)。老缓存数据不清库,只是不再展示。
 
     // MARK: - v1 prompt 系统用户输入提交(Stage 8)
 
@@ -854,7 +770,6 @@ final class DeepAnalysisViewModel {
     /// Stage 7c:同时取消 v1 链式调用 + 清 moduleStates + v1ChainFields。
     func reset() {
         calculateTask?.cancel()
-        interpretTask?.cancel()
         v1ChainTask?.cancel()
         state = .empty
         lastRequest = nil
@@ -877,13 +792,5 @@ final class DeepAnalysisViewModel {
     /// 下次每日重置时间(本地午夜,达上限时用于倒计时)。
     var nextDailyReset: Date {
         orchestrator.nextDailyReset()
-    }
-
-    /// 本地缓存的命书(用于 UI 瞬时显示,方案 §4.5 v1 不跳过网络)。
-    func localCachedText(for response: BaziResponse) async throws -> String? {
-        try await orchestrator.localCachedInterpretation(
-            contentHash: response.contentHash,
-            module: "bazi_deep"
-        )?.text
     }
 }
