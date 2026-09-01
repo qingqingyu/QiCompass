@@ -1,15 +1,17 @@
-"""节气边界柱歧义测试(S02/D10,docs/时辰未知-slices/S02)。
+"""节气边界柱歧义测试(S02/D10,docs/时辰未知-slices/S02 修订版)。
 
 对盘事实(全部经 00:00/23:59 双探针 + lunar_python 1.4.8 实证):
 - 1990-02-04(立春日):年柱 己巳→庚午 / 月柱 丁丑→戊寅(双歧义);正午
   占位落在立春后(庚午/戊寅);次日 02-05 无歧义
 - 1990-03-06(惊蛰):月柱 戊寅→己卯(单歧义),年柱 庚午 两侧一致
 - 1990-03-15(普通日):无任何歧义(与 S01 基础态一致)
-- 1990-03-15 @ Asia/Shanghai + 75.99°E(喀什):offset ≈ −185.7min < −60,
-  墙钟 [00:00, ~02:06) 日柱=戊寅(前一真太阳日),其后=己卯 → 日柱网命中;
-  年/月探针两侧一致(庚午/己卯)无节气歧义
-- 东八区标准经度(120°E ± EoT∈[−15,+17])offset 恒 > −60 → 日柱网恒不
-  命中(防「误用 00:00/23:59 探针比日柱 → 所有普通日 day unknown」退化)
+- 1990-03-15 @ Asia/Shanghai + 75.99°E(喀什,offset ≈ −185.7):年/月探针
+  两侧一致(庚午/己卯);日柱:D3 区间测试 否→歧义 / 是→确定(同日 己卯,
+  占位 23:30 → 真太阳时 20:24)
+- 日柱判据 = D3 三步区间测试(true_solar_time.day_pillar_ambiguous,单一
+  事实源,2026-09-01 修订):西偏答「是」确定 / 东偏答「否」歧义等场景
+  由区间是否横跨换日点自然得出,不再用 offset < −60 单边规则,也不走
+  00:00/23:59 探针比日柱(那会让所有无时辰用户 day unknown,退化)
 """
 
 from __future__ import annotations
@@ -22,7 +24,7 @@ import pytest
 
 import app.api.bazi as bazi_api
 from app.core.content_hash import compute_content_hash
-from app.core.true_solar_time import wall_day_start_before_changeover
+from app.core.true_solar_time import day_pillar_ambiguous
 from app.engine.bazi_engine import BaziEngine
 from app.main import app
 from app.models.bazi import BaziCalculateResponse
@@ -40,7 +42,11 @@ BASE = {
 LICHUN = {"birth_datetime": "1990-02-04T12:00:00"}   # 立春日(年+月双歧义)
 JIE = {"birth_datetime": "1990-03-06T12:00:00"}      # 惊蛰(月柱歧义)
 NORMAL = {"birth_datetime": "1990-03-15T12:00:00"}   # 普通日
-KASHGAR_LON = 75.99  # 喀什经度(Asia/Shanghai 时区下 offset ≈ −185.7min)
+KASHGAR_LON = 75.99    # 喀什(Asia/Shanghai 时区下 1990-03-15 offset ≈ −185.7)
+SHANGHAI_LON = 121.5   # 上海东偏(1990-12-25 offset ≈ +5.5;冬至后非节气界)
+CHENGDU_LON = 104.1    # 成都西偏(1990-12-25 offset ≈ −64.1)
+FUYUAN_LON = 134.3     # 抚远东偏(1990-03-15 offset ≈ +47.6)
+DEC_NORMAL = {"birth_datetime": "1990-12-25T12:00:00"}  # 12 月普通日(非中国夏令时)
 
 
 async def _post(payload: dict) -> dict:
@@ -197,10 +203,11 @@ async def test_normal_day_no_ambiguity_matches_s01_baseline(fixed_now,
     assert sum(body["element_balance"].values()) == 6  # 三柱 6 字
 
 
-async def test_east8_standard_longitude_day_net_never_hits(fixed_now,
-                                                           monkeypatch):
-    """防退化回归:东八区普通日不得命中日柱网(误用 00:00/23:59 探针比日柱
-    会让所有无时辰用户日柱 unknown,与 Parent D3 冲突)。"""
+async def test_east8_standard_longitude_day_determined(fixed_now,
+                                                        monkeypatch):
+    """防退化回归:东八区中部普通日(1990-03-15 offset ≈ −24)+ 否 → 日柱
+    确定(误用 00:00/23:59 探针比日柱会让所有无时辰用户日柱 unknown,
+    与 Parent D3 冲突;offset > 0 的东偏日才歧义,见下节四象限)。"""
     monkeypatch.setattr(bazi_api, "BaziEngine",
                         partial(BaziEngine, now=fixed_now))
     body = await _unknown(NORMAL)
@@ -211,12 +218,48 @@ async def test_east8_standard_longitude_day_net_never_hits(fixed_now,
     assert body["pillars"]["day"]["gan_zhi"] == "己卯"
 
 
-# ===== 4. 西偏经度日柱网(与 late_night 同终态的两种来源) =====
+# ===== 4. 日柱歧义:D3 区间测试四象限(场景表全部行,对盘验证) =====
 
 
-async def test_west_offset_day_pillar_net_kashgar(fixed_now, monkeypatch):
-    """Asia/Shanghai + 喀什经度 + late_night=False → 墙钟日凌晨段落入前一
-    真太阳日,当日主体区间横跨两日柱 → 日柱 unknown(网命中,非 late_night)。"""
+def test_day_pillar_ambiguous_d3_interval_unit():
+    """D3 区间测试判据单元验证(单一事实源,无 −60 魔数):场景表全部行 +
+    边界语义。候选区间:否 [0,1380) / 是 [1380,1440) / 不确定 [0,1440);
+    歧义 ⟺ 真太阳时区间**内部严格**包含一个 1380+1440k 换日点。"""
+    # ---- 场景表(docs/时辰未知设计决策.md D3,offset = 真太阳时−墙钟)----
+    assert day_pillar_ambiguous(True, -176.0) is False  # 喀什×是:确定(20:04-21:04 同日)
+    assert day_pillar_ambiguous(False, -176.0) is True  # 喀什×否:歧义
+    assert day_pillar_ambiguous(True, -63.0) is False   # 成都×是:确定
+    assert day_pillar_ambiguous(False, 6.0) is True     # 上海×否:歧义(22:54-23:00 落次日)
+    assert day_pillar_ambiguous(False, 57.0) is True    # 抚远×否:歧义(22:00-23:00 落次日)
+    # 东八区中部普通日(EoT<0 日期,offset ≈ −24)× 否 → 不命中
+    assert day_pillar_ambiguous(False, -24.02) is False
+    # 「是」× 东偏 → 确定(区间整体落换日窗 → 次日日柱,占位 23:30 推出)
+    assert day_pillar_ambiguous(True, 6.0) is False
+
+    # 「不确定」恒歧义:任何 24h 真太阳时区间内部必含一个换日点
+    # (offset 恰 −60 的测度零退化除外,见下)——区间测试自然结论,无独立分支
+    for off in (-185.69, -64.09, -59.99, -24.02, 0.0, 5.51, 47.55):
+        assert day_pillar_ambiguous(None, off) is True, off
+
+    # ---- 边界:换日点恰贴区间端点不算内部(整段区间仍属同一日柱)----
+    # offset −60:否 → 真太阳时 [−60, 1320),换日点 −60/1380 均贴端点 → 确定
+    assert day_pillar_ambiguous(False, -60.0) is False
+    # 是 → [1320, 1380):1380 贴右端 → 确定(当日最后一段,整体同日)
+    assert day_pillar_ambiguous(True, -60.0) is False
+    # 不确定 → [−60, 1380):两端恰是换日点 → 测度零退化,真太阳日与墙钟日
+    # 完全对齐,日柱确定(浮点 offset 实际不会精确命中,语义上确定是对的)
+    assert day_pillar_ambiguous(None, -60.0) is False
+    # 是 × offset ∈ (−60, 0):区间内部含 1380 → 歧义(如 −59 → [1321,1381))
+    assert day_pillar_ambiguous(True, -59.0) is True
+    # offset 0:是 → [1380,1440) 1380 贴左端 → 确定(整个区间是次日子时盘)
+    assert day_pillar_ambiguous(True, 0.0) is False
+
+
+async def test_west_offset_late_night_no_ambiguous_kashgar(fixed_now,
+                                                           monkeypatch):
+    """Asia/Shanghai + 喀什经度 + late_night=False → 真太阳时候选区间
+    [前日20:54, 当日19:54) 横跨前日 23:00 换日点(墙钟 00:00-02:06 为前一日
+    日柱)→ 日柱 unknown(区间测试命中)。"""
     monkeypatch.setattr(bazi_api, "BaziEngine",
                         partial(BaziEngine, now=fixed_now))
     body = await _post({**BASE, **NORMAL, "hour_known": False,
@@ -231,29 +274,136 @@ async def test_west_offset_day_pillar_net_kashgar(fixed_now, monkeypatch):
     assert body["year_branch_zodiac"] == "Horse"
     assert body["luck_pillars"], "月柱无歧义,大运照给"
 
-    # 与 late_night=是 同终态:日主系派生置空(S09 每日运势全拦的契约前提)
+    # 日柱歧义终态:日主系派生置空(S09 每日运势全拦的契约前提)
     assert body["day_master_strength"] == "unknown_hour"
     assert body["anchor_sentence"] is None
     assert sum(body["element_balance"].values()) == 4
 
-    # 对照:同经度 late_night=True(另一来源)同为 day unknown
-    body_ln = await _post({**BASE, **NORMAL, "hour_known": False,
-                           "late_night": True, "longitude": KASHGAR_LON})
-    assert body_ln["pillar_ambiguity"]["day"] is True
-    assert body_ln["pillars"]["day"] is None
+    # hash 分叉:同日同经度,仅 late_night 否/是 不同 → 歧义状态不同 → 不同 hash
+    body_yes = await _post({**BASE, **NORMAL, "hour_known": False,
+                            "late_night": True, "longitude": KASHGAR_LON})
+    assert body["content_hash"] != body_yes["content_hash"]
 
 
-def test_wall_day_start_before_changeover_unit():
-    """日柱网判据:offset < −60(墙钟 00:00 调整后早于前一日 23:00)。"""
-    assert wall_day_start_before_changeover(-185.69) is True   # 喀什
-    assert wall_day_start_before_changeover(-60.01) is True
-    # 恰为 −60:墙钟 00:00 调整后 = 前一日 23:00 整(换日点本身),
-    # 已属次日子时盘,日起点不早于换日点 → 不命中
-    assert wall_day_start_before_changeover(-60.0) is False
-    assert wall_day_start_before_changeover(-59.9) is False
-    assert wall_day_start_before_changeover(0.0) is False
-    assert wall_day_start_before_changeover(16.5) is False      # EoT 上界
-    assert wall_day_start_before_changeover(-28.46) is False    # 东八区中部
+async def test_west_offset_late_night_yes_determined_kashgar(fixed_now,
+                                                             monkeypatch):
+    """喀什 + late_night=True → **日柱确定,同日**(场景表「过度降级」修正行)。
+
+    offset ≈ −185.7 → 真太阳时候选区间 [23:00,24:00)−185.7 = [20:04,21:04),
+    不含 23:00 换日点 → 同日;占位 23:30 → 真太阳时 20:24 → 当日日柱,
+    与正午已知盘对盘一致。防旧「答是即 unknown」过度降级回归(S01 遗留判据)。"""
+    monkeypatch.setattr(bazi_api, "BaziEngine",
+                        partial(BaziEngine, now=fixed_now))
+    body = await _post({**BASE, **NORMAL, "hour_known": False,
+                        "late_night": True, "longitude": KASHGAR_LON})
+    known = await _post({**BASE, **NORMAL, "hour_known": True,
+                         "longitude": KASHGAR_LON})  # 正午已知盘(对盘基准)
+
+    assert body["pillar_ambiguity"] == NO_AMB
+    assert body["pillars"]["hour"] is None
+    assert body["pillars"]["day"] is not None
+    assert body["pillars"]["day"]["gan_zhi"] == \
+        known["pillars"]["day"]["gan_zhi"] == "己卯"
+
+    # 日柱在 → 日主系输出恢复:anchor 有日主半句(喜忌仍 unknown_hour,时柱缺)
+    assert body["anchor_sentence"] is not None
+    assert "出生时辰未知" in body["anchor_sentence"]
+    assert body["day_master_strength"] == "unknown_hour"
+    assert sum(body["element_balance"].values()) == 6  # 三柱 6 字
+    assert body["year_branch_zodiac"] == "Horse"
+
+
+async def test_west_offset_late_night_yes_determined_chengdu(fixed_now,
+                                                             monkeypatch):
+    """成都 104.1°E(1990-12-25 offset ≈ −64)+ 是 → 日柱确定(场景表行)。
+
+    真太阳时候选区间 [21:56,22:56) 不含 23:00 → 同日;占位 23:30 →
+    真太阳时 22:26 → 当日日柱甲子,与正午已知盘对盘一致。"""
+    monkeypatch.setattr(bazi_api, "BaziEngine",
+                        partial(BaziEngine, now=fixed_now))
+    body = await _post({**BASE, **DEC_NORMAL, "hour_known": False,
+                        "late_night": True, "longitude": CHENGDU_LON})
+    known = await _post({**BASE, **DEC_NORMAL, "hour_known": True,
+                         "longitude": CHENGDU_LON})
+
+    assert body["pillar_ambiguity"] == NO_AMB
+    assert body["pillars"]["day"]["gan_zhi"] == \
+        known["pillars"]["day"]["gan_zhi"] == "甲子"
+    assert body["pillars"]["year"]["gan_zhi"] == "庚午"
+    assert body["pillars"]["month"]["gan_zhi"] == "戊子"
+    assert body["anchor_sentence"] is not None
+    assert body["luck_pillars"], "月柱无歧义,大运照给"
+
+
+async def test_east_offset_late_night_no_ambiguous_shanghai(fixed_now,
+                                                            monkeypatch):
+    """上海 121.5°E(1990-12-25 offset ≈ +5.5)+ 否 → 日柱歧义
+    (场景表「静默给错日柱」修正行)。
+
+    真太阳时候选区间 [00:06,23:06) 内部含 23:00 换日点 → 墙钟 22:54-23:00
+    落次日。旧单边 offset<−60 规则会漏报为「确定」并静默给错日柱(S02 遗留)。"""
+    monkeypatch.setattr(bazi_api, "BaziEngine",
+                        partial(BaziEngine, now=fixed_now))
+    body = await _post({**BASE, **DEC_NORMAL, "hour_known": False,
+                        "late_night": False, "longitude": SHANGHAI_LON})
+
+    assert body["pillar_ambiguity"] == {"year": False, "month": False,
+                                        "day": True}
+    assert body["pillars"]["day"] is None
+    assert body["anchor_sentence"] is None
+    # 年/月柱照常(12 月下旬非节气界,探针两侧庚午/戊子)
+    assert body["pillars"]["year"]["gan_zhi"] == "庚午"
+    assert body["pillars"]["month"]["gan_zhi"] == "戊子"
+    assert body["year_branch_zodiac"] == "Horse"
+
+
+async def test_east_offset_late_night_no_ambiguous_fuyuan(fixed_now,
+                                                          monkeypatch):
+    """抚远 134.3°E(1990-03-15 offset ≈ +47.6)+ 否 → 日柱歧义(场景表行)。
+
+    真太阳时候选区间 [00:48,23:48) 内部含 23:00 → 墙钟 22:12-23:00 落次日。"""
+    monkeypatch.setattr(bazi_api, "BaziEngine",
+                        partial(BaziEngine, now=fixed_now))
+    body = await _post({**BASE, **NORMAL, "hour_known": False,
+                        "late_night": False, "longitude": FUYUAN_LON})
+
+    assert body["pillar_ambiguity"] == {"year": False, "month": False,
+                                        "day": True}
+    assert body["pillars"]["day"] is None
+    assert body["anchor_sentence"] is None
+    assert body["year_branch_zodiac"] == "Horse"
+    assert sum(body["element_balance"].values()) == 4
+
+
+async def test_east_offset_late_night_yes_determined_next_day_shanghai(
+        fixed_now, monkeypatch):
+    """上海 121.5°E + 是 → 日柱确定且为**次日**(区间测试关键行为)。
+
+    真太阳时候选区间 [23:06, 00:06) 不含 23:00 → 确定;占位取区间中点
+    23:30,经 setSect(1) 落换日窗 → 次日日柱。对盘:与同日 23:40 已知盘
+    (晚子时归次日)及次日正午已知盘一致,≠ 当日正午已知盘。"""
+    monkeypatch.setattr(bazi_api, "BaziEngine",
+                        partial(BaziEngine, now=fixed_now))
+    body = await _post({**BASE, **DEC_NORMAL, "hour_known": False,
+                        "late_night": True, "longitude": SHANGHAI_LON})
+    known_late = await _post({**BASE,
+                              "birth_datetime": "1990-12-25T23:40:00",
+                              "hour_known": True,
+                              "longitude": SHANGHAI_LON})
+    known_noon = await _post({**BASE, **DEC_NORMAL, "hour_known": True,
+                              "longitude": SHANGHAI_LON})
+    known_next = await _post({**BASE,
+                              "birth_datetime": "1990-12-26T12:00:00",
+                              "hour_known": True,
+                              "longitude": SHANGHAI_LON})
+
+    assert body["pillar_ambiguity"] == NO_AMB
+    day = body["pillars"]["day"]["gan_zhi"]
+    assert day == known_late["pillars"]["day"]["gan_zhi"] == \
+        known_next["pillars"]["day"]["gan_zhi"] == "乙丑"
+    assert day != known_noon["pillars"]["day"]["gan_zhi"]  # 当日 = 甲子
+    assert body["anchor_sentence"] is not None  # 日柱在,日主半句保留
+    assert sum(body["element_balance"].values()) == 6
 
 
 # ===== 5. hash 与快照 =====
@@ -292,7 +442,7 @@ def test_content_hash_marker_contract_violations():
 
 
 async def test_ambiguity_forks_content_hash_api(fixed_now, monkeypatch):
-    """API 级:同日有/无歧义(经度致日柱网命中与否)→ 不同 hash;
+    """API 级:同日有/无歧义(经度致 D3 区间测试命中与否)→ 不同 hash;
     快照歧义状态与响应一致。"""
     monkeypatch.setattr(bazi_api, "BaziEngine",
                         partial(BaziEngine, now=fixed_now))

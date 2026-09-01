@@ -6,14 +6,16 @@
   unknown_hour / 喜忌空 / 神煞无时支条目 + shensha_incomplete / 大运照给 /
   五行统计和 = 6
 - late_night=true 与 null(含缺省)→ 日柱 null + 日主派生输出置空(anchor/喜忌)
-- 占位一致性:06:13 与 23:40 全响应一致(12:00 占位生效,占位不漏到响应)
+  (本文件对盘经度 116.4074°E 属东八区**西侧**,offset < 0,三态下「是/不确定」
+  按 D3 区间测试仍歧义;东侧(如上海 121.5°E)「是」→ 确定次日日柱,归
+  test_pillar_ambiguity.py 四象限,勿在此混入)
+- 占位一致性:06:13 与 23:40 全响应一致(候选区间中点占位生效,占位不漏到响应)
 - content_hash 分叉:true ≠ false;late_night 三态三个不同 hash
 - calc_rule_snapshot 含 hour_known
-- 「占位 12:00 恰不跨换日边界」:正午已知盘 vs 无时辰同日,年月日柱相同
+- 「否占位 11:30 恰不跨换日边界」:正午已知盘 vs 无时辰同日,年月日柱相同
   (对盘样例取东八区中部经度 116°E;西偏经度日柱歧义场景归 S02,勿混入)
 
-辅助单测:late_night_wall_window 反算 / xiji unknown_hour 分支 /
-content_hash 时辰桶不参与。
+辅助单测:占位中点选取 / xiji unknown_hour 分支 / content_hash 时辰桶不参与。
 """
 
 from __future__ import annotations
@@ -28,8 +30,7 @@ from pydantic import ValidationError
 
 import app.api.bazi as bazi_api
 from app.core.content_hash import compute_content_hash
-from app.core.true_solar_time import late_night_wall_window
-from app.engine.bazi_engine import BaziEngine
+from app.engine.bazi_engine import BaziEngine, hour_unknown_placeholder
 from app.engine.pillars import build_pillars, compute_element_balance
 from app.engine.xiji import compute_xiji
 from app.main import app
@@ -195,7 +196,7 @@ async def test_placeholder_noon_same_output_any_input_time(fixed_now, monkeypatc
     """06:13 与 23:40(hour_known=false)→ 全响应逐字段一致(含 content_hash)。
 
     23:40 已过 23:00 墙钟换日边界,若占位未生效会把日柱/时辰桶推到次日;
-    12:00 占位下两请求输出完全相同 → 占位生效且占位值未漏到响应。
+    「否」中点 11:30 占位下两请求输出完全相同 → 占位生效且占位值未漏到响应。
     """
     monkeypatch.setattr(bazi_api, "BaziEngine",
                         partial(BaziEngine, now=fixed_now))
@@ -209,7 +210,7 @@ async def test_placeholder_noon_same_output_any_input_time(fixed_now, monkeypatc
     assert early["meta"] is None
 
     # 对照:已知时辰路径 23:40 的日柱确实换日(setSect(1) 晚子时归次日),
-    # 证明无时辰盘的日柱来自 12:00 占位而非透传输入时刻
+    # 证明无时辰盘的日柱来自 11:30 占位而非透传输入时刻
     known_late = await _post({**BASE, "birth_datetime": "1990-03-15T23:40:00",
                               "hour_known": True})
     known_noon = await _post({**BASE, "birth_datetime": "1990-03-15T12:00:00",
@@ -379,21 +380,33 @@ def test_element_balance_counts_known_pillars_only():
     assert sum(compute_element_balance(pillars).model_dump().values()) == 4
 
 
-# ===== 7. 日柱歧义窗口:真太阳时 offset 反算墙钟(不硬编码 23:00-24:00)=====
+# ===== 7. 占位中点(D3 修订):候选区间中点选取 =====
 
 
-def test_late_night_wall_window():
-    """墙钟窗口 = [23:00 − offset, 24:00 − offset)(mod 24h)。"""
-    # 无偏移:窗口即真太阳时口径 23:00-24:00(end 回绕到 00:00)
-    assert late_night_wall_window(0.0) == (23 * 60, 0)
-    # 喀什例(设计文档 D3):offset ≈ −176 → 墙钟窗次日 01:56-02:56
-    assert late_night_wall_window(-176.0) == (116, 176)
-    # 东偏(offset 为正):窗口前移,如 +60 → 22:00-23:00
-    assert late_night_wall_window(60.0) == (22 * 60, 23 * 60)
+def test_hour_unknown_placeholder_midpoint():
+    """占位 = 候选区间中点(D3 2026-09-01 修订):
+    否 [00:00,23:00) → 11:30 / 是 [23:00,24:00) → 23:30 / 不确定 → 12:00。
+
+    「是」取 23:30 是关键行为:日柱经区间测试判「确定」时,中点保证落在
+    该确定日柱的区间内(东偏 → 换日窗 → 次日;西偏 ≤ −60 → 同日)。
+    """
+    b = datetime(1990, 3, 15, 6, 13)
+    assert hour_unknown_placeholder(b, False) == datetime(1990, 3, 15, 11, 30)
+    assert hour_unknown_placeholder(b, True) == datetime(1990, 3, 15, 23, 30)
+    assert hour_unknown_placeholder(b, None) == datetime(1990, 3, 15, 12, 0)
+    # 幂等:已是占位值的输入再归一不变
+    assert hour_unknown_placeholder(
+        hour_unknown_placeholder(b, True), True,
+    ) == datetime(1990, 3, 15, 23, 30)
+    # 保墙钟日期与时区
+    tz = timezone(timedelta(hours=8))
+    b2 = datetime(1990, 3, 15, 23, 40, tzinfo=tz)
+    assert hour_unknown_placeholder(b2, True) == \
+        datetime(1990, 3, 15, 23, 30, tzinfo=tz)
 
 
-async def test_day_pillar_unknown_logged_window(fixed_now, monkeypatch, caplog):
-    """日柱置 null 时审计日志含按 offset 反算的墙钟窗口(错误显式传播)。"""
+async def test_day_pillar_unknown_logged(fixed_now, monkeypatch, caplog):
+    """日柱置 null 时审计日志留痕(D3 区间测试命中输入,错误显式传播)。"""
     import logging
     monkeypatch.setattr(bazi_api, "BaziEngine",
                         partial(BaziEngine, now=fixed_now))

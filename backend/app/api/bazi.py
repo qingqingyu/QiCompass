@@ -49,12 +49,13 @@ async def calculate_bazi(req: BaziCalculateRequest, request: Request) -> BaziCal
 
     # 1. 钟面 → 绝对时刻(timezone 合法性已由 Pydantic validator 保证;
     #    此处再验是双保险,触发即 invariant 破坏 → 500 暴露 bug,不静默)
-    #    时辰未知:先归一 12:00 再解释时区 —— 未知时辰下 dst 边角
+    #    时辰未知:先归一到候选区间中点占位(否 11:30 / 是 23:30 /
+    #    不确定 12:00,D3)再解释时区 —— 未知时辰下 dst 边角
     #    (歧义/跳过/切换附近)对任意的时辰噪声毫无意义,归一后
     #    「同日期任意时辰输入 → 同一输出」自然成立
     effective_wall = (
         req.birth_datetime if req.hour_known
-        else hour_unknown_placeholder(req.birth_datetime)
+        else hour_unknown_placeholder(req.birth_datetime, req.late_night)
     )
     resolved = resolve_wall_time(effective_wall, req.timezone)
 

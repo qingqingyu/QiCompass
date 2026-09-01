@@ -53,54 +53,73 @@ def shichen_bucket(hour: int) -> int:
 
 # setSect(1) 换日边界:真太阳时 23:00 起日柱归次日(CLAUDE.md「强制 setSect(1)」)
 DAY_CHANGE_TRUE_SOLAR_START_MIN = 23 * 60
-# 换日歧义窗长度:23:00 → 24:00,共 1 小时
-_DAY_CHANGE_WINDOW_MIN = 60
 _MINUTES_PER_DAY = 24 * 60
 
 
-def late_night_wall_window(offset_minutes: float) -> tuple[int, int]:
-    """时辰未知时的「半夜出生」日柱歧义窗口,反算为墙钟分钟数(mod 1440)。
+def day_pillar_candidate_wall_interval(late_night: bool | None,
+                                       ) -> tuple[float, float]:
+    """时辰未知时的候选墙钟区间(分钟,以出生日 00:00 为 0)。
 
-    定义(docs/时辰未知设计决策.md D3,**不硬编码墙钟 23:00-24:00**):
-    换日判定发生在**真太阳时**上,边界为真太阳时 23:00;墙钟窗口
-    = [23:00 − offset, 24:00 − offset)(mod 24h),其中
-    offset = EoT(出生日) + (经度 − 时区中心经度) × 4min/度
-    (即 compute_true_solar_time 的 offset_minutes,时辰未知时按 12:00
-    占位时刻估算 —— EoT 逐日漂移 ≤ 30 秒,对 1 小时窗口判定无影响)。
+    D3 三步区间测试第 1 步(docs/时辰未知设计决策.md D3「v1 用途」,
+    2026-09-01 修订版):
 
-    出生墙钟落在该窗口内 → 真太阳时已过 23:00,日柱属于次日子时盘,
-    日柱歧义。例:喀什 offset ≈ −176 → 窗口 01:56-02:56(次日)。
+        否     → [00:00, 23:00) = [0, 1380)
+        是     → [23:00, 24:00) = [1380, 1440)
+        不确定 → 全天 [00:00, 24:00) = [0, 1440)
 
-    Returns:
-        (start, end) 墙钟分钟数 mod 1440,end = start + 60(mod 1440,
-        跨午夜时 end < start)。调用方拿区间判断时需自行处理回绕。
+    half-open:端点时刻归属由 day_pillar_ambiguous 的「严格内部」判据处理
+    (换日点恰贴端点 → 整个区间仍属同一日柱,不歧义)。
     """
-    start = (DAY_CHANGE_TRUE_SOLAR_START_MIN - round(offset_minutes)) % _MINUTES_PER_DAY
-    end = (start + _DAY_CHANGE_WINDOW_MIN) % _MINUTES_PER_DAY
-    return start, end
+    if late_night is False:
+        return 0.0, float(DAY_CHANGE_TRUE_SOLAR_START_MIN)
+    if late_night is True:
+        return (float(DAY_CHANGE_TRUE_SOLAR_START_MIN),
+                float(_MINUTES_PER_DAY))
+    return 0.0, float(_MINUTES_PER_DAY)
 
 
-def wall_day_start_before_changeover(offset_minutes: float) -> bool:
-    """墙钟日起点(00:00 经真太阳时调整后)是否早于前一日的 23:00 换日点。
+def day_pillar_ambiguous(late_night: bool | None,
+                         offset_minutes: float) -> bool:
+    """D3 日柱歧义判据:三步区间测试(**单一事实源,任何 slice 不得另立阈值**)。
 
-    D10/S02 日柱网判据(docs/时辰未知-slices/S02 对 Parent D10 的有意偏离):
-    日柱歧义不得用 00:00/23:59 探针比对 —— setSect(1) 下墙钟 23:59 的
-    真太阳时几乎必落 [23:00,24:00) 换日窗 → 次日柱,字面实现会让**所有**
-    无时辰用户日柱 unknown。正确判定域是「排除换日窗后的当日主体区间」
-    是否横跨两个日柱,等价判据:
+    docs/时辰未知设计决策.md D3(2026-09-01 slice review 修订)。原两处旧判据
+    均已拆:「hour_known=false 且 late_night != False → 恒 unknown」(过度降级)
+    与「offset < −60min 西偏网」(单边近似,东偏漏报 → 静默给错日柱)。
 
-        墙钟 00:00 + offset = 前一日第 (1440 + offset) 分钟
-        早于 23:00(第 1380 分钟)⟺ offset < −60
+    三步:
+    1. 二值答案 → 候选墙钟区间(day_pillar_candidate_wall_interval)
+    2. 区间整体 + offset_minutes(真太阳时 − 墙钟,即 compute_true_solar_time
+       的 offset_minutes)→ 真太阳时候选区间。允许跨午夜:用绝对分钟比较,
+       不回绕折叠到 [0, 1440)
+    3. 日柱歧义 ⟺ ∃k∈Z: start < 1380 + 1440k < end
+       (23:00 换日点**严格落在区间内部**;恰贴端点不算——此时整个区间仍
+       属同一日柱)
 
-    命中(西偏场景,如喀什 −176min → 墙钟凌晨段落入前一真太阳日,实证
-    1990-03-15@75.99°E:墙钟 [00:00, 02:06) 日柱=前一日)→ 该墙钟日的
-    主体区间横跨两日柱 → 日柱 unknown。它是 S01 late_night 网的互补层:
-    late_night=否 的用户未必把凌晨出生归入「半夜 11 点之后」。
+    性质(由测试自然得出,不另写分支):
+    - 「不确定」恒歧义:区间长 1440 必含一个换日点在内部(offset 恰为 −60
+      的测度零退化点除外——真太阳日与墙钟日完全对齐,日柱确定)
+    - 「是」仅在西偏 ≤ −60 或 offset ≥ 0 时确定(前者同日 / 后者整体落
+      换日窗 → 次日),(-60, 0) 内横跨换日点 → 歧义
+    - hour_known=true 恒不歧义,由调用方保证不进本函数(零开销)
 
-    东八区标准经度(120°E,EoT ∈ [−15,+17]min)恒不命中(offset ≥ −60
-    与 D3「答否→日柱完全确定」一致),不是漏报。
+    场景表(D3 实测;单边 offset<−60 规则两个方向都错):
+        喀什 −176 × 是 → 确定(真太阳时 20:04-21:04 同日)   单边规则误判歧义
+        成都 −63  × 是 → 确定                              误判歧义
+        上海 +6   × 否 → 歧义(22:54-23:00 墙钟落次日)      误判确定 → 静默给错
+        抚远 +57  × 否 → 歧义(22:00-23:00 落次日)          误判确定 → 静默给错
     """
-    return offset_minutes < -_DAY_CHANGE_WINDOW_MIN
+    wall_start, wall_end = day_pillar_candidate_wall_interval(late_night)
+    start = wall_start + offset_minutes
+    end = wall_end + offset_minutes
+    if end <= start:
+        # 防御:空区间(三态候选区间均非空,正常不可达)
+        return False
+    # 大于 start 的最小换日点:1380 + 1440k(k = floor 商 + 1,
+    # 保证严格大于 start,避开浮点取模回绕)
+    k = (math.floor(
+        (start - DAY_CHANGE_TRUE_SOLAR_START_MIN) / _MINUTES_PER_DAY) + 1)
+    changeover = DAY_CHANGE_TRUE_SOLAR_START_MIN + _MINUTES_PER_DAY * k
+    return changeover < end
 
 
 def compute_true_solar_time(birth: datetime, longitude: float) -> SolarTimeResult:

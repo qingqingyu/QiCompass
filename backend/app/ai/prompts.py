@@ -13,10 +13,12 @@ PROMPT_VERSIONS 与模板常量放同文件邻近位置:改模板时必须 bump 
 - v1 prompt 系统不需此 suffix:设计文档 §2 全局 Prompt 已要求"字段缺失就说明缺失",
   从格命中时 chart_builder 会把 useful_god_candidates=[],由 LLM 自然降级
 
-时辰未知诚实降级(S06,docs/时辰未知-slices/S06,镜像从格先例):
+时辰未知诚实降级(S06,docs/时辰未知-slices/S06,镜像从格先例但双语):
 - day_master_strength == "unknown_hour"(S01 引擎输出,喜忌留空)时,
   bazi_deep / bazi_deep_free 在 prompt 末尾追加降级约束段:叙事换轴到
   日主×年月日柱十神结构 + 诚实告知"时辰未知,喜忌与时柱分析需要准确出生时刻"
+- zh/en 两份 suffix 双常量同机制渲染(S06 修订 2026-09-01):unknown_hour
+  是本功能刻意制造的常态,非中文不得像 special_pattern 那样 raise
 - bazi_deep_paid 不追加:无时辰用户在 iOS 付费墙即被拦(S07),到不了付费内容,
   付费模板不加无意义分支(slice 拍板)
 
@@ -214,6 +216,22 @@ BAZI_DEEP_UNKNOWN_HOUR_SUFFIX = """
 叙事一律以日主为轴，围绕年柱 / 月柱 / 日柱三柱的十神结构与五行分布如实展开；
 排盘数据中的时柱一栏（干支 / 十神 / 藏干 / 纳音）一律不作为叙事依据，**不得**编造或暗示任何时柱影响；
 喜忌未判定，**不得**推断或编造喜忌结论（不出现"宜×忌×"类表述）。
+"""
+
+# 同上,英文版(S06 修订 2026-09-01)。与 special_pattern 的「非中文 raise」
+# 先例**有意不同**:special_pattern 是罕见命局,拿 raise 当占位可接受;
+# unknown_hour 是本功能刻意制造并主动引导的常态,非中文用户 raise = 硬报错
+# 而非降级解读。zh/en 同机制双常量;未来注册新语言需同步补对应版本。
+BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN = """
+**The birth hour of this chart is unknown, so the hour pillar and favorable/unfavorable
+element conclusions are unavailable. Honestly tell the user: the birth hour is unknown,
+and hour-pillar / favorable-element analysis requires an accurate birth time.**
+Anchor the reading on the day master: narrate strictly from the ten-god structure and
+elemental distribution of the year / month / day pillars.
+Never use the hour-pillar row of the chart data (stems / branches / hidden stems / nayin)
+as a narrative basis, and never fabricate or imply any hour-pillar influence.
+Favorable/unfavorable elements are undetermined: never infer or invent them
+(no "favor X / avoid Y" statements).
 """
 
 # ---------- 合盘 ----------
@@ -843,9 +861,10 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
     """渲染 prompt:先校验必填字段,按 language 加载模板,再 str.format_map 填充。
 
     bazi_deep 系列(alias / _free / _paid)命中 day_master_strength ==
-    "special_pattern" 时追加从格诚实降级约束段;
+    "special_pattern" 时追加从格诚实降级约束段(非中文 raise,既有债);
     命中 "unknown_hour"(时辰未知,S01 引擎输出)时对 alias / _free 追加
-    时辰未知降级约束段——付费 module 不加(iOS S07 付费墙已拦,无意义分支);
+    时辰未知降级约束段(**zh/en 双常量按 language 选,均不 raise**,S06
+    2026-09-01 修订)——付费 module 不加(iOS S07 付费墙已拦,无意义分支);
     daily_fortune 命中 "unknown_hour" 时**整体切换**到降级模板变体
     daily_fortune_unknown_hour_v{version}.md(S09:日柱×流日为轴,数据块
     无喜忌栏/12 时辰段——数据不进 prompt,不是靠指令压制;变体与主模板
@@ -903,16 +922,15 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
     # 时辰未知诚实降级(S06):只挂免费面 module(alias + _free)。
     # bazi_deep_paid 不挂——无时辰用户在 iOS 付费墙即被拦(S07),
     # 到不了付费内容,付费模板不加无意义分支(slice 拍板)。
+    # zh/en 双常量同机制渲染(S06 修订 2026-09-01):unknown_hour 是本功能
+    # 刻意制造的常态,非中文**不得 raise**(与上方 special_pattern 的既有债
+    # 有意不同——那是罕见命局的临时占位)。语言解析层(api/language.py
+    # resolve_language)目前只产出 zh/en;未来注册新语言时需为本 suffix 补
+    # 对应常量,而非静默回落英文。
     if (module in ("bazi_deep", "bazi_deep_free")
             and context.get("day_master_strength") == "unknown_hour"):
-        if language != "zh":
-            # 与从格 suffix 同理:降级段目前只有中文版,非中文显式报错,
-            # 避免英文 prompt 尾部追加中文 suffix(i18n Slice 2 迁移文件时一并处理)
-            raise FileNotFoundError(
-                f"时辰未知降级 suffix 尚无 {language!r} 版本"
-                f"(module={module!r},需补齐"
-                f" prompts/{language}/_unknown_hour_suffix_v{version}.md)"
-            )
-        rendered = rendered + BAZI_DEEP_UNKNOWN_HOUR_SUFFIX
+        suffix = (BAZI_DEEP_UNKNOWN_HOUR_SUFFIX if language == "zh"
+                  else BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN)
+        rendered = rendered + suffix
 
     return rendered

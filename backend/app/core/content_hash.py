@@ -60,7 +60,7 @@ def compute_content_hash(birth: datetime, gender: str, longitude: float,
 
     Args:
         birth: 出生本地时间(timezone-aware;hour_known=false 时调用方
-               应传 12:00 占位归一后的值,见 bazi_engine)
+               应传候选区间中点占位归一后的值,见 bazi_engine)
         gender: "male" | "female"
         longitude: 经度(东正西负)
         zi_hour_rule: 子时规则
@@ -109,7 +109,7 @@ def compute_content_hash(birth: datetime, gender: str, longitude: float,
         }
     else:
         # ---- 时辰未知:时辰桶不参与,日期 + late_night + 歧义标记参与 ----
-        # utcoffset/longitude 仍参与:占位 12:00 的真太阳时解释随两者变化,
+        # utcoffset/longitude 仍参与:占位时刻的真太阳时解释随两者变化,
         # 可能落在不同日/节气;歧义标记(S01 预留追加点)使「同日有/无歧义」
         # 不同 hash(节气边界/西偏换日命中 → 降级输出不同,防缓存碰撞)
         payload = {

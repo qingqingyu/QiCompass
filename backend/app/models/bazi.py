@@ -51,16 +51,17 @@ class BaziCalculateRequest(BaseModel):
     # hour_known 是唯一事实源(不用 00:00:00 哨兵伪装);默认 True 保老客户端不 422
     hour_known: bool = Field(
         True, description="是否知道出生时刻。false 时 birth_datetime 的时辰部分"
-        "被忽略(统一按 12:00 占位排盘,离 23:00 换日与 00:00 两个边界最远),"
-        "响应 pillars.hour 置 null,喜忌引擎降级 unknown_hour")
+        "被忽略(统一按候选区间中点占位排盘:否 11:30 / 是 23:30 / 不确定 12:00,"
+        "D3 2026-09-01 修订),响应 pillars.hour 置 null,喜忌引擎降级 unknown_hour")
     late_night: bool | None = Field(
         None, description="「是否在半夜(约 11 点后)出生」二值问题(D3,三态:"
         "True=是 / False=否 / None=不确定),仅 hour_known=false 时参与判定;"
-        "hour_known=true 时忽略。**日柱歧义窗口定义**(不硬编码墙钟 23:00-24:00):"
-        "换日发生在真太阳时 23:00,墙钟窗口 = [23:00 − offset, 24:00 − offset)"
-        "(mod 24h),offset 为该出生地真太阳时偏移分钟"
-        "(见 true_solar_time.late_night_wall_window);答 False 即在窗口外,"
-        "日柱照常计算;答 True/None 不能排除窗口 → 日柱置 null(不猜)")
+        "hour_known=true 时忽略。**日柱歧义判据 = D3 三步区间测试**(2026-09-01 "
+        "修订,非单边阈值):候选墙钟区间(否 [00:00,23:00) / 是 [23:00,24:00) / "
+        "不确定全天)+ 真太阳时 offset_minutes → 真太阳时候选区间,歧义 ⟺ 区间"
+        "内部严格包含一个真太阳时 23:00 换日点(见 true_solar_time."
+        "day_pillar_ambiguous 场景表:西偏答「是」确定,东偏答「否」歧义)。"
+        "歧义 → 日柱置 null(不猜);确定 → 占位中点落在该确定日柱区间内")
 
     @field_validator("birth_datetime")
     @classmethod
@@ -114,8 +115,10 @@ class Pillars(BaseModel):
     """四柱。day/hour 可为 null(时辰未知显式缺失表达,docs/时辰未知设计决策.md):
 
     - hour_known=false → hour 恒为 null(时辰部分未知,禁用哨兵假精度)
-    - 日柱歧义(hour_known=false 且(late_night != False 或西偏换日网命中,
-      S02/D10))→ day 亦为 null(日主无,日主系派生输出一并置空)
+    - 日柱歧义(hour_known=false 且 D3 区间测试命中:真太阳时候选区间内部
+      含 23:00 换日点,2026-09-01 修订——西偏答「是」/东偏答「否」等场景
+      见 true_solar_time.day_pillar_ambiguous)→ day 亦为 null(日主无,
+      日主系派生输出一并置空)
     - 年柱/月柱歧义(S02/D10 节气边界双排盘比对:立春日/节交界日出生且
       时辰未知)→ year/month 亦为 null(生肖系/调候得令/大运序列级联置空,
       详见 pillar_ambiguity 字段;不猜,禁取 00:00 或 23:59 侧任一结果)
@@ -131,8 +134,9 @@ class PillarAmbiguity(BaseModel):
     """时辰未知时的柱歧义标记(S02/D10,进响应 + calc_rule_snapshot + content_hash)。
 
     - year/month:D10 节气边界双排盘比对命中(立春日/节交界日,≈3.3% 用户)
-    - day:两种来源同一终态 —— S01 late_night 是/不确定,或 S02 西偏换日网
-      (真太阳时 offset < −60min,墙钟日凌晨段落入前一真太阳日)
+    - day:D3 区间测试命中(true_solar_time.day_pillar_ambiguous,2026-09-01
+      修订:真太阳时候选区间内部含 23:00 换日点;「不确定」恒命中,西偏答
+      「是」/东偏答「否」等场景见该函数场景表)
     - 不命中 → 全 False(响应与 S01 基础态一致);hour_known=true 恒不产生
       本对象(老路径零改动,响应字段为 null)
     - 不变量:pillar_ambiguity.<pos> == True ⟺ pillars.<pos> 为 null
@@ -187,7 +191,7 @@ class CalcRuleSnapshot(BaseModel):
     # 「同一输入永远同一输出 + 快照可审计」被破坏)。默认 True 兼容老
     # ChartPayload 回显(2026-08-15 教训:payload 加字段必须可缺省)
     hour_known: bool = True
-    # 时辰未知 S02/D10:柱歧义标记(节气边界双排盘 + 西偏换日网命中状态)。
+    # 时辰未知 S02/D10:柱歧义标记(年/月 = 节气边界双排盘;day = D3 区间测试)。
     # hour_known=true 恒 None(老路径快照不变);hour_known=false 必有值
     # (全 False = 无歧义)——歧义状态进快照,同 hash 可审计歧义降级口径
     pillar_ambiguity: PillarAmbiguity | None = None

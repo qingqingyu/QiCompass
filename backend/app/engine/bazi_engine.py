@@ -21,7 +21,7 @@ from ..core.calc_rule_snapshot import build_calc_rule_snapshot
 from ..core.content_hash import compute_content_hash
 from ..core.true_solar_time import (
     compute_true_solar_time,
-    late_night_wall_window,
+    day_pillar_candidate_wall_interval,
 )
 from ..engine.current import (
     build_current_day_pillar,
@@ -49,22 +49,32 @@ logger = logging.getLogger(__name__)
 # 本项目固定 sect=1(坑1:库默认 sect=2 早晚子时,与「默认 23:00 换日」冲突)
 SECT = 1
 
-# 时辰未知占位时刻(docs/时辰未知设计决策.md 契约备注):统一 12:00。
-# 选 12:00 是离 23:00 换日与 00:00 两个边界最远;且正午与历史夏令时切换点
-# (多在凌晨)天然远离,时区解释稳定
-HOUR_UNKNOWN_PLACEHOLDER_HOUR = 12
-
-
-def hour_unknown_placeholder(birth: datetime) -> datetime:
-    """时辰未知时把时辰部分统一替换为 12:00 占位(保墙钟日期与时区)。
+# 时辰未知占位时刻(docs/时辰未知设计决策.md D3,2026-09-01 修订):
+# 取候选墙钟区间的**中点**——否 [00:00,23:00) → 11:30 / 是 [23:00,24:00)
+# → 23:30 / 不确定 [00:00,24:00) → 12:00。
+# 为什么是中点而不是固定 12:00:D3 区间测试判日柱「确定」时,中点保证
+# 占位时刻的真太阳时必落在该确定日柱的区间内(「是」+东偏 → 23:30 落
+# setSect(1) 换日窗 → 次日日柱;「是」+西偏(如喀什)→ 真太阳时 20:24
+# → 同日),即占位推出的日柱 == 区间测试判定的日柱,是区间中点的性质
+# 而非巧合。「不确定」→ 12:00 离 23:00/00:00 两个换日边界最远(此态
+# 日柱恒歧义置 null,占位只影响年/月/大运起排)。
+def hour_unknown_placeholder(birth: datetime,
+                             late_night: bool | None) -> datetime:
+    """时辰未知时把时辰部分统一替换为候选区间中点占位(保墙钟日期与时区)。
 
     API 层在 resolve_wall_time **之前**先归一(时制边角 dst_flags 不被
     无意义的时辰噪声触发);引擎内再归一一次(幂等,保证直调引擎的
-    调用方同样满足「同一日期任意时辰输入 → 同一输出」)。
+    调用方同样满足「同一日期任意时辰输入 → 同一输出」)。中点选取理由见
+    上方模块注释(与 true_solar_time.day_pillar_candidate_wall_interval
+    的三态区间一一对应)。
     """
-    return birth.replace(
-        hour=HOUR_UNKNOWN_PLACEHOLDER_HOUR, minute=0, second=0, microsecond=0,
-    )
+    if late_night is False:
+        hour, minute = 11, 30   # 否:[00:00,23:00) 中点
+    elif late_night is True:
+        hour, minute = 23, 30   # 是:[23:00,24:00) 中点(落换日窗)
+    else:
+        hour, minute = 12, 0    # 不确定:[00:00,24:00) 中点
+    return birth.replace(hour=hour, minute=minute, second=0, microsecond=0)
 
 
 class BaziEngine:
@@ -93,17 +103,21 @@ class BaziEngine:
             dst_flags: 时区解析边角(歧义/跳过/切换附近),并入 boundary_warning
             birth_timezone: 出生地 IANA 时区名(进 calc_rule_snapshot)
             hour_known: 是否知道出生时刻(docs/时辰未知设计决策.md)。False 时
-                   时辰部分统一替换 12:00 占位喂 lunar_python,响应
-                   pillars.hour=null、喜忌 unknown_hour、五行按已知柱计数;
-                   并做 D10 节气边界双排盘比对(S02):年/月柱干支在
-                   00:00 与 23:59 探针间不一致 → 该柱亦置 null,
-                   西偏经度(offset < −60min)日柱网命中 → 日柱置 null,
-                   歧义状态进 pillar_ambiguity / calc_rule_snapshot / content_hash
-            late_night: 「半夜出生」三态,仅 hour_known=False 时参与判定:
-                   != False(True/None)→ 不能排除换日歧义窗
-                   (窗口定义见 models/bazi.py late_night 字段与
-                   true_solar_time.late_night_wall_window,按真太阳时 offset
-                   反算墙钟,不硬编码 23:00-24:00)→ 日柱置 null,不猜。
+                   时辰部分统一替换为候选区间中点占位喂 lunar_python
+                   (否 11:30 / 是 23:30 / 不确定 12:00,见
+                   hour_unknown_placeholder),响应 pillars.hour=null、
+                   喜忌 unknown_hour、五行按已知柱计数;并做 D10 节气边界
+                   双排盘比对(S02):年/月柱干支在 00:00 与 23:59 探针间
+                   不一致 → 该柱亦置 null;日柱走 D3 区间测试
+                   (true_solar_time.day_pillar_ambiguous,2026-09-01 修订,
+                   拆掉旧「late_night != False 恒 unknown」与「offset < −60
+                   西偏网」判据)→ 命中则日柱置 null;歧义状态进
+                   pillar_ambiguity / calc_rule_snapshot / content_hash
+            late_night: 「半夜出生」三态(True=是 / False=否 / None=不确定),
+                   仅 hour_known=False 时参与:决定候选墙钟区间(D3 第 1 步)
+                   与占位中点;日柱歧义 ⟺ 真太阳时候选区间内部严格包含一个
+                   23:00 换日点(见 true_solar_time.day_pillar_ambiguous
+                   场景表:西偏答「是」确定、东偏答「否」歧义)。
                    True 路径(hour_known=true)本参数被忽略且零改动
 
         Raises:
@@ -111,13 +125,14 @@ class BaziEngine:
         """
         content_hash: str | None = None
         try:
-            # 0. 时辰未知:12:00 占位归一(单一事实源 helper;API 层已归一,
-            #    此处幂等执行,保证「同日期任意时辰输入 → 同一输出」)
-            calc_birth = birth if hour_known else hour_unknown_placeholder(birth)
+            # 0. 时辰未知:候选区间中点占位归一(单一事实源 helper;API 层
+            #    已归一,此处幂等执行,保证「同日期任意时辰输入 → 同一输出」)
+            calc_birth = (birth if hour_known
+                          else hour_unknown_placeholder(birth, late_night))
 
             # 0.5 D10 节气边界歧义检测(S02):仅时辰未知时发生(已知时辰
             #     零开销零改动)。年/月柱 = 00:00/23:59 双排盘比对;
-            #     日柱 = 西偏换日网 + late_night(同一终态两种来源)
+            #     日柱 = D3 区间测试(late_night 三态 × offset,单一判据)
             pillar_ambiguity = (
                 detect_pillar_ambiguity(
                     calc_birth=calc_birth, longitude=longitude,
@@ -175,7 +190,7 @@ class BaziEngine:
                 year_branch_clash = None
 
             # 3.5 contentHash(提前算,供后续日志关联;用输入时间,非真太阳时。
-            # 时辰未知时 birth 为 12:00 归一值:时辰桶不参与,
+            # 时辰未知时 birth 为区间中点占位归一值:时辰桶不参与,
             # 日期+late_night+歧义标记参与(S02))
             content_hash = compute_content_hash(
                 birth=calc_birth, gender=gender,
@@ -217,17 +232,21 @@ class BaziEngine:
                 xiji.pattern_hint, xiji_elapsed_ms,
             )
             if day_pillar_unknown:
-                # 审计留痕:日柱为何置 null(歧义窗口按该出生地 offset 反算墙钟;
-                # 来源 = late_night 是/不确定(S01)或西偏换日网(S02),见
-                # bazi.pillar_ambiguity 日志)
-                win_start, win_end = late_night_wall_window(
-                    solar_result.offset_minutes,
+                # 审计留痕:日柱为何置 null(D3 区间测试命中,判据单一事实源
+                # true_solar_time.day_pillar_ambiguous;命中输入与终态见
+                # bazi.pillar_ambiguity 日志)。真太阳时候选区间用绝对分钟,
+                # 允许跨午夜(不平移回绕)
+                wall_start, wall_end = day_pillar_candidate_wall_interval(
+                    late_night,
                 )
                 logger.info(
                     "bazi.day_pillar_unknown content_hash=%s late_night=%s "
-                    "offset_minutes=%.2f wall_window=%02d:%02d-%02d:%02d",
+                    "offset_minutes=%.2f "
+                    "true_solar_interval=[%.1f,%.1f) "
+                    "contains_changeover=True",
                     content_hash, late_night, solar_result.offset_minutes,
-                    win_start // 60, win_start % 60, win_end // 60, win_end % 60,
+                    wall_start + solar_result.offset_minutes,
+                    wall_end + solar_result.offset_minutes,
                 )
 
             # 3.7 神煞(决策 2:《三命通会》20 个查表)
@@ -240,8 +259,8 @@ class BaziEngine:
             )
 
             # 4. 大运(跳 index=0)。时辰未知时干支序列照给(依赖表:不依赖时柱;
-            #    起运年龄按 12:00 占位换算,弱依赖误差 ±2-3 个月,v1 接受不加标注,
-            #    docs/时辰未知设计决策.md D3 依赖表)。**月柱歧义例外**(S02/D10
+            #    起运年龄按区间中点占位换算,弱依赖误差 ±2-3 个月,v1 接受不加
+            #    标注,docs/时辰未知设计决策.md D3 依赖表)。**月柱歧义例外**(S02/D10
             #    级联):大运从月柱起排,月柱 unknown → 干支序列置 unknown
             #    (空列表,不猜),current_luck_pillar 随之自然为 None
             if pillar_ambiguity is not None and pillar_ambiguity.month:

@@ -16,6 +16,7 @@ from app.ai.prompts import (
     _load_template,
     BAZI_DEEP_SPECIAL_PATTERN_SUFFIX,
     BAZI_DEEP_UNKNOWN_HOUR_SUFFIX,
+    BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN,
     PROMPT_VERSIONS,
     REQUIRED_FIELDS,
     render_prompt,
@@ -365,6 +366,67 @@ def test_bazi_deep_series_prompt_versions_bumped_s06():
     assert PROMPT_VERSIONS["bazi_deep"] == 3
     assert PROMPT_VERSIONS["bazi_deep_free"] == 3
     assert PROMPT_VERSIONS["bazi_deep_paid"] == 6
+
+
+# ===== 5b. 时辰未知降级 en 路径(S06 修订 2026-09-01:zh/en 双 suffix)=====
+
+
+def _stub_en_template(monkeypatch):
+    """桩掉 _load_template,提供最小 en 模板(含一个占位符)。
+
+    prompts/en/ 目前只有 daily_fortune 系列文件;bazi_deep 系列的 en 模板
+    本体是 i18n Slice 2 既有债(缺失即 FileNotFoundError,test_i18n.py 已锁
+    该现状)。R4 修复目标是 **suffix 机制本身**对 en 不 raise,用模板桩把
+    机制层与模板文件债隔离验证。
+    """
+    import app.ai.prompts as prompts_module
+    monkeypatch.setattr(
+        prompts_module, "_load_template",
+        lambda module, language, version:
+            f"EN TEMPLATE ({module}/{language}) {{day_master_strength}}",
+    )
+
+
+def test_unknown_hour_en_renders_without_raise(monkeypatch):
+    """language=en + unknown_hour context → 渲染成功(不 raise FileNotFoundError),
+    尾部追加英文降级段,不出现中文 suffix。"""
+    _stub_en_template(monkeypatch)
+    prompt = render_prompt("bazi_deep_free", BAZI_DEEP_UNKNOWN_HOUR_CONTEXT,
+                           language="en")
+    # 模板主体渲染成功 + suffix 追加在尾部
+    assert prompt.startswith(
+        "EN TEMPLATE (bazi_deep_free/en) unknown_hour")
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN.strip() in prompt
+    assert prompt.rstrip().endswith('(no "favor X / avoid Y" statements).'), (
+        "英文降级段应位于 prompt 尾部")
+    # 尾部不得出现中文 suffix / 任何中文字符
+    assert BAZI_DEEP_UNKNOWN_HOUR_SUFFIX.strip() not in prompt
+    body_len = len("EN TEMPLATE (bazi_deep_free/en) unknown_hour")
+    tail = prompt[body_len:]
+    assert not any("\u4e00" <= ch <= "\u9fff" for ch in tail), (
+        "英文 prompt 尾部不得夹带中文"
+    )
+
+
+def test_unknown_hour_suffix_language_selection_unit():
+    """en/zh suffix 内容语义对齐(诚实告知 + 换轴叙事 + 双禁止),
+    且 en 版不含中文字符(防复制中文段当英文版)。"""
+    assert "birth hour is unknown" in BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN
+    assert "day master" in BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN
+    assert "never infer or invent" in BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN
+    assert "hour-pillar influence" in BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN
+    assert not any(
+        "\u4e00" <= ch <= "\u9fff" for ch in BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN)
+
+
+def test_special_pattern_en_raise_debt_unchanged(monkeypatch):
+    """既有债不得被本修改变:en + special_pattern 仍在 suffix 阶段显式
+    FileNotFoundError(不追加中文从格段)。真实链路里 en 模板文件缺失会更早
+    raise(test_i18n.py 已锁),此处用模板桩隔离验证 suffix 阶段行为不变。"""
+    _stub_en_template(monkeypatch)
+    with pytest.raises(FileNotFoundError, match="从格降级 suffix"):
+        render_prompt("bazi_deep_free", BAZI_DEEP_SPECIAL_PATTERN_CONTEXT,
+                      language="en")
 
 
 # ===== 6. 每日运势时辰未知降级(S09,模板变体 + REQUIRED 按 context 分字段集)=====
