@@ -1,9 +1,14 @@
 """节气边界柱歧义测试(S02/D10,docs/时辰未知-slices/S02 修订版)。
 
-对盘事实(全部经 00:00/23:59 双探针 + lunar_python 1.4.8 实证):
-- 1990-02-04(立春日):年柱 己巳→庚午 / 月柱 丁丑→戊寅(双歧义);正午
-  占位落在立春后(庚午/戊寅);次日 02-05 无歧义
-- 1990-03-06(惊蛰):月柱 戊寅→己卯(单歧义),年柱 庚午 两侧一致
+对盘事实(年/月柱经**候选区间首末**双探针 + lunar_python 1.4.8 实证;
+探针端点随 late_night 收窄,2026-09-01 review 修正——原固定 00:00/23:59
+会让答「是」的立春日用户被误判年柱歧义、生肖无谓 null):
+- 1990-02-04(立春日,立春 ≈10:11 北京):年柱 己巳→庚午 / 月柱 丁丑→戊寅
+  ——**答「否」/「不确定」时双歧义**;正午占位落在立春后(庚午/戊寅);
+  **答「是」时年/月柱确定**(候选区间 [23:00,24:00) 整体在立春后,
+  2026-09-01 探针收窄修正);次日 02-05 无歧义
+- 1990-03-06(惊蛰 ≈04:16 北京):月柱 戊寅→己卯(答「否」/「不确定」单歧义),
+  年柱 庚午 两侧一致;答「是」时月柱亦确定
 - 1990-03-15(普通日):无任何歧义(与 S01 基础态一致)
 - 1990-03-15 @ Asia/Shanghai + 75.99°E(喀什,offset ≈ −185.7):年/月探针
   两侧一致(庚午/己卯);日柱:D3 区间测试 否→歧义 / 是→确定(同日 己卯,
@@ -135,6 +140,76 @@ async def test_lichun_all_pillars_null_when_late_night_unknown(fixed_now,
     assert body["anchor_sentence"] is None
     assert body["shensha"] == []
     assert body["shensha_incomplete"] is True
+
+
+async def test_lichun_late_night_yes_year_month_determined(fixed_now,
+                                                           monkeypatch):
+    """立春日 + late_night=**是** → 年/月柱**确定**,生肖回来(探针收窄回归)。
+
+    2026-09-01 review 修正的那一格:立春 1990-02-04 ≈10:11(北京),答「是」的
+    用户候选区间 [23:00,24:00) 整体落在立春**之后**,年/月柱本就确定。原实现
+    的年/月探针固定探全天 00:00/23:59 不看 late_night,00:00 侧落在立春前 →
+    误判年柱歧义 → year_branch_zodiac 被 null → onboarding 生肖屏无谓降级。
+    这与日柱轴修掉的是同一个错(探针区间宽于用户实际候选区间)。
+
+    注意日柱仍歧义:offset ≈ −28.5min,[23:00,24:00)+offset 横跨真太阳时
+    23:00 换日点(D3 区间测试,与本 slice 的年/月轴互不干涉)。
+    """
+    monkeypatch.setattr(bazi_api, "BaziEngine",
+                        partial(BaziEngine, now=fixed_now))
+    body = await _unknown(LICHUN, late_night=True)
+
+    # 年/月柱确定(本修正的核心);日柱按 D3 区间测试独立命中
+    assert body["pillar_ambiguity"] == {"year": False, "month": False,
+                                        "day": True}
+    assert body["pillars"]["year"] is not None, "答「是」整体在立春后,年柱确定"
+    assert body["pillars"]["month"] is not None
+    assert body["pillars"]["day"] is None      # D3 区间横跨换日点
+    assert body["pillars"]["hour"] is None     # 时辰未知恒 null
+
+    # 生肖系回来 —— onboarding 生肖屏不再无谓降级(S08 不进降级态)
+    assert body["year_branch_zodiac"] is not None
+    assert body["year_branch_friends"] is not None
+    assert body["year_branch_clash"] is not None
+
+    # 月柱确定 → 大运干支序列照给(不再因误判月柱歧义而清空)
+    assert body["luck_pillars"] != []
+
+    # 其余降级语义不变:五行按已知两柱计数 = 4;日主无 → anchor 置 None
+    assert sum(body["element_balance"].values()) == 4
+    assert body["day_master_strength"] == "unknown_hour"
+    assert body["anchor_sentence"] is None
+    assert body["shensha_incomplete"] is True
+
+    # 确定性:同请求两次输出完全一致
+    assert await _unknown(LICHUN, late_night=True) == body
+
+
+async def test_jie_late_night_yes_month_determined(fixed_now, monkeypatch):
+    """惊蛰日 + late_night=是 → 月柱确定(节气 ≈04:16,候选区间整体在其后)。"""
+    monkeypatch.setattr(bazi_api, "BaziEngine",
+                        partial(BaziEngine, now=fixed_now))
+    body = await _unknown(JIE, late_night=True)
+
+    assert body["pillar_ambiguity"]["month"] is False, "答「是」整体在惊蛰后"
+    assert body["pillar_ambiguity"]["year"] is False
+    assert body["pillars"]["month"] is not None
+    assert body["luck_pillars"] != [], "月柱确定 → 大运序列不清空"
+
+
+async def test_lichun_late_night_no_still_ambiguous(fixed_now, monkeypatch):
+    """反向护栏:立春日 + late_night=否 → 年/月柱仍歧义(区间确实横跨立春)。
+
+    防止「收窄探针」被过度实现成「不再检测」——否的候选区间 [00:00,23:00)
+    真横跨 10:11 的立春,必须照旧命中。
+    """
+    monkeypatch.setattr(bazi_api, "BaziEngine",
+                        partial(BaziEngine, now=fixed_now))
+    body = await _unknown(LICHUN, late_night=False)
+
+    assert body["pillar_ambiguity"]["year"] is True
+    assert body["pillar_ambiguity"]["month"] is True
+    assert body["year_branch_zodiac"] is None
 
 
 # ===== 2. 节交界日:月柱歧义 → 大运 unknown =====
