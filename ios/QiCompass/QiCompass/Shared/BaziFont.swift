@@ -33,6 +33,29 @@ enum BaziFont {
         return .system(size: size, weight: weight, design: .serif)
     }
 
+    /// 宋体 PostScript 名(iOS 系统自带 Songti SC;"STSong" 旧名兜底)。
+    private static let songtiName: String? = UIFont(name: "Songti SC", size: 12) != nil
+        ? "Songti SC"
+        : (UIFont(name: "STSong", size: 12) != nil ? "STSong" : nil)
+
+    /// 图内题记字体(2026-08-31 glass-v2 拍板:图内中文 = 宋体,刻本气质;
+    /// 解读框等其余展示层仍楷体——「图内宋/文中楷」分层,DESIGN.md 补录)。
+    /// 英文 locale 走系统 .serif(New York 系)。缺失时回退系统 .serif 永不裸奔。
+    static func songDisplay(size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        guard isChineseUI else {
+            return .system(size: size, weight: weight, design: .serif)
+        }
+        if let name = songtiName {
+            return .custom(name, size: size)
+        }
+        return .system(size: size, weight: weight, design: .serif)
+    }
+
+    /// 等宽(iOS 自带 Menlo 系;EN 图内条目 / 技术小字)。
+    static func mono(size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        .system(size: size, weight: weight, design: .monospaced)
+    }
+
     /// 显示字体(中文 Kaiti / 英文系统衬线)。楷体笔画细,展示层默认 Medium。
     static func display(size: CGFloat, weight: Font.Weight = .medium) -> Font {
         guard isChineseUI else {

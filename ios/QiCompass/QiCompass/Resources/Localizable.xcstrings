@@ -1,2809 +1,2552 @@
 {
-  "sourceLanguage" : "zh-Hans",
-  "strings" : {
-    "" : {
-
-    },
-    "· %@" : {
-
-    },
-    "%@ · %@" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$@ · %2$@"
-          }
-        }
-      }
-    },
-    "%@ %@" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ %2$@"
+  "sourceLanguage": "zh-Hans",
+  "strings": {
+    "": {},
+    "%@ %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ %2$@"
           }
         }
       }
     },
-    "%@ ID:%@" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@ ID:%2$@"
+    "%@ ID:%@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@ ID:%2$@"
           }
         }
       }
     },
-    "%@%lld" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$@%2$lld"
+    "%@ · %@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$@ · %2$@"
           }
         }
       }
-    },
-    "%@内容" : {
-
     },
-    "%@时 ›" : {
-
-    },
-    "%lld / 500" : {
-
-    },
-    "%lld 年生" : {
-
-    },
-    "%lld-%lld" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld-%2$lld"
+    "%@%lld": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$@%2$lld"
           }
         }
       }
     },
-    "%lld-%lld岁" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "%1$lld-%2$lld岁"
+    "%@内容": {},
+    "%@时 ›": {},
+    "%lld / 500": {},
+    "%lld 年生": {},
+    "%lld-%lld": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld-%2$lld"
           }
         }
       }
-    },
-    "• %@" : {
-
-    },
-    "◎ 缓存" : {
-
-    },
-    "◎ 缓存命中(不消耗次数)" : {
-
-    },
-    "◎ 调候用神已触发" : {
-
-    },
-    "⚠ %@" : {
-
     },
-    "6 章解读:基础相处 / 互补冲突 / 五行共振 / 合作事业 / 财运合拍 / 流年同步" : {
-
-    },
-    "24h 内已缓存,不消耗次数" : {
-
-    },
-    "AI 命书" : {
-
-    },
-    "birthform.alias.label" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chart name"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "命盘别名"
+    "%lld-%lld岁": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "%1$lld-%2$lld岁"
           }
         }
       }
     },
-    "birthform.alias.placeholder" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Me / Mom / Partner"
+    "24h 内已缓存,不消耗次数": {},
+    "6 章解读:基础相处 / 互补冲突 / 五行共振 / 合作事业 / 财运合拍 / 流年同步": {},
+    "AI 命书": {},
+    "Build": {},
+    "QICOMPASS": {},
+    "birthform.alias.label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chart name"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "我自己 / 妈妈 / 男友"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "命盘别名"
           }
         }
       }
     },
-    "birthform.birthDatetime.label" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Birth date & time"
+    "birthform.alias.placeholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Me / Mom / Partner"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "出生时间"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "我自己 / 妈妈 / 男友"
           }
         }
       }
     },
-    "birthform.birthplace.label" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Birthplace"
+    "birthform.birthDatetime.label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Birth date & time"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "出生地"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出生时间"
           }
         }
       }
     },
-    "birthform.cta.loading" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Charting…"
+    "birthform.birthplace.label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Birthplace"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "排盘布算中"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出生地"
           }
         }
       }
     },
-    "birthform.cta.start" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chart my destiny"
+    "birthform.cta.loading": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charting…"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "开始排盘"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "排盘布算中"
           }
         }
       }
     },
-    "birthform.datePicker.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Birth date & time"
+    "birthform.cta.start": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chart my destiny"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "出生日期与时刻"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始排盘"
           }
         }
       }
     },
-    "birthform.gender.female" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Female"
+    "birthform.datePicker.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Birth date & time"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "女"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出生日期与时刻"
           }
         }
       }
     },
-    "birthform.gender.label" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gender"
+    "birthform.gender.female": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Female"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "性别"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "女"
           }
         }
       }
     },
-    "birthform.gender.male" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Male"
+    "birthform.gender.label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gender"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "男"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "性别"
           }
         }
       }
     },
-    "birthform.hourQuickPick.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Only know the rough hour? Tap to pick"
+    "birthform.gender.male": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Male"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "只知时辰不知精确时间?点此选"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "男"
           }
         }
       }
     },
-    "birthform.hourQuickPick.label" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quick hour pick (optional)"
+    "birthform.hourQuickPick.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Only know the rough hour? Tap to pick"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "时辰快捷选(可选)"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只知时辰不知精确时间?点此选"
           }
         }
       }
-    },
-    "Build" : {
-
     },
-    "city.about.geonames" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "City data from GeoNames (CC BY 4.0)"
+    "birthform.hourQuickPick.label": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quick hour pick (optional)"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "城市数据来自 GeoNames（CC BY 4.0）"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "时辰快捷选(可选)"
           }
         }
       }
     },
-    "city.error.databaseMissing" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "City database unavailable. Please reinstall the app."
+    "city.about.geonames": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "City data from GeoNames (CC BY 4.0)"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "城市数据库不可用，请重新安装 App"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "城市数据来自 GeoNames（CC BY 4.0）"
           }
         }
       }
     },
-    "city.error.queryFailed" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "City search failed"
+    "city.error.databaseMissing": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "City database unavailable. Please reinstall the app."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "城市搜索出错"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "城市数据库不可用，请重新安装 App"
           }
         }
       }
     },
-    "city.search.cancel" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cancel"
+    "city.error.queryFailed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "City search failed"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "取消"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "城市搜索出错"
           }
         }
       }
     },
-    "city.search.custom.back" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Back to search"
+    "city.search.cancel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "返回搜索"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消"
           }
         }
       }
     },
-    "city.search.custom.confirm" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Use custom location"
+    "city.search.custom.back": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Back to search"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "使用自定义地点"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "返回搜索"
           }
         }
       }
     },
-    "city.search.custom.entry" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Can't find it? Custom location"
+    "city.search.custom.confirm": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Use custom location"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "找不到出生地？自定义地点"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "使用自定义地点"
           }
         }
       }
     },
-    "city.search.custom.entryHint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Not in the list? Add a custom location (longitude + time zone) at the bottom of search."
+    "city.search.custom.entry": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Can't find it? Custom location"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "搜不到？搜索页底部可自定义地点（经度 + 时区）。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "找不到出生地？自定义地点"
           }
         }
       }
     },
-    "city.search.custom.errorLongitude" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Longitude must be a number between -180 and 180"
+    "city.search.custom.entryHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not in the list? Add a custom location (longitude + time zone) at the bottom of search."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "经度需为 -180 到 180 之间的数字"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜不到？搜索页底部可自定义地点（经度 + 时区）。"
           }
         }
       }
     },
-    "city.search.custom.errorTimezone" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Please choose a time zone"
+    "city.search.custom.errorLongitude": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Longitude must be a number between -180 and 180"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "请选择时区"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "经度需为 -180 到 180 之间的数字"
           }
         }
       }
     },
-    "city.search.custom.longitude" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Longitude (E+/W−)"
+    "city.search.custom.errorTimezone": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Please choose a time zone"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "经度（东正西负）"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "请选择时区"
           }
         }
       }
     },
-    "city.search.custom.longitudeFooter" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "4 decimals ≈ 10 m precision; for bases, ships and other rare birthplaces"
+    "city.search.custom.longitude": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Longitude (E+/W−)"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "4 位小数足够（约 10 米）；出生在医院基地、船上等冷门地点时使用"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "经度（东正西负）"
           }
         }
       }
     },
-    "city.search.custom.longitudeHint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "e.g. 116.4074 or -118.24"
+    "city.search.custom.longitudeFooter": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4 decimals ≈ 10 m precision; for bases, ships and other rare birthplaces"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "如 116.4074 或 -118.24"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "4 位小数足够（约 10 米）；出生在医院基地、船上等冷门地点时使用"
           }
         }
       }
     },
-    "city.search.custom.timezone" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Time zone (required)"
+    "city.search.custom.longitudeHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g. 116.4074 or -118.24"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "时区（必选）"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如 116.4074 或 -118.24"
           }
         }
       }
     },
-    "city.search.custom.timezonePrompt" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Choose a time zone"
+    "city.search.custom.timezone": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Time zone (required)"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "选择出生地时区"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "时区（必选）"
           }
         }
       }
     },
-    "city.search.hot" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Popular"
+    "city.search.custom.timezonePrompt": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose a time zone"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "热门城市"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择出生地时区"
           }
         }
       }
     },
-    "city.search.noResults" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No results for \"%@\" — try pinyin or English"
+    "city.search.hot": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Popular"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未找到「%@」，试试拼音或英文名"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "热门城市"
           }
         }
       }
     },
-    "city.search.placeholder" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Search birth city"
+    "city.search.noResults": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No results for \"%@\" — try pinyin or English"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "搜索出生城市"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到「%@」，试试拼音或英文名"
           }
         }
       }
     },
-    "city.search.recents" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Recent"
+    "city.search.placeholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Search birth city"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "最近选择"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "搜索出生城市"
           }
         }
       }
     },
-    "city.search.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Birth city"
+    "city.search.recents": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recent"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "出生城市"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "最近选择"
           }
         }
       }
     },
-    "common.cancel" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cancel"
+    "city.search.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Birth city"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "取消"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "出生城市"
           }
         }
       }
     },
-    "common.countdown" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Resets in %@"
+    "common.cancel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cancel"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "距重置:%@"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "取消"
           }
         }
       }
     },
-    "common.countdown.timeFormat" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lldh %lldm"
+    "common.countdown": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Resets in %@"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld 时 %lld 分"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "距重置:%@"
           }
         }
       }
     },
-    "common.limitReached" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Today's free readings are used up. Come back tomorrow."
+    "common.countdown.timeFormat": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lldh %lldm"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "今日机缘已尽,明日再来"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 时 %lld 分"
           }
         }
       }
     },
-    "dailyfortune.empty.subtitle1" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No chart archive was found."
+    "common.limitReached": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's free readings are used up. Come back tomorrow."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未找到你的命盘存档。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日机缘已尽,明日再来"
           }
         }
       }
     },
-    "dailyfortune.empty.subtitle2" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reset your chart in Profile to enter your birth info again."
+    "dailyfortune.empty.subtitle1": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No chart archive was found."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "可在「我的」重置命盘,重新填写出生信息。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "未找到你的命盘存档。"
           }
         }
       }
     },
-    "dailyfortune.empty.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Today's Daily Fortune"
+    "dailyfortune.empty.subtitle2": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Reset your chart in Profile to enter your birth info again."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "今日流日运势"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可在「我的」重置命盘,重新填写出生信息。"
           }
         }
       }
     },
-    "dailyfortune.header.chongPrefix" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Clashes: "
+    "dailyfortune.empty.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's Daily Fortune"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "冲"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日流日运势"
           }
         }
       }
     },
-    "dailyfortune.header.dayPillarSuffix" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : " Day"
+    "dailyfortune.header.chongPrefix": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clashes: "
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "日"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "冲"
           }
         }
       }
     },
-    "dailyfortune.header.lunarPrefix" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Lunar"
+    "dailyfortune.header.dayPillarSuffix": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": " Day"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "农历"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日"
           }
         }
       }
     },
-    "dailyfortune.header.shortLabel" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Daily Fortune"
+    "dailyfortune.header.lunarPrefix": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Lunar"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "今日运势"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "农历"
           }
         }
       }
     },
-    "dailyfortune.hero.disclaimer" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "For reference only"
+    "dailyfortune.header.shortLabel": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily Fortune"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "解读仅供参照"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日运势"
           }
         }
       }
     },
-    "dailyfortune.hero.generating" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Painting"
+    "dailyfortune.hero.disclaimer": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "For reference only"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "生图中"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解读仅供参照"
           }
         }
       }
     },
-    "dailyfortune.hero.retry" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Retry"
+    "dailyfortune.hero.generating": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Painting"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重试"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生图中"
           }
         }
       }
     },
-    "dailyfortune.history.done" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Done"
+    "dailyfortune.hero.retry": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试"
           }
         }
       }
     },
-    "dailyfortune.history.earlier" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Earlier"
+    "dailyfortune.history.done": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Done"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更早"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成"
           }
         }
       }
     },
-    "dailyfortune.history.freeTitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Free: past 7 days"
+    "dailyfortune.history.earlier": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Earlier"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "免费回看 7 天"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更早"
           }
         }
       }
     },
-    "dailyfortune.history.sheetTitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "History"
+    "dailyfortune.history.freeTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Free: past 7 days"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "历史回看"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "免费回看 7 天"
           }
         }
       }
     },
-    "dailyfortune.history.unlockCTA" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unlock full history"
+    "dailyfortune.history.sheetTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "History"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "解锁全部历史"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史回看"
           }
         }
       }
     },
-    "dailyfortune.history.unlockNote" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Any purchase unlocks your full lookback."
+    "dailyfortune.history.unlockCTA": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Unlock full history"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成任意一次购买,即可解锁全部历史回看。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "解锁全部历史"
           }
         }
       }
     },
-    "dailyfortune.interpret.cached" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cached within 24h, no quota consumed"
+    "dailyfortune.history.unlockNote": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Any purchase unlocks your full lookback."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "24h 内已缓存,不消耗次数"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "完成任意一次购买,即可解锁全部历史回看。"
           }
         }
       }
     },
-    "dailyfortune.interpret.cta" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tap to generate today's reading (~50–80 words)"
+    "dailyfortune.interpret.cached": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Cached within 24h, no quota consumed"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "点击生成今日流日解读(约 50-80 字)"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "24h 内已缓存,不消耗次数"
           }
         }
       }
     },
-    "dailyfortune.interpret.loading" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Divining…"
+    "dailyfortune.interpret.cta": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Tap to generate today's reading (~50–80 words)"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "推演中…"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点击生成今日流日解读(约 50-80 字)"
           }
         }
       }
     },
-    "dailyfortune.interpret.retry" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Retry"
+    "dailyfortune.interpret.loading": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Divining…"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重试"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "推演中…"
           }
         }
       }
     },
-    "dailyfortune.interpret.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Today's Reading"
+    "dailyfortune.interpret.retry": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Retry"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "今日解读"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重试"
           }
         }
       }
     },
-    "dailyfortune.label.ji" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Inauspicious"
+    "dailyfortune.interpret.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's Reading"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "忌"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日解读"
           }
         }
       }
     },
-    "dailyfortune.label.yi" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Auspicious"
+    "dailyfortune.label.ji": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Inauspicious"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "宜"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "忌"
           }
         }
       }
     },
-    "dailyfortune.main.historyError" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to load history"
+    "dailyfortune.label.yi": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Auspicious"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "历史加载失败"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "宜"
           }
         }
       }
     },
-    "dailyfortune.main.offline" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Offline — showing cached data, no quota consumed"
+    "dailyfortune.main.historyError": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Failed to load history"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "离线查看(展示本地缓存,不扣次数)"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "历史加载失败"
           }
         }
       }
     },
-    "dailyfortune.tomorrow.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Tomorrow's Preview"
+    "dailyfortune.main.offline": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Offline — showing cached data, no quota consumed"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "明日预告"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "离线查看(展示本地缓存,不扣次数)"
           }
         }
       }
     },
-    "hash: %@…" : {
-
-    },
-    "healthform.age.decrease" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Decrease age"
+    "hash: %@…": {},
+    "healthform.age.decrease": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Decrease age"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "减小年龄"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "减小年龄"
           }
         }
       }
     },
-    "healthform.age.increase" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Increase age"
+    "healthform.age.increase": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Increase age"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "增大年龄"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "增大年龄"
           }
         }
       }
     },
-    "healthform.age.question" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your age"
+    "healthform.age.question": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your age"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "你的年龄"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的年龄"
           }
         }
       }
     },
-    "healthform.age.value" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld yrs"
+    "healthform.age.value": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld yrs"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%lld 岁"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld 岁"
           }
         }
       }
     },
-    "healthform.concern.fatigue" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Fatigue"
+    "healthform.concern.fatigue": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fatigue"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "疲劳"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "疲劳"
           }
         }
       }
     },
-    "healthform.concern.fatigue.detail" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Running on empty on workdays"
+    "healthform.concern.fatigue.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Running on empty on workdays"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "工作日长期精力不济"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "工作日长期精力不济"
           }
         }
       }
     },
-    "healthform.concern.mood" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Mood"
+    "healthform.concern.mood": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mood"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "情绪"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "情绪"
           }
         }
       }
     },
-    "healthform.concern.mood.detail" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Anxiety / low mood / irritability"
+    "healthform.concern.mood.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Anxiety / low mood / irritability"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "焦虑 / 低落 / 易怒"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "焦虑 / 低落 / 易怒"
           }
         }
       }
     },
-    "healthform.concern.other" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Other"
+    "healthform.concern.other": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Other"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "其他"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "其他"
           }
         }
       }
     },
-    "healthform.concern.other.detail" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No details for now — just the category"
+    "healthform.concern.other.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No details for now — just the category"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "暂无法填细节,仅告知大类"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无法填细节,仅告知大类"
           }
         }
       }
     },
-    "healthform.concern.question" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "How you've been feeling"
+    "healthform.concern.question": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "How you've been feeling"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "近来的身体状况"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "近来的身体状况"
           }
         }
       }
     },
-    "healthform.concern.sleep" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sleep"
+    "healthform.concern.sleep": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sleep"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "睡眠"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "睡眠"
           }
         }
       }
     },
-    "healthform.concern.sleep.detail" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hard to fall asleep / waking early / unrefreshed"
+    "healthform.concern.sleep.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hard to fall asleep / waking early / unrefreshed"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "入睡难 / 醒得早 / 不解乏"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "入睡难 / 醒得早 / 不解乏"
           }
         }
       }
     },
-    "healthform.concern.weight" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Weight"
+    "healthform.concern.weight": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Weight"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "体重"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "体重"
           }
         }
       }
     },
-    "healthform.concern.weight.detail" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Metabolism / appetite / body shape"
+    "healthform.concern.weight.detail": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Metabolism / appetite / body shape"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "代谢 / 食欲 / 体型"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "代谢 / 食欲 / 体型"
           }
         }
       }
     },
-    "healthform.cta.generate" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Generate this chapter"
+    "healthform.cta.generate": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Generate this chapter"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "生成本章"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成本章"
           }
         }
       }
     },
-    "healthform.cta.later" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You can also answer later in the chapter"
+    "healthform.cta.later": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can also answer later in the chapter"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "稍后在章节内补答也可"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "稍后在章节内补答也可"
           }
         }
       }
     },
-    "healthform.cta.loading" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Divining…"
+    "healthform.cta.loading": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Divining…"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "生成中…"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "生成中…"
           }
         }
       }
     },
-    "healthform.kicker" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chapter V · Two questions first"
+    "healthform.kicker": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chapter V · Two questions first"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "第 伍 章 · 生成前两问"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 伍 章 · 生成前两问"
           }
         }
       }
     },
-    "healthform.required" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Required"
+    "healthform.required": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Required"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "必答"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "必答"
           }
         }
       }
     },
-    "healthform.subtitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This chapter draws on your age and current state. Your answers shape this chapter only. For reference — not medical advice."
+    "healthform.subtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This chapter draws on your age and current state. Your answers shape this chapter only. For reference — not medical advice."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "这一章结合你的年龄与近况推演,答案只影响本章内容。仅供参考,不替代医生。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这一章结合你的年龄与近况推演,答案只影响本章内容。仅供参考,不替代医生。"
           }
         }
       }
     },
-    "healthform.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Health & vitality · shaped by you"
+    "healthform.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Health & vitality · shaped by you"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "健康续航 · 因你而异"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "健康续航 · 因你而异"
           }
         }
       }
     },
-    "hepan.dual.dayPillar" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Day Pillar"
+    "hepan.dual.dayPillar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Day Pillar"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "日柱"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "日柱"
           }
         }
       }
     },
-    "hepan.dual.hourPillar" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Hour Pillar"
+    "hepan.dual.hourPillar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hour Pillar"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "时柱"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "时柱"
           }
         }
       }
     },
-    "hepan.dual.monthPillar" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Month Pillar"
+    "hepan.dual.monthPillar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Month Pillar"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "月柱"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "月柱"
           }
         }
       }
     },
-    "hepan.dual.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Two charts, side by side"
+    "hepan.dual.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Two charts, side by side"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "双盘对比"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "双盘对比"
           }
         }
       }
     },
-    "hepan.dual.yearPillar" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Year Pillar"
+    "hepan.dual.yearPillar": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Year Pillar"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "年柱"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "年柱"
           }
         }
       }
     },
-    "hepan.synced.personAYear" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A's year"
+    "hepan.synced.personAYear": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A's year"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A 流年"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A 流年"
           }
         }
       }
     },
-    "hepan.synced.personBYear" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "B's year"
+    "hepan.synced.personBYear": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "B's year"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "B 流年"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "B 流年"
           }
         }
       }
     },
-    "hepan.synced.sync" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sync"
+    "hepan.synced.sync": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sync"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "同步"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同步"
           }
         }
       }
     },
-    "hepan.synced.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Yearly sync · the next three years"
+    "hepan.synced.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Yearly sync · the next three years"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "流年同步 · 未来三年"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "流年同步 · 未来三年"
           }
         }
       }
     },
-    "hepan.synced.year" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Year"
+    "hepan.synced.year": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Year"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "年份"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "年份"
           }
         }
       }
     },
-    "onboarding.calculating.steps" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pillars · Ten Gods · Omens · Luck cycles"
+    "onboarding.calculating.steps": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Pillars · Ten Gods · Omens · Luck cycles"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "四柱 · 十神 · 神煞 · 大运"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "四柱 · 十神 · 神煞 · 大运"
           }
         }
       }
     },
-    "onboarding.calculating.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Charting your destiny"
+    "onboarding.calculating.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charting your destiny"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "排盘布算中"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "排盘布算中"
           }
         }
       }
     },
-    "onboarding.form.privacyLine" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your chart stays on your phone · No account"
+    "onboarding.form.privacyLine": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your chart stays on your phone · No account"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "命盘只存你手机 · 无账号"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "命盘只存你手机 · 无账号"
           }
         }
       }
     },
-    "onboarding.form.subtitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your BaZi starts here"
+    "onboarding.form.subtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your BaZi starts here"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "八字 · 由此起算"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "八字 · 由此起算"
           }
         }
       }
     },
-    "onboarding.form.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your birth details"
+    "onboarding.form.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your birth details"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "你的出生信息"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "你的出生信息"
           }
         }
       }
     },
-    "onboarding.personality.dog" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Loyal and faithful, you commit wholeheartedly. When a friend is in need, you're the first to show up."
+    "onboarding.personality.dog": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Loyal and faithful, you commit wholeheartedly. When a friend is in need, you're the first to show up."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "忠诚念旧，认定了就一心一意；讲义气，朋友有难第一个到。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "忠诚念旧，认定了就一心一意；讲义气，朋友有难第一个到。"
           }
         }
       }
     },
-    "onboarding.personality.dragon" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You carry an inner compass — once committed, you don't look back. With a natural sense of order, you do things properly."
+    "onboarding.personality.dragon": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You carry an inner compass — once committed, you don't look back. With a natural sense of order, you do things properly."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "心里有杆秤，认定的事不回头；天生的秩序感，做事要做得漂亮。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心里有杆秤，认定的事不回头；天生的秩序感，做事要做得漂亮。"
           }
         }
       }
     },
-    "onboarding.personality.goat" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Soft-hearted, you can't stand seeing others struggle. With a fine eye for beauty, you turn ordinary days warm."
+    "onboarding.personality.goat": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Soft-hearted, you can't stand seeing others struggle. With a fine eye for beauty, you turn ordinary days warm."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "心软细腻，见不得别人为难；审美在线，能把寻常日子过出温度。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心软细腻，见不得别人为难；审美在线，能把寻常日子过出温度。"
           }
         }
       }
     },
-    "onboarding.personality.horse" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Warm and open, you light up every room. Freedom-loving, you chase your goals with unstoppable drive."
+    "onboarding.personality.horse": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Warm and open, you light up every room. Freedom-loving, you chase your goals with unstoppable drive."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "热情坦荡，走到哪都自带气氛；向往自由，追起目标来拦都拦不住。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "热情坦荡，走到哪都自带气氛；向往自由，追起目标来拦都拦不住。"
           }
         }
       }
     },
-    "onboarding.personality.monkey" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Quick-minded and inventive, you find a way out of any corner. A natural entertainer, you keep every room alive."
+    "onboarding.personality.monkey": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quick-minded and inventive, you find a way out of any corner. A natural entertainer, you keep every room alive."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "脑子活，点子多，再难的局面也能转出活路；天生的开心果，有你在不冷场。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "脑子活，点子多，再难的局面也能转出活路；天生的开心果，有你在不冷场。"
           }
         }
       }
     },
-    "onboarding.personality.ox" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Slow to warm but rock-steady, you take things one solid step at a time. Quiet, yet the one everyone leans on."
+    "onboarding.personality.ox": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Slow to warm but rock-steady, you take things one solid step at a time. Quiet, yet the one everyone leans on."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "慢热但稳，认准的事一步一个脚印；话不多，却是身边人最靠得住的那一个。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "慢热但稳，认准的事一步一个脚印；话不多，却是身边人最靠得住的那一个。"
           }
         }
       }
     },
-    "onboarding.personality.pig" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Big-hearted and easygoing, you don't hold grudges — life flows gently. Generous to all, you're the warmth in your circle."
+    "onboarding.personality.pig": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Big-hearted and easygoing, you don't hold grudges — life flows gently. Generous to all, you're the warmth in your circle."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "心宽福厚，不记仇不较劲，日子过得松弛；对人对己都慷慨，是朋友圈里的暖流。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "心宽福厚，不记仇不较劲，日子过得松弛；对人对己都慷慨，是朋友圈里的暖流。"
           }
         }
       }
     },
-    "onboarding.personality.rabbit" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gentle and perceptive, you care for others in quiet ways. Soft on the surface, firm within."
+    "onboarding.personality.rabbit": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gentle and perceptive, you care for others in quiet ways. Soft on the surface, firm within."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "温和细腻，照顾人于无声处；看似柔软，心里却有自己的坚持。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "温和细腻，照顾人于无声处；看似柔软，心里却有自己的坚持。"
           }
         }
       }
     },
-    "onboarding.personality.rat" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sharp-eyed and quick-witted, you see through to the heart of things. Attentive and family-minded, you have a knack for making daily life thrive."
+    "onboarding.personality.rat": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sharp-eyed and quick-witted, you see through to the heart of things. Attentive and family-minded, you have a knack for making daily life thrive."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "机敏灵动，一眼看穿事情的门道；心思细，顾家，能把小日子盘活。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "机敏灵动，一眼看穿事情的门道；心思细，顾家，能把小日子盘活。"
           }
         }
       }
     },
-    "onboarding.personality.rooster" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Sharp-eyed and organized, you get things done cleanly. You value standards — and you stand up for the people you care about."
+    "onboarding.personality.rooster": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sharp-eyed and organized, you get things done cleanly. You value standards — and you stand up for the people you care about."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "眼里有活，做事利落不拖泥带水；讲究体面，也肯为在意的人出头。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "眼里有活，做事利落不拖泥带水；讲究体面，也肯为在意的人出头。"
           }
         }
       }
     },
-    "onboarding.personality.snake" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "You think deep and see far, planning before you act. Beneath the calm lies sharp judgment."
+    "onboarding.personality.snake": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You think deep and see far, planning before you act. Beneath the calm lies sharp judgment."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "想得深，看得远，凡事谋定而后动；安静的外表下，藏着敏锐的判断力。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "想得深，看得远，凡事谋定而后动；安静的外表下，藏着敏锐的判断力。"
           }
         }
       }
     },
-    "onboarding.personality.tiger" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "A born doer — you see it and you go. Your presence gives people confidence."
+    "onboarding.personality.tiger": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "A born doer — you see it and you go. Your presence gives people confidence."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "天生的行动派，说干就干，眼里有光；有你在场，大家心里就有底。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "天生的行动派，说干就干，眼里有光；有你在场，大家心里就有底。"
           }
         }
       }
     },
-    "onboarding.reveal.clashTitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Needs patience"
+    "onboarding.reveal.clashTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Needs patience"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "需磨合"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "需磨合"
           }
         }
       }
     },
-    "onboarding.reveal.cta" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Start deep analysis"
+    "onboarding.reveal.cta": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Start deep analysis"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "开始深度解析"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "开始深度解析"
           }
         }
       }
     },
-    "onboarding.reveal.friendsTitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Natural friends"
+    "onboarding.reveal.friendsTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Natural friends"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "好朋友"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "好朋友"
           }
         }
       }
     },
-    "onboarding.reveal.stanceLine" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Same birth data, same chart · Rules decide, AI polishes"
+    "onboarding.reveal.stanceLine": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Same birth data, same chart · Rules decide, AI polishes"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "同一组生辰，同一张盘 · 喜忌由规则判，AI 只润色"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同一组生辰，同一张盘 · 喜忌由规则判，AI 只润色"
           }
         }
       }
     },
-    "onboarding.welcome.swipeHint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Swipe to enter birth details ›"
+    "onboarding.welcome.swipeHint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Swipe to enter birth details ›"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "左滑录入生辰 ›"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "左滑录入生辰 ›"
           }
         }
       }
     },
-    "onboarding.welcome.tagline" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Know your chart"
+    "onboarding.welcome.tagline": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Know your chart"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "读懂你的命局"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "读懂你的命局"
           }
         }
       }
     },
-    "profile.about.privacy1" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your chart lives on your phone. No account, no cloud sync"
+    "profile.about.privacy1": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Your chart lives on your phone. No account, no cloud sync"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "命盘只在你手机上，无账号，无云同步"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "命盘只在你手机上，无账号，无云同步"
           }
         }
       }
     },
-    "profile.about.privacy2" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI readings run on our servers; keys stay server-side"
+    "profile.about.privacy2": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI readings run on our servers; keys stay server-side"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "AI 解读走我们服务器，密钥保管在后端"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "AI 解读走我们服务器，密钥保管在后端"
           }
         }
       }
     },
-    "profile.about.privacy3" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No tracking, no profiling"
+    "profile.about.privacy3": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No tracking, no profiling"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "没有跟踪，没有画像"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有跟踪，没有画像"
           }
         }
       }
     },
-    "profile.about.privacyTitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Privacy & data"
+    "profile.about.privacyTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Privacy & data"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "隐私与数据"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐私与数据"
           }
         }
       }
     },
-    "profile.about.stance1" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Same birth data, same chart"
+    "profile.about.stance1": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Same birth data, same chart"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "同一组生辰，同一张盘"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "同一组生辰，同一张盘"
           }
         }
       }
     },
-    "profile.about.stance2" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rules decide, AI polishes"
+    "profile.about.stance2": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rules decide, AI polishes"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "喜忌由规则判，AI 只润色"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "喜忌由规则判，AI 只润色"
           }
         }
       }
     },
-    "profile.about.stance3" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Edge cases are labeled honestly"
+    "profile.about.stance3": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Edge cases are labeled honestly"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "命局有特例，如实标注"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "命局有特例，如实标注"
           }
         }
       }
     },
-    "profile.about.stanceTitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Why trust it"
+    "profile.about.stanceTitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Why trust it"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "为什么可信"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为什么可信"
           }
         }
       }
-    },
-    "QICOMPASS" : {
-
     },
-    "wealthform.assets.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rough is fine — no exact numbers"
+    "wealthform.assets.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Rough is fine — no exact numbers"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "可粗略,不需精确数字"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "可粗略,不需精确数字"
           }
         }
       }
     },
-    "wealthform.assets.placeholder" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "e.g. median income, some savings, no property"
+    "wealthform.assets.placeholder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "e.g. median income, some savings, no property"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "如:中等收入,有积蓄,无房产"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "如:中等收入,有积蓄,无房产"
           }
         }
       }
     },
-    "wealthform.assets.question" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Assets & income snapshot"
+    "wealthform.assets.question": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Assets & income snapshot"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "资产 / 收入概况"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "资产 / 收入概况"
           }
         }
       }
     },
-    "wealthform.kicker" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Chapter VI · Two questions first"
+    "wealthform.kicker": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Chapter VI · Two questions first"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "第 陆 章 · 生成前两问"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "第 陆 章 · 生成前两问"
           }
         }
       }
     },
-    "wealthform.risk.aggressive" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Aggressive"
+    "wealthform.risk.aggressive": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aggressive"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "进攻"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "进攻"
           }
         }
       }
     },
-    "wealthform.risk.aggressive.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "High volatility for a shot at high returns"
+    "wealthform.risk.aggressive.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "High volatility for a shot at high returns"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "高波动换高回报可能"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高波动换高回报可能"
           }
         }
       }
     },
-    "wealthform.risk.balanced" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Balanced"
+    "wealthform.risk.balanced": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Balanced"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "平衡"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "平衡"
           }
         }
       }
     },
-    "wealthform.risk.balanced.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Moderate risk, steady growth"
+    "wealthform.risk.balanced.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Moderate risk, steady growth"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "中等风险,稳健增长"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "中等风险,稳健增长"
           }
         }
       }
     },
-    "wealthform.risk.conservative" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Conservative"
+    "wealthform.risk.conservative": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Conservative"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "保守"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保守"
           }
         }
       }
     },
-    "wealthform.risk.conservative.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Capital first — no losses please"
+    "wealthform.risk.conservative.hint": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Capital first — no losses please"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "保本为先,不愿承担亏损"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "保本为先,不愿承担亏损"
           }
         }
       }
     },
-    "wealthform.risk.question" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Risk appetite"
+    "wealthform.risk.question": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Risk appetite"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "风险偏好"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "风险偏好"
           }
         }
       }
     },
-    "wealthform.subtitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This chapter draws on your assets and risk appetite. Your answers shape this chapter only. Self-knowledge only — not investment advice."
+    "wealthform.subtitle": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This chapter draws on your assets and risk appetite. Your answers shape this chapter only. Self-knowledge only — not investment advice."
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "这一章结合你的资产概况与风险偏好推演,答案只影响本章内容。自我认知参考,不构成投资建议。"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这一章结合你的资产概况与风险偏好推演,答案只影响本章内容。自我认知参考,不构成投资建议。"
           }
         }
       }
     },
-    "wealthform.title" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Wealth & structure · shaped by you"
+    "wealthform.title": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Wealth & structure · shaped by you"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "财富结构 · 因你而异"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "财富结构 · 因你而异"
           }
         }
       }
     },
-    "welcome_sutra" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "He who does not know his fate cannot be a gentleman"
+    "welcome_sutra": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "He who does not know his fate cannot be a gentleman"
           }
         },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "不知命，无以为君子也"
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "不知命，无以为君子也"
           }
         }
       }
     },
-    "一次买断 · 全设备同步" : {
-
-    },
-    "与 %@" : {
-
-    },
-    "五行%@ · 日主%@" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "五行%1$@ · 日主%2$@"
+    "· %@": {},
+    "• %@": {},
+    "◎ 缓存": {},
+    "◎ 缓存命中(不消耗次数)": {},
+    "◎ 调候用神已触发": {},
+    "⚠ %@": {},
+    "一次买断 · 全设备同步": {},
+    "与 %@": {},
+    "五行%@ · 日主%@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "五行%1$@ · 日主%2$@"
           }
         }
       }
-    },
-    "五行分布" : {
-
-    },
-    "今日" : {
-
-    },
-    "今日剩余 %lld 次" : {
-
-    },
-    "付费内容,解锁后可生成" : {
-
-    },
-    "使用 Apple 登录" : {
-
-    },
-    "使用 Google 登录" : {
-
-    },
-    "出生地:%@" : {
-
-    },
-    "出生时间" : {
-
-    },
-    "删除" : {
-
-    },
-    "剩余 %lld 次" : {
-
-    },
-    "加载中…" : {
-
-    },
-    "印章%@" : {
-
-    },
-    "去深度解析" : {
-
-    },
-    "双人合盘" : {
-
-    },
-    "双盘数据读取失败" : {
-
-    },
-    "取消" : {
-
-    },
-    "可选,如「相亲对象甲」" : {
-
-    },
-    "合拍定性 · 无评分" : {
-
-    },
-    "合盘" : {
-
-    },
-    "合盘解读" : {
-
-    },
-    "命局呈现从格特征" : {
-
-    },
-    "命盘别名" : {
-
-    },
-    "命盘数据会保留(历史解读可回溯),仅从此列表移除。" : {
-
-    },
-    "喜忌分析" : {
-
-    },
-    "喜忌结论留空,详见命书。" : {
-
-    },
-    "四柱" : {
-
-    },
-    "回到表单修改出生信息" : {
-
-    },
-    "填写对方信息" : {
-
-    },
-    "大运" : {
-
-    },
-    "女" : {
-
-    },
-    "好的" : {
-
-    },
-    "子时属次日(23:00 换日)" : {
-
-    },
-    "子时规则默认" : {
-
-    },
-    "已加入 %lld 位" : {
-
-    },
-    "已加入名单" : {
-
-    },
-    "已解读" : {
-
-    },
-    "开始合盘" : {
-
     },
-    "当前" : {
-
-    },
-    "当前柱" : {
-
-    },
-    "影响新表单的初始值。已存档命盘不受影响(其规则随 snapshot 持久化)。重置命盘会清空所有数据并重新走 onboarding。" : {
-
-    },
-    "快速添加" : {
-
-    },
-    "性别" : {
-
-    },
-    "总览可读" : {
-
-    },
-    "我的" : {
-
-    },
-    "我的命盘" : {
-
-    },
-    "推演失败 · 此对隔离" : {
-
-    },
-    "改名" : {
-
-    },
-    "数据异常:无请求记录" : {
-
-    },
-    "新建命盘" : {
-
-    },
-    "日主 %@" : {
-
-    },
-    "早晚子时(00:00 换日)" : {
-
-    },
-    "旬空:%@" : {
-
-    },
-    "暂无对方命盘。可在下方快速添加,或去「我的」新建命盘。" : {
-
-    },
-    "本命盘未命中神煞" : {
-
-    },
-    "查看 ›" : {
-
-    },
-    "查看你的今日运势" : {
-
-    },
-    "正在完成登录…" : {
-
-    },
-    "正在生成…" : {
-
-    },
-    "此操作不可恢复。所有命盘、合盘记录、解读缓存都会被清空。购买记录保留在 App Store,重新 onboarding 后可恢复。" : {
-
-    },
-    "每日运势" : {
-
-    },
-    "深度" : {
-
-    },
-    "深度解析" : {
-
-    },
-    "添加到名单" : {
-
-    },
-    "版本" : {
-
-    },
-    "特征:%@" : {
-
-    },
-    "玄学娱乐,理性参考。\n购买即视为同意 Apple 标准用户协议。" : {
-
-    },
-    "玄机问道" : {
-
-    },
-    "玄机问道印章" : {
-
-    },
-    "用以上信息排盘,进入今日运势" : {
-
-    },
-    "男" : {
-
-    },
-    "登录后即可购买,已购内容跨设备同步" : {
-
-    },
-    "真太阳时:%@" : {
-
-    },
-    "真太阳时偏差 %@" : {
-
-    },
-    "确定要清空所有命盘和解读记录吗?" : {
-
-    },
-    "确定重置" : {
-
-    },
-    "确认出生信息" : {
-
-    },
-    "确认删除「%@」?" : {
-
-    },
-    "确认排盘" : {
-
-    },
-    "神煞" : {
-
-    },
-    "称呼" : {
-
-    },
-    "第%@章%@" : {
-      "localizations" : {
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "new",
-            "value" : "第%1$@章%2$@"
+    "五行分布": {},
+    "今日": {},
+    "今日剩余 %lld 次": {},
+    "付费内容,解锁后可生成": {},
+    "使用 Apple 登录": {},
+    "使用 Google 登录": {},
+    "出生地:%@": {},
+    "出生时间": {},
+    "删除": {},
+    "剩余 %lld 次": {},
+    "加载中…": {},
+    "印章%@": {},
+    "去深度解析": {},
+    "双人合盘": {},
+    "双盘数据读取失败": {},
+    "取消": {},
+    "可选,如「相亲对象甲」": {},
+    "合拍定性 · 无评分": {},
+    "合盘": {},
+    "合盘解读": {},
+    "命局呈现从格特征": {},
+    "命盘别名": {},
+    "命盘数据会保留(历史解读可回溯),仅从此列表移除。": {},
+    "喜忌分析": {},
+    "喜忌结论留空,详见命书。": {},
+    "四柱": {},
+    "回到表单修改出生信息": {},
+    "填写对方信息": {},
+    "大运": {},
+    "女": {},
+    "好的": {},
+    "子时属次日(23:00 换日)": {},
+    "子时规则默认": {},
+    "已加入 %lld 位": {},
+    "已加入名单": {},
+    "已解读": {},
+    "开始合盘": {},
+    "当前": {},
+    "当前柱": {},
+    "影响新表单的初始值。已存档命盘不受影响(其规则随 snapshot 持久化)。重置命盘会清空所有数据并重新走 onboarding。": {},
+    "快速添加": {},
+    "性别": {},
+    "总览可读": {},
+    "我的": {},
+    "我的命盘": {},
+    "推演失败 · 此对隔离": {},
+    "改名": {},
+    "数据异常:无请求记录": {},
+    "新建命盘": {},
+    "日主 %@": {},
+    "早晚子时(00:00 换日)": {},
+    "旬空:%@": {},
+    "暂无对方命盘。可在下方快速添加,或去「我的」新建命盘。": {},
+    "本命盘未命中神煞": {},
+    "查看 ›": {},
+    "查看你的今日运势": {},
+    "正在完成登录…": {},
+    "正在生成…": {},
+    "此操作不可恢复。所有命盘、合盘记录、解读缓存都会被清空。购买记录保留在 App Store,重新 onboarding 后可恢复。": {},
+    "每日运势": {},
+    "深度": {},
+    "深度解析": {},
+    "添加到名单": {},
+    "版本": {},
+    "特征:%@": {},
+    "玄学娱乐,理性参考。\n购买即视为同意 Apple 标准用户协议。": {},
+    "玄机问道": {},
+    "玄机问道印章": {},
+    "用以上信息排盘,进入今日运势": {},
+    "男": {},
+    "登录后即可购买,已购内容跨设备同步": {},
+    "真太阳时:%@": {},
+    "真太阳时偏差 %@": {},
+    "确定要清空所有命盘和解读记录吗?": {},
+    "确定重置": {},
+    "确认出生信息": {},
+    "确认删除「%@」?": {},
+    "确认排盘": {},
+    "神煞": {},
+    "称呼": {},
+    "第%@章%@": {
+      "localizations": {
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "new",
+            "value": "第%1$@章%2$@"
           }
         }
       }
-    },
-    "等待上游模块完成…" : {
-
-    },
-    "算法:%@" : {
-
-    },
-    "编辑名单" : {
-
-    },
-    "解锁余下%@章" : {
-
-    },
-    "试用新版模块化分析(M0-M7 八模块)" : {
-
-    },
-    "购买于" : {
-
-    },
-    "辅柱" : {
-
-    },
-    "返回修改" : {
-
-    },
-    "返回列表" : {
-
-    },
-    "返回表单" : {
-
-    },
-    "还没有命盘" : {
-
-    },
-    "还没有购买" : {
-
-    },
-    "退出登录" : {
-
-    },
-    "重新排盘" : {
-
-    },
-    "重置命盘" : {
-
-    },
-    "重置失败" : {
-
-    },
-    "重试" : {
-
-    },
-    "重试中…" : {
-
-    },
-    "重试这一对" : {
-
-    },
-    "长生:%@" : {
-
     },
-    "需先在深度解析中创建命盘,才能选择 A/B 盘合盘。" : {
-
-    }
+    "等待上游模块完成…": {},
+    "算法:%@": {},
+    "编辑名单": {},
+    "解锁余下%@章": {},
+    "试用新版模块化分析(M0-M7 八模块)": {},
+    "购买于": {},
+    "辅柱": {},
+    "返回修改": {},
+    "返回列表": {},
+    "返回表单": {},
+    "还没有命盘": {},
+    "还没有购买": {},
+    "退出登录": {},
+    "重新排盘": {},
+    "重置命盘": {},
+    "重置失败": {},
+    "重试": {},
+    "重试中…": {},
+    "重试这一对": {},
+    "长生:%@": {},
+    "需先在深度解析中创建命盘,才能选择 A/B 盘合盘。": {}
   },
-  "version" : "1.0"
+  "version": "1.0"
 }

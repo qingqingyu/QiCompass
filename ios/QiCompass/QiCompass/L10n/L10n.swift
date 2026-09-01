@@ -287,9 +287,6 @@ enum L10n {
 
         // -- Tomorrow Preview --
 
-        /// 明日预告标题(zh="明日预告", en="Tomorrow's Preview")
-        static let tomorrowTitle = String(localized: "dailyfortune.tomorrow.title")
-
         // -- 宜/忌 标签(Huangli + YiJi 共用)--
 
         /// 宜(zh="宜", en="Auspicious")

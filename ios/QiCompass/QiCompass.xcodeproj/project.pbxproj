@@ -56,9 +56,7 @@
 		9C0000000000000000000020 /* DailyFortuneEmptyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000020 /* DailyFortuneEmptyView.swift */; };
 		9C0000000000000000000021 /* DailyFortuneMainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000021 /* DailyFortuneMainView.swift */; };
 		9C0000000000000000000024 /* DailyImageHeroSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000024 /* DailyImageHeroSection.swift */; };
-		9C0000000000000000000022 /* DailyFortuneHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000022 /* DailyFortuneHeaderView.swift */; };
 		9C0000000000000000000023 /* DailyInterpretationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000023 /* DailyInterpretationSection.swift */; };
-		9C0000000000000000000026 /* TomorrowPreviewSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000026 /* TomorrowPreviewSection.swift */; };
 		9C0000000000000000000027 /* DailyFortuneHistoryView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000027 /* DailyFortuneHistoryView.swift */; };
 		9C0000000000000000000028 /* DailyFortuneVerifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000028 /* DailyFortuneVerifier.swift */; };
 		9C0000000000000000000029 /* InterpretState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000029 /* InterpretState.swift */; };
@@ -215,9 +213,7 @@
 		9C1000000000000000000020 /* DailyFortuneEmptyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneEmptyView.swift; path = QiCompass/Features/DailyFortune/DailyFortuneEmptyView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000021 /* DailyFortuneMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneMainView.swift; path = QiCompass/Features/DailyFortune/DailyFortuneMainView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000024 /* DailyImageHeroSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyImageHeroSection.swift; path = QiCompass/Features/DailyFortune/DailyImageHeroSection.swift; sourceTree = SOURCE_ROOT; };
-		9C1000000000000000000022 /* DailyFortuneHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneHeaderView.swift; path = QiCompass/Features/DailyFortune/DailyFortuneHeaderView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000023 /* DailyInterpretationSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyInterpretationSection.swift; path = QiCompass/Features/DailyFortune/DailyInterpretationSection.swift; sourceTree = SOURCE_ROOT; };
-		9C1000000000000000000026 /* TomorrowPreviewSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TomorrowPreviewSection.swift; path = QiCompass/Features/DailyFortune/TomorrowPreviewSection.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000027 /* DailyFortuneHistoryView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneHistoryView.swift; path = QiCompass/Features/DailyFortune/DailyFortuneHistoryView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000028 /* DailyFortuneVerifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneVerifier.swift; path = QiCompass/Persistence/DailyFortuneVerifier.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000029 /* InterpretState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretState.swift; sourceTree = "<group>"; };
@@ -572,10 +568,8 @@
 				9C100000000000000000001F /* DailyFortuneViewModel.swift */,
 				9C1000000000000000000020 /* DailyFortuneEmptyView.swift */,
 				9C1000000000000000000021 /* DailyFortuneMainView.swift */,
-				9C1000000000000000000022 /* DailyFortuneHeaderView.swift */,
 				9C1000000000000000000023 /* DailyInterpretationSection.swift */,
 				9C1000000000000000000024 /* DailyImageHeroSection.swift */,
-				9C1000000000000000000026 /* TomorrowPreviewSection.swift */,
 				9C1000000000000000000027 /* DailyFortuneHistoryView.swift */,
 			);
 			path = DailyFortune;
@@ -776,9 +770,7 @@
 				9C0000000000000000000020 /* DailyFortuneEmptyView.swift in Sources */,
 				9C0000000000000000000021 /* DailyFortuneMainView.swift in Sources */,
 				9C0000000000000000000024 /* DailyImageHeroSection.swift in Sources */,
-				9C0000000000000000000022 /* DailyFortuneHeaderView.swift in Sources */,
 				9C0000000000000000000023 /* DailyInterpretationSection.swift in Sources */,
-				9C0000000000000000000026 /* TomorrowPreviewSection.swift in Sources */,
 				9C0000000000000000000027 /* DailyFortuneHistoryView.swift in Sources */,
 				9C0000000000000000000028 /* DailyFortuneVerifier.swift in Sources */,
 				9C0000000000000000000029 /* InterpretState.swift in Sources */,

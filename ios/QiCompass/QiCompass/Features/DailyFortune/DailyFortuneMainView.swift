@@ -1,8 +1,8 @@
 import SwiftUI
 
-/// success 态主布局(V4 一幅图为主角,2026-08-30 拍板,参考 v4-reference.html):
-/// 三行日期区 → hero 插画(3:2,静态样图)→ 宜忌单行 → AI 解读 → hairline 小注 →
-/// 大留白 → 第二屏(7 日历史带 + 明日预告)。
+/// success 态主布局(glass-v2 玻璃全信息卡,2026-08-31 拍板,参考 glass-v2.html):
+/// 玻璃 hero(日期+chips+宜忌双列全入图)→ AI 解读 → hairline 小注 →
+/// 大留白 → 第二屏(7 日历史带)。明日预告已删(用户拍板:底部日历行去掉)。
 ///
 /// 不直接接 state machine,由 DailyFortuneView 切换后传入。
 ///
@@ -87,29 +87,19 @@ struct DailyFortuneMainView: View {
 
                 // ===== 第一屏(V4:图为主角) =====
 
-                // 三行日期区(公历大字/农历·干支/短标签+关系+冲 chips)
-                DailyFortuneHeaderView(
+                // glass-v2 玻璃全信息卡(2026-08-31 拍板):日期区+chips+宜忌双列全部入图,
+                // 外部三行头部取消;左右 17pt 边距宽于文本区
+                DailyImageHeroSection(
                     businessDate: businessDate,
                     lunarDate: response.lunarDate,
                     dayPillar: response.dayPillar,
                     dayRelation: response.dayRelationToDayMaster,
                     dayChong: response.dayChong,
                     dayChongTargets: response.dayChongTargets,
-                )
-                .padding(.horizontal, 24)
-
-                // hero 插画(五行小景,S3 动态生成;左右 17pt 边距宽于文本区)
-                DailyImageHeroSection(
-                    dayPillar: response.dayPillar,
                     imageState: imageStore.state,
                     onRetry: { imageLoadToken += 1 },
                 )
                 .padding(.horizontal, 17)
-
-                // 宜/忌 main anchor(V4 单行居中 + V1 入框;视觉锚点,非 AI 输出)
-                YiJiAnchorSection(dayRelation: response.dayRelationToDayMaster)
-                    .padding(.horizontal, 24)
-                    .padding(.top, 26)
 
                 // AI 解读(50-80 字 Medium voice)
                 DailyInterpretationSection(
@@ -142,10 +132,6 @@ struct DailyFortuneMainView: View {
                 )
                 .padding(.horizontal, 16)
                 .padding(.top, 4)
-
-                // 明日预告
-                TomorrowPreviewSection(preview: response.tomorrowPreview)
-                    .padding(.horizontal, 24)
             }
             .padding(.bottom, 32)
         }
@@ -252,103 +238,3 @@ struct DailyFortuneMainView: View {
     }
 }
 
-// MARK: - YiJiAnchorSection
-
-/// 今日运势页宜/忌 main anchor(视觉锚点,非 AI 输出)。
-///
-/// V4+V1 整合:单行左右并列居中(宜=墨青/忌=淡朱),套 V1 亮纸框。
-///
-/// **数据源**(v1 简化):前端十神→关键词映射表。基于 `dayRelationToDayMaster`
-/// 查表得到 actionable 2-3 字 bullet。
-/// TODO 后续:可能挪到后端基于 favorable_elements + 流日关系确定性映射,
-/// 但 v1 不增加后端复杂度,前端 lookup 足够。
-///
-/// 全页唯一的宜/忌(2026-08-30 用户拍板删通用黄历块——同屏两套宜/忌语义打架,
-/// 保留本节):**个性化**宜/忌,基于流日对日主的关系,十神查表得单条关键词。
-/// 黄历数据(huangliYi/Ji)后端照常返回并进 AI 上下文,只是不再 UI 展示。
-private struct YiJiAnchorSection: View {
-    let dayRelation: String
-
-    /// 十神→宜/忌 actionable 关键词映射(10 神,对齐后端 lunar_python 命名)。
-    /// 十神 key 始终用中文(后端 `dayRelationToDayMaster` 不翻译,见 i18n 决策 7);
-    /// values 按 `AppLanguage.current` 切换中英文。
-    private static let mappingZh: [String: (yi: String, ji: String)] = [
-        "比肩": ("独立", "争执"),
-        "劫财": ("行动", "冲动"),
-        "食神": ("创造", "拖延"),
-        "伤官": ("表达", "冲撞"),
-        "偏财": ("拓展", "孤注"),
-        "正财": ("守成", "短视"),
-        "七杀": ("果断", "犹豫"),
-        "正官": ("担当", "退缩"),
-        "偏印": ("思考", "执拗"),
-        "正印": ("学习", "依赖"),
-    ]
-
-    private static let mappingEn: [String: (yi: String, ji: String)] = [
-        "比肩": ("Independence", "Conflict"),
-        "劫财": ("Action", "Impulse"),
-        "食神": ("Creation", "Procrastination"),
-        "伤官": ("Expression", "Confrontation"),
-        "偏财": ("Expansion", "Overreach"),
-        "正财": ("Consolidation", "Short-sightedness"),
-        "七杀": ("Decisiveness", "Hesitation"),
-        "正官": ("Responsibility", "Retreat"),
-        "偏印": ("Reflection", "Stubbornness"),
-        "正印": ("Learning", "Dependency"),
-    ]
-
-    private static var mapping: [String: (yi: String, ji: String)] {
-        AppLanguage.current == "en" ? mappingEn : mappingZh
-    }
-
-    /// 防御:未知关系(理论上后端必返回十神之一,但保护)。
-    private static var fallback: (yi: String, ji: String) {
-        AppLanguage.current == "en"
-            ? ("Go with the flow", "Forcing")
-            : ("顺势", "强求")
-    }
-
-    /// 查表命中失败时记日志,不静默 fallback(对齐 CLAUDE.md 错误显式传播约束)。
-    private var pair: (yi: String, ji: String) {
-        if let matched = Self.mapping[dayRelation] {
-            return matched
-        }
-        AppLogger.app.warning(
-            "op=yiJiAnchor.lookupMiss day_relation=\(dayRelation, privacy: .public) -> fallback"
-        )
-        return Self.fallback
-    }
-
-    var body: some View {
-        let resolved = pair
-        // V4+V1 整合:单行居中(宜 jade · 忌 淡朱),套 V1 亮纸框(底暗框亮层次)
-        HStack(spacing: 22) {
-            anchorItem(label: L10n.DailyFortune.yiLabel, keyword: resolved.yi, color: BaziTheme.jade)
-            Text(verbatim: "·")
-                .font(BaziFont.caption(size: 12))
-                .foregroundStyle(BaziTheme.inkMutedSecondary)
-            anchorItem(label: L10n.DailyFortune.jiLabel, keyword: resolved.ji, color: BaziTheme.cinnabar.opacity(0.8))
-        }
-        .frame(maxWidth: .infinity)
-        .padding(.horizontal, 20)
-        .padding(.vertical, 18)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-                .stroke(BaziTheme.hairline, lineWidth: 0.5)
-        )
-    }
-
-    private func anchorItem(label: String, keyword: String, color: Color) -> some View {
-        HStack(spacing: 9) {
-            Text(label)
-                .font(BaziFont.display(size: 13, weight: .medium))
-                .tracking(4)
-                .foregroundStyle(color)
-            Text(keyword)
-                .bodySerifText(size: 15)
-                .foregroundStyle(BaziTheme.ink)
-        }
-    }
-}
