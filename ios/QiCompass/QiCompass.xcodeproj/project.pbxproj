@@ -115,6 +115,7 @@
 		A0000000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */; };
 		A00000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift */; };
 		A00000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift */; };
+		A0000000000000000000020 /* Shared/ChapterContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000020 /* Shared/ChapterContentTests.swift */; };
 		A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */; };
 		A0000000000000000000009C /* Shared/EntitlementStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000009C /* Shared/EntitlementStoreTests.swift */; };
 		A00000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */; };
@@ -125,6 +126,8 @@
 		9C0000000000000000000093 /* ChapterReadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000093 /* ChapterReadingView.swift */; };
 		9C0000000000000000000094 /* ChapterReadingInputForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000094 /* ChapterReadingInputForm.swift */; };
 		9C0000000000000000000095 /* ChapterRowModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000095 /* ChapterRowModel.swift */; };
+		9C0000000000000000000096 /* ChapterContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000096 /* ChapterContent.swift */; };
+		9C0000000000000000000097 /* ChapterContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000097 /* ChapterContentView.swift */; };
 		9C0000000000000000000092 /* DeepAnalysisHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000092 /* DeepAnalysisHomeView.swift */; };
 		A00000000000000000000008 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A21000000000000000000001 /* XCTest.framework */; };
 		A9B245DDB05C779E1238547A /* DeepAnalysisViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 58F34390B983BDE0003B56E8 /* DeepAnalysisViewModel.swift */; };
@@ -279,6 +282,7 @@
 		A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisArchiveLoadTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/TestDailyReadCounterFactory.swift; sourceTree = "<group>"; };
 		A11000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisChapterRowTests.swift; sourceTree = "<group>"; };
+		A1100000000000000000020 /* Shared/ChapterContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ChapterContentTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/UserFacingErrorTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000009C /* Shared/EntitlementStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/EntitlementStoreTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paywall/PaywallHourUnknownGateTests.swift; sourceTree = "<group>"; };
@@ -289,6 +293,8 @@
 		9C1000000000000000000093 /* ChapterReadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChapterReadingView.swift; path = QiCompass/Features/DeepAnalysis/ChapterReadingView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000094 /* ChapterReadingInputForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChapterReadingInputForm.swift; path = QiCompass/Features/DeepAnalysis/ChapterReadingInputForm.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000095 /* ChapterRowModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChapterRowModel.swift; path = QiCompass/Features/DeepAnalysis/ChapterRowModel.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000096 /* ChapterContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChapterContent.swift; path = QiCompass/Features/DeepAnalysis/ChapterContent.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000097 /* ChapterContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChapterContentView.swift; path = QiCompass/Features/DeepAnalysis/ChapterContentView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000092 /* DeepAnalysisHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeepAnalysisHomeView.swift; path = QiCompass/Features/DeepAnalysis/DeepAnalysisHomeView.swift; sourceTree = SOURCE_ROOT; };
 		A20000000000000000000001 /* QiCompassTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = QiCompassTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		A21000000000000000000001 /* XCTest.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = XCTest.framework; path = System/Library/Frameworks/XCTest.framework; sourceTree = SDKROOT; };
@@ -384,6 +390,8 @@
 				9C1000000000000000000093 /* ChapterReadingView.swift */,
 				9C1000000000000000000094 /* ChapterReadingInputForm.swift */,
 				9C1000000000000000000095 /* ChapterRowModel.swift */,
+				9C1000000000000000000096 /* ChapterContent.swift */,
+				9C1000000000000000000097 /* ChapterContentView.swift */,
 				9C1000000000000000000092 /* DeepAnalysisHomeView.swift */,
 				4E934C0BB8DC936F13BAC016 /* AuxiliaryCards.swift */,
 				9F614F24B096FF767B7F3934 /* ElementBalanceBar.swift */,
@@ -606,6 +614,7 @@
 				A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */,
 				A11000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift */,
 				A11000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift */,
+				A1100000000000000000020 /* Shared/ChapterContentTests.swift */,
 				A11000000000000000000013 /* Shared/AddHourFlowTests.swift */,
 			);
 			name = Tests;
@@ -767,6 +776,8 @@
 				9C0000000000000000000093 /* ChapterReadingView.swift in Sources */,
 				9C0000000000000000000094 /* ChapterReadingInputForm.swift in Sources */,
 				9C0000000000000000000095 /* ChapterRowModel.swift in Sources */,
+				9C0000000000000000000096 /* ChapterContent.swift in Sources */,
+				9C0000000000000000000097 /* ChapterContentView.swift in Sources */,
 				9C0000000000000000000092 /* DeepAnalysisHomeView.swift in Sources */,
 				8C8B45F2BC9CEB18B25325BB /* AuxiliaryCards.swift in Sources */,
 				59AC47F39B10B857E9BA4AB6 /* ElementBalanceBar.swift in Sources */,
@@ -867,6 +878,7 @@
 				A0000000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift in Sources */,
 				A00000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift in Sources */,
 				A00000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift in Sources */,
+				A0000000000000000000020 /* Shared/ChapterContentTests.swift in Sources */,
 				A00000000000000000000013 /* Shared/AddHourFlowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

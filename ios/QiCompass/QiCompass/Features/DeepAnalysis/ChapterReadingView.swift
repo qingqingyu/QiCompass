@@ -31,9 +31,15 @@ struct ChapterReadingView: View {
         vm.hasDeepEntitlement(contentHash: response.contentHash)
     }
 
-    /// 章序(0-7,M0=壹 … M7=捌)。
+    /// 章序原始下标(0-7,仅作数组运算;展示章号用 chapterNumeral,见下)。
     private var chapterIndex: Int {
         ModuleID.allCases.firstIndex(of: module) ?? 0
+    }
+
+    /// 展示章号:M0=壹 … M7=捌(设计稿⑤口径;2026-09-02 修 off-by-one,
+    /// 原 numeral(chapterIndex) 显示零-柒)。
+    private var chapterNumeral: String {
+        NumeralBadge.numeral(chapterIndex + 1)
     }
 
     private var chapterState: ModuleState {
@@ -66,7 +72,7 @@ struct ChapterReadingView: View {
                     .padding(6)
             }
             Spacer()
-            Text("\(NumeralBadge.numeral(chapterIndex)) · \(chapterTitle)")
+            Text("\(chapterNumeral) · \(chapterTitle)")
                 .font(BaziFont.caption(size: 12.5))
                 .tracking(2)
                 .foregroundStyle(BaziTheme.inkMuted)
@@ -94,7 +100,7 @@ struct ChapterReadingView: View {
     // MARK: - 左缘竖章号
 
     private var edgeNumeral: some View {
-        Text(NumeralBadge.numeral(chapterIndex))
+        Text(chapterNumeral)
             .font(BaziFont.display(size: 28))
             .foregroundStyle(BaziTheme.ink)
             .frame(width: 44)
@@ -130,7 +136,8 @@ struct ChapterReadingView: View {
         .frame(maxWidth: .infinity)
     }
 
-    /// 正文态:章题 + 副题 + hairline + 楷体正文(15.5/2.15×/缩进 2em)+ 章末批印。
+    /// 正文态:章题 + 副题 + hairline + 正文(模块 JSON → ChapterContentView 结构化
+    /// 排版;解析失败退回散文 15.5/2.15×/缩进 2em)+ 章末批印。
     private func chapterBody(text: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(chapterTitle)
@@ -148,14 +155,25 @@ struct ChapterReadingView: View {
                 .frame(height: 0.5)
                 .padding(.trailing, 34)
                 .padding(.top, 16)
-            Text(indentedProse(text))
-                .bodySerifText(size: 15.5)
-                .lineSpacing(18) // 行距 2.15× ≈ 15.5 × 1.15(SwiftUI 默认行高 ~1.2em)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 15)
-                .padding(.bottom, 18)
+            // 正文(2026-09-02):模块输出是 JSON(v1 链式契约)→ 结构化排版;
+            // 解析失败(非 JSON/非法 JSON,如老缓存散文或 LLM 违约)退回散文并记日志。
+            if let content = ChapterContent.parse(text) {
+                ChapterContentView(content: content)
+                    .padding(.top, 15)
+                    .padding(.bottom, 18)
+            } else {
+                let _ = AppLogger.app.warning(
+                    "chapterReading.contentParseMiss module=\(module.rawValue, privacy: .public) — 退回散文排版"
+                )
+                Text(indentedProse(text))
+                    .bodySerifText(size: 15.5)
+                    .lineSpacing(18) // 行距 2.15× ≈ 15.5 × 1.15(SwiftUI 默认行高 ~1.2em)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.top, 15)
+                    .padding(.bottom, 18)
+            }
             // 章末朱批印(落款,非朱字批语——后者依赖 prompt 输出,backlog)
             HStack {
                 Spacer()
@@ -363,12 +381,12 @@ struct ChapterReadingView: View {
         .buttonStyle(.plain)
     }
 
-    /// 翻章条标题:「贰 天赋能力」。
+    /// 翻章条标题:「贰 天赋能力」(M0=壹 … M7=捌,与章号同口径 +1)。
     private func pagerTitle(_ module: ModuleID) -> String {
         let idx = ModuleID.allCases.firstIndex(of: module) ?? 0
         let name = module.displayName
         let title = name.range(of: "· ").map { String(name[$0.upperBound...]) } ?? name
-        return "\(NumeralBadge.numeral(idx)) \(title)"
+        return "\(NumeralBadge.numeral(idx + 1)) \(title)"
     }
 }
 
