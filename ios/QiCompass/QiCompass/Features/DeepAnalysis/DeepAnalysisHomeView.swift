@@ -252,7 +252,8 @@ struct DeepAnalysisHomeView: View {
             }
         } label: {
             HStack(spacing: 13) {
-                NumeralBadge(index: index, locked: row.isBadgeLocked, size: 30)
+                // 章号 M0=壹 … M7=捌(2026-09-02 修 off-by-one,对齐设计稿①与 PaywallView 口径)
+                NumeralBadge(index: index + 1, locked: row.isBadgeLocked, size: 30)
                 VStack(alignment: .leading, spacing: 1.5) {
                     Text(chapterTitle(module))
                         .font(BaziFont.display(size: 15))
