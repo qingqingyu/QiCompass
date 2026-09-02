@@ -34,7 +34,7 @@ struct DualPillarSource: Identifiable, Equatable {
 /// S10 触点接线注记:本表的时柱留白单元格**不挂**补时辰触点——任一方时辰未知的
 /// 对在 `CompatibilityViewModel.computePair` 已被整对拦(S07),进不了 detail,
 /// 该留白态对用户不可达;他人盘的补时辰触点落在配置态名单(S11「不可合盘」
-/// 标记行,`ChartArchiveMultiPickerView.onAddHour`)与结果列表拦截卡
+/// 标记行,`RosterUnifiedListView.onAddHour`)与结果列表拦截卡
 /// (`PairSummaryCard.onAddHour`),那是无时辰他人盘真正可见可点的地方。
 struct DualPillarsTable: View {
     let pillars: [DualPillarSource]  // 共 4 条(年/月/日/时)

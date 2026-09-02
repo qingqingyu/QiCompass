@@ -1436,3 +1436,78 @@ private actor S11RecordingAPIClient: APIClient {
         throw S11TestError.unexpectedCall
     }
 }
+
+// MARK: - 配置页 CTA 派生模型单测(2026-09-02 定稿:三态文案)
+
+/// CompatibilityConfigCTAModel 三态覆盖:
+/// - ready:动态计数「排 N 对合盘」+ 名单摘要注(≤2 名全列,>2 名「等 N 位」)
+/// - emptyRoster:置灰「先勾选对方」(决策 D13 拦截前移)
+/// - selfHourUnknown:置灰「补全时辰后可合盘」(S07 全锁,优先级最高)
+final class CompatibilityConfigCTAModelTests: XCTestCase {
+
+    func testEmptyRosterShowsHintAndDisabled() {
+        let cta = CompatibilityConfigCTAModel.derive(
+            rosterCount: 0, selectedNames: [], isSelfHourUnknown: false
+        )
+        XCTAssertEqual(cta.kind, .emptyRoster)
+        XCTAssertEqual(cta.title, "先勾选对方")
+        XCTAssertTrue(cta.note.contains("上限 \(CompatibilityViewModel.rosterMax) 位"))
+        XCTAssertFalse(cta.isEnabled)
+    }
+
+    func testSingleSelectionShowsCountOne() {
+        let cta = CompatibilityConfigCTAModel.derive(
+            rosterCount: 1, selectedNames: ["男友"], isSelfHourUnknown: false
+        )
+        XCTAssertEqual(cta.kind, .ready(count: 1, namesSummary: "男友 · 1 对"))
+        XCTAssertEqual(cta.title, "排 1 对合盘")
+        XCTAssertEqual(cta.note, "男友 · 1 对 · 每对独立解锁")
+        XCTAssertTrue(cta.isEnabled)
+    }
+
+    func testTwoSelectionsListAllNames() {
+        let cta = CompatibilityConfigCTAModel.derive(
+            rosterCount: 2, selectedNames: ["相亲对象", "男友"], isSelfHourUnknown: false
+        )
+        XCTAssertEqual(cta.title, "排 2 对合盘")
+        XCTAssertEqual(cta.note, "相亲对象 · 男友 · 2 对 · 每对独立解锁")
+    }
+
+    func testOverTwoSelectionsEllipsizeNames() {
+        let cta = CompatibilityConfigCTAModel.derive(
+            rosterCount: 4, selectedNames: ["甲", "乙", "丙", "丁"], isSelfHourUnknown: false
+        )
+        // 前 2 名 +「等 N 位」,CTA 注不随人数无限变长
+        XCTAssertEqual(cta.note, "甲 · 乙 等 4 位 · 4 对 · 每对独立解锁")
+        XCTAssertEqual(cta.title, "排 4 对合盘")
+    }
+
+    func testSelfHourUnknownLocksEvenWithSelections() {
+        // S07 全锁优先于一切:有勾选也置灰
+        let cta = CompatibilityConfigCTAModel.derive(
+            rosterCount: 3, selectedNames: ["甲", "乙", "丙"], isSelfHourUnknown: true
+        )
+        XCTAssertEqual(cta.kind, .selfHourUnknown)
+        XCTAssertEqual(cta.title, "补全时辰后可合盘")
+        XCTAssertTrue(cta.note.contains("补全"))
+        XCTAssertFalse(cta.isEnabled)
+    }
+
+    func testSelfHourUnknownWinsOverEmptyRoster() {
+        let cta = CompatibilityConfigCTAModel.derive(
+            rosterCount: 0, selectedNames: [], isSelfHourUnknown: true
+        )
+        XCTAssertEqual(cta.kind, .selfHourUnknown)
+        XCTAssertFalse(cta.isEnabled)
+    }
+
+    func testReadyWithMissingNamesFallsBackToCountOnly() {
+        // 防御分支:names 与 count 不一致(或空名)时不产出前导分隔符
+        let cta = CompatibilityConfigCTAModel.derive(
+            rosterCount: 2, selectedNames: [], isSelfHourUnknown: false
+        )
+        XCTAssertEqual(cta.title, "排 2 对合盘")
+        XCTAssertEqual(cta.note, "2 对 · 每对独立解锁")
+        XCTAssertTrue(cta.isEnabled)
+    }
+}
