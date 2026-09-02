@@ -164,7 +164,8 @@ struct CompatibilityView: View {
                     onAddHour: { openAddHourSheet(hash: $0) }
                 )
             case .computing(let completed, let total):
-                LoadingStateView(title: "推演合盘中… (\(completed)/\(total))")
+                // 定稿⑨:三墨点 breathe + 竖排「推演合盘」+ i/N(决策 D3 串行)
+                CompatibilityCastingView(completed: completed, total: total)
             case .list:
                 CompatibilityPairListView(
                     vm: vm,
