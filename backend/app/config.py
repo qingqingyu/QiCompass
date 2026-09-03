@@ -35,6 +35,12 @@ OPENAI_MODEL = (os.environ.get("OPENAI_MODEL") or "gpt-5.5").strip()
 # 末尾斜杠统一去掉,避免拼路径出现 //。
 OPENAI_BASE_URL = (os.environ.get("OPENAI_BASE_URL") or "https://api.openai.com/v1").strip().rstrip("/")
 
+# Anthropic 协议中转(如 z.ai https://api.z.ai/api/anthropic);/v1/messages 由 client 拼。
+# 留空走官方 https://api.anthropic.com。末尾斜杠统一去掉。
+ANTHROPIC_BASE_URL: str | None = (
+    os.environ.get("ANTHROPIC_BASE_URL") or ""
+).strip().rstrip("/") or None
+
 if not ANTHROPIC_MODEL:
     raise ValueError("ANTHROPIC_MODEL must not be blank")
 if not OPENAI_MODEL:

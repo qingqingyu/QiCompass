@@ -89,6 +89,92 @@ async def test_missing_selected_key_does_not_use_other_provider_key():
         await client.interpret("prompt")
 
 
+# ===== Anthropic 协议中转 base_url(z.ai 等)工厂/配置/wiring =====
+
+
+async def test_factory_passes_anthropic_base_url_to_request_url(monkeypatch):
+    """create_ai_client(anthropic_base_url=...) 透传:请求打到中转 endpoint。
+
+    防 wiring 漂移:config 加了 env 但工厂/调用方漏传,anthropic 流量会
+    静默回官方 endpoint(国内直连不通,表现为超时/403 而非配置错误)。
+    """
+    from app.ai import anthropic_client as anthropic_module
+
+    captured = {}
+
+    class _FakeResponse:
+        def raise_for_status(self) -> None:
+            return None
+
+        def json(self):
+            return {"content": [{"type": "text", "text": "命书"}]}
+
+    class _FakeAsyncClient:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, url, **kwargs):
+            captured["url"] = url
+            return _FakeResponse()
+
+    monkeypatch.setattr(anthropic_module.httpx, "AsyncClient", _FakeAsyncClient)
+    client = create_ai_client(
+        provider="anthropic",
+        anthropic_api_key="key",
+        anthropic_model="glm-test",
+        openai_api_key=None,
+        openai_model="gpt-test",
+        openai_base_url="https://api.openai.com/v1",
+        anthropic_base_url="https://api.z.ai/api/anthropic",
+    )
+    await client.interpret("prompt")
+    assert captured["url"] == "https://api.z.ai/api/anthropic/v1/messages"
+
+
+def test_main_build_ai_client_wires_anthropic_base_url(monkeypatch):
+    """app.main._build_ai_client 必须把 config.ANTHROPIC_BASE_URL 传进工厂。"""
+    import app.main as main_module
+
+    monkeypatch.setattr(main_module, "AI_PROVIDER", "anthropic")
+    monkeypatch.setattr(main_module, "ANTHROPIC_API_KEY", "key")
+    monkeypatch.setattr(main_module, "ANTHROPIC_MODEL", "glm-test")
+    monkeypatch.setattr(main_module, "ANTHROPIC_BASE_URL", "https://api.z.ai/api/anthropic")
+    client = main_module._build_ai_client()
+    assert isinstance(client, AnthropicClient)
+    assert client._base_url == "https://api.z.ai/api/anthropic"
+
+
+@pytest.mark.parametrize("raw,expected", [
+    ("https://api.z.ai/api/anthropic", "https://api.z.ai/api/anthropic"),
+    ("https://api.z.ai/api/anthropic/", "https://api.z.ai/api/anthropic"),
+    ("", "None"),
+    ("   ", "None"),
+])
+def test_config_parses_anthropic_base_url(raw, expected):
+    """ANTHROPIC_BASE_URL env:末尾斜杠去掉;空/空白 → None(官方 endpoint)。
+
+    subprocess 隔离:config 是 import 期读 env,进程内 monkeypatch 不生效。
+    """
+    env = os.environ.copy()
+    env["ANTHROPIC_BASE_URL"] = raw
+    result = subprocess.run(
+        [sys.executable, "-c",
+         "from app.config import ANTHROPIC_BASE_URL; print(ANTHROPIC_BASE_URL)"],
+        check=True,
+        capture_output=True,
+        text=True,
+        env=env,
+        cwd=BACKEND_ROOT,
+    )
+    assert result.stdout.strip() == expected
+
+
 # ===== v1 prompt 系统:MODULE_TEMPERATURES / resolve_temperature =====
 
 

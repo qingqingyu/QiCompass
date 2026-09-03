@@ -31,6 +31,7 @@ from .api import sync as sync_api
 from .config import (
     AI_PROVIDER,
     ANTHROPIC_API_KEY,
+    ANTHROPIC_BASE_URL,
     ANTHROPIC_MODEL,
     APP_STORE_APP_APPLE_ID,
     APP_STORE_BUNDLE_ID,
@@ -192,6 +193,7 @@ def _build_ai_client():
         provider=AI_PROVIDER,
         anthropic_api_key=ANTHROPIC_API_KEY,
         anthropic_model=ANTHROPIC_MODEL,
+        anthropic_base_url=ANTHROPIC_BASE_URL,
         openai_api_key=OPENAI_API_KEY,
         openai_model=OPENAI_MODEL,
         openai_base_url=OPENAI_BASE_URL,
