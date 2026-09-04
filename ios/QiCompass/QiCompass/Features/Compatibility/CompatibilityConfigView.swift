@@ -211,7 +211,7 @@ struct CompatibilityConfigView: View {
     /// 承接旧「已加入名单」区的 roster 全覆盖语义,防止 CTA 计入隐形成员。
     private func orphanRowModel(for entry: RosterEntry) -> TempRowModel? {
         guard case .archived(let hash) = entry,
-              !vm.archivedCharts.contains(where: { $0.snapshotHash == hash }) else { return nil }
+              !vm.isPoolBacked(hash: hash) else { return nil }
         return TempRowModel(
             entry: entry,
             name: displayLabel(for: entry),

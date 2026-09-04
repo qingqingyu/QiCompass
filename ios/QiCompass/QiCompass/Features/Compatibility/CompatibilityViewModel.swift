@@ -78,7 +78,8 @@ final class CompatibilityViewModel {
 
     /// 名单内已勾选 entry id 集合(= 本次要排盘的人)。
     /// 不变量:
-    /// - 存档池行:`.archived` entry 在 roster ⇔ id 在本集合(toggleArchived 维护)
+    /// - 存档池行(`isPoolBacked(hash:)` == true):entry 在 roster ⇔ id 在本集合
+    ///   (toggleArchived 维护)
     /// - 临时人/恢复行:添加**不**入本集合(2026-09-03 拆分:「加名单」≠「选入合盘」),
     ///   由 `toggleEntrySelection` 显式勾选
     /// - 跨启动恢复:恢复的名单 = 上次排盘的人,默认全勾
@@ -243,14 +244,21 @@ final class CompatibilityViewModel {
         })
     }
 
+    /// 存档 hash 在候选池(`archivedCharts`)内是否有对应行(true = 池行,
+    /// false = 跨启动恢复行)。单一事实源:`toggleEntrySelection` 的路由判据与
+    /// ConfigView `orphanRowModel` 的补行判据共用同一判定,防两处实现漂移导致
+    /// 行渲染与点击路由分叉。
+    func isPoolBacked(hash: String) -> Bool {
+        archivedCharts.contains(where: { $0.snapshotHash == hash })
+    }
+
     /// 勾选 / 取消勾选名单行(临时人 / 跨启动恢复行的点击路径)。
     /// - 存档池行(有对应存档)不走此路径:成员资格即勾选,路由回 `toggleArchived`
     ///   (取消勾选 = 移出名单,池行本身仍在列表)——维持「roster 存档成员 ⇔ 已勾选」不变量
     /// - 临时人 / 恢复行:只翻勾选态,roster 成员资格不动(取消勾选不再把人整个删掉,
     ///   2026-09-03 拆分;移出名单走 `removeRosterEntry` + View 层确认)
     func toggleEntrySelection(_ entry: RosterEntry) {
-        if case .archived(let hash) = entry,
-           archivedCharts.contains(where: { $0.snapshotHash == hash }) {
+        if case .archived(let hash) = entry, isPoolBacked(hash: hash) {
             toggleArchived(hash: hash)
             return
         }
