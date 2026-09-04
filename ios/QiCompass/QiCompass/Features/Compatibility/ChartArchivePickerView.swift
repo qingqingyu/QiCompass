@@ -186,7 +186,9 @@ struct RosterUnifiedListView: View {
 
             if isFull {
                 // 定稿⑥:满员 dashed 提示(上限拦「加」不拦「排」)
-                Text("名单已满 \(rosterMax) 位(含未勾选)。取消某位勾选或将其移出名单,可再添加新的对方。")
+                // 2026-09-03:容量按名单成员计(含未勾选),释放名额的可靠路径是「移出」
+                // (取消勾选只对存档池行等效移出,对临时人/恢复行不释放容量,不在此引导)
+                Text("名单已满 \(rosterMax) 位(含未勾选)。移出一位名单成员后,可再添加新的对方。")
                     .font(BaziFont.caption(size: 10))
                     .tracking(0.5)
                     .foregroundStyle(BaziTheme.inkMuted)

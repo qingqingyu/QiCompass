@@ -752,6 +752,35 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         }
     }
 
+    func testCompute_混合名单_只消费勾选子集() async throws {
+        // 解耦核心路径:名单 2 人(存档池行已勾 + 临时人未勾)→ compute 只算勾选的 1 对
+        let chartA = try insertChart(hash: "dec_a_known", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "dec_b_known", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        vm.toggleArchived(hash: "dec_b_known")  // 池行:入名单即勾选(资格⇔勾选不变量)
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京"))
+        try vm.addTempToRoster()  // 临时人:入册未勾(2026-09-03 解耦)
+        XCTAssertEqual(vm.roster.count, 2, "前置:名单 2 位成员")
+        XCTAssertEqual(vm.selectedRosterEntries.count, 1, "前置:仅勾选 1 位")
+
+        vm.compute()
+
+        // computing 进度同步可断言(compute 返回时 Task 尚未上 MainActor)
+        if case .computing(_, let total) = vm.state {
+            XCTAssertEqual(total, 1, "computing total 按勾选子集计,不按名单成员计")
+        } else {
+            XCTFail("应进入 .computing 态,实际:\(vm.state)")
+            return
+        }
+
+        let reached = await waitForListState()
+        XCTAssertTrue(reached, "compute 应正常进入 .list,实际:\(vm.state)")
+        XCTAssertEqual(vm.summaries.count, 1, "未勾选的名单成员不得排盘")
+        XCTAssertEqual(vm.summaries.first?.displayName, "B", "只算已勾选的存档对方")
+    }
+
     // MARK: - compute() 名单空拦截(决策 D13)
 
     func testCompute_名单空_进入failed态_不调orchestrator() {
