@@ -48,6 +48,8 @@ enum CompatibilityViewState: Equatable {
 ///
 /// 多选 + detail 核心:
 /// - `roster: [RosterEntry]`(决策 D2 混合名单,上限 8)
+/// - `selectedEntryIds: Set<String>`(2026-09-03:名单成员资格与「本次勾选」解耦;
+///   compute 只消费勾选子集 `selectedRosterEntries`)
 /// - `summaries: [PairSummary]`(list 态用,detail 切换时保留)
 /// - `compute()` 串行批量 → list 态
 /// - `openDetail(summary)` → detail 态(查 cache + 解 response + 构造 InterpretState)
@@ -67,7 +69,20 @@ final class CompatibilityViewModel {
 
     /// B 名单(决策 D2 混合名单 = 存档勾选 + 临时输入)。
     /// 上限 8 人(`rosterMax`,决策 D2 全局池配套)。
+    ///
+    /// 2026-09-03 语义拆分:roster = 「名单成员资格」(添加即入册,与本次排盘无关);
+    /// 是否参与本次合盘由 `selectedEntryIds` 决定。存档池行的成员资格与勾选仍等价
+    /// (toggleArchived 同步维护两边);解耦只发生在临时人 / 跨启动恢复行
+    /// (无存档池行可回落,取消勾选必须保留在名单里)。
     var roster: [RosterEntry] = []
+
+    /// 名单内已勾选 entry id 集合(= 本次要排盘的人)。
+    /// 不变量:
+    /// - 存档池行:`.archived` entry 在 roster ⇔ id 在本集合(toggleArchived 维护)
+    /// - 临时人/恢复行:添加**不**入本集合(2026-09-03 拆分:「加名单」≠「选入合盘」),
+    ///   由 `toggleEntrySelection` 显式勾选
+    /// - 跨启动恢复:恢复的名单 = 上次排盘的人,默认全勾
+    var selectedEntryIds: Set<String> = []
 
     /// 单临时人表单(S04 草稿态:每次「添加」push 一条 .temp 到 roster,然后表单清空)。
     /// 多条独立 .temp 在 roster 内互不干扰。
@@ -214,12 +229,36 @@ final class CompatibilityViewModel {
         archivedCharts[safe: selectedChartAIndex]?.snapshotHash
     }
 
-    /// 名单内已勾选存档 hash 集合(供多选 UI 回显)。
+    /// 名单内已勾选的 entry(顺序同 roster;compute / CTA / 摘要的唯一消费源)。
+    var selectedRosterEntries: [RosterEntry] {
+        roster.filter { selectedEntryIds.contains($0.id) }
+    }
+
+    /// 名单内已勾选存档 hash 集合(供多选 UI 回显 / A 盘 menu 置灰)。
+    /// 2026-09-03 起按勾选过滤:未勾选的跨启动恢复行(.archived 无池行)不再计入。
     var selectedArchivedHashes: Set<String> {
-        Set(roster.compactMap { entry -> String? in
+        Set(selectedRosterEntries.compactMap { entry -> String? in
             if case .archived(let hash) = entry { return hash }
             return nil
         })
+    }
+
+    /// 勾选 / 取消勾选名单行(临时人 / 跨启动恢复行的点击路径)。
+    /// - 存档池行(有对应存档)不走此路径:成员资格即勾选,路由回 `toggleArchived`
+    ///   (取消勾选 = 移出名单,池行本身仍在列表)——维持「roster 存档成员 ⇔ 已勾选」不变量
+    /// - 临时人 / 恢复行:只翻勾选态,roster 成员资格不动(取消勾选不再把人整个删掉,
+    ///   2026-09-03 拆分;移出名单走 `removeRosterEntry` + View 层确认)
+    func toggleEntrySelection(_ entry: RosterEntry) {
+        if case .archived(let hash) = entry,
+           archivedCharts.contains(where: { $0.snapshotHash == hash }) {
+            toggleArchived(hash: hash)
+            return
+        }
+        if selectedEntryIds.contains(entry.id) {
+            selectedEntryIds.remove(entry.id)
+        } else {
+            selectedEntryIds.insert(entry.id)
+        }
     }
 
     /// 名单内是否已有临时人(S04 后多条,此处仅用于 UI 展示提示)。
@@ -240,7 +279,8 @@ final class CompatibilityViewModel {
     /// - 上限校验:加入时若已达 `rosterMax` 静默拒绝(UI 应提前 disable)
     func toggleArchived(hash: String) {
         if let idx = roster.firstIndex(where: { $0.archivedSnapshotHash == hash }) {
-            roster.remove(at: idx)
+            let removed = roster.remove(at: idx)
+            selectedEntryIds.remove(removed.id)
             return
         }
         guard hash != currentPersonAHash else {
@@ -256,7 +296,9 @@ final class CompatibilityViewModel {
             AppLogger.app.warning("op=compatibility.toggleArchived skip reason=roster_full hash=\(hash, privacy: .public)")
             return
         }
-        roster.append(.archived(snapshotHash: hash))
+        let entry = RosterEntry.archived(snapshotHash: hash)
+        roster.append(entry)
+        selectedEntryIds.insert(entry.id)
     }
 
     // MARK: - S11 roster 不可合盘标记(判据 = 本地存档 payload,零网络)
@@ -340,6 +382,9 @@ final class CompatibilityViewModel {
     /// 添加临时对方到名单(S04:多条,每次 append 一条独立 .temp)。
     /// 校验失败抛 `UserFacingError`(不静默吞,CLAUDE.md 错误显式传播)。
     /// 成功后:写入 tempDraft 持久化 + 重置表单为"上次填过的"(alias 清空)。
+    ///
+    /// 2026-09-03:加入名单**不等于**勾选——新 entry 落位时未勾选
+    /// (不进 `selectedEntryIds`),是否参与本次合盘由用户在名单上显式勾选。
     func addTempToRoster() throws {
         try validateTempForm()
         guard roster.count < Self.rosterMax else {
@@ -393,9 +438,10 @@ final class CompatibilityViewModel {
         tempPlace = draft.place
     }
 
-    /// 移除名单一项。
+    /// 移除名单一项(勾选 id 一并清理,不留悬空引用)。
     func removeRosterEntry(_ entry: RosterEntry) {
         roster.removeAll { $0.id == entry.id }
+        selectedEntryIds.remove(entry.id)
     }
 
     /// 临时表单校验(不静默吞)。
@@ -417,15 +463,18 @@ final class CompatibilityViewModel {
 
     // MARK: - 批量合盘触发(决策 D3 串行 / D9 list / D13 名单空拦截)
 
-    /// 触发批量合盘:校验名单 → 串行调 orchestrator.runDeterministic → .list 态。
+    /// 触发批量合盘:校验勾选 → 串行调 orchestrator.runDeterministic → .list 态。
     ///
+    /// 2026-09-03:只消费 `selectedRosterEntries`(勾选子集)——名单成员未勾选不排盘
+    /// (添加与勾选解耦后,零勾选 = D13 拦截,与空名单同文案)。
     /// S01:单对失败 → 整体 failed(沿用现状语义);S03 改对级隔离 + 单对重试。
     /// 切 tab / backToConfig → computeTask cancel(决策 D13)。
     func compute() {
         let contextValue = self.context
         let rosterCount = self.roster.count
+        let selectedEntries = self.selectedRosterEntries
         let archivedCount = self.archivedCharts.count
-        AppLogger.app.info("compatVM.compute.start roster_count=\(rosterCount, privacy: .public) context=\(contextValue, privacy: .public) archivedCount=\(archivedCount)")
+        AppLogger.app.info("compatVM.compute.start roster_count=\(rosterCount, privacy: .public) selected_count=\(selectedEntries.count, privacy: .public) context=\(contextValue, privacy: .public) archivedCount=\(archivedCount)")
 
         guard !archivedCharts.isEmpty else {
             AppLogger.app.warning("compatVM.compute.skip reason=empty_archive")
@@ -437,20 +486,20 @@ final class CompatibilityViewModel {
             state = .failed(.generic(message: "A 盘选择越界,请重新选择"))
             return
         }
-        // 决策 D13:名单空校验拦截
-        guard !roster.isEmpty else {
-            AppLogger.app.warning("compatVM.compute.skip reason=empty_roster")
-            state = .failed(.generic(message: "请至少选择一位对方"))
+        // 决策 D13:零勾选拦截(2026-09-03 起名单非空但未勾选同样拦截)
+        guard !selectedEntries.isEmpty else {
+            AppLogger.app.warning("compatVM.compute.skip reason=empty_selection roster_count=\(rosterCount, privacy: .public)")
+            state = .failed(.generic(message: "请至少勾选一位对方"))
             return
         }
 
         computeTask?.cancel()
-        let total = roster.count
+        let total = selectedEntries.count
         state = .computing(completed: 0, total: total)
 
         // 捕获快照避免 Task 内被并发修改
         let chartA = archivedCharts[selectedChartAIndex]
-        let rosterSnapshot = roster
+        let rosterSnapshot = selectedEntries
 
         computeTask = Task { [weak self] in
             guard let self else { return }
@@ -568,6 +617,9 @@ final class CompatibilityViewModel {
             (try? self.chartStore.get(contentHash: hash)) != nil
         }
         roster = validHashes.map { .archived(snapshotHash: $0) }
+        // 恢复的名单 = 上次排盘的人(持久化只存已算 hash)→ 默认全勾,
+        // 用户回到配置态看到的勾选态与上次发起时一致
+        selectedEntryIds = Set(roster.map(\.id))
 
         AppLogger.app.info(
             "op=compatibility.restore.ok a_hash=\(self.currentPersonAHash ?? "nil", privacy: .public) context=\(self.context, privacy: .public) roster_count=\(self.roster.count, privacy: .public)"

@@ -492,6 +492,48 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
     }
 
     @MainActor
+    func testRestoreRosterStateIfAvailable_恢复名单默认全勾() throws {
+        // 恢复的名单 = 上次排盘的人 → 勾选态与上次发起时一致(默认全勾)
+        CompatibilityRosterPersistence.clear()
+        let aSnapshot = ChartSnapshot(
+            contentHash: "a_sel",
+            birthSolarTime: Date(timeIntervalSince1970: 638_000_000),
+            gender: "male",
+            cityLongitude: 116.41,
+            ziHourRule: "zi_next_day",
+            calcRuleSnapshot: Data(),
+            payload: Data()
+        )
+        let bSnapshot = ChartSnapshot(
+            contentHash: "b_sel",
+            birthSolarTime: Date(timeIntervalSince1970: 638_000_000),
+            gender: "female",
+            cityLongitude: 116.41,
+            ziHourRule: "zi_next_day",
+            calcRuleSnapshot: Data(),
+            payload: Data()
+        )
+        container.mainContext.insert(aSnapshot)
+        container.mainContext.insert(bSnapshot)
+        try container.mainContext.save()
+        vm.archivedCharts = [ArchivedChart(
+            snapshotHash: "a_sel", alias: "A",
+            birthDate: aSnapshot.birthSolarTime, gender: "male",
+            dayMaster: "甲", snapshot: aSnapshot
+        )]
+        CompatibilityRosterPersistence.save(
+            personAHash: "a_sel", context: "general", rosterHashes: ["b_sel"]
+        )
+
+        vm.restoreRosterStateIfAvailable()
+
+        XCTAssertEqual(vm.roster.count, 1)
+        XCTAssertEqual(vm.selectedEntryIds, Set(vm.roster.map(\.id)), "恢复名单默认全勾")
+        XCTAssertEqual(vm.selectedRosterEntries.count, 1)
+        XCTAssertTrue(vm.selectedArchivedHashes.contains("b_sel"))
+    }
+
+    @MainActor
     func testRestoreRosterStateIfAvailable_Ahash失效_fallback最新link() {
         CompatibilityRosterPersistence.clear()
         // 构造存档:archivedCharts 已是 createdAt DESC(模拟 loadArchivedCharts 行为)
@@ -604,17 +646,124 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertTrue(vm.roster.isEmpty)
     }
 
+    // MARK: - 2026-09-03 添加/勾选解耦(roster 成员资格 ≠ 本次勾选)
+
+    func testAddTempToRoster_加入名单_不自动勾选() {
+        // 解耦核心断言:添加 = 入册,不等于选入本次合盘
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京"))
+        try? vm.addTempToRoster()
+
+        XCTAssertEqual(vm.roster.count, 1, "添加 = 入名单")
+        XCTAssertTrue(vm.selectedEntryIds.isEmpty, "添加不得隐含勾选(2026-09-03 解耦)")
+        XCTAssertTrue(vm.selectedRosterEntries.isEmpty, "未勾选不进 compute/CTA 消费源")
+    }
+
+    func testToggleEntrySelection_临时人_切换勾选_不移出名单() throws {
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京"))
+        try vm.addTempToRoster()
+        let entry = try XCTUnwrap(vm.roster.first)
+
+        vm.toggleEntrySelection(entry)
+        XCTAssertEqual(vm.selectedEntryIds, [entry.id])
+        XCTAssertEqual(vm.selectedRosterEntries.map(\.id), [entry.id])
+        XCTAssertEqual(vm.roster.count, 1, "勾选切换不改变名单成员资格")
+
+        vm.toggleEntrySelection(entry)
+        XCTAssertTrue(vm.selectedEntryIds.isEmpty)
+        XCTAssertEqual(vm.roster.count, 1, "取消勾选保留在名单(移出必须走 removeRosterEntry)")
+    }
+
+    func testToggleEntrySelection_存档池行_路由回toggleArchived() {
+        // 存档池行成员资格即勾选:经此入口也必须走移除语义,维持不变量
+        vm.archivedCharts = [
+            Self.makeChart(hash: "hash_a", alias: "A"),
+            Self.makeChart(hash: "hash_b", alias: "B"),
+        ]
+        vm.selectedChartAIndex = 0
+
+        vm.toggleEntrySelection(.archived(snapshotHash: "hash_b"))
+        XCTAssertEqual(vm.roster.count, 1)
+        XCTAssertTrue(vm.selectedEntryIds.contains("archived:hash_b"))
+
+        vm.toggleEntrySelection(.archived(snapshotHash: "hash_b"))
+        XCTAssertTrue(vm.roster.isEmpty, "存档池行取消勾选 = 移出名单(池行本身仍可见)")
+        XCTAssertTrue(vm.selectedEntryIds.isEmpty)
+    }
+
+    func testToggleArchived_成员资格与勾选同步() {
+        vm.archivedCharts = [
+            Self.makeChart(hash: "hash_a", alias: "A"),
+            Self.makeChart(hash: "hash_b", alias: "B"),
+        ]
+        vm.selectedChartAIndex = 0
+
+        vm.toggleArchived(hash: "hash_b")
+        XCTAssertEqual(vm.selectedEntryIds, ["archived:hash_b"], "勾入即选中")
+        XCTAssertEqual(vm.selectedRosterEntries.count, 1)
+
+        vm.toggleArchived(hash: "hash_b")
+        XCTAssertTrue(vm.selectedEntryIds.isEmpty, "移出即取消勾选,不留悬空 id")
+    }
+
+    func testRemoveRosterEntry_勾选id一并清理() {
+        vm.archivedCharts = [
+            Self.makeChart(hash: "hash_a", alias: "A"),
+            Self.makeChart(hash: "hash_b", alias: "B"),
+        ]
+        vm.selectedChartAIndex = 0
+        vm.toggleArchived(hash: "hash_b")
+
+        vm.removeRosterEntry(.archived(snapshotHash: "hash_b"))
+
+        XCTAssertTrue(vm.roster.isEmpty)
+        XCTAssertTrue(vm.selectedEntryIds.isEmpty, "移出名单须同步清勾选 id")
+    }
+
+    func testSelectedArchivedHashes_未勾选恢复行_不计入() {
+        // 跨启动恢复行(.archived hash 无对应存档):未勾选时不得计入勾选 hash 集
+        let orphan = RosterEntry.archived(snapshotHash: "ghost_orphan")
+        vm.roster = [orphan]
+
+        XCTAssertTrue(vm.selectedArchivedHashes.isEmpty, "未勾选的恢复行不计入")
+
+        vm.toggleEntrySelection(orphan)  // 无存档池行 → 走勾选切换
+        XCTAssertEqual(vm.selectedArchivedHashes, ["ghost_orphan"])
+        XCTAssertEqual(vm.selectedRosterEntries.count, 1)
+    }
+
+    func testCompute_名单非空_零勾选_D13拦截() {
+        // 解耦后新增拦截形态:名单有成员但没人勾选 → 与空名单同拦截
+        vm.archivedCharts = [Self.makeChart(hash: "h_a", alias: "A")]
+        vm.selectedChartAIndex = 0
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京"))
+        try? vm.addTempToRoster()
+        XCTAssertEqual(vm.roster.count, 1, "前置:名单非空")
+
+        vm.compute()
+
+        if case .failed(let userError) = vm.state {
+            XCTAssertTrue(userError.errorDescription?.contains("至少勾选一位对方") == true,
+                          "零勾选拦截文案")
+        } else {
+            XCTFail("名单非空零勾选应进入 .failed 态,实际:\(vm.state)")
+        }
+    }
+
     // MARK: - compute() 名单空拦截(决策 D13)
 
     func testCompute_名单空_进入failed态_不调orchestrator() {
         vm.archivedCharts = [Self.makeChart(hash: "h_a", alias: "A")]
         vm.selectedChartAIndex = 0
         vm.roster = []  // 空名单
+        vm.selectedEntryIds = []
 
         vm.compute()
 
         if case .failed(let userError) = vm.state {
-            XCTAssertTrue(userError.errorDescription?.contains("至少选择一位对方") == true, "空名单拦截文案")
+            XCTAssertTrue(userError.errorDescription?.contains("至少勾选一位对方") == true, "零勾选拦截文案")
         } else {
             XCTFail("空名单应进入 .failed 态,实际:\(vm.state)")
         }
@@ -959,6 +1108,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.archivedCharts = [chartA, chartB]
         vm.selectedChartAIndex = 0
         vm.roster = [.archived(snapshotHash: "s07_b_known")]
+        vm.selectedEntryIds = Set(vm.roster.map(\.id))  // 直塞名单模拟已勾选
 
         vm.compute()
         let reached = await waitForListState()
@@ -995,6 +1145,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
                 resolvedHash: nil
             ),
         ]
+        vm.selectedEntryIds = Set(vm.roster.map(\.id))  // 直塞名单模拟已勾选
 
         vm.compute()
         let reached = await waitForListState()
@@ -1018,6 +1169,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.archivedCharts = [chartA, chartB]
         vm.selectedChartAIndex = 0
         vm.roster = [.archived(snapshotHash: "s07_b3_known")]
+        vm.selectedEntryIds = Set(vm.roster.map(\.id))  // 直塞名单模拟已勾选
 
         vm.compute()
         let reached = await waitForListState()
@@ -1276,6 +1428,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             .archived(snapshotHash: "s11_v_b_unknown"),
             .archived(snapshotHash: "s11_v_b_ambiguous"),
         ]
+        rvm.selectedEntryIds = Set(rvm.roster.map(\.id))  // 直塞名单模拟已勾选
 
         rvm.compute()
         let reached = await waitForListState(of: rvm)
@@ -1447,7 +1600,7 @@ final class CompatibilityConfigCTAModelTests: XCTestCase {
 
     func testEmptyRosterShowsHintAndDisabled() {
         let cta = CompatibilityConfigCTAModel.derive(
-            rosterCount: 0, selectedNames: [], isSelfHourUnknown: false
+            selectedCount: 0, selectedNames: [], isSelfHourUnknown: false
         )
         XCTAssertEqual(cta.kind, .emptyRoster)
         XCTAssertEqual(cta.title, "先勾选对方")
@@ -1457,7 +1610,7 @@ final class CompatibilityConfigCTAModelTests: XCTestCase {
 
     func testSingleSelectionShowsCountOne() {
         let cta = CompatibilityConfigCTAModel.derive(
-            rosterCount: 1, selectedNames: ["男友"], isSelfHourUnknown: false
+            selectedCount: 1, selectedNames: ["男友"], isSelfHourUnknown: false
         )
         XCTAssertEqual(cta.kind, .ready(count: 1, namesSummary: "男友 · 1 对"))
         XCTAssertEqual(cta.title, "排 1 对合盘")
@@ -1467,7 +1620,7 @@ final class CompatibilityConfigCTAModelTests: XCTestCase {
 
     func testTwoSelectionsListAllNames() {
         let cta = CompatibilityConfigCTAModel.derive(
-            rosterCount: 2, selectedNames: ["相亲对象", "男友"], isSelfHourUnknown: false
+            selectedCount: 2, selectedNames: ["相亲对象", "男友"], isSelfHourUnknown: false
         )
         XCTAssertEqual(cta.title, "排 2 对合盘")
         XCTAssertEqual(cta.note, "相亲对象 · 男友 · 2 对 · 每对独立解锁")
@@ -1475,7 +1628,7 @@ final class CompatibilityConfigCTAModelTests: XCTestCase {
 
     func testOverTwoSelectionsEllipsizeNames() {
         let cta = CompatibilityConfigCTAModel.derive(
-            rosterCount: 4, selectedNames: ["甲", "乙", "丙", "丁"], isSelfHourUnknown: false
+            selectedCount: 4, selectedNames: ["甲", "乙", "丙", "丁"], isSelfHourUnknown: false
         )
         // 前 2 名 +「等 N 位」,CTA 注不随人数无限变长
         XCTAssertEqual(cta.note, "甲 · 乙 等 4 位 · 4 对 · 每对独立解锁")
@@ -1485,7 +1638,7 @@ final class CompatibilityConfigCTAModelTests: XCTestCase {
     func testSelfHourUnknownLocksEvenWithSelections() {
         // S07 全锁优先于一切:有勾选也置灰
         let cta = CompatibilityConfigCTAModel.derive(
-            rosterCount: 3, selectedNames: ["甲", "乙", "丙"], isSelfHourUnknown: true
+            selectedCount: 3, selectedNames: ["甲", "乙", "丙"], isSelfHourUnknown: true
         )
         XCTAssertEqual(cta.kind, .selfHourUnknown)
         XCTAssertEqual(cta.title, "补全时辰后可合盘")
@@ -1495,7 +1648,7 @@ final class CompatibilityConfigCTAModelTests: XCTestCase {
 
     func testSelfHourUnknownWinsOverEmptyRoster() {
         let cta = CompatibilityConfigCTAModel.derive(
-            rosterCount: 0, selectedNames: [], isSelfHourUnknown: true
+            selectedCount: 0, selectedNames: [], isSelfHourUnknown: true
         )
         XCTAssertEqual(cta.kind, .selfHourUnknown)
         XCTAssertFalse(cta.isEnabled)
@@ -1504,7 +1657,7 @@ final class CompatibilityConfigCTAModelTests: XCTestCase {
     func testReadyWithMissingNamesFallsBackToCountOnly() {
         // 防御分支:names 与 count 不一致(或空名)时不产出前导分隔符
         let cta = CompatibilityConfigCTAModel.derive(
-            rosterCount: 2, selectedNames: [], isSelfHourUnknown: false
+            selectedCount: 2, selectedNames: [], isSelfHourUnknown: false
         )
         XCTAssertEqual(cta.title, "排 2 对合盘")
         XCTAssertEqual(cta.note, "2 对 · 每对独立解锁")
