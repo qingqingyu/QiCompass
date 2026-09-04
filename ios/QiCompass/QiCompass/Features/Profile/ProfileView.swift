@@ -78,17 +78,20 @@ struct ProfileView: View {
                         if let primary = profile.primary {
                             identityBlock(primary)
                             sectionDivider
-                            if case .signedOut = env.accountManager.state {
-                                loginBox(failedMessage: nil)
-                            } else if case .failed(let message) = env.accountManager.state {
-                                loginBox(failedMessage: message)
-                            }
                             if primary.needsHour {
                                 addHourRow(
                                     silenced: primary.isSilenced,
                                     hash: primary.snapshot.contentHash
                                 )
                             }
+                        }
+                        // 登录引导盒不依赖命盘存在:旧 accountSection 无条件展示,
+                        // 名盘全删空/重置后的未登录用户在本 Tab 仍要有登录入口
+                        //(PaywallView 入口需先有命盘才可达,救不了零盘态)。
+                        if case .signedOut = env.accountManager.state {
+                            loginBox(failedMessage: nil)
+                        } else if case .failed(let message) = env.accountManager.state {
+                            loginBox(failedMessage: message)
                         }
                         rosterSection(profile)
                         entitlementsSection
@@ -225,7 +228,10 @@ struct ProfileView: View {
         switch env.accountManager.state {
         case .signedIn:
             VStack(spacing: 5) {
+                // 装饰印:登录态由相邻文本「已钤 · 同步中」承载,印本身不进 VoiceOver
+                //(与未登录分支 UnstampedSeal 的 accessibilityHidden 对齐,两分支读法一致)。
                 SealStamp(character: "我", size: 26, rotation: -3, stampDelay: nil)
+                    .accessibilityHidden(true)
                 Text("已钤 · 同步中")
                     .font(BaziFont.caption(size: 9.5))
                     .tracking(1.5)
@@ -290,6 +296,7 @@ struct ProfileView: View {
     /// 命主块信息(首条可解码 link;decode 失败 → nil,身份块整体不展示,
     /// 具体 error 已由 `ChartSnapshotStore.decodeResponse` 内 Logger.error 记录)。
     private struct PrimaryProfileInfo {
+        let linkId: UUID
         let alias: String
         let zodiacMode: ZodiacAvatarMode
         let snapshot: ChartSnapshot
@@ -335,35 +342,42 @@ struct ProfileView: View {
     }
 
     /// body 内单次求值的页面数据(命主 + 名册)。
-    /// decode 失败的行:zodiacMode = .hidden + 空 meta(hash 兜底),error 已由 store 记录。
+    /// 缺 snapshot / decode 失败的行:zodiacMode = .hidden + 空 meta(hash 兜底),
+    /// decode 失败的具体 error 已由 store 记录。
     private var profileModel: (primary: PrimaryProfileInfo?, roster: [RosterEntry]) {
         var primaryInfo: PrimaryProfileInfo?
         var entries: [RosterEntry] = []
         for link in snapshotLinks {
-            guard let snap = chartSnapshots.first(where: { $0.contentHash == link.snapshotHash }) else {
+            // 缺 snapshot 与 decode 失败走同一条降级路(合并 guard,降级构造只写一份防漂移);
+            // decode 失败的具体 error 已由 store 内 Logger.error 记录,这里不吞(见上方 doc 注释)。
+            guard
+                let snap = chartSnapshots.first(where: { $0.contentHash == link.snapshotHash }),
+                let response = try? env.chartSnapshotStore.decodeResponse(from: snap)
+            else {
                 entries.append(RosterEntry(link: link, zodiacMode: .hidden, birthYear: nil, yearGanZhi: nil, hourUnknown: false))
                 continue
             }
-            guard let response = try? env.chartSnapshotStore.decodeResponse(from: snap) else {
-                entries.append(RosterEntry(link: link, zodiacMode: .hidden, birthYear: nil, yearGanZhi: nil, hourUnknown: false))
-                continue
-            }
+            // 生肖印/时辰态单点求值:名册行与命主块共享同一判定结果——
+            // 若两处各自求值,将来单边改动会让首行名册与命主块的生肖印/「主」标静默分裂。
+            let zodiacMode = ZodiacAvatarMode.resolve(hasChart: true, zodiac: response.yearBranchZodiac)
+            let needsHour = response.hourUnknownGate != .hourKnown
             entries.append(
                 RosterEntry(
                     link: link,
-                    zodiacMode: ZodiacAvatarMode.resolve(hasChart: true, zodiac: response.yearBranchZodiac),
+                    zodiacMode: zodiacMode,
                     birthYear: Calendar.current.component(.year, from: snap.birthSolarTime),
                     yearGanZhi: response.pillars.year?.ganZhi,
-                    hourUnknown: response.hourUnknownGate != .hourKnown
+                    hourUnknown: needsHour
                 )
             )
             if primaryInfo == nil {
                 primaryInfo = PrimaryProfileInfo(
+                    linkId: link.id,
                     alias: link.alias,
-                    zodiacMode: ZodiacAvatarMode.resolve(hasChart: true, zodiac: response.yearBranchZodiac),
+                    zodiacMode: zodiacMode,
                     snapshot: snap,
                     response: response,
-                    needsHour: response.hourUnknownGate != .hourKnown,
+                    needsHour: needsHour,
                     isSilenced: response.isHourSilenced
                 )
             }
@@ -421,8 +435,12 @@ struct ProfileView: View {
                     .foregroundStyle(BaziTheme.inkMuted)
                     .padding(.vertical, BaziTheme.Spacing.md)
             } else {
-                ForEach(Array(profile.roster.enumerated()), id: \.element.id) { index, entry in
-                    rosterRow(entry, isPrimary: index == 0)
+                // 「主」标按 linkId 对齐命主块(首条**可解码** link),不用 index==0:
+                // 首条 link decode 失败/缺 snapshot 时,index==0 会把「主」标落到
+                // hash 兜底行,与上方命主块(下一条可解码 link)互相矛盾。
+                let primaryId = profile.primary?.linkId
+                ForEach(profile.roster) { entry in
+                    rosterRow(entry, isPrimary: entry.link.id == primaryId)
                 }
             }
             newChartRow
@@ -677,6 +695,8 @@ struct ProfileView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
+            // 箭头字符对 VoiceOver 是噪音,统一读按钮语义(对齐 newChartRow 惯例)
+            .accessibilityLabel("隐私与数据")
 
             if showPrivacy {
                 VStack(spacing: 3) {
