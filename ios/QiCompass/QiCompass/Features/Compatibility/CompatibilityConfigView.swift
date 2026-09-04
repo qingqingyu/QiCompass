@@ -5,11 +5,14 @@ import SwiftUI
 /// → 底部「排 N 对合盘」动态计数 CTA。
 ///
 /// 事实源:`~/.gstack/projects/qingqingyu-QiCompass/designs/hepan-picker-20260902/finalized.html`
-/// - 添加面板 = 半屏 sheet(`AddPersonSheet`),加入即关 + 新行自动落位勾选
-///   (修复旧内联表单 `showTempForm` 无收回路径的缺口)
+/// - 添加面板 = 半屏 sheet(`AddPersonSheet`),加入即关(修复旧内联表单 `showTempForm`
+///   无收回路径的缺口)
+/// - 2026-09-03 修订:添加与勾选解耦——加入名单的新行**未勾选**,是否排盘由用户
+///   在名单上显式勾选(VM `selectedEntryIds`);取消勾选不再移出名单,移出走「移出」
+///   小按钮 + 确认。修订 09-02 定稿「加入即自动勾选」一条。
 /// - 命主无时辰(S07 全锁):命主行「补时辰」直达 + banner + CTA 文案化置灰
 /// - 他人无时辰行保留 S10(点击补时辰)/ S11(置灰短注)
-/// - 决策 D1-D13 / VM 语义全部不动(红线;见 docs/合盘多选设计决策.md)
+/// - 决策 D1-D13 红线不动(见 docs/合盘多选设计决策.md;roster 勾选语义按上方修订)
 ///
 /// 2026-08-16:「合盘维度」picker 移除,context 固定 "general"(VM 注释)。
 struct CompatibilityConfigView: View {
@@ -64,11 +67,13 @@ struct CompatibilityConfigView: View {
                     roster: vm.roster,
                     rosterMax: CompatibilityViewModel.rosterMax,
                     selectedHashes: vm.selectedArchivedHashes,
+                    selectedCount: vm.selectedRosterEntries.count,
                     tempRows: vm.roster.compactMap(tempRowModel(for:)),
                     orphanRows: vm.roster.compactMap(orphanRowModel(for:)),
                     isHourUnknown: { vm.isArchivedHourUnknown(hash: $0) },
                     isSelfHourUnknown: vm.isSelfHourUnknown,
                     onToggleArchived: { vm.toggleArchived(hash: $0) },
+                    onToggleTemp: { vm.toggleEntrySelection($0) },
                     onRemoveTemp: { tempRemovalCandidate = $0 },
                     onAddHour: onAddHour,
                     onAdd: { showAddSheet = true },
@@ -102,9 +107,10 @@ struct CompatibilityConfigView: View {
             }
         }
         .safeAreaInset(edge: .bottom) {
+            // 2026-09-03:CTA 计数/摘要按勾选子集(名单成员未勾选不进)
             let cta = CompatibilityConfigCTAModel.derive(
-                rosterCount: vm.roster.count,
-                selectedNames: vm.roster.map(displayLabel(for:)),
+                selectedCount: vm.selectedRosterEntries.count,
+                selectedNames: vm.selectedRosterEntries.map(displayLabel(for:)),
                 isSelfHourUnknown: vm.isSelfHourUnknown
             )
             Button(action: onStart) {
@@ -139,11 +145,11 @@ struct CompatibilityConfigView: View {
             }
             .disabled(!cta.isEnabled)
         }
-        // 添加对方:半屏 sheet,加入即关 + 自动落位勾选(定稿③④⑤)
+        // 添加对方:半屏 sheet,加入即关(新行落位未勾选,2026-09-03 修订)
         .sheet(isPresented: $showAddSheet) {
             AddPersonSheet(vm: vm)
         }
-        // 临时人取消勾选 = 移出名单(需再填表单才能回来,确认防误删)
+        // 「移出」按钮 = 移出名单(需再填表单才能回来,确认防误删)
         .confirmationDialog(
             "移出名单?",
             isPresented: Binding(
@@ -188,14 +194,15 @@ struct CompatibilityConfigView: View {
 
     // MARK: - 名单行展示派生
 
-    /// 临时人行展示模型(名称 / 副行 / badge「快速」;从 RosterEntry 派生)。
+    /// 临时人行展示模型(名称 / 副行 / badge「快速」/ 勾选态;从 RosterEntry 派生)。
     private func tempRowModel(for entry: RosterEntry) -> TempRowModel? {
         guard case .temp = entry else { return nil }
         return TempRowModel(
             entry: entry,
             name: displayLabel(for: entry),
             subtitle: subtitleLabel(for: entry),
-            badge: "快速"
+            badge: "快速",
+            isSelected: vm.selectedEntryIds.contains(entry.id)
         )
     }
 
@@ -209,7 +216,8 @@ struct CompatibilityConfigView: View {
             entry: entry,
             name: displayLabel(for: entry),
             subtitle: "上次合盘保留的对方",
-            badge: "存档"
+            badge: "存档",
+            isSelected: vm.selectedEntryIds.contains(entry.id)
         )
     }
 
@@ -238,8 +246,9 @@ struct CompatibilityConfigView: View {
 // MARK: - CTA 派生模型(定稿:三态文案)
 
 /// 配置页底部 CTA 三态(纯值,单测覆盖):
-/// - `.ready`:「排 N 对合盘」+ 名单摘要注(前 2 名 + 等 N 位)
-/// - `.emptyRoster`:置灰「先勾选对方」(决策 D13 名单空拦截的前移表达)
+/// - `.ready`:「排 N 对合盘」+ 勾选摘要注(前 2 名 + 等 N 位)
+/// - `.emptyRoster`:置灰「先勾选对方」(决策 D13 零勾选拦截的前移表达;
+///   2026-09-03 起名单非空但零勾选同态)
 /// - `.selfHourUnknown`:置灰「补全时辰后可合盘」(S07 全锁的文案化)
 struct CompatibilityConfigCTAModel: Equatable {
     enum Kind: Equatable {
@@ -272,30 +281,31 @@ struct CompatibilityConfigCTAModel: Equatable {
     }
 
     /// - Parameters:
-    ///   - rosterCount: 已选(= roster)人数
-    ///   - selectedNames: 已选人名(顺序即 roster 顺序)
-    ///   - isSelfHourUnknown: 命主无时辰(S07 全锁优先于空名单展示)
-    static func derive(rosterCount: Int, selectedNames: [String], isSelfHourUnknown: Bool) -> Self {
+    ///   - selectedCount: 已勾选人数(2026-09-03 起按勾选子集计,非名单成员数)
+    ///   - selectedNames: 已勾选人名(顺序即 roster 顺序)
+    ///   - isSelfHourUnknown: 命主无时辰(S07 全锁优先于零勾选展示)
+    static func derive(selectedCount: Int, selectedNames: [String], isSelfHourUnknown: Bool) -> Self {
         if isSelfHourUnknown {
             return Self(kind: .selfHourUnknown)
         }
-        guard rosterCount > 0 else {
+        guard selectedCount > 0 else {
             return Self(kind: .emptyRoster)
         }
         // 防御:names 与 count 长度不一致(或含空名)时不产出前导分隔符
         let names = selectedNames.prefix(2).filter { !$0.isEmpty }
-        let suffix = rosterCount > 2 ? " 等 \(rosterCount) 位" : ""
+        let suffix = selectedCount > 2 ? " 等 \(selectedCount) 位" : ""
         let namesSummary = names.isEmpty
-            ? "\(rosterCount) 对"
-            : names.joined(separator: " · ") + suffix + " · \(rosterCount) 对"
-        return Self(kind: .ready(count: rosterCount, namesSummary: namesSummary))
+            ? "\(selectedCount) 对"
+            : names.joined(separator: " · ") + suffix + " · \(selectedCount) 对"
+        return Self(kind: .ready(count: selectedCount, namesSummary: namesSummary))
     }
 }
 
 // MARK: - 添加对方半屏 sheet(定稿③④)
 
 /// 快速添加表单(称呼/出生时间/性别/出生城市,复用 VM `temp*` 草稿字段)。
-/// 加入成功 → sheet 自动关闭(新行已入 roster = 自动勾选);失败 → 留在 sheet 显人话错误。
+/// 加入成功 → sheet 自动关闭(新行入名单、**未勾选**,2026-09-03 修订:
+/// 添加=入册,勾选=入本次合盘,两逻辑解耦);失败 → 留在 sheet 显人话错误。
 /// 下滑手势即收(系统 sheet 能力,定稿对「面板收不回」的修复主体)。
 private struct AddPersonSheet: View {
     @Bindable var vm: CompatibilityViewModel
@@ -381,7 +391,7 @@ private struct AddPersonSheet: View {
                 }
                 .disabled(vm.roster.count >= CompatibilityViewModel.rosterMax || formError != nil)
 
-                Text("加入后自动勾选 · 下滑可随时收起")
+                Text("加入名单后自行勾选 · 下滑可随时收起")
                     .font(BaziFont.caption(size: 10))
                     .tracking(1)
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
@@ -403,7 +413,7 @@ private struct AddPersonSheet: View {
     private func addTemp() {
         do {
             try vm.addTempToRoster()
-            // 成功:关 sheet(新行已在 roster = 自动勾选)+ 清草稿,可重开连加
+            // 成功:关 sheet(新行已入名单、未勾选)+ 清草稿,可重开连加
             vm.resetTempDraftForm()
             dismiss()
         } catch {
