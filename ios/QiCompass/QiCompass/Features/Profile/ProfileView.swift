@@ -12,7 +12,9 @@ import SwiftData
 /// 1. **登录引导盒**(未登录/失败态):dashed 未钤印 + 官方 SIWA/Google 按钮
 ///    (HIG/品牌规范锁样式,浓墨 .black 与 inkDeep 视觉同源)
 /// 2. **名册**:UserSnapshotLink 行内**可见**改名/删除(不再藏滑动手势),
-///    命主带「主」朱字小标;虚线「＋ 新建命盘」行收尾
+///    命主带「主」朱字小标
+///    (2026-09-05「＋ 新建命盘」入口移除:多人盘建盘归 v2——家人盘会顶掉
+///    「最新 link = 命主」语义,劫持命主卡/深度解析/今日运势的取盘)
 /// 3. **已购 / 设置 / 关于**:hairline 分节;子时规则改 Menu 行,退出登录收进设置(弱化);
 ///    立场三行居中,隐私折叠,版本 + GeoNames 归属收关于节
 ///
@@ -45,12 +47,8 @@ struct ProfileView: View {
     /// 默认 zi_next_day(对齐 CLAUDE.md 项目约束 + 既有 DeepAnalysisViewModel 默认值)。
     @AppStorage("defaultZiHourRule") private var defaultZiHourRule = "zi_next_day"
 
-    // MARK: v2 PR1 多人命盘管理 UI state
+    // MARK: 名册行内操作 state
 
-    /// 新建命盘 sheet(弹 BirthFormView)。
-    @State private var showNewChartSheet = false
-    /// 新建命盘用临时 VM(独立于 DeepAnalysisView 的 VM,避免相互污染)。
-    @State private var newChartVM: DeepAnalysisViewModel?
     /// 待删 link(行内「删除」触发 → confirmationDialog 二次确认)。
     @State private var linkToDelete: UserSnapshotLink?
     /// 待编辑 link(行内「改名」触发 → 弹 AliasEditView)。
@@ -126,9 +124,6 @@ struct ProfileView: View {
                 Button("好的", role: .cancel) {}
             } message: {
                 Text(addHourError ?? "")
-            }
-            .sheet(isPresented: $showNewChartSheet) {
-                newChartSheet
             }
             .sheet(item: $linkToEdit) { link in
                 AliasEditView(initialAlias: link.alias) { newAlias in
@@ -443,7 +438,6 @@ struct ProfileView: View {
                     rosterRow(entry, isPrimary: entry.link.id == primaryId)
                 }
             }
-            newChartRow
         }
         .padding(.top, BaziTheme.Spacing.cmd)
     }
@@ -499,32 +493,6 @@ struct ProfileView: View {
         .overlay(alignment: .bottom) {
             sectionDivider
         }
-    }
-
-    /// 虚线「＋ 新建命盘」行(dashed 临时态语义)。
-    private var newChartRow: some View {
-        Button {
-            openNewChartSheet()
-        } label: {
-            HStack(spacing: BaziTheme.Spacing.cmd) {
-                Circle()
-                    .stroke(BaziTheme.hairlineDashed, style: StrokeStyle(lineWidth: 1.4, dash: [4, 3]))
-                    .frame(width: 36, height: 36)
-                    .overlay(
-                        Text("＋")
-                            .font(BaziFont.caption(size: 15))
-                            .foregroundStyle(BaziTheme.inkMuted)
-                    )
-                Text("新建命盘 · 给家人朋友也排一份")
-                    .font(BaziFont.caption(size: 12.5))
-                    .foregroundStyle(BaziTheme.inkMuted)
-            }
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.vertical, 11)
-            .contentShape(Rectangle())
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("新建命盘")
     }
 
     private var accountManagerSignedIn: Bool {
@@ -695,7 +663,7 @@ struct ProfileView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            // 箭头字符对 VoiceOver 是噪音,统一读按钮语义(对齐 newChartRow 惯例)
+            // 箭头字符对 VoiceOver 是噪音,统一读按钮语义
             .accessibilityLabel("隐私与数据")
 
             if showPrivacy {
@@ -772,7 +740,7 @@ struct ProfileView: View {
         .padding(.bottom, 2)
     }
 
-    // MARK: - v2 PR1 操作
+    // MARK: - 名册行内操作 / 补时辰
 
     /// 打开补时辰 sheet(装配失败显式 alert,不静默不开)。
     private func openAddHourSheet(hash: String) {
@@ -788,48 +756,6 @@ struct ProfileView: View {
                 "op=profile.openAddHour failed hash=\(hash, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
             addHourError = (error as? LocalizedError)?.errorDescription ?? L10n.AddHour.errorRebuild
-        }
-    }
-
-    /// 弹新建命盘 sheet,初始化临时 VM(用户取消/完成会自动释放)。
-    private func openNewChartSheet() {
-        let vm = DeepAnalysisViewModel(
-            orchestrator: env.deepAnalysisOrchestrator,
-            entitlementStore: env.entitlementStore
-        )
-        // 默认 alias "我自己" 由 VM 自带,用户可在表单 TextField 改
-        newChartVM = vm
-        showNewChartSheet = true
-    }
-
-    /// 新建命盘 sheet 内容:BirthFormView + 监听 VM.state 变化(ready 时 dismiss)。
-    @ViewBuilder
-    private var newChartSheet: some View {
-        if let vm = newChartVM {
-            NavigationStack {
-                BirthFormView(vm: vm, onSubmit: vm.calculate)
-                    .navigationTitle("新建命盘")
-                    .navigationBarTitleDisplayMode(.inline)
-                    .toolbar {
-                        ToolbarItem(placement: .topBarLeading) {
-                            Button("取消") {
-                                newChartVM = nil
-                                showNewChartSheet = false
-                            }
-                            .foregroundStyle(BaziTheme.cinnabar)
-                        }
-                    }
-            }
-            .onChange(of: vm.state) { _, newState in
-                if case .ready = newState {
-                    // 排盘成功 → link 已写入 → 关 sheet(@Query 自动刷新 list)
-                    AppLogger.app.info("profile.newChart.ready alias=\(vm.alias, privacy: .public) — dismiss sheet")
-                    newChartVM = nil
-                    showNewChartSheet = false
-                    // PR3.2:新建命盘后 push(同步到云端)
-                    Task { await env.syncManager.push() }
-                }
-            }
         }
     }
 
