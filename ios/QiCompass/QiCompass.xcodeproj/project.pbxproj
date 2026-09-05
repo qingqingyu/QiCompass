@@ -137,6 +137,7 @@
 		A0000000000000000000000E /* golden_queries.json in Resources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000E /* golden_queries.json */; };
 		A0000000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */; };
 		A00000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */; };
+		A00000000000000000000016 /* Paywall/PaywallContractStepTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000016 /* Paywall/PaywallContractStepTests.swift */; };
 		A00000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */; };
 		A00000000000000000000013 /* Shared/AddHourFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000013 /* Shared/AddHourFlowTests.swift */; };
 		A00000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift */; };
@@ -299,6 +300,7 @@
 		A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityViewModelBatchTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisArchiveLoadTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paywall/PaywallHourUnknownGateTests.swift; sourceTree = "<group>"; };
+		A11000000000000000000016 /* Paywall/PaywallContractStepTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paywall/PaywallContractStepTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFortune/DailyFortuneHourUnknownGateTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000013 /* Shared/AddHourFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/AddHourFlowTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisChapterRowTests.swift; sourceTree = "<group>"; };
@@ -610,6 +612,7 @@
 				A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */,
 				A1100000000000000000009C /* Shared/EntitlementStoreTests.swift */,
 				A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */,
+				A11000000000000000000016 /* Paywall/PaywallContractStepTests.swift */,
 				A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */,
 				A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */,
 				A11000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift */,
@@ -874,6 +877,7 @@
 				A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */,
 				A0000000000000000000009C /* Shared/EntitlementStoreTests.swift in Sources */,
 				A00000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift in Sources */,
+				A00000000000000000000016 /* Paywall/PaywallContractStepTests.swift in Sources */,
 				A00000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift in Sources */,
 				A0000000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift in Sources */,
 				A00000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift in Sources */,
