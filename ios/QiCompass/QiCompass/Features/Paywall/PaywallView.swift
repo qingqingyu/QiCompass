@@ -59,7 +59,34 @@ struct PaywallView: View {
         .task { await viewModel.loadProduct() }
     }
 
-    /// 正常付费墙内容(有时辰用户):与 S07 前现状完全一致(价格/按钮/购买链路零变化)。
+    // MARK: - B 章回分段派生(呈现层;判据与 Fix#3 购买按钮分支同构)
+
+    /// 当前契约步(贰 钤印 / 叁 成契;壹 观其价打开即完成,无「进行中」态)。
+    private var contractStep: PaywallContractStep {
+        var signedIn = false
+        if case .signedIn = env.accountManager.state { signedIn = true }
+        return .derive(signedIn: signedIn, exchangeDone: env.accountManager.exchangeState == .done)
+    }
+
+    /// exchange 进行中(stepper 贰的副题切「钤印中…」)。
+    private var isExchangingSeal: Bool {
+        if case .signedIn = env.accountManager.state, env.accountManager.exchangeState == .inFlight {
+            return true
+        }
+        return false
+    }
+
+    /// 第贰步标题行(未登录 / exchange 进行中 / 失败三分支共用,文案单一事实源)。
+    private var sealingStepTitle: some View {
+        StepTitleRow(
+            stepNo: "第贰步",
+            title: "钤印为凭",
+            hint: "登录只为保存购买凭证 · 换机可恢复"
+        )
+    }
+
+    /// 正常付费墙内容(有时辰用户)。购买链路与 S07 前一致(viewModel.purchase /
+    /// PrimaryCTAButton);B 章回分段(2026-09-05)重排呈现层:stepper + 落价块 + 分步标题行。
     private var purchaseBody: some View {
         VStack(spacing: BaziTheme.Spacing.md) {
             // 水墨孤本(deep-p3):「解」印 + 标题 + 副题
@@ -79,6 +106,21 @@ struct PaywallView: View {
             }
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, BaziTheme.Spacing.xs)
+
+            // B 章回分段(2026-09-05 拍板):壹 观其价(打开即完成,价格未登录即见)
+            // → 贰 钤印(登录)→ 叁 成契(购买)。分段信号 = 显式 stepper,零学习成本。
+            ContractStepper(
+                step: contractStep,
+                isExchanging: isExchangingSeal,
+                isPurchased: viewModel.state == .success
+            )
+
+            // 落价块:合同式大写数字(防篡改语义,呼应大写数字品牌指纹);
+            // 角分价/千分位/越界 → 无大写,只显本地化数字(不造假)。
+            PricePlate(
+                upperPrice: viewModel.chineseUpperPrice,
+                rawPrice: viewModel.rawPriceText
+            )
 
             // 章节清单:大写数字徽(锁定虚线圆)+ 章名 + dashed hairline 分隔
             VStack(alignment: .leading, spacing: 0) {
@@ -111,30 +153,45 @@ struct PaywallView: View {
             // isAuthenticated gate 同源,消灭"显示可购买、点了却报『请先登录』"死锁。
             // 防御:exchange 进行中 signOut 的竞态下,迟到的 .done 会与 .signedOut 并存,
             // 补 state 判据让该场景走登录区(正常流 .done 必然伴随 .signedIn,零行为变化)。
+            //
+            // B 章回分段呈现:操作区带「第几步」标题行,登录动机一句话钉死
+            // (「登录只为保存购买凭证」),分段感来自 stepper + 标题行,不来自按钮换位。
             if case .signedIn = env.accountManager.state, env.accountManager.exchangeState == .done {
-                PrimaryCTAButton(
-                    title: viewModel.displayPriceText,
-                    loadingTitle: "处理中…",
-                    isLoading: viewModel.state == .purchasing,
-                    action: { Task { await viewModel.purchase() } }
-                )
+                // 叁 · 成契:购买就绪
+                VStack(spacing: BaziTheme.Spacing.sm) {
+                    StepTitleRow(
+                        stepNo: "第叁步",
+                        title: "成契",
+                        hint: "Apple 确认后即解印 · 买断制不含订阅"
+                    )
+                    PrimaryCTAButton(
+                        title: viewModel.displayPriceText,
+                        loadingTitle: "处理中…",
+                        isLoading: viewModel.state == .purchasing,
+                        action: { Task { await viewModel.purchase() } }
+                    )
+                }
             } else if case .signedIn = env.accountManager.state {
                 // SIWA 成功但账号未就绪(exchange 进行中 / 失败)
                 switch env.accountManager.exchangeState {
                 case .inFlight:
-                    HStack(spacing: BaziTheme.Spacing.sm) {
-                        ProgressView()
-                            .tint(BaziTheme.ink)
-                        Text("正在完成登录…")
-                            .font(.caption)
-                            .foregroundStyle(BaziTheme.inkMuted)
+                    // 贰 · 钤印进行中:三墨点 breathe(DESIGN 动效三式,breathe 变奏)
+                    VStack(spacing: BaziTheme.Spacing.sm) {
+                        sealingStepTitle
+                        VStack(spacing: BaziTheme.Spacing.sm) {
+                            SealingDots()
+                            Text("钤印中 · 正在完成登录…")
+                                .font(.caption)
+                                .foregroundStyle(BaziTheme.inkMuted)
+                        }
+                        .frame(maxWidth: .infinity)
+                        // 与 AppleSignInButton 同高,登录区切换时 sheet 布局不跳
+                        .frame(height: 50)
                     }
-                    .frame(maxWidth: .infinity)
-                    // 与 AppleSignInButton 同高,登录区切换时 sheet 布局不跳
-                    .frame(height: 50)
                 case .failed(let message):
                     // exchange 失败:显错 + 重新登录重试(SIWA 已授权过,重登通常无感)
                     VStack(spacing: BaziTheme.Spacing.sm) {
+                        sealingStepTitle
                         errorCaption(message)
                         AppleSignInButton(onResult: { result in
                             env.accountManager.handleAuthorization(result)
@@ -172,9 +229,10 @@ struct PaywallView: View {
             .frame(maxWidth: .infinity)
     }
 
-    /// 未登录态的登录区(中性提示或登录失败显错 + 登录按钮)。
+    /// 未登录态的登录区(第贰步标题行 + 中性提示或登录失败显错 + 登录按钮)。
     private var signInPrompt: some View {
         VStack(spacing: BaziTheme.Spacing.sm) {
+            sealingStepTitle
             // 登录失败显式显错(行为对齐 ProfileView accountSection .failed 分支:
             // 显错 + 保留重试按钮;样式见 errorCaption)。
             // 不渲染的话 SIWA 失败后 UI 无任何反馈,用户只看到按钮"没反应"。
@@ -193,6 +251,203 @@ struct PaywallView: View {
                 env.accountManager.handleGoogleSignIn()
             }
         }
+    }
+}
+
+// MARK: - B 章回分段私有组件(2026-09-05 design-shotgun 定稿 variant-b)
+
+/// 契约 stepper:壹 观其价 → 贰 钤印 → 叁 成契。
+/// 壹 在 sheet 打开时即完成(价格未登录即见 = D1 拍板的核心);当前步 inkDeep
+/// 实底圆,完成实线圆,未来虚线圆——与 NumeralBadge 实/虚线圆同一视觉语言。
+private struct ContractStepper: View {
+    let step: PaywallContractStep
+    let isExchanging: Bool
+    let isPurchased: Bool
+
+    private enum ItemState { case done, current, future }
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 0) {
+            item(state: .done, numeral: "壹", label: "观其价", sub: "价格已可见")
+            connector(active: true)
+            item(
+                state: step == .dealing ? .done : .current,
+                numeral: "贰",
+                label: "钤印",
+                sub: isExchanging ? "钤印中…" : "登录为凭"
+            )
+            connector(active: step == .dealing)
+            item(
+                state: step == .dealing ? (isPurchased ? .done : .current) : .future,
+                numeral: "叁",
+                label: "成契",
+                sub: isPurchased ? "契成" : "一次买断"
+            )
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(accessibilityProgressText)
+    }
+
+    /// 读屏进度文案(与可视子题同语义:壹 已完成 + 当前步子态)。
+    private var accessibilityProgressText: String {
+        if step == .dealing {
+            return isPurchased ? "购买进度:已成契,内容已解锁" : "购买进度:第叁步,成契,待购买"
+        }
+        return isExchanging ? "购买进度:第贰步,钤印中" : "购买进度:第贰步,钤印,待登录"
+    }
+
+    private func item(state: ItemState, numeral: String, label: String, sub: String) -> some View {
+        VStack(spacing: 5) {
+            ZStack {
+                switch state {
+                case .current:
+                    Circle().fill(BaziTheme.inkDeep)
+                case .done:
+                    Circle().stroke(BaziTheme.ink.opacity(0.4), lineWidth: 1)
+                case .future:
+                    Circle().stroke(
+                        BaziTheme.hairlineDashed,
+                        style: StrokeStyle(lineWidth: 1, dash: [4, 3])
+                    )
+                }
+                Text(numeral)
+                    .font(BaziFont.display(size: 11, weight: .medium))
+                    .foregroundStyle(textColor(for: state))
+            }
+            .frame(width: 25, height: 25)
+            Text(label)
+                .font(BaziFont.caption(size: 10.5))
+                .tracking(2)
+                .foregroundStyle(state == .future ? BaziTheme.inkMutedSecondary : BaziTheme.ink)
+            Text(sub)
+                .font(BaziFont.caption(size: 9))
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
+        }
+        .frame(width: 88)
+    }
+
+    private func textColor(for state: ItemState) -> Color {
+        switch state {
+        case .current: return BaziTheme.onInkDeep
+        case .done: return BaziTheme.ink
+        case .future: return BaziTheme.inkMutedSecondary
+        }
+    }
+
+    /// 步骤间连线(线高撑到圆心;已完成段加深)。
+    private func connector(active: Bool) -> some View {
+        Rectangle()
+            .fill(active ? BaziTheme.ink.opacity(0.5) : BaziTheme.hairline)
+            .frame(height: 0.5)
+            .frame(maxWidth: .infinity)
+            .padding(.horizontal, 4)
+            .frame(height: 25)
+    }
+}
+
+/// 落价块:合同式大写数字(壹佰贰拾捌圆整)+ 本地化数字并置,上下 hairline 收束。
+/// upperPrice == nil(角分价/千分位/越界/en 区)只显数字,不造假大写。
+private struct PricePlate: View {
+    let upperPrice: String?
+    let rawPrice: String
+
+    var body: some View {
+        HStack(alignment: .bottom, spacing: 14) {
+            VText(phrase: "落价", size: 9.5, tracking: 3, color: BaziTheme.inkMutedSecondary)
+            if let upperPrice {
+                Text(upperPrice)
+                    .font(BaziFont.display(size: 21, weight: .medium))
+                    .tracking(2)
+                    .foregroundStyle(BaziTheme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
+            }
+            Spacer(minLength: 8)
+            VStack(alignment: .trailing, spacing: 4) {
+                Text(rawPrice)
+                    .font(BaziFont.numeric(size: 15, weight: .medium))
+                    .foregroundStyle(BaziTheme.ink)
+                Text("买断制 · 不含订阅")
+                    .font(BaziFont.caption(size: 9.5))
+                    .foregroundStyle(BaziTheme.inkMuted)
+            }
+        }
+        .padding(.vertical, BaziTheme.Spacing.cmd)
+        .overlay(alignment: .top) {
+            Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel("价格 \(rawPrice),买断制,不含订阅")
+    }
+}
+
+/// 操作区步骤标题行(「第贰步 · 钤印为凭」/「第叁步 · 成契」),顶 hairline 分段。
+private struct StepTitleRow: View {
+    let stepNo: String
+    let title: String
+    let hint: String
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(stepNo)
+                .font(BaziFont.caption(size: 10))
+                .tracking(2)
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
+            Text(title)
+                .font(BaziFont.display(size: 13.5, weight: .medium))
+                .tracking(2)
+                .foregroundStyle(BaziTheme.ink)
+            Spacer(minLength: 6)
+            Text(hint)
+                .font(BaziFont.caption(size: 9.5))
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
+                .multilineTextAlignment(.trailing)
+                .lineLimit(2)
+        }
+        .padding(.top, BaziTheme.Spacing.sm)
+        .overlay(alignment: .top) {
+            Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
+        }
+        .accessibilityElement(children: .combine)
+    }
+}
+
+/// 三墨点 breathe(钤印进行中;DESIGN 动效三式 breathe 的加载变奏——墨的呼吸,不是转圈)。
+private struct SealingDots: View {
+    var body: some View {
+        HStack(spacing: 9) {
+            ForEach(0..<3, id: \.self) { index in
+                BreathingDot(delay: Double(index) * 0.4)
+            }
+        }
+        .frame(maxWidth: .infinity)
+        // 「钤印中 · 正在完成登录…」文案已承载语义,墨点纯装饰不进读屏
+        .accessibilityHidden(true)
+    }
+}
+
+private struct BreathingDot: View {
+    let delay: Double
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var dimmed = false
+
+    var body: some View {
+        Circle()
+            .fill(BaziTheme.inkDeep)
+            .frame(width: 6, height: 6)
+            .opacity(dimmed ? 0.25 : 1)
+            // reduce-motion 全降级(DESIGN.md 动效三式强制项):静态墨点,不驱动呼吸
+            .animation(
+                reduceMotion ? nil : .easeInOut(duration: 1.2).repeatForever().delay(delay),
+                value: dimmed
+            )
+            .onAppear {
+                guard !reduceMotion else { return }
+                dimmed = true
+            }
     }
 }
 

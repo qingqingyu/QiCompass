@@ -168,14 +168,25 @@ final class PaywallViewModel {
 
     /// CTA 文案(加载完显示真价,加载中/失败 fallback,文案随 module 切换)。
     var displayPriceText: String {
-        let price: String
+        "解锁\(module.title)(\(rawPriceText))"
+    }
+
+    /// 裸价格文案(落价块用,B 章回分段:价格未登录即完整可见)。
+    /// 价格解析单一事实源(loaded 真价 / loading+failed fallback),
+    /// displayPriceText 与 PricePlate 都从这里取值。
+    var rawPriceText: String {
         switch productState {
         case .loaded(let displayPrice):
-            price = displayPrice
+            return displayPrice
         case .loading, .failed:
-            price = module.fallbackPrice
+            return module.fallbackPrice
         }
-        return "解锁\(module.title)(\(price))"
+    }
+
+    /// 大写落价(「壹佰贰拾捌圆整」);解析不了(角分价/千分位/越界)返回 nil,
+    /// UI 只显本地化数字,不造假大写。
+    var chineseUpperPrice: String? {
+        ChineseUpperPrice.priceString(from: rawPriceText)
     }
 
     func purchase() async {
@@ -232,5 +243,119 @@ final class PaywallViewModel {
             )
             state = .failed("购买未完成,请重试")
         }
+    }
+}
+
+// MARK: - 契约 stepper 阶段(B 章回分段,2026-09-05 拍板)
+
+/// 付费墙「章回分段」当前步:壹·观其价 打开即完成(价格未登录即见),
+/// 剩下 钤印(登录)→ 成契(购买) 两步。纯枚举 + 纯派生函数,便于单测。
+enum PaywallContractStep: Equatable {
+    /// 贰 · 钤印:未登录 / 登录中(exchange)/ exchange 失败 / 防御分支。
+    case sealing
+    /// 叁 · 成契:signedIn && exchangeState == .done → 购买按钮就绪。
+    case dealing
+
+    /// 阶段派生(单一事实源;View 传账号态,测试直接喂布尔)。
+    /// 与 Fix#3 购买判据同构:购买按钮只在 .dealing 出现。
+    static func derive(signedIn: Bool, exchangeDone: Bool) -> PaywallContractStep {
+        (signedIn && exchangeDone) ? .dealing : .sealing
+    }
+}
+
+// MARK: - 人民币大写落价
+
+/// displayPrice(本地化字符串)→ 中文大写合同式落价。
+///
+/// 规则(2026-09-05 B 变体拍板「壹佰贰拾捌圆整」):
+/// - 只处理**整数元**价格:小数位非零(如 `$19.99`)→ nil,不造假大写;
+/// - 出现逗号即抑制(`1,280.00` / `¥10,000` / 逗号小数 locale 均 → nil):
+///   无 locale 信息下分组符与小数符不可区分,且「分组符后全零段」(¥10,000)
+///   会被当小数吞掉后三位产出金额错误的大写,宁缺毋错;
+/// - 支持 1...99999(玖萬玖仟玖佰玖拾玖),越界 → nil;
+/// - 解析失败 → nil,UI 只显本地化数字(en 区无大写对应物,同一规则自然降级)。
+enum ChineseUpperPrice {
+    private static let digits = ["零", "壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌", "玖"]
+
+    /// "¥128.00" → "壹佰贰拾捌圆整";"$19.99" → nil;"¥10,000" → nil;"" → nil。
+    static func priceString(from displayPrice: String) -> String? {
+        guard let parsed = parse(displayPrice),
+              !parsed.fractionNonZero,   // 角分价 → 无整数大写对应物,抑制
+              let upper = convert(parsed.integer)
+        else { return nil }
+        return upper + "圆整"
+    }
+
+    /// 取首个连续数字段;仅 '.' 视为小数分隔符(其后数字为小数段,非零即抑制);
+    /// 逗号一律视为分组符 → 整体抑制(见类型注释,宁缺毋错)。
+    private static func parse(_ price: String) -> (integer: Int, fractionNonZero: Bool)? {
+        var integerDigits = [Character]()
+        var fractionDigits = [Character]()
+        var started = false
+        var inFraction = false
+
+        for ch in price {
+            if ch.isASCII, ch.isNumber {
+                if inFraction {
+                    fractionDigits.append(ch)
+                } else {
+                    integerDigits.append(ch)
+                    started = true
+                }
+            } else if started, ch == ",", !inFraction {
+                // 分组符与小数符不可区分,且误判会产出金额错误的大写 → 直接抑制
+                return nil
+            } else if ch == ".", !inFraction {
+                // 首个 '.' 视为小数点;前导 '.'("¥.50" 无整数位)吞成整数会金额错百倍 → 抑制
+                guard started else { return nil }
+                inFraction = true
+            } else if started {
+                break
+            }
+        }
+        guard started, let integer = Int(String(integerDigits)) else { return nil }
+        let fractionNonZero = fractionDigits.contains { $0 != "0" }
+        return (integer, fractionNonZero)
+    }
+
+    /// 1...99999 → 大写;0 / 越界 → nil。
+    private static func convert(_ value: Int) -> String? {
+        guard (1..<100_000).contains(value) else { return nil }
+
+        func fourDigits(_ n: Int) -> String {
+            // n: 1...9999,标准财务写法(含零占位:108 → 壹佰零捌)
+            let parts: [(digit: Int, unit: String)] = [
+                (n / 1000 % 10, "仟"),
+                (n / 100 % 10, "佰"),
+                (n / 10 % 10, "拾"),
+                (n % 10, "")
+            ]
+            var result = ""
+            var emitted = false
+            var zeroPending = false
+            for part in parts {
+                if part.digit == 0 {
+                    if emitted { zeroPending = true }
+                } else {
+                    if zeroPending { result += "零"; zeroPending = false }
+                    result += digits[part.digit] + part.unit
+                    emitted = true
+                }
+            }
+            return result
+        }
+
+        let wan = value / 10_000
+        let rest = value % 10_000
+        if wan > 0 {
+            var result = fourDigits(wan) + "萬"
+            if rest > 0 {
+                // 万段与个段间千位缺口补零(10008 → 壹萬零捌)
+                result += rest < 1000 ? "零" : ""
+                result += fourDigits(rest)
+            }
+            return result
+        }
+        return fourDigits(rest)
     }
 }
