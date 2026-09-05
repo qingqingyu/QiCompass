@@ -13,7 +13,9 @@ import SwiftData
 ///    (HIG/品牌规范锁样式,浓墨 .black 与 inkDeep 视觉同源)
 /// 2. **名册**:UserSnapshotLink 行内**可见**改名/删除(不再藏滑动手势),
 ///    命主带「主」朱字小标;虚线「＋ 新建命盘」行收尾
-/// 3. **已购 / 设置 / 关于**:hairline 分节;子时规则改 Menu 行,退出登录收进设置(弱化);
+/// 3. **已购 / 设置 / 关于**:hairline 分节;已购行两行式——合盘 entitlement 追加
+///    「A × B」归属行(compatibilityHash 反查 CompatibilitySnapshot,快照缺失降级单行不猜);
+///    子时规则改 Menu 行,退出登录收进设置(弱化);
 ///    立场三行居中,隐私折叠,版本 + GeoNames 归属收关于节
 ///
 /// 退化态:无命盘/无 entitlements 时显示 placeholder 文案,不报错(状态显式表达)。
@@ -28,6 +30,11 @@ struct ProfileView: View {
     /// 命主卡/名册行需要 ChartSnapshot 取 birthSolarTime / payload(生肖·年柱干支·时辰态)。
     @Query
     private var chartSnapshots: [ChartSnapshot]
+
+    /// 已购归属:合盘 entitlement 的 contentHash = compatibilityHash,
+    /// 反查 CompatibilitySnapshot 取 personAHash / personBHash 解析对级两端名。
+    @Query
+    private var compatSnapshots: [CompatibilitySnapshot]
 
     /// 重置命盘清空所有 SwiftData model(Q20 B)。
     @Environment(\.modelContext) private var context
@@ -553,25 +560,73 @@ struct ProfileView: View {
     }
 
     private func purchaseRow(_ ent: Entitlement, isLast: Bool) -> some View {
-        HStack(spacing: 10) {
-            Text(displayName(for: ent.module))
-                .font(BaziFont.display(size: 13.5))
-                .foregroundStyle(BaziTheme.ink)
-            Text("已解锁")
-                .font(BaziFont.caption(size: 9.5))
-                .foregroundStyle(BaziTheme.jade)
-                .padding(.horizontal, 8)
-                .padding(.vertical, 1)
-                .overlay(Capsule().stroke(BaziTheme.jade.opacity(0.45)))
-            Spacer()
-            Text("购买于 \(ent.originalPurchaseDate, format: .dateTime.year().month().day())")
-                .font(BaziFont.caption(size: 10))
-                .foregroundStyle(BaziTheme.inkMutedSecondary)
+        VStack(alignment: .leading, spacing: 3) {
+            HStack(spacing: 10) {
+                Text(displayName(for: ent.module))
+                    .font(BaziFont.display(size: 13.5))
+                    .foregroundStyle(BaziTheme.ink)
+                Text("已解锁")
+                    .font(BaziFont.caption(size: 9.5))
+                    .foregroundStyle(BaziTheme.jade)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 1)
+                    .overlay(Capsule().stroke(BaziTheme.jade.opacity(0.45)))
+                Spacer()
+                Text("购买于 \(ent.originalPurchaseDate, format: .dateTime.year().month().day())")
+                    .font(BaziFont.caption(size: 10))
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+            }
+            // 合盘归属行:「A × B」(与名册行 title+metaLine 同构)
+            if let pair = pairLine(for: ent) {
+                Text(pair)
+                    .font(BaziFont.caption(size: 10.5))
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+            }
         }
         .padding(.vertical, 10)
         .overlay(alignment: .bottom) {
             if !isLast { sectionDivider }
         }
+    }
+
+    // MARK: - 已购归属(合盘对级解析)
+
+    /// 合盘 entitlement 的归属行「发起方 × 对端」。
+    /// - CompatibilitySnapshot.personAHash / personBHash 保留购买时的 UI 顺序
+    ///   (A=发起方,B=对端;A 盘可在配置页切换,故两端都显示,不默认「你×对方」)
+    /// - 快照不随账号同步(SyncManager 只拉命盘,合盘快照仅本机):新设备 entitlement
+    ///   回得来、对级快照回不来 → 返回 nil,行降级为单行,不猜归属
+    /// - 深度解析 entitlement 不走此解析(单命盘场景,无需归属)
+    private func pairLine(for ent: Entitlement) -> String? {
+        guard ent.module == EntitlementModule.compatibility,
+              let snap = compatSnapshots.first(where: { $0.compatibilityHash == ent.contentHash })
+        else { return nil }
+        return "\(sideName(for: snap.personAHash)) × \(sideName(for: snap.personBHash))"
+    }
+
+    /// 对级单端显示名:link alias → 「对方 · 出生日期」→ 「对方」。
+    /// 临时人不建 link(D6:alias 不持久化),兜底名对齐合盘名单惯例「对方+出生日期」
+    /// (CompatibilityRosterPersistence 文档注释同一约定);
+    /// 连 ChartSnapshot 都缺(理论不可达)→ 纯「对方」,信息不足以命名时不猜。
+    /// A 侧(发起方)link 被用户删除后同样走兜底——罕见路径,不猜名。
+    private func sideName(for hash: String) -> String {
+        if let link = snapshotLinks.first(where: { $0.snapshotHash == hash }) {
+            return link.alias
+        }
+        if let chart = chartSnapshots.first(where: { $0.contentHash == hash }) {
+            return "对方 · \(Self.fallbackBirthDate(chart.birthSolarTime, timezoneName: chart.cityTimezone))"
+        }
+        return "对方"
+    }
+
+    /// 兜底名出生日期:按**出生城市时区**格式化 "yyyy-MM-dd"
+    /// (与 CompatibilityViewModel.fallbackDateString 同约定:birthSolarTime 以出生地
+    /// 钟面语义存储,设备时区渲染会在远时区城市错一天;老快照 cityTimezone nil → 设备时区)。
+    private static func fallbackBirthDate(_ date: Date, timezoneName: String?) -> String {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = timezoneName.flatMap(TimeZone.init(identifier:)) ?? .current
+        return f.string(from: date)
     }
 
     // MARK: - 设置
