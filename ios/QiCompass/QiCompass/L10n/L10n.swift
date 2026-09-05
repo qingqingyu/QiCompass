@@ -108,7 +108,7 @@ enum L10n {
 
     // MARK: - 出生信息表单(BirthFormView;i18n 补录 2026-08-29)
 
-    /// 出生信息表单(onboarding O2 / 深度解析无存档兜底 / Profile 新建命盘三处复用)。
+    /// 出生信息表单(onboarding O2 / 深度解析无存档兜底两处复用)。
     /// 品牌/规则类字串不进本表:「問命」「玄」「玄机问道」、干支字符、「X时 ›」。
     enum BirthForm {
         /// "出生日期" 字段标签(日期行 + 确认 sheet 日期行共用;S03 拆双 picker)。

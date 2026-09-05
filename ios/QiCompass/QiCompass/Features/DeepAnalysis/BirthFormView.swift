@@ -15,8 +15,8 @@ import SwiftUI
 ///
 /// 语义不变(重排不是重构):字段绑定 / 校验逻辑 / 时辰快捷选(取时辰中点)/
 /// setSect(1) 子时归子规则全部保留。
-/// 共享组件:onboarding O2(OnboardingView formPage)/ 深度解析无存档兜底(DeepAnalysisView)/
-/// Profile 新建命盘 sheet 三处复用;M4/M5 专属定制不在本视图做(独立任务)。
+/// 共享组件:onboarding O2(OnboardingView formPage)/ 深度解析无存档兜底(DeepAnalysisView)
+/// 两处复用;M4/M5 专属定制不在本视图做(独立任务)。
 struct BirthFormView: View {
     @Bindable var vm: DeepAnalysisViewModel
     let onSubmit: () -> Void
