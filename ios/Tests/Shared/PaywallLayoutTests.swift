@@ -61,6 +61,74 @@ final class PaywallLayoutTests: XCTestCase {
         add(attachment)
     }
 
+    /// 未登录付费墙**暗色**快照(夜宣纸走查,B 章回分段 2026-09-06)。
+    func test_deepAnalysisPaywall_mediumDarkSnapshot() throws {
+        let host = try installPaywallInWindow(module: .deepAnalysis, interfaceStyle: .dark)
+        defer { host.view.removeFromSuperview() }
+
+        let png = try XCTUnwrap(snapshotPng(host.view), "快照渲染失败")
+        try png.write(to: URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("qicompass_paywall_medium_deep_dark.png"))
+        let attachment = XCTAttachment(uniformTypeIdentifier: "public.png", name: "paywall-medium-deep-dark.png",
+                                       payload: png, userInfo: nil)
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    /// 未登录付费墙**全高**快照(走查用:.medium 只露出上半段,登录区/
+    /// 法律注在 ScrollView 下方;本快照按内容理想高撑满窗口渲染整页)。
+    func test_deepAnalysisPaywall_fullHeightSnapshot() throws {
+        let host = try installPaywallInWindow(module: .deepAnalysis)
+        defer { host.view.removeFromSuperview() }
+
+        // B 章回分段后未登录内容理想高 ~880pt,固定窗口(挂载默认 .medium 高)
+        // 顶锚下会裁掉登录区/法律注——恰是本快照要走查的区域。按 sizeThatFits
+        // 无条件把 window 撑到内容理想高再重排(内容更矮时收缩到 ideal 同样无害;
+        // 改 frame 不涉 trait 重解析,暗色陷阱只针对 overrideUserInterfaceStyle)。
+        // window 用 XCTUnwrap:挂载不变量若被破坏,宁可测试失败也不静默产错误快照。
+        let ideal = host.sizeThatFits(in: CGSize(width: Self.phoneWidth, height: .greatestFiniteMagnitude))
+        let window = try XCTUnwrap(host.view.window, "mountInWindow 后 host 必有 window")
+        window.frame = CGRect(origin: .zero, size: CGSize(width: Self.phoneWidth, height: ideal.height))
+        host.view.frame = window.bounds
+        host.view.layoutIfNeeded()
+        window.layoutIfNeeded()
+
+        let png = try XCTUnwrap(snapshotPng(host.view), "快照渲染失败")
+        try png.write(to: URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("qicompass_paywall_full_deep.png"))
+        let attachment = XCTAttachment(uniformTypeIdentifier: "public.png", name: "paywall-full-deep.png",
+                                       payload: png, userInfo: nil)
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
+    /// 契约 stepper 四态 + 落价块双形态状态矩阵快照(B 章回分段走查)。
+    /// AccountManager 的 state/exchangeState 是 private(set),登录态注入
+    /// 不进真实链路,故直接渲染组件状态矩阵(各态视觉一眼可核)。
+    func test_contractStepperStateMatrixSnapshot() throws {
+        let matrix = VStack(alignment: .leading, spacing: 30) {
+            ContractStepper(step: .sealing, isExchanging: false, isPurchased: false)
+            ContractStepper(step: .sealing, isExchanging: true, isPurchased: false)
+            ContractStepper(step: .dealing, isExchanging: false, isPurchased: false)
+            ContractStepper(step: .dealing, isExchanging: false, isPurchased: true)
+            PricePlate(upperPrice: ChineseUpperPrice.priceString(from: "¥128.00"), rawPrice: "¥128.00")
+            PricePlate(upperPrice: nil, rawPrice: "$17.99")
+        }
+        .padding(BaziTheme.Spacing.lg)
+        .frame(width: Self.phoneWidth - BaziTheme.Spacing.lg * 2, alignment: .leading)
+
+        let host = mountInWindow(rootView: matrix, height: 580)
+        defer { host.view.removeFromSuperview() }
+
+        let png = try XCTUnwrap(snapshotPng(host.view), "快照渲染失败")
+        try png.write(to: URL(fileURLWithPath: NSTemporaryDirectory())
+            .appendingPathComponent("qicompass_paywall_stepper_matrix.png"))
+        let attachment = XCTAttachment(uniformTypeIdentifier: "public.png", name: "paywall-stepper-matrix.png",
+                                       payload: png, userInfo: nil)
+        attachment.lifetime = .keepAlways
+        add(attachment)
+    }
+
     // MARK: - 实现
 
     private func assertMediumDetentNeverClips(module: PaywallModule) throws {
@@ -82,8 +150,12 @@ final class PaywallLayoutTests: XCTestCase {
 
     /// 构造真实 AppEnvironment(Mock 客户端 + 内存容器),把 PaywallView
     /// 装进临时 UIWindow 并按 .medium 内容区尺寸布局(离屏渲染需要
-    /// window 参与,否则 SwiftUI 不跑 layout、层级不落地)。
-    private func installPaywallInWindow(module: PaywallModule) throws -> UIHostingController<some View> {
+    /// window 参与,否则 SwiftUI 不跑 layout、层级不落地)。全高走查由
+    /// 调用方挂载后按 sizeThatFits 撑高 window(fullHeight 快照)。
+    private func installPaywallInWindow(
+        module: PaywallModule,
+        interfaceStyle: UIUserInterfaceStyle = .unspecified
+    ) throws -> UIHostingController<some View> {
         let env = AppEnvironment(
             modelContainer: container,
             apiClient: MockAPIClient(),
@@ -94,8 +166,25 @@ final class PaywallLayoutTests: XCTestCase {
             contentHash: "layout-test",
             purchaseManager: env.purchaseManager
         )
-        let host = UIHostingController(rootView: PaywallView(viewModel: viewModel).environmentObject(env))
-        let window = UIWindow(frame: CGRect(origin: .zero, size: CGSize(width: Self.phoneWidth, height: Self.mediumContentHeight)))
+        return mountInWindow(
+            rootView: PaywallView(viewModel: viewModel).environmentObject(env),
+            height: Self.mediumContentHeight,
+            interfaceStyle: interfaceStyle
+        )
+    }
+
+    /// 通用挂载:UIHostingController + 临时 UIWindow + 强制布局。
+    /// interfaceStyle 必须在 makeKeyAndVisible **之前**设在 window 上:
+    /// 挂载后再改,BaziTheme 的动态色(traitCollection 闭包)不会重新解析。
+    private func mountInWindow<V: View>(
+        rootView: V,
+        height: CGFloat,
+        interfaceStyle: UIUserInterfaceStyle = .unspecified
+    ) -> UIHostingController<V> {
+        let host = UIHostingController(rootView: rootView)
+        host.overrideUserInterfaceStyle = interfaceStyle
+        let window = UIWindow(frame: CGRect(origin: .zero, size: CGSize(width: Self.phoneWidth, height: height)))
+        window.overrideUserInterfaceStyle = interfaceStyle
         window.rootViewController = host
         window.makeKeyAndVisible()
         host.view.frame = window.bounds

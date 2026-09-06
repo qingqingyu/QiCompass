@@ -257,6 +257,7 @@ struct ProfileView: View {
     // MARK: - 登录引导盒(未登录 / 失败)
 
     /// 未钤虚线盒 + 官方登录按钮。失败态在按钮上方显式示错(不吞)。
+    /// 按钮对与接线收敛在 LoginGateButtons(2026-09-06,与付费墙同源)。
     private func loginBox(failedMessage: String?) -> some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.cmd) {
             HStack(spacing: 13) {
@@ -271,19 +272,7 @@ struct ProfileView: View {
                         .lineSpacing(3)
                 }
             }
-            if let failedMessage {
-                Text(failedMessage)
-                    .font(BaziFont.caption(size: 10.5))
-                    .foregroundStyle(BaziTheme.destructive)
-            }
-            VStack(spacing: BaziTheme.Spacing.sm) {
-                AppleSignInButton { result in
-                    env.accountManager.handleAuthorization(result)
-                }
-                GoogleSignInButton {
-                    env.accountManager.handleGoogleSignIn()
-                }
-            }
+            LoginGateButtons(errorMessage: failedMessage)
         }
         .padding(BaziTheme.Spacing.md)
         .overlay(
