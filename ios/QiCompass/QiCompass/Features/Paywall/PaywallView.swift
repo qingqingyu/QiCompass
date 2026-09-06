@@ -192,13 +192,10 @@ struct PaywallView: View {
                     // exchange 失败:显错 + 重新登录重试(SIWA 已授权过,重登通常无感)
                     VStack(spacing: BaziTheme.Spacing.sm) {
                         sealingStepTitle
-                        errorCaption(message)
-                        AppleSignInButton(onResult: { result in
-                            env.accountManager.handleAuthorization(result)
-                        })
-                        GoogleSignInButton {
-                            env.accountManager.handleGoogleSignIn()
-                        }
+                        LoginGateButtons(
+                            errorMessage: message,
+                            errorColor: BaziTheme.shenshaInauspicious
+                        )
                     }
                 case .idle, .done:
                     // 防御:signedIn 但 exchangeState 未定义(不变量破坏,正常不应出现)
@@ -218,12 +215,13 @@ struct PaywallView: View {
         }
     }
 
-    /// 错误文案(购买失败 / 登录失败共用):caption + 凶色 + 居中。
+    /// 错误文案(购买失败;登录失败已收敛到 LoginGateButtons 并沿用同一规格):
+    /// 10.5 caption + 凶色 + 居中——本 sheet 内两条错误路径字号/对齐一致。
     /// 颜色用 shenshaInauspicious(与 ProfileView 的 destructive 不同,
     /// 跟本 sheet 内既有购买失败文案保持一致)。
     private func errorCaption(_ message: String) -> some View {
         Text(message)
-            .font(.caption)
+            .font(BaziFont.caption(size: 10.5))
             .foregroundStyle(BaziTheme.shenshaInauspicious)
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
@@ -233,33 +231,32 @@ struct PaywallView: View {
     private var signInPrompt: some View {
         VStack(spacing: BaziTheme.Spacing.sm) {
             sealingStepTitle
-            // 登录失败显式显错(行为对齐 ProfileView accountSection .failed 分支:
-            // 显错 + 保留重试按钮;样式见 errorCaption)。
-            // 不渲染的话 SIWA 失败后 UI 无任何反馈,用户只看到按钮"没反应"。
+            // 登录失败显式显错(Fix#1:不吞,显错 + 保留重试按钮;
+            // 不渲染的话 SIWA 失败后 UI 无反馈,用户只看到按钮"没反应")。
+            // 按钮对与接线收敛在 LoginGateButtons(2026-09-06,全 App 唯一实现)。
             if case .failed(let message) = env.accountManager.state {
-                errorCaption(message)
+                LoginGateButtons(
+                    errorMessage: message,
+                    errorColor: BaziTheme.shenshaInauspicious
+                )
             } else {
                 Text("登录后即可购买,已购内容跨设备同步")
                     .font(.caption)
                     .foregroundStyle(BaziTheme.inkMuted)
                     .multilineTextAlignment(.center)
-            }
-            AppleSignInButton(onResult: { result in
-                env.accountManager.handleAuthorization(result)
-            })
-            GoogleSignInButton {
-                env.accountManager.handleGoogleSignIn()
+                LoginGateButtons()
             }
         }
     }
 }
 
-// MARK: - B 章回分段私有组件(2026-09-05 design-shotgun 定稿 variant-b)
+// MARK: - B 章回分段组件(2026-09-05 design-shotgun 定稿 variant-b;
+// ContractStepper/PricePlate/StepTitleRow 为 internal:快照走查直接渲染状态矩阵)
 
 /// 契约 stepper:壹 观其价 → 贰 钤印 → 叁 成契。
 /// 壹 在 sheet 打开时即完成(价格未登录即见 = D1 拍板的核心);当前步 inkDeep
 /// 实底圆,完成实线圆,未来虚线圆——与 NumeralBadge 实/虚线圆同一视觉语言。
-private struct ContractStepper: View {
+struct ContractStepper: View {
     let step: PaywallContractStep
     let isExchanging: Bool
     let isPurchased: Bool
@@ -347,7 +344,7 @@ private struct ContractStepper: View {
 
 /// 落价块:合同式大写数字(壹佰贰拾捌圆整)+ 本地化数字并置,上下 hairline 收束。
 /// upperPrice == nil(角分价/千分位/越界/en 区)只显数字,不造假大写。
-private struct PricePlate: View {
+struct PricePlate: View {
     let upperPrice: String?
     let rawPrice: String
 
@@ -385,7 +382,7 @@ private struct PricePlate: View {
 }
 
 /// 操作区步骤标题行(「第贰步 · 钤印为凭」/「第叁步 · 成契」),顶 hairline 分段。
-private struct StepTitleRow: View {
+struct StepTitleRow: View {
     let stepNo: String
     let title: String
     let hint: String
