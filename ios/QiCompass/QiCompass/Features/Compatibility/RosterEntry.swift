@@ -14,6 +14,9 @@ import Foundation
 /// - 加可选「称呼」字段(会话内显示)
 /// - 加 `resolvedHash` 字段:首次计算成功后回填(S05 增量预查 / S06 跨启动持久化铺路)
 /// - 跨启动兜底名策略由 PairSummary.displayName 体现(临时人无 alias → 「对方+出生日期」)
+///
+/// 2026-09-05:加 `place` 关联值——保存原始 PlaceSelection,「修改」行原样回填表单
+/// (不从 PersonBInput 反推城市记录,反推是有损逆向:CityRecord 展示字段不在契约内)。
 enum RosterEntry: Identifiable {
     /// 存档命盘(hash 软引用 `ChartSnapshot.contentHash`,与 `UserSnapshotLink.snapshotHash` 一致)。
     case archived(snapshotHash: String)
@@ -23,7 +26,8 @@ enum RosterEntry: Identifiable {
     ///   - alias:可选称呼(会话内显示用),nil 或空字符串时走兜底名
     ///   - resolvedHash:首次计算成功后的 B contentHash(供 S05 增量预查 + S06 持久化名单用);
     ///     首次输入时 nil,computePair 成功后 VM 替换为带值版本
-    case temp(input: PersonBInput, alias: String?, resolvedHash: String?)
+    ///   - place:原始出生地选择(S05),「修改」回填表单用;**不入 id**(input 字段已含解析结果)
+    case temp(input: PersonBInput, alias: String?, resolvedHash: String?, place: PlaceSelection)
 
     /// 稳定 id(用于 ForEach / diff / roster 内部管理)。
     /// 存档 = `"archived:\(hash)"`;临时 = 字段拼接(同输入产生同 id,S05 增量预查受益)。
@@ -32,7 +36,7 @@ enum RosterEntry: Identifiable {
         switch self {
         case .archived(let hash):
             return "archived:\(hash)"
-        case .temp(let input, let alias, _):
+        case .temp(let input, let alias, _, _):
             // 经度并入 id:同名同市区城市(同 placeName + 同 timezone)靠经度消歧,
             // 避免误判「名单已存在相同的对方」(S04 review)
             let loc = "\(input.placeName ?? "lon")@\(input.longitude)"
@@ -57,19 +61,19 @@ enum RosterEntry: Identifiable {
     var resolvedContentHash: String? {
         switch self {
         case .archived(let hash): return hash
-        case .temp(_, _, let resolved): return resolved
+        case .temp(_, _, let resolved, _): return resolved
         }
     }
 
     /// 临时人 alias(非 temp 返回 nil)。
     var tempAlias: String? {
-        if case .temp(_, let alias, _) = self { return alias }
+        if case .temp(_, let alias, _, _) = self { return alias }
         return nil
     }
 
     /// 临时人 input(非 temp 返回 nil)。
     var tempInput: PersonBInput? {
-        if case .temp(let input, _, _) = self { return input }
+        if case .temp(let input, _, _, _) = self { return input }
         return nil
     }
 }

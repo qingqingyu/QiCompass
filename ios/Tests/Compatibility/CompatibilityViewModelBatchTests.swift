@@ -252,7 +252,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.tempAlias = "   "  // 全空白
         try? vm.addTempToRoster()
 
-        if case .temp(_, let alias, _) = vm.roster.first(where: { $0.isTemp }) {
+        if case .temp(_, let alias, _, _) = vm.roster.first(where: { $0.isTemp }) {
             XCTAssertNil(alias, "空白 alias 应被 trim 为 nil(走兜底名策略)")
         } else {
             XCTFail("roster 应有一个 temp")
@@ -265,7 +265,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.tempAlias = "  相亲对象甲  "  // 带空格
         try? vm.addTempToRoster()
 
-        if case .temp(_, let alias, _) = vm.roster.first(where: { $0.isTemp }) {
+        if case .temp(_, let alias, _, _) = vm.roster.first(where: { $0.isTemp }) {
             XCTAssertEqual(alias, "相亲对象甲", "alias 应被 trim 保留非空值")
         }
     }
@@ -284,6 +284,210 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertEqual(vm.tempGender, "male")
         XCTAssertNil(vm.tempPlace, "默认草稿无地点(S04 砍默认,必选)")
         XCTAssertEqual(vm.tempAlias, "")  // alias 永远清空(不持久化)
+    }
+
+    // MARK: - 修改临时人(2026-09-05:行尾「修改」→ 表单回填 → 原位替换)
+
+    func testBeginEditTempEntry_回填表单字段() {
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempGender = "male"
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京", gid: 1816670))
+        vm.tempAlias = "相亲对象甲"
+        try? vm.addTempToRoster()
+
+        // 污染表单(模拟添加草稿残留),回填必须整体覆盖
+        vm.tempAlias = "别的草稿"
+        vm.tempGender = "female"
+        vm.tempPlace = nil
+        vm.tempBirthDate = Date(timeIntervalSince1970: 999_999_999)
+
+        let entry = vm.roster.first { $0.isTemp }!
+        vm.beginEditTempEntry(entry)
+
+        XCTAssertEqual(vm.tempAlias, "相亲对象甲")
+        XCTAssertEqual(vm.tempGender, "male")
+        XCTAssertEqual(vm.tempPlace?.displayLabel, "北京, 中国")
+        // 钟面回填:wall 串按出生地时区反解析(与 tempWallTimeString 互逆),不漂移
+        XCTAssertEqual(vm.tempBirthDate, Date(timeIntervalSince1970: 638_000_000))
+    }
+
+    func testBeginEditTempEntry_非本地时区_钟面不错位() {
+        // 洛杉矶时区:反解析必须用出生地时区,不得退回设备时区错位
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "洛杉矶", longitude: -118.2437,
+                                             timezone: "America/Los_Angeles", gid: 5368361))
+        try? vm.addTempToRoster()
+
+        let entry = vm.roster.first { $0.isTemp }!
+        vm.beginEditTempEntry(entry)
+        XCTAssertEqual(vm.tempBirthDate, Date(timeIntervalSince1970: 638_000_000),
+                       "出生地时区互逆解析,round-trip 不漂移")
+    }
+
+    func testBeginEditTempEntry_非tempEntry_返回false表单不动() {
+        // 失败契约(View 依赖):false = 不开修改 sheet,且表单字段不被部分污染
+        vm.tempAlias = "草稿"
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempGender = "female"
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京", gid: 1))
+
+        XCTAssertFalse(vm.beginEditTempEntry(.archived(snapshotHash: "h_x")),
+                       "存档 entry 不可进修改态")
+        XCTAssertEqual(vm.tempAlias, "草稿", "失败路径表单不动")
+        XCTAssertEqual(vm.tempGender, "female")
+        XCTAssertEqual(vm.tempPlace?.displayLabel, "北京, 中国")
+    }
+
+    func testBeginEditTempEntry_钟面串损坏_返回false表单不动() {
+        // birthDatetime 非自产格式(数据被破坏)→ 显式 false,不静默兜底设备时区
+        let entry: RosterEntry = .temp(
+            input: PersonBInput(
+                birthDatetime: "不是钟面串", timezone: "Asia/Shanghai",
+                gender: "male", longitude: 116.4074
+            ),
+            alias: "坏数据", resolvedHash: nil,
+            place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
+        )
+        vm.tempAlias = "草稿"
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+
+        XCTAssertFalse(vm.beginEditTempEntry(entry), "钟面串解析失败必须返回 false")
+        XCTAssertEqual(vm.tempAlias, "草稿", "失败路径表单不动")
+        XCTAssertEqual(vm.tempBirthDate, Date(timeIntervalSince1970: 638_000_000))
+    }
+
+    func testBeginEditTempEntry_时区名无效_返回false表单不动() {
+        // 时区名无效:不得静默顶替设备时区(错位回填比失败更糟)
+        let entry: RosterEntry = .temp(
+            input: PersonBInput(
+                birthDatetime: "1991-06-06T09:30:00", timezone: "Not/AZone",
+                gender: "male", longitude: 116.4074
+            ),
+            alias: nil, resolvedHash: nil,
+            place: .custom(longitude: 116.4074, timezone: "Not/AZone")
+        )
+        vm.tempAlias = "草稿"
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+
+        XCTAssertFalse(vm.beginEditTempEntry(entry), "无效时区名必须返回 false")
+        XCTAssertEqual(vm.tempAlias, "草稿", "失败路径表单不动")
+        XCTAssertEqual(vm.tempBirthDate, Date(timeIntervalSince1970: 638_000_000))
+    }
+
+    func testUpdateTempEntry_改信息_原位替换_勾选随迁_hash作废() throws {
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京", gid: 1))
+        vm.tempAlias = "甲"
+        try vm.addTempToRoster()
+        let original = try XCTUnwrap(vm.roster.first { $0.isTemp })
+
+        // 再加一位(乙)垫后:验证「原位替换」保位置——改甲后甲仍在 index 0,不掉到队尾
+        vm.tempBirthDate = Date(timeIntervalSince1970: 900_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "上海", longitude: 121.4737, gid: 2))
+        vm.tempAlias = "乙"
+        try vm.addTempToRoster()
+        XCTAssertEqual(vm.roster.count, 2)
+
+        vm.toggleEntrySelection(original)
+        XCTAssertTrue(vm.selectedEntryIds.contains(original.id))
+
+        vm.beginEditTempEntry(original)
+        vm.tempBirthDate = Date(timeIntervalSince1970: 700_000_000)
+        vm.tempAlias = "甲改"
+        try vm.updateTempEntry(original)
+
+        XCTAssertEqual(vm.roster.count, 2, "原位替换,不新增条目")
+        XCTAssertFalse(vm.roster.contains { $0.id == original.id }, "旧 id 不复存在(输入变了)")
+        XCTAssertEqual(vm.roster[0].tempAlias, "甲改", "原位替换保位置(仍在 index 0,不挪队尾)")
+        XCTAssertEqual(vm.roster[1].tempAlias, "乙", "其他成员不受影响")
+        let updated = vm.roster[0]
+        XCTAssertTrue(vm.selectedEntryIds.contains(updated.id), "勾选态随迁(改字不请出本次合盘)")
+        XCTAssertNil(updated.resolvedContentHash, "输入变了 → resolvedHash 作废(旧 hash 是别人)")
+    }
+
+    func testUpdateTempEntry_输入未变_保留resolvedHash_id不变() throws {
+        // input 与 place 字段成对(真实流程由 resolver 产出:custom → placeName=「自定义地点」,
+        // 否则 id 的地点段不一致,会误判「输入变了」)
+        let input = PersonBInput(
+            birthDatetime: "1991-06-06T09:30:00",
+            timezone: "Asia/Shanghai",
+            gender: "female",
+            longitude: 116.4074,
+            placeName: "自定义地点"
+        )
+        let entry: RosterEntry = .temp(
+            input: input, alias: "乙", resolvedHash: "hash_b1",
+            place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
+        )
+        vm.roster = [entry]
+
+        vm.beginEditTempEntry(entry)
+        try vm.updateTempEntry(entry)  // 什么都不改直接保存
+
+        XCTAssertEqual(vm.roster.count, 1)
+        XCTAssertEqual(vm.roster[0].id, entry.id, "输入未变 → id 不变(ForEach 不重建)")
+        XCTAssertEqual(vm.roster[0].resolvedContentHash, "hash_b1",
+                       "输入未变 → 保留已算 hash(S05 增量预查继续命中)")
+    }
+
+    func testUpdateTempEntry_改成与其他临时人相同_抛错() throws {
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京", gid: 1))
+        vm.tempAlias = "甲"
+        try vm.addTempToRoster()
+        vm.tempBirthDate = Date(timeIntervalSince1970: 700_000_000)
+        vm.tempAlias = "乙"
+        try vm.addTempToRoster()
+        let second = try XCTUnwrap(vm.roster.last)
+
+        // 把乙改成与甲完全一致 → 撞别人(去重排除自身,但这里撞的是甲)
+        vm.beginEditTempEntry(second)
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempAlias = "甲"
+        XCTAssertThrowsError(try vm.updateTempEntry(second)) { error in
+            XCTAssertTrue(error.localizedDescription.contains("已存在相同的对方"))
+        }
+        XCTAssertEqual(vm.roster.count, 2, "失败不改 roster")
+        XCTAssertEqual(vm.roster.last?.tempAlias, "乙", "失败保留原值")
+    }
+
+    func testUpdateTempEntry_表单校验沿用_未来时间抛错() throws {
+        let entry: RosterEntry = .temp(
+            input: PersonBInput(
+                birthDatetime: "1991-06-06T09:30:00",
+                timezone: "Asia/Shanghai",
+                gender: "female",
+                longitude: 116.4074,
+                placeName: "自定义地点"
+            ),
+            alias: nil, resolvedHash: nil,
+            place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
+        )
+        vm.roster = [entry]
+
+        vm.beginEditTempEntry(entry)
+        vm.tempBirthDate = Date().addingTimeInterval(60)
+        XCTAssertThrowsError(try vm.updateTempEntry(entry)) { error in
+            XCTAssertTrue(error.localizedDescription.contains("不能晚于当下"))
+        }
+        XCTAssertEqual(vm.roster.count, 1, "校验失败不改 roster")
+    }
+
+    func testUpdateTempEntry_修改不落添加草稿持久化() throws {
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京", gid: 1))
+        try vm.addTempToRoster()
+        let draftAfterAdd = CompatibilityRosterPersistence.loadTempDraft()
+        let entry = try XCTUnwrap(vm.roster.first { $0.isTemp })
+
+        // 改成与添加时不同的数据后保存 → 持久化草稿仍是添加时的
+        vm.beginEditTempEntry(entry)
+        vm.tempBirthDate = Date(timeIntervalSince1970: 700_000_000)
+        vm.tempAlias = "改过"
+        try vm.updateTempEntry(entry)
+
+        XCTAssertEqual(CompatibilityRosterPersistence.loadTempDraft(), draftAfterAdd,
+                       "修改 ≠ 添加习惯,不写 tempDraft 持久化")
     }
 
     // MARK: - tempDraft 持久化(下次添加默认值用上次填过的)
@@ -390,7 +594,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
                 longitude: 116.4074
             ),
             alias: nil,
-            resolvedHash: nil
+            resolvedHash: nil,
+            place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
         )
         XCTAssertNil(entry.resolvedContentHash, "首次输入 resolvedHash 必须为 nil,等计算后回填")
         XCTAssertEqual(entry.tempAlias, nil)
@@ -1171,7 +1376,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
                     longitude: 116.4074
                 ),
                 alias: "临时人",
-                resolvedHash: nil
+                resolvedHash: nil,
+                place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
             ),
         ]
         vm.selectedEntryIds = Set(vm.roster.map(\.id))  // 直塞名单模拟已勾选
@@ -1302,7 +1508,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
                 longitude: 116.4074
             ),
             alias: nil,
-            resolvedHash: nil
+            resolvedHash: nil,
+            place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
         )
 
         XCTAssertFalse(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "s11_b3_known")),
@@ -1331,7 +1538,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
                 longitude: 116.4074
             ),
             alias: nil,
-            resolvedHash: nil
+            resolvedHash: nil,
+            place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
         )
         XCTAssertTrue(vm.isPairHourUnknownBlocked(entry: tempEntry), "自己无时辰 → 全部对不可用(含临时人)")
 

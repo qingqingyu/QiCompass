@@ -387,17 +387,11 @@ final class CompatibilityViewModel {
         return nil
     }
 
-    /// 添加临时对方到名单(S04:多条,每次 append 一条独立 .temp)。
-    /// 校验失败抛 `UserFacingError`(不静默吞,CLAUDE.md 错误显式传播)。
-    /// 成功后:写入 tempDraft 持久化 + 重置表单为"上次填过的"(alias 清空)。
-    ///
-    /// 2026-09-03:加入名单**不等于**勾选——新 entry 落位时未勾选
-    /// (不进 `selectedEntryIds`),是否参与本次合盘由用户在名单上显式勾选。
-    func addTempToRoster() throws {
+    /// 表单当前值 → .temp entry 的三要素(校验 / 地点解析 / PersonBInput 构造 / alias trim)。
+    /// 添加与修改共用单一事实源:PersonBInput 字段或 trim 规则变化只改此处,
+    /// 防两条路径产出漂移(添加与修改算出不同 input = 对级数据 bug)。
+    private func makeTempInputFromForm() throws -> (input: PersonBInput, alias: String?, place: PlaceSelection) {
         try validateTempForm()
-        guard roster.count < Self.rosterMax else {
-            throw UserFacingError.generic(message: "名单已达上限 \(Self.rosterMax) 人")
-        }
         // 出生地字段解析走单一事实源(S05:城市/自定义地点;validateTempForm 已保证非空)
         guard let place = tempPlace else {
             throw UserFacingError.generic(message: "请选择出生城市")
@@ -414,7 +408,24 @@ final class CompatibilityViewModel {
         )
         // alias 空字符串视为 nil(统一兜底名判定)
         let alias = tempAlias.trimmingCharacters(in: .whitespaces)
-        let newEntry: RosterEntry = .temp(input: input, alias: alias.isEmpty ? nil : alias, resolvedHash: nil)
+        return (input, alias.isEmpty ? nil : alias, place)
+    }
+
+    /// 添加临时对方到名单(S04:多条,每次 append 一条独立 .temp)。
+    /// 校验失败抛 `UserFacingError`(不静默吞,CLAUDE.md 错误显式传播)。
+    /// 成功后:写入 tempDraft 持久化 + 重置表单为"上次填过的"(alias 清空)。
+    ///
+    /// 2026-09-03:加入名单**不等于**勾选——新 entry 落位时未勾选
+    /// (不进 `selectedEntryIds`),是否参与本次合盘由用户在名单上显式勾选。
+    /// - Returns:新入册的 entry(调用方据此标「新」朱印,不依赖 append 位置的实现细节)。
+    @discardableResult
+    func addTempToRoster() throws -> RosterEntry {
+        // 错误优先级与抽取前一致:表单校验(makeTempInputFromForm 内)> 满员 > 重复
+        let (input, alias, place) = try makeTempInputFromForm()
+        guard roster.count < Self.rosterMax else {
+            throw UserFacingError.generic(message: "名单已达上限 \(Self.rosterMax) 人")
+        }
+        let newEntry: RosterEntry = .temp(input: input, alias: alias, resolvedHash: nil, place: place)
         // 去重:同 id entry 已在 roster → 抛错
         // 避免 ForEach 重复 id 警告 + 列表少卡 + 冗余 API 调用(内容寻址 → 同 hash)
         if roster.contains(where: { $0.id == newEntry.id }) {
@@ -430,6 +441,7 @@ final class CompatibilityViewModel {
             )
         )
         roster.append(newEntry)
+        return newEntry
     }
 
     /// 添加成功后由 View 调:重置表单为"上次填过的"(本次刚保存的草稿)。
@@ -444,6 +456,95 @@ final class CompatibilityViewModel {
         tempBirthDate = draft.birthDate
         tempGender = draft.gender
         tempPlace = draft.place
+    }
+
+    // MARK: - 修改临时人(2026-09-05)
+
+    /// 进入修改态:把 entry 现有数据回填表单(「修改」打开 sheet 前调)。
+    ///
+    /// 表单草稿字段被临时覆盖——关闭 sheet 后由 View 调 `resetTempDraftForm()`
+    /// 还原「上次填过的」添加草稿(修改不落草稿持久化,添加习惯不被污染)。
+    /// wall 钟面串按**出生地时区**反解析(与 `tempWallTimeString()` 互逆)。
+    ///
+    /// - Returns:回填成功 = true;失败(非 temp / 时区名无效 / 钟面串解析失败)=
+    ///   false,表单字段**不动**。失败 = 自产格式被破坏属 bug,已显式记日志;
+    ///   调用方必须据此**不开**修改 sheet——开着会把无关表单现值保存进该 entry
+    ///   (错误显式传播:失败不止步于日志层,UI 层不得继续走成功路径)。
+    @discardableResult
+    func beginEditTempEntry(_ entry: RosterEntry) -> Bool {
+        guard case .temp(let input, let alias, _, let place) = entry else {
+            AppLogger.app.warning("op=compatibility.beginEditTempEntry skip reason=not_temp entry_id=\(entry.id, privacy: .public)")
+            return false
+        }
+        guard let tz = TimeZone(identifier: input.timezone) else {
+            AppLogger.app.error(
+                "op=compatibility.beginEditTempEntry invalid_timezone tz=\(input.timezone, privacy: .public) entry_id=\(entry.id, privacy: .public)"
+            )
+            return false
+        }
+        guard let date = Self.wallClockDate(input.birthDatetime, timeZone: tz) else {
+            AppLogger.app.error(
+                "op=compatibility.beginEditTempEntry parse_failed birth=\(input.birthDatetime, privacy: .public) tz=\(input.timezone, privacy: .public)"
+            )
+            return false
+        }
+        tempAlias = alias ?? ""
+        tempGender = input.gender
+        tempBirthDate = date
+        tempPlace = place
+        return true
+    }
+
+    /// wall 钟面串 → Date(出生地时区;格式与 `tempWallTimeString()` 成对,单一格式串)。
+    /// 时区由调用方先解析传入,无效时区名不在本函数静默兜底(防设备时区顶替错位)。
+    private static func wallClockDate(_ wallClock: String, timeZone: TimeZone) -> Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        formatter.timeZone = timeZone
+        return formatter.date(from: wallClock)
+    }
+
+    /// 保存修改:校验 → 原位替换 roster 内该 entry。
+    ///
+    /// - 去重**排除自身**(只改 alias 时 id 变化,不得误撞自己;撞别人才算重复)
+    /// - 勾选态随迁:改前已勾选 → 改后新 id 仍勾选(改错字不该把人请出本次合盘)
+    /// - resolvedHash:输入未变(id 相同)→ 保留(S05 预查继续命中);
+    ///   输入变了 → 作废置 nil(旧 hash 描述的是别人,下次 compute 走 API 重排)
+    /// - 原位替换不占新名额(上限校验只拦「加」不拦「改」,与满员提示口径一致)
+    /// - 不写草稿持久化(修改 ≠ 添加习惯,持久化只在 addTempToRoster)
+    func updateTempEntry(_ entry: RosterEntry) throws {
+        guard case .temp = entry else {
+            AppLogger.app.error("op=compatibility.updateTempEntry skip reason=not_temp entry_id=\(entry.id, privacy: .public)")
+            throw UserFacingError.generic(message: "该对方不可修改")
+        }
+        let (input, alias, place) = try makeTempInputFromForm()
+        // id 不含 resolvedHash/place → 用同参构造算 id 即可比对「输入是否变了」
+        let newId = RosterEntry.temp(input: input, alias: alias, resolvedHash: nil, place: place).id
+        // keepHash 读 live roster 同 id 槽位而非入参快照:sheet 打开期间,已被 cancel 的
+        // compute 在途对仍可能落地 backfillTempResolvedHash(该路径不受 isCancelled 门控),
+        // 读快照会丢掉迟到的 hash(S05 预查 miss,多走一次重排);槽位不存在时为 nil,
+        // 与下方 not_found 守卫的显式报错不冲突
+        let liveHash = roster.first { $0.id == entry.id }?.resolvedContentHash
+        let keepHash = newId == entry.id ? liveHash : nil
+        let newEntry: RosterEntry = .temp(
+            input: input, alias: alias, resolvedHash: keepHash, place: place
+        )
+        // 去重:撞 roster 内**其他** entry 才算重复(自身原位替换豁免)
+        if roster.contains(where: { $0.id != entry.id && $0.id == newEntry.id }) {
+            AppLogger.app.warning("op=compatibility.updateTempEntry skip reason=duplicate entry_id=\(newEntry.id, privacy: .public)")
+            throw UserFacingError.generic(message: "名单已存在相同的对方")
+        }
+        guard let idx = roster.firstIndex(where: { $0.id == entry.id }) else {
+            // 不静默吞:sheet 开着时 entry 被移走属并发异常,显式报给 UI
+            AppLogger.app.error("op=compatibility.updateTempEntry skip reason=not_found entry_id=\(entry.id, privacy: .public)")
+            throw UserFacingError.generic(message: "该对方已不在名单中,请重新选择")
+        }
+        roster[idx] = newEntry
+        if selectedEntryIds.contains(entry.id) {
+            selectedEntryIds.remove(entry.id)
+            selectedEntryIds.insert(newEntry.id)
+        }
     }
 
     /// 移除名单一项(勾选 id 一并清理,不留悬空引用)。
@@ -768,7 +869,7 @@ final class CompatibilityViewModel {
         switch entry {
         case .archived(let bHash):
             displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? "对方"
-        case .temp(let input, let alias, _):
+        case .temp(let input, let alias, _, _):
             if let alias, !alias.isEmpty {
                 displayName = alias
             } else {
@@ -803,7 +904,7 @@ final class CompatibilityViewModel {
         case .archived(let bHash):
             displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? "对方"
             personBHash = bHash
-        case .temp(let input, let alias, _):
+        case .temp(let input, let alias, _, _):
             if let alias, !alias.isEmpty {
                 displayName = alias
             } else {
@@ -830,7 +931,7 @@ final class CompatibilityViewModel {
     /// 用 input + alias 定位(id 不变 → ForEach 不重建)。
     private func backfillTempResolvedHash(input: PersonBInput, alias: String?, resolvedHash: String) {
         guard let idx = roster.firstIndex(where: { entry in
-            if case .temp(let existingInput, let existingAlias, _) = entry,
+            if case .temp(let existingInput, let existingAlias, _, _) = entry,
                existingInput.birthDatetime == input.birthDatetime,
                existingInput.timezone == input.timezone,
                existingInput.gender == input.gender,
@@ -843,7 +944,10 @@ final class CompatibilityViewModel {
             AppLogger.app.warning("op=compatibility.backfillTempResolvedHash not_found alias=\(alias ?? "nil", privacy: .public)")
             return
         }
-        roster[idx] = .temp(input: input, alias: alias, resolvedHash: resolvedHash)
+        // 2026-09-05:place 原样带过(反推无据,见 RosterEntry.place 注释)
+        if case .temp(_, _, _, let existingPlace) = roster[idx] {
+            roster[idx] = .temp(input: input, alias: alias, resolvedHash: resolvedHash, place: existingPlace)
+        }
         AppLogger.app.info(
             "op=compatibility.backfillTempResolvedHash ok idx=\(idx) resolved_hash=\(resolvedHash, privacy: .public)"
         )
@@ -891,7 +995,7 @@ final class CompatibilityViewModel {
                                                       timezoneName: bChartSnapshot.cityTimezone)
                 displayName = "对方 · \(dateStr)"
             }
-        case .temp(_, let alias, _):
+        case .temp(_, let alias, _, _):
             if let alias, !alias.isEmpty {
                 displayName = alias
             } else {
@@ -993,7 +1097,7 @@ final class CompatibilityViewModel {
             )
             bSnapshotForUI = bChart.snapshot
 
-        case .temp(let input, _, _):
+        case .temp(let input, _, _, _):
             request = CompatibilityRequest(
                 personAHash: aHash,
                 personB: input,
@@ -1030,7 +1134,7 @@ final class CompatibilityViewModel {
         switch entry {
         case .archived(let bHash):
             displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? "对方"
-        case .temp(_, let alias, _):
+        case .temp(_, let alias, _, _):
             if let alias, !alias.isEmpty {
                 displayName = alias
             } else {
@@ -1042,7 +1146,7 @@ final class CompatibilityViewModel {
         }
 
         // S04:临时人首次计算后回填 resolvedHash 到 roster(为 S05 增量预查 / S06 持久化铺路)
-        if case .temp(let input, let alias, _) = entry {
+        if case .temp(let input, let alias, _, _) = entry {
             backfillTempResolvedHash(
                 input: input,
                 alias: alias,

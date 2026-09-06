@@ -9,6 +9,10 @@ import SwiftUI
 //
 // 2026-09-03 修订:添加与勾选解耦——临时人 / 跨启动恢复行由「恒勾选、点击=移出确认」
 // 改为「勾选圈 + 点击=切换勾选」,移出名单走行尾「移出」小按钮(+ 确认)。
+//
+// 2026-09-05 修订:行尾来源 badge(「快速」/「存档」)删除——与操作按钮同视觉易误读
+// 且无信息量;临时人行尾改为「修改」+「移出」双操作(跨启动恢复行仅「移出」,
+// 本地无原始表单数据可回填;存档池行无行尾操作,出生信息编辑归「我的」档案)。
 
 // MARK: - 命主行(A 盘,定稿⑧)
 
@@ -110,7 +114,8 @@ struct PersonARowView: View {
 ///
 /// - 存档行勾选/取消 = `toggleArchived`(VM roster 进出;成员资格即勾选)
 /// - 临时人/恢复行点击 = 切换勾选(2026-09-03:取消勾选**不再**移出名单);
-///   行尾「移出」小按钮 = 移出名单确认(父层 confirmationDialog 后 `removeRosterEntry`)
+///   行尾「移出」小按钮 = 移出名单确认(父层 confirmationDialog 后 `removeRosterEntry`);
+///   临时人行尾另有「修改」(2026-09-05,父层开修改 sheet;恢复行/存档池行无)
 /// - 时辰未知行保留 S11(置灰无圈短注)/ S10(点击直达补时辰)行为
 /// - 名单满 8(决策 D2):添加行置灰 + dashed 提示——上限拦「加」(名单成员,含未勾选)不拦「排」
 /// - 池空(决策 D13):无候选且名单空 → 引导文案 + 添加行(定稿①两者并存)
@@ -124,7 +129,7 @@ struct RosterUnifiedListView: View {
     let selectedHashes: Set<String>
     /// 已勾选人数(段标计数;= VM selectedRosterEntries.count,2026-09-03 起按勾选计)。
     let selectedCount: Int
-    /// 临时人行展示参数(顺序与 roster 中 .temp 一致):名称 / 副行 / badge / 勾选态。
+    /// 临时人行展示参数(顺序与 roster 中 .temp 一致):名称 / 副行 / 勾选态。
     let tempRows: [TempRowModel]
     /// 跨启动恢复的存档行(S06:临时人持久化为 `.archived` hash,无 UserSnapshotLink
     /// → 不在 `charts` 内,候选区无对应行)。名单含该 entry 就必须有行——可见、可移出,
@@ -136,6 +141,8 @@ struct RosterUnifiedListView: View {
     let onToggleArchived: (String) -> Void
     /// 临时人/恢复行点击(切换勾选;参数 = 该 entry)。
     let onToggleTemp: (RosterEntry) -> Void
+    /// 临时人行「修改」按钮(父层回填表单并开修改 sheet;恢复行不渲染该按钮)。
+    let onEditTemp: (RosterEntry) -> Void
     /// 临时人/恢复行「移出」按钮(移出名单确认;参数 = 该 entry)。
     let onRemoveTemp: (RosterEntry) -> Void
     /// S10:点击被标记行 → 补时辰 sheet。
@@ -251,8 +258,7 @@ struct RosterUnifiedListView: View {
                         dayMaster: chart.dayMaster,
                         isSelected: selectedHashes.contains(chart.snapshotHash),
                         isLocked: isSelfHourUnknown,
-                        hourUnknownMark: isHourUnknownRow ? L10n.CompatibilityRosterGate.mark : nil,
-                        kindNote: "存档"
+                        hourUnknownMark: isHourUnknownRow ? L10n.CompatibilityRosterGate.mark : nil
                     )
                 }
                 .disabled(isSelfHourUnknown)
@@ -264,10 +270,11 @@ struct RosterUnifiedListView: View {
     }
 
     /// 名单补行(临时人 / 跨启动恢复):勾选圈(朱色实圈=已选,空圈=未选)
-    /// + 信息 + badge 小注 + 行尾「移出」。
+    /// + 信息 + 行尾操作(临时人 =「修改」「移出」;恢复行 =「移出」)。
     /// 点击 = 切换勾选(2026-09-03:取消勾选保留名单成员资格);「移出」= 移出名单
-    /// (父层确认,防误删——移出后重加需再填表单)。全锁(定稿⑦):灰圈灰字不可点。
-    /// 定稿⑤:最新加入的临时人行叠「新」朱印(印章级小元素,DESIGN.md 许可)。
+    /// (父层确认,防误删——移出后重加需再填表单);「修改」= 父层回填表单开修改 sheet。
+    /// 全锁(定稿⑦):灰圈灰字不可点。定稿⑤:最新加入的临时人行叠「新」朱印
+    /// (印章级小元素,DESIGN.md 许可)。
     private func rosterExtraRow(_ row: TempRowModel) -> some View {
         Button {
             guard !isSelfHourUnknown else { return }
@@ -294,10 +301,24 @@ struct RosterUnifiedListView: View {
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
                 }
                 Spacer()
-                Text(row.badge)
-                    .font(BaziFont.caption(size: 10))
-                    .tracking(2)
-                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+                // 修改入口(2026-09-05:仅临时人——本地有完整表单数据可回填;
+                // 恢复行只有 hash,存档池行走「我的」档案编辑,均不渲染)
+                if row.entry.isTemp {
+                    Button {
+                        guard !isSelfHourUnknown else { return }
+                        onEditTemp(row.entry)
+                    } label: {
+                        Text("修改")
+                            .font(BaziFont.caption(size: 10))
+                            .tracking(1)
+                            .foregroundStyle(isSelfHourUnknown ? BaziTheme.inkMutedSecondary : BaziTheme.inkMuted)
+                            .padding(.vertical, 4)
+                            .padding(.horizontal, 6)
+                    }
+                    .buttonStyle(.plain)
+                    .disabled(isSelfHourUnknown)
+                    .accessibilityLabel("修改「\(row.name)」")
+                }
                 // 移出名单入口(2026-09-03:行点击让位给勾选切换,移出走显式小按钮;
                 // 仍经父层 confirmationDialog,防误删语义不变)
                 Button {
@@ -394,13 +415,12 @@ struct RosterUnifiedListView: View {
 // MARK: - 名单补行展示模型
 
 /// 名单补行(临时人行 / 跨启动恢复行)展示参数(ConfigView 从 RosterEntry 派生;纯值)。
-/// `badge` = 行右侧小注:「快速」(本会话临时人)/「存档」(S06 恢复的名单成员)。
 /// `isSelected` = 勾选态(2026-09-03:添加默认未勾,勾选独立于名单成员资格)。
+/// (2026-09-05:badge 来源小注已删;行是否有「修改」由 `entry.isTemp` 现场判定。)
 struct TempRowModel: Identifiable {
     let entry: RosterEntry
     let name: String
     let subtitle: String
-    let badge: String
     let isSelected: Bool
     var id: String { entry.id }
 }
@@ -418,12 +438,8 @@ struct ArchiveRowContent: View {
     var isLocked: Bool = false
     /// S11:不可合盘短标(时辰未知);nil = 正常可选行。
     var hourUnknownMark: String? = nil
-    /// 行尾来源小注(定稿②「存档」;正常行显示,标记/全锁行不显示——与「快速」badge 对称)。
-    var kindNote: String? = nil
 
     private var isGreyed: Bool { isLocked || hourUnknownMark != nil }
-    /// 正常行(可勾选、无短标)才给行尾小注(定稿②:标记行以短注代替,⑦全锁行无注)。
-    private var showsKindNote: Bool { kindNote != nil && !isLocked && hourUnknownMark == nil }
 
     var body: some View {
         HStack(spacing: 12) {
@@ -449,12 +465,6 @@ struct ArchiveRowContent: View {
                 }
             }
             Spacer()
-            if showsKindNote, let kindNote {
-                Text(kindNote)
-                    .font(BaziFont.caption(size: 10))
-                    .tracking(2)
-                    .foregroundStyle(BaziTheme.inkMutedSecondary)
-            }
             if hourUnknownMark == nil && !isLocked {
                 if isSelected {
                     // 朱色选中圈(印章级点缀);行底 cinnabarSoft(选中态,极少量)
