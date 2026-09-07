@@ -399,7 +399,8 @@ final class AddHourFlowTests: XCTestCase {
                 birthDatetime: "1990-01-01T10:00:00", timezone: "Asia/Shanghai",
                 gender: "male", longitude: 116.4
             ),
-            alias: nil, resolvedHash: nil
+            alias: nil, resolvedHash: nil,
+            place: .custom(longitude: 116.4, timezone: "Asia/Shanghai")
         )
         let pairTemp = blockedSummary(entry: tempEntry, personBHash: "")
         XCTAssertNil(compatVM.addHourTargetHash(forBlockedPair: pairTemp),

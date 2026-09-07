@@ -4,18 +4,20 @@ import SwiftData
 
 // MARK: - 状态机
 
-/// 合盘主状态机(多选改造 D10 + S02 detail 态)。
+/// 合盘主状态机(单选改造 + S02 detail 态)。
 ///
-/// 七态:
+/// 七态(2026-09-07 单选直达:算成 → detail 主路径,list 退化为兜底):
 /// - loading:命盘列表加载中
 /// - empty:0 存档,引导去深度解析
-/// - configuring:配置态(A 单选 + B 名单;2026-08-16 起 context 恒 "general" 不再是配置项)
-/// - computing(completed, total):批量确定性合盘进行中(决策 D3 串行)
-/// - list:结果列表(决策 D9 卡片;summaries 存 VM 字段,便于 detail ↔ list 切换)
-/// - detail(summary, response, interpretState):单对详情(S02 新增),复用 CompatibilityMainView
+/// - configuring:配置态(A 盘命主 + B 名单单选;2026-08-16 起 context 恒 "general")
+/// - computing(completed, total):确定性合盘进行中(决策 D3 串行;单选恒 1 对)
+/// - list:兜底结果列表(compute 失败/时辰拦截时承载单卡 + 重试/补时辰 CTA;
+///   summaries 存 VM 字段)
+/// - detail(summary, response, interpretState):单对详情(主路径;跨启动恢复直达),
+///   复用 CompatibilityMainView
 /// - failed(message):显式错误(S01 整体级;S03 后仅系统级)
 ///
-/// `.list` 不内嵌 summaries:summaries 存 VM 字段,detail 返回 list 时无需重新构造。
+/// `.list` 不内嵌 summaries:summaries 存 VM 字段。
 enum CompatibilityViewState: Equatable {
     case loading
     case empty
@@ -44,14 +46,16 @@ enum CompatibilityViewState: Equatable {
 
 // MARK: - ViewModel
 
-/// 合盘 ViewModel:@Observable + 状态机驱动(多选改造 + S02 detail 按对化)。
+/// 合盘 ViewModel:@Observable + 状态机驱动(单选改造 + S02 detail 按对化)。
 ///
-/// 多选 + detail 核心:
-/// - `roster: [RosterEntry]`(决策 D2 混合名单,上限 8)
-/// - `selectedEntryIds: Set<String>`(2026-09-03:名单成员资格与「本次勾选」解耦;
-///   compute 只消费勾选子集 `selectedRosterEntries`)
-/// - `summaries: [PairSummary]`(list 态用,detail 切换时保留)
-/// - `compute()` 串行批量 → list 态
+/// 单选 + detail 核心(2026-09-07 单选改造,修订 08-13 多选 D1-D13 中的勾选语义):
+/// - `roster: [RosterEntry]`(决策 D2 混合名单,上限 8;单选不改容量语义——
+///   名单 = 对方池,勾选 = 本次排盘的那一位)
+/// - `selectedEntryIds: Set<String>`(≤1 个元素;2026-09-03 名单成员资格与勾选解耦,
+///   2026-09-07 起勾选单选——勾第二位自动取消第一位)
+/// - `summaries: [PairSummary]`(list 兜底态用)
+/// - `compute()` 串行批量 → 唯一一对算成**直达 detail**;失败/时辰拦截 → 单卡 list
+///   兜底(S03 重试 / S10 补时辰 CTA 保留)
 /// - `openDetail(summary)` → detail 态(查 cache + 解 response + 构造 InterpretState)
 /// - `generateInterpretation()` 按 detail 态的 summary.compatibilityHash 触发(决策 D3 AI 逐对按需)
 /// - 临时人隐式落地 ChartSnapshot **不建 UserSnapshotLink**(红线 D6)
@@ -76,13 +80,16 @@ final class CompatibilityViewModel {
     /// (无存档池行可回落,取消勾选必须保留在名单里)。
     var roster: [RosterEntry] = []
 
-    /// 名单内已勾选 entry id 集合(= 本次要排盘的人)。
+    /// 名单内已勾选 entry id 集合(= 本次要排盘的人;**单选**,2026-09-07)。
     /// 不变量:
+    /// - 集合至多 1 个元素(勾第二位自动让位第一位——`toggleEntrySelection` /
+    ///   `toggleArchived` 换选时经 `deselectCurrentSelection` 维护)
     /// - 存档池行(`isPoolBacked(hash:)` == true):entry 在 roster ⇔ id 在本集合
-    ///   (toggleArchived 维护)
+    ///   (toggleArchived 维护;换选时原池行随取消勾选移出名单)
     /// - 临时人/恢复行:添加**不**入本集合(2026-09-03 拆分:「加名单」≠「选入合盘」),
-    ///   由 `toggleEntrySelection` 显式勾选
-    /// - 跨启动恢复:恢复的名单 = 上次排盘的人,默认全勾
+    ///   由 `toggleEntrySelection` 显式勾选;换选/取消勾选都保留名单成员资格
+    /// - 跨启动恢复:默认勾「上次那位」(`tryRestoreDetail` 按 CompatibilitySnapshot
+    ///   createdAt 最新者定;无快照不预勾)
     var selectedEntryIds: Set<String> = []
 
     /// 单临时人表单(S04 草稿态:每次「添加」push 一条 .temp 到 roster,然后表单清空)。
@@ -128,8 +135,8 @@ final class CompatibilityViewModel {
 
     var state: CompatibilityViewState = .loading
 
-    /// list 态的卡片摘要(也用于 detail 返回 list 时恢复)。
-    /// 进入 detail 时不清空,closeDetail 后仍可用。
+    /// 兜底 list 态的卡片摘要(compute 失败/拦截的单卡 + 单对重试)。
+    /// 进入 detail 时不清空,跨启动恢复时装「上次那位」的单条 summary。
     var summaries: [PairSummary] = []
 
     /// S03:正在重试的对 id 集合(UI 据此 disable 重试按钮,避免同对并发双请求)。
@@ -235,7 +242,8 @@ final class CompatibilityViewModel {
         roster.filter { selectedEntryIds.contains($0.id) }
     }
 
-    /// 名单内已勾选存档 hash 集合(供多选 UI 回显 / A 盘 menu 置灰)。
+    /// 名单内已勾选存档 hash 集合(供名单 UI 回显;2026-09-07「更换」menu 拔除后
+    /// 不再作置灰判据)。
     /// 2026-09-03 起按勾选过滤:未勾选的跨启动恢复行(.archived 无池行)不再计入。
     var selectedArchivedHashes: Set<String> {
         Set(selectedRosterEntries.compactMap { entry -> String? in
@@ -252,11 +260,12 @@ final class CompatibilityViewModel {
         archivedCharts.contains(where: { $0.snapshotHash == hash })
     }
 
-    /// 勾选 / 取消勾选名单行(临时人 / 跨启动恢复行的点击路径)。
+    /// 点选名单行(临时人 / 跨启动恢复行的点击路径;**单选**,2026-09-07)。
     /// - 存档池行(有对应存档)不走此路径:成员资格即勾选,路由回 `toggleArchived`
     ///   (取消勾选 = 移出名单,池行本身仍在列表)——维持「roster 存档成员 ⇔ 已勾选」不变量
-    /// - 临时人 / 恢复行:只翻勾选态,roster 成员资格不动(取消勾选不再把人整个删掉,
-    ///   2026-09-03 拆分;移出名单走 `removeRosterEntry` + View 层确认)
+    /// - 临时人 / 恢复行:点已勾行 = 取消勾选(保留名单成员资格,2026-09-03 拆分;
+    ///   移出名单走 `removeRosterEntry` + View 层确认);点未勾行 = **换选**
+    ///   (原勾选让位——池行随取消移出名单,临时/恢复行只清勾选)
     func toggleEntrySelection(_ entry: RosterEntry) {
         if case .archived(let hash) = entry, isPoolBacked(hash: hash) {
             toggleArchived(hash: hash)
@@ -265,7 +274,19 @@ final class CompatibilityViewModel {
         if selectedEntryIds.contains(entry.id) {
             selectedEntryIds.remove(entry.id)
         } else {
-            selectedEntryIds.insert(entry.id)
+            deselectCurrentSelection()
+            selectedEntryIds = [entry.id]
+        }
+    }
+
+    /// 单选让位(2026-09-07):清空当前勾选;原勾选若是存档池行,随取消勾选移出名单
+    /// (维持「池行成员资格 ⇔ 勾选」不变量);临时人/恢复行只清勾选不移出。
+    private func deselectCurrentSelection() {
+        for previous in selectedRosterEntries {
+            selectedEntryIds.remove(previous.id)
+            if case .archived = previous {
+                roster.removeAll { $0.id == previous.id }
+            }
         }
     }
 
@@ -279,12 +300,13 @@ final class CompatibilityViewModel {
         roster.filter(\.isTemp).count
     }
 
-    /// 勾选 / 取消勾选存档对方。
+    /// 勾选 / 取消勾选存档对方(**单选**,2026-09-07:换选时原勾选让位)。
     /// - 排除 A 盘自己(决策 D1:A 盘保持单选,自己不可入名单)
     /// - S11 发起拦截(更早一层):他人命盘无时辰(payload 判据,与 S07 computePair
     ///   整对拦截同源)→ 不可入名单,点击轻提示在 View 层,此处 VM 守卫兜住所有调用路径;
     ///   已在名单的(跨启动恢复的拦截对)不受影响——本函数前半段是移除语义,照常走
-    /// - 上限校验:加入时若已达 `rosterMax` 静默拒绝(UI 应提前 disable)
+    /// - 上限校验:加入时若已达 `rosterMax` 静默拒绝(UI 应提前 disable;
+    ///   让位先于上限校验——原池行让位释放的名额立即可用)
     func toggleArchived(hash: String) {
         if let idx = roster.firstIndex(where: { $0.archivedSnapshotHash == hash }) {
             let removed = roster.remove(at: idx)
@@ -304,9 +326,11 @@ final class CompatibilityViewModel {
             AppLogger.app.warning("op=compatibility.toggleArchived skip reason=roster_full hash=\(hash, privacy: .public)")
             return
         }
+        // 单选让位:原勾选的池行移出名单,临时/恢复行只清勾选
+        deselectCurrentSelection()
         let entry = RosterEntry.archived(snapshotHash: hash)
         roster.append(entry)
-        selectedEntryIds.insert(entry.id)
+        selectedEntryIds = [entry.id]
     }
 
     // MARK: - S11 roster 不可合盘标记(判据 = 本地存档 payload,零网络)
@@ -387,17 +411,11 @@ final class CompatibilityViewModel {
         return nil
     }
 
-    /// 添加临时对方到名单(S04:多条,每次 append 一条独立 .temp)。
-    /// 校验失败抛 `UserFacingError`(不静默吞,CLAUDE.md 错误显式传播)。
-    /// 成功后:写入 tempDraft 持久化 + 重置表单为"上次填过的"(alias 清空)。
-    ///
-    /// 2026-09-03:加入名单**不等于**勾选——新 entry 落位时未勾选
-    /// (不进 `selectedEntryIds`),是否参与本次合盘由用户在名单上显式勾选。
-    func addTempToRoster() throws {
+    /// 表单当前值 → .temp entry 的三要素(校验 / 地点解析 / PersonBInput 构造 / alias trim)。
+    /// 添加与修改共用单一事实源:PersonBInput 字段或 trim 规则变化只改此处,
+    /// 防两条路径产出漂移(添加与修改算出不同 input = 对级数据 bug)。
+    private func makeTempInputFromForm() throws -> (input: PersonBInput, alias: String?, place: PlaceSelection) {
         try validateTempForm()
-        guard roster.count < Self.rosterMax else {
-            throw UserFacingError.generic(message: "名单已达上限 \(Self.rosterMax) 人")
-        }
         // 出生地字段解析走单一事实源(S05:城市/自定义地点;validateTempForm 已保证非空)
         guard let place = tempPlace else {
             throw UserFacingError.generic(message: "请选择出生城市")
@@ -414,7 +432,24 @@ final class CompatibilityViewModel {
         )
         // alias 空字符串视为 nil(统一兜底名判定)
         let alias = tempAlias.trimmingCharacters(in: .whitespaces)
-        let newEntry: RosterEntry = .temp(input: input, alias: alias.isEmpty ? nil : alias, resolvedHash: nil)
+        return (input, alias.isEmpty ? nil : alias, place)
+    }
+
+    /// 添加临时对方到名单(S04:多条,每次 append 一条独立 .temp)。
+    /// 校验失败抛 `UserFacingError`(不静默吞,CLAUDE.md 错误显式传播)。
+    /// 成功后:写入 tempDraft 持久化 + 重置表单为"上次填过的"(alias 清空)。
+    ///
+    /// 2026-09-03:加入名单**不等于**勾选——新 entry 落位时未勾选
+    /// (不进 `selectedEntryIds`),是否参与本次合盘由用户在名单上显式勾选。
+    /// - Returns:新入册的 entry(调用方据此标「新」朱印,不依赖 append 位置的实现细节)。
+    @discardableResult
+    func addTempToRoster() throws -> RosterEntry {
+        // 错误优先级与抽取前一致:表单校验(makeTempInputFromForm 内)> 满员 > 重复
+        let (input, alias, place) = try makeTempInputFromForm()
+        guard roster.count < Self.rosterMax else {
+            throw UserFacingError.generic(message: "名单已达上限 \(Self.rosterMax) 人")
+        }
+        let newEntry: RosterEntry = .temp(input: input, alias: alias, resolvedHash: nil, place: place)
         // 去重:同 id entry 已在 roster → 抛错
         // 避免 ForEach 重复 id 警告 + 列表少卡 + 冗余 API 调用(内容寻址 → 同 hash)
         if roster.contains(where: { $0.id == newEntry.id }) {
@@ -430,6 +465,7 @@ final class CompatibilityViewModel {
             )
         )
         roster.append(newEntry)
+        return newEntry
     }
 
     /// 添加成功后由 View 调:重置表单为"上次填过的"(本次刚保存的草稿)。
@@ -444,6 +480,95 @@ final class CompatibilityViewModel {
         tempBirthDate = draft.birthDate
         tempGender = draft.gender
         tempPlace = draft.place
+    }
+
+    // MARK: - 修改临时人(2026-09-05)
+
+    /// 进入修改态:把 entry 现有数据回填表单(「修改」打开 sheet 前调)。
+    ///
+    /// 表单草稿字段被临时覆盖——关闭 sheet 后由 View 调 `resetTempDraftForm()`
+    /// 还原「上次填过的」添加草稿(修改不落草稿持久化,添加习惯不被污染)。
+    /// wall 钟面串按**出生地时区**反解析(与 `tempWallTimeString()` 互逆)。
+    ///
+    /// - Returns:回填成功 = true;失败(非 temp / 时区名无效 / 钟面串解析失败)=
+    ///   false,表单字段**不动**。失败 = 自产格式被破坏属 bug,已显式记日志;
+    ///   调用方必须据此**不开**修改 sheet——开着会把无关表单现值保存进该 entry
+    ///   (错误显式传播:失败不止步于日志层,UI 层不得继续走成功路径)。
+    @discardableResult
+    func beginEditTempEntry(_ entry: RosterEntry) -> Bool {
+        guard case .temp(let input, let alias, _, let place) = entry else {
+            AppLogger.app.warning("op=compatibility.beginEditTempEntry skip reason=not_temp entry_id=\(entry.id, privacy: .public)")
+            return false
+        }
+        guard let tz = TimeZone(identifier: input.timezone) else {
+            AppLogger.app.error(
+                "op=compatibility.beginEditTempEntry invalid_timezone tz=\(input.timezone, privacy: .public) entry_id=\(entry.id, privacy: .public)"
+            )
+            return false
+        }
+        guard let date = Self.wallClockDate(input.birthDatetime, timeZone: tz) else {
+            AppLogger.app.error(
+                "op=compatibility.beginEditTempEntry parse_failed birth=\(input.birthDatetime, privacy: .public) tz=\(input.timezone, privacy: .public)"
+            )
+            return false
+        }
+        tempAlias = alias ?? ""
+        tempGender = input.gender
+        tempBirthDate = date
+        tempPlace = place
+        return true
+    }
+
+    /// wall 钟面串 → Date(出生地时区;格式与 `tempWallTimeString()` 成对,单一格式串)。
+    /// 时区由调用方先解析传入,无效时区名不在本函数静默兜底(防设备时区顶替错位)。
+    private static func wallClockDate(_ wallClock: String, timeZone: TimeZone) -> Date? {
+        let formatter = DateFormatter()
+        formatter.locale = Locale(identifier: "en_US_POSIX")
+        formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        formatter.timeZone = timeZone
+        return formatter.date(from: wallClock)
+    }
+
+    /// 保存修改:校验 → 原位替换 roster 内该 entry。
+    ///
+    /// - 去重**排除自身**(只改 alias 时 id 变化,不得误撞自己;撞别人才算重复)
+    /// - 勾选态随迁:改前已勾选 → 改后新 id 仍勾选(改错字不该把人请出本次合盘)
+    /// - resolvedHash:输入未变(id 相同)→ 保留(S05 预查继续命中);
+    ///   输入变了 → 作废置 nil(旧 hash 描述的是别人,下次 compute 走 API 重排)
+    /// - 原位替换不占新名额(上限校验只拦「加」不拦「改」,与满员提示口径一致)
+    /// - 不写草稿持久化(修改 ≠ 添加习惯,持久化只在 addTempToRoster)
+    func updateTempEntry(_ entry: RosterEntry) throws {
+        guard case .temp = entry else {
+            AppLogger.app.error("op=compatibility.updateTempEntry skip reason=not_temp entry_id=\(entry.id, privacy: .public)")
+            throw UserFacingError.generic(message: "该对方不可修改")
+        }
+        let (input, alias, place) = try makeTempInputFromForm()
+        // id 不含 resolvedHash/place → 用同参构造算 id 即可比对「输入是否变了」
+        let newId = RosterEntry.temp(input: input, alias: alias, resolvedHash: nil, place: place).id
+        // keepHash 读 live roster 同 id 槽位而非入参快照:sheet 打开期间,已被 cancel 的
+        // compute 在途对仍可能落地 backfillTempResolvedHash(该路径不受 isCancelled 门控),
+        // 读快照会丢掉迟到的 hash(S05 预查 miss,多走一次重排);槽位不存在时为 nil,
+        // 与下方 not_found 守卫的显式报错不冲突
+        let liveHash = roster.first { $0.id == entry.id }?.resolvedContentHash
+        let keepHash = newId == entry.id ? liveHash : nil
+        let newEntry: RosterEntry = .temp(
+            input: input, alias: alias, resolvedHash: keepHash, place: place
+        )
+        // 去重:撞 roster 内**其他** entry 才算重复(自身原位替换豁免)
+        if roster.contains(where: { $0.id != entry.id && $0.id == newEntry.id }) {
+            AppLogger.app.warning("op=compatibility.updateTempEntry skip reason=duplicate entry_id=\(newEntry.id, privacy: .public)")
+            throw UserFacingError.generic(message: "名单已存在相同的对方")
+        }
+        guard let idx = roster.firstIndex(where: { $0.id == entry.id }) else {
+            // 不静默吞:sheet 开着时 entry 被移走属并发异常,显式报给 UI
+            AppLogger.app.error("op=compatibility.updateTempEntry skip reason=not_found entry_id=\(entry.id, privacy: .public)")
+            throw UserFacingError.generic(message: "该对方已不在名单中,请重新选择")
+        }
+        roster[idx] = newEntry
+        if selectedEntryIds.contains(entry.id) {
+            selectedEntryIds.remove(entry.id)
+            selectedEntryIds.insert(newEntry.id)
+        }
     }
 
     /// 移除名单一项(勾选 id 一并清理,不留悬空引用)。
@@ -469,13 +594,15 @@ final class CompatibilityViewModel {
         }
     }
 
-    // MARK: - 批量合盘触发(决策 D3 串行 / D9 list / D13 名单空拦截)
+    // MARK: - 合盘触发(决策 D3 串行 / S03 对级隔离 / D13 零勾选拦截)
 
-    /// 触发批量合盘:校验勾选 → 串行调 orchestrator.runDeterministic → .list 态。
+    /// 触发合盘:校验勾选 → 串行调 orchestrator.runDeterministic → **唯一一对算成直达
+    /// detail**(2026-09-07 单选改造);失败 / 时辰拦截 → 单卡 .list 兜底
+    /// (S03 重试 / S10 补时辰 CTA 机制保留)。
     ///
     /// 2026-09-03:只消费 `selectedRosterEntries`(勾选子集)——名单成员未勾选不排盘
     /// (添加与勾选解耦后,零勾选 = D13 拦截,与空名单同文案)。
-    /// S01:单对失败 → 整体 failed(沿用现状语义);S03 改对级隔离 + 单对重试。
+    /// 循环体保持 N 元泛化(直塞多勾只出测试),正常路径单选恒 N=1。
     /// 切 tab / backToConfig → computeTask cancel(决策 D13)。
     func compute() {
         let contextValue = self.context
@@ -497,7 +624,7 @@ final class CompatibilityViewModel {
         // 决策 D13:零勾选拦截(2026-09-03 起名单非空但未勾选同样拦截)
         guard !selectedEntries.isEmpty else {
             AppLogger.app.warning("compatVM.compute.skip reason=empty_selection roster_count=\(rosterCount, privacy: .public)")
-            state = .failed(.generic(message: "请至少勾选一位对方"))
+            state = .failed(.generic(message: "请先点选一位对方"))
             return
         }
 
@@ -562,9 +689,15 @@ final class CompatibilityViewModel {
                 let successCount = newSummaries.filter(\.isComputed).count
                 AppLogger.app.info("compatVM.compute.ok total=\(newSummaries.count, privacy: .public) success=\(successCount, privacy: .public)")
                 self.summaries = newSummaries
-                self.state = .list
                 // S06:持久化 A / context / 名单 hash(compute() 成功后)
                 self.persistRosterState(summaries: newSummaries)
+                // 2026-09-07 单选直达:唯一一对且算成 → 直接进 detail;
+                // 失败 / 时辰拦截 → 单卡 .list 兜底(重试 / 补时辰 CTA 保留)
+                if newSummaries.count == 1, let only = newSummaries.first, only.isComputed {
+                    self.openDetail(only)
+                } else {
+                    self.state = .list
+                }
             }
         }
     }
@@ -574,7 +707,7 @@ final class CompatibilityViewModel {
     /// 写入 UserDefaults(决策 D5)。
     /// 名单 hash 来自 summaries 的 personBHash(临时人已用 resolvedHash)。
     /// S07:时辰未知拦截对**非空 hash 也保留**(存档对方仍在名单,补时辰后可重算;
-    /// 失败对 personBHash 恒空串,自然剔除)。list 态恢复按 CompatibilitySnapshot
+    /// 失败对 personBHash 恒空串,自然剔除)。恢复按 CompatibilitySnapshot
     /// 存在性过滤,拦截对无快照不会被复活成结果卡。
     private func persistRosterState(summaries: [PairSummary]) {
         let aHash = currentPersonAHash ?? ""
@@ -597,7 +730,7 @@ final class CompatibilityViewModel {
     ///    2026-08-16 维度 picker 移除,老持久化值忽略)
     /// 2. A hash 失效 fallback 最新 link(D13)
     /// 3. 名单 hash 清理无效项(D5 防脏数据;D6 红线:不转 link)
-    /// 4. 名单非空 → 尝试恢复 list 态(零 API 调用)
+    /// 4. 名单非空 → 尝试恢复「上次那位」的 detail(零 API 调用,2026-09-07 单选直达)
     func restoreRosterStateIfAvailable() {
         guard !archivedCharts.isEmpty else { return }  // 0 存档走 .empty,不恢复
 
@@ -625,62 +758,60 @@ final class CompatibilityViewModel {
             (try? self.chartStore.get(contentHash: hash)) != nil
         }
         roster = validHashes.map { .archived(snapshotHash: $0) }
-        // 恢复的名单 = 上次排盘的人(持久化只存已算 hash)→ 默认全勾,
-        // 用户回到配置态看到的勾选态与上次发起时一致
-        selectedEntryIds = Set(roster.map(\.id))
+        // 单选(2026-09-07):恢复的名单 = 上次排盘的人,默认勾「上次那位」——
+        // 由 tryRestoreDetail 按 CompatibilitySnapshot createdAt 最新者定并直达其
+        // detail;无快照可恢复(拦截对未算过 / 快照被清)不预勾,留在配置态由用户自点
+        selectedEntryIds = []
 
         AppLogger.app.info(
             "op=compatibility.restore.ok a_hash=\(self.currentPersonAHash ?? "nil", privacy: .public) context=\(self.context, privacy: .public) roster_count=\(self.roster.count, privacy: .public)"
         )
 
-        // 3. 名单非空 → 尝试恢复 list 态(零 API 调用)
+        // 3. 名单非空 → 尝试恢复「上次那位」的 detail(零 API 调用)
         if !roster.isEmpty {
-            tryRestoreList()
+            tryRestoreDetail()
         }
     }
 
-    /// S06:从 store.list(A, context) ∩ 名单 恢复 summaries + .list 态(零 API 调用)。
-    /// 失败不静默吞:decode 失败的 snapshot 跳过该对(其他对仍恢复);list 查询失败保留 .configuring。
-    private func tryRestoreList() {
+    /// S06 改(2026-09-07 单选直达):从 store.list(A, context) ∩ 名单 里取
+    /// createdAt 最新的一对 = 「上次那位」,重建 summary 后**直接进 detail**;
+    /// 同时把该位设为名单唯一勾选(返回配置态即最短路径复现上次)。
+    /// 失败不静默吞:list 查询失败保留 .configuring;最新对 decode 失败记日志后
+    /// 同样留在配置态(名单已恢复、不预勾),用户可手动重算。
+    private func tryRestoreDetail() {
         guard let aHash = currentPersonAHash else { return }
         do {
             let snapshots = try compatibilityStore.list(personAHash: aHash, context: context)
             // 名单过滤(D5 核心:删掉的对方不从快照库「复活」)
             let rosterHashes = Set(roster.compactMap { $0.resolvedContentHash })
             let filteredSnapshots = snapshots.filter { rosterHashes.contains($0.personBHash) }
+            // 「上次那位」= 名单内快照中 createdAt 最新者(持久化名单顺序不含时间信息)
+            guard let latest = filteredSnapshots.max(by: { $0.createdAt < $1.createdAt }) else { return }
 
-            if filteredSnapshots.isEmpty { return }
-
-            var restoredSummaries: [PairSummary] = []
-            for snapshot in filteredSnapshots {
-                // 跨启动恢复:entry 都是 .archived(snapshotHash:)(临时人持久化为 hash)
-                // rebuildSummaryFromCache 内 displayName 会自动 fallback 兜底名
-                let entry: RosterEntry = .archived(snapshotHash: snapshot.personBHash)
-                do {
-                    let summary = try rebuildSummaryFromCache(
-                        entry: entry,
-                        bHash: snapshot.personBHash,
-                        snapshot: snapshot
-                    )
-                    restoredSummaries.append(summary)
-                } catch {
-                    AppLogger.persistence.error(
-                        "op=compatibility.tryRestoreList.decode_failed hash=\(snapshot.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
-                    )
-                    // 不静默吞:跳过该对,继续恢复其他对
-                }
-            }
-
-            if !restoredSummaries.isEmpty {
-                summaries = restoredSummaries
-                state = .list
-                AppLogger.app.info(
-                    "op=compatibility.tryRestoreList.ok restored_count=\(restoredSummaries.count, privacy: .public) zero_api=true"
+            // 跨启动恢复:entry 都是 .archived(snapshotHash:)(临时人持久化为 hash;
+            // rebuildSummaryFromCache 内 displayName 会自动 fallback 兜底名)
+            let entry: RosterEntry = .archived(snapshotHash: latest.personBHash)
+            do {
+                let summary = try rebuildSummaryFromCache(
+                    entry: entry,
+                    bHash: latest.personBHash,
+                    snapshot: latest
                 )
+                selectedEntryIds = [entry.id]
+                summaries = [summary]
+                openDetail(summary)
+                AppLogger.app.info(
+                    "op=compatibility.tryRestoreDetail.ok hash=\(latest.compatibilityHash, privacy: .public) zero_api=true"
+                )
+            } catch {
+                AppLogger.persistence.error(
+                    "op=compatibility.tryRestoreDetail.decode_failed hash=\(latest.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                )
+                // 不静默吞:留在配置态(名单已恢复、不预勾),用户可手动重算
             }
         } catch {
             AppLogger.persistence.error(
-                "op=compatibility.tryRestoreList.list_query_failed a_hash=\(aHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                "op=compatibility.tryRestoreDetail.list_query_failed a_hash=\(aHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
             // 不静默吞:保留 configuring 态,用户可手动重新计算
         }
@@ -768,7 +899,7 @@ final class CompatibilityViewModel {
         switch entry {
         case .archived(let bHash):
             displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? "对方"
-        case .temp(let input, let alias, _):
+        case .temp(let input, let alias, _, _):
             if let alias, !alias.isEmpty {
                 displayName = alias
             } else {
@@ -803,7 +934,7 @@ final class CompatibilityViewModel {
         case .archived(let bHash):
             displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? "对方"
             personBHash = bHash
-        case .temp(let input, let alias, _):
+        case .temp(let input, let alias, _, _):
             if let alias, !alias.isEmpty {
                 displayName = alias
             } else {
@@ -830,7 +961,7 @@ final class CompatibilityViewModel {
     /// 用 input + alias 定位(id 不变 → ForEach 不重建)。
     private func backfillTempResolvedHash(input: PersonBInput, alias: String?, resolvedHash: String) {
         guard let idx = roster.firstIndex(where: { entry in
-            if case .temp(let existingInput, let existingAlias, _) = entry,
+            if case .temp(let existingInput, let existingAlias, _, _) = entry,
                existingInput.birthDatetime == input.birthDatetime,
                existingInput.timezone == input.timezone,
                existingInput.gender == input.gender,
@@ -843,7 +974,10 @@ final class CompatibilityViewModel {
             AppLogger.app.warning("op=compatibility.backfillTempResolvedHash not_found alias=\(alias ?? "nil", privacy: .public)")
             return
         }
-        roster[idx] = .temp(input: input, alias: alias, resolvedHash: resolvedHash)
+        // 2026-09-05:place 原样带过(反推无据,见 RosterEntry.place 注释)
+        if case .temp(_, _, _, let existingPlace) = roster[idx] {
+            roster[idx] = .temp(input: input, alias: alias, resolvedHash: resolvedHash, place: existingPlace)
+        }
         AppLogger.app.info(
             "op=compatibility.backfillTempResolvedHash ok idx=\(idx) resolved_hash=\(resolvedHash, privacy: .public)"
         )
@@ -891,7 +1025,7 @@ final class CompatibilityViewModel {
                                                       timezoneName: bChartSnapshot.cityTimezone)
                 displayName = "对方 · \(dateStr)"
             }
-        case .temp(_, let alias, _):
+        case .temp(_, let alias, _, _):
             if let alias, !alias.isEmpty {
                 displayName = alias
             } else {
@@ -993,7 +1127,7 @@ final class CompatibilityViewModel {
             )
             bSnapshotForUI = bChart.snapshot
 
-        case .temp(let input, _, _):
+        case .temp(let input, _, _, _):
             request = CompatibilityRequest(
                 personAHash: aHash,
                 personB: input,
@@ -1030,7 +1164,7 @@ final class CompatibilityViewModel {
         switch entry {
         case .archived(let bHash):
             displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? "对方"
-        case .temp(_, let alias, _):
+        case .temp(_, let alias, _, _):
             if let alias, !alias.isEmpty {
                 displayName = alias
             } else {
@@ -1042,7 +1176,7 @@ final class CompatibilityViewModel {
         }
 
         // S04:临时人首次计算后回填 resolvedHash 到 roster(为 S05 增量预查 / S06 持久化铺路)
-        if case .temp(let input, let alias, _) = entry {
+        if case .temp(let input, let alias, _, _) = entry {
             backfillTempResolvedHash(
                 input: input,
                 alias: alias,
@@ -1169,13 +1303,6 @@ final class CompatibilityViewModel {
                 // 缓存读失败不阻塞 detail 态(用户可手动触发 AI 解读)
             }
         }
-    }
-
-    /// 返回 list 态(保留 summaries)。
-    func closeDetail() {
-        cacheReadTask?.cancel()
-        interpretTask?.cancel()
-        state = .list
     }
 
     // MARK: - AI 合盘解读(按对触发,决策 D3)
@@ -1306,8 +1433,8 @@ final class CompatibilityViewModel {
 
     // MARK: - 重置
 
-    /// 从 list 态切回配置态(顶部「编辑名单」toolbar)。
-    /// 兼容 detail(detail → list → config 两步,用户单按钮直达 config)。
+    /// 切回配置态(list 兜底态「编辑名单」/ detail 态「编辑名单」toolbar 共用;
+    /// 2026-09-07 单选直达后 detail → config 一步直达,closeDetail 随 list 主路径退役)。
     func backToConfig() {
         computeTask?.cancel()
         interpretTask?.cancel()

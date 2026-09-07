@@ -109,20 +109,45 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertTrue(vm.roster.isEmpty, "A 盘自己不可入名单")
     }
 
-    func testToggleArchived_上限8_第9个拒绝() {
-        vm.archivedCharts = (0..<9).map { Self.makeChart(hash: "h\($0)", alias: "A\($0)") }
-        vm.selectedChartAIndex = 0  // A = "h0"
+    func testToggleArchived_单选换选_原池行让位移出名单() {
+        // 2026-09-07 单选:池行「成员资格 ⇔ 勾选」不变量保留——点选另一位时
+        // 原池行随取消勾选移出名单(候选区仍有该行,可再点回)
+        vm.archivedCharts = [
+            Self.makeChart(hash: "hash_a", alias: "A"),
+            Self.makeChart(hash: "hash_b", alias: "B"),
+            Self.makeChart(hash: "hash_c", alias: "C"),
+        ]
+        vm.selectedChartAIndex = 0
 
-        // 前 8 个(h1..h8)加入,正好达上限
-        for i in 1...8 {
-            vm.toggleArchived(hash: "h\(i)")
+        vm.toggleArchived(hash: "hash_b")
+        XCTAssertEqual(vm.roster.count, 1)
+        XCTAssertEqual(vm.selectedArchivedHashes, ["hash_b"])
+
+        vm.toggleArchived(hash: "hash_c")  // 换选:B 让位(池行)移出名单
+        XCTAssertEqual(vm.roster.count, 1, "单选:换选不叠名")
+        XCTAssertEqual(vm.selectedArchivedHashes, ["hash_c"])
+        XCTAssertFalse(vm.roster.contains { $0.archivedSnapshotHash == "hash_b" },
+                       "原池行随取消勾选移出名单")
+    }
+
+    func testToggleArchived_名单满_点选池行拒绝() {
+        // 2026-09-07 单选改写原「8 池行叠满」用例:池行恒 ≤1 位在名单,
+        // 上限场景 = 8 位临时人成员 + 点选池行(第 9 名)→ rosterMax 守卫拒绝
+        vm.archivedCharts = [
+            Self.makeChart(hash: "h_a", alias: "A"),
+            Self.makeChart(hash: "h_pool", alias: "P"),
+        ]
+        vm.selectedChartAIndex = 0
+        for i in 0..<8 {
+            vm.tempBirthDate = Date(timeIntervalSince1970: TimeInterval(638_000_000 + i * 86400))
+            vm.tempPlace = .city(Self.makePlace(displayName: "城市\(i)", gid: 200 + i))
+            try? vm.addTempToRoster()
         }
-        XCTAssertEqual(vm.roster.count, 8, "上限 8 应允许")
+        XCTAssertEqual(vm.roster.count, 8, "前置:8 位临时人成员")
 
-        // 第 9 个(h0 自己也被排除了,这里换 h0 不行,需要再造一个非 A 的)
-        vm.archivedCharts.append(Self.makeChart(hash: "h9", alias: "A9"))
-        vm.toggleArchived(hash: "h9")
-        XCTAssertEqual(vm.roster.count, 8, "第 9 个必须被拒绝(D2 上限)")
+        vm.toggleArchived(hash: "h_pool")
+        XCTAssertEqual(vm.roster.count, 8, "第 9 名必须被拒绝(D2 上限)")
+        XCTAssertTrue(vm.selectedEntryIds.isEmpty, "拒绝路径不得留下勾选")
     }
 
     // MARK: - 测试 fixture(S04:结构化地点)
@@ -252,7 +277,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.tempAlias = "   "  // 全空白
         try? vm.addTempToRoster()
 
-        if case .temp(_, let alias, _) = vm.roster.first(where: { $0.isTemp }) {
+        if case .temp(_, let alias, _, _) = vm.roster.first(where: { $0.isTemp }) {
             XCTAssertNil(alias, "空白 alias 应被 trim 为 nil(走兜底名策略)")
         } else {
             XCTFail("roster 应有一个 temp")
@@ -265,7 +290,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.tempAlias = "  相亲对象甲  "  // 带空格
         try? vm.addTempToRoster()
 
-        if case .temp(_, let alias, _) = vm.roster.first(where: { $0.isTemp }) {
+        if case .temp(_, let alias, _, _) = vm.roster.first(where: { $0.isTemp }) {
             XCTAssertEqual(alias, "相亲对象甲", "alias 应被 trim 保留非空值")
         }
     }
@@ -284,6 +309,210 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertEqual(vm.tempGender, "male")
         XCTAssertNil(vm.tempPlace, "默认草稿无地点(S04 砍默认,必选)")
         XCTAssertEqual(vm.tempAlias, "")  // alias 永远清空(不持久化)
+    }
+
+    // MARK: - 修改临时人(2026-09-05:行尾「修改」→ 表单回填 → 原位替换)
+
+    func testBeginEditTempEntry_回填表单字段() {
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempGender = "male"
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京", gid: 1816670))
+        vm.tempAlias = "相亲对象甲"
+        try? vm.addTempToRoster()
+
+        // 污染表单(模拟添加草稿残留),回填必须整体覆盖
+        vm.tempAlias = "别的草稿"
+        vm.tempGender = "female"
+        vm.tempPlace = nil
+        vm.tempBirthDate = Date(timeIntervalSince1970: 999_999_999)
+
+        let entry = vm.roster.first { $0.isTemp }!
+        vm.beginEditTempEntry(entry)
+
+        XCTAssertEqual(vm.tempAlias, "相亲对象甲")
+        XCTAssertEqual(vm.tempGender, "male")
+        XCTAssertEqual(vm.tempPlace?.displayLabel, "北京, 中国")
+        // 钟面回填:wall 串按出生地时区反解析(与 tempWallTimeString 互逆),不漂移
+        XCTAssertEqual(vm.tempBirthDate, Date(timeIntervalSince1970: 638_000_000))
+    }
+
+    func testBeginEditTempEntry_非本地时区_钟面不错位() {
+        // 洛杉矶时区:反解析必须用出生地时区,不得退回设备时区错位
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "洛杉矶", longitude: -118.2437,
+                                             timezone: "America/Los_Angeles", gid: 5368361))
+        try? vm.addTempToRoster()
+
+        let entry = vm.roster.first { $0.isTemp }!
+        vm.beginEditTempEntry(entry)
+        XCTAssertEqual(vm.tempBirthDate, Date(timeIntervalSince1970: 638_000_000),
+                       "出生地时区互逆解析,round-trip 不漂移")
+    }
+
+    func testBeginEditTempEntry_非tempEntry_返回false表单不动() {
+        // 失败契约(View 依赖):false = 不开修改 sheet,且表单字段不被部分污染
+        vm.tempAlias = "草稿"
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempGender = "female"
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京", gid: 1))
+
+        XCTAssertFalse(vm.beginEditTempEntry(.archived(snapshotHash: "h_x")),
+                       "存档 entry 不可进修改态")
+        XCTAssertEqual(vm.tempAlias, "草稿", "失败路径表单不动")
+        XCTAssertEqual(vm.tempGender, "female")
+        XCTAssertEqual(vm.tempPlace?.displayLabel, "北京, 中国")
+    }
+
+    func testBeginEditTempEntry_钟面串损坏_返回false表单不动() {
+        // birthDatetime 非自产格式(数据被破坏)→ 显式 false,不静默兜底设备时区
+        let entry: RosterEntry = .temp(
+            input: PersonBInput(
+                birthDatetime: "不是钟面串", timezone: "Asia/Shanghai",
+                gender: "male", longitude: 116.4074
+            ),
+            alias: "坏数据", resolvedHash: nil,
+            place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
+        )
+        vm.tempAlias = "草稿"
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+
+        XCTAssertFalse(vm.beginEditTempEntry(entry), "钟面串解析失败必须返回 false")
+        XCTAssertEqual(vm.tempAlias, "草稿", "失败路径表单不动")
+        XCTAssertEqual(vm.tempBirthDate, Date(timeIntervalSince1970: 638_000_000))
+    }
+
+    func testBeginEditTempEntry_时区名无效_返回false表单不动() {
+        // 时区名无效:不得静默顶替设备时区(错位回填比失败更糟)
+        let entry: RosterEntry = .temp(
+            input: PersonBInput(
+                birthDatetime: "1991-06-06T09:30:00", timezone: "Not/AZone",
+                gender: "male", longitude: 116.4074
+            ),
+            alias: nil, resolvedHash: nil,
+            place: .custom(longitude: 116.4074, timezone: "Not/AZone")
+        )
+        vm.tempAlias = "草稿"
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+
+        XCTAssertFalse(vm.beginEditTempEntry(entry), "无效时区名必须返回 false")
+        XCTAssertEqual(vm.tempAlias, "草稿", "失败路径表单不动")
+        XCTAssertEqual(vm.tempBirthDate, Date(timeIntervalSince1970: 638_000_000))
+    }
+
+    func testUpdateTempEntry_改信息_原位替换_勾选随迁_hash作废() throws {
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京", gid: 1))
+        vm.tempAlias = "甲"
+        try vm.addTempToRoster()
+        let original = try XCTUnwrap(vm.roster.first { $0.isTemp })
+
+        // 再加一位(乙)垫后:验证「原位替换」保位置——改甲后甲仍在 index 0,不掉到队尾
+        vm.tempBirthDate = Date(timeIntervalSince1970: 900_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "上海", longitude: 121.4737, gid: 2))
+        vm.tempAlias = "乙"
+        try vm.addTempToRoster()
+        XCTAssertEqual(vm.roster.count, 2)
+
+        vm.toggleEntrySelection(original)
+        XCTAssertTrue(vm.selectedEntryIds.contains(original.id))
+
+        vm.beginEditTempEntry(original)
+        vm.tempBirthDate = Date(timeIntervalSince1970: 700_000_000)
+        vm.tempAlias = "甲改"
+        try vm.updateTempEntry(original)
+
+        XCTAssertEqual(vm.roster.count, 2, "原位替换,不新增条目")
+        XCTAssertFalse(vm.roster.contains { $0.id == original.id }, "旧 id 不复存在(输入变了)")
+        XCTAssertEqual(vm.roster[0].tempAlias, "甲改", "原位替换保位置(仍在 index 0,不挪队尾)")
+        XCTAssertEqual(vm.roster[1].tempAlias, "乙", "其他成员不受影响")
+        let updated = vm.roster[0]
+        XCTAssertTrue(vm.selectedEntryIds.contains(updated.id), "勾选态随迁(改字不请出本次合盘)")
+        XCTAssertNil(updated.resolvedContentHash, "输入变了 → resolvedHash 作废(旧 hash 是别人)")
+    }
+
+    func testUpdateTempEntry_输入未变_保留resolvedHash_id不变() throws {
+        // input 与 place 字段成对(真实流程由 resolver 产出:custom → placeName=「自定义地点」,
+        // 否则 id 的地点段不一致,会误判「输入变了」)
+        let input = PersonBInput(
+            birthDatetime: "1991-06-06T09:30:00",
+            timezone: "Asia/Shanghai",
+            gender: "female",
+            longitude: 116.4074,
+            placeName: "自定义地点"
+        )
+        let entry: RosterEntry = .temp(
+            input: input, alias: "乙", resolvedHash: "hash_b1",
+            place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
+        )
+        vm.roster = [entry]
+
+        vm.beginEditTempEntry(entry)
+        try vm.updateTempEntry(entry)  // 什么都不改直接保存
+
+        XCTAssertEqual(vm.roster.count, 1)
+        XCTAssertEqual(vm.roster[0].id, entry.id, "输入未变 → id 不变(ForEach 不重建)")
+        XCTAssertEqual(vm.roster[0].resolvedContentHash, "hash_b1",
+                       "输入未变 → 保留已算 hash(S05 增量预查继续命中)")
+    }
+
+    func testUpdateTempEntry_改成与其他临时人相同_抛错() throws {
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京", gid: 1))
+        vm.tempAlias = "甲"
+        try vm.addTempToRoster()
+        vm.tempBirthDate = Date(timeIntervalSince1970: 700_000_000)
+        vm.tempAlias = "乙"
+        try vm.addTempToRoster()
+        let second = try XCTUnwrap(vm.roster.last)
+
+        // 把乙改成与甲完全一致 → 撞别人(去重排除自身,但这里撞的是甲)
+        vm.beginEditTempEntry(second)
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempAlias = "甲"
+        XCTAssertThrowsError(try vm.updateTempEntry(second)) { error in
+            XCTAssertTrue(error.localizedDescription.contains("已存在相同的对方"))
+        }
+        XCTAssertEqual(vm.roster.count, 2, "失败不改 roster")
+        XCTAssertEqual(vm.roster.last?.tempAlias, "乙", "失败保留原值")
+    }
+
+    func testUpdateTempEntry_表单校验沿用_未来时间抛错() throws {
+        let entry: RosterEntry = .temp(
+            input: PersonBInput(
+                birthDatetime: "1991-06-06T09:30:00",
+                timezone: "Asia/Shanghai",
+                gender: "female",
+                longitude: 116.4074,
+                placeName: "自定义地点"
+            ),
+            alias: nil, resolvedHash: nil,
+            place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
+        )
+        vm.roster = [entry]
+
+        vm.beginEditTempEntry(entry)
+        vm.tempBirthDate = Date().addingTimeInterval(60)
+        XCTAssertThrowsError(try vm.updateTempEntry(entry)) { error in
+            XCTAssertTrue(error.localizedDescription.contains("不能晚于当下"))
+        }
+        XCTAssertEqual(vm.roster.count, 1, "校验失败不改 roster")
+    }
+
+    func testUpdateTempEntry_修改不落添加草稿持久化() throws {
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京", gid: 1))
+        try vm.addTempToRoster()
+        let draftAfterAdd = CompatibilityRosterPersistence.loadTempDraft()
+        let entry = try XCTUnwrap(vm.roster.first { $0.isTemp })
+
+        // 改成与添加时不同的数据后保存 → 持久化草稿仍是添加时的
+        vm.beginEditTempEntry(entry)
+        vm.tempBirthDate = Date(timeIntervalSince1970: 700_000_000)
+        vm.tempAlias = "改过"
+        try vm.updateTempEntry(entry)
+
+        XCTAssertEqual(CompatibilityRosterPersistence.loadTempDraft(), draftAfterAdd,
+                       "修改 ≠ 添加习惯,不写 tempDraft 持久化")
     }
 
     // MARK: - tempDraft 持久化(下次添加默认值用上次填过的)
@@ -390,7 +619,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
                 longitude: 116.4074
             ),
             alias: nil,
-            resolvedHash: nil
+            resolvedHash: nil,
+            place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
         )
         XCTAssertNil(entry.resolvedContentHash, "首次输入 resolvedHash 必须为 nil,等计算后回填")
         XCTAssertEqual(entry.tempAlias, nil)
@@ -487,13 +717,15 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertEqual(vm.context, "general")
         XCTAssertEqual(vm.currentPersonAHash, "a_real")
         XCTAssertEqual(vm.roster.count, 2)
-        XCTAssertTrue(vm.selectedArchivedHashes.contains("b_real"))
-        XCTAssertTrue(vm.selectedArchivedHashes.contains("c_real"))
+        // 2026-09-07 单选:本用例无 CompatibilitySnapshot → 不预勾
+        // (勾「上次那位」的直达行为由专用用例覆盖)
+        XCTAssertTrue(vm.selectedEntryIds.isEmpty)
     }
 
     @MainActor
-    func testRestoreRosterStateIfAvailable_恢复名单默认全勾() throws {
-        // 恢复的名单 = 上次排盘的人 → 勾选态与上次发起时一致(默认全勾)
+    func testRestoreRosterStateIfAvailable_无合盘快照_不预勾_不进detail() throws {
+        // 2026-09-07 单选:默认勾「上次那位」由 CompatibilitySnapshot createdAt 定——
+        // 只有 ChartSnapshot 无合盘快照(如拦截对,从未算过)→ 不预勾,留在配置态由用户自点
         CompatibilityRosterPersistence.clear()
         let aSnapshot = ChartSnapshot(
             contentHash: "a_sel",
@@ -528,9 +760,63 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.restoreRosterStateIfAvailable()
 
         XCTAssertEqual(vm.roster.count, 1)
-        XCTAssertEqual(vm.selectedEntryIds, Set(vm.roster.map(\.id)), "恢复名单默认全勾")
-        XCTAssertEqual(vm.selectedRosterEntries.count, 1)
-        XCTAssertTrue(vm.selectedArchivedHashes.contains("b_sel"))
+        XCTAssertTrue(vm.selectedEntryIds.isEmpty, "无合盘快照 → 不预勾")
+        XCTAssertTrue(vm.selectedArchivedHashes.isEmpty)
+        if case .detail = vm.state {
+            XCTFail("无快照不得直达 detail,实际:\(vm.state)")
+        }
+    }
+
+    @MainActor
+    func testRestoreRosterStateIfAvailable_勾上次那位_直达其detail() async throws {
+        // 2026-09-07 单选直达:名单两位(老多选数据全保留),恢复 = createdAt
+        // 最新的那对设为唯一勾选 + 直达其 detail。
+        // B 盘用 insertChart(真 payload)——rebuildSummaryFromCache 要 decode B 快照,
+        // 空 payload 会走 decode_failed 分支(留在配置态)
+        CompatibilityRosterPersistence.clear()
+        let chartA = try insertChart(hash: "a_r2", alias: "A", hourKnown: true)
+        _ = try insertChart(hash: "b_old", alias: "旧那位", hourKnown: true)
+        _ = try insertChart(hash: "b_new", alias: "新那位", hourKnown: true)
+        vm.archivedCharts = [chartA]
+
+        func makeResponse(hash: String) -> CompatibilityResponse {
+            CompatibilityResponse(
+                compatibilityHash: hash,
+                personAChart: nil,
+                personBChart: nil,
+                qualitativeAssessment: QualitativeAssessmentDTO(
+                    fiveElements: "互补", dayMasterRelation: "同气",
+                    zodiacMatch: "六合", branchHarmony: "无冲无刑"
+                ),
+                syncedFortune: [],
+                calcRuleSnapshot: nil
+            )
+        }
+        let oldSnap = try insertCompatibilitySnapshot(
+            response: makeResponse(hash: "compat_r2_old"), aHash: "a_r2", bHash: "b_old", context: "general"
+        )
+        oldSnap.createdAt = Date(timeIntervalSince1970: 700_000_000)
+        let newSnap = try insertCompatibilitySnapshot(
+            response: makeResponse(hash: "compat_r2_new"), aHash: "a_r2", bHash: "b_new", context: "general"
+        )
+        newSnap.createdAt = Date(timeIntervalSince1970: 900_000_000)
+        try container.mainContext.save()
+
+        CompatibilityRosterPersistence.save(
+            personAHash: "a_r2", context: "general", rosterHashes: ["b_old", "b_new"]
+        )
+
+        vm.restoreRosterStateIfAvailable()
+
+        XCTAssertEqual(vm.roster.count, 2, "老多选数据:名单成员全保留")
+        XCTAssertEqual(vm.selectedEntryIds, ["archived:b_new"], "默认勾「上次那位」= createdAt 最新")
+        if case .detail(let summary, _, _) = vm.state {
+            XCTAssertEqual(summary.personBHash, "b_new", "直达最新一对的 detail")
+        } else {
+            XCTFail("有快照应直达 .detail,实际:\(vm.state)")
+        }
+        XCTAssertEqual(vm.summaries.count, 1, "恢复只装「上次那位」单条 summary")
+        await drainDetailBackgroundTasks()
     }
 
     @MainActor
@@ -692,6 +978,68 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertTrue(vm.selectedEntryIds.isEmpty)
     }
 
+    // MARK: - 2026-09-07 单选改造(勾第二位自动让位第一位)
+
+    func testToggleEntrySelection_单选换选_临时人让位保留名单() throws {
+        // 点第二位临时人 → 第一位自动取消勾选,但两位都留在名单(对方池语义)
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京"))
+        try vm.addTempToRoster()
+        vm.tempBirthDate = Date(timeIntervalSince1970: 700_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "上海", longitude: 121.4737, gid: 1796236))
+        try vm.addTempToRoster()
+        let first = try XCTUnwrap(vm.roster.first)
+        let second = try XCTUnwrap(vm.roster.last)
+
+        vm.toggleEntrySelection(first)
+        XCTAssertEqual(vm.selectedEntryIds, [first.id])
+
+        vm.toggleEntrySelection(second)  // 换选
+        XCTAssertEqual(vm.selectedEntryIds, [second.id], "单选:点第二位自动取消第一位")
+        XCTAssertEqual(vm.roster.count, 2, "让位 ≠ 移出:临时人取消勾选保留名单成员资格")
+    }
+
+    func testToggleEntrySelection_点选池行_原临时人只清勾选() throws {
+        // 临时人已选 → 点存档池行:临时人让位但留名单,池行入名单即唯一勾选
+        vm.archivedCharts = [
+            Self.makeChart(hash: "h_a", alias: "A"),
+            Self.makeChart(hash: "h_b", alias: "B"),
+        ]
+        vm.selectedChartAIndex = 0
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京"))
+        try vm.addTempToRoster()
+        let tempEntry = try XCTUnwrap(vm.roster.first { $0.isTemp })
+
+        vm.toggleEntrySelection(tempEntry)
+        vm.toggleEntrySelection(.archived(snapshotHash: "h_b"))
+
+        XCTAssertEqual(vm.selectedEntryIds, ["archived:h_b"], "池行成为唯一勾选")
+        XCTAssertEqual(vm.roster.count, 2, "临时人让位不移出 + 池行入名单")
+        XCTAssertEqual(vm.roster.filter(\.isTemp).count, 1)
+    }
+
+    func testToggleEntrySelection_点选临时人_原池行让位移出() throws {
+        // 池行已选 → 点临时人:池行随取消勾选移出名单(资格⇔勾选不变量),临时人唯一勾选
+        vm.archivedCharts = [
+            Self.makeChart(hash: "h_a", alias: "A"),
+            Self.makeChart(hash: "h_b", alias: "B"),
+        ]
+        vm.selectedChartAIndex = 0
+        vm.toggleArchived(hash: "h_b")
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京"))
+        try vm.addTempToRoster()
+        let tempEntry = try XCTUnwrap(vm.roster.first { $0.isTemp })
+
+        vm.toggleEntrySelection(tempEntry)
+
+        XCTAssertEqual(vm.selectedEntryIds, [tempEntry.id])
+        XCTAssertFalse(vm.roster.contains { $0.archivedSnapshotHash == "h_b" },
+                       "原池行让位移出名单")
+        XCTAssertEqual(vm.roster.count, 1, "名单只剩临时人")
+    }
+
     func testToggleArchived_成员资格与勾选同步() {
         vm.archivedCharts = [
             Self.makeChart(hash: "hash_a", alias: "A"),
@@ -745,7 +1093,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.compute()
 
         if case .failed(let userError) = vm.state {
-            XCTAssertTrue(userError.errorDescription?.contains("至少勾选一位对方") == true,
+            XCTAssertTrue(userError.errorDescription?.contains("先点选一位对方") == true,
                           "零勾选拦截文案")
         } else {
             XCTFail("名单非空零勾选应进入 .failed 态,实际:\(vm.state)")
@@ -775,10 +1123,14 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             return
         }
 
-        let reached = await waitForListState()
-        XCTAssertTrue(reached, "compute 应正常进入 .list,实际:\(vm.state)")
-        XCTAssertEqual(vm.summaries.count, 1, "未勾选的名单成员不得排盘")
-        XCTAssertEqual(vm.summaries.first?.displayName, "B", "只算已勾选的存档对方")
+        let reached = await waitForDetailState()
+        XCTAssertTrue(reached, "单选算成应直达 .detail,实际:\(vm.state)")
+        XCTAssertEqual(vm.summaries.count, 1, "未点选的名单成员不得排盘")
+        XCTAssertEqual(vm.summaries.first?.displayName, "B", "只算已点选的存档对方")
+        if case .detail(let summary, _, _) = vm.state {
+            XCTAssertEqual(summary.displayName, "B", "detail 态携带同一对")
+        }
+        await drainDetailBackgroundTasks()
     }
 
     // MARK: - compute() 名单空拦截(决策 D13)
@@ -792,7 +1144,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.compute()
 
         if case .failed(let userError) = vm.state {
-            XCTAssertTrue(userError.errorDescription?.contains("至少勾选一位对方") == true, "零勾选拦截文案")
+            XCTAssertTrue(userError.errorDescription?.contains("先点选一位对方") == true, "零勾选拦截文案")
         } else {
             XCTFail("空名单应进入 .failed 态,实际:\(vm.state)")
         }
@@ -809,7 +1161,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         }
     }
 
-    // MARK: - S02 detail 态(openDetail / closeDetail / paywall 按对绑定)
+    // MARK: - S02 detail 态(openDetail / backToConfig / paywall 按对绑定)
 
     func testLastCompatibilityHashForPaywall_非detail态_返回nil() {
         // S02 红线:paywall 按对绑定 → 非 detail 态无 hash
@@ -895,8 +1247,9 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertEqual(vm.lastCompatibilityHashForPaywall, snapshot.compatibilityHash)
     }
 
-    func testCloseDetail_返回list态_保留summaries() {
-        // 先模拟 list 态 + summaries
+    func testBackToConfig_detail态_一步回配置态_保留summaries() {
+        // 2026-09-07 单选直达:closeDetail 退役,detail「编辑名单」toolbar 直达
+        // 配置态(backToConfig 兼任 list 兜底态返回)
         let summary = PairSummary(
             id: "compat_hash_3",
             entry: .archived(snapshotHash: "h_b"),
@@ -920,13 +1273,13 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             XCTFail("应进入 detail 态")
         }
 
-        vm.closeDetail()
-        if case .list = vm.state {
-            // 期望返回 list
+        vm.backToConfig()
+        if case .configuring = vm.state {
+            // 期望一步回配置态
         } else {
-            XCTFail("closeDetail 应返回 list 态,实际:\(vm.state)")
+            XCTFail("backToConfig 应回 .configuring 态,实际:\(vm.state)")
         }
-        XCTAssertEqual(vm.summaries.count, 1, "closeDetail 后 summaries 应保留")
+        XCTAssertEqual(vm.summaries.count, 1, "backToConfig 后 summaries 应保留")
     }
 
     // MARK: - S03 对级错误隔离
@@ -1131,6 +1484,26 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         return vm.state == .list
     }
 
+    /// teardown 竞态防护(2026-09-07 单选直达引入:compute/恢复路径也开始 openDetail):
+    /// openDetail 的 cacheReadTask 在后台查 24h 缓存,测试结束释放 ModelContainer 时
+    /// 它可能仍在途 → SwiftData EXC_BREAKPOINT(生产无此问题,容器随 App 长寿)。
+    /// 断言后取消全部 VM 任务 + 让步执行器等在途查询退出。
+    private func drainDetailBackgroundTasks() async {
+        vm.backToConfig()
+        try? await Task.sleep(nanoseconds: 500_000_000)
+    }
+
+    /// 轮询等待 compute() 的 Task 落到 .detail(2026-09-07 单选直达)。
+    private func waitForDetailState(timeout: TimeInterval = 8) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if case .detail = vm.state { return true }
+            try? await Task.sleep(nanoseconds: 30_000_000)
+        }
+        if case .detail = vm.state { return true }
+        return false
+    }
+
     func testCompute_A盘无时辰_全部对拦截态_零合盘快照() async throws {
         let chartA = try insertChart(hash: "s07_a_unknown", alias: "A", hourKnown: false)
         let chartB = try insertChart(hash: "s07_b_known", alias: "B", hourKnown: true)
@@ -1171,7 +1544,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
                     longitude: 116.4074
                 ),
                 alias: "临时人",
-                resolvedHash: nil
+                resolvedHash: nil,
+                place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
             ),
         ]
         vm.selectedEntryIds = Set(vm.roster.map(\.id))  // 直塞名单模拟已勾选
@@ -1201,11 +1575,12 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.selectedEntryIds = Set(vm.roster.map(\.id))  // 直塞名单模拟已勾选
 
         vm.compute()
-        let reached = await waitForListState()
-        XCTAssertTrue(reached, "compute 应正常进入 .list,实际:\(vm.state)")
+        let reached = await waitForDetailState()
+        XCTAssertTrue(reached, "单选算成应直达 .detail,实际:\(vm.state)")
 
         let summary = try XCTUnwrap(vm.summaries.first)
         XCTAssertTrue(summary.isComputed, "双方有时辰 → 行为与现状完全一致,实际:\(summary.status)")
+        await drainDetailBackgroundTasks()
     }
 
     func testGenerateInterpretation_任一方无时辰_阶段2拦截_不消耗次数() async throws {
@@ -1302,7 +1677,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
                 longitude: 116.4074
             ),
             alias: nil,
-            resolvedHash: nil
+            resolvedHash: nil,
+            place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
         )
 
         XCTAssertFalse(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "s11_b3_known")),
@@ -1331,7 +1707,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
                 longitude: 116.4074
             ),
             alias: nil,
-            resolvedHash: nil
+            resolvedHash: nil,
+            place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
         )
         XCTAssertTrue(vm.isPairHourUnknownBlocked(entry: tempEntry), "自己无时辰 → 全部对不可用(含临时人)")
 
@@ -1619,55 +1996,56 @@ private actor S11RecordingAPIClient: APIClient {
     }
 }
 
-// MARK: - 配置页 CTA 派生模型单测(2026-09-02 定稿:三态文案)
+// MARK: - 配置页 CTA 派生模型单测(2026-09-07 单选:两态 + 全锁)
 
-/// CompatibilityConfigCTAModel 三态覆盖:
-/// - ready:动态计数「排 N 对合盘」+ 名单摘要注(≤2 名全列,>2 名「等 N 位」)
-/// - emptyRoster:置灰「先勾选对方」(决策 D13 拦截前移)
+/// CompatibilityConfigCTAModel 覆盖:
+/// - ready:「开始合盘」+ 对方名注(· 解读单独解锁)
+/// - emptySelection:置灰「先点选一位对方」(决策 D13 拦截前移)
 /// - selfHourUnknown:置灰「补全时辰后可合盘」(S07 全锁,优先级最高)
 final class CompatibilityConfigCTAModelTests: XCTestCase {
 
-    func testEmptyRosterShowsHintAndDisabled() {
+    func testEmptySelectionShowsHintAndDisabled() {
         let cta = CompatibilityConfigCTAModel.derive(
             selectedCount: 0, selectedNames: [], isSelfHourUnknown: false
         )
-        XCTAssertEqual(cta.kind, .emptyRoster)
-        XCTAssertEqual(cta.title, "先勾选对方")
+        XCTAssertEqual(cta.kind, .emptySelection)
+        XCTAssertEqual(cta.title, "先点选一位对方")
         XCTAssertTrue(cta.note.contains("上限 \(CompatibilityViewModel.rosterMax) 位"))
         XCTAssertFalse(cta.isEnabled)
     }
 
-    func testSingleSelectionShowsCountOne() {
+    func testSingleSelectionShowsName() {
         let cta = CompatibilityConfigCTAModel.derive(
             selectedCount: 1, selectedNames: ["男友"], isSelfHourUnknown: false
         )
-        XCTAssertEqual(cta.kind, .ready(count: 1, namesSummary: "男友 · 1 对"))
-        XCTAssertEqual(cta.title, "排 1 对合盘")
-        XCTAssertEqual(cta.note, "男友 · 1 对 · 每对独立解锁")
+        XCTAssertEqual(cta.kind, .ready(namesSummary: "男友"))
+        XCTAssertEqual(cta.title, "开始合盘")
+        XCTAssertEqual(cta.note, "男友 · 解读单独解锁")
         XCTAssertTrue(cta.isEnabled)
     }
 
-    func testTwoSelectionsListAllNames() {
+    func testReadyWithMissingNameFallsBackToPairCount() {
+        // 防御分支:names 与 count 不一致(或空名)不产出空摘要
         let cta = CompatibilityConfigCTAModel.derive(
-            selectedCount: 2, selectedNames: ["相亲对象", "男友"], isSelfHourUnknown: false
+            selectedCount: 1, selectedNames: [], isSelfHourUnknown: false
         )
-        XCTAssertEqual(cta.title, "排 2 对合盘")
-        XCTAssertEqual(cta.note, "相亲对象 · 男友 · 2 对 · 每对独立解锁")
+        XCTAssertEqual(cta.kind, .ready(namesSummary: "1 对"))
+        XCTAssertEqual(cta.note, "1 对 · 解读单独解锁")
+        XCTAssertTrue(cta.isEnabled)
     }
 
-    func testOverTwoSelectionsEllipsizeNames() {
+    func testDefensiveMultiInputTakesFirstName() {
+        // >1 仅测试直塞防御路径(单选 UI 不可能):取首个非空名,不叠多名摘要
         let cta = CompatibilityConfigCTAModel.derive(
-            selectedCount: 4, selectedNames: ["甲", "乙", "丙", "丁"], isSelfHourUnknown: false
+            selectedCount: 2, selectedNames: ["甲", "乙"], isSelfHourUnknown: false
         )
-        // 前 2 名 +「等 N 位」,CTA 注不随人数无限变长
-        XCTAssertEqual(cta.note, "甲 · 乙 等 4 位 · 4 对 · 每对独立解锁")
-        XCTAssertEqual(cta.title, "排 4 对合盘")
+        XCTAssertEqual(cta.kind, .ready(namesSummary: "甲"))
     }
 
     func testSelfHourUnknownLocksEvenWithSelections() {
-        // S07 全锁优先于一切:有勾选也置灰
+        // S07 全锁优先于一切:有点选也置灰
         let cta = CompatibilityConfigCTAModel.derive(
-            selectedCount: 3, selectedNames: ["甲", "乙", "丙"], isSelfHourUnknown: true
+            selectedCount: 1, selectedNames: ["甲"], isSelfHourUnknown: true
         )
         XCTAssertEqual(cta.kind, .selfHourUnknown)
         XCTAssertEqual(cta.title, "补全时辰后可合盘")
@@ -1675,21 +2053,11 @@ final class CompatibilityConfigCTAModelTests: XCTestCase {
         XCTAssertFalse(cta.isEnabled)
     }
 
-    func testSelfHourUnknownWinsOverEmptyRoster() {
+    func testSelfHourUnknownWinsOverEmptySelection() {
         let cta = CompatibilityConfigCTAModel.derive(
             selectedCount: 0, selectedNames: [], isSelfHourUnknown: true
         )
         XCTAssertEqual(cta.kind, .selfHourUnknown)
         XCTAssertFalse(cta.isEnabled)
-    }
-
-    func testReadyWithMissingNamesFallsBackToCountOnly() {
-        // 防御分支:names 与 count 不一致(或空名)时不产出前导分隔符
-        let cta = CompatibilityConfigCTAModel.derive(
-            selectedCount: 2, selectedNames: [], isSelfHourUnknown: false
-        )
-        XCTAssertEqual(cta.title, "排 2 对合盘")
-        XCTAssertEqual(cta.note, "2 对 · 每对独立解锁")
-        XCTAssertTrue(cta.isEnabled)
     }
 }
