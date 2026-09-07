@@ -162,8 +162,9 @@ final class DeepAnalysisViewModel {
     private(set) var lastRequest: BaziCalculateRequest?
     private var calculateTask: Task<Void, Never>?
 
-    /// 排盘连续失败计数(生肖阶段 3:连续 ≥3 次切 `.persistentFailure`,隐藏 retry 引导重启)。
-    /// 生命周期 = VM 实例;成功一次即归零。非持久化(重启 App 自然重置,避免用户陷入死循环)。
+    /// 排盘连续失败计数(仅日志用,成功一次即归零)。
+    /// 2026-09-07 拔除「≥3 次切 persistentFailure 隐藏 retry」死胡同:真机用户网络
+    /// 短暂不佳连点三次就被锁死、只能重启 App,体验差于让用户继续重试;重试入口永久保留。
     private var failureCount: Int = 0
 
     /// 排盘 + 存档(UserSnapshotLink)成功后回调一次。
@@ -409,11 +410,7 @@ final class DeepAnalysisViewModel {
                     failureCount += 1
                     // 规则 1:抛错前打 error + 当前失败次数(orchestrator 内部已打,VM 层再打 state 转换)
                     AppLogger.app.error("deepVM.calculate.failed count=\(self.failureCount) error=\(String(describing: error), privacy: .public)")
-                    // 生肖阶段 3:连续 ≥3 次失败切 persistentFailure,引导重启 App(不显示 retry)
-                    let userError: UserFacingError = failureCount >= 3
-                        ? .persistentFailure
-                        : UserFacingError.from(error, stage: .chart)
-                    state = .chartFailed(userError)
+                    state = .chartFailed(UserFacingError.from(error, stage: .chart))
                 }
             }
         }
@@ -802,7 +799,7 @@ final class DeepAnalysisViewModel {
 
     /// 回到表单态(保留表单输入)。
     /// 取消进行中的 Task,避免状态回退后被旧结果覆盖。
-    /// failureCount 也清零(用户主动重置 ≠ 网络故障持续,不应被永久标记)。
+    /// failureCount 也清零(2026-09-07 起仅日志用,重置后计数从新盘重新起算)。
     /// Stage 7c:同时取消 v1 链式调用 + 清 moduleStates + v1ChainFields。
     func reset() {
         calculateTask?.cancel()

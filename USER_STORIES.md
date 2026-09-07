@@ -263,7 +263,7 @@ DeepAnalysisResultView(ScrollView)
 
 **断点风险:**
 - BirthFormView 校验失败 → `.formInvalid` 显示内联错误(Color.red)
-- 排盘失败 → `.chartFailed` 显示 ErrorStateView + retry(连续 3 次 → persistentFailure 引导重启)
+- 排盘失败 → `.chartFailed` 显示 ErrorStateView + retry(连续 3 次 → persistentFailure 引导重启;**2026-09-07 修订**:persistentFailure 死胡同已拔除,重试按钮永久保留,失败计数仅日志)
 - 反馈屏 kill App → 提交成功已设 hasSeenOnboarding=true,重启直接进主 App(不重复排盘)
 
 ---
