@@ -190,6 +190,11 @@ enum L10n {
         /// zh: "选择出生时刻";en: "Birth time"
         static let datePickerTitleTime = String(localized: "birthform.datePicker.title.time")
 
+        /// 日期/时刻 wheel sheet 的「确定」按钮(2026-09-07:弹窗缺显式收起入口,
+        /// 拨动即写回的 live 绑定下 确定=收起,下滑手势仍可用且同样保留已选值)。
+        /// zh: "确定";en: "Done"
+        static let pickerConfirm = String(localized: "birthform.picker.confirm")
+
         /// 时辰快捷选字段标签。
         /// zh: "时辰快捷选(可选)";en: "Quick hour pick (optional)"
         static let hourQuickPickLabel = String(localized: "birthform.hourQuickPick.label")

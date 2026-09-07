@@ -232,11 +232,14 @@ struct BirthFormView: View {
     }
 
     /// 日期 wheel sheet:date-only,必选(未选择初始态;seed 只作表盘初始位置,未拨动不写回)。
+    /// 头部带「确定」收起入口(2026-09-07):live 绑定拨动即写回,确定=收起;
+    /// 下滑手势仍可用且同样保留已选值;未拨动确定收起后保持 nil(validateForm 拦截)。
     private var datePickerSheet: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.md) {
-            Text(L10n.BirthForm.datePickerTitleDate)
-                .font(BaziFont.body(size: 15))
-                .foregroundStyle(BaziTheme.ink)
+            WheelSheetHeader(
+                title: L10n.BirthForm.datePickerTitleDate,
+                confirm: { showDatePicker = false }
+            )
             DatePicker(
                 "",
                 selection: datePickerBinding,
@@ -257,11 +260,13 @@ struct BirthFormView: View {
 
     /// 时刻 wheel sheet:hourAndMinute,独立绑定 birthTime。
     /// 无「不晚于当下」范围——单时刻无从与当下比较,未来校验落在日期+时刻合成值上(VM.validateForm)。
+    /// 头部同样带「确定」(语义同日期 sheet:收起而非二次提交)。
     private var timePickerSheet: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.md) {
-            Text(L10n.BirthForm.datePickerTitleTime)
-                .font(BaziFont.body(size: 15))
-                .foregroundStyle(BaziTheme.ink)
+            WheelSheetHeader(
+                title: L10n.BirthForm.datePickerTitleTime,
+                confirm: { showTimePicker = false }
+            )
             DatePicker(
                 "",
                 selection: $vm.birthTime,

@@ -798,6 +798,23 @@
         }
       }
     },
+    "birthform.picker.confirm" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "确定"
+          }
+        }
+      }
+    },
     "city.about.geonames" : {
       "extractionState" : "manual",
       "localizations" : {
