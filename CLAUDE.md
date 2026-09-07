@@ -9,6 +9,8 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - `archive/` — 旧"玄机问道"卷轴方案归档（参考用，不复用）
 - `DESIGN.md` — 视觉设计系统事实源(美学 / 色板 / 字体 / 间距 / iOS SwiftUI 落地计划)
 - `USER_STORIES.md` — 用户故事 + 验收标准 + 旅程地图(review 依据)
+- `i18n-implementation-plan.md` — i18n 战略与执行决策(2026-08-12,v1 中英)
+- `i18n-zh-hant-plan.md` — 繁体 + App 内语言切换方案(2026-09-07,D1-D8 决策 + S1-S5 slice,修订 08-12 plan 两项)
 
 ## 全局约束（继承 ~/.claude/CLAUDE.md）
 
