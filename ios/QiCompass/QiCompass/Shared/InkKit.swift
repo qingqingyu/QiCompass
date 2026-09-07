@@ -359,3 +359,35 @@ struct PaidTag: View {
             .accessibilityLabel("\(text)内容")
     }
 }
+
+// MARK: wheel sheet 头部
+
+/// 日期/时刻 wheel sheet 头部:标题居左 + 「确定」居右(2026-09-07 弹窗显式收起入口)。
+///
+/// 用于 live WYSIWYG 绑定的 wheel sheet(拨动即写回):「确定」只负责收起,
+/// 不承担二次提交;下滑手势同样保留已选值。标题由调用方传入——生辰表单
+/// (BirthFormView)传 L10n key,合盘 AddPersonSheet 按自身「硬编码 zh」约定
+/// 传字面量;「确定」文案走 L10n 单一事实源(与生辰表单共用)。
+/// 确定按钮无 accessibilityLabel——label 已是同一 Text,SwiftUI 自动派生。
+struct WheelSheetHeader: View {
+    let title: String
+    let confirm: () -> Void
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(BaziFont.body(size: 15))
+                .foregroundStyle(BaziTheme.ink)
+            Spacer(minLength: BaziTheme.Spacing.sm)
+            Button {
+                HapticEngine.light()
+                confirm()
+            } label: {
+                Text(L10n.BirthForm.pickerConfirm)
+                    .font(BaziFont.body(size: 15))
+                    .foregroundStyle(BaziTheme.ink)
+            }
+            .buttonStyle(.plain)
+        }
+    }
+}
