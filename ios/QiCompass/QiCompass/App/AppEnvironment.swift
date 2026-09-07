@@ -143,7 +143,9 @@ final class AppEnvironment: ObservableObject {
         return raw.uppercased() == "YES"
     }
 
-    /// 从 Info.plist 读取 BackendBaseURL(Debug: localhost HTTP / Release: 生产域名)。
+    /// 从 Info.plist 读取 BackendBaseURL(Debug: Mac 的 .local 域名 HTTP / Release: 生产域名)。
+    /// Debug 用 Bonjour 域名(真机上 localhost 指手机自己,连不上 Mac 的 uvicorn;
+    /// 2026-09-07 起)。后端须 `--host 0.0.0.0` 启动,ATS 已配 NSAllowsLocalNetworking。
     static func backendBaseURL() -> URL {
         let raw = Bundle.main.object(forInfoDictionaryKey: "BackendBaseURL") as? String
             ?? "http://localhost:8000"
