@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 合盘配置态(2026-09-02 定稿「名单合一 · 勾选即选」,读查平铺单屏):
 /// 标题区 → 命主行(A 盘纯展示)→ 「选择对方」单一名单(存档勾选+快速行混排)
-/// → 底部「排 N 对合盘」动态计数 CTA。
+/// → 底部「开始合盘」CTA(2026-09-07 单选:唯一点选者进文案)。
 ///
 /// 事实源:`~/.gstack/projects/qingqingyu-QiCompass/designs/hepan-picker-20260902/finalized.html`
 /// - 添加面板 = 半屏 sheet(`AddPersonSheet`),加入即关(修复旧内联表单 `showTempForm`
@@ -73,7 +73,6 @@ struct CompatibilityConfigView: View {
                     roster: vm.roster,
                     rosterMax: CompatibilityViewModel.rosterMax,
                     selectedHashes: vm.selectedArchivedHashes,
-                    selectedCount: vm.selectedRosterEntries.count,
                     tempRows: vm.roster.compactMap(tempRowModel(for:)),
                     orphanRows: vm.roster.compactMap(orphanRowModel(for:)),
                     isHourUnknown: { vm.isArchivedHourUnknown(hash: $0) },
@@ -106,7 +105,7 @@ struct CompatibilityConfigView: View {
             .padding(.bottom, 100)  // 给底部 CTA 留位
         }
         .safeAreaInset(edge: .bottom) {
-            // 2026-09-03:CTA 计数/摘要按勾选子集(名单成员未勾选不进)
+            // CTA 摘要按点选子集(2026-09-03 勾选子集;2026-09-07 单选恒 ≤1 位)
             let cta = CompatibilityConfigCTAModel.derive(
                 selectedCount: vm.selectedRosterEntries.count,
                 selectedNames: vm.selectedRosterEntries.map(displayLabel(for:)),
@@ -197,7 +196,7 @@ struct CompatibilityConfigView: View {
             Text("选择对方")
                 .font(BaziFont.display(size: 24))
                 .foregroundStyle(BaziTheme.ink)
-            Text("勾选即入本次合盘 · 每对独立成盘,各自单独解锁")
+            Text("点选一位对方 · 解读单独解锁")
                 .font(BaziFont.caption(size: 11.5))
                 .tracking(1)
                 .foregroundStyle(BaziTheme.inkMuted)
@@ -253,17 +252,17 @@ struct CompatibilityConfigView: View {
     }
 }
 
-// MARK: - CTA 派生模型(定稿:三态文案)
+// MARK: - CTA 派生模型(单选改造:两态 + 全锁)
 
-/// 配置页底部 CTA 三态(纯值,单测覆盖):
-/// - `.ready`:「排 N 对合盘」+ 勾选摘要注(前 2 名 + 等 N 位)
-/// - `.emptyRoster`:置灰「先勾选对方」(决策 D13 零勾选拦截的前移表达;
-///   2026-09-03 起名单非空但零勾选同态)
+/// 配置页底部 CTA(纯值,单测覆盖;2026-09-07 单选改造):
+/// - `.ready`:「开始合盘」+ 对方名注(· 解读单独解锁)
+/// - `.emptySelection`:置灰「先点选一位对方」(决策 D13 零勾选拦截的前移表达;
+///   2026-09-03 起名单非空但零勾选同态;case 名随单选改准确)
 /// - `.selfHourUnknown`:置灰「补全时辰后可合盘」(S07 全锁的文案化)
 struct CompatibilityConfigCTAModel: Equatable {
     enum Kind: Equatable {
-        case ready(count: Int, namesSummary: String)
-        case emptyRoster
+        case ready(namesSummary: String)
+        case emptySelection
         case selfHourUnknown
     }
 
@@ -271,16 +270,16 @@ struct CompatibilityConfigCTAModel: Equatable {
 
     var title: String {
         switch kind {
-        case .ready(let count, _): return "排 \(count) 对合盘"
-        case .emptyRoster: return "先勾选对方"
+        case .ready: return "开始合盘"
+        case .emptySelection: return "先点选一位对方"
         case .selfHourUnknown: return "补全时辰后可合盘"
         }
     }
 
     var note: String {
         switch kind {
-        case .ready(_, let namesSummary): return "\(namesSummary) · 每对独立解锁"
-        case .emptyRoster: return "勾选后即可排盘 · 上限 \(CompatibilityViewModel.rosterMax) 位"
+        case .ready(let namesSummary): return "\(namesSummary) · 解读单独解锁"
+        case .emptySelection: return "点选后即可排盘 · 名单上限 \(CompatibilityViewModel.rosterMax) 位"
         case .selfHourUnknown: return "时辰影响日柱,补全即恢复全部配对"
         }
     }
@@ -291,23 +290,18 @@ struct CompatibilityConfigCTAModel: Equatable {
     }
 
     /// - Parameters:
-    ///   - selectedCount: 已勾选人数(2026-09-03 起按勾选子集计,非名单成员数)
-    ///   - selectedNames: 已勾选人名(顺序即 roster 顺序)
-    ///   - isSelfHourUnknown: 命主无时辰(S07 全锁优先于零勾选展示)
+    ///   - selectedCount: 已点选人数(单选下 0 或 1;>1 仅测试直塞防御路径)
+    ///   - selectedNames: 已点选人名(取首个非空;与 count 不一致或全空时兜底「1 对」)
+    ///   - isSelfHourUnknown: 命主无时辰(S07 全锁优先于零点选展示)
     static func derive(selectedCount: Int, selectedNames: [String], isSelfHourUnknown: Bool) -> Self {
         if isSelfHourUnknown {
             return Self(kind: .selfHourUnknown)
         }
         guard selectedCount > 0 else {
-            return Self(kind: .emptyRoster)
+            return Self(kind: .emptySelection)
         }
-        // 防御:names 与 count 长度不一致(或含空名)时不产出前导分隔符
-        let names = selectedNames.prefix(2).filter { !$0.isEmpty }
-        let suffix = selectedCount > 2 ? " 等 \(selectedCount) 位" : ""
-        let namesSummary = names.isEmpty
-            ? "\(selectedCount) 对"
-            : names.joined(separator: " · ") + suffix + " · \(selectedCount) 对"
-        return Self(kind: .ready(count: selectedCount, namesSummary: namesSummary))
+        let namesSummary = selectedNames.first { !$0.isEmpty } ?? "1 对"
+        return Self(kind: .ready(namesSummary: namesSummary))
     }
 }
 

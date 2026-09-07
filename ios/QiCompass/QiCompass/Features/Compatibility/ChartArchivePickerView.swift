@@ -80,13 +80,15 @@ struct PersonARowView: View {
     }
 }
 
-// MARK: - 单一勾选名单(定稿②⑤⑥)
+// MARK: - 单一勾选名单(定稿②⑤⑥;2026-09-07 单选)
 
-/// 「选择对方」名单:临时人行(勾选圈,置顶)+ 跨启动恢复行(勾选圈)+ 存档行(勾选圈)
-/// + 尾部「＋添加对方」行。开放布局(DESIGN.md:卡片让位 hairline)——行间 hairline 分隔,无卡片容器。
+/// 「选择对方」名单(**单选**,2026-09-07:点另一位自动换选):临时人行(勾选圈,
+/// 置顶)+ 跨启动恢复行(勾选圈)+ 存档行(勾选圈)+ 尾部「＋添加对方」行。
+/// 开放布局(DESIGN.md:卡片让位 hairline)——行间 hairline 分隔,无卡片容器。
 ///
-/// - 存档行勾选/取消 = `toggleArchived`(VM roster 进出;成员资格即勾选)
-/// - 临时人/恢复行点击 = 切换勾选(2026-09-03:取消勾选**不再**移出名单);
+/// - 存档行点选/取消 = `toggleArchived`(VM roster 进出;成员资格即勾选,换选时
+///   原池行让位移出名单)
+/// - 临时人/恢复行点击 = 点选/取消(2026-09-03:取消勾选**不再**移出名单);
 ///   行尾「移出」小按钮 = 移出名单确认(父层 confirmationDialog 后 `removeRosterEntry`);
 ///   临时人行尾另有「修改」(2026-09-05,父层开修改 sheet;恢复行/存档池行无)
 /// - 时辰未知行保留 S11(置灰无圈短注)/ S10(点击直达补时辰)行为
@@ -100,13 +102,11 @@ struct RosterUnifiedListView: View {
     let roster: [RosterEntry]
     let rosterMax: Int
     let selectedHashes: Set<String>
-    /// 已勾选人数(段标计数;= VM selectedRosterEntries.count,2026-09-03 起按勾选计)。
-    let selectedCount: Int
     /// 临时人行展示参数(顺序与 roster 中 .temp 一致):名称 / 副行 / 勾选态。
     let tempRows: [TempRowModel]
     /// 跨启动恢复的存档行(S06:临时人持久化为 `.archived` hash,无 UserSnapshotLink
     /// → 不在 `charts` 内,候选区无对应行)。名单含该 entry 就必须有行——可见、可移出,
-    /// 否则 CTA「排 N 对」出现隐形成员(承接旧「已加入名单」区的全覆盖语义)。
+    /// 否则点选/CTA 出现隐形成员(承接旧「已加入名单」区的全覆盖语义)。
     let orphanRows: [TempRowModel]
     let isHourUnknown: (String) -> Bool
     /// 命主无时辰(S07 全锁,定稿⑦):整列置灰无圈、不可交互。
@@ -136,21 +136,14 @@ struct RosterUnifiedListView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            // 段标:已选计数走朱色小注(印章级点缀;全锁时不给计数,定稿⑦)
+            // 段标(2026-09-07 单选:撤「已选 N 位」计数——勾选恒 0/1 位,
+            // 选中态由行内朱圈自表达;名单容量由满员 dashed 提示单独表达)
             HStack(alignment: .firstTextBaseline) {
                 Text("选 择 对 方")
                     .font(BaziFont.caption(size: 11))
                     .tracking(4)
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
                 Spacer()
-                if !isSelfHourUnknown {
-                    // 2026-09-03:计数按勾选(selectedCount);名单容量(含未勾选成员)由
-                    // 满员 dashed 提示单独表达,不再混进「已选 N / 8」
-                    Text("已选 \(selectedCount) 位")
-                        .font(BaziFont.caption(size: 10))
-                        .tracking(1)
-                        .foregroundStyle(BaziTheme.cinnabar)
-                }
             }
 
             if isPoolEmpty {

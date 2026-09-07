@@ -40,7 +40,9 @@ struct CompatibilityView: View {
                 }
                 if case .detail = vm?.state {
                     ToolbarItem(placement: .topBarLeading) {
-                        Button("返回列表") { vm?.closeDetail() }
+                        // 2026-09-07 单选直达:detail 返回即配置态(list 只是失败/拦截兜底,
+                        // 其「编辑名单」toolbar 与此同款)
+                        Button("编辑名单") { vm?.backToConfig() }
                             .foregroundStyle(BaziTheme.cinnabar)
                     }
                 }
@@ -184,7 +186,7 @@ struct CompatibilityView: View {
                         interpretState: interpretState,
                         chartASnapshot: chartA,
                         chartBSnapshot: chartB,
-                        onBackToConfig: { vm.closeDetail() },
+                        onBackToConfig: { vm.backToConfig() },
                         onGenerateInterpret: { vm.generateInterpretation() },
                         onShowPaywall: { showPaywall = true }
                     )
@@ -192,7 +194,7 @@ struct CompatibilityView: View {
                     // 不静默吞:detail 态但快照缺失 → 显式错误态
                     ErrorStateView(
                         userFacingError: .generic(message: "命盘数据读取失败"),
-                        retry: { vm.closeDetail() }
+                        retry: { vm.backToConfig() }
                     )
                 }
             case .failed(let userError):
