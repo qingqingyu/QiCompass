@@ -158,7 +158,7 @@ _Avoid_: deep dive / chart reading
 _Avoid_: relationship reading / synastry
 
 **每日运势 (Daily Fortune / daily_fortune)**:
-基于已存档命盘 × 当日流日柱的每日运势模块。Tab 3。**按需生成 + 24h 缓存**(iOS Background Tasks 不可靠,不用)。包含流日柱 / 12 时辰 / 通用黄历宜忌 / AI 解读 / 7 天历史回看。
+基于已存档命盘 × 当日流日柱的每日运势模块。Tab 3。**按需生成 + 24h 缓存**(iOS Background Tasks 不可靠,不用)。包含流日柱(hero 全信息卡) / AI 解读(2026-09-07 起进入即自动生成;7 天历史回看同日拔除,今日 tab 纯免费)。
 _Avoid_: daily horoscope
 
 **每日一问 (Daily question / daily_question)**:

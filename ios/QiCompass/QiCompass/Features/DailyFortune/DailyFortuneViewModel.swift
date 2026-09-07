@@ -65,9 +65,10 @@ final class DailyFortuneViewModel {
     /// 降中性(不再主动提示,行保留可点击)。
     private(set) var isHourUnknownAccepted: Bool = false
 
-    // MARK: 历史日期选择
+    // MARK: 业务日
 
-    /// 当前选中的 businessDate(默认 today)。切 pill 时改变,触发重排(查本地或后端)。
+    /// 当前展示的 businessDate(默认 now;下拉刷新/跨业务日时更新)。
+    /// 2026-09-07 历史回看功能拔除后,该值恒为当日业务日。
     var selectedDate: Date = .now
 
     // MARK: 依赖
@@ -118,15 +119,10 @@ final class DailyFortuneViewModel {
         let newBusinessDate = BusinessDateCalculator.businessDate(
             now: now, ziHourRule: ziHourRule,
         )
-        // 若当前展示的是 selectedDate=today 且 now 已跨日 → 自动 refetch
-        // 历史回看不自动切
+        // 当前展示日 ≠ 新业务日 → 自动 refetch(跨日当天自动换新盘+自动解读)
         if case .ready(_, _, let showing) = state {
             let showingNorm = Calendar.current.startOfDay(for: showing)
             let newNorm = Calendar.current.startOfDay(for: newBusinessDate)
-            if showingNorm != newNorm, isToday(showing) == false {
-                // 当前在历史日,不自动切(用户主动选择)
-                return
-            }
             if showingNorm != newNorm {
                 selectedDate = newBusinessDate
                 load(chartHash: hash, ziHourRule: ziHourRule, forceRefresh: false)
@@ -155,21 +151,11 @@ final class DailyFortuneViewModel {
         )
     }
 
-    // MARK: - 顶部日期 pill
-
-    /// 用户选历史 pill:展示该日;本地无则调后端补生成。
-    func selectHistoryDate(_ date: Date, currentChartHash: String?, ziHourRule: String) {
-        guard let hash = currentChartHash else {
-            state = .chartMissing
-            return
-        }
-        selectedDate = date
-        load(chartHash: hash, ziHourRule: ziHourRule, forceRefresh: false)
-    }
-
     // MARK: - AI 解读触发
 
-    /// 用户点「今日解读」按钮 → 触发 AI 阶段(若已命中缓存则直接显示)。
+    /// 触发 AI 解读阶段(命中缓存则直接显示)。主路径 = runFullPipeline 缓存
+    /// 未命中时自动调用(2026-09-07 拍板「一上来就直接解析」);手动入口保留给
+    /// 离线恢复(.idle CTA)与失败重试(.failed)。
     func generateInterpretation(currentChartHash: String?) {
         guard let hash = currentChartHash else {
             // 不静默吞(CLAUDE.md 全局约束):UI 收到点击说明调用方传 nil 是逻辑错乱,显式记录
@@ -255,13 +241,6 @@ final class DailyFortuneViewModel {
                 }
             }
         }
-    }
-
-    // MARK: - 历史列表
-
-    /// 取 7 天历史(throw 不静默;UI 失败时显示 toast)。
-    func loadHistory(chartHash: String) throws -> [DailyFortuneSnapshot] {
-        try dailyStore.getHistory(chartHash: chartHash, limit: 7)
     }
 
     // MARK: - S10 静默态轻量刷新
@@ -371,6 +350,14 @@ final class DailyFortuneViewModel {
 
             if !Task.isCancelled {
                 state = .ready(response, interpretState, businessDate)
+                // 自动解读(2026-09-07 用户拍板「一上来就直接解析,不要点一下」):
+                // 缓存未命中(.idle)且当日次数未耗尽 → 自动触发 AI 阶段。
+                // 离线兜底路径不走 runFullPipeline 成功分支,不会无网空转;
+                // 次数耗尽保持 .idle(UI 按 remainingReads 渲染达限卡);
+                // 缓存读取失败(.failed)不自动重试,留手动入口。
+                if case .idle = interpretState, remainingReads > 0 {
+                    generateInterpretation(currentChartHash: chartHash)
+                }
             }
         } catch let error as DailyFortuneError where error == .chartMissing {
             if !Task.isCancelled {
@@ -482,10 +469,6 @@ final class DailyFortuneViewModel {
         AppLogger.app.info(
             "daily.offline_fallback hash=\(chartHash, privacy: .public) targetDate=\(businessDate, privacy: .public) hasInterpretation=\(hasInterpretation)"
         )
-    }
-
-    private func isToday(_ date: Date) -> Bool {
-        Calendar.current.isDateInToday(date)
     }
 }
 

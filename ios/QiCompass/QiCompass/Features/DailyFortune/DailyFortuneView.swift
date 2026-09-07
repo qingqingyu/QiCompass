@@ -1,7 +1,7 @@
 import SwiftUI
 import SwiftData
 
-/// Tab 3:每日运势。状态机驱动 + 顶部 7 天历史 pill + 下拉刷新 + 子时换日三重触发。
+/// Tab 3:每日运势。状态机驱动 + AI 解读进入即自动生成 + 下拉刷新 + 子时换日三重触发。
 ///
 /// 主状态:
 /// - .empty → 首次进入(等 onAppear 检查命盘)
@@ -173,13 +173,6 @@ struct DailyFortuneView: View {
                     chartHash: currentChartHash,
                     ziHourRule: currentZiHourRule,
                     onRefresh: { handleRefresh() },
-                    onHistorySelect: { date in
-                        vm.selectHistoryDate(
-                            date,
-                            currentChartHash: currentChartHash,
-                            ziHourRule: currentZiHourRule,
-                        )
-                    },
                     onGenerateInterpret: {
                         vm.generateInterpretation(currentChartHash: currentChartHash)
                     },
