@@ -74,6 +74,8 @@
 
 ## 测试 3:失败路径(retry + 3 次失败 persistentFailure)
 
+> **2026-09-07 修订注记**:`persistentFailure` 死胡同已拔除(真机网络短暂不佳连点三次重试即被锁死、只能重启 App,体验反而更差)。重试按钮**永久保留**,`failureCount` 只留日志计数。下述 3.2 第 3 次失败的 UI 切换验收(八边形图标/隐藏 retry)与「失败排查」前两条(`failureCount >= 3` 分支、`if case .persistentFailure` 分支)指向的代码已删除;3.1 / 3.2 前半 / 3.3(计数仍随 VM 重建归零)/ 3.4 仍有效。详见 `生肖设计决策.md` 阶段 3。
+
 **目标**:验证 `failureCount` 累加 + `persistentFailure` UI 切换 + 重启 App 清零。
 
 - [ ] **3.1** 后端 FastAPI 停掉(`Ctrl+C` uvicorn 进程)→ App onboarding 提交
