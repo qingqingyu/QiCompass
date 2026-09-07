@@ -235,7 +235,8 @@ final class CompatibilityViewModel {
         roster.filter { selectedEntryIds.contains($0.id) }
     }
 
-    /// 名单内已勾选存档 hash 集合(供多选 UI 回显 / A 盘 menu 置灰)。
+    /// 名单内已勾选存档 hash 集合(供名单 UI 回显;2026-09-07「更换」menu 拔除后
+    /// 不再作置灰判据)。
     /// 2026-09-03 起按勾选过滤:未勾选的跨启动恢复行(.archived 无池行)不再计入。
     var selectedArchivedHashes: Set<String> {
         Set(selectedRosterEntries.compactMap { entry -> String? in

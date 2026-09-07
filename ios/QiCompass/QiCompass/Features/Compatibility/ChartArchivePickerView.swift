@@ -13,31 +13,30 @@ import SwiftUI
 // 2026-09-05 修订:行尾来源 badge(「快速」/「存档」)删除——与操作按钮同视觉易误读
 // 且无信息量;临时人行尾改为「修改」+「移出」双操作(跨启动恢复行仅「移出」,
 // 本地无原始表单数据可回填;存档池行无行尾操作,出生信息编辑归「我的」档案)。
+//
+// 2026-09-07 修订:命主行「更换」menu 拔除——新建命盘入口已移除,存档池恒为命主
+// 一盘,命主语义全局唯一,合盘 A 盘不再可切(命主行退化为纯展示 + 补时辰触点)。
 
-// MARK: - 命主行(A 盘,定稿⑧)
+// MARK: - 命主行(A 盘)
 
-/// 命主行:单行呈现当前 A 盘,「更换」弹 menu 列全部存档盘。
+/// 命主行:单行呈现当前 A 盘(纯展示)。
 ///
-/// - 已勾入名单的盘在 menu 中置灰(标「名单中」)——防「自己合自己」,
-///   与 VM `toggleArchived` 的 is_person_a 守卫同向双保险
-/// - 自己无时辰(定稿⑦):右侧「更换」变「补时辰」,直达 S10 补时辰 sheet
+/// 2026-09-07 拔「更换」menu:「＋新建命盘」已移除(2026-09-05,家人盘劫持命主
+/// 语义),存档池对普通用户恒为命主一盘,menu 无可换之盘;补时辰换新盘产生的
+/// 同名重复盘出现在 menu 里反而有害。命主语义全局唯一,合盘 A 盘不再可切——
+/// A 由 VM 加载(最新 link)与跨启动恢复(持久化 A hash)决定。
+/// 自己无时辰(定稿⑦):右侧「补时辰」直达 S10 补时辰 sheet(唯一保留的行尾操作)。
 struct PersonARowView: View {
-    /// 全部存档盘(menu 候选;当前 A 从中取)。
-    let charts: [ArchivedChart]
-    let selectedIndex: Int
-    /// 已勾入名单的存档 hash(置灰判据)。
-    let rosterHashes: Set<String>
+    /// 当前 A 盘(命主;nil = 存档异常,行降级「未知存档」)。
+    let chart: ArchivedChart?
     /// 自己(A 盘)无时辰 → 右侧变「补时辰」。
     let isHourUnknown: Bool
-    let onSelect: (Int) -> Void
-    /// 补时辰触点(参数 = 当前 A 盘 hash;nil 无宿主时按钮不渲染降级为「更换」)。
+    /// 补时辰触点(nil 无宿主时按钮不渲染)。
     var onAddHour: (() -> Void)? = nil
-
-    private var current: ArchivedChart? { charts[safe: selectedIndex] }
 
     /// 头像首字:空别名回落「我」(不渲染空字)。
     private var avatarInitial: String {
-        guard let alias = current?.alias, !alias.isEmpty else { return "我" }
+        guard let alias = chart?.alias, !alias.isEmpty else { return "我" }
         return String(alias.prefix(1))
     }
 
@@ -52,11 +51,11 @@ struct PersonARowView: View {
                         .foregroundStyle(BaziTheme.onInkDeep)
                 )
             VStack(alignment: .leading, spacing: 3) {
-                Text(current?.alias ?? "未知存档")
+                Text(chart?.alias ?? "未知存档")
                     .font(BaziFont.body())
                     .fontWeight(.medium)
                     .foregroundStyle(BaziTheme.ink)
-                Text("\(Self.dateString(current?.birthDate)) · 日主 \(current?.dayMaster ?? "—")")
+                Text("\(Self.dateString(chart?.birthDate)) · 日主 \(chart?.dayMaster ?? "—")")
                     .font(BaziFont.caption(size: 10.5))
                     .foregroundStyle(BaziTheme.inkMuted)
             }
@@ -69,32 +68,6 @@ struct PersonARowView: View {
                         .font(BaziFont.caption(size: 10.5))
                         .tracking(1.5)
                         .foregroundStyle(BaziTheme.inkMuted)
-                }
-            } else {
-                Menu {
-                    ForEach(Array(charts.enumerated()), id: \.element.id) { idx, chart in
-                        let isCurrent = idx == selectedIndex
-                        let inRoster = rosterHashes.contains(chart.snapshotHash)
-                        Button {
-                            onSelect(idx)
-                        } label: {
-                            // 系统 menu 忽略自定义前景色/Spacer,状态以文本后缀传达
-                            // (定稿⑧语义:当前朱标 / 名单中置灰 → menu 内均退化为纯文本)
-                            if isCurrent {
-                                Text(chart.alias + "  ✓ 当前")
-                            } else if inRoster {
-                                Text(chart.alias + "  名单中 · 需先取消勾选")
-                            } else {
-                                Text(chart.alias)
-                            }
-                        }
-                        .disabled(isCurrent || inRoster)
-                    }
-                } label: {
-                    Text("更换 ⌄")
-                        .font(BaziFont.caption(size: 10.5))
-                        .tracking(1.5)
-                        .foregroundStyle(BaziTheme.inkMutedSecondary)
                 }
             }
         }

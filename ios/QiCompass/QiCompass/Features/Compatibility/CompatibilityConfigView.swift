@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// 合盘配置态(2026-09-02 定稿「名单合一 · 勾选即选」,读查平铺单屏):
-/// 标题区 → 命主行(A 盘单行+更换 menu)→ 「选择对方」单一名单(存档勾选+快速行混排)
+/// 标题区 → 命主行(A 盘纯展示)→ 「选择对方」单一名单(存档勾选+快速行混排)
 /// → 底部「排 N 对合盘」动态计数 CTA。
 ///
 /// 事实源:`~/.gstack/projects/qingqingyu-QiCompass/designs/hepan-picker-20260902/finalized.html`
@@ -13,6 +13,8 @@ import SwiftUI
 /// - 2026-09-05 修订:行尾 badge(快速/存档)删除;临时人行加「修改」——同一
 ///   `AddPersonSheet` 双模式(添加/修改),修改 = VM `beginEditTempEntry` 回填 +
 ///   `updateTempEntry` 原位替换(勾选随迁;输入未变保留 resolvedHash)。
+/// - 2026-09-07 修订:命主行「更换」menu 拔除——新建命盘入口已移除,存档池恒为
+///   命主一盘,命主语义全局唯一(修订 09-02 定稿⑧的 A 盘单选列表收缩一条)。
 /// - 命主无时辰(S07 全锁):命主行「补时辰」直达 + banner + CTA 文案化置灰
 /// - 他人无时辰行保留 S10(点击补时辰)/ S11(置灰短注)
 /// - 决策 D1-D13 红线不动(见 docs/合盘多选设计决策.md;roster 勾选语义按上方修订)
@@ -40,13 +42,10 @@ struct CompatibilityConfigView: View {
             VStack(alignment: .leading, spacing: 20) {
                 header
 
-                // 命主行(A 盘,定稿⑧:单行 + 更换 menu / 无时辰 → 补时辰)
+                // 命主行(A 盘纯展示;无时辰 → 补时辰,2026-09-07 拔「更换」)
                 PersonARowView(
-                    charts: vm.archivedCharts,
-                    selectedIndex: vm.selectedChartAIndex,
-                    rosterHashes: vm.selectedArchivedHashes,
+                    chart: vm.archivedCharts[safe: vm.selectedChartAIndex],
                     isHourUnknown: vm.isSelfHourUnknown,
-                    onSelect: { vm.selectedChartAIndex = $0 },
                     onAddHour: {
                         guard let aHash = vm.currentPersonAHash else { return }
                         onAddHour?(aHash)
@@ -105,13 +104,6 @@ struct CompatibilityConfigView: View {
             }
             .padding(.horizontal)
             .padding(.bottom, 100)  // 给底部 CTA 留位
-        }
-        .onChange(of: vm.selectedChartAIndex) { _, _ in
-            // A 盘切换兜底剔除(menu 已置灰名单中的人,此处与 VM is_person_a 守卫同向三保险)
-            if let aHash = vm.currentPersonAHash,
-               vm.selectedArchivedHashes.contains(aHash) {
-                vm.toggleArchived(hash: aHash)
-            }
         }
         .safeAreaInset(edge: .bottom) {
             // 2026-09-03:CTA 计数/摘要按勾选子集(名单成员未勾选不进)
