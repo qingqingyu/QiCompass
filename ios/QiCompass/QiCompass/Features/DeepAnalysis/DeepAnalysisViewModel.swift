@@ -491,7 +491,7 @@ final class DeepAnalysisViewModel {
     /// 不打断 UI(错误显式传播到日志层;目录呈未读,用户点开卷可手动重试)。
     ///
     /// 结构注意:isHydrating 复位**必须**先于尾部 resume——resume 的
-    /// `!isHydrating` 守卫若在 defer 前被调到会自锁(首版实踩:链永远起不来)。
+    /// `!isHydrating` 守卫若在标志复位前被调到会自锁(首版实踩:链永远起不来)。
     @MainActor
     private func hydrateAndResume(response: BaziResponse) async {
         guard isCurrentChart(response) else { return }
@@ -523,15 +523,21 @@ final class DeepAnalysisViewModel {
         case restoreFailed
     }
 
+    /// 回填状态谓词(单一事实源):仅 nil(重启未恢复)/ .failed(上次链被掐,
+    /// 但可能已落本地缓存)的章可回填;ok/fetching/pending/locked/needsInput
+    /// 是既有语义态,不覆盖。查询清单(await 前)与写回重检(await 后)共用,
+    /// 防两处口径漂移。
+    private static func isRestorableModuleState(_ state: ModuleState?) -> Bool {
+        switch state {
+        case nil, .failed: return true
+        case .ok, .fetching, .pending, .locked, .needsInput: return false
+        }
+    }
+
     /// 回填执行体(调用方保证 isHydrating 已置位)。
     @MainActor
     private func performRestore(response: BaziResponse) async -> HydrateOutcome {
-        let modulesToRestore = ModuleID.allCases.filter { module in
-            switch moduleStates[module] {
-            case nil, .failed: return true
-            case .ok, .fetching, .pending, .locked, .needsInput: return false
-            }
-        }
+        let modulesToRestore = ModuleID.allCases.filter { Self.isRestorableModuleState(moduleStates[$0]) }
         guard !modulesToRestore.isEmpty else { return .restored }
 
         do {
@@ -547,17 +553,42 @@ final class DeepAnalysisViewModel {
                 return .staleChart
             }
             // 按 allCases 顺序写;extractChainFields 幂等重建下游链字段
-            // (structure_fingerprint 等,续跑 M1-M7 时注入 context 用)
+            // (structure_fingerprint 等,续跑 M1-M7 时注入 context 用)。
+            // 写回时**重检**状态:await 窗口内用户可能已点开卷/重试(模块翻
+            // .pending/.fetching/.ok)——回填只落在仍可回填的章,
+            // 兑现「不覆盖既有语义态」的文档承诺(过滤清单只在 await 前算过一次)。
+            var writtenCount = 0
+            var skippedByRecheck: [String] = []
             for module in ModuleID.allCases {
                 guard let cache = hits[module.rawValue] else { continue }
+                guard Self.isRestorableModuleState(moduleStates[module]) else {
+                    skippedByRecheck.append(module.rawValue)
+                    continue
+                }
                 moduleStates[module] = .ok(text: cache.interpretation, cached: true)
                 extractChainFields(from: cache.interpretation, for: module)
+                writtenCount += 1
+            }
+            // 重检跳过留痕(排障区分「缓存无命中」与「await 窗口内翻非可回填态」)
+            if !skippedByRecheck.isEmpty {
+                AppLogger.app.info(
+                    "deepVM.hydrateAndResume.writeback_skipped_by_recheck hash=\(response.contentHash, privacy: .public) modules=\(skippedByRecheck.joined(separator: ","), privacy: .public)"
+                )
             }
             AppLogger.app.info(
-                "deepVM.hydrateAndResume.restored hash=\(response.contentHash, privacy: .public) queried=\(modulesToRestore.count) hits=\(hits.count)"
+                "deepVM.hydrateAndResume.restored hash=\(response.contentHash, privacy: .public) queried=\(modulesToRestore.count) hits=\(hits.count) written=\(writtenCount)"
             )
             return .restored
         } catch {
+            if Task.isCancelled {
+                // calculateTask 被重触发取消(常规用户动作):取消沿 URLSession 传导
+                // 成异常——与真失败分级,info 足够,不污染 error 通道;新 calculate
+                // 会自带一轮完整 hydrate。
+                AppLogger.app.info(
+                    "deepVM.hydrateAndResume.cancelled hash=\(response.contentHash, privacy: .public)"
+                )
+                return .restoreFailed
+            }
             // 不静默吞:显式日志 + 跳过自动续跑(离线时续跑注定失败,不制造满屏 failed)
             AppLogger.app.error(
                 "deepVM.hydrateAndResume.restore_failed hash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
@@ -779,7 +810,17 @@ final class DeepAnalysisViewModel {
             if moduleStates[module]?.isOk == true { continue }
             // 单章重试在飞(阅读页「重试本章」)→ 不重复发请求;该重试自担成败,
             // 失败标 .failed 后由下次 resume/用户重试接管
-            if moduleStates[module] == .fetching { continue }
+            if moduleStates[module] == .fetching {
+                if module == .m0 {
+                    // M0 重试在飞 ≠ M0 失败:本链让位(重试落定 ok 后由下次
+                    // resume/CTA 接力下游),不误报 m0_failed_breaking_chain
+                    AppLogger.app.info(
+                        "deepVM.runV1Chain m0_retry_in_flight_deferring contentHash=\(response.contentHash, privacy: .public)"
+                    )
+                    return
+                }
+                continue
+            }
             await runSingleV1Module(module, response: response)
             // M0 失败 → 中断链(下游缺 structure_fingerprint 无法跑)
             if module == .m0 && moduleStates[.m0]?.isOk != true {
@@ -997,7 +1038,7 @@ final class DeepAnalysisViewModel {
     /// failureCount 也清零(2026-09-07 起仅日志用,重置后计数从新盘重新起算)。
     /// Stage 7c:同时取消 v1 链式调用 + 清 moduleStates + v1ChainFields。
     /// 断点续跑:作废在飞链的 defer 写回(世代号推进后旧链 defer 不再动标志)。
-    /// isHydrating 不在此复位(在飞 hydrate 由自己的 defer 收尾,其尾部
+    /// isHydrating 不在此复位(在飞 hydrate 在自己尾部复位标志后收尾,其尾部
     /// resumeV1ChainIfNeeded 会按 reset 后的新状态守卫,不会误跑)。
     func reset() {
         calculateTask?.cancel()

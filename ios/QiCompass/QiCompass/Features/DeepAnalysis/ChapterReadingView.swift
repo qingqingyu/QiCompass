@@ -213,7 +213,7 @@ struct ChapterReadingView: View {
                 .font(BaziFont.display(size: 15))
                 .tracking(8)
                 .foregroundStyle(BaziTheme.ink)
-            Text("正在生成本章 · 约半分钟 · 失败不消耗次数")
+            Text(L10n.DeepChain.readingGenerating)
                 .font(BaziFont.caption(size: 10.5))
                 .tracking(1)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)

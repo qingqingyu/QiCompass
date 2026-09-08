@@ -797,6 +797,11 @@ enum L10n {
         /// zh: "可先离开,章成自动点亮";en: "Feel free to leave — chapters light up as they finish"
         static let bannerLeaveHint = String(localized: "deepchain.banner.leaveHint")
 
+        /// 阅读页布算中主提示(2026-09-08 从硬编码迁入:耗时口径 10-20 秒 → 约半分钟)。
+        /// zh: "正在生成本章 · 约半分钟 · 失败不消耗次数"
+        /// en: "Weaving this chapter · about half a minute · failures cost nothing"
+        static let readingGenerating = String(localized: "deepchain.reading.generating")
+
         /// 阅读页布算中副行:可返回提示。
         /// zh: "可先返回,章成自动点亮";en: "You can go back — the chapter will light up when done"
         static let readingLeaveHint = String(localized: "deepchain.reading.leaveHint")

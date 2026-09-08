@@ -1631,6 +1631,23 @@
         }
       }
     },
+    "deepchain.reading.generating" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weaving this chapter · about half a minute · failures cost nothing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在生成本章 · 约半分钟 · 失败不消耗次数"
+          }
+        }
+      }
+    },
     "deepchain.reading.leaveHint" : {
       "extractionState" : "manual",
       "localizations" : {

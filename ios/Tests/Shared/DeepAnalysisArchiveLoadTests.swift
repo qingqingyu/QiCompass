@@ -294,6 +294,61 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         )
     }
 
+    func testRestoreWritebackSkipsModulesFlippedDuringAwait() async throws {
+        // 写回重检回归锁(2026-09-08):performRestore 的 await 窗口内模块翻非可回填态
+        // (模拟用户重试落定 .ok)→ 缓存写回不得覆盖其语义态;未翻转的章正常回填。
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedV1Cache(hash: response.contentHash, module: .m0, text: Self.m0CacheJSON)
+        try seedV1Cache(hash: response.contentHash, module: .m1, text: "M1 缓存旧正文")
+
+        // health 慢 600ms:撑开 performRestore 的 await 窗口供测试确定性翻转状态
+        let slow = SlowHealthAPIClient(base: apiClient, delayNanos: 600_000_000)
+        let context = container.mainContext
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: slow),
+            cacheStore: InterpretationCacheStore(context: context)
+        )
+        let orchestrator = DeepAnalysisOrchestrator(
+            apiClient: slow,
+            chartStore: chartStore,
+            interpretStore: InterpretationCacheStore(context: context),
+            counter: counter,
+            interpretationReader: reader,
+            userLinkStore: UserSnapshotLinkStore(context: context)
+        )
+        let slowVM = DeepAnalysisViewModel(
+            orchestrator: orchestrator,
+            entitlementStore: entitlementStore
+        )
+
+        slowVM.loadArchivedChart(response: response, request: request)
+        // 抓 hydrate 在飞窗口:isHydrating=true 覆盖 performRestore 全程(含写回),
+        // 600ms 窗口内 30ms 轮询必然先于写回落定
+        let inFlight = await waitUntil(timeout: 5) { slowVM.isHydrating }
+        XCTAssertTrue(inFlight, "前置:hydrate 已起,await 窗口打开")
+
+        // 前置:翻转时 M1 必须尚未被写回(否则窗口未撑开,用例未测到重检,
+        // 显式失败优于静默假绿——极端调度停滞 >600ms 时这里会红)
+        XCTAssertNil(slowVM.moduleStates[.m1], "前置失败:await 窗口未撑开(写回已发生)")
+
+        // 模拟 await 窗口内用户动作:M1 翻 .ok(在飞重试落定,非缓存)
+        slowVM.moduleStates[.m1] = .ok(text: "M1 在飞重试落定的新正文", cached: false)
+
+        // 等回填收尾:M0 正常回填 + isHydrating 复位
+        let settled = await waitUntil(timeout: 5) {
+            !slowVM.isHydrating
+                && slowVM.moduleStates[.m0] == .ok(text: Self.m0CacheJSON, cached: true)
+        }
+        XCTAssertTrue(settled, "前置:M0 缓存回填完成,实际:\(slowVM.moduleStates)")
+
+        XCTAssertEqual(
+            slowVM.moduleStates[.m1], .ok(text: "M1 在飞重试落定的新正文", cached: false),
+            "写回重检:await 窗口内翻 .ok 的章不得被缓存覆盖(老正文/缓存标记都算回归)"
+        )
+        XCTAssertFalse(slowVM.isChainRunning, "M0/M1 皆终态、付费章无 entitlement → 无可跑,不起链")
+    }
+
     func testHydrateFailureLogsAndSkipsResume() async throws {
         // health 挂(离线):回填整体失败 → 跳过自动续跑,不静默半填、不崩
         let request = Self.beijingRequest()
@@ -436,6 +491,46 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
 }
 
 // MARK: - Test Doubles
+
+/// health 延迟后转发、其余透传 Mock(测 performRestore 写回重检:撑开 await 窗口)。
+private final class SlowHealthAPIClient: APIClient {
+    private let base: MockAPIClient
+    private let delayNanos: UInt64
+    init(base: MockAPIClient, delayNanos: UInt64) {
+        self.base = base
+        self.delayNanos = delayNanos
+    }
+
+    func health() async throws -> HealthResponse {
+        try await Task.sleep(nanoseconds: delayNanos)
+        return try await base.health()
+    }
+    func calculateBazi(request: BaziCalculateRequest) async throws -> BaziResponse {
+        try await base.calculateBazi(request: request)
+    }
+    func compatibility(request: CompatibilityRequest) async throws -> CompatibilityResponse {
+        try await base.compatibility(request: request)
+    }
+    func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse {
+        try await base.dailyFortune(request: request)
+    }
+    func interpret(request: InterpretRequest) async throws -> InterpretResponse {
+        try await base.interpret(request: request)
+    }
+    func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse {
+        try await base.redeem(request: request)
+    }
+    func entitlementList() async throws -> EntitlementListResponse {
+        try await base.entitlementList()
+    }
+    func signIn(request: SignInRequest) async throws -> SignInResponse {
+        try await base.signIn(request: request)
+    }
+    func syncPull() async throws -> SyncPullResponse { try await base.syncPull() }
+    func syncPush(request: SyncPushRequest) async throws -> SyncPushResponse {
+        try await base.syncPush(request: request)
+    }
+}
 
 /// health 恒失败、其余转发 Mock(测 hydrate 失败路径:回填跳过 + 自动续跑不发起)。
 private final class HealthFailingAPIClient: APIClient {
