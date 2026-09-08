@@ -23,6 +23,9 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
     private var chartStore: ChartSnapshotStore!
     private var dailyStore: DailyFortuneSnapshotStore!
     private var api: RecordingDailyAPIClient!
+    /// 持有为属性供达限护栏用例预耗尽配额(工厂约束:每用例只建一个 counter,
+    /// 故从 setUp 注入 orchestrator,不在用例内二次工厂创建)。
+    private var counter: DailyReadCounter!
     private var vm: DailyFortuneViewModel!
 
     override func setUpWithError() throws {
@@ -37,12 +40,13 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
             identityResolver: AIIdentityResolver(apiClient: api),
             cacheStore: interpretStore
         )
+        counter = DailyReadCounter.makeIsolatedForTesting()
         let orchestrator = DailyFortuneOrchestrator(
             apiClient: api,
             dailyStore: dailyStore,
             interpretStore: interpretStore,
             chartStore: chartStore,
-            counter: DailyReadCounter.makeIsolatedForTesting(),
+            counter: counter,
             interpretationReader: reader
         )
         vm = DailyFortuneViewModel(
@@ -54,6 +58,7 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
 
     override func tearDownWithError() throws {
         vm = nil
+        counter = nil
         api = nil
         dailyStore = nil
         chartStore = nil
@@ -201,25 +206,19 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
 
         vm.onAppear(currentChartHash: "s09_hour_unknown", ziHourRule: "zi_next_day")
 
-        let ready = await waitForState {
-            if case .ready = $0 { return true }
-            return false
-        }
-        XCTAssertTrue(ready, "日柱确定的无时辰用户照常进 ready(后端降级模板),实际:\(vm.state)")
-        let dailyCalls = await api.dailyFortuneCallCount()
-        XCTAssertEqual(dailyCalls, 1, "确定性排盘照常发起(免费降级成立)")
-        XCTAssertEqual(vm.hourGate, .hourUnknownDayDetermined,
-                       "末尾静默提示位判据(S10 接线成可点击)")
-
-        // AI 阶段:照常发起,context 携带 unknown_hour 降级信号
-        vm.generateInterpretation(currentChartHash: "s09_hour_unknown")
+        // 2026-09-07 自动解读:进入 ready 且缓存未命中 → VM 自动发起 AI 阶段,
+        // 不再手动调 generateInterpretation(调了会多一次请求)
         let interpreted = await waitForState {
             if case .ready(_, let interp, _) = $0 {
                 if case .okFree = interp { return true }
             }
             return false
         }
-        XCTAssertTrue(interpreted, "降级版解读照常生成,实际:\(vm.state)")
+        XCTAssertTrue(interpreted, "日柱确定的无时辰用户照常进 ready 且自动解读(后端降级模板),实际:\(vm.state)")
+        let dailyCalls = await api.dailyFortuneCallCount()
+        XCTAssertEqual(dailyCalls, 1, "确定性排盘照常发起(免费降级成立)")
+        XCTAssertEqual(vm.hourGate, .hourUnknownDayDetermined,
+                       "末尾静默提示位判据(S10 接线成可点击)")
 
         let interpretCalls = await api.interpretCallCount()
         let lastRequest = await api.lastInterpretRequest()
@@ -449,6 +448,34 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
         return colors.count
     }
 
+    // MARK: - 自动解读护栏:达限不自动发起(2026-09-07)
+
+    func test次数耗尽_进入ready不自动发起解读() async throws {
+        // runFullPipeline 成功分支的 remainingReads > 0 判据保护用户每日配额
+        // 不被自动消耗(USER_STORIES US-DF-05「自动发起前先查次数,不发起空调用」)。
+        // 预耗尽全局池后 onAppear:解读子态保持 .idle(UI 渲染达限卡)、
+        // interpret 零请求。匹配到 .idle 即证明 guard 同步拒绝——guard 若通过,
+        // state 会先同步转 .fetching,轮询永远匹配不到 .idle。
+        for _ in 0..<DailyReadCounter.ReadLimit.globalDaily {
+            XCTAssertTrue(counter.tryConsume(module: "bazi_deep"), "夹具:预耗尽全局池")
+        }
+
+        try seedChart(hash: "quota_exhausted", hourKnown: true)
+        vm.onAppear(currentChartHash: "quota_exhausted", ziHourRule: "zi_next_day")
+
+        let ready = await waitForState { state in
+            if case .ready(_, let interp, _) = state {
+                if case .idle = interp { return true }
+            }
+            return false
+        }
+        XCTAssertTrue(ready, "达限盘照常进 ready 且解读子态保持 .idle(达限卡),实际:\(vm.state)")
+        XCTAssertEqual(vm.remainingReads, 0, "夹具生效:全局池余量为 0")
+
+        let interpretCalls = await api.interpretCallCount()
+        XCTAssertEqual(interpretCalls, 0, "次数护栏必须拦下自动解读(零请求)")
+    }
+
     // MARK: - 有时辰:回归(链路与现状一致)
 
     func test有时辰_回归_排盘与interpret照常_上下文正常语义() async throws {
@@ -456,21 +483,18 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
 
         vm.onAppear(currentChartHash: "s09_known_hour", ziHourRule: "zi_next_day")
 
-        let ready = await waitForState {
-            if case .ready = $0 { return true }
-            return false
-        }
-        XCTAssertTrue(ready, "有时辰用户与现状完全一致,实际:\(vm.state)")
-        XCTAssertEqual(vm.hourGate, .hourKnown, "零拦截,末尾提示位不显示")
-
-        vm.generateInterpretation(currentChartHash: "s09_known_hour")
+        // 2026-09-07 自动解读:ready + 缓存未命中 → 自动发起,无需手动触发
         let interpreted = await waitForState {
             if case .ready(_, let interp, _) = $0 {
                 if case .okFree = interp { return true }
             }
             return false
         }
-        XCTAssertTrue(interpreted, "有时辰解读照常,实际:\(vm.state)")
+        XCTAssertTrue(interpreted, "有时辰用户照常进 ready 且自动解读,实际:\(vm.state)")
+        XCTAssertEqual(vm.hourGate, .hourKnown, "零拦截,末尾提示位不显示")
+
+        let interpretCalls = await api.interpretCallCount()
+        XCTAssertEqual(interpretCalls, 1, "自动解读恰好发起一次(无需测试手动触发)")
 
         let lastRequest = await api.lastInterpretRequest()
         let request = try XCTUnwrap(lastRequest)
@@ -503,9 +527,10 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
         )
         XCTAssertEqual(fresh.interpretation, "降级版解读 0")
 
-        // 7 天历史照常返回降级内容
-        let history = try vm.loadHistory(chartHash: hash)
-        XCTAssertEqual(history.count, 3, "历史回看对无时辰盘照常(降级内容)")
+        // 7 天历史照常返回降级内容(2026-09-07 历史回看 UI 拔除,store 层
+        // getHistory 保留——DailyFortuneVerifier 仍在用,此处直测 store)
+        let history = try dailyStore.getHistory(chartHash: hash, limit: 7)
+        XCTAssertEqual(history.count, 3, "历史快照对无时辰盘照常(降级内容)")
 
         // 重建(历史回看显示路径):12 时辰条/明日预告 decode 不因缺柱 crash
         let restored = try dailyStore.response(from: history[0])

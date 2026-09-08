@@ -162,9 +162,12 @@
 - 公历 + 农历日期(公历 display 字体,农历 subheadline)
 
 #### US-DF-02:看 7 天历史
+> **2026-09-07 拔除**(用户拍板「底部日期选择完全没必要」):7 天日期带 + 「更早」
+> 锁框 + 历史回看解锁整体删除,今日 tab 转纯免费。下方验收标准仅存档。
+
 **作为**命理爱好者,**我想**回看过去 7 天的流日运势,**以便**对照实际发生的事。
 
-**验收标准:**
+~~**验收标准:**~~
 - 顶部 7 天历史 pill(今日 + 过去 6 天,按日期 DESC)
 - 选中态 cinnabar 底 + paper 字
 - 今日 pill 边框 cinnabar.opacity(0.5)
@@ -189,14 +192,17 @@
 - chip 半透明底 + 0.5pt 描边
 - 空时显示 "—"(inkMuted)
 
-#### US-DF-05:生成今日 AI 解读
-**作为**好奇新手,**我想**看一段 AI 解读今日流日,**以便**用通俗语言理解。
+#### US-DF-05:看今日 AI 解读
+**作为**好奇新手,**我想**进入今日页就看到一段 AI 解读今日流日,**以便**用通俗语言理解。
 
 **验收标准:**
-- 150-200 字
+- **进入即自动生成**(2026-09-07 拍板,免点击):ready 且缓存未命中 → 自动发起;
+  推演中显示静默「推演中…」指示(无按钮)
+- 50-80 字(Medium voice)
 - 子状态独立(同 US-DA-04)
-- 24h 缓存 + 每日 10 次上限
-- 离线查看:网络失败 fallback 到本地缓存,显示"离线查看(展示本地缓存,不扣次数)"角标(cinnabar)
+- 24h 缓存 + 每日 10 次上限(达限显示达限卡;自动发起前先查次数,不空调用)
+- 离线查看:网络失败 fallback 到本地缓存,显示"离线查看(展示本地缓存,不扣次数)"角标(cinnabar);
+  离线未生成过 → 保留手动 CTA(联网后点)
 - 子时换日三重触发(app active / scenePhase active / NSCalendarDayChanged)
 
 #### US-DF-06:看明日预告
@@ -281,29 +287,27 @@ Tab 3 每日运势
   - .empty → LoadingStateView("准备中…")
   - .loading → LoadingStateView("推演流日中…")
   - .chartMissing → DailyFortuneEmptyView(命盘存档缺失空态;首启被 onboarding sheet 盖住、完成落地本 Tab 时经 hasSeenOnboarding onChange 自动加载,正常流程基本不可见)
-  - .fortuneReady → DailyFortuneMainView
+  - .hourAmbiguousBlocked → HourUnknownGateNotice(S09 日柱歧义全拦,CTA 进补时辰 sheet)
+  - .ready → DailyFortuneMainView
   - .failed → ErrorStateView
 
 DailyFortuneMainView(ScrollView,下拉刷新)
-  ├─ 离线角标(如果 fallback 本地缓存,cinnabar)
-  ├─ 7 天历史 pill(今日 cinnabar 选中)
-  ├─ DailyFortuneHeaderView(流日柱 cinnabar + 关系 jade + 冲 暗朱砂)
-  ├─ DailyInterpretationSection(AI 解读,idle 态显示 CTA)
-  ├─ HourPillarsSection(12 时辰,折叠态显示当前时辰)
-  ├─ HuangliSection(宜 jade / 忌 暗朱砂)
-  └─ TomorrowPreviewSection(明日流日柱 cinnabar)
-  ↓ 点 "今日解读" CTA
+  ├─ 离线角标(如果 fallback 本地缓存)
+  ├─ DailyImageHeroSection(glass-v2 玻璃全信息卡:日期+chips+宜忌双列入图)
+  ├─ DailyInterpretationSection(AI 解读,进入即自动生成;推演中静默指示)
+  ├─ heroFootnote(hairline 小注:干支 · 十神 · 免责)
+  └─ 补时辰静默行(仅时辰未知·日柱确定的降级盘,点击进补时辰 sheet)
+  ↓ ready 且解读缓存未命中 → 自动发起(免点击;离线兜底保留手动 CTA)
 AI 解读生成(fetching → ok)
   ↓
-用户阅读(可看 12 时辰展开 / 7 天历史回看)
+用户阅读(可看 12 时辰展开)
   ↓ 子时换日触发(app active / scenePhase / NSCalendarDayChanged)
 重新计算流日 + 刷新 UI
 ```
 
 **断点风险:**
 - 网络失败 → fallback 本地缓存,显示离线角标
-- 历史加载失败 → 显示 inkMuted 提示,不阻断主流程
-- AI 解读达上限 → 显示倒计时到午夜,禁用生成按钮
+- AI 解读达上限 → 达限卡显示倒计时到午夜(自动发起前先查次数,不发起空调用;无生成按钮)
 
 ---
 

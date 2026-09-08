@@ -1427,108 +1427,6 @@
         }
       }
     },
-    "dailyfortune.history.done" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Done"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成"
-          }
-        }
-      }
-    },
-    "dailyfortune.history.earlier" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Earlier"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "更早"
-          }
-        }
-      }
-    },
-    "dailyfortune.history.freeTitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Free: past 7 days"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "免费回看 7 天"
-          }
-        }
-      }
-    },
-    "dailyfortune.history.sheetTitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "History"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "历史回看"
-          }
-        }
-      }
-    },
-    "dailyfortune.history.unlockCTA" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unlock full history"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "解锁全部历史"
-          }
-        }
-      }
-    },
-    "dailyfortune.history.unlockNote" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Any purchase unlocks your full lookback."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成任意一次购买,即可解锁全部历史回看。"
-          }
-        }
-      }
-    },
     "dailyfortune.interpret.cached" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1678,23 +1576,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "此运势基于你的日柱呈现。"
-          }
-        }
-      }
-    },
-    "dailyfortune.main.historyError" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Failed to load history"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "历史加载失败"
           }
         }
       }

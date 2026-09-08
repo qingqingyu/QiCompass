@@ -2,9 +2,10 @@ import SwiftUI
 
 /// AI 解读区(50-80 字 Medium voice)。
 ///
-/// 子状态独立(决策 §3.1):
-/// - .idle → CTA「今日解读」按钮(显示剩余次数)
-/// - .fetching → ProgressView + 「推演中…」
+/// 子状态独立(决策 §3.1;2026-09-07 起主路径 = 进入页面自动生成):
+/// - .idle → 仅离线兜底/达限可达:离线且有次数 → CTA 手动入口;
+///   次数耗尽 → 达限卡(自动触发前 VM 会查次数,不发起空调用)
+/// - .fetching → 静默推演指示(ProgressView + 「推演中…」,无按钮)
 /// - .okFree(text, cached) → 解读文本 + cached 标识
 /// - .failed(msg) → 错误 + 重试
 struct DailyInterpretationSection: View {
@@ -27,10 +28,23 @@ struct DailyInterpretationSection: View {
                 if remainingReads <= 0 {
                     DailyLimitReachedView(nextReset: nextReset)
                 } else {
-                    interpretationCTABlock(isLoading: false)
+                    // 自动生成时代 .idle 仅剩离线兜底一条路(联网后手动点)
+                    interpretationCTABlock()
                 }
             case .fetching:
-                interpretationCTABlock(isLoading: true)
+                // 自动生成(2026-09-07):推演中不再渲染 CTA 按钮,
+                // 静默指示即可——按钮暗示「还要点一下」,与免点击语义相悖
+                HStack(spacing: 10) {
+                    ProgressView()
+                        .controlSize(.small)
+                        .tint(BaziTheme.inkMuted)
+                    Text(L10n.DailyFortune.interpretLoading)
+                        .font(BaziFont.caption(size: 12))
+                        .tracking(2)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                }
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 24)
             case .okFree(let text, let cached), .okPaid(let text, let cached):
                 // 每日运势 v1 全免费(MONETIZATION.md 不在 SKU 列表),后端只调 daily_fortune module,
                 // .okPaid 永不触发;合并处理避免重复代码。
@@ -78,9 +92,9 @@ struct DailyInterpretationSection: View {
 }
 
 private extension DailyInterpretationSection {
-    /// idle/fetching 共享 CTA 区(说明文字 + PrimaryCTAButton,loading 时也保留说明)。
+    /// .idle(离线兜底)手动 CTA 区:说明文字 + 按钮。
     @ViewBuilder
-    func interpretationCTABlock(isLoading: Bool) -> some View {
+    func interpretationCTABlock() -> some View {
         VStack(spacing: 12) {
             Text(L10n.DailyFortune.interpretCTA)
                 .font(.subheadline)
@@ -90,8 +104,8 @@ private extension DailyInterpretationSection {
             PrimaryCTAButton(
                 title: L10n.DailyFortune.interpretTitle,
                 loadingTitle: L10n.DailyFortune.interpretLoading,
-                isLoading: isLoading,
-                action: isLoading ? {} : onGenerate
+                isLoading: false,
+                action: onGenerate
             )
         }
         .frame(maxWidth: .infinity)

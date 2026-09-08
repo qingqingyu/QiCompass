@@ -1,15 +1,16 @@
 import SwiftUI
 
 /// success 态主布局(glass-v2 玻璃全信息卡,2026-08-31 拍板,参考 glass-v2.html):
-/// 玻璃 hero(日期+chips+宜忌双列全入图)→ AI 解读 → hairline 小注 →
-/// 大留白 → 第二屏(7 日历史带)。明日预告已删(用户拍板:底部日历行去掉)。
+/// 玻璃 hero(日期+chips+宜忌双列全入图)→ AI 解读(2026-09-07 起进入即自动生成)
+/// → hairline 小注 →(时辰未知降级盘)末尾补时辰静默行。
+///
+/// 2026-09-07 历史回看拔除(用户拍板「底部日期选择完全没必要」):
+/// - 第二屏 7 日日期带 + 「更早」锁框 + 历史回看 sheet + 付费墙接线全部移除,
+///   今日 tab 转为纯免费(MONETIZATION.md §每日运势历史回看 同步删节)
+/// - `EntitlementStore.hasAnyActivePurchase` 唯一调用方(本文件的
+///   refreshUnlockState)已随历史回看代码移除,该方法无存留调用方,同步删除
 ///
 /// 不直接接 state machine,由 DailyFortuneView 切换后传入。
-///
-/// 2026-08-30 V4:
-/// - 吸顶方向感知折叠带**整体移除**(首屏无带可折,机制空转);历史带随内容进第二屏,
-///   `onHistorySelect` / 历史回看解锁 / sheet 竞态规避全部原样保留
-/// - 历史回看解锁(MONETIZATION.md §每日运势历史回看):免费 7 天,任意购买解锁全部
 struct DailyFortuneMainView: View {
     @Bindable var vm: DailyFortuneViewModel
     let response: DailyFortuneResponse
@@ -18,13 +19,10 @@ struct DailyFortuneMainView: View {
     let chartHash: String?
     let ziHourRule: String
     let onRefresh: () -> Void
-    let onHistorySelect: (Date) -> Void
     let onGenerateInterpret: () -> Void
     /// S10 补时辰触点(D7 触点 2):末尾静默行点击 → 打开补时辰 sheet(宿主
     /// DailyFortuneView 注入)。静默行不是弹窗,是可点的一行文字。
     let onAddHour: () -> Void
-
-    @EnvironmentObject private var env: AppEnvironment
 
     init(
         vm: DailyFortuneViewModel,
@@ -34,7 +32,6 @@ struct DailyFortuneMainView: View {
         chartHash: String?,
         ziHourRule: String,
         onRefresh: @escaping () -> Void,
-        onHistorySelect: @escaping (Date) -> Void,
         onGenerateInterpret: @escaping () -> Void,
         onAddHour: @escaping () -> Void,
     ) {
@@ -45,18 +42,9 @@ struct DailyFortuneMainView: View {
         self.chartHash = chartHash
         self.ziHourRule = ziHourRule
         self.onRefresh = onRefresh
-        self.onHistorySelect = onHistorySelect
         self.onGenerateInterpret = onGenerateInterpret
         self.onAddHour = onAddHour
     }
-
-    @State private var historySnapshots: [DailyFortuneSnapshot] = []
-    @State private var historyError: String?
-
-    // 历史回看解锁 + sheet
-    @State private var showingHistorySheet = false
-    @State private var showingPaywall = false
-    @State private var canViewFullHistory = false
 
     var body: some View {
         ScrollView {
@@ -74,13 +62,6 @@ struct DailyFortuneMainView: View {
                     .background(BaziTheme.ink.opacity(0.05), in: Capsule())
                 }
 
-                if let historyError {
-                    Text(historyError)
-                        .font(.caption2)
-                        .foregroundStyle(BaziTheme.inkMuted.opacity(0.7))
-                        .frame(maxWidth: .infinity, alignment: .center)
-                }
-
                 // ===== 第一屏(V4:图为主角) =====
 
                 // glass-v2 玻璃全信息卡(2026-08-31 拍板):日期区+chips+宜忌双列全部入图,
@@ -95,7 +76,8 @@ struct DailyFortuneMainView: View {
                 )
                 .padding(.horizontal, 17)
 
-                // AI 解读(50-80 字 Medium voice)
+                // AI 解读(50-80 字 Medium voice;2026-09-07 起进入即自动生成)。
+                // 边距 17pt 与 hero 卡对齐(同日用户拍板:两框线必须左右对齐)。
                 DailyInterpretationSection(
                     state: interpretState,
                     remainingReads: vm.remainingReads,
@@ -103,34 +85,17 @@ struct DailyFortuneMainView: View {
                     onGenerate: onGenerateInterpret,
                     onRetry: onGenerateInterpret,
                 )
-                .padding(.horizontal, 24)
+                .padding(.horizontal, 17)
 
                 // hairline 小注:干支 · 十神 · 免责
                 heroFootnote
                     .padding(.horizontal, 17)
                     .padding(.top, 18)
 
-                // ===== 第二屏(历史回看 + 明日预告) =====
-
-                // 大留白后进入第二屏(V4 参考图 CTA 沉底的呼吸节奏)
-                Divider()
-                    .overlay(BaziTheme.hairline)
-                    .padding(.top, 48)
-
-                DailyFortuneHistoryView(
-                    selectedDate: businessDate,
-                    snapshots: historySnapshots,
-                    canViewFullHistory: canViewFullHistory,
-                    onEarlier: { showingHistorySheet = true },
-                    onSelect: onHistorySelect,
-                )
-                .padding(.horizontal, 16)
-                .padding(.top, 4)
-
                 // S10 接线(D7 触点 2,「一行文字,不是弹窗」):仅时辰未知·日柱
                 // 确定的降级版展示(判据 = vm.hourGate,单一事实源),点击进补时辰
                 // sheet。静默态(「我确实不知道」)行保留可点击、文案降中性——
-                // 入口在,提示不在。(glass-v2 已删明日预告区,本触点独立保留)
+                // 入口在,提示不在。
                 if vm.hourGate == .hourUnknownDayDetermined {
                     Button {
                         HapticEngine.light()
@@ -154,40 +119,6 @@ struct DailyFortuneMainView: View {
             .padding(.bottom, 32)
         }
         .refreshable { onRefresh() }
-        // 历史回看 sheet(免费锁定态 / 已购清单态)
-        .sheet(isPresented: $showingHistorySheet) {
-            DailyFortuneHistorySheet(
-                canViewFullHistory: canViewFullHistory,
-                snapshots: historySnapshots,
-                onSelect: onHistorySelect,
-                onUnlock: {
-                    // 付费墙按 contentHash 卖深度解析;hash 缺失说明调用方状态错乱,显式记录不弹
-                    guard chartHash != nil else {
-                        AppLogger.app.warning("op=dailyFortune.historyUnlock.skip reason=no_chart_hash")
-                        return
-                    }
-                    // SwiftUI 竞态规避:历史 sheet 的 dismiss 动画进行中立即 present 付费墙
-                    // 会被静默丢弃(iOS 17 实测行为,三查 🟡),等动画结束(~0.4s)再呈现
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.45) {
-                        showingPaywall = true
-                    }
-                }
-            )
-        }
-        .sheet(isPresented: $showingPaywall) {
-            PaywallView(
-                viewModel: PaywallViewModel(
-                    module: .deepAnalysis,
-                    contentHash: chartHash ?? "",
-                    purchaseManager: env.purchaseManager,
-                    onPurchaseSuccess: {
-                        showingPaywall = false
-                        // 任意购买落地 → 立即重查解锁态(下次打开「更早」即清单态)
-                        refreshUnlockState()
-                    }
-                )
-            )
-        }
         .background(
             TimelineView(.periodic(from: .now, by: 60)) { _ in
                 Color.clear.onAppear {
@@ -198,10 +129,6 @@ struct DailyFortuneMainView: View {
                 }
             }
         )
-        .task {
-            loadHistory()
-            refreshUnlockState()
-        }
     }
 
     // MARK: - hero 小注
@@ -222,30 +149,4 @@ struct DailyFortuneMainView: View {
             .padding(.top, 9)
         }
     }
-
-    // MARK: - 历史回看解锁
-
-    /// 「任意一笔 active 购买 → 解锁全部历史」判据(MONETIZATION.md §每日运势历史回看)。
-    /// 双轨与 EntitlementStore.getActive 一致:userId 优先,userLocalId 兜底。
-    private func refreshUnlockState() {
-        canViewFullHistory = env.entitlementStore.hasAnyActivePurchase(
-            userLocalId: UserIdentity.userLocalId,
-            userId: UserIdentity.isAuthenticated ? UserIdentity.currentUserId : nil
-        )
-    }
-
-    private func loadHistory() {
-        guard let hash = chartHash else { return }
-        do {
-            historySnapshots = try vm.loadHistory(chartHash: hash)
-            historyError = nil
-        } catch {
-            // 不静默吞:错误显示在 chip 旁(不影响主流程)
-            historyError = L10n.DailyFortune.mainHistoryError
-            AppLogger.persistence.error(
-                "op=dailyFortune.loadHistory failed error=\(String(describing: error), privacy: .public)"
-            )
-        }
-    }
 }
-
