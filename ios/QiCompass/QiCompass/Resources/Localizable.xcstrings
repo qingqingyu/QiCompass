@@ -1597,6 +1597,57 @@
         }
       }
     },
+    "deepchain.banner.leaveHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Feel free to leave — chapters light up as they finish"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可先离开,章成自动点亮"
+          }
+        }
+      }
+    },
+    "deepchain.banner.progress" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weaving your book · %lld/%lld chapters done · about %lld min"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命书推演中 · 已成 %1$lld/%2$lld 章 · 约需 %3$lld 分钟"
+          }
+        }
+      }
+    },
+    "deepchain.reading.leaveHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You can go back — the chapter will light up when done"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可先返回,章成自动点亮"
+          }
+        }
+      }
+    },
     "hash: %@…" : {
 
     },

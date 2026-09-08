@@ -778,6 +778,30 @@ enum L10n {
         static let errorSilenceSave = String(localized: "addhour.error.silenceSave")
     }
 
+    // MARK: - 深度解析命书链(2026-09-08 自动起链 + 断点续跑)
+
+    /// 深度解析 v1 链进度文案(主页 chainBanner / 阅读页布算中消费)。
+    /// 文风对齐「布算中」的克制命理语感;en 用 "min" 规避复数形态(仓库无 stringsdict)。
+    enum DeepChain {
+        /// 横幅主行:进度 + 预计耗时。
+        /// zh: "命书推演中 · 已成 %lld/%lld 章 · 约需 %lld 分钟"
+        /// en: "Weaving your book · %lld/%lld chapters done · about %lld min"
+        static func bannerProgress(done: Int, total: Int, minutes: Int) -> String {
+            String(
+                format: String(localized: "deepchain.banner.progress"),
+                done, total, minutes
+            )
+        }
+
+        /// 横幅副行:可离开提示。
+        /// zh: "可先离开,章成自动点亮";en: "Feel free to leave — chapters light up as they finish"
+        static let bannerLeaveHint = String(localized: "deepchain.banner.leaveHint")
+
+        /// 阅读页布算中副行:可返回提示。
+        /// zh: "可先返回,章成自动点亮";en: "You can go back — the chapter will light up when done"
+        static let readingLeaveHint = String(localized: "deepchain.reading.leaveHint")
+    }
+
     // MARK: - 共享组件
 
     /// 共享文案(跨模块复用:CountdownResetLabel / DailyLimitReachedView / M4-M5 章头取消)。
