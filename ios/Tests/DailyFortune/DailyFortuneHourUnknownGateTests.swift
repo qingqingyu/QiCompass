@@ -346,6 +346,19 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
         XCTAssertEqual(payload.dayMasterElement, "wood", "五行英文 key(REQUIRED day_master_element)")
         XCTAssertEqual(Set(payload.fourPillars.keys), ["year", "month", "day"],
                        "hour 键省略是契约允许的显式缺失(S01),非 422 形态")
+
+        // 自动解读任务收尾等待(2026-09-08):本用例只等到 .ready,自动解读(09-07 起
+        // 进入即发起)的 interpretTask 还在飞——不等就结束,tearDown 释放内存容器后
+        // 任务才被调度会撞 SwiftData(use-after-free 崩给后续用例背锅,全量跑实崩
+        // 一次:QiCompass-2026-09-08-100546.ips,栈顶 runInterpretation→getLatest)。
+        // 等到 okFree 即任务完整落定,顺带守护「降级盘自动解读照常成功」。
+        let interpreted = await waitForState {
+            if case .ready(_, let interp, _) = $0 {
+                if case .okFree = interp { return true }
+            }
+            return false
+        }
+        XCTAssertTrue(interpreted, "降级盘自动解读应照常落定,实际:\(vm.state)")
     }
 
     func testR5_日柱歧义落地每日运势Tab_视图渲染拦截页_零网络请求_不白屏不crash() async throws {
