@@ -154,6 +154,20 @@ final class DeepAnalysisViewModel {
     /// v1 链式调用 Task(用户重新触发或 reset 时取消)。
     private var v1ChainTask: Task<Void, Never>?
 
+    /// v1 链是否在跑(2026-09-08 断点续跑:主页进度横幅 / CTA loading / resume 防重消费)。
+    /// 注意 `v1ChainTask != nil` 不能当活跃判据(Task 结束后属性仍非 nil),
+    /// 由 `runV1Chain` 的 defer 按世代号复位。
+    private(set) var isChainRunning = false
+
+    /// 链世代号:`generateV1AllModules` 取消旧链立刻起新链时,旧链在挂起点恢复后
+    /// 的 defer 不得把新链的 `isChainRunning` 掐灭——只有「当代链」能清标志。
+    private var chainGeneration = 0
+
+    /// hydrateAndResume 防重入(loadArchivedChart 同 hash 重入 / calculate 并发)。
+    /// `private(set)`:测试 teardown 需等回填任务落定再撤 ModelContainer
+    /// (在飞 getLatest 踩死容器会 SIGTRAP,2026-09-08 全量测试实踩)。
+    private(set) var isHydrating = false
+
     // MARK: 依赖
 
     private let orchestrator: DeepAnalysisOrchestrator
@@ -401,6 +415,9 @@ final class DeepAnalysisViewModel {
                     state = .ready(response, .idle)
                     // 命盘 + link 已落档。若用户从合盘/每日运势 CTA 切来,触发切回。
                     onChartArchived?()
+                    // 2026-09-08 拍板:排盘成功即自动起链(推翻 08-01「β 点击触发」)。
+                    // 走 hydrate 管线而非直接起链:同 hash 重排时先回填旧缓存,避免重生成。
+                    await hydrateAndResume(response: response)
                 }
             } catch is CancellationError {
                 // 被取消,不更新状态(新 Task 会接管)
@@ -438,6 +455,11 @@ final class DeepAnalysisViewModel {
         // (取消补时辰 / Tab 重挂)不清,保住既有章节态。
         if case .ready(let old, _) = state, old.contentHash != response.contentHash {
             v1ChainTask?.cancel()
+            // 同步作废旧链(世代号推进 → 旧链 defer 不再动标志)并复位链标志:
+            // 只 cancel 不复位会有窗口——旧链取消要等协作挂起点落地才清 isChainRunning,
+            // 期间新盘 hydrate 收尾的 resume 会被旧标志误拦,新盘链停摆到下次触发。
+            chainGeneration &+= 1
+            isChainRunning = false
             moduleStates.removeAll()
             v1ChainFields.removeAll()
             AppLogger.app.info(
@@ -449,6 +471,140 @@ final class DeepAnalysisViewModel {
         )
         lastRequest = request
         state = .ready(response, .idle)
+        // 断点续跑:冷启动/补时辰刷新后回填已完成章,再自动续跑未完成的。
+        // 同 hash 重入由 hydrate 内部防重入守卫兜住;换盘场景(上方守卫已清洗
+        // moduleStates)由 hydrate 前后 isCurrentChart 双检丢弃旧盘结果。
+        Task { @MainActor [weak self] in
+            await self?.hydrateAndResume(response: response)
+        }
+    }
+
+    // MARK: - 断点续跑(2026-09-08:排盘成功即自动起链 + 冷启动回填)
+
+    /// 回填本地缓存的已完成章,然后自动续跑未完成的链。
+    ///
+    /// 触发点:calculate 成功 / loadArchivedChart(冷启动、补时辰刷新)。
+    /// 回填范围:moduleStates 为 nil(重启后未恢复)或 .failed(上次链被掐,
+    /// 但该章可能已完成并落本地缓存)的章;**不覆盖** ok/fetching/pending/
+    /// locked/needsInput(保住既有语义态,同 hash 重入不清状态)。
+    /// 回填失败(identity 解析失败 / SwiftData 读失败)→ 记日志跳过自动续跑,
+    /// 不打断 UI(错误显式传播到日志层;目录呈未读,用户点开卷可手动重试)。
+    ///
+    /// 结构注意:isHydrating 复位**必须**先于尾部 resume——resume 的
+    /// `!isHydrating` 守卫若在 defer 前被调到会自锁(首版实踩:链永远起不来)。
+    @MainActor
+    private func hydrateAndResume(response: BaziResponse) async {
+        guard isCurrentChart(response) else { return }
+        guard response.hourUnknownGate != .dayAmbiguous else {
+            AppLogger.app.warning(
+                "deepVM.hydrateAndResume.skip reason=day_ambiguous hash=\(response.contentHash, privacy: .public)"
+            )
+            return
+        }
+        guard !isHydrating else {
+            AppLogger.app.info("deepVM.hydrateAndResume.already_hydrating hash=\(response.contentHash, privacy: .public)")
+            return
+        }
+        isHydrating = true
+        let outcome = await performRestore(response: response)
+        isHydrating = false
+        // 换盘中途(staleChart)也续跑:此时 state 已是新盘,resume 会按新盘起链
+        if outcome != .restoreFailed {
+            resumeV1ChainIfNeeded()
+        }
+    }
+
+    /// hydrate 结果(决定尾部是否续跑)。
+    private enum HydrateOutcome {
+        case restored
+        /// await 期间换盘,旧盘回填已丢弃(尾部 resume 按当前盘重新判定)
+        case staleChart
+        /// identity 解析 / SwiftData 读失败(离线等)→ 跳过自动续跑
+        case restoreFailed
+    }
+
+    /// 回填执行体(调用方保证 isHydrating 已置位)。
+    @MainActor
+    private func performRestore(response: BaziResponse) async -> HydrateOutcome {
+        let modulesToRestore = ModuleID.allCases.filter { module in
+            switch moduleStates[module] {
+            case nil, .failed: return true
+            case .ok, .fetching, .pending, .locked, .needsInput: return false
+            }
+        }
+        guard !modulesToRestore.isEmpty else { return .restored }
+
+        do {
+            let hits = try await orchestrator.restoreCachedV1Modules(
+                contentHash: response.contentHash,
+                modules: modulesToRestore.map(\.rawValue)
+            )
+            // await 期间可能换盘(补时辰重算/存档切换):旧盘回填丢弃
+            guard isCurrentChart(response) else {
+                AppLogger.app.warning(
+                    "deepVM.hydrateAndResume.stale_chart_after_await hash=\(response.contentHash, privacy: .public) — 回填丢弃"
+                )
+                return .staleChart
+            }
+            // 按 allCases 顺序写;extractChainFields 幂等重建下游链字段
+            // (structure_fingerprint 等,续跑 M1-M7 时注入 context 用)
+            for module in ModuleID.allCases {
+                guard let cache = hits[module.rawValue] else { continue }
+                moduleStates[module] = .ok(text: cache.interpretation, cached: true)
+                extractChainFields(from: cache.interpretation, for: module)
+            }
+            AppLogger.app.info(
+                "deepVM.hydrateAndResume.restored hash=\(response.contentHash, privacy: .public) queried=\(modulesToRestore.count) hits=\(hits.count)"
+            )
+            return .restored
+        } catch {
+            // 不静默吞:显式日志 + 跳过自动续跑(离线时续跑注定失败,不制造满屏 failed)
+            AppLogger.app.error(
+                "deepVM.hydrateAndResume.restore_failed hash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            return .restoreFailed
+        }
+    }
+
+    /// 自动续跑守卫入口(hydrate 收尾 / 回前台 scenePhase 触发)。
+    ///
+    /// 守卫链:非 ready 不跑;日柱歧义不跑(S07 纵深防御);链在跑不重复起
+    /// (含后台被掐后 Task 挂起场景,回前台自然恢复);hydrate 在飞不抢跑
+    /// (由 hydrate 收尾统一触发);无可跑未完成章不空转(.ok 已完成 / .locked
+    /// 等购买 / .needsInput 等用户填表 / .fetching 有单章重试在飞均排除);
+    /// 每日次数耗尽不跑(CTA limit ghost 已有人话,自动跑只会满屏 failed)。
+    func resumeV1ChainIfNeeded() {
+        guard case .ready(let response, _) = state else {
+            AppLogger.app.info("deepVM.resumeV1ChainIfNeeded.skip reason=not_ready")
+            return
+        }
+        guard response.hourUnknownGate != .dayAmbiguous else {
+            AppLogger.app.warning("deepVM.resumeV1ChainIfNeeded.skip reason=day_ambiguous")
+            return
+        }
+        guard !isChainRunning else { return }
+        guard !isHydrating else { return }
+        let entitled = { (module: ModuleID) in
+            !module.isPaid || self.hasDeepEntitlement(contentHash: response.contentHash)
+        }
+        let hasRunnableUnfinished = ModuleID.allCases.contains { module in
+            switch moduleStates[module] {
+            case .ok, .locked, .needsInput, .fetching:
+                return false
+            case nil, .pending, .failed:
+                return entitled(module)
+            }
+        }
+        guard hasRunnableUnfinished else {
+            AppLogger.app.info("deepVM.resumeV1ChainIfNeeded.skip reason=no_runnable_unfinished")
+            return
+        }
+        guard remainingReads > 0 else {
+            AppLogger.app.info("deepVM.resumeV1ChainIfNeeded.skip reason=daily_limit")
+            return
+        }
+        AppLogger.app.info("deepVM.resumeV1ChainIfNeeded.start hash=\(response.contentHash, privacy: .public)")
+        startV1Chain(response: response)
     }
 
     // MARK: - AI 命书(盘面小景 S2:legacy 单文本路径已删,UI 只走 v1 捌章)
@@ -498,9 +654,10 @@ final class DeepAnalysisViewModel {
     /// 计费:每模块独立消耗 1 次每日配额(orchestrator.runV1Module 实现),
     /// 全套 = 8 次/天。命中后端缓存 refund + 失败 refund。
     ///
-    /// 用户场景:
-    /// - 排盘成功后点 "开始 M0 分析"(ModuleCardView M0 pending 态 CTA)
-    /// - 或购买 entitlement 后自动触发(M0+M1 免费,M2-M7 解锁)
+    /// 用户场景(2026-09-08 起主路径为自动触发):
+    /// - 排盘成功后自动起链(calculate → hydrateAndResume → resumeV1ChainIfNeeded)
+    /// - 冷启动回填后自动续跑未完成章(loadArchivedChart → hydrateAndResume)
+    /// - 用户点 "开卷" CTA / 目录行(链已停且章节未读时;链在跑被幂等守卫拦下)
     func generateV1AllModules() {
         guard case .ready(let response, _) = state else {
             AppLogger.app.error("op=deepAnalysis.generateV1AllModules invalid_state state=\(String(describing: self.state), privacy: .public)")
@@ -513,20 +670,37 @@ final class DeepAnalysisViewModel {
             )
             return
         }
+        // 幂等守卫(2026-09-08 自动起链):链在跑时不再 reset 重跑——单点覆盖
+        // .openFirst CTA 链跑中点按、目录行、未来调用方,防止把在飞链拦腰重置。
+        guard !isChainRunning else {
+            AppLogger.app.info("deepVM.generateV1AllModules.skip reason=chain_active")
+            return
+        }
 
         AppLogger.app.info("deepVM.generateV1AllModules.start contentHash=\(response.contentHash, privacy: .public)")
 
         v1ChainTask?.cancel()
 
-        // 重置所有模块为 .pending(全新开始;单模块重试走 retryV1Module)
+        // 重置所有模块为 .pending(全新开始;单模块重试走 retryV1Module)。
+        // 幂等守卫保证走到这里时无在飞链,reset 只影响失败残留(无 ok 可丢)。
         for module in ModuleID.allCases {
             moduleStates[module] = .pending
         }
         v1ChainFields.removeAll()
 
+        startV1Chain(response: response)
+    }
+
+    /// 起链 Task 装配点(全链开始与断点续跑共用)。
+    /// 世代号 +1:旧链(已被 cancel)在挂起点恢复后,其 defer 不得清当代链的
+    /// `isChainRunning`(详见 runV1Chain 的 defer)。
+    private func startV1Chain(response: BaziResponse) {
+        chainGeneration &+= 1
+        let generation = chainGeneration
+        isChainRunning = true
         v1ChainTask = Task { @MainActor [weak self] in
             guard let self else { return }
-            await self.runV1Chain(response: response)
+            await self.runV1Chain(response: response, generation: generation)
         }
     }
 
@@ -586,16 +760,37 @@ final class DeepAnalysisViewModel {
 
     /// 链式调用主循环:按 ModuleID.allCases 顺序串行执行(M0 → M1 → ... → M7)。
     ///
+    /// 断点续跑(2026-09-08):已 `.ok` 的章直接跳过(缓存回填/前次链已完成的
+    /// 部分不重跑,缓存命中 refund 语义虽不耗次,但跳过连请求都不发);世代号
+    /// 保证只有「当代链」能清 `isChainRunning`(取消竞态见 startV1Chain)。
+    ///
     /// 注:简化版采用全串行;v2 可优化为按依赖图并行(M2/M3/M4/M5 可同时跑)。
     /// 串行好处:状态机简单,失败定位清晰,无并发竞争。
     @MainActor
-    private func runV1Chain(response: BaziResponse) async {
+    private func runV1Chain(response: BaziResponse, generation: Int) async {
+        defer {
+            // 只有当代链能清标志:旧链(cancel 后在挂起点恢复)不得掐灭新链横幅
+            if chainGeneration == generation {
+                isChainRunning = false
+            }
+        }
         for module in ModuleID.allCases {
             if Task.isCancelled { return }
+            if moduleStates[module]?.isOk == true { continue }
+            // 单章重试在飞(阅读页「重试本章」)→ 不重复发请求;该重试自担成败,
+            // 失败标 .failed 后由下次 resume/用户重试接管
+            if moduleStates[module] == .fetching { continue }
             await runSingleV1Module(module, response: response)
             // M0 失败 → 中断链(下游缺 structure_fingerprint 无法跑)
             if module == .m0 && moduleStates[.m0]?.isOk != true {
                 AppLogger.app.warning("deepVM.runV1Chain m0_failed_breaking_chain contentHash=\(response.contentHash, privacy: .public)")
+                return
+            }
+            // 每日次数耗尽 → 剩余章 tryConsume 必逐个失败,提前断链不制造满屏 failed
+            if case .failed = moduleStates[module], remainingReads <= 0 {
+                AppLogger.app.warning(
+                    "deepVM.runV1Chain daily_limit_break module=\(module.rawValue, privacy: .public)"
+                )
                 return
             }
         }
@@ -801,12 +996,17 @@ final class DeepAnalysisViewModel {
     /// 取消进行中的 Task,避免状态回退后被旧结果覆盖。
     /// failureCount 也清零(2026-09-07 起仅日志用,重置后计数从新盘重新起算)。
     /// Stage 7c:同时取消 v1 链式调用 + 清 moduleStates + v1ChainFields。
+    /// 断点续跑:作废在飞链的 defer 写回(世代号推进后旧链 defer 不再动标志)。
+    /// isHydrating 不在此复位(在飞 hydrate 由自己的 defer 收尾,其尾部
+    /// resumeV1ChainIfNeeded 会按 reset 后的新状态守卫,不会误跑)。
     func reset() {
         calculateTask?.cancel()
         v1ChainTask?.cancel()
         state = .empty
         lastRequest = nil
         failureCount = 0
+        isChainRunning = false
+        chainGeneration &+= 1
         moduleStates.removeAll()
         v1ChainFields.removeAll()
         // Stage 8 修复:清 M4/M5 用户输入,避免跨命盘污染

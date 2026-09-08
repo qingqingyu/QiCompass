@@ -120,3 +120,46 @@ enum HomeCTAModel: Equatable {
         return hasLocked ? .unlockAll : .reread
     }
 }
+
+// MARK: - 链进度(2026-09-08 断点续跑:主页横幅纯派生)
+
+/// v1 链进度与预计耗时(主页 chainBanner 消费,纯函数可测,与 ChapterRowModel
+/// 同范式:视图层零分支)。
+///
+/// 口径:只统计「可跑」章——排除付费未解锁(locked 语义)与 M4/M5 未填输入
+/// (needsInput 语义,它们等用户动作,不占生成时间);done 只数 runnable 中的
+/// .ok(缓存回填的 ok 也算)。ETA 按每章 ~45s(实测 30-50s,90s 超时上限)
+/// 向上取整分钟——宁多报不虚报。
+enum ChainProgress {
+    /// 单章预估耗时(LLM 实测 30-50s,取中位偏保守)。
+    static let secondsPerChapter: TimeInterval = 45
+
+    /// 剩余章数 → 预计分钟(向上取整;0 → 0)。
+    static func estimatedMinutes(remaining: Int) -> Int {
+        guard remaining > 0 else { return 0 }
+        return Int(ceil(Double(remaining) * secondsPerChapter / 60))
+    }
+
+    /// 从模块状态派生进度四元组。
+    static func resolve(
+        moduleStates: [ModuleID: ModuleState],
+        hasEntitlement: Bool,
+        hasM4Input: Bool,
+        hasM5Input: Bool
+    ) -> (done: Int, total: Int, remaining: Int, estimatedMinutes: Int) {
+        var done = 0
+        var total = 0
+        for module in ModuleID.allCases {
+            let paidBlocked = module.isPaid && !hasEntitlement
+            let inputBlocked = module.needsUserInput
+                && (module == .m4 ? !hasM4Input : !hasM5Input)
+            guard !paidBlocked, !inputBlocked else { continue }
+            total += 1
+            if moduleStates[module]?.isOk == true {
+                done += 1
+            }
+        }
+        let remaining = total - done
+        return (done, total, remaining, estimatedMinutes(remaining: remaining))
+    }
+}

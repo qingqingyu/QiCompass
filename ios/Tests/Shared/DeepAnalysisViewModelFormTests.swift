@@ -47,12 +47,19 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         )
     }
 
-    override func tearDownWithError() throws {
+    override func tearDown() async throws {
+        // 自动起链改造(2026-09-08):calculate 成功会留 v1 链后台在飞(testGenerate
+        // 幂等用例在链中途返回)。不等收尾就撤 container,后台 interpretStore.upsert
+        // 会 flaky crash——对齐 452d8dc「自动解读收尾等待」修法。
+        // (teardown 用 async 变体:XCTest 的 tearDownWithError 无 async 版本)
+        if let vm {
+            _ = await waitUntil(timeout: 10) { !vm.isChainRunning && !vm.isHydrating }
+        }
         vm = nil
         chartStore = nil
         apiClient = nil
         container = nil
-        try super.tearDownWithError()
+        try await super.tearDown()
     }
 
     // MARK: - 测试夹具
@@ -1012,5 +1019,68 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         let vc = UIHostingController(rootView: EnsoView(size: 64, animated: false))
         let size = vc.view.sizeThatFits(CGSize(width: 100, height: 100))
         XCTAssertGreaterThan(size.height, 0, "EnsoView 静态渲染须可布局(不 crash)")
+    }
+
+    // MARK: - 自动起链(2026-09-08:排盘成功即自动开始,推翻 08-01「β 点击触发」)
+
+    /// 轮询等待 VM 异步 Task 落定(calculate/hydrate/chain 都是 Task;
+    /// 对齐 DailyFortuneHourUnknownGateTests.waitForState 范式)。
+    private func waitUntil(
+        timeout: TimeInterval = 8,
+        _ condition: () -> Bool
+    ) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return true }
+            try? await Task.sleep(nanoseconds: 30_000_000)
+        }
+        return condition()
+    }
+
+    func testCalculateSuccessAutoStartsChain() async throws {
+        // 排盘成功 → 自动起链:免费盘 M0/M1 生成完成、M2-M7 付费锁
+        // (locked 优先于 M4/M5 needsInput:未付费先引导解锁)、链落定
+        filledForm()
+        vm.calculate()
+
+        let settled = await waitUntil(timeout: 12) {
+            self.vm.moduleStates[.m0]?.isOk == true
+                && self.vm.moduleStates[.m1]?.isOk == true
+                && self.vm.moduleStates[.m2] == .locked
+                && self.vm.moduleStates[.m4] == .locked
+                && !self.vm.isChainRunning
+        }
+        XCTAssertTrue(settled, """
+        排盘成功必须自动起链并跑完免费链。实际:\(vm.moduleStates) \
+        isChainRunning=\(vm.isChainRunning) state=\(vm.state)
+        """)
+    }
+
+    func testGenerateV1AllModulesIdempotentWhileChainRunning() async throws {
+        // 链在跑时再调全链入口:幂等守卫必须拦下(同步 reset 会把 M0 打回 .pending)
+        filledForm()
+        vm.calculate()
+
+        let fetching = await waitUntil { self.vm.moduleStates[.m0] == .fetching }
+        XCTAssertTrue(fetching, "自动起链后 M0 应进入 fetching 窗口,实际:\(String(describing: vm.moduleStates[.m0]))")
+
+        vm.generateV1AllModules()
+
+        XCTAssertEqual(vm.moduleStates[.m0], .fetching, "幂等守卫未生效:链在跑时被 reset 回 .pending")
+        XCTAssertTrue(vm.isChainRunning, "幂等守卫不应误清链标志")
+    }
+
+    func testChainRunningClearsAfterChainFinishes() async throws {
+        // 链生命周期:起链置 true → 免费链完成自动复位(横幅据此隐藏)
+        filledForm()
+        vm.calculate()
+
+        let started = await waitUntil { self.vm.isChainRunning }
+        XCTAssertTrue(started, "排盘成功后链必须起跑(标志置 true)")
+
+        let finished = await waitUntil(timeout: 12) {
+            !self.vm.isChainRunning && self.vm.moduleStates[.m1]?.isOk == true
+        }
+        XCTAssertTrue(finished, "链完成后标志必须复位,实际 isChainRunning=\(vm.isChainRunning) m1=\(String(describing: vm.moduleStates[.m1]))")
     }
 }
