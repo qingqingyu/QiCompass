@@ -267,8 +267,16 @@ final class MockAPIClient: APIClient {
     func interpret(request: InterpretRequest) async throws -> InterpretResponse {
         AppLogger.networking.debug("mock.interpret 调起 content_hash=\(request.contentHash.prefix(12), privacy: .public) module=\(request.module, privacy: .public)")
         try? await Task.sleep(nanoseconds: 400_000_000)
+        // M0 返回含 structure_fingerprint 的 JSON(对齐后端 m0 模板输出契约:
+        // 下游 M1-M7 的 parent_fingerprint 客户端守卫依赖它);其余模块散文占位
+        let interpretation: String
+        if request.module == "m0_structure" {
+            interpretation = "{\"structure_fingerprint\":\"mock-fp\",\"main_axis\":{},\"core_loop\":{}}"
+        } else {
+            interpretation = "[Mock 命书占位] 此命造五行流转,日主得令,喜忌已由后端确定性规则引擎判定。此为脚手架阶段 Mock 文本,正式解读由后端 AI provider 生成。"
+        }
         return InterpretResponse(
-            interpretation: "[Mock 命书占位] 此命造五行流转,日主得令,喜忌已由后端确定性规则引擎判定。此为脚手架阶段 Mock 文本,正式解读由后端 AI provider 生成。",
+            interpretation: interpretation,
             promptVersion: 1,
             cached: false,
             generatedAt: .now,
@@ -372,12 +380,26 @@ final class MockAPIClient: APIClient {
             xijiMethod: "扶抑+调候", patternHint: nil,
             shensha: [],
             luckPillars: [LuckPillarDTO(ganZhi: "甲子", startYear: 1990, endYear: 1999, startAge: 1, endAge: 10)],
-            currentLuckPillar: nil, currentYearPillar: nil, currentDayPillar: nil, currentHourPillar: nil,
+            // currentYearPillar 非空(对齐后端语义 + buildV1ChartJSON 的
+            // missingCurrentYear 守卫;v1 链 M0-M7 每章都走这个 guard)
+            currentLuckPillar: nil, currentYearPillar: "甲子",
+            currentDayPillar: nil, currentHourPillar: nil,
             calcRuleSnapshot: calcRule,
             boundaryWarning: nil,
             yearBranchZodiac: "Rat",  // mock 主盘 pillar.zhi=子 → Rat(对齐 mock 数据)
             yearBranchFriends: ["Ox", "Dragon", "Monkey"],  // 子:六合丑 + 三合申辰
-            yearBranchClash: "Horse"  // 子午冲
+            yearBranchClash: "Horse",  // 子午冲
+            // meta 块(2026-09-08 补):真实后端 Stage 1+ 恒回 meta;v1 链每章
+            // PromptContextBuilder.buildV1ChartJSON 首行 guard meta——此前 mock 缺
+            // meta,深度解析自动链在 mock 环境全链 missingMetaBlock 抛错
+            meta: MetaBlockDTO(
+                locale: "zh-CN",
+                gender: req.gender,
+                birthLocal: req.birthDatetime,
+                trueSolarTime: req.birthDatetime,  // mock 不做真太阳时换算,直接回显钟面
+                lateZishiRule: "day_change_at_23",  // 对齐产品默认 zi_next_day(23:00 换日)
+                solarTermBoundary: "立夏后"  // mock 占位;真实值由后端节气比对产出
+            )
         )
     }
 

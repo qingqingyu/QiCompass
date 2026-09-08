@@ -39,6 +39,7 @@ struct DeepAnalysisHomeView: View {
                 VStack(alignment: .leading, spacing: 0) {
                     hero
                     anchorSentence
+                    chainBanner
                     tocHeader
                     tocRows
                     ctaArea
@@ -163,6 +164,52 @@ struct DeepAnalysisHomeView: View {
                 .padding(.horizontal, 34)
                 .padding(.top, 14)
                 .padding(.bottom, 12)
+        }
+    }
+
+    // MARK: - 命书链进度横幅(2026-09-08 自动起链 + 断点续跑)
+
+    /// 链在跑期间的进度横幅(临时态,dashed hairline 盒,DESIGN.md §Layout;
+    /// 禁渐变禁大卡片):主行 = 已成 i/N 章 + 预计耗时(`ChainProgress` 纯派生),
+    /// 副行 = 可离开提示(收起心智:不必守着,回来续读)。
+    /// 链结束(完成/中断)自动隐藏;收尾一瞬 remaining 归 0 也不再显示
+    /// (避免「约需 0 分钟」的傻文案闪现)。章节逐章点亮由目录行状态自行呈现。
+    /// 注意 CTA 不挂 isLoading——`PrimaryCTAButton` 的 isLoading 会整体禁点,
+    /// 而链跑中恰要允许点「开卷/续读」进章观看生成。
+    @ViewBuilder
+    private var chainBanner: some View {
+        if vm.isChainRunning {
+            let progress = ChainProgress.resolve(
+                moduleStates: vm.moduleStates,
+                hasEntitlement: hasEntitlementForPaid,
+                hasM4Input: vm.m4UserInput != nil,
+                hasM5Input: vm.m5UserInput != nil
+            )
+            if progress.remaining > 0 {
+                VStack(spacing: 4) {
+                    Text(L10n.DeepChain.bannerProgress(
+                        done: progress.done,
+                        total: progress.total,
+                        minutes: progress.estimatedMinutes
+                    ))
+                        .font(BaziFont.caption(size: 11))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .frame(maxWidth: .infinity)
+                    Text(L10n.DeepChain.bannerLeaveHint)
+                        .font(BaziFont.caption(size: 10))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                        .frame(maxWidth: .infinity)
+                }
+                .padding(.vertical, 10)
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(BaziTheme.hairlineDashed, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                )
+                .padding(.horizontal, 34)
+                .padding(.top, 10)
+            }
         }
     }
 
@@ -347,13 +394,16 @@ struct DeepAnalysisHomeView: View {
                 }
             )
         case .resume(let next):
-            // 续读:单章触发(不重置整链——已 ok 章保持,缓存不闪 pending)
+            // 续读:单章触发(不重置整链——已 ok 章保持,缓存不闪 pending);
+            // 链正在跑该章(.fetching)时只进章观看,不重复发请求
             PrimaryCTAButton(
                 title: "续读 · \(chapterTitle(next))",
                 loadingTitle: "生成中…",
                 isLoading: false,
                 action: {
-                    vm.retryV1Module(next)
+                    if vm.moduleStates[next] != .fetching {
+                        vm.retryV1Module(next)
+                    }
                     onOpenChapter(next)
                 }
             )

@@ -149,4 +149,57 @@ final class DeepAnalysisChapterRowTests: XCTestCase {
             .limitReached
         )
     }
+
+    // MARK: - ChainProgress(2026-09-08 断点续跑:主页进度横幅纯派生)
+
+    func test_chainProgress_freeUser_runnableIsTwo() {
+        // 免费盘:runnable = M0/M1(付费未购不计、M4/M5 无输入不计),全未生成
+        let progress = ChainProgress.resolve(
+            moduleStates: [:], hasEntitlement: false, hasM4Input: false, hasM5Input: false
+        )
+        XCTAssertEqual(progress.total, 2)
+        XCTAssertEqual(progress.done, 0)
+        XCTAssertEqual(progress.remaining, 2)
+        XCTAssertEqual(progress.estimatedMinutes, 2, "2 章 × 45s = 90s → 向上取整 2 分钟")
+    }
+
+    func test_chainProgress_entitled_excludesUnfilledM4M5_includesWhenFilled() {
+        let states: [ModuleID: ModuleState] = [.m0: .ok(text: "a", cached: true)]
+        // 已购但 M4/M5 未填输入:runnable = M0-M3 + M6 + M7 = 6(等用户动作的章不占预计耗时)
+        let unfilled = ChainProgress.resolve(
+            moduleStates: states, hasEntitlement: true, hasM4Input: false, hasM5Input: false
+        )
+        XCTAssertEqual(unfilled.total, 6)
+        XCTAssertEqual(unfilled.done, 1)
+        XCTAssertEqual(unfilled.remaining, 5)
+        XCTAssertEqual(unfilled.estimatedMinutes, 4, "5 章 × 45s = 225s → ceil = 4 分钟")
+        // 填了输入:捌章全计
+        let filled = ChainProgress.resolve(
+            moduleStates: states, hasEntitlement: true, hasM4Input: true, hasM5Input: true
+        )
+        XCTAssertEqual(filled.total, 8)
+        XCTAssertEqual(filled.done, 1)
+        XCTAssertEqual(filled.remaining, 7)
+    }
+
+    func test_chainProgress_estimateMinutesCeiling() {
+        XCTAssertEqual(ChainProgress.estimatedMinutes(remaining: 0), 0)
+        XCTAssertEqual(ChainProgress.estimatedMinutes(remaining: 1), 1, "45s → 1 分钟")
+        XCTAssertEqual(ChainProgress.estimatedMinutes(remaining: 2), 2, "90s → 2 分钟")
+        XCTAssertEqual(ChainProgress.estimatedMinutes(remaining: 8), 6, "360s → 6 分钟")
+    }
+
+    func test_chainProgress_doneCountsOnlyRunnableOks() {
+        // 付费未购时付费章的 ok 不进 done/total(购买回退等极端场景下横幅口径不膨胀)
+        let states: [ModuleID: ModuleState] = [
+            .m0: .ok(text: "a", cached: true),
+            .m2: .ok(text: "b", cached: true),
+        ]
+        let progress = ChainProgress.resolve(
+            moduleStates: states, hasEntitlement: false, hasM4Input: false, hasM5Input: false
+        )
+        XCTAssertEqual(progress.total, 2)
+        XCTAssertEqual(progress.done, 1)
+        XCTAssertEqual(progress.remaining, 1)
+    }
 }

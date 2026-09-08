@@ -210,27 +210,27 @@ final class DeepAnalysisOrchestrator {
         }
     }
 
-    /// 查询本地缓存最新一条(用于 UI 瞬时显示,方案 §4.5 v1 简化:不跳过网络)。
-    /// 错误处理:fetch 失败记录日志后继续 throw,调用方必须进入 UI 错误路径。
-    func localCachedInterpretation(
+    /// 批量恢复 v1 模块本地缓存(2026-09-08 断点续跑:冷启动回填已完成章)。
+    ///
+    /// maxAge=nil 不过期(命书章文本确定性,与 D2「瞬时显示」口径一致)。
+    /// language 固定 "zh":对齐 `runV1Module` 写入口径(upsert 未传 language 恒落
+    /// "zh",i18n Slice 2 债)——读按 AppLanguage.current 查会让 en 用户每次
+    /// 冷启动必 miss → 自动续跑反复烧全链 LLM。Slice 2 补 en deep 模板时读写一起迁移。
+    /// 错误处理:identity 解析失败(离线)或 SwiftData 读失败原样上抛;
+    /// 调用方(VM hydrateAndResume)记日志后跳过自动续跑,不打断 UI。
+    func restoreCachedV1Modules(
         contentHash: String,
-        module: String
-    ) async throws -> (text: String, promptVersion: Int)? {
-        do {
-            // maxAge=nil 不过期(DeepAnalysis 瞬时显示,§4.5 v1 简化)
-            guard let cache = try await interpretationReader.read(
-                contentHash: contentHash,
-                module: module
-            ) else {
-                return nil
-            }
-            return (cache.interpretation, cache.promptVersion)
-        } catch {
-            AppLogger.persistence.error(
-                "interpretationReader.read failed hash=\(contentHash, privacy: .public) module=\(module, privacy: .public) error=\(String(describing: error), privacy: .public)"
-            )
-            throw error
-        }
+        modules: [String]
+    ) async throws -> [String: InterpretationCache] {
+        let hits = try await interpretationReader.readAll(
+            contentHash: contentHash,
+            modules: modules,
+            language: "zh"
+        )
+        AppLogger.app.info(
+            "deep.restoreCachedV1Modules hash=\(contentHash, privacy: .public) queried=\(modules.count) hits=\(hits.count)"
+        )
+        return hits
     }
 
     // MARK: - 阶段 2 v1:v1 prompt 系统模块化调用(Stage 7b)

@@ -14,6 +14,7 @@ import SwiftData
 /// VM 首次 appear 时用 env.deepAnalysisOrchestrator 创建(@State + .task)。
 struct DeepAnalysisView: View {
     @EnvironmentObject private var env: AppEnvironment
+    @Environment(\.scenePhase) private var scenePhase
     @State private var vm: DeepAnalysisViewModel?
     /// 存档直读只跑一次(.task 在 TabView 下每次切 Tab 重触发)。兼作表单渲染闸门:
     /// resolve 完成前 .empty 显示「准备中…」,避免表单闪一帧再切 .ready。
@@ -115,6 +116,14 @@ struct DeepAnalysisView: View {
                 Button("好的", role: .cancel) {}
             } message: {
                 Text(addHourError ?? "")
+            }
+            // 断点续跑(2026-09-08):回前台自动续未完成的章。只 resume 不 hydrate
+            // (回填收敛在 calculate/loadArchived 两个低频点);后台被掐后链 Task
+            // 挂起不死亡,isChainRunning 拦住重复起链,Task 回前台自然恢复。
+            .onChange(of: scenePhase) { _, phase in
+                if phase == .active {
+                    vm?.resumeV1ChainIfNeeded()
+                }
             }
             #if DEBUG
             .toolbar {

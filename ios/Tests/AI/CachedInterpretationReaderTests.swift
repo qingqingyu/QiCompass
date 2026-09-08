@@ -138,6 +138,74 @@ final class CachedInterpretationReaderTests: XCTestCase {
         XCTAssertEqual(cache?.interpretation, "daily text")
     }
 
+    // MARK: - readAll 批量读(2026-09-08 断点续跑:冷启动回填捌章)
+
+    private static let v1Modules = [
+        "m0_structure", "m1_talent", "m2_high_low", "m3_system",
+        "m4_health", "m5_wealth", "m6_dynamics", "m7_manual",
+    ]
+
+    // 8. readAll:identity 只 resolve 一次(healthResults 只给 1 个,
+    //    第 2 次 health 即抛 unexpectedCall——health 成功本身就是断言)
+    func testReadAllResolvesIdentityOnceForAllModules() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        for module in Self.v1Modules {
+            try store.upsert(
+                contentHash: "h", module: module, promptVersion: 1, targetDate: nil,
+                provider: "anthropic", model: "claude-test",
+                interpretation: "text-\(module)", generatedAt: .now
+            )
+        }
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: Self.healthOnlyClient()),
+            cacheStore: store
+        )
+        let hits = try await reader.readAll(
+            contentHash: "h", modules: Self.v1Modules, language: "zh"
+        )
+        XCTAssertEqual(hits.count, 8, "捌章全命中;若 identity resolve 了第二次会先抛 unexpectedCall")
+        XCTAssertEqual(hits["m0_structure"]?.interpretation, "text-m0_structure")
+        XCTAssertEqual(hits["m7_manual"]?.promptVersion, 1)
+    }
+
+    // 9. readAll:miss 不进结果字典(调用方以缺键判 miss)
+    func testReadAllReturnsOnlyHitModules() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        try store.upsert(
+            contentHash: "h", module: "m0_structure", promptVersion: 1, targetDate: nil,
+            provider: "anthropic", model: "claude-test",
+            interpretation: "m0 text", generatedAt: .now
+        )
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: Self.healthOnlyClient()),
+            cacheStore: store
+        )
+        let hits = try await reader.readAll(
+            contentHash: "h", modules: Self.v1Modules, language: "zh"
+        )
+        XCTAssertEqual(hits.count, 1)
+        XCTAssertEqual(hits["m0_structure"]?.interpretation, "m0 text")
+        XCTAssertNil(hits["m1_talent"], "miss 章不得以 nil 值占字典键")
+    }
+
+    // 10. readAll:health 失败 → 整体 throw(不静默半填)
+    func testReadAllThrowsWhenHealthFails() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: ReaderTestAPIClient(healthResults: [.failure(.healthUnavailable)])),
+            cacheStore: store
+        )
+        do {
+            _ = try await reader.readAll(contentHash: "h", modules: Self.v1Modules, language: "zh")
+            XCTFail("health 失败应整体向上抛,不静默返回空字典")
+        } catch let error as ReaderTestError {
+            XCTAssertEqual(error, .healthUnavailable)
+        }
+    }
+
     // MARK: - Helpers
 
     private static func healthOnlyClient(
