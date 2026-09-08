@@ -106,6 +106,12 @@ final class DailyFortuneViewModel {
         // 仅当当前没数据时进入 loading(避免每次切 Tab 都闪 loading)
         if case .ready = state { return }
         if case .loading = state { return }
+        // businessDate 归一化(与 checkBusinessDateChanged / refresh 同源):裸 .now
+        // 在 23:00-00:00 窗口(zi_next_day 已换业务日)会落后一个业务日——既导致
+        // 首 tick 双跑管线,也会被 runFullPipeline 的跨业务日自动解读守卫误判跳过。
+        selectedDate = BusinessDateCalculator.businessDate(
+            now: .now, ziHourRule: ziHourRule,
+        )
         load(chartHash: hash, ziHourRule: ziHourRule, forceRefresh: false)
     }
 
@@ -279,6 +285,11 @@ final class DailyFortuneViewModel {
         chartHash: String, ziHourRule: String, forceRefresh: Bool
     ) {
         determinantTask?.cancel()
+        // in-flight 解读任务一并取消:自动解读(2026-09-07)使进入页面即有 interpret
+        // 在飞,跨业务日 rollover / 重载若不取消,旧任务完成会把 state 写回旧
+        // businessDate 的 .ready(闪旧内容 + 下一 tick 重复触发 load)。取消无配额
+        // 泄漏(orchestrator 失败路径含 refund),VM 侧捕 CancellationError 返回。
+        interpretTask?.cancel()
         state = .loading
         isOffline = false
 
@@ -355,7 +366,15 @@ final class DailyFortuneViewModel {
                 // 离线兜底路径不走 runFullPipeline 成功分支,不会无网空转;
                 // 次数耗尽保持 .idle(UI 按 remainingReads 渲染达限卡);
                 // 缓存读取失败(.failed)不自动重试,留手动入口。
-                if case .idle = interpretState, remainingReads > 0 {
+                // 跨业务日守卫:管线跨过子时换日边界才完成时(如 22:59 发起、
+                // 23:00 后落地),不为已被换日的旧 businessDate 自动消耗配额
+                // (历史回看 UI 已拔除,旧日解读无人可见=纯浪费)。判据与
+                // checkBusinessDateChanged 同源;tick 随即触发整页重载+新日自动解读。
+                let isBusinessDateStillCurrent = Calendar.current.isDate(
+                    BusinessDateCalculator.businessDate(now: .now, ziHourRule: ziHourRule),
+                    inSameDayAs: businessDate
+                )
+                if case .idle = interpretState, remainingReads > 0, isBusinessDateStillCurrent {
                     generateInterpretation(currentChartHash: chartHash)
                 }
             }
