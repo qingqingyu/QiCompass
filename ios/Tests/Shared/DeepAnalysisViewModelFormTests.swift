@@ -1083,4 +1083,90 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         }
         XCTAssertTrue(finished, "链完成后标志必须复位,实际 isChainRunning=\(vm.isChainRunning) m1=\(String(describing: vm.moduleStates[.m1]))")
     }
+
+    // MARK: - 排盘等待页可收起(2026-09-08:收起回表单 + 横幅,排盘后台继续)
+
+    func testIsCalculatingTracksStateTransitions() async throws {
+        // 收起态 CTA 置灰 / 横幅显隐的判定源:提交瞬间 true,成功落定 false
+        filledForm()
+        XCTAssertFalse(vm.isCalculating)
+        vm.calculate()
+        XCTAssertTrue(vm.isCalculating, "提交后立即进入排盘中(收起态 CTA 置灰依据)")
+        let settled = await waitUntil(timeout: 12) {
+            if case .ready = self.vm.state { return true }
+            return false
+        }
+        XCTAssertTrue(settled, "排盘必须成功落 ready(mock 链路),实际: \(vm.state)")
+        XCTAssertFalse(vm.isCalculating, "落 ready 后排盘中判定必须翻 false")
+    }
+
+    func testCancelCalculationResetsToEmptyAndLateResultDoesNotOverride() async throws {
+        // 横幅「×」取消:state 同步复位 .empty(CTA 恢复);被取消任务即使稍后
+        // 返回(mock 的 try? sleep 吞取消照常回响应)也不得把 .empty 翻回
+        // .ready——否则用户取消后界面突然自己跳生肖屏。
+        filledForm()
+        vm.calculate()
+        XCTAssertTrue(vm.isCalculating)
+        vm.cancelCalculation()
+        XCTAssertEqual(vm.state, .empty, "取消必须同步复位表单态")
+        XCTAssertFalse(vm.isCalculating)
+
+        try await Task.sleep(nanoseconds: 1_200_000_000)
+        XCTAssertEqual(vm.state, .empty, "迟到结果不得覆盖取消后的 .empty,实际: \(vm.state)")
+
+        // 取消守卫(orchestrator checkCancellation):用户取消 → 不落档。
+        // 本用例容器为新建,取消路径存了任何 ChartSnapshot = 守卫失效。
+        let archived = try container.mainContext.fetch(FetchDescriptor<ChartSnapshot>())
+        XCTAssertTrue(archived.isEmpty, "取消排盘不得落档,实际存了 \(archived.count) 张")
+    }
+
+    func testCancelCalculationPreservesFormInput() async throws {
+        // 取消 ≠ reset:表单输入保留(输错一个字取消改完就能再发;reset 才整页重来)
+        filledForm()
+        vm.alias = "取消保留"
+        vm.calculate()
+        vm.cancelCalculation()
+        XCTAssertEqual(vm.state, .empty)
+        XCTAssertEqual(vm.alias, "取消保留", "取消不得清表单输入(reset 语义)")
+        XCTAssertNotNil(vm.birthDate, "已选日期保留")
+        XCTAssertNotNil(vm.selectedPlace, "已选出生地保留")
+    }
+
+    func testRecalculateAfterCancelSucceeds() async throws {
+        // 核心承诺端到端:「取消 → 改输入 → 再发」必须畅通——取消只取消在飞
+        // 请求,不得让 calculateTask/状态复位阻碍新排盘;取消的那次不落档,
+        // 再发的那次恰好落 1 张(验取消守卫不误伤新任务)。
+        filledForm()
+        vm.calculate()
+        XCTAssertTrue(vm.isCalculating)
+        vm.cancelCalculation()
+
+        vm.calculate()  // 再发(表单未变,mock 同输入)
+        let settled = await waitUntil(timeout: 12) {
+            if case .ready = self.vm.state { return true }
+            return false
+        }
+        XCTAssertTrue(settled, "取消后再提交必须成功落 ready,实际: \(vm.state)")
+
+        // 等取消的旧任务彻底收尾(mock sleep 吞取消后会迟到苏醒)再数档,
+        // 避免旧任务在断言窗口外落档造成 flaky 计数。
+        try await Task.sleep(nanoseconds: 1_200_000_000)
+        let archived = try container.mainContext.fetch(FetchDescriptor<ChartSnapshot>())
+        XCTAssertEqual(archived.count, 1, "取消的不落档、再发的恰落 1 张,实际 \(archived.count) 张")
+    }
+
+    func testCancelCalculationNoopWhenNotCalculating() {
+        // guard:非排盘中调用(防御,理论不可达)不误动状态
+        XCTAssertEqual(vm.state, .empty)
+        vm.cancelCalculation()
+        XCTAssertEqual(vm.state, .empty, "非排盘中取消必须是 no-op")
+    }
+
+    func testChartCalculatingBannerRenderSmoke() {
+        // 收起态横幅渲染冒烟(对齐 S08 降级 reveal 冒烟范式:body 求值不 crash)
+        let vc = UIHostingController(rootView: ChartCalculatingBanner(onExpand: {}, onCancel: {}))
+        let size = vc.view.sizeThatFits(CGSize(width: 390, height: 200))
+        XCTAssertGreaterThan(size.height, 0, "横幅 body 求值须产出可布局内容")
+        XCTAssertGreaterThan(size.width, 0)
+    }
 }

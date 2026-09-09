@@ -38,6 +38,10 @@ struct DeepAnalysisView: View {
     /// 付费墙 sheet(挂根上:阅读页 push 中也能从翻章/锁态触发)。
     @State private var showPaywall = false
 
+    /// 排盘等待页可收起(2026-09-08):收起 = 回表单 + 顶部横幅,排盘后台继续。
+    /// state 离开 .calculating(成功/失败/取消)自动复位,下次提交从全屏等待页起步。
+    @State private var isCalcCollapsed = false
+
     var body: some View {
         NavigationStack(path: $path) {
             ZStack {
@@ -167,6 +171,13 @@ struct DeepAnalysisView: View {
             }
             await resolveArchivedChart()
         }
+        // 排盘收起态复位:state 离开 .calculating 即收起完成,横幅自然隐藏;
+        // 复位标志避免「下次提交直接落在收起态」的残留(2026-09-08 可收起改造)。
+        .onChange(of: vm?.state) { _, newState in
+            if case .calculating = newState {} else {
+                isCalcCollapsed = false
+            }
+        }
     }
 
     /// 从存档直读当前命盘(2026-08-16 改造,落地 2026-08-01 决策 #4 前半句
@@ -279,7 +290,25 @@ struct DeepAnalysisView: View {
                     LoadingStateView(title: "准备中…")
                 }
             case .calculating(let stage):
-                calculatingView(stage: stage)
+                // 收起 = 回表单 + 横幅(排盘后台继续);CTA 由 BirthFormView 按
+                // vm.isCalculating 置灰防双发。未收起 = 全屏等待页(带收起入口)。
+                if isCalcCollapsed {
+                    VStack(spacing: 0) {
+                        ChartCalculatingBanner(
+                            onExpand: {
+                                withAnimation(.easeOut(duration: 0.25)) { isCalcCollapsed = false }
+                            },
+                            onCancel: { vm.cancelCalculation() }
+                        )
+                        .padding(.horizontal, BaziTheme.Spacing.xxl)
+                        .padding(.top, BaziTheme.Spacing.md)
+                        BirthFormView(vm: vm, onSubmit: vm.calculate)
+                    }
+                } else {
+                    calculatingView(stage: stage) {
+                        withAnimation(.easeOut(duration: 0.25)) { isCalcCollapsed = true }
+                    }
+                }
             case .ready(let response, _):
                 // S07:日柱歧义(late_night 是/不确定或节气边界比对命中)→ 不进内容页,
                 // 免费 2 章亦拦(没有日主,S06 降级叙事轴不存在),直接拦截态
@@ -346,13 +375,25 @@ struct DeepAnalysisView: View {
         }
     }
 
-    private func calculatingView(stage: LoadingStage) -> some View {
+    private func calculatingView(stage: LoadingStage, onCollapse: @escaping () -> Void) -> some View {
         VStack(spacing: 16) {
             ProgressView()
                 .tint(BaziTheme.cinnabar)
             Text(stage.text)
                 .font(.body)
                 .foregroundStyle(BaziTheme.inkMuted)
+            // 排盘等待页可收起(2026-09-08):收起回表单,排盘后台继续
+            Button(action: onCollapse) {
+                Text(L10n.ChartCalc.collapse)
+                    .font(BaziFont.caption(size: 12))
+                    .tracking(2)
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
@@ -375,6 +416,60 @@ struct DeepAnalysisView: View {
 }
 
 // MARK: - Shared State Views(四态共用,被 Compatibility/DailyFortune/CRUDView 复用)
+
+/// 排盘中收起态横幅(2026-09-08 排盘等待页可收起):dashed hairline 临时态盒
+/// (DESIGN.md §Layout:虚线专用于临时态)。主行「排盘中」+ 副行「点击返回等待页」,
+/// 点横幅主体回全屏等待页;右侧「×」取消排盘(state 复位,表单可改可再发)。
+/// Onboarding 表单页与深度 Tab 表单两处复用。
+struct ChartCalculatingBanner: View {
+    /// 点击横幅主体:回全屏等待页。
+    let onExpand: () -> Void
+    /// 「×」:取消排盘。
+    let onCancel: () -> Void
+
+    var body: some View {
+        HStack(spacing: 12) {
+            ProgressView()
+                .controlSize(.small)
+                .tint(BaziTheme.inkMuted)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(L10n.ChartCalc.bannerTitle)
+                    .font(BaziFont.caption(size: 11))
+                    .tracking(1)
+                    .foregroundStyle(BaziTheme.inkMuted)
+                Text(L10n.ChartCalc.bannerExpandHint)
+                    .font(BaziFont.caption(size: 10))
+                    .tracking(1)
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+            }
+            Spacer()
+            Button(action: onCancel) {
+                Image(systemName: "xmark")
+                    .font(BaziFont.caption(size: 11))
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .padding(6)
+                    // 44pt 最小命中区(HIG):取消是横幅上的破坏性意图,命中区过小
+                    // 会落到外层 onTapGesture(误触=回全屏等待页,取消落空无反馈)
+                    .frame(minWidth: 44, minHeight: 44)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L10n.ChartCalc.cancel)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 10)
+        .overlay(
+            RoundedRectangle(cornerRadius: 5)
+                .stroke(BaziTheme.hairlineDashed, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+        )
+        .contentShape(Rectangle())
+        .onTapGesture(perform: onExpand)
+        .accessibilityElement(children: .contain)
+        .accessibilityLabel(L10n.ChartCalc.bannerTitle)
+        .accessibilityHint(L10n.ChartCalc.bannerExpandHint)
+        .accessibilityAddTraits(.isButton)
+    }
+}
 
 /// 四态共用:加载中
 struct LoadingStateView: View {

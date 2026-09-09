@@ -35,6 +35,10 @@ struct OnboardingView: View {
     /// 提交前二次确认 sheet 触发态(生肖阶段 3:防新用户首次输错 → 重置命盘代价大)。
     @State private var showSubmitConfirm = false
 
+    /// 排盘等待页可收起(2026-09-08):收起 = 回表单页 + 顶部横幅,排盘后台继续;
+    /// 成功自动翻生肖 reveal 屏(状态机既有流转)。state 离开 .calculating 自动复位。
+    @State private var isCalcCollapsed = false
+
     // S10 补时辰(S08 立春降级态的被迫例外触点,接同一 AddHourSheet):
     /// 补时辰 sheet VM(nil = 未打开)。
     @State private var addHourVM: AddHourViewModel?
@@ -92,6 +96,13 @@ struct OnboardingView: View {
             let name = newPage < pageNames.count ? pageNames[newPage] : "Unknown"
             AppLogger.app.info("OnboardingView 翻页 currentPage=\(newPage, privacy: .public) name=\(name, privacy: .public)")
         }
+        // 排盘收起态复位(2026-09-08):state 离开 .calculating(成功翻 reveal / 失败 /
+        // 取消)即收起完成;不复位会让下次提交直接落在收起态。
+        .onChange(of: vm?.state) { _, newState in
+            if case .calculating = newState {} else {
+                isCalcCollapsed = false
+            }
+        }
         .task {
             if vm == nil {
                 let newVM = DeepAnalysisViewModel(
@@ -123,7 +134,26 @@ struct OnboardingView: View {
                 .indexViewStyle(.page(backgroundDisplayMode: .interactive))
                 .tint(BaziTheme.cinnabar)
             case .calculating(let stage):
-                InkCalculatingView(title: stage.text)
+                // 排盘等待页可收起(2026-09-08):收起回表单页 + 横幅,排盘后台继续,
+                // 成功后状态机自动翻 ZodiacRevealView;CTA 由 BirthFormView 按
+                // vm.isCalculating 置灰防双发。sheet 保持模态(Q7 状态边界不动)。
+                if isCalcCollapsed {
+                    VStack(spacing: 0) {
+                        ChartCalculatingBanner(
+                            onExpand: {
+                                withAnimation(.easeOut(duration: 0.25)) { isCalcCollapsed = false }
+                            },
+                            onCancel: { vm.cancelCalculation() }
+                        )
+                        .padding(.horizontal, BaziTheme.Spacing.xxl)
+                        .padding(.top, BaziTheme.Spacing.md)
+                        formPage(vm: vm)
+                    }
+                } else {
+                    InkCalculatingView(title: stage.text) {
+                        withAnimation(.easeOut(duration: 0.25)) { isCalcCollapsed = true }
+                    }
+                }
             case .ready(let response, _):
                 // 第 3 屏:生肖反馈终态屏(提交成功 → 整体切换,无 swipe 回退)
                 // S05:年柱歧义(S02/D10)→ 生肖系字段 null,传空串/chip 空数组(不 crash)
@@ -418,8 +448,10 @@ private struct SutraView: View {
 
 /// 排盘布算中:墨圆缓呼吸 + 竖排「排盘布算中」+ 真实阶段文案。
 /// 参考 docs/design-ref/shuimo/onboarding-o3-calculating.html(墨滴涟漪的水墨等价物)。
+/// 2026-09-08 可收起:右上「收起」入口,收起回表单页 + 横幅,排盘后台继续。
 private struct InkCalculatingView: View {
     let title: String
+    let onCollapse: () -> Void
 
     var body: some View {
         ZStack {
@@ -455,6 +487,19 @@ private struct InkCalculatingView: View {
                 }
                 .padding(.bottom, 90)
             }
+        }
+        .overlay(alignment: .topTrailing) {
+            Button(action: onCollapse) {
+                Text(L10n.ChartCalc.collapse)
+                    .font(BaziFont.caption(size: 12))
+                    .tracking(2)
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .padding(.horizontal, 16)
+                    .padding(.vertical, 10)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 8)
         }
     }
 }

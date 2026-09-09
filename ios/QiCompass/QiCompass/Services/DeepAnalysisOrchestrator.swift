@@ -101,6 +101,11 @@ final class DeepAnalysisOrchestrator {
             try await self.apiClient.calculateBazi(request: request)
         }
 
+        // 取消检查(2026-09-08 排盘可取消):网络层可能吞掉取消信号(如 mock 替身
+        // try? sleep),被取消的任务不得继续落档——用户已取消,半程产物不进库,
+        // 后续 link 写入同因本检查抛出而短路。
+        try Task.checkCancellation()
+
         // S05:柱缺失(时辰未知/S02 歧义)→ 日志位「—」,不猜干支
         AppLogger.app.info("calc.ok contentHash=\(response.contentHash, privacy: .public) pillars=\(response.pillars.year?.ganZhi ?? "—", privacy: .public)/\(response.pillars.month?.ganZhi ?? "—", privacy: .public)/\(response.pillars.day?.ganZhi ?? "—", privacy: .public)/\(response.pillars.hour?.ganZhi ?? "—", privacy: .public)")
 

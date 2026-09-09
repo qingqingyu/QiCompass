@@ -31,6 +31,8 @@ enum DeepAnalysisViewState: Equatable {
 }
 
 /// 排盘阶段细分文案(方案 §一 LoadingStage)。
+/// 阶段文案走 L10n.ChartCalc(2026-09-08 可收起改造收敛:banner 与全屏等待页
+/// 展示同一状态,双源必漂移;text 是计算属性不参与 Equatable,迁移无行为影响)。
 enum LoadingStage: Equatable {
     case calculatingChart
     case archiving
@@ -38,9 +40,9 @@ enum LoadingStage: Equatable {
 
     var text: String {
         switch self {
-        case .calculatingChart:   return "排盘中…"
-        case .archiving:          return "存档中…"
-        case .generatingInterpret: return "生成命书中…"
+        case .calculatingChart:   return L10n.ChartCalc.stageChart
+        case .archiving:          return L10n.ChartCalc.stageArchiving
+        case .generatingInterpret: return L10n.ChartCalc.stageGenerating
         }
     }
 }
@@ -435,6 +437,23 @@ final class DeepAnalysisViewModel {
 
     func retryCalculation() {
         calculate()
+    }
+
+    /// 排盘是否进行中(收起态表单 CTA 置灰 / 横幅显隐共用判定)。
+    var isCalculating: Bool {
+        if case .calculating = state { return true }
+        return false
+    }
+
+    /// 用户主动取消排盘(2026-09-08 排盘等待页可收起:横幅「×」入口)。
+    /// 只取消排盘请求并复位到表单态;不动链任务/已存档章节(取消时必然尚无盘)。
+    /// 与 reset() 的区别:reset 连 m4/m5 输入等表单外状态一起清,语义是「整页重来」;
+    /// 这里保留表单输入,用户改一两个字就能再发。
+    func cancelCalculation() {
+        guard isCalculating else { return }
+        calculateTask?.cancel()
+        state = .empty
+        AppLogger.app.info("deepVM.calculate.cancelled_by_user")
     }
 
     // MARK: - 存档直读(2026-08-16 深度解析 Tab 免重复填表)

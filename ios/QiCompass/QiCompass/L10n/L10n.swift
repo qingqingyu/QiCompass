@@ -807,6 +807,38 @@ enum L10n {
         static let readingLeaveHint = String(localized: "deepchain.reading.leaveHint")
     }
 
+    // MARK: - 排盘等待页可收起(2026-09-08)
+
+    /// 排盘中收起态横幅 + 收起/取消入口(Onboarding 表单页与深度 Tab 表单共用)。
+    enum ChartCalc {
+        /// 横幅主行:排盘中。
+        /// zh: "排盘中";en: "Charting"
+        static let bannerTitle = String(localized: "chartcalc.banner.title")
+
+        /// 横幅副行:点横幅回全屏等待页。
+        /// zh: "点击返回等待页";en: "Tap to return to the waiting view"
+        static let bannerExpandHint = String(localized: "chartcalc.banner.expandHint")
+
+        /// 全屏等待页「收起」入口(收起 = 回表单,排盘后台继续)。
+        /// zh: "收起";en: "Hide"
+        static let collapse = String(localized: "chartcalc.collapse")
+
+        /// 横幅「×」取消按钮 VoiceOver 标签。
+        /// zh: "取消排盘";en: "Cancel charting"
+        static let cancel = String(localized: "chartcalc.cancel")
+
+        /// 全屏等待页阶段文案(LoadingStage.text 事实源;banner 与全屏两处
+        /// 展示同一状态,统一走本组 key 防双源漂移)。
+        /// zh: "排盘中…";en: "Charting…"
+        static let stageChart = String(localized: "chartcalc.stage.chart")
+
+        /// zh: "存档中…";en: "Archiving…"
+        static let stageArchiving = String(localized: "chartcalc.stage.archiving")
+
+        /// zh: "生成命书中…";en: "Writing your book…"
+        static let stageGenerating = String(localized: "chartcalc.stage.generating")
+    }
+
     // MARK: - 共享组件
 
     /// 共享文案(跨模块复用:CountdownResetLabel / DailyLimitReachedView / M4-M5 章头取消)。

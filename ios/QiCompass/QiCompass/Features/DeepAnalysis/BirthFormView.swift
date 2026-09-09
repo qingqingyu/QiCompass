@@ -51,12 +51,22 @@ struct BirthFormView: View {
                 PrimaryCTAButton(
                     title: L10n.BirthForm.ctaStart,
                     loadingTitle: L10n.BirthForm.ctaLoading,
-                    isLoading: false,
+                    // 排盘中置灰防双发(2026-09-08 收起态:排盘后台继续,CTA 不可再点;
+                    // 未收起时表单不显示,该值恒 false 无行为变化)
+                    isLoading: vm.isCalculating,
                     action: onSubmit
                 )
                 .padding(.top, BaziTheme.Spacing.md)
                 .riseIn(delay: 0.5)
             }
+            // 排盘中冻结编辑(2026-09-08 收起态数据一致性):收起回表单时排盘仍按
+            // 提交快照在飞,若放行编辑,落定后自动流转的盘(.ready/生肖 reveal)与
+            // 表单当前输入不一致,且 onboarding 无重排入口。冻结后「改输入」的唯一
+            // 路径是横幅「×」取消——与「取消保留输入、改完再发」流程自洽。未收起
+            // 时表单不显示,该值恒 false 无行为变化。
+            // 挂点在内层 VStack 而非 ScrollView:disabled 禁的是表单控件的 interaction,
+            // 滚动手势必须保留——收起态顶部多一条横幅,小屏表单超屏依赖滚动可达底部。
+            .disabled(vm.isCalculating)
             .padding(.horizontal, BaziTheme.Spacing.xxl)
             .padding(.vertical, BaziTheme.Spacing.lg)
         }
