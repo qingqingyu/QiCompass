@@ -22,6 +22,17 @@
 {% set module = 'compat' %}
 {% include "partials/export_toolbar.html" %}
 
+{# 禁词柔化提示(2026-08-23):AI 输出命中禁词已自动替换为模糊叙事词;
+   横幅在导出边界外,仅提醒操作者正文与 AI 原文有差异 #}
+{% if forbidden_notes %}
+<div class="soften-note">
+    <strong>已自动柔化禁词(正文已替换,导出不受影响)</strong>
+    <ul class="soften-note__list">
+        {% for note in forbidden_notes %}<li>{{ note }}</li>{% endfor %}
+    </ul>
+</div>
+{% endif %}
+
 <div class="capture-target">
     <div class="capture-target__brand">QiCompass · 合盘 · {{ context_label_zh }}</div>
 

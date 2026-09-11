@@ -22,6 +22,17 @@
 {% set module = 'bazi' %}
 {% include "partials/export_toolbar.html" %}
 
+{# 禁词柔化提示(2026-08-23):AI 输出命中禁词已自动替换为模糊叙事词;
+   横幅在导出边界外,仅提醒操作者正文与 AI 原文有差异 #}
+{% if forbidden_notes %}
+<div class="soften-note">
+    <strong>已自动柔化禁词(正文已替换,导出不受影响)</strong>
+    <ul class="soften-note__list">
+        {% for note in forbidden_notes %}<li>{{ note }}</li>{% endfor %}
+    </ul>
+</div>
+{% endif %}
+
 <div class="capture-target">
     <div class="capture-target__brand">QiCompass · 深度解析</div>
 
@@ -192,6 +203,27 @@
     </div>
 </div>
 
+{# 内嵌提问框(2026-08-16):命书读完直接问,出生信息隐藏携带同一张盘。
+   放 capture-target 之外 → html2canvas 导出 PNG 不含此框(网页流程专用)。 #}
+<form method="post" action="/ask" class="ask-cta">
+    <div class="ask-cta__head">
+        <span class="qa-question__label">问</span>
+        <div>
+            <h2 class="ask-cta__title">对这本命书有疑问?</h2>
+            <p class="ask-cta__sub">如果你对这个命书里面有什么疑问,就来问他 — 同一张盘,出生信息已自动携带</p>
+        </div>
+    </div>
+    <textarea name="question" required rows="3" class="ask-cta__input"
+              placeholder="例:为什么我总觉得留不住钱? / 命书说印重身强,我该出去闯还是先稳住?"></textarea>
+    {% for key, value in ask_prefill.items() %}
+    <input type="hidden" name="{{ key }}" value="{{ value }}">
+    {% endfor %}
+    <div class="ask-cta__actions">
+        <button type="submit" class="btn btn--primary">问命盘</button>
+        <span class="ask-cta__meta">结论 → 柱位根因 → 分期行动 · 约 30-120 秒</span>
+    </div>
+</form>
+
 <section class="actions">
     <a href="/bazi" class="btn btn--secondary">换一个命盘</a>
 </section>
@@ -204,4 +236,6 @@
 <script>window.__promoMarkdown = {{ markdown_text | tojson | safe }};</script>
 {% endif %}
 <script src="/static/export.js?v=20260815a"></script>
+{# 内嵌提问框提交时注入 localStorage 保存的 AI 配置(2026-08-30,详见 key_manager.js 头注释 #7) #}
+<script src="/static/key_manager.js?v=20260830a"></script>
 {% endblock %}

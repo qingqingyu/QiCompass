@@ -7,6 +7,9 @@
  * 4. 「🔄 自动填上次配置」按钮 → 一键恢复
  * 5. 「🔌 测试连接」按钮 → POST /ai/test(max_tokens=1 ping)
  * 6. 保留环境变量 fallback(不填 → 后端用 env key)
+ * 7. 内嵌提问框(命书结果页 form.ask-cta)提交瞬间注入本机保存的配置
+ *    (2026-08-30:结果页 HTML 不含 key,此前 /ask 永远走 env fallback,
+ *     env 无 key 时必报「ANTHROPIC_API_KEY not configured」)
  */
 
 const STORAGE_KEY = 'promo_ai_config';
@@ -35,6 +38,20 @@ function getCurrentConfigFromForm() {
     const baseUrl = document.querySelector('[data-ai-base-url]')?.value || '';
     const model = document.querySelector('[data-ai-model]')?.value || '';
     return { provider, apiKey, baseUrl, model };
+}
+
+// ai_* 表单字段名 ↔ config 键的映射契约(单一事实源,后端消费方是
+// main.py _get_client_for_request / /ai/test)。两处前端消费:测试连接
+// POST body + 内嵌提问框 submit 注入;新增 ai_* 字段只改这里。
+const AI_FORM_FIELDS = [
+    ['ai_provider', 'provider', 'anthropic'],
+    ['ai_api_key', 'apiKey', ''],
+    ['ai_base_url', 'baseUrl', ''],
+    ['ai_model', 'model', ''],
+];
+
+function aiFormEntries(config) {
+    return AI_FORM_FIELDS.map(([name, key, fallback]) => [name, config[key] || fallback]);
 }
 
 function applyConfigToForm(config) {
@@ -151,12 +168,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (testBtn) {
         testBtn.addEventListener('click', async () => {
             const config = getCurrentConfigFromForm();
-            const body = new URLSearchParams({
-                ai_provider: config.provider,
-                ai_api_key: config.apiKey,
-                ai_base_url: config.baseUrl,
-                ai_model: config.model,
-            });
+            const body = new URLSearchParams(aiFormEntries(config));
             testBtn.disabled = true;
             const originalText = testBtn.textContent;
             testBtn.textContent = '⏳ 测试中…';
@@ -191,4 +203,28 @@ document.addEventListener('DOMContentLoaded', () => {
         field.addEventListener('input', clearStatus);
         field.addEventListener('change', clearStatus);
     });
+
+    // ---------- 内嵌提问框:提交瞬间注入已保存的 AI 配置 ----------
+    // 命书结果页的提问框(form.ask-cta)服务端渲染时只有出生信息
+    // (key 不落页面源码,main.py _ASK_PREFILL_KEYS 故意排除 ai_* 字段)。
+    // 提交瞬间从 localStorage 取「💾 保存配置」存下的配置注入 hidden
+    // fields → /ask 走表单 client(与三模块同一优先级),env 只做兜底。
+    // 没保存过配置 → 不注入不拦截,维持 env fallback(错误页有排查指引)。
+    const askCtaForm = document.querySelector('form.ask-cta');
+    if (askCtaForm) {
+        askCtaForm.addEventListener('submit', () => {
+            // 先清上次注入的,防重复(浏览器回退复用 DOM 再提交)
+            askCtaForm.querySelectorAll('input[data-ai-injected]').forEach(el => el.remove());
+            const config = loadConfig();  // 内部 try/catch,失败返回 null
+            if (!config || !config.apiKey) return;
+            for (const [name, value] of aiFormEntries(config)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                input.setAttribute('data-ai-injected', '');
+                askCtaForm.appendChild(input);
+            }
+        });
+    }
 });

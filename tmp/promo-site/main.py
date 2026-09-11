@@ -23,9 +23,11 @@ import os
 import sqlite3
 import sys
 import time
+import traceback
 from datetime import datetime, timezone, timedelta
 from pathlib import Path
 from typing import Any
+from urllib.parse import urlencode
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 import httpx
@@ -55,6 +57,7 @@ from fastapi.templating import Jinja2Templates  # noqa: E402
 # backend 模块复用(注意:不 import app.config,JWT_SECRET_KEY 会 raise)
 from app.ai.client import create_ai_client  # noqa: E402
 from app.ai.forbidden_words import validate_interpretation  # noqa: E402
+from app.ai.forbidden_words import scan as scan_forbidden  # noqa: E402
 from app.ai.prompts import PROMPT_VERSIONS  # noqa: E402
 from app.engine.bazi_engine import BaziEngine  # noqa: E402
 from app.engine.compatibility import compute_compatibility  # noqa: E402
@@ -103,6 +106,31 @@ logger = logging.getLogger("promo-site")
 # ---------- FastAPI app ----------
 
 app = FastAPI(title="QiCompass Promo Site", version="0.1.0")
+
+
+# ---------- 未捕获异常兜底(2026-08-23 加) ----------
+# 背景:handler 只捕获 engine/AI/禁词三类已知错误渲染成样式化错误页;其余异常
+# (如 08-23 修的 _reality KeyError)会变成裸 "Internal Server Error",无页面
+# 无日志细节,只能靠猜。本工具 localhost only(README 明确不部署公网),把
+# traceback 直接显示在 500 页上 + logger.exception 打进 uvicorn 终端。
+@app.exception_handler(Exception)
+async def unhandled_exception_handler(request: Request, exc: Exception):
+    # 用 exc 自带的 __traceback__ 拼(不依赖调用点是否处于 except 块内)
+    tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    logger.exception("unhandled_exception path=%s", request.url.path)
+    return HTMLResponse(
+        status_code=500,
+        content=f"""<!DOCTYPE html>
+<html lang="zh-CN"><head><meta charset="UTF-8"><title>未捕获异常 · QiCompass</title>
+<style>body{{font-family:PingFang SC,-apple-system,sans-serif;background:#FDFCFA;color:#1C1C1C;
+margin:0;padding:40px;}} h1{{font-size:20px;color:#C33B3B;}} pre{{background:#EBE3D0;padding:16px;
+border-radius:4px;white-space:pre-wrap;word-break:break-all;font-size:13px;line-height:1.6;}}
+a{{color:#C33B3B;}}</style></head><body>
+<h1>未捕获异常(请把下方 Traceback 发给开发者)</h1>
+<p><a href="{request.url.path}">← 返回重试</a></p>
+<pre>{tb}</pre>
+</body></html>""",
+    )
 
 templates = Jinja2Templates(directory=str(_PROMO_ROOT / "templates"))
 app.mount("/static", StaticFiles(directory=str(_PROMO_ROOT / "static")), name="static")
@@ -483,6 +511,65 @@ def _parse_length_tier(form) -> str:
     return tier
 
 
+# ---------- 命盘问答预填(2026-08-16:命书结果页内嵌提问框) ----------
+
+# 出生信息字段白名单:命书 → 问答 同一张盘的携带口径。
+# 故意不含 ai_api_key / ai_base_url 等(key 不落服务端渲染的页面源码)。
+# AI 配置由 key_manager.js 在内嵌框提交瞬间从 localStorage 注入 hidden
+# fields(2026-08-30);未保存过配置则走 env fallback(_get_client_for_request)。
+_ASK_PREFILL_KEYS = (
+    "birth_date", "birth_time", "gender", "longitude", "tz_offset", "city", "city_tz",
+)
+
+
+def _ask_prefill_from_form(form) -> dict[str, str]:
+    """从已验证的出生表单取原始字符串,供内嵌提问框隐藏携带。
+
+    city / city_tz 手动经度模式下可能缺失 → 不带该键(GET /ask 端不预填那两项)。
+    """
+    return {k: form[k] for k in _ASK_PREFILL_KEYS if form.get(k)}
+
+
+def _ask_prefill_url(prefill: dict[str, str]) -> str:
+    """/ask 预填回链(query 参数化,供「再问一个」/ 错误页返回不断链)。"""
+    return "/ask?" + urlencode(prefill)
+
+
+# ---------- 禁词柔化(2026-08-23,用户决策) ----------
+# backend D10(App 路径)保持「命中即拦截」不变 — 那是产品防线,替换会掩盖 AI 故障。
+# promo-site 不同:用户本人过目后才导出发平台,命中一个词整篇作废太狠。
+# 策略:替换成产品口径的模糊叙事词(倾向/大概率)→ 复扫 → 仍有残留(backend
+# 词表新增且本表没跟上映射)才走原 422 拦截。替换情况在结果页横幅明示,不静默。
+_FORBIDDEN_SOFTENERS: dict[str, str] = {
+    "必成": "大概率会成",
+    "必分": "大概率会分",
+    "必破财": "大概率破财",
+    "必定": "大概率",
+    "一定会": "很可能会",
+    "一定不会": "很可能不会",
+    "必然": "大概率",
+    "绝对": "基本",
+    "百分之百": "十有八九",
+    "铁定": "大概率",
+    "注定": "大概率",
+}
+
+
+def _soften_forbidden(text: str) -> tuple[str, list[str]]:
+    """替换禁词为模糊叙事词,返回 (新文本, 替换说明 如 '必然→大概率 ×2')。
+
+    无命中文本原样返回。替换词本身不含任何禁词子串,替换后必过复扫;
+    复扫(由调用方调 validate_interpretation)仍命中 = 词表有未映射新词,显式拦截。
+    """
+    notes: list[str] = []
+    for word, soft in _FORBIDDEN_SOFTENERS.items():
+        count = text.count(word)
+        if count:
+            text = text.replace(word, soft)
+            notes.append(f"{word} → {soft} ×{count}")
+    return text, notes
+
+
 async def _interpret_with_tier(client: Any, prompt: str, length_tier: str) -> str:
     """按篇幅档调 AI:加长版放大 max_tokens + 超时,App 标准走 config 默认。
 
@@ -602,7 +689,11 @@ async def bazi_handler(request: Request):
         markdown_text = await _interpret_with_tier(client, prompt, length_tier)
 
         # ④ 禁词校验(强制:promo 物料上公开平台,命中即 raise)
+        # 禁词柔化(2026-08-23):先替换,残留才拦(见 _soften_forbidden 注释)
+        markdown_text, forbidden_notes = _soften_forbidden(markdown_text)
         validate_interpretation(markdown_text)
+        if forbidden_notes:
+            logger.warning("promo.forbidden_softened notes=%s", forbidden_notes)
 
         # ⑤ 给模板加派生字段(中文映射 + 神煞分组 + 五行总数 + 藏干 zip)
         _prepare_chart_for_template(chart)
@@ -624,7 +715,13 @@ async def bazi_handler(request: Request):
                 "length_label": LENGTH_TIER_LABELS[length_tier],
                 "ai_provider": client.provider,
                 "ai_model": client.model,
-                "prompt_version": PROMPT_VERSIONS[module],
+                "forbidden_notes": forbidden_notes,
+                # `_reality` 是 promo 本地变体名,不在 backend PROMPT_VERSIONS 里;
+                # 直接用 module 查会 KeyError → AI 生成完之后裸 500(2026-08-23 修,
+                # 取 base module 的版本号)
+                "prompt_version": PROMPT_VERSIONS[module.removesuffix("_reality")],
+                # 内嵌提问框隐藏携带(命书 → 问答 同一张盘)
+                "ask_prefill": _ask_prefill_from_form(form),
             },
         )
 
@@ -789,7 +886,11 @@ async def compat_handler(request: Request):
         markdown_text = await _interpret_with_tier(client, prompt, length_tier)
 
         # ④ 禁词校验
+        # 禁词柔化(2026-08-23):先替换,残留才拦(见 _soften_forbidden 注释)
+        markdown_text, forbidden_notes = _soften_forbidden(markdown_text)
         validate_interpretation(markdown_text)
+        if forbidden_notes:
+            logger.warning("promo.forbidden_softened notes=%s", forbidden_notes)
 
         # 给两人 chart 加派生字段(供模板对齐 iOS DualPillarsTable)
         _prepare_chart_for_template(chart_a)
@@ -816,6 +917,7 @@ async def compat_handler(request: Request):
                 "length_label": LENGTH_TIER_LABELS[length_tier],
                 "ai_provider": client.provider,
                 "ai_model": client.model,
+                "forbidden_notes": forbidden_notes,
                 "prompt_version": PROMPT_VERSIONS[module],
             },
         )
@@ -934,7 +1036,11 @@ async def daily_handler(request: Request):
         markdown_text = await _interpret_with_tier(client, prompt, length_tier)
 
         # ⑤ 禁词校验
+        # 禁词柔化(2026-08-23):先替换,残留才拦(见 _soften_forbidden 注释)
+        markdown_text, forbidden_notes = _soften_forbidden(markdown_text)
         validate_interpretation(markdown_text)
+        if forbidden_notes:
+            logger.warning("promo.forbidden_softened notes=%s", forbidden_notes)
 
         # ⑥ 给 chart 加派生字段(供模板对齐 iOS)
         _prepare_chart_for_template(chart)
@@ -957,6 +1063,7 @@ async def daily_handler(request: Request):
                 "length_label": LENGTH_TIER_LABELS[length_tier],
                 "ai_provider": client.provider,
                 "ai_model": client.model,
+                "forbidden_notes": forbidden_notes,
                 "prompt_version": PROMPT_VERSIONS[module],
             },
         )
@@ -989,9 +1096,14 @@ async def daily_handler(request: Request):
 
 @app.get("/ask", response_class=HTMLResponse)
 async def ask_form(request: Request):
-    """命盘问答输入表单(出生信息 + 任意问题)。"""
+    """命盘问答输入表单(出生信息 + 任意问题)。
+
+    支持 query 预填(_ASK_PREFILL_KEYS 同名字段):命书结果页内嵌提问框
+    提交出错、或 ask_result「再问一个」回链携带,避免重复填出生信息。
+    """
+    prefill = {k: request.query_params[k] for k in _ASK_PREFILL_KEYS if k in request.query_params}
     return templates.TemplateResponse(
-        "ask_form.html", {"request": request},
+        "ask_form.html", {"request": request, "prefill": prefill},
     )
 
 
@@ -1000,6 +1112,8 @@ async def ask_handler(request: Request):
     """命盘问答主流程:出生信息 → BaziEngine → QA prompt(结论/根因/行动/反直觉/反问)→ AI。
 
     错误显式传播,与三模块同口径(engine/AI/禁词分别渲染错误页)。
+    表单解析成功后错误页返回链带出生信息预填(不断链);解析失败返回裸 /ask
+    (此时字段值本身可疑,预填无意义)。
     """
     form = await request.form()
     try:
@@ -1014,6 +1128,8 @@ async def ask_handler(request: Request):
             _form_error_ctx(request, e, "/ask"),
             status_code=400,
         )
+    prefill = _ask_prefill_from_form(form)
+    ask_back_url = _ask_prefill_url(prefill)
 
     try:
         engine = BaziEngine()
@@ -1036,7 +1152,11 @@ async def ask_handler(request: Request):
             timeout=CHART_QA_TIMEOUT_SECONDS,
         )
 
+        # 禁词柔化(2026-08-23):先替换,残留才拦(见 _soften_forbidden 注释)
+        markdown_text, forbidden_notes = _soften_forbidden(markdown_text)
         validate_interpretation(markdown_text)
+        if forbidden_notes:
+            logger.warning("promo.forbidden_softened notes=%s", forbidden_notes)
         _prepare_chart_for_template(chart)
 
         logger.info(
@@ -1054,23 +1174,25 @@ async def ask_handler(request: Request):
                 "markdown_text": markdown_text,
                 "ai_provider": used_provider,
                 "ai_model": used_model,
+                "forbidden_notes": forbidden_notes,
+                "prefill": prefill,
             },
         )
 
     except BaziCalculationFailedError as e:
         logger.error("ask.engine_failed error=%s", e)
         return templates.TemplateResponse(
-            "ask_result.html", _engine_error_ctx(request, e, "/ask"), status_code=500,
+            "ask_result.html", _engine_error_ctx(request, e, ask_back_url), status_code=500,
         )
     except AIProviderError as e:
         logger.error("ask.ai_failed error=%s", e)
         return templates.TemplateResponse(
-            "ask_result.html", _ai_error_ctx(request, e, "/ask"), status_code=503,
+            "ask_result.html", _ai_error_ctx(request, e, ask_back_url), status_code=503,
         )
     except InterpretationForbiddenError as e:
         logger.warning("ask.forbidden_words_hit error=%s", e)
         return templates.TemplateResponse(
-            "ask_result.html", _forbidden_error_ctx(request, e, "/ask"), status_code=422,
+            "ask_result.html", _forbidden_error_ctx(request, e, ask_back_url), status_code=422,
         )
 
 

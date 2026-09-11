@@ -26,14 +26,26 @@ from __future__ import annotations
 
 from app.ai.prompts import (
     _StrictFormatDict,
-    _TEMPLATES,
     BAZI_DEEP_SPECIAL_PATTERN_SUFFIX,
+    PROMPT_VERSIONS,
+    _load_template,
     render_prompt,
     validate_context,
 )
 
 # 写作要求块在模板中的起始标记(7 个老模板均以此开头,仅出现一次)
 _REQUIREMENTS_MARKER = "写作要求（"
+
+
+def _backend_template(module: str) -> str:
+    """取 backend 模板原文(与 backend render_prompt 同一加载路径)。
+
+    2026-08-22 对齐 main:i18n Slice 1 后模板按 (module, language, version)
+    寻址——daily_fortune 已外置 prompts/zh/*.md,其余 fallback _LEGACY_TEMPLATES。
+    promo 走 _load_template 而非直读注册表,后续 Slice 2/3/4 把
+    bazi_deep / compatibility 迁到 .md 文件时本文件无需再改。
+    """
+    return _load_template(module, "zh", PROMPT_VERSIONS[module])
 
 # length_tier 取值
 LENGTH_TIER_APP = "app"
@@ -157,9 +169,10 @@ BAZI_DEEP_PAID_REALITY_PROMO_REQUIREMENTS = """写作要求（五阶段叙事+�
     "**收尾：落地手册**", _BAZI_REALITY_CHECK_STAGE + "**收尾：落地手册**",
 ) + _BAZI_DEEP_PROMO_COMMON
 
-# ---------- 合盘 ----------
+# ---------- 合盘(2026-08-22 对齐 main compatibility v3:五行共振 + 不预设关系类型) ----------
 
 _COMPAT_PROMO_COMMON = """通用要求：
+- 叙事用「两人」而非「情侣/夫妻/朋友/合伙人」；不预设关系类型（婚恋/友谊/合作/亲情）
 - **每章 1000-1500 字（中文字符计），不低于 1000 字**
 - 每章分 5-8 段，每段讲透一个洞察；段内可展开推理，不赶节奏
 - 章内可用 2-4 个**加粗小标题**组织内容（便于长文阅读）
@@ -177,6 +190,7 @@ COMPATIBILITY_FREE_PROMO_REQUIREMENTS = """写作要求（免费 2 章 · 长文
 两人日常互动的基调。建议覆盖：沟通模式（谁主导话锋、误解常发生在哪）、
 决策风格（快慢 / 感性理性）、日常节奏契合度（作息 / 社交 / 消费习惯）、
 冲突时的降温方式。每个维度给两人盘面依据。
+聚焦互动节奏本身，不写同居/伴侣等具体生活场景预设。
 
 **第二章：互补与冲突总览**（1000-1500 字）
 五行互补 + 日主关系 + 地支合冲的具体表现。建议覆盖：
@@ -187,12 +201,16 @@ COMPATIBILITY_FREE_PROMO_REQUIREMENTS = """写作要求（免费 2 章 · 长文
 
 COMPATIBILITY_PAID_PROMO_REQUIREMENTS = """写作要求（付费 4 章 · 长文版，每章 1000-1500 字，总 4000-6000 字）：
 
-**第一章：爱情深度**（1000-1500 字）
-情感互动模式、亲密倾向、长期相处的趋势与经营建议。落到两人盘面依据。
+**第一章：五行共振**（1000-1500 字）
+两人五行的生克共振：谁给谁补喜神、谁的旺相消耗对方、日主生克链路，
+以及这些共振在两人互动中的具体体现。每段聚焦一个共振点展开
+（滋养点 / 张力点 / 时间维度的稳定性），落到两人盘面依据。
+不预设关系类型（婚恋/友谊/合作），聚焦能量互动本身。
 
 **第二章：合作事业**（1000-1500 字）
 事业 / 工作合作的契合度：分工建议（谁适合冲前台、谁适合守后方）、
 决策与执行配合、合作中要立的规矩。
+聚焦公共目标层面的协作（涵盖夫妻共业/朋友共谋/合伙人共事），不写具体关系预设。
 
 **第三章：财运合拍**（1000-1500 字）
 金钱观契合度（储蓄 / 消费 / 投资偏好）、共同财运趋势、财务分工建议。
@@ -270,7 +288,7 @@ def render_prompt_with_length(
             f"(可用: {sorted(PROMO_REQUIREMENTS)})"
         )
 
-    template = _TEMPLATES[base_module]
+    template = _backend_template(base_module)
     if _REQUIREMENTS_MARKER not in template:
         # backend 模板结构变了(split 标记丢失),显式报错而不是渲染出残缺 prompt
         raise ValueError(
@@ -331,7 +349,7 @@ def render_chart_qa_prompt(context: dict, question: str) -> str:
     q = question.strip()
     if not q:
         raise ValueError("question 不能为空(空问题的回答没有价值,拒绝生成)")
-    template = _TEMPLATES["bazi_deep_paid"]
+    template = _backend_template("bazi_deep_paid")
     if _REQUIREMENTS_MARKER not in template:
         raise ValueError(
             f"backend 模板 bazi_deep_paid 不含写作要求标记 {_REQUIREMENTS_MARKER!r},"

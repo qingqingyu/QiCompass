@@ -6,7 +6,7 @@
 <section class="page-header">
     <a href="/" class="back-link">← 返回首页</a>
     <h1 class="page-title">命盘问答</h1>
-    <p class="page-subtitle">带着你的命盘问任何问题——AI 以结构分析师口吻直答:结论先行、根因落到柱位、分期给行动。800-1500 字,约 30-120 秒。</p>
+    <p class="page-subtitle">带着你的命盘问任何问题——AI 以结构分析师口吻直答:结论先行、根因落到柱位、分期给行动。800-1500 字,约 30-120 秒。{% if prefill %}从命书结果页进来时出生信息已自动带入。{% endif %}</p>
 </section>
 
 <form method="post" action="/ask" class="form">
@@ -30,11 +30,11 @@
         <div class="form__row">
             <label class="form__field">
                 <span class="form__label">出生日期</span>
-                <input type="date" id="birth_date" name="birth_date" required value="1990-01-15" class="form__input">
+                <input type="date" id="birth_date" name="birth_date" required value="{{ prefill.get('birth_date', '1990-01-15') }}" class="form__input">
             </label>
             <label class="form__field">
                 <span class="form__label">时间(时:分)</span>
-                <input type="time" id="birth_time" name="birth_time" required value="12:00" class="form__input">
+                <input type="time" id="birth_time" name="birth_time" required value="{{ prefill.get('birth_time', '12:00') }}" class="form__input">
             </label>
         </div>
 
@@ -49,11 +49,11 @@
         <legend class="form__legend">性别</legend>
         <div class="segmented">
             <label class="segmented__option">
-                <input type="radio" name="gender" value="male" checked>
+                <input type="radio" name="gender" value="male" {{ '' if prefill.get('gender') == 'female' else 'checked' }}>
                 <span class="segmented__label">男</span>
             </label>
             <label class="segmented__option">
-                <input type="radio" name="gender" value="female">
+                <input type="radio" name="gender" value="female" {{ 'checked' if prefill.get('gender') == 'female' else '' }}>
                 <span class="segmented__label">女</span>
             </label>
         </div>
@@ -67,7 +67,13 @@
             <span class="form__label">手动输入经度(海外 / 设备时区与出生地不一致时使用)</span>
         </label>
 
-        {% set sfx = '' %}{% set default_city = '北京' %}{% set default_lng = 116.41 %}
+        {% set sfx = '' %}
+        {% set default_city = prefill.get('city', '北京') %}
+        {% set default_lng = prefill.get('longitude', 116.41) %}
+        {# city_tz 必须一起预填:form.js 加载时按 city_tz+出生日期重算 tz_offset,
+           只带 tz_offset 会被 Asia/Shanghai 默认值重算覆盖 → 海外盘静默换时区 #}
+        {% set default_city_tz = prefill.get('city_tz', 'Asia/Shanghai') %}
+        {% set default_tz = prefill.get('tz_offset', 8) %}
         {% include 'partials/city_picker.html' %}
 
         <div id="manual-longitude-wrap" class="form__row" style="display:none">
@@ -88,5 +94,5 @@
 
 {% block scripts %}
 <script src="/static/form.js?v=20260815a"></script>
-<script src="/static/key_manager.js?v=20260815a"></script>
+<script src="/static/key_manager.js?v=20260830a"></script>
 {% endblock %}

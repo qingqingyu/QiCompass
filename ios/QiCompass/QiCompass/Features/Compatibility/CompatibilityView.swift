@@ -15,6 +15,9 @@ struct CompatibilityView: View {
     @EnvironmentObject private var env: AppEnvironment
     @State private var vm: CompatibilityViewModel?
     @State private var showPaywall = false
+    /// 与 DailyFortuneView 同因:onboarding 覆盖层下 .task 在建盘前就跑过
+    /// (0 存档 → .empty 错误引导);onboarding 完成时 flag 翻 true 重查存档(2026-08-16 修)。
+    @AppStorage("hasSeenOnboarding") private var hasSeenOnboarding = false
 
     // S10 补时辰升级闭环(D7 触点 1 他人盘分支 + 拦截卡 CTA):
     /// 补时辰 sheet VM(nil = 未打开)。
@@ -132,6 +135,12 @@ struct CompatibilityView: View {
         vm?.loadArchivedCharts()
         if case .configuring = vm?.state {
             vm?.restoreRosterStateIfAvailable()
+        }
+        .onChange(of: hasSeenOnboarding) { _, seen in
+            // 时序安全:flag 由 RootTabView 在 chart 存档后翻 true,重查时存档必已存在。
+            guard seen else { return }
+            AppLogger.app.info("compat.onboarding_completed → 重新加载命盘存档")
+            vm?.loadArchivedCharts()
         }
     }
 
