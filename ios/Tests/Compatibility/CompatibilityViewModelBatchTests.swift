@@ -625,7 +625,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         let loaded = CompatibilityRosterPersistence.loadTempDraft()
         XCTAssertEqual(loaded.birthDate, Date(timeIntervalSince1970: 700_000_000))
         XCTAssertEqual(loaded.gender, "female")
-        XCTAssertNil(loaded.birthTime, "旧 JSON 无 birthTime key → nil(applyTempDraft 回落锚点)")
+        XCTAssertNil(loaded.birthTime, "旧 JSON 无 birthTime key → nil(VM 侧回落链见 testVMInit_旧版单字段草稿)")
     }
 
     func testAddTempToRoster_成功后草稿持久化_下次读到上次值() throws {
@@ -668,6 +668,47 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertEqual(newVM.tempGender, "female")
         XCTAssertEqual(newVM.tempPlace?.displayLabel, "广州, 中国")
         XCTAssertEqual(newVM.tempAlias, "", "alias 不持久化,VM init 后默认空")
+    }
+
+    @MainActor
+    func testVMInit_旧版单字段草稿_birthTime承接birthDate时分() throws {
+        // 2026-09-19 拆双字段迁移回归:旧单字段草稿(无 birthTime key)的时分编码在
+        // birthDate 完整 instant 里——applyTempDraft 回落链必须承接 birthDate,
+        // 不回落锚点静默替换用户上次选的时刻(草稿=「上次填过的」语义,升级不降级)
+        CompatibilityRosterPersistence.clear()
+        let legacyJSON = """
+        {"birthDate":\(Date(timeIntervalSince1970: 700_000_000).timeIntervalSinceReferenceDate),"gender":"female","place":null}
+        """
+        UserDefaults.standard.set(Data(legacyJSON.utf8), forKey: "compat.tempDraft")
+
+        let newVM = CompatibilityViewModel(
+            orchestrator: orchestrator,
+            chartStore: chartStore,
+            compatibilityStore: compatibilityStore,
+            entitlementStore: entitlementStore,
+            modelContext: container.mainContext
+        )
+        XCTAssertEqual(newVM.tempBirthDate, Date(timeIntervalSince1970: 700_000_000))
+        XCTAssertEqual(newVM.tempBirthTime, Date(timeIntervalSince1970: 700_000_000),
+                       "旧草稿无 birthTime → 承接 birthDate 同一 instant(保住上次时分),不是锚点")
+    }
+
+    @MainActor
+    func testVMInit_全空默认草稿_birthTime回落深度表单锚点() {
+        // 回落链末位:全空草稿(无任何持久化)→ 深度表单同款锚点(setUp 已 clear,
+        // 再显式 clear 防同套件先序用例残留)
+        CompatibilityRosterPersistence.clear()
+        let newVM = CompatibilityViewModel(
+            orchestrator: orchestrator,
+            chartStore: chartStore,
+            compatibilityStore: compatibilityStore,
+            entitlementStore: entitlementStore,
+            modelContext: container.mainContext
+        )
+        XCTAssertNil(newVM.tempBirthDate)
+        XCTAssertNil(newVM.tempGender)
+        XCTAssertEqual(newVM.tempBirthTime, DeepAnalysisViewModel.defaultBirthTimeAnchor,
+                       "全空草稿 → 深度表单同款锚点(单一事实源)")
     }
 
     func testResetTempDraftForm_添加成功后_读到本次填过的字段() throws {

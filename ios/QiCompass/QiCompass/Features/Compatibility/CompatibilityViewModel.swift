@@ -512,10 +512,17 @@ final class CompatibilityViewModel {
     }
 
     /// 把草稿字段回填临时表单(init 与 resetTempDraftForm 共用;alias 不在内,永远单独处理)。
-    /// 2026-09-19:birthTime 缺 key(旧 JSON 草稿)→ 回落深度表单同款锚点,不静默编 0 点。
+    /// 2026-09-19 birthTime 回落链(不静默编 0 点,也不丢用户上次选的时分):
+    /// 1. 新草稿自带 birthTime → 直用;
+    /// 2. 旧单字段草稿(无 birthTime key)→ 承接 birthDate 完整 instant——旧草稿的
+    ///    时分编码在 birthDate 里,直接双写即保住「上次填过的」语义(草稿=上次值,
+    ///    升级不降级);旧默认草稿 birthDate == 锚点同一 instant,未触碰场景零变化;
+    /// 3. 全空草稿 → 深度表单同款锚点。
     private func applyTempDraft(_ draft: CompatibilityRosterPersistence.TempDraftState) {
         tempBirthDate = draft.birthDate
-        tempBirthTime = draft.birthTime ?? DeepAnalysisViewModel.defaultBirthTimeAnchor
+        tempBirthTime = draft.birthTime
+            ?? draft.birthDate
+            ?? DeepAnalysisViewModel.defaultBirthTimeAnchor
         tempGender = draft.gender
         tempPlace = draft.place
     }
@@ -553,7 +560,10 @@ final class CompatibilityViewModel {
         tempAlias = alias ?? ""
         tempGender = input.gender
         // 拆双字段回填(2026-09-19):同一 instant 双写零拆解——日期表盘只读 Y/M/D、
-        // 时刻表盘只读 H/M,提交合成时各取所需分量、秒归 0(镜像表单双行结构)
+        // 时刻表盘只读 H/M,提交合成时各取所需分量、秒归 0(镜像表单双行结构)。
+        // 迁移代价(已知,接受):旧条目 wall 串若带非 0 秒(老默认 1990-03-15 的
+        // 14:13:20 类),重存时秒归 0 → birthDatetime 变 → entry id 变 → resolvedHash
+        // 作废重排一次;拆双字段模型无秒位承载,归 0 是两表单统一契约,不为旧值开口子
         tempBirthDate = date
         tempBirthTime = date
         tempPlace = place

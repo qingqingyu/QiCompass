@@ -558,16 +558,15 @@ private struct AddPersonSheet: View {
 
     // MARK: - 日期/时刻绑定与行文案(2026-09-19 拆双字段,镜像 BirthFormView)
 
-    /// 日期表盘初始位置锚(= BirthFormView.unselectedDateSeed 同一 instant;
-    /// 仅位置非值——未拨动不写回,提交 nil 被 validateTempForm 拦)。
-    private static let unselectedDateSeed = Date(timeIntervalSince1970: 638_000_000)
-
-    /// 日期分量绑定(镜像 BirthFormView.datePickerBinding):未选时以锚点作表盘
-    /// 初始位置;拨动写回 tempBirthDate(该日的时分由 tempBirthTime 独立承载,
-    /// 提交时 VM.combinedTempBirthDate() 合成、秒归 0)。
+    /// 日期分量绑定(镜像 BirthFormView.datePickerBinding):未选时以
+    /// `DeepAnalysisViewModel.defaultBirthTimeAnchor`(= 旧默认 1990-03-15 同一
+    /// instant,与 BirthFormView.unselectedDateSeed 语义一致)作表盘初始位置,
+    /// 单一事实源不复制魔数;仅位置非值——未拨动不写回,提交 nil 被
+    /// validateTempForm 拦。拨动写回 tempBirthDate(该日的时分由 tempBirthTime
+    /// 独立承载,提交时 VM.combinedTempBirthDate() 合成、秒归 0)。
     private var tempDateOnlyBinding: Binding<Date> {
         Binding(
-            get: { vm.tempBirthDate ?? Self.unselectedDateSeed },
+            get: { vm.tempBirthDate ?? DeepAnalysisViewModel.defaultBirthTimeAnchor },
             set: { vm.tempBirthDate = $0 }
         )
     }

@@ -68,10 +68,12 @@ struct BirthInfoConfirmSheet: View {
 
     /// 性别行文案(2026-09-19 去默认值):nil 显「未选择」——旧行 `== "male" ? "男" : "女"`
     /// 会把未选错显成「女」,是替用户做决定的残留。
+    /// 男/女复用 GenderChipRow 同款 L10n key(单一事实源);「未选择」暂硬编码,
+    /// 与本 sheet 既有未本地化文案(「性别」/「出生地」标签)同一 i18n 债口径。
     private var genderText: String {
         switch vm.gender {
-        case "male": return "男"
-        case "female": return "女"
+        case "male": return L10n.BirthForm.genderMale
+        case "female": return L10n.BirthForm.genderFemale
         default: return "未选择"
         }
     }
