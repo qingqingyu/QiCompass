@@ -1818,6 +1818,23 @@
         }
       }
     },
+    "deepchain.toc.quotaNote" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cached chapters don't use reads · resets daily"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已读章节走缓存,不消耗次数 · 每日重置"
+          }
+        }
+      }
+    },
     "hash: %@…" : {
 
     },
