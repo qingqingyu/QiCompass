@@ -128,7 +128,10 @@ struct CompatibilityConfigView: View {
                     Text(cta.note)
                         .font(BaziFont.caption(size: 10))
                         .tracking(1)
-                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                        // 禁用态副标单独提色(2026-09-19 S04):整块前景已是 inkMuted(:133)
+                        // + 底 inkDeep@0.3,副标若维持 inkMutedSecondary 会叠到对比度归零,
+                        // 曾被外部评审误读为「透出另一层文字」;禁用态升到 inkMuted 保持可读。
+                        .foregroundStyle(cta.isEnabled ? BaziTheme.inkMutedSecondary : BaziTheme.inkMuted)
                 }
                 .foregroundStyle(cta.isEnabled ? BaziTheme.onInkDeep : BaziTheme.inkMuted)
                 .frame(maxWidth: .infinity)
