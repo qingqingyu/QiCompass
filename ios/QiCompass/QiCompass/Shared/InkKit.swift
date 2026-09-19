@@ -371,23 +371,76 @@ struct PaidTag: View {
 /// 确定按钮无 accessibilityLabel——label 已是同一 Text,SwiftUI 自动派生。
 struct WheelSheetHeader: View {
     let title: String
+    /// 可选副题(2026-09-19 去预填感):日期弹层表盘种子锚点只是位置非值,
+    /// 未选择时由头部副题明示;nil 不渲染,既有调用点零改动。
+    var subtitle: String? = nil
     let confirm: () -> Void
 
     var body: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title)
-                .font(BaziFont.body(size: 15))
-                .foregroundStyle(BaziTheme.ink)
-            Spacer(minLength: BaziTheme.Spacing.sm)
-            Button {
-                HapticEngine.light()
-                confirm()
-            } label: {
-                Text(L10n.BirthForm.pickerConfirm)
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline) {
+                Text(title)
                     .font(BaziFont.body(size: 15))
                     .foregroundStyle(BaziTheme.ink)
+                Spacer(minLength: BaziTheme.Spacing.sm)
+                Button {
+                    HapticEngine.light()
+                    confirm()
+                } label: {
+                    Text(L10n.BirthForm.pickerConfirm)
+                        .font(BaziFont.body(size: 15))
+                        .foregroundStyle(BaziTheme.ink)
+                }
+                .buttonStyle(.plain)
             }
-            .buttonStyle(.plain)
+            if let subtitle {
+                Text(subtitle)
+                    .font(BaziFont.caption(size: 10.5))
+                    .tracking(1)
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+            }
         }
+    }
+}
+
+// MARK: 性别双 chip 行
+
+/// 性别双 chip(2026-09-19 从 BirthFormView.genderChip 抽取共享,去默认值改造:
+/// selection 是 String?,nil = 两 chip 均未选的合法初始态,必选拦截在表单校验层)。
+/// 未选 hairline 描边空底 + 弱墨字;选中浓墨实底 + 纸色字(原型 .gchip)。
+/// 不含外层字段标签——深度表单 Micro 标签竖排在上、合盘 AddPersonSheet 行式
+/// 标签,由调用方各自包裹。tag 值 "male"/"female" 是后端契约,不本地化。
+struct GenderChipRow: View {
+    @Binding var selection: String?
+
+    var body: some View {
+        HStack(spacing: 14) {
+            chip(L10n.BirthForm.genderMale, value: "male")
+            chip(L10n.BirthForm.genderFemale, value: "female")
+        }
+    }
+
+    private func chip(_ title: String, value: String) -> some View {
+        let isSelected = selection == value
+        return Button {
+            HapticEngine.light()
+            selection = value
+        } label: {
+            Text(title)
+                .font(BaziFont.body(size: 15))
+                .frame(maxWidth: .infinity)
+                .padding(.vertical, 11)
+                .foregroundStyle(isSelected ? BaziTheme.paper : BaziTheme.inkMuted)
+                .background(
+                    RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
+                        .fill(isSelected ? BaziTheme.ink : Color.clear)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
+                        .stroke(BaziTheme.ink.opacity(isSelected ? 0 : 0.3), lineWidth: 1)
+                )
+        }
+        .buttonStyle(.plain)
+        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
