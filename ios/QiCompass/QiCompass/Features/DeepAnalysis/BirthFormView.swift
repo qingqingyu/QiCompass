@@ -5,7 +5,8 @@ import SwiftUI
 /// 参考 `docs/design-ref/shuimo/onboarding-o2-birthform.html`:
 /// - 输入项去卡片化:Micro 标签(大字距)+ 无框输入 + 底部 hairline 下划线
 /// - 聚焦态下划线转朱红加粗(DESIGN.md §Color:cinnabar 授权场景「聚焦线」,禁止 CTA/大面积)
-/// - 性别双 chip:未选 hairline 描边空底,选中浓墨实底(对齐原型 .gchip)
+/// - 性别双 chip:未选(含初始态,2026-09-19 去默认 male)hairline 描边空底,
+///   选中浓墨实底(对齐原型 .gchip;组件在 InkKit.GenderChipRow 共享,合盘同款)
 /// - 日期行 + 时刻行 = 两个数值行(S03 拆双 picker:date-only / hourAndMinute 两个 wheel sheet、
 ///   两个绑定;日期必选 birthDate 为 nil 未选择初始态,时刻独立绑定 birthTime 保留默认值语义)
 /// - 「不知道出生时刻」入口(S04,D1):勾选 → 时刻行/时辰快捷选收起 + 半夜三态问题展开(D3);
@@ -244,10 +245,13 @@ struct BirthFormView: View {
     /// 日期 wheel sheet:date-only,必选(未选择初始态;seed 只作表盘初始位置,未拨动不写回)。
     /// 头部带「确定」收起入口(2026-09-07):live 绑定拨动即写回,确定=收起;
     /// 下滑手势仍可用且同样保留已选值;未拨动确定收起后保持 nil(validateForm 拦截)。
+    /// 2026-09-19 去预填感:未选择时头部副题明示(系统 wheel 无法空白表盘,
+    /// 种子锚点只是位置非值),拨动写回后副题消失。
     private var datePickerSheet: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.md) {
             WheelSheetHeader(
                 title: L10n.BirthForm.datePickerTitleDate,
+                subtitle: vm.birthDate == nil ? L10n.BirthForm.dateUnselectedHint : nil,
                 confirm: { showDatePicker = false }
             )
             DatePicker(
@@ -390,37 +394,10 @@ struct BirthFormView: View {
     private var genderSection: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.sm) {
             fieldLabel(L10n.BirthForm.genderLabel)
-            HStack(spacing: 14) {
-                genderChip(L10n.BirthForm.genderMale, value: "male")
-                genderChip(L10n.BirthForm.genderFemale, value: "female")
-            }
+            // 2026-09-19:换共享 GenderChipRow(原私有 genderChip 抽取)+ 性别去默认值
+            // ——vm.gender 改 String?,nil = 两 chip 均未选的初始态,提交被 validateForm 拦
+            GenderChipRow(selection: $vm.gender)
         }
-    }
-
-    /// 性别 chip(原型 .gchip):未选 hairline 描边空底 + 弱墨字;选中浓墨实底 + 纸色字。
-    /// tag 值沿用 "male"/"female",与后端契约一致(仅换控件形态,不改语义)。
-    private func genderChip(_ title: String, value: String) -> some View {
-        let isSelected = vm.gender == value
-        return Button {
-            HapticEngine.light()
-            vm.gender = value
-        } label: {
-            Text(title)
-                .font(BaziFont.body(size: 15))
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 11)
-                .foregroundStyle(isSelected ? BaziTheme.paper : BaziTheme.inkMuted)
-                .background(
-                    RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
-                        .fill(isSelected ? BaziTheme.ink : Color.clear)
-                )
-                .overlay(
-                    RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
-                        .stroke(BaziTheme.ink.opacity(isSelected ? 0 : 0.3), lineWidth: 1)
-                )
-        }
-        .buttonStyle(.plain)
-        .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 
     // MARK: - 出生地

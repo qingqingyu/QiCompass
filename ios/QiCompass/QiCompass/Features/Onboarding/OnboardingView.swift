@@ -314,11 +314,18 @@ struct OnboardingView: View {
     /// 公历年份由调用方传(从 vm.birthDate 取,用于用户认知锚点)。
     /// birthYear 为 Optional(S03 birthDate Optional 化):nil = 理论不可达(.ready 前置
     /// validateForm 已保证日期非空),显式记录 + 诚实降级去括号,不静默编造年份。
+    /// gender 同为 Optional(2026-09-19 去默认值):nil = 理论不可达(性别必选校验
+    /// 已保证非空),诚实降级去乾/坤前缀,不静默猜性别。
     /// S05:年柱歧义 → 干支留白「—」不猜。S08:同主标,「—」占位在降级态不渲染
     /// (降级态用告知句整体替代主/次文字,不用「乾造(男) · —年」的破相表达)。
-    private func subLabel(from response: BaziResponse, gender: String, birthYear: Int?) -> String {
-        let genderLabel = ZodiacHelper.genderLabel(forGender: gender)
+    private func subLabel(from response: BaziResponse, gender: String?, birthYear: Int?) -> String {
         let ganzhi = response.pillars.year?.ganZhi ?? "—"  // 如 "庚辰"
+        guard let gender else {
+            AppLogger.app.error("OnboardingView.subLabel gender_missing(理论不可达,请上报)")
+            guard let birthYear else { return "\(ganzhi)年" }
+            return "\(ganzhi)年(\(birthYear))"
+        }
+        let genderLabel = ZodiacHelper.genderLabel(forGender: gender)
         guard let birthYear else {
             AppLogger.app.error("OnboardingView.subLabel birthDate_missing(理论不可达,请上报)")
             return "\(genderLabel) · \(ganzhi)年"
