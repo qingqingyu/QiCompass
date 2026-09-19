@@ -27,11 +27,14 @@ struct CompatibilityRosterPersistence {
     /// 默认 context(决策 D8;持久化无 context 时 fallback)。
     static let defaultContext = "general"
 
-    /// 临时表单默认草稿(无持久化时 fallback;1990-03-15 占位)。
+    /// 临时表单默认草稿(无持久化时 fallback;2026-09-19 去默认值:全 nil——
+    /// 不再预填 1990-03-15/male,与深度表单「未选必选」同一原则;
+    /// birthTime 缺省由 VM 侧锚点承接,见 CompatibilityViewModel.tempBirthTime)。
     /// S04:出生地无默认城市;S05:自定义地点取代手动经度开关,时区显式。
     static let defaultTempDraft = TempDraftState(
-        birthDate: Date(timeIntervalSince1970: 638_000_000),
-        gender: "male",
+        birthDate: nil,
+        birthTime: nil,
+        gender: nil,
         place: nil
     )
 
@@ -148,10 +151,16 @@ struct CompatibilityRosterPersistence {
     /// 临时表单草稿。alias 不持久化(每次默认空,避免连续加多个相同 alias)。
     /// S04:city: String → place;S05:place 升级 PlaceSelection(城市/自定义地点),
     /// 手动经度字段删除(自定义地点时区显式,不再默认设备时区)。
-    /// 老草稿解码失败 → loadTempDraft fallback 默认草稿(pre-launch 零兼容)。
+    /// 2026-09-19 去默认值 + 拆双字段(镜像深度表单 S03):birthDate/gender 改
+    /// Optional(未选必选,校验在 VM.validateTempForm),新增 birthTime(时刻独立
+    /// 绑定;草稿里 Optional 纯为旧 JSON decode 兼容——缺 key 得 nil,VM 回落锚点)。
+    /// 老草稿(单字段 1990/male)decode:字段全 Optional → 旧值照常解出(草稿语义
+    /// =「上次填过的」,升级用户保留上次值是正确行为);整体 decode 失败仍有
+    /// 删 key + fallback 兜底(pre-launch 零兼容)。
     struct TempDraftState: Codable, Equatable {
-        let birthDate: Date
-        let gender: String
+        let birthDate: Date?
+        let birthTime: Date?
+        let gender: String?
         let place: PlaceSelection?
     }
 

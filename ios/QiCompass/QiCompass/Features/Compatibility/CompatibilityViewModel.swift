@@ -95,8 +95,16 @@ final class CompatibilityViewModel {
     /// 单临时人表单(S04 草稿态:每次「添加」push 一条 .temp 到 roster,然后表单清空)。
     /// 多条独立 .temp 在 roster 内互不干扰。
     /// 默认值单一事实源:`CompatibilityRosterPersistence.defaultTempDraft`(VM init 会用持久化草稿覆盖)。
-    var tempBirthDate: Date = CompatibilityRosterPersistence.defaultTempDraft.birthDate
-    var tempGender: String = CompatibilityRosterPersistence.defaultTempDraft.gender
+    /// 2026-09-19 去默认值 + 拆双字段(镜像深度表单 S03):
+    /// - tempBirthDate 改 Date?(nil = 未选初始态,validateTempForm 拦截——
+    ///   不再预填 1990-03-15,那是替用户填的假值)
+    /// - tempBirthTime 新增独立绑定(时刻表盘恒有锚点,日期未选不阻塞拨时刻;
+    ///   锚点与深度表单共用 DeepAnalysisViewModel.defaultBirthTimeAnchor 单一事实源),
+    ///   提交时 combinedTempBirthDate() 合成、秒归 0
+    /// - tempGender 改 String?(nil = 未选初始态,不再默认 male——不替用户做决定)
+    var tempBirthDate: Date? = CompatibilityRosterPersistence.defaultTempDraft.birthDate
+    var tempBirthTime: Date = DeepAnalysisViewModel.defaultBirthTimeAnchor
+    var tempGender: String? = CompatibilityRosterPersistence.defaultTempDraft.gender
     /// 出生地(全球城市搜索 / S05 自定义地点;无默认,必选)
     var tempPlace: PlaceSelection? = CompatibilityRosterPersistence.defaultTempDraft.place
     /// S04 新增:临时人可选「称呼」字段(会话内显示)。
@@ -116,13 +124,35 @@ final class CompatibilityViewModel {
         return calendar
     }
 
+    /// 合并 tempBirthDate + tempBirthTime → 完整出生 Date(对方出生地钟面合成;
+    /// 镜像 DeepAnalysisViewModel.combinedBirthDate:Y/M/D 取日期行、H/M 取时刻行、秒归 0)。
+    /// 日期未选 / Calendar 合成失败 → 显式抛错(错误显式传播;提交路径 validateTempForm 先行)。
+    private func combinedTempBirthDate() throws -> Date {
+        guard let tempBirthDate else {
+            throw UserFacingError.generic(message: L10n.BirthForm.errorDateRequired)
+        }
+        let calendar = tempPlaceCalendar
+        let hour = calendar.component(.hour, from: tempBirthTime)
+        let minute = calendar.component(.minute, from: tempBirthTime)
+        guard let combined = calendar.date(
+            bySettingHour: hour,
+            minute: minute,
+            second: 0,
+            of: tempBirthDate
+        ) else {
+            throw UserFacingError.generic(message: L10n.BirthForm.errorCombineFailed)
+        }
+        return combined
+    }
+
     /// 临时人钟面 → 裸钟面字符串(S02 契约;城市/自定义地点时区,S05)。
-    private func tempWallTimeString() -> String {
+    /// 2026-09-19 拆双字段后由 combinedTempBirthDate() 合成取值(日期未选在此显式抛错)。
+    private func tempWallTimeString() throws -> String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
         formatter.timeZone = tempPlaceCalendar.timeZone
-        return formatter.string(from: tempBirthDate)
+        return formatter.string(from: try combinedTempBirthDate())
     }
 
     /// 合盘维度。2026-08-16 决策:维度 picker(通用/婚姻/事业)移除,固定 "general"。
@@ -420,9 +450,14 @@ final class CompatibilityViewModel {
         guard let place = tempPlace else {
             throw UserFacingError.generic(message: "请选择出生城市")
         }
+        // 性别未选:validateTempForm 先行拦截,理论不可达;契约字段非 Optional,
+        // 显式解包抛错,不静默兜 "male"(2026-09-19 去默认值)
+        guard let tempGender else {
+            throw UserFacingError.generic(message: L10n.BirthForm.errorGenderRequired)
+        }
         let resolved = BirthPlaceResolver.resolve(place)
         let input = PersonBInput(
-            birthDatetime: tempWallTimeString(),
+            birthDatetime: try tempWallTimeString(),
             timezone: resolved.timezone,
             gender: tempGender,
             longitude: resolved.longitude,
@@ -460,6 +495,7 @@ final class CompatibilityViewModel {
         CompatibilityRosterPersistence.saveTempDraft(
             .init(
                 birthDate: tempBirthDate,
+                birthTime: tempBirthTime,
                 gender: tempGender,
                 place: tempPlace
             )
@@ -476,8 +512,10 @@ final class CompatibilityViewModel {
     }
 
     /// 把草稿字段回填临时表单(init 与 resetTempDraftForm 共用;alias 不在内,永远单独处理)。
+    /// 2026-09-19:birthTime 缺 key(旧 JSON 草稿)→ 回落深度表单同款锚点,不静默编 0 点。
     private func applyTempDraft(_ draft: CompatibilityRosterPersistence.TempDraftState) {
         tempBirthDate = draft.birthDate
+        tempBirthTime = draft.birthTime ?? DeepAnalysisViewModel.defaultBirthTimeAnchor
         tempGender = draft.gender
         tempPlace = draft.place
     }
@@ -514,7 +552,10 @@ final class CompatibilityViewModel {
         }
         tempAlias = alias ?? ""
         tempGender = input.gender
+        // 拆双字段回填(2026-09-19):同一 instant 双写零拆解——日期表盘只读 Y/M/D、
+        // 时刻表盘只读 H/M,提交合成时各取所需分量、秒归 0(镜像表单双行结构)
         tempBirthDate = date
+        tempBirthTime = date
         tempPlace = place
         return true
     }
@@ -578,9 +619,18 @@ final class CompatibilityViewModel {
     }
 
     /// 临时表单校验(不静默吞)。
-    /// - 出生时间未来 / 未选地点 / 自定义经度越界 → 抛 UserFacingError
+    /// - 出生日期未选 / 性别未选 / 出生时间未来 / 未选地点 / 自定义经度越界 → 抛 UserFacingError
+    ///   (2026-09-19 去默认值:日期/性别不再预填,未选必选;错误优先级 日期>性别>未来>地点)
     private func validateTempForm() throws {
-        if tempBirthDate > Date() {
+        guard tempBirthDate != nil else {
+            AppLogger.app.warning("op=compatibility.validateTemp skip reason=b_birth_empty")
+            throw UserFacingError.generic(message: L10n.BirthForm.errorDateRequired)
+        }
+        guard tempGender != nil else {
+            AppLogger.app.warning("op=compatibility.validateTemp skip reason=b_gender_empty")
+            throw UserFacingError.generic(message: L10n.BirthForm.errorGenderRequired)
+        }
+        if try combinedTempBirthDate() > Date() {
             AppLogger.app.warning("op=compatibility.validateTemp skip reason=b_birth_future")
             throw UserFacingError.generic(message: "B 盘出生时间不能晚于当下")
         }
