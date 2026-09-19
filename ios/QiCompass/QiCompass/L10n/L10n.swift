@@ -195,6 +195,11 @@ enum L10n {
         /// zh: "确定";en: "Done"
         static let pickerConfirm = String(localized: "birthform.picker.confirm")
 
+        /// 日期 wheel sheet 未选择提示(2026-09-19 去预填感:表盘种子锚点只是位置
+        /// 非值,头部明示「未选择」,拨动写回后消失;系统 wheel 无法空白表盘)。
+        /// zh: "未选择，拨动表盘完成选择";en: "Not selected yet — scroll to pick"
+        static let dateUnselectedHint = String(localized: "birthform.datePicker.unselectedHint")
+
         /// 时辰快捷选字段标签。
         /// zh: "时辰快捷选(可选)";en: "Quick hour pick (optional)"
         static let hourQuickPickLabel = String(localized: "birthform.hourQuickPick.label")
@@ -214,6 +219,10 @@ enum L10n {
         /// 性别 chip「女」显示文案(tag 值 "female" 是后端契约,不本地化)。
         /// zh: "女";en: "Female"
         static let genderFemale = String(localized: "birthform.gender.female")
+
+        /// 性别必选校验错误(2026-09-19 去默认值:gender 未选不再默认 male)。
+        /// zh: "请选择性别";en: "Please select your gender"
+        static let errorGenderRequired = String(localized: "birthform.error.genderRequired")
 
         /// 出生地字段标签。
         /// zh: "出生地";en: "Birthplace"

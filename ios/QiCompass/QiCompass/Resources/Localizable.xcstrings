@@ -679,6 +679,23 @@
         }
       }
     },
+    "birthform.datePicker.unselectedHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not selected yet — scroll to pick"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未选择，拨动表盘完成选择"
+          }
+        }
+      }
+    },
     "birthform.error.combineFailed" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -709,6 +726,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请选择出生日期"
+          }
+        }
+      }
+    },
+    "birthform.error.genderRequired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please select your gender"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请选择性别"
           }
         }
       }
