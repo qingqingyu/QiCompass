@@ -45,6 +45,9 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
             orchestrator: orchestrator,
             entitlementStore: entitlementStore
         )
+        // 2026-09-19 性别去默认值:产品默认 nil(未选必选);本套件聚焦表单/排盘链路,
+        // 脚手架统一给「已选男」,性别校验专项断言见 testValidateRequiresGenderWhenUnselected
+        vm.gender = "male"
     }
 
     override func tearDown() async throws {
@@ -230,6 +233,20 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         XCTAssertTrue(errors.contains("请选择出生城市"),
                       "日期与城市错误须并列展示: \(errors)")
         XCTAssertEqual(errors.count, 2, "未选日期 + 未选城市 = 恰两条,不混入其他错误: \(errors)")
+    }
+
+    func testValidateRequiresGenderWhenUnselected() {
+        // 2026-09-19 去默认值:性别 nil(产品默认态)必须拦截;setUp 脚手架已选男,
+        // 此处显式回 nil 验证「不替用户做决定」
+        vm.selectedPlace = .city(Self.beijing)
+        vm.birthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.gender = nil
+        let errors = vm.validateForm()
+        XCTAssertTrue(errors.contains(L10n.BirthForm.errorGenderRequired),
+                      "性别未选 → 必须拦截: \(errors)")
+        vm.gender = "female"
+        XCTAssertFalse(vm.validateForm().contains(L10n.BirthForm.errorGenderRequired),
+                       "选女后不再拦截")
     }
 
     func testCalculateWithoutDateBlockedAndNoRequest() {
