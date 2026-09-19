@@ -222,7 +222,29 @@ struct DailyImageHeroSection: View {
     }
 
     /// 顶部:大数字日期(参考图「30」语言)+ 周几/农历·干支 | 关系/冲 chips。
+    /// EN 长文案(如 "Clashes: 亥 (Year Branch 亥)")单行放不下时,chips 整组换到
+    /// 日期行下方右对齐(2026-09-19 S02:原布局 chip 内折三行,胶囊恒单行)。
     private var dateRow: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(alignment: .top, spacing: 12) {
+                dateInfo
+                Spacer(minLength: 8)
+                chips
+                    .padding(.top, 8)
+            }
+            VStack(alignment: .trailing, spacing: 7) {
+                HStack(alignment: .top, spacing: 12) {
+                    dateInfo
+                    Spacer(minLength: 8)
+                }
+                chips
+            }
+        }
+        .inkIn(delay: 0.2)
+    }
+
+    /// 日期区:大数字 + 周几 / 农历·干支两行。
+    private var dateInfo: some View {
         HStack(alignment: .top, spacing: 12) {
             Text(verbatim: "\(Calendar.current.component(.day, from: businessDate))")
                 .font(.system(size: 62, weight: .ultraLight))
@@ -240,17 +262,18 @@ struct DailyImageHeroSection: View {
                     .foregroundStyle(BaziTheme.inkMuted)
                     .lineLimit(1)
             }
-            Spacer(minLength: 8)
-            HStack(spacing: 7) {
-                ChipView(text: dayRelation, tint: BaziTheme.cinnabar, iconName: Self.relationIcon(for: dayRelation))
-                if let chong = dayChong {
-                    let label = L10n.DailyFortune.chongLabel(chong: chong, targets: dayChongTargets)
-                    ChipView(text: label, tint: BaziTheme.inkMuted, iconName: "PlaqueChong")
-                }
-            }
-            .padding(.top, 8)
         }
-        .inkIn(delay: 0.2)
+    }
+
+    /// 关系/冲 chips(放不下时整组换行,组内仍横排)。
+    private var chips: some View {
+        HStack(spacing: 7) {
+            ChipView(text: dayRelation, tint: BaziTheme.cinnabar, iconName: Self.relationIcon(for: dayRelation))
+            if let chong = dayChong {
+                let label = L10n.DailyFortune.chongLabel(chong: chong, targets: dayChongTargets)
+                ChipView(text: label, tint: BaziTheme.inkMuted, iconName: "PlaqueChong")
+            }
+        }
     }
 
     /// 关系 chip 配图:刃(PlaqueSha)= 克身之压力,只配官杀族(七杀/正官);
@@ -283,17 +306,19 @@ private struct HeroYiJiColumns: View {
         "正印": (["学习", "纳言", "养身"], ["依赖", "空想", "拖延"]),
     ]
 
+    /// EN 词表(2026-09-19 S02/#12 重写):中文双字词自带语境,单词直译语义散失
+    /// (`Push`/`Feud`),换带语境短语;每条 ≤16 chars,mono 14.5pt 双列(~163pt/列)单行内。
     static let mappingEn: [String: (yi: [String], ji: [String])] = [
-        "比肩": (["Go Solo", "Set Terms", "Train"], ["Argue", "Compare", "Follow"]),
-        "劫财": (["Act", "Expand", "Share Gain"], ["Impulse", "Lend", "Force"]),
-        "食神": (["Create", "Express", "Meet New"], ["Delay", "Stay Up", "Argue"]),
-        "伤官": (["Speak", "Debut", "Be Frank"], ["Clash", "Overstep", "Blurt"]),
-        "偏财": (["Explore", "Try New", "Give Way"], ["All-in", "Greed", "Credit"]),
-        "正财": (["Keep", "Record", "Hold Base"], ["Short-sight", "Rush", "Break Word"]),
-        "七杀": (["Decide", "Take It", "Push"], ["Waver", "Feud", "Overload"]),
-        "正官": (["Own It", "Keep Rules", "Report"], ["Shrink", "Skip Ranks", "Miss Pact"]),
-        "偏印": (["Reflect", "Retreat", "Review"], ["Stubborn", "Overthink", "Lone Run"]),
-        "正印": (["Study", "Take Advice", "Rest Well"], ["Lean", "Daydream", "Drag"]),
+        "比肩": (["Work Solo", "Set Boundaries", "Train"], ["Argue", "Compare", "Follow the Crowd"]),
+        "劫财": (["Act Now", "Branch Out", "Share the Gain"], ["Snap Buys", "Lend Money", "Force It"]),
+        "食神": (["Create", "Speak Up", "Meet Someone New"], ["Delay", "Stay Up Late", "Debate"]),
+        "伤官": (["Speak Out", "Debut Something", "Be Frank"], ["Clash", "Overstep", "Blurt It Out"]),
+        "偏财": (["Explore", "Try New Things", "Give Ground"], ["Bet It All", "Overreach", "Buy on Credit"]),
+        "正财": (["Keep Steady", "Track Spending", "Stay Grounded"], ["Cut Corners", "Rush Deals", "Break Promises"]),
+        "七杀": (["Make the Call", "Take It On", "Push Through"], ["Waver", "Start Feuds", "Burn Out"]),
+        "正官": (["Own Your Duty", "Play by the Rules", "Report Back"], ["Shrink Back", "Skip the Chain", "Miss Deadlines"]),
+        "偏印": (["Reflect", "Sit with It", "Review Old Notes"], ["Get Stubborn", "Overthink", "Go It Alone"]),
+        "正印": (["Study Up", "Take Advice", "Rest Well"], ["Lean Too Hard", "Daydream", "Drag Your Feet"]),
     ]
 
     static var mapping: [String: (yi: [String], ji: [String])] {
@@ -430,6 +455,7 @@ struct ChipView: View {
             Text(text)
                 .font(.caption.weight(.medium))
                 .foregroundStyle(tint)
+                .lineLimit(1)
         }
         .padding(.horizontal, 9)
         .padding(.vertical, 4)
