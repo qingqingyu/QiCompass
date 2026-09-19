@@ -25,7 +25,9 @@ struct BirthInfoConfirmSheet: View {
                 infoRow(label: L10n.BirthForm.birthDateLabel, value: vm.wallBirthDateString ?? "—")
                 // S04 时辰未知:无时辰态明示「未知(半夜:是/否/不确定)」,防误提交
                 infoRow(label: L10n.BirthForm.birthTimeLabel, value: vm.confirmBirthTimeText)
-                infoRow(label: "性别", value: vm.gender == "male" ? "男" : "女")
+                // 性别未选(2026-09-19 去默认值):此 sheet 弹在 validateForm 之前,
+                // 诚实展示「未选择」,提交在 calculate 内被 formInvalid 拦截(与日期「—」同口径)
+                infoRow(label: "性别", value: genderText)
                 infoRow(label: "出生地", value: vm.selectedPlace?.displayLabel ?? "—")
             }
 
@@ -58,11 +60,23 @@ struct BirthInfoConfirmSheet: View {
         .background(BaziTheme.paper)
         .onAppear {
             // 规则 1:用户主动触发的入口日志(便于排查"sheet 没弹 / 反复弹")
-            AppLogger.app.info("BirthInfoConfirmSheet.shown birth=\(vm.wallBirthDateString ?? "nil") time=\(vm.confirmBirthTimeText, privacy: .public) gender=\(vm.gender, privacy: .public) place=\(vm.selectedPlace?.displayLabel ?? "nil", privacy: .public)")
+            AppLogger.app.info("BirthInfoConfirmSheet.shown birth=\(vm.wallBirthDateString ?? "nil") time=\(vm.confirmBirthTimeText, privacy: .public) gender=\(vm.gender ?? "nil", privacy: .public) place=\(vm.selectedPlace?.displayLabel ?? "nil", privacy: .public)")
         }
     }
 
     // MARK: - 子组件
+
+    /// 性别行文案(2026-09-19 去默认值):nil 显「未选择」——旧行 `== "male" ? "男" : "女"`
+    /// 会把未选错显成「女」,是替用户做决定的残留。
+    /// 男/女复用 GenderChipRow 同款 L10n key(单一事实源);「未选择」暂硬编码,
+    /// 与本 sheet 既有未本地化文案(「性别」/「出生地」标签)同一 i18n 债口径。
+    private var genderText: String {
+        switch vm.gender {
+        case "male": return L10n.BirthForm.genderMale
+        case "female": return L10n.BirthForm.genderFemale
+        default: return "未选择"
+        }
+    }
 
     @ViewBuilder
     private func infoRow(label: String, value: String) -> some View {

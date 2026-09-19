@@ -378,16 +378,20 @@ private struct AddPersonSheet: View {
                 }
 
                 // 日期/时刻双行(2026-09-07:原 .compact DatePicker 系统弹层无「确定」,
-                // 换 BirthFormView 同款 row + wheel sheet + 确定;tempBirthDate 是合成
-                // Date,双 Binding 按对方出生地钟面拆/合)
+                // 换 BirthFormView 同款 row + wheel sheet + 确定;2026-09-19 起镜像
+                // 深度表单 S03 拆双字段:tempBirthDate 未选必选(nil 起步)+ tempBirthTime
+                // 独立绑定,提交时 VM.combinedTempBirthDate() 合成)
                 birthDateRow
                 birthTimeRow
 
-                Picker("性别", selection: $vm.tempGender) {
-                    Text("男").tag("male")
-                    Text("女").tag("female")
+                // 性别(2026-09-19 去默认值:segmented 永远有选中段,无法表达「未选」,
+                // 换深度表单同款 GenderChipRow;两 chip 均未选是合法初始态,
+                // 提交被 validateTempForm 拦「请选择性别」)
+                HStack(spacing: 12) {
+                    Text("性别").foregroundStyle(BaziTheme.inkMuted)
+                        .font(BaziFont.caption(size: 12))
+                    GenderChipRow(selection: $vm.tempGender)
                 }
-                .pickerStyle(.segmented)
 
                 // S05:全球城市搜索 + sheet 内自定义地点(与深度解析同一组件)
                 CityPickerField(selection: $vm.tempPlace)
@@ -443,19 +447,25 @@ private struct AddPersonSheet: View {
         // 定稿④配套:任一字段变更即清错误(重复/校验错误不再黏住,CTA 随之恢复)
         .onChange(of: vm.tempAlias) { _, _ in formError = nil }
         .onChange(of: vm.tempBirthDate) { _, _ in formError = nil }
+        .onChange(of: vm.tempBirthTime) { _, _ in formError = nil }
         .onChange(of: vm.tempGender) { _, _ in formError = nil }
         .onChange(of: vm.tempPlace) { _, _ in formError = nil }
     }
 
     // MARK: - 出生日期/时刻双行(2026-09-07:compact 弹层无确定 → row + wheel sheet)
 
-    /// 出生日期行(点开 date-only wheel sheet;值按对方出生地钟面取)。
+    /// 出生日期行(点开 date-only wheel sheet;值按对方出生地钟面取;
+    /// 2026-09-19 未选 → 占位弱墨,与 BirthFormView 日期行同式)。
     private var birthDateRow: some View {
         Button {
             HapticEngine.light()
             showDatePicker = true
         } label: {
-            pickerRowLabel(title: "出生日期", value: tempBirthDateString)
+            pickerRowLabel(
+                title: "出生日期",
+                value: tempBirthDateString,
+                isPlaceholder: vm.tempBirthDate == nil
+            )
         }
         .buttonStyle(.plain)
         .accessibilityLabel("出生日期")
@@ -478,7 +488,8 @@ private struct AddPersonSheet: View {
     }
 
     /// 双行共用行体(与「称呼」字段同款纸底 hairline 盒:标签居左弱墨,值居右浓墨 + ›)。
-    private func pickerRowLabel(title: String, value: String) -> some View {
+    /// isPlaceholder=true 时值降为弱墨次级色(2026-09-19 日期未选占位,对齐 BirthFormView 日期行)。
+    private func pickerRowLabel(title: String, value: String, isPlaceholder: Bool = false) -> some View {
         HStack {
             Text(title)
                 .font(BaziFont.caption(size: 12))
@@ -486,7 +497,7 @@ private struct AddPersonSheet: View {
             Spacer()
             Text(value)
                 .font(BaziFont.body(size: 14))
-                .foregroundStyle(BaziTheme.ink)
+                .foregroundStyle(isPlaceholder ? BaziTheme.inkMutedSecondary : BaziTheme.ink)
             Text("›")
                 .font(BaziFont.caption(size: 12))
                 .foregroundStyle(BaziTheme.inkMuted)
@@ -497,9 +508,13 @@ private struct AddPersonSheet: View {
     }
 
     /// 出生日期 wheel sheet(date-only,不晚于当下;确定=收起,live 拨动即写回)。
+    /// 2026-09-19 去预填感:未选择时头部副题明示(镜像 BirthFormView 日期弹层)。
     private var tempDatePickerSheet: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.md) {
-            WheelSheetHeader(title: "选择出生日期") { showDatePicker = false }
+            WheelSheetHeader(
+                title: "选择出生日期",
+                subtitle: vm.tempBirthDate == nil ? L10n.BirthForm.dateUnselectedHint : nil
+            ) { showDatePicker = false }
             DatePicker(
                 "",
                 selection: tempDateOnlyBinding,
@@ -520,12 +535,13 @@ private struct AddPersonSheet: View {
 
     /// 出生时刻 wheel sheet(hourAndMinute;无「不晚于当下」范围——单时刻无从比较,
     /// 未来校验落在日期+时刻合成值上,validateTempForm 提交时拦)。
+    /// 2026-09-19 拆双字段:直绑 tempBirthTime(镜像 BirthFormView.timePickerSheet)。
     private var tempTimePickerSheet: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.md) {
             WheelSheetHeader(title: "选择出生时刻") { showTimePicker = false }
             DatePicker(
                 "",
-                selection: tempTimeOnlyBinding,
+                selection: $vm.tempBirthTime,
                 displayedComponents: [.hourAndMinute]
             )
             .datePickerStyle(.wheel)
@@ -540,74 +556,43 @@ private struct AddPersonSheet: View {
         .presentationBackground(BaziTheme.paper)
     }
 
-    // MARK: - tempBirthDate 拆/合 Binding(按对方出生地钟面)
+    // MARK: - 日期/时刻绑定与行文案(2026-09-19 拆双字段,镜像 BirthFormView)
 
-    /// 日期分量:换年月日,保留原时分秒。
-    /// 合成失败(日历边界,理论不可达)不静默丢时分——留在表单显人话错误。
+    /// 日期分量绑定(镜像 BirthFormView.datePickerBinding):未选时以
+    /// `DeepAnalysisViewModel.defaultBirthTimeAnchor`(= 旧默认 1990-03-15 同一
+    /// instant,与 BirthFormView.unselectedDateSeed 语义一致)作表盘初始位置,
+    /// 单一事实源不复制魔数;仅位置非值——未拨动不写回,提交 nil 被
+    /// validateTempForm 拦。拨动写回 tempBirthDate(该日的时分由 tempBirthTime
+    /// 独立承载,提交时 VM.combinedTempBirthDate() 合成、秒归 0)。
     private var tempDateOnlyBinding: Binding<Date> {
-        let cal = vm.tempPlaceCalendar
-        return Binding(
-            get: { cal.startOfDay(for: vm.tempBirthDate) },
-            set: { newDay in
-                var comps = cal.dateComponents([.year, .month, .day], from: newDay)
-                let old = cal.dateComponents([.hour, .minute, .second], from: vm.tempBirthDate)
-                comps.hour = old.hour
-                comps.minute = old.minute
-                comps.second = old.second
-                if let combined = cal.date(from: comps) {
-                    vm.tempBirthDate = combined
-                } else {
-                    AppLogger.app.error(
-                        "compat.tempDate.combine.failed raw=\(String(describing: comps), privacy: .public)"
-                    )
-                    // 复用生辰表单合成失败文案(单一事实源;zh 逐字同款)
-                    formError = L10n.BirthForm.errorCombineFailed
-                }
-            }
+        Binding(
+            get: { vm.tempBirthDate ?? DeepAnalysisViewModel.defaultBirthTimeAnchor },
+            set: { vm.tempBirthDate = $0 }
         )
     }
 
-    /// 时刻分量:换时分,保留原年月日;秒显式归零(与 BirthFormView.combinedBirthDate
-    /// 「秒归 0」同口径——表盘无秒位,旧值泄漏会让同一交互在两表单产出不同契约串)。
-    private var tempTimeOnlyBinding: Binding<Date> {
-        let cal = vm.tempPlaceCalendar
-        return Binding(
-            get: { vm.tempBirthDate },
-            set: { newTime in
-                let newHM = cal.dateComponents([.hour, .minute], from: newTime)
-                var comps = cal.dateComponents([.year, .month, .day, .hour, .minute, .second], from: vm.tempBirthDate)
-                comps.hour = newHM.hour
-                comps.minute = newHM.minute
-                comps.second = 0
-                if let combined = cal.date(from: comps) {
-                    vm.tempBirthDate = combined
-                } else {
-                    AppLogger.app.error(
-                        "compat.tempTime.combine.failed raw=\(String(describing: comps), privacy: .public)"
-                    )
-                    formError = L10n.BirthForm.errorCombineFailed
-                }
-            }
-        )
-    }
-
-    /// 出生日期行文案(公历长日期,对方出生地钟面;与 BirthFormView.birthDateText 同式)。
+    /// 出生日期行文案(公历长日期,对方出生地钟面;与 BirthFormView.birthDateText
+    /// 同式;2026-09-19 未选 → 占位「请选择日期」)。
     private var tempBirthDateString: String {
+        guard let birthDate = vm.tempBirthDate else {
+            return L10n.BirthForm.birthDatePlaceholder
+        }
         let formatter = DateFormatter()
         formatter.calendar = vm.tempPlaceCalendar
         formatter.timeZone = vm.tempPlaceCalendar.timeZone
         formatter.locale = .current
         formatter.dateStyle = .long
-        return formatter.string(from: vm.tempBirthDate)
+        return formatter.string(from: birthDate)
     }
 
-    /// 出生时刻行文案(HH:mm,对方出生地钟面;POSIX 模板防系统格式注入)。
+    /// 出生时刻行文案(HH:mm,对方出生地钟面;POSIX 模板防系统格式注入;
+    /// 时刻独立绑定后恒有锚点值,与深度表单时刻行「保留默认值语义」一致)。
     private var tempBirthTimeString: String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "HH:mm"
         formatter.timeZone = vm.tempPlaceCalendar.timeZone
-        return formatter.string(from: vm.tempBirthDate)
+        return formatter.string(from: vm.tempBirthTime)
     }
 
     private func addTemp() {

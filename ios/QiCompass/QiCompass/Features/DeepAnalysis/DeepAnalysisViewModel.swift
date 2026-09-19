@@ -119,7 +119,9 @@ final class DeepAnalysisViewModel {
         return lateNightChoice?.wireValue
     }
 
-    var gender: String = "male"
+    /// 性别(2026-09-19 去默认值:nil = 未选初始态,validateForm 拦「请选择性别」
+    /// ——不替用户默认 male;选中值 "male"/"female" 与后端契约一致)。
+    var gender: String?
     /// 出生地(S03 城市搜索 / S05 自定义地点;无默认,必选——砍「北京」默认是数据质量决策)
     var selectedPlace: PlaceSelection?
     var ziHourRule: String = "zi_next_day"
@@ -308,6 +310,10 @@ final class DeepAnalysisViewModel {
                 AppLogger.app.warning("deepVM.validateForm combine_failed error=\(String(describing: error), privacy: .public)")
             }
         }
+        if gender == nil {
+            // 2026-09-19 去默认值:性别不再默认 male,未选必选(与出生地同原则)
+            errors.append(L10n.BirthForm.errorGenderRequired)
+        }
         if selectedPlace == nil {
             errors.append("请选择出生城市")
         }
@@ -324,6 +330,11 @@ final class DeepAnalysisViewModel {
         guard let selectedPlace else {
             // validateForm 先行拦截,理论不可达;显式抛错不静默(错误显式传播)
             throw UserFacingError.generic(message: "请选择出生城市")
+        }
+        // 性别未选(2026-09-19 去默认值):validateForm 先行拦截,理论不可达;
+        // 契约字段非 Optional,在此显式解包抛错,不静默兜 "male"
+        guard let gender else {
+            throw UserFacingError.generic(message: L10n.BirthForm.errorGenderRequired)
         }
         // birthDate 未选择 / 合成失败在此显式抛错(combinedBirthDate 文档见上)
         let birthDateTime = try combinedBirthDate()
@@ -381,7 +392,7 @@ final class DeepAnalysisViewModel {
         let birthDate = self.birthDate
         let gender = self.gender
         let selectedPlace = self.selectedPlace
-        AppLogger.app.info("deepVM.calculate.start birth=\(birthDate?.description ?? "nil") gender=\(gender, privacy: .public) place=\(selectedPlace?.displayLabel ?? "nil", privacy: .public)")
+        AppLogger.app.info("deepVM.calculate.start birth=\(birthDate?.description ?? "nil") gender=\(gender ?? "nil", privacy: .public) place=\(selectedPlace?.displayLabel ?? "nil", privacy: .public)")
         let errors = validateForm()
         if !errors.isEmpty {
             // 规则 1:表单校验失败抛错前打 warning(用户预期)
