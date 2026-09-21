@@ -2,6 +2,7 @@
 
 **文档性质**：施工说明书，给执行者（AI 或人）照着做。**不是决策文档** —— 决策已在上游文档拍板，此处只落地。
 **事实核验时间**：2026-09-21，基于 `main` @ `460f259`。所有数字与行号均为实测，不是转述上游文档。
+**行号漂移预警**：行号与统计数字锚定在上述基点，main 继续演进后会漂（实例：`822bad6` 合入后 `DailyImageHeroSection.swift` 的 `== "en"` 三处已 300/305/321 → 325/330/346；xcstrings 总数中途一度 359、`822bad6` 实测回到 358，净未漂）。执行时**以符号名 + grep 定位为准，不要盲信行号**。
 **目标**：UI + AI 解读全链路支持 简体中文（zh）/ 繁体中文（zh-hant）/ 英文（en）三语 + App 内语言切换。
 
 ## 上游文档（执行前必读，本文档不复述其决策）
@@ -36,7 +37,7 @@
 |---|---|---|
 | 双 header 语言解析 | `backend/app/api/language.py` `resolve_language()` | ✅ `X-QiCompass-Lang` 优先 → `Accept-Language` → 默认 `zh` |
 | "已支持语言"单一事实源 | `backend/app/engine/term_translations.py` `TERM_TRANSLATIONS` / `is_language_supported()` | ✅ 注册表驱动，加语言=加一张表 |
-| prompt 模板按语言外部文件化 | `backend/app/ai/prompts.py:841` `_load_template()`，`prompts/{lang}/{module}_v{version}.md` | ✅ 机制就位；**但只有 daily_fortune 迁了**（见 1.3） |
+| prompt 模板按语言外部文件化 | `backend/app/ai/prompts.py:818` `_load_template()`（`:841` 为函数体内 `prompts/{lang}/{module}_v{version}.md` 寻址行） | ✅ 机制就位；**但只有 daily_fortune 迁了**（见 1.3） |
 | 缺模板显式抛错（不静默回中文） | `prompts.py:855` → `interpret.py:186` → 500 | ✅ 符合"错误显式传播" |
 | `language` 打穿响应与两级缓存 | `InterpretResponse.language` / 后端 SQLite / iOS `InterpretationCache.language` | ✅ 缓存天然按语言隔离 |
 | iOS 本地化层骨架 | `ios/.../L10n/{L10n,AppLanguage,BaziDateFormatter}.swift` | ✅ 存在，`AppLanguage` 需改造（T0） |
@@ -53,7 +54,9 @@
 - **zh-Hant：0**
 - `knownRegions`（`QiCompass.xcodeproj/project.pbxproj:689`）：只有 `zh-Hans`, `en`, `Base`
 
-**iOS 源码中文字面量**（去注释后统计，121 个 .swift 中）：**72 个文件、1175 处**。重灾区：
+**iOS 源码中文字面量**（去注释后统计，121 个 .swift 中）：约 **72 个文件、1175 处**。重灾区：
+
+> 口径说明：处数 = 去 `//` 与 `/* */` 注释后含 CJK 的字符串字面量数，**是约数**——不同统计口径（CJK 连续段 / 含中文字符行 / 字面量）在 983~1658 间浮动，本表数字仅供排优先级与判断性质，无法逐位复现；"121 个 .swift"（不含 `Tests/`）为精确值。
 
 | 处数 | 文件 | 性质 |
 |---|---|---|
@@ -64,6 +67,7 @@
 | 55 | `Persistence/DailyFortuneVerifier.swift` | 验证日志，非用户可见，**低优先** |
 | 55 | `Features/Profile/ProfileView.swift` | 用户可见 UI 文案 |
 | 43 / 32 / 29 | `Compatibility/AssessmentCardGrid` / `CompatibilityConfigView` / `CompatibilityViewModel` | 用户可见 UI + **错误提示文案** |
+| 43 | `Features/Place/CitySearchSheet.swift` | `CommonTimezones` 时区表 label（「GMT+8 · 中国标准时间」等，用户可见），性质近 `ZodiacHelper`（按语言并行表），T4 分类时归数据表类 |
 | 23 | `Services/AccountManager.swift` | 用户可见错误提示 |
 | 16 | `Models/ModuleDefinitions.swift:29-51` | M0-M7 标题 + 副标题，用户可见 |
 
@@ -94,6 +98,8 @@ backend/app/ai/prompts/en/  → daily_fortune_v2.md, daily_fortune_v3.md, daily_
 | `daily_fortune`(+`unknown_hour` 变体) | v3 | ✅ 文件 | ✅ 文件 | ✅ 现役 |
 
 **结论**：现役路径的 en 债是 **10 个模板**（M0-M7 + compat free/paid），不是 6 个。alias 的 4 个（`bazi_deep`×3 + `compatibility`）是否补 en，取决于是否仍需服务老版本 App —— **这是执行者要向用户确认的唯一一个范围问题**，默认按"不补，但保持 500 显式报错"处理。
+
+> 注：`daily_fortune_image` 的 prompt 由 `image_prompt.py` 代码拼装（无 .md 模板、无语言维度），不进 T1/T3 的文件清单。iOS 2026-09-01 起改用静态底图（HeroLandscape），后端生图端点休眠；v2 若恢复动态生图，需另行补语言口径。
 
 ### 1.4 会静默跑错的三处（本次最高风险）
 
@@ -166,7 +172,7 @@ T0 与 T1 可并行。**T0 必须在 T2/T3 之前完成**（否则 R1/R2 会静�
 **验收**：
 
 - iOS 全量 XCTest 绿（含 `GoldenQueriesTests`）
-- 人工核对：全仓 `grep -rn 'AppLanguage.current ==' --include="*.swift"` 返回 **0 条**
+- 人工核对：全仓 `grep -rn 'AppLanguage.current == "' --include="*.swift"` 返回 **0 条**（pattern 带引号，专测对字符串字面量的比较；改造后 `AppLanguage.current == .en` 这类 enum case 比较是合法代码，不应被此验收拦住）
 - 此时 `zhHant` case 已存在但未启用（xcstrings 无繁体、后端无繁体），行为应与改造前完全一致
 
 **陷阱**：`AppLanguage` 是缓存键的一部分。改造过程中若 wire 值有任何大小写或拼写漂移（`zh-Hant` vs `zh-hant`），缓存会**永不命中**且不报错。改完务必确认 `currentWire` 对 zh / en 两种旧情形返回值与改造前逐字相同（老缓存不能失效）。
@@ -299,7 +305,7 @@ T0 与 T1 可并行。**T0 必须在 T2/T3 之前完成**（否则 R1/R2 会静�
 - [ ] 切换到 English 后跑深度解析 / 合盘：正常返回英文（**不再 500**）
 - [ ] 切回简体：内容与缓存正常，无串台；**老缓存仍命中**（wire 值未漂移的证明）
 - [ ] 语言切换 alert 引导重启后，所选语言全链路生效（UI + 后端解读 + 缓存）
-- [ ] `grep -rn 'AppLanguage.current ==' --include="*.swift"` 返回 0 条
+- [ ] `grep -rn 'AppLanguage.current == "' --include="*.swift"` 返回 0 条（pattern 带引号，见 T0 验收说明）
 - [ ] `cd backend && pytest` 全绿（含 `test_i18n.py` 扩展）
 - [ ] iOS 全量 XCTest 绿（含 `GoldenQueriesTests`）
 - [ ] `python3 tools/check_prompt_sync.py` PASS
