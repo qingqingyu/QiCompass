@@ -216,15 +216,23 @@ struct DeepAnalysisHomeView: View {
     // MARK: - 捌章目录
 
     private var tocHeader: some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text("命 书 · 捌 章")
+        VStack(alignment: .trailing, spacing: 3) {
+            HStack(alignment: .firstTextBaseline) {
+                Text("命 书 · 捌 章")
+                    .font(BaziFont.caption(size: 10))
+                    .tracking(5)
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+                Spacer(minLength: 12)
+                Text(tocStatusText)
+                    .font(BaziFont.caption(size: 11))
+                    .foregroundStyle(tocStatusIsLimit ? BaziTheme.cinnabar : BaziTheme.inkMuted)
+            }
+            // 次数口径小注(2026-09-19 S05):「今日剩余 N 次」单看不知在消耗什么;
+            // 达限态重置信息已在 tocStatusText,不重复。
+            Text(L10n.DeepChain.tocQuotaNote)
                 .font(BaziFont.caption(size: 10))
-                .tracking(5)
+                .tracking(1)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
-            Spacer(minLength: 12)
-            Text(tocStatusText)
-                .font(BaziFont.caption(size: 11))
-                .foregroundStyle(tocStatusIsLimit ? BaziTheme.cinnabar : BaziTheme.inkMuted)
         }
         .padding(.horizontal, 34)
         .padding(.top, 14)
