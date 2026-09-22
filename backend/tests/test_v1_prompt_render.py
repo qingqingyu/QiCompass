@@ -255,14 +255,27 @@ def test_v1_prompt_versions_all_registered_as_1():
 
 
 def test_v1_modules_all_registered_in_templates_and_required_fields():
-    """8 个 v1 module 同时在 _LEGACY_TEMPLATES / REQUIRED_FIELDS / PROMPT_VERSIONS 注册。
+    """8 个 v1 module 的 zh 模板已文件化(T1a)且与常量 byte-identical。
 
-    Slice 1 i18n 后 _TEMPLATES 改名 _LEGACY_TEMPLATES(zh fallback 表),
-    英文模板走外部 prompts/en/*.md 文件。
+    T1a(2026-09-22)后 _LEGACY_TEMPLATES 仅剩 alias 4 个(bazi_deep×3 +
+    compatibility);v1 模板事实源迁到 prompts/zh/{module}_v{version}.md,
+    常量保留作断言锚点(篇幅约束等测试引用)。
     """
-    from app.ai.prompts import _LEGACY_TEMPLATES
+    from pathlib import Path
+
+    from app.ai.prompts import PROMPTS_DIR
+    constants = {
+        "m0_structure": M0_STRUCTURE_TEMPLATE, "m1_talent": M1_TALENT_TEMPLATE,
+        "m2_high_low": M2_HIGH_LOW_TEMPLATE, "m3_system": M3_SYSTEM_TEMPLATE,
+        "m4_health": M4_HEALTH_TEMPLATE, "m5_wealth": M5_WEALTH_TEMPLATE,
+        "m6_dynamics": M6_DYNAMICS_TEMPLATE, "m7_manual": M7_MANUAL_TEMPLATE,
+    }
     for module in _V1_MODULES:
-        assert module in _LEGACY_TEMPLATES, f"{module} 未注册 _LEGACY_TEMPLATES"
+        version = PROMPT_VERSIONS[module]
+        path = Path(PROMPTS_DIR) / "zh" / f"{module}_v{version}.md"
+        assert path.exists(), f"{module} 缺 zh 模板文件 {path}"
+        assert path.read_text(encoding="utf-8") == constants[module], (
+            f"{module} 文件与常量不一致(必须 byte-identical,见 T1a 迁移)")
         assert module in REQUIRED_FIELDS, f"{module} 未注册 REQUIRED_FIELDS"
         assert module in PROMPT_VERSIONS, f"{module} 未注册 PROMPT_VERSIONS"
 

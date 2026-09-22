@@ -658,28 +658,19 @@ leverage(M6 杠杆点): {leverage}
 
 # ---------- 模板注册表 ----------
 
-# Slice 1 i18n 改造:_TEMPLATES → _LEGACY_TEMPLATES
-# daily_fortune(含 S09 降级变体 daily_fortune_unknown_hour)已迁移到外部
-# Markdown 文件(prompts/{zh,en}/daily_fortune*_v{version}.md)。
-# 其他 module(bazi_deep / compatibility 系列)仍走硬编码常量,等 Slice 2/3/4 迁移。
+# Slice 1 i18n 改造:_TEMPLATES → _LEGACY_TEMPLATES;T1a(2026-09-22)现役 10 模块
+# (M0-M7 + compatibility_free/paid)已 byte-identical 迁移到外部 Markdown 文件
+# (prompts/zh/{module}_v{version}.md,sha256 前后相等见迁移 commit)。
+# 此 dict 只剩 alias 4 个(bazi_deep×3 + compatibility,向后兼容老 App,
+# 是否文件化等用户确认老版本下线)。
 # _load_template 加载失败时,中文 fallback 到此 dict;英文显式抛错(避免英文 prompt 误用中文)。
+# 注:M0-M7 / compatibility_free/paid 的模板常量保留定义——tests 以常量为
+# 内容断言锚点(篇幅约束等),且与文件 byte-identical(tests 断言)。
 _LEGACY_TEMPLATES: dict[str, str] = {
     "bazi_deep": BAZI_DEEP_TEMPLATE,
     "bazi_deep_free": BAZI_DEEP_FREE_TEMPLATE,
     "bazi_deep_paid": BAZI_DEEP_PAID_TEMPLATE,
     "compatibility": COMPATIBILITY_TEMPLATE,
-    "compatibility_free": COMPATIBILITY_FREE_TEMPLATE,
-    "compatibility_paid": COMPATIBILITY_PAID_TEMPLATE,
-    # daily_fortune 已迁移到外部 Markdown 文件(prompts/{zh,en}/daily_fortune_v{version}.md)
-    # v1 prompt 系统(Stage 5):M0-M7 共 8 模块
-    "m0_structure": M0_STRUCTURE_TEMPLATE,
-    "m1_talent": M1_TALENT_TEMPLATE,
-    "m2_high_low": M2_HIGH_LOW_TEMPLATE,
-    "m3_system": M3_SYSTEM_TEMPLATE,
-    "m4_health": M4_HEALTH_TEMPLATE,
-    "m5_wealth": M5_WEALTH_TEMPLATE,
-    "m6_dynamics": M6_DYNAMICS_TEMPLATE,
-    "m7_manual": M7_MANUAL_TEMPLATE,
 }
 
 # 各 module 必填字段清单(渲染前 validate_context 逐项检查)
@@ -822,8 +813,8 @@ def _load_template(module: str, language: str, version: int) -> str:
 
     fallback 策略(严格区分 zh / 非 zh):
     - 优先读 prompts/{language}/{module}_v{version}.md
-    - 中文(zh)文件不存在时,fallback 到 _LEGACY_TEMPLATES[module](Slice 1 过渡期,
-      其他 module 未文件化),log warning
+    - 中文(zh)文件不存在时,fallback 到 _LEGACY_TEMPLATES[module](T1a 后此表
+      仅剩 alias 4 个:bazi_deep×3 + compatibility,向后兼容老 App),log warning
     - 非中文(如 en)文件不存在时,**显式抛 FileNotFoundError**(绝不静默 fallback
       到中文,避免英文 prompt 误用中文模板)
 
