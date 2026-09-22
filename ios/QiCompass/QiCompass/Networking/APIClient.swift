@@ -282,7 +282,7 @@ final class MockAPIClient: APIClient {
             generatedAt: .now,
             provider: "anthropic",
             model: "mock-anthropic-model",
-            language: AppLanguage.current  // i18n:mock 跟随系统语言,演示双语能力
+            language: AppLanguage.currentWire  // i18n:mock 跟随系统语言,演示双语能力
         )
     }
 

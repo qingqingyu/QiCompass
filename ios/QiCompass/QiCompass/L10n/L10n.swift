@@ -335,7 +335,7 @@ enum L10n {
         ///   - targets: 被冲到的四柱位置描述列表(如 ["年支午"]),空列表则不加 targets
         /// - Returns: 完整本地化字符串
         static func chongLabel(chong: String, targets: [String]) -> String {
-            let isEnglish = AppLanguage.current == "en"
+            let isEnglish = AppLanguage.current == .en
             let separator = isEnglish ? ", " : "、"
             let targetsStr = targets.isEmpty ? "" : " (\(targets.joined(separator: separator)))"
             return "\(chongPrefix)\(chong)\(targetsStr)"
