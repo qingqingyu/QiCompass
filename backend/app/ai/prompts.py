@@ -203,7 +203,9 @@ BAZI_DEEP_PAID_TEMPLATE = _BAZI_DEEP_HEADER + """
 """
 
 # 从格诚实降级约束段(day_master_strength == "special_pattern" 时追加)
-# M2 拆分后三个 bazi_deep module(alias / _free / _paid)共用此 suffix
+# M2 拆分后三个 bazi_deep module(alias / _free / _paid)共用此 suffix。
+# T1c(2026-09-22)起 prod 走文件 prompts/{language}/_special_pattern_suffix_v{version}.md
+# (zh 文件与本常量 byte-identical);常量保留作 tests 断言锚点(M0-M7 模板同款口径)。
 BAZI_DEEP_SPECIAL_PATTERN_SUFFIX = """
 **本命盘呈现从格特征，喜忌结论留空。请诚实告知用户：当前未下硬性喜忌结论，避免编造扶抑法喜忌。
 可围绕命局呈现的从格倾向（如专旺/从强/从弱等）做叙事性描述，但不得给出确定性的"宜×忌×"结论。**
@@ -854,7 +856,9 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
     """渲染 prompt:先校验必填字段,按 language 加载模板,再 str.format_map 填充。
 
     bazi_deep 系列(alias / _free / _paid)命中 day_master_strength ==
-    "special_pattern" 时追加从格诚实降级约束段(非中文 raise,既有债);
+    "special_pattern" 时追加从格诚实降级约束段(T1c 文件化:
+    prompts/{language}/_special_pattern_suffix_v{version}.md,缺文件显式
+    FileNotFoundError);
     命中 "unknown_hour"(时辰未知,S01 引擎输出)时对 alias / _free 追加
     时辰未知降级约束段(**zh/en 双常量按 language 选,均不 raise**,S06
     2026-09-01 修订)——付费 module 不加(iOS S07 付费墙已拦,无意义分支);
@@ -896,21 +900,16 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
     # (模板有占位符但 REQUIRED_FIELDS 没列),也会抛清晰 KeyError 而非静默填空
     rendered = template.format_map(_StrictFormatDict(context))
 
-    # 从格诚实降级(bazi_deep 系列三个 module 共用同一份 suffix)
+    # 从格诚实降级(bazi_deep 系列三个 module 共用同一份 suffix)。
+    # T1c 文件化:prompts/{language}/_special_pattern_suffix_v{version}.md
+    # (zh = 原 BAZI_DEEP_SPECIAL_PATTERN_SUFFIX byte-identical,en 新译)。
+    # 原非 zh 显式 raise 移除——缺文件时 _load_template 自然 FileNotFoundError,
+    # 错误显式传播不变;alias module 现无 en 主模板,非 zh 请求会先在主模板处 500,
+    # suffix 的 en 文件为后续 alias 补 en / T3 zh-hant 预置。
     if (module in ("bazi_deep", "bazi_deep_free", "bazi_deep_paid")
             and context.get("day_master_strength") == "special_pattern"):
-        if language != "zh":
-            # 从格降级 suffix 目前只有中文版(Slice 2 迁移)。
-            # 非中文请求显式报错,避免英文 prompt 尾部追加中文 suffix。
-            raise FileNotFoundError(
-                f"从格降级 suffix 尚无 {language!r} 版本"
-                f"(module={module!r},需 Slice 2 补齐"
-                f" prompts/{language}/_special_pattern_suffix_v{version}.md)"
-            )
-        # TODO(Slice 2):先在 prompts/zh/_special_pattern_suffix_v{version}.md 落地文件,
-        # 再改成 rendered += _load_template("_special_pattern_suffix", language, version)
-        # (届时 zh 也走文件路径,删除此处的硬编码 BAZI_DEEP_SPECIAL_PATTERN_SUFFIX 拼接)
-        rendered = rendered + BAZI_DEEP_SPECIAL_PATTERN_SUFFIX
+        rendered = rendered + _load_template(
+            "_special_pattern_suffix", language, version)
 
     # 时辰未知诚实降级(S06):只挂免费面 module(alias + _free)。
     # bazi_deep_paid 不挂——无时辰用户在 iOS 付费墙即被拦(S07),
