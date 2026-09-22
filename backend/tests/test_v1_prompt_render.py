@@ -280,6 +280,33 @@ def test_v1_modules_all_registered_in_templates_and_required_fields():
         assert module in PROMPT_VERSIONS, f"{module} 未注册 PROMPT_VERSIONS"
 
 
+def test_compat_free_paid_zh_files_byte_identical():
+    """compatibility_free / compatibility_paid 的 zh 模板文件与常量 byte-identical。
+
+    T1a 迁移覆盖现役 10 模块(含合盘两个),但上面的断言只遍历 _V1_MODULES——
+    合盘模板的 byte-identical 保证此前无测试锁定(render 测试只间接覆盖内容,
+    换行级 drift 不会失败)。补上,防"顺手改 zh 模板文件"绕过常量锚点。
+    """
+    from pathlib import Path
+
+    from app.ai.prompts import (
+        COMPATIBILITY_FREE_TEMPLATE,
+        COMPATIBILITY_PAID_TEMPLATE,
+        PROMPTS_DIR,
+    )
+    constants = {
+        "compatibility_free": COMPATIBILITY_FREE_TEMPLATE,
+        "compatibility_paid": COMPATIBILITY_PAID_TEMPLATE,
+    }
+    for module, const in constants.items():
+        version = PROMPT_VERSIONS[module]
+        path = Path(PROMPTS_DIR) / "zh" / f"{module}_v{version}.md"
+        assert path.exists(), f"{module} 缺 zh 模板文件 {path}"
+        assert path.read_text(encoding="utf-8") == const, (
+            f"{module} 文件与常量不一致(必须 byte-identical,见 T1a 迁移;"
+            f"改文案须动常量+文件并 bump PROMPT_VERSIONS,见 CLAUDE.md 守护栏)")
+
+
 # ===== 7. 篇幅约束(用户决策 2026-08-11: M1/M2/M3/M5/M7 加长至 1500-2500 字) =====
 
 _LONG_MODULES = ["m1_talent", "m2_high_low", "m3_system", "m5_wealth", "m7_manual"]

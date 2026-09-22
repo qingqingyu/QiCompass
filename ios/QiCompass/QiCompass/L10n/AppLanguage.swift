@@ -54,8 +54,14 @@ enum AppLanguage: String, CaseIterable {
         }
         switch code {
         case "zh":
-            if language.script?.identifier == "Hant" { return .zhHant }
-            if let region = Locale.current.region?.identifier,
+            // D4:script 优先于 region——script 显式存在时按 script 定简繁
+            // (zh-Hans-TW 归简体,zh-Hant-CN 归繁体)。Foundation 对 zh 会
+            // 补默认 script(裸 zh → Hans)并按 region 推断(zh-TW → Hant),
+            // 因此正常路径都在此二分命中;script 罕见缺位时才看 region。
+            if let script = language.script?.identifier {
+                return script == "Hant" ? .zhHant : .zh
+            }
+            if let region = language.region?.identifier,
                ["TW", "HK", "MO"].contains(region) {
                 return .zhHant
             }

@@ -183,6 +183,24 @@ async def interpret(
             f"术语翻译失败({e}),需补齐 term_translations.py 翻译表",
             request_id=request_id, content_hash=req.content_hash,
         ) from e
+    except ValueError as e:
+        # T1(i18n-trilingual)review 修复:_translate_deep_context 对客户端
+        # 提交的 chart 字段做 json.loads——非 JSON(坏客户端/被篡改请求)抛
+        # ValueError。此前未捕获 → 裸 500 无结构化错误信息;错误仍显式传播,
+        # 此处只对齐 KeyError/FileNotFoundError 的包装口径(500 + 可定位 message)。
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.error(
+            "interpret.translate_context_invalid_chart elapsed_ms=%.1f "
+            "request_id=%s content_hash=%s module=%s language=%s error=%r",
+            elapsed_ms, request_id, req.content_hash, req.module,
+            language, e,
+            exc_info=True,
+        )
+        raise BaziCalculationFailedError(
+            f"context.chart 非合法 JSON({e}),"
+            f"深度解析 chart 字段须为 JSON 字符串(v1 §1 schema)",
+            request_id=request_id, content_hash=req.content_hash,
+        ) from e
     except FileNotFoundError as e:
         # render_prompt 模板文件缺失 → 500(后端配置问题)
         elapsed_ms = (time.perf_counter() - start) * 1000

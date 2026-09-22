@@ -361,13 +361,16 @@ COMPATIBILITY_PAID_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（付费 4
 # v3(S09):喜忌约束改条件式(喜忌为空——从格/时辰未知——不再声称"喜忌已给出");
 # 时辰未知降级变体 daily_fortune_unknown_hour_v{version}.md(zh/en 双语,
 # 日柱×流日为轴,数据块无喜忌栏/12 时辰段),由 render_prompt 按 context 切换。
-# 后续 Slice 2/3/4 同步迁移 bazi_deep / compatibility 系列。
+# 后续 Slice 2/3/4 同步迁移 bazi_deep / compatibility 系列
+# → T1a(2026-09-22)已迁 compatibility_free/paid;alias 4 个(bazi_deep×3 +
+#   compatibility)留 _LEGACY_TEMPLATES 待用户确认老版本下线后处置。
 
 # ---------- v1 prompt 系统(Stage 5,设计源 bazi-prompt-system-v1.md)----------
 # 双轨保留:老 7 module 不动,本段是新 v1 系统的 8 个 module
 # 渲染策略:JSON schema 大括号用 {{ }} 转义,str.format_map 自动还原为单花括号
 # → 与老 module 共用同一渲染路径,占位符({chart} 等)走 format_map 标准机制
-# 全局 System Prompt 与 8 模板拼在 _LEGACY_TEMPLATES[module] 里(避免 render 时再拼一次)
+# 全局 System Prompt 与 8 模板常量拼装(T1a 前注册进 _LEGACY_TEMPLATES,现与
+# prompts/{zh,en}/{module}_v1.md 文件 byte-identical,常量保留作 tests 断言锚点)
 
 # 设计文档 §2 全局 System Prompt(所有 v1 模块共用的世界观约束)
 _V1_SYSTEM_PROMPT = """你是一位命理结构分析师，工作方式接近系统分析师，而不是算命先生。
@@ -872,7 +875,8 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
     等)与老模板共用同一渲染路径,无需分流。
 
     Args:
-        module: 注册到 _LEGACY_TEMPLATES 的任一 module(老 7 个 + v1 8 个)
+        module: 注册到 PROMPT_VERSIONS 的任一 module(现役模板文件化于
+            prompts/{language}/,alias 4 个 zh 走 _LEGACY_TEMPLATES fallback)
         context: prompt 渲染负载(必须含 REQUIRED_FIELDS[module] 所有字段)
         language: 目标语言代码(默认 "zh" 向后兼容;i18n 决策 9)
 

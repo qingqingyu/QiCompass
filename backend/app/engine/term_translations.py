@@ -116,6 +116,11 @@ STRENGTH_LABEL_ZH_EN: Final[dict[str, str]] = {
     "偏弱": "Slightly Weak",
     "中和": "Balanced",
     "从格特征": "Special Pattern",
+    # iOS PromptContextBuilder.buildV1ChartJSON 的两个额外 strength_label 值
+    # (backend chart_builder 只产上面 4 个;时辰未知盘走 deep S06 降级叙事,
+    # 这两个值会进 chart strength_label → 必须注册,否则 en prompt 留中文+warn)
+    "时辰未知": "Hour Unknown",   # unknown_hour(S05/S06,对齐 STRENGTH_LABEL_EN)
+    "未判定": "Undetermined",    # 老 response dayMasterStrength=nil 兜底
 }
 
 # ---------- 纳音 30(六十甲子纳音,两柱一名) ----------
@@ -609,15 +614,26 @@ def _translate_pillar(pillar: str, table: dict[str, str]) -> str | object:
 
 
 def _translate_element_list(elements: str, table: dict[str, str]) -> str | object:
-    """翻译五行列表("木火" → "Wood Fire";"金水" → "Metal Water")。
+    """翻译五行列表("木火" → "Wood Fire";"木, 火" → "Wood, Fire")。
 
-    逐字符尝试翻译,所有字符都在表里才翻译,否则返回 _TRANSLATION_FAILED。
+    逐 token 尝试逐字符翻译,所有字符都在表里才翻译,否则返回
+    _TRANSLATION_FAILED。
+    容忍 ", " / "、" 分隔的多 token:真实 wire 格式 iOS 客户端喜忌用
+    ", " join(`favorableElements.joined(separator: ", ")`,PromptContextBuilder
+    .swift:79 / +Compatibility.swift:99),旧实现只认纯 CJK 连写串,对
+    "木, 火" 整体判失败 → en prompt 静默留中文(T1 review 修复)。
+    分隔符输出归一为 ", "。
     """
-    translated_chars = []
-    for ch in elements:
-        if ch in table:
-            translated_chars.append(table[ch])
-        else:
-            # 任意字符不在表里,放弃翻译整个字符串
-            return _TRANSLATION_FAILED
-    return " ".join(translated_chars)
+    translated_tokens: list[str] = []
+    for token in re.split(r"\s*[,、]\s*", elements):
+        if not token:
+            continue  # 首尾分隔符产生的空 token
+        translated_chars: list[str] = []
+        for ch in token:
+            if ch in table:
+                translated_chars.append(table[ch])
+            else:
+                # 任意字符不在表里,放弃翻译整个字符串
+                return _TRANSLATION_FAILED
+        translated_tokens.append(" ".join(translated_chars))
+    return ", ".join(translated_tokens)

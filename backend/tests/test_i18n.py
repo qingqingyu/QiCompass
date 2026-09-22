@@ -489,6 +489,18 @@ class TestTranslateContext:
         assert result["favorable_elements"] == "Wood Fire"
         assert result["unfavorable_elements"] == "Metal Water"
 
+    def test_en_element_list_wire_format_with_separator(self):
+        """en 翻译真实 wire 格式喜忌列表(iOS 用 ", " join,非连写)。
+
+        回归锚点:旧实现对 "木, 水" 整体判 _TRANSLATION_FAILED → en prompt
+        静默留中文;夹具必须覆盖带分隔符格式(PromptContextBuilder.swift:79
+        `favorableElements.joined(separator: ", ")`)。
+        """
+        ctx = {"favorable_elements": "木, 水", "unfavorable_elements": "土、金"}
+        result = translate_context(ctx, "en", "daily_fortune")
+        assert result["favorable_elements"] == "Wood, Water"
+        assert result["unfavorable_elements"] == "Earth, Metal"
+
     def test_en_preserves_non_translatable_fields(self, daily_fortune_context):
         """en 不翻译字段保留原文(date / lunar_date / hour_pillars / huangli)。"""
         result = translate_context(daily_fortune_context, "en", "daily_fortune")
@@ -661,6 +673,25 @@ class TestDeepEnTranslation:
         assert "expression under pressure" in prompt
         assert not _UNFILLED_PLACEHOLDER.search(prompt)
 
+    @pytest.mark.parametrize("label,en", [
+        ("时辰未知", "Hour Unknown"),    # iOS unknown_hour(S06 时辰未知盘走 deep)
+        ("未判定", "Undetermined"),      # iOS 老 response nil 兜底
+        ("从格特征", "Special Pattern"),
+    ])
+    def test_strength_label_ios_values_translated(self, label: str, en: str):
+        """iOS buildV1ChartJSON 的 strength_label 全值域翻译(review 补)。
+
+        backend chart_builder 只产 4 个 label;iOS 侧多两个(时辰未知/未判定),
+        时辰未知盘可走 deep S06 降级叙事 → 这两个值必须注册,否则 en prompt
+        静默留中文(带 warn)。
+        """
+        chart = json.dumps(
+            {"day_master": {"stem": "甲", "element": "木",
+                            "strength_score": None, "strength_label": label}},
+            ensure_ascii=False)
+        out = translate_context({"chart": chart}, "en", "m0_structure")
+        assert json.loads(out["chart"])["day_master"]["strength_label"] == en
+
 
 class TestCompatEnTranslation:
     """compat(free/paid)context:分组翻译(daily 同款策略)。"""
@@ -695,7 +726,7 @@ class TestCompatEnTranslation:
         assert out["branch_harmony"] == "No clash, no punishment"
         assert out["year_a"] == "Geng Wu"                      # 干支柱(复合)
         assert out["day_a"] == "Jia Zi"
-        assert out["favorable_a"] == "Wood Fire"                # 喜忌列表
+        assert out["favorable_a"] == "Wood Fire"                # 喜忌列表(连写)
         assert out["element_balance_a"] == "Wood 3 Fire 2 Earth 1 Metal 1 Water 1"
         assert out["gender_a"] == "Male"                        # 宽容单值(已注册)
         assert out["context_label"] == "general"
@@ -703,6 +734,19 @@ class TestCompatEnTranslation:
         assert out["day_master_strength_a"] == "weak"           # raw key
         assert out["city_a"] == "北京"                           # 用户/locale 数据
         assert "同步走强" in out["synced_fortune_table"]         # Slice 1 黄历先例
+
+    def test_favorable_wire_format_with_separator(self):
+        """喜忌真实 wire 格式(iOS ", " join,+Compatibility.swift:99)也翻译。
+
+        回归锚点:旧 _translate_element_list 只认纯 CJK 连写,对 "木, 火"
+        判失败静默留中文。
+        """
+        ctx = self._context()
+        ctx["favorable_a"] = "木, 火"
+        ctx["favorable_b"] = "土金"  # 连写格式共存(防御两种来源)
+        out = translate_context(ctx, "en", "compatibility_free")
+        assert out["favorable_a"] == "Wood, Fire"
+        assert out["favorable_b"] == "Earth Metal"
 
     def test_unknown_enum_raises_keyerror(self):
         """合盘枚举未注册 → 显式 KeyError(两端加值忘同步表时的守门)。"""

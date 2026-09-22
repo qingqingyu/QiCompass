@@ -270,9 +270,13 @@ final class CompatibilityOrchestrator {
                     module: module,
                     promptVersion: resp.promptVersion,
                     targetDate: nil,
-                    // i18n TODO(Slice 3):compatibility 未实现英文翻译,
-                    // 缓存暂时走 default language="zh"(InterpretationCacheStore.upsert 默认值)。
-                    // Slice 3 补齐 compatibility 翻译后改 language: resp.language
+                    // i18n(trilingual T1,2026-09-22):compatibility_free/paid 的 en
+                    // 模板与翻译层已落地(后端 prompts/en/ + translate_context),
+                    // 缓存改存 resp.language(后端实际渲染语言,事实源)——
+                    // 否则 en 用户读按 currentWire="en" 查、写恒落 "zh",
+                    // 24h 客户端缓存永不命中。alias `compatibility` 无 en 模板,
+                    // en 请求在模板加载处 500,到不了此写入,不受影响。
+                    language: resp.language,
                     provider: resp.provider,
                     model: resp.model,
                     interpretation: resp.interpretation,
