@@ -268,7 +268,7 @@ struct DailyImageHeroSection: View {
     /// 关系/冲 chips(放不下时整组换行,组内仍横排)。
     private var chips: some View {
         HStack(spacing: 7) {
-            ChipView(text: dayRelation, tint: BaziTheme.cinnabar, iconName: Self.relationIcon(for: dayRelation))
+            ChipView(text: Self.displayRelation(dayRelation), tint: BaziTheme.cinnabar, iconName: Self.relationIcon(for: dayRelation))
             if let chong = dayChong {
                 let label = L10n.DailyFortune.chongLabel(chong: chong, targets: dayChongTargets)
                 ChipView(text: label, tint: BaziTheme.inkMuted, iconName: "PlaqueChong")
@@ -280,6 +280,22 @@ struct DailyImageHeroSection: View {
     /// 其余十神语义不合,回纯文字 chip。补全十神符牌图后删 gate(V1 拍板口径)。
     static func relationIcon(for relation: String) -> String? {
         relation == "七杀" || relation == "正官" ? "PlaqueSha" : nil
+    }
+
+    /// 十神简→繁显示表(T0):后端 `day_relation` 恒为简体(i18n 决策 7,十神 key
+    /// 不翻译),繁体环境 chip 显示异形字——劫財/傷官/偏財/正財/七殺 5 个异形,
+    /// 其余同形仍显式进表(对齐 D1 显式注册口径)。未知关系原样透出
+    /// (与下方 pair 查表 miss 的防御口径一致,非错误)。
+    static let relationHant: [String: String] = [
+        "比肩": "比肩", "劫财": "劫財", "食神": "食神", "伤官": "傷官",
+        "偏财": "偏財", "正财": "正財", "七杀": "七殺", "正官": "正官",
+        "偏印": "偏印", "正印": "正印",
+    ]
+
+    /// chip 十神显示名:繁体查异形表,简体/英文原样(en 分支显示中文十神是
+    /// 既有决策——命理符号保留中文,2026-08-26 英文 locale 路由同款口径)。
+    static func displayRelation(_ relation: String) -> String {
+        AppLanguage.current == .zhHant ? (relationHant[relation] ?? relation) : relation
     }
 }
 
@@ -321,15 +337,36 @@ private struct HeroYiJiColumns: View {
         "正印": (["Study Up", "Take Advice", "Rest Well"], ["Lean Too Hard", "Daydream", "Drag Your Feet"]),
     ]
 
+    /// 繁体词表(T0):key 仍为后端简体十神(决策 7 不翻译),词表值由 mappingZh
+    /// 转繁;用词对齐台湾惯用(記帳/賒帳/覆命)。
+    static let mappingHant: [String: (yi: [String], ji: [String])] = [
+        "比肩": (["獨立", "立界", "健身"], ["爭執", "攀比", "隨眾"]),
+        "劫财": (["行動", "開拓", "分利"], ["衝動", "借貸", "硬拼"]),
+        "食神": (["創造", "表達", "見新友"], ["拖延", "熬夜", "爭辯"]),
+        "伤官": (["表達", "出新", "直言"], ["衝撞", "越界", "口快"]),
+        "偏财": (["拓展", "試新", "讓利"], ["孤注", "貪多", "賒帳"]),
+        "正财": (["守成", "記帳", "務本"], ["短視", "貪快", "棄約"]),
+        "七杀": (["果斷", "擔事", "攻堅"], ["猶豫", "樹敵", "硬扛"]),
+        "正官": (["擔當", "守規", "覆命"], ["退縮", "越級", "失約"]),
+        "偏印": (["思考", "獨處", "溫故"], ["執拗", "多慮", "孤行"]),
+        "正印": (["學習", "納言", "養身"], ["依賴", "空想", "拖延"]),
+    ]
+
     static var mapping: [String: (yi: [String], ji: [String])] {
-        AppLanguage.current == "en" ? mappingEn : mappingZh
+        switch AppLanguage.current {
+        case .zh:     return mappingZh
+        case .zhHant: return mappingHant
+        case .en:     return mappingEn
+        }
     }
 
     /// 防御:未知关系(理论上后端必返回十神之一,但保护)。
     static var fallback: (yi: [String], ji: [String]) {
-        AppLanguage.current == "en"
-            ? (["Flow", "Rest"], ["Force", "Rush"])
-            : (["顺势", "养气"], ["强求", "硬拼"])
+        switch AppLanguage.current {
+        case .en:     return (["Flow", "Rest"], ["Force", "Rush"])
+        case .zh:     return (["顺势", "养气"], ["强求", "硬拼"])
+        case .zhHant: return (["順勢", "養氣"], ["強求", "硬拼"])
+        }
     }
 
     /// 查表命中失败时记日志,不静默 fallback(对齐 CLAUDE.md 错误显式传播约束)。
@@ -343,7 +380,7 @@ private struct HeroYiJiColumns: View {
         return Self.fallback
     }
 
-    private var isEn: Bool { AppLanguage.current == "en" }
+    private var isEn: Bool { AppLanguage.current == .en }
 
     var body: some View {
         let resolved = pair

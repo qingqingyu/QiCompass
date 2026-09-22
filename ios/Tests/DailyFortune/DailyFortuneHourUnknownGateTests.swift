@@ -595,7 +595,7 @@ private actor RecordingDailyAPIClient: APIClient {
             generatedAt: .now,
             provider: "anthropic",
             model: "claude-test",
-            language: AppLanguage.current
+            language: AppLanguage.currentWire
         )
     }
 

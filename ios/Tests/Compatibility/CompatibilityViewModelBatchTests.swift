@@ -2088,7 +2088,7 @@ private actor S11RecordingAPIClient: APIClient {
             generatedAt: .now,
             provider: "anthropic",
             model: "claude-test",
-            language: AppLanguage.current
+            language: AppLanguage.currentWire
         )
     }
 

@@ -16,6 +16,16 @@ enum ZodiacHelper {
         "Monkey": "猴", "Rooster": "鸡", "Dog": "狗", "Pig": "猪",
     ]
 
+    /// 英文 asset name → 繁体生肖汉字(如 "Dragon" → "龍")。
+    /// 与 zodiacToChar 同 key 集,异形字仅 4 个:龍 / 馬 / 雞 / 豬(其余同形)。
+    /// 单一事实源同 `backend/app/engine/pillars.py:ZODIAC_NAME`(后端只出英文
+    /// asset name,简繁由展示层分表)。
+    private static let zodiacToCharHant: [String: String] = [
+        "Rat": "鼠", "Ox": "牛", "Tiger": "虎", "Rabbit": "兔",
+        "Dragon": "龍", "Snake": "蛇", "Horse": "馬", "Goat": "羊",
+        "Monkey": "猴", "Rooster": "雞", "Dog": "狗", "Pig": "豬",
+    ]
+
     /// 英文 asset name(如 "Dragon")→ 中文汉字(如 "龙")。
     ///
     /// 未知 zodiac → fatalError(对齐 CLAUDE.md "错误显式传播",不静默吞)。
@@ -52,10 +62,26 @@ enum ZodiacHelper {
         }
     }
 
-    /// chip 展示名:中文环境 → 汉字(如「龙」);英文环境 → 英文名(如 "Dragon")。
-    /// 对齐 AppLanguage.current("zh"/"en")。
+    /// 英文 asset name(如 "Dragon")→ 繁体汉字(如 "龍")。
+    ///
+    /// 未知 zodiac → fatalError(同 animalChar,错误显式传播,两表 key 集一致)。
+    static func animalCharHant(forZodiac zodiac: String) -> String {
+        guard let char = zodiacToCharHant[zodiac] else {
+            fatalError("未知 zodiac asset name: \(zodiac)。检查后端 year_branch_zodiac 字段或 ZodiacHelper.zodiacToCharHant 表")
+        }
+        return char
+    }
+
+    /// chip 展示名:中文环境 → 汉字(简「龙」/繁「龍」);英文环境 → 英文名(如 "Dragon")。
+    ///
+    /// switch 不设 default:加语言时编译器强制重访此分支(T0 纪律,
+    /// 替代原先对字符串字面量的相等比较——繁体会静默掉进英文分支)。
     static func displayName(forZodiac zodiac: String) -> String {
-        AppLanguage.current == "zh" ? animalChar(forZodiac: zodiac) : zodiac
+        switch AppLanguage.current {
+        case .zh:     return animalChar(forZodiac: zodiac)
+        case .zhHant: return animalCharHant(forZodiac: zodiac)
+        case .en:     return zodiac
+        }
     }
 
     /// 命理性别称谓:「乾造(男)」/「坤造(女)」。
