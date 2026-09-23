@@ -387,9 +387,15 @@ struct WheelSheetHeader: View {
                     HapticEngine.light()
                     confirm()
                 } label: {
+                    // 命中区 ≥44pt(2026-09-23):裸 15pt 文本热区仅 ~52×34,
+                    // 略高的误触落到 sheet 上方遮罩直接整层 dismiss,用户以为
+                    // 「点了确认却没选中」。padding 只扩热区不改视觉。
                     Text(L10n.BirthForm.pickerConfirm)
                         .font(BaziFont.body(size: 15))
                         .foregroundStyle(BaziTheme.ink)
+                        .padding(.horizontal, 14)
+                        .padding(.vertical, 12)
+                        .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
             }
