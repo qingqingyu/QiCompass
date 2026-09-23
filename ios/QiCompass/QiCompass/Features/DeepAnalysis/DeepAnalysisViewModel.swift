@@ -98,6 +98,13 @@ final class DeepAnalysisViewModel {
     /// 日期分量不参与提交;时辰快捷选(setShichenHour)只改写本绑定。
     var birthTime: Date = DeepAnalysisViewModel.defaultBirthTimeAnchor
 
+    /// 时刻是否被用户显式选择(2026-09-23 时刻去默认值,镜像 09-19 日期/性别改造):
+    /// false = 未碰 wheel/时辰格的初始态,时刻行显灰占位、validateForm 拦截
+    /// 「请选择出生时刻」——修「锚点 14:13 被当真实值静默提交 → 错时柱」的数据质量洞。
+    /// wheel 拨动(表单 binding set)/ setShichenHour 置 true;setHourKnown 不动它
+    /// (未知 ↔ 已知来回切,已选时刻所见即所得)。
+    var birthTimePicked = false
+
     /// 时刻行初始锚点 = 旧默认 1990-03-15 同一 instant(保留现状默认时刻语义,非提交默认日期)。
     static let defaultBirthTimeAnchor = Date(timeIntervalSince1970: 638_000_000)
 
@@ -125,9 +132,10 @@ final class DeepAnalysisViewModel {
     /// 出生地(S03 城市搜索 / S05 自定义地点;无默认,必选——砍「北京」默认是数据质量决策)
     var selectedPlace: PlaceSelection?
     var ziHourRule: String = "zi_next_day"
-    /// 命盘别名(v2 PR1):默认"我自己",用户可改为"妈妈"/"男友"等区分多命盘。
+    /// 命盘别名(v2 PR1):默认"我自己"(2026-09-23 起走 L10n,EN 界面不再夹中文),
+    /// 用户可改为"妈妈"/"男友"等区分多命盘。
     /// 提交时传给 orchestrator.runCalculation 写入 UserSnapshotLink。
-    var alias: String = "我自己"
+    var alias: String = L10n.BirthForm.aliasDefault
 
     // MARK: 主状态
 
@@ -270,11 +278,14 @@ final class DeepAnalysisViewModel {
         return combined
     }
 
-    /// 确认 sheet 时刻行文案(S04):已知 → HH:mm;未知 →「未知(半夜:是/否/不确定)」。
+    /// 确认 sheet 时刻行文案(S04):已知 → HH:mm(2026-09-23 起:已知但未选 →
+    /// 诚实展示「未选择时刻」,与日期「—」/半夜未答同口径);未知 →「未知(半夜:是/否/不确定)」。
     /// 勾选但三态未选时确认 sheet 仍可先于校验出现(onSubmit → sheet → calculate),
     /// 此刻诚实展示「半夜:未答」,提交在 calculate 内被 formInvalid 拦截。
     var confirmBirthTimeText: String {
-        guard !hourKnown else { return wallBirthTimeString }
+        if hourKnown {
+            return birthTimePicked ? wallBirthTimeString : L10n.BirthForm.confirmTimeUnpicked
+        }
         guard let choice = lateNightChoice else {
             return L10n.BirthForm.confirmTimeUnknownNoAnswer
         }
@@ -288,10 +299,15 @@ final class DeepAnalysisViewModel {
     /// S04:勾选「不知道出生时刻」后半夜三态**必须选一个**(未选 → 拦截,不默认「不确定」
     /// ——避免又一层默认假答案);时辰未知时「不晚于当下」降为日期粒度(12:00 占位
     /// 不参与判定,当日出生不误拦)。
+    /// 2026-09-23 时刻去默认值:已知路径时刻未显式选择 → 拦「请选择出生时刻」
+    /// (锚点 14:13 只是表盘位置非值,镜像日期「未选择,拨动表盘完成选择」处理)。
     func validateForm() -> [String] {
         var errors: [String] = []
         if birthDate == nil {
             errors.append(L10n.BirthForm.errorDateRequired)
+        }
+        if hourKnown && !birthTimePicked {
+            errors.append(L10n.BirthForm.errorTimeRequired)
         }
         if !hourKnown && lateNightChoice == nil {
             errors.append(L10n.BirthForm.errorLateNightRequired)
@@ -371,6 +387,8 @@ final class DeepAnalysisViewModel {
     /// 时辰快捷选:把 birthTime 的 hour 设为指定值(方案 §4.3;S03 起改写时刻绑定,日期不动)。
     /// 传入该时辰的中点小时(子=0, 丑=2, 寅=4 ... 亥=22)。
     /// 用出生城市 Calendar —— 表盘是出生地钟面(WYSIWYG),不随设备时区漂移。
+    /// 2026-09-23:显式选择即置 `birthTimePicked`(合成失败不置——值没写回,
+    /// 不谎报已选)。
     func setShichenHour(_ hour: Int) {
         if let newTime = placeCalendar.date(
             bySettingHour: hour,
@@ -379,6 +397,7 @@ final class DeepAnalysisViewModel {
             of: birthTime
         ) {
             birthTime = newTime
+            birthTimePicked = true
         }
     }
 

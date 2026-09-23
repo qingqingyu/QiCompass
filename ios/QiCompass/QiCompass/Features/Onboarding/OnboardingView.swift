@@ -200,20 +200,25 @@ struct OnboardingView: View {
     /// 表单页 = 页标题(固定)+ BirthFormView(自带 ScrollView,弹性)+ 隐私微文案(固定)。
     /// 隐私微文案放这里(Q1 拆分下沉):用户交出生信息那一刻最关心隐私。
     /// 视觉对齐 O2 原型(docs/design-ref/shuimo/onboarding-o2-birthform.html):
-    /// 居中大字距标题 + 小副标 + 左上竖排「問命」版心 + 底部隐私微文案。
+    /// 居中大字距标题 + 小副标 + 左上竖排「问命」版心 + 底部隐私微文案。
+    /// 2026-09-23 review 修复:标题字距/水平内边距按语言分支(拉丁字母 tracking 6
+    /// 会让 "Your birth details" 逼近屏宽并撞「问命」vmark,CJK 不受影响);
+    /// 底部隐私微文案留足系统翻页圆点空域(圆点压字修复,与 Welcome 页同批)。
     private func formPage(vm: DeepAnalysisViewModel) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
+        let isChinese = AppLanguage.current.isChinese
+        return VStack(alignment: .leading, spacing: 0) {
             VStack(spacing: BaziTheme.Spacing.xs) {
                 Text(L10n.Onboarding.formTitle)
                     .font(BaziFont.display(size: 24))
-                    .tracking(6)
+                    .tracking(isChinese ? 6 : 1.5)
                     .foregroundStyle(BaziTheme.ink)
                 Text(L10n.Onboarding.formSubtitle)
                     .font(BaziFont.caption(size: 11))
-                    .tracking(3)
+                    .tracking(isChinese ? 3 : 1)
                     .foregroundStyle(BaziTheme.inkMuted)
             }
             .frame(maxWidth: .infinity)
+            .padding(.horizontal, BaziTheme.Spacing.xl)
             .padding(.top, BaziTheme.Spacing.xl)
             .padding(.bottom, BaziTheme.Spacing.md)
             .riseIn(delay: 0.1)
@@ -229,11 +234,14 @@ struct OnboardingView: View {
                 .frame(maxWidth: .infinity)
                 .multilineTextAlignment(.center)
                 .padding(.horizontal, BaziTheme.Spacing.xl)
-                .padding(.vertical, BaziTheme.Spacing.md)
+                .padding(.top, BaziTheme.Spacing.md)
+                .padding(.bottom, 40)
         }
-        // 左上竖排「問命」小标(原型 .vmark:竖排 + leading hairline,版心元素)
+        // 左上竖排「问命」小标(原型 .vmark:竖排 + leading hairline,版心元素;
+        // 2026-09-23 繁「問」→ 简「问」,与主品牌「玄机问道」(简)统一,
+        // zh-Hant 落地(T5)时再随语言分流)
         .overlay(alignment: .topLeading) {
-            VText(phrase: "問命", size: 13, tracking: 5, color: BaziTheme.inkMuted)
+            VText(phrase: "问命", size: 13, tracking: 5, color: BaziTheme.inkMuted)
                 .padding(.leading, BaziTheme.Spacing.sm)
                 .overlay(alignment: .leading) {
                     Rectangle()
@@ -398,18 +406,22 @@ private struct WelcomePage: View {
                 }
                 .padding(.top, 30)
 
-                Spacer()
+                // 留白拆分(2026-09-23 review #9):原单个 Spacer 让标语与经文之间
+                // 空出整段屏高、像内容没加载;拆成上下两段均分,经文上提与品牌块成组。
+                Spacer(minLength: 48)
 
                 SutraView()
-                    .padding(.bottom, 96)
 
-                // 左滑提示(经文之下、系统翻页点之上)
+                Spacer(minLength: 48)
+
+                // 左滑提示(经文之下、系统翻页点之上;bottom 44 留足圆点空域,
+                // 修复圆点压字,2026-09-23 review #1)
                 Text(L10n.Onboarding.welcomeSwipeHint)
                     .font(BaziFont.caption(size: 10))
                     .tracking(3)
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
                     .riseIn(delay: 0.9)
-                    .padding(.bottom, 22)
+                    .padding(.bottom, 44)
             }
         }
     }
@@ -440,12 +452,14 @@ private struct SutraView: View {
                 }
                 .riseIn(delay: 0.55)
         } else {
-            // 非中文:横排整句,italic 加文学感
+            // 非中文:横排整句,italic 加文学感(水平内边距防长句顶满屏宽,
+            // 2026-09-23 走查发现 EN 译文加长后首行贴边)
             Text("welcome_sutra")
                 .font(BaziFont.caption(size: 13))
                 .foregroundStyle(BaziTheme.inkMuted)
                 .multilineTextAlignment(.center)
                 .italic()
+                .padding(.horizontal, BaziTheme.Spacing.xl)
                 .riseIn(delay: 0.55)
         }
     }

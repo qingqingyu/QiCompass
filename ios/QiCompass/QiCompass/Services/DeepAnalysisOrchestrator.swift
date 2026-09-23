@@ -41,9 +41,10 @@ final class DeepAnalysisOrchestrator {
 
     /// 排盘 → 存档 ChartSnapshot。任一失败 throw(→ `.chartFailed`)。
     ///
-    /// - Parameter alias: 命盘展示别名("我自己" / "妈妈" / "男友"),默认"我自己" 向后兼容。
-    ///   v2 PR1 起由调用方传入(BirthFormView 表单顶部 TextField 收集)。
-    func runCalculation(request: BaziCalculateRequest, alias: String = "我自己") async throws -> BaziResponse {
+    /// - Parameter alias: 命盘展示别名("我自己" / "妈妈" / "男友"),默认值走 L10n
+    ///   (2026-09-23 起 EN 界面默认 "Me",不再夹中文)。v2 PR1 起由调用方传入
+    ///   (BirthFormView 表单顶部 TextField 收集),默认值仅防御性兜底。
+    func runCalculation(request: BaziCalculateRequest, alias: String = L10n.BirthForm.aliasDefault) async throws -> BaziResponse {
         // 规则 2:函数入口日志(网络调用内部已通过 AppLogger.measure 覆盖 start/ok/failed)
         AppLogger.app.info("deep.runCalculation.start birth=\(request.birthDatetime, privacy: .public) tz=\(request.timezone, privacy: .public) gender=\(request.gender, privacy: .public) place=\(request.placeName ?? "nil", privacy: .public) lon=\(request.longitude, privacy: .public)")
         let response = try await calculateAndArchive(request: request)
