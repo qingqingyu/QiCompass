@@ -40,7 +40,7 @@ from ..ai.prompts import PROMPT_VERSIONS, render_prompt, validate_context
 from ..ai.singleflight import SingleflightCoalescer
 from ..auth.dependencies import get_current_user_id
 from ..config import resolve_temperature
-from ..engine.term_translations import translate_context
+from ..engine.term_translations import ChartJSONDecodeError, translate_context
 from ..entitlement import EntitlementStore
 from ..errors import (
     AIProviderError,
@@ -183,11 +183,13 @@ async def interpret(
             f"术语翻译失败({e}),需补齐 term_translations.py 翻译表",
             request_id=request_id, content_hash=req.content_hash,
         ) from e
-    except ValueError as e:
-        # T1(i18n-trilingual)review 修复:_translate_deep_context 对客户端
-        # 提交的 chart 字段做 json.loads——非 JSON(坏客户端/被篡改请求)抛
-        # ValueError。此前未捕获 → 裸 500 无结构化错误信息;错误仍显式传播,
-        # 此处只对齐 KeyError/FileNotFoundError 的包装口径(500 + 可定位 message)。
+    except ChartJSONDecodeError as e:
+        # T1(i18n-trilingual)review 修复 + 09-23 收窄:_translate_deep_context
+        # 对客户端提交的 chart 字段做 json.loads——非 JSON(坏客户端/被篡改
+        # 请求)在翻译层包成 ChartJSONDecodeError(ValueError 子类),此处包装
+        # 成结构化 500(对齐 KeyError/FileNotFoundError 口径)。
+        # 只捕该子类:validate_context / render_prompt 的其他 ValueError
+        # (如模板花括号写错)不再被误报成「chart 非合法 JSON」。
         elapsed_ms = (time.perf_counter() - start) * 1000
         logger.error(
             "interpret.translate_context_invalid_chart elapsed_ms=%.1f "

@@ -41,6 +41,17 @@ from typing import Final
 
 logger = logging.getLogger(__name__)
 
+
+class ChartJSONDecodeError(ValueError):
+    """deep(M0-M7)context 的 chart 字段非合法 JSON(客户端提交坏数据)。
+
+    ValueError 子类(向后兼容既有 `pytest.raises(ValueError)` 口径):
+    `json.loads` 的 JSONDecodeError 在翻译层收窄包成本类,路由层
+    (api/interpret.py)只对本类包装「chart 非合法 JSON」的结构化 500——
+    validate_context / render_prompt 的其他 ValueError(如模板花括号
+    写错)不再被误报成 chart 问题(2026-09-23 review P2-5)。
+    """
+
 # ---------- 天干(拼音直用) ----------
 HEAVENLY_STEMS_EN: Final[dict[str, str]] = {
     "甲": "Jia", "乙": "Yi", "丙": "Bing", "丁": "Ding",
@@ -439,7 +450,11 @@ _CJK_PATTERN = re.compile(r"[\u4e00-\u9fff]")
 
 def _translate_chart_json(chart_json: str, table: dict[str, str]) -> str:
     """v1 chart JSON 字符串的值级翻译(键不动,值按词表)。"""
-    data = json.loads(chart_json)  # 非法 JSON → ValueError 向上抛(路由层 500)
+    try:
+        data = json.loads(chart_json)
+    except json.JSONDecodeError as e:
+        # 收窄进翻译层:包成专用类型,路由层按本类包装 500(见类注释)
+        raise ChartJSONDecodeError(str(e)) from e
     untranslatable: list[str] = []
     walked = _walk_chart_value(data, table, untranslatable)
     if untranslatable:
@@ -565,9 +580,17 @@ def _translate_compat_context(context: dict, language: str) -> dict:
     for field in _COMPAT_ELEMENT_LIST_FIELDS:
         if field in translated and isinstance(translated[field], str):
             result = _translate_element_list(translated[field], table)
-            if result is not _TRANSLATION_FAILED:
+            if result is _TRANSLATION_FAILED:
+                # 全 CJK 喜忌才译;失败保留(S09 后可能为空串/非五行内容)。
+                # 对齐 pillar 路径留痕:中文漏进 en prompt 可据此定位
+                # (2026-09-23 review P2-6,此前静默保留无观测)。
+                logger.warning(
+                    "translate_context: 字段 %s 值 %r 无法翻译"
+                    "(非全 CJK 五行列表,S09 后可为空串/非五行内容),保留原文",
+                    field, translated[field],
+                )
+            else:
                 translated[field] = result
-            # 全 CJK 喜忌才译;失败保留(S09 后可能为空串/非五行内容)
 
     for field in _COMPAT_ELEMENT_BALANCE_FIELDS:
         if field in translated and isinstance(translated[field], str):

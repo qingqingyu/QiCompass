@@ -66,10 +66,9 @@ final class CachedInterpretationReader {
     ///
     /// - Parameters:
     ///   - modules:module 名数组;命中才进结果字典,miss 不进(调用方以字典缺键判 miss)
-    ///   - language:**必传**目标语言代码。深度解析 v1 章固定 "zh"(写入口径:
-    ///     `runV1Module` upsert 未传 language 恒落 "zh",i18n Slice 2 债;
-    ///     读按 AppLanguage.current 查会让 en 用户每次冷启动必 miss → 自动续跑
-    ///     反复烧全链 LLM。Slice 2 补 en deep 模板时读写一起迁移)
+    ///   - language:**必传**目标语言代码(调用方传 `AppLanguage.currentWire`,
+    ///     与写入侧 upsert 的 `resp.language` 配对——后端按请求语言渲染,
+    ///     两值一致;读写键错位会让 en 用户冷启动必 miss → 自动续跑烧 LLM)
     /// - Returns:module 名 → 命中的 `InterpretationCache`
     /// - Throws:identity 解析失败或任一 SwiftData 读失败向上抛(整体失败,
     ///   不逐章吞——环境错误值得整体跳过回填而非装作部分命中)
