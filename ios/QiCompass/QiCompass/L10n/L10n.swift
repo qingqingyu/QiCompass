@@ -368,20 +368,53 @@ enum L10n {
         /// zh: "冲";en: "Clashes: "
         static let chongPrefix = String(localized: "dailyfortune.header.chongPrefix")
 
+        /// EN 位置词翻译表(2026-09-23 review #3):后端 `_chong_targets` 恒出
+        /// 简体中文位置描述("年支巳" 形,backend daily_fortune.py 硬编码),
+        /// en 环境在此译位置前缀,地支字保留中文(命理符号不翻译,同十神 chip /
+        /// 宜忌 key 口径)。未知前缀原样透出(与 displayRelation 查表 miss 防御
+        /// 口径一致)。
+        static let chongTargetPositionEn: [String: String] = [
+            "年支": "Year Branch", "月支": "Month Branch",
+            "日支": "Day Branch", "时支": "Hour Branch",
+        ]
+
+        /// 单条 target 的显示形:en 时 "年支巳" → "Year Branch 巳";
+        /// 其他语言或前缀不在表内原样返回。
+        static func chongTargetEn(_ target: String, language: AppLanguage) -> String {
+            // count > 2:恰为 2 字位置词("年支")无地支字时原样透出,避免尾随空格
+            guard language == .en, target.count > 2,
+                  let position = chongTargetPositionEn[String(target.prefix(2))] else {
+                return target
+            }
+            return "\(position) \(target.dropFirst(2))"
+        }
+
         /// 构造"冲"标签(本地化 prefix + chong 字符 + 可选 targets 列表)。
         ///
         /// 中文: "冲午" / "冲午 (年支午)"
         /// 英文: "Clashes: 午" / "Clashes: 午 (Year Branch 午)"
         ///
+        /// 2026-09-23 review #3:英文 targets 位置前缀在 `chongTargetEn` 翻译
+        /// ——此前两处注释宣称 "Year Branch 午" 而实现原样透出中文"年支午",
+        /// EN 界面中英混排(每日运势 hero chips)。
+        ///
         /// - Parameters:
         ///   - chong: 冲到的地支字(如 "午"),来自 backend day_chong 字段
         ///   - targets: 被冲到的四柱位置描述列表(如 ["年支午"]),空列表则不加 targets
+        ///   - language: 显式语言参数(测试断言用);省略走 `AppLanguage.current`
         /// - Returns: 完整本地化字符串
-        static func chongLabel(chong: String, targets: [String]) -> String {
-            let isEnglish = AppLanguage.current == .en
+        static func chongLabel(chong: String, targets: [String], language: AppLanguage) -> String {
+            let isEnglish = language == .en
             let separator = isEnglish ? ", " : "、"
-            let targetsStr = targets.isEmpty ? "" : " (\(targets.joined(separator: separator)))"
+            let displayTargets = targets.map { chongTargetEn($0, language: language) }
+            let targetsStr = targets.isEmpty ? "" : " (\(displayTargets.joined(separator: separator)))"
             return "\(chongPrefix)\(chong)\(targetsStr)"
+        }
+
+        /// 便捷重载:语言取 `AppLanguage.current`(生产调用方用;
+        /// 测试断言用显式 `language:` 版,避免设备语言敏感假红)。
+        static func chongLabel(chong: String, targets: [String]) -> String {
+            chongLabel(chong: chong, targets: targets, language: AppLanguage.current)
         }
 
         // -- Empty View --
@@ -859,8 +892,10 @@ enum L10n {
         static let readingLeaveHint = String(localized: "deepchain.reading.leaveHint")
 
         /// 目录次数小注(2026-09-19 S05:状态行「今日剩余 N 次」下,解释消耗口径)。
-        /// zh: "已读章节走缓存,不消耗次数 · 每日重置"
-        /// en: "Cached chapters don't use reads · resets daily"
+        /// 2026-09-23 review #4:删「· 每日重置」尾巴——达限态 tocStatusText 已有
+        /// 「明日 HH:mm 重置」,三态恒显的小注再说一遍是重复。
+        /// zh: "已读章节走缓存,不消耗次数"
+        /// en: "Cached chapters don't use reads"
         static let tocQuotaNote = String(localized: "deepchain.toc.quotaNote")
     }
 
