@@ -267,6 +267,10 @@ struct BirthFormView: View {
             )
             .datePickerStyle(.wheel)
             .labelsHidden()
+            // 滚轮加高(2026-09-23):iOS 26 medium detent 内默认表盘被压到
+            // ~170pt(实测),拨动带过窄难精准落位;显式高度防压缩,18.3 上
+            // 与默认(~216)基本持平。
+            .frame(height: 240)
             // WYSIWYG:表盘按出生城市时区显示(S03;换算责任在后端 zoneinfo)
             .environment(\.calendar, vm.placeCalendar)
         }
