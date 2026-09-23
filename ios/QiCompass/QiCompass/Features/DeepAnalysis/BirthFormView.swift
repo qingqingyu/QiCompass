@@ -8,7 +8,8 @@ import SwiftUI
 /// - 性别双 chip:未选(含初始态,2026-09-19 去默认 male)hairline 描边空底,
 ///   选中浓墨实底(对齐原型 .gchip;组件在 InkKit.GenderChipRow 共享,合盘同款)
 /// - 日期行 + 时刻行 = 两个数值行(S03 拆双 picker;2026-09-23 时刻去默认值:
-///   两者未选均显灰占位、validateForm 拦截,锚点只是表盘位置非值)
+///   两者未选均显灰占位、validateForm 拦截;时刻 sheet 未选显 dashed 留白空态,
+///   轻触才出表盘——正午种子只是位置非值,「空值」不依赖用户读懂这条注释)
 /// - **时刻三入口合并(2026-09-23,原 S04 toggle + 时辰快选 DisclosureGroup 退役)**:
 ///   表单常驻单一时刻行,三态显示(已选/未选/未知);点开 sheet 内三枚模式 chip
 ///   选「精确时间 wheel / 只知道时辰圆格 / 不知道」。「不知道」= D1 时辰未知降级
@@ -41,6 +42,10 @@ struct BirthFormView: View {
     @State private var showDatePicker = false
     @State private var showTimePicker = false
     @State private var timeMode: TimeMode = .exact
+    /// 时刻 wheel 是否已揭示(2026-09-23 二段「空值」):未选时 sheet 不渲染表盘,
+    /// 显 dashed 留白空态,轻触才换出 wheel——系统表盘无法空白,空态是「无默认值」
+    /// 的诚实表达。开 sheet 时重置为 `vm.birthTimePicked`(已选直达表盘)。
+    @State private var timeWheelRevealed = false
 
     var body: some View {
         ScrollView {
@@ -199,8 +204,10 @@ struct BirthFormView: View {
         fieldSection(title: L10n.BirthForm.birthTimeLabel) {
             Button {
                 HapticEngine.light()
-                // 打开 sheet 落在当前态对应的模式(未知态重开 → unknown 模式 + 提示行)
+                // 打开 sheet 落在当前态对应的模式(未知态重开 → unknown 模式 + 提示行);
+                // 空态重置:未选过时刻 → 重新从留白空态开始(不携带上次的表盘位置)
                 timeMode = vm.hourKnown ? .exact : .unknown
+                timeWheelRevealed = vm.birthTimePicked
                 showTimePicker = true
             } label: {
                 HStack(alignment: .firstTextBaseline) {
@@ -282,7 +289,9 @@ struct BirthFormView: View {
     }
 
     /// 时刻 sheet(2026-09-23 三入口合并):三枚模式 chip + 对应内容。
-    /// - 精确时间:hourAndMinute wheel(live 写回 + 置 birthTimePicked)
+    /// - 精确时间:未选时**留白空态**(系统表盘无法空白,「空值」= 不渲染表盘,
+    ///   轻触揭示 + 正午种子锚,见 timeEmptyState);揭示后 hourAndMinute wheel
+    ///   live 写回 + 置 birthTimePicked
     /// - 只知道时辰:12 圆格(setShichenHour 中点小时)
     /// - 不知道:点选即走 D1 降级路径(setHourKnown(false))并收起 sheet,
     ///   半夜三态问(D3)在表单展开;重开 sheet 停留 unknown 模式显提示行
@@ -291,9 +300,9 @@ struct BirthFormView: View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.md) {
             WheelSheetHeader(
                 title: L10n.BirthForm.datePickerTitleTime,
-                // 去预填感同日期 sheet:锚点只是表盘位置非值,未拨动明示
-                subtitle: (timeMode == .exact && !vm.birthTimePicked)
-                    ? L10n.BirthForm.dateUnselectedHint : nil,
+                // 「未选择」提示由 exact 空态本体承担(2026-09-23 二段),
+                // 不再叠头部副题;日期 sheet 仍用 dateUnselectedHint
+                subtitle: nil,
                 confirm: { showTimePicker = false }
             )
             HStack(spacing: 10) {
@@ -303,15 +312,23 @@ struct BirthFormView: View {
             }
             switch timeMode {
             case .exact:
-                DatePicker(
-                    "",
-                    selection: timePickerBinding,
-                    displayedComponents: [.hourAndMinute]
-                )
-                .datePickerStyle(.wheel)
-                .labelsHidden()
-                // WYSIWYG:表盘按出生城市时区显示(S03;换算责任在后端 zoneinfo)
-                .environment(\.calendar, vm.placeCalendar)
+                if vm.birthTimePicked || timeWheelRevealed {
+                    DatePicker(
+                        "",
+                        selection: timePickerBinding,
+                        displayedComponents: [.hourAndMinute]
+                    )
+                    .datePickerStyle(.wheel)
+                    .labelsHidden()
+                    // WYSIWYG:表盘按出生城市时区显示(S03;换算责任在后端 zoneinfo)
+                    .environment(\.calendar, vm.placeCalendar)
+                    // 揭示/收起纯淡入(镜像 lateNightSection 惯例,配 timeEmptyState
+                    // 的 withAnimation;无 transition 时该动画包装无效)
+                    .transition(.opacity)
+                } else {
+                    timeEmptyState
+                        .transition(.opacity)
+                }
             case .shichen:
                 shichenGrid
             case .unknown:
@@ -328,6 +345,40 @@ struct BirthFormView: View {
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .presentationBackground(BaziTheme.paper)
+    }
+
+    /// 时刻留白空态(2026-09-23 二段「空值」):dashed hairline 框 = 未选临时态语义
+    /// (DESIGN.md:dashed 专用于锁框/临时态,与 PillarsTable 未知柱同语言)。
+    /// 轻触揭示表盘并播种正午 12:00(出生城市钟面)——位置非值,拨动才置
+    /// `birthTimePicked`;揭示后直接确定收起仍是未选(validateForm 拦截)。
+    private var timeEmptyState: some View {
+        Button {
+            HapticEngine.light()
+            if !vm.birthTimePicked {
+                vm.birthTime = vm.placeCalendar.date(
+                    bySettingHour: 12, minute: 0, second: 0, of: Date()
+                ) ?? vm.birthTime
+            }
+            withAnimation(.easeOut(duration: 0.2)) { timeWheelRevealed = true }
+        } label: {
+            VStack(spacing: BaziTheme.Spacing.sm) {
+                Text(L10n.BirthForm.birthTimePlaceholder)
+                    .font(BaziFont.body(size: 15))
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+                Text(L10n.BirthForm.timeWheelStartHint)
+                    .font(BaziFont.caption(size: 11))
+                    .foregroundStyle(BaziTheme.inkMuted)
+            }
+            .frame(maxWidth: .infinity)
+            .frame(height: 200)
+            .contentShape(Rectangle())
+            .overlay(
+                RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
+                    .stroke(BaziTheme.hairlineDashed, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+            )
+        }
+        .buttonStyle(.plain)
+        .accessibilityElement(children: .combine)
     }
 
     /// 模式 chip(GenderChipRow 同款 hairline/墨底样式;三枚等宽)。
@@ -379,7 +430,8 @@ struct BirthFormView: View {
     }
 
     /// 时刻 wheel 桥:拨动即写回并置 `birthTimePicked`(2026-09-23 时刻去默认值,
-    /// 锚点只是表盘位置,用户拨过才算选;系统 wheel 无法空白表盘,故走标记位而非 Date?)。
+    /// 表盘揭示时的正午种子只是位置,用户拨过才算选;系统 wheel 无法空白表盘,
+    /// 未选态由 timeEmptyState 承担「空值」)。
     private var timePickerBinding: Binding<Date> {
         Binding(
             get: { vm.birthTime },
@@ -390,8 +442,9 @@ struct BirthFormView: View {
         )
     }
 
-    /// Optional date 的 DatePicker 桥:未选择时以旧默认 1990-03-15 作表盘初始位置(仅位置,非值);
-    /// 用户拨动才触发 set 写回 birthDate,未拨动保持 nil(提交被 validateForm 拦截)。
+    /// Optional date 的 DatePicker 桥:未选择时以 `unselectedDateSeed` 作表盘初始位置
+    /// (仅位置,非值);用户拨动才触发 set 写回 birthDate,未拨动保持 nil(提交被
+    /// validateForm 拦截)。
     private var datePickerBinding: Binding<Date> {
         Binding(
             get: { vm.birthDate ?? Self.unselectedDateSeed },
@@ -399,7 +452,9 @@ struct BirthFormView: View {
         )
     }
 
-    /// 日期表盘初始位置锚(= 旧默认 1990-03-15 instant;不作为提交值)。
+    /// 日期表盘初始位置锚(638_000_000 = +08 钟面 1990-03-21 14:13:20,旧时刻锚点
+    /// 同一 instant;2026-09-23 二段起与 `defaultBirthTimeAnchor` 正午是不同 instant,
+    /// 见 CompatibilityConfigView.tempDateOnlyBinding 注释。不作为提交值)。
     private static let unselectedDateSeed = Date(timeIntervalSince1970: 638_000_000)
 
     /// 日期行文案:公历长日期,按出生城市钟面取(S03 WYSIWYG);未选择 → 占位。

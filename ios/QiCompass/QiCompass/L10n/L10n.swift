@@ -247,6 +247,12 @@ enum L10n {
         /// zh: "未选择，拨动表盘完成选择";en: "Not selected yet — scroll to pick"
         static let dateUnselectedHint = String(localized: "birthform.datePicker.unselectedHint")
 
+        /// 时刻留白空态的轻触提示(2026-09-23 二段「空值」:未选时 sheet 不渲染表盘,
+        /// dashed 留白区本体 = 未选语义,此文案是揭示动作引导;中心文字复用
+        /// birthTimePlaceholder)。
+        /// zh: "轻触开始选择";en: "Tap to start picking"
+        static let timeWheelStartHint = String(localized: "birthform.timePicker.startHint")
+
         /// 时辰快捷选字段标签(2026-09-23 合并后仅 AddHourSheet 补时辰页使用)。
         /// zh: "时辰快捷选(可选)";en: "Quick hour pick (optional)"
         static let hourQuickPickLabel = String(localized: "birthform.hourQuickPick.label")
