@@ -214,3 +214,52 @@ enum ZodiacAvatarMode: Equatable {
         return .zodiac("Zodiac_\(zodiac)")
     }
 }
+
+// MARK: - 时辰命名(2026-09-23 时刻三入口合并 + EN 本地化)
+
+/// 12 时辰展示命名单一事实源(中文地支字 / EN 拼音 + 时段)。
+///
+/// 背景:EN 界面此前直接拼「未时 ›」(`Text("\(x)时 ›")` 走 LocalizedStringKey
+/// `%@时 ›`,xcstrings 无 en 翻译),2026-09-23 review 拍板 EN 用拼音 + 时段
+/// (如 "Wei (1–3 PM)")。拼音与时段是稳定域常量(同干支字符性质),不进 xcstrings。
+/// 地支字无简繁差异,zh / zh-Hant 共用中文表(T5 无需再分流)。
+///
+/// 入参是**中点小时**(子=0,丑=2 … 亥=22),边界归一(23 归子)由调用方
+/// `currentShichenHour()` 先行完成;未知 hour → 空串(不猜)。
+enum ShichenDisplay {
+    /// 时辰名:zh「未」/ en "Wei"(圆格大字用)。
+    static func name(forMidHour hour: Int) -> String {
+        AppLanguage.current.isChinese
+            ? chineseNames[hour] ?? ""
+            : englishNames[hour] ?? ""
+    }
+
+    /// 时刻行 trailing tag:zh「未时」/ en "Wei (1–3 PM)"。
+    static func tag(forMidHour hour: Int) -> String {
+        guard chineseNames[hour] != nil else { return "" }
+        return AppLanguage.current.isChinese
+            ? "\(chineseNames[hour]!)时"
+            : "\(englishNames[hour]!) (\(englishRanges[hour]!))"
+    }
+
+    /// EN 时段文案(圆格小字补充,如 "1–3 PM");中文语境不使用。
+    static func range(forMidHour hour: Int) -> String {
+        englishRanges[hour] ?? ""
+    }
+
+    private static let chineseNames: [Int: String] = [
+        0: "子", 2: "丑", 4: "寅", 6: "卯", 8: "辰", 10: "巳",
+        12: "午", 14: "未", 16: "申", 18: "酉", 20: "戌", 22: "亥",
+    ]
+
+    private static let englishNames: [Int: String] = [
+        0: "Zi", 2: "Chou", 4: "Yin", 6: "Mao", 8: "Chen", 10: "Si",
+        12: "Wu", 14: "Wei", 16: "Shen", 18: "You", 20: "Xu", 22: "Hai",
+    ]
+
+    private static let englishRanges: [Int: String] = [
+        0: "11 PM–1 AM", 2: "1–3 AM", 4: "3–5 AM", 6: "5–7 AM",
+        8: "7–9 AM", 10: "9–11 AM", 12: "11 AM–1 PM", 14: "1–3 PM",
+        16: "3–5 PM", 18: "5–7 PM", 20: "7–9 PM", 22: "9–11 PM",
+    ]
+}

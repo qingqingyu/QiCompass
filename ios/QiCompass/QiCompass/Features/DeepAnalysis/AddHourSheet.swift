@@ -341,6 +341,7 @@ struct AddHourSheet: View {
 
     /// 12 时辰快捷选(圆圈选中态,BirthFormView.shichenGrid 同款;
     /// 选中值取时辰中点小时,23 归子时跨日规则由后端 setSect(1) 契约承接)。
+    /// 显示名走 ShichenDisplay(2026-09-23:EN 显拼音,不再裸显地支字)。
     private var shichenGrid: some View {
         let selectedHour = currentShichenHour()
         return LazyVGrid(
@@ -353,7 +354,7 @@ struct AddHourSheet: View {
                     HapticEngine.light()
                     vm.setShichenHour(shichen.hour)
                 } label: {
-                    Text(shichen.name)
+                    Text(ShichenDisplay.name(forMidHour: shichen.hour))
                         .font(.body.weight(.medium))
                         .frame(width: 44, height: 44)
                         .foregroundStyle(isSelected ? BaziTheme.paper : BaziTheme.ink)
@@ -385,7 +386,8 @@ struct AddHourSheet: View {
 
     // MARK: - 「我确实不知道」静默态(D7)
 
-    /// checkbox 形态与 BirthFormView.hourUnknownToggle 同款(hairline 空圈 → 选中墨点);
+    /// checkbox 形态(hairline 空圈 → 选中墨点;原 BirthFormView.hourUnknownToggle
+    /// 同款,该表单入口 2026-09-23 合并进时刻 sheet 后仅此处在用);
     /// toggle 即写穿存档(开 → 三触点降静默;关 → 提示恢复)。
     private var giveUpSection: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.sm) {

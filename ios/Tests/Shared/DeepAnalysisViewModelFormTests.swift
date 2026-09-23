@@ -48,6 +48,10 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         // 2026-09-19 性别去默认值:产品默认 nil(未选必选);本套件聚焦表单/排盘链路,
         // 脚手架统一给「已选男」,性别校验专项断言见 testValidateRequiresGenderWhenUnselected
         vm.gender = "male"
+        // 2026-09-23 时刻去默认值:锚点只是表盘位置非值,未选被 validateForm 拦;
+        // 脚手架统一「已选时刻(巳时中点 10:00)」,时刻未选拦截专项见
+        // testUntouchedTimeBlockedAndNoRequest(显式回 false 验证「不替用户做决定」)
+        vm.setShichenHour(10)
     }
 
     override func tearDown() async throws {
@@ -274,27 +278,35 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         XCTAssertTrue(vm.validateForm().contains("出生时间不能晚于当下"))
     }
 
-    func testUntouchedTimeKeepsDefaultTimeSemantics() throws {
-        // 日期已选 + 时刻未碰 → 正常提交;时刻默认值语义与现状一致(旧默认 instant 的钟面时分)
-        let birth = Date(timeIntervalSince1970: 580_262_400)
-        vm.birthDate = birth
-        vm.selectedPlace = .city(Self.losAngeles)
-        let request = try vm.buildRequest()
+    func testUntouchedTimeBlockedAndNoRequest() {
+        // 2026-09-23 时刻去默认值(替换旧 testUntouchedTimeKeepsDefaultTimeSemantics
+        // ——旧用例钉死「未碰时刻按锚点 14:13 静默提交」正是本次要修的数据质量洞):
+        // 日期已选 + 时刻未碰(setUp 脚手架显式回未选)→ validateForm 拦截,
+        // calculate 停 formInvalid 且不构造/发出请求
+        filledForm()
+        vm.birthTimePicked = false
+        let errors = vm.validateForm()
+        XCTAssertTrue(errors.contains(L10n.BirthForm.errorTimeRequired),
+                      "时刻未选 → 必须拦截: \(errors)")
 
-        let laTZ = try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = laTZ
-        var expected = calendar.dateComponents([.year, .month, .day], from: birth)
-        let defaultTime = calendar.dateComponents([.hour, .minute], from: DeepAnalysisViewModel.defaultBirthTimeAnchor)
-        expected.hour = defaultTime.hour
-        expected.minute = defaultTime.minute
-        expected.second = 0
-        XCTAssertEqual(
-            request.birthDatetime,
-            String(format: "%04d-%02d-%02dT%02d:%02d:%02d",
-                   expected.year!, expected.month!, expected.day!, expected.hour!, expected.minute!, expected.second!),
-            "日期分量取 birthDate、时分分量取默认 birthTime、秒归零(合成语义)"
-        )
+        vm.calculate()
+        guard case .formInvalid(let calcErrors) = vm.state else {
+            return XCTFail("时刻未选提交必须停在 formInvalid,实际: \(vm.state)")
+        }
+        XCTAssertTrue(calcErrors.contains(L10n.BirthForm.errorTimeRequired), calcErrors.description)
+        XCTAssertNil(vm.lastRequest, "校验失败不得构造/发出请求")
+    }
+
+    func testSetShichenHourMarksTimePicked() {
+        // 2026-09-23:显式选择(时辰格/表单 wheel 拨动)才置 picked;初始态必须未选
+        // (锚点只是表盘位置非值)。此用例在 setUp 已选后显式重建初始态验证。
+        vm.birthTimePicked = false
+        vm.setShichenHour(10)
+        XCTAssertTrue(vm.birthTimePicked, "时辰格显式选择 → 已选")
+        // 未知 ↔ 已知来回切不重置 picked(birthTime 保留,恢复时刻行所见即所得)
+        vm.setHourKnown(false)
+        vm.setHourKnown(true)
+        XCTAssertTrue(vm.birthTimePicked, "切换时辰未知路径不得谎报回未选")
     }
 
     // MARK: - S03 确认 sheet / 表单两行的数值一致性(wallBirthDateString / wallBirthTimeString)
@@ -416,9 +428,12 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
     }
 
     func testConfirmBirthTimeTextCoversAllStates() {
-        // 已知 → HH:mm;未知+已答 → 未知(半夜:是/否/不确定);未知未答 → 诚实展示未答
+        // 已知未选 → 诚实展示「未选择时刻」(2026-09-23,提交被 formInvalid 拦);
+        // 已知已选 → HH:mm;未知+已答 → 未知(半夜:是/否/不确定);未知未答 → 诚实展示未答
         // 期望值用 L10n 组合(与实现同源不同路:一个走 VM、一个走格式函数),不写死语言字面量
         filledForm()
+        vm.birthTimePicked = false
+        XCTAssertEqual(vm.confirmBirthTimeText, L10n.BirthForm.confirmTimeUnpicked, "已知未选 → 未选择时刻")
         vm.setShichenHour(10)
         XCTAssertEqual(vm.confirmBirthTimeText, vm.wallBirthTimeString, "已知路径展示串不变")
 

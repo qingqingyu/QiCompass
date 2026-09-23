@@ -109,7 +109,8 @@ enum L10n {
     // MARK: - 出生信息表单(BirthFormView;i18n 补录 2026-08-29)
 
     /// 出生信息表单(onboarding O2 / 深度解析无存档兜底两处复用)。
-    /// 品牌/规则类字串不进本表:「問命」「玄」「玄机问道」、干支字符、「X时 ›」。
+    /// 品牌/规则类字串不进本表:「问命」「玄」「玄机问道」、干支字符
+    /// (时辰名走 `ShichenDisplay`,2026-09-23 起 EN 显拼音+时段)。
     enum BirthForm {
         /// "出生日期" 字段标签(日期行 + 确认 sheet 日期行共用;S03 拆双 picker)。
         /// zh: "出生日期";en: "Birth date"
@@ -123,9 +124,18 @@ enum L10n {
         /// zh: "请选择日期";en: "Select a date"
         static let birthDatePlaceholder = String(localized: "birthform.birthDate.placeholder")
 
+        /// 时刻未选择占位(2026-09-23 时刻去默认值:未碰 wheel/时辰格时的时刻行灰文案)。
+        /// zh: "请选择时刻";en: "Select a time"
+        static let birthTimePlaceholder = String(localized: "birthform.birthTime.placeholder")
+
         /// 日期必选校验错误(S03/D8 默认日期洞修复)。
         /// zh: "请选择出生日期";en: "Please select your birth date"
         static let errorDateRequired = String(localized: "birthform.error.dateRequired")
+
+        /// 时刻必选校验错误(2026-09-23 时刻去默认值:已知路径未选时刻必须拦截,
+        /// 不再静默提交锚点 14:13 假时柱)。
+        /// zh: "请选择出生时刻";en: "Please select your birth time"
+        static let errorTimeRequired = String(localized: "birthform.error.timeRequired")
 
         /// 日期+时刻合成失败防御性错误(理论不可达;错误显式传播用)。
         /// zh: "出生日期与时刻无法合成,请重新选择";en: "Couldn't combine date and time — please reselect"
@@ -136,11 +146,28 @@ enum L10n {
         /// en: "Date sets year & month pillars and your zodiac; time sets the hour pillar and favorable elements; skip the time if unknown"
         static let dateEducationHint = String(localized: "birthform.date.educationHint")
 
-        // -- 时辰未知入口(S04,D1 单一入口 + D3 二值半夜问题)--
+        // -- 时刻三模式(2026-09-23 三入口合并进时间弹层:S04 toggle + 时辰快选
+        //    DisclosureGroup 退役,单一时刻行点开 sheet 内选模式)--
 
-        /// 「不知道出生时刻」入口(checkbox 文案;直说不弱智化,不用「跳过」)。
-        /// zh: "不知道出生时刻";en: "I don't know my birth time"
-        static let hourUnknownToggle = String(localized: "birthform.hourUnknown.toggle")
+        /// 模式 chip「精确时间」(hourAndMinute wheel)。
+        /// zh: "精确时间";en: "Exact time"
+        static let timeModeExact = String(localized: "birthform.timeMode.exact")
+
+        /// 模式 chip「只知道时辰」(12 时辰圆格,取中点小时)。
+        /// zh: "只知道时辰";en: "Rough hour"
+        static let timeModeShichen = String(localized: "birthform.timeMode.shichen")
+
+        /// 模式 chip「不知道」(点选即收起 sheet 走时辰未知降级路径,半夜问在表单展开)。
+        /// zh: "不知道";en: "I don't know"
+        static let timeModeUnknown = String(localized: "birthform.timeMode.unknown")
+
+        /// unknown 模式内容区提示(时辰未知态重开 sheet 时的一行说明)。
+        /// zh: "已按「不知道」继续，想起时刻可随时改选";en: "Continuing without your birth hour — switch modes anytime"
+        static let timeModeUnknownHint = String(localized: "birthform.timeMode.unknownHint")
+
+        /// 时刻行未知态文案(hourKnown=false 时时刻行显示的值,灰字)。
+        /// zh: "不知道时刻";en: "Unknown"
+        static let timeRowUnknown = String(localized: "birthform.timeRow.unknown")
 
         /// 半夜二值问题(D3 唯一一问,用途 = 日柱歧义判断)。
         /// zh: "你是否在半夜(约 11 点之后)出生?";en: "Were you born late at night (after about 11 p.m.)?"
@@ -174,6 +201,11 @@ enum L10n {
         /// zh: "未知(半夜:未答)";en: "Unknown (late night: unanswered)"
         static let confirmTimeUnknownNoAnswer = String(localized: "birthform.confirm.timeUnknownNoAnswer")
 
+        /// 确认 sheet 已知路径但时刻未选(2026-09-23 时刻去默认值:诚实展示未选,
+        /// 与日期「—」/半夜未答同口径,提交被 formInvalid 拦)。
+        /// zh: "未选择时刻";en: "Not selected yet"
+        static let confirmTimeUnpicked = String(localized: "birthform.confirm.timeUnpicked")
+
         /// "命盘别名" 字段标签(字段 Micro 标签与 TextField 标题共用同一 key)。
         /// zh: "命盘别名";en: "Chart name"
         static let aliasLabel = String(localized: "birthform.alias.label")
@@ -181,6 +213,10 @@ enum L10n {
         /// 别名输入占位。
         /// zh: "我自己 / 妈妈 / 男友";en: "Me / Mom / Partner"
         static let aliasPlaceholder = String(localized: "birthform.alias.placeholder")
+
+        /// 别名默认值(2026-09-23 本地化:EN 界面不再夹「我自己」;v2 PR1 多盘命名预设)。
+        /// zh: "我自己";en: "Me"
+        static let aliasDefault = String(localized: "birthform.alias.default")
 
         /// 日期 wheel sheet 标题(亦作日期行 accessibilityLabel;S03 拆分后 date-only)。
         /// zh: "选择出生日期";en: "Birth date"
@@ -200,13 +236,9 @@ enum L10n {
         /// zh: "未选择，拨动表盘完成选择";en: "Not selected yet — scroll to pick"
         static let dateUnselectedHint = String(localized: "birthform.datePicker.unselectedHint")
 
-        /// 时辰快捷选字段标签。
+        /// 时辰快捷选字段标签(2026-09-23 合并后仅 AddHourSheet 补时辰页使用)。
         /// zh: "时辰快捷选(可选)";en: "Quick hour pick (optional)"
         static let hourQuickPickLabel = String(localized: "birthform.hourQuickPick.label")
-
-        /// 时辰快捷选 DisclosureGroup 提示。
-        /// zh: "只知时辰不知精确时间?点此选";en: "Only know the rough hour? Tap to pick"
-        static let hourQuickPickHint = String(localized: "birthform.hourQuickPick.hint")
 
         /// 性别字段标签。
         /// zh: "性别";en: "Gender"

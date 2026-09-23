@@ -95,9 +95,6 @@
     "%@内容" : {
 
     },
-    "%@时 ›" : {
-
-    },
     "%lld / %lld" : {
       "localizations" : {
         "zh-Hans" : {
@@ -339,6 +336,23 @@
         }
       }
     },
+    "birthform.alias.default" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Me"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我自己"
+          }
+        }
+      }
+    },
     "birthform.alias.label" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -441,6 +455,23 @@
         }
       }
     },
+    "birthform.birthTime.placeholder" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Select a time"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请选择时刻"
+          }
+        }
+      }
+    },
     "birthform.confirm.timeUnknown" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -471,6 +502,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未知(半夜:未答)"
+          }
+        }
+      }
+    },
+    "birthform.confirm.timeUnpicked" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Not selected yet"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未选择时刻"
           }
         }
       }
@@ -645,6 +693,23 @@
         }
       }
     },
+    "birthform.error.timeRequired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Please select your birth time"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "请选择出生时刻"
+          }
+        }
+      }
+    },
     "birthform.gender.female" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -696,23 +761,6 @@
         }
       }
     },
-    "birthform.hourQuickPick.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Only know the rough hour? Tap to pick"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "只知时辰不知精确时间?点此选"
-          }
-        }
-      }
-    },
     "birthform.hourQuickPick.label" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -726,23 +774,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "时辰快捷选(可选)"
-          }
-        }
-      }
-    },
-    "birthform.hourUnknown.toggle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "I don't know my birth time"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "不知道出生时刻"
           }
         }
       }
@@ -845,6 +876,91 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "确定"
+          }
+        }
+      }
+    },
+    "birthform.timeMode.exact" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Exact time"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "精确时间"
+          }
+        }
+      }
+    },
+    "birthform.timeMode.shichen" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rough hour"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只知道时辰"
+          }
+        }
+      }
+    },
+    "birthform.timeMode.unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I don't know"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不知道"
+          }
+        }
+      }
+    },
+    "birthform.timeMode.unknownHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Continuing without your birth hour — switch modes anytime"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已按「不知道」继续，想起时刻可随时改选"
+          }
+        }
+      }
+    },
+    "birthform.timeRow.unknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unknown"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不知道时刻"
           }
         }
       }
@@ -3445,7 +3561,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "He who does not know his fate cannot be a gentleman"
+            "value" : "Without knowing one's fate, it is impossible to become a person of noble character.\n— Confucius"
           }
         },
         "zh-Hans" : {
