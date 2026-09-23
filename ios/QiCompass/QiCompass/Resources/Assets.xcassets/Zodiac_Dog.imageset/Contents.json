@@ -1,7 +1,7 @@
 {
   "images": [
     {
-      "filename": "Zodiac_Dog.webp",
+      "filename": "Zodiac_Dog.png",
       "idiom": "universal"
     },
     {
@@ -11,7 +11,7 @@
           "value": "dark"
         }
       ],
-      "filename": "Zodiac_Dog_dark.webp",
+      "filename": "Zodiac_Dog_dark.png",
       "idiom": "universal"
     }
   ],

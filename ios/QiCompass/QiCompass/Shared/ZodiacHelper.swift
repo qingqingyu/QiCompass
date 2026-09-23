@@ -93,6 +93,74 @@ enum ZodiacHelper {
         gender == "male" ? "乾造(男)" : "坤造(女)"
     }
 
+    // MARK: - 反馈屏文案(2026-09-23 EN review:去命理黑话 + 个人化 teaser)
+
+    /// 十天干拼音(EN 展示层;稳定域常量,同 `ShichenDisplay` 范式不进 xcstrings)。
+    private static let ganPinyin: [String: String] = [
+        "甲": "Jia", "乙": "Yi", "丙": "Bing", "丁": "Ding", "戊": "Wu",
+        "己": "Ji", "庚": "Geng", "辛": "Xin", "壬": "Ren", "癸": "Gui",
+    ]
+
+    /// 反馈屏次文字(生肖决策 Q13 C+ii;2026-09-23 EN review:坤造/干支对海外用户
+    /// 是黑话,EN 副标去命理术语)。
+    /// - zh / zh-Hant:`坤造(女) · 乙丑年(1985)`(命理 + 公历双轨,行为不变)
+    /// - en:`Wood Ox · 1985`(年干五行 + 生肖 + 公历年;性别称谓与干支不进 EN 副标)
+    ///
+    /// language 显式传参:纯函数可单测——`AppLanguage.current` 读系统语言且无
+    /// 测试注入通道,设备语言会左右结果(2026-09-23 测试假红教训)。
+    /// gender / birthYear 理论不可达的 nil(表单校验前置保证非空)诚实降级并记日志,
+    /// 逻辑自 OnboardingView.subLabel 原样搬移(zh 行为零变化)。
+    static func revealSubLabel(
+        zodiac: String,
+        yearGanZhi: String,
+        yearGanElement: String?,
+        gender: String?,
+        birthYear: Int?,
+        language: AppLanguage
+    ) -> String {
+        if language.isChinese {
+            guard let gender else {
+                AppLogger.app.error("ZodiacHelper.revealSubLabel gender_missing(理论不可达,请上报)")
+                guard let birthYear else { return "\(yearGanZhi)年" }
+                return "\(yearGanZhi)年(\(birthYear))"
+            }
+            let genderText = genderLabel(forGender: gender)
+            guard let birthYear else {
+                AppLogger.app.error("ZodiacHelper.revealSubLabel birthDate_missing(理论不可达,请上报)")
+                return "\(genderText) · \(yearGanZhi)年"
+            }
+            return "\(genderText) · \(yearGanZhi)年(\(birthYear))"
+        }
+        // EN:Wood Ox · 1985(年柱歧义 → zodiac 空 / 干支「—」时跳过前段,
+        // 降级态本就不渲染副标,此分支仅保参数完备)
+        var parts: [String] = []
+        if !zodiac.isEmpty, yearGanZhi != "—" {
+            let elementName = yearGanElement.flatMap(ElementColors.from)?.englishLabel
+            parts.append(elementName.map { "\($0) \(zodiac)" } ?? zodiac)
+        }
+        if let birthYear { parts.append("\(birthYear)") }
+        return parts.isEmpty ? "—" : parts.joined(separator: " · ")
+    }
+
+    /// 反馈屏个人化 teaser 的日主展示串(2026-09-23 EN review:第一屏只露年柱层
+    /// 太浅,补一句只属于本人的**确定性**事实——日主,引流深度解析;排盘真值
+    /// 纯查表,无 AI 参与,不触碰 LLM 边界)。
+    /// - zh / zh-Hant:「丁火」(干支汉字简繁同形,T5 无需分流)
+    /// - en:"Ding Fire"(拼音 + 五行,稳定域常量)
+    /// 日柱歧义(S02:gan / ganElement 任一 nil)→ nil,调用方不渲染该行(不猜)。
+    static func revealDayMasterDisplay(
+        gan: String?,
+        ganElement: String?,
+        language: AppLanguage
+    ) -> String? {
+        guard let gan, let ganElement,
+              let pinyin = ganPinyin[gan],
+              let element = ElementColors.from(ganElement) else { return nil }
+        return language.isChinese
+            ? "\(gan)\(element.label)"
+            : "\(pinyin) \(element.englishLabel)"
+    }
+
     /// 生肖名是否在已知 12 生肖表内(S05 时辰未知)。
     /// 年柱歧义(S02/D10 立春日 + 时辰未知)→ yearBranchZodiac 为 null/空,
     /// `animalChar` / `personalityText` 对未知值 fatalError(错误显式传播),

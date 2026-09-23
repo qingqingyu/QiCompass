@@ -5,7 +5,8 @@ import SwiftUI
 /// 设计事实源:repo 根 `生肖设计决策.md` Q4-Q21 + 2026-08-13 三屏重构 grill。
 /// - **时序**(Q4 Z):oneshot 仪式(此屏)+ 低调常驻(ChartHeader 文字 + ProfileView 命主卡)
 /// - **布局**(Q11 β → 2026-08-13 Q5 改):hero 压缩 ~140pt + 内容滚动 + CTA 钉底
-///   [hero(印章图 + 主/次文字)→ 人格段落 → 好朋友 3 chips → 需磨合 1 chip → 立场微文案]
+///   [hero(印章图 + 主/次文字)→ 人格段落 → 好朋友 3 chips → 需磨合 1 chip
+///    → 日主 teaser(2026-09-23)→ 立场微文案]
 /// - **主文字**(Q12 iii):`辰 · 龙`(中点分隔,Songti SC display)
 /// - **次文字**(Q13 C+ii):`乾造(男) · 庚辰年(2000)`(命理 + 公历双轨)
 /// - **好朋友**(2026-08-13 Q3/Q4):六合 1 + 三合 2 = 3 个生肖 chip,墨青 jade(吉神色)
@@ -15,7 +16,13 @@ import SwiftUI
 /// - **动效**(Q15 B):盖章动效 — scale 0.8 → 1.05 (spring overshoot) → 1.0 + 朱砂光晕扩散
 ///   + 文字/内容错峰淡入;落定瞬间触发 HapticEngine.medium() 仪式感"砰"
 /// - **暗色**(Q18 A):zodiac asset 走 Asset Catalog appearance set,系统自动选 light/dark variant
+///   (2026-09-23:webp 被 actool 静默丢弃不进 Assets.car,已转**透明底 PNG**
+///   ——「顶部空白 + chip 文字偏右」两个视觉 bug 的共同根因;见 ZodiacRevealTests)
 /// - **失败路径**(Q19 A):此 view 不处理错误,数据由调用方保证完整(字段缺失视为开发期 bug)
+/// - **2026-09-23 review 修复**:好朋友 chip 单行横排等宽(原 ViewThatFits 在 EN 长名下
+///   掉竖排);需磨合 chip 改 hairline 无填充扁平标签(与 jade 淡填充一眼可分);
+///   CTA 删过时 a11y hint;EN 副标/teaser 见 `ZodiacHelper.revealSubLabel` /
+///   `revealDayMasterDisplay`
 /// - **立春降级态**(S08,D10):`year_branch_zodiac == null`(立春交界日 + 时辰未知,
 ///   S02 年柱歧义)→ `ZodiacRevealMode.yearAmbiguous`:生肖/人格/好朋友/需磨合全部不展示
 ///   (**不猜**,两侧候选生肖都不给),一句如实告知 + 补时辰轻提示(D7 降级态例外触点,
@@ -37,6 +44,11 @@ struct ZodiacRevealView: View {
     let friendZodiacs: [String]
     /// 需磨合英文生肖名(六冲 1 个,后端算)。
     let clashZodiac: String
+    /// 个人化 teaser 成品文案(2026-09-23 EN review:属相层之上补一句只属于本人
+    /// 的确定性事实——日主,引流深度解析;OnboardingView 用
+    /// `ZodiacHelper.revealDayMasterDisplay` + xcstrings 模板拼好传入)。
+    /// nil = 日柱歧义(S02)或降级态,该行诚实不渲染。默认 nil 兼容既有测试直构。
+    var personalTease: String? = nil
     /// CTA 点击回调(进深度解析 tab,2026-08-31 改)。
     let onComplete: () -> Void
     /// S10 接线:立春降级态补时辰轻提示点击 → 打开补时辰 sheet(D7 被迫例外触点,
@@ -60,8 +72,9 @@ struct ZodiacRevealView: View {
     private let stampSize: CGFloat = 140
     /// 光晕直径,比印章大一圈让扩散可见。
     private let haloSize: CGFloat = 160
-    /// chip 内生肖小图尺寸。
-    private let chipImageSize: CGFloat = 28
+    /// chip 内生肖小图尺寸(2026-09-23 从 28 收到 20:三个等宽 chip 横排时给
+    /// EN 长名 "Rooster" 留字宽,SE 级窄屏也不触发缩字)。
+    private let chipImageSize: CGFloat = 20
 
     // MARK: - 展示模式(S08,D10 年柱歧义降级)
 
@@ -84,14 +97,11 @@ struct ZodiacRevealView: View {
                     }
                 }
 
-                // MARK: CTA(Q14 α,朱砂手动按钮,钉底部不进滚动;
-                // S08 降级态换「继续」文案,完成 onboarding 进 App)
-                if revealMode == .yearAmbiguous {
-                    ctaButton
-                } else {
-                    ctaButton
-                        .accessibilityHint("查看你的今日运势")
-                }
+                // MARK: CTA(Q14 α,焦墨手动按钮,钉底部不进滚动;
+                // S08 降级态换「继续」文案,完成 onboarding 进 App。
+                // 2026-09-23 review:删过时 accessibilityHint「查看你的今日运势」——
+                // CTA 08-31 起落地深度解析,且硬编码中文对 EN VoiceOver 是噪音)
+                ctaButton
             }
         }
         .task {
@@ -141,7 +151,8 @@ struct ZodiacRevealView: View {
             )
             .opacity(textOpacity)
 
-            // MARK: 需磨合(2026-08-13 Q4:六冲,中性灰不恐吓)
+            // MARK: 需磨合(2026-08-13 Q4:六冲,中性灰不恐吓;2026-09-23 review:
+            // 与好朋友仅 8% 透明度底色之差肉眼难辨,改 hairline 描边无填充的扁平标签)
             section(
                 title: L10n.Onboarding.revealClashTitle,
                 content: {
@@ -149,6 +160,18 @@ struct ZodiacRevealView: View {
                 }
             )
             .opacity(textOpacity)
+
+            // MARK: 个人化 teaser(2026-09-23 EN review:第一屏只露年柱层太浅,
+            // 补一句只属于本人的确定性事实——日主,引流 CTA;nil = 日柱歧义不渲染)
+            if let personalTease {
+                Text(personalTease)
+                    .font(BaziFont.caption(size: 12))
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.horizontal, BaziTheme.Spacing.md)
+                    .opacity(textOpacity)
+            }
 
             // MARK: 立场微文案(Q1 拆分下沉:收到结论那一刻给可信度背书)
             VStack(spacing: BaziTheme.Spacing.md) {
@@ -307,23 +330,22 @@ struct ZodiacRevealView: View {
 
     // MARK: - 生肖 chip(小图 + 名)
 
-    /// chip 行:优先横排,放不下(英文长名 × 窄屏)降级竖排居中。
-    /// ViewThatFits 是系统内置,不引入新依赖。
+    /// chip 行(2026-09-23 review 改):**单行横排等宽**——原 ViewThatFits 在 EN
+    /// 长名(Rooster + 28pt 图)下量宽失败掉竖排,三个胶囊竖排且宽度各异显乱;
+    /// 等宽 flex 行保证稳定一行,`minimumScaleFactor` 兜最窄屏(SE)文字溢出。
     private func chipRow(_ names: [String], tint: Color) -> some View {
-        ViewThatFits(in: .horizontal) {
-            HStack(spacing: BaziTheme.Spacing.sm) {
-                ForEach(names, id: \.self) { zodiacChip($0, tint: tint) }
-            }
-            VStack(spacing: BaziTheme.Spacing.sm) {
-                ForEach(names, id: \.self) { zodiacChip($0, tint: tint) }
-            }
+        HStack(spacing: BaziTheme.Spacing.sm) {
+            ForEach(names, id: \.self) { zodiacChip($0, tint: tint, expanded: true) }
         }
     }
 
     /// Capsule chip(设计系统:Capsule 只留给 chip)。
-    /// 好朋友 → jade(吉神色);需磨合 → inkMuted(中性,不恐吓)。
-    private func zodiacChip(_ name: String, tint: Color) -> some View {
-        HStack(spacing: BaziTheme.Spacing.sm) {
+    /// - 好朋友(expanded = true):jade 淡填充 + 描边,整行等宽(2026-08-13 Q3/Q4)
+    /// - 需磨合(expanded = false):hairline 描边**无填充**的扁平标签
+    ///   (2026-09-23 review:原 jade@8% vs inkMuted@8% 底色差异肉眼难辨;
+    ///   无填充 + hairline 一眼可分,同时降低「像可点击按钮」的误读)
+    private func zodiacChip(_ name: String, tint: Color, expanded: Bool = false) -> some View {
+        HStack(spacing: 6) {
             Image("Zodiac_\(name)")
                 .resizable()
                 .scaledToFit()
@@ -331,12 +353,25 @@ struct ZodiacRevealView: View {
             Text(ZodiacHelper.displayName(forZodiac: name))
                 .font(BaziFont.body(size: 14))
                 .fontWeight(.medium)
-                .foregroundStyle(BaziTheme.ink)
+                .foregroundStyle(expanded ? BaziTheme.ink : BaziTheme.inkMuted)
+                .lineLimit(1)
+                .minimumScaleFactor(0.8)
         }
-        .padding(.horizontal, BaziTheme.Spacing.md)
+        .padding(.horizontal, expanded ? BaziTheme.Spacing.sm : BaziTheme.Spacing.md)
         .padding(.vertical, BaziTheme.Spacing.sm)
-        .background(tint.opacity(0.08), in: Capsule())
-        .overlay(Capsule().stroke(tint.opacity(0.35), lineWidth: 0.5))
+        // frame 在 background 之前:expanded 时胶囊跟着拉满整格,而非居中窄条
+        .frame(maxWidth: expanded ? .infinity : nil)
+        .background {
+            if expanded {
+                Capsule().fill(tint.opacity(0.08))
+            }
+        }
+        .overlay {
+            Capsule().stroke(
+                expanded ? tint.opacity(0.35) : BaziTheme.hairline,
+                lineWidth: 0.5
+            )
+        }
         .accessibilityElement(children: .combine)
     }
 
@@ -458,6 +493,7 @@ struct ZodiacRevealView: View {
         subLabel: "乾造(男) · 庚辰年(2000)",
         friendZodiacs: ["Rooster", "Rat", "Monkey"],
         clashZodiac: "Dog",
+        personalTease: "属相只是开篇 · 日主庚金与五行喜忌，都在深度解析里",
         onComplete: { print("onComplete") }
     )
 }
@@ -469,6 +505,7 @@ struct ZodiacRevealView: View {
         subLabel: "乾造(男) · 庚辰年(2000)",
         friendZodiacs: ["Rooster", "Rat", "Monkey"],
         clashZodiac: "Dog",
+        personalTease: "属相只是开篇 · 日主庚金与五行喜忌，都在深度解析里",
         onComplete: { print("onComplete") }
     )
     .preferredColorScheme(.dark)

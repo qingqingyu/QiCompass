@@ -128,6 +128,7 @@
 		A00000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift */; };
 		A00000000000000000000006 /* Shared/DailyReadCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */; };
 		A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */; };
+		A00000000000000000000021 /* Shared/ZodiacRevealTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000021 /* Shared/ZodiacRevealTests.swift */; };
 		A00000000000000000000008 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A21000000000000000000001 /* XCTest.framework */; };
 		A00000000000000000000009 /* AI/CachedInterpretationReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000008 /* AI/CachedInterpretationReaderTests.swift */; };
 		A0000000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */; };
@@ -295,6 +296,7 @@
 		A11000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilitySnapshotStoreTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DailyReadCounterTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/UserFacingErrorTests.swift; sourceTree = "<group>"; };
+		A11000000000000000000021 /* Shared/ZodiacRevealTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ZodiacRevealTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000008 /* AI/CachedInterpretationReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AI/CachedInterpretationReaderTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityViewModelBatchTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisArchiveLoadTests.swift; sourceTree = "<group>"; };
@@ -616,6 +618,7 @@
 				A11000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift */,
 				A1100000000000000000020 /* Shared/ChapterContentTests.swift */,
 				A11000000000000000000013 /* Shared/AddHourFlowTests.swift */,
+				A11000000000000000000021 /* Shared/ZodiacRevealTests.swift */,
 			);
 			name = Tests;
 			path = ../Tests;
@@ -872,6 +875,7 @@
 				A0000000000000000000099 /* Shared/PaywallLayoutTests.swift in Sources */,
 				A0000000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift in Sources */,
 				A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */,
+				A00000000000000000000021 /* Shared/ZodiacRevealTests.swift in Sources */,
 				A00000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift in Sources */,
 				A00000000000000000000016 /* Paywall/PaywallContractStepTests.swift in Sources */,
 				A00000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift in Sources */,
