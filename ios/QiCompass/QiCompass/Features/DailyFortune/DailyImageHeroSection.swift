@@ -306,7 +306,8 @@ struct DailyImageHeroSection: View {
 /// 数据源(v1 简化,同前):前端十神→关键词查表,扩为**每列 3 词**;
 /// 后续可挪后端基于喜忌+流日关系确定性映射(不增加 v1 后端复杂度)。
 /// 十神 key 始终中文(后端不翻译,i18n 决策 7);词表按 AppLanguage 切换。
-private struct HeroYiJiColumns: View {
+/// internal(非 private)供 DailyImageHeroCopyTests 断言 EN 词表 ≤16 chars 预算。
+struct HeroYiJiColumns: View {
     let dayRelation: String
 
     static let mappingZh: [String: (yi: [String], ji: [String])] = [
@@ -323,7 +324,9 @@ private struct HeroYiJiColumns: View {
     ]
 
     /// EN 词表(2026-09-19 S02/#12 重写):中文双字词自带语境,单词直译语义散失
-    /// (`Push`/`Feud`),换带语境短语;每条 ≤16 chars,mono 14.5pt 双列(~163pt/列)单行内。
+    /// (`Push`/`Feud`),换带语境短语;每条 ≤16 chars,mono 14.5pt 双列(~163pt/列)
+    /// 单行内——预算由 DailyImageHeroCopyTests 守护(2026-09-23 review #2,
+    /// 曾有 "Play by the Rules"(17)破线无测试拦截)。
     static let mappingEn: [String: (yi: [String], ji: [String])] = [
         "比肩": (["Work Solo", "Set Boundaries", "Train"], ["Argue", "Compare", "Follow the Crowd"]),
         "劫财": (["Act Now", "Branch Out", "Share the Gain"], ["Snap Buys", "Lend Money", "Force It"]),
@@ -332,7 +335,7 @@ private struct HeroYiJiColumns: View {
         "偏财": (["Explore", "Try New Things", "Give Ground"], ["Bet It All", "Overreach", "Buy on Credit"]),
         "正财": (["Keep Steady", "Track Spending", "Stay Grounded"], ["Cut Corners", "Rush Deals", "Break Promises"]),
         "七杀": (["Make the Call", "Take It On", "Push Through"], ["Waver", "Start Feuds", "Burn Out"]),
-        "正官": (["Own Your Duty", "Play by the Rules", "Report Back"], ["Shrink Back", "Skip the Chain", "Miss Deadlines"]),
+        "正官": (["Own Your Duty", "Follow the Rules", "Report Back"], ["Shrink Back", "Skip the Chain", "Miss Deadlines"]),
         "偏印": (["Reflect", "Sit with It", "Review Old Notes"], ["Get Stubborn", "Overthink", "Go It Alone"]),
         "正印": (["Study Up", "Take Advice", "Rest Well"], ["Lean Too Hard", "Daydream", "Drag Your Feet"]),
     ]

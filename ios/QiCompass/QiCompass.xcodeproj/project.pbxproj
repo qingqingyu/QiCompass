@@ -139,6 +139,7 @@
 		A00000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */; };
 		A00000000000000000000016 /* Paywall/PaywallContractStepTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000016 /* Paywall/PaywallContractStepTests.swift */; };
 		A00000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */; };
+		A00000000000000000000017 /* DailyFortune/DailyImageHeroCopyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000017 /* DailyFortune/DailyImageHeroCopyTests.swift */; };
 		A00000000000000000000013 /* Shared/AddHourFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000013 /* Shared/AddHourFlowTests.swift */; };
 		A00000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift */; };
 		A00000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift */; };
@@ -301,6 +302,7 @@
 		A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paywall/PaywallHourUnknownGateTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000016 /* Paywall/PaywallContractStepTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paywall/PaywallContractStepTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFortune/DailyFortuneHourUnknownGateTests.swift; sourceTree = "<group>"; };
+		A11000000000000000000017 /* DailyFortune/DailyImageHeroCopyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFortune/DailyImageHeroCopyTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000013 /* Shared/AddHourFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/AddHourFlowTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisChapterRowTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/TestDailyReadCounterFactory.swift; sourceTree = "<group>"; };
@@ -611,6 +613,7 @@
 				A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */,
 				A11000000000000000000016 /* Paywall/PaywallContractStepTests.swift */,
 				A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */,
+				A11000000000000000000017 /* DailyFortune/DailyImageHeroCopyTests.swift */,
 				A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */,
 				A11000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift */,
 				A11000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift */,
@@ -875,6 +878,7 @@
 				A00000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift in Sources */,
 				A00000000000000000000016 /* Paywall/PaywallContractStepTests.swift in Sources */,
 				A00000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift in Sources */,
+				A00000000000000000000017 /* DailyFortune/DailyImageHeroCopyTests.swift in Sources */,
 				A0000000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift in Sources */,
 				A00000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift in Sources */,
 				A00000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift in Sources */,
