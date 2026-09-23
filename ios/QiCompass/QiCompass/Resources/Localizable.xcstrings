@@ -2855,13 +2855,30 @@
         }
       }
     },
+    "onboarding.reveal.personalTease" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The zodiac is only the opening · day master %@ and your favorable elements are in the deep analysis"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "属相只是开篇 · 日主%@与五行喜忌，都在深度解析里"
+          }
+        }
+      }
+    },
     "onboarding.reveal.stanceLine" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Same birth data, same chart · Rules decide, AI polishes"
+            "value" : "Same birth data, same chart · Calculated by classical rules, not guesswork"
           }
         },
         "zh-Hans" : {

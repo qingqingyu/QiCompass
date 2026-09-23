@@ -69,10 +69,21 @@ enum L10n {
 
         /// 立场微文案(反馈屏底部,Q1 拆分下沉:收到结论那一刻给可信度背书)。
         /// zh: "同一组生辰,同一张盘 · 喜忌由规则判,AI 只润色"
-        /// en: "Same birth data, same chart · Rules decide, AI polishes"
+        /// en: "Same birth data, same chart · Calculated by classical rules, not guesswork"
+        /// (2026-09-23 review:原 EN "Rules decide, AI polishes" 读着像开发备注,
+        /// 改用户视角表述;zh 不变)
         static let revealStanceLine = String(localized: "onboarding.reveal.stanceLine")
 
-        /// 反馈屏 CTA(zh="查看今日运势", en="See today's fortune")
+        /// 个人化 teaser(2026-09-23 EN review:属相层之上补一句只属于本人的确定性
+        /// 事实——日主,引流深度解析;%@ = 日主展示串,ZodiacHelper.revealDayMasterDisplay)。
+        /// zh: "属相只是开篇 · 日主%@与五行喜忌，都在深度解析里"
+        /// en: "The zodiac is only the opening · day master %@ and your favorable elements are in the deep analysis"
+        /// 格式化收在 L10n 内(同 `confirmTimeUnknown` 惯例),格式串不泄漏到视图层。
+        static func revealPersonalTeaseText(_ dayMaster: String) -> String {
+            String(format: String(localized: "onboarding.reveal.personalTease"), dayMaster)
+        }
+
+        /// 反馈屏 CTA(2026-08-31 起落地深度解析;zh="开始深度解析", en="Start deep analysis")
         static let revealCTA = String(localized: "onboarding.reveal.cta")
 
         // -- 立春降级态(S08,D10 年柱歧义 → 生肖屏降级,不猜)--

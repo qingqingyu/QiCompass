@@ -174,6 +174,7 @@ struct OnboardingView: View {
                     ),
                     friendZodiacs: response.yearBranchFriends ?? [],
                     clashZodiac: response.yearBranchClash ?? "",
+                    personalTease: personalTeaseText(from: response),
                     onComplete: {
                         // Q7 闸门:降级态「继续」与正常态 CTA 同一放行逻辑,只放行第一次
                         if completeGate.fire(onComplete) {
@@ -316,29 +317,33 @@ struct OnboardingView: View {
         return "\(zhi) · \(ZodiacHelper.animalChar(forZodiac: zodiac))"  // "Dragon" → "龙"
     }
 
-    /// 次文字(生肖决策 Q13 C+ii):`乾造(男) · 庚辰年(2000)`(命理 + 公历双轨)。
-    /// 年柱干支从 `response.pillars.year.ganZhi`(按立春算,可能与公历年不对应 —
-    /// 立春前的公历年会显示上一年的年柱,这是正确行为,不是 bug)。
-    /// 公历年份由调用方传(从 vm.birthDate 取,用于用户认知锚点)。
-    /// birthYear 为 Optional(S03 birthDate Optional 化):nil = 理论不可达(.ready 前置
-    /// validateForm 已保证日期非空),显式记录 + 诚实降级去括号,不静默编造年份。
-    /// gender 同为 Optional(2026-09-19 去默认值):nil = 理论不可达(性别必选校验
-    /// 已保证非空),诚实降级去乾/坤前缀,不静默猜性别。
-    /// S05:年柱歧义 → 干支留白「—」不猜。S08:同主标,「—」占位在降级态不渲染
-    /// (降级态用告知句整体替代主/次文字,不用「乾造(男) · —年」的破相表达)。
+    /// 次文字(生肖决策 Q13 C+ii;2026-09-23 EN review:坤造/干支对海外用户是黑话)。
+    /// 组合逻辑收拢到 `ZodiacHelper.revealSubLabel`(纯函数,language 显式传参可单测):
+    /// - zh / zh-Hant:`乾造(男) · 庚辰年(2000)`(命理 + 公历双轨,行为不变)
+    /// - en:`Wood Ox · 1985`(五行 + 生肖 + 公历年)
+    /// 年柱干支从 `response.pillars.year.ganZhi`(按立春算,立春前的公历年会显示
+    /// 上一年的年柱,这是正确行为不是 bug)。
     private func subLabel(from response: BaziResponse, gender: String?, birthYear: Int?) -> String {
-        let ganzhi = response.pillars.year?.ganZhi ?? "—"  // 如 "庚辰"
-        guard let gender else {
-            AppLogger.app.error("OnboardingView.subLabel gender_missing(理论不可达,请上报)")
-            guard let birthYear else { return "\(ganzhi)年" }
-            return "\(ganzhi)年(\(birthYear))"
-        }
-        let genderLabel = ZodiacHelper.genderLabel(forGender: gender)
-        guard let birthYear else {
-            AppLogger.app.error("OnboardingView.subLabel birthDate_missing(理论不可达,请上报)")
-            return "\(genderLabel) · \(ganzhi)年"
-        }
-        return "\(genderLabel) · \(ganzhi)年(\(birthYear))"
+        ZodiacHelper.revealSubLabel(
+            zodiac: response.yearBranchZodiac ?? "",
+            yearGanZhi: response.pillars.year?.ganZhi ?? "—",
+            yearGanElement: response.pillars.year?.ganElement,
+            gender: gender,
+            birthYear: birthYear,
+            language: AppLanguage.current
+        )
+    }
+
+    /// 个人化 teaser(2026-09-23 EN review:第一屏只露年柱层太浅,补一句只属于本人
+    /// 的确定性事实——日主,引流 CTA)。日柱歧义(S02:day 柱 null)→ nil 不渲染,
+    /// 不猜(降级态整屏本就不走 fullContent)。
+    private func personalTeaseText(from response: BaziResponse) -> String? {
+        guard let dayMaster = ZodiacHelper.revealDayMasterDisplay(
+            gan: response.pillars.day?.gan,
+            ganElement: response.pillars.day?.ganElement,
+            language: AppLanguage.current
+        ) else { return nil }
+        return L10n.Onboarding.revealPersonalTeaseText(dayMaster)
     }
 }
 

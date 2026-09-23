@@ -1,7 +1,7 @@
 {
   "images": [
     {
-      "filename": "Zodiac_Ox.webp",
+      "filename": "Zodiac_Ox.png",
       "idiom": "universal"
     },
     {
@@ -11,7 +11,7 @@
           "value": "dark"
         }
       ],
-      "filename": "Zodiac_Ox_dark.webp",
+      "filename": "Zodiac_Ox_dark.png",
       "idiom": "universal"
     }
   ],

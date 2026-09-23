@@ -43,6 +43,17 @@ enum ElementColors: String {
         }
     }
 
+    /// 英文标签(展示用,首字母大写:2026-09-23 反馈屏 EN 副标 "Wood Ox · 1985")。
+    var englishLabel: String {
+        switch self {
+        case .wood:  return "Wood"
+        case .fire:  return "Fire"
+        case .earth: return "Earth"
+        case .metal: return "Metal"
+        case .water: return "Water"
+        }
+    }
+
     /// 安全构造:未知字符串返回 nil(调用方决定降级策略,不静默兜底)。
     static func from(_ raw: String) -> ElementColors? {
         ElementColors(rawValue: raw)
