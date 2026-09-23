@@ -948,6 +948,23 @@
         }
       }
     },
+    "birthform.timePicker.startHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to start picking"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "轻触开始选择"
+          }
+        }
+      }
+    },
     "birthform.timeRow.unknown" : {
       "extractionState" : "manual",
       "localizations" : {

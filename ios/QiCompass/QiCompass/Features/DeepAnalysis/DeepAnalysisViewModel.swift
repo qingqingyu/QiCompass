@@ -95,18 +95,22 @@ final class DeepAnalysisViewModel {
     var birthDate: Date?
 
     /// 出生时刻独立绑定(S03:与日期拆开)。默认锚点只取其钟面时分(出生地钟面),
-    /// 日期分量不参与提交;时辰快捷选(setShichenHour)只改写本绑定。
+    /// 日期分量不参与提交;时辰快捷选(setShichenHour)只改写本绑定;
+    /// 深度表单未选态不显示表盘(空值),揭示时由视图播种正午(见 BirthFormView.timeEmptyState)。
     var birthTime: Date = DeepAnalysisViewModel.defaultBirthTimeAnchor
 
     /// 时刻是否被用户显式选择(2026-09-23 时刻去默认值,镜像 09-19 日期/性别改造):
     /// false = 未碰 wheel/时辰格的初始态,时刻行显灰占位、validateForm 拦截
-    /// 「请选择出生时刻」——修「锚点 14:13 被当真实值静默提交 → 错时柱」的数据质量洞。
+    /// 「请选择出生时刻」——修「锚点被当真实值静默提交 → 错时柱」的数据质量洞。
     /// wheel 拨动(表单 binding set)/ setShichenHour 置 true;setHourKnown 不动它
     /// (未知 ↔ 已知来回切,已选时刻所见即所得)。
     var birthTimePicked = false
 
-    /// 时刻行初始锚点 = 旧默认 1990-03-15 同一 instant(保留现状默认时刻语义,非提交默认日期)。
-    static let defaultBirthTimeAnchor = Date(timeIntervalSince1970: 638_000_000)
+    /// 时刻/日期表盘初始锚点 = 1990-03-21 **正午 12:00(+08:00 钟面)** instant。
+    /// 2026-09-23 二段从 638_000_000(+08 钟面 14:13:20)改为正午:旧值被用户读成
+    /// 「默认 14:13」;正午是中性的表盘位置。位置非值——未拨动不构成提交。
+    /// 共用:深度表单 birthTime / 合盘 tempBirthTime / AddHourSheet / 合盘日期表盘种子。
+    static let defaultBirthTimeAnchor = Date(timeIntervalSince1970: 637_992_000)
 
     // MARK: 时辰未知(S04,D1 单一入口 + D3 二值半夜问题)
 
@@ -300,7 +304,7 @@ final class DeepAnalysisViewModel {
     /// ——避免又一层默认假答案);时辰未知时「不晚于当下」降为日期粒度(12:00 占位
     /// 不参与判定,当日出生不误拦)。
     /// 2026-09-23 时刻去默认值:已知路径时刻未显式选择 → 拦「请选择出生时刻」
-    /// (锚点 14:13 只是表盘位置非值,镜像日期「未选择,拨动表盘完成选择」处理)。
+    /// (表盘锚点/正午种子只是位置非值,镜像日期「未选择,拨动表盘完成选择」处理)。
     func validateForm() -> [String] {
         var errors: [String] = []
         if birthDate == nil {
