@@ -113,8 +113,8 @@ final class DailyFortuneHeroEnTests: XCTestCase {
     // MARK: - zh 冲标签回归(格式迁移后逐字不变)
 
     func testchongLabel_zh回归_与旧拼接逐字相同() {
-        // 测试设备基线 zh;zh 分支必须维持 "冲未" / "冲未 (日支未、时支未)"
-        XCTAssertEqual(L10n.DailyFortune.chongLabel(chong: "未", targets: []), "冲未")
-        XCTAssertEqual(L10n.DailyFortune.chongLabel(chong: "未", targets: ["日支未", "时支未"]), "冲未 (日支未、时支未)")
+        // 显式 language 参数断言,不依赖测试设备语言(09-23 假红教训)
+        XCTAssertEqual(L10n.DailyFortune.chongLabel(chong: "未", targets: [], language: .zh), "冲未")
+        XCTAssertEqual(L10n.DailyFortune.chongLabel(chong: "未", targets: ["日支未", "时支未"], language: .zh), "冲未 (日支未、时支未)")
     }
 }

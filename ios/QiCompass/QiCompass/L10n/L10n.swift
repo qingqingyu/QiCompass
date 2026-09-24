@@ -390,13 +390,20 @@ enum L10n {
         ///   —— 2026-09-24 拍板:裸地支「Clashes: 未」对 EN 用户不可读,换生肖
         ///   动物名(地支→动物走 ZodiacHelper 单一事实源);targets 的「年支/
         ///   月支/日支/时支」前缀译成英文柱位,告诉用户"这跟你有没有关系"。
+        ///   (演进自 09-23 位置词翻译版:该版保留地支字仍不够可读)
+        ///
+        /// `language` 显式参数供测试断言(不依赖设备语言,09-23 假红教训),
+        /// 生产调用方走默认 `.current` 零改动。
         ///
         /// - Parameters:
         ///   - chong: 冲到的地支字(如 "午"),来自 backend day_chong 字段
         ///   - targets: 被冲到的四柱位置描述列表(如 ["年支午"]),空列表则不加 targets
+        ///   - language: 显式语言(默认当前)
         /// - Returns: 完整本地化字符串
-        static func chongLabel(chong: String, targets: [String]) -> String {
-            if AppLanguage.current == .en {
+        static func chongLabel(
+            chong: String, targets: [String], language: AppLanguage = AppLanguage.current
+        ) -> String {
+            if language == .en {
                 let animal: String
                 if let hit = ZodiacHelper.zodiacName(forZhi: chong) {
                     animal = hit
@@ -423,7 +430,7 @@ enum L10n {
         /// EN 柱位描述:后端 targets 形如 "日支未"(2 字柱位 + 地支),译成
         /// "Day & Hour Pillars" 这类英文柱位串。未识别形状原样保留
         /// (防御:后端改形状时宁可露中文也不丢信息),miss 记日志。
-        /// internal 供测试(DailyFortuneHeroEnTests)。
+        /// internal 供测试(DailyFortuneHeroEnTests / DailyImageHeroCopyTests)。
         static func enPillarPositions(_ targets: [String]) -> String {
             let positions = ["年支": "Year", "月支": "Month", "日支": "Day", "时支": "Hour"]
             let translated = targets.map { raw -> String in
