@@ -18,6 +18,9 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
     private var vm: DeepAnalysisViewModel!
     private var apiClient: MockAPIClient!
     private var chartStore: ChartSnapshotStore!
+    /// 补时辰链路测试用(2026-09-23 AddHourViewModel 同款锚点洞回归)。
+    private var linkStore: UserSnapshotLinkStore!
+    private var orchestrator: DeepAnalysisOrchestrator!
 
     override func setUpWithError() throws {
         try super.setUpWithError()
@@ -25,6 +28,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         let context = container.mainContext
         apiClient = MockAPIClient()
         chartStore = ChartSnapshotStore(context: context)
+        linkStore = UserSnapshotLinkStore(context: context)
         let interpretStore = InterpretationCacheStore(context: context)
         let identityResolver = AIIdentityResolver(apiClient: apiClient)
         let counter = DailyReadCounter.makeIsolatedForTesting()
@@ -32,13 +36,13 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
             identityResolver: identityResolver,
             cacheStore: interpretStore
         )
-        let orchestrator = DeepAnalysisOrchestrator(
+        orchestrator = DeepAnalysisOrchestrator(
             apiClient: apiClient,
             chartStore: chartStore,
             interpretStore: interpretStore,
             counter: counter,
             interpretationReader: reader,
-            userLinkStore: UserSnapshotLinkStore(context: context)
+            userLinkStore: linkStore
         )
         let entitlementStore = EntitlementStore(modelContext: context)
         vm = DeepAnalysisViewModel(
@@ -64,6 +68,8 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         }
         vm = nil
         chartStore = nil
+        linkStore = nil
+        orchestrator = nil
         apiClient = nil
         container = nil
         try await super.tearDown()
@@ -307,6 +313,77 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         vm.setHourKnown(false)
         vm.setHourKnown(true)
         XCTAssertTrue(vm.birthTimePicked, "切换时辰未知路径不得谎报回未选")
+    }
+
+    // MARK: - ShichenDisplay 单一事实源(2026-09-23;语言无关不变量)
+
+    func testShichenDisplayInvariants() {
+        // 12 中点小时:name 非空;tag 与 name/range 同源拼装(zh「X时」/en "X (range)");
+        // 非中点小时(奇数/越界)→ 一律空串,不猜
+        let midHours = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]
+        for hour in midHours {
+            let name = ShichenDisplay.name(forMidHour: hour)
+            let tag = ShichenDisplay.tag(forMidHour: hour)
+            XCTAssertFalse(name.isEmpty, "中点小时 \(hour) 必须有名")
+            XCTAssertFalse(tag.isEmpty, "中点小时 \(hour) 必须有 tag")
+            if AppLanguage.current.isChinese {
+                XCTAssertEqual(tag, "\(name)时")
+            } else {
+                XCTAssertEqual(tag, "\(name) (\(ShichenDisplay.range(forMidHour: hour)))")
+            }
+        }
+        for stray in [1, 3, 13, 23, -2, 25] {
+            XCTAssertEqual(ShichenDisplay.name(forMidHour: stray), "", "非中点小时不猜")
+            XCTAssertEqual(ShichenDisplay.tag(forMidHour: stray), "")
+            XCTAssertEqual(ShichenDisplay.range(forMidHour: stray), "")
+        }
+        // 圆格表与名表逐小时对齐,防两表漂移;两处视图 hour 表(BirthFormView /
+        // AddHourSheet)互相钉死同值,单边改动即红
+        XCTAssertEqual(AddHourSheet.shichenHours.count, 12)
+        XCTAssertEqual(BirthFormView.shichenHours, AddHourSheet.shichenHours,
+                       "两处圆格 hour 表必须同值")
+        for hour in AddHourSheet.shichenHours {
+            XCTAssertFalse(ShichenDisplay.name(forMidHour: hour).isEmpty,
+                           "时辰表 hour=\(hour) 在 ShichenDisplay 名表必须对齐")
+        }
+    }
+
+    // MARK: - 补时辰 sheet 时刻去默认值(2026-09-23 镜像修复)
+
+    func testAddHourSubmitBlockedWhenTimeUntouched() async throws {
+        // AddHourViewModel 同款锚点洞修复:未碰 wheel/时辰格直接提交 → 拦截
+        // (phase .failed 人话文案),不构造/发出重算请求
+        let response = Self.makeResponse(
+            pillars: PillarsDTO(year: Self.fixturePillar, month: Self.fixturePillar,
+                                day: Self.fixturePillar, hour: nil),
+            trueSolarTime: nil, hourKnown: false
+        )
+        _ = try chartStore.upsert(response: response, request: Self.fixtureRequest)
+        let addHourVM = try AddHourViewModel.make(
+            snapshotHash: response.contentHash,
+            orchestrator: orchestrator,
+            chartStore: chartStore,
+            linkStore: linkStore
+        )
+        XCTAssertFalse(addHourVM.birthTimePicked, "初始态必须未选(锚点只是表盘位置)")
+
+        let result = await addHourVM.submit()
+        XCTAssertNil(result, "时刻未选 → submit 必须失败返回 nil")
+        guard case .failed(let message) = addHourVM.phase else {
+            return XCTFail("时刻未选必须停 .failed,实际: \(addHourVM.phase)")
+        }
+        XCTAssertEqual(message, L10n.BirthForm.errorTimeRequired, "拦截文案复用时刻必选错误")
+
+        // 拦截后转投「不知道」:成功的静默 toggle 必须清掉旧门控错误——否则
+        // 「请选择出生时刻」悬在「完成」CTA 上方自相矛盾(只清 .failed 的钉子)
+        addHourVM.setHourUnknownAccepted(true)
+        XCTAssertEqual(addHourVM.phase, .idle,
+                       "静默 toggle 成功必须清 .failed(矛盾 UI 修复回归)")
+
+        // 显式选择(时辰格)后标记翻已选(放行路径由 AddHourFlowTests 既有
+        // 「先 setShichenHour 再 submit」全量用例覆盖)
+        addHourVM.setShichenHour(10)
+        XCTAssertTrue(addHourVM.birthTimePicked, "时辰格显式选择 → 已选")
     }
 
     // MARK: - S03 确认 sheet / 表单两行的数值一致性(wallBirthDateString / wallBirthTimeString)
