@@ -117,17 +117,58 @@ enum TabIcons {
         }
     }
 
-    // MARK: - 我的(未钤空心印)
+    // MARK: - 我的(未钤之印,印中有我)
 
     /// 空心圆角方:116/180 = 64.4% 见方,rx 28(边长 24%),线宽 7.5/180 = 4.2%。
-    /// 印面全空 ——「未钤之印」,不加内衬框(区别于 SealStamp 的 insetBorder)。
+    /// 印心一笔极简人形(2026-09-25 打磨:外评「空方框太抽象」——tab 高频位
+    /// 不该依赖「未钤之印」的品牌语境才能读懂;头点复用今日图标的中心墨点
+    /// 语言,肩一道弧,不破坏印章立意)。不加内衬框(区别于 SealStamp 的
+    /// insetBorder)。
     struct MeTabIcon: View {
         var size: CGFloat = renderSize
 
         var body: some View {
-            RoundedRectangle(cornerRadius: size * 0.644 * 0.241)
-                .stroke(BaziTheme.inkDeep, lineWidth: size * 0.0417)
-                .frame(width: size * 0.644, height: size * 0.644)
+            ZStack {
+                RoundedRectangle(cornerRadius: size * 0.644 * 0.241)
+                    .stroke(BaziTheme.inkDeep, lineWidth: size * 0.0417)
+                    .frame(width: size * 0.644, height: size * 0.644)
+                PersonInSeal(size: size)
+            }
+            .frame(width: size, height: size)
+        }
+    }
+
+    /// 印心人形:头 = 实心墨点(直径 16.7% size,与今日中心点同语言,置于
+    /// 印中心上方),肩 = 一道上拱弧(印内 116 坐标系 (24,78)→(92,78),
+    /// 拱顶 (58,52))。
+    private struct PersonInSeal: View {
+        let size: CGFloat
+
+        var body: some View {
+            let seal = size * 0.644
+            return ZStack {
+                Circle()
+                    .fill(BaziTheme.inkDeep)
+                    .frame(width: size * 0.167, height: size * 0.167)
+                    .offset(y: -seal * 0.185)
+                SealPersonArc()
+                    .stroke(BaziTheme.inkDeep,
+                            style: StrokeStyle(lineWidth: size * 0.0417, lineCap: .round))
+                    .frame(width: seal, height: seal)
+            }
+        }
+    }
+
+    private struct SealPersonArc: Shape {
+        func path(in rect: CGRect) -> Path {
+            let s = rect.width / 116  // 印内 116 坐标系
+            var p = Path()
+            p.move(to: CGPoint(x: 24 * s, y: 78 * s))
+            p.addQuadCurve(
+                to: CGPoint(x: 92 * s, y: 78 * s),
+                control: CGPoint(x: 58 * s, y: 52 * s)
+            )
+            return p
         }
     }
 

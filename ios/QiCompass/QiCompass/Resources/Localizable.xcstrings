@@ -23,6 +23,12 @@
             "state" : "translated",
             "value" : "%1$@ · %2$@"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
         }
       }
     },
@@ -31,6 +37,12 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "new",
+            "value" : "%1$@ · 日主 %2$@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "%1$@ · 日主 %2$@"
           }
         }
@@ -46,6 +58,12 @@
             "state" : "new",
             "value" : "%1$@ (%2$@)"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ (%2$@)"
+          }
         }
       }
     },
@@ -56,6 +74,12 @@
             "state" : "new",
             "value" : "%1$@ %2$@"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$@"
+          }
         }
       }
     },
@@ -64,6 +88,12 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "new",
+            "value" : "%1$@ %2$@%3$@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "%1$@ %2$@%3$@"
           }
         }
@@ -79,6 +109,12 @@
             "state" : "new",
             "value" : "%1$@%2$lld"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@%2$lld"
+          }
         }
       }
     },
@@ -92,6 +128,12 @@
             "state" : "new",
             "value" : "%1$lld / %2$lld"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld / %2$lld"
+          }
         }
       }
     },
@@ -100,6 +142,12 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "new",
+            "value" : "%1$lld-%2$lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "%1$lld-%2$lld"
           }
         }
@@ -111,6 +159,12 @@
           "stringUnit" : {
             "state" : "new",
             "value" : "%1$lld-%2$lld岁"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld-%2$lld歲"
           }
         }
       }
@@ -153,6 +207,12 @@
             "state" : "translated",
             "value" : "暂时无法补时辰"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暫時無法補時辰"
+          }
         }
       }
     },
@@ -169,6 +229,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "出生信息读取失败,暂时无法补时辰"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生資訊讀取失敗,暫時無法補時辰"
           }
         }
       }
@@ -187,6 +253,12 @@
             "state" : "translated",
             "value" : "设置未保存,请重试"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "設定未保存,請重試"
+          }
         }
       }
     },
@@ -203,6 +275,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重算未完成,请重试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重算未完成,請重試"
           }
         }
       }
@@ -221,6 +299,12 @@
             "state" : "translated",
             "value" : "保存并重算"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存並重算"
+          }
         }
       }
     },
@@ -234,6 +318,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重算中…"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "重算中…"
@@ -255,6 +345,12 @@
             "state" : "translated",
             "value" : "完成"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成"
+          }
         }
       }
     },
@@ -271,6 +367,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "为「%@」补充出生时辰"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "為「%@」補充出生時辰"
           }
         }
       }
@@ -289,6 +391,12 @@
             "state" : "translated",
             "value" : "开启后不再提示补时辰;想补时随时可以再打开。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開啟後不再提示補時辰;想補時隨時可以再打開。"
+          }
         }
       }
     },
@@ -305,6 +413,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "我确实不知道出生时辰"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我確實不知道出生時辰"
           }
         }
       }
@@ -323,6 +437,12 @@
             "state" : "translated",
             "value" : "只补时辰这一个字段。出生日期、性别与出生地保持不变,命盘按新时辰重算,原盘归档保留。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只補時辰這一個欄位。出生日期、性別與出生地保持不變,命盤按新時辰重算,原盤歸檔保留。"
+          }
         }
       }
     },
@@ -340,6 +460,12 @@
             "state" : "translated",
             "value" : "补充出生时辰"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "補充出生時辰"
+          }
         }
       }
     },
@@ -353,6 +479,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我自己"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "我自己"
@@ -374,6 +506,12 @@
             "state" : "translated",
             "value" : "命盘别名"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盤別名"
+          }
         }
       }
     },
@@ -391,6 +529,12 @@
             "state" : "translated",
             "value" : "我自己 / 妈妈 / 男友"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我自己 / 媽媽 / 男友"
+          }
         }
       }
     },
@@ -404,6 +548,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生日期"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "出生日期"
@@ -425,6 +575,12 @@
             "state" : "translated",
             "value" : "请选择日期"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請選擇日期"
+          }
         }
       }
     },
@@ -438,6 +594,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生地"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "出生地"
@@ -459,6 +621,12 @@
             "state" : "translated",
             "value" : "出生时刻"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生時刻"
+          }
         }
       }
     },
@@ -476,6 +644,12 @@
             "state" : "translated",
             "value" : "请选择时刻"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請選擇時刻"
+          }
         }
       }
     },
@@ -489,6 +663,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知(半夜:%@)"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "未知(半夜:%@)"
@@ -510,6 +690,12 @@
             "state" : "translated",
             "value" : "未知(半夜:未答)"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知(半夜:未答)"
+          }
         }
       }
     },
@@ -526,6 +712,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未选择时刻"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未選擇時刻"
           }
         }
       }
@@ -544,6 +736,12 @@
             "state" : "translated",
             "value" : "排盘布算中"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盤布算中"
+          }
         }
       }
     },
@@ -560,6 +758,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "开始排盘"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開始排盤"
           }
         }
       }
@@ -578,6 +782,12 @@
             "state" : "translated",
             "value" : "日期决定年月柱与生肖;时刻决定时柱与喜忌;不知道时刻可先跳过"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日期決定年月柱與生肖;時刻決定時柱與喜忌;不知道時刻可先跳過"
+          }
         }
       }
     },
@@ -594,6 +804,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "选择出生日期"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選擇出生日期"
           }
         }
       }
@@ -612,6 +828,12 @@
             "state" : "translated",
             "value" : "选择出生时刻"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選擇出生時刻"
+          }
         }
       }
     },
@@ -628,6 +850,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未选择，拨动表盘完成选择"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未選擇，撥動錶盤完成選擇"
           }
         }
       }
@@ -646,6 +874,12 @@
             "state" : "translated",
             "value" : "出生日期与时刻无法合成,请重新选择"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生日期與時刻無法合成,請重新選擇"
+          }
         }
       }
     },
@@ -662,6 +896,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请选择出生日期"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請選擇出生日期"
           }
         }
       }
@@ -680,6 +920,12 @@
             "state" : "translated",
             "value" : "请选择性别"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請選擇性別"
+          }
         }
       }
     },
@@ -696,6 +942,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请选择是否半夜出生"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請選擇是否半夜出生"
           }
         }
       }
@@ -714,6 +966,12 @@
             "state" : "translated",
             "value" : "请选择出生时刻"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請選擇出生時刻"
+          }
         }
       }
     },
@@ -727,6 +985,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "女"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "女"
@@ -748,6 +1012,12 @@
             "state" : "translated",
             "value" : "性别"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "性別"
+          }
         }
       }
     },
@@ -761,6 +1031,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "男"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "男"
@@ -782,6 +1058,12 @@
             "state" : "translated",
             "value" : "时辰快捷选(可选)"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "時辰快捷選(可選)"
+          }
         }
       }
     },
@@ -799,6 +1081,12 @@
             "state" : "translated",
             "value" : "半夜出生的人日柱可能落在次日;这一问只为确认日柱"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "半夜出生的人日柱可能落在次日;這一問只為確認日柱"
+          }
         }
       }
     },
@@ -812,6 +1100,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "否"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "否"
@@ -833,6 +1127,12 @@
             "state" : "translated",
             "value" : "你是否在半夜(约 11 点之后)出生?"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你是否在半夜(約 11 點之後)出生?"
+          }
         }
       }
     },
@@ -850,6 +1150,12 @@
             "state" : "translated",
             "value" : "不确定"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不確定"
+          }
         }
       }
     },
@@ -863,6 +1169,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "是"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "是"
@@ -884,6 +1196,12 @@
             "state" : "translated",
             "value" : "确定"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "確定"
+          }
         }
       }
     },
@@ -900,6 +1218,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "精确时间"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "精確時間"
           }
         }
       }
@@ -918,6 +1242,12 @@
             "state" : "translated",
             "value" : "只知道时辰"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只知道時辰"
+          }
         }
       }
     },
@@ -931,6 +1261,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不知道"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "不知道"
@@ -952,6 +1288,12 @@
             "state" : "translated",
             "value" : "已按「不知道」继续，想起时刻可随时改选"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已按「不知道」繼續，想起時刻可隨時改選"
+          }
         }
       }
     },
@@ -968,6 +1310,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "轻触开始选择"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "輕觸開始選擇"
           }
         }
       }
@@ -986,6 +1334,12 @@
             "state" : "translated",
             "value" : "不知道时刻"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不知道時刻"
+          }
         }
       }
     },
@@ -1002,6 +1356,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "点击返回等待页"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "點擊返回等待頁"
           }
         }
       }
@@ -1020,6 +1380,12 @@
             "state" : "translated",
             "value" : "排盘中"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盤中"
+          }
         }
       }
     },
@@ -1037,6 +1403,12 @@
             "state" : "translated",
             "value" : "取消排盘"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消排盤"
+          }
         }
       }
     },
@@ -1050,6 +1422,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "收起"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "收起"
@@ -1071,6 +1449,12 @@
             "state" : "translated",
             "value" : "存档中…"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "存檔中…"
+          }
         }
       }
     },
@@ -1087,6 +1471,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "排盘中…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盤中…"
           }
         }
       }
@@ -1105,6 +1495,12 @@
             "state" : "translated",
             "value" : "生成命书中…"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生成命書中…"
+          }
         }
       }
     },
@@ -1121,6 +1517,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "城市数据来自 GeoNames（CC BY 4.0）"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "城市資料來自 GeoNames（CC BY 4.0）"
           }
         }
       }
@@ -1139,6 +1541,12 @@
             "state" : "translated",
             "value" : "城市数据库不可用，请重新安装 App"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "城市資料庫不可用，請重新安裝 App"
+          }
         }
       }
     },
@@ -1156,6 +1564,12 @@
             "state" : "translated",
             "value" : "城市搜索出错"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "城市搜尋出錯"
+          }
         }
       }
     },
@@ -1169,6 +1583,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "取消"
@@ -1190,6 +1610,12 @@
             "state" : "translated",
             "value" : "返回搜索"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回搜尋"
+          }
         }
       }
     },
@@ -1206,6 +1632,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "使用自定义地点"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用自定義地點"
           }
         }
       }
@@ -1224,6 +1656,12 @@
             "state" : "translated",
             "value" : "找不到出生地？自定义地点"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "找不到出生地？自定義地點"
+          }
         }
       }
     },
@@ -1240,6 +1678,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "搜不到？搜索页底部可自定义地点（经度 + 时区）。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜不到？搜尋頁底部可自定義地點（經度 + 時區）。"
           }
         }
       }
@@ -1258,6 +1702,12 @@
             "state" : "translated",
             "value" : "经度需为 -180 到 180 之间的数字"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "經度需為 -180 到 180 之間的數字"
+          }
         }
       }
     },
@@ -1274,6 +1724,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "请选择时区"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請選擇時區"
           }
         }
       }
@@ -1292,6 +1748,12 @@
             "state" : "translated",
             "value" : "经度（东正西负）"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "經度（東正西負）"
+          }
         }
       }
     },
@@ -1309,6 +1771,12 @@
             "state" : "translated",
             "value" : "4 位小数足够（约 10 米）；出生在医院基地、船上等冷门地点时使用"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "4 位小數足夠（約 10 米）；出生在醫院基地、船上等冷門地點時使用"
+          }
         }
       }
     },
@@ -1322,6 +1790,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如 116.4074 或 -118.24"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "如 116.4074 或 -118.24"
@@ -1343,6 +1817,12 @@
             "state" : "translated",
             "value" : "时区（必选）"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "時區（必選）"
+          }
         }
       }
     },
@@ -1359,6 +1839,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "选择出生地时区"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "選擇出生地時區"
           }
         }
       }
@@ -1377,6 +1863,12 @@
             "state" : "translated",
             "value" : "热门城市"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "熱門城市"
+          }
         }
       }
     },
@@ -1393,6 +1885,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未找到「%@」，试试拼音或英文名"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到「%@」，試試拼音或英文名"
           }
         }
       }
@@ -1411,6 +1909,12 @@
             "state" : "translated",
             "value" : "搜索出生城市"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "搜尋出生城市"
+          }
         }
       }
     },
@@ -1428,6 +1932,12 @@
             "state" : "translated",
             "value" : "最近选择"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "最近選擇"
+          }
         }
       }
     },
@@ -1441,6 +1951,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生城市"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "出生城市"
@@ -1462,6 +1978,12 @@
             "state" : "translated",
             "value" : "取消"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "取消"
+          }
         }
       }
     },
@@ -1475,6 +1997,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "距重置:%@"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "距重置:%@"
@@ -1496,6 +2024,12 @@
             "state" : "translated",
             "value" : "%lld 时 %lld 分"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 時 %lld 分"
+          }
         }
       }
     },
@@ -1512,6 +2046,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "时辰未知"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "時辰未知"
           }
         }
       }
@@ -1530,6 +2070,12 @@
             "state" : "translated",
             "value" : "今日机缘已尽,明日再来"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日機緣已盡,明日再來"
+          }
         }
       }
     },
@@ -1543,6 +2089,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "好的"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "好的"
@@ -1564,6 +2116,12 @@
             "state" : "translated",
             "value" : "未知错误"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知錯誤"
+          }
         }
       }
     },
@@ -1580,6 +2138,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "这位命盘缺出生时辰,补上后即可合盘"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這位命盤缺出生時辰,補上後即可合盤"
           }
         }
       }
@@ -1598,6 +2162,12 @@
             "state" : "translated",
             "value" : "时辰未知 · 不可合盘"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "時辰未知 · 不可合盤"
+          }
         }
       }
     },
@@ -1614,6 +2184,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "你的命盘缺出生时辰,所有对暂不可合盘;补上时刻即可恢复"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的命盤缺出生時辰,所有對暫不可合盤;補上時刻即可恢復"
           }
         }
       }
@@ -1632,6 +2208,12 @@
             "state" : "translated",
             "value" : "未找到你的命盘存档。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未找到你的命盤存檔。"
+          }
         }
       }
     },
@@ -1648,6 +2230,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "可在「我的」重置命盘,重新填写出生信息。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可在「我的」重置命盤,重新填寫出生資訊。"
           }
         }
       }
@@ -1666,6 +2254,12 @@
             "state" : "translated",
             "value" : "今日流日运势"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日流日運勢"
+          }
         }
       }
     },
@@ -1679,6 +2273,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : " (%@)"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : " (%@)"
@@ -1700,6 +2300,12 @@
             "state" : "translated",
             "value" : "冲%@"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "衝%@"
+          }
         }
       }
     },
@@ -1713,6 +2319,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "日"
@@ -1734,6 +2346,12 @@
             "state" : "translated",
             "value" : "农历"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "農曆"
+          }
         }
       }
     },
@@ -1750,6 +2368,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "今日运势"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日運勢"
           }
         }
       }
@@ -1768,6 +2392,12 @@
             "state" : "translated",
             "value" : "解读仅供参照"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解讀僅供參照"
+          }
         }
       }
     },
@@ -1784,6 +2414,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "24h 内已缓存,不消耗次数"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "24h 內已緩存,不消耗次數"
           }
         }
       }
@@ -1802,6 +2438,12 @@
             "state" : "translated",
             "value" : "读取解读缓存失败,请重试"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "讀取解讀緩存失敗,請重試"
+          }
         }
       }
     },
@@ -1818,6 +2460,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "命盘数据读取失败,请下拉刷新重试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盤資料讀取失敗,請下拉刷新重試"
           }
         }
       }
@@ -1836,6 +2484,12 @@
             "state" : "translated",
             "value" : "命盘数据读取失败,请联网后下拉刷新重试"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盤資料讀取失敗,請聯網後下拉刷新重試"
+          }
         }
       }
     },
@@ -1853,6 +2507,12 @@
             "state" : "translated",
             "value" : "点击生成今日流日解读(约 50-80 字)"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "點擊生成今日流日解讀(約 50-80 字)"
+          }
         }
       }
     },
@@ -1866,6 +2526,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推演中…"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "推演中…"
@@ -1887,6 +2553,12 @@
             "state" : "translated",
             "value" : "已保留历史解读,联网后可确认当前 AI 来源"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已保留歷史解讀,聯網後可確認當前 AI 來源"
+          }
         }
       }
     },
@@ -1903,6 +2575,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重试"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重試"
           }
         }
       }
@@ -1921,6 +2599,12 @@
             "state" : "translated",
             "value" : "AI 解读未生成,重试中"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 解讀未生成,重試中"
+          }
         }
       }
     },
@@ -1938,6 +2622,12 @@
             "state" : "translated",
             "value" : "今日解读"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日解讀"
+          }
         }
       }
     },
@@ -1951,6 +2641,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "忌"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "忌"
@@ -1972,6 +2668,12 @@
             "state" : "translated",
             "value" : "宜"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "宜"
+          }
         }
       }
     },
@@ -1988,6 +2690,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "这份运势只用了你的日柱。补上时辰可以看到时辰运势与喜忌。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這份運勢只用了你的日柱。補上時辰可以看到時辰運勢與喜忌。"
           }
         }
       }
@@ -2006,6 +2714,12 @@
             "state" : "translated",
             "value" : "此运势基于你的日柱呈现。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此運勢基於你的日柱呈現。"
+          }
         }
       }
     },
@@ -2022,6 +2736,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "离线查看(展示本地缓存,不扣次数)"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "離線查看(展示本地緩存,不扣次數)"
           }
         }
       }
@@ -2040,6 +2760,12 @@
             "state" : "translated",
             "value" : "每日运势"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日運勢"
+          }
         }
       }
     },
@@ -2056,6 +2782,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "可先离开,章成自动点亮"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可先離開,章成自動點亮"
           }
         }
       }
@@ -2074,6 +2806,12 @@
             "state" : "translated",
             "value" : "命书推演中 · 已成 %1$lld/%2$lld 章 · 约需 %3$lld 分钟"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命書推演中 · 已成 %1$lld/%2$lld 章 · 約需 %3$lld 分鐘"
+          }
         }
       }
     },
@@ -2090,6 +2828,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "正在生成本章 · 约半分钟 · 失败不消耗次数"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在生成本章 · 約半分鐘 · 失敗不消耗次數"
           }
         }
       }
@@ -2108,6 +2852,12 @@
             "state" : "translated",
             "value" : "可先返回,章成自动点亮"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可先返回,章成自動點亮"
+          }
         }
       }
     },
@@ -2124,6 +2874,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已读章节走缓存,不消耗次数"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已讀章節走緩存,不消耗次數"
           }
         }
       }
@@ -2142,6 +2898,12 @@
             "state" : "translated",
             "value" : "排盘引擎暂不可用,请稍后重试"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盤引擎暫不可用,請稍後重試"
+          }
         }
       }
     },
@@ -2158,6 +2920,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "排盘异常"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盤異常"
           }
         }
       }
@@ -2176,6 +2944,12 @@
             "state" : "translated",
             "value" : "命书暂未能成形,可单独重试(命盘已就绪)"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命書暫未能成形,可單獨重試(命盤已就緒)"
+          }
         }
       }
     },
@@ -2193,6 +2967,12 @@
             "state" : "translated",
             "value" : "命书生成失败"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命書生成失敗"
+          }
         }
       }
     },
@@ -2206,6 +2986,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日 10 次已用完,午夜重置"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "每日 10 次已用完,午夜重置"
@@ -2227,6 +3013,12 @@
             "state" : "translated",
             "value" : "今日机缘已尽,明日再来"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日機緣已盡,明日再來"
+          }
         }
       }
     },
@@ -2244,6 +3036,12 @@
             "state" : "translated",
             "value" : "网络不通或服务遥远,请稍后重试"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "網絡不通或服務遙遠,請稍後重試"
+          }
         }
       }
     },
@@ -2257,6 +3055,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天意未明"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "天意未明"
@@ -2281,6 +3085,12 @@
             "state" : "translated",
             "value" : "减小年龄"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "減小年齡"
+          }
         }
       }
     },
@@ -2297,6 +3107,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "增大年龄"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "增大年齡"
           }
         }
       }
@@ -2315,6 +3131,12 @@
             "state" : "translated",
             "value" : "你的年龄"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的年齡"
+          }
         }
       }
     },
@@ -2331,6 +3153,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%lld 岁"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld 歲"
           }
         }
       }
@@ -2349,6 +3177,12 @@
             "state" : "translated",
             "value" : "疲劳"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "疲勞"
+          }
         }
       }
     },
@@ -2365,6 +3199,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "工作日长期精力不济"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "工作日長期精力不濟"
           }
         }
       }
@@ -2383,6 +3223,12 @@
             "state" : "translated",
             "value" : "情绪"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "情緒"
+          }
         }
       }
     },
@@ -2400,6 +3246,12 @@
             "state" : "translated",
             "value" : "焦虑 / 低落 / 易怒"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "焦慮 / 低落 / 易怒"
+          }
         }
       }
     },
@@ -2413,6 +3265,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "其他"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "其他"
@@ -2434,6 +3292,12 @@
             "state" : "translated",
             "value" : "暂无法填细节,仅告知大类"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暫無法填細節,僅告知大類"
+          }
         }
       }
     },
@@ -2451,6 +3315,12 @@
             "state" : "translated",
             "value" : "近来的身体状况"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "近來的身體狀況"
+          }
         }
       }
     },
@@ -2464,6 +3334,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "睡眠"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "睡眠"
@@ -2485,6 +3361,12 @@
             "state" : "translated",
             "value" : "入睡难 / 醒得早 / 不解乏"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "入睡難 / 醒得早 / 不解乏"
+          }
         }
       }
     },
@@ -2501,6 +3383,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "体重"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "體重"
           }
         }
       }
@@ -2519,6 +3407,12 @@
             "state" : "translated",
             "value" : "代谢 / 食欲 / 体型"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "代謝 / 食慾 / 體型"
+          }
         }
       }
     },
@@ -2532,6 +3426,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生成本章"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "生成本章"
@@ -2553,6 +3453,12 @@
             "state" : "translated",
             "value" : "稍后在章节内补答也可"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "稍後在章節內補答也可"
+          }
         }
       }
     },
@@ -2566,6 +3472,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生成中…"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "生成中…"
@@ -2587,6 +3499,12 @@
             "state" : "translated",
             "value" : "第 伍 章 · 生成前两问"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 伍 章 · 生成前兩問"
+          }
         }
       }
     },
@@ -2600,6 +3518,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "必答"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "必答"
@@ -2621,6 +3545,12 @@
             "state" : "translated",
             "value" : "这一章结合你的年龄与近况推演,答案只影响本章内容。仅供参考,不替代医生。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這一章結合你的年齡與近況推演,答案只影響本章內容。僅供參考,不替代醫生。"
+          }
         }
       }
     },
@@ -2638,6 +3568,12 @@
             "state" : "translated",
             "value" : "健康续航 · 因你而异"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "健康續航 · 因你而異"
+          }
         }
       }
     },
@@ -2651,6 +3587,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日柱"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "日柱"
@@ -2672,6 +3614,12 @@
             "state" : "translated",
             "value" : "时柱"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "時柱"
+          }
         }
       }
     },
@@ -2685,6 +3633,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "月柱"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "月柱"
@@ -2706,6 +3660,12 @@
             "state" : "translated",
             "value" : "双盘对比"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "雙盤對比"
+          }
         }
       }
     },
@@ -2719,6 +3679,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年柱"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "年柱"
@@ -2740,6 +3706,12 @@
             "state" : "translated",
             "value" : "命盘数据读取失败"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盤資料讀取失敗"
+          }
         }
       }
     },
@@ -2753,6 +3725,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A 流年"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "A 流年"
@@ -2774,6 +3752,12 @@
             "state" : "translated",
             "value" : "B 流年"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "B 流年"
+          }
         }
       }
     },
@@ -2787,6 +3771,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同步"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "同步"
@@ -2808,6 +3798,12 @@
             "state" : "translated",
             "value" : "流年同步 · 未来三年"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "流年同步 · 未來三年"
+          }
         }
       }
     },
@@ -2821,6 +3817,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "年份"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "年份"
@@ -2842,6 +3844,12 @@
             "state" : "translated",
             "value" : "四柱 · 十神 · 神煞 · 大运"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "四柱 · 十神 · 神煞 · 大運"
+          }
         }
       }
     },
@@ -2858,6 +3866,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "排盘布算中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盤布算中"
           }
         }
       }
@@ -2876,6 +3890,12 @@
             "state" : "translated",
             "value" : "命盘只存你手机 · 无账号"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盤只存你手機 · 無帳號"
+          }
         }
       }
     },
@@ -2889,6 +3909,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "八字 · 由此起算"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "八字 · 由此起算"
@@ -2910,6 +3936,12 @@
             "state" : "translated",
             "value" : "你的出生信息"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的出生資訊"
+          }
         }
       }
     },
@@ -2926,6 +3958,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "忠诚念旧，认定了就一心一意；讲义气，朋友有难第一个到。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "忠誠念舊，認定了就一心一意；講義氣，朋友有難第一個到。"
           }
         }
       }
@@ -2944,6 +3982,12 @@
             "state" : "translated",
             "value" : "心里有杆秤，认定的事不回头；天生的秩序感，做事要做得漂亮。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心裡有桿秤，認定的事不回頭；天生的秩序感，做事要做得漂亮。"
+          }
         }
       }
     },
@@ -2960,6 +4004,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "心软细腻，见不得别人为难；审美在线，能把寻常日子过出温度。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心軟細膩，見不得別人為難；審美在線，能把尋常日子過出溫度。"
           }
         }
       }
@@ -2978,6 +4028,12 @@
             "state" : "translated",
             "value" : "热情坦荡，走到哪都自带气氛；向往自由，追起目标来拦都拦不住。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "熱情坦蕩，走到哪都自帶氣氛；嚮往自由，追起目標來攔都攔不住。"
+          }
         }
       }
     },
@@ -2994,6 +4050,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "脑子活，点子多，再难的局面也能转出活路；天生的开心果，有你在不冷场。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "腦子活，點子多，再難的局面也能轉出活路；天生的開心果，有你在不冷場。"
           }
         }
       }
@@ -3012,6 +4074,12 @@
             "state" : "translated",
             "value" : "慢热但稳，认准的事一步一个脚印；话不多，却是身边人最靠得住的那一个。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "慢熱但穩，認準的事一步一個腳印；話不多，卻是身邊人最靠得住的那一個。"
+          }
         }
       }
     },
@@ -3028,6 +4096,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "心宽福厚，不记仇不较劲，日子过得松弛；对人对己都慷慨，是朋友圈里的暖流。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "心寬福厚，不記仇不較勁，日子過得鬆弛；對人對己都慷慨，是朋友圈裡的暖流。"
           }
         }
       }
@@ -3046,6 +4120,12 @@
             "state" : "translated",
             "value" : "温和细腻，照顾人于无声处；看似柔软，心里却有自己的坚持。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "溫和細膩，照顧人於無聲處；看似柔軟，心裡卻有自己的堅持。"
+          }
         }
       }
     },
@@ -3062,6 +4142,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "机敏灵动，一眼看穿事情的门道；心思细，顾家，能把小日子盘活。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "機敏靈動，一眼看穿事情的門道；心思細，顧家，能把小日子盤活。"
           }
         }
       }
@@ -3080,6 +4166,12 @@
             "state" : "translated",
             "value" : "眼里有活，做事利落不拖泥带水；讲究体面，也肯为在意的人出头。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "眼裡有活，做事利落不拖泥帶水；講究體面，也肯為在意的人出頭。"
+          }
         }
       }
     },
@@ -3096,6 +4188,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "想得深，看得远，凡事谋定而后动；安静的外表下，藏着敏锐的判断力。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "想得深，看得遠，凡事謀定而後動；安靜的外表下，藏著敏銳的判斷力。"
           }
         }
       }
@@ -3114,6 +4212,12 @@
             "state" : "translated",
             "value" : "天生的行动派，说干就干，眼里有光；有你在场，大家心里就有底。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天生的行動派，說幹就幹，眼裡有光；有你在場，大家心裡就有底。"
+          }
         }
       }
     },
@@ -3127,6 +4231,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "需磨合"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "需磨合"
@@ -3148,6 +4258,12 @@
             "state" : "translated",
             "value" : "开始深度解析"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "開始深度解析"
+          }
         }
       }
     },
@@ -3165,6 +4281,12 @@
             "state" : "translated",
             "value" : "继续"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "繼續"
+          }
         }
       }
     },
@@ -3178,6 +4300,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "好朋友"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "好朋友"
@@ -3199,6 +4327,12 @@
             "state" : "translated",
             "value" : "属相只是开篇 · 日主%@与五行喜忌，都在深度解析里"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "屬相只是開篇 · 日主%@與五行喜忌，都在深度解析裡"
+          }
         }
       }
     },
@@ -3215,6 +4349,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "同一组生辰，同一张盘 · 喜忌由规则判，AI 只润色"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同一組生辰，同一張盤 · 喜忌由規則判，AI 只潤色"
           }
         }
       }
@@ -3233,6 +4373,12 @@
             "state" : "translated",
             "value" : "想起出生时刻，随时可以补上"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "想起出生時刻，隨時可以補上"
+          }
         }
       }
     },
@@ -3249,6 +4395,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "你的出生日在立春交界，需要准确时辰才能确定属相"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的出生日在立春交界，需要準確時辰才能確定屬相"
           }
         }
       }
@@ -3267,6 +4419,12 @@
             "state" : "translated",
             "value" : "左滑录入生辰 ›"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左滑錄入生辰 ›"
+          }
         }
       }
     },
@@ -3283,6 +4441,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "读懂你的命局"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "讀懂你的命局"
           }
         }
       }
@@ -3301,6 +4465,12 @@
             "state" : "translated",
             "value" : "返回表单"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "返回表單"
+          }
         }
       }
     },
@@ -3317,6 +4487,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "合盘需要双方的时柱与喜忌；补上时辰即可解锁"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合盤需要雙方的時柱與喜忌；補上時辰即可解鎖"
           }
         }
       }
@@ -3335,6 +4511,12 @@
             "state" : "translated",
             "value" : "缺出生时辰 · 此对暂不可合盘"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缺出生時辰 · 此對暫不可合盤"
+          }
         }
       }
     },
@@ -3351,6 +4533,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "补上出生时刻"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "補上出生時刻"
           }
         }
       }
@@ -3369,6 +4557,12 @@
             "state" : "translated",
             "value" : "你的生日落在子夜前后，没有时辰无法确定日柱——每日运势以日柱为起点"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的生日落在子夜前後，沒有時辰無法確定日柱——每日運勢以日柱為起點"
+          }
         }
       }
     },
@@ -3385,6 +4579,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "缺出生时辰，暂时无法看每日运势"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缺出生時辰，暫時無法看每日運勢"
           }
         }
       }
@@ -3403,6 +4603,12 @@
             "state" : "translated",
             "value" : "你的生日落在子夜前后，没有时辰无法确定日柱——日柱是所有解读的起点"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的生日落在子夜前後，沒有時辰無法確定日柱——日柱是所有解讀的起點"
+          }
         }
       }
     },
@@ -3419,6 +4625,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "缺出生时辰，暂时无法解读"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "缺出生時辰，暫時無法解讀"
           }
         }
       }
@@ -3437,6 +4649,12 @@
             "state" : "translated",
             "value" : "深度解读以时柱与喜忌为根基。为避免你在信息不全时先付费、补上时辰后还要重新购买,先补时辰再解锁。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深度解讀以時柱與喜忌為根基。為避免你在資訊不全時先付費、補上時辰後還要重新購買,先補時辰再解鎖。"
+          }
         }
       }
     },
@@ -3453,6 +4671,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "补充出生时辰"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "補充出生時辰"
           }
         }
       }
@@ -3471,6 +4695,12 @@
             "state" : "translated",
             "value" : "这份命盘先按三柱解读;想起时辰时,随时可以在「我的」里补上。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這份命盤先按三柱解讀;想起時辰時,隨時可以在「我的」裡補上。"
+          }
         }
       }
     },
@@ -3487,6 +4717,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "时辰未知 · 完整解读暂不可购"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "時辰未知 · 完整解讀暫不可購"
           }
         }
       }
@@ -3505,6 +4741,12 @@
             "state" : "translated",
             "value" : "补充出生时刻后解锁"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "補充出生時刻後解鎖"
+          }
         }
       }
     },
@@ -3521,6 +4763,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "命盘只在你手机上，无账号，无云同步"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盤只在你手機上，無帳號，無雲同步"
           }
         }
       }
@@ -3539,6 +4787,12 @@
             "state" : "translated",
             "value" : "AI 解读走我们服务器，密钥保管在后端"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 解讀走我們伺服器，密鑰保管在後端"
+          }
         }
       }
     },
@@ -3555,6 +4809,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "没有跟踪，没有画像"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "沒有跟蹤，沒有畫像"
           }
         }
       }
@@ -3573,6 +4833,12 @@
             "state" : "translated",
             "value" : "隐私与数据"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隱私與資料"
+          }
         }
       }
     },
@@ -3589,6 +4855,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "同一组生辰，同一张盘"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同一組生辰，同一張盤"
           }
         }
       }
@@ -3607,6 +4879,12 @@
             "state" : "translated",
             "value" : "喜忌由规则判，AI 只润色"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "喜忌由規則判，AI 只潤色"
+          }
         }
       }
     },
@@ -3623,6 +4901,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "命局有特例，如实标注"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命局有特例，如實標注"
           }
         }
       }
@@ -3641,6 +4925,12 @@
             "state" : "translated",
             "value" : "为什么可信"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "為什麼可信"
+          }
         }
       }
     },
@@ -3658,6 +4948,12 @@
             "state" : "translated",
             "value" : "补充出生时刻"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "補充出生時刻"
+          }
         }
       }
     },
@@ -3674,6 +4970,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已设为不再提醒;点击可重新打开提示"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已設為不再提醒;點擊可重新打開提示"
           }
         }
       }
@@ -3695,6 +4997,12 @@
             "state" : "translated",
             "value" : "深度"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深度"
+          }
         }
       }
     },
@@ -3712,6 +5020,12 @@
             "state" : "translated",
             "value" : "合盘"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合盤"
+          }
         }
       }
     },
@@ -3725,6 +5039,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "我的"
@@ -3746,6 +5066,12 @@
             "state" : "translated",
             "value" : "今日"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日"
+          }
         }
       }
     },
@@ -3762,6 +5088,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "可粗略,不需精确数字"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "可粗略,不需精確數字"
           }
         }
       }
@@ -3780,6 +5112,12 @@
             "state" : "translated",
             "value" : "如:中等收入,有积蓄,无房产"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如:中等收入,有積蓄,無房產"
+          }
         }
       }
     },
@@ -3796,6 +5134,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "资产 / 收入概况"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "資產 / 收入概況"
           }
         }
       }
@@ -3814,6 +5158,12 @@
             "state" : "translated",
             "value" : "第 陆 章 · 生成前两问"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "第 陸 章 · 生成前兩問"
+          }
         }
       }
     },
@@ -3830,6 +5180,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "进攻"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "進攻"
           }
         }
       }
@@ -3848,6 +5204,12 @@
             "state" : "translated",
             "value" : "高波动换高回报可能"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高波動換高回報可能"
+          }
         }
       }
     },
@@ -3861,6 +5223,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "平衡"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "平衡"
@@ -3882,6 +5250,12 @@
             "state" : "translated",
             "value" : "中等风险,稳健增长"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "中等風險,穩健增長"
+          }
         }
       }
     },
@@ -3895,6 +5269,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保守"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "保守"
@@ -3916,6 +5296,12 @@
             "state" : "translated",
             "value" : "保本为先,不愿承担亏损"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保本為先,不願承擔虧損"
+          }
         }
       }
     },
@@ -3932,6 +5318,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "风险偏好"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "風險偏好"
           }
         }
       }
@@ -3950,6 +5342,12 @@
             "state" : "translated",
             "value" : "这一章结合你的资产概况与风险偏好推演,答案只影响本章内容。自我认知参考,不构成投资建议。"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這一章結合你的資產概況與風險偏好推演,答案只影響本章內容。自我認知參考,不構成投資建議。"
+          }
         }
       }
     },
@@ -3967,6 +5365,12 @@
             "state" : "translated",
             "value" : "财富结构 · 因你而异"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "財富結構 · 因你而異"
+          }
         }
       }
     },
@@ -3983,6 +5387,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "不知命，无以为君子也"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不知命，無以為君子也"
           }
         }
       }
@@ -4007,6 +5417,12 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "new",
+            "value" : "五行%1$@ · 日主%2$@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "五行%1$@ · 日主%2$@"
           }
         }
@@ -4175,6 +5591,12 @@
             "state" : "new",
             "value" : "推演合盘中,已完成 %1$lld 对,共 %2$lld 对"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "推演合盤中,已完成 %1$lld 對,共 %2$lld 對"
+          }
         }
       }
     },
@@ -4315,6 +5737,12 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "new",
+            "value" : "第%1$@章%2$@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
             "value" : "第%1$@章%2$@"
           }
         }
