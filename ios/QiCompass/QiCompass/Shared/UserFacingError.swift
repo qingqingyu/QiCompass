@@ -93,13 +93,13 @@ enum UserFacingError: Error, Equatable, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .networkUnavailable:
-            return "天意未明"
+            return L10n.Errors.networkTitle
         case .chartFailed:
-            return "排盘异常"
+            return L10n.Errors.chartTitle
         case .interpretFailed:
-            return "命书生成失败"
+            return L10n.Errors.interpretTitle
         case .dailyLimitReached:
-            return "今日机缘已尽,明日再来"
+            return L10n.Errors.limitTitle
         case .generic(let m):
             return m
         }
@@ -109,13 +109,13 @@ enum UserFacingError: Error, Equatable, LocalizedError {
     var subtitle: String {
         switch self {
         case .networkUnavailable:
-            return "网络不通或服务遥远,请稍后重试"
+            return L10n.Errors.networkSubtitle
         case .chartFailed:
-            return "排盘引擎暂不可用,请稍后重试"
+            return L10n.Errors.chartSubtitle
         case .interpretFailed:
-            return "命书暂未能成形,可单独重试(命盘已就绪)"
+            return L10n.Errors.interpretSubtitle
         case .dailyLimitReached:
-            return "每日 10 次已用完,午夜重置"
+            return L10n.Errors.limitSubtitle
         case .generic(let m):
             return m
         }

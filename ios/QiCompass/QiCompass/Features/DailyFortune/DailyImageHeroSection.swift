@@ -16,7 +16,8 @@ import SwiftUI
 /// 入场:日期区/宜忌列 ink-in(blur 7→0)错峰。reduce-motion:循环动效全停。
 ///
 /// 图内中文 = 宋体 Songti SC(「图内宋/文中楷」分层,2026-08-31 拍板,DESIGN.md 补录);
-/// EN = New York 衬线列头 + Menlo 等宽条目(BaziFont.songDisplay / mono)。
+/// EN = New York 衬线列头 + 衬线条目(2026-09-24 收敛:Menlo 等宽条目作废,
+/// 评审「等宽与水墨不搭」,字体收敛到衬线一族)。
 struct DailyImageHeroSection: View {
     let businessDate: Date
     let lunarDate: String
@@ -256,13 +257,25 @@ struct DailyImageHeroSection: View {
                     .tracking(1.5)
                     .foregroundStyle(BaziTheme.inkMuted)
                     .padding(.top, 4)
-                Text(verbatim: "\(L10n.DailyFortune.lunarPrefix) \(lunarDate) · \(dayPillar)\(L10n.DailyFortune.dayPillarSuffix)")
+                Text(verbatim: lunarLine)
                     .font(BaziFont.songDisplay(size: 11))
                     .tracking(0.5)
                     .foregroundStyle(BaziTheme.inkMuted)
                     .lineLimit(1)
             }
         }
+    }
+
+    /// 日期区第二行:农历·干支。zh/Hant 维持原拼接;EN(2026-09-24 i18n
+    /// 拼接重设计)把农历汉字转写成 "5th Moon · 28th · Day of 辛丑"——
+    /// 原 "Lunar 八月十四 · 辛丑 Day" 半中半英不可读。解析失败回落原拼接
+    /// (宁可露中文不猜,记日志)。
+    private var lunarLine: String {
+        if AppLanguage.current == .en,
+           let en = Self.enLunarLine(lunarDate: lunarDate, dayPillar: dayPillar) {
+            return en
+        }
+        return "\(L10n.DailyFortune.lunarPrefix) \(lunarDate) · \(dayPillar)\(L10n.DailyFortune.dayPillarSuffix)"
     }
 
     /// 关系/冲 chips(放不下时整组换行,组内仍横排)。
@@ -297,6 +310,99 @@ struct DailyImageHeroSection: View {
     static func displayRelation(_ relation: String) -> String {
         AppLanguage.current == .zhHant ? (relationHant[relation] ?? relation) : relation
     }
+
+    // MARK: - 农历 EN 转写(2026-09-24 i18n 拼接重设计)
+
+    /// 农历月名 → 1-12。lunar_python `getMonthInChinese` 用传统月名
+    /// **正/二/…/十/冬/腊**(2026-09-24 实测枚举,不是一..十二),
+    /// 可带「闰」前缀(调用方剥离)。不认识返回 nil(不猜)。
+    static func lunarMonthNumber(_ s: String) -> Int? {
+        switch s {
+        case "正": return 1
+        case "二": return 2
+        case "三": return 3
+        case "四": return 4
+        case "五": return 5
+        case "六": return 6
+        case "七": return 7
+        case "八": return 8
+        case "九": return 9
+        case "十": return 10
+        case "冬": return 11
+        case "腊": return 12
+        default: return nil
+        }
+    }
+
+    /// 中文数字(≤2 位:一..九 / 十 / 十X / X十)→ Int。农历日用。
+    /// 不认识的形状返回 nil(调用方记日志回落,不猜)。
+    static func zhNumber(_ s: String) -> Int? {
+        let digits: [Character: Int] = [
+            "一": 1, "二": 2, "三": 3, "四": 4, "五": 5,
+            "六": 6, "七": 7, "八": 8, "九": 9,
+        ]
+        let chars = Array(s)
+        switch chars.count {
+        case 1:
+            if let v = digits[chars[0]] { return v }
+            return chars[0] == "十" ? 10 : nil
+        case 2:
+            if chars[0] == "十", let unit = digits[chars[1]] { return 10 + unit }
+            if let tens = digits[chars[0]], chars[1] == "十" { return tens * 10 }
+            return nil
+        default:
+            return nil
+        }
+    }
+
+    /// 农历日中文 → 1-30(初X / 十X / 二十 / 廿X / 三十);nil = 不认识。
+    /// lunar_python `getDayInChinese` ground truth(2026-09-24 实测枚举)。
+    static func lunarDayNumber(_ s: String) -> Int? {
+        if s.hasPrefix("初") {
+            return zhNumber(String(s.dropFirst()))
+        }
+        if s.hasPrefix("廿") {
+            let rest = String(s.dropFirst())
+            guard !rest.isEmpty else { return 20 }
+            return zhNumber(rest).map { 20 + $0 }
+        }
+        return zhNumber(s)  // 十一..十九 / 二十 / 三十
+    }
+
+    /// 农历整串("五月廿八" / "闰六月初十" / "冬月廿八")+ 日柱 → EN 单行
+    /// "5th Moon · 28th · Day of 辛丑"。nil = 形状不符(调用方回落原拼接)。
+    static func enLunarLine(lunarDate: String, dayPillar: String) -> String? {
+        guard let idx = lunarDate.firstIndex(of: "月") else { return nil }
+        var monthPart = String(lunarDate[..<idx])
+        let dayPart = String(lunarDate[lunarDate.index(after: idx)...])
+        var leap = false
+        if monthPart.hasPrefix("闰") {
+            leap = true
+            monthPart.removeFirst()
+        }
+        guard let month = lunarMonthNumber(monthPart),
+              let day = lunarDayNumber(dayPart),
+              (1...30).contains(day)
+        else {
+            AppLogger.app.warning(
+                "op=heroLunar.parseMiss lunarDate=\(lunarDate, privacy: .public) -> rawFallback"
+            )
+            return nil
+        }
+        let leapPrefix = leap ? "Leap " : ""
+        return "\(leapPrefix)\(ordinal(month)) Moon · \(ordinal(day)) · Day of \(dayPillar)"
+    }
+
+    /// 1-30 序数后缀(11/12/13 走 th)。
+    private static func ordinal(_ n: Int) -> String {
+        if n % 100 == 11 || n % 100 == 12 || n % 100 == 13 { return "\(n)th" }
+        switch n % 10 {
+        case 1: return "\(n)st"
+        case 2: return "\(n)nd"
+        case 3: return "\(n)rd"
+        default: return "\(n)th"
+        }
+    }
 }
 
 // MARK: - HeroYiJiColumns(宜/忌双列清单)
@@ -322,19 +428,21 @@ private struct HeroYiJiColumns: View {
         "正印": (["学习", "纳言", "养身"], ["依赖", "空想", "拖延"]),
     ]
 
-    /// EN 词表(2026-09-19 S02/#12 重写):中文双字词自带语境,单词直译语义散失
-    /// (`Push`/`Feud`),换带语境短语;每条 ≤16 chars,mono 14.5pt 双列(~163pt/列)单行内。
+    /// EN 词表(2026-09-24 三改):09-19 版被外评审点「像公司合规手册」
+    /// (正官行 Own Your Duty / Play by the Rules / Report Back / Skip the
+    /// Chain),整体换人味口吻——短祈使句、对自己说话的语气;每条 ≤16 chars
+    /// (serif 15pt 双列 ~163pt/列单行内,沿用 09-19 宽度约束)。
     static let mappingEn: [String: (yi: [String], ji: [String])] = [
-        "比肩": (["Work Solo", "Set Boundaries", "Train"], ["Argue", "Compare", "Follow the Crowd"]),
-        "劫财": (["Act Now", "Branch Out", "Share the Gain"], ["Snap Buys", "Lend Money", "Force It"]),
-        "食神": (["Create", "Speak Up", "Meet Someone New"], ["Delay", "Stay Up Late", "Debate"]),
-        "伤官": (["Speak Out", "Debut Something", "Be Frank"], ["Clash", "Overstep", "Blurt It Out"]),
-        "偏财": (["Explore", "Try New Things", "Give Ground"], ["Bet It All", "Overreach", "Buy on Credit"]),
-        "正财": (["Keep Steady", "Track Spending", "Stay Grounded"], ["Cut Corners", "Rush Deals", "Break Promises"]),
-        "七杀": (["Make the Call", "Take It On", "Push Through"], ["Waver", "Start Feuds", "Burn Out"]),
-        "正官": (["Own Your Duty", "Play by the Rules", "Report Back"], ["Shrink Back", "Skip the Chain", "Miss Deadlines"]),
-        "偏印": (["Reflect", "Sit with It", "Review Old Notes"], ["Get Stubborn", "Overthink", "Go It Alone"]),
-        "正印": (["Study Up", "Take Advice", "Rest Well"], ["Lean Too Hard", "Daydream", "Drag Your Feet"]),
+        "比肩": (["Go Your Own Way", "Set Boundaries", "Move Your Body"], ["Argue", "Compare Yourself", "Follow the Crowd"]),
+        "劫财": (["Act Now", "Break New Ground", "Split the Gains"], ["Impulse Buys", "Lend Money", "Force It"]),
+        "食神": (["Make Something", "Speak Your Mind", "See a Friend"], ["Put It Off", "Stay Up Late", "Pick Fights"]),
+        "伤官": (["Show Your Work", "Say It Plain", "Be Frank"], ["Push Too Hard", "Cross the Line", "Blurt It Out"]),
+        "偏财": (["Explore", "Try New Things", "Give a Little"], ["Bet It All", "Grab Too Much", "Buy on Credit"]),
+        "正财": (["Keep Steady", "Track Your Money", "Tend Your Garden"], ["Cut Corners", "Rush the Deal", "Break Your Word"]),
+        "七杀": (["Make the Call", "Take It On", "Push Through"], ["Waver", "Make Enemies", "Burn Out"]),
+        "正官": (["Own Your Part", "Play It Straight", "Close the Loop"], ["Shrink Back", "Skip the Line", "Miss Deadlines"]),
+        "偏印": (["Sit with It", "Review Old Notes", "Take Quiet Time"], ["Get Stubborn", "Overthink", "Go It Alone"]),
+        "正印": (["Learn Something", "Take Advice", "Rest Up"], ["Lean Too Hard", "Daydream", "Drag Your Feet"]),
     ]
 
     /// 繁体词表(T0):key 仍为后端简体十神(决策 7 不翻译),词表值由 mappingZh
@@ -385,22 +493,32 @@ private struct HeroYiJiColumns: View {
     var body: some View {
         let resolved = pair
         HStack(alignment: .top, spacing: 34) {
-            column(header: isEn ? "Do" : "宜", items: resolved.yi)
-            column(header: isEn ? "Don't" : "忌", items: resolved.ji)
+            column(header: isEn ? "Do" : "宜", annotation: isEn ? "宜 yí" : nil, items: resolved.yi)
+            column(header: isEn ? "Don't" : "忌", annotation: isEn ? "忌 jì" : nil, items: resolved.ji)
         }
         .inkIn(delay: 0.45)
     }
 
-    /// 单列:宋体大字列头(EN 衬线)+ 条目纵堆(EN 等宽)。
-    private func column(header: String, items: [String]) -> some View {
+    /// 单列:宋体大字列头(EN 衬线)+ 条目纵堆(EN 衬线,2026-09-24 收敛
+    /// 去 mono)+ EN 列头下加「宜 yí / 忌 jì」汉字注音小注(命理符号保留
+    /// 中文 + 拼音点缀,对齐 ShichenDisplay 拼音先例)。
+    private func column(header: String, annotation: String?, items: [String]) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-            Text(header)
-                .font(isEn ? .system(size: 30, weight: .regular, design: .serif) : BaziFont.songDisplay(size: 26, weight: .semibold))
-                .foregroundStyle(BaziTheme.ink)
+            VStack(alignment: .leading, spacing: 3) {
+                Text(header)
+                    .font(isEn ? .system(size: 30, weight: .regular, design: .serif) : BaziFont.songDisplay(size: 26, weight: .semibold))
+                    .foregroundStyle(BaziTheme.ink)
+                if let annotation {
+                    Text(verbatim: annotation)
+                        .font(BaziFont.songDisplay(size: 11))
+                        .tracking(2)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                }
+            }
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                     Text(item)
-                        .font(isEn ? BaziFont.mono(size: 14.5) : BaziFont.songDisplay(size: 17))
+                        .font(isEn ? .system(size: 15, weight: .regular, design: .serif) : BaziFont.songDisplay(size: 17))
                         .tracking(isEn ? 0.3 : 1.7)
                         .foregroundStyle(BaziTheme.ink)
                         .padding(.vertical, 4.5)

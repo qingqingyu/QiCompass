@@ -352,6 +352,11 @@ enum L10n {
 
     /// 每日运势模块。
     enum DailyFortune {
+
+        /// 页面 nav 标题(2026-09-24 i18n 硬编码收编:原 DailyFortuneView 字面量)。
+        /// zh: "每日运势";en: "Daily Fortune"
+        static let navTitle = String(localized: "dailyfortune.navTitle")
+
         // -- Header --
 
         /// "农历" 前缀(用于 "农历 七月初十" 这种拼接)。
@@ -370,24 +375,69 @@ enum L10n {
         /// zh: "解读仅供参照";en: "For reference only"
         static let disclaimer = String(localized: "dailyfortune.hero.disclaimer")
 
-        /// "冲" 前缀(用于 "冲午" / "冲午 (年支午)" 这种拼接)。
-        /// zh: "冲";en: "Clashes: "
-        static let chongPrefix = String(localized: "dailyfortune.header.chongPrefix")
+        /// "冲" 完整格式(2026-09-24 拍板:EN 用生肖动物名替裸地支)。
+        /// zh: "冲%@"(@=地支,如 "冲午");en: "Clashes with %@"(@=动物名,如 "Clashes with Goat")
+        static let chongWithFormat = String(localized: "dailyfortune.header.chongWith")
 
-        /// 构造"冲"标签(本地化 prefix + chong 字符 + 可选 targets 列表)。
+        /// "冲" targets 后缀(括号内说明冲到你的哪根柱)。
+        /// zh: " (%@)"(@=原始位置串,如 " (年支午)");en: " (your %@)"(@=英文柱位,如 " (your Day Pillar)")
+        static let chongTargetsFormat = String(localized: "dailyfortune.header.chongTargets")
+
+        /// 构造"冲"标签。
         ///
-        /// 中文: "冲午" / "冲午 (年支午)"
-        /// 英文: "Clashes: 午" / "Clashes: 午 (Year Branch 午)"
+        /// 中文: "冲午" / "冲午 (年支午)"(targets 原样,后端中文)
+        /// 英文: "Clashes with Goat" / "Clashes with Goat (your Day Pillar)"
+        ///   —— 2026-09-24 拍板:裸地支「Clashes: 未」对 EN 用户不可读,换生肖
+        ///   动物名(地支→动物走 ZodiacHelper 单一事实源);targets 的「年支/
+        ///   月支/日支/时支」前缀译成英文柱位,告诉用户"这跟你有没有关系"。
         ///
         /// - Parameters:
         ///   - chong: 冲到的地支字(如 "午"),来自 backend day_chong 字段
         ///   - targets: 被冲到的四柱位置描述列表(如 ["年支午"]),空列表则不加 targets
         /// - Returns: 完整本地化字符串
         static func chongLabel(chong: String, targets: [String]) -> String {
-            let isEnglish = AppLanguage.current == .en
-            let separator = isEnglish ? ", " : "、"
-            let targetsStr = targets.isEmpty ? "" : " (\(targets.joined(separator: separator)))"
-            return "\(chongPrefix)\(chong)\(targetsStr)"
+            if AppLanguage.current == .en {
+                let animal: String
+                if let hit = ZodiacHelper.zodiacName(forZhi: chong) {
+                    animal = hit
+                } else {
+                    // 查表 miss 不静默:记日志 + 保底显示原字(比崩/空白诚实)
+                    AppLogger.app.warning(
+                        "op=chongLabel.zhiMiss zhi=\(chong, privacy: .public) -> raw"
+                    )
+                    animal = chong
+                }
+                var label = String(format: chongWithFormat, animal)
+                if !targets.isEmpty {
+                    label += String(format: chongTargetsFormat, Self.enPillarPositions(targets))
+                }
+                return label
+            }
+            var label = String(format: chongWithFormat, chong)
+            if !targets.isEmpty {
+                label += String(format: chongTargetsFormat, targets.joined(separator: "、"))
+            }
+            return label
+        }
+
+        /// EN 柱位描述:后端 targets 形如 "日支未"(2 字柱位 + 地支),译成
+        /// "Day & Hour Pillars" 这类英文柱位串。未识别形状原样保留
+        /// (防御:后端改形状时宁可露中文也不丢信息),miss 记日志。
+        /// internal 供测试(DailyFortuneHeroEnTests)。
+        static func enPillarPositions(_ targets: [String]) -> String {
+            let positions = ["年支": "Year", "月支": "Month", "日支": "Day", "时支": "Hour"]
+            let translated = targets.map { raw -> String in
+                guard raw.count == 3 else { return raw }
+                let hit = positions[String(raw.prefix(2))]
+                if hit == nil {
+                    AppLogger.app.warning(
+                        "op=chongLabel.targetParseMiss target=\(raw, privacy: .public) -> raw"
+                    )
+                }
+                return hit ?? raw
+            }
+            let joined = translated.joined(separator: " & ")
+            return translated.count > 1 ? "\(joined) Pillars" : "\(joined) Pillar"
         }
 
         // -- Empty View --
@@ -411,6 +461,10 @@ enum L10n {
 
         /// 重试按钮(zh="重试", en="Retry")
         static let interpretRetry = String(localized: "dailyfortune.interpret.retry")
+
+        /// 静默重试小注(2026-09-24 失败降级:AI 失败 → 模板文案 + 后台静默重试)。
+        /// zh: "AI 解读未生成,重试中";en: "AI reading unavailable — retrying"
+        static let interpretRetrying = String(localized: "dailyfortune.interpret.retrying")
 
         /// CTA 说明文字(zh="点击生成今日流日解读(约 50-80 字)")
         static let interpretCTA = String(localized: "dailyfortune.interpret.cta")
@@ -921,9 +975,53 @@ enum L10n {
             return String(format: String(localized: "common.countdown"), timeStr)
         }
 
-        /// 时辰未知(S05 时辰未知系列:柱留白 VoiceOver 标签 / 真太阳时行)。
+        /// 时辰未知(S05 时辰未知系列:柱留空 VoiceOver 标签 / 真太阳时行)。
         /// 中性陈述不是错误提示(无红字无感叹号,留白是水墨表达)。
         /// zh: "时辰未知";en: "Birth hour unknown"
         static let hourUnknown = String(localized: "common.hourUnknown")
+    }
+
+    // MARK: - Tab 标签(2026-09-24 i18n 硬编码收编:原 RootTabView 字面量)
+
+    /// 根 Tab 四枚短标签。EN 取短平行词(Today/Chart/Match/Me),
+    /// 与 zh 两字标签同格。
+    enum Tab {
+        /// zh: "今日";en: "Today"
+        static let today = String(localized: "tab.today")
+
+        /// zh: "深度";en: "Chart"(深度解析,盘面+命书)
+        static let deep = String(localized: "tab.deep")
+
+        /// zh: "合盘";en: "Match"(两人磁场合拍)
+        static let hepan = String(localized: "tab.hepan")
+
+        /// zh: "我的";en: "Me"
+        static let mine = String(localized: "tab.mine")
+    }
+
+    // MARK: - 用户可见错误(2026-09-24 i18n 硬编码收编:原 UserFacingError 字面量)
+
+    /// `UserFacingError` 的标题/二级文案(三模块共享,错误显式传播约束:
+    /// 用户文案走此表,技术细节归日志)。
+    enum Errors {
+        /// 网络不可用标题。zh: "天意未明";en: "No connection"
+        static let networkTitle = String(localized: "error.userFacing.network.title")
+        /// 网络不可用副标。zh: "网络不通或服务遥远,请稍后重试";en: "The network is down or the server is far away — try again in a moment"
+        static let networkSubtitle = String(localized: "error.userFacing.network.subtitle")
+
+        /// 排盘失败标题。zh: "排盘异常";en: "Chart calculation failed"
+        static let chartTitle = String(localized: "error.userFacing.chart.title")
+        /// 排盘失败副标。zh: "排盘引擎暂不可用,请稍后重试";en: "The calculation engine is unavailable — please try again shortly"
+        static let chartSubtitle = String(localized: "error.userFacing.chart.subtitle")
+
+        /// AI 解读失败标题。zh: "命书生成失败";en: "Reading failed"
+        static let interpretTitle = String(localized: "error.userFacing.interpret.title")
+        /// AI 解读失败副标。zh: "命书暂未能成形,可单独重试(命盘已就绪)";en: "Your reading didn't come through — you can retry it alone (your chart is ready)"
+        static let interpretSubtitle = String(localized: "error.userFacing.interpret.subtitle")
+
+        /// 达限标题。zh: "今日机缘已尽,明日再来";en: "Today's allotment is used up — come back tomorrow"
+        static let limitTitle = String(localized: "error.userFacing.limit.title")
+        /// 达限副标。zh: "每日 10 次已用完,午夜重置";en: "10 readings a day, resets at midnight"
+        static let limitSubtitle = String(localized: "error.userFacing.limit.subtitle")
     }
 }

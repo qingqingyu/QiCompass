@@ -76,10 +76,13 @@ struct DailyFortuneMainView: View {
                 )
                 .padding(.horizontal, 17)
 
-                // AI 解读(50-80 字 Medium voice;2026-09-07 起进入即自动生成)。
+                // AI 解读(50-80 字 Medium voice;2026-09-07 起进入即自动生成;
+                // 2026-09-24 失败降级:AI 失败 → 引擎模板文案 + 后台静默重试)。
                 // 边距 17pt 与 hero 卡对齐(同日用户拍板:两框线必须左右对齐)。
                 DailyInterpretationSection(
                     state: interpretState,
+                    dayRelation: response.dayRelationToDayMaster,
+                    isSilentRetrying: vm.isSilentRetrying,
                     remainingReads: vm.remainingReads,
                     nextReset: vm.nextDailyReset,
                     onGenerate: onGenerateInterpret,

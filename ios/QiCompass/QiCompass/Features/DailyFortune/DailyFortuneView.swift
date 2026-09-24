@@ -33,7 +33,7 @@ struct DailyFortuneView: View {
                 BaziTheme.paper.ignoresSafeArea()
                 content
             }
-            .navigationTitle("每日运势")
+            .navigationTitle(L10n.DailyFortune.navTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.light, for: .navigationBar)
             // S10:补时辰 sheet。关闭统一刷新——重算换新盘 → resolveCurrentChart
