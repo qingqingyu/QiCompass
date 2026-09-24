@@ -1447,14 +1447,14 @@ final class CompatibilityViewModel {
                 self.markSummaryInterpreted(id: summary.id)
             } catch let error as CompatibilityError {
                 if !Task.isCancelled {
-                    self.state = .detail(summary, response, .failed(message: error.errorDescription ?? "未知错误"))
+                    self.state = .detail(summary, response, .failed(message: error.errorDescription ?? L10n.Common.unknownError))
                 }
             } catch let error as DeepAnalysisError {
                 if !Task.isCancelled {
                     if case .dailyLimitReached(let reset, _) = error {
                         self.state = .detail(summary, response, .dailyLimitReached(nextReset: reset))
                     } else {
-                        self.state = .detail(summary, response, .failed(message: error.errorDescription ?? "未知错误"))
+                        self.state = .detail(summary, response, .failed(message: error.errorDescription ?? L10n.Common.unknownError))
                     }
                 }
             } catch is CancellationError {
@@ -1465,7 +1465,7 @@ final class CompatibilityViewModel {
                     if case .dailyLimitReached(let reset) = userError {
                         self.state = .detail(summary, response, .dailyLimitReached(nextReset: reset))
                     } else {
-                        self.state = .detail(summary, response, .failed(message: userError.errorDescription ?? "未知错误"))
+                        self.state = .detail(summary, response, .failed(message: userError.errorDescription ?? L10n.Common.unknownError))
                     }
                 }
             }

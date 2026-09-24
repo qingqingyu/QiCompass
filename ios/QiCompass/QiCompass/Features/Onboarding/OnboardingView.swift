@@ -76,13 +76,13 @@ struct OnboardingView: View {
             )
         }
         .alert(
-            "暂时无法补时辰",
+            L10n.AddHour.errorAlertTitle,
             isPresented: Binding(
                 get: { addHourError != nil },
                 set: { if !$0 { addHourError = nil } }
             )
         ) {
-            Button("好的", role: .cancel) {}
+            Button(L10n.Common.ok, role: .cancel) {}
         } message: {
             Text(addHourError ?? "")
         }

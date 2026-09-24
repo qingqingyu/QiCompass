@@ -80,13 +80,13 @@ struct CompatibilityView: View {
                 )
             }
             .alert(
-                "暂时无法补时辰",
+                L10n.AddHour.errorAlertTitle,
                 isPresented: Binding(
                     get: { addHourError != nil },
                     set: { if !$0 { addHourError = nil } }
                 )
             ) {
-                Button("好的", role: .cancel) {}
+                Button(L10n.Common.ok, role: .cancel) {}
             } message: {
                 Text(addHourError ?? "")
             }
@@ -202,7 +202,7 @@ struct CompatibilityView: View {
                 } else {
                     // 不静默吞:detail 态但快照缺失 → 显式错误态
                     ErrorStateView(
-                        userFacingError: .generic(message: "命盘数据读取失败"),
+                        userFacingError: .generic(message: L10n.Compatibility.errorChartReadFailed),
                         retry: { vm.backToConfig() }
                     )
                 }

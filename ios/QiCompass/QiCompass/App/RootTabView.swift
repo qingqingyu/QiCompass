@@ -58,7 +58,7 @@ struct RootTabView: View {
                 .tabItem {
                     // 墨物线描四枚矢量图标(TabIcons.swift,2026-08-30 定稿),
                     // 模板渲染交系统着色:tint=ink 选中/系统次级灰未选中,深浅色自动反转
-                    Label { Text("今日") } icon: {
+                    Label { Text(L10n.Tab.today) } icon: {
                         Image(uiImage: TabIcons.cachedToday).renderingMode(.template)
                     }
                 }
@@ -66,7 +66,7 @@ struct RootTabView: View {
             DeepAnalysisView()
                 .tag(Tab.deepAnalysis)
                 .tabItem {
-                    Label { Text("深度") } icon: {
+                    Label { Text(L10n.Tab.deep) } icon: {
                         Image(uiImage: TabIcons.cachedDeep).renderingMode(.template)
                     }
                 }
@@ -74,7 +74,7 @@ struct RootTabView: View {
             CompatibilityView()
                 .tag(Tab.compatibility)
                 .tabItem {
-                    Label { Text("合盘") } icon: {
+                    Label { Text(L10n.Tab.hepan) } icon: {
                         Image(uiImage: TabIcons.cachedHepan).renderingMode(.template)
                     }
                 }
@@ -82,7 +82,7 @@ struct RootTabView: View {
             ProfileView()
                 .tag(Tab.profile)
                 .tabItem {
-                    Label { Text("我的") } icon: {
+                    Label { Text(L10n.Tab.mine) } icon: {
                         Image(uiImage: TabIcons.cachedMe).renderingMode(.template)
                     }
                 }

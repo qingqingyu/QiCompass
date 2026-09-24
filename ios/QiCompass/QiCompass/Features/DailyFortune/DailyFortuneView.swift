@@ -33,7 +33,7 @@ struct DailyFortuneView: View {
                 BaziTheme.paper.ignoresSafeArea()
                 content
             }
-            .navigationTitle("每日运势")
+            .navigationTitle(L10n.DailyFortune.navTitle)
             .navigationBarTitleDisplayMode(.inline)
             .toolbarColorScheme(.light, for: .navigationBar)
             // S10:补时辰 sheet。关闭统一刷新——重算换新盘 → resolveCurrentChart
@@ -47,13 +47,13 @@ struct DailyFortuneView: View {
                 )
             }
             .alert(
-                "暂时无法补时辰",
+                L10n.AddHour.errorAlertTitle,
                 isPresented: Binding(
                     get: { addHourError != nil },
                     set: { if !$0 { addHourError = nil } }
                 )
             ) {
-                Button("好的", role: .cancel) {}
+                Button(L10n.Common.ok, role: .cancel) {}
             } message: {
                 Text(addHourError ?? "")
             }

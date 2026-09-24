@@ -76,10 +76,13 @@ struct DailyFortuneMainView: View {
                 )
                 .padding(.horizontal, 17)
 
-                // AI 解读(50-80 字 Medium voice;2026-09-07 起进入即自动生成)。
+                // AI 解读(50-80 字 Medium voice;2026-09-07 起进入即自动生成;
+                // 2026-09-24 失败降级:AI 失败 → 引擎模板文案 + 后台静默重试)。
                 // 边距 17pt 与 hero 卡对齐(同日用户拍板:两框线必须左右对齐)。
                 DailyInterpretationSection(
                     state: interpretState,
+                    dayRelation: response.dayRelationToDayMaster,
+                    isSilentRetrying: vm.isSilentRetrying,
                     remainingReads: vm.remainingReads,
                     nextReset: vm.nextDailyReset,
                     onGenerate: onGenerateInterpret,
@@ -134,19 +137,26 @@ struct DailyFortuneMainView: View {
     // MARK: - hero 小注
 
     /// V4 文本区脚注:hairline + 「丙子日 · 偏印 · 解读仅供参照」。
+    /// EN(2026-09-24 二段):「辛丑 Day」后缀缀在干支后半中半英,改
+    /// 「Day of 辛丑」(与 hero 农历行同结构)。
     private var heroFootnote: some View {
         VStack(spacing: 0) {
             Rectangle()
                 .fill(BaziTheme.hairline)
                 .frame(height: 0.5)
-            Text(
-                verbatim: "\(response.dayPillar)\(L10n.DailyFortune.dayPillarSuffix) · \(response.dayRelationToDayMaster) · \(L10n.DailyFortune.disclaimer)"
-            )
-            .font(BaziFont.caption(size: 10.5))
-            .tracking(1.5)
-            .foregroundStyle(BaziTheme.inkMutedSecondary)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .padding(.top, 9)
+            Text(verbatim: footnoteText)
+                .font(BaziFont.caption(size: 10.5))
+                .tracking(1.5)
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 9)
         }
+    }
+
+    private var footnoteText: String {
+        if AppLanguage.current == .en {
+            return "Day of \(response.dayPillar) · \(response.dayRelationToDayMaster) · \(L10n.DailyFortune.disclaimer)"
+        }
+        return "\(response.dayPillar)\(L10n.DailyFortune.dayPillarSuffix) · \(response.dayRelationToDayMaster) · \(L10n.DailyFortune.disclaimer)"
     }
 }

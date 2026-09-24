@@ -93,7 +93,7 @@ struct CompatibilityConfigView: View {
                 )
 
                 if case .failed(let userError) = vm.state {
-                    Text(userError.errorDescription ?? "未知错误")
+                    Text(userError.errorDescription ?? L10n.Common.unknownError)
                         .font(BaziFont.caption(size: 12))
                         .foregroundStyle(BaziTheme.destructive)
                         .frame(maxWidth: .infinity, alignment: .leading)

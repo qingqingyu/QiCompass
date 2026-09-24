@@ -53,11 +53,6 @@ enum BaziFont {
         return .system(size: size, weight: weight, design: .serif)
     }
 
-    /// 等宽(iOS 自带 Menlo 系;EN 图内条目 / 技术小字)。
-    static func mono(size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        .system(size: size, weight: weight, design: .monospaced)
-    }
-
     /// 显示字体(中文 Kaiti / 英文系统衬线)。楷体笔画细,展示层默认 Medium。
     static func display(size: CGFloat, weight: Font.Weight = .medium) -> Font {
         guard isChineseUI else {

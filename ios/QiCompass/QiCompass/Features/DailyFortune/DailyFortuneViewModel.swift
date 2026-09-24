@@ -35,6 +35,18 @@ enum DailyFortuneViewState: Equatable {
     }
 }
 
+// MARK: - 解读触发来源(2026-09-24 失败降级拍板)
+
+/// AI 解读的触发来源:自动失败 → 调度**一次**后台静默重试,不循环。
+enum InterpretTrigger {
+    /// 进入页面自动生成(2026-09-07 拍板「一上来就直接解析」)
+    case automatic
+    /// 用户手动(离线恢复 CTA / Retry 链接)。失败不调度静默重试——用户正看着,再静默转圈只会困惑。
+    case manual
+    /// 自动失败后调度的一次后台静默重试。失败即终态(模板文案 + 手动 Retry 兜底)。
+    case silentRetry
+}
+
 // MARK: - ViewModel
 
 /// 每日运势 ViewModel:@Observable + 状态机驱动。
@@ -78,6 +90,20 @@ final class DailyFortuneViewModel {
     private let dailyStore: DailyFortuneSnapshotStore
     private var determinantTask: Task<Void, Never>?
     private var interpretTask: Task<Void, Never>?
+
+    // MARK: 失败降级(2026-09-24 拍板:模板文案 + 后台静默重试)
+
+    /// 一次静默重试是否在飞/已调度(UI:失败卡显示引擎模板文案 + 「重试中」小注,
+    /// Retry 链接隐藏避免双触发)。
+    private(set) var isSilentRetrying = false
+
+    /// 静默重试延迟。生产 6s;测试注入小值(不然用例要干等)。
+    var silentRetryDelay: TimeInterval = 6
+
+    /// 本轮管线静默重试是否已用过(一次为限,不循环;runFullPipeline 开头重置)。
+    private var silentRetryUsed = false
+
+    private var silentRetryTask: Task<Void, Never>?
 
     /// 当前展示用的 chartPayload(在阶段 1 后缓存,阶段 2 复用)
     private var cachedChartPayload: ChartPayloadDTO?
@@ -160,9 +186,13 @@ final class DailyFortuneViewModel {
     // MARK: - AI 解读触发
 
     /// 触发 AI 解读阶段(命中缓存则直接显示)。主路径 = runFullPipeline 缓存
-    /// 未命中时自动调用(2026-09-07 拍板「一上来就直接解析」);手动入口保留给
-    /// 离线恢复(.idle CTA)与失败重试(.failed)。
-    func generateInterpretation(currentChartHash: String?) {
+    /// 未命中时自动调用(2026-09-07 拍板「一上来就直接解析」,trigger=.automatic);
+    /// 手动入口(默认 .manual)保留给离线恢复(.idle CTA)与失败重试(.failed)。
+    /// 2026-09-24 失败降级:.automatic 失败 → 调度一次 .silentRetry 后台重试,
+    /// 重试期间保持 .failed(UI 显示引擎模板文案),成功即转 .okFree。
+    func generateInterpretation(
+        currentChartHash: String?, trigger: InterpretTrigger = .manual
+    ) {
         guard let hash = currentChartHash else {
             // 不静默吞(CLAUDE.md 全局约束):UI 收到点击说明调用方传 nil 是逻辑错乱,显式记录
             AppLogger.app.error("op=dailyFortune.generateInterpretation missing_chartHash state=\(String(describing: self.state), privacy: .public)")
@@ -185,14 +215,22 @@ final class DailyFortuneViewModel {
             // → 显式报错,不静默返回
             state = .ready(
                 response,
-                .failed(message: "命盘数据读取失败,请下拉刷新重试"),
+                .failed(message: L10n.DailyFortune.interpretChartReadFailed),
                 businessDate,
             )
             return
         }
 
         interpretTask?.cancel()
-        state = .ready(response, .fetching, businessDate)
+        if trigger != .silentRetry {
+            // 手动/自动触发:取消可能在飞的静默重试调度(用户动作优先,成功后
+            // 再轮到旧调度会重复消耗),正常走 .fetching。
+            silentRetryTask?.cancel()
+            isSilentRetrying = false
+            state = .ready(response, .fetching, businessDate)
+        }
+        // .silentRetry:保持当前 .failed(模板文案继续显示,不闪「推演中」),
+        // isSilentRetrying 已在调度时置 true。
 
         interpretTask = Task {
             do {
@@ -203,6 +241,7 @@ final class DailyFortuneViewModel {
                     businessDate: businessDate,
                 )
                 if !Task.isCancelled {
+                    isSilentRetrying = false
                     state = .ready(
                         response,
                         .okFree(text: resp.interpretation, cached: resp.cached),
@@ -215,16 +254,17 @@ final class DailyFortuneViewModel {
                 if !Task.isCancelled {
                     // dailyLimitReached 独立形态(方案 step 4):禁用生成按钮、不显示重试
                     if case .dailyLimitReached(let reset, _) = error {
+                        isSilentRetrying = false
                         state = .ready(
                             response,
                             .dailyLimitReached(nextReset: reset),
                             businessDate,
                         )
                     } else {
-                        state = .ready(
-                            response,
-                            .failed(message: error.errorDescription ?? "未知错误"),
-                            businessDate,
+                        enterInterpretFailed(
+                            message: error.errorDescription ?? L10n.Common.unknownError,
+                            trigger: trigger, chartHash: hash,
+                            response: response, businessDate: businessDate,
                         )
                     }
                 }
@@ -232,20 +272,54 @@ final class DailyFortuneViewModel {
                 if !Task.isCancelled {
                     let userError = UserFacingError.from(error, stage: .interpret)
                     if case .dailyLimitReached(let reset) = userError {
+                        isSilentRetrying = false
                         state = .ready(
                             response,
                             .dailyLimitReached(nextReset: reset),
                             businessDate,
                         )
                     } else {
-                        state = .ready(
-                            response,
-                            .failed(message: userError.errorDescription ?? "未知错误"),
-                            businessDate,
+                        enterInterpretFailed(
+                            message: userError.errorDescription ?? L10n.Common.unknownError,
+                            trigger: trigger, chartHash: hash,
+                            response: response, businessDate: businessDate,
                         )
                     }
                 }
             }
+        }
+    }
+
+    /// 解读失败统一落点:置 .failed + 按触发来源决定是否调度一次静默重试。
+    private func enterInterpretFailed(
+        message: String,
+        trigger: InterpretTrigger,
+        chartHash: String,
+        response: DailyFortuneResponse,
+        businessDate: Date
+    ) {
+        state = .ready(response, .failed(message: message), businessDate)
+        if trigger == .automatic, !silentRetryUsed {
+            scheduleSilentRetry(chartHash: chartHash)
+        } else {
+            isSilentRetrying = false
+        }
+    }
+
+    /// 自动失败后的一次后台静默重试(2026-09-24 拍板):延迟后重发 interpret,
+    /// UI 保持 .failed 模板文案 + 「重试中」小注。一次为限(silentRetryUsed),
+    /// 重试失败即终态;调度与结果都显式记日志(静默 ≠ 吞错)。
+    private func scheduleSilentRetry(chartHash: String) {
+        silentRetryUsed = true
+        isSilentRetrying = true
+        let delay = silentRetryDelay
+        AppLogger.app.notice(
+            "op=dailyFortune.interpret.silentRetryScheduled delay=\(delay, privacy: .public) hash=\(chartHash, privacy: .public)"
+        )
+        silentRetryTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(delay))
+            guard let self, !Task.isCancelled else { return }
+            self.generateInterpretation(currentChartHash: chartHash, trigger: .silentRetry)
         }
     }
 
@@ -290,6 +364,7 @@ final class DailyFortuneViewModel {
         // businessDate 的 .ready(闪旧内容 + 下一 tick 重复触发 load)。取消无配额
         // 泄漏(orchestrator 失败路径含 refund),VM 侧捕 CancellationError 返回。
         interpretTask?.cancel()
+        silentRetryTask?.cancel()
         state = .loading
         isOffline = false
 
@@ -306,6 +381,12 @@ final class DailyFortuneViewModel {
         businessDate: Date, forceRefresh: Bool
     ) async {
         cachedChartPayload = nil
+        // 静默重试配额随管线重置(load / refresh / 跨业务日都过这里):
+        // 新一轮管线允许失败后再静默重试一次;残留调度取消,防旧延迟任务
+        // 在新管线成功后凭空再发一次 interpret。
+        silentRetryTask?.cancel()
+        silentRetryUsed = false
+        isSilentRetrying = false
 
         do {
             // S09 时辰未知判据前置(判据单一事实源 = 存档 payload → S07
@@ -356,7 +437,7 @@ final class DailyFortuneViewModel {
                 AppLogger.persistence.error(
                     "daily.cachedInterpretation_read_failed hash=\(chartHash, privacy: .public) targetDate=\(businessDate, privacy: .public) error=\(String(describing: error), privacy: .public)"
                 )
-                interpretState = .failed(message: "读取解读缓存失败,请重试")
+                interpretState = .failed(message: L10n.DailyFortune.interpretCacheReadFailed)
             }
 
             if !Task.isCancelled {
@@ -375,7 +456,7 @@ final class DailyFortuneViewModel {
                     inSameDayAs: businessDate
                 )
                 if case .idle = interpretState, remainingReads > 0, isBusinessDateStillCurrent {
-                    generateInterpretation(currentChartHash: chartHash)
+                    generateInterpretation(currentChartHash: chartHash, trigger: .automatic)
                 }
             }
         } catch let error as DailyFortuneError where error == .chartMissing {
@@ -448,7 +529,7 @@ final class DailyFortuneViewModel {
         // 当前 provider/model,不能把它标成当前供应商缓存命中。
         let hasInterpretation = !cached.interpretation.trimmingCharacters(in: .whitespaces).isEmpty
         var interpState: InterpretState = hasInterpretation
-            ? .failed(message: "已保留历史解读,联网后可确认当前 AI 来源")
+            ? .failed(message: L10n.DailyFortune.interpretOfflineLegacy)
             : .idle
 
         // 同步刷新 chartPayload(用户在线恢复后点"今日解读"可触发 AI)。
@@ -469,7 +550,7 @@ final class DailyFortuneViewModel {
                     "daily.offline_fallback.chartSnapshot_missing hash=\(chartHash, privacy: .public)"
                 )
                 if !hasInterpretation {
-                    interpState = .failed(message: "命盘数据读取失败,请联网后下拉刷新重试")
+                    interpState = .failed(message: L10n.DailyFortune.interpretChartReadFailedOffline)
                 }
             }
         } catch {
@@ -477,7 +558,7 @@ final class DailyFortuneViewModel {
                 "daily.offline_fallback.chartPayload_failed hash=\(chartHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
             if !hasInterpretation {
-                interpState = .failed(message: "命盘数据读取失败,请联网后下拉刷新重试")
+                interpState = .failed(message: L10n.DailyFortune.interpretChartReadFailedOffline)
             }
         }
 

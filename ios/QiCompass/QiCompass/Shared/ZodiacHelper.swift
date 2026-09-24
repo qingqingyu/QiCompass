@@ -26,6 +26,13 @@ enum ZodiacHelper {
         "Monkey": "猴", "Rooster": "雞", "Dog": "狗", "Pig": "豬",
     ]
 
+    /// 地支(子…亥)→ 英文生肖名,供 EN 界面把地支术语转成可读动物名
+    /// (2026-09-24 拍板:每日运势冲 chip「Clashes with Goat」)。单一事实源同
+    /// 上(backend ZODIAC_NAME);未知地支返回 nil,调用方自行决定降级。
+    static func zodiacName(forZhi zhi: String) -> String? {
+        zhiToZodiac[zhi]
+    }
+
     /// 英文 asset name(如 "Dragon")→ 中文汉字(如 "龙")。
     ///
     /// 未知 zodiac → fatalError(对齐 CLAUDE.md "错误显式传播",不静默吞)。

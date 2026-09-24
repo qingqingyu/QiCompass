@@ -139,6 +139,23 @@
     "24h 内已缓存,不消耗次数" : {
 
     },
+    "addhour.error.alertTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't add birth hour right now"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时无法补时辰"
+          }
+        }
+      }
+    },
     "addhour.error.rebuild" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1516,6 +1533,40 @@
         }
       }
     },
+    "common.ok" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "好的"
+          }
+        }
+      }
+    },
+    "common.unknownError" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Something went wrong"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知错误"
+          }
+        }
+      }
+    },
     "compatibility.roster.hourUnknown.hint" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1618,19 +1669,36 @@
         }
       }
     },
-    "dailyfortune.header.chongPrefix" : {
+    "dailyfortune.header.chongTargets" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Clashes: "
+            "value" : " (your %@)"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "冲"
+            "value" : " (%@)"
+          }
+        }
+      }
+    },
+    "dailyfortune.header.chongWith" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Clashes with %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "冲%@"
           }
         }
       }
@@ -1720,6 +1788,57 @@
         }
       }
     },
+    "dailyfortune.interpret.cacheReadFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load your cached reading — please retry"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读取解读缓存失败,请重试"
+          }
+        }
+      }
+    },
+    "dailyfortune.interpret.chartReadFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't read your chart — pull to refresh and retry"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盘数据读取失败,请下拉刷新重试"
+          }
+        }
+      }
+    },
+    "dailyfortune.interpret.chartReadFailedOffline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't read your chart — get back online, then pull to refresh"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盘数据读取失败,请联网后下拉刷新重试"
+          }
+        }
+      }
+    },
     "dailyfortune.interpret.cta" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1754,6 +1873,23 @@
         }
       }
     },
+    "dailyfortune.interpret.offlineLegacy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your last reading is kept — go online to refresh it"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已保留历史解读,联网后可确认当前 AI 来源"
+          }
+        }
+      }
+    },
     "dailyfortune.interpret.retry" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1767,6 +1903,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "重试"
+          }
+        }
+      }
+    },
+    "dailyfortune.interpret.retrying" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI reading unavailable — retrying"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 解读未生成,重试中"
           }
         }
       }
@@ -1873,6 +2026,23 @@
         }
       }
     },
+    "dailyfortune.navTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily Fortune"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日运势"
+          }
+        }
+      }
+    },
     "deepchain.banner.leaveHint" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1954,6 +2124,142 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已读章节走缓存,不消耗次数"
+          }
+        }
+      }
+    },
+    "error.userFacing.chart.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The calculation engine is unavailable — please try again shortly"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盘引擎暂不可用,请稍后重试"
+          }
+        }
+      }
+    },
+    "error.userFacing.chart.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chart calculation failed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盘异常"
+          }
+        }
+      }
+    },
+    "error.userFacing.interpret.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your reading didn't come through — you can retry it alone (your chart is ready)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命书暂未能成形,可单独重试(命盘已就绪)"
+          }
+        }
+      }
+    },
+    "error.userFacing.interpret.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading failed"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命书生成失败"
+          }
+        }
+      }
+    },
+    "error.userFacing.limit.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "10 readings a day, resets at midnight"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "每日 10 次已用完,午夜重置"
+          }
+        }
+      }
+    },
+    "error.userFacing.limit.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today's allotment is used up — come back tomorrow"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日机缘已尽,明日再来"
+          }
+        }
+      }
+    },
+    "error.userFacing.network.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The network is down or the server is far away — try again in a moment"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "网络不通或服务遥远,请稍后重试"
+          }
+        }
+      }
+    },
+    "error.userFacing.network.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No connection"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "天意未明"
           }
         }
       }
@@ -2416,6 +2722,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "年柱"
+          }
+        }
+      }
+    },
+    "hepan.error.chartReadFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't read your chart data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盘数据读取失败"
           }
         }
       }
@@ -3358,6 +3681,74 @@
     "QICOMPASS" : {
 
     },
+    "tab.deep" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chart"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "深度"
+          }
+        }
+      }
+    },
+    "tab.hepan" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Match"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合盘"
+          }
+        }
+      }
+    },
+    "tab.mine" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Me"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的"
+          }
+        }
+      }
+    },
+    "tab.today" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日"
+          }
+        }
+      }
+    },
     "wealthform.assets.hint" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -3738,9 +4129,6 @@
     "在下方直接填对方出生信息,\n或先去「我的」为 TA 建一个存档命盘。" : {
 
     },
-    "好的" : {
-
-    },
     "子时属次日 ›" : {
 
     },
@@ -3812,9 +4200,6 @@
 
     },
     "旬空:%@" : {
-
-    },
-    "暂时无法补时辰" : {
 
     },
     "未钤 · 本机" : {

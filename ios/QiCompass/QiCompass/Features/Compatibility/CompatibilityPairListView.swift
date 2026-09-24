@@ -210,7 +210,7 @@ struct PairSummaryCard: View {
             }
 
             // 错误摘要(不静默吞,展示真实错误描述)
-            Text(error.errorDescription ?? "未知错误")
+            Text(error.errorDescription ?? L10n.Common.unknownError)
                 .font(.caption)
                 .foregroundStyle(BaziTheme.inkMuted)
             Text(error.subtitle)
