@@ -235,7 +235,8 @@ struct BirthFormView: View {
         return vm.birthTimePicked ? vm.wallBirthTimeString : L10n.BirthForm.birthTimePlaceholder
     }
 
-    /// 未知与未选态是「非值」表达,走弱墨占位色(对齐日期行未选处理)。
+    /// 已知未选态走弱墨占位色(对齐日期行未选处理);未知态「不知道时刻」是
+    /// 用户的显式答案,走全墨与「未选」区分。
     private var isTimeRowPlaceholder: Bool {
         vm.hourKnown && !vm.birthTimePicked
     }
@@ -248,9 +249,7 @@ struct BirthFormView: View {
     }
 
     private var timeRowAccessibilityValue: String {
-        guard vm.hourKnown, vm.birthTimePicked, !currentShichenTag.isEmpty else {
-            return timeRowValue
-        }
+        guard vm.hourKnown, vm.birthTimePicked else { return timeRowValue }
         return "\(timeRowValue) \(currentShichenTag)"
     }
 
@@ -475,34 +474,38 @@ struct BirthFormView: View {
     /// 12 时辰圆格(sheet「只知道时辰」模式)。zh 单地支字;EN 拼音 + 时段小字
     /// (ShichenDisplay 单一事实源,review #6:EN 不再裸显「子丑寅卯」)。
     private var shichenGrid: some View {
-        let selectedHour = currentShichenHour()
+        // 未选态不显锚点选中圈(与时刻行灰占位/未选择副题同语义:锚点只是表盘
+        // 位置非值,圆格按锚点朱红高亮 = 谎报已选)
+        let selectedHour = vm.birthTimePicked ? currentShichenHour() : nil
         let isChinese = AppLanguage.current.isChinese
         return LazyVGrid(
             columns: Array(repeating: GridItem(.flexible()), count: 6),
             spacing: 8
         ) {
-            ForEach(Self.shichenTable, id: \.hour) { shichen in
-                let isSelected = selectedHour == shichen.hour
+            ForEach(Self.shichenHours, id: \.self) { hour in
+                let isSelected = selectedHour == hour
                 Button {
                     HapticEngine.light()
-                    vm.setShichenHour(shichen.hour)
+                    vm.setShichenHour(hour)
                 } label: {
                     Group {
                         if isChinese {
-                            Text(ShichenDisplay.name(forMidHour: shichen.hour))
+                            Text(ShichenDisplay.name(forMidHour: hour))
                                 .font(.body.weight(.medium))
                         } else {
                             VStack(spacing: 1) {
-                                Text(ShichenDisplay.name(forMidHour: shichen.hour))
+                                Text(ShichenDisplay.name(forMidHour: hour))
                                     .font(.footnote.weight(.medium))
-                                Text(ShichenDisplay.range(forMidHour: shichen.hour))
+                                Text(ShichenDisplay.range(forMidHour: hour))
                                     .font(BaziFont.caption(size: 7))
                                     .lineLimit(1)
                                     .minimumScaleFactor(0.8)
                             }
                         }
                     }
-                    .frame(width: 48, height: 44)
+                    // 44 宽:统一 AddHourSheet 同款,375pt 窄屏(SE/mini)6×44+40=304
+                    // 恰容不挤压;EN 两行内容 footnote+caption(7)+minScale 0.8 可容纳
+                    .frame(width: 44, height: 44)
                     .foregroundStyle(isSelected ? BaziTheme.paper : BaziTheme.ink)
                     .background {
                         Circle().fill(isSelected ? BaziTheme.cinnabar : Color.clear)
@@ -511,17 +514,16 @@ struct BirthFormView: View {
                         Circle().stroke(BaziTheme.hairline, lineWidth: isSelected ? 0 : 0.5)
                     )
                 }
+                // 同文件 chip 惯例:VoiceOver 可感知选中(朱红填充仅视觉)
+                .accessibilityAddTraits(isSelected ? [.isSelected] : [])
             }
         }
     }
 
-    /// 12 时辰表(中点小时 ↔ 表内顺序;选中态与时刻行 tag 共用同一事实源。
-    /// 显示名走 ShichenDisplay,表只管 hour 映射)。
-    private static let shichenTable: [(name: String, hour: Int)] = [
-        ("子", 0), ("丑", 2), ("寅", 4), ("卯", 6),
-        ("辰", 8), ("巳", 10), ("午", 12), ("未", 14),
-        ("申", 16), ("酉", 18), ("戌", 20), ("亥", 22),
-    ]
+    /// 12 时辰中点小时表(表内顺序;选中态与时刻行 tag 共用 currentShichenHour 同源。
+    /// 显示名走 ShichenDisplay 单一事实源,本表只管 hour 映射,不存名字防漂移;
+    /// internal 供测试与 AddHourSheet.shichenHours 钉死同值)。
+    static let shichenHours: [Int] = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]
 
     /// 时刻行右侧时辰 tag(zh「未时」/ en "Wei (1–3 PM)",ShichenDisplay 单一事实源);
     /// 边界规则与 grid 选中态一致(23 归子时)。

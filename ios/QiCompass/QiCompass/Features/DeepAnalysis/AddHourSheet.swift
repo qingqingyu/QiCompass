@@ -71,6 +71,12 @@ final class AddHourViewModel {
     /// 时刻绑定(wheel + 时辰快捷选共用;只取钟面时分,与 BirthFormView.birthTime 同语义)。
     var birthTime: Date = DeepAnalysisViewModel.defaultBirthTimeAnchor
 
+    /// 时刻是否被用户显式选择(2026-09-23 镜像 DeepAnalysisViewModel 时刻去默认值):
+    /// false = 未碰 wheel/时辰格的初始态,submit 拦「请选择出生时刻」——锚点只是
+    /// 表盘位置非值,不静默按锚点钟面重算成错时柱。wheel 拨动/时辰格置 true;
+    /// 「我确实不知道」静默态不受影响(CTA 变「完成」只 dismiss 不重算)。
+    var birthTimePicked = false
+
     /// 「我确实不知道」静默态(D7 永久无时辰用户):初始自老盘 payload;toggle 即
     /// **写穿存档**(开启 → 三触点降静默;关闭 → 提示恢复)。静默是尊重不是惩罚。
     private(set) var hourUnknownAccepted: Bool
@@ -141,6 +147,7 @@ final class AddHourViewModel {
             of: birthTime
         ) {
             birthTime = newTime
+            birthTimePicked = true
         }
     }
 
@@ -155,6 +162,10 @@ final class AddHourViewModel {
                 accepted: accepted
             )
             hourUnknownAccepted = accepted
+            // 成功的模式切换清旧失败文案(门控拦「请选择出生时刻」后用户转投
+            // 「不知道」,旧错误悬在「完成」CTA 上方自相矛盾);只清 .failed,
+            // 不动在飞 .submitting(避免 mid-submit 解除 CTA loading)
+            if case .failed = phase { phase = .idle }
         } catch {
             AppLogger.persistence.error(
                 "op=addHour.setHourUnknownAccepted failed hash=\(self.snapshot.contentHash, privacy: .public) accepted=\(accepted, privacy: .public) error=\(String(describing: error), privacy: .public)"
@@ -169,6 +180,12 @@ final class AddHourViewModel {
     /// roster hash remap。返回新响应(nil = 失败,phase 已置 .failed 人话文案)。
     @discardableResult
     func submit() async -> BaziResponse? {
+        // 时刻去默认值(镜像 DeepAnalysisViewModel.validateForm):未显式选择不重算,
+        // phase 显式置人话文案(错误显式传播,不静默用锚点钟面)
+        guard birthTimePicked else {
+            phase = .failed(L10n.BirthForm.errorTimeRequired)
+            return nil
+        }
         phase = .submitting
         do {
             let calendar = placeCalendar
@@ -326,56 +343,99 @@ struct AddHourSheet: View {
             fieldLabel(L10n.BirthForm.birthTimeLabel)
             DatePicker(
                 "",
-                selection: $vm.birthTime,
+                selection: timePickerBinding,
                 displayedComponents: [.hourAndMinute]
             )
             .datePickerStyle(.wheel)
             .labelsHidden()
             // WYSIWYG:表盘按出生城市时区(换算责任在后端 zoneinfo)
             .environment(\.calendar, vm.placeCalendar)
+            // 去预填感(镜像 BirthFormView 时刻 sheet 的 dateUnselectedHint):系统
+            // wheel 无法空白表盘,锚点只是位置非值——本 sheet 无表单行可显灰占位,
+            // 未拨动/未点圆格时在表盘下明示「未选择」,否则 wheel 形似已选值,
+            // 用户直到提交才被拦截文案兜头(主表单 a50d13e 已修的预填感在此复发)。
+            if !vm.birthTimePicked {
+                Text(L10n.BirthForm.dateUnselectedHint)
+                    .font(BaziFont.caption(size: 10))
+                    .tracking(AppLanguage.current.isChinese ? 1 : 0)
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+            }
 
             fieldLabel(L10n.BirthForm.hourQuickPickLabel)
             shichenGrid
         }
     }
 
+    /// 时刻 wheel 桥:拨动即写回并置 `birthTimePicked`(2026-09-23 镜像
+    /// BirthFormView 时刻去默认值——系统 wheel 无法空白表盘,锚点只是位置非值,
+    /// 用户拨过才算选,否则 submit 拦截)。
+    private var timePickerBinding: Binding<Date> {
+        Binding(
+            get: { vm.birthTime },
+            set: { newValue in
+                vm.birthTime = newValue
+                vm.birthTimePicked = true
+            }
+        )
+    }
+
     /// 12 时辰快捷选(圆圈选中态,BirthFormView.shichenGrid 同款;
     /// 选中值取时辰中点小时,23 归子时跨日规则由后端 setSect(1) 契约承接)。
-    /// 显示名走 ShichenDisplay(2026-09-23:EN 显拼音,不再裸显地支字)。
+    /// 显示名走 ShichenDisplay(2026-09-23:EN 显拼音+时段小字,不再裸显地支字;
+    /// 与 BirthFormView 圆格同款,EN 用户可把拼音映射到钟点)。
     private var shichenGrid: some View {
-        let selectedHour = currentShichenHour()
+        // 未选态不显锚点选中圈(与 wheel 下「未选择」提示同语义:锚点只是表盘
+        // 位置非值,圆格按锚点朱红高亮 = 谎报已选,用户直提才被拦自相矛盾)
+        let selectedHour = vm.birthTimePicked ? currentShichenHour() : nil
+        let isChinese = AppLanguage.current.isChinese
         return LazyVGrid(
             columns: Array(repeating: GridItem(.flexible()), count: 6),
             spacing: 8
         ) {
-            ForEach(Self.shichenTable, id: \.hour) { shichen in
-                let isSelected = selectedHour == shichen.hour
+            ForEach(Self.shichenHours, id: \.self) { hour in
+                let isSelected = selectedHour == hour
                 Button {
                     HapticEngine.light()
-                    vm.setShichenHour(shichen.hour)
+                    vm.setShichenHour(hour)
                 } label: {
-                    Text(ShichenDisplay.name(forMidHour: shichen.hour))
-                        .font(.body.weight(.medium))
-                        .frame(width: 44, height: 44)
-                        .foregroundStyle(isSelected ? BaziTheme.paper : BaziTheme.ink)
-                        .background {
-                            Circle().fill(isSelected ? BaziTheme.cinnabar : Color.clear)
+                    Group {
+                        if isChinese {
+                            Text(ShichenDisplay.name(forMidHour: hour))
+                                .font(.body.weight(.medium))
+                        } else {
+                            VStack(spacing: 1) {
+                                Text(ShichenDisplay.name(forMidHour: hour))
+                                    .font(.footnote.weight(.medium))
+                                Text(ShichenDisplay.range(forMidHour: hour))
+                                    .font(BaziFont.caption(size: 7))
+                                    .lineLimit(1)
+                                    .minimumScaleFactor(0.8)
+                            }
                         }
-                        .overlay(
-                            Circle().stroke(BaziTheme.hairline, lineWidth: isSelected ? 0 : 0.5)
-                        )
+                    }
+                    // 44 宽:与 BirthFormView 圆格统一(该处在 xl padding 的时刻 sheet
+                    // 内 375pt 有 311pt,6×44+40=304 恰容);本 sheet 主体 xxl(48×2)
+                    // padding 下 375pt 内容区仅 279pt<304,单元格 (279-40)/6≈40pt,
+                    // 44pt 内容居中每侧溢出 ~2pt(圆间视觉间隙收窄至 ~4pt,不裁切;
+                    // 44 为本 sheet 既有几何,48 会溢出加剧)
+                    .frame(width: 44, height: 44)
+                    .foregroundStyle(isSelected ? BaziTheme.paper : BaziTheme.ink)
+                    .background {
+                        Circle().fill(isSelected ? BaziTheme.cinnabar : Color.clear)
+                    }
+                    .overlay(
+                        Circle().stroke(BaziTheme.hairline, lineWidth: isSelected ? 0 : 0.5)
+                    )
                 }
+                // 同文件 chip 惯例:VoiceOver 可感知选中(朱红填充仅视觉)
+                .accessibilityAddTraits(isSelected ? [.isSelected] : [])
             }
         }
     }
 
-    /// 12 时辰表(名 ↔ 中点小时)。与 BirthFormView 私有表同值(该表 private,
-    /// 不为接线扩大其可见性;两表语义由测试钉死一致性)。
-    static let shichenTable: [(name: String, hour: Int)] = [
-        ("子", 0), ("丑", 2), ("寅", 4), ("卯", 6),
-        ("辰", 8), ("巳", 10), ("午", 12), ("未", 14),
-        ("申", 16), ("酉", 18), ("戌", 20), ("亥", 22),
-    ]
+    /// 12 时辰中点小时(与 BirthFormView.shichenHours 同值,测试钉死;显示名走
+    /// ShichenDisplay 单一事实源,本表只管 hour 映射,不存名字防漂移)。
+    static let shichenHours: [Int] = [0, 2, 4, 6, 8, 10, 12, 14, 16, 18, 20, 22]
 
     /// 从 birthTime 反推当前时辰中点小时(奇数 hour 向下取偶;23 归子时)。
     private func currentShichenHour() -> Int {

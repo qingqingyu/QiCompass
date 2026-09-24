@@ -176,7 +176,8 @@ enum L10n {
         /// zh: "已按「不知道」继续，想起时刻可随时改选";en: "Continuing without your birth hour — switch modes anytime"
         static let timeModeUnknownHint = String(localized: "birthform.timeMode.unknownHint")
 
-        /// 时刻行未知态文案(hourKnown=false 时时刻行显示的值,灰字)。
+        /// 时刻行未知态文案(hourKnown=false 时时刻行显示的值;全墨——是用户
+        /// 的显式答案,与「未选灰占位」区分)。
         /// zh: "不知道时刻";en: "Unknown"
         static let timeRowUnknown = String(localized: "birthform.timeRow.unknown")
 

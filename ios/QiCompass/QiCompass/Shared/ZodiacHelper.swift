@@ -303,11 +303,12 @@ enum ShichenDisplay {
     }
 
     /// 时刻行 trailing tag:zh「未时」/ en "Wei (1–3 PM)"。
+    /// 三表齐全才拼装(防演化漂移:中表有、英表缺时强解包会 crash → 诚实空串)。
     static func tag(forMidHour hour: Int) -> String {
-        guard chineseNames[hour] != nil else { return "" }
-        return AppLanguage.current.isChinese
-            ? "\(chineseNames[hour]!)时"
-            : "\(englishNames[hour]!) (\(englishRanges[hour]!))"
+        guard let zhName = chineseNames[hour],
+              let enName = englishNames[hour],
+              let enRange = englishRanges[hour] else { return "" }
+        return AppLanguage.current.isChinese ? "\(zhName)时" : "\(enName) (\(enRange))"
     }
 
     /// EN 时段文案(圆格小字补充,如 "1–3 PM");中文语境不使用。

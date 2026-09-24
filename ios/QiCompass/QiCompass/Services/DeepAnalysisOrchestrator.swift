@@ -192,9 +192,13 @@ final class DeepAnalysisOrchestrator {
                     module: module,
                     promptVersion: resp.promptVersion,
                     targetDate: nil,
-                    // i18n TODO(Slice 2):bazi_deep 未实现英文翻译,
-                    // 缓存暂时走 default language="zh"(InterpretationCacheStore.upsert 默认值)。
-                    // Slice 2 补齐 bazi_deep 翻译后改 language: resp.language
+                    // i18n(2026-09-23 review P0-2):改存 resp.language(后端
+                    // 实际渲染语言),读写键与 restore 侧配对。注意:本路径的
+                    // bazi_deep 系列 en 模板未落地(prompts/en/ 只有 M0-M7+
+                    // compat+daily,en 请求在后端渲染层即 500,到不了此写入),
+                    // 今天 resp.language 恒 "zh";存 resp.language 是为 en 模板
+                    // 落地后写入口径即自动正确(对齐 v1/compat/daily)。
+                    language: resp.language,
                     provider: resp.provider,
                     model: resp.model,
                     interpretation: resp.interpretation,
@@ -219,9 +223,10 @@ final class DeepAnalysisOrchestrator {
     /// 批量恢复 v1 模块本地缓存(2026-09-08 断点续跑:冷启动回填已完成章)。
     ///
     /// maxAge=nil 不过期(命书章文本确定性,与 D2「瞬时显示」口径一致)。
-    /// language 固定 "zh":对齐 `runV1Module` 写入口径(upsert 未传 language 恒落
-    /// "zh",i18n Slice 2 债)——读按 AppLanguage.current 查会让 en 用户每次
-    /// 冷启动必 miss → 自动续跑反复烧全链 LLM。Slice 2 补 en deep 模板时读写一起迁移。
+    /// language 读 `AppLanguage.currentWire`:与写入口径配对(`runV1Module`
+    /// upsert 存 `resp.language`,后端渲染语言与请求语言一致,二值相等)——
+    /// 读写键必须同批迁移,否则 en 用户每次冷启动必 miss → 自动续跑反复
+    /// 烧全链 LLM(2026-09-23 review P0-2 收口)。
     /// 错误处理:identity 解析失败(离线)或 SwiftData 读失败原样上抛;
     /// 调用方(VM hydrateAndResume)记日志后跳过自动续跑,不打断 UI。
     func restoreCachedV1Modules(
@@ -231,7 +236,7 @@ final class DeepAnalysisOrchestrator {
         let hits = try await interpretationReader.readAll(
             contentHash: contentHash,
             modules: modules,
-            language: "zh"
+            language: AppLanguage.currentWire
         )
         AppLogger.app.info(
             "deep.restoreCachedV1Modules hash=\(contentHash, privacy: .public) queried=\(modules.count) hits=\(hits.count)"
@@ -367,6 +372,12 @@ final class DeepAnalysisOrchestrator {
                     module: module,
                     promptVersion: resp.promptVersion,
                     targetDate: nil,
+                    // i18n(2026-09-23 review P0-2):v1 模块 en 全链 T1 已落地,
+                    // 改存 resp.language(后端实际渲染语言)——写恒落默认 "zh"
+                    // 会把 en 正文标 zh 存档(T5 切语言串台),且 en 用户冷启动
+                    // 回填必 miss → 自动续跑反复烧全链 LLM。restoreCachedV1Modules
+                    // 读侧已同批改 currentWire,读写键配对。对齐 compat/daily 修法。
+                    language: resp.language,
                     provider: resp.provider,
                     model: resp.model,
                     interpretation: resp.interpretation,
