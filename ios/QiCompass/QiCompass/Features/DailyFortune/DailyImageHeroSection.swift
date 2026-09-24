@@ -51,6 +51,7 @@ struct DailyImageHeroSection: View {
             baseLayer
             veilLayer
             rimLayer
+            bottomFadeLayer
             mistLayer
             grainLayer
             birdLayer
@@ -141,6 +142,21 @@ struct DailyImageHeroSection: View {
             .allowsHitTesting(false)
     }
 
+    /// 4b 底部提前融纸(2026-09-25 打磨):外评「山水下边缘和文字区域糊在
+    /// 一起」——宜忌列所在的底缘自 78% 起线性压纸、93% 全纸,山脚(63%)
+    /// 与整体融纸观感不动,文字区从此干净落纸。
+    private var bottomFadeLayer: some View {
+        LinearGradient(
+            stops: [
+                .init(color: BaziTheme.paper.opacity(0), location: 0.78),
+                .init(color: BaziTheme.paper, location: 0.93),
+            ],
+            startPoint: .top,
+            endPoint: .bottom
+        )
+        .allowsHitTesting(false)
+    }
+
     /// 6 云雾:两团宣纸色软雾,异速反向横漂(26s / 34s 半程)。
     private var mistLayer: some View {
         ZStack {
@@ -176,15 +192,17 @@ struct DailyImageHeroSection: View {
             .allowsHitTesting(false)
     }
 
-    /// 7 淡墨飞鸟:两笔简笔横渡天空,3.4s 微沉浮。
+    /// 7 淡墨飞鸟:两只分离简笔(2026-09-25 打磨:原连体双拱被外评读成
+    /// 「24 下的不明波浪线」——两翅断开成两只远鸟,且上移到山顶天空区,
+    /// 离开日期数字下沿),30s 横渡 + 3.4s 微沉浮。
     private var birdLayer: some View {
         GeometryReader { geo in
             BirdShape()
                 .stroke(BaziTheme.ink, style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
                 .frame(width: 26, height: 10)
                 .offset(y: bob ? -3 : 0)
-                .position(x: flyX + 13, y: 89)
-                .opacity(0.38)
+                .position(x: flyX + 13, y: 72)
+                .opacity(0.42)
                 .onAppear {
                     guard !reduceMotion else { return }
                     withAnimation(.easeInOut(duration: 1.7).repeatForever(autoreverses: true)) {
@@ -532,17 +550,19 @@ struct HeroYiJiColumns: View {
     }
 }
 
-// MARK: - 飞鸟形状(两笔简笔,同画布 SVG path)
+// MARK: - 飞鸟形状(两只分离简笔,同画布 SVG path 改造)
 
 private struct BirdShape: Shape {
     func path(in rect: CGRect) -> Path {
         let sx = rect.width / 26
         let sy = rect.height / 10
         var p = Path()
-        p.move(to: CGPoint(x: 1.5 * sx, y: 7.5 * sy))
-        p.addQuadCurve(to: CGPoint(x: 12 * sx, y: 6.5 * sy), control: CGPoint(x: 7 * sx, y: 1.5 * sy))
-        p.addQuadCurve(to: CGPoint(x: 15.5 * sx, y: 6.5 * sy), control: CGPoint(x: 13.5 * sx, y: 8.2 * sy))
-        p.addQuadCurve(to: CGPoint(x: 24.5 * sx, y: 7.5 * sy), control: CGPoint(x: 20.5 * sx, y: 1.5 * sy))
+        // 左鸟:单拱翅(1.5 → 11),低一点
+        p.move(to: CGPoint(x: 1.5 * sx, y: 8 * sy))
+        p.addQuadCurve(to: CGPoint(x: 11 * sx, y: 8 * sy), control: CGPoint(x: 6.2 * sx, y: 2.5 * sy))
+        // 右鸟:单拱翅(15 → 24.5),高一点(错落两只)
+        p.move(to: CGPoint(x: 15 * sx, y: 6.5 * sy))
+        p.addQuadCurve(to: CGPoint(x: 24.5 * sx, y: 6.5 * sy), control: CGPoint(x: 19.8 * sx, y: 1 * sy))
         return p
     }
 }
