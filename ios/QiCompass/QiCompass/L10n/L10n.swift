@@ -472,6 +472,20 @@ enum L10n {
         /// 加载中文字(zh="推演中…", en="Divining…")
         static let interpretLoading = String(localized: "dailyfortune.interpret.loading")
 
+        // -- VM 内错误 message(2026-09-24 二段:字面量收编,zh 值与旧字面量逐字相同)--
+
+        /// 本地缓存读取失败。zh: "读取解读缓存失败,请重试";en: "Couldn't load your cached reading — please retry"
+        static let interpretCacheReadFailed = String(localized: "dailyfortune.interpret.cacheReadFailed")
+
+        /// 离线兜底·有历史解读。zh: "已保留历史解读,联网后可确认当前 AI 来源";en: "Your last reading is kept — go online to refresh it"
+        static let interpretOfflineLegacy = String(localized: "dailyfortune.interpret.offlineLegacy")
+
+        /// chartPayload 缺失(在线路径)。zh: "命盘数据读取失败,请下拉刷新重试";en: "Couldn't read your chart — pull to refresh and retry"
+        static let interpretChartReadFailed = String(localized: "dailyfortune.interpret.chartReadFailed")
+
+        /// chartPayload 缺失(离线路径)。zh: "命盘数据读取失败,请联网后下拉刷新重试";en: "Couldn't read your chart — get back online, then pull to refresh"
+        static let interpretChartReadFailedOffline = String(localized: "dailyfortune.interpret.chartReadFailedOffline")
+
         // -- Tomorrow Preview --
 
         // -- 宜/忌 标签(Huangli + YiJi 共用)--
@@ -505,6 +519,10 @@ enum L10n {
     /// 注:行内显示值(personA/personB/sync)来自后端中文真值,iOS 不本地化。
     enum Compatibility {
         // -- 双盘对比 --
+
+        /// detail 态快照缺失错误态(2026-09-24 二段:字面量收编,zh 逐字同旧)。
+        /// zh: "命盘数据读取失败";en: "Couldn't read your chart data"
+        static let errorChartReadFailed = String(localized: "hepan.error.chartReadFailed")
 
         /// 区块 kicker。
         /// zh: "双盘对比";en: "Two charts, side by side"
@@ -888,6 +906,10 @@ enum L10n {
         /// 静默态写档失败。
         /// zh: "设置未保存,请重试";en: "Couldn't save the setting — please retry"
         static let errorSilenceSave = String(localized: "addhour.error.silenceSave")
+
+        /// 补时辰装配失败 alert 标题(五屏同款;2026-09-24 二段收编)。
+        /// zh: "暂时无法补时辰";en: "Can't add birth hour right now"
+        static let errorAlertTitle = String(localized: "addhour.error.alertTitle")
     }
 
     // MARK: - 深度解析命书链(2026-09-08 自动起链 + 断点续跑)
@@ -966,6 +988,13 @@ enum L10n {
 
         /// 达上限提示(zh="今日机缘已尽,明日再来")
         static let limitReached = String(localized: "common.limitReached")
+
+        /// 通用确认按钮(zh="好的";en="OK")。2026-09-24 二段:全仓 alert 收编。
+        static let ok = String(localized: "common.ok")
+
+        /// 通用未知错误兜底(zh="未知错误";en="Something went wrong")。
+        /// 2026-09-24 二段:全仓 `?? "未知错误"` 兜底收编。
+        static let unknownError = String(localized: "common.unknownError")
 
         /// 倒计时完整标签(zh="距重置:3 时 15 分", en="Resets in 3h 15m")
         static func countdownLabel(hours: Int, minutes: Int) -> String {

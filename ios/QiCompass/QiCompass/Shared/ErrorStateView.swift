@@ -47,7 +47,7 @@ struct ErrorStateView: View {
                     .scale.combined(with: .opacity), reduceMotion: reduceMotion
                 ))
 
-            Text(userFacingError.errorDescription ?? "未知错误")
+            Text(userFacingError.errorDescription ?? L10n.Common.unknownError)
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(BaziTheme.ink)
 

@@ -215,7 +215,7 @@ final class DailyFortuneViewModel {
             // → 显式报错,不静默返回
             state = .ready(
                 response,
-                .failed(message: "命盘数据读取失败,请下拉刷新重试"),
+                .failed(message: L10n.DailyFortune.interpretChartReadFailed),
                 businessDate,
             )
             return
@@ -262,7 +262,7 @@ final class DailyFortuneViewModel {
                         )
                     } else {
                         enterInterpretFailed(
-                            message: error.errorDescription ?? "未知错误",
+                            message: error.errorDescription ?? L10n.Common.unknownError,
                             trigger: trigger, chartHash: hash,
                             response: response, businessDate: businessDate,
                         )
@@ -280,7 +280,7 @@ final class DailyFortuneViewModel {
                         )
                     } else {
                         enterInterpretFailed(
-                            message: userError.errorDescription ?? "未知错误",
+                            message: userError.errorDescription ?? L10n.Common.unknownError,
                             trigger: trigger, chartHash: hash,
                             response: response, businessDate: businessDate,
                         )
@@ -437,7 +437,7 @@ final class DailyFortuneViewModel {
                 AppLogger.persistence.error(
                     "daily.cachedInterpretation_read_failed hash=\(chartHash, privacy: .public) targetDate=\(businessDate, privacy: .public) error=\(String(describing: error), privacy: .public)"
                 )
-                interpretState = .failed(message: "读取解读缓存失败,请重试")
+                interpretState = .failed(message: L10n.DailyFortune.interpretCacheReadFailed)
             }
 
             if !Task.isCancelled {
@@ -529,7 +529,7 @@ final class DailyFortuneViewModel {
         // 当前 provider/model,不能把它标成当前供应商缓存命中。
         let hasInterpretation = !cached.interpretation.trimmingCharacters(in: .whitespaces).isEmpty
         var interpState: InterpretState = hasInterpretation
-            ? .failed(message: "已保留历史解读,联网后可确认当前 AI 来源")
+            ? .failed(message: L10n.DailyFortune.interpretOfflineLegacy)
             : .idle
 
         // 同步刷新 chartPayload(用户在线恢复后点"今日解读"可触发 AI)。
@@ -550,7 +550,7 @@ final class DailyFortuneViewModel {
                     "daily.offline_fallback.chartSnapshot_missing hash=\(chartHash, privacy: .public)"
                 )
                 if !hasInterpretation {
-                    interpState = .failed(message: "命盘数据读取失败,请联网后下拉刷新重试")
+                    interpState = .failed(message: L10n.DailyFortune.interpretChartReadFailedOffline)
                 }
             }
         } catch {
@@ -558,7 +558,7 @@ final class DailyFortuneViewModel {
                 "daily.offline_fallback.chartPayload_failed hash=\(chartHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
             if !hasInterpretation {
-                interpState = .failed(message: "命盘数据读取失败,请联网后下拉刷新重试")
+                interpState = .failed(message: L10n.DailyFortune.interpretChartReadFailedOffline)
             }
         }
 

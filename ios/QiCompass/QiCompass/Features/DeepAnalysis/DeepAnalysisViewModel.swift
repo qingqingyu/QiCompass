@@ -981,13 +981,13 @@ final class DeepAnalysisViewModel {
         } catch let error as DeepAnalysisError {
             if !Task.isCancelled && isCurrentChart(response) {
                 AppLogger.app.warning("deepVM.runSingleV1Module.deepAnalysisError module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
-                moduleStates[module] = .failed(message: error.errorDescription ?? "未知错误")
+                moduleStates[module] = .failed(message: error.errorDescription ?? L10n.Common.unknownError)
             }
         } catch {
             if !Task.isCancelled && isCurrentChart(response) {
                 AppLogger.app.error("deepVM.runSingleV1Module.failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
                 let userError = UserFacingError.from(error, stage: .interpret)
-                moduleStates[module] = .failed(message: userError.errorDescription ?? "未知错误")
+                moduleStates[module] = .failed(message: userError.errorDescription ?? L10n.Common.unknownError)
             }
         }
     }

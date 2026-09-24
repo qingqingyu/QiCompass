@@ -149,6 +149,23 @@
     "24h 内已缓存,不消耗次数" : {
 
     },
+    "addhour.error.alertTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Can't add birth hour right now"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂时无法补时辰"
+          }
+        }
+      }
+    },
     "addhour.error.rebuild" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1526,6 +1543,40 @@
         }
       }
     },
+    "common.ok" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "OK"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "好的"
+          }
+        }
+      }
+    },
+    "common.unknownError" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Something went wrong"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "未知错误"
+          }
+        }
+      }
+    },
     "compatibility.roster.hourUnknown.hint" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1747,6 +1798,57 @@
         }
       }
     },
+    "dailyfortune.interpret.cacheReadFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't load your cached reading — please retry"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读取解读缓存失败,请重试"
+          }
+        }
+      }
+    },
+    "dailyfortune.interpret.chartReadFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't read your chart — pull to refresh and retry"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盘数据读取失败,请下拉刷新重试"
+          }
+        }
+      }
+    },
+    "dailyfortune.interpret.chartReadFailedOffline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't read your chart — get back online, then pull to refresh"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盘数据读取失败,请联网后下拉刷新重试"
+          }
+        }
+      }
+    },
     "dailyfortune.interpret.cta" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1777,6 +1879,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "推演中…"
+          }
+        }
+      }
+    },
+    "dailyfortune.interpret.offlineLegacy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your last reading is kept — go online to refresh it"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已保留历史解读,联网后可确认当前 AI 来源"
           }
         }
       }
@@ -2613,6 +2732,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "年柱"
+          }
+        }
+      }
+    },
+    "hepan.error.chartReadFailed" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't read your chart data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盘数据读取失败"
           }
         }
       }
@@ -4003,9 +4139,6 @@
     "在下方直接填对方出生信息,\n或先去「我的」为 TA 建一个存档命盘。" : {
 
     },
-    "好的" : {
-
-    },
     "子时属次日 ›" : {
 
     },
@@ -4077,9 +4210,6 @@
 
     },
     "旬空:%@" : {
-
-    },
-    "暂时无法补时辰" : {
 
     },
     "未钤 · 本机" : {
