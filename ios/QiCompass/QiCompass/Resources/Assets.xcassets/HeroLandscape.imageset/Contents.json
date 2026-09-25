@@ -1,12 +1,22 @@
 {
-  "images": [
+  "images" : [
     {
-      "filename": "HeroLandscape.png",
-      "idiom": "universal"
+      "filename" : "HeroLandscape.png",
+      "idiom" : "universal"
+    },
+    {
+      "appearances" : [
+        {
+          "appearance" : "luminosity",
+          "value" : "dark"
+        }
+      ],
+      "filename" : "HeroLandscape_dark.png",
+      "idiom" : "universal"
     }
   ],
-  "info": {
-    "author": "xcode",
-    "version": 1
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
   }
 }

@@ -84,6 +84,11 @@ struct DailyImageHeroSection: View {
         // 要放大到 603pt 宽裁掉 39% 画面;重生成竖版 916×1717(B「极简空灵」,
         // gpt-image-2)后按卡比例裁 916×1000,山顶落卡高 25%/山脚 63%,整幅完整呈现。
         // prompt 与裁窗溯源:designs/daily-glass-20260831/hero-provenance.md。
+        // 2026-09-25 暗色走查 #2:Asset Catalog 加 dark variant(HeroLandscape_dark.png,
+        // 夜景版:深墨底淡白山影+月光倒影,gpt-image-2 三候选按亮度剖面客观选型,
+        // 裁窗 (0,411,1024,1529) 同「山顶落卡高 25%」语义;溯源同文件夜版章节)——
+        // 修订 08-30「暗色保持纸底」拍板:亮画在夜里像一盏灯,且冷白浮层文字
+        // 压亮画不可读;夜景版下浮层文字(米白)恢复对比。系统按外观自动换图。
         // 1 基底滤镜 → clip → 2 径向 mask → 墨渗缩放(晕团在玻璃内缓胀)
         Group {
             Image("HeroLandscape")
@@ -118,10 +123,12 @@ struct DailyImageHeroSection: View {
     }
 
     /// 3 纸色纱罩 + 呼吸(paper 是 dyn 双值,夜宣纸自动换底)。
+    /// 2026-09-25 暗色走查 #2:暗色换夜景版底图后,亮色档的呼吸纱罩(0.33-0.46)
+    /// 会把本已沉入夜色的山影压死——暗色只留一档轻纱统一色温,呼吸幅度同步收窄。
     private var veilLayer: some View {
         Rectangle()
             .fill(BaziTheme.paper)
-            .opacity(breathe ? 0.46 : 0.33)
+            .opacity(scheme == .dark ? (breathe ? 0.20 : 0.12) : (breathe ? 0.46 : 0.33))
             .allowsHitTesting(false)
     }
 
