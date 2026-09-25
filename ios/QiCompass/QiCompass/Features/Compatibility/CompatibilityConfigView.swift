@@ -128,17 +128,26 @@ struct CompatibilityConfigView: View {
                     Text(cta.note)
                         .font(BaziFont.caption(size: 10))
                         .tracking(1)
-                        // 禁用态副标单独提色(2026-09-19 S04):整块前景已是 inkMuted(:133)
-                        // + 底 inkDeep@0.3,副标若维持 inkMutedSecondary 会叠到对比度归零,
-                        // 曾被外部评审误读为「透出另一层文字」;禁用态升到 inkMuted 保持可读。
+                        // 禁用态副标单独提色(2026-09-19 S04):副标若维持
+                        // inkMutedSecondary 会与整块弱色叠到对比度归零,禁用态升到
+                        // inkMuted 保持可读(启用态块底为墨,副标用次级色降层级)。
                         .foregroundStyle(cta.isEnabled ? BaziTheme.inkMutedSecondary : BaziTheme.inkMuted)
                 }
                 .foregroundStyle(cta.isEnabled ? BaziTheme.onInkDeep : BaziTheme.inkMuted)
                 .frame(maxWidth: .infinity)
                 .padding(.vertical, 14)
                 .background(
-                    cta.isEnabled ? BaziTheme.inkDeep : BaziTheme.inkDeep.opacity(0.3),
+                    // 2026-09-25 暗色走查 #5 拍板:禁用态不再铺 inkDeep@0.3 实底色块
+                    // (暗色下反转成整宽灰块,比可用 CTA 与「添加对方」都重,层级倒挂)。
+                    // 改 dashed 描边空心框——DESIGN.md 本就规定 dashed 专用锁定/临时态,
+                    // 未选时的「先点选一位对方」正是临时态;视觉最重的恒为可用「开始合盘」。
+                    cta.isEnabled ? BaziTheme.inkDeep : Color.clear,
                     in: RoundedRectangle(cornerRadius: 5)
+                )
+                .overlay(
+                    RoundedRectangle(cornerRadius: 5)
+                        .stroke(BaziTheme.hairlineDashed, style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
+                        .opacity(cta.isEnabled ? 0 : 1)
                 )
                 .padding(.horizontal)
                 .padding(.vertical, 8)

@@ -335,9 +335,11 @@ struct RosterUnifiedListView: View {
                     .frame(width: 22, height: 22)
                     .overlay(Text("＋").font(.caption).foregroundStyle(BaziTheme.inkMuted))
                 VStack(alignment: .leading, spacing: 3) {
+                    // 2026-09-25 暗色走查 #5:可用态文字升 ink 主色——「添加对方」是
+                    // 名单区真正的主动作,原 inkMuted 在暗色下与禁用态难分;满员置灰不变。
                     Text("添加对方")
                         .font(BaziFont.body())
-                        .foregroundStyle(isFull ? BaziTheme.inkMutedSecondary : BaziTheme.inkMuted)
+                        .foregroundStyle(isFull ? BaziTheme.inkMutedSecondary : BaziTheme.ink)
                     Text(isFull ? "名单已满 · 上限 \(rosterMax) 位" : "不建档案 · 填出生信息即可")
                         .font(BaziFont.caption(size: 10))
                         .tracking(0.5)
