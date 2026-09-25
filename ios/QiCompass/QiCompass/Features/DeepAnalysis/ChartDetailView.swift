@@ -99,7 +99,6 @@ struct ChartDetailView: View {
         }
         .navigationTitle("盘面细目")
         .navigationBarTitleDisplayMode(.inline)
-        .toolbarColorScheme(.light, for: .navigationBar)
     }
 
     /// 四柱节右侧小注:真太阳时 + 出生地 + 偏差(时辰未知 → 不造时间,只显其余)。

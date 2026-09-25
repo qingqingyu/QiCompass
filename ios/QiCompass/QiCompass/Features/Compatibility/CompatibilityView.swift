@@ -33,7 +33,6 @@ struct CompatibilityView: View {
             }
             .navigationTitle(navigationTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.light, for: .navigationBar)
             .toolbar {
                 if case .list = vm?.state {
                     ToolbarItem(placement: .topBarLeading) {

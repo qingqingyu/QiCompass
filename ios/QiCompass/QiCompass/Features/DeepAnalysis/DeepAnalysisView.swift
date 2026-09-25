@@ -50,7 +50,6 @@ struct DeepAnalysisView: View {
             }
             .navigationTitle("深度解析")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.light, for: .navigationBar)
             // 盘面小景 S2:章节阅读页(全仓首个 navigationDestination,仅本栈)
             .navigationDestination(for: ModuleID.self) { module in
                 if let vm, case .ready(let response, _) = vm.state {

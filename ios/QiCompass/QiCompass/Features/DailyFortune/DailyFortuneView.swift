@@ -35,7 +35,6 @@ struct DailyFortuneView: View {
             }
             .navigationTitle(L10n.DailyFortune.navTitle)
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.light, for: .navigationBar)
             // S10:补时辰 sheet。关闭统一刷新——重算换新盘 → resolveCurrentChart
             // 按 hash 变化全量重载(完整版运势);静默态写穿 → refreshHourFlags
             /// 轻量重读判据(末尾行文案降中性),不重跑排盘管线。
