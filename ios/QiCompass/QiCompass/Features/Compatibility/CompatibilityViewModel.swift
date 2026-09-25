@@ -237,6 +237,7 @@ final class CompatibilityViewModel {
                     birthDate: snapshot.birthSolarTime,
                     gender: snapshot.gender,
                     dayMaster: dayMaster,
+                    yearBranchZodiac: bazi.yearBranchZodiac,
                     snapshot: snapshot
                 ))
             }
@@ -1608,6 +1609,13 @@ struct ArchivedChart: Identifiable, Hashable {
     let birthDate: Date
     let gender: String
     let dayMaster: String
+    /// 年支生肖英文 asset 名(2026-09-25 暗色走查 #11:命主行头像与「我的」tab 统一
+    /// 为生肖线稿;nil = 年柱歧义/decode 不到,视图层 resolve 成墨点,不猜)。
+    /// 存原始数据而非派生 mode——ArchivedChart 是 Hashable,ZodiacAvatarMode 不是;
+    /// 且三态判定本就属渲染层(单一事实源 ZodiacAvatarMode.resolve)。
+    /// 默认 nil:测试的最小构造(与头像无关的 VM 逻辑)免重复样板
+    /// (var + 默认值才进 memberwise init 的可选参数;let 常量默认值会被排除)。
+    var yearBranchZodiac: String? = nil
     let snapshot: ChartSnapshot
 
     var id: String { snapshotHash }

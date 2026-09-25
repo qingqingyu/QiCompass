@@ -167,27 +167,30 @@ enum BaziTheme {
     }
 
     /// 主背景。Light 国画旧宣纸(2026-08-31 换轨,原冷灰宣纸 #F3F1EC;今日运势 V1 画布拍板,
-    /// 浮框结构依赖「底暗框亮」的层次)/ Dark 夜宣纸(冷调,非暖墨)。
+    /// 浮框结构依赖「底暗框亮」的层次)/ Dark 夜宣纸(2026-09-25 暗色走查拍板:冷调
+    /// #141317 → 暖墨黑 #171412,与朱红/宣纸暖色系统一,见 DESIGN.md Decisions Log)。
     static let paper         = dyn(Color(red: 0xE7/255, green: 0xE2/255, blue: 0xD5/255),
-                                   Color(red: 0x14/255, green: 0x13/255, blue: 0x17/255))
+                                   Color(red: 0x17/255, green: 0x14/255, blue: 0x12/255))
     /// sheet 底 / 残留卡底。水墨语言下卡片让位 hairline,此 token 逐步收缩到 sheet 与锁框。
     static let cardSurface   = dyn(Color(red: 0xF7/255, green: 0xF5/255, blue: 0xF0/255),
-                                   Color(red: 0x1E/255, green: 0x1D/255, blue: 0x23/255))
-    /// 主文字。Light 浓墨(冷黑)/ Dark 冷白(非暖白)。
+                                   Color(red: 0x21/255, green: 0x1E/255, blue: 0x1B/255))
+    /// 主文字。Light 浓墨(冷黑)/ Dark 米白(2026-09-25 随暖墨黑同步微暖,#E9E7E2 → #EAE6DF)。
     static let ink           = dyn(Color(red: 0x1C/255, green: 0x1B/255, blue: 0x1E/255),
-                                   Color(red: 0xE9/255, green: 0xE7/255, blue: 0xE2/255))
+                                   Color(red: 0xEA/255, green: 0xE6/255, blue: 0xDF/255))
     /// 弱说明文字。
     static let inkMuted      = dyn(Color(red: 0x77/255, green: 0x72/255, blue: 0x6A/255),
                                    Color(red: 0x9B/255, green: 0x96/255, blue: 0x8C/255))
-    /// 二级弱注(比 inkMuted 更弱的标签 / 元信息)。
+    /// 二级弱注(比 inkMuted 更弱的标签 / 元信息)。Dark 2026-09-25 提亮 #6E6A62 → #8E897F
+    /// (原值对夜宣纸仅 ≈3.7:1,信息性文案夜里费力;新值 paper 上 ≈5.3:1 / cardSurface 上
+    /// ≈4.8:1,与 inkMuted 仍拉开一档)。
     static let inkMutedSecondary = dyn(Color(red: 0xA5/255, green: 0xA0/255, blue: 0x98/255),
-                                       Color(red: 0x6E/255, green: 0x6A/255, blue: 0x62/255))
-    /// 焦墨 CTA 底 / enso 笔触。Dark 反转为冷白底(与 onInkDeep 成对使用)。
+                                       Color(red: 0x8E/255, green: 0x89/255, blue: 0x7F/255))
+    /// 焦墨 CTA 底 / enso 笔触。Dark 反转为米白底(与 onInkDeep 成对使用;2026-09-25 微暖)。
     static let inkDeep       = dyn(Color(red: 0x17/255, green: 0x16/255, blue: 0x1A/255),
-                                   Color(red: 0xE9/255, green: 0xE7/255, blue: 0xE2/255))
-    /// CTA 前景(inkDeep 的反色伴生 token)。
+                                   Color(red: 0xEA/255, green: 0xE6/255, blue: 0xDF/255))
+    /// CTA 前景(inkDeep 的反色伴生 token;Dark 暖墨黑,与 paper 同源)。
     static let onInkDeep     = dyn(Color(red: 0xF3/255, green: 0xF1/255, blue: 0xEC/255),
-                                   Color(red: 0x17/255, green: 0x16/255, blue: 0x1A/255))
+                                   Color(red: 0x17/255, green: 0x14/255, blue: 0x12/255))
     /// 印章朱红。**印章级专用,禁止 CTA / 大面积底色**(DESIGN.md §Color)。Dark 提亮保持识别。
     static let cinnabar      = dyn(Color(red: 0xA8/255, green: 0x32/255, blue: 0x26/255),
                                    Color(red: 0xC2/255, green: 0x51/255, blue: 0x43/255))
