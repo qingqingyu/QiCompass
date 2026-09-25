@@ -26,30 +26,25 @@ import SwiftUI
 /// 同名重复盘出现在 menu 里反而有害。命主语义全局唯一,合盘 A 盘不再可切——
 /// A 由 VM 加载(最新 link)与跨启动恢复(持久化 A hash)决定。
 /// 自己无时辰(定稿⑦):右侧「补时辰」直达 S10 补时辰 sheet(唯一保留的行尾操作)。
+/// 头像:2026-09-25 暗色走查 #11 改用 ZodiacAvatarMark 生肖线稿(与「我的」tab
+/// 命主块/名册行同一语言;原 inkDeep 圆底首字在暗色下反转成亮白圆,割裂且刺眼)。
 struct PersonARowView: View {
-    /// 当前 A 盘(命主;nil = 存档异常,行降级「未知存档」)。
+    /// 当前 A 盘(命主;nil = 存档异常,行降级「未知存档」+ 墨点头像)。
     let chart: ArchivedChart?
     /// 自己(A 盘)无时辰 → 右侧变「补时辰」。
     let isHourUnknown: Bool
     /// 补时辰触点(nil 无宿主时按钮不渲染)。
     var onAddHour: (() -> Void)? = nil
 
-    /// 头像首字:空别名回落「我」(不渲染空字)。
-    private var avatarInitial: String {
-        guard let alias = chart?.alias, !alias.isEmpty else { return "我" }
-        return String(alias.prefix(1))
+    /// 头像模式:三态判定走 ZodiacAvatarMode.resolve 单一事实源(与「我的」tab 同款);
+    /// chart nil(理论不可达的降级)→ hidden 留空,有盘无生肖 → 墨点,不猜属相。
+    private var avatarMode: ZodiacAvatarMode {
+        ZodiacAvatarMode.resolve(hasChart: chart != nil, zodiac: chart?.yearBranchZodiac)
     }
 
     var body: some View {
         HStack(spacing: 13) {
-            Circle()
-                .fill(BaziTheme.inkDeep)
-                .frame(width: 40, height: 40)
-                .overlay(
-                    Text(avatarInitial)
-                        .font(BaziFont.display(size: 16, weight: .medium))
-                        .foregroundStyle(BaziTheme.onInkDeep)
-                )
+            ZodiacAvatarMark(mode: avatarMode, size: 40)
             VStack(alignment: .leading, spacing: 3) {
                 Text(chart?.alias ?? "未知存档")
                     .font(BaziFont.body())

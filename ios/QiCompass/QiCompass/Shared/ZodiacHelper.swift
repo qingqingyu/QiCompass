@@ -1,4 +1,5 @@
 import Foundation
+import SwiftUI  // ZodiacAvatarMark(2026-09-25 自 ProfileView 迁入,合盘配置页共用)
 
 /// 生肖辅助:英文 asset name ↔ 中文汉字。
 ///
@@ -287,6 +288,37 @@ enum ZodiacAvatarMode: Equatable {
         guard hasChart else { return .hidden }
         guard let zodiac, ZodiacHelper.isKnownZodiac(zodiac) else { return .inkDot }
         return .zodiac("Zodiac_\(zodiac)")
+    }
+}
+
+// MARK: - ZodiacAvatarMark(生肖头像位三态 View,S08)
+
+/// 生肖图/墨点头像位 View:「我的」tab 命主块(60pt)/名册行(36pt)与合盘配置页
+/// 命主行共用(2026-09-25 暗色走查 #11:自 ProfileView private 提升为 internal,
+/// 统一全 App 头像语言——原合盘命主行是 inkDeep 圆底首字,暗色下反转成亮白圆,
+/// 与生肖线稿体系割裂)。
+/// - `.zodiac` 正常生肖印章图(与 ZodiacRevealView 同一 asset 族)
+/// - `.inkDot` 年柱歧义(立春+时辰未知,D10)→ EnsoView 墨圆(品牌指纹,静态渲染):
+///   有盘但属相待时辰而定,**不猜动物**;留白给正式表达(S05 兜底是整体隐藏命主卡)
+/// - `.hidden` 无命盘 / decode 失败 → 空视图(头像位留空)
+struct ZodiacAvatarMark: View {
+    let mode: ZodiacAvatarMode
+    let size: CGFloat
+
+    var body: some View {
+        switch mode {
+        case .zodiac(let assetName):
+            Image(assetName)
+                .resizable()
+                .scaledToFit()
+                .frame(width: size, height: size)
+                .accessibilityHidden(true)
+        case .inkDot:
+            // EnsoView 内部已 accessibilityHidden(纯装饰墨圆,属相信息由上下文文本承载)
+            EnsoView(size: size, animated: false)
+        case .hidden:
+            EmptyView()
+        }
     }
 }
 

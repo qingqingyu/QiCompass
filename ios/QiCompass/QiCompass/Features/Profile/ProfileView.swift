@@ -164,7 +164,7 @@ struct ProfileView: View {
                 Button("取消", role: .cancel) {}
                 Button("确定重置", role: .destructive) { resetAllData() }
             } message: {
-                Text("此操作不可恢复。所有命盘、合盘记录、解读缓存都会被清空。购买记录保留在 App Store,重新 onboarding 后可恢复。")
+                Text("此操作不可恢复。所有命盘、合盘记录、解读缓存都会被清空。购买记录保留在 App Store,重新录入出生信息后可恢复。")
             }
             .alert("重置失败", isPresented: Binding(
                 get: { resetError != nil },
@@ -657,7 +657,8 @@ struct ProfileView: View {
                 .buttonStyle(.plain)
             }
 
-            Text("影响新表单的初始值。已存档命盘不受影响(其规则随 snapshot 持久化)。重置命盘会清空所有数据并重新走 onboarding。")
+            // 2026-09-25 暗色走查 #11:去开发术语(snapshot/onboarding),说人话。
+            Text("影响之后新填表单的初始值。已保存的命盘不受影响(换算规则随命盘一起保存)。重置命盘会清空全部数据并重新开始设置。")
                 .font(BaziFont.caption(size: 10))
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
                 .padding(.top, 8)
@@ -947,29 +948,6 @@ private struct LordTag: View {
 }
 
 // MARK: - ZodiacAvatarMark(生肖头像位三态表达,S08)
-
-/// 生肖图/墨点头像位:命主块(60pt)与名册行(36pt)共用。
-/// - `.zodiac` 正常生肖印章图(与 ZodiacRevealView 同一 asset 族)
-/// - `.inkDot` 年柱歧义(立春+时辰未知,D10)→ EnsoView 墨圆(品牌指纹,静态渲染):
-///   有盘但属相待时辰而定,**不猜动物**;留白给正式表达(S05 兜底是整体隐藏命主卡)
-/// - `.hidden` 无命盘 / decode 失败 → 空视图(头像位留空)
-private struct ZodiacAvatarMark: View {
-    let mode: ZodiacAvatarMode
-    let size: CGFloat
-
-    var body: some View {
-        switch mode {
-        case .zodiac(let assetName):
-            Image(assetName)
-                .resizable()
-                .scaledToFit()
-                .frame(width: size, height: size)
-                .accessibilityHidden(true)
-        case .inkDot:
-            // EnsoView 内部已 accessibilityHidden(纯装饰墨圆,属相信息由上下文文本承载)
-            EnsoView(size: size, animated: false)
-        case .hidden:
-            EmptyView()
-        }
-    }
-}
+// 2026-09-25 暗色走查 #11:本组件迁至 Shared/ZodiacHelper.swift(internal),
+// 合盘配置页命主行与「我的」tab 名册共用同一头像语言(原合盘为 inkDeep 圆底首字,
+// 暗色下反转成亮白圆,与生肖线稿体系割裂)。

@@ -72,7 +72,9 @@ struct ChapterReadingView: View {
                     .padding(6)
             }
             Spacer()
-            Text("\(chapterNumeral) · \(chapterTitle)")
+            // 2026-09-25 暗色走查 #11:顶 bar 不再带章号——左缘竖章号栏(edgeNumeral)已表达
+            // 「贰」,正文大标题表达「天赋能力」,原先三处重复读起来像复读。
+            Text(chapterTitle)
                 .font(BaziFont.caption(size: 12.5))
                 .tracking(2)
                 .foregroundStyle(BaziTheme.inkMuted)
@@ -350,11 +352,17 @@ struct ChapterReadingView: View {
                     Button {
                         onShowPaywall()
                     } label: {
-                        Text("\(pagerTitle(next)) 🔒")
-                            .font(BaziFont.caption(size: 11.5))
-                            .tracking(1)
-                            .foregroundStyle(BaziTheme.inkMutedSecondary)
-                            .padding(6)
+                        // 2026-09-25 暗色走查 #11:🔒 彩色 emoji 与水墨单色语言冲突,
+                        // 换单色 SF Symbol(继承 inkMutedSecondary,深浅色自适应)。
+                        HStack(spacing: 3) {
+                            Text(pagerTitle(next))
+                            Image(systemName: "lock.fill")
+                                .font(.system(size: 8.5))
+                        }
+                        .font(BaziFont.caption(size: 11.5))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                        .padding(6)
                     }
                     .buttonStyle(.plain)
                 } else {

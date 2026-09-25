@@ -39,6 +39,7 @@ iOS 系统字体,**不打包任何自定义字体**。楷体走 `Font.custom("Ka
 - **Body(正文):** `Kaiti SC` — 阅读页楷体 15.5pt 行距 2.15×,首行缩进 2em(古籍排版)
 - **Latin caps(QICOMPASS 标):** system + `.tracking(大间距)`(约 0.55em),8.5-10pt
 - **Numeric/Data:** `SF Pro Text` + `tabular-nums` — 西文数字对齐(排盘表格 / 日期)
+- **两族纪律(2026-09-25 成文):** 任何界面同时在场字族 ≤2(中文 Kaiti + 数字 SF Pro 视为基准族)。EN 路由 = 衬线标题(New York serif)+ 无衬线正文/按钮;mono 已除(2026-09-24)。登录按钮(Apple/Google 官方组件)字体锁定,豁免
 
 **Type scale(基于 iOS 17.2 Dynamic Type):**
 
@@ -64,13 +65,13 @@ iOS 系统字体,**不打包任何自定义字体**。楷体走 `Font.custom("Ka
 
 | 角色 | Light Hex | Dark Hex(夜宣纸) | 用途 | SwiftUI 名 |
 |---|---|---|---|---|
-| 国画旧宣纸 / 夜宣纸 | `#E7E2D5` | `#141317` | 主背景 | `BaziTheme.paper` |
-| 浅纸 / 深浅纸 | `#F7F5F0` | `#1E1D23` | sheet 底 / 残留卡底(今日运势 V1 起兼做浮框纸面) | `BaziTheme.cardSurface` |
-| 浓墨 / 冷白 | `#1C1B1E` | `#E9E7E2` | 主文字 | `BaziTheme.ink` |
+| 国画旧宣纸 / 夜宣纸 | `#E7E2D5` | `#171412` | 主背景 | `BaziTheme.paper` |
+| 浅纸 / 深浅纸 | `#F7F5F0` | `#211E1B` | sheet 底 / 残留卡底(今日运势 V1 起兼做浮框纸面) | `BaziTheme.cardSurface` |
+| 浓墨 / 米白 | `#1C1B1E` | `#EAE6DF` | 主文字 | `BaziTheme.ink` |
 | 灰墨 / 浅灰墨 | `#77726A` | `#9B968C` | 弱说明文字 | `BaziTheme.inkMuted` |
-| 淡灰墨(新) | `#A5A098` | `#6E6A62` | 二级弱注 | `BaziTheme.inkMutedSecondary` |
-| 焦墨 / 冷白(新) | `#17161A` | `#E9E7E2` | **CTA 底** / enso 笔触(暗色反转) | `BaziTheme.inkDeep` |
-| CTA 前景(新) | `#F3F1EC` | `#17161A` | CTA 文字(与 inkDeep 成对) | `BaziTheme.onInkDeep` |
+| 淡灰墨(新) | `#A5A098` | `#8E897F` | 二级弱注 | `BaziTheme.inkMutedSecondary` |
+| 焦墨 / 米白(新) | `#17161A` | `#EAE6DF` | **CTA 底** / enso 笔触(暗色反转) | `BaziTheme.inkDeep` |
+| CTA 前景(新) | `#F3F1EC` | `#171412` | CTA 文字(与 inkDeep 成对) | `BaziTheme.onInkDeep` |
 | 印章朱红 / 亮朱红 | `#A83226` | `#C25143` | **印章级专用:SealStamp / 付费标 / 聚焦线 / 当前时辰点 / 在读态。禁止 CTA、禁止大面积** | `BaziTheme.cinnabar` |
 | 墨青 / 亮墨青 | `#2F5E4A` | `#6FA08A` | 吉向 / 好朋友 chip / 宜 | `BaziTheme.jade` |
 | 黛墨蓝 / 亮黛蓝 | `#3D4A5C` | `#7E93AC` | 三强调 / 水行 / 链接(降饱和) | `BaziTheme.daiBlue` |
@@ -79,7 +80,7 @@ iOS 系统字体,**不打包任何自定义字体**。楷体走 `Font.custom("Ka
 | 朱砂淡 | `#A83226 @ 10%` | `#C25143 @ 14%` | 选中态底色(极少量) | `BaziTheme.cinnabarSoft` |
 | 破坏红 | `#A83226` | `#C25143` | 错误 / 破坏性(与 cinnabar 同值,语义独立) | `BaziTheme.destructive` |
 
-**Dark mode 实现策略:** 走 `Color(UIColor { traitCollection in ... })` 动态色(`BaziTheme.dyn` helper),色值集中在 RootTabView.swift 单文件与本表一一对应。夜宣纸不是反转而是**冷的**:底 `#141317`、纸面 `#1E1D23`、冷白文字 `#E9E7E2`;**焦墨 CTA 在暗色下反转**(冷白底 + 焦墨字)。
+**Dark mode 实现策略:** 走 `Color(UIColor { traitCollection in ... })` 动态色(`BaziTheme.dyn` helper),色值集中在 RootTabView.swift 单文件与本表一一对应。夜宣纸不是反转而是**暖的**(2026-09-25 暗色走查拍板,修订 08-26「冷调」):底 `#171412`、纸面 `#211E1B`、米白文字 `#EAE6DF`——暖墨黑与朱红/宣纸/米白暖色系统一;**焦墨 CTA 在暗色下反转**(米白底 + 暖墨字)。二级弱注暗色 `#8E897F` 对 paper ≈5.3:1 / cardSurface ≈4.8:1(WCAG AA)。
 
 **五行色映射(降饱和 ~40%,进一步压向墨色):**
 
@@ -153,12 +154,12 @@ iOS 系统字体,**不打包任何自定义字体**。楷体走 `Font.custom("Ka
 
 ```swift
 enum BaziTheme {
-    static let paper    = dyn(#E7E2D5, #141317)   // 国画旧宣纸 / 夜宣纸(2026-08-31 换轨)
-    static let cardSurface = dyn(#F7F5F0, #1E1D23)
-    static let ink      = dyn(#1C1B1E, #E9E7E2)
+    static let paper    = dyn(#E7E2D5, #171412)   // 国画旧宣纸 / 夜宣纸(2026-08-31 换轨;09-25 暗色转暖)
+    static let cardSurface = dyn(#F7F5F0, #211E1B)
+    static let ink      = dyn(#1C1B1E, #EAE6DF)
     static let inkMuted = dyn(#77726A, #9B968C)
-    static let inkMutedSecondary = dyn(#A5A098, #6E6A62)  // 新
-    static let inkDeep  = dyn(#17161A, #E9E7E2)   // 新:焦墨 CTA 底(暗色反转)
+    static let inkMutedSecondary = dyn(#A5A098, #8E897F)  // 新(09-25 暗色提亮至 AA)
+    static let inkDeep  = dyn(#17161A, #EAE6DF)   // 新:焦墨 CTA 底(暗色反转)
     static let onInkDeep = dyn(#F3F1EC, #17161A)  // 新:CTA 前景
     static let cinnabar = dyn(#A83226, #C25143)   // 印章级专用,禁止 CTA
     static let cinnabarSoft = cinnabar.opacity(0.10)
@@ -225,3 +226,4 @@ enum BaziTheme {
 | 2026-09-01 | **深度解析改「盘面小景」读查分离**(hero+捌章目录 / 沉浸阅读页 / 细目页;§Body 古籍排版首次落地) | design-shotgun 5 方向对比 D 5/5 直选;长文排版是核心诉求;legacy 单文本命书 UI 随之移除 |
 | 2026-09-24 | **glass-v2 EN 配方修订:Menlo 等宽条目作废** → EN 图内宜忌条目与列头同走系统 serif(New York 系);`BaziFont.mono` 删除 | 外部评审 6 条之一「一屏约 5 种字体,等宽与水墨不搭」;字体收敛到衬线一族(图内宋/文中楷分层不变)。同轮拍板:AI 失败降级引擎模板文案+静默重试、EN 冲 chip 用生肖动物名(Clashes with Goat)、宜/忌列头 EN 注音 yí/jì、Do/Don't EN 词表重写(去合规手册腔)、首页命名保留「每日运势」 |
 | 2026-09-25 | **每日 hero 三处打磨**(外评小项收尾):飞鸟连体双拱改两只分离错落简笔并上移 y89→72(「24 下不明波浪线」误读);hero 底缘 78%→93% 线性融纸(山水下边缘与宜忌文字糊);「我的」tab 未钤空心印加印心极简人形(头点复用今日中心墨点语言+肩弧,「印中有我」) | tab 高频位不应依赖品牌语境才能读懂;印章立意保留(印面仍无字),形制微扩属 tab-icons-20260830 方向 A 的演化 |
+| 2026-09-25 | **暗色模式走查修订(外部评审 11 条逐项核实,18.3+26.5 双 runtime 实拍)**:①夜宣纸冷调 → 暖墨黑(paper `#141317`→`#171412` / cardSurface `#1E1D23`→`#211E1B` / 文字冷白→米白 `#EAE6DF`,修订 08-26「冷调」决策);②二级弱注暗色提亮至 AA(`#6E6A62`→`#8E897F`≈5:1);③EN 字体两族纪律成文(§Typography);④hero 暗色改**夜景版底图**(修订 08-30「保持纸底」——当时未虑及亮度刺眼+冷白文字对比);⑤iOS 26 `toolbarColorScheme(.light, for: .navigationBar)` 泄漏致滚动后标题对比塌+tab 选中 tint 解析为暗值 → 全 App 移除(18.3 无此泄漏);⑥登录按钮随 colorScheme 切官方样式(Apple `.black`/`.white`,Google `.light`/`.dark`) | 暗色此前只是 token 反转未整体设计;评审「标题黑字/选中更深」为 iOS 26 特有(18.3 不复现),根因单一。Liquid Glass tab 栏滚动透视维持系统行为(静止位实测让位);中英混排归 i18n T2-T6 轨道 |
