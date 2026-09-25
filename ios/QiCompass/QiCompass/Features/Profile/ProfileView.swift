@@ -111,7 +111,6 @@ struct ProfileView: View {
             }
             .navigationTitle("我的")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbarColorScheme(.light, for: .navigationBar)
             // S10:补时辰 sheet(本 Tab 是仓库不是钩子,但静默态用户唯一主动入口在这)。
             // 关闭无额外刷新:@Query 自动响应存档/link 变化(补时辰 = 新 snapshot + 新 link)。
             .sheet(item: $addHourVM) { vm in
