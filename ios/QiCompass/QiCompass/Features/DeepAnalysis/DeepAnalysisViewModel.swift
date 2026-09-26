@@ -936,14 +936,23 @@ final class DeepAnalysisViewModel {
             return
         }
 
-        // 上游依赖守卫:M1-M7 需要 structure_fingerprint;若 M0 未成功(v1ChainFields 缺字段),
-        // 不发注定 422 的请求,标 .pending 等用户先重试 M0。
+        // 上游依赖守卫:M1-M7 需要 structure_fingerprint + 本模块必带链式字段
+        // (requiredChainFields,来自上游模块输出);v1ChainFields 缺任一,
+        // 不发注定 422 的请求,标 .pending 等用户先重试上游模块。
         // 场景:用户在 M4 needsInput 时填了输入 → submitM4Input 自动调 retryV1Module(.m4),
         // 但 M0 可能已失败(网络断 / 日限) → 此处拦回 .pending,不浪费次数。
-        if module.requiresParentFingerprint && v1ChainFields["structure_fingerprint"] == nil {
-            moduleStates[module] = .pending
-            AppLogger.app.warning("deepVM.runSingleV1Module.missing_parent module=\(module.rawValue, privacy: .public) — 标 .pending 等上游重试")
-            return
+        // 2026-09-25 扩展:原来只查 structure_fingerprint,漏查 main_axis 等
+        // 链式字段 → m1 真机每次必 422"prompt 渲染缺字段:['main_axis','core_loop']"。
+        if module.requiresParentFingerprint {
+            let missing = (v1ChainFields["structure_fingerprint"] == nil ? ["structure_fingerprint"] : [])
+                + module.requiredChainFields.filter { v1ChainFields[$0] == nil }
+            if !missing.isEmpty {
+                moduleStates[module] = .pending
+                AppLogger.app.warning(
+                    "deepVM.runSingleV1Module.missing_parent module=\(module.rawValue, privacy: .public) missing=\(missing.joined(separator: ","), privacy: .public) — 标 .pending 等上游重试"
+                )
+                return
+            }
         }
 
         moduleStates[module] = .fetching
@@ -952,13 +961,21 @@ final class DeepAnalysisViewModel {
             let parentFingerprint: String? = module.requiresParentFingerprint
                 ? v1ChainFields["structure_fingerprint"]
                 : nil
+            // 链式字段注入(2026-09-25 修复:此前提取后从未随请求发送,
+            // m1/m2/m5/m6/m7 真机必 422)。上游守卫已保证 required 全在。
+            let chainFields: [String: String] = module.requiredChainFields.reduce(into: [:]) { acc, field in
+                if let value = v1ChainFields[field] {
+                    acc[field] = value
+                }
+            }
 
             let resp = try await orchestrator.runV1Module(
                 response: response,
                 module: module.rawValue,
                 parentFingerprint: parentFingerprint,
                 m4Input: m4UserInput,
-                m5Input: m5UserInput
+                m5Input: m5UserInput,
+                chainFields: chainFields
             )
 
             if Task.isCancelled { return }

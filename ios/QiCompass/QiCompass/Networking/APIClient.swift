@@ -230,8 +230,19 @@ final class LiveAPIClient: APIClient {
 // MARK: - MockAPIClient
 
 /// Mock API 客户端:返回占位数据,让三 Tab 在后端未运行时有可调用路径。
-/// Debug 默认用 Mock,可手动切换 LiveAPIClient 验证真实链路。
+/// 默认 Live(AppEnvironment.useMockAPIClient:UseMockAPIClient 默认 NO);
+/// build setting USE_MOCK_API_CLIENT=YES 时切换到 Mock 走查,测试亦直接注入。
 final class MockAPIClient: APIClient {
+    /// 测试支持:记录 interpret 调用的请求(链式字段回归断言用;Mock 路径无副作用)。
+    /// 线程安全(three-check B1):interpret 是 nonisolated async(跑全局并发
+    /// 执行器),VM 的 fire-and-forget 重试可与 v1 链重叠 → 并发 append 同一
+    /// Array 是数据竞争;NSLock 保护读写(录制不能崩 mock 走查/并发测试)。
+    private let recordLock = NSLock()
+    private var _recordedInterpretRequests: [InterpretRequest] = []
+    var recordedInterpretRequests: [InterpretRequest] {
+        recordLock.lock(); defer { recordLock.unlock() }
+        return _recordedInterpretRequests
+    }
     func health() async throws -> HealthResponse {
         AppLogger.networking.debug("mock.health 调起")
         try? await Task.sleep(nanoseconds: 200_000_000)
@@ -266,6 +277,9 @@ final class MockAPIClient: APIClient {
 
     func interpret(request: InterpretRequest) async throws -> InterpretResponse {
         AppLogger.networking.debug("mock.interpret 调起 content_hash=\(request.contentHash.prefix(12), privacy: .public) module=\(request.module, privacy: .public)")
+        recordLock.lock()
+        _recordedInterpretRequests.append(request)
+        recordLock.unlock()
         try? await Task.sleep(nanoseconds: 400_000_000)
         // M0 返回含 structure_fingerprint 的 JSON(对齐后端 m0 模板输出契约:
         // 下游 M1-M7 的 parent_fingerprint 客户端守卫依赖它);其余模块散文占位

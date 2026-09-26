@@ -245,6 +245,71 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         return condition()
     }
 
+    // MARK: - 链式字段注入(2026-09-25 修复回归)
+
+    /// 回归(2026-09-25):m1_talent 请求 context 必含 main_axis / core_loop。
+    ///
+    /// 根因:VM 从 M0 输出提取链式字段进 v1ChainFields 后,从未随请求发送
+    /// (orchestrator 只发 chart + structure_fingerprint)→ 真机每次必 422
+    /// "prompt 渲染缺字段:['main_axis','core_loop']"(backend REQUIRED_FIELDS),
+    /// 免费预览 M1 卡永远死卡。修复 = runV1Module(chainFields:) 接线。
+    /// 修复前本测试必失败(main_axis/core_loop 为 nil)。
+    func testV1ChainSendsRequiredChainFieldsInRequest() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        vm.loadArchivedChart(response: response, request: request)
+
+        // 自动起链:M0(mock JSON 含 main_axis/core_loop)→ M1 免费章自动跑
+        let bothOk = await waitUntil(timeout: 10) {
+            self.vm.moduleStates[.m0]?.isOk == true
+                && self.vm.moduleStates[.m1]?.isOk == true
+        }
+        XCTAssertTrue(bothOk, "自动链 M0+M1 必须落定,实际:\(vm.moduleStates)")
+
+        guard let m1Request = apiClient.recordedInterpretRequests.last(where: { $0.module == "m1_talent" }) else {
+            return XCTFail("必须发出 m1_talent 请求,实际模块:\(apiClient.recordedInterpretRequests.map(\.module))")
+        }
+        XCTAssertNotNil(m1Request.context["chart"], "chart 必带")
+        XCTAssertEqual(
+            m1Request.context["structure_fingerprint"]?.value as? String,
+            "mock-fp",
+            "structure_fingerprint 必须随请求发送(链式指纹)"
+        )
+        XCTAssertEqual(
+            m1Request.context["main_axis"]?.value as? String,
+            "{}",
+            "main_axis 必须从 v1ChainFields 注入 context(M0 dict 序列化字符串)"
+        )
+        XCTAssertEqual(
+            m1Request.context["core_loop"]?.value as? String,
+            "{}",
+            "core_loop 必须从 v1ChainFields 注入 context(M0 dict 序列化字符串)"
+        )
+    }
+
+    /// 回归(2026-09-25):上游输出缺链式字段时,下游必须拦 .pending 不发请求。
+    ///
+    /// 场景:M1 mock 返回散文(无可解析 innate/defensive)→ M2(已购)必带
+    /// innate/defensive → 守卫拦 .pending,不发注定 422 的请求、不烧次数。
+    /// 修复前守卫只查 structure_fingerprint → M2 会白发请求(必 422)。
+    func testV1ChainPendsDownstreamWhenChainFieldsMissing() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedDeepEntitlement(hash: response.contentHash)
+        vm.loadArchivedChart(response: response, request: request)
+
+        // M0/M1 落定后,M2 因缺 innate/defensive 被 .pending(m3 无链式字段照跑)
+        let settled = await waitUntil(timeout: 10) {
+            self.vm.moduleStates[.m1]?.isOk == true
+                && self.vm.moduleStates[.m2] == .pending
+        }
+        XCTAssertTrue(settled, "M1 ok 后 M2 必须因缺 innate/defensive 标 .pending,实际:\(vm.moduleStates)")
+        XCTAssertFalse(
+            apiClient.recordedInterpretRequests.contains { $0.module == "m2_high_low" },
+            "缺链式字段时不得发出 m2 请求(注定 422,浪费每日次数)"
+        )
+    }
+
     func testLoadArchivedChartRestoresCachedModulesAsOkCachedTrue() async throws {
         let request = Self.beijingRequest()
         let response = try await apiClient.calculateBazi(request: request)
@@ -268,24 +333,30 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         let request = Self.beijingRequest()
         let response = try await apiClient.calculateBazi(request: request)
         try seedDeepEntitlement(hash: response.contentHash)
-        // 只缓存 M0(带 fingerprint):M1 起必须靠回填重建的 v1ChainFields 续跑
+        // 只缓存 M0(带 fingerprint + main_axis + core_loop):M1 起必须靠回填
+        // 重建的 v1ChainFields 续跑
         try seedV1Cache(hash: response.contentHash, module: .m0, text: Self.m0CacheJSON)
 
         vm.loadArchivedChart(response: response, request: request)
 
-        // 已购盘:M0 回填跳过,M1/M2/M3/M6/M7 续跑生成,M4/M5 停在 needsInput;
-        // M1 若是 .pending = 上游 fingerprint 缺失守卫触发(链字段没重建)
+        // 已购盘:M0 回填跳过,M1/M3 续跑生成,M4/M5 停在 needsInput;
+        // M1 若是 .pending = 上游链字段守卫触发(main_axis/core_loop 没重建——
+        // 2026-09-25 起 M1 必带这两个字段,M1 .ok 即证明链字段重建成功)。
+        // M2/M6/M7 .pending = 其必带字段(innate/defensive 等)来自 M1 输出,
+        // 而 mock M1 返回散文无可解析字段 → 守卫拦下不发(旧断言曾期望它们
+        // .ok,这正是"发了注定 422 请求"被 mock 掩盖的 bug 表征,已纠正)。
         let settled = await waitUntil(timeout: 12) {
             self.vm.moduleStates[.m1]?.isOk == true
-                && self.vm.moduleStates[.m2]?.isOk == true
                 && self.vm.moduleStates[.m3]?.isOk == true
-                && self.vm.moduleStates[.m6]?.isOk == true
-                && self.vm.moduleStates[.m7]?.isOk == true
+                && self.vm.moduleStates[.m2] == .pending
+                && self.vm.moduleStates[.m6] == .pending
+                && self.vm.moduleStates[.m7] == .pending
                 && self.vm.moduleStates[.m4] == .needsInput
                 && !self.vm.isChainRunning
         }
         XCTAssertTrue(settled, """
-        回填 + 续跑整链:M0 缓存跳过、M1-M7 按 entitlement 续跑、M4/M5 待输入。\
+        回填 + 续跑:M0 缓存跳过、M1/M3 续跑(证明链字段重建)、\
+        M2/M6/M7 缺上游字段拦 .pending、M4/M5 待输入。\
         实际:\(vm.moduleStates) isChainRunning=\(vm.isChainRunning)
         """)
         XCTAssertEqual(

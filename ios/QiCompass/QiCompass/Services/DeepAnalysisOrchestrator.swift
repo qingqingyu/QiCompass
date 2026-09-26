@@ -270,12 +270,18 @@ final class DeepAnalysisOrchestrator {
     ///   - parentFingerprint:M0 输出的 structure_fingerprint;M1-M7 必填,M0 传 nil
     ///   - m4Input:M4 健康模块用户输入(age + concern);仅 m4_health 传非 nil
     ///   - m5Input:M5 财富模块用户输入(assets + preference);仅 m5_wealth 传非 nil
+    ///   - chainFields:本模块必带的链式字段(main_axis/core_loop/innate/…,
+    ///     值为上游模块 JSON 输出的序列化字符串)。VM 从 v1ChainFields 按
+    ///     `ModuleID.requiredChainFields` 取出传入;M0 传空。
+    ///     2026-09-25 接线:此前只发 structure_fingerprint,m1/m2/m5/m6/m7
+    ///     真机必 422"prompt 渲染缺字段"(backend REQUIRED_FIELDS 校验)。
     func runV1Module(
         response: BaziResponse,
         module: String,
         parentFingerprint: String? = nil,
         m4Input: (age: Int, concern: String)? = nil,
-        m5Input: (assets: String, preference: String)? = nil
+        m5Input: (assets: String, preference: String)? = nil,
+        chainFields: [String: String] = [:]
     ) async throws -> InterpretResponse {
         // P1 #3 修复:入参契约前置校验(对齐 backend Pydantic model_validator)。
         // 客户端层先拦,给清晰错误而非依赖网络 422 往返(对齐 CLAUDE.md 错误显式传播)。
@@ -283,7 +289,8 @@ final class DeepAnalysisOrchestrator {
             module: module,
             parentFingerprint: parentFingerprint,
             m4Input: m4Input,
-            m5Input: m5Input
+            m5Input: m5Input,
+            chainFields: chainFields
         )
 
         AppLogger.app.info("deep.runV1Module.start contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) hasParent=\(parentFingerprint != nil, privacy: .public)")
@@ -318,10 +325,14 @@ final class DeepAnalysisOrchestrator {
                 context["assets_summary"] = AnyCodableJSON(m5Input.assets)
                 context["preference"] = AnyCodableJSON(m5Input.preference)
             }
+            for (key, value) in chainFields {
+                context[key] = AnyCodableJSON(value)
+            }
             // M1-M7 的链式字段(main_axis/core_loop/innate/defensive/threshold/
             // ideal_life_structure/one_leverage/switch_actions/environment_checklist/
-            // leverage)由 VM 在调用前塞入 context(从上游模块 JSON 输出提取)
-            // 本函数不负责组装这些字段(VM 知道依赖图,orchestrator 不重复实现)
+            // leverage)由 VM 在调用前塞入 context(从上游模块 JSON 输出提取,
+            // 即 v1ChainFields),经 chainFields 参数传入——本函数只做合并不
+            // 组装(VM 知道依赖图,orchestrator 不重复实现)
 
             let req = InterpretRequest(
                 contentHash: response.contentHash,
@@ -414,7 +425,8 @@ final class DeepAnalysisOrchestrator {
         module: String,
         parentFingerprint: String?,
         m4Input: (age: Int, concern: String)?,
-        m5Input: (assets: String, preference: String)?
+        m5Input: (assets: String, preference: String)?,
+        chainFields: [String: String] = [:]
     ) throws {
         // parent_fingerprint 契约:M0 不需要,M1-M7 必填
         let isM0 = (module == "m0_structure")
@@ -422,6 +434,18 @@ final class DeepAnalysisOrchestrator {
             throw DeepAnalysisError.invalidV1ModuleInput(
                 "module=\(module) 必须传 parentFingerprint(M0 产出的 structure_fingerprint)"
             )
+        }
+
+        // 链式字段契约(2026-09-25 对称补全):本模块必带字段(main_axis 等)
+        // 必须随 chainFields 传入。VM 守卫已拦 .pending,此处是纵深防御——
+        // 防未来非 VM 调用方/守卫回归时白发注定 422 的请求(对齐 P1 #3 前置校验)。
+        if let moduleID = ModuleID(rawValue: module) {
+            let missing = moduleID.requiredChainFields.filter { chainFields[$0] == nil }
+            if !missing.isEmpty {
+                throw DeepAnalysisError.invalidV1ModuleInput(
+                    "module=\(module) 缺链式字段 \(missing.joined(separator: ","))(应随 chainFields 传入,值来自上游模块输出)"
+                )
+            }
         }
 
         // M4 入参契约:必须传 m4Input,其他 module 不应传
