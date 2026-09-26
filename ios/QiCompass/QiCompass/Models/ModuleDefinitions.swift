@@ -101,4 +101,28 @@ enum ModuleID: String, CaseIterable, Codable, Sendable {
         case .m7: return [.m1, .m2, .m3, .m6]
         }
     }
+
+    /// 本模块渲染 prompt 必带的**链式字段**(backend `REQUIRED_FIELDS` 减去
+    /// chart / structure_fingerprint / M4/M5 用户输入——那三类由
+    /// DeepAnalysisOrchestrator.runV1Module 直接组装)。
+    ///
+    /// 字段值 = 上游模块 JSON 输出的序列化字符串,VM 从 v1ChainFields 取出后
+    /// 经 `runV1Module(chainFields:)` 注入 context。
+    /// 2026-09-25 修复:此前这些字段提取后从未随请求发送,m1/m2/m5/m6/m7
+    /// 真机必 422"prompt 渲染缺字段"(免费预览 M1 卡永远死卡)。
+    ///
+    /// 对齐 backend `app/ai/prompts.py` REQUIRED_FIELDS;tools/check_prompt_sync.py
+    /// ③ 对本清单做 backend↔iOS 一致性校验,改任一侧必须两边同步。
+    var requiredChainFields: [String] {
+        switch self {
+        case .m0: return []
+        case .m1: return ["main_axis", "core_loop"]
+        case .m2: return ["innate", "defensive"]
+        case .m3: return []
+        case .m4: return []
+        case .m5: return ["innate", "ideal_life_structure"]
+        case .m6: return ["core_loop", "innate", "defensive", "threshold"]
+        case .m7: return ["one_leverage", "switch_actions", "environment_checklist", "leverage"]
+        }
+    }
 }

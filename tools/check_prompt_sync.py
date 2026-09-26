@@ -10,6 +10,10 @@ v1 module 清单也是三处各写一遍——本脚本拦这两类漂移。
   1. 三模块 context 字段:REQUIRED_FIELDS[module] ⊆ builder keys(缺失 = FAIL)
      builder 多出的字段只 WARN(允许展示用扩展字段),不算失败
   2. v1 module ID 集合:backend PROMPT_VERSIONS(m*) = iOS ModuleDefinitions = promo v1_chain(不相等 = FAIL)
+  3. v1 链式字段:REQUIRED_FIELDS(m*) 减固定集(chart/structure_fingerprint/
+     M4/M5 用户输入)= iOS ModuleID.requiredChainFields(不相等 = FAIL)。
+     背景(2026-09-25 真机 m1 必 422 事故):链式字段由 iOS 从上游模块输出
+     提取后注入 context,此前规则 1 显式跳过 v1 模块 → 清单漂移无人拦截。
 
 用法:
     python3 tools/check_prompt_sync.py          # 在 repo 根执行
@@ -134,6 +138,35 @@ def ios_v1_modules() -> set[str]:
     return set(re.findall(r'=\s*"(m\d_[a-z_]+)"', text))
 
 
+def ios_chain_fields() -> dict[str, set[str]]:
+    """提取 iOS ModuleID.requiredChainFields(case .mN: return [...])。
+
+    与规则 ③ 配套:backend REQUIRED_FIELDS(m*) 减固定集必须与本清单相等,
+    防 v1 链式字段清单漂移(2026-09-25 m1 真机必 422 的根因类别)。
+    """
+    path = ROOT / "ios/QiCompass/QiCompass/Models/ModuleDefinitions.swift"
+    text = path.read_text()
+    ids = dict(re.findall(r'case (m\d) = "(m\d_[a-z_]+)"', text))
+    # 注意:不能复用 _slice(它的 end 标记从全文找,会命中属性之前的闭括号);
+    # 这里从 start 起找本属性块的闭括号(4 空格缩进),切出 switch 体。
+    start = text.index("var requiredChainFields")
+    end = text.index("\n    }", start)
+    block = text[start:end]
+    fields: dict[str, set[str]] = {}
+    for short, literal in re.findall(r'case \.(m\d):\s*return \[([^\]]*)\]', block):
+        if short not in ids:
+            # 手误防线:switch 里出现 enum 未登记的 case → 显式报错而非
+            # 未捕获 KeyError traceback(top-level 捕 ValueError,exit 2 带清晰消息)
+            raise ValueError(
+                f"ModuleDefinitions.swift: requiredChainFields 出现 case .{short} "
+                f"但 enum 未登记该模块(检查 case 声明)"
+            )
+        fields[ids[short]] = {
+            s.strip().strip('"') for s in literal.split(",") if s.strip()
+        }
+    return fields
+
+
 def promo_v1_modules() -> set[str] | None:
     f = PROMO / "v1_chain.py"
     if not f.exists():
@@ -173,7 +206,7 @@ def main() -> int:
     print("=" * 64)
     for module, required in REQUIRED_FIELDS.items():
         if module.startswith("m") and "_" in module:
-            continue  # v1 module 走下面 ②
+            continue  # v1 module 走下面 ②(module ID 集合)+ ③(链式字段)
         req = set(required)
         for side, keys in (("ios", ios_builders.get(module)), ("promo", promo_builders.get(module))):
             if keys is None:
@@ -208,6 +241,38 @@ def main() -> int:
         failures.append(f"v1 module 不一致 backend↔promo: 仅backend={sorted(backend_v1 - promo_v1)} 仅promo={sorted(promo_v1 - backend_v1)}")
     if not failures or all("v1 module" not in f for f in failures):
         print("  三边一致 ✓" if promo_v1 is not None else "  backend↔ios 一致 ✓(promo SKIP)")
+
+    print("=" * 64)
+    print("③ v1 链式字段(backend REQUIRED 减固定集 == iOS requiredChainFields)")
+    print("=" * 64)
+    fixed = {
+        "chart", "structure_fingerprint",
+        "age", "current_concern", "assets_summary", "preference",
+    }
+    ios_chain = ios_chain_fields()
+    backend_chain = {
+        mod: set(fields) - fixed
+        for mod, fields in REQUIRED_FIELDS.items()
+        if re.match(r"^m\d_", mod)
+    }
+    for mod in sorted(backend_chain):
+        want, got = backend_chain[mod], ios_chain.get(mod)
+        label = f"  {mod:<14}"
+        if got is None:
+            failures.append(f"v1 链式字段 {mod}: iOS requiredChainFields 未登记该模块")
+            print(f"{label} FAIL iOS 缺登记(backend 要求 {sorted(want)})")
+            continue
+        if want != got:
+            failures.append(
+                f"v1 链式字段 {mod} 不一致 backend↔ios: "
+                f"仅backend={sorted(want - got)} 仅ios={sorted(got - want)}"
+            )
+            print(f"{label} FAIL 仅backend={sorted(want - got)} 仅ios={sorted(got - want)}")
+        else:
+            print(f"{label} OK   {sorted(want) if want else '(无链式字段)'}")
+    for mod in sorted(set(ios_chain) - set(backend_chain)):
+        failures.append(f"v1 链式字段 {mod}: iOS requiredChainFields 多出 backend 未要求的模块")
+        print(f"  {mod:<14} FAIL iOS 多出登记")
 
     print("=" * 64)
     if failures:
