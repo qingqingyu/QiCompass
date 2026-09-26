@@ -349,3 +349,33 @@ class EntitlementStore:
             )
             conn.commit()
             return cursor.rowcount
+
+    def claim_user_id(self, *, transaction_id: str, user_id: str) -> bool:
+        """按 transaction 把匿名购买(user_id NULL)补绑到登录账号。
+
+        用于 /api/entitlement/redeem 幂等分支:匿名购买后用户登录,再带 JWT
+        redeem 同一笔交易时,把存量行的 user_id 从 NULL 升级为当前账号
+        (backfill_user_id_by_local_id 覆盖登录时点之前落库的行;本方法覆盖
+        redeem 时点撞上的行——购买进行中登录的竞态,两处互补)。
+
+        **幂等**:仅更新 user_id IS NULL 的行;已绑其他账号的行不动(拒绝
+        抩夺由调用方 user_match 校验先行保证,这里 WHERE 条件兜底)。
+
+        Args:
+            transaction_id: Apple 原始交易 id(entitlement 表主键维度)
+            user_id: 后端 qicompass_user.id
+
+        Returns:
+            是否实际更新(False = 行不存在 / 已有 user_id)
+
+        Raises:
+            sqlite3.Error: 写失败(不吞)
+        """
+        with self._connect() as conn:
+            cursor = conn.execute(
+                "UPDATE entitlement SET user_id=? "
+                "WHERE transaction_id=? AND user_id IS NULL",
+                (user_id, transaction_id),
+            )
+            conn.commit()
+            return cursor.rowcount > 0
