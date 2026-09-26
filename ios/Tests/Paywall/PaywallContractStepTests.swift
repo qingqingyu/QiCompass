@@ -1,28 +1,57 @@
+import SwiftData
 import XCTest
 @testable import QiCompass
 
-/// B 章回分段(2026-09-05 design-shotgun 定稿 variant-b)纯逻辑守护:
-/// - 契约 stepper 阶段派生(判据与 Fix#3 购买按钮分支同构)
-/// - 人民币大写落价转换(壹佰贰拾捌圆整;宁缺毋错:解析不了 → nil)
+/// 付费墙纯逻辑守护(2026-09-27 匿名购买重构后):
+/// - 章节清单/预告行/副题文案一致性(「日主」改名 + teaser 平行守护)
+/// - 人民币大写润金转换(壹佰贰拾捌圆整;宁缺毋错:解析不了 → nil)
+/// - 恢复购买状态机(restore 状态转移 + 拦截态守卫)
 final class PaywallContractStepTests: XCTestCase {
 
-    // MARK: - stepper 阶段派生
+    // MARK: - 章节清单(「日元」→「日主」改名 + teaser/副题一致性)
 
-    func test_step_sealing_whenSignedOut() {
-        XCTAssertEqual(PaywallContractStep.derive(signedIn: false, exchangeDone: false), .sealing)
-        XCTAssertEqual(PaywallContractStep.derive(signedIn: false, exchangeDone: true), .sealing)
+    func test_paidChapters_deep_uses日主_not日元() {
+        // 「日元」紧挨价格易联想日币(2026-09-27 review);展示名已改「日主」
+        XCTAssertTrue(PaywallModule.deepAnalysis.paidChapters.contains("日主"),
+                      "深度章节名必须用「日主」")
+        XCTAssertFalse(PaywallModule.deepAnalysis.paidChapters.contains("日元"),
+                       "「日元」不得再出现(展示名维度)")
     }
 
-    func test_step_sealing_whenSignedInButExchangeNotDone() {
-        // signedIn ≠ 可购(Fix#3:购买就绪 = exchange 完成,非仅 SIWA 成功)
-        XCTAssertEqual(PaywallContractStep.derive(signedIn: true, exchangeDone: false), .sealing)
+    func test_chapterTeasers_countMatchesPaidChapters_perModule() {
+        // teaser 与章名平行排列,PaywallView 按 index 取——count 必须一致
+        for module in [PaywallModule.deepAnalysis, .compatibility] {
+            XCTAssertEqual(
+                module.chapterTeasers.count, module.paidChapters.count,
+                "\(module.title) teaser 与章名 count 不一致"
+            )
+        }
     }
 
-    func test_step_dealing_whenSignedInAndExchangeDone() {
-        XCTAssertEqual(PaywallContractStep.derive(signedIn: true, exchangeDone: true), .dealing)
+    func test_chapterTeasers_nonEmpty_andShort() {
+        // 预告行是 caption 9.5pt 单行——空串或超长都会破版式;≤12 字
+        for module in [PaywallModule.deepAnalysis, .compatibility] {
+            for teaser in module.chapterTeasers {
+                XCTAssertFalse(teaser.isEmpty, "teaser 不得为空")
+                XCTAssertLessThanOrEqual(teaser.count, 12, "teaser 过长:\(teaser)")
+            }
+        }
     }
 
-    // MARK: - 大写落价(整价照转)
+    func test_freeChaptersHint_namesFreeChapters_andPaidCount() {
+        // 副题点名免费两章(消灭「余下」无上下文)+ 不再承诺「全设备同步」
+        // (匿名购买语义下同步需绑定账号,由绑定行承载)
+        for module in [PaywallModule.deepAnalysis, .compatibility] {
+            XCTAssertTrue(module.freeChaptersHint.contains("免费"),
+                          "\(module.title) 副题必须点名免费章节")
+            XCTAssertFalse(module.freeChaptersHint.contains("全设备同步"),
+                           "\(module.title) 副题不得再承诺全设备同步")
+        }
+        XCTAssertTrue(PaywallModule.deepAnalysis.freeChaptersHint.contains("捌"))
+        XCTAssertTrue(PaywallModule.compatibility.freeChaptersHint.contains("肆"))
+    }
+
+    // MARK: - 大写润金(整价照转)
 
     func test_upperPrice_integerCNY() {
         XCTAssertEqual(ChineseUpperPrice.priceString(from: "¥128.00"), "壹佰贰拾捌圆整")
@@ -42,7 +71,7 @@ final class PaywallContractStepTests: XCTestCase {
         XCTAssertEqual(ChineseUpperPrice.priceString(from: "¥99999"), "玖萬玖仟玖佰玖拾玖圆整")
     }
 
-    // MARK: - 大写落价(抑制:宁缺毋错,不造假大写)
+    // MARK: - 大写润金(抑制:宁缺毋错,不造假大写)
 
     func test_upperPrice_suppressedForFractionalPrice() {
         // 角分价(如 en 区 $19.99)无整数大写对应物
@@ -65,5 +94,73 @@ final class PaywallContractStepTests: XCTestCase {
         XCTAssertNil(ChineseUpperPrice.priceString(from: "¥.50"))     // 前导小数点:无整数位,吞成 50 会错百倍
         XCTAssertNil(ChineseUpperPrice.priceString(from: ""))
         XCTAssertNil(ChineseUpperPrice.priceString(from: "价格待定"))
+    }
+
+    // MARK: - 恢复购买状态机(RestoreState 转移 + 拦截态守卫)
+
+    @MainActor
+    func test_restore_拦截态_守卫与purchase同构() async {
+        // S07:拦截态 restore 全程不可达(restoreState 纹丝不动)
+        let container = try! ModelContainerFactory.makeInMemory()
+        let apiClient = MockAPIClient()
+        let purchaseManager = PurchaseManager(
+            entitlementStore: EntitlementStore(modelContext: container.mainContext),
+            apiClient: apiClient
+        )
+        let vm = PaywallViewModel(
+            module: .deepAnalysis,
+            contentHash: "blocked_restore",
+            purchaseManager: purchaseManager,
+            hourUnknownGate: .hourUnknownDayDetermined
+        )
+        XCTAssertTrue(vm.isPurchaseIntercepted)
+
+        await vm.restore()
+
+        XCTAssertEqual(vm.restoreState, .idle, "拦截态 restore 必须是 no-op")
+    }
+
+    @MainActor
+    func test_restore_mock本地无entitlement_nothingFound() async {
+        // Mock 路径:本地无当前盘 entitlement → 未找到(消耗型诚实语义)
+        try? KeychainHelper.delete(.qicompassUserId)
+        let container = try! ModelContainerFactory.makeInMemory()
+        let apiClient = MockAPIClient()
+        let purchaseManager = PurchaseManager(
+            entitlementStore: EntitlementStore(modelContext: container.mainContext),
+            apiClient: apiClient
+        )
+        let vm = PaywallViewModel(
+            module: .deepAnalysis,
+            contentHash: "no_entitlement_hash",
+            purchaseManager: purchaseManager
+        )
+
+        await vm.restore()
+
+        XCTAssertEqual(vm.restoreState, .nothingFound)
+    }
+
+    @MainActor
+    func test_restore_先购买再恢复_restored() async {
+        // Mock 路径:匿名购买成功 → 本地已有 → 恢复返回 restored(消耗型同机找回)
+        try? KeychainHelper.delete(.qicompassUserId)
+        let container = try! ModelContainerFactory.makeInMemory()
+        let apiClient = MockAPIClient()
+        let purchaseManager = PurchaseManager(
+            entitlementStore: EntitlementStore(modelContext: container.mainContext),
+            apiClient: apiClient
+        )
+        let vm = PaywallViewModel(
+            module: .deepAnalysis,
+            contentHash: "restore_after_buy",
+            purchaseManager: purchaseManager
+        )
+
+        await vm.purchase()
+        XCTAssertEqual(vm.state, .success)
+
+        await vm.restore()
+        XCTAssertEqual(vm.restoreState, .restored)
     }
 }

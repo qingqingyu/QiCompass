@@ -102,28 +102,50 @@ final class PaywallLayoutTests: XCTestCase {
         add(attachment)
     }
 
-    /// 契约 stepper 四态 + 落价块双形态状态矩阵快照(B 章回分段走查)。
-    /// AccountManager 的 state/exchangeState 是 private(set),登录态注入
-    /// 不进真实链路,故直接渲染组件状态矩阵(各态视觉一眼可核)。
-    func test_contractStepperStateMatrixSnapshot() throws {
+    /// 润金块双形态 + 章节预告行状态矩阵快照(2026-09-27 匿名购买重构走查;
+    /// stepper 已随「登录中置」设计移除)。AccountManager 的 state/exchangeState
+    /// 是 private(set),登录态注入不进真实链路,故直接渲染组件矩阵。
+    func test_pricePlateAndChapterTeaserMatrixSnapshot() throws {
+        let deepTeasers = PaywallModule.deepAnalysis
         let matrix = VStack(alignment: .leading, spacing: 30) {
-            ContractStepper(step: .sealing, isExchanging: false, isPurchased: false)
-            ContractStepper(step: .sealing, isExchanging: true, isPurchased: false)
-            ContractStepper(step: .dealing, isExchanging: false, isPurchased: false)
-            ContractStepper(step: .dealing, isExchanging: false, isPurchased: true)
+            // 大写主视觉(有「壹佰贰拾捌圆整」时不并显数字价)
             PricePlate(upperPrice: ChineseUpperPrice.priceString(from: "¥128.00"), rawPrice: "¥128.00")
+            // 无大写降级(en 区/角分价 → 数字主视觉)
             PricePlate(upperPrice: nil, rawPrice: "$17.99")
+            // 章节行(章名 + 静态预告行,付费墙清单新形态)
+            VStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(deepTeasers.paidChapters.enumerated()), id: \.element) { idx, chapter in
+                    HStack(spacing: 12) {
+                        NumeralBadge(index: idx + 1, locked: true, size: 28)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(chapter)
+                                .font(BaziFont.body(size: 14))
+                                .foregroundStyle(BaziTheme.ink)
+                            Text(deepTeasers.chapterTeasers[idx])
+                                .font(BaziFont.caption(size: 9.5))
+                                .foregroundStyle(BaziTheme.inkMutedSecondary)
+                        }
+                        Spacer()
+                    }
+                    .padding(.vertical, 9)
+                    if idx < deepTeasers.paidChapters.count - 1 {
+                        Rectangle()
+                            .fill(BaziTheme.hairlineDashed)
+                            .frame(height: 0.5)
+                    }
+                }
+            }
         }
         .padding(BaziTheme.Spacing.lg)
         .frame(width: Self.phoneWidth - BaziTheme.Spacing.lg * 2, alignment: .leading)
 
-        let host = mountInWindow(rootView: matrix, height: 580)
+        let host = mountInWindow(rootView: matrix, height: 720)
         defer { host.view.removeFromSuperview() }
 
         let png = try XCTUnwrap(snapshotPng(host.view), "快照渲染失败")
         try png.write(to: URL(fileURLWithPath: NSTemporaryDirectory())
-            .appendingPathComponent("qicompass_paywall_stepper_matrix.png"))
-        let attachment = XCTAttachment(uniformTypeIdentifier: "public.png", name: "paywall-stepper-matrix.png",
+            .appendingPathComponent("qicompass_paywall_plate_teaser_matrix.png"))
+        let attachment = XCTAttachment(uniformTypeIdentifier: "public.png", name: "paywall-plate-teaser-matrix.png",
                                        payload: png, userInfo: nil)
         attachment.lifetime = .keepAlways
         add(attachment)

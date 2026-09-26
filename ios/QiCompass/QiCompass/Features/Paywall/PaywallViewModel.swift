@@ -41,10 +41,46 @@ enum PaywallModule {
         switch self {
         // 2026-08-23 对齐 bazi_deep_paid v5(8 章命书框架,prompts.py
         // 2026-08-15 晚重构;此前锁标还写老 5 章,少承诺多交付但与产品脱节)
-        case .deepAnalysis: return ["命盘", "日元", "五行", "格局倾向",
+        // 2026-09-27「日元」→「日主」:仅 iOS 展示名(避免紧挨价格联想日币;
+        // backend 模板内文用户不可见,不改——不动 prompts.py 守护栏)
+        case .deepAnalysis: return ["命盘", "日主", "五行", "格局倾向",
                                     "事业与财富", "婚姻感情", "学习成长", "身体健康"]
         // 五行共振改造(S1):第一章「爱情深度」→「五行共振」,与锁标 previewChapters 对齐
         case .compatibility: return ["五行共振", "合作事业", "财运合拍", "流年同步"]
+        }
+    }
+
+    /// 章节静态预告行(2026-09-27 review:八章只有标题没信息量)。
+    /// 与 paidChapters 平行排列,count 一致性由测试守护
+    /// (PaywallContractStepTests);文案对齐 prompts.py 各章实际内容,
+    /// 短句、不推销、不绝对化。
+    var chapterTeasers: [String] {
+        switch self {
+        case .deepAnalysis: return [
+            "四柱与十神的总览",
+            "本性、旺衰与节奏",
+            "分布、喜忌与调候",
+            "结构倾向与得失",
+            "方向、求财与流年",
+            "婚姻与六亲相处",
+            "天赋与充电方式",
+            "体质、部位与作息",
+        ]
+        case .compatibility: return [
+            "谁滋养谁,谁消耗谁",
+            "共事契合与分工",
+            "金钱观与共同财运",
+            "未来三年的同频窗口",
+        ]
+        }
+    }
+
+    /// 标题副题:点名免费两章(消灭「余下」无上下文)+ 撤掉旧的
+    /// 「全设备同步」承诺(匿名购买语义下同步需绑定账号,绑定行承载该信息)。
+    var freeChaptersHint: String {
+        switch self {
+        case .deepAnalysis: return "主线结构与天赋能力两章已免费 · 余下捌章一次解锁"
+        case .compatibility: return "基础相处与互补总览两章已免费 · 余下肆章一次解锁"
         }
     }
 
@@ -77,6 +113,20 @@ final class PaywallViewModel {
         case success
         case failed(String)
     }
+
+    /// 恢复购买状态机(2026-09-27):
+    /// - idle → restoring → restored(恢复成功,内容将解锁)
+    /// - restoring → nothingFound(扫描完成无可恢复——消耗型 + 未绑账号的诚实结果)
+    /// - restoring → failed(AppStore.sync 网络失败 / redeem 失败;用户取消静默回 idle)
+    enum RestoreState: Equatable {
+        case idle
+        case restoring
+        case restored
+        case nothingFound
+        case failed(String)
+    }
+
+    var restoreState: RestoreState = .idle
 
     /// Product 加载状态(T3):sheet 弹出即触发 loadProduct,加载完成刷新价格文案。
     /// 加载失败仍允许 purchase(用 AppleProductID 硬编码 id 兜底,真购买时再让 StoreKit 自己报错)。
@@ -134,6 +184,57 @@ final class PaywallViewModel {
         self.hourUnknownSilenced = hourUnknownSilenced
         self.onAddHour = onAddHour
         self.onPurchaseSuccess = onPurchaseSuccess
+    }
+
+    /// 恢复购买(「恢复购买」按钮;拦截态守卫与 purchase() 同构——
+    /// S07 拦截态不渲染按钮,这里保证 restorePurchases 全程不可达)。
+    func restore() async {
+        // 技术坑(对齐 purchase() 既有模式):OSLogMessage 字符串插值是 lazy
+        // capture,instance property 必须先提到 local
+        let entitlementModule = module.entitlementModule
+        guard !isPurchaseIntercepted else {
+            AppLogger.app.warning(
+                "paywall.restore.skip reason=hour_unknown_intercepted module=\(entitlementModule, privacy: .public)"
+            )
+            return
+        }
+        guard restoreState != .restoring else {
+            AppLogger.app.info("paywall.restore.skip reason=already_restoring")
+            return
+        }
+        AppLogger.app.info("paywall.restore.start module=\(entitlementModule, privacy: .public)")
+        restoreState = .restoring
+        do {
+            let outcome = try await purchaseManager.restorePurchases(
+                contentHash: contentHash,
+                module: entitlementModule
+            )
+            switch outcome {
+            case .restored:
+                AppLogger.app.info("paywall.restore.ok module=\(entitlementModule, privacy: .public)")
+                restoreState = .restored
+                onPurchaseSuccess?()  // 恢复成功等同解锁,触发宿主重查 entitlement
+            case .nothingFound:
+                AppLogger.app.info("paywall.restore.nothing_found module=\(entitlementModule, privacy: .public)")
+                restoreState = .nothingFound
+            }
+        } catch let error as PurchaseError {
+            if error.isSilent {
+                // 用户取消 Apple ID 认证:静默回 idle(HIG 同 purchase 取消)
+                AppLogger.app.info("paywall.restore.silent_cancel")
+                restoreState = .idle
+            } else {
+                AppLogger.app.error(
+                    "paywall.restore.failed error=\(String(describing: error), privacy: .public)"
+                )
+                restoreState = .failed(error.localizedDescription)
+            }
+        } catch {
+            AppLogger.app.error(
+                "paywall.restore.unknown_error error=\(String(describing: error), privacy: .public)"
+            )
+            restoreState = .failed("恢复失败,请稍后重试")
+        }
     }
 
     /// 加载 Product(显示动态价格)。sheet onAppear 时调,失败时走 fallback。
@@ -243,23 +344,6 @@ final class PaywallViewModel {
             )
             state = .failed("购买未完成,请重试")
         }
-    }
-}
-
-// MARK: - 契约 stepper 阶段(B 章回分段,2026-09-05 拍板)
-
-/// 付费墙「章回分段」当前步:壹·观其价 打开即完成(价格未登录即见),
-/// 剩下 钤印(登录)→ 成契(购买) 两步。纯枚举 + 纯派生函数,便于单测。
-enum PaywallContractStep: Equatable {
-    /// 贰 · 钤印:未登录 / 登录中(exchange)/ exchange 失败 / 防御分支。
-    case sealing
-    /// 叁 · 成契:signedIn && exchangeState == .done → 购买按钮就绪。
-    case dealing
-
-    /// 阶段派生(单一事实源;View 传账号态,测试直接喂布尔)。
-    /// 与 Fix#3 购买判据同构:购买按钮只在 .dealing 出现。
-    static func derive(signedIn: Bool, exchangeDone: Bool) -> PaywallContractStep {
-        (signedIn && exchangeDone) ? .dealing : .sealing
     }
 }
 

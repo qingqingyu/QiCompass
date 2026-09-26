@@ -1,11 +1,16 @@
 import SwiftUI
 
-/// 登录按钮对(SIWA + Google)+ 可选失败显错 —— 全 App 登录入口的唯一实现。
+/// 登录按钮(SIWA)+ 可选失败显错 —— 全 App 登录入口的唯一实现。
 ///
 /// 收敛背景(2026-09-06):登录动作接线此前在 ProfileView 引导盒与
-/// PaywallView signInPrompt 两处重复(login-paywall approved.json 不变量 3)。
-/// 语境差异(我的 = 跨设备同步 / 付费墙 = 保存购买凭证)由调用方的
+/// PaywallView 两处重复(login-paywall approved.json 不变量 3)。
+/// 语境差异(我的 = 跨设备同步 / 付费墙 = 绑定凭证)由调用方的
 /// 标题/副题承载,本组件只管凭据动作与显错,不持有任何文案观点。
+///
+/// 2026-09-27 移除 Google 按钮(用户拍板,全 App 只留 SIWA):官方 SDK
+/// 品牌规范锁死亮蓝配色与水墨视觉冲突,且国内用户基本不可用;海外
+/// Apple 用户 SIWA 同样可用。AccountManager.handleGoogleSignIn 与后端
+/// Google exchange 保留(休眠态,日后重启无成本)。
 ///
 /// 显错语义(Fix#1):登录失败不吞,nil = 不渲染错误行。
 /// 错误色按调用方既有语境注入:ProfileView 用 destructive,
@@ -31,9 +36,6 @@ struct LoginGateButtons: View {
             }
             AppleSignInButton { result in
                 env.accountManager.handleAuthorization(result)
-            }
-            GoogleSignInButton {
-                env.accountManager.handleGoogleSignIn()
             }
         }
     }
