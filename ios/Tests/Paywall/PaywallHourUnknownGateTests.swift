@@ -10,8 +10,8 @@ import XCTest
 /// - **purchase 全程不可达**(路径断言):拦截态 `purchase()` 调用后 state 纹丝不动
 ///   + entitlement 零写入(MockAPIClient 的 mock redeem 路径从未运行)
 /// - **StoreKit product 不加载**:拦截态 `loadProduct()` 直接返回,productState 停 `.loading`
-/// - **有时辰用户回归**:购买链路可达(未登录 → notSignedIn 显错,state 离开 .idle),
-///   价格文案 fallback 与现状一致
+/// - **有时辰用户回归**:购买链路可达(2026-09-27 匿名购买:未登录直接成功,
+///   redeem 请求 user_local_id = 安装 UUID),价格文案 fallback 与现状一致
 @MainActor
 final class PaywallHourUnknownGateTests: XCTestCase {
 
@@ -27,8 +27,8 @@ final class PaywallHourUnknownGateTests: XCTestCase {
         entitlementStore = EntitlementStore(modelContext: context)
         apiClient = MockAPIClient()
         purchaseManager = PurchaseManager(entitlementStore: entitlementStore, apiClient: apiClient)
-        // 购买链路可达性断言依赖「未登录 → notSignedIn」确定性;清掉同模拟器
-        // Keychain 可能残留的登录态(模拟器 Keychain 跨测试进程持久)
+        // 匿名购买断言依赖「未登录」确定性;清掉同模拟器 Keychain 可能残留的
+        // 登录态(模拟器 Keychain 跨测试进程持久)
         try? KeychainHelper.delete(.qicompassUserId)
     }
 
@@ -191,9 +191,9 @@ final class PaywallHourUnknownGateTests: XCTestCase {
         XCTAssertEqual(vm.productState, .loading, "拦截态不加载 StoreKit product(D6 拦购买三件套之一)")
     }
 
-    // MARK: - 有时辰用户回归(付费墙与现状完全一致)
+    // MARK: - 有时辰用户回归(2026-09-27 匿名购买)
 
-    func testPurchase_有时辰_购买链路可达_notSignedIn显错() async {
+    func testPurchase_有时辰_未登录_匿名购买成功() async {
         let vm = PaywallViewModel(
             module: .deepAnalysis,
             contentHash: "normal_hash",
@@ -204,21 +204,23 @@ final class PaywallHourUnknownGateTests: XCTestCase {
 
         await vm.purchase()
 
-        // 未登录 → PurchaseManager.purchase 抛 notSignedIn → state 显式离开 .idle:
-        // 证明 purchase 链路对有时辰用户完全可达(与 S07 前行为一致)
-        if case .failed(let message) = vm.state {
-            XCTAssertTrue(message.contains("登录"), "未登录显错文案,实际:\(message)")
-        } else {
-            XCTFail("有时辰用户 purchase 必须进入购买链路(离开 .idle),实际:\(vm.state)")
-        }
-        XCTAssertNil(
+        // 未登录不再被拦截:mock redeem 成功 → .success + 本地 entitlement 落档
+        // (user_local_id 维度,登录后由后端 backfill/claim 补绑账号)
+        XCTAssertEqual(vm.state, .success, "匿名购买链路完全可达,实际:\(vm.state)")
+        XCTAssertNotNil(
             entitlementStore.getActive(
                 contentHash: "normal_hash",
                 module: EntitlementModule.baziDeep,
                 userLocalId: UserIdentity.userLocalId
             ),
-            "未登录被 purchase 入口拦截,同样零写入(基线行为)"
+            "匿名购买必须写本地 entitlement(user_local_id 维度)"
         )
+        // redeem 请求的 user_local_id 必须是安装 UUID(不是登录态的 currentUserId),
+        // 与后端 backfill/claim 的匹配维度一致
+        let lastRedeem = apiClient.recordedRedeemRequests.last
+        XCTAssertNotNil(lastRedeem, "匿名购买必须发出 redeem 请求")
+        XCTAssertEqual(lastRedeem?.userLocalId, UserIdentity.userLocalId,
+                       "redeem user_local_id 必须是安装 UUID 维度")
     }
 
     func testDisplayPriceText_有时辰_fallback价格与现状一致() {

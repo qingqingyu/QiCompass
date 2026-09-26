@@ -96,7 +96,7 @@ final class PurchaseManager {
     ///   - contentHash: 命盘 hash(深度解析)或 compatibility_hash(合盘)
     ///   - module: 基础名(`bazi_deep` / `compatibility`),不含 _free/_paid
     /// - Returns: 写入后的 Entitlement
-    /// - Throws: PurchaseError(未登录 / 用户取消静默 / 网络失败 / 验签失败 / 后端 redeem 失败等)
+    /// - Throws: PurchaseError(用户取消静默 / 网络失败 / 验签失败 / 后端 redeem 失败等)
     func purchase(
         productId: String,
         contentHash: String,
@@ -105,15 +105,9 @@ final class PurchaseManager {
         // 规则 2:函数入口日志。购买是付费关键路径,出问题必须可追溯。
         AppLogger.app.info("purchase.start product=\(productId, privacy: .public) content_hash=\(contentHash, privacy: .public) module=\(module, privacy: .public)")
 
-        // Slice 4 强制登录 gate:entitlement 必须绑 Apple 账号(决策:强制登录才能买),
-        // 未登录直接 throw(由 PaywallViewModel 转成 UI 错误提示)。
-        guard UserIdentity.isAuthenticated else {
-            AppLogger.app.warning("purchase.reject reason=not_signed_in product=\(productId, privacy: .public)")
-            throw PurchaseError.notSignedIn
-        }
-
-        // Mock 模式检测:沿用 useMockAPIClient 单一切换点(不引入 useMockStoreKit 独立标志)。
-        // MockAPIClient = dev/test 路径;真后端路径走 StoreKit 真流程,StoreKit Configuration 缺失时 fail-fast。
+        // 2026-09-27 匿名购买:登录不再是购买前置(App Store 审核风险 + 登录步流失),
+        // 未登录直接匿名购买(entitlement 落 user_id NULL,登录后由 backfill/claim 补绑);
+        // 登录态照旧绑账号维度。鉴权可选由后端 redeem 支持(get_current_user_id)。
         if apiClient is MockAPIClient {
             return try await purchaseMockPath(productId: productId, contentHash: contentHash, module: module)
         }
@@ -129,13 +123,13 @@ final class PurchaseManager {
         contentHash: String,
         module: String
     ) async throws -> Entitlement {
-        // Slice 4:已登录场景,currentUserId 返后端 user_id(qicompass_user.id);
-        // 未登录被 purchase() 入口拦截,这里 userId 一定是 user_id 维度。
-        let userId = UserIdentity.currentUserId
+        // 登录态绑账号维度;匿名(2026-09-27)userId 为 nil,entitlement 走
+        // user_local_id 维度(安装 UUID,与后端 backfill/claim 匹配维度一致)。
+        let userId = UserIdentity.isAuthenticated ? UserIdentity.currentUserId : nil
         let mockTransactionId = "mock_tx_\(UUID().uuidString.prefix(8))"
 
         AppLogger.app.info(
-            "purchase.mock_start product=\(productId, privacy: .public) content_hash=\(contentHash, privacy: .public) module=\(module, privacy: .public) tx=\(mockTransactionId, privacy: .public)"
+            "purchase.mock_start product=\(productId, privacy: .public) content_hash=\(contentHash, privacy: .public) module=\(module, privacy: .public) tx=\(mockTransactionId, privacy: .public) signed_in=\(userId != nil, privacy: .public)"
         )
 
         let redeemResp: EntitlementRedeemResponse
@@ -146,7 +140,7 @@ final class PurchaseManager {
                     productId: productId,
                     contentHash: contentHash,
                     module: module,
-                    userLocalId: userId
+                    userLocalId: UserIdentity.userLocalId
                 )
             )
         } catch {
@@ -205,25 +199,28 @@ final class PurchaseManager {
     /// **防漏单顺序**:redeem 失败时**不调 `transaction.finish()`**,保留 transaction,
     /// 让 `Transaction.updates` listener 在下次启动续接 redeem(避免用户付钱但后端漏写)。
     ///
-    /// **Slice 4 appAccountToken 决策**:传 `UUID(qicompass_user.id)`。qicompass_user.id 是
-    /// 后端 `uuid.uuid4()` 格式,符合 Apple appAccountToken 要求。让 Apple 后台记
-    /// "transaction ↔ user" 映射,跟后端 entitlement 表双重保险。
-    /// UUID 解析失败(Keychain 数据损坏)→ throw `notSignedIn`(不 fallback 随机 UUID,
-    /// 避免破坏 Apple 后台映射)。
+    /// **appAccountToken 决策(2026-09-27 匿名购买修订)**:登录态传
+    /// `UUID(qicompass_user.id)`(后端 uuid.uuid4 格式,Apple 后台记
+    /// "transaction ↔ user" 映射);**匿名购买不传**(无服务端 user 可映射,
+    /// StoreKit 空 options 是合法调用形态)。登录态解析失败(Keychain 数据
+    /// 损坏)→ throw verificationFailed(不 fallback 随机 UUID,避免破坏映射)。
     private func purchaseStoreKitPath(
         productId: String,
         contentHash: String,
         module: String
     ) async throws -> Entitlement {
-        // Slice 4:已登录场景,currentUserId 返后端 user_id;未登录被 purchase() 入口拦截。
-        let userId = UserIdentity.currentUserId
-        // appAccountToken 用 qicompass_user.id(UUID)。purchase() 已 guard 过 isAuthenticated,
-        // 但 Keychain 可能被外部清掉(竞态),这里再 defensive 检查 + 解析 UUID。
-        guard let appAccountToken = UUID(uuidString: userId) else {
-            AppLogger.app.error("purchase.storekit.appAccountToken_parse_failed userId=\(userId.prefix(8), privacy: .public) — 非 UUID 格式,Keychain 数据损坏")
-            throw PurchaseError.notSignedIn
+        // 登录态绑账号维度;匿名 userId 为 nil(redeem 落 user_id NULL)。
+        let userId = UserIdentity.isAuthenticated ? UserIdentity.currentUserId : nil
+        // appAccountToken 仅登录态有(匿名传 nil → purchase options 为空数组)。
+        var appAccountToken: UUID? = nil
+        if let userId {
+            guard let parsed = UUID(uuidString: userId) else {
+                AppLogger.app.error("purchase.storekit.appAccountToken_parse_failed userId=\(userId.prefix(8), privacy: .public) — 非 UUID 格式,Keychain 数据损坏")
+                throw PurchaseError.verificationFailed(message: "账号凭证异常,请重新登录后再试")
+            }
+            appAccountToken = parsed
         }
-        AppLogger.app.info("purchase.storekit.start product=\(productId, privacy: .public)")
+        AppLogger.app.info("purchase.storekit.start product=\(productId, privacy: .public) signed_in=\(userId != nil, privacy: .public)")
 
         // 1. 取 Product(ASC 或本地 .storekit Configuration 提供)
         let products: [Product]
@@ -238,11 +235,11 @@ final class PurchaseManager {
             throw PurchaseError.productNotFound(productId: productId)
         }
 
-        // 2. 调起 purchase(Slice 4:传 appAccountToken = UUID(qicompass_user.id) via purchaseOption)
+        // 2. 调起 purchase(appAccountToken 仅登录态;匿名 → 空 options)
         let result: Product.PurchaseResult
         do {
             result = try await product.purchase(
-                options: [.appAccountToken(appAccountToken)]
+                options: appAccountToken.map { [.appAccountToken($0)] } ?? []
             )
         } catch {
             AppLogger.app.error("purchase.storekit.system_error product=\(productId, privacy: .public) error=\(String(describing: error), privacy: .public)")
@@ -285,7 +282,7 @@ final class PurchaseManager {
                     productId: productId,
                     contentHash: contentHash,
                     module: module,
-                    userLocalId: userId
+                    userLocalId: UserIdentity.userLocalId
                 )
             )
         } catch {
@@ -337,6 +334,141 @@ final class PurchaseManager {
         AppLogger.app.info("purchase.storekit.ok tx=\(transactionId, privacy: .public) entitlement_transactionId=\(entitlement.transactionId, privacy: .public) isActive=\(entitlement.isActive, privacy: .public)")
         return entitlement
     }
+
+    // MARK: - 恢复购买(2026-09-27)
+
+    /// 恢复购买结果。
+    enum RestoreOutcome: Equatable {
+        /// 恢复了 N 笔(对当前 contentHash/module 生效)
+        case restored(Int)
+        /// 扫描完成但无可恢复交易
+        case nothingFound
+    }
+
+    /// 恢复购买(App Store 语义 + 消耗型语义的诚实组合)。
+    ///
+    /// **商品是消耗型**(MONETIZATION.md:21,per-命盘购买),Apple 的
+    /// `currentEntitlements` 永不含消耗型、已 finish 的消耗型也从
+    /// `Transaction.all` 消失——本方法做三件事:
+    /// 1. `AppStore.sync()`:让系统重投递未完成交易(ask-to-buy 批准 /
+    ///    中断购买),用户取消是静默合法路径;
+    /// 2. 扫 `Transaction.all` 里本 app 两个 SKU 的未 revoke verified 交易:
+    ///    逐笔 redeem(登录态自动带 JWT,匿名走 user_local_id)→ 本地
+    ///    upsert → finish。后端 403(交易已绑其他命盘/已退款)静默跳过
+    ///    (不 finish 不计数——那笔交易属于别的盘,不是「本盘可恢复」);
+    /// 3. 登录态补跑 `synchronizeFromBackend`(跨设备/重装场景真正的恢复
+    ///    通道——消耗型跨设备本来就只能靠自家账号,不靠 Apple)。
+    ///
+    /// 诚实边界(文案已对齐):匿名 + 重装/换机 → `.nothingFound`(消耗型
+    /// 固有语义,绑定账号是唯一出路)。
+    ///
+    /// - Parameters:
+    ///   - contentHash: 当前付费墙对应的命盘 hash(未完成交易缺命盘上下文,
+    ///     绑定到用户当前正看的盘——「恢复我正在看的东西」是接受的产品语义)
+    ///   - module: `bazi_deep` / `compatibility`
+    /// - Throws: PurchaseError(AppStore.sync 网络/取消静默 / redeem 网络失败)
+    func restorePurchases(contentHash: String, module: String) async throws -> RestoreOutcome {
+        // Mock 路径:不碰 StoreKit(单测宿主无 .storekit 配置),只查本地镜像。
+        // Mock 语义:本地有当前盘 entitlement = 已恢复;无 = 未找到。
+        if apiClient is MockAPIClient {
+            let userId = UserIdentity.isAuthenticated ? UserIdentity.currentUserId : nil
+            let existing = entitlementStore.getActive(
+                contentHash: contentHash,
+                module: module,
+                userLocalId: UserIdentity.userLocalId,
+                userId: userId
+            )
+            return existing != nil ? .restored(1) : .nothingFound
+        }
+
+        AppLogger.app.info("purchase.restore.start content_hash=\(contentHash, privacy: .public) module=\(module, privacy: .public)")
+
+        // 1. AppStore.sync:可能弹 Apple ID 认证;用户取消 → 静默(对齐 userCancelled 语义)
+        do {
+            try await AppStore.sync()
+        } catch {
+            // 取消属用户侧合法退出,静默交回 idle;其余按网络失败显错
+            if let skError = error as? SKError, skError.code == .paymentCancelled {
+                AppLogger.app.info("purchase.restore.sync_user_cancelled")
+                throw PurchaseError.userCancelled
+            }
+            AppLogger.app.error("purchase.restore.sync_failed error=\(String(describing: error), privacy: .public)")
+            throw PurchaseError.networkFailed(underlying: error)
+        }
+
+        // 2. 扫本 app SKU 的历史交易(消耗型:只有未 finish 的会出现)
+        let productIds: Set<String> = [
+            AppleProductID.deepAnalysisSingle,
+            AppleProductID.compatibilitySingle,
+        ]
+        var restoredCount = 0
+        var lastRedeemError: Error?
+        for await result in Transaction.all {
+            guard case .verified(let tx) = result else { continue }
+            guard productIds.contains(tx.productID) else { continue }
+            guard tx.revocationDate == nil else { continue }
+
+            let txId = String(tx.id)
+            do {
+                let redeemResp = try await apiClient.redeem(
+                    request: EntitlementRedeemRequest(
+                        transactionId: txId,
+                        productId: tx.productID,
+                        contentHash: contentHash,
+                        module: module,
+                        userLocalId: UserIdentity.userLocalId
+                    )
+                )
+                try await entitlementStore.upsert(
+                    transactionId: redeemResp.transactionId,
+                    productId: tx.productID,
+                    contentHash: contentHash,
+                    module: module,
+                    userLocalId: UserIdentity.userLocalId,
+                    userId: UserIdentity.isAuthenticated ? UserIdentity.currentUserId : nil,
+                    purchasedAt: redeemResp.purchasedAt,
+                    originalPurchaseDate: redeemResp.originalPurchaseDate
+                )
+                await tx.finish()
+                restoredCount += 1
+                AppLogger.app.info("purchase.restore.tx_recovered tx=\(txId, privacy: .public) product=\(tx.productID, privacy: .public)")
+            } catch let apiError as APIError {
+                // 403 ENTITLEMENT_ERROR = 交易已绑其他 content_hash/module 或已退款:
+                // 属于「别的盘」的历史交易,静默跳过(不 finish、不计数)
+                if case .backendError(let code, _, _) = apiError, code == "ENTITLEMENT_ERROR" {
+                    AppLogger.app.info("purchase.restore.tx_skipped_bound_elsewhere tx=\(txId, privacy: .public)")
+                    continue
+                }
+                lastRedeemError = apiError
+                AppLogger.app.error("purchase.restore.tx_redeem_failed tx=\(txId, privacy: .public) error=\(String(describing: apiError), privacy: .public)")
+            } catch {
+                lastRedeemError = error
+                AppLogger.app.error("purchase.restore.tx_failed tx=\(txId, privacy: .public) error=\(String(describing: error), privacy: .public)")
+            }
+        }
+
+        // 3. 登录态补跑后端同步(跨设备/重装的真正恢复通道;失败不阻断,内部已记日志)
+        if UserIdentity.isAuthenticated {
+            await entitlementStore.synchronizeFromBackend(apiClient: apiClient)
+        }
+
+        // 计数口径:本地已有当前盘 entitlement(同步带回)也算恢复成功
+        if restoredCount == 0, UserIdentity.isAuthenticated,
+           entitlementStore.getActive(
+               contentHash: contentHash,
+               module: module,
+               userLocalId: UserIdentity.userLocalId
+           ) != nil {
+            restoredCount += 1
+        }
+
+        if restoredCount == 0, let lastRedeemError {
+            // 一笔都没恢复且存在真实网络错误 → 显错(不是「未找到」)
+            throw PurchaseError.backendRedeemFailed(underlying: lastRedeemError)
+        }
+        AppLogger.app.info("purchase.restore.ok restored=\(restoredCount, privacy: .public)")
+        return restoredCount > 0 ? .restored(restoredCount) : .nothingFound
+    }
 }
 
 // MARK: - PurchaseError
@@ -355,9 +487,6 @@ enum PurchaseError: LocalizedError {
     case verificationFailed(message: String)
     case productNotFound(productId: String)
     case pending
-
-    // Slice 4 新增:强制登录购买
-    case notSignedIn
 
     var errorDescription: String? {
         switch self {
@@ -381,8 +510,6 @@ enum PurchaseError: LocalizedError {
             return "商品暂不可用,请稍后再试"
         case .pending:
             return "购买请求已提交,等待批准后生效"
-        case .notSignedIn:
-            return "请先登录后再购买"
         }
     }
 
