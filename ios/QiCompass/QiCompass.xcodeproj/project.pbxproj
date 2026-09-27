@@ -130,6 +130,7 @@
 		A00000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift */; };
 		A00000000000000000000006 /* Shared/DailyReadCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */; };
 		A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */; };
+		A00000000000000000000043 /* Shared/BaziTermsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000043 /* Shared/BaziTermsTests.swift */; };
 		A00000000000000000000021 /* Shared/ZodiacRevealTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000021 /* Shared/ZodiacRevealTests.swift */; };
 		A00000000000000000000008 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A21000000000000000000001 /* XCTest.framework */; };
 		A00000000000000000000009 /* AI/CachedInterpretationReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000008 /* AI/CachedInterpretationReaderTests.swift */; };
@@ -303,6 +304,7 @@
 		A11000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilitySnapshotStoreTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DailyReadCounterTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/UserFacingErrorTests.swift; sourceTree = "<group>"; };
+		A11000000000000000000043 /* Shared/BaziTermsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/BaziTermsTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000021 /* Shared/ZodiacRevealTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ZodiacRevealTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000008 /* AI/CachedInterpretationReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AI/CachedInterpretationReaderTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityViewModelBatchTests.swift; sourceTree = "<group>"; };
@@ -622,6 +624,7 @@
 				A110000000000000000000E /* golden_queries.json */,
 				A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */,
 				A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */,
+				A11000000000000000000043 /* Shared/BaziTermsTests.swift */,
 				A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */,
 				A11000000000000000000016 /* Paywall/PaywallContractStepTests.swift */,
 				A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */,
@@ -893,6 +896,7 @@
 				A0000000000000000000099 /* Shared/PaywallLayoutTests.swift in Sources */,
 				A0000000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift in Sources */,
 				A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */,
+				A00000000000000000000043 /* Shared/BaziTermsTests.swift in Sources */,
 				A00000000000000000000021 /* Shared/ZodiacRevealTests.swift in Sources */,
 				A00000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift in Sources */,
 				A00000000000000000000016 /* Paywall/PaywallContractStepTests.swift in Sources */,
