@@ -237,7 +237,7 @@ struct CompatibilityConfigView: View {
         return TempRowModel(
             entry: entry,
             name: displayLabel(for: entry),
-            subtitle: "上次合盘保留的对方",
+            subtitle: String(localized: "上次合盘保留的对方"),
             isSelected: vm.selectedEntryIds.contains(entry.id)
         )
     }
@@ -246,12 +246,12 @@ struct CompatibilityConfigView: View {
     private func displayLabel(for entry: RosterEntry) -> String {
         switch entry {
         case .archived(let hash):
-            return vm.archivedCharts.first { $0.snapshotHash == hash }?.alias ?? "未知存档"
+            return vm.archivedCharts.first { $0.snapshotHash == hash }?.alias ?? String(localized: "未知存档")
         case .temp(let input, let alias, _, _):
             if let alias, !alias.isEmpty { return alias }
             // birthDatetime 已是裸钟面字符串,直接读(= 出生地钟面,无时区换算问题)
-            let loc = input.placeName ?? "经度 \(String(format: "%.1f", input.longitude))"
-            return "对方 · \(input.wallClockDisplay) · \(loc)"
+            let loc = input.placeName ?? String(format: String(localized: "经度 %@"), String(format: "%.1f", input.longitude))
+            return String(format: String(localized: "对方 · %@ · %@"), input.wallClockDisplay, loc)
         }
     }
 
@@ -259,8 +259,8 @@ struct CompatibilityConfigView: View {
     /// 仅 .temp entry 会走到此处(tempRowModel 已 guard)。
     private func subtitleLabel(for entry: RosterEntry) -> String {
         guard case .temp(let input, let alias, _, _) = entry else { return "" }
-        let loc = input.placeName ?? "经度 \(String(format: "%.1f", input.longitude))"
-        return (alias?.isEmpty == false) ? "\(input.wallClockDisplay) · \(loc)" : loc
+        let loc = input.placeName ?? String(format: String(localized: "经度 %@"), String(format: "%.1f", input.longitude))
+        return (alias?.isEmpty == false) ? String(format: String(localized: "%@ · %@"), input.wallClockDisplay, loc) : loc
     }
 }
 
@@ -282,17 +282,17 @@ struct CompatibilityConfigCTAModel: Equatable {
 
     var title: String {
         switch kind {
-        case .ready: return "开始合盘"
-        case .emptySelection: return "先点选一位对方"
-        case .selfHourUnknown: return "补全时辰后可合盘"
+        case .ready: return String(localized: "开始合盘")
+        case .emptySelection: return String(localized: "先点选一位对方")
+        case .selfHourUnknown: return String(localized: "补全时辰后可合盘")
         }
     }
 
     var note: String {
         switch kind {
-        case .ready(let namesSummary): return "\(namesSummary) · 解读单独解锁"
-        case .emptySelection: return "点选后即可排盘 · 名单上限 \(CompatibilityViewModel.rosterMax) 位"
-        case .selfHourUnknown: return "时辰影响日柱,补全即恢复全部配对"
+        case .ready(let namesSummary): return String(format: String(localized: "%@ · 解读单独解锁"), namesSummary)
+        case .emptySelection: return String(format: String(localized: "点选后即可排盘 · 名单上限 %lld 位"), CompatibilityViewModel.rosterMax)
+        case .selfHourUnknown: return String(localized: "时辰影响日柱,补全即恢复全部配对")
         }
     }
 
@@ -312,7 +312,7 @@ struct CompatibilityConfigCTAModel: Equatable {
         guard selectedCount > 0 else {
             return Self(kind: .emptySelection)
         }
-        let namesSummary = selectedNames.first { !$0.isEmpty } ?? "1 对"
+        let namesSummary = selectedNames.first { !$0.isEmpty } ?? String(localized: "1 对")
         return Self(kind: .ready(namesSummary: namesSummary))
     }
 }
@@ -443,8 +443,8 @@ private struct AddPersonSheet: View {
                           || formError != nil)
 
                 Text(isEditing
-                     ? "保存后名单与勾选状态保持不变 · 下滑收起不保存"
-                     : "加入名单后自行勾选 · 下滑可随时收起")
+                     ? String(localized: "保存后名单与勾选状态保持不变 · 下滑收起不保存")
+                     : String(localized: "加入名单后自行勾选 · 下滑可随时收起"))
                     .font(BaziFont.caption(size: 10))
                     .tracking(1)
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
@@ -474,7 +474,7 @@ private struct AddPersonSheet: View {
             showDatePicker = true
         } label: {
             pickerRowLabel(
-                title: "出生日期",
+                title: String(localized: "出生日期"),
                 value: tempBirthDateString,
                 isPlaceholder: vm.tempBirthDate == nil
             )
@@ -491,7 +491,7 @@ private struct AddPersonSheet: View {
             HapticEngine.light()
             showTimePicker = true
         } label: {
-            pickerRowLabel(title: "出生时刻", value: tempBirthTimeString)
+            pickerRowLabel(title: String(localized: "出生时刻"), value: tempBirthTimeString)
         }
         .buttonStyle(.plain)
         .accessibilityLabel("出生时刻")
@@ -524,7 +524,7 @@ private struct AddPersonSheet: View {
     private var tempDatePickerSheet: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.md) {
             WheelSheetHeader(
-                title: "选择出生日期",
+                title: String(localized: "选择出生日期"),
                 subtitle: vm.tempBirthDate == nil ? L10n.BirthForm.dateUnselectedHint : nil
             ) { showDatePicker = false }
             DatePicker(
@@ -550,7 +550,7 @@ private struct AddPersonSheet: View {
     /// 2026-09-19 拆双字段:直绑 tempBirthTime(镜像 BirthFormView.timePickerSheet)。
     private var tempTimePickerSheet: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.md) {
-            WheelSheetHeader(title: "选择出生时刻") { showTimePicker = false }
+            WheelSheetHeader(title: String(localized: "选择出生时刻")) { showTimePicker = false }
             DatePicker(
                 "",
                 selection: $vm.tempBirthTime,

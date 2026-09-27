@@ -49,7 +49,7 @@ struct PaidChaptersLockView: View {
         // 解锁 CTA(不受 opacity 影响,朱砂红强引导)
         PrimaryCTAButton(
             title: ctaTitle,
-            loadingTitle: "处理中…",
+            loadingTitle: String(localized: "处理中…"),
             isLoading: false,
             action: onUnlock
         )

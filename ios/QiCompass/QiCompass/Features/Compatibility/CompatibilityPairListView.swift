@@ -227,7 +227,7 @@ struct PairSummaryCard: View {
                     } else {
                         Image(systemName: "arrow.clockwise")
                     }
-                    Text(isRetrying ? "重试中…" : "重试这一对")
+                    Text(isRetrying ? String(localized: "重试中…") : String(localized: "重试这一对"))
                 }
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(BaziTheme.ink)

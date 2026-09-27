@@ -29,7 +29,7 @@ struct ErrorStateView: View {
             AppLogger.app.warning(
                 "errorStateView.generic_fallback error=\(String(describing: error), privacy: .public)"
             )
-            self.userFacingError = .generic(message: "操作未完成,请重试")
+            self.userFacingError = .generic(message: String(localized: "操作未完成,请重试"))
         }
         self.retry = retry
     }
@@ -119,9 +119,9 @@ struct ErrorStateView: View {
         case .chartFailed(let s), .interpretFailed(let s), .generic(let s):
             return s
         case .networkUnavailable:
-            return "网络异常"
+            return String(localized: "网络异常")
         case .dailyLimitReached:
-            return "每日 10 次已用完"
+            return String(localized: "每日 10 次已用完")
         }
     }
 #endif

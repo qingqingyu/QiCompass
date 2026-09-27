@@ -315,7 +315,7 @@ enum DailyFortuneError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .chartMissing:
-            return "未找到命盘存档,无法查看每日运势"
+            return String(localized: "未找到命盘存档,无法查看每日运势")
         }
     }
 }

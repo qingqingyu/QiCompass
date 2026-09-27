@@ -17,8 +17,9 @@ iOS 建展示层三语表(BaziTerms.swift)——两边各一份术语表,有漂�
      MISC_TERMS_EN ⊆ misc;shensha.py _PILLAR_LABELS 标签 ⊆ pillarPositions
   ④ iOS 自检:跨表键冲突 / 三语字段空值 / zh ≠ 键 / en 值与 backend ① 组相等
 
-范围外(显式记录,不算缺口):GENDER_EN / COMPAT_TERMS_EN / STRENGTH_LABEL_EN
-(raw key)只服务后端 prompt context 翻译,iOS 展示不消费;xijiMethods 值域来自
+范围外(显式记录,不算缺口):GENDER_EN / STRENGTH_LABEL_EN
+(raw key)只服务后端 prompt context 翻译,iOS 展示不消费;
+COMPAT_TERMS_EN 已入 ① 组(AssessmentCardGrid 展示消费);xijiMethods 值域来自
 backend/app/engine/xiji.py 的代码字面量,后端无表,无法机器比对(改值时人工同步)。
 
 用法:
@@ -98,7 +99,7 @@ def main() -> int:
         name: swift_table(name)
         for name in ("heavenlyStems", "earthlyBranches", "fiveElements", "tenGods",
                      "misc", "shensha", "nayin", "twelveStages", "strengthLabels",
-                     "pillarPositions", "xijiMethods")
+                     "pillarPositions", "xijiMethods", "compatTerms")
     }
 
     print("=" * 64)
@@ -110,6 +111,7 @@ def main() -> int:
         "纳音": (NAYIN_EN, "nayin"),
         "十二长生": (TWELVE_STAGES_EN, "twelveStages"),
         "神煞": (SHENSHA_EN, "shensha"),
+        "合盘枚举": (COMPAT_TERMS_EN, "compatTerms"),
     }
     for label, (backend_table, ios_name) in exact.items():
         ios = ios_tables[ios_name]
@@ -216,7 +218,7 @@ def main() -> int:
             print(f"  ✗ {f}")
         return 1
     print(f"结果: PASS(warning {len(warnings)} 项)")
-    print("范围外(显式记录):GENDER/COMPAT_TERMS/STRENGTH_LABEL_EN(raw key)只服务后端"
+    print("范围外(显式记录):GENDER/STRENGTH_LABEL_EN(raw key)只服务后端"
           " prompt context 翻译;xijiMethods 后端无表(值域在 xiji.py 代码字面量,人工同步)。")
     return 0
 

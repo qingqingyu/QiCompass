@@ -137,7 +137,7 @@ struct ProfileView: View {
                 }
             }
             .confirmationDialog(
-                "确认删除「\(linkToDelete?.alias ?? "")」?",
+                String(format: String(localized: "确认删除「%@」?"), linkToDelete?.alias ?? ""),
                 isPresented: Binding(
                     get: { linkToDelete != nil },
                     set: { if !$0 { linkToDelete = nil } }
@@ -298,12 +298,12 @@ struct ProfileView: View {
         var metaLine: String {
             var parts: [String] = []
             let year = Calendar.current.component(.year, from: snapshot.birthSolarTime)
-            parts.append("\(year) 年生")
+            String(format: String(localized: "%lld 年生"), year)
             if let ygz = response.pillars.year?.ganZhi {
                 parts.append(ygz)
             }
             if needsHour {
-                parts.append("时辰待补")
+                parts.append(String(localized: "时辰待补"))
             }
             return parts.joined(separator: " · ")
         }
@@ -324,7 +324,7 @@ struct ProfileView: View {
             var parts: [String] = []
             if let birthYear { parts.append("\(birthYear)") }
             if let yearGanZhi { parts.append(yearGanZhi) }
-            if hourUnknown { parts.append("时辰待补") }
+            if hourUnknown { parts.append(String(localized: "时辰待补")) }
             return parts.isEmpty
                 ? String(link.snapshotHash.prefix(8))
                 : parts.joined(separator: " · ")
@@ -414,10 +414,10 @@ struct ProfileView: View {
     private func rosterSection(_ profile: (primary: PrimaryProfileInfo?, roster: [RosterEntry])) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader(
-                "名 册",
+                String(localized: "名 册"),
                 trailing: accountManagerSignedIn
-                    ? "云端同步 · 共 \(profile.roster.count) 盘"
-                    : "数据仅存本机"
+                    ? String(format: String(localized: "云端同步 · 共 %lld 盘"), profile.roster.count)
+                    : String(localized: "数据仅存本机")
             )
             if profile.roster.isEmpty {
                 Text("还没有命盘")
@@ -499,7 +499,7 @@ struct ProfileView: View {
 
     private var entitlementsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionHeader("已 购", trailing: "凭 App Store 账号")
+            sectionHeader(String(localized: "已 购"), trailing: String(localized: "凭 App Store 账号"))
             let activeEntitlements = entitlements.filter { $0.isActive }
             if activeEntitlements.isEmpty {
                 Text("还没有购买")
@@ -570,9 +570,9 @@ struct ProfileView: View {
             return link.alias
         }
         if let chart = chartSnapshots.first(where: { $0.contentHash == hash }) {
-            return "对方 · \(Self.fallbackBirthDate(chart.birthSolarTime, timezoneName: chart.cityTimezone))"
+            return String(format: String(localized: "对方 · %@"), Self.fallbackBirthDate(chart.birthSolarTime, timezoneName: chart.cityTimezone))
         }
-        return "对方"
+        return String(localized: "对方")
     }
 
     /// 兜底名出生日期:按**出生城市时区**格式化 "yyyy-MM-dd"
@@ -589,7 +589,7 @@ struct ProfileView: View {
 
     private var settingsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionHeader("设 置")
+            sectionHeader(String(localized: "设 置"))
             // 子时规则默认:Menu + Picker(原 List Picker 的开放布局等价物)
             Menu {
                 Picker("子时换日", selection: $defaultZiHourRule) {
@@ -670,7 +670,7 @@ struct ProfileView: View {
 
     private var aboutSection: some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionHeader("关 于")
+            sectionHeader(String(localized: "关 于"))
 
             // 立场(为什么可信 — Memorable Thing "专业不忽悠"的完整落点)
             VStack(spacing: 4) {
@@ -841,8 +841,8 @@ struct ProfileView: View {
 
     private func displayName(for module: String) -> String {
         switch module {
-        case "bazi_deep":     return "深度解析"
-        case "compatibility": return "合盘"
+        case "bazi_deep":     return String(localized: "深度解析")
+        case "compatibility": return String(localized: "合盘")
         default:              return module
         }
     }
@@ -889,7 +889,7 @@ struct ProfileView: View {
             // 延迟一帧赋值:iOS 17 在同一 runloop 内连续呈现两个 alert(确认 alert dismiss → 错误 alert present)
             // 可能被吞掉。Task { @MainActor in } 让出当前 runloop,经实证可规避此问题。
             // 注意:这不是 SwiftUI 契约保证,而是 iOS 17 实测有效的经验性 workaround。
-            let msg = "重置未完成,数据未变更,请重试"
+            let msg = String(localized: "重置未完成,数据未变更,请重试")
             Task { @MainActor in
                 resetError = msg
             }

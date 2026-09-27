@@ -213,6 +213,39 @@ enum BaziTerms {
               en: "Birth hour unknown — favorable elements not computed (add your birth hour)"),
     ]
 
+    // MARK: - 合盘定性枚举 + context 标签(22;键集合与 en 值对齐后端
+    // COMPAT_TERMS_EN——AssessmentCardGrid 评估值 / DualPillarsTable 等展示消费)
+
+    static let compatTerms: [Term] = [
+        // five_elements_assessment
+        .init(zh: "互补佳", zhHant: "互補佳", en: "Strongly complementary"),
+        .init(zh: "有一定互补", zhHant: "有一定互補", en: "Somewhat complementary"),
+        .init(zh: "互补较弱", zhHant: "互補較弱", en: "Weakly complementary"),
+        .init(zh: "信息不足", zhHant: "信息不足", en: "Insufficient data"),
+        // day_master_relation
+        .init(zh: "同气", zhHant: "同氣", en: "Same element"),
+        .init(zh: "相生", zhHant: "相生", en: "Generating cycle"),
+        .init(zh: "相克", zhHant: "相剋", en: "Controlling cycle"),
+        // zodiac_match
+        .init(zh: "六合", zhHant: "六合", en: "Six Harmony"),
+        .init(zh: "三合", zhHant: "三合", en: "Three Harmony"),
+        .init(zh: "六冲", zhHant: "六沖", en: "Six Clash"),
+        .init(zh: "三刑", zhHant: "三刑", en: "Three Punishment"),
+        .init(zh: "相害", zhHant: "相害", en: "Harm"),
+        .init(zh: "无特殊合冲", zhHant: "無特殊合沖", en: "No notable harmony or clash"),
+        // branch_harmony
+        .init(zh: "无冲无刑", zhHant: "無沖無刑", en: "No clash, no punishment"),
+        .init(zh: "一冲一合", zhHant: "一沖一合", en: "One clash, one harmony"),
+        .init(zh: "多冲少合", zhHant: "多沖少合", en: "More clashes than harmonies"),
+        .init(zh: "多合少冲", zhHant: "多合少沖", en: "More harmonies than clashes"),
+        .init(zh: "多刑多害", zhHant: "多刑多害", en: "Multiple punishments and harms"),
+        .init(zh: "略有冲刑害", zhHant: "略有沖刑害", en: "Slight clash / punishment / harm"),
+        // context_label(小写:en 句内联)
+        .init(zh: "通用", zhHant: "通用", en: "general"),
+        .init(zh: "婚姻", zhHant: "婚姻", en: "marriage"),
+        .init(zh: "事业", zhHant: "事業", en: "career"),
+    ]
+
     // MARK: - 干支拉丁转写(带调拼音,首字母大写;§3:只在 chip 主标/首次出现加)
 
     static let romanization: [String: String] = [
@@ -231,7 +264,7 @@ enum BaziTerms {
         var merged: [String: Term] = [:]
         for table in [heavenlyStems, earthlyBranches, fiveElements, tenGods, misc,
                       shensha, nayin, twelveStages, strengthLabels,
-                      pillarPositions, xijiMethods] {
+                      pillarPositions, xijiMethods, compatTerms] {
             for term in table {
                 merged[term.zh] = term
             }

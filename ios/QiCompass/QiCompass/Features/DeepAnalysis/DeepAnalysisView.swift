@@ -63,7 +63,7 @@ struct DeepAnalysisView: View {
                 } else {
                     // 阅读页依赖 .ready;状态机回退时诚实报错不闪空屏
                     ErrorStateView(
-                        error: UserFacingError.generic(message: "命盘状态已变化,请返回重进"),
+                        error: UserFacingError.generic(message: String(localized: "命盘状态已变化,请返回重进")),
                         retry: { path = [] }
                     )
                 }
@@ -221,7 +221,7 @@ struct DeepAnalysisView: View {
                     "op=deepView.resolveArchive snapshot_missing hash=\(snapshotHash, privacy: .public) alias=\(link.alias, privacy: .private)"
                 )
                 archiveLoadFailed = true
-                vm.state = .chartFailed(.generic(message: "命盘存档读取失败,请重新排盘"))
+                vm.state = .chartFailed(.generic(message: String(localized: "命盘存档读取失败,请重新排盘")))
                 return
             }
             let response = try env.chartSnapshotStore.decodeResponse(from: snapshot)
@@ -231,7 +231,7 @@ struct DeepAnalysisView: View {
                 "op=deepView.resolveArchive failed error=\(String(describing: error), privacy: .public)"
             )
             archiveLoadFailed = true
-            vm.state = .chartFailed(.generic(message: "命盘存档读取失败,请重新排盘"))
+            vm.state = .chartFailed(.generic(message: String(localized: "命盘存档读取失败,请重新排盘")))
         }
     }
 
@@ -286,7 +286,7 @@ struct DeepAnalysisView: View {
                 if hasResolvedArchive {
                     BirthFormView(vm: vm, onSubmit: vm.calculate)
                 } else {
-                    LoadingStateView(title: "准备中…")
+                    LoadingStateView(title: String(localized: "准备中…"))
                 }
             case .calculating(let stage):
                 // 收起 = 回表单 + 横幅(排盘后台继续);CTA 由 BirthFormView 按

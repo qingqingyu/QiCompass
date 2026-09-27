@@ -13,15 +13,15 @@ enum APIError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .networkError(let e):
-            return "网络错误: \(e.localizedDescription)"
+            return String(format: String(localized: "网络错误: %@"), e.localizedDescription)
         case .httpError(let code, let body):
             return "HTTP \(code)\(body.map { ": \($0)" } ?? "")"
         case .decodingError(let e):
-            return "解码失败: \(e.localizedDescription)"
+            return String(format: String(localized: "解码失败: %@"), e.localizedDescription)
         case .encodingError(let e):
-            return "编码失败: \(e.localizedDescription)"
+            return String(format: String(localized: "编码失败: %@"), e.localizedDescription)
         case .backendError(let code, let msg, let reqId):
-            return "后端错误[\(code)]: \(msg)\(reqId.map { "(request_id=\($0))" } ?? "")"
+            return String(format: String(localized: "后端错误[%lld]: %@%@"), code, msg, reqId.map { "(request_id=\($0))" } ?? "")
         }
     }
 }

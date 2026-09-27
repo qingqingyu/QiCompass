@@ -257,7 +257,7 @@ final class CompatibilityViewModel {
                 "op=compatibility.loadArchivedCharts failed error=\(String(describing: error), privacy: .public)"
             )
             // 不静默吞:错误显式传到 UI(人话文案,原始 error 已记上方日志)
-            state = .failed(.generic(message: "读取命盘存档失败,请重试"))
+            state = .failed(.generic(message: String(localized: "读取命盘存档失败,请重试")))
         }
     }
 
@@ -449,7 +449,7 @@ final class CompatibilityViewModel {
         try validateTempForm()
         // 出生地字段解析走单一事实源(S05:城市/自定义地点;validateTempForm 已保证非空)
         guard let place = tempPlace else {
-            throw UserFacingError.generic(message: "请选择出生城市")
+            throw UserFacingError.generic(message: String(localized: "请选择出生城市"))
         }
         // 性别未选:validateTempForm 先行拦截,理论不可达;契约字段非 Optional,
         // 显式解包抛错,不静默兜 "male"(2026-09-19 去默认值)
@@ -483,14 +483,14 @@ final class CompatibilityViewModel {
         // 错误优先级与抽取前一致:表单校验(makeTempInputFromForm 内)> 满员 > 重复
         let (input, alias, place) = try makeTempInputFromForm()
         guard roster.count < Self.rosterMax else {
-            throw UserFacingError.generic(message: "名单已达上限 \(Self.rosterMax) 人")
+            throw UserFacingError.generic(message: String(format: String(localized: "名单已达上限 %lld 人"), Self.rosterMax))
         }
         let newEntry: RosterEntry = .temp(input: input, alias: alias, resolvedHash: nil, place: place)
         // 去重:同 id entry 已在 roster → 抛错
         // 避免 ForEach 重复 id 警告 + 列表少卡 + 冗余 API 调用(内容寻址 → 同 hash)
         if roster.contains(where: { $0.id == newEntry.id }) {
             AppLogger.app.warning("op=compatibility.addTempToRoster skip reason=duplicate entry_id=\(newEntry.id, privacy: .public)")
-            throw UserFacingError.generic(message: "名单已存在相同的对方")
+            throw UserFacingError.generic(message: String(localized: "名单已存在相同的对方"))
         }
         // UX:保存当前字段为草稿(下次添加时默认值用这次的,加多个临时人时只改称呼/时间)
         CompatibilityRosterPersistence.saveTempDraft(
@@ -592,7 +592,7 @@ final class CompatibilityViewModel {
     func updateTempEntry(_ entry: RosterEntry) throws {
         guard case .temp = entry else {
             AppLogger.app.error("op=compatibility.updateTempEntry skip reason=not_temp entry_id=\(entry.id, privacy: .public)")
-            throw UserFacingError.generic(message: "该对方不可修改")
+            throw UserFacingError.generic(message: String(localized: "该对方不可修改"))
         }
         let (input, alias, place) = try makeTempInputFromForm()
         // id 不含 resolvedHash/place → 用同参构造算 id 即可比对「输入是否变了」
@@ -609,12 +609,12 @@ final class CompatibilityViewModel {
         // 去重:撞 roster 内**其他** entry 才算重复(自身原位替换豁免)
         if roster.contains(where: { $0.id != entry.id && $0.id == newEntry.id }) {
             AppLogger.app.warning("op=compatibility.updateTempEntry skip reason=duplicate entry_id=\(newEntry.id, privacy: .public)")
-            throw UserFacingError.generic(message: "名单已存在相同的对方")
+            throw UserFacingError.generic(message: String(localized: "名单已存在相同的对方"))
         }
         guard let idx = roster.firstIndex(where: { $0.id == entry.id }) else {
             // 不静默吞:sheet 开着时 entry 被移走属并发异常,显式报给 UI
             AppLogger.app.error("op=compatibility.updateTempEntry skip reason=not_found entry_id=\(entry.id, privacy: .public)")
-            throw UserFacingError.generic(message: "该对方已不在名单中,请重新选择")
+            throw UserFacingError.generic(message: String(localized: "该对方已不在名单中,请重新选择"))
         }
         roster[idx] = newEntry
         if selectedEntryIds.contains(entry.id) {
@@ -643,15 +643,15 @@ final class CompatibilityViewModel {
         }
         if try combinedTempBirthDate() > Date() {
             AppLogger.app.warning("op=compatibility.validateTemp skip reason=b_birth_future")
-            throw UserFacingError.generic(message: "B 盘出生时间不能晚于当下")
+            throw UserFacingError.generic(message: String(localized: "B 盘出生时间不能晚于当下"))
         }
         if tempPlace == nil {
             AppLogger.app.warning("op=compatibility.validateTemp skip reason=b_place_empty")
-            throw UserFacingError.generic(message: "请选择出生城市,或在搜索页底部自定义地点")
+            throw UserFacingError.generic(message: String(localized: "请选择出生城市,或在搜索页底部自定义地点"))
         }
         if let tempPlace, !tempPlace.isCustomLongitudeValid {
             AppLogger.app.warning("op=compatibility.validateTemp skip reason=b_longitude_out_of_range")
-            throw UserFacingError.generic(message: "B 盘经度需在 -180 到 180 之间")
+            throw UserFacingError.generic(message: String(localized: "B 盘经度需在 -180 到 180 之间"))
         }
     }
 
@@ -679,13 +679,13 @@ final class CompatibilityViewModel {
         }
         guard selectedChartAIndex < archivedCharts.count else {
             AppLogger.app.warning("compatVM.compute.skip reason=a_index_out_of_bounds selectedAIndex=\(self.selectedChartAIndex)")
-            state = .failed(.generic(message: "A 盘选择越界,请重新选择"))
+            state = .failed(.generic(message: String(localized: "A 盘选择越界,请重新选择")))
             return
         }
         // 决策 D13:零勾选拦截(2026-09-03 起名单非空但未勾选同样拦截)
         guard !selectedEntries.isEmpty else {
             AppLogger.app.warning("compatVM.compute.skip reason=empty_selection roster_count=\(rosterCount, privacy: .public)")
-            state = .failed(.generic(message: "请先点选一位对方"))
+            state = .failed(.generic(message: String(localized: "请先点选一位对方")))
             return
         }
 
@@ -960,13 +960,13 @@ final class CompatibilityViewModel {
         let displayName: String
         switch entry {
         case .archived(let bHash):
-            displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? "对方"
+            displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? String(localized: "对方")
         case .temp(let input, let alias, _, _):
             if let alias, !alias.isEmpty {
                 displayName = alias
             } else {
                 // S04 兜底名:birthDatetime 已是裸钟面字符串,直接读(出生地钟面)
-                displayName = "对方 · \(input.wallClockDisplay)"
+                displayName = String(format: String(localized: "对方 · %@"), input.wallClockDisplay)
             }
         }
         let userError = UserFacingError.from(error, stage: .compatibilityDeterministic)
@@ -994,13 +994,13 @@ final class CompatibilityViewModel {
         let personBHash: String
         switch entry {
         case .archived(let bHash):
-            displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? "对方"
+            displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? String(localized: "对方")
             personBHash = bHash
         case .temp(let input, let alias, _, _):
             if let alias, !alias.isEmpty {
                 displayName = alias
             } else {
-                displayName = "对方 · \(input.wallClockDisplay)"
+                displayName = String(format: String(localized: "对方 · %@"), input.wallClockDisplay)
             }
             personBHash = ""
         }
@@ -1068,7 +1068,7 @@ final class CompatibilityViewModel {
             AppLogger.persistence.error(
                 "op=compatibility.rebuildSummaryFromCache missing_b_chart b_hash=\(bHash, privacy: .public)"
             )
-            throw UserFacingError.generic(message: "对方命盘快照缺失,请重新选择")
+            throw UserFacingError.generic(message: String(localized: "对方命盘快照缺失,请重新选择"))
         }
         let baziB = try chartStore.decodeResponse(from: bChartSnapshot)
         // S05:日柱歧义盘日主留白「—」(不猜;S11 roster 不可合盘标记拦截上游)
@@ -1085,7 +1085,7 @@ final class CompatibilityViewModel {
             } else {
                 let dateStr = Self.fallbackDateString(bChartSnapshot.birthSolarTime,
                                                       timezoneName: bChartSnapshot.cityTimezone)
-                displayName = "对方 · \(dateStr)"
+                displayName = String(format: String(localized: "对方 · %@"), dateStr)
             }
         case .temp(_, let alias, _, _):
             if let alias, !alias.isEmpty {
@@ -1093,7 +1093,7 @@ final class CompatibilityViewModel {
             } else {
                 let dateStr = Self.fallbackDateString(bChartSnapshot.birthSolarTime,
                                                       timezoneName: bChartSnapshot.cityTimezone)
-                displayName = "对方 · \(dateStr)"
+                displayName = String(format: String(localized: "对方 · %@"), dateStr)
             }
         }
 
@@ -1168,7 +1168,7 @@ final class CompatibilityViewModel {
         switch entry {
         case .archived(let bHash):
             guard let bChart = archivedCharts.first(where: { $0.snapshotHash == bHash }) else {
-                throw UserFacingError.generic(message: "B 盘存档已不存在,请重新选择")
+                throw UserFacingError.generic(message: String(localized: "B 盘存档已不存在,请重新选择"))
             }
             let baziB = try chartStore.decodeResponse(from: bChart.snapshot)
             // S07:存档 B 盘无时辰(payload 判据,含日柱歧义)→ 该对拦
@@ -1210,11 +1210,11 @@ final class CompatibilityViewModel {
             // 不静默吞:刚隐式落地的 B snapshot 取不回说明持久化失败,
             // 该对无法构造卡片,显式抛错让上层进入对级失败(S01 走整体 failed;S03 隔离)。
             if bSnapshotForUI == nil {
-                throw UserFacingError.generic(message: "B 盘隐式落地后取回失败,请重试")
+                throw UserFacingError.generic(message: String(localized: "B 盘隐式落地后取回失败,请重试"))
             }
         }
         guard let bSnapshot = bSnapshotForUI else {
-            throw UserFacingError.generic(message: "B 盘快照缺失")
+            throw UserFacingError.generic(message: String(localized: "B 盘快照缺失"))
         }
 
         let baziB = try chartStore.decodeResponse(from: bSnapshot)
@@ -1225,7 +1225,7 @@ final class CompatibilityViewModel {
         let displayName: String
         switch entry {
         case .archived(let bHash):
-            displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? "对方"
+            displayName = archivedCharts.first { $0.snapshotHash == bHash }?.alias ?? String(localized: "对方")
         case .temp(_, let alias, _, _):
             if let alias, !alias.isEmpty {
                 displayName = alias
@@ -1233,7 +1233,7 @@ final class CompatibilityViewModel {
                 // S04 兜底名:「对方+出生日期」(按出生城市时区格式化真太阳时)
                 let dateStr = Self.fallbackDateString(bSnapshot.birthSolarTime,
                                                       timezoneName: bSnapshot.cityTimezone)
-                displayName = "对方 · \(dateStr)"
+                displayName = String(format: String(localized: "对方 · %@"), dateStr)
             }
         }
 
@@ -1293,14 +1293,14 @@ final class CompatibilityViewModel {
             )
             // 进入 detail 但 interpretState 显式错误(不静默吞;人话文案,原始 error 已记上方日志)
             let response = Self.fallbackResponse(for: summary)
-            state = .detail(summary, response, .failed(message: "读取合盘数据失败,请重试"))
+            state = .detail(summary, response, .failed(message: String(localized: "读取合盘数据失败,请重试")))
             return
         }
         guard let snapshot = compatSnapshot else {
             // 不静默吞:快照缺失(理论上不会发生,compute() 刚 upsert 过)
             AppLogger.app.error("op=compatibility.openDetail missing_snapshot hash=\(summary.compatibilityHash, privacy: .public)")
             let response = Self.fallbackResponse(for: summary)
-            state = .detail(summary, response, .failed(message: "合盘快照缺失,请重新合盘"))
+            state = .detail(summary, response, .failed(message: String(localized: "合盘快照缺失,请重新合盘")))
             return
         }
 
@@ -1323,7 +1323,7 @@ final class CompatibilityViewModel {
                 "op=compatibility.openDetail decode_failed hash=\(summary.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
             let response = Self.fallbackResponse(for: summary)
-            state = .detail(summary, response, .failed(message: "合盘数据异常,请重新计算"))
+            state = .detail(summary, response, .failed(message: String(localized: "合盘数据异常,请重新计算")))
             return
         }
 
@@ -1354,7 +1354,7 @@ final class CompatibilityViewModel {
                 guard case .detail(let currentSummary, let response, _) = self.state,
                       currentSummary.id == summary.id else { return }
                 if !Task.isCancelled {
-                    self.state = .detail(currentSummary, response, .failed(message: "解读包含不合规绝对结论,请重试"))
+                    self.state = .detail(currentSummary, response, .failed(message: String(localized: "解读包含不合规绝对结论,请重试")))
                 }
             } catch is CancellationError {
                 return
@@ -1380,7 +1380,7 @@ final class CompatibilityViewModel {
         let compatHash = summary.compatibilityHash
         guard let chartASnapshot = archivedCharts[safe: selectedChartAIndex]?.snapshot,
               let bSnapshot = try? chartStore.get(contentHash: summary.personBHash) else {
-            state = .detail(summary, response, .failed(message: "命盘快照缺失,请重新合盘"))
+            state = .detail(summary, response, .failed(message: String(localized: "命盘快照缺失,请重新合盘")))
             return
         }
 
@@ -1601,7 +1601,7 @@ final class CompatibilityViewModel {
     private func cityDisplay(for snapshot: ChartSnapshot) -> String {
         // ChartSnapshot 不存城市名,只有 cityLongitude。展示经度足够 prompt 使用。
         let lon = snapshot.cityLongitude
-        let hemisphere = lon >= 0 ? "东经" : "西经"
+        let hemisphere = lon >= 0 ? String(localized: "东经") : String(localized: "西经")
         return "\(hemisphere)\(String(format: "%.2f", abs(lon)))"
     }
 }
@@ -1635,7 +1635,7 @@ enum CompatibilityViewModelError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .archivedSnapshotMissing:
-            return "命盘数据异常,请重新排盘"
+            return String(localized: "命盘数据异常,请重新排盘")
         }
     }
 }

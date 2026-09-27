@@ -320,10 +320,10 @@ final class DeepAnalysisViewModel {
             do {
                 if hourKnown {
                     if try combinedBirthDate() > Date() {
-                        errors.append("出生时间不能晚于当下")
+                        errors.append(String(localized: "出生时间不能晚于当下"))
                     }
                 } else if placeCalendar.compare(birthDate, to: Date(), toGranularity: .day) == .orderedDescending {
-                    errors.append("出生时间不能晚于当下")
+                    errors.append(String(localized: "出生时间不能晚于当下"))
                 }
             } catch {
                 // 合成失败(理论不可达):不静默——打日志;提交路径 buildRequest 会显式抛错
@@ -335,10 +335,10 @@ final class DeepAnalysisViewModel {
             errors.append(L10n.BirthForm.errorGenderRequired)
         }
         if selectedPlace == nil {
-            errors.append("请选择出生城市")
+            errors.append(String(localized: "请选择出生城市"))
         }
         if let selectedPlace, !selectedPlace.isCustomLongitudeValid {
-            errors.append("经度需在 -180 到 180 之间")
+            errors.append(String(localized: "经度需在 -180 到 180 之间"))
         }
         return errors
     }
@@ -349,7 +349,7 @@ final class DeepAnalysisViewModel {
     func buildRequest() throws -> BaziCalculateRequest {
         guard let selectedPlace else {
             // validateForm 先行拦截,理论不可达;显式抛错不静默(错误显式传播)
-            throw UserFacingError.generic(message: "请选择出生城市")
+            throw UserFacingError.generic(message: String(localized: "请选择出生城市"))
         }
         // 性别未选(2026-09-19 去默认值):validateForm 先行拦截,理论不可达;
         // 契约字段非 Optional,在此显式解包抛错,不静默兜 "male"
@@ -435,7 +435,7 @@ final class DeepAnalysisViewModel {
             AppLogger.app.warning("deepVM.calculate.buildRequest_failed error=\(String(describing: error), privacy: .public)")
             let message = (error as? UserFacingError)?.errorDescription
                 ?? (error as? LocalizedError)?.errorDescription
-                ?? "表单信息不完整,请检查后重试"
+                ?? String(localized: "表单信息不完整,请检查后重试")
             state = .formInvalid([message])
             return
         }

@@ -260,14 +260,14 @@ struct DeepAnalysisHomeView: View {
     /// 目录右侧状态:已读 x/8 → 次数余量 → 达上限(cinnabar)。
     private var tocStatusText: String {
         if readCount > 0 {
-            return "已读 \(readCount) / \(ModuleID.allCases.count)"
+            return String(format: String(localized: "已读 %lld / %lld"), readCount, ModuleID.allCases.count)
         }
         if vm.remainingReads <= 0 {
             let f = DateFormatter()
             f.dateFormat = "HH:mm"
-            return "今日次数已用尽 · 明日 \(f.string(from: vm.nextDailyReset)) 重置"
+            return String(format: String(localized: "今日次数已用尽 · 明日 %@ 重置"), f.string(from: vm.nextDailyReset))
         }
-        return "今日剩余 \(vm.remainingReads) 次"
+        return String(format: String(localized: "今日剩余 %lld 次"), vm.remainingReads)
     }
 
     /// 达上限判定:一次未读且次数耗尽(已读过 → 缓存命中不耗次,不吓用户)。
@@ -405,8 +405,8 @@ struct DeepAnalysisHomeView: View {
         case .openFirst(let next):
             // 开卷:起全链 + 进首章
             PrimaryCTAButton(
-                title: "开卷 · \(chapterTitle(next))",
-                loadingTitle: "生成中…",
+                title: String(format: String(localized: "开卷 · %@"), chapterTitle(next)),
+                loadingTitle: String(localized: "生成中…"),
                 isLoading: false,
                 action: {
                     vm.generateV1AllModules()
@@ -417,8 +417,8 @@ struct DeepAnalysisHomeView: View {
             // 续读:单章触发(不重置整链——已 ok 章保持,缓存不闪 pending);
             // 链正在跑该章(.fetching)时只进章观看,不重复发请求
             PrimaryCTAButton(
-                title: "续读 · \(chapterTitle(next))",
-                loadingTitle: "生成中…",
+                title: String(format: String(localized: "续读 · %@"), chapterTitle(next)),
+                loadingTitle: String(localized: "生成中…"),
                 isLoading: false,
                 action: {
                     if vm.moduleStates[next] != .fetching {
@@ -429,8 +429,8 @@ struct DeepAnalysisHomeView: View {
             )
         case .unlockAll:
             PrimaryCTAButton(
-                title: "解印全本 · 叁至捌章",
-                loadingTitle: "处理中…",
+                title: String(localized: "解印全本 · 叁至捌章"),
+                loadingTitle: String(localized: "处理中…"),
                 isLoading: false,
                 action: onShowPaywall
             )

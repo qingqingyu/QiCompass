@@ -17,24 +17,24 @@ struct AssessmentCardGrid: View {
     private var cards: [Card] {
         [
             Card(
-                title: "五行互补",
-                value: assessment.fiveElements,
-                explanation: Self.explanations[assessment.fiveElements] ?? ""
+                title: String(localized: "五行互补"),
+                value: BaziTerms.display(assessment.fiveElements),
+                explanation: Self.explanation(for: assessment.fiveElements)
             ),
             Card(
-                title: "日主关系",
-                value: assessment.dayMasterRelation,
-                explanation: Self.explanations[assessment.dayMasterRelation] ?? ""
+                title: String(localized: "日主关系"),
+                value: BaziTerms.display(assessment.dayMasterRelation),
+                explanation: Self.explanation(for: assessment.dayMasterRelation)
             ),
             Card(
-                title: "生肖匹配",
-                value: assessment.zodiacMatch,
-                explanation: Self.explanations[assessment.zodiacMatch] ?? ""
+                title: String(localized: "生肖匹配"),
+                value: BaziTerms.display(assessment.zodiacMatch),
+                explanation: Self.explanation(for: assessment.zodiacMatch)
             ),
             Card(
-                title: "地支合冲",
-                value: assessment.branchHarmony,
-                explanation: Self.explanations[assessment.branchHarmony] ?? ""
+                title: String(localized: "地支合冲"),
+                value: BaziTerms.display(assessment.branchHarmony),
+                explanation: Self.explanation(for: assessment.branchHarmony)
             ),
         ]
     }
@@ -83,8 +83,14 @@ struct AssessmentCardGrid: View {
         .fadeIn()
     }
 
-    /// 评估值 → 简短解释映射(后端枚举取值集,见 compatibility.py:107-119)。
-    /// 未知值留空(UI 不展示,避免编造)。
+    /// 评估值 → 简短解释(后端枚举取值集,见 compatibility.py:107-119)。
+    /// 未知值留空(UI 不展示,避免编造)。解释文案走 xcstrings
+    /// (zh 原句为 key 的 defaultValue;en 已登记)。
+    private static func explanation(for value: String) -> String {
+        guard let zh = explanations[value] else { return "" }
+        return NSLocalizedString(zh, value: zh, comment: "合盘评估枚举解释")
+    }
+
     private static let explanations: [String: String] = [
         // five_elements
         "互补佳": "五行互补,彼此补足",

@@ -50,9 +50,10 @@ struct CompatibilityInterpretationSection: View {
                 // M4:未购买 → 显示付费 4 章锁标 + "解锁合盘解读" CTA
                 // 五行共振改造(S1):第一章「爱情深度」→「五行共振」,title 对齐产品新定位
                 PaidChaptersLockView(
-                    previewChapters: ["五行共振", "合作事业", "财运合拍", "流年同步"],
-                    title: "五行共振·付费章节",
-                    ctaTitle: "解锁合盘解读",
+                    previewChapters: ["五行共振", "合作事业", "财运合拍", "流年同步"]
+                    .map { String(localized: String.LocalizationValue(stringLiteral: $0)) },
+                    title: String(localized: "五行共振·付费章节"),
+                    ctaTitle: String(localized: "解锁合盘解读"),
                     onUnlock: onShowPaywall
                 )
             case .okPaid(let text, let cached):
@@ -103,8 +104,8 @@ struct CompatibilityInterpretationSection: View {
                 .multilineTextAlignment(.center)
 
             PrimaryCTAButton(
-                title: "生成合盘解读",
-                loadingTitle: "推演中…",
+                title: String(localized: "生成合盘解读"),
+                loadingTitle: String(localized: "推演中…"),
                 isLoading: isLoading,
                 action: isLoading ? {} : onGenerate
             )

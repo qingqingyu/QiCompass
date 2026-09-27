@@ -22,33 +22,33 @@ enum ModuleID: String, CaseIterable, Codable, Sendable {
     case m6 = "m6_dynamics"      // 付费:结构动力学(高阶)
     case m7 = "m7_manual"        // 付费:落地手册
 
-    /// 显示名称(中文,对齐 v1.md §3 各模块标题)。
+    /// 显示名称(中文,对齐 v1.md §3 各模块标题;en 走 xcstrings 同 key)。
     /// 用于 ModuleCardView 的 header,格式 "M{N} · {标题}" 便于用户识别层级。
     var displayName: String {
         switch self {
-        case .m0: return "M0 · 主线结构"
-        case .m1: return "M1 · 天赋能力"
-        case .m2: return "M2 · 高配 vs 低配"
-        case .m3: return "M3 · 系统模式"
-        case .m4: return "M4 · 健康续航"
-        case .m5: return "M5 · 财富结构"
-        case .m6: return "M6 · 结构动力学"
-        case .m7: return "M7 · 落地手册"
+        case .m0: return String(localized: "M0 · 主线结构")
+        case .m1: return String(localized: "M1 · 天赋能力")
+        case .m2: return String(localized: "M2 · 高配 vs 低配")
+        case .m3: return String(localized: "M3 · 系统模式")
+        case .m4: return String(localized: "M4 · 健康续航")
+        case .m5: return String(localized: "M5 · 财富结构")
+        case .m6: return String(localized: "M6 · 结构动力学")
+        case .m7: return String(localized: "M7 · 落地手册")
         }
     }
 
-    /// 一句话副标题(对齐 v1.md §3 各模块"目的")。
+    /// 一句话副标题(对齐 v1.md §3 各模块"目的";en 走 xcstrings 同 key)。
     /// 卡片 pending 态显示,让用户在点击前知道这个模块分析什么。
     var subtitle: String {
         switch self {
-        case .m0: return "识别你命局的主线结构与核心循环"
-        case .m1: return "区分天赋能力、训练能力与防御性能力"
-        case .m2: return "同一结构在高配/低配环境下的两种跑法"
-        case .m3: return "你的运行模式 + 失效环境 + 适配生活结构"
-        case .m4: return "基于命局的能量规律与恢复杠杆"
-        case .m5: return "收入形态匹配度与漏财止损规则"
-        case .m6: return "能量路径、杠杆点、易损点与升级路线"
-        case .m7: return "你的真正杠杆 + 90 天放大行动"
+        case .m0: return String(localized: "识别你命局的主线结构与核心循环")
+        case .m1: return String(localized: "区分天赋能力、训练能力与防御性能力")
+        case .m2: return String(localized: "同一结构在高配/低配环境下的两种跑法")
+        case .m3: return String(localized: "你的运行模式 + 失效环境 + 适配生活结构")
+        case .m4: return String(localized: "基于命局的能量规律与恢复杠杆")
+        case .m5: return String(localized: "收入形态匹配度与漏财止损规则")
+        case .m6: return String(localized: "能量路径、杠杆点、易损点与升级路线")
+        case .m7: return String(localized: "你的真正杠杆 + 90 天放大行动")
         }
     }
 

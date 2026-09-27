@@ -343,7 +343,7 @@ struct FlowLayout: Layout {
 
 /// 「付费」白字朱底小方标,旋转 -6°(全 App 唯一朱底块场景之二,另一是 SealStamp)。
 struct PaidTag: View {
-    var text = "付费"
+    var text = String(localized: "付费")
 
     var body: some View {
         Text(text)
