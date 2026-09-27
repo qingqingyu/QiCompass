@@ -23,7 +23,7 @@ T1(i18n-trilingual,2026-09-22)扩展 deep(M0-M7)/compat 所需值域:
   app/models/compatibility.py QualitativeAssessment / iOS contextLabel 映射)
 - MISC_TERMS_EN: 补"日主"(v1 chart 日柱 shishen_gan 值)
 
-后续如需:神煞 20(v1 chart 未含神煞,暂无消费者)。
+后续如需:神煞 20 —— 2026-09-27 已补(SHENSHA_EN,展示层 U3;译名待用户终审)。
 
 术语来源:
 - 天干/地支:拼音直用(英文八字圈通用)
@@ -203,6 +203,38 @@ COMPAT_TERMS_EN: Final[dict[str, str]] = {
     "事业": "career",
 }
 
+# ---------- 神煞 20(11 吉 + 9 凶,《三命通会》单一来源) ----------
+# 清单事实源:app/engine/shensha.py SHENSHA_NAMES(固定顺序,本表键序与其一致)。
+# 意译为主;译名提案来自 i18n-display-layer-handoff.md §5,**待用户术语 QA 终审
+# (U6 HITL),不得静默改词**。iOS 展示层同款三语表在 BaziTerms.swift,
+# 键集合由 tools/check_term_sync.py 强制同步。
+# 当前后端消费者:v1 chart 不含神煞(deep context 不走此表);注册进总表供
+# translate_term 按需使用 + 同步工具比对(prompt context 未来携带神煞时即通)。
+SHENSHA_EN: Final[dict[str, str]] = {
+    # 吉神 11
+    "天乙贵人": "Nobleman",
+    "太极贵人": "Supreme Nobleman",
+    "文昌": "Academic Star",
+    "天德": "Heavenly Virtue",
+    "月德": "Monthly Virtue",
+    "驿马": "Travelling Horse",
+    "桃花": "Peach Blossom",
+    "将星": "General Star",
+    "华盖": "Canopy Star",
+    "金舆": "Golden Carriage",
+    "禄神": "Prosperity Star",
+    # 凶煞 9
+    "羊刃": "Goat Blade",
+    "劫煞": "Robbery Star",
+    "亡神": "Loss Spirit",
+    "孤辰": "Solitary Star",
+    "寡宿": "Widowhood Star",
+    "元辰": "Grievance Star",
+    "灾煞": "Calamity Star",
+    "天罗地网": "Heaven Net, Earth Snare",
+    "红艳": "Red Beauty",
+}
+
 # ---------- 翻译注册表(语言 → {中文术语 → 目标语言术语}) ----------
 # 加新语言时只需在此 dict 加一个 key,无需改 translate_term() 函数。
 TERM_TRANSLATIONS: Final[dict[str, dict[str, str]]] = {
@@ -219,6 +251,7 @@ TERM_TRANSLATIONS: Final[dict[str, dict[str, str]]] = {
         **TWELVE_STAGES_EN,
         **GENDER_EN,
         **COMPAT_TERMS_EN,
+        **SHENSHA_EN,
     },
 }
 
