@@ -144,6 +144,8 @@ final class CompatibilityOrchestrator {
     ///
     /// - Parameter module: `compatibility` / `compatibility_free` / `compatibility_paid`
     ///   (M4 拆分 _free/_paid,VM 按 entitlement 状态传入)
+    /// - Parameter nameA/nameB: 两人称呼(2026-09-27 A/B 代号修复,A 恒「你/you」,
+    ///   B 为对方 alias/兜底名;进 prompt context 供后端 v4 模板称呼全文)
     func runInterpretation(
         compatibilityHash: String,
         chartA: ChartPromptContext,
@@ -151,6 +153,8 @@ final class CompatibilityOrchestrator {
         assessment: QualitativeAssessmentDTO,
         syncedFortune: [SyncedFortuneDTO],
         context: String,
+        nameA: String,
+        nameB: String,
         module: String = "compatibility"
     ) async throws -> InterpretResponse {
         // 规则 2:函数入口日志
@@ -218,7 +222,9 @@ final class CompatibilityOrchestrator {
                 chartA: chartA,
                 chartB: chartB,
                 assessment: assessment,
-                syncedFortune: syncedFortune
+                syncedFortune: syncedFortune,
+                nameA: nameA,
+                nameB: nameB
             )
             let req = InterpretRequest(
                 contentHash: compatibilityHash,

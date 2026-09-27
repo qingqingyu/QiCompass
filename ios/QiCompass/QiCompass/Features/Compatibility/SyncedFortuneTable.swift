@@ -12,6 +12,9 @@ import SwiftUI
 /// - 运势分化 / 难以定性 → inkMuted
 struct SyncedFortuneTable: View {
     let synced: [SyncedFortuneDTO]
+    /// 对方称呼(2026-09-27 A/B 代号 → 名字;B 列头「{name}的流年」)。
+    /// A 列头恒「你的流年/Your year」固定文案(命主本人称呼无需注入)。
+    let nameB: String
 
     /// 年份列固定宽(4 位数字对齐),A/B 均分余宽,同步列尾对齐;
     /// 表头与数据行共用同一列框架保证纵向对齐。
@@ -46,14 +49,20 @@ struct SyncedFortuneTable: View {
         .fadeIn()
     }
 
-    /// 列头:年份 / A 流年 / B 流年 / 同步(caption2 弱墨,同 DualPillarsTable 柱位行)。
+    /// 列头:年份 / 你的流年(A 固定文案) / {B 名}的流年 / 同步(caption2 弱墨,
+    /// 同 DualPillarsTable 柱位行;2026-09-27 A/B 代号 → 名字)。
     private var header: some View {
         HStack(spacing: 8) {
             Text(L10n.Compatibility.syncedYear)
                 .frame(width: yearColumnWidth, alignment: .leading)
-            Text(L10n.Compatibility.syncedPersonAYear)
+            Text(L10n.Compatibility.syncedYourYear)
+                .lineLimit(1)
                 .frame(maxWidth: .infinity, alignment: .leading)
-            Text(L10n.Compatibility.syncedPersonBYear)
+            Text(L10n.Compatibility.syncedPersonYear(nameB))
+                .lineLimit(1)
+                // 兜底名(「对方 · 1990-03-15」)过长时缩字号而非截断
+                // (与 DualPillarsTable 行标同款处理)
+                .minimumScaleFactor(0.7)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text(L10n.Compatibility.syncedSync)
                 .frame(width: syncColumnWidth, alignment: .trailing)

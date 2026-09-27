@@ -31,16 +31,24 @@ extension PromptContextBuilder {
     ///   - chartB: B 盘提炼字段
     ///   - assessment: 后端 4 项定性评估
     ///   - syncedFortune: 3 年流年同步
+    ///   - nameA/nameB: 两人称呼(2026-09-27 A/B 代号修复;A 恒命主本人 → 传
+    ///     `L10n.Compatibility.selfReferenceYou`,B 传对方 alias/兜底名)。
+    ///     后端 v4 模板以 {name_a}/{name_b} 称呼全文,并后置替换残留 A/B 代号;
+    ///     老后端(v3 模板)忽略多余字段,不影响。
     static func buildCompatibility(
         contextLabel: String,
         chartA: ChartPromptContext,
         chartB: ChartPromptContext,
         assessment: QualitativeAssessmentDTO,
-        syncedFortune: [SyncedFortuneDTO]
+        syncedFortune: [SyncedFortuneDTO],
+        nameA: String,
+        nameB: String
     ) -> [String: AnyCodableJSON] {
         return [
             // 通用
             "context_label": AnyCodableJSON(contextLabel),
+            "name_a": AnyCodableJSON(nameA),
+            "name_b": AnyCodableJSON(nameB),
             // A 盘
             "gender_a": AnyCodableJSON(chartA.gender),
             "city_a": AnyCodableJSON(chartA.cityDisplay),
@@ -71,7 +79,8 @@ extension PromptContextBuilder {
             "zodiac_match": AnyCodableJSON(assessment.zodiacMatch),
             "branch_harmony": AnyCodableJSON(assessment.branchHarmony),
             // 流年同步
-            "synced_fortune_table": AnyCodableJSON(formatSyncedFortune(syncedFortune)),
+            "synced_fortune_table": AnyCodableJSON(
+                formatSyncedFortune(syncedFortune, nameA: nameA, nameB: nameB)),
         ]
     }
 
@@ -120,9 +129,12 @@ extension PromptContextBuilder {
 
     // MARK: - Private
 
-    private static func formatSyncedFortune(_ items: [SyncedFortuneDTO]) -> String {
+    /// 流年同步表 prompt 文本(2026-09-27:A/B 代号 → 两人称呼,与模板称谓一致)。
+    private static func formatSyncedFortune(
+        _ items: [SyncedFortuneDTO], nameA: String, nameB: String
+    ) -> String {
         items.map { sf in
-            "- \(sf.year):A「\(sf.personA)」 B「\(sf.personB)」→ \(sf.sync)"
+            "- \(sf.year):\(nameA)「\(sf.personA)」 \(nameB)「\(sf.personB)」→ \(sf.sync)"
         }.joined(separator: "\n")
     }
 }

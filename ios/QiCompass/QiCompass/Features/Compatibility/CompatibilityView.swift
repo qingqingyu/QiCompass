@@ -184,8 +184,9 @@ struct CompatibilityView: View {
                     onOpenSummary: { vm.openDetail($0) },
                     onAddHour: { openAddHourSheet(hash: $0) }
                 )
-            case .detail(_, let response, let interpretState):
-                // 复用 CompatibilityMainView(零改动),入参从当前对快照构造。
+            case .detail(let summary, let response, let interpretState):
+                // 复用 CompatibilityMainView,入参从当前对快照构造
+                // (2026-09-27 起注入 nameA/nameB 称呼,见下方)。
                 if let chartA = vm.currentDetailASnapshot,
                    let chartB = vm.currentDetailBSnapshot {
                     CompatibilityMainView(
@@ -194,6 +195,9 @@ struct CompatibilityView: View {
                         interpretState: interpretState,
                         chartASnapshot: chartA,
                         chartBSnapshot: chartB,
+                        // 2026-09-27 A/B 代号 → 名字:A 恒命主本人「你」,B 用对方称呼
+                        nameA: L10n.Compatibility.selfReferenceYou,
+                        nameB: summary.displayName,
                         onBackToConfig: { vm.backToConfig() },
                         onGenerateInterpret: { vm.generateInterpretation() },
                         onShowPaywall: { showPaywall = true }

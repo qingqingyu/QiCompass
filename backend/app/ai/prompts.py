@@ -60,8 +60,13 @@ PROMPT_VERSIONS: dict[str, int] = {
     "bazi_deep_free": 3,   # M2 拆分:2 章免费,Medium-deep voice(200-300 字/章);v3=S06 时辰未知降级叙事(日主为轴,喜忌空不谈)
     "bazi_deep_paid": 6,   # 8 章命书框架(2026-08-15 晚重构:9 章→8 章拆并);v6=随 S06 系列统一 bump(模板未变,老缓存随新版本号自然失效)
     "compatibility": 3,    # alias(M4 拆分前单 template 6 章,向后兼容老 iOS);v3=五行共振章节替换
-    "compatibility_free": 3,  # M4 拆分:2 章免费,Medium voice(200-300 字/章);v3=随系列统一升
-    "compatibility_paid": 3,  # M4 拆分:4 章付费,Medium voice(200-300 字/章);v3=第一章爱情深度→五行共振
+    # v4(2026-09-27 合盘结果页修复):header A/B 盘 → {name_a}/{name_b} 名字化
+    # (iOS 注入,A=「你/you」,B=对方称呼;老客户端 context 无名字由 render_prompt
+    # setdefault 兜底 A/B) + 干支接地禁令(禁引用盘外干支,修「申位庚金」编造)
+    # + zh 纯简体中文约束(修「tends to」夹杂) + 章节标题独立成行约定
+    # (iOS 按行解析分章排版)。alias `compatibility` 供老 iOS,模板不动不 bump。
+    "compatibility_free": 4,
+    "compatibility_paid": 4,
     "daily_fortune": 3,    # Medium voice(50-80 字,砍宜忌+砍时辰点评)
     # v3 2026-08-31 S09 时辰未知降级:unknown_hour context 切降级模板变体
     # daily_fortune_unknown_hour_v3.md(日柱×流日为轴,删喜忌栏+12 时辰段);
@@ -247,8 +252,13 @@ Favorable/unfavorable elements are undetermined: never infer or invent them
 # ---------- 合盘 ----------
 # 对齐 bazi-app-design-doc.md:440-468 + 2026-08-01 grill-me V2 voice 改 Medium
 # Slice M4(2026-08-09):拆分 _FREE(2 章) + _PAID(4 章),与深度解析同形态(MONETIZATION.md §合盘)
-# 三个模板(alias / _free / _paid)共用此 header
-_COMPATIBILITY_HEADER = """你是一位精通八字合婚/合盘的大师。请基于以下两人命盘进行 {context_label} 合盘解读。
+#
+# v4(2026-09-27)起 header 名字化({name_a}/{name_b}),仅现役 _free/_paid 使用;
+# alias `compatibility` 供老 iOS,内容冻结在 v3(含「A 盘/B 盘」字样,老客户端
+# context 无名字字段,新 header 会 KeyError),独立 legacy header。
+
+# alias(老 iOS)专用 header:v3 内容冻结,不随 v4 演化
+_COMPATIBILITY_LEGACY_HEADER = """你是一位精通八字合婚/合盘的大师。请基于以下两人命盘进行 {context_label} 合盘解读。
 
 A 盘（{gender_a}，{city_a}，{birth_a}）：日主 {day_master_a}，{day_master_strength_a}，喜 {favorable_a}
 - 年柱：{year_a} 月柱：{month_a} 日柱：{day_a} 时柱：{hour_a}
@@ -269,9 +279,33 @@ B 盘（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_mast
 
 """
 
+# v4 header(2026-09-27 名字化):现役 _free/_paid 共用;name_a/name_b 为可选
+# 扩展字段(render_prompt setdefault 兜底 "A"/"B",老客户端兼容)
+_COMPATIBILITY_HEADER = """你是一位精通八字合婚/合盘的大师。请基于以下两人命盘进行 {context_label} 合盘解读。
+
+{name_a}（{gender_a}，{city_a}，{birth_a}）：日主 {day_master_a}，{day_master_strength_a}，喜 {favorable_a}
+- 年柱：{year_a} 月柱：{month_a} 日柱：{day_a} 时柱：{hour_a}
+- 五行：{element_balance_a}
+
+{name_b}（{gender_b}，{city_b}，{birth_b}）：日主 {day_master_b}，{day_master_strength_b}，喜 {favorable_b}
+- 年柱：{year_b} 月柱：{month_b} 日柱：{day_b} 时柱：{hour_b}
+- 五行：{element_balance_b}
+
+定性评估（后端已给，你负责展开）：
+- 五行互补：{five_elements_assessment}
+- 日主关系：{day_master_relation}
+- 生肖匹配：{zodiac_match}
+- 地支合冲：{branch_harmony}
+
+流年同步性（未来 3 年）：
+{synced_fortune_table}
+
+"""
+
 # alias 模板(向后兼容老客户端,对齐 BAZI_DEEP_TEMPLATE 模式)
 # M4 拆分后 iOS 改用 _free / _paid,此 alias 可后续删除
-COMPATIBILITY_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（6 章，每章 200-300 字，总 1200-1800 字）：
+# v4(2026-09-27)起内容冻结在 v3(legacy header + 6 章老文案),不随现役模板演化
+COMPATIBILITY_TEMPLATE = _COMPATIBILITY_LEGACY_HEADER + """写作要求（6 章，每章 200-300 字，总 1200-1800 字）：
 
 **第一章：基础相处模式**（200-300 字）
 两人日常互动的基调。分 3-5 段，每段一个相处场景洞察。
@@ -308,18 +342,27 @@ COMPATIBILITY_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（6 章，每�
 # M4 拆分:免费 2 章(对齐 MONETIZATION.md §合盘 §免费/付费内容分界)
 # 章节:1. 基础相处模式 2. 互补与冲突总览
 # 免费内容必须真有料,让用户感知"AI 真有料"才肯买(对齐深度解析免费 2 章策略)
+# v4(2026-09-27):名字化 header + 称谓/干支接地/纯中文约束 + 标题行约定
+# (与 prompts/zh/compatibility_free_v4.md byte-identical,tests 锁定)
 COMPATIBILITY_FREE_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（免费 2 章，每章 200-300 字，总 400-600 字）：
 
-**第一章：基础相处模式**（200-300 字）
+**第一章 基础相处模式**（200-300 字）
 两人日常互动的基调。分 3-5 段，每段一个相处场景洞察。
 每段聚焦具体 actionable 洞察（沟通模式 / 决策风格 / 日常节奏契合度）。
 聚焦互动节奏本身，不写同居/伴侣等具体生活场景预设。
 
-**第二章：互补与冲突总览**（200-300 字）
+**第二章 互补与冲突总览**（200-300 字）
 五行互补 + 日主关系 + 地支合冲的具体表现。分 3-5 段。
 每段聚焦一个具体维度（互补点给关系带来的资源 / 冲突点需注意的雷区）。
 
+输出格式（必须遵守）：
+- 每章标题独立成行，写作「第一章 基础相处模式」（章号用汉字，不带冒号、不加粗），标题行与正文之间空一行
+- 正文只用自然段，不加任何小标题或编号
+
 通用要求：
+- **称谓**：全文一律用「{name_a}」「{name_b}」称呼两人，不得出现「A / B / 甲方 / 乙方」等代号
+- **干支接地**：引用干支只能使用上方输入数据中出现的天干地支（两人四柱、流年同步表里的大运与流年干支）；任何一方盘里没有的干支，不得提及、不得安到任何一方头上
+- 全文用简体中文书写，不得夹杂英文单词
 - 叙事用「两人」而非「情侣/夫妻/朋友/合伙人」；不预设关系类型（婚恋/友谊/合作/亲情）
 - 短句节奏：每段 2-3 句，每句尽量 <50 字，不写长句堆术语
 - 直言不绕弯：不用"传统认为..."；直接"你们..."
@@ -332,25 +375,34 @@ COMPATIBILITY_FREE_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（免费 2
 # M4 拆分:付费 4 章(需 entitlement 才能调用)
 # 章节:1. 五行共振(S1 替换原「爱情深度」,决策 §Q3/§Q4) 2. 合作事业 3. 财运合拍 4. 流年同步
 # 具体领域预测是用户付费动力(对齐深度解析付费 5 章策略)
+# v4(2026-09-27):名字化 header + 称谓/干支接地/纯中文约束 + 标题行约定
+# (与 prompts/zh/compatibility_paid_v4.md byte-identical,tests 锁定)
 COMPATIBILITY_PAID_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（付费 4 章，每章 200-300 字，总 800-1200 字）：
 
-**第一章：五行共振**（200-300 字）
+**第一章 五行共振**（200-300 字）
 两人五行的生克共振：谁给谁补喜神、谁的旺相消耗对方、日主生克链路，
 以及这些共振在两人互动中的体现。分 3-5 段，每段 2-3 短句。
 每段聚焦一个具体共振点（滋养点 / 张力点 / 时间维度的稳定性）。
 不预设关系类型（婚恋/友谊/合作），聚焦能量互动本身。
 
-**第二章：合作事业**（200-300 字）
+**第二章 合作事业**（200-300 字）
 事业 / 工作合作的契合度 + 协作建议。分 3-5 段，每段 2-3 短句。
 聚焦公共目标层面的协作（涵盖夫妻共业/朋友共谋/合伙人共事），不写具体关系预设。
 
-**第三章：财运合拍**（200-300 字）
+**第三章 财运合拍**（200-300 字）
 金钱观契合度 + 共同财运趋势。分 3-5 段，每段 2-3 短句。
 
-**第四章：流年同步**（200-300 字）
+**第四章 流年同步**（200-300 字）
 未来 3 年流年同步性，每年一段，指出同步走强 / 走弱的窗口。
 
+输出格式（必须遵守）：
+- 每章标题独立成行，写作「第一章 五行共振」（章号用汉字，不带冒号、不加粗），标题行与正文之间空一行
+- 正文只用自然段，不加任何小标题或编号
+
 通用要求：
+- **称谓**：全文一律用「{name_a}」「{name_b}」称呼两人，不得出现「A / B / 甲方 / 乙方」等代号
+- **干支接地**：引用干支只能使用上方输入数据中出现的天干地支（两人四柱、流年同步表里的大运与流年干支）；任何一方盘里没有的干支，不得提及、不得安到任何一方头上
+- 全文用简体中文书写，不得夹杂英文单词
 - 叙事用「两人」而非「情侣/夫妻/朋友/合伙人」；不预设关系类型（婚恋/友谊/合作/亲情）
 - 短句节奏：每段 2-3 句，每句尽量 <50 字，不写长句堆术语
 - 直言不绕弯，不堆 5+ 字术语链
@@ -670,6 +722,13 @@ leverage(M6 杠杆点): {leverage}
 
 # ---------- 模板注册表 ----------
 
+# 合盘 module 全集(alias + M4 拆分):render_prompt 的 name_* setdefault 兜底
+# 与 api/interpret.py 的合盘后置处理(A/B 替换 + 干支观测)共用此单一事实源,
+# 防两处字面量漂移(新增合盘变体时只改这里)。
+COMPATIBILITY_MODULES: frozenset[str] = frozenset({
+    "compatibility", "compatibility_free", "compatibility_paid",
+})
+
 # Slice 1 i18n 改造:_TEMPLATES → _LEGACY_TEMPLATES;T1a(2026-09-22)现役 10 模块
 # (M0-M7 + compatibility_free/paid)已 byte-identical 迁移到外部 Markdown 文件
 # (prompts/zh/{module}_v{version}.md,sha256 前后相等见迁移 commit)。
@@ -896,6 +955,16 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
         ValueError: module 未注册
     """
     validate_context(module, context)
+    # 合盘名字注入(2026-09-27 A/B 代号修复):name_a/name_b 是**可选扩展字段**,
+    # 不进 REQUIRED_FIELDS——老 iOS context 不带名字,此处 setdefault 兜底 "A"/"B",
+    # 保证 v4 模板的 {name_a}/{name_b} 占位符在老客户端请求下也能渲染
+    # (不兜底 → _StrictFormatDict KeyError → 500,老 App 合盘解读全挂)。
+    # check_prompt_sync 口径:REQUIRED 未变,iOS builder 新增的 name_* 属允许的
+    # 扩展字段(WARN 不 FAIL)。浅拷贝防污染调用方 dict。
+    if module in COMPATIBILITY_MODULES:
+        context = dict(context)
+        context.setdefault("name_a", "A")
+        context.setdefault("name_b", "B")
     version = PROMPT_VERSIONS[module]
     # S09 时辰未知降级:daily_fortune 的 unknown_hour context 整体切降级模板变体
     # (日柱×流日十神关系为轴;喜忌栏/12 时辰段数据块不进 prompt)。

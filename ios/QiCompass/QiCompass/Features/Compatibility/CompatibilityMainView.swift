@@ -10,6 +10,10 @@ struct CompatibilityMainView: View {
     let interpretState: InterpretState
     let chartASnapshot: ChartSnapshot
     let chartBSnapshot: ChartSnapshot
+    /// 两人称呼(2026-09-27 A/B 代号修复):A 恒命主本人「你/you」,B 为对方
+    /// alias/兜底名(与 prompt context 同源,UI 与正文称呼一致)。
+    let nameA: String
+    let nameB: String
     let onBackToConfig: () -> Void
     let onGenerateInterpret: () -> Void
     let onShowPaywall: () -> Void
@@ -19,7 +23,8 @@ struct CompatibilityMainView: View {
             VStack(spacing: BaziTheme.Spacing.lg) {
                 // 双盘对比(D6)
                 if let dualPillars = makeDualPillars() {
-                    DualPillarsTable(pillars: dualPillars)
+                    DualPillarsTable(
+                        pillars: dualPillars, labelA: nameA, labelB: nameB)
                 } else {
                     Text("双盘数据读取失败")
                         .font(.caption)
@@ -29,8 +34,9 @@ struct CompatibilityMainView: View {
                 // 4 张评估卡(D7)
                 AssessmentCardGrid(assessment: response.qualitativeAssessment)
 
-                // 流年同步表(D8)
-                SyncedFortuneTable(synced: response.syncedFortune)
+                // 流年同步表(D8;A 列头固定「你的流年」,只注入 B 称呼)
+                SyncedFortuneTable(
+                    synced: response.syncedFortune, nameB: nameB)
 
                 // AI 解读段(D9)
                 CompatibilityInterpretationSection(

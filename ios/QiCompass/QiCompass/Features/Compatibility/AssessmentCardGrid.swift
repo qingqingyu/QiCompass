@@ -87,7 +87,7 @@ struct AssessmentCardGrid: View {
     /// 未知值留空(UI 不展示,避免编造)。
     private static let explanations: [String: String] = [
         // five_elements
-        "互补佳": "五行互補,彼此补足",
+        "互补佳": "五行互补,彼此补足",
         "有一定互补": "部分互补,稍有重叠",
         "互补较弱": "五行重叠较多",
         "信息不足": "信息不足,从格区间",

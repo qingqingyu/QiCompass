@@ -402,4 +402,27 @@ extension ChartPayloadDTO {
             fourPillars: fourPillars
         )
     }
+
+    /// 合盘路径构造器(2026-09-27「无运」修复):在 `from(baziResponse:)` 基础上
+    /// 显式带上 `luckPillars` + `calcRuleSnapshot`(合盘完整构造器)。
+    ///
+    /// 根因:此前合盘 payloadA / 存档 payloadB 复用了 daily-fortune 主构造器
+    /// (`luckPillars=nil`)→ 后端 `luck_pillars=[]` → 流年同步表拼「无运 丁未年」
+    /// (backend engine/compatibility.py 的 `_luck_pillar_for_year` 永远 miss)。
+    /// 临时人(模式 B)由后端现排自带大运,所以只有 A 列(和存档 B 列)受害。
+    ///
+    /// daily-fortune 路径继续用 `from(baziResponse:)`(不带扩展字段,行为不变)。
+    static func compatibilityPayload(from baziResponse: BaziResponse) -> ChartPayloadDTO {
+        let base = from(baziResponse: baziResponse)
+        return ChartPayloadDTO(
+            dayMaster: base.dayMaster,
+            dayMasterElement: base.dayMasterElement,
+            dayMasterStrength: base.dayMasterStrength,
+            favorableElements: base.favorableElements,
+            unfavorableElements: base.unfavorableElements,
+            fourPillars: base.fourPillars,
+            luckPillars: baziResponse.luckPillars,
+            calcRuleSnapshot: baziResponse.calcRuleSnapshot
+        )
+    }
 }
