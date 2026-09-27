@@ -1,6 +1,40 @@
 {
   "sourceLanguage" : "zh-Hans",
   "strings" : {
+    "保存失败,请重试" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't save — please retry"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "保存失败,请重试"
+          }
+        }
+      }
+    },
+    "添加失败,请重试" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't add — please retry"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "添加失败,请重试"
+          }
+        }
+      }
+    },
     "%@ · 解读单独解锁" : {
       "extractionState" : "manual",
       "localizations" : {

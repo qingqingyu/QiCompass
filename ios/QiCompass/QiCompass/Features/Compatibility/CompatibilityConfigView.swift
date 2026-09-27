@@ -363,7 +363,7 @@ private struct AddPersonSheet: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text(isEditing ? "修改对方" : "添加对方")
+                    Text(isEditing ? String(localized: "修改对方") : String(localized: "添加对方"))
                         .font(BaziFont.display(size: 17))
                         .tracking(3)
                         .foregroundStyle(BaziTheme.ink)
@@ -426,7 +426,7 @@ private struct AddPersonSheet: View {
                         if !isEditing {
                             Image(systemName: "plus.circle.fill")
                         }
-                        Text(isEditing ? "保存修改" : "加入名单")
+                        Text(isEditing ? String(localized: "保存修改") : String(localized: "加入名单"))
                     }
                     .font(BaziFont.button(size: 15))
                     .foregroundStyle(formError == nil ? BaziTheme.onInkDeep : BaziTheme.inkMuted)
@@ -624,7 +624,7 @@ private struct AddPersonSheet: View {
                 AppLogger.app.error(
                     "compat.addTemp.unexpected_error error=\(String(describing: error), privacy: .public)"
                 )
-                formError = "添加失败,请重试"
+                formError = String(localized: "添加失败,请重试")
             }
         }
     }
@@ -644,7 +644,7 @@ private struct AddPersonSheet: View {
                 AppLogger.app.error(
                     "compat.saveEdit.unexpected_error error=\(String(describing: error), privacy: .public)"
                 )
-                formError = "保存失败,请重试"
+                formError = String(localized: "保存失败,请重试")
             }
         }
     }

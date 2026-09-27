@@ -603,7 +603,7 @@ struct ProfileView: View {
                         .tracking(1)
                         .foregroundStyle(BaziTheme.ink)
                     Spacer()
-                    Text(defaultZiHourRule == "zi_next_day" ? "子时属次日 ›" : "早晚子时 ›")
+                    Text(defaultZiHourRule == "zi_next_day" ? String(localized: "子时属次日 ›") : String(localized: "早晚子时 ›"))
                         .font(BaziFont.caption(size: 10.5))
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
                 }
