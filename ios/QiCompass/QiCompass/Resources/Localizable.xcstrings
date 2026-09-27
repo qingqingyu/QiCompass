@@ -2,22 +2,63 @@
   "sourceLanguage" : "zh-Hans",
   "strings" : {
     "" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : ""
+          }
+        }
+      }
     },
     "…" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "…"
+          }
+        }
+      }
     },
     "· %@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "· %@"
+          }
+        }
+      }
     },
     "›" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "›"
+          }
+        }
+      }
     },
     "「%@」移出后,重新加入需再填一次出生信息。" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Once \"%@\" is removed, adding them back means re-entering their birth details."
+          }
+        }
+      }
     },
     "%@ · %@" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · %2$@"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
@@ -34,9 +75,15 @@
     },
     "%@ · 日主 %@" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ · Day Master %2$@"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%1$@ · 日主 %2$@"
           }
         },
@@ -49,13 +96,26 @@
       }
     },
     "%@ ›" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ ›"
+          }
+        }
+      }
     },
     "%@ (%@)" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ (%2$@)"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%1$@ (%2$@)"
           }
         },
@@ -69,9 +129,15 @@
     },
     "%@ %@" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$@"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%1$@ %2$@"
           }
         },
@@ -85,9 +151,15 @@
     },
     "%@ %@%@" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ %2$@%3$@"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%1$@ %2$@%3$@"
           }
         },
@@ -100,13 +172,26 @@
       }
     },
     "%@ 🔒" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ 🔒"
+          }
+        }
+      }
     },
     "%@%lld" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@%2$lld"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%1$@%2$lld"
           }
         },
@@ -119,13 +204,26 @@
       }
     },
     "%@内容" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ content"
+          }
+        }
+      }
     },
     "%lld / %lld" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld / %2$lld"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%1$lld / %2$lld"
           }
         },
@@ -139,9 +237,15 @@
     },
     "%lld-%lld" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld-%2$lld"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%1$lld-%2$lld"
           }
         },
@@ -155,9 +259,15 @@
     },
     "%lld-%lld岁" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld–%2$lld yrs"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "%1$lld-%2$lld岁"
           }
         },
@@ -170,28 +280,84 @@
       }
     },
     "• %@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "• %@"
+          }
+        }
+      }
     },
     "＋" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "＋"
+          }
+        }
+      }
     },
     "⌃" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌃"
+          }
+        }
+      }
     },
     "⌄" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⌄"
+          }
+        }
+      }
     },
     "◎ 调候用神已触发" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "◎ Seasonal adjustment applied"
+          }
+        }
+      }
     },
     "⚠ %@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "⚠ %@"
+          }
+        }
+      }
     },
     "6 章解读:基础相处 / 互补冲突 / 五行共振 / 合作事业 / 财运合拍 / 流年同步" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Six readings: first impressions / complements & clashes / elemental resonance / working together / money in sync / the years ahead"
+          }
+        }
+      }
     },
     "24h 内已缓存,不消耗次数" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cached within 24h · uses no reads"
+          }
+        }
+      }
     },
     "addhour.error.alertTitle" : {
       "extractionState" : "manual",
@@ -3562,7 +3728,14 @@
       }
     },
     "hash: %@…" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "hash: %@…"
+          }
+        }
+      }
     },
     "healthform.age.decrease" : {
       "extractionState" : "manual",
@@ -5497,7 +5670,14 @@
       }
     },
     "QICOMPASS" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QICOMPASS"
+          }
+        }
+      }
     },
     "tab.deep" : {
       "extractionState" : "manual",
@@ -5914,25 +6094,66 @@
       }
     },
     "一次买断 · 全设备同步" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One-time purchase · synced across devices"
+          }
+        }
+      }
     },
     "不建档案 · 填出生信息即可" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No profile needed · birth details are enough"
+          }
+        }
+      }
     },
     "与 %@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "with %@"
+          }
+        }
+      }
     },
     "主" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You"
+          }
+        }
+      }
     },
     "买断制 · 不含订阅" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One-time purchase · no subscription"
+          }
+        }
+      }
     },
     "五行%@ · 日主%@" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Elements %1$@ · Day Masters %2$@"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "五行%1$@ · 日主%2$@"
           }
         },
@@ -5945,166 +6166,536 @@
       }
     },
     "今日" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today"
+          }
+        }
+      }
     },
     "付费内容,解锁后可生成" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Paid content · generate after unlocking"
+          }
+        }
+      }
     },
     "价格 %@,买断制,不含订阅" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · one-time purchase, no subscription"
+          }
+        }
+      }
     },
     "使用 Apple 登录" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in with Apple"
+          }
+        }
+      }
     },
     "使用 Google 登录" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in with Google"
+          }
+        }
+      }
     },
     "保存修改" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save changes"
+          }
+        }
+      }
     },
     "保存后名单与勾选状态保持不变 · 下滑收起不保存" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Save keeps the list and picks · swipe down to dismiss without saving"
+          }
+        }
+      }
     },
     "修改" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit"
+          }
+        }
+      }
     },
     "修改「%@」" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit \"%@\""
+          }
+        }
+      }
     },
     "修改对方" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit partner"
+          }
+        }
+      }
     },
     "出生地:%@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Birthplace: %@"
+          }
+        }
+      }
     },
     "出生日期" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Birth date"
+          }
+        }
+      }
     },
     "出生时刻" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Birth time"
+          }
+        }
+      }
     },
     "删除" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete"
+          }
+        }
+      }
     },
     "剩余 %lld 次" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%lld reads left"
+          }
+        }
+      }
     },
     "加入名单" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to the list"
+          }
+        }
+      }
     },
     "加入名单后自行勾选 · 下滑可随时收起" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add to the list, pick per reading · swipe down to close anytime"
+          }
+        }
+      }
     },
     "勾选入本次合盘" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Include in this reading"
+          }
+        }
+      }
     },
     "印章%@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ seal"
+          }
+        }
+      }
     },
     "去深度解析" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Go to deep analysis"
+          }
+        }
+      }
     },
     "双人合盘" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Two-chart pairing"
+          }
+        }
+      }
     },
     "双盘数据读取失败" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Couldn't read both charts"
+          }
+        }
+      }
     },
     "取消" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Cancel"
+          }
+        }
+      }
     },
     "取消勾选,保留在名单" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Uncheck · keep on the list"
+          }
+        }
+      }
     },
     "可选,如「相亲对象甲」" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Optional — e.g. \"Blind date A\""
+          }
+        }
+      }
     },
     "合拍定性 · 无评分" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "A qualitative read · no scores"
+          }
+        }
+      }
     },
     "合盘" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Match"
+          }
+        }
+      }
     },
     "合盘 · 两人磁场合拍" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Match · how two fields fit"
+          }
+        }
+      }
     },
     "合盘解读" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Compatibility reading"
+          }
+        }
+      }
     },
     "名单已满 · 上限 %lld 位" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "List full · max %lld"
+          }
+        }
+      }
     },
     "名单已满 %lld 位(含未勾选)。移出一位名单成员后,可再添加新的对方。" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The list is full at %lld (unchecked included). Remove someone before adding another."
+          }
+        }
+      }
     },
     "命 书 · 捌 章" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Book · 捌 Chapters"
+          }
+        }
+      }
     },
     "命主" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chart owner"
+          }
+        }
+      }
     },
     "命盘与已购跨设备同步\n不收集出生信息之外的任何资料" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charts & purchases sync across devices\nNothing collected beyond birth details"
+          }
+        }
+      }
     },
     "命盘别名" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chart name"
+          }
+        }
+      }
     },
     "命盘数据会保留(历史解读可回溯),仅从此列表移除。" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The chart itself stays (past readings remain) — only the list entry goes."
+          }
+        }
+      }
     },
     "喜忌结论留空,详见命书。" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favorable elements withheld — see the book."
+          }
+        }
+      }
     },
     "回到表单修改出生信息" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back to the form to edit birth details"
+          }
+        }
+      }
     },
     "在下方直接填对方出生信息,\n或先去「我的」为 TA 建一个存档命盘。" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter their birth details below,\nor save a chart for them first in Profile."
+          }
+        }
+      }
     },
     "子时属次日 ›" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zi hour rolls over ›"
+          }
+        }
+      }
     },
     "子时属次日(23:00 换日)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zi belongs to the next day (day turns at 23:00)"
+          }
+        }
+      }
     },
     "子时换日" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Zi-hour day change"
+          }
+        }
+      }
     },
     "已解读" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Read"
+          }
+        }
+      }
     },
     "已解锁" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlocked"
+          }
+        }
+      }
     },
     "已钤 · 同步中" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sealed · syncing"
+          }
+        }
+      }
     },
     "布算中" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Charting"
+          }
+        }
+      }
     },
     "当前" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Now"
+          }
+        }
+      }
     },
     "影响新表单的初始值。已存档命盘不受影响(其规则随 snapshot 持久化)。重置命盘会清空所有数据并重新走 onboarding。" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Changes the default for new charts only. Saved charts keep their own rules (stored with each snapshot). A full reset clears everything and restarts onboarding."
+          }
+        }
+      }
     },
     "性别" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Gender"
+          }
+        }
+      }
     },
     "总览可读" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Overview free"
+          }
+        }
+      }
     },
     "我的" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Me"
+          }
+        }
+      }
     },
     "我的命盘 · 命主" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "My chart · owner"
+          }
+        }
+      }
     },
     "推演合盘中,已完成 %lld 对,共 %lld 对" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pairing · %1$lld of %2$lld done"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "推演合盘中,已完成 %1$lld 对,共 %2$lld 对"
           }
         },
@@ -6117,142 +6708,456 @@
       }
     },
     "推演失败 · 此对隔离" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pairing failed · pair set aside"
+          }
+        }
+      }
     },
     "改名" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename"
+          }
+        }
+      }
     },
     "数据异常:无请求记录" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Data error: no request on record"
+          }
+        }
+      }
     },
     "新" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "New"
+          }
+        }
+      }
     },
     "日主 %@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day Master %@"
+          }
+        }
+      }
     },
     "早晚子时 ›" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Early vs late Zi ›"
+          }
+        }
+      }
     },
     "早晚子时(00:00 换日)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Early and late Zi (day turns at 00:00)"
+          }
+        }
+      }
     },
     "旬空:%@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Void: %@"
+          }
+        }
+      }
     },
     "未钤 · 本机" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unsealed · this device"
+          }
+        }
+      }
     },
     "本命盘未命中神煞" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No omens land in this chart"
+          }
+        }
+      }
     },
     "查看 ›" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View ›"
+          }
+        }
+      }
     },
     "查看盘面细目" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "See the full chart"
+          }
+        }
+      }
     },
     "此操作不可恢复。所有命盘、合盘记录、解读缓存都会被清空。购买记录保留在 App Store,重新 onboarding 后可恢复。" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This cannot be undone. All charts, pairings and cached readings will be cleared. Purchases stay with the App Store and come back after onboarding."
+          }
+        }
+      }
     },
     "每日运势" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Daily Fortune"
+          }
+        }
+      }
     },
     "深度" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chart"
+          }
+        }
+      }
     },
     "深度解析" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deep analysis"
+          }
+        }
+      }
     },
     "添加对方" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add partner"
+          }
+        }
+      }
     },
     "清空全部数据 ›" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erase all data ›"
+          }
+        }
+      }
     },
     "点选一位对方 · 解读单独解锁" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pick one partner · each reading unlocks separately"
+          }
+        }
+      }
     },
     "版本" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Version"
+          }
+        }
+      }
     },
     "特征:%@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Pattern: %@"
+          }
+        }
+      }
     },
     "玄学娱乐,理性参考。\n购买即视为同意 Apple 标准用户协议。" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Entertainment only — read with a clear head.\nBy purchasing you accept Apple's standard User Agreement."
+          }
+        }
+      }
     },
     "玄机问道" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QICOMPASS"
+          }
+        }
+      }
     },
     "玄机问道 · 专业不忽悠" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QICOMPASS · Classical craft, no guesswork"
+          }
+        }
+      }
     },
     "玄机问道印章" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "QICOMPASS seal"
+          }
+        }
+      }
     },
     "生成中…" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Generating…"
+          }
+        }
+      }
     },
     "用以上信息排盘,进入今日运势" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chart with these details & see today's fortune"
+          }
+        }
+      }
     },
     "登录后即可购买,已购内容跨设备同步" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign in to buy — purchases sync across devices"
+          }
+        }
+      }
     },
     "盘面细目" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chart details"
+          }
+        }
+      }
     },
     "盘面细目(辅柱 · 五行 · 神煞 · 大运全表)" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Full chart (auxiliary pillars · elements · omens · luck cycles)"
+          }
+        }
+      }
     },
     "目录" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Contents"
+          }
+        }
+      }
     },
     "真太阳时:%@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "True solar time: %@"
+          }
+        }
+      }
     },
     "真太阳时偏差 %@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "True solar offset %@"
+          }
+        }
+      }
     },
     "确定性排盘 · 未完成的对不进列表" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Deterministic charting · unfinished pairs stay off the list"
+          }
+        }
+      }
     },
     "确定要清空所有命盘和解读记录吗?" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Erase every chart and reading?"
+          }
+        }
+      }
     },
     "确定重置" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset now"
+          }
+        }
+      }
     },
     "确认出生信息" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm birth details"
+          }
+        }
+      }
     },
     "确认删除「%@」?" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Delete \"%@\"?"
+          }
+        }
+      }
     },
     "确认排盘" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Confirm & chart"
+          }
+        }
+      }
     },
     "称呼" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Name"
+          }
+        }
+      }
     },
     "移出" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove"
+          }
+        }
+      }
     },
     "移出「%@」" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove \"%@\""
+          }
+        }
+      }
     },
     "移出名单" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from list"
+          }
+        }
+      }
     },
     "移出名单?" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove from the list?"
+          }
+        }
+      }
     },
     "第%@章%@" : {
       "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Chapter %1$@ · %2$@"
+          }
+        },
         "zh-Hans" : {
           "stringUnit" : {
-            "state" : "new",
+            "state" : "translated",
             "value" : "第%1$@章%2$@"
           }
         },
@@ -6265,82 +7170,264 @@
       }
     },
     "算法:%@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Method: %@"
+          }
+        }
+      }
     },
     "编辑名单" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit the list"
+          }
+        }
+      }
     },
     "补时辰 ›" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Add birth hour ›"
+          }
+        }
+      }
     },
     "观盘 ›" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "View chart ›"
+          }
+        }
+      }
     },
     "解锁余下%@章" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Unlock the remaining %@ chapters"
+          }
+        }
+      }
     },
     "购买于 %@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Purchased %@"
+          }
+        }
+      }
     },
     "返回修改" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back & edit"
+          }
+        }
+      }
     },
     "返回表单" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Back to form"
+          }
+        }
+      }
     },
     "还没有命盘" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No chart yet"
+          }
+        }
+      }
     },
     "还没有对方的盘" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No partner chart yet"
+          }
+        }
+      }
     },
     "还没有购买" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No purchases yet"
+          }
+        }
+      }
     },
     "退出登录" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sign out"
+          }
+        }
+      }
     },
     "选 择 对 方" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a partner"
+          }
+        }
+      }
     },
     "选择对方" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Choose a partner"
+          }
+        }
+      }
     },
     "重新排盘" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rechart"
+          }
+        }
+      }
     },
     "重置命盘" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset charts"
+          }
+        }
+      }
     },
     "重置失败" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reset failed"
+          }
+        }
+      }
     },
     "重试" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry"
+          }
+        }
+      }
     },
     "重试不消耗今日次数" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retries use none of today's reads"
+          }
+        }
+      }
     },
     "重试中…" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retrying…"
+          }
+        }
+      }
     },
     "重试这一对" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Retry this pair"
+          }
+        }
+      }
     },
     "钤印中 · 正在完成登录…" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sealing · signing in…"
+          }
+        }
+      }
     },
     "钤印为凭 · 登录" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Seal it as yours · sign in"
+          }
+        }
+      }
     },
     "长生:%@" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stage: %@"
+          }
+        }
+      }
     },
     "隐私与数据" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy & data"
+          }
+        }
+      }
     },
     "需先在深度解析中创建命盘,才能选择 A/B 盘合盘。" : {
-
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Create a chart in deep analysis before pairing two charts."
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
