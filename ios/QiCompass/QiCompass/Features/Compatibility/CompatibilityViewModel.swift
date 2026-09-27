@@ -705,7 +705,8 @@ final class CompatibilityViewModel {
             let aHourGate: HourUnknownGate
             do {
                 let baziA = try self.chartStore.decodeResponse(from: chartA.snapshot)
-                payloadA = ChartPayloadDTO.from(baziResponse: baziA)
+                // 合盘路径必须带 luckPillars(「无运」修复,见 compatibilityPayload 注释)
+                payloadA = ChartPayloadDTO.compatibilityPayload(from: baziA)
                 // S07 拦截判据(单一事实源 = A 盘存档 payload,不重复推断)
                 aHourGate = baziA.hourUnknownGate
             } catch {
@@ -917,7 +918,7 @@ final class CompatibilityViewModel {
             }
             do {
                 let baziA = try self.chartStore.decodeResponse(from: chartA.snapshot)
-                let payloadA = ChartPayloadDTO.from(baziResponse: baziA)
+                let payloadA = ChartPayloadDTO.compatibilityPayload(from: baziA)
                 let newSummary = try await self.computePair(
                     entry: entry,
                     chartA: chartA,
@@ -1178,7 +1179,7 @@ final class CompatibilityViewModel {
                 )
                 return makeHourUnknownBlockedSummary(entry: entry)
             }
-            let payloadB = ChartPayloadDTO.from(baziResponse: baziB)
+            let payloadB = ChartPayloadDTO.compatibilityPayload(from: baziB)
             request = CompatibilityRequest(
                 personAHash: aHash,
                 personBHash: bChart.snapshotHash,
@@ -1433,6 +1434,11 @@ final class CompatibilityViewModel {
                     assessment: response.qualitativeAssessment,
                     syncedFortune: response.syncedFortune,
                     context: self.context,
+                    // 2026-09-27 A/B 代号修复:A 恒命主本人 → 「你/you」,
+                    // B 用对方 displayName(alias / 兜底名)——prompt 全文与
+                    // 后端残留 A/B 后置替换共用这两个称呼
+                    nameA: L10n.Compatibility.selfReferenceYou,
+                    nameB: summary.displayName,
                     module: module
                 )
 

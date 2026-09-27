@@ -29,6 +29,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import re
 import time
 import uuid
 from datetime import datetime, timezone
@@ -40,7 +41,12 @@ from ..ai.cache import InterpretationCache
 from ..ai.cache_key import CacheKey
 from ..ai.forbidden_words import scan as scan_forbidden_words
 from ..ai.forbidden_words import validate_interpretation
-from ..ai.prompts import PROMPT_VERSIONS, render_prompt, validate_context
+from ..ai.prompts import (
+    COMPATIBILITY_MODULES,
+    PROMPT_VERSIONS,
+    render_prompt,
+    validate_context,
+)
 from ..ai.singleflight import SingleflightCoalescer
 from ..auth.dependencies import get_current_user_id
 from ..config import resolve_temperature
@@ -194,6 +200,86 @@ def _validate_v1_module_json(module: str, interpretation: str) -> None:
         raise AIProviderError(
             f"v1 模块 {module} 输出 JSON 顶层无可渲染值"
             f"(空对象或全 null,iOS 渲染层会退回散文导致 JSON 裸奔)"
+        )
+
+
+# ---------- 合盘后置处理(2026-09-27:名字化 + 干支接地观测)----------
+
+# A/B 代号替换覆盖的 module(alias + M4 拆分;老 iOS alias 请求无名字 →
+# setdefault 兜底 "A"/"B",替换退化为恒等,无害)。
+# 单一事实源 = prompts.COMPATIBILITY_MODULES,与 render_prompt 名字兜底共用。
+_COMPAT_POSTPROCESS_MODULES: frozenset[str] = COMPATIBILITY_MODULES
+
+# standalone「A」/「B」:前后都不是 ASCII 字母数字(误伤 Amanda / H1B / A4 这类词
+# ——测试实证:H1B 的 B 前是数字,只挡字母挡不住);
+# 吞掉代号后的一个半角空格(「A 倾向于」→「你倾向于」,中文排版无残留空格)
+_STANDALONE_A = re.compile(r"(?<![A-Za-z0-9])A\s?(?![A-Za-z0-9])")
+_STANDALONE_B = re.compile(r"(?<![A-Za-z0-9])B\s?(?![A-Za-z0-9])")
+
+
+def _replace_ab_labels(text: str, name_a: str, name_b: str) -> str:
+    """合盘解读里残留的 A/B 代号 → 两人称呼(确定性替换,prompt 之外的兜底)。
+
+    prompt v4 已要求全文用 name_a/name_b 称呼,但 LLM 违约时叙述里仍可能冒出
+    「A 倾向于先说结论」。用户要求不只依赖 prompt,此处后置替换。
+
+    跳过条件(防替换自伤):名字为空,或**名字本身含该字母的 standalone 出现**
+    (`_STANDALONE_A.search(name_a)` 命中,如「A先生」「阿B」「小 A」——文本里
+    出现名字本身时,其中的字母会被再替换成整个名字,产出「阿阿B」类捣碎)。
+    名字内部的非 standalone 字母由环视天然保护:「Bella」/「Amy」的字母前后是
+    拉丁字母,不命中 standalone,替换照常进行且注入结果安全。
+    """
+    if name_a and not _STANDALONE_A.search(name_a):
+        # 函数式替换(lambda):repl 按字面使用——字符串 repl 会解析 \ 转义
+        # (别名以 \ 结尾抛 re.error bad escape、\1/\g 错插组引用,用户输入
+        # 可触发 interpret 500;lambda 返回值零转义解析,彻底字面化)
+        text = _STANDALONE_A.sub(lambda m: name_a, text)
+    if name_b and not _STANDALONE_B.search(name_b):
+        text = _STANDALONE_B.sub(lambda m: name_b, text)
+    return text
+
+
+# 天干地支全集(干支接地观测用;与 engine/pillars.py 的表同源字符集)
+_TIANGAN_CHARS = frozenset("甲乙丙丁戊己庚辛壬癸")
+_DIZHI_CHARS = frozenset("子丑寅卯辰巳午未申酉戌亥")
+_GANZHI_CHARS = _TIANGAN_CHARS | _DIZHI_CHARS
+
+# 允许引用的干支来源字段:两人四柱 + 流年同步表(含大运/流年干支)
+_COMPAT_GANZHI_SOURCE_FIELDS: tuple[str, ...] = (
+    "year_a", "month_a", "day_a", "hour_a",
+    "year_b", "month_b", "day_b", "hour_b",
+    "synced_fortune_table",
+)
+
+
+def _log_offchart_ganzhi(
+    interpretation: str, context: dict, log_ctx: dict,
+) -> None:
+    """观测:输出提及了输入数据里不存在的干支字符(prompt 接地违约信号)。
+
+    **log-only 不拦截**(2026-09-27 拍板):「子时」「申金」等泛指说明也会
+    命中字符集,硬拦误伤正常生成;先收集违规率,高频再谈强校验。
+    """
+    allowed: set[str] = set()
+    for field in _COMPAT_GANZHI_SOURCE_FIELDS:
+        value = context.get(field)
+        if isinstance(value, str):
+            allowed |= {c for c in value if c in _GANZHI_CHARS}
+    mentioned = {c for c in interpretation if c in _GANZHI_CHARS}
+    # 两人称呼已由 _replace_ab_labels 注入正文;名字里恰含干支字(如「陈寅」
+    # 「丁一」)属称呼本身而非 LLM 引用盘外干支,从观测集合剔除防污染信号
+    # (log-only 拍板不变,此处只提升违约率统计的准确性)。
+    name_chars = {
+        c for c in (context.get("name_a") or "") + (context.get("name_b") or "")
+        if c in _GANZHI_CHARS
+    }
+    offchart = mentioned - name_chars - allowed
+    if offchart:
+        logger.warning(
+            "interpret.compat_offchart_ganzhi %s offchart=%s "
+            "(输出提及但两盘四柱/大运/流年中不存在的干支字符,"
+            "prompt 接地违约观测,不拦截)",
+            log_ctx, sorted(offchart),
         )
 
 
@@ -467,6 +553,18 @@ async def interpret(
         raise
     # 非预期异常(AttributeError/TypeError 等代码 bug)不包装,
     # 向上抛由全局 handler 处理为 500,避免用 503 掩盖代码缺陷
+
+    # 4.2 合盘后置处理(2026-09-27):A/B 代号确定性替换 + 干支接地违约观测。
+    # 在禁词扫描/写缓存之前——扫描与缓存看到的都是最终文本。
+    # 名字从 translated_context 取(老客户端无名字 → render_prompt 已 setdefault
+    # 兜底 "A"/"B",替换退化为恒等)。
+    if req.module in _COMPAT_POSTPROCESS_MODULES:
+        interpretation = _replace_ab_labels(
+            interpretation,
+            translated_context.get("name_a") or "A",
+            translated_context.get("name_b") or "B",
+        )
+        _log_offchart_ganzhi(interpretation, translated_context, log_ctx)
 
     # 4.4 v1 JSON 契约校验(2026-09-27):M0-M7 输出必须是完整 JSON 对象。
     # 截断/违约 → AIProviderError(503),不进禁词扫描、不写缓存、不返回

@@ -217,14 +217,70 @@ def test_compatibility_alias_still_works():
 
 
 def test_compatibility_global_guardrail_in_all_three_templates():
-    """S2 全局护栏(决策 §Q5):3 个合盘 module 的通用要求首项均为
-    「叙事用『两人』而非关系预设词;不预设关系类型」。"""
+    """S2 全局护栏(决策 §Q5)× v4(2026-09-27 位置锁更新):三 module 通用要求
+    均含「叙事用『两人』而非关系预设词;不预设关系类型」。
+    v4 起 free/paid 首项让位给「**称谓**」约束(A/B 代号修复为最高优先),
+    「叙事用两人」退居前三内;alias 老模板维持首项不变。"""
     for module in ("compatibility", "compatibility_free", "compatibility_paid"):
         prompt = render_prompt(module, COMPATIBILITY_CONTEXT)
         assert "不预设关系类型（婚恋/友谊/合作/亲情）" in prompt, f"{module} 缺全局护栏句"
         assert "情侣/夫妻/朋友/合伙人" in prompt, f"{module} 缺「两人」叙事约束"
-        # S2 验收标准:护栏句位于通用要求段首项(挪到中部会弱化 LLM 注意力,测试必须锁位置)
-        assert "通用要求：\n- 叙事用「两人」而非" in prompt, f"{module} 护栏句不在通用要求首项"
+        assert "- 叙事用「两人」而非" in prompt, f"{module} 「两人」护栏句丢失"
+    # alias 老模板:护栏句仍在通用要求首项
+    alias_prompt = render_prompt("compatibility", COMPATIBILITY_CONTEXT)
+    assert "通用要求：\n- 叙事用「两人」而非" in alias_prompt, "alias 护栏句不在首项"
+    # free/paid v4:称谓首项 + 干支接地 + 纯简体中文
+    for module in ("compatibility_free", "compatibility_paid"):
+        prompt = render_prompt(module, COMPATIBILITY_CONTEXT)
+        assert "通用要求：\n- **称谓**：" in prompt, f"{module} 称谓约束不在首项"
+        assert "干支接地" in prompt, f"{module} 缺干支接地禁令"
+        assert "不得夹杂英文单词" in prompt, f"{module} 缺纯简体中文约束"
+
+
+def test_compatibility_v4_names_rendered_and_fallback():
+    """v4(2026-09-27):name_a/name_b 进 header 与称谓约束;老客户端 context
+    缺名字字段 → render_prompt setdefault 兜底 A/B,不 KeyError(500)。"""
+    ctx = dict(COMPATIBILITY_CONTEXT)
+    ctx["name_a"] = "你"
+    ctx["name_b"] = "小林"
+    for module in ("compatibility_free", "compatibility_paid"):
+        prompt = render_prompt(module, ctx)
+        assert "你（男，北京" in prompt, f"{module} header 未名字化(A 侧)"
+        assert "小林（女，上海" in prompt, f"{module} header 未名字化(B 侧)"
+        assert "「你」「小林」" in prompt, f"{module} 称谓约束未带名字"
+        assert "A 盘" not in prompt and "B 盘" not in prompt, f"{module} 残留 A/B 盘字样"
+    # 老客户端(无 name_*):兜底 A/B,渲染完整
+    for module in ("compatibility_free", "compatibility_paid"):
+        prompt = render_prompt(module, COMPATIBILITY_CONTEXT)
+        assert "A（男，北京" in prompt, f"{module} 老 context 兜底失败"
+        assert "B（女，上海" in prompt
+        assert "{" not in prompt
+
+
+def test_compatibility_v4_chapter_title_standalone_rule():
+    """v4 输出格式约定:章节标题独立成行(iOS CompatibilityChapterText 按行
+    解析分章排版;老整段渲染退化兜底,靠此约定拿到结构)。"""
+    free = render_prompt("compatibility_free", COMPATIBILITY_CONTEXT)
+    assert "每章标题独立成行" in free
+    assert "「第一章 基础相处模式」" in free
+    paid = render_prompt("compatibility_paid", COMPATIBILITY_CONTEXT)
+    assert "「第一章 五行共振」" in paid
+    # en 模板对称约定(Naming/Grounding/标题行)
+    en_free = _load_template(
+        "compatibility_free", "en", PROMPT_VERSIONS["compatibility_free"])
+    assert "on its own line" in en_free
+    assert "Naming" in en_free
+    en_paid = _load_template(
+        "compatibility_paid", "en", PROMPT_VERSIONS["compatibility_paid"])
+    assert "Grounding" in en_paid
+
+
+def test_compatibility_versions_bumped_v4():
+    """2026-09-27 v3→4:名字化 + 干支接地 + 纯中文 + 标题行(老双层缓存自然
+    失效);alias 老模板不动(供老 iOS,不 bump)。"""
+    assert PROMPT_VERSIONS["compatibility_free"] == 4
+    assert PROMPT_VERSIONS["compatibility_paid"] == 4
+    assert PROMPT_VERSIONS["compatibility"] == 3
 
 
 def test_compatibility_local_guardrails_two_high_risk_chapters():

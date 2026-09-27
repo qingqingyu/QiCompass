@@ -36,11 +36,7 @@ struct CompatibilityInterpretationSection: View {
             case .fetching:
                 interpretationCTABlock(isLoading: true)
             case .okFree(let text, let cached):
-                Text(MarkdownSanitizer.rendered(text))
-                    .bodySerifText()
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .fadeIn()
+                CompatibilityChapterText(text: text)
                 if cached {
                     HStack {
                         Image(systemName: "checkmark.seal")
@@ -60,11 +56,7 @@ struct CompatibilityInterpretationSection: View {
                     onUnlock: onShowPaywall
                 )
             case .okPaid(let text, let cached):
-                Text(MarkdownSanitizer.rendered(text))
-                    .bodySerifText()
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .fadeIn()
+                CompatibilityChapterText(text: text)
                 if cached {
                     HStack {
                         Image(systemName: "checkmark.seal")
@@ -119,5 +111,176 @@ struct CompatibilityInterpretationSection: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
+    }
+}
+
+// MARK: - 分章渲染(2026-09-27「章节标题与正文挤同段」修复)
+
+/// 合盘解读分章排版:后端 v4 prompt 要求每章标题独立成行(「第一章 基础相处
+/// 模式」/ "Chapter 1 …"),本视图按行解析出标题并样式化(大写数字编号 +
+/// 楷体章名,对齐深度解析阅读页章题语言),正文段落照排。
+///
+/// 容错:标题行带全/半角冒号或 `**` 包裹(v3 时代输出习惯)同样解析;
+/// 解析不到任何标题行(老缓存散文本)→ `parse` 返回 nil,退回整段渲染,不丢内容。
+/// internal 供 Tests 直测 parse(视图本身仅本文件渲染用)。
+struct CompatibilityChapterText: View {
+    let text: String
+
+    /// 章节:大写数字编号 + 章名 + 正文段落(空行分段)。
+    struct Chapter: Equatable {
+        let numeral: String
+        let title: String
+        let paragraphs: [String]
+    }
+
+    /// 标题行解析产物;nil = 全文无标题行(调用方退整段)。
+    /// lead = 首个标题行之前的正文(引言,v4 契约下通常为空,防御保留)。
+    static func parse(_ text: String) -> (lead: String?, chapters: [Chapter])? {
+        var leadLines: [String] = []
+        var chapters: [Chapter] = []
+        var numeral = ""
+        var title = ""
+        var paragraph: [String] = []
+        var paragraphs: [String] = []
+
+        func flushParagraph() {
+            if !paragraph.isEmpty {
+                // 段内保留原始换行(en 单词间距/中文完整性都保真,不拼接),
+                // 空行才是段落边界
+                paragraphs.append(paragraph.joined(separator: "\n"))
+                paragraph = []
+            }
+        }
+
+        func flushChapter() {
+            flushParagraph()
+            if !title.isEmpty {
+                chapters.append(Chapter(numeral: numeral, title: title, paragraphs: paragraphs))
+                numeral = ""
+                title = ""
+                paragraphs = []
+            }
+        }
+
+        for line in text.components(separatedBy: .newlines) {
+            if let hit = Self.parseTitleLine(line) {
+                flushChapter()
+                numeral = hit.numeral
+                title = hit.title
+                continue
+            }
+            let trimmed = line.trimmingCharacters(in: .whitespaces)
+            if trimmed.isEmpty {
+                if title.isEmpty && chapters.isEmpty {
+                    // 引言区空行:跳过(lead 单段呈现,不保留空行)
+                } else {
+                    flushParagraph()
+                }
+            } else {
+                if title.isEmpty && chapters.isEmpty {
+                    leadLines.append(line)
+                } else {
+                    paragraph.append(line)
+                }
+            }
+        }
+        flushChapter()
+
+        guard !chapters.isEmpty else { return nil }
+        let lead = leadLines.filter { !$0.isEmpty }.isEmpty
+            ? nil
+            : leadLines.joined(separator: "\n")
+        return (lead, chapters)
+    }
+
+    /// 单行标题解析:zh「第X章 章名」(容错 :/:/无分隔)/ en "Chapter N Title"。
+    /// 容忍 LLM 违约的 `**` 包裹与行首缩进。
+    private static func parseTitleLine(_ line: String) -> (numeral: String, title: String)? {
+        let zhNumeral: [Character: String] = [
+            "一": "壹", "二": "贰", "三": "叁", "四": "肆",
+            "五": "伍", "六": "陆", "七": "柒", "八": "捌",
+        ]
+        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        // 去 ** 包裹(v3 时代模型习惯,防御)
+        var body = trimmed
+        if body.hasPrefix("**") { body = String(body.dropFirst(2)) }
+        if body.hasSuffix("**") { body = String(body.dropLast(2)) }
+        body = body.trimmingCharacters(in: .whitespaces)
+
+        // zh:第X章[ ::]?章名
+        if body.hasPrefix("第"), body.count >= 4 {
+            let indexAfter = body.index(body.startIndex, offsetBy: 1)
+            let zhangIndex = body.index(indexAfter, offsetBy: 1)
+            if let numeral = zhNumeral[body[indexAfter]],
+               body[zhangIndex] == "章" {
+                let rest = String(body[body.index(after: zhangIndex)...])
+                    .trimmingCharacters(in: CharacterSet(charactersIn: " \t：:"))
+                if !rest.isEmpty {
+                    return (numeral, rest)
+                }
+            }
+        }
+
+        // en:Chapter N[.::]? Title
+        let parts = body.split(separator: " ", maxSplits: 2, omittingEmptySubsequences: true)
+        if parts.count == 3, parts[0] == "Chapter",
+           let n = Int(parts[1]), (1...8).contains(n) {
+            let numeralEn = ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"][n - 1]
+            let rest = parts[2].trimmingCharacters(in: CharacterSet(charactersIn: ".：:"))
+            if !rest.isEmpty {
+                return (numeralEn, rest)
+            }
+        }
+        return nil
+    }
+
+    var body: some View {
+        if let (lead, chapters) = Self.parse(text) {
+            VStack(alignment: .leading, spacing: 18) {
+                if let lead, !lead.isEmpty {
+                    Text(MarkdownSanitizer.rendered(lead))
+                        .bodySerifText()
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+                ForEach(Array(chapters.enumerated()), id: \.offset) { _, chapter in
+                    chapterBody(chapter)
+                }
+            }
+            .fadeIn()
+        } else {
+            // 老缓存/违约输出无标题行:整段渲染(现状排版,不丢内容)
+            Text(MarkdownSanitizer.rendered(text))
+                .bodySerifText()
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+                .fadeIn()
+        }
+    }
+
+    /// 单章:大写数字编号 + 楷体章名(章题语言对齐深度解析阅读页)+ 正文段。
+    private func chapterBody(_ chapter: Chapter) -> some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(chapter.numeral)
+                    .font(BaziFont.display(size: 18))
+                    .foregroundStyle(BaziTheme.ink)
+                Text(chapter.title)
+                    .font(BaziFont.display(size: 15))
+                    .tracking(2)
+                    .foregroundStyle(BaziTheme.ink)
+                    .lineLimit(2)
+            }
+            Rectangle()
+                .fill(BaziTheme.hairline)
+                .frame(height: 0.5)
+                .padding(.trailing, 60)
+            ForEach(Array(chapter.paragraphs.enumerated()), id: \.offset) { _, p in
+                Text(MarkdownSanitizer.rendered(p))
+                    .bodySerifText()
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 }

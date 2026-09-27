@@ -562,13 +562,22 @@ enum L10n {
         /// zh: "年份";en: "Year"
         static let syncedYear = String(localized: "hepan.synced.year")
 
-        /// 列头「A 流年」。
-        /// zh: "A 流年";en: "A's year"
-        static let syncedPersonAYear = String(localized: "hepan.synced.personAYear")
+        /// 列头「{名字}的流年」(2026-09-27 A/B 代号 → 名字;%@ = 对方称呼,
+        /// 用于 B 列;A 列恒「你」,用下方 `syncedYourYear` 固定文案——
+        /// 组合式套「你/you」会产出「你 的流年」空格伪影 /「you's year」语法错误)。
+        /// zh: "%@的流年";en: "%@'s year"
+        static func syncedPersonYear(_ name: String) -> String {
+            String(format: String(localized: "hepan.synced.personYear"), name)
+        }
 
-        /// 列头「B 流年」。
-        /// zh: "B 流年";en: "B's year"
-        static let syncedPersonBYear = String(localized: "hepan.synced.personBYear")
+        /// A 列(命主本人)列头固定文案(称呼恒「你/you」,无需格式化)。
+        /// zh: "你的流年";en: "Your year"
+        static let syncedYourYear = String(localized: "hepan.synced.yourYear")
+
+        /// A 盘(命主本人)在合盘全文与 UI 中的称呼(2026-09-27:用户拍板 A 恒用「你」,
+        /// 而非命主 alias;en 变体 "you" 同语义)。
+        /// zh: "你";en: "you"
+        static let selfReferenceYou = String(localized: "hepan.names.self")
 
         /// 列头「同步」。
         /// zh: "同步";en: "Sync"

@@ -3715,48 +3715,48 @@
         }
       }
     },
-    "hepan.synced.personAYear" : {
+    "hepan.names.self" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A's year"
+            "value" : "you"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A 流年"
+            "value" : "你"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A 流年"
+            "value" : "你"
           }
         }
       }
     },
-    "hepan.synced.personBYear" : {
+    "hepan.synced.personYear" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "B's year"
+            "value" : "%@'s year"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "B 流年"
+            "value" : "%@的流年"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "B 流年"
+            "value" : "%@的流年"
           }
         }
       }
@@ -3826,6 +3826,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "年份"
+          }
+        }
+      }
+    },
+    "hepan.synced.yourYear" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your year"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的流年"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你的流年"
           }
         }
       }

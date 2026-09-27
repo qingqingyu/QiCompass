@@ -38,6 +38,10 @@ struct DualPillarSource: Identifiable, Equatable {
 /// (`PairSummaryCard.onAddHour`),那是无时辰他人盘真正可见可点的地方。
 struct DualPillarsTable: View {
     let pillars: [DualPillarSource]  // 共 4 条(年/月/日/时)
+    /// 两侧称呼(2026-09-27 A/B 代号 → 名字:A 恒「你/you」,B 为对方称呼)。
+    /// 替代此前硬编码 "A"/"B" 行标——读者不再需要对照「谁是 A」。
+    let labelA: String
+    let labelB: String
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -63,7 +67,7 @@ struct DualPillarsTable: View {
                         pillarCell(
                             gan: p.ganA, zhi: p.zhiA, nayin: p.nayinA,
                             ganElement: p.ganElementA, zhiElement: p.zhiElementA,
-                            label: "A"
+                            label: labelA
                         )
                         .frame(maxWidth: .infinity)
                     }
@@ -86,7 +90,7 @@ struct DualPillarsTable: View {
                         pillarCell(
                             gan: p.ganB, zhi: p.zhiB, nayin: p.nayinB,
                             ganElement: p.ganElementB, zhiElement: p.zhiElementB,
-                            label: "B"
+                            label: labelB
                         )
                         .frame(maxWidth: .infinity)
                     }
@@ -115,6 +119,9 @@ struct DualPillarsTable: View {
             Text(label)
                 .font(.system(size: 9, weight: .semibold))
                 .foregroundStyle(BaziTheme.inkMuted)
+                .lineLimit(1)
+                // 兜底名(「对方 · 1990-03-15」)过长时缩字号而非截断成「对方…」
+                .minimumScaleFactor(0.7)
             if let gan, let zhi {
                 HStack(spacing: 2) {
                     Text(gan)
