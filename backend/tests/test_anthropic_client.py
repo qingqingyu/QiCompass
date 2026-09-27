@@ -167,12 +167,17 @@ def _capture_request(monkeypatch, *, ctor_sink=None):
 
 
 async def test_anthropic_client_defaults_are_config_values(monkeypatch):
-    """不传 max_tokens/timeout 时用 config 默认(App 路径行为不变)。"""
+    """不传 max_tokens/timeout 时用 config 默认(App 路径行为不变)。
+
+    2026-09-27 默认 1024→8192 / 90→150(对齐 v1 模板 1500-2500 字篇幅契约,
+    详见 config.py 注释);断言对 config 真值而非字面量,防再次漂移。
+    """
+    from app.config import AI_MAX_OUTPUT_TOKENS, AI_TIMEOUT_SECONDS
     ctor: dict = {}
     captured = _capture_request(monkeypatch, ctor_sink=ctor)
     await AnthropicClient(api_key="test-key").interpret("prompt")
-    assert captured["json"]["max_tokens"] == 1024
-    assert ctor["timeout"] == 90.0
+    assert captured["json"]["max_tokens"] == AI_MAX_OUTPUT_TOKENS
+    assert ctor["timeout"] == AI_TIMEOUT_SECONDS
 
 
 async def test_anthropic_client_passes_max_tokens_and_timeout(monkeypatch):
@@ -196,3 +201,36 @@ async def test_anthropic_client_rejects_non_positive_timeout():
     """timeout <= 0 显式报错,不立即超时。"""
     with pytest.raises(ValueError, match="timeout"):
         await AnthropicClient(api_key="test-key").interpret("prompt", timeout=-1.0)
+
+
+# ===== 截断显式报错(2026-09-27:max_tokens 截断不再静默成功)=====
+
+
+async def test_anthropic_client_max_tokens_truncation_is_explicit_error(monkeypatch):
+    """stop_reason=max_tokens(截断)→ AIProviderError,不返回半截文本。
+
+    真机 m1_talent 实证(2026-09-26):z.ai 中转 glm-5.2 输出在 1024 token
+    截断,半截 JSON 入缓存,iOS ChapterContent.parse 失败退回散文 =
+    正文 JSON 裸奔。截断必须显式失败(错误显式传播)。
+    """
+    _install_fake_async_client(
+        monkeypatch,
+        lambda url, **kwargs: _FakeResponse({
+            "stop_reason": "max_tokens",
+            "content": [{"type": "text", "text": '{"innate": [{"name": "半截'}],
+        }),
+    )
+    with pytest.raises(AIProviderError, match="max_tokens 截断"):
+        await AnthropicClient(api_key="test-key").interpret("prompt")
+
+
+async def test_anthropic_client_end_turn_returns_text(monkeypatch):
+    """stop_reason=end_turn(正常完稿)照常返回文本(拦截只针对截断)。"""
+    _install_fake_async_client(
+        monkeypatch,
+        lambda url, **kwargs: _FakeResponse({
+            "stop_reason": "end_turn",
+            "content": [{"type": "text", "text": "命书完稿"}],
+        }),
+    )
+    assert await AnthropicClient(api_key="test-key").interpret("prompt") == "命书完稿"

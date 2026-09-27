@@ -5,7 +5,10 @@
 2. validate_context + render_prompt(纯 CPU,留 event loop),计算 prompt_hash
 3. 查后端缓存(同步 → run_in_threadpool)
    命中 → 返回 InterpretResponse(cached=True)
+   命中但 v1 坏 JSON(截断时代遗留)→ 删除中毒行后落穿重新生成(自愈,2026-09-27)
 4. 调用选中的 AI provider(async httpx,直接 await,不走线程池)
+4.4 v1 JSON 契约校验:M0-M7 输出必须完整 JSON 对象,否则 AIProviderError(503)
+    不进禁词扫描、不写缓存、不返回(截断半截 JSON 一旦入缓存会被 iOS 当散文渲染)
 5. 写缓存(同步 → run_in_threadpool)
 6. 返回 InterpretResponse(cached=False)
 
@@ -24,6 +27,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 import logging
 import time
 import uuid
@@ -54,6 +58,7 @@ from ..models.interpret import (
     InterpretRequest,
     InterpretResponse,
     PAID_MODULES,
+    V1_MODULES,
     V1_NEEDS_USER_INPUT,
     entitlement_base_module,
 )
@@ -113,6 +118,83 @@ def _hash_user_input(req: InterpretRequest) -> str:
             f"in V1_NEEDS_USER_INPUT but no hash handler "
             f"(需在 _hash_user_input 加 elif 分支)")
     return hashlib.sha256(payload.encode("utf-8")).hexdigest()
+
+
+def _strip_code_fences(text: str) -> str:
+    """剥 LLM 违约附加的 ```json 围栏(prompt 已禁,防御性容忍)。
+
+    精确镜像 iOS OrderedJSONParser.stripCodeFences 的算法:去 ```,
+    再去语言标记(连续字母),再去空白/换行,最后剥末尾围栏。
+    必须逐字符对齐而非「剥首行」:若后端比 iOS 宽(如 "``` json\\n{...}"
+    围栏后带空格),后端会放行入缓存,而 iOS drop-letters 遇空格即停、
+    留下 "json" 前缀 parse 失败 → 退散文 = 事故形态复发。校验层只能比
+    渲染层严或同等,不能更宽。非围栏开头(正常契约输出)原样返回。
+    """
+    t = text.strip()
+    if not t.startswith("```"):
+        return t
+    t = t[3:]
+    i = 0
+    while i < len(t) and t[i].isalpha():
+        i += 1
+    t = t[i:].lstrip()
+    fence_end = t.rfind("```")
+    if fence_end != -1:
+        t = t[:fence_end]
+    return t.strip()
+
+
+def _is_renderable_top_level(value: object) -> bool:
+    """顶层值是否可被 iOS ChapterContent.node 渲染(镜像其 nil 规则)。
+
+    iOS 口径:string/number/bool → 节点;object → 恒成节;null → nil;
+    array → 仅全 null / 空数组才 nil(arrayNode 的 nonNull 过滤)。
+    校验层只能比渲染层严或同等,不能更宽(更宽 = 放行渲染层退散文的
+    内容入缓存 = JSON 裸奔事故复发通道)。
+    """
+    if value is None:
+        return False
+    if isinstance(value, list):
+        return any(item is not None for item in value)
+    return True
+
+
+def _validate_v1_module_json(module: str, interpretation: str) -> None:
+    """v1 深度模块(M0-M7)输出契约 = 完整 JSON 对象(2026-09-27)。
+
+    背景:真机 m1_talent 实证——LLM 输出在 max_tokens 截断 → 半截 JSON
+    通过禁词扫描入缓存 → iOS ChapterContent.parse 失败退回散文,正文
+    JSON 裸奔。此校验把「非合法 JSON」从「静默成功」改为显式 AIProviderError,
+    截断/违约内容不写缓存、不返回。
+
+    口径与 iOS 渲染层对齐:容忍围栏(剥后校验),顶层必须是对象
+    (iOS `guard case .object` 同款),且至少一个顶层值可渲染
+    (iOS `nodes.isEmpty → nil` 退散文的同款规则,空对象/全 null 同样拒绝)。
+
+    Raises:
+        AIProviderError: 非 JSON / 顶层非对象 / 顶层无可渲染值
+            (疑似截断或违约)
+    """
+    if module not in V1_MODULES:
+        return
+    text = _strip_code_fences(interpretation)
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as e:
+        raise AIProviderError(
+            f"v1 模块 {module} 输出非合法 JSON(疑似 max_tokens 截断或"
+            f"格式违约):{e}"
+        ) from e
+    if not isinstance(parsed, dict):
+        raise AIProviderError(
+            f"v1 模块 {module} 输出 JSON 顶层非对象"
+            f"(type={type(parsed).__name__},契约要求对象)"
+        )
+    if not any(_is_renderable_top_level(v) for v in parsed.values()):
+        raise AIProviderError(
+            f"v1 模块 {module} 输出 JSON 顶层无可渲染值"
+            f"(空对象或全 null,iOS 渲染层会退回散文导致 JSON 裸奔)"
+        )
 
 
 @router.post("/api/interpret", response_model=InterpretResponse)
@@ -326,20 +408,37 @@ async def interpret(
                 request_id=request_id,
                 content_hash=req.content_hash,
             )
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        logger.info(
-            "interpret.cache_hit elapsed_ms=%.1f %s",
-            elapsed_ms, log_ctx,
-        )
-        return InterpretResponse(
-            interpretation=cached_row["interpretation"],
-            prompt_version=prompt_version,
-            cached=True,
-            generated_at=cached_row["generated_at"],
-            provider=cached_row["provider"],
-            model=cached_row["model"],
-            language=language,
-        )
+        # v1 JSON 契约自愈(2026-09-27):坏 JSON 行命中时不返回,删除后落穿
+        # 重新生成。注意:截断时代的坏行是 prompt_version=1 键,已被 D3A bump
+        # 孤立(新键永不命中);本层是纵深防御——拦未来回归(校验被弱化后
+        # 写入的行)与旁路写入(evalkit/手工落库),与禁词中毒同理:删除后
+        # 走正常生成路径,用户无感(多等一次生成)。
+        try:
+            _validate_v1_module_json(req.module, cached_row["interpretation"])
+        except AIProviderError as e:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.warning(
+                "interpret.cache_invalid_json elapsed_ms=%.1f %s error=%s "
+                "— 删除中毒缓存,落穿重新生成",
+                elapsed_ms, log_ctx, e,
+            )
+            await _invalidate_poisoned_cache(cache, cache_key, log_ctx)
+            cached_row = None
+        if cached_row is not None:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.info(
+                "interpret.cache_hit elapsed_ms=%.1f %s",
+                elapsed_ms, log_ctx,
+            )
+            return InterpretResponse(
+                interpretation=cached_row["interpretation"],
+                prompt_version=prompt_version,
+                cached=True,
+                generated_at=cached_row["generated_at"],
+                provider=cached_row["provider"],
+                model=cached_row["model"],
+                language=language,
+            )
 
     # 4. 调用选中 provider(async httpx 直接 await,不走线程池)
     #    singleflight 合并:同 key 并发只调一次 LLM,所有等待者共享结果
@@ -368,6 +467,21 @@ async def interpret(
         raise
     # 非预期异常(AttributeError/TypeError 等代码 bug)不包装,
     # 向上抛由全局 handler 处理为 500,避免用 503 掩盖代码缺陷
+
+    # 4.4 v1 JSON 契约校验(2026-09-27):M0-M7 输出必须是完整 JSON 对象。
+    # 截断/违约 → AIProviderError(503),不进禁词扫描、不写缓存、不返回
+    # (半截 JSON 一旦入缓存,iOS 渲染层 parse 失败退回散文 = 正文 JSON 裸奔,
+    # 真机 m1_talent 实证)。失败 refund 由 iOS 端重试链路承接(重试不耗次数)。
+    try:
+        _validate_v1_module_json(req.module, interpretation)
+    except AIProviderError as e:
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        e.request_id = request_id
+        logger.error(
+            "interpret.v1_invalid_json elapsed_ms=%.1f %s error=%s",
+            elapsed_ms, log_ctx, e,
+        )
+        raise
 
     # 4.5 禁词扫描(LLM 输出守卫,US-COMP-04)
     # 命中即拦截:不替换文本,不写缓存,不返回原文,直接抛错让客户端进入 error 态
@@ -415,7 +529,7 @@ async def _invalidate_poisoned_cache(
     cache_key: CacheKey,
     log_ctx: dict,
 ) -> None:
-    """删除被禁词污染的缓存条目。失败抛 InterpretationCacheError(不吞,避免坏缓存无限循环)。
+    """删除被污染的缓存条目(禁词命中 / v1 坏 JSON)。失败抛 InterpretationCacheError(不吞,避免坏缓存无限循环)。
 
     设计决策:删除失败时不静默吞,因为吞掉会导致同一坏缓存被反复命中,
     用户每次重试都拿到同样的禁词错误,形成无限循环。抛 InterpretationCacheError

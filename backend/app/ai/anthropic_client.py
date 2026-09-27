@@ -49,9 +49,9 @@ class AnthropicClient:
             temperature: 0.0-1.0(Anthropic 范围);v1 prompt 系统按 module 分级,
                 M0-M2 结构层 0.3,M3-M7 叙述层 0.6。调用方通过
                 config.resolve_temperature(module) 取值后传入。
-            max_tokens: 输出 token 上限;None 用 config.AI_MAX_OUTPUT_TOKENS(App 1024)。
+            max_tokens: 输出 token 上限;None 用 config.AI_MAX_OUTPUT_TOKENS(App 8192)。
                 长文调用方(如 promo-site 加长版)按需放大。
-            timeout: 请求超时秒数;None 用 config.AI_TIMEOUT_SECONDS(App 90s)。
+            timeout: 请求超时秒数;None 用 config.AI_TIMEOUT_SECONDS(App 150s)。
                 长 max_tokens 生成耗时更长,调用方应同步放大。
         """
         if not self._api_key:
@@ -126,6 +126,16 @@ class AnthropicClient:
         content = payload.get("content")
         if not isinstance(content, list) or not content:
             raise AIProviderError("Anthropic 返回空 content(无文本块)")
+
+        # 截断显式报错(2026-09-27):stop_reason=max_tokens 时文本必然不完整,
+        # v1 模块契约是完整 JSON,半截 JSON 一旦入缓存会被 iOS 当散文渲染
+        # (真机 m1_talent 实证)。此处拦截 = 错误显式传播,不静默返回截断文本。
+        # 只拦显式 max_tokens;字段缺失/其他值(end_turn 等)照常放行。
+        if payload.get("stop_reason") == "max_tokens":
+            raise AIProviderError(
+                "Anthropic 输出被 max_tokens 截断(stop_reason=max_tokens,"
+                f"文本不完整,model={self._model})"
+            )
 
         for block in content:
             text = block.get("text") if isinstance(block, dict) else None

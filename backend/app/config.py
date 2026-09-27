@@ -49,10 +49,18 @@ if not OPENAI_BASE_URL:
     raise ValueError("OPENAI_BASE_URL must not be blank")
 
 # 两家统一调用参数;不自动重试/降级。
-AI_MAX_OUTPUT_TOKENS = 1024
-# 推理模型(gpt-5.x / claude-sonnet)生成命书需要 30-50s,
-# 15s 会 read-timeout。给 90s 留足余量(超时即报 503,不会无限挂)。
-AI_TIMEOUT_SECONDS = 90.0
+# 2026-09-27 1024→8192:v1 深度模块模板强制「总输出 1500-2500 字(zh)/
+# 900-1500 words(en)」(用户决策 2026-08-11),zh 上限 ≈3000-4000 token +
+# JSON 结构开销,1024 必截断 → 半截 JSON 进缓存被 iOS 当散文渲染(真机
+# m1_talent 实证)。cap≠目标:短模块(daily_fortune 50-80 字)输出由 prompt
+# 篇幅约束,不因 cap 放开变长。截断本身由 client 层 stop_reason/finish_reason
+# 显式报错兜底(不再静默成功)。
+AI_MAX_OUTPUT_TOKENS = 8192
+# 推理模型(gpt-5.x / claude-sonnet)生成命书需要 30-50s;max_tokens 放开到
+# 8192 后长模块(m1/m2/m3/m5/m7)实际生成 ~3000-4000 token,预计 40-90s,
+# 90s 贴线,给 150s 留余量(超时即报 503,不会无限挂)。iOS APIClient
+# timeoutIntervalForRequest 已同步 150s(2026-09-27)。
+AI_TIMEOUT_SECONDS = 150.0
 
 # v1 prompt 系统 §1 temperature 分级:
 # - M0-M2 结构判断要稳,低 temperature 抑制创造性

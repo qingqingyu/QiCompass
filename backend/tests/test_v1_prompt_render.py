@@ -242,16 +242,22 @@ def test_v7_does_not_require_chart():
 
 # ===== 6. PROMPT_VERSIONS 完整性 =====
 
-def test_v1_prompt_versions_all_registered_as_1():
-    """8 个 v1 module 在 PROMPT_VERSIONS 注册,值都是 1(首次引入)。"""
+def test_v1_prompt_versions_all_registered_as_2():
+    """8 个 v1 module 在 PROMPT_VERSIONS 注册,值统一为 2。
+
+    v2(2026-09-27):模板内容不变(_v1.md → _v2.md 改名),bump 唯一目的是
+    失效双侧已中毒的截断缓存(max_tokens 1024 时代 m1 等长模块输出被拦腰
+    截断,半截 JSON 入了后端 SQLite + iOS SwiftData 两层缓存)。改版本须
+    同步改名模板文件(加载器按 {module}_v{version}.md 寻址)。
+    """
     v1_modules = {
         "m0_structure", "m1_talent", "m2_high_low", "m3_system",
         "m4_health", "m5_wealth", "m6_dynamics", "m7_manual",
     }
     for module in v1_modules:
         assert module in PROMPT_VERSIONS, f"{module} 未注册 PROMPT_VERSIONS"
-        assert PROMPT_VERSIONS[module] == 1, (
-            f"{module} 期望版本 1,实际 {PROMPT_VERSIONS[module]}")
+        assert PROMPT_VERSIONS[module] == 2, (
+            f"{module} 期望版本 2,实际 {PROMPT_VERSIONS[module]}")
 
 
 def test_v1_modules_all_registered_in_templates_and_required_fields():

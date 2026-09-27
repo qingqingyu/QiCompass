@@ -47,9 +47,9 @@ class OpenAIClient:
             temperature: 0.0-2.0(OpenAI 范围,本系统实际只用 0.3 / 0.6 两档);
                 v1 prompt 系统按 module 分级,M0-M2 结构层 0.3,M3-M7 叙述层 0.6。
                 调用方通过 config.resolve_temperature(module) 取值后传入。
-            max_tokens: 输出 token 上限;None 用 config.AI_MAX_OUTPUT_TOKENS(App 1024)。
+            max_tokens: 输出 token 上限;None 用 config.AI_MAX_OUTPUT_TOKENS(App 8192)。
                 长文调用方(如 promo-site 加长版)按需放大。
-            timeout: 请求超时秒数;None 用 config.AI_TIMEOUT_SECONDS(App 90s)。
+            timeout: 请求超时秒数;None 用 config.AI_TIMEOUT_SECONDS(App 150s)。
                 长 max_tokens 生成耗时更长,调用方应同步放大。
         """
         if not self._api_key:
@@ -141,6 +141,14 @@ class OpenAIClient:
         finish_reason = first.get("finish_reason")
         if finish_reason == "content_filter":
             raise AIProviderError("OpenAI 拒绝生成解读(content_filter)")
+        # 截断显式报错(2026-09-27):finish_reason=length 时文本必然不完整,
+        # v1 模块契约是完整 JSON,半截 JSON 一旦入缓存会被 iOS 当散文渲染
+        # (与 anthropic_client 的 stop_reason=max_tokens 拦截同口径)。
+        if finish_reason == "length":
+            raise AIProviderError(
+                f"OpenAI 输出被 max_tokens 截断(finish_reason=length,"
+                f"文本不完整,model={self._model})"
+            )
 
         message = first.get("message")
         if not isinstance(message, dict):
