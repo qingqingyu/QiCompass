@@ -547,3 +547,31 @@ async def test_v1_paid_module_with_bazi_deep_entitlement_passes_gate(
     resp = await interpret_client.post("/api/interpret", json=payload)
     assert resp.status_code == 200, resp.json()
     assert resp.json()["interpretation"]
+
+
+# ===== T1(i18n-trilingual)review 修复:en 深度链路 chart 非法 JSON 的错误口径 =====
+
+
+async def test_m0_en_invalid_chart_json_returns_structured_500(interpret_client):
+    """en + chart 字段非合法 JSON → 结构化 500(BAZI_CALCULATION_FAILED)。
+
+    T1 的 _translate_deep_context 会对客户端提交的 chart 做 json.loads;
+    坏 JSON 抛 ValueError。review 修复前未被路由捕获 → 裸 500(无 code/信息);
+    修复后对齐 KeyError/FileNotFoundError 的包装口径,错误仍显式传播。
+    """
+    resp = await interpret_client.post(
+        "/api/interpret",
+        json={
+            "content_hash": "hash-m0-bad-chart",
+            "module": "m0_structure",
+            "context": {"chart": "not-a-json{{{"},
+            "target_date": None,
+        },
+        headers={"Accept-Language": "en-US,en;q=0.9"},
+    )
+    assert resp.status_code == 500, resp.json()
+    body = resp.json()
+    assert body["error"]["code"] == "BAZI_CALCULATION_FAILED"
+    # message 可定位(chart 字段 + JSON 字样),不是裸栈
+    assert "chart" in body["error"]["message"]
+    assert "JSON" in body["error"]["message"]

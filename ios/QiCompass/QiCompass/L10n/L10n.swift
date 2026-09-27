@@ -335,7 +335,7 @@ enum L10n {
         ///   - targets: 被冲到的四柱位置描述列表(如 ["年支午"]),空列表则不加 targets
         /// - Returns: 完整本地化字符串
         static func chongLabel(chong: String, targets: [String]) -> String {
-            let isEnglish = AppLanguage.current == "en"
+            let isEnglish = AppLanguage.current == .en
             let separator = isEnglish ? ", " : "、"
             let targetsStr = targets.isEmpty ? "" : " (\(targets.joined(separator: separator)))"
             return "\(chongPrefix)\(chong)\(targetsStr)"
@@ -814,6 +814,11 @@ enum L10n {
         /// 阅读页布算中副行:可返回提示。
         /// zh: "可先返回,章成自动点亮";en: "You can go back — the chapter will light up when done"
         static let readingLeaveHint = String(localized: "deepchain.reading.leaveHint")
+
+        /// 目录次数小注(2026-09-19 S05:状态行「今日剩余 N 次」下,解释消耗口径)。
+        /// zh: "已读章节走缓存,不消耗次数 · 每日重置"
+        /// en: "Cached chapters don't use reads · resets daily"
+        static let tocQuotaNote = String(localized: "deepchain.toc.quotaNote")
     }
 
     // MARK: - 排盘等待页可收起(2026-09-08)

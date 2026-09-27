@@ -203,7 +203,9 @@ BAZI_DEEP_PAID_TEMPLATE = _BAZI_DEEP_HEADER + """
 """
 
 # 从格诚实降级约束段(day_master_strength == "special_pattern" 时追加)
-# M2 拆分后三个 bazi_deep module(alias / _free / _paid)共用此 suffix
+# M2 拆分后三个 bazi_deep module(alias / _free / _paid)共用此 suffix。
+# T1c(2026-09-22)起 prod 走文件 prompts/{language}/_special_pattern_suffix_v{version}.md
+# (zh 文件与本常量 byte-identical);常量保留作 tests 断言锚点(M0-M7 模板同款口径)。
 BAZI_DEEP_SPECIAL_PATTERN_SUFFIX = """
 **本命盘呈现从格特征，喜忌结论留空。请诚实告知用户：当前未下硬性喜忌结论，避免编造扶抑法喜忌。
 可围绕命局呈现的从格倾向（如专旺/从强/从弱等）做叙事性描述，但不得给出确定性的"宜×忌×"结论。**
@@ -359,13 +361,16 @@ COMPATIBILITY_PAID_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（付费 4
 # v3(S09):喜忌约束改条件式(喜忌为空——从格/时辰未知——不再声称"喜忌已给出");
 # 时辰未知降级变体 daily_fortune_unknown_hour_v{version}.md(zh/en 双语,
 # 日柱×流日为轴,数据块无喜忌栏/12 时辰段),由 render_prompt 按 context 切换。
-# 后续 Slice 2/3/4 同步迁移 bazi_deep / compatibility 系列。
+# 后续 Slice 2/3/4 同步迁移 bazi_deep / compatibility 系列
+# → T1a(2026-09-22)已迁 compatibility_free/paid;alias 4 个(bazi_deep×3 +
+#   compatibility)留 _LEGACY_TEMPLATES 待用户确认老版本下线后处置。
 
 # ---------- v1 prompt 系统(Stage 5,设计源 bazi-prompt-system-v1.md)----------
 # 双轨保留:老 7 module 不动,本段是新 v1 系统的 8 个 module
 # 渲染策略:JSON schema 大括号用 {{ }} 转义,str.format_map 自动还原为单花括号
 # → 与老 module 共用同一渲染路径,占位符({chart} 等)走 format_map 标准机制
-# 全局 System Prompt 与 8 模板拼在 _LEGACY_TEMPLATES[module] 里(避免 render 时再拼一次)
+# 全局 System Prompt 与 8 模板常量拼装(T1a 前注册进 _LEGACY_TEMPLATES,现与
+# prompts/{zh,en}/{module}_v1.md 文件 byte-identical,常量保留作 tests 断言锚点)
 
 # 设计文档 §2 全局 System Prompt(所有 v1 模块共用的世界观约束)
 _V1_SYSTEM_PROMPT = """你是一位命理结构分析师，工作方式接近系统分析师，而不是算命先生。
@@ -658,28 +663,19 @@ leverage(M6 杠杆点): {leverage}
 
 # ---------- 模板注册表 ----------
 
-# Slice 1 i18n 改造:_TEMPLATES → _LEGACY_TEMPLATES
-# daily_fortune(含 S09 降级变体 daily_fortune_unknown_hour)已迁移到外部
-# Markdown 文件(prompts/{zh,en}/daily_fortune*_v{version}.md)。
-# 其他 module(bazi_deep / compatibility 系列)仍走硬编码常量,等 Slice 2/3/4 迁移。
+# Slice 1 i18n 改造:_TEMPLATES → _LEGACY_TEMPLATES;T1a(2026-09-22)现役 10 模块
+# (M0-M7 + compatibility_free/paid)已 byte-identical 迁移到外部 Markdown 文件
+# (prompts/zh/{module}_v{version}.md,sha256 前后相等见迁移 commit)。
+# 此 dict 只剩 alias 4 个(bazi_deep×3 + compatibility,向后兼容老 App,
+# 是否文件化等用户确认老版本下线)。
 # _load_template 加载失败时,中文 fallback 到此 dict;英文显式抛错(避免英文 prompt 误用中文)。
+# 注:M0-M7 / compatibility_free/paid 的模板常量保留定义——tests 以常量为
+# 内容断言锚点(篇幅约束等),且与文件 byte-identical(tests 断言)。
 _LEGACY_TEMPLATES: dict[str, str] = {
     "bazi_deep": BAZI_DEEP_TEMPLATE,
     "bazi_deep_free": BAZI_DEEP_FREE_TEMPLATE,
     "bazi_deep_paid": BAZI_DEEP_PAID_TEMPLATE,
     "compatibility": COMPATIBILITY_TEMPLATE,
-    "compatibility_free": COMPATIBILITY_FREE_TEMPLATE,
-    "compatibility_paid": COMPATIBILITY_PAID_TEMPLATE,
-    # daily_fortune 已迁移到外部 Markdown 文件(prompts/{zh,en}/daily_fortune_v{version}.md)
-    # v1 prompt 系统(Stage 5):M0-M7 共 8 模块
-    "m0_structure": M0_STRUCTURE_TEMPLATE,
-    "m1_talent": M1_TALENT_TEMPLATE,
-    "m2_high_low": M2_HIGH_LOW_TEMPLATE,
-    "m3_system": M3_SYSTEM_TEMPLATE,
-    "m4_health": M4_HEALTH_TEMPLATE,
-    "m5_wealth": M5_WEALTH_TEMPLATE,
-    "m6_dynamics": M6_DYNAMICS_TEMPLATE,
-    "m7_manual": M7_MANUAL_TEMPLATE,
 }
 
 # 各 module 必填字段清单(渲染前 validate_context 逐项检查)
@@ -822,8 +818,8 @@ def _load_template(module: str, language: str, version: int) -> str:
 
     fallback 策略(严格区分 zh / 非 zh):
     - 优先读 prompts/{language}/{module}_v{version}.md
-    - 中文(zh)文件不存在时,fallback 到 _LEGACY_TEMPLATES[module](Slice 1 过渡期,
-      其他 module 未文件化),log warning
+    - 中文(zh)文件不存在时,fallback 到 _LEGACY_TEMPLATES[module](T1a 后此表
+      仅剩 alias 4 个:bazi_deep×3 + compatibility,向后兼容老 App),log warning
     - 非中文(如 en)文件不存在时,**显式抛 FileNotFoundError**(绝不静默 fallback
       到中文,避免英文 prompt 误用中文模板)
 
@@ -863,7 +859,9 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
     """渲染 prompt:先校验必填字段,按 language 加载模板,再 str.format_map 填充。
 
     bazi_deep 系列(alias / _free / _paid)命中 day_master_strength ==
-    "special_pattern" 时追加从格诚实降级约束段(非中文 raise,既有债);
+    "special_pattern" 时追加从格诚实降级约束段(T1c 文件化:
+    prompts/{language}/_special_pattern_suffix_v{version}.md,缺文件显式
+    FileNotFoundError);
     命中 "unknown_hour"(时辰未知,S01 引擎输出)时对 alias / _free 追加
     时辰未知降级约束段(**zh/en 双常量按 language 选,均不 raise**,S06
     2026-09-01 修订)——付费 module 不加(iOS S07 付费墙已拦,无意义分支);
@@ -877,7 +875,8 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
     等)与老模板共用同一渲染路径,无需分流。
 
     Args:
-        module: 注册到 _LEGACY_TEMPLATES 的任一 module(老 7 个 + v1 8 个)
+        module: 注册到 PROMPT_VERSIONS 的任一 module(现役模板文件化于
+            prompts/{language}/,alias 4 个 zh 走 _LEGACY_TEMPLATES fallback)
         context: prompt 渲染负载(必须含 REQUIRED_FIELDS[module] 所有字段)
         language: 目标语言代码(默认 "zh" 向后兼容;i18n 决策 9)
 
@@ -905,21 +904,16 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
     # (模板有占位符但 REQUIRED_FIELDS 没列),也会抛清晰 KeyError 而非静默填空
     rendered = template.format_map(_StrictFormatDict(context))
 
-    # 从格诚实降级(bazi_deep 系列三个 module 共用同一份 suffix)
+    # 从格诚实降级(bazi_deep 系列三个 module 共用同一份 suffix)。
+    # T1c 文件化:prompts/{language}/_special_pattern_suffix_v{version}.md
+    # (zh = 原 BAZI_DEEP_SPECIAL_PATTERN_SUFFIX byte-identical,en 新译)。
+    # 原非 zh 显式 raise 移除——缺文件时 _load_template 自然 FileNotFoundError,
+    # 错误显式传播不变;alias module 现无 en 主模板,非 zh 请求会先在主模板处 500,
+    # suffix 的 en 文件为后续 alias 补 en / T3 zh-hant 预置。
     if (module in ("bazi_deep", "bazi_deep_free", "bazi_deep_paid")
             and context.get("day_master_strength") == "special_pattern"):
-        if language != "zh":
-            # 从格降级 suffix 目前只有中文版(Slice 2 迁移)。
-            # 非中文请求显式报错,避免英文 prompt 尾部追加中文 suffix。
-            raise FileNotFoundError(
-                f"从格降级 suffix 尚无 {language!r} 版本"
-                f"(module={module!r},需 Slice 2 补齐"
-                f" prompts/{language}/_special_pattern_suffix_v{version}.md)"
-            )
-        # TODO(Slice 2):先在 prompts/zh/_special_pattern_suffix_v{version}.md 落地文件,
-        # 再改成 rendered += _load_template("_special_pattern_suffix", language, version)
-        # (届时 zh 也走文件路径,删除此处的硬编码 BAZI_DEEP_SPECIAL_PATTERN_SUFFIX 拼接)
-        rendered = rendered + BAZI_DEEP_SPECIAL_PATTERN_SUFFIX
+        rendered = rendered + _load_template(
+            "_special_pattern_suffix", language, version)
 
     # 时辰未知诚实降级(S06):只挂免费面 module(alias + _free)。
     # bazi_deep_paid 不挂——无时辰用户在 iOS 付费墙即被拦(S07),

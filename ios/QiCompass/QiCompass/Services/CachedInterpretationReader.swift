@@ -33,7 +33,7 @@ final class CachedInterpretationReader {
     /// - Returns: 命中的完整 `InterpretationCache`;miss / 过期 / 身份不匹配(cacheStore 内 filter)都返回 nil
     /// - Throws: identity 解析失败或 SwiftData 读失败向上抛
     ///
-    /// i18n:language 由 `AppLanguage.current` 自动注入(i18n 决策 10 方案 3:
+    /// i18n:language 由 `AppLanguage.currentWire` 自动注入(i18n 决策 10 方案 3:
     /// 查询缓存时用客户端 locale 推断)。调用方不需要传 language。
     func read(
         contentHash: String,
@@ -46,7 +46,7 @@ final class CachedInterpretationReader {
             contentHash: contentHash,
             module: module,
             targetDate: targetDate,
-            language: AppLanguage.current,
+            language: AppLanguage.currentWire,
             identity: identity
         ) else {
             return nil

@@ -14,6 +14,8 @@
 
 from __future__ import annotations
 
+import json
+import re
 import sqlite3
 import tempfile
 import os
@@ -25,6 +27,7 @@ from fastapi import Request
 from app.ai.cache import InterpretationCache, _EXPECTED_COLUMNS
 from app.ai.cache_key import CacheKey
 from app.ai.prompts import (
+    BAZI_DEEP_SPECIAL_PATTERN_SUFFIX,
     PROMPT_VERSIONS,
     _load_template,
     render_prompt,
@@ -486,6 +489,18 @@ class TestTranslateContext:
         assert result["favorable_elements"] == "Wood Fire"
         assert result["unfavorable_elements"] == "Metal Water"
 
+    def test_en_element_list_wire_format_with_separator(self):
+        """en 翻译真实 wire 格式喜忌列表(iOS 用 ", " join,非连写)。
+
+        回归锚点:旧实现对 "木, 水" 整体判 _TRANSLATION_FAILED → en prompt
+        静默留中文;夹具必须覆盖带分隔符格式(PromptContextBuilder.swift:79
+        `favorableElements.joined(separator: ", ")`)。
+        """
+        ctx = {"favorable_elements": "木, 水", "unfavorable_elements": "土、金"}
+        result = translate_context(ctx, "en", "daily_fortune")
+        assert result["favorable_elements"] == "Wood, Water"
+        assert result["unfavorable_elements"] == "Earth, Metal"
+
     def test_en_preserves_non_translatable_fields(self, daily_fortune_context):
         """en 不翻译字段保留原文(date / lunar_date / hour_pillars / huangli)。"""
         result = translate_context(daily_fortune_context, "en", "daily_fortune")
@@ -579,3 +594,196 @@ class TestEndToEndI18nFullFlow:
         assert "你是一位精通流日推断的命理师" in prompt
         assert "日主 甲" in prompt  # 中文模板 + 中文 context
         assert "比肩" in prompt
+
+
+# ---------- T1c(i18n-trilingual,2026-09-22):deep(M0-M7)/compat 的 en 翻译与渲染 ----------
+
+# 渲染后不得残留未填充占位符(单花括号 {name};模板 JSON 块的 {{}} 已折叠为字面 {})
+_UNFILLED_PLACEHOLDER = re.compile(r"\{[a-z_][a-z0-9_]*\}")
+
+
+class TestDeepEnTranslation:
+    """deep(M0-M7)context:仅译 chart(engine 术语 JSON),其余字段不动。"""
+
+    @staticmethod
+    def _chart_json() -> str:
+        return json.dumps({
+            "meta": {"locale": "zh-CN", "gender": "female",
+                     "solar_term_boundary": "惊蛰后"},
+            "pillars": {"year": {
+                "gan_zhi": "庚午", "gan": "庚", "zhi": "午",
+                "gan_element": "metal", "zhi_element": "fire",
+                "hide_gan": ["丁", "己"],
+                "shishen_gan": "七杀", "shishen_zhi": ["正官", "正财"],
+                "nayin": "路旁土", "dishi": "死", "xunkong": "戌亥"}},
+            "day_master": {"stem": "甲", "element": "木",
+                           "strength_score": None, "strength_label": "偏弱"},
+            "ten_god_weights": {"七杀": 5, "正财": 3},
+        }, ensure_ascii=False)
+
+    def test_chart_values_translated_meta_kept(self):
+        ctx = {"chart": self._chart_json()}
+        out = translate_context(ctx, "en", "m0_structure")
+        chart = json.loads(out["chart"])
+        pillar = chart["pillars"]["year"]
+        assert pillar["gan_zhi"] == "Geng Wu"           # 干支对
+        assert pillar["gan"] == "Geng"                  # 单天干
+        assert pillar["shishen_gan"] == "Seven Killings"
+        assert pillar["shishen_zhi"] == ["Direct Officer", "Direct Wealth"]
+        assert pillar["hide_gan"] == ["Ding", "Ji"]
+        assert pillar["nayin"] == "Roadside Earth"
+        assert pillar["dishi"] == "Death"
+        assert pillar["xunkong"] == "Xu Hai"
+        assert pillar["gan_element"] == "metal"         # 已拉丁,静默原样
+        assert chart["day_master"]["element"] == "Wood"
+        assert chart["day_master"]["strength_label"] == "Slightly Weak"
+        assert chart["ten_god_weights"] == {"Seven Killings": 5,
+                                            "Direct Wealth": 3}
+        # meta 整体保留(日期/locale/节气界非术语域)
+        assert chart["meta"]["solar_term_boundary"] == "惊蛰后"
+        # 原 context 不被修改(shallow copy 语义)
+        assert json.loads(ctx["chart"])["pillars"]["year"]["shishen_gan"] == "七杀"
+
+    def test_chain_and_user_fields_untouched(self):
+        ctx = {"chart": self._chart_json(),
+               "structure_fingerprint": "以正财为轴的结构",
+               "age": 30, "current_concern": "睡眠"}
+        out = translate_context(ctx, "en", "m4_health")
+        assert out["structure_fingerprint"] == "以正财为轴的结构"  # LLM 产出不动
+        assert out["age"] == 30
+        assert out["current_concern"] == "睡眠"  # 用户输入不动
+
+    def test_render_m0_en_full_chain(self):
+        """en M0 全链路:translate_context → render,不再 FileNotFoundError。"""
+        ctx = translate_context({"chart": self._chart_json()},
+                                "en", "m0_structure")
+        prompt = render_prompt("m0_structure", ctx, language="en")
+        assert "chart-structure analyst" in prompt
+        assert "Seven Killings" in prompt
+        assert "Geng Wu" in prompt
+        assert not _UNFILLED_PLACEHOLDER.search(prompt)
+
+    def test_render_m7_en_chain_fields(self):
+        """M7 无 chart,链式注入字段(英文产出)原样渲染。"""
+        ctx = {"one_leverage": "expression under pressure",
+               "switch_actions": "ship weekly",
+               "environment_checklist": "yes/no questions",
+               "leverage": "output stage"}
+        prompt = render_prompt("m7_manual", ctx, language="en")
+        assert "expression under pressure" in prompt
+        assert not _UNFILLED_PLACEHOLDER.search(prompt)
+
+    @pytest.mark.parametrize("label,en", [
+        ("时辰未知", "Hour Unknown"),    # iOS unknown_hour(S06 时辰未知盘走 deep)
+        ("未判定", "Undetermined"),      # iOS 老 response nil 兜底
+        ("从格特征", "Special Pattern"),
+    ])
+    def test_strength_label_ios_values_translated(self, label: str, en: str):
+        """iOS buildV1ChartJSON 的 strength_label 全值域翻译(review 补)。
+
+        backend chart_builder 只产 4 个 label;iOS 侧多两个(时辰未知/未判定),
+        时辰未知盘可走 deep S06 降级叙事 → 这两个值必须注册,否则 en prompt
+        静默留中文(带 warn)。
+        """
+        chart = json.dumps(
+            {"day_master": {"stem": "甲", "element": "木",
+                            "strength_score": None, "strength_label": label}},
+            ensure_ascii=False)
+        out = translate_context({"chart": chart}, "en", "m0_structure")
+        assert json.loads(out["chart"])["day_master"]["strength_label"] == en
+
+
+class TestCompatEnTranslation:
+    """compat(free/paid)context:分组翻译(daily 同款策略)。"""
+
+    @staticmethod
+    def _context() -> dict:
+        return {
+            "context_label": "通用",
+            "gender_a": "男", "city_a": "北京", "birth_a": "1990-03-05 07:20",
+            "day_master_a": "甲", "day_master_strength_a": "weak",
+            "favorable_a": "木火",
+            "year_a": "庚午", "month_a": "己卯", "day_a": "甲子", "hour_a": "丁卯",
+            "element_balance_a": "木3火2土1金1水1",
+            "gender_b": "女", "city_b": "上海", "birth_b": "1992-08-10 14:00",
+            "day_master_b": "丙", "day_master_strength_b": "strong",
+            "favorable_b": "土金",
+            "year_b": "壬申", "month_b": "戊申", "day_b": "丙午", "hour_b": "乙未",
+            "element_balance_b": "木1火3土2金2水2",
+            "five_elements_assessment": "互补佳",
+            "day_master_relation": "相生",
+            "zodiac_match": "六合",
+            "branch_harmony": "无冲无刑",
+            "synced_fortune_table": "- 2026:A「乙亥运 丙午年」B「丁丑运 丙午年」→ 同步走强",
+        }
+
+    def test_field_groups_translated(self):
+        out = translate_context(self._context(), "en", "compatibility_free")
+        assert out["day_master_a"] == "Jia"                    # 单术语(严格)
+        assert out["five_elements_assessment"] == "Strongly complementary"
+        assert out["day_master_relation"] == "Generating cycle"
+        assert out["zodiac_match"] == "Six Harmony"
+        assert out["branch_harmony"] == "No clash, no punishment"
+        assert out["year_a"] == "Geng Wu"                      # 干支柱(复合)
+        assert out["day_a"] == "Jia Zi"
+        assert out["favorable_a"] == "Wood Fire"                # 喜忌列表(连写)
+        assert out["element_balance_a"] == "Wood 3 Fire 2 Earth 1 Metal 1 Water 1"
+        assert out["gender_a"] == "Male"                        # 宽容单值(已注册)
+        assert out["context_label"] == "general"
+        # 不翻译字段(口径留痕见 _translate_compat_context)
+        assert out["day_master_strength_a"] == "weak"           # raw key
+        assert out["city_a"] == "北京"                           # 用户/locale 数据
+        assert "同步走强" in out["synced_fortune_table"]         # Slice 1 黄历先例
+
+    def test_favorable_wire_format_with_separator(self):
+        """喜忌真实 wire 格式(iOS ", " join,+Compatibility.swift:99)也翻译。
+
+        回归锚点:旧 _translate_element_list 只认纯 CJK 连写,对 "木, 火"
+        判失败静默留中文。
+        """
+        ctx = self._context()
+        ctx["favorable_a"] = "木, 火"
+        ctx["favorable_b"] = "土金"  # 连写格式共存(防御两种来源)
+        out = translate_context(ctx, "en", "compatibility_free")
+        assert out["favorable_a"] == "Wood, Fire"
+        assert out["favorable_b"] == "Earth Metal"
+
+    def test_unknown_enum_raises_keyerror(self):
+        """合盘枚举未注册 → 显式 KeyError(两端加值忘同步表时的守门)。"""
+        ctx = self._context()
+        ctx["zodiac_match"] = "暗合"  # 假设后端加了新枚举但表未同步
+        with pytest.raises(KeyError, match="暗合"):
+            translate_context(ctx, "en", "compatibility_free")
+
+    def test_nonstandard_pillar_tolerant(self):
+        """时辰未知占位等非标准干支 → warn + 保留(daily 复合字段同款容忍)。"""
+        ctx = self._context()
+        ctx["hour_a"] = "时辰未知"
+        out = translate_context(ctx, "en", "compatibility_free")
+        assert out["hour_a"] == "时辰未知"
+
+    def test_render_free_and_paid_en_full_chain(self):
+        """en 合盘全链路渲染(不再 FileNotFoundError)。"""
+        for module in ("compatibility_free", "compatibility_paid"):
+            ctx = translate_context(self._context(), "en", module)
+            prompt = render_prompt(module, ctx, language="en")
+            assert "Geng Wu" in prompt
+            assert "Six Harmony" in prompt
+            assert "general dimension" in prompt  # context_label 已译
+            assert not _UNFILLED_PLACEHOLDER.search(prompt)
+
+
+class TestSpecialPatternSuffixFiles:
+    """T1c:suffix 文件化(zh byte-identical + en 新译,替换原非 zh raise)。"""
+
+    @pytest.mark.parametrize("version", [3, 6])
+    def test_zh_suffix_files_byte_identical(self, version: int):
+        assert _load_template(
+            "_special_pattern_suffix", "zh", version
+        ) == BAZI_DEEP_SPECIAL_PATTERN_SUFFIX
+
+    @pytest.mark.parametrize("version", [3, 6])
+    def test_en_suffix_files_exist(self, version: int):
+        suffix = _load_template("_special_pattern_suffix", "en", version)
+        assert "special-pattern" in suffix
+        assert "must not give any definitive" in suffix

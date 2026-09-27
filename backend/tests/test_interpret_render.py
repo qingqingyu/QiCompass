@@ -419,14 +419,17 @@ def test_unknown_hour_suffix_language_selection_unit():
         "\u4e00" <= ch <= "\u9fff" for ch in BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN)
 
 
-def test_special_pattern_en_raise_debt_unchanged(monkeypatch):
-    """既有债不得被本修改变:en + special_pattern 仍在 suffix 阶段显式
-    FileNotFoundError(不追加中文从格段)。真实链路里 en 模板文件缺失会更早
-    raise(test_i18n.py 已锁),此处用模板桩隔离验证 suffix 阶段行为不变。"""
+def test_special_pattern_en_appends_en_suffix(monkeypatch):
+    """T1c 还掉旧债:en + special_pattern 追加**英文**从格段(不再 raise,
+    不追加中文段)。真实链路里 alias module 的 en 主模板仍缺失(默认不补,
+    更早 raise,test_i18n.py 已锁),此处用模板桩隔离验证 suffix 阶段行为。"""
     _stub_en_template(monkeypatch)
-    with pytest.raises(FileNotFoundError, match="从格降级 suffix"):
-        render_prompt("bazi_deep_free", BAZI_DEEP_SPECIAL_PATTERN_CONTEXT,
-                      language="en")
+    prompt = render_prompt("bazi_deep_free", BAZI_DEEP_SPECIAL_PATTERN_CONTEXT,
+                           language="en")
+    # 机制层:en suffix 经 _load_template 被追加(真实文件内容断言在
+    # test_i18n.py TestSpecialPatternSuffixFiles,对真文件)
+    assert "EN TEMPLATE (_special_pattern_suffix/en)" in prompt
+    assert BAZI_DEEP_SPECIAL_PATTERN_SUFFIX.strip() not in prompt  # 无中文段
 
 
 # ===== 6. 每日运势时辰未知降级(S09,模板变体 + REQUIRED 按 context 分字段集)=====

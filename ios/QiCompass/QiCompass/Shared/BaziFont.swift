@@ -23,7 +23,9 @@ enum BaziFont {
         : (UIFont(name: "STKaiti", size: 12) != nil ? "STKaiti" : nil)
 
     /// 当前 UI 是否中文(AppLanguage 实时判定,系统语言切换后下次取值即生效)。
-    private static var isChineseUI: Bool { AppLanguage.current == "zh" }
+    /// zh 与 zh-hant 均走中文(T0);T5 将为 zhHant 分流 Kaiti TC + DESIGN.md 记录,
+    /// 当前两者共用 Kaiti SC 保持 T0 行为不变。
+    private static var isChineseUI: Bool { AppLanguage.current.isChinese }
 
     /// 楷体字体。kaitiName 不可用时回退系统 .serif(Songti SC),保证永远有衬线兜底。
     private static func kaiti(size: CGFloat, weight: Font.Weight = .medium) -> Font {

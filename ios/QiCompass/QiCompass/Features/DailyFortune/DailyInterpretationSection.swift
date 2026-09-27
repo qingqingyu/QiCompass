@@ -66,10 +66,15 @@ struct DailyInterpretationSection: View {
                 // 每日运势 v1 全免费,.lockedPaid 永不触发;保留 case 维护 switch 完整性。
                 EmptyView()
             case .failed(let message):
+                // 2026-09-19 S06(#7)降级:宜忌是纯前端确定性查表,AI 挂掉时页面本体
+                // 完好,失败信息不再用破坏性色占主视觉位——caption 级 muted + 重试链接,
+                // 卡片外框保留(维持与 hero 两框左右对齐的 09-07 拍板)。
                 VStack(spacing: 8) {
                     Text(message)
-                        .font(.subheadline)
-                        .foregroundStyle(BaziTheme.shenshaInauspicious)
+                        .font(BaziFont.caption(size: 12))
+                        .tracking(1)
+                        .multilineTextAlignment(.center)
+                        .foregroundStyle(BaziTheme.inkMuted)
                     Button(L10n.DailyFortune.interpretRetry, action: onRetry)
                         .font(.caption.weight(.semibold))
                         .foregroundStyle(BaziTheme.ink)
