@@ -9,9 +9,9 @@ struct AuxiliaryCards: View {
     var body: some View {
         // 盘面小景 S1 卸卡:节标「辅柱」移入 HairlineSection,外层卡壳移除
         HStack(spacing: 10) {
-            AuxiliaryCard(title: "命宫", ganzhi: mingGong)
-            AuxiliaryCard(title: "身宫", ganzhi: shenGong)
-            AuxiliaryCard(title: "胎元", ganzhi: taiYuan)
+            AuxiliaryCard(title: L10n.DeepChart.auxMingGong, ganzhi: mingGong)
+            AuxiliaryCard(title: L10n.DeepChart.auxShenGong, ganzhi: shenGong)
+            AuxiliaryCard(title: L10n.DeepChart.auxTaiYuan, ganzhi: taiYuan)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -29,7 +29,7 @@ private struct AuxiliaryCard: View {
             Text(ganzhi.ganZhi)
                 .font(BaziFont.ganzhi(size: 20))
                 .foregroundStyle(BaziTheme.ink)
-            Text(ganzhi.nayin)
+            Text(BaziTerms.display(ganzhi.nayin))
                 .font(.caption2)
                 .foregroundStyle(BaziTheme.inkMuted)
         }

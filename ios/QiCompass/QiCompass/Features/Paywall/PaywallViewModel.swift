@@ -31,8 +31,8 @@ enum PaywallModule {
     /// UI 标题
     var title: String {
         switch self {
-        case .deepAnalysis: return "深度命书"
-        case .compatibility: return "合盘解读"
+        case .deepAnalysis: return String(localized: "深度命书")
+        case .compatibility: return String(localized: "合盘解读")
         }
     }
 
@@ -45,8 +45,10 @@ enum PaywallModule {
         // backend 模板内文用户不可见,不改——不动 prompts.py 守护栏)
         case .deepAnalysis: return ["命盘", "日主", "五行", "格局倾向",
                                     "事业与财富", "婚姻感情", "学习成长", "身体健康"]
+            .map { NSLocalizedString($0, value: $0, comment: "") }
         // 五行共振改造(S1):第一章「爱情深度」→「五行共振」,与锁标 previewChapters 对齐
         case .compatibility: return ["五行共振", "合作事业", "财运合拍", "流年同步"]
+            .map { NSLocalizedString($0, value: $0, comment: "") }
         }
     }
 
@@ -65,13 +67,13 @@ enum PaywallModule {
             "婚姻与六亲相处",
             "天赋与充电方式",
             "体质、部位与作息",
-        ]
+        ].map { NSLocalizedString($0, value: $0, comment: "") }
         case .compatibility: return [
             "谁滋养谁,谁消耗谁",
             "共事契合与分工",
             "金钱观与共同财运",
             "未来三年的同频窗口",
-        ]
+        ].map { NSLocalizedString($0, value: $0, comment: "") }
         }
     }
 
@@ -79,8 +81,8 @@ enum PaywallModule {
     /// 「全设备同步」承诺(匿名购买语义下同步需绑定账号,绑定行承载该信息)。
     var freeChaptersHint: String {
         switch self {
-        case .deepAnalysis: return "主线结构与天赋能力两章已免费 · 余下捌章一次解锁"
-        case .compatibility: return "基础相处与互补总览两章已免费 · 余下肆章一次解锁"
+        case .deepAnalysis: return String(localized: "主线结构与天赋能力两章已免费 · 余下捌章一次解锁")
+        case .compatibility: return String(localized: "基础相处与互补总览两章已免费 · 余下肆章一次解锁")
         }
     }
 
@@ -233,7 +235,7 @@ final class PaywallViewModel {
             AppLogger.app.error(
                 "paywall.restore.unknown_error error=\(String(describing: error), privacy: .public)"
             )
-            restoreState = .failed("恢复失败,请稍后重试")
+            restoreState = .failed(String(localized: "恢复失败,请稍后重试"))
         }
     }
 
@@ -269,7 +271,7 @@ final class PaywallViewModel {
 
     /// CTA 文案(加载完显示真价,加载中/失败 fallback,文案随 module 切换)。
     var displayPriceText: String {
-        "解锁\(module.title)(\(rawPriceText))"
+        String(format: String(localized: "解锁%@(%@)"), module.title, rawPriceText)
     }
 
     /// 裸价格文案(落价块用,B 章回分段:价格未登录即完整可见)。
@@ -342,7 +344,7 @@ final class PaywallViewModel {
             AppLogger.app.error(
                 "paywall.purchase.unknown_error product=\(productId, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
-            state = .failed("购买未完成,请重试")
+            state = .failed(String(localized: "购买未完成,请重试"))
         }
     }
 }

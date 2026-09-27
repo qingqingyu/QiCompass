@@ -146,7 +146,7 @@ struct PaywallView: View {
             // (StoreKit 验签 + 后端 redeem),与登录态解耦。
             PrimaryCTAButton(
                 title: viewModel.displayPriceText,
-                loadingTitle: "处理中…",
+                loadingTitle: String(localized: "处理中…"),
                 isLoading: viewModel.state == .purchasing,
                 action: { Task { await viewModel.purchase() } }
             )
@@ -191,7 +191,7 @@ struct PaywallView: View {
                 HapticEngine.light()
                 Task { await viewModel.restore() }
             } label: {
-                Text(viewModel.restoreState == .restoring ? "恢复中…" : "恢复购买")
+                Text(viewModel.restoreState == .restoring ? String(localized: "恢复中…") : String(localized: "恢复购买"))
                     .font(.caption.weight(.semibold))
                     .tracking(1)
                     .foregroundStyle(BaziTheme.inkMuted)
@@ -304,7 +304,7 @@ struct PricePlate: View {
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 14) {
-            VText(phrase: "润金", size: 9.5, tracking: 3, color: BaziTheme.inkMutedSecondary)
+            VText(phrase: String(localized: "润金"), size: 9.5, tracking: 3, color: BaziTheme.inkMutedSecondary)
             if let upperPrice {
                 Text(upperPrice)
                     .font(BaziFont.display(size: 21, weight: .medium))

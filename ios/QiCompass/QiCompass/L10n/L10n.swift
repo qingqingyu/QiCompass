@@ -1072,4 +1072,136 @@ enum L10n {
         /// 达限副标。zh: "每日 10 次已用完,午夜重置";en: "10 readings a day, resets at midnight"
         static let limitSubtitle = String(localized: "error.userFacing.limit.subtitle")
     }
+
+    // MARK: - 盘面术语行脚手架(2026-09-27 展示层语言 U3)
+
+    /// 深度解析盘面(hero / 四柱表 / 喜忌 / 当前柱 / 辅柱)的 L1 标签与格式串;
+    /// 行内的术语值(十神/五行/纳音/长生/旺衰/算法标注)走 `BaziTerms`(L3),
+    /// 此处只管标签与拼装格式。干支值(甲子/戌亥)按 §3 矩阵三语保持汉字,
+    /// 不走 xcstrings。
+    enum DeepChart {
+        // -- 柱标(hero 行首 + 四柱表列头共用)--
+
+        /// zh: "年";en: "Year"
+        static let pillarYear = String(localized: "deepanalysis.pillar.year")
+
+        /// zh: "月";en: "Month"
+        static let pillarMonth = String(localized: "deepanalysis.pillar.month")
+
+        /// zh: "日";en: "Day"
+        static let pillarDay = String(localized: "deepanalysis.pillar.day")
+
+        /// zh: "时";en: "Hour"
+        static let pillarHour = String(localized: "deepanalysis.pillar.hour")
+
+        /// 柱位空缺 VoiceOver 标签(hero 空位;%@ = 柱标显示值)。
+        /// zh: "%@柱未定,点击补时辰";en: "%@ pillar unsettled — tap to add your birth hour"
+        static func pillarUndetermined(_ label: String) -> String {
+            String(format: String(localized: "deepanalysis.hero.pillarUndetermined"), label)
+        }
+
+        // -- hero 日主旁注 / 右下竖注 --
+
+        /// 日主旁注(%@ = 旺衰术语显示值,BaziTerms.display(strength))。
+        /// zh: "日主 · %@";en: "Day Master · %@"
+        static func dayMasterNote(_ strength: String) -> String {
+            String(format: String(localized: "deepanalysis.hero.dayMasterNote"), strength)
+        }
+
+        /// 从格竖注整句。zh: "从格 · 喜忌留空";en: "Special pattern · favorable elements withheld"
+        static let sideNoteSpecialPattern = String(localized: "deepanalysis.hero.sideNote.specialPattern")
+
+        /// 喜用竖注段(%@ = 五行显示值串)。zh: "喜%@";en: "Favorable %@"
+        static func sideNoteFavorable(_ elements: String) -> String {
+            String(format: String(localized: "deepanalysis.hero.sideNote.favorable"), elements)
+        }
+
+        /// 忌讳竖注段(%@ = 五行显示值串)。zh: "忌%@";en: "Avoid %@"
+        static func sideNoteUnfavorable(_ elements: String) -> String {
+            String(format: String(localized: "deepanalysis.hero.sideNote.unfavorable"), elements)
+        }
+
+        // -- 四柱表小字段 --
+
+        /// 十二长生行(%@ = 长生术语显示值)。zh: "长生:%@";en: "Stage: %@"
+        static func stageLabel(_ stage: String) -> String {
+            String(format: String(localized: "deepanalysis.pillars.stage"), stage)
+        }
+
+        /// 旬空行(%@ = 干支对,保持汉字)。zh: "旬空:%@";en: "Void: %@"
+        static func voidLabel(_ xunkong: String) -> String {
+            String(format: String(localized: "deepanalysis.pillars.void"), xunkong)
+        }
+
+        // -- 喜忌卡 --
+
+        /// 喜用行标签。zh: "喜用";en: "Favorable"
+        static let xijiFavorable = String(localized: "deepanalysis.xiji.favorable")
+
+        /// 忌讳行标签。zh: "忌讳";en: "Avoid"
+        static let xijiUnfavorable = String(localized: "deepanalysis.xiji.unfavorable")
+
+        /// 喜用 accessibility 前缀。zh: "喜用";en: "Favorable"
+        static let xijiFavorableA11y = String(localized: "deepanalysis.xiji.favorableA11y")
+
+        /// 忌神 accessibility 前缀。zh: "忌神";en: "Unfavorable"
+        static let xijiUnfavorableA11y = String(localized: "deepanalysis.xiji.unfavorableA11y")
+
+        /// 算法标注行(%@ = xijiMethod 术语显示值)。
+        /// zh: "算法:%@";en: "Method: %@"
+        static func xijiMethod(_ method: String) -> String {
+            String(format: String(localized: "deepanalysis.xiji.methodFormat"), method)
+        }
+
+        /// 从格特征行(%@ = 专旺/从格 术语显示值)。zh: "特征:%@";en: "Pattern: %@"
+        static func patternHint(_ hint: String) -> String {
+            String(format: String(localized: "deepanalysis.xiji.patternFormat"), hint)
+        }
+
+        /// 调候触发标记(XijiCard 正文)。zh: "◎ 调候用神已触发";en: "◎ Seasonal adjustment applied"
+        static let tiaoshouAppliedBody = String(localized: "deepanalysis.xiji.tiaoshouBody")
+
+        /// 调候触发标记(喜忌节 trailing 小注)。zh: "◎ 调候已触发";en: "◎ Seasonal adjustment on"
+        static let tiaoshouAppliedTrailing = String(localized: "deepanalysis.xiji.tiaoshouTrailing")
+
+        // -- 盘面细目图头小注 --
+
+        /// 真太阳时(%@ = 已格式化时间串)。zh: "真太阳时 %@";en: "True solar time %@"
+        static func trueSolarTime(_ formatted: String) -> String {
+            String(format: String(localized: "deepanalysis.chart.trueSolarFormat"), formatted)
+        }
+
+        /// 真太阳时偏差(%@ = 正负号,%.1f = 分钟)。zh: "偏差 %@%.1f 分";en: "Offset %@%.1f min"
+        static func solarOffset(sign: String, minutes: Double) -> String {
+            String(format: String(localized: "deepanalysis.chart.solarOffsetFormat"), sign, minutes)
+        }
+
+        // -- 当前柱 --
+
+        /// zh: "大运";en: "Luck cycle"
+        static let currentLuck = String(localized: "deepanalysis.current.luck")
+
+        /// zh: "流年";en: "Year"
+        static let currentYear = String(localized: "deepanalysis.current.year")
+
+        /// zh: "流日";en: "Day"
+        static let currentDay = String(localized: "deepanalysis.current.day")
+
+        /// zh: "流时";en: "Hour"
+        static let currentHour = String(localized: "deepanalysis.current.hour")
+
+        /// 未排占位(nil 值显式呈现,不静默)。zh: "未排";en: "Not charted"
+        static let notCharted = String(localized: "deepanalysis.current.notCharted")
+
+        // -- 辅柱 --
+
+        /// zh: "命宫";en: "Life Palace"
+        static let auxMingGong = String(localized: "deepanalysis.aux.mingGong")
+
+        /// zh: "身宫";en: "Body Palace"
+        static let auxShenGong = String(localized: "deepanalysis.aux.shenGong")
+
+        /// zh: "胎元";en: "Conception Pillar"
+        static let auxTaiYuan = String(localized: "deepanalysis.aux.taiYuan")
+    }
 }

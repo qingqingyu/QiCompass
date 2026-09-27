@@ -96,6 +96,7 @@
 		9C0000000000000000000057 /* SyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000057 /* SyncManager.swift */; };
 		9C0000000000000000000058 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000058 /* AppLanguage.swift */; };
 		9C0000000000000000000059 /* BaziDateFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000059 /* BaziDateFormatter.swift */; };
+		9C0000000000000000000099 /* BaziTerms.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000099 /* BaziTerms.swift */; };
 		9C000000000000000000005A /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005A /* L10n.swift */; };
 		9C000000000000000000005B /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005B /* Localizable.xcstrings */; };
 		9C000000000000000000005C /* cities.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005C /* cities.sqlite */; };
@@ -129,6 +130,7 @@
 		A00000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift */; };
 		A00000000000000000000006 /* Shared/DailyReadCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */; };
 		A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */; };
+		A00000000000000000000043 /* Shared/BaziTermsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000043 /* Shared/BaziTermsTests.swift */; };
 		A00000000000000000000021 /* Shared/ZodiacRevealTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000021 /* Shared/ZodiacRevealTests.swift */; };
 		A00000000000000000000008 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A21000000000000000000001 /* XCTest.framework */; };
 		A00000000000000000000009 /* AI/CachedInterpretationReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000008 /* AI/CachedInterpretationReaderTests.swift */; };
@@ -268,6 +270,7 @@
 		9C1000000000000000000057 /* SyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SyncManager.swift; path = QiCompass/Services/SyncManager.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000058 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppLanguage.swift; path = QiCompass/L10n/AppLanguage.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000059 /* BaziDateFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BaziDateFormatter.swift; path = QiCompass/L10n/BaziDateFormatter.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000099 /* BaziTerms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BaziTerms.swift; path = QiCompass/L10n/BaziTerms.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000005A /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = L10n.swift; path = QiCompass/L10n/L10n.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000005B /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		9C100000000000000000005C /* cities.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = cities.sqlite; sourceTree = "<group>"; };
@@ -301,6 +304,7 @@
 		A11000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilitySnapshotStoreTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DailyReadCounterTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/UserFacingErrorTests.swift; sourceTree = "<group>"; };
+		A11000000000000000000043 /* Shared/BaziTermsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/BaziTermsTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000021 /* Shared/ZodiacRevealTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ZodiacRevealTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000008 /* AI/CachedInterpretationReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AI/CachedInterpretationReaderTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityViewModelBatchTests.swift; sourceTree = "<group>"; };
@@ -547,6 +551,7 @@
 				9C100000000000000000003A /* BaziFont.swift */,
 				9C1000000000000000000058 /* AppLanguage.swift */,
 				9C1000000000000000000059 /* BaziDateFormatter.swift */,
+				9C1000000000000000000099 /* BaziTerms.swift */,
 				9C100000000000000000005A /* L10n.swift */,
 				9C100000000000000000003B /* FadeInModifier.swift */,
 				9C100000000000000000003C /* CountdownResetLabel.swift */,
@@ -619,6 +624,7 @@
 				A110000000000000000000E /* golden_queries.json */,
 				A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */,
 				A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */,
+				A11000000000000000000043 /* Shared/BaziTermsTests.swift */,
 				A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */,
 				A11000000000000000000016 /* Paywall/PaywallContractStepTests.swift */,
 				A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */,
@@ -849,6 +855,7 @@
 				9C000000000000000000003A /* BaziFont.swift in Sources */,
 				9C0000000000000000000058 /* AppLanguage.swift in Sources */,
 				9C0000000000000000000059 /* BaziDateFormatter.swift in Sources */,
+				9C0000000000000000000099 /* BaziTerms.swift in Sources */,
 				9C000000000000000000005A /* L10n.swift in Sources */,
 				9C000000000000000000003B /* FadeInModifier.swift in Sources */,
 				9C000000000000000000003C /* CountdownResetLabel.swift in Sources */,
@@ -889,6 +896,7 @@
 				A0000000000000000000099 /* Shared/PaywallLayoutTests.swift in Sources */,
 				A0000000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift in Sources */,
 				A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */,
+				A00000000000000000000043 /* Shared/BaziTermsTests.swift in Sources */,
 				A00000000000000000000021 /* Shared/ZodiacRevealTests.swift in Sources */,
 				A00000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift in Sources */,
 				A00000000000000000000016 /* Paywall/PaywallContractStepTests.swift in Sources */,

@@ -45,8 +45,8 @@ struct AliasEditView: View {
                 Spacer()
 
                 PrimaryCTAButton(
-                    title: "保存",
-                    loadingTitle: "保存中…",
+                    title: String(localized: "保存"),
+                    loadingTitle: String(localized: "保存中…"),
                     isLoading: false,
                     action: save
                 )
@@ -70,7 +70,7 @@ struct AliasEditView: View {
     private func save() {
         let trimmed = alias.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
-            errorMessage = "别名不能为空"
+            errorMessage = String(localized: "别名不能为空")
             return
         }
         guard trimmed != initialAlias else {

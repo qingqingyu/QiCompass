@@ -27,8 +27,8 @@ struct BirthInfoConfirmSheet: View {
                 infoRow(label: L10n.BirthForm.birthTimeLabel, value: vm.confirmBirthTimeText)
                 // 性别未选(2026-09-19 去默认值):此 sheet 弹在 validateForm 之前,
                 // 诚实展示「未选择」,提交在 calculate 内被 formInvalid 拦截(与日期「—」同口径)
-                infoRow(label: "性别", value: genderText)
-                infoRow(label: "出生地", value: vm.selectedPlace?.displayLabel ?? "—")
+                infoRow(label: String(localized: "性别"), value: genderText)
+                infoRow(label: String(localized: "出生地"), value: vm.selectedPlace?.displayLabel ?? "—")
             }
 
             VStack(spacing: BaziTheme.Spacing.sm) {
@@ -74,7 +74,7 @@ struct BirthInfoConfirmSheet: View {
         switch vm.gender {
         case "male": return L10n.BirthForm.genderMale
         case "female": return L10n.BirthForm.genderFemale
-        default: return "未选择"
+        default: return String(localized: "未选择")
         }
     }
 

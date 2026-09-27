@@ -1,15 +1,18 @@
 import Foundation
 
-/// 八字 App 日期格式化策略(i18n 决策 7,`i18n-implementation-plan.md` § 2)。
+/// 八字 App 日期格式化策略(i18n 决策 7,`i18n-implementation-plan.md` § 2;
+/// 农历条目 2026-09-27 由展示层语言交接 §3 术语显示矩阵取代旧口径)。
 ///
-/// 产品决策:
-/// - **农历永远 zh_CN** — 农历是术语,英文用户看到 "正月" 比看到 "Lunar January"
-///   更能感知到这是 Chinese Astrology,符合"专业不忽悠" Memorable Thing(DESIGN.md)。
-///   且 lunar_python 输出的农历格式("正月初一" / "七月初十")翻译成英文会很生硬。
-/// - **公历按 user locale** — 本地化日期格式("2026年8月12日" vs "August 12, 2026")。
-/// - **流日柱(干支)永远中文** — "甲子" 不翻译,英文用户看到 "Jia Zi" 也是术语。
-///   (注:流日柱本身的术语翻译由 backend 在 context 里完成,
-///    iOS 只展示 backend 返回的字符串。)
+/// 产品决策(§3 农历行):
+/// - **zh / zh-hant:农历为主** — 农历是术语,保持 lunar_python 原文
+///   ("正月初一" / "七月初十"),不转写。
+/// - **en:公历为主要信息行、农历降为次要行** — 公历大字/周几走本 enum 的
+///   locale formatter;农历以 11pt muted 小字呈现,并转写为
+///   "5th Moon · 28th · Day of 辛丑"(实现见 DailyImageHeroSection.enLunarLine,
+///   2026-09-24 拼接重设计;干支保留汉字是 §3 有意行为)。保留中文正确,
+///   但不能是唯一日期信息——本条即 U4 的落地口径。
+/// - **流日柱(干支)永远中文** — "甲子" 不翻译(§3 干支条:汉字为主,
+///   chip 主标/首次出现处另附带调拼音,见 BaziTerms.romanized)。
 ///
 /// 使用 `DateFormatter.dateFormat(fromTemplate:options:locale:)` 让 Apple 系统
 /// 按 locale 自动调整字段顺序(避免硬编码 "yyyy-MM-dd" 在英文 locale 显示乱)。

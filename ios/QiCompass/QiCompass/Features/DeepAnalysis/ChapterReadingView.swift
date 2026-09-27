@@ -241,8 +241,8 @@ struct ChapterReadingView: View {
                 .foregroundStyle(BaziTheme.destructive)
                 .lineSpacing(5)
             PrimaryCTAButton(
-                title: "重试本章",
-                loadingTitle: "重试中…",
+                title: String(localized: "重试本章"),
+                loadingTitle: String(localized: "重试中…"),
                 isLoading: false,
                 action: { vm.retryV1Module(module) }
             )
@@ -279,8 +279,8 @@ struct ChapterReadingView: View {
                     .stroke(BaziTheme.hairlineDashed, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
             )
             PrimaryCTAButton(
-                title: "解锁深度命书",
-                loadingTitle: "处理中…",
+                title: String(localized: "解锁深度命书"),
+                loadingTitle: String(localized: "处理中…"),
                 isLoading: false,
                 action: onShowPaywall
             )

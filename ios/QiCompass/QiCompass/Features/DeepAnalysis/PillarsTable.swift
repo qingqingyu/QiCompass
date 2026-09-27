@@ -32,11 +32,11 @@ struct PillarsTable: View {
         // 盘面小景 S1 卸卡:节标「四柱」移入 ChartDetailView 的 HairlineSection,
         // 卡壳与内边距移除(柱列内部间距不动)
         HStack(alignment: .top, spacing: 10) {
-            PillarColumn(title: "年", pillar: pillars.year)
-            PillarColumn(title: "月", pillar: pillars.month)
-            PillarColumn(title: "日", isDay: true, pillar: pillars.day)
+            PillarColumn(title: L10n.DeepChart.pillarYear, pillar: pillars.year)
+            PillarColumn(title: L10n.DeepChart.pillarMonth, pillar: pillars.month)
+            PillarColumn(title: L10n.DeepChart.pillarDay, isDay: true, pillar: pillars.day)
             // isHourSlot:未知时该列是 D7 补时辰触点 1(S10 已接线)
-            PillarColumn(title: "时", isHourSlot: true, pillar: pillars.hour, onAddHour: onAddHour)
+            PillarColumn(title: L10n.DeepChart.pillarHour, isHourSlot: true, pillar: pillars.hour, onAddHour: onAddHour)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -72,7 +72,7 @@ private struct PillarColumn: View {
             Text(pillar.gan)
                 .font(BaziFont.ganzhi(size: 22))
                 .foregroundStyle(ganColor(pillar))
-            Text(pillar.shishenGan)
+            Text(BaziTerms.display(pillar.shishenGan))
                 .font(.caption2)
                 .foregroundStyle(BaziTheme.inkMuted)
             // 地支
@@ -82,21 +82,21 @@ private struct PillarColumn: View {
             // 地支十神(可能多个)
             VStack(spacing: 2) {
                 ForEach(pillar.shishenZhi, id: \.self) { s in
-                    Text(s)
+                    Text(BaziTerms.display(s))
                         .font(.caption2)
                         .foregroundStyle(BaziTheme.inkMuted)
                 }
             }
             // 纳音(次要信息,inkMuted)
-            Text(pillar.nayin)
+            Text(BaziTerms.display(pillar.nayin))
                 .font(.caption2)
                 .foregroundStyle(BaziTheme.inkMuted)
             // 十二长生
-            Text("长生:\(pillar.dishi)")
+            Text(L10n.DeepChart.stageLabel(BaziTerms.display(pillar.dishi)))
                 .font(.caption2)
                 .foregroundStyle(BaziTheme.inkMuted)
-            // 旬空
-            Text("旬空:\(pillar.xunkong)")
+            // 旬空(值 = 干支对,按 §3 保持汉字)
+            Text(L10n.DeepChart.voidLabel(pillar.xunkong))
                 .font(.caption2)
                 .foregroundStyle(BaziTheme.inkMuted)
             // 藏干 chip(Capsule 留给 chip)

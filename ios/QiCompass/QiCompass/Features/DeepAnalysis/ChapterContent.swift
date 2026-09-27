@@ -144,14 +144,18 @@ struct ChapterContent: Equatable {
     private static func scalarText(key: String, value: JSONValue) -> String {
         switch value {
         case .string(let s):
-            return Self.valueMap[key]?[s] ?? s
+            // 枚举值中文化后经本地化表取显示语(zh 原词为 defaultValue,行为不变)
+            if let zh = Self.valueMap[key]?[s] {
+                return Self.localizedWord(zh)
+            }
+            return s
         case .number(let n):
-            if key == "day" { return "第 \(Int(n)) 天" }
-            if key == "rank" { return "第 \(Int(n)) 顺位" }
+            if key == "day" { return String(format: String(localized: "第 %lld 天"), Int(n)) }
+            if key == "rank" { return String(format: String(localized: "第 %lld 顺位"), Int(n)) }
             if n.rounded() == n { return String(Int(n)) }
             return String(n)
         case .bool(let b):
-            return b ? "是" : "否"
+            return b ? String(localized: "是") : String(localized: "否")
         case .null:
             return "—"
         case .array, .object:
@@ -162,7 +166,7 @@ struct ChapterContent: Equatable {
 
     /// 条目题文案(day → 第 N 天;其余走 valueMap)。
     private static func titleText(key: String, value: JSONValue) -> String {
-        if key == "day", case .number(let n) = value { return "第 \(Int(n)) 天" }
+        if key == "day", case .number(let n) = value { return String(format: String(localized: "第 %lld 天"), Int(n)) }
         return scalarText(key: key, value: value)
     }
 
@@ -328,7 +332,16 @@ struct ChapterContent: Equatable {
     ]
 
     private static func label(_ key: String) -> String {
-        labels[key] ?? key
+        // 展示层语言 U2:标签表是 snake_case → zh 映射,显示语走
+        // deepanalysis.chapter.<key> dot-key(zh 缺省回落 defaultValue = zh 原词,
+        // zh 行为逐字不变;en 在 xcstrings 登记)。未知 schema key 原样透出。
+        guard let zh = labels[key] else { return key }
+        return NSLocalizedString("deepanalysis.chapter.\(key)", value: zh, comment: "M0-M7 schema key 标签")
+    }
+
+    /// 运行时词面本地化(枚举值译文等闭集小词):zh 回落原词,en 查 xcstrings。
+    private static func localizedWord(_ zh: String) -> String {
+        NSLocalizedString(zh, value: zh, comment: "枚举值闭集小词")
     }
 }
 

@@ -10,10 +10,10 @@ struct CurrentStatusCard: View {
     var body: some View {
         // 盘面小景 S1 卸卡:节标「当前柱」移入 HairlineSection,外层卡壳移除
         VStack(alignment: .leading, spacing: 10) {
-            row("大运", response.currentLuckPillar?.ganZhi)
-            row("流年", response.currentYearPillar)
-            row("流日", response.currentDayPillar)
-            row("流时", response.currentHourPillar)
+            row(L10n.DeepChart.currentLuck, response.currentLuckPillar?.ganZhi)
+            row(L10n.DeepChart.currentYear, response.currentYearPillar)
+            row(L10n.DeepChart.currentDay, response.currentDayPillar)
+            row(L10n.DeepChart.currentHour, response.currentHourPillar)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -24,7 +24,7 @@ struct CurrentStatusCard: View {
                 .font(.caption)
                 .foregroundStyle(BaziTheme.inkMuted)
             Spacer()
-            Text(value ?? "未排")
+            Text(value ?? L10n.DeepChart.notCharted)
                 .font(.body.weight(.medium))
                 .foregroundStyle(value != nil ? BaziTheme.ink : BaziTheme.inkMuted)
         }

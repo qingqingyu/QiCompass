@@ -145,10 +145,10 @@ struct CompatibilityView: View {
 
     private var navigationTitle: String {
         switch vm?.state {
-        case .list:    return "合盘结果"
-        case .detail:  return "合盘结果"
-        case .computing: return "推演中"
-        default:       return "合盘"
+        case .list:    return String(localized: "合盘结果")
+        case .detail:  return String(localized: "合盘结果")
+        case .computing: return String(localized: "推演中")
+        default:       return String(localized: "合盘")
         }
     }
 
@@ -157,7 +157,7 @@ struct CompatibilityView: View {
         if let vm {
             switch vm.state {
             case .loading:
-                LoadingStateView(title: "准备中…")
+                LoadingStateView(title: String(localized: "准备中…"))
             case .empty:
                 CompatibilityEmptyView {
                     // 设返回标志,深度解析完成后 DeepAnalysisView 据此切回合盘

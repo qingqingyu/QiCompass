@@ -8,9 +8,29 @@ enum CommonTimezones {
 
     struct Item: Identifiable, Equatable {
         let iana: String
-        /// 展示文案(如 "GMT+8 · 中国标准时间")
+        /// 展示文案(如 "GMT+8 · 中国标准时间";zh 数据,en 显示走 `displayLabel`)
         let label: String
         var id: String { iana }
+
+        /// 展示层语言 U2:zh/zh-hant 用内置中文表(名称带 GMT 偏移样例语义);
+        /// en 走系统 `TimeZone.localizedName`(随系统语言自动对,免翻译
+        /// 硬编码表——i18n-display-layer-handoff U2-9 拍板口径);IANA 解析
+        /// 失败显式回落中文表(不静默空串)。
+        func displayLabel() -> String {
+            if AppLanguage.current.isChinese { return label }
+            guard !iana.hasPrefix("Etc/GMT") else {
+                // 固定偏移区系统名不可读("GMT+8"),保留自拼串并本地化尾注
+                return label.replacingOccurrences(
+                    of: " · 固定偏移",
+                    with: " · " + String(localized: "固定偏移")
+                )
+            }
+            guard let tz = TimeZone(identifier: iana),
+                  let name = tz.localizedName(for: .standard, locale: Locale.current) else {
+                return label
+            }
+            return name
+        }
     }
 
     /// 常用地区时区(带样例说明;出生在这些区的人大概率能对上)。
@@ -274,10 +294,10 @@ struct CitySearchSheet: View {
                 )) {
                     Text(L10n.CitySearch.customTimezonePrompt).tag("")
                     ForEach(CommonTimezones.regions) { item in
-                        Text(item.label).tag(item.iana)
+                        Text(item.displayLabel()).tag(item.iana)
                     }
                     ForEach(CommonTimezones.fixedOffsets) { item in
-                        Text(item.label).tag(item.iana)
+                        Text(item.displayLabel()).tag(item.iana)
                     }
                 }
                 .foregroundStyle(BaziTheme.ink)

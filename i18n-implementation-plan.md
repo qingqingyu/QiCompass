@@ -871,5 +871,18 @@ let cache = try store.getLatest(
 
 ---
 
-**文档版本**:v1.0(2026-08-12 grill-me 完成)
+---
+
+## 补录:展示层术语显示矩阵指针(2026-09-27)
+
+四层语言模型(L1 UI 文案 / L2 AI 正文 / L3 命盘术语 / L4 品牌保留)中的
+**L3 术语显示矩阵**(天干地支汉字主标+拉丁转写 / 十神意译 / 神煞意译+汉字括注 /
+纳音长生旺衰意译 / 农历 en 降次要行 / 壹-捌 保持中文)的**单一事实源**是:
+
+→ `i18n-display-layer-handoff.md` §3(2026-09-27 用户拍板,取代本文档决策 7 中
+「农历永远 zh_CN」「干支不翻译」的旧口径;L3 走「术语 id + 客户端三语表」,
+iOS `BaziTerms.swift` ↔ backend `term_translations.py` 由
+`tools/check_term_sync.py` 强制同步)。
+
+**文档版本**:v1.0(2026-08-12 grill-me 完成;2026-09-27 补录 L3 指针)
 **下次 review 时机**:v1 上线后 60-90 天,基于 App Store Connect 数据决定是否启动第二波语言

@@ -53,7 +53,9 @@ struct ElementBalanceBar: View {
             Circle()
                 .fill(color)
                 .frame(width: 8, height: 8)
-            Text("\(label)\(value)")
+            // L3:图例五行名走 BaziTerms(en = Wood/Fire/…);label 形参保留中文
+            // 稳定 id 契约,显示语在此处转换
+            Text("\(BaziTerms.display(label))\(value)")
                 .font(.caption2)
                 .foregroundStyle(BaziTheme.ink)
         }

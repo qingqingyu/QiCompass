@@ -59,11 +59,11 @@ struct ChartDetailView: View {
                         .padding(.top, 8)
                         .padding(.bottom, 4)
 
-                    HairlineSection(title: "四柱", trailing: chartHeaderNote) {
+                    HairlineSection(title: String(localized: "四柱"), trailing: chartHeaderNote) {
                         PillarsTable(pillars: response.pillars, onAddHour: onAddHour)
                     }
 
-                    HairlineSection(title: "辅柱") {
+                    HairlineSection(title: String(localized: "辅柱")) {
                         AuxiliaryCards(
                             mingGong: response.mingGong,
                             shenGong: response.shenGong,
@@ -71,26 +71,26 @@ struct ChartDetailView: View {
                         )
                     }
 
-                    HairlineSection(title: "五行分布") {
+                    HairlineSection(title: String(localized: "五行分布")) {
                         ElementBalanceBar(balance: response.elementBalance)
                     }
 
-                    HairlineSection(title: "喜忌分析", trailing: xijiTrailingNote) {
+                    HairlineSection(title: String(localized: "喜忌分析"), trailing: xijiTrailingNote) {
                         XijiCard(response: response)
                     }
 
-                    HairlineSection(title: "神煞") {
+                    HairlineSection(title: String(localized: "神煞")) {
                         ShenshaChips(shensha: response.shensha)
                     }
 
-                    HairlineSection(title: "大运") {
+                    HairlineSection(title: String(localized: "大运")) {
                         LuckPillarsTimeline(
                             luckPillars: response.luckPillars,
                             currentLuckPillar: response.currentLuckPillar
                         )
                     }
 
-                    HairlineSection(title: "当前柱") {
+                    HairlineSection(title: String(localized: "当前柱")) {
                         CurrentStatusCard(response: response)
                     }
                 }
@@ -108,18 +108,19 @@ struct ChartDetailView: View {
             let f = DateFormatter()
             f.dateFormat = "yyyy-MM-dd HH:mm"
             f.timeZone = .current
-            parts.append("真太阳时 \(f.string(from: ts))")
+            parts.append(L10n.DeepChart.trueSolarTime(f.string(from: ts)))
         }
         if let place = request.placeName, !place.isEmpty {
             parts.append(place)
         }
         let offset = response.trueSolarOffsetMinutes
         let sign = offset >= 0 ? "+" : ""
-        parts.append(String(format: "偏差 %@%.1f 分", sign, offset))
+        parts.append(L10n.DeepChart.solarOffset(sign: sign, minutes: offset))
         return parts.joined(separator: " · ")
     }
 
     /// 喜忌节右侧小注:旺衰(原 XijiCard badge 迁来)+ 调候触发 + 算法。
+    /// 旺衰/算法标注值经 BaziTerms 取显示语。
     private var xijiTrailingNote: String? {
         let strength: String?
         switch response.dayMasterStrength {
@@ -130,12 +131,12 @@ struct ChartDetailView: View {
         default:                strength = nil
         }
         var notes: [String] = []
-        if let strength { notes.append(strength) }
+        if let strength { notes.append(BaziTerms.display(strength)) }
         if response.tiaoshouApplied {
-            notes.append("◎ 调候已触发")
+            notes.append(L10n.DeepChart.tiaoshouAppliedTrailing)
         }
         if let method = response.xijiMethod {
-            notes.append(method)
+            notes.append(BaziTerms.display(method))
         }
         return notes.isEmpty ? nil : notes.joined(separator: " · ")
     }

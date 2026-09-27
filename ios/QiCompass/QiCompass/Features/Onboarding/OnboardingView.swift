@@ -314,7 +314,11 @@ struct OnboardingView: View {
             AppLogger.app.info("OnboardingView.mainLabel year_pillar_ambiguous(年柱歧义 → ZodiacRevealView 降级态,主标不渲染)")
             return "—"
         }
-        return "\(zhi) · \(ZodiacHelper.animalChar(forZodiac: zodiac))"  // "Dragon" → "龙"
+        // L3:干支字按 §3 保持汉字;生肖名走语言分支(zh 汉字 / en 英文名,单一事实源 ZodiacHelper)
+        if AppLanguage.current == .en, let en = ZodiacHelper.zodiacName(forZhi: zhi) {
+            return "\(zhi) · \(en)"
+        }
+        return "\(zhi) · \(ZodiacHelper.animalCharHant(forZodiac: zodiac))"
     }
 
     /// 次文字(生肖决策 Q13 C+ii;2026-09-23 EN review:坤造/干支对海外用户是黑话)。

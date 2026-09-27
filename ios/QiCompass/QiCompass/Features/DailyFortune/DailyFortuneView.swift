@@ -135,7 +135,7 @@ struct DailyFortuneView: View {
                 "op=dailyFortune.resolveChart failed error=\(String(describing: error), privacy: .public)"
             )
             // 不静默吞:把失败传给 UI(人话文案,原始 error 已记上方日志)
-            vm?.state = .failed(.generic(message: "读取命盘存档失败,请重试"))
+            vm?.state = .failed(.generic(message: String(localized: "读取命盘存档失败,请重试")))
         }
     }
 
@@ -145,9 +145,9 @@ struct DailyFortuneView: View {
         if let vm {
             switch vm.state {
             case .empty:
-                LoadingStateView(title: "准备中…")
+                LoadingStateView(title: String(localized: "准备中…"))
             case .loading:
-                LoadingStateView(title: "推演流日中…")
+                LoadingStateView(title: String(localized: "推演流日中…"))
             case .chartMissing:
                 DailyFortuneEmptyView()
             case .hourAmbiguousBlocked:

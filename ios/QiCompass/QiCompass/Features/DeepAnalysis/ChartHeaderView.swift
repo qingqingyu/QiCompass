@@ -62,18 +62,18 @@ struct ChartHeaderView: View {
     /// S05:年柱歧义(S02/D10 立春日 + 时辰未知)→ null,留白「—」不猜。
     private var yearPillarLabel: String {
         let gz = response.pillars.year?.ganZhi ?? ""
-        return gz.isEmpty ? "—" : "\(gz)年"
+        return gz.isEmpty ? "—" : String(format: String(localized: "%@年"), gz)
     }
 
     private var cityDisplay: String {
         // S03:物理真值契约——城市显示名或自定义经度
-        request.placeName ?? "自定义经度 \(request.longitude)"
+        request.placeName ?? String(format: String(localized: "自定义经度 %@"), String(request.longitude))
     }
 
     private var offsetString: String {
         let mins = response.trueSolarOffsetMinutes
         let sign = mins >= 0 ? "+" : ""
-        return String(format: "%@%.1f 分", sign, mins)
+        return String(format: String(localized: "%@%.1f 分"), sign, mins)
     }
 
     /// S05:时辰未知 → 后端 true_solar_time=null(占位一致性,不漏假精度),

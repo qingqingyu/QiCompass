@@ -46,7 +46,7 @@ struct PersonARowView: View {
         HStack(spacing: 13) {
             ZodiacAvatarMark(mode: avatarMode, size: 40)
             VStack(alignment: .leading, spacing: 3) {
-                Text(chart?.alias ?? "未知存档")
+                Text(chart?.alias ?? String(localized: "未知存档"))
                     .font(BaziFont.body())
                     .fontWeight(.medium)
                     .foregroundStyle(BaziTheme.ink)
@@ -321,7 +321,7 @@ struct RosterUnifiedListView: View {
         }
         .buttonStyle(.plain)
         .disabled(isSelfHourUnknown)
-        .accessibilityHint(row.isSelected ? "取消勾选,保留在名单" : "勾选入本次合盘")
+        .accessibilityHint(row.isSelected ? String(localized: "取消勾选,保留在名单") : String(localized: "勾选入本次合盘"))
     }
 
     private var addRow: some View {
@@ -340,7 +340,7 @@ struct RosterUnifiedListView: View {
                     Text("添加对方")
                         .font(BaziFont.body())
                         .foregroundStyle(isFull ? BaziTheme.inkMutedSecondary : BaziTheme.ink)
-                    Text(isFull ? "名单已满 · 上限 \(rosterMax) 位" : "不建档案 · 填出生信息即可")
+                    Text(isFull ? String(format: String(localized: "名单已满 · 上限 %lld 位"), rosterMax) : String(localized: "不建档案 · 填出生信息即可"))
                         .font(BaziFont.caption(size: 10))
                         .tracking(0.5)
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
@@ -478,7 +478,7 @@ struct CompatibilityCastingView: View {
 
     var body: some View {
         VStack(spacing: 26) {
-            VText(phrase: "推演合盘", size: 21, tracking: 10)
+            VText(phrase: String(localized: "推演合盘"), size: 21, tracking: 10)
             HStack(spacing: 14) {
                 ForEach(0..<3, id: \.self) { idx in
                     Circle()

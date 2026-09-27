@@ -399,11 +399,11 @@ enum CompatibilityError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .modeBMissingPersonBChart:
-            return "合盘数据异常,请重试"
+            return String(localized: "合盘数据异常,请重试")
         case .modeBMissingPersonBInput:
-            return "合盘数据异常,请重试"
+            return String(localized: "合盘数据异常,请重试")
         case .forbiddenWordsHit:
-            return "解读包含不合规绝对结论,请重试"
+            return String(localized: "解读包含不合规绝对结论,请重试")
         }
     }
 }
