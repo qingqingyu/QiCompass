@@ -155,8 +155,8 @@ struct DailyFortuneMainView: View {
 
     private var footnoteText: String {
         if AppLanguage.current == .en {
-            return "Day of \(response.dayPillar) · \(response.dayRelationToDayMaster) · \(L10n.DailyFortune.disclaimer)"
+            return "Day of \(response.dayPillar) · \(BaziTerms.display(response.dayRelationToDayMaster)) · \(L10n.DailyFortune.disclaimer)"
         }
-        return "\(response.dayPillar)\(L10n.DailyFortune.dayPillarSuffix) · \(response.dayRelationToDayMaster) · \(L10n.DailyFortune.disclaimer)"
+        return "\(response.dayPillar)\(L10n.DailyFortune.dayPillarSuffix) · \(BaziTerms.display(response.dayRelationToDayMaster)) · \(L10n.DailyFortune.disclaimer)"
     }
 }

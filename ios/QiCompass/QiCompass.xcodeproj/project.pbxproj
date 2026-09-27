@@ -96,6 +96,7 @@
 		9C0000000000000000000057 /* SyncManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000057 /* SyncManager.swift */; };
 		9C0000000000000000000058 /* AppLanguage.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000058 /* AppLanguage.swift */; };
 		9C0000000000000000000059 /* BaziDateFormatter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000059 /* BaziDateFormatter.swift */; };
+		9C0000000000000000000099 /* BaziTerms.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000099 /* BaziTerms.swift */; };
 		9C000000000000000000005A /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005A /* L10n.swift */; };
 		9C000000000000000000005B /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005B /* Localizable.xcstrings */; };
 		9C000000000000000000005C /* cities.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005C /* cities.sqlite */; };
@@ -268,6 +269,7 @@
 		9C1000000000000000000057 /* SyncManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SyncManager.swift; path = QiCompass/Services/SyncManager.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000058 /* AppLanguage.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AppLanguage.swift; path = QiCompass/L10n/AppLanguage.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000059 /* BaziDateFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BaziDateFormatter.swift; path = QiCompass/L10n/BaziDateFormatter.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000099 /* BaziTerms.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BaziTerms.swift; path = QiCompass/L10n/BaziTerms.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000005A /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = L10n.swift; path = QiCompass/L10n/L10n.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000005B /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		9C100000000000000000005C /* cities.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = cities.sqlite; sourceTree = "<group>"; };
@@ -547,6 +549,7 @@
 				9C100000000000000000003A /* BaziFont.swift */,
 				9C1000000000000000000058 /* AppLanguage.swift */,
 				9C1000000000000000000059 /* BaziDateFormatter.swift */,
+				9C1000000000000000000099 /* BaziTerms.swift */,
 				9C100000000000000000005A /* L10n.swift */,
 				9C100000000000000000003B /* FadeInModifier.swift */,
 				9C100000000000000000003C /* CountdownResetLabel.swift */,
@@ -849,6 +852,7 @@
 				9C000000000000000000003A /* BaziFont.swift in Sources */,
 				9C0000000000000000000058 /* AppLanguage.swift in Sources */,
 				9C0000000000000000000059 /* BaziDateFormatter.swift in Sources */,
+				9C0000000000000000000099 /* BaziTerms.swift in Sources */,
 				9C000000000000000000005A /* L10n.swift in Sources */,
 				9C000000000000000000003B /* FadeInModifier.swift in Sources */,
 				9C000000000000000000003C /* CountdownResetLabel.swift in Sources */,

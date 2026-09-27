@@ -35,9 +35,10 @@ struct ShenshaChips: View {
         let isAuspicious = ShenshaPolarity.isAuspicious(item.name)
         let color = isAuspicious ? BaziTheme.shenshaAuspicious : BaziTheme.shenshaInauspicious
         return HStack(spacing: 4) {
-            Text(item.name)
+            // L3 术语:i18n-display-layer-handoff §3——神煞 en = 意译 + 汉字括注(chip 主标)
+            Text(BaziTerms.shenshaChipText(item.name))
                 .font(.caption.weight(.medium))
-            Text(item.position)
+            Text(BaziTerms.display(item.position))
                 .font(.caption2)
                 .foregroundStyle(BaziTheme.inkMuted)
         }

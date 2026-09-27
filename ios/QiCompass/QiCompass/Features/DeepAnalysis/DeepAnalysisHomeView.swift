@@ -57,10 +57,10 @@ struct DeepAnalysisHomeView: View {
                 .offset(x: 88, y: -4)
             // 四柱竖列:年/月/时 灰墨 22pt,日主 34pt 浓墨
             VStack(alignment: .leading, spacing: 9) {
-                heroRow(label: "年", pillar: response.pillars.year, isDay: false)
-                heroRow(label: "月", pillar: response.pillars.month, isDay: false)
-                heroRow(label: "日", pillar: response.pillars.day, isDay: true)
-                heroRow(label: "时", pillar: response.pillars.hour, isDay: false)
+                heroRow(label: L10n.DeepChart.pillarYear, pillar: response.pillars.year, isDay: false)
+                heroRow(label: L10n.DeepChart.pillarMonth, pillar: response.pillars.month, isDay: false)
+                heroRow(label: L10n.DeepChart.pillarDay, pillar: response.pillars.day, isDay: true)
+                heroRow(label: L10n.DeepChart.pillarHour, pillar: response.pillars.hour, isDay: false)
             }
             .padding(.leading, 34)
             .padding(.top, 86)
@@ -86,6 +86,7 @@ struct DeepAnalysisHomeView: View {
 
     /// 单柱行:干支大字 + 旁标十神;日主行放大并携带旺衰注。
     /// 柱未知(时辰未知)→ dashed 圆位占干支之位,点击进补时辰(S05 同语义)。
+    /// L3 接入(§3 矩阵):干支三语汉字主标,en 附加小字带调拼音;十神/旺衰走 BaziTerms。
     @ViewBuilder
     private func heroRow(label: String, pillar: PillarDTO?, isDay: Bool) -> some View {
         HStack(alignment: .firstTextBaseline) {
@@ -99,7 +100,13 @@ struct DeepAnalysisHomeView: View {
                     .font(BaziFont.ganzhi(size: isDay ? 34 : 22))
                     .tracking(isDay ? 4 : 5)
                     .foregroundStyle(isDay ? BaziTheme.ink : BaziTheme.ink.opacity(0.52))
-                Text(isDay ? dayMasterNote : pillar.shishenGan)
+                // en 小字拉丁转写(§3:只在 hero 首次出现处给;zh/zh-hant 不渲染)
+                if AppLanguage.current == .en, let romanized = BaziTerms.romanized(pillar.ganZhi) {
+                    Text(romanized)
+                        .font(BaziFont.caption(size: 9))
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                }
+                Text(isDay ? dayMasterNote : BaziTerms.display(pillar.shishenGan))
                     .font(BaziFont.caption(size: 10.5))
                     .foregroundStyle(BaziTheme.inkMuted)
             } else {
@@ -117,12 +124,12 @@ struct DeepAnalysisHomeView: View {
                         HapticEngine.light()
                         onAddHour()
                     }
-                    .accessibilityLabel(label == "时" ? L10n.Common.hourUnknown : "\(label)柱未定,点击补时辰")
+                    .accessibilityLabel(label == L10n.DeepChart.pillarHour ? L10n.Common.hourUnknown : L10n.DeepChart.pillarUndetermined(label))
             }
         }
     }
 
-    /// 日主旁注:「日主 · 身弱」;从格 → 「日主 · 从格」。
+    /// 日主旁注:「日主 · 身弱」;从格 → 「日主 · 从格」。旺衰值经 BaziTerms 取显示语。
     private var dayMasterNote: String {
         let strength: String
         switch response.dayMasterStrength {
@@ -132,20 +139,25 @@ struct DeepAnalysisHomeView: View {
         case "special_pattern": strength = "从格"
         default:                strength = ""
         }
-        return strength.isEmpty ? "日主" : "日主 · \(strength)"
+        return strength.isEmpty ? BaziTerms.display("日主") : L10n.DeepChart.dayMasterNote(BaziTerms.display(strength))
     }
 
     /// 右下竖注:喜木水 · 忌金;从格 → 从格 · 喜忌留空;无喜忌数据 → 空(不渲染)。
+    /// 五行值经 BaziTerms 取显示语(en 竖排自动横排回退)。
     private var heroSideNote: String {
         if isSpecialPattern {
-            return "从格 · 喜忌留空"
+            return L10n.DeepChart.sideNoteSpecialPattern
         }
         var parts: [String] = []
         if !response.favorableElements.isEmpty {
-            parts.append("喜" + response.favorableElements.joined())
+            parts.append(L10n.DeepChart.sideNoteFavorable(
+                response.favorableElements.map { BaziTerms.display($0) }.joined()
+            ))
         }
         if !response.unfavorableElements.isEmpty {
-            parts.append("忌" + response.unfavorableElements.joined())
+            parts.append(L10n.DeepChart.sideNoteUnfavorable(
+                response.unfavorableElements.map { BaziTerms.display($0) }.joined()
+            ))
         }
         return parts.joined(separator: " · ")
     }

@@ -108,18 +108,19 @@ struct ChartDetailView: View {
             let f = DateFormatter()
             f.dateFormat = "yyyy-MM-dd HH:mm"
             f.timeZone = .current
-            parts.append("真太阳时 \(f.string(from: ts))")
+            parts.append(L10n.DeepChart.trueSolarTime(f.string(from: ts)))
         }
         if let place = request.placeName, !place.isEmpty {
             parts.append(place)
         }
         let offset = response.trueSolarOffsetMinutes
         let sign = offset >= 0 ? "+" : ""
-        parts.append(String(format: "偏差 %@%.1f 分", sign, offset))
+        parts.append(L10n.DeepChart.solarOffset(sign: sign, minutes: offset))
         return parts.joined(separator: " · ")
     }
 
     /// 喜忌节右侧小注:旺衰(原 XijiCard badge 迁来)+ 调候触发 + 算法。
+    /// 旺衰/算法标注值经 BaziTerms 取显示语。
     private var xijiTrailingNote: String? {
         let strength: String?
         switch response.dayMasterStrength {
@@ -130,12 +131,12 @@ struct ChartDetailView: View {
         default:                strength = nil
         }
         var notes: [String] = []
-        if let strength { notes.append(strength) }
+        if let strength { notes.append(BaziTerms.display(strength)) }
         if response.tiaoshouApplied {
-            notes.append("◎ 调候已触发")
+            notes.append(L10n.DeepChart.tiaoshouAppliedTrailing)
         }
         if let method = response.xijiMethod {
-            notes.append(method)
+            notes.append(BaziTerms.display(method))
         }
         return notes.isEmpty ? nil : notes.joined(separator: " · ")
     }

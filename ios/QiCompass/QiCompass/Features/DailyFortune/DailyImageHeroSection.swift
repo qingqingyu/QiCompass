@@ -320,20 +320,13 @@ struct DailyImageHeroSection: View {
         relation == "七杀" || relation == "正官" ? "PlaqueSha" : nil
     }
 
-    /// 十神简→繁显示表(T0):后端 `day_relation` 恒为简体(i18n 决策 7,十神 key
-    /// 不翻译),繁体环境 chip 显示异形字——劫財/傷官/偏財/正財/七殺 5 个异形,
-    /// 其余同形仍显式进表(对齐 D1 显式注册口径)。未知关系原样透出
-    /// (与下方 pair 查表 miss 的防御口径一致,非错误)。
-    static let relationHant: [String: String] = [
-        "比肩": "比肩", "劫财": "劫財", "食神": "食神", "伤官": "傷官",
-        "偏财": "偏財", "正财": "正財", "七杀": "七殺", "正官": "正官",
-        "偏印": "偏印", "正印": "正印",
-    ]
-
-    /// chip 十神显示名:繁体查异形表,简体/英文原样(en 分支显示中文十神是
-    /// 既有决策——命理符号保留中文,2026-08-26 英文 locale 路由同款口径)。
+    /// chip 十神显示名(2026-09-27 U3c 改走 BaziTerms 统一查表:zh 原形 /
+    /// zh-hant 异形(劫財/傷官/偏財/正財/七殺)/ en 意译——en 显示中文十神的
+    /// 2026-08-26 旧口径被 i18n-display-layer-handoff §3 术语显示矩阵取代;
+    /// 本地 relationHant 异形表随之退役,BaziTerms.tenGods 的 zhHant 列为超集)。
+    /// 未知关系 BaziTerms.display 显式回落原值 + 日志(非错误)。
     static func displayRelation(_ relation: String) -> String {
-        AppLanguage.current == .zhHant ? (relationHant[relation] ?? relation) : relation
+        BaziTerms.display(relation)
     }
 
     // MARK: - 农历 EN 转写(2026-09-24 i18n 拼接重设计)

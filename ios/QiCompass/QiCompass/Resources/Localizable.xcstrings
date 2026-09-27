@@ -2769,6 +2769,499 @@
         }
       }
     },
+  "deepanalysis.aux.mingGong" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Life Palace"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "命宫"
+      }
+    }
+    }
+  },
+  "deepanalysis.aux.shenGong" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Body Palace"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "身宫"
+      }
+    }
+    }
+  },
+  "deepanalysis.aux.taiYuan" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Conception Pillar"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "胎元"
+      }
+    }
+    }
+  },
+  "deepanalysis.chart.solarOffsetFormat" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Offset %@%.1f min"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "偏差 %@%.1f 分"
+      }
+    }
+    }
+  },
+  "deepanalysis.chart.trueSolarFormat" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "True solar time %@"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "真太阳时 %@"
+      }
+    }
+    }
+  },
+  "deepanalysis.current.day" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Day"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "流日"
+      }
+    }
+    }
+  },
+  "deepanalysis.current.hour" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Hour"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "流时"
+      }
+    }
+    }
+  },
+  "deepanalysis.current.luck" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Luck cycle"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "大运"
+      }
+    }
+    }
+  },
+  "deepanalysis.current.notCharted" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Not charted"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "未排"
+      }
+    }
+    }
+  },
+  "deepanalysis.current.year" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Year"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "流年"
+      }
+    }
+    }
+  },
+  "deepanalysis.hero.dayMasterNote" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Day Master · %@"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "日主 · %@"
+      }
+    }
+    }
+  },
+  "deepanalysis.hero.pillarUndetermined" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "%@ pillar unsettled — tap to add your birth hour"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "%@柱未定,点击补时辰"
+      }
+    }
+    }
+  },
+  "deepanalysis.hero.sideNote.favorable" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Favorable %@"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "喜%@"
+      }
+    }
+    }
+  },
+  "deepanalysis.hero.sideNote.specialPattern" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Special pattern · favorable elements withheld"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "从格 · 喜忌留空"
+      }
+    }
+    }
+  },
+  "deepanalysis.hero.sideNote.unfavorable" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Avoid %@"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "忌%@"
+      }
+    }
+    }
+  },
+  "deepanalysis.pillar.day" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Day"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "日"
+      }
+    }
+    }
+  },
+  "deepanalysis.pillar.hour" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Hour"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "时"
+      }
+    }
+    }
+  },
+  "deepanalysis.pillar.month" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Month"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "月"
+      }
+    }
+    }
+  },
+  "deepanalysis.pillar.year" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Year"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "年"
+      }
+    }
+    }
+  },
+  "deepanalysis.pillars.stage" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Stage: %@"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "长生:%@"
+      }
+    }
+    }
+  },
+  "deepanalysis.pillars.void" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Void: %@"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "旬空:%@"
+      }
+    }
+    }
+  },
+  "deepanalysis.xiji.favorable" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Favorable"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "喜用"
+      }
+    }
+    }
+  },
+  "deepanalysis.xiji.favorableA11y" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Favorable"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "喜用"
+      }
+    }
+    }
+  },
+  "deepanalysis.xiji.methodFormat" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Method: %@"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "算法:%@"
+      }
+    }
+    }
+  },
+  "deepanalysis.xiji.patternFormat" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Pattern: %@"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "特征:%@"
+      }
+    }
+    }
+  },
+  "deepanalysis.xiji.tiaoshouBody" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "◎ Seasonal adjustment applied"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "◎ 调候用神已触发"
+      }
+    }
+    }
+  },
+  "deepanalysis.xiji.tiaoshouTrailing" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "◎ Seasonal adjustment on"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "◎ 调候已触发"
+      }
+    }
+    }
+  },
+  "deepanalysis.xiji.unfavorable" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Avoid"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "忌讳"
+      }
+    }
+    }
+  },
+  "deepanalysis.xiji.unfavorableA11y" : {
+    "extractionState" : "manual",
+    "localizations" : {
+    "en" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "Unfavorable"
+      }
+    },
+    "zh-Hans" : {
+      "stringUnit" : {
+        "state" : "translated",
+        "value" : "忌神"
+      }
+    }
+    }
+  },
     "deepchain.banner.leaveHint" : {
       "extractionState" : "manual",
       "localizations" : {
