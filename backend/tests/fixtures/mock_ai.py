@@ -31,6 +31,10 @@ class MockAIClient:
         self.last_temperature = temperature
         return self._response
 
+    def set_response(self, response: str) -> None:
+        """测试内替换应答(如 v1 模块走 JSON 契约应答,2026-09-27)。"""
+        self._response = response
+
 
 class FailingAIClient(MockAIClient):
     """调 interpret 必抛 AIProviderError(测错误传播)。"""

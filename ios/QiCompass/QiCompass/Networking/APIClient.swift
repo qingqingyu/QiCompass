@@ -46,10 +46,12 @@ enum APICoder {
 
 // MARK: - LiveAPIClient
 
-/// 真实 API 客户端:async/await + URLSession,timeout 90s,显式 throws。
+/// 真实 API 客户端:async/await + URLSession,timeout 150s,显式 throws。
 ///
-/// timeout 跟后端 AI_TIMEOUT_SECONDS=90 对齐:推理模型(gpt-5.x / claude-sonnet)
-/// 生成命书 20-50s,之前 15s 会在后端返回前提前 timeout。
+/// timeout 跟后端 AI_TIMEOUT_SECONDS=150 对齐(2026-09-27 与后端同步 90→150:
+/// max_tokens 放开到 8192 后,深度模块长文实际生成 ~3000-4000 token 预计
+/// 40-90s,90s 贴线会出现「后端还在生成、iOS 先超时」——后端完成后已写
+/// 缓存,重试会命中,但首次体验是一次白等后的失败)。
 /// 不重试(脚手架阶段,重试策略留待各模块 slice)。
 /// 返回 DTO,不直接返回 SwiftData @Model;DTO 与 @Model 转换由调用方显式映射。
 final class LiveAPIClient: APIClient {
@@ -62,10 +64,10 @@ final class LiveAPIClient: APIClient {
 
     init(baseURL: URL) {
         let config = URLSessionConfiguration.default
-        // 跟后端 AI_TIMEOUT_SECONDS=90 对齐。推理模型生成命书 20-50s,
-        // 15s 会在后端返回前提前 timeout。resource timeout 留 120s 容错。
-        config.timeoutIntervalForRequest = 90
-        config.timeoutIntervalForResource = 120
+        // 跟后端 AI_TIMEOUT_SECONDS=150 对齐(2026-09-27 同步 90→150,见类注释)。
+        // resource timeout 留 300s 容错(重定向/慢网络叠加生成时长)。
+        config.timeoutIntervalForRequest = 150
+        config.timeoutIntervalForResource = 300
         self.session = URLSession(configuration: config)
         self.baseURL = baseURL
     }

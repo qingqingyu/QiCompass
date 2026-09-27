@@ -12,6 +12,7 @@ import pytest
 
 from app.ai import openai_client as openai_module
 from app.ai.openai_client import OpenAIClient
+from app.config import AI_MAX_OUTPUT_TOKENS, AI_TIMEOUT_SECONDS
 from app.errors import AIProviderError
 
 
@@ -85,7 +86,7 @@ async def test_openai_client_request_contract(monkeypatch):
     assert captured["json"] == {
         "model": "gpt-test",
         "messages": [{"role": "user", "content": "完整 prompt"}],
-        "max_tokens": 1024,
+        "max_tokens": AI_MAX_OUTPUT_TOKENS,
         "temperature": 0.6,  # v1 prompt 系统默认值(老模块向后兼容)
     }
 
@@ -131,8 +132,15 @@ async def test_openai_client_rejects_non_success_payload(monkeypatch, payload, m
         await OpenAIClient(api_key="test-key").interpret("prompt")
 
 
-async def test_openai_client_treats_length_truncation_as_success(monkeypatch):
-    # finish_reason=length 表示被 max_tokens 截断,但已有文本应正常返回
+async def test_openai_client_length_truncation_is_explicit_error(monkeypatch):
+    """finish_reason=length(max_tokens 截断)→ AIProviderError,不返回半截文本。
+
+    2026-09-27 反转旧决策(原测试断言「已有文本应正常返回」):真机 m1_talent
+    实证——截断的半截 JSON 入缓存,iOS ChapterContent.parse 失败退回散文 =
+    正文 JSON 裸奔。截断文本对 JSON 契约模块必然不可用,且对散文模块也是
+    破相内容;显式报错让客户端重试(失败 refund),对齐错误显式传播。
+    与 anthropic_client 的 stop_reason=max_tokens 拦截同口径。
+    """
     _install_fake_async_client(
         monkeypatch,
         lambda url, **kwargs: _FakeResponse({
@@ -143,7 +151,8 @@ async def test_openai_client_treats_length_truncation_as_success(monkeypatch):
             }],
         }),
     )
-    assert await OpenAIClient(api_key="test-key").interpret("prompt") == "截断的部分命书"
+    with pytest.raises(AIProviderError, match="max_tokens 截断"):
+        await OpenAIClient(api_key="test-key").interpret("prompt")
 
 
 async def test_openai_client_rejects_non_json(monkeypatch):
@@ -231,12 +240,16 @@ def _capture_request(monkeypatch, *, ctor_sink=None):
 
 
 async def test_openai_client_defaults_are_config_values(monkeypatch):
-    """不传 max_tokens/timeout 时用 config 默认(App 路径行为不变)。"""
+    """不传 max_tokens/timeout 时用 config 默认(App 路径行为不变)。
+
+    2026-09-27 默认 1024→8192 / 90→150(对齐 v1 模板 1500-2500 字篇幅契约);
+    断言对 config 真值而非字面量,防再次漂移。
+    """
     ctor: dict = {}
     captured = _capture_request(monkeypatch, ctor_sink=ctor)
     await OpenAIClient(api_key="test-key").interpret("prompt")
-    assert captured["json"]["max_tokens"] == 1024
-    assert ctor["timeout"] == 90.0
+    assert captured["json"]["max_tokens"] == AI_MAX_OUTPUT_TOKENS
+    assert ctor["timeout"] == AI_TIMEOUT_SECONDS
     assert ctor["trust_env"] is False
 
 

@@ -53,8 +53,9 @@ def test_identity_any_dim_change_differs():
         _identity(rubric_version=2),
         _identity(judge_model="judge-x"),
         _identity(cases_hash="hash-y"),
-        # prompt_versions 快照变(模块集不同 → 版本表不同)
-        _identity(prompt_versions={"m0_structure": 2}),
+        # prompt_versions 快照变(版本表不同;用远离现值的数字,
+        # 避免与 PROMPT_VERSIONS 真值撞值——2026-09-27 m0-m7 bump 2 后撞过)
+        _identity(prompt_versions={"m0_structure": 999}),
     ]
     for v in variants:
         assert identity_digest(v) != base

@@ -78,14 +78,20 @@ PROMPT_VERSIONS: dict[str, int] = {
     # v1 prompt 系统(Stage 5 落地,设计源 /Users/TWJ/Downloads/bazi-prompt-system-v1.md)
     # M0-M7 共 8 模块,双轨保留:老 7 module 不动,iOS 切换后可下线老的
     # 链式调用:M0 产 structure_fingerprint → M1-M7 各自带 parent_fingerprint 注入
-    "m0_structure": 1,     # 免费:识别主线结构 + 产 structure_fingerprint
-    "m1_talent": 1,        # 免费:天赋能力(innate/trained/defensive + one_leverage)
-    "m2_high_low": 1,      # 付费:高配/低配 + 阈值(环境/信念/觉察)
-    "m3_system": 1,        # 付费:人生系统模式(运行模式/失效环境/理想结构)
-    "m4_health": 1,        # 付费:健康续航(需 age + current_concern)
-    "m5_wealth": 1,        # 付费:财富结构(需 assets_summary + preference)
-    "m6_dynamics": 1,      # 付费:结构动力学高阶(能量路径/杠杆/易损点/升级路径)
-    "m7_manual": 1,        # 付费:落地手册(true_leverage + 90 天行动)
+    # 2026-09-27 全量 1→2:模板内容不变(_v1.md → _v2.md 改名,byte-identical),
+    # bump 唯一目的是失效「后端 SQLite + iOS SwiftData」双侧已中毒的截断缓存
+    # (max_tokens 1024→8192 修复前,m1 等 1500-2500 字模块输出被拦腰截断,
+    # 半截 JSON 入了两层缓存,iOS 渲染层 parse 失败退散文 = 正文 JSON 裸奔)。
+    # M0 重生成后 temp 0.3 非确定性 → fingerprint 变 → 下游缓存键连带失效
+    # (链式设计如此,行为正确)。iOS 的 promptVersion 从响应学得,无需发版。
+    "m0_structure": 2,     # 免费:识别主线结构 + 产 structure_fingerprint
+    "m1_talent": 2,        # 免费:天赋能力(innate/trained/defensive + one_leverage)
+    "m2_high_low": 2,      # 付费:高配/低配 + 阈值(环境/信念/觉察)
+    "m3_system": 2,        # 付费:人生系统模式(运行模式/失效环境/理想结构)
+    "m4_health": 2,        # 付费:健康续航(需 age + current_concern)
+    "m5_wealth": 2,        # 付费:财富结构(需 assets_summary + preference)
+    "m6_dynamics": 2,      # 付费:结构动力学高阶(能量路径/杠杆/易损点/升级路径)
+    "m7_manual": 2,        # 付费:落地手册(true_leverage + 90 天行动)
 }
 
 # ---------- 深度解析 ----------
@@ -370,7 +376,8 @@ COMPATIBILITY_PAID_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（付费 4
 # 渲染策略:JSON schema 大括号用 {{ }} 转义,str.format_map 自动还原为单花括号
 # → 与老 module 共用同一渲染路径,占位符({chart} 等)走 format_map 标准机制
 # 全局 System Prompt 与 8 模板常量拼装(T1a 前注册进 _LEGACY_TEMPLATES,现与
-# prompts/{zh,en}/{module}_v1.md 文件 byte-identical,常量保留作 tests 断言锚点)
+# prompts/{zh,en}/{module}_v{version}.md 文件 byte-identical(2026-09-27 起 v2),
+# 常量保留作 tests 断言锚点)
 
 # 设计文档 §2 全局 System Prompt(所有 v1 模块共用的世界观约束)
 _V1_SYSTEM_PROMPT = """你是一位命理结构分析师，工作方式接近系统分析师，而不是算命先生。

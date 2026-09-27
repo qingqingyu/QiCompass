@@ -521,13 +521,15 @@ async def test_v1_paid_module_no_entitlement_returns_403(interpret_client):
 
 
 async def test_v1_paid_module_with_bazi_deep_entitlement_passes_gate(
-    interpret_client, tmp_entitlement_store,
+    interpret_client, tmp_entitlement_store, mock_ai_client,
 ):
     """断链修复核心回归:一条 module="bazi_deep" 的 entitlement
     (iOS redeem 实际写入形态)→ v1 付费 module(m2)过门控 → 200。
 
     修复前:路由按 m2_high_low 原名查 entitlement,已购用户同样 403;
     修复后:映射回 bazi_deep,与 iOS 写入形态对齐。
+    2026-09-27:mock 应答换 JSON(v1 模块输出契约是 JSON,散文会被
+    新增的 _validate_v1_module_json 拦 503)。
     """
     content_hash = "hash-m2-ent-pass"
     payload = {
@@ -544,9 +546,10 @@ async def test_v1_paid_module_with_bazi_deep_entitlement_passes_gate(
         module="m2_high_low",
         user_local_id="user-1",
     )
+    mock_ai_client.set_response('{"high_config": "mock"}')
     resp = await interpret_client.post("/api/interpret", json=payload)
     assert resp.status_code == 200, resp.json()
-    assert resp.json()["interpretation"]
+    assert resp.json()["interpretation"] == '{"high_config": "mock"}'
 
 
 # ===== T1(i18n-trilingual)review 修复:en 深度链路 chart 非法 JSON 的错误口径 =====
@@ -575,3 +578,233 @@ async def test_m0_en_invalid_chart_json_returns_structured_500(interpret_client)
     # message 可定位(chart 字段 + JSON 字样),不是裸栈
     assert "chart" in body["error"]["message"]
     assert "JSON" in body["error"]["message"]
+
+
+# ===== V1 JSON 契约校验(2026-09-27:max_tokens 截断修复的回归锁定)=====
+#
+# 事故形态(真机 m1_talent,2026-09-26):LLM 输出在 max_tokens=1024 截断,
+# 半截 JSON 通过禁词扫描入缓存 → iOS ChapterContent.parse 失败退回散文 =
+# 正文 JSON 裸奔。修复三层:max_tokens 8192 / client 层截断显式报错 /
+# 本层 JSON 契约校验(不入库 + 命中自愈)。
+
+
+# m0 最小合法 context(REQUIRED_FIELDS["m0_structure"] = ["chart"],chart 须 JSON 字符串)
+_V1_M0_CONTEXT = {"chart": '{"pillars": "test-chart"}'}
+
+
+# ===== _strip_code_fences:与 iOS OrderedJSONParser.stripCodeFences 逐字符对齐 =====
+# 校验层只能比渲染层严或同等,不能更宽(更宽 = 放行 iOS 解析不了的内容入缓存
+# = JSON 裸奔事故复发通道)。
+
+@pytest.mark.parametrize("text,expected", [
+    # 正常契约输出(无围栏)原样返回
+    ('{"a": 1}', '{"a": 1}'),
+    # 标准围栏:剥首行语言标记 + 末尾围栏
+    ('```json\n{"a": 1}\n```', '{"a": 1}'),
+    # 无语言标记围栏
+    ('```\n{"a": 1}\n```', '{"a": 1}'),
+    # 围栏后无换行、JSON 同行:iOS drop-letters 后能拿到 JSON,同口径放行
+    ('```json{"a": 1}```', '{"a": 1}'),
+    # 围栏后带空格:iOS drop-letters 遇空格即停留下 "json" 前缀(渲染必失败),
+    # 后端必须同样留下前缀 → 校验拒绝(不得比 iOS 宽而放行入缓存)
+    ('``` json\n{"a": 1}\n```', 'json\n{"a": 1}'),
+    # 围栏截断(无闭合):正文原样保留,由 json.loads 判截断
+    ('```json\n{"a": 1', '{"a": 1'),
+])
+def test_strip_code_fences_matches_ios_parser(text, expected):
+    from app.api.interpret import _strip_code_fences
+    assert _strip_code_fences(text) == expected
+
+
+async def test_v1_module_prose_response_returns_503_and_not_cached(
+    interpret_client, mock_ai_client,
+):
+    """v1 模块收到非 JSON(散文)→ 503 AI_PROVIDER_ERROR,不写缓存。"""
+    payload = {
+        "content_hash": "hash-m0-prose",
+        "module": "m0_structure",
+        "context": _V1_M0_CONTEXT,
+        "target_date": None,
+    }
+    resp = await interpret_client.post("/api/interpret", json=payload)
+    assert resp.status_code == 503, resp.json()
+    body = resp.json()
+    assert body["error"]["code"] == "AI_PROVIDER_ERROR"
+    assert "JSON" in body["error"]["message"]
+    # 坏输出不写缓存:重试时 provider 必须重新被调(而非命中坏缓存)
+    resp2 = await interpret_client.post("/api/interpret", json=payload)
+    assert resp2.status_code == 503
+    assert mock_ai_client.call_count == 2, "坏输出不得入缓存(两次都应真调 provider)"
+
+
+async def test_v1_module_truncated_json_returns_503(
+    interpret_client, mock_ai_client,
+):
+    """真机事故原样形态:JSON 在字符串中间截断 → 503(不缓存不返回)。"""
+    mock_ai_client.set_response(
+        '{"innate": [{"name": "Fast output", "behavior": "To outsiders'
+    )
+    payload = {
+        "content_hash": "hash-m0-truncated",
+        "module": "m0_structure",
+        "context": _V1_M0_CONTEXT,
+        "target_date": None,
+    }
+    resp = await interpret_client.post("/api/interpret", json=payload)
+    assert resp.status_code == 503, resp.json()
+    assert resp.json()["error"]["code"] == "AI_PROVIDER_ERROR"
+    assert "截断" in resp.json()["error"]["message"]
+
+
+async def test_v1_module_fenced_json_passes_and_caches(
+    interpret_client, mock_ai_client,
+):
+    """LLM 违约加 ```json 围栏但 JSON 完整 → 放行(iOS stripCodeFences 同口径),
+    原文入缓存;第二次命中缓存(命中侧同样围栏容忍,不误删自愈)。"""
+    fenced = '```json\n{"structure_fingerprint": "mock"}\n```'
+    mock_ai_client.set_response(fenced)
+    payload = {
+        "content_hash": "hash-m0-fenced",
+        "module": "m0_structure",
+        "context": _V1_M0_CONTEXT,
+        "target_date": None,
+    }
+    resp = await interpret_client.post("/api/interpret", json=payload)
+    assert resp.status_code == 200, resp.json()
+    assert resp.json()["cached"] is False
+    assert resp.json()["interpretation"] == fenced
+    resp2 = await interpret_client.post("/api/interpret", json=payload)
+    assert resp2.status_code == 200, resp2.json()
+    assert resp2.json()["cached"] is True, "围栏完整 JSON 缓存应命中,不被自愈误删"
+    assert mock_ai_client.call_count == 1
+
+
+async def test_v1_module_json_array_top_level_returns_503(
+    interpret_client, mock_ai_client,
+):
+    """顶层非对象(JSON 数组)→ 503(iOS `guard case .object` 同口径)。"""
+    mock_ai_client.set_response('["not", "an", "object"]')
+    payload = {
+        "content_hash": "hash-m0-array",
+        "module": "m0_structure",
+        "context": _V1_M0_CONTEXT,
+        "target_date": None,
+    }
+    resp = await interpret_client.post("/api/interpret", json=payload)
+    assert resp.status_code == 503, resp.json()
+    assert "顶层非对象" in resp.json()["error"]["message"]
+
+
+@pytest.mark.parametrize("bad_json", [
+    "{}",                                  # 空对象:iOS nodes.isEmpty → 退散文
+    '{"a": null}',                         # 全 null 值:node 全 nil → 退散文
+    '{"a": null, "b": [null, null]}',      # null + 全 null 数组:同上
+    '{"a": []}',                           # 空数组:arrayNode nonNull 空 → nil
+])
+async def test_v1_module_unrenderable_object_returns_503(
+    interpret_client, mock_ai_client, bad_json,
+):
+    """顶层对象但无可渲染值(iOS `nodes.isEmpty → nil` 同口径)→ 503。
+
+    后端若放行入缓存,iOS 渲染层会退回散文把这段退化 JSON 原样展示
+    (= JSON 裸奔的退化形态),与截断事故同通道,须拦。
+    """
+    mock_ai_client.set_response(bad_json)
+    payload = {
+        "content_hash": f"hash-m0-unrenderable-{abs(hash(bad_json))}",
+        "module": "m0_structure",
+        "context": _V1_M0_CONTEXT,
+        "target_date": None,
+    }
+    resp = await interpret_client.post("/api/interpret", json=payload)
+    assert resp.status_code == 503, resp.json()
+    assert "无可渲染值" in resp.json()["error"]["message"]
+
+
+async def test_v1_module_object_with_mixed_null_renderable_passes(
+    interpret_client, mock_ai_client,
+):
+    """null 与可渲染值混存 → 放行(iOS compactMap 丢掉 null 仍有节点)。"""
+    mock_ai_client.set_response('{"a": null, "b": "有效内容"}')
+    payload = {
+        "content_hash": "hash-m0-mixed-null",
+        "module": "m0_structure",
+        "context": _V1_M0_CONTEXT,
+        "target_date": None,
+    }
+    resp = await interpret_client.post("/api/interpret", json=payload)
+    assert resp.status_code == 200, resp.json()
+    assert resp.json()["interpretation"] == '{"a": null, "b": "有效内容"}'
+
+
+async def test_old_module_prose_response_still_passes(
+    interpret_client, mock_ai_client,
+):
+    """老模块(bazi_deep_free)无 JSON 契约:散文应答照常 200(校验只拦 v1)。"""
+    payload = {
+        "content_hash": "hash-old-prose",
+        "module": "bazi_deep_free",
+        "context": BAZI_DEEP_CONTEXT,
+        "target_date": None,
+    }
+    resp = await interpret_client.post("/api/interpret", json=payload)
+    assert resp.status_code == 200, resp.json()
+    assert resp.json()["interpretation"] == "【mock 命书文本】"
+
+
+async def test_v1_poisoned_cache_hit_deletes_and_regenerates(
+    interpret_client, mock_ai_client, tmp_cache,
+):
+    """缓存命中自愈:坏 JSON 行命中 → 删除 + 落穿重新生成。
+
+    场景说明:截断时代的坏行是 prompt_version=1 键,已被 D3A 版本 bump
+    孤立(新键永不命中),本测的是纵深防御层——拦未来回归(生成侧校验被
+    弱化后写入的 v2 键坏行)与旁路写入。命中不返回坏内容,删行后走正常
+    生成,用户只多等一次生成(无感自愈)。
+    """
+    from app.ai.cache_key import CacheKey
+    from app.ai.prompts import PROMPT_VERSIONS, render_prompt
+    from app.engine.term_translations import translate_context
+
+    content_hash = "hash-m0-poisoned"
+    # 复刻路由的缓存键计算(prompt_hash = 渲染后 prompt 的 sha256)
+    translated = translate_context(_V1_M0_CONTEXT, "zh", "m0_structure")
+    prompt = render_prompt("m0_structure", translated, language="zh")
+    key = CacheKey(
+        content_hash=content_hash,
+        module="m0_structure",
+        prompt_version=PROMPT_VERSIONS["m0_structure"],
+        target_date=None,
+        prompt_hash=hashlib.sha256(prompt.encode("utf-8")).hexdigest(),
+        provider=mock_ai_client.provider,
+        model=mock_ai_client.model,
+        parent_hash="",
+        user_input_hash="",
+        language="zh",
+    )
+    tmp_cache.set(key, '{"innate": [{"name": "半截', "2026-09-26T00:00:00+00:00")
+
+    fresh = '{"structure_fingerprint": "fresh-valid"}'
+    mock_ai_client.set_response(fresh)
+    payload = {
+        "content_hash": content_hash,
+        "module": "m0_structure",
+        "context": _V1_M0_CONTEXT,
+        "target_date": None,
+    }
+    resp = await interpret_client.post("/api/interpret", json=payload)
+    assert resp.status_code == 200, resp.json()
+    assert resp.json()["cached"] is False, "坏缓存应被删除后重新生成,不是命中返回"
+    assert resp.json()["interpretation"] == fresh
+    assert mock_ai_client.call_count == 1
+    # 防「key 复算错位 → 预置行从未被命中 → 自愈路径空转」:预置 key 下
+    # 必须已是重新生成的新行(若语言/键计算漂移导致 key 不匹配,老的中毒行
+    # 会原样留在 tmp_cache,此断言失败暴露)
+    row = tmp_cache.get(key)
+    assert row is not None and row["interpretation"] == fresh, (
+        "预置中毒行应被删除并由新行替换(否则自愈路径未真正触发)")
+    # 自愈后的新缓存可正常命中
+    resp2 = await interpret_client.post("/api/interpret", json=payload)
+    assert resp2.status_code == 200, resp2.json()
+    assert resp2.json()["cached"] is True
+    assert mock_ai_client.call_count == 1
