@@ -243,6 +243,13 @@ final class MockAPIClient: APIClient {
         recordLock.lock(); defer { recordLock.unlock() }
         return _recordedInterpretRequests
     }
+    /// 匿名购买改造(2026-09-27):redeem 请求录制,测试断言 user_local_id
+    /// 维度(必须 = 安装 UUID,与后端 backfill/claim 匹配维度一致)。
+    private var _recordedRedeemRequests: [EntitlementRedeemRequest] = []
+    var recordedRedeemRequests: [EntitlementRedeemRequest] {
+        recordLock.lock(); defer { recordLock.unlock() }
+        return _recordedRedeemRequests
+    }
     func health() async throws -> HealthResponse {
         AppLogger.networking.debug("mock.health 调起")
         try? await Task.sleep(nanoseconds: 200_000_000)
@@ -302,6 +309,9 @@ final class MockAPIClient: APIClient {
 
     func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse {
         AppLogger.networking.debug("mock.redeem 调起 tx=\(request.transactionId, privacy: .public) product=\(request.productId, privacy: .public)")
+        recordLock.lock()
+        _recordedRedeemRequests.append(request)
+        recordLock.unlock()
         try? await Task.sleep(nanoseconds: 300_000_000)
         // Mock 永远返回成功(M3b 接真 SDK 时,真实流程在 PurchaseManager 里实现)
         return EntitlementRedeemResponse(

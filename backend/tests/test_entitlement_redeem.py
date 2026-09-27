@@ -11,7 +11,12 @@ redeem:
 - Apple verify 抛错 → 502
 - 字段校验:缺字段 / 空白 user_local_id → 422
 - 调用 MockAppleServerAPI 计数验证幂等行为
-- **强制 JWT**:未带 Authorization → 401(Slice 1 决策)
+- **匿名 redeem(2026-09-27)**:无 Authorization → 200,行 user_id NULL;
+  坏 Authorization 仍 401
+- **幂等补绑**:匿名购买 → 登录态同 local_id 二次 redeem → user_id 补上
+- **匿名行防抢**:他人 JWT + 异 local_id 撞匿名行 → 403(行保持 NULL)
+- **跨设备仅 JWT 认领匿名行 → 403**(v1 接受语义:匿名购买跨设备只能靠
+  登录时的 backfill / 同 local_id 设备)
 
 list(Slice 1 新增):
 - 未带 JWT → 401
@@ -101,15 +106,118 @@ def _redeem_payload(
     }
 
 
-# ===== redeem:强制 JWT(Slice 1 新增)=====
+# ===== redeem:匿名调用(2026-09-27 匿名购买改造)=====
 
 
-async def test_redeem_without_jwt_returns_401(redeem_client):
-    """未带 Authorization → 401(redeem 强制登录,对齐 Slice 1 决策)。"""
+async def test_redeem_anonymous_success_writes_null_user_id(
+    redeem_client, mock_apple, tmp_entitlement_store,
+):
+    """无 Authorization(匿名购买)→ 200:Apple 验证通过 → 写表 user_id NULL
+    (user_local_id 维度兜底),entitled=True。"""
     resp = await redeem_client.post(
         "/api/entitlement/redeem", json=_redeem_payload())
+    assert resp.status_code == 200, resp.json()
+    body = resp.json()
+    assert body["entitled"] is True
+    assert body["transaction_id"] == "tx-001"
+
+    row = tmp_entitlement_store.get_by_transaction("tx-001")
+    assert row is not None
+    assert row["is_active"] == 1
+    assert row["user_id"] is None
+    assert row["user_local_id"] == "user-1"
+    assert len(mock_apple.verify_transaction_calls) == 1
+
+
+async def test_redeem_malformed_authorization_still_401(redeem_client):
+    """Authorization 存在但格式坏 → 401(可选鉴权没有放开坏 token 路径)。"""
+    resp = await redeem_client.post(
+        "/api/entitlement/redeem", json=_redeem_payload(),
+        headers={"Authorization": "garbage-not-bearer"},
+    )
     assert resp.status_code == 401
     assert resp.json()["error"]["code"] == "JWT_MALFORMED"
+
+
+async def test_redeem_anonymous_then_signed_in_same_local_id_claims_user_id(
+    redeem_client, mock_apple, tmp_entitlement_store, auth_headers,
+):
+    """匿名购买 → 登录后同 user_local_id 二次 redeem → 幂等命中 +
+    claim_user_id 把行 user_id 从 NULL 补为 JWT sub;不再调 Apple。"""
+    r1 = await redeem_client.post(
+        "/api/entitlement/redeem", json=_redeem_payload())
+    assert r1.status_code == 200
+    assert tmp_entitlement_store.get_by_transaction("tx-001")["user_id"] is None
+
+    r2 = await redeem_client.post(
+        "/api/entitlement/redeem", json=_redeem_payload(),
+        headers=auth_headers,
+    )
+    assert r2.status_code == 200, r2.json()
+    assert r2.json()["entitled"] is True
+    # 幂等:不重复调 Apple
+    assert len(mock_apple.verify_transaction_calls) == 1
+    # 行已补绑到登录账号
+    assert tmp_entitlement_store.get_by_transaction("tx-001")["user_id"] \
+        == TEST_USER_ID
+
+
+async def test_redeem_anonymous_row_other_jwt_different_local_id_rejected(
+    redeem_client, mock_apple, tmp_entitlement_store, auth_headers,
+    other_user_auth_headers,
+):
+    """匿名行(user_id NULL)+ 他人 JWT + 异 user_local_id → 403(防拿
+    tx_id 抢绑他人匿名购买);行保持 user_id NULL。"""
+    r1 = await redeem_client.post(
+        "/api/entitlement/redeem", json=_redeem_payload())
+    assert r1.status_code == 200
+
+    r2 = await redeem_client.post(
+        "/api/entitlement/redeem",
+        json=_redeem_payload(user_local_id="user-attacker"),
+        headers=other_user_auth_headers,
+    )
+    assert r2.status_code == 403
+    assert tmp_entitlement_store.get_by_transaction("tx-001")["user_id"] is None
+
+
+async def test_redeem_signed_in_hit_null_user_id_row_different_local_id_rejected(
+    redeem_client, mock_apple, tmp_entitlement_store, auth_headers,
+):
+    """匿名行 + 本人 JWT 但异 user_local_id(跨设备/重装场景)→ 403:
+    v1 接受语义——仅 JWT 不能认领匿名行(无法证明 Apple 交易所有权),
+    匿名购买的跨设备找回只能走登录 backfill 或同 local_id 设备。"""
+    r1 = await redeem_client.post(
+        "/api/entitlement/redeem", json=_redeem_payload())
+    assert r1.status_code == 200
+
+    r2 = await redeem_client.post(
+        "/api/entitlement/redeem",
+        json=_redeem_payload(user_local_id="user-1-new-device"),
+        headers=auth_headers,  # JWT 是任意有效用户(此处用 TEST_USER_ID)
+    )
+    assert r2.status_code == 403
+    assert tmp_entitlement_store.get_by_transaction("tx-001")["user_id"] is None
+
+
+async def test_redeem_anonymous_row_anonymous_other_local_id_rejected(
+    redeem_client, mock_apple, tmp_entitlement_store,
+):
+    """匿名行 + 匿名请求 + 异 user_local_id → 403(None==None 洞回归测试:
+    匿名请求不允许走 user_id 维度匹配,他人匿名调用方不能幂等命中)。"""
+    r1 = await redeem_client.post(
+        "/api/entitlement/redeem", json=_redeem_payload())
+    assert r1.status_code == 200
+
+    r2 = await redeem_client.post(
+        "/api/entitlement/redeem",
+        json=_redeem_payload(user_local_id="user-attacker"),
+    )
+    assert r2.status_code == 403
+    # 行未被改动
+    row = tmp_entitlement_store.get_by_transaction("tx-001")
+    assert row["user_id"] is None
+    assert row["user_local_id"] == "user-1"
 
 
 # ===== redeem:成功路径 =====

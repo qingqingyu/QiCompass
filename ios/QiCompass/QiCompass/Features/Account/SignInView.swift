@@ -1,6 +1,5 @@
 import SwiftUI
 import AuthenticationServices
-import GoogleSignInSwift
 
 /// Sign in with Apple 按钮 包装(v2 PR2;2026-09-25 暗色走查修复:随系统外观切换样式)。
 ///
@@ -32,29 +31,7 @@ struct AppleSignInButton: View {
     }
 }
 
-/// Sign in with Google 按钮 包装(2026-08-16,对齐 AppleSignInButton 模式;
-/// 2026-09-25 暗色走查修复:scheme 跟随系统外观,暗色用官方 .dark 深底款,
-/// 不再是夜里刺眼的纯白大块)。
-///
-/// Google 品牌规范:必须用官方 GoogleSignInButton(不可自定义配色/文案,
-/// 只能在官方 scheme/style 参数里选)— 与 Apple HIG 对 SignInWithAppleButton 的约束同理。
-///
-/// **解耦设计**:按钮只触发 action 回调,由调用方驱动 AccountManager.handleGoogleSignIn。
-/// GoogleService-Info.plist 未配置时按钮照常渲染,点击后 AccountManager 显式显错。
-struct GoogleSignInButton: View {
-    /// 点击回调(触发 AccountManager.handleGoogleSignIn)。
-    let action: () -> Void
-
-    @Environment(\.colorScheme) private var scheme
-
-    var body: some View {
-        GoogleSignInSwift.GoogleSignInButton(
-            scheme: scheme == .dark ? .dark : .light,
-            action: action
-        )
-            // 与 AppleSignInButton 同高,登录区两个按钮并列(布局不跳)
-            .frame(height: 50)
-            .cornerRadius(BaziTheme.Radius.sm)
-            .accessibilityLabel("使用 Google 登录")
-    }
-}
+// 2026-09-27 移除 GoogleSignInButton(用户拍板,全 App 只留 SIWA):
+// 官方 SDK 品牌规范锁死亮蓝配色,与水墨视觉冲突且国内用户基本不可用。
+// AccountManager.handleGoogleSignIn 与后端 Google exchange 保留(休眠态),
+// 日后重启 UI 时对齐 AppleSignInButton 模式重写即可。

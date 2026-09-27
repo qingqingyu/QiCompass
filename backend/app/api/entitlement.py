@@ -1,7 +1,13 @@
 """POST /api/entitlement/redeem — iOS 购买完成后同步 entitlement 到后端(M2b)。
 
+**鉴权可选**(2026-09-27 匿名购买改造):无 JWT → 匿名 redeem,行落
+user_id NULL(user_local_id 维度兜底查询);带 JWT → 绑账号维度。
+幂等分支撞到"匿名行 + JWT 请求"时顺手补绑(claim_user_id),覆盖
+backfill(登录时点)够不到的竞态行。恶意/坏 token 仍然 401。
+
 流程:
-1. 幂等查表:同 transaction_id 已 active → 直接返回(不重复调 Apple)
+1. 幂等查表:同 transaction_id 已 active → 直接返回(不重复调 Apple;
+   JWT 在场且存量行 user_id NULL → 先 claim_user_id 补绑再返回)
 2. 幂等查表:同 transaction_id 已 inactive → 403(已退款/撤销,不能重新激活)
 3. Apple 验证:verify_transaction(transaction_id)
    - 网络/签名/SDK 失败 → 502 AppleVerificationError
@@ -32,7 +38,7 @@ from ..errors import (
     EntitlementError,
     InterpretationCacheError,
 )
-from ..auth.dependencies import require_authenticated_user
+from ..auth.dependencies import get_current_user_id, require_authenticated_user
 from ..models.entitlement import (
     EntitlementListItem,
     EntitlementListResponse,
@@ -47,7 +53,7 @@ logger = logging.getLogger(__name__)
 @router.post("/api/entitlement/redeem", response_model=EntitlementRedeemResponse)
 async def redeem(
     req: EntitlementRedeemRequest, request: Request,
-    current_user_id: str = Depends(require_authenticated_user),
+    current_user_id: str | None = Depends(get_current_user_id),
 ) -> EntitlementRedeemResponse:
     request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
     start = time.perf_counter()
@@ -96,7 +102,11 @@ async def redeem(
                     request_id=request_id, content_hash=req.content_hash,
                 )
             user_match = (
-                existing.get("user_id") == current_user_id
+                # 匿名请求(current_user_id=None)不允许走 user_id 维度匹配,
+                # 否则匿名行(user_id NULL)会出现 None==None 恒真,任何匿名
+                # 调用方都能幂等命中他人交易(2026-09-27 收紧)
+                (current_user_id is not None
+                    and existing.get("user_id") == current_user_id)
                 or existing.get("user_local_id") == req.user_local_id
             )
             if not user_match:
@@ -108,6 +118,16 @@ async def redeem(
                     f"交易 {req.transaction_id} 不属于当前用户,拒绝幂等返回",
                     request_id=request_id, content_hash=req.content_hash,
                 )
+            # 匿名行 + JWT 请求 → 补绑(登录后 redeem 撞到匿名时期购买的行;
+            # backfill 只覆盖登录时点之前落库的行,这里覆盖竞态行)
+            if current_user_id is not None and existing.get("user_id") is None:
+                claimed = await run_in_threadpool(
+                    store.claim_user_id,
+                    transaction_id=req.transaction_id,
+                    user_id=current_user_id,
+                )
+                logger.info(
+                    "entitlement.redeem.claimed %s claimed=%s", log_ctx, claimed)
             # 已激活 → 幂等返回(不重复调 Apple)
             logger.info(
                 "entitlement.redeem.idempotent_hit %s "
@@ -177,7 +197,7 @@ async def redeem(
             content_hash=req.content_hash,
             module=req.module,
             user_local_id=req.user_local_id,
-            user_id=current_user_id,  # 强制登录后必有值(redeem 走 require_authenticated_user)
+            user_id=current_user_id,  # JWT 在场=绑账号;匿名 redeem 为 None(表列可空)
             purchased_at=purchased_at_iso,
             original_purchase_date=original_purchase_date_iso,
         )

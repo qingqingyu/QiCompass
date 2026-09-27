@@ -8,6 +8,11 @@ import SwiftUI
 /// 超高内容被 sheet 居中裁切(首章「壹」不可见);内容入 ScrollView
 /// 顶部锚定 + .large 可拉满,彻底消灭裁切。
 ///
+/// 2026-09-27 匿名购买重构(外部 review + 拍板):购买按钮常驻(登录不再是
+/// 前置,App Store 审核风险 + 登录步流失)、补恢复购买入口(消耗型语义)、
+/// 登录降级为可选绑定行(跨设备同步)、「落价」→「润金」、「日元」→「日主」、
+/// 章节清单加静态预告行。旧 B 章回分段(stepper/钤印/成契)随登录中置设计移除。
+///
 /// 视觉:遵守 DESIGN.md 宋瓷极简美学(无金色 / 无磨砂玻璃),
 /// 锁标用 `lock.fill` + `inkMuted`,CTA 用朱砂红 PrimaryCTAButton。
 ///
@@ -59,34 +64,22 @@ struct PaywallView: View {
         .task { await viewModel.loadProduct() }
     }
 
-    // MARK: - B 章回分段派生(呈现层;判据与 Fix#3 购买按钮分支同构)
+    // MARK: - 账号绑定派生(2026-09-27 匿名购买:登录从购买前置降级为可选绑定)
 
-    /// 当前契约步(贰 钤印 / 叁 成契;壹 观其价打开即完成,无「进行中」态)。
-    private var contractStep: PaywallContractStep {
-        var signedIn = false
-        if case .signedIn = env.accountManager.state { signedIn = true }
-        return .derive(signedIn: signedIn, exchangeDone: env.accountManager.exchangeState == .done)
-    }
-
-    /// exchange 进行中(stepper 贰的副题切「钤印中…」)。
-    private var isExchangingSeal: Bool {
+    /// 账号绑定进行中(provider 登录成功、exchange 未完)——绑定行切「绑定中…」。
+    private var isBindingInFlight: Bool {
         if case .signedIn = env.accountManager.state, env.accountManager.exchangeState == .inFlight {
             return true
         }
         return false
     }
 
-    /// 第贰步标题行(未登录 / exchange 进行中 / 失败三分支共用,文案单一事实源)。
-    private var sealingStepTitle: some View {
-        StepTitleRow(
-            stepNo: "第贰步",
-            title: "钤印为凭",
-            hint: "登录只为保存购买凭证 · 换机可恢复"
-        )
-    }
-
-    /// 正常付费墙内容(有时辰用户)。购买链路与 S07 前一致(viewModel.purchase /
-    /// PrimaryCTAButton);B 章回分段(2026-09-05)重排呈现层:stepper + 落价块 + 分步标题行。
+    /// 正常付费墙内容(有时辰用户)。
+    ///
+    /// 2026-09-27 匿名购买重构:购买按钮**常驻**(登录不再是前置,App Store
+    /// 审核风险 + 登录步流失);恢复购买补齐(消耗型语义,诚实文案);登录
+    /// 降级为购买后的可选绑定行(跨设备同步是消耗型唯一的跨设备通道)。
+    /// 旧 B 章回分段(壹观其价/贰钤印/叁成契)随「登录中置」设计一起移除。
     private var purchaseBody: some View {
         VStack(spacing: BaziTheme.Spacing.md) {
             // 水墨孤本(deep-p3):「解」印 + 标题 + 副题
@@ -97,7 +90,7 @@ struct PaywallView: View {
                         .font(BaziFont.display(size: 19))
                         .tracking(2)
                         .foregroundStyle(BaziTheme.ink)
-                    Text("一次买断 · 全设备同步")
+                    Text(viewModel.module.freeChaptersHint)
                         .font(BaziFont.caption(size: 10.5))
                         .tracking(2)
                         .foregroundStyle(BaziTheme.inkMuted)
@@ -107,29 +100,31 @@ struct PaywallView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(.top, BaziTheme.Spacing.xs)
 
-            // B 章回分段(2026-09-05 拍板):壹 观其价(打开即完成,价格未登录即见)
-            // → 贰 钤印(登录)→ 叁 成契(购买)。分段信号 = 显式 stepper,零学习成本。
-            ContractStepper(
-                step: contractStep,
-                isExchanging: isExchangingSeal,
-                isPurchased: viewModel.state == .success
-            )
-
-            // 落价块:合同式大写数字(防篡改语义,呼应大写数字品牌指纹);
-            // 角分价/千分位/越界 → 无大写,只显本地化数字(不造假)。
+            // 润金块:合同式大写数字(防篡改语义,呼应大写数字品牌指纹)。
+            // 大写存在时不再并显数字价(信息层级单一,数字价只在 CTA 按钮上);
+            // 角分价/千分位/越界/en 区 → 无大写,只显本地化数字(不造假)。
             PricePlate(
                 upperPrice: viewModel.chineseUpperPrice,
                 rawPrice: viewModel.rawPriceText
             )
 
-            // 章节清单:大写数字徽(锁定虚线圆)+ 章名 + dashed hairline 分隔
+            // 章节清单:大写数字徽(锁定虚线圆)+ 章名 + 静态预告行
+            // (2026-09-27 review:只有标题没信息量,¥128 价位需给价值密度)
+            // + dashed hairline 分隔
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(viewModel.module.paidChapters.enumerated()), id: \.element) { idx, chapter in
                     HStack(spacing: 12) {
                         NumeralBadge(index: idx + 1, locked: true, size: 28)
-                        Text(chapter)
-                            .font(BaziFont.body(size: 14))
-                            .foregroundStyle(BaziTheme.ink)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(chapter)
+                                .font(BaziFont.body(size: 14))
+                                .foregroundStyle(BaziTheme.ink)
+                            if idx < viewModel.module.chapterTeasers.count {
+                                Text(viewModel.module.chapterTeasers[idx])
+                                    .font(BaziFont.caption(size: 9.5))
+                                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+                            }
+                        }
                         Spacer()
                     }
                     .padding(.vertical, 9)
@@ -147,64 +142,22 @@ struct PaywallView: View {
                 errorCaption(message)
             }
 
-            // CTA(Slice 5 决策:强制登录购买;Fix#3:登录 = exchange 完成,非仅 SIWA 成功)。
-            // exchangeState(@Observable)驱动自动切按钮,不需要手动 dismiss / 跳转:
-            // 购买按钮只在 qicompassUserId 落地后出现,与 PurchaseManager 的
-            // isAuthenticated gate 同源,消灭"显示可购买、点了却报『请先登录』"死锁。
-            // 防御:exchange 进行中 signOut 的竞态下,迟到的 .done 会与 .signedOut 并存,
-            // 补 state 判据让该场景走登录区(正常流 .done 必然伴随 .signedIn,零行为变化)。
-            //
-            // B 章回分段呈现:操作区带「第几步」标题行,登录动机一句话钉死
-            // (「登录只为保存购买凭证」),分段感来自 stepper + 标题行,不来自按钮换位。
-            if case .signedIn = env.accountManager.state, env.accountManager.exchangeState == .done {
-                // 叁 · 成契:购买就绪
-                VStack(spacing: BaziTheme.Spacing.sm) {
-                    StepTitleRow(
-                        stepNo: "第叁步",
-                        title: "成契",
-                        hint: "Apple 确认后即解印 · 买断制不含订阅"
-                    )
-                    PrimaryCTAButton(
-                        title: viewModel.displayPriceText,
-                        loadingTitle: "处理中…",
-                        isLoading: viewModel.state == .purchasing,
-                        action: { Task { await viewModel.purchase() } }
-                    )
-                }
-            } else if case .signedIn = env.accountManager.state {
-                // SIWA 成功但账号未就绪(exchange 进行中 / 失败)
-                switch env.accountManager.exchangeState {
-                case .inFlight:
-                    // 贰 · 钤印进行中:三墨点 breathe(DESIGN 动效三式,breathe 变奏)
-                    VStack(spacing: BaziTheme.Spacing.sm) {
-                        sealingStepTitle
-                        VStack(spacing: BaziTheme.Spacing.sm) {
-                            SealingDots()
-                            Text("钤印中 · 正在完成登录…")
-                                .font(.caption)
-                                .foregroundStyle(BaziTheme.inkMuted)
-                        }
-                        .frame(maxWidth: .infinity)
-                        // 与 AppleSignInButton 同高,登录区切换时 sheet 布局不跳
-                        .frame(height: 50)
-                    }
-                case .failed(let message):
-                    // exchange 失败:显错 + 重新登录重试(SIWA 已授权过,重登通常无感)
-                    VStack(spacing: BaziTheme.Spacing.sm) {
-                        sealingStepTitle
-                        LoginGateButtons(
-                            errorMessage: message,
-                            errorColor: BaziTheme.shenshaInauspicious
-                        )
-                    }
-                case .idle, .done:
-                    // 防御:signedIn 但 exchangeState 未定义(不变量破坏,正常不应出现)
-                    signInPrompt
-                }
-            } else {
-                // 未登录 / SIWA 失败(Fix#1:登录失败显式显错)
-                signInPrompt
-            }
+            // CTA:常驻(登录与否都可买)。购买判据在 PurchaseManager 内部
+            // (StoreKit 验签 + 后端 redeem),与登录态解耦。
+            PrimaryCTAButton(
+                title: viewModel.displayPriceText,
+                loadingTitle: "处理中…",
+                isLoading: viewModel.state == .purchasing,
+                action: { Task { await viewModel.purchase() } }
+            )
+
+            // 恢复购买(App Store 惯例入口;消耗型语义:同机未完成交易 +
+            // 登录态后端同步,匿名重装/换机诚实返回「未找到」)
+            restoreSection
+
+            // 绑定行(未登录才显示):登录动机一句话 = 跨设备同步(消耗型
+            // 购买的唯一跨设备通道);已登录整行隐藏
+            bindingSection
 
             // 法律免责(DESIGN.md 反 AI slop + 命理类审核要求)
             Text("玄学娱乐,理性参考。\n购买即视为同意 Apple 标准用户协议。")
@@ -227,130 +180,131 @@ struct PaywallView: View {
             .frame(maxWidth: .infinity)
     }
 
-    /// 未登录态的登录区(第贰步标题行 + 中性提示或登录失败显错 + 登录按钮)。
-    private var signInPrompt: some View {
+    // MARK: - 恢复购买区
+
+    /// 「恢复购买」ghost 按钮(capsule hairline chip,同 HourUnknownGateNotice
+    /// CTA 形态——恢复是补救动作,不做实底 CTA)+ 状态反馈行。
+    @ViewBuilder
+    private var restoreSection: some View {
         VStack(spacing: BaziTheme.Spacing.sm) {
-            sealingStepTitle
-            // 登录失败显式显错(Fix#1:不吞,显错 + 保留重试按钮;
-            // 不渲染的话 SIWA 失败后 UI 无反馈,用户只看到按钮"没反应")。
-            // 按钮对与接线收敛在 LoginGateButtons(2026-09-06,全 App 唯一实现)。
-            if case .failed(let message) = env.accountManager.state {
+            Button {
+                HapticEngine.light()
+                Task { await viewModel.restore() }
+            } label: {
+                Text(viewModel.restoreState == .restoring ? "恢复中…" : "恢复购买")
+                    .font(.caption.weight(.semibold))
+                    .tracking(1)
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .padding(.horizontal, 18)
+                    .padding(.vertical, 8)
+                    .overlay(Capsule().stroke(BaziTheme.hairline, lineWidth: 0.5))
+            }
+            .disabled(viewModel.state == .purchasing || viewModel.restoreState == .restoring)
+
+            // 状态反馈(完成后一行 caption;失败凶色,与本 sheet 错误文案同规格)
+            switch viewModel.restoreState {
+            case .restored:
+                Text("已恢复购买")
+                    .font(BaziFont.caption(size: 10.5))
+                    .foregroundStyle(BaziTheme.inkMuted)
+            case .nothingFound:
+                Text("未找到可恢复的购买")
+                    .font(BaziFont.caption(size: 10.5))
+                    .foregroundStyle(BaziTheme.inkMuted)
+            case .failed(let message):
+                Text(message)
+                    .font(BaziFont.caption(size: 10.5))
+                    .foregroundStyle(BaziTheme.shenshaInauspicious)
+                    .multilineTextAlignment(.center)
+            case .idle, .restoring:
+                EmptyView()
+            }
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - 绑定行(可选登录,购买后的跨设备同步通道)
+
+    /// 绑定行:未登录显示(SIWA 入口 + 一句话动机);登录后绑定进度/失败重试;
+    /// 完全绑定(.done)或启动恢复中(.loading)隐藏。
+    @ViewBuilder
+    private var bindingSection: some View {
+        switch env.accountManager.state {
+        case .signedIn:
+            // provider 登录成功、exchange 未完:绑定进度(三墨点 breathe)
+            switch env.accountManager.exchangeState {
+            case .inFlight:
+                VStack(spacing: BaziTheme.Spacing.sm) {
+                    bindingCaption
+                    VStack(spacing: BaziTheme.Spacing.sm) {
+                        SealingDots()
+                        Text("绑定中 · 正在完成登录…")
+                            .font(.caption)
+                            .foregroundStyle(BaziTheme.inkMuted)
+                    }
+                    .frame(maxWidth: .infinity)
+                    // 与 AppleSignInButton 同高,绑定区切换时 sheet 布局不跳
+                    .frame(height: 50)
+                }
+            case .failed(let message):
+                // exchange 失败:显错 + 重新登录重试(SIWA 已授权过,重登通常无感)
+                VStack(spacing: BaziTheme.Spacing.sm) {
+                    bindingCaption
+                    LoginGateButtons(
+                        errorMessage: message,
+                        errorColor: BaziTheme.shenshaInauspicious
+                    )
+                }
+            case .idle, .done:
+                // done=已绑定(隐藏);idle=防御分支(signedIn 但 exchange 未定义,
+                // 不变量破坏,同样隐藏——购买不依赖登录,不阻塞主流程)
+                EmptyView()
+            }
+        case .signedOut:
+            // 未登录:可选绑定入口(登录失败显错由 LoginGateButtons 承载)
+            VStack(spacing: BaziTheme.Spacing.sm) {
+                bindingCaption
+                LoginGateButtons()
+            }
+        case .failed(let message):
+            // 登录失败(Fix#1:不吞,显错 + 保留重试按钮)
+            VStack(spacing: BaziTheme.Spacing.sm) {
+                bindingCaption
                 LoginGateButtons(
                     errorMessage: message,
                     errorColor: BaziTheme.shenshaInauspicious
                 )
-            } else {
-                Text("登录后即可购买,已购内容跨设备同步")
-                    .font(.caption)
-                    .foregroundStyle(BaziTheme.inkMuted)
-                    .multilineTextAlignment(.center)
-                LoginGateButtons()
             }
-        }
-    }
-}
-
-// MARK: - B 章回分段组件(2026-09-05 design-shotgun 定稿 variant-b;
-// ContractStepper/PricePlate/StepTitleRow 为 internal:快照走查直接渲染状态矩阵)
-
-/// 契约 stepper:壹 观其价 → 贰 钤印 → 叁 成契。
-/// 壹 在 sheet 打开时即完成(价格未登录即见 = D1 拍板的核心);当前步 inkDeep
-/// 实底圆,完成实线圆,未来虚线圆——与 NumeralBadge 实/虚线圆同一视觉语言。
-struct ContractStepper: View {
-    let step: PaywallContractStep
-    let isExchanging: Bool
-    let isPurchased: Bool
-
-    private enum ItemState { case done, current, future }
-
-    var body: some View {
-        HStack(alignment: .top, spacing: 0) {
-            item(state: .done, numeral: "壹", label: "观其价", sub: "价格已可见")
-            connector(active: true)
-            item(
-                state: step == .dealing ? .done : .current,
-                numeral: "贰",
-                label: "钤印",
-                sub: isExchanging ? "钤印中…" : "登录为凭"
-            )
-            connector(active: step == .dealing)
-            item(
-                state: step == .dealing ? (isPurchased ? .done : .current) : .future,
-                numeral: "叁",
-                label: "成契",
-                sub: isPurchased ? "契成" : "一次买断"
-            )
-        }
-        .accessibilityElement(children: .combine)
-        .accessibilityLabel(accessibilityProgressText)
-    }
-
-    /// 读屏进度文案(与可视子题同语义:壹 已完成 + 当前步子态)。
-    private var accessibilityProgressText: String {
-        if step == .dealing {
-            return isPurchased ? "购买进度:已成契,内容已解锁" : "购买进度:第叁步,成契,待购买"
-        }
-        return isExchanging ? "购买进度:第贰步,钤印中" : "购买进度:第贰步,钤印,待登录"
-    }
-
-    private func item(state: ItemState, numeral: String, label: String, sub: String) -> some View {
-        VStack(spacing: 5) {
-            ZStack {
-                switch state {
-                case .current:
-                    Circle().fill(BaziTheme.inkDeep)
-                case .done:
-                    Circle().stroke(BaziTheme.ink.opacity(0.4), lineWidth: 1)
-                case .future:
-                    Circle().stroke(
-                        BaziTheme.hairlineDashed,
-                        style: StrokeStyle(lineWidth: 1, dash: [4, 3])
-                    )
-                }
-                Text(numeral)
-                    .font(BaziFont.display(size: 11, weight: .medium))
-                    .foregroundStyle(textColor(for: state))
-            }
-            .frame(width: 25, height: 25)
-            Text(label)
-                .font(BaziFont.caption(size: 10.5))
-                .tracking(2)
-                .foregroundStyle(state == .future ? BaziTheme.inkMutedSecondary : BaziTheme.ink)
-            Text(sub)
-                .font(BaziFont.caption(size: 9))
-                .foregroundStyle(BaziTheme.inkMutedSecondary)
-        }
-        .frame(width: 88)
-    }
-
-    private func textColor(for state: ItemState) -> Color {
-        switch state {
-        case .current: return BaziTheme.onInkDeep
-        case .done: return BaziTheme.ink
-        case .future: return BaziTheme.inkMutedSecondary
+        case .loading:
+            // 启动 Keychain 恢复中:未知登录态,不闪绑定行
+            EmptyView()
         }
     }
 
-    /// 步骤间连线(线高撑到圆心;已完成段加深)。
-    private func connector(active: Bool) -> some View {
-        Rectangle()
-            .fill(active ? BaziTheme.ink.opacity(0.5) : BaziTheme.hairline)
-            .frame(height: 0.5)
+    /// 绑定行动机一句话:消耗型购买的跨设备恢复只能靠账号(Apple 不恢复消耗型)。
+    private var bindingCaption: some View {
+        Text("绑定账号 · 已购内容跨设备同步")
+            .font(.caption)
+            .foregroundStyle(BaziTheme.inkMuted)
+            .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
-            .padding(.horizontal, 4)
-            .frame(height: 25)
     }
 }
 
-/// 落价块:合同式大写数字(壹佰贰拾捌圆整)+ 本地化数字并置,上下 hairline 收束。
-/// upperPrice == nil(角分价/千分位/越界/en 区)只显数字,不造假大写。
+// MARK: - 润金块(PricePlate 为 internal:快照走查直接渲染有无大写两种形态)
+
+/// 润金块:合同式大写数字(壹佰贰拾捌圆整)为主视觉,上下 hairline 收束。
+/// 「润金」= 命理行业收费古称(2026-09-27 替换「落价」——该词有降价歧义)。
+///
+/// 大写存在时**不再并显数字价**(信息层级单一,数字价只出现在 CTA 按钮上);
+/// upperPrice == nil(角分价/千分位/越界/en 区)降级显本地化数字,不造假大写。
 struct PricePlate: View {
     let upperPrice: String?
     let rawPrice: String
 
     var body: some View {
         HStack(alignment: .bottom, spacing: 14) {
-            VText(phrase: "落价", size: 9.5, tracking: 3, color: BaziTheme.inkMutedSecondary)
+            VText(phrase: "润金", size: 9.5, tracking: 3, color: BaziTheme.inkMutedSecondary)
             if let upperPrice {
                 Text(upperPrice)
                     .font(BaziFont.display(size: 21, weight: .medium))
@@ -358,16 +312,17 @@ struct PricePlate: View {
                     .foregroundStyle(BaziTheme.ink)
                     .lineLimit(1)
                     .minimumScaleFactor(0.6)
+            } else {
+                Text(rawPrice)
+                    .font(BaziFont.numeric(size: 19, weight: .medium))
+                    .foregroundStyle(BaziTheme.ink)
+                    .lineLimit(1)
+                    .minimumScaleFactor(0.6)
             }
             Spacer(minLength: 8)
-            VStack(alignment: .trailing, spacing: 4) {
-                Text(rawPrice)
-                    .font(BaziFont.numeric(size: 15, weight: .medium))
-                    .foregroundStyle(BaziTheme.ink)
-                Text("买断制 · 不含订阅")
-                    .font(BaziFont.caption(size: 9.5))
-                    .foregroundStyle(BaziTheme.inkMuted)
-            }
+            Text("买断制 · 不含订阅")
+                .font(BaziFont.caption(size: 9.5))
+                .foregroundStyle(BaziTheme.inkMuted)
         }
         .padding(.vertical, BaziTheme.Spacing.cmd)
         .overlay(alignment: .top) {
@@ -381,38 +336,7 @@ struct PricePlate: View {
     }
 }
 
-/// 操作区步骤标题行(「第贰步 · 钤印为凭」/「第叁步 · 成契」),顶 hairline 分段。
-struct StepTitleRow: View {
-    let stepNo: String
-    let title: String
-    let hint: String
-
-    var body: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(stepNo)
-                .font(BaziFont.caption(size: 10))
-                .tracking(2)
-                .foregroundStyle(BaziTheme.inkMutedSecondary)
-            Text(title)
-                .font(BaziFont.display(size: 13.5, weight: .medium))
-                .tracking(2)
-                .foregroundStyle(BaziTheme.ink)
-            Spacer(minLength: 6)
-            Text(hint)
-                .font(BaziFont.caption(size: 9.5))
-                .foregroundStyle(BaziTheme.inkMutedSecondary)
-                .multilineTextAlignment(.trailing)
-                .lineLimit(2)
-        }
-        .padding(.top, BaziTheme.Spacing.sm)
-        .overlay(alignment: .top) {
-            Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
-        }
-        .accessibilityElement(children: .combine)
-    }
-}
-
-/// 三墨点 breathe(钤印进行中;DESIGN 动效三式 breathe 的加载变奏——墨的呼吸,不是转圈)。
+/// 三墨点 breathe(绑定进行中;DESIGN 动效三式 breathe 的加载变奏——墨的呼吸,不是转圈)。
 private struct SealingDots: View {
     var body: some View {
         HStack(spacing: 9) {

@@ -278,3 +278,62 @@ def test_deactivate_invalid_reason_raises(store):
         store.deactivate(
             transaction_id="tx-001", reason="invalid",
             at_iso="2026-07-20T10:00:00+00:00")
+
+
+# ===== claim_user_id(2026-09-27 匿名购买:redeem 幂等分支补绑)=====
+
+
+def _insert_anonymous(store, transaction_id="tx-anon-001"):
+    """落一行匿名购买(user_id NULL)。"""
+    store.insert(
+        transaction_id=transaction_id,
+        product_id="com.qicompass.deep_analysis.single",
+        content_hash="hash-a",
+        module="bazi_deep",
+        user_local_id="user-1",
+        purchased_at="2026-09-27T12:00:00+00:00",
+        original_purchase_date="2026-09-27T11:55:00+00:00",
+    )
+
+
+def test_claim_user_id_claims_null_row(store):
+    """匿名行(user_id NULL)→ claim 后 user_id 补上,返 True。"""
+    _insert_anonymous(store)
+    ok = store.claim_user_id(
+        transaction_id="tx-anon-001", user_id="user-abc")
+    assert ok is True
+    assert store.get_by_transaction("tx-anon-001")["user_id"] == "user-abc"
+
+
+def test_claim_user_id_noop_on_owned_row(store):
+    """已绑账号的行 → claim 返 False 且 user_id 不被覆盖(防抢绑)。"""
+    store.insert(
+        transaction_id="tx-owned-001",
+        product_id="com.qicompass.deep_analysis.single",
+        content_hash="hash-b",
+        module="bazi_deep",
+        user_local_id="user-2",
+        user_id="user-owner",
+        purchased_at="2026-09-27T12:00:00+00:00",
+        original_purchase_date="2026-09-27T11:55:00+00:00",
+    )
+    ok = store.claim_user_id(
+        transaction_id="tx-owned-001", user_id="user-attacker")
+    assert ok is False
+    assert store.get_by_transaction("tx-owned-001")["user_id"] == "user-owner"
+
+
+def test_claim_user_id_noop_on_missing_transaction(store):
+    """tx 不存在 → False(不抛,不创建空行)。"""
+    ok = store.claim_user_id(
+        transaction_id="nonexistent", user_id="user-abc")
+    assert ok is False
+
+
+def test_claim_user_id_idempotent(store):
+    """二次 claim 同一行 → False(WHERE user_id IS NULL 不再命中)。"""
+    _insert_anonymous(store)
+    assert store.claim_user_id(
+        transaction_id="tx-anon-001", user_id="user-abc") is True
+    assert store.claim_user_id(
+        transaction_id="tx-anon-001", user_id="user-abc") is False

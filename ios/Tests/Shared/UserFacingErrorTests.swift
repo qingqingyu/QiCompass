@@ -77,15 +77,19 @@ final class UserFacingErrorTests: XCTestCase {
         assertUserFacing(PurchaseError.entitlementStoreFailed(underlying: underlying).errorDescription)
         assertUserFacing(PurchaseError.backendRedeemFailed(underlying: underlying).errorDescription)
         assertUserFacing(PurchaseError.networkFailed(underlying: underlying).errorDescription)
-        // verificationFailed 直传构造点文案(PurchaseManager 两处已改人话),
+        // verificationFailed 直传构造点文案(PurchaseManager 各构造点已改人话),
         // 这里断言生产构造点实际使用的固定文案
         XCTAssertEqual(
             PurchaseError.verificationFailed(message: "购买验证失败,请重试").errorDescription,
             "购买验证失败,请重试"
         )
+        // appAccountToken 解析失败(登录态 Keychain 损坏)的固定人话文案
+        XCTAssertEqual(
+            PurchaseError.verificationFailed(message: "账号凭证异常,请重新登录后再试").errorDescription,
+            "账号凭证异常,请重新登录后再试"
+        )
         assertUserFacing(PurchaseError.productNotFound(productId: "com.qicompass.deep_analysis.single").errorDescription)
         assertUserFacing(PurchaseError.pending.errorDescription)
-        assertUserFacing(PurchaseError.notSignedIn.errorDescription)
         XCTAssertNil(PurchaseError.userCancelled.errorDescription)
     }
 
