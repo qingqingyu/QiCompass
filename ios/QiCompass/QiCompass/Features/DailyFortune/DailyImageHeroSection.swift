@@ -75,10 +75,17 @@ struct DailyImageHeroSection: View {
         .accessibilityLabel(Text(verbatim: heroAccessibilityLabel))
     }
 
-    /// 无障碍合并 label:干支 + 页首短标 + 宜/忌词。
+    /// 无障碍合并 label:干支 + 页首短标 + 冲(有则读,与 chips 同源构造)+ 宜/忌词。
     private var heroAccessibilityLabel: String {
         let yiJi = HeroYiJiColumns.mapping[dayRelation] ?? HeroYiJiColumns.fallback
-        return "\(dayPillar) \(L10n.DailyFortune.shortLabel), \(L10n.DailyFortune.yiLabel) \(yiJi.yi.joined(separator: "、")), \(L10n.DailyFortune.jiLabel) \(yiJi.ji.joined(separator: "、"))"
+        var label = "\(dayPillar) \(L10n.DailyFortune.shortLabel)"
+        if let chong = dayChong {
+            // 2026-09-28 S06:此前 label 不读冲,视觉 chips 有而 VoiceOver 无;
+            // 复用 chongLabel(含 EN 动物名 + 柱位翻译)与视觉同源。
+            label += ", \(L10n.DailyFortune.chongLabel(chong: chong, targets: dayChongTargets))"
+        }
+        label += ", \(L10n.DailyFortune.yiLabel) \(yiJi.yi.joined(separator: "、")), \(L10n.DailyFortune.jiLabel) \(yiJi.ji.joined(separator: "、"))"
+        return label
     }
 
     // MARK: - 玻璃图层
@@ -340,14 +347,20 @@ struct DailyImageHeroSection: View {
     }
 
     /// 关系/冲 chips(放不下时整组换行,组内仍横排)。
+    /// 2026-09-28 S06:①关系 chip 朱红违规(cinnabar 仅印章级授权场景)改 ink,
+    /// 与冲 chip 的 inkMuted 靠墨色浓淡分主次;②hero 内文字均固定字号、卡高固定
+    /// 402pt,chips 跟随 Dynamic Type 会在大字号档顶出卡边——cap 到 large
+    /// (只作用 hero chips,不改 ChipView 本身,其他页面行为不变);
+    /// 无障碍完整语义由 heroAccessibilityLabel 承担(含冲)。
     private var chips: some View {
         HStack(spacing: 7) {
-            ChipView(text: Self.displayRelation(dayRelation), tint: BaziTheme.cinnabar, iconName: Self.relationIcon(for: dayRelation))
+            ChipView(text: Self.displayRelation(dayRelation), tint: BaziTheme.ink, iconName: Self.relationIcon(for: dayRelation))
             if let chong = dayChong {
                 let label = L10n.DailyFortune.chongLabel(chong: chong, targets: dayChongTargets)
                 ChipView(text: label, tint: BaziTheme.inkMuted, iconName: "PlaqueChong")
             }
         }
+        .dynamicTypeSize(...DynamicTypeSize.large)
     }
 
     /// 关系 chip 配图:刃(PlaqueSha)= 克身之压力,只配官杀族(七杀/正官);
