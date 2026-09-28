@@ -298,7 +298,9 @@ struct ProfileView: View {
         var metaLine: String {
             var parts: [String] = []
             let year = Calendar.current.component(.year, from: snapshot.birthSolarTime)
-            String(format: String(localized: "%lld 年生"), year)
+            // 2026-09-28 修复:i18n 改写时漏了 append,名册行从「1995 年生 · 乙亥」
+            // 退化成「乙亥」(unused-result 警告不拦 CI)。
+            parts.append(String(format: String(localized: "%lld 年生"), year))
             if let ygz = response.pillars.year?.ganZhi {
                 parts.append(ygz)
             }
