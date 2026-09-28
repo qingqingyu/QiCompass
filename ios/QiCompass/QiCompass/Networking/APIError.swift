@@ -21,7 +21,9 @@ enum APIError: Error, LocalizedError {
         case .encodingError(let e):
             return String(format: String(localized: "编码失败: %@"), e.localizedDescription)
         case .backendError(let code, let msg, let reqId):
-            return String(format: String(localized: "后端错误[%lld]: %@%@"), code, msg, reqId.map { "(request_id=\($0))" } ?? "")
+            // 2026-09-28 修复:code 是 String(如 ENTITLEMENT_ERROR),%lld 会把
+            // 指针当 Int64 读出乱码数字;改 %@。
+            return String(format: String(localized: "后端错误[%@]: %@%@"), code, msg, reqId.map { "(request_id=\($0))" } ?? "")
         }
     }
 }

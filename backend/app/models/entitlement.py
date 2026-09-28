@@ -27,6 +27,19 @@ EntitlementModule = Literal[
     "compatibility",
 ]
 
+# product_id ↔ module 固定映射(2026-09-28 恢复购买跨 SKU 修复)。
+# redeem 的 module 由客户端上报,历史上有两类错配:
+# ① iOS restorePurchases 用付费墙 ambient module redeem 其他 SKU 的
+#    未 finish 交易——消耗型一经 finish 绑定不可逆,深度解析的钱会被
+#    永久兑成合盘权益;
+# ② 任意客户端拿便宜 SKU 的交易按贵 module redeem(提权)。
+# 后端按 Apple 验证返回的 product_id 反查 module,与 req.module 不一致
+# 即拒绝,不再信任客户端声明的 module。
+PRODUCT_MODULE_MAP: dict[str, str] = {
+    "com.qicompass.deep_analysis.single": "bazi_deep",
+    "com.qicompass.compatibility.single": "compatibility",
+}
+
 
 class EntitlementRedeemRequest(BaseModel):
     """POST /api/entitlement/redeem 请求。
