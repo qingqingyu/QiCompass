@@ -70,6 +70,10 @@ struct CompatibilityInterpretationSection: View {
             case .lockedPaid:
                 // M4 后 .lockedPaid case 不再使用(改用 .okFree 内嵌锁标),保留 case 兼容性
                 EmptyView()
+            case .offlineLegacy(let text):
+                // 不可达(offlineLegacy 仅每日运势离线兜底产生,合盘 VM 不构造);
+                // 为 InterpretState exhaustive switch 完整性保留,渲染正文。
+                CompatibilityChapterText(text: text)
             case .failed(let message):
                 VStack(spacing: 8) {
                     Text(message)
@@ -223,9 +227,13 @@ struct CompatibilityChapterText: View {
         }
 
         // en:Chapter N[.::]? Title
+        // 2026-09-28 修复:序号后粘着分隔符("Chapter 1: Title" 的 "1:"、"Chapter 1. Title"
+        // 的 "1.")原实现 Int(parts[1]) 恒 nil → 整篇退化成无分章单块;trim 作用于
+        // 序号而非标题(zh 分支同款字符集)。
         let parts = body.split(separator: " ", maxSplits: 2, omittingEmptySubsequences: true)
         if parts.count == 3, parts[0] == "Chapter",
-           let n = Int(parts[1]), (1...8).contains(n) {
+           let n = Int(parts[1].trimmingCharacters(in: CharacterSet(charactersIn: ".：:"))),
+           (1...8).contains(n) {
             let numeralEn = ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"][n - 1]
             let rest = parts[2].trimmingCharacters(in: CharacterSet(charactersIn: ".：:"))
             if !rest.isEmpty {
