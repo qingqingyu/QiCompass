@@ -1282,7 +1282,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Server error [%@]: %@"
+            "value" : "Server error [%@]: %@%@"
           }
         },
         "zh-Hans" : {

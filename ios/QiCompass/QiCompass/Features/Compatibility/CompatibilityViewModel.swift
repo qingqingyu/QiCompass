@@ -1436,7 +1436,11 @@ final class CompatibilityViewModel {
                     promptNameB = archivedCharts.first { $0.snapshotHash == bHash }?.alias
                         ?? String(localized: "对方")
                 case .temp(_, let alias, _, _):
-                    promptNameB = (alias?.isEmpty == false) ? alias! : String(localized: "对方")
+                    if let alias, !alias.isEmpty {
+                        promptNameB = alias
+                    } else {
+                        promptNameB = String(localized: "对方")
+                    }
                 }
                 let resp = try await self.orchestrator.runInterpretation(
                     compatibilityHash: compatHash,
