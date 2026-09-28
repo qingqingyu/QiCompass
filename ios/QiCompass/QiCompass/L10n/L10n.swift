@@ -470,9 +470,17 @@ enum L10n {
         /// 重试按钮(zh="重试", en="Retry")
         static let interpretRetry = String(localized: "dailyfortune.interpret.retry")
 
-        /// 静默重试小注(2026-09-24 失败降级:AI 失败 → 模板文案 + 后台静默重试)。
-        /// zh: "AI 解读未生成,重试中";en: "AI reading unavailable — retrying"
+        /// 静默重试小注(2026-09-24 失败降级:AI 失败 → 模板文案 + 后台静默重试;
+        /// 2026-09-28 S02 改口说清「上面是通用参考」,与失败终态小注同口径)。
+        /// zh: "以上为今日通用参考 · AI 解读重试中";en: "General guidance above · retrying AI reading"
         static let interpretRetrying = String(localized: "dailyfortune.interpret.retrying")
+
+        /// 失败终态小注(2026-09-28 S02):正文位是引擎确定性模板,小注如实说明
+        /// 「上面是通用参考」——不再直接露 `.failed(message)` 的原始错误标题
+        /// (EN「Reading failed」与正文并存像自相矛盾);原 message 进
+        /// accessibilityHint + VM 日志,可见性不丢。
+        /// zh: "AI 解读暂未生成 · 以上为今日通用参考";en: "AI reading unavailable · above is general guidance for today"
+        static let interpretFallbackNote = String(localized: "dailyfortune.interpret.fallbackNote")
 
         /// CTA 说明文字(zh="点击生成今日流日解读(约 50-80 字)")
         static let interpretCTA = String(localized: "dailyfortune.interpret.cta")

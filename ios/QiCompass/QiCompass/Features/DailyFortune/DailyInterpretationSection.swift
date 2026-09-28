@@ -115,11 +115,17 @@ struct DailyInterpretationSection: View {
                         }
                     } else {
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            Text(message)
+                            // 2026-09-28 S02:小注说清「上面是通用参考」,不再直接露
+                            // `.failed(message)` 的原始错误标题(EN「Reading failed」
+                            // 与正文并存像自相矛盾);原错误进 accessibilityHint +
+                            // VM 日志(VoiceOver 与排障可见性都不丢)。可折两行。
+                            Text(L10n.DailyFortune.interpretFallbackNote)
                                 .font(BaziFont.caption(size: 12))
                                 .tracking(1)
                                 .foregroundStyle(BaziTheme.inkMuted)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                                .accessibilityHint(Text(message))
                             Button(L10n.DailyFortune.interpretRetry, action: onRetry)
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(BaziTheme.ink)
