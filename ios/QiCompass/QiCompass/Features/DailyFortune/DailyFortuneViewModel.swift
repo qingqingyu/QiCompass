@@ -528,8 +528,10 @@ final class DailyFortuneViewModel {
         // 快照中的 AI 文本是历史记录。离线时无法通过 health 确认
         // 当前 provider/model,不能把它标成当前供应商缓存命中。
         let hasInterpretation = !cached.interpretation.trimmingCharacters(in: .whitespaces).isEmpty
+        // 2026-09-28 修复:历史正文走 offlineLegacy 进视图渲染(此前塞 .failed 会被
+        // 失败降级换成引擎模板,「已保留历史解读」名不副实)。
         var interpState: InterpretState = hasInterpretation
-            ? .failed(message: L10n.DailyFortune.interpretOfflineLegacy)
+            ? .offlineLegacy(text: cached.interpretation)
             : .idle
 
         // 同步刷新 chartPayload(用户在线恢复后点"今日解读"可触发 AI)。

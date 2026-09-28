@@ -7,6 +7,8 @@ import SwiftUI
 ///   次数耗尽 → 达限卡(自动触发前 VM 会查次数,不发起空调用)
 /// - .fetching → 静默推演指示(ProgressView + 「推演中…」,无按钮)
 /// - .okFree(text, cached) → 解读文本 + cached 标识
+/// - .offlineLegacy(text) → 离线兜底:快照里的历史解读正文 + 小注(2026-09-28;
+///   此前塞 .failed 会被失败降级渲染成引擎模板,「已保留历史解读」名不副实)
 /// - .failed(msg) → 2026-09-24 失败降级拍板:正文位显示按 dayRelation 的
 ///   排盘引擎确定性文案(引擎产物,AI 失败不影响),底部小注如实标注状态——
 ///   静默重试在飞 →「AI 解读未生成,重试中」;最终失败 → 原始错误 + Retry。
@@ -72,6 +74,23 @@ struct DailyInterpretationSection: View {
             case .lockedPaid:
                 // 每日运势 v1 全免费,.lockedPaid 永不触发;保留 case 维护 switch 完整性。
                 EmptyView()
+            case .offlineLegacy(let text):
+                // 离线兜底(2026-09-28):正文 = 快照里的历史解读原文(不拿引擎模板
+                // 冒充),底部小注如实说明「已保留历史解读,联网后可确认当前 AI 来源」。
+                // 无 Retry——离线重试必失败,还会把已保留的正文挤成模板。
+                VStack(alignment: .leading, spacing: 14) {
+                    Text(MarkdownSanitizer.rendered(text))
+                        .bodySerifText(size: 16)
+                        .lineSpacing(9)
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .fadeIn()
+                    Text(L10n.DailyFortune.interpretOfflineLegacy)
+                        .font(BaziFont.caption(size: 12))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
             case .failed(let message):
                 // 2026-09-24 失败降级拍板:正文位 = 引擎模板文案(与 .okFree 同排版,
                 // 正文样式一致才不显得「这屏坏了」),底部小注如实标注状态。

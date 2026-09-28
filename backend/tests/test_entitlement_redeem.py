@@ -394,6 +394,47 @@ async def test_redeem_idempotent_hit_same_user_new_device_user_local_id_ok(
 # ===== redeem:Apple 校验失败 =====
 
 
+async def test_redeem_module_product_mismatch_returns_403(
+    redeem_client, mock_apple, auth_headers,
+):
+    """product↔module 固定映射不符 → 403(2026-09-28 恢复购买跨 SKU 修复)。
+
+    场景:iOS restorePurchases 曾用付费墙 ambient module redeem 其他 SKU 的
+    未 finish 交易——deep SKU 的交易按 compatibility module 到达此处,
+    消耗型一经 finish 绑定不可逆,深度解析的钱会被永久兑成合盘权益。
+    """
+    payload = _redeem_payload(module="compatibility")  # product 默认 deep_analysis
+    resp = await redeem_client.post(
+        "/api/entitlement/redeem", json=payload,
+        headers=auth_headers,
+    )
+    assert resp.status_code == 403
+    assert resp.json()["error"]["code"] == "ENTITLEMENT_ERROR"
+    assert "module" in resp.json()["error"]["message"]
+
+
+async def test_redeem_compat_product_module_pair_ok(
+    redeem_client, mock_apple, auth_headers,
+):
+    """compatibility SKU + compatibility module(映射一致)→ 200 正常写表。"""
+    mock_apple._default_tx_info = AppleTransactionInfo(
+        transaction_id="<mock>",
+        product_id="com.qicompass.compatibility.single",
+        original_purchase_date=datetime(2026, 7, 18, tzinfo=timezone.utc),
+        is_refunded=False,
+    )
+    resp = await redeem_client.post(
+        "/api/entitlement/redeem",
+        json=_redeem_payload(
+            product_id="com.qicompass.compatibility.single",
+            module="compatibility",
+        ),
+        headers=auth_headers,
+    )
+    assert resp.status_code == 200, resp.json()
+    assert resp.json()["entitled"] is True
+
+
 async def test_redeem_product_id_mismatch_returns_502(
     redeem_client, mock_apple, auth_headers,
 ):

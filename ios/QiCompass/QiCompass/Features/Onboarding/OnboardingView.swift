@@ -314,11 +314,19 @@ struct OnboardingView: View {
             AppLogger.app.info("OnboardingView.mainLabel year_pillar_ambiguous(年柱歧义 → ZodiacRevealView 降级态,主标不渲染)")
             return "—"
         }
-        // L3:干支字按 §3 保持汉字;生肖名走语言分支(zh 汉字 / en 英文名,单一事实源 ZodiacHelper)
-        if AppLanguage.current == .en, let en = ZodiacHelper.zodiacName(forZhi: zhi) {
-            return "\(zhi) · \(en)"
+        // L3:干支字按 §3 保持汉字;生肖名走语言分支(zh 简 / zh-Hant 繁 / en 英文名,
+        // 单一事实源 ZodiacHelper 三表)。2026-09-28 修复:原实现非 en 一律
+        // animalCharHant,止血期 .zhHant 不可达 → 简体用户首屏看到「龍/馬/雞」。
+        let animalLabel: String
+        switch AppLanguage.current {
+        case .en:
+            animalLabel = ZodiacHelper.zodiacName(forZhi: zhi) ?? zodiac
+        case .zh:
+            animalLabel = ZodiacHelper.animalChar(forZodiac: zodiac)
+        case .zhHant:
+            animalLabel = ZodiacHelper.animalCharHant(forZodiac: zodiac)
         }
-        return "\(zhi) · \(ZodiacHelper.animalCharHant(forZodiac: zodiac))"
+        return "\(zhi) · \(animalLabel)"
     }
 
     /// 次文字(生肖决策 Q13 C+ii;2026-09-23 EN review:坤造/干支对海外用户是黑话)。

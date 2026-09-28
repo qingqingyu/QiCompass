@@ -12,7 +12,8 @@ backfill(登录时点)够不到的竞态行。恶意/坏 token 仍然 401。
 3. Apple 验证:verify_transaction(transaction_id)
    - 网络/签名/SDK 失败 → 502 AppleVerificationError
    - Apple 返回 is_refunded=True → 403 EntitlementError(理论上 webhook 已经处理)
-4. 校验 product_id 匹配请求中的 product_id(防 iOS 传错)
+4. 校验 product_id 匹配请求中的 product_id(防 iOS 传错),
+   并按 PRODUCT_MODULE_MAP 校验 module 与 SKU 固定对应(防跨 SKU redeem)
 5. 写表(INSERT OR IGNORE,极小概率并发 redeem)
 6. 返回 entitled=true + 时间戳
 
@@ -40,6 +41,7 @@ from ..errors import (
 )
 from ..auth.dependencies import get_current_user_id, require_authenticated_user
 from ..models.entitlement import (
+    PRODUCT_MODULE_MAP,
     EntitlementListItem,
     EntitlementListResponse,
     EntitlementRedeemRequest,
@@ -172,6 +174,28 @@ async def redeem(
             log_ctx, apple_info.product_id)
         raise AppleVerificationError(
             f"product_id 不匹配:请求 {req.product_id} / Apple {apple_info.product_id}",
+        )
+
+    # 3b. 校验 module 与 product_id 的固定对应(2026-09-28 恢复购买跨 SKU 修复)。
+    #     module 不信任客户端声明,按 Apple 返回的 product_id 反查 PRODUCT_MODULE_MAP;
+    #     不一致 → 403(客户端 restore 流程对该码走"跳过不 finish",交易保留给
+    #     对应模块的付费墙恢复)。Apple 返回未知 product_id 同样拒绝,不放行。
+    expected_module = PRODUCT_MODULE_MAP.get(apple_info.product_id)
+    if expected_module is None:
+        logger.warning(
+            "entitlement.redeem.unknown_product_module %s apple_product_id=%s",
+            log_ctx, apple_info.product_id)
+        raise AppleVerificationError(
+            f"Apple 返回未知 product_id: {apple_info.product_id}",
+        )
+    if expected_module != req.module:
+        logger.warning(
+            "entitlement.redeem.module_mismatch %s expected_module=%s",
+            log_ctx, expected_module)
+        raise EntitlementError(
+            f"product {apple_info.product_id} 对应 module {expected_module},"
+            f"与请求 module {req.module} 不符,拒绝",
+            request_id=request_id, content_hash=req.content_hash,
         )
 
     # 4. 校验未退款

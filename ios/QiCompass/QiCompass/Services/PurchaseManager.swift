@@ -353,9 +353,11 @@ final class PurchaseManager {
     /// 1. `AppStore.sync()`:让系统重投递未完成交易(ask-to-buy 批准 /
     ///    中断购买),用户取消是静默合法路径;
     /// 2. 扫 `Transaction.all` 里本 app 两个 SKU 的未 revoke verified 交易:
-    ///    逐笔 redeem(登录态自动带 JWT,匿名走 user_local_id)→ 本地
-    ///    upsert → finish。后端 403(交易已绑其他命盘/已退款)静默跳过
-    ///    (不 finish 不计数——那笔交易属于别的盘,不是「本盘可恢复」);
+    ///    **只处理 SKU 对应 module 与当前付费墙 module 一致**的(2026-09-28
+    ///    跨 SKU 修复,见循环内 guard),逐笔 redeem(登录态自动带 JWT,匿名走
+    ///    user_local_id)→ 本地 upsert → finish。后端 403(交易已绑其他命盘/
+    ///    module 不符/已退款)静默跳过(不 finish 不计数——那笔交易属于别的盘
+    ///    或别的模块,不是「本盘可恢复」);
     /// 3. 登录态补跑 `synchronizeFromBackend`(跨设备/重装场景真正的恢复
     ///    通道——消耗型跨设备本来就只能靠自家账号,不靠 Apple)。
     ///
@@ -407,6 +409,18 @@ final class PurchaseManager {
             guard case .verified(let tx) = result else { continue }
             guard productIds.contains(tx.productID) else { continue }
             guard tx.revocationDate == nil else { continue }
+
+            // 2026-09-28 跨 SKU 修复:module 按交易自身 productID 反查(对齐后端
+            // PRODUCT_MODULE_MAP),不用付费墙 ambient module——否则深度解析的
+            // 未 finish 交易会在合盘付费墙恢复时被兑成合盘权益并 finish(),
+            // 消耗型绑定不可逆,深度解析的钱永久兑错。其他 module 的交易跳过:
+            // **不 finish 不计数**,保留给对应模块付费墙恢复。
+            guard Self.module(forProductID: tx.productID) == module else {
+                AppLogger.app.info(
+                    "purchase.restore.tx_skipped_other_module tx=\(String(tx.id), privacy: .public) product=\(tx.productID, privacy: .public) ambient_module=\(module, privacy: .public)"
+                )
+                continue
+            }
 
             let txId = String(tx.id)
             do {
@@ -468,6 +482,16 @@ final class PurchaseManager {
         }
         AppLogger.app.info("purchase.restore.ok restored=\(restoredCount, privacy: .public)")
         return restoredCount > 0 ? .restored(restoredCount) : .nothingFound
+    }
+
+    /// Apple SKU → entitlement module(对齐后端 `PRODUCT_MODULE_MAP`,双端各一份:
+    /// 后端是权威校验,iOS 用它过滤 restore 扫描,防止跨 SKU redeem)。
+    private static func module(forProductID productID: String) -> String? {
+        switch productID {
+        case AppleProductID.deepAnalysisSingle: return EntitlementModule.baziDeep
+        case AppleProductID.compatibilitySingle: return EntitlementModule.compatibility
+        default: return nil
+        }
     }
 }
 
