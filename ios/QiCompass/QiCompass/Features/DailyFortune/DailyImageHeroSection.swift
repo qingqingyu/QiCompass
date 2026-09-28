@@ -10,6 +10,7 @@ import SwiftUI
 /// 2 径向 mask:实心 58% → 94% 融纸,只留最外一线洇进宣纸
 /// 3 纸色纱罩:呼吸 7s(动效三式 breathe 同源),整幅压灰
 /// 4 宣纸压边 rim:四周纸色收边,保证整幅图都在玻璃下
+/// 4c 四边融纸(2026-09-28 外评「顶部矩形切边」)
 /// 5 磨砂颗粒:PaperGrain(确定性噪点,ink@0.05)
 /// 6 云雾:两团宣纸色软雾异速反向漂(26s/34s),山间岚气
 /// 7 淡墨飞鸟:两笔简笔 30s 横渡 + 3.4s 沉浮
@@ -56,6 +57,7 @@ struct DailyImageHeroSection: View {
             veilLayer
             rimLayer
             bottomFadeLayer
+            edgeFadeLayer
             mistLayer
             grainLayer
             birdLayer
@@ -165,6 +167,36 @@ struct DailyImageHeroSection: View {
             startPoint: .top,
             endPoint: .bottom
         )
+        .allowsHitTesting(false)
+    }
+
+    /// 4c 四边融纸(2026-09-28 外评「hero 顶部/左右矩形硬边」):bloomMask 圆心
+    /// y=0.42、endRadius 400 下,卡顶距圆心约 169pt、左右约 178pt,都落在实心
+    /// 阈 0.58 内——顶边与左右边完全不透明,rim 层同因,只有底边有
+    /// bottomFadeLayer,山水在这三条边被直线切断。本层以纸色压顶(0→0.14)
+    /// 与左右(0→0.07 / 0.93→1)极窄渐变融边;与 bottomFadeLayer 同性质
+    /// (叠在图上的纸色遮罩,不是背景渐变),paper 为 dyn 双值,暗色自动夜宣纸。
+    private var edgeFadeLayer: some View {
+        ZStack {
+            LinearGradient(
+                stops: [
+                    .init(color: BaziTheme.paper, location: 0),
+                    .init(color: BaziTheme.paper.opacity(0), location: 0.14),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            LinearGradient(
+                stops: [
+                    .init(color: BaziTheme.paper, location: 0),
+                    .init(color: BaziTheme.paper.opacity(0), location: 0.07),
+                    .init(color: BaziTheme.paper.opacity(0), location: 0.93),
+                    .init(color: BaziTheme.paper, location: 1),
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        }
         .allowsHitTesting(false)
     }
 
