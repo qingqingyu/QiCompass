@@ -213,8 +213,12 @@ _COMPAT_POSTPROCESS_MODULES: frozenset[str] = COMPATIBILITY_MODULES
 # standalone「A」/「B」:前后都不是 ASCII 字母数字(误伤 Amanda / H1B / A4 这类词
 # ——测试实证:H1B 的 B 前是数字,只挡字母挡不住);
 # 吞掉代号后的一个半角空格(「A 倾向于」→「你倾向于」,中文排版无残留空格)
-_STANDALONE_A = re.compile(r"(?<![A-Za-z0-9])A\s?(?![A-Za-z0-9])")
-_STANDALONE_B = re.compile(r"(?<![A-Za-z0-9])B\s?(?![A-Za-z0-9])")
+_STANDALONE_AB = re.compile(r"(?<![A-Za-z0-9])([AB])\s?(?![A-Za-z0-9])")
+
+# 两人称呼遮罩占位符:NUL 包夹控制字符,LLM 正文不会出现;**不含字母数字**
+# (含 A/B 会被代号轮当 standalone 吃掉,含字母数字会破坏环视判定)
+_AB_SHIELD_A = "\x00\x01\x00"
+_AB_SHIELD_B = "\x00\x02\x00"
 
 
 def _replace_ab_labels(text: str, name_a: str, name_b: str) -> str:
@@ -223,19 +227,51 @@ def _replace_ab_labels(text: str, name_a: str, name_b: str) -> str:
     prompt v4 已要求全文用 name_a/name_b 称呼,但 LLM 违约时叙述里仍可能冒出
     「A 倾向于先说结论」。用户要求不只依赖 prompt,此处后置替换。
 
-    跳过条件(防替换自伤):名字为空,或**名字本身含该字母的 standalone 出现**
-    (`_STANDALONE_A.search(name_a)` 命中,如「A先生」「阿B」「小 A」——文本里
-    出现名字本身时,其中的字母会被再替换成整个名字,产出「阿阿B」类捣碎)。
-    名字内部的非 standalone 字母由环视天然保护:「Bella」/「Amy」的字母前后是
-    拉丁字母,不命中 standalone,替换照常进行且注入结果安全。
+    两类替换事故同源——**名字本身含 standalone 代号字母**(「A先生」「小B」;
+    输入提示「如相亲对象甲」下「对象B」类称呼很自然):
+    ① 同轴自伤:正文里合规写出的「A先生」其 A 被再替换 →「A先生先生」;
+    ② 交叉轴污染(2026-09-28 外部 review 实证):name_a 含 standalone B 时,
+      A 轮注入的「小B」被 B 轮吃掉 → A 的称呼变成「小丽」——命理用户一处错
+      即怀疑整篇,且老实现的 skip-guard 只查同轴,交叉轴完全不设防。
+    解法两步走:
+    - **遮罩**:先把正文里出现的两人称呼整体换成不含字母的占位符——名字内的
+      字母彻底退出代号轮视野,①②连同「合规名字写在原文里被吃」一并消除;
+      长名先遮,防双遮罩前缀对(短名 ⊂ 长名前缀)被短名剥壳后长名内
+      露出的代号字母遭代号轮吃(「小B」/「小B小A」,实测短名先遮产出
+      「小B小小B快」)。附带收益:
+      名字含代号字母时裸代号也照替(老 skip-guard 是整轴放弃,裸代号残留)。
+      遮罩只施于**含 standalone 代号字母的名字**:Bella/Amy 类(内部字母全
+      非 standalone)不遮——遮了反而拆掉其首尾字母给邻接字母提供的环视
+      保护(「AmyB」的 B 前邻 'y' 换成控制符后被当 standalone 吃掉,差分
+      fuzz 实证 71/4000 漂移全属此类),不遮则与老实现逐字节平价。
+    - **单遍替换**:一轮 re.sub 只扫原文、不回扫替换结果,注入名字里的字母
+      天然不会被再吃(老实现两轮先后跑,B 轮重扫 A 轮产物,即②根因)。
+    名字内部的非 standalone 字母(Bella/Amy)由环视天然保护,无需遮罩介入。
+    替换与遮罩还原均按字面进行:代号轮用函数式替换(lambda)——字符串 repl
+    会解析 \\ 转义(别名以 \\ 结尾抛 re.error bad escape、\\1/\\g 错插组引用,
+    用户输入可触发 interpret 500);遮罩/还原走 str.replace,同样零转义解析。
     """
-    if name_a and not _STANDALONE_A.search(name_a):
-        # 函数式替换(lambda):repl 按字面使用——字符串 repl 会解析 \ 转义
-        # (别名以 \ 结尾抛 re.error bad escape、\1/\g 错插组引用,用户输入
-        # 可触发 interpret 500;lambda 返回值零转义解析,彻底字面化)
-        text = _STANDALONE_A.sub(lambda m: name_a, text)
-    if name_b and not _STANDALONE_B.search(name_b):
-        text = _STANDALONE_B.sub(lambda m: name_b, text)
+    # 遮罩:长名先遮(前缀名防残根);空名不遮(str.replace("",…) 会在每个
+    # 字符间插占位符,且空名无称呼可保护);无 standalone 代号字母的名字
+    # 不遮(环视天然保护,遮了反拆邻接字母的保护,见 docstring)
+    shields: list[tuple[str, str]] = []
+    for name, shield in sorted(
+        ((name_a, _AB_SHIELD_A), (name_b, _AB_SHIELD_B)),
+        key=lambda pair: len(pair[0]), reverse=True,
+    ):
+        if name and _STANDALONE_AB.search(name):
+            text = text.replace(name, shield)
+            shields.append((shield, name))
+
+    names = {"A": name_a, "B": name_b}
+
+    def _repl(m: re.Match) -> str:
+        # 空名(防御,契约上 setdefault 后不会出现):该代号原样保留
+        return names[m.group(1)] or m.group(0)
+
+    text = _STANDALONE_AB.sub(_repl, text)
+    for shield, name in shields:
+        text = text.replace(shield, name)
     return text
 
 
