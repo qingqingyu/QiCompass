@@ -46,12 +46,13 @@ enum APICoder {
 
 // MARK: - LiveAPIClient
 
-/// 真实 API 客户端:async/await + URLSession,timeout 150s,显式 throws。
+/// 真实 API 客户端:async/await + URLSession,timeout 180s,显式 throws。
 ///
-/// timeout 跟后端 AI_TIMEOUT_SECONDS=150 对齐(2026-09-27 与后端同步 90→150:
-/// max_tokens 放开到 8192 后,深度模块长文实际生成 ~3000-4000 token 预计
-/// 40-90s,90s 贴线会出现「后端还在生成、iOS 先超时」——后端完成后已写
-/// 缓存,重试会命中,但首次体验是一次白等后的失败)。
+/// timeout 取后端 AI_TIMEOUT_SECONDS=150 + 30s 余量(2026-09-27 与后端同步
+/// 90→150 时两值相等零余量,2026-09-28 修正:后端在 LLM 150s 之外还有
+/// entitlement 校验/缓存写/序列化,生成贴线时客户端会在边界先断——后端
+/// 已写缓存但用户看到的是失败且次数已扣)。max_tokens 放开到 8192 后,
+/// 深度模块长文实际生成 ~3000-4000 token 预计 40-90s。
 /// 不重试(脚手架阶段,重试策略留待各模块 slice)。
 /// 返回 DTO,不直接返回 SwiftData @Model;DTO 与 @Model 转换由调用方显式映射。
 final class LiveAPIClient: APIClient {
@@ -64,9 +65,11 @@ final class LiveAPIClient: APIClient {
 
     init(baseURL: URL) {
         let config = URLSessionConfiguration.default
-        // 跟后端 AI_TIMEOUT_SECONDS=150 对齐(2026-09-27 同步 90→150,见类注释)。
+        // 后端 AI_TIMEOUT_SECONDS=150 之外还有 entitlement 校验/缓存写/序列化,
+        // 客户端若也卡 150,生成贴线时会在边界先断——把一次后端已成功的生成
+        // 变成客户端失败(次数已扣)。留 30s 余量(2026-09-28 修正 150→180)。
         // resource timeout 留 300s 容错(重定向/慢网络叠加生成时长)。
-        config.timeoutIntervalForRequest = 150
+        config.timeoutIntervalForRequest = 180
         config.timeoutIntervalForResource = 300
         self.session = URLSession(configuration: config)
         self.baseURL = baseURL
