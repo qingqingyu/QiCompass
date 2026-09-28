@@ -28,8 +28,16 @@ struct DailyInterpretationSection: View {
         // 今日运势 V1「三框全载」:解读入框,正文楷体宽行距;全免费不上「剩余次数」
         VStack(alignment: .leading, spacing: 18) {
             Text(L10n.DailyFortune.interpretTitle)
-                .font(BaziFont.caption(size: 10))
-                .tracking(4)
+                // 2026-09-28 S04:4pt 字距是给中文楷体小标定的,EN 大小写混排
+                // 加 4pt 很难读——EN 走全大写 Latin caps + 2pt(DESIGN.md 的
+                // 大字距口径只适用全大写);zh/zh-Hant 保持原样不动。
+                .font(
+                    AppLanguage.current.isChinese
+                        ? BaziFont.caption(size: 10)
+                        : BaziFont.latinCaps(size: 10)
+                )
+                .textCase(AppLanguage.current.isChinese ? nil : .uppercase)
+                .tracking(AppLanguage.current.isChinese ? 4 : 2)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
 
             switch state {
