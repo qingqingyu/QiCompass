@@ -34,30 +34,94 @@ class TestReplaceAbLabels:
         assert "Amanda" in out and "H1B" in out
         assert "你 的节奏" in out or "你的节奏" in out
 
-    def test_name_starting_with_letter_skips(self):
-        """名字首字符即该字母(如「A先生」)→ 跳过该字母替换,
-        防止文本里的「A先生」被替换成「A先生先生」。"""
+    def test_name_starting_with_letter_preserved(self):
+        """名字首字符即该字母(如「A先生」)→ 正文里合规写出的名字保真,
+        防止文本里的「A先生」被替换成「A先生先生」。
+        (2026-09-28 机制更新:skip-guard → 名字遮罩——名字整体先换占位符,
+        其字母退出代号轮视野;附带收益见 test_bare_code_replaced_when_name_letter。)"""
         out = _replace_ab_labels("A先生的盘面", "A先生", "小林")
         assert out == "A先生的盘面"
         # B 侧不受 A 名字影响
         out_b = _replace_ab_labels("B 稳", "A先生", "小林")
         assert out_b == "小林稳"
 
-    def test_name_with_mid_standalone_letter_skips(self):
-        """名字中间含 standalone 字母(如「阿B」「小 A」)→ 同样跳过,
-        防止文本里出现的名字本身被二次替换成「阿阿B」(guard 是
-        standalone 模式命中而非仅 startswith)。"""
-        # 阿B:B 前是 CJK(非字母数字)→ 名字内 standalone 命中 → 跳过 B 替换;
+    def test_name_with_mid_standalone_letter_preserved(self):
+        """名字中间含 standalone 字母(如「阿B」「小 A」)→ 同样保真,
+        防止文本里出现的名字本身被二次替换成「阿阿B」
+        (遮罩按名字整体保护,不分首字符还是中间)。"""
+        # 阿B:B 前是 CJK(非字母数字)→ 名字内 standalone 命中 → 遮罩保真;
         # A 侧名字「你」无 standalone 字母,照常替换(吞代号后空格)
         assert _replace_ab_labels("阿B 的节奏,A 稳。", "你", "阿B") == "阿B 的节奏,你稳。"
-        # 小 A:A 前是空格 → 同理跳过 A 替换;B 侧照常
+        # 小 A:A 前是空格 → 同理遮罩保真;B 侧照常
         assert _replace_ab_labels("小 A,B 同频。", "小 A", "小林") == "小 A,小林同频。"
+
+    def test_cross_axis_name_a_contains_b_letter(self):
+        """交叉轴污染(2026-09-28 外部 review 实证):name_a 含 standalone B
+        (「小B」)——老两轮实现里 A 轮注入的「小B」被 B 轮吃成「小丽」,
+        A 的称呼变成 B 的称呼。单遍替换只扫原文不回扫,注入回流消失。"""
+        out = _replace_ab_labels("A 倾向于先说结论，B 更慢热。", "小B", "丽")
+        assert out == "小B倾向于先说结论，丽更慢热。"
+
+    def test_cross_axis_spaced_variant(self):
+        """同上,字母前带空格的变体(「阿 B」);老实现产出「阿 丽」。"""
+        out = _replace_ab_labels("A 倾向于先说结论，B 更慢热。", "阿 B", "丽")
+        assert out == "阿 B倾向于先说结论，丽更慢热。"
+
+    def test_verbatim_name_in_text_not_eaten(self):
+        """LLM 合规(prompt v4)在正文写出 name_a 本身时,名字内的 B 同样
+        不被 B 轮吃掉——单遍替换只防注入回流,**原文里的「小B」**要靠遮罩
+        保护(老实现此用例产出「小丽倾向于快」,交叉污染的原文侧变体)。"""
+        out = _replace_ab_labels("小B 倾向于快，B 更慢热。", "小B", "丽")
+        assert out == "小B 倾向于快，丽更慢热。"
+
+    def test_reverse_direction_name_b_contains_a(self):
+        """反方向(name_b 含 standalone A)老实现即安全(A 轮先跑不回扫),
+        锁住防回归。"""
+        out = _replace_ab_labels("A 倾向于先说结论，B 更慢热。", "明", "A君")
+        assert out == "明倾向于先说结论，A君更慢热。"
+
+    def test_bare_code_replaced_when_name_letter(self):
+        """遮罩版比老 skip-guard 强:名字含代号字母时,裸代号不再整轴放弃
+        (老实现两头都跳过,「A 倾向于」裸代号残留到用户眼前)。"""
+        out = _replace_ab_labels("A先生稳，A 更快。", "A先生", "小林")
+        assert out == "A先生稳，A先生更快。"
+        out2 = _replace_ab_labels("A 倾向于先说结论，B 更慢热。", "A先生", "阿B")
+        assert out2 == "A先生倾向于先说结论，阿B更慢热。"
+
+    def test_mask_order_long_name_first_prefix_overlap(self):
+        """前缀重叠场景的保真(条件遮罩后排序在此形态已不承重,锁定结果):
+        name_a「小」不含 standalone 字母不遮,name_b「小B」整体遮——
+        「小B」的 B 不裸露,原样保真。排序真正承重见下一测试。"""
+        out = _replace_ab_labels("小B 快,A 稳。", "小", "小B")
+        assert out == "小B 快,小稳。"
+
+    def test_mask_order_both_masked_prefix_pair(self):
+        """双遮罩前缀对:长名先遮的排序不变量在此形态承重——短名遮壳后
+        长名内露出的代号字母会被代号轮吃(实测反事实:短名先遮产出
+        「小B小小B快」);现实感对(B仔/B)两种顺序结果一致,一并锁定。"""
+        out = _replace_ab_labels("小B小A 快", "小B", "小B小A")
+        assert out == "小B小A 快"
+        out2 = _replace_ab_labels("B仔 稳,A 快。", "B仔", "B")
+        assert out2 == "B仔 稳,B仔快。"
+
+    def test_lookaround_still_protects_with_letter_names(self):
+        """H1B / A4 环视保护在交叉轴名字场景下不回归。"""
+        out = _replace_ab_labels("H1B 与 A4 纸，A 倾向于快。", "小B", "丽")
+        assert "H1B" in out and "A4" in out
+        assert "小B倾向于快" in out
 
     def test_latin_internal_name_letters_still_replace(self):
         """名字内字母前后是拉丁字母(如 Amy/Bella)→ 不命中 standalone,
         替换照常进行(注入的 Amy/A 内部字母非 standalone,安全)。"""
         out = _replace_ab_labels("A 倾向快,B 稳。", "Amy", "Bella")
         assert out == "Amy倾向快,Bella稳。"
+
+    def test_latin_edge_name_adjacent_letter_protected(self):
+        """无 standalone 字母的名字不做遮罩:名字首尾的拉丁字母为紧贴的
+        邻接字母提供环视保护(老实现平价,差分 fuzz 实证)。「AmyB」的 B
+        前邻 'y' 若被占位符换掉,B 会裸露成 standalone 被吃成「Amy丽」。"""
+        out = _replace_ab_labels("AmyB 的节奏,B 稳。", "Amy", "丽")
+        assert out == "AmyB 的节奏,丽稳。"
 
     def test_identity_names_are_noop(self):
         """老客户端兜底名即 A/B 本身(恒等替换)→ 原样返回。"""
