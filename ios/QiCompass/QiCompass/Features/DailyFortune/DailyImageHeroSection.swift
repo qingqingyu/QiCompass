@@ -32,6 +32,10 @@ struct DailyImageHeroSection: View {
     /// 卡高(glass-v2 同值):容纳日期区 + 呼吸留白 + 宜忌双列。
     private static let heroHeight: CGFloat = 402
 
+    /// 内容浮层水平内边距:与 DailyInterpretationSection 的 20pt 对齐
+    /// (2026-09-28 外评:原 4pt 使「28」「Do」离屏 21pt,解读正文 37pt,差 16pt)。
+    private static let contentInset: CGFloat = 20
+
     // 玻璃参数(glass-v2「浅绛彩色底」档;水墨档 sat 0.32,重晕档未移植——画布可回调)
     private static let gSaturation: Double = 0.92
     private static let gBrightness: Double = 0.03
@@ -238,11 +242,11 @@ struct DailyImageHeroSection: View {
     private var contentOverlay: some View {
         VStack(spacing: 0) {
             dateRow
-                .padding(.horizontal, 4)
+                .padding(.horizontal, Self.contentInset)
                 .padding(.top, 18)
             Spacer()
             HeroYiJiColumns(dayRelation: dayRelation)
-                .padding(.horizontal, 4)
+                .padding(.horizontal, Self.contentInset)
                 .padding(.bottom, 22)
         }
     }
@@ -517,7 +521,9 @@ struct HeroYiJiColumns: View {
 
     var body: some View {
         let resolved = pair
-        HStack(alignment: .top, spacing: 34) {
+        // spacing 24(2026-09-28 S03):内容内边距 4→20 吃掉 32pt,列距 34→24
+        // 补回 10pt;375pt 屏单列 ≈(375−24−40−24)/2 ≈ 138pt,EN 16 chars 预算内。
+        HStack(alignment: .top, spacing: 24) {
             column(header: isEn ? "Do" : "宜", annotation: isEn ? "宜 yí" : nil, items: resolved.yi)
             column(header: isEn ? "Don't" : "忌", annotation: isEn ? "忌 jì" : nil, items: resolved.ji)
         }
@@ -546,6 +552,8 @@ struct HeroYiJiColumns: View {
                         .font(isEn ? .system(size: 15, weight: .regular, design: .serif) : BaziFont.songDisplay(size: 17))
                         .tracking(isEn ? 0.3 : 1.7)
                         .foregroundStyle(BaziTheme.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.9)
                         .padding(.vertical, 4.5)
                 }
             }
