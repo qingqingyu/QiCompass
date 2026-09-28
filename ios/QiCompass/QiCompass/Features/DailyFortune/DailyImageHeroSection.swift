@@ -436,8 +436,8 @@ struct HeroYiJiColumns: View {
 
     static let mappingZh: [String: (yi: [String], ji: [String])] = [
         "比肩": (["独立", "立界", "健身"], ["争执", "攀比", "随众"]),
-        "劫财": (["行动", "开拓", "分利"], ["冲动", "借贷", "硬拼"]),
-        "食神": (["创造", "表达", "见新友"], ["拖延", "熬夜", "争辩"]),
+        "劫财": (["行动", "开拓", "结伴"], ["冲动", "借贷", "硬拼"]),
+        "食神": (["创造", "表达", "会友"], ["拖延", "熬夜", "争辩"]),
         "伤官": (["表达", "出新", "直言"], ["冲撞", "越界", "口快"]),
         "偏财": (["拓展", "试新", "让利"], ["孤注", "贪多", "赊账"]),
         "正财": (["守成", "记账", "务本"], ["短视", "贪快", "弃约"]),
@@ -452,14 +452,18 @@ struct HeroYiJiColumns: View {
     /// Chain),整体换人味口吻——短祈使句、对自己说话的语气;每条 ≤16 chars
     /// (serif 15pt 双列 ~163pt/列单行内,沿用 09-19 宽度约束)——
     /// 预算由 DailyImageHeroCopyTests 守护(2026-09-23 review #2)。
+    /// 2026-09-28 外评:3 条与 EngineReadingTemplates 兜底模板语气打架
+    /// (劫财 Act Now vs「just don't rush」/ Split the Gains vs「think
+    /// twice before…splitting stakes」/ 七杀 Push Through vs「don't burn
+    /// yourself out」),改 Take the Lead / Team Up / Face It Head-On。
     static let mappingEn: [String: (yi: [String], ji: [String])] = [
         "比肩": (["Go Your Own Way", "Set Boundaries", "Move Your Body"], ["Argue", "Compare Yourself", "Follow the Crowd"]),
-        "劫财": (["Act Now", "Break New Ground", "Split the Gains"], ["Impulse Buys", "Lend Money", "Force It"]),
+        "劫财": (["Take the Lead", "Break New Ground", "Team Up"], ["Impulse Buys", "Lend Money", "Force It"]),
         "食神": (["Make Something", "Speak Your Mind", "See a Friend"], ["Put It Off", "Stay Up Late", "Pick Fights"]),
         "伤官": (["Show Your Work", "Say It Plain", "Be Frank"], ["Push Too Hard", "Cross the Line", "Blurt It Out"]),
         "偏财": (["Explore", "Try New Things", "Give a Little"], ["Bet It All", "Grab Too Much", "Buy on Credit"]),
         "正财": (["Keep Steady", "Track Your Money", "Tend Your Garden"], ["Cut Corners", "Rush the Deal", "Break Your Word"]),
-        "七杀": (["Make the Call", "Take It On", "Push Through"], ["Waver", "Make Enemies", "Burn Out"]),
+        "七杀": (["Make the Call", "Take It On", "Face It Head-On"], ["Waver", "Make Enemies", "Burn Out"]),
         "正官": (["Own Your Part", "Play It Straight", "Close the Loop"], ["Shrink Back", "Skip the Line", "Miss Deadlines"]),
         "偏印": (["Sit with It", "Review Old Notes", "Take Quiet Time"], ["Get Stubborn", "Overthink", "Go It Alone"]),
         "正印": (["Learn Something", "Take Advice", "Rest Up"], ["Lean Too Hard", "Daydream", "Drag Your Feet"]),
@@ -470,8 +474,8 @@ struct HeroYiJiColumns: View {
     /// 「覆命」为误转,2026-09-23 review P1-4 修正)。
     static let mappingHant: [String: (yi: [String], ji: [String])] = [
         "比肩": (["獨立", "立界", "健身"], ["爭執", "攀比", "隨眾"]),
-        "劫财": (["行動", "開拓", "分利"], ["衝動", "借貸", "硬拼"]),
-        "食神": (["創造", "表達", "見新友"], ["拖延", "熬夜", "爭辯"]),
+        "劫财": (["行動", "開拓", "結伴"], ["衝動", "借貸", "硬拼"]),
+        "食神": (["創造", "表達", "會友"], ["拖延", "熬夜", "爭辯"]),
         "伤官": (["表達", "出新", "直言"], ["衝撞", "越界", "口快"]),
         "偏财": (["拓展", "試新", "讓利"], ["孤注", "貪多", "賒帳"]),
         "正财": (["守成", "記帳", "務本"], ["短視", "貪快", "棄約"]),

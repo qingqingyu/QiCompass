@@ -29,6 +29,30 @@ final class DailyImageHeroCopyTests: XCTestCase {
         )
     }
 
+    // MARK: - 宜忌词表 ⟷ 兜底模板一致性(2026-09-28 外评)
+
+    /// 宜词不得出现在兜底模板的告诫半句(分号后)——2026-09-28 外评「宜分利 vs 分利慢一拍」。
+    /// zh / zh-Hant 两表逐键检查;EN 为短语无法子串比对,靠人工 review(见 slices 文档 S01)。
+    func testYiItemsNotContradictedByEngineTemplateCaution() {
+        let pairs: [([String: (yi: [String], ji: [String])], [String: String])] = [
+            (HeroYiJiColumns.mappingZh, EngineReadingTemplates.zh),
+            (HeroYiJiColumns.mappingHant, EngineReadingTemplates.hant),
+        ]
+        for (mapping, templates) in pairs {
+            XCTAssertEqual(Set(mapping.keys), Set(templates.keys))
+            for (relation, cols) in mapping {
+                guard let text = templates[relation] else { continue }  // 键集合不等已由上方断言报出
+                guard let semi = text.firstIndex(where: { $0 == ";" || $0 == "；" }) else {
+                    XCTFail("模板缺分号(告诫半句分隔):\(relation)")
+                    continue
+                }
+                let caution = text[semi...]
+                let hits = cols.yi.filter { caution.contains($0) }
+                XCTAssertTrue(hits.isEmpty, "\(relation) 宜词出现在模板告诫半句:\(hits)")
+            }
+        }
+    }
+
     // MARK: - #3 chongLabel EN 动物方案(2026-09-24)
 
     /// 断言辅助:与生产同源的 format 运行时值拼接。
