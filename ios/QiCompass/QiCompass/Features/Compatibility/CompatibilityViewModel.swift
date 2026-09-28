@@ -1427,6 +1427,17 @@ final class CompatibilityViewModel {
                     cityDisplay: self.cityDisplay(for: bSnapshot)
                 )
 
+                // 2026-09-28 prompt 称谓修复:nameB 不能用 displayName 的兜底串
+                // (「对方 · 1985-07-12」会被 v4 模板当人名通篇复述);alias 缺失时
+                // 用纯「对方」。UI 列头(CompatibilityView)仍用 displayName,两口径分开。
+                let promptNameB: String
+                switch summary.entry {
+                case .archived(let bHash):
+                    promptNameB = archivedCharts.first { $0.snapshotHash == bHash }?.alias
+                        ?? String(localized: "对方")
+                case .temp(_, let alias, _, _):
+                    promptNameB = (alias?.isEmpty == false) ? alias! : String(localized: "对方")
+                }
                 let resp = try await self.orchestrator.runInterpretation(
                     compatibilityHash: compatHash,
                     chartA: chartA,
@@ -1434,11 +1445,11 @@ final class CompatibilityViewModel {
                     assessment: response.qualitativeAssessment,
                     syncedFortune: response.syncedFortune,
                     context: self.context,
-                    // 2026-09-27 A/B 代号修复:A 恒命主本人 → 「你/you」,
-                    // B 用对方 displayName(alias / 兜底名)——prompt 全文与
+                    // 2026-09-27 A/B 代号修复:A 恒命主本人 → 「你/you」;
+                    // B 走 promptNameB(alias / 纯「对方」,见上)——prompt 全文与
                     // 后端残留 A/B 后置替换共用这两个称呼
                     nameA: L10n.Compatibility.selfReferenceYou,
-                    nameB: summary.displayName,
+                    nameB: promptNameB,
                     module: module
                 )
 
