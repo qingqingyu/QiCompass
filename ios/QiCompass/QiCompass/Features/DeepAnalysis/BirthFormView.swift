@@ -453,7 +453,7 @@ struct BirthFormView: View {
 
     /// 日期表盘初始位置锚(638_000_000 = +08 钟面 1990-03-21 14:13:20,旧时刻锚点
     /// 同一 instant;2026-09-23 二段起与 `defaultBirthTimeAnchor` 正午是不同 instant,
-    /// 见 CompatibilityConfigView.tempDateOnlyBinding 注释。不作为提交值)。
+    /// 见 PartnerBirthForm.tempDateOnlyBinding 注释。不作为提交值)。
     private static let unselectedDateSeed = Date(timeIntervalSince1970: 638_000_000)
 
     /// 日期行文案:公历长日期,按出生城市钟面取(S03 WYSIWYG);未选择 → 占位。

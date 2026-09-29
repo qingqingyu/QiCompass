@@ -902,7 +902,7 @@ enum L10n {
         /// zh: "这位命盘缺出生时辰,补上后即可合盘";en: "This chart is missing its birth hour — add it to unlock pairing"
         static let hint = String(localized: "compatibility.roster.hourUnknown.hint")
 
-        /// 自己无时辰:名单整体标记解释行(全部对不可用 +「开始合盘」不可发起)。
+        /// 自己无时辰:名单整体标记解释行(全部对不可用,表单/行置灰)。
         /// zh: "你的命盘缺出生时辰,所有对暂不可合盘;补上时刻即可恢复"
         /// en: "Your chart is missing its birth hour — all pairs are on hold until it's added"
         static let selfBanner = String(localized: "compatibility.roster.hourUnknown.selfBanner")

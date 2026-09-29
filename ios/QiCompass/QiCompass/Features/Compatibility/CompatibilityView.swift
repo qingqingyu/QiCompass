@@ -235,7 +235,7 @@ struct CompatibilityView: View {
                             // 2026-09-27 A/B 代号 → 名字:A 恒命主本人「你」,B 用对方称呼
                             nameA: L10n.Compatibility.selfReferenceYou,
                             nameB: summary.displayName,
-                            onBackToConfig: { vm.backToConfig() },
+                            onBackToConfig: { vm.clearDetailKeepRoster() },
                             onGenerateInterpret: { vm.generateInterpretation() },
                             onShowPaywall: { showPaywall = true }
                         )
@@ -249,7 +249,7 @@ struct CompatibilityView: View {
                         // 不静默吞:detail 态但快照缺失 → 显式错误态
                         ErrorStateView(
                             userFacingError: .generic(message: L10n.Compatibility.errorChartReadFailed),
-                            retry: { vm.backToConfig() }
+                            retry: { vm.clearDetailKeepRoster() }
                         )
                     }
                 }
@@ -359,7 +359,7 @@ extension CompatibilityView {
     }
 
     /// list 态内容区:单对卡(成功卡可点开 detail;失败卡单对重试;拦截卡补时辰
-    /// CTA——三分支与 CompatibilityPairListView 同款,S5 清理时收敛为单一实现)。
+    /// CTA——三分支与 PairSummaryCard 既有形态一致,结果壳内联)。
     @ViewBuilder
     private func listContent(vm: CompatibilityViewModel) -> some View {
         ScrollView {
@@ -402,8 +402,8 @@ extension CompatibilityView {
 
 // MARK: - P1 内联推演态(computing;单选无 i/N)
 
-/// 结果壳内容区推演态:竖排短语 + 三墨点 breathe(复用 CompatibilityCastingView
-/// 的动效语言,去掉 i/N 与全屏布局)。reduce-motion 静态呈现(DESIGN.md 动效全降级)。
+/// 结果壳内容区推演态:竖排短语 + 三墨点 breathe(沿用旧全屏推演态的动效语言,
+/// 去 i/N 与全屏布局)。reduce-motion 静态呈现(DESIGN.md 动效全降级)。
 private struct InlineCastingIndicator: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var breathing = false

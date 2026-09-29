@@ -1280,7 +1280,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         }
     }
 
-    // MARK: - S02 detail 态(openDetail / backToConfig / paywall 按对绑定)
+    // MARK: - S02 detail 态(openDetail / clearDetailKeepRoster / paywall 按对绑定)
 
     func testLastCompatibilityHashForPaywall_非detail态_返回nil() {
         // S02 红线:paywall 按对绑定 → 非 detail 态无 hash
@@ -1368,7 +1368,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
     func testBackToConfig_detail态_一步回配置态_保留summaries() {
         // 2026-09-07 单选直达:closeDetail 退役,detail「编辑名单」toolbar 直达
-        // 配置态(backToConfig 兼任 list 兜底态返回)
+        // 配置态(clearDetailKeepRoster 兼任 list 兜底态返回)
         let summary = PairSummary(
             id: "compat_hash_3",
             entry: .archived(snapshotHash: "h_b"),
@@ -1392,13 +1392,13 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             XCTFail("应进入 detail 态")
         }
 
-        vm.backToConfig()
+        vm.clearDetailKeepRoster()
         if case .configuring = vm.state {
             // 期望一步回配置态
         } else {
-            XCTFail("backToConfig 应回 .configuring 态,实际:\(vm.state)")
+            XCTFail("clearDetailKeepRoster 应回 .configuring 态,实际:\(vm.state)")
         }
-        XCTAssertEqual(vm.summaries.count, 1, "backToConfig 后 summaries 应保留")
+        XCTAssertEqual(vm.summaries.count, 1, "clearDetailKeepRoster 后 summaries 应保留")
     }
 
     // MARK: - S03 对级错误隔离
@@ -1608,7 +1608,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
     /// 它可能仍在途 → SwiftData EXC_BREAKPOINT(生产无此问题,容器随 App 长寿)。
     /// 断言后取消全部 VM 任务 + 让步执行器等在途查询退出。
     private func drainDetailBackgroundTasks() async {
-        vm.backToConfig()
+        vm.clearDetailKeepRoster()
         try? await Task.sleep(nanoseconds: 500_000_000)
     }
 
@@ -2112,71 +2112,5 @@ private actor S11RecordingAPIClient: APIClient {
     }
     func syncPush(request: SyncPushRequest) async throws -> SyncPushResponse {
         throw S11TestError.unexpectedCall
-    }
-}
-
-// MARK: - 配置页 CTA 派生模型单测(2026-09-07 单选:两态 + 全锁)
-
-/// CompatibilityConfigCTAModel 覆盖:
-/// - ready:「开始合盘」+ 对方名注(· 解读单独解锁)
-/// - emptySelection:置灰「先点选一位对方」(决策 D13 拦截前移)
-/// - selfHourUnknown:置灰「补全时辰后可合盘」(S07 全锁,优先级最高)
-final class CompatibilityConfigCTAModelTests: XCTestCase {
-
-    func testEmptySelectionShowsHintAndDisabled() {
-        let cta = CompatibilityConfigCTAModel.derive(
-            selectedCount: 0, selectedNames: [], isSelfHourUnknown: false
-        )
-        XCTAssertEqual(cta.kind, .emptySelection)
-        XCTAssertEqual(cta.title, "先点选一位对方")
-        XCTAssertTrue(cta.note.contains("上限 \(CompatibilityViewModel.rosterMax) 位"))
-        XCTAssertFalse(cta.isEnabled)
-    }
-
-    func testSingleSelectionShowsName() {
-        let cta = CompatibilityConfigCTAModel.derive(
-            selectedCount: 1, selectedNames: ["男友"], isSelfHourUnknown: false
-        )
-        XCTAssertEqual(cta.kind, .ready(namesSummary: "男友"))
-        XCTAssertEqual(cta.title, "开始合盘")
-        XCTAssertEqual(cta.note, "男友 · 解读单独解锁")
-        XCTAssertTrue(cta.isEnabled)
-    }
-
-    func testReadyWithMissingNameFallsBackToPairCount() {
-        // 防御分支:names 与 count 不一致(或空名)不产出空摘要
-        let cta = CompatibilityConfigCTAModel.derive(
-            selectedCount: 1, selectedNames: [], isSelfHourUnknown: false
-        )
-        XCTAssertEqual(cta.kind, .ready(namesSummary: "1 对"))
-        XCTAssertEqual(cta.note, "1 对 · 解读单独解锁")
-        XCTAssertTrue(cta.isEnabled)
-    }
-
-    func testDefensiveMultiInputTakesFirstName() {
-        // >1 仅测试直塞防御路径(单选 UI 不可能):取首个非空名,不叠多名摘要
-        let cta = CompatibilityConfigCTAModel.derive(
-            selectedCount: 2, selectedNames: ["甲", "乙"], isSelfHourUnknown: false
-        )
-        XCTAssertEqual(cta.kind, .ready(namesSummary: "甲"))
-    }
-
-    func testSelfHourUnknownLocksEvenWithSelections() {
-        // S07 全锁优先于一切:有点选也置灰
-        let cta = CompatibilityConfigCTAModel.derive(
-            selectedCount: 1, selectedNames: ["甲"], isSelfHourUnknown: true
-        )
-        XCTAssertEqual(cta.kind, .selfHourUnknown)
-        XCTAssertEqual(cta.title, "补全时辰后可合盘")
-        XCTAssertTrue(cta.note.contains("补全"))
-        XCTAssertFalse(cta.isEnabled)
-    }
-
-    func testSelfHourUnknownWinsOverEmptySelection() {
-        let cta = CompatibilityConfigCTAModel.derive(
-            selectedCount: 0, selectedNames: [], isSelfHourUnknown: true
-        )
-        XCTAssertEqual(cta.kind, .selfHourUnknown)
-        XCTAssertFalse(cta.isEnabled)
     }
 }

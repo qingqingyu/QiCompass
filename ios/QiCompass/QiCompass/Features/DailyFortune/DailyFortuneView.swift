@@ -34,7 +34,8 @@ struct DailyFortuneView: View {
                 content
             }
             // D2(2026-09-29 拍板):四 tab 统一去系统导航标题,防系统字体与水墨
-            // 层打架;导航栏本身保留(合盘 toolbar 的「编辑名单」按钮依赖栏位)。
+            // 层打架;导航栏本身保留(合盘「编辑名单」toolbar 已随配置页退役,
+            // 2026-09-29 P7)。
             // S10:补时辰 sheet。关闭统一刷新——重算换新盘 → resolveCurrentChart
             // 按 hash 变化全量重载(完整版运势);静默态写穿 → refreshHourFlags
             /// 轻量重读判据(末尾行文案降中性),不重跑排盘管线。

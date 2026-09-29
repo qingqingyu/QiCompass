@@ -6,10 +6,12 @@ import SwiftData
 
 /// 合盘主状态机(单选改造 + S02 detail 态)。
 ///
-/// 七态(2026-09-07 单选直达:算成 → detail 主路径,list 退化为兜底):
+/// 七态(2026-09-07 单选直达:算成 → detail 主路径,list 退化为兜底;
+/// 2026-09-29 结果页主页化:.configuring 渲染为结果壳 P5/P6 态,配置页退役):
 /// - loading:命盘列表加载中
 /// - empty:0 存档,引导去深度解析
-/// - configuring:配置态(A 盘命主 + B 名单单选;2026-08-16 起 context 恒 "general")
+/// - configuring:结果壳内容区接管——名单空 = P5 内联添加表单,非空无已选 = P6
+///   提示行(2026-08-16 起 context 恒 "general")
 /// - computing(completed, total):确定性合盘进行中(决策 D3 串行;单选恒 1 对)
 /// - list:兜底结果列表(compute 失败/时辰拦截时承载单卡 + 重试/补时辰 CTA;
 ///   summaries 存 VM 字段)
@@ -323,7 +325,7 @@ final class CompatibilityViewModel {
         return partnerDisplay(for: entry)
     }
 
-    /// 头部生日展示格式(设备时区,与名单行 ArchiveRowContent 同口径)。
+    /// 头部生日展示格式(设备时区,与名单行历史口径一致)。
     private static let displayDateFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy-MM-dd"
@@ -534,7 +536,8 @@ final class CompatibilityViewModel {
     // MARK: - S11 roster 不可合盘标记(判据 = 本地存档 payload,零网络)
 
     /// 当前 A 盘(自己)的时辰判据。
-    /// 自己无时辰 → 名单整体标记 + 解释行 + 「开始合盘」不可发起(全部对不可用)。
+    /// 自己无时辰 → 名单整体标记 + 解释行 + 全部对不可用(表单/行置灰,
+    /// 头部「补时辰」是唯一解锁路径)。
     /// 判据与 S07 computePair 拦截同源(存档 payload `hourUnknownGate`),
     /// 标记层只是把同一判据提前到配置态;decode 失败显式记日志后按
     /// `.hourKnown` 放行(发起路径会再次 decode 并显式传播错误,标记层
@@ -835,7 +838,7 @@ final class CompatibilityViewModel {
     /// 2026-09-03:只消费 `selectedRosterEntries`(勾选子集)——名单成员未勾选不排盘
     /// (添加与勾选解耦后,零勾选 = D13 拦截,与空名单同文案)。
     /// 循环体保持 N 元泛化(直塞多勾只出测试),正常路径单选恒 N=1。
-    /// 切 tab / backToConfig → computeTask cancel(决策 D13)。
+    /// 切 tab / clearDetailKeepRoster → computeTask cancel(决策 D13)。
     func compute() {
         let contextValue = self.context
         let rosterCount = self.roster.count
@@ -1706,9 +1709,10 @@ final class CompatibilityViewModel {
 
     // MARK: - 重置
 
-    /// 切回配置态(list 兜底态「编辑名单」/ detail 态「编辑名单」toolbar 共用;
-    /// 2026-09-07 单选直达后 detail → config 一步直达,closeDetail 随 list 主路径退役)。
-    func backToConfig() {
+    /// 清出 detail/computing 态、保留名单(2026-09-29 S5 改名,原 backToConfig——
+    /// 配置页已退役,调用方:detail 快照缺失重试 / 换人 sheet 移出当前对方 /
+    /// 测试 teardown)。cancel 三任务 + 进 .configuring(结果壳渲染 P5/P6 态)。
+    func clearDetailKeepRoster() {
         computeTask?.cancel()
         interpretTask?.cancel()
         cacheReadTask?.cancel()

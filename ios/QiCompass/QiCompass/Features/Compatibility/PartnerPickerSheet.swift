@@ -82,7 +82,7 @@ struct PartnerPickerSheet: View {
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-        // 「移出」= 移出名单确认(需再填表单才能回来;与配置页同款文案)
+        // 「移出」= 移出名单确认(需再填表单才能回来;沿用配置页时代文案)
         .confirmationDialog(
             L10n.CompatibilityPartner.removeConfirmTitle,
             isPresented: Binding(
@@ -229,13 +229,13 @@ struct PartnerPickerSheet: View {
     }
 
     /// 移出名单:当前对方被移出 → 勾选随清(removeRosterEntry)+ 切出 detail 态
-    /// (backToConfig 兼任 cancel;S3 起 .configuring 渲染为结果壳 P6 态),
+    /// (clearDetailKeepRoster 兼任 cancel;S3 起 .configuring 渲染为结果壳 P6 态),
     /// 不自动选下一位(避免隐式发起合盘请求);非当前对方 → 留在列表。
     private func removeEntry(_ entry: RosterEntry) {
         let wasCurrent = vm.selectedEntryIds.contains(entry.id)
         vm.removeRosterEntry(entry)
         if wasCurrent {
-            vm.backToConfig()
+            vm.clearDetailKeepRoster()
             onClose?()
         }
     }

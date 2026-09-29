@@ -324,7 +324,7 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
         // 换人 sheet 移除当前对方的组合流(View 层 removeEntry 的 VM 侧效果):
         // 勾选随清 + 切出 detail(P6 态入口),不自动选下一位、不发请求
         vm.removeRosterEntry(.archived(snapshotHash: "s2r_b_known"))
-        vm.backToConfig()
+        vm.clearDetailKeepRoster()
 
         XCTAssertTrue(vm.selectedEntryIds.isEmpty, "移出当前对方 → 勾选清空")
         XCTAssertTrue(vm.roster.isEmpty)
@@ -424,7 +424,7 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
 
     /// teardown 竞态防护(镜像 BatchTests.drainDetailBackgroundTasks)。
     private func drainDetailBackgroundTasks() async {
-        vm.backToConfig()
+        vm.clearDetailKeepRoster()
         try? await Task.sleep(nanoseconds: 500_000_000)
     }
 }

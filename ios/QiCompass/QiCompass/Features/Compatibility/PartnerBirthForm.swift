@@ -9,9 +9,8 @@ import SwiftUI
 /// 默认值口径)、校验(validateTempForm)、wheel sheet 行为(live 拨动即写回 +
 /// 确定收起)。唯一变化:字符串收编 L10n 键(字段标签复用 L10n.BirthForm)。
 ///
-/// 宿主两种形态:
-/// - 配置页半屏 sheet(`AddPersonSheet` 包装,S5 随配置页退役)
-/// - 换人 sheet 内 NavigationStack push 页(PartnerPickerSheet)
+/// 宿主形态:换人 sheet 内 NavigationStack push 页(PartnerPickerSheet;唯一形态,
+/// 2026-09-29 S5 配置页半屏 sheet 宿主随配置页退役)。
 ///
 /// 成功路径经 `onAdded` / `onUpdated` 上抛宿主决定后续——P4 语义(添加即选中
 /// 并合盘)在换人 sheet 宿主实现;表单自身只负责校验、入册/替换、草稿重置与
