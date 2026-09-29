@@ -5957,6 +5957,23 @@
         }
       }
     },
+    "hepan.partner.p5.intro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No profile needed — just birth details. The reading starts right after; tap the card above to switch partners later."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不建档案,填出生信息即可。填完即看合盘,以后点右上人物牌换人。"
+          }
+        }
+      }
+    },
     "hepan.partner.manage" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6021,6 +6038,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "移出名单?"
+          }
+        }
+      }
+    },
+    "hepan.partner.p6.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap \"Choose a partner\" at the top right to pick someone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点右上「选择对方」,挑一位开始合盘"
           }
         }
       }

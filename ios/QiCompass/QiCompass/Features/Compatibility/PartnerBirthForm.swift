@@ -27,6 +27,9 @@ struct PartnerBirthForm: View {
     var onUpdated: ((RosterEntry, RosterEntry) -> Void)? = nil
     /// 表单脚注(宿主按上下文给文案:sheet 型与 push 型语义不同)。
     var footnote: String = ""
+    /// 「称呼」字段外部聚焦绑定(S3 P5:点头部占位 = 聚焦内联表单称呼字段;
+    /// nil = 无宿主聚焦,半屏 sheet / push 页不传)。
+    var aliasFocus: FocusState<Bool>.Binding? = nil
 
     private var isEditing: Bool { editing != nil }
 
@@ -44,12 +47,7 @@ struct PartnerBirthForm: View {
                 Text(L10n.CompatibilityPartner.formAliasLabel)
                     .foregroundStyle(BaziTheme.inkMuted)
                     .font(BaziFont.caption(size: 12))
-                TextField(L10n.CompatibilityPartner.formAliasPlaceholder, text: $vm.tempAlias)
-                    .font(BaziFont.body(size: 14))
-                    .foregroundStyle(BaziTheme.ink)
-                    .padding(BaziTheme.Spacing.sm)
-                    .background(BaziTheme.paper, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
-                    .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.sm).stroke(BaziTheme.hairline, lineWidth: 0.5))
+                aliasTextField
             }
 
             // 日期/时刻双行(2026-09-07:row + wheel sheet + 确定;2026-09-19 起镜像
@@ -119,6 +117,28 @@ struct PartnerBirthForm: View {
         .onChange(of: vm.tempBirthTime) { _, _ in formError = nil }
         .onChange(of: vm.tempGender) { _, _ in formError = nil }
         .onChange(of: vm.tempPlace) { _, _ in formError = nil }
+    }
+
+    // MARK: - 称呼字段(S3:外部聚焦绑定可选)
+
+    /// 「称呼」输入框(有宿主聚焦绑定时挂 .focused——P5 点头部占位直达)。
+    @ViewBuilder
+    private var aliasTextField: some View {
+        if let aliasFocus {
+            baseAliasTextField
+                .focused(aliasFocus)
+        } else {
+            baseAliasTextField
+        }
+    }
+
+    private var baseAliasTextField: some View {
+        TextField(L10n.CompatibilityPartner.formAliasPlaceholder, text: $vm.tempAlias)
+            .font(BaziFont.body(size: 14))
+            .foregroundStyle(BaziTheme.ink)
+            .padding(BaziTheme.Spacing.sm)
+            .background(BaziTheme.paper, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
+            .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.sm).stroke(BaziTheme.hairline, lineWidth: 0.5))
     }
 
     // MARK: - 出生日期/时刻双行(2026-09-07:compact 弹层无确定 → row + wheel sheet)

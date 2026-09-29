@@ -994,6 +994,18 @@ enum L10n {
         /// 保存失败兜底文案。
         /// zh: "保存失败,请重试";en: "Couldn't save — please retry"
         static let formErrorEdit = String(localized: "hepan.partner.form.errorEdit")
+
+        // -- 首次进入 / 无已选态(P5/P6,S3)--
+
+        /// P5 名单空时的留白说明(内联表单上方)。
+        /// zh: "不建档案,填出生信息即可。填完即看合盘,以后点右上人物牌换人。"
+        /// en: "No profile needed — just birth details. The reading starts right after; tap the card above to switch partners later."
+        static let p5Intro = String(localized: "hepan.partner.p5.intro")
+
+        /// P6 名单非空但无已选的一行说明。
+        /// zh: "点右上「选择对方」,挑一位开始合盘"
+        /// en: "Tap \"Choose a partner\" at the top right to pick someone"
+        static let p6Hint = String(localized: "hepan.partner.p6.hint")
     }
 
     // MARK: - 补时辰 sheet(S10,D7 补时辰升级闭环)

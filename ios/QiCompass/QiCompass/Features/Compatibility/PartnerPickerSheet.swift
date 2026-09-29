@@ -47,16 +47,7 @@ struct PartnerPickerSheet: View {
 
                     // 命主无时辰(S07 全锁):整列置灰不可点 + 解释 banner
                     if vm.isSelfHourUnknown {
-                        Text(L10n.CompatibilityRosterGate.selfBanner)
-                            .font(BaziFont.caption(size: 11.5))
-                            .tracking(1)
-                            .foregroundStyle(BaziTheme.inkMuted)
-                            .padding(BaziTheme.Spacing.md)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .overlay(
-                                RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
-                                    .stroke(BaziTheme.hairlineDashed, lineWidth: 1)
-                            )
+                        RosterSelfLockBanner()
                     }
 
                     ForEach(rowModels) { row in

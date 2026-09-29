@@ -17,6 +17,25 @@ struct PartnerDisplay: Equatable {
     let birthDateString: String?
 }
 
+// MARK: - 命主无时辰锁 banner(S07 全锁解释行,结果壳家族共用)
+
+/// 「你的命盘缺出生时辰,所有对暂不可合盘」解释行(dashed 框 = 锁定/临时态,
+/// DESIGN.md)。P5 内联表单上方与换人 sheet 顶部共用同一表达。
+struct RosterSelfLockBanner: View {
+    var body: some View {
+        Text(L10n.CompatibilityRosterGate.selfBanner)
+            .font(BaziFont.caption(size: 11.5))
+            .tracking(1)
+            .foregroundStyle(BaziTheme.inkMuted)
+            .padding(BaziTheme.Spacing.md)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .overlay(
+                RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
+                    .stroke(BaziTheme.hairlineDashed, lineWidth: 1)
+            )
+    }
+}
+
 // MARK: - 人物牌头(P2)
 
 /// 结果壳头部人物牌(P1 结果页主页化,2026-09-29):

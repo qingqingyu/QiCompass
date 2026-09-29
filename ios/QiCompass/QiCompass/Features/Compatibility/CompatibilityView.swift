@@ -1,15 +1,16 @@
 import SwiftUI
 import SwiftData
 
-/// Tab 2:合盘。状态机驱动(多选改造 + S02 detail 态)。
+/// Tab 2:合盘。状态机驱动(结果页主页化,2026-09-29 P1)。
 ///
-/// 状态:
+/// 状态渲染(§2 映射;VM 枚举 case 不变,只改渲染):
 /// - .loading → 命盘列表加载中
-/// - .empty → 0 存档,引导去深度解析
-/// - .configuring → 配置态(A 单选 + B 名单;2026-08-16 起 context 恒 "general" 不再是配置项)
-/// - .computing(completed, total) → 批量确定性合盘中(决策 D3 串行 + i/N 进度)
-/// - .list → 结果列表(决策 D9 卡片;D11 纯展示 + toolbar 编辑名单;点卡片进 detail)
-/// - .detail(summary, response, interpretState) → 单对详情(S02 新增,复用 CompatibilityMainView)
+/// - .empty → 0 存档,引导去深度解析(P8 不动)
+/// - .configuring → 结果壳:名单空 = P5 内联添加表单(提交即合盘,无「开始合盘」
+///   按钮);名单非空无已选 = P6 一行说明(点头部选对方);整页配置页已退役(P7)
+/// - .computing(completed, total) → 结果壳 + 内容区原地推演态(单选无 i/N)
+/// - .list → 结果壳 + 内容区单卡(失败/拦截兜底,单对重试 + 补时辰 CTA)
+/// - .detail(summary, response, interpretState) → 结果壳 + CompatibilityMainView
 /// - .failed(msg) → 错误态
 struct CompatibilityView: View {
     @EnvironmentObject private var env: AppEnvironment
@@ -34,6 +35,8 @@ struct CompatibilityView: View {
     /// 补时辰重算成功后的 old → new hash(供 dismiss 后 `refreshAfterAddHour` 对
     /// 当前对强制重算;nil = 本轮未发生重算)。
     @State private var addHourRemap: (old: String, new: String)?
+    /// P5:内联表单「称呼」聚焦(点头部占位 = 聚焦称呼,键盘弹起自动滚入视野)。
+    @FocusState private var inlineFormAliasFocused: Bool
 
     var body: some View {
         NavigationStack {
@@ -41,24 +44,8 @@ struct CompatibilityView: View {
                 BaziTheme.paper.ignoresSafeArea()
                 content
             }
-            // D2(2026-09-29 拍板):四 tab 统一去系统导航标题,防系统字体与水墨层打架;
-            // 本 tab toolbar 的「编辑名单」按钮仍在栏上,栏本身保留。
-            .toolbar {
-                if case .list = vm?.state {
-                    ToolbarItem(placement: .topBarLeading) {
-                        Button("编辑名单") { vm?.backToConfig() }
-                            .foregroundStyle(BaziTheme.cinnabar)
-                    }
-                }
-                if case .detail = vm?.state {
-                    ToolbarItem(placement: .topBarLeading) {
-                        // 2026-09-07 单选直达:detail 返回即配置态(list 只是失败/拦截兜底,
-                        // 其「编辑名单」toolbar 与此同款)
-                        Button("编辑名单") { vm?.backToConfig() }
-                            .foregroundStyle(BaziTheme.cinnabar)
-                    }
-                }
-            }
+            // D2(2026-09-29 拍板):四 tab 统一去系统导航标题,防系统字体与水墨层打架。
+            // 「编辑名单」toolbar 已随配置页退役(P7,换人/管理全走头部人物牌 + sheet)。
             .sheet(isPresented: $showPaywall) {
                 if let compatHash = vm?.lastCompatibilityHashForPaywall {
                     PaywallView(
@@ -212,11 +199,15 @@ struct CompatibilityView: View {
                     )
                 }
             case .configuring:
-                CompatibilityConfigView(
+                // S3(P5/P6):结果壳接管配置态——名单空 = 内联表单(提交即合盘,
+                // 不再有「开始合盘」按钮与空名单页);非空无已选 = 一行说明。
+                // 整页 CompatibilityConfigView 不再渲染(P7)。
+                resultShell(
                     vm: vm,
-                    onStart: { vm.compute() },
-                    onAddHour: { openAddHourSheet(hash: $0) }
-                )
+                    onTapPartner: configuringHeaderTap(vm: vm)
+                ) {
+                    configuringContent(vm: vm)
+                }
             case .computing:
                 // P1 §2:结果壳 + 内容区原地推演态(三墨点 breathe;单选恒 1 对,
                 // i/N 无信息量不渲染;不再全屏跳页)
@@ -281,10 +272,13 @@ extension Notification.Name {
 extension CompatibilityView {
 
     /// 结果壳:顶部人物牌头(PartnerHeader)+ 下方内容区。
-    /// computing / list / detail 三态共用——全部原地呈现,不跳页(P1)。
+    /// computing / list / detail / configuring 四态共用——全部原地呈现,不跳页(P1)。
+    /// 头部对方牌点击默认开换人 sheet(configuring 空名单时改为聚焦内联表单,
+    /// 经 onTapPartner 覆盖)。
     @ViewBuilder
     func resultShell<Content: View>(
         vm: CompatibilityViewModel,
+        onTapPartner: (() -> Void)? = nil,
         @ViewBuilder content: () -> Content
     ) -> some View {
         VStack(spacing: 0) {
@@ -293,13 +287,67 @@ extension CompatibilityView {
                 partner: vm.currentPartner,
                 rosterIsEmpty: vm.roster.isEmpty,
                 isSelfHourUnknown: vm.isSelfHourUnknown,
-                onTapPartner: { showPartnerPicker = true },
+                onTapPartner: onTapPartner ?? { showPartnerPicker = true },
                 onAddSelfHour: {
                     guard let aHash = vm.currentPersonAHash else { return }
                     openAddHourSheet(hash: aHash)
                 }
             )
             content()
+        }
+    }
+
+    /// P5 头部占位点击:聚焦内联表单「称呼」(键盘弹起自动滚入视野,不开 sheet;
+    /// 名单非空回落开 sheet——P6 语义)。
+    private func configuringHeaderTap(vm: CompatibilityViewModel) -> () -> Void {
+        if vm.roster.isEmpty {
+            return { inlineFormAliasFocused = true }
+        }
+        return { showPartnerPicker = true }
+    }
+
+    /// configuring 态内容区(P5 / P6):
+    /// - 名单空(P5):留白说明 + 命主无时辰 banner + 内联 PartnerBirthForm
+    ///   (提交 = 加入 + 选中 + 合盘;点头部占位聚焦称呼)
+    /// - 名单非空无已选(P6):一行 inkMuted 说明,点头部开 sheet,不自动弹
+    /// - 命主无时辰:表单按 S07 全锁语义置灰(先补时辰再解锁)
+    @ViewBuilder
+    private func configuringContent(vm: CompatibilityViewModel) -> some View {
+        if vm.roster.isEmpty {
+            ScrollView {
+                VStack(alignment: .leading, spacing: BaziTheme.Spacing.md) {
+                    Text(L10n.CompatibilityPartner.p5Intro)
+                        .font(BaziFont.caption(size: 11.5))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .padding(.top, BaziTheme.Spacing.xl)
+                    if vm.isSelfHourUnknown {
+                        RosterSelfLockBanner()
+                    }
+                    PartnerBirthForm(
+                        vm: vm,
+                        onAdded: { entry in
+                            // P5:提交 = 加入 + 选中 + 合盘(与 sheet 内 P4 同语义)
+                            vm.selectPartner(entry)
+                        },
+                        footnote: L10n.CompatibilityPartner.formFootnoteAdd,
+                        aliasFocus: $inlineFormAliasFocused
+                    )
+                    .disabled(vm.isSelfHourUnknown)
+                }
+                .padding(.horizontal, BaziTheme.Spacing.lg)
+                .padding(.bottom, 32)
+            }
+        } else {
+            VStack {
+                Spacer()
+                Text(L10n.CompatibilityPartner.p6Hint)
+                    .font(BaziFont.caption(size: 12))
+                    .tracking(1.5)
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
     }
 
