@@ -123,10 +123,60 @@ class TestReplaceAbLabels:
         out = _replace_ab_labels("AmyB 的节奏,B 稳。", "Amy", "丽")
         assert out == "AmyB 的节奏,丽稳。"
 
+    def test_masked_name_edge_keeps_adjacent_letter_protected(self):
+        """遮罩不拆邻接字母的环视保护(2026-09-29 外部 review 实证):
+        「小 A」「对象B」类名字的边缘字母本身是 standalone,名字被遮罩后,
+        其给紧贴正文字母提供的保护会随控制符裸边消失——「AB」「BA」里的
+        另一个字母裸露成 standalone 被吃。占位符同侧哨兵复现该保护,
+        四种几何(名字尾护后邻 / 名字首护前邻 × A/B 两侧)全部锁死。"""
+        # review 案例 1:名字「小 A」尾字母 A 保护后邻——「AB」的 B 不被吃
+        assert _replace_ab_labels("小 AB 同频", "小 A", "丽") == "小 AB 同频"
+        # review 案例 2:名字「B」首字母 B 保护前邻——「AB」的 A 不被吃,
+        # 远处真 standalone 的 A 照常替换
+        assert _replace_ab_labels("AB 同频,A 稳", "小明", "B") == "AB 同频,小明稳"
+        # 名字「A先生」首字母 A 保护后邻:「BA先生」的 B 不被吃
+        assert _replace_ab_labels("BA先生 稳", "A先生", "小丽") == "BA先生 稳"
+        # 名字「对象B」尾字母 B 保护后邻:「对象BA」的 A 不被吃
+        assert _replace_ab_labels("对象BA 同频", "小明", "对象B") == "对象BA 同频"
+
+    def test_masked_nonalnum_edge_keeps_adjacent_replaceable(self):
+        """对照:名字边缘非 ASCII 字母数字时占位符保持裸边——紧贴名字的
+        邻接代号字母与名字在场时一样照常替换,哨兵只复现保护、不额外制造
+        保护(「阿B仔」尾字「仔」不护后邻 B)。"""
+        assert _replace_ab_labels("阿B仔B 稳。", "阿B仔", "丽") == "阿B仔丽稳。"
+
+    def test_masked_sentinel_not_swallowable_by_other_name(self):
+        """哨兵跨名吞噬回归(2026-09-29 差分 fuzz 实证,哨兵避让修复):
+        固定哨兵 'x' 时,首/末字符恰为 'x' 的对方名字可在已遮罩文本里跨
+        哨兵伪命中——遮罩互吞边,还原失配后原始控制符裸漏进用户可见正文
+        (A.2/x A 对产出 'A.2\\x00\\x02\\x00x2 快')。伪命中只能以哨兵为其
+        首或末字符,哨兵避让对方名字两条边后两个几何都不可能发生。"""
+        # 对方名字以 'x' 开头(吞尾哨兵的几何):哨兵避让后无伪命中,
+        # 与名字在场语义一致(「A2」的 A 后邻 '2',非 standalone,不动)
+        assert _replace_ab_labels("A.2 A2 快", "A.2", "x A") == "A.2 A2 快"
+        # 对方名字以 'x' 结尾(吞头哨兵的镜像几何):「A小」+ 遮罩的哨兵
+        # 不再拼出「A小x」;正文 standalone A 照常替换为 name_a
+        assert _replace_ab_labels("A小B.2 项", "B.2", "A小x") == "B.2小B.2 项"
+
     def test_identity_names_are_noop(self):
         """老客户端兜底名即 A/B 本身(恒等替换)→ 原样返回。"""
         text = "A 与 B 的节奏"
         assert _replace_ab_labels(text, "A", "B") == text
+
+    def test_sentinel_candidates_invariants(self):
+        """哨兵候选表三条承重不变量(否则遮罩机制静默失效):
+        ① 每字符 ∈ _ASCII_ALNUM(环视保护语义的前提);
+        ② ∉ {A,B}(否则代号轮把哨兵当 standalone 吃掉);
+        ③ ≥3 个不同字符(避让集最多 2 个字符,保证 _shield_for 的
+        next() 永不耗尽抛 StopIteration)。"""
+        from app.api.interpret import (
+            _AB_SHIELD_SENTINEL_CANDIDATES, _ASCII_ALNUM,
+        )
+        for c in _AB_SHIELD_SENTINEL_CANDIDATES:
+            assert c in _ASCII_ALNUM, f"哨兵候选 {c!r} 不在环视字母数字类"
+            assert c not in "AB", f"哨兵候选 {c!r} 会被代号轮命中"
+        assert len(set(_AB_SHIELD_SENTINEL_CANDIDATES)) >= 3, \
+            "候选不足 3 个:对方名字两条边可耗尽候选,next() 抛 StopIteration"
 
     def test_empty_name_noop(self):
         """空名字(防御,契约上 setdefault 后不会出现)不删文本。"""

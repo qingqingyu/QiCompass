@@ -215,10 +215,44 @@ _COMPAT_POSTPROCESS_MODULES: frozenset[str] = COMPATIBILITY_MODULES
 # 吞掉代号后的一个半角空格(「A 倾向于」→「你倾向于」,中文排版无残留空格)
 _STANDALONE_AB = re.compile(r"(?<![A-Za-z0-9])([AB])\s?(?![A-Za-z0-9])")
 
-# 两人称呼遮罩占位符:NUL 包夹控制字符,LLM 正文不会出现;**不含字母数字**
-# (含 A/B 会被代号轮当 standalone 吃掉,含字母数字会破坏环视判定)
-_AB_SHIELD_A = "\x00\x01\x00"
-_AB_SHIELD_B = "\x00\x02\x00"
+# 两人称呼遮罩占位符:核心是 NUL 包夹控制字符,LLM 正文不会出现。
+# 边缘哨兵:非 A/B 的 ASCII 字母数字(具体字符按对方名字避让,见候选
+# 常量)——代号轮 ([AB]) 永不命中,只在名字边缘字符是 ASCII 字母数字时
+# **同侧**出现,复现该边缘给邻接正文字母的环视保护(2026-09-29 外部
+# review 实证:「小 A」遮罩成全控制符后,「小 AB」的 B 因前邻变非字母
+# 数字而裸露成 standalone 被吃)。
+_AB_SHIELD_CORE_A = "\x00\x01\x00"
+_AB_SHIELD_CORE_B = "\x00\x02\x00"
+# 哨兵候选:ASCII 字母数字但**非 A/B**(代号轮 ([AB]) 永不命中)。取首个
+# 不与对方名字首/末字符相同的——对方名字跨哨兵伪命中时哨兵只能落在其
+# 首或末字符(更深的重叠须含控制符核心,用户别名不含控制符),避让两条
+# 边后伪命中在两个方向都不可能发生,遮罩互不吞边(2026-09-29 差分 fuzz
+# 实证:固定 'x' 时 "A.2"/"x A" 名字对互吞,还原失配后控制符裸漏正文)。
+_AB_SHIELD_SENTINEL_CANDIDATES = ("x", "y", "z", "u", "v", "w")
+# 与 _STANDALONE_AB 的环视类逐字符同源([A-Za-z0-9]),判定边性用
+_ASCII_ALNUM = frozenset(
+    "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789"
+)
+
+
+def _shield_for(name: str, other: str, core: str) -> str:
+    """按名字边缘字符的 ASCII 字母数字性给占位符配边。
+
+    名字首/尾是 ASCII 字母数字(即 standalone 判定的"保护边")时,占位符
+    同侧带哨兵——紧贴名字的邻接正文字母(「AB」「BA」里的另一个字母)
+    的环视结论与名字在场时一致,不被遮罩拆掉保护;名字边缘非 ASCII 字母
+    数字则保持控制字符裸边,邻接字母原本可替换的语义同样不变。
+
+    哨兵按 ``other``(另一轴名字)的首/末字符避让,防跨名吞边:后遮的
+    名字若在已遮罩文本里跨哨兵伪命中,会把前一遮罩的哨兵吞进自己的
+    替换区间,还原失配 → 控制符裸漏。环视保护只要求哨兵是字母数字,
+    具体取哪个字符不影响保护语义,避让零代价。"""
+    avoid = {other[0], other[-1]} if other else set()
+    sentinel = next(
+        c for c in _AB_SHIELD_SENTINEL_CANDIDATES if c not in avoid)
+    head = sentinel if name[0] in _ASCII_ALNUM else ""
+    tail = sentinel if name[-1] in _ASCII_ALNUM else ""
+    return f"{head}{core}{tail}"
 
 
 def _replace_ab_labels(text: str, name_a: str, name_b: str) -> str:
@@ -234,7 +268,7 @@ def _replace_ab_labels(text: str, name_a: str, name_b: str) -> str:
       A 轮注入的「小B」被 B 轮吃掉 → A 的称呼变成「小丽」——命理用户一处错
       即怀疑整篇,且老实现的 skip-guard 只查同轴,交叉轴完全不设防。
     解法两步走:
-    - **遮罩**:先把正文里出现的两人称呼整体换成不含字母的占位符——名字内的
+    - **遮罩**:先把正文里出现的两人称呼整体换成控制符核心占位符——名字内的
       字母彻底退出代号轮视野,①②连同「合规名字写在原文里被吃」一并消除;
       长名先遮,防双遮罩前缀对(短名 ⊂ 长名前缀)被短名剥壳后长名内
       露出的代号字母遭代号轮吃(「小B」/「小B小A」,实测短名先遮产出
@@ -244,6 +278,15 @@ def _replace_ab_labels(text: str, name_a: str, name_b: str) -> str:
       非 standalone)不遮——遮了反而拆掉其首尾字母给邻接字母提供的环视
       保护(「AmyB」的 B 前邻 'y' 换成控制符后被当 standalone 吃掉,差分
       fuzz 实证 71/4000 漂移全属此类),不遮则与老实现逐字节平价。
+      **被遮名字的同款保护由占位符边缘哨兵复现**(`_shield_for`,2026-09-29
+      外部 review 实证):「小 A」「对象B」类名字的边缘字母本身是 standalone,
+      遮罩后其给邻接正文字母(「AB 同频」里的 B)提供的环视保护会随控制符
+      裸边消失——B 被当 standalone 吃成「小 A丽同频」。占位符在名字边缘
+      为 ASCII 字母数字的同侧带哨兵(非 A/B 的字母数字,代号轮永不命中),
+      环视结论与名字在场时逐字节一致;边缘非字母数字则裸边,不额外制造
+      保护。哨兵字符按对方名字首/末字符避让——固定字符会被边缘恰为该字符
+      的对方名字跨吞(遮罩互吞 → 还原失配 → 控制符裸漏正文,差分 fuzz
+      实证),避让后伪命中几何上不可能。
     - **单遍替换**:一轮 re.sub 只扫原文、不回扫替换结果,注入名字里的字母
       天然不会被再吃(老实现两轮先后跑,B 轮重扫 A 轮产物,即②根因)。
     名字内部的非 standalone 字母(Bella/Amy)由环视天然保护,无需遮罩介入。
@@ -253,13 +296,19 @@ def _replace_ab_labels(text: str, name_a: str, name_b: str) -> str:
     """
     # 遮罩:长名先遮(前缀名防残根);空名不遮(str.replace("",…) 会在每个
     # 字符间插占位符,且空名无称呼可保护);无 standalone 代号字母的名字
-    # 不遮(环视天然保护,遮了反拆邻接字母的保护,见 docstring)
+    # 不遮(环视天然保护,遮了反拆邻接字母的保护,见 docstring);
+    # 占位符边缘按名字边缘字母数字性配哨兵(护住紧贴名字的邻接代号字母,
+    # 哨兵避让对方名字首/末字符,防跨名吞边)
     shields: list[tuple[str, str]] = []
-    for name, shield in sorted(
-        ((name_a, _AB_SHIELD_A), (name_b, _AB_SHIELD_B)),
-        key=lambda pair: len(pair[0]), reverse=True,
+    for name, other, core in sorted(
+        (
+            (name_a, name_b, _AB_SHIELD_CORE_A),
+            (name_b, name_a, _AB_SHIELD_CORE_B),
+        ),
+        key=lambda triple: len(triple[0]), reverse=True,
     ):
         if name and _STANDALONE_AB.search(name):
+            shield = _shield_for(name, other, core)
             text = text.replace(name, shield)
             shields.append((shield, name))
 
