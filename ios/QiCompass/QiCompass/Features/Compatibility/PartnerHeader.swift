@@ -55,12 +55,17 @@ struct PartnerHeader: View {
     let onTapPartner: () -> Void
     /// 命主无时辰时的补时辰入口(nil 无宿主不渲染)。
     var onAddSelfHour: (() -> Void)? = nil
+    /// 「合」印重盖标识(S4 换人动效):随当前对方 entry id 变化 → .id 变 →
+    /// SealStamp 重建重播 stamp(1.9→1 spring);冷启动/首次渲染也自然播一次。
+    /// 传 entryID(而非 compatibilityHash)——推演态→结果态同 pair 不重播。
+    var stampID: String = ""
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             meCard
                 .frame(maxWidth: .infinity, alignment: .leading)
             SealStamp(character: "合", size: 26, rotation: -4)
+                .id(stampID)
             partnerCard
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }

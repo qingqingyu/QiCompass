@@ -21,10 +21,11 @@ struct CompatibilityMainView: View {
     var body: some View {
         ScrollView {
             VStack(spacing: BaziTheme.Spacing.lg) {
-                // 双盘对比(D6)
+                // 双盘对比(D6;S4 中轴带日主方向短语,后端关系标签作守卫回退)
                 if let dualPillars = makeDualPillars() {
                     DualPillarsTable(
-                        pillars: dualPillars, labelA: nameA, labelB: nameB)
+                        pillars: dualPillars, labelA: nameA, labelB: nameB,
+                        dayMasterRelation: response.qualitativeAssessment.dayMasterRelation)
                 } else {
                     Text("双盘数据读取失败")
                         .font(.caption)

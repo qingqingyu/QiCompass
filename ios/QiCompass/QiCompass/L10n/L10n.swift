@@ -560,6 +560,36 @@ enum L10n {
         /// zh: "时柱";en: "Hour Pillar"
         static let dualHourPillar = String(localized: "hepan.dual.hourPillar")
 
+        // -- 日主方向中轴(S4,2026-09-29;DayMasterRelationPhrase 派生)--
+
+        /// 中轴相生短语(生成方在前,方向客户端查表派生)。
+        /// %1$@%2$@ = 生成方日干+五行,%3$@%4$@ = 受生方,%5$@ = 后端关系标签。
+        /// zh: "日主 %1$@%2$@生%3$@%4$@ · %5$@"
+        /// en: "Day master %1$@ %2$@ generates %3$@ %4$@ · %5$@"
+        static func dualAxisGenerate(
+            _ g1: String, _ e1: String, _ g2: String, _ e2: String, _ label: String
+        ) -> String {
+            String(format: String(localized: "hepan.dual.axisGenerate"), g1, e1, g2, e2, label)
+        }
+
+        /// 中轴相克短语(克方在前)。
+        /// zh: "日主 %1$@%2$@克%3$@%4$@ · %5$@"
+        /// en: "Day master %1$@ %2$@ controls %3$@ %4$@ · %5$@"
+        static func dualAxisOvercome(
+            _ g1: String, _ e1: String, _ g2: String, _ e2: String, _ label: String
+        ) -> String {
+            String(format: String(localized: "hepan.dual.axisOvercome"), g1, e1, g2, e2, label)
+        }
+
+        /// 中轴同气短语(无后缀标签——与「同气」重复)。
+        /// zh: "日主 %1$@%2$@ 与 %3$@%4$@ 同气"
+        /// en: "Day masters %1$@ %2$@ and %3$@ %4$@ share one element"
+        static func dualAxisSameQi(
+            _ g1: String, _ e1: String, _ g2: String, _ e2: String
+        ) -> String {
+            String(format: String(localized: "hepan.dual.axisSameQi"), g1, e1, g2, e2)
+        }
+
         // -- 流年同步 --
 
         /// 区块 kicker。

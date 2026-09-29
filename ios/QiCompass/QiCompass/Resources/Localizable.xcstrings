@@ -5583,6 +5583,57 @@
         }
       }
     },
+    "hepan.dual.axisGenerate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day master %1$@ %2$@ generates %3$@ %4$@ · %5$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日主 %1$@%2$@生%3$@%4$@ · %5$@"
+          }
+        }
+      }
+    },
+    "hepan.dual.axisOvercome" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day master %1$@ %2$@ controls %3$@ %4$@ · %5$@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日主 %1$@%2$@克%3$@%4$@ · %5$@"
+          }
+        }
+      }
+    },
+    "hepan.dual.axisSameQi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day masters %1$@ %2$@ and %3$@ %4$@ share one element"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日主 %1$@%2$@ 与 %3$@%4$@ 同气"
+          }
+        }
+      }
+    },
     "hepan.dual.dayPillar" : {
       "extractionState" : "manual",
       "localizations" : {

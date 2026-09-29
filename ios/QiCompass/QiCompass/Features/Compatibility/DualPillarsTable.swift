@@ -26,22 +26,46 @@ struct DualPillarSource: Identifiable, Equatable {
 /// A 上 B 下紧凑双盘表(D6 + DESIGN.md §Color + §Ganzhi + §Layout,水墨孤本 H3 合印中轴版)。
 ///
 /// iPhone 屏宽 ~375pt,8 列(2 人 × 4 柱)挤;改用「每柱一列,A 行上 B 行下」紧凑表。
-/// 中轴(hepan-h3-detail.html):A/B 两行之间一条 hairline 横贯,中央落 22pt「合」
-/// 朱文空心印——线是分隔,印是连接,双盘对照语义压在这条轴上;整段去卡片底,
-/// 以底部 hairline 收边(卡片让位 hairline)。取数/数据绑定不变(DualPillarSource 原样)。
-/// 不复用 PillarsTable(信息密度过高)。
+/// 中轴(S4,2026-09-29):hairline — 「合」印 + 日主方向短语 — hairline。短语方向
+/// 客户端派生(`DayMasterRelationPhrase` 纯五行生克查表,非历法计算),类别与后端
+/// `dayMasterRelation` 一致才显示派生串,不等 → 只显后端标签(不静默不猜)。
+/// 日柱列(S4):上下两格 hairline 描边强调(无实底色,卡片让位 hairline),
+/// 柱头「日」ink 实色、其余 inkMuted。
+/// 整段去卡片底,以底部 hairline 收边(卡片让位 hairline)。取数/数据绑定不变
+/// (DualPillarSource 原样)。不复用 PillarsTable(信息密度过高)。
 ///
 /// S10 触点接线注记:本表的时柱留白单元格**不挂**补时辰触点——任一方时辰未知的
 /// 对在 `CompatibilityViewModel.computePair` 已被整对拦(S07),进不了 detail,
-/// 该留白态对用户不可达;他人盘的补时辰触点落在配置态名单(S11「不可合盘」
-/// 标记行,`RosterUnifiedListView.onAddHour`)与结果列表拦截卡
-/// (`PairSummaryCard.onAddHour`),那是无时辰他人盘真正可见可点的地方。
+/// 该留白态对用户不可达;他人盘的补时辰触点落在换人 sheet 标记行(S11
+/// `PartnerPickerSheet.onAddHour`)与结果区拦截卡(`PairSummaryCard.onAddHour`),
+/// 那是无时辰他人盘真正可见可点的地方。
 struct DualPillarsTable: View {
     let pillars: [DualPillarSource]  // 共 4 条(年/月/日/时)
     /// 两侧称呼(2026-09-27 A/B 代号 → 名字:A 恒「你/you」,B 为对方称呼)。
     /// 替代此前硬编码 "A"/"B" 行标——读者不再需要对照「谁是 A」。
     let labelA: String
     let labelB: String
+    /// 后端日主关系标签(S4 中轴;qualitativeAssessment.dayMasterRelation 原值)。
+    let dayMasterRelation: String
+
+    /// 日柱列判定(position 标签单一事实源)。
+    private var isDayPillar: (DualPillarSource) -> Bool {
+        { $0.position == L10n.Compatibility.dualDayPillar }
+    }
+
+    /// 中轴短语:派生命中 → 方向串;派生失败/不一致 → 后端标签回退。
+    private var axisText: String {
+        guard let day = pillars.first(where: isDayPillar) else {
+            // 日柱缺失(歧义盘理论进不了 detail):后端标签回退,不猜
+            return dayMasterRelation
+        }
+        let phrase = DayMasterRelationPhrase.make(
+            ganA: day.ganA, elementA: day.ganElementA,
+            ganB: day.ganB, elementB: day.ganElementB,
+            backendRelation: dayMasterRelation
+        )
+        return phrase.text ?? dayMasterRelation
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -51,17 +75,19 @@ struct DualPillarsTable: View {
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
 
             VStack(spacing: 10) {
-                // 柱位行:年 / 月 / 日 / 时
+                // 柱位行:年 / 月 / 日 / 时(S4:日 ink 实色,其余 inkMuted)
                 HStack(alignment: .top, spacing: 8) {
                     ForEach(pillars) { p in
                         Text(p.position)
                             .font(.caption2)
-                            .foregroundStyle(BaziTheme.inkMuted)
+                            .foregroundStyle(
+                                isDayPillar(p) ? BaziTheme.ink : BaziTheme.inkMuted
+                            )
                             .frame(maxWidth: .infinity)
                     }
                 }
 
-                // A 盘行(命主)
+                // A 盘行(命主;日柱格 hairline 描边强调)
                 HStack(alignment: .top, spacing: 8) {
                     ForEach(pillars) { p in
                         pillarCell(
@@ -70,21 +96,31 @@ struct DualPillarsTable: View {
                             label: labelA
                         )
                         .frame(maxWidth: .infinity)
+                        .dayColumnEmphasis(isDay: isDayPillar(p))
                     }
                 }
 
-                // 合印中轴:hairline 分隔 + 「合」印连接(原型 .vs:朱文空心、-3° 微侧)
+                // 中轴(S4):hairline 分隔 + 「合」印 + 日主方向短语
+                // (原型 .vs:朱文空心、-3° 微侧;短语 = 客户端派生方向 + 后端类别标签)
                 HStack(spacing: 10) {
                     Rectangle()
                         .fill(BaziTheme.hairline)
                         .frame(height: 0.5)
-                    SealStamp(character: "合", size: 22, rotation: -3, stampDelay: nil)
+                    VStack(spacing: 3) {
+                        SealStamp(character: "合", size: 22, rotation: -3, stampDelay: nil)
+                        Text(axisText)
+                            .font(BaziFont.caption(size: 10))
+                            .tracking(1)
+                            .foregroundStyle(BaziTheme.inkMuted)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .multilineTextAlignment(.center)
+                    }
                     Rectangle()
                         .fill(BaziTheme.hairline)
                         .frame(height: 0.5)
                 }
 
-                // B 盘行(对方)
+                // B 盘行(对方;日柱格 hairline 描边强调)
                 HStack(alignment: .top, spacing: 8) {
                     ForEach(pillars) { p in
                         pillarCell(
@@ -93,6 +129,7 @@ struct DualPillarsTable: View {
                             label: labelB
                         )
                         .frame(maxWidth: .infinity)
+                        .dayColumnEmphasis(isDay: isDayPillar(p))
                     }
                 }
             }
@@ -152,6 +189,24 @@ struct DualPillarsTable: View {
                 ? "\(label) \(L10n.Common.hourUnknown)"
                 : "\(label) \(gan ?? "")\(zhi ?? "")"
         )
+    }
+}
+
+// MARK: - 日柱列强调(S4)
+
+private extension View {
+    /// 日柱格 hairline 描边(RoundedRectangle cornerRadius 4,无实底色——
+    /// 卡片让位 hairline;非日柱格原样)。
+    func dayColumnEmphasis(isDay: Bool) -> some View {
+        self.overlay {
+            if isDay {
+                RoundedRectangle(cornerRadius: 4)
+                    .stroke(BaziTheme.hairline, lineWidth: 0.8)
+                    .padding(.horizontal, -2)
+                    .padding(.vertical, -3)
+                    .allowsHitTesting(false)
+            }
+        }
     }
 }
 

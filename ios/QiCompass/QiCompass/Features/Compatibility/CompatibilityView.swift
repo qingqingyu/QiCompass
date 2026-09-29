@@ -239,6 +239,12 @@ struct CompatibilityView: View {
                             onGenerateInterpret: { vm.generateInterpretation() },
                             onShowPaywall: { showPaywall = true }
                         )
+                        // S4 换人动效:内容因对方变化(compatibilityHash 变)重建时
+                        // ink-in(opacity 0→1 + blur 7→0);同对 interpretState 变化
+                        // hash 不变不重建。冷启动恢复/首次出结果经 onAppear 同播;
+                        // 推演态 → 结果态之间无额外转场。reduce-motion 直出。
+                        .id(summary.compatibilityHash)
+                        .inkIn()
                     } else {
                         // 不静默吞:detail 态但快照缺失 → 显式错误态
                         ErrorStateView(
@@ -291,7 +297,8 @@ extension CompatibilityView {
                 onAddSelfHour: {
                     guard let aHash = vm.currentPersonAHash else { return }
                     openAddHourSheet(hash: aHash)
-                }
+                },
+                stampID: vm.currentPartner?.entryID ?? ""
             )
             content()
         }
