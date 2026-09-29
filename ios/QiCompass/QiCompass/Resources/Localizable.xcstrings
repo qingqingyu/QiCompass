@@ -1157,23 +1157,6 @@
         }
       }
     },
-    "合盘结果" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pairing results"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "合盘结果"
-          }
-        }
-      }
-    },
     "同一结构在高配/低配环境下的两种跑法" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2020,23 +2003,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "损耗"
-          }
-        }
-      }
-    },
-    "推演中" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pairing"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "推演中"
           }
         }
       }
@@ -5531,23 +5497,6 @@
         }
       }
     },
-    "dailyfortune.shiShenNoteAction" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "About Today's Ten God"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "今日十神释义"
-          }
-        }
-      }
-    },
     "dailyfortune.hero.disclaimer" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5833,6 +5782,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "离线查看(展示本地缓存,不扣次数)"
+          }
+        }
+      }
+    },
+    "dailyfortune.shiShenNoteAction" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About Today's Ten God"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日十神释义"
           }
         }
       }
@@ -10823,16 +10789,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Overview free"
-          }
-        }
-      }
-    },
-    "我的" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Me"
           }
         }
       }

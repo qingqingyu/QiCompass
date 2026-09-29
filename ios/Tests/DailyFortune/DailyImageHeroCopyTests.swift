@@ -139,6 +139,8 @@ final class DailyImageHeroCopyTests: XCTestCase {
 
     /// S01 守护同款,升格到三语:宜词不得出现在释义**告诫半句**(分号后)。
     /// S01 时 EN 模板不可子串比对;本表为自有长句,EN 词表短语可精确比对。
+    /// 比对大小写不敏感:mappingEn 宜词是 Title Case("Take the Lead"),释义
+    /// 告诫半句是小写("take the lead"),区分大小写会让 EN 腿永不命中(空转)。
     func testShiShenNotesYiWordsNotInCautionHalf() {
         let pairs: [([String: String], [String: (yi: [String], ji: [String])], String)] = [
             (HeroShiShenNotes.zh, HeroYiJiColumns.mappingZh, "zh"),
@@ -153,8 +155,8 @@ final class DailyImageHeroCopyTests: XCTestCase {
                     XCTFail("[\(lang)] \(relation) 释义缺失或无分号(宜/告诫两半结构)")
                     continue
                 }
-                let caution = text[semi...]
-                let hits = cols.yi.filter { caution.contains($0) }
+                let caution = text[semi...].lowercased()
+                let hits = cols.yi.filter { caution.contains($0.lowercased()) }
                 XCTAssertTrue(
                     hits.isEmpty,
                     "[\(lang)] \(relation) 宜词出现在释义告诫半句:\(hits)"

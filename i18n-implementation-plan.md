@@ -269,7 +269,7 @@ EARTHLY_BRANCHES_EN: Final[dict[str, str]] = {
 # 十神(Joey Yap 体系)
 TEN_GODS_EN: Final[dict[str, str]] = {
     "比肩": "Companion",
-    "劫财": "Rob Wealth",
+    "劫财": "Wealth Rival",  # 2026-09-29 D5 拍板:弃直译 Rob Wealth 改温和译名
     "食神": "Eating God",
     "伤官": "Hurting Officer",
     "偏财": "Indirect Wealth",
