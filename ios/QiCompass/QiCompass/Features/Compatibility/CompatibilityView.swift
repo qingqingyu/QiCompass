@@ -107,6 +107,7 @@ struct CompatibilityView: View {
                             showPartnerPicker = false
                             vm.selectPartner(entry)
                         },
+                        onClose: { showPartnerPicker = false },
                         onAddHour: { hash in
                             pendingAddHourHash = hash
                             showPartnerPicker = false

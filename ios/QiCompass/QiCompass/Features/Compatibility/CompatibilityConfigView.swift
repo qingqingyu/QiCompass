@@ -336,13 +336,13 @@ enum PersonSheetMode: Identifiable {
 
 // MARK: - 添加对方半屏 sheet(定稿③④)
 
-/// 快速添加/修改表单(称呼/出生时间/性别/出生城市,复用 VM `temp*` 草稿字段)。
+/// 快速添加/修改表单宿主(半屏 sheet 形态;表单主体已抽 `PartnerBirthForm`,S2)。
 /// - 添加(`editing == nil`):加入成功 → sheet 自动关闭(新行入名单、**未勾选**,
 ///   2026-09-03 修订:添加=入册,勾选=入本次合盘,两逻辑解耦)
 /// - 修改(`editing` 非 nil,2026-09-05):表单由父层 `beginEditTempEntry` 回填;
 ///   保存 → `updateTempEntry` 原位替换(勾选随迁),关闭(草稿还原由父层 onDismiss)
 /// - 失败 → 留在 sheet 显人话错误;下滑手势即收(系统 sheet 能力)
-/// (2026-09-29 S1 起换人 sheet 复用,去 private;S2 抽 PartnerBirthForm 时迁移)
+/// - S5 随配置页退役(换人 sheet 内 push 页是唯一形态后删除)
 struct AddPersonSheet: View {
     @Bindable var vm: CompatibilityViewModel
     /// 修改目标(nil = 添加模式;var + 默认值供 memberwise init 注入)。
@@ -354,18 +354,13 @@ struct AddPersonSheet: View {
 
     private var isEditing: Bool { editing != nil }
 
-    /// sheet 内表单错误(定稿④:重复添加等校验错误留在 sheet 内,不关不吞)。
-    @State private var formError: String?
-
-    /// 日期/时刻 wheel sheet 开关(2026-09-07 双行改造)。
-    @State private var showDatePicker = false
-    @State private var showTimePicker = false
-
     var body: some View {
         ScrollView {
             VStack(alignment: .leading, spacing: 12) {
                 HStack {
-                    Text(isEditing ? String(localized: "修改对方") : String(localized: "添加对方"))
+                    Text(isEditing
+                         ? L10n.CompatibilityPartner.formTitleEdit
+                         : L10n.CompatibilityPartner.formTitleAdd)
                         .font(BaziFont.display(size: 17))
                         .tracking(3)
                         .foregroundStyle(BaziTheme.ink)
@@ -373,84 +368,27 @@ struct AddPersonSheet: View {
                     Button {
                         dismiss()
                     } label: {
-                        Text("取消")
+                        Text(L10n.Common.cancel)
                             .font(BaziFont.caption(size: 12.5))
                             .foregroundStyle(BaziTheme.inkMuted)
                     }
                 }
 
-                // 可选「称呼」字段(留空走兜底名「对方+出生日期」)
-                HStack {
-                    Text("称呼").foregroundStyle(BaziTheme.inkMuted)
-                        .font(BaziFont.caption(size: 12))
-                    TextField("可选,如「相亲对象甲」", text: $vm.tempAlias)
-                        .font(BaziFont.body(size: 14))
-                        .foregroundStyle(BaziTheme.ink)
-                        .padding(BaziTheme.Spacing.sm)
-                        .background(BaziTheme.paper, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
-                        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.sm).stroke(BaziTheme.hairline, lineWidth: 0.5))
-                }
-
-                // 日期/时刻双行(2026-09-07:原 .compact DatePicker 系统弹层无「确定」,
-                // 换 BirthFormView 同款 row + wheel sheet + 确定;2026-09-19 起镜像
-                // 深度表单 S03 拆双字段:tempBirthDate 未选必选(nil 起步)+ tempBirthTime
-                // 独立绑定,提交时 VM.combinedTempBirthDate() 合成)
-                birthDateRow
-                birthTimeRow
-
-                // 性别(2026-09-19 去默认值:segmented 永远有选中段,无法表达「未选」,
-                // 换深度表单同款 GenderChipRow;两 chip 均未选是合法初始态,
-                // 提交被 validateTempForm 拦「请选择性别」)
-                HStack(spacing: 12) {
-                    Text("性别").foregroundStyle(BaziTheme.inkMuted)
-                        .font(BaziFont.caption(size: 12))
-                    GenderChipRow(selection: $vm.tempGender)
-                }
-
-                // S05:全球城市搜索 + sheet 内自定义地点(与深度解析同一组件)
-                CityPickerField(selection: $vm.tempPlace)
-
-                if let formError {
-                    Text(formError)
-                        .font(BaziFont.caption(size: 11))
-                        .foregroundStyle(BaziTheme.destructive)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                }
-
-                Button {
-                    if isEditing {
-                        saveEdit()
-                    } else {
-                        addTemp()
-                    }
-                } label: {
-                    HStack {
-                        if !isEditing {
-                            Image(systemName: "plus.circle.fill")
-                        }
-                        Text(isEditing ? String(localized: "保存修改") : String(localized: "加入名单"))
-                    }
-                    .font(BaziFont.button(size: 15))
-                    .foregroundStyle(formError == nil ? BaziTheme.onInkDeep : BaziTheme.inkMuted)
-                    .frame(maxWidth: .infinity)
-                    .padding(.vertical, 12)
-                    .background(
-                        // 定稿④:错误态 CTA 置灰(改任一字段即重新可用,错误同时清除)
-                        formError == nil ? BaziTheme.inkDeep : BaziTheme.inkDeep.opacity(0.3),
-                        in: RoundedRectangle(cornerRadius: 5)
-                    )
-                }
-                // 满员只拦「加」不拦「改」(修改原位替换,不占新名额;与满员提示口径一致)
-                .disabled((!isEditing && vm.roster.count >= CompatibilityViewModel.rosterMax)
-                          || formError != nil)
-
-                Text(isEditing
-                     ? String(localized: "保存后名单与勾选状态保持不变 · 下滑收起不保存")
-                     : String(localized: "加入名单后自行勾选 · 下滑可随时收起"))
-                    .font(BaziFont.caption(size: 10))
-                    .tracking(1)
-                    .foregroundStyle(BaziTheme.inkMutedSecondary)
-                    .frame(maxWidth: .infinity)
+                PartnerBirthForm(
+                    vm: vm,
+                    editing: editing,
+                    onAdded: { added in
+                        // 「新」朱印显式回调(2026-09-05:不靠父层 roster diff 推断)
+                        onAdded?(added)
+                        dismiss()
+                    },
+                    onUpdated: { _, _ in
+                        dismiss()
+                    },
+                    footnote: isEditing
+                        ? String(localized: "保存后名单与勾选状态保持不变 · 下滑收起不保存")
+                        : String(localized: "加入名单后自行勾选 · 下滑可随时收起")
+                )
             }
             .padding(24)
         }
@@ -458,196 +396,5 @@ struct AddPersonSheet: View {
         .presentationDetents([.medium, .large])
         // 定稿③:grab handle 显式可见(系统对自定义 detents 不保证默认显示)
         .presentationDragIndicator(.visible)
-        // 定稿④配套:任一字段变更即清错误(重复/校验错误不再黏住,CTA 随之恢复)
-        .onChange(of: vm.tempAlias) { _, _ in formError = nil }
-        .onChange(of: vm.tempBirthDate) { _, _ in formError = nil }
-        .onChange(of: vm.tempBirthTime) { _, _ in formError = nil }
-        .onChange(of: vm.tempGender) { _, _ in formError = nil }
-        .onChange(of: vm.tempPlace) { _, _ in formError = nil }
-    }
-
-    // MARK: - 出生日期/时刻双行(2026-09-07:compact 弹层无确定 → row + wheel sheet)
-
-    /// 出生日期行(点开 date-only wheel sheet;值按对方出生地钟面取;
-    /// 2026-09-19 未选 → 占位弱墨,与 BirthFormView 日期行同式)。
-    private var birthDateRow: some View {
-        Button {
-            HapticEngine.light()
-            showDatePicker = true
-        } label: {
-            pickerRowLabel(
-                title: String(localized: "出生日期"),
-                value: tempBirthDateString,
-                isPlaceholder: vm.tempBirthDate == nil
-            )
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("出生日期")
-        .accessibilityValue(tempBirthDateString)
-        .sheet(isPresented: $showDatePicker) { tempDatePickerSheet }
-    }
-
-    /// 出生时刻行(点开 hourAndMinute wheel sheet)。
-    private var birthTimeRow: some View {
-        Button {
-            HapticEngine.light()
-            showTimePicker = true
-        } label: {
-            pickerRowLabel(title: String(localized: "出生时刻"), value: tempBirthTimeString)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel("出生时刻")
-        .accessibilityValue(tempBirthTimeString)
-        .sheet(isPresented: $showTimePicker) { tempTimePickerSheet }
-    }
-
-    /// 双行共用行体(与「称呼」字段同款纸底 hairline 盒:标签居左弱墨,值居右浓墨 + ›)。
-    /// isPlaceholder=true 时值降为弱墨次级色(2026-09-19 日期未选占位,对齐 BirthFormView 日期行)。
-    private func pickerRowLabel(title: String, value: String, isPlaceholder: Bool = false) -> some View {
-        HStack {
-            Text(title)
-                .font(BaziFont.caption(size: 12))
-                .foregroundStyle(BaziTheme.inkMuted)
-            Spacer()
-            Text(value)
-                .font(BaziFont.body(size: 14))
-                .foregroundStyle(isPlaceholder ? BaziTheme.inkMutedSecondary : BaziTheme.ink)
-            Text("›")
-                .font(BaziFont.caption(size: 12))
-                .foregroundStyle(BaziTheme.inkMuted)
-        }
-        .padding(BaziTheme.Spacing.sm)
-        .background(BaziTheme.paper, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm))
-        .overlay(RoundedRectangle(cornerRadius: BaziTheme.Radius.sm).stroke(BaziTheme.hairline, lineWidth: 0.5))
-    }
-
-    /// 出生日期 wheel sheet(date-only,不晚于当下;确定=收起,live 拨动即写回)。
-    /// 2026-09-19 去预填感:未选择时头部副题明示(镜像 BirthFormView 日期弹层)。
-    private var tempDatePickerSheet: some View {
-        VStack(alignment: .leading, spacing: BaziTheme.Spacing.md) {
-            WheelSheetHeader(
-                title: String(localized: "选择出生日期"),
-                subtitle: vm.tempBirthDate == nil ? L10n.BirthForm.dateUnselectedHint : nil
-            ) { showDatePicker = false }
-            DatePicker(
-                "",
-                selection: tempDateOnlyBinding,
-                in: ...Date(),
-                displayedComponents: [.date]
-            )
-            .datePickerStyle(.wheel)
-            .labelsHidden()
-            // WYSIWYG:表盘按对方出生地时区(S05;解释责任在后端 zoneinfo)
-            .environment(\.calendar, vm.tempPlaceCalendar)
-        }
-        .padding(.horizontal, BaziTheme.Spacing.xl)
-        .padding(.vertical, BaziTheme.Spacing.lg)
-        .presentationDetents([.medium])
-        .presentationDragIndicator(.visible)
-        .presentationBackground(BaziTheme.paper)
-    }
-
-    /// 出生时刻 wheel sheet(hourAndMinute;无「不晚于当下」范围——单时刻无从比较,
-    /// 未来校验落在日期+时刻合成值上,validateTempForm 提交时拦)。
-    /// 2026-09-19 拆双字段:直绑 tempBirthTime(镜像 BirthFormView.timePickerSheet)。
-    private var tempTimePickerSheet: some View {
-        VStack(alignment: .leading, spacing: BaziTheme.Spacing.md) {
-            WheelSheetHeader(title: String(localized: "选择出生时刻")) { showTimePicker = false }
-            DatePicker(
-                "",
-                selection: $vm.tempBirthTime,
-                displayedComponents: [.hourAndMinute]
-            )
-            .datePickerStyle(.wheel)
-            .labelsHidden()
-            // WYSIWYG:表盘按对方出生地时区(S05;解释责任在后端 zoneinfo)
-            .environment(\.calendar, vm.tempPlaceCalendar)
-        }
-        .padding(.horizontal, BaziTheme.Spacing.xl)
-        .padding(.vertical, BaziTheme.Spacing.lg)
-        .presentationDetents([.medium])
-        .presentationDragIndicator(.visible)
-        .presentationBackground(BaziTheme.paper)
-    }
-
-    // MARK: - 日期/时刻绑定与行文案(2026-09-19 拆双字段,镜像 BirthFormView)
-
-    /// 日期分量绑定(镜像 BirthFormView.datePickerBinding):未选时以
-    /// `DeepAnalysisViewModel.defaultBirthTimeAnchor`(1990-03-21 正午,2026-09-23
-    /// 二段起与 BirthFormView.unselectedDateSeed 是不同 instant 但同一「位置非值」
-    /// 语义)作表盘初始位置,单一事实源不复制魔数;仅位置非值——未拨动不写回,
-    /// 提交 nil 被 validateTempForm 拦。拨动写回 tempBirthDate(该日的时分由
-    /// tempBirthTime 独立承载,提交时 VM.combinedTempBirthDate() 合成、秒归 0)。
-    private var tempDateOnlyBinding: Binding<Date> {
-        Binding(
-            get: { vm.tempBirthDate ?? DeepAnalysisViewModel.defaultBirthTimeAnchor },
-            set: { vm.tempBirthDate = $0 }
-        )
-    }
-
-    /// 出生日期行文案(公历长日期,对方出生地钟面;与 BirthFormView.birthDateText
-    /// 同式;2026-09-19 未选 → 占位「请选择日期」)。
-    private var tempBirthDateString: String {
-        guard let birthDate = vm.tempBirthDate else {
-            return L10n.BirthForm.birthDatePlaceholder
-        }
-        let formatter = DateFormatter()
-        formatter.calendar = vm.tempPlaceCalendar
-        formatter.timeZone = vm.tempPlaceCalendar.timeZone
-        formatter.locale = .current
-        formatter.dateStyle = .long
-        return formatter.string(from: birthDate)
-    }
-
-    /// 出生时刻行文案(HH:mm,对方出生地钟面;POSIX 模板防系统格式注入;
-    /// 时刻独立绑定后恒有锚点值,与深度表单时刻行「保留默认值语义」一致)。
-    private var tempBirthTimeString: String {
-        let formatter = DateFormatter()
-        formatter.locale = Locale(identifier: "en_US_POSIX")
-        formatter.dateFormat = "HH:mm"
-        formatter.timeZone = vm.tempPlaceCalendar.timeZone
-        return formatter.string(from: vm.tempBirthTime)
-    }
-
-    private func addTemp() {
-        do {
-            let added = try vm.addTempToRoster()
-            // 成功:关 sheet(新行已入名单、未勾选)+ 清草稿,可重开连加;
-            // 「新」朱印显式回调(2026-09-05:不再靠父层 roster diff / append 位置推断)
-            onAdded?(added)
-            vm.resetTempDraftForm()
-            dismiss()
-        } catch {
-            // 不静默吞(CLAUDE.md):UserFacingError(表单校验/重复)文案原样留在 sheet;
-            // 意外错误(存储层)记日志 + 人话兜底
-            if let userError = error as? UserFacingError {
-                formError = userError.errorDescription
-            } else {
-                AppLogger.app.error(
-                    "compat.addTemp.unexpected_error error=\(String(describing: error), privacy: .public)"
-                )
-                formError = String(localized: "添加失败,请重试")
-            }
-        }
-    }
-
-    /// 修改保存:原位替换 + 关 sheet(表单草稿还原由父层 onDismiss 统一处理,
-    /// 覆盖保存/取消/下滑三条关闭路径)。
-    private func saveEdit() {
-        guard let entry = editing else { return }
-        do {
-            try vm.updateTempEntry(entry)
-            dismiss()
-        } catch {
-            // 错误面与添加一致:校验/重复文案留在 sheet 内,不关不吞
-            if let userError = error as? UserFacingError {
-                formError = userError.errorDescription
-            } else {
-                AppLogger.app.error(
-                    "compat.saveEdit.unexpected_error error=\(String(describing: error), privacy: .public)"
-                )
-                formError = String(localized: "保存失败,请重试")
-            }
-        }
     }
 }

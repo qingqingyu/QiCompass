@@ -917,6 +917,83 @@ enum L10n {
         /// 结果壳内联推演态竖排短语(复用三墨点 breathe 语言,单选无 i/N)。
         /// zh: "推演合盘";en: "Reading the match"
         static let castingTitle = String(localized: "hepan.partner.castingTitle")
+
+        /// 换人 sheet 标题栏「管理」按钮(管理模式入口,ink 色文字按钮)。
+        /// zh: "管理";en: "Manage"
+        static let manage = String(localized: "hepan.partner.manage")
+
+        /// 满员时添加行副注。%lld = rosterMax(8)。
+        /// zh: "名单已满 %lld 人,先移出一位";en: "Roster is full (%lld people) — remove someone first"
+        static func rosterFullHint(_ count: Int) -> String {
+            String(format: String(localized: "hepan.partner.rosterFullHint"), count)
+        }
+
+        /// 管理模式行尾「修改」(仅临时人)。
+        /// zh: "修改";en: "Edit"
+        static let rowEdit = String(localized: "hepan.partner.rowEdit")
+
+        /// 管理模式行尾「移出」。
+        /// zh: "移出";en: "Remove"
+        static let rowRemove = String(localized: "hepan.partner.rowRemove")
+
+        /// 移出确认弹窗标题。
+        /// zh: "移出名单?";en: "Remove from roster?"
+        static let removeConfirmTitle = String(localized: "hepan.partner.removeConfirm.title")
+
+        /// 移出确认弹窗主按钮。
+        /// zh: "移出名单";en: "Remove"
+        static let removeConfirmAction = String(localized: "hepan.partner.removeConfirm.action")
+
+        /// 移出确认弹窗说明。%@ = 对方称呼。
+        /// zh: "「%@」移出后,重新加入需再填一次出生信息。"
+        /// en: "Once you remove %@, adding them back means re-entering their birth details."
+        static func removeConfirmMessage(_ name: String) -> String {
+            String(format: String(localized: "hepan.partner.removeConfirm.message"), name)
+        }
+
+        // -- 添加/修改表单(PartnerBirthForm;字段标签复用 L10n.BirthForm)--
+
+        /// 表单「称呼」字段标签。
+        /// zh: "称呼";en: "Name"
+        static let formAliasLabel = String(localized: "hepan.partner.form.aliasLabel")
+
+        /// 「称呼」占位(可选字段)。
+        /// zh: "可选,如「相亲对象甲」";en: "Optional, e.g. \"Date A\""
+        static let formAliasPlaceholder = String(localized: "hepan.partner.form.aliasPlaceholder")
+
+        /// 表单页标题(添加模式)。
+        /// zh: "添加对方";en: "Add partner"
+        static let formTitleAdd = String(localized: "hepan.partner.form.titleAdd")
+
+        /// 表单页标题(修改模式)。
+        /// zh: "修改对方";en: "Edit partner"
+        static let formTitleEdit = String(localized: "hepan.partner.form.titleEdit")
+
+        /// 提交 CTA(添加)。
+        /// zh: "加入名单";en: "Add to roster"
+        static let formCtaAdd = String(localized: "hepan.partner.form.ctaAdd")
+
+        /// 提交 CTA(修改)。
+        /// zh: "保存修改";en: "Save changes"
+        static let formCtaEdit = String(localized: "hepan.partner.form.ctaEdit")
+
+        /// 表单脚注(添加;P4 加入即合盘语义)。
+        /// zh: "提交即加入名单并开始合盘 · 返回不保存"
+        /// en: "Submitting adds them and starts the match — going back discards"
+        static let formFootnoteAdd = String(localized: "hepan.partner.form.footnoteAdd")
+
+        /// 表单脚注(修改)。
+        /// zh: "若为当前对方,保存后将自动重新合盘"
+        /// en: "If they're your current partner, saving recalculates the match"
+        static let formFootnoteEdit = String(localized: "hepan.partner.form.footnoteEdit")
+
+        /// 添加失败兜底文案(意外错误,校验/重复错误走 UserFacingError 原文案)。
+        /// zh: "添加失败,请重试";en: "Couldn't add — please retry"
+        static let formErrorAdd = String(localized: "hepan.partner.form.errorAdd")
+
+        /// 保存失败兜底文案。
+        /// zh: "保存失败,请重试";en: "Couldn't save — please retry"
+        static let formErrorEdit = String(localized: "hepan.partner.form.errorEdit")
     }
 
     // MARK: - 补时辰 sheet(S10,D7 补时辰升级闭环)

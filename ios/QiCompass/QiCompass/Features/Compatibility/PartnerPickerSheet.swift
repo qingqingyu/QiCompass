@@ -1,35 +1,42 @@
 import SwiftUI
 
-/// 换人 sheet(P2/P3;S1 最小版,2026-09-29 结果页主页化):
-/// 内嵌 NavigationStack(S2 表单 push 预留)+ 复用 `RosterUnifiedListView`,
-/// 行点击语义从「切换勾选」改为 **onPick 原地换人**(宿主关 sheet + `selectPartner`)。
-///
-/// S1 期行为:
-/// - 添加/修改/移出沿用配置页同一组件(`AddPersonSheet` + confirmationDialog),
-///   加入名单暂不自动勾选——P4「加入即选中并合盘」在 S2 抽 `PartnerBirthForm` 时落地
-/// - 无时辰行(S10 补时辰直达 / S11 置灰)、命主无时辰整列锁(S07)随复用组件原样保留
-///
-/// S2 完整化:PartnerRow 行组件(朱圈勾选态)、管理模式、sheet 内添加即合盘、满员提示收敛。
+// MARK: - 换人 sheet(P2/P3;S2 完整化,2026-09-29 结果页主页化)
+
+/// NavigationStack push 路由(添加 / 修改表单页)。
+enum PartnerPickerRoute: Hashable {
+    case add
+    case edit(RosterEntry)
+}
+
+/// 换人 sheet(P2/P3,2026-09-29 结果页主页化;S2 完整化):
+/// - 行 = `PartnerRow`(日主五行色字 / 称呼 / 生日副行 / 行内朱圈勾选态),
+///   点行 = `onPick` 原地换人(宿主关 sheet + `selectPartner`)
+/// - 标题栏「选择对方」+ 右侧「管理 / 完成」(ink 色文字按钮,不用朱红)
+/// - 管理模式:行尾换「修改」(仅临时人)+「移出」;移出当前对方 → 勾选清空 +
+///   宿主关 sheet(主页进 P6 态,不自动选下一位、不发请求)
+/// - 尾部「＋ 添加对方」→ push `PartnerBirthForm` 添加页;提交 = 加入 + 选中 +
+///   合盘(P4,修订 2026-09-03「添加与勾选解耦」——新模型没有「开始合盘」这一步)
+/// - 修改当前对方且输入变化 → 保存后 force 重算;修改非当前对方不重算
+/// - 他人无时辰行(S10 点击补时辰 / S11 置灰短注)、命主无时辰整列锁(S07)、
+///   满员置灰(rosterMax)
 struct PartnerPickerSheet: View {
     @Bindable var vm: CompatibilityViewModel
     /// 行点击(原地换人;宿主负责关 sheet + `vm.selectPartner`)。
     let onPick: (RosterEntry) -> Void
+    /// sheet 内流程需要整体关闭时调(添加即合盘 / 移出当前对方后回 P6;
+    /// 宿主只负责关 sheet,选中/重算逻辑在本 sheet 内完成)。
+    var onClose: (() -> Void)? = nil
     /// S10:无时辰行 → 补时辰 sheet(宿主路由;换人 sheet 需先关再开,由宿主编排)。
     var onAddHour: ((String) -> Void)? = nil
 
-    @Environment(\.dismiss) private var dismiss
-
-    /// 添加/修改对方半屏 sheet(与配置页同一组件双模式)。
-    @State private var personSheetMode: PersonSheetMode?
-    /// 修改态标记:onDismiss 时还原添加草稿(beginEditTempEntry 覆盖了 vm.temp* 字段)。
-    @State private var sheetWasEdit = false
-    /// 临时人行移出确认(防误删,与配置页同款)。
+    @State private var isManageMode = false
     @State private var tempRemovalCandidate: RosterEntry?
-    /// 最近经 sheet 加入的临时人 id(该行标「新」朱印)。
-    @State private var newlyAddedTempId: String?
+    @State private var path: [PartnerPickerRoute] = []
+
+    private var isFull: Bool { vm.roster.count >= CompatibilityViewModel.rosterMax }
 
     var body: some View {
-        NavigationStack {
+        NavigationStack(path: $path) {
             ScrollView {
                 VStack(alignment: .leading, spacing: 8) {
                     Text(L10n.CompatibilityPartner.choosePartner)
@@ -38,29 +45,26 @@ struct PartnerPickerSheet: View {
                         .foregroundStyle(BaziTheme.ink)
                         .padding(.top, BaziTheme.Spacing.lg)
 
-                    RosterUnifiedListView(
-                        charts: vm.archivedCharts,
-                        excludedHash: vm.currentPersonAHash,
-                        roster: vm.roster,
-                        rosterMax: CompatibilityViewModel.rosterMax,
-                        selectedHashes: vm.selectedArchivedHashes,
-                        tempRows: vm.roster.compactMap(tempRowModel(for:)),
-                        orphanRows: vm.roster.compactMap(orphanRowModel(for:)),
-                        isHourUnknown: { vm.isArchivedHourUnknown(hash: $0) },
-                        isSelfHourUnknown: vm.isSelfHourUnknown,
-                        onToggleArchived: { hash in pick(.archived(snapshotHash: hash)) },
-                        onToggleTemp: { entry in pick(entry) },
-                        onEditTemp: { entry in
-                            // 回填失败(非 temp / 钟面串解析失败,VM 已记日志)不开 sheet
-                            guard vm.beginEditTempEntry(entry) else { return }
-                            sheetWasEdit = true
-                            personSheetMode = .edit(entry)
-                        },
-                        onRemoveTemp: { tempRemovalCandidate = $0 },
-                        onAddHour: onAddHour,
-                        onAdd: { personSheetMode = .add },
-                        newEntryId: newlyAddedTempId
-                    )
+                    // 命主无时辰(S07 全锁):整列置灰不可点 + 解释 banner
+                    if vm.isSelfHourUnknown {
+                        Text(L10n.CompatibilityRosterGate.selfBanner)
+                            .font(BaziFont.caption(size: 11.5))
+                            .tracking(1)
+                            .foregroundStyle(BaziTheme.inkMuted)
+                            .padding(BaziTheme.Spacing.md)
+                            .frame(maxWidth: .infinity, alignment: .leading)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
+                                    .stroke(BaziTheme.hairlineDashed, lineWidth: 1)
+                            )
+                    }
+
+                    ForEach(rowModels) { row in
+                        partnerRow(row)
+                        Divider().background(BaziTheme.hairline)
+                    }
+
+                    addRow
                 }
                 .padding(.horizontal)
                 .padding(.bottom, BaziTheme.Spacing.xl)
@@ -68,99 +72,363 @@ struct PartnerPickerSheet: View {
             .background(BaziTheme.cardSurface)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
-                    Button(L10n.CompatibilityPartner.done) {
-                        dismiss()
+                    // 管理 ↔ 完成(ink 色;不用朱红——朱红只留印章级)
+                    Button {
+                        HapticEngine.light()
+                        isManageMode.toggle()
+                    } label: {
+                        Text(isManageMode
+                             ? L10n.CompatibilityPartner.done
+                             : L10n.CompatibilityPartner.manage)
+                            .font(BaziFont.body(size: 15))
+                            .foregroundStyle(BaziTheme.ink)
                     }
-                    .foregroundStyle(BaziTheme.ink)
                 }
+            }
+            .navigationDestination(for: PartnerPickerRoute.self) { route in
+                PartnerBirthFormPage(vm: vm, route: route, onAdded: handleAdded, onUpdated: handleUpdated)
             }
         }
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
-        // 添加/修改对方:同一半屏 sheet 双模式(与配置页同款;修改态关闭还原添加草稿)
-        .sheet(item: $personSheetMode, onDismiss: {
-            if sheetWasEdit {
-                vm.resetTempDraftForm()
-                sheetWasEdit = false
-            }
-        }) { mode in
-            switch mode {
-            case .add:
-                AddPersonSheet(vm: vm) { added in
-                    newlyAddedTempId = added.id
-                }
-            case .edit(let entry):
-                AddPersonSheet(vm: vm, editing: entry)
-            }
-        }
-        // 「移出」= 移出名单确认(需再填表单才能回来)
+        // 「移出」= 移出名单确认(需再填表单才能回来;与配置页同款文案)
         .confirmationDialog(
-            "移出名单?",
+            L10n.CompatibilityPartner.removeConfirmTitle,
             isPresented: Binding(
                 get: { tempRemovalCandidate != nil },
                 set: { if !$0 { tempRemovalCandidate = nil } }
             ),
             titleVisibility: .visible
         ) {
-            Button("移出名单", role: .destructive) {
+            Button(L10n.CompatibilityPartner.removeConfirmAction, role: .destructive) {
                 if let entry = tempRemovalCandidate {
-                    vm.removeRosterEntry(entry)
+                    removeEntry(entry)
                 }
                 tempRemovalCandidate = nil
             }
-            Button("取消", role: .cancel) {
+            Button(L10n.Common.cancel, role: .cancel) {
                 tempRemovalCandidate = nil
             }
         } message: {
             if let entry = tempRemovalCandidate {
-                Text("「\(displayLabel(for: entry))」移出后,重新加入需再填一次出生信息。")
+                Text(L10n.CompatibilityPartner.removeConfirmMessage(
+                    vm.partnerDisplay(for: entry).name
+                ))
             }
         }
     }
 
-    /// 行点击:点当前已选者的 no-op 判定在 VM(`selectPartner` 守卫),
-    /// sheet 侧恒回调宿主(宿主统一关 sheet)。
-    private func pick(_ entry: RosterEntry) {
-        onPick(entry)
+    // MARK: - 行模型(临时人置顶 → 跨启动恢复行 → 存档候选;与旧名单顺序一致)
+
+    private struct PartnerRowModel: Identifiable {
+        let entry: RosterEntry
+        let display: PartnerDisplay
+        var id: String { entry.id }
     }
 
-    // MARK: - 名单行展示派生(S1 期与 CompatibilityConfigView 同款;S2 抽 PartnerRow 时收敛)
+    private var rowModels: [PartnerRowModel] {
+        var rows: [PartnerRowModel] = vm.roster
+            .filter(\.isTemp)
+            .map { PartnerRowModel(entry: $0, display: vm.partnerDisplay(for: $0)) }
+        rows += vm.roster
+            .filter { entry in
+                guard case .archived(let hash) = entry else { return false }
+                return !vm.isPoolBacked(hash: hash)
+            }
+            .map { PartnerRowModel(entry: $0, display: vm.partnerDisplay(for: $0)) }
+        let currentA = vm.currentPersonAHash
+        rows += vm.archivedCharts
+            .filter { $0.snapshotHash != currentA }
+            .map { chart in
+                // 池行候选(含已选中的池行——展示复用 VM 派生,勾选态由行自表达)
+                let entry = RosterEntry.archived(snapshotHash: chart.snapshotHash)
+                return PartnerRowModel(entry: entry, display: vm.partnerDisplay(for: entry))
+            }
+        return rows
+    }
 
-    private func tempRowModel(for entry: RosterEntry) -> TempRowModel? {
-        guard case .temp = entry else { return nil }
-        return TempRowModel(
-            entry: entry,
-            name: displayLabel(for: entry),
-            subtitle: subtitleLabel(for: entry),
-            isSelected: vm.selectedEntryIds.contains(entry.id)
+    // MARK: - 行渲染
+
+    @ViewBuilder
+    private func partnerRow(_ row: PartnerRowModel) -> some View {
+        let isBlockedHour = hourBlocked(row.entry)
+        PartnerRow(
+            display: row.display,
+            isSelected: vm.selectedEntryIds.contains(row.entry.id),
+            isLocked: vm.isSelfHourUnknown,
+            isBlockedHour: isBlockedHour,
+            isManageMode: isManageMode,
+            canEdit: row.entry.isTemp,
+            onTap: {
+                guard !vm.isSelfHourUnknown else { return }
+                if isBlockedHour {
+                    // S10 优先直达补时辰;无宿主退回 S11 轻提示(不弹 sheet 不可选)
+                    HapticEngine.light()
+                    if let onAddHour, case .archived(let hash) = row.entry {
+                        onAddHour(hash)
+                    }
+                    return
+                }
+                onPick(row.entry)
+            },
+            onEdit: {
+                // 回填失败(非 temp / 钟面串解析失败,VM 已记日志)不进表单页
+                guard vm.beginEditTempEntry(row.entry) else { return }
+                path.append(.edit(row.entry))
+            },
+            onRemove: { tempRemovalCandidate = row.entry }
         )
     }
 
-    private func orphanRowModel(for entry: RosterEntry) -> TempRowModel? {
-        guard case .archived(let hash) = entry,
-              !vm.isPoolBacked(hash: hash) else { return nil }
-        return TempRowModel(
-            entry: entry,
-            name: displayLabel(for: entry),
-            subtitle: String(localized: "上次合盘保留的对方"),
-            isSelected: vm.selectedEntryIds.contains(entry.id)
-        )
+    /// 他人存档无时辰判据(S11,与 S07 computePair 拦截同源;临时人恒带完整钟面)。
+    private func hourBlocked(_ entry: RosterEntry) -> Bool {
+        guard case .archived(let hash) = entry else { return false }
+        return vm.isArchivedHourUnknown(hash: hash)
     }
 
-    private func displayLabel(for entry: RosterEntry) -> String {
-        switch entry {
-        case .archived(let hash):
-            return vm.archivedCharts.first { $0.snapshotHash == hash }?.alias ?? String(localized: "未知存档")
-        case .temp(let input, let alias, _, _):
-            if let alias, !alias.isEmpty { return alias }
-            let loc = input.placeName ?? String(format: String(localized: "经度 %@"), String(format: "%.1f", input.longitude))
-            return String(format: String(localized: "对方 · %@ · %@"), input.wallClockDisplay, loc)
+    // MARK: - 尾部添加行(满员置灰)
+
+    private var addRow: some View {
+        Button {
+            guard !isFull else { return }
+            path.append(.add)
+        } label: {
+            HStack(spacing: 13) {
+                Circle()
+                    .stroke(BaziTheme.hairlineDashed, lineWidth: 1.4)
+                    .frame(width: 22, height: 22)
+                    .overlay(Text("＋").font(.caption).foregroundStyle(BaziTheme.inkMuted))
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(L10n.CompatibilityPartner.addPartner)
+                        .font(BaziFont.body())
+                        .foregroundStyle(isFull ? BaziTheme.inkMutedSecondary : BaziTheme.ink)
+                    Text(isFull
+                         ? L10n.CompatibilityPartner.rosterFullHint(CompatibilityViewModel.rosterMax)
+                         : String(localized: "不建档案 · 填出生信息即可"))
+                        .font(BaziFont.caption(size: 10))
+                        .tracking(0.5)
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                }
+                Spacer()
+            }
+            .padding(.vertical, 14)
+            .opacity(isFull ? 0.45 : 1)
+        }
+        .disabled(isFull)
+    }
+
+    // MARK: - 表单成功路径(P4 加入即合盘 / 修改当前对方 force 重算)
+
+    /// 添加成功(P4):加入名单即选中并立即合盘,关 sheet 看原地推演。
+    private func handleAdded(_ entry: RosterEntry) {
+        vm.selectPartner(entry)
+        onClose?()
+    }
+
+    /// 修改成功:改的是**当前对方**且输入变了 → force 重算(绕过同人 no-op);
+    /// 非当前对方 / 输入未变 → 只回列表(不重算)。
+    private func handleUpdated(old: RosterEntry, new: RosterEntry) {
+        let wasCurrent = vm.selectedEntryIds.contains(new.id)
+        if wasCurrent && new.id != old.id {
+            vm.selectPartner(new, force: true)
+            onClose?()
+        } else {
+            path.removeAll()
         }
     }
 
-    private func subtitleLabel(for entry: RosterEntry) -> String {
-        guard case .temp(let input, let alias, _, _) = entry else { return "" }
-        let loc = input.placeName ?? String(format: String(localized: "经度 %@"), String(format: "%.1f", input.longitude))
-        return (alias?.isEmpty == false) ? String(format: String(localized: "%@ · %@"), input.wallClockDisplay, loc) : loc
+    /// 移出名单:当前对方被移出 → 勾选随清(removeRosterEntry)+ 切出 detail 态
+    /// (backToConfig 兼任 cancel;S3 起 .configuring 渲染为结果壳 P6 态),
+    /// 不自动选下一位(避免隐式发起合盘请求);非当前对方 → 留在列表。
+    private func removeEntry(_ entry: RosterEntry) {
+        let wasCurrent = vm.selectedEntryIds.contains(entry.id)
+        vm.removeRosterEntry(entry)
+        if wasCurrent {
+            vm.backToConfig()
+            onClose?()
+        }
+    }
+}
+
+// MARK: - 表单页(NavigationStack push 形态)
+
+/// 添加/修改对方表单页(换人 sheet 内 push;系统返回手势/按钮 = 不保存返回)。
+/// 离开页面(返回或整体关 sheet)时还原添加草稿(beginEditTempEntry 覆盖过 vm.temp*)。
+private struct PartnerBirthFormPage: View {
+    @Bindable var vm: CompatibilityViewModel
+    let route: PartnerPickerRoute
+    let onAdded: (RosterEntry) -> Void
+    let onUpdated: (RosterEntry, RosterEntry) -> Void
+
+    private var editing: RosterEntry? {
+        if case .edit(let entry) = route { return entry }
+        return nil
+    }
+
+    private var isEditing: Bool { editing != nil }
+
+    var body: some View {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 12) {
+                Text(isEditing
+                     ? L10n.CompatibilityPartner.formTitleEdit
+                     : L10n.CompatibilityPartner.formTitleAdd)
+                    .font(BaziFont.display(size: 17))
+                    .tracking(3)
+                    .foregroundStyle(BaziTheme.ink)
+
+                PartnerBirthForm(
+                    vm: vm,
+                    editing: editing,
+                    onAdded: onAdded,
+                    onUpdated: onUpdated,
+                    footnote: isEditing
+                        ? L10n.CompatibilityPartner.formFootnoteEdit
+                        : L10n.CompatibilityPartner.formFootnoteAdd
+                )
+            }
+            .padding(24)
+        }
+        .background(BaziTheme.cardSurface)
+        // 修改态离开(保存成功关 sheet / 返回取消 / 下滑关 sheet)统一还原添加草稿
+        .onDisappear {
+            if isEditing {
+                vm.resetTempDraftForm()
+            }
+        }
+    }
+}
+
+// MARK: - 名单行(S2 新组件:替换 sheet 内对 RosterUnifiedListView 的复用)
+
+/// 换人 sheet 名单行:日主字(五行色)/ 称呼 / 生日副行 / 尾部状态。
+/// - 选中态:行内朱圈(印章级小元素既有用法,不扩大)+ 行底 cinnabarSoft
+/// - 他人无时辰:副行换 S11 mark 短注,点击走 S10 补时辰
+/// - 命主无时辰:置灰不可点
+/// - 管理模式:尾部换「修改」(仅临时人)+「移出」
+private struct PartnerRow: View {
+    let display: PartnerDisplay
+    let isSelected: Bool
+    let isLocked: Bool
+    let isBlockedHour: Bool
+    let isManageMode: Bool
+    /// 「修改」按钮可用性(仅临时人——本地有完整表单数据可回填)。
+    let canEdit: Bool
+    let onTap: () -> Void
+    let onEdit: () -> Void
+    let onRemove: () -> Void
+
+    private var isGreyed: Bool { isLocked }
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 13) {
+                dayMasterAvatar
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(display.name)
+                        .font(BaziFont.body())
+                        .fontWeight(.medium)
+                        .lineLimit(1)
+                        .foregroundStyle(isGreyed ? BaziTheme.inkMuted : BaziTheme.ink)
+                    // 他人无时辰 → 副行换成 S11 mark(短注替代表现)
+                    Text(isBlockedHour
+                         ? L10n.CompatibilityRosterGate.mark
+                         : sublineText)
+                        .font(BaziFont.caption(size: 10))
+                        .tracking(0.5)
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                }
+                Spacer()
+                if isManageMode {
+                    manageTrailing
+                } else {
+                    selectionCircle
+                }
+            }
+            .padding(.vertical, 10)
+            .padding(.horizontal, 12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                // 选中态行底 cinnabarSoft(极少量);未选/全锁 clear
+                !isLocked && isSelected && !isManageMode
+                    ? BaziTheme.cinnabarSoft
+                    : Color.clear,
+                in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
+            )
+        }
+        .buttonStyle(.plain)
+        .disabled(isLocked)
+        .accessibilityHint(isSelected
+                           ? String(localized: "当前对方")
+                           : String(localized: "点按切换为当前对方"))
+    }
+
+    /// 副行:生日(日主已由头像字承载,不重复)。
+    private var sublineText: String {
+        display.birthDateString ?? "—"
+    }
+
+    /// 日主字头像(五行色;未知 → 「—」墨色,不猜)。
+    private var dayMasterAvatar: some View {
+        let gan = display.dayMaster.flatMap { $0.isEmpty ? nil : $0 } ?? "—"
+        let color = (gan == "—" || display.dayMasterElementKey == nil)
+            ? BaziTheme.inkMuted
+            : BaziTheme.elementColor(display.dayMasterElementKey ?? "")
+        return Text(gan)
+            .font(BaziFont.ganzhi(size: 15))
+            .foregroundStyle(isGreyed ? BaziTheme.inkMuted : color)
+            .frame(width: 30, height: 30)
+            .overlay(
+                RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
+                    .stroke(BaziTheme.hairline, lineWidth: 0.8)
+            )
+    }
+
+    /// 选中态:朱圈 + 勾(沿用名单行「行内朱圈」表达;全锁/无时辰行不画圈)。
+    @ViewBuilder
+    private var selectionCircle: some View {
+        if isBlockedHour || isLocked {
+            // S11/S07 留白:不可选行不画圈(无勾选位,水墨留白表达)
+            EmptyView()
+        } else if isSelected {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.body)
+                .foregroundStyle(BaziTheme.cinnabar)
+        } else {
+            Image(systemName: "circle")
+                .font(.body)
+                .foregroundStyle(BaziTheme.inkMuted.opacity(0.5))
+        }
+    }
+
+    /// 管理模式行尾:「修改」(仅临时人)+「移出」(全锁置灰)。
+    @ViewBuilder
+    private var manageTrailing: some View {
+        HStack(spacing: 4) {
+            if canEdit {
+                Button(action: onEdit) {
+                    Text(L10n.CompatibilityPartner.rowEdit)
+                        .font(BaziFont.caption(size: 10))
+                        .tracking(1)
+                        .foregroundStyle(isLocked ? BaziTheme.inkMutedSecondary : BaziTheme.inkMuted)
+                        .padding(.vertical, 4)
+                        .padding(.horizontal, 6)
+                }
+                .buttonStyle(.plain)
+                .disabled(isLocked)
+                .accessibilityLabel("\(L10n.CompatibilityPartner.rowEdit)「\(display.name)」")
+            }
+            Button(action: onRemove) {
+                Text(L10n.CompatibilityPartner.rowRemove)
+                    .font(BaziFont.caption(size: 10))
+                    .tracking(1)
+                    .foregroundStyle(isLocked ? BaziTheme.inkMutedSecondary : BaziTheme.inkMuted)
+                    .padding(.vertical, 4)
+                    .padding(.horizontal, 6)
+            }
+            .buttonStyle(.plain)
+            .disabled(isLocked)
+            .accessibilityLabel("\(L10n.CompatibilityPartner.rowRemove)「\(display.name)」")
+        }
     }
 }

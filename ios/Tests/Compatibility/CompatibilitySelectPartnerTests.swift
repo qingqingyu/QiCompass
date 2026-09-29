@@ -252,6 +252,91 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
         XCTAssertEqual(calls, 0, "拒收 = 零请求")
     }
 
+    // MARK: - S2 契约(force 重算 / 修改返回值 / 移除当前对方)
+
+    func testSelectPartner_force_同人detail态_仍重算() async throws {
+        let chartA = try insertChart(hash: "s2f_a_known", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "s2f_b_known", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        vm.roster = [.archived(snapshotHash: "s2f_b_known")]
+        vm.selectedEntryIds = ["archived:s2f_b_known"]
+
+        vm.compute()
+        let reached = await waitForDetailState()
+        XCTAssertTrue(reached, "前置:detail 在展,实际:\(vm.state)")
+        let callsBefore = await recording.compatibilityCallCount()
+
+        // 无 force:同人 no-op(S1 契约回归)
+        vm.selectPartner(.archived(snapshotHash: "s2f_b_known"))
+        let calls = await recording.compatibilityCallCount()
+        XCTAssertEqual(calls, callsBefore, "无 force 同人 detail = no-op")
+
+        // force:绕过 no-op(修改当前对方 / 补时辰后重算路径)。
+        // 注意:同输入对的 force 重算可能命中 S05 增量预查(零网络,期望行为),
+        // 断言按状态机路径——force 后立即离开 detail 进推演态,而非请求数
+        vm.selectPartner(.archived(snapshotHash: "s2f_b_known"), force: true)
+        if case .computing = vm.state {
+            // 期望:force 立即触发 compute(compute 同步置 .computing)
+        } else {
+            XCTFail("force 必须重新走 compute 路径,实际:\(vm.state)")
+        }
+        _ = await waitForDetailState()
+        await drainDetailBackgroundTasks()
+    }
+
+    func testUpdateTempEntry_返回新entry_勾选随迁() throws {
+        let entry: RosterEntry = .temp(
+            input: PersonBInput(
+                birthDatetime: "1991-06-06T09:30:00", timezone: "Asia/Shanghai",
+                gender: "female", longitude: 116.4074, placeName: "自定义地点"
+            ),
+            alias: "乙", resolvedHash: "hash_b1",
+            place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
+        )
+        vm.roster = [entry]
+        vm.selectedEntryIds = [entry.id]
+
+        // 回填后改日期 → 输入变(id 变)
+        XCTAssertTrue(vm.beginEditTempEntry(entry))
+        vm.tempBirthDate = Date(timeIntervalSince1970: 700_000_000)
+        let updated = try vm.updateTempEntry(entry)
+
+        // S2 契约:返回替换后的新 entry(调用方据此 force 重算)
+        XCTAssertNotEqual(updated.id, entry.id, "输入变了 → 新 id")
+        XCTAssertTrue(vm.selectedEntryIds.contains(updated.id), "勾选随迁到新 entry")
+        XCTAssertEqual(vm.roster.first?.id, updated.id)
+    }
+
+    func test移除当前对方_清选_切配置态_不发请求() async throws {
+        let chartA = try insertChart(hash: "s2r_a_known", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "s2r_b_known", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        vm.roster = [.archived(snapshotHash: "s2r_b_known")]
+        vm.selectedEntryIds = ["archived:s2r_b_known"]
+
+        vm.compute()
+        let reached = await waitForDetailState()
+        XCTAssertTrue(reached, "前置:detail 在展,实际:\(vm.state)")
+        let callsBefore = await recording.compatibilityCallCount()
+
+        // 换人 sheet 移除当前对方的组合流(View 层 removeEntry 的 VM 侧效果):
+        // 勾选随清 + 切出 detail(P6 态入口),不自动选下一位、不发请求
+        vm.removeRosterEntry(.archived(snapshotHash: "s2r_b_known"))
+        vm.backToConfig()
+
+        XCTAssertTrue(vm.selectedEntryIds.isEmpty, "移出当前对方 → 勾选清空")
+        XCTAssertTrue(vm.roster.isEmpty)
+        if case .configuring = vm.state {
+            // 期望:切出 detail(S3 起 .configuring 渲染为结果壳 P6 态)
+        } else {
+            XCTFail("移除当前对方应切出 detail,实际:\(vm.state)")
+        }
+        let calls = await recording.compatibilityCallCount()
+        XCTAssertEqual(calls, callsBefore, "移除不得发起任何合盘请求")
+    }
+
     // MARK: - applyHashRemap(S10 补时辰后结果壳重算的前置)
 
     func testApplyHashRemap_roster与勾选id原地换血() throws {

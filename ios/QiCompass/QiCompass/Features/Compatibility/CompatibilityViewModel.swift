@@ -337,7 +337,9 @@ final class CompatibilityViewModel {
     /// resolvedHash 有值(算过)→ 读 B 快照补日主与生日。
     /// store 查询/解码失败 → 显式记日志 + 最小展示(名字兜底、生日/日主留空)——
     /// 展示层降级不掩盖错误,computePair 发起路径会再抛真错误(S03 对级隔离)。
-    private func partnerDisplay(for entry: RosterEntry) -> PartnerDisplay {
+    /// (2026-09-29 S2 起 internal:换人 sheet 的 PartnerRow 复用同一派生,
+    /// 头部与行展示单一事实源。)
+    func partnerDisplay(for entry: RosterEntry) -> PartnerDisplay {
         switch entry {
         case .archived(let hash):
             if let chart = archivedCharts.first(where: { $0.snapshotHash == hash }) {
@@ -754,7 +756,10 @@ final class CompatibilityViewModel {
     ///   输入变了 → 作废置 nil(旧 hash 描述的是别人,下次 compute 走 API 重排)
     /// - 原位替换不占新名额(上限校验只拦「加」不拦「改」,与满员提示口径一致)
     /// - 不写草稿持久化(修改 ≠ 添加习惯,持久化只在 addTempToRoster)
-    func updateTempEntry(_ entry: RosterEntry) throws {
+    /// - Returns:替换后的新 entry(2026-09-29 S2:调用方据此判断「改的是当前对方
+    ///   且输入变了」→ `selectPartner(new, force: true)` 强制重算)
+    @discardableResult
+    func updateTempEntry(_ entry: RosterEntry) throws -> RosterEntry {
         guard case .temp = entry else {
             AppLogger.app.error("op=compatibility.updateTempEntry skip reason=not_temp entry_id=\(entry.id, privacy: .public)")
             throw UserFacingError.generic(message: String(localized: "该对方不可修改"))
@@ -786,6 +791,7 @@ final class CompatibilityViewModel {
             selectedEntryIds.remove(entry.id)
             selectedEntryIds.insert(newEntry.id)
         }
+        return newEntry
     }
 
     /// 移除名单一项(勾选 id 一并清理,不留悬空引用)。
