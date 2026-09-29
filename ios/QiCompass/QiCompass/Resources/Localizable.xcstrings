@@ -5531,6 +5531,23 @@
         }
       }
     },
+    "dailyfortune.shiShenNoteAction" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "About Today's Ten God"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日十神释义"
+          }
+        }
+      }
+    },
     "dailyfortune.hero.disclaimer" : {
       "extractionState" : "manual",
       "localizations" : {

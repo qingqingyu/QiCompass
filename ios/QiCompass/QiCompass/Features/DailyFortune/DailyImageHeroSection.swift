@@ -49,6 +49,9 @@ struct DailyImageHeroSection: View {
     @State private var mistA = false
     @State private var mistB = false
 
+    /// 十神释义 sheet(D3,2026-09-29 拍板):chip 轻触 / VO action 双入口同源。
+    @State private var showShiShenNote = false
+
     var body: some View {
         ZStack {
             baseLayer
@@ -70,6 +73,17 @@ struct DailyImageHeroSection: View {
         // 无障碍:合并为单元素,宜忌词一并进 label(不被 .ignore 吞掉)。
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: heroAccessibilityLabel))
+        // D3:十神 chip 在 accessibilityHidden 的内容浮层里,VO 用户走此命名
+        // action 打开同一张释义 sheet——明暗双通道同源。
+        .accessibilityAction(named: Text(L10n.DailyFortune.shiShenNoteAction)) {
+            showShiShenNote = true
+        }
+        // D3:今日十神释义(确定性静态表 HeroShiShenNotes,LLM 不参与)。
+        .sheet(isPresented: $showShiShenNote) {
+            HeroShiShenNoteSheet(relation: dayRelation)
+                .presentationDetents([.height(250), .large])
+                .presentationBackground(BaziTheme.paper)
+        }
     }
 
     /// 无障碍合并 label:干支 + 页首短标 + 冲(有则读,与 chips 同源构造)+ 宜/忌词。
@@ -324,9 +338,15 @@ struct DailyImageHeroSection: View {
     /// 402pt,chips 跟随 Dynamic Type 会在大字号档顶出卡边——cap 到 large
     /// (只作用 hero chips,不改 ChipView 本身,其他页面行为不变);
     /// 无障碍完整语义由 heroAccessibilityLabel 承担(含冲)。
+    /// 2026-09-29 D3:十神 chip 可点,弹出今日十神释义(见 HeroShiShenNotes)。
     private var chips: some View {
         HStack(spacing: 7) {
-            ChipView(text: Self.displayRelation(dayRelation), tint: BaziTheme.ink, iconName: Self.relationIcon(for: dayRelation))
+            Button {
+                showShiShenNote = true
+            } label: {
+                ChipView(text: Self.displayRelation(dayRelation), tint: BaziTheme.ink, iconName: Self.relationIcon(for: dayRelation))
+            }
+            .buttonStyle(.plain)
             if let chong = dayChong {
                 let label = L10n.DailyFortune.chongLabel(chong: chong, targets: dayChongTargets)
                 ChipView(text: label, tint: BaziTheme.inkMuted, iconName: "PlaqueChong")
@@ -577,6 +597,122 @@ struct HeroYiJiColumns: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
+// MARK: - 十神释义静态表(D3,2026-09-29 拍板)
+
+/// 今日十神释义(hero 十神 chip 点开的小卡正文)。
+///
+/// **确定性静态表,LLM 不参与**(「LLM 只润色不判断」边界:释义是判断性内容,
+/// 必须查表,不走 AI)。键集合 == `BaziTerms.tenGods` 的 zh 键(11,含偏官=
+/// 七杀同义),由 DailyImageHeroCopyTests 守护;键仍为后端简体十神(决策 7)。
+///
+/// 文案结构:「主星性。今日宜…;留意…」——宜/告诫口径与 HeroYiJiColumns
+/// 词表同源(正面半句呼应宜词,告诫半句呼应忌词),S01「宜词不得落告诫半句」
+/// 守护同款适用(本表为自有长句,EN 亦可子串比对)。查不到显式回落通用文案
+/// + 日志(对齐 HeroYiJiColumns 哲学,不静默吞)。
+enum HeroShiShenNotes {
+    static let zh: [String: String] = [
+        "比肩": "与日主同气之星,主独立与同伴。今日宜亲力亲为、守住边界;留意争执攀比,不必随众。",
+        "劫财": "主同辈分利与竞争。今日行动力旺,宜带头开拓、与人结伴;留意钱财被分走,忌借贷硬拼。",
+        "食神": "主生发与滋养。今日宜创作表达、与老友相聚;留意拖延与熬夜,莫因小事争辩。",
+        "伤官": "主才华外露。今日思路锋利,宜出新与直言;留意口快冲撞,守住分寸边界。",
+        "偏财": "主流动之财。今日财缘在外,宜拓展试新、适度让利;忌孤注一掷与贪多。",
+        "正财": "主本分之财。今日宜守成务实、记账理物;留意短视贪快,承诺之事勿弃。",
+        "七杀": "主克身之压力。今日重担在肩,宜果断攻坚、敢担事;留意树敌与硬扛,别耗尽自己。",
+        "偏官": "主克身之压力。今日重担在肩,宜果断攻坚、敢担事;留意树敌与硬扛,别耗尽自己。",
+        "正官": "主规矩与担当。今日宜守规复命、有始有终;留意退缩越级,重诺守时。",
+        "偏印": "主沉思与直觉。今日宜独处温故、静中得思;留意多虑执拗,莫闭门孤行。",
+        "正印": "主滋养与学识。今日宜学习纳言、休养生息;留意依赖空想,行胜于言。",
+    ]
+
+    /// 繁体(对齐 mappingHant 先例:台湾惯用 記帳;克身→剋身)。
+    static let hant: [String: String] = [
+        "比肩": "與日主同氣之星,主獨立與同伴。今日宜親力親為、守住邊界;留意爭執攀比,不必隨眾。",
+        "劫财": "主同輩分利與競爭。今日行動力旺,宜帶頭開拓、與人結伴;留意錢財被分走,忌借貸硬拼。",
+        "食神": "主生發與滋養。今日宜創作表達、與老友相聚;留意拖延與熬夜,莫因小事爭辯。",
+        "伤官": "主才華外露。今日思路鋒利,宜出新與直言;留意口快衝撞,守住分寸邊界。",
+        "偏财": "主流動之財。今日財緣在外,宜拓展試新、適度讓利;忌孤注一擲與貪多。",
+        "正财": "主本分之財。今日宜守成務實、記帳理物;留意短視貪快,承諾之事勿棄。",
+        "七杀": "主剋身之壓力。今日重擔在肩,宜果斷攻堅、敢擔事;留意樹敵與硬扛,別耗盡自己。",
+        "偏官": "主剋身之壓力。今日重擔在肩,宜果斷攻堅、敢擔事;留意樹敵與硬扛,別耗盡自己。",
+        "正官": "主規矩與擔當。今日宜守規復命、有始有終;留意退縮越級,重諾守時。",
+        "偏印": "主沉思與直覺。今日宜獨處溫故、靜中得思;留意多慮執拗,莫閉門孤行。",
+        "正印": "主滋養與學識。今日宜學習納言、休養生息;留意依賴空想,行勝於言。",
+    ]
+
+    /// EN(措辞呼应 mappingEn 词表:正面半句用宜短语同族表达,告诫半句用忌词)。
+    static let en: [String: String] = [
+        "比肩": "The peer star — independence and equals. Do it yourself and hold your line today; don't argue, compare, or follow the crowd.",
+        "劫财": "The star of shared stakes. Strong drive today — take the lead and team up; watch your money, and skip the lending.",
+        "食神": "The star of easy creation. Make something, speak your mind, see a friend; just don't put it off or stay up late.",
+        "伤官": "The star of sharp talent. Show your work and say it plain; mind the quick tongue, and mind the lines you cross.",
+        "偏财": "The star of flowing wealth. Explore, try new things, give a little; don't bet it all or grab too much.",
+        "正财": "The star of steady wealth. Keep steady and track your money; no cutting corners, no broken word.",
+        "七杀": "The star of pressure. A heavy day — make the call and take it on; don't make enemies, don't burn yourself out.",
+        "偏官": "The star of pressure. A heavy day — make the call and take it on; don't make enemies, don't burn yourself out.",
+        "正官": "The star of order and duty. Own your part and play it straight; don't shrink back or miss deadlines.",
+        "偏印": "The star of quiet thought. Sit with it and review old notes; don't overthink, don't go it alone.",
+        "正印": "The star of nourishment. Learn something, take advice, rest up; just don't lean too hard on anyone.",
+    ]
+
+    static func table(for language: AppLanguage) -> [String: String] {
+        switch language {
+        case .zh:     return zh
+        case .zhHant: return hant
+        case .en:     return en
+        }
+    }
+
+    /// 释义查询:查不到显式回落通用文案 + 日志(不静默吞)。
+    static func note(for relation: String, language: AppLanguage = AppLanguage.current) -> String {
+        if let text = table(for: language)[relation] {
+            return text
+        }
+        AppLogger.app.warning(
+            "op=heroShiShenNote.lookupMiss relation=\(relation, privacy: .public) -> fallback"
+        )
+        switch language {
+        case .zh:     return "平稳之日,顺时而为,不强行事。"
+        case .zhHant: return "平穩之日,順時而為,不強行事。"
+        case .en:     return "A calm, even day — move with it rather than against it."
+        }
+    }
+}
+
+// MARK: - 十神释义小卡(D3)
+
+/// hero 十神 chip 点开的释义卡:术语标题(楷体 display)+ 一句静态释义
+/// (楷体 body)。EN 标题附汉字括注(对齐 shenshaChipText「意译 (漢字)」
+/// 先例,chip 上放不下,sheet 里补足);detents 250 起步可拉大(AX 大字号
+/// 下正文可完整展开)。presentationBackground 纸色由调用侧注入。
+struct HeroShiShenNoteSheet: View {
+    let relation: String
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(verbatim: titleText)
+                .font(BaziFont.display(size: 21, weight: .medium))
+                .foregroundStyle(BaziTheme.ink)
+            Text(verbatim: HeroShiShenNotes.note(for: relation))
+                .font(BaziFont.body(size: 15))
+                .foregroundStyle(BaziTheme.inkMuted)
+                .lineSpacing(6)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 26)
+        .padding(.top, 28)
+        .padding(.bottom, 20)
+    }
+
+    private var titleText: String {
+        if AppLanguage.current == .en, let entry = BaziTerms.index[relation] {
+            return "\(entry.en) (\(entry.zhHant))"
+        }
+        return DailyImageHeroSection.displayRelation(relation)
     }
 }
 

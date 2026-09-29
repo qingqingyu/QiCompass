@@ -102,4 +102,64 @@ final class DailyImageHeroCopyTests: XCTestCase {
         )
         XCTAssertEqual(label, expectEn("Horse"), "空 targets 不加括号后缀")
     }
+
+    // MARK: - 十神释义静态表(D3,2026-09-29)
+
+    /// 键集合 == BaziTerms.tenGods 的 zh 键(11,含偏官别名)——三语表同守。
+    func testShiShenNotesKeySetMatchesBaziTermsTenGods() {
+        let expected = Set(BaziTerms.tenGods.map(\.zh))
+        for (name, table) in [("zh", HeroShiShenNotes.zh),
+                              ("hant", HeroShiShenNotes.hant),
+                              ("en", HeroShiShenNotes.en)] {
+            XCTAssertEqual(
+                Set(table.keys), expected,
+                "[\(name)] 释义表键集合 ≠ BaziTerms.tenGods(新增十神须同步释义)"
+            )
+        }
+    }
+
+    /// 文案预算:zh/hant ≤50 字、en ≤150 chars(释义卡 250pt detent 内 ~3 行);
+    /// 同时守护空值/过短(漏写半句)。
+    func testShiShenNotesLengthBudgetAndNonEmpty() {
+        for table in [HeroShiShenNotes.zh, HeroShiShenNotes.hant] {
+            XCTAssertTrue(table.values.allSatisfy { (8...50).contains($0.count) }, "zh/hant 释义应在 8-50 字:\(table)")
+        }
+        XCTAssertTrue(
+            HeroShiShenNotes.en.values.allSatisfy { (20...150).contains($0.count) },
+            "en 释义应在 20-150 chars"
+        )
+    }
+
+    /// 偏官 = 七杀 同义(BaziTerms 同用 Seven Killings),释义必须同文。
+    func testShiShenNotesPianGuanAliasesQiSha() {
+        XCTAssertEqual(HeroShiShenNotes.zh["偏官"], HeroShiShenNotes.zh["七杀"])
+        XCTAssertEqual(HeroShiShenNotes.hant["偏官"], HeroShiShenNotes.hant["七杀"])
+        XCTAssertEqual(HeroShiShenNotes.en["偏官"], HeroShiShenNotes.en["七杀"])
+    }
+
+    /// S01 守护同款,升格到三语:宜词不得出现在释义**告诫半句**(分号后)。
+    /// S01 时 EN 模板不可子串比对;本表为自有长句,EN 词表短语可精确比对。
+    func testShiShenNotesYiWordsNotInCautionHalf() {
+        let pairs: [([String: String], [String: (yi: [String], ji: [String])], String)] = [
+            (HeroShiShenNotes.zh, HeroYiJiColumns.mappingZh, "zh"),
+            (HeroShiShenNotes.hant, HeroYiJiColumns.mappingHant, "hant"),
+            (HeroShiShenNotes.en, HeroYiJiColumns.mappingEn, "en"),
+        ]
+        for (notes, mapping, lang) in pairs {
+            for (relation, cols) in mapping {
+                guard let text = notes[relation],
+                      let semi = text.firstIndex(where: { $0 == ";" || $0 == "；" })
+                else {
+                    XCTFail("[\(lang)] \(relation) 释义缺失或无分号(宜/告诫两半结构)")
+                    continue
+                }
+                let caution = text[semi...]
+                let hits = cols.yi.filter { caution.contains($0) }
+                XCTAssertTrue(
+                    hits.isEmpty,
+                    "[\(lang)] \(relation) 宜词出现在释义告诫半句:\(hits)"
+                )
+            }
+        }
+    }
 }

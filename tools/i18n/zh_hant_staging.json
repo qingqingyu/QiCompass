@@ -134,6 +134,7 @@
     "dailyfortune.main.degradedHint": "這份運勢只用了你的日柱。補上時辰可以看到時辰運勢與喜忌。",
     "dailyfortune.main.degradedHintSilent": "此運勢基於你的日柱呈現。",
     "dailyfortune.main.offline": "離線查看(展示本地緩存,不扣次數)",
+    "dailyfortune.shiShenNoteAction": "今日十神釋義",
     "deepchain.banner.leaveHint": "可先離開,章成自動點亮",
     "deepchain.banner.progress": "命書推演中 · 已成 %1$lld/%2$lld 章 · 約需 %3$lld 分鐘",
     "deepchain.reading.generating": "正在生成本章 · 約半分鐘 · 失敗不消耗次數",
