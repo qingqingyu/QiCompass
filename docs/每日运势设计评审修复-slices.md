@@ -223,8 +223,15 @@ func testYiItemsNotContradictedByEngineTemplateCaution() {
 - 三处同步:backend `term_translations.py` `TEN_GODS_EN` / iOS `BaziTerms.tenGods` /
   backend `tests/test_i18n.py` 期望值;各留拍板注释(Joey Yap 体系的显式例外)。
 - 守卫全过:`tools/check_term_sync.py` PASS(141 条 12 表);backend
-  `test_i18n` 68 passed。en prompt context 用语随之温和化,不影响缓存键
-  (contentHash 不含译名)。
+  `test_i18n` 68 passed。新生成的 en 解读 prompt context 随之用「Wealth Rival」。
+- **已知影响(2026-09-29 拍板接受,方案 A)**:AI 解读缓存键
+  `(content_hash, module, prompt_version, language)` 不含术语译名,本次**未 bump
+  `PROMPT_VERSIONS`**,因此改名前生成的 en 缓存解读(后端 SQLite + 客户端
+  `InterpretationCache`)继续命中,正文仍写「Rob Wealth」,与 UI chip「Wealth Rival」
+  不一致。每日运势 24h 缓存自然过期即恢复一致;**深度解析章节为长期缓存,旧叫法会
+  一直保留**。不 bump 的理由:`PROMPT_VERSIONS` 不分语言,bump 会连带作废全部 zh
+  缓存并让已付费章节重新生成,代价远大于一个术语的新旧并存。后续若因其他原因 bump
+  相关模块版本,旧叫法随之自然消失。
 - **约束解除说明**:S01-S06 的「只动 iOS 前端」「不改 BaziTerms.swift」按 D5
   拍板解除——术语单一事实源在 backend,换名必然跨端。
 
