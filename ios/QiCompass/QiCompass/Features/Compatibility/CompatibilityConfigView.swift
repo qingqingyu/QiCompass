@@ -321,7 +321,8 @@ struct CompatibilityConfigCTAModel: Equatable {
 
 /// `.add` = 添加(空表单起步,加入名单)/ `.edit(RosterEntry)` = 修改(回填该 entry)。
 /// Identifiable 供 `.sheet(item:)`;edit 的 id 含 entry id,同一人重复进入不闪断。
-private enum PersonSheetMode: Identifiable {
+/// (2026-09-29 S1 起换人 sheet 复用,去 private;S2 抽 PartnerBirthForm 时随表单迁移)
+enum PersonSheetMode: Identifiable {
     case add
     case edit(RosterEntry)
 
@@ -341,7 +342,8 @@ private enum PersonSheetMode: Identifiable {
 /// - 修改(`editing` 非 nil,2026-09-05):表单由父层 `beginEditTempEntry` 回填;
 ///   保存 → `updateTempEntry` 原位替换(勾选随迁),关闭(草稿还原由父层 onDismiss)
 /// - 失败 → 留在 sheet 显人话错误;下滑手势即收(系统 sheet 能力)
-private struct AddPersonSheet: View {
+/// (2026-09-29 S1 起换人 sheet 复用,去 private;S2 抽 PartnerBirthForm 时迁移)
+struct AddPersonSheet: View {
     @Bindable var vm: CompatibilityViewModel
     /// 修改目标(nil = 添加模式;var + 默认值供 memberwise init 注入)。
     var editing: RosterEntry? = nil

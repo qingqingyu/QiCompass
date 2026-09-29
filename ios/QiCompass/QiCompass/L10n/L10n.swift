@@ -878,6 +878,47 @@ enum L10n {
         static let selfBanner = String(localized: "compatibility.roster.hourUnknown.selfBanner")
     }
 
+    // MARK: - 合盘结果壳人物牌(P1-P3,2026-09-29 结果页主页化)
+
+    /// 结果壳头部人物牌(PartnerHeader)+ 换人 sheet(PartnerPickerSheet)文案。
+    enum CompatibilityPartner {
+        /// 左「我」牌标题(命主侧恒定称呼,不带 alias)。
+        /// zh: "我";en: "Me"
+        static let selfLabel = String(localized: "hepan.partner.selfLabel")
+
+        /// 人物牌副行(日主 + 生日)。%@1 = 日主天干,%@2 = 生日 yyyy-MM-dd。
+        /// zh: "日主 %@ · %@";en: "Day master %@ · %@"
+        static func subline(_ dayMaster: String, _ date: String) -> String {
+            String(format: String(localized: "hepan.partner.subline"), dayMaster, date)
+        }
+
+        /// 对方牌 a11y(点按语义 = 打开换人 sheet)。
+        /// zh: "切换对方,当前 %@";en: "Switch partner, current %@"
+        static func switchA11y(_ name: String) -> String {
+            String(format: String(localized: "hepan.partner.switchA11y"), name)
+        }
+
+        /// 无对方占位(名单空):dashed 框文案。
+        /// zh: "＋ 添加对方";en: "＋ Add partner"
+        static let addPartner = String(localized: "hepan.partner.addPartner")
+
+        /// 无对方占位(名单非空)/ 换人 sheet 标题。
+        /// zh: "选择对方";en: "Choose a partner"
+        static let choosePartner = String(localized: "hepan.partner.choosePartner")
+
+        /// 「我」牌右侧补时辰入口(命主无时辰,S07 语义)。
+        /// zh: "补时辰";en: "Add hour"
+        static let addSelfHour = String(localized: "hepan.partner.addSelfHour")
+
+        /// 换人 sheet 右上「完成」(关闭入口)。
+        /// zh: "完成";en: "Done"
+        static let done = String(localized: "hepan.partner.done")
+
+        /// 结果壳内联推演态竖排短语(复用三墨点 breathe 语言,单选无 i/N)。
+        /// zh: "推演合盘";en: "Reading the match"
+        static let castingTitle = String(localized: "hepan.partner.castingTitle")
+    }
+
     // MARK: - 补时辰 sheet(S10,D7 补时辰升级闭环)
 
     /// 补时辰单一入口组件文案(AddHourSheet;四触点共用,编辑场景隔离只补时辰)。
