@@ -5820,23 +5820,6 @@
         }
       }
     },
-    "dailyfortune.navTitle" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Daily Fortune"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "每日运势"
-          }
-        }
-      }
-    },
   "deepanalysis.aux.mingGong" : {
     "extractionState" : "manual",
     "localizations" : {

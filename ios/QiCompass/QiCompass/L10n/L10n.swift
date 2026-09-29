@@ -354,10 +354,6 @@ enum L10n {
     /// 每日运势模块。
     enum DailyFortune {
 
-        /// 页面 nav 标题(2026-09-24 i18n 硬编码收编:原 DailyFortuneView 字面量)。
-        /// zh: "每日运势";en: "Daily Fortune"
-        static let navTitle = String(localized: "dailyfortune.navTitle")
-
         // -- Header --
 
         /// "农历" 前缀(用于 "农历 七月初十" 这种拼接)。
