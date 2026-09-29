@@ -1,83 +1,13 @@
 import SwiftUI
 
-/// 合盘结果列表(决策 D9 列表卡片 / D11 纯展示 / S03 对级错误隔离)。
-///
-/// S01:每张卡片呈现 PairSummary 字段。
-/// S02:卡片点击进 detail(成功态)。
-/// S03:失败卡片失败态 + 重试按钮 + 不可进详情(对级错误隔离)。
-struct CompatibilityPairListView: View {
-    @Bindable var vm: CompatibilityViewModel
-    let summaries: [PairSummary]
-    let onBackToConfig: () -> Void
-    /// S02:点卡片进详情(仅成功态卡片调用)。
-    let onOpenSummary: (PairSummary) -> Void
-    /// S10:拦截卡 CTA → 打开该侧(自己/他人盘)的补时辰 sheet,参数 = 目标盘
-    /// content_hash(路由判据 `vm.addHourTargetHash(forBlockedPair:)`)。
-    let onAddHour: (String) -> Void
-
-    var body: some View {
-        ScrollView {
-            VStack(spacing: BaziTheme.Spacing.md) {
-                ForEach(summaries) { summary in
-                    if summary.isComputed {
-                        // 成功态:点卡片进详情
-                        Button {
-                            onOpenSummary(summary)
-                        } label: {
-                            PairSummaryCard(
-                                summary: summary,
-                                isRetrying: false,
-                                onRetry: {}
-                            )
-                        }
-                        .buttonStyle(.plain)
-                    } else if summary.isHourUnknownBlocked {
-                        // S07 时辰未知拦截态:不进详情(无合盘快照),无重试
-                        // (重试解决不了缺时辰)。S10:CTA → 补时辰 sheet(目标按
-                        // 拦截侧路由;临时对方无 hash → CTA 不渲染)。
-                        PairSummaryCard(
-                            summary: summary,
-                            isRetrying: false,
-                            onRetry: {},
-                            onAddHour: vm.addHourTargetHash(forBlockedPair: summary)
-                                .map { hash in { onAddHour(hash) } }
-                        )
-                    } else {
-                        // 失败态(S03):不进详情,显示重试按钮
-                        PairSummaryCard(
-                            summary: summary,
-                            isRetrying: vm.retryingIds.contains(summary.id),
-                            onRetry: { vm.retryPair(summary: summary) }
-                        )
-                    }
-                }
-            }
-            .padding(.horizontal)
-            .padding(.top, BaziTheme.Spacing.md)
-            .padding(.bottom, 100)  // 给底部 CTA 留位
-        }
-        .safeAreaInset(edge: .bottom) {
-            Button(action: onBackToConfig) {
-                HStack {
-                    Image(systemName: "square.and.pencil")
-                    Text("编辑名单")
-                        .font(.body.weight(.semibold))
-                }
-                .foregroundStyle(BaziTheme.ink)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 12)
-                .background(BaziTheme.paper.opacity(0.95))
-            }
-        }
-    }
-}
-
-/// 单对卡片(水墨孤本 H2,2026-08-26 重排,参考 hepan-h2-list.html)。
+/// 单对卡片(水墨孤本 H2,2026-08-26 重排,参考 hepan-h2-list.html;2026-09-29 S5
+/// 自 CompatibilityPairListView.swift 迁出——整页列表视图已随结果页主页化退役,
+/// 卡片由结果壳 list 态内容区复用)。
 ///
 /// hairline 描边对卡(无底色)+ 「合」小印 + 定性一行 + 底部 dashed 分隔的状态行;
 /// 失败态 dashed destructive 框 + 单对重试(对级错误隔离不变)。
 ///
-/// S03:`summary.status` 决定卡片态:
+/// `summary.status` 决定卡片态:
 /// - .computed → 正常展示(alias / 出生日期 / 日主 / 两句话 / 已解读标记)
 /// - .failed(error) → 失败摘要 + 重试按钮,不展示 birthDate/五行/日主关系
 /// - .hourUnknownBlocked → S07 拦截态 + S10 CTA(目标盘补时辰 sheet)

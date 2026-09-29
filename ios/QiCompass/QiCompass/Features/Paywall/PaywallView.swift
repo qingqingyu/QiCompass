@@ -379,7 +379,7 @@ private struct BreathingDot: View {
 /// 四处复用,文案由调用方按场景传入(`L10n.PaywallGate`):
 /// - `PaywallView` 拦截态(无时辰·日柱确定 → 付费墙位置)
 /// - `DeepAnalysisView` 日柱歧义整拦页(免费 2 章亦拦,不进内容页)
-/// - `CompatibilityPairListView` 对级拦截卡(任一方无时辰 → 整对拦,免费亦拦)
+/// - `PairSummaryCard` 对级拦截卡(任一方无时辰 → 整对拦,免费亦拦)
 /// - `DailyFortuneView` 日柱歧义整拦页(S09)
 ///
 /// S10:`onAddHour` 接线补时辰 sheet(D7);`silenced` = 「我确实不知道」静默态,

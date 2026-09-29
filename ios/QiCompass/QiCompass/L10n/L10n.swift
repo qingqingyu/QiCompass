@@ -560,6 +560,36 @@ enum L10n {
         /// zh: "时柱";en: "Hour Pillar"
         static let dualHourPillar = String(localized: "hepan.dual.hourPillar")
 
+        // -- 日主方向中轴(S4,2026-09-29;DayMasterRelationPhrase 派生)--
+
+        /// 中轴相生短语(生成方在前,方向客户端查表派生)。
+        /// %1$@%2$@ = 生成方日干+五行,%3$@%4$@ = 受生方,%5$@ = 后端关系标签。
+        /// zh: "日主 %1$@%2$@生%3$@%4$@ · %5$@"
+        /// en: "Day master %1$@ %2$@ generates %3$@ %4$@ · %5$@"
+        static func dualAxisGenerate(
+            _ g1: String, _ e1: String, _ g2: String, _ e2: String, _ label: String
+        ) -> String {
+            String(format: String(localized: "hepan.dual.axisGenerate"), g1, e1, g2, e2, label)
+        }
+
+        /// 中轴相克短语(克方在前)。
+        /// zh: "日主 %1$@%2$@克%3$@%4$@ · %5$@"
+        /// en: "Day master %1$@ %2$@ controls %3$@ %4$@ · %5$@"
+        static func dualAxisOvercome(
+            _ g1: String, _ e1: String, _ g2: String, _ e2: String, _ label: String
+        ) -> String {
+            String(format: String(localized: "hepan.dual.axisOvercome"), g1, e1, g2, e2, label)
+        }
+
+        /// 中轴同气短语(无后缀标签——与「同气」重复)。
+        /// zh: "日主 %1$@%2$@ 与 %3$@%4$@ 同气"
+        /// en: "Day masters %1$@ %2$@ and %3$@ %4$@ share one element"
+        static func dualAxisSameQi(
+            _ g1: String, _ e1: String, _ g2: String, _ e2: String
+        ) -> String {
+            String(format: String(localized: "hepan.dual.axisSameQi"), g1, e1, g2, e2)
+        }
+
         // -- 流年同步 --
 
         /// 区块 kicker。
@@ -872,10 +902,160 @@ enum L10n {
         /// zh: "这位命盘缺出生时辰,补上后即可合盘";en: "This chart is missing its birth hour — add it to unlock pairing"
         static let hint = String(localized: "compatibility.roster.hourUnknown.hint")
 
-        /// 自己无时辰:名单整体标记解释行(全部对不可用 +「开始合盘」不可发起)。
+        /// 自己无时辰:名单整体标记解释行(全部对不可用,表单/行置灰)。
         /// zh: "你的命盘缺出生时辰,所有对暂不可合盘;补上时刻即可恢复"
         /// en: "Your chart is missing its birth hour — all pairs are on hold until it's added"
         static let selfBanner = String(localized: "compatibility.roster.hourUnknown.selfBanner")
+    }
+
+    // MARK: - 合盘结果壳人物牌(P1-P3,2026-09-29 结果页主页化)
+
+    /// 结果壳头部人物牌(PartnerHeader)+ 换人 sheet(PartnerPickerSheet)文案。
+    enum CompatibilityPartner {
+        /// 左「我」牌标题(命主侧恒定称呼,不带 alias)。
+        /// zh: "我";en: "Me"
+        static let selfLabel = String(localized: "hepan.partner.selfLabel")
+
+        /// 人物牌副行(日主 + 生日)。%@1 = 日主天干,%@2 = 生日 yyyy-MM-dd。
+        /// zh: "日主 %@ · %@";en: "Day master %@ · %@"
+        static func subline(_ dayMaster: String, _ date: String) -> String {
+            String(format: String(localized: "hepan.partner.subline"), dayMaster, date)
+        }
+
+        /// 对方牌 a11y(点按语义 = 打开换人 sheet)。
+        /// zh: "切换对方,当前 %@";en: "Switch partner, current %@"
+        static func switchA11y(_ name: String) -> String {
+            String(format: String(localized: "hepan.partner.switchA11y"), name)
+        }
+
+        /// 无对方占位(名单空):dashed 框文案。
+        /// zh: "＋ 添加对方";en: "＋ Add partner"
+        static let addPartner = String(localized: "hepan.partner.addPartner")
+
+        /// 无对方占位(名单非空)/ 换人 sheet 标题。
+        /// zh: "选择对方";en: "Choose a partner"
+        static let choosePartner = String(localized: "hepan.partner.choosePartner")
+
+        /// 「我」牌右侧补时辰入口(命主无时辰,S07 语义)。
+        /// zh: "补时辰";en: "Add hour"
+        static let addSelfHour = String(localized: "hepan.partner.addSelfHour")
+
+        /// 换人 sheet 右上「完成」(关闭入口)。
+        /// zh: "完成";en: "Done"
+        static let done = String(localized: "hepan.partner.done")
+
+        /// 结果壳内联推演态竖排短语(复用三墨点 breathe 语言,单选无 i/N)。
+        /// zh: "推演合盘";en: "Reading the match"
+        static let castingTitle = String(localized: "hepan.partner.castingTitle")
+
+        /// 换人 sheet 标题栏「管理」按钮(管理模式入口,ink 色文字按钮)。
+        /// zh: "管理";en: "Manage"
+        static let manage = String(localized: "hepan.partner.manage")
+
+        /// 满员时添加行副注。%lld = rosterMax(8)。
+        /// zh: "名单已满 %lld 人,先移出一位";en: "Roster is full (%lld people) — remove someone first"
+        static func rosterFullHint(_ count: Int) -> String {
+            String(format: String(localized: "hepan.partner.rosterFullHint"), count)
+        }
+
+        /// 管理模式行尾「修改」(仅临时人)。
+        /// zh: "修改";en: "Edit"
+        static let rowEdit = String(localized: "hepan.partner.rowEdit")
+
+        /// 管理模式行尾「移出」。
+        /// zh: "移出";en: "Remove"
+        static let rowRemove = String(localized: "hepan.partner.rowRemove")
+
+        /// 行 a11y hint(已勾选 = 当前对方)。
+        /// zh: "当前对方";en: "Current partner"
+        static let rowSelectedHint = String(localized: "hepan.partner.rowSelectedHint")
+
+        /// 行 a11y hint(未勾选,点按切换为当前对方)。
+        /// zh: "点按切换为当前对方";en: "Tap to make this your current partner"
+        static let rowSwitchHint = String(localized: "hepan.partner.rowSwitchHint")
+
+        /// 管理模式「修改」按钮 a11y。%@ = 对方称呼。
+        /// zh: "修改「%@」";en: "Edit %@"
+        static func rowEditA11y(_ name: String) -> String {
+            String(format: String(localized: "hepan.partner.rowEditA11y"), name)
+        }
+
+        /// 管理模式「移出」按钮 a11y。%@ = 对方称呼。
+        /// zh: "移出「%@」";en: "Remove %@"
+        static func rowRemoveA11y(_ name: String) -> String {
+            String(format: String(localized: "hepan.partner.rowRemoveA11y"), name)
+        }
+
+        /// 移出确认弹窗标题。
+        /// zh: "移出名单?";en: "Remove from roster?"
+        static let removeConfirmTitle = String(localized: "hepan.partner.removeConfirm.title")
+
+        /// 移出确认弹窗主按钮。
+        /// zh: "移出名单";en: "Remove"
+        static let removeConfirmAction = String(localized: "hepan.partner.removeConfirm.action")
+
+        /// 移出确认弹窗说明。%@ = 对方称呼。
+        /// zh: "「%@」移出后,重新加入需再填一次出生信息。"
+        /// en: "Once you remove %@, adding them back means re-entering their birth details."
+        static func removeConfirmMessage(_ name: String) -> String {
+            String(format: String(localized: "hepan.partner.removeConfirm.message"), name)
+        }
+
+        // -- 添加/修改表单(PartnerBirthForm;字段标签复用 L10n.BirthForm)--
+
+        /// 表单「称呼」字段标签。
+        /// zh: "称呼";en: "Name"
+        static let formAliasLabel = String(localized: "hepan.partner.form.aliasLabel")
+
+        /// 「称呼」占位(可选字段)。
+        /// zh: "可选,如「相亲对象甲」";en: "Optional, e.g. \"Date A\""
+        static let formAliasPlaceholder = String(localized: "hepan.partner.form.aliasPlaceholder")
+
+        /// 表单页标题(添加模式)。
+        /// zh: "添加对方";en: "Add partner"
+        static let formTitleAdd = String(localized: "hepan.partner.form.titleAdd")
+
+        /// 表单页标题(修改模式)。
+        /// zh: "修改对方";en: "Edit partner"
+        static let formTitleEdit = String(localized: "hepan.partner.form.titleEdit")
+
+        /// 提交 CTA(添加)。
+        /// zh: "加入名单";en: "Add to roster"
+        static let formCtaAdd = String(localized: "hepan.partner.form.ctaAdd")
+
+        /// 提交 CTA(修改)。
+        /// zh: "保存修改";en: "Save changes"
+        static let formCtaEdit = String(localized: "hepan.partner.form.ctaEdit")
+
+        /// 表单脚注(添加;P4 加入即合盘语义)。
+        /// zh: "提交即加入名单并开始合盘 · 返回不保存"
+        /// en: "Submitting adds them and starts the match — going back discards"
+        static let formFootnoteAdd = String(localized: "hepan.partner.form.footnoteAdd")
+
+        /// 表单脚注(修改)。
+        /// zh: "若为当前对方,保存后将自动重新合盘"
+        /// en: "If they're your current partner, saving recalculates the match"
+        static let formFootnoteEdit = String(localized: "hepan.partner.form.footnoteEdit")
+
+        /// 添加失败兜底文案(意外错误,校验/重复错误走 UserFacingError 原文案)。
+        /// zh: "添加失败,请重试";en: "Couldn't add — please retry"
+        static let formErrorAdd = String(localized: "hepan.partner.form.errorAdd")
+
+        /// 保存失败兜底文案。
+        /// zh: "保存失败,请重试";en: "Couldn't save — please retry"
+        static let formErrorEdit = String(localized: "hepan.partner.form.errorEdit")
+
+        // -- 首次进入 / 无已选态(P5/P6,S3)--
+
+        /// P5 名单空时的留白说明(内联表单上方)。
+        /// zh: "不建档案,填出生信息即可。填完即看合盘,以后点右上人物牌换人。"
+        /// en: "No profile needed — just birth details. The reading starts right after; tap the card above to switch partners later."
+        static let p5Intro = String(localized: "hepan.partner.p5.intro")
+
+        /// P6 名单非空但无已选的一行说明。
+        /// zh: "点右上「选择对方」,挑一位开始合盘"
+        /// en: "Tap \"Choose a partner\" at the top right to pick someone"
+        static let p6Hint = String(localized: "hepan.partner.p6.hint")
     }
 
     // MARK: - 补时辰 sheet(S10,D7 补时辰升级闭环)

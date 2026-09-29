@@ -101,15 +101,16 @@
 #### US-COMP-01:选两个命盘合盘
 **作为**关系咨询者,**我想**选自己和对方的命盘合盘,**以便**看两人的契合度。
 
-**验收标准:**
-- A 盘从本地存档选(`ChartArchivePickerView` 单选)
-- B 盘两种模式:
-  - `.archived`:从存档选
-  - `.tempInput`:临时输入(不存档,适合临时排对方盘)
-- context 三选一:通用 / 婚姻 / 事业(segmented)
+**验收标准(2026-09-29 结果页主页化修订):**
+- 主页 = 结果页:合盘 tab 有命主盘时恒显示**结果壳**(顶部人物牌头「我 · 合印 · 对方」+ 下方内容区),全部状态原地呈现不跳页
+- A 盘 = 命主(存档池恒命主一盘,不可切)
+- 换人 2 步不离页:点头部对方牌 → `PartnerPickerSheet` 点另一位 → 关 sheet 原地推演出新结果
+- B 盘两种来源:存档池行 / 临时输入(sheet 内「＋添加对方」push 表单;**提交 = 加入 + 选中 + 合盘**)
+- 首次进入(名单空):页面直接给内联添加表单,提交即出结果;**无「开始合盘」按钮与空名单页**
+- context 固定 "general"(2026-08-16 起,维度 picker 已移除)
 - 子时规则固定 `zi_next_day`,只读提示
-- 配置态可"返回修改"切回
-- 底部 CTA "开始合盘" cinnabar + RoundedRectangle(Radius.sm)
+- 换人动效:头部「合」印重盖(stamp)+ 内容 ink-in;reduce-motion 全直出
+- 名单管理:sheet「管理」模式(修改临时人 / 移出;移出当前对方进无已选态,不发请求);满员 8 添加置灰
 
 #### US-COMP-02:看 4 维定性评估
 **作为**关系咨询者,**我想**看 4 维定性评估,**以便**从多个角度理解关系。
@@ -316,41 +317,36 @@ AI 解读生成(fetching → ok)
 ```
 打开 app
   ↓ 切到 Tab 2(合盘)
-Tab 2 合盘
-  ↓ VM.onAppear 加载命盘存档
-状态机:
+Tab 2 合盘(结果页主页化,2026-09-29)
+  ↓ VM.task 加载命盘存档 + 跨启动恢复「上次那位」detail(零 API)
+状态机(全部渲染在结果壳内:人物牌头 + 内容区,不跳页):
   - .loading → LoadingStateView
   - .empty(0 存档)→ CompatibilityEmptyView(CTA "去深度解析")
-  - .configuring → CompatibilityConfigView
-  - .computing → LoadingStateView("推演合盘中…")
-  - .resultReady → CompatibilityMainView
+  - .configuring → 名单空 = 内联添加表单(提交即合盘)/ 非空无已选 = 提示行
+  - .computing → 内容区原地推演态(三墨点 breathe,单选无 i/N)
+  - .list → 内容区单卡(单对失败重试 / 时辰拦截补时辰 CTA)
+  - .detail → CompatibilityMainView
   - .failed → ErrorStateView
 
-CompatibilityConfigView(ScrollView + 底部 CTA)
-  ├─ A 盘选择(ChartArchivePickerView,checkmark cinnabar)
-  ├─ B 盘模式切换(segmented)
-  │   ├─ .archived → ChartArchivePickerView
-  │   └── .tempInput → 临时输入表单(DatePicker / 性别 / 经度 / 城市)
-  └─ 底部 CTA "开始合盘"(cinnabar + RoundedRectangle Radius.sm)
-  ↓ 点 CTA
-.computing → .resultReady
-  ↓
-CompatibilityMainView(ScrollView)
-  ├─ DualPillarsTable(双盘对比,4 柱,A 上 B 下,干支 Kaiti SC + 五行色)
+换人(2 步不离页):
+  点头部对方牌 → PartnerPickerSheet 点另一位 → 关 sheet 原地推演 → 结果
+  (sheet 内「＋添加对方」push 表单,提交 = 加入+选中+合盘;
+   「管理」= 修改临时人 / 移出;满员 8 置灰)
+
+CompatibilityMainView(ScrollView,ink-in 入场)
+  ├─ DualPillarsTable(双盘对比,日柱 hairline 强调,中轴「甲木生丁火 · 相生」方向派生)
   ├─ AssessmentCardGrid(4 维定性,2x2,评估值 ink semibold)
   ├─ SyncedFortuneTable(3 年流年同步,走强 jade / 承压 红)
   └─ CompatibilityInterpretationSection(AI 解读,idle 态 CTA)
   ↓ 点 "生成合盘解读" CTA
 AI 解读生成(400-500 字)
-  ↓
-顶部 "返回修改" toolbar button(cinnabar)→ 切回 .configuring
 ```
 
 **断点风险:**
-- A 盘未选 / B 盘未配置 → CTA 应禁用(待确认是否实现)
-- 合盘计算失败 → `.failed` 显示 ErrorStateView + 重试
+- 命主无时辰 → 表单/名单全锁(S07),头部「补时辰」是唯一解锁路径
+- 合盘计算失败 → 单对失败卡 + 「重试这一对」(对级隔离,不拖垮整体)
 - 双盘数据读取失败 → 显示 "双盘数据读取失败"(暗朱砂),不阻断其他 section
-- AI 解读独立 error → 不污染整体 `.resultReady`,可单独重试
+- AI 解读独立 error → 不污染 detail,可单独重试
 
 ---
 
@@ -365,7 +361,7 @@ AI 解读生成(400-500 字)
 - [ ] US-DA-05:辅柱三小卡 + Kaiti SC
 - [ ] US-DA-06:五行平衡条 + 降饱和色
 - [ ] US-DA-07:神煞 20 个固定 + 吉凶分色
-- [ ] US-COMP-01:A/B 盘选 + B 模式切换 + context 三选
+- [ ] US-COMP-01:结果壳人物牌换人 + sheet 添加即合盘(2026-09-29 主页化)
 - [ ] US-COMP-02:4 维定性 + 不给分
 - [ ] US-COMP-03:3 年流年同步 + 颜色编码
 - [ ] US-COMP-04:合盘 AI 解读 400-500 字 + 独立 error

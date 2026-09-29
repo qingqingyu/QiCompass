@@ -366,8 +366,8 @@ struct PaidTag: View {
 ///
 /// 用于 live WYSIWYG 绑定的 wheel sheet(拨动即写回):「确定」只负责收起,
 /// 不承担二次提交;下滑手势同样保留已选值。标题由调用方传入——生辰表单
-/// (BirthFormView)传 L10n key,合盘 AddPersonSheet 按自身「硬编码 zh」约定
-/// 传字面量;「确定」文案走 L10n 单一事实源(与生辰表单共用)。
+/// (BirthFormView)传 L10n key,合盘 PartnerBirthForm 表单键亦走 L10n
+/// (2026-09-29 S2 收编);「确定」文案走 L10n 单一事实源(与生辰表单共用)。
 /// 确定按钮无 accessibilityLabel——label 已是同一 Text,SwiftUI 自动派生。
 struct WheelSheetHeader: View {
     let title: String
@@ -414,8 +414,8 @@ struct WheelSheetHeader: View {
 /// 性别双 chip(2026-09-19 从 BirthFormView.genderChip 抽取共享,去默认值改造:
 /// selection 是 String?,nil = 两 chip 均未选的合法初始态,必选拦截在表单校验层)。
 /// 未选 hairline 描边空底 + 弱墨字;选中浓墨实底 + 纸色字(原型 .gchip)。
-/// 不含外层字段标签——深度表单 Micro 标签竖排在上、合盘 AddPersonSheet 行式
-/// 标签,由调用方各自包裹。tag 值 "male"/"female" 是后端契约,不本地化。
+/// 不含外层字段标签——深度表单 Micro 标签竖排在上、合盘 PartnerBirthForm
+/// 行式标签,由调用方各自包裹。tag 值 "male"/"female" 是后端契约,不本地化。
 struct GenderChipRow: View {
     @Binding var selection: String?
 

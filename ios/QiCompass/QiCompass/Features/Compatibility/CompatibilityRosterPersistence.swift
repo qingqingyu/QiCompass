@@ -118,7 +118,7 @@ struct CompatibilityRosterPersistence {
     ///
     /// 他人盘补时辰 → content_hash 变 → 不 remap 的话名单仍指向老三柱盘
     /// (照旧「不可合盘」标记,人像从名单里消失);remap 后该人带着新盘留在名单,
-    /// 「对级关系自然重算」落到用户重新点「开始合盘」即得完整结果(新对走 S05
+    /// 「对级关系自然重算」落到用户重选该对方(selectPartner)即得完整结果(新对走 S05
     /// 增量预查未命中 → 正常发起)。自己盘同理(A hash 失效本可 fallback 最新 link,
     /// remap 让持久化状态与最新 link 直接一致)。
     ///

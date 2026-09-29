@@ -6,10 +6,12 @@ import SwiftData
 
 /// 合盘主状态机(单选改造 + S02 detail 态)。
 ///
-/// 七态(2026-09-07 单选直达:算成 → detail 主路径,list 退化为兜底):
+/// 七态(2026-09-07 单选直达:算成 → detail 主路径,list 退化为兜底;
+/// 2026-09-29 结果页主页化:.configuring 渲染为结果壳 P5/P6 态,配置页退役):
 /// - loading:命盘列表加载中
 /// - empty:0 存档,引导去深度解析
-/// - configuring:配置态(A 盘命主 + B 名单单选;2026-08-16 起 context 恒 "general")
+/// - configuring:结果壳内容区接管——名单空 = P5 内联添加表单,非空无已选 = P6
+///   提示行(2026-08-16 起 context 恒 "general")
 /// - computing(completed, total):确定性合盘进行中(决策 D3 串行;单选恒 1 对)
 /// - list:兜底结果列表(compute 失败/时辰拦截时承载单卡 + 重试/补时辰 CTA;
 ///   summaries 存 VM 字段)
@@ -291,6 +293,129 @@ final class CompatibilityViewModel {
         archivedCharts.contains(where: { $0.snapshotHash == hash })
     }
 
+    // MARK: - 结果壳头部派生(P1/P2,2026-09-29;头部与换人 sheet 勾选态共用)
+
+    /// 头部「我」侧展示(命主 A 盘派生;名称恒「我」不带 alias,日主/生日随盘)。
+    var currentSelfDisplay: PartnerDisplay {
+        let chart = archivedCharts[safe: selectedChartAIndex]
+        let dayMaster = chart?.dayMaster
+        return PartnerDisplay(
+            entryID: nil,
+            name: L10n.CompatibilityPartner.selfLabel,
+            dayMaster: dayMaster,
+            dayMasterElementKey: dayMaster.flatMap(ElementColors.ofGan),
+            birthDateString: chart.map { Self.displayDateFormatter.string(from: $0.birthDate) }
+        )
+    }
+
+    /// 头部当前对方(单一事实源;`selectedEntryIds` + roster 派生)。
+    /// 已有该对 summary(算成/失败/拦截卡)→ 用其展示值;否则按 roster entry
+    /// 派生——推演一开始头部立即切到新对方名(P3),不等结果落地。
+    var currentPartner: PartnerDisplay? {
+        guard let entry = selectedRosterEntries.first else { return nil }
+        if let summary = summaries.first(where: { $0.entry == entry }) {
+            return PartnerDisplay(
+                entryID: entry.id,
+                name: summary.displayName,
+                dayMaster: summary.dayMaster.isEmpty ? nil : summary.dayMaster,
+                dayMasterElementKey: summary.dayMaster.isEmpty ? nil : ElementColors.ofGan(summary.dayMaster),
+                birthDateString: summary.birthDate.map { Self.displayDateFormatter.string(from: $0) }
+            )
+        }
+        return partnerDisplay(for: entry)
+    }
+
+    /// 头部生日展示格式(设备时区,与名单行历史口径一致)。
+    private static let displayDateFormatter: DateFormatter = {
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = .current
+        return f
+    }()
+
+    /// 按 roster entry 派生对方展示值(无 summary 时)。
+    /// 存档行:优先 `archivedCharts`(池行);跨启动恢复行查 `chartStore`。
+    /// 临时人:alias / 兜底名 + **出生地钟面**日期前缀(设备时区换算会错一天);
+    /// resolvedHash 有值(算过)→ 读 B 快照补日主与生日。
+    /// store 查询/解码失败 → 显式记日志 + 最小展示(名字兜底、生日/日主留空)——
+    /// 展示层降级不掩盖错误,computePair 发起路径会再抛真错误(S03 对级隔离)。
+    /// (2026-09-29 S2 起 internal:换人 sheet 的 PartnerRow 复用同一派生,
+    /// 头部与行展示单一事实源。)
+    func partnerDisplay(for entry: RosterEntry) -> PartnerDisplay {
+        switch entry {
+        case .archived(let hash):
+            if let chart = archivedCharts.first(where: { $0.snapshotHash == hash }) {
+                return PartnerDisplay(
+                    entryID: entry.id,
+                    name: chart.alias,
+                    dayMaster: chart.dayMaster,
+                    dayMasterElementKey: ElementColors.ofGan(chart.dayMaster),
+                    birthDateString: Self.displayDateFormatter.string(from: chart.birthDate)
+                )
+            }
+            do {
+                guard let snapshot = try chartStore.get(contentHash: hash) else {
+                    throw CompatibilityViewModelError.archivedSnapshotMissing(hash: hash)
+                }
+                let bazi = try chartStore.decodeResponse(from: snapshot)
+                let dayMaster = bazi.pillars.day?.gan ?? "—"
+                let dateStr = Self.fallbackDateString(snapshot.birthSolarTime,
+                                                       timezoneName: snapshot.cityTimezone)
+                return PartnerDisplay(
+                    entryID: entry.id,
+                    name: String(format: String(localized: "对方 · %@"), dateStr),
+                    dayMaster: dayMaster,
+                    dayMasterElementKey: ElementColors.ofGan(dayMaster),
+                    birthDateString: dateStr
+                )
+            } catch {
+                AppLogger.persistence.error(
+                    "op=compatibility.partnerDisplay failed hash=\(hash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                )
+                return PartnerDisplay(
+                    entryID: entry.id,
+                    name: String(localized: "对方"),
+                    dayMaster: nil,
+                    dayMasterElementKey: nil,
+                    birthDateString: nil
+                )
+            }
+        case .temp(let input, let alias, let resolvedHash, _):
+            let name: String
+            if let alias, !alias.isEmpty {
+                name = alias
+            } else {
+                name = String(format: String(localized: "对方 · %@"), input.wallClockDisplay)
+            }
+            var dayMaster: String?
+            var birthDateString = String(input.birthDatetime.prefix(10))
+            if let resolvedHash {
+                do {
+                    guard let snapshot = try chartStore.get(contentHash: resolvedHash) else {
+                        throw CompatibilityViewModelError.archivedSnapshotMissing(hash: resolvedHash)
+                    }
+                    let bazi = try chartStore.decodeResponse(from: snapshot)
+                    dayMaster = bazi.pillars.day?.gan
+                    birthDateString = Self.fallbackDateString(
+                        snapshot.birthSolarTime, timezoneName: snapshot.cityTimezone
+                    )
+                } catch {
+                    // 展示层降级(保留钟面前缀)+ 显式日志;快照真错误由 computePair 抛
+                    AppLogger.persistence.error(
+                        "op=compatibility.partnerDisplay temp_snapshot_read failed hash=\(resolvedHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                    )
+                }
+            }
+            return PartnerDisplay(
+                entryID: entry.id,
+                name: name,
+                dayMaster: dayMaster,
+                dayMasterElementKey: dayMaster.flatMap(ElementColors.ofGan),
+                birthDateString: birthDateString
+            )
+        }
+    }
+
     /// 点选名单行(临时人 / 跨启动恢复行的点击路径;**单选**,2026-09-07)。
     /// - 存档池行(有对应存档)不走此路径:成员资格即勾选,路由回 `toggleArchived`
     ///   (取消勾选 = 移出名单,池行本身仍在列表)——维持「roster 存档成员 ⇔ 已勾选」不变量
@@ -305,9 +430,29 @@ final class CompatibilityViewModel {
         if selectedEntryIds.contains(entry.id) {
             selectedEntryIds.remove(entry.id)
         } else {
-            deselectCurrentSelection()
-            selectedEntryIds = [entry.id]
+            selectEntryExclusively(entry)
         }
+    }
+
+    /// 单选勾选原语(2026-09-29 P3 抽出,`toggleEntrySelection`「选中」分支与
+    /// `selectPartner` 共用,防两处实现漂移):让位原勾选后把 entry 设为唯一勾选。
+    /// 存档池行经 `toggleArchived` 入册(满员/无时辰/A 自己守卫 + 名单维护);
+    /// 临时人/恢复行直接让位勾选。
+    /// 池行**已在名单但未勾选**(跨启动恢复、上次对快照缺失/被清时驻留)→ 原地
+    /// 勾选,不走 `toggleArchived` 的「再点 = 移除」分支——P3 点行 = 选中语义下,
+    /// 移除只应经 `removeRosterEntry`(管理操作 + 确认弹窗),误走会静默丢人。
+    private func selectEntryExclusively(_ entry: RosterEntry) {
+        if case .archived(let hash) = entry, isPoolBacked(hash: hash) {
+            if roster.contains(where: { $0.id == entry.id }) {
+                deselectCurrentSelection()
+                selectedEntryIds = [entry.id]
+                return
+            }
+            toggleArchived(hash: hash)
+            return
+        }
+        deselectCurrentSelection()
+        selectedEntryIds = [entry.id]
     }
 
     /// 单选让位(2026-09-07):清空当前勾选;原勾选若是存档池行,随取消勾选移出名单
@@ -364,10 +509,43 @@ final class CompatibilityViewModel {
         selectedEntryIds = [entry.id]
     }
 
+    // MARK: - 换人(P3:选中 + 立即合盘,2026-09-29 结果页主页化)
+
+    /// 结果壳换人入口:把 entry 设为唯一对方并立即推演(P3)。
+    /// - 已是当前对方且结果在展(.detail)→ no-op(换人 sheet 点当前人 = 仅关
+    ///   sheet 不重算);`force: true` 绕过(S2 修改当前对方 / S10 补时辰后
+    ///   对当前对强制重算)
+    /// - 让位/勾选复用 `selectEntryExclusively` 原语(不复制单选逻辑);勾选被
+    ///   守卫拒收(满员 / 他人无时辰 / A 自己)→ **不发起 compute**(compute 按
+    ///   `selectedRosterEntries` 消费,带着旧勾选跑 = 算错人),显式记日志
+    /// - 推演中换人 → `compute()` 内既有 `computeTask?.cancel()`(D13 竞态缓解)
+    func selectPartner(_ entry: RosterEntry, force: Bool = false) {
+        let alreadySelected = selectedEntryIds == [entry.id]
+        if alreadySelected, !force, case .detail = state {
+            AppLogger.app.info(
+                "compatVM.selectPartner no_op reason=already_current entry_id=\(entry.id, privacy: .public)"
+            )
+            return
+        }
+        if !alreadySelected {
+            selectEntryExclusively(entry)
+            guard selectedEntryIds == [entry.id] else {
+                // 守卫拒收(不上名单/不勾选):不让 compute 按旧勾选跑错对;
+                // UI 层本应 disable 这些行,走到这里说明状态错乱,显式记录
+                AppLogger.app.error(
+                    "compatVM.selectPartner rejected entry_id=\(entry.id, privacy: .public) state=\(String(describing: self.state), privacy: .public)"
+                )
+                return
+            }
+        }
+        compute()
+    }
+
     // MARK: - S11 roster 不可合盘标记(判据 = 本地存档 payload,零网络)
 
     /// 当前 A 盘(自己)的时辰判据。
-    /// 自己无时辰 → 名单整体标记 + 解释行 + 「开始合盘」不可发起(全部对不可用)。
+    /// 自己无时辰 → 名单整体标记 + 解释行 + 全部对不可用(表单/行置灰,
+    /// 头部「补时辰」是唯一解锁路径)。
     /// 判据与 S07 computePair 拦截同源(存档 payload `hourUnknownGate`),
     /// 标记层只是把同一判据提前到配置态;decode 失败显式记日志后按
     /// `.hourKnown` 放行(发起路径会再次 decode 并显式传播错误,标记层
@@ -589,7 +767,10 @@ final class CompatibilityViewModel {
     ///   输入变了 → 作废置 nil(旧 hash 描述的是别人,下次 compute 走 API 重排)
     /// - 原位替换不占新名额(上限校验只拦「加」不拦「改」,与满员提示口径一致)
     /// - 不写草稿持久化(修改 ≠ 添加习惯,持久化只在 addTempToRoster)
-    func updateTempEntry(_ entry: RosterEntry) throws {
+    /// - Returns:替换后的新 entry(2026-09-29 S2:调用方据此判断「改的是当前对方
+    ///   且输入变了」→ `selectPartner(new, force: true)` 强制重算)
+    @discardableResult
+    func updateTempEntry(_ entry: RosterEntry) throws -> RosterEntry {
         guard case .temp = entry else {
             AppLogger.app.error("op=compatibility.updateTempEntry skip reason=not_temp entry_id=\(entry.id, privacy: .public)")
             throw UserFacingError.generic(message: String(localized: "该对方不可修改"))
@@ -621,6 +802,7 @@ final class CompatibilityViewModel {
             selectedEntryIds.remove(entry.id)
             selectedEntryIds.insert(newEntry.id)
         }
+        return newEntry
     }
 
     /// 移除名单一项(勾选 id 一并清理,不留悬空引用)。
@@ -664,7 +846,7 @@ final class CompatibilityViewModel {
     /// 2026-09-03:只消费 `selectedRosterEntries`(勾选子集)——名单成员未勾选不排盘
     /// (添加与勾选解耦后,零勾选 = D13 拦截,与空名单同文案)。
     /// 循环体保持 N 元泛化(直塞多勾只出测试),正常路径单选恒 N=1。
-    /// 切 tab / backToConfig → computeTask cancel(决策 D13)。
+    /// 切 tab / clearDetailKeepRoster → computeTask cancel(决策 D13)。
     func compute() {
         let contextValue = self.context
         let rosterCount = self.roster.count
@@ -877,6 +1059,26 @@ final class CompatibilityViewModel {
             )
             // 不静默吞:保留 configuring 态,用户可手动重新计算
         }
+    }
+
+    // MARK: - AddHour 后内存 hash remap(S10;结果壳 P1 配套)
+
+    /// 补时辰重算换新盘(old → new content_hash)后,内存侧 roster / 勾选 id 原地
+    /// remap(持久化侧已由 `CompatibilityRosterPersistence.remapHash` 处理)。
+    /// `.configuring` 态走 `restoreRosterStateIfAvailable` 从持久化重建,不经此路;
+    /// 结果壳(P1)下当前对强制重算(`selectPartner(force:)`)依赖内存换血——
+    /// 勾选 id 内嵌 hash("archived:<hash>"),不换会算旧盘/丢勾选。
+    func applyHashRemap(from oldHash: String, to newHash: String) {
+        let oldID = RosterEntry.archived(snapshotHash: oldHash).id
+        let newID = RosterEntry.archived(snapshotHash: newHash).id
+        roster = roster.map { entry in
+            guard case .archived(let h) = entry, h == oldHash else { return entry }
+            return .archived(snapshotHash: newHash)
+        }
+        selectedEntryIds = Set(selectedEntryIds.map { $0 == oldID ? newID : $0 })
+        AppLogger.app.info(
+            "op=compatibility.applyHashRemap old=\(oldHash, privacy: .public) new=\(newHash, privacy: .public) roster_count=\(self.roster.count, privacy: .public)"
+        )
     }
 
     // MARK: - 单对重试(S03 决策 D10)
@@ -1515,9 +1717,10 @@ final class CompatibilityViewModel {
 
     // MARK: - 重置
 
-    /// 切回配置态(list 兜底态「编辑名单」/ detail 态「编辑名单」toolbar 共用;
-    /// 2026-09-07 单选直达后 detail → config 一步直达,closeDetail 随 list 主路径退役)。
-    func backToConfig() {
+    /// 清出 detail/computing 态、保留名单(2026-09-29 S5 改名,原 backToConfig——
+    /// 配置页已退役,调用方:detail 快照缺失重试 / 换人 sheet 移出当前对方 /
+    /// 测试 teardown)。cancel 三任务 + 进 .configuring(结果壳渲染 P5/P6 态)。
+    func clearDetailKeepRoster() {
         computeTask?.cancel()
         interpretTask?.cancel()
         cacheReadTask?.cancel()
