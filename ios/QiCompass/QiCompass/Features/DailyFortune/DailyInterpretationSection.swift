@@ -13,7 +13,7 @@ import SwiftUI
 ///   排盘引擎确定性文案(引擎产物,AI 失败不影响),底部小注如实标注状态——
 ///   2026-09-28 S02 起两态均说清「以上为今日通用参考」:静默重试在飞 →
 ///   「以上为今日通用参考 · AI 解读重试中」;最终失败 →「AI 解读暂未生成 ·
-///   以上为今日通用参考」+ Retry(原始错误进小注 accessibilityHint + VM 日志)。
+///   以上为今日通用参考」+ Retry(原始错误进小注 accessibilityValue + VM 日志)。
 ///   模板永不单独出现(小注常驻),不拿引擎文案冒充 AI 解读。
 struct DailyInterpretationSection: View {
     let state: InterpretState
@@ -127,15 +127,17 @@ struct DailyInterpretationSection: View {
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
                             // 2026-09-28 S02:小注说清「上面是通用参考」,不再直接露
                             // `.failed(message)` 的原始错误标题(EN「Reading failed」
-                            // 与正文并存像自相矛盾);原错误进 accessibilityHint +
-                            // VM 日志(VoiceOver 与排障可见性都不丢)。可折两行。
+                            // 与正文并存像自相矛盾);原错误进 accessibilityValue +
+                            // VM 日志(2026-09-29 review 修正:hint 受 VoiceOver
+                            // 「Speak Hints」开关控制且语义属交互元素,静态文本
+                            // 改 value 无条件朗读)。可折两行。
                             Text(L10n.DailyFortune.interpretFallbackNote)
                                 .font(BaziFont.caption(size: 12))
                                 .tracking(1)
                                 .foregroundStyle(BaziTheme.inkMuted)
                                 .fixedSize(horizontal: false, vertical: true)
                                 .frame(maxWidth: .infinity, alignment: .leading)
-                                .accessibilityHint(Text(message))
+                                .accessibilityValue(Text(message))
                             Button(L10n.DailyFortune.interpretRetry, action: onRetry)
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(BaziTheme.ink)

@@ -59,7 +59,9 @@ AI_MAX_OUTPUT_TOKENS = 8192
 # 推理模型(gpt-5.x / claude-sonnet)生成命书需要 30-50s;max_tokens 放开到
 # 8192 后长模块(m1/m2/m3/m5/m7)实际生成 ~3000-4000 token,预计 40-90s,
 # 90s 贴线,给 150s 留余量(超时即报 503,不会无限挂)。iOS APIClient
-# timeoutIntervalForRequest 已同步 150s(2026-09-27)。
+# timeoutIntervalForRequest=180s(2026-09-28,150+30s 余量):本值之外还有
+# entitlement 校验/缓存写/序列化,客户端同卡 150 会把后端已成功的生成变成
+# 客户端失败而次数已扣——两值有意不等,客户端改值时同步此注释。
 AI_TIMEOUT_SECONDS = 150.0
 
 # v1 prompt 系统 §1 temperature 分级:

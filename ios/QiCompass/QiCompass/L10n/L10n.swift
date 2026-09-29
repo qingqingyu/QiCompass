@@ -478,7 +478,7 @@ enum L10n {
         /// 失败终态小注(2026-09-28 S02):正文位是引擎确定性模板,小注如实说明
         /// 「上面是通用参考」——不再直接露 `.failed(message)` 的原始错误标题
         /// (EN「Reading failed」与正文并存像自相矛盾);原 message 进
-        /// accessibilityHint + VM 日志,可见性不丢。
+        /// accessibilityValue + VM 日志,可见性不丢。
         /// zh: "AI 解读暂未生成 · 以上为今日通用参考";en: "AI reading unavailable · above is general guidance for today"
         static let interpretFallbackNote = String(localized: "dailyfortune.interpret.fallbackNote")
 
