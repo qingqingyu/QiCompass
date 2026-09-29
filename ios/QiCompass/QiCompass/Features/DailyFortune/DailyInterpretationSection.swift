@@ -11,7 +11,9 @@ import SwiftUI
 ///   此前塞 .failed 会被失败降级渲染成引擎模板,「已保留历史解读」名不副实)
 /// - .failed(msg) → 2026-09-24 失败降级拍板:正文位显示按 dayRelation 的
 ///   排盘引擎确定性文案(引擎产物,AI 失败不影响),底部小注如实标注状态——
-///   静默重试在飞 →「AI 解读未生成,重试中」;最终失败 → 原始错误 + Retry。
+///   2026-09-28 S02 起两态均说清「以上为今日通用参考」:静默重试在飞 →
+///   「以上为今日通用参考 · AI 解读重试中」;最终失败 →「AI 解读暂未生成 ·
+///   以上为今日通用参考」+ Retry(原始错误进小注 accessibilityHint + VM 日志)。
 ///   模板永不单独出现(小注常驻),不拿引擎文案冒充 AI 解读。
 struct DailyInterpretationSection: View {
     let state: InterpretState

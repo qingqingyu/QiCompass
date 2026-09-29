@@ -499,7 +499,8 @@ struct HeroYiJiColumns: View {
     /// EN 词表(2026-09-24 三改):09-19 版被外评审点「像公司合规手册」
     /// (正官行 Own Your Duty / Play by the Rules / Report Back / Skip the
     /// Chain),整体换人味口吻——短祈使句、对自己说话的语气;每条 ≤16 chars
-    /// (serif 15pt 双列 ~163pt/列单行内,沿用 09-19 宽度约束)——
+    /// (serif 15pt 双列 ~138pt/列单行内 @375pt 屏,2026-09-28 S03 内边距 20 +
+    /// 列距 24 后的列宽,09-19 宽度约束延续)——
     /// 预算由 DailyImageHeroCopyTests 守护(2026-09-23 review #2)。
     /// 2026-09-28 外评:3 条与 EngineReadingTemplates 兜底模板语气打架
     /// (劫财 Act Now vs「just don't rush」/ Split the Gains vs「think
