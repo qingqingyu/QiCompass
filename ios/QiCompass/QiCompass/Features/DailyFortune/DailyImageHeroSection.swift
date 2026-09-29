@@ -10,6 +10,7 @@ import SwiftUI
 /// 2 径向 mask:实心 58% → 94% 融纸,只留最外一线洇进宣纸
 /// 3 纸色纱罩:呼吸 7s(动效三式 breathe 同源),整幅压灰
 /// 4 宣纸压边 rim:四周纸色收边,保证整幅图都在玻璃下
+/// 4c 四边融纸(2026-09-28 外评「顶部矩形切边」)
 /// 5 磨砂颗粒:PaperGrain(确定性噪点,ink@0.05)
 /// 6 云雾:两团宣纸色软雾异速反向漂(26s/34s),山间岚气
 /// 7 淡墨飞鸟:两笔简笔 30s 横渡 + 3.4s 沉浮
@@ -32,6 +33,10 @@ struct DailyImageHeroSection: View {
     /// 卡高(glass-v2 同值):容纳日期区 + 呼吸留白 + 宜忌双列。
     private static let heroHeight: CGFloat = 402
 
+    /// 内容浮层水平内边距:与 DailyInterpretationSection 的 20pt 对齐
+    /// (2026-09-28 外评:原 4pt 使「28」「Do」离屏 21pt,解读正文 37pt,差 16pt)。
+    private static let contentInset: CGFloat = 20
+
     // 玻璃参数(glass-v2「浅绛彩色底」档;水墨档 sat 0.32,重晕档未移植——画布可回调)
     private static let gSaturation: Double = 0.92
     private static let gBrightness: Double = 0.03
@@ -52,6 +57,7 @@ struct DailyImageHeroSection: View {
             veilLayer
             rimLayer
             bottomFadeLayer
+            edgeFadeLayer
             mistLayer
             grainLayer
             birdLayer
@@ -69,10 +75,17 @@ struct DailyImageHeroSection: View {
         .accessibilityLabel(Text(verbatim: heroAccessibilityLabel))
     }
 
-    /// 无障碍合并 label:干支 + 页首短标 + 宜/忌词。
+    /// 无障碍合并 label:干支 + 页首短标 + 冲(有则读,与 chips 同源构造)+ 宜/忌词。
     private var heroAccessibilityLabel: String {
         let yiJi = HeroYiJiColumns.mapping[dayRelation] ?? HeroYiJiColumns.fallback
-        return "\(dayPillar) \(L10n.DailyFortune.shortLabel), \(L10n.DailyFortune.yiLabel) \(yiJi.yi.joined(separator: "、")), \(L10n.DailyFortune.jiLabel) \(yiJi.ji.joined(separator: "、"))"
+        var label = "\(dayPillar) \(L10n.DailyFortune.shortLabel)"
+        if let chong = dayChong {
+            // 2026-09-28 S06:此前 label 不读冲,视觉 chips 有而 VoiceOver 无;
+            // 复用 chongLabel(含 EN 动物名 + 柱位翻译)与视觉同源。
+            label += ", \(L10n.DailyFortune.chongLabel(chong: chong, targets: dayChongTargets))"
+        }
+        label += ", \(L10n.DailyFortune.yiLabel) \(yiJi.yi.joined(separator: "、")), \(L10n.DailyFortune.jiLabel) \(yiJi.ji.joined(separator: "、"))"
+        return label
     }
 
     // MARK: - 玻璃图层
@@ -164,6 +177,36 @@ struct DailyImageHeroSection: View {
         .allowsHitTesting(false)
     }
 
+    /// 4c 四边融纸(2026-09-28 外评「hero 顶部/左右矩形硬边」):bloomMask 圆心
+    /// y=0.42、endRadius 400 下,卡顶距圆心约 169pt、左右约 178pt,都落在实心
+    /// 阈 0.58 内——顶边与左右边完全不透明,rim 层同因,只有底边有
+    /// bottomFadeLayer,山水在这三条边被直线切断。本层以纸色压顶(0→0.14)
+    /// 与左右(0→0.07 / 0.93→1)极窄渐变融边;与 bottomFadeLayer 同性质
+    /// (叠在图上的纸色遮罩,不是背景渐变),paper 为 dyn 双值,暗色自动夜宣纸。
+    private var edgeFadeLayer: some View {
+        ZStack {
+            LinearGradient(
+                stops: [
+                    .init(color: BaziTheme.paper, location: 0),
+                    .init(color: BaziTheme.paper.opacity(0), location: 0.14),
+                ],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            LinearGradient(
+                stops: [
+                    .init(color: BaziTheme.paper, location: 0),
+                    .init(color: BaziTheme.paper.opacity(0), location: 0.07),
+                    .init(color: BaziTheme.paper.opacity(0), location: 0.93),
+                    .init(color: BaziTheme.paper, location: 1),
+                ],
+                startPoint: .leading,
+                endPoint: .trailing
+            )
+        }
+        .allowsHitTesting(false)
+    }
+
     /// 6 云雾:两团宣纸色软雾,异速反向横漂(26s / 34s 半程)。
     private var mistLayer: some View {
         ZStack {
@@ -238,11 +281,11 @@ struct DailyImageHeroSection: View {
     private var contentOverlay: some View {
         VStack(spacing: 0) {
             dateRow
-                .padding(.horizontal, 4)
+                .padding(.horizontal, Self.contentInset)
                 .padding(.top, 18)
             Spacer()
             HeroYiJiColumns(dayRelation: dayRelation)
-                .padding(.horizontal, 4)
+                .padding(.horizontal, Self.contentInset)
                 .padding(.bottom, 22)
         }
     }
@@ -304,14 +347,20 @@ struct DailyImageHeroSection: View {
     }
 
     /// 关系/冲 chips(放不下时整组换行,组内仍横排)。
+    /// 2026-09-28 S06:①关系 chip 朱红违规(cinnabar 仅印章级授权场景)改 ink,
+    /// 与冲 chip 的 inkMuted 靠墨色浓淡分主次;②hero 内文字均固定字号、卡高固定
+    /// 402pt,chips 跟随 Dynamic Type 会在大字号档顶出卡边——cap 到 large
+    /// (只作用 hero chips,不改 ChipView 本身,其他页面行为不变);
+    /// 无障碍完整语义由 heroAccessibilityLabel 承担(含冲)。
     private var chips: some View {
         HStack(spacing: 7) {
-            ChipView(text: Self.displayRelation(dayRelation), tint: BaziTheme.cinnabar, iconName: Self.relationIcon(for: dayRelation))
+            ChipView(text: Self.displayRelation(dayRelation), tint: BaziTheme.ink, iconName: Self.relationIcon(for: dayRelation))
             if let chong = dayChong {
                 let label = L10n.DailyFortune.chongLabel(chong: chong, targets: dayChongTargets)
                 ChipView(text: label, tint: BaziTheme.inkMuted, iconName: "PlaqueChong")
             }
         }
+        .dynamicTypeSize(...DynamicTypeSize.large)
     }
 
     /// 关系 chip 配图:刃(PlaqueSha)= 克身之压力,只配官杀族(七杀/正官);
@@ -436,8 +485,8 @@ struct HeroYiJiColumns: View {
 
     static let mappingZh: [String: (yi: [String], ji: [String])] = [
         "比肩": (["独立", "立界", "健身"], ["争执", "攀比", "随众"]),
-        "劫财": (["行动", "开拓", "分利"], ["冲动", "借贷", "硬拼"]),
-        "食神": (["创造", "表达", "见新友"], ["拖延", "熬夜", "争辩"]),
+        "劫财": (["行动", "开拓", "结伴"], ["冲动", "借贷", "硬拼"]),
+        "食神": (["创造", "表达", "会友"], ["拖延", "熬夜", "争辩"]),
         "伤官": (["表达", "出新", "直言"], ["冲撞", "越界", "口快"]),
         "偏财": (["拓展", "试新", "让利"], ["孤注", "贪多", "赊账"]),
         "正财": (["守成", "记账", "务本"], ["短视", "贪快", "弃约"]),
@@ -450,16 +499,21 @@ struct HeroYiJiColumns: View {
     /// EN 词表(2026-09-24 三改):09-19 版被外评审点「像公司合规手册」
     /// (正官行 Own Your Duty / Play by the Rules / Report Back / Skip the
     /// Chain),整体换人味口吻——短祈使句、对自己说话的语气;每条 ≤16 chars
-    /// (serif 15pt 双列 ~163pt/列单行内,沿用 09-19 宽度约束)——
+    /// (serif 15pt 双列 ~138pt/列单行内 @375pt 屏,2026-09-28 S03 内边距 20 +
+    /// 列距 24 后的列宽,09-19 宽度约束延续)——
     /// 预算由 DailyImageHeroCopyTests 守护(2026-09-23 review #2)。
+    /// 2026-09-28 外评:3 条与 EngineReadingTemplates 兜底模板语气打架
+    /// (劫财 Act Now vs「just don't rush」/ Split the Gains vs「think
+    /// twice before…splitting stakes」/ 七杀 Push Through vs「don't burn
+    /// yourself out」),改 Take the Lead / Team Up / Face It Head-On。
     static let mappingEn: [String: (yi: [String], ji: [String])] = [
         "比肩": (["Go Your Own Way", "Set Boundaries", "Move Your Body"], ["Argue", "Compare Yourself", "Follow the Crowd"]),
-        "劫财": (["Act Now", "Break New Ground", "Split the Gains"], ["Impulse Buys", "Lend Money", "Force It"]),
+        "劫财": (["Take the Lead", "Break New Ground", "Team Up"], ["Impulse Buys", "Lend Money", "Force It"]),
         "食神": (["Make Something", "Speak Your Mind", "See a Friend"], ["Put It Off", "Stay Up Late", "Pick Fights"]),
         "伤官": (["Show Your Work", "Say It Plain", "Be Frank"], ["Push Too Hard", "Cross the Line", "Blurt It Out"]),
         "偏财": (["Explore", "Try New Things", "Give a Little"], ["Bet It All", "Grab Too Much", "Buy on Credit"]),
         "正财": (["Keep Steady", "Track Your Money", "Tend Your Garden"], ["Cut Corners", "Rush the Deal", "Break Your Word"]),
-        "七杀": (["Make the Call", "Take It On", "Push Through"], ["Waver", "Make Enemies", "Burn Out"]),
+        "七杀": (["Make the Call", "Take It On", "Face It Head-On"], ["Waver", "Make Enemies", "Burn Out"]),
         "正官": (["Own Your Part", "Play It Straight", "Close the Loop"], ["Shrink Back", "Skip the Line", "Miss Deadlines"]),
         "偏印": (["Sit with It", "Review Old Notes", "Take Quiet Time"], ["Get Stubborn", "Overthink", "Go It Alone"]),
         "正印": (["Learn Something", "Take Advice", "Rest Up"], ["Lean Too Hard", "Daydream", "Drag Your Feet"]),
@@ -470,8 +524,8 @@ struct HeroYiJiColumns: View {
     /// 「覆命」为误转,2026-09-23 review P1-4 修正)。
     static let mappingHant: [String: (yi: [String], ji: [String])] = [
         "比肩": (["獨立", "立界", "健身"], ["爭執", "攀比", "隨眾"]),
-        "劫财": (["行動", "開拓", "分利"], ["衝動", "借貸", "硬拼"]),
-        "食神": (["創造", "表達", "見新友"], ["拖延", "熬夜", "爭辯"]),
+        "劫财": (["行動", "開拓", "結伴"], ["衝動", "借貸", "硬拼"]),
+        "食神": (["創造", "表達", "會友"], ["拖延", "熬夜", "爭辯"]),
         "伤官": (["表達", "出新", "直言"], ["衝撞", "越界", "口快"]),
         "偏财": (["拓展", "試新", "讓利"], ["孤注", "貪多", "賒帳"]),
         "正财": (["守成", "記帳", "務本"], ["短視", "貪快", "棄約"]),
@@ -513,7 +567,9 @@ struct HeroYiJiColumns: View {
 
     var body: some View {
         let resolved = pair
-        HStack(alignment: .top, spacing: 34) {
+        // spacing 24(2026-09-28 S03):内容内边距 4→20 吃掉 32pt,列距 34→24
+        // 补回 10pt;375pt 屏单列 ≈(375−24−40−24)/2 ≈ 138pt,EN 16 chars 预算内。
+        HStack(alignment: .top, spacing: 24) {
             column(header: isEn ? "Do" : "宜", annotation: isEn ? "宜 yí" : nil, items: resolved.yi)
             column(header: isEn ? "Don't" : "忌", annotation: isEn ? "忌 jì" : nil, items: resolved.ji)
         }
@@ -542,6 +598,8 @@ struct HeroYiJiColumns: View {
                         .font(isEn ? .system(size: 15, weight: .regular, design: .serif) : BaziFont.songDisplay(size: 17))
                         .tracking(isEn ? 0.3 : 1.7)
                         .foregroundStyle(BaziTheme.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.9)
                         .padding(.vertical, 4.5)
                 }
             }

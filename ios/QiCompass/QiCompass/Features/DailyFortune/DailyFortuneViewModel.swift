@@ -212,7 +212,8 @@ final class DailyFortuneViewModel {
         }
         guard let chartPayload = cachedChartPayload else {
             // chartPayload 缺失(runFullPipeline 离线兜底路径解档失败会留 nil)
-            // → 显式报错,不静默返回
+            // → 显式报错,不静默返回(2026-09-28 S02:UI 小注不再露原文,补日志保可见性)
+            AppLogger.app.error("op=dailyFortune.generateInterpretation chartPayload_missing hash=\(hash, privacy: .public)")
             state = .ready(
                 response,
                 .failed(message: L10n.DailyFortune.interpretChartReadFailed),
@@ -298,6 +299,11 @@ final class DailyFortuneViewModel {
         response: DailyFortuneResponse,
         businessDate: Date
     ) {
+        // 2026-09-28 S02:UI 小注不再显示原始错误(改「通用参考」口径),失败原因
+        // 在此显式记日志,不让错误从两条通道同时消失(错误显式传播约束)。
+        AppLogger.app.error(
+            "op=dailyFortune.interpret.failed trigger=\(String(describing: trigger), privacy: .public) hash=\(chartHash, privacy: .public) message=\(message, privacy: .public)"
+        )
         state = .ready(response, .failed(message: message), businessDate)
         if trigger == .automatic, !silentRetryUsed {
             scheduleSilentRetry(chartHash: chartHash)

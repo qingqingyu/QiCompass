@@ -4,7 +4,8 @@ import XCTest
 /// 每日运势 hero 图文案契约测试(2026-09-23 review #2/#3;#3 于 2026-09-24
 /// 随 shengxiao 合入演进为动物方案)。
 ///
-/// - #2:mappingEn 每条 ≤16 chars(S02 自定预算:双列 ~163pt/列单行内;
+/// - #2:mappingEn 每条 ≤16 chars(S02 自定预算:双列 ~138pt/列单行内
+///   @375pt 屏——2026-09-28 S03 hero 内边距 4→20 + 列距 34→24 后的列宽;
 ///   曾有 "Play by the Rules"(17)破线无测试拦截,自此守护)
 /// - #3:chongLabel 英文输出 = 生肖动物名 + 英文柱位("Clashes with Goat
 ///   (your Day Pillar)")。演进自 09-23 位置词翻译版(保留地支字仍不够
@@ -25,8 +26,32 @@ final class DailyImageHeroCopyTests: XCTestCase {
             .filter { $0.count > 16 }
         XCTAssertTrue(
             over.isEmpty,
-            "mappingEn 超出 ≤16 chars 预算(双列 ~163pt/列单行):\(over)"
+            "mappingEn 超出 ≤16 chars 预算(双列 ~138pt/列单行 @375pt 屏):\(over)"
         )
+    }
+
+    // MARK: - 宜忌词表 ⟷ 兜底模板一致性(2026-09-28 外评)
+
+    /// 宜词不得出现在兜底模板的告诫半句(分号后)——2026-09-28 外评「宜分利 vs 分利慢一拍」。
+    /// zh / zh-Hant 两表逐键检查;EN 为短语无法子串比对,靠人工 review(见 slices 文档 S01)。
+    func testYiItemsNotContradictedByEngineTemplateCaution() {
+        let pairs: [([String: (yi: [String], ji: [String])], [String: String])] = [
+            (HeroYiJiColumns.mappingZh, EngineReadingTemplates.zh),
+            (HeroYiJiColumns.mappingHant, EngineReadingTemplates.hant),
+        ]
+        for (mapping, templates) in pairs {
+            XCTAssertEqual(Set(mapping.keys), Set(templates.keys))
+            for (relation, cols) in mapping {
+                guard let text = templates[relation] else { continue }  // 键集合不等已由上方断言报出
+                guard let semi = text.firstIndex(where: { $0 == ";" || $0 == "；" }) else {
+                    XCTFail("模板缺分号(告诫半句分隔):\(relation)")
+                    continue
+                }
+                let caution = text[semi...]
+                let hits = cols.yi.filter { caution.contains($0) }
+                XCTAssertTrue(hits.isEmpty, "\(relation) 宜词出现在模板告诫半句:\(hits)")
+            }
+        }
     }
 
     // MARK: - #3 chongLabel EN 动物方案(2026-09-24)

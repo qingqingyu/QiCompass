@@ -11,7 +11,9 @@ import SwiftUI
 ///   此前塞 .failed 会被失败降级渲染成引擎模板,「已保留历史解读」名不副实)
 /// - .failed(msg) → 2026-09-24 失败降级拍板:正文位显示按 dayRelation 的
 ///   排盘引擎确定性文案(引擎产物,AI 失败不影响),底部小注如实标注状态——
-///   静默重试在飞 →「AI 解读未生成,重试中」;最终失败 → 原始错误 + Retry。
+///   2026-09-28 S02 起两态均说清「以上为今日通用参考」:静默重试在飞 →
+///   「以上为今日通用参考 · AI 解读重试中」;最终失败 →「AI 解读暂未生成 ·
+///   以上为今日通用参考」+ Retry(原始错误进小注 accessibilityHint + VM 日志)。
 ///   模板永不单独出现(小注常驻),不拿引擎文案冒充 AI 解读。
 struct DailyInterpretationSection: View {
     let state: InterpretState
@@ -28,8 +30,16 @@ struct DailyInterpretationSection: View {
         // 今日运势 V1「三框全载」:解读入框,正文楷体宽行距;全免费不上「剩余次数」
         VStack(alignment: .leading, spacing: 18) {
             Text(L10n.DailyFortune.interpretTitle)
-                .font(BaziFont.caption(size: 10))
-                .tracking(4)
+                // 2026-09-28 S04:4pt 字距是给中文楷体小标定的,EN 大小写混排
+                // 加 4pt 很难读——EN 走全大写 Latin caps + 2pt(DESIGN.md 的
+                // 大字距口径只适用全大写);zh/zh-Hant 保持原样不动。
+                .font(
+                    AppLanguage.current.isChinese
+                        ? BaziFont.caption(size: 10)
+                        : BaziFont.latinCaps(size: 10)
+                )
+                .textCase(AppLanguage.current.isChinese ? nil : .uppercase)
+                .tracking(AppLanguage.current.isChinese ? 4 : 2)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
 
             switch state {
@@ -115,11 +125,17 @@ struct DailyInterpretationSection: View {
                         }
                     } else {
                         HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            Text(message)
+                            // 2026-09-28 S02:小注说清「上面是通用参考」,不再直接露
+                            // `.failed(message)` 的原始错误标题(EN「Reading failed」
+                            // 与正文并存像自相矛盾);原错误进 accessibilityHint +
+                            // VM 日志(VoiceOver 与排障可见性都不丢)。可折两行。
+                            Text(L10n.DailyFortune.interpretFallbackNote)
                                 .font(BaziFont.caption(size: 12))
                                 .tracking(1)
                                 .foregroundStyle(BaziTheme.inkMuted)
+                                .fixedSize(horizontal: false, vertical: true)
                                 .frame(maxWidth: .infinity, alignment: .leading)
+                                .accessibilityHint(Text(message))
                             Button(L10n.DailyFortune.interpretRetry, action: onRetry)
                                 .font(.caption.weight(.semibold))
                                 .foregroundStyle(BaziTheme.ink)

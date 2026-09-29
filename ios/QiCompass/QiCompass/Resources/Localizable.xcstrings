@@ -5633,6 +5633,23 @@
         }
       }
     },
+    "dailyfortune.interpret.fallbackNote" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI reading unavailable · above is general guidance for today"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "AI 解读暂未生成 · 以上为今日通用参考"
+          }
+        }
+      }
+    },
     "dailyfortune.interpret.loading" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5690,13 +5707,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI reading unavailable — retrying"
+            "value" : "General guidance above · retrying AI reading"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI 解读未生成,重试中"
+            "value" : "以上为今日通用参考 · AI 解读重试中"
           }
         }
       }
