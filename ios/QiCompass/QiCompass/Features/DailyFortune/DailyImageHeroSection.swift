@@ -13,7 +13,7 @@ import SwiftUI
 /// 4c 四边融纸(2026-09-28 外评「顶部矩形切边」)
 /// 5 磨砂颗粒:PaperGrain(确定性噪点,ink@0.05)
 /// 6 云雾:两团宣纸色软雾异速反向漂(26s/34s),山间岚气
-/// 7 淡墨飞鸟:两笔简笔 30s 横渡 + 3.4s 沉浮
+/// (7 飞鸟层 2026-09-29 D1 拍板删除:09-25 打磨后外评仍读成乱码,视觉减法)
 /// 入场:日期区/宜忌列 ink-in(blur 7→0)错峰。reduce-motion:循环动效全停。
 ///
 /// 图内中文 = 宋体 Songti SC(「图内宋/文中楷」分层,2026-08-31 拍板,DESIGN.md 补录);
@@ -48,8 +48,6 @@ struct DailyImageHeroSection: View {
     @State private var soak = false
     @State private var mistA = false
     @State private var mistB = false
-    @State private var bob = false
-    @State private var flyX: CGFloat = -34
 
     var body: some View {
         ZStack {
@@ -60,7 +58,6 @@ struct DailyImageHeroSection: View {
             edgeFadeLayer
             mistLayer
             grainLayer
-            birdLayer
 
             // 内容浮层
             contentOverlay
@@ -240,31 +237,6 @@ struct DailyImageHeroSection: View {
         PaperGrain(opacity: 0.05)
             .blendMode(scheme == .dark ? .screen : .multiply)
             .allowsHitTesting(false)
-    }
-
-    /// 7 淡墨飞鸟:两只分离简笔(2026-09-25 打磨:原连体双拱被外评读成
-    /// 「24 下的不明波浪线」——两翅断开成两只远鸟,且上移到山顶天空区,
-    /// 离开日期数字下沿),30s 横渡 + 3.4s 微沉浮。
-    private var birdLayer: some View {
-        GeometryReader { geo in
-            BirdShape()
-                .stroke(BaziTheme.ink, style: StrokeStyle(lineWidth: 1.3, lineCap: .round))
-                .frame(width: 26, height: 10)
-                .offset(y: bob ? -3 : 0)
-                .position(x: flyX + 13, y: 72)
-                .opacity(0.42)
-                .onAppear {
-                    guard !reduceMotion else { return }
-                    withAnimation(.easeInOut(duration: 1.7).repeatForever(autoreverses: true)) {
-                        bob = true
-                    }
-                    withAnimation(.linear(duration: 30).repeatForever(autoreverses: false)) {
-                        // 单程横渡后 snap 回左缘重飞(autoreverses:false),画缘由 .clipped() 剪裁
-                        flyX = geo.size.width + 40
-                    }
-                }
-        }
-        .allowsHitTesting(false)
     }
 
     /// 循环动效启动(呼吸/墨渗/云雾)。duration = 半程,与画布 alternate 全程 2× 一致。
@@ -605,23 +577,6 @@ struct HeroYiJiColumns: View {
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
-// MARK: - 飞鸟形状(两只分离简笔,同画布 SVG path 改造)
-
-private struct BirdShape: Shape {
-    func path(in rect: CGRect) -> Path {
-        let sx = rect.width / 26
-        let sy = rect.height / 10
-        var p = Path()
-        // 左鸟:单拱翅(1.5 → 11),低一点
-        p.move(to: CGPoint(x: 1.5 * sx, y: 8 * sy))
-        p.addQuadCurve(to: CGPoint(x: 11 * sx, y: 8 * sy), control: CGPoint(x: 6.2 * sx, y: 2.5 * sy))
-        // 右鸟:单拱翅(15 → 24.5),高一点(错落两只)
-        p.move(to: CGPoint(x: 15 * sx, y: 6.5 * sy))
-        p.addQuadCurve(to: CGPoint(x: 24.5 * sx, y: 6.5 * sy), control: CGPoint(x: 19.8 * sx, y: 1 * sy))
-        return p
     }
 }
 
