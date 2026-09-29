@@ -6144,6 +6144,23 @@
         }
       }
     },
+    "hepan.partner.rowEditA11y" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Edit %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修改「%@」"
+          }
+        }
+      }
+    },
     "hepan.partner.rowRemove" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6157,6 +6174,57 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "移出"
+          }
+        }
+      }
+    },
+    "hepan.partner.rowRemoveA11y" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Remove %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "移出「%@」"
+          }
+        }
+      }
+    },
+    "hepan.partner.rowSelectedHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Current partner"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当前对方"
+          }
+        }
+      }
+    },
+    "hepan.partner.rowSwitchHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Tap to make this your current partner"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "点按切换为当前对方"
           }
         }
       }
@@ -9547,23 +9615,6 @@
         }
       }
     },
-    "开始合盘" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pair the charts"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "开始合盘"
-          }
-        }
-      }
-    },
     "当前" : {
       "localizations" : {
         "en" : {
@@ -10980,16 +11031,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "编码失败: %@"
-          }
-        }
-      }
-    },
-    "编辑名单" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Edit the list"
           }
         }
       }

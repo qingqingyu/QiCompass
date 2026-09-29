@@ -114,26 +114,49 @@ struct PartnerPickerSheet: View {
     private struct PartnerRowModel: Identifiable {
         let entry: RosterEntry
         let display: PartnerDisplay
+        /// roster 成员资格(管理模式的「修改/移出」只对成员有意义;名单外池候选
+        /// 移出是 no-op,不渲染破坏性按钮)。
+        let isMember: Bool
+        /// 他人存档无时辰判据(S11;行渲染与满员拦截共用同一份,单次计算——
+        /// `hourBlocked` 每次调用对存档行做 payload decode,不重复)。
+        let isBlockedHour: Bool
+        /// 满员拒收预禁用(roster 满 + 名单外 + 时辰已知的存档池候选行——点选走
+        /// toggleArchived「加入」分支会被上限守卫静默拒收;VM 注释要求 UI 提前
+        /// disable,与添加行置灰同一口径。无时辰行点击走 S10 补时辰,与容量无关,
+        /// **不得**置灰)。
+        let isFullBlocked: Bool
         var id: String { entry.id }
     }
 
     private var rowModels: [PartnerRowModel] {
+        // 满员时名单外的时辰已知存档行不可加(toggleArchived 上限守卫会拒收)
+        let fullBlocked = isFull
+        func model(_ entry: RosterEntry) -> PartnerRowModel {
+            let notInRoster = !vm.roster.contains { $0.id == entry.id }
+            let blockedHour = hourBlocked(entry)
+            return PartnerRowModel(
+                entry: entry,
+                display: vm.partnerDisplay(for: entry),
+                isMember: !notInRoster,
+                isBlockedHour: blockedHour,
+                isFullBlocked: fullBlocked && notInRoster && !blockedHour
+            )
+        }
         var rows: [PartnerRowModel] = vm.roster
             .filter(\.isTemp)
-            .map { PartnerRowModel(entry: $0, display: vm.partnerDisplay(for: $0)) }
+            .map(model)
         rows += vm.roster
             .filter { entry in
                 guard case .archived(let hash) = entry else { return false }
                 return !vm.isPoolBacked(hash: hash)
             }
-            .map { PartnerRowModel(entry: $0, display: vm.partnerDisplay(for: $0)) }
+            .map(model)
         let currentA = vm.currentPersonAHash
         rows += vm.archivedCharts
             .filter { $0.snapshotHash != currentA }
             .map { chart in
                 // 池行候选(含已选中的池行——展示复用 VM 派生,勾选态由行自表达)
-                let entry = RosterEntry.archived(snapshotHash: chart.snapshotHash)
-                return PartnerRowModel(entry: entry, display: vm.partnerDisplay(for: entry))
+                model(.archived(snapshotHash: chart.snapshotHash))
             }
         return rows
     }
@@ -142,17 +165,18 @@ struct PartnerPickerSheet: View {
 
     @ViewBuilder
     private func partnerRow(_ row: PartnerRowModel) -> some View {
-        let isBlockedHour = hourBlocked(row.entry)
         PartnerRow(
             display: row.display,
             isSelected: vm.selectedEntryIds.contains(row.entry.id),
             isLocked: vm.isSelfHourUnknown,
-            isBlockedHour: isBlockedHour,
+            isBlockedHour: row.isBlockedHour,
             isManageMode: isManageMode,
             canEdit: row.entry.isTemp,
+            isMember: row.isMember,
+            isFullBlocked: row.isFullBlocked,
             onTap: {
                 guard !vm.isSelfHourUnknown else { return }
-                if isBlockedHour {
+                if row.isBlockedHour {
                     // S10 优先直达补时辰;无宿主退回 S11 轻提示(不弹 sheet 不可选)
                     HapticEngine.light()
                     if let onAddHour, case .archived(let hash) = row.entry {
@@ -294,9 +318,12 @@ private struct PartnerBirthFormPage: View {
 
 /// 换人 sheet 名单行:日主字(五行色)/ 称呼 / 生日副行 / 尾部状态。
 /// - 选中态:行内朱圈(印章级小元素既有用法,不扩大)+ 行底 cinnabarSoft
-/// - 他人无时辰:副行换 S11 mark 短注,点击走 S10 补时辰
+/// - 他人无时辰:副行换 S11 mark 短注,点击走 S10 补时辰(与容量无关,永不因满员置灰)
 /// - 命主无时辰:置灰不可点
-/// - 管理模式:尾部换「修改」(仅临时人)+「移出」
+/// - 满员 + 名单外时辰已知存档候选:置灰不可点(toggleArchived 上限守卫会静默拒收,
+///   VM 注释要求 UI 提前 disable;口径同添加行满员置灰)
+/// - 管理模式:尾部换「修改」(仅临时人)+「移出」(仅 roster 成员;名单外池候选
+///   移出是 no-op,回落选中圈)
 private struct PartnerRow: View {
     let display: PartnerDisplay
     let isSelected: Bool
@@ -305,11 +332,16 @@ private struct PartnerRow: View {
     let isManageMode: Bool
     /// 「修改」按钮可用性(仅临时人——本地有完整表单数据可回填)。
     let canEdit: Bool
+    /// roster 成员资格(管理模式「修改/移出」只对成员渲染;名单外池候选回落
+    /// 选中圈——移出对非成员是 no-op,不渲染破坏性按钮)。
+    let isMember: Bool
+    /// 满员拒收预禁用(名单外时辰已知存档候选;置灰 + 不可点)。
+    let isFullBlocked: Bool
     let onTap: () -> Void
     let onEdit: () -> Void
     let onRemove: () -> Void
 
-    private var isGreyed: Bool { isLocked }
+    private var isGreyed: Bool { isLocked || isFullBlocked }
 
     var body: some View {
         Button(action: onTap) {
@@ -330,7 +362,7 @@ private struct PartnerRow: View {
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
                 }
                 Spacer()
-                if isManageMode {
+                if isManageMode && isMember {
                     manageTrailing
                 } else {
                     selectionCircle
@@ -346,12 +378,13 @@ private struct PartnerRow: View {
                     : Color.clear,
                 in: RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
             )
+            .opacity(isFullBlocked ? 0.45 : 1)
         }
         .buttonStyle(.plain)
-        .disabled(isLocked)
+        .disabled(isLocked || isFullBlocked)
         .accessibilityHint(isSelected
-                           ? String(localized: "当前对方")
-                           : String(localized: "点按切换为当前对方"))
+                           ? L10n.CompatibilityPartner.rowSelectedHint
+                           : L10n.CompatibilityPartner.rowSwitchHint)
     }
 
     /// 副行:生日(日主已由头像字承载,不重复)。
@@ -375,11 +408,11 @@ private struct PartnerRow: View {
             )
     }
 
-    /// 选中态:朱圈 + 勾(沿用名单行「行内朱圈」表达;全锁/无时辰行不画圈)。
+    /// 选中态:朱圈 + 勾(沿用名单行「行内朱圈」表达;全锁/无时辰/满员拒收行不画圈)。
     @ViewBuilder
     private var selectionCircle: some View {
-        if isBlockedHour || isLocked {
-            // S11/S07 留白:不可选行不画圈(无勾选位,水墨留白表达)
+        if isBlockedHour || isLocked || isFullBlocked {
+            // S11/S07/满员 留白:不可选行不画圈(无勾选位,水墨留白表达)
             EmptyView()
         } else if isSelected {
             Image(systemName: "checkmark.circle.fill")
@@ -407,7 +440,7 @@ private struct PartnerRow: View {
                 }
                 .buttonStyle(.plain)
                 .disabled(isLocked)
-                .accessibilityLabel("\(L10n.CompatibilityPartner.rowEdit)「\(display.name)」")
+                .accessibilityLabel(L10n.CompatibilityPartner.rowEditA11y(display.name))
             }
             Button(action: onRemove) {
                 Text(L10n.CompatibilityPartner.rowRemove)
@@ -419,7 +452,7 @@ private struct PartnerRow: View {
             }
             .buttonStyle(.plain)
             .disabled(isLocked)
-            .accessibilityLabel("\(L10n.CompatibilityPartner.rowRemove)「\(display.name)」")
+            .accessibilityLabel(L10n.CompatibilityPartner.rowRemoveA11y(display.name))
         }
     }
 }

@@ -966,6 +966,26 @@ enum L10n {
         /// zh: "移出";en: "Remove"
         static let rowRemove = String(localized: "hepan.partner.rowRemove")
 
+        /// 行 a11y hint(已勾选 = 当前对方)。
+        /// zh: "当前对方";en: "Current partner"
+        static let rowSelectedHint = String(localized: "hepan.partner.rowSelectedHint")
+
+        /// 行 a11y hint(未勾选,点按切换为当前对方)。
+        /// zh: "点按切换为当前对方";en: "Tap to make this your current partner"
+        static let rowSwitchHint = String(localized: "hepan.partner.rowSwitchHint")
+
+        /// 管理模式「修改」按钮 a11y。%@ = 对方称呼。
+        /// zh: "修改「%@」";en: "Edit %@"
+        static func rowEditA11y(_ name: String) -> String {
+            String(format: String(localized: "hepan.partner.rowEditA11y"), name)
+        }
+
+        /// 管理模式「移出」按钮 a11y。%@ = 对方称呼。
+        /// zh: "移出「%@」";en: "Remove %@"
+        static func rowRemoveA11y(_ name: String) -> String {
+            String(format: String(localized: "hepan.partner.rowRemoveA11y"), name)
+        }
+
         /// 移出确认弹窗标题。
         /// zh: "移出名单?";en: "Remove from roster?"
         static let removeConfirmTitle = String(localized: "hepan.partner.removeConfirm.title")

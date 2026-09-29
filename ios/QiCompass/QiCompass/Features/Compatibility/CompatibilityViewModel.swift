@@ -438,8 +438,16 @@ final class CompatibilityViewModel {
     /// `selectPartner` 共用,防两处实现漂移):让位原勾选后把 entry 设为唯一勾选。
     /// 存档池行经 `toggleArchived` 入册(满员/无时辰/A 自己守卫 + 名单维护);
     /// 临时人/恢复行直接让位勾选。
+    /// 池行**已在名单但未勾选**(跨启动恢复、上次对快照缺失/被清时驻留)→ 原地
+    /// 勾选,不走 `toggleArchived` 的「再点 = 移除」分支——P3 点行 = 选中语义下,
+    /// 移除只应经 `removeRosterEntry`(管理操作 + 确认弹窗),误走会静默丢人。
     private func selectEntryExclusively(_ entry: RosterEntry) {
         if case .archived(let hash) = entry, isPoolBacked(hash: hash) {
+            if roster.contains(where: { $0.id == entry.id }) {
+                deselectCurrentSelection()
+                selectedEntryIds = [entry.id]
+                return
+            }
             toggleArchived(hash: hash)
             return
         }

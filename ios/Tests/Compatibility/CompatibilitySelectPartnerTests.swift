@@ -252,6 +252,68 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
         XCTAssertEqual(calls, 0, "拒收 = 零请求")
     }
 
+    // MARK: - 恢复态池行(在册未勾选)选中语义
+
+    func testSelectPartner_池行在册未勾选_原地勾选_首击不移除() async throws {
+        // 跨启动恢复可产出「池行在 roster 但未勾选」(上次对 CompatibilitySnapshot
+        // 缺失/被清 → tryRestoreDetail 不预勾)。P3 点行 = 选中:首击必须原地勾选,
+        // 不得误走 toggleArchived 的「再点 = 移除」分支静默丢人
+        let chartA = try insertChart(hash: "spr_a_known", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "spr_b_known", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        let entryB = RosterEntry.archived(snapshotHash: "spr_b_known")
+        vm.roster = [entryB]            // 池行在册
+        vm.selectedEntryIds = []        // 恢复未预勾(恢复态关键前提)
+        vm.state = .configuring
+
+        vm.selectPartner(entryB)
+
+        XCTAssertEqual(vm.selectedEntryIds, [entryB.id], "首击原地勾选(不移除不重加)")
+        XCTAssertTrue(vm.roster.contains { $0.id == entryB.id }, "池行不得被移出名单")
+        XCTAssertEqual(vm.roster.count, 1)
+        if case .computing = vm.state {
+            // 期望:守卫放行,进入推演
+        } else {
+            XCTFail("在册未勾选池行首击应发起 compute,实际:\(vm.state)")
+        }
+        _ = await waitForDetailState()
+        await drainDetailBackgroundTasks()
+    }
+
+    func testSelectPartner_在册未勾选池行换选_原临时人让位保留() async throws {
+        // 同上,但当前勾选是一位临时人:换选在册未勾选池行 → 临时人让位保留名单,
+        // 池行原地勾选(不经历移除重加),roster 成员资格零丢失
+        let chartA = try insertChart(hash: "spr2_a_known", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "spr2_b_known", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        let temp: RosterEntry = .temp(
+            input: PersonBInput(
+                birthDatetime: "1994-04-04T11:00:00", timezone: "Asia/Shanghai",
+                gender: "male", longitude: 116.4074
+            ),
+            alias: "旧人", resolvedHash: nil,
+            place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
+        )
+        let entryB = RosterEntry.archived(snapshotHash: "spr2_b_known")
+        vm.roster = [temp, entryB]
+        vm.selectedEntryIds = [temp.id]
+        vm.state = .configuring
+
+        vm.selectPartner(entryB)
+
+        XCTAssertEqual(vm.selectedEntryIds, [entryB.id])
+        XCTAssertTrue(vm.roster.contains { $0.id == temp.id }, "临时人让位只清勾选不移出")
+        XCTAssertEqual(vm.roster.count, 2, "roster 成员资格零丢失")
+        if case .computing = vm.state {
+        } else {
+            XCTFail("应发起 compute,实际:\(vm.state)")
+        }
+        _ = await waitForDetailState()
+        await drainDetailBackgroundTasks()
+    }
+
     // MARK: - S2 契约(force 重算 / 修改返回值 / 移除当前对方)
 
     func testSelectPartner_force_同人detail态_仍重算() async throws {

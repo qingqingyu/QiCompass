@@ -49,6 +49,6 @@ extension View {
         modifier(FadeInModifier(delay: delay, yOffset: 8))
     }
 
-    // ink-in(blur 7→0)实现见 DailyImageHeroSection.swift 的 inkIn(delay:),
-    /// S4 换人动效直接复用同一实现,不另立第二份(动效三式单一事实源)。
+    // ink-in(blur 7→0)不在此文件——实现见 DailyImageHeroSection.swift 的
+    // inkIn(delay:);S4 换人动效直接复用同一实现,不另立第二份(动效三式单一事实源)。
 }
