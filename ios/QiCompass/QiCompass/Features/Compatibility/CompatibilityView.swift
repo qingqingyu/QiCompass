@@ -31,8 +31,8 @@ struct CompatibilityView: View {
                 BaziTheme.paper.ignoresSafeArea()
                 content
             }
-            .navigationTitle(navigationTitle)
-            .navigationBarTitleDisplayMode(.inline)
+            // D2(2026-09-29 拍板):四 tab 统一去系统导航标题,防系统字体与水墨层打架;
+            // 本 tab toolbar 的「编辑名单」按钮仍在栏上,栏本身保留。
             .toolbar {
                 if case .list = vm?.state {
                     ToolbarItem(placement: .topBarLeading) {
@@ -140,15 +140,6 @@ struct CompatibilityView: View {
         vm?.loadArchivedCharts()
         if case .configuring = vm?.state {
             vm?.restoreRosterStateIfAvailable()
-        }
-    }
-
-    private var navigationTitle: String {
-        switch vm?.state {
-        case .list:    return String(localized: "合盘结果")
-        case .detail:  return String(localized: "合盘结果")
-        case .computing: return String(localized: "推演中")
-        default:       return String(localized: "合盘")
         }
     }
 

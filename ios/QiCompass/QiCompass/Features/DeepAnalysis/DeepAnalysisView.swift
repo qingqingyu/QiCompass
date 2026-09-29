@@ -48,8 +48,8 @@ struct DeepAnalysisView: View {
                 BaziTheme.paper.ignoresSafeArea()
                 content
             }
-            .navigationTitle("深度解析")
-            .navigationBarTitleDisplayMode(.inline)
+            // D2(2026-09-29 拍板):四 tab 统一去系统导航标题,防系统字体与水墨层打架;
+            // 栏本身保留。push 出去的章节阅读页自带标题,不受影响。
             // 盘面小景 S2:章节阅读页(全仓首个 navigationDestination,仅本栈)
             .navigationDestination(for: ModuleID.self) { module in
                 if let vm, case .ready(let response, _) = vm.state {

@@ -109,8 +109,8 @@ struct ProfileView: View {
                     .padding(.bottom, 24)
                 }
             }
-            .navigationTitle("我的")
-            .navigationBarTitleDisplayMode(.inline)
+            // D2(2026-09-29 拍板):四 tab 统一去系统导航标题,防系统字体与水墨层打架;
+            // 栏本身保留。sheet 内二级页自带标题,不受影响。
             // S10:补时辰 sheet(本 Tab 是仓库不是钩子,但静默态用户唯一主动入口在这)。
             // 关闭无额外刷新:@Query 自动响应存档/link 变化(补时辰 = 新 snapshot + 新 link)。
             .sheet(item: $addHourVM) { vm in

@@ -80,9 +80,12 @@ FIVE_ELEMENTS_EN: Final[dict[str, str]] = {
 # - https://www.joeyyap.com/tutorial/tutorial-details.asp?tid=28
 # - https://imperialharvest.com/blog/10-gods/
 # - https://www.bazicalculator.io/learn/bazi-calculator-vs-joey-yap
+# 例外:劫财 2026-09-29 用户拍板弃 Joey Yap 直译「Rob Wealth」(犯罪感过强,
+# 与产品「专业不忽悠」语气不合),改温和译名「Wealth Rival」;
+# iOS BaziTerms.swift 同步,由 tools/check_term_sync.py 守卫双端一致。
 TEN_GODS_EN: Final[dict[str, str]] = {
     "比肩": "Companion",
-    "劫财": "Rob Wealth",
+    "劫财": "Wealth Rival",
     "食神": "Eating God",
     "伤官": "Hurting Officer",
     "偏财": "Indirect Wealth",

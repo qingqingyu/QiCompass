@@ -82,9 +82,9 @@ class TestTranslateTerm:
         assert translate_term("水", "en") == "Water"
 
     def test_ten_gods_en_joey_yap(self):
-        """十神 Joey Yap 体系翻译。"""
+        """十神 Joey Yap 体系翻译(劫财例外:2026-09-29 拍板改 Wealth Rival)。"""
         assert translate_term("比肩", "en") == "Companion"
-        assert translate_term("劫财", "en") == "Rob Wealth"
+        assert translate_term("劫财", "en") == "Wealth Rival"
         assert translate_term("食神", "en") == "Eating God"
         assert translate_term("伤官", "en") == "Hurting Officer"
         assert translate_term("偏财", "en") == "Indirect Wealth"

@@ -2394,19 +2394,19 @@
         }
       }
     },
-    "dailyfortune.navTitle" : {
+    "dailyfortune.shiShenNoteAction" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Daily Fortune"
+            "value" : "About Today's Ten God"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "每日运势"
+            "value" : "今日十神释义"
           }
         }
       }
@@ -8092,23 +8092,6 @@
         }
       }
     },
-    "合盘结果" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pairing results"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "合盘结果"
-          }
-        }
-      }
-    },
     "合盘解读" : {
       "localizations" : {
         "en" : {
@@ -9186,16 +9169,6 @@
         }
       }
     },
-    "我的" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Me"
-          }
-        }
-      }
-    },
     "我的命盘 · 命主" : {
       "localizations" : {
         "en" : {
@@ -9219,23 +9192,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "损耗"
-          }
-        }
-      }
-    },
-    "推演中" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pairing"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "推演中"
           }
         }
       }

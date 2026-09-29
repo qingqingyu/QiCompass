@@ -354,10 +354,6 @@ enum L10n {
     /// 每日运势模块。
     enum DailyFortune {
 
-        /// 页面 nav 标题(2026-09-24 i18n 硬编码收编:原 DailyFortuneView 字面量)。
-        /// zh: "每日运势";en: "Daily Fortune"
-        static let navTitle = String(localized: "dailyfortune.navTitle")
-
         // -- Header --
 
         /// "农历" 前缀(用于 "农历 七月初十" 这种拼接)。
@@ -371,6 +367,10 @@ enum L10n {
         /// 干支后缀(L2 行「丙子日」的「日」)。
         /// zh: "日";en: " Day"
         static let dayPillarSuffix = String(localized: "dailyfortune.header.dayPillarSuffix")
+
+        /// 十神释义 VO action 名(D3,2026-09-29:十神 chip 点开看解释)。
+        /// zh: "今日十神释义";en: "About Today's Ten God"
+        static let shiShenNoteAction = String(localized: "dailyfortune.shiShenNoteAction")
 
         /// 解读小注免责(V4 hero 文本区脚注尾部)。
         /// zh: "解读仅供参照";en: "For reference only"
