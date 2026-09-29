@@ -7,9 +7,13 @@ import StoreKit
 /// - `purchaseMockPath`:Mock 模式(`apiClient is MockAPIClient`),用 `mock_tx_<UUID>` 假 transactionId 走完后端 redeem 链路。dev/test 用,无需 Apple 沙盒。
 /// - `purchaseStoreKitPath`:真路径,走 `Product.purchase() → VerificationResult<Transaction>`,需要 StoreKit Configuration 文件本地测试 或 ASC 真商品 + Apple 沙盒(M6 TestFlight)。
 ///
-/// **防漏单**(M3b 关键):
-/// `purchaseStoreKitPath` 中后端 redeem 失败时**不调 `transaction.finish()`**,保留 transaction,
-/// 让下次启动的 `Transaction.updates` listener 自动续接 redeem。避免"用户付了钱但后端没收到"的资损场景。
+/// **防漏单**(M3b 关键,2026-09-29 兑现闭环):
+/// `purchaseStoreKitPath` 中后端 redeem 失败 / 本地写入失败时**不调 `transaction.finish()`**,
+/// 且把原始购买上下文(productId/contentHash/module)按 transactionId 落 `PendingRedeemStore`
+/// (消耗型交易本体不带 content_hash,续接 redeem 只能靠失败时点记住)。
+/// 下次启动(或交易重投递时)`Transaction.updates` listener 按记录续接 redeem,
+/// 成功才清记录 + finish;无记录且本地无 active entitlement 的交易**不 finish**,
+/// 保留给对应模块付费墙的「恢复购买」。避免"用户付了钱但后端没收到"的资损场景。
 ///
 /// 错误显式传播(对齐 CLAUDE.md 全局约束):不静默吞,失败抛 PurchaseError。
 /// `.userCancelled` 是显式 case + `isSilent = true` 标记,Apple HIG 建议 IAP 取消不要打扰用户。
@@ -36,10 +40,11 @@ final class PurchaseManager {
     ///
     /// 处理三种场景:
     /// (a) 退款/撤销:`tx.revocationDate != nil` → 本地 deactivate + finish(后端 webhook 已先处理)
-    /// (b) unfinished transaction 续接:purchaseStoreKitPath redeem 失败时不 finish,下次启动 listener 重试
-    /// (c) 跨设备同步:新设备看到已有 purchase,本地无 entitlement → 调 redeem(后端 idempotent)
+    /// (b) unfinished transaction 续接:purchaseStoreKitPath redeem/本地写失败时不 finish
+    ///     且落 pending 记录 → listener 按原始上下文续接 redeem(见 handleRedeemContinuation)
+    /// (c) 无上下文交易(ask-to-buy 批准后送达等):不 finish,保留给对应模块
+    ///     付费墙的「恢复购买」——恢复时绑定用户当前正看的盘(接受的产品语义)
     ///
-    /// **v1 简化**:listener 主要处理 revoke + 简单 finish 续接。
     /// 完整跨设备 redeem 续接需后端 transactionId → content_hash 反查接口,v1 没有,推 M6/v2。
     func startTransactionListener() {
         transactionListenerTask = Task.detached { [weak self] in
@@ -74,19 +79,99 @@ final class PurchaseManager {
     private func handleRevocation(_ tx: Transaction) async {
         let txId = String(tx.id)
         _ = entitlementStore.deactivate(transactionId: txId)
+        // 已退款交易无续接价值,清 pending 记录防 listener 复活它
+        PendingRedeemStore.remove(txId: txId)
         await tx.finish()
         AppLogger.app.info("purchase.storekit.revocation_handled tx=\(txId, privacy: .public)")
     }
 
-    /// unfinished transaction 续接。
-    /// v1 简化:直接 finish(本地 entitlement 在 purchaseStoreKitPath 主路径已写或未写)。
-    /// 完整续接需后端 transactionId → content_hash 反查接口(M6/v2 补),这里至少清掉 unfinished 状态。
+    /// unfinished transaction 续接(防漏单闭环,2026-09-29 修复)。
+    ///
+    /// 消耗型交易 finish 即从队列永久消失——付过钱的交易只能在「已确认兑现
+    /// 或已退款」时才 finish,任何分支都不得无条件 finish:
+    /// 1. 有 pending 记录(主路径 redeem/本地写失败时落档)→ 按原始
+    ///    contentHash/module 续接 redeem(module 仍以交易自身 SKU 反查为准,
+    ///    不信记录),成功才清记录 + finish(先清后 finish:反序的崩溃窗口
+    ///    会留永不兑现的死记录);失败(网络等)保留,下次重投递
+    ///    再续;403 ENTITLEMENT_ERROR(已绑其他上下文/已退款)→ 价值已在他处
+    ///    兑现,清记录 + finish 收尾,防每启动重试死循环;
+    /// 2. 本地已有该 transactionId 的 active entitlement → 主路径已完成,
+    ///    只是 finish 漏调 → 补 finish;
+    /// 3. 两者皆无(ask-to-buy 批准后送达 / restorePurchases 跨 SKU 跳过的
+    ///    交易)→ **不 finish**,保留给对应模块付费墙的「恢复购买」(与
+    ///    restorePurchases 的保留承诺一致;旧实现无条件 finish,被跳过的
+    ///    交易在下次启动被直接吞掉——钱付了,权益没了)。
     private func handleRedeemContinuation(_ tx: Transaction) async {
         let txId = String(tx.id)
-        // 若本地已有此 transactionId 的 active entitlement,说明主路径已写完,只是 finish 漏调
-        // 若没有,可能是 redeem 失败 → 这里 finish 掉,用户需重新购买(v1 容忍,完整续接 M6/v2)
-        await tx.finish()
-        AppLogger.app.info("purchase.storekit.continuation_finished tx=\(txId, privacy: .public)")
+
+        // 1) pending 记录续接:用失败时点记住的原始上下文调 redeem(幂等,
+        //    后端同 transactionId 已 active 时校验一致直接返回)
+        if let pending = PendingRedeemStore.get(txId: txId) {
+            // module 以交易自身 SKU 反查为准(与 restorePurchases 同判据);
+            // 记录与 SKU 映射不一致(SKU 表变更等)→ 记录不可信,作废走 2/3
+            guard Self.module(forProductID: tx.productID) == pending.module else {
+                PendingRedeemStore.remove(txId: txId)
+                AppLogger.app.error("purchase.storekit.continuation_module_conflict tx=\(txId, privacy: .public) product=\(tx.productID, privacy: .public) pending_module=\(pending.module, privacy: .public)")
+                await finishIfRecorded(tx, txId: txId)
+                return
+            }
+            do {
+                let redeemResp = try await apiClient.redeem(
+                    request: EntitlementRedeemRequest(
+                        transactionId: txId,
+                        productId: tx.productID,
+                        contentHash: pending.contentHash,
+                        module: pending.module,
+                        userLocalId: UserIdentity.userLocalId
+                    )
+                )
+                try await entitlementStore.upsert(
+                    transactionId: redeemResp.transactionId,
+                    productId: tx.productID,
+                    contentHash: pending.contentHash,
+                    module: pending.module,
+                    userLocalId: UserIdentity.userLocalId,
+                    userId: UserIdentity.isAuthenticated ? UserIdentity.currentUserId : nil,
+                    purchasedAt: redeemResp.purchasedAt,
+                    originalPurchaseDate: redeemResp.originalPurchaseDate
+                )
+                // 先清记录后 finish:反序的崩溃窗口(finish 后未及 remove)会留
+                // 下永不兑现的死记录——已 finish 的消耗型交易不再重投递,没人
+                // 再清它;先清后崩则重投递走判据 2(本地 active 已写)补 finish。
+                PendingRedeemStore.remove(txId: txId)
+                await tx.finish()
+                AppLogger.app.info("purchase.storekit.continuation_redeemed tx=\(txId, privacy: .public) module=\(pending.module, privacy: .public)")
+            } catch let apiError as APIError {
+                // 403 ENTITLEMENT_ERROR = 交易已绑其他 content_hash/module 或已
+                // 退款:价值已在他处兑现,清记录 + finish 收尾(其余错误保留待续)
+                if case .backendError(let code, _, _) = apiError, code == "ENTITLEMENT_ERROR" {
+                    PendingRedeemStore.remove(txId: txId)
+                    await tx.finish()
+                    AppLogger.app.info("purchase.storekit.continuation_bound_elsewhere tx=\(txId, privacy: .public)")
+                } else {
+                    AppLogger.app.error("purchase.storekit.continuation_redeem_failed tx=\(txId, privacy: .public) error=\(String(describing: apiError), privacy: .public)")
+                }
+            } catch {
+                // 不 finish:交易与记录都保留,下次启动/恢复购买再续
+                AppLogger.app.error("purchase.storekit.continuation_redeem_failed tx=\(txId, privacy: .public) error=\(String(describing: error), privacy: .public)")
+            }
+            return
+        }
+
+        // 2) 本地已有 active entitlement → 主路径已完成,补 finish
+        // 3) 无上下文可续 → 不 finish,保留给对应模块付费墙的「恢复购买」
+        await finishIfRecorded(tx, txId: txId)
+    }
+
+    /// 判据 2/3 共用兜底:本地已兑现(transactionId 命中 active entitlement)
+    /// → 补 finish;未兑现 → **不 finish**,保留给对应模块付费墙的「恢复购买」。
+    private func finishIfRecorded(_ tx: Transaction, txId: String) async {
+        if entitlementStore.getActive(transactionId: txId) != nil {
+            await tx.finish()
+            AppLogger.app.info("purchase.storekit.continuation_finished tx=\(txId, privacy: .public)")
+        } else {
+            AppLogger.app.info("purchase.storekit.continuation_deferred tx=\(txId, privacy: .public)")
+        }
     }
 
     /// 发起购买。
@@ -287,7 +372,12 @@ final class PurchaseManager {
             )
         } catch {
             AppLogger.app.error("purchase.storekit.redeem_failed tx=\(transactionId, privacy: .public) error=\(String(describing: error), privacy: .public)")
-            // ⚠️ 防漏单:不调 transaction.finish(),保留 transaction 让 listener 续接。
+            // ⚠️ 防漏单:不调 transaction.finish(),且落 pending 记录(原始
+            // contentHash/module)让 listener 按原上下文续接 redeem——消耗型
+            // 交易本体不带 content_hash,不记就永远无法自动续接。
+            PendingRedeemStore.set(
+                txId: transactionId,
+                .init(productId: productId, contentHash: contentHash, module: module))
             throw PurchaseError.backendRedeemFailed(underlying: error)
         }
 
@@ -305,7 +395,11 @@ final class PurchaseManager {
             )
         } catch {
             AppLogger.app.error("purchase.storekit.local_write_failed tx=\(transactionId, privacy: .public) error=\(String(describing: error), privacy: .public)")
-            // 本地写入失败也不 finish,下次启动 listener 重试(后端已有 entitlement)
+            // 本地写入失败也不 finish + 落 pending 记录:listener 续接时 redeem
+            // 幂等命中(后端已有 entitlement)+ 重试本地写入
+            PendingRedeemStore.set(
+                txId: transactionId,
+                .init(productId: productId, contentHash: contentHash, module: module))
             throw PurchaseError.entitlementStoreFailed(underlying: error)
         }
 
@@ -414,7 +508,9 @@ final class PurchaseManager {
             // PRODUCT_MODULE_MAP),不用付费墙 ambient module——否则深度解析的
             // 未 finish 交易会在合盘付费墙恢复时被兑成合盘权益并 finish(),
             // 消耗型绑定不可逆,深度解析的钱永久兑错。其他 module 的交易跳过:
-            // **不 finish 不计数**,保留给对应模块付费墙恢复。
+            // **不 finish 不计数**,保留给对应模块付费墙恢复(2026-09-29 起
+            // listener 对无 pending 记录的交易同样不 finish,该承诺两端一致,
+            // 被跳过的交易不会在下次启动被 listener 吞掉)。
             guard Self.module(forProductID: tx.productID) == module else {
                 AppLogger.app.info(
                     "purchase.restore.tx_skipped_other_module tx=\(String(tx.id), privacy: .public) product=\(tx.productID, privacy: .public) ambient_module=\(module, privacy: .public)"
@@ -443,6 +539,9 @@ final class PurchaseManager {
                     purchasedAt: redeemResp.purchasedAt,
                     originalPurchaseDate: redeemResp.originalPurchaseDate
                 )
+                // 先清记录后 finish(与 handleRedeemContinuation 成功路径同序):
+                // 反序崩溃窗口留死记录;先清后崩则重投递走判据 2(本地已写)补 finish
+                PendingRedeemStore.remove(txId: txId)
                 await tx.finish()
                 restoredCount += 1
                 AppLogger.app.info("purchase.restore.tx_recovered tx=\(txId, privacy: .public) product=\(tx.productID, privacy: .public)")
@@ -516,12 +615,13 @@ enum PurchaseError: LocalizedError {
         switch self {
         case .entitlementStoreFailed:
             // redeem 已成功(钱已付、后端已有 entitlement),仅本地 SwiftData 写失败。
-            // 「已购」读本地 SwiftData,重启不会回补(冷启动不触发 onSignedIn;
-            // listener 续接 v1 简化为直接 finish 不补写)——唯一自动恢复路径是
-            // 重新登录(触发 synchronizeFromBackend 从后端拉回),文案必须指向它。
+            // 已落 pending 记录:listener/下次启动按原始上下文续接(redeem 幂等
+            // 命中 + 重试本地写入);若设备等不到自动续接,重新登录触发
+            // synchronizeFromBackend 从后端拉回,文案指向它。
             return String(localized: "购买已成功,本地记录保存失败,请退出登录后重新登录恢复")
         case .backendRedeemFailed:
-            // 后端 redeem 失败未 finish,不会丢钱;重新购买前可先稍候重试
+            // 后端 redeem 失败:未 finish + 已落 pending 记录,不会丢钱;
+            // listener/下次启动自动续接 redeem,重新购买前可先稍候重试
             return String(localized: "购买验证失败,请稍后重试")
         case .userCancelled:
             // 静默:Apple HIG 建议 IAP 取消不要打扰用户
@@ -543,6 +643,64 @@ enum PurchaseError: LocalizedError {
         switch self {
         case .userCancelled: return true
         default: return false
+        }
+    }
+}
+
+// MARK: - 防漏单 pending 记录(2026-09-29)
+
+/// 购买链路失败(redeem / 本地写)时按 transactionId 落档的原始购买上下文。
+///
+/// listener 续接 redeem 需要后端契约的 content_hash/module,而消耗型交易
+/// 本体不带这些信息——只能在失败时点记住、成功兑现后清掉。UserDefaults
+/// 足够承载:记录极小、生命周期短(成功即清)、单设备维度(消耗型 unfinished
+/// 交易只会在购买设备上重投递),无需进 SwiftData schema。
+enum PendingRedeemStore {
+    private static let storageKey = "qicompass.pending_redeems.v1"
+
+    struct Record: Codable {
+        let productId: String
+        let contentHash: String
+        let module: String
+    }
+
+    static func get(txId: String) -> Record? {
+        all()[txId]
+    }
+
+    static func set(txId: String, _ record: Record) {
+        var entries = all()
+        entries[txId] = record
+        persist(entries, context: "set tx=\(txId)")
+    }
+
+    static func remove(txId: String) {
+        var entries = all()
+        guard entries.removeValue(forKey: txId) != nil else { return }
+        persist(entries, context: "remove tx=\(txId)")
+    }
+
+    private static func all() -> [String: Record] {
+        guard let data = UserDefaults.standard.data(forKey: storageKey) else {
+            return [:]
+        }
+        do {
+            return try JSONDecoder().decode([String: Record].self, from: data)
+        } catch {
+            // 存储损坏(极小概率):显式记日志后按空表处理——不 crash 不静默,
+            // 后续 set 会整体覆写,损坏自愈
+            AppLogger.app.error("purchase.pending_redeem.decode_failed error=\(String(describing: error), privacy: .public)")
+            return [:]
+        }
+    }
+
+    private static func persist(_ entries: [String: Record], context: String) {
+        do {
+            let data = try JSONEncoder().encode(entries)
+            UserDefaults.standard.set(data, forKey: storageKey)
+        } catch {
+            // 编码失败(Record 全 String,理论上不可达):显式报错,不静默吞
+            AppLogger.app.error("purchase.pending_redeem.encode_failed context=\(context, privacy: .public) error=\(String(describing: error), privacy: .public)")
         }
     }
 }

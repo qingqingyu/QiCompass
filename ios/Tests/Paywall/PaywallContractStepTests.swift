@@ -163,4 +163,61 @@ final class PaywallContractStepTests: XCTestCase {
         await vm.restore()
         XCTAssertEqual(vm.restoreState, .restored)
     }
+
+    // MARK: - 防漏单 pending 记录(2026-09-29 listener 续接闭环)
+
+    /// PendingRedeemStore 是购买失败时点的资损关键持久化:listener 续接
+    /// redeem 靠它拿回 content_hash/module(消耗型交易本体不带)。round-trip
+    /// 与清记录语义在此锁定;显式清理防模拟器容器跨轮残留(DailyReadCounter 教训)。
+    func test_pendingRedeemStore_roundTrip_andRemove() {
+        UserDefaults.standard.removeObject(forKey: "qicompass.pending_redeems.v1")
+        defer { UserDefaults.standard.removeObject(forKey: "qicompass.pending_redeems.v1") }
+
+        // 空 → nil
+        XCTAssertNil(PendingRedeemStore.get(txId: "tx_missing"))
+
+        // set → get 按字段还原
+        PendingRedeemStore.set(
+            txId: "tx_001",
+            .init(
+                productId: "com.qicompass.deep_analysis.single",
+                contentHash: "hash_abc",
+                module: EntitlementModule.baziDeep
+            )
+        )
+        let record = PendingRedeemStore.get(txId: "tx_001")
+        XCTAssertEqual(record?.productId, "com.qicompass.deep_analysis.single")
+        XCTAssertEqual(record?.contentHash, "hash_abc")
+        XCTAssertEqual(record?.module, EntitlementModule.baziDeep)
+
+        // 同 txId 覆盖不堆积
+        PendingRedeemStore.set(
+            txId: "tx_001",
+            .init(
+                productId: "com.qicompass.compatibility.single",
+                contentHash: "hash_xyz",
+                module: EntitlementModule.compatibility
+            )
+        )
+        XCTAssertEqual(PendingRedeemStore.get(txId: "tx_001")?.module,
+                       EntitlementModule.compatibility)
+
+        // remove → 消失;重复 remove 幂等
+        PendingRedeemStore.remove(txId: "tx_001")
+        XCTAssertNil(PendingRedeemStore.get(txId: "tx_001"))
+        PendingRedeemStore.remove(txId: "tx_001")  // 不 crash 不写坏存储
+        XCTAssertNil(PendingRedeemStore.get(txId: "tx_001"))
+
+        // 多笔互不干扰
+        PendingRedeemStore.set(
+            txId: "tx_a",
+            .init(productId: "p1", contentHash: "h1", module: "m1")
+        )
+        PendingRedeemStore.set(
+            txId: "tx_b",
+            .init(productId: "p2", contentHash: "h2", module: "m2")
+        )
+        PendingRedeemStore.remove(txId: "tx_a")
+        XCTAssertEqual(PendingRedeemStore.get(txId: "tx_b")?.contentHash, "h2")
+    }
 }
