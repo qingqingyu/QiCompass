@@ -164,6 +164,29 @@ final class EntitlementStore {
         }
     }
 
+    /// 按 transactionId 查 active entitlement(Transaction.updates listener
+    /// 续接判据:主路径 redeem + 本地写都完成、仅 finish 漏调 → 只补 finish)。
+    /// 查询失败返回 nil——调用方(handleRedeemContinuation)的兜底分支是
+    /// 「不 finish 保留」,nil 落在安全一侧。
+    func getActive(transactionId: String) -> Entitlement? {
+        var descriptor = FetchDescriptor<Entitlement>(
+            predicate: #Predicate {
+                $0.transactionId == transactionId
+                    && $0.isActive == true
+            },
+            sortBy: [SortDescriptor(\.purchasedAt, order: .reverse)]
+        )
+        descriptor.fetchLimit = 1
+        do {
+            return try modelContext.fetch(descriptor).first
+        } catch {
+            AppLogger.persistence.error(
+                "op=entitlementStore.getActiveByTx.failed tx=\(transactionId, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            return nil
+        }
+    }
+
     /// 按 transactionId 查单条(内部 helper)。
     private func _findByTransactionId(_ transactionId: String) throws -> Entitlement? {
         var descriptor = FetchDescriptor<Entitlement>(
