@@ -3,12 +3,15 @@
 > 来源:外部设计评审(EN 截图,劫财日 · 冲猪 · AI 解读失败态)+ 本仓库代码核对。
 > 本文是**实施事实源**。执行方按 S01-S06 顺序施工;「未拍板项」一律**不做**。
 > 完成后由评审方(Claude)按文末「Review 清单」逐条验收。
+>
+> **2026-09-29 第二轮**:用户对 D1-D5 全部拍板(见「已拍板项」节),同日落地
+> S07-S10。S01-S06 已于 09-28 落地(402 绿)。
 
 ## 0. 执行须知(硬约束,违反即打回)
 
 - **分支**:`claude/daily-fortune-design-review-iilz1q`。每个 slice 一个 commit,不要把多个 slice 揉成一个。
 - **Commit 三段式**(CLAUDE.md):body 必须有 Why / What(改了哪些函数/类/文件)/ Impact。
-- **只动 iOS 前端**:本轮不碰 `backend/`、`app/ai/prompts.py`、`PromptContextBuilder*.swift`、`ModuleDefinitions.swift`(因此无需跑 `check_prompt_sync.py` / evalkit)。不改 `BaziTerms.swift`(术语翻译属于 D5,未拍板)。
+- **只动 iOS 前端**:本轮不碰 `backend/`、`app/ai/prompts.py`、`PromptContextBuilder*.swift`、`ModuleDefinitions.swift`(因此无需跑 `check_prompt_sync.py` / evalkit)。不改 `BaziTerms.swift`(术语翻译属于 D5,未拍板)。*(2026-09-29 D5 拍板后,backend 术语表与 BaziTerms.swift 的禁令解除,见 S10;其余禁令维持。)*
 - **不新建 .swift 文件**:新测试写进已有测试文件(见各 slice),避免 pbxproj 4 处登记。确实必须新建时,四处 24 位 ID 一致登记,并在 commit body 写明。
 - **不加依赖**。
 - **错误显式传播**:不得删除现有 `AppLogger` 日志;查表 miss 的日志 + fallback 逻辑保持。
@@ -169,15 +172,61 @@ func testYiItemsNotContradictedByEngineTemplateCaution() {
 
 ---
 
-## 未拍板项(本轮**不做**,等用户决定)
+## 已拍板项(2026-09-29 用户裁决,第二轮施工同日落地)
 
-| # | 事项 | 为什么要拍板 |
+| # | 拍板 | 落地 |
 |---|---|---|
-| D1 | 飞鸟:删除 / 改为静止固定在山顶 | 09-25 已打磨过一次,仍被外评读成乱码;删除属视觉减法,需用户同意 |
-| D2 | 导航标题「Daily Fortune」:隐藏 / 改衬线 | 系统导航栏全局外观,影响全部四个 tab |
-| D3 | 十神 chip 点开看解释(如「劫财日:主动出击,但留意钱财被分走」) | 新功能;解释文案须确定性静态表(LLM 只润色不判断),需产品定义 |
-| D4 | Chart tab 图标辨识度 | tab-icons-20260830 定稿物,改图标走设计流程 |
-| D5 | 「Rob Wealth」英文术语是否换更温和的译名 | 术语单一事实源在 backend `term_translations.py` + `check_term_sync.py`,改动跨端 |
+| D1 | **删除飞鸟** | S07 |
+| D2 | **隐藏导航标题,四个 tab 全部** | S08 |
+| D3 | **做:十神 chip 点开看解释** | S09 |
+| D4 | **不换 Chart tab 图标** | 不动(tab-icons-20260830 定稿物维持) |
+| D5 | **换温和译名:Wealth Rival** | S10 |
+
+### S07 · D1 删除 hero 飞鸟层
+
+- `HERO`:`birdLayer`(ZStack 引用 + computed property)、`BirdShape` 形状、
+  `@State bob / flyX` 全删;头注释图层清单第 7 条改为删除记录(留拍板线索)。
+- 拍板理由:09-25 打磨(连体双拱 → 两只分离简笔并上移山顶)后,09-28 外评
+  仍读成乱码——装饰元素两次传达失败,走视觉减法。
+
+### S08 · D2 四 tab 去系统导航标题
+
+- 四个 tab 根视图各删 `.navigationTitle(...)` + `.navigationBarTitleDisplayMode(.inline)`:
+  `DailyFortuneView` / `DeepAnalysisView` / `CompatibilityView` / `ProfileView`。
+- **栏本身保留**(不是 `.toolbar(.hidden)`):合盘 toolbar 的「编辑名单」按钮挂在
+  栏上,整体藏栏会连按钮一起丢;保留空栏让四 tab 顶部 inset 一致。
+- `CompatibilityView` 的 computed `navigationTitle`(合盘/合盘结果/推演中)退役;
+  死键 `dailyfortune.navTitle` 三处清除(L10N 访问器 / XCS / zh-Hant staging)。
+- 已知取舍:合盘 computing 态失去顶栏「推演中」文案(内容区 LoadingStateView
+  仍有状态表达);push 出去的二级页与 sheet 内页面标题不受影响。
+
+### S09 · D3 十神 chip 点开看解释
+
+- **确定性静态表 `HeroShiShenNotes`**(放 `HERO` 文件内,不新建文件):
+  11 键(= `BaziTerms.tenGods` zh 键,偏官=七杀同文)× zh/hant/en 三语;
+  查表 miss 显式 fallback 通用文案 + 日志(不静默吞)。释义是判断性内容,
+  **LLM 不参与**(「LLM 只润色不判断」边界)。
+- 文案结构「主星性。今日宜…;留意…」,宜/告诫口径与 `HeroYiJiColumns` 词表
+  同源(正面半句呼应宜词,告诫半句呼应忌词)。
+- 交互:十神 chip → `Button`(.plain)→ compact sheet(detents
+  `[.height(250), .large]`,`presentationBackground` 纸色);标题楷体 display 21 +
+  释义楷体 body 15;EN 标题附汉字括注(对齐 `shenshaChipText` 先例)。
+- 无障碍:chip 在 `accessibilityHidden` 的内容浮层里,hero 合并元素加
+  `.accessibilityAction(named:)`(新 key `dailyfortune.shiShenNoteAction`,三语)
+  打开同一 sheet——明暗双通道同源。
+- 新守护测试 4 条(DailyImageHeroCopyTests):键集合 = tenGods / 文案预算
+  (zh ≤50 字,en ≤150 chars)/ 偏官=七杀同文 / **宜词不落告诫半句——S01 守护
+  升格三语**(本表为自有长句,EN 亦可子串比对)。
+
+### S10 · D5 劫财 en 译名 Rob Wealth → Wealth Rival
+
+- 三处同步:backend `term_translations.py` `TEN_GODS_EN` / iOS `BaziTerms.tenGods` /
+  backend `tests/test_i18n.py` 期望值;各留拍板注释(Joey Yap 体系的显式例外)。
+- 守卫全过:`tools/check_term_sync.py` PASS(141 条 12 表);backend
+  `test_i18n` 68 passed。en prompt context 用语随之温和化,不影响缓存键
+  (contentHash 不含译名)。
+- **约束解除说明**:S01-S06 的「只动 iOS 前端」「不改 BaziTerms.swift」按 D5
+  拍板解除——术语单一事实源在 backend,换名必然跨端。
 
 ---
 
@@ -191,5 +240,10 @@ func testYiItemsNotContradictedByEngineTemplateCaution() {
 - [ ] S04 仅 EN 分支变化,zh 保持 tracking 4
 - [ ] S05 新增纸色压边层,无 backgroundGradient,无新增朱红
 - [ ] S06 chips 无 cinnabar;dynamicTypeSize 只加在 hero chips;a11y label 含冲
-- [ ] 未拍板项 D1-D5 一项都没动
+- [ ] 第二轮(2026-09-29,D1-D5 拍板落地):
+  - [ ] D1:`grep -n "bird\|Bird" HERO` 无残留
+  - [ ] D2:四 tab 根视图无 `navigationTitle`;合盘「编辑名单」按钮仍在;`dailyfortune.navTitle` 三处已清
+  - [ ] D3:`HeroShiShenNotes` 11 键三语;chip 可点开释义 sheet;VO action 可达;4 条守护测试在
+  - [ ] D5:双端均为 `Wealth Rival`;`check_term_sync.py` PASS
+  - [ ] D4:TabIcons.swift 零改动
 - [ ] 回报里写清:哪些测试跑了 / 结果;哪些截图出了;没跑的明确说没跑
