@@ -52,7 +52,12 @@ final class BaziTermNotesTests: XCTestCase {
     }
 
     func test_keys_registeredInBaziTerms() {
-        for key in BaziTermNotes.entries.keys {
+        // 喜用/忌神豁免:它们是 xcstrings 标签词汇(deepanalysis.xiji.*),
+        // 不在后端术语表(BaziTerms 与 check_term_sync 对齐 backend 词表),
+        // 且当前无挂载点 → 标题路径不可达;其余术语都有挂载点,标题渲染走
+        // BaziTerms.display/index,未注册会回落原值+日志
+        let exempt: Set<String> = ["喜用", "忌神"]
+        for key in BaziTermNotes.entries.keys where !exempt.contains(key) {
             XCTAssertNotNil(BaziTerms.index[key],
                             "词表 key 未注册进 BaziTerms(标题会回落原值+日志): \(key)")
         }
