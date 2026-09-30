@@ -204,7 +204,6 @@ final class CompatibilityRosterPersistenceV2Tests: XCTestCase {
         if case .detail = restored.state {
             XCTFail("无缓存不得直达 detail,实际:\(restored.state)")
         }
-        XCTAssertEqual(wang.id, wang.id)
         XCTAssertEqual(mama.tempAlias, "妈妈")
         XCTAssertTrue(try compatibilityStore.list(personAHash: "v2_a", context: "general").isEmpty,
                       "零请求:恢复不产生合盘快照")
@@ -406,6 +405,26 @@ final class CompatibilityRosterPersistenceV2Tests: XCTestCase {
                        "temp id 不内嵌 hash,选中不动")
         XCTAssertEqual(CompatibilityRosterPersistence.loadPersonAHash(), "a_unrelated",
                        "无关 A 盘不动")
+    }
+
+    // MARK: - R5 守卫:remap 未命中 + 老 key 在 → 迁移结果仍落盘(防老数据被消费后丢失)
+
+    func testV2_remap未命中_老key存在_迁移结果仍落盘V2() throws {
+        // 种老格式(V2 未建立);remap 的 old hash 与老名单 / A 盘都无关
+        // (场景:升级用户先在深度解析 tab 给无关盘补时辰,再进合盘 tab)
+        UserDefaults.standard.set(try JSONEncoder().encode(["legacy_b1", "legacy_b2"]),
+                                  forKey: "compat.roster")
+        UserDefaults.standard.set("a_other", forKey: "compat.lastPersonAHash")
+
+        CompatibilityRosterPersistence.remapHash(from: "unrelated_old", to: "unrelated_new")
+
+        XCTAssertNil(UserDefaults.standard.data(forKey: "compat.roster"), "老 key 已消费删除")
+        let loaded = try XCTUnwrap(CompatibilityRosterPersistence.loadV2(),
+                                   "remap 未命中也必须落盘迁移结果——老 key 已删,不写 V2 = 老数据静默丢失")
+        XCTAssertEqual(loaded.entries,
+                       [.archived(snapshotHash: "legacy_b1"), .archived(snapshotHash: "legacy_b2")])
+        XCTAssertNil(loaded.selectedEntryID)
+        XCTAssertEqual(CompatibilityRosterPersistence.loadPersonAHash(), "a_other", "无关 A 盘不动")
     }
 
     // MARK: - 恢复不写脏:全量恢复后持久化内容不漂移

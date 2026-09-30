@@ -848,8 +848,9 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
     @MainActor
     func testRestoreRosterStateIfAvailable_无合盘快照_不预勾_不进detail() throws {
-        // 2026-09-07 单选:默认勾「上次那位」由 CompatibilitySnapshot createdAt 定——
-        // 只有 ChartSnapshot 无合盘快照(如拦截对,从未算过)→ 不预勾,留在配置态由用户自点
+        // R3(2026-09-30):勾选由持久化 selectedEntryID 承载——seed 无选中 +
+        // 只有 ChartSnapshot 无合盘快照(如拦截对,从未算过)→ 不预勾,
+        // 留在配置态由用户自点
         CompatibilityRosterPersistence.clear()
         let aSnapshot = ChartSnapshot(
             contentHash: "a_sel",

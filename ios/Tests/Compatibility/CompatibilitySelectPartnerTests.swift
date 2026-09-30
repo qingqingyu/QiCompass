@@ -255,8 +255,8 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
     // MARK: - 恢复态池行(在册未勾选)选中语义
 
     func testSelectPartner_池行在册未勾选_原地勾选_首击不移除() async throws {
-        // 跨启动恢复可产出「池行在 roster 但未勾选」(上次对 CompatibilitySnapshot
-        // 缺失/被清 → tryRestoreDetail 不预勾)。P3 点行 = 选中:首击必须原地勾选,
+        // 跨启动恢复可产出「池行在 roster 但未勾选」(持久化 selectedEntryID 缺失/
+        // 指向的快照被清 → 恢复不预勾)。P3 点行 = 选中:首击必须原地勾选,
         // 不得误走 toggleArchived 的「再点 = 移除」分支静默丢人
         let chartA = try insertChart(hash: "spr_a_known", alias: "A", hourKnown: true)
         let chartB = try insertChart(hash: "spr_b_known", alias: "B", hourKnown: true)

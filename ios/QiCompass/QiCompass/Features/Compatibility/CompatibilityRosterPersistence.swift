@@ -145,7 +145,8 @@ struct CompatibilityRosterPersistence {
     /// V2 三处全换:`.archived` 的 hash、`.temp` 的 resolvedHash、`selectedEntryID`
     /// 里内嵌的 `archived:<hash>`。V2 尚未建立(老 key 还在,用户升级后先补了时辰)
     /// → 老 key 顺带转换成 V2 再 remap(remap 即迁移,老 key 删除)。
-    /// personAHash 命中同样换。无命中 → no-op(不写 UserDefaults)。
+    /// personAHash 命中同样换。无命中 → no-op(不写 UserDefaults;**例外**:老 key
+    /// 迁移在本 call 顺带发生时,迁移结果必须落盘——老 key 已读后删除,不写即丢)。
     static func remapHash(from oldHash: String, to newHash: String) {
         var rosterV2 = loadV2()
         var legacyHashes: [String]? = nil
@@ -195,9 +196,9 @@ struct CompatibilityRosterPersistence {
         } else {
             remappedA = loadPersonAHash() ?? ""
         }
-        guard changed else { return }
-        // legacyHashes 非 nil = 本次顺带完成迁移(老 key 已在上面读后删除)
-        _ = legacyHashes
+        // legacyHashes 非 nil = 本次顺带完成迁移——老 key 已在上面读后删除,
+        // 无论 hash 是否命中都必须把迁移结果落盘 V2(否则老数据被消费却未转存,静默丢失)
+        guard changed || legacyHashes != nil else { return }
         saveV2(personAHash: remappedA, context: loadContextForRemap(), roster: roster)
         AppLogger.app.info(
             "op=compatibility.rosterPersistence.remap_hash old=\(oldHash, privacy: .public) new=\(newHash, privacy: .public) roster_count=\(roster.entries.count, privacy: .public) migrated_legacy=\(legacyHashes != nil, privacy: .public)"

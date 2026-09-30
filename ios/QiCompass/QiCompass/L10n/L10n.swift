@@ -946,7 +946,7 @@ enum L10n {
         }
 
         /// 换人 sheet 添加行副注(非满员时)。
-        /// zh: "不建档案 · 填出生信息即可";en: "No profile needed — just birth details"
+        /// zh: "不建档案 · 填出生信息即可";en: "No profile needed · birth details are enough"
         static let addRowSubtitle = String(localized: "hepan.partner.addRowSubtitle")
 
         /// P6 有选中但无缓存:内容区说明行(R3 恢复未命中缓存,不自动发请求)。

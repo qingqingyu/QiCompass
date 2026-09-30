@@ -105,8 +105,8 @@ final class CompatibilityViewModel {
     ///   (toggleArchived 维护;换选时原池行随取消勾选移出名单)
     /// - 临时人/恢复行:添加**不**入本集合(2026-09-03 拆分:「加名单」≠「选入合盘」),
     ///   由 `toggleEntrySelection` 显式勾选;换选/取消勾选都保留名单成员资格
-    /// - 跨启动恢复:默认勾「上次那位」(`tryRestoreDetail` 按 CompatibilitySnapshot
-    ///   createdAt 最新者定;无快照不预勾)
+    /// - 跨启动恢复:勾选 = 持久化的 `selectedEntryID`(R3,2026-09-30);
+    ///   不在名单内 → 清空不预勾(createdAt 猜「上次那位」只在老 key 迁移时兜底一次)
     var selectedEntryIds: Set<String> = []
 
     /// 单临时人表单(S04 草稿态:每次「添加」push 一条 .temp 到 roster,然后表单清空)。
@@ -1035,8 +1035,8 @@ final class CompatibilityViewModel {
             migratedFromLegacy = true
         }
 
-        // 3. 逐条校验(错误显式传播:store 查询失败记日志后按「无效」剔除 /
-        //    resolvedHash 置 nil——半途失败的恢复不留脏成员)
+        // 3. 逐条校验(错误显式传播:快照真缺失才剔除 / resolvedHash 失效置 nil;
+        //    store 查询 throw = 瞬态错误,记日志后保留成员,不借剔除掩盖失败)
         var entries: [RosterEntry] = []
         if let persisted {
             for persistedEntry in persisted.entries {
@@ -1051,9 +1051,14 @@ final class CompatibilityViewModel {
                         }
                         entries.append(.archived(snapshotHash: hash))
                     } catch {
+                        // 查询失败 ≠ 缺失:保留成员 + 显式记日志(与 .temp 的
+                        // resolvedHash 校验同语义)——瞬态 store 错误不得借剔除
+                        // 掩盖,更不能经末次 persistRoster 落盘成永久驱逐;
+                        // 真缺失(上面 nil 分支)才剔除
                         AppLogger.persistence.error(
                             "op=compatibility.restore.entry_check_failed hash=\(hash, privacy: .public) error=\(String(describing: error), privacy: .public)"
                         )
+                        entries.append(.archived(snapshotHash: hash))
                     }
                 case .temp(let input, let alias, let resolvedHash, let place):
                     // 恒保留(有完整输入随时能重排);resolvedHash 快照查不到 → 置 nil
