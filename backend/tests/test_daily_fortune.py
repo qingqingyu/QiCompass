@@ -375,3 +375,76 @@ async def test_endpoint_four_pillars_missing_hour_key_skips_hour_chong():
             assert hp_wo["chong_targets"] == []
         else:
             assert hp_with["chong_targets"] == hp_wo["chong_targets"]
+
+
+# ===== S6 今日信号(2026-09-30 BP 评审):day_elements / day_signal =====
+
+
+def test_day_elements_match_wuxing_tables():
+    """流日天干/地支五行 == lunar_python WU_XING 表(确定性,0 AI 成本)。"""
+    target = date(2026, 7, 12)  # 丁亥日:丁=火,亥=水
+    resp = compute_daily_fortune(
+        chart_hash="t_elements", target_date=target, chart_payload=DOC_CHART,
+    )
+    assert resp.day_pillar == "丁亥"
+    assert resp.day_elements.model_dump() == {
+        "stem_element": "火", "branch_element": "水"}
+
+
+def test_day_signal_hits_favorable_and_unfavorable():
+    """流日五行命中喜用 → up,命中忌神 → down(天干在前地支在后)。"""
+    target = date(2026, 7, 12)  # 丁亥:火/水
+    chart = ChartPayload(
+        day_master="甲",
+        day_master_element="wood",
+        day_master_strength="weak",
+        favorable_elements=["火"],      # 流日天干丁火 → up
+        unfavorable_elements=["水"],    # 流日地支亥水 → down
+        four_pillars=DOC_CHART.four_pillars,
+    )
+    resp = compute_daily_fortune(
+        chart_hash="t_signal", target_date=target, chart_payload=chart,
+    )
+    assert [i.model_dump() for i in resp.day_signal] == [
+        {"element": "火", "direction": "up"},
+        {"element": "水", "direction": "down"},
+    ]
+
+
+def test_day_signal_empty_when_xiji_empty():
+    """喜忌双空(时辰未知/从格)→ 空表;流日五行照常返回(iOS 只显五行不标 ↑↓)。"""
+    target = date(2026, 7, 12)
+    chart = ChartPayload(
+        day_master="甲",
+        day_master_element="wood",
+        day_master_strength="unknown_hour",
+        favorable_elements=[],
+        unfavorable_elements=[],
+        four_pillars={
+            "year": PillarRef(gan="庚", zhi="午"),
+            "month": PillarRef(gan="己", zhi="卯"),
+            "day": PillarRef(gan="甲", zhi="子"),
+        },
+    )
+    resp = compute_daily_fortune(
+        chart_hash="t_signal_empty", target_date=target, chart_payload=chart,
+    )
+    assert resp.day_signal == []
+    assert resp.day_elements.stem_element == "火"
+    assert resp.day_elements.branch_element == "水"
+
+
+def test_day_signal_dedupes_same_element():
+    """天干地支同五行(如甲寅)→ 去重为一条(保序:首个方向生效)。"""
+    from app.engine.daily_fortune import _day_signal
+    items = _day_signal(
+        elements=["木", "木"], favorable=["木"], unfavorable=[])
+    assert [i.model_dump() for i in items] == [
+        {"element": "木", "direction": "up"}]
+
+
+def test_day_signal_ignores_unrelated_element():
+    """流日五行不在喜忌清单 → 无信号(不编方向)。"""
+    from app.engine.daily_fortune import _day_signal
+    assert _day_signal(
+        elements=["火", "水"], favorable=["木"], unfavorable=["金"]) == []

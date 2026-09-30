@@ -80,7 +80,13 @@ def test_daily_fortune_render_replaces_placeholders():
     assert DAILY_FORTUNE_CONTEXT["hour_pillars_with_relations"] in prompt
     assert DAILY_FORTUNE_CONTEXT["huangli_yi"] in prompt
     assert DAILY_FORTUNE_CONTEXT["huangli_ji"] in prompt
-    assert "{" not in prompt, f"prompt 中仍有未填充占位符: {prompt}"
+    # v4(S6):输出契约改为 JSON 五段,模板内的 {{ }} 经 format_map 还原为
+    # 字面 { } ——不能再断言全 prompt 无 "{";改为断言无**占位符形态**残留
+    # ({word}),且 JSON 契约五键在场。
+    assert not re.search(r"\{[a-z_]+\}", prompt), (
+        f"prompt 中仍有未填充占位符: {prompt}")
+    for key in ("headline", "work", "relationships", "energy", "reminder"):
+        assert f'"{key}"' in prompt, f"v4 JSON 契约缺字段 {key}"
 
 
 def test_three_modules_all_fields_required():
@@ -515,11 +521,16 @@ def test_unknown_hour_daily_renders_degraded_variant():
     assert "推断、编造或暗示任何喜忌结论" in prompt
     assert "无从推演" in prompt
     # 渲染成功本身即证明变体未引用被免检的 3 字段(_StrictFormatDict 会 KeyError)
-    assert "{" not in prompt, f"prompt 中仍有未填充占位符: {prompt}"
+    # v4(S6):输出契约是 JSON 五段,模板 {{ }} 还原后含字面 { } ——断言
+    # 占位符形态不残留,而非全 prompt 无 "{"
+    assert not re.search(r"\{[a-z_]+\}", prompt), (
+        f"prompt 中仍有未填充占位符: {prompt}")
+    for key in ("headline", "work", "relationships", "energy", "reminder"):
+        assert f'"{key}"' in prompt, f"v4 JSON 契约缺字段 {key}(unknown_hour 变体)"
 
 
 def test_known_hour_daily_renders_main_template_semantics_unchanged():
-    """正常 context → 主模板(当前 v3):12 时辰段与喜忌栏照常注入;
+    """正常 context → 主模板(当前 v4):12 时辰段与喜忌栏照常注入;
     喜忌约束改条件式(S06 同款,非空语义不变);无降级变体内容。"""
     ctx = DAILY_FORTUNE_CONTEXT
     assert ctx["day_master_strength"] == "weak"
@@ -536,7 +547,8 @@ def test_known_hour_daily_renders_main_template_semantics_unchanged():
     # 降级变体内容不出现(确认真切了主模板而非变体)
     assert "基于日柱推演" not in prompt
     assert "出生时辰未知" not in prompt
-    assert "{" not in prompt
+    # v4(S6):主模板同含 JSON 输出契约,断言占位符形态不残留即可
+    assert not re.search(r"\{[a-z_]+\}", prompt)
 
 
 def test_daily_fortune_variant_files_exist_both_languages():
@@ -576,10 +588,11 @@ def test_validate_context_unknown_hour_exempts_known_hour_only_fields():
         REQUIRED_FIELDS["daily_fortune"])
 
 
-def test_daily_fortune_version_bumped_s09():
-    """S09:daily_fortune 2→3(一次 bump;变体与主模板共用版本号,
-    两个渲染面缓存按 prompt_hash 自然分叉,老缓存随 v3 失效)。"""
-    assert PROMPT_VERSIONS["daily_fortune"] == 3
+def test_daily_fortune_version_bumped_s09_then_s6():
+    """版本史:S09 2→3(时辰未知降级)→ S6(2026-09-30 BP 评审)3→4
+    (输出散文 → JSON 五段今日洞察;变体与主模板共用版本号,
+    两个渲染面缓存按 prompt_hash 自然分叉,老 v3 缓存随 v4 失效)。"""
+    assert PROMPT_VERSIONS["daily_fortune"] == 4
 
 
 # ===== validate_context 单元测试 =====

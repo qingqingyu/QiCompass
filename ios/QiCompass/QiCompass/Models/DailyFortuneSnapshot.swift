@@ -21,6 +21,11 @@ final class DailyFortuneSnapshot {
     var dayChong: String?
     var dayChongTargets: [String]
     var hourPillars: Data
+    // S6 今日信号(2026-09-30):Optional + 默认 nil——SwiftData 轻量迁移,
+    // 老快照缺列解码为 nil,重建 response 时信号行整体隐藏(不静默编)。
+    var dayElementsStem: String?
+    var dayElementsBranch: String?
+    var daySignal: Data?
     var lunarDate: String
     var huangliYi: [String]
     var huangliJi: [String]
@@ -40,6 +45,9 @@ final class DailyFortuneSnapshot {
         dayChong: String? = nil,
         dayChongTargets: [String] = [],
         hourPillars: Data,
+        dayElementsStem: String? = nil,
+        dayElementsBranch: String? = nil,
+        daySignal: Data? = nil,
         lunarDate: String = "",
         huangliYi: [String],
         huangliJi: [String],
@@ -58,6 +66,9 @@ final class DailyFortuneSnapshot {
         self.dayChong = dayChong
         self.dayChongTargets = dayChongTargets
         self.hourPillars = hourPillars
+        self.dayElementsStem = dayElementsStem
+        self.dayElementsBranch = dayElementsBranch
+        self.daySignal = daySignal
         self.lunarDate = lunarDate
         self.huangliYi = huangliYi
         self.huangliJi = huangliJi

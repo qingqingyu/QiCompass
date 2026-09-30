@@ -169,7 +169,26 @@ struct ChartPayloadDTO: Codable, Sendable {
 
 // MARK: - Response
 
-/// POST /api/bazi/daily-fortune 响应。对齐 backend DailyFortuneResponse
+/// 流日天干/地支五行(S6 今日信号;中文五行字,显示/取色走 BaziTerms/ElementColors)。
+struct DayElementsDTO: Codable, Sendable {
+    let stemElement: String
+    let branchElement: String
+
+    enum CodingKeys: String, CodingKey {
+        case stemElement = "stem_element"
+        case branchElement = "branch_element"
+    }
+}
+
+/// 单条今日信号:流日五行对喜忌的命中方向("up" 喜用 / "down" 忌神)。
+struct DaySignalItemDTO: Codable, Sendable {
+    let element: String
+    let direction: String
+}
+
+/// POST /api/bazi/daily-fortune 响应。对齐 backend DailyFortuneResponse。
+/// dayElements/daySignal 为 v2 后端新增字段,Optional 解码(2026-08-15 教训:
+/// payload 加字段必须可缺省——老后端/老缓存缺键不炸,UI 整行隐藏)。
 struct DailyFortuneResponse: Codable, Sendable {
     let dayPillar: String
     let dayRelationToDayMaster: String
@@ -177,6 +196,8 @@ struct DailyFortuneResponse: Codable, Sendable {
     let dayChongTargets: [String]
     let hourPillars: [HourPillarDTO]
     let currentHourIndex: Int?
+    var dayElements: DayElementsDTO? = nil
+    var daySignal: [DaySignalItemDTO]? = nil
     let lunarDate: String
     let huangliYi: [String]
     let huangliJi: [String]
@@ -190,6 +211,8 @@ struct DailyFortuneResponse: Codable, Sendable {
         case dayChongTargets = "day_chong_targets"
         case hourPillars = "hour_pillars"
         case currentHourIndex = "current_hour_index"
+        case dayElements = "day_elements"
+        case daySignal = "day_signal"
         case lunarDate = "lunar_date"
         case huangliYi = "huangli_yi"
         case huangliJi = "huangli_ji"

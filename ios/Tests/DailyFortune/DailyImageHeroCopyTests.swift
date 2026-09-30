@@ -32,24 +32,28 @@ final class DailyImageHeroCopyTests: XCTestCase {
 
     // MARK: - 宜忌词表 ⟷ 兜底模板一致性(2026-09-28 外评)
 
-    /// 宜词不得出现在兜底模板的告诫半句(分号后)——2026-09-28 外评「宜分利 vs 分利慢一拍」。
+    /// 宜词不得出现在兜底模板的**告诫半句**——2026-09-28 外评「宜分利 vs 分利慢一拍」。
+    /// S6(2026-09-30)起引擎模板五段化(无分号结构),告诫判定改为子句级:
+    /// 含告诫标记(别/不/防/避免/省着/慢一拍/少)的子句内不得出现该十神的宜词。
     /// zh / zh-Hant 两表逐键检查;EN 为短语无法子串比对,靠人工 review(见 slices 文档 S01)。
     func testYiItemsNotContradictedByEngineTemplateCaution() {
-        let pairs: [([String: (yi: [String], ji: [String])], [String: String])] = [
+        let pairs: [([String: (yi: [String], ji: [String])], [String: DailyInsight])] = [
             (HeroYiJiColumns.mappingZh, EngineReadingTemplates.zh),
             (HeroYiJiColumns.mappingHant, EngineReadingTemplates.hant),
         ]
+        let cautionMarkers = ["别", "不", "防", "避免", "省着", "慢一拍", "少"]
         for (mapping, templates) in pairs {
             XCTAssertEqual(Set(mapping.keys), Set(templates.keys))
             for (relation, cols) in mapping {
-                guard let text = templates[relation] else { continue }  // 键集合不等已由上方断言报出
-                guard let semi = text.firstIndex(where: { $0 == ";" || $0 == "；" }) else {
-                    XCTFail("模板缺分号(告诫半句分隔):\(relation)")
-                    continue
+                guard let insight = templates[relation] else { continue }  // 键集合不等已由上方断言报出
+                let fullText = [insight.work, insight.relationships, insight.energy, insight.reminder]
+                    .joined(separator: ",")
+                for clause in fullText.split(whereSeparator: { ",。;；".contains($0) }) {
+                    let clauseStr = String(clause)
+                    guard cautionMarkers.contains(where: { clauseStr.contains($0) }) else { continue }
+                    let hits = cols.yi.filter { clauseStr.contains($0) }
+                    XCTAssertTrue(hits.isEmpty, "\(relation) 宜词出现在模板告诫子句「\(clauseStr)」:\(hits)")
                 }
-                let caution = text[semi...]
-                let hits = cols.yi.filter { caution.contains($0) }
-                XCTAssertTrue(hits.isEmpty, "\(relation) 宜词出现在模板告诫半句:\(hits)")
             }
         }
     }
