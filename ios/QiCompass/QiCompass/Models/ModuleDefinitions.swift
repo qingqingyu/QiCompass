@@ -37,18 +37,27 @@ enum ModuleID: String, CaseIterable, Codable, Sendable {
         }
     }
 
-    /// 一句话副标题(对齐 v1.md §3 各模块"目的";en 走 xcstrings 同 key)。
-    /// 卡片 pending 态显示,让用户在点击前知道这个模块分析什么。
+    /// 章名(displayName 去「M{N} · 」前缀;目录行/付费墙清单/翻章条同口径,
+    /// 2026-09-30 S4 收敛为单一实现)。
+    var chapterName: String {
+        let name = displayName
+        guard let separator = name.range(of: "· ") else { return name }
+        return String(name[separator.upperBound...])
+    }
+
+    /// 一句话副标题(S4 章名人话化,2026-09-30 BP 内容评审 R8/R12/R13:
+    /// 系统分析术语 → 按各章实际产出说人话;en 走 xcstrings 同 key)。
+    /// 目录行/阅读页章节头/付费墙卖点共同消费,改这里即三处同步。
     var subtitle: String {
         switch self {
-        case .m0: return String(localized: "识别你命局的主线结构与核心循环")
-        case .m1: return String(localized: "区分天赋能力、训练能力与防御性能力")
-        case .m2: return String(localized: "同一结构在高配/低配环境下的两种跑法")
-        case .m3: return String(localized: "你的运行模式 + 失效环境 + 适配生活结构")
-        case .m4: return String(localized: "基于命局的能量规律与恢复杠杆")
-        case .m5: return String(localized: "收入形态匹配度与漏财止损规则")
-        case .m6: return String(localized: "能量路径、杠杆点、易损点与升级路线")
-        case .m7: return String(localized: "你的真正杠杆 + 90 天放大行动")
+        case .m0: return String(localized: "你这张盘的主线:靠什么驱动,在哪里打转")
+        case .m1: return String(localized: "天生就会的 · 后天练出的 · 为自保养成、长期在消耗你的")
+        case .m2: return String(localized: "同一张盘,在好环境和坏环境里分别会活成什么样")
+        case .m3: return String(localized: "你怎样运转最好、什么环境会让你失灵、什么样的生活节奏适合你")
+        case .m4: return String(localized: "精力的起落规律,和最有效的恢复方式")
+        case .m5: return String(localized: "适合你的赚钱方式,和最容易漏钱的地方")
+        case .m6: return String(localized: "你的发力点、薄弱点,以及下一阶段怎么升级")
+        case .m7: return String(localized: "最值得押注的一件事,和接下来 90 天的行动")
         }
     }
 

@@ -37,36 +37,35 @@ enum PaywallModule {
     }
 
     /// 付费章节列表
+    ///
+    /// 2026-09-30 S4:深度清单从老 bazi_deep_paid v5 的 8 类命名改为
+    /// 直接派生自 ModuleID 付费章(M2-M7,6 章)——付费墙展示与目录/阅读页
+    /// 同一本书,消灭「墙上一本书、进屋另一本」的脱节(BP 评审 R8)。
     var paidChapters: [String] {
         switch self {
-        // 2026-08-23 对齐 bazi_deep_paid v5(8 章命书框架,prompts.py
-        // 2026-08-15 晚重构;此前锁标还写老 5 章,少承诺多交付但与产品脱节)
-        // 2026-09-27「日元」→「日主」:仅 iOS 展示名(避免紧挨价格联想日币;
-        // backend 模板内文用户不可见,不改——不动 prompts.py 守护栏)
-        case .deepAnalysis: return ["命盘", "日主", "五行", "格局倾向",
-                                    "事业与财富", "婚姻感情", "学习成长", "身体健康"]
-            .map { NSLocalizedString($0, value: $0, comment: "") }
+        case .deepAnalysis:
+            return ModuleID.allCases
+                .filter(\.isPaid)
+                .map(\.chapterName)
         // 五行共振改造(S1):第一章「爱情深度」→「五行共振」,与锁标 previewChapters 对齐
         case .compatibility: return ["五行共振", "合作事业", "财运合拍", "流年同步"]
             .map { NSLocalizedString($0, value: $0, comment: "") }
         }
     }
 
-    /// 章节静态预告行(2026-09-27 review:八章只有标题没信息量)。
+    /// 章节静态预告行(2026-09-27 review:只有标题没信息量)。
     /// 与 paidChapters 平行排列,count 一致性由测试守护
-    /// (PaywallContractStepTests);文案对齐 prompts.py 各章实际内容,
-    /// 短句、不推销、不绝对化。
+    /// (PaywallContractStepTests);2026-09-30 S4 对齐 M2-M7 新副标题口径,
+    /// 短句(≤12 字,PaywallContractStepTests 守护)、不推销、不绝对化。
     var chapterTeasers: [String] {
         switch self {
         case .deepAnalysis: return [
-            "四柱与十神的总览",
-            "本性、旺衰与节奏",
-            "分布、喜忌与调候",
-            "结构倾向与得失",
-            "方向、求财与流年",
-            "婚姻与六亲相处",
-            "天赋与充电方式",
-            "体质、部位与作息",
+            "同一张盘的最好与最坏活法",
+            "怎样跑最顺,哪里会失灵",
+            "精力的起落与最佳回血法",
+            "怎么赚最顺,哪里易漏财",
+            "发力点、薄弱点与升级",
+            "押注一件事,90天行动",
         ].map { NSLocalizedString($0, value: $0, comment: "") }
         case .compatibility: return [
             "谁滋养谁,谁消耗谁",
@@ -79,9 +78,10 @@ enum PaywallModule {
 
     /// 标题副题:点名免费两章(消灭「余下」无上下文)+ 撤掉旧的
     /// 「全设备同步」承诺(匿名购买语义下同步需绑定账号,绑定行承载该信息)。
+    /// 2026-09-30 S4:深度付费章数随清单重排 8 → 6(捌 → 陆),与目录一致。
     var freeChaptersHint: String {
         switch self {
-        case .deepAnalysis: return String(localized: "主线结构与天赋能力两章已免费 · 余下捌章一次解锁")
+        case .deepAnalysis: return String(localized: "主线结构与天赋能力两章已免费 · 余下陆章一次解锁")
         case .compatibility: return String(localized: "基础相处与互补总览两章已免费 · 余下肆章一次解锁")
         }
     }

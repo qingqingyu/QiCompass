@@ -202,7 +202,8 @@ struct DeepAnalysisHomeView: View {
                     Text(L10n.DeepChain.bannerProgress(
                         done: progress.done,
                         total: progress.total,
-                        minutes: progress.estimatedMinutes
+                        minutes: progress.estimatedMinutes,
+                        isOwned: hasEntitlementForPaid
                     ))
                         .font(BaziFont.caption(size: 11))
                         .tracking(1)
@@ -241,6 +242,16 @@ struct DeepAnalysisHomeView: View {
             }
             // 次数口径小注(2026-09-19 S05):「今日剩余 N 次」单看不知在消耗什么;
             // 达限态重置信息已在 tocStatusText,不重复。
+            // S4 命书框架(2026-09-30):未读完时先说清「命书 = 按章节生成的完整
+            // 命盘解读」,消灭 EN "book" 比喻与 zh「命书」首次出现无铺垫的问题。
+            if readCount < ModuleID.allCases.count {
+                Text(L10n.DeepChain.tocIntro)
+                    .font(BaziFont.caption(size: 10))
+                    .tracking(1)
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
             Text(L10n.DeepChain.tocQuotaNote)
                 .font(BaziFont.caption(size: 10))
                 .tracking(1)
@@ -322,7 +333,7 @@ struct DeepAnalysisHomeView: View {
                 // 章号 M0=壹 … M7=捌(2026-09-02 修 off-by-one,对齐设计稿①与 PaywallView 口径)
                 NumeralBadge(index: index + 1, locked: row.isBadgeLocked, size: 30)
                 VStack(alignment: .leading, spacing: 1.5) {
-                    Text(chapterTitle(module))
+                    Text(module.chapterName)
                         .font(BaziFont.display(size: 15))
                         .tracking(1.5)
                         .foregroundStyle(row.isDim ? BaziTheme.inkMuted : BaziTheme.ink)
@@ -351,14 +362,6 @@ struct DeepAnalysisHomeView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-
-    /// 章名:displayName 去「M{N} · 」前缀(目录只留中文章名;不动
-    /// ModuleDefinitions——它在 prompt 三边一致性守护栏清单里)。
-    private func chapterTitle(_ module: ModuleID) -> String {
-        let name = module.displayName
-        guard let separator = name.range(of: "· ") else { return name }
-        return String(name[separator.upperBound...])
     }
 
     // MARK: - 沉底 CTA
@@ -405,7 +408,7 @@ struct DeepAnalysisHomeView: View {
         case .openFirst(let next):
             // 开卷:起全链 + 进首章
             PrimaryCTAButton(
-                title: String(format: String(localized: "开卷 · %@"), chapterTitle(next)),
+                title: String(format: String(localized: "开卷 · %@"), next.chapterName),
                 loadingTitle: String(localized: "生成中…"),
                 isLoading: false,
                 action: {
@@ -417,7 +420,7 @@ struct DeepAnalysisHomeView: View {
             // 续读:单章触发(不重置整链——已 ok 章保持,缓存不闪 pending);
             // 链正在跑该章(.fetching)时只进章观看,不重复发请求
             PrimaryCTAButton(
-                title: String(format: String(localized: "续读 · %@"), chapterTitle(next)),
+                title: String(format: String(localized: "续读 · %@"), next.chapterName),
                 loadingTitle: String(localized: "生成中…"),
                 isLoading: false,
                 action: {
@@ -435,7 +438,7 @@ struct DeepAnalysisHomeView: View {
                 action: onShowPaywall
             )
         case .reread:
-            ghostButton("重读 · 壹 \(chapterTitle(.m0))") {
+            ghostButton("重读 · 壹 \(ModuleID.m0.chapterName)") {
                 onOpenChapter(.m0)
             }
         case .limitReached:

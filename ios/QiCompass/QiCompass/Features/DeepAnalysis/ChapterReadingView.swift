@@ -92,11 +92,9 @@ struct ChapterReadingView: View {
         .frame(height: 42)
     }
 
-    /// 章名(displayName 去「M{N} · 」前缀;不动 ModuleDefinitions,守护栏)。
+    /// 章名(displayName 去「M{N} · 」前缀;S4 收敛到 ModuleID.chapterName)。
     private var chapterTitle: String {
-        let name = module.displayName
-        guard let separator = name.range(of: "· ") else { return name }
-        return String(name[separator.upperBound...])
+        module.chapterName
     }
 
     // MARK: - 左缘竖章号

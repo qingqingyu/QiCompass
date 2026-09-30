@@ -10,12 +10,18 @@ final class PaywallContractStepTests: XCTestCase {
 
     // MARK: - 章节清单(「日元」→「日主」改名 + teaser/副题一致性)
 
-    func test_paidChapters_deep_uses日主_not日元() {
-        // 「日元」紧挨价格易联想日币(2026-09-27 review);展示名已改「日主」
-        XCTAssertTrue(PaywallModule.deepAnalysis.paidChapters.contains("日主"),
-                      "深度章节名必须用「日主」")
+    func test_paidChapters_deep_derivesFromModuleID() {
+        // 2026-09-30 S4:付费墙清单与目录/阅读页同一本书——直接派生自
+        // ModuleID 付费章(M2-M7),不再维护独立的老 v5 8 类命名
+        let expected = ModuleID.allCases
+            .filter(\.isPaid)
+            .map(\.chapterName)
+        XCTAssertEqual(PaywallModule.deepAnalysis.paidChapters, expected,
+                       "深度付费清单必须与 ModuleID 付费章一致")
+        XCTAssertEqual(expected.count, 6, "付费章 = M2-M7 共 6 章")
+        // 「日元」紧挨价格易联想日币(2026-09-27 review)——展示名维度仍然守护
         XCTAssertFalse(PaywallModule.deepAnalysis.paidChapters.contains("日元"),
-                       "「日元」不得再出现(展示名维度)")
+                       "「日元」不得出现(展示名维度)")
     }
 
     func test_chapterTeasers_countMatchesPaidChapters_perModule() {
@@ -47,8 +53,14 @@ final class PaywallContractStepTests: XCTestCase {
             XCTAssertFalse(module.freeChaptersHint.contains("全设备同步"),
                            "\(module.title) 副题不得再承诺全设备同步")
         }
-        XCTAssertTrue(PaywallModule.deepAnalysis.freeChaptersHint.contains("捌"))
-        XCTAssertTrue(PaywallModule.compatibility.freeChaptersHint.contains("肆"))
+        // 2026-09-30 S4:深度付费章 8 → 6(清单对齐 ModuleID),副题章数随之;
+        // 从 paidChapters.count 派生大写数字,不再硬编码(与清单永远一致)
+        XCTAssertTrue(PaywallModule.deepAnalysis.freeChaptersHint
+            .contains(NumeralBadge.numeral(PaywallModule.deepAnalysis.paidChapters.count)),
+            "副题章数必须与付费清单一致")
+        XCTAssertTrue(PaywallModule.compatibility.freeChaptersHint
+            .contains(NumeralBadge.numeral(PaywallModule.compatibility.paidChapters.count)),
+            "副题章数必须与付费清单一致")
     }
 
     // MARK: - 大写润金(整价照转)

@@ -41,6 +41,15 @@ private struct NodeView: View {
         case .section(let title, let children):
             VStack(alignment: .leading, spacing: 11) {
                 sectionHeader(title)
+                // S4 M1 三层引导句(R12:天赋/训练/防御三层内容已具备,差一句
+                // 「这一节是什么」;静态映射,只挂天赋章三节,其余章节不受影响)
+                if let guide = Self.sectionGuides[title] {
+                    Text(guide)
+                        .font(BaziFont.caption(size: 10.5))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
                 ForEach(Array(children.enumerated()), id: \.offset) { _, child in
                     NodeView(node: child, depth: depth + 1)
                 }
@@ -76,6 +85,14 @@ private struct NodeView: View {
     }
 
     // MARK: - 原子
+
+    /// M1 三节引导句(节标 → 一句人话;key = ChapterContent.labels 的中文节题,
+    /// en 走 xcstrings 同 key)。第二人称、不带吉凶,对齐 §AI Voice 语言层级。
+    private static let sectionGuides: [String: String] = [
+        "天赋能力": String(localized: "用起来不累,反而回血的能力。"),
+        "训练能力": String(localized: "环境逼出来的本事,好用但有代价。"),
+        "防御性能力": String(localized: "看着像优点,其实在消耗你。"),
+    ]
 
     /// 引言段:与阅读页散文态同规格(15.5pt · 行距 2.15× · 缩进 2em)。
     private func leadParagraph(_ text: String) -> some View {

@@ -1147,12 +1147,13 @@ enum L10n {
     /// 深度解析 v1 链进度文案(主页 chainBanner / 阅读页布算中消费)。
     /// 文风对齐「布算中」的克制命理语感;en 用 "min" 规避复数形态(仓库无 stringsdict)。
     enum DeepChain {
-        /// 横幅主行:进度 + 预计耗时。
-        /// zh: "命书推演中 · 已成 %lld/%lld 章 · 约需 %lld 分钟"
-        /// en: "Weaving your book · %lld/%lld chapters done · about %lld min"
-        static func bannerProgress(done: Int, total: Int, minutes: Int) -> String {
+        /// 横幅主行:进度 + 预计耗时(S4:未购标「免费 i/N 章」说清分母只含
+        /// 可跑章——付费章未购不生成,写 0/6 是虚报;已购去掉「免费」)。
+        /// zh: "命书生成中 · 免费 %lld/%lld 章 · 约需 %lld 分钟"
+        /// en: "Building your reading · %lld/%lld free chapters · about %lld min"
+        static func bannerProgress(done: Int, total: Int, minutes: Int, isOwned: Bool) -> String {
             String(
-                format: String(localized: "deepchain.banner.progress"),
+                format: String(localized: isOwned ? "deepchain.banner.progressOwned" : "deepchain.banner.progress"),
                 done, total, minutes
             )
         }
@@ -1176,6 +1177,12 @@ enum L10n {
         /// zh: "已读章节走缓存,不消耗次数"
         /// en: "Cached chapters don't use reads"
         static let tocQuotaNote = String(localized: "deepchain.toc.quotaNote")
+
+        /// 目录节标下命书概念行(S4:「命书」/EN "reading" 首次出现的铺垫,
+        /// 未读完 8 章时显示)。
+        /// zh: "命书 = 按章节生成的完整命盘解读:先看主线与天赋(免费),再展开运行方式、财富、健康与行动。"
+        /// en: "Your reading, chapter by chapter — the structure and talents first (free), then how you run, money, health and next steps."
+        static let tocIntro = String(localized: "deepchain.toc.intro")
     }
 
     // MARK: - 排盘等待页可收起(2026-09-08)

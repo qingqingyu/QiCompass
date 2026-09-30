@@ -1448,7 +1448,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Writing your book…"
+            "value" : "Building your reading…"
           }
         },
         "zh-Hans" : {
@@ -4899,13 +4899,30 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Weaving your book · %lld/%lld chapters done · about %lld min"
+            "value" : "Building your reading · %lld/%lld free chapters · about %lld min"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命书推演中 · 已成 %1$lld/%2$lld 章 · 约需 %3$lld 分钟"
+            "value" : "命书生成中 · 免费 %1$lld/%2$lld 章 · 约需 %3$lld 分钟"
+          }
+        }
+      }
+    },
+    "deepchain.banner.progressOwned" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Building your reading · %lld/%lld chapters done · about %lld min"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命书生成中 · %1$lld/%2$lld 章 · 约需 %3$lld 分钟"
           }
         }
       }
@@ -4957,6 +4974,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "已读章节走缓存,不消耗次数"
+          }
+        }
+      }
+    },
+    "deepchain.toc.intro" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your reading, chapter by chapter — the structure and talents first (free), then how you run, money, health and next steps."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命书 = 按章节生成的完整命盘解读:先看主线与天赋(免费),再展开运行方式、财富、健康与行动。"
           }
         }
       }
@@ -6507,7 +6541,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M2 · High vs low config"
+            "value" : "M2 · Best vs worst case"
           }
         },
         "zh-Hans" : {
@@ -6524,7 +6558,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M3 · Life systems"
+            "value" : "M3 · How you run"
           }
         },
         "zh-Hans" : {
@@ -7840,19 +7874,121 @@
         }
       }
     },
-    "主线结构与天赋能力两章已免费 · 余下捌章一次解锁" : {
+    "主线结构与天赋能力两章已免费 · 余下陆章一次解锁" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The first two chapters are free · the remaining 捌 unlock at once"
+            "value" : "The first two chapters are free · the remaining 陆 unlock at once"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "主线结构与天赋能力两章已免费 · 余下捌章一次解锁"
+            "value" : "主线结构与天赋能力两章已免费 · 余下陆章一次解锁"
+          }
+        }
+      }
+    },
+    "同一张盘的最好与最坏活法" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The same chart at its best and worst"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同一张盘的最好与最坏活法"
+          }
+        }
+      }
+    },
+    "怎样跑最顺,哪里会失灵" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How you run, where you stall"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "怎样跑最顺,哪里会失灵"
+          }
+        }
+      }
+    },
+    "精力的起落与最佳回血法" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energy rhythm and recovery"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "精力的起落与最佳回血法"
+          }
+        }
+      }
+    },
+    "怎么赚最顺,哪里易漏财" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How you earn, where you leak"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "怎么赚最顺,哪里易漏财"
+          }
+        }
+      }
+    },
+    "发力点、薄弱点与升级" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Leverage, weak spots, leveling up"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "发力点、薄弱点与升级"
+          }
+        }
+      }
+    },
+    "押注一件事,90天行动" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "One lever, a 90-day plan"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "押注一件事,90天行动"
           }
         }
       }
@@ -7863,23 +7999,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "One-time purchase · no subscription"
-          }
-        }
-      }
-    },
-    "事业与财富" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Career & wealth"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "事业与财富"
           }
         }
       }
@@ -8141,53 +8260,36 @@
         }
       }
     },
-    "体质、部位与作息" : {
+    "最值得押注的一件事,和接下来 90 天的行动" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Constitution, systems and routines"
+            "value" : "Your one best lever, and a 90-day plan"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "体质、部位与作息"
+            "value" : "最值得押注的一件事,和接下来 90 天的行动"
           }
         }
       }
     },
-    "你的真正杠杆 + 90 天放大行动" : {
+    "你怎样运转最好、什么环境会让你失灵、什么样的生活节奏适合你" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your true leverage + 90 days of amplification"
+            "value" : "How you run best, where you stall, and the life setup that fits you"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你的真正杠杆 + 90 天放大行动"
-          }
-        }
-      }
-    },
-    "你的运行模式 + 失效环境 + 适配生活结构" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Your operating mode + failure environments + fitting life structure"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "你的运行模式 + 失效环境 + 适配生活结构"
+            "value" : "你怎样运转最好、什么环境会让你失灵、什么样的生活节奏适合你"
           }
         }
       }
@@ -8469,23 +8571,6 @@
         }
       }
     },
-    "分布、喜忌与调候" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Balance, favorables and season"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "分布、喜忌与调候"
-          }
-        }
-      }
-    },
     "刑害较多,需谨慎" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -8570,19 +8655,70 @@
         }
       }
     },
-    "区分天赋能力、训练能力与防御性能力" : {
+    "天生就会的 · 后天练出的 · 为自保养成、长期在消耗你的" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Telling apart innate, trained and defensive abilities"
+            "value" : "What comes naturally · what you trained · what you built to cope — and what it costs you"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "区分天赋能力、训练能力与防御性能力"
+            "value" : "天生就会的 · 后天练出的 · 为自保养成、长期在消耗你的"
+          }
+        }
+      }
+    },
+    "用起来不累,反而回血的能力。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Abilities that give you energy when you use them."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "用起来不累,反而回血的能力。"
+          }
+        }
+      }
+    },
+    "环境逼出来的本事,好用但有代价。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Skills the environment demanded — useful, with a cost."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "环境逼出来的本事,好用但有代价。"
+          }
+        }
+      }
+    },
+    "看着像优点,其实在消耗你。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Looks like a strength; quietly drains you."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "看着像优点,其实在消耗你。"
           }
         }
       }
@@ -8772,19 +8908,19 @@
         }
       }
     },
-    "同一结构在高配/低配环境下的两种跑法" : {
+    "同一张盘,在好环境和坏环境里分别会活成什么样" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "One structure, two runs — high and low config"
+            "value" : "The same chart at its best and at its worst"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "同一结构在高配/低配环境下的两种跑法"
+            "value" : "同一张盘,在好环境和坏环境里分别会活成什么样"
           }
         }
       }
@@ -8933,7 +9069,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The Book · 捌 Chapters"
+            "value" : "Your Reading · 捌 Chapters"
           }
         }
       }
@@ -9124,23 +9260,6 @@
         }
       }
     },
-    "四柱与十神的总览" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Pillars and Ten Gods at a glance"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "四柱与十神的总览"
-          }
-        }
-      }
-    },
     "四柱无冲无刑" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9314,19 +9433,19 @@
         }
       }
     },
-    "基于命局的能量规律与恢复杠杆" : {
+    "精力的起落规律,和最有效的恢复方式" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Energy rhythms and recovery levers from your chart"
+            "value" : "Your energy rhythm and how you recover best"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "基于命局的能量规律与恢复杠杆"
+            "value" : "精力的起落规律,和最有效的恢复方式"
           }
         }
       }
@@ -9433,57 +9552,6 @@
         }
       }
     },
-    "天赋与充电方式" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Gifts and how you recharge"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "天赋与充电方式"
-          }
-        }
-      }
-    },
-    "婚姻与六亲相处" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Marriage and family bonds"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "婚姻与六亲相处"
-          }
-        }
-      }
-    },
-    "婚姻感情" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Marriage & love"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "婚姻感情"
-          }
-        }
-      }
-    },
     "子时属次日 ›" : {
       "localizations" : {
         "en" : {
@@ -9510,23 +9578,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Zi-hour day change"
-          }
-        }
-      }
-    },
-    "学习成长" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Growth"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "学习成长"
           }
         }
       }
@@ -9926,19 +9977,19 @@
         }
       }
     },
-    "收入形态匹配度与漏财止损规则" : {
+    "适合你的赚钱方式,和最容易漏钱的地方" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Income-form fit and rules against leaks"
+            "value" : "How you earn best, and where money slips away"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "收入形态匹配度与漏财止损规则"
+            "value" : "适合你的赚钱方式,和最容易漏钱的地方"
           }
         }
       }
@@ -9986,23 +10037,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "New"
-          }
-        }
-      }
-    },
-    "方向、求财与流年" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Direction, money and the years"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "方向、求财与流年"
           }
         }
       }
@@ -10323,23 +10357,6 @@
         }
       }
     },
-    "本性、旺衰与节奏" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Nature, strength and rhythm"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "本性、旺衰与节奏"
-          }
-        }
-      }
-    },
     "查看 ›" : {
       "localizations" : {
         "en" : {
@@ -10356,23 +10373,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "See the full chart"
-          }
-        }
-      }
-    },
-    "格局倾向" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Structural lean"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "格局倾向"
           }
         }
       }
@@ -11059,23 +11059,6 @@
         }
       }
     },
-    "结构倾向与得失" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Structural lean, gains and costs"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "结构倾向与得失"
-          }
-        }
-      }
-    },
     "续读 · %@" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11178,19 +11161,19 @@
         }
       }
     },
-    "能量路径、杠杆点、易损点与升级路线" : {
+    "你的发力点、薄弱点,以及下一阶段怎么升级" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Energy paths, leverage points, weak spots and upgrade routes"
+            "value" : "Your leverage, your weak spots, and how to level up"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "能量路径、杠杆点、易损点与升级路线"
+            "value" : "你的发力点、薄弱点,以及下一阶段怎么升级"
           }
         }
       }
@@ -11289,7 +11272,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unlock the full book · 叁 to 捌"
+            "value" : "Unlock the full reading · 叁 to 捌"
           }
         },
         "zh-Hans" : {
@@ -11412,19 +11395,19 @@
         }
       }
     },
-    "识别你命局的主线结构与核心循环" : {
+    "你这张盘的主线:靠什么驱动,在哪里打转" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Reading your chart's main structure and core loop"
+            "value" : "What drives your chart, and where it loops"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "识别你命局的主线结构与核心循环"
+            "value" : "你这张盘的主线:靠什么驱动,在哪里打转"
           }
         }
       }
@@ -11758,23 +11741,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "购买验证失败,请重试"
-          }
-        }
-      }
-    },
-    "身体健康" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Health"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "身体健康"
           }
         }
       }
