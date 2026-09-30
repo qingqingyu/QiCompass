@@ -49,7 +49,8 @@ _Avoid_: lucky elements / useful god
 
 **忌讳 (Unfavorable Elements)**:
 对命主不利的五行列表。同上,后端确定性输出。
-_Avoid_: bad elements / taboo
+_Avoid_: bad elements / taboo / "Avoid"(作 UI 标签)
+_UI 显示层_(2026-09-30 BP 评审):EN 显示 "Less supportive"(喜用显示 "Favored"),zh 卡片标签用"忌神";prompt / 术语层仍用 Unfavorable Elements。喜忌描述的是五行对命局平衡的助益方向,不是生活禁忌
 
 **扶抑法**:
 喜忌主规则。身强 → 用克泄耗;身弱 → 用生扶。输出固定喜用 + 忌五行。
