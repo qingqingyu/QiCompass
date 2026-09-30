@@ -190,7 +190,10 @@ final class PaywallContractStepTests: XCTestCase {
         XCTAssertEqual(record?.contentHash, "hash_abc")
         XCTAssertEqual(record?.module, EntitlementModule.baziDeep)
 
-        // 同 txId 覆盖不堆积
+        // 同 txId 不同上下文 → 保留首条不覆盖(2026-09-30 keep-first 语义:
+        // 首条 redeem 可能已在他处兑现到一半[客户端超时但后端已提交],被顶掉后
+        // listener 拿新 hash 续接会撞 ENTITLEMENT_ERROR 清档收尾,首条对应的
+        // 本地 entitlement 从此无人补写)
         PendingRedeemStore.set(
             txId: "tx_001",
             .init(
@@ -199,8 +202,20 @@ final class PaywallContractStepTests: XCTestCase {
                 module: EntitlementModule.compatibility
             )
         )
-        XCTAssertEqual(PendingRedeemStore.get(txId: "tx_001")?.module,
-                       EntitlementModule.compatibility)
+        let kept = PendingRedeemStore.get(txId: "tx_001")
+        XCTAssertEqual(kept?.contentHash, "hash_abc", "冲突不覆盖,保留首条")
+        XCTAssertEqual(kept?.module, EntitlementModule.baziDeep)
+
+        // 同上下文重写 = 幂等照常落(不误伤正常路径)
+        PendingRedeemStore.set(
+            txId: "tx_001",
+            .init(
+                productId: "com.qicompass.deep_analysis.single",
+                contentHash: "hash_abc",
+                module: EntitlementModule.baziDeep
+            )
+        )
+        XCTAssertEqual(PendingRedeemStore.get(txId: "tx_001")?.contentHash, "hash_abc")
 
         // remove → 消失;重复 remove 幂等
         PendingRedeemStore.remove(txId: "tx_001")
