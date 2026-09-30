@@ -1324,12 +1324,12 @@ enum L10n {
         /// 从格竖注整句。zh: "从格 · 喜忌留空";en: "Special pattern · favorable elements withheld"
         static let sideNoteSpecialPattern = String(localized: "deepanalysis.hero.sideNote.specialPattern")
 
-        /// 喜用竖注段(%@ = 五行显示值串)。zh: "喜%@";en: "Favorable %@"
+        /// 喜用竖注段(%@ = 五行显示值串)。zh: "喜%@";en: "Favored %@"
         static func sideNoteFavorable(_ elements: String) -> String {
             String(format: String(localized: "deepanalysis.hero.sideNote.favorable"), elements)
         }
 
-        /// 忌讳竖注段(%@ = 五行显示值串)。zh: "忌%@";en: "Avoid %@"
+        /// 忌神竖注段(%@ = 五行显示值串)。zh: "忌%@";en: "Less supportive %@"
         static func sideNoteUnfavorable(_ elements: String) -> String {
             String(format: String(localized: "deepanalysis.hero.sideNote.unfavorable"), elements)
         }
@@ -1348,16 +1348,21 @@ enum L10n {
 
         // -- 喜忌卡 --
 
-        /// 喜用行标签。zh: "喜用";en: "Favorable"
+        /// 喜用行标签。zh: "喜用";en: "Favored"
         static let xijiFavorable = String(localized: "deepanalysis.xiji.favorable")
 
-        /// 忌讳行标签。zh: "忌讳";en: "Avoid"
+        /// 忌神行标签。zh: "忌神";en: "Less supportive"
         static let xijiUnfavorable = String(localized: "deepanalysis.xiji.unfavorable")
 
-        /// 喜用 accessibility 前缀。zh: "喜用";en: "Favorable"
+        /// 喜忌常驻释义(去绝对化:喜忌是五行对命局平衡的方向,不是生活禁忌)。
+        /// zh: "喜忌指五行对命局平衡的助益方向,不是生活禁忌(不涉及颜色、方位、职业的取舍)。"
+        /// en: "Favored and less supportive describe how each element balances this chart — not things to avoid in daily life."
+        static let xijiDisclaimer = String(localized: "deepanalysis.xiji.disclaimer")
+
+        /// 喜用 accessibility 前缀。zh: "喜用";en: "Favored"
         static let xijiFavorableA11y = String(localized: "deepanalysis.xiji.favorableA11y")
 
-        /// 忌神 accessibility 前缀。zh: "忌神";en: "Unfavorable"
+        /// 忌神 accessibility 前缀。zh: "忌神";en: "Less supportive"
         static let xijiUnfavorableA11y = String(localized: "deepanalysis.xiji.unfavorableA11y")
 
         /// 算法标注行(%@ = xijiMethod 术语显示值)。

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 喜忌卡(DESIGN.md §Color + 方案 §一 XijiCard + §4.7 special_pattern 降级)。
 ///
-/// 正常盘:喜用(jade)/忌讳(cinnabar)chips + 旺衰 + 调候触发标记 + 算法说明。
+/// 正常盘:喜用(jade)/忌神(cinnabar)chips + 旺衰 + 调候触发标记 + 算法说明。
 /// 从格(special_pattern):标题改"命局呈现从格特征",不显示喜忌 chips,
 /// 显示"喜忌结论留空,详见命书"(LLM 文本由后端追加降级段)。
 struct XijiCard: View {
@@ -43,6 +43,13 @@ struct XijiCard: View {
                 Text(L10n.DeepChart.xijiMethod(BaziTerms.display(method)))
                     .font(.caption2)
                     .foregroundStyle(BaziTheme.inkMuted)
+            }
+            if !isSpecialPattern {
+                // S1 喜忌去绝对化:常驻一行释义,化解"喜/忌 = 生活禁忌"的读法
+                Text(L10n.DeepChart.xijiDisclaimer)
+                    .font(.caption2)
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .padding(.top, 2)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

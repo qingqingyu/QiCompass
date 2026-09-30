@@ -4576,7 +4576,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Favorable %@"
+            "value" : "Favored %@"
           }
         },
         "zh-Hans" : {
@@ -4610,7 +4610,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Avoid %@"
+            "value" : "Less supportive %@"
           }
         },
         "zh-Hans" : {
@@ -4723,13 +4723,30 @@
         }
       }
     },
+    "deepanalysis.xiji.disclaimer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favored and less supportive describe how each element balances this chart — not things to avoid in daily life."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "喜忌指五行对命局平衡的助益方向,不是生活禁忌(不涉及颜色、方位、职业的取舍)。"
+          }
+        }
+      }
+    },
     "deepanalysis.xiji.favorable" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Favorable"
+            "value" : "Favored"
           }
         },
         "zh-Hans" : {
@@ -4746,7 +4763,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Favorable"
+            "value" : "Favored"
           }
         },
         "zh-Hans" : {
@@ -4831,13 +4848,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Avoid"
+            "value" : "Less supportive"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "忌讳"
+            "value" : "忌神"
           }
         }
       }
@@ -4848,7 +4865,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Unfavorable"
+            "value" : "Less supportive"
           }
         },
         "zh-Hans" : {
