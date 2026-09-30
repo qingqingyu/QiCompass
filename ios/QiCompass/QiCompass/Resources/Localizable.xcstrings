@@ -11297,6 +11297,40 @@
         }
       }
     },
+    "查看释义" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What does this mean?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看释义"
+          }
+        }
+      }
+    },
+    "暂无释义" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No note yet"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "暂无释义"
+          }
+        }
+      }
+    },
     "解印全本 · 叁至捌章" : {
       "extractionState" : "manual",
       "localizations" : {

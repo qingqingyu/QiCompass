@@ -22,6 +22,9 @@ struct DeepAnalysisHomeView: View {
     /// 付费墙触点(解印 CTA / 锁章行):sheet 挂在宿主根上,阅读页 push 中也可触发。
     var onShowPaywall: () -> Void
 
+    /// S5 术语释义:hero 十神/旺衰旁标点击 → BaziTermNoteSheet(共享词表)。
+    @State private var termNote: TermNoteRequest?
+
     /// 从格:hero 竖注与喜忌行降级(喜忌留空,详见命书)。
     private var isSpecialPattern: Bool {
         response.dayMasterStrength == "special_pattern"
@@ -68,6 +71,12 @@ struct DeepAnalysisHomeView: View {
         .frame(height: 300)
         .frame(maxWidth: .infinity, alignment: .leading)
         .clipped()
+        // S5 术语释义(交互先例 = 今日页 HeroShiShenNoteSheet,2026-09-29 D3)
+        .sheet(item: $termNote) { req in
+            BaziTermNoteSheet(term: req.term)
+                .presentationDetents([.height(250), .large])
+                .presentationBackground(BaziTheme.paper)
+        }
         // 左下品牌印
         .overlay(alignment: .bottomLeading) {
             SealStamp(character: "玄", size: 24, rotation: -4, stampDelay: 0.3)
@@ -106,9 +115,25 @@ struct DeepAnalysisHomeView: View {
                         .font(BaziFont.caption(size: 9))
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
                 }
-                Text(isDay ? dayMasterNote : BaziTerms.display(pillar.shishenGan))
-                    .font(BaziFont.caption(size: 10.5))
-                    .foregroundStyle(BaziTheme.inkMuted)
+                // S5 术语释义:十神(非日柱)/旺衰(日柱)旁标可点 → 一句人话;
+                // 词表未收录的值不挂入口(宁缺毋滥)
+                let noteTerm: String? = isDay ? dayStrengthTerm : pillar.shishenGan
+                if let noteTerm, BaziTermNotes.note(for: noteTerm) != nil {
+                    Button {
+                        HapticEngine.light()
+                        termNote = TermNoteRequest(term: noteTerm)
+                    } label: {
+                        Text(isDay ? dayMasterNote : BaziTerms.display(pillar.shishenGan))
+                            .font(BaziFont.caption(size: 10.5))
+                            .foregroundStyle(BaziTheme.inkMuted)
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityHint(String(localized: "查看释义"))
+                } else {
+                    Text(isDay ? dayMasterNote : BaziTerms.display(pillar.shishenGan))
+                        .font(BaziFont.caption(size: 10.5))
+                        .foregroundStyle(BaziTheme.inkMuted)
+                }
             } else {
                 // 柱位空缺:dashed 圆环 = 干支之位空着。常态是时柱未知(D7 触点 1);
                 // 年/月柱也可能因节气边界歧义(S02,立春日+时辰未知)留空——
@@ -131,15 +156,19 @@ struct DeepAnalysisHomeView: View {
 
     /// 日主旁注:「日主 · 身弱」;从格 → 「日主 · 从格」。旺衰值经 BaziTerms 取显示语。
     private var dayMasterNote: String {
-        let strength: String
+        guard let strength = dayStrengthTerm else { return BaziTerms.display("日主") }
+        return L10n.DeepChart.dayMasterNote(BaziTerms.display(strength))
+    }
+
+    /// 旺衰 zh key(S5:hero 日柱旁标释义入口用;未知值 → nil 不挂入口)。
+    private var dayStrengthTerm: String? {
         switch response.dayMasterStrength {
-        case "strong":          strength = "身强"
-        case "weak":            strength = "身弱"
-        case "balanced":        strength = "中和"
-        case "special_pattern": strength = "从格"
-        default:                strength = ""
+        case "strong":          return "身强"
+        case "weak":            return "身弱"
+        case "balanced":        return "中和"
+        case "special_pattern": return "从格"
+        default:                return nil
         }
-        return strength.isEmpty ? BaziTerms.display("日主") : L10n.DeepChart.dayMasterNote(BaziTerms.display(strength))
     }
 
     /// 右下竖注:喜木水 · 忌金;从格 → 从格 · 喜忌留空;无喜忌数据 → 空(不渲染)。

@@ -48,6 +48,9 @@ struct DualPillarsTable: View {
     /// 后端日主关系标签(S4 中轴;qualitativeAssessment.dayMasterRelation 原值)。
     let dayMasterRelation: String
 
+    /// S5 术语释义:中轴日主关系(相生/相克/同气)点击 → BaziTermNoteSheet。
+    @State private var termNote: TermNoteRequest?
+
     /// 日柱列判定(position 标签单一事实源)。
     private var isDayPillar: (DualPillarSource) -> Bool {
         { $0.position == L10n.Compatibility.dualDayPillar }
@@ -102,19 +105,12 @@ struct DualPillarsTable: View {
 
                 // 中轴(S4):hairline 分隔 + 「合」印 + 日主方向短语
                 // (原型 .vs:朱文空心、-3° 微侧;短语 = 客户端派生方向 + 后端类别标签)
+                // S5:关系词表收录(相生/相克/同气)→ 整块可点出一句释义
                 HStack(spacing: 10) {
                     Rectangle()
                         .fill(BaziTheme.hairline)
                         .frame(height: 0.5)
-                    VStack(spacing: 3) {
-                        SealStamp(character: "合", size: 22, rotation: -3, stampDelay: nil)
-                        Text(axisText)
-                            .font(BaziFont.caption(size: 10))
-                            .tracking(1)
-                            .foregroundStyle(BaziTheme.inkMuted)
-                            .fixedSize(horizontal: false, vertical: true)
-                            .multilineTextAlignment(.center)
-                    }
+                    axisView
                     Rectangle()
                         .fill(BaziTheme.hairline)
                         .frame(height: 0.5)
@@ -142,6 +138,38 @@ struct DualPillarsTable: View {
             }
         }
         .fadeIn()
+        // S5 术语释义(交互先例 = 今日页 HeroShiShenNoteSheet,2026-09-29 D3)
+        .sheet(item: $termNote) { req in
+            BaziTermNoteSheet(term: req.term)
+                .presentationDetents([.height(250), .large])
+                .presentationBackground(BaziTheme.paper)
+        }
+    }
+
+    /// 中轴块:「合」印 + 方向短语;关系值在词表内 → 可点出释义。
+    @ViewBuilder
+    private var axisView: some View {
+        let content = VStack(spacing: 3) {
+            SealStamp(character: "合", size: 22, rotation: -3, stampDelay: nil)
+            Text(axisText)
+                .font(BaziFont.caption(size: 10))
+                .tracking(1)
+                .foregroundStyle(BaziTheme.inkMuted)
+                .fixedSize(horizontal: false, vertical: true)
+                .multilineTextAlignment(.center)
+        }
+        if BaziTermNotes.note(for: dayMasterRelation) != nil {
+            Button {
+                HapticEngine.light()
+                termNote = TermNoteRequest(term: dayMasterRelation)
+            } label: {
+                content
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(String(localized: "查看释义"))
+        } else {
+            content
+        }
     }
 
     /// 单人柱单元格:标签 + 干支(Kaiti SC)+ 纳音。

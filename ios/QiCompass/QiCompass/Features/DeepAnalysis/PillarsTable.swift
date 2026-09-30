@@ -28,17 +28,33 @@ struct PillarsTable: View {
     /// nil = 无宿主(防御/测试渲染),点击仅记日志不 crash。
     var onAddHour: (() -> Void)? = nil
 
+    /// S5 术语释义:十神(天干/地支)点击 → BaziTermNoteSheet(共享词表)。
+    @State private var termNote: TermNoteRequest?
+
     var body: some View {
         // 盘面小景 S1 卸卡:节标「四柱」移入 ChartDetailView 的 HairlineSection,
         // 卡壳与内边距移除(柱列内部间距不动)
         HStack(alignment: .top, spacing: 10) {
-            PillarColumn(title: L10n.DeepChart.pillarYear, pillar: pillars.year)
-            PillarColumn(title: L10n.DeepChart.pillarMonth, pillar: pillars.month)
-            PillarColumn(title: L10n.DeepChart.pillarDay, isDay: true, pillar: pillars.day)
+            PillarColumn(title: L10n.DeepChart.pillarYear, pillar: pillars.year, onTermTap: openTermNote)
+            PillarColumn(title: L10n.DeepChart.pillarMonth, pillar: pillars.month, onTermTap: openTermNote)
+            PillarColumn(title: L10n.DeepChart.pillarDay, isDay: true, pillar: pillars.day, onTermTap: openTermNote)
             // isHourSlot:未知时该列是 D7 补时辰触点 1(S10 已接线)
-            PillarColumn(title: L10n.DeepChart.pillarHour, isHourSlot: true, pillar: pillars.hour, onAddHour: onAddHour)
+            PillarColumn(title: L10n.DeepChart.pillarHour, isHourSlot: true, pillar: pillars.hour, onAddHour: onAddHour, onTermTap: openTermNote)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+        // S5 术语释义(交互先例 = 今日页 HeroShiShenNoteSheet,2026-09-29 D3)
+        .sheet(item: $termNote) { req in
+            BaziTermNoteSheet(term: req.term)
+                .presentationDetents([.height(250), .large])
+                .presentationBackground(BaziTheme.paper)
+        }
+    }
+
+    /// 词表有的术语才弹释义(未收录不挂入口,宁缺毋滥)。
+    private func openTermNote(_ term: String) {
+        guard BaziTermNotes.note(for: term) != nil else { return }
+        HapticEngine.light()
+        termNote = TermNoteRequest(term: term)
     }
 }
 
@@ -51,6 +67,8 @@ private struct PillarColumn: View {
     let pillar: PillarDTO?
     /// S10:触点回调(宿主注入;仅 isHourSlot 且柱未知时消费)
     var onAddHour: (() -> Void)? = nil
+    /// S5:十神点击回调(宿主注入;词表判定在宿主)
+    var onTermTap: ((String) -> Void)? = nil
 
     var body: some View {
         switch PillarSlotModel.resolve(pillar) {
@@ -72,9 +90,8 @@ private struct PillarColumn: View {
             Text(pillar.gan)
                 .font(BaziFont.ganzhi(size: 22))
                 .foregroundStyle(ganColor(pillar))
-            Text(BaziTerms.display(pillar.shishenGan))
-                .font(.caption2)
-                .foregroundStyle(BaziTheme.inkMuted)
+            // S5:天干十神可点出释义(词表未收录值保持纯文本)
+            shiShenText(pillar.shishenGan)
             // 地支
             Text(pillar.zhi)
                 .font(BaziFont.ganzhi(size: 22))
@@ -82,9 +99,7 @@ private struct PillarColumn: View {
             // 地支十神(可能多个)
             VStack(spacing: 2) {
                 ForEach(pillar.shishenZhi, id: \.self) { s in
-                    Text(BaziTerms.display(s))
-                        .font(.caption2)
-                        .foregroundStyle(BaziTheme.inkMuted)
+                    shiShenText(s)
                 }
             }
             // 纳音(次要信息,inkMuted)
@@ -170,6 +185,28 @@ private struct PillarColumn: View {
         }
         .accessibilityElement(children: .combine)
         .accessibilityLabel(L10n.Common.hourUnknown)
+    }
+
+    // MARK: - 十神行(S5 术语释义)
+
+    /// 十神 caption2:词表收录 → 可点出释义;未收录 → 纯文本(宁缺毋滥)。
+    @ViewBuilder
+    private func shiShenText(_ term: String) -> some View {
+        if let onTermTap, BaziTermNotes.note(for: term) != nil {
+            Button {
+                onTermTap(term)
+            } label: {
+                Text(BaziTerms.display(term))
+                    .font(.caption2)
+                    .foregroundStyle(BaziTheme.inkMuted)
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint(String(localized: "查看释义"))
+        } else {
+            Text(BaziTerms.display(term))
+                .font(.caption2)
+                .foregroundStyle(BaziTheme.inkMuted)
+        }
     }
 
     // MARK: - 取色(仅已知柱)
