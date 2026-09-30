@@ -329,6 +329,9 @@ extension CompatibilityView {
     /// configuring 态内容区(P5 / P6):
     /// - 名单空(P5):留白说明 + 命主无时辰 banner + 内联 PartnerBirthForm
     ///   (提交 = 加入 + 选中 + 合盘;点头部占位聚焦称呼)
+    /// - 有选中但无缓存(R3,2026-09-30):头部显示该人,内容区一行说明 +
+    ///   「重新合盘」入口(selectPartner(force:)——缓存命中态不会走到这里,
+    ///   恢复已直达 detail;不自动发请求)
     /// - 名单非空无已选(P6):一行 inkMuted 说明,点头部开 sheet,不自动弹
     /// - 命主无时辰:表单按 S07 全锁语义置灰(先补时辰再解锁)
     @ViewBuilder
@@ -358,6 +361,33 @@ extension CompatibilityView {
                 .padding(.horizontal, BaziTheme.Spacing.lg)
                 .padding(.bottom, 32)
             }
+        } else if let selected = vm.selectedRosterEntries.first {
+            // R3 有选中无缓存(恢复未命中 / 上次合盘失败):不自动发请求,
+            // 给显式入口——selectPartner force 绕过「已是当前对方」no-op
+            VStack(spacing: BaziTheme.Spacing.lg) {
+                Spacer()
+                Text(L10n.CompatibilityPartner.selectedNoCacheHint)
+                    .font(BaziFont.caption(size: 12))
+                    .tracking(1.5)
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+                Button {
+                    vm.selectPartner(selected, force: true)
+                } label: {
+                    Text(L10n.CompatibilityPartner.recomputeCta)
+                        .font(BaziFont.body(size: 15))
+                        .tracking(2)
+                        .foregroundStyle(BaziTheme.ink)
+                        .padding(.horizontal, BaziTheme.Spacing.xl)
+                        .padding(.vertical, 10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
+                                .stroke(BaziTheme.hairline, lineWidth: 1)
+                        )
+                }
+                .disabled(vm.isSelfHourUnknown)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             VStack {
                 Spacer()

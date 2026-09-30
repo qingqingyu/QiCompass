@@ -1,26 +1,35 @@
 import Foundation
 
-/// 合盘名单 + A 盘 + context + 临时表单草稿 跨启动持久化(决策 D5)。
+/// 合盘名单 + A 盘 + context + 临时表单草稿 跨启动持久化(决策 D5;R1-R5 修订 2026-09-30)。
 ///
 /// 持久化 4 类 UserDefaults key:
 /// - `compat.lastPersonAHash`:上次 A 盘 contentHash(失效则 VM fallback 最新 link)
-/// - `compat.lastContext`:上次 context(默认 "general")
-/// - `compat.roster`:JSON `[personBHash]`(临时人用 S04 回填的 resolvedHash,
-///   跨启动后恢复为 `.archived` 风格 entry,显示名走兜底名「对方+出生日期」)
+/// - `compat.lastContext`:上次 context(默认 "general";VM 侧已固定不恢复,仅续写)
+/// - `compat.rosterV2`:JSON `PersistedRoster`——**名单完整持久化**(R1):每个成员
+///   含临时对方的完整出生信息(PersonBInput)/ 称呼 / 出生地 / 已算出的 resolvedHash,
+///   以及「当前选中是谁」(R3)。名单或选中一变即写(R2),不依赖 compute() 成功,
+///   合盘失败不影响名单。
 /// - `compat.tempDraft`:JSON `TempDraftState`(临时表单上次填过的字段,
 ///   加第二个临时人时默认值用上次的,用户只改称呼/时间)
 ///
-/// 红线 D6:名单只存 hash 字符串,**不存完整 RosterEntry**(临时人 alias 不持久化,
-/// 会话内场景已过;不转 UserSnapshotLink)。这是深思后的保守选择——
-/// 减少持久化状态维度,避免与 SwiftData 快照库不一致。
+/// 老 key `compat.roster`(`[String]` hash 数组,09-07 单选时代写法):只在
+/// `loadLegacyRosterHashesForMigration()` 读一次并转换成 V2 后删除(R5,一次性迁移;
+/// `remapHash` 在迁移前发生时也会顺带转换)。
 ///
-/// 错误显式传播:JSON 损坏 → load() 返回空数组(显式日志记录),不静默吞数据。
+/// 红线 D6(2026-09-30 修订后不变的部分):临时对方**不建 UserSnapshotLink**、
+/// 零 SwiftData schema 演化、不上云、不进 SyncManager;修订的只是 D6 里
+/// 「名单只存 hash、alias 不持久化」的保守选择(见 docs/合盘名单持久化修复-plan.md R4)。
+///
+/// 错误显式传播:JSON 编解码失败 → AppLogger.persistence.error + 视为空 + 删损坏
+/// key(损坏自愈),不静默用默认值掩盖。
 struct CompatibilityRosterPersistence {
 
     private enum Key {
         static let personAHash = "compat.lastPersonAHash"
         static let context = "compat.lastContext"
-        static let rosterHashes = "compat.roster"
+        static let rosterV2 = "compat.rosterV2"
+        /// 老 key(R5 迁移源;迁移后删除,不再写入)。
+        static let legacyRosterHashes = "compat.roster"
         static let tempDraft = "compat.tempDraft"
     }
 
@@ -39,77 +48,91 @@ struct CompatibilityRosterPersistence {
         place: nil
     )
 
-    // MARK: - Save
+    // MARK: - V2 数据格式(R1,2026-09-30)
 
-    /// 写入持久化(compute() 成功后调)。
-    /// rosterHashes 来自 summaries.personBHash(已含 resolved contentHash)。
-    static func save(personAHash: String, context: String, rosterHashes: [String]) {
+    /// 名单持久化根结构(`compat.rosterV2`)。
+    /// 不让 `RosterEntry` 本身 Codable——它的 `==` 按 id 比较,与 Codable 混用
+    /// 容易埋坑;互转走 `RosterEntry.init(persisted:)` / `RosterEntry.persisted`。
+    struct PersistedRoster: Codable, Equatable {
+        var entries: [PersistedRosterEntry]
+        /// 当前选中的 entry id;nil = 无选中(结果壳 P6)。
+        var selectedEntryID: String?
+    }
+
+    /// 名单成员的持久化形态(`RosterEntry` 的镜像;PersonBInput / PlaceSelection
+    /// 已是 Codable,直接承载)。
+    enum PersistedRosterEntry: Codable, Equatable {
+        /// 存档命盘(hash 软引用 ChartSnapshot.contentHash)。
+        case archived(snapshotHash: String)
+        /// 临时对方:完整输入 + 称呼 + 已算出的 B 盘 hash(nil = 还没算过)+ 原始出生地。
+        case temp(input: PersonBInput, alias: String?, resolvedHash: String?, place: PlaceSelection)
+    }
+
+    // MARK: - Save / Load(V2)
+
+    /// 写入 V2 名单 + A 盘 + context(VM `persistRoster()` 单一出口调;
+    /// 名单或选中一变即写,R2——不依赖 compute() 成功)。
+    static func saveV2(personAHash: String, context: String, roster: PersistedRoster) {
         let defaults = UserDefaults.standard
         defaults.set(personAHash, forKey: Key.personAHash)
         defaults.set(context, forKey: Key.context)
         do {
-            let data = try JSONEncoder().encode(rosterHashes)
-            defaults.set(data, forKey: Key.rosterHashes)
+            let data = try JSONEncoder().encode(roster)
+            defaults.set(data, forKey: Key.rosterV2)
         } catch {
-            // 不静默吞:JSON 编码失败说明 rosterHashes 类型异常,记录但不阻塞 compute() 已成功的状态
+            // 不静默吞:编码失败说明结构异常,记录但不阻塞调用方已完成的内存态
             AppLogger.persistence.error(
-                "op=compatibility.rosterPersistence.save_encode_failed error=\(String(describing: error), privacy: .public)"
+                "op=compatibility.rosterPersistence.saveV2_encode_failed error=\(String(describing: error), privacy: .public)"
             )
+            return
         }
         AppLogger.app.info(
-            "op=compatibility.rosterPersistence.save a_hash=\(personAHash, privacy: .public) context=\(context, privacy: .public) roster_count=\(rosterHashes.count, privacy: .public)"
+            "op=compatibility.rosterPersistence.saveV2 a_hash=\(personAHash, privacy: .public) roster_count=\(roster.entries.count, privacy: .public) selected=\(roster.selectedEntryID ?? "nil", privacy: .public)"
         )
     }
 
-    // MARK: - Load
-
-    struct PersistedState {
-        let personAHash: String?
-        let context: String
-        let rosterHashes: [String]
-    }
-
-    /// 读出持久化值;JSON 损坏时返回空 roster(显式日志)。
-    static func load() -> PersistedState {
+    /// 读 V2 名单;key 不存在 → nil(调用方决定是否走 R5 迁移);
+    /// JSON 损坏 → error 日志 + 删 key + nil(视为空,损坏自愈)。
+    static func loadV2() -> PersistedRoster? {
         let defaults = UserDefaults.standard
-        let aHash = defaults.string(forKey: Key.personAHash)
-        let context = defaults.string(forKey: Key.context) ?? defaultContext
-
-        var hashes: [String] = []
-        if let data = defaults.data(forKey: Key.rosterHashes) {
-            do {
-                hashes = try JSONDecoder().decode([String].self, from: data)
-            } catch {
-                AppLogger.persistence.error(
-                    "op=compatibility.rosterPersistence.load_decode_failed error=\(String(describing: error), privacy: .public)"
-                )
-                // 损坏 → 视为空,清理脏数据
-                defaults.removeObject(forKey: Key.rosterHashes)
-            }
+        guard let data = defaults.data(forKey: Key.rosterV2) else { return nil }
+        do {
+            return try JSONDecoder().decode(PersistedRoster.self, from: data)
+        } catch {
+            AppLogger.persistence.error(
+                "op=compatibility.rosterPersistence.loadV2_decode_failed error=\(String(describing: error), privacy: .public)"
+            )
+            defaults.removeObject(forKey: Key.rosterV2)
+            return nil
         }
-        return PersistedState(personAHash: aHash, context: context, rosterHashes: hashes)
     }
 
-    // MARK: - Cleanup(无效 hash 剔除)
+    /// 读上次 A 盘 hash(独立 key,V2 与迁移路径共用)。
+    static func loadPersonAHash() -> String? {
+        UserDefaults.standard.string(forKey: Key.personAHash)
+    }
 
-    /// 恢复时若名单 hash 失效(ChartSnapshot 不存在),剔除 + 写回干净名单。
-    /// 用有效性验证 closure 决定保留与否。
-    static func cleanupInvalidHashes(
-        persistedHashes: [String],
-        isValid: (String) -> Bool
-    ) -> [String] {
-        let cleaned = persistedHashes.filter(isValid)
-        if cleaned.count != persistedHashes.count {
-            AppLogger.app.warning(
-                "op=compatibility.rosterPersistence.cleanup_invalid_hashes before=\(persistedHashes.count, privacy: .public) after=\(cleaned.count, privacy: .public)"
+    // MARK: - R5 老数据迁移(一次性)
+
+    /// 读老 key `compat.roster` 的 hash 数组并**删除老 key**(迁移只跑一次;
+    /// 无论 decode 成败都删——损坏的老数据视为无,下次不再尝试)。
+    /// 返回 nil = 老 key 不存在 / 已迁移 / 损坏。
+    static func loadLegacyRosterHashesForMigration() -> [String]? {
+        let defaults = UserDefaults.standard
+        guard let data = defaults.data(forKey: Key.legacyRosterHashes) else { return nil }
+        defer { defaults.removeObject(forKey: Key.legacyRosterHashes) }
+        do {
+            let hashes = try JSONDecoder().decode([String].self, from: data)
+            AppLogger.app.info(
+                "op=compatibility.rosterPersistence.legacy_migration_read count=\(hashes.count, privacy: .public)"
             )
-            // 写回干净名单:单次 load() 避免重复 UserDefaults 读 + JSON decode
-            let state = load()
-            if let aHash = state.personAHash {
-                save(personAHash: aHash, context: state.context, rosterHashes: cleaned)
-            }
+            return hashes
+        } catch {
+            AppLogger.persistence.error(
+                "op=compatibility.rosterPersistence.legacy_decode_failed error=\(String(describing: error), privacy: .public)"
+            )
+            return nil
         }
-        return cleaned
     }
 
     // MARK: - Hash remap(S10 补时辰换新盘)
@@ -117,24 +140,73 @@ struct CompatibilityRosterPersistence {
     /// 补时辰 hash 重建后,把持久化名单/A 盘里的老 hash 原地换成新 hash。
     ///
     /// 他人盘补时辰 → content_hash 变 → 不 remap 的话名单仍指向老三柱盘
-    /// (照旧「不可合盘」标记,人像从名单里消失);remap 后该人带着新盘留在名单,
-    /// 「对级关系自然重算」落到用户重选该对方(selectPartner)即得完整结果(新对走 S05
-    /// 增量预查未命中 → 正常发起)。自己盘同理(A hash 失效本可 fallback 最新 link,
-    /// remap 让持久化状态与最新 link 直接一致)。
+    /// (照旧「不可合盘」标记,人像从名单里消失);remap 后该人带着新盘留在名单。
     ///
-    /// 无命中(A 盘 + 名单都不含老 hash)→ no-op(不写 UserDefaults,无副作用)。
+    /// V2 三处全换:`.archived` 的 hash、`.temp` 的 resolvedHash、`selectedEntryID`
+    /// 里内嵌的 `archived:<hash>`。V2 尚未建立(老 key 还在,用户升级后先补了时辰)
+    /// → 老 key 顺带转换成 V2 再 remap(remap 即迁移,老 key 删除)。
+    /// personAHash 命中同样换。无命中 → no-op(不写 UserDefaults)。
     static func remapHash(from oldHash: String, to newHash: String) {
-        let state = load()
-        let remappedRoster = state.rosterHashes.map { $0 == oldHash ? newHash : $0 }
-        let remappedA = state.personAHash == oldHash ? newHash : state.personAHash
-        guard remappedRoster != state.rosterHashes || remappedA != state.personAHash else {
+        var rosterV2 = loadV2()
+        var legacyHashes: [String]? = nil
+        if rosterV2 == nil {
+            legacyHashes = loadLegacyRosterHashesForMigration()
+            if let legacyHashes {
+                rosterV2 = PersistedRoster(
+                    entries: legacyHashes.map { .archived(snapshotHash: $0) },
+                    selectedEntryID: nil
+                )
+            }
+        }
+        guard var roster = rosterV2 else {
+            // V2 与老 key 都不存在:只剩 personAHash 可能命中
+            if loadPersonAHash() == oldHash {
+                saveV2(personAHash: newHash,
+                       context: loadContextForRemap(),
+                       roster: PersistedRoster(entries: [], selectedEntryID: nil))
+                AppLogger.app.info(
+                    "op=compatibility.rosterPersistence.remap_hash a_only old=\(oldHash, privacy: .public) new=\(newHash, privacy: .public)"
+                )
+            }
             return
         }
-        // personAHash 为 nil 时沿用既有「无 A」语义(空串,与 persistRosterState 一致)
-        save(personAHash: remappedA ?? "", context: state.context, rosterHashes: remappedRoster)
+
+        var changed = false
+        roster.entries = roster.entries.map { entry in
+            switch entry {
+            case .archived(let hash) where hash == oldHash:
+                changed = true
+                return .archived(snapshotHash: newHash)
+            case .temp(let input, let alias, let resolved, let place) where resolved == oldHash:
+                changed = true
+                return .temp(input: input, alias: alias, resolvedHash: newHash, place: place)
+            default:
+                return entry
+            }
+        }
+        if roster.selectedEntryID == RosterEntry.archived(snapshotHash: oldHash).id {
+            roster.selectedEntryID = RosterEntry.archived(snapshotHash: newHash).id
+            changed = true
+        }
+        let remappedA: String
+        if loadPersonAHash() == oldHash {
+            remappedA = newHash
+            changed = true
+        } else {
+            remappedA = loadPersonAHash() ?? ""
+        }
+        guard changed else { return }
+        // legacyHashes 非 nil = 本次顺带完成迁移(老 key 已在上面读后删除)
+        _ = legacyHashes
+        saveV2(personAHash: remappedA, context: loadContextForRemap(), roster: roster)
         AppLogger.app.info(
-            "op=compatibility.rosterPersistence.remap_hash old=\(oldHash, privacy: .public) new=\(newHash, privacy: .public) roster_count=\(remappedRoster.count, privacy: .public)"
+            "op=compatibility.rosterPersistence.remap_hash old=\(oldHash, privacy: .public) new=\(newHash, privacy: .public) roster_count=\(roster.entries.count, privacy: .public) migrated_legacy=\(legacyHashes != nil, privacy: .public)"
         )
+    }
+
+    /// remap 写回时保留既有 context 值(无则默认)。
+    private static func loadContextForRemap() -> String {
+        UserDefaults.standard.string(forKey: Key.context) ?? defaultContext
     }
 
     // MARK: - Clear(testing / reset)
@@ -143,7 +215,8 @@ struct CompatibilityRosterPersistence {
         let defaults = UserDefaults.standard
         defaults.removeObject(forKey: Key.personAHash)
         defaults.removeObject(forKey: Key.context)
-        defaults.removeObject(forKey: Key.rosterHashes)
+        defaults.removeObject(forKey: Key.rosterV2)
+        defaults.removeObject(forKey: Key.legacyRosterHashes)
         defaults.removeObject(forKey: Key.tempDraft)
     }
 

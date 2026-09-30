@@ -11,7 +11,7 @@ import Foundation
 ///
 /// S04 改造:
 /// - `.temp` 支持多条(不再限 1 条)
-/// - 加可选「称呼」字段(会话内显示)
+/// - 加可选「称呼」字段(R1 修订 2026-09-30:随名单完整持久化,跨启动不丢)
 /// - 加 `resolvedHash` 字段:首次计算成功后回填(S05 增量预查 / S06 跨启动持久化铺路)
 /// - 跨启动兜底名策略由 PairSummary.displayName 体现(临时人无 alias → 「对方+出生日期」)
 ///
@@ -75,6 +75,30 @@ enum RosterEntry: Identifiable {
     var tempInput: PersonBInput? {
         if case .temp(let input, _, _, _) = self { return input }
         return nil
+    }
+}
+
+// MARK: - 持久化互转(R1,2026-09-30)
+
+extension RosterEntry {
+    /// `PersistedRosterEntry`(compat.rosterV2)→ 内存 entry。
+    init(persisted: CompatibilityRosterPersistence.PersistedRosterEntry) {
+        switch persisted {
+        case .archived(let snapshotHash):
+            self = .archived(snapshotHash: snapshotHash)
+        case .temp(let input, let alias, let resolvedHash, let place):
+            self = .temp(input: input, alias: alias, resolvedHash: resolvedHash, place: place)
+        }
+    }
+
+    /// 内存 entry → `PersistedRosterEntry`(VM `persistRoster()` 单一出口用)。
+    var persisted: CompatibilityRosterPersistence.PersistedRosterEntry {
+        switch self {
+        case .archived(let snapshotHash):
+            return .archived(snapshotHash: snapshotHash)
+        case .temp(let input, let alias, let resolvedHash, let place):
+            return .temp(input: input, alias: alias, resolvedHash: resolvedHash, place: place)
+        }
     }
 }
 

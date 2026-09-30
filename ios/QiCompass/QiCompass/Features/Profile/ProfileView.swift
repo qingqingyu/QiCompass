@@ -572,7 +572,7 @@ struct ProfileView: View {
             return link.alias
         }
         if let chart = chartSnapshots.first(where: { $0.contentHash == hash }) {
-            return String(format: String(localized: "对方 · %@"), Self.fallbackBirthDate(chart.birthSolarTime, timezoneName: chart.cityTimezone))
+            return L10n.CompatibilityPartner.fallbackName(Self.fallbackBirthDate(chart.birthSolarTime, timezoneName: chart.cityTimezone))
         }
         return String(localized: "对方")
     }

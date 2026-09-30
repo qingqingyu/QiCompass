@@ -938,6 +938,25 @@ enum L10n {
         /// zh: "选择对方";en: "Choose a partner"
         static let choosePartner = String(localized: "hepan.partner.choosePartner")
 
+        /// 兜底名(无称呼时的统一派生;R1 后跨启动也用它)。%@ = 出生日期
+        /// yyyy-MM-dd(出生城市时区)或临时人出生钟面前缀。
+        /// zh: "对方 · %@";en: "Partner · %@"
+        static func fallbackName(_ date: String) -> String {
+            String(format: String(localized: "hepan.partner.fallbackName"), date)
+        }
+
+        /// 换人 sheet 添加行副注(非满员时)。
+        /// zh: "不建档案 · 填出生信息即可";en: "No profile needed — just birth details"
+        static let addRowSubtitle = String(localized: "hepan.partner.addRowSubtitle")
+
+        /// P6 有选中但无缓存:内容区说明行(R3 恢复未命中缓存,不自动发请求)。
+        /// zh: "这一位还没有合盘结果";en: "No saved match for this partner yet"
+        static let selectedNoCacheHint = String(localized: "hepan.partner.selectedNoCacheHint")
+
+        /// P6 有选中但无缓存:「重新合盘」入口(用户显式发起)。
+        /// zh: "重新合盘";en: "Re-run match"
+        static let recomputeCta = String(localized: "hepan.partner.recomputeCta")
+
         /// 「我」牌右侧补时辰入口(命主无时辰,S07 语义)。
         /// zh: "补时辰";en: "Add hour"
         static let addSelfHour = String(localized: "hepan.partner.addSelfHour")

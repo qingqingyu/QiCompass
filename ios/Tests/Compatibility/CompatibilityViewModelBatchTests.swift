@@ -753,48 +753,50 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertNil(entry.tempAlias)
     }
 
-    // MARK: - S06 跨启动恢复与名单持久化
+    // MARK: - S06 跨启动恢复与名单持久化(R1-R5 修订后:V2 全量格式)
 
-    func testRosterPersistence_roundTrip_save后load一致() {
+    func testRosterPersistence_roundTrip_saveV2后loadV2一致() throws {
         CompatibilityRosterPersistence.clear()
-        CompatibilityRosterPersistence.save(
-            personAHash: "hash_a",
-            context: "marriage",
-            rosterHashes: ["h1", "h2", "h3"]
-        )
-        let loaded = CompatibilityRosterPersistence.load()
-        XCTAssertEqual(loaded.personAHash, "hash_a")
-        XCTAssertEqual(loaded.context, "marriage")
-        XCTAssertEqual(loaded.rosterHashes, ["h1", "h2", "h3"])
-    }
-
-    func testRosterPersistence_无数据时_load返回默认() {
-        CompatibilityRosterPersistence.clear()
-        let loaded = CompatibilityRosterPersistence.load()
-        XCTAssertNil(loaded.personAHash)
-        XCTAssertEqual(loaded.context, "general", "无持久化 context 时 fallback default")
-        XCTAssertTrue(loaded.rosterHashes.isEmpty)
-    }
-
-    func testRosterPersistence_cleanupInvalidHashes_剔除并写回() {
-        CompatibilityRosterPersistence.clear()
-        CompatibilityRosterPersistence.save(
+        CompatibilityRosterPersistence.saveV2(
             personAHash: "hash_a",
             context: "general",
-            rosterHashes: ["valid_1", "invalid_x", "valid_2", "invalid_y"]
+            roster: .init(
+                entries: [
+                    .archived(snapshotHash: "h1"),
+                    .temp(
+                        input: PersonBInput(
+                            birthDatetime: "1991-06-18T08:30:00",
+                            timezone: "Asia/Shanghai",
+                            gender: "female",
+                            longitude: 121.4737
+                        ),
+                        alias: "妈妈",
+                        resolvedHash: "h_temp",
+                        place: .city(Self.makePlace(displayName: "上海", longitude: 121.4737, gid: 1796236))
+                    ),
+                ],
+                selectedEntryID: "archived:h1"
+            )
         )
-        let isValid: (String) -> Bool = { hash in
-            hash.hasPrefix("valid_")
+        let loaded = CompatibilityRosterPersistence.loadV2()
+        XCTAssertEqual(loaded?.selectedEntryID, "archived:h1", "选中持久化(R3)")
+        XCTAssertEqual(loaded?.entries.first, .archived(snapshotHash: "h1"))
+        guard case .temp(let input, let alias, let resolved, let place)? = loaded?.entries.last else {
+            return XCTFail("第二条应为 .temp,实际:\(String(describing: loaded?.entries.last))")
         }
-        let cleaned = CompatibilityRosterPersistence.cleanupInvalidHashes(
-            persistedHashes: ["valid_1", "invalid_x", "valid_2", "invalid_y"],
-            isValid: isValid
-        )
-        XCTAssertEqual(cleaned, ["valid_1", "valid_2"])
+        XCTAssertEqual(input.birthDatetime, "1991-06-18T08:30:00", "临时对方完整出生信息持久化(R1)")
+        XCTAssertEqual(input.timezone, "Asia/Shanghai")
+        XCTAssertEqual(alias, "妈妈", "称呼持久化(R1)")
+        XCTAssertEqual(resolved, "h_temp")
+        XCTAssertEqual(place, .city(Self.makePlace(displayName: "上海", longitude: 121.4737, gid: 1796236)),
+                       "出生地持久化(R1)")
+        XCTAssertEqual(CompatibilityRosterPersistence.loadPersonAHash(), "hash_a")
+    }
 
-        // 写回应生效
-        let reloaded = CompatibilityRosterPersistence.load()
-        XCTAssertEqual(reloaded.rosterHashes, ["valid_1", "valid_2"])
+    func testRosterPersistence_无数据时_loadV2返回nil() {
+        CompatibilityRosterPersistence.clear()
+        XCTAssertNil(CompatibilityRosterPersistence.loadV2())
+        XCTAssertNil(CompatibilityRosterPersistence.loadPersonAHash())
     }
 
     @MainActor
@@ -824,10 +826,13 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.archivedCharts = archived
 
         // 持久化设置 a_real 为 A,context = marriage,名单 [b_real, c_real]
-        CompatibilityRosterPersistence.save(
+        CompatibilityRosterPersistence.saveV2(
             personAHash: "a_real",
             context: "marriage",
-            rosterHashes: ["b_real", "c_real"]
+            roster: .init(
+                entries: [.archived(snapshotHash: "b_real"), .archived(snapshotHash: "c_real")],
+                selectedEntryID: nil
+            )
         )
 
         vm.restoreRosterStateIfAvailable()
@@ -872,8 +877,9 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             birthDate: aSnapshot.birthSolarTime, gender: "male",
             dayMaster: "甲", snapshot: aSnapshot
         )]
-        CompatibilityRosterPersistence.save(
-            personAHash: "a_sel", context: "general", rosterHashes: ["b_sel"]
+        CompatibilityRosterPersistence.saveV2(
+            personAHash: "a_sel", context: "general",
+            roster: .init(entries: [.archived(snapshotHash: "b_sel")], selectedEntryID: nil)
         )
 
         vm.restoreRosterStateIfAvailable()
@@ -887,9 +893,10 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
     }
 
     @MainActor
-    func testRestoreRosterStateIfAvailable_勾上次那位_直达其detail() async throws {
-        // 2026-09-07 单选直达:名单两位(老多选数据全保留),恢复 = createdAt
-        // 最新的那对设为唯一勾选 + 直达其 detail。
+    func testRestoreRosterStateIfAvailable_R5迁移_createdAt最新定选中直达detail() async throws {
+        // R5(2026-09-30):老 key(compat.roster 的 [String])迁移——转成 .archived
+        // 成员写入 V2、老 key 删除、无选中记录时按 createdAt 最新定一次「上次那位」
+        // 并直达其 detail(此后 V2 有显式 selectedEntryID,不再猜)。
         // B 盘用 insertChart(真 payload)——rebuildSummaryFromCache 要 decode B 快照,
         // 空 payload 会走 decode_failed 分支(留在配置态)
         CompatibilityRosterPersistence.clear()
@@ -898,9 +905,10 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         _ = try insertChart(hash: "b_new", alias: "新那位", hourKnown: true)
         vm.archivedCharts = [chartA]
 
-        func makeResponse(hash: String) -> CompatibilityResponse {
+        func makeResponse(aHash: String, bHash: String) -> CompatibilityResponse {
             CompatibilityResponse(
-                compatibilityHash: hash,
+                compatibilityHash: CompatibilitySnapshotStore.canonicalKey(
+                    aHash: aHash, bHash: bHash, context: "general"),
                 personAChart: nil,
                 personBChart: nil,
                 qualitativeAssessment: QualitativeAssessmentDTO(
@@ -911,30 +919,37 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
                 calcRuleSnapshot: nil
             )
         }
+        // R3 恢复走 canonicalKey 直查(computePair 预查同源),fixture 快照的
+        // compatibilityHash 必须用 canonicalKey(生产 orchestrator 落档即此键)
         let oldSnap = try insertCompatibilitySnapshot(
-            response: makeResponse(hash: "compat_r2_old"), aHash: "a_r2", bHash: "b_old", context: "general"
+            response: makeResponse(aHash: "a_r2", bHash: "b_old"), aHash: "a_r2", bHash: "b_old", context: "general"
         )
         oldSnap.createdAt = Date(timeIntervalSince1970: 700_000_000)
         let newSnap = try insertCompatibilitySnapshot(
-            response: makeResponse(hash: "compat_r2_new"), aHash: "a_r2", bHash: "b_new", context: "general"
+            response: makeResponse(aHash: "a_r2", bHash: "b_new"), aHash: "a_r2", bHash: "b_new", context: "general"
         )
         newSnap.createdAt = Date(timeIntervalSince1970: 900_000_000)
         try container.mainContext.save()
 
-        CompatibilityRosterPersistence.save(
-            personAHash: "a_r2", context: "general", rosterHashes: ["b_old", "b_new"]
-        )
+        // 种老格式:compat.roster = [String],compat.lastPersonAHash 独立 key
+        UserDefaults.standard.set(try JSONEncoder().encode(["b_old", "b_new"]),
+                                  forKey: "compat.roster")
+        UserDefaults.standard.set("a_r2", forKey: "compat.lastPersonAHash")
 
         vm.restoreRosterStateIfAvailable()
 
         XCTAssertEqual(vm.roster.count, 2, "老多选数据:名单成员全保留")
-        XCTAssertEqual(vm.selectedEntryIds, ["archived:b_new"], "默认勾「上次那位」= createdAt 最新")
+        XCTAssertEqual(vm.selectedEntryIds, ["archived:b_new"], "迁移兜底勾「上次那位」= createdAt 最新")
         if case .detail(let summary, _, _) = vm.state {
             XCTAssertEqual(summary.personBHash, "b_new", "直达最新一对的 detail")
         } else {
             XCTFail("有快照应直达 .detail,实际:\(vm.state)")
         }
         XCTAssertEqual(vm.summaries.count, 1, "恢复只装「上次那位」单条 summary")
+        // 迁移落 V2 + 老 key 删除(一次性)
+        XCTAssertNil(UserDefaults.standard.data(forKey: "compat.roster"), "老 key 迁移后删除")
+        XCTAssertEqual(CompatibilityRosterPersistence.loadV2()?.selectedEntryID, "archived:b_new",
+                       "迁移结果含选中,写回 V2")
         await drainDetailBackgroundTasks()
     }
 
@@ -948,10 +963,10 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             Self.makeChart(hash: "old_link", alias: "Old"),
         ]
         // 持久化一个失效的 A hash
-        CompatibilityRosterPersistence.save(
+        CompatibilityRosterPersistence.saveV2(
             personAHash: "deleted_link",
             context: "general",
-            rosterHashes: []
+            roster: .init(entries: [], selectedEntryID: nil)
         )
 
         vm.restoreRosterStateIfAvailable()
@@ -982,10 +997,11 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         )]
 
         // 持久化名单含无效 hash(无 ChartSnapshot 对应)
-        CompatibilityRosterPersistence.save(
+        CompatibilityRosterPersistence.saveV2(
             personAHash: "a_real",
             context: "general",
-            rosterHashes: ["ghost_hash"]  // 没有 ChartSnapshot,校验失败
+            roster: .init(entries: [.archived(snapshotHash: "ghost_hash")], selectedEntryID: nil)
+            // ghost_hash 没有 ChartSnapshot,校验失败
         )
 
         vm.restoreRosterStateIfAvailable()
@@ -993,16 +1009,17 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertEqual(vm.roster.count, 0, "无效 hash 应剔除,名单变空")
         XCTAssertTrue(vm.selectedArchivedHashes.isEmpty)
 
-        // 持久化名单也应已写回干净(空数组)
-        let reloaded = CompatibilityRosterPersistence.load()
-        XCTAssertTrue(reloaded.rosterHashes.isEmpty)
+        // 持久化名单也应已写回干净(V2 entries 空)
+        let reloaded = CompatibilityRosterPersistence.loadV2()
+        XCTAssertTrue(reloaded?.entries.isEmpty ?? false)
     }
 
     @MainActor
     func testRestoreRosterStateIfAvailable_0存档_不恢复() {
         CompatibilityRosterPersistence.clear()
-        CompatibilityRosterPersistence.save(
-            personAHash: "x", context: "general", rosterHashes: ["y"]
+        CompatibilityRosterPersistence.saveV2(
+            personAHash: "x", context: "general",
+            roster: .init(entries: [.archived(snapshotHash: "y")], selectedEntryID: nil)
         )
         vm.archivedCharts = []  // 0 存档
         vm.restoreRosterStateIfAvailable()
@@ -1643,9 +1660,10 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         let snapshots = try compatibilityStore.list(personAHash: "s07_a_unknown", context: "general")
         XCTAssertTrue(snapshots.isEmpty, "拦截对不得发起确定性合盘(后端契约必 422)")
 
-        // 拦截对的存档 hash 保留在持久化名单(该人仍在名单,补时辰后重算)
-        let persisted = CompatibilityRosterPersistence.load()
-        XCTAssertEqual(persisted.rosterHashes, ["s07_b_known"])
+        // 拦截对的存档 hash 保留在持久化名单(该人仍在名单,补时辰后重算;
+        // R2 起持久化 = 全量 V2,拦截对照常落盘)
+        let persisted = CompatibilityRosterPersistence.loadV2()
+        XCTAssertEqual(persisted?.entries, [.archived(snapshotHash: "s07_b_known")])
     }
 
     func testCompute_B盘无时辰_仅该对拦截_其余照算() async throws {
