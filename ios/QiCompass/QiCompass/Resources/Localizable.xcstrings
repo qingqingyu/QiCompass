@@ -5759,13 +5759,13 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "＋ Add partner"
+            "value" : "Add partner"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "＋ 添加对方"
+            "value" : "添加对方"
           }
         }
       }
@@ -6157,6 +6157,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "修改「%@」"
+          }
+        }
+      }
+    },
+    "hepan.partner.rowManageHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Managing list — use edit or remove in the row"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "管理名单中,行内修改或移出"
           }
         }
       }

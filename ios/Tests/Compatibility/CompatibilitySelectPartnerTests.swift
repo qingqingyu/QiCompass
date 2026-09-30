@@ -415,6 +415,96 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
                        "勾选 id 随迁(内嵌 hash)")
     }
 
+    // MARK: - 补时辰续接选人(P1-1,2026-09-30:重算补时辰的那个人)
+
+    func testContinueAfterAddHourRemap_他人盘目标_选补时辰的人而非当前对方() async throws {
+        let chartA = try insertChart(hash: "ca_a_known", alias: "A", hourKnown: true)
+        let chartX = try insertChart(hash: "ca_x_known", alias: "X", hourKnown: true)
+        // Y 补时辰后的新盘(hourKnown;旧三柱盘不在池——loadArchivedCharts 只见
+        // link 指向的新盘,镜像 AddHour submit 补写 link 后的状态)
+        let chartY = try insertChart(hash: "ca_y_new", alias: "Y", hourKnown: true)
+        vm.archivedCharts = [chartA, chartX, chartY]
+        vm.selectedChartAIndex = 0
+        vm.roster = [.archived(snapshotHash: "ca_x_known")]
+        vm.selectedEntryIds = ["archived:ca_x_known"]
+        vm.compute()
+        let reached = await waitForDetailState()
+        XCTAssertTrue(reached, "前置:当前对方 X 在展,实际:\(vm.state)")
+
+        // 换人 sheet 点无时辰的 Y → 补时辰 dismiss:内存 remap + 续接(P1-1 主场景)
+        vm.applyHashRemap(from: "ca_y_old", to: "ca_y_new")
+        vm.continueAfterAddHourRemap(
+            target: .partnerChart(hash: "ca_y_old"),
+            remap: (old: "ca_y_old", new: "ca_y_new")
+        )
+
+        // 选中与推演的都是 Y(新 hash),不再是 X(旧当前对方)
+        XCTAssertEqual(vm.selectedEntryIds, ["archived:ca_y_new"],
+                       "续接选中补时辰的人")
+        let reachedY = await waitForDetailState()
+        XCTAssertTrue(reachedY, "Y 应算成直达 detail,实际:\(vm.state)")
+        if case .detail(let summary, _, _) = vm.state {
+            XCTAssertEqual(summary.personBHash, "ca_y_new", "重算的是补时辰的人")
+        } else {
+            XCTFail("应进入 Y 的 detail,实际:\(vm.state)")
+        }
+        await drainDetailBackgroundTasks()
+    }
+
+    func testContinueAfterAddHourRemap_自己盘目标_维持当前对方强制重算() async throws {
+        // A 补时辰:A 换新盘 → 选人不变,当前对按新 A 强制重算(旧行为保持)
+        let chartANew = try insertChart(hash: "ca2_a_new", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "ca2_b_known", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartANew, chartB]
+        vm.selectedChartAIndex = 0
+        vm.roster = [.archived(snapshotHash: "ca2_b_known")]
+        vm.selectedEntryIds = ["archived:ca2_b_known"]
+        vm.compute()
+        _ = await waitForDetailState()
+
+        vm.applyHashRemap(from: "ca2_a_old", to: "ca2_a_new")
+        vm.continueAfterAddHourRemap(
+            target: .selfChart,
+            remap: (old: "ca2_a_old", new: "ca2_a_new")
+        )
+
+        XCTAssertEqual(vm.selectedEntryIds, ["archived:ca2_b_known"],
+                       "自己盘补时辰不改选人")
+        if case .computing = vm.state {
+            // 期望:force 立即重算(compute 同步置 .computing)
+        } else {
+            XCTFail("当前对应被强制重算,实际:\(vm.state)")
+        }
+        _ = await waitForDetailState()
+        await drainDetailBackgroundTasks()
+    }
+
+    func testContinueAfterAddHourRemap_目标与remap不符_回落旧行为() async throws {
+        let chartA = try insertChart(hash: "ca3_a", alias: "A", hourKnown: true)
+        let chartX = try insertChart(hash: "ca3_x", alias: "X", hourKnown: true)
+        vm.archivedCharts = [chartA, chartX]
+        vm.selectedChartAIndex = 0
+        vm.roster = [.archived(snapshotHash: "ca3_x")]
+        vm.selectedEntryIds = ["archived:ca3_x"]
+        vm.compute()
+        _ = await waitForDetailState()
+
+        // 状态错乱(remap 与开 sheet 时目标不符)→ 显式记日志 + 回落:当前对方 force 重算
+        vm.applyHashRemap(from: "ca3_other_old", to: "ca3_other_new")
+        vm.continueAfterAddHourRemap(
+            target: .partnerChart(hash: "mismatch_old"),
+            remap: (old: "ca3_other_old", new: "ca3_other_new")
+        )
+
+        XCTAssertEqual(vm.selectedEntryIds, ["archived:ca3_x"], "回落不改选人")
+        if case .computing = vm.state {
+        } else {
+            XCTFail("回落应对当前对方强制重算,实际:\(vm.state)")
+        }
+        _ = await waitForDetailState()
+        await drainDetailBackgroundTasks()
+    }
+
     // MARK: - 辅助(fixture 与 BatchTests 同款)
 
     @discardableResult

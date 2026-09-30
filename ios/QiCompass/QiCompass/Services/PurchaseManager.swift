@@ -404,6 +404,11 @@ final class PurchaseManager {
         }
 
         // 6. finish transaction(Apple 确认收到,只有 redeem + upsert 全成功才 finish)
+        // 先清 pending 记录后 finish(崩溃窗口推理与 handleRedeemContinuation 成功
+        // 路径同源):本 tx 若曾失败落档,此刻价值已兑现,记录必须随之清掉——
+        // 已 finish 的消耗型交易不再重投递,留着就是永不回收的死记录
+        // (P2 卫生修复 2026-09-30:失败后同 tx 重试成功的场景曾把记录永久遗留)
+        PendingRedeemStore.remove(txId: transactionId)
         await transaction.finish()
         AppLogger.app.info("purchase.storekit.tx_finished tx=\(transactionId, privacy: .public)")
 
@@ -658,7 +663,7 @@ enum PurchaseError: LocalizedError {
 enum PendingRedeemStore {
     private static let storageKey = "qicompass.pending_redeems.v1"
 
-    struct Record: Codable {
+    struct Record: Codable, Equatable {
         let productId: String
         let contentHash: String
         let module: String
@@ -668,8 +673,19 @@ enum PendingRedeemStore {
         all()[txId]
     }
 
+    /// 落档(**保留首条**,P2 卫生修复 2026-09-30):同 txId 已有**不同**上下文的
+    /// 记录时不覆盖——首条对应的 redeem 可能已在他处兑现到一半(客户端超时但
+    /// 后端已提交),被顶掉后 listener 拿新 hash 续接会撞 ENTITLEMENT_ERROR 走
+    /// 「清记录 + finish」收尾,首条对应的本地 entitlement 从此无人补写。
+    /// 同上下文重写 = 幂等,照常落。冲突显式记日志(不静默吞)。
     static func set(txId: String, _ record: Record) {
         var entries = all()
+        if let existing = entries[txId], existing != record {
+            AppLogger.app.error(
+                "purchase.pending_redeem.conflict_keep_first tx=\(txId, privacy: .public) existing_hash=\(existing.contentHash, privacy: .public) incoming_hash=\(record.contentHash, privacy: .public)"
+            )
+            return
+        }
         entries[txId] = record
         persist(entries, context: "set tx=\(txId)")
     }

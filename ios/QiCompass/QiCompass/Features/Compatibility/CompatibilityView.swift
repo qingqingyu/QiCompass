@@ -32,9 +32,12 @@ struct CompatibilityView: View {
     /// 换人 sheet 内点无时辰行 → 先关 picker 再开补时辰 sheet(SwiftUI 同源多 sheet
     /// 串行呈现需宿主编排;nil = 无待开)。
     @State private var pendingAddHourHash: String?
-    /// 补时辰重算成功后的 old → new hash(供 dismiss 后 `refreshAfterAddHour` 对
-    /// 当前对强制重算;nil = 本轮未发生重算)。
+    /// 补时辰重算成功后的 old → new hash(供 dismiss 后 `refreshAfterAddHour`
+    /// 续接选人/重算;nil = 本轮未发生重算)。
     @State private var addHourRemap: (old: String, new: String)?
+    /// 补时辰 sheet 的目标盘(开 sheet 时记录;dismiss 后续接——重算**补时辰
+    /// 的那个人**,P1-1 修复 2026-09-30;nil = 未打开过)。
+    @State private var addHourTarget: AddHourTarget?
     /// P5:内联表单「称呼」聚焦(点头部占位 = 聚焦称呼,键盘弹起自动滚入视野)。
     @FocusState private var inlineFormAliasFocused: Bool
 
@@ -139,8 +142,12 @@ struct CompatibilityView: View {
     // MARK: - S10 补时辰(装配 + 关闭刷新)
 
     /// 打开补时辰 sheet(目标 = 参数盘 hash:自己盘或他人盘;装配失败显式 alert)。
+    /// 开 sheet 时记录目标盘(`addHourTarget`),dismiss 后据此续接选人(P1-1)。
     @MainActor
     private func openAddHourSheet(hash: String) {
+        addHourTarget = (hash == vm?.currentPersonAHash)
+            ? .selfChart
+            : .partnerChart(hash: hash)
         do {
             addHourVM = try AddHourViewModel.make(
                 snapshotHash: hash,
@@ -159,28 +166,34 @@ struct CompatibilityView: View {
     /// sheet 关闭统一刷新:重载存档列表(S11 标记按新 payload 翻转)+ 按态分流——
     /// - 配置态:恢复名单(既有行为;list 态不重恢复,避免覆盖当前展示的 summaries)
     /// - 结果壳(P1,detail/list/computing):重算发生过 → 内存 roster remap +
-    ///   对当前对方强制重算(`selectPartner(force:)`,新旧盘的判定/付费墙随新
-    ///   payload 翻转);无当前对方(恢复失败/刚移出)不自动选人,回头部点选
+    ///   续接选人(`continueAfterAddHourRemap`):他人盘 = 重算**补时辰的那个人**
+    ///   (P1-1 修复 2026-09-30,此前无条件重算当前对方),自己盘 = 当前对强制
+    ///   重算;无当前对方(恢复失败/刚移出)不自动选人,回头部点选
     @MainActor
     private func refreshAfterAddHour() {
         vm?.loadArchivedCharts()
         if case .configuring = vm?.state {
             // 配置态从(已 remap 的)持久化重建名单,内存 remap 无必要;
-            // 残留 remap 必须清掉,防下轮结果壳态误用陈旧映射
+            // 残留 remap/target 必须清掉,防下轮结果壳态误用陈旧映射/目标
+            let remap = addHourRemap
+            let target = addHourTarget
             addHourRemap = nil
+            addHourTarget = nil
             vm?.restoreRosterStateIfAvailable()
+            if let remap {
+                vm?.continueAfterAddHourRemap(target: target, remap: remap)
+            }
             return
         }
-        guard let remap = addHourRemap else { return }
-        addHourRemap = nil
-        vm?.applyHashRemap(from: remap.old, to: remap.new)
-        if let current = vm?.selectedRosterEntries.first {
-            vm?.selectPartner(current, force: true)
-        } else {
-            AppLogger.app.info(
-                "op=compatibility.refreshAfterAddHour skip_recompute reason=no_current_partner"
-            )
+        guard let remap = addHourRemap else {
+            addHourTarget = nil
+            return
         }
+        addHourRemap = nil
+        let target = addHourTarget
+        addHourTarget = nil
+        vm?.applyHashRemap(from: remap.old, to: remap.new)
+        vm?.continueAfterAddHourRemap(target: target, remap: remap)
     }
 
     @ViewBuilder
