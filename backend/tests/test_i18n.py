@@ -314,7 +314,10 @@ class TestRenderPromptI18n:
         assert "birth hour" in prompt.lower()
         assert "12 Hour Pillars" not in prompt       # 12 时辰段整体删除
         assert "Favorable Elements:" not in prompt   # 喜忌栏整体删除
-        assert "{" not in prompt
+        # v4(S6):输出契约是 JSON 五段,模板 {{ }} 还原后含字面 { }——
+        # 断言占位符形态不残留,而非全 prompt 无 "{"
+        assert not re.search(r"\{[a-z_]+\}", prompt)
+        assert '"headline"' in prompt
 
 
 # ---------- cache + CacheKey language 维度 ----------

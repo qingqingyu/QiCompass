@@ -148,7 +148,10 @@ struct DailyFortuneView: View {
             case .empty:
                 LoadingStateView(title: String(localized: "准备中…"))
             case .loading:
-                LoadingStateView(title: String(localized: "推演流日中…"))
+                // S6(2026-09-30 BP 评审 R2):不再整屏空白占位——日期/星期本地
+                // 可得先出,hero 位置 hairline 骨架,AI 区自带 .fetching 指示;
+                // 确定性部分(流日柱等)回来即切换 .ready。
+                DailyLoadingSkeletonView()
             case .chartMissing:
                 DailyFortuneEmptyView()
             case .hourAmbiguousBlocked:
@@ -236,5 +239,58 @@ struct DailyFortuneView: View {
             await resolveCurrentChart()
             vm?.refreshHourFlags(chartHash: currentChartHash)
         }
+    }
+}
+
+// MARK: - S6 加载骨架(日期先行,2026-09-30 BP 评审 R2)
+
+/// `.loading` 态骨架:日期/星期本地即时可得先出(呼应 hero 日期区的
+/// 大数字日 + 星期,字号/布局刻意更轻——骨架是占位不是复刻),
+/// 流日柱/解读位用 hairline 骨架条占位,
+/// 底部一行「正在读取今天与你命盘的关系…」+ 微指示器。
+/// 排版语言对齐 DESIGN.md:hairline 而非灰块,dashed 专用于锁框不用于骨架。
+private struct DailyLoadingSkeletonView: View {
+    var body: some View {
+        VStack(spacing: 0) {
+            Spacer(minLength: 60)
+
+            VStack(spacing: 6) {
+                Text(verbatim: "\(Calendar.current.component(.day, from: Date()))")
+                    .font(BaziFont.display(size: 44))
+                    .foregroundStyle(BaziTheme.ink)
+                Text(BaziDateFormatter.weekdayShort.string(from: Date()))
+                    .font(BaziFont.caption(size: 11))
+                    .tracking(2)
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+            }
+
+            VStack(spacing: 10) {
+                skeletonBar(width: 150)
+                skeletonBar(width: 220)
+                skeletonBar(width: 180)
+            }
+            .padding(.top, 34)
+
+            HStack(spacing: 8) {
+                ProgressView()
+                    .controlSize(.mini)
+                    .tint(BaziTheme.inkMuted)
+                Text(L10n.DailyFortune.loadingReading)
+                    .font(BaziFont.caption(size: 11))
+                    .tracking(1.5)
+                    .foregroundStyle(BaziTheme.inkMuted)
+            }
+            .padding(.top, 28)
+
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 34)
+    }
+
+    private func skeletonBar(width: CGFloat) -> some View {
+        Rectangle()
+            .fill(BaziTheme.hairline)
+            .frame(width: width, height: 8)
     }
 }

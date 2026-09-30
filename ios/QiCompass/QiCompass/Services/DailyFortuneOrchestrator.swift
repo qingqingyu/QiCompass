@@ -325,9 +325,23 @@ enum DailyFortuneError: Error, LocalizedError {
 extension DailyFortuneSnapshotStore {
     /// 从存档 DailyFortuneSnapshot 重建 DailyFortuneResponse(给阶段 2 与 VM 复用)。
     /// calcRuleSnapshot 用空占位(daily-fortune 后端返回的 calcRuleSnapshot 不用于 UI 关键路径)。
+    /// S6 今日信号:老快照缺列 → 全 nil(信号行隐藏);daySignal JSON 解码失败
+    /// 显式抛错(错误显式传播:存档损坏不静默吞)。
     func response(from snapshot: DailyFortuneSnapshot) throws -> DailyFortuneResponse {
         let hours = try decodeHourPillars(from: snapshot)
         let tomorrow = try decodeTomorrowPreview(from: snapshot)
+        let dayElements: DayElementsDTO?
+        if let stem = snapshot.dayElementsStem, let branch = snapshot.dayElementsBranch {
+            dayElements = DayElementsDTO(stemElement: stem, branchElement: branch)
+        } else {
+            dayElements = nil
+        }
+        let daySignal: [DaySignalItemDTO]?
+        if let data = snapshot.daySignal {
+            daySignal = try APICoder.decoder.decode([DaySignalItemDTO].self, from: data)
+        } else {
+            daySignal = nil
+        }
         return DailyFortuneResponse(
             dayPillar: snapshot.dayPillar,
             dayRelationToDayMaster: snapshot.dayRelation,
@@ -335,6 +349,8 @@ extension DailyFortuneSnapshotStore {
             dayChongTargets: snapshot.dayChongTargets,
             hourPillars: hours,
             currentHourIndex: nil,
+            dayElements: dayElements,
+            daySignal: daySignal,
             lunarDate: snapshot.lunarDate,
             huangliYi: snapshot.huangliYi,
             huangliJi: snapshot.huangliJi,

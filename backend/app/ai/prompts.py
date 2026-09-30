@@ -67,9 +67,14 @@ PROMPT_VERSIONS: dict[str, int] = {
     # (iOS 按行解析分章排版)。alias `compatibility` 供老 iOS,模板不动不 bump。
     "compatibility_free": 4,
     "compatibility_paid": 4,
-    "daily_fortune": 3,    # Medium voice(50-80 字,砍宜忌+砍时辰点评)
+    "daily_fortune": 4,    # v4 结构化今日洞察(2026-09-30 BP 评审 S6)
+    # v3 Medium voice(50-80 字散文)→ v4 JSON 五段 {headline,work,relationships,
+    # energy,reminder},总 90-130 字(修订 2026-08-01 Medium voice 决策);术语首现
+    # 附 ≤6 字白话(S7 语言层级原则随本次 bump 落地);喜忌按后端/不逐时辰点评/
+    # 不输出宜忌列表等约束全部保留。iOS 按字段分领域渲染,解析失败走 .failed
+    # 引擎模板降级(不静默吞);老 v3 缓存随 prompt_version 失效。
     # v3 2026-08-31 S09 时辰未知降级:unknown_hour context 切降级模板变体
-    # daily_fortune_unknown_hour_v3.md(日柱×流日为轴,删喜忌栏+12 时辰段);
+    # daily_fortune_unknown_hour_v{version}.md(日柱×流日为轴,删喜忌栏+12 时辰段);
     # 正常 context 仅「喜忌约束」改条件式(S06 同款,非空语义不变)。
     # 变体与主模板共用此版本号(同一 module 的两个渲染面,缓存按 prompt_hash 分叉)。
     # 附带:en context 的 day_master_strength 不再译 label(raw key 原样进
@@ -414,8 +419,10 @@ COMPATIBILITY_PAID_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（付费 4
 
 # ---------- 每日运势 ----------
 # Slice 1 i18n 迁移:DAILY_FORTUNE_TEMPLATE 已迁移到外部 Markdown 文件
-# - prompts/zh/daily_fortune_v{version}.md(中文版,当前 v3)
-# - prompts/en/daily_fortune_v{version}.md(英文版,术语用 Joey Yap 体系,当前 v3)
+# - prompts/zh/daily_fortune_v{version}.md(中文版,当前 v4)
+# - prompts/en/daily_fortune_v{version}.md(英文版,术语用 Joey Yap 体系,当前 v4)
+# v4(2026-09-30 BP 评审 S6):输出散文 → JSON 五段(headline/work/relationships/
+# energy/reminder,总 90-130 字);模板内 JSON 大括号 {{ }} 转义(format_map 还原)。
 # v3(S09):喜忌约束改条件式(喜忌为空——从格/时辰未知——不再声称"喜忌已给出");
 # 时辰未知降级变体 daily_fortune_unknown_hour_v{version}.md(zh/en 双语,
 # 日柱×流日为轴,数据块无喜忌栏/12 时辰段),由 render_prompt 按 context 切换。

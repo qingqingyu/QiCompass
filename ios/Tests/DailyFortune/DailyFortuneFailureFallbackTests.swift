@@ -232,12 +232,64 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         XCTAssertEqual(Set(EngineReadingTemplates.zh.keys), Set(relations), "zh 表键集必须恰为十神 10 键")
         XCTAssertEqual(Set(EngineReadingTemplates.hant.keys), Set(relations), "hant 表键集必须恰为十神 10 键")
         XCTAssertEqual(Set(EngineReadingTemplates.en.keys), Set(relations), "en 表键集必须恰为十神 10 键")
+        // S6(2026-09-30)起模板五段化(与 v4 正常态同构):五字段全非空
         for (key, value) in EngineReadingTemplates.zh {
-            XCTAssertGreaterThan(value.count, 20, "zh[\(key)] 文案过短,疑似占位")
+            XCTAssertFalse(value.headline.isEmpty, "zh[\(key)] headline 空,疑似占位")
+            XCTAssertGreaterThan(value.work.count, 6, "zh[\(key)] work 过短,疑似占位")
+            XCTAssertGreaterThan(value.relationships.count, 6, "zh[\(key)] relationships 过短,疑似占位")
+            XCTAssertGreaterThan(value.energy.count, 6, "zh[\(key)] energy 过短,疑似占位")
+            XCTAssertFalse(value.reminder.isEmpty, "zh[\(key)] reminder 空,疑似占位")
         }
-        // 查表 miss → fallback 非空且不 crash(错误显式传播:miss 记日志,不静默)
-        let fallback = EngineReadingTemplates.text(for: "不存在的十神")
-        XCTAssertFalse(fallback.isEmpty, "查表 miss 必须给非空 fallback")
+        // 查表 miss → fallback 五段非空且不 crash(错误显式传播:miss 记日志,不静默)
+        let fallback = EngineReadingTemplates.insight(for: "不存在的十神")
+        XCTAssertFalse(fallback.headline.isEmpty, "查表 miss 必须给非空 fallback")
+        XCTAssertFalse(fallback.reminder.isEmpty, "查表 miss 必须给非空 fallback")
+    }
+
+    // MARK: - DailyInsight.parse(v4 JSON 五段契约;S6 2026-09-30)
+
+    /// v4 输出契约的解析行为锁死:成功/围栏/缺键/空值/非 JSON(=v3 散文快照)
+    /// /非字符串值/宽容多余键。离线兜底与 .okFree 都靠它分辨新旧格式。
+    func testDailyInsightParse_五键齐全成功() {
+        let json = #"{"headline":"偏官当值的一天","work":"接下难事。","relationships":"对事不对人。","energy":"紧绷是常态。","reminder":"量力而行。"}"#
+        let insight = DailyInsight.parse(json)
+        XCTAssertEqual(insight?.headline, "偏官当值的一天")
+        XCTAssertEqual(insight?.reminder, "量力而行。")
+    }
+
+    func testDailyInsightParse_剥json围栏() {
+        let fenced = """
+        ```json
+        {"headline":"h","work":"w","relationships":"r","energy":"e","reminder":"m"}
+        ```
+        """
+        XCTAssertNotNil(DailyInsight.parse(fenced), "LLM 违约带围栏也应解析成功")
+    }
+
+    func testDailyInsightParse_缺键返回nil() {
+        let missing = #"{"headline":"h","work":"w","relationships":"r","energy":"e"}"#
+        XCTAssertNil(DailyInsight.parse(missing), "缺 reminder 必须整体降级,不半渲染")
+    }
+
+    func testDailyInsightParse_空串值返回nil() {
+        let emptyWork = #"{"headline":"h","work":"","relationships":"r","energy":"e","reminder":"m"}"#
+        XCTAssertNil(DailyInsight.parse(emptyWork), "空串视为缺失,整体降级")
+    }
+
+    func testDailyInsightParse_v3散文返回nil() {
+        let prose = "流日与你的日主同根同气,是自立自守的一天。今天适合按自己的节奏推进。"
+        XCTAssertNil(DailyInsight.parse(prose), "v3 散文快照必须解析失败(离线兜底走原渲染)")
+    }
+
+    func testDailyInsightParse_非字符串值返回nil() {
+        let nonString = #"{"headline":"h","work":"w","relationships":"r","energy":"e","reminder":null}"#
+        XCTAssertNil(DailyInsight.parse(nonString), "null 值视为缺失,不静默跳过该字段")
+    }
+
+    func testDailyInsightParse_宽容多余键() {
+        let extra = #"{"headline":"h","work":"w","relationships":"r","energy":"e","reminder":"m","future_field":"x"}"#
+        XCTAssertNotNil(DailyInsight.parse(extra), "多余键不阻断(向后兼容前向演进)")
+        XCTAssertEqual(DailyInsight.parse(extra)?.work, "w")
     }
 }
 

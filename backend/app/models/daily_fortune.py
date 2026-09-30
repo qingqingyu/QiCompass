@@ -81,6 +81,30 @@ class TomorrowPreview(BaseModel):
     day_chong: str | None
 
 
+# ---------- 今日信号（2026-09-30 BP 评审 S6，确定性规则，0 AI 成本）----------
+
+class DayElements(BaseModel):
+    """流日天干/地支五行（中文五行字，与 chart_payload.favorable_elements 同语）。
+
+    iOS 经 BaziTerms/ElementColors 映射显示与取色，客户端不做历法计算。
+    """
+
+    stem_element: str = Field(..., description="流日天干五行，如「火」")
+    branch_element: str = Field(..., description="流日地支五行，如「木」")
+
+
+class DaySignalItem(BaseModel):
+    """单条今日信号：流日带来的五行对喜忌的命中方向。
+
+    direction="up"（流日带来喜用五行）/ "down"（流日带来忌神五行）。
+    同一五行天干地支都命中时去重为一条；喜忌为空（时辰未知/从格）→ 整表为空，
+    iOS 只显示流日五行、不标 ↑↓。
+    """
+
+    element: str = Field(..., description="五行，如「火」")
+    direction: Literal["up", "down"]
+
+
 class DailyFortuneRequest(BaseModel):
     """POST /api/bazi/daily-fortune 请求。"""
 
@@ -102,6 +126,11 @@ class DailyFortuneResponse(BaseModel):
     hour_pillars: list[HourPillar] = Field(..., description="12 条")
     current_hour_index: int | None = Field(
         None, description="服务端固定 null，由 iOS 本地按 Calendar 算")
+    day_elements: DayElements = Field(
+        ..., description="流日天干/地支五行（S6 今日信号的数据底座）")
+    day_signal: list[DaySignalItem] = Field(
+        default_factory=list,
+        description="流日五行对喜忌的命中（↑喜/↓忌）；喜忌为空（时辰未知/从格）为空表")
     lunar_date: str = Field(..., description="形如「六月初六」")
     huangli_yi: list[str] = Field(default_factory=list, description="黄历宜")
     huangli_ji: list[str] = Field(default_factory=list, description="黄历忌")

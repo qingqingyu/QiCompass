@@ -76,12 +76,16 @@ struct DailyFortuneMainView: View {
                 )
                 .padding(.horizontal, 17)
 
-                // AI 解读(50-80 字 Medium voice;2026-09-07 起进入即自动生成;
-                // 2026-09-24 失败降级:AI 失败 → 引擎模板文案 + 后台静默重试)。
+                // AI 解读(S6 结构化今日洞察:v4 JSON 五段 + 确定性今日信号;
+                // 2026-09-07 起进入即自动生成;2026-09-24 失败降级:AI 失败 →
+                // 引擎模板文案 + 后台静默重试)。
                 // 边距 17pt 与 hero 卡对齐(同日用户拍板:两框线必须左右对齐)。
                 DailyInterpretationSection(
                     state: interpretState,
                     dayRelation: response.dayRelationToDayMaster,
+                    dayElements: response.dayElements,
+                    daySignal: response.daySignal,
+                    signalNote: signalNote,
                     isSilentRetrying: vm.isSilentRetrying,
                     remainingReads: vm.remainingReads,
                     nextReset: vm.nextDailyReset,
@@ -135,6 +139,18 @@ struct DailyFortuneMainView: View {
     }
 
     // MARK: - hero 小注
+
+    /// 今日信号降级注释(S6):信号空表 = 喜忌不可用。时辰未知盘(日柱确定)
+    /// 说「喜忌待补时辰」;其余(hourKnown 但喜忌空)= 从格,说「特殊格局不下结论」。
+    /// dayElements 为 nil(老后端/老快照)时信号行整体隐藏,注释无意义 → nil。
+    private var signalNote: String? {
+        guard response.dayElements != nil else { return nil }
+        let signal = response.daySignal ?? []
+        guard signal.isEmpty else { return nil }
+        return vm.hourGate == .hourUnknownDayDetermined
+            ? L10n.DailyFortune.insightNoteHourUnknown
+            : L10n.DailyFortune.insightNoteSpecialPattern
+    }
 
     /// V4 文本区脚注:hairline + 「丙子日 · 偏印 · 解读仅供参照」。
     /// EN(2026-09-24 二段):「辛丑 Day」后缀缀在干支后半中半英,改
