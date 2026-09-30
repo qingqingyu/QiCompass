@@ -8070,19 +8070,19 @@
         }
       }
     },
-    "五行互补,彼此补足" : {
+    "你们的五行正好补上彼此缺的那部分。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Elements complement and complete each other"
+            "value" : "Your charts fill in each other's missing elements."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "五行互补,彼此补足"
+            "value" : "你们的五行正好补上彼此缺的那部分。"
           }
         }
       }
@@ -8138,19 +8138,19 @@
         }
       }
     },
-    "五行重叠较多" : {
+    "你们的五行重叠较多,相似多于互补。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Considerable overlap of elements"
+            "value" : "Your elements overlap more than they complement."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "五行重叠较多"
+            "value" : "你们的五行重叠较多,相似多于互补。"
           }
         }
       }
@@ -8375,19 +8375,19 @@
         }
       }
     },
-    "信息不足,从格区间" : {
+    "有一方命局属特殊格局,此项不下结论。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Not enough signal — special-pattern range"
+            "value" : "One chart follows a special pattern, so this dimension is left open."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "信息不足,从格区间"
+            "value" : "有一方命局属特殊格局,此项不下结论。"
           }
         }
       }
@@ -8571,19 +8571,19 @@
         }
       }
     },
-    "刑害较多,需谨慎" : {
+    "刑害偏多,近距离相处消耗较大。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Many punishments and harms — take care"
+            "value" : "Friction runs high — close quarters can drain you both."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "刑害较多,需谨慎"
+            "value" : "刑害偏多,近距离相处消耗较大。"
           }
         }
       }
@@ -9260,19 +9260,19 @@
         }
       }
     },
-    "四柱无冲无刑" : {
+    "两人四柱对得上,没有明显的冲撞。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No clash, no punishment across the pillars"
+            "value" : "Your pillars sit quietly together — no open clashes."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "四柱无冲无刑"
+            "value" : "两人四柱对得上,没有明显的冲撞。"
           }
         }
       }
@@ -9331,70 +9331,70 @@
         }
       }
     },
-    "地支三刑,需多包容" : {
+    "你们生肖相刑,相处要更多耐心。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Three Punishment — patience required"
+            "value" : "Your signs stress each other — patience carries this bond."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "地支三刑,需多包容"
+            "value" : "你们生肖相刑,相处要更多耐心。"
           }
         }
       }
     },
-    "地支三合,节奏相合" : {
+    "你们生肖成合,节奏容易踩到一起。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Three Harmony — rhythms align"
+            "value" : "Your signs form a trine — you fall into step easily."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "地支三合,节奏相合"
+            "value" : "你们生肖成合,节奏容易踩到一起。"
           }
         }
       }
     },
-    "地支六冲,易生矛盾" : {
+    "你们生肖相冲,意见容易正面撞上。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Six Clash — conflict comes easily"
+            "value" : "Your signs clash — opinions can collide head-on."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "地支六冲,易生矛盾"
+            "value" : "你们生肖相冲,意见容易正面撞上。"
           }
         }
       }
     },
-    "地支六合,性情默契" : {
+    "你们生肖相合,默契来得自然。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Six Harmony — natural rapport"
+            "value" : "Your zodiac signs pair well — understanding comes naturally."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "地支六合,性情默契"
+            "value" : "你们生肖相合,默契来得自然。"
           }
         }
       }
@@ -9416,19 +9416,19 @@
         }
       }
     },
-    "地支相害,沟通受阻" : {
+    "你们生肖相害,好意容易被误读。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Harm — communication stalls"
+            "value" : "Your signs subtly undermine — good intent gets misread."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "地支相害,沟通受阻"
+            "value" : "你们生肖相害,好意容易被误读。"
           }
         }
       }
@@ -9501,36 +9501,36 @@
         }
       }
     },
-    "多冲少合,需多调理" : {
+    "冲多合少,相处要主动磨合。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "More clashes than harmonies — tending needed"
+            "value" : "More clashes than bonds — this takes deliberate effort."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "多冲少合,需多调理"
+            "value" : "冲多合少,相处要主动磨合。"
           }
         }
       }
     },
-    "多合少冲,性情和谐" : {
+    "合多冲少,整体合拍,偶有小摩擦。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "More harmonies than clashes — easy temperaments"
+            "value" : "More bonds than clashes — broadly in tune, minor friction."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "多合少冲,性情和谐"
+            "value" : "合多冲少,整体合拍,偶有小摩擦。"
           }
         }
       }
@@ -10041,19 +10041,19 @@
         }
       }
     },
-    "无特殊合冲,中性" : {
+    "生肖无合无冲,这一项不加分也不扣分。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No notable harmony or clash — neutral"
+            "value" : "No zodiac pull either way — this one stays neutral."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "无特殊合冲,中性"
+            "value" : "生肖无合无冲,这一项不加分也不扣分。"
           }
         }
       }
@@ -10102,53 +10102,53 @@
         }
       }
     },
-    "日主同五行,性情相近" : {
+    "日主同气,做事方式相近,也容易较劲。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Same element — similar temperaments"
+            "value" : "Same core element — you work alike, and can compete alike."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "日主同五行,性情相近"
+            "value" : "日主同气,做事方式相近,也容易较劲。"
           }
         }
       }
     },
-    "日主相克,易起摩擦" : {
+    "一方的日主容易压住另一方,摩擦来得快。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Controlling cycle — friction comes easily"
+            "value" : "One core energy tends to press on the other; friction comes easily."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "日主相克,易起摩擦"
+            "value" : "一方的日主容易压住另一方,摩擦来得快。"
           }
         }
       }
     },
-    "日主相生,彼此扶助" : {
+    "一方的日主天然滋养另一方。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Generating cycle — they lift each other"
+            "value" : "One person's core energy naturally supports the other's."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "日主相生,彼此扶助"
+            "value" : "一方的日主天然滋养另一方。"
           }
         }
       }
@@ -10651,36 +10651,36 @@
         }
       }
     },
-    "略有冲,亦有合" : {
+    "有冲的地方,也有合的地方,拉扯中平稳。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A clash, and a harmony too"
+            "value" : "Some pillars clash, some bond — steady within the push and pull."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "略有冲,亦有合"
+            "value" : "有冲的地方,也有合的地方,拉扯中平稳。"
           }
         }
       }
     },
-    "略有冲刑害,注意沟通" : {
+    "略有冲刑害,大事上多商量就好。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Slight clash or harm — mind the communication"
+            "value" : "Light friction here and there — talk things through."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "略有冲刑害,注意沟通"
+            "value" : "略有冲刑害,大事上多商量就好。"
           }
         }
       }
@@ -11876,19 +11876,19 @@
         }
       }
     },
-    "部分互补,稍有重叠" : {
+    "五行有互补,也有重叠的部分。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Partly complementary, some overlap"
+            "value" : "Some elements complete each other; some overlap."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "部分互补,稍有重叠"
+            "value" : "五行有互补,也有重叠的部分。"
           }
         }
       }
