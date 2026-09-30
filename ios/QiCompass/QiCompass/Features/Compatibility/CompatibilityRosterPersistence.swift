@@ -107,6 +107,15 @@ struct CompatibilityRosterPersistence {
         }
     }
 
+    /// 本地是否已有名单数据(V2 非空,或未迁移的老 key 仍在)。
+    /// VM 防覆盖守卫用:未恢复的 VM 不得覆盖已有名单。V2 损坏会经 `loadV2()`
+    /// 显式记日志并删 key,此时视为无。
+    static func hasPersistedRoster() -> Bool {
+        if UserDefaults.standard.data(forKey: Key.legacyRosterHashes) != nil { return true }
+        guard let roster = loadV2() else { return false }
+        return !roster.entries.isEmpty
+    }
+
     /// 读上次 A 盘 hash(独立 key,V2 与迁移路径共用)。
     static func loadPersonAHash() -> String? {
         UserDefaults.standard.string(forKey: Key.personAHash)

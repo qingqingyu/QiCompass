@@ -447,4 +447,37 @@ final class CompatibilityRosterPersistenceV2Tests: XCTestCase {
                        "恢复只读不写(无清理发生时内容零漂移)")
         XCTAssertEqual(CompatibilityRosterPersistence.loadV2(), seeded)
     }
+
+    // MARK: - 防覆盖守卫:未恢复的 VM 不得覆盖本地已有名单(2026-09-30 review 修复)
+
+    func testV2_未恢复的VM_本地已有名单_加人不覆盖_恢复后照常写() throws {
+        let chartA = try insertChart(hash: "v2_ga")
+        let wang = Self.tempEntry(alias: "小王", birthDatetime: "1989-06-18T08:00:00")
+        let mama = Self.tempEntry(alias: "妈妈", birthDatetime: "1962-06-20T09:00:00")
+        CompatibilityRosterPersistence.saveV2(
+            personAHash: "v2_ga", context: "general",
+            roster: .init(entries: [wang.persisted, mama.persisted], selectedEntryID: mama.id)
+        )
+
+        // 模拟「启动读存档失败 → 重试只 reload 未恢复」:内存名单为空
+        vm.archivedCharts = [chartA]
+        vm.state = .configuring
+        vm.tempBirthDate = Date(timeIntervalSince1970: 638_000_000)
+        vm.tempPlace = .city(Self.makePlace(displayName: "北京"))
+        vm.tempAlias = "Lisa"
+        _ = try vm.addTempToRoster()
+
+        let persisted = try XCTUnwrap(CompatibilityRosterPersistence.loadV2())
+        XCTAssertEqual(persisted.entries, [wang.persisted, mama.persisted],
+                       "未恢复的 VM 不得把本地整份名单覆盖成一人")
+        XCTAssertEqual(persisted.selectedEntryID, mama.id)
+
+        // 恢复后接管所有权,写入照常
+        vm.restoreRosterStateIfAvailable()
+        XCTAssertEqual(vm.roster.count, 2, "恢复出本地名单(内存里未落盘的 Lisa 被替换)")
+        vm.tempAlias = "Lisa"
+        _ = try vm.addTempToRoster()
+        XCTAssertEqual(CompatibilityRosterPersistence.loadV2()?.entries.count, 3,
+                       "恢复后加人正常落盘")
+    }
 }
