@@ -255,8 +255,8 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
     // MARK: - 恢复态池行(在册未勾选)选中语义
 
     func testSelectPartner_池行在册未勾选_原地勾选_首击不移除() async throws {
-        // 跨启动恢复可产出「池行在 roster 但未勾选」(上次对 CompatibilitySnapshot
-        // 缺失/被清 → tryRestoreDetail 不预勾)。P3 点行 = 选中:首击必须原地勾选,
+        // 跨启动恢复可产出「池行在 roster 但未勾选」(持久化 selectedEntryID 缺失/
+        // 指向的快照被清 → 恢复不预勾)。P3 点行 = 选中:首击必须原地勾选,
         // 不得误走 toggleArchived 的「再点 = 移除」分支静默丢人
         let chartA = try insertChart(hash: "spr_a_known", alias: "A", hourKnown: true)
         let chartB = try insertChart(hash: "spr_b_known", alias: "B", hourKnown: true)
@@ -503,6 +503,26 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
         }
         _ = await waitForDetailState()
         await drainDetailBackgroundTasks()
+    }
+
+    // MARK: - §3.2:管理模式豁免 isLocked(行内「移出/修改」可用)
+
+    func testRowBodyDisabled_管理模式豁免isLocked() {
+        // 命主无时辰 + 非管理模式:行主体置灰(点行不可换人)
+        XCTAssertTrue(PartnerPickerSheet.rowBodyDisabled(
+            isLocked: true, isFullBlocked: false, isManageMode: false))
+        // 命主无时辰 + 管理模式:行主体不置灰(整理名单与能不能合盘无关)
+        XCTAssertFalse(PartnerPickerSheet.rowBodyDisabled(
+            isLocked: true, isFullBlocked: false, isManageMode: true),
+            "§3.2:isLocked 经外层 disabled 传播曾连带禁用行内「移出/修改」")
+        // 正常态
+        XCTAssertFalse(PartnerPickerSheet.rowBodyDisabled(
+            isLocked: false, isFullBlocked: false, isManageMode: false))
+        // 满员拒收(名单外候选)与模式无关
+        XCTAssertTrue(PartnerPickerSheet.rowBodyDisabled(
+            isLocked: false, isFullBlocked: true, isManageMode: false))
+        XCTAssertTrue(PartnerPickerSheet.rowBodyDisabled(
+            isLocked: false, isFullBlocked: true, isManageMode: true))
     }
 
     // MARK: - 辅助(fixture 与 BatchTests 同款)

@@ -171,6 +171,10 @@ struct CompatibilityView: View {
     ///   重算;无当前对方(恢复失败/刚移出)不自动选人,回头部点选
     @MainActor
     private func refreshAfterAddHour() {
+        // A 选择跨 reload 保留(reload 前捕获;loadArchivedCharts 会重置 index 0,
+        // 结果壳态没有 restore 兜底——不保留会把非最新 A 的用户静默切到最新盘,
+        // 且 applyHashRemap → persistRoster 会把错选落盘)
+        let previousAHash = vm?.currentPersonAHash
         vm?.loadArchivedCharts()
         if case .configuring = vm?.state {
             // 配置态从(已 remap 的)持久化重建名单,内存 remap 无必要;
@@ -192,6 +196,14 @@ struct CompatibilityView: View {
         addHourRemap = nil
         let target = addHourTarget
         addHourTarget = nil
+        // A 选择按 remap 感知恢复:自己盘补时辰(old == 之前 A)→ 跟随新 hash;
+        // 他人盘补时辰 → 维持原 A;原 A 已不在池内 → 维持 reload 后的 index 0
+        if let vm, let previousAHash {
+            let resolvedA = (previousAHash == remap.old) ? remap.new : previousAHash
+            if let idx = vm.archivedCharts.firstIndex(where: { $0.snapshotHash == resolvedA }) {
+                vm.selectedChartAIndex = idx
+            }
+        }
         vm?.applyHashRemap(from: remap.old, to: remap.new)
         vm?.continueAfterAddHourRemap(target: target, remap: remap)
     }
@@ -329,6 +341,9 @@ extension CompatibilityView {
     /// configuring 态内容区(P5 / P6):
     /// - 名单空(P5):留白说明 + 命主无时辰 banner + 内联 PartnerBirthForm
     ///   (提交 = 加入 + 选中 + 合盘;点头部占位聚焦称呼)
+    /// - 有选中但无缓存(R3,2026-09-30):头部显示该人,内容区一行说明 +
+    ///   「重新合盘」入口(selectPartner(force:)——缓存命中态不会走到这里,
+    ///   恢复已直达 detail;不自动发请求)
     /// - 名单非空无已选(P6):一行 inkMuted 说明,点头部开 sheet,不自动弹
     /// - 命主无时辰:表单按 S07 全锁语义置灰(先补时辰再解锁)
     @ViewBuilder
@@ -358,6 +373,37 @@ extension CompatibilityView {
                 .padding(.horizontal, BaziTheme.Spacing.lg)
                 .padding(.bottom, 32)
             }
+        } else if let selected = vm.selectedRosterEntries.first {
+            // R3 有选中无缓存(恢复未命中 / 上次合盘失败):不自动发请求,
+            // 给显式入口——selectPartner force 绕过「已是当前对方」no-op
+            VStack(spacing: BaziTheme.Spacing.lg) {
+                // 命主无时辰:CTA 置灰须有解释(与 P5 分支同口径,解锁走头部「补时辰」)
+                if vm.isSelfHourUnknown {
+                    RosterSelfLockBanner()
+                }
+                Spacer()
+                Text(L10n.CompatibilityPartner.selectedNoCacheHint)
+                    .font(BaziFont.caption(size: 12))
+                    .tracking(1.5)
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+                Button {
+                    vm.selectPartner(selected, force: true)
+                } label: {
+                    Text(L10n.CompatibilityPartner.recomputeCta)
+                        .font(BaziFont.body(size: 15))
+                        .tracking(2)
+                        .foregroundStyle(BaziTheme.ink)
+                        .padding(.horizontal, BaziTheme.Spacing.xl)
+                        .padding(.vertical, 10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
+                                .stroke(BaziTheme.hairline, lineWidth: 1)
+                        )
+                }
+                .disabled(vm.isSelfHourUnknown)
+                Spacer()
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             VStack {
                 Spacer()

@@ -5787,6 +5787,23 @@
         }
       }
     },
+    "hepan.partner.addRowSubtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No profile needed · birth details are enough"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "不建档案 · 填出生信息即可"
+          }
+        }
+      }
+    },
     "hepan.partner.castingTitle" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -5834,6 +5851,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "完成"
+          }
+        }
+      }
+    },
+    "hepan.partner.fallbackName" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partner · %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "对方 · %@"
           }
         }
       }
@@ -6110,6 +6144,23 @@
         }
       }
     },
+    "hepan.partner.recomputeCta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Re-run match"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新合盘"
+          }
+        }
+      }
+    },
     "hepan.partner.rosterFullHint" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6242,6 +6293,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "点按切换为当前对方"
+          }
+        }
+      }
+    },
+    "hepan.partner.selectedNoCacheHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "No saved match for this partner yet"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这一位还没有合盘结果"
           }
         }
       }
@@ -7697,16 +7765,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "上次合盘保留的对方"
-          }
-        }
-      }
-    },
-    "不建档案 · 填出生信息即可" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No profile needed · birth details are enough"
           }
         }
       }
@@ -9469,23 +9527,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "对方"
-          }
-        }
-      }
-    },
-    "对方 · %@" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Partner · %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "对方 · %@"
           }
         }
       }

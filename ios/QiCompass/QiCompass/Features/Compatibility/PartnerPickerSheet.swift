@@ -202,6 +202,15 @@ struct PartnerPickerSheet: View {
         return vm.isArchivedHourUnknown(hash: hash)
     }
 
+    /// 名单行主体置灰/禁用判据(纯函数,供单测;§3.2 修复 2026-09-30):
+    /// 整理名单与能不能合盘无关——管理模式下不因命主无时辰(`isLocked`)禁用,
+    /// 否则外层 `.disabled` 经 environment 向下传播,连带禁用行内「修改/移出」,
+    /// 命主无时辰时名单整理被整体锁死。满员拒收与模式无关(容量问题是行自身的
+    /// 加入语义,管理模式下名单外候选行同样不可点)。
+    static func rowBodyDisabled(isLocked: Bool, isFullBlocked: Bool, isManageMode: Bool) -> Bool {
+        isFullBlocked || (isLocked && !isManageMode)
+    }
+
     // MARK: - 尾部添加行(满员置灰)
 
     private var addRow: some View {
@@ -220,7 +229,7 @@ struct PartnerPickerSheet: View {
                         .foregroundStyle(isFull ? BaziTheme.inkMutedSecondary : BaziTheme.ink)
                     Text(isFull
                          ? L10n.CompatibilityPartner.rosterFullHint(CompatibilityViewModel.rosterMax)
-                         : String(localized: "不建档案 · 填出生信息即可"))
+                         : L10n.CompatibilityPartner.addRowSubtitle)
                         .font(BaziFont.caption(size: 10))
                         .tracking(0.5)
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
@@ -344,7 +353,10 @@ private struct PartnerRow: View {
     let onEdit: () -> Void
     let onRemove: () -> Void
 
-    private var isGreyed: Bool { isLocked || isFullBlocked }
+    private var isGreyed: Bool {
+        PartnerPickerSheet.rowBodyDisabled(
+            isLocked: isLocked, isFullBlocked: isFullBlocked, isManageMode: isManageMode)
+    }
 
     var body: some View {
         Button {
@@ -392,7 +404,8 @@ private struct PartnerRow: View {
             .opacity(isFullBlocked ? 0.45 : 1)
         }
         .buttonStyle(.plain)
-        .disabled(isLocked || isFullBlocked)
+        .disabled(PartnerPickerSheet.rowBodyDisabled(
+            isLocked: isLocked, isFullBlocked: isFullBlocked, isManageMode: isManageMode))
         .accessibilityHint(isManageMode
                            ? L10n.CompatibilityPartner.rowManageHint
                            : (isSelected
@@ -438,7 +451,9 @@ private struct PartnerRow: View {
         }
     }
 
-    /// 管理模式行尾:「修改」(仅临时人)+「移出」(全锁置灰)。
+    /// 管理模式行尾:「修改」(仅临时人)+「移出」。
+    /// 两者不受 `isLocked` 影响(§3.2:整理名单与能不能合盘无关;外层行
+    /// disabled 已在管理模式豁免,不再连带禁用)。
     @ViewBuilder
     private var manageTrailing: some View {
         HStack(spacing: 4) {
@@ -447,24 +462,22 @@ private struct PartnerRow: View {
                     Text(L10n.CompatibilityPartner.rowEdit)
                         .font(BaziFont.caption(size: 10))
                         .tracking(1)
-                        .foregroundStyle(isLocked ? BaziTheme.inkMutedSecondary : BaziTheme.inkMuted)
+                        .foregroundStyle(BaziTheme.inkMuted)
                         .padding(.vertical, 4)
                         .padding(.horizontal, 6)
                 }
                 .buttonStyle(.plain)
-                .disabled(isLocked)
                 .accessibilityLabel(L10n.CompatibilityPartner.rowEditA11y(display.name))
             }
             Button(action: onRemove) {
                 Text(L10n.CompatibilityPartner.rowRemove)
                     .font(BaziFont.caption(size: 10))
                     .tracking(1)
-                    .foregroundStyle(isLocked ? BaziTheme.inkMutedSecondary : BaziTheme.inkMuted)
+                    .foregroundStyle(BaziTheme.inkMuted)
                     .padding(.vertical, 4)
                     .padding(.horizontal, 6)
             }
             .buttonStyle(.plain)
-            .disabled(isLocked)
             .accessibilityLabel(L10n.CompatibilityPartner.rowRemoveA11y(display.name))
         }
     }

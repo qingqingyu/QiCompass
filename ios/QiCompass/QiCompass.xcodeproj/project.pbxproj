@@ -138,6 +138,7 @@
 		A00000000000000000000009 /* AI/CachedInterpretationReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000008 /* AI/CachedInterpretationReaderTests.swift */; };
 		A0000000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */; };
 		A00000000000000000000044 /* Compatibility/CompatibilitySelectPartnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000044 /* Compatibility/CompatibilitySelectPartnerTests.swift */; };
+		A0000000000000000000004D /* Compatibility/CompatibilityRosterPersistenceV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000004D /* Compatibility/CompatibilityRosterPersistenceV2Tests.swift */; };
 		A00000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift */; };
 		A0000000000000000000000B /* Shared/CitySearchEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000B /* Shared/CitySearchEngineTests.swift */; };
 		A0000000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */; };
@@ -315,6 +316,7 @@
 		A11000000000000000000008 /* AI/CachedInterpretationReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AI/CachedInterpretationReaderTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityViewModelBatchTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000044 /* Compatibility/CompatibilitySelectPartnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilitySelectPartnerTests.swift; sourceTree = "<group>"; };
+		A1100000000000000000004D /* Compatibility/CompatibilityRosterPersistenceV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityRosterPersistenceV2Tests.swift; sourceTree = "<group>"; };
 		A11000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/DayMasterRelationPhraseTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisArchiveLoadTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paywall/PaywallHourUnknownGateTests.swift; sourceTree = "<group>"; };
@@ -628,6 +630,7 @@
 				A11000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift */,
 				A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */,
 A11000000000000000000044 /* Compatibility/CompatibilitySelectPartnerTests.swift */,
+A1100000000000000000004D /* Compatibility/CompatibilityRosterPersistenceV2Tests.swift */,
 A11000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift */,
 				A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */,
 				A110000000000000000000B /* Shared/CitySearchEngineTests.swift */,
@@ -904,6 +907,7 @@ A11000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift */,
 				A00000000000000000000005 /* Compatibility/CompatibilitySnapshotStoreTests.swift in Sources */,
 				A0000000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift in Sources */,
 A00000000000000000000044 /* Compatibility/CompatibilitySelectPartnerTests.swift in Sources */,
+A0000000000000000000004D /* Compatibility/CompatibilityRosterPersistenceV2Tests.swift in Sources */,
 A00000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift in Sources */,
 				A00000000000000000000006 /* Shared/DailyReadCounterTests.swift in Sources */,
 				A0000000000000000000000B /* Shared/CitySearchEngineTests.swift in Sources */,

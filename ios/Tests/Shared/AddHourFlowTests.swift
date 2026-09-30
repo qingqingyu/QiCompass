@@ -304,24 +304,36 @@ final class AddHourFlowTests: XCTestCase {
 
     func testRosterPersistence_RemapsHashAfterRecalc() async throws {
         let old = try archiveOldChart()
-        CompatibilityRosterPersistence.save(
-            personAHash: "a_hash", context: "general", rosterHashes: ["other_hash", old.contentHash]
+        CompatibilityRosterPersistence.saveV2(
+            personAHash: "a_hash", context: "general",
+            roster: .init(
+                entries: [
+                    .archived(snapshotHash: "other_hash"),
+                    .archived(snapshotHash: old.contentHash),
+                ],
+                selectedEntryID: "archived:\(old.contentHash)"
+            )
         )
         let vm = try makeVM(hash: old.contentHash)
         vm.setShichenHour(10)
         let newResponse = try await XCTUnwrapAsync(await vm.submit())
 
-        let persisted = CompatibilityRosterPersistence.load()
-        XCTAssertEqual(persisted.rosterHashes, ["other_hash", newResponse.contentHash],
+        let persisted = CompatibilityRosterPersistence.loadV2()
+        XCTAssertEqual(persisted?.entries,
+                       [.archived(snapshotHash: "other_hash"),
+                        .archived(snapshotHash: newResponse.contentHash)],
                        "他人盘补时辰换新盘 → 名单 hash 原地换新(该人留在名单,对级关系自然重算)")
-        XCTAssertEqual(persisted.personAHash, "a_hash", "无关 A 盘不动")
+        XCTAssertEqual(persisted?.selectedEntryID, "archived:\(newResponse.contentHash)",
+                       "选中 id 内嵌的 archived:<hash> 同步换新")
+        XCTAssertEqual(CompatibilityRosterPersistence.loadPersonAHash(), "a_hash", "无关 A 盘不动")
 
         // 自己盘:A hash 同样 remap
-        CompatibilityRosterPersistence.save(
-            personAHash: old.contentHash, context: "general", rosterHashes: []
+        CompatibilityRosterPersistence.saveV2(
+            personAHash: old.contentHash, context: "general",
+            roster: .init(entries: [], selectedEntryID: nil)
         )
         CompatibilityRosterPersistence.remapHash(from: old.contentHash, to: newResponse.contentHash)
-        XCTAssertEqual(CompatibilityRosterPersistence.load().personAHash, newResponse.contentHash)
+        XCTAssertEqual(CompatibilityRosterPersistence.loadPersonAHash(), newResponse.contentHash)
     }
 
     func testCompatibilityRouting_BlockedPairTargetHash() throws {

@@ -4,6 +4,9 @@
 > 参考交互稿:https://claude.ai/artifact/1ArvwigqyRxQk5vzu4ykxn(只借**交互**,不借视觉/数据)
 > 上游决策:`docs/合盘多选设计决策.md`(D1-D13)、`docs/时辰未知设计决策.md`(S07/S10/S11)、`DESIGN.md`(水墨孤本)
 > 本文件面向实施者(另一个 AI):读完即可开工,每个 slice 独立可 demo。
+> **后续修订(2026-09-30)**:名单持久化仍是 09-07 单选时代写法,已由
+> `docs/合盘名单持久化修复-plan.md`(R1-R5)修订——完整名单 + 选中持久化到
+> `compat.rosterV2`,本文件的 S1-S5 不受影响。
 
 ---
 

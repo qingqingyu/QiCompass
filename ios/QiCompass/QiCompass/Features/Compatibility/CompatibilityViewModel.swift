@@ -79,6 +79,9 @@ enum AddHourTarget {
 @MainActor
 final class CompatibilityViewModel {
 
+    /// 名单持久化根结构短名(R1,2026-09-30)。
+    private typealias PersistedRoster = CompatibilityRosterPersistence.PersistedRoster
+
     // MARK: 配置字段
 
     /// 已存档命盘列表(从 UserSnapshotLink + ChartSnapshot 取)
@@ -102,8 +105,8 @@ final class CompatibilityViewModel {
     ///   (toggleArchived 维护;换选时原池行随取消勾选移出名单)
     /// - 临时人/恢复行:添加**不**入本集合(2026-09-03 拆分:「加名单」≠「选入合盘」),
     ///   由 `toggleEntrySelection` 显式勾选;换选/取消勾选都保留名单成员资格
-    /// - 跨启动恢复:默认勾「上次那位」(`tryRestoreDetail` 按 CompatibilitySnapshot
-    ///   createdAt 最新者定;无快照不预勾)
+    /// - 跨启动恢复:勾选 = 持久化的 `selectedEntryID`(R3,2026-09-30);
+    ///   不在名单内 → 清空不预勾(createdAt 猜「上次那位」只在老 key 迁移时兜底一次)
     var selectedEntryIds: Set<String> = []
 
     /// 单临时人表单(S04 草稿态:每次「添加」push 一条 .temp 到 roster,然后表单清空)。
@@ -375,7 +378,7 @@ final class CompatibilityViewModel {
                                                        timezoneName: snapshot.cityTimezone)
                 return PartnerDisplay(
                     entryID: entry.id,
-                    name: String(format: String(localized: "对方 · %@"), dateStr),
+                    name: L10n.CompatibilityPartner.fallbackName(dateStr),
                     dayMaster: dayMaster,
                     dayMasterElementKey: ElementColors.ofGan(dayMaster),
                     birthDateString: dateStr
@@ -397,7 +400,7 @@ final class CompatibilityViewModel {
             if let alias, !alias.isEmpty {
                 name = alias
             } else {
-                name = String(format: String(localized: "对方 · %@"), input.wallClockDisplay)
+                name = L10n.CompatibilityPartner.fallbackName(input.wallClockDisplay)
             }
             var dayMaster: String?
             var birthDateString = String(input.birthDatetime.prefix(10))
@@ -441,6 +444,7 @@ final class CompatibilityViewModel {
         }
         if selectedEntryIds.contains(entry.id) {
             selectedEntryIds.remove(entry.id)
+            persistRoster()
         } else {
             selectEntryExclusively(entry)
         }
@@ -458,6 +462,7 @@ final class CompatibilityViewModel {
             if roster.contains(where: { $0.id == entry.id }) {
                 deselectCurrentSelection()
                 selectedEntryIds = [entry.id]
+                persistRoster()
                 return
             }
             toggleArchived(hash: hash)
@@ -465,6 +470,7 @@ final class CompatibilityViewModel {
         }
         deselectCurrentSelection()
         selectedEntryIds = [entry.id]
+        persistRoster()
     }
 
     /// 单选让位(2026-09-07):清空当前勾选;原勾选若是存档池行,随取消勾选移出名单
@@ -499,6 +505,7 @@ final class CompatibilityViewModel {
         if let idx = roster.firstIndex(where: { $0.archivedSnapshotHash == hash }) {
             let removed = roster.remove(at: idx)
             selectedEntryIds.remove(removed.id)
+            persistRoster()
             return
         }
         guard hash != currentPersonAHash else {
@@ -519,6 +526,7 @@ final class CompatibilityViewModel {
         let entry = RosterEntry.archived(snapshotHash: hash)
         roster.append(entry)
         selectedEntryIds = [entry.id]
+        persistRoster()
     }
 
     // MARK: - 换人(P3:选中 + 立即合盘,2026-09-29 结果页主页化)
@@ -692,6 +700,7 @@ final class CompatibilityViewModel {
             )
         )
         roster.append(newEntry)
+        persistRoster()
         return newEntry
     }
 
@@ -814,13 +823,15 @@ final class CompatibilityViewModel {
             selectedEntryIds.remove(entry.id)
             selectedEntryIds.insert(newEntry.id)
         }
+        persistRoster()
         return newEntry
     }
 
-    /// 移除名单一项(勾选 id 一并清理,不留悬空引用)。
+    /// 移除名单一项(勾选 id 一并清理,不留悬空引用;R2 即时落盘)。
     func removeRosterEntry(_ entry: RosterEntry) {
         roster.removeAll { $0.id == entry.id }
         selectedEntryIds.remove(entry.id)
+        persistRoster()
     }
 
     /// 临时表单校验(不静默吞)。
@@ -945,8 +956,9 @@ final class CompatibilityViewModel {
                 let successCount = newSummaries.filter(\.isComputed).count
                 AppLogger.app.info("compatVM.compute.ok total=\(newSummaries.count, privacy: .public) success=\(successCount, privacy: .public)")
                 self.summaries = newSummaries
-                // S06:持久化 A / context / 名单 hash(compute() 成功后)
-                self.persistRosterState(summaries: newSummaries)
+                // R2(2026-09-30):持久化单一出口——resolvedHash 已在各对
+                // backfillTempResolvedHash 落盘,这里再同步一次 A hash 与最终选中
+                self.persistRoster()
                 // 2026-09-07 单选直达:唯一一对且算成 → 直接进 detail;
                 // 失败 / 时辰拦截 → 单卡 .list 兜底(重试 / 补时辰 CTA 保留)
                 if newSummaries.count == 1, let only = newSummaries.first, only.isComputed {
@@ -958,118 +970,203 @@ final class CompatibilityViewModel {
         }
     }
 
-    // MARK: - S06 跨启动持久化与恢复
+    // MARK: - S06 跨启动持久化与恢复(R1-R5 修订,2026-09-30)
 
-    /// 写入 UserDefaults(决策 D5)。
-    /// 名单 hash 来自 summaries 的 personBHash(临时人已用 resolvedHash)。
-    /// S07:时辰未知拦截对**非空 hash 也保留**(存档对方仍在名单,补时辰后可重算;
-    /// 失败对 personBHash 恒空串,自然剔除)。恢复按 CompatibilitySnapshot
-    /// 存在性过滤,拦截对无快照不会被复活成结果卡。
-    private func persistRosterState(summaries: [PairSummary]) {
-        let aHash = currentPersonAHash ?? ""
-        let hashes = summaries
-            .filter { $0.isComputed || $0.isHourUnknownBlocked }
-            .map(\.personBHash)
-            .filter { !$0.isEmpty }
-        CompatibilityRosterPersistence.save(
-            personAHash: aHash,
+    /// 名单持久化单一出口(R2):读当前 `roster` + 选中 + A 盘,写 `compat.rosterV2`。
+    /// 所有改名单或选中的地方调它,不在各处直接拼 UserDefaults。
+    /// 名单完整持久化(R1):临时对方的 PersonBInput / 称呼 / 出生地 / resolvedHash
+    /// 全在 entries 里;`selectedEntryIds.first` 落 `selectedEntryID`(R3)。
+    /// 合盘失败不影响名单——本函数不依赖 compute() 成功。
+    private func persistRoster() {
+        CompatibilityRosterPersistence.saveV2(
+            personAHash: currentPersonAHash ?? "",
             context: context,
-            rosterHashes: hashes
+            roster: .init(
+                entries: roster.map(\.persisted),
+                selectedEntryID: selectedEntryIds.first
+            )
         )
     }
 
-    /// S06:跨启动恢复名单 + A(决策 D5/D8/D11/D13)。
+    /// S06:跨启动恢复名单 + A(决策 D5/D8/D11/D13;R1-R5 修订 2026-09-30)。
     /// 调用时机:`loadArchivedCharts()` 完成后,0 存档外(进 .configuring 态时)。
     ///
     /// 流程:
-    /// 1. 读持久化(aHash / rosterHashes;context 恒 "general" 不再恢复,
-    ///    2026-08-16 维度 picker 移除,老持久化值忽略)
+    /// 1. 读 `compat.rosterV2`;不存在 → R5 从老 key `compat.roster` 迁移(读后删,
+    ///    一次性;迁移态无选中记录)
     /// 2. A hash 失效 fallback 最新 link(D13)
-    /// 3. 名单 hash 清理无效项(D5 防脏数据;D6 红线:不转 link)
-    /// 4. 名单非空 → 尝试恢复「上次那位」的 detail(零 API 调用,2026-09-07 单选直达)
+    /// 3. 逐条校验:`.archived` 快照查不到 → 剔除;`.temp` 恒保留(有完整输入),
+    ///    resolvedHash 指向的快照查不到 → 置 nil(下次合盘重新请求);
+    ///    超 rosterMax → 截断(理论不可达,记 error)
+    /// 4. 选中恢复(R3):`selectedEntryID` 在名单内 → 恢复勾选;它有缓存
+    ///    (canonicalKey 直查)→ 零请求直达 detail;无缓存 → 留 .configuring
+    ///    (结果壳 P6 有选中态:头部显示该人 + 内容区「重新合盘」入口,不自动发请求)。
+    ///    不再用 createdAt 猜「上次那位」——只在 R5 迁移时兜底用一次
+    /// 5. 恢复全程**不写持久化**(persistRoster 是显式调用制,本函数对 roster /
+    ///    selectedEntryIds 的赋值不触发写入,半成品不会被写回);最后统一写一次,
+    ///    把清理掉的无效项 / 迁移结果 / 选中落盘
     func restoreRosterStateIfAvailable() {
         guard !archivedCharts.isEmpty else { return }  // 0 存档走 .empty,不恢复
 
-        let persisted = CompatibilityRosterPersistence.load()
-
         // 1. A hash 失效则 fallback 最新 link(D13)
-        if let aHash = persisted.personAHash,
+        let persistedAHash = CompatibilityRosterPersistence.loadPersonAHash()
+        if let aHash = persistedAHash,
            let idx = archivedCharts.firstIndex(where: { $0.snapshotHash == aHash }) {
             selectedChartAIndex = idx
         } else {
             // 持久化 A 失效或未存 → fallback 最新 link(archivedCharts 已 createdAt DESC)
-            if persisted.personAHash != nil {
+            if persistedAHash != nil {
                 AppLogger.app.warning(
-                    "op=compatibility.restore.a_hash_invalid fallback to latest link a_hash=\(persisted.personAHash ?? "nil", privacy: .public)"
+                    "op=compatibility.restore.a_hash_invalid fallback to latest link a_hash=\(persistedAHash ?? "nil", privacy: .public)"
                 )
             }
             selectedChartAIndex = 0
         }
 
-        // 2. 名单 hash 清理 + 预填(D5 防脏数据 + D6 不转 link)
-        let validHashes = CompatibilityRosterPersistence.cleanupInvalidHashes(
-            persistedHashes: persisted.rosterHashes
-        ) { hash in
-            // 校验:ChartSnapshot 存在(无论是否有 link,临时人隐式落地的 snapshot 也算)
-            (try? self.chartStore.get(contentHash: hash)) != nil
+        // 2. V2 读 / R5 老数据迁移
+        var persisted = CompatibilityRosterPersistence.loadV2()
+        var migratedFromLegacy = false
+        if persisted == nil,
+           let legacyHashes = CompatibilityRosterPersistence.loadLegacyRosterHashesForMigration() {
+            persisted = PersistedRoster(
+                entries: legacyHashes.map { .archived(snapshotHash: $0) },
+                selectedEntryID: nil
+            )
+            migratedFromLegacy = true
         }
-        roster = validHashes.map { .archived(snapshotHash: $0) }
-        // 单选(2026-09-07):恢复的名单 = 上次排盘的人,默认勾「上次那位」——
-        // 由 tryRestoreDetail 按 CompatibilitySnapshot createdAt 最新者定并直达其
-        // detail;无快照可恢复(拦截对未算过 / 快照被清)不预勾,留在配置态由用户自点
-        selectedEntryIds = []
+
+        // 3. 逐条校验(错误显式传播:快照真缺失才剔除 / resolvedHash 失效置 nil;
+        //    store 查询 throw = 瞬态错误,记日志后保留成员,不借剔除掩盖失败)
+        var entries: [RosterEntry] = []
+        if let persisted {
+            for persistedEntry in persisted.entries {
+                switch persistedEntry {
+                case .archived(let hash):
+                    do {
+                        guard try chartStore.get(contentHash: hash) != nil else {
+                            AppLogger.app.warning(
+                                "op=compatibility.restore.entry_snapshot_missing hash=\(hash, privacy: .public)"
+                            )
+                            continue
+                        }
+                        entries.append(.archived(snapshotHash: hash))
+                    } catch {
+                        // 查询失败 ≠ 缺失:保留成员 + 显式记日志(与 .temp 的
+                        // resolvedHash 校验同语义)——瞬态 store 错误不得借剔除
+                        // 掩盖,更不能经末次 persistRoster 落盘成永久驱逐;
+                        // 真缺失(上面 nil 分支)才剔除
+                        AppLogger.persistence.error(
+                            "op=compatibility.restore.entry_check_failed hash=\(hash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                        )
+                        entries.append(.archived(snapshotHash: hash))
+                    }
+                case .temp(let input, let alias, let resolvedHash, let place):
+                    // 恒保留(有完整输入随时能重排);resolvedHash 快照查不到 → 置 nil
+                    var effectiveResolved = resolvedHash
+                    if let resolvedHash {
+                        do {
+                            if try chartStore.get(contentHash: resolvedHash) == nil {
+                                AppLogger.app.warning(
+                                    "op=compatibility.restore.temp_resolved_missing alias=\(alias ?? "nil", privacy: .public) hash=\(resolvedHash, privacy: .public)"
+                                )
+                                effectiveResolved = nil
+                            }
+                        } catch {
+                            // 查询失败 ≠ 缺失:显式记日志,hash 保留(展示层有降级,
+                            // compute 路径会再抛真错误)
+                            AppLogger.persistence.error(
+                                "op=compatibility.restore.temp_resolved_check_failed hash=\(resolvedHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                            )
+                        }
+                    }
+                    entries.append(.temp(input: input, alias: alias, resolvedHash: effectiveResolved, place: place))
+                }
+            }
+            if entries.count > Self.rosterMax {
+                AppLogger.app.error(
+                    "op=compatibility.restore.roster_overflow count=\(entries.count, privacy: .public) truncating to \(Self.rosterMax, privacy: .public)"
+                )
+                entries = Array(entries.prefix(Self.rosterMax))
+            }
+        }
+
+        roster = entries
+
+        // 4. 选中恢复(R3):selectedEntryID 不在名单 → 清空(截断/剔除可能带走)
+        var selectedID = persisted?.selectedEntryID
+        if let sid = selectedID, !roster.contains(where: { $0.id == sid }) {
+            AppLogger.app.warning(
+                "op=compatibility.restore.selected_missing id=\(sid, privacy: .public)"
+            )
+            selectedID = nil
+        }
+
+        // R5 迁移兜底:老数据无选中 → 按 createdAt 最新定一次(此后不再猜)
+        if migratedFromLegacy, selectedID == nil, !roster.isEmpty {
+            selectedID = legacyMigrationSelectedEntryID()
+        }
+        selectedEntryIds = selectedID.map { [$0] } ?? []
 
         AppLogger.app.info(
-            "op=compatibility.restore.ok a_hash=\(self.currentPersonAHash ?? "nil", privacy: .public) context=\(self.context, privacy: .public) roster_count=\(self.roster.count, privacy: .public)"
+            "op=compatibility.restore.ok a_hash=\(self.currentPersonAHash ?? "nil", privacy: .public) context=\(self.context, privacy: .public) roster_count=\(self.roster.count, privacy: .public) selected=\(selectedID ?? "nil", privacy: .public) migrated=\(migratedFromLegacy, privacy: .public)"
         )
 
-        // 3. 名单非空 → 尝试恢复「上次那位」的 detail(零 API 调用)
-        if !roster.isEmpty {
-            tryRestoreDetail()
+        // 5. 选中者有缓存 → 零请求直达 detail(R3;传名单里的真实 entry,
+        //    临时对方的称呼由 rebuildSummaryFromCache 的 alias 分支保住)
+        restoreDetailForSelectionIfCached()
+
+        // 恢复完成,统一落盘一次(清理掉的无效项 / 迁移结果 / 选中)
+        persistRoster()
+    }
+
+    /// R3:选中者的 canonicalKey 命中缓存 → 重建 summary 直达 detail;
+    /// 未命中 / decode 失败 / 查询失败 → 显式记日志,留在 .configuring
+    /// (结果壳 P6 有选中态,内容区给「重新合盘」入口,不自动发请求)。
+    private func restoreDetailForSelectionIfCached() {
+        guard let entry = selectedRosterEntries.first,
+              let bHash = entry.resolvedContentHash,
+              let aHash = currentPersonAHash else { return }
+        let canonicalKey = CompatibilitySnapshotStore.canonicalKey(
+            aHash: aHash, bHash: bHash, context: context
+        )
+        do {
+            guard let snapshot = try compatibilityStore.get(compatibilityHash: canonicalKey) else {
+                AppLogger.app.info(
+                    "op=compatibility.restore.no_cache id=\(entry.id, privacy: .public) canonicalKey=\(canonicalKey, privacy: .public)"
+                )
+                return
+            }
+            let summary = try rebuildSummaryFromCache(entry: entry, bHash: bHash, snapshot: snapshot)
+            summaries = [summary]
+            openDetail(summary)
+            AppLogger.app.info(
+                "op=compatibility.restore.detail_ok hash=\(snapshot.compatibilityHash, privacy: .public) zero_api=true"
+            )
+        } catch {
+            AppLogger.persistence.error(
+                "op=compatibility.restore.detail_failed id=\(entry.id, privacy: .public) canonicalKey=\(canonicalKey, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            // 不静默吞:留在配置态(名单与选中已恢复),内容区提供「重新合盘」
         }
     }
 
-    /// S06 改(2026-09-07 单选直达):从 store.list(A, context) ∩ 名单 里取
-    /// createdAt 最新的一对 = 「上次那位」,重建 summary 后**直接进 detail**;
-    /// 同时把该位设为名单唯一勾选(返回配置态即最短路径复现上次)。
-    /// 失败不静默吞:list 查询失败保留 .configuring;最新对 decode 失败记日志后
-    /// 同样留在配置态(名单已恢复、不预勾),用户可手动重算。
-    private func tryRestoreDetail() {
-        guard let aHash = currentPersonAHash else { return }
+    /// R5 迁移兜底:老 key 数据无选中记录 → 名单内 createdAt 最新的快照定「上次那位」。
+    /// 仅迁移时调一次;之后「当前选中」由 selectedEntryID 显式承载,不再猜。
+    /// list 查询失败 / 无快照 → nil(不预勾,留在配置态由用户自点)。
+    private func legacyMigrationSelectedEntryID() -> String? {
+        guard let aHash = currentPersonAHash else { return nil }
         do {
             let snapshots = try compatibilityStore.list(personAHash: aHash, context: context)
             // 名单过滤(D5 核心:删掉的对方不从快照库「复活」)
             let rosterHashes = Set(roster.compactMap { $0.resolvedContentHash })
-            let filteredSnapshots = snapshots.filter { rosterHashes.contains($0.personBHash) }
-            // 「上次那位」= 名单内快照中 createdAt 最新者(持久化名单顺序不含时间信息)
-            guard let latest = filteredSnapshots.max(by: { $0.createdAt < $1.createdAt }) else { return }
-
-            // 跨启动恢复:entry 都是 .archived(snapshotHash:)(临时人持久化为 hash;
-            // rebuildSummaryFromCache 内 displayName 会自动 fallback 兜底名)
-            let entry: RosterEntry = .archived(snapshotHash: latest.personBHash)
-            do {
-                let summary = try rebuildSummaryFromCache(
-                    entry: entry,
-                    bHash: latest.personBHash,
-                    snapshot: latest
-                )
-                selectedEntryIds = [entry.id]
-                summaries = [summary]
-                openDetail(summary)
-                AppLogger.app.info(
-                    "op=compatibility.tryRestoreDetail.ok hash=\(latest.compatibilityHash, privacy: .public) zero_api=true"
-                )
-            } catch {
-                AppLogger.persistence.error(
-                    "op=compatibility.tryRestoreDetail.decode_failed hash=\(latest.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
-                )
-                // 不静默吞:留在配置态(名单已恢复、不预勾),用户可手动重算
-            }
+            let filtered = snapshots.filter { rosterHashes.contains($0.personBHash) }
+            guard let latest = filtered.max(by: { $0.createdAt < $1.createdAt }) else { return nil }
+            return roster.first { $0.resolvedContentHash == latest.personBHash }?.id
         } catch {
             AppLogger.persistence.error(
-                "op=compatibility.tryRestoreDetail.list_query_failed a_hash=\(aHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                "op=compatibility.restore.legacy_list_failed a_hash=\(aHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
-            // 不静默吞:保留 configuring 态,用户可手动重新计算
+            return nil
         }
     }
 
@@ -1088,6 +1185,7 @@ final class CompatibilityViewModel {
             return .archived(snapshotHash: newHash)
         }
         selectedEntryIds = Set(selectedEntryIds.map { $0 == oldID ? newID : $0 })
+        persistRoster()
         AppLogger.app.info(
             "op=compatibility.applyHashRemap old=\(oldHash, privacy: .public) new=\(newHash, privacy: .public) roster_count=\(self.roster.count, privacy: .public)"
         )
@@ -1215,7 +1313,7 @@ final class CompatibilityViewModel {
                 displayName = alias
             } else {
                 // S04 兜底名:birthDatetime 已是裸钟面字符串,直接读(出生地钟面)
-                displayName = String(format: String(localized: "对方 · %@"), input.wallClockDisplay)
+                displayName = L10n.CompatibilityPartner.fallbackName(input.wallClockDisplay)
             }
         }
         let userError = UserFacingError.from(error, stage: .compatibilityDeterministic)
@@ -1249,7 +1347,7 @@ final class CompatibilityViewModel {
             if let alias, !alias.isEmpty {
                 displayName = alias
             } else {
-                displayName = String(format: String(localized: "对方 · %@"), input.wallClockDisplay)
+                displayName = L10n.CompatibilityPartner.fallbackName(input.wallClockDisplay)
             }
             personBHash = ""
         }
@@ -1289,6 +1387,7 @@ final class CompatibilityViewModel {
         if case .temp(_, _, _, let existingPlace) = roster[idx] {
             roster[idx] = .temp(input: input, alias: alias, resolvedHash: resolvedHash, place: existingPlace)
         }
+        persistRoster()
         AppLogger.app.info(
             "op=compatibility.backfillTempResolvedHash ok idx=\(idx) resolved_hash=\(resolvedHash, privacy: .public)"
         )
@@ -1334,7 +1433,7 @@ final class CompatibilityViewModel {
             } else {
                 let dateStr = Self.fallbackDateString(bChartSnapshot.birthSolarTime,
                                                       timezoneName: bChartSnapshot.cityTimezone)
-                displayName = String(format: String(localized: "对方 · %@"), dateStr)
+                displayName = L10n.CompatibilityPartner.fallbackName(dateStr)
             }
         case .temp(_, let alias, _, _):
             if let alias, !alias.isEmpty {
@@ -1342,7 +1441,7 @@ final class CompatibilityViewModel {
             } else {
                 let dateStr = Self.fallbackDateString(bChartSnapshot.birthSolarTime,
                                                       timezoneName: bChartSnapshot.cityTimezone)
-                displayName = String(format: String(localized: "对方 · %@"), dateStr)
+                displayName = L10n.CompatibilityPartner.fallbackName(dateStr)
             }
         }
 
@@ -1482,7 +1581,7 @@ final class CompatibilityViewModel {
                 // S04 兜底名:「对方+出生日期」(按出生城市时区格式化真太阳时)
                 let dateStr = Self.fallbackDateString(bSnapshot.birthSolarTime,
                                                       timezoneName: bSnapshot.cityTimezone)
-                displayName = String(format: String(localized: "对方 · %@"), dateStr)
+                displayName = L10n.CompatibilityPartner.fallbackName(dateStr)
             }
         }
 
