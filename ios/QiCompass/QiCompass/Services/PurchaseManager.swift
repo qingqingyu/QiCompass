@@ -585,6 +585,8 @@ final class PurchaseManager {
 
     /// Apple SKU → entitlement module(对齐后端 `PRODUCT_MODULE_MAP`,双端各一份:
     /// 后端是权威校验,iOS 用它过滤 restore 扫描,防止跨 SKU redeem)。
+    /// 改此映射必须同步改后端 map 并跑 `tools/check_sku_sync.py` PASS
+    /// (同 SKU 双端值不同 → 403 被当终态 finish,销毁已付款交易)。
     private static func module(forProductID productID: String) -> String? {
         switch productID {
         case AppleProductID.deepAnalysisSingle: return EntitlementModule.baziDeep

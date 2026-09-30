@@ -60,6 +60,12 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - 不接 GitHub Actions（对齐 2026-08-14「本地优先」决定），拦截靠本规则
 - 事实源：`docs/prompt评测机设计决策.md`（含实施偏差记录）+ `docs/prompt评测机-slices/`
 
+### SKU→module 映射同步守护栏（2026-09-30，防漏单 review）
+
+- **强制**：动了以下任一，必须 `python3 tools/check_sku_sync.py` 且 PASS 才算完成——backend `app/models/entitlement.py`（`PRODUCT_MODULE_MAP` / `ProductId` / `EntitlementModule`）、iOS `PurchaseManager.swift`（`module(forProductID:)` switch / restore `productIds` 集合）、`EntitlementDTOs.swift`（`AppleProductID` / `EntitlementModule` 常量）、`PaywallViewModel.swift`（`PaywallModule` 的 `productId` / `entitlementModule` 配对）
+- 为什么拦：同一 SKU 双端 module 值不同 → 客户端 guard 放行 → 后端 403 `ENTITLEMENT_ERROR` → 客户端当终态 `finish()` 销毁已付款消耗型交易（不可逆资损）。加新 SKU 只加一边不致命（502 非终态 / 返 nil 跳过）但同样算漂移
+- 脚本纯 stdlib 静态解析（不 import backend，无 venv 也能跑）；不接 GitHub Actions，拦截靠本规则
+
 ### SwiftData
 
 - 最低 iOS 17.2（17.0/17.1 SwiftData `@Relationship` 有 crash）
