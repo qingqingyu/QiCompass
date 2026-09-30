@@ -34,6 +34,11 @@ final class DailyFortuneSnapshotStore {
 
         let hourPillarsData = try APICoder.encoder.encode(response.hourPillars)
         let tomorrowData = try APICoder.encoder.encode(response.tomorrowPreview)
+        // S6 今日信号:喜忌为空(时辰未知/从格)时后端给空表/非空 elements,
+        // 原样入档;老后端 response 缺字段(nil)→ 存 nil,重建时信号行隐藏。
+        let daySignalData = try response.daySignal.map {
+            try APICoder.encoder.encode($0)
+        }
 
         if let snapshot = existing {
             // 覆盖(保留 id)
@@ -42,6 +47,9 @@ final class DailyFortuneSnapshotStore {
             snapshot.dayChong = response.dayChong
             snapshot.dayChongTargets = response.dayChongTargets
             snapshot.hourPillars = hourPillarsData
+            snapshot.dayElementsStem = response.dayElements?.stemElement
+            snapshot.dayElementsBranch = response.dayElements?.branchElement
+            snapshot.daySignal = daySignalData
             snapshot.lunarDate = response.lunarDate
             snapshot.huangliYi = response.huangliYi
             snapshot.huangliJi = response.huangliJi
@@ -66,6 +74,9 @@ final class DailyFortuneSnapshotStore {
                 dayChong: response.dayChong,
                 dayChongTargets: response.dayChongTargets,
                 hourPillars: hourPillarsData,
+                dayElementsStem: response.dayElements?.stemElement,
+                dayElementsBranch: response.dayElements?.branchElement,
+                daySignal: daySignalData,
                 lunarDate: response.lunarDate,
                 huangliYi: response.huangliYi,
                 huangliJi: response.huangliJi,

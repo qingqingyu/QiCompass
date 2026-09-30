@@ -2139,6 +2139,108 @@
         }
       }
     },
+    "dailyfortune.insight.energy" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Energy"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "精力"
+          }
+        }
+      }
+    },
+    "dailyfortune.insight.noteHourUnknown" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Favorable elements pending your birth hour"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "喜忌待补时辰,暂不标方向"
+          }
+        }
+      }
+    },
+    "dailyfortune.insight.noteSpecialPattern" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Special pattern — no elemental call"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "特殊格局,不下结论"
+          }
+        }
+      }
+    },
+    "dailyfortune.insight.relationships" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Relationships"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关系"
+          }
+        }
+      }
+    },
+    "dailyfortune.insight.signal" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today's signal"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今日信号"
+          }
+        }
+      }
+    },
+    "dailyfortune.insight.work" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Work"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "事业"
+          }
+        }
+      }
+    },
     "dailyfortune.interpret.cached" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2356,6 +2458,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "宜"
+          }
+        }
+      }
+    },
+    "dailyfortune.loading.reading" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading today against your chart…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在读取今天与你命盘的关系…"
           }
         }
       }
@@ -9967,23 +10086,6 @@
         }
       }
     },
-    "推演流日中…" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Reading the day…"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "推演流日中…"
-          }
-        }
-      }
-    },
     "操作未完成,请重试" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -11378,6 +11480,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "解码失败: %@"
+          }
+        }
+      }
+    },
+    "解读内容格式异常,已显示通用参考" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading arrived in an unexpected format — showing the general reference"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解读内容格式异常,已显示通用参考"
           }
         }
       }

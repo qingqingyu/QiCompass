@@ -376,6 +376,35 @@ enum L10n {
         /// zh: "解读仅供参照";en: "For reference only"
         static let disclaimer = String(localized: "dailyfortune.hero.disclaimer")
 
+        // -- S6 结构化今日洞察(2026-09-30 BP 评审;仅本会话实现 S6,S1-S5 归
+        //    bug worktree 分支 claude/bp-content-impl,合并即全集) --
+
+        /// 领域行标签:事业。zh: "事业";en: "Work"
+        static let insightWork = String(localized: "dailyfortune.insight.work")
+
+        /// 领域行标签:关系。zh: "关系";en: "Relationships"
+        static let insightRelationships = String(localized: "dailyfortune.insight.relationships")
+
+        /// 领域行标签:精力。zh: "精力";en: "Energy"
+        static let insightEnergy = String(localized: "dailyfortune.insight.energy")
+
+        /// 今日信号行标签(确定性,流日五行对喜忌的 ↑↓)。zh: "今日信号";en: "Today's signal"
+        static let insightSignal = String(localized: "dailyfortune.insight.signal")
+
+        /// 信号降级注释:时辰未知(喜忌待补)。zh: "喜忌待补时辰,暂不标方向";en: "Favorable elements pending your birth hour"
+        static let insightNoteHourUnknown = String(localized: "dailyfortune.insight.noteHourUnknown")
+
+        /// 信号降级注释:从格(喜忌留空)。zh: "特殊格局,不下结论";en: "Special pattern — no elemental call"
+        static let insightNoteSpecialPattern = String(localized: "dailyfortune.insight.noteSpecialPattern")
+
+        /// 加载态主文案(S6:整屏空白改日期先行 + 骨架)。
+        /// zh: "正在读取今天与你命盘的关系…";en: "Reading today against your chart…"
+        static let loadingReading = String(localized: "dailyfortune.loading.reading")
+
+        /// v4 解析失败小注(进 accessibilityValue;原文进日志)。
+        /// zh: "解读内容格式异常,已显示通用参考";en: "Reading arrived in an unexpected format — showing the general reference"
+        static let insightFormatDegraded = String(localized: "解读内容格式异常,已显示通用参考")
+
         /// "冲" 完整格式(2026-09-24 拍板:EN 用生肖动物名替裸地支)。
         /// zh: "冲%@"(@=地支,如 "冲午");en: "Clashes with %@"(@=动物名,如 "Clashes with Goat")
         static let chongWithFormat = String(localized: "dailyfortune.header.chongWith")
@@ -1213,7 +1242,7 @@ enum L10n {
         /// zh: "存档中…";en: "Archiving…"
         static let stageArchiving = String(localized: "chartcalc.stage.archiving")
 
-        /// zh: "生成命书中…";en: "Writing your book…"
+        /// zh: "生成命书中…";en: "Building your reading…"(S4 2026-09-30 弃 book 比喻)
         static let stageGenerating = String(localized: "chartcalc.stage.generating")
     }
 

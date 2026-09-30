@@ -18,6 +18,8 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
     private var container: ModelContainer!
     private var chartStore: ChartSnapshotStore!
     private var dailyStore: DailyFortuneSnapshotStore!
+    private var interpretStore: InterpretationCacheStore!
+    private var orchestrator: DailyFortuneOrchestrator!
     private var api: FailingInterpretAPIClient!
     private var vm: DailyFortuneViewModel!
 
@@ -28,12 +30,12 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         chartStore = ChartSnapshotStore(context: context)
         dailyStore = DailyFortuneSnapshotStore(context: context)
         api = FailingInterpretAPIClient()
-        let interpretStore = InterpretationCacheStore(context: context)
+        interpretStore = InterpretationCacheStore(context: context)
         let reader = CachedInterpretationReader(
             identityResolver: AIIdentityResolver(apiClient: api),
             cacheStore: interpretStore
         )
-        let orchestrator = DailyFortuneOrchestrator(
+        orchestrator = DailyFortuneOrchestrator(
             apiClient: api,
             dailyStore: dailyStore,
             interpretStore: interpretStore,
@@ -51,6 +53,8 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
     override func tearDownWithError() throws {
         vm = nil
         api = nil
+        orchestrator = nil
+        interpretStore = nil
         dailyStore = nil
         chartStore = nil
         container = nil
@@ -232,12 +236,211 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         XCTAssertEqual(Set(EngineReadingTemplates.zh.keys), Set(relations), "zh 表键集必须恰为十神 10 键")
         XCTAssertEqual(Set(EngineReadingTemplates.hant.keys), Set(relations), "hant 表键集必须恰为十神 10 键")
         XCTAssertEqual(Set(EngineReadingTemplates.en.keys), Set(relations), "en 表键集必须恰为十神 10 键")
+        // S6(2026-09-30)起模板五段化(与 v4 正常态同构):五字段全非空
         for (key, value) in EngineReadingTemplates.zh {
-            XCTAssertGreaterThan(value.count, 20, "zh[\(key)] 文案过短,疑似占位")
+            XCTAssertFalse(value.headline.isEmpty, "zh[\(key)] headline 空,疑似占位")
+            XCTAssertGreaterThan(value.work.count, 6, "zh[\(key)] work 过短,疑似占位")
+            XCTAssertGreaterThan(value.relationships.count, 6, "zh[\(key)] relationships 过短,疑似占位")
+            XCTAssertGreaterThan(value.energy.count, 6, "zh[\(key)] energy 过短,疑似占位")
+            XCTAssertFalse(value.reminder.isEmpty, "zh[\(key)] reminder 空,疑似占位")
         }
-        // 查表 miss → fallback 非空且不 crash(错误显式传播:miss 记日志,不静默)
-        let fallback = EngineReadingTemplates.text(for: "不存在的十神")
-        XCTAssertFalse(fallback.isEmpty, "查表 miss 必须给非空 fallback")
+        // 查表 miss → fallback 五段非空且不 crash(错误显式传播:miss 记日志,不静默)
+        let fallback = EngineReadingTemplates.insight(for: "不存在的十神")
+        XCTAssertFalse(fallback.headline.isEmpty, "查表 miss 必须给非空 fallback")
+        XCTAssertFalse(fallback.reminder.isEmpty, "查表 miss 必须给非空 fallback")
+    }
+
+    // MARK: - DailyInsight.parse(v4 JSON 五段契约;S6 2026-09-30)
+
+    /// v4 输出契约的解析行为锁死:成功/围栏/缺键/空值/非 JSON(=v3 散文快照)
+    /// /非字符串值/宽容多余键。离线兜底与 .okFree 都靠它分辨新旧格式。
+    func testDailyInsightParse_五键齐全成功() {
+        let json = #"{"headline":"偏官当值的一天","work":"接下难事。","relationships":"对事不对人。","energy":"紧绷是常态。","reminder":"量力而行。"}"#
+        let insight = DailyInsight.parse(json)
+        XCTAssertEqual(insight?.headline, "偏官当值的一天")
+        XCTAssertEqual(insight?.reminder, "量力而行。")
+    }
+
+    func testDailyInsightParse_剥json围栏() {
+        let fenced = """
+        ```json
+        {"headline":"h","work":"w","relationships":"r","energy":"e","reminder":"m"}
+        ```
+        """
+        XCTAssertNotNil(DailyInsight.parse(fenced), "LLM 违约带围栏也应解析成功")
+    }
+
+    func testDailyInsightParse_缺键返回nil() {
+        let missing = #"{"headline":"h","work":"w","relationships":"r","energy":"e"}"#
+        XCTAssertNil(DailyInsight.parse(missing), "缺 reminder 必须整体降级,不半渲染")
+    }
+
+    func testDailyInsightParse_空串值返回nil() {
+        let emptyWork = #"{"headline":"h","work":"","relationships":"r","energy":"e","reminder":"m"}"#
+        XCTAssertNil(DailyInsight.parse(emptyWork), "空串视为缺失,整体降级")
+    }
+
+    func testDailyInsightParse_v3散文返回nil() {
+        let prose = "流日与你的日主同根同气,是自立自守的一天。今天适合按自己的节奏推进。"
+        XCTAssertNil(DailyInsight.parse(prose), "v3 散文快照必须解析失败(离线兜底走原渲染)")
+    }
+
+    func testDailyInsightParse_非字符串值返回nil() {
+        let nonString = #"{"headline":"h","work":"w","relationships":"r","energy":"e","reminder":null}"#
+        XCTAssertNil(DailyInsight.parse(nonString), "null 值视为缺失,不静默跳过该字段")
+    }
+
+    func testDailyInsightParse_宽容多余键() {
+        let extra = #"{"headline":"h","work":"w","relationships":"r","energy":"e","reminder":"m","future_field":"x"}"#
+        XCTAssertNotNil(DailyInsight.parse(extra), "多余键不阻断(向后兼容前向演进)")
+        XCTAssertEqual(DailyInsight.parse(extra)?.work, "w")
+    }
+
+    // MARK: - S6 缓存毒化自愈(2026-09-30 review 修复)
+
+    func testDailyInsightLooksLikeJSON_三分支() {
+        XCTAssertTrue(DailyInsight.looksLikeJSON(#"{"headline":"h"}"#), "裸 JSON 对象为 JSON 形态")
+        XCTAssertTrue(DailyInsight.looksLikeJSON("```json\n{\"headline\":\"h\"}\n```"), "围栏包裹为 JSON 形态")
+        XCTAssertFalse(DailyInsight.looksLikeJSON("流日与你的日主同根同气,是自立自守的一天。"), "v3 散文不是 JSON 形态")
+        XCTAssertFalse(DailyInsight.looksLikeJSON("  \n  "), "纯空白不是 JSON 形态")
+        XCTAssertTrue(
+            DailyInsight.looksLikeJSON(#"{"headline": "静心开局", "work": "先做要紧的。", "relatio"#),
+            "畸形半截 JSON 仍属 JSON 形态(走引擎模板不裸奔)"
+        )
+    }
+
+    /// v3 散文缓存行命中 → 不返回,绕过本地缓存重新生成 v4;
+    /// 生成后的 v4 行再命中 → 走缓存零网络调用(缓存毒化自愈回归)。
+    func test本地缓存不满足v4契约_绕过落穿重新生成() async throws {
+        let hash = "review-cache-poison-001"
+        let response = try seedChart(hash: hash)
+        let fixedDate = Date(timeIntervalSince1970: 1_783_000_000)
+
+        // 预置同键 v3 散文缓存行(身份与 FailingInterpretAPIClient 的 health 一致;
+        // language 用 currentWire——reader 按 AppLanguage.currentWire 过滤,硬编码
+        // "zh" 在 en-locale 模拟器上会因语言维度 miss 而空转通过)
+        try interpretStore.upsert(
+            contentHash: hash,
+            module: "daily_fortune",
+            promptVersion: 3,
+            targetDate: fixedDate,
+            language: AppLanguage.currentWire,
+            provider: "anthropic",
+            model: "claude-test",
+            interpretation: "流日与你的日主同根同气,是自立自守的一天。",
+            generatedAt: .now
+        )
+
+        await api.setInterpretText(#"{"headline":"静心开局","work":"先做要紧的。","relationships":"话留三分。","energy":"按自己的节奏。","reminder":"量力而行。"}"#)
+        let dailyResponse = DailyFortuneResponse(
+            dayPillar: "丙子",
+            dayRelationToDayMaster: "偏印",
+            dayChong: nil,
+            dayChongTargets: [],
+            hourPillars: [],
+            currentHourIndex: nil,
+            lunarDate: "七月初十",
+            huangliYi: ["出行"],
+            huangliJi: ["动土"],
+            tomorrowPreview: TomorrowPreviewDTO(dayPillar: "丁丑", dayRelation: "正印", dayChong: nil),
+            calcRuleSnapshot: CalcRuleSnapshotDTO(
+                library: "lunar_python", sect: 1, ziHourRule: "zi_next_day",
+                trueSolarLongitude: 116.4, trueSolarOffsetMinutes: 0,
+                schemaVersion: 1
+            )
+        )
+        // runInterpretation 的 updateInterpretation 需要已存在的 daily 快照行
+        try dailyStore.upsert(
+            chartHash: hash,
+            targetDate: fixedDate,
+            response: dailyResponse,
+            interpretation: "",
+            cachedUntil: BusinessDateCalculator.cachedUntil(forBusinessDate: fixedDate)
+        )
+
+        let resp = try await orchestrator.runInterpretation(
+            chartHash: hash,
+            chartPayload: ChartPayloadDTO.from(baziResponse: response),
+            dailyResponse: dailyResponse,
+            businessDate: fixedDate
+        )
+        let attemptsAfterFirst = await api.interpretAttempts()
+        XCTAssertEqual(attemptsAfterFirst, 1, "v3 散文缓存行应被绕过,重新调网络生成")
+        XCTAssertFalse(resp.cached, "落穿生成的是新响应")
+        XCTAssertEqual(DailyInsight.parse(resp.interpretation)?.headline, "静心开局", "新响应必须是合法 v4 五段")
+
+        // 第二次:新生成的 v4 行命中本地缓存,零网络调用
+        let resp2 = try await orchestrator.runInterpretation(
+            chartHash: hash,
+            chartPayload: ChartPayloadDTO.from(baziResponse: response),
+            dailyResponse: dailyResponse,
+            businessDate: fixedDate
+        )
+        let attemptsAfterSecond = await api.interpretAttempts()
+        XCTAssertEqual(attemptsAfterSecond, attemptsAfterFirst, "合法 v4 行应命中本地缓存,不再调网络")
+        XCTAssertTrue(resp2.cached, "第二次应命中缓存")
+        XCTAssertEqual(resp2.interpretation, resp.interpretation)
+    }
+
+    /// prefetch 读路径(cachedInterpretationIfFresh)的毒化自愈:v3 散文行 →
+    /// 返回 nil 视为无缓存(交给自动生成链路),且不把坏文本同步进 daily 快照。
+    func testPrefetch读路径_毒化行返回nil且不同步快照() async throws {
+        let hash = "review-cache-poison-002"
+        try seedChart(hash: hash)
+        let fixedDate = Date(timeIntervalSince1970: 1_783_000_000)
+
+        // 预置同键 v3 散文缓存行(身份与 FailingInterpretAPIClient 的 health 一致;
+        // language 用 currentWire,理由同上——硬编码会在 en-locale 模拟器空转)
+        try interpretStore.upsert(
+            contentHash: hash,
+            module: "daily_fortune",
+            promptVersion: 3,
+            targetDate: fixedDate,
+            language: AppLanguage.currentWire,
+            provider: "anthropic",
+            model: "claude-test",
+            interpretation: "流日与你的日主同根同气,是自立自守的一天。",
+            generatedAt: .now
+        )
+
+        // 预置 daily 快照行(interpretation 留空):guard 返回 nil 应发生在
+        // updateInterpretation 之前——快照不得被坏文本污染
+        let dailyResponse = DailyFortuneResponse(
+            dayPillar: "丙子",
+            dayRelationToDayMaster: "偏印",
+            dayChong: nil,
+            dayChongTargets: [],
+            hourPillars: [],
+            currentHourIndex: nil,
+            lunarDate: "七月初十",
+            huangliYi: ["出行"],
+            huangliJi: ["动土"],
+            tomorrowPreview: TomorrowPreviewDTO(dayPillar: "丁丑", dayRelation: "正印", dayChong: nil),
+            calcRuleSnapshot: CalcRuleSnapshotDTO(
+                library: "lunar_python", sect: 1, ziHourRule: "zi_next_day",
+                trueSolarLongitude: 116.4, trueSolarOffsetMinutes: 0,
+                schemaVersion: 1
+            )
+        )
+        try dailyStore.upsert(
+            chartHash: hash,
+            targetDate: fixedDate,
+            response: dailyResponse,
+            interpretation: "",
+            cachedUntil: BusinessDateCalculator.cachedUntil(forBusinessDate: fixedDate)
+        )
+
+        let result = try await orchestrator.cachedInterpretationIfFresh(
+            chartHash: hash,
+            targetDate: fixedDate
+        )
+        XCTAssertNil(result, "毒化行应返回 nil,让 VM 走自动生成链路")
+
+        let snapshot = try dailyStore.get(chartHash: hash, targetDate: fixedDate)
+        XCTAssertEqual(
+            snapshot?.interpretation, "",
+            "毒化行不得经 updateInterpretation 同步进 daily 快照"
+        )
     }
 }
 
@@ -252,8 +455,10 @@ private enum FlakyTestError: Error {
 private actor FailingInterpretAPIClient: APIClient {
     private var failFirst: Int = 0
     private var attempts = 0
+    private var interpretText: String = "静默重试成功后的解读文本(mock)。"
 
     func setInterpretFailFirst(_ n: Int) { failFirst = n }
+    func setInterpretText(_ text: String) { interpretText = text }
     func interpretAttempts() -> Int { attempts }
 
     func health() async throws -> HealthResponse {
@@ -297,8 +502,8 @@ private actor FailingInterpretAPIClient: APIClient {
             throw APIError.networkError(URLError(.timedOut))
         }
         return InterpretResponse(
-            interpretation: "静默重试成功后的解读文本(mock)。",
-            promptVersion: 3,
+            interpretation: interpretText,
+            promptVersion: 4,
             cached: false,
             generatedAt: .now,
             provider: "anthropic",

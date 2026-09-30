@@ -4,7 +4,8 @@
     "reason": "string catalog 编译不看 knownRegions——只撤 pbxproj 仍会产出 zh-Hant.lproj,zh-TW 设备繁简混排;撤列后由本文件保住翻译不丢",
     "extracted_from": "ios/QiCompass/QiCompass/Resources/Localizable.xcstrings",
     "extracted_at": "2026-09-28",
-    "re_import": "T4(zh-Hant 文案主体)施工时逐 key 合并回 catalog,并把 zh-Hant 加回 pbxproj knownRegions;届时后端 T2(zh-hant 注册)/T3(繁体模板)须同批就绪"
+    "re_import": "T4(zh-Hant 文案主体)施工时逐 key 合并回 catalog,并把 zh-Hant 加回 pbxproj knownRegions;届时后端 T2(zh-hant 注册)/T3(繁体模板)须同批就绪",
+    "key_convention": "key 必须与 Localizable.xcstrings 的 catalog key 完全一致(dotted key 或代码内 raw-zh 原文 key);勿以 zh-Hans value 作 key(2026-09-30 review 修正:11 条 value-keyed 迁回 dotted)"
   },
   "strings": {
     "今日免费次数已用尽 · 已读章节仍可重读": "今日免費次數已用盡 · 已讀章節仍可重讀",
@@ -136,7 +137,7 @@
     "dailyfortune.main.offline": "離線查看(展示本地緩存,不扣次數)",
     "dailyfortune.shiShenNoteAction": "今日十神釋義",
     "deepchain.banner.leaveHint": "可先離開,章成自動點亮",
-    "deepchain.banner.progress": "命書推演中 · 已成 %1$lld/%2$lld 章 · 約需 %3$lld 分鐘",
+    "deepchain.banner.progress": "命書生成中 · 免費 %1$lld/%2$lld 章 · 約需 %3$lld 分鐘",
     "deepchain.reading.generating": "正在生成本章 · 約半分鐘 · 失敗不消耗次數",
     "deepchain.reading.leaveHint": "可先返回,章成自動點亮",
     "deepchain.toc.quotaNote": "已讀章節走緩存,不消耗次數",
@@ -256,10 +257,6 @@
     "影响之后新填表单的初始值。已保存的命盘不受影响(换算规则随命盘一起保存)。重置命盘会清空全部数据并重新开始设置。": "影響之後新填表單的初始值。已保存的命盤不受影響(換算規則隨命盤一起保存)。重置命盤會清空全部數據並重新開始設置。",
     "推演合盘中,已完成 %lld 对,共 %lld 对": "推演合盤中,已完成 %1$lld 對,共 %2$lld 對",
     "第%@章%@": "第%1$@章%2$@",
-    "喜忌指五行对命局平衡的助益方向,不是生活禁忌(不涉及颜色、方位、职业的取舍)。": "喜忌指五行對命局平衡的助益方向,不是生活禁忌(不涉及顏色、方位、職業的取捨)。",
-    "命书生成中 · 免费 %1$lld/%2$lld 章 · 约需 %3$lld 分钟": "命書生成中 · 免費 %1$lld/%2$lld 章 · 約需 %3$lld 分鐘",
-    "命书生成中 · %1$lld/%2$lld 章 · 约需 %3$lld 分钟": "命書生成中 · %1$lld/%2$lld 章 · 約需 %3$lld 分鐘",
-    "命书 = 按章节生成的完整命盘解读:先看主线与天赋(免费),再展开运行方式、财富、健康与行动。": "命書 = 按章節生成的完整命盤解讀:先看主線與天賦(免費),再展開運行方式、財富、健康與行動。",
     "你这张盘的主线:靠什么驱动,在哪里打转": "你這張盤的主線:靠什麼驅動,在哪裡打轉",
     "天生就会的 · 后天练出的 · 为自保养成、长期在消耗你的": "天生就會的 · 後天練出的 · 為自保養成、長期在消耗你的",
     "同一张盘,在好环境和坏环境里分别会活成什么样": "同一張盤,在好環境和壞環境裡分別會活成什麼樣",
@@ -300,6 +297,17 @@
     "查看完整命盘 ›": "查看完整命盤 ›",
     "命盘与已购跨设备同步 · 不收集出生信息之外的任何资料": "命盤與已購跨設備同步 · 不收集出生信息之外的任何資料",
     "查看释义": "查看釋義",
-    "暂无释义": "暫無釋義"
+    "暂无释义": "暫無釋義",
+    "解读内容格式异常,已显示通用参考": "解讀內容格式異常,已顯示通用參考",
+    "dailyfortune.insight.work": "事業",
+    "dailyfortune.insight.relationships": "關係",
+    "dailyfortune.insight.energy": "精力",
+    "dailyfortune.insight.signal": "今日信號",
+    "dailyfortune.insight.noteHourUnknown": "喜忌待補時辰,暫不標方向",
+    "dailyfortune.insight.noteSpecialPattern": "特殊格局,不下結論",
+    "dailyfortune.loading.reading": "正在讀取今天與你命盤的關係…",
+    "deepchain.banner.progressOwned": "命書生成中 · %1$lld/%2$lld 章 · 約需 %3$lld 分鐘",
+    "deepchain.toc.intro": "命書 = 按章節生成的完整命盤解讀:先看主線與天賦(免費),再展開運行方式、財富、健康與行動。",
+    "deepanalysis.xiji.disclaimer": "喜忌指五行對命局平衡的助益方向,不是生活禁忌(不涉及顏色、方位、職業的取捨)。"
   }
 }

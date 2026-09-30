@@ -132,33 +132,45 @@ final class DailyFortuneOrchestrator {
             targetDate: targetDate,
             maxAge: 24 * 3600
         ) {
-            // reader 契约:命中行的 provider/model 必与当前 identity 严格匹配且非 legacy nil
-            // (InterpretationCacheStore.getLatest 用 `==` 过滤,legacy nil 行被排除)。
-            // SwiftData schema 保留 Optional 是为兼容旧迁移行,逻辑上此处不会命中 nil;
-            // 若 nil 出现说明 reader 契约被破坏,降级空串避免崩溃,但日志已可定位。
-            let provider = cached.provider ?? ""
-            let model = cached.model ?? ""
-            // 命中本地 24h 缓存:构造 InterpretResponse(标 cached=true,generatedAt=原时间)
-            let resp = InterpretResponse(
-                interpretation: cached.interpretation,
-                promptVersion: cached.promptVersion,
-                cached: true,
-                generatedAt: cached.generatedAt,
-                provider: provider,
-                model: model,
-                language: cached.language ?? AppLanguage.currentWire  // i18n:老缓存行 nil 视为当前 locale(对齐 Q13)
-            )
-            try dailyStore.updateInterpretation(
-                cached.interpretation,
-                forChartHash: chartHash,
-                targetDate: targetDate,
-                provider: provider,
-                model: model
-            )
-            AppLogger.app.info(
-                "daily.interpret.cache_hit hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public)"
-            )
-            return resp
+            // S6 缓存毒化自愈(2026-09-30 review):命中行若不满足 v4 五段契约
+            // (v3 散文 / 畸形 JSON)→ 不返回,落穿重新生成。否则 Retry 与自动
+            // 进入都会拿回同一段坏文本,24h 内静默卡在引擎模板降级态。
+            // 重新生成的 upsert 会覆盖同键行(或以更高 promptVersion 行胜出),
+            // 坏行自然淘汰,无需显式删除。
+            if DailyInsight.parse(cached.interpretation) == nil {
+                AppLogger.app.warning(
+                    "daily.interpret.cache_stale_unparseable hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public) — 绕过本地缓存落穿生成"
+                )
+                // 不返回:落穿到下方次数检查 + 网络生成
+            } else {
+                // reader 契约:命中行的 provider/model 必与当前 identity 严格匹配且非 legacy nil
+                // (InterpretationCacheStore.getLatest 用 `==` 过滤,legacy nil 行被排除)。
+                // SwiftData schema 保留 Optional 是为兼容旧迁移行,逻辑上此处不会命中 nil;
+                // 若 nil 出现说明 reader 契约被破坏,降级空串避免崩溃,但日志已可定位。
+                let provider = cached.provider ?? ""
+                let model = cached.model ?? ""
+                // 命中本地 24h 缓存:构造 InterpretResponse(标 cached=true,generatedAt=原时间)
+                let resp = InterpretResponse(
+                    interpretation: cached.interpretation,
+                    promptVersion: cached.promptVersion,
+                    cached: true,
+                    generatedAt: cached.generatedAt,
+                    provider: provider,
+                    model: model,
+                    language: cached.language ?? AppLanguage.currentWire  // i18n:老缓存行 nil 视为当前 locale(对齐 Q13)
+                )
+                try dailyStore.updateInterpretation(
+                    cached.interpretation,
+                    forChartHash: chartHash,
+                    targetDate: targetDate,
+                    provider: provider,
+                    model: model
+                )
+                AppLogger.app.info(
+                    "daily.interpret.cache_hit hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public)"
+                )
+                return resp
+            }
         }
 
         // 2. 次数检查(全局池口径,方案 §D1)
@@ -284,6 +296,16 @@ final class DailyFortuneOrchestrator {
         ) else {
             return nil
         }
+        // S6 缓存毒化自愈(2026-09-30 review,补全):命中行不满足 v4 五段契约
+        // (v3 散文/畸形 JSON)→ 返回 nil 视为无缓存,让 VM 走自动生成链路
+        // (runInterpretation 内同款嗅探会落穿重新生成)。否则毒化行直接进
+        // .okFree,自动生成永不触发,用户停在降级模板。
+        guard DailyInsight.parse(cached.interpretation) != nil else {
+            AppLogger.app.warning(
+                "daily.interpret.prefetch_stale_unparseable hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public) — 视为无缓存,交给自动生成"
+            )
+            return nil
+        }
         // reader 契约:provider/model 非 legacy nil(同上 cache_hit 分支)。降级空串仅为防崩溃。
         try dailyStore.updateInterpretation(
             cached.interpretation,
@@ -325,9 +347,23 @@ enum DailyFortuneError: Error, LocalizedError {
 extension DailyFortuneSnapshotStore {
     /// 从存档 DailyFortuneSnapshot 重建 DailyFortuneResponse(给阶段 2 与 VM 复用)。
     /// calcRuleSnapshot 用空占位(daily-fortune 后端返回的 calcRuleSnapshot 不用于 UI 关键路径)。
+    /// S6 今日信号:老快照缺列 → 全 nil(信号行隐藏);daySignal JSON 解码失败
+    /// 显式抛错(错误显式传播:存档损坏不静默吞)。
     func response(from snapshot: DailyFortuneSnapshot) throws -> DailyFortuneResponse {
         let hours = try decodeHourPillars(from: snapshot)
         let tomorrow = try decodeTomorrowPreview(from: snapshot)
+        let dayElements: DayElementsDTO?
+        if let stem = snapshot.dayElementsStem, let branch = snapshot.dayElementsBranch {
+            dayElements = DayElementsDTO(stemElement: stem, branchElement: branch)
+        } else {
+            dayElements = nil
+        }
+        let daySignal: [DaySignalItemDTO]?
+        if let data = snapshot.daySignal {
+            daySignal = try APICoder.decoder.decode([DaySignalItemDTO].self, from: data)
+        } else {
+            daySignal = nil
+        }
         return DailyFortuneResponse(
             dayPillar: snapshot.dayPillar,
             dayRelationToDayMaster: snapshot.dayRelation,
@@ -335,6 +371,8 @@ extension DailyFortuneSnapshotStore {
             dayChongTargets: snapshot.dayChongTargets,
             hourPillars: hours,
             currentHourIndex: nil,
+            dayElements: dayElements,
+            daySignal: daySignal,
             lunarDate: snapshot.lunarDate,
             huangliYi: snapshot.huangliYi,
             huangliJi: snapshot.huangliJi,

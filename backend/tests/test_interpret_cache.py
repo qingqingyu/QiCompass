@@ -153,12 +153,22 @@ async def test_interpret_logs_context_without_prompt_or_secrets(
 
 # ===== 5. daily_fortune 的 target_date 进缓存键 =====
 
+# daily_fortune v4(S6,2026-09-30)合法五键应答(mock 用;契约校验见 §5b)
+_DAILY_V4_JSON = (
+    '{"headline": "静心开局", "work": "先做要紧的。", '
+    '"relationships": "话留三分。", "energy": "按自己的节奏。", '
+    '"reminder": "量力而行。"}'
+)
+
 
 async def test_daily_fortune_target_date_in_cache_key(interpret_client,
                                                        mock_ai_client):
     """同 content_hash 不同 target_date → 两次都调 provider;
     同 target_date 第二次命中。
+    2026-09-30 S6 起 daily 输出契约是 v4 JSON 五段,mock 应答必须合法
+    (默认散文应答会被 _validate_daily_fortune_json 拦 503)。
     """
+    mock_ai_client.set_response(_DAILY_V4_JSON)
     base = {
         "content_hash": "test-hash-daily-001",
         "module": "daily_fortune",
@@ -396,6 +406,163 @@ async def test_cache_hit_forbidden_words_returns_422_and_deletes(tmp_cache):
             provider=mock.provider, model=mock.model,
         ))
         assert row is None, "禁词命中的坏缓存应被删除"
+    finally:
+        app.state.cache = saved_cache
+        app.state.ai_client = saved_ai
+
+
+# ===== 5b. daily_fortune v4 JSON 五键契约校验(2026-09-30 review 缓存毒化修复) =====
+
+
+async def test_daily_fortune_v4_valid_and_cached(interpret_client,
+                                                  mock_ai_client):
+    """合法五键 → 200;同 target_date 第二次命中(校验在写缓存之前,
+    好行照常缓存)。"""
+    mock_ai_client.set_response(_DAILY_V4_JSON)
+    payload = {
+        "content_hash": "test-hash-daily-v4-ok",
+        "module": "daily_fortune",
+        "context": DAILY_FORTUNE_CONTEXT,
+        "target_date": "2026-07-12",
+    }
+    code1, b1 = await _post_interpret(interpret_client, payload)
+    assert code1 == 200, b1
+    assert b1["cached"] is False
+    code2, b2 = await _post_interpret(interpret_client, payload)
+    assert code2 == 200, b2
+    assert b2["cached"] is True
+    assert mock_ai_client.call_count == 1
+
+
+async def test_daily_fortune_v4_extra_keys_tolerated(interpret_client,
+                                                      mock_ai_client):
+    """多余键宽容(前向演进,镜像 iOS DailyInsight.parse 宽容多余键)。"""
+    mock_ai_client.set_response(
+        _DAILY_V4_JSON[:-1] + ', "future_field": "x"}')
+    payload = {
+        "content_hash": "test-hash-daily-v4-extra",
+        "module": "daily_fortune",
+        "context": DAILY_FORTUNE_CONTEXT,
+        "target_date": "2026-07-12",
+    }
+    code, body = await _post_interpret(interpret_client, payload)
+    assert code == 200, body
+
+
+async def test_daily_fortune_v4_prose_rejected_503_not_cached(
+    interpret_client, mock_ai_client,
+):
+    """v3 散文应答 → 503 AI_PROVIDER_ERROR,不写缓存(第二次仍调 provider)。"""
+    mock_ai_client.set_response("流日与你的日主同根同气,是自立自守的一天。")
+    payload = {
+        "content_hash": "test-hash-daily-v4-prose",
+        "module": "daily_fortune",
+        "context": DAILY_FORTUNE_CONTEXT,
+        "target_date": "2026-07-12",
+    }
+    code1, b1 = await _post_interpret(interpret_client, payload)
+    assert code1 == 503, b1
+    assert b1["error"]["code"] == "AI_PROVIDER_ERROR"
+    code2, b2 = await _post_interpret(interpret_client, payload)
+    assert code2 == 503, b2
+    assert mock_ai_client.call_count == 2, "坏输出不得入缓存(第二次应重新调 provider)"
+
+
+async def test_daily_fortune_v4_missing_or_bad_values_rejected(
+    interpret_client, mock_ai_client,
+):
+    """五键残缺的三种形态:缺键 / 空串 / null 值 → 全部 503。"""
+    cases = {
+        "missing_key": '{"headline":"h","work":"w","relationships":"r","energy":"e"}',
+        "empty_value": '{"headline":"h","work":"","relationships":"r","energy":"e","reminder":"m"}',
+        "null_value": '{"headline":"h","work":"w","relationships":"r","energy":"e","reminder":null}',
+    }
+    for name, response in cases.items():
+        mock_ai_client.set_response(response)
+        payload = {
+            "content_hash": f"test-hash-daily-v4-{name}",
+            "module": "daily_fortune",
+            "context": DAILY_FORTUNE_CONTEXT,
+            "target_date": "2026-07-12",
+        }
+        code, body = await _post_interpret(interpret_client, payload)
+        assert code == 503, (name, body)
+
+
+async def test_daily_fortune_v4_fenced_json_accepted(interpret_client,
+                                                      mock_ai_client):
+    """带 ```json 围栏的合法应答 → 200(容忍围栏,镜像 iOS parse 口径)。"""
+    mock_ai_client.set_response(f"```json\n{_DAILY_V4_JSON}\n```")
+    payload = {
+        "content_hash": "test-hash-daily-v4-fence",
+        "module": "daily_fortune",
+        "context": DAILY_FORTUNE_CONTEXT,
+        "target_date": "2026-07-12",
+    }
+    code, body = await _post_interpret(interpret_client, payload)
+    assert code == 200, body
+
+
+async def test_daily_fortune_poisoned_cache_row_falls_through_and_regenerates(
+    interpret_client, mock_ai_client, tmp_cache,
+):
+    """缓存命中自愈:预置畸形 v4 行(旁路写入形态)→ 命中校验拒 →
+    删除坏行落穿重新生成,拿回合法 v4(与 v1 契约自愈/禁词中毒同理)。"""
+    from tests.fixtures.mock_ai import MockAIClient
+
+    mock = MockAIClient(_DAILY_V4_JSON)
+    saved_cache = getattr(app.state, "cache", None)
+    saved_ai = getattr(app.state, "ai_client", None)
+    app.state.cache = tmp_cache
+    app.state.ai_client = mock
+
+    content_hash = "test-hash-daily-v4-poison"
+    prompt_hash = hashlib.sha256(
+        render_prompt("daily_fortune", DAILY_FORTUNE_CONTEXT).encode("utf-8")
+    ).hexdigest()
+
+    # 预置畸形五键行(半截 JSON,旁路写入形态)
+    tmp_cache.set(
+        CacheKey(
+            content_hash=content_hash,
+            module="daily_fortune",
+            prompt_version=PROMPT_VERSIONS["daily_fortune"],
+            target_date="2026-07-12",
+            prompt_hash=prompt_hash,
+            provider=mock.provider,
+            model=mock.model,
+        ),
+        '{"headline": "静心开局", "work": "先做要紧的。", "relatio',
+        "2026-01-01T00:00:00+00:00",
+    )
+
+    try:
+        async with AsyncClient(transport=ASGITransport(app=app),
+                               base_url="http://test") as ac:
+            payload = {
+                "content_hash": content_hash,
+                "module": "daily_fortune",
+                "context": DAILY_FORTUNE_CONTEXT,
+                "target_date": "2026-07-12",
+            }
+            code, body = await _post_interpret(ac, payload)
+        assert code == 200, body
+        assert body["cached"] is False, "坏行应被删除后落穿重新生成"
+        assert body["interpretation"] == _DAILY_V4_JSON
+        assert mock.call_count == 1
+
+        # 坏行应已被删除;新行是合法 v4
+        row = tmp_cache.get(CacheKey(
+            content_hash=content_hash,
+            module="daily_fortune",
+            prompt_version=PROMPT_VERSIONS["daily_fortune"],
+            target_date="2026-07-12",
+            prompt_hash=prompt_hash,
+            provider=mock.provider,
+            model=mock.model,
+        ))
+        assert row is not None
+        assert row["interpretation"] == _DAILY_V4_JSON
     finally:
         app.state.cache = saved_cache
         app.state.ai_client = saved_ai

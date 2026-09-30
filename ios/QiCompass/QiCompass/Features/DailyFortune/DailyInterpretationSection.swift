@@ -1,14 +1,22 @@
 import SwiftUI
 
-/// AI 解读区(50-80 字 Medium voice)。
+/// AI 解读区(S6 结构化今日洞察,2026-09-30 BP 评审)。
+///
+/// v4 起后端输出 JSON 五段(headline/work/relationships/energy/reminder),
+/// 本区按「今日一句 + 三领域行 + 今日信号 + 收尾提醒」渲染;今日信号
+/// (流日五行对喜忌的 ↑↓)是后端确定性规则产物,随 response 透传,0 AI 成本。
 ///
 /// 子状态独立(决策 §3.1;2026-09-07 起主路径 = 进入页面自动生成):
 /// - .idle → 仅离线兜底/达限可达:离线且有次数 → CTA 手动入口;
 ///   次数耗尽 → 达限卡(自动触发前 VM 会查次数,不发起空调用)
 /// - .fetching → 静默推演指示(ProgressView + 「推演中…」,无按钮)
-/// - .okFree(text, cached) → 解读文本 + cached 标识
+/// - .okFree(text, cached) → v4 JSON 解析成功 → 结构化洞察;解析失败 →
+///   与 .failed 同款引擎模板降级(错误显式传播:不静默当散文渲染 JSON 裸奔,
+///   原始文本进日志 + accessibilityValue)
 /// - .offlineLegacy(text) → 离线兜底:快照里的历史解读正文 + 小注(2026-09-28;
-///   此前塞 .failed 会被失败降级渲染成引擎模板,「已保留历史解读」名不副实)
+///   此前塞 .failed 会被失败降级渲染成引擎模板,「已保留历史解读」名不副实)。
+///   v4 起快照存 JSON 五段原文:解析成功走结构化正文,解析失败=v3 散文快照
+///   维持原渲染(两代快照共存期,离线不裸奔 JSON)
 /// - .failed(msg) → 2026-09-24 失败降级拍板:正文位显示按 dayRelation 的
 ///   排盘引擎确定性文案(引擎产物,AI 失败不影响),底部小注如实标注状态——
 ///   2026-09-28 S02 起两态均说清「以上为今日通用参考」:静默重试在飞 →
@@ -19,6 +27,12 @@ struct DailyInterpretationSection: View {
     let state: InterpretState
     /// 流日十神关系(后端简体 key,同 HeroYiJiColumns 口径),失败降级模板查表用。
     let dayRelation: String
+    /// S6 今日信号数据(确定性):流日天干/地支五行。nil(老后端/老快照)→ 信号行隐藏。
+    var dayElements: DayElementsDTO? = nil
+    /// S6 今日信号:流日五行对喜忌的命中(空表 = 时辰未知/从格,只显五行不标 ↑↓)。
+    var daySignal: [DaySignalItemDTO]? = nil
+    /// 信号行降级注释(daySignal 为空时的原因,宿主按 hourGate 判;nil = 不显示)。
+    var signalNote: String? = nil
     /// 一次后台静默重试是否在飞(VM 单一事实源;true 时隐藏 Retry 防双触发)。
     let isSilentRetrying: Bool
     let remainingReads: Int
@@ -67,19 +81,24 @@ struct DailyInterpretationSection: View {
             case .okFree(let text, let cached), .okPaid(let text, let cached):
                 // 每日运势 v1 全免费(MONETIZATION.md 不在 SKU 列表),后端只调 daily_fortune module,
                 // .okPaid 永不触发;合并处理避免重复代码。
-                Text(MarkdownSanitizer.rendered(text))
-                    .bodySerifText(size: 16)
-                    .lineSpacing(9)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .fadeIn()
-                if cached {
-                    HStack {
-                        Image(systemName: "checkmark.seal")
-                        Text(L10n.DailyFortune.interpretCached)
+                //
+                // v4:输出是 JSON 五段;解析失败 → 引擎模板降级(同 .failed 形态,
+                // 错误显式传播——不静默把半截 JSON 当散文渲染)。
+                if let insight = DailyInsight.parse(text) {
+                    insightBody(insight)
+                    if cached {
+                        HStack {
+                            Image(systemName: "checkmark.seal")
+                            Text(L10n.DailyFortune.interpretCached)
+                        }
+                        .font(.caption)
+                        .foregroundStyle(BaziTheme.inkMuted)
                     }
-                    .font(.caption)
-                    .foregroundStyle(BaziTheme.inkMuted)
+                } else {
+                    degradedBody(
+                        message: L10n.DailyFortune.insightFormatDegraded,
+                        rawText: text
+                    )
                 }
             case .lockedPaid:
                 // 每日运势 v1 全免费,.lockedPaid 永不触发;保留 case 维护 switch 完整性。
@@ -88,63 +107,42 @@ struct DailyInterpretationSection: View {
                 // 离线兜底(2026-09-28):正文 = 快照里的历史解读原文(不拿引擎模板
                 // 冒充),底部小注如实说明「已保留历史解读,联网后可确认当前 AI 来源」。
                 // 无 Retry——离线重试必失败,还会把已保留的正文挤成模板。
+                // v4(S6):快照存的是 JSON 五段原文——解析成功走结构化正文;
+                // 解析失败且是 JSON 形态 = 畸形 v4 快照(缓存毒化残留,2026-09-30
+                // review 修复),引擎模板兜底不裸奔;否则才是 v3 时代散文快照,
+                // 维持原渲染(两代快照共存期)。
                 VStack(alignment: .leading, spacing: 14) {
-                    Text(MarkdownSanitizer.rendered(text))
-                        .bodySerifText(size: 16)
-                        .lineSpacing(9)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .fadeIn()
+                    if let insight = DailyInsight.parse(text) {
+                        insightBody(insight)
+                    } else if DailyInsight.looksLikeJSON(text) {
+                        insightBody(EngineReadingTemplates.insight(for: dayRelation))
+                    } else {
+                        Text(MarkdownSanitizer.rendered(text))
+                            .bodySerifText(size: 16)
+                            .lineSpacing(9)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .fadeIn()
+                    }
                     Text(L10n.DailyFortune.interpretOfflineLegacy)
                         .font(BaziFont.caption(size: 12))
                         .tracking(1)
                         .foregroundStyle(BaziTheme.inkMuted)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-            case .failed(let message):
-                // 2026-09-24 失败降级拍板:正文位 = 引擎模板文案(与 .okFree 同排版,
-                // 正文样式一致才不显得「这屏坏了」),底部小注如实标注状态。
-                // 卡片外框保留(维持与 hero 两框左右对齐的 09-07 拍板)。
-                VStack(alignment: .leading, spacing: 14) {
-                    Text(verbatim: EngineReadingTemplates.text(for: dayRelation))
-                        .bodySerifText(size: 16)
-                        .lineSpacing(9)
-                        .multilineTextAlignment(.leading)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .fadeIn()
-                    if isSilentRetrying {
-                        // 静默重试在飞:小注 + 微指示器,隐藏 Retry(防双触发)
-                        HStack(spacing: 8) {
-                            ProgressView()
-                                .controlSize(.mini)
-                                .tint(BaziTheme.inkMuted)
-                            Text(L10n.DailyFortune.interpretRetrying)
-                                .font(BaziFont.caption(size: 12))
-                                .tracking(1)
-                                .foregroundStyle(BaziTheme.inkMuted)
-                        }
-                    } else {
-                        HStack(alignment: .firstTextBaseline, spacing: 10) {
-                            // 2026-09-28 S02:小注说清「上面是通用参考」,不再直接露
-                            // `.failed(message)` 的原始错误标题(EN「Reading failed」
-                            // 与正文并存像自相矛盾);原错误进 accessibilityValue +
-                            // VM 日志(2026-09-29 review 修正:hint 受 VoiceOver
-                            // 「Speak Hints」开关控制且语义属交互元素,静态文本
-                            // 改 value 无条件朗读)。可折两行。
-                            Text(L10n.DailyFortune.interpretFallbackNote)
-                                .font(BaziFont.caption(size: 12))
-                                .tracking(1)
-                                .foregroundStyle(BaziTheme.inkMuted)
-                                .fixedSize(horizontal: false, vertical: true)
-                                .frame(maxWidth: .infinity, alignment: .leading)
-                                .accessibilityValue(Text(message))
-                            Button(L10n.DailyFortune.interpretRetry, action: onRetry)
-                                .font(.caption.weight(.semibold))
-                                .foregroundStyle(BaziTheme.ink)
-                        }
+                .onAppear {
+                    // 畸形 v4 快照走引擎模板兜底时留痕(对齐 degradedBody 的
+                    // onAppear 手法:原始文本只进日志,不进正文)。
+                    // 须同时判 parse 失败——合法 v4 快照同样 looksLikeJSON。
+                    if DailyInsight.parse(text) == nil,
+                       DailyInsight.looksLikeJSON(text) {
+                        AppLogger.app.error(
+                            "op=dailyInsight.offlineLegacyMalformedJSON raw_prefix=\(String(text.prefix(80)), privacy: .public)"
+                        )
                     }
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
+            case .failed(let message):
+                degradedBody(message: message, rawText: nil)
             case .dailyLimitReached(let nextReset):
                 DailyLimitReachedView(nextReset: nextReset)
                 // 达上限:**禁用生成按钮、不显示重试**(方案 step 4)
@@ -157,6 +155,161 @@ struct DailyInterpretationSection: View {
             RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
                 .stroke(BaziTheme.hairline, lineWidth: 0.5)
         )
+    }
+
+    // MARK: - S6 结构化洞察正文(v4 JSON 五段)
+
+    /// 今日一句(标题句)+ 事业/关系/精力三行 + 今日信号(确定性)+ 收尾提醒。
+    /// 与降级态同构(EngineReadingTemplates 同样输出五段),正常/降级不跳形态。
+    private func insightBody(_ insight: DailyInsight) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(MarkdownSanitizer.rendered(insight.headline))
+                .font(BaziFont.display(size: 17))
+                .foregroundStyle(BaziTheme.ink)
+                .lineSpacing(7)
+                .fixedSize(horizontal: false, vertical: true)
+                .fadeIn()
+
+            VStack(alignment: .leading, spacing: 10) {
+                domainRow(label: L10n.DailyFortune.insightWork, text: insight.work)
+                domainRow(label: L10n.DailyFortune.insightRelationships, text: insight.relationships)
+                domainRow(label: L10n.DailyFortune.insightEnergy, text: insight.energy)
+            }
+
+            signalRow
+
+            Text(MarkdownSanitizer.rendered(insight.reminder))
+                .font(BaziFont.caption(size: 12))
+                .tracking(1)
+                .foregroundStyle(BaziTheme.inkMuted)
+                .fixedSize(horizontal: false, vertical: true)
+                .padding(.top, 2)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 领域行:小标(事业/关系/精力)+ 一句话。
+    private func domainRow(label: String, text: String) -> some View {
+        HStack(alignment: .firstTextBaseline, spacing: 10) {
+            Text(label)
+                .font(BaziFont.caption(size: 11))
+                .tracking(2)
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
+            Text(MarkdownSanitizer.rendered(text))
+                .bodySerifText(size: 15)
+                .lineSpacing(7)
+                .multilineTextAlignment(.leading)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+    }
+
+    /// 今日信号行(确定性,非 AI):流日五行对喜忌的 ↑↓。
+    /// - daySignal 非空:火 ↑ · 木 ↓(↑ 墨青 / ↓ 朱红,与喜忌 chip 同极性口径)
+    /// - daySignal 空但 dayElements 在:只显五行 + 降级注释(时辰未知/从格)
+    /// - dayElements nil(老后端/老快照):整行隐藏
+    @ViewBuilder
+    private var signalRow: some View {
+        if let elements = dayElements {
+            VStack(alignment: .leading, spacing: 4) {
+                HStack(spacing: 10) {
+                    Text(L10n.DailyFortune.insightSignal)
+                        .font(BaziFont.caption(size: 11))
+                        .tracking(2)
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                    HStack(spacing: 8) {
+                        let items = daySignal ?? []
+                        if items.isEmpty {
+                            // 无方向:只显流日五行(天干/地支去重),不标 ↑↓
+                            ForEach(uniqueElements(elements), id: \.self) { elem in
+                                Text(BaziTerms.display(elem))
+                                    .font(BaziFont.body(size: 14))
+                                    .foregroundStyle(BaziTheme.ink)
+                            }
+                        } else {
+                            ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                                let isUp = item.direction == "up"
+                                HStack(spacing: 2) {
+                                    Text(BaziTerms.display(item.element))
+                                        .font(BaziFont.body(size: 14))
+                                        .foregroundStyle(BaziTheme.ink)
+                                    Text(verbatim: isUp ? "↑" : "↓")
+                                        .font(BaziFont.body(size: 13))
+                                        .foregroundStyle(isUp ? BaziTheme.jade : BaziTheme.cinnabar)
+                                }
+                            }
+                        }
+                    }
+                }
+                if let note = signalNote, (daySignal ?? []).isEmpty {
+                    Text(note)
+                        .font(BaziFont.caption(size: 10.5))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                }
+            }
+            .padding(.top, 2)
+        }
+    }
+
+    private func uniqueElements(_ elements: DayElementsDTO) -> [String] {
+        var seen: Set<String> = []
+        var out: [String] = []
+        for elem in [elements.stemElement, elements.branchElement] where !seen.contains(elem) {
+            seen.insert(elem)
+            out.append(elem)
+        }
+        return out
+    }
+
+    // MARK: - 降级正文(.failed / v4 解析失败共用)
+
+    /// 引擎模板五段(按 dayRelation 查表,与 insightBody 同构)+ 状态小注。
+    /// rawText 非 nil(v4 解析失败)时进日志 + message 进 accessibilityValue,不进正文;
+    /// 日志挂 onAppear(每次降级视图插入打一次)而非 body——body 重算会被
+    /// TimelineView/状态变化反复触发,同一条 error 放大成日志噪音。
+    private func degradedBody(message: String, rawText: String?) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            insightBody(EngineReadingTemplates.insight(for: dayRelation))
+            if isSilentRetrying {
+                // 静默重试在飞:小注 + 微指示器,隐藏 Retry(防双触发)
+                HStack(spacing: 8) {
+                    ProgressView()
+                        .controlSize(.mini)
+                        .tint(BaziTheme.inkMuted)
+                    Text(L10n.DailyFortune.interpretRetrying)
+                        .font(BaziFont.caption(size: 12))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                }
+            } else {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    // 2026-09-28 S02:小注说清「上面是通用参考」,不再直接露
+                    // `.failed(message)` 的原始错误标题(EN「Reading failed」
+                    // 与正文并存像自相矛盾);原错误进 accessibilityValue +
+                    // VM 日志(2026-09-29 review 修正:hint 受 VoiceOver
+                    // 「Speak Hints」开关控制且语义属交互元素,静态文本
+                    // 改 value 无条件朗读)。可折两行。
+                    Text(L10n.DailyFortune.interpretFallbackNote)
+                        .font(BaziFont.caption(size: 12))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .accessibilityValue(Text(message))
+                    Button(L10n.DailyFortune.interpretRetry, action: onRetry)
+                        .font(.caption.weight(.semibold))
+                        .foregroundStyle(BaziTheme.ink)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .onAppear {
+            if let raw = rawText {
+                AppLogger.app.error(
+                    "op=dailyInsight.parseFailed raw_prefix=\(String(raw.prefix(80)), privacy: .public)"
+                )
+            }
+        }
     }
 }
 
@@ -182,55 +335,278 @@ private extension DailyInterpretationSection {
     }
 }
 
-// MARK: - 失败降级引擎模板文案(2026-09-24 拍板)
+// MARK: - v4 结构化今日洞察模型(S6)
+
+/// daily_fortune v4 输出契约:{"headline","work","relationships","energy","reminder"}。
+/// 解析规则:剥 ```json 围栏(prompt 已禁但防御,对齐 ChapterContent 口径)→
+/// JSON 对象五键全非空字符串;任一缺失/为空/非 JSON → nil(调用方走降级,不静默)。
+struct DailyInsight: Equatable {
+    let headline: String
+    let work: String
+    let relationships: String
+    let energy: String
+    let reminder: String
+
+    static func parse(_ text: String) -> DailyInsight? {
+        guard let value = OrderedJSONParser.parse(
+            OrderedJSONParser.stripCodeFences(text)
+        ), case .object(let pairs) = value else { return nil }
+        var dict: [String: String] = [:]
+        for (key, v) in pairs {
+            guard case .string(let s) = v else { continue }
+            dict[key] = s
+        }
+        guard let headline = dict["headline"], !headline.isEmpty,
+              let work = dict["work"], !work.isEmpty,
+              let relationships = dict["relationships"], !relationships.isEmpty,
+              let energy = dict["energy"], !energy.isEmpty,
+              let reminder = dict["reminder"], !reminder.isEmpty
+        else { return nil }
+        return DailyInsight(
+            headline: headline, work: work,
+            relationships: relationships, energy: energy, reminder: reminder
+        )
+    }
+
+    /// 文本是否「JSON 形态」(剥围栏后首非空白字符为 `{`)。
+    /// offlineLegacy 兜底用:区分 v3 散文快照(原样渲染)与 v4 畸形 JSON
+    /// (引擎模板兜底,不裸奔;2026-09-30 review 缓存毒化修复)。
+    /// 只看形态不看契约——五键校验归 parse,两者组合决定三分支渲染。
+    static func looksLikeJSON(_ text: String) -> Bool {
+        OrderedJSONParser.stripCodeFences(text)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .hasPrefix("{")
+    }
+}
+
+// MARK: - 失败降级引擎模板文案(2026-09-24 拍板;S6 起五段化)
 
 /// AI 解读失败时正文位的确定性参考文案,按流日十神关系查表(引擎产物,
-/// 与 AI 无关,失败时照常可得)。key = 后端简体十神(同 HeroYiJiColumns /
-/// i18n 决策 7 口径);三语静态表,不进 xcstrings(对齐 HeroYiJiColumns 词表
-/// 的既定模式)。查表 miss 记日志 + fallback,不静默(错误显式传播约束)。
+/// 与 AI 无关,失败时照常可得)。S6(2026-09-30)起与 v4 正常态**同构**:
+/// 同样输出五段(headline + 三领域 + reminder),降级不跳形态。
+/// key = 后端简体十神(同 HeroYiJiColumns / i18n 决策 7 口径);三语静态表,
+/// 不进 xcstrings(对齐 HeroYiJiColumns 词表的既定模式)。查表 miss 记日志 +
+/// fallback,不静默(错误显式传播约束)。
 internal enum EngineReadingTemplates {
-    static let zh: [String: String] = [
-        "比肩": "流日与你的日主同根同气,是自立自守的一天。今天适合按自己的节奏推进,把界限立清楚;不必随众而行,更不必卷入无谓的争执。",
-        "劫财": "流日的能量与日主明面相竞,劲头足而散。今天适合放开手脚去开拓,但须提防冲动冒进;借贷与分利之事,尤其慢一拍。",
-        "食神": "流日的能量向外流淌,灵感与口福俱开。今天适合创造、表达、与老友相见;熬夜与争辩,都留到别的日子。",
-        "伤官": "流日的能量锋芒外露,言语自带锋。今天适合说出真想法、拿出新作品;只是进退有度,话慢半拍,锋就不伤人。",
-        "偏财": "流日的能量向外飘,机会在外面。今天适合拓展、尝新、让利三分;不孤注一掷,也不贪多嚼不烂。",
-        "正财": "流日的能量踏实务本,是积小胜的一天。今天适合守成、记账、种好自己的田;不图短线快利,也不轻易弃约。",
-        "七杀": "流日的能量带着压力而来,挑战与魄力并存。今天适合接下难事、当机立断;只是别硬扛到底,对自己也别太狠——对事不对人。",
-        "正官": "流日的能量有序有度,是把事情做规矩的一天。今天适合履职尽责、守约复命,把分内之事做扎实;不退缩,也不越级冒进。",
-        "偏印": "流日的能量向内收,是静思的一天。今天适合温故知新、独处养神;别把事情想成结,也别固执己见。",
-        "正印": "流日的能量滋养护佑,是补养的一天。今天适合学习、纳言、调理身心;不空想,也不拖延。",
+    static let zh: [String: DailyInsight] = [
+        "比肩": .init(
+            headline: "同根同气,自立自守的一天",
+            work: "按自己的节奏推进,把界限立清楚。",
+            relationships: "不随众而行,避开无谓的争执。",
+            energy: "精力平稳,靠自己回血最有效。",
+            reminder: "量力而行,顺势而为。"),
+        "劫财": .init(
+            headline: "劲头足而散的一天",
+            work: "放开手脚去开拓,但提防冲动冒进。",
+            relationships: "借贷与分利之事,尤其慢一拍。",
+            energy: "劲头来得快去得快,留半分余力。",
+            reminder: "量力而行,顺势而为。"),
+        "食神": .init(
+            headline: "灵感与口福俱开的一天",
+            work: "适合创造、表达、推进感兴趣的事。",
+            relationships: "与老友相见,聊天比争论有收获。",
+            energy: "熬夜与争辩都省着点用。",
+            reminder: "量力而行,顺势而为。"),
+        "伤官": .init(
+            headline: "锋芒外露,才华与顶撞并存的一天",
+            work: "说出真想法,拿出新作品。",
+            relationships: "话慢半拍,锋就不伤人。",
+            energy: "说话耗气,说完记得收神。",
+            reminder: "量力而行,顺势而为。"),
+        "偏财": .init(
+            headline: "机会在外面的一天",
+            work: "拓展、尝新、让利三分。",
+            relationships: "合作多谈规则,少讲义气。",
+            energy: "机会多诱惑也多,别贪多。",
+            reminder: "量力而行,顺势而为。"),
+        "正财": .init(
+            headline: "踏实务本,积小胜的一天",
+            work: "守成、记账、种好自己的田。",
+            relationships: "守约复命,小事上也别失信。",
+            energy: "节奏平缓,按部就班不累。",
+            reminder: "量力而行,顺势而为。"),
+        "七杀": .init(
+            headline: "压力与魄力并存的一天",
+            work: "接下难事,当机立断。",
+            relationships: "对事不对人,别硬扛到底。",
+            energy: "紧绷是常态,给自己留泄压口。",
+            reminder: "量力而行,顺势而为。"),
+        "正官": .init(
+            headline: "有序有度,做规矩的一天",
+            work: "履职尽责,把分内之事做扎实。",
+            relationships: "守约复命,不越级不冒进。",
+            energy: "秩序感回血,收尾比开工舒服。",
+            reminder: "量力而行,顺势而为。"),
+        "偏印": .init(
+            headline: "向内收,静思的一天",
+            work: "温故知新,梳理比开拓有效。",
+            relationships: "独处养神,少下结论。",
+            energy: "想多耗神,动手比空想回血。",
+            reminder: "量力而行,顺势而为。"),
+        "正印": .init(
+            headline: "滋养护佑,补养的一天",
+            work: "学习、纳言、定计划。",
+            relationships: "多听少辩,长辈的话有养分。",
+            energy: "调理身心,早睡是上策。",
+            reminder: "量力而行,顺势而为。"),
     ]
 
-    /// 繁体表:用词对齐 mappingHant 惯例(覆命/賒帳等此处不涉及,机械转写即可)。
-    static let hant: [String: String] = [
-        "比肩": "流日與你的日主同根同氣,是自立自守的一天。今天適合按自己的節奏推進,把界限立清楚;不必隨眾而行,更不必捲入無謂的爭執。",
-        "劫财": "流日的能量與日主明面相競,勁頭足而散。今天適合放開手腳去開拓,但須提防衝動冒進;借貸與分利之事,尤其慢一拍。",
-        "食神": "流日的能量向外流淌,靈感與口福俱開。今天適合創造、表達、與老友相見;熬夜與爭辯,都留到別的日子。",
-        "伤官": "流日的能量鋒芒外露,言語自帶鋒。今天適合說出真想法、拿出新作品;只是進退有度,話慢半拍,鋒就不傷人。",
-        "偏财": "流日的能量向外飄,機會在外面。今天適合拓展、嘗新、讓利三分;不孤注一擲,也不貪多嚼不爛。",
-        "正财": "流日的能量踏實務本,是積小勝的一天。今天適合守成、記帳、種好自己的田;不圖短線快利,也不輕易棄約。",
-        "七杀": "流日的能量帶著壓力而來,挑戰與魄力並存。今天適合接下難事、當機立斷;只是別硬扛到底,對自己也別太狠——對事不對人。",
-        "正官": "流日的能量有序有度,是把事情做規矩的一天。今天適合履職盡責、守約覆命,把分內之事做紮實;不退縮,也不越級冒進。",
-        "偏印": "流日的能量向內收,是靜思的一天。今天適合溫故知新、獨處養神;別把事情想成結,也別固執己見。",
-        "正印": "流日的能量滋養護佑,是補養的一天。今天適合學習、納言、調理身心;不空想,也不拖延。",
+    /// 繁体表:用词对齐 mappingHant 惯例,机械转写。
+    static let hant: [String: DailyInsight] = [
+        "比肩": .init(
+            headline: "同根同氣,自立自守的一天",
+            work: "按自己的節奏推進,把界限立清楚。",
+            relationships: "不隨眾而行,避開無謂的爭執。",
+            energy: "精力平穩,靠自己回血最有效。",
+            reminder: "量力而行,順勢而為。"),
+        "劫财": .init(
+            headline: "勁頭足而散的一天",
+            work: "放開手腳去開拓,但提防衝動冒進。",
+            relationships: "借貸與分利之事,尤其慢一拍。",
+            energy: "勁頭來得快去得快,留半分餘力。",
+            reminder: "量力而行,順勢而為。"),
+        "食神": .init(
+            headline: "靈感與口福俱開的一天",
+            work: "適合創造、表達、推進感興趣的事。",
+            relationships: "與老友相見,聊天比爭論有收穫。",
+            energy: "熬夜與爭辯都省著點用。",
+            reminder: "量力而行,順勢而為。"),
+        "伤官": .init(
+            headline: "鋒芒外露,才華與頂撞並存的一天",
+            work: "說出真想法,拿出新作品。",
+            relationships: "話慢半拍,鋒就不傷人。",
+            energy: "說話耗氣,說完記得收神。",
+            reminder: "量力而行,順勢而為。"),
+        "偏财": .init(
+            headline: "機會在外面的一天",
+            work: "拓展、嘗新、讓利三分。",
+            relationships: "合作多談規則,少講義氣。",
+            energy: "機會多誘惑也多,別貪多。",
+            reminder: "量力而行,順勢而為。"),
+        "正财": .init(
+            headline: "踏實務本,積小勝的一天",
+            work: "守成、記帳,種好自己的田。",
+            relationships: "守約覆命,小事上也別失信。",
+            energy: "節奏平緩,按部就班不累。",
+            reminder: "量力而行,順勢而為。"),
+        "七杀": .init(
+            headline: "壓力與魄力並存的一天",
+            work: "接下難事,當機立斷。",
+            relationships: "對事不對人,別硬扛到底。",
+            energy: "緊繃是常態,給自己留洩壓口。",
+            reminder: "量力而行,順勢而為。"),
+        "正官": .init(
+            headline: "有序有度,做規矩的一天",
+            work: "履職盡責,把分內之事做紮實。",
+            relationships: "守約覆命,不越級不冒進。",
+            energy: "秩序感回血,收尾比開工舒服。",
+            reminder: "量力而行,順勢而為。"),
+        "偏印": .init(
+            headline: "向內收,靜思的一天",
+            work: "溫故知新,梳理比開拓有效。",
+            relationships: "獨處養神,少下結論。",
+            energy: "想多耗神,動手比空想回血。",
+            reminder: "量力而行,順勢而為。"),
+        "正印": .init(
+            headline: "滋養護佑,補養的一天",
+            work: "學習、納言、定計劃。",
+            relationships: "多聽少辯,長輩的話有養分。",
+            energy: "調理身心,早睡是上策。",
+            reminder: "量力而行,順勢而為。"),
     ]
 
-    static let en: [String: String] = [
-        "比肩": "The day shares your day master's element — a day to stand on your own. Move at your own pace, hold your boundaries, and skip the crowd.",
-        "劫财": "The day's energy runs bold and competitive. Good for new ground and open moves; just don't rush, and think twice before lending or splitting stakes.",
-        "食神": "The day flows outward — ideas and appetite both open. Create, speak, see friends; just don't stay up late or fall into debates.",
-        "伤官": "The day sharpens your words. Good for speaking out and showing new work; mind the line, and let words sit a beat before they land.",
-        "偏财": "The day's energy drifts outward — opportunity is out there. Explore, try new things, leave room for others; don't bet it all or overreach.",
-        "正财": "The day is steady and practical — small gains, well kept. Tend your ground and keep your books; don't chase quick wins or drop promises.",
-        "七杀": "The day arrives with pressure — and the nerve to match. Take on the hard thing and make the call; just don't burn yourself out or make enemies along the way.",
-        "正官": "The day asks for order and follow-through. Do your part, keep your word, and finish things properly; don't shrink from it, and don't step over the line.",
-        "偏印": "The day turns inward — a quiet one for reflection. Review the old, sit with your thoughts, find your own calm; don't overthink it into a knot.",
-        "正印": "The day is nourishing — made for restoring. Study, take advice, rest well; don't drift into daydreams or keep dragging your feet.",
+    static let en: [String: DailyInsight] = [
+        "比肩": .init(
+            headline: "A day on your own ground",
+            work: "Move at your own pace and hold your boundaries.",
+            relationships: "Skip the crowd; skip pointless disputes.",
+            energy: "Steady energy — you recharge best alone.",
+            reminder: "Move within your means."),
+        "劫财": .init(
+            headline: "Bold, scattered energy",
+            work: "Open new ground, but don't rush in.",
+            relationships: "Slow down on lending and splitting stakes.",
+            energy: "Comes fast, drains fast — keep a reserve.",
+            reminder: "Move within your means."),
+        "食神": .init(
+            headline: "Ideas and appetite open",
+            work: "Create, speak, push what interests you.",
+            relationships: "See old friends; talk beats debate.",
+            energy: "Skip the late night and the arguments.",
+            reminder: "Move within your means."),
+        "伤官": .init(
+            headline: "Sharp words, sharp talent",
+            work: "Say the real thing; show new work.",
+            relationships: "Let words sit a beat before they land.",
+            energy: "Speaking drains — recharge after.",
+            reminder: "Move within your means."),
+        "偏财": .init(
+            headline: "Opportunity is outside today",
+            work: "Explore, try new things, give margin.",
+            relationships: "Terms over favors in deals.",
+            energy: "Many chances, many lures — don't overreach.",
+            reminder: "Move within your means."),
+        "正财": .init(
+            headline: "Steady and practical — small gains",
+            work: "Tend your ground; keep your books.",
+            relationships: "Keep small promises too.",
+            energy: "Even pace; routine restores.",
+            reminder: "Move within your means."),
+        "七杀": .init(
+            headline: "Pressure — and the nerve to match",
+            work: "Take the hard thing; decide fast.",
+            relationships: "Hard on the task, easy on the person.",
+            energy: "Tension runs high; leave a release valve.",
+            reminder: "Move within your means."),
+        "正官": .init(
+            headline: "A day for order and follow-through",
+            work: "Do your part; finish things properly.",
+            relationships: "Keep your word; don't overstep.",
+            energy: "Order restores you — close loops.",
+            reminder: "Move within your means."),
+        "偏印": .init(
+            headline: "Turned inward — a quiet day",
+            work: "Review and sort beats starting new.",
+            relationships: "Less advice-giving, fewer verdicts.",
+            energy: "Overthinking drains; doing restores.",
+            reminder: "Move within your means."),
+        "正印": .init(
+            headline: "Nourishing — made for restoring",
+            work: "Study, take advice, set plans.",
+            relationships: "Listen more than you argue.",
+            energy: "Rest well; sleep early tonight.",
+            reminder: "Move within your means."),
     ]
 
-    static func text(for relation: String) -> String {
-        let table: [String: String]
+    /// 兜底(查表 miss):通用五段,不冒充十神特化文案。
+    static func fallbackInsight() -> DailyInsight {
+        switch AppLanguage.current {
+        case .en:
+            return DailyInsight(
+                headline: "Read the day from the lists above",
+                work: "Pick what matters; let the rest wait.",
+                relationships: "Keep words easy; friction costs twice.",
+                energy: "Move within your means today.",
+                reminder: "For reference only.")
+        case .zhHant:
+            return DailyInsight(
+                headline: "從上方宜忌一覽讀出今日基調",
+                work: "先做要緊的,其餘可以等。",
+                relationships: "話留三分,摩擦就少一半。",
+                energy: "今天按自己的節奏來。",
+                reminder: "解讀僅供參照。")
+        case .zh:
+            return DailyInsight(
+                headline: "从上方宜忌一览读出今日基调",
+                work: "先做要紧的,其余可以等。",
+                relationships: "话留三分,摩擦就少一半。",
+                energy: "今天按自己的节奏来。",
+                reminder: "解读仅供参照。")
+        }
+    }
+
+    static func insight(for relation: String) -> DailyInsight {
+        let table: [String: DailyInsight]
         switch AppLanguage.current {
         case .zh: table = zh
         case .zhHant: table = hant
@@ -240,10 +616,6 @@ internal enum EngineReadingTemplates {
         AppLogger.app.warning(
             "op=engineReading.lookupMiss day_relation=\(relation, privacy: .public) -> fallback"
         )
-        switch AppLanguage.current {
-        case .en: return "Read the day's tone from the Do & Don't lists above, and move within your means."
-        case .zhHant: return "今日基調可從上方宜忌一覽讀出,量力而行、順勢而為。"
-        case .zh: return "今日基调可从上方宜忌一览读出,量力而行、顺势而为。"
-        }
+        return fallbackInsight()
     }
 }

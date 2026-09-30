@@ -203,6 +203,58 @@ def _validate_v1_module_json(module: str, interpretation: str) -> None:
         )
 
 
+# daily_fortune v4(S6,2026-09-30)五段契约键。镜像 iOS DailyInsight.parse:
+# 五键全为非空字符串;多余键宽容(前向演进);缺失/null/空串 → 拒绝。
+_DAILY_FORTUNE_INSIGHT_KEYS: tuple[str, ...] = (
+    "headline", "work", "relationships", "energy", "reminder",
+)
+
+
+def _validate_daily_fortune_json(module: str, interpretation: str) -> None:
+    """daily_fortune v4(S6,2026-09-30)输出契约 = JSON 五键非空字符串。
+
+    背景(2026-09-30 review,red-team):M0-M7 有 JSON 契约校验(2026-09-27)
+    而 daily_fortune v4 改 JSON 输出后没有——违约输出会进双层缓存;
+    iOS 渲染层 DailyInsight.parse 失败走引擎模板降级,且本地 24h 缓存
+    先于一切读取,Retry 只会拿回同一段坏文本(缓存毒化,静默卡到次日)。
+    此校验把违约从静默成功改为显式 AIProviderError(503):不写缓存、
+    不返回;缓存命中路径同样校验,坏行删除后落穿重新生成
+    (与 v1 契约自愈同理)。
+
+    口径与 iOS 渲染层对齐(DailyInsight.parse):容忍围栏;五键必须为
+    非空字符串(strip 后非空——比 iOS 的 isEmpty 略严,校验层只严不宽);
+    多余键宽容。
+
+    Raises:
+        AIProviderError: 非 JSON / 顶层非对象 / 五键缺失或非字符串或空白
+    """
+    if module != "daily_fortune":
+        return
+    text = _strip_code_fences(interpretation)
+    try:
+        parsed = json.loads(text)
+    except json.JSONDecodeError as e:
+        raise AIProviderError(
+            f"daily_fortune v4 输出非合法 JSON(疑似 max_tokens 截断或"
+            f"格式违约):{e}"
+        ) from e
+    if not isinstance(parsed, dict):
+        raise AIProviderError(
+            f"daily_fortune v4 输出 JSON 顶层非对象"
+            f"(type={type(parsed).__name__},契约要求五键对象)"
+        )
+    bad = [
+        k for k in _DAILY_FORTUNE_INSIGHT_KEYS
+        if not isinstance(parsed.get(k), str) or not parsed[k].strip()
+    ]
+    if bad:
+        raise AIProviderError(
+            f"daily_fortune v4 输出五键残缺或非字符串"
+            f"(缺失/空值: {', '.join(bad)};"
+            f"iOS 渲染层会整体降级,不进缓存)"
+        )
+
+
 # ---------- 合盘后置处理(2026-09-27:名字化 + 干支接地观测)----------
 
 # A/B 代号替换覆盖的 module(alias + M4 拆分;老 iOS alias 请求无名字 →
@@ -584,8 +636,10 @@ async def interpret(
         # 孤立(新键永不命中);本层是纵深防御——拦未来回归(校验被弱化后
         # 写入的行)与旁路写入(evalkit/手工落库),与禁词中毒同理:删除后
         # 走正常生成路径,用户无感(多等一次生成)。
+        # daily_fortune v4 五键校验(2026-09-30)同层自愈:坏行删除落穿。
         try:
             _validate_v1_module_json(req.module, cached_row["interpretation"])
+            _validate_daily_fortune_json(req.module, cached_row["interpretation"])
         except AIProviderError as e:
             elapsed_ms = (time.perf_counter() - start) * 1000
             logger.warning(
@@ -655,8 +709,11 @@ async def interpret(
     # 截断/违约 → AIProviderError(503),不进禁词扫描、不写缓存、不返回
     # (半截 JSON 一旦入缓存,iOS 渲染层 parse 失败退回散文 = 正文 JSON 裸奔,
     # 真机 m1_talent 实证)。失败 refund 由 iOS 端重试链路承接(重试不耗次数)。
+    # daily_fortune v4 五键契约同门(2026-09-30):违约不进双层缓存,
+    # 防 iOS 端「Retry 拿回同一段坏文本」的缓存毒化循环。
     try:
         _validate_v1_module_json(req.module, interpretation)
+        _validate_daily_fortune_json(req.module, interpretation)
     except AIProviderError as e:
         elapsed_ms = (time.perf_counter() - start) * 1000
         e.request_id = request_id
