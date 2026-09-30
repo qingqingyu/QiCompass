@@ -46,6 +46,18 @@ enum CompatibilityViewState: Equatable {
     }
 }
 
+// MARK: - 补时辰目标(P1-1,2026-09-30)
+
+/// 补时辰 sheet 的目标盘(视图开 sheet 时记录,dismiss 后由
+/// `CompatibilityViewModel.continueAfterAddHourRemap` 消费——续接选人)。
+enum AddHourTarget {
+    /// 命主自己的盘(A 侧;头部「补时辰」入口 / 自己无时辰的拦截卡 CTA)。
+    case selfChart
+    /// 他人存档盘(B 侧;换人 sheet 无时辰行 / 他人无时辰拦截卡 CTA)。
+    /// hash = 开 sheet 时的老盘 contentHash(与 dismiss 后的 remap.old 对账)。
+    case partnerChart(hash: String)
+}
+
 // MARK: - ViewModel
 
 /// 合盘 ViewModel:@Observable + 状态机驱动(单选改造 + S02 detail 按对化)。
@@ -1079,6 +1091,41 @@ final class CompatibilityViewModel {
         AppLogger.app.info(
             "op=compatibility.applyHashRemap old=\(oldHash, privacy: .public) new=\(newHash, privacy: .public) roster_count=\(self.roster.count, privacy: .public)"
         )
+    }
+
+    /// 补时辰 dismiss 后的续接选人(P1-1 修复,2026-09-30):重算**补时辰的那
+    /// 个人**,而非无条件当前对方。此前换人 sheet 点无时辰行 → 补完时辰,重算
+    /// 的是旧当前对方(force 绕缓存多耗一次配额),补时辰的人从头到尾没被选中。
+    ///
+    /// - 目标 = 他人盘且与 remap 吻合 → `selectPartner(.archived(new), force:)`
+    ///   续接「点行 = 换人」语义:用户点无时辰行时未竟的换人,在此补完(该人
+    ///   若已在新盘池中,守卫[满员等]由 selectPartner 显式记日志,不在此兜底)
+    /// - 目标 = 自己盘 → 名单/勾选未变,对当前对方强制重算(旧行为;无当前
+    ///   对方不自动选人)
+    /// - 目标缺失 / 与 remap 不符(状态错乱)→ 显式记日志 + 回落旧行为
+    ///
+    /// 调用前须已完成 `applyHashRemap`(结果壳态)或 `restoreRosterStateIfAvailable`
+    /// (配置态,持久化侧已被 AddHour submit 的 remapHash 换新)。
+    func continueAfterAddHourRemap(target: AddHourTarget?, remap oldToNew: (old: String, new: String)) {
+        switch target {
+        case .partnerChart(let hash) where hash == oldToNew.old:
+            selectPartner(.archived(snapshotHash: oldToNew.new), force: true)
+        case .selfChart, nil:
+            if let current = selectedRosterEntries.first {
+                selectPartner(current, force: true)
+            } else {
+                AppLogger.app.info(
+                    "op=compatibility.continueAfterAddHour skip_recompute reason=no_current_partner"
+                )
+            }
+        case .partnerChart:
+            AppLogger.app.error(
+                "op=compatibility.continueAfterAddHour target_mismatch remap_old=\(oldToNew.old, privacy: .public)"
+            )
+            if let current = selectedRosterEntries.first {
+                selectPartner(current, force: true)
+            }
+        }
     }
 
     // MARK: - 单对重试(S03 决策 D10)

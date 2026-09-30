@@ -928,8 +928,10 @@ enum L10n {
             String(format: String(localized: "hepan.partner.switchA11y"), name)
         }
 
-        /// 无对方占位(名单空):dashed 框文案。
-        /// zh: "＋ 添加对方";en: "＋ Add partner"
+        /// 无对方占位(名单空):dashed 框文案。**纯文案不带符号**——两处调用点
+        /// (PartnerPickerSheet 添加行 / PartnerHeader 占位)各自画加号,P2-1 修复
+        /// 2026-09-30:值自带「＋」曾渲染出双加号,且 VoiceOver 会读出符号。
+        /// zh: "添加对方";en: "Add partner"
         static let addPartner = String(localized: "hepan.partner.addPartner")
 
         /// 无对方占位(名单非空)/ 换人 sheet 标题。
@@ -973,6 +975,10 @@ enum L10n {
         /// 行 a11y hint(未勾选,点按切换为当前对方)。
         /// zh: "点按切换为当前对方";en: "Tap to make this your current partner"
         static let rowSwitchHint = String(localized: "hepan.partner.rowSwitchHint")
+
+        /// 行 a11y hint(管理模式——行主体不可选,P1-2)。
+        /// zh: "管理名单中,行内修改或移出";en: "Managing list — use edit or remove in the row"
+        static let rowManageHint = String(localized: "hepan.partner.rowManageHint")
 
         /// 管理模式「修改」按钮 a11y。%@ = 对方称呼。
         /// zh: "修改「%@」";en: "Edit %@"

@@ -12,7 +12,8 @@ enum PartnerPickerRoute: Hashable {
 /// - 行 = `PartnerRow`(日主五行色字 / 称呼 / 生日副行 / 行内朱圈勾选态),
 ///   点行 = `onPick` 原地换人(宿主关 sheet + `selectPartner`)
 /// - 标题栏「选择对方」+ 右侧「管理 / 完成」(ink 色文字按钮,不用朱红)
-/// - 管理模式:行尾换「修改」(仅临时人)+「移出」;移出当前对方 → 勾选清空 +
+/// - 管理模式:行尾换「修改」(仅临时人)+「移出」,**行主体不可点**(P1-2 修复
+///   2026-09-30:误触换人会关 sheet 把用户弹出管理态);移出当前对方 → 勾选清空 +
 ///   宿主关 sheet(主页进 P6 态,不自动选下一位、不发请求)
 /// - 尾部「＋ 添加对方」→ push `PartnerBirthForm` 添加页;提交 = 加入 + 选中 +
 ///   合盘(P4,修订 2026-09-03「添加与勾选解耦」——新模型没有「开始合盘」这一步)
@@ -322,8 +323,10 @@ private struct PartnerBirthFormPage: View {
 /// - 命主无时辰:置灰不可点
 /// - 满员 + 名单外时辰已知存档候选:置灰不可点(toggleArchived 上限守卫会静默拒收,
 ///   VM 注释要求 UI 提前 disable;口径同添加行满员置灰)
-/// - 管理模式:尾部换「修改」(仅临时人)+「移出」(仅 roster 成员;名单外池候选
-///   移出是 no-op,回落选中圈)
+/// - 管理模式:**行主体不可点**(P1-2 修复 2026-09-30——点行 = 换人 + 关 sheet,
+///   会把用户弹出管理态),修改/移出只走行尾控件;尾部换「修改」(仅临时人)+
+///   「移出」(仅 roster 成员;名单外池候选无管理动作,也不画选中圈——行不可选,
+///   圈是误导)
 private struct PartnerRow: View {
     let display: PartnerDisplay
     let isSelected: Bool
@@ -344,7 +347,14 @@ private struct PartnerRow: View {
     private var isGreyed: Bool { isLocked || isFullBlocked }
 
     var body: some View {
-        Button(action: onTap) {
+        Button {
+            // P1-2(2026-09-30):管理模式下行主体不换人——误触 = 换人 + 关 sheet,
+            // 把用户弹出管理态;修改/移出只走行尾控件。故意不用
+            // `.disabled(isManageMode)`:disabled 经 environment 向下传播,会连带
+            // 禁用嵌套在行内的「修改/移出」按钮,管理模式就失效了。
+            guard !isManageMode else { return }
+            onTap()
+        } label: {
             HStack(spacing: 13) {
                 dayMasterAvatar
                 VStack(alignment: .leading, spacing: 4) {
@@ -364,7 +374,8 @@ private struct PartnerRow: View {
                 Spacer()
                 if isManageMode && isMember {
                     manageTrailing
-                } else {
+                } else if !isManageMode {
+                    // 管理模式非成员行不画圈:行主体不可选,选中圈是误导
                     selectionCircle
                 }
             }
@@ -382,9 +393,11 @@ private struct PartnerRow: View {
         }
         .buttonStyle(.plain)
         .disabled(isLocked || isFullBlocked)
-        .accessibilityHint(isSelected
-                           ? L10n.CompatibilityPartner.rowSelectedHint
-                           : L10n.CompatibilityPartner.rowSwitchHint)
+        .accessibilityHint(isManageMode
+                           ? L10n.CompatibilityPartner.rowManageHint
+                           : (isSelected
+                              ? L10n.CompatibilityPartner.rowSelectedHint
+                              : L10n.CompatibilityPartner.rowSwitchHint))
     }
 
     /// 副行:生日(日主已由头像字承载,不重复)。
