@@ -90,15 +90,17 @@ struct ProfileView: View {
                                 )
                             }
                         }
-                        // 登录引导盒不依赖命盘存在:旧 accountSection 无条件展示,
+                        // S2(2026-09-30 BP 评审 R4/R5):登录引导移到名册之后——
+                        // 信息优先级 = 我的命盘 → 名册 → 账号,登录盒不再插在命主块
+                        // 与名册之间抢视觉重量。零盘态约束不变:登录盒不依赖命盘存在,
                         // 名盘全删空/重置后的未登录用户在本 Tab 仍要有登录入口
                         //(PaywallView 入口需先有命盘才可达,救不了零盘态)。
+                        rosterSection(profile)
                         if case .signedOut = env.accountManager.state {
                             loginBox(failedMessage: nil)
                         } else if case .failed(let message) = env.accountManager.state {
                             loginBox(failedMessage: message)
                         }
-                        rosterSection(profile)
                         entitlementsSection
                         settingsSection
                         aboutSection
@@ -210,8 +212,9 @@ struct ProfileView: View {
                 // 落款角标:登录态的固定位置(已钤朱印 / 未钤虚线印 / 加载中)
                 VStack(alignment: .trailing, spacing: 7) {
                     cornerSeal
-                    Text("观盘 ›")
-                        .font(BaziFont.caption(size: 11.5))
+                    // S2:11.5pt 太小不像主入口 → 13pt + 全称(命主块是本 Tab 第一入口)
+                    Text("查看完整命盘 ›")
+                        .font(BaziFont.caption(size: 13))
                         .tracking(2)
                         .foregroundStyle(BaziTheme.inkMuted)
                 }
@@ -253,32 +256,30 @@ struct ProfileView: View {
         }
     }
 
-    // MARK: - 登录引导盒(未登录 / 失败)
+    // MARK: - 登录引导节(未登录 / 失败;S2 移到名册之后并收轻)
 
-    /// 未钤虚线盒 + 官方登录按钮。失败态在按钮上方显式示错(不吞)。
-    /// 按钮对与接线收敛在 LoginGateButtons(2026-09-06,与付费墙同源)。
+    /// S2(2026-09-30 BP 评审 R5):44pt 虚线印盒视觉重量压过命主块 → 收轻为
+    /// 名册后的一节(印章 26pt、说明一行);去虚线框——DESIGN.md dashed 专用于
+    /// 锁框/临时态,登录引导是常驻态;与上方名册末行的 hairline 天然分隔,
+    /// 不再自绘分隔线。失败态在按钮上方显式示错(不吞);按钮对与接线收敛在
+    /// LoginGateButtons(2026-09-06,与付费墙同源)。
     private func loginBox(failedMessage: String?) -> some View {
-        VStack(alignment: .leading, spacing: BaziTheme.Spacing.cmd) {
-            HStack(spacing: 13) {
-                UnstampedSeal(character: "钤", size: 44)
-                VStack(alignment: .leading, spacing: 5) {
+        VStack(alignment: .leading, spacing: BaziTheme.Spacing.sm) {
+            HStack(spacing: 12) {
+                UnstampedSeal(character: "钤", size: 26)
+                VStack(alignment: .leading, spacing: 3) {
                     Text("钤印为凭 · 登录")
-                        .font(BaziFont.display(size: 13.5))
+                        .font(BaziFont.display(size: 13))
+                        .tracking(1)
                         .foregroundStyle(BaziTheme.ink)
-                    Text("命盘与已购跨设备同步\n不收集出生信息之外的任何资料")
-                        .font(BaziFont.caption(size: 10.5))
+                    Text("命盘与已购跨设备同步 · 不收集出生信息之外的任何资料")
+                        .font(BaziFont.caption(size: 10))
                         .foregroundStyle(BaziTheme.inkMuted)
-                        .lineSpacing(3)
                 }
             }
             LoginGateButtons(errorMessage: failedMessage)
         }
-        .padding(BaziTheme.Spacing.md)
-        .overlay(
-            RoundedRectangle(cornerRadius: BaziTheme.Radius.sm)
-                .stroke(BaziTheme.hairlineDashed, style: StrokeStyle(lineWidth: 1.4, dash: [4, 3]))
-        )
-        .padding(.top, BaziTheme.Spacing.md)
+        .padding(.top, BaziTheme.Spacing.cmd)
     }
 
     // MARK: - 数据装配(单次 decode)
@@ -294,7 +295,7 @@ struct ProfileView: View {
         let needsHour: Bool
         let isSilenced: Bool
 
-        /// 「1995 年生 · 乙亥 · 时辰待补」(年柱歧义/无年 → 对应段省略,不猜)。
+        /// 「1995 年生 · 乙亥 · 日主丁火 · 时辰待补」(年柱/日柱歧义 → 对应段省略,不猜)。
         var metaLine: String {
             var parts: [String] = []
             let year = Calendar.current.component(.year, from: snapshot.birthSolarTime)
@@ -303,6 +304,16 @@ struct ProfileView: View {
             parts.append(String(format: String(localized: "%lld 年生"), year))
             if let ygz = response.pillars.year?.ganZhi {
                 parts.append(ygz)
+            }
+            // S2(2026-09-30 BP 评审 R4):补日主段——命主块只说年份/年柱太浅,
+            // 日主是"这是谁"的第一事实。revealDayMasterDisplay 内部判日柱歧义
+            //(gan/ganElement 任一 nil → nil),时辰未知不影响日柱,照常显示。
+            if let dayMaster = ZodiacHelper.revealDayMasterDisplay(
+                gan: response.pillars.day?.gan,
+                ganElement: response.pillars.day?.ganElement,
+                language: AppLanguage.current
+            ) {
+                parts.append(String(format: String(localized: "日主%@"), dayMaster))
             }
             if needsHour {
                 parts.append(String(localized: "时辰待补"))

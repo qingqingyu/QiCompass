@@ -241,6 +241,23 @@
         }
       }
     },
+    "日主%@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Day Master %@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "日主%@"
+          }
+        }
+      }
+    },
     "%lld-%lld" : {
       "localizations" : {
         "en" : {
@@ -9101,12 +9118,19 @@
         }
       }
     },
-    "命盘与已购跨设备同步\n不收集出生信息之外的任何资料" : {
+    "命盘与已购跨设备同步 · 不收集出生信息之外的任何资料" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charts & purchases sync across devices\nNothing collected beyond birth details"
+            "value" : "Charts & purchases sync across devices · nothing collected beyond birth details"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盘与已购跨设备同步 · 不收集出生信息之外的任何资料"
           }
         }
       }
@@ -11256,12 +11280,19 @@
         }
       }
     },
-    "观盘 ›" : {
+    "查看完整命盘 ›" : {
+      "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "View chart ›"
+            "value" : "View full chart ›"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "查看完整命盘 ›"
           }
         }
       }
