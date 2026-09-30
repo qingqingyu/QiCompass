@@ -9,7 +9,7 @@ import SwiftUI
 /// 2em(全角空格实现,SwiftUI Text 无 text-indent)· 两端对齐;章末右下朱批印。
 ///
 /// 四态(同一页原地切换,不 pop):
-/// - .ok:正文 + 章末「批」印
+/// - .ok:正文 + 章末「批」印(JSON 形态但解析失败 → 显式异常态 + 重生成 CTA,不裸奔)
 /// - .fetching / .pending:三墨点 breathe + 竖排「布算中」+ 小注(reduce-motion 静态)
 /// - .failed:人话错误 + 原地重试 CTA + 「重试不消耗今日次数」
 /// - .needsInput:M4/M5 页内两问表单(ChapterReadingInputForm,原地作答)
@@ -137,7 +137,7 @@ struct ChapterReadingView: View {
     }
 
     /// 正文态:章题 + 副题 + hairline + 正文(模块 JSON → ChapterContentView 结构化
-    /// 排版;解析失败退回散文 15.5/2.15×/缩进 2em)+ 章末批印。
+    /// 排版;散文退回 15.5/2.15×/缩进 2em;JSON 形态但解析失败 → 显式异常态)+ 章末批印。
     private func chapterBody(text: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(chapterTitle)
@@ -157,10 +157,21 @@ struct ChapterReadingView: View {
                 .padding(.top, 16)
             // 正文(2026-09-02):模块输出是 JSON(v1 链式契约)→ 结构化排版;
             // 解析失败(非 JSON/非法 JSON,如老缓存散文或 LLM 违约)退回散文并记日志。
+            // 2026-10-01 加固:parse 失败且内容呈 JSON 形态(截断半截/契约破坏)→
+            // 显式异常态,不再把 JSON 原文当散文排版(裸奔)。
             if let content = ChapterContent.parse(text) {
                 ChapterContentView(content: content)
                     .padding(.top, 15)
                     .padding(.bottom, 18)
+                chapterSeal
+            } else if ChapterContent.looksLikeJSON(text) {
+                // 读缓存层自愈(CachedInterpretationReader.purgeIfPoisoned)已在冷启动
+                // 拦截存量中毒行;到达此处 = 新破损绕过了上游校验,error 级留痕。
+                // 异常态不挂章末「批」印(印 = 章成落款,与 .failed 态同口径不盖章)。
+                let _ = AppLogger.app.error(
+                    "chapterReading.contentUnrenderableJSON module=\(module.rawValue, privacy: .public) len=\(text.count) — 显示异常态,不裸奔 JSON"
+                )
+                corruptedBody
             } else {
                 let _ = AppLogger.app.warning(
                     "chapterReading.contentParseMiss module=\(module.rawValue, privacy: .public) — 退回散文排版"
@@ -173,17 +184,21 @@ struct ChapterReadingView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
                     .padding(.top, 15)
                     .padding(.bottom, 18)
+                chapterSeal
             }
-            // 章末朱批印(落款,非朱字批语——后者依赖 prompt 输出,backlog)
-            HStack {
-                Spacer()
-                SealStamp(character: "批", size: 26, rotation: 3, stampDelay: 0.2)
-            }
-            .padding(.trailing, 8)
-            .padding(.bottom, 24)
         }
         .padding(.leading, 24)
         .padding(.trailing, 26)
+    }
+
+    /// 章末朱批印(落款,非朱字批语——后者依赖 prompt 输出,backlog)。
+    private var chapterSeal: some View {
+        HStack {
+            Spacer()
+            SealStamp(character: "批", size: 26, rotation: 3, stampDelay: 0.2)
+        }
+        .padding(.trailing, 8)
+        .padding(.bottom, 24)
     }
 
     /// 首行缩进 2em:SwiftUI Text 无 text-indent,全角空格前缀实现;
@@ -194,6 +209,26 @@ struct ChapterReadingView: View {
                 line.trimmingCharacters(in: .whitespaces).isEmpty ? "" : "　　" + line
             }
             .joined(separator: "\n")
+    }
+
+    /// 内容异常态(parse 失败且内容呈 JSON 形态,2026-10-01):人话说明 + 原地重生成。
+    /// CTA 与 .failed 态同一重试路径(`vm.retryV1Module`,生成失败退款不耗次数;
+    /// 点击后 moduleStates 翻 .fetching,整页自动切换布算中态)。
+    private var corruptedBody: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(String(localized: "本章内容生成时出现异常,重新生成即可恢复"))
+                .font(BaziFont.caption(size: 13))
+                .foregroundStyle(BaziTheme.inkMuted)
+                .lineSpacing(5)
+            PrimaryCTAButton(
+                title: String(localized: "重新生成本章"),
+                loadingTitle: String(localized: "生成中…"),
+                isLoading: false,
+                action: { vm.retryV1Module(module) }
+            )
+        }
+        .padding(.top, 15)
+        .padding(.bottom, 18)
     }
 
     /// 生成中:三墨点 breathe + 竖排「布算中」(reduce-motion 静态降级)。

@@ -209,6 +209,11 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
     private static let m0CacheJSON =
         "{\"structure_fingerprint\":\"fp-restore-1\",\"main_axis\":{},\"core_loop\":{}}"
 
+    /// M1 缓存正文:v1 契约 = 合法 JSON(2026-10-01 起读取层自愈会清除过不了
+    /// ChapterContent.parse 的 M0-M7 行——散文 fixture 会被当 miss 触发续跑,断言失真)。
+    private static let m1CacheJSON =
+        "{\"innate\":{\"behavior\":\"天生对结构敏感\",\"trained_by\":\"多年复盘\"},\"one_leverage\":\"把敏感变成产出\"}"
+
     /// 预置一章节本地缓存(身份对齐 MockAPIClient.health:anthropic / mock-anthropic-model)。
     private func seedV1Cache(hash: String, module: ModuleID, text: String) throws {
         try interpretStore.upsert(
@@ -314,14 +319,14 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         let request = Self.beijingRequest()
         let response = try await apiClient.calculateBazi(request: request)
         try seedV1Cache(hash: response.contentHash, module: .m0, text: Self.m0CacheJSON)
-        try seedV1Cache(hash: response.contentHash, module: .m1, text: "M1 已生成正文")
+        try seedV1Cache(hash: response.contentHash, module: .m1, text: Self.m1CacheJSON)
         let readsBefore = vm.remainingReads
 
         vm.loadArchivedChart(response: response, request: request)
 
         let restored = await waitUntil {
             self.vm.moduleStates[.m0] == .ok(text: Self.m0CacheJSON, cached: true)
-                && self.vm.moduleStates[.m1] == .ok(text: "M1 已生成正文", cached: true)
+                && self.vm.moduleStates[.m1] == .ok(text: Self.m1CacheJSON, cached: true)
         }
         XCTAssertTrue(restored, "冷启动回填:M0/M1 缓存必须瞬时回填为 .ok(cached: true),实际:\(vm.moduleStates)")
         // 免费盘两章已全成 → 无可跑未完成章 → 不起链、不耗次
@@ -371,7 +376,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         let request = Self.beijingRequest()
         let response = try await apiClient.calculateBazi(request: request)
         try seedV1Cache(hash: response.contentHash, module: .m0, text: Self.m0CacheJSON)
-        try seedV1Cache(hash: response.contentHash, module: .m1, text: "M1 缓存旧正文")
+        try seedV1Cache(hash: response.contentHash, module: .m1, text: Self.m1CacheJSON)
 
         // health 慢 600ms:撑开 performRestore 的 await 窗口供测试确定性翻转状态
         let slow = SlowHealthAPIClient(base: apiClient, delayNanos: 600_000_000)
@@ -488,18 +493,18 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         let request = Self.beijingRequest()
         let response = try await apiClient.calculateBazi(request: request)
         try seedV1Cache(hash: response.contentHash, module: .m0, text: Self.m0CacheJSON)
-        try seedV1Cache(hash: response.contentHash, module: .m1, text: "M1 已生成正文")
+        try seedV1Cache(hash: response.contentHash, module: .m1, text: Self.m1CacheJSON)
 
         vm.loadArchivedChart(response: response, request: request)
         let restored = await waitUntil {
-            self.vm.moduleStates[.m1] == .ok(text: "M1 已生成正文", cached: true)
+            self.vm.moduleStates[.m1] == .ok(text: Self.m1CacheJSON, cached: true)
         }
         XCTAssertTrue(restored, "前置:首载已回填")
 
         // 同 hash 重入(取消补时辰 / Tab 重挂):既有章节态不清洗、不闪回 pending
         vm.loadArchivedChart(response: response, request: request)
         XCTAssertEqual(vm.moduleStates[.m0], .ok(text: Self.m0CacheJSON, cached: true), "同 hash 重入不得清章节态")
-        XCTAssertEqual(vm.moduleStates[.m1], .ok(text: "M1 已生成正文", cached: true))
+        XCTAssertEqual(vm.moduleStates[.m1], .ok(text: Self.m1CacheJSON, cached: true))
     }
 
     func testChartChangeResetsChainFlag() async throws {

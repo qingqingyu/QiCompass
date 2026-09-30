@@ -294,10 +294,17 @@ final class MockAPIClient: APIClient {
         recordLock.unlock()
         try? await Task.sleep(nanoseconds: 400_000_000)
         // M0 返回含 structure_fingerprint 的 JSON(对齐后端 m0 模板输出契约:
-        // 下游 M1-M7 的 parent_fingerprint 客户端守卫依赖它);其余模块散文占位
+        // 下游 M1-M7 的 parent_fingerprint 客户端守卫依赖它)。
+        // M1-M7 同为 JSON 契约(2026-10-01 mock 保真对齐:读取层中毒自愈上线后,
+        // 散文 mock 行会在下次冷启动被判中毒清除 → 自动续跑反复烧每日次数);
+        // 刻意不含 innate/defensive——保留「M1 输出缺链式字段 → 下游守卫拦
+        // .pending」的既有测试场景(testRestoreRebuildsChainFieldsForDownstream)。
+        // bazi_deep / compatibility / daily_fortune 是散文契约,维持占位散文。
         let interpretation: String
         if request.module == "m0_structure" {
             interpretation = "{\"structure_fingerprint\":\"mock-fp\",\"main_axis\":{},\"core_loop\":{}}"
+        } else if ModuleID(rawValue: request.module) != nil {
+            interpretation = "{\"one_line\":\"mock 章节占位:正式解读由后端 AI provider 生成\"}"
         } else {
             interpretation = "[Mock 命书占位] 此命造五行流转,日主得令,喜忌已由后端确定性规则引擎判定。此为脚手架阶段 Mock 文本,正式解读由后端 AI provider 生成。"
         }

@@ -10381,6 +10381,23 @@
         }
       }
     },
+    "本章内容生成时出现异常,重新生成即可恢复" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This chapter didn't generate correctly. Regenerate to restore it."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "本章内容生成时出现异常,重新生成即可恢复"
+          }
+        }
+      }
+    },
     "查看 ›" : {
       "localizations" : {
         "en" : {
@@ -11964,6 +11981,23 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Rechart"
+          }
+        }
+      }
+    },
+    "重新生成本章" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Regenerate this chapter"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新生成本章"
           }
         }
       }

@@ -184,4 +184,22 @@ final class ChapterContentTests: XCTestCase {
         XCTAssertEqual(fields.first?.label, "surprise_key")
         XCTAssertNil(ChapterContent.labels["surprise_key"])
     }
+
+    // MARK: - looksLikeJSON(2026-10-01 阅读页最后防线:parse 失败 + JSON 形态 → 异常态)
+
+    func test_looksLikeJSON_trueForJSONForms() {
+        XCTAssertTrue(ChapterContent.looksLikeJSON("{ \"structure_fingerprint\": \"x\" }"))
+        // 09-27 事故形态:max_tokens 截断的半截 JSON
+        XCTAssertTrue(ChapterContent.looksLikeJSON("{\n  \"looks_like\": \"To outsiders"))
+        XCTAssertTrue(ChapterContent.looksLikeJSON("[{\"day\": 1}]"))
+        XCTAssertTrue(ChapterContent.looksLikeJSON("```json\n{ \"a\": \"b\" }\n```"), "围栏形态应剥围栏后判定")
+        XCTAssertTrue(ChapterContent.looksLikeJSON("  \n{ \"a\": 1 }"), "前导空白不影响判定")
+    }
+
+    func test_looksLikeJSON_falseForProseAndEmpty() {
+        XCTAssertFalse(ChapterContent.looksLikeJSON("这是一段散文解读。"))
+        XCTAssertFalse(ChapterContent.looksLikeJSON("2026 年运势:先立住成果,再放大协作。"))
+        XCTAssertFalse(ChapterContent.looksLikeJSON(""))
+        XCTAssertFalse(ChapterContent.looksLikeJSON("   "))
+    }
 }

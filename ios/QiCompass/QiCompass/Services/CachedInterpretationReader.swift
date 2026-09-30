@@ -13,6 +13,9 @@ import Foundation
 /// 不负责命中后的 module-specific sync 副作用(写 `CompatibilitySnapshot` / `DailyFortuneSnapshot`),
 /// 因为 sync 类型不同无法合并,留在 caller。
 ///
+/// 2026-10-01 新增第二职责:V1 模块(M0-M7)中毒缓存自愈(`purgeIfPoisoned`)——
+/// 命中行过不了渲染层 JSON 校验(截断/契约破坏)即删行当 miss,镜像后端坏 JSON 自愈。
+///
 /// 错误显式传播:identity 解析失败或 SwiftData 读失败向上抛,不静默吞(CLAUDE.md 强约束)。
 @MainActor
 final class CachedInterpretationReader {
@@ -27,10 +30,12 @@ final class CachedInterpretationReader {
     /// 读 AI 缓存。
     /// - Parameters:
     ///   - contentHash: `ChartSnapshot.contentHash` 或 `CompatibilitySnapshot.compatibilityHash`
-    ///   - module: `"bazi_deep"` / `"compatibility"` / `"daily_fortune"`
+    ///   - module: `"bazi_deep"` / `"compatibility"` / `"daily_fortune"`,以及
+    ///     M0-M7 模块名(`ModuleID.rawValue`,走 `purgeIfPoisoned` 中毒自愈)
     ///   - targetDate: 每日运势传 date,其他传 nil(默认)
     ///   - maxAge: 新鲜度上限,`nil` = 不过期(`DeepAnalysis` 瞬时显示用);其他传 `24 * 3600`
-    /// - Returns: 命中的完整 `InterpretationCache`;miss / 过期 / 身份不匹配(cacheStore 内 filter)都返回 nil
+    /// - Returns: 命中的完整 `InterpretationCache`;miss / 过期 / 身份不匹配(cacheStore 内 filter)/
+    ///     V1 模块中毒行(已删,见 `purgeIfPoisoned`)都返回 nil
     /// - Throws: identity 解析失败或 SwiftData 读失败向上抛
     ///
     /// i18n:language 由 `AppLanguage.currentWire` 自动注入(i18n 决策 10 方案 3:
@@ -51,6 +56,9 @@ final class CachedInterpretationReader {
         ) else {
             return nil
         }
+        if try purgeIfPoisoned(cache) {
+            return nil
+        }
         if let maxAge, cache.generatedAt.addingTimeInterval(maxAge) <= .now {
             return nil
         }
@@ -69,7 +77,7 @@ final class CachedInterpretationReader {
     ///   - language:**必传**目标语言代码(调用方传 `AppLanguage.currentWire`,
     ///     与写入侧 upsert 的 `resp.language` 配对——后端按请求语言渲染,
     ///     两值一致;读写键错位会让 en 用户冷启动必 miss → 自动续跑烧 LLM)
-    /// - Returns:module 名 → 命中的 `InterpretationCache`
+    /// - Returns:module 名 → 命中的 `InterpretationCache`(V1 中毒行已删并当 miss,不进字典)
     /// - Throws:identity 解析失败或任一 SwiftData 读失败向上抛(整体失败,
     ///   不逐章吞——环境错误值得整体跳过回填而非装作部分命中)
     func readAll(
@@ -91,11 +99,40 @@ final class CachedInterpretationReader {
             ) else {
                 continue
             }
+            if try purgeIfPoisoned(cache) {
+                continue
+            }
             if let maxAge, cache.generatedAt.addingTimeInterval(maxAge) <= .now {
                 continue
             }
             hits[module] = cache
         }
         return hits
+    }
+
+    // MARK: - V1 模块中毒缓存自愈(2026-10-01)
+
+    /// V1 深度模块(M0-M7)中毒缓存检测 + 删除,镜像后端 `_validate_v1_module_json` +
+    /// `_invalidate_poisoned_cache`(backend/app/api/interpret.py)。
+    ///
+    /// 背景:2026-09-27 真机 m1 被 max_tokens=1024 拦腰截断,半截 JSON 入双层缓存。
+    /// 后端侧当时已补「命中坏 JSON → 删除 → 落穿重生成」+ pv 1→2 失效缓存,但 iOS
+    /// 侧无对应机制:深度模块缓存不过期(maxAge=nil)+ 本地命中短路不再请求后端 +
+    /// promptVersion 只能从响应学得 → **pv bump 永远够不到本地已缓存的存量中毒行**,
+    /// 阅读页 parse 失败退散文 = JSON 裸奔(第一章短压线完整、第二章截断的分裂现象)。
+    ///
+    /// 判据:直接复用渲染层 `ChapterContent.parse`(nil = 非 JSON / 顶层非对象 /
+    /// 无可渲染节点),与后端校验天然同口径且只严不宽。命中即删行返回 true,调用方
+    /// 按 miss 处理 → 上层断点续跑自动以当前 pv 重新生成、写回干净行。
+    ///
+    /// 护栏(不可放宽):仅 module ∈ ModuleID(M0-M7)生效。合盘/每日/bazi_deep 的
+    /// 输出契约是散文,parse 必失败——不按 ModuleID 圈定会误清全部正常缓存。
+    ///
+    /// - Returns:true = 中毒行已删(调用方按 miss 处理)
+    private func purgeIfPoisoned(_ cache: InterpretationCache) throws -> Bool {
+        guard ModuleID(rawValue: cache.module) != nil else { return false }
+        guard ChapterContent.parse(cache.interpretation) == nil else { return false }
+        try cacheStore.delete(cache)
+        return true
     }
 }

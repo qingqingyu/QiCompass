@@ -60,6 +60,18 @@ struct ChapterContent: Equatable {
         return nodes.isEmpty ? nil : ChapterContent(nodes: nodes)
     }
 
+    /// 内容是否「像 JSON」:剥围栏 + 去首尾空白后以 `{` 或 `[` 开头。
+    ///
+    /// 阅读页散文退回前的最后防线(2026-10-01):parse 失败但内容呈 JSON 形态
+    /// (如截断的半截 JSON)→ 调用方应显示显式「内容异常」态,而不是把 JSON
+    /// 原文当散文排版(JSON 裸奔)。散文内容(老缓存 / LLM 散文输出)不受影响,
+    /// 照常退回散文。
+    static func looksLikeJSON(_ text: String) -> Bool {
+        let stripped = OrderedJSONParser.stripCodeFences(text)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        return stripped.hasPrefix("{") || stripped.hasPrefix("[")
+    }
+
     // MARK: - 规范化
 
     private static func node(key: String, value: JSONValue) -> ChapterNode? {

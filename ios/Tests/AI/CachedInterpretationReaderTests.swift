@@ -145,6 +145,12 @@ final class CachedInterpretationReaderTests: XCTestCase {
         "m4_health", "m5_wealth", "m6_dynamics", "m7_manual",
     ]
 
+    /// V1 模块(M0-M7)缓存契约 = 完整 JSON 对象(2026-10-01 起读取层自愈按此校验,
+    /// 散文 fixture 会被当中毒行清除,故测试一律用合法 JSON)。
+    private static func v1JSON(_ text: String) -> String {
+        "{\"structure_fingerprint\": \"\(text)\"}"
+    }
+
     // 8. readAll:identity 只 resolve 一次(healthResults 只给 1 个,
     //    第 2 次 health 即抛 unexpectedCall——health 成功本身就是断言)
     func testReadAllResolvesIdentityOnceForAllModules() async throws {
@@ -154,7 +160,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
             try store.upsert(
                 contentHash: "h", module: module, promptVersion: 1, targetDate: nil,
                 provider: "anthropic", model: "claude-test",
-                interpretation: "text-\(module)", generatedAt: .now
+                interpretation: Self.v1JSON("text-\(module)"), generatedAt: .now
             )
         }
         let reader = CachedInterpretationReader(
@@ -165,7 +171,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
             contentHash: "h", modules: Self.v1Modules, language: "zh"
         )
         XCTAssertEqual(hits.count, 8, "捌章全命中;若 identity resolve 了第二次会先抛 unexpectedCall")
-        XCTAssertEqual(hits["m0_structure"]?.interpretation, "text-m0_structure")
+        XCTAssertEqual(hits["m0_structure"]?.interpretation, Self.v1JSON("text-m0_structure"))
         XCTAssertEqual(hits["m7_manual"]?.promptVersion, 1)
     }
 
@@ -176,7 +182,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
         try store.upsert(
             contentHash: "h", module: "m0_structure", promptVersion: 1, targetDate: nil,
             provider: "anthropic", model: "claude-test",
-            interpretation: "m0 text", generatedAt: .now
+            interpretation: Self.v1JSON("m0 text"), generatedAt: .now
         )
         let reader = CachedInterpretationReader(
             identityResolver: AIIdentityResolver(apiClient: Self.healthOnlyClient()),
@@ -186,7 +192,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
             contentHash: "h", modules: Self.v1Modules, language: "zh"
         )
         XCTAssertEqual(hits.count, 1)
-        XCTAssertEqual(hits["m0_structure"]?.interpretation, "m0 text")
+        XCTAssertEqual(hits["m0_structure"]?.interpretation, Self.v1JSON("m0 text"))
         XCTAssertNil(hits["m1_talent"], "miss 章不得以 nil 值占字典键")
     }
 
@@ -204,6 +210,126 @@ final class CachedInterpretationReaderTests: XCTestCase {
         } catch let error as ReaderTestError {
             XCTAssertEqual(error, .healthUnavailable)
         }
+    }
+
+    // MARK: - V1 模块中毒缓存自愈(2026-10-01,镜像后端坏 JSON 自愈)
+
+    /// 09-27 真机事故形态:LLM 输出在 max_tokens 截断的半截 JSON
+    /// (原行结尾停在 `"looks_like": "To outsiders`)
+    private static let truncatedV1JSON = """
+    {
+      "innate": {
+        "behavior": "快速建立对外界的判断",
+        "trained_by": "长期复盘",
+        "looks_like": "To outsiders
+    """
+
+    private static let testIdentity = AIIdentity(provider: "anthropic", model: "claude-test")
+
+    // 11. readAll:中毒 m1 行(截断半截 JSON)→ 不进 hits 且行被删
+    func testReadAllPurgesPoisonedV1Row() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        try store.upsert(
+            contentHash: "h", module: "m1_talent", promptVersion: 1, targetDate: nil,
+            provider: "anthropic", model: "claude-test",
+            interpretation: Self.truncatedV1JSON, generatedAt: .now
+        )
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: Self.healthOnlyClient()),
+            cacheStore: store
+        )
+        let hits = try await reader.readAll(contentHash: "h", modules: ["m1_talent"], language: "zh")
+        XCTAssertNil(hits["m1_talent"], "中毒行不得命中(应删行当 miss,触发上层重新生成)")
+        // 行确实被删(不是仅当次跳过):绕过 reader 直查 store 应 miss
+        let after = try store.getLatest(
+            contentHash: "h", module: "m1_talent", targetDate: nil,
+            language: "zh", identity: Self.testIdentity
+        )
+        XCTAssertNil(after, "中毒行应已从 SwiftData 删除")
+    }
+
+    // 12. readAll:顶层无可渲染值(全 null)同样清除——镜像后端 _is_renderable_top_level
+    func testReadAllPurgesUnrenderableTopLevelV1Row() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        try store.upsert(
+            contentHash: "h", module: "m2_high_low", promptVersion: 1, targetDate: nil,
+            provider: "anthropic", model: "claude-test",
+            interpretation: "{ \"high_config\": null }", generatedAt: .now
+        )
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: Self.healthOnlyClient()),
+            cacheStore: store
+        )
+        let hits = try await reader.readAll(contentHash: "h", modules: ["m2_high_low"], language: "zh")
+        XCTAssertNil(hits["m2_high_low"], "全 null 顶层在渲染层 nodes.isEmpty → nil,同属中毒行")
+        let after = try store.getLatest(
+            contentHash: "h", module: "m2_high_low", targetDate: nil,
+            language: "zh", identity: Self.testIdentity
+        )
+        XCTAssertNil(after)
+    }
+
+    // 13. read(单读路径)同样自愈:V1 中毒行 → nil + 删行
+    func testReadPurgesPoisonedV1Row() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        try store.upsert(
+            contentHash: "h", module: "m1_talent", promptVersion: 1, targetDate: nil,
+            provider: "anthropic", model: "claude-test",
+            interpretation: Self.truncatedV1JSON, generatedAt: .now
+        )
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: Self.healthOnlyClient()),
+            cacheStore: store
+        )
+        let cache = try await reader.read(contentHash: "h", module: "m1_talent")
+        XCTAssertNil(cache, "单读路径对 V1 中毒行同样返回 nil")
+        let after = try store.getLatest(
+            contentHash: "h", module: "m1_talent", targetDate: nil,
+            language: "zh", identity: Self.testIdentity
+        )
+        XCTAssertNil(after)
+    }
+
+    // 14. 护栏:合盘/每日的散文契约行不受自愈波及(module ∉ ModuleID 不校验)
+    func testProseRowsForNonV1ModulesAreNotPurged() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        try store.upsert(
+            contentHash: "h", module: "compatibility", promptVersion: 1, targetDate: nil,
+            provider: "anthropic", model: "claude-test",
+            interpretation: "两人整体节奏:一段散文解读,不是 JSON。", generatedAt: .now
+        )
+        let date = Date(timeIntervalSince1970: 1_700_000_000)
+        try store.upsert(
+            contentHash: "h", module: "daily_fortune", promptVersion: 1, targetDate: date,
+            provider: "anthropic", model: "claude-test",
+            interpretation: "今日运势:宜沉稳。", generatedAt: .now
+        )
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: ReaderTestAPIClient(healthResults: [
+                .success(Self.health(provider: "anthropic", model: "claude-test")),
+                .success(Self.health(provider: "anthropic", model: "claude-test")),
+            ])),
+            cacheStore: store
+        )
+        let compat = try await reader.read(contentHash: "h", module: "compatibility", maxAge: 24 * 3600)
+        XCTAssertEqual(compat?.interpretation, "两人整体节奏:一段散文解读,不是 JSON。")
+        let daily = try await reader.read(contentHash: "h", module: "daily_fortune", targetDate: date, maxAge: 24 * 3600)
+        XCTAssertEqual(daily?.interpretation, "今日运势:宜沉稳。")
+        // 两行仍在库(散文对非 V1 module 是合法内容,不得误删)
+        let compatAfter = try store.getLatest(
+            contentHash: "h", module: "compatibility", targetDate: nil,
+            language: "zh", identity: Self.testIdentity
+        )
+        let dailyAfter = try store.getLatest(
+            contentHash: "h", module: "daily_fortune", targetDate: date,
+            language: "zh", identity: Self.testIdentity
+        )
+        XCTAssertNotNil(compatAfter, "合盘散文行不得被自愈误删")
+        XCTAssertNotNil(dailyAfter, "每日散文行不得被自愈误删")
     }
 
     // MARK: - Helpers

@@ -61,6 +61,25 @@ final class InterpretationCacheStore {
         return hit
     }
 
+    /// 删除单条缓存行(中毒缓存自愈,2026-10-01)。
+    ///
+    /// 调用方是读缓存唯一入口 CachedInterpretationReader:V1 模块(M0-M7)命中行
+    /// 过不了渲染层 JSON 校验(契约破坏,如 max_tokens 截断的半截 JSON)时删行,
+    /// 让调用方按 miss 落穿重新生成——镜像后端 `_invalidate_poisoned_cache` 语义。
+    /// 行必须来自本 store 的 context(getLatest/upsert 产物)。
+    /// 错误显式传播:删除/保存失败直接 throw,不静默吞。
+    func delete(_ cache: InterpretationCache) throws {
+        // 先取字段再 delete:@Model 实例删除后访问属性行为未定义
+        let contentHash = cache.contentHash
+        let module = cache.module
+        let promptVersion = cache.promptVersion
+        context.delete(cache)
+        try context.save()
+        AppLogger.persistence.warning(
+            "op=interpretationCache.poisonedPurge hash=\(contentHash, privacy: .public) module=\(module, privacy: .public) pv=\(promptVersion) — 命中行过不了渲染层校验,删行落穿重新生成"
+        )
+    }
+
     /// upsert:同完整缓存键存在则更新 interpretation/generatedAt,不存在则新建。
     /// targetDate 用 nil-safe 比较(SwiftData #Predicate 对 Optional == Optional 不稳定,改 Swift 侧过滤)。
     /// language 参数:目标语言代码("zh" / "en")。nil 视为 "zh"(向后兼容老调用,
