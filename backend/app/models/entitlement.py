@@ -35,6 +35,10 @@ EntitlementModule = Literal[
 # ② 任意客户端拿便宜 SKU 的交易按贵 module redeem(提权)。
 # 后端按 Apple 验证返回的 product_id 反查 module,与 req.module 不一致
 # 即拒绝,不再信任客户端声明的 module。
+# 双端各一份(iOS 侧 PurchaseManager.module(forProductID:) + PaywallModule 配对,
+# 常量 EntitlementDTOs.swift):同一 SKU 两边 module 值不同会走「客户端 guard
+# 放行 → 后端 403 → 客户端终态 finish()」销毁已付款交易。改此表必须同步改
+# iOS 侧并跑 `python3 tools/check_sku_sync.py` PASS(2026-09-30 起为守护栏)。
 PRODUCT_MODULE_MAP: dict[str, str] = {
     "com.qicompass.deep_analysis.single": "bazi_deep",
     "com.qicompass.compatibility.single": "compatibility",
