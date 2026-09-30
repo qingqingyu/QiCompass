@@ -505,6 +505,26 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
         await drainDetailBackgroundTasks()
     }
 
+    // MARK: - §3.2:管理模式豁免 isLocked(行内「移出/修改」可用)
+
+    func testRowBodyDisabled_管理模式豁免isLocked() {
+        // 命主无时辰 + 非管理模式:行主体置灰(点行不可换人)
+        XCTAssertTrue(PartnerPickerSheet.rowBodyDisabled(
+            isLocked: true, isFullBlocked: false, isManageMode: false))
+        // 命主无时辰 + 管理模式:行主体不置灰(整理名单与能不能合盘无关)
+        XCTAssertFalse(PartnerPickerSheet.rowBodyDisabled(
+            isLocked: true, isFullBlocked: false, isManageMode: true),
+            "§3.2:isLocked 经外层 disabled 传播曾连带禁用行内「移出/修改」")
+        // 正常态
+        XCTAssertFalse(PartnerPickerSheet.rowBodyDisabled(
+            isLocked: false, isFullBlocked: false, isManageMode: false))
+        // 满员拒收(名单外候选)与模式无关
+        XCTAssertTrue(PartnerPickerSheet.rowBodyDisabled(
+            isLocked: false, isFullBlocked: true, isManageMode: false))
+        XCTAssertTrue(PartnerPickerSheet.rowBodyDisabled(
+            isLocked: false, isFullBlocked: true, isManageMode: true))
+    }
+
     // MARK: - 辅助(fixture 与 BatchTests 同款)
 
     @discardableResult
