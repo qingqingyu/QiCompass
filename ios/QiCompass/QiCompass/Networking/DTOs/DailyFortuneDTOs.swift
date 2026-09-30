@@ -187,7 +187,7 @@ struct DaySignalItemDTO: Codable, Sendable {
 }
 
 /// POST /api/bazi/daily-fortune 响应。对齐 backend DailyFortuneResponse。
-/// dayElements/daySignal 为 v2 后端新增字段,Optional 解码(2026-08-15 教训:
+/// dayElements/daySignal 为 daily_fortune v4(S6)后端新增字段,Optional 解码(2026-08-15 教训:
 /// payload 加字段必须可缺省——老后端/老缓存缺键不炸,UI 整行隐藏)。
 struct DailyFortuneResponse: Codable, Sendable {
     let dayPillar: String

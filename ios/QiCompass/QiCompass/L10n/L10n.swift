@@ -1242,7 +1242,7 @@ enum L10n {
         /// zh: "存档中…";en: "Archiving…"
         static let stageArchiving = String(localized: "chartcalc.stage.archiving")
 
-        /// zh: "生成命书中…";en: "Writing your book…"
+        /// zh: "生成命书中…";en: "Building your reading…"(S4 2026-09-30 弃 book 比喻)
         static let stageGenerating = String(localized: "chartcalc.stage.generating")
     }
 

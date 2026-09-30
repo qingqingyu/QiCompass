@@ -107,11 +107,15 @@ struct DailyInterpretationSection: View {
                 // 离线兜底(2026-09-28):正文 = 快照里的历史解读原文(不拿引擎模板
                 // 冒充),底部小注如实说明「已保留历史解读,联网后可确认当前 AI 来源」。
                 // 无 Retry——离线重试必失败,还会把已保留的正文挤成模板。
-                // v4(S6):快照存的是 JSON 五段原文——解析成功走结构化正文,
-                // 解析失败才是 v3 时代散文快照,维持原渲染(两代快照共存期)。
+                // v4(S6):快照存的是 JSON 五段原文——解析成功走结构化正文;
+                // 解析失败且是 JSON 形态 = 畸形 v4 快照(缓存毒化残留,2026-09-30
+                // review 修复),引擎模板兜底不裸奔;否则才是 v3 时代散文快照,
+                // 维持原渲染(两代快照共存期)。
                 VStack(alignment: .leading, spacing: 14) {
                     if let insight = DailyInsight.parse(text) {
                         insightBody(insight)
+                    } else if DailyInsight.looksLikeJSON(text) {
+                        insightBody(EngineReadingTemplates.insight(for: dayRelation))
                     } else {
                         Text(MarkdownSanitizer.rendered(text))
                             .bodySerifText(size: 16)
@@ -126,6 +130,17 @@ struct DailyInterpretationSection: View {
                         .foregroundStyle(BaziTheme.inkMuted)
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .onAppear {
+                    // 畸形 v4 快照走引擎模板兜底时留痕(对齐 degradedBody 的
+                    // onAppear 手法:原始文本只进日志,不进正文)。
+                    // 须同时判 parse 失败——合法 v4 快照同样 looksLikeJSON。
+                    if DailyInsight.parse(text) == nil,
+                       DailyInsight.looksLikeJSON(text) {
+                        AppLogger.app.error(
+                            "op=dailyInsight.offlineLegacyMalformedJSON raw_prefix=\(String(text.prefix(80)), privacy: .public)"
+                        )
+                    }
+                }
             case .failed(let message):
                 degradedBody(message: message, rawText: nil)
             case .dailyLimitReached(let nextReset):
@@ -351,6 +366,16 @@ struct DailyInsight: Equatable {
             headline: headline, work: work,
             relationships: relationships, energy: energy, reminder: reminder
         )
+    }
+
+    /// 文本是否「JSON 形态」(剥围栏后首非空白字符为 `{`)。
+    /// offlineLegacy 兜底用:区分 v3 散文快照(原样渲染)与 v4 畸形 JSON
+    /// (引擎模板兜底,不裸奔;2026-09-30 review 缓存毒化修复)。
+    /// 只看形态不看契约——五键校验归 parse,两者组合决定三分支渲染。
+    static func looksLikeJSON(_ text: String) -> Bool {
+        OrderedJSONParser.stripCodeFences(text)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .hasPrefix("{")
     }
 }
 
