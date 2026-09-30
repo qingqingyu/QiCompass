@@ -198,6 +198,9 @@ final class CompatibilityViewModel {
     private let modelContext: ModelContext
 
     private var computeTask: Task<Void, Never>?
+    /// 本 VM 是否已接管本地名单(恢复过,或本地原本无名单时首写成功)。
+    /// false 时 `persistRoster` 遇本地已有非空名单拒写(防未恢复的空内存名单覆盖)。
+    private var ownsPersistedRoster = false
     private var interpretTask: Task<Void, Never>?
     /// detail 态进入时的 cache 查询 task(完成后续刷新 interpretState)。
     private var cacheReadTask: Task<Void, Never>?
@@ -977,7 +980,22 @@ final class CompatibilityViewModel {
     /// 名单完整持久化(R1):临时对方的 PersonBInput / 称呼 / 出生地 / resolvedHash
     /// 全在 entries 里;`selectedEntryIds.first` 落 `selectedEntryID`(R3)。
     /// 合盘失败不影响名单——本函数不依赖 compute() 成功。
+    ///
+    /// 防覆盖守卫(2026-09-30 review 修复):本 VM 既没跑过恢复、本地又已有非空名单
+    /// (或未迁移的老 key)→ 拒写 + error 日志。典型路径:启动读存档失败 → 错误页
+    /// 重试只 reload 存档没恢复名单 → 内存名单为空 → 用户加一个人就会把本地整份
+    /// 名单覆盖成一人。恢复过(`restoreRosterStateIfAvailable`)或本地本来就空时
+    /// 首写成功后,本 VM 即接管名单所有权,此后照常写。
     private func persistRoster() {
+        if !ownsPersistedRoster {
+            guard !CompatibilityRosterPersistence.hasPersistedRoster() else {
+                AppLogger.persistence.error(
+                    "op=compatibility.persistRoster refused reason=not_restored_but_persisted_roster_exists memory_roster_count=\(self.roster.count, privacy: .public)"
+                )
+                return
+            }
+            ownsPersistedRoster = true
+        }
         CompatibilityRosterPersistence.saveV2(
             personAHash: currentPersonAHash ?? "",
             context: context,
@@ -1115,7 +1133,9 @@ final class CompatibilityViewModel {
         //    临时对方的称呼由 rebuildSummaryFromCache 的 alias 分支保住)
         restoreDetailForSelectionIfCached()
 
-        // 恢复完成,统一落盘一次(清理掉的无效项 / 迁移结果 / 选中)
+        // 恢复完成,统一落盘一次(清理掉的无效项 / 迁移结果 / 选中);
+        // 恢复即接管名单所有权(persistRoster 防覆盖守卫放行)
+        ownsPersistedRoster = true
         persistRoster()
     }
 

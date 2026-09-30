@@ -281,7 +281,13 @@ struct CompatibilityView: View {
             case .failed(let userError):
                 ErrorStateView(
                     userFacingError: userError,
-                    retry: { vm.loadArchivedCharts() }
+                    retry: {
+                        // 重试须同时恢复名单(2026-09-30 review 修复):启动时读存档失败,
+                        // .task 里的恢复因存档为空直接返回;只 reload 不恢复会让结果壳
+                        // 按空名单显示首次进入态,用户再加人即覆盖本地整份名单
+                        vm.loadArchivedCharts()
+                        vm.restoreRosterStateIfAvailable()
+                    }
                 )
             }
         } else {

@@ -149,3 +149,9 @@ sheet 三处小修各加一条:管理模式点行不触发 `onPick`(可以把判
 3. 移出 Lisa(当前对方),杀 App 重开 → Lisa 不在,头部「选择对方」。
 4. 管理模式点行的空白处 → 什么都不发生。
 5. 命主无时辰时,管理模式能移出人。
+
+## 7. 实施后 review 修复(2026-09-30)
+
+- **未恢复即写入会覆盖整份名单**:启动读存档失败 → 错误页重试只调 `loadArchivedCharts()`,没调 `restoreRosterStateIfAvailable()`(`.task` 里那次因存档为空已提前返回)→ 内存名单为空、结果壳显示首次进入态 → 用户加一人即经 `persistRoster()` 把本地名单覆盖成一人。
+- 修复:① 错误页重试改为 reload + restore;② VM 新增 `ownsPersistedRoster` 防覆盖守卫——未恢复过且本地已有非空名单(或老 key 未迁移)时 `persistRoster()` 拒写并记 error;恢复过或本地原本为空时首写后接管,此后照常写。`CompatibilityRosterPersistence.hasPersistedRoster()` 供守卫判定。
+- 测试:`CompatibilityRosterPersistenceV2Tests.testV2_未恢复的VM_本地已有名单_加人不覆盖_恢复后照常写`。
