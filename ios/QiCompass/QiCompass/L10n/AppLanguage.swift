@@ -17,8 +17,12 @@ import Foundation
 /// - **App 内切换**(D6,S4):`Override.system/zh/zhHant/en` 存
 ///   `UserDefaults`(key = `overrideDefaultsKey`),UI 层同时镜像写
 ///   `AppleLanguages` 并引导重启(String Catalog 走 Bundle 解析,重启生效
-///   是方案 A 的既定代价);`current` 读覆盖值即时生效(解读语言/缓存键
-///   不等重启——切换后新生成的解读已是目标语言)。
+///   是方案 A 的既定代价)。
+/// - **启动冻结生效语言**(L1/F2,2026-10-01 语言切换走查):`current` 不再
+///   实时读覆盖值,改读**启动快照**(`launchSnapshotDefaultsKey`,App 启动时
+///   由 `freezeLaunchSnapshot()` 写入)——重启前整个 App(术语 chip / 请求
+///   header / 缓存键 / 新生成解读)保持旧语言,消除「界面旧语言 + 术语新
+///   语言」的同屏混语(违反 D9 三者同语言);重启后快照重写为新选语言。
 ///
 /// zh 变体归一(D4,对齐 backend `resolve_language` 的 `_matchLanguage`;
 /// **S4 起接回**(止血期 2026-09-23~10-01 已随 S2 后端三语齐备而解除):
@@ -64,6 +68,10 @@ enum AppLanguage: String, CaseIterable {
     /// 覆盖值在 UserDefaults 的存储 key(D6:设置项与读取方共用,勿改字面量)。
     static let overrideDefaultsKey = "appLanguageOverride"
 
+    /// 启动快照在 UserDefaults 的存储 key(L1/F2:与设置项双轨——设置项是
+    /// 「用户选了什么」,快照是「本次进程生效什么」,两者在重启前允许不同)。
+    static let launchSnapshotDefaultsKey = "appLanguageLaunchSnapshot"
+
     /// 是否中文语系——供字体 / 生肖 / 宜忌列头等"只区分中文与否"的场景用。
     /// `zh` 与 `zhHant` 均 true;zhHant 在 BaziFont 分流 Kaiti TC(D7)。
     var isChinese: Bool {
@@ -84,10 +92,11 @@ enum AppLanguage: String, CaseIterable {
         }
     }
 
-    /// 当前 App 语言(每次访问实时计算):显式覆盖优先,否则系统语言。
-    /// D9 约束:全仓取语言的唯一入口(含 `currentWire`)。
+    /// 当前 App 语言(L1/F2:读**启动快照**,不再实时读覆盖值)。
+    /// 快照 = 启动时的覆盖档;system 档回落系统语言(`Locale.current` 进程内
+    /// 恒定,与冻结语义一致)。D9 约束:全仓取语言的唯一入口(含 `currentWire`)。
     static var current: AppLanguage {
-        overrideValue?.language ?? systemLanguage
+        launchOverride.language ?? systemLanguage
     }
 
     /// wire 值:缓存键 / `X-QiCompass-Lang` header / SwiftData `language` 字段
@@ -98,17 +107,40 @@ enum AppLanguage: String, CaseIterable {
     }
 
     /// 当前生效的显式覆盖(非法/缺失存储值 → nil,防御坏数据回落系统语言)。
+    /// 注意:这是「用户现在选了什么」(实时),**不是**生效语言——生效语言看
+    /// `launchOverride`。设置行右侧标签 / 重启前 pending 小注消费本值。
     static var overrideValue: Override? {
         guard let raw = UserDefaults.standard.string(forKey: overrideDefaultsKey)
         else { return nil }
         return Override(rawValue: raw)
     }
 
+    /// 启动快照的覆盖档(L1/F2:本次进程冻结的生效档位)。
+    /// 快照缺失(单测未走 App.init / 启动早期访问)→ 回落实时值:与冻结前
+    /// 行为一致,且冻结前后的解析输入相同,语义无缝。
+    /// 坏快照值(非法字符串)同样回落实时值,防御坏数据。
+    static var launchOverride: Override {
+        guard let raw = UserDefaults.standard.string(forKey: launchSnapshotDefaultsKey),
+              let frozen = Override(rawValue: raw)
+        else { return overrideValue ?? .system }
+        return frozen
+    }
+
+    /// 冻结启动快照(QiCompassApp.init 首行调用,**每次启动无条件重写**):
+    /// - 启动时:按当前存储值写入 → 本进程的 `current` / `activeOverrideWire` 锚定
+    /// - 重启后:重写为新选语言 → 自然切换
+    /// - 会话中:设置项变化不影响快照 → 重启前全 App 保持旧语言(半生效消除)
+    static func freezeLaunchSnapshot() {
+        let resolved = overrideValue ?? .system
+        UserDefaults.standard.set(resolved.rawValue, forKey: launchSnapshotDefaultsKey)
+    }
+
     /// 显式覆盖的 wire 值(D6:override ≠ system 时请求层发 `X-QiCompass-Lang`;
     /// 跟随系统时 nil → 不发,后端按 Accept-Language + D4 变体解析)。
+    /// L1/F2:读启动快照——header 与 UI/缓存键同源,重启前三者一致;
     /// 请求层只消费此单一入口,不自行读 UserDefaults。
     static var activeOverrideWire: String? {
-        overrideValue?.language?.rawValue
+        launchOverride.language?.rawValue
     }
 
     /// 系统语言解析(Locale.current → D4 归一,未注册 fallback `.zh`)。

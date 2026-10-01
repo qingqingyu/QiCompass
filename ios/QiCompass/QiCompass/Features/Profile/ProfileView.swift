@@ -55,8 +55,9 @@ struct ProfileView: View {
     @AppStorage("defaultZiHourRule") private var defaultZiHourRule = "zi_next_day"
 
     /// 语言覆盖(D6:四档 system/zh/zh-hant/en;key 与 AppLanguage.overrideDefaultsKey
-    /// 同字面量)。@AppStorage 直写 UserDefaults,AppLanguage.current 即时读到
-    /// (解读语言不等重启);UI 文案经 AppleLanguages 镜像 + 重启生效(方案 A)。
+    /// 同字面量)。@AppStorage 直写 UserDefaults 存「用户选了什么」;生效语言读
+    /// AppLanguage 启动快照(L1/F2)——重启前 App 保持旧语言,行下方常驻
+    /// pending 小注;UI 文案经 AppleLanguages 镜像 + 重启生效(方案 A)。
     @AppStorage(AppLanguage.overrideDefaultsKey) private var languageOverride = "system"
     /// 语言切换后的「重启生效」alert(D6:方案 A 既定 UX,明示而非静默半生效)。
     @State private var showLanguageRestartAlert = false
@@ -644,9 +645,17 @@ struct ProfileView: View {
             ) {
                 Button(String(localized: "好")) {}
             } message: {
-                Text("界面与解读语言将在重启 App 后完全生效;期间新生成的解读已按新语言。")
+                Text(languageRestartAlertMessage)
             }
             .overlay(alignment: .bottom) { sectionDivider }
+            // L1/F2:选择已存、快照未变(未重启)→ 行下常驻小注,直到重启生效
+            if languageRestartPending {
+                Text(languageRestartPendingNote)
+                    .font(BaziFont.caption(size: 10.5))
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+                    .padding(.bottom, 11)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
 
             // 子时规则默认:Menu + Picker(原 List Picker 的开放布局等价物)
             Menu {
@@ -724,16 +733,47 @@ struct ProfileView: View {
         .padding(.top, BaziTheme.Spacing.cmd)
     }
 
-    // MARK: - 语言切换(D6/S4)
+    // MARK: - 语言切换(D6/S4 + L1/F2 启动冻结)
 
     /// 设置行右侧当前档显示(坏存储值防御回落 system,与 AppLanguage 口径一致)。
+    /// 显示**存储值**(用户选了什么),非生效值——生效值重启才变(L1/F2)。
     private var currentLanguageOverride: AppLanguage.Override {
         AppLanguage.overrideValue ?? .system
     }
 
+    /// 是否存在未重启的语言变更(存储值 ≠ 启动快照)。
+    /// L1/F2:重启前 App 冻结旧语言,这里为 true 时行下常驻 pending 小注;
+    /// 重启后 freezeLaunchSnapshot 重写快照 → 两者相等 → 小注消失。
+    private var languageRestartPending: Bool {
+        currentLanguageOverride != AppLanguage.launchOverride
+    }
+
+    /// pending 小注文案(目标语言名跟随存储档;system 档单独措辞)。
+    private var languageRestartPendingNote: String {
+        if currentLanguageOverride == .system {
+            return String(localized: "重启 App 后恢复跟随系统")
+        }
+        return String(
+            format: String(localized: "重启 App 后切换为%@"),
+            currentLanguageOverride.displayLabel
+        )
+    }
+
+    /// 重启 alert 文案(L1/F2:明确「上滑关闭再打开」操作指引——iOS 的「重启」
+    /// 需从多任务上滑杀进程,仅切后台不算;旧文案未讲清,用户以为已重启)。
+    private var languageRestartAlertMessage: String {
+        if currentLanguageOverride == .system {
+            return String(localized: "请从后台上滑关闭 QiCompass 后重新打开，界面与命书、合盘、每日运势将恢复跟随系统语言。")
+        }
+        return String(
+            format: String(localized: "请从后台上滑关闭 QiCompass 后重新打开，界面与命书、合盘、每日运势将全部切换为%@。"),
+            currentLanguageOverride.displayLabel
+        )
+    }
+
     /// 应用语言覆盖:双轨写入(D6 方案 A)。
-    /// ① appLanguageOverride(已由 @AppStorage 写入)→ AppLanguage.current 即时生效,
-    ///    解读语言 / 缓存键 / X-QiCompass-Lang 马上切换;
+    /// ① appLanguageOverride(已由 @AppStorage 写入)→ 存储值,启动快照不动
+    ///    (L1/F2:生效语言 / 缓存键 / X-QiCompass-Lang 冻结到重启,不再半生效);
     /// ② AppleLanguages 镜像 → String Catalog 走 Bundle 解析,重启后 UI 文案生效。
     /// system 档删除 AppleLanguages 恢复跟随系统。切换即弹重启提示(方案 A 既定 UX)。
     private func applyLanguageOverride(_ raw: String) {

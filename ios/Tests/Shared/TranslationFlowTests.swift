@@ -24,8 +24,10 @@ final class TranslationFlowTests: XCTestCase {
 
     override func setUpWithError() throws {
         try super.setUpWithError()
-        // 目标语言 = 繁体(D6 override 直写 UserDefaults,AppLanguage.current 即时生效)
+        // 目标语言 = 繁体(D6 override 直写 UserDefaults)。L1/F2 起生效语言读
+        // **启动快照**——同步注入快照 = 模拟「重启后 zh-hant 生效」的进程
         UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
         container = try ModelContainerFactory.makeInMemory()
         let context = container.mainContext
         apiClient = MockAPIClient()
@@ -64,6 +66,7 @@ final class TranslationFlowTests: XCTestCase {
         apiClient = nil
         container = nil
         UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
         try await super.tearDown()
     }
 
@@ -310,7 +313,12 @@ final class CompatibilityCrossLanguageCacheTests: XCTestCase {
             interpretationReader: reader
         )
         UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
-        defer { UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey) }
+        // L1/F2:生效语言读启动快照,注入快照模拟「重启后 zh-hant 生效」
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
 
         // zh 的 compatibility_free 行(当前语言 zh-hant miss → 跨语言命中)
         try interpretStore.upsert(
@@ -354,7 +362,12 @@ final class CompatibilityCrossLanguageCacheTests: XCTestCase {
             interpretationReader: reader
         )
         UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
-        defer { UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey) }
+        // L1/F2:生效语言读启动快照,注入快照模拟「重启后 zh-hant 生效」
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
 
         // 旧 zh 行 + 当前语言(zh-hant)行并存:后者存在 → 不跨语言
         try interpretStore.upsert(

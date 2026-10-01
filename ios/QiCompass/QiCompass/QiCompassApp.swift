@@ -10,6 +10,10 @@ struct QiCompassApp: App {
     @StateObject private var env: AppEnvironment
 
     init() {
+        // L1/F2(2026-10-01 语言切换走查):进程启动第一件事冻结生效语言快照
+        // ——任何后续代码读 AppLanguage.current 都锚定到本次启动的档位,
+        // 重启前切换设置项不再半生效(界面术语/header/缓存键三者一致)。
+        AppLanguage.freezeLaunchSnapshot()
         AppLogger.app.info("QiCompassApp.init 开始")
         let container: ModelContainer
         do {

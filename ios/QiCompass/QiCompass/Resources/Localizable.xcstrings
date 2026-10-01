@@ -17187,6 +17187,38 @@
         }
       }
     },
+    "重启 App 后切换为%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Will switch to %@ after the app restarts"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重啟 App 後切換為%@"
+          }
+        }
+      }
+    },
+    "重启 App 后恢复跟随系统" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Will follow your system language after the app restarts"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重啟 App 後恢復跟隨系統"
+          }
+        }
+      }
+    },
     "好" : {
       "localizations" : {
         "en" : {
@@ -17203,18 +17235,34 @@
         }
       }
     },
-    "界面与解读语言将在重启 App 后完全生效;期间新生成的解读已按新语言。" : {
+    "请从后台上滑关闭 QiCompass 后重新打开，界面与命书、合盘、每日运势将全部切换为%@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Interface and reading language fully apply after restarting the app. New readings generated meanwhile already use the new language."
+            "value" : "Swipe up to close QiCompass from the app switcher and reopen it. The interface, the book, compatibility, and daily fortune will all switch to %@."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "介面與解讀語言將在重啟 App 後完全生效;期間新生成的解讀已按新語言。"
+            "value" : "請從後台上滑關閉 QiCompass 後重新打開，介面與命書、合盤、每日運勢將全部切換為%@。"
+          }
+        }
+      }
+    },
+    "请从后台上滑关闭 QiCompass 后重新打开，界面与命书、合盘、每日运势将恢复跟随系统语言。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swipe up to close QiCompass from the app switcher and reopen it. The interface, the book, compatibility, and daily fortune will follow your system language again."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "請從後台上滑關閉 QiCompass 後重新打開，介面與命書、合盤、每日運勢將恢復跟隨系統語言。"
           }
         }
       }
