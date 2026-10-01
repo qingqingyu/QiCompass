@@ -3,16 +3,28 @@ import SwiftData
 
 /// "我的" Tab(2026-08-01 grill-me 决策 #17 新增的第 4 个 Tab)。
 ///
+/// 2026-10-01 Me 页合并版(外评「排版回设计稿 + 内容保真机」,spec:
+/// `~/.gstack/projects/qingqingyu-QiCompass/designs/review-fix-20261001/me-final-spec.md`):
+/// - **字距收敛(F1)**:全页 tracking 只剩 owner kicker 与 footer QICOMPASS
+///   两处品牌指纹;区块标题从宽字距小标升级为 `display(17)` 浓墨锚点
+///   (EN serif medium / zh 楷体),层级靠字号不靠字距
+/// - **头部去徽章(F3)**:落款角标移除(EN 下挤断 metaLine 的 "Day/Master"),
+///   登录态唯一落点 = 未登录登录盒(虚线框收组,F2 回归) /
+///   已登录轻状态行(朱印「我」·已钤同步中)
+/// - **名册(F4)**:主命盘不进名册(与命主块重复);过滤后为空 → 整节隐藏
+///   (非命主 link 创建入口已全拔,新用户恒空;老安装存量 link 仍在,隐藏非删码);
+///   行恢复纯导航(→ ChartDetailView),改名/删除收进头部 Edit 编辑态
+/// - **设置(F5/F6)**:子时说明紧跟子时行(重置后果由重置行 trailing 承载);
+///   Language 行显示实际生效语言的 endonym;重置行文字回升浓墨
+///
 /// 2026-09-04 「落款角标 · 一卷到底」重排(design-shotgun A 案拍板,事实源
 /// `~/.gstack/projects/qingqingyu-QiCompass/designs/mine-tab-20260903/`):
 /// 原生 List 分组 → ScrollView 开放长卷(hairline 分节,卡片让位),四项交互决策:
-/// 0. **命主开放块**:生肖印 60 + alias 20pt + 生年·年柱干支·时辰态 meta,
-///    右上**落款角标**表达登录态(已登录 = 朱印「我」·已钤同步中 / 未登录 = 虚线空印「钤」·未钤本机);
+/// 0. **命主开放块**:生肖印 60 + alias 20pt + 生年·年柱干支·日主 meta,
 ///    整块可点 → push 盘面细目页(ChartDetailView,读查分离的「查」)
-/// 1. **登录引导盒**(未登录/失败态):dashed 未钤印 + 官方 SIWA/Google 按钮
+/// 1. **登录引导盒**(未登录/失败态):dashed 未钤印 + 官方 SIWA 按钮
 ///    (HIG/品牌规范锁样式,浓墨 .black 与 inkDeep 视觉同源)
-/// 2. **名册**:UserSnapshotLink 行内**可见**改名/删除(不再藏滑动手势),
-///    命主带「主」朱字小标
+/// 2. **名册**:UserSnapshotLink 全量存档(≠合盘名单,零联动)
 ///    (2026-09-05「＋ 新建命盘」入口移除:多人盘建盘归 v2——家人盘会顶掉
 ///    「最新 link = 命主」语义,劫持命主卡/深度解析/今日运势的取盘)
 /// 3. **已购 / 设置 / 关于**:hairline 分节;已购行两行式——合盘 entitlement 追加
@@ -20,7 +32,8 @@ import SwiftData
 ///    子时规则改 Menu 行,退出登录收进设置(弱化);
 ///    立场三行居中,隐私折叠,版本 + GeoNames 归属收关于节
 ///
-/// 退化态:无命盘/无 entitlements 时显示 placeholder 文案,不报错(状态显式表达)。
+/// 退化态:无 entitlements 时显示 placeholder 文案,不报错(状态显式表达);
+/// 零盘态(重置后)本 Tab 只剩登录盒 + 设置/关于,登录入口不依赖命盘存在。
 struct ProfileView: View {
     @EnvironmentObject private var env: AppEnvironment
     @Query(sort: \UserSnapshotLink.createdAt, order: .reverse)
@@ -63,10 +76,13 @@ struct ProfileView: View {
 
     // MARK: 名册行内操作 state
 
-    /// 待删 link(行内「删除」触发 → confirmationDialog 二次确认)。
+    /// 待删 link(编辑态行内「删除」触发 → confirmationDialog 二次确认)。
     @State private var linkToDelete: UserSnapshotLink?
-    /// 待编辑 link(行内「改名」触发 → 弹 AliasEditView)。
+    /// 待编辑 link(编辑态行内「改名」触发 → 弹 AliasEditView)。
     @State private var linkToEdit: UserSnapshotLink?
+    /// 名册编辑态(F4 2026-10-01):破坏性操作收进显式编辑态——
+    /// 非编辑态行是纯导航(›),编辑态行内浮现改名/删除。
+    @State private var rosterEditing = false
 
     /// onboarding flag(RootTabView 用同 key 监听 onboarding sheet 触发)。
     /// 用 @AppStorage 而非 UserDefaults.standard 让 RootTabView 立即响应(避免 1 runloop 同步延迟)。
@@ -86,6 +102,9 @@ struct ProfileView: View {
                     // 单次求值:命主信息 + 名册行模型(每次访问都 decode payload JSON,
                     // 提取为局部 let 避免 body 内多处 computed 反复 decode——沿袭旧 zodiacMode 注释的教训)。
                     let profile = profileModel
+                    // F4(2026-10-01):主命盘不进名册(与命主块重复,只有「Me」
+                    // 一行时尤其明显);过滤后为空 → 整节隐藏(body 侧条件渲染)。
+                    let rosterVisible = profile.roster.filter { $0.link.id != profile.primary?.linkId }
                     VStack(alignment: .leading, spacing: 0) {
                         if let primary = profile.primary {
                             identityBlock(primary)
@@ -97,16 +116,25 @@ struct ProfileView: View {
                                 )
                             }
                         }
-                        // S2(2026-09-30 BP 评审 R4/R5):登录引导移到名册之后——
-                        // 信息优先级 = 我的命盘 → 名册 → 账号,登录盒不再插在命主块
-                        // 与名册之间抢视觉重量。零盘态约束不变:登录盒不依赖命盘存在,
+                        if !rosterVisible.isEmpty {
+                            rosterSection(rosterVisible)
+                        }
+                        // S2(2026-09-30 BP 评审 R4/R5):账号信息在名册之后——
+                        // 信息优先级 = 我的命盘 → 名册 → 账号。F3(2026-10-01):
+                        // 登录态唯一落点收口到这里——未登录 = 登录盒(虚线钤印 +
+                        // Unsealed 说明),已登录 = 轻状态行(朱印「我」·已钤同步中),
+                        // 状态永不挤头部。零盘态约束不变:登录盒不依赖命盘存在,
                         // 名盘全删空/重置后的未登录用户在本 Tab 仍要有登录入口
                         //(PaywallView 入口需先有命盘才可达,救不了零盘态)。
-                        rosterSection(profile)
-                        if case .signedOut = env.accountManager.state {
+                        switch env.accountManager.state {
+                        case .signedIn:
+                            sealedStatusRow
+                        case .signedOut:
                             loginBox(failedMessage: nil)
-                        } else if case .failed(let message) = env.accountManager.state {
+                        case .failed(let message):
                             loginBox(failedMessage: message)
+                        case .loading:
+                            EmptyView()
                         }
                         entitlementsSection
                         settingsSection
@@ -115,7 +143,9 @@ struct ProfileView: View {
                     }
                     .padding(.horizontal, 34)
                     .padding(.top, 6)
-                    .padding(.bottom, 24)
+                    // 底 padding ≥96(2026-10-01 spec §三):浮动 tab 栏高度 + 间距,
+                    // 保证 footer 在 tab 栏上方完整可见
+                    .padding(.bottom, 96)
                 }
             }
             // D2(2026-09-29 拍板):四 tab 统一去系统导航标题,防系统字体与水墨层打架;
@@ -188,8 +218,10 @@ struct ProfileView: View {
 
     // MARK: - 命主开放块(可点 → 盘面细目页)
 
-    /// 落款角标 + 整块 NavigationLink(design-shotgun A 案:命主卡点击去向已拍板 = ChartDetailView)。
+    /// 整块 NavigationLink(design-shotgun A 案:命主卡点击去向已拍板 = ChartDetailView)。
     /// request 由 `ChartSnapshot.archivedDisplayRequest` 重建(存档直读同源,仅展示用)。
+    /// F3(2026-10-01):右上落款角标移除——EN 下角标挤占文字列宽,metaLine 断在
+    /// "Day/Master" 中间,且「未封存」状态与登录盒重复;登录态唯一落点 = sealedStatusRow。
     private func identityBlock(_ primary: PrimaryProfileInfo) -> some View {
         NavigationLink {
             ChartDetailView(
@@ -202,6 +234,8 @@ struct ProfileView: View {
                 ZodiacAvatarMark(mode: primary.zodiacMode, size: 60)
 
                 VStack(alignment: .leading, spacing: 4) {
+                    // F1(2026-10-01)tracking 豁免之一:owner kicker 品牌指纹保留字距
+                    //(全页仅此处与 footer QICOMPASS 两处)
                     Text("我的命盘 · 命主")
                         .font(BaziFont.caption(size: 10.5))
                         .tracking(3)
@@ -212,21 +246,12 @@ struct ProfileView: View {
                     Text(primary.metaLine)
                         .font(BaziFont.caption(size: 11))
                         .foregroundStyle(BaziTheme.inkMuted)
-                    // M2(2026-10-01 外评「右上偏挤」):入口下沉到身份信息同列——
-                    // 右上只留落款角标(登录态),入口(动作)与身份(信息)分列,
-                    // 不再与角标竖排堆叠。13pt 全称不变(S2 口径,命主块是本 Tab 第一入口)。
+                    // M2(2026-10-01 外评「右上偏挤」):入口下沉到身份信息同列,
+                    // 13pt 全称不变(S2 口径,命主块是本 Tab 第一入口)。
                     Text("查看完整命盘 ›")
                         .font(BaziFont.caption(size: 13))
-                        .tracking(2)
                         .foregroundStyle(BaziTheme.inkMuted)
                         .padding(.top, 2)
-                }
-
-                Spacer(minLength: 12)
-
-                // 落款角标:登录态的固定位置(已钤朱印 / 未钤虚线印 / 加载中)
-                VStack(alignment: .trailing, spacing: 7) {
-                    cornerSeal
                 }
             }
             .padding(.vertical, BaziTheme.Spacing.sm)
@@ -236,59 +261,50 @@ struct ProfileView: View {
         .accessibilityHint("查看盘面细目")
     }
 
-    /// 命主块右上落款角标(AccountManager 三态 + 已登录细分)。
-    @ViewBuilder
-    private var cornerSeal: some View {
-        switch env.accountManager.state {
-        case .signedIn:
-            VStack(spacing: 5) {
-                // 装饰印:登录态由相邻文本「已钤 · 同步中」承载,印本身不进 VoiceOver
-                //(与未登录分支 UnstampedSeal 的 accessibilityHidden 对齐,两分支读法一致)。
-                SealStamp(character: "我", size: 26, rotation: -3, stampDelay: nil)
-                    .accessibilityHidden(true)
-                Text("已钤 · 同步中")
-                    .font(BaziFont.caption(size: 9.5))
-                    .tracking(1.5)
-                    .foregroundStyle(BaziTheme.inkMutedSecondary)
-            }
-        case .signedOut, .failed:
-            VStack(spacing: 5) {
-                UnstampedSeal(character: "钤", size: 26)
-                Text("未钤 · 本机")
-                    .font(BaziFont.caption(size: 9.5))
-                    .tracking(1.5)
-                    .foregroundStyle(BaziTheme.inkMutedSecondary)
-            }
-        case .loading:
-            Text("…")
-                .font(BaziFont.caption(size: 12))
+    /// 已登录轻状态行(F3 2026-10-01):朱印「我」+ 已钤 · 同步中。
+    /// 登录态的唯一展示位(原命主块右上角标的已钤分支迁来)——状态永不挤头部。
+    private var sealedStatusRow: some View {
+        HStack(spacing: 12) {
+            // 装饰印:登录态由相邻文本「已钤 · 同步中」承载,印本身不进 VoiceOver
+            //(与未登录分支 UnstampedSeal 的 accessibilityHidden 对齐,两分支读法一致)。
+            SealStamp(character: "我", size: 26, rotation: -3, stampDelay: nil)
+                .accessibilityHidden(true)
+            Text("已钤 · 同步中")
+                .font(BaziFont.caption(size: 11))
                 .foregroundStyle(BaziTheme.inkMuted)
         }
+        .padding(.top, BaziTheme.Spacing.cmd)
     }
 
-    // MARK: - 登录引导节(未登录 / 失败;S2 移到名册之后并收轻)
+    // MARK: - 登录引导节(未登录 / 失败;S2 移到名册之后)
 
-    /// S2(2026-09-30 BP 评审 R5):44pt 虚线印盒视觉重量压过命主块 → 收轻为
-    /// 名册后的一节(印章 26pt、说明一行);去虚线框——DESIGN.md dashed 专用于
-    /// 锁框/临时态,登录引导是常驻态;与上方名册末行的 hairline 天然分隔,
-    /// 不再自绘分隔线。失败态在按钮上方显式示错(不吞);按钮对与接线收敛在
-    /// LoginGateButtons(2026-09-06,与付费墙同源)。
+    /// 未登录/失败态登录盒。S2(2026-09-30 BP 评审 R5)曾去虚线框收轻;
+    /// 2026-10-01 外评 F2 拍板回归**虚线框收组**(Seal 印 + 说明 + 按钮一组,
+    /// 视觉事实源 me-final.html 的 .login-card)——区块标题升为 serif 锚点后,
+    /// 登录盒需要一组边界与页面对话;同时按钮降权:Apple 按钮 44pt 标准高度
+    /// (全页最重元素是区块标题,不是登录按钮;付费墙侧维持 50,经 buttonHeight
+    /// 注入,不动共用组件默认值)。失败态在按钮上方显式示错(不吞);
+    /// 按钮对与接线收敛在 LoginGateButtons(2026-09-06,与付费墙同源)。
     private func loginBox(failedMessage: String?) -> some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.sm) {
             HStack(spacing: 12) {
                 UnstampedSeal(character: "钤", size: 26)
                 VStack(alignment: .leading, spacing: 3) {
                     Text("钤印为凭 · 登录")
-                        .font(BaziFont.display(size: 13))
-                        .tracking(1)
+                        .font(BaziFont.display(size: 15.5))
                         .foregroundStyle(BaziTheme.ink)
                     Text("命盘与已购跨设备同步 · 不收集出生信息之外的任何资料")
-                        .font(BaziFont.caption(size: 10))
+                        .font(BaziFont.caption(size: 10.5))
                         .foregroundStyle(BaziTheme.inkMuted)
                 }
             }
-            LoginGateButtons(errorMessage: failedMessage)
+            LoginGateButtons(errorMessage: failedMessage, buttonHeight: 44)
         }
+        .padding(BaziTheme.Spacing.md)
+        .overlay(
+            RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
+                .stroke(BaziTheme.hairlineDashed, style: StrokeStyle(lineWidth: 1.2, dash: [4, 3]))
+        )
         .padding(.top, BaziTheme.Spacing.cmd)
     }
 
@@ -333,12 +349,16 @@ struct ProfileView: View {
     }
 
     /// 名册行模型(逐条 decode;失败行降级为纯文本,不阻断整节)。
+    /// F4(2026-10-01):补 snapshot/response 承载——行恢复纯导航(→ ChartDetailView),
+    /// 与命主块同构;nil = 降级行(snapshot 缺失/decode 失败),无导航目标,渲染纯文本行不误导。
     private struct RosterEntry: Identifiable {
         let link: UserSnapshotLink
         let zodiacMode: ZodiacAvatarMode
         let birthYear: Int?
         let yearGanZhi: String?
         let hourUnknown: Bool
+        let snapshot: ChartSnapshot?
+        let response: BaziResponse?
 
         var id: UUID { link.id }
 
@@ -367,7 +387,7 @@ struct ProfileView: View {
                 let snap = chartSnapshots.first(where: { $0.contentHash == link.snapshotHash }),
                 let response = try? env.chartSnapshotStore.decodeResponse(from: snap)
             else {
-                entries.append(RosterEntry(link: link, zodiacMode: .hidden, birthYear: nil, yearGanZhi: nil, hourUnknown: false))
+                entries.append(RosterEntry(link: link, zodiacMode: .hidden, birthYear: nil, yearGanZhi: nil, hourUnknown: false, snapshot: nil, response: nil))
                 continue
             }
             // 生肖印/时辰态单点求值:名册行与命主块共享同一判定结果——
@@ -380,7 +400,9 @@ struct ProfileView: View {
                     zodiacMode: zodiacMode,
                     birthYear: Calendar.current.component(.year, from: snap.birthSolarTime),
                     yearGanZhi: response.pillars.year?.ganZhi,
-                    hourUnknown: needsHour
+                    hourUnknown: needsHour,
+                    snapshot: snap,
+                    response: response
                 )
             )
             if primaryInfo == nil {
@@ -413,7 +435,6 @@ struct ProfileView: View {
                 VStack(alignment: .leading, spacing: 3) {
                     Text(L10n.Profile.addHourEntry)
                         .font(BaziFont.caption(size: 11.5))
-                        .tracking(1.5)
                         .foregroundStyle(BaziTheme.inkMuted)
                     if silenced {
                         Text(L10n.Profile.addHourSilentNote)
@@ -434,46 +455,77 @@ struct ProfileView: View {
 
     // MARK: - 名册(我的命盘)
 
-    private func rosterSection(_ profile: (primary: PrimaryProfileInfo?, roster: [RosterEntry])) -> some View {
+    /// F4(2026-10-01):名册只列**非命主** link(主命盘在上方命主块,重复即噪音;
+    /// 过滤在 body 侧完成,空 → 整节隐藏)。头部 Edit 进编辑态,行内浮现改名/删除
+    /// ——行内常驻红字 Delete 删的还是自己的盘,误触风险高,破坏性操作必须显式进入。
+    /// 已登录尾部注「云端同步 · 共 N 盘」(真机优点保留,N = 过滤后条数与行一致);
+    /// 未登录不加「数据仅存本机」尾注——与登录盒文案重复,信息已在登录盒。
+    private func rosterSection(_ visible: [RosterEntry]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            sectionHeader(
-                String(localized: "名 册"),
-                trailing: accountManagerSignedIn
-                    ? String(format: String(localized: "云端同步 · 共 %lld 盘"), profile.roster.count)
-                    : String(localized: "数据仅存本机")
-            )
-            if profile.roster.isEmpty {
-                Text("还没有命盘")
-                    .font(BaziFont.caption(size: 13))
-                    .foregroundStyle(BaziTheme.inkMuted)
-                    .padding(.vertical, BaziTheme.Spacing.md)
-            } else {
-                // 「主」标按 linkId 对齐命主块(首条**可解码** link),不用 index==0:
-                // 首条 link decode 失败/缺 snapshot 时,index==0 会把「主」标落到
-                // hash 兜底行,与上方命主块(下一条可解码 link)互相矛盾。
-                let primaryId = profile.primary?.linkId
-                ForEach(profile.roster) { entry in
-                    rosterRow(entry, isPrimary: entry.link.id == primaryId)
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(String(localized: "名 册"))
+                    .font(BaziFont.display(size: 17))
+                    .foregroundStyle(BaziTheme.ink)
+                Spacer(minLength: 12)
+                if accountManagerSignedIn {
+                    Text(String(format: String(localized: "云端同步 · 共 %lld 盘"), visible.count))
+                        .font(BaziFont.caption(size: 10.5))
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                        .lineLimit(1)
                 }
+                Button {
+                    withAnimation { rosterEditing.toggle() }
+                } label: {
+                    Text(rosterEditing ? String(localized: "完成") : String(localized: "编辑"))
+                        .font(BaziFont.caption(size: 12.5))
+                        .foregroundStyle(BaziTheme.inkMuted)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.bottom, 2)
+
+            ForEach(visible) { entry in
+                rosterRow(entry)
             }
         }
         .padding(.top, BaziTheme.Spacing.cmd)
     }
 
-    /// 名册行:生肖印 + alias(+命主「主」朱字小标)+ meta + 行内可见改名/删除。
-    private func rosterRow(_ entry: RosterEntry, isPrimary: Bool) -> some View {
+    /// 名册行:非编辑态 = 纯导航行(→ ChartDetailView,与命主块同构);
+    /// 编辑态 = 行内浮现改名/删除(Delete 满色 destructive,确认弹窗兜底)。
+    /// 降级行(snapshot 缺失/decode 失败)无导航目标,渲染纯文本行不带 ›。
+    @ViewBuilder
+    private func rosterRow(_ entry: RosterEntry) -> some View {
+        if rosterEditing {
+            rosterRowContent(entry)
+                .overlay(alignment: .bottom) { sectionDivider }
+        } else if let snapshot = entry.snapshot, let response = entry.response {
+            NavigationLink {
+                ChartDetailView(
+                    response: response,
+                    request: snapshot.archivedDisplayRequest,
+                    onAddHour: { openAddHourSheet(hash: snapshot.contentHash) }
+                )
+            } label: {
+                rosterRowContent(entry)
+            }
+            .buttonStyle(.plain)
+            .overlay(alignment: .bottom) { sectionDivider }
+        } else {
+            rosterRowContent(entry)
+                .overlay(alignment: .bottom) { sectionDivider }
+        }
+    }
+
+    /// 名册行内容:头像 + 别名 + meta,尾随 ›(导航)或改名/删除(编辑态)。
+    private func rosterRowContent(_ entry: RosterEntry) -> some View {
         HStack(spacing: BaziTheme.Spacing.cmd) {
             ZodiacAvatarMark(mode: entry.zodiacMode, size: 36)
 
             VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 8) {
-                    Text(entry.link.alias)
-                        .font(BaziFont.display(size: 15))
-                        .foregroundStyle(BaziTheme.ink)
-                    if isPrimary {
-                        LordTag()
-                    }
-                }
+                Text(entry.link.alias)
+                    .font(BaziFont.display(size: 15))
+                    .foregroundStyle(BaziTheme.ink)
                 Text(entry.metaLine)
                     .font(BaziFont.caption(size: 10.5))
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
@@ -481,36 +533,38 @@ struct ProfileView: View {
 
             Spacer(minLength: 12)
 
-            HStack(spacing: BaziTheme.Spacing.cmd) {
-                Button {
-                    linkToEdit = entry.link
-                } label: {
-                    Text("改名")
-                        .font(BaziFont.caption(size: 10.5))
-                        .tracking(1)
-                        .foregroundStyle(BaziTheme.inkMutedSecondary)
-                        .frame(minWidth: 34, minHeight: 36)
-                        .contentShape(Rectangle())
-                }
-                .buttonStyle(.plain)
+            if rosterEditing {
+                HStack(spacing: BaziTheme.Spacing.cmd) {
+                    Button {
+                        linkToEdit = entry.link
+                    } label: {
+                        Text("改名")
+                            .font(BaziFont.caption(size: 10.5))
+                            .foregroundStyle(BaziTheme.inkMutedSecondary)
+                            .frame(minWidth: 34, minHeight: 36)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
 
-                Button {
-                    linkToDelete = entry.link
-                } label: {
-                    Text("删除")
-                        .font(BaziFont.caption(size: 10.5))
-                        .tracking(1)
-                        .foregroundStyle(BaziTheme.destructive.opacity(0.72))
-                        .frame(minWidth: 34, minHeight: 36)
-                        .contentShape(Rectangle())
+                    Button {
+                        linkToDelete = entry.link
+                    } label: {
+                        Text("删除")
+                            .font(BaziFont.caption(size: 10.5))
+                            .foregroundStyle(BaziTheme.destructive)
+                            .frame(minWidth: 34, minHeight: 36)
+                            .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
                 }
-                .buttonStyle(.plain)
+            } else {
+                Text("›")
+                    .font(BaziFont.caption(size: 12))
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
             }
         }
         .padding(.vertical, 9)
-        .overlay(alignment: .bottom) {
-            sectionDivider
-        }
+        .contentShape(Rectangle())
     }
 
     private var accountManagerSignedIn: Bool {
@@ -625,10 +679,13 @@ struct ProfileView: View {
                 HStack {
                     Text("语言")
                         .font(BaziFont.caption(size: 13))
-                        .tracking(1)
                         .foregroundStyle(BaziTheme.ink)
                     Spacer()
-                    Text("\(currentLanguageOverride.displayLabel) ›")
+                    // F6(2026-10-01):显示**实际生效语言**的 endonym,与界面语言
+                    // 永不脱节——原 override 档名(跟随系统/简体中文/…)是 xcstrings
+                    // 翻译名,EN 界面下会与显示值错位;endonym 是语言自己的名字,
+                    // 「跟随系统」也经 AppLanguage.current 解析到具体语言。
+                    Text("\(AppLanguage.current.endonym) ›")
                         .font(BaziFont.caption(size: 10.5))
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
                 }
@@ -658,7 +715,6 @@ struct ProfileView: View {
                 HStack {
                     Text("子时换日")
                         .font(BaziFont.caption(size: 13))
-                        .tracking(1)
                         .foregroundStyle(BaziTheme.ink)
                     Spacer()
                     Text(defaultZiHourRule == "zi_next_day" ? String(localized: "子时属次日 ›") : String(localized: "早晚子时 ›"))
@@ -668,17 +724,26 @@ struct ProfileView: View {
                 .padding(.vertical, 11)
                 .contentShape(Rectangle())
             }
-            .overlay(alignment: .bottom) { sectionDivider }
+            // F5(2026-10-01):说明紧跟子时行,只讲子时本身——原合并说明段挂在
+            // 设置区末尾,读起来全段在讲重置;重置的后果由重置行 trailing
+            // 「清空全部数据 ›」承载,不再有独立段落。
+            // 2026-09-25 暗色走查 #11 口径保留:去开发术语(snapshot/onboarding),说人话。
+            Text("只影响之后新填表单的初始值;已保存命盘的换算规则随盘保存")
+                .font(BaziFont.caption(size: 10))
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
+                .padding(.vertical, 8)
+                .overlay(alignment: .bottom) { sectionDivider }
 
             // Q20 B:重置命盘 fallback。用户输错生日时清空所有数据重新 onboarding。
             Button {
                 showResetConfirm = true
             } label: {
                 HStack {
+                    // F6(2026-10-01):label 回升浓墨——原 inkMuted 灰字让重置行
+                    // 看起来像禁用;与 Language / 子时行同权重,trailing 值保持弱色
                     Text("重置命盘")
                         .font(BaziFont.caption(size: 13))
-                        .tracking(1)
-                        .foregroundStyle(BaziTheme.inkMuted)
+                        .foregroundStyle(BaziTheme.ink)
                     Spacer()
                     Text("清空全部数据 ›")
                         .font(BaziFont.caption(size: 10.5))
@@ -700,7 +765,6 @@ struct ProfileView: View {
                     HStack {
                         Text("退出登录")
                             .font(BaziFont.caption(size: 13))
-                            .tracking(1)
                             .foregroundStyle(BaziTheme.inkMuted)
                         Spacer()
                         if case .signedIn(let user) = env.accountManager.state {
@@ -714,22 +778,11 @@ struct ProfileView: View {
                 }
                 .buttonStyle(.plain)
             }
-
-            // 2026-09-25 暗色走查 #11:去开发术语(snapshot/onboarding),说人话。
-            Text("影响之后新填表单的初始值。已保存的命盘不受影响(换算规则随命盘一起保存)。重置命盘会清空全部数据并重新开始设置。")
-                .font(BaziFont.caption(size: 10))
-                .foregroundStyle(BaziTheme.inkMutedSecondary)
-                .padding(.top, 8)
         }
         .padding(.top, BaziTheme.Spacing.cmd)
     }
 
     // MARK: - 语言切换(D6/S4)
-
-    /// 设置行右侧当前档显示(坏存储值防御回落 system,与 AppLanguage 口径一致)。
-    private var currentLanguageOverride: AppLanguage.Override {
-        AppLanguage.overrideValue ?? .system
-    }
 
     /// 应用语言覆盖:双轨写入(D6 方案 A)。
     /// ① appLanguageOverride(已由 @AppStorage 写入)→ AppLanguage.current 即时生效,
@@ -776,7 +829,6 @@ struct ProfileView: View {
             VStack(spacing: 4) {
                 Text(L10n.Profile.aboutStanceTitle)
                     .font(BaziFont.caption(size: 10))
-                    .tracking(3)
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
                     .padding(.bottom, 2)
                 Text(L10n.Profile.aboutStance1)
@@ -844,13 +896,14 @@ struct ProfileView: View {
 
     private var footer: some View {
         VStack(spacing: 3) {
+            // F1(2026-10-01)tracking 豁免之二:QICOMPASS 品牌字 LatinCaps
+            // 大字距是 DESIGN.md 指纹(全页仅此处与 owner kicker 保留)
             Text("QICOMPASS")
                 .font(BaziFont.latinCaps(size: 8))
                 .tracking(4.5)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
             Text("玄机问道 · 专业不忽悠")
                 .font(BaziFont.caption(size: 9.5))
-                .tracking(2.5)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
         }
         .frame(maxWidth: .infinity)
@@ -866,17 +919,18 @@ struct ProfileView: View {
             .frame(height: 0.5)
     }
 
+    /// 分节标题(F1 2026-10-01):`display(17)` 浓墨锚点(EN serif medium /
+    /// zh 楷体)——区块标题是整页层级锚点,不再靠字距撑;trailing 尾注
+    /// caption(10.5) 无 tracking。
     private func sectionHeader(_ title: String, trailing: String? = nil) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(title)
-                .font(BaziFont.caption(size: 10))
-                .tracking(4)
-                .foregroundStyle(BaziTheme.inkMutedSecondary)
+                .font(BaziFont.display(size: 17))
+                .foregroundStyle(BaziTheme.ink)
             Spacer(minLength: 12)
             if let trailing {
                 Text(trailing)
-                    .font(BaziFont.caption(size: 9.5))
-                    .tracking(1)
+                    .font(BaziFont.caption(size: 10.5))
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
                     .lineLimit(1)
             }
@@ -1025,25 +1079,6 @@ private struct UnstampedSeal: View {
             )
             .rotationEffect(.degrees(-3))
             .accessibilityHidden(true)
-    }
-}
-
-// MARK: - LordTag(命主朱字小标)
-
-/// 名册首行「主」字小标:朱描边 + 朱字 + 轻微旋转(印章级朱红,小元素)。
-private struct LordTag: View {
-    var body: some View {
-        Text("主")
-            .font(BaziFont.caption(size: 9))
-            .foregroundStyle(BaziTheme.cinnabar)
-            .padding(.horizontal, 5)
-            .padding(.vertical, 1)
-            .overlay(
-                RoundedRectangle(cornerRadius: 2)
-                    .stroke(BaziTheme.cinnabar.opacity(0.5))
-            )
-            .rotationEffect(.degrees(-4))
-            .accessibilityLabel("命主")
     }
 }
 

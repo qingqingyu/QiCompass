@@ -24,6 +24,9 @@ struct LoginGateButtons: View {
     var errorMessage: String? = nil
     /// 失败文案颜色(见类型注释,两个调用方语境不同)。
     var errorColor: Color = BaziTheme.destructive
+    /// Apple 按钮高度(默认 50 与付费墙一致;ProfileView 登录盒传 44 降权,
+    /// 2026-10-01 Me 页 F2——共用组件默认值不动,调用方按语境注入)。
+    var buttonHeight: CGFloat = 50
 
     var body: some View {
         VStack(spacing: BaziTheme.Spacing.sm) {
@@ -34,7 +37,7 @@ struct LoginGateButtons: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: .infinity)
             }
-            AppleSignInButton { result in
+            AppleSignInButton(height: buttonHeight) { result in
                 env.accountManager.handleAuthorization(result)
             }
         }

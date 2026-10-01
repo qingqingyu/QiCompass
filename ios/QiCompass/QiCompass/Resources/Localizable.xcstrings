@@ -13403,13 +13403,29 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zi hour rolls over ›"
+            "value" : "23:00 starts the next day ›"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "子時屬次日 ›"
+          }
+        }
+      }
+    },
+    "只影响之后新填表单的初始值;已保存命盘的换算规则随盘保存" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Sets the first guess for new birth forms only — saved charts keep their own setting."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "只影響之後新填表單的初始值;已保存命盤的換算規則隨盤保存"
           }
         }
       }
@@ -13710,29 +13726,6 @@
         }
       }
     },
-    "影响之后新填表单的初始值。已保存的命盘不受影响(换算规则随命盘一起保存)。重置命盘会清空全部数据并重新开始设置。" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Affects only the initial values of new forms. Saved charts are unaffected (conversion rules are stored with each chart). Resetting clears all data and restarts setup."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "影响之后新填表单的初始值。已保存的命盘不受影响(换算规则随命盘一起保存)。重置命盘会清空全部数据并重新开始设置。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "影響之後新填表單的初始值。已保存的命盤不受影響(換算規則隨命盤一起保存)。重置命盤會清空全部數據並重新開始設置。"
-          }
-        }
-      }
-    },
     "性别" : {
       "localizations" : {
         "en" : {
@@ -14019,25 +14012,34 @@
         }
       }
     },
-    "数据仅存本机" : {
-      "extractionState" : "manual",
+    "编辑" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Kept on this device only"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "数据仅存本机"
+            "value" : "Edit"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "數據僅存本機"
+            "value" : "編輯"
+          }
+        }
+      }
+    },
+    "完成" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Done"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "完成"
           }
         }
       }
@@ -14480,22 +14482,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "未選擇"
-          }
-        }
-      }
-    },
-    "未钤 · 本机" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Unsealed · this device"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "未鈐 · 本機"
           }
         }
       }
@@ -16630,22 +16616,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "返回表單"
-          }
-        }
-      }
-    },
-    "还没有命盘" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "No chart yet"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "還沒有命盤"
           }
         }
       }
