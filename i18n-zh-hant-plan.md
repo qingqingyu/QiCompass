@@ -1,6 +1,7 @@
 # QiCompass 繁体中文 + App 内语言切换 方案
 
-**状态**:2026-09-07 拍板(zh-Hant 进 v1 + 语言切换从 v2 提前),方案文档,未实施
+**状态**:2026-09-07 拍板(zh-Hant 进 v1 + 语言切换从 v2 提前),方案文档,部分实施(见 §2.1)
+**2026-10-01 增补**:D9(界面与解读共用一个语言开关)+ D10(已生成的深度解析 / 合盘切换语言时**翻译原文**,不重新解读)+ S6/S7 两个 slice
 **上游文档**:`i18n-implementation-plan.md`(2026-08-12,16 决策 + 11 slice 计划,本文档修订其中两项)
 **范围**:后端 + iOS 全链路 zh-Hant 支持;App 内语言切换(跟随系统 / 简体 / 繁体 / English)
 
@@ -45,9 +46,22 @@
 | G6 | 农历/字体单语 | `BaziDateFormatter.lunar` 恒 zh_CN;`Font.custom("Kaiti SC")` 恒简体楷体 |
 | G7 | 无语言切换 UI | v1 跟随系统,无入口 |
 
+### 2.1 实施进度(2026-10-01 核实)
+
+> 代码注释里的 T0-T5 编号来自另一份交接文档,与本文 slice 的对应关系:T1≈S1(en 模板)、T2≈S2 后端繁体注册 + `resolve_language` 变体解析、T3≈S2 繁体模板、T4≈S3 xcstrings、T5≈S4 App 内切换。
+
+| 项 | 状态 |
+|---|---|
+| G1 en 模板 | ✅ `prompts/en/` 已含 M0-M7 + compatibility_free/paid + daily 全套;仅剩 4 个 alias 老模块(bazi_deep×3 + compatibility)在 `_LEGACY_TEMPLATES` 只有中文 |
+| T0 `AppLanguage` 类型化枚举 | ✅ `ios/.../L10n/AppLanguage.swift`(`zh` / `zhHant` / `en`,wire 全小写) |
+| zh-Hant 后端 | ❌ `zh-hant` 未注册 `TERM_TRANSLATIONS`,无 `prompts/zh-hant/`,`resolve_language` 仍把 zh 变体坍缩为 `zh` |
+| zh-Hant iOS | ⏸ **止血中**:`AppLanguage.systemLanguage` 的 zh 分支恒返回 `.zh`(D4 实现保留在 `normalizeZhVariant`,S2 合入后接回);xcstrings zh-Hant 列 238 key 已人工校对但已撤列暂存(commit `74c60e5`) |
+| 语言切换 UI / `X-QiCompass-Lang` 发送 | ❌ 未做(后端已支持该 header) |
+| 已生成解读的跨语言处理 | ❌ 未设计 → 本次 D10 |
+
 ---
 
-## 3. 方案决策(D1-D8)
+## 3. 方案决策(D1-D10)
 
 ### D1:zh-Hant 术语表 = 显式注册表,不引 OpenCC
 
@@ -102,6 +116,85 @@
 
 - ASC 加 zh-Hant App 信息本地化(台湾/港/澳商店页名称、副标题、关键词、描述);截图 v1 复用简体(后续迭代再补繁体截图)
 
+### D9:界面语言与解读语言 = 同一个开关(2026-10-01 用户拍板)
+
+- **决策**:只有 D6 那一个「语言 / Language」设置项,同时决定 UI 文案、命盘术语显示(`BaziTerms`)和三模块 AI 解读语言。**不做**独立的「解读语言」开关
+- **理由**:
+  1. 主诉求(英文系统的海外华人想看中文命书)D6 的 override 已覆盖
+  2. 拆开会同屏混语:术语 chip / 章节标签走 `AppLanguage.current`,正文走 LLM 输出语言,出现「Wealth Rival」标签配「劫財」正文
+  3. evalkit / `check_term_sync` / 缓存键都按单一语言设计,拆开组合翻倍
+- **实现约束**:全仓只允许经 `AppLanguage.current` / `currentWire` 取语言;禁止新增第二个语言来源
+
+### D10:已生成的深度解析 / 合盘切换语言 = 翻译原文,不重新解读(2026-10-01 用户拍板)
+
+**问题**:缓存键含 `language`,切换语言后原解读查不到 → 若走 `/api/interpret` 会重新调 LLM 生成。LLM 非确定性 → 同一张盘换个语言结论可能变(「换语言命就变了」,违背「专业不忽悠」);深度解析 8 模块长文重生成成本也高。
+
+**决策**:
+
+| 模块 | 切换语言后的行为 |
+|---|---|
+| 深度解析 v1(`m0_structure` ~ `m7_manual`) | **翻译**已有正文 |
+| 合盘(`compatibility_free` / `compatibility_paid`) | **翻译**已有正文 |
+| 每日运势(`daily_fortune`) | 直接按新语言**重新生成**(短、24h 缓存,前后不一致无所谓) |
+| alias 老模块(`bazi_deep*` / `compatibility`) | 不支持翻译,维持原行为(老 App 兼容路径,不投入) |
+
+#### D10.1 后端:新端点 `POST /api/interpret/translate`
+
+- **请求体** = `InterpretRequest` 全部字段(`content_hash` / `module` / `context` / `parent_fingerprint` / `m4_*` / `m5_*` / 合盘名字等,**内容按目标语言请求 `/api/interpret` 时会发的那份**)+ 三个新字段:
+  - `source_language`:原文语言(`zh` / `zh-hant` / `en`)
+  - `source_prompt_version`:原文缓存行的 `prompt_version`
+  - `source_interpretation`:原文全文(客户端 SwiftData 里那份)
+- **目标语言** = `resolve_language(request)`(与 `/api/interpret` 同口径,iOS 已按 D6 发 `X-QiCompass-Lang`);`source_language == 目标语言` → 422
+- **模块白名单**:仅 `V1_MODULES ∪ {compatibility_free, compatibility_paid}`,其余 422
+- **门控**:付费模块走与 `/api/interpret` **完全相同**的 entitlement 检查(`entitlement_base_module`),权益与语言无关,翻译不另收费、不消耗任何次数
+- **陈旧原文**:`source_prompt_version != PROMPT_VERSIONS[module]` → 409 `STALE_SOURCE`(原文来自旧 prompt,本来就该重生成;客户端收到后走正常 `/api/interpret`)
+- **长度上限**:`source_interpretation` 设硬上限(按该模块 max_tokens 折算字符数 ×1.5),超限 422——防止把端点当免费通用翻译器
+- **缓存键对齐(关键)**:翻译结果写入后端 SQLite 时,`CacheKey` 必须与「目标语言下 `/api/interpret` 会算出的 key」**逐字段相等**(含按目标语言模板渲染出的 `prompt_hash`、`parent_hash`、`user_input_hash`、`language=目标语言`)。做法:把 `interpret()` 里「校验 → 渲染 → 算 CacheKey」抽成共享函数,两个端点共用,禁止复制粘贴。效果:之后任何设备以目标语言请求 `/api/interpret` 都命中翻译版,不会再生成一份不同结论
+- **先查后译**:目标 key 已命中缓存 → 直接返回(`cached=true`),不调 LLM;并发同 key 走现有 singleflight
+- **响应**:复用 `InterpretResponse`(`language` = 目标语言,`prompt_version` = 目标模块当前版本)。新增可选字段 `translated_from: str | None`(原文语言,`/api/interpret` 恒为 null)供客户端埋点 / 调试;**不改 SQLite 表结构**(`_drop_legacy_cache_if_needed` 遇列变化会整表 drop,代价是全量缓存失效),来源只打日志 `interpret.translate source_language=… target=…`
+
+#### D10.2 翻译 prompt
+
+- 新模板 `prompts/{zh,zh-hant,en}/translate_v1.md`(按**目标语言**取文件),`PROMPT_VERSIONS["translate"] = 1`;`translate` **不进** v1 module 清单(不影响 `check_prompt_sync.py` 的三边 module ID 校验,但动了 `prompts.py` 仍须跑该脚本 PASS)
+- 模板硬约束:只做语言转换,**禁止增删改任何判断、吉凶倾向、年份、干支、数字**;不扩写不缩写;保持段落数
+- **术语表注入**:从 `TERM_TRANSLATIONS` 取 源→目标 的术语对(十神 / 神煞 / 五行 / 纳音等)拼进 prompt,要求严格照表译。en→中文方向需要反查表:构建时检测一对多冲突,冲突**显式抛错**(不静默取第一个)
+- **格式约束**:
+  - v1 模块:输入是 JSON 对象 → 输出必须是**同构** JSON:key 原样不译,只译字符串值;数字 / 布尔 / null 原样
+  - 合盘:章节标题行必须换成目标语言模板的格式(zh/zh-hant「第一章 五行共振」,en「Chapter 1 Five Element Resonance」),iOS 章节解析依赖此格式;两人名字(`name_a` / `name_b`)原样保留不译
+  - 目标语言模板里的「全文用××书写」指令同样写进翻译 prompt(繁体:「請用繁體中文輸出」)
+
+#### D10.3 输出校验(失败 = 显式错误,不写缓存)
+
+1. v1 模块:剥围栏后 `json.loads`;与原文 JSON **递归同构**(key 集合相同、数组长度相同、非字符串值逐值相等)。不满足 → `AIProviderError`
+2. 合盘:章节数与原文相同;两人名字在原文出现过的,译文里也必须出现
+3. 走现有 `forbidden_words.validate_interpretation`(与 `/api/interpret` 同一道)
+4. 合盘照常走 `_replace_ab_labels` 后置处理(兜底 A/B 代号)
+
+任一失败 → 502 / `AIProviderError` 向上抛,客户端显示可重试错误;**禁止**回退成「返回原文」或「静默改走重新生成」。
+
+#### D10.4 iOS:深度解析的链式依赖
+
+M1-M7 的 `parent_fingerprint` 和 context 里的 `main_axis` / `core_loop` 来自 M0 输出的**自然语言文本**——翻译后这些值变了,M1-M7 目标语言 key 的 `parent_hash` 也随之变。规则:
+
+1. **先译 M0**,拿到译后 JSON,按现有 VM 逻辑解析出目标语言的 `structure_fingerprint` / `main_axis` / `core_loop`
+2. 再按顺序译 M1-M7,请求的 `parent_fingerprint` / context 用**译后 M0** 的值(即目标语言下正常链式调用会发的值)——这样 D10.1 的 key 对齐才成立
+3. 只译原文语言里**已经存在**的模块;原文没生成过的模块,在目标语言下按正常 `/api/interpret` 生成(链上游已是译后 M0,叙事一致)
+4. 任一模块翻译失败:已成功的保留,失败的显示重试,不回滚
+
+#### D10.5 iOS:交互
+
+- 打开深度解析 / 合盘报告时:先按 `AppLanguage.currentWire` 查 `InterpretationCache`;**未命中**再查同 `(contentHash, module)`、`promptVersion` 一致、其它语言的行
+  - 找到原文 → **先显示原文**,顶部一条 hairline 提示条:「此报告以简体中文生成 · 翻译为繁體中文」(按钮文案随源/目标语言走 L10n)。点按钮才发翻译请求,**不自动批量翻译**
+  - 找不到 → 正常生成
+- 视觉遵守 DESIGN.md:提示条用 hairline(ink@18%),按钮不用朱红;翻译中复用现有模块 loading 态
+- 翻译结果按 `resp.language` 写入 SwiftData(与生成结果同表同键,无需新字段)
+- 每日运势不出提示条,直接按新语言生成
+
+#### D10.6 已知风险(接受)
+
+- 客户端提交原文 = 理论上可提交任意文本让后端翻译:靠模块白名单 + 付费模块 entitlement + 长度上限 + v1 JSON 同构校验(不是该模块形状的 JSON 会被拒)限制;v1 不做额外限流
+- 翻译 prompt 后续改版(bump `translate` 版本)不会让已缓存的译文失效(译文存在目标模块 key 下)——可接受,译文问题少;必要时手动清缓存
+
 ---
 
 ## 4. Slice 计划
@@ -112,9 +205,11 @@
 | **S2** | 后端 zh-Hant | `term_translations.py` 注册 zh-Hant 全量表;`prompts/zh-hant/` 9 文件;`resolve_language` zh 变体解析(D4)+ `is_language_supported` 扩展;`test_i18n.py` 扩 zh-Hant(zh-TW/zh-HK header / X-QiCompass-Lang) | S1 | 1-2 天 |
 | **S3** | iOS 文案层 | xcstrings 三语补全(D7);`ChapterContent.labels` L10n 化;knownRegions;硬编码中文扫描收尾(字面量 key 逐步转 dot-key,不强求一次清零) | 无(可与 S1/S2 并行) | 3-5 天 |
 | **S4** | iOS 语言切换 | ProfileView 语言设置项;`AppLanguage` override 改造 + zh 变体解析;X-QiCompass-Lang 发送;BaziDateFormatter / 字体 per-language;缓存键对齐验证 | S2 S3 | 1-2 天 |
-| **S5** | 验收 | 繁体真机三模块走查;en deep/compat 走查(不再 500);LLM 繁体输出 10 盘 spot check;ASC zh-Hant listing | S1-S4 | 1 天 |
+| **S6** | 后端翻译端点(D10.1-D10.3) | 抽「校验→渲染→CacheKey」共享函数;`POST /api/interpret/translate`;`translate_v1.md` 三语模板 + 术语对注入(含反查冲突检测);同构 / 章节 / 名字 / 禁词校验;pytest:key 对齐(翻译后以目标语言调 `/api/interpret` 命中缓存且 `cached=true`)、STALE_SOURCE、白名单、entitlement 403、同构失败不写缓存;`check_prompt_sync.py` PASS | S1(zh↔en 可先做);zh-hant 方向依赖 S2 | 2-3 天 |
+| **S7** | iOS 翻译接入(D10.4-D10.5) | APIClient + DTO(`translated_from`);跨语言缓存查找;提示条 UI + L10n key;深度解析 M0→M7 顺序翻译与链式取值;合盘翻译;单测覆盖「译后 M0 字段驱动 M1 请求」 | S4、S6 | 2 天 |
+| **S5** | 验收 | 繁体真机三模块走查;en deep/compat 走查(不再 500);LLM 繁体输出 10 盘 spot check;**翻译前后结论一致性 spot check(D10)**;ASC zh-Hant listing | S1-S4、S6、S7 | 1-1.5 天 |
 
-**总量约 8-13 天**。S3 是工作量主体(翻译 + 校对),可与后端 S1/S2 并行。
+**总量约 12-18 天**(含 S6/S7)。S3 是工作量主体(翻译 + 校对),可与后端 S1/S2 并行。
 
 ---
 
@@ -126,6 +221,10 @@
 - [ ] `python -m evalkit.runner` 无 regression;动了 REQUIRED_FIELDS 相关实现则 `tools/check_prompt_sync.py` PASS
 - [ ] backend pytest 全绿(含 test_i18n 扩展);iOS 全量 XCTest 绿(含 GoldenQueriesTests)
 - [ ] 语言切换 alert 引导重启后,所选语言全链路生效(UI + 后端解读 + 缓存)
+- [ ] (D9)全仓语言来源只有 `AppLanguage.current`;UI、术语 chip、解读正文三者始终同语言
+- [ ] (D10)简体下生成完整深度解析(M0-M7)+ 合盘 → 切繁体 → 先显示简体原文 + 提示条 → 点翻译 → 繁体版判断/年份/干支与原文逐条一致;不触发付费墙、不消耗次数
+- [ ] (D10)翻译后在另一台同账号设备(或清 iOS 本地缓存后)以目标语言打开,后端返回 `cached=true` 的同一份译文,而非新生成
+- [ ] (D10)切语言后每日运势直接按新语言生成,无提示条
 
 ---
 
@@ -138,6 +237,8 @@
 | xcstrings 并行会话撞车(09-01 实踩) | 严格按既有 key 级三方合并规程 + 合并后钉点跑 xcodebuild 验证 build 级完好 |
 | AppleLanguages 重启生效的 UX 摩擦 | 切换时 alert 明示"重启后生效";v1 接受,v2 再考虑热切换 |
 | 台/港用词差异(軟體 vs 軟件) | v1 统一台版;收集反馈后迭代(prompt/文案改动走版本号失效缓存) |
+| 翻译改动了判断 / 年份 / 干支(D10) | 模板硬约束 + v1 JSON 同构校验 + S5 一致性 spot check;发现即修翻译 prompt |
+| 译后 M0 字段与 M1-M7 请求不一致 → key 错位、每次重生成(D10.4) | S6 pytest 锁「翻译后目标语言 `/api/interpret` 命中」;S7 单测锁链式取值 |
 | 字面量 key(165 个)翻译遗漏 | Xcode 自动抽取的 key 以源文案为 key,漏翻 fallback 显示简体不 crash;S3 结束用 UI 走查清单逐屏核对 |
 
 ---
@@ -151,6 +252,10 @@
 | es / ja 等其他语种 | 仍按 08-12 plan:v1 上线 60-90 天看 ASC 数据决策 |
 | 语言热切换(不重启) | v2,视重启摩擦反馈再立项 |
 | 繁体版专属截图 / 营销素材 | v1 复用简体,后续迭代 |
+| 独立的「解读语言」开关(D9) | 不做,与界面共用一个开关 |
+| 切换语言时自动批量翻译全部报告(D10) | 不做,打开报告时用户点按钮才翻译 |
+| alias 老模块 / 每日运势的翻译(D10) | 不做;每日运势直接重生成 |
+| 为记录翻译来源改 SQLite 表结构(D10.1) | 不做,只打日志 |
 
 ---
 
@@ -160,9 +265,9 @@
 - [ ] CLAUDE.md 全局约束(错误显式传播 / 不擅自加依赖 / 三段式 commit)
 - [ ] 单元测试覆盖新代码;动 prompt 相关跑 evalkit + check_prompt_sync
 - [ ] xcstrings 合并走 key 级三方规程
-- [ ] PR/commit 描述引用本文档决策编号(D1-D8)
+- [ ] PR/commit 描述引用本文档决策编号(D1-D10)
 
 ---
 
-**文档版本**:v1.0(2026-09-07)
-**拍板记录**:用户 2026-09-07 决定加繁体 + 语言选择,委托评估后成文
+**文档版本**:v1.1(2026-10-01,增补 D9/D10 + S6/S7);v1.0(2026-09-07)
+**拍板记录**:用户 2026-09-07 决定加繁体 + 语言选择,委托评估后成文;2026-10-01 拍板界面与解读共用一个语言开关(D9)、已生成报告切换语言用翻译而非重新解读(D10)
