@@ -135,6 +135,7 @@
 		A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */; };
 		A00000000000000000000043 /* Shared/BaziTermsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000043 /* Shared/BaziTermsTests.swift */; };
 		9C2ECF614CADE1AAEFCB60F2 /* Shared/BaziTermNotesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0F8084E7453944F40781F3 /* Shared/BaziTermNotesTests.swift */; };
+		9C4F3D4E5F6A7B8C9D0E1F2B /* Shared/TranslationFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C4F3D4E5F6A7B8C9D0E1F2A /* Shared/TranslationFlowTests.swift */; };
 		9C4F1A2B3C5D7E9F0A1B2C3E /* Shared/AppLanguageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C4F1A2B3C5D7E9F0A1B2C3D /* Shared/AppLanguageTests.swift */; };
 		A00000000000000000000021 /* Shared/ZodiacRevealTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000021 /* Shared/ZodiacRevealTests.swift */; };
 		A00000000000000000000008 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A21000000000000000000001 /* XCTest.framework */; };
@@ -168,6 +169,7 @@
 		B1RTH2C0NF1RM0001 /* BirthInfoConfirmSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = B1RTH2C0NF1RM0000 /* BirthInfoConfirmSheet.swift */; };
 		B36D4647A938BC37E999E702 /* DailyReadCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23C84BD0B1E670AC7EF54B93 /* DailyReadCounter.swift */; };
 		D26047CCB90DDAA99C1B6D7D /* InterpretationCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AF74383AEB02A4F7ED0C689 /* InterpretationCacheStore.swift */; };
+		9C4F2C3D4E5F6A7B8C9D0E2F /* TranslateHintBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C4F2C3D4E5F6A7B8C9D0E1F /* TranslateHintBar.swift */; };
 		E22A4DA18C53C38BBC80783C /* ChartHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */; };
 		E40D46498BC532F986012E83 /* ShenshaChips.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91C4716AE1411C309FEBE65 /* ShenshaChips.swift */; };
 		F5DE2EFF3006596F0089996B /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5DE2EFE3006596F0089996B /* OnboardingView.swift */; };
@@ -188,6 +190,7 @@
 		18B14E9FA1316D589ABA9845 /* ElementColors.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ElementColors.swift; path = QiCompass/Shared/ElementColors.swift; sourceTree = SOURCE_ROOT; };
 		23C84BD0B1E670AC7EF54B93 /* DailyReadCounter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyReadCounter.swift; path = QiCompass/Services/DailyReadCounter.swift; sourceTree = SOURCE_ROOT; };
 		2AF74383AEB02A4F7ED0C689 /* InterpretationCacheStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InterpretationCacheStore.swift; path = QiCompass/Services/InterpretationCacheStore.swift; sourceTree = SOURCE_ROOT; };
+		9C4F2C3D4E5F6A7B8C9D0E1F /* TranslateHintBar.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TranslateHintBar.swift; path = QiCompass/Shared/TranslateHintBar.swift; sourceTree = SOURCE_ROOT; };
 		36F14142AE8D5D39E818F777 /* CurrentStatusCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CurrentStatusCard.swift; path = QiCompass/Features/DeepAnalysis/CurrentStatusCard.swift; sourceTree = SOURCE_ROOT; };
 		4255481FAAC0FE0B73318A8D /* XijiCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = XijiCard.swift; path = QiCompass/Features/DeepAnalysis/XijiCard.swift; sourceTree = SOURCE_ROOT; };
 		4E934C0BB8DC936F13BAC016 /* AuxiliaryCards.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AuxiliaryCards.swift; path = QiCompass/Features/DeepAnalysis/AuxiliaryCards.swift; sourceTree = SOURCE_ROOT; };
@@ -317,6 +320,7 @@
 		A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/UserFacingErrorTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000043 /* Shared/BaziTermsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/BaziTermsTests.swift; sourceTree = "<group>"; };
 		9C0F8084E7453944F40781F3 /* Shared/BaziTermNotesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/BaziTermNotesTests.swift; sourceTree = "<group>"; };
+		9C4F3D4E5F6A7B8C9D0E1F2A /* Shared/TranslationFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/TranslationFlowTests.swift; sourceTree = "<group>"; };
 		9C4F1A2B3C5D7E9F0A1B2C3D /* Shared/AppLanguageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/AppLanguageTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000021 /* Shared/ZodiacRevealTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ZodiacRevealTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000008 /* AI/CachedInterpretationReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AI/CachedInterpretationReaderTests.swift; sourceTree = "<group>"; };
@@ -399,6 +403,7 @@
 				AA5500000000000000000002 /* UserSnapshotLinkStore.swift */,
 				160B487DB2FB51858CB5F067 /* ChartSnapshotStore.swift */,
 				2AF74383AEB02A4F7ED0C689 /* InterpretationCacheStore.swift */,
+				9C4F2C3D4E5F6A7B8C9D0E1F /* TranslateHintBar.swift */,
 				9C1000000000000000000041 /* UserIdentity.swift */,
 				9C1000000000000000000042 /* EntitlementStore.swift */,
 				9C1000000000000000000044 /* PurchaseManager.swift */,
@@ -648,6 +653,7 @@ A11000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift */,
 				A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */,
 				A11000000000000000000043 /* Shared/BaziTermsTests.swift */,
 				9C0F8084E7453944F40781F3 /* Shared/BaziTermNotesTests.swift */,
+				9C4F3D4E5F6A7B8C9D0E1F2A /* Shared/TranslationFlowTests.swift */,
 				9C4F1A2B3C5D7E9F0A1B2C3D /* Shared/AppLanguageTests.swift */,
 				A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */,
 				A11000000000000000000016 /* Paywall/PaywallContractStepTests.swift */,
@@ -805,6 +811,7 @@ A11000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift */,
 				2CF14E7694F9DC7818B883FA /* ChartSnapshotStore.swift in Sources */,
 				AA5500000000000000000001 /* UserSnapshotLinkStore.swift in Sources */,
 				D26047CCB90DDAA99C1B6D7D /* InterpretationCacheStore.swift in Sources */,
+				9C4F2C3D4E5F6A7B8C9D0E2F /* TranslateHintBar.swift in Sources */,
 				B36D4647A938BC37E999E702 /* DailyReadCounter.swift in Sources */,
 				0EA046839120A0D077C1BE52 /* PromptContextBuilder.swift in Sources */,
 				AFD648598ECEA58C6C8A8C8B /* DeepAnalysisOrchestrator.swift in Sources */,
@@ -928,6 +935,7 @@ A00000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift in 
 				A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */,
 				A00000000000000000000043 /* Shared/BaziTermsTests.swift in Sources */,
 				9C2ECF614CADE1AAEFCB60F2 /* Shared/BaziTermNotesTests.swift in Sources */,
+				9C4F3D4E5F6A7B8C9D0E1F2B /* Shared/TranslationFlowTests.swift in Sources */,
 				9C4F1A2B3C5D7E9F0A1B2C3E /* Shared/AppLanguageTests.swift in Sources */,
 				A00000000000000000000021 /* Shared/ZodiacRevealTests.swift in Sources */,
 				A00000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift in Sources */,

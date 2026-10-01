@@ -9,6 +9,9 @@ protocol APIClient: Sendable {
     func compatibility(request: CompatibilityRequest) async throws -> CompatibilityResponse
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse
     func interpret(request: InterpretRequest) async throws -> InterpretResponse
+    /// D10(S7):已生成解读的跨语言翻译(目标语言走 X-QiCompass-Lang /
+    /// Accept-Language,与 interpret 同口径)。
+    func translate(request: TranslateRequest) async throws -> InterpretResponse
     func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse
     /// Slice 1:登录后批量拉当前 user 的全部 entitlement(跨设备 / 重装 / 退登回登同步)
     func entitlementList() async throws -> EntitlementListResponse
@@ -18,6 +21,20 @@ protocol APIClient: Sendable {
     func syncPull() async throws -> SyncPullResponse
     /// PR3.2:上传本地命盘到云端(全量 UPSERT)
     func syncPush(request: SyncPushRequest) async throws -> SyncPushResponse
+}
+
+extension APIClient {
+    /// `translate` 的默认实现(S7):仅供测试替身兜底——正式实现是
+    /// LiveAPIClient / MockAPIClient;不关心翻译路径的测试 double 走到此处
+    /// 说明翻译被意外触发,**显式抛错**而非静默路由到 interpret(翻译与
+    /// 生成语义不同:次数/缓存键/失败面都不同,误路由会掩盖缺口)。
+    func translate(request: TranslateRequest) async throws -> InterpretResponse {
+        throw APIError.backendError(
+            code: "TRANSLATE_UNSUPPORTED",
+            message: "该 APIClient 实现未支持 translate(测试替身默认实现)",
+            requestId: nil
+        )
+    }
 }
 
 // MARK: - Shared JSONCoder
@@ -110,6 +127,11 @@ final class LiveAPIClient: APIClient {
     func interpret(request: InterpretRequest) async throws -> InterpretResponse {
         let (data, _) = try await send(.interpret, body: request)
         return try decode(data, as: InterpretResponse.self, endpoint: .interpret)
+    }
+
+    func translate(request: TranslateRequest) async throws -> InterpretResponse {
+        let (data, _) = try await send(.interpretTranslate, body: request)
+        return try decode(data, as: InterpretResponse.self, endpoint: .interpretTranslate)
     }
 
     func redeem(request: EntitlementRedeemRequest) async throws -> EntitlementRedeemResponse {
@@ -261,6 +283,16 @@ final class MockAPIClient: APIClient {
         recordLock.lock(); defer { recordLock.unlock() }
         return _recordedRedeemRequests
     }
+    /// D10(S7):translate 请求录制(链式翻译回归断言用——译后 M0 字段
+    /// 驱动 M1 请求 / 翻译不触发 interpret 等)。
+    private var _recordedTranslateRequests: [TranslateRequest] = []
+    var recordedTranslateRequests: [TranslateRequest] {
+        recordLock.lock(); defer { recordLock.unlock() }
+        return _recordedTranslateRequests
+    }
+    /// D10(S7):translate 应答注入钩子。nil = 默认应答(译文 = 原文标记
+    /// 译后语言);测试注入以模拟译后 M0 JSON / STALE_SOURCE 409 / 同构失败。
+    var translateResponder: ((TranslateRequest) throws -> InterpretResponse)?
     func health() async throws -> HealthResponse {
         AppLogger.networking.debug("mock.health 调起")
         try? await Task.sleep(nanoseconds: 200_000_000)
@@ -326,6 +358,30 @@ final class MockAPIClient: APIClient {
             provider: "anthropic",
             model: "mock-anthropic-model",
             language: AppLanguage.currentWire  // i18n:mock 跟随系统语言,演示双语能力
+        )
+    }
+
+    /// D10(S7):mock 翻译。默认应答 = 原文透传(结构上必与原文同构——
+    /// 深度链路 extractChainFields 可直接从译文重建链字段);测试注入
+    /// translateResponder 模拟译后 JSON / 后端 409 / 保真失败。
+    func translate(request: TranslateRequest) async throws -> InterpretResponse {
+        AppLogger.networking.debug("mock.translate 调起 content_hash=\(request.base.contentHash.prefix(12), privacy: .public) module=\(request.base.module, privacy: .public) source=\(request.sourceLanguage, privacy: .public)")
+        recordLock.lock()
+        _recordedTranslateRequests.append(request)
+        recordLock.unlock()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        if let translateResponder {
+            return try translateResponder(request)
+        }
+        return InterpretResponse(
+            interpretation: request.sourceInterpretation,
+            promptVersion: 1,
+            cached: false,
+            generatedAt: .now,
+            provider: "anthropic",
+            model: "mock-anthropic-model",
+            language: AppLanguage.currentWire,
+            translatedFrom: request.sourceLanguage
         )
     }
 

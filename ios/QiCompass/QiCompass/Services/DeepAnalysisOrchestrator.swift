@@ -244,6 +244,18 @@ final class DeepAnalysisOrchestrator {
         return hits
     }
 
+    /// 跨语言恢复(D10.5,S7):当前语言 miss 的模块,探测其它注册语言的
+    /// 既有解读(命中模块数最多的语言)。调用方先显示原文 + 翻译提示条。
+    func restoreCrossLanguageV1Modules(
+        contentHash: String,
+        modules: [String]
+    ) async throws -> (language: String, hits: [String: InterpretationCache])? {
+        try await interpretationReader.readAllCrossLanguage(
+            contentHash: contentHash,
+            modules: modules
+        )
+    }
+
     // MARK: - 阶段 2 v1:v1 prompt 系统模块化调用(Stage 7b)
 
     /// v1 prompt 系统单模块调用入口(M0-M7 链式调用每次调一个 module)。
@@ -306,46 +318,13 @@ final class DeepAnalysisOrchestrator {
         var shouldRefundOnFailure = true
 
         do {
-            // 构造 chart JSON(v1 §1 schema,与 backend chart_builder.build_v1_chart 对齐)
-            let chartJSON = try PromptContextBuilder.buildV1ChartJSON(response: response)
-
-            // 构造 context:每 module 的占位符见 backend prompts.py REQUIRED_FIELDS
-            // M7 不需要 chart(模板不读),但传入无害(后端不强制校验)
-            var context: [String: AnyCodableJSON] = [
-                "chart": AnyCodableJSON(chartJSON),
-            ]
-            if let parentFingerprint {
-                context["structure_fingerprint"] = AnyCodableJSON(parentFingerprint)
-            }
-            if let m4Input {
-                context["age"] = AnyCodableJSON(m4Input.age)
-                context["current_concern"] = AnyCodableJSON(m4Input.concern)
-            }
-            if let m5Input {
-                context["assets_summary"] = AnyCodableJSON(m5Input.assets)
-                context["preference"] = AnyCodableJSON(m5Input.preference)
-            }
-            for (key, value) in chainFields {
-                context[key] = AnyCodableJSON(value)
-            }
-            // M1-M7 的链式字段(main_axis/core_loop/innate/defensive/threshold/
-            // ideal_life_structure/one_leverage/switch_actions/environment_checklist/
-            // leverage)由 VM 在调用前塞入 context(从上游模块 JSON 输出提取,
-            // 即 v1ChainFields),经 chainFields 参数传入——本函数只做合并不
-            // 组装(VM 知道依赖图,orchestrator 不重复实现)
-
-            let req = InterpretRequest(
-                contentHash: response.contentHash,
+            let req = try Self.buildV1Request(
+                response: response,
                 module: module,
-                context: context,
-                targetDate: nil,
-                question: nil,
-                userLocalId: UserIdentity.userLocalId,
                 parentFingerprint: parentFingerprint,
-                m4Age: m4Input?.age,
-                m4CurrentConcern: m4Input?.concern,
-                m5AssetsSummary: m5Input?.assets,
-                m5Preference: m5Input?.preference
+                m4Input: m4Input,
+                m5Input: m5Input,
+                chainFields: chainFields
             )
 
             let resp = try await AppLogger.measure(
@@ -412,6 +391,140 @@ final class DeepAnalysisOrchestrator {
             AppLogger.app.error("interpret.v1.pipeline_failed contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) error=\(String(describing: error), privacy: .public)")
             throw error
         }
+    }
+
+    /// 翻译单个 v1 模块(D10.4,S7):原文 → 目标语言,译文写入目标语言缓存键。
+    ///
+    /// 与 `runV1Module` 共享 `buildV1Request`(D10.1 缓存键对齐的关键:翻译
+    /// 请求的 context / parent_fingerprint / m4_* / m5_* 与目标语言下正常生成
+    /// 会发的**逐字段相等**——译文落键后任何设备以目标语言请求 /api/interpret
+    /// 都命中这份译文)。
+    ///
+    /// 计费:翻译**不消耗每日次数、不 refund**(D10.1:翻译不另收费;本地
+    /// counter 池语义是「生成」配额,翻译绕过)。付费 module 的 entitlement
+    /// 由后端同一道检查(403 照抛);VM 侧已有 locked 守卫前置拦截。
+    ///
+    /// 失败显式抛错(后端 STALE_SOURCE 409 = 原文版本过期,调用方应走正常
+    /// 重新生成;保真校验失败 503 = 可重试),不回退原文、不静默改走生成。
+    func translateV1Module(
+        response: BaziResponse,
+        module: String,
+        parentFingerprint: String? = nil,
+        m4Input: (age: Int, concern: String)? = nil,
+        m5Input: (assets: String, preference: String)? = nil,
+        chainFields: [String: String] = [:],
+        sourceLanguage: String,
+        sourcePromptVersion: Int,
+        sourceInterpretation: String
+    ) async throws -> InterpretResponse {
+        try Self.validateV1ModuleInputs(
+            module: module,
+            parentFingerprint: parentFingerprint,
+            m4Input: m4Input,
+            m5Input: m5Input,
+            chainFields: chainFields
+        )
+        let req = try Self.buildV1Request(
+            response: response,
+            module: module,
+            parentFingerprint: parentFingerprint,
+            m4Input: m4Input,
+            m5Input: m5Input,
+            chainFields: chainFields
+        )
+        let translateReq = TranslateRequest(
+            base: req,
+            sourceLanguage: sourceLanguage,
+            sourcePromptVersion: sourcePromptVersion,
+            sourceInterpretation: sourceInterpretation
+        )
+        AppLogger.app.info(
+            "deep.translateV1Module.start contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) source=\(sourceLanguage, privacy: .public)"
+        )
+        let resp = try await AppLogger.measure(
+            AppLogger.networking,
+            operation: "interpret.translate",
+            context: [
+                "content_hash": response.contentHash,
+                "module": module,
+            ]
+        ) {
+            try await self.apiClient.translate(request: translateReq)
+        }
+        try await AppLogger.measure(
+            AppLogger.persistence,
+            operation: "interpretationCache.translate.upsert",
+            context: [
+                "content_hash": response.contentHash,
+                "module": module,
+                "prompt_version": String(resp.promptVersion),
+            ]
+        ) {
+            try interpretStore.upsert(
+                contentHash: response.contentHash,
+                module: module,
+                promptVersion: resp.promptVersion,
+                targetDate: nil,
+                // 译文落目标语言键(后端 resp.language = 目标语言)——与
+                // runV1Module 写入口径一致,读写键配对
+                language: resp.language,
+                provider: resp.provider,
+                model: resp.model,
+                interpretation: resp.interpretation,
+                generatedAt: resp.generatedAt
+            )
+        }
+        AppLogger.app.info(
+            "deep.translateV1Module.ok contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) cached=\(resp.cached, privacy: .public) source=\(sourceLanguage, privacy: .public) target=\(resp.language, privacy: .public)"
+        )
+        return resp
+    }
+
+    /// v1 module 请求构建(生成 runV1Module 与翻译 translateV1Module 共用)。
+    ///
+    /// D10.1「请求体 = 内容按目标语言请求 /api/interpret 时会发的那份」——
+    /// 两个消费方跑同一构建器,禁止各自拼装(键漂移 = 译文缓存永不命中且不报错)。
+    /// chart JSON 按 v1 §1 schema(与 backend chart_builder.build_v1_chart 对齐);
+    /// 链式字段只合并不组装(VM 知道依赖图)。
+    private static func buildV1Request(
+        response: BaziResponse,
+        module: String,
+        parentFingerprint: String?,
+        m4Input: (age: Int, concern: String)?,
+        m5Input: (assets: String, preference: String)?,
+        chainFields: [String: String]
+    ) throws -> InterpretRequest {
+        let chartJSON = try PromptContextBuilder.buildV1ChartJSON(response: response)
+        var context: [String: AnyCodableJSON] = [
+            "chart": AnyCodableJSON(chartJSON),
+        ]
+        if let parentFingerprint {
+            context["structure_fingerprint"] = AnyCodableJSON(parentFingerprint)
+        }
+        if let m4Input {
+            context["age"] = AnyCodableJSON(m4Input.age)
+            context["current_concern"] = AnyCodableJSON(m4Input.concern)
+        }
+        if let m5Input {
+            context["assets_summary"] = AnyCodableJSON(m5Input.assets)
+            context["preference"] = AnyCodableJSON(m5Input.preference)
+        }
+        for (key, value) in chainFields {
+            context[key] = AnyCodableJSON(value)
+        }
+        return InterpretRequest(
+            contentHash: response.contentHash,
+            module: module,
+            context: context,
+            targetDate: nil,
+            question: nil,
+            userLocalId: UserIdentity.userLocalId,
+            parentFingerprint: parentFingerprint,
+            m4Age: m4Input?.age,
+            m4CurrentConcern: m4Input?.concern,
+            m5AssetsSummary: m5Input?.assets,
+            m5Preference: m5Input?.preference
+        )
     }
 
     /// v1 module 入参契约校验(对齐 backend Pydantic model_validator)。

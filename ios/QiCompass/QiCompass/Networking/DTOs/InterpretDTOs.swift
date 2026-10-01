@@ -152,6 +152,10 @@ struct InterpretResponse: Codable, Sendable {
     /// i18n 决策 10(方案 3):后端实际使用的语言(从 Accept-Language 解析)。
     /// 客户端存入 SwiftData 缓存键对齐用,避免客户端自己解析 Locale 导致不一致。
     let language: String
+    /// D10(S7,2026-10-01):译文来源语言(zh / zh-hant / en)。
+    /// /api/interpret 恒为 nil;/api/interpret/translate 新翻出译文时 = source_language,
+    /// 命中缓存时为 nil(同键内容等价不区分来源)。仅埋点/调试用。
+    let translatedFrom: String?
 
     enum CodingKeys: String, CodingKey {
         case interpretation
@@ -161,6 +165,89 @@ struct InterpretResponse: Codable, Sendable {
         case provider
         case model
         case language
+        case translatedFrom = "translated_from"
+    }
+
+    init(
+        interpretation: String,
+        promptVersion: Int,
+        cached: Bool,
+        generatedAt: Date,
+        provider: String,
+        model: String,
+        language: String,
+        translatedFrom: String? = nil
+    ) {
+        self.interpretation = interpretation
+        self.promptVersion = promptVersion
+        self.cached = cached
+        self.generatedAt = generatedAt
+        self.provider = provider
+        self.model = model
+        self.language = language
+        self.translatedFrom = translatedFrom
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        interpretation = try container.decode(String.self, forKey: .interpretation)
+        promptVersion = try container.decode(Int.self, forKey: .promptVersion)
+        cached = try container.decode(Bool.self, forKey: .cached)
+        generatedAt = try container.decode(Date.self, forKey: .generatedAt)
+        provider = try container.decode(String.self, forKey: .provider)
+        model = try container.decode(String.self, forKey: .model)
+        language = try container.decode(String.self, forKey: .language)
+        // 老响应无此 key(向后兼容;后端已设默认 null,双保险)
+        translatedFrom = try container.decodeIfPresent(String.self, forKey: .translatedFrom)
+    }
+}
+
+// MARK: - 翻译请求(D10,S7)
+
+/// POST /api/interpret/translate 请求。对齐 backend TranslateRequest(继承
+/// InterpretRequest 全字段 + 三个 source_* 字段)。
+///
+/// wire 形态是**扁平**的(与 InterpretRequest 同级多三键),encode 通过
+/// `base.encode(to:)` 复用基类字段写入同一 keyed container——两处字段集
+/// 各自维护,不复制粘贴(D10.1「请求体 = 内容按目标语言请求 /api/interpret
+/// 时会发的那份」由 DeepAnalysisOrchestrator/CompatibilityOrchestrator 的
+/// 共享请求构建器保证)。
+struct TranslateRequest: Sendable {
+    /// 目标语言请求 /api/interpret 时会发的那份完整请求(含 context /
+    /// parent_fingerprint / m4_* / m5_*——缓存键对齐的前提)。
+    let base: InterpretRequest
+    /// 原文语言(客户端 SwiftData 缓存行的 language)。
+    let sourceLanguage: String
+    /// 原文的 prompt_version(缓存行携带;过期 → 后端 409 STALE_SOURCE,
+    /// 客户端走正常重新生成)。
+    let sourcePromptVersion: Int
+    /// 原文全文(客户端本地缓存里那份)。
+    let sourceInterpretation: String
+
+    enum CodingKeys: String, CodingKey {
+        case sourceLanguage = "source_language"
+        case sourcePromptVersion = "source_prompt_version"
+        case sourceInterpretation = "source_interpretation"
+    }
+}
+
+extension TranslateRequest: Codable {
+    func encode(to encoder: Encoder) throws {
+        // 复用 InterpretRequest 的字段写入(同 encoder 的 keyed container)
+        try base.encode(to: encoder)
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(sourceLanguage, forKey: .sourceLanguage)
+        try container.encode(sourcePromptVersion, forKey: .sourcePromptVersion)
+        try container.encode(sourceInterpretation, forKey: .sourceInterpretation)
+    }
+
+    init(from decoder: Decoder) throws {
+        // 同一扁平命名空间读回(测试/mock 往返用;线上只发不收)
+        base = try InterpretRequest(from: decoder)
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        sourceLanguage = try container.decode(String.self, forKey: .sourceLanguage)
+        sourcePromptVersion = try container.decode(Int.self, forKey: .sourcePromptVersion)
+        sourceInterpretation = try container.decode(String.self, forKey: .sourceInterpretation)
     }
 }
 

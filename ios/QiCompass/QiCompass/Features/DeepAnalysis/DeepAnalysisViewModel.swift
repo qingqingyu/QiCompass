@@ -184,6 +184,28 @@ final class DeepAnalysisViewModel {
     /// (在飞 getLatest 踩死容器会 SIGTRAP,2026-09-08 全量测试实踩)。
     private(set) var isHydrating = false
 
+    // MARK: 跨语言翻译(D10.4/D10.5,S7)
+
+    /// 翻译提议:当前语言 miss 的模块在其它语言有既有解读 → 先显示原文 +
+    /// 提示条「此报告以××生成 · 翻译为××」,用户点按钮才翻译(不自动批量)。
+    struct TranslationOffer: Equatable {
+        /// 原文语言(wire 值,zh / zh-hant / en)
+        let sourceLanguage: String
+        /// 有原文可译的模块(命中跨语言缓存的模块)
+        let modules: Set<ModuleID>
+    }
+
+    /// 当前翻译提议(nil = 无跨语言原文 / 已完成翻译)。
+    private(set) var translationOffer: TranslationOffer?
+
+    /// 跨语言原文行(模块 → 缓存行,含 language / promptVersion / interpretation),
+    /// acceptTranslation 消费;成功译完一个模块即移除(重试只译剩余)。
+    private var crossLanguageRows: [ModuleID: InterpretationCache] = [:]
+
+    /// 链式翻译在飞(提示条转 loading;与 isChainRunning 互不影响——
+    /// 翻译不消耗次数、不跑生成链)。
+    private(set) var isTranslatingChain = false
+
     // MARK: 依赖
 
     private let orchestrator: DeepAnalysisOrchestrator
@@ -515,6 +537,10 @@ final class DeepAnalysisViewModel {
             isChainRunning = false
             moduleStates.removeAll()
             v1ChainFields.removeAll()
+            // 翻译提议属旧盘(D10.5):换盘一并清洗,防旧盘提示条挂新盘
+            translationOffer = nil
+            crossLanguageRows.removeAll()
+            isTranslatingChain = false
             AppLogger.app.info(
                 "deepVM.loadArchivedChart chart_changed oldHash=\(old.contentHash, privacy: .public) newHash=\(response.contentHash, privacy: .public) — v1 链状态已清洗"
             )
@@ -631,6 +657,45 @@ final class DeepAnalysisViewModel {
             AppLogger.app.info(
                 "deepVM.hydrateAndResume.restored hash=\(response.contentHash, privacy: .public) queried=\(modulesToRestore.count) hits=\(hits.count) written=\(writtenCount)"
             )
+
+            // D10.5(S7):当前语言 miss 的可回填章,探测其它语言的既有解读 →
+            // 先显示原文 + 翻译提示条(不自动批量翻译)。链字段用原文重建
+            // (译文落键前,下游生成/翻译请求都用这套字段——acceptTranslation
+            // 译完 M0 后会以译后字段覆盖)。best-effort:探测失败(离线等)
+            // 只跳过提示条走正常生成,不阻断已成功的主恢复——错误留痕不吞。
+            let stillMissing = modulesToRestore.filter { moduleStates[$0]?.isOk != true }
+            if !stillMissing.isEmpty {
+                do {
+                    if let (sourceLanguage, sourceHits) = try await orchestrator
+                        .restoreCrossLanguageV1Modules(
+                            contentHash: response.contentHash,
+                            modules: stillMissing.map(\.rawValue)
+                        ), !sourceHits.isEmpty {
+                        guard isCurrentChart(response) else { return .staleChart }
+                        for module in ModuleID.allCases where sourceHits[module.rawValue] != nil {
+                            guard Self.isRestorableModuleState(moduleStates[module]),
+                                  moduleStates[module]?.isOk != true else { continue }
+                            let row = sourceHits[module.rawValue]!
+                            crossLanguageRows[module] = row
+                            moduleStates[module] = .ok(text: row.interpretation, cached: true)
+                            extractChainFields(from: row.interpretation, for: module)
+                        }
+                        if !crossLanguageRows.isEmpty {
+                            translationOffer = TranslationOffer(
+                                sourceLanguage: sourceLanguage,
+                                modules: Set(crossLanguageRows.keys)
+                            )
+                            AppLogger.app.info(
+                                "deepVM.hydrateAndResume.cross_language hash=\(response.contentHash, privacy: .public) source=\(sourceLanguage, privacy: .public) modules=\(self.crossLanguageRows.keys.map(\.rawValue).sorted().joined(separator: ","), privacy: .public)"
+                            )
+                        }
+                    }
+                } catch {
+                    AppLogger.app.warning(
+                        "deepVM.hydrateAndResume.cross_language_failed hash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 跳过翻译提示,走正常生成"
+                    )
+                }
+            }
             return .restored
         } catch {
             if Task.isCancelled {
@@ -656,10 +721,16 @@ final class DeepAnalysisViewModel {
     /// (含后台被掐后 Task 挂起场景,回前台自然恢复);hydrate 在飞不抢跑
     /// (由 hydrate 收尾统一触发);无可跑未完成章不空转(.ok 已完成 / .locked
     /// 等购买 / .needsInput 等用户填表 / .fetching 有单章重试在飞均排除);
-    /// 每日次数耗尽不跑(CTA limit ghost 已有人话,自动跑只会满屏 failed)。
+    /// 每日次数耗尽不跑(CTA limit ghost 已有人话,自动跑只会满屏 failed);
+    /// 翻译提议挂着不跑(D10.5:原文缺失的模块应由译后 M0 的目标语言链字段
+    /// 驱动生成,自动跑会用原文 fingerprint 造成缓存键错位——翻译收尾再续跑)。
     func resumeV1ChainIfNeeded() {
         guard case .ready(let response, _) = state else {
             AppLogger.app.info("deepVM.resumeV1ChainIfNeeded.skip reason=not_ready")
+            return
+        }
+        guard translationOffer == nil else {
+            AppLogger.app.info("deepVM.resumeV1ChainIfNeeded.skip reason=translation_pending")
             return
         }
         guard response.hourUnknownGate != .dayAmbiguous else {
@@ -1016,6 +1087,131 @@ final class DeepAnalysisViewModel {
             return now.contentHash == response.contentHash
         }
         return false
+    }
+
+    // MARK: - 跨语言翻译执行(D10.4,S7)
+
+    /// 用户点提示条「翻译为××」:按 M0 → M7 顺序翻译既有原文模块(点按钮才
+    /// 翻,不自动批量)。翻译不消耗每日次数(orchestrator 不动 counter);
+    /// 付费模块无 entitlement 跳过(后端同检 403,客户端不白发)。
+    func acceptTranslation() {
+        guard let offer = translationOffer, !isTranslatingChain, !isHydrating else { return }
+        guard case .ready(let response, _) = state else { return }
+        isTranslatingChain = true
+        AppLogger.app.info(
+            "deepVM.acceptTranslation source=\(offer.sourceLanguage, privacy: .public) modules=\(self.crossLanguageRows.keys.map(\.rawValue).sorted().joined(separator: ","), privacy: .public)"
+        )
+        Task { @MainActor [weak self] in
+            await self?.runTranslationChain(response: response, sourceLanguage: offer.sourceLanguage)
+        }
+    }
+
+    /// 翻译链主循环(串行 M0 → M7,镜像 runV1Chain 形态)。
+    ///
+    /// D10.4 关键不变式:**先译 M0**,译后 `extractChainFields` 以目标语言的
+    /// structure_fingerprint / main_axis / core_loop 覆盖 v1ChainFields——
+    /// M1-M7 的翻译请求(与目标语言正常生成同键)由译后字段驱动,缓存键
+    /// 对齐才成立。任一模块失败即断链(已译成的保留 .ok + 双层缓存已落;
+    /// 失败章标 .failed,提示条保留供重试——retryTranslation 只译剩余;
+    /// 继续翻下游会混用「译后 fingerprint + 原文 innate」造出正常生成永不
+    /// 会用的键,白烧 LLM,不如显式停下)。
+    @MainActor
+    private func runTranslationChain(response: BaziResponse, sourceLanguage: String) async {
+        defer { isTranslatingChain = false }
+        for module in ModuleID.allCases {
+            if Task.isCancelled { return }
+            guard let source = crossLanguageRows[module] else { continue }
+            guard isCurrentChart(response) else {
+                AppLogger.app.warning("deepVM.runTranslationChain.stale_chart — 中止,剩余原文保留")
+                return
+            }
+            // 付费无 entitlement:跳过翻译,保持 .ok 原文显示(后端也会拦;
+            // 不标 .locked——原文已可见,锁上反而丢内容)
+            if module.isPaid, !hasDeepEntitlement(contentHash: response.contentHash) {
+                AppLogger.app.info("deepVM.runTranslationChain.paid_locked_skip module=\(module.rawValue, privacy: .public)")
+                crossLanguageRows[module] = nil
+                continue
+            }
+            // M4/M5 缺用户输入:翻译请求需要 user_input 维度(键对齐);
+            // 改标 .needsInput,用户重填后走正常生成(目标语言,叙事一致)
+            if module == .m4 && m4UserInput == nil {
+                moduleStates[module] = .needsInput
+                crossLanguageRows[module] = nil
+                continue
+            }
+            if module == .m5 && m5UserInput == nil {
+                moduleStates[module] = .needsInput
+                crossLanguageRows[module] = nil
+                continue
+            }
+            // 下游链字段守卫(镜像 runSingleV1Module:译后 M0 字段缺 = 提取失败)
+            if module.requiresParentFingerprint {
+                let missing = (v1ChainFields["structure_fingerprint"] == nil ? ["structure_fingerprint"] : [])
+                    + module.requiredChainFields.filter { v1ChainFields[$0] == nil }
+                if !missing.isEmpty {
+                    AppLogger.app.warning(
+                        "deepVM.runTranslationChain.missing_parent module=\(module.rawValue, privacy: .public) missing=\(missing.joined(separator: ","), privacy: .public)"
+                    )
+                    moduleStates[module] = .pending
+                    return  // 上游译后字段缺失,继续只会混键,显式停
+                }
+            }
+            moduleStates[module] = .fetching
+            do {
+                let parentFingerprint: String? = module.requiresParentFingerprint
+                    ? v1ChainFields["structure_fingerprint"]
+                    : nil
+                let chainFields: [String: String] = module.requiredChainFields.reduce(into: [:]) { acc, field in
+                    if let value = v1ChainFields[field] {
+                        acc[field] = value
+                    }
+                }
+                let resp = try await orchestrator.translateV1Module(
+                    response: response,
+                    module: module.rawValue,
+                    parentFingerprint: parentFingerprint,
+                    m4Input: module == .m4 ? m4UserInput : nil,
+                    m5Input: module == .m5 ? m5UserInput : nil,
+                    chainFields: chainFields,
+                    sourceLanguage: sourceLanguage,
+                    sourcePromptVersion: source.promptVersion,
+                    sourceInterpretation: source.interpretation
+                )
+                guard isCurrentChart(response) else { return }
+                // 译后 M0 的链字段覆盖 v1ChainFields(目标语言链,D10.4 #1)
+                extractChainFields(from: resp.interpretation, for: module)
+                moduleStates[module] = .ok(text: resp.interpretation, cached: resp.cached)
+                crossLanguageRows[module] = nil
+                AppLogger.app.info("deepVM.runTranslationChain.ok module=\(module.rawValue, privacy: .public) cached=\(resp.cached, privacy: .public)")
+            } catch is CancellationError {
+                AppLogger.app.info("deepVM.runTranslationChain.cancelled")
+                return
+            } catch {
+                guard isCurrentChart(response) else { return }
+                AppLogger.app.warning(
+                    "deepVM.runTranslationChain.failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public) — 已译成保留,剩余可重试"
+                )
+                moduleStates[module] = .failed(message: Self.translationErrorMessage(for: error))
+                return  // 断链:下游会混用译后指纹+原文链字段,显式停
+            }
+        }
+        // 收尾:全部译完 → 清提议;原文没有的缺失模块此时按目标语言自动续跑
+        //(链上游已是译后 M0,叙事一致,D10.4 #3)
+        if crossLanguageRows.isEmpty {
+            translationOffer = nil
+            AppLogger.app.info("deepVM.runTranslationChain.all_translated")
+            resumeV1ChainIfNeeded()
+        }
+    }
+
+    /// 翻译失败的用户文案(STALE_SOURCE 单列:重试语义是「重新生成本章」,
+    /// 不是再点翻译)。
+    private static func translationErrorMessage(for error: Error) -> String {
+        if case .backendError(let code, _, _)? = error as? APIError, code == "STALE_SOURCE" {
+            return String(localized: "此报告版本已更新,请重新生成本章。")
+        }
+        let userError = UserFacingError.from(error, stage: .interpret)
+        return userError.errorDescription ?? L10n.Common.unknownError
     }
 
     /// 解析 LLM JSON 输出,提取下游模块需要的链式字段写入 v1ChainFields。

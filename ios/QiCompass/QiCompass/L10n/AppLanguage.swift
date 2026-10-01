@@ -73,6 +73,17 @@ enum AppLanguage: String, CaseIterable {
         }
     }
 
+    /// wire 值的语言显示名(翻译提示条等场景;与 Override.displayLabel 同一套
+    /// 词典 key)。未识别值原样透出(防御坏数据,不 crash)。
+    static func displayName(forWire wire: String) -> String {
+        switch wire {
+        case "zh": return String(localized: "简体中文")
+        case "zh-hant": return String(localized: "繁體中文")
+        case "en": return String(localized: "English")
+        default: return wire
+        }
+    }
+
     /// 当前 App 语言(每次访问实时计算):显式覆盖优先,否则系统语言。
     /// D9 约束:全仓取语言的唯一入口(含 `currentWire`)。
     static var current: AppLanguage {

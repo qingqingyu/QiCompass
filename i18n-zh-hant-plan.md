@@ -57,6 +57,7 @@
 | zh-Hant 后端 | ✅ **S2 已实施(2026-10-01,yuyan worktree)**:`TERM_TRANSLATIONS` 注册 zh-hant 表 131 键(值与 iOS BaziTerms zhHant 列锁定,`check_term_sync.py` ①③ 组三相等);`prompts/zh-hant/` 14 文件(现役版本全套 + suffix 预置,parity 测试锁三语 bump 同步);`resolve_language` zh 变体解析(D4);unknown_hour suffix 三语映射;joiner 语义(zh-hant 干支连写无空格) |
 | zh-Hant iOS | ✅ **S3+S4 已实施(2026-10-01,yuyan worktree)**:xcstrings zh-Hant 777/777 全覆盖(305 校对稿回导 + 472 新译)+ knownRegions 回列;`normalizeZhVariant` 已接回(止血解除) |
 | 语言切换 UI / `X-QiCompass-Lang` 发送 | ✅ **S4 已实施(2026-10-01,yuyan worktree)**:ProfileView 设置区「语言」Menu(system/zh/zh-hant/en)+ AppleLanguages 镜像 + 重启 alert;`AppLanguage.current = override ?? systemLanguage`;`activeOverrideWire` 时 `APIClient.send` 发 `X-QiCompass-Lang`;BaziFont zh-hant 分流 Kaiti TC(DESIGN.md 已记);BaziDateFormatter.lunar zh_TW;新增 `AppLanguageTests`(7 用例,pbxproj 4 处登记) |
+| iOS 翻译接入(S7) | ✅ **S7 已实施(2026-10-01,yuyan worktree)**:TranslateRequest DTO(translated_from)/ APIClient.translate(Live+Mock+协议默认实现)/ CachedInterpretationReader.readAllCrossLanguage / 深度 hydrate 跨语言回填原文+translationOffer+acceptTranslation 链式翻译(译后 M0 字段驱动 M1-M7,断链保成功)/ 合盘 openDetail 跨语言探测+acceptTranslation / TranslateHintBar(DESIGN.md hairline)/ STALE_SOURCE 人话;TranslationFlowTests 5 用例(含核心「译后 M0 fingerprint 驱动 M1 请求」) |
 | 已生成解读的跨语言处理 | 🟡 **S6 已实施(2026-10-01,yuyan worktree)**:`POST /api/interpret/translate` 落地(D10.1-D10.3,键对齐/STALE_SOURCE/白名单/entitlement 同检/保真校验/先查后译,23 用例锁定,含「译后目标语言 /api/interpret 命中 cached=true」);实施偏差两处见 §3 D10.1 末注。iOS 接入 = S7 未做 |
 
 ---

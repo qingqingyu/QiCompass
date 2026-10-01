@@ -17096,6 +17096,86 @@
           }
         }
       }
+    },
+    "此报告以%@生成" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This report was generated in %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此報告以%@生成"
+          }
+        }
+      }
+    },
+    "翻译为%@ ›" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Translate to %@ ›"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻譯為%@ ›"
+          }
+        }
+      }
+    },
+    "翻译中…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Translating…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻譯中…"
+          }
+        }
+      }
+    },
+    "此报告版本已更新,请重新生成本章。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This report uses an outdated format. Please regenerate this chapter."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此報告版本已更新,請重新生成本章。"
+          }
+        }
+      }
+    },
+    "此报告版本已更新,请重新生成。" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This report uses an outdated format. Please regenerate it."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此報告版本已更新,請重新生成。"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"
