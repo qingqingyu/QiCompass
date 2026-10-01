@@ -312,6 +312,9 @@
     "deepanalysis.hero.xiji.favorableLabel": "喜",
     "deepanalysis.hero.xiji.unfavorableLabel": "忌",
     "deepanalysis.toc.title": "命書",
-    "deepanalysis.toc.progressA11y": "已讀進度"
+    "deepanalysis.toc.progressA11y": "已讀進度",
+    "日主%@": "日主%@",
+    "本章内容生成时出现异常,重新生成即可恢复": "本章內容生成時出現異常,重新生成即可恢復",
+    "重新生成本章": "重新生成本章"
   }
 }

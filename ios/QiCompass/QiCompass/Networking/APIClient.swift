@@ -571,6 +571,15 @@ final class MockAPIClient: APIClient {
             dayChongTargets: [],
             hourPillars: hourPillars,
             currentHourIndex: nil,
+            // S6 今日信号(mock 保真,2026-10-01 review 补齐):主 mock 盘喜忌 =
+            // 喜[木,水]/忌[土],mock 流日柱甲子(甲=木/子=水)→ 与真引擎
+            // `_day_signal` 同口径的自洽信号 = 木↑ 水↑;缺省 nil 会让 mock 模式
+            // 信号行走「老后端」隐藏路径,今日信号行在预览/脚手架里不可见。
+            dayElements: DayElementsDTO(stemElement: "木", branchElement: "水"),
+            daySignal: [
+                DaySignalItemDTO(element: "木", direction: "up"),
+                DaySignalItemDTO(element: "水", direction: "up"),
+            ],
             lunarDate: "六月廿八(mock)",
             huangliYi: ["祭祀", "祈福", "求嗣", "开光"],
             huangliJi: ["嫁娶", "栽种"],

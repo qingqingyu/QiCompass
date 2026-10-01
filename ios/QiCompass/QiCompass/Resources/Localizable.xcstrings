@@ -4712,7 +4712,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Favorable"
+            "value" : "Favored"
           }
         },
         "zh-Hans" : {
@@ -4729,7 +4729,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Avoid"
+            "value" : "Less supportive"
           }
         },
         "zh-Hans" : {
@@ -4865,7 +4865,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The Book"
+            "value" : "Your Reading"
           }
         },
         "zh-Hans" : {

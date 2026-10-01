@@ -369,7 +369,7 @@ struct DeepAnalysisHomeView: View {
     private var tocHeader: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(alignment: .firstTextBaseline) {
-                // 命书大标题(mock "The Book" 28px serif;zh 两字楷体 22pt 同分量)
+                // 命书大标题(EN "Your Reading",S4 弃 book 比喻;mock 基准 28px serif;zh 两字楷体 22pt 同分量)
                 Text(L10n.DeepChart.tocTitle)
                     .font(BaziFont.display(size: 22))
                     .tracking(2)

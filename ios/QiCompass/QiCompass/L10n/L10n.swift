@@ -1354,15 +1354,20 @@ enum L10n {
         /// 从格降级整句(喜忌行)。zh: "从格 · 喜忌留空";en: "Special pattern · favorable elements withheld"
         static let sideNoteSpecialPattern = String(localized: "deepanalysis.hero.sideNote.specialPattern")
 
-        /// 喜忌行「喜」label。zh: "喜";en: "Favorable"
+        /// 喜忌行「喜」label。zh: "喜";en: "Favored"(S1 去绝对化口径,与 XijiCard
+        /// xijiFavorable 同词汇;2026-10-01 review 修正:初版随 mock 抄了 "Favorable"/
+        /// "Avoid",正是 BP 评审 R11 废除、S1 已拍板替换的措辞)
         static let xijiFavorableLabel = String(localized: "deepanalysis.hero.xiji.favorableLabel")
 
-        /// 喜忌行「忌」label。zh: "忌";en: "Avoid"
+        /// 喜忌行「忌」label。zh: "忌";en: "Less supportive"(同上,S1 口径)
         static let xijiUnfavorableLabel = String(localized: "deepanalysis.hero.xiji.unfavorableLabel")
 
         // -- 命书目录头(2026-10-01 大标题 + 进度条)--
 
-        /// 目录大标题。zh: "命书";en: "The Book"
+        /// 目录大标题。zh: "命书";en: "Your Reading"(S4 已拍板 EN 弃 book 比喻;
+        /// 2026-10-01 review 修正:初版 "The Book" 抄自 mock,与 tocIntro
+        /// "Your reading, chapter by chapter…" 及 stageGenerating "Building your
+        /// reading…" 同屏混用两个比喻)
         static let tocTitle = String(localized: "deepanalysis.toc.title")
 
         /// 已读进度条 VoiceOver 标签。zh: "已读进度";en: "Reading progress"
