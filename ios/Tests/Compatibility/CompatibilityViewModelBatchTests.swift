@@ -1515,6 +1515,39 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         await drainDetailBackgroundTasks()
     }
 
+    func testOpenDetail_跨语言付费原文无权限_不早退卡死_自动起链免费层() async throws {
+        // 2026-10-01 合并语义修复(match #13 自动起链 × yuyan D10.5 跨语言守卫):
+        // 仅有其它语言(en)的付费层缓存 + 无 entitlement → 不展示付费原文(越权)、
+        // 不提示翻译,也**不早退**——#13 已拔除手动生成入口,早退会让 UI 停在
+        // 无人触发的推演态死路;应落到自动起链按免费层生成。
+        // 语言健壮:en 设备下该行变成当前语言命中(cross 返回 nil),殊途同归
+        // .okFree + 消耗 1 次,断言不变。
+        let summary = try makeAutoGenFixture(tag: "crosspaid")
+        try interpretStore.upsert(
+            contentHash: summary.compatibilityHash,
+            module: "compatibility_paid",
+            promptVersion: 1,
+            targetDate: nil,
+            language: "en",
+            provider: "anthropic",
+            model: "mock-anthropic-model",
+            interpretation: "Chapter 1 Cross-language paid original.",
+            generatedAt: .now
+        )
+        let readsBefore = vm.remainingReads
+
+        vm.openDetail(summary)
+
+        let ok = await waitForInterpretState { state in
+            if case .okFree = state { return true }
+            return false
+        }
+        XCTAssertTrue(ok, "paid 锁定路径应落到自动起链免费层,不停在 idle 死路,实际:\(vm.state)")
+        XCTAssertNil(vm.translationOffer, "无权限的付费原文不得触发翻译提议")
+        XCTAssertEqual(vm.remainingReads, readsBefore - 1, "免费层生成消耗 1 次全局池")
+        await drainDetailBackgroundTasks()
+    }
+
     func testBackToConfig_detail态_一步回配置态_保留summaries() {
         // 2026-09-07 单选直达:closeDetail 退役,detail「编辑名单」toolbar 直达
         // 配置态(clearDetailKeepRoster 兼任 list 兜底态返回)

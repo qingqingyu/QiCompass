@@ -1757,27 +1757,29 @@ final class CompatibilityViewModel {
                         userLocalId: UserIdentity.userLocalId
                     ) != nil
                     // 付费键原文但无 entitlement:不显示付费级原文(越权),
-                    // 也不提示翻译(翻译也会被后端拦),回落正常 idle 由用户触发
-                    guard cross.module != "compatibility_paid" || hasEntitlement else {
+                    // 也不提示翻译(翻译也会被后端拦);不早退——#13(2026-10-01)
+                    // 手动生成入口已拔除,早退会让 UI 停在无人触发的推演态死路,
+                    // 落到下方自动起链按免费层生成
+                    if cross.module == "compatibility_paid" && !hasEntitlement {
                         AppLogger.app.info(
                             "op=compatibility.openDetail cross_language_paid_locked hash=\(summaryHash, privacy: .public)"
                         )
-                        return
-                    }
-                    self.translationOffer = TranslationOffer(
-                        sourceLanguage: cross.language,
-                        module: cross.module,
-                        promptVersion: cross.promptVersion,
-                        text: cross.text
-                    )
-                    let newState: InterpretState = hasEntitlement
-                        ? .okPaid(text: cross.text, cached: true)
-                        : .okFree(text: cross.text, cached: true)
-                    if !Task.isCancelled {
-                        self.state = .detail(currentSummary, response, newState)
-                        AppLogger.app.info(
-                            "op=compatibility.openDetail cross_language hash=\(summaryHash, privacy: .public) source=\(cross.language, privacy: .public) module=\(cross.module, privacy: .public)"
+                    } else {
+                        self.translationOffer = TranslationOffer(
+                            sourceLanguage: cross.language,
+                            module: cross.module,
+                            promptVersion: cross.promptVersion,
+                            text: cross.text
                         )
+                        let newState: InterpretState = hasEntitlement
+                            ? .okPaid(text: cross.text, cached: true)
+                            : .okFree(text: cross.text, cached: true)
+                        if !Task.isCancelled {
+                            self.state = .detail(currentSummary, response, newState)
+                            AppLogger.app.info(
+                                "op=compatibility.openDetail cross_language hash=\(summaryHash, privacy: .public) source=\(cross.language, privacy: .public) module=\(cross.module, privacy: .public)"
+                            )
+                        }
                     }
                 }
             } catch CompatibilityError.forbiddenWordsHit {
