@@ -754,7 +754,16 @@ struct ProfileView: View {
         case .en:
             defaults.set(["en"], forKey: "AppleLanguages")
         }
-        showLanguageRestartAlert = true
+        // 延迟呈现 alert:Menu 内 Picker 选择的 onChange 与菜单收起动画同 runloop,
+        // 同步置位会被静默吞掉(2026-10-01 走查实测:选简体中文后零反馈,用户不知道
+        // 要重启)。与 resetAllData 的 resetError workaround 同因(见彼处注释);
+        // 但菜单收起是上下文菜单 presentation,比 confirmationDialog 收起慢,
+        // runloop 一跳不够,再让出收起动画时长(500ms)。经验性 workaround,
+        // 非 SwiftUI 契约保证。
+        Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 500_000_000)
+            showLanguageRestartAlert = true
+        }
     }
 
     // MARK: - 关于(2026-08-13 onboarding 三屏重构:完整版立场/隐私下沉到此)
