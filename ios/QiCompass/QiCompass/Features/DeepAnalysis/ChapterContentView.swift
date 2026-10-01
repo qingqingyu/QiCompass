@@ -43,7 +43,7 @@ private struct NodeView: View {
                 sectionHeader(title)
                 // S4 M1 三层引导句(R12:天赋/训练/防御三层内容已具备,差一句
                 // 「这一节是什么」;静态映射,只挂天赋章三节,其余章节不受影响)
-                if let guide = Self.sectionGuides[title] {
+                if let guide = Self.sectionGuide(forSectionTitle: title) {
                     Text(guide)
                         .font(BaziFont.caption(size: 10.5))
                         .tracking(1)
@@ -86,13 +86,34 @@ private struct NodeView: View {
 
     // MARK: - 原子
 
-    /// M1 三节引导句(节标 → 一句人话;key = ChapterContent.labels 的中文节题,
-    /// en 走 xcstrings 同 key)。第二人称、不带吉凶,对齐 §AI Voice 语言层级。
+    /// M1 三节引导句(schema key → 一句人话)。第二人称、不带吉凶,对齐
+    /// §AI Voice 语言层级。
+    ///
+    /// 查找在 body 侧经 `sectionGuideTitle` 完成:key 必须用与节题渲染**完全
+    /// 相同的本地化查找**生成——节题经 `ChapterContent.label(_:)`(即
+    /// `deepanalysis.chapter.<key>` 的 xcstrings 查询)本地化,EN 下是
+    /// "Innate"/"Trained"/"Defensive",静态 zh 硬编码 key 会永不命中
+    /// (引导句在 EN 整体静默缺失)。两侧同源后,改译文/加语言都不会漂移。
     private static let sectionGuides: [String: String] = [
-        "天赋能力": String(localized: "用起来不累,反而回血的能力。"),
-        "训练能力": String(localized: "环境逼出来的本事,好用但有代价。"),
-        "防御性能力": String(localized: "看着像优点,其实在消耗你。"),
+        "innate": String(localized: "用起来不累,反而回血的能力。"),
+        "trained": String(localized: "环境逼出来的本事,好用但有代价。"),
+        "defensive": String(localized: "看着像优点,其实在消耗你。"),
     ]
+
+    /// 引导句 key → 节题本地化值(委托 `ChapterContent.localizedLabel`,
+    /// 与节题渲染同一实现——两侧永不漂移)。
+    private static func sectionGuideTitle(_ key: String) -> String {
+        ChapterContent.localizedLabel(key)
+    }
+
+    /// 节题(已本地化)→ 引导句。节题必须经 `sectionGuideTitle` 反查而非
+    /// 硬编码 zh 字面量(见 `sectionGuides` 注释)。
+    private static func sectionGuide(forSectionTitle title: String) -> String? {
+        for key in sectionGuides.keys where sectionGuideTitle(key) == title {
+            return sectionGuides[key]
+        }
+        return nil
+    }
 
     /// 引言段:与阅读页散文态同规格(15.5pt · 行距 2.15× · 缩进 2em)。
     private func leadParagraph(_ text: String) -> some View {

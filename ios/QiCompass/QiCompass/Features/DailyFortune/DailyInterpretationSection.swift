@@ -236,6 +236,12 @@ struct DailyInterpretationSection: View {
                                         .font(BaziFont.body(size: 13))
                                         .foregroundStyle(isUp ? BaziTheme.jade : BaziTheme.cinnabar)
                                 }
+                                // a11y(先例 = XijiCard chip):裸 ↑↓ 对 VoiceOver
+                                // 只是"上/下箭头"字符,合成"喜用 火 / 忌神 木"语义朗读
+                                .accessibilityElement(children: .ignore)
+                                .accessibilityLabel(
+                                    "\(isUp ? L10n.DeepChart.xijiFavorableA11y : L10n.DeepChart.xijiUnfavorableA11y) \(BaziTerms.display(item.element))"
+                                )
                             }
                         }
                     }

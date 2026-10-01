@@ -299,12 +299,16 @@ final class MockAPIClient: APIClient {
         // 散文 mock 行会在下次冷启动被判中毒清除 → 自动续跑反复烧每日次数);
         // 刻意不含 innate/defensive——保留「M1 输出缺链式字段 → 下游守卫拦
         // .pending」的既有测试场景(testRestoreRebuildsChainFieldsForDownstream)。
-        // bazi_deep / compatibility / daily_fortune 是散文契约,维持占位散文。
+        // daily_fortune v4(S6)起同为 JSON 五段契约,mock 同步(orchestrator
+        // 缓存嗅探 DailyInsight.parse 会把散文行当毒化绕过);bazi_deep /
+        // compatibility 是散文契约,维持占位散文。
         let interpretation: String
         if request.module == "m0_structure" {
             interpretation = "{\"structure_fingerprint\":\"mock-fp\",\"main_axis\":{},\"core_loop\":{}}"
         } else if ModuleID(rawValue: request.module) != nil {
             interpretation = "{\"one_line\":\"mock 章节占位:正式解读由后端 AI provider 生成\"}"
+        } else if request.module == "daily_fortune" {
+            interpretation = "{\"headline\":\"静心开局的一天\",\"work\":\"先做要紧的事。\",\"relationships\":\"话留三分。\",\"energy\":\"按自己的节奏来。\",\"reminder\":\"量力而行。\"}"
         } else {
             interpretation = "[Mock 命书占位] 此命造五行流转,日主得令,喜忌已由后端确定性规则引擎判定。此为脚手架阶段 Mock 文本,正式解读由后端 AI provider 生成。"
         }

@@ -198,6 +198,13 @@ struct ChapterContent: Equatable {
         }
     }
 
+    /// 节题本地化(snake_case key → 显示语)。展示层反查用(如
+    /// ChapterContentView 的 M1 引导句按节题匹配)——公开此单一实现,
+    /// 避免展示层复制 `deepanalysis.chapter.<key>` 查询格式后两侧漂移。
+    static func localizedLabel(_ key: String) -> String {
+        label(key)
+    }
+
     // MARK: - 标签表(snake_case → 中文;M0-M7 全量 schema key,2026-09-02 对齐 prompts.py)
 
     static let labels: [String: String] = [

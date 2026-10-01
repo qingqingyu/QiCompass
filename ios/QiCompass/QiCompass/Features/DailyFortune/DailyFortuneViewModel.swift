@@ -108,6 +108,15 @@ final class DailyFortuneViewModel {
     /// 当前展示用的 chartPayload(在阶段 1 后缓存,阶段 2 复用)
     private var cachedChartPayload: ChartPayloadDTO?
 
+    /// S6 信号注释判据:喜忌是否可用(时辰未知/从格 → 后端喜忌双空)。
+    /// nil = payload 未知(离线兜底边缘)——宿主不得据此断言"从格",不显示注释。
+    /// 信号空表有两种真因:喜忌不可用(降级,该注释)与流日五行未命中喜忌
+    /// (正常态,不该注释);本属性区分两者(后端 `_day_signal` 对无交集也返回空表)。
+    var hasAvailableXiji: Bool? {
+        guard let payload = cachedChartPayload else { return nil }
+        return !payload.favorableElements.isEmpty || !payload.unfavorableElements.isEmpty
+    }
+
     init(
         orchestrator: DailyFortuneOrchestrator,
         chartStore: ChartSnapshotStore,

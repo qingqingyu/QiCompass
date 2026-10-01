@@ -140,16 +140,22 @@ struct DailyFortuneMainView: View {
 
     // MARK: - hero 小注
 
-    /// 今日信号降级注释(S6):信号空表 = 喜忌不可用。时辰未知盘(日柱确定)
-    /// 说「喜忌待补时辰」;其余(hourKnown 但喜忌空)= 从格,说「特殊格局不下结论」。
+    /// 今日信号降级注释(S6):信号空表 = 喜忌不可用时才注释。时辰未知盘
+    /// (日柱确定)说「喜忌待补时辰」;hourKnown 且喜忌双空(从格)说
+    /// 「特殊格局不下结论」;hourKnown 且喜忌非空但流日五行未命中 = 正常
+    /// 无交集(后端 `_day_signal` 对无交集同样返回空表),不编注释只显五行。
     /// dayElements 为 nil(老后端/老快照)时信号行整体隐藏,注释无意义 → nil。
     private var signalNote: String? {
         guard response.dayElements != nil else { return nil }
-        let signal = response.daySignal ?? []
-        guard signal.isEmpty else { return nil }
-        return vm.hourGate == .hourUnknownDayDetermined
-            ? L10n.DailyFortune.insightNoteHourUnknown
-            : L10n.DailyFortune.insightNoteSpecialPattern
+        guard (response.daySignal ?? []).isEmpty else { return nil }
+        if vm.hourGate == .hourUnknownDayDetermined {
+            return L10n.DailyFortune.insightNoteHourUnknown
+        }
+        // 喜忌可用却无交集 → 不是降级,不显示;payload 缺失不臆断从格,同样不显示
+        if vm.hasAvailableXiji == false {
+            return L10n.DailyFortune.insightNoteSpecialPattern
+        }
+        return nil
     }
 
     /// V4 文本区脚注:hairline + 「丙子日 · 偏印 · 解读仅供参照」。
