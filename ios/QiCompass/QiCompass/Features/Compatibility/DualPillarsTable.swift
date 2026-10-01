@@ -74,7 +74,7 @@ struct DualPillarsTable: View {
         VStack(alignment: .leading, spacing: 12) {
             Text(L10n.Compatibility.dualTitle)
                 .font(BaziFont.caption(size: 10))
-                .tracking(4)
+                .tracking(1.5)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
 
             VStack(spacing: 10) {

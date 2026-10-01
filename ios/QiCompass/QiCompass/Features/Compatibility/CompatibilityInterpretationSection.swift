@@ -1,129 +1,187 @@
 import SwiftUI
 
-/// 合盘 AI 解读段(D9 + DESIGN.md §Color)。
+/// 合盘 AI 解读段(D9;2026-10-01 Match 重构:章节目录形态 + 自动生成)。
 ///
 /// **独立 error 态 + 禁词拦截提示**:定性评估 + 流年同步表已就绪即视为合盘成功;
 /// AI 子状态独立 error,可单独重试,不污染整体 ready。
 ///
-/// 不复用 DailyInterpretationSection:字数(2026-08-01 grill-me V2 后 1200-1800 字,
-/// 6 章 × 200-300 字 Medium voice)/ 标题 / 模块不同。
+/// 2026-10-01 改版(BP Match 设计板 #7/#11/#13,用户拍板):
+/// - 章节目录形态对齐深度解析命书目录:NumeralBadge 实线圆 = 已开章、虚线圆 =
+///   付费章 + PaidTag 朱红小标,免费章正文随行展开(与 lock.fill 行列表旧形态
+///   互斥,PaidChaptersLockView 退役)
+/// - 去元信息:剩余次数 / 24h 缓存徽章不上屏(对齐今日页 V4 先例;次数用尽态
+///   DailyLimitReachedView 保留——它解释失败,不是元信息)
+/// - 手动「生成合盘解读」CTA 拔除:idle 且次数未耗尽由 VM 自动起链(#13,
+///   `openDetail` 缓存查询收尾触发),UI 的 idle/fetching 同呈推演态
 struct CompatibilityInterpretationSection: View {
     let state: InterpretState
     let remainingReads: Int
     let nextReset: Date
-    let onGenerate: () -> Void
     let onRetry: () -> Void
     let onShowPaywall: () -> Void
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
-            HStack {
-                Text("合盘解读")
-                    .zcoolCardTitle()
-                Spacer()
-                Text("剩余 \(remainingReads) 次")
-                    .font(.caption)
-                    .foregroundStyle(BaziTheme.inkMuted)
-            }
+            header
 
             switch state {
             case .idle:
+                // 次数耗尽保持 .idle(VM 不自动起链);否则 idle 是自动起链的
+                // 瞬态,与 .fetching 同呈推演态
                 if remainingReads <= 0 {
                     DailyLimitReachedView(nextReset: nextReset)
                 } else {
-                    interpretationCTABlock(isLoading: false)
+                    GeneratingDots()
                 }
             case .fetching:
-                interpretationCTABlock(isLoading: true)
-            case .okFree(let text, let cached):
+                GeneratingDots()
+            case .okFree(let text, _):
+                chapterList(freeText: text)
+            case .okPaid(let text, _):
                 CompatibilityChapterText(text: text)
-                if cached {
-                    HStack {
-                        Image(systemName: "checkmark.seal")
-                        Text("24h 内已缓存,不消耗次数")
-                    }
-                    .font(.caption)
-                    .foregroundStyle(BaziTheme.inkMuted)
-                }
-                Divider()
-                    .background(BaziTheme.hairline)
-                // M4:未购买 → 显示付费 4 章锁标 + "解锁合盘解读" CTA
-                // 五行共振改造(S1):第一章「爱情深度」→「五行共振」,title 对齐产品新定位
-                PaidChaptersLockView(
-                    previewChapters: ["五行共振", "合作事业", "财运合拍", "流年同步"]
-                    .map { String(localized: String.LocalizationValue(stringLiteral: $0)) },
-                    title: String(localized: "五行共振·付费章节"),
-                    ctaTitle: String(localized: "解锁合盘解读"),
-                    onUnlock: onShowPaywall
-                )
-            case .okPaid(let text, let cached):
-                CompatibilityChapterText(text: text)
-                if cached {
-                    HStack {
-                        Image(systemName: "checkmark.seal")
-                        Text("24h 内已缓存,不消耗次数")
-                    }
-                    .font(.caption)
-                    .foregroundStyle(BaziTheme.inkMuted)
-                }
                 // 2026-08-01 grill-me 决策 #15:不做"再生成"按钮(任何模块)。
             case .lockedPaid:
-                // M4 后 .lockedPaid case 不再使用(改用 .okFree 内嵌锁标),保留 case 兼容性
+                // M4 后 .lockedPaid case 不再使用,保留 case 兼容性
                 EmptyView()
             case .offlineLegacy(let text):
                 // 不可达(offlineLegacy 仅每日运势离线兜底产生,合盘 VM 不构造);
                 // 为 InterpretState exhaustive switch 完整性保留,渲染正文。
                 CompatibilityChapterText(text: text)
             case .failed(let message):
-                VStack(spacing: 8) {
-                    Text(message)
-                        .font(.subheadline)
-                        .foregroundStyle(BaziTheme.shenshaInauspicious)
-                    Button("重试", action: onRetry)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(BaziTheme.cinnabar)
-                }
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, 16)
+                failedBlock(message)
             case .dailyLimitReached(let nextReset):
                 DailyLimitReachedView(nextReset: nextReset)
-                // 达上限:**禁用生成按钮、不显示重试**(方案 step 4)
             }
         }
-        .padding(BaziTheme.Spacing.md)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-                .stroke(BaziTheme.hairline, lineWidth: 0.5)
+    }
+
+    // MARK: - 头部(标题 + 免费口径;去剩余次数元信息)
+
+    private var header: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text("合盘解读")
+                .zcoolCardTitle()
+            Spacer(minLength: 12)
+            if case .okFree(let text, _) = state {
+                Text(Self.freeScopeText(freeText: text))
+                    .font(BaziFont.caption(size: 10))
+                    .tracking(1)
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+            }
+        }
+    }
+
+    /// 「共 N 章 · 前 M 章免费」:M = 免费文实际解析出的章数(老缓存无标题行
+    /// 时按产品契约取 2),N = M + 付费 4 章。
+    static func freeScopeText(freeText: String) -> String {
+        let freeCount = min(max(CompatibilityChapterText.parse(freeText)?.chapters.count ?? 2, 1), 6)
+        return String(
+            format: String(localized: "共 %lld 章 · 前 %lld 章免费"),
+            freeCount + Self.paidChapterTitles.count, freeCount
         )
     }
 
-    /// idle/fetching 共享 CTA 区(说明文字 + PrimaryCTAButton,loading 时也保留说明)。
-    @ViewBuilder
-    private func interpretationCTABlock(isLoading: Bool) -> some View {
-        VStack(spacing: 12) {
-            Text("6 章解读:基础相处 / 互补冲突 / 五行共振 / 合作事业 / 财运合拍 / 流年同步")
-                .font(.subheadline)
-                .foregroundStyle(BaziTheme.inkMuted)
-                .multilineTextAlignment(.center)
+    /// 付费章名(M4 五行共振改造起的第一章「爱情深度」→「五行共振」,
+    /// 与后端 compatibility_paid 模板章名对齐)。
+    static let paidChapterTitles = ["五行共振", "合作事业", "财运合拍", "流年同步"]
+        .map { String(localized: String.LocalizationValue(stringLiteral: $0)) }
+
+    // MARK: - okFree:免费章展开 + 付费章锁行 + CTA
+
+    private func chapterList(freeText: String) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            CompatibilityChapterText(text: freeText)
+
+            let paidStart = min(max(CompatibilityChapterText.parse(freeText)?.chapters.count ?? 2, 1), 6) + 1
+            ForEach(Array(Self.paidChapterTitles.enumerated()), id: \.offset) { idx, title in
+                Rectangle()
+                    .fill(BaziTheme.hairline)
+                    .frame(height: 0.5)
+                lockedRow(index: paidStart + idx, title: title)
+            }
 
             PrimaryCTAButton(
-                title: String(localized: "生成合盘解读"),
-                loadingTitle: String(localized: "推演中…"),
-                isLoading: isLoading,
-                action: isLoading ? {} : onGenerate
+                title: String(localized: "解锁合盘解读"),
+                loadingTitle: String(localized: "处理中…"),
+                isLoading: false,
+                action: onShowPaywall
             )
+            .padding(.top, 18)
+        }
+    }
+
+    /// 付费章行:虚线圆徽 + 弱墨章名 + 朱红付费标(对齐深度解析目录行语言)。
+    private func lockedRow(index: Int, title: String) -> some View {
+        HStack(spacing: 14) {
+            NumeralBadge(index: index, locked: true, size: 38)
+            Text(title)
+                .font(BaziFont.display(size: 16.5))
+                .tracking(1.5)
+                .foregroundStyle(BaziTheme.inkMuted)
+            Spacer(minLength: 8)
+            PaidTag()
+        }
+        .padding(.vertical, 14)
+    }
+
+    // MARK: - 失败态(独立 error,单独重试)
+
+    private func failedBlock(_ message: String) -> some View {
+        VStack(spacing: 8) {
+            Text(message)
+                .font(.subheadline)
+                .foregroundStyle(BaziTheme.shenshaInauspicious)
+            Button("重试", action: onRetry)
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(BaziTheme.cinnabar)
         }
         .frame(maxWidth: .infinity)
         .padding(.vertical, 16)
     }
 }
 
-// MARK: - 分章渲染(2026-09-27「章节标题与正文挤同段」修复)
+// MARK: - 推演态(三墨点 breathe;reduce-motion 静态)
+
+private struct GeneratingDots: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var breathing = false
+
+    private static let dotsBreathing: [Double] = [0.35, 0.65, 1.0]
+    private static let dotsStatic: [Double] = [1.0, 0.5, 0.22]
+
+    var body: some View {
+        VStack(spacing: 14) {
+            HStack(spacing: 12) {
+                ForEach(0..<3, id: \.self) { idx in
+                    Circle()
+                        .fill(BaziTheme.inkDeep)
+                        .frame(width: 8, height: 8)
+                        .opacity(breathing ? Self.dotsBreathing[idx] : Self.dotsStatic[idx])
+                }
+            }
+            Text("推演中…")
+                .font(BaziFont.caption(size: 11))
+                .tracking(1)
+                .foregroundStyle(BaziTheme.inkMuted)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 30)
+        .onAppear {
+            guard !reduceMotion else { return }
+            withAnimation(.easeInOut(duration: 1.6).repeatForever(autoreverses: true)) {
+                breathing = true
+            }
+        }
+        .accessibilityElement(children: .combine)
+        .accessibilityLabel(String(localized: "推演中…"))
+    }
+}
+
+// MARK: - 分章渲染(2026-09-27「章节标题与正文挤同段」修复;2026-10-01 目录化)
 
 /// 合盘解读分章排版:后端 v4 prompt 要求每章标题独立成行(「第一章 基础相处
-/// 模式」/ "Chapter 1 …"),本视图按行解析出标题并样式化(大写数字编号 +
-/// 楷体章名,对齐深度解析阅读页章题语言),正文段落照排。
+/// 模式」/ "Chapter 1 …"),本视图按行解析出标题并样式化,章行 = NumeralBadge
+/// 实线圆 + 楷体章名(对齐深度解析命书目录行语言),正文段缩进对齐章名。
 ///
 /// 容错:标题行带全/半角冒号或 `**` 包裹(v3 时代输出习惯)同样解析;
 /// 解析不到任何标题行(老缓存散文本)→ `parse` 返回 nil,退回整段渲染,不丢内容。
@@ -245,15 +303,21 @@ struct CompatibilityChapterText: View {
 
     var body: some View {
         if let (lead, chapters) = Self.parse(text) {
-            VStack(alignment: .leading, spacing: 18) {
+            VStack(alignment: .leading, spacing: 0) {
                 if let lead, !lead.isEmpty {
                     Text(MarkdownSanitizer.rendered(lead))
                         .bodySerifText()
                         .multilineTextAlignment(.leading)
                         .fixedSize(horizontal: false, vertical: true)
+                        .padding(.bottom, 14)
                 }
-                ForEach(Array(chapters.enumerated()), id: \.offset) { _, chapter in
-                    chapterBody(chapter)
+                ForEach(Array(chapters.enumerated()), id: \.offset) { idx, chapter in
+                    if idx > 0 {
+                        Rectangle()
+                            .fill(BaziTheme.hairline)
+                            .frame(height: 0.5)
+                    }
+                    chapterBody(chapter, badgeIndex: idx + 1)
                 }
             }
             .fadeIn()
@@ -267,29 +331,36 @@ struct CompatibilityChapterText: View {
         }
     }
 
-    /// 单章:大写数字编号 + 楷体章名(章题语言对齐深度解析阅读页)+ 正文段。
-    private func chapterBody(_ chapter: Chapter) -> some View {
-        VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .firstTextBaseline, spacing: 8) {
-                Text(chapter.numeral)
-                    .font(BaziFont.display(size: 18))
-                    .foregroundStyle(BaziTheme.ink)
+    /// 单章:NumeralBadge 实线圆 + 楷体章名 + 行尾墨点(已读语义,对齐深度解析
+    /// 目录行);正文段缩进对齐章名(52 = 徽 38 + 行距 14)。
+    private func chapterBody(_ chapter: Chapter, badgeIndex: Int) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 14) {
+                NumeralBadge(index: badgeIndex, locked: false, size: 38)
                 Text(chapter.title)
-                    .font(BaziFont.display(size: 15))
-                    .tracking(2)
+                    .font(BaziFont.display(size: 16.5))
+                    .tracking(1.5)
                     .foregroundStyle(BaziTheme.ink)
-                    .lineLimit(2)
-            }
-            Rectangle()
-                .fill(BaziTheme.hairline)
-                .frame(height: 0.5)
-                .padding(.trailing, 60)
-            ForEach(Array(chapter.paragraphs.enumerated()), id: \.offset) { _, p in
-                Text(MarkdownSanitizer.rendered(p))
-                    .bodySerifText()
-                    .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
+                Spacer(minLength: 8)
+                Circle()
+                    .fill(BaziTheme.ink)
+                    .frame(width: 6, height: 6)
+                    .padding(.top, 5)
             }
+            .padding(.vertical, 14)
+
+            VStack(alignment: .leading, spacing: 10) {
+                ForEach(Array(chapter.paragraphs.enumerated()), id: \.offset) { _, p in
+                    Text(MarkdownSanitizer.rendered(p))
+                        .bodySerifText()
+                        .multilineTextAlignment(.leading)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
+            .padding(.leading, 52)
+            .padding(.trailing, 4)
+            .padding(.bottom, 16)
         }
     }
 }

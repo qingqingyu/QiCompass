@@ -1695,15 +1695,18 @@ final class CompatibilityViewModel {
             return
         }
 
-        // 后台查 24h AI 缓存(命中 → interpretState 刷新为 .okFree/.okPaid cached:true)
+        // 后台查 24h AI 缓存(命中 → interpretState 刷新为 .okFree/.okPaid cached:true;
+        // 未命中/读失败 → 自动起链,#13,2026-10-01 用户拍板「免费章节直接展开」)
         cacheReadTask?.cancel()
         let summaryHash = summary.compatibilityHash
         cacheReadTask = Task { [weak self] in
             guard let self else { return }
+            var cacheHit = false
             do {
                 if let cached = try await self.orchestrator.cachedInterpretationIfFresh(
                     compatibilityHash: summaryHash
                 ) {
+                    cacheHit = true
                     guard case .detail(let currentSummary, let response, _) = self.state,
                           currentSummary.id == summary.id else { return }
                     let hasEntitlement = self.entitlementStore.getActive(
@@ -1730,9 +1733,31 @@ final class CompatibilityViewModel {
                 AppLogger.persistence.error(
                     "op=compatibility.openDetail cache_read_failed hash=\(summaryHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
                 )
-                // 缓存读失败不阻塞 detail 态(用户可手动触发 AI 解读)
+                // 缓存读失败不阻塞 detail 态:照走自动起链(客户端缓存只是优化,
+                // 后端 SQLite 还有一层缓存,命中不耗次数)
             }
+            // 自动解读(#13):缓存未命中且次数未耗尽 → 起链(每对至多一次,
+            // openDetail 是 .idle 的唯一入口;换到已解读过的对会先命中上面的缓存)
+            guard !Task.isCancelled, !cacheHit else { return }
+            self.autoGenerateInterpretationIfIdle(summaryID: summary.id)
         }
+    }
+
+    /// 进入 detail 后的自动起链守卫:仍在本对的 .idle 态且次数未耗尽才触发。
+    /// 次数耗尽保持 .idle(UI 按 remainingReads 渲染达限卡);缓存命中/已起链
+    /// (态已非 .idle)自然短路,不重复消耗。
+    private func autoGenerateInterpretationIfIdle(summaryID: String) {
+        guard case .detail(let currentSummary, _, let interpretState) = state,
+              currentSummary.id == summaryID,
+              case .idle = interpretState else { return }
+        guard remainingReads > 0 else {
+            AppLogger.app.info("op=compatibility.autoGenerate skip reason=quota_exhausted hash=\(currentSummary.compatibilityHash, privacy: .public)")
+            return
+        }
+        AppLogger.app.info(
+            "compatVM.autoGenerate.start compatibilityHash=\(currentSummary.compatibilityHash, privacy: .public)"
+        )
+        generateInterpretation()
     }
 
     // MARK: - AI 合盘解读(按对触发,决策 D3)

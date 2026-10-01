@@ -22,6 +22,10 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
     private var compatibilityStore: CompatibilitySnapshotStore!
     private var entitlementStore: EntitlementStore!
     private var vm: CompatibilityViewModel!
+    /// #13 自动起链测试用(耗尽/前置断言;隔离 suite,创建即清域)
+    private var counter: DailyReadCounter!
+    /// #13 缓存命中测试用(预置 24h 内缓存行)
+    private var interpretStore: InterpretationCacheStore!
 
     override func setUpWithError() throws {
         try super.setUpWithError()
@@ -35,9 +39,9 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         // Orchestrator 依赖 APIClient 等,本测试不触发 compute() 内的 orchestrator.runDeterministic,
         // 所以注入一个最小可用实例。APIClient 用 MockAPIClient(不会被调用)。
         let apiClient = MockAPIClient()
-        let interpretStore = InterpretationCacheStore(context: context)
+        interpretStore = InterpretationCacheStore(context: context)
         let identityResolver = AIIdentityResolver(apiClient: apiClient)
-        let counter = DailyReadCounter.makeIsolatedForTesting()
+        counter = DailyReadCounter.makeIsolatedForTesting()
         let reader = CachedInterpretationReader(
             identityResolver: identityResolver,
             cacheStore: interpretStore
@@ -1338,7 +1342,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         }
     }
 
-    func testOpenDetail_有快照_进入detailIdle态() throws {
+    func testOpenDetail_有快照_进入detailIdle态() async throws {
         // 构造 CompatibilitySnapshot
         let response = CompatibilityResponse(
             compatibilityHash: "compat_hash_2",
@@ -1382,6 +1386,133 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
         // paywall hash 按对化:detail 态返回该对 hash
         XCTAssertEqual(vm.lastCompatibilityHashForPaywall, snapshot.compatibilityHash)
+
+        // #13(2026-10-01):缓存未命中后 cacheReadTask 会自动起链(本夹具无 A 盘
+        // 存档 → interpret 态转 .failed);同步断言已完成,drain 防 teardown 竞态
+        await drainDetailBackgroundTasks()
+    }
+
+    // MARK: - #13 免费章自动生成(2026-10-01 拍板「免费章节直接展开」)
+
+    /// #13 完整夹具:A/B 双盘有时辰 + 合盘快照已落,openDetail 即走自动链。
+    @discardableResult
+    private func makeAutoGenFixture(tag: String) throws -> PairSummary {
+        let chartA = try insertChart(hash: "ag_a_\(tag)", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "ag_b_\(tag)", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+
+        let response = CompatibilityResponse(
+            compatibilityHash: "ag_compat_\(tag)",
+            personAChart: nil,
+            personBChart: nil,
+            qualitativeAssessment: QualitativeAssessmentDTO(
+                fiveElements: "互补佳", dayMasterRelation: "同气",
+                zodiacMatch: "六合", branchHarmony: "无冲无刑"
+            ),
+            syncedFortune: [],
+            calcRuleSnapshot: nil
+        )
+        let snapshot = try insertCompatibilitySnapshot(
+            response: response,
+            aHash: chartA.snapshotHash, bHash: chartB.snapshotHash, context: "general"
+        )
+        return PairSummary(
+            id: snapshot.compatibilityHash,
+            entry: .archived(snapshotHash: chartB.snapshotHash),
+            personBHash: chartB.snapshotHash,
+            displayName: "B",
+            birthDate: nil,
+            dayMaster: "甲",
+            fiveElements: "互补佳",
+            dayMasterRelation: "同气",
+            compatibilityHash: snapshot.compatibilityHash,
+            isInterpreted: false,
+            status: .computed
+        )
+    }
+
+    /// 轮询等待 detail 态的 interpretState 满足条件。
+    private func waitForInterpretState(
+        timeout: TimeInterval = 8, _ match: (InterpretState) -> Bool
+    ) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if case .detail(_, _, let interpret) = vm.state, match(interpret) { return true }
+            try? await Task.sleep(nanoseconds: 30_000_000)
+        }
+        if case .detail(_, _, let interpret) = vm.state { return match(interpret) }
+        return false
+    }
+
+    func testOpenDetail_缓存未命中_自动起链免费解读() async throws {
+        let summary = try makeAutoGenFixture(tag: "miss")
+        let readsBefore = vm.remainingReads
+        XCTAssertEqual(readsBefore, 10, "前置:隔离计数器满额")
+
+        vm.openDetail(summary)
+
+        let ok = await waitForInterpretState { state in
+            if case .okFree = state { return true }
+            return false
+        }
+        XCTAssertTrue(ok, "缓存未命中 + 次数充足 → 自动起链直达 .okFree,实际:\(vm.state)")
+        if case .detail(_, _, .okFree(let text, let cached)) = vm.state {
+            XCTAssertFalse(text.isEmpty, "应有解读正文")
+            XCTAssertFalse(cached, "首次生成非缓存命中")
+        }
+        XCTAssertEqual(vm.remainingReads, readsBefore - 1, "自动起链消耗 1 次全局池配额")
+        await drainDetailBackgroundTasks()
+    }
+
+    func testOpenDetail_次数耗尽_保持idle不自动起链() async throws {
+        let summary = try makeAutoGenFixture(tag: "quota")
+        for _ in 0..<10 { _ = counter.tryConsume(module: "compatibility_free") }
+        XCTAssertEqual(vm.remainingReads, 0, "前置:全局池已耗尽")
+
+        vm.openDetail(summary)
+        // 让 cache 查询 + 自动守卫跑完(无网络调用应发生)
+        try? await Task.sleep(nanoseconds: 800_000_000)
+
+        if case .detail(_, _, let interpret) = vm.state {
+            if case .idle = interpret {
+                // 期望:次数耗尽保持 .idle(UI 按 remainingReads 渲染达限卡)
+            } else {
+                XCTFail("次数耗尽应保持 .idle,实际:\(interpret)")
+            }
+        } else {
+            XCTFail("应保持 .detail 态,实际:\(vm.state)")
+        }
+        await drainDetailBackgroundTasks()
+    }
+
+    func testOpenDetail_24h缓存命中_自动链零消耗() async throws {
+        let summary = try makeAutoGenFixture(tag: "cached")
+        // 预置 24h 内缓存行(identity 对齐 MockAPIClient.health:anthropic / mock-anthropic-model;
+        // openDetail 预查用 alias module 查不到 → 自动起链 → runInterpretation 内部
+        // 缓存检查按真实 module 命中 → cached=true + refund,零净消耗)
+        try interpretStore.upsert(
+            contentHash: summary.compatibilityHash,
+            module: "compatibility_free",
+            promptVersion: 1,
+            targetDate: nil,
+            language: AppLanguage.currentWire,
+            provider: "anthropic",
+            model: "mock-anthropic-model",
+            interpretation: "第一章 基础相处模式\n预置缓存正文。",
+            generatedAt: .now
+        )
+        let readsBefore = vm.remainingReads
+
+        vm.openDetail(summary)
+
+        let ok = await waitForInterpretState { state in
+            if case .okFree(_, true) = state { return true }
+            return false
+        }
+        XCTAssertTrue(ok, "24h 缓存行应经自动链以 cached=true 呈现,实际:\(vm.state)")
+        XCTAssertEqual(vm.remainingReads, readsBefore, "缓存命中零净消耗(tryConsume 后 refund)")
+        await drainDetailBackgroundTasks()
     }
 
     func testBackToConfig_detail态_一步回配置态_保留summaries() {

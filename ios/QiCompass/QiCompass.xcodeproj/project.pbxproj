@@ -87,7 +87,6 @@
 		9C0000000000000000000044 /* PurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000044 /* PurchaseManager.swift */; };
 		9C0000000000000000000045 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000045 /* PaywallView.swift */; };
 		9C0000000000000000000046 /* PaywallViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000046 /* PaywallViewModel.swift */; };
-		9C0000000000000000000047 /* PaidChaptersLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000047 /* PaidChaptersLockView.swift */; };
 		9C0000000000000000000050 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000050 /* ProfileView.swift */; };
 		9C0000000000000000000051 /* AliasEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000051 /* AliasEditView.swift */; };
 		9C0000000000000000000052 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000052 /* KeychainHelper.swift */; };
@@ -267,7 +266,6 @@
 		9C1000000000000000000044 /* PurchaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PurchaseManager.swift; path = QiCompass/Services/PurchaseManager.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000045 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PaywallView.swift; path = QiCompass/Features/Paywall/PaywallView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000046 /* PaywallViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PaywallViewModel.swift; path = QiCompass/Features/Paywall/PaywallViewModel.swift; sourceTree = SOURCE_ROOT; };
-		9C1000000000000000000047 /* PaidChaptersLockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PaidChaptersLockView.swift; path = QiCompass/Features/DeepAnalysis/PaidChaptersLockView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000048 /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text.json.storekit; name = Products.storekit; path = QiCompass/Products.storekit; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000050 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProfileView.swift; path = QiCompass/Features/Profile/ProfileView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000051 /* AliasEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AliasEditView.swift; path = QiCompass/Features/Profile/AliasEditView.swift; sourceTree = SOURCE_ROOT; };
@@ -389,7 +387,6 @@
 				9C1000000000000000000057 /* SyncManager.swift */,
 				9C1000000000000000000045 /* PaywallView.swift */,
 				9C1000000000000000000046 /* PaywallViewModel.swift */,
-				9C1000000000000000000047 /* PaidChaptersLockView.swift */,
 				9C4000000000000000000002 /* QiCompass */,
 				9C400000000000000000000E /* Products */,
 				A40000000000000000000001 /* Tests */,
@@ -896,7 +893,6 @@ A11000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift */,
 				9C0000000000000000000044 /* PurchaseManager.swift in Sources */,
 				9C0000000000000000000045 /* PaywallView.swift in Sources */,
 				9C0000000000000000000046 /* PaywallViewModel.swift in Sources */,
-				9C0000000000000000000047 /* PaidChaptersLockView.swift in Sources */,
 				9C0000000000000000000060 /* ZodiacHelper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

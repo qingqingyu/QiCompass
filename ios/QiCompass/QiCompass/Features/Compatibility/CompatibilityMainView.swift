@@ -15,6 +15,7 @@ struct CompatibilityMainView: View {
     let nameA: String
     let nameB: String
     let onBackToConfig: () -> Void
+    /// 失败态重试 + 付费成功回调共用(VM generateInterpretation)。
     let onGenerateInterpret: () -> Void
     let onShowPaywall: () -> Void
 
@@ -39,12 +40,11 @@ struct CompatibilityMainView: View {
                 SyncedFortuneTable(
                     synced: response.syncedFortune, nameB: nameB)
 
-                // AI 解读段(D9)
+                // AI 解读段(D9;2026-10-01 #13:免费章自动生成,手动 CTA 拔除)
                 CompatibilityInterpretationSection(
                     state: interpretState,
                     remainingReads: vm.remainingReads,
                     nextReset: vm.nextDailyReset,
-                    onGenerate: onGenerateInterpret,
                     onRetry: onGenerateInterpret,
                     onShowPaywall: onShowPaywall
                 )

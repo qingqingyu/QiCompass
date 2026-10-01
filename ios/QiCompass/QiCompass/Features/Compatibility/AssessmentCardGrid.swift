@@ -43,7 +43,7 @@ struct AssessmentCardGrid: View {
         VStack(alignment: .leading, spacing: 12) {
             Text("合拍定性 · 无评分")
                 .font(BaziFont.caption(size: 10))
-                .tracking(4)
+                .tracking(1.5)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
 
             LazyVGrid(
