@@ -1012,6 +1012,9 @@ struct ProfileView: View {
             try fetchAndDeleteAll(Entitlement.self)
             try fetchAndDeleteAll(InterpretationCache.self)
             try context.save()
+            // L2/F4:M4/M5 用户输入按盘存 UserDefaults(不在 SwiftData),随全量
+            // 数据一并前缀清扫(隐私口径与命盘数据同级)
+            DeepUserInputPersistence.clearAll()
             // 用 @AppStorage 写,RootTabView 的 @AppStorage("hasSeenOnboarding") 立即响应触发 onboarding sheet
             hasSeenOnboarding = false
             AppLogger.app.info("重置命盘完成,hasSeenOnboarding=false,RootTabView 应立即弹 onboarding sheet")

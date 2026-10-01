@@ -584,6 +584,19 @@ final class DeepAnalysisViewModel {
             AppLogger.app.info("deepVM.hydrateAndResume.already_hydrating hash=\(response.contentHash, privacy: .public)")
             return
         }
+        // L2/F4 起手读回持久化的 M4/M5 输入(重启后 m4UserInput/m5UserInput 为
+        // nil——翻译链缺输入会把已生成章标 .needsInput,原文从屏幕消失)。
+        // 内存已有值不覆盖(同会话重入 hydrate 不吞掉刚提交的新输入)。
+        if m4UserInput == nil,
+           let saved = DeepUserInputPersistence.loadM4(contentHash: response.contentHash) {
+            m4UserInput = (saved.age, saved.concern)
+            AppLogger.app.info("deepVM.hydrateAndResume.m4_input_restored hash=\(response.contentHash, privacy: .public)")
+        }
+        if m5UserInput == nil,
+           let saved = DeepUserInputPersistence.loadM5(contentHash: response.contentHash) {
+            m5UserInput = (saved.assets, saved.preference)
+            AppLogger.app.info("deepVM.hydrateAndResume.m5_input_restored hash=\(response.contentHash, privacy: .public)")
+        }
         isHydrating = true
         let outcome = await performRestore(response: response)
         isHydrating = false
@@ -772,10 +785,15 @@ final class DeepAnalysisViewModel {
     // MARK: - v1 prompt 系统用户输入提交(Stage 8)
 
     /// M4 用户输入提交(ChapterReadingView 页内表单的 onSubmit 回调)。
-    /// 写入 m4UserInput + 若 M4 当前是 .needsInput 则触发自动重试。
+    /// 写入 m4UserInput + 持久化(L2/F4:切语言必重启,重启后翻译链/续跑
+    /// 需要 user_input_hash 对齐,输入丢失会把已生成章翻成「待填写」)+ 若
+    /// M4 当前是 .needsInput 则触发自动重试。
     /// 注:上游依赖(M0)是否 ok 由 runSingleV1Module 内部守卫处理(缺失时标 .pending)。
     func submitM4Input(age: Int, concern: String) {
         m4UserInput = (age, concern)
+        DeepUserInputPersistence.saveM4(
+            .init(age: age, concern: concern), contentHash: currentContentHashForPersistence
+        )
         // age 非敏感(concern 含健康信息 → privacy)
         AppLogger.app.info("deepVM.submitM4Input age=\(age) concern=\(concern, privacy: .private)")
         if moduleStates[.m4] == .needsInput {
@@ -784,15 +802,25 @@ final class DeepAnalysisViewModel {
     }
 
     /// M5 用户输入提交(ChapterReadingView 页内表单的 onSubmit 回调)。
-    /// 写入 m5UserInput + 若 M5 当前是 .needsInput 则触发自动重试。
+    /// 写入 m5UserInput + 持久化(L2/F4 同上)+ 若 M5 当前是 .needsInput
+    /// 则触发自动重试。
     /// 注:上游依赖(M0+M1+M3)是否 ok 由 runSingleV1Module 内部守卫处理。
     func submitM5Input(assets: String, preference: String) {
         m5UserInput = (assets, preference)
+        DeepUserInputPersistence.saveM5(
+            .init(assets: assets, preference: preference), contentHash: currentContentHashForPersistence
+        )
         // assets 含财务信息 → privacy;preference 三选一非敏感但跟随 private 保持一致
         AppLogger.app.info("deepVM.submitM5Input assets=\(assets, privacy: .private) preference=\(preference, privacy: .private)")
         if moduleStates[.m5] == .needsInput {
             retryV1Module(.m5)
         }
+    }
+
+    /// 当前盘的 contentHash(持久化键用);.ready 外(表单态)为 nil → 不落盘。
+    private var currentContentHashForPersistence: String? {
+        if case .ready(let response, _) = state { return response.contentHash }
+        return nil
     }
 
     // MARK: - v1 prompt 系统链式调用(Stage 7c)
@@ -1344,5 +1372,93 @@ final class DeepAnalysisViewModel {
     /// 下次每日重置时间(本地午夜,达上限时用于倒计时)。
     var nextDailyReset: Date {
         orchestrator.nextDailyReset()
+    }
+}
+
+// MARK: - M4/M5 用户输入持久化(L2/F4,2026-10-01 语言切换走查)
+
+/// 按 contentHash 持久化 M4/M5 用户输入(UserDefaults,JSON 编码)。
+///
+/// 为什么不用 SwiftData:数据小(两个短字段 × 每盘一行)、无查询需求、
+/// 新 @Model = pbxproj 4 处登记 + 迁移风险,UserDefaults 足够。
+/// 生命周期:写入 = submitM4/5Input;读回 = hydrateAndResume 起手(内存
+/// 缺值时);清扫 = ProfileView.resetAllData(前缀全清)。**link 删除不清**
+/// ——与 UserSnapshotLinkStore.delete 的「ChartSnapshot 不动,历史缓存可
+/// 回溯」语义对齐(盘还在,输入就该在)。
+/// 隐私:仅本机,与命盘数据同等级;「重置命盘」随全量数据一并清除。
+enum DeepUserInputPersistence {
+
+    static let m4KeyPrefix = "deep.m4Input."
+    static let m5KeyPrefix = "deep.m5Input."
+
+    struct M4Payload: Codable, Equatable {
+        let age: Int
+        let concern: String
+    }
+
+    struct M5Payload: Codable, Equatable {
+        let assets: String
+        let preference: String
+    }
+
+    static func saveM4(_ payload: M4Payload, contentHash: String?) {
+        guard let contentHash else {
+            // submit 只在 .ready 态可发起(阅读页表单);nil = 状态机错乱,显式留痕不落盘
+            AppLogger.persistence.warning("op=deepUserInput.saveM4.skip reason=no_content_hash")
+            return
+        }
+        UserDefaults.standard.set(encode(payload), forKey: m4KeyPrefix + contentHash)
+    }
+
+    static func saveM5(_ payload: M5Payload, contentHash: String?) {
+        guard let contentHash else {
+            AppLogger.persistence.warning("op=deepUserInput.saveM5.skip reason=no_content_hash")
+            return
+        }
+        UserDefaults.standard.set(encode(payload), forKey: m5KeyPrefix + contentHash)
+    }
+
+    /// 读回;解码失败显式日志 + 返回 nil(不静默吞——按无输入走 .needsInput,
+    /// 用户重填,不拿坏数据冒充)。
+    static func loadM4(contentHash: String) -> M4Payload? {
+        decode(M4Payload.self, forKey: m4KeyPrefix + contentHash)
+    }
+
+    static func loadM5(contentHash: String) -> M5Payload? {
+        decode(M5Payload.self, forKey: m5KeyPrefix + contentHash)
+    }
+
+    /// 前缀全清(resetAllData「清除全部数据」)。
+    static func clearAll() {
+        let defaults = UserDefaults.standard
+        let removed = defaults.dictionaryRepresentation().keys
+            .filter { $0.hasPrefix(m4KeyPrefix) || $0.hasPrefix(m5KeyPrefix) }
+        removed.forEach { defaults.removeObject(forKey: $0) }
+        if !removed.isEmpty {
+            AppLogger.persistence.info("op=deepUserInput.clearAll removed=\(removed.count, privacy: .public)")
+        }
+    }
+
+    // MARK: - Private
+
+    private static func encode<T: Encodable>(_ value: T) -> Data {
+        guard let data = try? JSONEncoder().encode(value) else {
+            // Codable 合成编码两字段 struct 不可能失败;防御位仍显式留痕
+            AppLogger.persistence.error("op=deepUserInput.encode_failed type=\(String(describing: T.self), privacy: .public)")
+            return Data()
+        }
+        return data
+    }
+
+    private static func decode<T: Decodable>(_ type: T.Type, forKey key: String) -> T? {
+        guard let data = UserDefaults.standard.data(forKey: key) else { return nil }
+        do {
+            return try JSONDecoder().decode(T.self, from: data)
+        } catch {
+            AppLogger.persistence.error(
+                "op=deepUserInput.decode_failed key=\(key, privacy: .public) error=\(String(describing: error), privacy: .public) — 按无输入处理"
+            )
+            return nil
+        }
     }
 }

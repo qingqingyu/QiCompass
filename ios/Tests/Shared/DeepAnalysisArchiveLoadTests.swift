@@ -60,6 +60,9 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         if let vm {
             _ = await waitUntil(timeout: 10) { !vm.isChainRunning && !vm.isHydrating }
         }
+        // L2/F4:M4/M5 持久化按 contentHash 落 UserDefaults——同类用例共用
+        // beijing 盘(同 hash),不清会让「无输入」类用例读到别家输入
+        DeepUserInputPersistence.clearAll()
         vm = nil
         entitlementStore = nil
         counter = nil
@@ -119,6 +122,65 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             archivedFired,
             "直读存档非新建存档,不应触发 onChartArchived(否则误消费 pendingReturnTab 切 Tab)"
         )
+    }
+
+    // MARK: - M4/M5 用户输入持久化(L2/F4,2026-10-01)
+
+    func testDeepUserInputPersistenceRoundtripAndClearAll() {
+        let hash = "l2_roundtrip_hash"
+        defer { DeepUserInputPersistence.clearAll() }
+        // 空 → nil
+        XCTAssertNil(DeepUserInputPersistence.loadM4(contentHash: hash))
+        XCTAssertNil(DeepUserInputPersistence.loadM5(contentHash: hash))
+        // 往返
+        DeepUserInputPersistence.saveM4(.init(age: 30, concern: "睡眠"), contentHash: hash)
+        DeepUserInputPersistence.saveM5(.init(assets: "工资", preference: "稳"), contentHash: hash)
+        XCTAssertEqual(
+            DeepUserInputPersistence.loadM4(contentHash: hash),
+            .init(age: 30, concern: "睡眠")
+        )
+        XCTAssertEqual(
+            DeepUserInputPersistence.loadM5(contentHash: hash),
+            .init(assets: "工资", preference: "稳")
+        )
+        // 坏数据:解码失败 → nil(显式日志,不拿坏数据冒充输入)
+        UserDefaults.standard.set(
+            Data([0xFF, 0xFE, 0x00]),
+            forKey: DeepUserInputPersistence.m4KeyPrefix + "bad_hash"
+        )
+        XCTAssertNil(DeepUserInputPersistence.loadM4(contentHash: "bad_hash"))
+        // nil hash(状态机错乱防御):不落盘、不 crash
+        DeepUserInputPersistence.saveM4(.init(age: 1, concern: "x"), contentHash: nil)
+        XCTAssertNil(DeepUserInputPersistence.loadM4(contentHash: "nil_guard"))
+        // 前缀全清(resetAllData 路径)
+        DeepUserInputPersistence.clearAll()
+        XCTAssertNil(DeepUserInputPersistence.loadM4(contentHash: hash))
+        XCTAssertNil(DeepUserInputPersistence.loadM5(contentHash: hash))
+    }
+
+    /// 重启模拟:上个会话提交过的 M4/M5 输入落了持久化,新 VM(内存为 nil)
+    /// 经 loadArchivedChart → hydrate 起手读回——翻译链/续跑不再丢输入。
+    func testHydrateRestoresPersistedM4M5Inputs() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        DeepUserInputPersistence.saveM4(
+            .init(age: 41, concern: "体力"), contentHash: response.contentHash
+        )
+        DeepUserInputPersistence.saveM5(
+            .init(assets: "存款", preference: "保守"), contentHash: response.contentHash
+        )
+
+        vm.loadArchivedChart(response: response, request: request)
+        // 等 hydrate 起手的读回落地(不能等 !isHydrating:hydrate Task 未启动时
+        // 该值本就为 false,会秒过造成假红)
+        _ = await waitUntil(timeout: 10) {
+            self.vm.m4UserInput != nil && self.vm.m5UserInput != nil
+        }
+
+        XCTAssertEqual(vm.m4UserInput?.age, 41, "hydrate 起手应读回持久化的 M4 输入")
+        XCTAssertEqual(vm.m4UserInput?.concern, "体力")
+        XCTAssertEqual(vm.m5UserInput?.assets, "存款", "hydrate 起手应读回持久化的 M5 输入")
+        XCTAssertEqual(vm.m5UserInput?.preference, "保守")
     }
 
     // MARK: - archivedDisplayRequest(城市盘)
