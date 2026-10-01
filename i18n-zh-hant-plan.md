@@ -55,8 +55,8 @@
 | G1 en 模板 | ✅ `prompts/en/` 已含 M0-M7 + compatibility_free/paid + daily 全套;仅剩 4 个 alias 老模块(bazi_deep×3 + compatibility)在 `_LEGACY_TEMPLATES` 只有中文 |
 | T0 `AppLanguage` 类型化枚举 | ✅ `ios/.../L10n/AppLanguage.swift`(`zh` / `zhHant` / `en`,wire 全小写) |
 | zh-Hant 后端 | ✅ **S2 已实施(2026-10-01,yuyan worktree)**:`TERM_TRANSLATIONS` 注册 zh-hant 表 131 键(值与 iOS BaziTerms zhHant 列锁定,`check_term_sync.py` ①③ 组三相等);`prompts/zh-hant/` 14 文件(现役版本全套 + suffix 预置,parity 测试锁三语 bump 同步);`resolve_language` zh 变体解析(D4);unknown_hour suffix 三语映射;joiner 语义(zh-hant 干支连写无空格) |
-| zh-Hant iOS | ⏸ **止血中**:`AppLanguage.systemLanguage` 的 zh 分支恒返回 `.zh`(D4 实现保留在 `normalizeZhVariant`,S4 接回);xcstrings zh-Hant 列 238 key 已人工校对但已撤列暂存(commit `74c60e5`) |
-| 语言切换 UI / `X-QiCompass-Lang` 发送 | ❌ 未做(后端已支持该 header) |
+| zh-Hant iOS | ✅ **S3+S4 已实施(2026-10-01,yuyan worktree)**:xcstrings zh-Hant 777/777 全覆盖(305 校对稿回导 + 472 新译)+ knownRegions 回列;`normalizeZhVariant` 已接回(止血解除) |
+| 语言切换 UI / `X-QiCompass-Lang` 发送 | ✅ **S4 已实施(2026-10-01,yuyan worktree)**:ProfileView 设置区「语言」Menu(system/zh/zh-hant/en)+ AppleLanguages 镜像 + 重启 alert;`AppLanguage.current = override ?? systemLanguage`;`activeOverrideWire` 时 `APIClient.send` 发 `X-QiCompass-Lang`;BaziFont zh-hant 分流 Kaiti TC(DESIGN.md 已记);BaziDateFormatter.lunar zh_TW;新增 `AppLanguageTests`(7 用例,pbxproj 4 处登记) |
 | 已生成解读的跨语言处理 | 🟡 **S6 已实施(2026-10-01,yuyan worktree)**:`POST /api/interpret/translate` 落地(D10.1-D10.3,键对齐/STALE_SOURCE/白名单/entitlement 同检/保真校验/先查后译,23 用例锁定,含「译后目标语言 /api/interpret 命中 cached=true」);实施偏差两处见 §3 D10.1 末注。iOS 接入 = S7 未做 |
 
 ---

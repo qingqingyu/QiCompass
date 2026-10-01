@@ -54,6 +54,13 @@ struct ProfileView: View {
     /// 默认 zi_next_day(对齐 CLAUDE.md 项目约束 + 既有 DeepAnalysisViewModel 默认值)。
     @AppStorage("defaultZiHourRule") private var defaultZiHourRule = "zi_next_day"
 
+    /// 语言覆盖(D6:四档 system/zh/zh-hant/en;key 与 AppLanguage.overrideDefaultsKey
+    /// 同字面量)。@AppStorage 直写 UserDefaults,AppLanguage.current 即时读到
+    /// (解读语言不等重启);UI 文案经 AppleLanguages 镜像 + 重启生效(方案 A)。
+    @AppStorage(AppLanguage.overrideDefaultsKey) private var languageOverride = "system"
+    /// 语言切换后的「重启生效」alert(D6:方案 A 既定 UX,明示而非静默半生效)。
+    @State private var showLanguageRestartAlert = false
+
     // MARK: 名册行内操作 state
 
     /// 待删 link(行内「删除」触发 → confirmationDialog 二次确认)。
@@ -606,6 +613,41 @@ struct ProfileView: View {
     private var settingsSection: some View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader(String(localized: "设 置"))
+            // 语言(D6/S4):唯一语言开关——UI 文案 / 命盘术语 / AI 解读共用
+            // (D9 不做独立「解读语言」)。Menu + Picker 与子时规则同款交互。
+            Menu {
+                Picker("语言", selection: $languageOverride) {
+                    ForEach(AppLanguage.Override.allCases, id: \.rawValue) { override in
+                        Text(override.displayLabel).tag(override.rawValue)
+                    }
+                }
+            } label: {
+                HStack {
+                    Text("语言")
+                        .font(BaziFont.caption(size: 13))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.ink)
+                    Spacer()
+                    Text("\(currentLanguageOverride.displayLabel) ›")
+                        .font(BaziFont.caption(size: 10.5))
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                }
+                .padding(.vertical, 11)
+                .contentShape(Rectangle())
+            }
+            .onChange(of: languageOverride) { _, newValue in
+                applyLanguageOverride(newValue)
+            }
+            .alert(
+                String(localized: "重启后生效"),
+                isPresented: $showLanguageRestartAlert
+            ) {
+                Button(String(localized: "好")) {}
+            } message: {
+                Text("界面与解读语言将在重启 App 后完全生效;期间新生成的解读已按新语言。")
+            }
+            .overlay(alignment: .bottom) { sectionDivider }
+
             // 子时规则默认:Menu + Picker(原 List Picker 的开放布局等价物)
             Menu {
                 Picker("子时换日", selection: $defaultZiHourRule) {
@@ -680,6 +722,39 @@ struct ProfileView: View {
                 .padding(.top, 8)
         }
         .padding(.top, BaziTheme.Spacing.cmd)
+    }
+
+    // MARK: - 语言切换(D6/S4)
+
+    /// 设置行右侧当前档显示(坏存储值防御回落 system,与 AppLanguage 口径一致)。
+    private var currentLanguageOverride: AppLanguage.Override {
+        AppLanguage.overrideValue ?? .system
+    }
+
+    /// 应用语言覆盖:双轨写入(D6 方案 A)。
+    /// ① appLanguageOverride(已由 @AppStorage 写入)→ AppLanguage.current 即时生效,
+    ///    解读语言 / 缓存键 / X-QiCompass-Lang 马上切换;
+    /// ② AppleLanguages 镜像 → String Catalog 走 Bundle 解析,重启后 UI 文案生效。
+    /// system 档删除 AppleLanguages 恢复跟随系统。切换即弹重启提示(方案 A 既定 UX)。
+    private func applyLanguageOverride(_ raw: String) {
+        guard let override = AppLanguage.Override(rawValue: raw) else {
+            // 坏值防御:不写 AppleLanguages,@AppStorage 已存原值,AppLanguage
+            // 读取侧同样回落 system——显式留日志,不静默
+            AppLogger.app.warning("op=profile.languageOverride.invalid raw=\(raw, privacy: .public)")
+            return
+        }
+        let defaults = UserDefaults.standard
+        switch override {
+        case .system:
+            defaults.removeObject(forKey: "AppleLanguages")
+        case .zh:
+            defaults.set(["zh-Hans"], forKey: "AppleLanguages")
+        case .zhHant:
+            defaults.set(["zh-Hant"], forKey: "AppleLanguages")
+        case .en:
+            defaults.set(["en"], forKey: "AppleLanguages")
+        }
+        showLanguageRestartAlert = true
     }
 
     // MARK: - 关于(2026-08-13 onboarding 三屏重构:完整版立场/隐私下沉到此)

@@ -18,16 +18,26 @@ import Foundation
 /// 使用 `DateFormatter.dateFormat(fromTemplate:options:locale:)` 让 Apple 系统
 /// 按 locale 自动调整字段顺序(避免硬编码 "yyyy-MM-dd" 在英文 locale 显示乱)。
 enum BaziDateFormatter {
-    /// 农历显示:永远 zh_CN(术语,不翻译)。
-    /// 输入:lunar_python 输出的农历字符串(如 "正月初一")。
-    /// 由于该字符串已是中文,此 formatter 实际只用于"农历"前缀 label 的本地化,
-    /// 不直接格式化 Date 对象。保留此处作为文档化决策。
-    static let lunar: DateFormatter = {
+    /// 农历显示 formatter(D7:locale 按语言取——zh-hant → zh_TW,其余 zh_CN)。
+    /// 输入:lunar_python 输出的农历字符串(如 "正月初一"),本身是中文术语
+    /// 不翻译;本 formatter 只承担 "M月d日" 类模板格式化的字形口径,
+    /// 不直接处理农历原文。两份实例一次性构造,`lunar` 按当前语言选
+    /// (S4 起 AppLanguage 有 override,let 单例不再成立)。
+    private static let _lunarZH: DateFormatter = {
         let f = DateFormatter()
         f.locale = Locale(identifier: "zh_CN")
         f.dateFormat = "M月d日"
         return f
     }()
+    private static let _lunarHant: DateFormatter = {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "zh_TW")
+        f.dateFormat = "M月d日"
+        return f
+    }()
+    static var lunar: DateFormatter {
+        AppLanguage.current == .zhHant ? _lunarHant : _lunarZH
+    }
 
     /// 公历显示:按 user locale,dateStyle = .long(完整格式,含星期由 template 决定)。
     /// zh → "2026年8月12日";en → "August 12, 2026"。

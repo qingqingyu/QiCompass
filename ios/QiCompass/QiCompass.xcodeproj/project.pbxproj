@@ -135,6 +135,7 @@
 		A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */; };
 		A00000000000000000000043 /* Shared/BaziTermsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000043 /* Shared/BaziTermsTests.swift */; };
 		9C2ECF614CADE1AAEFCB60F2 /* Shared/BaziTermNotesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0F8084E7453944F40781F3 /* Shared/BaziTermNotesTests.swift */; };
+		9C4F1A2B3C5D7E9F0A1B2C3E /* Shared/AppLanguageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C4F1A2B3C5D7E9F0A1B2C3D /* Shared/AppLanguageTests.swift */; };
 		A00000000000000000000021 /* Shared/ZodiacRevealTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000021 /* Shared/ZodiacRevealTests.swift */; };
 		A00000000000000000000008 /* XCTest.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = A21000000000000000000001 /* XCTest.framework */; };
 		A00000000000000000000009 /* AI/CachedInterpretationReaderTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000008 /* AI/CachedInterpretationReaderTests.swift */; };
@@ -316,6 +317,7 @@
 		A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/UserFacingErrorTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000043 /* Shared/BaziTermsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/BaziTermsTests.swift; sourceTree = "<group>"; };
 		9C0F8084E7453944F40781F3 /* Shared/BaziTermNotesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/BaziTermNotesTests.swift; sourceTree = "<group>"; };
+		9C4F1A2B3C5D7E9F0A1B2C3D /* Shared/AppLanguageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/AppLanguageTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000021 /* Shared/ZodiacRevealTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ZodiacRevealTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000008 /* AI/CachedInterpretationReaderTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AI/CachedInterpretationReaderTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000000A /* Compatibility/CompatibilityViewModelBatchTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityViewModelBatchTests.swift; sourceTree = "<group>"; };
@@ -646,6 +648,7 @@ A11000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift */,
 				A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */,
 				A11000000000000000000043 /* Shared/BaziTermsTests.swift */,
 				9C0F8084E7453944F40781F3 /* Shared/BaziTermNotesTests.swift */,
+				9C4F1A2B3C5D7E9F0A1B2C3D /* Shared/AppLanguageTests.swift */,
 				A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */,
 				A11000000000000000000016 /* Paywall/PaywallContractStepTests.swift */,
 				A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */,
@@ -925,6 +928,7 @@ A00000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift in 
 				A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */,
 				A00000000000000000000043 /* Shared/BaziTermsTests.swift in Sources */,
 				9C2ECF614CADE1AAEFCB60F2 /* Shared/BaziTermNotesTests.swift in Sources */,
+				9C4F1A2B3C5D7E9F0A1B2C3E /* Shared/AppLanguageTests.swift in Sources */,
 				A00000000000000000000021 /* Shared/ZodiacRevealTests.swift in Sources */,
 				A00000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift in Sources */,
 				A00000000000000000000016 /* Paywall/PaywallContractStepTests.swift in Sources */,

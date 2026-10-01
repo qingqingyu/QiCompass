@@ -161,6 +161,12 @@ final class LiveAPIClient: APIClient {
         req.httpMethod = endpoint.method
         req.setValue("application/json", forHTTPHeaderField: "Content-Type")
         req.setValue("application/json", forHTTPHeaderField: "Accept")
+        // D6 语言切换(S4):显式覆盖(≠ 跟随系统)时发 X-QiCompass-Lang,
+        // 后端 resolve_language 优先读它;跟随系统时不发,让 Accept-Language
+        // 说话(与后端 D4 zh 变体解析对齐)。单一入口取值,不在此读 UserDefaults。
+        if let lang = AppLanguage.activeOverrideWire {
+            req.setValue(lang, forHTTPHeaderField: "X-QiCompass-Lang")
+        }
         // v2 PR2:从 AccountManager 取 lastKnownJwtToken(只承载自家 JWT,已登录且 exchange 成功时注入)
         // 用 nonisolated(unsafe) 属性避免 main actor 切换(APIClient.send 可能在 background 线程)
         // 后端会验签:过期 / 非法 token 硬 401,无 header 才走 user_local_id 兜底
