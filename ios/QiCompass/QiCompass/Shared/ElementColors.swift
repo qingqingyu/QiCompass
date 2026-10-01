@@ -9,7 +9,7 @@ import SwiftUI
 ///
 /// 色值按传统五行色选取,降饱和 ~40% 压向墨色以适配水墨孤本气质(DESIGN.md §Color 五行色映射):
 /// - 木(青绿)/ 火(赤)/ 土(黄)/ 金(白金)/ 水(玄蓝);Dark 各提亮约 20% 亮度保持识别。
-enum ElementColors: String {
+enum ElementColors: String, CaseIterable {
     case wood
     case fire
     case earth

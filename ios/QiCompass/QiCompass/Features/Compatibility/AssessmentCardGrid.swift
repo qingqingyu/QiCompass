@@ -2,10 +2,13 @@ import SwiftUI
 
 /// 4 项定性评估的 2×2 网格(水墨孤本 H3:hairline 网格,无卡片底,参考 hepan-h3-detail.html)。
 ///
-/// 每格:标题(淡灰小标)+ 评估值(楷体浓墨)+ 一行简短解释。
+/// 每格:标题(淡灰小标)+ 点名行(确定性干支/五行事实,BP #2 2026-10-01;
+/// 派生不出时回落评估枚举值)+ 一行简短解释。
 /// **不给数字分、不引入百分比**(定性不给分决策不变)。
 struct AssessmentCardGrid: View {
     let assessment: QualitativeAssessmentDTO
+    /// 确定性「点名干支」详情(nil = 老盘字段不足,全部回落枚举值)。
+    var detail: CompatibilityRelationDetail? = nil
 
     private struct Card: Identifiable {
         let id = UUID()
@@ -18,22 +21,26 @@ struct AssessmentCardGrid: View {
         [
             Card(
                 title: String(localized: "五行互补"),
-                value: BaziTerms.display(assessment.fiveElements),
+                value: detail?.fiveElements
+                    ?? BaziTerms.display(assessment.fiveElements),
                 explanation: Self.explanation(for: assessment.fiveElements)
             ),
             Card(
                 title: String(localized: "日主关系"),
-                value: BaziTerms.display(assessment.dayMasterRelation),
+                value: detail?.dayMaster
+                    ?? BaziTerms.display(assessment.dayMasterRelation),
                 explanation: Self.explanation(for: assessment.dayMasterRelation)
             ),
             Card(
                 title: String(localized: "生肖匹配"),
-                value: BaziTerms.display(assessment.zodiacMatch),
+                value: detail?.zodiac
+                    ?? BaziTerms.display(assessment.zodiacMatch),
                 explanation: Self.explanation(for: assessment.zodiacMatch)
             ),
             Card(
                 title: String(localized: "地支合冲"),
-                value: BaziTerms.display(assessment.branchHarmony),
+                value: detail?.branch
+                    ?? BaziTerms.display(assessment.branchHarmony),
                 explanation: Self.explanation(for: assessment.branchHarmony)
             ),
         ]
@@ -80,6 +87,26 @@ struct AssessmentCardGrid: View {
                             .fill(BaziTheme.hairline)
                             .frame(width: 0.5)
                     }
+                }
+            }
+
+            // 刑害提示行(BP #10,2026-10-01):确定性派生的具体刑/害对 + 一句
+            // 静态相处建议(不让 LLM 写;文案映射同 explanation 先例)
+            if let pairs = detail?.frictionPairs, !pairs.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    Rectangle()
+                        .fill(BaziTheme.hairline)
+                        .frame(height: 0.5)
+                    Text(
+                        String(
+                            format: String(localized: "两人地支见刑害(%1$@):摩擦多在习惯与小事上,早点说开。"),
+                            pairs.joined(separator: "、")
+                        )
+                    )
+                    .font(BaziFont.caption(size: 12))
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .padding(.top, 6)
                 }
             }
         }

@@ -8956,6 +8956,72 @@
         }
       }
     },
+    "%1$@遇%2$@ · 同为%3$@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ meets %2$@ · both %3$@"
+          }
+        }
+      }
+    },
+    "%1$@遇%2$@ · %3$@生%4$@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ meets %2$@ · %3$@ feeds %4$@"
+          }
+        }
+      }
+    },
+    "%1$@遇%2$@ · %3$@克%4$@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ meets %2$@ · %3$@ controls %4$@"
+          }
+        }
+      }
+    },
+    "对方多 %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partner brings %@"
+          }
+        }
+      }
+    },
+    "你多 %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You bring %@"
+          }
+        }
+      }
+    },
+    "两人地支见刑害(%1$@):摩擦多在习惯与小事上,早点说开。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your branches punish or work against each other (%1$@). Friction shows up in habits and small promises — name it early."
+          }
+        }
+      }
+    },
     "合盘" : {
       "extractionState" : "manual",
       "localizations" : {

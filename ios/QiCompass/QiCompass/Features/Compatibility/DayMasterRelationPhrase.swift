@@ -39,12 +39,14 @@ enum DayMasterRelationPhrase {
     }
 
     /// 五行相生环:木生火、火生土、土生金、金生水、水生木。
-    private static let sheng: [String: String] = [
+    /// internal(2026-10-01):CompatibilityRelationDetailBuilder 复用同一生克表
+    /// 派生日主卡「点名」短语,保持单一事实源。
+    static let sheng: [String: String] = [
         "wood": "fire", "fire": "earth", "earth": "metal",
         "metal": "water", "water": "wood",
     ]
     /// 五行相克环:木克土、土克水、水克火、火克金、金克木。
-    private static let ke: [String: String] = [
+    static let ke: [String: String] = [
         "wood": "earth", "earth": "water", "water": "fire",
         "fire": "metal", "metal": "wood",
     ]
