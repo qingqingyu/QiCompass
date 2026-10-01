@@ -15,14 +15,16 @@ struct CompatibilityMainView: View {
     let nameA: String
     let nameB: String
     let onBackToConfig: () -> Void
+    /// 失败态重试 + 付费成功回调共用(VM generateInterpretation)。
     let onGenerateInterpret: () -> Void
     let onShowPaywall: () -> Void
 
     var body: some View {
-        ScrollView {
+        let dualPillars = makeDualPillars()
+        return ScrollView {
             VStack(spacing: BaziTheme.Spacing.lg) {
                 // 双盘对比(D6;S4 中轴带日主方向短语,后端关系标签作守卫回退)
-                if let dualPillars = makeDualPillars() {
+                if let dualPillars {
                     DualPillarsTable(
                         pillars: dualPillars, labelA: nameA, labelB: nameB,
                         dayMasterRelation: response.qualitativeAssessment.dayMasterRelation)
@@ -32,19 +34,27 @@ struct CompatibilityMainView: View {
                         .foregroundStyle(BaziTheme.shenshaInauspicious)
                 }
 
-                // 4 张评估卡(D7)
-                AssessmentCardGrid(assessment: response.qualitativeAssessment)
+                // 4 张评估卡(D7;点名干支详情从同一双盘源确定性派生,BP #2;
+                // 双盘源缺失时仍给枚举值 + 解释,不空屏)
+                AssessmentCardGrid(
+                    assessment: response.qualitativeAssessment,
+                    detail: dualPillars.map { CompatibilityRelationDetailBuilder.make(pillars: $0) }
+                )
+
+                // 五行分布(BP #4:让「互补」有盘面事实可查;需双盘源,缺失时整段不渲染)
+                if let dualPillars {
+                    ElementBalanceSection(pillars: dualPillars, nameB: nameB)
+                }
 
                 // 流年同步表(D8;A 列头固定「你的流年」,只注入 B 称呼)
                 SyncedFortuneTable(
                     synced: response.syncedFortune, nameB: nameB)
 
-                // AI 解读段(D9)
+                // AI 解读段(D9;2026-10-01 #13:免费章自动生成,手动 CTA 拔除)
                 CompatibilityInterpretationSection(
                     state: interpretState,
                     remainingReads: vm.remainingReads,
                     nextReset: vm.nextDailyReset,
-                    onGenerate: onGenerateInterpret,
                     onRetry: onGenerateInterpret,
                     onShowPaywall: onShowPaywall
                 )

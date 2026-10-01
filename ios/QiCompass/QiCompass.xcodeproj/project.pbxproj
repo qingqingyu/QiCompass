@@ -69,6 +69,8 @@
 		9C0000000000000000000032 /* AssessmentCardGrid.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000032 /* AssessmentCardGrid.swift */; };
 		9C0000000000000000000033 /* SyncedFortuneTable.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000033 /* SyncedFortuneTable.swift */; };
 		9C0000000000000000000034 /* CompatibilityInterpretationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000034 /* CompatibilityInterpretationSection.swift */; };
+		9C0000000000000000000047 /* CompatibilityRelationDetail.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000047 /* CompatibilityRelationDetail.swift */; };
+		9C0000000000000000000049 /* ElementBalanceSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000049 /* ElementBalanceSection.swift */; };
 		9C0000000000000000000035 /* CompatibilityEmptyView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000035 /* CompatibilityEmptyView.swift */; };
 		9C0000000000000000000036 /* InkSplashView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000036 /* InkSplashView.swift */; };
 		9C0000000000000000000037 /* HapticEngine.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000037 /* HapticEngine.swift */; };
@@ -87,7 +89,6 @@
 		9C0000000000000000000044 /* PurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000044 /* PurchaseManager.swift */; };
 		9C0000000000000000000045 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000045 /* PaywallView.swift */; };
 		9C0000000000000000000046 /* PaywallViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000046 /* PaywallViewModel.swift */; };
-		9C0000000000000000000047 /* PaidChaptersLockView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000047 /* PaidChaptersLockView.swift */; };
 		9C0000000000000000000050 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000050 /* ProfileView.swift */; };
 		9C0000000000000000000051 /* AliasEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000051 /* AliasEditView.swift */; };
 		9C0000000000000000000052 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000052 /* KeychainHelper.swift */; };
@@ -144,6 +145,7 @@
 		A00000000000000000000044 /* Compatibility/CompatibilitySelectPartnerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000044 /* Compatibility/CompatibilitySelectPartnerTests.swift */; };
 		A0000000000000000000004D /* Compatibility/CompatibilityRosterPersistenceV2Tests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000004D /* Compatibility/CompatibilityRosterPersistenceV2Tests.swift */; };
 		A00000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift */; };
+		A0000000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift */; };
 		A0000000000000000000000B /* Shared/CitySearchEngineTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000B /* Shared/CitySearchEngineTests.swift */; };
 		A0000000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */; };
 		A0000000000000000000000D /* Shared/GoldenQueriesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A110000000000000000000D /* Shared/GoldenQueriesTests.swift */; };
@@ -253,6 +255,8 @@
 		9C1000000000000000000032 /* AssessmentCardGrid.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AssessmentCardGrid.swift; path = QiCompass/Features/Compatibility/AssessmentCardGrid.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000033 /* SyncedFortuneTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = SyncedFortuneTable.swift; path = QiCompass/Features/Compatibility/SyncedFortuneTable.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000034 /* CompatibilityInterpretationSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilityInterpretationSection.swift; path = QiCompass/Features/Compatibility/CompatibilityInterpretationSection.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000047 /* CompatibilityRelationDetail.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilityRelationDetail.swift; path = QiCompass/Features/Compatibility/CompatibilityRelationDetail.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000049 /* ElementBalanceSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ElementBalanceSection.swift; path = QiCompass/Features/Compatibility/ElementBalanceSection.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000035 /* CompatibilityEmptyView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilityEmptyView.swift; path = QiCompass/Features/Compatibility/CompatibilityEmptyView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000036 /* InkSplashView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = InkSplashView.swift; path = QiCompass/Shared/InkSplashView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000037 /* HapticEngine.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = HapticEngine.swift; path = QiCompass/Shared/HapticEngine.swift; sourceTree = SOURCE_ROOT; };
@@ -271,7 +275,6 @@
 		9C1000000000000000000044 /* PurchaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PurchaseManager.swift; path = QiCompass/Services/PurchaseManager.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000045 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PaywallView.swift; path = QiCompass/Features/Paywall/PaywallView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000046 /* PaywallViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PaywallViewModel.swift; path = QiCompass/Features/Paywall/PaywallViewModel.swift; sourceTree = SOURCE_ROOT; };
-		9C1000000000000000000047 /* PaidChaptersLockView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PaidChaptersLockView.swift; path = QiCompass/Features/DeepAnalysis/PaidChaptersLockView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000048 /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text.json.storekit; name = Products.storekit; path = QiCompass/Products.storekit; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000050 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProfileView.swift; path = QiCompass/Features/Profile/ProfileView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000051 /* AliasEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AliasEditView.swift; path = QiCompass/Features/Profile/AliasEditView.swift; sourceTree = SOURCE_ROOT; };
@@ -328,6 +331,7 @@
 		A11000000000000000000044 /* Compatibility/CompatibilitySelectPartnerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilitySelectPartnerTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000004D /* Compatibility/CompatibilityRosterPersistenceV2Tests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityRosterPersistenceV2Tests.swift; sourceTree = "<group>"; };
 		A11000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/DayMasterRelationPhraseTests.swift; sourceTree = "<group>"; };
+		A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Compatibility/CompatibilityRelationDetailTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisArchiveLoadTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paywall/PaywallHourUnknownGateTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000016 /* Paywall/PaywallContractStepTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paywall/PaywallContractStepTests.swift; sourceTree = "<group>"; };
@@ -395,7 +399,6 @@
 				9C1000000000000000000057 /* SyncManager.swift */,
 				9C1000000000000000000045 /* PaywallView.swift */,
 				9C1000000000000000000046 /* PaywallViewModel.swift */,
-				9C1000000000000000000047 /* PaidChaptersLockView.swift */,
 				9C4000000000000000000002 /* QiCompass */,
 				9C400000000000000000000E /* Products */,
 				A40000000000000000000001 /* Tests */,
@@ -549,6 +552,8 @@
 				9C1000000000000000000032 /* AssessmentCardGrid.swift */,
 				9C1000000000000000000033 /* SyncedFortuneTable.swift */,
 				9C1000000000000000000034 /* CompatibilityInterpretationSection.swift */,
+				9C1000000000000000000047 /* CompatibilityRelationDetail.swift */,
+				9C1000000000000000000049 /* ElementBalanceSection.swift */,
 				9C1000000000000000000035 /* CompatibilityEmptyView.swift */,
 				9C1000000000000000000075 /* RosterEntry.swift */,
 				9C1000000000000000000076 /* PairSummary.swift */,
@@ -644,6 +649,7 @@
 A11000000000000000000044 /* Compatibility/CompatibilitySelectPartnerTests.swift */,
 A1100000000000000000004D /* Compatibility/CompatibilityRosterPersistenceV2Tests.swift */,
 A11000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift */,
+A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift */,
 				A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */,
 				A110000000000000000000B /* Shared/CitySearchEngineTests.swift */,
 				A110000000000000000000D /* Shared/GoldenQueriesTests.swift */,
@@ -880,6 +886,8 @@ A11000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift */,
 				9C0000000000000000000032 /* AssessmentCardGrid.swift in Sources */,
 				9C0000000000000000000033 /* SyncedFortuneTable.swift in Sources */,
 				9C0000000000000000000034 /* CompatibilityInterpretationSection.swift in Sources */,
+				9C0000000000000000000047 /* CompatibilityRelationDetail.swift in Sources */,
+				9C0000000000000000000049 /* ElementBalanceSection.swift in Sources */,
 				9C0000000000000000000035 /* CompatibilityEmptyView.swift in Sources */,
 				9C0000000000000000000036 /* InkSplashView.swift in Sources */,
 				9C0000000000000000000037 /* HapticEngine.swift in Sources */,
@@ -907,7 +915,6 @@ A11000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift */,
 				9C0000000000000000000044 /* PurchaseManager.swift in Sources */,
 				9C0000000000000000000045 /* PaywallView.swift in Sources */,
 				9C0000000000000000000046 /* PaywallViewModel.swift in Sources */,
-				9C0000000000000000000047 /* PaidChaptersLockView.swift in Sources */,
 				9C0000000000000000000060 /* ZodiacHelper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -927,6 +934,7 @@ A11000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift */,
 A00000000000000000000044 /* Compatibility/CompatibilitySelectPartnerTests.swift in Sources */,
 A0000000000000000000004D /* Compatibility/CompatibilityRosterPersistenceV2Tests.swift in Sources */,
 A00000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift in Sources */,
+A0000000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift in Sources */,
 				A00000000000000000000006 /* Shared/DailyReadCounterTests.swift in Sources */,
 				A0000000000000000000000B /* Shared/CitySearchEngineTests.swift in Sources */,
 				A0000000000000000000000D /* Shared/GoldenQueriesTests.swift in Sources */,

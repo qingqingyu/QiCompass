@@ -8881,19 +8881,75 @@
         }
       }
     },
-    "hepan.partner.subline" : {
+    "hepan.balance.title" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Day master %1$@ · %2$@"
+            "value" : "Element balance · eight characters each"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "日主 %1$@ · %2$@"
+            "value" : "五行分布 · 干支各八字"
+          }
+        }
+      }
+    },
+    "hepan.balance.element" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Element"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "五行"
+          }
+        }
+      }
+    },
+    "hepan.balance.hourUnknownNote" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Counted over known characters when an hour is missing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有一方时辰未知时,按实际字数计"
+          }
+        }
+      }
+    },
+    "%1$@:你 %2$lld 字 · 对方 %3$lld 字" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: you %2$lld, partner %3$lld"
+          }
+        }
+      }
+    },
+    "共 %lld 章 · 前 %lld 章免费" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld chapters · first %2$lld free"
           }
         },
         "zh-Hant" : {
@@ -12245,6 +12301,72 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "合拍定性 · 無評分"
+          }
+        }
+      }
+    },
+    "%1$@遇%2$@ · 同为%3$@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ meets %2$@ · both %3$@"
+          }
+        }
+      }
+    },
+    "%1$@遇%2$@ · %3$@生%4$@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ meets %2$@ · %3$@ feeds %4$@"
+          }
+        }
+      }
+    },
+    "%1$@遇%2$@ · %3$@克%4$@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@ meets %2$@ · %3$@ controls %4$@"
+          }
+        }
+      }
+    },
+    "对方多 %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Partner brings %@"
+          }
+        }
+      }
+    },
+    "你多 %@" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You bring %@"
+          }
+        }
+      }
+    },
+    "两人地支见刑害(%1$@):摩擦多在习惯与小事上,早点说开。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your branches punish or work against each other (%1$@). Friction shows up in habits and small things — name it early."
           }
         }
       }
