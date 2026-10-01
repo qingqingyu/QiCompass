@@ -4672,23 +4672,6 @@
         }
       }
     },
-    "deepanalysis.hero.dayMasterNote" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Day Master · %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "日主 · %@"
-          }
-        }
-      }
-    },
     "deepanalysis.hero.pillarUndetermined" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4702,23 +4685,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%@柱未定,点击补时辰"
-          }
-        }
-      }
-    },
-    "deepanalysis.hero.sideNote.favorable" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Favored %@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "喜%@"
           }
         }
       }
@@ -4740,19 +4706,36 @@
         }
       }
     },
-    "deepanalysis.hero.sideNote.unfavorable" : {
+    "deepanalysis.hero.xiji.favorableLabel" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Less supportive %@"
+            "value" : "Favorable"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "忌%@"
+            "value" : "喜"
+          }
+        }
+      }
+    },
+    "deepanalysis.hero.xiji.unfavorableLabel" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Avoid"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "忌"
           }
         }
       }
@@ -4855,6 +4838,40 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "旬空:%@"
+          }
+        }
+      }
+    },
+    "deepanalysis.toc.progressA11y" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading progress"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "已读进度"
+          }
+        }
+      }
+    },
+    "deepanalysis.toc.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Book"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命书"
           }
         }
       }
