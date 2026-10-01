@@ -1917,6 +1917,19 @@ final class CompatibilityViewModel {
 
                 if Task.isCancelled { return }
 
+                // 陈旧完成守卫(2026-10-01):await 期间可能已换对(compute 取消
+                // computeTask 但不取消 interpretTask)——旧对的完成/失败不得覆写
+                // 新对的 detail 态。镜像 openDetail cacheReadTask 的 summary.id
+                // 守卫;非 detail 态(computing 等)同判陈旧(被换走即不再回写)。
+                guard case .detail(let current, _, _) = self.state,
+                      current.id == summary.id
+                else {
+                    AppLogger.app.info(
+                        "compatVM.generateInterpretation.stale_completion_skip compatibilityHash=\(compatHash, privacy: .public) state=\(String(describing: self.state), privacy: .public)"
+                    )
+                    return
+                }
+
                 let newState: InterpretState = hasEntitlement
                     ? .okPaid(text: resp.interpretation, cached: resp.cached)
                     : .okFree(text: resp.interpretation, cached: resp.cached)
@@ -1926,11 +1939,11 @@ final class CompatibilityViewModel {
                 // (返回 list 时卡片立刻显示「已解读」标记)
                 self.markSummaryInterpreted(id: summary.id)
             } catch let error as CompatibilityError {
-                if !Task.isCancelled {
+                if !Task.isCancelled, self.canWriteInterpretState(summary: summary) {
                     self.state = .detail(summary, response, .failed(message: error.errorDescription ?? L10n.Common.unknownError))
                 }
             } catch let error as DeepAnalysisError {
-                if !Task.isCancelled {
+                if !Task.isCancelled, self.canWriteInterpretState(summary: summary) {
                     if case .dailyLimitReached(let reset, _) = error {
                         self.state = .detail(summary, response, .dailyLimitReached(nextReset: reset))
                     } else {
@@ -1940,7 +1953,7 @@ final class CompatibilityViewModel {
             } catch is CancellationError {
                 return
             } catch {
-                if !Task.isCancelled {
+                if !Task.isCancelled, self.canWriteInterpretState(summary: summary) {
                     let userError = UserFacingError.from(error, stage: .interpret)
                     if case .dailyLimitReached(let reset) = userError {
                         self.state = .detail(summary, response, .dailyLimitReached(nextReset: reset))
@@ -1950,6 +1963,14 @@ final class CompatibilityViewModel {
                 }
             }
         }
+    }
+
+    /// 解读 Task 失败回写守卫(与成功分支的陈旧完成守卫同语义):
+    /// 当前态仍是该对的 detail 才允许写;await 期间换对(computing / 别对
+    /// detail / 非 detail)→ 陈旧失败不得覆写新对 UI。
+    private func canWriteInterpretState(summary: PairSummary) -> Bool {
+        guard case .detail(let current, _, _) = state else { return false }
+        return current.id == summary.id
     }
 
     // MARK: - 跨语言翻译执行(D10.4/D10.5,S7)
