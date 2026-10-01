@@ -16,15 +16,27 @@ import UIKit
 /// 历史:宋瓷时代 display 走系统 `.serif`(Songti SC)——2026-08-26 换轨为 Kaiti SC。
 /// 仓库曾尝试 ZCOOL XiaoWei 打包,已废弃(免打包决策不变)。`zcool*` API 名保留作 alias。
 enum BaziFont {
-    /// 楷体首选 PostScript 名;"STKaiti" 为旧名兜底。
-    /// 两者都取不到时返回 nil,调用侧回退系统 .serif(宋体),不至于渲染失败。
-    private static let kaitiName: String? = UIFont(name: "Kaiti SC", size: 12) != nil
-        ? "Kaiti SC"
-        : (UIFont(name: "STKaiti", size: 12) != nil ? "STKaiti" : nil)
+    /// 楷体 PostScript 名探测(一次性缓存):简体 "Kaiti SC" / 繁体 "Kaiti TC"
+    /// (D7,2026-10-01:zh-hant 显示简体字形楷体是错的;两套均 iOS 自带不打包)。
+    /// "STKaiti" 为旧名兜底;全部缺失时 nil,调用侧回退系统 .serif 不至渲染失败。
+    private static let kaitiSCName: String? =
+        UIFont(name: "Kaiti SC", size: 12) != nil ? "Kaiti SC" : nil
+    private static let kaitiTCName: String? =
+        UIFont(name: "Kaiti TC", size: 12) != nil ? "Kaiti TC" : nil
+    private static let stkaitiName: String? =
+        UIFont(name: "STKaiti", size: 12) != nil ? "STKaiti" : nil
+
+    /// 当前语言应用的楷体名(zh-hant → Kaiti TC,缺失回落 SC 再回落 STKaiti;
+    /// zh / en 品牌字维持 Kaiti SC 路径)。语言实时判定,切换后下次取值即生效。
+    private static var kaitiName: String? {
+        if AppLanguage.current == .zhHant {
+            return kaitiTCName ?? kaitiSCName ?? stkaitiName
+        }
+        return kaitiSCName ?? stkaitiName
+    }
 
     /// 当前 UI 是否中文(AppLanguage 实时判定,系统语言切换后下次取值即生效)。
-    /// zh 与 zh-hant 均走中文(T0);T5 将为 zhHant 分流 Kaiti TC + DESIGN.md 记录,
-    /// 当前两者共用 Kaiti SC 保持 T0 行为不变。
+    /// zh 与 zh-hant 均走中文;zh-hant 在 kaitiName 分流 Kaiti TC(D7)。
     private static var isChineseUI: Bool { AppLanguage.current.isChinese }
 
     /// 楷体字体。kaitiName 不可用时回退系统 .serif(Songti SC),保证永远有衬线兜底。

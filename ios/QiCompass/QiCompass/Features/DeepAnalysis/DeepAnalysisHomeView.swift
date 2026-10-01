@@ -45,6 +45,18 @@ struct DeepAnalysisHomeView: View {
                     xijiLine
                     anchorSentence
                     chainBanner
+                    // D10.5(S7):命中其它语言原文时,目录上方提示条——先显示原文,
+                    // 点按钮才翻译(不自动批量)
+                    if let offer = vm.translationOffer {
+                        TranslateHintBar(
+                            sourceLanguage: offer.sourceLanguage,
+                            targetLanguage: AppLanguage.currentWire,
+                            isTranslating: vm.isTranslatingChain,
+                            onTranslate: { vm.acceptTranslation() }
+                        )
+                        .padding(.horizontal, 20)
+                        .padding(.bottom, 14)
+                    }
                     tocHeader
                     tocRows
                     ctaArea

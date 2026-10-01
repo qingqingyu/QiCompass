@@ -10,7 +10,7 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - `DESIGN.md` — 视觉设计系统事实源(美学 / 色板 / 字体 / 间距 / iOS SwiftUI 落地计划)
 - `USER_STORIES.md` — 用户故事 + 验收标准 + 旅程地图(review 依据)
 - `i18n-implementation-plan.md` — i18n 战略与执行决策(2026-08-12,v1 中英)
-- `i18n-zh-hant-plan.md` — 繁体 + App 内语言切换方案(2026-09-07,D1-D8 决策 + S1-S5 slice,修订 08-12 plan 两项)
+- `i18n-zh-hant-plan.md` — 繁体 + App 内语言切换方案(2026-09-07,D1-D10 决策 + S1-S7 slice,修订 08-12 plan 两项;10-01 增补 D9 单一语言开关 + D10 切语言翻译原文)
 
 ## 全局约束（继承 ~/.claude/CLAUDE.md）
 
@@ -59,6 +59,13 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - L3 裁判配置：`JUDGE_PROVIDER` / `JUDGE_MODEL` / `JUDGE_API_KEY`（默认回落 `AI_*`）；真实 run 默认开裁判，`--skip-judge` 跳过
 - 不接 GitHub Actions（对齐 2026-08-14「本地优先」决定），拦截靠本规则
 - 事实源：`docs/prompt评测机设计决策.md`（含实施偏差记录）+ `docs/prompt评测机-slices/`
+
+### 三语模板/术语同步守护栏（2026-10-01，yuyan S2-S7）
+
+- **强制**：动 `backend/app/ai/prompts.py` 或 bump 任何 `PROMPT_VERSIONS`（含 `translate`），新版本模板文件须 **zh / zh-hant / en 三语同步创建**——`backend/tests/test_i18n.py::TestZhHantTemplateFileParity` 锁定（漏一语 → zh-hant 用户版本切换后直接 FileNotFoundError → 500）
+- **强制**：动 `backend/app/engine/term_translations.py` 的 zh-hant 表或 iOS `BaziTerms.swift` 的 zhHant 列任一，必须 `python3 tools/check_term_sync.py` PASS——①③ 组已升级为 **en/zh-hant 值三相等**（双端任一侧改词即 FAIL）；zh-hant 术语用词以 iOS 人工校对稿为锚（信息不足→信息不足 是有意锁定，勿单侧改 資訊不足）
+- 翻译端点 `POST /api/interpret/translate`（D10）：译后内容落**目标语言正常生成的缓存键**（`_prepare_prompt_and_key` 共享函数，双端点共用，禁止复制粘贴）；动 iOS 翻译链时 `TranslationFlowTests` 的「译后 M0 fingerprint 驱动 M1 请求」用例是键对齐的回归锚点
+- 全仓语言来源唯一：iOS 只经 `AppLanguage.current` / `currentWire` 取语言（D9）；zh-hant 干支术语连写无空格（`_TERM_JOINERS`），en 拼音空格分隔——加语言时在 `_TERM_JOINERS` / `_UNKNOWN_HOUR_SUFFIXES` / `_match_language` 三处登记
 
 ### SKU→module 映射同步守护栏（2026-09-30，防漏单 review）
 

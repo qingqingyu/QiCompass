@@ -102,6 +102,14 @@ PROMPT_VERSIONS: dict[str, int] = {
     "m5_wealth": 2,        # 付费:财富结构(需 assets_summary + preference)
     "m6_dynamics": 2,      # 付费:结构动力学高阶(能量路径/杠杆/易损点/升级路径)
     "m7_manual": 2,        # 付费:落地手册(true_leverage + 90 天行动)
+    # 翻译模板(D10.2,2026-10-01):/api/interpret/translate 专用,按**目标语言**
+    # 取文件(zh/zh-hant/en 三份)。translate 不进 v1 module 清单(不影响
+    # check_prompt_sync ② 组 ^m\d_ 匹配),也不进 REQUIRED_FIELDS(不消费
+    # context,渲染走 translate 端点自建的 _render_translate_prompt——原文
+    # 含 JSON 花括号,不能进 str.format_map)。
+    # 译后内容存目标 module 的缓存键下,translate 版本 bump 不会让已缓存译文
+    # 失效(D10.6 已接受;必要时手动清缓存)。
+    "translate": 1,
 }
 
 # ---------- 深度解析 ----------
@@ -253,6 +261,24 @@ as a narrative basis, and never fabricate or imply any hour-pillar influence.
 Favorable/unfavorable elements are undetermined: never infer or invent them
 (no "favor X / avoid Y" statements).
 """
+
+# 同上,zh-Hant 版(S2,i18n-zh-hant-plan.md D5)。干支/藏干的"干"为天干义,
+# 维持"干"字形(与术语表口径一致);未来注册新语言需同步补对应版本,
+# _UNKNOWN_HOUR_SUFFIXES 显式映射缺语言时抛 KeyError,不静默回落其他语言。
+BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_ZH_HANT = """
+**本命盤出生時辰未知，時柱與喜忌均不可用。請誠實告知用戶：時辰未知，喜忌與時柱分析需要準確出生時刻。**
+敘事一律以日主為軸，圍繞年柱 / 月柱 / 日柱三柱的十神結構與五行分佈如實展開；
+排盤數據中的時柱一欄（干支 / 十神 / 藏干 / 納音）一律不作為敘事依據，**不得**編造或暗示任何時柱影響；
+喜忌未判定，**不得**推斷或編造喜忌結論（不出現"宜×忌×"類表述）。
+"""
+
+# unknown_hour suffix 的语言映射(显式注册;见各常量注释——新语言必须补常量,
+# 缺语言 KeyError 显式暴露,不静默回落英文)
+_UNKNOWN_HOUR_SUFFIXES: dict[str, str] = {
+    "zh": BAZI_DEEP_UNKNOWN_HOUR_SUFFIX,
+    "zh-hant": BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_ZH_HANT,
+    "en": BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN,
+}
 
 # ---------- 合盘 ----------
 # 对齐 bazi-app-design-doc.md:440-468 + 2026-08-01 grill-me V2 voice 改 Medium
@@ -1001,15 +1027,20 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
     # 时辰未知诚实降级(S06):只挂免费面 module(alias + _free)。
     # bazi_deep_paid 不挂——无时辰用户在 iOS 付费墙即被拦(S07),
     # 到不了付费内容,付费模板不加无意义分支(slice 拍板)。
-    # zh/en 双常量同机制渲染(S06 修订 2026-09-01):unknown_hour 是本功能
-    # 刻意制造的常态,非中文**不得 raise**(与上方 special_pattern 的既有债
-    # 有意不同——那是罕见命局的临时占位)。语言解析层(api/language.py
-    # resolve_language)目前只产出 zh/en;未来注册新语言时需为本 suffix 补
-    # 对应常量,而非静默回落英文。
+    # zh / zh-hant / en 多常量同机制渲染(S06 修订 2026-09-01;S2 加 zh-hant):
+    # unknown_hour 是本功能刻意制造的常态,非中文**不得 raise**(与上方
+    # special_pattern 的既有债有意不同——那是罕见命局的临时占位)。
+    # _UNKNOWN_HOUR_SUFFIXES 显式映射:未来注册新语言时补常量,缺语言
+    # KeyError 显式暴露,不静默回落英文。
     if (module in ("bazi_deep", "bazi_deep_free")
             and context.get("day_master_strength") == "unknown_hour"):
-        suffix = (BAZI_DEEP_UNKNOWN_HOUR_SUFFIX if language == "zh"
-                  else BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_EN)
+        try:
+            suffix = _UNKNOWN_HOUR_SUFFIXES[language]
+        except KeyError:
+            raise KeyError(
+                f"unknown_hour 降级 suffix 未注册语言 {language!r}"
+                f"(需补 BAZI_DEEP_UNKNOWN_HOUR_SUFFIX_* 常量并登记"
+                f"_UNKNOWN_HOUR_SUFFIXES,不静默回落其他语言)") from None
         rendered = rendered + suffix
 
     return rendered

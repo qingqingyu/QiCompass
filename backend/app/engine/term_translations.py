@@ -238,6 +238,155 @@ SHENSHA_EN: Final[dict[str, str]] = {
     "红艳": "Red Beauty",
 }
 
+# ---------- zh-Hant 表(i18n-zh-hant-plan.md D1,2026-10-01) ----------
+# 显式注册表,不引 OpenCC(一对多映射风险 + 新依赖须批准;"显式注册、显式失败"
+# 与 en 表同构)。值与 iOS BaziTerms.swift 的 zhHant 列逐字对齐(09-27 已人工
+# 校对的定稿),由 tools/check_term_sync.py ①③ 组强制同步——改词须双端同改。
+# 干支 / 五行 / 生肖全同形(identity 也显式进表,未注册值在严格字段会 KeyError)。
+# STRENGTH_LABEL_EN 的 raw key(strong/weak/...)不进 zh-hant 表:Latin 控制键
+# 不属于 CJK 术语域,context 翻译也不碰它(S09 口径)。
+
+# ---------- 天干(zh-hant identity) ----------
+HEAVENLY_STEMS_ZH_HANT: Final[dict[str, str]] = {
+    "甲": "甲", "乙": "乙", "丙": "丙", "丁": "丁",
+    "戊": "戊", "己": "己", "庚": "庚", "辛": "辛",
+    "壬": "壬", "癸": "癸",
+}
+
+# ---------- 地支(zh-hant identity) ----------
+EARTHLY_BRANCHES_ZH_HANT: Final[dict[str, str]] = {
+    "子": "子", "丑": "丑", "寅": "寅", "卯": "卯",
+    "辰": "辰", "巳": "巳", "午": "午", "未": "未",
+    "申": "申", "酉": "酉", "戌": "戌", "亥": "亥",
+}
+
+# ---------- 五行(zh-hant identity) ----------
+FIVE_ELEMENTS_ZH_HANT: Final[dict[str, str]] = {
+    "木": "木", "火": "火", "土": "土", "金": "金", "水": "水",
+}
+
+# ---------- 十神(zh-hant;异形:伤官/七杀/偏财/正财/劫财) ----------
+TEN_GODS_ZH_HANT: Final[dict[str, str]] = {
+    "比肩": "比肩",
+    "劫财": "劫財",
+    "食神": "食神",
+    "伤官": "傷官",
+    "偏财": "偏財",
+    "正财": "正財",
+    "正官": "正官",
+    "七杀": "七殺",
+    "偏官": "偏官",
+    "正印": "正印",
+    "偏印": "偏印",
+}
+
+# ---------- 日主(zh-hant identity) ----------
+MISC_TERMS_ZH_HANT: Final[dict[str, str]] = {
+    "日主": "日主",
+}
+
+# ---------- v1 chart 中文旺衰标签(zh-hant;从格特征/时辰未知异形) ----------
+STRENGTH_LABEL_ZH_ZH_HANT: Final[dict[str, str]] = {
+    "偏旺": "偏旺",
+    "偏弱": "偏弱",
+    "中和": "中和",
+    "从格特征": "從格特徵",
+    "时辰未知": "時辰未知",
+    "未判定": "未判定",
+}
+
+# ---------- 纳音 30(zh-hant) ----------
+NAYIN_ZH_HANT: Final[dict[str, str]] = {
+    "海中金": "海中金", "炉中火": "爐中火",
+    "大林木": "大林木", "路旁土": "路旁土",
+    "剑锋金": "劍鋒金", "山头火": "山頭火",
+    "涧下水": "澗下水", "城头土": "城頭土",
+    "白蜡金": "白蠟金", "杨柳木": "楊柳木",
+    "泉中水": "泉中水", "屋上土": "屋上土",
+    "霹雳火": "霹靂火", "松柏木": "松柏木",
+    "长流水": "長流水", "沙中金": "沙中金",
+    "山下火": "山下火", "平地木": "平地木",
+    "壁上土": "壁上土", "金箔金": "金箔金",
+    "覆灯火": "覆燈火", "天河水": "天河水",
+    "大驿土": "大驛土", "钗钏金": "釵釧金",
+    "桑柘木": "桑柘木", "大溪水": "大溪水",
+    "沙中土": "沙中土", "天上火": "天上火",
+    "石榴木": "石榴木", "大海水": "大海水",
+}
+
+# ---------- 十二长生(zh-hant;长生→長生 注意非 identity) ----------
+TWELVE_STAGES_ZH_HANT: Final[dict[str, str]] = {
+    "长生": "長生", "沐浴": "沐浴", "冠带": "冠帶",
+    "临官": "臨官", "帝旺": "帝旺", "衰": "衰",
+    "病": "病", "死": "死", "墓": "墓",
+    "绝": "絕", "胎": "胎", "养": "養",
+}
+
+# ---------- 性别(zh-hant identity) ----------
+GENDER_ZH_HANT: Final[dict[str, str]] = {
+    "男": "男",
+    "女": "女",
+}
+
+# ---------- 合盘定性枚举 + context 标签(zh-hant) ----------
+# 「信息不足」维持与 iOS BaziTerms zhHant 同形(两岸均通,不强改「資訊不足」,
+# 双端一致优先——check_term_sync ① 组锁定)。
+COMPAT_TERMS_ZH_HANT: Final[dict[str, str]] = {
+    # five_elements_assessment
+    "互补佳": "互補佳",
+    "有一定互补": "有一定互補",
+    "互补较弱": "互補較弱",
+    "信息不足": "信息不足",
+    # day_master_relation
+    "同气": "同氣",
+    "相生": "相生",
+    "相克": "相剋",
+    # zodiac_match
+    "六合": "六合",
+    "三合": "三合",
+    "六冲": "六沖",
+    "三刑": "三刑",
+    "相害": "相害",
+    "无特殊合冲": "無特殊合沖",
+    # branch_harmony
+    "无冲无刑": "無沖無刑",
+    "一冲一合": "一沖一合",
+    "多冲少合": "多沖少合",
+    "多合少冲": "多合少沖",
+    "多刑多害": "多刑多害",
+    "略有冲刑害": "略有沖刑害",
+    # context_label
+    "通用": "通用",
+    "婚姻": "婚姻",
+    "事业": "事業",
+}
+
+# ---------- 神煞 20(zh-hant) ----------
+SHENSHA_ZH_HANT: Final[dict[str, str]] = {
+    # 吉神 11
+    "天乙贵人": "天乙貴人",
+    "太极贵人": "太極貴人",
+    "文昌": "文昌",
+    "天德": "天德",
+    "月德": "月德",
+    "驿马": "驛馬",
+    "桃花": "桃花",
+    "将星": "將星",
+    "华盖": "華蓋",
+    "金舆": "金輿",
+    "禄神": "祿神",
+    # 凶煞 9
+    "羊刃": "羊刃",
+    "劫煞": "劫煞",
+    "亡神": "亡神",
+    "孤辰": "孤辰",
+    "寡宿": "寡宿",
+    "元辰": "元辰",
+    "灾煞": "災煞",
+    "天罗地网": "天羅地網",
+    "红艳": "紅艷",
+}
+
 # ---------- 翻译注册表(语言 → {中文术语 → 目标语言术语}) ----------
 # 加新语言时只需在此 dict 加一个 key,无需改 translate_term() 函数。
 TERM_TRANSLATIONS: Final[dict[str, dict[str, str]]] = {
@@ -256,7 +405,116 @@ TERM_TRANSLATIONS: Final[dict[str, dict[str, str]]] = {
         **COMPAT_TERMS_EN,
         **SHENSHA_EN,
     },
+    "zh-hant": {
+        **HEAVENLY_STEMS_ZH_HANT,
+        **EARTHLY_BRANCHES_ZH_HANT,
+        **FIVE_ELEMENTS_ZH_HANT,
+        **TEN_GODS_ZH_HANT,
+        **MISC_TERMS_ZH_HANT,
+        **STRENGTH_LABEL_ZH_ZH_HANT,
+        **NAYIN_ZH_HANT,
+        **TWELVE_STAGES_ZH_HANT,
+        **GENDER_ZH_HANT,
+        **COMPAT_TERMS_ZH_HANT,
+        **SHENSHA_ZH_HANT,
+    },
 }
+
+# ---------- 术语拼接分隔符(按目标语言) ----------
+# en 译值是拼音/意译词,多字词间需空格("Geng Wu");zh-hant 译值仍是 CJK,
+# 连写无空格("庚午" 不得变 "庚 午")。加新语言在此登记;未登记语言沿用
+# 空格分隔(en 先例)。
+_TERM_JOINERS: Final[dict[str, str]] = {"zh-hant": ""}
+
+
+def _term_joiner(language: str) -> str:
+    """该语言的术语拼接分隔符(见 _TERM_JOINERS 注释)。"""
+    return _TERM_JOINERS.get(language, " ")
+
+
+# ---------- 翻译端点术语对构建(D10.2,2026-10-01) ----------
+
+# 反查方向(source ≠ zh)的已知同义冲突显式裁决:
+# - 值 = zh 术语 → 裁决保留该 canonical(同义词:七杀/偏官在 Joey Yap 体系
+#   统一 Seven Killings,裁决「七杀」= engine 侧 ten_god_weights 主用形)
+# - 值 = None → 整组剔除(同形异义,不可机械裁决:"Wu" 同时是 戊(天干)与
+#   午(地支)的无调拼音——译回方向不进术语表,由 LLM 按上下文判断;
+#   干支在正文多以干支对出现,上下文足够)
+# 出现新冲突而不补裁决 → build_translation_term_pairs 显式 KeyError
+# (不静默取任一,对齐"显式注册、显式失败"哲学)。
+_REVERSE_CANONICAL_OVERRIDES: Final[dict[str, str | None]] = {
+    "Seven Killings": "七杀",
+    "Wu": None,
+}
+
+
+def build_translation_term_pairs(
+    source_language: str, target_language: str,
+) -> list[tuple[str, str]]:
+    """翻译 prompt 注入用的 源语言→目标语言 术语对(D10.2)。
+
+    术语域 = zh-hant 表键集(131,纯 CJK 术语;en 表减 raw strength key 同集),
+    按 zh id 空间取两侧显示值,只保留两侧不同形的对(identity 对是噪音):
+    - zh → en / zh → zh-hant:正向,天然无歧义(多对一允许:七杀/偏官 →
+      Seven Killings 两条都给,LLM 照表译不冲突)
+    - en → zh / en → zh-hant:反查,同一源值对应多个 zh id 时按
+      _REVERSE_CANONICAL_OVERRIDES 裁决收敛(丢弃非 canonical 同义项);
+      未裁决的冲突显式 KeyError
+
+    Args:
+        source_language: 原文语言("zh" / "zh-hant" / "en")
+        target_language: 目标语言(同上)
+
+    Returns:
+        [(源术语, 目标术语), ...](源 ≠ 目标)
+
+    Raises:
+        KeyError: 语言未注册,或反查冲突未裁决
+        ValueError: 源与目标语言相同(调用方应先拦)
+    """
+    if source_language == target_language:
+        raise ValueError(
+            f"源与目标语言相同({source_language!r}),无术语对可建"
+            f"(翻译端点在路由层已拦同语言请求)")
+    src_table = None if source_language == "zh" else TERM_TRANSLATIONS.get(
+        source_language)
+    tgt_table = None if target_language == "zh" else TERM_TRANSLATIONS.get(
+        target_language)
+    if (source_language != "zh" and src_table is None) or (
+            target_language != "zh" and tgt_table is None):
+        raise KeyError(
+            f"未注册的语言: source={source_language!r} target={target_language!r}"
+            f"(已注册: {sorted(TERM_TRANSLATIONS.keys())})")
+    zh_ids = list(TERM_TRANSLATIONS["zh-hant"].keys())
+
+    dropped: set[str] = set()
+    if source_language != "zh":
+        by_src: dict[str, list[str]] = {}
+        for zh_id in zh_ids:
+            by_src.setdefault(src_table[zh_id], []).append(zh_id)
+        for src_val, ids in by_src.items():
+            if len(ids) > 1:
+                canonical = _REVERSE_CANONICAL_OVERRIDES.get(src_val)
+                if canonical is None and src_val in _REVERSE_CANONICAL_OVERRIDES:
+                    # 显式裁决 = 整组剔除(同形异义,见常量注释)
+                    dropped.update(ids)
+                    continue
+                if canonical not in ids:
+                    raise KeyError(
+                        f"术语反查冲突未裁决: {src_val!r} 同时对应 {ids}"
+                        f"(需在 _REVERSE_CANONICAL_OVERRIDES 显式裁决——"
+                        f"canonical zh 术语或 None 剔除整组,不静默取任一)")
+                dropped.update(i for i in ids if i != canonical)
+
+    pairs: list[tuple[str, str]] = []
+    for zh_id in zh_ids:
+        if zh_id in dropped:
+            continue
+        src_val = zh_id if source_language == "zh" else src_table[zh_id]
+        tgt_val = zh_id if target_language == "zh" else tgt_table[zh_id]
+        if src_val != tgt_val:
+            pairs.append((src_val, tgt_val))
+    return pairs
 
 
 def translate_term(zh_term: str, target_language: str) -> str:
@@ -269,7 +527,7 @@ def translate_term(zh_term: str, target_language: str) -> str:
 
     Args:
         zh_term: 中文术语或 raw key(如 "甲"/"比肩"/"strong")
-        target_language: 目标语言代码("zh" / "en",未来扩展 "ja" / "es")
+        target_language: 目标语言代码("zh" / "zh-hant" / "en",未来扩展 "ja" / "es")
 
     Returns:
         目标语言的术语字符串
@@ -358,7 +616,7 @@ def translate_context(context: dict, language: str, module: str) -> dict:
 
     Args:
         context: prompt 渲染负载(来自客户端)
-        language: 目标语言代码("zh" / "en")
+        language: 目标语言代码("zh" / "zh-hant" / "en")
         module: module 名(决定翻译规则)
 
     Returns:
@@ -398,6 +656,7 @@ def _translate_daily_fortune_context(context: dict, language: str) -> dict:
     if table is None:
         # 已注册语言但缺翻译表(不应发生,语言支持在 is_language_supported 拦)
         raise KeyError(f"语言 {language!r} 翻译表缺失")
+    joiner = _term_joiner(language)
     translated = dict(context)  # shallow copy,不修改原 context
 
     # 单术语字段(严格:未注册抛 KeyError)
@@ -413,12 +672,12 @@ def _translate_daily_fortune_context(context: dict, language: str) -> dict:
                     f"当前 {language} 表共 {len(table)} 项)")
             translated[field] = table[v]
 
-    # 复合术语字段(逐字符翻译 + 空格连接)
+    # 复合术语字段(逐字符翻译 + 按语言连接:en 空格 / zh-hant 连写)
     for field in _DAILY_FORTUNE_COMPOSITE_FIELDS:
         if field in translated:
             v = translated[field]
             if isinstance(v, str):
-                result = _translate_pillar(v, table)
+                result = _translate_pillar(v, table, joiner)
                 if result is _TRANSLATION_FAILED:
                     logger.warning(
                         "translate_context: 字段 %s 值 %r 无法翻译"
@@ -433,7 +692,7 @@ def _translate_daily_fortune_context(context: dict, language: str) -> dict:
         if field in translated:
             v = translated[field]
             if isinstance(v, str):
-                result = _translate_element_list(v, table)
+                result = _translate_element_list(v, table, joiner)
                 if result is _TRANSLATION_FAILED:
                     logger.warning(
                         "translate_context: 字段 %s 值 %r 含未知字符,"
@@ -477,14 +736,16 @@ def _translate_deep_context(context: dict, language: str) -> dict:
     translated = dict(context)
     chart = translated.get("chart")
     if isinstance(chart, str):
-        translated["chart"] = _translate_chart_json(chart, table)
+        translated["chart"] = _translate_chart_json(
+            chart, table, _term_joiner(language))
     return translated
 
 
 _CJK_PATTERN = re.compile(r"[\u4e00-\u9fff]")
 
 
-def _translate_chart_json(chart_json: str, table: dict[str, str]) -> str:
+def _translate_chart_json(chart_json: str, table: dict[str, str],
+                          joiner: str = " ") -> str:
     """v1 chart JSON 字符串的值级翻译(键不动,值按词表)。"""
     try:
         data = json.loads(chart_json)
@@ -492,7 +753,7 @@ def _translate_chart_json(chart_json: str, table: dict[str, str]) -> str:
         # 收窄进翻译层:包成专用类型,路由层按本类包装 500(见类注释)
         raise ChartJSONDecodeError(str(e)) from e
     untranslatable: list[str] = []
-    walked = _walk_chart_value(data, table, untranslatable)
+    walked = _walk_chart_value(data, table, untranslatable, joiner)
     if untranslatable:
         logger.warning(
             "translate_context: chart 内 %d 个值未注册翻译,保留中文:%r"
@@ -503,7 +764,7 @@ def _translate_chart_json(chart_json: str, table: dict[str, str]) -> str:
 
 
 def _walk_chart_value(node: object, table: dict[str, str],
-                      untranslatable: list[str]) -> object:
+                      untranslatable: list[str], joiner: str = " ") -> object:
     if isinstance(node, dict):
         out: dict = {}
         for key, value in node.items():
@@ -512,27 +773,30 @@ def _walk_chart_value(node: object, table: dict[str, str],
                 continue
             # 键也走术语翻译(ten_god_weights / five_elements 的键是十神/五行;
             # 结构键 gan_zhi/shishen_gan 等为拉丁,静默原样)
-            new_key = _translate_chart_scalar(key, table, untranslatable) \
+            new_key = _translate_chart_scalar(key, table, untranslatable, joiner) \
                 if isinstance(key, str) else key
-            out[new_key] = _walk_chart_value(value, table, untranslatable)
+            out[new_key] = _walk_chart_value(value, table, untranslatable, joiner)
         return out
     if isinstance(node, list):
-        return [_walk_chart_value(item, table, untranslatable) for item in node]
+        return [_walk_chart_value(item, table, untranslatable, joiner)
+                for item in node]
     if isinstance(node, str):
-        return _translate_chart_scalar(node, table, untranslatable)
+        return _translate_chart_scalar(node, table, untranslatable, joiner)
     return node  # 数字 / None / bool 原样
 
 
 def _translate_chart_scalar(value: str, table: dict[str, str],
-                            untranslatable: list[str]) -> str:
+                            untranslatable: list[str], joiner: str = " ") -> str:
     if not _CJK_PATTERN.search(value):
         return value  # 已是拉丁(如 "metal"/"female"/日期),静默原样
     if value in table:
         return table[value]
     if len(value) == 2 and value[0] in table and value[1] in table:
-        return f"{table[value[0]]} {table[value[1]]}"  # 干支 "庚午" → "Geng Wu"
+        # 干支 "庚午" → en "Geng Wu" / zh-hant "庚午"(连写)
+        return joiner.join((table[value[0]], table[value[1]]))
     if all(ch in table for ch in value):
-        return " ".join(table[ch] for ch in value)  # 地支对 "戌亥" → "Xu Hai"
+        # 地支对 "戌亥" → en "Xu Hai" / zh-hant "戌亥"(连写)
+        return joiner.join(table[ch] for ch in value)
     untranslatable.append(value)
     return value
 
@@ -587,6 +851,7 @@ def _translate_compat_context(context: dict, language: str) -> dict:
     table = TERM_TRANSLATIONS.get(language)
     if table is None:
         raise KeyError(f"语言 {language!r} 翻译表缺失")
+    joiner = _term_joiner(language)
     translated = dict(context)
 
     for field in _COMPAT_SINGLE_TERM_FIELDS:
@@ -603,7 +868,7 @@ def _translate_compat_context(context: dict, language: str) -> dict:
 
     for field in _COMPAT_PILLAR_FIELDS:
         if field in translated and isinstance(translated[field], str):
-            result = _translate_pillar(translated[field], table)
+            result = _translate_pillar(translated[field], table, joiner)
             if result is _TRANSLATION_FAILED:
                 logger.warning(
                     "translate_context: 字段 %s 值 %r 无法翻译"
@@ -615,7 +880,7 @@ def _translate_compat_context(context: dict, language: str) -> dict:
 
     for field in _COMPAT_ELEMENT_LIST_FIELDS:
         if field in translated and isinstance(translated[field], str):
-            result = _translate_element_list(translated[field], table)
+            result = _translate_element_list(translated[field], table, joiner)
             if result is _TRANSLATION_FAILED:
                 # 全 CJK 喜忌才译;失败保留(S09 后可能为空串/非五行内容)。
                 # 对齐 pillar 路径留痕:中文漏进 en prompt 可据此定位
@@ -656,8 +921,9 @@ def _translate_element_balance(value: str, table: dict[str, str]) -> str:
     return re.sub(r"(\d)([A-Za-z])", r"\1 \2", out)  # "3Fire" → "3 Fire"
 
 
-def _translate_pillar(pillar: str, table: dict[str, str]) -> str | object:
-    """翻译干支字符串("甲子" → "Jia Zi";"丙午" → "Bing Wu")。
+def _translate_pillar(pillar: str, table: dict[str, str],
+                      joiner: str = " ") -> str | object:
+    """翻译干支字符串("甲子" → en "Jia Zi" / zh-hant "甲子" 连写)。
 
     长度 2(天干+地支)时翻译,其他长度保留原文(避免误伤)。
 
@@ -668,12 +934,13 @@ def _translate_pillar(pillar: str, table: dict[str, str]) -> str | object:
         return _TRANSLATION_FAILED  # 非标准干支格式
     gan, zhi = pillar[0], pillar[1]
     if gan in table and zhi in table:
-        return f"{table[gan]} {table[zhi]}"
+        return joiner.join((table[gan], table[zhi]))
     return _TRANSLATION_FAILED  # 部分字符不在表里
 
 
-def _translate_element_list(elements: str, table: dict[str, str]) -> str | object:
-    """翻译五行列表("木火" → "Wood Fire";"木, 火" → "Wood, Fire")。
+def _translate_element_list(elements: str, table: dict[str, str],
+                            joiner: str = " ") -> str | object:
+    """翻译五行列表("木火" → en "Wood Fire" / zh-hant "木火" 连写)。
 
     逐 token 尝试逐字符翻译,所有字符都在表里才翻译,否则返回
     _TRANSLATION_FAILED。
@@ -681,7 +948,8 @@ def _translate_element_list(elements: str, table: dict[str, str]) -> str | objec
     ", " join(`favorableElements.joined(separator: ", ")`,PromptContextBuilder
     .swift:79 / +Compatibility.swift:99),旧实现只认纯 CJK 连写串,对
     "木, 火" 整体判失败 → en prompt 静默留中文(T1 review 修复)。
-    分隔符输出归一为 ", "。
+    分隔符输出归一为 ", ";token 内字符连接用 joiner(en 空格 /
+    zh-hant 连写)。
     """
     translated_tokens: list[str] = []
     for token in re.split(r"\s*[,、]\s*", elements):
@@ -694,5 +962,5 @@ def _translate_element_list(elements: str, table: dict[str, str]) -> str | objec
             else:
                 # 任意字符不在表里,放弃翻译整个字符串
                 return _TRANSLATION_FAILED
-        translated_tokens.append(" ".join(translated_chars))
+        translated_tokens.append(joiner.join(translated_chars))
     return ", ".join(translated_tokens)

@@ -40,6 +40,7 @@ iOS 系统字体,**不打包任何自定义字体**。楷体走 `Font.custom("Ka
 - **Latin caps(QICOMPASS 标):** system + `.tracking(大间距)`(约 0.55em),8.5-10pt
 - **Numeric/Data:** `SF Pro Text` + `tabular-nums` — 西文数字对齐(排盘表格 / 日期)
 - **两族纪律(2026-09-25 成文):** 任何界面同时在场字族 ≤2(中文 Kaiti + 数字 SF Pro 视为基准族)。EN 路由 = 衬线标题(New York serif)+ 无衬线正文/按钮;mono 已除(2026-09-24)。登录按钮(Apple/Google 官方组件)字体锁定,豁免
+- **zh-Hant 字形分流(2026-10-01,i18n-zh-hant-plan D7 对「Kaiti SC」条款的显式扩展):** 繁体语言下楷体取 `Kaiti TC`(iOS 自带,不打包;缺失回落 Kaiti SC → STKaiti)——zh-Hant 用户显示简体字形楷体是错的。实现单一入口 `BaziFont.kaitiName`(按 `AppLanguage.current` 分流),品牌层 `brush` 同口径。zh / en 路径不变。
 
 **Type scale(基于 iOS 17.2 Dynamic Type):**
 

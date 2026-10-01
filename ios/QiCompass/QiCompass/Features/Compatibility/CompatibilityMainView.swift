@@ -48,6 +48,17 @@ struct CompatibilityMainView: View {
                     onRetry: onGenerateInterpret,
                     onShowPaywall: onShowPaywall
                 )
+
+                // D10.5(S7):命中其它语言原文 → 先显示原文 + 翻译提示条
+                if let offer = vm.translationOffer {
+                    TranslateHintBar(
+                        sourceLanguage: offer.sourceLanguage,
+                        targetLanguage: AppLanguage.currentWire,
+                        isTranslating: vm.isTranslating,
+                        onTranslate: { vm.acceptTranslation() }
+                    )
+                    .padding(.top, 4)
+                }
             }
             .padding(.horizontal)
             .padding(.bottom, 32)

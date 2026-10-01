@@ -110,6 +110,43 @@ final class CachedInterpretationReader {
         return hits
     }
 
+    // MARK: - 跨语言查找(D10.5,S7)
+
+    /// 跨语言探测:按「当前语言之外的全部注册语言」查缓存,取**命中模块数最多**
+    /// 的语言(并列取 `AppLanguage.allCases` 序,确定性)。
+    ///
+    /// 用途:切语言后当前语言缓存 miss 时,找到其它语言的既有解读 → 先显示原文 +
+    /// 提示条「此报告以××生成 · 翻译为××」(D10.5,不自动批量翻译)。
+    /// 中毒行同 `readAll` 口径删除当 miss;过期语义同 `maxAge` 参数。
+    ///
+    /// - Returns:命中语言 + module 名 → 缓存行;任何语言都无命中 → nil
+    /// - Throws:identity 解析失败或 SwiftData 读失败向上抛
+    func readAllCrossLanguage(
+        contentHash: String,
+        modules: [String],
+        targetDate: Date? = nil,
+        maxAge: TimeInterval? = nil
+    ) async throws -> (language: String, hits: [String: InterpretationCache])? {
+        let otherLanguages = AppLanguage.allCases
+            .map(\.rawValue)
+            .filter { $0 != AppLanguage.currentWire }
+        var best: (language: String, hits: [String: InterpretationCache])?
+        for language in otherLanguages {
+            let hits = try await readAll(
+                contentHash: contentHash,
+                modules: modules,
+                language: language,
+                targetDate: targetDate,
+                maxAge: maxAge
+            )
+            if hits.isEmpty { continue }
+            if best == nil || hits.count > best!.hits.count {
+                best = (language, hits)
+            }
+        }
+        return best
+    }
+
     // MARK: - V1 模块中毒缓存自愈(2026-10-01)
 
     /// V1 深度模块(M0-M7)中毒缓存检测 + 删除,镜像后端 `_validate_v1_module_json` +

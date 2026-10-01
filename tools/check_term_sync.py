@@ -41,15 +41,25 @@ sys.path.insert(0, str(BACKEND))
 from app.engine.shensha import _PILLAR_LABELS  # noqa: E402
 from app.engine.term_translations import (  # noqa: E402
     COMPAT_TERMS_EN,
+    COMPAT_TERMS_ZH_HANT,
     EARTHLY_BRANCHES_EN,
+    EARTHLY_BRANCHES_ZH_HANT,
     FIVE_ELEMENTS_EN,
+    FIVE_ELEMENTS_ZH_HANT,
     HEAVENLY_STEMS_EN,
+    HEAVENLY_STEMS_ZH_HANT,
     MISC_TERMS_EN,
+    MISC_TERMS_ZH_HANT,
     NAYIN_EN,
+    NAYIN_ZH_HANT,
     SHENSHA_EN,
+    SHENSHA_ZH_HANT,
     STRENGTH_LABEL_ZH_EN,
+    STRENGTH_LABEL_ZH_ZH_HANT,
     TEN_GODS_EN,
+    TEN_GODS_ZH_HANT,
     TWELVE_STAGES_EN,
+    TWELVE_STAGES_ZH_HANT,
 )
 
 # ---------- iOS 侧静态提取 ----------
@@ -103,17 +113,19 @@ def main() -> int:
     }
 
     print("=" * 64)
-    print("① 键集合 + en 值双相等(backend 为单一事实源)")
+    print("① 键集合 + en/zh-hant 值三相等(backend 为单一事实源)")
     print("=" * 64)
+    # 每组给 (en 表, zh-hant 表, iOS 表名);zh-hant 值也须与 iOS zhHant 列
+    # 逐字相等(S2,backend zh-hant 表从 iOS 定稿转写,此后双向锁定)
     exact = {
-        "五行": (FIVE_ELEMENTS_EN, "fiveElements"),
-        "十神": (TEN_GODS_EN, "tenGods"),
-        "纳音": (NAYIN_EN, "nayin"),
-        "十二长生": (TWELVE_STAGES_EN, "twelveStages"),
-        "神煞": (SHENSHA_EN, "shensha"),
-        "合盘枚举": (COMPAT_TERMS_EN, "compatTerms"),
+        "五行": (FIVE_ELEMENTS_EN, FIVE_ELEMENTS_ZH_HANT, "fiveElements"),
+        "十神": (TEN_GODS_EN, TEN_GODS_ZH_HANT, "tenGods"),
+        "纳音": (NAYIN_EN, NAYIN_ZH_HANT, "nayin"),
+        "十二长生": (TWELVE_STAGES_EN, TWELVE_STAGES_ZH_HANT, "twelveStages"),
+        "神煞": (SHENSHA_EN, SHENSHA_ZH_HANT, "shensha"),
+        "合盘枚举": (COMPAT_TERMS_EN, COMPAT_TERMS_ZH_HANT, "compatTerms"),
     }
-    for label, (backend_table, ios_name) in exact.items():
+    for label, (backend_table, backend_hant, ios_name) in exact.items():
         ios = ios_tables[ios_name]
         b_keys, i_keys = set(backend_table), set(ios)
         label_out = f"  {label:<6} {ios_name:<14}"
@@ -125,15 +137,18 @@ def main() -> int:
             print(f"{label_out} FAIL 键集合漂移")
             continue
         value_drift = [
-            k for k in backend_table if ios[k][1] != backend_table[k]
+            k for k in backend_table
+            if ios[k][1] != backend_table[k] or ios[k][0] != backend_hant[k]
         ]
         if value_drift:
             failures.append(
-                f"表 {ios_name} en 值漂移: "
-                + "; ".join(f"{k}: backend={backend_table[k]!r} iOS={ios[k][1]!r}"
-                            for k in value_drift[:5])
+                f"表 {ios_name} en/zh-hant 值漂移: "
+                + "; ".join(
+                    f"{k}: backend en={backend_table[k]!r} hant={backend_hant[k]!r}"
+                    f" iOS en={ios[k][1]!r} hant={ios[k][0]!r}"
+                    for k in value_drift[:5])
             )
-            print(f"{label_out} FAIL en 值漂移 {len(value_drift)} 条")
+            print(f"{label_out} FAIL en/zh-hant 值漂移 {len(value_drift)} 条")
         else:
             print(f"{label_out} OK   {len(b_keys)} 条键值全等")
 
@@ -161,14 +176,14 @@ def main() -> int:
         print("  转写    OK   romanization 键集合 = 干支并集")
 
     print("=" * 64)
-    print("③ backend ⊆ iOS(iOS 超集 = UI 专属词汇,en 值仍须相等)")
+    print("③ backend ⊆ iOS(iOS 超集 = UI 专属词汇,en/zh-hant 值仍须相等)")
     print("=" * 64)
     subsets = [
-        ("旺衰", STRENGTH_LABEL_ZH_EN, "strengthLabels"),
-        ("杂项", MISC_TERMS_EN, "misc"),
-        ("柱位", {label: None for _attr, label in _PILLAR_LABELS}, "pillarPositions"),
+        ("旺衰", STRENGTH_LABEL_ZH_EN, STRENGTH_LABEL_ZH_ZH_HANT, "strengthLabels"),
+        ("杂项", MISC_TERMS_EN, MISC_TERMS_ZH_HANT, "misc"),
+        ("柱位", {label: None for _attr, label in _PILLAR_LABELS}, None, "pillarPositions"),
     ]
-    for label, backend_table, ios_name in subsets:
+    for label, backend_table, backend_hant, ios_name in subsets:
         ios = ios_tables[ios_name]
         missing = set(backend_table) - set(ios)
         out = f"  {label:<6} {ios_name:<14}"
@@ -177,10 +192,16 @@ def main() -> int:
             print(f"{out} FAIL 缺 {sorted(missing)}")
             continue
         # 柱位的 backend 值是 attr 名(位置标记,非译名),只比键集合;
-        # 旺衰/杂项的 backend en 是译名,en 值也须相等
-        value_drift = (
-            [k for k in backend_table if backend_table[k] and ios[k][1] != backend_table[k]]
-        )
+        # 旺衰/杂项的 backend en/zh-hant 是译名,值也须相等
+        if backend_hant is None:
+            value_drift = []
+        else:
+            value_drift = [
+                k for k in backend_table
+                if backend_table[k] and (
+                    ios[k][1] != backend_table[k]
+                    or ios[k][0] != backend_hant[k])
+            ]
         if value_drift:
             failures.append(
                 f"表 {ios_name} en 值漂移: "

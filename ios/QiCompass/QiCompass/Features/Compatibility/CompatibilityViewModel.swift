@@ -205,6 +205,26 @@ final class CompatibilityViewModel {
     /// detail 态进入时的 cache 查询 task(完成后续刷新 interpretState)。
     private var cacheReadTask: Task<Void, Never>?
 
+    // MARK: 跨语言翻译(D10.5,S7)
+
+    /// 翻译提议(当前语言缓存 miss 但其它语言有既有解读):先显示原文 +
+    /// 提示条,点按钮才翻译。换对(openDetail)/重新生成时清空。
+    struct TranslationOffer: Equatable {
+        /// 原文语言(wire 值)
+        let sourceLanguage: String
+        /// 原文所在 module(compatibility_free / compatibility_paid,
+        /// 翻译请求该用的 module——付费键翻译走后端 entitlement 同检)
+        let module: String
+        let promptVersion: Int
+        let text: String
+    }
+
+    private(set) var translationOffer: TranslationOffer?
+    /// 翻译在飞(提示条转 loading)。
+    private(set) var isTranslating = false
+    /// 翻译 task(换对/重新生成时取消)。
+    private var translateTask: Task<Void, Never>?
+
     init(
         orchestrator: CompatibilityOrchestrator,
         chartStore: ChartSnapshotStore,
@@ -1697,6 +1717,9 @@ final class CompatibilityViewModel {
 
         // 后台查 24h AI 缓存(命中 → interpretState 刷新为 .okFree/.okPaid cached:true)
         cacheReadTask?.cancel()
+        translateTask?.cancel()
+        isTranslating = false
+        translationOffer = nil
         let summaryHash = summary.compatibilityHash
         cacheReadTask = Task { [weak self] in
             guard let self else { return }
@@ -1716,6 +1739,42 @@ final class CompatibilityViewModel {
                         : .okFree(text: cached.text, cached: true)
                     if !Task.isCancelled {
                         self.state = .detail(currentSummary, response, newState)
+                    }
+                } else if let cross = try await self.orchestrator
+                    .cachedCrossLanguageInterpretationIfFresh(
+                        compatibilityHash: summaryHash
+                    ) {
+                    // D10.5(S7):当前语言 miss 但其它语言有既有解读 →
+                    // 先显示原文 + 翻译提示条(点按钮才翻译,不自动)
+                    guard case .detail(let currentSummary, let response, _) = self.state,
+                          currentSummary.id == summary.id else { return }
+                    let hasEntitlement = self.entitlementStore.getActive(
+                        contentHash: summaryHash,
+                        module: EntitlementModule.compatibility,
+                        userLocalId: UserIdentity.userLocalId
+                    ) != nil
+                    // 付费键原文但无 entitlement:不显示付费级原文(越权),
+                    // 也不提示翻译(翻译也会被后端拦),回落正常 idle 由用户触发
+                    guard cross.module != "compatibility_paid" || hasEntitlement else {
+                        AppLogger.app.info(
+                            "op=compatibility.openDetail cross_language_paid_locked hash=\(summaryHash, privacy: .public)"
+                        )
+                        return
+                    }
+                    self.translationOffer = TranslationOffer(
+                        sourceLanguage: cross.language,
+                        module: cross.module,
+                        promptVersion: cross.promptVersion,
+                        text: cross.text
+                    )
+                    let newState: InterpretState = hasEntitlement
+                        ? .okPaid(text: cross.text, cached: true)
+                        : .okFree(text: cross.text, cached: true)
+                    if !Task.isCancelled {
+                        self.state = .detail(currentSummary, response, newState)
+                        AppLogger.app.info(
+                            "op=compatibility.openDetail cross_language hash=\(summaryHash, privacy: .public) source=\(cross.language, privacy: .public) module=\(cross.module, privacy: .public)"
+                        )
                     }
                 }
             } catch CompatibilityError.forbiddenWordsHit {
@@ -1764,6 +1823,10 @@ final class CompatibilityViewModel {
 
         cacheReadTask?.cancel()
         interpretTask?.cancel()
+        translateTask?.cancel()
+        // 重新生成取代翻译提议(D10.5:点过生成即不再需要翻译原文)
+        translationOffer = nil
+        isTranslating = false
         state = .detail(summary, response, .fetching)
 
         interpretTask = Task { [weak self] in
@@ -1862,6 +1925,110 @@ final class CompatibilityViewModel {
         }
     }
 
+    // MARK: - 跨语言翻译执行(D10.4/D10.5,S7)
+
+    /// 用户点提示条「翻译为××」:原文 → 目标语言(不消耗次数,点按钮才翻)。
+    /// 入参组装镜像 generateInterpretation(同一 PromptContextBuilder 口径,
+    /// 缓存键对齐的前提)。
+    func acceptTranslation() {
+        guard let offer = translationOffer, !isTranslating else { return }
+        guard case .detail(let summary, let response, _) = state else { return }
+        let compatHash = summary.compatibilityHash
+        guard let chartASnapshot = archivedCharts[safe: selectedChartAIndex]?.snapshot,
+              let bSnapshot = try? chartStore.get(contentHash: summary.personBHash) else {
+            state = .detail(summary, response, .failed(message: String(localized: "命盘快照缺失,请重新合盘")))
+            return
+        }
+        AppLogger.app.info(
+            "compatVM.acceptTranslation.start compatibilityHash=\(compatHash, privacy: .public) module=\(offer.module, privacy: .public) source=\(offer.sourceLanguage, privacy: .public)"
+        )
+        isTranslating = true
+        cacheReadTask?.cancel()
+        interpretTask?.cancel()
+        translateTask = Task { [weak self] in
+            guard let self else { return }
+            defer { self.isTranslating = false }
+            do {
+                let baziA = try self.chartStore.decodeResponse(from: chartASnapshot)
+                let baziB = try self.chartStore.decodeResponse(from: bSnapshot)
+                let chartA = PromptContextBuilder.chartContext(
+                    from: baziA,
+                    gender: chartASnapshot.gender,
+                    cityDisplay: self.cityDisplay(for: chartASnapshot)
+                )
+                let chartB = PromptContextBuilder.chartContext(
+                    from: baziB,
+                    gender: bSnapshot.gender,
+                    cityDisplay: self.cityDisplay(for: bSnapshot)
+                )
+                let promptNameB: String
+                switch summary.entry {
+                case .archived(let bHash):
+                    promptNameB = self.archivedCharts.first { $0.snapshotHash == bHash }?.alias
+                        ?? String(localized: "对方")
+                case .temp(_, let alias, _, _):
+                    if let alias, !alias.isEmpty {
+                        promptNameB = alias
+                    } else {
+                        promptNameB = String(localized: "对方")
+                    }
+                }
+                let resp = try await self.orchestrator.translateInterpretation(
+                    compatibilityHash: compatHash,
+                    chartA: chartA,
+                    chartB: chartB,
+                    assessment: response.qualitativeAssessment,
+                    syncedFortune: response.syncedFortune,
+                    context: self.context,
+                    nameA: L10n.Compatibility.selfReferenceYou,
+                    nameB: promptNameB,
+                    module: offer.module,
+                    sourceLanguage: offer.sourceLanguage,
+                    sourcePromptVersion: offer.promptVersion,
+                    sourceInterpretation: offer.text
+                )
+                if Task.isCancelled { return }
+                let hasEntitlement = self.entitlementStore.getActive(
+                    contentHash: compatHash,
+                    module: EntitlementModule.compatibility,
+                    userLocalId: UserIdentity.userLocalId
+                ) != nil
+                let newState: InterpretState = hasEntitlement
+                    ? .okPaid(text: resp.interpretation, cached: resp.cached)
+                    : .okFree(text: resp.interpretation, cached: resp.cached)
+                self.translationOffer = nil
+                self.state = .detail(summary, response, newState)
+                self.markSummaryInterpreted(id: summary.id)
+            } catch is CancellationError {
+                return
+            } catch {
+                if Task.isCancelled { return }
+                // 失败分级(D10.4 #4:已译成的保留——翻译无部分成功,此处指不丢原文):
+                // - STALE_SOURCE:原文版本过期,重试语义 = 重新生成 → .failed 显式
+                //   人话(重试按钮走 generateInterpretation)
+                // - 其他(503 保真失败等,可重试翻译):恢复原文显示 + 提示条保留,
+                //   用户可再点「翻译为××」(不烧次数,也不逼用户走重新生成)
+                AppLogger.app.warning(
+                    "compatVM.acceptTranslation.failed compatibilityHash=\(compatHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 原文与提示条保留"
+                )
+                if case .backendError(let code, _, _)? = error as? APIError, code == "STALE_SOURCE" {
+                    self.translationOffer = nil
+                    self.state = .detail(summary, response, .failed(message: String(localized: "此报告版本已更新,请重新生成。")))
+                    return
+                }
+                let hasEntitlement = self.entitlementStore.getActive(
+                    contentHash: compatHash,
+                    module: EntitlementModule.compatibility,
+                    userLocalId: UserIdentity.userLocalId
+                ) != nil
+                let restored: InterpretState = hasEntitlement
+                    ? .okPaid(text: offer.text, cached: true)
+                    : .okFree(text: offer.text, cached: true)
+                self.state = .detail(summary, response, restored)
+            }
+        }
+    }
+
     /// 解读成功后同步标记 summaries 中该对为已解读(返回 list 时卡片立刻显示标记)。
     private func markSummaryInterpreted(id: String) {
         guard let idx = summaries.firstIndex(where: { $0.id == id }) else { return }
@@ -1890,6 +2057,9 @@ final class CompatibilityViewModel {
         computeTask?.cancel()
         interpretTask?.cancel()
         cacheReadTask?.cancel()
+        translateTask?.cancel()
+        isTranslating = false
+        translationOffer = nil
         state = .configuring
     }
 

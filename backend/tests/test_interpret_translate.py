@@ -1,0 +1,510 @@
+"""POST /api/interpret/translate 行为测试(S6,D10.1-D10.3,2026-10-01)。
+
+覆盖(i18n-zh-hant-plan.md §4 S6 验收项):
+- **缓存键对齐**(关键):翻译落键后,以目标语言调 /api/interpret 命中
+  cached=true 且内容为译文(不重新生成)
+- STALE_SOURCE 409(原文旧 prompt 版本)
+- 模块白名单(daily_fortune / alias → 422)
+- entitlement:付费模块同检(无 → 403;有 → 200,不消耗额外次数)
+- 同语言 → 422;原文超长 → 422;v1 原文非 JSON → 422
+- 保真校验失败(同构/章节数/名字)→ 503 且**不写缓存**
+- 先查后译:目标键命中 → cached=true,不调 LLM
+- /api/interpret 响应 translated_from 恒为 null
+- 术语对构建:反查冲突裁决(Seven Killings→七杀;Wu 整组剔除;未知冲突抛错)
+"""
+
+from __future__ import annotations
+
+import json
+
+import pytest
+
+from app.engine.term_translations import (
+    TERM_TRANSLATIONS,
+    build_translation_term_pairs,
+)
+from app.models.interpret import TRANSLATE_MODULES
+from tests.fixtures.interpret_cases import COMPATIBILITY_CONTEXT
+
+# ---------- fixtures ----------
+
+M0_CHART = json.dumps({
+    "pillars": {"year": {"gan_zhi": "庚午", "shishen_gan": "七杀"}},
+    "day_master": {"stem": "甲", "element": "木", "strength_label": "偏弱"},
+}, ensure_ascii=False)
+
+M0_ZH_JSON = json.dumps({
+    "structure_fingerprint": "七杀驱动的高压结构",
+    "main_axis": {"dominant": "七杀", "evidence": "年柱透七杀"},
+    "core_loop": {"from": "七杀", "to": "偏财", "flow": "压力转化为产出", "n": 2},
+}, ensure_ascii=False)
+
+M0_HANT_JSON = json.dumps({
+    "structure_fingerprint": "七殺驅動的高壓結構",
+    "main_axis": {"dominant": "七殺", "evidence": "年柱透七殺"},
+    "core_loop": {"from": "七殺", "to": "偏財", "flow": "壓力轉化為產出", "n": 2},
+}, ensure_ascii=False)
+
+
+def _m0_translate_payload(source_interpretation: str = M0_ZH_JSON,
+                          source_language: str = "zh",
+                          source_prompt_version: int = 2) -> dict:
+    """zh→目标语言的 m0 翻译请求(m0 免费,无 entitlement 字段)。"""
+    return {
+        "content_hash": "hash-tr-m0",
+        "module": "m0_structure",
+        "context": {"chart": M0_CHART},
+        "target_date": None,
+        "source_language": source_language,
+        "source_prompt_version": source_prompt_version,
+        "source_interpretation": source_interpretation,
+    }
+
+
+def _seed_source_row(cache, payload: dict, text: str) -> None:
+    """直接落一行 source_language 原文(翻译防伪前提)。
+
+    `has_interpretation_text` 不匹配 hash 维度(见 app/ai/cache.py 注释),
+    hash 列用占位值即可;version/language/content_hash/module/text 须真值。
+    """
+    from app.ai.cache_key import CacheKey
+    cache.set(
+        CacheKey(
+            content_hash=payload["content_hash"],
+            module=payload["module"],
+            prompt_version=payload["source_prompt_version"],
+            target_date=payload.get("target_date") or "",
+            prompt_hash="seed-placeholder",
+            provider="anthropic",
+            model="mock-anthropic-model",
+            parent_hash="",
+            user_input_hash="",
+            language=payload["source_language"],
+        ),
+        text,
+        "2026-10-01T00:00:00+00:00",
+    )
+
+
+# ---------- 缓存键对齐(D10.1 核心) ----------
+
+async def test_translate_then_interpret_hits_same_cache_key(
+        interpret_client, mock_ai_client):
+    """翻译写入的键 = 目标语言 /api/interpret 会算出的键(逐字段相等)。
+
+    流程:zh 生成 → zh-hant 翻译(译文落键)→ 以 zh-hant 调 /api/interpret
+    → cached=true 且内容为译文(任何设备此后都拿这份,不再生成)。
+    """
+    # 1. zh 正常生成(顺带验证 source 形状的真实来源)
+    mock_ai_client.set_response(M0_ZH_JSON)
+    resp = await interpret_client.post("/api/interpret", json={
+        "content_hash": "hash-tr-m0", "module": "m0_structure",
+        "context": {"chart": M0_CHART}, "target_date": None,
+    })
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["language"] == "zh"
+    assert resp.json()["translated_from"] is None  # /api/interpret 恒为 null
+
+    # 2. 翻译到 zh-hant
+    mock_ai_client.set_response(M0_HANT_JSON)
+    resp = await interpret_client.post(
+        "/api/interpret/translate",
+        json=_m0_translate_payload(),
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["cached"] is False
+    assert body["language"] == "zh-hant"
+    assert body["translated_from"] == "zh"
+    assert body["prompt_version"] == 2
+    llm_calls_after_translate = mock_ai_client.call_count
+
+    # 3. 以目标语言调 /api/interpret → 命中翻译写入的键
+    resp = await interpret_client.post(
+        "/api/interpret",
+        json={
+            "content_hash": "hash-tr-m0", "module": "m0_structure",
+            "context": {"chart": M0_CHART}, "target_date": None,
+        },
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["cached"] is True, "译后目标语言请求必须命中缓存(键对齐失败)"
+    assert body["interpretation"] == M0_HANT_JSON
+    assert mock_ai_client.call_count == llm_calls_after_translate  # 没再调 LLM
+
+    # 4. 反向隔离:zh 键的缓存不受影响(仍是简体原文)
+    resp = await interpret_client.post("/api/interpret", json={
+        "content_hash": "hash-tr-m0", "module": "m0_structure",
+        "context": {"chart": M0_CHART}, "target_date": None,
+    })
+    assert resp.json()["cached"] is True
+    assert resp.json()["interpretation"] == M0_ZH_JSON
+
+
+async def test_translate_cache_hit_skips_llm(
+        interpret_client, mock_ai_client, tmp_cache):
+    """先查后译:目标键已命中 → cached=true,不调 LLM(D10.1)。"""
+    _seed_source_row(tmp_cache, _m0_translate_payload(), M0_ZH_JSON)
+    mock_ai_client.set_response(M0_HANT_JSON)
+    first = await interpret_client.post(
+        "/api/interpret/translate", json=_m0_translate_payload(),
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert first.status_code == 200 and first.json()["cached"] is False
+    calls = mock_ai_client.call_count
+
+    # 第二次翻译同 key:命中第一次的译文
+    mock_ai_client.set_response("占位(不应被调用)")
+    second = await interpret_client.post(
+        "/api/interpret/translate", json=_m0_translate_payload(),
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert second.status_code == 200, second.text
+    assert second.json()["cached"] is True
+    assert second.json()["interpretation"] == M0_HANT_JSON
+    assert second.json()["translated_from"] is None  # 命中行来源不区分
+    assert mock_ai_client.call_count == calls
+
+
+# ---------- 门控:版本 / 白名单 / 语言 / 长度 ----------
+
+async def test_stale_source_returns_409(interpret_client):
+    """source_prompt_version ≠ 当前版本 → 409 STALE_SOURCE(该走重新生成)。"""
+    resp = await interpret_client.post(
+        "/api/interpret/translate",
+        json=_m0_translate_payload(source_prompt_version=1),
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["error"]["code"] == "STALE_SOURCE"
+
+
+@pytest.mark.parametrize("module,extra", [
+    ("daily_fortune", {"target_date": "2026-10-01"}),
+    ("bazi_deep", {}),
+])
+async def test_module_whitelist_rejects_non_translatable(
+        interpret_client, module, extra):
+    """白名单外 module(每日运势 / alias)→ 422(D10.1)。"""
+    payload = _m0_translate_payload()
+    payload["module"] = module
+    payload.update(extra)
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=payload,
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 422, resp.text
+    assert "不支持翻译" in str(resp.json())
+
+
+def test_translate_modules_whitelist_contents():
+    """白名单 = v1 M0-M7 + 合盘现役两件(单一事实源断言)。"""
+    from app.models.interpret import V1_MODULES
+    assert TRANSLATE_MODULES == V1_MODULES | {
+        "compatibility_free", "compatibility_paid"}
+    assert "daily_fortune" not in TRANSLATE_MODULES
+    assert "compatibility" not in TRANSLATE_MODULES  # alias 不投入
+
+
+async def test_same_language_returns_422(interpret_client):
+    """source_language == 目标语言 → 422(客户端语言判定出错的防御)。"""
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=_m0_translate_payload(),
+        headers={"X-QiCompass-Lang": "zh"},
+    )
+    assert resp.status_code == 422, resp.text
+    assert "相同" in str(resp.json())
+
+
+async def test_oversized_source_returns_422(interpret_client):
+    """原文超长(AI_MAX_OUTPUT_TOKENS × 1.5)→ 422(防通用翻译器滥用)。"""
+    from app.api.interpret import _SOURCE_INTERPRETATION_CHAR_LIMIT
+    payload = _m0_translate_payload(
+        source_interpretation="字" * (_SOURCE_INTERPRETATION_CHAR_LIMIT + 1))
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=payload,
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 422, resp.text
+    assert "超上限" in str(resp.json())
+
+
+async def test_v1_source_not_json_returns_422(
+        interpret_client, mock_ai_client):
+    """v1 module 的原文非合法 JSON → 422,且**不烧 LLM**(形状校验前置)。"""
+    payload = _m0_translate_payload(source_interpretation="这不是 JSON")
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=payload,
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 422, resp.text
+    assert mock_ai_client.call_count == 0, "客户端输入错误不得产生 provider 成本"
+
+
+async def test_unverified_source_returns_409(interpret_client, mock_ai_client):
+    """服务端原文防伪:后端缓存无逐字一致的原文行 → 409 STALE_SOURCE,
+    不烧 LLM(防客户端伪造文本经翻译投毒跨用户共享缓存键)。"""
+    forged = json.dumps({
+        "structure_fingerprint": "攻击者伪造的叙事",
+        "main_axis": {}, "core_loop": {},
+    }, ensure_ascii=False)
+    resp = await interpret_client.post(
+        "/api/interpret/translate",
+        json=_m0_translate_payload(source_interpretation=forged),
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["error"]["code"] == "STALE_SOURCE"
+    assert "不可核验" in resp.json()["error"]["message"]
+    assert mock_ai_client.call_count == 0, "伪造原文不得产生 provider 成本"
+
+
+# ---------- entitlement(付费模块同检,翻译不另收费) ----------
+
+async def test_paid_module_translate_without_entitlement_403(
+        interpret_client):
+    """m2_high_low 无 entitlement → 403(与 /api/interpret 同一道)。"""
+    payload = _m0_translate_payload()
+    payload.update({
+        "module": "m2_high_low",
+        "context": {
+            "chart": M0_CHART, "structure_fingerprint": "七杀驱动",
+            "innate": "抗压产出", "defensive": "过度自律",
+        },
+        "user_local_id": "user-1",
+        "parent_fingerprint": "fp-m2",
+    })
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=payload,
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 403, resp.text
+    assert resp.json()["error"]["code"] == "ENTITLEMENT_NOT_FOUND"
+
+
+async def test_paid_module_translate_with_entitlement_200(
+        interpret_client, mock_ai_client, tmp_entitlement_store, tmp_cache):
+    """m2_high_low 有 entitlement → 200(翻译不另收费、不消耗次数)。"""
+    from tests.test_interpret_paid import _seed_entitlement
+    _seed_entitlement(tmp_entitlement_store,
+                      content_hash="hash-tr-m0", module="bazi_deep")
+
+    src = json.dumps({"high_config": {"portrait": "输出稳定"}},
+                     ensure_ascii=False)
+    tgt = json.dumps({"high_config": {"portrait": "輸出穩定"}},
+                     ensure_ascii=False)
+    payload = _m0_translate_payload(source_interpretation=src)
+    payload.update({
+        "module": "m2_high_low",
+        "context": {
+            "chart": M0_CHART, "structure_fingerprint": "七杀驱动",
+            "innate": "抗压产出", "defensive": "过度自律",
+        },
+        "user_local_id": "user-1",
+        "parent_fingerprint": "fp-m2",
+    })
+    _seed_source_row(tmp_cache, payload, src)
+    mock_ai_client.set_response(tgt)
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=payload,
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["translated_from"] == "zh"
+
+
+# ---------- 保真校验(D10.3:失败显式错误,不写缓存) ----------
+
+async def test_translated_not_json_returns_503(interpret_client,
+                                               mock_ai_client, tmp_cache):
+    """译文非 JSON(如空文本/截断)→ 503 AI_PROVIDER_ERROR,不写缓存。"""
+    _seed_source_row(tmp_cache, _m0_translate_payload(), M0_ZH_JSON)
+    mock_ai_client.set_response("")
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=_m0_translate_payload(),
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 503, resp.text
+    assert resp.json()["error"]["code"] == "AI_PROVIDER_ERROR"
+    assert "非合法 JSON" in resp.json()["error"]["message"]
+
+
+async def test_fidelity_failure_returns_503_and_skips_cache(
+        interpret_client, mock_ai_client, tmp_cache):
+    """译文改了数字/结构 → 503 AI_PROVIDER_ERROR,且缓存未写入。"""
+    _seed_source_row(tmp_cache, _m0_translate_payload(), M0_ZH_JSON)
+    broken = json.dumps({
+        "structure_fingerprint": "七殺驅動的高壓結構",
+        "main_axis": {"dominant": "七殺", "evidence": "年柱透七殺",
+                      "extra_key": "擅自增写的"},
+        "core_loop": {"from": "七殺", "to": "偏財", "flow": "壓力轉化為產出",
+                      "n": 2},
+    }, ensure_ascii=False)
+    mock_ai_client.set_response(broken)
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=_m0_translate_payload(),
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 503, resp.text
+    assert resp.json()["error"]["code"] == "AI_PROVIDER_ERROR"
+    assert "不同构" in resp.json()["error"]["message"]
+
+    # 缓存未写入:以目标语言调 /api/interpret 落穿到 LLM(cached=False)
+    mock_ai_client.set_response(M0_HANT_JSON)
+    resp = await interpret_client.post(
+        "/api/interpret",
+        json={
+            "content_hash": "hash-tr-m0", "module": "m0_structure",
+            "context": {"chart": M0_CHART}, "target_date": None,
+        },
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["cached"] is False, "失败译文不得入缓存"
+
+
+async def test_provider_failure_propagates(interpret_client,
+                                           mock_ai_client, tmp_cache):
+    """LLM 输出无法通过保真校验 → 显式失败,绝不 200 回退原文。"""
+    _seed_source_row(tmp_cache, _m0_translate_payload(), M0_ZH_JSON)
+    mock_ai_client.set_response("随便一段非 JSON 文本")
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=_m0_translate_payload(),
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 503, resp.text
+    assert resp.status_code != 200
+
+
+# ---------- 合盘翻译(章节 + 名字 + A/B 后置) ----------
+
+_COMPAT_CTX = {
+    "context_label": "通用",
+    "name_a": "小美", "name_b": "小林",
+    "gender_a": "女", "city_a": "台北", "birth_a": "1992-08-10 14:00",
+    "day_master_a": "丙", "day_master_strength_a": "strong",
+    "favorable_a": "土金",
+    "year_a": "壬申", "month_a": "戊申", "day_a": "丙午", "hour_a": "乙未",
+    "element_balance_a": "木1火3土2金2水2",
+    "gender_b": "男", "city_b": "北京", "birth_b": "1990-03-05 07:20",
+    "day_master_b": "甲", "day_master_strength_b": "weak",
+    "favorable_b": "木火",
+    "year_b": "庚午", "month_b": "己卯", "day_b": "甲子", "hour_b": "丁卯",
+    "element_balance_b": "木3火2土1金1水1",
+    "five_elements_assessment": "互补佳",
+    "day_master_relation": "相生",
+    "zodiac_match": "六合",
+    "branch_harmony": "无冲无刑",
+    "synced_fortune_table": "- 2026:A 同步走强",
+}
+
+_COMPAT_SRC = (
+    "第一章 基础相处模式\n\n两人节奏互补。小美与小林。\n\n"
+    "第二章 互补与冲突总览\n\n五行互补佳。"
+)
+_COMPAT_TGT = (
+    "第一章 基礎相處模式\n\n兩人節奏互補。小美與小林。\n\n"
+    "第二章 互補與衝突總覽\n\n五行互補佳。"
+)
+
+
+def _compat_translate_payload(source_interpretation: str = _COMPAT_SRC) -> dict:
+    return {
+        "content_hash": "hash-tr-compat",
+        "module": "compatibility_free",
+        "context": dict(_COMPAT_CTX),
+        "target_date": None,
+        "source_language": "zh",
+        "source_prompt_version": 4,
+        "source_interpretation": source_interpretation,
+    }
+
+
+async def test_compat_translate_ok_and_ab_labels_replaced(
+        interpret_client, mock_ai_client, tmp_cache):
+    """合盘 zh→zh-hant:章节数/名字保真通过 + standalone A/B 兜底替换。"""
+    _seed_source_row(tmp_cache, _compat_translate_payload(), _COMPAT_SRC)
+    # 译文里故意残留一个 standalone「B」(LLM 违约),后置处理应换成 name_b
+    tgt_with_ab = _COMPAT_TGT.replace(
+        "兩人節奏互補。", "兩人節奏互補,B 傾向先說結論。")
+    mock_ai_client.set_response(tgt_with_ab)
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=_compat_translate_payload(),
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 200, resp.text
+    text = resp.json()["interpretation"]
+    assert "B 傾向" not in text, "standalone B 应被替换为 name_b"
+    # 代号后的半角空格按既有设计吞掉(中文排版无残留空格)
+    assert "小林傾向先說結論" in text
+    assert "小美" in text and "小林" in text
+    assert resp.json()["language"] == "zh-hant"
+
+
+async def test_compat_translate_chapter_drift_503(
+        interpret_client, mock_ai_client, tmp_cache):
+    """译文丢章 → 503,不写缓存。"""
+    _seed_source_row(tmp_cache, _compat_translate_payload(), _COMPAT_SRC)
+    mock_ai_client.set_response(_COMPAT_TGT.replace(
+        "第二章 互補與衝突總覽\n\n", ""))
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=_compat_translate_payload(),
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 503, resp.text
+    assert "章节数漂移" in resp.json()["error"]["message"]
+
+
+async def test_compat_translate_lost_name_503(
+        interpret_client, mock_ai_client, tmp_cache):
+    """译文丢两人称呼 → 503。"""
+    _seed_source_row(tmp_cache, _compat_translate_payload(), _COMPAT_SRC)
+    mock_ai_client.set_response(_COMPAT_TGT.replace("小美", "她"))
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=_compat_translate_payload(),
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 503, resp.text
+    assert "两人称呼" in resp.json()["error"]["message"]
+
+
+def test_compat_context_fixture_shape():
+    """共享 fixture 完整性(本文件内联 context 与 interpret_cases 同域抽查)。"""
+    assert COMPATIBILITY_CONTEXT.get("context_label") in ("通用", "婚姻", "事业")
+
+
+# ---------- 术语对构建(D10.2:反查冲突裁决) ----------
+
+class TestBuildTranslationTermPairs:
+    def test_forward_zh_to_hant_drops_identity(self):
+        pairs = dict(build_translation_term_pairs("zh", "zh-hant"))
+        assert pairs["七杀"] == "七殺"
+        assert pairs["长生"] == "長生"
+        assert all(s != t for s, t in pairs.items())  # identity 对不上表
+
+    def test_reverse_en_to_zh_canonical_override(self):
+        """Seven Killings → 七杀(偏官同义,canonical 裁决)。"""
+        pairs = dict(build_translation_term_pairs("en", "zh"))
+        assert pairs["Seven Killings"] == "七杀"
+        assert "偏官" not in pairs.values()
+
+    def test_reverse_en_homograph_group_dropped(self):
+        """"Wu" 同为 戊/午 无调拼音 → 整组剔除(上下文自行判断)。"""
+        pairs = dict(build_translation_term_pairs("en", "zh-hant"))
+        assert "Wu" not in pairs
+
+    def test_unknown_reverse_conflict_raises(self, monkeypatch):
+        """未裁决的反查冲突 → 显式 KeyError(不静默取任一)。"""
+        monkeypatch.setitem(TERM_TRANSLATIONS["zh-hant"], "测试甲", "測試甲")
+        monkeypatch.setitem(TERM_TRANSLATIONS["zh-hant"], "测试乙", "測試乙")
+        monkeypatch.setitem(TERM_TRANSLATIONS["en"], "测试甲", "Colliding")
+        monkeypatch.setitem(TERM_TRANSLATIONS["en"], "测试乙", "Colliding")
+        with pytest.raises(KeyError, match="Colliding"):
+            build_translation_term_pairs("en", "zh")
+
+    def test_same_language_rejected(self):
+        with pytest.raises(ValueError, match="相同"):
+            build_translation_term_pairs("zh", "zh")

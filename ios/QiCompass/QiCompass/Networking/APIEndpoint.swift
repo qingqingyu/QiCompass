@@ -16,6 +16,7 @@ enum APIEndpoint: Sendable {
     case compatibility
     case dailyFortune
     case interpret
+    case interpretTranslate  // D10(S7):已生成解读的跨语言翻译
     case entitlementRedeem  // M3a 新增
     case entitlementList    // Slice 1 新增(登录后批量同步 entitlement)
     case authSignIn          // PR2.5 新增(Apple identity_token → 自家 JWT)
@@ -29,6 +30,7 @@ enum APIEndpoint: Sendable {
         case .compatibility:     return "/api/bazi/compatibility"
         case .dailyFortune:      return "/api/bazi/daily-fortune"
         case .interpret:         return "/api/interpret"
+        case .interpretTranslate: return "/api/interpret/translate"
         case .entitlementRedeem: return "/api/entitlement/redeem"
         case .entitlementList:   return "/api/entitlement/list"
         case .authSignIn:        return "/api/auth/sign-in"

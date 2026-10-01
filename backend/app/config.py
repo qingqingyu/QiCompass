@@ -82,6 +82,8 @@ MODULE_TEMPERATURES: dict[str, float] = {
     "m0_structure": 0.3, "m1_talent": 0.3, "m2_high_low": 0.3,
     "m3_system": 0.6, "m4_health": 0.6, "m5_wealth": 0.6,
     "m6_dynamics": 0.6, "m7_manual": 0.6,
+    # 翻译(D10.2,2026-10-01):只做语言转换,压最低档抑制改写
+    "translate": 0.2,
 }
 
 

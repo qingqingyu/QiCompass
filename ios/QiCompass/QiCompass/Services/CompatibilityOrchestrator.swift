@@ -358,6 +358,164 @@ final class CompatibilityOrchestrator {
         return (cached.interpretation, cached.promptVersion)
     }
 
+    // MARK: - 跨语言翻译(D10.4/D10.5,S7)
+
+    /// 跨语言查 24h AI 缓存:当前语言 miss 时探测其它语言的既有解读。
+    ///
+    /// 探测 `compatibility_paid` / `compatibility_free` 两键(现役生成写键;
+    /// alias `compatibility` 是老 App 兼容路径不投入,与 cachedInterpretationIfFresh
+    /// 的 legacy 读键不同源是有意的),先 paid 后 free——与 VM 按 entitlement
+    /// 选 module 的顺序一致,命中的 module 即翻译请求该用的 module。
+    ///
+    /// 前置守卫:目标语言 free/paid 任一键已有行时**不跨语言**(返回 nil)——
+    /// VM 的当前语言检查走 `cachedInterpretationIfFresh`(只读 legacy alias 键,
+    /// 看不到现役写键),若不在此拦,用户以目标语言生成过之后重开 detail,
+    /// 会命中**旧语言的行**并展示过期原文 + 多余的翻译提议(译文其实已在
+    /// 缓存;点翻译经「先查后译」秒回,但展示事实是错的)。
+    func cachedCrossLanguageInterpretationIfFresh(
+        compatibilityHash: String
+    ) async throws -> (module: String, language: String, text: String, promptVersion: Int)? {
+        // readAll 单次批量(identity 只 resolve 一次;read 逐 module 各 resolve
+        // 一次 = 多两次 health 网络往返)
+        let currentLanguageModules = ["compatibility_paid", "compatibility_free"]
+        let currentLanguageHits = try await interpretationReader.readAll(
+            contentHash: compatibilityHash,
+            modules: currentLanguageModules,
+            language: AppLanguage.currentWire,
+            maxAge: 24 * 3600
+        )
+        if !currentLanguageHits.isEmpty {
+            AppLogger.app.info(
+                "compat.crossLanguage.skip_current_language_hit compatibility_hash=\(compatibilityHash, privacy: .public)"
+            )
+            return nil
+        }
+        for module in currentLanguageModules {
+            if let (language, hits) = try await interpretationReader.readAllCrossLanguage(
+                contentHash: compatibilityHash,
+                modules: [module],
+                maxAge: 24 * 3600
+            ), let row = hits[module] {
+                return (module, language, row.interpretation, row.promptVersion)
+            }
+        }
+        return nil
+    }
+
+    /// 翻译合盘解读(D10.4/D10.5):原文 → 目标语言,译文写入目标语言缓存键。
+    ///
+    /// 与 `runInterpretation` 共享请求构建口径(`PromptContextBuilder
+    /// .buildCompatibility`,入参签名一致)——D10.1 缓存键对齐:译文落键后
+    /// 任何设备以目标语言正常生成都会命中。**不消耗每日次数**(D10.1 翻译
+    /// 不另收费;本地 counter 是生成配额,翻译绕过,无 refund 语义)。
+    /// 失败显式抛错:409 STALE_SOURCE(原文版本过期,走正常重新生成)/
+    /// 503 保真校验失败(可重试),不回退原文、不静默改走生成。
+    func translateInterpretation(
+        compatibilityHash: String,
+        chartA: ChartPromptContext,
+        chartB: ChartPromptContext,
+        assessment: QualitativeAssessmentDTO,
+        syncedFortune: [SyncedFortuneDTO],
+        context: String,
+        nameA: String,
+        nameB: String,
+        module: String,
+        sourceLanguage: String,
+        sourcePromptVersion: Int,
+        sourceInterpretation: String
+    ) async throws -> InterpretResponse {
+        // 先查后译(D10.1):目标语言已有缓存(他设备生成/先前翻译)直接返回
+        if let cached = try await interpretationReader.read(
+            contentHash: compatibilityHash,
+            module: module,
+            maxAge: 24 * 3600
+        ) {
+            AppLogger.app.info(
+                "compat.translate.cache_hit compatibility_hash=\(compatibilityHash, privacy: .public) module=\(module, privacy: .public)"
+            )
+            return InterpretResponse(
+                interpretation: cached.interpretation,
+                promptVersion: cached.promptVersion,
+                cached: true,
+                generatedAt: cached.generatedAt,
+                provider: cached.provider ?? "",
+                model: cached.model ?? "",
+                language: cached.language ?? AppLanguage.currentWire
+            )
+        }
+
+        let contextLabel = PromptContextBuilder.contextLabel(context)
+        let promptContext = PromptContextBuilder.buildCompatibility(
+            contextLabel: contextLabel,
+            chartA: chartA,
+            chartB: chartB,
+            assessment: assessment,
+            syncedFortune: syncedFortune,
+            nameA: nameA,
+            nameB: nameB
+        )
+        let req = InterpretRequest(
+            contentHash: compatibilityHash,
+            module: module,
+            context: promptContext,
+            targetDate: nil,
+            question: nil,
+            userLocalId: UserIdentity.userLocalId
+        )
+        let translateReq = TranslateRequest(
+            base: req,
+            sourceLanguage: sourceLanguage,
+            sourcePromptVersion: sourcePromptVersion,
+            sourceInterpretation: sourceInterpretation
+        )
+        AppLogger.app.info(
+            "compat.translate.start compatibility_hash=\(compatibilityHash, privacy: .public) module=\(module, privacy: .public) source=\(sourceLanguage, privacy: .public)"
+        )
+        let resp = try await AppLogger.measure(
+            AppLogger.networking,
+            operation: "compatTranslate",
+            context: [
+                "compatibility_hash": compatibilityHash,
+                "module": module,
+            ]
+        ) {
+            try await self.apiClient.translate(request: translateReq)
+        }
+
+        // 禁词扫描(镜像 runInterpretation 第 3 步;后端同扫,纵深防御)
+        let hits = ForbiddenWords.scan(resp.interpretation)
+        if !hits.isEmpty {
+            AppLogger.app.error(
+                "compat.translate.forbidden compatibility_hash=\(compatibilityHash, privacy: .public) hits=\(hits.joined(separator: ","), privacy: .public)"
+            )
+            throw CompatibilityError.forbiddenWordsHit(words: hits)
+        }
+
+        // 写本地缓存(译文落目标语言键,与 runInterpretation 写入口径一致)
+        try interpretStore.upsert(
+            contentHash: compatibilityHash,
+            module: module,
+            promptVersion: resp.promptVersion,
+            targetDate: nil,
+            language: resp.language,
+            provider: resp.provider,
+            model: resp.model,
+            interpretation: resp.interpretation,
+            generatedAt: resp.generatedAt
+        )
+        try syncCompatibilityInterpretation(
+            resp.interpretation,
+            compatibilityHash: compatibilityHash,
+            source: "translate",
+            provider: resp.provider,
+            model: resp.model
+        )
+        AppLogger.app.info(
+            "compat.translate.ok compatibility_hash=\(compatibilityHash, privacy: .public) module=\(module, privacy: .public) source=\(sourceLanguage, privacy: .public) target=\(resp.language, privacy: .public)"
+        )
+        return resp
+    }
+
     private func syncCompatibilityInterpretation(
         _ interpretation: String,
         compatibilityHash: String,
