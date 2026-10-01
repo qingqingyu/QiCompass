@@ -33,6 +33,7 @@ import re
 import time
 import uuid
 from datetime import datetime, timezone
+from typing import Final, NamedTuple
 
 from fastapi import APIRouter, Depends, Request
 from starlette.concurrency import run_in_threadpool
@@ -49,8 +50,12 @@ from ..ai.prompts import (
 )
 from ..ai.singleflight import SingleflightCoalescer
 from ..auth.dependencies import get_current_user_id
-from ..config import resolve_temperature
-from ..engine.term_translations import ChartJSONDecodeError, translate_context
+from ..config import AI_MAX_OUTPUT_TOKENS, resolve_temperature
+from ..engine.term_translations import (
+    ChartJSONDecodeError,
+    build_translation_term_pairs,
+    translate_context,
+)
 from ..entitlement import EntitlementStore
 from ..errors import (
     AIProviderError,
@@ -59,11 +64,13 @@ from ..errors import (
     InterpretationCacheError,
     InterpretationForbiddenError,
     InvalidInputError,
+    StaleSourceError,
 )
 from ..models.interpret import (
     InterpretRequest,
     InterpretResponse,
     PAID_MODULES,
+    TranslateRequest,
     V1_MODULES,
     V1_NEEDS_USER_INPUT,
     entitlement_base_module,
@@ -420,19 +427,38 @@ def _log_offchart_ganzhi(
         )
 
 
-@router.post("/api/interpret", response_model=InterpretResponse)
-async def interpret(
-    req: InterpretRequest,
-    request: Request,
-    current_user_id: str | None = Depends(get_current_user_id),
-) -> InterpretResponse:
-    request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
-    start = time.perf_counter()
+# ---------- 端点共享层(D10.1:两个端点共用,禁止复制粘贴) ----------
 
+class _PreparedPrompt(NamedTuple):
+    """「校验 → context 翻译 → 渲染 → 算缓存键」的共享产物。
+
+    /api/interpret 直接把 prompt 发给 LLM;/api/interpret/translate 只消费
+    cache_key(渲染出的目标语言 prompt 决定 prompt_hash 维度——这正是
+    「译文写入的键 = 目标语言正常生成会算出的键」对齐的机制:
+    两个端点跑同一段代码,不复制粘贴)。
+    """
+
+    prompt_version: int
+    translated_context: dict
+    prompt: str
+    cache_key: CacheKey
+    log_ctx: dict
+
+
+def _prepare_prompt_and_key(
+    req: InterpretRequest,
+    language: str,
+    request_id: str,
+    start: float,
+    ai_client,
+) -> _PreparedPrompt:
+    """取版本 → context 翻译 → 校验 → 渲染 → hash → CacheKey(共享,纯 CPU)。
+
+    错误包装与 /api/interpret 原行为逐字对齐(InvalidInputError 422 /
+    术语 KeyError → BaziCalculationFailedError 500 / ChartJSONDecodeError →
+    结构化 500 / FileNotFoundError → 500),两个端点的错误面一致。
+    """
     # 1. 取 prompt_version(后端配置,不从客户端读)
-    # v1 prompt 系统:m0-m7 module 在 Stage 5 才注册到 PROMPT_VERSIONS;
-    # Stage 4 期间 m0-m7 通过 Literal 但模板未挂,显式抛 InvalidInputError → 422
-    # 比 KeyError → 500 更准确(告知客户端"module 尚未支持"而非"服务器内部错误")
     prompt_version = PROMPT_VERSIONS.get(req.module)
     if prompt_version is None:
         elapsed_ms = (time.perf_counter() - start) * 1000
@@ -442,24 +468,14 @@ async def interpret(
             elapsed_ms, request_id, req.module, req.content_hash,
         )
         raise InvalidInputError(
-            f"module={req.module} 尚未支持(PROMPT_VERSIONS 未注册,"
-            f"Stage 5 prompt 模板落地后可用)",
+            f"module={req.module} 尚未支持(PROMPT_VERSIONS 未注册)",
             request_id=request_id,
         )
     target_date_str = str(req.target_date) if req.target_date else None
 
-    # 1.5 i18n:解析目标语言(从 X-QiCompass-Lang / Accept-Language header)
-    # 解析层见 backend/app/api/language.py(i18n 决策 2:方案 4 双 header 混合)
-    language = resolve_language(request)
-
     # 2. 校验 context + 渲染 prompt。缓存键必须覆盖 prompt 内容,否则同一
     # content_hash 携带不同 context 会污染跨用户缓存。
-    # translate_context 放在 try 内:未注册术语抛 KeyError 时,
-    # 包成 BaziCalculationFailedError(500)而非裸 KeyError 栈(术语表是后端配置,
-    # 不是用户输入错误)。
     try:
-        # 1.6 i18n:context 数据翻译层(i18n 决策 1:方案 3b 后端翻译责任)
-        # 把 lunar_python 输出的中文术语按 language 翻译,让 LLM 拿到全目标语言的 prompt
         translated_context = translate_context(req.context, language, req.module)
         validate_context(req.module, translated_context)
         prompt = render_prompt(req.module, translated_context, language=language)
@@ -489,12 +505,7 @@ async def interpret(
             request_id=request_id, content_hash=req.content_hash,
         ) from e
     except ChartJSONDecodeError as e:
-        # T1(i18n-trilingual)review 修复 + 09-23 收窄:_translate_deep_context
-        # 对客户端提交的 chart 字段做 json.loads——非 JSON(坏客户端/被篡改
-        # 请求)在翻译层包成 ChartJSONDecodeError(ValueError 子类),此处包装
-        # 成结构化 500(对齐 KeyError/FileNotFoundError 口径)。
-        # 只捕该子类:validate_context / render_prompt 的其他 ValueError
-        # (如模板花括号写错)不再被误报成「chart 非合法 JSON」。
+        # 客户端提交的 chart 字段非 JSON → 结构化 500(2026-09-23 收窄口径)
         elapsed_ms = (time.perf_counter() - start) * 1000
         logger.error(
             "interpret.translate_context_invalid_chart elapsed_ms=%.1f "
@@ -524,52 +535,6 @@ async def interpret(
         ) from e
 
     prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
-
-    # 2.5 Entitlement 检查(仅 PAID_MODULES;MONETIZATION.md M2 越狱保护核心防线)
-    # 越狱设备绕过 iOS UI 直调 /api/interpret 付费 module → 此处拦下
-    # base module 映射(entitlement_base_module 单一事实源):
-    # bazi_deep_paid / v1 m2-m7 → "bazi_deep"(单 SKU 解锁该盘全部深度付费内容)
-    # compatibility_paid / compatibility alias → "compatibility"
-    # 2026-08-23 修复:v1 m2-m7 此前按原名查 entitlement,而 iOS redeem 恒写
-    # "bazi_deep" → 已购用户点 M2-M7 也 403(跨层断链),统一映射后闭合
-    if req.module in PAID_MODULES:
-        base_module = entitlement_base_module(req.module)
-        entitlement_store: EntitlementStore = request.app.state.entitlement_store
-        try:
-            entitlement = await run_in_threadpool(
-                entitlement_store.get_active,
-                content_hash=req.content_hash,
-                module=base_module,
-                user_local_id=req.user_local_id,  # type: ignore[arg-type]
-                # user_local_id 由 Pydantic model_validator 保证非空(付费 module 必填)
-                # PR2.5:登录用户优先按 user_id 查(老 iOS / 老 entitlement 行兜底 user_local_id)
-                user_id=current_user_id,
-            )
-        except Exception as e:
-            # sqlite3 异常不吞(对齐 ai/cache.py:11-14 错误显式传播)
-            logger.exception(
-                "interpret.entitlement_check_failed request_id=%s "
-                "content_hash=%s module=%s error=%r",
-                request_id, req.content_hash, req.module, e)
-            raise InterpretationCacheError(
-                f"entitlement 查询失败({type(e).__name__}): {e}",
-                request_id=request_id, content_hash=req.content_hash,
-            ) from e
-        if entitlement is None:
-            logger.warning(
-                "interpret.entitlement_not_found request_id=%s "
-                "content_hash=%s base_module=%s",
-                request_id, req.content_hash, base_module)
-            raise EntitlementNotFoundError(
-                f"未找到有效 entitlement(module={base_module} "
-                f"content_hash={req.content_hash})",
-                request_id=request_id, content_hash=req.content_hash,
-            )
-
-    ai_client = request.app.state.ai_client
-
-    # v1 prompt 系统:CacheKey 加 parent_hash(M0 fingerprint)+ user_input_hash(M4/M5)
-    # 老模块两字段默认空串,行为零变化(向后兼容)
     parent_hash = _hash_parent_fingerprint(req.parent_fingerprint)
     user_input_hash = _hash_user_input(req)
 
@@ -586,8 +551,6 @@ async def interpret(
         "user_input_hash": user_input_hash,
         "language": language,
     }
-    logger.info("interpret.start %s", log_ctx)
-
     cache_key = CacheKey(
         content_hash=req.content_hash,
         module=req.module,
@@ -600,10 +563,77 @@ async def interpret(
         user_input_hash=user_input_hash,
         language=language,
     )
+    return _PreparedPrompt(
+        prompt_version=prompt_version,
+        translated_context=translated_context,
+        prompt=prompt,
+        cache_key=cache_key,
+        log_ctx=log_ctx,
+    )
 
-    cache: InterpretationCache = request.app.state.cache
 
-    # 3. 查后端缓存
+async def _require_entitlement(
+    request: Request,
+    req: InterpretRequest,
+    current_user_id: str | None,
+    request_id: str,
+) -> None:
+    """付费 module 的 entitlement 检查(/api/interpret 与 /translate 同一道)。
+
+    权益与语言无关:翻译不另收费、不消耗任何次数(D10.1)。
+    """
+    if req.module not in PAID_MODULES:
+        return
+    base_module = entitlement_base_module(req.module)
+    entitlement_store: EntitlementStore = request.app.state.entitlement_store
+    try:
+        entitlement = await run_in_threadpool(
+            entitlement_store.get_active,
+            content_hash=req.content_hash,
+            module=base_module,
+            user_local_id=req.user_local_id,  # type: ignore[arg-type]
+            user_id=current_user_id,
+        )
+    except Exception as e:
+        logger.exception(
+            "interpret.entitlement_check_failed request_id=%s "
+            "content_hash=%s module=%s error=%r",
+            request_id, req.content_hash, req.module, e)
+        raise InterpretationCacheError(
+            f"entitlement 查询失败({type(e).__name__}): {e}",
+            request_id=request_id, content_hash=req.content_hash,
+        ) from e
+    if entitlement is None:
+        logger.warning(
+            "interpret.entitlement_not_found request_id=%s "
+            "content_hash=%s base_module=%s",
+            request_id, req.content_hash, base_module)
+        raise EntitlementNotFoundError(
+            f"未找到有效 entitlement(module={base_module} "
+            f"content_hash={req.content_hash})",
+            request_id=request_id, content_hash=req.content_hash,
+        )
+
+
+async def _load_validated_cache_row(
+    cache: InterpretationCache,
+    cache_key: CacheKey,
+    module: str,
+    log_ctx: dict,
+    request_id: str,
+    content_hash: str,
+    start: float,
+) -> dict | None:
+    """查缓存 + 命中行的禁词/JSON 契约自愈(两端点共享)。
+
+    Returns:
+        命中且健康的行(含 interpretation / generated_at / provider / model),
+        或 None(未命中 / 中毒行已删除落穿)。
+
+    Raises:
+        InterpretationCacheError(读/删失败) / InterpretationForbiddenError
+        (命中行含禁词,删后显式拦截)
+    """
     try:
         cached_row = await run_in_threadpool(cache.get, cache_key)
     except Exception as e:
@@ -615,55 +645,97 @@ async def interpret(
         raise InterpretationCacheError(
             f"后端缓存读失败({type(e).__name__}): {e}") from e
 
+    if cached_row is None:
+        return None
+
+    # 禁词扫描(防止老缓存被污染,US-COMP-04)
+    forbidden_hits = scan_forbidden_words(cached_row["interpretation"])
+    if forbidden_hits:
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.warning(
+            "interpret.cache_forbidden elapsed_ms=%.1f %s hits=%s",
+            elapsed_ms, log_ctx, forbidden_hits,
+        )
+        await _invalidate_poisoned_cache(cache, cache_key, log_ctx)
+        raise InterpretationForbiddenError(
+            f"AI 解读包含禁词,已拦截(命中: {', '.join(forbidden_hits)})",
+            request_id=request_id,
+            content_hash=content_hash,
+        )
+    # v1 JSON 契约自愈(2026-09-27)+ daily v4 五键自愈(2026-09-30):
+    # 坏行删除后落穿重新生成(纵深防御,详见 /api/interpret 步骤 3 注释)
+    try:
+        _validate_v1_module_json(module, cached_row["interpretation"])
+        _validate_daily_fortune_json(module, cached_row["interpretation"])
+    except AIProviderError as e:
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.warning(
+            "interpret.cache_invalid_json elapsed_ms=%.1f %s error=%s"
+            " — 删除中毒缓存,落穿重新生成",
+            elapsed_ms, log_ctx, e,
+        )
+        await _invalidate_poisoned_cache(cache, cache_key, log_ctx)
+        return None
+    return cached_row
+
+
+@router.post("/api/interpret", response_model=InterpretResponse)
+async def interpret(
+    req: InterpretRequest,
+    request: Request,
+    current_user_id: str | None = Depends(get_current_user_id),
+) -> InterpretResponse:
+    request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
+    start = time.perf_counter()
+
+    # 1.5 i18n:解析目标语言(从 X-QiCompass-Lang / Accept-Language header)
+    # 解析层见 backend/app/api/language.py(i18n 决策 2:方案 4 双 header 混合)
+    language = resolve_language(request)
+
+    ai_client = request.app.state.ai_client
+
+    # 1-2. 校验 context + 渲染 prompt + 算缓存键(与 /api/interpret/translate
+    # 共享 _prepare_prompt_and_key——D10.1 缓存键对齐的关键:两个端点跑同一段
+    # 代码,译文写入的键与目标语言正常生成的键逐字段相等)
+    prepared = _prepare_prompt_and_key(req, language, request_id, start, ai_client)
+    prompt_version = prepared.prompt_version
+    translated_context = prepared.translated_context
+    prompt = prepared.prompt
+    cache_key = prepared.cache_key
+    log_ctx = prepared.log_ctx
+    logger.info("interpret.start %s", log_ctx)
+
+    # 2.5 Entitlement 检查(仅 PAID_MODULES;MONETIZATION.md M2 越狱保护核心防线)
+    # 越狱设备绕过 iOS UI 直调 /api/interpret 付费 module → 此处拦下;
+    # base module 映射(entitlement_base_module 单一事实源):
+    # bazi_deep_paid / v1 m2-m7 → "bazi_deep"(单 SKU 解锁该盘全部深度付费内容)
+    # compatibility_paid / compatibility alias → "compatibility"
+    # 2026-08-23 修复:v1 m2-m7 此前按原名查 entitlement,而 iOS redeem 恒写
+    # "bazi_deep" → 已购用户点 M2-M7 也 403(跨层断链),统一映射后闭合
+    await _require_entitlement(request, req, current_user_id, request_id)
+
+    cache: InterpretationCache = request.app.state.cache
+
+    # 3. 查后端缓存(禁词 + JSON 契约自愈,与 translate 端点共享)
+    cached_row = await _load_validated_cache_row(
+        cache, cache_key, req.module, log_ctx, request_id, req.content_hash,
+        start,
+    )
     if cached_row is not None:
-        # 禁词扫描(防止老缓存被污染,US-COMP-04)
-        forbidden_hits = scan_forbidden_words(cached_row["interpretation"])
-        if forbidden_hits:
-            elapsed_ms = (time.perf_counter() - start) * 1000
-            logger.warning(
-                "interpret.cache_forbidden elapsed_ms=%.1f %s hits=%s",
-                elapsed_ms, log_ctx, forbidden_hits,
-            )
-            # 删除坏缓存,避免同一 content_hash 永久不可用(失败只 log,不掩盖禁词拦截)
-            await _invalidate_poisoned_cache(cache, cache_key, log_ctx)
-            raise InterpretationForbiddenError(
-                f"AI 解读包含禁词,已拦截(命中: {', '.join(forbidden_hits)})",
-                request_id=request_id,
-                content_hash=req.content_hash,
-            )
-        # v1 JSON 契约自愈(2026-09-27):坏 JSON 行命中时不返回,删除后落穿
-        # 重新生成。注意:截断时代的坏行是 prompt_version=1 键,已被 D3A bump
-        # 孤立(新键永不命中);本层是纵深防御——拦未来回归(校验被弱化后
-        # 写入的行)与旁路写入(evalkit/手工落库),与禁词中毒同理:删除后
-        # 走正常生成路径,用户无感(多等一次生成)。
-        # daily_fortune v4 五键校验(2026-09-30)同层自愈:坏行删除落穿。
-        try:
-            _validate_v1_module_json(req.module, cached_row["interpretation"])
-            _validate_daily_fortune_json(req.module, cached_row["interpretation"])
-        except AIProviderError as e:
-            elapsed_ms = (time.perf_counter() - start) * 1000
-            logger.warning(
-                "interpret.cache_invalid_json elapsed_ms=%.1f %s error=%s "
-                "— 删除中毒缓存,落穿重新生成",
-                elapsed_ms, log_ctx, e,
-            )
-            await _invalidate_poisoned_cache(cache, cache_key, log_ctx)
-            cached_row = None
-        if cached_row is not None:
-            elapsed_ms = (time.perf_counter() - start) * 1000
-            logger.info(
-                "interpret.cache_hit elapsed_ms=%.1f %s",
-                elapsed_ms, log_ctx,
-            )
-            return InterpretResponse(
-                interpretation=cached_row["interpretation"],
-                prompt_version=prompt_version,
-                cached=True,
-                generated_at=cached_row["generated_at"],
-                provider=cached_row["provider"],
-                model=cached_row["model"],
-                language=language,
-            )
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.info(
+            "interpret.cache_hit elapsed_ms=%.1f %s",
+            elapsed_ms, log_ctx,
+        )
+        return InterpretResponse(
+            interpretation=cached_row["interpretation"],
+            prompt_version=prompt_version,
+            cached=True,
+            generated_at=cached_row["generated_at"],
+            provider=cached_row["provider"],
+            model=cached_row["model"],
+            language=language,
+        )
 
     # 4. 调用选中 provider(async httpx 直接 await,不走线程池)
     #    singleflight 合并:同 key 并发只调一次 LLM,所有等待者共享结果
@@ -786,3 +858,342 @@ async def _invalidate_poisoned_cache(
         raise InterpretationCacheError(
             f"删除被禁词污染的缓存失败({type(e).__name__}): {e}"
         ) from e
+
+
+# ---------- POST /api/interpret/translate(D10,2026-10-01) ----------
+
+# 客户端提交原文的长度硬上限:按 max_tokens 折算字符数 ×1.5(D10.1)。
+# zh 长模块 8192 token ≈ 4000-8000 字 + JSON 结构开销;超限说明提交的 不是
+# 本模块的合法解读文本(或滥用翻译端点当通用翻译器)→ 422。
+_SOURCE_INTERPRETATION_CHAR_LIMIT: Final[int] = int(AI_MAX_OUTPUT_TOKENS * 1.5)
+
+# 翻译端点的合盘后置处理范围(不含 alias:白名单 TRANSLATE_MODULES 已排除)
+_TRANSLATE_COMPAT_MODULES: Final[frozenset[str]] = frozenset({
+    "compatibility_free", "compatibility_paid",
+})
+
+# 合盘章节标题行(iOS CompatibilityInterpretationSection 同款口径:zh/zh-hant
+# 「第X章 …」/ en "Chapter N …";X 为汉字数字)
+_CHAPTER_TITLE_RE: Final[re.Pattern[str]] = re.compile(
+    r"^(?:第[一二三四五六七八九十]+章|Chapter\s+\d+)", re.MULTILINE)
+
+
+def _render_translate_prompt(
+    source_language: str, target_language: str, source_interpretation: str,
+) -> str:
+    """拼翻译 prompt(translate_v1.md 按**目标语言**取件 + 术语对 + 原文)。
+
+    原文以拼接方式附加(不走 str.format_map):v1 模块原文是 JSON,含大量
+    字面花括号,进 format_map 会 KeyError/误替换——模板只渲染 {term_table}
+    一个安全占位符(术语对内容无花括号)。
+    """
+    from ..ai.prompts import _load_template
+
+    pairs = build_translation_term_pairs(source_language, target_language)
+    term_table = "\n".join(f"- {src} → {tgt}" for src, tgt in pairs)
+    template = _load_template(
+        "translate", target_language, PROMPT_VERSIONS["translate"])
+    prompt = template.format_map({"term_table": term_table})
+    return f"{prompt}{source_interpretation}\n===== 原文结束 ====="
+
+
+def _count_chapter_titles(text: str) -> int:
+    """合盘正文的章标题行数(zh「第X章」/ en "Chapter N" 合计)。"""
+    return len(_CHAPTER_TITLE_RE.findall(text))
+
+
+def _assert_json_structural_identity(
+    source: object, translated: object, path: str = "$",
+) -> None:
+    """v1 模块译文与原文 JSON 的递归同构校验(D10.3 #1)。
+
+    规则:dict 键集合相同(递归);list 长度相同(递归);非字符串标量
+    (数字/布尔/null)逐值相等;字符串可不同(那正是翻译的部分)。
+
+    Raises:
+        AIProviderError: 任一层不同构(译文疑似增删改了结构/数字/枚举)
+    """
+    if isinstance(source, dict) and isinstance(translated, dict):
+        src_keys, tgt_keys = set(source), set(translated)
+        if src_keys != tgt_keys:
+            raise AIProviderError(
+                f"译文 JSON 与原文不同构({path}: 键集合漂移,"
+                f"仅原文={sorted(src_keys - tgt_keys)} "
+                f"仅译文={sorted(tgt_keys - src_keys)})")
+        for key in source:
+            _assert_json_structural_identity(
+                source[key], translated[key], f"{path}.{key}")
+        return
+    if isinstance(source, list) and isinstance(translated, list):
+        if len(source) != len(translated):
+            raise AIProviderError(
+                f"译文 JSON 与原文不同构({path}: 数组长度 "
+                f"{len(source)} → {len(translated)},禁止增删条目)")
+        for i, (s, t) in enumerate(zip(source, translated)):
+            _assert_json_structural_identity(s, t, f"{path}[{i}]")
+        return
+    if isinstance(source, str) and isinstance(translated, str):
+        return  # 字符串值:翻译目标本身,允许不同
+    if source is None or translated is None:
+        if source is not translated:
+            raise AIProviderError(
+                f"译文 JSON 与原文不同构({path}: null 漂移"
+                f" {source!r} → {translated!r})")
+        return
+    if isinstance(source, (bool, int, float)) and isinstance(
+            translated, (bool, int, float)):
+        if source != translated:
+            raise AIProviderError(
+                f"译文 JSON 与原文不同构({path}: 非字符串值被改动 "
+                f"{source!r} → {translated!r},禁止改数字/布尔)")
+        return
+    raise AIProviderError(
+        f"译文 JSON 与原文不同构({path}: 值类型漂移 "
+        f"{type(source).__name__} → {type(translated).__name__})")
+
+
+def _assert_translation_fidelity(
+    module: str,
+    source_interpretation: str,
+    translated: str,
+    name_a: str | None,
+    name_b: str | None,
+) -> None:
+    """译文保真校验(D10.3;失败 = 显式错误,不写缓存)。
+
+    - v1 模块:剥围栏 json.loads 后递归同构(键集合/数组长度/非字符串值)
+    - 合盘:章节数与原文相同;两人名字在原文出现过的,译文里必须出现
+    - 禁词扫描由调用方走共享 validate_interpretation(同一道)
+
+    Raises:
+        InvalidInputError: 原文自身不是该模块形状(v1 原文非 JSON 对象)
+        AIProviderError: 译文与原文不同构 / 章节数漂移 / 名字丢失
+    """
+    if module in V1_MODULES:
+        try:
+            source_parsed = json.loads(_strip_code_fences(source_interpretation))
+        except json.JSONDecodeError as e:
+            raise InvalidInputError(
+                f"source_interpretation 不是 {module} 形状的合法 JSON"
+                f"({e};v1 模块原文应为完整 JSON 对象)") from e
+        if not isinstance(source_parsed, dict):
+            raise InvalidInputError(
+                f"source_interpretation JSON 顶层非对象(module={module},"
+                f"v1 契约要求对象)")
+        try:
+            translated_parsed = json.loads(_strip_code_fences(translated))
+        except json.JSONDecodeError as e:
+            raise AIProviderError(
+                f"译文非合法 JSON(module={module},疑似截断或格式违约):{e}"
+            ) from e
+        if not isinstance(translated_parsed, dict):
+            raise AIProviderError(
+                f"译文 JSON 顶层非对象(module={module};翻译指令要求同构 JSON)")
+        _assert_json_structural_identity(source_parsed, translated_parsed)
+        return
+    if module in _TRANSLATE_COMPAT_MODULES:
+        src_chapters = _count_chapter_titles(source_interpretation)
+        tgt_chapters = _count_chapter_titles(translated)
+        if src_chapters != tgt_chapters:
+            raise AIProviderError(
+                f"合盘译文章节数漂移(原文 {src_chapters} 章 → 译文 "
+                f"{tgt_chapters} 章;翻译指令要求章数不变)")
+        for name in (name_a, name_b):
+            if name and name in source_interpretation and name not in translated:
+                raise AIProviderError(
+                    f"合盘译文丢失两人称呼({name!r} 在原文出现,译文中缺失;"
+                    f"翻译指令要求名字原样保留)")
+        return
+    # 白名单(schema TRANSLATE_MODULES)外的 module 到不了这里;显式暴露而非静默跳过
+    raise RuntimeError(
+        f"_assert_translation_fidelity: module={module!r} 不在已实现的翻译"
+        f"保真校验范围(需补实现,TRANSLATE_MODULES 与本函数失同步)")
+
+
+@router.post("/api/interpret/translate", response_model=InterpretResponse)
+async def interpret_translate(
+    req: TranslateRequest,
+    request: Request,
+    current_user_id: str | None = Depends(get_current_user_id),
+) -> InterpretResponse:
+    """POST /api/interpret/translate — 已生成解读的跨语言翻译(D10)。
+
+    切换语言后,已生成的深度解析(M0-M7)/ 合盘按**翻译原文**落到目标语言
+    缓存键,而不是重新解读(LLM 非确定性 → 同一张盘换个语言结论可能变,
+    「换语言命就变了」违背「专业不忽悠」;长文重生成成本也高)。
+
+    流程:
+    1. 目标语言 = resolve_language(与 /api/interpret 同口径);
+       source == 目标 → 422
+    2. source_prompt_version ≠ 当前版本 → 409 STALE_SOURCE(走正常生成)
+    3. 原文长度上限(AI_MAX_OUTPUT_TOKENS × 1.5 字符)→ 422
+    4. 共享 _prepare_prompt_and_key:**译文写入的缓存键 = 目标语言下
+       /api/interpret 会算出的键**(逐字段相等,含目标语言模板渲染出的
+       prompt_hash / parent_hash / user_input_hash / language)——之后任何
+       设备以目标语言请求 /api/interpret 都命中这份译文
+    5. entitlement 同检(付费模块;翻译不另收费、不消耗次数)
+    6. 先查后译:目标键命中 → cached=True 直接返回(不调 LLM)
+    7. translate_v1 模板(按目标语言)+ 术语对注入 + 原文 → LLM(singleflight)
+    8. 保真校验(v1 JSON 递归同构 / 合盘章节数+名字)+ 禁词;失败显式
+       AIProviderError,**不回退原文、不静默改走重新生成、不写缓存**
+    9. 写缓存 + 返回(translated_from = source_language,来源只进日志不进 DB)
+    """
+    request_id = getattr(request.state, "request_id", None) or str(uuid.uuid4())
+    start = time.perf_counter()
+    language = resolve_language(request)
+
+    # 1. 同语言翻译 → 422(客户端缓存行语言判定出错时的防御)
+    if req.source_language == language:
+        raise InvalidInputError(
+            f"source_language({req.source_language})与目标语言({language})"
+            f"相同,无需翻译", request_id=request_id)
+
+    # 2. 陈旧原文 → 409:原文来自旧 prompt,本来就该按新版本重新生成,
+    #    翻译会把旧版叙事固化进新版本键空间。客户端收到后走正常
+    #    /api/interpret(重生成不视为失败重试,不反复弹翻译入口)。
+    current_version = PROMPT_VERSIONS.get(req.module)
+    if current_version is None:
+        # schema 白名单 ⊆ PROMPT_VERSIONS,这里到不了;显式暴露失同步 bug
+        raise RuntimeError(
+            f"module={req.module!r} 在 TRANSLATE_MODULES 但不在 PROMPT_VERSIONS"
+            f"(白名单与版本表失同步,代码 bug)")
+    if req.source_prompt_version != current_version:
+        logger.warning(
+            "interpret.translate.stale_source request_id=%s module=%s "
+            "source_prompt_version=%s current=%s",
+            request_id, req.module, req.source_prompt_version, current_version,
+        )
+        raise StaleSourceError(
+            f"原文 prompt_version={req.source_prompt_version} 已过期"
+            f"(当前 {current_version}),请按正常 /api/interpret 重新生成",
+            request_id=request_id, content_hash=req.content_hash)
+
+    # 3. 长度上限(防免费通用翻译器滥用,D10.1)
+    if len(req.source_interpretation) > _SOURCE_INTERPRETATION_CHAR_LIMIT:
+        raise InvalidInputError(
+            f"source_interpretation 长度 {len(req.source_interpretation)} 超上限"
+            f" {_SOURCE_INTERPRETATION_CHAR_LIMIT}"
+            f"(按该模块 max_tokens 折算;疑似非本模块解读文本)",
+            request_id=request_id)
+
+    ai_client = request.app.state.ai_client
+
+    # 4. 共享「校验 → 翻译 → 渲染 → 算 key」(缓存键对齐的关键,见 docstring)
+    prepared = _prepare_prompt_and_key(req, language, request_id, start, ai_client)
+    prompt_version = prepared.prompt_version
+    translated_context = prepared.translated_context
+    cache_key = prepared.cache_key
+    log_ctx = prepared.log_ctx
+    logger.info(
+        "interpret.translate.start %s source_language=%s",
+        log_ctx, req.source_language,
+    )
+
+    # 5. entitlement(与 /api/interpret 完全同一道;不另收费、不消耗次数)
+    await _require_entitlement(request, req, current_user_id, request_id)
+
+    cache: InterpretationCache = request.app.state.cache
+
+    # 6. 先查后译(命中行的禁词/JSON 自愈与 /api/interpret 共享)
+    cached_row = await _load_validated_cache_row(
+        cache, cache_key, req.module, log_ctx, request_id, req.content_hash,
+        start,
+    )
+    if cached_row is not None:
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.info(
+            "interpret.translate.cache_hit elapsed_ms=%.1f %s",
+            elapsed_ms, log_ctx,
+        )
+        return InterpretResponse(
+            interpretation=cached_row["interpretation"],
+            prompt_version=prompt_version,
+            cached=True,
+            generated_at=cached_row["generated_at"],
+            provider=cached_row["provider"],
+            model=cached_row["model"],
+            language=language,
+            # 缓存行可能是他设备正常生成 / 先前翻译,同键内容等价,不区分来源
+            translated_from=None,
+        )
+
+    # 7. 翻译 prompt + LLM(singleflight 按目标 cache_key 合并同 key 并发)
+    translate_prompt = _render_translate_prompt(
+        req.source_language, language, req.source_interpretation)
+    logger.info(
+        "interpret.translate.provider_called %s source_language=%s target=%s",
+        log_ctx, req.source_language, language,
+    )
+    sf: SingleflightCoalescer = request.app.state.llm_singleflight
+    try:
+        translated = await sf.coalesce(
+            cache_key, lambda: ai_client.interpret(
+                translate_prompt, temperature=resolve_temperature("translate"),
+            ),
+        )
+    except AIProviderError as e:
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.exception(
+            "interpret.translate.provider_failed elapsed_ms=%.1f %s error=%s",
+            elapsed_ms, log_ctx, e,
+        )
+        e.request_id = request_id
+        raise
+
+    # 7.5 合盘后置处理(A/B 代号兜底 + 干支接地观测,与 /api/interpret 同款)
+    name_a = translated_context.get("name_a") or "A"
+    name_b = translated_context.get("name_b") or "B"
+    if req.module in _TRANSLATE_COMPAT_MODULES:
+        translated = _replace_ab_labels(translated, name_a, name_b)
+        _log_offchart_ganzhi(translated, translated_context, log_ctx)
+
+    # 8. 保真校验(同构/章节/名字)+ 禁词;失败显式抛错,不写缓存(D10.3)
+    try:
+        _assert_translation_fidelity(
+            req.module, req.source_interpretation, translated, name_a, name_b)
+    except AIProviderError as e:
+        e.request_id = request_id
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.error(
+            "interpret.translate.fidelity_failed elapsed_ms=%.1f %s error=%s",
+            elapsed_ms, log_ctx, e,
+        )
+        raise
+    validate_interpretation(
+        translated,
+        request_id=request_id,
+        content_hash=req.content_hash,
+        log_ctx=log_ctx,
+    )
+
+    # 9. 写缓存(键 = 目标语言正常生成的键)+ 返回
+    now_iso = datetime.now(timezone.utc).isoformat()
+    try:
+        await run_in_threadpool(
+            cache.set, cache_key, translated, now_iso,
+        )
+    except Exception as e:
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.exception(
+            "interpret.translate.cache_set_failed elapsed_ms=%.1f %s error=%s",
+            elapsed_ms, log_ctx, e,
+        )
+        raise InterpretationCacheError(
+            f"后端缓存写失败({type(e).__name__}): {e}") from e
+
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    logger.info(
+        "interpret.translate.ok elapsed_ms=%.1f cached=False %s "
+        "source_language=%s target=%s",
+        elapsed_ms, log_ctx, req.source_language, language,
+    )
+    return InterpretResponse(
+        interpretation=translated,
+        prompt_version=prompt_version,
+        cached=False,
+        generated_at=now_iso,
+        provider=ai_client.provider,
+        model=ai_client.model,
+        language=language,
+        translated_from=req.source_language,
+    )

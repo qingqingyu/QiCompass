@@ -432,6 +432,91 @@ def _term_joiner(language: str) -> str:
     return _TERM_JOINERS.get(language, " ")
 
 
+# ---------- 翻译端点术语对构建(D10.2,2026-10-01) ----------
+
+# 反查方向(source ≠ zh)的已知同义冲突显式裁决:
+# - 值 = zh 术语 → 裁决保留该 canonical(同义词:七杀/偏官在 Joey Yap 体系
+#   统一 Seven Killings,裁决「七杀」= engine 侧 ten_god_weights 主用形)
+# - 值 = None → 整组剔除(同形异义,不可机械裁决:"Wu" 同时是 戊(天干)与
+#   午(地支)的无调拼音——译回方向不进术语表,由 LLM 按上下文判断;
+#   干支在正文多以干支对出现,上下文足够)
+# 出现新冲突而不补裁决 → build_translation_term_pairs 显式 KeyError
+# (不静默取任一,对齐"显式注册、显式失败"哲学)。
+_REVERSE_CANONICAL_OVERRIDES: Final[dict[str, str | None]] = {
+    "Seven Killings": "七杀",
+    "Wu": None,
+}
+
+
+def build_translation_term_pairs(
+    source_language: str, target_language: str,
+) -> list[tuple[str, str]]:
+    """翻译 prompt 注入用的 源语言→目标语言 术语对(D10.2)。
+
+    术语域 = zh-hant 表键集(131,纯 CJK 术语;en 表减 raw strength key 同集),
+    按 zh id 空间取两侧显示值,只保留两侧不同形的对(identity 对是噪音):
+    - zh → en / zh → zh-hant:正向,天然无歧义(多对一允许:七杀/偏官 →
+      Seven Killings 两条都给,LLM 照表译不冲突)
+    - en → zh / en → zh-hant:反查,同一源值对应多个 zh id 时按
+      _REVERSE_CANONICAL_OVERRIDES 裁决收敛(丢弃非 canonical 同义项);
+      未裁决的冲突显式 KeyError
+
+    Args:
+        source_language: 原文语言("zh" / "zh-hant" / "en")
+        target_language: 目标语言(同上)
+
+    Returns:
+        [(源术语, 目标术语), ...](源 ≠ 目标)
+
+    Raises:
+        KeyError: 语言未注册,或反查冲突未裁决
+        ValueError: 源与目标语言相同(调用方应先拦)
+    """
+    if source_language == target_language:
+        raise ValueError(
+            f"源与目标语言相同({source_language!r}),无术语对可建"
+            f"(翻译端点在路由层已拦同语言请求)")
+    src_table = None if source_language == "zh" else TERM_TRANSLATIONS.get(
+        source_language)
+    tgt_table = None if target_language == "zh" else TERM_TRANSLATIONS.get(
+        target_language)
+    if (source_language != "zh" and src_table is None) or (
+            target_language != "zh" and tgt_table is None):
+        raise KeyError(
+            f"未注册的语言: source={source_language!r} target={target_language!r}"
+            f"(已注册: {sorted(TERM_TRANSLATIONS.keys())})")
+    zh_ids = list(TERM_TRANSLATIONS["zh-hant"].keys())
+
+    dropped: set[str] = set()
+    if source_language != "zh":
+        by_src: dict[str, list[str]] = {}
+        for zh_id in zh_ids:
+            by_src.setdefault(src_table[zh_id], []).append(zh_id)
+        for src_val, ids in by_src.items():
+            if len(ids) > 1:
+                canonical = _REVERSE_CANONICAL_OVERRIDES.get(src_val)
+                if canonical is None and src_val in _REVERSE_CANONICAL_OVERRIDES:
+                    # 显式裁决 = 整组剔除(同形异义,见常量注释)
+                    dropped.update(ids)
+                    continue
+                if canonical not in ids:
+                    raise KeyError(
+                        f"术语反查冲突未裁决: {src_val!r} 同时对应 {ids}"
+                        f"(需在 _REVERSE_CANONICAL_OVERRIDES 显式裁决——"
+                        f"canonical zh 术语或 None 剔除整组,不静默取任一)")
+                dropped.update(i for i in ids if i != canonical)
+
+    pairs: list[tuple[str, str]] = []
+    for zh_id in zh_ids:
+        if zh_id in dropped:
+            continue
+        src_val = zh_id if source_language == "zh" else src_table[zh_id]
+        tgt_val = zh_id if target_language == "zh" else tgt_table[zh_id]
+        if src_val != tgt_val:
+            pairs.append((src_val, tgt_val))
+    return pairs
+
+
 def translate_term(zh_term: str, target_language: str) -> str:
     """术语翻译:中文源 → 目标语言。
 

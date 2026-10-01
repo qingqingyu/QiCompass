@@ -102,6 +102,14 @@ PROMPT_VERSIONS: dict[str, int] = {
     "m5_wealth": 2,        # 付费:财富结构(需 assets_summary + preference)
     "m6_dynamics": 2,      # 付费:结构动力学高阶(能量路径/杠杆/易损点/升级路径)
     "m7_manual": 2,        # 付费:落地手册(true_leverage + 90 天行动)
+    # 翻译模板(D10.2,2026-10-01):/api/interpret/translate 专用,按**目标语言**
+    # 取文件(zh/zh-hant/en 三份)。translate 不进 v1 module 清单(不影响
+    # check_prompt_sync ② 组 ^m\d_ 匹配),也不进 REQUIRED_FIELDS(不消费
+    # context,渲染走 translate 端点自建的 _render_translate_prompt——原文
+    # 含 JSON 花括号,不能进 str.format_map)。
+    # 译后内容存目标 module 的缓存键下,translate 版本 bump 不会让已缓存译文
+    # 失效(D10.6 已接受;必要时手动清缓存)。
+    "translate": 1,
 }
 
 # ---------- 深度解析 ----------

@@ -57,7 +57,7 @@
 | zh-Hant 后端 | ✅ **S2 已实施(2026-10-01,yuyan worktree)**:`TERM_TRANSLATIONS` 注册 zh-hant 表 131 键(值与 iOS BaziTerms zhHant 列锁定,`check_term_sync.py` ①③ 组三相等);`prompts/zh-hant/` 14 文件(现役版本全套 + suffix 预置,parity 测试锁三语 bump 同步);`resolve_language` zh 变体解析(D4);unknown_hour suffix 三语映射;joiner 语义(zh-hant 干支连写无空格) |
 | zh-Hant iOS | ⏸ **止血中**:`AppLanguage.systemLanguage` 的 zh 分支恒返回 `.zh`(D4 实现保留在 `normalizeZhVariant`,S4 接回);xcstrings zh-Hant 列 238 key 已人工校对但已撤列暂存(commit `74c60e5`) |
 | 语言切换 UI / `X-QiCompass-Lang` 发送 | ❌ 未做(后端已支持该 header) |
-| 已生成解读的跨语言处理 | ❌ 未实施(S6/S7) |
+| 已生成解读的跨语言处理 | 🟡 **S6 已实施(2026-10-01,yuyan worktree)**:`POST /api/interpret/translate` 落地(D10.1-D10.3,键对齐/STALE_SOURCE/白名单/entitlement 同检/保真校验/先查后译,23 用例锁定,含「译后目标语言 /api/interpret 命中 cached=true」);实施偏差两处见 §3 D10.1 末注。iOS 接入 = S7 未做 |
 
 ---
 
@@ -189,6 +189,20 @@ M1-M7 的 `parent_fingerprint` 和 context 里的 `main_axis` / `core_loop` 来�
 - 视觉遵守 DESIGN.md:提示条用 hairline(ink@18%),按钮不用朱红;翻译中复用现有模块 loading 态
 - 翻译结果按 `resp.language` 写入 SwiftData(与生成结果同表同键,无需新字段)
 - 每日运势不出提示条,直接按新语言生成
+
+#### D10.1b 实施偏差记录(S6 落地时,2026-10-01)
+
+1. **保真失败 HTTP 码用 503 而非文档草写的 502**:复用既有 `AIProviderError`
+   (http_status=503,与 /api/interpret 的「provider 输出违约」同语义同码),
+   不为翻译另立 502 通道。
+2. **反查冲突「显式抛错」细化为「显式裁决表 + 未裁决抛错」**:D10.2 原文
+   要求 en→中文反查一对多冲突显式抛错;实际落地为
+   `_REVERSE_CANONICAL_OVERRIDES` 裁决表——已裁决冲突照常翻译(否则
+   en→zh 方向因 偏官/七杀 同译 Seven Killings 永远 500):
+   - `Seven Killings → 七杀`(同义词,canonical 取 engine 主用形)
+   - `Wu → 整组剔除`(戊/午 同音异义,天干 vs 地支不可机械裁决,交 LLM
+     按上下文判断——S6 实施时发现的文档未预见冲突)
+   未登记的新冲突仍显式 KeyError。
 
 #### D10.6 已知风险(接受)
 

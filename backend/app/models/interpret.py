@@ -308,8 +308,68 @@ class InterpretResponse(BaseModel):
                    "从 X-QiCompass-Lang / Accept-Language header 解析(zh 变体按 D4 展开);"
                    "客户端存入 SwiftData 缓存键对齐用"
                    "(i18n 决策 10 方案 3:后端是 language 事实源)")
+    translated_from: str | None = Field(
+        None,
+        description="D10:译文来源语言(zh / zh-hant / en)。/api/interpret 恒为 null;"
+                   "/api/interpret/translate 新翻出译文时 = source_language;"
+                   "翻译端点命中缓存时为 null(缓存行可能是任意同语言来源:"
+                   "他设备正常生成 / 先前翻译,内容同键等价,不区分)。"
+                   "仅埋点/调试用,不进 SQLite(来源只打日志)")
 
     @field_serializer("generated_at")
     def _serialize_generated_at(self, dt: datetime) -> str:
         """去微秒:iOS .iso8601 dateDecodingStrategy 不支持小数秒。"""
         return dt.replace(microsecond=0).isoformat()
+
+
+# ---------- D10:翻译端点(POST /api/interpret/translate) ----------
+
+# 支持翻译的 module 白名单:v1 深度模块 + 合盘现役两件(单一事实源)。
+# 每日运势不进白名单(短、24h 缓存,切语言直接按新语言重新生成);
+# alias 老模块不进(老 App 兼容路径不投入,en/zh-hant 本就无模板)。
+TRANSLATE_MODULES: frozenset[str] = frozenset(
+    V1_MODULES | {"compatibility_free", "compatibility_paid"}
+)
+
+
+class TranslateRequest(InterpretRequest):
+    """POST /api/interpret/translate 请求(D10.1)。
+
+    基础字段 = InterpretRequest 全量(**内容按目标语言请求 /api/interpret 时
+    会发的那份**——缓存键对齐的前提:两个端点共用「校验→翻译→渲染→算 key」
+    共享函数,译文写入的键与目标语言正常生成的键逐字段相等)。
+
+    新增三字段:
+    - source_language:原文语言(客户端 SwiftData 缓存行的 language)
+    - source_prompt_version:原文缓存行的 prompt_version(≠ 当前版本 → 409
+      STALE_SOURCE,原文来自旧 prompt 本来就该重新生成)
+    - source_interpretation:原文全文(客户端本地缓存里那份;长度上限由
+      路由层按 AI_MAX_OUTPUT_TOKENS 折算,防免费通用翻译器滥用)
+    """
+
+    source_language: Literal["zh", "zh-hant", "en"] = Field(
+        ..., description="原文语言(目标语言从 X-QiCompass-Lang / Accept-Language 解析,"
+                        "与 source_language 相同 → 422)")
+    source_prompt_version: int = Field(
+        ..., ge=1,
+        description="原文的 prompt_version(客户端缓存行携带;过期 → 409 STALE_SOURCE)")
+    source_interpretation: str = Field(
+        ..., description="原文全文(客户端 SwiftData 缓存里的 interpretation)")
+
+    @field_validator("source_interpretation")
+    @classmethod
+    def source_interpretation_not_blank(cls, v: str) -> str:
+        normalized = v.strip()
+        if not normalized:
+            raise ValueError("source_interpretation 不能为空")
+        return normalized
+
+    @model_validator(mode="after")
+    def module_must_support_translation(self) -> "TranslateRequest":
+        """白名单外 module(daily_fortune / alias 老模块)→ 422(D10.1)。"""
+        if self.module not in TRANSLATE_MODULES:
+            raise ValueError(
+                f"module={self.module} 不支持翻译(白名单: v1 M0-M7 + "
+                f"compatibility_free/paid;每日运势切语言请直接重新生成,"
+                f"alias 老模块不投入,见 i18n-zh-hant-plan.md D10)")
+        return self

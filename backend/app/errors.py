@@ -65,6 +65,18 @@ class InterpretationForbiddenError(BaziError):
     http_status = 422
 
 
+class StaleSourceError(BaziError):
+    """翻译端点(/api/interpret/translate)原文版本过期(D10.1)。
+
+    source_prompt_version ≠ 当前 PROMPT_VERSIONS[module] → 409:原文来自旧
+    prompt,本来就该按新版本重新生成(而非翻译)。客户端收到后应走正常
+    /api/interpret 路径,不得重试翻译。
+    """
+
+    code = "STALE_SOURCE"
+    http_status = 409
+
+
 # ---------- Entitlement(M2 后端付费系统)----------
 
 
