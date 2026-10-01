@@ -6597,6 +6597,17 @@
         }
       }
     },
+    "共 %lld 章 · 前 %lld 章免费" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$lld chapters · first %2$lld free"
+          }
+        }
+      }
+    },
     "hepan.partner.switchA11y" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -9079,7 +9090,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your branches punish or work against each other (%1$@). Friction shows up in habits and small promises — name it early."
+            "value" : "Your branches punish or work against each other (%1$@). Friction shows up in habits and small things — name it early."
           }
         }
       }

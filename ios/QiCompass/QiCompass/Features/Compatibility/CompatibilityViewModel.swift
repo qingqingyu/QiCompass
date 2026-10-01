@@ -1755,7 +1755,7 @@ final class CompatibilityViewModel {
             return
         }
         AppLogger.app.info(
-            "compatVM.autoGenerate.start compatibilityHash=\(currentSummary.compatibilityHash, privacy: .public)"
+            "op=compatibility.autoGenerate.start compatibilityHash=\(currentSummary.compatibilityHash, privacy: .public)"
         )
         generateInterpretation()
     }

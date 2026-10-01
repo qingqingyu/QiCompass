@@ -110,6 +110,34 @@ final class CompatibilityRelationDetailTests: XCTestCase {
         }
     }
 
+    func test五行_多元素差_zh连排en分隔() {
+        // A:木4 火4 土0 金0 水0;B:土4 金4 木0 火0 水0 → 双侧各两元素差 ≥2
+        let chart: [DualPillarSource] = [
+            pillar(L10n.Compatibility.dualYearPillar,
+                   "甲", "寅", "wood", "wood",
+                   "戊", "辰", "earth", "earth"),
+            pillar(L10n.Compatibility.dualMonthPillar,
+                   "甲", "寅", "wood", "wood",
+                   "戊", "辰", "earth", "earth"),
+            pillar(L10n.Compatibility.dualDayPillar,
+                   "丙", "午", "fire", "fire",
+                   "庚", "申", "metal", "metal"),
+            pillar(L10n.Compatibility.dualHourPillar,
+                   "丙", "午", "fire", "fire",
+                   "庚", "申", "metal", "metal"),
+        ]
+        let term = CompatibilityRelationDetailBuilder.make(pillars: chart).fiveElements
+        if AppLanguage.current.isChinese {
+            // zh 单字连排;顺序固定 B 侧先(对方多)· A 侧后(你多),
+            // 元素序 = ElementColors.allCases(木火土金水)
+            XCTAssertEqual(term, "对方多 土金 · 你多 木火")
+        } else {
+            // en 侧分隔符必须有,否则连成 "EarthMetal"(2026-10-01 review 修复)
+            XCTAssertEqual(term?.contains("Earth, Metal"), true)
+            XCTAssertEqual(term?.contains("Wood, Fire"), true)
+        }
+    }
+
     func test五行_无显著差_nil() {
         // 两侧同构盘 → 无 ≥2 差异
         let samey = boardChart.map { p in
@@ -181,10 +209,25 @@ final class CompatibilityRelationDetailTests: XCTestCase {
                    "己", "巳", "earth", "fire"),
         ]
         let detail = CompatibilityRelationDetailBuilder.make(pillars: chart)
-        // 全寅×全巳 = 4×4 共 16 对,每对双记为「刑害」(后端只记害,点名层刑害都记)
-        XCTAssertEqual(detail.frictionPairs.count, 16)
-        XCTAssertTrue(detail.frictionPairs.allSatisfy { $0 == "寅巳刑害" },
-                      "16 对全部双记为寅巳刑害,实际:\(detail.frictionPairs)")
+        // 全寅×全巳 = 4×4 共 16 对,每对双记为「刑害」(后端只记害,点名层刑害都记);
+        // 展示按文本去重(2026-10-01 review):重复柱位同关系只列一次
+        XCTAssertEqual(detail.branch, "寅巳刑害")
+        XCTAssertEqual(detail.frictionPairs, ["寅巳刑害"])
+    }
+
+    func test地支_重复柱位同关系_去重只列一次() {
+        // A 年支/日支均子、B 年支+时支均丑(boardChart 时柱原有辛丑)
+        // →「子丑合」在 4×4 扫描命中 2×2=4 次,展示只列 1 次
+        var chart = boardChart
+        chart[0] = pillar(L10n.Compatibility.dualYearPillar,
+                          "甲", "子", "wood", "water",
+                          "己", "丑", "earth", "earth")
+        chart[2] = pillar(L10n.Compatibility.dualDayPillar,
+                          "甲", "子", "wood", "water",
+                          "丁", "巳", "fire", "fire")
+        let detail = CompatibilityRelationDetailBuilder.make(pillars: chart)
+        XCTAssertEqual(detail.branch?.components(separatedBy: " · ").filter { $0 == "子丑合" }.count, 1,
+                      "同关系多柱位只列一次,实际:\(detail.branch ?? "")")
     }
 
     // MARK: 缺字段回落(时辰未知 / 老盘)

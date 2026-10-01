@@ -71,10 +71,16 @@ struct CompatibilityInterpretationSection: View {
         }
     }
 
-    /// 「共 N 章 · 前 M 章免费」:M = 免费文实际解析出的章数(老缓存无标题行
-    /// 时按产品契约取 2),N = M + 付费 4 章。
+    /// 免费文实际章数(标题行解析产物;老缓存无标题行按产品契约取 2,
+    /// clamp 1...6 防 LLM 超发/欠发)。freeScopeText 与 chapterList 锁定编号
+    /// 共用同一值,单一事实源。
+    static func freeChapterCount(of freeText: String) -> Int {
+        min(max(CompatibilityChapterText.parse(freeText)?.chapters.count ?? 2, 1), 6)
+    }
+
+    /// 「共 N 章 · 前 M 章免费」:M = 免费文实际解析出的章数,N = M + 付费 4 章。
     static func freeScopeText(freeText: String) -> String {
-        let freeCount = min(max(CompatibilityChapterText.parse(freeText)?.chapters.count ?? 2, 1), 6)
+        let freeCount = Self.freeChapterCount(of: freeText)
         return String(
             format: String(localized: "共 %lld 章 · 前 %lld 章免费"),
             freeCount + Self.paidChapterTitles.count, freeCount
@@ -92,7 +98,7 @@ struct CompatibilityInterpretationSection: View {
         VStack(alignment: .leading, spacing: 0) {
             CompatibilityChapterText(text: freeText)
 
-            let paidStart = min(max(CompatibilityChapterText.parse(freeText)?.chapters.count ?? 2, 1), 6) + 1
+            let paidStart = Self.freeChapterCount(of: freeText) + 1
             ForEach(Array(Self.paidChapterTitles.enumerated()), id: \.offset) { idx, title in
                 Rectangle()
                     .fill(BaziTheme.hairline)

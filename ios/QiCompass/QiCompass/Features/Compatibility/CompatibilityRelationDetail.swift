@@ -7,8 +7,13 @@ import Foundation
 /// `branch_relations.py` 同源同表(六合/三合/六冲/三刑/相害)。
 ///
 /// 与后端计数的刻意差异:后端 `_assess_branch_harmony` 按先命中先计、每对
-/// 只记一类(寅巳记害不记刑);本层**如实双记**(寅巳 = 刑 + 害)——「点名」
-/// 展示要的是全部事实,不是桶计数。单测用设计稿例盘对盘锁定。
+/// 只记一类(寅巳记害不记刑),且保留重复柱位(桶计数语义);本层**如实双记**
+/// (寅巳 = 刑 + 害)并**按文本去重**——「点名」展示要的是全部关系类型,不是
+/// 桶计数。单测用设计稿例盘对盘锁定。
+///
+/// i18n 债(T2-T6 范围,2026-10-01 记录):关系后缀「合/冲/刑/害」与生克动词
+/// 「生/克」为简体字面;`AppLanguage.zhHant` 止血期不可达(见 AppLanguage.swift
+/// T2 说明),接回繁体时本层需随 BaziTerms 的 zhHant 路径补繁体形态。
 struct CompatibilityRelationDetail: Equatable {
     /// 日主卡点名(如「甲遇丁 · 木生火」;nil = 输入不足,卡回落枚举值)。
     let dayMaster: String?
@@ -58,13 +63,18 @@ enum CompatibilityRelationDetailBuilder {
     // MARK: 入口
 
     static func make(pillars: [DualPillarSource]) -> CompatibilityRelationDetail {
+        // 展示去重(2026-10-01 review):同一关系文本在多柱位重复出现时只列一次
+        // (A 两柱有子 × B 一柱有丑 →「子丑合」一条)。后端 4×4 计数**保留**重复
+        // 是桶计数语义(多冲少合等枚举的输入);点名是"列关系",重复串是噪音。
         let pairs = branchRelations(pillars)
+        var seen: Set<String> = []
+        let unique = pairs.filter { seen.insert($0.text).inserted }
         return CompatibilityRelationDetail(
             dayMaster: dayMasterTerm(pillars),
             fiveElements: fiveElementsTerm(pillars),
             zodiac: zodiacTerm(pillars),
-            branch: pairs.isEmpty ? nil : pairs.map(\.text).joined(separator: " · "),
-            frictionPairs: pairs.filter(\.isFriction).map(\.text)
+            branch: unique.isEmpty ? nil : unique.map(\.text).joined(separator: " · "),
+            frictionPairs: unique.filter(\.isFriction).map(\.text)
         )
     }
 
@@ -191,8 +201,10 @@ enum CompatibilityRelationDetailBuilder {
     }
 
     private static func joinedLabels(_ elems: [ElementColors]) -> String {
+        // zh 单字连排自然(「木火」);en 需分隔符,否则双元素连成 "WoodFire"
         let isZh = AppLanguage.current.isChinese
-        return elems.map { isZh ? $0.label : $0.englishLabel }.joined()
+        return elems.map { isZh ? $0.label : $0.englishLabel }
+            .joined(separator: isZh ? "" : ", ")
     }
 
     /// 单侧五行字数(干 + 支各计 1;元素 key 缺失的字不计,不猜)。
