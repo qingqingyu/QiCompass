@@ -952,6 +952,27 @@ def _assert_json_structural_identity(
         f"{type(source).__name__} → {type(translated).__name__})")
 
 
+def _parse_v1_source_interpretation(
+    module: str, source_interpretation: str,
+) -> dict:
+    """v1 模块客户端原文的形状校验(InvalidInputError = 422,客户端输入错误)。
+
+    端点在烧 LLM **之前**调用(客户端 bug / 滥用请求不该产生 provider 成本),
+    `_assert_translation_fidelity` 复用同一解析(与译文同构比对)。
+    """
+    try:
+        parsed = json.loads(_strip_code_fences(source_interpretation))
+    except json.JSONDecodeError as e:
+        raise InvalidInputError(
+            f"source_interpretation 不是 {module} 形状的合法 JSON"
+            f"({e};v1 模块原文应为完整 JSON 对象)") from e
+    if not isinstance(parsed, dict):
+        raise InvalidInputError(
+            f"source_interpretation JSON 顶层非对象(module={module},"
+            f"v1 契约要求对象)")
+    return parsed
+
+
 def _assert_translation_fidelity(
     module: str,
     source_interpretation: str,
@@ -966,20 +987,13 @@ def _assert_translation_fidelity(
     - 禁词扫描由调用方走共享 validate_interpretation(同一道)
 
     Raises:
-        InvalidInputError: 原文自身不是该模块形状(v1 原文非 JSON 对象)
+        InvalidInputError: 原文自身不是该模块形状(v1 原文非 JSON 对象;
+            端点在 LLM 前已前置校验,此处兜底复检)
         AIProviderError: 译文与原文不同构 / 章节数漂移 / 名字丢失
     """
     if module in V1_MODULES:
-        try:
-            source_parsed = json.loads(_strip_code_fences(source_interpretation))
-        except json.JSONDecodeError as e:
-            raise InvalidInputError(
-                f"source_interpretation 不是 {module} 形状的合法 JSON"
-                f"({e};v1 模块原文应为完整 JSON 对象)") from e
-        if not isinstance(source_parsed, dict):
-            raise InvalidInputError(
-                f"source_interpretation JSON 顶层非对象(module={module},"
-                f"v1 契约要求对象)")
+        source_parsed = _parse_v1_source_interpretation(
+            module, source_interpretation)
         try:
             translated_parsed = json.loads(_strip_code_fences(translated))
         except json.JSONDecodeError as e:
@@ -1027,11 +1041,17 @@ async def interpret_translate(
        source == 目标 → 422
     2. source_prompt_version ≠ 当前版本 → 409 STALE_SOURCE(走正常生成)
     3. 原文长度上限(AI_MAX_OUTPUT_TOKENS × 1.5 字符)→ 422
+    3.5 v1 原文形状前置校验(非 JSON 对象 → 422,不烧 LLM)
     4. 共享 _prepare_prompt_and_key:**译文写入的缓存键 = 目标语言下
        /api/interpret 会算出的键**(逐字段相等,含目标语言模板渲染出的
        prompt_hash / parent_hash / user_input_hash / language)——之后任何
        设备以目标语言请求 /api/interpret 都命中这份译文
     5. entitlement 同检(付费模块;翻译不另收费、不消耗次数)
+    5.5 服务端原文防伪(P1 安全收口):译文落的是**跨用户共享键**,客户端
+       自由文本不可作为内容事实源——否则知道某盘出生数据的人可向该盘的
+       目标语言键投毒任意文案。要求原文逐字存在于本后端为
+       (content_hash, module, 当前版本, source_language) 生成过的缓存行;
+       不可核验(清库 / 换环境 / 伪造)→ 409 STALE_SOURCE,客户端走重新生成
     6. 先查后译:目标键命中 → cached=True 直接返回(不调 LLM)
     7. translate_v1 模板(按目标语言)+ 术语对注入 + 原文 → LLM(singleflight)
     8. 保真校验(v1 JSON 递归同构 / 合盘章节数+名字)+ 禁词;失败显式
@@ -1076,6 +1096,11 @@ async def interpret_translate(
             f"(按该模块 max_tokens 折算;疑似非本模块解读文本)",
             request_id=request_id)
 
+    # 3.5 v1 原文形状前置校验(422 客户端输入错误):非该模块形状的原文
+    # 不烧 LLM 就拒掉——保真校验(步骤 8)兜底复检,两层同 helper 同口径。
+    if req.module in V1_MODULES:
+        _parse_v1_source_interpretation(req.module, req.source_interpretation)
+
     ai_client = request.app.state.ai_client
 
     # 4. 共享「校验 → 翻译 → 渲染 → 算 key」(缓存键对齐的关键,见 docstring)
@@ -1093,6 +1118,38 @@ async def interpret_translate(
     await _require_entitlement(request, req, current_user_id, request_id)
 
     cache: InterpretationCache = request.app.state.cache
+
+    # 5.5 服务端原文防伪(P1 安全收口,见端点 docstring):原文必须逐字
+    # 存在于本后端为该盘 / 该模块 / 当前版本 / source_language 生成过的
+    # 缓存行,否则翻译会把客户端伪造文本固化进跨用户共享键。
+    # 不可核验 → 409 STALE_SOURCE(iOS 既有 STALE 处理 = 清提议走重新
+    # 生成,不会陷入重试翻译循环);正常流不受影响——iOS 本地原文就是
+    # 后端生成后逐字存档的那份,后端缓存行持久(无 TTL)。
+    try:
+        source_verified = await run_in_threadpool(
+            cache.has_interpretation_text,
+            req.content_hash, req.module, current_version,
+            req.source_language, req.source_interpretation,
+        )
+    except Exception as e:
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.exception(
+            "interpret.translate.source_verify_failed elapsed_ms=%.1f %s "
+            "error=%r", elapsed_ms, log_ctx, e,
+        )
+        raise InterpretationCacheError(
+            f"后端原文核验读失败({type(e).__name__}): {e}") from e
+    if not source_verified:
+        logger.warning(
+            "interpret.translate.source_unverified request_id=%s module=%s "
+            "source_language=%s content_hash=%s source_len=%d",
+            request_id, req.module, req.source_language, req.content_hash,
+            len(req.source_interpretation),
+        )
+        raise StaleSourceError(
+            f"原文在后端缓存不可核验(module={req.module},source_language="
+            f"{req.source_language};清库/换环境后请重新生成,伪造原文不予翻译)",
+            request_id=request_id, content_hash=req.content_hash)
 
     # 6. 先查后译(命中行的禁词/JSON 自愈与 /api/interpret 共享)
     cached_row = await _load_validated_cache_row(

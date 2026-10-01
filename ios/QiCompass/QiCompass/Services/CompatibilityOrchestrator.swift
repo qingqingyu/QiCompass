@@ -366,10 +366,31 @@ final class CompatibilityOrchestrator {
     /// alias `compatibility` 是老 App 兼容路径不投入,与 cachedInterpretationIfFresh
     /// 的 legacy 读键不同源是有意的),先 paid 后 free——与 VM 按 entitlement
     /// 选 module 的顺序一致,命中的 module 即翻译请求该用的 module。
+    ///
+    /// 前置守卫:目标语言 free/paid 任一键已有行时**不跨语言**(返回 nil)——
+    /// VM 的当前语言检查走 `cachedInterpretationIfFresh`(只读 legacy alias 键,
+    /// 看不到现役写键),若不在此拦,用户以目标语言生成过之后重开 detail,
+    /// 会命中**旧语言的行**并展示过期原文 + 多余的翻译提议(译文其实已在
+    /// 缓存;点翻译经「先查后译」秒回,但展示事实是错的)。
     func cachedCrossLanguageInterpretationIfFresh(
         compatibilityHash: String
     ) async throws -> (module: String, language: String, text: String, promptVersion: Int)? {
-        for module in ["compatibility_paid", "compatibility_free"] {
+        // readAll 单次批量(identity 只 resolve 一次;read 逐 module 各 resolve
+        // 一次 = 多两次 health 网络往返)
+        let currentLanguageModules = ["compatibility_paid", "compatibility_free"]
+        let currentLanguageHits = try await interpretationReader.readAll(
+            contentHash: compatibilityHash,
+            modules: currentLanguageModules,
+            language: AppLanguage.currentWire,
+            maxAge: 24 * 3600
+        )
+        if !currentLanguageHits.isEmpty {
+            AppLogger.app.info(
+                "compat.crossLanguage.skip_current_language_hit compatibility_hash=\(compatibilityHash, privacy: .public)"
+            )
+            return nil
+        }
+        for module in currentLanguageModules {
             if let (language, hits) = try await interpretationReader.readAllCrossLanguage(
                 contentHash: compatibilityHash,
                 modules: [module],

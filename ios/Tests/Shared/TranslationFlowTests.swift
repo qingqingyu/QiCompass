@@ -333,4 +333,46 @@ final class CompatibilityCrossLanguageCacheTests: XCTestCase {
         )
         XCTAssertNil(miss)
     }
+
+    /// 目标语言 free/paid 已有行时不跨语言(防「已生成过译文还展示旧原文+提议」:
+    /// VM 当前语言检查只读 legacy alias 键,看不到现役写键——守卫在本函数拦)。
+    func testCurrentLanguageRowSuppressesCrossLanguageProbe() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let context = container.mainContext
+        let apiClient = MockAPIClient()
+        let interpretStore = InterpretationCacheStore(context: context)
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: apiClient),
+            cacheStore: interpretStore
+        )
+        let orchestrator = CompatibilityOrchestrator(
+            apiClient: apiClient,
+            compatibilityStore: CompatibilitySnapshotStore(context: context),
+            chartStore: ChartSnapshotStore(context: context),
+            interpretStore: interpretStore,
+            counter: DailyReadCounter.makeIsolatedForTesting(),
+            interpretationReader: reader
+        )
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        defer { UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey) }
+
+        // 旧 zh 行 + 当前语言(zh-hant)行并存:后者存在 → 不跨语言
+        try interpretStore.upsert(
+            contentHash: "compat-hash-2", module: "compatibility_free",
+            promptVersion: 4, targetDate: nil, language: "zh",
+            provider: "anthropic", model: "mock-anthropic-model",
+            interpretation: "第一章 基础相处模式\n\n两人节奏。", generatedAt: .now
+        )
+        try interpretStore.upsert(
+            contentHash: "compat-hash-2", module: "compatibility_free",
+            promptVersion: 4, targetDate: nil, language: "zh-hant",
+            provider: "anthropic", model: "mock-anthropic-model",
+            interpretation: "第一章 基礎相處模式\n\n兩人節奏。", generatedAt: .now
+        )
+
+        let hit = try await orchestrator.cachedCrossLanguageInterpretationIfFresh(
+            compatibilityHash: "compat-hash-2"
+        )
+        XCTAssertNil(hit, "目标语言已有行时不得跨语言(译文已在缓存,不应展示旧原文+提议)")
+    }
 }

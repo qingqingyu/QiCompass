@@ -66,11 +66,13 @@ class InterpretationForbiddenError(BaziError):
 
 
 class StaleSourceError(BaziError):
-    """翻译端点(/api/interpret/translate)原文版本过期(D10.1)。
+    """翻译端点(/api/interpret/translate)原文不可用(D10.1 + 防伪收口)。
 
-    source_prompt_version ≠ 当前 PROMPT_VERSIONS[module] → 409:原文来自旧
-    prompt,本来就该按新版本重新生成(而非翻译)。客户端收到后应走正常
-    /api/interpret 路径,不得重试翻译。
+    409 两种触发,客户端处理一致(走正常 /api/interpret 重新生成,不重试翻译):
+    - source_prompt_version ≠ 当前 PROMPT_VERSIONS[module]:原文来自旧
+      prompt,本来就该按新版本重新生成(而非翻译)
+    - 服务端原文防伪:原文在后端缓存不可核验(清库/换环境/伪造文本)——
+      译文落跨用户共享键,未经后端生成过的文本不予翻译
     """
 
     code = "STALE_SOURCE"

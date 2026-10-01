@@ -344,7 +344,10 @@ class TranslateRequest(InterpretRequest):
     - source_prompt_version:原文缓存行的 prompt_version(≠ 当前版本 → 409
       STALE_SOURCE,原文来自旧 prompt 本来就该重新生成)
     - source_interpretation:原文全文(客户端本地缓存里那份;长度上限由
-      路由层按 AI_MAX_OUTPUT_TOKENS 折算,防免费通用翻译器滥用)
+      路由层按 AI_MAX_OUTPUT_TOKENS 折算,防免费通用翻译器滥用)。
+      **服务端防伪**:译文落跨用户共享键,路由层要求该文本逐字存在于后端
+      为 (content_hash, module, 当前版本, source_language) 生成过的缓存行,
+      不可核验 → 409 STALE_SOURCE(防客户端伪造文本投毒共享缓存)
     """
 
     source_language: Literal["zh", "zh-hant", "en"] = Field(

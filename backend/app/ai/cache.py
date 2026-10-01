@@ -154,6 +154,42 @@ class InterpretationCache:
             )
             conn.commit()
 
+    def has_interpretation_text(
+        self, content_hash: str, module: str, prompt_version: int,
+        language: str, interpretation: str,
+    ) -> bool:
+        """按文本核验缓存行存在(/api/interpret/translate 服务端原文防伪)。
+
+        不匹配 hash 维度(prompt_hash / provider / model / parent_hash /
+        user_input_hash):翻译请求重建的 context 是**目标语言**口径(iOS 侧
+        name_a 等字段随语言本地化),服务端算不出原文生成时的 source 键;
+        文本级匹配已足以证明「这段原文出自本后端为该盘 / 该模块 / 该语言 /
+        该版本生成的内容」,杜绝客户端伪造任意文本经翻译落入共享缓存键。
+
+        Args:
+            content_hash: 盘内容寻址哈希
+            module: module 名
+            prompt_version: 当前 PROMPT_VERSIONS 版本(路由层 STALE 门控已
+                保证客户端声明的原文版本 = 当前版本,此处同值收紧)
+            language: 原文语言(source_language)
+            interpretation: 客户端提交的原文全文(须逐字相等)
+
+        Returns:
+            True = 存在逐字一致的行;False = 不存在
+
+        Raises:
+            sqlite3.Error: 读失败(不吞,向上抛,路由层转 500)
+        """
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM interpretation_cache "
+                "WHERE content_hash=? AND module=? AND prompt_version=? "
+                "AND language=? AND interpretation=? LIMIT 1",
+                (content_hash, module, prompt_version, language,
+                 interpretation),
+            ).fetchone()
+        return row is not None
+
     def delete(self, key: CacheKey) -> None:
         """删除缓存行(用于清理被禁词污染的坏缓存)。
 
