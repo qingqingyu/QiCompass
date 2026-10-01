@@ -6,10 +6,11 @@ import SwiftUI
 /// kicker 小标 + hairline 行分隔 + 底部 hairline 收边,无容器底色、无圆角描边框,
 /// 列头规格与 DualPillarsTable 柱位行一致。取数/数据绑定不变(SyncedFortuneDTO 原样)。
 ///
-/// 颜色编码(token 化,不自造颜色):
-/// - 同步走强 → jade 文字(吉兆墨青)
-/// - 同步承压 → pressureWarning 文字
-/// - 运势分化 / 难以定性 → inkMuted
+/// 颜色 + 符号双编码(token 化,不自造颜色;符号不只靠颜色,BP #5 2026-10-01):
+/// - 同步走强 → ● jade 文字(吉兆墨青)
+/// - 同步承压 → ○ pressureWarning 文字
+/// - 运势分化 → ◐ inkMuted
+/// - 难以定性 → — inkMuted(从格诚实降级)
 struct SyncedFortuneTable: View {
     let synced: [SyncedFortuneDTO]
     /// 对方称呼(2026-09-27 A/B 代号 → 名字;B 列头「{name}的流年」)。
@@ -19,7 +20,7 @@ struct SyncedFortuneTable: View {
     /// 年份列固定宽(4 位数字对齐),A/B 均分余宽,同步列尾对齐;
     /// 表头与数据行共用同一列框架保证纵向对齐。
     private let yearColumnWidth: CGFloat = 44
-    private let syncColumnWidth: CGFloat = 64
+    private let syncColumnWidth: CGFloat = 78
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -73,10 +74,10 @@ struct SyncedFortuneTable: View {
         .padding(.bottom, 8)
     }
 
-    /// 单行:年份(SF tabular 数字)+ A + B + 同步状态(纯文字颜色编码,无底色块)。
+    /// 单行:年份(SF tabular 数字)+ A + B + 同步状态(符号 + 文字双编码,
+    /// 不只靠颜色——BP #5,2026-10-01;色觉无碍与 VoiceOver 都可读)。
     private func row(_ sf: SyncedFortuneDTO) -> some View {
-        let isStrong = sf.sync == "同步走强"
-        let isPressure = sf.sync == "同步承压"
+        let mark = SyncMark.syncMark(for: sf.sync)
 
         return HStack(alignment: .firstTextBaseline, spacing: 8) {
             Text(String(sf.year))
@@ -94,15 +95,58 @@ struct SyncedFortuneTable: View {
                 .foregroundStyle(BaziTheme.ink.opacity(0.85))
                 .frame(maxWidth: .infinity, alignment: .leading)
 
-            Text(sf.sync)
-                .font(.system(size: 11, weight: .medium))
-                .foregroundStyle(
-                    isStrong ? BaziTheme.jade :
-                    isPressure ? BaziTheme.pressureWarning :
-                    BaziTheme.inkMuted
-                )
-                .frame(width: syncColumnWidth, alignment: .trailing)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                if let mark {
+                    Text(mark.glyph)
+                        .font(.system(size: 10, weight: .medium))
+                        .foregroundStyle(mark.color)
+                }
+                Text(sf.sync)
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(mark?.color ?? BaziTheme.inkMuted)
+            }
+            .frame(width: syncColumnWidth, alignment: .trailing)
         }
         .padding(.vertical, 10)
+    }
+
+    // MARK: 同步四态符号(iOS 侧映射,后端枚举不动)
+
+    /// 四态:走强 ● / 承压 ○ / 分化 ◐ / 难以定性 —(从格诚实降级态,
+    /// 设计稿未画但产品决策必须有)。未知标签 → nil 无符号纯文字
+    /// (yuyan 后端结构化 synced 字段时,分化可再拆 ◐/◑ 方向——方向判据
+    /// a_good/b_good 后端现成,客户端 DTO 没有,不在本层猜)。
+    enum SyncMark {
+        case strong
+        case pressure
+        case diverged
+        case unclear
+
+        var glyph: String {
+            switch self {
+            case .strong: return "●"
+            case .pressure: return "○"
+            case .diverged: return "◐"
+            case .unclear: return "—"
+            }
+        }
+
+        var color: Color {
+            switch self {
+            case .strong: return BaziTheme.jade
+            case .pressure: return BaziTheme.pressureWarning
+            case .diverged, .unclear: return BaziTheme.inkMuted
+            }
+        }
+
+        static func syncMark(for label: String) -> SyncMark? {
+            switch label {
+            case "同步走强": return .strong
+            case "同步承压": return .pressure
+            case "运势分化": return .diverged
+            case "难以定性": return .unclear
+            default: return nil
+            }
+        }
     }
 }

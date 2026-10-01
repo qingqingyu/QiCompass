@@ -255,4 +255,16 @@ final class CompatibilityRelationDetailTests: XCTestCase {
         XCTAssertEqual(byElement[.earth]?.1, 1)
         XCTAssertEqual(byElement[.metal]?.1, 1)
     }
+
+    // MARK: 同步四态符号(BP #5,SyncedFortuneTable.SyncMark)
+
+    func test同步符号_四态映射与未知回落() {
+        XCTAssertEqual(SyncedFortuneTable.SyncMark.syncMark(for: "同步走强")?.glyph, "●")
+        XCTAssertEqual(SyncedFortuneTable.SyncMark.syncMark(for: "同步承压")?.glyph, "○")
+        XCTAssertEqual(SyncedFortuneTable.SyncMark.syncMark(for: "运势分化")?.glyph, "◐")
+        XCTAssertEqual(SyncedFortuneTable.SyncMark.syncMark(for: "难以定性")?.glyph, "—")
+        // 未知标签(后端未来结构化/en 化)→ nil 无符号纯文字,前向兼容
+        XCTAssertNil(SyncedFortuneTable.SyncMark.syncMark(for: "In sync"))
+        XCTAssertNil(SyncedFortuneTable.SyncMark.syncMark(for: ""))
+    }
 }
