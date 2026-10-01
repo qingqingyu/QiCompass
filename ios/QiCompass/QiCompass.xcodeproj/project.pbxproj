@@ -730,6 +730,7 @@ A11000000000000000000045 /* Compatibility/DayMasterRelationPhraseTests.swift */,
 			hasScannedForEncodings = 0;
 			knownRegions = (
 				"zh-Hans",
+				"zh-Hant",
 				en,
 				Base,
 			);

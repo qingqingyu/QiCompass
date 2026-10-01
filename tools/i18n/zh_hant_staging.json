@@ -5,7 +5,8 @@
     "extracted_from": "ios/QiCompass/QiCompass/Resources/Localizable.xcstrings",
     "extracted_at": "2026-09-28",
     "re_import": "T4(zh-Hant 文案主体)施工时逐 key 合并回 catalog,并把 zh-Hant 加回 pbxproj knownRegions;届时后端 T2(zh-hant 注册)/T3(繁体模板)须同批就绪",
-    "key_convention": "key 必须与 Localizable.xcstrings 的 catalog key 完全一致(dotted key 或代码内 raw-zh 原文 key);勿以 zh-Hans value 作 key(2026-09-30 review 修正:11 条 value-keyed 迁回 dotted)"
+    "key_convention": "key 必须与 Localizable.xcstrings 的 catalog key 完全一致(dotted key 或代码内 raw-zh 原文 key);勿以 zh-Hans value 作 key(2026-09-30 review 修正:11 条 value-keyed 迁回 dotted)",
+    "reimported": "2026-10-01 S3(yuyan):305 key 逐字回导 Localizable.xcstrings;新增 472 key(ICU Hans-Hant 底稿 + TW 短语覆写 信息→資訊/数据→資料/每周→每週/余下→餘下/农历→農曆 + 人工复核 48 处歧义字);本文件保留作校对溯源"
   },
   "strings": {
     "今日免费次数已用尽 · 已读章节仍可重读": "今日免費次數已用盡 · 已讀章節仍可重讀",
