@@ -87,6 +87,9 @@ struct PartnerHeader: View {
                 Text(me.name)
                     .font(BaziFont.display(size: 15.5))
                     .lineLimit(1)
+                    // 兜底名(「对方 · 1990-03-15」)过长时缩字号而非截断(#1,
+                    // 2026-10-01):被截掉的恰是最关键的区分信息
+                    .minimumScaleFactor(0.75)
                     .foregroundStyle(BaziTheme.ink)
                 subline(me)
             }
@@ -118,6 +121,8 @@ struct PartnerHeader: View {
                         Text(partner.name)
                             .font(BaziFont.display(size: 15.5))
                             .lineLimit(1)
+                            // 同「我」侧:缩字号防截断(#1)
+                            .minimumScaleFactor(0.75)
                             .foregroundStyle(BaziTheme.ink)
                         subline(partner)
                     }
@@ -184,14 +189,18 @@ struct PartnerHeader: View {
             )
     }
 
-    /// 副行「日主 X · yyyy-MM-dd」(caption + tabular-nums;无生日只显日主段)。
+    /// 副行两行式(#1,2026-10-01):「日主 X」一行 + 生日一行(单行式在窄屏
+    /// 会截日期,被截的恰是关键信息)。无生日只显日主行;日期走 tabular-nums。
     private func subline(_ person: PartnerDisplay) -> some View {
         let gan = person.dayMaster.flatMap { $0.isEmpty ? nil : $0 } ?? "—"
-        return Text(L10n.CompatibilityPartner.subline(
-            gan, person.birthDateString ?? "—"
-        ))
-        .font(BaziFont.caption(size: 10.5).monospacedDigit())
-        .lineLimit(1)
+        return VStack(alignment: .leading, spacing: 2) {
+            Text(String(format: String(localized: "日主 %@"), gan))
+            if let date = person.birthDateString {
+                Text(date)
+                    .monospacedDigit()
+            }
+        }
+        .font(BaziFont.caption(size: 10.5))
         .foregroundStyle(BaziTheme.inkMuted)
     }
 }

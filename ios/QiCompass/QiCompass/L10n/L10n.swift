@@ -945,12 +945,6 @@ enum L10n {
         /// zh: "我";en: "Me"
         static let selfLabel = String(localized: "hepan.partner.selfLabel")
 
-        /// 人物牌副行(日主 + 生日)。%@1 = 日主天干,%@2 = 生日 yyyy-MM-dd。
-        /// zh: "日主 %@ · %@";en: "Day master %@ · %@"
-        static func subline(_ dayMaster: String, _ date: String) -> String {
-            String(format: String(localized: "hepan.partner.subline"), dayMaster, date)
-        }
-
         /// 对方牌 a11y(点按语义 = 打开换人 sheet)。
         /// zh: "切换对方,当前 %@";en: "Switch partner, current %@"
         static func switchA11y(_ name: String) -> String {
