@@ -205,6 +205,14 @@ struct ProfileView: View {
                     Text(primary.metaLine)
                         .font(BaziFont.caption(size: 11))
                         .foregroundStyle(BaziTheme.inkMuted)
+                    // M2(2026-10-01 外评「右上偏挤」):入口下沉到身份信息同列——
+                    // 右上只留落款角标(登录态),入口(动作)与身份(信息)分列,
+                    // 不再与角标竖排堆叠。13pt 全称不变(S2 口径,命主块是本 Tab 第一入口)。
+                    Text("查看完整命盘 ›")
+                        .font(BaziFont.caption(size: 13))
+                        .tracking(2)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .padding(.top, 2)
                 }
 
                 Spacer(minLength: 12)
@@ -212,11 +220,6 @@ struct ProfileView: View {
                 // 落款角标:登录态的固定位置(已钤朱印 / 未钤虚线印 / 加载中)
                 VStack(alignment: .trailing, spacing: 7) {
                     cornerSeal
-                    // S2:11.5pt 太小不像主入口 → 13pt + 全称(命主块是本 Tab 第一入口)
-                    Text("查看完整命盘 ›")
-                        .font(BaziFont.caption(size: 13))
-                        .tracking(2)
-                        .foregroundStyle(BaziTheme.inkMuted)
                 }
             }
             .padding(.vertical, BaziTheme.Spacing.sm)

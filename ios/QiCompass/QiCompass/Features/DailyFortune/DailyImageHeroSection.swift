@@ -173,14 +173,16 @@ struct DailyImageHeroSection: View {
             .allowsHitTesting(false)
     }
 
-    /// 4b 底部提前融纸(2026-09-25 打磨):外评「山水下边缘和文字区域糊在
-    /// 一起」——宜忌列所在的底缘自 78% 起线性压纸、93% 全纸,山脚(63%)
-    /// 与整体融纸观感不动,文字区从此干净落纸。
+    /// 4b 底部提前融纸(2026-09-25 打磨;2026-10-01 T2 外评可读性再提前):
+    /// 宜忌列所在的底缘自 72% 起线性压纸、90% 全纸——外评「Do/Don't 大字压在
+    /// 淡山上靠留白硬撑」;其「加半透明底」提议违反 DESIGN.md 不用玻璃态,
+    /// 合规等价物 = 融纸起点 78%→72%、收纸 93%→90%,山影在条目区更退,
+    /// 山脚(63%)与整体融纸观感不动,条目落净纸。
     private var bottomFadeLayer: some View {
         LinearGradient(
             stops: [
-                .init(color: BaziTheme.paper.opacity(0), location: 0.78),
-                .init(color: BaziTheme.paper, location: 0.93),
+                .init(color: BaziTheme.paper.opacity(0), location: 0.72),
+                .init(color: BaziTheme.paper, location: 0.90),
             ],
             startPoint: .top,
             endPoint: .bottom
@@ -332,27 +334,59 @@ struct DailyImageHeroSection: View {
         return "\(L10n.DailyFortune.lunarPrefix) \(lunarDate) · \(dayPillar)\(L10n.DailyFortune.dayPillarSuffix)"
     }
 
-    /// 关系/冲 chips(放不下时整组换行,组内仍横排)。
+    /// 关系/冲 chips(放不下时整组换行;组内也放不下时两 chip 上下堆叠)。
     /// 2026-09-28 S06:①关系 chip 朱红违规(cinnabar 仅印章级授权场景)改 ink,
     /// 与冲 chip 的 inkMuted 靠墨色浓淡分主次;②hero 内文字均固定字号、卡高固定
     /// 402pt,chips 跟随 Dynamic Type 会在大字号档顶出卡边——cap 到 large
     /// (只作用 hero chips,不改 ChipView 本身,其他页面行为不变);
     /// 无障碍完整语义由 heroAccessibilityLabel 承担(含冲)。
     /// 2026-09-29 D3:十神 chip 可点,弹出今日十神释义(见 HeroShiShenNotes)。
+    /// 2026-10-01 T1(外评「Clashes with …」截断):dateRow 的 ViewThatFits 只救
+    /// 「chips 组 vs 日期行」一级;组内 HStack 在窄宽/大字号下仍会靠 ChipView 的
+    /// lineLimit(1) 尾截断。补二级降级:组内再包 ViewThatFits,横排放不下时
+    /// 两 chip 上下堆叠右对齐——堆叠候选必须把 chip 拆成 VStack 的**独立子元素**:
+    /// HStack 永不换行,整行包进单子元素 VStack 是布局 no-op(截断原样保留);
+    /// 拆开后候选理想宽 = 最宽单 chip < 整行宽,行放不下时才真正选中堆叠态。
+    /// 横排候选挂 fixedSize 报足理想宽——单行 Text 的理想宽即全宽,不挂会被
+    /// 「截断后刚好放得下」误判为 fit。
     private var chips: some View {
-        HStack(spacing: 7) {
-            Button {
-                showShiShenNote = true
-            } label: {
-                ChipView(text: Self.displayRelation(dayRelation), tint: BaziTheme.ink, iconName: Self.relationIcon(for: dayRelation))
-            }
-            .buttonStyle(.plain)
-            if let chong = dayChong {
-                let label = L10n.DailyFortune.chongLabel(chong: chong, targets: dayChongTargets)
-                ChipView(text: label, tint: BaziTheme.inkMuted, iconName: "PlaqueChong")
+        ViewThatFits(in: .horizontal) {
+            chipsRow
+                .fixedSize(horizontal: true, vertical: false)
+            VStack(alignment: .trailing, spacing: 7) {
+                relationChip
+                if let chong = dayChong {
+                    chongChip(chong)
+                }
             }
         }
         .dynamicTypeSize(...DynamicTypeSize.large)
+    }
+
+    /// chips 单行(关系 chip 可点出释义 + 冲 chip)。
+    private var chipsRow: some View {
+        HStack(spacing: 7) {
+            relationChip
+            if let chong = dayChong {
+                chongChip(chong)
+            }
+        }
+    }
+
+    /// 关系 chip:可点出今日十神释义(D3)。
+    private var relationChip: some View {
+        Button {
+            showShiShenNote = true
+        } label: {
+            ChipView(text: Self.displayRelation(dayRelation), tint: BaziTheme.ink, iconName: Self.relationIcon(for: dayRelation))
+        }
+        .buttonStyle(.plain)
+    }
+
+    /// 冲 chip(纯展示,不可点)。
+    private func chongChip(_ chong: String) -> some View {
+        let label = L10n.DailyFortune.chongLabel(chong: chong, targets: dayChongTargets)
+        return ChipView(text: label, tint: BaziTheme.inkMuted, iconName: "PlaqueChong")
     }
 
     /// 关系 chip 配图:刃(PlaqueSha)= 克身之压力,只配官杀族(七杀/正官);
