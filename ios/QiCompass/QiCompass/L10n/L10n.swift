@@ -1349,26 +1349,24 @@ enum L10n {
             String(format: String(localized: "deepanalysis.hero.pillarUndetermined"), label)
         }
 
-        // -- hero 日主旁注 / 右下竖注 --
+        // -- hero 喜忌行(2026-10-01 四柱横排重构)/ 从格降级 --
 
-        /// 日主旁注(%@ = 旺衰术语显示值,BaziTerms.display(strength))。
-        /// zh: "日主 · %@";en: "Day Master · %@"
-        static func dayMasterNote(_ strength: String) -> String {
-            String(format: String(localized: "deepanalysis.hero.dayMasterNote"), strength)
-        }
-
-        /// 从格竖注整句。zh: "从格 · 喜忌留空";en: "Special pattern · favorable elements withheld"
+        /// 从格降级整句(喜忌行)。zh: "从格 · 喜忌留空";en: "Special pattern · favorable elements withheld"
         static let sideNoteSpecialPattern = String(localized: "deepanalysis.hero.sideNote.specialPattern")
 
-        /// 喜用竖注段(%@ = 五行显示值串)。zh: "喜%@";en: "Favored %@"
-        static func sideNoteFavorable(_ elements: String) -> String {
-            String(format: String(localized: "deepanalysis.hero.sideNote.favorable"), elements)
-        }
+        /// 喜忌行「喜」label。zh: "喜";en: "Favorable"
+        static let xijiFavorableLabel = String(localized: "deepanalysis.hero.xiji.favorableLabel")
 
-        /// 忌神竖注段(%@ = 五行显示值串)。zh: "忌%@";en: "Less supportive %@"
-        static func sideNoteUnfavorable(_ elements: String) -> String {
-            String(format: String(localized: "deepanalysis.hero.sideNote.unfavorable"), elements)
-        }
+        /// 喜忌行「忌」label。zh: "忌";en: "Avoid"
+        static let xijiUnfavorableLabel = String(localized: "deepanalysis.hero.xiji.unfavorableLabel")
+
+        // -- 命书目录头(2026-10-01 大标题 + 进度条)--
+
+        /// 目录大标题。zh: "命书";en: "The Book"
+        static let tocTitle = String(localized: "deepanalysis.toc.title")
+
+        /// 已读进度条 VoiceOver 标签。zh: "已读进度";en: "Reading progress"
+        static let readProgressA11y = String(localized: "deepanalysis.toc.progressA11y")
 
         // -- 四柱表小字段 --
 

@@ -308,6 +308,10 @@
     "dailyfortune.loading.reading": "正在讀取今天與你命盤的關係…",
     "deepchain.banner.progressOwned": "命書生成中 · %1$lld/%2$lld 章 · 約需 %3$lld 分鐘",
     "deepchain.toc.intro": "命書 = 按章節生成的完整命盤解讀:先看主線與天賦(免費),再展開運行方式、財富、健康與行動。",
-    "deepanalysis.xiji.disclaimer": "喜忌指五行對命局平衡的助益方向,不是生活禁忌(不涉及顏色、方位、職業的取捨)。"
+    "deepanalysis.xiji.disclaimer": "喜忌指五行對命局平衡的助益方向,不是生活禁忌(不涉及顏色、方位、職業的取捨)。",
+    "deepanalysis.hero.xiji.favorableLabel": "喜",
+    "deepanalysis.hero.xiji.unfavorableLabel": "忌",
+    "deepanalysis.toc.title": "命書",
+    "deepanalysis.toc.progressA11y": "已讀進度"
   }
 }

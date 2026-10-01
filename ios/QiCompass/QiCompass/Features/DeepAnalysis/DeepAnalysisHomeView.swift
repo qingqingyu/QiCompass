@@ -1,8 +1,9 @@
 import SwiftUI
 
-/// 深度解析主页(盘面小景 ①-②,2026-09-01 定稿 D):
-/// hero 盘面仪式感(淡墨圆出血 + 四柱干支浓淡层次 + 竖排喜忌小注)
-/// → 锚句 → 捌章目录 → 沉底 CTA(开卷/续读/解印/次数用尽)→ 盘面细目入口。
+/// 深度解析主页(2026-10-01 按 mock「QiCompass Chart」重构):
+/// hero 四柱横排四列(年|月|日|时,日列 1.35 倍宽;干支分字五行着色;
+/// 柱底 hairline 十神块;墨圆居中垫底)→ 喜忌一行(玄印 + 五行着色)→
+/// 锚句 → 捌章目录(命书大标题 + 已读进度条)→ 沉底 CTA → 盘面细目入口。
 ///
 /// 读查分离:「读」push ChapterReadingView,「查」push ChartDetailView。
 /// 长文排版全部在阅读页解决,主页只做索引与仪式感。
@@ -41,6 +42,7 @@ struct DeepAnalysisHomeView: View {
             ScrollView {
                 VStack(alignment: .leading, spacing: 0) {
                     hero
+                    xijiLine
                     anchorSentence
                     chainBanner
                     tocHeader
@@ -51,89 +53,71 @@ struct DeepAnalysisHomeView: View {
         }
     }
 
-    // MARK: - Hero(盘面小景)
+    // MARK: - Hero(四柱横排)
+
+    /// 四柱列间距(mock .pillars 无显式 gap,由 1fr 比例自然分距;取窄距保日列宽度)。
+    private static let pillarGap: CGFloat = 8
 
     private var hero: some View {
-        ZStack(alignment: .topTrailing) {
-            // 淡墨圆:右上出血,常驻极缓呼吸(DESIGN.md breathe 7-8s)
-            EnsoView(size: 310, breathing: true)
-                .offset(x: 88, y: -4)
-            // 四柱竖列:年/月/时 灰墨 22pt,日主 34pt 浓墨
-            VStack(alignment: .leading, spacing: 9) {
-                heroRow(label: L10n.DeepChart.pillarYear, pillar: response.pillars.year, isDay: false)
-                heroRow(label: L10n.DeepChart.pillarMonth, pillar: response.pillars.month, isDay: false)
-                heroRow(label: L10n.DeepChart.pillarDay, pillar: response.pillars.day, isDay: true)
-                heroRow(label: L10n.DeepChart.pillarHour, pillar: response.pillars.hour, isDay: false)
+        ZStack {
+            // 淡墨圆:居中垫底(mock .enso opacity .07,略偏左上),常驻极缓呼吸
+            // (DESIGN.md breathe 7-8s;此透明度下呼吸几不可察,保留品牌指纹不抢戏)
+            EnsoView(size: 300, breathing: true)
+                .opacity(0.07)
+                .offset(x: -16, y: -8)
+            // 四柱四列:1 : 1 : 1.35 : 1(mock grid-template-columns,日列加宽)
+            GeometryReader { geo in
+                let unit = (geo.size.width - 3 * Self.pillarGap) / 4.35
+                HStack(alignment: .top, spacing: Self.pillarGap) {
+                    pillarColumn(label: L10n.DeepChart.pillarYear, pillar: response.pillars.year, isDay: false, width: unit)
+                    pillarColumn(label: L10n.DeepChart.pillarMonth, pillar: response.pillars.month, isDay: false, width: unit)
+                    pillarColumn(label: L10n.DeepChart.pillarDay, pillar: response.pillars.day, isDay: true, width: unit * 1.35)
+                    pillarColumn(label: L10n.DeepChart.pillarHour, pillar: response.pillars.hour, isDay: false, width: unit)
+                }
+                .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
             }
-            .padding(.leading, 34)
-            .padding(.top, 86)
         }
-        .frame(height: 300)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .clipped()
+        .frame(height: 185)
+        .padding(.horizontal, 34)
+        .padding(.top, 24)
         // S5 术语释义(交互先例 = 今日页 HeroShiShenNoteSheet,2026-09-29 D3)
         .sheet(item: $termNote) { req in
             BaziTermNoteSheet(term: req.term)
                 .presentationDetents([.height(250), .large])
                 .presentationBackground(BaziTheme.paper)
         }
-        // 左下品牌印
-        .overlay(alignment: .bottomLeading) {
-            SealStamp(character: "玄", size: 24, rotation: -4, stampDelay: 0.3)
-                .padding(.leading, 34)
-                .padding(.bottom, 18)
-        }
-        // 右下竖排喜忌小注
-        .overlay(alignment: .bottomTrailing) {
-            if !heroSideNote.isEmpty {
-                VText(phrase: heroSideNote, size: 11.5, tracking: 4, color: BaziTheme.inkMuted)
-                    .padding(.trailing, 18)
-                    .padding(.bottom, 20)
-            }
-        }
     }
 
-    /// 单柱行:干支大字 + 旁标十神;日主行放大并携带旺衰注。
-    /// 柱未知(时辰未知)→ dashed 圆位占干支之位,点击进补时辰(S05 同语义)。
-    /// L3 接入(§3 矩阵):干支三语汉字主标,en 附加小字带调拼音;十神/旺衰走 BaziTerms。
+    /// 单柱列:柱标 → 干/支两行各自五行着色 → en 带调拼音 → hairline 十神块。
+    /// 日列放大并携朱红「日主」与左缘竖排旺衰。
+    /// 柱未知(时辰未知/节气歧义)→ dashed 圆位占干支之位,点击进补时辰(S05 同语义)。
+    /// L3 接入(§3 矩阵):干支三语汉字主标,en 附加小字拼音;十神/旺衰走 BaziTerms。
     @ViewBuilder
-    private func heroRow(label: String, pillar: PillarDTO?, isDay: Bool) -> some View {
-        HStack(alignment: .firstTextBaseline) {
+    private func pillarColumn(label: String, pillar: PillarDTO?, isDay: Bool, width: CGFloat) -> some View {
+        VStack(alignment: .center, spacing: 0) {
             Text(label)
                 .font(BaziFont.caption(size: 10.5))
                 .tracking(2)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
-                .frame(width: 16, alignment: .leading)
+                .padding(.bottom, 12)
             if let pillar {
-                Text(pillar.ganZhi)
-                    .font(BaziFont.ganzhi(size: isDay ? 34 : 22))
-                    .tracking(isDay ? 4 : 5)
-                    .foregroundStyle(isDay ? BaziTheme.ink : BaziTheme.ink.opacity(0.52))
-                // en 小字拉丁转写(§3:只在 hero 首次出现处给;zh/zh-hant 不渲染)
-                if AppLanguage.current == .en, let romanized = BaziTerms.romanized(pillar.ganZhi) {
-                    Text(romanized)
-                        .font(BaziFont.caption(size: 9))
+                VStack(spacing: isDay ? 1 : 2) {
+                    Text(pillar.gan)
+                        .font(BaziFont.ganzhi(size: isDay ? 34 : 25))
+                        .foregroundStyle(elementTextColor(pillar.ganElement))
+                    Text(pillar.zhi)
+                        .font(BaziFont.ganzhi(size: isDay ? 34 : 25))
+                        .foregroundStyle(elementTextColor(pillar.zhiElement))
+                }
+                // en 小字带调拼音(§3:只在 hero 首次出现处给;zh/zh-hant 不渲染)
+                if AppLanguage.current == .en, let pinyin = BaziTerms.romanized(pillar.ganZhi) {
+                    Text(pinyin)
+                        .font(BaziFont.caption(size: 9.5))
+                        .italic()
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
+                        .padding(.top, 5)
                 }
-                // S5 术语释义:十神(非日柱)/旺衰(日柱)旁标可点 → 一句人话;
-                // 词表未收录的值不挂入口(宁缺毋滥)
-                let noteTerm: String? = isDay ? dayStrengthTerm : pillar.shishenGan
-                if let noteTerm, BaziTermNotes.note(for: noteTerm) != nil {
-                    Button {
-                        HapticEngine.light()
-                        termNote = TermNoteRequest(term: noteTerm)
-                    } label: {
-                        Text(isDay ? dayMasterNote : BaziTerms.display(pillar.shishenGan))
-                            .font(BaziFont.caption(size: 10.5))
-                            .foregroundStyle(BaziTheme.inkMuted)
-                    }
-                    .buttonStyle(.plain)
-                    .accessibilityHint(String(localized: "查看释义"))
-                } else {
-                    Text(isDay ? dayMasterNote : BaziTerms.display(pillar.shishenGan))
-                        .font(BaziFont.caption(size: 10.5))
-                        .foregroundStyle(BaziTheme.inkMuted)
-                }
+                godBlock(pillar: pillar, isDay: isDay, columnWidth: width)
             } else {
                 // 柱位空缺:dashed 圆环 = 干支之位空着。常态是时柱未知(D7 触点 1);
                 // 年/月柱也可能因节气边界歧义(S02,立春日+时辰未知)留空——
@@ -150,17 +134,95 @@ struct DeepAnalysisHomeView: View {
                         onAddHour()
                     }
                     .accessibilityLabel(label == L10n.DeepChart.pillarHour ? L10n.Common.hourUnknown : L10n.DeepChart.pillarUndetermined(label))
+                    .padding(.top, 14)
+            }
+        }
+        .frame(width: width)
+        // 日列左缘竖排旺衰(mock .strength:vertical-rl,列左内缘)。
+        // 仅 CJK 渲染:VText 对拉丁词横排回退,长词会压到日柱大字——
+        // EN 的旺衰改走 god 副行「Day Master · Strong」(见 godBlock)。
+        .overlay(alignment: .topLeading) {
+            if isDay, let strength = dayStrengthTerm, AppLanguage.current != .en {
+                Group {
+                    // S5 释义入口:旺衰可点 → 一句人话;词表未收录不挂入口(宁缺毋滥)
+                    if BaziTermNotes.note(for: strength) != nil {
+                        Button {
+                            HapticEngine.light()
+                            termNote = TermNoteRequest(term: strength)
+                        } label: {
+                            VText(phrase: BaziTerms.display(strength), size: 12.5, tracking: 4, color: BaziTheme.inkMuted)
+                        }
+                        .buttonStyle(.plain)
+                        .accessibilityHint(String(localized: "查看释义"))
+                    } else {
+                        VText(phrase: BaziTerms.display(strength), size: 12.5, tracking: 4, color: BaziTheme.inkMuted)
+                    }
+                }
+                .offset(x: -10, y: 32)
             }
         }
     }
 
-    /// 日主旁注:「日主 · 身弱」;从格 → 「日主 · 从格」。旺衰值经 BaziTerms 取显示语。
-    private var dayMasterNote: String {
-        guard let strength = dayStrengthTerm else { return BaziTerms.display("日主") }
-        return L10n.DeepChart.dayMasterNote(BaziTerms.display(strength))
+    /// 柱底十神块:顶部 hairline(列宽 70%,mock .god border-top),日柱「日主」朱红;
+    /// en 追加意译小字(zh/zh-hant 只有汉字主行)。
+    /// S5 释义入口保留:非日柱十神可点 → 一句人话(词表未收录不挂入口)。
+    @ViewBuilder
+    private func godBlock(pillar: PillarDTO, isDay: Bool, columnWidth: CGFloat) -> some View {
+        VStack(spacing: 1.5) {
+            // 十神汉字主标:en 也保持汉字(§3 决策:术语主标汉字,意译在旁)
+            let han = godHan(isDay ? "日主" : pillar.shishenGan)
+            if !isDay, BaziTermNotes.note(for: pillar.shishenGan) != nil {
+                Button {
+                    HapticEngine.light()
+                    termNote = TermNoteRequest(term: pillar.shishenGan)
+                } label: {
+                    godMainText(han, isDay: isDay)
+                }
+                .buttonStyle(.plain)
+                .accessibilityHint(String(localized: "查看释义"))
+            } else {
+                godMainText(han, isDay: isDay)
+            }
+            if AppLanguage.current == .en {
+                // EN 副行:日柱合并旺衰(VText 竖排位 EN 不渲染,旺衰语义在此承载)
+                Text(isDay ? enDayGodSubline : BaziTerms.display(pillar.shishenGan))
+                    .font(BaziFont.caption(size: 10))
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+            }
+        }
+        .padding(.top, 9)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(BaziTheme.hairline)
+                .frame(width: columnWidth * 0.7, height: 0.5)
+        }
     }
 
-    /// 旺衰 zh key(S5:hero 日柱旁标释义入口用;未知值 → nil 不挂入口)。
+    private func godMainText(_ han: String, isDay: Bool) -> some View {
+        Text(han)
+            .font(BaziFont.display(size: 12.5))
+            .tracking(1)
+            .foregroundStyle(isDay ? BaziTheme.cinnabar : BaziTheme.ink)
+    }
+
+    /// 十神汉字主标:zh/zh-hant 用本语汉字,en 用简体汉字作字形主标(§3)。
+    private func godHan(_ term: String) -> String {
+        BaziTerms.display(term, language: AppLanguage.current == .en ? .zh : AppLanguage.current)
+    }
+
+    /// EN 日柱 god 副行:「Day Master · Strong」;旺衰未知 → 只 Day Master。
+    private var enDayGodSubline: String {
+        guard let strength = dayStrengthTerm else { return BaziTerms.display("日主") }
+        return "\(BaziTerms.display("日主")) · \(BaziTerms.display(strength))"
+    }
+
+    /// 干支五行着色(2026-10-01 拍板:hero 干支全上五行色,DESIGN.md 五行色映射)。
+    /// element key 未知 → 浓墨回落(与 ElementColors 兜底同哲学:不静默套强调色)。
+    private func elementTextColor(_ elementKey: String) -> Color {
+        ElementColors.from(elementKey)?.color ?? BaziTheme.ink
+    }
+
+    /// 旺衰 zh key(S5:hero 日柱旺衰释义入口用;未知值 → nil 不渲染)。
     private var dayStrengthTerm: String? {
         switch response.dayMasterStrength {
         case "strong":          return "身强"
@@ -171,34 +233,81 @@ struct DeepAnalysisHomeView: View {
         }
     }
 
-    /// 右下竖注:喜木水 · 忌金;从格 → 从格 · 喜忌留空;无喜忌数据 → 空(不渲染)。
-    /// 五行值经 BaziTerms 取显示语(en 竖排自动横排回退)。
-    private var heroSideNote: String {
-        if isSpecialPattern {
-            return L10n.DeepChart.sideNoteSpecialPattern
+    // MARK: - 喜忌行(玄印 + 五行着色)
+
+    /// 喜忌一行:左「玄」印(从 09-01 版 hero 左下移来),右单行「喜 火 土 · 忌 木」,
+    /// 每个元素字各自五行着色。从格 → 整行降级文案(喜忌留空,详见命书)。
+    /// 替代 09-01 版右下竖排喜忌小注。
+    private var xijiLine: some View {
+        HStack(alignment: .center, spacing: 12) {
+            SealStamp(character: "玄", size: 30, rotation: -4, stampDelay: 0.3)
+            if isSpecialPattern {
+                Text(L10n.DeepChart.sideNoteSpecialPattern)
+                    .font(BaziFont.body(size: 14.5))
+                    .foregroundStyle(BaziTheme.inkMuted)
+            } else {
+                xijiText
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Spacer(minLength: 0)
         }
-        var parts: [String] = []
+        .padding(.horizontal, 34)
+        .padding(.top, 24)
+    }
+
+    /// 喜忌拼接 Text:label 灰墨 + 元素字五行色(Kaiti Medium,模拟 mock em 加重)。
+    /// 五行值经 BaziTerms 取显示语;未知值显式回落灰墨着色,不吞。
+    private var xijiText: Text {
+        var t = Text("").font(BaziFont.body(size: 14.5))
         if !response.favorableElements.isEmpty {
-            parts.append(L10n.DeepChart.sideNoteFavorable(
-                response.favorableElements.map { BaziTerms.display($0) }.joined()
-            ))
+            t = t + Text(L10n.DeepChart.xijiFavorableLabel)
+                .foregroundStyle(BaziTheme.inkMuted)
+            for element in response.favorableElements {
+                t = t + Text(" ")
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    + Text(BaziTerms.display(element))
+                        .font(BaziFont.display(size: 14.5))
+                        .foregroundStyle(elementColorFromZh(element))
+            }
         }
         if !response.unfavorableElements.isEmpty {
-            parts.append(L10n.DeepChart.sideNoteUnfavorable(
-                response.unfavorableElements.map { BaziTerms.display($0) }.joined()
-            ))
+            if !response.favorableElements.isEmpty {
+                t = t + Text(" · ")
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+            }
+            t = t + Text(L10n.DeepChart.xijiUnfavorableLabel)
+                .foregroundStyle(BaziTheme.inkMuted)
+            for element in response.unfavorableElements {
+                t = t + Text(" ")
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    + Text(BaziTerms.display(element))
+                        .font(BaziFont.display(size: 14.5))
+                        .foregroundStyle(elementColorFromZh(element))
+            }
         }
-        return parts.joined(separator: " · ")
+        return t
+    }
+
+    /// 喜忌元素(zh key 如「木」)→ 五行色;未知 key 回落灰墨(不静默套强调色)。
+    private func elementColorFromZh(_ zhKey: String) -> Color {
+        guard let rawKey = ElementColors.fromZh(zhKey),
+              let color = ElementColors(rawValue: rawKey)?.color else {
+            return BaziTheme.inkMuted
+        }
+        return color
     }
 
     // MARK: - 锚句
 
+    /// 锚句 = mock verdict:display 级大字(2026-10-01 从 body 15pt 放大)。
     @ViewBuilder
     private var anchorSentence: some View {
         if let anchor = response.anchorSentence {
             Text(MarkdownSanitizer.rendered(anchor))
-                .bodySerifText(size: 15)
-                .lineSpacing(11)
+                .font(BaziFont.display(size: 17))
+                .foregroundStyle(BaziTheme.ink)
+                .lineSpacing(8)
                 .multilineTextAlignment(.leading)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
@@ -255,20 +364,35 @@ struct DeepAnalysisHomeView: View {
         }
     }
 
-    // MARK: - 捌章目录
+    // MARK: - 命书目录(大标题 + 进度条)
 
     private var tocHeader: some View {
-        VStack(alignment: .trailing, spacing: 3) {
+        VStack(alignment: .leading, spacing: 7) {
             HStack(alignment: .firstTextBaseline) {
-                Text("命 书 · 捌 章")
-                    .font(BaziFont.caption(size: 10))
-                    .tracking(5)
-                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+                // 命书大标题(mock "The Book" 28px serif;zh 两字楷体 22pt 同分量)
+                Text(L10n.DeepChart.tocTitle)
+                    .font(BaziFont.display(size: 22))
+                    .tracking(2)
+                    .foregroundStyle(BaziTheme.ink)
                 Spacer(minLength: 12)
                 Text(tocStatusText)
-                    .font(BaziFont.caption(size: 11))
+                    .font(BaziFont.numeric(size: 11))
                     .foregroundStyle(tocStatusIsLimit ? BaziTheme.cinnabar : BaziTheme.inkMuted)
             }
+            // 已读进度条(mock .progress:2pt 线,已读比例填墨;未读满时 0 宽不可见,天然成立)
+            GeometryReader { geo in
+                ZStack(alignment: .leading) {
+                    Rectangle()
+                        .fill(BaziTheme.hairline)
+                    Rectangle()
+                        .fill(BaziTheme.ink)
+                        .frame(width: geo.size.width * CGFloat(readCount) / CGFloat(ModuleID.allCases.count))
+                }
+            }
+            .frame(height: 2)
+            .accessibilityElement()
+            .accessibilityLabel(L10n.DeepChart.readProgressA11y)
+            .accessibilityValue("\(readCount) / \(ModuleID.allCases.count)")
             // 次数口径小注(2026-09-19 S05):「今日剩余 N 次」单看不知在消耗什么;
             // 达限态重置信息已在 tocStatusText,不重复。
             // S4 命书框架(2026-09-30):未读完时先说清「命书 = 按章节生成的完整
@@ -358,25 +482,29 @@ struct DeepAnalysisHomeView: View {
                 onOpenChapter(module)
             }
         } label: {
-            HStack(spacing: 13) {
+            // 2026-10-01 mock .row 放大:徽 38 / 章名 16.5 / 行距 15 / 行尾 › 指示可进
+            HStack(spacing: 16) {
                 // 章号 M0=壹 … M7=捌(2026-09-02 修 off-by-one,对齐设计稿①与 PaywallView 口径)
-                NumeralBadge(index: index + 1, locked: row.isBadgeLocked, size: 30)
-                VStack(alignment: .leading, spacing: 1.5) {
+                NumeralBadge(index: index + 1, locked: row.isBadgeLocked, size: 38)
+                VStack(alignment: .leading, spacing: 2) {
                     Text(module.chapterName)
-                        .font(BaziFont.display(size: 15))
+                        .font(BaziFont.display(size: 16.5))
                         .tracking(1.5)
                         .foregroundStyle(row.isDim ? BaziTheme.inkMuted : BaziTheme.ink)
                     Text(module.subtitle)
-                        .font(BaziFont.caption(size: 10.5))
+                        .font(BaziFont.caption(size: 11))
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
                         .lineLimit(1)
                 }
                 Spacer(minLength: 8)
                 switch row {
                 case .read:
-                    Circle()
-                        .fill(BaziTheme.ink)
-                        .frame(width: 4.5, height: 4.5)
+                    HStack(spacing: 8) {
+                        Circle()
+                            .fill(BaziTheme.ink)
+                            .frame(width: 6, height: 6)
+                        rowChevron
+                    }
                 case .lockedPaid:
                     PaidTag()
                 case .generating:
@@ -384,13 +512,20 @@ struct DeepAnalysisHomeView: View {
                         .font(BaziFont.caption(size: 10))
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
                 case .unreadFree, .retryable, .needsInput:
-                    EmptyView()
+                    rowChevron
                 }
             }
-            .padding(.vertical, 10.5)
+            .padding(.vertical, 15)
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+    }
+
+    /// 可点行行尾 ›(与「盘面细目」链接同语言;锁定行不挂,付费标已自表意)。
+    private var rowChevron: some View {
+        Text("›")
+            .font(BaziFont.caption(size: 13))
+            .foregroundStyle(BaziTheme.inkMutedSecondary)
     }
 
     // MARK: - 沉底 CTA
