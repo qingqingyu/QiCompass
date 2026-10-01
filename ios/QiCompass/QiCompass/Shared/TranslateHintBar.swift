@@ -1,46 +1,52 @@
 import SwiftUI
 
-/// 跨语言翻译提示条(D10.5,S7)。
+/// 跨语言翻译提示条(D10.5,S7;L3/F1 修订为失败/离线两态)。
 ///
-/// 切语言后命中其它语言的既有解读时,报告先显示原文 + 本条提示:
-/// 「此报告以简体中文生成 · 翻译为繁體中文」——**点按钮才翻译**,不自动批量。
-/// 视觉遵守 DESIGN.md:hairline(ink@18%)框,圆角 5(CTA 同级),按钮不用
-/// 朱红;翻译中转 loading(不新增动效)。
+/// 2026-10-01 拍板(修订 D10.5):切语言后打开报告即**自动翻译**——翻译中
+/// 不显示本条(进度走章首「正在译为××」小注 + 模块 loading),本条只在
+/// 翻译失败时出现,作为重试入口;离线类失败显示「联网后自动译为××」
+/// (回前台自动重试一次,无按钮)。视觉遵守 DESIGN.md:hairline(ink@18%)
+/// 框,圆角 5(CTA 同级),按钮不用朱红,不新增动效。
 struct TranslateHintBar: View {
-    /// 原文语言(wire 值,zh / zh-hant / en)。
-    let sourceLanguage: String
-    /// 目标语言(wire 值;显示名与按钮文案随它走)。
-    let targetLanguage: String
-    /// 翻译在飞(loading 形态;模块级 loading 态复用,不另起动效)。
-    let isTranslating: Bool
-    let onTranslate: () -> Void
+    /// 展示形态(由调用方按 VM 状态决定;进行中/成功不渲染本条)。
+    enum Mode {
+        /// 翻译失败(可重试):正文 = 「此报告以%@生成 · <失败文案>」+ 重试按钮。
+        /// 失败文案调用方传(深度解析 = 部分章节失败 / 合盘 = 整体失败)。
+        case failure(sourceLanguage: String, failureText: String)
+        /// 离线:联网后回前台自动译(无按钮)。
+        case offline(targetLanguage: String)
+    }
+
+    let mode: Mode
+    /// 重试动作(离线态不渲染按钮,闭包保留统一签名)。
+    let onRetry: () -> Void
 
     var body: some View {
         HStack(spacing: 8) {
-            if isTranslating {
-                ProgressView()
-                    .scaleEffect(0.75)
-                Text("翻译中…")
-                    .font(BaziFont.caption(size: 11))
-                    .foregroundStyle(BaziTheme.inkMuted)
-            } else {
+            switch mode {
+            case .failure(let sourceLanguage, let failureText):
                 Text(String(
-                    format: String(localized: "此报告以%@生成"),
-                    AppLanguage.displayName(forWire: sourceLanguage)
+                    format: String(localized: "此报告以%@生成 · %@"),
+                    AppLanguage.displayName(forWire: sourceLanguage),
+                    failureText
                 ))
                 .font(BaziFont.caption(size: 11))
                 .foregroundStyle(BaziTheme.inkMuted)
                 Spacer(minLength: 12)
-                Button(action: onTranslate) {
-                    Text(String(
-                        format: String(localized: "翻译为%@ ›"),
-                        AppLanguage.displayName(forWire: targetLanguage)
-                    ))
-                    .font(BaziFont.caption(size: 11.5))
-                    .foregroundStyle(BaziTheme.ink)
-                    .fontWeight(.medium)
+                Button(action: onRetry) {
+                    Text(String(localized: "重试"))
+                        .font(BaziFont.caption(size: 11.5))
+                        .foregroundStyle(BaziTheme.ink)
+                        .fontWeight(.medium)
                 }
                 .buttonStyle(.plain)
+            case .offline(let targetLanguage):
+                Text(String(
+                    format: String(localized: "联网后自动译为%@"),
+                    AppLanguage.displayName(forWire: targetLanguage)
+                ))
+                .font(BaziFont.caption(size: 11))
+                .foregroundStyle(BaziTheme.inkMuted)
             }
         }
         .padding(.vertical, 10)

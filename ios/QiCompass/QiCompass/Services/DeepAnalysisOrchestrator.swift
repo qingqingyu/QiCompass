@@ -245,7 +245,7 @@ final class DeepAnalysisOrchestrator {
     }
 
     /// 跨语言恢复(D10.5,S7):当前语言 miss 的模块,探测其它注册语言的
-    /// 既有解读(命中模块数最多的语言)。调用方先显示原文 + 翻译提示条。
+    /// 既有解读(命中模块数最多的语言)。调用方先显示原文再自动翻译(L3/F1)。
     func restoreCrossLanguageV1Modules(
         contentHash: String,
         modules: [String]

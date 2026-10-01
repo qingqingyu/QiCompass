@@ -123,8 +123,10 @@ struct DeepAnalysisView: View {
             // 断点续跑(2026-09-08):回前台自动续未完成的章。只 resume 不 hydrate
             // (回填收敛在 calculate/loadArchived 两个低频点);后台被掐后链 Task
             // 挂起不死亡,isChainRunning 拦住重复起链,Task 回前台自然恢复。
+            // L3/F1:离线类翻译失败也在回前台自动重试一次(至多一次,防循环)。
             .onChange(of: scenePhase) { _, phase in
                 if phase == .active {
+                    vm?.retryOfflineTranslationIfNeeded()
                     vm?.resumeV1ChainIfNeeded()
                 }
             }

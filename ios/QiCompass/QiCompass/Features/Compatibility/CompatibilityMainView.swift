@@ -59,13 +59,15 @@ struct CompatibilityMainView: View {
                     onShowPaywall: onShowPaywall
                 )
 
-                // D10.5(S7):命中其它语言原文 → 先显示原文 + 翻译提示条
-                if let offer = vm.translationOffer {
+                // L3/F1(修订 D10.5):打开即自动翻译——翻译中不显示提示条,
+                // 只在失败时出现(重试入口)
+                if let offer = vm.translationOffer, vm.translationFailed {
                     TranslateHintBar(
-                        sourceLanguage: offer.sourceLanguage,
-                        targetLanguage: AppLanguage.currentWire,
-                        isTranslating: vm.isTranslating,
-                        onTranslate: { vm.acceptTranslation() }
+                        mode: .failure(
+                            sourceLanguage: offer.sourceLanguage,
+                            failureText: String(localized: "翻译失败")
+                        ),
+                        onRetry: { vm.acceptTranslation() }
                     )
                     .padding(.top, 4)
                 }

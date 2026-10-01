@@ -207,8 +207,9 @@ final class CompatibilityViewModel {
 
     // MARK: 跨语言翻译(D10.5,S7)
 
-    /// 翻译提议(当前语言缓存 miss 但其它语言有既有解读):先显示原文 +
-    /// 提示条,点按钮才翻译。换对(openDetail)/重新生成时清空。
+    /// 翻译提议(当前语言缓存 miss 但其它语言有既有解读):先显示原文,
+    /// L3/F1(修订 D10.5)打开即自动翻译,提示条只在失败时出现。
+    /// 换对(openDetail)/重新生成时清空。
     struct TranslationOffer: Equatable {
         /// 原文语言(wire 值)
         let sourceLanguage: String
@@ -220,10 +221,17 @@ final class CompatibilityViewModel {
     }
 
     private(set) var translationOffer: TranslationOffer?
-    /// 翻译在飞(提示条转 loading)。
+    /// 翻译在飞(提示条隐藏,译文落态后恢复)。
     private(set) var isTranslating = false
     /// 翻译 task(换对/重新生成时取消)。
     private var translateTask: Task<Void, Never>?
+
+    /// L3/F1(2026-10-01 拍板,修订 D10.5):跨语言命中 → 打开即自动翻译。
+    /// 翻译中提示条隐藏,只在失败时出现(重试入口);nil = 不显示。
+    private(set) var translationFailed = false
+    /// 自动翻译会话去重:同 (compatibilityHash, target) 自动只起一次,失败后
+    /// 只走提示条手动重试(防反复 openDetail 循环烧 LLM)。
+    private var autoTranslationAttemptedKeys = Set<String>()
 
     init(
         orchestrator: CompatibilityOrchestrator,
@@ -1721,6 +1729,7 @@ final class CompatibilityViewModel {
         translateTask?.cancel()
         isTranslating = false
         translationOffer = nil
+        translationFailed = false
         let summaryHash = summary.compatibilityHash
         cacheReadTask = Task { [weak self] in
             guard let self else { return }
@@ -1748,7 +1757,7 @@ final class CompatibilityViewModel {
                         compatibilityHash: summaryHash
                     ) {
                     // D10.5(S7):当前语言 miss 但其它语言有既有解读 →
-                    // 先显示原文 + 翻译提示条(点按钮才翻译,不自动)
+                    // 先显示原文 + 自动翻译(L3/F1 修订 D10.5,失败走提示条)
                     guard case .detail(let currentSummary, let response, _) = self.state,
                           currentSummary.id == summary.id else { return }
                     let hasEntitlement = self.entitlementStore.getActive(
@@ -1779,6 +1788,9 @@ final class CompatibilityViewModel {
                             AppLogger.app.info(
                                 "op=compatibility.openDetail cross_language hash=\(summaryHash, privacy: .public) source=\(cross.language, privacy: .public) module=\(cross.module, privacy: .public)"
                             )
+                            // L3/F1(修订 D10.5):打开即自动翻译(会话去重,失败后
+                            // 走提示条手动重试);翻译中提示条隐藏
+                            self.autoTranslateCrossLanguageIfIdle(compatibilityHash: summaryHash)
                         }
                     }
                 }
@@ -1821,6 +1833,20 @@ final class CompatibilityViewModel {
         generateInterpretation()
     }
 
+    /// L3/F1 跨语言自动翻译入口:有提议且本会话未自动过 → 直接翻(去重键
+    /// (hash, target),防反复 openDetail 循环烧 LLM;失败走提示条手动重试)。
+    private func autoTranslateCrossLanguageIfIdle(compatibilityHash: String) {
+        guard translationOffer != nil, !isTranslating else { return }
+        let key = compatibilityHash + "|" + AppLanguage.currentWire
+        guard !autoTranslationAttemptedKeys.contains(key) else {
+            AppLogger.app.info("op=compatibility.autoTranslate.skip reason=already_attempted key=\(key, privacy: .public)")
+            return
+        }
+        autoTranslationAttemptedKeys.insert(key)
+        AppLogger.app.info("op=compatibility.autoTranslate.start hash=\(compatibilityHash, privacy: .public)")
+        acceptTranslation()
+    }
+
     // MARK: - AI 合盘解读(按对触发,决策 D3)
 
     /// 触发该对 AI 解读(只对 detail 态当前对生效)。
@@ -1854,6 +1880,7 @@ final class CompatibilityViewModel {
         // 重新生成取代翻译提议(D10.5:点过生成即不再需要翻译原文)
         translationOffer = nil
         isTranslating = false
+        translationFailed = false
         state = .detail(summary, response, .fetching)
 
         interpretTask = Task { [weak self] in
@@ -1975,9 +2002,10 @@ final class CompatibilityViewModel {
 
     // MARK: - 跨语言翻译执行(D10.4/D10.5,S7)
 
-    /// 用户点提示条「翻译为××」:原文 → 目标语言(不消耗次数,点按钮才翻)。
-    /// 入参组装镜像 generateInterpretation(同一 PromptContextBuilder 口径,
-    /// 缓存键对齐的前提)。
+    /// 翻译执行入口(L3/F1 起双来源:openDetail 自动触发 + 失败提示条手动重试;
+    /// 原 D10.5「点按钮才翻」已修订为打开即自动)。原文 → 目标语言,不消耗
+    /// 次数。入参组装镜像 generateInterpretation(同一 PromptContextBuilder
+    /// 口径,缓存键对齐的前提)。
     func acceptTranslation() {
         guard let offer = translationOffer, !isTranslating else { return }
         guard case .detail(let summary, let response, _) = state else { return }
@@ -1991,6 +2019,7 @@ final class CompatibilityViewModel {
             "compatVM.acceptTranslation.start compatibilityHash=\(compatHash, privacy: .public) module=\(offer.module, privacy: .public) source=\(offer.sourceLanguage, privacy: .public)"
         )
         isTranslating = true
+        translationFailed = false
         cacheReadTask?.cancel()
         interpretTask?.cancel()
         translateTask = Task { [weak self] in
@@ -2072,6 +2101,8 @@ final class CompatibilityViewModel {
                 let restored: InterpretState = hasEntitlement
                     ? .okPaid(text: offer.text, cached: true)
                     : .okFree(text: offer.text, cached: true)
+                // L3/F1:可重试失败 → 提示条转「翻译失败 · 重试」(原文照常展示)
+                self.translationFailed = true
                 self.state = .detail(summary, response, restored)
             }
         }
@@ -2108,6 +2139,7 @@ final class CompatibilityViewModel {
         translateTask?.cancel()
         isTranslating = false
         translationOffer = nil
+        translationFailed = false
         state = .configuring
     }
 

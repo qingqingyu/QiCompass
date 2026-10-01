@@ -136,49 +136,135 @@ final class TranslationFlowTests: XCTestCase {
         }
     }
 
-    // MARK: - D10.5:先显示原文 + 提示条
+    // MARK: - L3/F1:打开即自动翻译(修订 D10.5)
 
-    func testCrossLanguageRestoreShowsSourceTextAndOffer() async throws {
+    func testCrossLanguageRestoreAutoTranslatesWithoutUserTap() async throws {
         let request = Self.beijingRequest()
         let response = try await apiClient.calculateBazi(request: request)
         try seedZHCache(hash: response.contentHash, module: .m0, text: Self.m0ZH)
         try seedZHCache(hash: response.contentHash, module: .m1, text: Self.m1ZH)
         let readsBefore = vm.remainingReads
+        installDefaultTranslateResponder()
 
         vm.loadArchivedChart(response: response, request: request)
 
-        let restored = await waitUntil {
-            self.vm.moduleStates[.m0] == .ok(text: Self.m0ZH, cached: true)
-                && self.vm.moduleStates[.m1] == .ok(text: Self.m1ZH, cached: true)
+        // 先等 hydrate 实际产出(offer 或译文任一)——防「三个条件初始即空真」
+        // 的假通过(loadArchivedChart 的 hydrate Task 尚未启动时 offer/状态全 nil)
+        let produced = await waitUntil(timeout: 10) {
+            self.vm.translationOffer != nil || self.vm.moduleStates[.m0] != nil
         }
-        XCTAssertTrue(restored, "跨语言命中必须先显示简体原文,实际:\(vm.moduleStates)")
-        // 提示条数据源:原文语言 + 可译模块集
-        XCTAssertEqual(vm.translationOffer?.sourceLanguage, "zh")
-        XCTAssertEqual(vm.translationOffer?.modules, [.m0, .m1])
-        // 不自动翻译、不自动起链生成(translationOffer 挂着压制 resume)
-        XCTAssertTrue(apiClient.recordedTranslateRequests.isEmpty, "不得自动翻译(点按钮才翻)")
+        XCTAssertTrue(produced, "必须探测到跨语言原文,实际:\(vm.moduleStates)")
+        let done = await waitUntil(timeout: 10) {
+            self.vm.translationOffer == nil
+                && !self.vm.isTranslatingChain
+                && self.vm.autoTranslationState == nil
+        }
+        XCTAssertTrue(done, "hydrate 后必须自动译完(无需用户点按),实际 offer=\(String(describing: vm.translationOffer)) translating=\(vm.isTranslatingChain) auto=\(String(describing: vm.autoTranslationState))")
+
+        // 自动发起(全程无手动 acceptTranslation)
+        XCTAssertFalse(apiClient.recordedTranslateRequests.isEmpty, "必须自动发出翻译请求")
+        // 译文落态:M0 = 繁体译文
+        XCTAssertEqual(vm.moduleStates[.m0], .ok(text: Self.m0Hant, cached: false))
+        // 翻译不消耗每日次数(D10.1)
+        XCTAssertEqual(vm.remainingReads, readsBefore)
+        // 不触发生成(翻译路径全程无 /api/interpret v1 调用)
         XCTAssertTrue(
-            apiClient.recordedInterpretRequests.filter { ModuleID(rawValue: $0.module) != nil }.isEmpty,
-            "翻译提议挂着时不得自动生成(会用原文 fingerprint 造成键错位)"
+            apiClient.recordedInterpretRequests.filter { ModuleID(rawValue: $0.module) != nil }.isEmpty
         )
-        XCTAssertEqual(vm.remainingReads, readsBefore, "回填 + 提议零消耗")
     }
 
-    // MARK: - D10.4 #2:译后 M0 字段驱动 M1 请求(核心用例)
+    /// 会话去重:自动翻译失败后,同 (hash, target) 重进页面不再自动起
+    /// (防循环烧 LLM);手动重试仍可用。
+    func testAutoTranslationDedupedPerSessionAfterFailure() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedZHCache(hash: response.contentHash, module: .m0, text: Self.m0ZH)
+        apiClient.translateResponder = { _ in
+            throw APIError.backendError(code: "AI_PROVIDER_ERROR", message: "同构校验失败", requestId: nil)
+        }
+
+        vm.loadArchivedChart(response: response, request: request)
+        let firstFailed = await waitUntil(timeout: 10) {
+            self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
+        }
+        XCTAssertTrue(firstFailed, "自动翻译第一轮必须失败落 .failed,实际:\(String(describing: vm.autoTranslationState))")
+        let requestsAfterFirst = apiClient.recordedTranslateRequests.count
+        XCTAssertGreaterThan(requestsAfterFirst, 0)
+
+        // 同 hash 重进(loadArchivedChart 重入):不得再自动起翻
+        vm.loadArchivedChart(response: response, request: request)
+        try await Task.sleep(nanoseconds: 600_000_000)
+        XCTAssertEqual(
+            apiClient.recordedTranslateRequests.count, requestsAfterFirst,
+            "会话内自动翻译只起一次(失败走手动重试)"
+        )
+        XCTAssertEqual(vm.autoTranslationState, .failed, "失败态保持(提示条重试入口)")
+
+        // 手动重试仍可用(提示条按钮路径;先等第二次 hydrate 落定——
+        // acceptTranslation 的 isHydrating 守卫会吞掉 hydrate 在飞期的调用)
+        installDefaultTranslateResponder()
+        _ = await waitUntil(timeout: 10) {
+            !self.vm.isHydrating && self.vm.translationOffer != nil
+        }
+        vm.acceptTranslation()
+        let retried = await waitUntil(timeout: 10) {
+            self.vm.translationOffer == nil && self.vm.autoTranslationState == nil
+        }
+        XCTAssertTrue(retried, "手动重试必须译完")
+    }
+
+    /// 离线类失败:提示「联网后自动译」,回前台自动重试**至多一次**——
+    /// 二次仍离线则不再自动(额度一次性)。
+    func testOfflineAutoTranslationRetriesOnceViaForeground() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedZHCache(hash: response.contentHash, module: .m0, text: Self.m0ZH)
+        let offline = APIError.networkError(URLError(.notConnectedToInternet))
+        apiClient.translateResponder = { _ in throw offline }
+
+        vm.loadArchivedChart(response: response, request: request)
+        let offlinePending = await waitUntil(timeout: 10) {
+            self.vm.autoTranslationState == .offlinePending && !self.vm.isTranslatingChain
+        }
+        XCTAssertTrue(offlinePending, "离线失败必须落 .offlinePending,实际:\(String(describing: vm.autoTranslationState))")
+        let requestsAfterFirst = apiClient.recordedTranslateRequests.count
+
+        // 回前台重试一次(scenePhase 路径),仍离线 → 二次失败转 .failed
+        // (额度一次性:offlineRetryUsed 已置位)
+        vm.retryOfflineTranslationIfNeeded()
+        let secondFailed = await waitUntil(timeout: 10) {
+            self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
+                && apiClient.recordedTranslateRequests.count > requestsAfterFirst
+        }
+        XCTAssertTrue(secondFailed, "回前台必须自动重试一次,且二次失败转 .failed,实际:\(String(describing: vm.autoTranslationState))")
+        let countAfterSecond = apiClient.recordedTranslateRequests.count
+
+        // 额度已用:再次回前台不再自动
+        vm.retryOfflineTranslationIfNeeded()
+        try await Task.sleep(nanoseconds: 400_000_000)
+        XCTAssertEqual(
+            apiClient.recordedTranslateRequests.count, countAfterSecond,
+            "离线自动重试额度一次性,用尽不再自动(手动重试仍可用)"
+        )
+    }
+
+    // MARK: - D10.4 #2:译后 M0 字段驱动 M1 请求(核心用例,自动翻译触发)
 
     func testAcceptTranslationUsesTranslatedM0FieldsForM1Request() async throws {
         let request = Self.beijingRequest()
         let response = try await apiClient.calculateBazi(request: request)
         try seedZHCache(hash: response.contentHash, module: .m0, text: Self.m0ZH)
         try seedZHCache(hash: response.contentHash, module: .m1, text: Self.m1ZH)
-        vm.loadArchivedChart(response: response, request: request)
-        let offered = await waitUntil { self.vm.translationOffer != nil }
-        XCTAssertTrue(offered, "必须探测到跨语言原文")
         let readsBefore = vm.remainingReads
         installDefaultTranslateResponder()
 
-        vm.acceptTranslation()
+        // L3/F1:hydrate 收尾自动起翻(不再手动 acceptTranslation)
+        vm.loadArchivedChart(response: response, request: request)
 
+        let produced = await waitUntil(timeout: 10) {
+            self.vm.translationOffer != nil || self.vm.moduleStates[.m0] != nil
+        }
+        XCTAssertTrue(produced, "必须探测到跨语言原文,实际:\(vm.moduleStates)")
         let done = await waitUntil(timeout: 10) {
             self.vm.translationOffer == nil && !self.vm.isTranslatingChain
         }
@@ -211,17 +297,15 @@ final class TranslationFlowTests: XCTestCase {
         )
     }
 
-    // MARK: - D10.4 #4:失败保留已成功,可重试剩余
+    // MARK: - D10.4 #4:失败保留已成功,可重试剩余(自动触发 + 手动重试)
 
     func testTranslationFailureKeepsSuccessesAndRetryTranslatesRemaining() async throws {
         let request = Self.beijingRequest()
         let response = try await apiClient.calculateBazi(request: request)
         try seedZHCache(hash: response.contentHash, module: .m0, text: Self.m0ZH)
         try seedZHCache(hash: response.contentHash, module: .m1, text: Self.m1ZH)
-        vm.loadArchivedChart(response: response, request: request)
-        _ = await waitUntil { self.vm.translationOffer != nil }
 
-        // 第一轮:M0 译成,M1 翻译失败(503 类)
+        // 第一轮(自动触发):M0 译成,M1 翻译失败(503 类)
         apiClient.translateResponder = { request in
             if request.base.module == "m0_structure" {
                 return InterpretResponse(
@@ -233,26 +317,18 @@ final class TranslationFlowTests: XCTestCase {
             }
             throw APIError.backendError(code: "AI_PROVIDER_ERROR", message: "同构校验失败", requestId: nil)
         }
-        vm.acceptTranslation()
+        vm.loadArchivedChart(response: response, request: request)
         let firstRound = await waitUntil(timeout: 10) {
-            if case .failed = self.vm.moduleStates[.m1] { return true }
-            return false
+            self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
         }
-        XCTAssertTrue(firstRound, "M1 必须标 .failed,实际:\(vm.moduleStates)")
+        XCTAssertTrue(firstRound, "自动翻译失败必须落 .failed,实际:\(String(describing: vm.autoTranslationState))")
         // 已成功的保留(不回滚)
         XCTAssertEqual(vm.moduleStates[.m0], .ok(text: Self.m0Hant, cached: false))
         // 提议保留(可重试剩余)——offer.modules 是初值,重试消费 crossLanguageRows
         XCTAssertNotNil(vm.translationOffer)
 
-        // 第二轮:修复应答,重试只译 M1
-        apiClient.translateResponder = { request in
-            InterpretResponse(
-                interpretation: request.sourceInterpretation,
-                promptVersion: 1, cached: false, generatedAt: .now,
-                provider: "anthropic", model: "mock-anthropic-model",
-                language: "zh-hant", translatedFrom: request.sourceLanguage
-            )
-        }
+        // 第二轮(手动重试):修复应答,重试只译 M1
+        installDefaultTranslateResponder()
         vm.acceptTranslation()
         let secondRound = await waitUntil(timeout: 10) {
             self.vm.translationOffer == nil && !self.vm.isTranslatingChain
@@ -265,19 +341,17 @@ final class TranslationFlowTests: XCTestCase {
         XCTAssertEqual(vm.moduleStates[.m1], .ok(text: Self.m1ZH, cached: false))
     }
 
-    // MARK: - STALE_SOURCE 人话(重试语义 = 重新生成)
+    // MARK: - STALE_SOURCE 人话(重试语义 = 重新生成;L4 将改为自动降级重生成)
 
     func testStaleSourceShowsRegenerateMessage() async throws {
         let request = Self.beijingRequest()
         let response = try await apiClient.calculateBazi(request: request)
         try seedZHCache(hash: response.contentHash, module: .m0, text: Self.m0ZH)
-        vm.loadArchivedChart(response: response, request: request)
-        _ = await waitUntil { self.vm.translationOffer != nil }
         apiClient.translateResponder = { _ in
             throw APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
         }
 
-        vm.acceptTranslation()
+        vm.loadArchivedChart(response: response, request: request)
 
         let failed = await waitUntil(timeout: 10) {
             if case .failed(let message) = self.vm.moduleStates[.m0] {
@@ -287,6 +361,7 @@ final class TranslationFlowTests: XCTestCase {
         }
         XCTAssertTrue(failed, "STALE_SOURCE 必须显示重新生成人话,实际:\(vm.moduleStates)")
         XCTAssertNotNil(vm.translationOffer, "失败后提议保留(原文还在屏上)")
+        XCTAssertEqual(vm.autoTranslationState, .failed)
     }
 }
 

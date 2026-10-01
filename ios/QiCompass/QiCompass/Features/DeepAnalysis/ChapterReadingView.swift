@@ -155,6 +155,23 @@ struct ChapterReadingView: View {
                 .frame(height: 0.5)
                 .padding(.trailing, 34)
                 .padding(.top, 16)
+            // L3/F1:本章仍是待译原文且翻译链在飞 → 章首小注(原文照常展示,
+            // 译完整章替换)。视觉:hairline ink@18% 级弱提示,不用朱红。
+            if vm.isChapterTranslationPending(module) {
+                HStack(spacing: 6) {
+                    ProgressView()
+                        .scaleEffect(0.7)
+                    Text(String(
+                        format: String(localized: "正在译为%@…"),
+                        AppLanguage.displayName(forWire: AppLanguage.currentWire)
+                    ))
+                    .font(BaziFont.caption(size: 10.5))
+                    .tracking(1)
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+                }
+                .padding(.top, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
             // 正文(2026-09-02):模块输出是 JSON(v1 链式契约)→ 结构化排版;
             // 解析失败(非 JSON/非法 JSON,如老缓存散文或 LLM 违约)退回散文并记日志。
             // 2026-10-01 加固:parse 失败且内容呈 JSON 形态(截断半截/契约破坏)→

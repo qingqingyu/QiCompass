@@ -17283,34 +17283,82 @@
         }
       }
     },
-    "翻译为%@ ›" : {
+    "此报告以%@生成 · %@" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Translate to %@ ›"
+            "value" : "This report was generated in %@ · %@"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "翻譯為%@ ›"
+            "value" : "此報告以%@生成 · %@"
           }
         }
       }
     },
-    "翻译中…" : {
+    "部分章节翻译失败" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Translating…"
+            "value" : "Some chapters failed to translate"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "翻譯中…"
+            "value" : "部分章節翻譯失敗"
+          }
+        }
+      }
+    },
+    "翻译失败" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Translation failed"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "翻譯失敗"
+          }
+        }
+      }
+    },
+    "联网后自动译为%@" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Will translate to %@ once online"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "聯網後自動譯為%@"
+          }
+        }
+      }
+    },
+    "正在译为%@…" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Translating to %@…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "正在譯為%@…"
           }
         }
       }

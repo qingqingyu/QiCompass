@@ -186,8 +186,8 @@ final class DeepAnalysisViewModel {
 
     // MARK: 跨语言翻译(D10.4/D10.5,S7)
 
-    /// 翻译提议:当前语言 miss 的模块在其它语言有既有解读 → 先显示原文 +
-    /// 提示条「此报告以××生成 · 翻译为××」,用户点按钮才翻译(不自动批量)。
+    /// 翻译提议:当前语言 miss 的模块在其它语言有既有解读 → 先显示原文,
+    /// L3/F1(修订 D10.5)起打开即自动翻译;提示条只在失败时出现(重试)。
     struct TranslationOffer: Equatable {
         /// 原文语言(wire 值,zh / zh-hant / en)
         let sourceLanguage: String
@@ -197,6 +197,29 @@ final class DeepAnalysisViewModel {
 
     /// 当前翻译提议(nil = 无跨语言原文 / 已完成翻译)。
     private(set) var translationOffer: TranslationOffer?
+
+    /// L3/F1(2026-10-01 拍板,修订 D10.5):跨语言命中 → 打开即自动翻译。
+    /// 提示条只在失败时出现(重试入口);翻译中走章首「正在译为××」小注。
+    enum AutoTranslationDisplay: Equatable {
+        /// 自动翻译在飞(提示条隐藏,章首小注驱动)
+        case inProgress
+        /// 翻译失败(非离线类):提示条「部分章节翻译失败 · 重试」,手动重试
+        case failed
+        /// 离线类失败:提示条「联网后自动译为××」,回前台再自动触发一次
+        /// (请求未达后端零 LLM 成本;二次失败转 .failed 只走手动)
+        case offlinePending
+    }
+
+    /// 自动翻译展示态(nil = 无自动翻译在飞/失败——提示条不显示)。
+    private(set) var autoTranslationState: AutoTranslationDisplay?
+
+    /// 自动翻译会话去重:同一 (contentHash, target) 自动只起一次
+    /// (防网络抖动 / 反复进出页面循环烧 LLM);失败后只走提示条手动重试。
+    private var autoTranslationAttemptedKeys = Set<String>()
+
+    /// 离线自动重试已用标记(每个提议周期至多一次回前台自动重试;二次失败
+    /// 转 .failed 走手动)。新提议产生时复位。
+    private var offlineRetryUsed = false
 
     /// 跨语言原文行(模块 → 缓存行,含 language / promptVersion / interpretation),
     /// acceptTranslation 消费;成功译完一个模块即移除(重试只译剩余)。
@@ -541,6 +564,7 @@ final class DeepAnalysisViewModel {
             translationOffer = nil
             crossLanguageRows.removeAll()
             isTranslatingChain = false
+            autoTranslationState = nil
             AppLogger.app.info(
                 "deepVM.loadArchivedChart chart_changed oldHash=\(old.contentHash, privacy: .public) newHash=\(response.contentHash, privacy: .public) — v1 链状态已清洗"
             )
@@ -600,10 +624,50 @@ final class DeepAnalysisViewModel {
         isHydrating = true
         let outcome = await performRestore(response: response)
         isHydrating = false
+        // L3/F1(修订 D10.5):跨语言原文命中 → 打开即自动翻译,不等用户点
+        // 提示条(必须等 isHydrating 复位后调——acceptTranslation 守卫拦截
+        // hydrate 在飞时段)。次序先于 resume:翻译提议挂着时 resume 本就被
+        // translation_pending 守卫拦住,译文落键收尾自会补跑缺失章。
+        autoTranslateIfNeeded(response: response)
         // 换盘中途(staleChart)也续跑:此时 state 已是新盘,resume 会按新盘起链
         if outcome != .restoreFailed {
             resumeV1ChainIfNeeded()
         }
+    }
+
+    /// L3/F1 自动翻译入口:有跨语言提议且本会话未自动过 → 直接起翻译链。
+    /// 去重键 (contentHash, target):失败后重进页面不再自动(手动重试),
+    /// 防网络抖动 / 反复进出循环烧 LLM(翻译不扣用户次数但有成本)。
+    private func autoTranslateIfNeeded(response: BaziResponse) {
+        guard translationOffer != nil else { return }
+        guard !isTranslatingChain, !isHydrating else { return }
+        guard isCurrentChart(response) else { return }
+        let key = response.contentHash + "|" + AppLanguage.currentWire
+        guard !autoTranslationAttemptedKeys.contains(key) else {
+            AppLogger.app.info("deepVM.autoTranslate.skip reason=already_attempted key=\(key, privacy: .public)")
+            return
+        }
+        autoTranslationAttemptedKeys.insert(key)
+        AppLogger.app.info("deepVM.autoTranslate.start hash=\(response.contentHash, privacy: .public)")
+        acceptTranslation()
+    }
+
+    /// 离线类失败后的回前台重触发(DeepAnalysisView scenePhase → active 调)。
+    /// 仅 .offlinePending 态且未用过重试额度时生效;重试后若再离线失败,
+    /// runTranslationChain 会按 offlineRetryUsed 转 .failed——即每个提议
+    /// 周期至多一次回前台自动重试,不无限循环。
+    func retryOfflineTranslationIfNeeded() {
+        guard autoTranslationState == .offlinePending, !offlineRetryUsed else { return }
+        guard translationOffer != nil, !isTranslatingChain, !isHydrating else { return }
+        offlineRetryUsed = true
+        AppLogger.app.info("deepVM.autoTranslate.offline_retry_after_foreground")
+        acceptTranslation()
+    }
+
+    /// 章首「正在译为××」小注判据(L3/F1):翻译链在飞且该章仍是待译原文
+    /// (crossLanguageRows 未消费)——原文照常展示,小注提示即将替换。
+    func isChapterTranslationPending(_ module: ModuleID) -> Bool {
+        isTranslatingChain && crossLanguageRows[module] != nil
     }
 
     /// hydrate 结果(决定尾部是否续跑)。
@@ -672,7 +736,7 @@ final class DeepAnalysisViewModel {
             )
 
             // D10.5(S7):当前语言 miss 的可回填章,探测其它语言的既有解读 →
-            // 先显示原文 + 翻译提示条(不自动批量翻译)。链字段用原文重建
+            // 先显示原文 + 自动翻译(L3/F1 修订 D10.5)。链字段用原文重建
             // (译文落键前,下游生成/翻译请求都用这套字段——acceptTranslation
             // 译完 M0 后会以译后字段覆盖)。best-effort:探测失败(离线等)
             // 只跳过提示条走正常生成,不阻断已成功的主恢复——错误留痕不吞。
@@ -694,6 +758,7 @@ final class DeepAnalysisViewModel {
                             extractChainFields(from: row.interpretation, for: module)
                         }
                         if !crossLanguageRows.isEmpty {
+                            offlineRetryUsed = false  // 新提议周期:离线自动重试额度复位
                             translationOffer = TranslationOffer(
                                 sourceLanguage: sourceLanguage,
                                 modules: Set(crossLanguageRows.keys)
@@ -1119,13 +1184,16 @@ final class DeepAnalysisViewModel {
 
     // MARK: - 跨语言翻译执行(D10.4,S7)
 
-    /// 用户点提示条「翻译为××」:按 M0 → M7 顺序翻译既有原文模块(点按钮才
-    /// 翻,不自动批量)。翻译不消耗每日次数(orchestrator 不动 counter);
-    /// 付费模块无 entitlement 跳过(后端同检 403,客户端不白发)。
+    /// 翻译执行入口(L3/F1 起双来源:hydrate 自动触发 + 失败提示条手动重试;
+    /// 原 D10.5「点按钮才翻」已修订为打开即自动)。按 M0 → M7 顺序翻译
+    /// crossLanguageRows 剩余模块(重试只译剩余)。翻译不消耗每日次数
+    /// (orchestrator 不动 counter);付费模块无 entitlement 跳过(后端同检
+    /// 403,客户端不白发)。
     func acceptTranslation() {
         guard let offer = translationOffer, !isTranslatingChain, !isHydrating else { return }
         guard case .ready(let response, _) = state else { return }
         isTranslatingChain = true
+        autoTranslationState = .inProgress
         AppLogger.app.info(
             "deepVM.acceptTranslation source=\(offer.sourceLanguage, privacy: .public) modules=\(self.crossLanguageRows.keys.map(\.rawValue).sorted().joined(separator: ","), privacy: .public)"
         )
@@ -1181,6 +1249,7 @@ final class DeepAnalysisViewModel {
                         "deepVM.runTranslationChain.missing_parent module=\(module.rawValue, privacy: .public) missing=\(missing.joined(separator: ","), privacy: .public)"
                     )
                     moduleStates[module] = .pending
+                    autoTranslationState = .failed  // 链字段断裂属失败态(可手动重试)
                     return  // 上游译后字段缺失,继续只会混键,显式停
                 }
             }
@@ -1220,16 +1289,32 @@ final class DeepAnalysisViewModel {
                     "deepVM.runTranslationChain.failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public) — 已译成保留,剩余可重试"
                 )
                 moduleStates[module] = .failed(message: Self.translationErrorMessage(for: error))
+                // L3/F1 失败分诊:离线类(且自动重试额度未用)→ 联网后回前台
+                // 自动重试一次;其余 → 失败提示条(手动重试)。译完的保留,
+                // 重试只译剩余。
+                autoTranslationState = (Self.isOfflineTranslationError(error) && !offlineRetryUsed)
+                    ? .offlinePending
+                    : .failed
                 return  // 断链:下游会混用译后指纹+原文链字段,显式停
             }
         }
-        // 收尾:全部译完 → 清提议;原文没有的缺失模块此时按目标语言自动续跑
-        //(链上游已是译后 M0,叙事一致,D10.4 #3)
+        // 收尾:全部译完 → 清提议 + 清自动翻译展示态;原文没有的缺失模块此时
+        // 按目标语言自动续跑(链上游已是译后 M0,叙事一致,D10.4 #3)
         if crossLanguageRows.isEmpty {
             translationOffer = nil
+            autoTranslationState = nil
             AppLogger.app.info("deepVM.runTranslationChain.all_translated")
             resumeV1ChainIfNeeded()
         }
+    }
+
+    /// 翻译失败的离线分诊(L3/F1):网络层离线/超时类 → true(联网后可自动
+    /// 重试,请求未达后端零 LLM 成本);后端/校验/取消类 → false(手动重试)。
+    private static func isOfflineTranslationError(_ error: Error) -> Bool {
+        if case .networkError(let urlError)? = error as? APIError {
+            return UserFacingError.isOffline(urlError)
+        }
+        return false
     }
 
     /// 翻译失败的用户文案(STALE_SOURCE 单列:重试语义是「重新生成本章」,
@@ -1348,6 +1433,8 @@ final class DeepAnalysisViewModel {
         // (排盘 A 填的 concern 不能给排盘 B 用,违反「八字计算必须确定性」语义)
         m4UserInput = nil
         m5UserInput = nil
+        // L3/F1:回表单态清自动翻译展示态(提示条/章首小注随页面退场)
+        autoTranslationState = nil
     }
 
     // MARK: - 查询

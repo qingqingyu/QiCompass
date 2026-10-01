@@ -36,6 +36,25 @@ struct DeepAnalysisHomeView: View {
         ModuleID.allCases.filter { vm.moduleStates[$0]?.isOk == true }.count
     }
 
+    /// L3/F1 翻译提示条形态:自动翻译在飞/无提议 → nil(不渲染);失败 → 重试
+    /// 入口;离线 → 联网后自动译提示。
+    private var translateHintBarMode: TranslateHintBar.Mode? {
+        guard let offer = vm.translationOffer,
+              let autoState = vm.autoTranslationState
+        else { return nil }
+        switch autoState {
+        case .inProgress:
+            return nil
+        case .failed:
+            return .failure(
+                sourceLanguage: offer.sourceLanguage,
+                failureText: String(localized: "部分章节翻译失败")
+            )
+        case .offlinePending:
+            return .offline(targetLanguage: AppLanguage.currentWire)
+        }
+    }
+
     var body: some View {
         ZStack {
             BaziTheme.paper.ignoresSafeArea()
@@ -45,17 +64,12 @@ struct DeepAnalysisHomeView: View {
                     xijiLine
                     anchorSentence
                     chainBanner
-                    // D10.5(S7):命中其它语言原文时,目录上方提示条——先显示原文,
-                    // 点按钮才翻译(不自动批量)
-                    if let offer = vm.translationOffer {
-                        TranslateHintBar(
-                            sourceLanguage: offer.sourceLanguage,
-                            targetLanguage: AppLanguage.currentWire,
-                            isTranslating: vm.isTranslatingChain,
-                            onTranslate: { vm.acceptTranslation() }
-                        )
-                        .padding(.horizontal, 20)
-                        .padding(.bottom, 14)
+                    // L3/F1(修订 D10.5):打开即自动翻译——翻译中不显示提示条
+                    // (进度走章首小注 + 模块 loading),只在失败/离线时出现
+                    if let barMode = translateHintBarMode {
+                        TranslateHintBar(mode: barMode, onRetry: { vm.acceptTranslation() })
+                            .padding(.horizontal, 20)
+                            .padding(.bottom, 14)
                     }
                     tocHeader
                     tocRows
