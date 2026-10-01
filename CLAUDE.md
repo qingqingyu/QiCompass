@@ -60,6 +60,13 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - 不接 GitHub Actions（对齐 2026-08-14「本地优先」决定），拦截靠本规则
 - 事实源：`docs/prompt评测机设计决策.md`（含实施偏差记录）+ `docs/prompt评测机-slices/`
 
+### 三语模板/术语同步守护栏（2026-10-01，yuyan S2-S7）
+
+- **强制**：动 `backend/app/ai/prompts.py` 或 bump 任何 `PROMPT_VERSIONS`（含 `translate`），新版本模板文件须 **zh / zh-hant / en 三语同步创建**——`backend/tests/test_i18n.py::TestZhHantTemplateFileParity` 锁定（漏一语 → zh-hant 用户版本切换后直接 FileNotFoundError → 500）
+- **强制**：动 `backend/app/engine/term_translations.py` 的 zh-hant 表或 iOS `BaziTerms.swift` 的 zhHant 列任一，必须 `python3 tools/check_term_sync.py` PASS——①③ 组已升级为 **en/zh-hant 值三相等**（双端任一侧改词即 FAIL）；zh-hant 术语用词以 iOS 人工校对稿为锚（信息不足→信息不足 是有意锁定，勿单侧改 資訊不足）
+- 翻译端点 `POST /api/interpret/translate`（D10）：译后内容落**目标语言正常生成的缓存键**（`_prepare_prompt_and_key` 共享函数，双端点共用，禁止复制粘贴）；动 iOS 翻译链时 `TranslationFlowTests` 的「译后 M0 fingerprint 驱动 M1 请求」用例是键对齐的回归锚点
+- 全仓语言来源唯一：iOS 只经 `AppLanguage.current` / `currentWire` 取语言（D9）；zh-hant 干支术语连写无空格（`_TERM_JOINERS`），en 拼音空格分隔——加语言时在 `_TERM_JOINERS` / `_UNKNOWN_HOUR_SUFFIXES` / `_match_language` 三处登记
+
 ### SKU→module 映射同步守护栏（2026-09-30，防漏单 review）
 
 - **强制**：动了以下任一，必须 `python3 tools/check_sku_sync.py` 且 PASS 才算完成——backend `app/models/entitlement.py`（`PRODUCT_MODULE_MAP` / `ProductId` / `EntitlementModule`）、iOS `PurchaseManager.swift`（`module(forProductID:)` switch / restore `productIds` 集合）、`EntitlementDTOs.swift`（`AppleProductID` / `EntitlementModule` 常量）、`PaywallViewModel.swift`（`PaywallModule` 的 `productId` / `entitlementModule` 配对）

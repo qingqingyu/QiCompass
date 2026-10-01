@@ -52,13 +52,24 @@
 
 | 项 | 状态 |
 |---|---|
-| G1 en 模板 | ✅ `prompts/en/` 已含 M0-M7 + compatibility_free/paid + daily 全套;仅剩 4 个 alias 老模块(bazi_deep×3 + compatibility)在 `_LEGACY_TEMPLATES` 只有中文 |
+| G1 en 模板 | ✅ `prompts/en/` 已含 M0-M7 + compatibility_free/paid + daily 全套;仅剩 4 个 alias 老模块(bazi_deep×3 + compatibility)在 `_LEGACY_TEMPLATES` 只有中文(有意,alias 不投入) |
 | T0 `AppLanguage` 类型化枚举 | ✅ `ios/.../L10n/AppLanguage.swift`(`zh` / `zhHant` / `en`,wire 全小写) |
 | zh-Hant 后端 | ✅ **S2 已实施(2026-10-01,yuyan worktree)**:`TERM_TRANSLATIONS` 注册 zh-hant 表 131 键(值与 iOS BaziTerms zhHant 列锁定,`check_term_sync.py` ①③ 组三相等);`prompts/zh-hant/` 14 文件(现役版本全套 + suffix 预置,parity 测试锁三语 bump 同步);`resolve_language` zh 变体解析(D4);unknown_hour suffix 三语映射;joiner 语义(zh-hant 干支连写无空格) |
 | zh-Hant iOS | ✅ **S3+S4 已实施(2026-10-01,yuyan worktree)**:xcstrings zh-Hant 777/777 全覆盖(305 校对稿回导 + 472 新译)+ knownRegions 回列;`normalizeZhVariant` 已接回(止血解除) |
 | 语言切换 UI / `X-QiCompass-Lang` 发送 | ✅ **S4 已实施(2026-10-01,yuyan worktree)**:ProfileView 设置区「语言」Menu(system/zh/zh-hant/en)+ AppleLanguages 镜像 + 重启 alert;`AppLanguage.current = override ?? systemLanguage`;`activeOverrideWire` 时 `APIClient.send` 发 `X-QiCompass-Lang`;BaziFont zh-hant 分流 Kaiti TC(DESIGN.md 已记);BaziDateFormatter.lunar zh_TW;新增 `AppLanguageTests`(7 用例,pbxproj 4 处登记) |
 | iOS 翻译接入(S7) | ✅ **S7 已实施(2026-10-01,yuyan worktree)**:TranslateRequest DTO(translated_from)/ APIClient.translate(Live+Mock+协议默认实现)/ CachedInterpretationReader.readAllCrossLanguage / 深度 hydrate 跨语言回填原文+translationOffer+acceptTranslation 链式翻译(译后 M0 字段驱动 M1-M7,断链保成功)/ 合盘 openDetail 跨语言探测+acceptTranslation / TranslateHintBar(DESIGN.md hairline)/ STALE_SOURCE 人话;TranslationFlowTests 5 用例(含核心「译后 M0 fingerprint 驱动 M1 请求」) |
-| 已生成解读的跨语言处理 | 🟡 **S6 已实施(2026-10-01,yuyan worktree)**:`POST /api/interpret/translate` 落地(D10.1-D10.3,键对齐/STALE_SOURCE/白名单/entitlement 同检/保真校验/先查后译,23 用例锁定,含「译后目标语言 /api/interpret 命中 cached=true」);实施偏差两处见 §3 D10.1 末注。iOS 接入 = S7 未做 |
+| 已生成解读的跨语言处理 | ✅ **S6 已实施(2026-10-01,yuyan worktree)**:`POST /api/interpret/translate` 落地(D10.1-D10.3,键对齐/STALE_SOURCE/白名单/entitlement 同检/保真校验/先查后译,23 用例锁定,含「译后目标语言 /api/interpret 命中 cached=true」);实施偏差两处见 §3 D10.1b |
+| **S1-S7 机器验收** | ✅ **2026-10-01 终态**:backend pytest 1064 绿(+23 S6/翻译 +40 S2);iOS 全量 XCTest 绿(479,新增 AppLanguage 7 + 翻译 5);check_prompt_sync / check_term_sync(升级 en/zh-hant 三相等)/ check_sku_sync PASS;xcstrings 790 key 三语;xcodebuild build 验证 catalog 编译级完好 |
+
+**S5 真人验收清单(待做,HITL)**:
+
+1. 繁体真机(zh-TW 系统或 App 内切繁體中文 + 重启):三模块 UI/解读全繁体;Kaiti TC 字形目验;提示条出现与翻译流程走查
+2. 简体下生成完整命书 + 合盘 → 切繁体 → 原文 + 提示条 → 点翻译 → 判断/年份/干支与原文逐条一致(翻译前后结论一致性 spot check)
+3. 翻译后清 iOS 本地缓存(或另一台同账号设备)以繁体打开 → 直接命中译文(cached=true)
+4. 切语言后每日运势直接按新语言生成,无提示条
+5. LLM 繁体输出 10 盘 spot check(夹简体字 → 修 zh-hant 模板输出指令)
+6. en deep/compat 走查(不再 500;S1 债在 09-22 已还,真机复验)
+7. 后端部署注意:S2/S6 上线时后端 SQLite 缓存不受影响(表结构未动);zh-hant 用户的老 zh 缓存不误命中(language 维度隔离)
 
 ---
 
