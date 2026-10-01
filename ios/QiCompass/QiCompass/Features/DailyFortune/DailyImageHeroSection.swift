@@ -252,7 +252,7 @@ struct DailyImageHeroSection: View {
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
             HeroYiJiColumns(dayRelation: dayRelation)
                 .padding(.horizontal, 22)
-                .padding(.bottom, 18)
+                .padding(.bottom, 28)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
         }
     }
@@ -511,9 +511,12 @@ private struct TodayChip: View {
 
 /// hero 底部宜/忌双列字层(**2026-10-01 Today 定稿 D2**:从「亮纸框」改为
 /// 压在 hero 融纸渐隐区上的字层——画在下、字在上)。
-/// 规格(mockup .yj @393px,px≈pt):两列 grid 列距 26、左右内边距 22(宿主
-/// 注入)、底部 18;表头 serif 15 medium(Do=墨青 / Don't=朱红;zh=宜/忌);
-/// 条目 serif 14、行距 1.5、条目间 0.5pt hairline 分隔、每条上下 padding 9。
+/// 规格(mockup .yj @393px,px≈pt;2026-10-01 真机反馈微调,用户拍板):
+/// 两列 grid 列距 26、左右内边距 22(宿主注入)、底部 28(mockup 18——真机
+/// 读作贴底,整体上移);表头 serif 16 medium(Do=墨青 / Don't=朱红;zh=宜/忌;
+/// mockup 15);条目 serif 15(mockup 14;EN 16 chars 预算本就按 serif 15pt
+/// 列宽核算,375pt 屏单列 ≈135pt 仍单行)、行距 1.5、条目间 0.5pt hairline
+/// 分隔、每条上下 padding 9。
 ///
 /// 数据源(v1 简化,同前):前端十神→关键词查表,每列 3 词;
 /// 后续可挪后端基于喜忌+流日关系确定性映射(不增加 v1 后端复杂度)。
@@ -538,8 +541,8 @@ struct HeroYiJiColumns: View {
     /// EN 词表(2026-09-24 三改):09-19 版被外评审点「像公司合规手册」
     /// (正官行 Own Your Duty / Play by the Rules / Report Back / Skip the
     /// Chain),整体换人味口吻——短祈使句、对自己说话的语气;每条 ≤16 chars
-    /// (serif 15pt 双列 ~138pt/列单行内 @375pt 屏,2026-09-28 S03 内边距 20 +
-    /// 列距 24 后的列宽,09-19 宽度约束延续)——
+    /// (serif 15pt 双列 ~135pt/列单行内 @375pt 屏,2026-10-01 定稿内边距 22 +
+    /// 列距 26 后的列宽,09-19 宽度约束延续;09-28 S03 曾按 20/24≈138 核算)——
     /// 预算由 DailyImageHeroCopyTests 守护(2026-09-23 review #2)。
     /// 2026-09-28 外评:3 条与 EngineReadingTemplates 兜底模板语气打架
     /// (劫财 Act Now vs「just don't rush」/ Split the Gains vs「think
@@ -626,7 +629,7 @@ struct HeroYiJiColumns: View {
     private func column(isYi: Bool, header: String, items: [String]) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(header)
-                .font(BaziFont.songDisplay(size: 15, weight: .medium))
+                .font(BaziFont.songDisplay(size: 16, weight: .medium))
                 .foregroundStyle(isYi ? BaziTheme.jade : BaziTheme.cinnabar)
             VStack(alignment: .leading, spacing: 0) {
                 ForEach(Array(items.enumerated()), id: \.offset) { idx, item in
@@ -636,7 +639,7 @@ struct HeroYiJiColumns: View {
                             .frame(height: 0.5)
                     }
                     Text(item)
-                        .font(BaziFont.songDisplay(size: 14))
+                        .font(BaziFont.songDisplay(size: 15))
                         .foregroundStyle(BaziTheme.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.9)

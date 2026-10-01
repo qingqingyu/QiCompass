@@ -51,7 +51,10 @@ struct DailyFortuneMainView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 0) {
+            // alignment .leading(2026-10-01 真机截图修复):头部区是本列唯一的
+            // 收缩包裹子视图(其余区块都有 maxWidth .infinity 贪宽),VStack 默认
+            // .center 会把日期行+chips 整块水平居中(mockup 与 hero 都是左缘对齐)。
+            VStack(alignment: .leading, spacing: 0) {
                 // 离线查看角标(方案 step 6):网络失败 fallback 到本地缓存时显示。
                 if vm.isOffline {
                     HStack(spacing: 6) {

@@ -4,8 +4,8 @@ import XCTest
 /// 每日运势 hero 图文案契约测试(2026-09-23 review #2/#3;#3 于 2026-09-24
 /// 随 shengxiao 合入演进为动物方案)。
 ///
-/// - #2:mappingEn 每条 ≤16 chars(S02 自定预算:双列 ~138pt/列单行内
-///   @375pt 屏——2026-09-28 S03 hero 内边距 4→20 + 列距 34→24 后的列宽;
+/// - #2:mappingEn 每条 ≤16 chars(S02 自定预算:双列 ~135pt/列单行内
+///   @375pt 屏——2026-10-01 定稿 hero 内边距 22 + 列距 26 后的列宽;
 ///   曾有 "Play by the Rules"(17)破线无测试拦截,自此守护)
 /// - #3:chongLabel 英文输出 = 生肖动物名 + 英文柱位("Clashes with Goat
 ///   (your Day Pillar)")。演进自 09-23 位置词翻译版(保留地支字仍不够
@@ -26,7 +26,7 @@ final class DailyImageHeroCopyTests: XCTestCase {
             .filter { $0.count > 16 }
         XCTAssertTrue(
             over.isEmpty,
-            "mappingEn 超出 ≤16 chars 预算(双列 ~138pt/列单行 @375pt 屏):\(over)"
+            "mappingEn 超出 ≤16 chars 预算(双列 ~135pt/列单行 @375pt 屏):\(over)"
         )
     }
 

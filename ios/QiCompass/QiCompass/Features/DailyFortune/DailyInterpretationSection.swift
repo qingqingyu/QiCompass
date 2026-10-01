@@ -192,8 +192,12 @@ struct DailyInterpretationSection: View {
     /// 领域行(D5):92pt 固定标签列(sans medium 12.5 inkMuted,常规大小写
     /// 不拉字距)+ 正文(sans 14 ink;zh 经 BaziFont.body 走楷体「文中楷」),
     /// 行顶 hairline、上下 padding 11。
+    /// alignment 必须 .leading(2026-10-01 真机截图修复):hairline Rectangle
+    /// 贪宽占满行宽,而 HStack 是固有宽——VStack 默认 .center 会把每行内容
+    /// 各自水平居中(实测三行标签起点 28/61/52pt 各不相同,Work 行只因内容
+    /// 最宽才看似近齐)。
     private func domainRow(label: String, text: String) -> some View {
-        VStack(spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
             Rectangle()
                 .fill(BaziTheme.hairline)
                 .frame(height: 0.5)
