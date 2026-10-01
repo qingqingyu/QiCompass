@@ -34,10 +34,12 @@ from app.ai.prompts import (
 )
 from app.api.language import (
     DEFAULT_LANGUAGE,
-    _extract_primary_tag,
+    _extract_first_tag,
+    _match_language,
     resolve_language,
 )
 from app.engine.term_translations import (
+    STRENGTH_LABEL_EN,
     TERM_TRANSLATIONS,
     is_language_supported,
     translate_context,
@@ -115,6 +117,7 @@ class TestTranslateTerm:
     def test_is_language_supported(self):
         assert is_language_supported("zh") is True
         assert is_language_supported("en") is True
+        assert is_language_supported("zh-hant") is True
         assert is_language_supported("ja") is False
         assert is_language_supported("es") is False
 
@@ -126,6 +129,54 @@ class TestTranslateTerm:
         """
         assert len(TERM_TRANSLATIONS["en"]) >= 42, (
             f"en 表应至少 42 项,实际 {len(TERM_TRANSLATIONS['en'])} 项")
+
+
+# ---------- term_translations:zh-Hant(S2,i18n-zh-hant-plan.md D1) ----------
+
+class TestTranslateTermZhHant:
+    """zh-hant 术语表测试(显式注册表,值与 iOS BaziTerms zhHant 列对齐)。"""
+
+    def test_identity_ganzi(self):
+        """干支/五行全同形(identity 也显式进表)。"""
+        assert translate_term("甲", "zh-hant") == "甲"
+        assert translate_term("亥", "zh-hant") == "亥"
+        assert translate_term("木", "zh-hant") == "木"
+
+    def test_heteromorphic_terms(self):
+        """异形术语抽查(十神/长生/纳音/神煞/合盘枚举)。"""
+        assert translate_term("劫财", "zh-hant") == "劫財"
+        assert translate_term("七杀", "zh-hant") == "七殺"
+        assert translate_term("长生", "zh-hant") == "長生"   # 非恒等!
+        assert translate_term("炉中火", "zh-hant") == "爐中火"
+        assert translate_term("天乙贵人", "zh-hant") == "天乙貴人"
+        assert translate_term("相克", "zh-hant") == "相剋"
+        assert translate_term("六冲", "zh-hant") == "六沖"
+
+    def test_unregistered_term_raises_keyerror(self):
+        with pytest.raises(KeyError, match="未注册 zh-hant 翻译"):
+            translate_term("不存在的术语", "zh-hant")
+
+    def test_zh_hant_key_parity_with_en(self):
+        """zh-hant 表键集合 = en 表键集合 − raw strength key 集。
+
+        raw key(strong/weak/...)是 Latin 控制键,不属 CJK 术语域,
+        context 翻译不碰(S09 口径),因此有意不进 zh-hant 表。
+        其余键集合两语言必须相等——加 en 术语忘加 zh-hant 时此处拦截。
+        """
+        en_keys = set(TERM_TRANSLATIONS["en"])
+        hant_keys = set(TERM_TRANSLATIONS["zh-hant"])
+        assert hant_keys == en_keys - set(STRENGTH_LABEL_EN), (
+            f"仅 en: {sorted((en_keys - set(STRENGTH_LABEL_EN)) - hant_keys)}; "
+            f"仅 zh-hant: {sorted(hant_keys - en_keys)}")
+
+    def test_zh_hant_values_are_traditional(self):
+        """zh-hant 译值不得残留简体专属字形(键是简体 id,值必须繁体)。"""
+        # 简体专属字抽样集(传统字形分别为 傷財殺帶臨絕養沖無從後發長貴馬驛
+        # 將蓋輿祿災羅紅艷優補業氣);同形字(一/七/天…)不在此列
+        simplified_only = set("伤财杀带临绝养冲无从后发长贵马驿将盖舆禄灾罗红艳优补业气")
+        for key, value in TERM_TRANSLATIONS["zh-hant"].items():
+            bad = set(value) & simplified_only
+            assert not bad, f"{key!r} 译值 {value!r} 含简体字形 {sorted(bad)}"
 
 
 # ---------- 共享测试 helper ----------
@@ -201,26 +252,90 @@ class TestResolveLanguage:
         assert resolve_language(r) == "zh"
 
 
-class TestExtractPrimaryTag:
+class TestResolveLanguageZhVariants:
+    """D4(i18n-zh-hant-plan.md):zh 变体解析——繁体系统用户零操作拿繁体。"""
+
+    _make_request = staticmethod(_make_mock_request)
+
+    @pytest.mark.parametrize("accept", [
+        "zh-Hant", "zh-Hant-TW", "zh-TW", "zh-HK", "zh-MO",
+        "zh-Hant-HK,zh;q=0.9", "zh-TW,zh;q=0.9,en;q=0.8",
+    ])
+    def test_accept_language_zh_hant_variants(self, accept: str):
+        """Accept-Language 携带繁体 script/region → zh-hant。"""
+        r = self._make_request({"Accept-Language": accept})
+        assert resolve_language(r) == "zh-hant"
+
+    @pytest.mark.parametrize("accept", [
+        "zh", "zh-CN", "zh-SG", "zh-Hans", "zh-Hans-CN",
+        "zh-CN,zh;q=0.9,en;q=0.8", "zhXX",
+    ])
+    def test_accept_language_zh_hans_variants(self, accept: str):
+        """裸 zh / Hans / CN / SG / 未知 region → zh(简体为默认侧,不猜繁体)。"""
+        r = self._make_request({"Accept-Language": accept})
+        assert resolve_language(r) == "zh"
+
+    @pytest.mark.parametrize("override", ["zh-hant", "zh-Hant", "zh-TW"])
+    def test_x_qicompass_lang_zh_hant(self, override: str):
+        """X-QiCompass-Lang 同样过变体解析(D6 iOS 发规范化值,大小写/变体兜底)。"""
+        r = self._make_request({
+            "X-QiCompass-Lang": override,
+            "Accept-Language": "zh-CN",
+        })
+        assert resolve_language(r) == "zh-hant"
+
+    def test_x_qicompass_lang_zh_hant_overrides_hant_accept(self):
+        """简体 override 覆盖繁体 Accept-Language(显式优先级)。"""
+        r = self._make_request({
+            "X-QiCompass-Lang": "zh",
+            "Accept-Language": "zh-Hant-TW",
+        })
+        assert resolve_language(r) == "zh"
+
+    def test_hant_accept_beats_registered_check(self):
+        """zh-hant 在 TERM_TRANSLATIONS 已注册(is_language_supported 不再坍缩)。"""
+        r = self._make_request({"Accept-Language": "zh-Hant"})
+        assert resolve_language(r) == "zh-hant"
+
+
+class TestMatchLanguage:
+    def test_zh_script_and_region_matrix(self):
+        assert _match_language("zh-Hant") == "zh-hant"
+        assert _match_language("zh-hant-tw") == "zh-hant"
+        assert _match_language("zh-TW") == "zh-hant"
+        assert _match_language("zh-HK") == "zh-hant"
+        assert _match_language("zh-MO") == "zh-hant"
+        assert _match_language("zh-Hans") == "zh"
+        assert _match_language("zh-CN") == "zh"
+        assert _match_language("zh-SG") == "zh"
+        assert _match_language("zh") == "zh"
+        assert _match_language("ZH") == "zh"  # 大小写不敏感
+
+    def test_en_and_unregistered(self):
+        assert _match_language("en") == "en"
+        assert _match_language("en-US") == "en"
+        assert _match_language("ja-JP") is None
+        assert _match_language("fr") is None
+        assert _match_language("") is None
+        assert _match_language("---") is None
+
+
+class TestExtractFirstTag:
     def test_complex_header(self):
-        assert _extract_primary_tag("zh-Hans-CN,zh;q=0.9,en;q=0.8") == "zh"
+        assert _extract_first_tag("zh-Hans-CN,zh;q=0.9,en;q=0.8") == "zh-Hans-CN"
 
     def test_single_tag_with_region(self):
-        assert _extract_primary_tag("en-US") == "en"
+        assert _extract_first_tag("en-US") == "en-US"
 
     def test_single_tag_only(self):
-        assert _extract_primary_tag("en") == "en"
+        assert _extract_first_tag("en") == "en"
 
     def test_empty_string(self):
-        assert _extract_primary_tag("") is None
+        assert _extract_first_tag("") is None
 
     def test_quality_param(self):
         """质量参数被剥离。"""
-        assert _extract_primary_tag("en-US;q=0.8") == "en"
-
-    def test_unregistered_language_returned(self):
-        """未注册语言被提取(由调用方判断是否注册)。"""
-        assert _extract_primary_tag("ja-JP") == "ja"
+        assert _extract_first_tag("zh-Hant-TW;q=0.8") == "zh-Hant-TW"
 
 
 # ---------- prompts.render_prompt ----------
@@ -790,3 +905,211 @@ class TestSpecialPatternSuffixFiles:
         suffix = _load_template("_special_pattern_suffix", "en", version)
         assert "special-pattern" in suffix
         assert "must not give any definitive" in suffix
+
+
+# ---------- S2(i18n-zh-hant-plan.md):zh-Hant context 翻译 + 渲染 + 模板 parity ----------
+
+class TestZhHantTranslateContext:
+    """zh-hant context 翻译:术语转繁、干支/列表连写无空格(joiner 语义)。"""
+
+    @pytest.fixture
+    def daily_fortune_context(self) -> dict:
+        return {
+            "day_master": "甲", "day_master_element": "木",
+            "day_master_strength": "strong",
+            "favorable_elements": "木火", "unfavorable_elements": "金水",
+            "date": "2026-08-12", "lunar_date": "七月初十",
+            "day_pillar": "庚午", "day_stem": "庚", "day_stem_element": "金",
+            "day_branch": "午", "day_branch_element": "火",
+            "day_relation": "七杀", "day_chong": "子",
+            "hour_pillars_with_relations": "子时: 甲子 比肩",
+            "huangli_yi": "祈福", "huangli_ji": "动土",
+        }
+
+    def test_daily_terms_traditional_no_space_join(self, daily_fortune_context):
+        """单术语转繁;干支柱/喜忌列表连写(**不得**像 en 那样插空格)。"""
+        out = translate_context(daily_fortune_context, "zh-hant", "daily_fortune")
+        assert out["day_relation"] == "七殺"
+        assert out["day_pillar"] == "庚午"
+        assert out["favorable_elements"] == "木火"
+        assert out["day_master"] == "甲"          # identity 也走表
+        assert out["day_master_strength"] == "strong"  # raw key 不译(S09 口径)
+        assert out["lunar_date"] == "七月初十"     # 不翻译字段保留
+
+    def test_deep_chart_joiner_and_terms(self):
+        """chart JSON:干支/地支对连写,十神/旺衰标签转繁,meta 保留。"""
+        chart = json.dumps({
+            "meta": {"locale": "zh-CN", "solar_term_boundary": "惊蛰后"},
+            "pillars": {"year": {
+                "gan_zhi": "庚午", "shishen_gan": "七杀",
+                "nayin": "路旁土", "dishi": "长生", "xunkong": "戌亥"}},
+            "day_master": {"strength_label": "从格特征"},
+            "ten_god_weights": {"七杀": 5},
+        }, ensure_ascii=False)
+        out = translate_context({"chart": chart}, "zh-hant", "m0_structure")
+        c = json.loads(out["chart"])
+        assert c["pillars"]["year"]["gan_zhi"] == "庚午"      # 连写,非 "庚 午"
+        assert c["pillars"]["year"]["dishi"] == "長生"
+        assert c["pillars"]["year"]["xunkong"] == "戌亥"      # 连写
+        assert c["pillars"]["year"]["shishen_gan"] == "七殺"
+        assert c["day_master"]["strength_label"] == "從格特徵"
+        assert c["ten_god_weights"] == {"七殺": 5}             # 键也译
+        assert c["meta"]["solar_term_boundary"] == "惊蛰后"    # meta 整体保留
+
+    def test_compat_enums_and_pillars(self):
+        ctx = {
+            "context_label": "通用", "gender_a": "男", "city_a": "北京",
+            "birth_a": "1990-03-05 07:20", "day_master_a": "甲",
+            "day_master_strength_a": "weak", "favorable_a": "木火",
+            "year_a": "庚午", "month_a": "己卯", "day_a": "甲子", "hour_a": "丁卯",
+            "element_balance_a": "木3火2土1金1水1",
+            "gender_b": "女", "city_b": "上海", "birth_b": "1992-08-10 14:00",
+            "day_master_b": "丙", "day_master_strength_b": "strong",
+            "favorable_b": "土金",
+            "year_b": "壬申", "month_b": "戊申", "day_b": "丙午", "hour_b": "乙未",
+            "element_balance_b": "木1火3土2金2水2",
+            "five_elements_assessment": "互补佳", "day_master_relation": "相克",
+            "zodiac_match": "六冲", "branch_harmony": "无冲无刑",
+            "synced_fortune_table": "- 2026:同步走强",
+        }
+        out = translate_context(ctx, "zh-hant", "compatibility_free")
+        assert out["five_elements_assessment"] == "互補佳"
+        assert out["day_master_relation"] == "相剋"
+        assert out["zodiac_match"] == "六沖"
+        assert out["branch_harmony"] == "無沖無刑"
+        assert out["context_label"] == "通用"
+        assert out["year_a"] == "庚午"                    # 连写
+        assert out["day_master_strength_a"] == "weak"     # raw key
+        assert out["city_a"] == "北京"                     # 用户数据不动
+
+
+class TestZhHantRenderPrompt:
+    """zh-hant 模板渲染(D5:转繁 + 模板内显式「全文用繁體中文書寫」指令)。"""
+
+    @pytest.fixture
+    def daily_fortune_context(self) -> dict:
+        return {
+            "day_master": "甲", "day_master_element": "木",
+            "day_master_strength": "strong",
+            "favorable_elements": "木火", "unfavorable_elements": "金水",
+            "date": "2026-08-12", "lunar_date": "七月初十",
+            "day_pillar": "庚午", "day_stem": "庚", "day_stem_element": "金",
+            "day_branch": "午", "day_branch_element": "火",
+            "day_relation": "七杀", "day_chong": "子",
+            "hour_pillars_with_relations": "子时: 甲子 比肩",
+            "huangli_yi": "祈福", "huangli_ji": "动土",
+        }
+
+    def test_daily_v4_zh_hant(self, daily_fortune_context):
+        prompt = render_prompt(
+            "daily_fortune", daily_fortune_context, language="zh-hant")
+        assert "繁體中文" in prompt
+        assert "流日沖：子" in prompt
+        assert "庚午" in prompt           # context 已繁化的干支
+        assert "黃曆宜" in prompt
+        assert not re.search(r"\{[a-z_]+\}", prompt)  # 无未填充占位符
+
+    def test_daily_unknown_hour_variant_zh_hant(self, daily_fortune_context):
+        ctx = {k: v for k, v in daily_fortune_context.items()
+               if k not in ("favorable_elements", "unfavorable_elements",
+                            "hour_pillars_with_relations")}
+        ctx["day_master_strength"] = "unknown_hour"
+        translated = translate_context(ctx, "zh-hant", "daily_fortune")
+        assert translated["day_master_strength"] == "unknown_hour"
+        prompt = render_prompt("daily_fortune", translated, language="zh-hant")
+        assert "時辰未知" in prompt
+        assert "12 時辰" not in prompt        # 降级变体无 12 时辰段
+        assert "命局喜" not in prompt          # 喜忌栏整体删除
+
+    def test_m0_zh_hant(self):
+        chart = json.dumps(
+            {"pillars": {"year": {"gan_zhi": "庚午", "shishen_gan": "七殺"}},
+             "day_master": {"strength_label": "偏弱"}},
+            ensure_ascii=False)
+        prompt = render_prompt(
+            "m0_structure", {"chart": chart}, language="zh-hant")
+        assert "模組 M0:識別主線結構" in prompt
+        assert "繁體中文" in prompt
+        assert "結構分析師" in prompt
+
+    def test_compat_free_paid_zh_hant(self):
+        ctx = {
+            "context_label": "通用", "gender_a": "男", "city_a": "北京",
+            "birth_a": "1990-03-05 07:20", "day_master_a": "甲",
+            "day_master_strength_a": "weak", "favorable_a": "木火",
+            "year_a": "庚午", "month_a": "己卯", "day_a": "甲子", "hour_a": "丁卯",
+            "element_balance_a": "木3火2土1金1水1",
+            "gender_b": "女", "city_b": "上海", "birth_b": "1992-08-10 14:00",
+            "day_master_b": "丙", "day_master_strength_b": "strong",
+            "favorable_b": "土金",
+            "year_b": "壬申", "month_b": "戊申", "day_b": "丙午", "hour_b": "乙未",
+            "element_balance_b": "木1火3土2金2水2",
+            "five_elements_assessment": "互補佳", "day_master_relation": "相剋",
+            "zodiac_match": "六沖", "branch_harmony": "無沖無刑",
+            "synced_fortune_table": "- 2026:同步走強",
+        }
+        for module in ("compatibility_free", "compatibility_paid"):
+            prompt = render_prompt(module, ctx, language="zh-hant")
+            assert "八字合婚/合盤的大師" in prompt
+            assert "繁體中文書寫" in prompt
+            assert "干支接地" in prompt
+            assert not re.search(r"\{[a-z_]+\}", prompt)
+
+    def test_zh_hant_differs_from_zh_and_en(self, daily_fortune_context):
+        zh = render_prompt("daily_fortune", daily_fortune_context, language="zh")
+        hant = render_prompt("daily_fortune", daily_fortune_context,
+                             language="zh-hant")
+        en = render_prompt("daily_fortune", daily_fortune_context, language="en")
+        assert len({zh, hant, en}) == 3  # 三份模板真不同
+
+
+class TestZhHantTemplateFileParity:
+    """S2 守护栏:现役模块当前版本的 zh-hant / en 模板文件必须存在。
+
+    防「bump PROMPT_VERSION 时只补 zh/en 忘补 zh-hant」——那会让 zh-hant
+    用户在版本切换后直接 FileNotFoundError → 500。alias 4 个
+    (_LEGACY_TEMPLATES)与 daily_fortune_image(prompt 由代码拼装)不在
+    文件化范围。
+    """
+
+    def test_current_version_templates_exist_for_zh_hant_and_en(self):
+        from pathlib import Path
+
+        from app.ai.prompts import PROMPTS_DIR, _LEGACY_TEMPLATES
+        file_modules = [
+            m for m in PROMPT_VERSIONS
+            if m not in _LEGACY_TEMPLATES and m != "daily_fortune_image"
+        ]
+        assert len(file_modules) >= 11  # m0-m7 + compat free/paid + daily
+        for module in file_modules:
+            version = PROMPT_VERSIONS[module]
+            for lang in ("zh", "zh-hant", "en"):
+                path = Path(PROMPTS_DIR) / lang / f"{module}_v{version}.md"
+                assert path.exists(), (
+                    f"{lang} 缺 {module} 当前版本模板 {path}"
+                    f"(bump 版本须三语同步建文件)")
+        # daily 降级变体 + 从格 suffix(bazi_deep 家族版本号 3/6)
+        version = PROMPT_VERSIONS["daily_fortune"]
+        for lang in ("zh", "zh-hant", "en"):
+            assert (Path(PROMPTS_DIR) / lang
+                    / f"daily_fortune_unknown_hour_v{version}.md").exists()
+            for suffix_version in (3, 6):
+                assert (Path(PROMPTS_DIR) / lang
+                        / f"_special_pattern_suffix_v{suffix_version}.md"
+                        ).exists()
+
+    def test_zh_hant_templates_have_traditional_output_instruction(self):
+        """D5:每个 zh-hant 模板必须显式写明繁体输出指令(防转繁漏指令)。"""
+        from pathlib import Path
+
+        from app.ai.prompts import PROMPTS_DIR, _LEGACY_TEMPLATES
+        file_modules = [
+            m for m in PROMPT_VERSIONS
+            if m not in _LEGACY_TEMPLATES and m != "daily_fortune_image"
+        ]
+        for module in file_modules:
+            version = PROMPT_VERSIONS[module]
+            text = (Path(PROMPTS_DIR) / "zh-hant"
+                    / f"{module}_v{version}.md").read_text(encoding="utf-8")
+            assert "繁體中文" in text, (
+                f"zh-hant/{module} 缺「繁體中文」输出指令(D5:模板须显式写明)")

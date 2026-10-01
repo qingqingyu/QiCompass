@@ -54,10 +54,10 @@
 |---|---|
 | G1 en 模板 | ✅ `prompts/en/` 已含 M0-M7 + compatibility_free/paid + daily 全套;仅剩 4 个 alias 老模块(bazi_deep×3 + compatibility)在 `_LEGACY_TEMPLATES` 只有中文 |
 | T0 `AppLanguage` 类型化枚举 | ✅ `ios/.../L10n/AppLanguage.swift`(`zh` / `zhHant` / `en`,wire 全小写) |
-| zh-Hant 后端 | ❌ `zh-hant` 未注册 `TERM_TRANSLATIONS`,无 `prompts/zh-hant/`,`resolve_language` 仍把 zh 变体坍缩为 `zh` |
-| zh-Hant iOS | ⏸ **止血中**:`AppLanguage.systemLanguage` 的 zh 分支恒返回 `.zh`(D4 实现保留在 `normalizeZhVariant`,S2 合入后接回);xcstrings zh-Hant 列 238 key 已人工校对但已撤列暂存(commit `74c60e5`) |
+| zh-Hant 后端 | ✅ **S2 已实施(2026-10-01,yuyan worktree)**:`TERM_TRANSLATIONS` 注册 zh-hant 表 131 键(值与 iOS BaziTerms zhHant 列锁定,`check_term_sync.py` ①③ 组三相等);`prompts/zh-hant/` 14 文件(现役版本全套 + suffix 预置,parity 测试锁三语 bump 同步);`resolve_language` zh 变体解析(D4);unknown_hour suffix 三语映射;joiner 语义(zh-hant 干支连写无空格) |
+| zh-Hant iOS | ⏸ **止血中**:`AppLanguage.systemLanguage` 的 zh 分支恒返回 `.zh`(D4 实现保留在 `normalizeZhVariant`,S4 接回);xcstrings zh-Hant 列 238 key 已人工校对但已撤列暂存(commit `74c60e5`) |
 | 语言切换 UI / `X-QiCompass-Lang` 发送 | ❌ 未做(后端已支持该 header) |
-| 已生成解读的跨语言处理 | ❌ 未设计 → 本次 D10 |
+| 已生成解读的跨语言处理 | ❌ 未实施(S6/S7) |
 
 ---
 
