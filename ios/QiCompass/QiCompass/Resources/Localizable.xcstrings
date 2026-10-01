@@ -6535,6 +6535,68 @@
         }
       }
     },
+    "hepan.balance.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Element balance · eight characters each"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "五行分布 · 干支各八字"
+          }
+        }
+      }
+    },
+    "hepan.balance.element" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Element"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "五行"
+          }
+        }
+      }
+    },
+    "hepan.balance.hourUnknownNote" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Counted over known characters when an hour is missing"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有一方时辰未知时,按实际字数计"
+          }
+        }
+      }
+    },
+    "%1$@:你 %2$lld 字 · 对方 %3$lld 字" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@: you %2$lld, partner %3$lld"
+          }
+        }
+      }
+    },
     "hepan.partner.switchA11y" : {
       "extractionState" : "manual",
       "localizations" : {

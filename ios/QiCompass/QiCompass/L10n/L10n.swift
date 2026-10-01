@@ -649,6 +649,20 @@ enum L10n {
         /// 列头「同步」。
         /// zh: "同步";en: "Sync"
         static let syncedSync = String(localized: "hepan.synced.sync")
+
+        // -- 五行分布(BP #4,2026-10-01,ElementBalanceSection)--
+
+        /// 区块 kicker。
+        /// zh: "五行分布 · 干支各八字";en: "Element balance · eight characters each"
+        static let balanceTitle = String(localized: "hepan.balance.title")
+
+        /// 首列表头。
+        /// zh: "五行";en: "Element"
+        static let balanceElement = String(localized: "hepan.balance.element")
+
+        /// 时辰未知脚注。
+        /// zh: "有一方时辰未知时,按实际字数计";en: "Counted over known characters when an hour is missing"
+        static let balanceHourUnknownNote = String(localized: "hepan.balance.hourUnknownNote")
     }
 
     // MARK: - Profile(2026-08-13 onboarding 三屏重构:立场/隐私完整版下沉到关于页)

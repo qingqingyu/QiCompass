@@ -215,4 +215,44 @@ final class CompatibilityRelationDetailTests: XCTestCase {
         XCTAssertNil(detail.branch)
         XCTAssertTrue(detail.frictionPairs.isEmpty)
     }
+
+    // MARK: 五行分布计数(BP #4,ElementBalanceSection.Model)
+
+    func test五行计数_设计稿例盘() {
+        // A 甲子/丁卯/甲寅/庚午:木4 火2 土0 金1 水1
+        // B 己巳/庚午/丁卯/辛丑:木1 火3 土2 金2 水0
+        let model = ElementBalanceSection.Model.make(pillars: boardChart)
+        XCTAssertFalse(model.hourUnknown)
+        let byElement = Dictionary(uniqueKeysWithValues: model.rows.map { ($0.element, ($0.countA, $0.countB)) })
+        XCTAssertEqual(byElement[.wood]?.0, 4)
+        XCTAssertEqual(byElement[.wood]?.1, 1)
+        XCTAssertEqual(byElement[.fire]?.0, 2)
+        XCTAssertEqual(byElement[.fire]?.1, 3)
+        XCTAssertEqual(byElement[.earth]?.0, 0)
+        XCTAssertEqual(byElement[.earth]?.1, 2)
+        XCTAssertEqual(byElement[.metal]?.0, 1)
+        XCTAssertEqual(byElement[.metal]?.1, 2)
+        XCTAssertEqual(byElement[.water]?.0, 1)
+        XCTAssertEqual(byElement[.water]?.1, 0)
+        XCTAssertEqual(model.rows.count, 5, "五行五行全列(含 0 计数行,不隐藏)")
+    }
+
+    func test五行计数_时柱未知_按6字计_脚注置位() {
+        var chart = boardChart
+        chart[3] = DualPillarSource(
+            position: L10n.Compatibility.dualHourPillar,
+            ganA: nil, zhiA: nil, nayinA: nil, ganElementA: nil, zhiElementA: nil,
+            ganB: nil, zhiB: nil, nayinB: nil, ganElementB: nil, zhiElementB: nil
+        )
+        let model = ElementBalanceSection.Model.make(pillars: chart)
+        XCTAssertTrue(model.hourUnknown)
+        // A 时柱庚午(金1 火1)缺失 → 木4 火1 土0 金0 水1
+        let byElement = Dictionary(uniqueKeysWithValues: model.rows.map { ($0.element, ($0.countA, $0.countB)) })
+        XCTAssertEqual(byElement[.wood]?.0, 4)
+        XCTAssertEqual(byElement[.fire]?.0, 1)
+        XCTAssertEqual(byElement[.metal]?.0, 0)
+        // B 时柱辛丑(金1 土1)缺失 → 木1 火3 土1 金1 水0
+        XCTAssertEqual(byElement[.earth]?.1, 1)
+        XCTAssertEqual(byElement[.metal]?.1, 1)
+    }
 }

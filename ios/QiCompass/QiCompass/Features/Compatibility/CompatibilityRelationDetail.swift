@@ -196,7 +196,8 @@ enum CompatibilityRelationDetailBuilder {
     }
 
     /// 单侧五行字数(干 + 支各计 1;元素 key 缺失的字不计,不猜)。
-    private static func elementCounts(
+    /// internal(2026-10-01 #4):ElementBalanceSection.Model 复用同一计数。
+    static func elementCounts(
         _ pillars: [DualPillarSource], isA: Bool
     ) -> [ElementColors: Int] {
         var counts: [ElementColors: Int] = [:]

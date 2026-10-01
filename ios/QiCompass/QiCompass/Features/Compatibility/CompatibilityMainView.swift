@@ -41,6 +41,11 @@ struct CompatibilityMainView: View {
                     detail: dualPillars.map { CompatibilityRelationDetailBuilder.make(pillars: $0) }
                 )
 
+                // 五行分布(BP #4:让「互补」有盘面事实可查;需双盘源,缺失时整段不渲染)
+                if let dualPillars {
+                    ElementBalanceSection(pillars: dualPillars, nameB: nameB)
+                }
+
                 // 流年同步表(D8;A 列头固定「你的流年」,只注入 B 称呼)
                 SyncedFortuneTable(
                     synced: response.syncedFortune, nameB: nameB)
