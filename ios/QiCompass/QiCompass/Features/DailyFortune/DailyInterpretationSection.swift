@@ -41,20 +41,10 @@ struct DailyInterpretationSection: View {
     let onRetry: () -> Void
 
     var body: some View {
-        // 今日运势 V1「三框全载」:解读入框,正文楷体宽行距;全免费不上「剩余次数」
-        VStack(alignment: .leading, spacing: 18) {
-            Text(L10n.DailyFortune.interpretTitle)
-                // 2026-09-28 S04:4pt 字距是给中文楷体小标定的,EN 大小写混排
-                // 加 4pt 很难读——EN 走全大写 Latin caps + 2pt(DESIGN.md 的
-                // 大字距口径只适用全大写);zh/zh-Hant 保持原样不动。
-                .font(
-                    AppLanguage.current.isChinese
-                        ? BaziFont.caption(size: 10)
-                        : BaziFont.latinCaps(size: 10)
-                )
-                .textCase(AppLanguage.current.isChinese ? nil : .uppercase)
-                .tracking(AppLanguage.current.isChinese ? 4 : 2)
-                .foregroundStyle(BaziTheme.inkMutedSecondary)
+        // 2026-10-01 D5 定稿:去卡片底直接排纸面(页边距 24 与 hero 下间距
+        // 由宿主注入);全免费不上「剩余次数」。
+        VStack(alignment: .leading, spacing: 12) {
+            kicker
 
             switch state {
             case .idle:
@@ -148,21 +138,31 @@ struct DailyInterpretationSection: View {
                 // 达上限:**禁用生成按钮、不显示重试**(方案 step 4)
             }
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 22)
-        .background(BaziTheme.cardSurface, in: RoundedRectangle(cornerRadius: BaziTheme.Radius.md))
-        .overlay(
-            RoundedRectangle(cornerRadius: BaziTheme.Radius.md)
-                .stroke(BaziTheme.hairline, lineWidth: 0.5)
-        )
+    }
+
+    /// 区标 kicker(D5 定稿):**全屏唯一字距标签**——EN 全大写 9.5 semibold、
+    /// letter-spacing 0.14em(≈1.3pt)、inkMuted;zh/zh-Hant 维持小标 10 + 4pt
+    /// 字距(2026-09-28 S04 中文口径不变)。
+    private var kicker: some View {
+        Text(L10n.DailyFortune.interpretTitle)
+            .font(
+                AppLanguage.current.isChinese
+                    ? BaziFont.caption(size: 10)
+                    : .system(size: 9.5, weight: .semibold)
+            )
+            .textCase(AppLanguage.current.isChinese ? nil : .uppercase)
+            .tracking(AppLanguage.current.isChinese ? 4 : 1.3)
+            .foregroundStyle(BaziTheme.inkMuted)
     }
 
     // MARK: - S6 结构化洞察正文(v4 JSON 五段)
 
     /// 今日一句(标题句)+ 事业/关系/精力三行 + 今日信号(确定性)+ 收尾提醒。
+    /// 2026-10-01 D5 定稿:headline serif 17、领域行 92pt 固定标签列 +
+    /// hairline 行分隔、signal 行左右分立、reminder EN serif italic;
     /// 与降级态同构(EngineReadingTemplates 同样输出五段),正常/降级不跳形态。
     private func insightBody(_ insight: DailyInsight) -> some View {
-        VStack(alignment: .leading, spacing: 14) {
+        VStack(alignment: .leading, spacing: 0) {
             Text(MarkdownSanitizer.rendered(insight.headline))
                 .font(BaziFont.display(size: 17))
                 .foregroundStyle(BaziTheme.ink)
@@ -170,59 +170,81 @@ struct DailyInterpretationSection: View {
                 .fixedSize(horizontal: false, vertical: true)
                 .fadeIn()
 
-            VStack(alignment: .leading, spacing: 10) {
+            VStack(alignment: .leading, spacing: 0) {
                 domainRow(label: L10n.DailyFortune.insightWork, text: insight.work)
                 domainRow(label: L10n.DailyFortune.insightRelationships, text: insight.relationships)
                 domainRow(label: L10n.DailyFortune.insightEnergy, text: insight.energy)
             }
+            .padding(.top, 11)
 
             signalRow
 
             Text(MarkdownSanitizer.rendered(insight.reminder))
-                .font(BaziFont.caption(size: 12))
-                .tracking(1)
+                .font(reminderFont)
+                .tracking(AppLanguage.current.isChinese ? 1 : 0)
                 .foregroundStyle(BaziTheme.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 2)
+                .padding(.top, 12)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 领域行:小标(事业/关系/精力)+ 一句话。
+    /// 领域行(D5):92pt 固定标签列(sans medium 12.5 inkMuted,常规大小写
+    /// 不拉字距)+ 正文(sans 14 ink;zh 经 BaziFont.body 走楷体「文中楷」),
+    /// 行顶 hairline、上下 padding 11。
     private func domainRow(label: String, text: String) -> some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(label)
-                .font(BaziFont.caption(size: 11))
-                .tracking(2)
-                .foregroundStyle(BaziTheme.inkMutedSecondary)
-            Text(MarkdownSanitizer.rendered(text))
-                .bodySerifText(size: 15)
-                .lineSpacing(7)
-                .multilineTextAlignment(.leading)
-                .fixedSize(horizontal: false, vertical: true)
+        VStack(spacing: 0) {
+            Rectangle()
+                .fill(BaziTheme.hairline)
+                .frame(height: 0.5)
+            HStack(alignment: .firstTextBaseline, spacing: 10) {
+                Text(label)
+                    .font(.system(size: 12.5, weight: .medium))
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .frame(width: 92, alignment: .leading)
+                Text(MarkdownSanitizer.rendered(text))
+                    .font(BaziFont.body(size: 14))
+                    .foregroundStyle(BaziTheme.ink)
+                    .lineSpacing(6)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .padding(.vertical, 11)
         }
     }
 
-    /// 今日信号行(确定性,非 AI):流日五行对喜忌的 ↑↓。
-    /// - daySignal 非空:火 ↑ · 木 ↓(↑ 墨青 / ↓ 朱红,与喜忌 chip 同极性口径)
+    /// 收尾提醒字体:EN serif italic 13 medium(mockup .reminder 衬线一族);
+    /// zh/zh-Hant 维持 sans caption 12(中文楷/宋斜体是伪斜,不取)。
+    private var reminderFont: Font {
+        AppLanguage.current.isChinese
+            ? BaziFont.caption(size: 12)
+            : .system(size: 13, weight: .medium, design: .serif).italic()
+    }
+
+    /// 今日信号行(确定性,非 AI;D5 定稿:左右分立)——左标签 sans medium
+    /// 13 ink,右值 12 semibold,方向着色沿用现有 ↑=墨青 / ↓=朱红口径。
+    /// - daySignal 非空:Water ↑ · Wood ↓
     /// - daySignal 空但 dayElements 在:只显五行 + 降级注释(时辰未知/从格)
     /// - dayElements nil(老后端/老快照):整行隐藏
     @ViewBuilder
     private var signalRow: some View {
         if let elements = dayElements {
             VStack(alignment: .leading, spacing: 4) {
+                Rectangle()
+                    .fill(BaziTheme.hairline)
+                    .frame(height: 0.5)
                 HStack(spacing: 10) {
                     Text(L10n.DailyFortune.insightSignal)
-                        .font(BaziFont.caption(size: 11))
-                        .tracking(2)
-                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                        .font(.system(size: 13, weight: .medium))
+                        .foregroundStyle(BaziTheme.ink)
+                    Spacer(minLength: 12)
                     HStack(spacing: 8) {
                         let items = daySignal ?? []
                         if items.isEmpty {
                             // 无方向:只显流日五行(天干/地支去重),不标 ↑↓
                             ForEach(uniqueElements(elements), id: \.self) { elem in
                                 Text(BaziTerms.display(elem))
-                                    .font(BaziFont.body(size: 14))
+                                    .font(.system(size: 12, weight: .semibold))
                                     .foregroundStyle(BaziTheme.ink)
                             }
                         } else {
@@ -230,12 +252,10 @@ struct DailyInterpretationSection: View {
                                 let isUp = item.direction == "up"
                                 HStack(spacing: 2) {
                                     Text(BaziTerms.display(item.element))
-                                        .font(BaziFont.body(size: 14))
-                                        .foregroundStyle(BaziTheme.ink)
                                     Text(verbatim: isUp ? "↑" : "↓")
-                                        .font(BaziFont.body(size: 13))
-                                        .foregroundStyle(isUp ? BaziTheme.jade : BaziTheme.cinnabar)
                                 }
+                                .font(.system(size: 12, weight: .semibold))
+                                .foregroundStyle(isUp ? BaziTheme.jade : BaziTheme.cinnabar)
                                 // a11y(先例 = XijiCard chip):裸 ↑↓ 对 VoiceOver
                                 // 只是"上/下箭头"字符,合成"喜用 火 / 忌神 木"语义朗读
                                 .accessibilityElement(children: .ignore)
@@ -246,6 +266,8 @@ struct DailyInterpretationSection: View {
                         }
                     }
                 }
+                .padding(.vertical, 12)
+                .padding(.horizontal, 2)
                 if let note = signalNote, (daySignal ?? []).isEmpty {
                     Text(note)
                         .font(BaziFont.caption(size: 10.5))
@@ -253,7 +275,6 @@ struct DailyInterpretationSection: View {
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
                 }
             }
-            .padding(.top, 2)
         }
     }
 
@@ -586,7 +607,12 @@ internal enum EngineReadingTemplates {
 
     /// 兜底(查表 miss):通用五段,不冒充十神特化文案。
     static func fallbackInsight() -> DailyInsight {
-        switch AppLanguage.current {
+        fallbackInsight(for: AppLanguage.current)
+    }
+
+    /// 显式语言版(D4 EN 零 CJK 扫描测试用,不依赖设备语言)。
+    static func fallbackInsight(for language: AppLanguage) -> DailyInsight {
+        switch language {
         case .en:
             return DailyInsight(
                 headline: "Read the day from the lists above",

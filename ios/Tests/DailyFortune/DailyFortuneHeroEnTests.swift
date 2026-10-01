@@ -1,9 +1,11 @@
 import XCTest
 @testable import QiCompass
 
-/// 2026-09-24 评审修复 slice 2/5 的纯逻辑半边:
+/// 2026-09-24 评审修复 slice 2/5 的纯逻辑半边(2026-10-01 Today 定稿 D4 改版):
 /// - **农历 EN 转写**:hero 第二行 "Lunar 八月十四 · 辛丑 Day" 半中半英
-///   → "5th Moon · 28th · Day of 辛丑"。解析器形状按 lunar_python
+///   → 09-24 版 "5th Moon · 28th · Day of 辛丑" → **定稿版
+///   "Eighth lunar month, day 11 · Wu-Shen day"**(月名序数词、日数字、
+///   日柱无调拼音连字——EN 基座零汉字)。解析器形状按 lunar_python
 ///   ground truth(2026-09-24 实测枚举)锁定,未知形状返回 nil(不猜)。
 /// - **EN 冲 chip 柱位翻译**:chong targets "日支未" → "Day Pillar"(仅
 ///   纯函数部分;chongLabel 整体走 AppLanguage,系统语言为 zh 的测试
@@ -21,9 +23,9 @@ final class DailyFortuneHeroEnTests: XCTestCase {
             "七": 7, "八": 8, "九": 9, "十": 10, "冬": 11, "腊": 12,
         ]
         for (s, v) in cases {
-            XCTAssertEqual(DailyImageHeroSection.lunarMonthNumber(s), v, "lunarMonthNumber(\(s)) 应为 \(v)")
+            XCTAssertEqual(DailyHeaderSection.lunarMonthNumber(s), v, "lunarMonthNumber(\(s)) 应为 \(v)")
         }
-        XCTAssertNil(DailyImageHeroSection.lunarMonthNumber("十一"), "月名无「十一」(冬月),不猜")
+        XCTAssertNil(DailyHeaderSection.lunarMonthNumber("十一"), "月名无「十一」(冬月),不猜")
     }
 
     func testzhNumber_一到三十() {
@@ -32,13 +34,13 @@ final class DailyFortuneHeroEnTests: XCTestCase {
             "七": 7, "八": 8, "九": 9, "十": 10, "十九": 19, "三十": 30,
         ]
         for (s, v) in cases {
-            XCTAssertEqual(DailyImageHeroSection.zhNumber(s), v, "zhNumber(\(s)) 应为 \(v)")
+            XCTAssertEqual(DailyHeaderSection.zhNumber(s), v, "zhNumber(\(s)) 应为 \(v)")
         }
     }
 
     func testzhNumber_不认识返回nil() {
         for s in ["", "廿", "正", "冬", "X", "十一三"] {
-            XCTAssertNil(DailyImageHeroSection.zhNumber(s), "zhNumber(\(s)) 应为 nil(不猜)")
+            XCTAssertNil(DailyHeaderSection.zhNumber(s), "zhNumber(\(s)) 应为 nil(不猜)")
         }
     }
 
@@ -50,48 +52,63 @@ final class DailyFortuneHeroEnTests: XCTestCase {
             "三十": 30,
         ]
         for (s, v) in cases {
-            XCTAssertEqual(DailyImageHeroSection.lunarDayNumber(s), v, "lunarDayNumber(\(s)) 应为 \(v)")
+            XCTAssertEqual(DailyHeaderSection.lunarDayNumber(s), v, "lunarDayNumber(\(s)) 应为 \(v)")
         }
     }
 
-    // MARK: - enLunarLine
+    // MARK: - enLunarLine(2026-10-01 D4 定稿格式)
 
     func testenLunarLine_常规与闰月与传统月名() {
         XCTAssertEqual(
-            DailyImageHeroSection.enLunarLine(lunarDate: "五月廿八", dayPillar: "辛丑"),
-            "5th Moon · 28th · Day of 辛丑"
+            DailyHeaderSection.enLunarLine(lunarDate: "五月廿八", dayPillar: "辛丑"),
+            "Fifth lunar month, day 28 · Xin-Chou day"
         )
         XCTAssertEqual(
-            DailyImageHeroSection.enLunarLine(lunarDate: "冬月初十", dayPillar: "甲子"),
-            "11th Moon · 10th · Day of 甲子"
+            DailyHeaderSection.enLunarLine(lunarDate: "冬月初十", dayPillar: "甲子"),
+            "Eleventh lunar month, day 10 · Jia-Zi day"
         )
         XCTAssertEqual(
-            DailyImageHeroSection.enLunarLine(lunarDate: "闰六月初十", dayPillar: "丙寅"),
-            "Leap 6th Moon · 10th · Day of 丙寅"
+            DailyHeaderSection.enLunarLine(lunarDate: "闰六月初十", dayPillar: "丙寅"),
+            "Leap Sixth lunar month, day 10 · Bing-Yin day"
         )
         XCTAssertEqual(
-            DailyImageHeroSection.enLunarLine(lunarDate: "四月三十", dayPillar: "壬午"),
-            "4th Moon · 30th · Day of 壬午"
+            DailyHeaderSection.enLunarLine(lunarDate: "四月三十", dayPillar: "壬午"),
+            "Fourth lunar month, day 30 · Ren-Wu day"
         )
     }
 
-    func testenLunarLine_序数后缀() {
-        // 1st/2nd/3rd/21st/22nd/23rd/11th/12th/13th
-        XCTAssertEqual(DailyImageHeroSection.enLunarLine(lunarDate: "正月初一", dayPillar: "X")?.hasSuffix("1st Moon · 1st · Day of X"), true)
-        XCTAssertEqual(DailyImageHeroSection.enLunarLine(lunarDate: "二月初二", dayPillar: "X")?.hasSuffix("2nd · Day of X"), true)
-        XCTAssertEqual(DailyImageHeroSection.enLunarLine(lunarDate: "三月初三", dayPillar: "X")?.hasSuffix("3rd · Day of X"), true)
-        XCTAssertEqual(DailyImageHeroSection.enLunarLine(lunarDate: "五月廿一", dayPillar: "X")?.hasSuffix("21st · Day of X"), true)
-        XCTAssertEqual(DailyImageHeroSection.enLunarLine(lunarDate: "五月廿二", dayPillar: "X")?.hasSuffix("22nd · Day of X"), true)
-        XCTAssertEqual(DailyImageHeroSection.enLunarLine(lunarDate: "五月廿三", dayPillar: "X")?.hasSuffix("23rd · Day of X"), true)
-        XCTAssertEqual(DailyImageHeroSection.enLunarLine(lunarDate: "冬月十一", dayPillar: "X")?.hasSuffix("11th · Day of X"), true)
-        XCTAssertEqual(DailyImageHeroSection.enLunarLine(lunarDate: "冬月十二", dayPillar: "X")?.hasSuffix("12th · Day of X"), true)
-        XCTAssertEqual(DailyImageHeroSection.enLunarLine(lunarDate: "冬月十三", dayPillar: "X")?.hasSuffix("13th · Day of X"), true)
+    func testenLunarLine_月词与日数字() {
+        // 12 个月名 → First…Twelfth(mockup "Eighth lunar month" 口径)
+        let months = ["正": "First", "二": "Second", "三": "Third", "四": "Fourth",
+                      "五": "Fifth", "六": "Sixth", "七": "Seventh", "八": "Eighth",
+                      "九": "Ninth", "十": "Tenth", "冬": "Eleventh", "腊": "Twelfth"]
+        for (zh, word) in months {
+            XCTAssertEqual(
+                DailyHeaderSection.enLunarLine(lunarDate: "\(zh)月十五", dayPillar: "甲子"),
+                "\(word) lunar month, day 15 · Jia-Zi day",
+                "月名 \(zh) → \(word)"
+            )
+        }
+        // 日数字(非序数词):day 1 / day 11 / day 21 / day 30
+        for (dayZh, dayNum) in [("初一", 1), ("十一", 11), ("廿一", 21), ("三十", 30)] {
+            XCTAssertEqual(
+                DailyHeaderSection.enLunarLine(lunarDate: "八月\(dayZh)", dayPillar: "戊申"),
+                "Eighth lunar month, day \(dayNum) · Wu-Shen day"
+            )
+        }
+    }
+
+    func testenLunarLine_非干支日柱返回nil不猜() {
+        // D4:日柱拼音查表 miss(不在 22 干支表)→ 整行 nil(调用方回落 zh 拼接
+        // + 日志),不输出半译串
+        XCTAssertNil(DailyHeaderSection.enLunarLine(lunarDate: "八月十一", dayPillar: "X"))
+        XCTAssertNil(DailyHeaderSection.enLunarLine(lunarDate: "八月十一", dayPillar: "甲子木"))
     }
 
     func testenLunarLine_未知形状返回nil不猜() {
         // 后端契约是「X月X日」中文形状;这些是契约外输入,必须 nil(调用方回落)
         for s in ["not-a-date", "五月", "五月卅一", "闰月", "五月三十一"] {
-            XCTAssertNil(DailyImageHeroSection.enLunarLine(lunarDate: s, dayPillar: "甲"), "enLunarLine(\(s)) 应为 nil")
+            XCTAssertNil(DailyHeaderSection.enLunarLine(lunarDate: s, dayPillar: "甲"), "enLunarLine(\(s)) 应为 nil")
         }
     }
 

@@ -66,6 +66,14 @@ enum BaziFont {
         display(size: size, weight: weight)
     }
 
+    /// 品牌层字体(**始终 Kaiti,不走 EN 路由**):干支题款/印章/品牌字用。
+    /// display 在 EN locale 落系统衬线,而 DESIGN.md「品牌字(玄机问道/干支/
+    /// 印章)不走本路由,始终楷体」——hero 落款竖排汉字(2026-10-01 Today
+    /// 定稿 D1)需要跨语言稳定的楷形。探测失败同 kaiti() 回退衬线,永不裸奔。
+    static func brush(size: CGFloat, weight: Font.Weight = .medium) -> Font {
+        kaiti(size: size, weight: weight)
+    }
+
     /// 命书正文(中文 Kaiti / 英文系统 sans;阅读页 15.5pt 行距 2.15× 由调用侧 lineSpacing 控制)。
     static func body(size: CGFloat = 16) -> Font {
         guard isChineseUI, let name = kaitiName else {

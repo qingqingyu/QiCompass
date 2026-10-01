@@ -321,4 +321,16 @@ enum BaziTerms {
         guard !syllables.isEmpty, syllables.allSatisfy({ $0 != nil }) else { return nil }
         return syllables.compactMap { $0 }.joined(separator: " ")
     }
+
+    /// 干支串**无调拼音连字**(今日页定稿 2026-10-01 D4 基座层 EN 零汉字):
+    /// "戊申" → "Wu-Shen"——首字母大写、连字符连接、不带声调,用于 EN 头部
+    /// 农历行与页脚等**常驻可见**位置(标识性);释义卡内教学性拼音仍走带调
+    /// `romanized`,两处风格分层是有意的。从 `romanized` 派生(folding 去声调
+    /// + 空格换连字符),不另立 22 字表;输入含非干支字符 → nil(不输出半译串)。
+    static func romanizedHyphen(_ ganzhi: String) -> String? {
+        guard let toned = romanized(ganzhi) else { return nil }
+        return toned
+            .folding(options: .diacriticInsensitive, locale: Locale(identifier: "en_US"))
+            .replacingOccurrences(of: " ", with: "-")
+    }
 }

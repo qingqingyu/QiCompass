@@ -1,8 +1,11 @@
 import SwiftUI
 
-/// success 态主布局(glass-v2 玻璃全信息卡,2026-08-31 拍板,参考 glass-v2.html):
-/// 玻璃 hero(日期+chips+宜忌双列全入图)→ AI 解读(2026-09-07 起进入即自动生成)
-/// → hairline 小注 →(时辰未知降级盘)末尾补时辰静默行。
+/// success 态主布局(**2026-10-01 Today 定稿**,事实源 designs/review-fix-20261001/
+/// today-final.html @393px,px≈pt 1:1):
+/// 头部区(大字日 + 三行 meta + 左对齐 chips,出图上纸面)→ hero 画卡
+/// (17pt 边距,落款 + 宜忌字层)→ AI 解读(24pt,无卡片直接排纸面,
+/// 2026-09-07 起进入即自动生成)→ 居中页脚 →(时辰未知降级盘)末尾补时辰静默行。
+/// 各块 ink-in 错峰入场(mockup .content>* 0/.08/.16/.24s 同款节奏)。
 ///
 /// 2026-09-07 历史回看拔除(用户拍板「底部日期选择完全没必要」):
 /// - 第二屏 7 日日期带 + 「更早」锁框 + 历史回看 sheet + 付费墙接线全部移除,
@@ -48,7 +51,7 @@ struct DailyFortuneMainView: View {
 
     var body: some View {
         ScrollView {
-            VStack(spacing: 16) {
+            VStack(spacing: 0) {
                 // 离线查看角标(方案 step 6):网络失败 fallback 到本地缓存时显示。
                 if vm.isOffline {
                     HStack(spacing: 6) {
@@ -59,14 +62,12 @@ struct DailyFortuneMainView: View {
                     .foregroundStyle(BaziTheme.inkMuted)
                     .frame(maxWidth: .infinity, alignment: .center)
                     .padding(.vertical, 6)
+                    .padding(.bottom, 10)
                     .background(BaziTheme.ink.opacity(0.05), in: Capsule())
                 }
 
-                // ===== 第一屏(V4:图为主角) =====
-
-                // glass-v2 玻璃全信息卡(2026-08-31 拍板):日期区+chips+宜忌双列全部入图,
-                // 外部三行头部取消;左右 17pt 边距宽于文本区
-                DailyImageHeroSection(
+                // ===== 头部区(D3 定稿:信息一行看全,页边距 24)=====
+                DailyHeaderSection(
                     businessDate: businessDate,
                     lunarDate: response.lunarDate,
                     dayPillar: response.dayPillar,
@@ -74,12 +75,23 @@ struct DailyFortuneMainView: View {
                     dayChong: response.dayChong,
                     dayChongTargets: response.dayChongTargets,
                 )
-                .padding(.horizontal, 17)
+                .padding(.horizontal, 24)
+                .padding(.top, 6)
+                .inkIn()
 
-                // AI 解读(S6 结构化今日洞察:v4 JSON 五段 + 确定性今日信号;
-                // 2026-09-07 起进入即自动生成;2026-09-24 失败降级:AI 失败 →
-                // 引擎模板文案 + 后台静默重试)。
-                // 边距 17pt 与 hero 卡对齐(同日用户拍板:两框线必须左右对齐)。
+                // ===== hero 画卡(D1/D2 定稿:17pt 边距宽于文本区,chips 下 6pt)=====
+                DailyImageHeroSection(
+                    dayPillar: response.dayPillar,
+                    dayRelation: response.dayRelationToDayMaster,
+                )
+                .padding(.horizontal, 17)
+                .padding(.top, 6)
+                .inkIn(delay: 0.08)
+
+                // AI 解读(D5 定稿:无卡片底直接排纸面,页边距 24、hero 下 24;
+                // S6 结构化今日洞察:v4 JSON 五段 + 确定性今日信号;2026-09-07 起
+                // 进入即自动生成;2026-09-24 失败降级:AI 失败 → 引擎模板文案 +
+                // 后台静默重试——降级行与 Retry 不在定稿范围,维持现状)。
                 DailyInterpretationSection(
                     state: interpretState,
                     dayRelation: response.dayRelationToDayMaster,
@@ -92,12 +104,15 @@ struct DailyFortuneMainView: View {
                     onGenerate: onGenerateInterpret,
                     onRetry: onGenerateInterpret,
                 )
-                .padding(.horizontal, 17)
+                .padding(.horizontal, 24)
+                .padding(.top, 24)
+                .inkIn(delay: 0.16)
 
-                // hairline 小注:干支 · 十神 · 免责
+                // 页脚小注(D4:EN 日柱拼音化;居中、ink-faint、去 hairline)
                 heroFootnote
-                    .padding(.horizontal, 17)
-                    .padding(.top, 18)
+                    .padding(.horizontal, 24)
+                    .padding(.top, 26)
+                    .inkIn(delay: 0.24)
 
                 // S10 接线(D7 触点 2,「一行文字,不是弹窗」):仅时辰未知·日柱
                 // 确定的降级版展示(判据 = vm.hourGate,单一事实源),点击进补时辰
@@ -123,6 +138,9 @@ struct DailyFortuneMainView: View {
                     .accessibilityLabel(L10n.DailyFortune.degradedHint)
                 }
             }
+            // D7:页脚滚动到底完整可见——tab 栏由系统 safe area 承担
+            // (iOS 26 浮动 tab 实测参与 safe area,2026-09-19 验证),
+            // 此处 32pt 为 tab 栏上方的呼吸留白。
             .padding(.bottom, 32)
         }
         .refreshable { onRefresh() }
@@ -158,27 +176,40 @@ struct DailyFortuneMainView: View {
         return nil
     }
 
-    /// V4 文本区脚注:hairline + 「丙子日 · 偏印 · 解读仅供参照」。
-    /// EN(2026-09-24 二段):「辛丑 Day」后缀缀在干支后半中半英,改
-    /// 「Day of 辛丑」(与 hero 农历行同结构)。
+    /// 页脚小注(2026-10-01 定稿):「戊申日 · 偏财 · 解读仅供参照」,
+    /// 居中、ink-faint 10.5——**去 hairline 与字距**(mockup .footnote 纯文字,
+    /// 全屏字距标签仅解读区 kicker 一处)。
     private var heroFootnote: some View {
-        VStack(spacing: 0) {
-            Rectangle()
-                .fill(BaziTheme.hairline)
-                .frame(height: 0.5)
-            Text(verbatim: footnoteText)
-                .font(BaziFont.caption(size: 10.5))
-                .tracking(1.5)
-                .foregroundStyle(BaziTheme.inkMutedSecondary)
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 9)
-        }
+        Text(verbatim: Self.footnoteText(
+            dayPillar: response.dayPillar,
+            relation: response.dayRelationToDayMaster
+        ))
+        .font(BaziFont.caption(size: 10.5))
+        .foregroundStyle(BaziTheme.inkMutedSecondary)
+        .multilineTextAlignment(.center)
+        .frame(maxWidth: .infinity, alignment: .center)
     }
 
-    private var footnoteText: String {
-        if AppLanguage.current == .en {
-            return "Day of \(response.dayPillar) · \(BaziTerms.display(response.dayRelationToDayMaster)) · \(L10n.DailyFortune.disclaimer)"
+    /// 页脚文本(D4):EN = 「Wu-Shen day · Indirect Wealth · For reference
+    /// only」——日柱无调拼音连字(EN 基座零汉字);拼音查表 miss 显式回落
+    /// 旧「Day of 戊申」形态 + 日志(宁可露中文不猜)。zh/zh-Hant 维持
+    /// 「戊申日 · 偏财 · …」。static internal 供 DailyImageHeroCopyTests 的
+    /// EN 零 CJK 扫描(免责段走 xcstrings 跟设备语言,测试只钉拼音段)。
+    static func footnoteText(
+        dayPillar: String,
+        relation: String,
+        language: AppLanguage = AppLanguage.current
+    ) -> String {
+        let relationText = BaziTerms.display(relation, language: language)
+        if language == .en {
+            if let pillar = BaziTerms.romanizedHyphen(dayPillar) {
+                return "\(pillar) day · \(relationText) · \(L10n.DailyFortune.disclaimer)"
+            }
+            AppLogger.app.warning(
+                "op=heroFootnote.pinyinMiss dayPillar=\(dayPillar, privacy: .public) -> rawFallback"
+            )
+            return "Day of \(dayPillar) · \(relationText) · \(L10n.DailyFortune.disclaimer)"
         }
-        return "\(response.dayPillar)\(L10n.DailyFortune.dayPillarSuffix) · \(BaziTerms.display(response.dayRelationToDayMaster)) · \(L10n.DailyFortune.disclaimer)"
+        return "\(dayPillar)\(L10n.DailyFortune.dayPillarSuffix) · \(relationText) · \(L10n.DailyFortune.disclaimer)"
     }
 }

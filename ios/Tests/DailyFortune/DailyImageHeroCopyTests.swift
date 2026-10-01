@@ -168,4 +168,118 @@ final class DailyImageHeroCopyTests: XCTestCase {
             }
         }
     }
+
+    // MARK: - D4 EN 基座零汉字(2026-10-01 Today 定稿)
+
+    /// EN 语言下 Today 屏**常驻可见**文本不得出现任何 CJK 字符
+    /// (汉字仅两处豁免:hero 落款题款 + 十神释义弹卡,均不在此扫描)。
+    /// 覆盖 Swift 静态表与纯函数层:宜忌词表与表头/降级模板(降级正文也常驻
+    /// 可见)/农历行转写/页脚拼音段/十神与五行 EN 显示值/干支无调拼音。
+    /// 范围外(注释于此防误判):xcstrings 段(Disclaimer / 领域标签等,跟设备
+    /// bundle 语言走,en 设备输出拉丁)与系统 DateFormatter(星期/月年,
+    /// Locale.current = AppLanguage 前提下 en 设备输出拉丁)。
+    func testEnBaseLayerStaticTextsHaveNoCJK() {
+        var texts: [String] = []
+        // 宜忌表头 + 词表 + 兜底
+        texts += ["Do", "Don't"]
+        for cols in HeroYiJiColumns.mappingEn.values {
+            texts += cols.yi + cols.ji
+        }
+        let enFallback = HeroYiJiColumns.fallback(for: .en)
+        texts += enFallback.yi + enFallback.ji
+        // 降级/兜底模板五段(失败态正文常驻可见,同受 D4 约束)
+        for insight in EngineReadingTemplates.en.values {
+            texts += [insight.headline, insight.work, insight.relationships,
+                      insight.energy, insight.reminder]
+        }
+        let enFallbackInsight = EngineReadingTemplates.fallbackInsight(for: .en)
+        texts += [enFallbackInsight.headline, enFallbackInsight.work,
+                  enFallbackInsight.relationships, enFallbackInsight.energy,
+                  enFallbackInsight.reminder]
+        // 十神/五行 EN 显示值
+        texts += BaziTerms.tenGods.map { BaziTerms.display($0.zh, language: .en) }
+        texts += BaziTerms.fiveElements.map { BaziTerms.display($0.zh, language: .en) }
+        // 农历行转写(月名全形状 + 闰月)
+        for (lunar, pillar) in [("八月初一", "戊申"), ("腊月廿九", "辛亥"), ("闰六月初十", "丙寅")] {
+            if let line = DailyHeaderSection.enLunarLine(lunarDate: lunar, dayPillar: pillar) {
+                texts.append(line)
+            } else {
+                XCTFail("enLunarLine(\(lunar), \(pillar)) 应可转写")
+            }
+        }
+        // 页脚前两段(拼音日柱 + 十神 EN;免责段走 xcstrings 不扫)
+        let footnote = DailyFortuneMainView.footnoteText(dayPillar: "戊申", relation: "偏财", language: .en)
+        texts.append(String(footnote.components(separatedBy: " · ").prefix(2).joined(separator: " · ")))
+
+        for text in texts {
+            XCTAssertNil(
+                Self.firstCJKScalar(in: text),
+                "EN 基座层出现 CJK(\(String(Self.firstCJKScalar(in: text) ?? " "))):「\(text)」"
+            )
+        }
+    }
+
+    /// 干支无调拼音连字(D4 基座标识层):22 字全可译、无 CJK、无残留声调;
+    /// 样例钉死戊申/辛丑;非干支串 nil(不输出半译串)。
+    func testRomanizedHyphenAll22StemsAndBranches() {
+        XCTAssertEqual(BaziTerms.romanizedHyphen("戊申"), "Wu-Shen")
+        XCTAssertEqual(BaziTerms.romanizedHyphen("辛丑"), "Xin-Chou")
+        XCTAssertEqual(BaziTerms.romanizedHyphen("甲"), "Jia", "单字也要可转写")
+        let all = BaziTerms.heavenlyStems.map(\.zh) + BaziTerms.earthlyBranches.map(\.zh)
+        for ch in all {
+            let v = BaziTerms.romanizedHyphen(ch)
+            XCTAssertNotNil(v, "\(ch) 应可拼音化")
+            XCTAssertNil(Self.firstCJKScalar(in: v ?? ""), "\(ch) → \(v ?? "") 含 CJK")
+            XCTAssertFalse((v ?? "").contains(" "), "无空格(连字符连接)")
+        }
+        XCTAssertNil(BaziTerms.romanizedHyphen("甲子木"), "含非干支字符应 nil")
+        XCTAssertNil(BaziTerms.romanizedHyphen("偏财"), "非干支术语 nil")
+        XCTAssertNil(BaziTerms.romanizedHyphen(""), "空串 nil")
+    }
+
+    /// 十神带调拼音表(D6 释义卡教学层):键集合 == BaziTerms.tenGods 的 zh 键,
+    /// 值非空且无 CJK(声调符号允许)。
+    func testShiShenPinyinTableMatchesTenGodsKeys() {
+        XCTAssertEqual(
+            Set(HeroShiShenPinyin.table.keys),
+            Set(BaziTerms.tenGods.map(\.zh)),
+            "新增十神须同步拼音表(与 HeroShiShenNotes 同款守护)"
+        )
+        for (relation, pinyin) in HeroShiShenPinyin.table {
+            XCTAssertFalse(pinyin.isEmpty, "\(relation) 拼音为空")
+            XCTAssertNil(Self.firstCJKScalar(in: pinyin), "\(relation) 拼音含 CJK:\(pinyin)")
+        }
+        XCTAssertEqual(HeroShiShenPinyin.table["偏财"], "piān cái", "mockup 样例")
+    }
+
+    /// zh/zh-Hant 回归(D4 验收项):日柱仍显示汉字、宜忌表头仍「宜/忌」、
+    /// 页脚仍「戊申日」形态——D4 只动 EN 腿。
+    /// 断言的回归点是**日柱汉字戊申原样保留**;「日」后缀与免责段走 xcstrings
+    /// 按设备 bundle 语言解析(en 设备为 " Day"/"For reference only"),故
+    /// expected 前缀运行时用同一常量拼接——字面量断言在非 zh 设备会假红
+    /// (同 testchongLabel_zh回归 先例,2026-09-23 假红教训)。
+    func testZhLegsKeepHanziUnderD4() {
+        let zhPrefix = "戊申\(L10n.DailyFortune.dayPillarSuffix) · "
+        XCTAssertTrue(DailyFortuneMainView.footnoteText(dayPillar: "戊申", relation: "偏财", language: .zh)
+            .hasPrefix(zhPrefix))
+        // relation 传后端契约键(简体,决策 7)——传繁体会让 display 走 miss
+        // 兜底而非 zhHant 路由(键集 = 简体 id)
+        XCTAssertTrue(DailyFortuneMainView.footnoteText(dayPillar: "戊申", relation: "偏财", language: .zhHant)
+            .hasPrefix(zhPrefix))
+        // 词表键仍为后端简体十神(决策 7),zh 表值仍汉字
+        XCTAssertTrue(HeroYiJiColumns.mappingZh["偏财"]?.yi.contains("拓展") == true)
+    }
+
+    // MARK: D4 断言辅助
+
+    /// 首个 CJK 字符(表意 Han/扩展 A/兼容表意 + CJK 符号标点区),nil = 无。
+    private static func firstCJKScalar(in s: String) -> Character? {
+        s.first { ch in
+            guard let scalar = ch.unicodeScalars.first else { return false }
+            return (0x4E00...0x9FFF).contains(scalar.value)
+                || (0x3400...0x4DBF).contains(scalar.value)
+                || (0xF900...0xFAFF).contains(scalar.value)
+                || (0x3000...0x303F).contains(scalar.value)
+        }
+    }
 }

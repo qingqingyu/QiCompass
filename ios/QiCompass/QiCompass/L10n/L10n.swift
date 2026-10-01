@@ -368,9 +368,9 @@ enum L10n {
         /// zh: "日";en: " Day"
         static let dayPillarSuffix = String(localized: "dailyfortune.header.dayPillarSuffix")
 
-        /// 十神释义 VO action 名(D3,2026-09-29:十神 chip 点开看解释)。
-        /// zh: "今日十神释义";en: "About Today's Ten God"
-        static let shiShenNoteAction = String(localized: "dailyfortune.shiShenNoteAction")
+        // 十神释义 VO action 名(2026-09-29 D3)已随 2026-10-01 Today 定稿退役:
+        // chips 出图后十神 chip 是真实 Button(VO 默认可点),命名 action 无存在
+        // 必要。Swift 侧常量删除;xcstrings 条目按约束保留(孤儿条目惰性无害)。
 
         /// 解读小注免责(V4 hero 文本区脚注尾部)。
         /// zh: "解读仅供参照";en: "For reference only"
