@@ -81,6 +81,19 @@ enum AppLanguage: String, CaseIterable {
         }
     }
 
+    /// 语言的 endonym 自称名(**不经 xcstrings 翻译**,跨 UI 语言稳定)。
+    /// 语言设置行显示「实际生效语言」用(F6,2026-10-01 Me 页):localized 名
+    /// (EN UI 下「简体中文」key 译作 Simplified Chinese)会与界面语言错位,
+    /// endonym 是语言自己的名字,永不随 UI 语言变。与 `Override.displayLabel`
+    /// (档位名,走 xcstrings)分工不同,勿合并。
+    var endonym: String {
+        switch self {
+        case .zh: return "简体中文"
+        case .zhHant: return "繁體中文"
+        case .en: return "English"
+        }
+    }
+
     /// wire 值的语言显示名(翻译提示条等场景;与 Override.displayLabel 同一套
     /// 词典 key)。未识别值原样透出(防御坏数据,不 crash)。
     static func displayName(forWire wire: String) -> String {

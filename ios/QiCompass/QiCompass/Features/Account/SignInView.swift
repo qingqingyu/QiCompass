@@ -14,6 +14,10 @@ import AuthenticationServices
 struct AppleSignInButton: View {
     /// 登录结果回调(成功 ASAuthorization / 失败 Error)。
     let onResult: (Result<ASAuthorization, Error>) -> Void
+    /// 按钮高度(默认 50)。Profile 登录盒传 44 标准高度降权(2026-10-01 Me 页 F2:
+    /// 全页最重元素是区块标题不是登录按钮);付费墙维持 50 不动。
+    /// SIWA 标签字号/外观由系统锁定不可调(HIG 官方样式),44pt 即标准尺寸。
+    var height: CGFloat = 50
 
     @Environment(\.colorScheme) private var scheme
 
@@ -25,7 +29,7 @@ struct AppleSignInButton: View {
             onResult(result)
         }
         .signInWithAppleButtonStyle(scheme == .dark ? .white : .black)
-        .frame(height: 50)
+        .frame(height: height)
         .cornerRadius(BaziTheme.Radius.sm)
         .accessibilityLabel("使用 Apple 登录")
     }
