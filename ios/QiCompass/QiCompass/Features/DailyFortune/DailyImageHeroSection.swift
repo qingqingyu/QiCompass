@@ -6,8 +6,14 @@ import SwiftUI
 /// 头部日期区与 chips **出图上纸面**(见 `DailyHeaderSection`,D3);画内只留
 /// 右上干支竖排落款(艺术层,D1)+ 底部宜/忌双列字层(压在融纸渐隐区上,D2)。
 ///
+/// **2026-10-02 留白修复**(docs/today-hero-留白修复-plan.md,外评「画卡上部
+/// 太空」):卡比例 916:1000→916:780 **底对齐裁顶部空天**(实测山顶在全图
+/// 38%,顶部 ~135pt 空天撑不住画面,像图没加载完);落款 16→22pt 靠山;
+/// 底部融纸提前(0.66→0.46 起步)保宜忌对比度。图层配方与顺序不变,参数随
+/// 新卡高(@393pt 屏 ≈306,原 ≈392)重校。
+///
 /// 玻璃配方(全程序化图层,效果不依赖生图端;底图与滤镜逐像素不动——定稿
-/// 验收项,baseLayer 参数禁改):
+/// 验收项,baseLayer 滤镜四参数禁改;2026-10-02 起裁切对齐方式属布局参数):
 /// 1 基底滤镜:降饱和/提亮/压对比/1.3pt 柔焦(SwiftUI 原生 modifier)
 /// 2 径向 mask:实心 58% → 94% 融纸,只留最外一线洇进宣纸
 /// 3 纸色纱罩:呼吸 7s(动效三式 breathe 同源),整幅压灰
@@ -30,9 +36,13 @@ struct DailyImageHeroSection: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
 
-    /// 卡高:916×1000 底图原生比例,宽 = 屏宽−34(hero 区 17pt 边距),高随宽
-    /// 自适配(393pt 屏 ≈ 392;替代旧固定 402——mockup .hero-wrap 359×392)。
-    private static let imageAspectRatio: CGFloat = 916.0 / 1000.0
+    /// 卡高:916×780(2026-10-02 裁顶部空天:原 916×1000 底对齐裁顶 220 asset
+    /// 单位 ≈86pt @393)。宽 = 屏宽−34(hero 区 17pt 边距),高随宽自适配
+    /// (393pt 屏 ≈306,原 ≈392)。实测资产山顶在全图 38%/山脚 81%(baseLayer
+    /// 旧注释「25%/63%」是裁窗设计意图,与生成成品不符,2026-10-02 像素剖面
+    /// 核实);裁后山顶落新卡高 ≈20.5%、山脚 ≈75.6%,底部水面与月光倒影不动
+    /// (scale 两版相同 359/916,文字锚定卡底,文字背后像素与裁前逐点一致)。
+    private static let imageAspectRatio: CGFloat = 916.0 / 780.0
 
     // 玻璃参数(glass-v2「浅绛彩色底」档;水墨档 sat 0.32,重晕档未移植——画布可回调)
     private static let gSaturation: Double = 0.92
@@ -87,6 +97,9 @@ struct DailyImageHeroSection: View {
         // 要放大到 603pt 宽裁掉 39% 画面;重生成竖版 916×1717(B「极简空灵」,
         // gpt-image-2)后按卡比例裁 916×1000,山顶落卡高 25%/山脚 63%,整幅完整呈现。
         // prompt 与裁窗溯源:designs/daily-glass-20260831/hero-provenance.md。
+        // 2026-10-02 实测修正:生成资产实际山顶在 38%/山脚 81%(上文「25%/63%」
+        // 为裁窗设计意图,与成品不符,像素剖面核实),顶部 0-25% 为纯空天——
+        // 由此起卡比例改 916:780 并底对齐裁顶(见 imageAspectRatio 注释)。
         // 2026-09-25 暗色走查 #2:Asset Catalog 加 dark variant(HeroLandscape_dark.png,
         // 夜景版:深墨底淡白山影+月光倒影,gpt-image-2 三候选按亮度剖面客观选型,
         // 裁窗 (0,411,1024,1529) 同「山顶落卡高 25%」语义;溯源同文件夜版章节)——
@@ -101,16 +114,18 @@ struct DailyImageHeroSection: View {
                 .brightness(Self.gBrightness)
                 .contrast(Self.gContrast)
                 .blur(radius: Self.gBlur)
-                .frame(maxWidth: .infinity)
-                .frame(maxHeight: .infinity)
+                // 底对齐裁切(2026-10-02):scaledToFill 默认居中裁,卡变矮会把
+                // 底部水面/月光倒影一起裁掉;底对齐只裁顶部空天(方案 §1.2)。
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottom)
                 .clipped()
                 .mask { bloomMask }
                 .scaleEffect(soak ? 1.05 : 1.01)
         }
     }
 
-    /// 径向融纸 mask:实心到 58%,94% 全透明(CSS ellipse 152%/130% 的圆形近似,
-    /// 半径按 402pt 卡高的对角覆盖取值;偏差由 rim 层兜底)。
+    /// 径向融纸 mask:实心到 58%,94% 全透明(CSS ellipse 152%/130% 的圆形近似;
+    /// 2026-10-02 随新卡高重校:圆心 y 0.42→0.50 跟山体视觉重心,半径按
+    /// ≈306pt 卡高的对角覆盖 400→340,偏差由 rim 层兜底)。
     private var bloomMask: some View {
         Rectangle().fill(
             RadialGradient(
@@ -118,9 +133,9 @@ struct DailyImageHeroSection: View {
                     .init(color: .black, location: 0.58),
                     .init(color: .clear, location: 0.94),
                 ],
-                center: UnitPoint(x: 0.5, y: 0.42),
+                center: UnitPoint(x: 0.5, y: 0.50),
                 startRadius: 0,
-                endRadius: 400
+                endRadius: 340
             )
         )
     }
@@ -135,7 +150,8 @@ struct DailyImageHeroSection: View {
             .allowsHitTesting(false)
     }
 
-    /// 4 宣纸压边:四周以纸色收边,只留最外一线融纸。
+    /// 4 宣纸压边:四周以纸色收边,只留最外一线融纸(2026-10-02 随新卡高
+    /// 重校:圆心 y 0.45→0.50、半径 430→370,与 bloomMask 同步)。
     private var rimLayer: some View {
         Rectangle()
             .fill(
@@ -144,24 +160,27 @@ struct DailyImageHeroSection: View {
                         .init(color: .clear, location: 0.58),
                         .init(color: BaziTheme.paper, location: 0.97),
                     ],
-                    center: UnitPoint(x: 0.5, y: 0.45),
+                    center: UnitPoint(x: 0.5, y: 0.50),
                     startRadius: 0,
-                    endRadius: 430
+                    endRadius: 370
                 )
             )
             .allowsHitTesting(false)
     }
 
-    /// 4b 底部融纸渐隐(2026-09-25 打磨 → 09-28/10-01 T2 外评可读性两轮提前 →
-    /// **2026-10-01 定稿 D1 加高**):纯纸色渐变高 ≈ 卡高 1/3(mockup 132/392),
-    /// 自 66% 起线性压纸、底缘全纸——下半退到近纯纸,给宜忌字层让位。
-    /// 比例式而非写死 132pt:随屏宽/卡高自适配(定稿验收项「融纸渐隐高度
-    /// 需随卡高自适应」);表头一行仍压在渐隐上缘的纱罩区(mockup 同构)。
+    /// 4b 底部融纸渐隐(2026-09-25 打磨 → 09-28/10-01 两轮提前 → **2026-10-02
+    /// 三停点提前**):卡高变矮(392→306)后宜忌字层占卡高比例变大(~37%→
+    /// ~47%),旧 0.66 单起步下「记账/务本」压在山脚残墨上(外评对比度不足)。
+    /// 新曲线 0.46 起 → 0.66 处 85% 纸 → 0.90 全纸;按新卡高真实像素数值验证:
+    /// 最坏 1% 像素下宜忌第 2/3 行对 ink 文字对比 ≥12:1(验收线 4.5:1,亮暗
+    /// 双底图均过;像素剖面脚本结论,截图复核归验收清单)。比例式而非写死 pt,
+    /// 随屏宽/卡高自适配。
     private var bottomFadeLayer: some View {
         LinearGradient(
             stops: [
-                .init(color: BaziTheme.paper.opacity(0), location: 0.66),
-                .init(color: BaziTheme.paper, location: 1.0),
+                .init(color: BaziTheme.paper.opacity(0), location: 0.46),
+                .init(color: BaziTheme.paper.opacity(0.85), location: 0.66),
+                .init(color: BaziTheme.paper, location: 0.90),
             ],
             startPoint: .top,
             endPoint: .bottom
@@ -169,12 +188,13 @@ struct DailyImageHeroSection: View {
         .allowsHitTesting(false)
     }
 
-    /// 4c 四边融纸(2026-09-28 外评「hero 顶部/左右矩形硬边」):bloomMask 圆心
-    /// y=0.42、endRadius 400 下,卡顶距圆心约 169pt、左右约 178pt,都落在实心
-    /// 阈 0.58 内——顶边与左右边完全不透明,rim 层同因,只有底边有
-    /// bottomFadeLayer,山水在这三条边被直线切断。本层以纸色压顶(0→0.14)
-    /// 与左右(0→0.07 / 0.93→1)极窄渐变融边;与 bottomFadeLayer 同性质
-    /// (叠在图上的纸色遮罩,不是背景渐变),paper 为 dyn 双值,暗色自动夜宣纸。
+    /// 4c 四边融纸(2026-09-28 外评「hero 顶部/左右矩形硬边」;2026-10-02
+    /// 数值随新 mask 更新):bloomMask 圆心 y=0.50、endRadius 340 下,卡顶
+    /// 距圆心 ≈153pt、左右 ≈180pt,都落在实心阈 0.58×340≈197pt 内——顶边与
+    /// 左右边完全不透明,rim 层同因,只有底边有 bottomFadeLayer,山水在这
+    /// 三条边被直线切断。本层以纸色压顶(0→0.14)与左右(0→0.07 / 0.93→1)
+    /// 极窄渐变融边;与 bottomFadeLayer 同性质(叠在图上的纸色遮罩,不是
+    /// 背景渐变),paper 为 dyn 双值,暗色自动夜宣纸。
     private var edgeFadeLayer: some View {
         ZStack {
             LinearGradient(
@@ -199,11 +219,13 @@ struct DailyImageHeroSection: View {
         .allowsHitTesting(false)
     }
 
-    /// 6 云雾:两团宣纸色软雾,异速反向横漂(26s / 34s 半程)。
+    /// 6 云雾:两团宣纸色软雾,异速反向横漂(26s / 34s 半程)。2026-10-02 随
+    /// 新卡高(≈306)重校 y 偏移 76/178→40/120:雾心分别落山脚(≈63%)与
+    /// 水面字层区(≈89%),不再飘出卡顶;下团纸雾垫在宜忌字层背后,顺带提对比。
     private var mistLayer: some View {
         ZStack {
-            mistBlob(width: 300, height: 190, y: 76, x: mistA ? 52 : -52, opacity: 0.5)
-            mistBlob(width: 255, height: 165, y: 178, x: mistB ? -46 : 46, opacity: 0.38)
+            mistBlob(width: 300, height: 190, y: 40, x: mistA ? 52 : -52, opacity: 0.5)
+            mistBlob(width: 255, height: 165, y: 120, x: mistB ? -46 : 46, opacity: 0.38)
         }
         .allowsHitTesting(false)
     }
@@ -246,10 +268,15 @@ struct DailyImageHeroSection: View {
     // MARK: - 内容浮层(落款 + 宜忌字层)
 
     /// 字层结构(D1/D2 定稿):右上竖排落款 + 底部宜忌双列,画在下、字在上。
+    /// 落款距顶 = 卡高 10%(2026-10-02:相对值随卡高自适配,GeometryReader 取
+    /// 卡高,不写死 pt——落款下端落在山顶右侧 ≈29% 处,与山呼应)。
     private var contentOverlay: some View {
         ZStack {
-            pillarSignature
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            GeometryReader { geo in
+                pillarSignature
+                    .padding(.top, geo.size.height * 0.10)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+            }
             HeroYiJiColumns(dayRelation: dayRelation)
                 .padding(.horizontal, 22)
                 .padding(.bottom, 28)
@@ -257,20 +284,24 @@ struct DailyImageHeroSection: View {
         }
     }
 
-    /// 右上干支竖排落款(D1):「戊申」,Kaiti 16pt、ink 74%、竖排、距顶/右
-    /// 16pt、字距 ≈ .14em。品牌层汉字始终楷体(BaziFont.brush,不走 EN
-    /// 衬线路由——VText 的 display 会随 EN 落衬线,故自绘两字竖排);
-    /// 落款属画上题款艺术层,是 D4「EN 基座零汉字」的显式豁免位。
+    /// 右上干支竖排落款(D1):「戊申」,Kaiti 22pt、ink 82%、竖排字距 4、
+    /// 距顶 = 卡高 10%(见 contentOverlay)、距右 22pt(与宜忌左右内边距对齐)。
+    /// 2026-10-02 适度放大 16→22(≈1.4×):顶部空天裁掉后落款独自撑上部
+    /// 留白,16pt 过小像图没加载完;仍显著小于大字日 58pt——落款是题款,
+    /// 不喧宾夺主,也不放大 2-3×(外评 B 采纳但收幅度)。无印章、无朱红
+    /// (D1:hero 上无任何印章)。品牌层汉字始终楷体(BaziFont.brush,不走
+    /// EN 衬线路由——VText 的 display 会随 EN 落衬线,故自绘两字竖排);
+    /// 落款属画上题款艺术层,是 D4「EN 基座零汉字」的显式豁免位;固定字号
+    /// 不随 Dynamic Type 缩放(装饰层,XXL 档下仍远离宜忌字层,无重叠)。
     private var pillarSignature: some View {
-        VStack(spacing: 2) {
+        VStack(spacing: 4) {
             ForEach(Array(dayPillar.enumerated()), id: \.offset) { _, char in
                 Text(verbatim: String(char))
-                    .font(BaziFont.brush(size: 16))
-                    .foregroundStyle(BaziTheme.ink.opacity(0.74))
+                    .font(BaziFont.brush(size: 22))
+                    .foregroundStyle(BaziTheme.ink.opacity(0.82))
             }
         }
-        .padding(.top, 16)
-        .padding(.trailing, 16)
+        .padding(.trailing, 22)
     }
 }
 
