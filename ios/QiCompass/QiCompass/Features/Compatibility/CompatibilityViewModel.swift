@@ -2083,6 +2083,19 @@ final class CompatibilityViewModel {
                     sourceInterpretation: offer.text
                 )
                 if Task.isCancelled { return }
+                // 陈旧完成守卫(2026-10-02 review,镜像 generateInterpretation 的
+                // ad124ef):compute()/continueAfterAddHourRemap 换对不取消
+                // translateTask(同 ad124ef 修 interpretTask 前的漏取消),旧对
+                // 翻译在飞完成时 Task.isCancelled 仍为 false,若无守卫会无条件
+                // 覆写新对 state。openDetail 虽同步 cancel + MainActor 串行使
+                // isCancelled 检查已够,守卫对不取消路径承载真实负载。仍在本对
+                // detail 才允许回写。
+                guard self.canWriteInterpretState(summary: summary) else {
+                    AppLogger.app.info(
+                        "compatVM.acceptTranslation.stale_completion_skip compatibilityHash=\(compatHash, privacy: .public)"
+                    )
+                    return
+                }
                 let hasEntitlement = self.entitlementStore.getActive(
                     contentHash: compatHash,
                     module: EntitlementModule.compatibility,
@@ -2107,10 +2120,13 @@ final class CompatibilityViewModel {
                     "compatVM.acceptTranslation.failed compatibilityHash=\(compatHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 原文与提示条保留"
                 )
                 if case .backendError(let code, _, _)? = error as? APIError, code == "STALE_SOURCE" {
+                    guard self.canWriteInterpretState(summary: summary) else { return }
                     self.translationOffer = nil
                     self.state = .detail(summary, response, .failed(message: String(localized: "此报告版本已更新,请重新生成。")))
                     return
                 }
+                // 同上:失败回写也须仍在本对 detail(换对后旧对失败态不得覆写)
+                guard self.canWriteInterpretState(summary: summary) else { return }
                 let hasEntitlement = self.entitlementStore.getActive(
                     contentHash: compatHash,
                     module: EntitlementModule.compatibility,

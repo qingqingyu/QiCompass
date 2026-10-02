@@ -1605,7 +1605,8 @@ enum DeepUserInputPersistence {
             AppLogger.persistence.warning("op=deepUserInput.saveM4.skip reason=no_content_hash")
             return
         }
-        UserDefaults.standard.set(encode(payload), forKey: m4KeyPrefix + contentHash)
+        guard let data = encode(payload) else { return }  // 失败跳过写入(不落空 Data 掩盖)
+        UserDefaults.standard.set(data, forKey: m4KeyPrefix + contentHash)
     }
 
     static func saveM5(_ payload: M5Payload, contentHash: String?) {
@@ -1613,7 +1614,8 @@ enum DeepUserInputPersistence {
             AppLogger.persistence.warning("op=deepUserInput.saveM5.skip reason=no_content_hash")
             return
         }
-        UserDefaults.standard.set(encode(payload), forKey: m5KeyPrefix + contentHash)
+        guard let data = encode(payload) else { return }  // 同上
+        UserDefaults.standard.set(data, forKey: m5KeyPrefix + contentHash)
     }
 
     /// 读回;解码失败显式日志 + 返回 nil(不静默吞——按无输入走 .needsInput,
@@ -1639,13 +1641,19 @@ enum DeepUserInputPersistence {
 
     // MARK: - Private
 
-    private static func encode<T: Encodable>(_ value: T) -> Data {
-        guard let data = try? JSONEncoder().encode(value) else {
-            // Codable 合成编码两字段 struct 不可能失败;防御位仍显式留痕
-            AppLogger.persistence.error("op=deepUserInput.encode_failed type=\(String(describing: T.self), privacy: .public)")
-            return Data()
+    /// 编码失败 → nil 且**不写入**(2026-10-02 review:此前返回空 Data 被照常
+    /// set 进 UserDefaults,用默认值掩盖失败——坏数据潜伏到下次读取才以
+    /// decode_failed 二次报错。调用方 nil 即跳过写入,错误当场留痕)。
+    /// Codable 合成编码两字段 struct 实际不可能失败,此处为防御位。
+    private static func encode<T: Encodable>(_ value: T) -> Data? {
+        do {
+            return try JSONEncoder().encode(value)
+        } catch {
+            AppLogger.persistence.error(
+                "op=deepUserInput.encode_failed type=\(String(describing: T.self), privacy: .public) error=\(String(describing: error), privacy: .public) — 跳过写入"
+            )
+            return nil
         }
-        return data
     }
 
     private static func decode<T: Decodable>(_ type: T.Type, forKey key: String) -> T? {
