@@ -293,7 +293,8 @@ final class DeepAnalysisOrchestrator {
         parentFingerprint: String? = nil,
         m4Input: (age: Int, concern: String)? = nil,
         m5Input: (assets: String, preference: String)? = nil,
-        chainFields: [String: String] = [:]
+        chainFields: [String: String] = [:],
+        quotaExempt: Bool = false
     ) async throws -> InterpretResponse {
         // P1 #3 修复:入参契约前置校验(对齐 backend Pydantic model_validator)。
         // 客户端层先拦,给清晰错误而非依赖网络 422 往返(对齐 CLAUDE.md 错误显式传播)。
@@ -307,15 +308,22 @@ final class DeepAnalysisOrchestrator {
 
         AppLogger.app.info("deep.runV1Module.start contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) hasParent=\(parentFingerprint != nil, privacy: .public)")
 
-        // 次数检查(全局池 "bazi_deep";每模块独立消耗)
+        // 次数检查(全局池 "bazi_deep";每模块独立消耗)。
+        // quotaExempt(L4/F5,2026-10-01):语言切换引发的 STALE_SOURCE 降级
+        // 重生成豁免——原文是旧 prompt 版本,非用户过错,不烧当日配额;
+        // 豁免路径无消费故同样跳过 refund(退未消费的额度 = 白送配额)。
         let counterModule = "bazi_deep"
-        guard counter.tryConsume(module: counterModule) else {
-            let nextReset = counter.nextResetDate()
-            AppLogger.app.warning("deep.runV1Module.daily_limit_reached contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) nextReset=\(nextReset.description, privacy: .public)")
-            throw DeepAnalysisError.dailyLimitReached(nextReset: nextReset, remaining: 0)
+        var shouldRefundOnFailure = false
+        if quotaExempt {
+            AppLogger.app.info("deep.runV1Module.quota_exempt contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public)")
+        } else {
+            shouldRefundOnFailure = true
+            guard counter.tryConsume(module: counterModule) else {
+                let nextReset = counter.nextResetDate()
+                AppLogger.app.warning("deep.runV1Module.daily_limit_reached contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) nextReset=\(nextReset.description, privacy: .public)")
+                throw DeepAnalysisError.dailyLimitReached(nextReset: nextReset, remaining: 0)
+            }
         }
-
-        var shouldRefundOnFailure = true
 
         do {
             let req = try Self.buildV1Request(

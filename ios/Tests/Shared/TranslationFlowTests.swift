@@ -341,28 +341,88 @@ final class TranslationFlowTests: XCTestCase {
         XCTAssertEqual(vm.moduleStates[.m1], .ok(text: Self.m1ZH, cached: false))
     }
 
-    // MARK: - STALE_SOURCE 人话(重试语义 = 重新生成;L4 将改为自动降级重生成)
+    // MARK: - L4/F5:STALE_SOURCE 自动降级重生成(豁免配额,不断链)
 
-    func testStaleSourceShowsRegenerateMessage() async throws {
+    /// M0 原文过期:翻译 STALE → M0 转目标语言重生成(exempt);下游原文基于
+    /// 旧 M0,一并转重生成(不再发翻译请求);全程零配额消耗。
+    func testStaleM0DowngradesWholeChainToRegenerationExempt() async throws {
         let request = Self.beijingRequest()
         let response = try await apiClient.calculateBazi(request: request)
         try seedZHCache(hash: response.contentHash, module: .m0, text: Self.m0ZH)
+        try seedZHCache(hash: response.contentHash, module: .m1, text: Self.m1ZH)
+        let readsBefore = vm.remainingReads
         apiClient.translateResponder = { _ in
             throw APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
         }
 
         vm.loadArchivedChart(response: response, request: request)
 
-        let failed = await waitUntil(timeout: 10) {
-            if case .failed(let message) = self.vm.moduleStates[.m0] {
-                return message.contains("重新生成")
-            }
-            return false
+        let settled = await waitUntil(timeout: 10) {
+            self.vm.translationOffer == nil
+                && self.vm.autoTranslationState == nil
+                && !self.vm.isTranslatingChain
+                && self.vm.moduleStates[.m0]?.isOk == true
+                && self.vm.moduleStates[.m1]?.isOk == true
         }
-        XCTAssertTrue(failed, "STALE_SOURCE 必须显示重新生成人话,实际:\(vm.moduleStates)")
-        XCTAssertNotNil(vm.translationOffer, "失败后提议保留(原文还在屏上)")
-        XCTAssertEqual(vm.autoTranslationState, .failed)
+        XCTAssertTrue(settled, "M0 STALE 必须降级重生成且下游跟进,实际:\(vm.moduleStates) auto=\(String(describing: vm.autoTranslationState))")
+
+        // M0 走了翻译尝试(收到 409),M1 完全没翻译(降级转生成)
+        XCTAssertEqual(
+            apiClient.recordedTranslateRequests.filter { $0.base.module == "m0_structure" }.count, 1
+        )
+        XCTAssertTrue(
+            apiClient.recordedTranslateRequests.filter { $0.base.module == "m1_talent" }.isEmpty,
+            "M0 过期后下游不得再翻译(原文基于旧 M0,翻译会混叙事)"
+        )
+        // 两章都走 /api/interpret 重生成(mock 应答 JSON 契约)
+        let generatedModules = apiClient.recordedInterpretRequests
+            .map(\.module)
+            .filter { ModuleID(rawValue: $0) != nil }
+        XCTAssertTrue(generatedModules.contains("m0_structure"), "M0 必须重生成,实际:\(generatedModules)")
+        XCTAssertTrue(generatedModules.contains("m1_talent"), "M1 必须跟进重生成,实际:\(generatedModules)")
+        // 豁免配额(L4/F5:语言切换引发,用户无过错)
+        XCTAssertEqual(vm.remainingReads, readsBefore, "降级重生成不得消耗每日次数")
     }
+
+    /// 中段章节(M1)过期:仅该章降级重生成,M0 已译成保留,后续章继续翻译。
+    func testStaleMidChainRegeneratesOnlyThatModule() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedZHCache(hash: response.contentHash, module: .m0, text: Self.m0ZH)
+        try seedZHCache(hash: response.contentHash, module: .m1, text: Self.m1ZH)
+        let readsBefore = vm.remainingReads
+        apiClient.translateResponder = { req in
+            if req.base.module == "m1_talent" {
+                throw APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
+            }
+            return InterpretResponse(
+                interpretation: Self.m0Hant,
+                promptVersion: 1, cached: false, generatedAt: .now,
+                provider: "anthropic", model: "mock-anthropic-model",
+                language: "zh-hant", translatedFrom: "zh"
+            )
+        }
+
+        vm.loadArchivedChart(response: response, request: request)
+
+        let settled = await waitUntil(timeout: 10) {
+            self.vm.translationOffer == nil
+                && self.vm.autoTranslationState == nil
+                && !self.vm.isTranslatingChain
+                && self.vm.moduleStates[.m0]?.isOk == true
+                && self.vm.moduleStates[.m1]?.isOk == true
+        }
+        XCTAssertTrue(settled, "M1 STALE 必须单章降级,其余照译,实际:\(vm.moduleStates)")
+
+        // M0 译成(译文落态),M1 走生成,链未断
+        XCTAssertEqual(vm.moduleStates[.m0], .ok(text: Self.m0Hant, cached: false))
+        let generatedModules = apiClient.recordedInterpretRequests
+            .map(\.module)
+            .filter { ModuleID(rawValue: $0) != nil }
+        XCTAssertEqual(generatedModules, ["m1_talent"], "只有 M1 重生成,实际:\(generatedModules)")
+        XCTAssertEqual(vm.remainingReads, readsBefore, "降级重生成不得消耗每日次数")
+    }
+
 }
 
 // MARK: - 合盘跨语言探测(orchestrator 层)

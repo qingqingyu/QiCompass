@@ -1061,7 +1061,9 @@ final class DeepAnalysisViewModel {
     /// 替代 Stage 7c 的硬编码占位值。若 M4/M5 用户输入为 nil → 标 .needsInput,
     /// 不调 orchestrator(等用户填 sheet 提交后再重试)。
     @MainActor
-    private func runSingleV1Module(_ module: ModuleID, response: BaziResponse) async {
+    private func runSingleV1Module(
+        _ module: ModuleID, response: BaziResponse, quotaExempt: Bool = false
+    ) async {
         // 同盘守卫(双 review P1 修复):retryV1Module / retryLockedV1Modules 的
         // 任务 fire-and-forget 不被持有,loadArchivedChart 换盘清洗只 cancel
         // v1ChainTask——旧盘在飞任务若不清拦,会把旧盘的 locked/needsInput/
@@ -1139,7 +1141,8 @@ final class DeepAnalysisViewModel {
                 parentFingerprint: parentFingerprint,
                 m4Input: m4UserInput,
                 m5Input: m5UserInput,
-                chainFields: chainFields
+                chainFields: chainFields,
+                quotaExempt: quotaExempt
             )
 
             if Task.isCancelled { return }
@@ -1211,16 +1214,50 @@ final class DeepAnalysisViewModel {
     /// 失败章标 .failed,提示条保留供重试——retryTranslation 只译剩余;
     /// 继续翻下游会混用「译后 fingerprint + 原文 innate」造出正常生成永不
     /// 会用的键,白烧 LLM,不如显式停下)。
+    /// L4/F5 例外:STALE_SOURCE(原文版本过期)不断链——降级为目标语言重
+    /// 生成该章(豁免配额);M0 过期时下游原文一并转重生成,防叙事错配。
     @MainActor
     private func runTranslationChain(response: BaziResponse, sourceLanguage: String) async {
         defer { isTranslatingChain = false }
+        // L4/F5(2026-10-01):M0 原文 STALE 降级重生成后,下游原文基于旧 M0,
+        // 继续翻译会混叙事 → 下游原文章全部转重生成(同样豁免配额)。
+        var staleM0Downgraded = false
+        // 降级重生成有失败(网络等):保留原行供重试,终态走失败提示条,不 resume
+        var staleRegenFailed = false
         for module in ModuleID.allCases {
             if Task.isCancelled { return }
-            guard let source = crossLanguageRows[module] else { continue }
+            guard crossLanguageRows[module] != nil else { continue }
             guard isCurrentChart(response) else {
                 AppLogger.app.warning("deepVM.runTranslationChain.stale_chart — 中止,剩余原文保留")
                 return
             }
+            if staleM0Downgraded {
+                // M0 已按目标语言重生成:本章节原文基于旧 M0,翻译只会混叙事,
+                // 改走正常生成(exempt 豁免;链字段来自重生成后的新 M0,键对齐)。
+                // 付费无 entitlement / M4/M5 缺输入:镜像下方翻译路径口径处理。
+                if module.isPaid, !hasDeepEntitlement(contentHash: response.contentHash) {
+                    crossLanguageRows[module] = nil
+                    continue
+                }
+                if module == .m4 && m4UserInput == nil {
+                    moduleStates[module] = .needsInput
+                    crossLanguageRows[module] = nil
+                    continue
+                }
+                if module == .m5 && m5UserInput == nil {
+                    moduleStates[module] = .needsInput
+                    crossLanguageRows[module] = nil
+                    continue
+                }
+                await runSingleV1Module(module, response: response, quotaExempt: true)
+                if moduleStates[module]?.isOk == true {
+                    crossLanguageRows[module] = nil
+                } else {
+                    staleRegenFailed = true  // 原行保留,重试再降级
+                }
+                continue
+            }
+            guard let source = crossLanguageRows[module] else { continue }
             // 付费无 entitlement:跳过翻译,保持 .ok 原文显示(后端也会拦;
             // 不标 .locked——原文已可见,锁上反而丢内容)
             if module.isPaid, !hasDeepEntitlement(contentHash: response.contentHash) {
@@ -1285,6 +1322,27 @@ final class DeepAnalysisViewModel {
                 return
             } catch {
                 guard isCurrentChart(response) else { return }
+                // L4/F5:STALE_SOURCE 自动降级——原文 prompt 版本过期
+                // (PROMPT_VERSIONS bump 后的老缓存行),翻译会把旧版叙事固化进
+                // 新版本键空间。该章改走目标语言正常生成(quotaExempt:语言切换
+                // 引发,用户无过错),不断链,其余章继续翻译。M0 过期则下游全部
+                // 转重生成(见 staleM0Downgraded)。
+                if Self.isStaleSourceError(error) {
+                    AppLogger.app.warning(
+                        "deepVM.runTranslationChain.stale_source_downgrade module=\(module.rawValue, privacy: .public) — 转目标语言重生成(豁免配额)"
+                    )
+                    if module == .m0 { staleM0Downgraded = true }
+                    await runSingleV1Module(module, response: response, quotaExempt: true)
+                    if moduleStates[module]?.isOk == true {
+                        crossLanguageRows[module] = nil
+                    } else {
+                        // 重生成失败(网络等):原行保留供重试;M0 失败则下游无从
+                        // 起链,直接收尾(下轮重试再降级)
+                        staleRegenFailed = true
+                        if module == .m0 { break }
+                    }
+                    continue
+                }
                 AppLogger.app.warning(
                     "deepVM.runTranslationChain.failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public) — 已译成保留,剩余可重试"
                 )
@@ -1298,14 +1356,30 @@ final class DeepAnalysisViewModel {
                 return  // 断链:下游会混用译后指纹+原文链字段,显式停
             }
         }
+        // 收尾:L4/F5 降级重生成有失败 → 失败提示条(重试 = 重走本链,原行
+        // 还在);不清 offer、不 resume(resume 起链的重生成不带豁免,会把
+        // 语言切换成本转嫁到用户配额)。
+        if staleRegenFailed {
+            autoTranslationState = .failed
+            return
+        }
         // 收尾:全部译完 → 清提议 + 清自动翻译展示态;原文没有的缺失模块此时
-        // 按目标语言自动续跑(链上游已是译后 M0,叙事一致,D10.4 #3)
+        // 按目标语言自动续跑(链上游已是译后/重生成后的 M0,叙事一致,D10.4 #3)
         if crossLanguageRows.isEmpty {
             translationOffer = nil
             autoTranslationState = nil
             AppLogger.app.info("deepVM.runTranslationChain.all_translated")
             resumeV1ChainIfNeeded()
         }
+    }
+
+    /// 后端 409 STALE_SOURCE 判定(L4/F5 降级入口;镜像 CompatibilityViewModel
+    /// 的同款判定)。
+    private static func isStaleSourceError(_ error: Error) -> Bool {
+        if case .backendError(let code, _, _)? = error as? APIError {
+            return code == "STALE_SOURCE"
+        }
+        return false
     }
 
     /// 翻译失败的离线分诊(L3/F1):网络层离线/超时类 → true(联网后可自动
