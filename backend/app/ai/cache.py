@@ -157,6 +157,7 @@ class InterpretationCache:
     def has_interpretation_text(
         self, content_hash: str, module: str, prompt_version: int,
         language: str, interpretation: str,
+        target_date: str | None = None,
     ) -> bool:
         """按文本核验缓存行存在(/api/interpret/translate 服务端原文防伪)。
 
@@ -166,6 +167,11 @@ class InterpretationCache:
         文本级匹配已足以证明「这段原文出自本后端为该盘 / 该模块 / 该语言 /
         该版本生成的内容」,杜绝客户端伪造任意文本经翻译落入共享缓存键。
 
+        target_date 维度(2026-10-02 修复):daily_fortune 的缓存键含日期,
+        不比对会让「昨天的 zh 运势原文 + 今天的 target_date」通过防伪,
+        译文写进**今天**的共享键——所有设备当天都拿到昨天的运势。空值口径
+        与写侧一致(非 daily module 的行恒存 "")。
+
         Args:
             content_hash: 盘内容寻址哈希
             module: module 名
@@ -173,6 +179,8 @@ class InterpretationCache:
                 保证客户端声明的原文版本 = 当前版本,此处同值收紧)
             language: 原文语言(source_language)
             interpretation: 客户端提交的原文全文(须逐字相等)
+            target_date: ISO 日期串;daily_fortune 必传请求的 target_date,
+                其他 module 传 None(与缓存写入的空值口径一致)
 
         Returns:
             True = 存在逐字一致的行;False = 不存在
@@ -180,12 +188,14 @@ class InterpretationCache:
         Raises:
             sqlite3.Error: 读失败(不吞,向上抛,路由层转 500)
         """
+        td = target_date or ""
         with self._connect() as conn:
             row = conn.execute(
                 "SELECT 1 FROM interpretation_cache "
                 "WHERE content_hash=? AND module=? AND prompt_version=? "
-                "AND language=? AND interpretation=? LIMIT 1",
-                (content_hash, module, prompt_version, language,
+                "AND target_date=? AND language=? AND interpretation=? "
+                "LIMIT 1",
+                (content_hash, module, prompt_version, td, language,
                  interpretation),
             ).fetchone()
         return row is not None

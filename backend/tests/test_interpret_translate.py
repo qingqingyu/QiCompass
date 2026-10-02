@@ -61,11 +61,14 @@ def _m0_translate_payload(source_interpretation: str = M0_ZH_JSON,
     }
 
 
-def _seed_source_row(cache, payload: dict, text: str) -> None:
+def _seed_source_row(cache, payload: dict, text: str,
+                     target_date: str | None = None) -> None:
     """直接落一行 source_language 原文(翻译防伪前提)。
 
     `has_interpretation_text` 不匹配 hash 维度(见 app/ai/cache.py 注释),
     hash 列用占位值即可;version/language/content_hash/module/text 须真值。
+    target_date 可显式覆盖(默认取 payload 的)——日期防伪用例用它制造
+    「原文行的日期 ≠ 请求声明的日期」的错位行。
     """
     from app.ai.cache_key import CacheKey
     cache.set(
@@ -73,7 +76,8 @@ def _seed_source_row(cache, payload: dict, text: str) -> None:
             content_hash=payload["content_hash"],
             module=payload["module"],
             prompt_version=payload["source_prompt_version"],
-            target_date=payload.get("target_date") or "",
+            target_date=target_date if target_date is not None
+            else (payload.get("target_date") or ""),
             prompt_hash="seed-placeholder",
             provider="anthropic",
             model="mock-anthropic-model",
@@ -754,6 +758,59 @@ async def test_daily_fidelity_drift_503_and_skips_cache(
     )
     assert resp.status_code == 200
     assert resp.json()["cached"] is False, "失败译文不得入缓存"
+
+
+async def test_daily_source_date_mismatch_returns_409_and_skips_cache(
+        interpret_client, mock_ai_client, tmp_cache):
+    """daily 防伪必须比对 target_date(2026-10-02 修复)。
+
+    此前防伪 SQL 不含日期维度:拿**昨天**的 zh 原文 + **今天**的 target_date
+    请求翻译即可通过核验,译文写进今天的跨用户共享键——所有设备当天都
+    拿到昨天的运势。修复后:日期错位 → 409 STALE_SOURCE(客户端走降级
+    重新生成),不烧 LLM、不写今天的键;同日原文 → 照常 200。
+    """
+    # 对照组先行(同日原文 → 200;翻译会写今天的 zh-hant 键,故用独立 hash
+    # 隔离错位场景,防「先查后译」命中对照写下的键)
+    same_day_payload = _daily_translate_payload()
+    _seed_source_row(tmp_cache, same_day_payload, _DAILY_ZH_JSON)
+    mock_ai_client.set_response(_DAILY_HANT_JSON)
+    resp = await interpret_client.post(
+        "/api/interpret/translate",
+        json=same_day_payload,
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["translated_from"] == "zh"
+    llm_calls_after_control = mock_ai_client.call_count
+
+    # 错位场景:原文行的 target_date = 昨天,请求声明今天(独立 hash)
+    payload = _daily_translate_payload()
+    payload["content_hash"] = "hash-tr-daily-date-mismatch"
+    _seed_source_row(tmp_cache, payload, _DAILY_ZH_JSON,
+                     target_date="2026-07-11")
+    resp = await interpret_client.post(
+        "/api/interpret/translate",
+        json=payload,
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["error"]["code"] == "STALE_SOURCE"
+    assert mock_ai_client.call_count == llm_calls_after_control, \
+        "日期错位的原文不得产生 provider 成本"
+
+    # 今天的键未写:目标语言 /api/interpret(同 target_date)落穿重新生成
+    from tests.fixtures.interpret_cases import DAILY_FORTUNE_CONTEXT
+    resp = await interpret_client.post(
+        "/api/interpret",
+        json={
+            "content_hash": "hash-tr-daily-date-mismatch",
+            "module": "daily_fortune",
+            "context": DAILY_FORTUNE_CONTEXT, "target_date": "2026-07-12",
+        },
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["cached"] is False, "错位翻译不得污染今天的共享键"
 
 
 class TestBuildTranslationTermPairs:
