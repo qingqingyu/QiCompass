@@ -146,6 +146,14 @@ struct ProfileView: View {
                     // 底 padding ≥96(2026-10-01 spec §三):浮动 tab 栏高度 + 间距,
                     // 保证 footer 在 tab 栏上方完整可见
                     .padding(.bottom, 96)
+                    // 编辑态悬挂出口(review 2026-10-01):编辑态删到最后一条非命主
+                    // link 时整节隐藏,rosterEditing 须归位——否则会话中途 link 回流
+                    //(登录链式 pull;push 是 UPSERT-only 不传播删除)时,名册未经
+                    // 操作直接呈现编辑态,行内 Delete 可见,违背 F4「破坏性操作
+                    // 必须显式进入」。
+                    .onChange(of: rosterVisible.count) { _, newCount in
+                        if newCount == 0 { rosterEditing = false }
+                    }
                 }
             }
             // D2(2026-09-29 拍板):四 tab 统一去系统导航标题,防系统字体与水墨层打架;
@@ -462,27 +470,26 @@ struct ProfileView: View {
     /// 未登录不加「数据仅存本机」尾注——与登录盒文案重复,信息已在登录盒。
     private func rosterSection(_ visible: [RosterEntry]) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Text(String(localized: "名 册"))
-                    .font(BaziFont.display(size: 17))
-                    .foregroundStyle(BaziTheme.ink)
-                Spacer(minLength: 12)
-                if accountManagerSignedIn {
-                    Text(String(format: String(localized: "云端同步 · 共 %lld 盘"), visible.count))
-                        .font(BaziFont.caption(size: 10.5))
-                        .foregroundStyle(BaziTheme.inkMutedSecondary)
-                        .lineLimit(1)
+            // F4:header 复用 sectionHeader(F1 样式单点),trailing = 同步尾注 + Edit
+            //(组合尾注走 @ViewBuilder 重载,与其他节的字符串尾注共用同一标题样式)
+            sectionHeader(String(localized: "名 册")) {
+                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                    if accountManagerSignedIn {
+                        Text(String(format: String(localized: "云端同步 · 共 %lld 盘"), visible.count))
+                            .font(BaziFont.caption(size: 10.5))
+                            .foregroundStyle(BaziTheme.inkMutedSecondary)
+                            .lineLimit(1)
+                    }
+                    Button {
+                        withAnimation { rosterEditing.toggle() }
+                    } label: {
+                        Text(rosterEditing ? String(localized: "完成") : String(localized: "编辑"))
+                            .font(BaziFont.caption(size: 12.5))
+                            .foregroundStyle(BaziTheme.inkMuted)
+                    }
+                    .buttonStyle(.plain)
                 }
-                Button {
-                    withAnimation { rosterEditing.toggle() }
-                } label: {
-                    Text(rosterEditing ? String(localized: "完成") : String(localized: "编辑"))
-                        .font(BaziFont.caption(size: 12.5))
-                        .foregroundStyle(BaziTheme.inkMuted)
-                }
-                .buttonStyle(.plain)
             }
-            .padding(.bottom, 2)
 
             ForEach(visible) { entry in
                 rosterRow(entry)
@@ -922,18 +929,30 @@ struct ProfileView: View {
     /// 分节标题(F1 2026-10-01):`display(17)` 浓墨锚点(EN serif medium /
     /// zh 楷体)——区块标题是整页层级锚点,不再靠字距撑;trailing 尾注
     /// caption(10.5) 无 tracking。
+    /// 样式单点:roster 等需要组合尾注(文本 + 按钮)的节走 @ViewBuilder 重载,
+    /// 改标题样式只改这一处(对齐 profileModel zodiacMode 的单点求值原则)。
     private func sectionHeader(_ title: String, trailing: String? = nil) -> some View {
-        HStack(alignment: .firstTextBaseline) {
-            Text(title)
-                .font(BaziFont.display(size: 17))
-                .foregroundStyle(BaziTheme.ink)
-            Spacer(minLength: 12)
+        sectionHeader(title) {
             if let trailing {
                 Text(trailing)
                     .font(BaziFont.caption(size: 10.5))
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
                     .lineLimit(1)
             }
+        }
+    }
+
+    /// sectionHeader 的组合尾注重载(F4 roster:同步尾注 + Edit 按钮同基线)。
+    private func sectionHeader<Trailing: View>(
+        _ title: String,
+        @ViewBuilder trailing: () -> Trailing
+    ) -> some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(title)
+                .font(BaziFont.display(size: 17))
+                .foregroundStyle(BaziTheme.ink)
+            Spacer(minLength: 12)
+            trailing()
         }
         .padding(.bottom, 2)
     }
