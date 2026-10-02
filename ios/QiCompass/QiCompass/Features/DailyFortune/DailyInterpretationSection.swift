@@ -93,7 +93,7 @@ struct DailyInterpretationSection: View {
             case .lockedPaid:
                 // 每日运势 v1 全免费,.lockedPaid 永不触发;保留 case 维护 switch 完整性。
                 EmptyView()
-            case .offlineLegacy(let text):
+            case .offlineLegacy(let text, let languageNote):
                 // 离线兜底(2026-09-28):正文 = 快照里的历史解读原文(不拿引擎模板
                 // 冒充),底部小注如实说明「已保留历史解读,联网后可确认当前 AI 来源」。
                 // 无 Retry——离线重试必失败,还会把已保留的正文挤成模板。
@@ -113,6 +113,14 @@ struct DailyInterpretationSection: View {
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
                             .fadeIn()
+                    }
+                    if let languageNote {
+                        // L6/F7:快照语言 ≠ 生效语言(离线兜底没有更好的选择,
+                        // 如实标注显示的是哪个语言版本)
+                        Text(languageNote)
+                            .font(BaziFont.caption(size: 12))
+                            .tracking(1)
+                            .foregroundStyle(BaziTheme.inkMuted)
                     }
                     Text(L10n.DailyFortune.interpretOfflineLegacy)
                         .font(BaziFont.caption(size: 12))

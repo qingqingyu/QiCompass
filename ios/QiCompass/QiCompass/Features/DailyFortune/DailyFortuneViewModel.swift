@@ -545,8 +545,17 @@ final class DailyFortuneViewModel {
         let hasInterpretation = !cached.interpretation.trimmingCharacters(in: .whitespaces).isEmpty
         // 2026-09-28 修复:历史正文走 offlineLegacy 进视图渲染(此前塞 .failed 会被
         // 失败降级换成引擎模板,「已保留历史解读」名不副实)。
+        // L6/F7:快照语言 ≠ 生效语言 → 加「离线 · 显示的是××版本」小注
+        //(离线没有更好的选择,如实标注;nil 老快照视为 zh,与缓存口径一致)
+        let snapshotLanguage = cached.interpretationLanguage ?? "zh"
+        let languageNote: String? = (hasInterpretation && snapshotLanguage != AppLanguage.currentWire)
+            ? String(
+                format: String(localized: "离线 · 显示的是%@版本"),
+                AppLanguage.displayName(forWire: snapshotLanguage)
+            )
+            : nil
         var interpState: InterpretState = hasInterpretation
-            ? .offlineLegacy(text: cached.interpretation)
+            ? .offlineLegacy(text: cached.interpretation, languageNote: languageNote)
             : .idle
 
         // 同步刷新 chartPayload(用户在线恢复后点"今日解读"可触发 AI)。

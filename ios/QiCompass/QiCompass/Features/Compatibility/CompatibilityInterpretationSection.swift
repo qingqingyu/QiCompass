@@ -43,7 +43,7 @@ struct CompatibilityInterpretationSection: View {
             case .lockedPaid:
                 // M4 后 .lockedPaid case 不再使用,保留 case 兼容性
                 EmptyView()
-            case .offlineLegacy(let text):
+            case .offlineLegacy(let text, _):
                 // 不可达(offlineLegacy 仅每日运势离线兜底产生,合盘 VM 不构造);
                 // 为 InterpretState exhaustive switch 完整性保留,渲染正文。
                 CompatibilityChapterText(text: text)

@@ -164,7 +164,8 @@ final class DailyFortuneOrchestrator {
                     forChartHash: chartHash,
                     targetDate: targetDate,
                     provider: provider,
-                    model: model
+                    model: model,
+                    language: cached.language ?? "zh"  // nil 老行视为 zh(同缓存口径)
                 )
                 AppLogger.app.info(
                     "daily.interpret.cache_hit hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public)"
@@ -265,7 +266,8 @@ final class DailyFortuneOrchestrator {
                     forChartHash: chartHash,
                     targetDate: targetDate,
                     provider: resp.provider,
-                    model: resp.model
+                    model: resp.model,
+                    language: resp.language
                 )
             } catch {
                 AppLogger.persistence.error(
@@ -387,7 +389,8 @@ final class DailyFortuneOrchestrator {
             forChartHash: chartHash,
             targetDate: businessDate,
             provider: resp.provider,
-            model: resp.model
+            model: resp.model,
+            language: resp.language
         )
         AppLogger.app.info(
             "daily.translate.ok hash=\(chartHash, privacy: .public) cached=\(resp.cached, privacy: .public)"
@@ -430,7 +433,8 @@ final class DailyFortuneOrchestrator {
             forChartHash: chartHash,
             targetDate: targetDate,
             provider: cached.provider ?? "",
-            model: cached.model ?? ""
+            model: cached.model ?? "",
+            language: cached.language ?? "zh"
         )
         return (cached.interpretation, cached.promptVersion)
     }

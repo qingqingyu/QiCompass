@@ -214,12 +214,14 @@ final class DailyFortuneVerifier {
             forChartHash: testHash,
             targetDate: targetDate,
             provider: "anthropic",
-            model: "verifier-model"
+            model: "verifier-model",
+            language: "zh"  // L6/F7:语言列随解读落库(离线兜底小注数据源)
         )
         let afterUpdate = try store.get(chartHash: testHash, targetDate: targetDate)
         try XCTAssertTrue(afterUpdate?.interpretation == "更新后", "updateInterpretation 未生效")
         try XCTAssertTrue(afterUpdate?.interpretationProvider == "anthropic", "provider 未持久化")
         try XCTAssertTrue(afterUpdate?.interpretationModel == "verifier-model", "model 未持久化")
+        try XCTAssertTrue(afterUpdate?.interpretationLanguage == "zh", "language 未持久化")
         log.append("✓ updateInterpretation ok")
 
         // getHistory

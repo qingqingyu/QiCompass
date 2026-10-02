@@ -17347,6 +17347,22 @@
         }
       }
     },
+    "离线 · 显示的是%@版本" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Offline · showing the %@ version"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "離線 · 顯示的是%@版本"
+          }
+        }
+      }
+    },
     "正在译为%@…" : {
       "localizations" : {
         "en" : {

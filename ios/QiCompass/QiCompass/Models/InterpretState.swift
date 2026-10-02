@@ -11,7 +11,7 @@ import Foundation
 /// - okPaid(text, cached):付费内容成功(M2 `*_paid` module,有 entitlement)
 /// - lockedPaid(previewChapters):未购买付费内容,UI 显示锁标 + 章节 preview
 /// - failed(message):独立 error 态,可单独重试
-/// - offlineLegacy(text):离线兜底(仅每日运势)——快照里的历史解读正文仍在,
+/// - offlineLegacy(text, languageNote):离线兜底(仅每日运势)——快照里的历史解读正文仍在,
 ///   但离线无法确认当前 AI 来源,不能冒充 okFree 的缓存命中语义。2026-09-28
 ///   修复:此前塞 .failed 会被失败降级渲染成引擎模板,「已保留历史解读」
 ///   名不副实(一边说还在一边换掉正文)
@@ -24,6 +24,8 @@ enum InterpretState: Equatable {
     case okPaid(text: String, cached: Bool)
     case lockedPaid(previewChapters: [String])
     case failed(message: String)
-    case offlineLegacy(text: String)
+    /// languageNote(L6/F7):快照语言 ≠ 当前生效语言时的「离线 · 显示的是
+    /// ××版本」小注;nil = 语言一致或未知,不显示。
+    case offlineLegacy(text: String, languageNote: String?)
     case dailyLimitReached(nextReset: Date)
 }

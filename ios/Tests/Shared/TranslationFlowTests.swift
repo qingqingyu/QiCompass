@@ -638,6 +638,10 @@ final class DailyFortuneTranslateTests: XCTestCase {
         )
         XCTAssertEqual(cached?.interpretation, Self.hantJSON)
         XCTAssertEqual(cached?.language, "zh-hant")
+        // L6/F7:快照同步携带语言列(离线兜底小注的数据源)
+        let snapshot = try dailyStore.get(chartHash: "l5-daily", targetDate: date)
+        XCTAssertEqual(snapshot?.interpretation, Self.hantJSON)
+        XCTAssertEqual(snapshot?.interpretationLanguage, "zh-hant")
     }
 
     /// 无源(其它语言也没有)→ 照旧生成路径(扣次数)。
@@ -668,6 +672,35 @@ final class DailyFortuneTranslateTests: XCTestCase {
             "无源必须走 /api/interpret 生成"
         )
         XCTAssertEqual(resp.language, "zh-hant", "mock interpret 跟随生效语言")
+    }
+
+    /// L6/F7:快照语言列随 updateInterpretation 落库,离线兜底小注数据源。
+    func testDailySnapshotLanguageColumnRoundtrip() async throws {
+        let payload = ChartPayloadDTO(
+            dayMaster: "己", dayMasterElement: "土", dayMasterStrength: "weak",
+            favorableElements: ["火", "土"], unfavorableElements: ["水", "金"],
+            fourPillars: [:]
+        )
+        let date = Calendar.current.startOfDay(for: Date())
+        let dailyResponse = try await apiClient.dailyFortune(
+            request: DailyFortuneRequest(chartHash: "l6-snap", targetDate: date, chartPayload: payload)
+        )
+        try dailyStore.upsert(
+            chartHash: "l6-snap", targetDate: date, response: dailyResponse,
+            interpretation: "",
+            cachedUntil: BusinessDateCalculator.cachedUntil(forBusinessDate: date)
+        )
+        XCTAssertNil(try dailyStore.get(chartHash: "l6-snap", targetDate: date)?.interpretationLanguage,
+                     "新快照未写解读前列为 nil(老快照同形,nil 由 VM 兜底视为 zh)")
+
+        try dailyStore.updateInterpretation(
+            Self.zhJSON, forChartHash: "l6-snap", targetDate: date,
+            provider: "anthropic", model: "mock-anthropic-model", language: "zh"
+        )
+        XCTAssertEqual(
+            try dailyStore.get(chartHash: "l6-snap", targetDate: date)?.interpretationLanguage,
+            "zh"
+        )
     }
 
     /// 译文未过 v4 五段契约 → 显式抛错,毒化不落缓存(镜像 S6 自愈判据)。

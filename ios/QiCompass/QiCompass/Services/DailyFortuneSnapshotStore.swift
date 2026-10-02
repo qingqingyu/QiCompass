@@ -181,7 +181,8 @@ final class DailyFortuneSnapshotStore {
         forChartHash chartHash: String,
         targetDate: Date,
         provider: String,
-        model: String
+        model: String,
+        language: String?
     ) throws {
         guard let snapshot = try get(chartHash: chartHash, targetDate: targetDate) else {
             // 不静默吞:阶段 2 完成但本地快照已不存在(罕见,可能被 deleteExpired 清掉)
@@ -195,6 +196,7 @@ final class DailyFortuneSnapshotStore {
         snapshot.interpretation = interpretation
         snapshot.interpretationProvider = provider
         snapshot.interpretationModel = model
+        snapshot.interpretationLanguage = language
         try context.save()
     }
 }

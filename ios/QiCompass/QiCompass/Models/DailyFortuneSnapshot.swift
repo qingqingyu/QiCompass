@@ -33,6 +33,10 @@ final class DailyFortuneSnapshot {
     var interpretation: String
     var interpretationProvider: String?
     var interpretationModel: String?
+    // L6/F7(2026-10-01 语言切换走查):解读正文语言(wire 值;nil = 老快照
+    // 视为 zh,与 InterpretationCache 同口径)。离线兜底展示时语言不一致
+    // 加小注「离线 · 显示的是××版本」——离线没有更好的选择,如实标注。
+    var interpretationLanguage: String?
     var generatedAt: Date
     var cachedUntil: Date
 
@@ -55,6 +59,7 @@ final class DailyFortuneSnapshot {
         interpretation: String = "",
         interpretationProvider: String? = nil,
         interpretationModel: String? = nil,
+        interpretationLanguage: String? = nil,
         generatedAt: Date = .now,
         cachedUntil: Date
     ) {
@@ -76,6 +81,7 @@ final class DailyFortuneSnapshot {
         self.interpretation = interpretation
         self.interpretationProvider = interpretationProvider
         self.interpretationModel = interpretationModel
+        self.interpretationLanguage = interpretationLanguage
         self.generatedAt = generatedAt
         self.cachedUntil = cachedUntil
     }
