@@ -194,6 +194,29 @@ class TestReplaceAbLabels:
         assert out2 == "小\\1林快,小\\g<0>美稳。"
 
 
+class TestMaybeReplaceAbLabels:
+    """A/B 兜底替换的语言门控(2026-10-02 修复)。
+
+    en 模板明令禁用 A/B 代号,英文里 standalone "A" 首先是冠词——不门控
+    会把 "A steady rhythm" 替换成「小美 steady rhythm」并写进跨用户共享缓存。
+    """
+
+    def test_zh_replaces(self):
+        from app.api.interpret import _maybe_replace_ab_labels
+        assert _maybe_replace_ab_labels(
+            "A 倾向于快,B 稳。", "你", "小林", "zh") == "你倾向于快,小林稳。"
+
+    def test_zh_hant_replaces(self):
+        from app.api.interpret import _maybe_replace_ab_labels
+        assert _maybe_replace_ab_labels(
+            "B 傾向先說結論", "你", "小林", "zh-hant") == "小林傾向先說結論"
+
+    def test_en_skips_article(self):
+        from app.api.interpret import _maybe_replace_ab_labels
+        text = "A steady rhythm suits them, and a plan B helps."
+        assert _maybe_replace_ab_labels(text, "May", "Alex", "en") == text
+
+
 class TestOffchartGanzhi:
 
     CONTEXT = {
@@ -277,3 +300,47 @@ class TestRoutePostprocess:
         resp2 = await interpret_client.post("/api/interpret", json=payload)
         assert resp2.json()["cached"] is True
         assert "A 倾向" not in resp2.json()["interpretation"]
+
+    async def test_compat_en_article_a_not_replaced(
+        self, interpret_client, mock_ai_client,
+    ):
+        """en 生成不做 A/B 替换(2026-10-02):英文 standalone "A" 首先是冠词,
+        替换会把冠词吃成人名并写进跨用户共享缓存。
+
+        context 用全注册术语的极简形态(COMPATIBILITY_CONTEXT 含
+        「互补佳(A 缺火水,B 金水旺)」类复合短语,未注册 en 词条,
+        到不了后置处理就 KeyError 500)。"""
+        mock_ai_client.set_response(
+            "Chapter 1 Basic Rhythm\n\nA steady rhythm suits them.")
+        context = {
+            "context_label": "通用",
+            "name_a": "you", "name_b": "Alex",
+            "gender_a": "男", "city_a": "北京", "birth_a": "1992-08-10 14:00",
+            "day_master_a": "丙", "day_master_strength_a": "strong",
+            "favorable_a": "土金",
+            "year_a": "壬申", "month_a": "戊申", "day_a": "丙午", "hour_a": "乙未",
+            "element_balance_a": "木1火3土2金2水2",
+            "gender_b": "女", "city_b": "北京", "birth_b": "1990-03-05 07:20",
+            "day_master_b": "甲", "day_master_strength_b": "weak",
+            "favorable_b": "木火",
+            "year_b": "庚午", "month_b": "己卯", "day_b": "甲子", "hour_b": "丁卯",
+            "element_balance_b": "木3火2土1金1水1",
+            "five_elements_assessment": "互补佳",
+            "day_master_relation": "相生",
+            "zodiac_match": "六合",
+            "branch_harmony": "无冲无刑",
+            "synced_fortune_table": "- 2026:两人同步走强",
+        }
+        payload = {
+            "content_hash": "compat-route-ab-en-001",
+            "module": "compatibility_free",
+            "context": context,
+            "target_date": None,
+        }
+        resp = await interpret_client.post(
+            "/api/interpret", json=payload,
+            headers={"X-QiCompass-Lang": "en"},
+        )
+        assert resp.status_code == 200, resp.json()
+        text = resp.json()["interpretation"]
+        assert "A steady rhythm" in text, "en 冠词 A 不得被替换成人名"

@@ -383,6 +383,22 @@ def _replace_ab_labels(text: str, name_a: str, name_b: str) -> str:
     return text
 
 
+# A/B 代号兜底替换的适用语言:仅中文(2026-10-02 修复)。en 模板明令禁用
+# A/B 代号(v4 "never use labels like A, B"),英文里 standalone "A" 首先
+# 是冠词——"A steady rhythm" 会被替换成「小美 steady rhythm」并写进跨用户
+# 共享缓存;中文里独立 A/B 才是无歧义的代号违约信号。
+_AB_LABEL_REPLACE_LANGUAGES: Final[frozenset[str]] = frozenset({"zh", "zh-hant"})
+
+
+def _maybe_replace_ab_labels(
+    text: str, name_a: str, name_b: str, language: str,
+) -> str:
+    """语言门控的 A/B 代号兜底替换(见 _AB_LABEL_REPLACE_LANGUAGES 注释)。"""
+    if language not in _AB_LABEL_REPLACE_LANGUAGES:
+        return text
+    return _replace_ab_labels(text, name_a, name_b)
+
+
 # 天干地支全集(干支接地观测用;与 engine/pillars.py 的表同源字符集)
 _TIANGAN_CHARS = frozenset("甲乙丙丁戊己庚辛壬癸")
 _DIZHI_CHARS = frozenset("子丑寅卯辰巳午未申酉戌亥")
@@ -770,10 +786,11 @@ async def interpret(
     # 名字从 translated_context 取(老客户端无名字 → render_prompt 已 setdefault
     # 兜底 "A"/"B",替换退化为恒等)。
     if req.module in _COMPAT_POSTPROCESS_MODULES:
-        interpretation = _replace_ab_labels(
+        interpretation = _maybe_replace_ab_labels(
             interpretation,
             translated_context.get("name_a") or "A",
             translated_context.get("name_b") or "B",
+            language,
         )
         _log_offchart_ganzhi(interpretation, translated_context, log_ctx)
 
@@ -862,10 +879,16 @@ async def _invalidate_poisoned_cache(
 
 # ---------- POST /api/interpret/translate(D10,2026-10-01) ----------
 
-# 客户端提交原文的长度硬上限:按 max_tokens 折算字符数 ×1.5(D10.1)。
-# zh 长模块 8192 token ≈ 4000-8000 字 + JSON 结构开销;超限说明提交的 不是
-# 本模块的合法解读文本(或滥用翻译端点当通用翻译器)→ 422。
-_SOURCE_INTERPRETATION_CHAR_LIMIT: Final[int] = int(AI_MAX_OUTPUT_TOKENS * 1.5)
+# 客户端提交原文的长度硬上限:按 max_tokens × 语言系数折算字符数(D10.1)。
+# zh/zh-hant ≈ 1 字/token(×1.5 含 JSON 结构开销余量);en ≈ 4 字符/token——
+# 统一 ×1.5 是按中文估的,en 长章(M1/M2/M3/M5/M7)合法输出可到 12k-16k 字符,
+# 会被误伤 422 → en→中翻译永久不可用(2026-10-02 修复,按 source_language 分档)。
+# 上限目的只是拦「非本模块解读文本 / 滥用翻译端点当通用翻译器」,系数取宽侧。
+_SOURCE_INTERPRETATION_CHAR_LIMITS: Final[dict[str, int]] = {
+    "zh": int(AI_MAX_OUTPUT_TOKENS * 1.5),
+    "zh-hant": int(AI_MAX_OUTPUT_TOKENS * 1.5),
+    "en": int(AI_MAX_OUTPUT_TOKENS * 4),
+}
 
 # 翻译端点的合盘后置处理范围(不含 alias:白名单 TRANSLATE_MODULES 已排除)
 _TRANSLATE_COMPAT_MODULES: Final[frozenset[str]] = frozenset({
@@ -1040,7 +1063,7 @@ async def interpret_translate(
     1. 目标语言 = resolve_language(与 /api/interpret 同口径);
        source == 目标 → 422
     2. source_prompt_version ≠ 当前版本 → 409 STALE_SOURCE(走正常生成)
-    3. 原文长度上限(AI_MAX_OUTPUT_TOKENS × 1.5 字符)→ 422
+    3. 原文长度上限(AI_MAX_OUTPUT_TOKENS × 语言系数,en 与 zh 分档)→ 422
     3.5 v1 原文形状前置校验(非 JSON 对象 → 422,不烧 LLM)
     4. 共享 _prepare_prompt_and_key:**译文写入的缓存键 = 目标语言下
        /api/interpret 会算出的键**(逐字段相等,含目标语言模板渲染出的
@@ -1088,12 +1111,13 @@ async def interpret_translate(
             f"(当前 {current_version}),请按正常 /api/interpret 重新生成",
             request_id=request_id, content_hash=req.content_hash)
 
-    # 3. 长度上限(防免费通用翻译器滥用,D10.1)
-    if len(req.source_interpretation) > _SOURCE_INTERPRETATION_CHAR_LIMIT:
+    # 3. 长度上限(防免费通用翻译器滥用,D10.1;系数按 source_language 分档)
+    char_limit = _SOURCE_INTERPRETATION_CHAR_LIMITS[req.source_language]
+    if len(req.source_interpretation) > char_limit:
         raise InvalidInputError(
             f"source_interpretation 长度 {len(req.source_interpretation)} 超上限"
-            f" {_SOURCE_INTERPRETATION_CHAR_LIMIT}"
-            f"(按该模块 max_tokens 折算;疑似非本模块解读文本)",
+            f" {char_limit}"
+            f"(按该模块 max_tokens 与原文语言折算;疑似非本模块解读文本)",
             request_id=request_id)
 
     # 3.5 v1 原文形状前置校验(422 客户端输入错误):非该模块形状的原文
@@ -1174,7 +1198,12 @@ async def interpret_translate(
             translated_from=None,
         )
 
-    # 7. 翻译 prompt + LLM(singleflight 按目标 cache_key 合并同 key 并发)
+    # 7. 翻译 prompt + LLM(singleflight 按目标 cache_key 合并同 key 并发)。
+    #    键加 "translate" 命名空间(2026-10-02 修复):翻译与 /api/interpret
+    #    共用 llm_singleflight 且 cache_key 相同,但两边 factory 发的 prompt
+    #    不同——同盘同模块并发时后到方会拿到对方的 LLM 结果(生成方拿到
+    #    译文 / 翻译方拿到生成文本并被保真校验误判 503),结果还写进共享
+    #    缓存键。隔离后各自只与同端点并发合并。
     translate_prompt = _render_translate_prompt(
         req.source_language, language, req.source_interpretation)
     logger.info(
@@ -1184,7 +1213,7 @@ async def interpret_translate(
     sf: SingleflightCoalescer = request.app.state.llm_singleflight
     try:
         translated = await sf.coalesce(
-            cache_key, lambda: ai_client.interpret(
+            ("translate", cache_key), lambda: ai_client.interpret(
                 translate_prompt, temperature=resolve_temperature("translate"),
             ),
         )
@@ -1201,7 +1230,7 @@ async def interpret_translate(
     name_a = translated_context.get("name_a") or "A"
     name_b = translated_context.get("name_b") or "B"
     if req.module in _TRANSLATE_COMPAT_MODULES:
-        translated = _replace_ab_labels(translated, name_a, name_b)
+        translated = _maybe_replace_ab_labels(translated, name_a, name_b, language)
         _log_offchart_ganzhi(translated, translated_context, log_ctx)
 
     # 8. 保真校验(同构/章节/名字)+ 禁词;失败显式抛错,不写缓存(D10.3)

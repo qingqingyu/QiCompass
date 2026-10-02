@@ -390,14 +390,15 @@ final class CompatibilityOrchestrator {
             )
             return nil
         }
-        for module in currentLanguageModules {
-            if let (language, hits) = try await interpretationReader.readAllCrossLanguage(
-                contentHash: compatibilityHash,
-                modules: [module],
-                maxAge: 24 * 3600
-            ), let row = hits[module] {
-                return (module, language, row.interpretation, row.promptVersion)
-            }
+        // 跨语言探测走模块优先批量版(paid 先于 free;identity 单次 resolve——
+        // 2026-10-02 修复:此前逐模块调 readAllCrossLanguage,每次内部逐语言
+        // 再各 resolve 一次 identity,一次 detail 打开最多 5 次 health 往返)
+        if let hit = try await interpretationReader.readCrossLanguageByModulePriority(
+            contentHash: compatibilityHash,
+            modules: currentLanguageModules,
+            maxAge: 24 * 3600
+        ) {
+            return (hit.module, hit.language, hit.row.interpretation, hit.row.promptVersion)
         }
         return nil
     }

@@ -15,7 +15,9 @@ zh 变体解析(D4,i18n-zh-hant-plan.md):primary tag = `zh` 时看子 tag
 (script 优先,再看 region)决定简繁,Accept-Language 与 X-QiCompass-Lang
 都过同一逻辑——繁体系统用户零操作自动拿繁体:
 - `zh-Hant` / `zh-Hant-TW` / `zh-TW` / `zh-HK` / `zh-MO` → `zh-hant`
-- `zh-Hans` / `zh-CN` / `zh-SG` / 裸 `zh` → `zh`
+- `zh-Hans` / `zh-Hans-HK` / `zh-Hans-TW` / `zh-CN` / `zh-SG` / 裸 `zh`
+  → `zh`(script 压过 region,与 iOS `AppLanguage.normalizeZhVariant`
+  逐例同口径——两侧判定漂移会让双层缓存语言键永不互中)
 
 严格使用 `is_language_supported` 判断,避免 Accept-Language 携带未注册语言时
 静默走 en 分支。
@@ -37,9 +39,13 @@ logger = logging.getLogger(__name__)
 
 DEFAULT_LANGUAGE: Final[str] = "zh"
 
-# zh 变体 → 繁体的 script/region 子 tag(D4;script 4 字母,region 2 字母,
-# 同层判断不区分长短,只要命中即繁体)
-_ZH_HANT_SUBTAGS: Final[frozenset[str]] = frozenset({"hant", "tw", "hk", "mo"})
+# zh 变体判繁体的子 tag(D4):script 优先于 region——先看 4 字母 script
+# 子 tag(hans → 简,hant → 繁),无 script 才看 2 字母 region
+# (tw/hk/mo → 繁,其余 → 简)。2026-10-02 修复:此前 script/region 同层
+# 任一命中即繁,`zh-Hans-HK`(系统简体 + 地区港台的 iOS Accept-Language
+# 真实形态)会被误判繁体,而 iOS `AppLanguage.normalizeZhVariant` 按-script
+# 优先判简——后端落 zh-hant 键、客户端读 zh 键,双层缓存永不互中且不报错。
+_ZH_HANT_REGION_SUBTAGS: Final[frozenset[str]] = frozenset({"tw", "hk", "mo"})
 
 
 def resolve_language(request: Request) -> str:
@@ -121,14 +127,18 @@ def _extract_first_tag(accept_language: str) -> str | None:
 def _match_language(tag: str) -> str | None:
     """完整 BCP47-ish tag → 已注册语言代码;未注册返回 None。
 
-    zh 变体解析(D4):primary = zh 时,任一子 tag 命中繁体集合
-    (hant / tw / hk / mo)→ "zh-hant";hans / cn / sg / 裸 zh 及未知
-    region → "zh"(简体为默认侧,未知 region 不猜繁体)。
+    zh 变体解析(D4,**script 优先于 region**,与 iOS
+    `AppLanguage.normalizeZhVariant` 逐例同口径):
+    - script 子 tag(4 字母)显式存在 → 按 script 定:"hant" → "zh-hant",
+      其余任何 script(hans 等)→ "zh"
+    - script 缺位才看 region:tw / hk / mo → "zh-hant";
+      cn / sg / 裸 zh 及未知 region → "zh"(简体为默认侧,未知不猜繁体)
     en 的任何 region 变体 → "en"。其余 primary(ja / fr / …)→ None,
     由调用方决定 fallback(不静默映射)。
 
     例子:
     - "zh" → "zh";"zh-CN" → "zh";"zh-Hans" → "zh"
+    - "zh-Hans-HK" → "zh"(script 压过 region);"zh-Hans-TW" → "zh"
     - "zh-Hant" → "zh-hant";"zh-TW" → "zh-hant";"zh-Hant-HK" → "zh-hant"
     - "zh-hant" → "zh-hant"(大小写不敏感)
     - "en-US" → "en";"en" → "en"
@@ -139,7 +149,11 @@ def _match_language(tag: str) -> str | None:
         return None
     primary = subtags[0]
     if primary == "zh":
-        if any(s in _ZH_HANT_SUBTAGS for s in subtags[1:]):
+        script = next(
+            (s for s in subtags[1:] if len(s) == 4), None)
+        if script is not None:
+            return "zh-hant" if script == "hant" else "zh"
+        if any(s in _ZH_HANT_REGION_SUBTAGS for s in subtags[1:]):
             return "zh-hant"
         return "zh"
     if primary == "en":

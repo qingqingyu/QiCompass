@@ -311,6 +311,21 @@ class TestMatchLanguage:
         assert _match_language("zh") == "zh"
         assert _match_language("ZH") == "zh"  # 大小写不敏感
 
+    def test_script_priority_over_region(self):
+        """script 压过 region(2026-10-02 修复,对齐 iOS normalizeZhVariant)。
+
+        「系统简体中文 + 地区港/台」的 iOS Accept-Language 真实形态是
+        zh-Hans-HK——此前 region 命中即判繁,而 iOS 按 script 判简,两侧
+        判定相反会让后端落 zh-hant 键、客户端读 zh 键,双层缓存永不互中
+        且不报错(每次重开都重新生成、多扣次数)。"""
+        assert _match_language("zh-Hans-HK") == "zh"
+        assert _match_language("zh-Hans-TW") == "zh"
+        assert _match_language("zh-Hans-MO") == "zh"
+        assert _match_language("zh-Hant-CN") == "zh-hant"
+        assert _match_language("zh-hans-hk") == "zh"  # 大小写不敏感
+        # script 缺位才看 region(原矩阵行为不回归)
+        assert _match_language("zh-HK") == "zh-hant"
+
     def test_en_and_unregistered(self):
         assert _match_language("en") == "en"
         assert _match_language("en-US") == "en"
