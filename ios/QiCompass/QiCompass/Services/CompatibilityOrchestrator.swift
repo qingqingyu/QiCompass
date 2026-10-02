@@ -264,8 +264,12 @@ final class CompatibilityOrchestrator {
                 AppLogger.app.error(
                     "compat.interpret.forbidden compatibility_hash=\(compatibilityHash, privacy: .public) context=\(context, privacy: .public) pv=\(resp.promptVersion) hits=\(hits.joined(separator: ","), privacy: .public)"
                 )
-                // refund(用户不应为后端 LLM 失控买单)
-                counter.refund(module: module)
+                // refund(用户不应为后端 LLM 失控买单);quotaExempt 路径未消费
+                // 不退——退未消费的额度 = 白送配额(与下方 cached 分支同款守卫,
+                // 2026-10-02 三查补)
+                if !quotaExempt {
+                    counter.refund(module: module)
+                }
                 throw CompatibilityError.forbiddenWordsHit(words: hits)
             }
 

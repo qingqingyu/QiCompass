@@ -211,7 +211,8 @@ final class DeepAnalysisViewModel {
         case inProgress
         /// 翻译失败(非离线类):提示条「部分章节翻译失败 · 重试」,手动重试
         case failed
-        /// 离线类失败:提示条「联网后自动译为××」,回前台再自动触发一次
+        /// 离线类失败:提示条「联网后重新打开 App 即自动译为××」(R7 文案,
+        /// 与回前台触发的实际行为一致),回前台再自动触发一次
         /// (请求未达后端零 LLM 成本;二次失败转 .failed 只走手动)
         case offlinePending
     }
@@ -1617,6 +1618,14 @@ final class DeepAnalysisViewModel {
         // (排盘 A 填的 concern 不能给排盘 B 用,违反「八字计算必须确定性」语义)
         m4UserInput = nil
         m5UserInput = nil
+        // 翻译侧状态一并复位(2026-10-02 三查):reset → 表单 → 新盘走 calculate(),
+        // 不经 loadArchivedChart 的换盘守卫(state 已 .empty,守卫不触发)——
+        // 残留会让新盘健康章挂陈旧「翻译失败 · 重试」小注;offer/rows 残留更会
+        // 让 autoTranslateIfNeeded 把旧盘原文行按新盘 hash 发翻译(串台请求)。
+        translationOffer = nil
+        crossLanguageRows.removeAll()
+        translationFailedModules.removeAll()
+        isTranslatingChain = false
         // L3/F1:回表单态清自动翻译展示态(提示条/章首小注随页面退场)
         autoTranslationState = nil
     }

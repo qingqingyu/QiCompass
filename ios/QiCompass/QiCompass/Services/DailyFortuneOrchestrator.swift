@@ -281,9 +281,15 @@ final class DailyFortuneOrchestrator {
             )
 
             // 命中后端缓存 → refund。后续失败不能再次 refund,避免双退款多还一次额度。
+            // quotaExempt 路径未消费,跳过 refund(退未消费的额度 = 白送配额;
+            // 镜像 CompatibilityOrchestrator 同款守卫,2026-10-02 三查补)。
             if resp.cached {
-                counter.refund(module: module)
-                shouldRefundOnFailure = false
+                if quotaExempt {
+                    shouldRefundOnFailure = false
+                } else {
+                    counter.refund(module: module)
+                    shouldRefundOnFailure = false
+                }
             }
 
             // 写本地 AI 缓存。失败必须传导到 UI,避免返回假成功。
