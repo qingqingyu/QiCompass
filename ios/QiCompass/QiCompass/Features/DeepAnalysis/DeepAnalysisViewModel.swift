@@ -1159,6 +1159,12 @@ final class DeepAnalysisViewModel {
             extractChainFields(from: resp.interpretation, for: module)
 
             moduleStates[module] = .ok(text: resp.interpretation, cached: resp.cached)
+            // 跨语言原文行作废(2026-10-02 修复):本章已按当前语言重新生成,
+            // 残留的原文行会让翻译重试把这一章按旧原文再翻一遍——版本已
+            // bump 的原文触发 STALE_SOURCE 时,好的 .ok 会被覆盖成 .failed。
+            if crossLanguageRows.removeValue(forKey: module) != nil {
+                syncTranslationOfferWithRows()
+            }
             AppLogger.app.info("deepVM.runSingleV1Module.ok module=\(module.rawValue, privacy: .public) cached=\(resp.cached, privacy: .public)")
         } catch is CancellationError {
             AppLogger.app.info("deepVM.runSingleV1Module.cancelled module=\(module.rawValue, privacy: .public)")
@@ -1202,6 +1208,20 @@ final class DeepAnalysisViewModel {
         )
         Task { @MainActor [weak self] in
             await self?.runTranslationChain(response: response, sourceLanguage: offer.sourceLanguage)
+        }
+    }
+
+    /// 跨语言原文行集合变化后收口翻译提议(2026-10-02):行空 → 撤提议
+    /// (提示条消失,resume 的 translation_pending 守卫解除);行在 →
+    /// modules 集合刷新(提议与剩余待译章保持一致,防陈旧集合误导重试)。
+    private func syncTranslationOfferWithRows() {
+        if crossLanguageRows.isEmpty {
+            translationOffer = nil
+        } else if let offer = translationOffer {
+            translationOffer = TranslationOffer(
+                sourceLanguage: offer.sourceLanguage,
+                modules: Set(crossLanguageRows.keys)
+            )
         }
     }
 
@@ -1286,7 +1306,24 @@ final class DeepAnalysisViewModel {
                         "deepVM.runTranslationChain.missing_parent module=\(module.rawValue, privacy: .public) missing=\(missing.joined(separator: ","), privacy: .public)"
                     )
                     moduleStates[module] = .pending
-                    autoTranslationState = .failed  // 链字段断裂属失败态(可手动重试)
+                    // 翻译链断头兜底(2026-10-02 修复):上游原文缺失(M0 无行
+                    // 可译,如中毒行被清)/译后字段提不出时,翻译路线对剩余
+                    // 模块整体不可达;原样 return 会把 translationOffer 挂成
+                    // 死状态——resumeV1ChainIfNeeded 的 translation_pending
+                    // 守卫永远拦住自动续跑,模块卡 .pending 无人推进。弃剩余
+                    // 原文行转正常生成(付费未解锁的行镜像 paid_locked_skip:
+                    // 保持 .ok 原文显示,不标 .pending 等不可能到来的解锁)。
+                    // L3 合并注:autoTranslationState 一并清(提议已弃,不再出
+                    // 失败提示条;缺章续跑由下方 resume 接管)。
+                    for remaining in crossLanguageRows.keys
+                    where !remaining.isPaid
+                        || hasDeepEntitlement(contentHash: response.contentHash) {
+                        moduleStates[remaining] = .pending
+                    }
+                    crossLanguageRows.removeAll()
+                    translationOffer = nil
+                    autoTranslationState = nil
+                    resumeV1ChainIfNeeded()
                     return  // 上游译后字段缺失,继续只会混键,显式停
                 }
             }

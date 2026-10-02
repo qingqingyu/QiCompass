@@ -147,6 +147,48 @@ final class CachedInterpretationReader {
         return best
     }
 
+    /// 跨语言探测(模块优先版,2026-10-02 修复):按 `modules` 顺序在
+    /// 「其它语言」里逐模块探测,先命中先返回。
+    ///
+    /// 与逐模块调 `readAllCrossLanguage` 的结果逐例相等(单模块探测下
+    /// 「命中模块数最多」退化为首个命中语言,语言序同为 `allCases` 序),
+    /// 但 **identity 只 resolve 一次**:合盘 cross-language 查询若逐模块
+    /// 调 `readAllCrossLanguage`,每次内部又逐语言调 `readAll`——每次
+    /// resolve 都是一次 `/api/health` 往返,一次 detail 打开最多 5 次;
+    /// 收敛到 1 次后行为不变(同批共享 resolve 不违反 ADR-0009,见
+    /// `readAll` 注释)。
+    ///
+    /// - Returns:命中的 module 名 + 语言 + 缓存行;全部 miss → nil
+    /// - Throws:identity 解析失败或 SwiftData 读失败向上抛
+    func readCrossLanguageByModulePriority(
+        contentHash: String,
+        modules: [String],
+        targetDate: Date? = nil,
+        maxAge: TimeInterval? = nil
+    ) async throws -> (module: String, language: String, row: InterpretationCache)? {
+        let identity = try await identityResolver.resolve()
+        let otherLanguages = AppLanguage.allCases
+            .map(\.rawValue)
+            .filter { $0 != AppLanguage.currentWire }
+        for module in modules {
+            for language in otherLanguages {
+                guard let cache = try cacheStore.getLatest(
+                    contentHash: contentHash,
+                    module: module,
+                    targetDate: targetDate,
+                    language: language,
+                    identity: identity
+                ) else { continue }
+                if try purgeIfPoisoned(cache) { continue }
+                if let maxAge, cache.generatedAt.addingTimeInterval(maxAge) <= .now {
+                    continue
+                }
+                return (module, language, cache)
+            }
+        }
+        return nil
+    }
+
     // MARK: - V1 模块中毒缓存自愈(2026-10-01)
 
     /// V1 深度模块(M0-M7)中毒缓存检测 + 删除,镜像后端 `_validate_v1_module_json` +

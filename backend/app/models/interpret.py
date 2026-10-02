@@ -364,10 +364,14 @@ class TranslateRequest(InterpretRequest):
     @field_validator("source_interpretation")
     @classmethod
     def source_interpretation_not_blank(cls, v: str) -> str:
-        normalized = v.strip()
-        if not normalized:
+        if not v.strip():
             raise ValueError("source_interpretation 不能为空")
-        return normalized
+        # 原样返回(不 strip,2026-10-02 修复):防伪比对是逐字相等
+        # (cache.has_interpretation_text 的 SQL `interpretation=?`),客户端
+        # 回传的原文 = 后端生成返回的原样文本;此处若去首尾空白,LLM 输出
+        # 带围栏前导换行/尾随空白的真实原文会永远核验失败 → 409 死路,
+        # 客户端反复重试并重复扣次数。空白判定只做门,不做改写。
+        return v
 
     @model_validator(mode="after")
     def module_must_support_translation(self) -> "TranslateRequest":

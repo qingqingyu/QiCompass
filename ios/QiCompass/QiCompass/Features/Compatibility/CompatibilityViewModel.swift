@@ -1773,6 +1773,15 @@ final class CompatibilityViewModel {
                         AppLogger.app.info(
                             "op=compatibility.openDetail cross_language_paid_locked hash=\(summaryHash, privacy: .public)"
                         )
+                    } else if cross.module == "compatibility_free" && hasEntitlement {
+                        // 镜像对称分支(2026-10-02 修复):免费层原文 × 已付费
+                        // ——原文层级低于已购层级,展示/翻译只会把免费 2 章
+                        // 固化成 .okPaid 态;#13 手动生成入口已拔除,状态机
+                        // 非 .idle 后付费 4 章永远无人触发。同样不早退,落到
+                        // 下方自动起链按付费层在当前语言生成。
+                        AppLogger.app.info(
+                            "op=compatibility.openDetail cross_language_free_under_entitled hash=\(summaryHash, privacy: .public)"
+                        )
                     } else {
                         self.translationOffer = TranslationOffer(
                             sourceLanguage: cross.language,
@@ -1849,6 +1858,59 @@ final class CompatibilityViewModel {
 
     // MARK: - AI 合盘解读(按对触发,决策 D3)
 
+    /// generateInterpretation / acceptTranslation 共用的请求侧输入
+    /// (2026-10-02 抽取,单一事实源:两处各写一份会漂移——promptNameB /
+    /// nameA 的裁决改一处漏一处时,生成与翻译的 user_input 维度分叉,
+    /// 缓存键对齐静默破裂,译文落进无人读的键且不报错)。
+    private struct CompatPromptInputs {
+        let baziA: BaziResponse
+        let baziB: BaziResponse
+        let chartA: ChartPromptContext
+        let chartB: ChartPromptContext
+        let nameA: String
+        let nameB: String
+    }
+
+    /// 组装双盘 PromptContextBuilder 上下文 + 两人称呼。
+    /// decode 失败显式上抛(调用方 catch 转 failed 态,不吞)。
+    private func buildCompatPromptInputs(
+        chartASnapshot: ChartSnapshot,
+        bSnapshot: ChartSnapshot,
+        summary: PairSummary
+    ) throws -> CompatPromptInputs {
+        let baziA = try chartStore.decodeResponse(from: chartASnapshot)
+        let baziB = try chartStore.decodeResponse(from: bSnapshot)
+        let chartA = PromptContextBuilder.chartContext(
+            from: baziA,
+            gender: chartASnapshot.gender,
+            cityDisplay: cityDisplay(for: chartASnapshot)
+        )
+        let chartB = PromptContextBuilder.chartContext(
+            from: baziB,
+            gender: bSnapshot.gender,
+            cityDisplay: cityDisplay(for: bSnapshot)
+        )
+        // 2026-09-28 prompt 称谓修复:nameB 不能用 displayName 的兜底串
+        // (「对方 · 1985-07-12」会被 v4 模板当人名通篇复述);alias 缺失时
+        // 用纯「对方」。UI 列头(CompatibilityView)仍用 displayName,两口径分开。
+        let nameB: String
+        switch summary.entry {
+        case .archived(let bHash):
+            nameB = archivedCharts.first { $0.snapshotHash == bHash }?.alias
+                ?? String(localized: "对方")
+        case .temp(_, let alias, _, _):
+            if let alias, !alias.isEmpty {
+                nameB = alias
+            } else {
+                nameB = String(localized: "对方")
+            }
+        }
+        return CompatPromptInputs(
+            baziA: baziA, baziB: baziB, chartA: chartA, chartB: chartB,
+            nameA: L10n.Compatibility.selfReferenceYou, nameB: nameB
+        )
+    }
+
     /// 触发该对 AI 解读(只对 detail 态当前对生效)。
     /// 购买成功后由 PaywallView onPurchaseSuccess 调用,亦按当前 detail 态对触发。
     func generateInterpretation() {
@@ -1886,14 +1948,15 @@ final class CompatibilityViewModel {
         interpretTask = Task { [weak self] in
             guard let self else { return }
             do {
-                let baziA = try self.chartStore.decodeResponse(from: chartASnapshot)
-                let baziB = try self.chartStore.decodeResponse(from: bSnapshot)
+                let inputs = try self.buildCompatPromptInputs(
+                    chartASnapshot: chartASnapshot, bSnapshot: bSnapshot,
+                    summary: summary)
                 // S07 阶段 2 拦截(免费亦拦):任一方无时辰(payload 判据)→ 不发
                 // interpret 请求。正常路径拦截对进不了 detail(computePair 已拦),
                 // 此处防御购买回调/状态机错乱;文案与对级拦截卡同源。
-                if baziA.hourUnknownGate != .hourKnown || baziB.hourUnknownGate != .hourKnown {
+                if inputs.baziA.hourUnknownGate != .hourKnown || inputs.baziB.hourUnknownGate != .hourKnown {
                     AppLogger.app.warning(
-                        "op=compatibility.generateInterpretation.skip reason=hour_unknown a_gate=\(String(describing: baziA.hourUnknownGate), privacy: .public) b_gate=\(String(describing: baziB.hourUnknownGate), privacy: .public) compatibilityHash=\(compatHash, privacy: .public)"
+                        "op=compatibility.generateInterpretation.skip reason=hour_unknown a_gate=\(String(describing: inputs.baziA.hourUnknownGate), privacy: .public) b_gate=\(String(describing: inputs.baziB.hourUnknownGate), privacy: .public) compatibilityHash=\(compatHash, privacy: .public)"
                     )
                     self.state = .detail(
                         summary, response,
@@ -1901,44 +1964,18 @@ final class CompatibilityViewModel {
                     )
                     return
                 }
-                let chartA = PromptContextBuilder.chartContext(
-                    from: baziA,
-                    gender: chartASnapshot.gender,
-                    cityDisplay: self.cityDisplay(for: chartASnapshot)
-                )
-                let chartB = PromptContextBuilder.chartContext(
-                    from: baziB,
-                    gender: bSnapshot.gender,
-                    cityDisplay: self.cityDisplay(for: bSnapshot)
-                )
-
-                // 2026-09-28 prompt 称谓修复:nameB 不能用 displayName 的兜底串
-                // (「对方 · 1985-07-12」会被 v4 模板当人名通篇复述);alias 缺失时
-                // 用纯「对方」。UI 列头(CompatibilityView)仍用 displayName,两口径分开。
-                let promptNameB: String
-                switch summary.entry {
-                case .archived(let bHash):
-                    promptNameB = archivedCharts.first { $0.snapshotHash == bHash }?.alias
-                        ?? String(localized: "对方")
-                case .temp(_, let alias, _, _):
-                    if let alias, !alias.isEmpty {
-                        promptNameB = alias
-                    } else {
-                        promptNameB = String(localized: "对方")
-                    }
-                }
                 let resp = try await self.orchestrator.runInterpretation(
                     compatibilityHash: compatHash,
-                    chartA: chartA,
-                    chartB: chartB,
+                    chartA: inputs.chartA,
+                    chartB: inputs.chartB,
                     assessment: response.qualitativeAssessment,
                     syncedFortune: response.syncedFortune,
                     context: self.context,
                     // 2026-09-27 A/B 代号修复:A 恒命主本人 → 「你/you」;
-                    // B 走 promptNameB(alias / 纯「对方」,见上)——prompt 全文与
-                    // 后端残留 A/B 后置替换共用这两个称呼
-                    nameA: L10n.Compatibility.selfReferenceYou,
-                    nameB: promptNameB,
+                    // B 走 inputs.nameB(alias / 纯「对方」,helper 内裁决)——
+                    // prompt 全文与后端残留 A/B 后置替换共用这两个称呼
+                    nameA: inputs.nameA,
+                    nameB: inputs.nameB,
                     module: module
                 )
 
@@ -2026,39 +2063,20 @@ final class CompatibilityViewModel {
             guard let self else { return }
             defer { self.isTranslating = false }
             do {
-                let baziA = try self.chartStore.decodeResponse(from: chartASnapshot)
-                let baziB = try self.chartStore.decodeResponse(from: bSnapshot)
-                let chartA = PromptContextBuilder.chartContext(
-                    from: baziA,
-                    gender: chartASnapshot.gender,
-                    cityDisplay: self.cityDisplay(for: chartASnapshot)
-                )
-                let chartB = PromptContextBuilder.chartContext(
-                    from: baziB,
-                    gender: bSnapshot.gender,
-                    cityDisplay: self.cityDisplay(for: bSnapshot)
-                )
-                let promptNameB: String
-                switch summary.entry {
-                case .archived(let bHash):
-                    promptNameB = self.archivedCharts.first { $0.snapshotHash == bHash }?.alias
-                        ?? String(localized: "对方")
-                case .temp(_, let alias, _, _):
-                    if let alias, !alias.isEmpty {
-                        promptNameB = alias
-                    } else {
-                        promptNameB = String(localized: "对方")
-                    }
-                }
+                // 与 generateInterpretation 同一份请求构造(缓存键对齐前提;
+                // 改称呼/上下文口径只改 buildCompatPromptInputs 一处)
+                let inputs = try self.buildCompatPromptInputs(
+                    chartASnapshot: chartASnapshot, bSnapshot: bSnapshot,
+                    summary: summary)
                 let resp = try await self.orchestrator.translateInterpretation(
                     compatibilityHash: compatHash,
-                    chartA: chartA,
-                    chartB: chartB,
+                    chartA: inputs.chartA,
+                    chartB: inputs.chartB,
                     assessment: response.qualitativeAssessment,
                     syncedFortune: response.syncedFortune,
                     context: self.context,
-                    nameA: L10n.Compatibility.selfReferenceYou,
-                    nameB: promptNameB,
+                    nameA: inputs.nameA,
+                    nameB: inputs.nameB,
                     module: offer.module,
                     sourceLanguage: offer.sourceLanguage,
                     sourcePromptVersion: offer.promptVersion,

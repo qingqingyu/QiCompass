@@ -137,7 +137,10 @@ enum CompatibilityRelationDetailBuilder {
 
     // MARK: 生肖卡
 
-    /// 年支动物(zh 单字 / en 英文名;干支字本体在双盘表可见,这里给可读动物名)。
+    /// 年支动物(zh 单字 / zh-hant 繁体字 / en 英文名;干支字本体在双盘表可见,
+    /// 这里给可读动物名)。走 `ZodiacHelper.displayName` 三语分流(2026-10-02
+    /// 修复:此前 `isChinese ? animalChar : name` 把 zh-hant 落进简体表,
+    /// 繁体界面显示「龙 · 马」而非「龍 · 馬」,违反 D9)。
     private static func zodiacTerm(_ pillars: [DualPillarSource]) -> String? {
         guard let year = pillars.first(where: { $0.position == L10n.Compatibility.dualYearPillar }),
               let za = year.zhiA, let zb = year.zhiB,
@@ -145,15 +148,17 @@ enum CompatibilityRelationDetailBuilder {
               let nameB = ZodiacHelper.zodiacName(forZhi: zb) else {
             return nil
         }
-        let isZh = AppLanguage.current.isChinese
-        let a = isZh ? ZodiacHelper.animalChar(forZodiac: nameA) : nameA
-        let b = isZh ? ZodiacHelper.animalChar(forZodiac: nameB) : nameB
+        let a = ZodiacHelper.displayName(forZodiac: nameA)
+        let b = ZodiacHelper.displayName(forZodiac: nameB)
         return "\(a) · \(b)"
     }
 
     // MARK: 地支卡(4×4 全扫描,如实双记)
 
     private static func branchRelations(_ pillars: [DualPillarSource]) -> [BranchPair] {
+        // 「冲」简繁异形(繁体惯例「沖」,对齐 BaziTerms zhHant「六沖」用字);
+        // 合/半合/刑/害简繁同形无需分流(2026-10-02 D9 修复)
+        let chong = AppLanguage.current == .zhHant ? "沖" : "冲"
         let aZhis = pillars.compactMap { $0.zhiA }
         let bZhis = pillars.compactMap { $0.zhiB }
         var out: [BranchPair] = []
@@ -169,7 +174,7 @@ enum CompatibilityRelationDetailBuilder {
                     parts.append("半合"); rank = 2
                 }
                 if liuchong.contains(pair) {
-                    parts.append("冲"); rank = max(rank, 3)
+                    parts.append(chong); rank = max(rank, 3)
                 }
                 let hasXing = sanxing.contains(where: { $0.isSuperset(of: pair) })
                 if hasXing {

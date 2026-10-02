@@ -221,13 +221,54 @@ async def test_same_language_returns_422(interpret_client):
 
 
 async def test_oversized_source_returns_422(interpret_client):
-    """原文超长(AI_MAX_OUTPUT_TOKENS × 1.5)→ 422(防通用翻译器滥用)。"""
-    from app.api.interpret import _SOURCE_INTERPRETATION_CHAR_LIMIT
+    """原文超长(语言分档上限)→ 422(防通用翻译器滥用)。"""
+    from app.api.interpret import _SOURCE_INTERPRETATION_CHAR_LIMITS
     payload = _m0_translate_payload(
-        source_interpretation="字" * (_SOURCE_INTERPRETATION_CHAR_LIMIT + 1))
+        source_interpretation="字" * (
+            _SOURCE_INTERPRETATION_CHAR_LIMITS["zh"] + 1))
     resp = await interpret_client.post(
         "/api/interpret/translate", json=payload,
         headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 422, resp.text
+    assert "超上限" in str(resp.json())
+
+
+async def test_en_source_uses_en_char_limit(
+        interpret_client, mock_ai_client, tmp_cache):
+    """en 原文长度上限按 4 字符/token 折算(2026-10-02 修复):
+
+    zh 档(×1.5=12288)对 en 长章(M1/M2/M3/M5/M7 可达 12k-16k 字符)
+    会误伤 422 → en→中翻译永久不可用。本用例提交一段超过 zh 档但低于
+    en 档的 en 合盘原文(散文契约,无 JSON 前置形状校验):不应在长度门
+    422,而是走到防伪核验(409 = 已过长度门)。
+    """
+    from app.api.interpret import _SOURCE_INTERPRETATION_CHAR_LIMITS
+    zh_limit = _SOURCE_INTERPRETATION_CHAR_LIMITS["zh"]
+    en_limit = _SOURCE_INTERPRETATION_CHAR_LIMITS["en"]
+    assert en_limit > zh_limit, "en 档必须比 zh 档宽(4 字符/token vs 1 字/token)"
+    payload = _compat_translate_payload(source_interpretation="a" * (zh_limit + 100))
+    payload["source_language"] = "en"
+    payload["source_prompt_version"] = 4
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=payload,
+        headers={"X-QiCompass-Lang": "zh"},
+    )
+    # 不 seed 原文行:过长度门后会停在防伪核验(409),证明长度门放行
+    assert resp.status_code == 409, resp.text
+    assert mock_ai_client.call_count == 0
+
+
+async def test_en_source_over_en_limit_422(interpret_client):
+    """en 原文超过 en 档(×4)→ 仍 422(上限的防滥用语义保留)。"""
+    from app.api.interpret import _SOURCE_INTERPRETATION_CHAR_LIMITS
+    payload = _m0_translate_payload(
+        source_interpretation="a" * (
+            _SOURCE_INTERPRETATION_CHAR_LIMITS["en"] + 1),
+        source_language="en")
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=payload,
+        headers={"X-QiCompass-Lang": "zh"},
     )
     assert resp.status_code == 422, resp.text
     assert "超上限" in str(resp.json())
@@ -261,6 +302,84 @@ async def test_unverified_source_returns_409(interpret_client, mock_ai_client):
     assert resp.json()["error"]["code"] == "STALE_SOURCE"
     assert "不可核验" in resp.json()["error"]["message"]
     assert mock_ai_client.call_count == 0, "伪造原文不得产生 provider 成本"
+
+
+async def test_source_with_surrounding_whitespace_translates(
+        interpret_client, mock_ai_client, tmp_cache):
+    """首尾带空白的原文照常可译(2026-10-02 修复 strip 409 死路)。
+
+    LLM 原始输出常带尾随换行/围栏前导空白;客户端把它逐字存档并逐字回传,
+    此前请求校验器 strip 后再与缓存行 SQL 逐字比对,这类真实原文永远
+    核验失败 409 → 客户端反复重试、重复扣次数。seed 一行带首尾空白的
+    原文,提交同文本 → 必须过防伪(200)。
+    """
+    raw_source = f"\n\n{M0_ZH_JSON}\n\n"
+    payload = _m0_translate_payload(source_interpretation=raw_source)
+    _seed_source_row(tmp_cache, payload, raw_source)
+    mock_ai_client.set_response(M0_HANT_JSON)
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=payload,
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["translated_from"] == "zh"
+
+
+async def test_translate_and_generate_do_not_coalesce(
+        interpret_client, mock_ai_client, tmp_cache):
+    """翻译与正常生成并发同键不得合并 singleflight(2026-10-02 修复)。
+
+    两端点共用 llm_singleflight 且目标 cache_key 相同,但 factory 发的
+    prompt 不同;键未隔离时后到方拿到对方的结果串台(生成拿到译文 /
+    翻译拿到生成文本还可能被保真校验误判 503)。慢 mock 制造并发窗口,
+    断言两端点各自调一次 LLM 且拿到各自产物。
+    """
+    import asyncio
+
+    from app.main import app
+    from tests.fixtures.mock_ai import MockAIClient
+
+    class _SlowScriptedMock(MockAIClient):
+        """按 prompt 是否翻译模板分答应 + 人工延迟制造并发窗口。"""
+
+        async def interpret(self, prompt: str, *, temperature: float = 0.6) -> str:
+            await asyncio.sleep(0.05)
+            self.call_count += 1
+            self.last_prompt = prompt
+            self.last_temperature = temperature
+            # _render_translate_prompt 恒以「===== 原文结束 =====」收尾
+            # (标记字面量与目标语言无关),生成模板不含
+            if "原文结束" in prompt:
+                return M0_HANT_JSON
+            return M0_ZH_JSON
+
+    slow = _SlowScriptedMock()
+    saved_ai = app.state.ai_client
+    app.state.ai_client = slow
+    try:
+        gen_payload = {
+            "content_hash": "hash-tr-sf", "module": "m0_structure",
+            "context": {"chart": M0_CHART}, "target_date": None,
+        }
+        tr_payload = _m0_translate_payload()
+        tr_payload["content_hash"] = "hash-tr-sf"
+        _seed_source_row(tmp_cache, tr_payload, M0_ZH_JSON)
+        gen_resp, tr_resp = await asyncio.gather(
+            interpret_client.post("/api/interpret", json=gen_payload,
+                                  headers={"X-QiCompass-Lang": "zh-hant"}),
+            interpret_client.post("/api/interpret/translate", json=tr_payload,
+                                  headers={"X-QiCompass-Lang": "zh-hant"}),
+        )
+        assert gen_resp.status_code == 200, gen_resp.text
+        assert tr_resp.status_code == 200, tr_resp.text
+        # 生成 → 生成模板产物(简体 JSON);翻译 → 译文(繁体 JSON)
+        assert gen_resp.json()["interpretation"] == M0_ZH_JSON, \
+            "生成拿到翻译结果 = singleflight 串台"
+        assert tr_resp.json()["interpretation"] == M0_HANT_JSON, \
+            "翻译拿到生成结果 = singleflight 串台"
+        assert slow.call_count == 2, "两端点应各调一次 LLM(合并 = 串台)"
+    finally:
+        app.state.ai_client = saved_ai
 
 
 # ---------- entitlement(付费模块同检,翻译不另收费) ----------
