@@ -464,3 +464,198 @@ final class CompatibilityCrossLanguageCacheTests: XCTestCase {
         XCTAssertNil(hit, "目标语言已有行时不得跨语言(译文已在缓存,不应展示旧原文+提议)")
     }
 }
+
+// MARK: - 每日运势跨语言翻译(L5/F3,2026-10-01 修订 D10 模块表)
+
+@MainActor
+final class DailyFortuneTranslateTests: XCTestCase {
+
+    private var container: ModelContainer!
+    private var apiClient: MockAPIClient!
+    private var interpretStore: InterpretationCacheStore!
+    private var dailyStore: DailyFortuneSnapshotStore!
+    private var counter: DailyReadCounter!
+    private var reader: CachedInterpretationReader!
+    private var orchestrator: DailyFortuneOrchestrator!
+
+    private static let zhJSON =
+        "{\"headline\":\"静心开局\",\"work\":\"先做要紧的事。\",\"relationships\":\"话留三分。\",\"energy\":\"按自己的节奏来。\",\"reminder\":\"量力而行。\"}"
+    private static let hantJSON =
+        "{\"headline\":\"靜心開局\",\"work\":\"先做要緊的事。\",\"relationships\":\"話留三分。\",\"energy\":\"按自己的節奏來。\",\"reminder\":\"量力而行。\"}"
+
+    override func setUpWithError() throws {
+        try super.setUpWithError()
+        // 生效语言 = zh-hant(L1/F2:注入启动快照模拟重启后生效)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        container = try ModelContainerFactory.makeInMemory()
+        let context = container.mainContext
+        apiClient = MockAPIClient()
+        interpretStore = InterpretationCacheStore(context: context)
+        dailyStore = DailyFortuneSnapshotStore(context: context)
+        counter = DailyReadCounter.makeIsolatedForTesting()
+        reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: apiClient),
+            cacheStore: interpretStore
+        )
+        orchestrator = DailyFortuneOrchestrator(
+            apiClient: apiClient,
+            dailyStore: dailyStore,
+            interpretStore: interpretStore,
+            chartStore: ChartSnapshotStore(context: context),
+            counter: counter,
+            interpretationReader: reader
+        )
+    }
+
+    override func tearDown() async throws {
+        UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        orchestrator = nil
+        reader = nil
+        counter = nil
+        dailyStore = nil
+        interpretStore = nil
+        apiClient = nil
+        container = nil
+        try await super.tearDown()
+    }
+
+    /// 次数耗尽 + 当天已有 zh 解读 → 翻译而来,不扣次数、不触发生成。
+    func testDailyCrossLanguageTranslateSkipsQuota() async throws {
+        let payload = ChartPayloadDTO(
+            dayMaster: "己", dayMasterElement: "土", dayMasterStrength: "weak",
+            favorableElements: ["火", "土"], unfavorableElements: ["水", "金"],
+            fourPillars: [:]
+        )
+        let date = Calendar.current.startOfDay(for: Date())
+        let dailyResponse = try await apiClient.dailyFortune(
+            request: DailyFortuneRequest(chartHash: "l5-daily", targetDate: date, chartPayload: payload)
+        )
+        // 快照先行(生产链路 runDeterministic 落档;updateInterpretation 依赖行存在)
+        try dailyStore.upsert(
+            chartHash: "l5-daily", targetDate: date, response: dailyResponse,
+            interpretation: "",
+            cachedUntil: BusinessDateCalculator.cachedUntil(forBusinessDate: date)
+        )
+        // 既有 zh 解读(当天)
+        try interpretStore.upsert(
+            contentHash: "l5-daily", module: "daily_fortune", promptVersion: 4,
+            targetDate: date, language: "zh",
+            provider: "anthropic", model: "mock-anthropic-model",
+            interpretation: Self.zhJSON, generatedAt: .now
+        )
+        // 次数耗尽(P3 场景:切语言当天一段都看不到 → L5 后翻译不受限)
+        for _ in 0..<DailyReadCounter.ReadLimit.globalDaily {
+            _ = counter.tryConsume(module: "daily_fortune")
+        }
+        XCTAssertEqual(counter.remaining(), 0)
+        apiClient.translateResponder = { _ in
+            InterpretResponse(
+                interpretation: Self.hantJSON,
+                promptVersion: 4, cached: false, generatedAt: .now,
+                provider: "anthropic", model: "mock-anthropic-model",
+                language: "zh-hant", translatedFrom: "zh"
+            )
+        }
+
+        let resp = try await orchestrator.runInterpretation(
+            chartHash: "l5-daily", chartPayload: payload,
+            dailyResponse: dailyResponse, businessDate: date
+        )
+
+        XCTAssertEqual(resp.interpretation, Self.hantJSON, "次数耗尽仍须拿到译文(翻译不受配额限制)")
+        XCTAssertEqual(resp.language, "zh-hant")
+        XCTAssertEqual(counter.remaining(), 0, "翻译不得消耗每日次数")
+        XCTAssertTrue(
+            apiClient.recordedInterpretRequests.filter { $0.module == "daily_fortune" }.isEmpty,
+            "有源时不得触发生成(生成会扣次数/结论会变)"
+        )
+        // 译文已落目标语言缓存键:再读直接命中(客户端侧键对齐)
+        let cached = try await reader.read(
+            contentHash: "l5-daily", module: "daily_fortune",
+            targetDate: date, maxAge: 24 * 3600
+        )
+        XCTAssertEqual(cached?.interpretation, Self.hantJSON)
+        XCTAssertEqual(cached?.language, "zh-hant")
+    }
+
+    /// 无源(其它语言也没有)→ 照旧生成路径(扣次数)。
+    func testDailyNoSourceFallsBackToGeneration() async throws {
+        let payload = ChartPayloadDTO(
+            dayMaster: "己", dayMasterElement: "土", dayMasterStrength: "weak",
+            favorableElements: ["火", "土"], unfavorableElements: ["水", "金"],
+            fourPillars: [:]
+        )
+        let date = Calendar.current.startOfDay(for: Date())
+        let dailyResponse = try await apiClient.dailyFortune(
+            request: DailyFortuneRequest(chartHash: "l5-daily-2", targetDate: date, chartPayload: payload)
+        )
+
+        try dailyStore.upsert(
+            chartHash: "l5-daily-2", targetDate: date, response: dailyResponse,
+            interpretation: "",
+            cachedUntil: BusinessDateCalculator.cachedUntil(forBusinessDate: date)
+        )
+        let resp = try await orchestrator.runInterpretation(
+            chartHash: "l5-daily-2", chartPayload: payload,
+            dailyResponse: dailyResponse, businessDate: date
+        )
+
+        XCTAssertEqual(counter.remaining(), DailyReadCounter.ReadLimit.globalDaily - 1, "无源生成照旧扣次数")
+        XCTAssertFalse(
+            apiClient.recordedInterpretRequests.filter { $0.module == "daily_fortune" }.isEmpty,
+            "无源必须走 /api/interpret 生成"
+        )
+        XCTAssertEqual(resp.language, "zh-hant", "mock interpret 跟随生效语言")
+    }
+
+    /// 译文未过 v4 五段契约 → 显式抛错,毒化不落缓存(镜像 S6 自愈判据)。
+    func testDailyMalformedTranslationRejected() async throws {
+        let payload = ChartPayloadDTO(
+            dayMaster: "己", dayMasterElement: "土", dayMasterStrength: "weak",
+            favorableElements: ["火", "土"], unfavorableElements: ["水", "金"],
+            fourPillars: [:]
+        )
+        let date = Calendar.current.startOfDay(for: Date())
+        let dailyResponse = try await apiClient.dailyFortune(
+            request: DailyFortuneRequest(chartHash: "l5-daily-3", targetDate: date, chartPayload: payload)
+        )
+        try interpretStore.upsert(
+            contentHash: "l5-daily-3", module: "daily_fortune", promptVersion: 4,
+            targetDate: date, language: "zh",
+            provider: "anthropic", model: "mock-anthropic-model",
+            interpretation: Self.zhJSON, generatedAt: .now
+        )
+        try dailyStore.upsert(
+            chartHash: "l5-daily-3", targetDate: date, response: dailyResponse,
+            interpretation: "",
+            cachedUntil: BusinessDateCalculator.cachedUntil(forBusinessDate: date)
+        )
+        apiClient.translateResponder = { _ in
+            InterpretResponse(
+                interpretation: "半截散文,不是五键 JSON",
+                promptVersion: 4, cached: false, generatedAt: .now,
+                provider: "anthropic", model: "mock-anthropic-model",
+                language: "zh-hant", translatedFrom: "zh"
+            )
+        }
+
+        do {
+            _ = try await orchestrator.runInterpretation(
+                chartHash: "l5-daily-3", chartPayload: payload,
+                dailyResponse: dailyResponse, businessDate: date
+            )
+            XCTFail("坏译文必须抛错,不得 200")
+        } catch {
+            guard case DeepAnalysisError.translatedContentInvalid = error else {
+                return XCTFail("应抛 translatedContentInvalid,实际:\(error)")
+            }
+        }
+        let cached = try await reader.read(
+            contentHash: "l5-daily-3", module: "daily_fortune",
+            targetDate: date, maxAge: 24 * 3600
+        )
+        XCTAssertNil(cached, "坏译文不得入缓存(毒化会静默卡到次日)")
+    }
+}

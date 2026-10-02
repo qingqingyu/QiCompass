@@ -613,6 +613,9 @@ enum DeepAnalysisError: Error, LocalizedError {
     /// v1 prompt 系统模块入参契约违反(Stage 7b 引入)。
     /// 客户端层显式拦截,避免依赖后端 422 往返。
     case invalidV1ModuleInput(String)
+    /// L5/F3:跨语言译文未过 v4 五段契约(后端保真校验失守的客户端兜底,
+    /// 坏译文不落缓存——毒化会静默卡到次日,见 S6 缓存自愈背景)。
+    case translatedContentInvalid
 
     var errorDescription: String? {
         switch self {
@@ -620,6 +623,8 @@ enum DeepAnalysisError: Error, LocalizedError {
             return "今日机缘已尽,明日再来"
         case .invalidV1ModuleInput:
             return "解读生成失败,请重试"
+        case .translatedContentInvalid:
+            return "翻译失败,请重试"
         }
     }
 }

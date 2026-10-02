@@ -324,11 +324,13 @@ class InterpretResponse(BaseModel):
 
 # ---------- D10:翻译端点(POST /api/interpret/translate) ----------
 
-# 支持翻译的 module 白名单:v1 深度模块 + 合盘现役两件(单一事实源)。
-# 每日运势不进白名单(短、24h 缓存,切语言直接按新语言重新生成);
+# 支持翻译的 module 白名单:v1 深度模块 + 合盘现役两件 + 每日运势(单一事实源)。
+# 每日运势 2026-10-01 拍板扩入(L5/F3,修订 D10 模块表):原「切语言直接
+# 重新生成」会扣每日次数,次数耗尽时切语言当天一段新语言解读都没有;
+# 改为「当天已有其它语言解读则翻译(不扣次数、结论不变),无则生成」。
 # alias 老模块不进(老 App 兼容路径不投入,en/zh-hant 本就无模板)。
 TRANSLATE_MODULES: frozenset[str] = frozenset(
-    V1_MODULES | {"compatibility_free", "compatibility_paid"}
+    V1_MODULES | {"compatibility_free", "compatibility_paid", "daily_fortune"}
 )
 
 
@@ -369,10 +371,10 @@ class TranslateRequest(InterpretRequest):
 
     @model_validator(mode="after")
     def module_must_support_translation(self) -> "TranslateRequest":
-        """白名单外 module(daily_fortune / alias 老模块)→ 422(D10.1)。"""
+        """白名单外 module(alias 老模块等)→ 422(D10.1)。"""
         if self.module not in TRANSLATE_MODULES:
             raise ValueError(
                 f"module={self.module} 不支持翻译(白名单: v1 M0-M7 + "
-                f"compatibility_free/paid;每日运势切语言请直接重新生成,"
-                f"alias 老模块不投入,见 i18n-zh-hant-plan.md D10)")
+                f"compatibility_free/paid + daily_fortune;alias 老模块"
+                f"不投入,见 i18n-zh-hant-plan.md D10)")
         return self

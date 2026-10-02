@@ -173,7 +173,23 @@ final class DailyFortuneOrchestrator {
             }
         }
 
-        // 2. 次数检查(全局池口径,方案 §D1)
+        // 2. L5/F3(2026-10-01 拍板,修订 D10 模块表):当前语言 miss → 先跨语言
+        // 查同 target_date 的既有解读,有则**翻译**(不扣次数、结论不变——LLM
+        // 非确定性,重生成会让「换个语言命就变了」;次数耗尽时也不再出现
+        // 「当天一段新语言解读都没有」)。无源才落穿到下方生成扣次数。
+        if let crossLanguage = try await crossLanguageSourceIfFresh(
+            chartHash: chartHash, module: module, targetDate: targetDate
+        ) {
+            return try await translateExisting(
+                chartHash: chartHash,
+                chartPayload: chartPayload,
+                dailyResponse: dailyResponse,
+                businessDate: businessDate,
+                source: crossLanguage
+            )
+        }
+
+        // 3. 次数检查(全局池口径,方案 §D1)
         guard counter.tryConsume(module: module) else {
             // 规则 1:抛错前打 warning
             let nextReset = counter.nextResetDate()
@@ -275,6 +291,108 @@ final class DailyFortuneOrchestrator {
     /// 剩余次数(全局池,VM 用于 UI 展示)。
     func remainingReads() -> Int {
         counter.remaining()
+    }
+
+    // MARK: - 跨语言翻译(L5/F3,2026-10-01 修订 D10 模块表)
+
+    /// 跨语言探测当前语言之外的既有 daily 解读(同 target_date,24h 新鲜度
+    /// 与同语言缓存同口径)。原文必须能过 v4 五段契约——坏行(毒化)当无源
+    /// 落穿生成,后端 `_parse_daily_source_interpretation` 同口径会 422,
+    /// 客户端先拦省一跳网络。
+    private func crossLanguageSourceIfFresh(
+        chartHash: String, module: String, targetDate: Date
+    ) async throws -> InterpretationCache? {
+        guard let (sourceLanguage, hits) = try await interpretationReader
+            .readAllCrossLanguage(
+                contentHash: chartHash,
+                modules: [module],
+                targetDate: targetDate,
+                maxAge: 24 * 3600
+            ),
+            let row = hits[module]
+        else { return nil }
+        guard DailyInsight.parse(row.interpretation) != nil else {
+            AppLogger.app.warning(
+                "daily.translate.source_unparseable hash=\(chartHash, privacy: .public) source=\(sourceLanguage, privacy: .public) — 毒化行当无源,落穿生成"
+            )
+            return nil
+        }
+        AppLogger.app.info(
+            "daily.translate.source_found hash=\(chartHash, privacy: .public) source=\(sourceLanguage, privacy: .public) targetDate=\(Self.dateFormatter.string(from: targetDate), privacy: .public)"
+        )
+        return row
+    }
+
+    /// 翻译既有 daily 解读到目标语言(不消耗次数)。译文写入目标语言缓存键
+    /// (后端共享 `_prepare_prompt_and_key` 保证键对齐)+ 同步快照,镜像生成
+    /// 路径的落库逻辑;译文本身也过 v4 五段契约才落库(毒化不进缓存)。
+    private func translateExisting(
+        chartHash: String,
+        chartPayload: ChartPayloadDTO,
+        dailyResponse: DailyFortuneResponse,
+        businessDate: Date,
+        source: InterpretationCache
+    ) async throws -> InterpretResponse {
+        let module = "daily_fortune"
+        let context = PromptContextBuilder.buildDailyFortune(
+            chartPayload: chartPayload,
+            response: dailyResponse,
+            businessDate: businessDate
+        )
+        let request = TranslateRequest(
+            base: InterpretRequest(
+                contentHash: chartHash,
+                module: module,
+                context: context,
+                targetDate: businessDate,
+                question: nil
+            ),
+            sourceLanguage: source.language ?? "zh",
+            sourcePromptVersion: source.promptVersion,
+            sourceInterpretation: source.interpretation
+        )
+        let resp = try await AppLogger.measure(
+            AppLogger.networking,
+            operation: "dailyTranslate",
+            context: [
+                "chart_hash": chartHash,
+                "target_date": Self.dateFormatter.string(from: businessDate),
+                "source_language": source.language ?? "zh",
+            ]
+        ) {
+            try await self.apiClient.translate(request: request)
+        }
+
+        // 译文契约校验(镜像 S6 毒化自愈判据):坏译文不落库,显式抛错走失败态
+        guard DailyInsight.parse(resp.interpretation) != nil else {
+            AppLogger.app.error(
+                "daily.translate.translated_unparseable hash=\(chartHash, privacy: .public) — 拒绝落库"
+            )
+            throw DeepAnalysisError.translatedContentInvalid
+        }
+
+        try interpretStore.upsert(
+            contentHash: chartHash,
+            module: module,
+            promptVersion: resp.promptVersion,
+            targetDate: businessDate,
+            language: resp.language,
+            provider: resp.provider,
+            model: resp.model,
+            interpretation: resp.interpretation,
+            generatedAt: resp.generatedAt
+        )
+        try dailyStore.updateInterpretation(
+            resp.interpretation,
+            forChartHash: chartHash,
+            targetDate: businessDate,
+            provider: resp.provider,
+            model: resp.model
+        )
+        AppLogger.app.info(
+            "daily.translate.ok hash=\(chartHash, privacy: .public) cached=\(resp.cached, privacy: .public)"
+        )
+        return resp
     }
 
     /// 下次重置时间(本地午夜,达上限时用于倒计时)。

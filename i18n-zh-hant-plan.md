@@ -66,7 +66,7 @@
 1. 繁体真机(zh-TW 系统或 App 内切繁體中文 + 重启):三模块 UI/解读全繁体;Kaiti TC 字形目验;提示条出现与翻译流程走查
 2. 简体下生成完整命书 + 合盘 → 切繁体 → 原文 + 提示条 → 点翻译 → 判断/年份/干支与原文逐条一致(翻译前后结论一致性 spot check)
 3. 翻译后清 iOS 本地缓存(或另一台同账号设备)以繁体打开 → 直接命中译文(cached=true)
-4. 切语言后每日运势直接按新语言生成,无提示条
+4. 切语言后每日运势:**当天已有其它语言解读则翻译(不扣次数),无源才生成**(2026-10-01 L5/F3 修订,原「直接重新生成」作废);无提示条
 5. LLM 繁体输出 10 盘 spot check(夹简体字 → 修 zh-hant 模板输出指令)
 6. en deep/compat 走查(不再 500;S1 债在 09-22 已还,真机复验)
 7. 后端部署注意:S2/S6 上线时后端 SQLite 缓存不受影响(表结构未动);zh-hant 用户的老 zh 缓存不误命中(language 维度隔离)
@@ -147,7 +147,7 @@
 |---|---|
 | 深度解析 v1(`m0_structure` ~ `m7_manual`) | **翻译**已有正文 |
 | 合盘(`compatibility_free` / `compatibility_paid`) | **翻译**已有正文 |
-| 每日运势(`daily_fortune`) | 直接按新语言**重新生成**(短、24h 缓存,前后不一致无所谓) |
+| 每日运势(`daily_fortune`) | **2026-10-01 二次拍板(L5/F3)修订**:当天已有其它语言解读 → **翻译**(不扣次数、结论不变;原决策漏算了每日配额——次数耗尽时切语言,当天一段新语言解读都看不到);无源才按新语言生成 |
 | alias 老模块(`bazi_deep*` / `compatibility`) | 不支持翻译,维持原行为(老 App 兼容路径,不投入) |
 
 #### D10.1 后端:新端点 `POST /api/interpret/translate`
@@ -157,7 +157,7 @@
   - `source_prompt_version`:原文缓存行的 `prompt_version`
   - `source_interpretation`:原文全文(客户端 SwiftData 里那份)
 - **目标语言** = `resolve_language(request)`(与 `/api/interpret` 同口径,iOS 已按 D6 发 `X-QiCompass-Lang`);`source_language == 目标语言` → 422
-- **模块白名单**:仅 `V1_MODULES ∪ {compatibility_free, compatibility_paid}`,其余 422
+- **模块白名单**:`V1_MODULES ∪ {compatibility_free, compatibility_paid, daily_fortune}`(daily 为 2026-10-01 L5/F3 扩入),其余 422
 - **门控**:付费模块走与 `/api/interpret` **完全相同**的 entitlement 检查(`entitlement_base_module`),权益与语言无关,翻译不另收费、不消耗任何次数
 - **陈旧原文**:`source_prompt_version != PROMPT_VERSIONS[module]` → 409 `STALE_SOURCE`(原文来自旧 prompt,本来就该重生成;客户端收到后走正常 `/api/interpret`)
 - **长度上限**:`source_interpretation` 设硬上限(按该模块 max_tokens 折算字符数 ×1.5),超限 422——防止把端点当免费通用翻译器
@@ -263,7 +263,7 @@ M1-M7 的 `parent_fingerprint` 和 context 里的 `main_axis` / `core_loop` 来�
 - [ ] (D9)全仓语言来源只有 `AppLanguage.current`;UI、术语 chip、解读正文三者始终同语言
 - [ ] (D10)简体下生成完整深度解析(M0-M7)+ 合盘 → 切繁体 → 先显示简体原文 + 提示条 → 点翻译 → 繁体版判断/年份/干支与原文逐条一致;不触发付费墙、不消耗次数
 - [ ] (D10)翻译后在另一台同账号设备(或清 iOS 本地缓存后)以目标语言打开,后端返回 `cached=true` 的同一份译文,而非新生成
-- [ ] (D10)切语言后每日运势直接按新语言生成,无提示条
+- [ ] (D10)切语言后每日运势:有源翻译(不扣次数)/ 无源生成,无提示条(2026-10-01 L5/F3 修订)
 
 ---
 
@@ -293,7 +293,7 @@ M1-M7 的 `parent_fingerprint` 和 context 里的 `main_axis` / `core_loop` 来�
 | 繁体版专属截图 / 营销素材 | v1 复用简体,后续迭代 |
 | 独立的「解读语言」开关(D9) | 不做,与界面共用一个开关 |
 | 切换语言时自动批量翻译全部报告(D10) | **2026-10-01 修订**:打开报告即自动翻译**当前这份**(D10.5 修订,见上表);"批量预翻译所有历史报告"仍不做(按需触发,不预烧 LLM) |
-| alias 老模块 / 每日运势的翻译(D10) | 不做;每日运势直接重生成 |
+| alias 老模块的翻译(D10) | 不做;**每日运势翻译已于 2026-10-01 L5/F3 落地**(修订原「不做」行) |
 | 为记录翻译来源改 SQLite 表结构(D10.1) | 不做,只打日志 |
 
 ---

@@ -4,7 +4,7 @@
 - **缓存键对齐**(关键):翻译落键后,以目标语言调 /api/interpret 命中
   cached=true 且内容为译文(不重新生成)
 - STALE_SOURCE 409(原文旧 prompt 版本)
-- 模块白名单(daily_fortune / alias → 422)
+- 模块白名单(alias 等白名单外 → 422;daily_fortune 2026-10-01 L5/F3 扩入)
 - entitlement:付费模块同检(无 → 403;有 → 200,不消耗额外次数)
 - 同语言 → 422;原文超长 → 422;v1 原文非 JSON → 422
 - 保真校验失败(同构/章节数/名字)→ 503 且**不写缓存**
@@ -183,12 +183,13 @@ async def test_stale_source_returns_409(interpret_client):
 
 
 @pytest.mark.parametrize("module,extra", [
-    ("daily_fortune", {"target_date": "2026-10-01"}),
     ("bazi_deep", {}),
 ])
 async def test_module_whitelist_rejects_non_translatable(
         interpret_client, module, extra):
-    """白名单外 module(每日运势 / alias)→ 422(D10.1)。"""
+    """白名单外 module(已退役散文模块)→ 422(D10.1;daily_fortune 于
+    2026-10-01 L5/F3 扩入白名单,不再是 422 项;alias "compatibility"
+    撞付费 user_local_id 前置校验,不在此重复覆盖)。"""
     payload = _m0_translate_payload()
     payload["module"] = module
     payload.update(extra)
@@ -201,11 +202,11 @@ async def test_module_whitelist_rejects_non_translatable(
 
 
 def test_translate_modules_whitelist_contents():
-    """白名单 = v1 M0-M7 + 合盘现役两件(单一事实源断言)。"""
+    """白名单 = v1 M0-M7 + 合盘现役两件 + 每日运势(单一事实源断言;
+    daily 扩入 = L5/F3 修订 D10 模块表,2026-10-01)。"""
     from app.models.interpret import V1_MODULES
     assert TRANSLATE_MODULES == V1_MODULES | {
-        "compatibility_free", "compatibility_paid"}
-    assert "daily_fortune" not in TRANSLATE_MODULES
+        "compatibility_free", "compatibility_paid", "daily_fortune"}
     assert "compatibility" not in TRANSLATE_MODULES  # alias 不投入
 
 
@@ -477,6 +478,144 @@ def test_compat_context_fixture_shape():
 
 
 # ---------- 术语对构建(D10.2:反查冲突裁决) ----------
+
+# ---------- 每日运势翻译(L5/F3,2026-10-01 修订 D10 模块表) ----------
+
+_DAILY_ZH_JSON = (
+    '{"headline": "静心开局", "work": "先做要紧的事。", '
+    '"relationships": "话留三分。", "energy": "按自己的节奏来。", '
+    '"reminder": "量力而行。"}'
+)
+_DAILY_HANT_JSON = (
+    '{"headline": "靜心開局", "work": "先做要緊的事。", '
+    '"relationships": "話留三分。", "energy": "按自己的節奏來。", '
+    '"reminder": "量力而行。"}'
+)
+
+
+def _daily_translate_payload(
+        source_interpretation: str = _DAILY_ZH_JSON,
+        source_language: str = "zh",
+        source_prompt_version: int = 4) -> dict:
+    """zh→目标语言的 daily_fortune 翻译请求(免费模块,带 target_date——
+    缓存键对齐的前提:与 iOS runInterpretation 发的 context 同源)。"""
+    from tests.fixtures.interpret_cases import DAILY_FORTUNE_CONTEXT
+    return {
+        "content_hash": "hash-tr-daily",
+        "module": "daily_fortune",
+        "context": DAILY_FORTUNE_CONTEXT,
+        "target_date": "2026-07-12",
+        "source_language": source_language,
+        "source_prompt_version": source_prompt_version,
+        "source_interpretation": source_interpretation,
+    }
+
+
+async def test_daily_translate_then_interpret_hits_same_cache_key(
+        interpret_client, mock_ai_client):
+    """daily 缓存键对齐(L5/F3 核心验收):翻译落键(含 target_date 维度)
+    → 以目标语言 + 同 target_date 调 /api/interpret 命中 cached=true。"""
+    # 1. zh 正常生成(当天运势)
+    mock_ai_client.set_response(_DAILY_ZH_JSON)
+    base = {
+        "content_hash": "hash-tr-daily", "module": "daily_fortune",
+        "target_date": "2026-07-12",
+    }
+    from tests.fixtures.interpret_cases import DAILY_FORTUNE_CONTEXT
+    resp = await interpret_client.post(
+        "/api/interpret", json={**base, "context": DAILY_FORTUNE_CONTEXT})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["language"] == "zh"
+
+    # 2. 翻译到 zh-hant(不消耗任何配额:翻译端点无 counter 概念)
+    mock_ai_client.set_response(_DAILY_HANT_JSON)
+    resp = await interpret_client.post(
+        "/api/interpret/translate",
+        json=_daily_translate_payload(),
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["cached"] is False
+    assert body["language"] == "zh-hant"
+    assert body["translated_from"] == "zh"
+    assert body["prompt_version"] == 4
+    llm_calls = mock_ai_client.call_count
+
+    # 3. 目标语言 + 同 target_date 调 /api/interpret → 命中译文
+    resp = await interpret_client.post(
+        "/api/interpret",
+        json={**base, "context": DAILY_FORTUNE_CONTEXT},
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 200, resp.text
+    body = resp.json()
+    assert body["cached"] is True, "daily 译后目标语言请求必须命中(键对齐失败)"
+    assert body["interpretation"] == _DAILY_HANT_JSON
+    assert mock_ai_client.call_count == llm_calls  # 没再调 LLM
+
+    # 4. 反向隔离:zh 键不受影响
+    resp = await interpret_client.post(
+        "/api/interpret", json={**base, "context": DAILY_FORTUNE_CONTEXT})
+    assert resp.json()["cached"] is True
+    assert resp.json()["interpretation"] == _DAILY_ZH_JSON
+
+
+async def test_daily_source_shape_422(interpret_client, mock_ai_client,
+                                      tmp_cache):
+    """daily 原文形状前置校验:非五键 JSON → 422,不烧 LLM。"""
+    _seed_source_row(
+        tmp_cache, _daily_translate_payload(), _DAILY_ZH_JSON)
+    bad_sources = [
+        "一段散文,不是 JSON",
+        json.dumps({"headline": "只有一键"}, ensure_ascii=False),
+        json.dumps({
+            "headline": "静心", "work": "做事", "relationships": "待人",
+            "energy": "节奏", "reminder": "   "}, ensure_ascii=False),
+    ]
+    for bad in bad_sources:
+        mock_ai_client.set_response(_DAILY_HANT_JSON)
+        resp = await interpret_client.post(
+            "/api/interpret/translate",
+            json=_daily_translate_payload(source_interpretation=bad),
+            headers={"X-QiCompass-Lang": "zh-hant"},
+        )
+        assert resp.status_code == 422, (bad, resp.text)
+    assert mock_ai_client.call_count == 0, "形状不过 → 不得烧 LLM"
+
+
+async def test_daily_fidelity_drift_503_and_skips_cache(
+        interpret_client, mock_ai_client, tmp_cache):
+    """daily 译文键漂移(五键丢一)→ 503 AI_PROVIDER_ERROR,且不写缓存。"""
+    _seed_source_row(
+        tmp_cache, _daily_translate_payload(), _DAILY_ZH_JSON)
+    drift = json.dumps({
+        "headline": "靜心開局", "work": "先做要緊的事。",
+        "relationships": "話留三分。", "energy": "按自己的節奏來。",
+    }, ensure_ascii=False)  # 丢 reminder
+    mock_ai_client.set_response(drift)
+    resp = await interpret_client.post(
+        "/api/interpret/translate",
+        json=_daily_translate_payload(),
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 503, resp.text
+    assert resp.json()["error"]["code"] == "AI_PROVIDER_ERROR"
+
+    # 缓存未写:目标语言 /api/interpret 落穿重新生成
+    mock_ai_client.set_response(_DAILY_HANT_JSON)
+    from tests.fixtures.interpret_cases import DAILY_FORTUNE_CONTEXT
+    resp = await interpret_client.post(
+        "/api/interpret",
+        json={
+            "content_hash": "hash-tr-daily", "module": "daily_fortune",
+            "context": DAILY_FORTUNE_CONTEXT, "target_date": "2026-07-12",
+        },
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["cached"] is False, "失败译文不得入缓存"
+
 
 class TestBuildTranslationTermPairs:
     def test_forward_zh_to_hant_drops_identity(self):

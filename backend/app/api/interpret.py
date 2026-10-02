@@ -973,6 +973,34 @@ def _parse_v1_source_interpretation(
     return parsed
 
 
+def _parse_daily_source_interpretation(source_interpretation: str) -> dict:
+    """daily_fortune 客户端原文的形状校验(L5/F3,翻译白名单扩入 daily)。
+
+    与 `_parse_v1_source_interpretation` 同定位:端点在烧 LLM 之前调用,
+    非五键 JSON 对象 → 422(客户端输入错误);`_assert_translation_fidelity`
+    的 daily 分支复用本解析(与译文同构比对)。
+    """
+    try:
+        parsed = json.loads(_strip_code_fences(source_interpretation))
+    except json.JSONDecodeError as e:
+        raise InvalidInputError(
+            f"source_interpretation 不是 daily_fortune 形状的合法 JSON"
+            f"({e};v4 契约为五键对象)") from e
+    if not isinstance(parsed, dict):
+        raise InvalidInputError(
+            "source_interpretation JSON 顶层非对象(module=daily_fortune,"
+            "v4 契约为五键对象)")
+    bad = [
+        k for k in _DAILY_FORTUNE_INSIGHT_KEYS
+        if not isinstance(parsed.get(k), str) or not parsed[k].strip()
+    ]
+    if bad:
+        raise InvalidInputError(
+            f"source_interpretation 五键残缺或非字符串"
+            f"(缺失/空值: {', '.join(bad)})")
+    return parsed
+
+
 def _assert_translation_fidelity(
     module: str,
     source_interpretation: str,
@@ -1018,6 +1046,24 @@ def _assert_translation_fidelity(
                     f"合盘译文丢失两人称呼({name!r} 在原文出现,译文中缺失;"
                     f"翻译指令要求名字原样保留)")
         return
+    if module == "daily_fortune":
+        # L5/F3(2026-10-01):daily v4 五键 JSON 同构(键集合相等,字符串值
+        # 允许变——翻译本体);同构之外再跑五键非空校验(防空串译文,
+        # 与 /api/interpret 的 _validate_daily_fortune_json 同口径)。
+        source_parsed = _parse_daily_source_interpretation(source_interpretation)
+        try:
+            translated_parsed = json.loads(_strip_code_fences(translated))
+        except json.JSONDecodeError as e:
+            raise AIProviderError(
+                f"译文非合法 JSON(module=daily_fortune,疑似截断或格式违约):{e}"
+            ) from e
+        if not isinstance(translated_parsed, dict):
+            raise AIProviderError(
+                "译文 JSON 顶层非对象(module=daily_fortune;"
+                "翻译指令要求同构 JSON)")
+        _assert_json_structural_identity(source_parsed, translated_parsed)
+        _validate_daily_fortune_json(module, translated)
+        return
     # 白名单(schema TRANSLATE_MODULES)外的 module 到不了这里;显式暴露而非静默跳过
     raise RuntimeError(
         f"_assert_translation_fidelity: module={module!r} 不在已实现的翻译"
@@ -1032,16 +1078,19 @@ async def interpret_translate(
 ) -> InterpretResponse:
     """POST /api/interpret/translate — 已生成解读的跨语言翻译(D10)。
 
-    切换语言后,已生成的深度解析(M0-M7)/ 合盘按**翻译原文**落到目标语言
-    缓存键,而不是重新解读(LLM 非确定性 → 同一张盘换个语言结论可能变,
-    「换语言命就变了」违背「专业不忽悠」;长文重生成成本也高)。
+    切换语言后,已生成的深度解析(M0-M7)/ 合盘 / 每日运势(L5/F3,
+    2026-10-01 扩入)按**翻译原文**落到目标语言缓存键,而不是重新解读
+    (LLM 非确定性 → 同一张盘换个语言结论可能变,「换语言命就变了」违背
+    「专业不忽悠」;每日运势另有硬约束:重生成会扣每日次数,次数耗尽时
+    切语言当天一段新语言解读都看不到)。
 
     流程:
     1. 目标语言 = resolve_language(与 /api/interpret 同口径);
        source == 目标 → 422
     2. source_prompt_version ≠ 当前版本 → 409 STALE_SOURCE(走正常生成)
     3. 原文长度上限(AI_MAX_OUTPUT_TOKENS × 1.5 字符)→ 422
-    3.5 v1 原文形状前置校验(非 JSON 对象 → 422,不烧 LLM)
+    3.5 原文形状前置校验(v1 / daily:非该模块形状 JSON → 422,不烧 LLM;
+       daily 请求必须带 target_date——缓存键对齐的前提)
     4. 共享 _prepare_prompt_and_key:**译文写入的缓存键 = 目标语言下
        /api/interpret 会算出的键**(逐字段相等,含目标语言模板渲染出的
        prompt_hash / parent_hash / user_input_hash / language)——之后任何
@@ -1096,10 +1145,12 @@ async def interpret_translate(
             f"(按该模块 max_tokens 折算;疑似非本模块解读文本)",
             request_id=request_id)
 
-    # 3.5 v1 原文形状前置校验(422 客户端输入错误):非该模块形状的原文
+    # 3.5 原文形状前置校验(422 客户端输入错误):非该模块形状的原文
     # 不烧 LLM 就拒掉——保真校验(步骤 8)兜底复检,两层同 helper 同口径。
     if req.module in V1_MODULES:
         _parse_v1_source_interpretation(req.module, req.source_interpretation)
+    elif req.module == "daily_fortune":
+        _parse_daily_source_interpretation(req.source_interpretation)
 
     ai_client = request.app.state.ai_client
 

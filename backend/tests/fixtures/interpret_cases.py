@@ -130,7 +130,10 @@ DAILY_FORTUNE_CONTEXT = {
     "day_stem_element": "木",
     "day_branch": "申",
     "day_branch_element": "金",
-    "day_relation": "偏官日",
+    # 裸十神(引擎 _ten_god 原样输出,iOS 原样透传)——带「日」后缀的展示形
+    # (如「偏官日」)未注册术语表,会让 zh-hant/en 的 translate_context 500;
+    # 夹具必须镜像真实 wire 值(L5 测试实测踩过)。
+    "day_relation": "偏官",
     "day_chong": "寅",
     "hour_pillars_with_relations": (
         "子(23-1): 甲子 正官 冲午 | 丑(1-3): 乙丑 偏官 | "
