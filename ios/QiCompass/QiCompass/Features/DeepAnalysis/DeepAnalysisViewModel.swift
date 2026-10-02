@@ -184,6 +184,13 @@ final class DeepAnalysisViewModel {
     /// (在飞 getLatest 踩死容器会 SIGTRAP,2026-09-08 全量测试实踩)。
     private(set) var isHydrating = false
 
+    /// hydrate 世代号(换盘推进;2026-10-02 bug 分支修):旧盘 hydrate 在飞
+    /// (performRestore await 中)时换盘,同步推进世代 + 复位 isHydrating 让
+    /// 新盘 hydrate 不被 reentry 守卫整体吞掉(否则新盘的 M4/M5 读回与章节
+    /// 回填全丢且无人重试);旧盘收尾凭世代失配自弃——镜像 chainGeneration
+    /// 的同款竞态修法。
+    private var hydrateGeneration = 0
+
     // MARK: 跨语言翻译(D10.4/D10.5,S7)
 
     /// 翻译提议:当前语言 miss 的模块在其它语言有既有解读 → 先显示原文,
@@ -205,7 +212,8 @@ final class DeepAnalysisViewModel {
         case inProgress
         /// 翻译失败(非离线类):提示条「部分章节翻译失败 · 重试」,手动重试
         case failed
-        /// 离线类失败:提示条「联网后自动译为××」,回前台再自动触发一次
+        /// 离线类失败:提示条「联网后重新打开 App 即自动译为××」(R7 文案,
+        /// 与回前台触发的实际行为一致),回前台再自动触发一次
         /// (请求未达后端零 LLM 成本;二次失败转 .failed 只走手动)
         case offlinePending
     }
@@ -224,6 +232,11 @@ final class DeepAnalysisViewModel {
     /// 跨语言原文行(模块 → 缓存行,含 language / promptVersion / interpretation),
     /// acceptTranslation 消费;成功译完一个模块即移除(重试只译剩余)。
     private var crossLanguageRows: [ModuleID: InterpretationCache] = [:]
+
+    /// 翻译失败章标记(R2,2026-10-02 bug 分支):失败时**保留 .ok 原文显示**
+    /// (不再标 .failed——那会把原文从屏幕上抹掉,只剩错误文案),用本集合
+    /// 驱动章首「翻译失败 · 重试」小注;译成/重生成/换盘/reset 时清除。
+    private(set) var translationFailedModules: Set<ModuleID> = []
 
     /// F5(2026-10-02):M0 原文已 STALE 降级重生成的 (contentHash|targetLang) 集合。
     /// 原局部变量版本在重试进链时重置——M0 行已移除、标记却回 false,剩余下游
@@ -566,17 +579,32 @@ final class DeepAnalysisViewModel {
             // 期间新盘 hydrate 收尾的 resume 会被旧标志误拦,新盘链停摆到下次触发。
             chainGeneration &+= 1
             isChainRunning = false
+            // hydrate 同款竞态修(2026-10-02 bug 分支):旧盘 hydrate 在飞
+            // (performRestore await 中)时,只靠 hydrateAndResume 的
+            // !isHydrating 守卫会拦掉新盘 hydrate 且无人重试。同步复位标志 +
+            // 推进世代,旧盘收尾按世代失配自弃。
+            hydrateGeneration &+= 1
+            isHydrating = false
             moduleStates.removeAll()
             v1ChainFields.removeAll()
             // 翻译提议属旧盘(D10.5):换盘一并清洗,防旧盘提示条挂新盘
             translationOffer = nil
             crossLanguageRows.removeAll()
+            translationFailedModules.removeAll()
             isTranslatingChain = false
             autoTranslationState = nil
             // #7(2026-10-02):M4/M5 用户输入也属旧盘——残留会让新盘沿用旧盘
             // 输入生成(user_input_hash 错位 → 缓存 miss 扣次数,内容还是别人
             // 的年龄/关注点)。清空后下方 hydrate 起手按新 hash 读回该盘自己
             // 的已存输入(补时辰 remap 已迁移则无缝衔接)。
+            // R4 补充(bug 分支):同人补时辰(refreshAfterAddHour 同走本守卫,
+            // 且老版本 submit 可能未跑 remap)在此兜底 remap——输入是用户本人
+            // 的回答与时辰无关;真换人 remapHash 不迁移(柱不一致),各盘各键。
+            if Self.isSamePersonHourAddition(old: old, new: response) {
+                DeepUserInputPersistence.remapHash(
+                    from: old.contentHash, to: response.contentHash
+                )
+            }
             m4UserInput = nil
             m5UserInput = nil
             AppLogger.app.info(
@@ -611,6 +639,11 @@ final class DeepAnalysisViewModel {
     /// `!isHydrating` 守卫若在标志复位前被调到会自锁(首版实踩:链永远起不来)。
     @MainActor
     private func hydrateAndResume(response: BaziResponse) async {
+        // 世代号快照(2026-10-02 bug 分支):旧盘 hydrate 在飞时换盘,chart_changed
+        // 同步推进世代 + 复位 isHydrating(见彼处),旧盘 await 返回后凭世代失配
+        // 丢弃收尾(不 autoTranslate / 不 resume / 不复位新盘在飞的 isHydrating)
+        // ——镜像 chainGeneration 的同款手法。
+        let generation = hydrateGeneration
         guard isCurrentChart(response) else { return }
         guard response.hourUnknownGate != .dayAmbiguous else {
             AppLogger.app.warning(
@@ -637,6 +670,16 @@ final class DeepAnalysisViewModel {
         }
         isHydrating = true
         let outcome = await performRestore(response: response)
+        // 世代失配 = await 期间已换盘:isHydrating 由新盘 hydrate 持有,此处
+        // 不得复位(提前解除会放行第三次重入);收尾(autoTranslate/resume)
+        // 同样属旧盘,整体丢弃。performRestore 内部已有 isCurrentChart 双检,
+        // 旧盘回填写入本就到不了这里。
+        guard hydrateGeneration == generation else {
+            AppLogger.app.warning(
+                "deepVM.hydrateAndResume.stale_generation hash=\(response.contentHash, privacy: .public) — 旧盘 hydrate 收尾丢弃"
+            )
+            return
+        }
         isHydrating = false
         // L3/F1(修订 D10.5):跨语言原文命中 → 打开即自动翻译,不等用户点
         // 提示条(必须等 isHydrating 复位后调——acceptTranslation 守卫拦截
@@ -688,6 +731,19 @@ final class DeepAnalysisViewModel {
     /// (crossLanguageRows 未消费)——原文照常展示,小注提示即将替换。
     func isChapterTranslationPending(_ module: ModuleID) -> Bool {
         isTranslatingChain && crossLanguageRows[module] != nil
+    }
+
+    /// 章首「翻译失败 · 重试」小注判据(R2,2026-10-02 bug 分支):本章翻译
+    /// 失败且当前无翻译链在飞(在飞时由「正在译为」小注接管展示)。
+    /// 原文照常展示,失败事实由小注表达,点击小注 = 重试翻译。
+    func isChapterTranslationFailed(_ module: ModuleID) -> Bool {
+        translationFailedModules.contains(module) && !isTranslatingChain
+    }
+
+    /// 该章是否有未消费的跨语言原文行(R2):章节级「重试」CTA 的分流判据——
+    /// 有原文行时重试语义是**重译**(不扣次数),否则才是重新生成。
+    func hasCrossLanguageOriginal(for module: ModuleID) -> Bool {
+        crossLanguageRows[module] != nil
     }
 
     /// hydrate 结果(决定尾部是否续跑)。
@@ -1182,6 +1238,8 @@ final class DeepAnalysisViewModel {
             // 跨语言原文行作废(2026-10-02 修复):本章已按当前语言重新生成,
             // 残留的原文行会让翻译重试把这一章按旧原文再翻一遍——版本已
             // bump 的原文触发 STALE_SOURCE 时,好的 .ok 会被覆盖成 .failed。
+            // R2(bug 分支):翻译失败标记一并清(本章已是目标语言成品)。
+            translationFailedModules.remove(module)
             if crossLanguageRows.removeValue(forKey: module) != nil {
                 syncTranslationOfferWithRows()
             }
@@ -1209,6 +1267,18 @@ final class DeepAnalysisViewModel {
             return now.contentHash == response.contentHash
         }
         return false
+    }
+
+    /// R4 配套(bug 分支):同人补时辰判定——旧盘无时柱、新盘有时柱,且年/
+    /// 月/日三柱一致(同人同日历法结果)。日柱歧义盘补时辰会换日柱
+    /// (day nil → 有值),判 false——该盘此前整链被拦,本就没有可沿用的输入。
+    /// 命中时换盘清洗前先 remap M4/M5 持久化到新 hash(submit 时点 remap 的
+    /// 兜底,覆盖老版本升级 / 非常规换 hash 路径)。
+    private static func isSamePersonHourAddition(old: BaziResponse, new: BaziResponse) -> Bool {
+        guard old.pillars.hour == nil, new.pillars.hour != nil else { return false }
+        return old.pillars.year == new.pillars.year
+            && old.pillars.month == new.pillars.month
+            && old.pillars.day == new.pillars.day
     }
 
     // MARK: - 跨语言翻译执行(D10.4,S7)
@@ -1357,6 +1427,7 @@ final class DeepAnalysisViewModel {
                         moduleStates[remaining] = .pending
                     }
                     crossLanguageRows.removeAll()
+                    translationFailedModules.removeAll()
                     translationOffer = nil
                     autoTranslationState = nil
                     // 提议已弃,F5 标记一并清(残留会让未来同键提议的下游
@@ -1392,6 +1463,7 @@ final class DeepAnalysisViewModel {
                 extractChainFields(from: resp.interpretation, for: module)
                 moduleStates[module] = .ok(text: resp.interpretation, cached: resp.cached)
                 crossLanguageRows[module] = nil
+                translationFailedModules.remove(module)
                 AppLogger.app.info("deepVM.runTranslationChain.ok module=\(module.rawValue, privacy: .public) cached=\(resp.cached, privacy: .public)")
             } catch is CancellationError {
                 AppLogger.app.info("deepVM.runTranslationChain.cancelled")
@@ -1427,9 +1499,16 @@ final class DeepAnalysisViewModel {
                     continue
                 }
                 AppLogger.app.warning(
-                    "deepVM.runTranslationChain.failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public) — 已译成保留,剩余可重试"
+                    "deepVM.runTranslationChain.failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public) — 原文保留显示,已译成保留,剩余可重试"
                 )
-                moduleStates[module] = .failed(message: Self.translationErrorMessage(for: error))
+                // R2(2026-10-02 bug 分支):失败保留原文显示——恢复 .ok(原文),
+                // 不再标 .failed(那会让这一章只剩错误文案,原文从屏幕消失)。
+                // 失败事实用 translationFailedModules 标记,章首小注「翻译失败 ·
+                // 重试」驱动手动重试。章节级「重试」同理转发翻译(见
+                // ChapterReadingView):走重生成会扣每日次数,且 M0 重新生成后
+                // 下游原文仍按旧叙事翻译,正是 staleM0Downgraded 要避免的错配。
+                moduleStates[module] = .ok(text: source.interpretation, cached: true)
+                translationFailedModules.insert(module)
                 // L3/F1 失败分诊:离线类(且自动重试额度未用)→ 联网后回前台
                 // 自动重试一次;其余 → 失败提示条(手动重试)。译完的保留,
                 // 重试只译剩余。
@@ -1473,16 +1552,6 @@ final class DeepAnalysisViewModel {
             return UserFacingError.isOffline(urlError)
         }
         return false
-    }
-
-    /// 翻译失败的用户文案(STALE_SOURCE 单列:重试语义是「重新生成本章」,
-    /// 不是再点翻译)。
-    private static func translationErrorMessage(for error: Error) -> String {
-        if case .backendError(let code, _, _)? = error as? APIError, code == "STALE_SOURCE" {
-            return String(localized: "此报告版本已更新,请重新生成本章。")
-        }
-        let userError = UserFacingError.from(error, stage: .interpret)
-        return userError.errorDescription ?? L10n.Common.unknownError
     }
 
     /// 解析 LLM JSON 输出,提取下游模块需要的链式字段写入 v1ChainFields。
@@ -1591,6 +1660,14 @@ final class DeepAnalysisViewModel {
         // (排盘 A 填的 concern 不能给排盘 B 用,违反「八字计算必须确定性」语义)
         m4UserInput = nil
         m5UserInput = nil
+        // 翻译侧状态一并复位(2026-10-02 bug 分支三查):reset → 表单 → 新盘走
+        // calculate(),不经 loadArchivedChart 的换盘守卫(state 已 .empty,守卫
+        // 不触发)——残留会让新盘健康章挂陈旧「翻译失败 · 重试」小注;offer/rows
+        // 残留更会让 autoTranslateIfNeeded 把旧盘原文行按新盘 hash 发翻译(串台)。
+        translationOffer = nil
+        crossLanguageRows.removeAll()
+        translationFailedModules.removeAll()
+        isTranslatingChain = false
         // L3/F1:回表单态清自动翻译展示态(提示条/章首小注随页面退场)
         autoTranslationState = nil
         // F5:整页重置,降级标记一并清(表单态无提议可挂)

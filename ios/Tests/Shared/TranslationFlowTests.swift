@@ -327,6 +327,14 @@ final class TranslationFlowTests: XCTestCase {
         XCTAssertTrue(firstRound, "自动翻译失败必须落 .failed,实际:\(String(describing: vm.autoTranslationState))")
         // 已成功的保留(不回滚)
         XCTAssertEqual(vm.moduleStates[.m0], .ok(text: Self.m0Hant, cached: false))
+        // R2(2026-10-02 review):失败章必须保留原文显示——不得标 .failed
+        // (那会让这一章只剩错误文案,原文从屏幕消失)
+        XCTAssertEqual(
+            vm.moduleStates[.m1], .ok(text: Self.m1ZH, cached: true),
+            "翻译失败必须恢复 .ok 原文显示"
+        )
+        XCTAssertTrue(vm.isChapterTranslationFailed(.m1), "失败事实由「翻译失败 · 重试」小注标记驱动")
+        XCTAssertTrue(vm.hasCrossLanguageOriginal(for: .m1), "失败章原文行保留(章节级重试应分流到翻译)")
         // 提议保留(可重试剩余)——offer.modules 是初值,重试消费 crossLanguageRows
         XCTAssertNotNil(vm.translationOffer)
 
@@ -342,6 +350,14 @@ final class TranslationFlowTests: XCTestCase {
             "已译成的 M0 不得重复翻译(重试只译剩余)"
         )
         XCTAssertEqual(vm.moduleStates[.m1], .ok(text: Self.m1ZH, cached: false))
+        // R2:译成后失败标记清除(章首小注消失)
+        XCTAssertFalse(vm.isChapterTranslationFailed(.m1))
+        // R2:翻译失败/重试全程不触发生成(章节级「重试」分流的前提:
+        // 原文行存在时走翻译,不烧每日次数)
+        XCTAssertTrue(
+            apiClient.recordedInterpretRequests.filter { ModuleID(rawValue: $0.module) != nil }.isEmpty,
+            "翻译失败与重试都不得触发 /api/interpret 生成"
+        )
     }
 
     // MARK: - L4/F5:STALE_SOURCE 自动降级重生成(豁免配额,不断链)
@@ -994,7 +1010,7 @@ final class DailyFortuneTranslateTests: XCTestCase {
             cachedUntil: BusinessDateCalculator.cachedUntil(forBusinessDate: date)
         )
         XCTAssertNil(try dailyStore.get(chartHash: "l6-snap", targetDate: date)?.interpretationLanguage,
-                     "新快照未写解读前列为 nil(老快照同形,nil 由 VM 兜底视为 zh)")
+                     "新快照未写解读前列为 nil(老快照同形;R6 后 VM 对 nil 不显示离线语言小注,不断言语言)")
 
         try dailyStore.updateInterpretation(
             Self.zhJSON, forChartHash: "l6-snap", targetDate: date,

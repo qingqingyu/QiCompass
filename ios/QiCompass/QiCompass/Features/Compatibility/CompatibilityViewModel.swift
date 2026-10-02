@@ -1920,7 +1920,10 @@ final class CompatibilityViewModel {
 
     /// 触发该对 AI 解读(只对 detail 态当前对生效)。
     /// 购买成功后由 PaywallView onPurchaseSuccess 调用,亦按当前 detail 态对触发。
-    func generateInterpretation() {
+    /// - Parameter quotaExempt: R3(2026-10-02 review):翻译 STALE_SOURCE 降级
+    ///   重生成豁免次数(语言切换引起,与深度解析 L4 同口径);用户主动生成
+    ///   恒走默认 false(正常扣次数)。
+    func generateInterpretation(quotaExempt: Bool = false) {
         guard case .detail(let summary, let response, _) = state else {
             // 不静默吞(CLAUDE.md 全局约束):UI 收到点击说明状态机错乱,显式记录
             AppLogger.app.error("op=compatibility.generateInterpretation invalid_state state=\(String(describing: self.state), privacy: .public)")
@@ -1983,7 +1986,8 @@ final class CompatibilityViewModel {
                     // prompt 全文与后端残留 A/B 后置替换共用这两个称呼
                     nameA: inputs.nameA,
                     nameB: inputs.nameB,
-                    module: module
+                    module: module,
+                    quotaExempt: quotaExempt
                 )
 
                 if Task.isCancelled { return }
@@ -2119,8 +2123,10 @@ final class CompatibilityViewModel {
             } catch {
                 if Task.isCancelled { return }
                 // 失败分级(D10.4 #4:已译成的保留——翻译无部分成功,此处指不丢原文):
-                // - STALE_SOURCE:原文版本过期,重试语义 = 重新生成 → .failed 显式
-                //   人话(重试按钮走 generateInterpretation)
+                // - STALE_SOURCE(R3,2026-10-02 review 修订):原文版本过期 →
+                //   直接自动起重新生成(quotaExempt 豁免合盘次数——语言切换引起,
+                //   与深度解析 L4 口径一致;此前让用户手动点重试且照常扣次数),
+                //   UI 走现有「推演中」态,无需用户介入
                 // - 其他(503 保真失败等,可重试翻译):恢复原文显示 + 提示条保留,
                 //   用户可再点「翻译为××」(不烧次数,也不逼用户走重新生成)
                 AppLogger.app.warning(
@@ -2128,8 +2134,10 @@ final class CompatibilityViewModel {
                 )
                 if case .backendError(let code, _, _)? = error as? APIError, code == "STALE_SOURCE" {
                     guard self.canWriteInterpretState(summary: summary) else { return }
-                    self.translationOffer = nil
-                    self.state = .detail(summary, response, .failed(message: String(localized: "此报告版本已更新,请重新生成。")))
+                    AppLogger.app.warning(
+                        "compatVM.acceptTranslation.stale_source_downgrade compatibilityHash=\(compatHash, privacy: .public) — 自动转免费重新生成(豁免配额)"
+                    )
+                    self.generateInterpretation(quotaExempt: true)
                     return
                 }
                 // 同上:失败回写也须仍在本对 detail(换对后旧对失败态不得覆写)

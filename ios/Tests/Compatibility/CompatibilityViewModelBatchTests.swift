@@ -17,6 +17,7 @@ import XCTest
 final class CompatibilityViewModelBatchTests: XCTestCase {
 
     private var container: ModelContainer!
+    /// 翻译链测试用(translateResponder 注入 + 请求记录断言;双方合并去重)
     private var apiClient: MockAPIClient!
     private var orchestrator: CompatibilityOrchestrator!
     private var chartStore: ChartSnapshotStore!
@@ -1614,6 +1615,64 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             apiClient.recordedTranslateRequests.count, translateCountAfterFirst,
             "去重命中不得新增翻译请求(自动不重试语义不变)"
         )
+        await drainDetailBackgroundTasks()
+    }
+
+    /// R3(2026-10-02 review,bug 分支):翻译遇 409 STALE_SOURCE(原文版本
+    /// 过期)→ 不停失败态等用户手动重试(旧路径手动重试还会照常扣合盘次数,
+    /// 与深度解析 L4 豁免口径不一致);必须**自动**落穿重新生成且豁免次数。
+    func testOpenDetail_翻译STALE_SOURCE_自动免费重生成不扣次数() async throws {
+        // 目标语言 zh-hant(与 zh 原文行不同 → 跨语言命中 + 自动翻译;
+        // 生效语言读启动快照,双写 = 模拟「重启后 zh-hant 生效」)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+
+        let summary = try makeAutoGenFixture(tag: "stale")
+        // zh 原文行(身份与 MockAPIClient.health 一致)
+        try interpretStore.upsert(
+            contentHash: summary.compatibilityHash,
+            module: "compatibility_free",
+            promptVersion: 1,
+            targetDate: nil,
+            language: "zh",
+            provider: "anthropic",
+            model: "mock-anthropic-model",
+            interpretation: "第一章 基础相处模式\n\n简体原文。",
+            generatedAt: .now
+        )
+        apiClient.translateResponder = { _ in
+            throw APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
+        }
+        let readsBefore = vm.remainingReads
+
+        vm.openDetail(summary)
+
+        // STALE → 自动落穿生成 → .okFree(mock 生成占位文案,非 zh 原文)
+        let ok = await waitForInterpretState { state in
+            if case .okFree(let text, _) = state {
+                return text.contains("Mock 命书占位")
+            }
+            return false
+        }
+        XCTAssertTrue(ok, "STALE 必须自动转重新生成,不停在失败态,实际:\(vm.state)")
+        XCTAssertEqual(
+            apiClient.recordedTranslateRequests.count, 1,
+            "必须先尝试过一次翻译(收到 409)"
+        )
+        let generatedModules = apiClient.recordedInterpretRequests.map(\.module)
+        XCTAssertTrue(
+            generatedModules.contains("compatibility_free"),
+            "STALE 后必须落穿网络生成,实际:\(generatedModules)"
+        )
+        XCTAssertEqual(
+            vm.remainingReads, readsBefore,
+            "降级重生成必须豁免合盘次数(R3:语言切换引起,非用户过错)"
+        )
+        XCTAssertNil(vm.translationOffer, "重新生成已取代翻译提议")
         await drainDetailBackgroundTasks()
     }
 
