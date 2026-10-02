@@ -293,8 +293,23 @@ final class MockAPIClient: APIClient {
     /// D10(S7):translate 应答注入钩子。nil = 默认应答(译文 = 原文标记
     /// 译后语言);测试注入以模拟译后 M0 JSON / STALE_SOURCE 409 / 同构失败。
     var translateResponder: ((TranslateRequest) throws -> InterpretResponse)?
+    /// interpret 应答注入钩子(F1 计费回归,2026-10-02):nil = 默认应答
+    /// (cached: false);测试注入以模拟后端缓存命中(cached: true)/按模块
+    /// 分级失败。录制在钩子之前完成,断言不受影响。
+    var interpretResponder: ((InterpretRequest) throws -> InterpretResponse)?
+    /// health 调用计数(#8 跨语言读取回归,2026-10-02):AIIdentityResolver
+    /// 无缓存,每次 resolve 都是一次 health——断言「一次跨语言查找只解析
+    /// 一次身份」的观测点。NSLock 保护(health 并发可达成)。
+    private var _healthCallCount = 0
+    var healthCallCount: Int {
+        recordLock.lock(); defer { recordLock.unlock() }
+        return _healthCallCount
+    }
     func health() async throws -> HealthResponse {
         AppLogger.networking.debug("mock.health 调起")
+        recordLock.lock()
+        _healthCallCount += 1
+        recordLock.unlock()
         try? await Task.sleep(nanoseconds: 200_000_000)
         return HealthResponse(
             status: "ok",
@@ -331,6 +346,9 @@ final class MockAPIClient: APIClient {
         _recordedInterpretRequests.append(request)
         recordLock.unlock()
         try? await Task.sleep(nanoseconds: 400_000_000)
+        if let interpretResponder {
+            return try interpretResponder(request)
+        }
         // M0 返回含 structure_fingerprint 的 JSON(对齐后端 m0 模板输出契约:
         // 下游 M1-M7 的 parent_fingerprint 客户端守卫依赖它)。
         // M1-M7 同为 JSON 契约(2026-10-01 mock 保真对齐:读取层中毒自愈上线后,

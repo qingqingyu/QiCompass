@@ -596,6 +596,86 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         XCTAssertTrue(vm.moduleStates.isEmpty, "换盘清洗:旧盘章节态不得残留")
     }
 
+    // MARK: - #7(2026-10-02):M4/M5 用户输入按盘隔离 + 补时辰 remap 迁移
+
+    /// 换盘清洗 M4/M5 输入(A 的年龄/关注点不得给 B 用),新盘按自己 hash
+    /// 读回已存输入;切回 A 无缝恢复。
+    func test换盘清M4输入_新盘按hash读回() async throws {
+        let requestA = Self.beijingRequest()
+        let responseA = try await apiClient.calculateBazi(request: requestA)
+        let requestB = BaziCalculateRequest(
+            birthDatetime: "1995-11-03T08:00:00",
+            timezone: "Asia/Urumqi",
+            gender: "female",
+            longitude: 87.62,
+            latitude: nil,
+            placeName: "自定义地点",
+            geonameId: nil,
+            ziHourRule: "zi_next_day"
+        )
+        let responseB = try await apiClient.calculateBazi(request: requestB)
+        XCTAssertNotEqual(responseA.contentHash, responseB.contentHash, "前置:必须两张盘")
+        // 耗尽配额:压掉自动起链噪音(本用例只看输入态)
+        for _ in 0..<DailyReadCounter.ReadLimit.globalDaily {
+            _ = counter.tryConsume(module: "bazi_deep")
+        }
+
+        vm.loadArchivedChart(response: responseA, request: requestA)
+        _ = await waitUntil { !self.vm.isHydrating }
+        vm.submitM4Input(age: 42, concern: "睡眠")
+        XCTAssertEqual(vm.m4UserInput?.age, 42, "前置:A 盘已提交 M4 输入")
+
+        // 换 B:清洗后输入为 nil(不得沿用 A 的),B 无存档输入保持 nil
+        vm.loadArchivedChart(response: responseB, request: requestB)
+        _ = await waitUntil { !self.vm.isHydrating }
+        XCTAssertNil(vm.m4UserInput, "换盘后不得沿用 A 盘的 M4 输入(B 用会是别人的关注点)")
+
+        // 切回 A:hydrate 起手按 hash 读回 A 的已存输入
+        vm.loadArchivedChart(response: responseA, request: requestA)
+        let restored = await waitUntil { self.vm.m4UserInput != nil && !self.vm.isHydrating }
+        XCTAssertTrue(restored, "切回 A 必须按 hash 读回 A 的输入")
+        XCTAssertEqual(vm.m4UserInput?.age, 42)
+        XCTAssertEqual(vm.m4UserInput?.concern, "睡眠")
+    }
+
+    /// 补时辰 remap:老 hash 下的 M4/M5 输入迁移到新 hash(不覆盖新 hash
+    /// 已有输入;老 key 保留可回溯)。
+    func test补时辰remap迁移M4M5输入到新hash() {
+        let oldHash = "remap-old-hash"
+        let newHash = "remap-new-hash"
+        let occupiedHash = "remap-occupied-hash"
+        defer {
+            [oldHash, newHash, occupiedHash].forEach {
+                UserDefaults.standard.removeObject(forKey: DeepUserInputPersistence.m4KeyPrefix + $0)
+                UserDefaults.standard.removeObject(forKey: DeepUserInputPersistence.m5KeyPrefix + $0)
+            }
+        }
+
+        // 无迁移可做(老 hash 无输入)→ 不写新键
+        DeepUserInputPersistence.remapHash(from: oldHash, to: newHash)
+        XCTAssertNil(DeepUserInputPersistence.loadM4(contentHash: newHash))
+
+        // M4+M5 迁移
+        DeepUserInputPersistence.saveM4(.init(age: 41, concern: "疲劳"), contentHash: oldHash)
+        DeepUserInputPersistence.saveM5(.init(assets: "存款稳定", preference: "保守"), contentHash: oldHash)
+        DeepUserInputPersistence.remapHash(from: oldHash, to: newHash)
+        XCTAssertEqual(DeepUserInputPersistence.loadM4(contentHash: newHash)?.concern, "疲劳", "M4 输入应迁移到新 hash")
+        XCTAssertEqual(DeepUserInputPersistence.loadM5(contentHash: newHash)?.preference, "保守", "M5 输入应迁移到新 hash")
+        XCTAssertNotNil(DeepUserInputPersistence.loadM4(contentHash: oldHash), "老 key 保留(可回溯语义)")
+
+        // 新 hash 已有输入 → 不覆盖
+        DeepUserInputPersistence.saveM4(.init(age: 20, concern: "新输入"), contentHash: occupiedHash)
+        DeepUserInputPersistence.remapHash(from: oldHash, to: occupiedHash)
+        XCTAssertEqual(
+            DeepUserInputPersistence.loadM4(contentHash: occupiedHash)?.concern, "新输入",
+            "目标 hash 已有输入不得被老 hash 的值覆盖"
+        )
+
+        // 同 hash(防御位)→ 无操作
+        DeepUserInputPersistence.remapHash(from: newHash, to: newHash)
+        XCTAssertEqual(DeepUserInputPersistence.loadM4(contentHash: newHash)?.concern, "疲劳")
+    }
+
     /// 从既有响应构造日柱歧义变体(pillars.day = nil → hourUnknownGate = .dayAmbiguous)。
     private static func dayAmbiguousVariant(of base: BaziResponse) -> BaziResponse {
         BaziResponse(

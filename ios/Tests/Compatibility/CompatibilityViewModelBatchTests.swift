@@ -17,6 +17,7 @@ import XCTest
 final class CompatibilityViewModelBatchTests: XCTestCase {
 
     private var container: ModelContainer!
+    private var apiClient: MockAPIClient!
     private var orchestrator: CompatibilityOrchestrator!
     private var chartStore: ChartSnapshotStore!
     private var compatibilityStore: CompatibilitySnapshotStore!
@@ -38,7 +39,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         entitlementStore = EntitlementStore(modelContext: context)
         // Orchestrator 依赖 APIClient 等,本测试不触发 compute() 内的 orchestrator.runDeterministic,
         // 所以注入一个最小可用实例。APIClient 用 MockAPIClient(不会被调用)。
-        let apiClient = MockAPIClient()
+        apiClient = MockAPIClient()
         interpretStore = InterpretationCacheStore(context: context)
         let identityResolver = AIIdentityResolver(apiClient: apiClient)
         counter = DailyReadCounter.makeIsolatedForTesting()
@@ -69,6 +70,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
     override func tearDownWithError() throws {
         vm = nil
         orchestrator = nil
+        apiClient = nil
         chartStore = nil
         compatibilityStore = nil
         entitlementStore = nil
@@ -1445,6 +1447,18 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         return false
     }
 
+    /// 轮询等待任意条件(F3 用例,对齐 waitForInterpretState 范式)。
+    private static func waitUntil(
+        timeout: TimeInterval = 8, _ condition: @escaping () -> Bool
+    ) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while Date() < deadline {
+            if condition() { return true }
+            try? await Task.sleep(nanoseconds: 30_000_000)
+        }
+        return condition()
+    }
+
     func testOpenDetail_缓存未命中_自动起链免费解读() async throws {
         let summary = try makeAutoGenFixture(tag: "miss")
         let readsBefore = vm.remainingReads
@@ -1545,6 +1559,61 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertTrue(ok, "paid 锁定路径应落到自动起链免费层,不停在 idle 死路,实际:\(vm.state)")
         XCTAssertNil(vm.translationOffer, "无权限的付费原文不得触发翻译提议")
         XCTAssertEqual(vm.remainingReads, readsBefore - 1, "免费层生成消耗 1 次全局池")
+        await drainDetailBackgroundTasks()
+    }
+
+    /// F3(2026-10-02):自动翻译失败 → 返回列表 → 重开同一对不得死路。
+    /// openDetail 会清 translationFailed 并重建 offer,会话去重不让自动
+    /// 翻译再起——去重命中必须恢复 translationFailed=true(提示条以手动
+    /// 重试形态出现);修复前停在旧语言原文,无重试、无生成,重启前无出路。
+    func testOpenDetail_自动翻译失败后重开同对_恢复失败提示条不自动重试() async throws {
+        // 生效语言锁定 zh-hant(注入启动快照,L1/F2 口径),zh 免费原文才会
+        // 成为跨语言源
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+        let summary = try makeAutoGenFixture(tag: "f3reopen")
+        try interpretStore.upsert(
+            contentHash: summary.compatibilityHash,
+            module: "compatibility_free",
+            promptVersion: 1,
+            targetDate: nil,
+            language: "zh",
+            provider: "anthropic",
+            model: "mock-anthropic-model",
+            interpretation: "第一章 基础相处模式\n\n跨语言原文。",
+            generatedAt: .now
+        )
+        apiClient.translateResponder = { _ in
+            throw APIError.backendError(code: "AI_PROVIDER_ERROR", message: "同构校验失败", requestId: nil)
+        }
+
+        // 第一次打开:自动翻译失败 → translationFailed = true(提示条出现)
+        vm.openDetail(summary)
+        let firstFailed = await waitForInterpretState { state in
+            if case .okFree = state { return true }
+            return false
+        }
+        XCTAssertTrue(firstFailed, "跨语言命中应先展示原文 .okFree,实际:\(vm.state)")
+        let failedShown = await Self.waitUntil(timeout: 8) { self.vm.translationFailed }
+        XCTAssertTrue(failedShown, "自动翻译失败必须置 translationFailed(提示条重试入口),实际 offer=\(String(describing: vm.translationOffer)) failed=\(vm.translationFailed)")
+        let translateCountAfterFirst = apiClient.recordedTranslateRequests.count
+        XCTAssertGreaterThan(translateCountAfterFirst, 0)
+
+        // 重开同一对:openDetail 清 failed + 重建 offer → 去重命中 → 必须恢复
+        // failed(修复前 false 恒 false:提示条永不出现 = 死路)
+        vm.openDetail(summary)
+        let restored = await Self.waitUntil(timeout: 8) {
+            self.vm.translationOffer != nil && self.vm.translationFailed
+        }
+        XCTAssertTrue(restored, "重开后必须有 offer + translationFailed(提示条手动重试形态),实际 offer=\(String(describing: vm.translationOffer)) failed=\(vm.translationFailed)")
+        XCTAssertEqual(
+            apiClient.recordedTranslateRequests.count, translateCountAfterFirst,
+            "去重命中不得新增翻译请求(自动不重试语义不变)"
+        )
         await drainDetailBackgroundTasks()
     }
 

@@ -1848,7 +1848,14 @@ final class CompatibilityViewModel {
         guard translationOffer != nil, !isTranslating else { return }
         let key = compatibilityHash + "|" + AppLanguage.currentWire
         guard !autoTranslationAttemptedKeys.contains(key) else {
-            AppLogger.app.info("op=compatibility.autoTranslate.skip reason=already_attempted key=\(key, privacy: .public)")
+            // F3(2026-10-02 修复,镜像深度解析 F2):重开同一对(失败后返回列表
+            // 再进)时 openDetail 已清 translationFailed 且 offer 会重建,但去重
+            // 不让自动翻译再起——静默 return 会让 translationFailed 停留 false
+            // (提示条不渲染),而 interpretState 已是 .okFree/.okPaid 原文态
+            // (autoGenerate 不触发),页面停在旧语言,重启前无出路。恢复失败态
+            // 让提示条以手动重试形态出现(自动不重试、防烧 LLM 语义不变)。
+            translationFailed = true
+            AppLogger.app.info("op=compatibility.autoTranslate.skip reason=already_attempted key=\(key, privacy: .public) — 恢复失败提示条(手动重试)")
             return
         }
         autoTranslationAttemptedKeys.insert(key)

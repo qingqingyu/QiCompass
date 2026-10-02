@@ -220,6 +220,12 @@ final class AddHourViewModel {
                 from: snapshot.contentHash,
                 to: response.contentHash
             )
+            // 深度解析 M4/M5 用户输入同批迁移到新 hash(#7,2026-10-02):
+            // 换盘清洗会清内存输入,新 hash 下无存档输入的话重启即丢
+            DeepUserInputPersistence.remapHash(
+                from: snapshot.contentHash,
+                to: response.contentHash
+            )
             AppLogger.app.info(
                 "op=addHour.submit ok oldHash=\(self.snapshot.contentHash, privacy: .public) newHash=\(response.contentHash, privacy: .public) hasLink=\(self.displayAlias != nil, privacy: .public)"
             )
