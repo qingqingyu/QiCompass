@@ -442,6 +442,93 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
             "毒化行不得经 updateInterpretation 同步进 daily 快照"
         )
     }
+
+    // MARK: - R1 翻译 STALE_SOURCE 落穿生成(2026-10-02 review)
+
+    /// 翻译遇 409 STALE_SOURCE(原文版本过期 / 逐字核验 miss)→ 不得上抛死等:
+    /// 落穿到生成路径,且豁免次数(语言切换引起,与深度解析 L4 同口径)。
+    /// 不回落会让重试反复撞同一个 409,当天永远拿不到新语言解读。
+    func test翻译STALE_SOURCE_落穿生成且豁免次数() async throws {
+        // 目标语言 = zh-hant(与 zh 原文行不同,触发跨语言翻译探测;
+        // 生效语言读启动快照,双写 = 模拟「重启后 zh-hant 生效」)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+
+        let hash = "review-daily-stale-001"
+        let response = try seedChart(hash: hash)
+        let fixedDate = Date(timeIntervalSince1970: 1_783_000_000)
+        let v4Text = #"{"headline":"静心开局","work":"先做要紧的。","relationships":"话留三分。","energy":"按自己的节奏。","reminder":"量力而行。"}"#
+
+        // 简体原文行(身份与 health 一致;language zh ≠ 当前 zh-hant 才会被
+        // 跨语言探测命中;v4 五段契约可解析,不当毒化行过滤)
+        try interpretStore.upsert(
+            contentHash: hash,
+            module: "daily_fortune",
+            promptVersion: 1,
+            targetDate: fixedDate,
+            language: "zh",
+            provider: "anthropic",
+            model: "claude-test",
+            interpretation: v4Text,
+            generatedAt: .now
+        )
+        await api.setInterpretText(v4Text)
+        await api.setTranslateError(
+            APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
+        )
+
+        let dailyResponse = DailyFortuneResponse(
+            dayPillar: "丙子",
+            dayRelationToDayMaster: "偏印",
+            dayChong: nil,
+            dayChongTargets: [],
+            hourPillars: [],
+            currentHourIndex: nil,
+            lunarDate: "七月初十",
+            huangliYi: ["出行"],
+            huangliJi: ["动土"],
+            tomorrowPreview: TomorrowPreviewDTO(dayPillar: "丁丑", dayRelation: "正印", dayChong: nil),
+            calcRuleSnapshot: CalcRuleSnapshotDTO(
+                library: "lunar_python", sect: 1, ziHourRule: "zi_next_day",
+                trueSolarLongitude: 116.4, trueSolarOffsetMinutes: 0,
+                schemaVersion: 1
+            )
+        )
+        // runInterpretation 的 updateInterpretation 需要已存在的 daily 快照行
+        try dailyStore.upsert(
+            chartHash: hash,
+            targetDate: fixedDate,
+            response: dailyResponse,
+            interpretation: "",
+            cachedUntil: BusinessDateCalculator.cachedUntil(forBusinessDate: fixedDate)
+        )
+
+        let readsBefore = orchestrator.remainingReads()
+        let resp = try await orchestrator.runInterpretation(
+            chartHash: hash,
+            chartPayload: ChartPayloadDTO.from(baziResponse: response),
+            dailyResponse: dailyResponse,
+            businessDate: fixedDate
+        )
+
+        let translateCalls = await api.translateAttempts()
+        XCTAssertEqual(translateCalls, 1, "必须先尝试过一次翻译(跨语言原文存在)")
+        let interpretCalls = await api.interpretAttempts()
+        XCTAssertEqual(interpretCalls, 1, "STALE 后必须落穿网络生成,不得停在失败态")
+        XCTAssertFalse(resp.cached, "落穿生成的是新响应")
+        XCTAssertEqual(
+            DailyInsight.parse(resp.interpretation)?.headline, "静心开局",
+            "落穿生成的必须是合法 v4 五段"
+        )
+        XCTAssertEqual(
+            orchestrator.remainingReads(), readsBefore,
+            "STALE 降级生成必须豁免次数(R1:语言切换引起,非用户过错)"
+        )
+    }
 }
 
 // MARK: - Test Double
@@ -456,10 +543,28 @@ private actor FailingInterpretAPIClient: APIClient {
     private var failFirst: Int = 0
     private var attempts = 0
     private var interpretText: String = "静默重试成功后的解读文本(mock)。"
+    /// R1 测试注入:非 nil 时 translate 抛此错(STALE_SOURCE 等翻译失败面)。
+    private var translateError: APIError?
+    private var translateCalls = 0
 
     func setInterpretFailFirst(_ n: Int) { failFirst = n }
     func setInterpretText(_ text: String) { interpretText = text }
+    func setTranslateError(_ error: APIError?) { translateError = error }
     func interpretAttempts() -> Int { attempts }
+    func translateAttempts() -> Int { translateCalls }
+
+    func translate(request: TranslateRequest) async throws -> InterpretResponse {
+        translateCalls += 1
+        if let translateError {
+            throw translateError
+        }
+        // 未注入错误时的默认:走协议扩展同款显式哨兵(不应被静默路由到 interpret)
+        throw APIError.backendError(
+            code: "TRANSLATE_UNSUPPORTED",
+            message: "该 APIClient 实现未支持 translate(测试替身默认实现)",
+            requestId: nil
+        )
+    }
 
     func health() async throws -> HealthResponse {
         HealthResponse(

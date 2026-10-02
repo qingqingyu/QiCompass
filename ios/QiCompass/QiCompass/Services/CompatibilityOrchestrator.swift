@@ -146,6 +146,9 @@ final class CompatibilityOrchestrator {
     ///   (M4 拆分 _free/_paid,VM 按 entitlement 状态传入)
     /// - Parameter nameA/nameB: 两人称呼(2026-09-27 A/B 代号修复,A 恒「你/you」,
     ///   B 为对方 alias/兜底名;进 prompt context 供后端 v4 模板称呼全文)
+    /// - Parameter quotaExempt: R3(2026-10-02 review):STALE_SOURCE 降级重生成
+    ///   豁免——语言切换引起,非用户过错(与深度解析 L4 同口径);豁免路径
+    ///   无消费故同样跳过 refund(退未消费的额度 = 白送配额)。
     func runInterpretation(
         compatibilityHash: String,
         chartA: ChartPromptContext,
@@ -155,7 +158,8 @@ final class CompatibilityOrchestrator {
         context: String,
         nameA: String,
         nameB: String,
-        module: String = "compatibility"
+        module: String = "compatibility",
+        quotaExempt: Bool = false
     ) async throws -> InterpretResponse {
         // 规则 2:函数入口日志
         AppLogger.app.info("compat.runInterpretation.start compatibilityHash=\(compatibilityHash, privacy: .public) context=\(context, privacy: .public) module=\(module, privacy: .public)")
@@ -202,18 +206,24 @@ final class CompatibilityOrchestrator {
             return resp
         }
 
-        // 2. 次数检查(全局池口径,方案 §D1)
-        guard counter.tryConsume(module: module) else {
-            // 规则 1:抛错前打 warning(用户预期行为,非系统错误)
-            let nextReset = counter.nextResetDate()
-            AppLogger.app.warning("compat.runInterpretation.daily_limit_reached compatibilityHash=\(compatibilityHash, privacy: .public) nextReset=\(nextReset.description, privacy: .public)")
-            throw DeepAnalysisError.dailyLimitReached(
-                nextReset: nextReset,
-                remaining: 0
+        // 2. 次数检查(全局池口径,方案 §D1;quotaExempt 见函数注释)
+        var shouldRefundOnFailure = false
+        if quotaExempt {
+            AppLogger.app.info(
+                "compat.runInterpretation.quota_exempt compatibilityHash=\(compatibilityHash, privacy: .public) module=\(module, privacy: .public)"
             )
+        } else {
+            shouldRefundOnFailure = true
+            guard counter.tryConsume(module: module) else {
+                // 规则 1:抛错前打 warning(用户预期行为,非系统错误)
+                let nextReset = counter.nextResetDate()
+                AppLogger.app.warning("compat.runInterpretation.daily_limit_reached compatibilityHash=\(compatibilityHash, privacy: .public) nextReset=\(nextReset.description, privacy: .public)")
+                throw DeepAnalysisError.dailyLimitReached(
+                    nextReset: nextReset,
+                    remaining: 0
+                )
+            }
         }
-
-        var shouldRefundOnFailure = true
 
         do {
             let contextLabel = PromptContextBuilder.contextLabel(context)
@@ -264,9 +274,14 @@ final class CompatibilityOrchestrator {
             )
 
             // 4. 命中后端缓存 → refund。后续失败不能再次 refund,避免双退款。
+            // quotaExempt 路径未消费,跳过 refund(退未消费的额度 = 白送配额)。
             if resp.cached {
-                counter.refund(module: module)
-                shouldRefundOnFailure = false
+                if quotaExempt {
+                    shouldRefundOnFailure = false
+                } else {
+                    counter.refund(module: module)
+                    shouldRefundOnFailure = false
+                }
             }
 
             // 5. 写本地 24h AI 缓存。失败必须传导到 UI,避免返回假成功。

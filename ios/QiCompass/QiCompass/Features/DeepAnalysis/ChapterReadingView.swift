@@ -172,6 +172,23 @@ struct ChapterReadingView: View {
                 .padding(.top, 10)
                 .frame(maxWidth: .infinity, alignment: .leading)
             }
+            // R2(2026-10-02 review):本章翻译失败 → 原文照常展示,章首小注
+            // 「翻译失败 · 重试」;点击 = 重试翻译(不扣次数)。视觉与
+            // 「正在译为」同款弱提示。
+            else if vm.isChapterTranslationFailed(module) {
+                Button {
+                    vm.acceptTranslation()
+                } label: {
+                    Text(String(localized: "翻译失败 · 重试"))
+                        .font(BaziFont.caption(size: 10.5))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .underline()
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 10)
+                .frame(maxWidth: .infinity, alignment: .leading)
+            }
             // 正文(2026-09-02):模块输出是 JSON(v1 链式契约)→ 结构化排版;
             // 解析失败(非 JSON/非法 JSON,如老缓存散文或 LLM 违约)退回散文并记日志。
             // 2026-10-01 加固:parse 失败且内容呈 JSON 形态(截断半截/契约破坏)→
@@ -231,6 +248,9 @@ struct ChapterReadingView: View {
     /// 内容异常态(parse 失败且内容呈 JSON 形态,2026-10-01):人话说明 + 原地重生成。
     /// CTA 与 .failed 态同一重试路径(`vm.retryV1Module`,生成失败退款不耗次数;
     /// 点击后 moduleStates 翻 .fetching,整页自动切换布算中态)。
+    /// R2(2026-10-02 review):本章还有跨语言原文行时,重试语义是**重译**
+    /// (转发 acceptTranslation,不扣次数)——原文行被消费前走重生成,
+    /// STALE/翻译重试会把本章按旧原文再处理,白烧次数。
     private var corruptedBody: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(String(localized: "本章内容生成时出现异常,重新生成即可恢复"))
@@ -241,7 +261,7 @@ struct ChapterReadingView: View {
                 title: String(localized: "重新生成本章"),
                 loadingTitle: String(localized: "生成中…"),
                 isLoading: false,
-                action: { vm.retryV1Module(module) }
+                action: retryCurrentChapter
             )
         }
         .padding(.top, 15)
@@ -294,7 +314,7 @@ struct ChapterReadingView: View {
                 title: String(localized: "重试本章"),
                 loadingTitle: String(localized: "重试中…"),
                 isLoading: false,
-                action: { vm.retryV1Module(module) }
+                action: retryCurrentChapter
             )
             Text("重试不消耗今日次数")
                 .font(BaziFont.caption(size: 10.5))
@@ -303,6 +323,17 @@ struct ChapterReadingView: View {
         }
         .padding(.horizontal, 26)
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 章节级「重试」分流(R2,2026-10-02 review):本章有未消费的跨语言
+    /// 原文行(STALE 降级重生成失败保留原行的场景)→ 重译(免次数);
+    /// 否则才是正常重新生成。
+    private func retryCurrentChapter() {
+        if vm.hasCrossLanguageOriginal(for: module) {
+            vm.acceptTranslation()
+        } else {
+            vm.retryV1Module(module)
+        }
     }
 
     /// 防御 locked 态(目录不推锁章;购买回退/状态错乱时诚实呈现)。

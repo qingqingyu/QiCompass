@@ -8895,6 +8895,12 @@
             "state" : "translated",
             "value" : "五行分布 · 干支各八字"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "五行分布 · 干支各八字"
+          }
         }
       }
     },
@@ -8908,6 +8914,12 @@
           }
         },
         "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "五行"
+          }
+        },
+        "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
             "value" : "五行"
@@ -8929,6 +8941,12 @@
             "state" : "translated",
             "value" : "有一方时辰未知时,按实际字数计"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "有一方時辰未知時,按實際字數計"
+          }
         }
       }
     },
@@ -8939,6 +8957,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@: you %2$lld, partner %3$lld"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@:你 %2$lld 字 · 對方 %3$lld 字"
           }
         }
       }
@@ -12313,6 +12337,12 @@
             "state" : "translated",
             "value" : "%1$@ meets %2$@ · both %3$@"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@遇%2$@ · 同為%3$@"
+          }
         }
       }
     },
@@ -12323,6 +12353,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "%1$@ meets %2$@ · %3$@ feeds %4$@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@遇%2$@ · %3$@生%4$@"
           }
         }
       }
@@ -12335,6 +12371,12 @@
             "state" : "translated",
             "value" : "%1$@ meets %2$@ · %3$@ controls %4$@"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$@遇%2$@ · %3$@剋%4$@"
+          }
         }
       }
     },
@@ -12345,6 +12387,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Partner brings %@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "對方多 %@"
           }
         }
       }
@@ -12357,6 +12405,12 @@
             "state" : "translated",
             "value" : "You bring %@"
           }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你多 %@"
+          }
         }
       }
     },
@@ -12367,6 +12421,12 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Your branches punish or work against each other (%1$@). Friction shows up in habits and small things — name it early."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "兩人地支見刑害(%1$@):摩擦多在習慣與小事上,早點說開。"
           }
         }
       }
@@ -17301,22 +17361,6 @@
         }
       }
     },
-    "联网后自动译为%@" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Will translate to %@ once online"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "聯網後自動譯為%@"
-          }
-        }
-      }
-    },
     "离线 · 显示的是%@版本" : {
       "localizations" : {
         "en" : {
@@ -17349,34 +17393,34 @@
         }
       }
     },
-    "此报告版本已更新,请重新生成本章。" : {
+    "联网后重新打开 App 即自动译为%@" : {
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This report uses an outdated format. Please regenerate this chapter."
-          }
-        },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此報告版本已更新,請重新生成本章。"
+            "value" : "聯網後重新打開 App 即自動譯為%@"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reopen the app after going online to auto-translate to %@"
           }
         }
       }
     },
-    "此报告版本已更新,请重新生成。" : {
+    "翻译失败 · 重试" : {
       "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "This report uses an outdated format. Please regenerate it."
-          }
-        },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此報告版本已更新,請重新生成。"
+            "value" : "翻譯失敗 · 重試"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Translation failed · Retry"
           }
         }
       }

@@ -41,8 +41,10 @@ struct TranslateHintBar: View {
                 }
                 .buttonStyle(.plain)
             case .offline(let targetLanguage):
+                // R7(2026-10-02 review):重试只在 scenePhase → active(回前台)
+                // 触发——用户联网后一直停在 App 里不会自动译。文案如实说明。
                 Text(String(
-                    format: String(localized: "联网后自动译为%@"),
+                    format: String(localized: "联网后重新打开 App 即自动译为%@"),
                     AppLanguage.displayName(forWire: targetLanguage)
                 ))
                 .font(BaziFont.caption(size: 11))

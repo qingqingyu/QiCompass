@@ -800,10 +800,11 @@ struct ProfileView: View {
 
     // MARK: - 语言切换(D6/S4 + L1/F2 启动冻结)
 
-    /// 设置行右侧当前档显示(坏存储值防御回落 system,与 AppLanguage 口径一致)。
-    /// 显示**存储值**(用户选了什么),非生效值——生效值重启才变(L1/F2)。
-    /// (me 分支曾因 F6 改 endonym 后短暂孤儿化而删除,与 L1/F2 的 pending 小注
-    /// 依赖合并后保留本体——存储值与生效值两个消费面并存。)
+    /// 语言**存储值**(用户选了什么;坏存储值防御回落 system,与 AppLanguage
+    /// 口径一致)。非生效值——生效值重启才变(L1/F2)。
+    /// 消费面:languageRestartPending 判定 + pending 小注/重启 alert 文案
+    /// (设置行右侧显示的是**生效语言** endonym,由 launchOverride 驱动,
+    /// 不在本属性——R9,2026-10-02 review 修正陈旧注释)。
     private var currentLanguageOverride: AppLanguage.Override {
         AppLanguage.overrideValue ?? .system
     }

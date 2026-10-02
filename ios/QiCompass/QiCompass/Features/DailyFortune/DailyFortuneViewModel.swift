@@ -546,14 +546,20 @@ final class DailyFortuneViewModel {
         // 2026-09-28 修复:历史正文走 offlineLegacy 进视图渲染(此前塞 .failed 会被
         // 失败降级换成引擎模板,「已保留历史解读」名不副实)。
         // L6/F7:快照语言 ≠ 生效语言 → 加「离线 · 显示的是××版本」小注
-        //(离线没有更好的选择,如实标注;nil 老快照视为 zh,与缓存口径一致)
-        let snapshotLanguage = cached.interpretationLanguage ?? "zh"
-        let languageNote: String? = (hasInterpretation && snapshotLanguage != AppLanguage.currentWire)
-            ? String(
+        //(离线没有更好的选择,如实标注)。R6(2026-10-02 review):nil 老快照
+        //(L6 之前写入)语言未知,不再断言——一律视为 zh 会把英文用户近 7 天
+        // 的英文快照误标成「显示的是简体中文版本」;未知就不显示小注。
+        var languageNote: String?
+        if hasInterpretation,
+           let snapshotLanguage = cached.interpretationLanguage,
+           snapshotLanguage != AppLanguage.currentWire {
+            languageNote = String(
                 format: String(localized: "离线 · 显示的是%@版本"),
                 AppLanguage.displayName(forWire: snapshotLanguage)
             )
-            : nil
+        } else {
+            languageNote = nil
+        }
         var interpState: InterpretState = hasInterpretation
             ? .offlineLegacy(text: cached.interpretation, languageNote: languageNote)
             : .idle

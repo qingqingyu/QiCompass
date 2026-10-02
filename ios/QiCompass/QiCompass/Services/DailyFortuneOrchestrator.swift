@@ -181,27 +181,75 @@ final class DailyFortuneOrchestrator {
         if let crossLanguage = try await crossLanguageSourceIfFresh(
             chartHash: chartHash, module: module, targetDate: targetDate
         ) {
-            return try await translateExisting(
-                chartHash: chartHash,
-                chartPayload: chartPayload,
-                dailyResponse: dailyResponse,
-                businessDate: businessDate,
-                source: crossLanguage
-            )
+            do {
+                return try await translateExisting(
+                    chartHash: chartHash,
+                    chartPayload: chartPayload,
+                    dailyResponse: dailyResponse,
+                    businessDate: businessDate,
+                    source: crossLanguage
+                )
+            } catch {
+                // R1(2026-10-02 review):STALE_SOURCE 不再上抛。原文 24h 内
+                // 一直在,后端拒译(切语言当天 bump daily_fortune 版本 / 缓存库
+                // 重建导致逐字核验 miss)时若只走失败+重试,每次重试都会再撞
+                // 同一个 409,当天永远拿不到新语言解读。落穿到生成路径,且
+                // 豁免次数(语言切换引起,与深度解析 L4 STALE 降级同口径)。
+                guard Self.isStaleSourceError(error) else { throw error }
+                AppLogger.app.warning(
+                    "daily.translate.stale_source_downgrade hash=\(chartHash, privacy: .public) targetDate=\(Self.dateFormatter.string(from: targetDate), privacy: .public) — 落穿生成(豁免配额)"
+                )
+                return try await generateInterpretation(
+                    chartHash: chartHash,
+                    chartPayload: chartPayload,
+                    dailyResponse: dailyResponse,
+                    businessDate: businessDate,
+                    quotaExempt: true
+                )
+            }
         }
 
-        // 3. 次数检查(全局池口径,方案 §D1)
-        guard counter.tryConsume(module: module) else {
-            // 规则 1:抛错前打 warning
-            let nextReset = counter.nextResetDate()
-            AppLogger.app.warning("daily.runInterpretation.daily_limit_reached chartHash=\(chartHash, privacy: .public) targetDate=\(Self.dateFormatter.string(from: targetDate), privacy: .public) nextReset=\(nextReset.description, privacy: .public)")
-            throw DeepAnalysisError.dailyLimitReached(
-                nextReset: nextReset,
-                remaining: 0
-            )
-        }
+        return try await generateInterpretation(
+            chartHash: chartHash,
+            chartPayload: chartPayload,
+            dailyResponse: dailyResponse,
+            businessDate: businessDate,
+            quotaExempt: false
+        )
+    }
 
-        var shouldRefundOnFailure = true
+    /// 生成新解读(原 runInterpretation 第 3 段抽出;R1 后翻译降级与直生成共用)。
+    ///
+    /// - Parameter quotaExempt: true = 跳过 tryConsume / refund(STALE_SOURCE 降级
+    ///   引起,语言切换非用户过错;豁免路径无消费故同样跳过 refund,退未消费的
+    ///   额度 = 白送配额)。
+    private func generateInterpretation(
+        chartHash: String,
+        chartPayload: ChartPayloadDTO,
+        dailyResponse: DailyFortuneResponse,
+        businessDate: Date,
+        quotaExempt: Bool
+    ) async throws -> InterpretResponse {
+        let module = "daily_fortune"
+        let targetDate = businessDate
+        // 次数检查(全局池口径,方案 §D1)
+        var shouldRefundOnFailure = false
+        if quotaExempt {
+            AppLogger.app.info(
+                "daily.interpret.quota_exempt hash=\(chartHash, privacy: .public) targetDate=\(Self.dateFormatter.string(from: targetDate), privacy: .public)"
+            )
+        } else {
+            shouldRefundOnFailure = true
+            guard counter.tryConsume(module: module) else {
+                // 规则 1:抛错前打 warning
+                let nextReset = counter.nextResetDate()
+                AppLogger.app.warning("daily.runInterpretation.daily_limit_reached chartHash=\(chartHash, privacy: .public) targetDate=\(Self.dateFormatter.string(from: targetDate), privacy: .public) nextReset=\(nextReset.description, privacy: .public)")
+                throw DeepAnalysisError.dailyLimitReached(
+                    nextReset: nextReset,
+                    remaining: 0
+                )
+            }
+        }
 
         do {
             let context = PromptContextBuilder.buildDailyFortune(
@@ -440,6 +488,15 @@ final class DailyFortuneOrchestrator {
     }
 
     // MARK: - Private
+
+    /// 后端 409 STALE_SOURCE 判定(R1 降级入口;镜像 DeepAnalysisViewModel /
+    /// CompatibilityViewModel 的同款判定)。
+    private static func isStaleSourceError(_ error: Error) -> Bool {
+        if case .backendError(let code, _, _)? = error as? APIError {
+            return code == "STALE_SOURCE"
+        }
+        return false
+    }
 
     private static let dateFormatter: DateFormatter = {
         let f = DateFormatter()

@@ -596,6 +596,102 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         XCTAssertTrue(vm.moduleStates.isEmpty, "换盘清洗:旧盘章节态不得残留")
     }
 
+    // MARK: - R4 换盘 M4/M5 输入分流(2026-10-02 review)
+
+    /// 真换人:A 盘的 M4/M5 输入不得串进 B 盘;B 盘自己持久化的值要能读回。
+    /// (L2 改「内存为 nil 才读持久化」后,换盘不清内存 = B 盘永远读不回自己的值。)
+    func test换人切换_清M4M5输入_B盘读回自己的值() async throws {
+        let requestA = Self.beijingRequest()
+        let responseA = try await apiClient.calculateBazi(request: requestA)
+        DeepUserInputPersistence.saveM4(
+            .init(age: 41, concern: "A的困惑"), contentHash: responseA.contentHash
+        )
+        let requestB = BaziCalculateRequest(
+            birthDatetime: "1995-11-03T08:00:00",
+            timezone: "Asia/Urumqi",
+            gender: "female",
+            longitude: 87.62,
+            latitude: nil,
+            placeName: "自定义地点",
+            geonameId: nil,
+            ziHourRule: "zi_next_day"
+        )
+        let responseB = try await apiClient.calculateBazi(request: requestB)
+        DeepUserInputPersistence.saveM4(
+            .init(age: 28, concern: "B的困惑"), contentHash: responseB.contentHash
+        )
+
+        // A 盘:hydrate 起手读回 A 的输入
+        vm.loadArchivedChart(response: responseA, request: requestA)
+        _ = await waitUntil(timeout: 10) { self.vm.m4UserInput != nil }
+        XCTAssertEqual(vm.m4UserInput?.concern, "A的困惑", "前置:A 盘已读回自己的输入")
+
+        // 换 B 盘:内存清空 → hydrate 按新 hash 读回 B 的输入(不是 A 的)
+        vm.loadArchivedChart(response: responseB, request: requestB)
+        XCTAssertNil(vm.m4UserInput, "换人切换必须同步清内存输入(再由 hydrate 读回)")
+        _ = await waitUntil(timeout: 10) { self.vm.m4UserInput != nil }
+        XCTAssertEqual(vm.m4UserInput?.age, 28, "B 盘必须读回自己的持久化输入")
+        XCTAssertEqual(vm.m4UserInput?.concern, "B的困惑", "A 盘输入不得串进 B 盘")
+    }
+
+    /// 同人补时辰(refreshAfterAddHour 同走换盘守卫):输入沿用 + 持久化拷到新 hash。
+    func test同人补时辰_M4M5沿用并拷贝到新hash() async throws {
+        let requestKnown = Self.beijingRequest()  // 补时辰后的形态(有时柱)
+        let responseKnown = try await apiClient.calculateBazi(request: requestKnown)
+        let responseNoHour = Self.hourUnknownVariant(of: responseKnown)
+        DeepUserInputPersistence.saveM4(
+            .init(age: 41, concern: "体力"), contentHash: responseNoHour.contentHash
+        )
+
+        // 无时辰盘:hydrate 读回输入
+        vm.loadArchivedChart(response: responseNoHour, request: requestKnown)
+        _ = await waitUntil(timeout: 10) { self.vm.m4UserInput != nil }
+        XCTAssertEqual(vm.m4UserInput?.concern, "体力", "前置:无时辰盘已读回输入")
+
+        // 补时辰 → 新 hash 走同一守卫:年/月/日一致 + 时柱从无到有 → 判定同人,
+        // 内存沿用 + 持久化值拷到新 hash(重启后新 hash 也能读回)
+        XCTAssertNil(DeepUserInputPersistence.loadM4(contentHash: responseKnown.contentHash), "前置:新 hash 尚无持久化值")
+        vm.loadArchivedChart(response: responseKnown, request: requestKnown)
+        XCTAssertEqual(vm.m4UserInput?.concern, "体力", "同人补时辰输入必须沿用(与时辰无关)")
+        XCTAssertEqual(
+            DeepUserInputPersistence.loadM4(contentHash: responseKnown.contentHash),
+            .init(age: 41, concern: "体力"),
+            "持久化值必须拷到新 hash(重启后 hydrate 按新 hash 读回)"
+        )
+    }
+
+    /// 从既有响应构造时辰未知变体(pillars.hour = nil + 独立 hash;
+    /// 年/月/日柱与原盘一致,模拟同人「补时辰前」的形态)。
+    private static func hourUnknownVariant(of base: BaziResponse) -> BaziResponse {
+        BaziResponse(
+            contentHash: base.contentHash + "-nohour",
+            trueSolarTime: base.trueSolarTime,
+            trueSolarOffsetMinutes: base.trueSolarOffsetMinutes,
+            pillars: PillarsDTO(
+                year: base.pillars.year, month: base.pillars.month,
+                day: base.pillars.day, hour: nil
+            ),
+            mingGong: base.mingGong, shenGong: base.shenGong, taiYuan: base.taiYuan,
+            elementBalance: base.elementBalance,
+            favorableElements: base.favorableElements,
+            unfavorableElements: base.unfavorableElements,
+            dayMasterStrength: base.dayMasterStrength,
+            tiaoshouApplied: base.tiaoshouApplied,
+            xijiMethod: base.xijiMethod, patternHint: base.patternHint,
+            shensha: base.shensha, luckPillars: base.luckPillars,
+            currentLuckPillar: base.currentLuckPillar,
+            currentYearPillar: base.currentYearPillar,
+            currentDayPillar: base.currentDayPillar,
+            currentHourPillar: base.currentHourPillar,
+            calcRuleSnapshot: base.calcRuleSnapshot,
+            boundaryWarning: base.boundaryWarning,
+            yearBranchZodiac: base.yearBranchZodiac,
+            yearBranchFriends: base.yearBranchFriends,
+            yearBranchClash: base.yearBranchClash,
+            meta: base.meta
+        )
+    }
+
     /// 从既有响应构造日柱歧义变体(pillars.day = nil → hourUnknownGate = .dayAmbiguous)。
     private static func dayAmbiguousVariant(of base: BaziResponse) -> BaziResponse {
         BaziResponse(
