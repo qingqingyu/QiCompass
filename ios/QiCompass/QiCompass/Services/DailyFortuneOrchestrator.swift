@@ -178,30 +178,71 @@ final class DailyFortuneOrchestrator {
         // 查同 target_date 的既有解读,有则**翻译**(不扣次数、结论不变——LLM
         // 非确定性,重生成会让「换个语言命就变了」;次数耗尽时也不再出现
         // 「当天一段新语言解读都没有」)。无源才落穿到下方生成扣次数。
+        // F4(2026-10-02,对齐深度解析 L4):STALE_SOURCE(原文版本过期 / 后端
+        // 清库后不可核验)例外降级——这条源每次进入都必败(24h 窗口内反复
+        // 命中同一行),不落穿会让当天新语言永远拿不到解读。降级生成豁免
+        // 配额(语言切换 / 版本 bump 非用户过错,镜像 L4 口径,用户已拍板);
+        // 其他翻译错误(离线 / 503 保真失败)显式上抛,不静默改走生成。
+        var staleSourceDowngraded = false
         if let crossLanguage = try await crossLanguageSourceIfFresh(
             chartHash: chartHash, module: module, targetDate: targetDate
         ) {
-            return try await translateExisting(
-                chartHash: chartHash,
-                chartPayload: chartPayload,
-                dailyResponse: dailyResponse,
-                businessDate: businessDate,
-                source: crossLanguage
-            )
+            do {
+                return try await translateExisting(
+                    chartHash: chartHash,
+                    chartPayload: chartPayload,
+                    dailyResponse: dailyResponse,
+                    businessDate: businessDate,
+                    source: crossLanguage
+                )
+            } catch {
+                guard Self.isStaleSourceError(error) else { throw error }
+                AppLogger.app.warning(
+                    "daily.translate.stale_source_downgrade hash=\(chartHash, privacy: .public) targetDate=\(Self.dateFormatter.string(from: targetDate), privacy: .public) — 落穿目标语言生成(豁免配额)"
+                )
+                staleSourceDowngraded = true
+            }
         }
 
-        // 3. 次数检查(全局池口径,方案 §D1)
-        guard counter.tryConsume(module: module) else {
-            // 规则 1:抛错前打 warning
-            let nextReset = counter.nextResetDate()
-            AppLogger.app.warning("daily.runInterpretation.daily_limit_reached chartHash=\(chartHash, privacy: .public) targetDate=\(Self.dateFormatter.string(from: targetDate), privacy: .public) nextReset=\(nextReset.description, privacy: .public)")
-            throw DeepAnalysisError.dailyLimitReached(
-                nextReset: nextReset,
-                remaining: 0
-            )
-        }
+        return try await generateInterpretation(
+            chartHash: chartHash,
+            chartPayload: chartPayload,
+            dailyResponse: dailyResponse,
+            businessDate: businessDate,
+            quotaExempt: staleSourceDowngraded
+        )
+    }
 
-        var shouldRefundOnFailure = true
+    /// 生成路径(步骤 3 起,原 runInterpretation 主体抽出;跨语言翻译与
+    /// STALE 降级共用)。quotaExempt=true 时跳过次数检查且全程不 refund
+    /// (没扣不退——豁免路径 cached 命中 / 失败都不得动 counter,防 F1
+    /// 同款「白送配额」)。
+    private func generateInterpretation(
+        chartHash: String,
+        chartPayload: ChartPayloadDTO,
+        dailyResponse: DailyFortuneResponse,
+        businessDate: Date,
+        quotaExempt: Bool
+    ) async throws -> InterpretResponse {
+        let module = "daily_fortune"
+        let targetDate = businessDate
+        // 3. 次数检查(全局池口径,方案 §D1)。quotaExempt(F4,2026-10-02):
+        // STALE_SOURCE 降级生成不烧当日配额(镜像深度解析 L4)。
+        var shouldRefundOnFailure = false
+        if quotaExempt {
+            AppLogger.app.info("daily.generateInterpretation.quota_exempt hash=\(chartHash, privacy: .public) targetDate=\(Self.dateFormatter.string(from: targetDate), privacy: .public)")
+        } else {
+            shouldRefundOnFailure = true
+            guard counter.tryConsume(module: module) else {
+                // 规则 1:抛错前打 warning
+                let nextReset = counter.nextResetDate()
+                AppLogger.app.warning("daily.runInterpretation.daily_limit_reached chartHash=\(chartHash, privacy: .public) targetDate=\(Self.dateFormatter.string(from: targetDate), privacy: .public) nextReset=\(nextReset.description, privacy: .public)")
+                throw DeepAnalysisError.dailyLimitReached(
+                    nextReset: nextReset,
+                    remaining: 0
+                )
+            }
+        }
 
         do {
             let context = PromptContextBuilder.buildDailyFortune(
@@ -232,8 +273,9 @@ final class DailyFortuneOrchestrator {
                 "daily.interpret.ok hash=\(chartHash, privacy: .public) pv=\(resp.promptVersion) cached=\(resp.cached)"
             )
 
-            // 命中后端缓存 → refund。后续失败不能再次 refund,避免双退款多还一次额度。
-            if resp.cached {
+            // 命中后端缓存 → refund(仅实际扣过才退;豁免路径没扣,退了就是
+            // 白送配额——F1 同款修复)。后续失败不能再次 refund,避免双退款。
+            if resp.cached && shouldRefundOnFailure {
                 counter.refund(module: module)
                 shouldRefundOnFailure = false
             }
@@ -295,12 +337,22 @@ final class DailyFortuneOrchestrator {
         counter.remaining()
     }
 
+    /// 后端 409 STALE_SOURCE 判定(F4 降级入口;镜像 DeepAnalysisViewModel /
+    /// CompatibilityViewModel 的同款判定)。
+    private static func isStaleSourceError(_ error: Error) -> Bool {
+        if case .backendError(let code, _, _)? = error as? APIError {
+            return code == "STALE_SOURCE"
+        }
+        return false
+    }
+
     // MARK: - 跨语言翻译(L5/F3,2026-10-01 修订 D10 模块表)
 
     /// 跨语言探测当前语言之外的既有 daily 解读(同 target_date,24h 新鲜度
-    /// 与同语言缓存同口径)。原文必须能过 v4 五段契约——坏行(毒化)当无源
-    /// 落穿生成,后端 `_parse_daily_source_interpretation` 同口径会 422,
-    /// 客户端先拦省一跳网络。
+    /// 与同语言缓存同口径)。原文必须能过 v4 五段契约——坏行(毒化)**不参与
+    /// 候选**(#8,2026-10-02:此前只看「最优语言」那一行,坏行直接判无源;
+    /// 现在跳过坏行继续尝试其它语言,全语言皆坏才落穿生成)。后端
+    /// `_parse_daily_source_interpretation` 同口径会 422,客户端先拦省一跳网络。
     private func crossLanguageSourceIfFresh(
         chartHash: String, module: String, targetDate: Date
     ) async throws -> InterpretationCache? {
@@ -309,16 +361,11 @@ final class DailyFortuneOrchestrator {
                 contentHash: chartHash,
                 modules: [module],
                 targetDate: targetDate,
-                maxAge: 24 * 3600
+                maxAge: 24 * 3600,
+                rowIsValid: { DailyInsight.parse($0.interpretation) != nil }
             ),
             let row = hits[module]
         else { return nil }
-        guard DailyInsight.parse(row.interpretation) != nil else {
-            AppLogger.app.warning(
-                "daily.translate.source_unparseable hash=\(chartHash, privacy: .public) source=\(sourceLanguage, privacy: .public) — 毒化行当无源,落穿生成"
-            )
-            return nil
-        }
         AppLogger.app.info(
             "daily.translate.source_found hash=\(chartHash, privacy: .public) source=\(sourceLanguage, privacy: .public) targetDate=\(Self.dateFormatter.string(from: targetDate), privacy: .public)"
         )

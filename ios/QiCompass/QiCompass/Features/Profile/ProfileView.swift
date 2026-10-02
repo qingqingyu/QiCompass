@@ -232,42 +232,61 @@ struct ProfileView: View {
     /// F3(2026-10-01):右上落款角标移除——EN 下角标挤占文字列宽,metaLine 断在
     /// "Day/Master" 中间,且「未封存」状态与登录盒重复;登录态唯一落点 = sealedStatusRow。
     private func identityBlock(_ primary: PrimaryProfileInfo) -> some View {
-        NavigationLink {
-            ChartDetailView(
-                response: primary.response,
-                request: primary.snapshot.archivedDisplayRequest,
-                onAddHour: { openAddHourSheet(hash: primary.snapshot.contentHash) }
-            )
-        } label: {
-            HStack(spacing: BaziTheme.Spacing.md) {
-                ZodiacAvatarMark(mode: primary.zodiacMode, size: 60)
+        HStack(alignment: .center, spacing: BaziTheme.Spacing.sm) {
+            NavigationLink {
+                ChartDetailView(
+                    response: primary.response,
+                    request: primary.snapshot.archivedDisplayRequest,
+                    onAddHour: { openAddHourSheet(hash: primary.snapshot.contentHash) }
+                )
+            } label: {
+                HStack(spacing: BaziTheme.Spacing.md) {
+                    ZodiacAvatarMark(mode: primary.zodiacMode, size: 60)
 
-                VStack(alignment: .leading, spacing: 4) {
-                    // F1(2026-10-01)tracking 豁免之一:owner kicker 品牌指纹保留字距
-                    //(全页仅此处与 footer QICOMPASS 两处)
-                    Text("我的命盘 · 命主")
-                        .font(BaziFont.caption(size: 10.5))
-                        .tracking(3)
-                        .foregroundStyle(BaziTheme.inkMutedSecondary)
-                    Text(primary.alias)
-                        .font(BaziFont.display(size: 20))
-                        .foregroundStyle(BaziTheme.ink)
-                    Text(primary.metaLine)
-                        .font(BaziFont.caption(size: 11))
-                        .foregroundStyle(BaziTheme.inkMuted)
-                    // M2(2026-10-01 外评「右上偏挤」):入口下沉到身份信息同列,
-                    // 13pt 全称不变(S2 口径,命主块是本 Tab 第一入口)。
-                    Text("查看完整命盘 ›")
-                        .font(BaziFont.caption(size: 13))
-                        .foregroundStyle(BaziTheme.inkMuted)
-                        .padding(.top, 2)
+                    VStack(alignment: .leading, spacing: 4) {
+                        // F1(2026-10-01)tracking 豁免之一:owner kicker 品牌指纹保留字距
+                        //(全页仅此处与 footer QICOMPASS 两处)
+                        Text("我的命盘 · 命主")
+                            .font(BaziFont.caption(size: 10.5))
+                            .tracking(3)
+                            .foregroundStyle(BaziTheme.inkMutedSecondary)
+                        Text(primary.alias)
+                            .font(BaziFont.display(size: 20))
+                            .foregroundStyle(BaziTheme.ink)
+                        Text(primary.metaLine)
+                            .font(BaziFont.caption(size: 11))
+                            .foregroundStyle(BaziTheme.inkMuted)
+                        // M2(2026-10-01 外评「右上偏挤」):入口下沉到身份信息同列,
+                        // 13pt 全称不变(S2 口径,命主块是本 Tab 第一入口)。
+                        Text("查看完整命盘 ›")
+                            .font(BaziFont.caption(size: 13))
+                            .foregroundStyle(BaziTheme.inkMuted)
+                            .padding(.top, 2)
+                    }
                 }
+                .padding(.vertical, BaziTheme.Spacing.sm)
+                .contentShape(Rectangle())
             }
-            .padding(.vertical, BaziTheme.Spacing.sm)
-            .contentShape(Rectangle())
+            .buttonStyle(.plain)
+            .accessibilityHint("查看盘面细目")
+
+            // #9(2026-10-02,用户拍板):主命盘不进名册(F4)后全 App 无改名
+            // 入口——命主块补轻量改名触点(样式镜像名册编辑态行内「改名」;
+            // 放 NavigationLink 外侧防嵌套按钮吞导航点击;删除主命盘不做,
+            // 语义 v2 再说)。与 M2「右上偏挤」教训区分:单个 10.5pt 弱字,
+            // 垂直居中尾随,不与 kicker/标题抢第一行。
+            Button {
+                linkToEdit = primary.link
+            } label: {
+                Text("改名")
+                    .font(BaziFont.caption(size: 10.5))
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+                    .frame(minWidth: 34, minHeight: 36)
+                    .contentShape(Rectangle())
+            }
+            .buttonStyle(.plain)
+            .accessibilityHint("修改命盘名称")
         }
-        .buttonStyle(.plain)
-        .accessibilityHint("查看盘面细目")
     }
 
     /// 已登录轻状态行(F3 2026-10-01):朱印「我」+ 已钤 · 同步中。
@@ -323,6 +342,9 @@ struct ProfileView: View {
     /// 具体 error 已由 `ChartSnapshotStore.decodeResponse` 内 Logger.error 记录)。
     private struct PrimaryProfileInfo {
         let linkId: UUID
+        /// #9:命主块改名入口需要完整 link(sheet(item:) 用;linkId 保留给
+        /// 名册过滤的单点判据)。
+        let link: UserSnapshotLink
         let alias: String
         let zodiacMode: ZodiacAvatarMode
         let snapshot: ChartSnapshot
@@ -417,6 +439,7 @@ struct ProfileView: View {
             if primaryInfo == nil {
                 primaryInfo = PrimaryProfileInfo(
                     linkId: link.id,
+                    link: link,
                     alias: link.alias,
                     zodiacMode: zodiacMode,
                     snapshot: snap,

@@ -1201,10 +1201,14 @@ async def interpret_translate(
     # 生成,不会陷入重试翻译循环);正常流不受影响——iOS 本地原文就是
     # 后端生成后逐字存档的那份,后端缓存行持久(无 TTL)。
     try:
+        # target_date 一并进防伪(2026-10-02):daily_fortune 不比对日期会让
+        # 昨天的原文通过核验、译文写进今天的共享键;schema 层
+        # target_date_matches_module 已保证 daily 请求必带(缺 → 422,不放行)。
         source_verified = await run_in_threadpool(
             cache.has_interpretation_text,
             req.content_hash, req.module, current_version,
             req.source_language, req.source_interpretation,
+            req.target_date.isoformat() if req.target_date else None,
         )
     except Exception as e:
         elapsed_ms = (time.perf_counter() - start) * 1000

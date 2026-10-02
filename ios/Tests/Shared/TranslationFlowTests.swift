@@ -17,6 +17,7 @@ final class TranslationFlowTests: XCTestCase {
     private var container: ModelContainer!
     private var vm: DeepAnalysisViewModel!
     private var apiClient: MockAPIClient!
+    private var orchestrator: DeepAnalysisOrchestrator!
     private var chartStore: ChartSnapshotStore!
     private var interpretStore: InterpretationCacheStore!
     private var counter: DailyReadCounter!
@@ -47,6 +48,7 @@ final class TranslationFlowTests: XCTestCase {
             interpretationReader: reader,
             userLinkStore: UserSnapshotLinkStore(context: context)
         )
+        self.orchestrator = orchestrator
         entitlementStore = EntitlementStore(modelContext: context)
         vm = DeepAnalysisViewModel(
             orchestrator: orchestrator,
@@ -59,6 +61,7 @@ final class TranslationFlowTests: XCTestCase {
             _ = await waitUntil(timeout: 10) { !vm.isChainRunning && !vm.isHydrating && !vm.isTranslatingChain }
         }
         vm = nil
+        orchestrator = nil
         entitlementStore = nil
         counter = nil
         interpretStore = nil
@@ -423,6 +426,306 @@ final class TranslationFlowTests: XCTestCase {
         XCTAssertEqual(vm.remainingReads, readsBefore, "降级重生成不得消耗每日次数")
     }
 
+    // MARK: - F1(2026-10-02):豁免配额的重生成命中缓存不得 refund
+
+    /// L4 降级重生成(quotaExempt)全程不动 counter:没扣不退——修复前
+    /// 后端缓存命中(cached=true)分支不看豁免标志直接 refund,每章白送
+    /// 1 次配额(一张盘最多 +8)。非豁免路径的「扣后即退」行为不回归。
+    func testQuotaExemptRegenerationNeverTouchesCounterEvenOnCacheHit() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        let readsBefore = counter.remaining()
+        let chainFields = ["main_axis": "{}", "core_loop": "{}"]
+        let module = "m1_talent"
+
+        func resp(cached: Bool) -> InterpretResponse {
+            InterpretResponse(
+                interpretation: "{\"innate\":{},\"one_leverage\":\"x\"}",
+                promptVersion: 1, cached: cached, generatedAt: .now,
+                provider: "anthropic", model: "mock-anthropic-model",
+                language: AppLanguage.currentWire
+            )
+        }
+
+        // 豁免 × cached 命中:不扣不退(修复前这里白退 +1)
+        apiClient.interpretResponder = { _ in resp(cached: true) }
+        _ = try await orchestrator.runV1Module(
+            response: response, module: module, parentFingerprint: "fp",
+            chainFields: chainFields, quotaExempt: true
+        )
+        XCTAssertEqual(counter.remaining(), readsBefore, "豁免路径 cached 命中不得 refund(没扣不退)")
+
+        // 豁免 × 未命中:同样不动 counter
+        apiClient.interpretResponder = { _ in resp(cached: false) }
+        _ = try await orchestrator.runV1Module(
+            response: response, module: module, parentFingerprint: "fp",
+            chainFields: chainFields, quotaExempt: true
+        )
+        XCTAssertEqual(counter.remaining(), readsBefore, "豁免路径不消耗配额")
+
+        // 非豁免 × cached 命中:扣后即退,净 0(原行为不回归)
+        apiClient.interpretResponder = { _ in resp(cached: true) }
+        _ = try await orchestrator.runV1Module(
+            response: response, module: module, parentFingerprint: "fp",
+            chainFields: chainFields
+        )
+        XCTAssertEqual(counter.remaining(), readsBefore, "非豁免 cached 命中:tryConsume 后 refund,净消耗 0")
+
+        // 非豁免 × 未命中:净 -1(真生成消耗)
+        apiClient.interpretResponder = { _ in resp(cached: false) }
+        _ = try await orchestrator.runV1Module(
+            response: response, module: module, parentFingerprint: "fp",
+            chainFields: chainFields
+        )
+        XCTAssertEqual(counter.remaining(), readsBefore - 1, "非豁免真实生成消耗 1 次")
+    }
+
+    // MARK: - F2(2026-10-02):自动翻译失败后换盘再切回不得死路
+
+    /// A 盘自动翻译失败 → 切 B(清洗)→ 切回 A:hydrate 重建提议但会话去重
+    /// 不让自动翻译再起——必须恢复 .failed 让提示条以手动重试形态出现
+    /// (修复前 autoTranslationState 停 nil:提示条不渲染 + offer 拦死续跑,
+    /// 既不翻译也不生成)。修复后不得新增翻译请求(自动不重试语义不变)。
+    func testAutoTranslationFailureStateSurvivesChartSwitchAndBack() async throws {
+        let requestA = Self.beijingRequest()
+        let responseA = try await apiClient.calculateBazi(request: requestA)
+        let requestB = BaziCalculateRequest(
+            birthDatetime: "1993-07-07T14:00:00", timezone: "Asia/Shanghai",
+            gender: "female", longitude: 116.4074, latitude: 39.9042,
+            placeName: "北京", geonameId: 1816670, ziHourRule: "zi_next_day"
+        )
+        let responseB = try await apiClient.calculateBazi(request: requestB)
+        XCTAssertNotEqual(responseA.contentHash, responseB.contentHash, "前置:A/B 必须是两张盘")
+        try seedZHCache(hash: responseA.contentHash, module: .m0, text: Self.m0ZH)
+        apiClient.translateResponder = { _ in
+            throw APIError.backendError(code: "AI_PROVIDER_ERROR", message: "同构校验失败", requestId: nil)
+        }
+        // 耗尽配额:B 盘 hydrate 后不自动起链(本用例聚焦翻译态,不测生成)
+        for _ in 0..<DailyReadCounter.ReadLimit.globalDaily {
+            _ = counter.tryConsume(module: "bazi_deep")
+        }
+
+        // A:自动翻译失败 → .failed
+        vm.loadArchivedChart(response: responseA, request: requestA)
+        let firstFailed = await waitUntil(timeout: 10) {
+            self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
+        }
+        XCTAssertTrue(firstFailed, "A 盘自动翻译第一轮必须失败,实际:\(String(describing: vm.autoTranslationState))")
+        let translateCountAfterFirst = apiClient.recordedTranslateRequests.count
+
+        // 切 B:换盘清洗把 autoTranslationState 清 nil
+        vm.loadArchivedChart(response: responseB, request: requestB)
+        _ = await waitUntil(timeout: 10) { !self.vm.isHydrating }
+        XCTAssertNil(vm.autoTranslationState, "换盘清洗后展示态应归 nil")
+
+        // 切回 A:提议重建 + 去重命中 → 恢复 .failed(死路修复的断言点)
+        vm.loadArchivedChart(response: responseA, request: requestA)
+        let restored = await waitUntil(timeout: 10) {
+            self.vm.translationOffer != nil
+                && self.vm.autoTranslationState == .failed
+                && !self.vm.isHydrating
+                && !self.vm.isTranslatingChain
+        }
+        XCTAssertTrue(restored, "切回 A 后必须有 offer + .failed(提示条手动重试形态),实际 offer=\(String(describing: vm.translationOffer)) auto=\(String(describing: vm.autoTranslationState))")
+        XCTAssertEqual(
+            apiClient.recordedTranslateRequests.count, translateCountAfterFirst,
+            "去重命中不得新增翻译请求(自动不重试语义不变)"
+        )
+
+        // 手动重试仍可用(修复应答 → 译完)
+        installDefaultTranslateResponder()
+        vm.acceptTranslation()
+        let retried = await waitUntil(timeout: 10) {
+            self.vm.translationOffer == nil && self.vm.autoTranslationState == nil
+        }
+        XCTAssertTrue(retried, "手动重试必须译完")
+    }
+
+    // MARK: - F5 + #6(2026-10-02):M0 降级标记跨重试 + 降级失败断链
+
+    /// M1 原文(含 defensive——M2 的 requiredChainFields 需要;不含会被
+    /// missing_parent 兜底截断链,干扰 F5/#6 的复现路径)。
+    private static let m1FullZH =
+        "{\"innate\":{\"behavior\":\"天生对结构敏感\"},\"defensive\":[\"旧防御\"],\"one_leverage\":\"旧杠杆\"}"
+    private static let m2ZH =
+        "{\"threshold\":{\"t\":\"旧阈值\"},\"switch_actions\":[\"旧动作\"]}"
+
+    /// 给盘插入 bazi_deep 全本 entitlement(M2+ 付费章解锁;镜像
+    /// DeepAnalysisArchiveLoadTests.seedDeepEntitlement 落库形态)。
+    private func seedDeepEntitlement(hash: String) throws {
+        try entitlementStore.upsert(
+            transactionId: "tx-test-\(hash)",
+            productId: AppleProductID.deepAnalysisSingle,
+            contentHash: hash,
+            module: EntitlementModule.baziDeep,
+            userLocalId: UserIdentity.userLocalId,
+            purchasedAt: .now,
+            originalPurchaseDate: .now
+        )
+    }
+
+    /// F5:M0 STALE 降级成功 → 下游(M1)降级重生成失败 → 重试进链时
+    /// M0 已不在 crossLanguageRows——标记必须跨重试存活,让 M1/M2 继续走
+    /// interpret 重生成而非拿旧 M0 时代的原文去翻译(混叙事 + 缓存键错位)。
+    func testStaleM0DowngradeFlagSurvivesRetryAfterDownstreamRegenFailure() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedDeepEntitlement(hash: response.contentHash)
+        try seedZHCache(hash: response.contentHash, module: .m0, text: Self.m0ZH)
+        try seedZHCache(hash: response.contentHash, module: .m1, text: Self.m1FullZH)
+        try seedZHCache(hash: response.contentHash, module: .m2, text: Self.m2ZH)
+        let readsBefore = vm.remainingReads
+        apiClient.translateResponder = { req in
+            if req.base.module == "m0_structure" {
+                throw APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
+            }
+            return InterpretResponse(
+                interpretation: req.sourceInterpretation,
+                promptVersion: 1, cached: false, generatedAt: .now,
+                provider: "anthropic", model: "mock-anthropic-model",
+                language: "zh-hant", translatedFrom: req.sourceLanguage
+            )
+        }
+        // M1 重生成只失败第一次(重试起放行);M0 恒成功。翻译/生成链严格
+        // 串行,flag 无并发访问。
+        let m1RegenFailedOnce = FailedOnceFlag()
+        apiClient.interpretResponder = { req in
+            switch req.module {
+            case "m0_structure":
+                return InterpretResponse(
+                    interpretation: "{\"structure_fingerprint\":\"fp-regen\",\"main_axis\":{},\"core_loop\":{}}",
+                    promptVersion: 1, cached: false, generatedAt: .now,
+                    provider: "anthropic", model: "mock-anthropic-model",
+                    language: "zh-hant"
+                )
+            case "m1_talent":
+                if m1RegenFailedOnce.tryFail() {
+                    throw APIError.networkError(URLError(.timedOut))
+                }
+                return InterpretResponse(
+                    interpretation: "{\"innate\":{\"b\":\"重生成\"},\"defensive\":[\"d\"],\"one_leverage\":\"l\"}",
+                    promptVersion: 1, cached: false, generatedAt: .now,
+                    provider: "anthropic", model: "mock-anthropic-model",
+                    language: "zh-hant"
+                )
+            default:
+                return InterpretResponse(
+                    interpretation: "{\"one_line\":\"重生成占位\"}",
+                    promptVersion: 1, cached: false, generatedAt: .now,
+                    provider: "anthropic", model: "mock-anthropic-model",
+                    language: "zh-hant"
+                )
+            }
+        }
+
+        vm.loadArchivedChart(response: response, request: request)
+        // 第一轮:M0 降级重生成成功,M1 降级重生成失败 → 断链 → .failed
+        let firstFailed = await waitUntil(timeout: 10) {
+            self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
+        }
+        XCTAssertTrue(firstFailed, "M1 降级重生成失败必须落 .failed,实际:\(String(describing: vm.autoTranslationState))")
+        XCTAssertEqual(vm.remainingReads, readsBefore, "降级重生成豁免配额(M0+M1 各一次尝试)")
+        XCTAssertEqual(
+            apiClient.recordedTranslateRequests.count, 1,
+            "只有 M0 发过翻译尝试(收 409 后转降级)"
+        )
+        // #6(标志位分支):断链后 M2 不动(修复前 continue 会让 M2 用 M1
+        // 源语言链字段继续重生成,混合键)
+        XCTAssertFalse(
+            apiClient.recordedInterpretRequests.map(\.module).contains("m2_high_low"),
+            "M1 降级失败断链后 M2 不得被处理(等重试)"
+        )
+
+        // 重试(手动提示条路径):M1/M2 必须走 interpret 重生成,不得再发 translate
+        vm.acceptTranslation()
+        let settled = await waitUntil(timeout: 10) {
+            self.vm.translationOffer == nil
+                && self.vm.autoTranslationState == nil
+                && !self.vm.isTranslatingChain
+                && self.vm.moduleStates[.m1]?.isOk == true
+                && self.vm.moduleStates[.m2]?.isOk == true
+        }
+        XCTAssertTrue(settled, "重试后 M1/M2 必须以重生成落 ok,实际:\(vm.moduleStates)")
+        XCTAssertEqual(
+            apiClient.recordedTranslateRequests.count, 1,
+            "F5:重试不得再发翻译请求(M0 降级标记跨重试存活)"
+        )
+        let generatedModules = Set(
+            apiClient.recordedInterpretRequests.map(\.module)
+                .filter { ModuleID(rawValue: $0) != nil }
+        )
+        XCTAssertTrue(generatedModules.contains("m1_talent"), "M1 重试必须走重生成,实际:\(generatedModules)")
+        XCTAssertTrue(generatedModules.contains("m2_high_low"), "M2 必须跟进重生成,实际:\(generatedModules)")
+    }
+
+    /// #6:中段章节(M1)自身 STALE → 降级重生成失败 → 必须断链(原为
+    /// continue):继续翻译 M2 会用 M1 源语言链字段造出正常生成永远不会用的
+    /// 混合缓存键,白烧 LLM。失败章保留原文行,提示条可重试。
+    func testMidChainStaleRegenFailureStopsDownstreamTranslation() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedDeepEntitlement(hash: response.contentHash)
+        try seedZHCache(hash: response.contentHash, module: .m0, text: Self.m0ZH)
+        try seedZHCache(hash: response.contentHash, module: .m1, text: Self.m1FullZH)
+        try seedZHCache(hash: response.contentHash, module: .m2, text: Self.m2ZH)
+        let readsBefore = vm.remainingReads
+        apiClient.translateResponder = { req in
+            if req.base.module == "m1_talent" {
+                throw APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
+            }
+            return InterpretResponse(
+                interpretation: Self.m0Hant,
+                promptVersion: 1, cached: false, generatedAt: .now,
+                provider: "anthropic", model: "mock-anthropic-model",
+                language: "zh-hant", translatedFrom: req.sourceLanguage
+            )
+        }
+        apiClient.interpretResponder = { req in
+            if req.module == "m1_talent" {
+                throw APIError.networkError(URLError(.timedOut))
+            }
+            return InterpretResponse(
+                interpretation: "{\"one_line\":\"占位\"}",
+                promptVersion: 1, cached: false, generatedAt: .now,
+                provider: "anthropic", model: "mock-anthropic-model",
+                language: "zh-hant"
+            )
+        }
+
+        vm.loadArchivedChart(response: response, request: request)
+        let failed = await waitUntil(timeout: 10) {
+            self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
+        }
+        XCTAssertTrue(failed, "M1 降级重生成失败必须落 .failed,实际:\(String(describing: vm.autoTranslationState))")
+
+        // M0 已译成保留;M1 走了生成尝试(降级)且失败
+        XCTAssertEqual(vm.moduleStates[.m0], .ok(text: Self.m0Hant, cached: false))
+        let generatedModules = Set(
+            apiClient.recordedInterpretRequests.map(\.module)
+                .filter { ModuleID(rawValue: $0) != nil }
+        )
+        XCTAssertTrue(generatedModules.contains("m1_talent"), "M1 应已尝试降级重生成")
+        // #6 核心断言:M2 既不翻译也不生成(断链,不是 continue)
+        XCTAssertTrue(
+            apiClient.recordedTranslateRequests.filter { $0.base.module == "m2_high_low" }.isEmpty,
+            "降级失败后下游不得继续翻译(混合键白烧 LLM)"
+        )
+        XCTAssertFalse(generatedModules.contains("m2_high_low"), "断链后下游不得被生成(重试时再降级)")
+        // 提议保留(重试入口活着)且豁免全程未扣次数
+        XCTAssertNotNil(vm.translationOffer, "失败态必须保留提议供重试")
+        XCTAssertEqual(vm.remainingReads, readsBefore, "降级重生成豁免配额")
+    }
+}
+
+/// 一次性失败标记(翻译/生成链串行执行,无并发访问;class 语义让闭包可翻转)。
+private final class FailedOnceFlag {
+    private var failed = false
+    /// 首次调用返回 true(该次应失败),之后恒 false。
+    func tryFail() -> Bool {
+        if failed { return false }
+        failed = true
+        return true
+    }
 }
 
 // MARK: - 合盘跨语言探测(orchestrator 层)
@@ -750,5 +1053,98 @@ final class DailyFortuneTranslateTests: XCTestCase {
             targetDate: date, maxAge: 24 * 3600
         )
         XCTAssertNil(cached, "坏译文不得入缓存(毒化会静默卡到次日)")
+    }
+
+    // MARK: - F4(2026-10-02):STALE_SOURCE 降级生成(豁免配额,对齐深度 L4)
+
+    /// 跨语言源 STALE(prompt bump / 后端清库后不可核验)→ 落穿目标语言
+    /// 正常生成,豁免配额;不降级的话 24h 窗口内每次进入都命中同一条必败
+    /// 翻译,当天新语言永远拿不到解读。
+    func testDailyStaleSourceDowngradesToGenerationExempt() async throws {
+        let payload = ChartPayloadDTO(
+            dayMaster: "己", dayMasterElement: "土", dayMasterStrength: "weak",
+            favorableElements: ["火", "土"], unfavorableElements: ["水", "金"],
+            fourPillars: [:]
+        )
+        let date = Calendar.current.startOfDay(for: Date())
+        let dailyResponse = try await apiClient.dailyFortune(
+            request: DailyFortuneRequest(chartHash: "f4-stale", targetDate: date, chartPayload: payload)
+        )
+        // 既有 zh 解读(当天,当前语言 zh-hant miss → 跨语言命中)
+        try interpretStore.upsert(
+            contentHash: "f4-stale", module: "daily_fortune", promptVersion: 4,
+            targetDate: date, language: "zh",
+            provider: "anthropic", model: "mock-anthropic-model",
+            interpretation: Self.zhJSON, generatedAt: .now
+        )
+        try dailyStore.upsert(
+            chartHash: "f4-stale", targetDate: date, response: dailyResponse,
+            interpretation: "",
+            cachedUntil: BusinessDateCalculator.cachedUntil(forBusinessDate: date)
+        )
+        apiClient.translateResponder = { _ in
+            throw APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
+        }
+        let readsBefore = counter.remaining()
+
+        let resp = try await orchestrator.runInterpretation(
+            chartHash: "f4-stale", chartPayload: payload,
+            dailyResponse: dailyResponse, businessDate: date
+        )
+
+        // 降级生成成功:目标语言 + 合法 v4 五段
+        XCTAssertEqual(resp.language, "zh-hant", "降级生成跟随生效语言")
+        XCTAssertNotNil(DailyInsight.parse(resp.interpretation), "生成结果必须是合法 v4 五段")
+        // 走了 /api/interpret 生成
+        XCTAssertTrue(
+            apiClient.recordedInterpretRequests.contains { $0.module == "daily_fortune" },
+            "STALE 必须落穿生成(不得停在必败翻译)"
+        )
+        // 豁免配额(用户拍板,对齐深度解析 L4)
+        XCTAssertEqual(counter.remaining(), readsBefore, "STALE 降级生成不得消耗每日次数")
+    }
+
+    /// 非_STALE 翻译失败(离线等)不降级:显式上抛,不偷偷改走生成
+    /// (避免离线时误生成/误扣次数;可重试语义保留)。
+    func testDailyTranslateNetworkErrorPropagatesWithoutGeneration() async throws {
+        let payload = ChartPayloadDTO(
+            dayMaster: "己", dayMasterElement: "土", dayMasterStrength: "weak",
+            favorableElements: ["火", "土"], unfavorableElements: ["水", "金"],
+            fourPillars: [:]
+        )
+        let date = Calendar.current.startOfDay(for: Date())
+        let dailyResponse = try await apiClient.dailyFortune(
+            request: DailyFortuneRequest(chartHash: "f4-offline", targetDate: date, chartPayload: payload)
+        )
+        try interpretStore.upsert(
+            contentHash: "f4-offline", module: "daily_fortune", promptVersion: 4,
+            targetDate: date, language: "zh",
+            provider: "anthropic", model: "mock-anthropic-model",
+            interpretation: Self.zhJSON, generatedAt: .now
+        )
+        try dailyStore.upsert(
+            chartHash: "f4-offline", targetDate: date, response: dailyResponse,
+            interpretation: "",
+            cachedUntil: BusinessDateCalculator.cachedUntil(forBusinessDate: date)
+        )
+        apiClient.translateResponder = { _ in
+            throw APIError.networkError(URLError(.notConnectedToInternet))
+        }
+        let readsBefore = counter.remaining()
+
+        do {
+            _ = try await orchestrator.runInterpretation(
+                chartHash: "f4-offline", chartPayload: payload,
+                dailyResponse: dailyResponse, businessDate: date
+            )
+            XCTFail("离线类翻译失败必须上抛,不得假成功")
+        } catch {
+            // 期望:网络错误原样上抛(可重试)
+        }
+        XCTAssertFalse(
+            apiClient.recordedInterpretRequests.contains { $0.module == "daily_fortune" },
+            "非 STALE 失败不得偷偷改走生成"
+        )
+        XCTAssertEqual(counter.remaining(), readsBefore, "翻译路径不动配额")
     }
 }

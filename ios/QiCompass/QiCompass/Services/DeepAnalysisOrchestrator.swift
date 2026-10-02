@@ -348,7 +348,11 @@ final class DeepAnalysisOrchestrator {
 
             AppLogger.app.info("interpret.v1.ok contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) pv=\(resp.promptVersion) cached=\(resp.cached)")
 
-            if resp.cached {
+            // F1(2026-10-02 修复):cached 命中只退**实际扣过**的额度。
+            // quotaExempt 路径没走 tryConsume,不看豁免标志直接 refund
+            // = 每章白送 1 次(L4 降级重生成 × 8 章 = 一张盘 +8)。
+            // shouldRefundOnFailure 此刻为 true 当且仅当本调用消费过。
+            if resp.cached && shouldRefundOnFailure {
                 counter.refund(module: counterModule)
                 shouldRefundOnFailure = false
             }
