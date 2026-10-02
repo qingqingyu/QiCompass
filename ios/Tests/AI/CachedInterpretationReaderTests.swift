@@ -332,6 +332,87 @@ final class CachedInterpretationReaderTests: XCTestCase {
         XCTAssertNotNil(dailyAfter, "每日散文行不得被自愈误删")
     }
 
+    // 15. #8(2026-10-02):readAllCrossLanguage 的 identity 只 resolve 一次。
+    // ReaderTestAPIClient 的 healthResults 用尽即抛 unexpectedCall——只备
+    // 1 次应答,多 resolve 一次本测试直接失败(修复前逐语言调 readAll,
+    // zh + en 两次 resolve)。
+    func testReadAllCrossLanguageResolvesIdentityOnce() async throws {
+        // 生效语言锁定 zh-hant(注入启动快照,L1/F2 口径),zh 行才能当「其它语言」
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        try store.upsert(
+            contentHash: "h8", module: "compatibility_free", promptVersion: 1,
+            targetDate: nil, language: "zh",
+            provider: "anthropic", model: "claude-test",
+            interpretation: "第一章 基础相处模式", generatedAt: .now
+        )
+        let reader = CachedInterpretationReader(
+            // 只备 1 次 health:第二次 resolve → unexpectedCall 抛错 → 测试失败
+            identityResolver: AIIdentityResolver(apiClient: ReaderTestAPIClient(healthResults: [
+                .success(Self.health(provider: "anthropic", model: "claude-test")),
+            ])),
+            cacheStore: store
+        )
+        let result = try await reader.readAllCrossLanguage(
+            contentHash: "h8", modules: ["compatibility_free"]
+        )
+        XCTAssertEqual(result?.language, "zh", "zh 行命中(en 无行,不额外 resolve)")
+        XCTAssertEqual(result?.hits["compatibility_free"]?.interpretation, "第一章 基础相处模式")
+    }
+
+    // 16. #8:rowIsValid 过滤——坏行不参与候选,继续尝试其它语言。
+    // zh 行是 daily v3 散文(不过五段契约),en 行合法;修复前只看「最优
+    // 语言」(zh 与 en 各 1 行并列,allCases 序 zh 在前)→ 返回 zh 坏行,
+    // 调用方判无源;修复后 zh 被过滤,en 胜出。
+    func testReadAllCrossLanguageRowIsValidSkipsBadRowAndTriesNextLanguage() async throws {
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        let date = Date(timeIntervalSince1970: 1_783_000_000)
+        try store.upsert(
+            contentHash: "h9", module: "daily_fortune", promptVersion: 3,
+            targetDate: date, language: "zh",
+            provider: "anthropic", model: "claude-test",
+            interpretation: "流日与你的日主同根同气,是自立自守的一天。", generatedAt: .now
+        )
+        try store.upsert(
+            contentHash: "h9", module: "daily_fortune", promptVersion: 4,
+            targetDate: date, language: "en",
+            provider: "anthropic", model: "claude-test",
+            interpretation: "{\"headline\":\"Calm start\",\"work\":\"Do the essential.\",\"relationships\":\"Hold back words.\",\"energy\":\"Your own pace.\",\"reminder\":\"Stay measured.\"}",
+            generatedAt: .now
+        )
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: ReaderTestAPIClient(healthResults: [
+                .success(Self.health(provider: "anthropic", model: "claude-test")),
+            ])),
+            cacheStore: store
+        )
+        let result = try await reader.readAllCrossLanguage(
+            contentHash: "h9", modules: ["daily_fortune"], targetDate: date,
+            maxAge: 24 * 3600,
+            rowIsValid: { DailyInsight.parse($0.interpretation) != nil }
+        )
+        XCTAssertEqual(result?.language, "en", "zh 坏行被过滤后必须落到 en(而非返回坏行/nil)")
+        // zh 坏行保留在库(过滤只影响候选,不删行——同语言读路径有自己的嗅探)
+        let zhRow = try store.getLatest(
+            contentHash: "h9", module: "daily_fortune", targetDate: date,
+            language: "zh", identity: Self.testIdentity
+        )
+        XCTAssertNotNil(zhRow, "rowIsValid 过滤不得删行")
+    }
+
     // MARK: - Helpers
 
     private static func healthOnlyClient(

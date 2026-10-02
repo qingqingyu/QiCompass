@@ -88,26 +88,70 @@ final class CachedInterpretationReader {
         maxAge: TimeInterval? = nil
     ) async throws -> [String: InterpretationCache] {
         let identity = try await identityResolver.resolve()
+        return try readAll(
+            contentHash: contentHash,
+            modules: modules,
+            language: language,
+            targetDate: targetDate,
+            maxAge: maxAge,
+            identity: identity
+        )
+    }
+
+    /// 批量读核心(调用方传入已 resolve 的 identity;#8,2026-10-02 抽出:
+    /// 跨语言读取按语言循环时复用同一 identity,不再每语言各打一次 health)。
+    private func readAll(
+        contentHash: String,
+        modules: [String],
+        language: String,
+        targetDate: Date?,
+        maxAge: TimeInterval?,
+        identity: AIIdentity
+    ) throws -> [String: InterpretationCache] {
         var hits: [String: InterpretationCache] = [:]
         for module in modules {
-            guard let cache = try cacheStore.getLatest(
+            guard let cache = try latestHit(
                 contentHash: contentHash,
                 module: module,
-                targetDate: targetDate,
                 language: language,
+                targetDate: targetDate,
+                maxAge: maxAge,
                 identity: identity
             ) else {
-                continue
-            }
-            if try purgeIfPoisoned(cache) {
-                continue
-            }
-            if let maxAge, cache.generatedAt.addingTimeInterval(maxAge) <= .now {
                 continue
             }
             hits[module] = cache
         }
         return hits
+    }
+
+    /// 单行读取(getLatest + 中毒自愈 + 新鲜度三步,#8 抽出为唯一实现):
+    /// `readAll` 核心与 `readCrossLanguageByModulePriority` 共用——两套
+    /// 循环各自内联这三步会漂移(改自愈口径漏一边)。
+    private func latestHit(
+        contentHash: String,
+        module: String,
+        language: String,
+        targetDate: Date?,
+        maxAge: TimeInterval?,
+        identity: AIIdentity
+    ) throws -> InterpretationCache? {
+        guard let cache = try cacheStore.getLatest(
+            contentHash: contentHash,
+            module: module,
+            targetDate: targetDate,
+            language: language,
+            identity: identity
+        ) else {
+            return nil
+        }
+        if try purgeIfPoisoned(cache) {
+            return nil
+        }
+        if let maxAge, cache.generatedAt.addingTimeInterval(maxAge) <= .now {
+            return nil
+        }
+        return cache
     }
 
     // MARK: - 跨语言查找(D10.5,S7)
@@ -119,26 +163,42 @@ final class CachedInterpretationReader {
     /// 原文,L3/F1(修订 D10.5)起打开即自动翻译,失败才出提示条重试。
     /// 中毒行同 `readAll` 口径删除当 miss;过期语义同 `maxAge` 参数。
     ///
+    /// #8(2026-10-02):**identity 只 resolve 一次**——此前逐语言调 `readAll`,
+    /// 每语言各 resolve 一次(= 一次 `/api/health` 往返;三语下当前语言
+    /// 未命中时白多 2 次,离线时还没尝试生成就先抛错)。同批共享 resolve
+    /// 不违反 ADR-0009(身份漂移由写入时的 identity 维度隔离,见 `readAll`
+    /// 注释)。
+    ///
+    /// - Parameter rowIsValid:可选行级过滤(命中但不满足的行**不参与**该语言
+    ///   的候选计数,行保留不删)——每日运势用它跳过不满足 v4 五段契约的
+    ///   坏行、继续尝试其它语言(此前只看「最优语言」那一行,坏行直接判
+    ///   无源)。nil = 不过滤。
     /// - Returns:命中语言 + module 名 → 缓存行;任何语言都无命中 → nil
     /// - Throws:identity 解析失败或 SwiftData 读失败向上抛
     func readAllCrossLanguage(
         contentHash: String,
         modules: [String],
         targetDate: Date? = nil,
-        maxAge: TimeInterval? = nil
+        maxAge: TimeInterval? = nil,
+        rowIsValid: ((InterpretationCache) -> Bool)? = nil
     ) async throws -> (language: String, hits: [String: InterpretationCache])? {
+        let identity = try await identityResolver.resolve()
         let otherLanguages = AppLanguage.allCases
             .map(\.rawValue)
             .filter { $0 != AppLanguage.currentWire }
         var best: (language: String, hits: [String: InterpretationCache])?
         for language in otherLanguages {
-            let hits = try await readAll(
+            var hits = try readAll(
                 contentHash: contentHash,
                 modules: modules,
                 language: language,
                 targetDate: targetDate,
-                maxAge: maxAge
+                maxAge: maxAge,
+                identity: identity
             )
+            if let rowIsValid {
+                hits = hits.filter { rowIsValid($0.value) }
+            }
             if hits.isEmpty { continue }
             if best == nil || hits.count > best!.hits.count {
                 best = (language, hits)
@@ -156,7 +216,8 @@ final class CachedInterpretationReader {
     /// 调 `readAllCrossLanguage`,每次内部又逐语言调 `readAll`——每次
     /// resolve 都是一次 `/api/health` 往返,一次 detail 打开最多 5 次;
     /// 收敛到 1 次后行为不变(同批共享 resolve 不违反 ADR-0009,见
-    /// `readAll` 注释)。
+    /// `readAll` 注释)。行读取走共享 `latestHit`(与 `readAll` 同一套
+    /// getLatest/自愈/新鲜度口径)。
     ///
     /// - Returns:命中的 module 名 + 语言 + 缓存行;全部 miss → nil
     /// - Throws:identity 解析失败或 SwiftData 读失败向上抛
@@ -172,17 +233,14 @@ final class CachedInterpretationReader {
             .filter { $0 != AppLanguage.currentWire }
         for module in modules {
             for language in otherLanguages {
-                guard let cache = try cacheStore.getLatest(
+                guard let cache = try latestHit(
                     contentHash: contentHash,
                     module: module,
-                    targetDate: targetDate,
                     language: language,
+                    targetDate: targetDate,
+                    maxAge: maxAge,
                     identity: identity
                 ) else { continue }
-                if try purgeIfPoisoned(cache) { continue }
-                if let maxAge, cache.generatedAt.addingTimeInterval(maxAge) <= .now {
-                    continue
-                }
                 return (module, language, cache)
             }
         }
