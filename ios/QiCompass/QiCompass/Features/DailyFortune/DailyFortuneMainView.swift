@@ -146,6 +146,7 @@ struct DailyFortuneMainView: View {
             // 此处 32pt 为 tab 栏上方的呼吸留白。
             .padding(.bottom, 32)
         }
+        .modifier(TodayScrollEdge())
         .refreshable { onRefresh() }
         .background(
             TimelineView(.periodic(from: .now, by: 60)) { _ in
@@ -214,5 +215,23 @@ struct DailyFortuneMainView: View {
             return "Day of \(dayPillar) · \(relationText) · \(L10n.DailyFortune.disclaimer)"
         }
         return "\(dayPillar)\(L10n.DailyFortune.dayPillarSuffix) · \(relationText) · \(L10n.DailyFortune.disclaimer)"
+    }
+}
+
+// MARK: - iOS 26 底缘滚动边缘效果(2026-10-02 留白修复 §4)
+
+/// Tab 栏下透出正文(2026-10-02 外评「透字显得脏」):iOS 26 浮动 Liquid
+/// Glass tab 栏下正文透视属系统默认行为,改用系统滚动边缘效果收底——
+/// **不手写 LinearGradient 盖 tab 栏**(DESIGN.md 禁渐变背景,且暗色易穿帮)。
+/// 先取 `.hard`(硬边纸色承接);与水墨风格冲突则回退系统默认 `.soft`
+/// (方案 §4,截图对比由用户拍板)。部署目标 17.2:#available 之下 17/18
+/// 行为不变。其余三个 tab 同病,**本轮只改今日页**,另开任务(方案 §4)。
+private struct TodayScrollEdge: ViewModifier {
+    func body(content: Content) -> some View {
+        if #available(iOS 26.0, *) {
+            content.scrollEdgeEffectStyle(.hard, for: .bottom)
+        } else {
+            content
+        }
     }
 }
