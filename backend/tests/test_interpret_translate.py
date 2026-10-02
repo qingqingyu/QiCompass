@@ -274,6 +274,26 @@ async def test_en_source_over_en_limit_422(interpret_client):
     assert "超上限" in str(resp.json())
 
 
+def test_char_limits_cover_all_source_languages():
+    """分档字典键 ⊇ TranslateRequest.source_language 的全部合法 Literal 值。
+
+    字典是 2026-10-02 新引入的漂移面:加语言时只改 Literal 不补分档,
+    路由层 `_SOURCE_INTERPRETATION_CHAR_LIMITS[req.source_language]` 会
+    KeyError 500(而非受控 422/409)。用测试锁双侧同步(对齐
+    check_term_sync / check_sku_sync 的机器护栏文化,防静默漂移)。
+    """
+    import typing
+
+    from app.api.interpret import _SOURCE_INTERPRETATION_CHAR_LIMITS
+    from app.models.interpret import TranslateRequest
+    annotation = TranslateRequest.model_fields["source_language"].annotation
+    allowed = set(typing.get_args(annotation))
+    missing = allowed - set(_SOURCE_INTERPRETATION_CHAR_LIMITS)
+    assert not missing, (
+        f"加语言须同步 _SOURCE_INTERPRETATION_CHAR_LIMITS(缺 {missing} "
+        f"→ 运行时 KeyError 500)")
+
+
 async def test_v1_source_not_json_returns_422(
         interpret_client, mock_ai_client):
     """v1 module 的原文非合法 JSON → 422,且**不烧 LLM**(形状校验前置)。"""
