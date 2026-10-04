@@ -277,15 +277,13 @@ final class CompatibilityOrchestrator {
                 "compat.interpret.ok compatibility_hash=\(compatibilityHash, privacy: .public) pv=\(resp.promptVersion) cached=\(resp.cached) words=\(resp.interpretation.count)"
             )
 
-            // 4. 命中后端缓存 → refund。后续失败不能再次 refund,避免双退款。
-            // quotaExempt 路径未消费,跳过 refund(退未消费的额度 = 白送配额)。
-            if resp.cached {
-                if quotaExempt {
-                    shouldRefundOnFailure = false
-                } else {
-                    counter.refund(module: module)
-                    shouldRefundOnFailure = false
-                }
+            // 4. 命中后端缓存 → refund(仅实际扣过才退;quotaExempt 路径
+            // shouldRefundOnFailure 恒 false,不退——退未消费的额度 = 白送
+            // 配额)。后续失败不能再次 refund,避免双退款。与 Daily/Deep
+            // orchestrator 的单表达式守卫同款(2026-10-02 双 review 对齐)。
+            if resp.cached && shouldRefundOnFailure {
+                counter.refund(module: module)
+                shouldRefundOnFailure = false
             }
 
             // 5. 写本地 24h AI 缓存。失败必须传导到 UI,避免返回假成功。

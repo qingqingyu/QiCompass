@@ -250,6 +250,15 @@ final class DeepAnalysisViewModel {
     /// 翻译不消耗次数、不跑生成链)。
     private(set) var isTranslatingChain = false
 
+    /// 翻译链世代号(换盘/reset 推进;2026-10-02 双 review 补):换盘守卫与
+    /// reset() 会**同步**清 isTranslatingChain=false,但旧翻译链仍挂在翻译
+    /// 请求的 await 中——其尾部 `defer { isTranslatingChain = false }` 恢复执行
+    /// 时会把**新链**刚置位的标志清掉(新链全程标志失真:「正在译为」章首
+    /// 小注消失、acceptTranslation 重入门禁失效)。世代号让旧链 defer 按失配
+    /// 自弃——镜像 chainGeneration 的同款手法(快照在 acceptTranslation 与
+    /// 置标志同一同步块完成,作参数传入链体,不留任务体起跳时序窗口)。
+    private var translationGeneration = 0
+
     // MARK: 依赖
 
     private let orchestrator: DeepAnalysisOrchestrator
@@ -591,6 +600,10 @@ final class DeepAnalysisViewModel {
             translationOffer = nil
             crossLanguageRows.removeAll()
             translationFailedModules.removeAll()
+            // 同步清标志 + 推进世代(2026-10-02 双 review 补):旧翻译链在网络
+            // await 中,只清标志不推进世代的话,旧链尾部 defer 会把新链刚置位的
+            // 标志再清掉(见 translationGeneration 注释)。
+            translationGeneration &+= 1
             isTranslatingChain = false
             autoTranslationState = nil
             // #7(2026-10-02):M4/M5 用户输入也属旧盘——残留会让新盘沿用旧盘
@@ -1291,13 +1304,22 @@ final class DeepAnalysisViewModel {
     func acceptTranslation() {
         guard let offer = translationOffer, !isTranslatingChain, !isHydrating else { return }
         guard case .ready(let response, _) = state else { return }
+        // 世代号快照与置标志同一同步块(镜像 startV1Chain 的装配点形态):
+        // 若快照留在任务体首行,Task 起跳若晚于「换盘推进世代 + 新链已置
+        // 标志」,旧链会快照到推进后的世代——与守卫语义失配(见
+        // translationGeneration 注释)。
+        let generation = translationGeneration
         isTranslatingChain = true
         autoTranslationState = .inProgress
         AppLogger.app.info(
             "deepVM.acceptTranslation source=\(offer.sourceLanguage, privacy: .public) modules=\(self.crossLanguageRows.keys.map(\.rawValue).sorted().joined(separator: ","), privacy: .public)"
         )
         Task { @MainActor [weak self] in
-            await self?.runTranslationChain(response: response, sourceLanguage: offer.sourceLanguage)
+            await self?.runTranslationChain(
+                response: response,
+                sourceLanguage: offer.sourceLanguage,
+                generation: generation
+            )
         }
     }
 
@@ -1333,8 +1355,30 @@ final class DeepAnalysisViewModel {
     /// L4/F5 例外:STALE_SOURCE(原文版本过期)不断链——降级为目标语言重
     /// 生成该章(豁免配额);M0 过期时下游原文一并转重生成,防叙事错配。
     @MainActor
-    private func runTranslationChain(response: BaziResponse, sourceLanguage: String) async {
-        defer { isTranslatingChain = false }
+    private func runTranslationChain(
+        response: BaziResponse,
+        sourceLanguage: String,
+        generation: Int
+    ) async {
+        // 世代号由 acceptTranslation 在置标志的同一同步块快照传入(镜像
+        // runV1Chain(response:generation:) 的装配形态):await 期间换盘/reset
+        // 已同步清标志并推进世代——本链属旧世代时 defer 不得再动标志(那会
+        // 覆写新链刚置位的 true)。
+        defer {
+            if translationGeneration == generation {
+                isTranslatingChain = false
+            }
+        }
+        // 入口世代复检(2026-10-02 双 review):Task 起跳若晚于换盘/reset 的
+        // 世代推进(offer/rows 已同步清空),旧链会以空 rows 跑完循环并落入
+        // 尾块——清 F5 标记 / 提前 resume 都写在**新盘**上。此处按失配整体
+        // 自弃,镜像 defer 的同款判据。
+        guard translationGeneration == generation else {
+            AppLogger.app.warning(
+                "deepVM.runTranslationChain.stale_generation hash=\(response.contentHash, privacy: .public) gen=\(generation, privacy: .public) — 旧链起跳自弃(入口复检)"
+            )
+            return
+        }
         // L4/F5(2026-10-01):M0 原文 STALE 降级重生成后,下游原文基于旧 M0,
         // 继续翻译会混叙事 → 下游原文章全部转重生成(同样豁免配额)。
         // F5(2026-10-02):标记提升为 VM 状态(按 contentHash|targetLang)——
@@ -1370,6 +1414,16 @@ final class DeepAnalysisViewModel {
                     continue
                 }
                 await runSingleV1Module(module, response: response, quotaExempt: true)
+                // 世代复检(2026-10-02 双 review):上方 await 是秒级 interpret
+                // 网络窗,期间换盘/reset 的话 runSingleV1Module 自身同盘守卫
+                // 会静默丢弃(不写 moduleStates)——若继续按 moduleStates 判
+                // 成败,旧链会把 staleRegenFailed/.failed 展示态写在新盘上。
+                guard translationGeneration == generation else {
+                    AppLogger.app.warning(
+                        "deepVM.runTranslationChain.stale_generation_after_regen hash=\(response.contentHash, privacy: .public) gen=\(generation, privacy: .public) module=\(module.rawValue, privacy: .public) — 旧盘收尾丢弃"
+                    )
+                    return
+                }
                 if moduleStates[module]?.isOk == true {
                     crossLanguageRows[module] = nil
                 } else {
@@ -1486,6 +1540,15 @@ final class DeepAnalysisViewModel {
                         staleM0DowngradedKeys.insert(staleKey)
                     }
                     await runSingleV1Module(module, response: response, quotaExempt: true)
+                    // 世代复检(2026-10-02 双 review,同上方 staleM0Downgraded
+                    // 分支):此 await 期间换盘/reset 的话,成败判定与行清除
+                    // 都属旧盘收尾,不得落在新盘状态上。
+                    guard translationGeneration == generation else {
+                        AppLogger.app.warning(
+                            "deepVM.runTranslationChain.stale_generation_after_downgrade hash=\(response.contentHash, privacy: .public) gen=\(generation, privacy: .public) module=\(module.rawValue, privacy: .public) — 旧盘收尾丢弃"
+                        )
+                        return
+                    }
                     if moduleStates[module]?.isOk == true {
                         crossLanguageRows[module] = nil
                     } else {
@@ -1644,8 +1707,12 @@ final class DeepAnalysisViewModel {
     /// failureCount 也清零(2026-09-07 起仅日志用,重置后计数从新盘重新起算)。
     /// Stage 7c:同时取消 v1 链式调用 + 清 moduleStates + v1ChainFields。
     /// 断点续跑:作废在飞链的 defer 写回(世代号推进后旧链 defer 不再动标志)。
-    /// isHydrating 不在此复位(在飞 hydrate 在自己尾部复位标志后收尾,其尾部
-    /// resumeV1ChainIfNeeded 会按 reset 后的新状态守卫,不会误跑)。
+    /// isHydrating 同步复位 + hydrateGeneration 推进(2026-10-02 双 review 补,
+    /// 推翻了「不在此复位」的旧注释):reset → 表单 → calculate(新盘) 不经
+    /// loadArchivedChart 换盘守卫(state 已 .empty)——在飞旧盘 hydrate 凭
+    /// `!isHydrating` 守卫会把**新盘** hydrate 整体吞掉且无人重试(M4/M5 读回、
+    /// 章节回填、跨语言提议全丢),旧盘收尾 resume 还会替新盘绕过 hydrate 直
+    /// 接起链。镜像 chart_changed 守卫同款:旧盘收尾按世代失配自弃。
     func reset() {
         calculateTask?.cancel()
         v1ChainTask?.cancel()
@@ -1654,6 +1721,8 @@ final class DeepAnalysisViewModel {
         failureCount = 0
         isChainRunning = false
         chainGeneration &+= 1
+        hydrateGeneration &+= 1
+        isHydrating = false
         moduleStates.removeAll()
         v1ChainFields.removeAll()
         // Stage 8 修复:清 M4/M5 用户输入,避免跨命盘污染
@@ -1667,6 +1736,9 @@ final class DeepAnalysisViewModel {
         translationOffer = nil
         crossLanguageRows.removeAll()
         translationFailedModules.removeAll()
+        // 同步清标志 + 推进世代(同 loadArchivedChart 换盘守卫;旧链 defer 按世代
+        // 失配自弃,不再覆写新链标志)。
+        translationGeneration &+= 1
         isTranslatingChain = false
         // L3/F1:回表单态清自动翻译展示态(提示条/章首小注随页面退场)
         autoTranslationState = nil
