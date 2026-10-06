@@ -336,6 +336,42 @@ final class AddHourFlowTests: XCTestCase {
         XCTAssertEqual(CompatibilityRosterPersistence.loadPersonAHash(), newResponse.contentHash)
     }
 
+    /// R4 修订配套(2026-10-06 review 核实):loadArchivedChart 的「三柱一致
+    /// 即同人」兜底 remap 已拔除(同日生两人会串隐私输入),同人补时辰的
+    /// M4/M5 输入沿用收敛到 submit 的显式 remap 单点——此处钉住该接线。
+    func testSubmit_RemapsDeepUserInputToNewHash() async throws {
+        let old = try archiveOldChart()
+        DeepUserInputPersistence.saveM4(.init(age: 41, concern: "体力"), contentHash: old.contentHash)
+        DeepUserInputPersistence.saveM5(.init(assets: "存款稳定", preference: "保守"), contentHash: old.contentHash)
+        var newHashForCleanup: String?
+        defer {
+            [old.contentHash, newHashForCleanup].compactMap { $0 }.forEach {
+                UserDefaults.standard.removeObject(forKey: DeepUserInputPersistence.m4KeyPrefix + $0)
+                UserDefaults.standard.removeObject(forKey: DeepUserInputPersistence.m5KeyPrefix + $0)
+            }
+        }
+
+        let vm = try makeVM(hash: old.contentHash)
+        vm.setShichenHour(10)
+        let newResponse = try await XCTUnwrapAsync(await vm.submit())
+        newHashForCleanup = newResponse.contentHash
+
+        XCTAssertEqual(
+            DeepUserInputPersistence.loadM4(contentHash: newResponse.contentHash),
+            .init(age: 41, concern: "体力"),
+            "补时辰换新 hash:M4 输入必须随 submit 迁移(兜底 remap 拔除后的唯一沿用路径)"
+        )
+        XCTAssertEqual(
+            DeepUserInputPersistence.loadM5(contentHash: newResponse.contentHash)?.preference,
+            "保守",
+            "M5 输入同样迁移"
+        )
+        XCTAssertNotNil(
+            DeepUserInputPersistence.loadM4(contentHash: old.contentHash),
+            "老 key 保留(可回溯语义,与 remapHash 契约一致)"
+        )
+    }
+
     func testCompatibilityRouting_BlockedPairTargetHash() throws {
         // 合盘拦截卡 CTA 路由:自己无时辰 → 自己盘;他人无时辰 → 对方盘;临时人 → nil
         let context = container.mainContext

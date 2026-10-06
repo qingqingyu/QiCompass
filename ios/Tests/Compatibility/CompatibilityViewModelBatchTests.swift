@@ -1676,6 +1676,62 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         await drainDetailBackgroundTasks()
     }
 
+    /// Bug5(2026-10-06 review 核实):STALE 降级重生成失败后落 .failed,重试
+    /// (retryInterpretation)必须透传豁免——不得把语言切换成本转嫁用户配额
+    /// (修复前重试恒走 generateInterpretation() 默认 false:正常扣次数;次数
+    /// 耗尽用户则直接卡 dailyLimitReached;与深度解析「重试再降级仍豁免」不一致)。
+    func testSTALE降级重生成失败_重试透传豁免不扣次数() async throws {
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+
+        let summary = try makeAutoGenFixture(tag: "stalefail")
+        try interpretStore.upsert(
+            contentHash: summary.compatibilityHash,
+            module: "compatibility_free",
+            promptVersion: 1,
+            targetDate: nil,
+            language: "zh",
+            provider: "anthropic",
+            model: "mock-anthropic-model",
+            interpretation: "第一章 基础相处模式\n\n简体原文。",
+            generatedAt: .now
+        )
+        apiClient.translateResponder = { _ in
+            throw APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
+        }
+        // 降级重生成第一击失败(网络);重试时恢复默认应答
+        apiClient.interpretResponder = { _ in
+            throw APIError.networkError(URLError(.notConnectedToInternet))
+        }
+        let readsBefore = vm.remainingReads
+
+        vm.openDetail(summary)
+        let failed = await waitForInterpretState { state in
+            if case .failed = state { return true }
+            return false
+        }
+        XCTAssertTrue(failed, "STALE 降级重生成失败必须落 .failed,实际:\(vm.state)")
+        XCTAssertEqual(vm.remainingReads, readsBefore, "豁免路径失败不得动配额(没扣不退)")
+
+        // 重试:透传豁免(修复前走默认 false 正常扣次数)
+        apiClient.interpretResponder = nil
+        vm.retryInterpretation()
+        let ok = await waitForInterpretState { state in
+            if case .okFree(let text, _) = state { return text.contains("Mock 命书占位") }
+            return false
+        }
+        XCTAssertTrue(ok, "重试必须落穿生成成功,实际:\(vm.state)")
+        XCTAssertEqual(
+            vm.remainingReads, readsBefore,
+            "STALE 降级链的重试必须透传豁免(语言切换成本不转嫁用户配额)"
+        )
+        await drainDetailBackgroundTasks()
+    }
+
     func testBackToConfig_detail态_一步回配置态_保留summaries() {
         // 2026-09-07 单选直达:closeDetail 退役,detail「编辑名单」toolbar 直达
         // 配置态(clearDetailKeepRoster 兼任 list 兜底态返回)

@@ -182,7 +182,16 @@ final class DeepAnalysisViewModel {
     /// hydrateAndResume 防重入(loadArchivedChart 同 hash 重入 / calculate 并发)。
     /// `private(set)`:测试 teardown 需等回填任务落定再撤 ModelContainer
     /// (在飞 getLatest 踩死容器会 SIGTRAP,2026-09-08 全量测试实踩)。
+    /// 注意:换盘/reset 会**同步**复位本标志放行新盘 hydrate,旧 hydrate 仍挂
+    /// 在 await 中(世代失配自弃要等挂起点返回)——撤容器等待请用
+    /// `inflightHydrateCount`,不要用本标志。
     private(set) var isHydrating = false
+
+    /// 在飞 hydrate 计数(Bug6,2026-10-06):换盘/reset 同步复位 isHydrating 后,
+    /// 本标志不再等价「无在飞 hydrate」——teardown 以本计数归零为撤容器依据
+    /// (按旧标志等待会提前撤容器,在飞 getLatest 踩死容器 SIGTRAP)。
+    /// 计数在 hydrateAndResume 全部早退守卫之后递增,defer 覆盖所有出口。
+    private(set) var inflightHydrateCount = 0
 
     /// hydrate 世代号(换盘推进;2026-10-02 bug 分支修):旧盘 hydrate 在飞
     /// (performRestore await 中)时换盘,同步推进世代 + 复位 isHydrating 让
@@ -221,9 +230,19 @@ final class DeepAnalysisViewModel {
     /// 自动翻译展示态(nil = 无自动翻译在飞/失败——提示条不显示)。
     private(set) var autoTranslationState: AutoTranslationDisplay?
 
-    /// 自动翻译会话去重:同一 (contentHash, target) 自动只起一次
-    /// (防网络抖动 / 反复进出页面循环烧 LLM);失败后只走提示条手动重试。
-    private var autoTranslationAttemptedKeys = Set<String>()
+    /// 自动翻译会话去重 + 结局分诊(2026-10-06 修订):同一 (contentHash, target)
+    /// 自动只起一次(防网络抖动 / 反复进出页面循环烧 LLM);但记录的是上次尝试
+    /// 的**结局**而非裸「尝试过」——被换盘/reset 打断或离线等待不算失败,重进
+    /// 允许再自动续译剩余原文(修复前一律恢复 .failed:中断被谎报成失败,
+    /// 离线「联网后续译」承诺丢失,剩余原文卡死到手动重试)。真失败(非离线)
+    /// 才恢复失败提示条走手动。
+    private enum AutoTranslationOutcome: Equatable {
+        /// 中断(换盘/reset 掐断)或离线等待——重进可再自动续译
+        case interrupted
+        /// 落定失败(非离线类)——恢复失败提示条,只走手动重试
+        case failed
+    }
+    private var autoTranslationOutcomes: [String: AutoTranslationOutcome] = [:]
 
     /// 离线自动重试已用标记(每个提议周期至多一次回前台自动重试;二次失败
     /// 转 .failed 走手动)。新提议产生时复位。
@@ -238,13 +257,33 @@ final class DeepAnalysisViewModel {
     /// 驱动章首「翻译失败 · 重试」小注;译成/重生成/换盘/reset 时清除。
     private(set) var translationFailedModules: Set<ModuleID> = []
 
-    /// F5(2026-10-02):M0 原文已 STALE 降级重生成的 (contentHash|targetLang) 集合。
-    /// 原局部变量版本在重试进链时重置——M0 行已移除、标记却回 false,剩余下游
-    /// 原文会被拿去**翻译**(源文基于旧 M0 + 新 M0 指纹 → 混叙事、缓存键错位,
-    /// 毒化正常生成永不命中的共享键)。提议收空 / 兜底弃行 / reset 时清除;
-    /// 换盘**不**清(键按盘隔离,切回时 hydrate 重建提议要靠它把下游继续导向
-    /// 重生成——清了恰好在「切盘再切回」场景复活血案)。
-    private var staleM0DowngradedKeys = Set<String>()
+    /// F5(2026-10-02;2026-10-06 持久化):M0 原文已 STALE 降级重生成的
+    /// (contentHash|targetLang) 集合。原局部变量版本在重试进链时重置——M0 行
+    /// 已移除、标记却回 false,剩余下游原文会被拿去**翻译**(源文基于旧 M0 +
+    /// 新 M0 指纹 → 混叙事、缓存键错位,毒化正常生成永不命中的共享键)。
+    /// 仅存 VM 内存时,「降级成功 → 下游重生成途中杀 App → 重启」会整组丢失:
+    /// hydrate 重建提议自动续跑时下游走翻译而非重生成,同款毒化——照
+    /// DeepUserInputPersistence 模式落 UserDefaults(读写收口见
+    /// DeepStaleM0MarkerPersistence),所有变更经 markStaleM0Downgraded /
+    /// clearStaleM0Marker 写穿。提议收空 / 兜底弃行时按键清除;换盘**不**清
+    /// (键按盘隔离,切回时 hydrate 重建提议要靠它把下游继续导向重生成);
+    /// reset() 也**不**清——reset → 重启 → 同盘提议重建的场景同样需要它
+    /// (内存版 removeAll 在持久化语义下会重新打开本洞);全量清走
+    /// ProfileView.resetAllData。
+    private var staleM0DowngradedKeys = DeepStaleM0MarkerPersistence.load()
+
+    /// F5 标记写入单一收口(内存 + UserDefaults 同步):漏一处持久化,重启后
+    /// 标记丢失即复活「混拼翻译进共享缓存键」。
+    private func markStaleM0Downgraded(_ key: String) {
+        staleM0DowngradedKeys.insert(key)
+        DeepStaleM0MarkerPersistence.save(staleM0DowngradedKeys)
+    }
+
+    /// F5 标记清除单一收口(无此键时跳过落盘,防无谓写)。
+    private func clearStaleM0Marker(_ key: String) {
+        guard staleM0DowngradedKeys.remove(key) != nil else { return }
+        DeepStaleM0MarkerPersistence.save(staleM0DowngradedKeys)
+    }
 
     /// 链式翻译在飞(提示条转 loading;与 isChainRunning 互不影响——
     /// 翻译不消耗次数、不跑生成链)。
@@ -610,14 +649,14 @@ final class DeepAnalysisViewModel {
             // 输入生成(user_input_hash 错位 → 缓存 miss 扣次数,内容还是别人
             // 的年龄/关注点)。清空后下方 hydrate 起手按新 hash 读回该盘自己
             // 的已存输入(补时辰 remap 已迁移则无缝衔接)。
-            // R4 补充(bug 分支):同人补时辰(refreshAfterAddHour 同走本守卫,
-            // 且老版本 submit 可能未跑 remap)在此兜底 remap——输入是用户本人
-            // 的回答与时辰无关;真换人 remapHash 不迁移(柱不一致),各盘各键。
-            if Self.isSamePersonHourAddition(old: old, new: response) {
-                DeepUserInputPersistence.remapHash(
-                    from: old.contentHash, to: response.contentHash
-                )
-            }
+            // R4 修订(2026-10-06 review 核实):拔掉「三柱一致 + 时柱从无到有
+            // 即判同人」的兜底 remap——同一天出生的两个人(双胞胎/亲友)同样
+            // 命中该判据,会把 A 的年龄/健康关注等隐私输入串进 B 的盘并持久化
+            // (loadArchivedChart 是通用换盘入口,无法确认「新盘由补时辰而来」,
+            // sheet dismiss 含取消/静默完成等非重算形态)。同人补时辰的输入沿用
+            // 只走 AddHourViewModel.submit 的显式 remap——按 sheet 打开时的老盘
+            // hash 精确迁移,同人不靠猜;此处恒清内存,由 hydrate 按新 hash
+            // 读回各盘自己的持久化输入。
             m4UserInput = nil
             m5UserInput = nil
             AppLogger.app.info(
@@ -681,6 +720,8 @@ final class DeepAnalysisViewModel {
             m5UserInput = (saved.assets, saved.preference)
             AppLogger.app.info("deepVM.hydrateAndResume.m5_input_restored hash=\(response.contentHash, privacy: .public)")
         }
+        inflightHydrateCount += 1
+        defer { inflightHydrateCount -= 1 }  // 覆盖所有出口(含世代失配自弃)
         isHydrating = true
         let outcome = await performRestore(response: response)
         // 世代失配 = await 期间已换盘:isHydrating 由新盘 hydrate 持有,此处
@@ -713,17 +754,22 @@ final class DeepAnalysisViewModel {
         guard !isTranslatingChain, !isHydrating else { return }
         guard isCurrentChart(response) else { return }
         let key = response.contentHash + "|" + AppLanguage.currentWire
-        guard !autoTranslationAttemptedKeys.contains(key) else {
-            // F2(2026-10-02 修复):本会话已自动尝试过(典型:失败后切盘再切回,
-            // offer 被 hydrate 重建)。不再自动重试(防烧 LLM 语义不变),但必须
-            // 恢复失败态——静默 return 会让 autoTranslationState 停留 nil(提示条
-            // 不渲染),同时 offer 非 nil 拦死 resumeV1ChainIfNeeded 的
-            // translation_pending 守卫:既不翻译、也不生成、无重试入口,死路。
-            autoTranslationState = .failed
-            AppLogger.app.info("deepVM.autoTranslate.skip reason=already_attempted key=\(key, privacy: .public) — 恢复失败提示条(手动重试)")
-            return
+        if let outcome = autoTranslationOutcomes[key] {
+            guard outcome != .failed else {
+                // F2(2026-10-02 修复;2026-10-06 收窄到「真失败」):上次尝试
+                // 落定失败后不再自动重试(防烧 LLM 语义不变),但必须恢复失败态
+                // ——静默 return 会让 autoTranslationState 停留 nil(提示条不渲染),
+                // 同时 offer 非 nil 拦死 resumeV1ChainIfNeeded 的
+                // translation_pending 守卫:既不翻译、也不生成、无重试入口,死路。
+                autoTranslationState = .failed
+                AppLogger.app.info("deepVM.autoTranslate.skip reason=already_failed key=\(key, privacy: .public) — 恢复失败提示条(手动重试)")
+                return
+            }
+            // .interrupted:上次自动翻译被换盘/reset 打断或离线等待——不是失败,
+            // 直接续译剩余原文(成功即收口;真失败会改记 .failed,防循环烧 LLM)
+            AppLogger.app.info("deepVM.autoTranslate.resume reason=interrupted key=\(key, privacy: .public) — 续译剩余原文")
         }
-        autoTranslationAttemptedKeys.insert(key)
+        autoTranslationOutcomes[key] = .interrupted
         AppLogger.app.info("deepVM.autoTranslate.start hash=\(response.contentHash, privacy: .public)")
         acceptTranslation()
     }
@@ -1282,18 +1328,6 @@ final class DeepAnalysisViewModel {
         return false
     }
 
-    /// R4 配套(bug 分支):同人补时辰判定——旧盘无时柱、新盘有时柱,且年/
-    /// 月/日三柱一致(同人同日历法结果)。日柱歧义盘补时辰会换日柱
-    /// (day nil → 有值),判 false——该盘此前整链被拦,本就没有可沿用的输入。
-    /// 命中时换盘清洗前先 remap M4/M5 持久化到新 hash(submit 时点 remap 的
-    /// 兜底,覆盖老版本升级 / 非常规换 hash 路径)。
-    private static func isSamePersonHourAddition(old: BaziResponse, new: BaziResponse) -> Bool {
-        guard old.pillars.hour == nil, new.pillars.hour != nil else { return false }
-        return old.pillars.year == new.pillars.year
-            && old.pillars.month == new.pillars.month
-            && old.pillars.day == new.pillars.day
-    }
-
     // MARK: - 跨语言翻译执行(D10.4,S7)
 
     /// 翻译执行入口(L3/F1 起双来源:hydrate 自动触发 + 失败提示条手动重试;
@@ -1329,11 +1363,12 @@ final class DeepAnalysisViewModel {
     private func syncTranslationOfferWithRows() {
         if crossLanguageRows.isEmpty {
             translationOffer = nil
-            // F5 标记随提议收空清除(单章重试/生成把行清完的路径)
+            // F5 标记随提议收空清除(单章重试/生成把行清完的路径);结局键同清
+            // ——未来同键新提议(如再次版本 bump)可重新自动翻译
             if case .ready(let response, _) = state {
-                staleM0DowngradedKeys.remove(
-                    response.contentHash + "|" + AppLanguage.currentWire
-                )
+                let settledKey = response.contentHash + "|" + AppLanguage.currentWire
+                clearStaleM0Marker(settledKey)
+                autoTranslationOutcomes.removeValue(forKey: settledKey)
             }
         } else if let offer = translationOffer {
             translationOffer = TranslationOffer(
@@ -1360,6 +1395,9 @@ final class DeepAnalysisViewModel {
         sourceLanguage: String,
         generation: Int
     ) async {
+        // staleKey 提前到 defer 之前:defer 要在**所有**出口(含入口自弃)记录
+        // 结局,必须先于 defer 可用。
+        let staleKey = response.contentHash + "|" + AppLanguage.currentWire
         // 世代号由 acceptTranslation 在置标志的同一同步块快照传入(镜像
         // runV1Chain(response:generation:) 的装配形态):await 期间换盘/reset
         // 已同步清标志并推进世代——本链属旧世代时 defer 不得再动标志(那会
@@ -1367,6 +1405,10 @@ final class DeepAnalysisViewModel {
         defer {
             if translationGeneration == generation {
                 isTranslatingChain = false
+            } else {
+                // 旧世代链 = 被换盘/reset 掐断:结局记 .interrupted——重进同盘
+                // hydrate 重建提议后可再自动续译(修复前该场景恢复 .failed 假失败)
+                autoTranslationOutcomes[staleKey] = .interrupted
             }
         }
         // 入口世代复检(2026-10-02 双 review):Task 起跳若晚于换盘/reset 的
@@ -1384,7 +1426,7 @@ final class DeepAnalysisViewModel {
         // F5(2026-10-02):标记提升为 VM 状态(按 contentHash|targetLang)——
         // 重试进链时 M0 行已不在 crossLanguageRows,局部变量重置会把基于旧
         // M0 的下游原文拿去翻译而非重生成(混叙事 + 缓存键错位)。
-        let staleKey = response.contentHash + "|" + AppLanguage.currentWire
+        // F5(2026-10-06):标记再落 UserDefaults——重启后提议重建仍靠它导向。
         var staleM0Downgraded = staleM0DowngradedKeys.contains(staleKey)
         // 降级重生成有失败(网络等):保留原行供重试,终态走失败提示条,不 resume
         var staleRegenFailed = false
@@ -1485,8 +1527,10 @@ final class DeepAnalysisViewModel {
                     translationOffer = nil
                     autoTranslationState = nil
                     // 提议已弃,F5 标记一并清(残留会让未来同键提议的下游
-                    // 误走重生成——本路径已明确转正常生成)
-                    staleM0DowngradedKeys.remove(staleKey)
+                    // 误走重生成——本路径已明确转正常生成);结局键同清(未来
+                    // 同键新提议可重新自动翻译)
+                    clearStaleM0Marker(staleKey)
+                    autoTranslationOutcomes.removeValue(forKey: staleKey)
                     resumeV1ChainIfNeeded()
                     return  // 上游译后字段缺失,继续只会混键,显式停
                 }
@@ -1533,11 +1577,12 @@ final class DeepAnalysisViewModel {
                     AppLogger.app.warning(
                         "deepVM.runTranslationChain.stale_source_downgrade module=\(module.rawValue, privacy: .public) — 转目标语言重生成(豁免配额)"
                     )
-                    // F5(2026-10-02):M0 降级即写入 VM 持久标记(重试进链靠它
-                    // 把下游继续导向重生成;M0 行移除后局部变量不可恢复)
+                    // F5(2026-10-02):M0 降级即写入 VM 标记(重试进链靠它
+                    // 把下游继续导向重生成;M0 行移除后局部变量不可恢复)。
+                    // 2026-10-06:标记同步落盘——重启后提议重建仍需它导向
                     if module == .m0 {
                         staleM0Downgraded = true
-                        staleM0DowngradedKeys.insert(staleKey)
+                        markStaleM0Downgraded(staleKey)
                     }
                     await runSingleV1Module(module, response: response, quotaExempt: true)
                     // 世代复检(2026-10-02 双 review,同上方 staleM0Downgraded
@@ -1574,17 +1619,20 @@ final class DeepAnalysisViewModel {
                 translationFailedModules.insert(module)
                 // L3/F1 失败分诊:离线类(且自动重试额度未用)→ 联网后回前台
                 // 自动重试一次;其余 → 失败提示条(手动重试)。译完的保留,
-                // 重试只译剩余。
-                autoTranslationState = (Self.isOfflineTranslationError(error) && !offlineRetryUsed)
-                    ? .offlinePending
-                    : .failed
+                // 重试只译剩余。结局同步分诊(2026-10-06):离线等待记
+                // .interrupted(重进/联网后自动续译的承诺保留);非离线失败记
+                // .failed(重进恢复提示条走手动)。
+                let offlinePending = Self.isOfflineTranslationError(error) && !offlineRetryUsed
+                autoTranslationOutcomes[staleKey] = offlinePending ? .interrupted : .failed
+                autoTranslationState = offlinePending ? .offlinePending : .failed
                 return  // 断链:下游会混用译后指纹+原文链字段,显式停
             }
         }
         // 收尾:L4/F5 降级重生成有失败 → 失败提示条(重试 = 重走本链,原行
         // 还在);不清 offer、不 resume(resume 起链的重生成不带豁免,会把
-        // 语言切换成本转嫁到用户配额)。
+        // 语言切换成本转嫁到用户配额)。结局记 .failed(重进恢复提示条走手动)。
         if staleRegenFailed {
+            autoTranslationOutcomes[staleKey] = .failed
             autoTranslationState = .failed
             return
         }
@@ -1593,7 +1641,8 @@ final class DeepAnalysisViewModel {
         if crossLanguageRows.isEmpty {
             translationOffer = nil
             autoTranslationState = nil
-            staleM0DowngradedKeys.remove(staleKey)
+            clearStaleM0Marker(staleKey)
+            autoTranslationOutcomes.removeValue(forKey: staleKey)
             AppLogger.app.info("deepVM.runTranslationChain.all_translated")
             resumeV1ChainIfNeeded()
         }
@@ -1742,8 +1791,10 @@ final class DeepAnalysisViewModel {
         isTranslatingChain = false
         // L3/F1:回表单态清自动翻译展示态(提示条/章首小注随页面退场)
         autoTranslationState = nil
-        // F5:整页重置,降级标记一并清(表单态无提议可挂)
-        staleM0DowngradedKeys.removeAll()
+        // F5(2026-10-06 持久化):降级标记**不**随 reset 清——reset → 重启 →
+        // 同盘提议重建的场景仍需它把下游导向重生成(清了会重新打开「旧 M0
+        // 下游原文 × 新 M0 指纹混拼进共享键」的洞)。内存标记与落盘副本同源,
+        // 由提议收空/兜底弃行按键清除;全量清走 ProfileView.resetAllData。
     }
 
     // MARK: - 查询
@@ -1889,5 +1940,53 @@ enum DeepUserInputPersistence {
             )
             return nil
         }
+    }
+}
+
+// MARK: - F5 降级标记持久化(2026-10-06 review 核实)
+
+/// `DeepAnalysisViewModel.staleM0DowngradedKeys` 的落盘层(UserDefaults,JSON
+/// 编码 Set<String>),照 DeepUserInputPersistence 模式。
+///
+/// 为什么持久化(修复前仅 VM 内存):M0 STALE 降级重生成成功后、下游重生成
+/// 完成前杀 App,重启 hydrate 会重建跨语言提议并自动续跑——内存标记丢失让
+/// 下游走「翻译」而非「重生成」:新 M0 指纹 × 旧 M0 叙事原文混拼,写进正常
+/// 生成的目标语言缓存键(后端按 content_hash 全局共享,毒化波及同盘所有
+/// 用户)。生命周期:提议收空 / 兜底弃行 / 全部译完时按键清除;换盘与 reset
+/// 都不清(键按盘隔离,见 VM 属性注释);清扫 = ProfileView.resetAllData
+/// (与 M4/M5 输入同批)。
+enum DeepStaleM0MarkerPersistence {
+
+    static let storageKey = "deep.staleM0DowngradedKeys"
+
+    /// 读回;解码失败显式日志 + 按空集处理(后果:重启后多走一次 STALE 409
+    /// 降级重生成,自愈;不拿坏数据冒充)。
+    static func load() -> Set<String> {
+        guard let data = UserDefaults.standard.data(forKey: storageKey) else { return [] }
+        do {
+            return try JSONDecoder().decode(Set<String>.self, from: data)
+        } catch {
+            AppLogger.persistence.error(
+                "op=deepStaleM0Marker.decode_failed error=\(String(describing: error), privacy: .public) — 按空集处理(重启后多一次 STALE 降级,自愈)"
+            )
+            return []
+        }
+    }
+
+    /// 写入;编码失败显式日志跳过(标记退化为会话内,错误当场留痕不落空 Data)。
+    static func save(_ keys: Set<String>) {
+        do {
+            let data = try JSONEncoder().encode(keys)
+            UserDefaults.standard.set(data, forKey: storageKey)
+        } catch {
+            AppLogger.persistence.error(
+                "op=deepStaleM0Marker.encode_failed error=\(String(describing: error), privacy: .public) — 跳过写入(标记退化为会话内)"
+            )
+        }
+    }
+
+    /// 全清(resetAllData「清除全部数据」)。
+    static func clearAll() {
+        UserDefaults.standard.removeObject(forKey: storageKey)
     }
 }
