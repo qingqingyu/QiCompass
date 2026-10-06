@@ -39,8 +39,8 @@ enum DayMasterRelationPhrase {
     }
 
     /// 五行相生环:木生火、火生土、土生金、金生水、水生木。
-    /// internal(2026-10-01):CompatibilityRelationDetailBuilder 复用同一生克表
-    /// 派生日主卡「点名」短语,保持单一事实源。
+    /// (2026-10-01 曾 internal 供 CompatibilityRelationDetailBuilder 复用;其
+    /// 日主卡点名随 2026-10-07 去重退役,现仅本文件派生中轴短语用。)
     static let sheng: [String: String] = [
         "wood": "fire", "fire": "earth", "earth": "metal",
         "metal": "water", "water": "wood",
@@ -116,12 +116,14 @@ enum DayMasterRelationPhrase {
                 matchesBackend: true
             )
         case .generates:
-            // 生成方在前(A 生 B 或 B 生 A,方向客户端查表定)
+            // 生成方在前(A 生 B 或 B 生 A,方向客户端查表定)。
+            // 2026-10-07 去掉「· 关系标签」后缀:方向短语已含类别,类别词归评估卡
+            // 承载,一屏不说两遍(EN 界面也不再拼进后端标签原值)
             if Self.sheng[elementA] == elementB {
                 return Output(
                     derived: derived,
                     text: L10n.Compatibility.dualAxisGenerate(
-                        ganA, elemLabel(elementA), ganB, elemLabel(elementB), backendRelation
+                        ganA, elemLabel(elementA), ganB, elemLabel(elementB)
                     ),
                     matchesBackend: true
                 )
@@ -129,17 +131,17 @@ enum DayMasterRelationPhrase {
             return Output(
                 derived: derived,
                 text: L10n.Compatibility.dualAxisGenerate(
-                    ganB, elemLabel(elementB), ganA, elemLabel(elementA), backendRelation
+                    ganB, elemLabel(elementB), ganA, elemLabel(elementA)
                 ),
                 matchesBackend: true
             )
         case .overcomes:
-            // 克方在前
+            // 克方在前(同上去后缀)
             if Self.ke[elementA] == elementB {
                 return Output(
                     derived: derived,
                     text: L10n.Compatibility.dualAxisOvercome(
-                        ganA, elemLabel(elementA), ganB, elemLabel(elementB), backendRelation
+                        ganA, elemLabel(elementA), ganB, elemLabel(elementB)
                     ),
                     matchesBackend: true
                 )
@@ -147,7 +149,7 @@ enum DayMasterRelationPhrase {
             return Output(
                 derived: derived,
                 text: L10n.Compatibility.dualAxisOvercome(
-                    ganB, elemLabel(elementB), ganA, elemLabel(elementA), backendRelation
+                    ganB, elemLabel(elementB), ganA, elemLabel(elementA)
                 ),
                 matchesBackend: true
             )

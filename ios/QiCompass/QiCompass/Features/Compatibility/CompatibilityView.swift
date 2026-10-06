@@ -331,8 +331,7 @@ extension CompatibilityView {
                 onAddSelfHour: {
                     guard let aHash = vm.currentPersonAHash else { return }
                     openAddHourSheet(hash: aHash)
-                },
-                stampID: vm.currentPartner?.entryID ?? ""
+                }
             )
             content()
         }

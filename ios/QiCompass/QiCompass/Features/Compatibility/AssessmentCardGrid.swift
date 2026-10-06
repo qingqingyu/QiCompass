@@ -3,7 +3,8 @@ import SwiftUI
 /// 4 项定性评估的 2×2 网格(水墨孤本 H3:hairline 网格,无卡片底,参考 hepan-h3-detail.html)。
 ///
 /// 每格:标题(淡灰小标)+ 点名行(确定性干支/五行事实,BP #2 2026-10-01;
-/// 派生不出时回落评估枚举值)+ 一行简短解释。
+/// 派生不出时回落评估枚举值)+ 一行简短解释。日主关系卡是例外(2026-10-07
+/// 去重):方向短语归双盘表中轴独占,此卡只显枚举术语 + 解释。
 /// **不给数字分、不引入百分比**(定性不给分决策不变)。
 struct AssessmentCardGrid: View {
     let assessment: QualitativeAssessmentDTO
@@ -27,8 +28,9 @@ struct AssessmentCardGrid: View {
             ),
             Card(
                 title: String(localized: "日主关系"),
-                value: detail?.dayMaster
-                    ?? BaziTerms.display(assessment.dayMasterRelation),
+                // 2026-10-07 去重:方向点名短语归双盘表中轴独占(「日主 甲木生丁火」),
+                // 此卡回落枚举术语 + 人话解释——一屏不说两遍
+                value: BaziTerms.display(assessment.dayMasterRelation),
                 explanation: Self.explanation(for: assessment.dayMasterRelation)
             ),
             Card(
@@ -55,8 +57,10 @@ struct AssessmentCardGrid: View {
 
             LazyVGrid(
                 columns: [
-                    GridItem(.flexible(), spacing: 10),
-                    GridItem(.flexible(), spacing: 10),
+                    // 行内 .top 对齐(2026-10-07):GridItem 默认 .center,左右格
+                    // 高度不一时(生肖 1 行 vs 地支点名 3 行)整行错位
+                    GridItem(.flexible(), spacing: 10, alignment: .top),
+                    GridItem(.flexible(), spacing: 10, alignment: .top),
                 ],
                 spacing: 10
             ) {
@@ -68,7 +72,6 @@ struct AssessmentCardGrid: View {
                             .foregroundStyle(BaziTheme.inkMutedSecondary)
                         Text(card.value)
                             .font(BaziFont.display(size: 14))
-                            .tracking(1)
                             .foregroundStyle(BaziTheme.ink)
                         if !card.explanation.isEmpty {
                             // S3 人话化(2026-09-30):第三行承担"人话层"(两人视角
@@ -125,10 +128,11 @@ struct AssessmentCardGrid: View {
     /// 不带吉凶断言;评估值(第二行)保留术语作"专业层",解释承担"人话层"。
     /// zh 为 NSLocalizedString 的 key(en 走 xcstrings 同 key)。
     private static let explanations: [String: String] = [
-        // five_elements
-        "互补佳": "你们的五行正好补上彼此缺的那部分。",
-        "有一定互补": "五行有互补,也有重叠的部分。",
-        "互补较弱": "你们的五行重叠较多,相似多于互补。",
+        // five_elements(2026-10-07 口径标注:第二行点名是**盘面字数**,本行结论
+        // 是**喜忌交集**——两套口径,不标来源会被读成因果)
+        "互补佳": "从喜忌来看,你们的五行正好补上彼此缺的那部分。",
+        "有一定互补": "从喜忌来看,五行有互补,也有重叠的部分。",
+        "互补较弱": "从喜忌来看,你们的五行重叠较多,相似多于互补。",
         "信息不足": "有一方命局属特殊格局,此项不下结论。",
 
         // day_master_relation

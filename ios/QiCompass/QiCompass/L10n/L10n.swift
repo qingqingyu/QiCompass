@@ -570,45 +570,48 @@ enum L10n {
         /// zh: "命盘数据读取失败";en: "Couldn't read your chart data"
         static let errorChartReadFailed = String(localized: "hepan.error.chartReadFailed")
 
-        /// 区块 kicker。
-        /// zh: "双盘对比";en: "Two charts, side by side"
+        /// 区块 kicker(EN 全大写 latinCaps——大字距只留给全大写,DESIGN.md 09-28)。
+        /// zh: "双盘对比";en: "TWO CHARTS, SIDE BY SIDE"
         static let dualTitle = String(localized: "hepan.dual.title")
 
-        /// 年柱位标签(DualPillarSource.from(a:b:) 生产数据用)。
-        /// zh: "年柱";en: "Year Pillar"
+        /// 年柱位标签(DualPillarSource.from(a:b:) 生产数据用;EN 单词短形,
+        /// "Year Pillar" 在四列窄头会折行破坏对齐,2026-10-07)。
+        /// zh: "年柱";en: "Year"
         static let dualYearPillar = String(localized: "hepan.dual.yearPillar")
 
-        /// 月柱位标签。
-        /// zh: "月柱";en: "Month Pillar"
+        /// 月柱位标签(EN 短形,同年柱)。
+        /// zh: "月柱";en: "Month"
         static let dualMonthPillar = String(localized: "hepan.dual.monthPillar")
 
-        /// 日柱位标签。
-        /// zh: "日柱";en: "Day Pillar"
+        /// 日柱位标签(EN 短形,同年柱)。
+        /// zh: "日柱";en: "Day"
         static let dualDayPillar = String(localized: "hepan.dual.dayPillar")
 
-        /// 时柱位标签。
-        /// zh: "时柱";en: "Hour Pillar"
+        /// 时柱位标签(EN 短形,同年柱)。
+        /// zh: "时柱";en: "Hour"
         static let dualHourPillar = String(localized: "hepan.dual.hourPillar")
 
         // -- 日主方向中轴(S4,2026-09-29;DayMasterRelationPhrase 派生)--
 
         /// 中轴相生短语(生成方在前,方向客户端查表派生)。
-        /// %1$@%2$@ = 生成方日干+五行,%3$@%4$@ = 受生方,%5$@ = 后端关系标签。
-        /// zh: "日主 %1$@%2$@生%3$@%4$@ · %5$@"
-        /// en: "Day master %1$@ %2$@ generates %3$@ %4$@ · %5$@"
+        /// 2026-10-07 去掉「· 关系标签」后缀(对齐同气先例):方向短语已含类别,
+        /// 类别词由评估卡承载,一屏不说两遍;EN 界面也不再拼进后端标签原值。
+        /// %1$@%2$@ = 生成方日干+五行,%3$@%4$@ = 受生方。
+        /// zh: "日主 %1$@%2$@生%3$@%4$@"
+        /// en: "Day master %1$@ %2$@ generates %3$@ %4$@"
         static func dualAxisGenerate(
-            _ g1: String, _ e1: String, _ g2: String, _ e2: String, _ label: String
+            _ g1: String, _ e1: String, _ g2: String, _ e2: String
         ) -> String {
-            String(format: String(localized: "hepan.dual.axisGenerate"), g1, e1, g2, e2, label)
+            String(format: String(localized: "hepan.dual.axisGenerate"), g1, e1, g2, e2)
         }
 
-        /// 中轴相克短语(克方在前)。
-        /// zh: "日主 %1$@%2$@克%3$@%4$@ · %5$@"
-        /// en: "Day master %1$@ %2$@ controls %3$@ %4$@ · %5$@"
+        /// 中轴相克短语(克方在前;2026-10-07 同上去后缀)。
+        /// zh: "日主 %1$@%2$@克%3$@%4$@"
+        /// en: "Day master %1$@ %2$@ controls %3$@ %4$@"
         static func dualAxisOvercome(
-            _ g1: String, _ e1: String, _ g2: String, _ e2: String, _ label: String
+            _ g1: String, _ e1: String, _ g2: String, _ e2: String
         ) -> String {
-            String(format: String(localized: "hepan.dual.axisOvercome"), g1, e1, g2, e2, label)
+            String(format: String(localized: "hepan.dual.axisOvercome"), g1, e1, g2, e2)
         }
 
         /// 中轴同气短语(无后缀标签——与「同气」重复)。
@@ -622,8 +625,8 @@ enum L10n {
 
         // -- 流年同步 --
 
-        /// 区块 kicker。
-        /// zh: "流年同步 · 未来三年";en: "Yearly sync · the next three years"
+        /// 区块 kicker(EN 全大写 latinCaps,同 dualTitle)。
+        /// zh: "流年同步 · 未来三年";en: "YEARLY SYNC · THE NEXT THREE YEARS"
         static let syncedTitle = String(localized: "hepan.synced.title")
 
         /// 列头「年份」。
@@ -643,8 +646,9 @@ enum L10n {
         static let syncedYourYear = String(localized: "hepan.synced.yourYear")
 
         /// A 盘(命主本人)在合盘全文与 UI 中的称呼(2026-09-27:用户拍板 A 恒用「你」,
-        /// 而非命主 alias;en 变体 "you" 同语义)。
-        /// zh: "你";en: "you"
+        /// 而非命主 alias)。2026-10-07 头部人物牌「我/Me」并入本称呼——全文统一
+        /// 「你/You」,不再 Me/you 两种叫法。
+        /// zh: "你";en: "You"
         static let selfReferenceYou = String(localized: "hepan.names.self")
 
         /// 列头「同步」。
@@ -653,8 +657,8 @@ enum L10n {
 
         // -- 五行分布(BP #4,2026-10-01,ElementBalanceSection)--
 
-        /// 区块 kicker。
-        /// zh: "五行分布 · 干支各八字";en: "Element balance · eight characters each"
+        /// 区块 kicker(EN 全大写 latinCaps,同 dualTitle)。
+        /// zh: "五行分布 · 干支各八字";en: "ELEMENT BALANCE · EIGHT CHARACTERS EACH"
         static let balanceTitle = String(localized: "hepan.balance.title")
 
         /// 首列表头。
@@ -955,11 +959,9 @@ enum L10n {
     // MARK: - 合盘结果壳人物牌(P1-P3,2026-09-29 结果页主页化)
 
     /// 结果壳头部人物牌(PartnerHeader)+ 换人 sheet(PartnerPickerSheet)文案。
+    /// (2026-10-07:左牌称呼「我/Me」退役——并入 Compatibility.selfReferenceYou
+    /// 「你/You」,全文一种叫法;hepan.partner.selfLabel key 已删)
     enum CompatibilityPartner {
-        /// 左「我」牌标题(命主侧恒定称呼,不带 alias)。
-        /// zh: "我";en: "Me"
-        static let selfLabel = String(localized: "hepan.partner.selfLabel")
-
         /// 对方牌 a11y(点按语义 = 打开换人 sheet)。
         /// zh: "切换对方,当前 %@";en: "Switch partner, current %@"
         static func switchA11y(_ name: String) -> String {

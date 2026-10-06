@@ -7875,19 +7875,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Day master %1$@ %2$@ generates %3$@ %4$@ · %5$@"
+            "value" : "Day master %1$@ %2$@ generates %3$@ %4$@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "日主 %1$@%2$@生%3$@%4$@ · %5$@"
+            "value" : "日主 %1$@%2$@生%3$@%4$@"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "日主 %1$@%2$@生%3$@%4$@ · %5$@"
+            "value" : "日主 %1$@%2$@生%3$@%4$@"
           }
         }
       }
@@ -7898,19 +7898,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Day master %1$@ %2$@ controls %3$@ %4$@ · %5$@"
+            "value" : "Day master %1$@ %2$@ controls %3$@ %4$@"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "日主 %1$@%2$@克%3$@%4$@ · %5$@"
+            "value" : "日主 %1$@%2$@克%3$@%4$@"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "日主 %1$@%2$@克%3$@%4$@ · %5$@"
+            "value" : "日主 %1$@%2$@克%3$@%4$@"
           }
         }
       }
@@ -7944,7 +7944,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Day Pillar"
+            "value" : "Day"
           }
         },
         "zh-Hans" : {
@@ -7967,7 +7967,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Hour Pillar"
+            "value" : "Hour"
           }
         },
         "zh-Hans" : {
@@ -7990,7 +7990,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Month Pillar"
+            "value" : "Month"
           }
         },
         "zh-Hans" : {
@@ -8013,7 +8013,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Two charts, side by side"
+            "value" : "TWO CHARTS, SIDE BY SIDE"
           }
         },
         "zh-Hans" : {
@@ -8036,7 +8036,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Year Pillar"
+            "value" : "Year"
           }
         },
         "zh-Hans" : {
@@ -8082,7 +8082,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "you"
+            "value" : "You"
           }
         },
         "zh-Hans" : {
@@ -8858,36 +8858,13 @@
         }
       }
     },
-    "hepan.partner.selfLabel" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Me"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "我"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "我"
-          }
-        }
-      }
-    },
     "hepan.balance.title" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Element balance · eight characters each"
+            "value" : "ELEMENT BALANCE · EIGHT CHARACTERS EACH"
           }
         },
         "zh-Hans" : {
@@ -9059,7 +9036,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Yearly sync · the next three years"
+            "value" : "YEARLY SYNC · THE NEXT THREE YEARS"
           }
         },
         "zh-Hans" : {
@@ -11238,7 +11215,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Elemental complement"
+            "value" : "ELEMENTAL COMPLEMENT"
           }
         },
         "zh-Hans" : {
@@ -11255,25 +11232,25 @@
         }
       }
     },
-    "你们的五行正好补上彼此缺的那部分。" : {
+    "从喜忌来看,你们的五行正好补上彼此缺的那部分。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your charts fill in each other's missing elements."
+            "value" : "In terms of favorable elements, your charts fill in what the other lacks."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你们的五行正好补上彼此缺的那部分。"
+            "value" : "从喜忌来看,你们的五行正好补上彼此缺的那部分。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你們的五行正好補上彼此缺的那部分。"
+            "value" : "從喜忌來看,你們的五行正好補上彼此缺的那部分。"
           }
         }
       }
@@ -11347,25 +11324,25 @@
         }
       }
     },
-    "你们的五行重叠较多,相似多于互补。" : {
+    "从喜忌来看,你们的五行重叠较多,相似多于互补。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your elements overlap more than they complement."
+            "value" : "In terms of favorable elements, you overlap more than you complement."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你们的五行重叠较多,相似多于互补。"
+            "value" : "从喜忌来看,你们的五行重叠较多,相似多于互补。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你們的五行重疊較多,相似多於互補。"
+            "value" : "從喜忌來看,你們的五行重疊較多,相似多於互補。"
           }
         }
       }
@@ -12334,7 +12311,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A qualitative read · no scores"
+            "value" : "A QUALITATIVE READ · NO SCORES"
           }
         },
         "zh-Hant" : {
@@ -12402,7 +12379,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Partner brings %@"
+            "value" : "Partner has more %@"
           }
         },
         "zh-Hant" : {
@@ -12419,7 +12396,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You bring %@"
+            "value" : "You have more %@"
           }
         },
         "zh-Hant" : {
@@ -13273,7 +13250,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Branch harmony & clash"
+            "value" : "BRANCH HARMONY & CLASH"
           }
         },
         "zh-Hans" : {
@@ -14220,7 +14197,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Day Masters"
+            "value" : "DAY MASTERS"
           }
         },
         "zh-Hans" : {
@@ -15000,7 +14977,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Zodiac match"
+            "value" : "ZODIAC MATCH"
           }
         },
         "zh-Hans" : {
@@ -16822,25 +16799,25 @@
         }
       }
     },
-    "五行有互补,也有重叠的部分。" : {
+    "从喜忌来看,五行有互补,也有重叠的部分。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Some elements complete each other; some overlap."
+            "value" : "In terms of favorable elements, some complete each other; some overlap."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "五行有互补,也有重叠的部分。"
+            "value" : "从喜忌来看,五行有互补,也有重叠的部分。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "五行有互補,也有重疊的部分。"
+            "value" : "從喜忌來看,五行有互補,也有重疊的部分。"
           }
         }
       }

@@ -11,12 +11,12 @@ import Foundation
 /// (寅巳 = 刑 + 害)并**按文本去重**——「点名」展示要的是全部关系类型,不是
 /// 桶计数。单测用设计稿例盘对盘锁定。
 ///
-/// i18n 债(T2-T6 范围,2026-10-01 记录):关系后缀「合/冲/刑/害」与生克动词
-/// 「生/克」为简体字面;`AppLanguage.zhHant` 止血期不可达(见 AppLanguage.swift
-/// T2 说明),接回繁体时本层需随 BaziTerms 的 zhHant 路径补繁体形态。
+/// i18n 债(T2-T6 范围,2026-10-01 记录):关系后缀「合/冲/刑/害」为简体字面
+/// (生克动词「生/克」原随日主卡点名在本层,2026-10-07 该点名退役后归
+/// `DayMasterRelationPhrase` 中轴短语族);`AppLanguage.zhHant` 止血期不可达
+/// (见 AppLanguage.swift T2 说明),接回繁体时本层需随 BaziTerms 的 zhHant
+/// 路径补繁体形态。
 struct CompatibilityRelationDetail: Equatable {
-    /// 日主卡点名(如「甲遇丁 · 木生火」;nil = 输入不足,卡回落枚举值)。
-    let dayMaster: String?
     /// 五行卡点名(8 字计数差 ≥2 的元素,盘面事实非喜忌判断;nil = 无显著差)。
     let fiveElements: String?
     /// 生肖卡点名(年支动物,zh「鼠 · 蛇」/ en「Rat · Snake」)。
@@ -70,41 +70,11 @@ enum CompatibilityRelationDetailBuilder {
         var seen: Set<String> = []
         let unique = pairs.filter { seen.insert($0.text).inserted }
         return CompatibilityRelationDetail(
-            dayMaster: dayMasterTerm(pillars),
             fiveElements: fiveElementsTerm(pillars),
             zodiac: zodiacTerm(pillars),
             branch: unique.isEmpty ? nil : unique.map(\.text).joined(separator: " · "),
             frictionPairs: unique.filter(\.isFriction).map(\.text)
         )
-    }
-
-    // MARK: 日主卡
-
-    /// 「甲遇丁 · 木生火」:生克动词方向由生克环查表定(生成/克方元素在前)。
-    private static func dayMasterTerm(_ pillars: [DualPillarSource]) -> String? {
-        guard let day = pillars.first(where: { $0.position == L10n.Compatibility.dualDayPillar }),
-              let ganA = day.ganA, !ganA.isEmpty,
-              let ganB = day.ganB, !ganB.isEmpty,
-              let ea = day.ganElementA, let eb = day.ganElementB,
-              let la = elementLabel(ea), let lb = elementLabel(eb) else {
-            return nil
-        }
-        if ea == eb {
-            return String(format: String(localized: "%1$@遇%2$@ · 同为%3$@"), ganA, ganB, la)
-        }
-        if DayMasterRelationPhrase.sheng[ea] == eb {
-            return String(format: String(localized: "%1$@遇%2$@ · %3$@生%4$@"), ganA, ganB, la, lb)
-        }
-        if DayMasterRelationPhrase.sheng[eb] == ea {
-            return String(format: String(localized: "%1$@遇%2$@ · %3$@生%4$@"), ganA, ganB, lb, la)
-        }
-        if DayMasterRelationPhrase.ke[ea] == eb {
-            return String(format: String(localized: "%1$@遇%2$@ · %3$@克%4$@"), ganA, ganB, la, lb)
-        }
-        if DayMasterRelationPhrase.ke[eb] == ea {
-            return String(format: String(localized: "%1$@遇%2$@ · %3$@克%4$@"), ganA, ganB, lb, la)
-        }
-        return nil  // 理论不可达(生克环全覆盖无向对);防御性回落枚举值
     }
 
     // MARK: 五行卡(盘面计数,非喜忌)
@@ -199,11 +169,6 @@ enum CompatibilityRelationDetailBuilder {
     }
 
     // MARK: 工具
-
-    private static func elementLabel(_ key: String) -> String? {
-        guard let elem = ElementColors.from(key) else { return nil }
-        return AppLanguage.current.isChinese ? elem.label : elem.englishLabel
-    }
 
     private static func joinedLabels(_ elems: [ElementColors]) -> String {
         // zh 单字连排自然(「木火」);en 需分隔符,否则双元素连成 "WoodFire"

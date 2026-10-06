@@ -4,7 +4,7 @@ import SwiftUI
 /// 自 CompatibilityPairListView.swift 迁出——整页列表视图已随结果页主页化退役,
 /// 卡片由结果壳 list 态内容区复用)。
 ///
-/// hairline 描边对卡(无底色)+ 「合」小印 + 定性一行 + 底部 dashed 分隔的状态行;
+/// hairline 描边对卡(无底色)+ 定性一行 + 底部 dashed 分隔的状态行;
 /// 失败态 dashed destructive 框 + 单对重试(对级错误隔离不变)。
 ///
 /// `summary.status` 决定卡片态:
@@ -40,7 +40,7 @@ struct PairSummaryCard: View {
             HStack(alignment: .firstTextBaseline, spacing: BaziTheme.Spacing.sm) {
                 Text("与 \(summary.displayName)")
                     .font(BaziFont.display(size: 15.5))
-                    .tracking(1)
+                    .tracking(AppLanguage.current.isChinese ? 1 : 0)
                     .foregroundStyle(BaziTheme.inkMuted)
                 Spacer()
             }
@@ -63,20 +63,22 @@ struct PairSummaryCard: View {
 
     private var computedLayout: some View {
         VStack(alignment: .leading, spacing: 0) {
-            // 顶部:「与 X」+ 合小印
+            // 顶部:「与 X」(2026-10-07 移除卡角「合」小印——「一枚朱印」只留
+            // 双盘表中轴一枚,列表态多卡同屏曾是 N 枚)。本卡 EN 文案均为混排
+            // 句/标签,tracking 一律语言条件化(大字距只留给全大写,DESIGN.md
+            // 09-28;先例 DailyInterpretationSection reminder 行,2026-10-07)
             HStack(alignment: .center, spacing: 10) {
                 Text("与 \(summary.displayName)")
                     .font(BaziFont.display(size: 15.5))
-                    .tracking(1)
+                    .tracking(AppLanguage.current.isChinese ? 1 : 0)
                     .foregroundStyle(BaziTheme.ink)
                 Spacer()
-                SealStamp(character: "合", size: 20, rotation: 4, stampDelay: nil)
             }
 
             // 定性一行:五行 + 日主关系(决策 D9 信息密度)
             Text("五行\(summary.fiveElements) · 日主\(summary.dayMasterRelation)")
                 .font(BaziFont.caption(size: 12.5))
-                .tracking(1)
+                .tracking(AppLanguage.current.isChinese ? 1 : 0)
                 .foregroundStyle(BaziTheme.inkMuted)
                 .padding(.top, 10)
 
@@ -85,12 +87,12 @@ struct PairSummaryCard: View {
                 if summary.isInterpreted {
                     Text("已解读")
                         .font(.caption2)
-                        .tracking(1)
+                        .tracking(AppLanguage.current.isChinese ? 1 : 0)
                         .foregroundStyle(BaziTheme.jade)
                 } else {
                     Text("总览可读")
                         .font(.caption2)
-                        .tracking(1)
+                        .tracking(AppLanguage.current.isChinese ? 1 : 0)
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
                 }
                 if let birthDate = summary.birthDate {
@@ -104,7 +106,7 @@ struct PairSummaryCard: View {
                 Spacer()
                 Text("查看 ›")
                     .font(.caption2)
-                    .tracking(1)
+                    .tracking(AppLanguage.current.isChinese ? 1 : 0)
                     .foregroundStyle(BaziTheme.inkMuted)
             }
             .padding(.top, 10)
@@ -129,13 +131,13 @@ struct PairSummaryCard: View {
             HStack(alignment: .firstTextBaseline, spacing: BaziTheme.Spacing.sm) {
                 Text("与 \(summary.displayName)")
                     .font(BaziFont.display(size: 15.5))
-                    .tracking(1)
+                    .tracking(AppLanguage.current.isChinese ? 1 : 0)
                     .foregroundStyle(BaziTheme.inkMuted)
                 Spacer()
                 // 失败态:朱色文字标(不做实底块)
                 Text("推演失败 · 此对隔离")
                     .font(.caption2)
-                    .tracking(1)
+                    .tracking(AppLanguage.current.isChinese ? 1 : 0)
                     .foregroundStyle(BaziTheme.destructive)
             }
 

@@ -359,13 +359,14 @@ final class CompatibilityViewModel {
 
     // MARK: - 结果壳头部派生(P1/P2,2026-09-29;头部与换人 sheet 勾选态共用)
 
-    /// 头部「我」侧展示(命主 A 盘派生;名称恒「我」不带 alias,日主/生日随盘)。
+    /// 头部「你」侧展示(命主 A 盘派生;称呼 2026-10-07 并入全文统一的「你/You」,
+    /// 不再用「我/Me」——原与表格/分布区的 you 两种叫法割裂)。
     var currentSelfDisplay: PartnerDisplay {
         let chart = archivedCharts[safe: selectedChartAIndex]
         let dayMaster = chart?.dayMaster
         return PartnerDisplay(
             entryID: nil,
-            name: L10n.CompatibilityPartner.selfLabel,
+            name: L10n.Compatibility.selfReferenceYou,
             dayMaster: dayMaster,
             dayMasterElementKey: dayMaster.flatMap(ElementColors.ofGan),
             birthDateString: chart.map { Self.displayDateFormatter.string(from: $0.birthDate) }

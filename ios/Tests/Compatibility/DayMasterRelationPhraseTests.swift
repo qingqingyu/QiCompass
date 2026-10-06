@@ -36,7 +36,8 @@ final class DayMasterRelationPhraseTests: XCTestCase {
         )
         XCTAssertEqual(out.derived, .generates)
         XCTAssertEqual(out.matchesBackend, true)
-        XCTAssertEqual(out.text, "日主 甲木生丙火 · 相生")
+        // 2026-10-07 去掉「· 关系标签」后缀(类别词归评估卡,一屏不说两遍)
+        XCTAssertEqual(out.text, "日主 甲木生丙火")
     }
 
     func test相生_B生A_方向仍生成方在前() {
@@ -49,7 +50,7 @@ final class DayMasterRelationPhraseTests: XCTestCase {
         XCTAssertEqual(out.derived, .generates)
         XCTAssertEqual(out.matchesBackend, true)
         // 方向客户端派生:B(甲木)是生成方 → 生成方在前,不因 A/B 座次颠倒
-        XCTAssertEqual(out.text, "日主 甲木生丙火 · 相生")
+        XCTAssertEqual(out.text, "日主 甲木生丙火")
     }
 
     // MARK: - 相克(A→B / B→A 各一条)
@@ -63,7 +64,7 @@ final class DayMasterRelationPhraseTests: XCTestCase {
         )
         XCTAssertEqual(out.derived, .overcomes)
         XCTAssertEqual(out.matchesBackend, true)
-        XCTAssertEqual(out.text, "日主 甲木克戊土 · 相克")
+        XCTAssertEqual(out.text, "日主 甲木克戊土")
     }
 
     func test相克_B克A_方向仍克方在前() {
@@ -75,7 +76,7 @@ final class DayMasterRelationPhraseTests: XCTestCase {
         )
         XCTAssertEqual(out.derived, .overcomes)
         XCTAssertEqual(out.matchesBackend, true)
-        XCTAssertEqual(out.text, "日主 甲木克戊土 · 相克")
+        XCTAssertEqual(out.text, "日主 甲木克戊土")
     }
 
     // MARK: - 一致性守卫(不等 → 回退后端标签)
@@ -103,16 +104,17 @@ final class DayMasterRelationPhraseTests: XCTestCase {
     }
 
     func test守卫_后端EN标签_可归一对齐() {
-        // 后端按请求 language 已译(term_translations.py)→ EN 标签可归一
+        // 后端按请求 language 已译(term_translations.py)→ EN 标签可归一。
+        // 2026-10-07 起短语不再拼后端标签后缀(EN 界面曾因此漏出「· 相生」),
+        // 归一仅作用于一致性守卫——标签语言不影响短语本体
         let out = DayMasterRelationPhrase.make(
             ganA: "甲", elementA: "wood",
             ganB: "丙", elementB: "fire",
             backendRelation: "Generating cycle"
         )
         XCTAssertEqual(out.matchesBackend, true)
-        // 短语追加后端标签原值(测试设备 zh 环境,五行标签走中文)
-        XCTAssertTrue(out.text?.hasSuffix("· Generating cycle") == true,
-                      "后端标签原样透传,实际:\(out.text ?? "nil")")
+        XCTAssertEqual(out.text, "日主 甲木生丙火",
+                       "短语本体与后端标签语言无关,实际:\(out.text ?? "nil")")
     }
 
     // MARK: - 输入缺失(日柱歧义盘字段 nil)

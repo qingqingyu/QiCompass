@@ -41,7 +41,7 @@ struct DualPillarSource: Identifiable, Equatable {
 /// 那是无时辰他人盘真正可见可点的地方。
 struct DualPillarsTable: View {
     let pillars: [DualPillarSource]  // 共 4 条(年/月/日/时)
-    /// 两侧称呼(2026-09-27 A/B 代号 → 名字:A 恒「你/you」,B 为对方称呼)。
+    /// 两侧称呼(2026-09-27 A/B 代号 → 名字:A 恒「你/You」,B 为对方称呼)。
     /// 替代此前硬编码 "A"/"B" 行标——读者不再需要对照「谁是 A」。
     let labelA: String
     let labelB: String
@@ -78,7 +78,8 @@ struct DualPillarsTable: View {
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
 
             VStack(spacing: 10) {
-                // 柱位行:年 / 月 / 日 / 时(S4:日 ink 实色,其余 inkMuted)
+                // 柱位行:年 / 月 / 日 / 时(S4:日 ink 实色,其余 inkMuted;
+                // lineLimit 防窄屏/Dynamic Type 下列头折行破坏四列对齐)
                 HStack(alignment: .top, spacing: 8) {
                     ForEach(pillars) { p in
                         Text(p.position)
@@ -86,25 +87,33 @@ struct DualPillarsTable: View {
                             .foregroundStyle(
                                 isDayPillar(p) ? BaziTheme.ink : BaziTheme.inkMuted
                             )
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.7)
                             .frame(maxWidth: .infinity)
                     }
                 }
 
-                // A 盘行(命主;日柱格 hairline 描边强调)
-                HStack(alignment: .top, spacing: 8) {
-                    ForEach(pillars) { p in
-                        pillarCell(
-                            gan: p.ganA, zhi: p.zhiA, nayin: p.nayinA,
-                            ganElement: p.ganElementA, zhiElement: p.zhiElementA,
-                            label: labelA
-                        )
-                        .frame(maxWidth: .infinity)
-                        .dayColumnEmphasis(isDay: isDayPillar(p))
+                // A 盘行(命主;行首称呼一行,日柱格 hairline 描边强调)。
+                // 2026-10-07 去重:称呼原逐柱 ×4 渲染(you/「对方 · 日期」满屏重复),
+                // 改为每行整行一条(整行宽,兜底名不再挤柱格)
+                VStack(alignment: .leading, spacing: 3) {
+                    rowLabel(labelA)
+                    HStack(alignment: .top, spacing: 8) {
+                        ForEach(pillars) { p in
+                            pillarCell(
+                                gan: p.ganA, zhi: p.zhiA, nayin: p.nayinA,
+                                ganElement: p.ganElementA, zhiElement: p.zhiElementA,
+                                label: labelA
+                            )
+                            .frame(maxWidth: .infinity)
+                            .dayColumnEmphasis(isDay: isDayPillar(p))
+                        }
                     }
                 }
 
                 // 中轴(S4):hairline 分隔 + 「合」印 + 日主方向短语
-                // (原型 .vs:朱文空心、-3° 微侧;短语 = 客户端派生方向 + 后端类别标签)
+                // (原型 .vs:朱文空心、-3° 微侧;短语 = 客户端派生方向,
+                // 2026-10-07 去掉「· 关系标签」后缀——类别词归评估卡,一屏不说两遍)
                 // S5:关系词表收录(相生/相克/同气)→ 整块可点出一句释义
                 HStack(spacing: 10) {
                     Rectangle()
@@ -116,16 +125,19 @@ struct DualPillarsTable: View {
                         .frame(height: 0.5)
                 }
 
-                // B 盘行(对方;日柱格 hairline 描边强调)
-                HStack(alignment: .top, spacing: 8) {
-                    ForEach(pillars) { p in
-                        pillarCell(
-                            gan: p.ganB, zhi: p.zhiB, nayin: p.nayinB,
-                            ganElement: p.ganElementB, zhiElement: p.zhiElementB,
-                            label: labelB
-                        )
-                        .frame(maxWidth: .infinity)
-                        .dayColumnEmphasis(isDay: isDayPillar(p))
+                // B 盘行(对方;行首称呼一行,日柱格 hairline 描边强调)
+                VStack(alignment: .leading, spacing: 3) {
+                    rowLabel(labelB)
+                    HStack(alignment: .top, spacing: 8) {
+                        ForEach(pillars) { p in
+                            pillarCell(
+                                gan: p.ganB, zhi: p.zhiB, nayin: p.nayinB,
+                                ganElement: p.ganElementB, zhiElement: p.zhiElementB,
+                                label: labelB
+                            )
+                            .frame(maxWidth: .infinity)
+                            .dayColumnEmphasis(isDay: isDayPillar(p))
+                        }
                     }
                 }
             }
@@ -153,7 +165,9 @@ struct DualPillarsTable: View {
             SealStamp(character: "合", size: 22, rotation: -3, stampDelay: nil)
             Text(axisText)
                 .font(BaziFont.caption(size: 10))
-                .tracking(1)
+                // EN 混排句不带字距(大字距只留给全大写,DESIGN.md 09-28;
+                // 先例 DailyInterpretationSection reminder 行,2026-10-07)
+                .tracking(AppLanguage.current.isChinese ? 1 : 0)
                 .foregroundStyle(BaziTheme.inkMuted)
                 .fixedSize(horizontal: false, vertical: true)
                 .multilineTextAlignment(.center)
@@ -172,21 +186,26 @@ struct DualPillarsTable: View {
         }
     }
 
-    /// 单人柱单元格:标签 + 干支(Kaiti SC)+ 纳音。
+    /// 行首称呼一行(2026-10-07:原逐柱 ×4 渲染改每行一条;兜底名
+    /// 「对方 · 1990-03-15」过长时缩字号而非截断成「对方…」)。
+    private func rowLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 9, weight: .semibold))
+            .foregroundStyle(BaziTheme.inkMuted)
+            .lineLimit(1)
+            .minimumScaleFactor(0.7)
+    }
+
+    /// 单人柱单元格:干支(Kaiti SC)+ 纳音。
     /// S05:干支缺失(时柱未知 / S02 柱歧义)→ dashed 圆位留白,纳音行空,
     /// 不渲染占位干支(不猜);VoiceOver 读「时辰未知」。
+    /// label 仅用于 VoiceOver(视觉称呼已上移行首,2026-10-07)。
     private func pillarCell(
         gan: String?, zhi: String?, nayin: String?,
         ganElement: String?, zhiElement: String?,
         label: String
     ) -> some View {
         VStack(spacing: 2) {
-            Text(label)
-                .font(.system(size: 9, weight: .semibold))
-                .foregroundStyle(BaziTheme.inkMuted)
-                .lineLimit(1)
-                // 兜底名(「对方 · 1990-03-15」)过长时缩字号而非截断成「对方…」
-                .minimumScaleFactor(0.7)
             if let gan, let zhi {
                 HStack(spacing: 2) {
                     Text(gan)
