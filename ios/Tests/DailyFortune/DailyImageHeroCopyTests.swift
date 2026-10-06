@@ -169,10 +169,77 @@ final class DailyImageHeroCopyTests: XCTestCase {
         }
     }
 
+    // MARK: - 冲释义静态表(2026-10-06 冲 chip 可点)
+
+    /// 12 地支 × 三语:非空 + 预算 + 受众双维度(生肖段 + 命局带支段)。
+    /// 预算 zh/hant ≤60 字(实测 45)/ en ≤180 chars(实测 168-178,Rooster
+    /// 最长逼近上限)——较十神释义(50/150)略宽:冲释义需覆盖「属相 +
+    /// 命局带支」两个受众维度,250pt detent 内仍 ≤4 行。EN 正文用生肖名
+    /// 不用拼音(chip「Clashes with Goat」同口径,拼音只在卡头教学行)。
+    func testChongNoteAllBranchesNonEmptyAndBudget() {
+        let branches = BaziTerms.earthlyBranches.map(\.zh)
+        XCTAssertEqual(branches.count, 12, "地支表应 12 支")
+        for branch in branches {
+            let zh = HeroChongNote.note(chong: branch, language: .zh)
+            let hant = HeroChongNote.note(chong: branch, language: .zhHant)
+            let en = HeroChongNote.note(chong: branch, language: .en)
+            XCTAssertTrue((8...60).contains(zh.count), "zh 冲释义应 8-60 字:\(zh)")
+            XCTAssertTrue((8...60).contains(hant.count), "hant 冲释义应 8-60 字:\(hant)")
+            XCTAssertTrue((20...180).contains(en.count), "en 冲释义应 20-180 chars:\(en)")
+            XCTAssertTrue(zh.hasPrefix("六冲"), "zh 术语用「冲」:\(zh)")
+            XCTAssertTrue(hant.hasPrefix("六沖"), "hant 术语用「沖」(命理传统用字):\(hant)")
+            XCTAssertTrue(zh.contains("属"), "zh 应含生肖段(属×或):\(zh)")
+            XCTAssertTrue(hant.contains("屬"), "hant 应含生肖段:\(hant)")
+            XCTAssertTrue(zh.contains("命局带\(branch)"), "zh 应点名被冲地支:\(zh)")
+            XCTAssertTrue(hant.contains("命局帶\(branch)"), "hant 应点名被冲地支:\(hant)")
+            if let zodiac = ZodiacHelper.zodiacName(forZhi: branch) {
+                XCTAssertTrue(en.contains(zodiac), "en 应含生肖名 \(zodiac):\(en)")
+            } else {
+                XCTFail("12 地支持应全部可查生肖:\(branch)")
+            }
+        }
+    }
+
+    /// D4 同款:已知地支的 EN 冲释义零 CJK(生肖名化,纯英文正文)。
+    func testChongNoteEnHasNoCJKForKnownBranches() {
+        for branch in BaziTerms.earthlyBranches.map(\.zh) {
+            let en = HeroChongNote.note(chong: branch, language: .en)
+            XCTAssertNil(Self.firstCJKScalar(in: en), "EN 冲释义含 CJK:\(en)")
+        }
+    }
+
+    /// 未知地支:不猜生肖(zh/zh-Hant 省略生肖段 + 原字透出;en 走通用句保持
+    /// 纯英文,被冲地支原字由 chip 的 chongLabel 透出),不 crash。
+    func testChongNoteUnknownBranchOmitsAnimalAndKeepsBranch() {
+        let zh = HeroChongNote.note(chong: "X", language: .zh)
+        XCTAssertFalse(zh.contains("属"), "未知地支不猜生肖:\(zh)")
+        XCTAssertTrue(zh.contains("命局带X"), "未知地支仍点名原字:\(zh)")
+        let hant = HeroChongNote.note(chong: "X", language: .zhHant)
+        XCTAssertFalse(hant.contains("屬"), "hant 同款不猜生肖:\(hant)")
+        XCTAssertTrue(hant.contains("命局帶X"), "hant 同款点名原字:\(hant)")
+        let en = HeroChongNote.note(chong: "X", language: .en)
+        XCTAssertTrue(en.contains("an uncommon branch"), "en 走通用句:\(en)")
+        XCTAssertFalse(en.contains("natives"), "en 省略生肖受众段:\(en)")
+    }
+
+    /// 样例钉死(未 = 冲未/属羊/Goat),防模板改写后受众段漂移;教学行拼音
+    /// 小写化(词首大写表 → "chōng wèi")同钉,防与十神卡教学层漂移。
+    func testChongNoteSampleWei() {
+        let zh = HeroChongNote.note(chong: "未", language: .zh)
+        XCTAssertTrue(zh.contains("属羊或命局带未"), "样例:未 → 属羊:\(zh)")
+        let en = HeroChongNote.note(chong: "未", language: .en)
+        XCTAssertTrue(en.contains("opposes the Goat"), "样例:未 → the Goat:\(en)")
+        XCTAssertTrue(en.contains("Goat natives"), "样例:未 → Goat natives:\(en)")
+        XCTAssertEqual(HeroChongNoteSheet.enPinyin(for: "未"), "chōng wèi",
+                       "样例:教学行拼音全小写(romanized 词首大写表转小写)")
+    }
+
     // MARK: - D4 EN 基座零汉字(2026-10-01 Today 定稿)
 
     /// EN 语言下 Today 屏**常驻可见**文本不得出现任何 CJK 字符
-    /// (汉字仅两处豁免:hero 落款题款 + 十神释义弹卡,均不在此扫描)。
+    /// (汉字仅三处豁免:hero 落款题款 + 十神/冲释义弹卡卡头,均不在此
+    /// 扫描;冲释义 EN 正文零 CJK 由 testChongNoteEnHasNoCJKForKnownBranches
+    /// 守护)。
     /// 覆盖 Swift 静态表与纯函数层:宜忌词表与表头/降级模板(降级正文也常驻
     /// 可见)/农历行转写/页脚拼音段/十神与五行 EN 显示值/干支无调拼音。
     /// 范围外(注释于此防误判):xcstrings 段(Disclaimer / 领域标签等,跟设备

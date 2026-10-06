@@ -312,7 +312,7 @@ struct DailyImageHeroSection: View {
 // MARK: - 头部区(2026-10-01 Today 定稿 D3:信息一行看全,出图上纸面)
 
 /// Today 头部区:大字日 + 右侧三行 meta(星期全名 / 月年 / 农历·日柱),
-/// 下接左对齐 chips 行(十神 chip 可点出释义 + 冲 chip)。
+/// 下接左对齐 chips 行(十神/冲两枚 chip 均可点出释义,冲 2026-10-06 起接入)。
 /// 视觉事实源:designs/review-fix-20261001/today-final.html(.date-row/.chips-row,
 /// 393px 逻辑宽 px≈pt 1:1)。日期区与 chips 原先住在 hero 画内(glass-v2
 /// 全信息卡),定稿拆出——画做减法(D1),信息上纸面。
@@ -329,10 +329,25 @@ struct DailyHeaderSection: View {
     /// Button 本身即无障碍可达,明暗双通道同源不破。
     @State private var showShiShenNote = false
 
+    /// 冲释义 sheet(2026-10-06 用户反馈「冲 chip 点击无反应」):与十神 chip
+    /// 同款交互——两枚 chip 都应可点出解释。内容 = HeroChongNote 确定性静态表。
+    /// 挂在 chips 节点而非外层 VStack:iOS 14.5 前同节点多 sheet 只留最后一个,
+    /// 分节点挂是从坑里长出的习惯,17.2 下双保险。
+    @State private var showChongNote = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             dateRow
             chips
+                .sheet(isPresented: $showChongNote) {
+                    // chongChip 仅在 dayChong 非 nil 时渲染,sheet 内容同判;
+                    // nil 时 sheet 为空(理论不可达,按钮不存在)。
+                    if let chong = dayChong {
+                        HeroChongNoteSheet(chong: chong)
+                            .presentationDetents([.height(250), .large])
+                            .presentationBackground(BaziTheme.paper)
+                    }
+                }
         }
         // D3:今日十神释义(确定性静态表 HeroShiShenNotes,LLM 不参与)。
         .sheet(isPresented: $showShiShenNote) {
@@ -417,9 +432,15 @@ struct DailyHeaderSection: View {
         .buttonStyle(.plain)
     }
 
-    /// 冲 chip(纯展示;EN = 生肖动物名 + 英文柱位,零汉字)。
+    /// 冲 chip(2026-10-06 起可点开释义,与十神 chip 对齐;EN = 生肖动物名 +
+    /// 英文柱位,零汉字)。
     private func chongChip(_ chong: String) -> some View {
-        TodayChip(text: L10n.DailyFortune.chongLabel(chong: chong, targets: dayChongTargets))
+        Button {
+            showChongNote = true
+        } label: {
+            TodayChip(text: L10n.DailyFortune.chongLabel(chong: chong, targets: dayChongTargets))
+        }
+        .buttonStyle(.plain)
     }
 
     /// chip 十神显示名(2026-09-27 U3c 改走 BaziTerms 统一查表:zh 原形 /
@@ -858,6 +879,136 @@ struct HeroShiShenNoteSheet: View {
             "op=heroShiShenPinyin.lookupMiss relation=\(relation, privacy: .public)"
         )
         return nil
+    }
+}
+
+// MARK: - 冲释义静态表(2026-10-06,冲 chip 可点)
+
+/// 冲 chip 点开的六冲释义(**确定性模板,LLM 不参与**——「LLM 只润色不
+/// 判断」边界同 HeroShiShenNotes:释义是判断性内容,必须查表)。
+///
+/// 与 HeroShiShenNotes 分表不同:冲释义对 12 地支是**同一句话**(只有被冲
+/// 地支/生肖随流日变),故为参数化单模板而非 12 键词表;生肖查表走
+/// ZodiacHelper(地支→生肖,单一事实源对齐 backend),miss 记日志后省略
+/// 生肖段(不猜,对齐 chongLabel.zhiMiss 哲学)。三语静态文案不进
+/// xcstrings(对齐 HeroYiJiColumns / HeroShiShenNotes 既定模式)。
+enum HeroChongNote {
+    /// 释义正文。chong = 被冲地支字(如 "未"),来自 backend day_chong。
+    /// EN 正文用生肖名不用拼音(对齐 chip「Clashes with Goat」口径;拼音只在
+    /// 卡头教学行,HeroShiShenNoteSheet 同款分层)。
+    static func note(chong: String, language: AppLanguage = AppLanguage.current) -> String {
+        let zodiac = ZodiacHelper.zodiacName(forZhi: chong)
+        if zodiac == nil {
+            // 三语同为"省略生肖段"(en 落通用句/zh 略生肖短语),日志语言中性。
+            AppLogger.app.warning(
+                "op=heroChongNote.zhiMiss zhi=\(chong, privacy: .public) -> omitZodiac"
+            )
+        }
+        switch language {
+        case .zh:
+            let who = zodiac.map { "属\(ZodiacHelper.animalChar(forZodiac: $0))或" } ?? ""
+            return "六冲主变动。今日冲\(chong),\(who)命局带\(chong)者易遇波折变动。"
+                + "冲是动不是凶,顺势而行;大事能缓则缓。"
+        case .zhHant:
+            let who = zodiac.map { "屬\(ZodiacHelper.animalCharHant(forZodiac: $0))或" } ?? ""
+            return "六沖主變動。今日沖\(chong),\(who)命局帶\(chong)者易遇波折變動。"
+                + "沖是動不是凶,順勢而行;大事能緩則緩。"
+        case .en:
+            // 生肖查表 miss → 通用句(不猜动物;被冲地支原字仍在 chip 上
+            // 由 chongLabel 透出,释义正文保持纯英文)。
+            guard let zodiac else {
+                return "A clash day: today's energy opposes an uncommon branch. "
+                    + "Charts carrying that branch may see plans and travel shift. "
+                    + "A clash is motion, not bad luck; flow with it."
+            }
+            return "A clash day: today's energy opposes the \(zodiac). "
+                + "\(zodiac) natives — or charts carrying that branch — may see "
+                + "plans and travel shift. "
+                + "A clash is motion, not bad luck; flow with it."
+        }
+    }
+}
+
+// MARK: - 冲释义小卡(2026-10-06)
+
+/// 冲 chip 点开的释义卡,与 HeroShiShenNoteSheet 同构:zh/zh-Hant 术语标题
+/// (楷体 display 21)+ 一句静态释义(楷体 body);EN 三段头(D6 同款)=
+/// 汉字「冲未」(Kaiti 17,EN 层收汉字的显式容器)+ 带调拼音(italic 11)+
+/// EN 小标(caps "Day Clash")+ sans 13.5 正文。detents 250 起步可拉大,
+/// presentationBackground 纸色由调用侧注入(两卡一致)。
+struct HeroChongNoteSheet: View {
+    let chong: String
+
+    private var isEn: Bool { AppLanguage.current == .en }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            if isEn {
+                enHeader
+            } else {
+                Text(verbatim: titleText)
+                    .font(BaziFont.display(size: 21, weight: .medium))
+                    .foregroundStyle(BaziTheme.ink)
+            }
+            Text(verbatim: HeroChongNote.note(chong: chong))
+                .font(isEn ? .system(size: 13.5) : BaziFont.body(size: 15))
+                .foregroundStyle(isEn ? BaziTheme.ink : BaziTheme.inkMuted)
+                .lineSpacing(isEn ? 8 : 6)
+                .fixedSize(horizontal: false, vertical: true)
+            Spacer(minLength: 0)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, 26)
+        .padding(.top, 28)
+        .padding(.bottom, 20)
+    }
+
+    /// 标题 = chip 同源短形(不带 targets 括号):「冲未」。走 chongLabel
+    /// 同一函数,与 chip 显示字永远一致(xcstrings format 跟设备语言,
+    /// 两处同源不漂移)。
+    private var titleText: String {
+        L10n.DailyFortune.chongLabel(chong: chong, targets: [])
+    }
+
+    /// EN 卡头(D6 三段同构):汉字「冲未」(始终楷体——品牌层不走 EN
+    /// 衬线路由)+ 带调拼音 "chōng wèi"(冲不在 22 干支表,拼音固定;
+    /// 地支查 romanized,miss 只缺拼音行)+ 右对齐 caps 小标。
+    private var enHeader: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) {
+            Text(verbatim: "冲\(chong)")
+                .font(BaziFont.brush(size: 17))
+                .foregroundStyle(BaziTheme.ink)
+            if let pinyin = Self.enPinyin(for: chong) {
+                Text(verbatim: pinyin)
+                    .font(.system(size: 11))
+                    .italic()
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+            }
+            Spacer(minLength: 12)
+            Text(verbatim: "Day Clash")
+                .font(.system(size: 10, weight: .semibold))
+                .tracking(0.8)
+                .textCase(.uppercase)
+                .foregroundStyle(BaziTheme.inkMuted)
+                .lineLimit(2)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+
+    /// 拼音查表:miss 记日志只缺拼音行(释义正文照常,不静默吞——
+    /// HeroShiShenNoteSheet.enPinyin 同款手法)。romanized 表是词首大写
+    /// ("未"→"Wèi"),教学行与 HeroShiShenPinyin 同款全小写("piān cái"),
+    /// 首字母转小写后拼装。internal:小写化钉样例归 DailyImageHeroCopyTests
+    /// (对齐 HeroYiJiColumns 为测试改 internal 的先例)。
+    static func enPinyin(for chong: String) -> String? {
+        guard let branchPinyin = BaziTerms.romanized(chong) else {
+            AppLogger.app.warning(
+                "op=heroChongNoteSheet.pinyinMiss zhi=\(chong, privacy: .public)"
+            )
+            return nil
+        }
+        let lower = branchPinyin.prefix(1).lowercased() + branchPinyin.dropFirst()
+        return "chōng \(lower)"
     }
 }
 
