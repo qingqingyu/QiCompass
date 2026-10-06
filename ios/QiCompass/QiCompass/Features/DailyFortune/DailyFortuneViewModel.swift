@@ -196,7 +196,8 @@ final class DailyFortuneViewModel {
 
     /// 触发 AI 解读阶段(命中缓存则直接显示)。主路径 = runFullPipeline 缓存
     /// 未命中时自动调用(2026-09-07 拍板「一上来就直接解析」,trigger=.automatic);
-    /// 手动入口(默认 .manual)保留给离线恢复(.idle CTA)与失败重试(.failed)。
+    /// 手动入口(默认 .manual)只剩离线恢复一条 UI 路(.idle CTA)——.failed 的
+    /// Retry 按钮 2026-10-06 拍板移除,失败恢复靠 .silentRetry 兜底 + 下拉刷新。
     /// 2026-09-24 失败降级:.automatic 失败 → 调度一次 .silentRetry 后台重试,
     /// 重试期间保持 .failed(UI 显示引擎模板文案),成功即转 .okFree。
     func generateInterpretation(

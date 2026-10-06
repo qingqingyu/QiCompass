@@ -21,7 +21,8 @@ import SwiftUI
 ///   排盘引擎确定性文案(引擎产物,AI 失败不影响),底部小注如实标注状态——
 ///   2026-09-28 S02 起两态均说清「以上为今日通用参考」:静默重试在飞 →
 ///   「以上为今日通用参考 · AI 解读重试中」;最终失败 →「AI 解读暂未生成 ·
-///   以上为今日通用参考」+ Retry(原始错误进小注 accessibilityValue + VM 日志)。
+///   以上为今日通用参考」(原始错误进 accessibilityValue + VM 日志;**无
+///   Retry 按钮**——2026-10-06 用户拍板移除,静默重试兜底 + 下拉刷新手动恢复)。
 ///   模板永不单独出现(小注常驻),不拿引擎文案冒充 AI 解读。
 struct DailyInterpretationSection: View {
     let state: InterpretState
@@ -33,12 +34,13 @@ struct DailyInterpretationSection: View {
     var daySignal: [DaySignalItemDTO]? = nil
     /// 信号行降级注释(daySignal 为空时的原因,宿主按 hourGate 判;nil = 不显示)。
     var signalNote: String? = nil
-    /// 一次后台静默重试是否在飞(VM 单一事实源;true 时隐藏 Retry 防双触发)。
+    /// 一次后台静默重试是否在飞(VM 单一事实源;true 时小注切「AI 解读重试中」
+    /// + 微指示器,false 走最终失败小注。2026-10-06 起 Retry 按钮已移除,
+    /// 此参数只剩切小注形态一职)。
     let isSilentRetrying: Bool
     let remainingReads: Int
     let nextReset: Date
     let onGenerate: () -> Void
-    let onRetry: () -> Void
 
     var body: some View {
         // 2026-10-01 D5 定稿:去卡片底直接排纸面(页边距 24 与 hero 下间距
@@ -310,7 +312,7 @@ struct DailyInterpretationSection: View {
         VStack(alignment: .leading, spacing: 14) {
             insightBody(EngineReadingTemplates.insight(for: dayRelation))
             if isSilentRetrying {
-                // 静默重试在飞:小注 + 微指示器,隐藏 Retry(防双触发)
+                // 静默重试在飞:小注切「重试中」+ 微指示器
                 HStack(spacing: 8) {
                     ProgressView()
                         .controlSize(.mini)
@@ -321,24 +323,23 @@ struct DailyInterpretationSection: View {
                         .foregroundStyle(BaziTheme.inkMuted)
                 }
             } else {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    // 2026-09-28 S02:小注说清「上面是通用参考」,不再直接露
-                    // `.failed(message)` 的原始错误标题(EN「Reading failed」
-                    // 与正文并存像自相矛盾);原错误进 accessibilityValue +
-                    // VM 日志(2026-09-29 review 修正:hint 受 VoiceOver
-                    // 「Speak Hints」开关控制且语义属交互元素,静态文本
-                    // 改 value 无条件朗读)。可折两行。
-                    Text(L10n.DailyFortune.interpretFallbackNote)
-                        .font(BaziFont.caption(size: 12))
-                        .tracking(1)
-                        .foregroundStyle(BaziTheme.inkMuted)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .frame(maxWidth: .infinity, alignment: .leading)
-                        .accessibilityValue(Text(message))
-                    Button(L10n.DailyFortune.interpretRetry, action: onRetry)
-                        .font(.caption.weight(.semibold))
-                        .foregroundStyle(BaziTheme.ink)
-                }
+                // 2026-09-28 S02:小注说清「上面是通用参考」,不再直接露
+                // `.failed(message)` 的原始错误标题(EN「Reading failed」
+                // 与正文并存像自相矛盾);原错误进 accessibilityValue +
+                // VM 日志(2026-09-29 review 修正:hint 受 VoiceOver
+                // 「Speak Hints」开关控制且语义属交互元素,静态文本
+                // 改 value 无条件朗读)。可折两行。
+                // 2026-10-06 用户拍板移除 Retry 按钮:静默重试已兜底自动恢复,
+                // 手动恢复路径 = 下拉刷新;quota 耗尽态下按钮重试必再失败,
+                // 只会教用户反复点(错误显式传播不回退——小注 + a11y value +
+                // VM 日志三通道保留)。
+                Text(L10n.DailyFortune.interpretFallbackNote)
+                    .font(BaziFont.caption(size: 12))
+                    .tracking(1)
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityValue(Text(message))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

@@ -94,7 +94,7 @@ struct DailyFortuneMainView: View {
                 // AI 解读(D5 定稿:无卡片底直接排纸面,页边距 24、hero 下 24;
                 // S6 结构化今日洞察:v4 JSON 五段 + 确定性今日信号;2026-09-07 起
                 // 进入即自动生成;2026-09-24 失败降级:AI 失败 → 引擎模板文案 +
-                // 后台静默重试——降级行与 Retry 不在定稿范围,维持现状)。
+                // 后台静默重试——降级小注维持现状,Retry 按钮 2026-10-06 拍板移除)。
                 DailyInterpretationSection(
                     state: interpretState,
                     dayRelation: response.dayRelationToDayMaster,
@@ -105,7 +105,6 @@ struct DailyFortuneMainView: View {
                     remainingReads: vm.remainingReads,
                     nextReset: vm.nextDailyReset,
                     onGenerate: onGenerateInterpret,
-                    onRetry: onGenerateInterpret,
                 )
                 .padding(.horizontal, 24)
                 .padding(.top, 24)

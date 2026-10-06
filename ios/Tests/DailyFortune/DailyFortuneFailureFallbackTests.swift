@@ -9,7 +9,7 @@ import XCTest
 ///   `.failed`(UI 显示引擎模板文案)+ `isSilentRetrying=true`,延迟后重发
 ///   interpret;重试成功转 `.okFree`
 /// - **静默重试也失败 → 终态**:不再循环(恰好 2 次调用),`isSilentRetrying`
-///   归 false,Retry 手动兜底
+///   归 false,恢复交还给用户下拉刷新(2026-10-06 起 Retry 按钮已移除)
 /// - **手动重试失败不调度静默重试**(用户正看着,再静默转圈只会困惑)
 /// - **引擎模板表**:十神 10 键三语全量非空(防词表漂移丢键)+ fallback 非空
 @MainActor
@@ -188,7 +188,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 400_000_000)
         let calls = await api.interpretAttempts()
         XCTAssertEqual(calls, 2, "静默重试一次为限,不得循环重试")
-        XCTAssertTrue(Self.isFailed(vm.state), "终态保持 .failed(模板文案 + 手动 Retry)")
+        XCTAssertTrue(Self.isFailed(vm.state), "终态保持 .failed(模板文案,恢复靠下拉刷新)")
     }
 
     // MARK: - 手动重试失败:不调度静默重试
@@ -206,8 +206,9 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         }
         XCTAssertTrue(settled, "前置:应已到自动+静默重试双双失败的终态,实际:\(vm.state)")
 
-        // 用户手点 Retry:状态先转 .fetching 再落 .failed(轮询计数区分
-        // 「手动这次已真实发起」与前置终态——前置终态 calls 恒为 2)
+        // 手动触发(.manual,入口=.idle CTA 同一 API;Retry 按钮 2026-10-06
+        // 已移除,此处直调 VM 契约):状态先转 .fetching 再落 .failed(轮询
+        // 计数区分「手动这次已真实发起」与前置终态——前置终态 calls 恒为 2)
         vm.generateInterpretation(currentChartHash: "fallback_manual_fail")
         let manualFailed = await waitFor {
             let calls = await self.api.interpretAttempts()

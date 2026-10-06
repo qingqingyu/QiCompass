@@ -496,7 +496,8 @@ enum L10n {
         /// 缓存标识(zh="24h 内已缓存,不消耗次数")
         static let interpretCached = String(localized: "dailyfortune.interpret.cached")
 
-        /// 重试按钮(zh="重试", en="Retry")
+        /// 重试按钮文案(zh="重试", en="Retry")。按钮 2026-10-06 拍板移除后无
+        /// 调用方——常量与 xcstrings key 有意保留(先例 = shiShenNoteAction)。
         static let interpretRetry = String(localized: "dailyfortune.interpret.retry")
 
         /// 静默重试小注(2026-09-24 失败降级:AI 失败 → 模板文案 + 后台静默重试;
