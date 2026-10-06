@@ -27,3 +27,18 @@ enum APIError: Error, LocalizedError {
         }
     }
 }
+
+extension APIError {
+    /// 后端 409 STALE_SOURCE 判定(翻译链 L4/F5/F4 降级入口)。
+    ///
+    /// 2026-10-07 review 收口:此前 DeepAnalysisViewModel /
+    /// DailyFortuneOrchestrator / CompatibilityViewModel 三处各写一份同款
+    /// 判定(其中 compat 是内联 if-case)——同一错误语义三种表述,漂移只是
+    /// 时间问题。收口到错误类型的单一事实源,三处消费方全部改走这里。
+    static func isStaleSource(_ error: Error) -> Bool {
+        guard case .backendError(let code, _, _)? = error as? APIError else {
+            return false
+        }
+        return code == "STALE_SOURCE"
+    }
+}

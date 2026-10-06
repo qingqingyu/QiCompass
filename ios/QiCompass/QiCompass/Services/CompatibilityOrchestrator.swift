@@ -206,24 +206,14 @@ final class CompatibilityOrchestrator {
             return resp
         }
 
-        // 2. 次数检查(全局池口径,方案 §D1;quotaExempt 见函数注释)
-        var shouldRefundOnFailure = false
-        if quotaExempt {
-            AppLogger.app.info(
-                "compat.runInterpretation.quota_exempt compatibilityHash=\(compatibilityHash, privacy: .public) module=\(module, privacy: .public)"
-            )
-        } else {
-            shouldRefundOnFailure = true
-            guard counter.tryConsume(module: module) else {
-                // 规则 1:抛错前打 warning(用户预期行为,非系统错误)
-                let nextReset = counter.nextResetDate()
-                AppLogger.app.warning("compat.runInterpretation.daily_limit_reached compatibilityHash=\(compatibilityHash, privacy: .public) nextReset=\(nextReset.description, privacy: .public)")
-                throw DeepAnalysisError.dailyLimitReached(
-                    nextReset: nextReset,
-                    remaining: 0
-                )
-            }
-        }
+        // 2. 次数检查(全局池口径,方案 §D1;quotaExempt 见函数注释)。
+        // 扣/退逻辑收口 InterpretQuotaLedger(2026-10-07 review:三 orchestrator
+        // 手写同款已开始漂移——本函数禁词退款原写 !quotaExempt、cached/失败
+        // 退款写 shouldRefundOnFailure,两种表述并存)。
+        var ledger = InterpretQuotaLedger(
+            counter: counter, module: module, hashForLog: compatibilityHash
+        )
+        try ledger.consume(quotaExempt: quotaExempt, logLabel: "compat.runInterpretation")
 
         do {
             let contextLabel = PromptContextBuilder.contextLabel(context)
@@ -265,11 +255,9 @@ final class CompatibilityOrchestrator {
                     "compat.interpret.forbidden compatibility_hash=\(compatibilityHash, privacy: .public) context=\(context, privacy: .public) pv=\(resp.promptVersion) hits=\(hits.joined(separator: ","), privacy: .public)"
                 )
                 // refund(用户不应为后端 LLM 失控买单);quotaExempt 路径未消费
-                // 不退——退未消费的额度 = 白送配额(与下方 cached 分支同款守卫,
-                // 2026-10-02 三查补)
-                if !quotaExempt {
-                    counter.refund(module: module)
-                }
+                // 不退——退未消费的额度 = 白送配额(与 cached 分支同款守卫;
+                // 原两套表述 !quotaExempt / shouldRefundOnFailure 已收口账本)
+                ledger.refundOnFailure()
                 throw CompatibilityError.forbiddenWordsHit(words: hits)
             }
 
@@ -278,13 +266,9 @@ final class CompatibilityOrchestrator {
             )
 
             // 4. 命中后端缓存 → refund(仅实际扣过才退;quotaExempt 路径
-            // shouldRefundOnFailure 恒 false,不退——退未消费的额度 = 白送
-            // 配额)。后续失败不能再次 refund,避免双退款。与 Daily/Deep
-            // orchestrator 的单表达式守卫同款(2026-10-02 双 review 对齐)。
-            if resp.cached && shouldRefundOnFailure {
-                counter.refund(module: module)
-                shouldRefundOnFailure = false
-            }
+            // 没扣不退——退未消费的额度 = 白送配额)。后续失败不能再次
+            // refund,避免双退款。与 Daily/Deep orchestrator 同款(账本收口)。
+            ledger.settleCacheHit(cached: resp.cached)
 
             // 5. 写本地 24h AI 缓存。失败必须传导到 UI,避免返回假成功。
             do {
@@ -328,9 +312,7 @@ final class CompatibilityOrchestrator {
         } catch let error as DeepAnalysisError {
             throw error
         } catch {
-            if shouldRefundOnFailure {
-                counter.refund(module: module)
-            }
+            ledger.refundOnFailure()
             AppLogger.app.error(
                 "compat.interpret.failed compatibility_hash=\(compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )

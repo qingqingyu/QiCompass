@@ -78,6 +78,9 @@ final class TranslationFlowTests: XCTestCase {
         container = nil
         UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
         UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        // F5 标记落 UserDefaults:防本类用例残留污染后续测试类
+        // (zh-hant 泄漏级联假红同款教训,见 10-06 记录)
+        DeepStaleM0MarkerPersistence.clearAll()
         try await super.tearDown()
     }
 
@@ -92,6 +95,20 @@ final class TranslationFlowTests: XCTestCase {
             latitude: 39.9042,
             placeName: "北京",
             geonameId: 1816670,
+            ziHourRule: "zi_next_day"
+        )
+    }
+
+    /// 与北京盘不同 contentHash 的第二盘(A→B→A 换盘回归用)。
+    private static func tokyoRequest() -> BaziCalculateRequest {
+        BaziCalculateRequest(
+            birthDatetime: "1995-11-03T09:15:00",
+            timezone: "Asia/Tokyo",
+            gender: "female",
+            longitude: 139.6917,
+            latitude: 35.6895,
+            placeName: "Tokyo",
+            geonameId: 1850147,
             ziHourRule: "zi_next_day"
         )
     }
@@ -257,6 +274,125 @@ final class TranslationFlowTests: XCTestCase {
             apiClient.recordedTranslateRequests.count, countAfterSecond,
             "离线自动重试额度一次性,用尽不再自动(手动重试仍可用)"
         )
+    }
+
+    /// 上轮#2(2026-10-07 review):旧世代翻译链在 A→B→A 换盘往返后的收尾
+    /// 守卫。isCurrentChart 只比 contentHash——换回 A 后旧链(旧世代)被重新
+    /// 放行,与新链并发:双倍 LLM 调用 + 旧链译后指纹覆写新链 v1ChainFields。
+    /// 修复:三处守卫(循环头/译成后/catch)加世代号比对;defer 按结局快照
+    /// 比对防旧链覆写新链落定的结局。
+    func test旧世代翻译链_换盘往返后收尾自弃不覆写新链() async throws {
+        let requestA = Self.beijingRequest()
+        let responseA = try await apiClient.calculateBazi(request: requestA)
+        try seedZHCache(hash: responseA.contentHash, module: .m0, text: Self.m0ZH)
+        let requestB = Self.tokyoRequest()
+        let responseB = try await apiClient.calculateBazi(request: requestB)
+
+        // 旧链(第 0 个 translate)挂起在门上,直到新链完整跑完才放行;
+        // 放行前把 responder 切到「旧指纹」模式——旧链若未被世代守卫拦下,
+        // 会把旧指纹译文写进 moduleStates(可断言)。
+        let gate = FirstCallGate()
+        let mode = ResponderModeBox()
+        apiClient.translateDelayGate = { callIndex in
+            if callIndex == 0 { await gate.wait() }
+        }
+        apiClient.translateResponder = { request in
+            let fingerprint = mode.isOldChain ? "fp-stale-old" : "fp-hant"
+            let body = "{\"structure_fingerprint\":\"\(fingerprint)\",\"main_axis\":{},\"core_loop\":{}}"
+            return InterpretResponse(
+                interpretation: body,
+                promptVersion: 1, cached: false, generatedAt: .now,
+                provider: "anthropic", model: "mock-anthropic-model",
+                language: "zh-hant", translatedFrom: request.sourceLanguage
+            )
+        }
+
+        // A:hydrate → 自动翻译起跑(旧世代),M0 请求挂在门上
+        vm.loadArchivedChart(response: responseA, request: requestA)
+        let oldChainInFlight = await waitUntil(timeout: 10) {
+            !apiClient.recordedTranslateRequests.isEmpty
+        }
+        XCTAssertTrue(oldChainInFlight, "前置:旧链的 M0 翻译请求必须已发出(挂起在门上)")
+
+        // A→B→A:两次换盘各推进一次世代;回到 A 后 hydrate 重建提议、起新链
+        vm.loadArchivedChart(response: responseB, request: requestB)
+        vm.loadArchivedChart(response: responseA, request: requestA)
+
+        let newChainDone = await waitUntil(timeout: 10) {
+            self.vm.translationOffer == nil && !self.vm.isTranslatingChain
+                && self.vm.moduleStates[.m0] != nil
+        }
+        XCTAssertTrue(newChainDone, "新链(新世代)必须独立跑完,实际:\(vm.moduleStates)")
+
+        // 放行旧链:其 M0 应答带旧指纹回来——世代失配必须自弃
+        mode.setOldChain()
+        gate.fulfill()
+        try? await Task.sleep(nanoseconds: 800_000_000)
+
+        XCTAssertEqual(
+            vm.moduleStates[.m0], .ok(text: Self.m0Hant, cached: false),
+            "旧链收尾必须自弃:新链的译文(fp-hant)不得被旧链(fp-stale-old)覆写"
+        )
+        XCTAssertEqual(
+            apiClient.recordedTranslateRequests.count, 2,
+            "恰好两次翻译请求(旧链挂起的 1 次 + 新链的 1 次)"
+        )
+        XCTAssertNil(vm.autoTranslationState, "旧链 defer 不得把新链已收口的自动翻译态复活")
+    }
+
+    /// 新#2(2026-10-07 review):超时不算离线——.timedOut 意味着请求可能已达
+    /// 后端(服务端 LLM 成本已发生),归 .interrupted 会让每次重进页面都自动
+    /// 重试(hydrate 路径不消耗 offlineRetryUsed 额度),模型调用费无上限。
+    /// 修复:超时按真失败落 .failed,重进不自动重试(手动重试仍可用)。
+    func test超时翻译失败_落failed终态_重进不自动重试() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedZHCache(hash: response.contentHash, module: .m0, text: Self.m0ZH)
+        apiClient.translateResponder = { _ in
+            throw APIError.networkError(URLError(.timedOut))
+        }
+
+        vm.loadArchivedChart(response: response, request: request)
+        let failed = await waitUntil(timeout: 10) {
+            self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
+        }
+        XCTAssertTrue(failed, "超时必须按真失败落 .failed(不得 .offlinePending/.interrupted),实际:\(String(describing: vm.autoTranslationState))")
+
+        // 重进同盘(hydrate 路径):不得自动重试
+        let countAfterFirst = apiClient.recordedTranslateRequests.count
+        vm.loadArchivedChart(response: response, request: request)
+        try? await Task.sleep(nanoseconds: 800_000_000)
+        XCTAssertEqual(
+            apiClient.recordedTranslateRequests.count, countAfterFirst,
+            "超时终态:重进不得自动重试(修复前 hydrate 按 .interrupted 无限续译)"
+        )
+        XCTAssertEqual(vm.autoTranslationState, .failed, "失败态保持(提示条手动重试)")
+
+        // 手动重试仍可用(修复的是自动面,不砍手动入口)
+        installDefaultTranslateResponder()
+        _ = await waitUntil(timeout: 10) { !self.vm.isHydrating && self.vm.translationOffer != nil }
+        vm.acceptTranslation()
+        let retried = await waitUntil(timeout: 10) {
+            self.vm.translationOffer == nil && self.vm.autoTranslationState == nil
+        }
+        XCTAssertTrue(retried, "手动重试必须译完")
+    }
+
+    /// 新#3(2026-10-07 review):staleM0 标记磁盘为事实源——resetAllData 清键后,
+    /// 活实例后续写入不得凭内存快照把旧标记整份写回复活(修复前 VM 驻内存
+    /// 镜像 + 写穿,重置等于没做)。此处在持久化层钉住读改写语义。
+    func testStaleM0标记_clearAll后后续写入不复活() {
+        DeepStaleM0MarkerPersistence.mark("hashA|zh-hant")
+        DeepStaleM0MarkerPersistence.clearAll()
+        // 模拟活实例在 resetAllData 之后的下一次写入
+        DeepStaleM0MarkerPersistence.mark("hashB|zh-hant")
+        let keys = DeepStaleM0MarkerPersistence.load()
+        XCTAssertFalse(
+            keys.contains("hashA|zh-hant"),
+            "resetAllData 清掉的标记不得被后续写回复活(读改写,非内存快照整份写回)"
+        )
+        XCTAssertTrue(keys.contains("hashB|zh-hant"), "新标记正常落盘")
+        DeepStaleM0MarkerPersistence.clearAll()
     }
 
     // MARK: - D10.4 #2:译后 M0 字段驱动 M1 请求(核心用例,自动翻译触发)
@@ -1285,5 +1421,51 @@ final class DailyFortuneTranslateTests: XCTestCase {
             "非 STALE 失败不得偷偷改走生成"
         )
         XCTAssertEqual(counter.remaining(), readsBefore, "翻译路径不动配额")
+    }
+}
+
+// MARK: - 交错回归夹具(2026-10-07:A→B→A 换盘窗口控制)
+
+/// 首调挂起门:第 0 个 translate 挂起直到 fulfill,其余调用直通。
+/// @unchecked Sendable:状态经 NSLock 串行化(门只被测试线程 fulfill、
+/// 被 mock 的 nonisolated async 上下文 await,无其他共享可变状态)。
+private final class FirstCallGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var fulfilled = false
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            lock.lock(); defer { lock.unlock() }
+            if fulfilled {
+                continuation.resume()
+            } else {
+                self.continuation = continuation
+            }
+        }
+    }
+
+    func fulfill() {
+        lock.lock(); defer { lock.unlock() }
+        fulfilled = true
+        continuation?.resume()
+        continuation = nil
+    }
+}
+
+/// responder 模式盒:控制放行旧链时返回「旧指纹」译文。
+/// @unchecked Sendable:单布尔读写,锁串行化(测试线程写、mock 上下文读)。
+private final class ResponderModeBox: @unchecked Sendable {
+    private let lock = NSLock()
+    private var oldChain = false
+
+    var isOldChain: Bool {
+        lock.lock(); defer { lock.unlock() }
+        return oldChain
+    }
+
+    func setOldChain() {
+        lock.lock(); defer { lock.unlock() }
+        oldChain = true
     }
 }

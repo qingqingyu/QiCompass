@@ -312,18 +312,12 @@ final class DeepAnalysisOrchestrator {
         // quotaExempt(L4/F5,2026-10-01):语言切换引发的 STALE_SOURCE 降级
         // 重生成豁免——原文是旧 prompt 版本,非用户过错,不烧当日配额;
         // 豁免路径无消费故同样跳过 refund(退未消费的额度 = 白送配额)。
-        let counterModule = "bazi_deep"
-        var shouldRefundOnFailure = false
-        if quotaExempt {
-            AppLogger.app.info("deep.runV1Module.quota_exempt contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public)")
-        } else {
-            shouldRefundOnFailure = true
-            guard counter.tryConsume(module: counterModule) else {
-                let nextReset = counter.nextResetDate()
-                AppLogger.app.warning("deep.runV1Module.daily_limit_reached contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) nextReset=\(nextReset.description, privacy: .public)")
-                throw DeepAnalysisError.dailyLimitReached(nextReset: nextReset, remaining: 0)
-            }
-        }
+        // 扣/退逻辑收口 InterpretQuotaLedger(2026-10-07:三 orchestrator
+        // 手写同款已开始漂移)。
+        var ledger = InterpretQuotaLedger(
+            counter: counter, module: "bazi_deep", hashForLog: response.contentHash
+        )
+        try ledger.consume(quotaExempt: quotaExempt, logLabel: "deep.runV1Module")
 
         do {
             let req = try Self.buildV1Request(
@@ -351,11 +345,7 @@ final class DeepAnalysisOrchestrator {
             // F1(2026-10-02 修复):cached 命中只退**实际扣过**的额度。
             // quotaExempt 路径没走 tryConsume,不看豁免标志直接 refund
             // = 每章白送 1 次(L4 降级重生成 × 8 章 = 一张盘 +8)。
-            // shouldRefundOnFailure 此刻为 true 当且仅当本调用消费过。
-            if resp.cached && shouldRefundOnFailure {
-                counter.refund(module: counterModule)
-                shouldRefundOnFailure = false
-            }
+            ledger.settleCacheHit(cached: resp.cached)
 
             // 存本地缓存(每 module 独立,Stage 3 后端 CacheKey 已支持 parent_hash /
             // user_input_hash 隔离;iOS 端 InterpretationCacheStore 的 module 是 String,
@@ -390,16 +380,12 @@ final class DeepAnalysisOrchestrator {
             return resp
         } catch let error as PromptContextError {
             // chart 构建失败(meta 缺失 / gan_zhi 异常 / JSON 序列化失败)→ 退款 + 显式抛错
-            if shouldRefundOnFailure {
-                counter.refund(module: counterModule)
-            }
+            ledger.refundOnFailure()
             AppLogger.app.error("interpret.v1.prompt_context_failed contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) error=\(String(describing: error), privacy: .public)")
             throw error
         } catch {
             // AI / 本地缓存失败 → 退款(重试不消耗)
-            if shouldRefundOnFailure {
-                counter.refund(module: counterModule)
-            }
+            ledger.refundOnFailure()
             AppLogger.app.error("interpret.v1.pipeline_failed contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) error=\(String(describing: error), privacy: .public)")
             throw error
         }

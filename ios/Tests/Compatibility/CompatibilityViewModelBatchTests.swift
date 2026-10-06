@@ -1732,6 +1732,124 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         await drainDetailBackgroundTasks()
     }
 
+    /// 新#1(2026-10-07 review):STALE 降级重生成**成功**后豁免标记必须清除。
+    /// 修复前 exemptAttemptCompatHash 成功不清——本对后续任何非豁免来源的
+    /// 重试经 retryInterpretation 都蹭到免配额。鉴别:成功后耗尽共享池 +
+    /// 清掉缓存行,再 retryInterpretation——标记已清 → 正常扣次 →
+    /// dailyLimitReached 拦截;标记残留(修复前)→ 透传豁免 → 照常生成成功。
+    func testSTALE降级成功后_豁免标记清除_耗尽后的重试不再蹭免配额() async throws {
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+
+        let summary = try makeAutoGenFixture(tag: "staleok")
+        try interpretStore.upsert(
+            contentHash: summary.compatibilityHash,
+            module: "compatibility_free",
+            promptVersion: 1,
+            targetDate: nil,
+            language: "zh",
+            provider: "anthropic",
+            model: "mock-anthropic-model",
+            interpretation: "第一章 基础相处模式\n\n简体原文。",
+            generatedAt: .now
+        )
+        apiClient.translateResponder = { _ in
+            throw APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
+        }
+        vm.openDetail(summary)
+        let ok = await waitForInterpretState { state in
+            if case .okFree(let text, _) = state { return text.contains("Mock 命书占位") }
+            return false
+        }
+        XCTAssertTrue(ok, "前置:STALE 降级重生成必须成功,实际:\(vm.state)")
+
+        // 耗尽共享池 + 清掉本对全部解读缓存行(否则重试命中缓存,鉴别失效)
+        while counter.tryConsume(module: "test_drain") {}
+        XCTAssertEqual(vm.remainingReads, 0, "前置:共享池已耗尽")
+        let allRows = try container.mainContext.fetch(FetchDescriptor<InterpretationCache>())
+        for row in allRows { try interpretStore.delete(row) }
+
+        let interpretCalls = apiClient.recordedInterpretRequests.count
+        vm.retryInterpretation()
+        let limitReached = await waitForInterpretState { state in
+            if case .dailyLimitReached = state { return true }
+            return false
+        }
+        XCTAssertTrue(limitReached, "豁免标记成功已清:耗尽后的重试必须走正常扣次 → 达限拦截,实际:\(vm.state)")
+        XCTAssertEqual(
+            apiClient.recordedInterpretRequests.count, interpretCalls,
+            "不得再发 interpret(豁免不透传,修复前会免配额照常生成)"
+        )
+        await drainDetailBackgroundTasks()
+    }
+
+    /// 上轮#4(2026-10-07 review):STALE 降级重生成**还没跑就先记 .failed** 是
+    /// 把「进行中」谎报成「已失败」——中途退出 detail 再进来会看到假失败提示条,
+    /// 而非自动续跑。修复后 STALE 分支记 .interrupted,重开自动续译;真失败
+    /// 才由 generateInterpretation 落 .failed。
+    func testSTALE降级重生成被中断_重开自动续跑不现假失败() async throws {
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+
+        let summary = try makeAutoGenFixture(tag: "staleint")
+        try interpretStore.upsert(
+            contentHash: summary.compatibilityHash,
+            module: "compatibility_free",
+            promptVersion: 1,
+            targetDate: nil,
+            language: "zh",
+            provider: "anthropic",
+            model: "mock-anthropic-model",
+            interpretation: "第一章 基础相处模式\n\n简体原文。",
+            generatedAt: .now
+        )
+        // 第一次翻译:STALE(触发降级);第二次(重开续译):译文透传成功
+        apiClient.translateResponder = { [weak apiClient] request in
+            if apiClient?.recordedTranslateRequests.count ?? 0 <= 1 {
+                throw APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
+            }
+            return InterpretResponse(
+                interpretation: request.sourceInterpretation,
+                promptVersion: 1, cached: false, generatedAt: .now,
+                provider: "anthropic", model: "mock-anthropic-model",
+                language: "zh-hant", translatedFrom: request.sourceLanguage
+            )
+        }
+        vm.openDetail(summary)
+        // STALE → 自动落穿重生成:等 interpret 真实发出(mock 400ms 窗口内)
+        let regenStarted = await Self.waitUntil {
+            self.apiClient.recordedInterpretRequests.contains { $0.module == "compatibility_free" }
+        }
+        XCTAssertTrue(regenStarted, "前置:STALE 降级重生成必须已发起")
+        // 重生成在飞时退出 detail(取消三任务)= 用户中途退出
+        vm.clearDetailKeepRoster()
+        try? await Task.sleep(nanoseconds: 300_000_000)
+
+        // 重开同对:结局 .interrupted(非 .failed)→ 自动续译而非恢复假失败提示条。
+        // 注意先等翻译请求真实发出:openDetail 会先落 .okFree(原文展示态)再
+        // 异步起翻译,只等状态会在翻译发出前就通过。
+        vm.openDetail(summary)
+        let translateResumed = await Self.waitUntil(timeout: 10) {
+            self.apiClient.recordedTranslateRequests.count >= 2 && !self.vm.isTranslating
+        }
+        XCTAssertTrue(translateResumed, "重开必须自动重发翻译并译完(修复前 .failed 拦住自动续译,停在 1 次),实际 count=\(apiClient.recordedTranslateRequests.count) translating=\(vm.isTranslating)")
+        XCTAssertFalse(vm.translationFailed, "不得出现假失败提示条(修复前 .failed 提前落定,重开恢复失败态)")
+        let translated = await waitForInterpretState { state in
+            if case .okFree(let text, _) = state { return text.contains("简体原文") }
+            return false
+        }
+        XCTAssertTrue(translated, "续译必须落 .okFree(译文透传),实际:\(vm.state)")
+        await drainDetailBackgroundTasks()
+    }
+
     func testBackToConfig_detail态_一步回配置态_保留summaries() {
         // 2026-09-07 单选直达:closeDetail 退役,detail「编辑名单」toolbar 直达
         // 配置态(clearDetailKeepRoster 兼任 list 兜底态返回)

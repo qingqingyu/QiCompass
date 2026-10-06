@@ -21,6 +21,8 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
     private var interpretStore: InterpretationCacheStore!
     private var orchestrator: DailyFortuneOrchestrator!
     private var api: FailingInterpretAPIClient!
+    /// L5 门控测试用(耗尽共享池;隔离 suite)
+    private var counter: DailyReadCounter!
     private var vm: DailyFortuneViewModel!
 
     override func setUpWithError() throws {
@@ -35,12 +37,13 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
             identityResolver: AIIdentityResolver(apiClient: api),
             cacheStore: interpretStore
         )
+        counter = DailyReadCounter.makeIsolatedForTesting()
         orchestrator = DailyFortuneOrchestrator(
             apiClient: api,
             dailyStore: dailyStore,
             interpretStore: interpretStore,
             chartStore: chartStore,
-            counter: DailyReadCounter.makeIsolatedForTesting(),
+            counter: counter,
             interpretationReader: reader
         )
         vm = DailyFortuneViewModel(
@@ -220,6 +223,80 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         let final = await api.interpretAttempts()
         XCTAssertEqual(final, 3, "自动 1 + 静默 1 + 手动 1 = 恰好 3 次;手动失败后不得再调度静默重试")
         XCTAssertFalse(vm.isSilentRetrying, "手动路径不置静默重试标记")
+    }
+
+    // MARK: - L5 门控(2026-10-07 review 修复)
+
+    /// 次数耗尽 + 切语言:存在可翻译的跨语言源 → 仍自动触发(翻译不耗次数,
+    /// 守住 L5/F3「次数耗尽时也不再出现『当天一段新语言解读都没有』」拍板)。
+    /// 修复前 VM 侧 remainingReads > 0 一刀切,耗尽 + 切语言 = 当天无解读。
+    /// 反向:无源时维持原门槛,不发起注定 dailyLimitReached 的空调用。
+    func test次数耗尽切语言_有跨语言源自动翻译_无源维持门槛() async throws {
+        // 目标语言 zh-hant(与 zh 源行不同 → 同语言 miss + 跨语言命中;
+        // 生效语言读启动快照,双写 = 模拟「重启后 zh-hant 生效」)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+
+        let hash = "l5_gate_translate"
+        try seedChart(hash: hash)
+        let businessDate = BusinessDateCalculator.businessDate(now: .now, ziHourRule: "zi_next_day")
+        // zh 源行(合法 v4 五段;身份与 FailingInterpretAPIClient 的 health 一致)
+        try interpretStore.upsert(
+            contentHash: hash,
+            module: "daily_fortune",
+            promptVersion: 4,
+            targetDate: businessDate,
+            language: "zh",
+            provider: "anthropic",
+            model: "claude-test",
+            interpretation: #"{"headline":"静心开局","work":"先做要紧的事。","relationships":"话留三分。","energy":"按自己的节奏。","reminder":"量力而行。"}"#,
+            generatedAt: .now
+        )
+        await api.setTranslateText(#"{"headline":"靜心開局","work":"先做要緊的事。","relationships":"話留三分。","energy":"按自己的節奏。","reminder":"量力而行。"}"#)
+
+        // 耗尽共享池(全局 10 次)
+        while counter.tryConsume(module: "test_drain") {}
+        XCTAssertEqual(vm.remainingReads, 0, "前置:共享池已耗尽")
+
+        vm.onAppear(currentChartHash: hash, ziHourRule: "zi_next_day")
+
+        let ok = await waitFor { Self.isOkFree(self.vm.state) }
+        XCTAssertTrue(ok, "有可翻译跨语言源:必须自动翻译出当日解读(非达限卡),实际:\(vm.state)")
+        let translateCalls = await api.translateAttempts()
+        XCTAssertEqual(translateCalls, 1, "必须恰好一次翻译调用")
+        let interpretCalls = await api.interpretAttempts()
+        XCTAssertEqual(interpretCalls, 0, "不得走生成路径(耗次数);修复前被 remainingReads>0 门槛拦死,当天无解读")
+        XCTAssertEqual(vm.remainingReads, 0, "翻译不消耗次数")
+    }
+
+    /// L5 反向:耗尽 + **无**跨语言源 → 维持原门槛(.idle,达限卡由 UI 渲染),
+    /// 不发起注定 dailyLimitReached 的空调用与 spinner 闪动。
+    /// 独立用例(onAppear 在 .ready 态短路防切 Tab 闪 loading,复用同 VM
+    /// 无法二次进管线)。
+    func test次数耗尽无源_维持idle门槛不发空调用() async throws {
+        let hash = "l5_gate_nosource"
+        try seedChart(hash: hash)
+        // 耗尽共享池,不种任何解读行(无同语言缓存亦无跨语言源)
+        while counter.tryConsume(module: "test_drain") {}
+        XCTAssertEqual(vm.remainingReads, 0, "前置:共享池已耗尽")
+
+        vm.onAppear(currentChartHash: hash, ziHourRule: "zi_next_day")
+
+        let settled = await waitFor {
+            if case .ready(_, .idle, _) = self.vm.state { return true }
+            return false
+        }
+        XCTAssertTrue(settled, "耗尽 + 无源必须落 .ready(.idle)(达限卡),实际:\(vm.state)")
+        // 若误触发自动链,给足发作时间再断言零调用
+        try? await Task.sleep(nanoseconds: 400_000_000)
+        let interpretCalls = await api.interpretAttempts()
+        XCTAssertEqual(interpretCalls, 0, "无源时不得发起 interpret(不发起注定 dailyLimitReached 的空调用)")
+        let translateCalls = await api.translateAttempts()
+        XCTAssertEqual(translateCalls, 0, "无源时不得发起翻译")
     }
 
     // MARK: - 引擎模板表完整性(防三语词表漂移丢键)
@@ -546,11 +623,14 @@ private actor FailingInterpretAPIClient: APIClient {
     private var interpretText: String = "静默重试成功后的解读文本(mock)。"
     /// R1 测试注入:非 nil 时 translate 抛此错(STALE_SOURCE 等翻译失败面)。
     private var translateError: APIError?
+    /// L5 测试注入:非 nil 时 translate 返回该文本(合法 v4 五段 = 译文成功)。
+    private var translateText: String?
     private var translateCalls = 0
 
     func setInterpretFailFirst(_ n: Int) { failFirst = n }
     func setInterpretText(_ text: String) { interpretText = text }
     func setTranslateError(_ error: APIError?) { translateError = error }
+    func setTranslateText(_ text: String?) { translateText = text }
     func interpretAttempts() -> Int { attempts }
     func translateAttempts() -> Int { translateCalls }
 
@@ -558,6 +638,18 @@ private actor FailingInterpretAPIClient: APIClient {
         translateCalls += 1
         if let translateError {
             throw translateError
+        }
+        if let translateText {
+            return InterpretResponse(
+                interpretation: translateText,
+                promptVersion: 4,
+                cached: false,
+                generatedAt: .now,
+                provider: "anthropic",
+                model: "claude-test",
+                language: AppLanguage.currentWire,
+                translatedFrom: request.sourceLanguage
+            )
         }
         // 未注入错误时的默认:走协议扩展同款显式哨兵(不应被静默路由到 interpret)
         throw APIError.backendError(

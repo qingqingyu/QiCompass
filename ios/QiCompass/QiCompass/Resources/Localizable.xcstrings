@@ -3190,19 +3190,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI reading unavailable · above is general guidance for today"
+            "value" : "AI reading unavailable · above is general guidance for today · pull down to retry"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI 解读暂未生成 · 以上为今日通用参考"
+            "value" : "AI 解读暂未生成 · 以上为今日通用参考 · 下拉刷新可重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI 解讀暫未生成 · 以上為今日通用參考"
+            "value" : "AI 解讀暫未生成 · 以上為今日通用參考 · 下拉刷新可重試"
           }
         }
       }
