@@ -293,6 +293,10 @@ final class MockAPIClient: APIClient {
     /// D10(S7):translate 应答注入钩子。nil = 默认应答(译文 = 原文标记
     /// 译后语言);测试注入以模拟译后 M0 JSON / STALE_SOURCE 409 / 同构失败。
     var translateResponder: ((TranslateRequest) throws -> InterpretResponse)?
+    /// 测试钩子(2026-10-07):translate 挂起点门,按调用序号(0-based,
+    /// 录制序)回调——交错回归用:让第 N 个 translate 在 A→B→A 换盘窗口内
+    /// 保持挂起,验证旧世代链的收尾守卫。nil = 无门(不影响既有测试)。
+    var translateDelayGate: (@Sendable (_ callIndex: Int) async -> Void)?
     /// interpret 应答注入钩子(F1 计费回归,2026-10-02):nil = 默认应答
     /// (cached: false);测试注入以模拟后端缓存命中(cached: true)/按模块
     /// 分级失败。录制在钩子之前完成,断言不受影响。
@@ -335,6 +339,11 @@ final class MockAPIClient: APIClient {
         _recordedInterpretRequests.append(request)
         recordLock.unlock()
         try? await Task.sleep(nanoseconds: 400_000_000)
+        // 对齐真实 URLSession 取消语义(2026-10-07):请求在飞时任务被取消,
+        // 网络层抛 CancellationError 而非吞掉后照常返回——否则被取消的
+        // interpret 仍会走完 orchestrator 落缓存,「中断什么都不写」的语义
+        // 在 mock 下不可测(合盘中断续跑回归依赖此行为)。
+        if Task.isCancelled { throw CancellationError() }
         if let interpretResponder {
             return try interpretResponder(request)
         }
@@ -375,7 +384,11 @@ final class MockAPIClient: APIClient {
         AppLogger.networking.debug("mock.translate 调起 content_hash=\(request.base.contentHash.prefix(12), privacy: .public) module=\(request.base.module, privacy: .public) source=\(request.sourceLanguage, privacy: .public)")
         recordLock.lock()
         _recordedTranslateRequests.append(request)
+        let callIndex = _recordedTranslateRequests.count - 1
         recordLock.unlock()
+        if let translateDelayGate {
+            await translateDelayGate(callIndex)
+        }
         try? await Task.sleep(nanoseconds: 100_000_000)
         if let translateResponder {
             return try translateResponder(request)

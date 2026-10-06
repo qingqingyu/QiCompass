@@ -137,3 +137,69 @@ final class DailyReadCounter: @unchecked Sendable {
         return String(format: "%04d-%02d-%02d", year, month, day)
     }
 }
+
+// MARK: - 扣次/退款账本(三 orchestrator 共用,2026-10-07 review 收口)
+
+/// 「豁免 / 扣次 / 退款」单一事实源。
+///
+/// 此前 DeepAnalysisOrchestrator.runV1Module / DailyFortuneOrchestrator
+/// .generateInterpretation / CompatibilityOrchestrator.runInterpretation 三处
+/// 各手写一份同款逻辑,表述已开始漂移(compat 禁词退款写 `!quotaExempt`,
+/// cached/失败退款写 `shouldRefundOnFailure`——语义当时恰好等价,漂移只是
+/// 时间问题,review 已点名)。规则统一为本账本:
+/// - `consume(quotaExempt:logLabel:)`:非豁免才扣次(达限显式抛
+///   `dailyLimitReached`,未扣不退);豁免只记日志。
+/// - `settleCacheHit(cached:)`:命中后端缓存 → 退一次并关账(后续失败不得
+///   再退,防双退款;豁免路径没扣,天然不退)。
+/// - `refundOnFailure()`:失败出口统一调(实际扣过且未退过才退;关账防
+///   重复退)。禁词命中这类「中途显式失败」也走它。
+struct InterpretQuotaLedger {
+    private let counter: DailyReadCounter
+    /// counter 记账维度(与 consume/refund 严格同串:deep 用基础名 "bazi_deep",
+    /// compat 用 free/paid 实名——与既有存储键对齐,勿改)。
+    private let module: String
+    private let hashForLog: String
+    private var consumed = false
+    private var refunded = false
+
+    init(counter: DailyReadCounter, module: String, hashForLog: String) {
+        self.counter = counter
+        self.module = module
+        self.hashForLog = hashForLog
+    }
+
+    mutating func consume(quotaExempt: Bool, logLabel: String) throws {
+        // OSLogMessage 插值是 escaping autoclosure,mutating 方法内捕获 self
+        // 会编译失败——先把属性拷进局部变量再进插值。
+        let hash = hashForLog
+        let moduleKey = module
+        if quotaExempt {
+            AppLogger.app.info(
+                "\(logLabel, privacy: .public).quota_exempt hash=\(hash, privacy: .public) module=\(moduleKey, privacy: .public)"
+            )
+            return
+        }
+        guard counter.tryConsume(module: moduleKey) else {
+            let nextReset = counter.nextResetDate()
+            AppLogger.app.warning(
+                "\(logLabel, privacy: .public).daily_limit_reached hash=\(hash, privacy: .public) module=\(moduleKey, privacy: .public) nextReset=\(nextReset.description, privacy: .public)"
+            )
+            throw DeepAnalysisError.dailyLimitReached(nextReset: nextReset, remaining: 0)
+        }
+        // 达限抛出时不得置位(未消费却标已消费,后续 refundOnFailure 会白送
+        // 配额)——只在 tryConsume 真正成功后才记账。
+        consumed = true
+    }
+
+    mutating func settleCacheHit(cached: Bool) {
+        guard cached, consumed, !refunded else { return }
+        counter.refund(module: module)
+        refunded = true
+    }
+
+    mutating func refundOnFailure() {
+        guard consumed, !refunded else { return }
+        counter.refund(module: module)
+        refunded = true
+    }
+}

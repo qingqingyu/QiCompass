@@ -1982,6 +1982,9 @@ final class CompatibilityViewModel {
 
         interpretTask = Task { [weak self] in
             guard let self else { return }
+            // 结局键快照:豁免链(STALE 降级)成功清键 / 失败记 .failed 都用
+            // 链起跑时的语言拼键(镜像 acceptTranslation 的 attemptKey 口径)
+            let attemptKey = compatHash + "|" + AppLanguage.currentWire
             do {
                 let inputs = try self.buildCompatPromptInputs(
                     chartASnapshot: chartASnapshot, bSnapshot: bSnapshot,
@@ -2038,9 +2041,21 @@ final class CompatibilityViewModel {
                 // 解读成功 → 同步刷新 summaries 中该对的 isInterpreted
                 // (返回 list 时卡片立刻显示「已解读」标记)
                 self.markSummaryInterpreted(id: summary.id)
+
+                // 豁免链落定收口(2026-10-07 review):①exemptAttemptCompatHash
+                // 成功即清——残留会让本对后续**非豁免来源**的失败态经
+                // retryInterpretation 蹭到免配额重试;②STALE 降级链改
+                // .interrupted 语义后,成功是清键落定点(残留 .interrupted 虽
+                // 与 nil 语义等价,显式收口防依赖巧合)。用户手动链标记本就是
+                // nil,此处天然 no-op。
+                if self.exemptAttemptCompatHash == compatHash {
+                    self.exemptAttemptCompatHash = nil
+                    self.autoTranslationOutcomes.removeValue(forKey: attemptKey)
+                }
             } catch let error as CompatibilityError {
                 if !Task.isCancelled, self.canWriteInterpretState(summary: summary) {
                     self.state = .detail(summary, response, .failed(message: error.errorDescription ?? L10n.Common.unknownError))
+                    self.settleExemptRegenOutcomeIfCurrent(compatHash: compatHash, attemptKey: attemptKey)
                 }
             } catch let error as DeepAnalysisError {
                 if !Task.isCancelled, self.canWriteInterpretState(summary: summary) {
@@ -2049,6 +2064,7 @@ final class CompatibilityViewModel {
                     } else {
                         self.state = .detail(summary, response, .failed(message: error.errorDescription ?? L10n.Common.unknownError))
                     }
+                    self.settleExemptRegenOutcomeIfCurrent(compatHash: compatHash, attemptKey: attemptKey)
                 }
             } catch is CancellationError {
                 return
@@ -2060,6 +2076,7 @@ final class CompatibilityViewModel {
                     } else {
                         self.state = .detail(summary, response, .failed(message: userError.errorDescription ?? L10n.Common.unknownError))
                     }
+                    self.settleExemptRegenOutcomeIfCurrent(compatHash: compatHash, attemptKey: attemptKey)
                 }
             }
         }
@@ -2080,6 +2097,15 @@ final class CompatibilityViewModel {
             AppLogger.app.info("compatVM.retryInterpretation.quota_exempt_passthrough")
         }
         generateInterpretation(quotaExempt: passthrough)
+    }
+
+    /// 豁免重生成链(STALE 降级)失败落定(2026-10-07 review):重开恢复提示条
+    /// 走手动(retryInterpretation 透传豁免,不转嫁配额)。仅当本次失败确属
+    /// 豁免链(exemptAttemptCompatHash 仍是本对)才写翻译结局键——用户手动链
+    /// 标记为 nil,不写(手动失败与翻译提议的自动续译互不相干)。
+    private func settleExemptRegenOutcomeIfCurrent(compatHash: String, attemptKey: String) {
+        guard exemptAttemptCompatHash == compatHash else { return }
+        autoTranslationOutcomes[attemptKey] = .failed
     }
 
     /// 解读 Task 失败回写守卫(与成功分支的陈旧完成守卫同语义):
@@ -2188,7 +2214,7 @@ final class CompatibilityViewModel {
                 AppLogger.app.warning(
                     "compatVM.acceptTranslation.failed compatibilityHash=\(compatHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 原文与提示条保留"
                 )
-                if case .backendError(let code, _, _)? = error as? APIError, code == "STALE_SOURCE" {
+                if APIError.isStaleSource(error) {
                     guard self.canWriteInterpretState(summary: summary) else {
                         self.autoTranslationOutcomes[attemptKey] = .interrupted
                         return
@@ -2196,10 +2222,14 @@ final class CompatibilityViewModel {
                     AppLogger.app.warning(
                         "compatVM.acceptTranslation.stale_source_downgrade compatibilityHash=\(compatHash, privacy: .public) — 自动转免费重新生成(豁免配额)"
                     )
-                    // 结局记 .failed:降级链接管后 offer 已撤;若重生成失败,
-                    // 重开的新提议恢复提示条走手动(手动重试经 retryInterpretation
-                    // 透传豁免,不再转嫁配额)
-                    self.autoTranslationOutcomes[attemptKey] = .failed
+                    // 结局记 .interrupted(2026-10-07 review 修订,原 .failed):
+                    // 豁免重生成**还没跑**,先记 .failed 是把「进行中」谎报成
+                    // 「已失败」——用户中途退出再进来会看到假失败提示条,而
+                    // 非自动续跑。落定点在 generateInterpretation:成功清键、
+                    // 真失败记 .failed(settleExemptRegenOutcomeIfCurrent)。
+                    // 期间被换对/退出打断 → 本键保持 .interrupted,重开自动
+                    // 续跑(镜像深度解析的分诊口径)。
+                    self.autoTranslationOutcomes[attemptKey] = .interrupted
                     self.generateInterpretation(quotaExempt: true)
                     return
                 }
