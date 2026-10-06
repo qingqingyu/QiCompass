@@ -1119,6 +1119,9 @@ struct ProfileView: View {
             // L2/F4:M4/M5 用户输入按盘存 UserDefaults(不在 SwiftData),随全量
             // 数据一并前缀清扫(隐私口径与命盘数据同级)
             DeepUserInputPersistence.clearAll()
+            // F5(2026-10-06):M0 STALE 降级标记同存 UserDefaults,同批清扫
+            // (命盘数据已全删,标记无主即噪音)
+            DeepStaleM0MarkerPersistence.clearAll()
             // 用 @AppStorage 写,RootTabView 的 @AppStorage("hasSeenOnboarding") 立即响应触发 onboarding sheet
             hasSeenOnboarding = false
             AppLogger.app.info("重置命盘完成,hasSeenOnboarding=false,RootTabView 应立即弹 onboarding sheet")

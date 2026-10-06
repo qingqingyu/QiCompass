@@ -226,12 +226,30 @@ final class CompatibilityViewModel {
     /// 翻译 task(换对/重新生成时取消)。
     private var translateTask: Task<Void, Never>?
 
+    /// Bug5(2026-10-06 review 核实):最近一次豁免生成(quotaExempt=true)所属
+    /// 的 compatibilityHash;非豁免尝试置 nil。STALE_SOURCE 降级链失败后落
+    /// .failed,**该对**的结果页重试透传豁免——语言切换成本不得转嫁用户配额
+    /// (修复前重试恒走默认 false 扣次数,与深度解析「重试再降级仍豁免」不一致);
+    /// 次数耗尽用户则直接卡 dailyLimitReached。按对记录(而非全局 Bool)防
+    /// 跨对泄漏:A 对豁免失败后,别对的旧 .failed 重试不得蹭豁免白送配额。
+    private var exemptAttemptCompatHash: String?
+
     /// L3/F1(2026-10-01 拍板,修订 D10.5):跨语言命中 → 打开即自动翻译。
     /// 翻译中提示条隐藏,只在失败时出现(重试入口);nil = 不显示。
     private(set) var translationFailed = false
-    /// 自动翻译会话去重:同 (compatibilityHash, target) 自动只起一次,失败后
-    /// 只走提示条手动重试(防反复 openDetail 循环烧 LLM)。
-    private var autoTranslationAttemptedKeys = Set<String>()
+    /// 自动翻译会话去重 + 结局分诊(2026-10-06 修订,镜像深度解析):同
+    /// (compatibilityHash, target) 自动只起一次(防反复 openDetail 循环烧
+    /// LLM);但记录上次尝试的**结局**——被换对/退出 detail 打断(translateTask
+    /// 被 openDetail/clearDetailKeepRoster 取消)不算失败,重开续译剩余;真
+    /// 失败才恢复提示条走手动(修复前一律 translationFailed=true:换对往返被
+    /// 谎报成「翻译失败」)。
+    private enum AutoTranslationOutcome: Equatable {
+        /// 中断(translateTask 被取消)——重开可再自动续译
+        case interrupted
+        /// 落定失败——恢复失败提示条,只走手动重试
+        case failed
+    }
+    private var autoTranslationOutcomes: [String: AutoTranslationOutcome] = [:]
 
     init(
         orchestrator: CompatibilityOrchestrator,
@@ -1847,18 +1865,22 @@ final class CompatibilityViewModel {
     private func autoTranslateCrossLanguageIfIdle(compatibilityHash: String) {
         guard translationOffer != nil, !isTranslating else { return }
         let key = compatibilityHash + "|" + AppLanguage.currentWire
-        guard !autoTranslationAttemptedKeys.contains(key) else {
-            // F3(2026-10-02 修复,镜像深度解析 F2):重开同一对(失败后返回列表
-            // 再进)时 openDetail 已清 translationFailed 且 offer 会重建,但去重
-            // 不让自动翻译再起——静默 return 会让 translationFailed 停留 false
-            // (提示条不渲染),而 interpretState 已是 .okFree/.okPaid 原文态
-            // (autoGenerate 不触发),页面停在旧语言,重启前无出路。恢复失败态
-            // 让提示条以手动重试形态出现(自动不重试、防烧 LLM 语义不变)。
-            translationFailed = true
-            AppLogger.app.info("op=compatibility.autoTranslate.skip reason=already_attempted key=\(key, privacy: .public) — 恢复失败提示条(手动重试)")
-            return
+        if let outcome = autoTranslationOutcomes[key] {
+            guard outcome != .failed else {
+                // F3(2026-10-02 修复;2026-10-06 收窄到「真失败」):落定失败后
+                // 不再自动重试(防烧 LLM),但必须恢复失败态——静默 return 会让
+                // translationFailed 停留 false(提示条不渲染),而 interpretState
+                // 已是 .okFree/.okPaid 原文态(autoGenerate 不触发),页面停在
+                // 旧语言,重启前无出路。
+                translationFailed = true
+                AppLogger.app.info("op=compatibility.autoTranslate.skip reason=already_failed key=\(key, privacy: .public) — 恢复失败提示条(手动重试)")
+                return
+            }
+            // .interrupted:上次翻译被换对/退出 detail 打断——不是失败,重开续译
+            // 剩余(成功即收口;真失败会改记 .failed,防循环烧 LLM)
+            AppLogger.app.info("op=compatibility.autoTranslate.resume reason=interrupted key=\(key, privacy: .public) — 续译剩余原文")
         }
-        autoTranslationAttemptedKeys.insert(key)
+        autoTranslationOutcomes[key] = .interrupted
         AppLogger.app.info("op=compatibility.autoTranslate.start hash=\(compatibilityHash, privacy: .public)")
         acceptTranslation()
     }
@@ -1935,6 +1957,9 @@ final class CompatibilityViewModel {
             state = .detail(summary, response, .failed(message: String(localized: "命盘快照缺失,请重新合盘")))
             return
         }
+
+        // Bug5:记录本次豁免语义(失败态重试经 retryInterpretation 按对透传)
+        exemptAttemptCompatHash = quotaExempt ? compatHash : nil
 
         // M4:查本地 entitlement 决定 module(基础名 "compatibility")
         let hasEntitlement = entitlementStore.getActive(
@@ -2040,6 +2065,23 @@ final class CompatibilityViewModel {
         }
     }
 
+    /// .failed / .dailyLimitReached 态的重试入口(结果页 onGenerateInterpret
+    /// 接线,2026-10-06):按对透传上次尝试的豁免语义——STALE_SOURCE 降级链
+    /// 失败后的重试不再把语言切换成本转嫁给用户配额;别对的 .failed(非豁免
+    /// 来源)不蹭豁免。用户主动重算/购买成功回调/自动起链仍直调
+    /// generateInterpretation()(正常扣次,入口会覆写标记)。
+    func retryInterpretation() {
+        var passthrough = false
+        if case .detail(let summary, _, _) = state,
+           exemptAttemptCompatHash == summary.compatibilityHash {
+            passthrough = true
+        }
+        if passthrough {
+            AppLogger.app.info("compatVM.retryInterpretation.quota_exempt_passthrough")
+        }
+        generateInterpretation(quotaExempt: passthrough)
+    }
+
     /// 解读 Task 失败回写守卫(与成功分支的陈旧完成守卫同语义):
     /// 当前态仍是该对的 detail 才允许写;await 期间换对(computing / 别对
     /// detail / 非 detail)→ 陈旧失败不得覆写新对 UI。
@@ -2058,6 +2100,9 @@ final class CompatibilityViewModel {
         guard let offer = translationOffer, !isTranslating else { return }
         guard case .detail(let summary, let response, _) = state else { return }
         let compatHash = summary.compatibilityHash
+        // 结局记录键(2026-10-06):Task 各出口按「真失败 / 中断」分诊写入,
+        // 重开时 autoTranslateCrossLanguageIfIdle 据此决定续译还是恢复提示条
+        let attemptKey = compatHash + "|" + AppLanguage.currentWire
         guard let chartASnapshot = archivedCharts[safe: selectedChartAIndex]?.snapshot,
               let bSnapshot = try? chartStore.get(contentHash: summary.personBHash) else {
             state = .detail(summary, response, .failed(message: String(localized: "命盘快照缺失,请重新合盘")))
@@ -2093,7 +2138,10 @@ final class CompatibilityViewModel {
                     sourcePromptVersion: offer.promptVersion,
                     sourceInterpretation: offer.text
                 )
-                if Task.isCancelled { return }
+                if Task.isCancelled {
+                    self.autoTranslationOutcomes[attemptKey] = .interrupted
+                    return
+                }
                 // 陈旧完成守卫(2026-10-02 review,镜像 generateInterpretation 的
                 // ad124ef):compute()/continueAfterAddHourRemap 换对不取消
                 // translateTask(同 ad124ef 修 interpretTask 前的漏取消),旧对
@@ -2102,6 +2150,7 @@ final class CompatibilityViewModel {
                 // isCancelled 检查已够,守卫对不取消路径承载真实负载。仍在本对
                 // detail 才允许回写。
                 guard self.canWriteInterpretState(summary: summary) else {
+                    self.autoTranslationOutcomes[attemptKey] = .interrupted
                     AppLogger.app.info(
                         "compatVM.acceptTranslation.stale_completion_skip compatibilityHash=\(compatHash, privacy: .public)"
                     )
@@ -2118,10 +2167,17 @@ final class CompatibilityViewModel {
                 self.translationOffer = nil
                 self.state = .detail(summary, response, newState)
                 self.markSummaryInterpreted(id: summary.id)
+                // 译完收口:结局键清除——未来同键新提议(如再次版本 bump)可重新
+                // 自动翻译
+                self.autoTranslationOutcomes.removeValue(forKey: attemptKey)
             } catch is CancellationError {
+                self.autoTranslationOutcomes[attemptKey] = .interrupted
                 return
             } catch {
-                if Task.isCancelled { return }
+                if Task.isCancelled {
+                    self.autoTranslationOutcomes[attemptKey] = .interrupted
+                    return
+                }
                 // 失败分级(D10.4 #4:已译成的保留——翻译无部分成功,此处指不丢原文):
                 // - STALE_SOURCE(R3,2026-10-02 review 修订):原文版本过期 →
                 //   直接自动起重新生成(quotaExempt 豁免合盘次数——语言切换引起,
@@ -2133,10 +2189,17 @@ final class CompatibilityViewModel {
                     "compatVM.acceptTranslation.failed compatibilityHash=\(compatHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 原文与提示条保留"
                 )
                 if case .backendError(let code, _, _)? = error as? APIError, code == "STALE_SOURCE" {
-                    guard self.canWriteInterpretState(summary: summary) else { return }
+                    guard self.canWriteInterpretState(summary: summary) else {
+                        self.autoTranslationOutcomes[attemptKey] = .interrupted
+                        return
+                    }
                     AppLogger.app.warning(
                         "compatVM.acceptTranslation.stale_source_downgrade compatibilityHash=\(compatHash, privacy: .public) — 自动转免费重新生成(豁免配额)"
                     )
+                    // 结局记 .failed:降级链接管后 offer 已撤;若重生成失败,
+                    // 重开的新提议恢复提示条走手动(手动重试经 retryInterpretation
+                    // 透传豁免,不再转嫁配额)
+                    self.autoTranslationOutcomes[attemptKey] = .failed
                     self.generateInterpretation(quotaExempt: true)
                     return
                 }
@@ -2150,8 +2213,10 @@ final class CompatibilityViewModel {
                 let restored: InterpretState = hasEntitlement
                     ? .okPaid(text: offer.text, cached: true)
                     : .okFree(text: offer.text, cached: true)
-                // L3/F1:可重试失败 → 提示条转「翻译失败 · 重试」(原文照常展示)
+                // L3/F1:可重试失败 → 提示条转「翻译失败 · 重试」(原文照常展示);
+                // 结局记 .failed(重开恢复提示条走手动)
                 self.translationFailed = true
+                self.autoTranslationOutcomes[attemptKey] = .failed
                 self.state = .detail(summary, response, restored)
             }
         }

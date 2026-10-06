@@ -261,7 +261,10 @@ struct CompatibilityView: View {
                             nameA: L10n.Compatibility.selfReferenceYou,
                             nameB: summary.displayName,
                             onBackToConfig: { vm.clearDetailKeepRoster() },
-                            onGenerateInterpret: { vm.generateInterpretation() },
+                            // 2026-10-06 Bug5:重试入口改走 retryInterpretation——
+                            // STALE_SOURCE 降级链失败后的重试透传豁免,不转嫁配额;
+                            // 正常路径 lastAttemptQuotaExempt=false 行为不变
+                            onGenerateInterpret: { vm.retryInterpretation() },
                             onShowPaywall: { showPaywall = true }
                         )
                         // S4 换人动效:内容因对方变化(compatibilityHash 变)重建时
