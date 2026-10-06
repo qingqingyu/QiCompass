@@ -200,11 +200,30 @@ final class CachedInterpretationReader {
                 hits = hits.filter { rowIsValid($0.value) }
             }
             if hits.isEmpty { continue }
-            if best == nil || hits.count > best!.hits.count {
+            if let currentBest = best {
+                if hits.count > currentBest.hits.count {
+                    best = (language, hits)
+                } else if hits.count == currentBest.hits.count,
+                          maxPromptVersion(in: hits) > maxPromptVersion(in: currentBest.hits) {
+                    // Bug4(2026-10-06 review 核实):命中数平手时按行内 promptVersion
+                    // 高者优先。daily 单模块场景两语言命中数恒 1,修复前按
+                    // allCases 序选源——PROMPT_VERSIONS bump 后旧版(v1)源会压过
+                    // 有效(v2)源,翻译必 409 STALE_SOURCE 落穿重生成:本可翻译
+                    // (保「换语言结论不变」)的另一语言源被掩蔽,切语言内容漂移。
+                    // 多模块(deep)下计数仍为主序,版本只裁决平手,行为兼容。
+                    best = (language, hits)
+                }
+            } else {
                 best = (language, hits)
             }
         }
         return best
+    }
+
+    /// 行集内最高 promptVersion(Bug4 平手裁决用;调用前已过滤空集,
+    /// 空集返回 0 仅为闭包完备)。
+    private func maxPromptVersion(in hits: [String: InterpretationCache]) -> Int {
+        hits.values.map(\.promptVersion).max() ?? 0
     }
 
     /// 跨语言探测(模块优先版,2026-10-02 修复):按 `modules` 顺序在

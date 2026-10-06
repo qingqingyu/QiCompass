@@ -25,6 +25,13 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
 
     override func setUpWithError() throws {
         try super.setUpWithError()
+        // 2026-10-06 防泄漏加固:全量跑序中更早的类(CompatBatch 等)设 zh-hant
+        // 若被 signal kill 掐死,defer 清理不执行 → 启动快照泄漏 zh-hant;而本类
+        // seedV1Cache 落 upsert 默认 "zh" 键,restore 按 currentWire 读必 miss
+        // (实测 3 条回填用例假红、连锁 1 条 .fetching)。setUp 显式复位两键,
+        // 上游语言泄漏不再穿透到本类(本类全部用例均假定设备默认语言 zh)。
+        UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
         container = try ModelContainerFactory.makeInMemory()
         let context = container.mainContext
         apiClient = MockAPIClient()
@@ -58,7 +65,11 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         // 「自动解读收尾等待」修法,先等链落定再撤依赖。
         // (teardown 用 async 变体:XCTest 的 tearDownWithError 无 async 版本)
         if let vm {
-            _ = await waitUntil(timeout: 10) { !vm.isChainRunning && !vm.isHydrating }
+            // Bug6(2026-10-06):isHydrating 会被换盘/reset 同步复位,旧 hydrate
+            // 仍挂在 await 中——加 inflightHydrateCount 才是「无在飞 hydrate」
+            _ = await waitUntil(timeout: 10) {
+                !vm.isChainRunning && !vm.isHydrating && vm.inflightHydrateCount == 0
+            }
         }
         // L2/F4:M4/M5 持久化按 contentHash 落 UserDefaults——同类用例共用
         // beijing 盘(同 hash),不清会让「无输入」类用例读到别家输入
@@ -714,34 +725,38 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         XCTAssertEqual(vm.m4UserInput?.concern, "B的困惑", "A 盘输入不得串进 B 盘")
     }
 
-    /// 同人补时辰(refreshAfterAddHour 同走换盘守卫):持久化值迁移到新 hash,
-    /// 输入经 hydrate 按新 hash 读回(合并语义:内存恒清,沿用走持久层)。
-    func test同人补时辰_M4M5沿用并迁移到新hash() async throws {
-        let requestKnown = Self.beijingRequest()  // 补时辰后的形态(有时柱)
+    /// R4 修订(2026-10-06 review 核实):换盘守卫不再做「三柱一致即同人」的
+    /// 兜底 remap——同一天出生的两人(无时辰 A → 有时辰 B,年/月/日三柱一致)
+    /// 会命中旧判据,把 A 的年龄/健康关注串进 B 的盘并持久化(隐私串盘)。
+    /// 同人补时辰的输入沿用只认 AddHourViewModel.submit 的显式 remap
+    /// (见 AddHourFlowTests);本用例钉住守卫侧不再发生兜底迁移。
+    func test同日生换盘_不得兜底迁移M4M5输入() async throws {
+        let requestKnown = Self.beijingRequest()  // 有时柱形态(「另一人」B)
         let responseKnown = try await apiClient.calculateBazi(request: requestKnown)
-        let responseNoHour = Self.hourUnknownVariant(of: responseKnown)
+        let responseSameDayNoHour = Self.hourUnknownVariant(of: responseKnown)
         DeepUserInputPersistence.saveM4(
-            .init(age: 41, concern: "体力"), contentHash: responseNoHour.contentHash
+            .init(age: 41, concern: "A的隐私"), contentHash: responseSameDayNoHour.contentHash
         )
+        defer {
+            [responseSameDayNoHour.contentHash, responseKnown.contentHash].forEach {
+                UserDefaults.standard.removeObject(forKey: DeepUserInputPersistence.m4KeyPrefix + $0)
+                UserDefaults.standard.removeObject(forKey: DeepUserInputPersistence.m5KeyPrefix + $0)
+            }
+        }
 
-        // 无时辰盘:hydrate 读回输入
-        vm.loadArchivedChart(response: responseNoHour, request: requestKnown)
+        // 无时辰盘:hydrate 读回 A 的输入
+        vm.loadArchivedChart(response: responseSameDayNoHour, request: requestKnown)
         _ = await waitUntil(timeout: 10) { self.vm.m4UserInput != nil }
-        XCTAssertEqual(vm.m4UserInput?.concern, "体力", "前置:无时辰盘已读回输入")
+        XCTAssertEqual(vm.m4UserInput?.concern, "A的隐私", "前置:无时辰盘已读回输入")
 
-        // 补时辰 → 新 hash 走同一守卫:年/月/日一致 + 时柱从无到有 → 判定同人,
-        // remap 迁移到新 hash(submit 时点 remap 的兜底);内存恒清,由 hydrate
-        // 按新 hash 读回——沿用语义经持久层兑现(与时辰无关)
-        XCTAssertNil(DeepUserInputPersistence.loadM4(contentHash: responseKnown.contentHash), "前置:新 hash 尚无持久化值")
+        // 同年月日、时柱从无到有的换盘(修复前 isSamePersonHourAddition 兜底
+        // 命中并 remap):不得把 A 的隐私输入迁移到 B 的 hash
         vm.loadArchivedChart(response: responseKnown, request: requestKnown)
-        XCTAssertNil(vm.m4UserInput, "换盘(含补时辰)恒清内存(#7 统一口径)")
-        _ = await waitUntil(timeout: 10) { self.vm.m4UserInput != nil }
-        XCTAssertEqual(vm.m4UserInput?.concern, "体力", "同人补时辰输入必须经持久层沿用")
-        XCTAssertEqual(
+        XCTAssertNil(
             DeepUserInputPersistence.loadM4(contentHash: responseKnown.contentHash),
-            .init(age: 41, concern: "体力"),
-            "持久化值必须迁移到新 hash(重启后 hydrate 按新 hash 读回)"
+            "同日生换盘不得兜底迁移隐私输入(修复前经三柱判据串盘)"
         )
+        XCTAssertNil(vm.m4UserInput, "换盘恒清内存输入(#7 统一口径)")
     }
 
     /// 从既有响应构造时辰未知变体(pillars.hour = nil + 独立 hash;

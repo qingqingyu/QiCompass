@@ -29,6 +29,9 @@ final class TranslationFlowTests: XCTestCase {
         // **启动快照**——同步注入快照 = 模拟「重启后 zh-hant 生效」的进程
         UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
         UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        // F5(2026-10-06 持久化):降级标记落 UserDefaults,防上个用例残留
+        // 污染本用例的自动翻译路由(下游误走重生成)
+        DeepStaleM0MarkerPersistence.clearAll()
         container = try ModelContainerFactory.makeInMemory()
         let context = container.mainContext
         apiClient = MockAPIClient()
@@ -58,7 +61,12 @@ final class TranslationFlowTests: XCTestCase {
 
     override func tearDown() async throws {
         if let vm {
-            _ = await waitUntil(timeout: 10) { !vm.isChainRunning && !vm.isHydrating && !vm.isTranslatingChain }
+            // Bug6(2026-10-06):isHydrating 会被换盘/reset 同步复位,旧 hydrate
+            // 仍挂在 await 中——加 inflightHydrateCount 才是「无在飞 hydrate」
+            _ = await waitUntil(timeout: 10) {
+                !vm.isChainRunning && !vm.isHydrating && !vm.isTranslatingChain
+                    && vm.inflightHydrateCount == 0
+            }
         }
         vm = nil
         orchestrator = nil
@@ -440,6 +448,118 @@ final class TranslationFlowTests: XCTestCase {
             .filter { ModuleID(rawValue: $0) != nil }
         XCTAssertEqual(generatedModules, ["m1_talent"], "只有 M1 重生成,实际:\(generatedModules)")
         XCTAssertEqual(vm.remainingReads, readsBefore, "降级重生成不得消耗每日次数")
+    }
+
+    /// Bug1(2026-10-06 review 核实):M0 STALE 降级重生成成功、下游重生成失败
+    /// 中断后「重启」(新 VM,同 UserDefaults/双层缓存)——重建的自动翻译链
+    /// 必须仍把下游导向豁免重生成;修复前标记仅存内存,重启丢失后 M0 命中
+    /// 当语言缓存、提议只剩下游,会被拿去翻译(旧 M0 叙事 × 新 M0 指纹混拼,
+    /// 毒化共享缓存键)。
+    func test重启后_M0降级标记驱动下游重生成_不翻译() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedZHCache(hash: response.contentHash, module: .m0, text: Self.m0ZH)
+        try seedZHCache(hash: response.contentHash, module: .m1, text: Self.m1ZH)
+        let readsBefore = vm.remainingReads
+
+        // 第一轮:M0 翻译 409 → 豁免重生成成功(落 zh-hant 键);M1 豁免重生成
+        // 失败(网络)→ 断链落 .failed
+        apiClient.translateResponder = { _ in
+            throw APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
+        }
+        apiClient.interpretResponder = { req in
+            if req.module == "m0_structure" {
+                return InterpretResponse(
+                    interpretation: Self.m0Hant,
+                    promptVersion: 1, cached: false, generatedAt: .now,
+                    provider: "anthropic", model: "mock-anthropic-model",
+                    language: "zh-hant"
+                )
+            }
+            throw APIError.networkError(URLError(.notConnectedToInternet))
+        }
+        vm.loadArchivedChart(response: response, request: request)
+        let round1 = await waitUntil(timeout: 10) {
+            self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
+        }
+        XCTAssertTrue(round1, "M1 降级重生成失败必须断链落 .failed,实际:\(String(describing: vm.autoTranslationState))")
+        XCTAssertTrue(
+            DeepStaleM0MarkerPersistence.load().contains(response.contentHash + "|zh-hant"),
+            "M0 降级标记必须落 UserDefaults(重启前置事实)"
+        )
+
+        // 「重启」:新 VM(内存 outcome/rows/markers 全空)同 orchestrator/缓存;
+        // M1 重生成改成功
+        let vm2 = DeepAnalysisViewModel(orchestrator: orchestrator, entitlementStore: entitlementStore)
+        apiClient.interpretResponder = { _ in
+            InterpretResponse(
+                interpretation: Self.m1ZH,
+                promptVersion: 1, cached: false, generatedAt: .now,
+                provider: "anthropic", model: "mock-anthropic-model",
+                language: "zh-hant"
+            )
+        }
+        vm2.loadArchivedChart(response: response, request: request)
+        let round2 = await waitUntil(timeout: 10) {
+            vm2.translationOffer == nil && !vm2.isTranslatingChain && vm2.moduleStates[.m1]?.isOk == true
+        }
+        XCTAssertTrue(round2, "重启后自动链必须经持久化标记把 M1 导向重生成,实际:\(vm2.moduleStates) offer=\(String(describing: vm2.translationOffer))")
+
+        // 核心断言:M1 全程零翻译请求(修复前:提议只剩 M1,会被当原文翻译)
+        XCTAssertTrue(
+            apiClient.recordedTranslateRequests.filter { $0.base.module == "m1_talent" }.isEmpty,
+            "重启后 M1 不得走翻译(旧 M0 叙事 × 新 M0 指纹混拼毒化共享键)"
+        )
+        XCTAssertEqual(vm2.remainingReads, readsBefore, "两轮降级重生成全程不得消耗每日次数")
+        XCTAssertFalse(
+            DeepStaleM0MarkerPersistence.load().contains(response.contentHash + "|zh-hant"),
+            "全部落定后标记随提议收空清除"
+        )
+    }
+
+    /// Bug2(2026-10-06 review 核实):自动翻译被换盘中断(未落定)后切回——
+    /// 不得谎报「翻译失败」,hydrate 重建提议后必须再自动续译;真失败恢复
+    /// 提示条的语义由 F2 用例(testAutoTranslationFailureStateSurvivesChartSwitchAndBack)钉住。
+    func test中断的自动翻译_切回后续译_不谎报失败() async throws {
+        let requestA = Self.beijingRequest()
+        let responseA = try await apiClient.calculateBazi(request: requestA)
+        try seedZHCache(hash: responseA.contentHash, module: .m0, text: Self.m0ZH)
+        try seedZHCache(hash: responseA.contentHash, module: .m1, text: Self.m1ZH)
+        let requestB = BaziCalculateRequest(
+            birthDatetime: "1995-11-03T08:00:00",
+            timezone: "Asia/Urumqi",
+            gender: "female",
+            longitude: 87.62,
+            latitude: nil,
+            placeName: "自定义地点",
+            geonameId: nil,
+            ziHourRule: "zi_next_day"
+        )
+        let responseB = try await apiClient.calculateBazi(request: requestB)
+
+        // 离线类失败 → .offlinePending(等待联网续译),不是 .failed
+        apiClient.translateResponder = { _ in
+            throw APIError.networkError(URLError(.notConnectedToInternet))
+        }
+        vm.loadArchivedChart(response: responseA, request: requestA)
+        let offline = await waitUntil(timeout: 10) {
+            self.vm.autoTranslationState == .offlinePending && !self.vm.isTranslatingChain
+        }
+        XCTAssertTrue(offline, "离线失败必须落 .offlinePending(不是 .failed)")
+
+        // 切 B → 等 hydrate 落定 → 切回 A:提议重建,自动翻译必须**再起**,
+        // 不得恢复 .failed(修复前 attempted 命中一律恢复失败提示条)
+        vm.loadArchivedChart(response: responseB, request: requestB)
+        _ = await waitUntil(timeout: 10) { self.vm.inflightHydrateCount == 0 && !self.vm.isHydrating }
+        vm.loadArchivedChart(response: responseA, request: requestA)
+        let resumed = await waitUntil(timeout: 10) {
+            self.vm.autoTranslationState == .offlinePending && !self.vm.isTranslatingChain
+        }
+        XCTAssertTrue(resumed, "切回后必须自动续译(再次离线落 .offlinePending),不得谎报 .failed,实际:\(String(describing: vm.autoTranslationState))")
+        XCTAssertEqual(
+            apiClient.recordedTranslateRequests.filter { $0.base.contentHash == responseA.contentHash }.count, 2,
+            "切回后的续译必须再发翻译请求(两轮各一次)"
+        )
     }
 
     // MARK: - F1(2026-10-02):豁免配额的重生成命中缓存不得 refund
@@ -867,6 +987,9 @@ final class DailyFortuneTranslateTests: XCTestCase {
         // 生效语言 = zh-hant(L1/F2:注入启动快照模拟重启后生效)
         UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
         UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        // F5(2026-10-06 持久化):降级标记落 UserDefaults,防上个用例残留
+        // 污染本用例的自动翻译路由(下游误走重生成)
+        DeepStaleM0MarkerPersistence.clearAll()
         container = try ModelContainerFactory.makeInMemory()
         let context = container.mainContext
         apiClient = MockAPIClient()

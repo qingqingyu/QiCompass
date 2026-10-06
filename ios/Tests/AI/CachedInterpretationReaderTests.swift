@@ -413,6 +413,53 @@ final class CachedInterpretationReaderTests: XCTestCase {
         XCTAssertNotNil(zhRow, "rowIsValid 过滤不得删行")
     }
 
+    // 17. Bug4(2026-10-06 review 核实):命中数平手时按行内 promptVersion 高者
+    // 胜出。daily 单模块下两语言命中数恒 1,修复前 allCases 序让 zh(v1 旧版源)
+    // 压过 en(v4 有效源)→ 旧版源翻译必 409 STALE_SOURCE 落穿重生成,本可翻译
+    // (保「换语言结论不变」)的有效源被掩蔽,切语言内容漂移。
+    func testReadAllCrossLanguageTieBreaksByHigherPromptVersion() async throws {
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        let date = Date(timeIntervalSince1970: 1_783_000_000)
+        // 两行都过 v4 五段契约(rowIsValid 双真),只有版本差:zh 旧版 / en 新版
+        try store.upsert(
+            contentHash: "h10", module: "daily_fortune", promptVersion: 1,
+            targetDate: date, language: "zh",
+            provider: "anthropic", model: "claude-test",
+            interpretation: "{\"headline\":\"稳开场\",\"work\":\"做要事\",\"relationships\":\"少言\",\"energy\":\"按自己的节奏\",\"reminder\":\"保持克制\"}",
+            generatedAt: .now
+        )
+        try store.upsert(
+            contentHash: "h10", module: "daily_fortune", promptVersion: 4,
+            targetDate: date, language: "en",
+            provider: "anthropic", model: "claude-test",
+            interpretation: "{\"headline\":\"Calm start\",\"work\":\"Do the essential.\",\"relationships\":\"Hold back words.\",\"energy\":\"Your own pace.\",\"reminder\":\"Stay measured.\"}",
+            generatedAt: .now
+        )
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: ReaderTestAPIClient(healthResults: [
+                .success(Self.health(provider: "anthropic", model: "claude-test")),
+            ])),
+            cacheStore: store
+        )
+        let result = try await reader.readAllCrossLanguage(
+            contentHash: "h10", modules: ["daily_fortune"], targetDate: date,
+            maxAge: 24 * 3600,
+            rowIsValid: { DailyInsight.parse($0.interpretation) != nil }
+        )
+        XCTAssertEqual(
+            result?.language, "en",
+            "命中数平手时高 promptVersion 源必须胜出(修复前按 allCases 序取 zh 旧版源,翻译必 409)"
+        )
+        XCTAssertEqual(result?.hits["daily_fortune"]?.promptVersion, 4)
+    }
+
     // MARK: - Helpers
 
     private static func healthOnlyClient(

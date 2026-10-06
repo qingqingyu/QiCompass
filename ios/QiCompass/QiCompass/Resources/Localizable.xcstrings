@@ -11735,6 +11735,22 @@
         }
       }
     },
+    "修改命盘名称" : {
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Rename this chart"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "修改命盤名稱"
+          }
+        }
+      }
+    },
     "修改对方" : {
       "localizations" : {
         "en" : {
