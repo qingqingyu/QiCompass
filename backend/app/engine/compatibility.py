@@ -171,8 +171,8 @@ def _assess_branch_harmony(
 
     统计 16 对里的合/冲/刑/害次数(不去重, 每对独立柱位关系), 按规则打标签:
     - 多冲少合: 冲次数 >= 2 且 冲 > 合
-    - 多合少冲: 合次数 >= 2 且 合 > 冲
-    - 多刑多害: 刑+害 >= 3
+    - 多刑多害: 刑+害 >= 3(先于多合少冲判——合不得掩盖刑害, 2026-10-07 修复)
+    - 多合少冲: 合次数 >= 2 且 合 > 冲+刑+害(合须压过全部负面关系, 非只压过冲)
     - 一冲一合: 冲 = 1 且 合 = 1
     - 略有冲刑害: 上述均不匹配但有冲/刑/害(单冲无合 / 单刑 / 单害 / 冲合均势等)
     - 无冲无刑: 冲+刑+害 = 0(纯中性或纯合)
@@ -220,13 +220,15 @@ def _assess_branch_harmony(
                         xing_count += 1
                         break
 
-    # 标签优先级(从重到轻)
+    # 标签优先级(从重到轻)。2026-10-07 修复: 刑害先于合判、"多合少冲"须合 >
+    # 冲+刑+害——旧序把「多合少冲」排在「多刑多害」前, 2合1冲1刑2害(设计稿
+    # 例盘)会被标成"整体合拍", 与同页刑害点名(子卯刑、寅巳刑害、午丑害)自相矛盾
     if chong_count >= 2 and chong_count > he_count:
         return "多冲少合"
-    if he_count >= 2 and he_count > chong_count:
-        return "多合少冲"
     if (xing_count + hai_count) >= 3:
         return "多刑多害"
+    if he_count >= 2 and he_count > chong_count + xing_count + hai_count:
+        return "多合少冲"
     if chong_count == 1 and he_count == 1:
         return "一冲一合"
     if chong_count == 0 and xing_count == 0 and hai_count == 0:

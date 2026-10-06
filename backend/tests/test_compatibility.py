@@ -233,6 +233,56 @@ def test_assess_branch_harmony_equal_chong_he_falls_through():
         f"冲合均势应得 '略有冲刑害' 兜底, 实际={label}")
 
 
+def test_assess_branch_harmony_he_must_not_mask_xinghai():
+    """回归(2026-10-07): 合不得掩盖刑害。
+
+    设计稿例盘(A 甲子/丁卯/甲寅/庚午, B 己巳/庚午/丁卯/辛丑)16 对计:
+    合2(子丑、寅午半) / 冲1(子午) / 刑1(子卯) / 害2(寅巳、午丑)。
+    旧判定序把「多合少冲」排在「多刑多害」前 → 被标"整体合拍小摩擦",
+    与同页刑害点名(子卯刑、寅巳刑害、午丑害)自相矛盾; 修复后刑+害=3≥3
+    → 「多刑多害」。(计数口径: 引擎按先命中先计, 寅巳在相害表先命中只记
+    「害」一次, 故 刑1+害2=3 而非命理口径的双记 4。)
+    """
+    a = {
+        "year": PillarRef(gan="甲", zhi="子"),
+        "month": PillarRef(gan="丁", zhi="卯"),
+        "day": PillarRef(gan="甲", zhi="寅"),
+        "hour": PillarRef(gan="庚", zhi="午"),
+    }
+    b = {
+        "year": PillarRef(gan="己", zhi="巳"),
+        "month": PillarRef(gan="庚", zhi="午"),
+        "day": PillarRef(gan="丁", zhi="卯"),
+        "hour": PillarRef(gan="辛", zhi="丑"),
+    }
+    label = _assess_branch_harmony(a, b)
+    assert label == "多刑多害", (
+        f"2合1冲1刑2害应显刑害(合不得掩盖), 实际={label}")
+
+
+def test_assess_branch_harmony_he_dominates_all_negatives():
+    """正向锁定(2026-10-07): 「多合少冲」须合 > 冲+刑+害总和, 非只压过冲。
+
+    本例 合5(子丑、辰酉、寅亥、寅戌半、午戌半) / 冲1(辰戌) / 害1(午丑)
+    → 5 > 2 → 多合少冲(带负面关系的正向盘不被误降级)。
+    """
+    a = {
+        "year": PillarRef(gan="甲", zhi="子"),
+        "month": PillarRef(gan="甲", zhi="辰"),
+        "day": PillarRef(gan="甲", zhi="寅"),
+        "hour": PillarRef(gan="甲", zhi="午"),
+    }
+    b = {
+        "year": PillarRef(gan="甲", zhi="丑"),
+        "month": PillarRef(gan="甲", zhi="酉"),
+        "day": PillarRef(gan="甲", zhi="亥"),
+        "hour": PillarRef(gan="甲", zhi="戌"),
+    }
+    label = _assess_branch_harmony(a, b)
+    assert label == "多合少冲", (
+        f"合5 > 冲+刑+害=2 应多合少冲, 实际={label}")
+
+
 # ===== 端到端:模式 A(零排盘) =====
 
 def test_mode_a_end_to_end_hash_stable():

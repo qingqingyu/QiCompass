@@ -44,48 +44,9 @@ final class CompatibilityRelationDetailTests: XCTestCase {
         ]
     }
 
-    // MARK: 日主卡
-
-    func test日主_相生_生成方元素在前() {
-        let term = CompatibilityRelationDetailBuilder.make(pillars: boardChart).dayMaster
-        // A=甲木 B=丁火,木生火(zh 设备;en 变体含 "feeds")
-        let isZh = AppLanguage.current.isChinese
-        if isZh {
-            XCTAssertEqual(term, "甲遇丁 · 木生火")
-        } else {
-            XCTAssertEqual(term?.contains("feeds"), true)
-        }
-    }
-
-    func test日主_同气() {
-        let chart = boardChart
-        let day = pillar(L10n.Compatibility.dualDayPillar,
-                         "甲", "寅", "wood", "wood",
-                         "乙", "卯", "wood", "wood")
-        var mutated = chart
-        mutated[2] = day
-        let term = CompatibilityRelationDetailBuilder.make(pillars: mutated).dayMaster
-        if AppLanguage.current.isChinese {
-            XCTAssertEqual(term, "甲遇乙 · 同为木")
-        } else {
-            XCTAssertEqual(term?.contains("both"), true)
-        }
-    }
-
-    func test日主_相克_克方元素在前() {
-        var mutated = boardChart
-        mutated[2] = pillar(L10n.Compatibility.dualDayPillar,
-                            "甲", "寅", "wood", "wood",
-                            "戊", "辰", "earth", "earth")
-        let term = CompatibilityRelationDetailBuilder.make(pillars: mutated).dayMaster
-        if AppLanguage.current.isChinese {
-            XCTAssertEqual(term, "甲遇戊 · 木克土")
-        } else {
-            XCTAssertEqual(term?.contains("controls"), true)
-        }
-    }
-
     // MARK: 生肖卡
+    // (日主卡点名已删,2026-10-07:方向短语归双盘中轴独占,评估卡回落枚举——
+    //  一屏不说两遍;方向派生见 DayMasterRelationPhraseTests)
 
     func test生肖_年支动物() {
         let term = CompatibilityRelationDetailBuilder.make(pillars: boardChart).zodiac
@@ -105,8 +66,10 @@ final class CompatibilityRelationDetailTests: XCTestCase {
         if AppLanguage.current.isChinese {
             XCTAssertEqual(term, "对方多 土 · 你多 木")
         } else {
-            XCTAssertEqual(term?.contains("Partner brings Earth"), true)
-            XCTAssertEqual(term?.contains("You bring Wood"), true)
+            // 2026-10-07 措辞修正:"brings" 读作"对方是土命"(与右侧丁火日主打架),
+            // 改 "has more" 纯盘面字数陈述
+            XCTAssertEqual(term?.contains("Partner has more Earth"), true)
+            XCTAssertEqual(term?.contains("You have more Wood"), true)
         }
     }
 
@@ -240,19 +203,12 @@ final class CompatibilityRelationDetailTests: XCTestCase {
             ganB: nil, zhiB: nil, nayinB: nil, ganElementB: nil, zhiElementB: nil
         )
         let detail = CompatibilityRelationDetailBuilder.make(pillars: chart)
-        // 日主/生肖/年月日支照派;时支对(庚午/辛丑 → 午丑害)不再出现
-        if AppLanguage.current.isChinese {
-            XCTAssertEqual(detail.dayMaster, "甲遇丁 · 木生火")
-        } else {
-            XCTAssertEqual(detail.dayMaster?.contains("甲"), true)
-            XCTAssertEqual(detail.dayMaster?.contains("feeds"), true)
-        }
+        // 生肖/年月日支照派;时支对(庚午/辛丑 → 午丑害)不再出现
         XCTAssertEqual(detail.frictionPairs, ["子卯刑", "寅巳刑害"])
     }
 
     func test空盘_全nil不猜() {
         let detail = CompatibilityRelationDetailBuilder.make(pillars: [])
-        XCTAssertNil(detail.dayMaster)
         XCTAssertNil(detail.fiveElements)
         XCTAssertNil(detail.zodiac)
         XCTAssertNil(detail.branch)

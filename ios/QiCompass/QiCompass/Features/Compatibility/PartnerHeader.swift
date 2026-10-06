@@ -39,13 +39,17 @@ struct RosterSelfLockBanner: View {
 // MARK: - 人物牌头(P2)
 
 /// 结果壳头部人物牌(P1 结果页主页化,2026-09-29):
-/// 左「我」(日主 + 生日,纯展示;命主无时辰显「补时辰」入口,S07 语义)·
-/// 中「合」朱印 · 右对方牌(点击开换人 sheet,P3 原地刷新)。
+/// 左「你」(日主 + 生日,纯展示;命主无时辰显「补时辰」入口,S07 语义)·
+/// 右对方牌(点击开换人 sheet,P3 原地刷新)。
+///
+/// 2026-10-07:中缝「合」朱印移除——「一枚朱印」只留双盘表中轴一枚
+/// (此前顶部+中轴+列表卡三处同屏重复);两牌因此各得半宽,兜底名
+/// 「对方 · 日期」不再截断。换人重盖动效由内容区 `.id(compatibilityHash)`
+/// 重建承接(whole-view ink-in + 中轴印自然重播)。
 ///
 /// 视觉约束(DESIGN.md):容器无底色、底部 hairline 收边(卡片让位 hairline);
 /// 对方牌可点区域 hairline 描边圆角矩形,**不用 Capsule**;无对方 = dashed
-/// hairline 占位(临时态);日主字按五行着色(BaziTheme.elementColor);
-/// 朱红只出现在「合」印章(SealStamp 授权场景)。
+/// hairline 占位(临时态);日主字按五行着色(BaziTheme.elementColor)。
 struct PartnerHeader: View {
     let me: PartnerDisplay
     let partner: PartnerDisplay?
@@ -55,17 +59,11 @@ struct PartnerHeader: View {
     let onTapPartner: () -> Void
     /// 命主无时辰时的补时辰入口(nil 无宿主不渲染)。
     var onAddSelfHour: (() -> Void)? = nil
-    /// 「合」印重盖标识(S4 换人动效):随当前对方 entry id 变化 → .id 变 →
-    /// SealStamp 重建重播 stamp(1.9→1 spring);冷启动/首次渲染也自然播一次。
-    /// 传 entryID(而非 compatibilityHash)——推演态→结果态同 pair 不重播。
-    var stampID: String = ""
 
     var body: some View {
         HStack(alignment: .center, spacing: 12) {
             meCard
                 .frame(maxWidth: .infinity, alignment: .leading)
-            SealStamp(character: "合", size: 26, rotation: -4)
-                .id(stampID)
             partnerCard
                 .frame(maxWidth: .infinity, alignment: .trailing)
         }
@@ -100,7 +98,9 @@ struct PartnerHeader: View {
                         Text("›")
                     }
                     .font(BaziFont.caption(size: 10.5))
-                    .tracking(1.5)
+                    // EN "Add hour" 混排不带字距(大字距只留给全大写,
+                    // DESIGN.md 09-28;先例同 PairSummaryCard,2026-10-07)
+                    .tracking(AppLanguage.current.isChinese ? 1.5 : 0)
                     .foregroundStyle(BaziTheme.inkMuted)
                 }
                 .buttonStyle(.plain)
@@ -191,10 +191,13 @@ struct PartnerHeader: View {
 
     /// 副行两行式(#1,2026-10-01):「日主 X」一行 + 生日一行(单行式在窄屏
     /// 会截日期,被截的恰是关键信息)。无生日只显日主行;日期走 tabular-nums。
+    /// 日主行 lineLimit(2026-10-07):EN "Day Master 丁" 挤压时折两行
+    /// 破坏两牌副行对齐,单行兜底。
     private func subline(_ person: PartnerDisplay) -> some View {
         let gan = person.dayMaster.flatMap { $0.isEmpty ? nil : $0 } ?? "—"
         return VStack(alignment: .leading, spacing: 2) {
             Text(String(format: String(localized: "日主 %@"), gan))
+                .lineLimit(1)
             if let date = person.birthDateString {
                 Text(date)
                     .monospacedDigit()
