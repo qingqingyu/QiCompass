@@ -1569,6 +1569,7 @@ final class CompatibilityViewModel {
         // 规则版本门(2026-10-07):快照按旧引擎规则算出(含老快照 nil)→ 不得
         // 复用,落穿 API 重算(upsert 覆盖自愈)——合冲判定序变更后老标签
         // 不得与新刑害点名同屏自相矛盾
+        var staleSnapshot: CompatibilitySnapshot?
         if let bHash = entry.resolvedContentHash {
             let canonicalKey = CompatibilitySnapshotStore.canonicalKey(
                 aHash: aHash, bHash: bHash, context: contextValue
@@ -1586,6 +1587,7 @@ final class CompatibilityViewModel {
                         )
                     }
                     // 快照按旧引擎规则算出(含老快照 nil)→ 落穿 API 重算
+                    staleSnapshot = existing
                     AppLogger.app.info(
                         "op=compatibility.computePair.rule_version_stale canonicalKey=\(canonicalKey, privacy: .public) snapshot=\(existing.engineRuleVersion.map(String.init) ?? "nil", privacy: .public) expected=\(CompatibilitySnapshotStore.expectedEngineRuleVersion, privacy: .public) — 落穿 API 重算"
                     )
@@ -1636,10 +1638,28 @@ final class CompatibilityViewModel {
             bSnapshotForUI = nil
         }
 
-        let result = try await orchestrator.runDeterministic(
-            request: request,
-            personAHash: chartA.snapshotHash
-        )
+        let result: CompatibilityOrchestrator.DeterministicResult
+        do {
+            result = try await orchestrator.runDeterministic(
+                request: request,
+                personAHash: chartA.snapshotHash
+            )
+        } catch {
+            // 规则重算失败回落旧快照(2026-10-07 review):stale 快照本地仍有
+            // 完整旧标签——升级后离线/后端暂不可用时,回退显示旧结果(openDetail
+            // 后台重算 + 下轮 compute 预查联网自愈),优于整对失败卡。
+            // 取消不回落(旧对取消须作废),真错误显式留痕不吞。
+            if Task.isCancelled { throw error }
+            guard let existing = staleSnapshot, let staleBHash = entry.resolvedContentHash else {
+                throw error
+            }
+            AppLogger.app.error(
+                "op=compatibility.computePair.rule_refresh_failed_fallback b_hash=\(staleBHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 回落旧规则快照(联网后自愈重算)"
+            )
+            return try rebuildSummaryFromCache(
+                entry: entry, bHash: staleBHash, snapshot: existing
+            )
+        }
 
         // 模式 B:B snapshot 是新隐式落地的,从 chartStore 取回
         if bSnapshotForUI == nil {
@@ -1755,7 +1775,13 @@ final class CompatibilityViewModel {
                 calcRuleSnapshot: nil,
                 ruleVersion: snapshot.engineRuleVersion
             )
-            state = .detail(summary, response, .idle)
+            // 在飞重进显示生成中(2026-10-07 review):本对解读仍在飞(豁免
+            // 重生成被换出后再进)→ 初始 .fetching 而非 .idle——否则生成期间
+            // 页面渲染空闲/达限卡,既误导也让在飞守卫的静默变成"卡死"观感
+            let initialInterpretState: InterpretState =
+                interpretInFlight?.compatHash == summary.compatibilityHash
+                ? .fetching : .idle
+            state = .detail(summary, response, initialInterpretState)
         } catch {
             AppLogger.persistence.error(
                 "op=compatibility.openDetail decode_failed hash=\(summary.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
@@ -1780,11 +1806,12 @@ final class CompatibilityViewModel {
         // (离线也有内容),此处后台重算;落定且仍在本对时原位刷新。
         // 常规入口是 computePair 预查(每轮 compute 全量过),此处只兜
         // openDetail 直达而预查未及的边缘。
+        var pendingEngineRefresh: Task<Void, Never>? = nil
         if !CompatibilitySnapshotStore.isFreshEngineRule(snapshot) {
             AppLogger.app.info(
                 "op=compatibility.openDetail.rule_version_stale hash=\(summary.compatibilityHash, privacy: .public) snapshot=\(snapshot.engineRuleVersion.map(String.init) ?? "nil", privacy: .public) expected=\(CompatibilitySnapshotStore.expectedEngineRuleVersion, privacy: .public) — 渲染旧值并后台重算"
             )
-            refreshStaleEngineAssessment(for: summary)
+            pendingEngineRefresh = refreshStaleEngineAssessment(for: summary)
         }
         let summaryHash = summary.compatibilityHash
         cacheReadTask = Task { [weak self] in
@@ -1888,6 +1915,12 @@ final class CompatibilityViewModel {
             // 自动解读(#13):缓存未命中且次数未耗尽 → 起链(每对至多一次,
             // openDetail 是 .idle 的唯一入口;换到已解读过的对会先命中上面的缓存)
             guard !Task.isCancelled, !cacheHit else { return }
+            // 引擎重算先行(2026-10-07 review):stale 快照的后台重算未落定前
+            // 不起自动生成——否则生成把旧标签写进 prompt,完成回写还会把刚
+            // 刷新的评估卡覆盖回旧标签(重算与自动生成并发竞态)。缓存命中
+            // 展示不受此等(标签与译文同源旧规则,取舍④口径)。
+            if let pendingEngineRefresh { await pendingEngineRefresh.value }
+            guard !Task.isCancelled else { return }
             self.autoGenerateInterpretationIfIdle(summaryID: summary.id)
         }
     }
@@ -1896,17 +1929,20 @@ final class CompatibilityViewModel {
     /// (runDeterministic 内含 upsert 覆盖)落定且仍在本对 detail 时原位刷新
     /// 评估卡;换对/退出则只留库(下轮 compute 预查自然取新)。失败留痕不吞,
     /// 不打断已渲染的旧内容。
-    private func refreshStaleEngineAssessment(for summary: PairSummary) {
+    /// 返回本次创建的重算任务;早退(A 盘缺失,注定无法重算)返回 nil——调用方
+    /// (openDetail 的 pendingEngineRefresh)据此决定是否等重算落定再起自动
+    /// 生成,不得读 `engineRefreshTask` 猜(早退时那是刚被 cancel 的旧任务)。
+    private func refreshStaleEngineAssessment(for summary: PairSummary) -> Task<Void, Never>? {
         guard let chartA = archivedCharts[safe: selectedChartAIndex] else {
             AppLogger.persistence.error(
                 "op=compatibility.refreshStaleEngineAssessment skip reason=a_snapshot_missing hash=\(summary.compatibilityHash, privacy: .public)"
             )
-            return
+            return nil
         }
         engineRefreshTask?.cancel()
         let contextValue = self.context
         let summaryID = summary.id
-        engineRefreshTask = Task { [weak self] in
+        let task = Task<Void, Never> { [weak self] in
             guard let self else { return }
             do {
                 let baziA = try self.chartStore.decodeResponse(from: chartA.snapshot)
@@ -1968,6 +2004,8 @@ final class CompatibilityViewModel {
                 }
             }
         }
+        engineRefreshTask = task
+        return task
     }
 
     /// 进入 detail 后的自动起链守卫:仍在本对的 .idle 态且次数未耗尽才触发。
@@ -2088,14 +2126,22 @@ final class CompatibilityViewModel {
             return
         }
         let compatHash = summary.compatibilityHash
+        // Bug5:记录本次豁免语义(失败态重试经 retryInterpretation 按对透传)。
+        // 提升到快照守卫之前(2026-10-07 review):提前 return 的失败路径也要
+        // 能 settle 结局——否则豁免链结局键停留 .interrupted,重进每轮空转
+        // "翻译→原文过期→重新生成→本地失败"
+        exemptAttemptCompatHash = quotaExempt ? compatHash : nil
         guard let chartASnapshot = archivedCharts[safe: selectedChartAIndex]?.snapshot,
               let bSnapshot = try? chartStore.get(contentHash: summary.personBHash) else {
+            // 豁免链提前失败也记 .failed(重开恢复走手动重试,不空转)
+            settleExemptRegenOutcomeIfCurrent(
+                compatHash: compatHash,
+                attemptKey: compatHash + "|" + AppLanguage.currentWire
+            )
             state = .detail(summary, response, .failed(message: String(localized: "命盘快照缺失,请重新合盘")))
             return
         }
 
-        // Bug5:记录本次豁免语义(失败态重试经 retryInterpretation 按对透传)
-        exemptAttemptCompatHash = quotaExempt ? compatHash : nil
         // 在飞标记(#2 修复):重进同对时 cacheReadTask 据此抑制翻译/重复起链
         let inFlightToken = UUID()
         interpretInFlight = (compatHash, inFlightToken)
@@ -2142,6 +2188,9 @@ final class CompatibilityViewModel {
                     AppLogger.app.warning(
                         "op=compatibility.generateInterpretation.skip reason=hour_unknown a_gate=\(String(describing: inputs.baziA.hourUnknownGate), privacy: .public) b_gate=\(String(describing: inputs.baziB.hourUnknownGate), privacy: .public) compatibilityHash=\(compatHash, privacy: .public)"
                     )
+                    // 豁免链提前失败记 .failed(2026-10-07 review):不 settle 会
+                    // 让结局键停留 .interrupted,重进每轮空转翻译→重生成→拦截
+                    self.settleExemptRegenOutcomeIfCurrent(compatHash: compatHash, attemptKey: attemptKey)
                     self.state = .detail(
                         summary, response,
                         .failed(message: L10n.PaywallGate.compatibilityReason)
@@ -2180,9 +2229,10 @@ final class CompatibilityViewModel {
                 // computeTask 但不取消 interpretTask)——旧对的完成/失败不得覆写
                 // 新对的 detail 态。镜像 openDetail cacheReadTask 的 summary.id
                 // 守卫;非 detail 态(computing 等)同判陈旧(被换走即不再回写)。
-                guard case .detail(let current, _, _) = self.state,
-                      current.id == summary.id
-                else {
+                // 回写取**当前** state 的 response(2026-10-07 review):await
+                // 期间引擎规则重算可能已原位刷新评估卡,用链起跑时捕获的旧
+                // response 回写会把卡片覆盖回旧标签。
+                guard let (current, currentResponse) = self.currentDetailIfMatches(summary) else {
                     AppLogger.app.info(
                         "compatVM.generateInterpretation.stale_completion_skip compatibilityHash=\(compatHash, privacy: .public) state=\(String(describing: self.state), privacy: .public)"
                     )
@@ -2192,39 +2242,55 @@ final class CompatibilityViewModel {
                 let newState: InterpretState = hasEntitlement
                     ? .okPaid(text: resp.interpretation, cached: resp.cached)
                     : .okFree(text: resp.interpretation, cached: resp.cached)
-                self.state = .detail(summary, response, newState)
+                self.state = .detail(current, currentResponse, newState)
 
                 // 解读成功 → 同步刷新 summaries 中该对的 isInterpreted
                 // (返回 list 时卡片立刻显示「已解读」标记)
-                self.markSummaryInterpreted(id: summary.id)
+                self.markSummaryInterpreted(id: current.id)
             } catch let error as CompatibilityError {
                 // 豁免链真失败落定先于 UI 态守卫(2026-10-07 review 修复):用户
                 // 已离开该对时失败同样要记 .failed + 清在飞语义——修复前只在
                 // canWriteInterpretState 通过时才 settle,离开时失败让结局键停留
                 // .interrupted,之后每次重进都重复"翻译→原文过期→重生成"循环
                 self.settleExemptRegenOutcomeIfCurrent(compatHash: compatHash, attemptKey: attemptKey)
-                if !Task.isCancelled, self.canWriteInterpretState(summary: summary) {
-                    self.state = .detail(summary, response, .failed(message: error.errorDescription ?? L10n.Common.unknownError))
+                if !Task.isCancelled, let (current, currentResponse) = self.currentDetailIfMatches(summary) {
+                    self.state = .detail(current, currentResponse, .failed(message: error.errorDescription ?? L10n.Common.unknownError))
                 }
             } catch let error as DeepAnalysisError {
                 self.settleExemptRegenOutcomeIfCurrent(compatHash: compatHash, attemptKey: attemptKey)
-                if !Task.isCancelled, self.canWriteInterpretState(summary: summary) {
+                if !Task.isCancelled, let (current, currentResponse) = self.currentDetailIfMatches(summary) {
                     if case .dailyLimitReached(let reset, _) = error {
-                        self.state = .detail(summary, response, .dailyLimitReached(nextReset: reset))
+                        self.state = .detail(current, currentResponse, .dailyLimitReached(nextReset: reset))
                     } else {
-                        self.state = .detail(summary, response, .failed(message: error.errorDescription ?? L10n.Common.unknownError))
+                        self.state = .detail(current, currentResponse, .failed(message: error.errorDescription ?? L10n.Common.unknownError))
                     }
                 }
             } catch is CancellationError {
                 return
             } catch {
+                // 取消分诊(2026-10-07 双 review):URLSession 取消抛
+                // URLError(.cancelled),不进 is CancellationError 分支;而 settle
+                // .failed 原先排在取消判定之前——用户取消(换人移出 clearDetail /
+                // 新链 cancel)被记成真失败,重进只剩手动重试条(假「翻译失败」,
+                // mock 抛 CancellationError 所以测试不可见)。取消保持 .interrupted
+                // (豁免链起跑标记),重开自动续。
+                // 三查补漏:APIClient 把 session.data 的所有 URLError 包装成
+                // APIError.networkError 再抛,裸 URLError 转型在真实网络路径永不
+                // 命中——须同时解包 APIError.networkError,否则分诊只剩
+                // Task.isCancelled 一条腿(session 失效等不经 Task 取消的场景漏网)。
+                if Task.isCancelled || Self.isURLErrorCancelled(error) {
+                    AppLogger.app.info(
+                        "compatVM.generateInterpretation.cancelled compatibilityHash=\(compatHash, privacy: .public) — 记 interrupted,不落 failed"
+                    )
+                    return
+                }
                 self.settleExemptRegenOutcomeIfCurrent(compatHash: compatHash, attemptKey: attemptKey)
-                if !Task.isCancelled, self.canWriteInterpretState(summary: summary) {
+                if let (current, currentResponse) = self.currentDetailIfMatches(summary) {
                     let userError = UserFacingError.from(error, stage: .interpret)
                     if case .dailyLimitReached(let reset) = userError {
-                        self.state = .detail(summary, response, .dailyLimitReached(nextReset: reset))
+                        self.state = .detail(current, currentResponse, .dailyLimitReached(nextReset: reset))
                     } else {
-                        self.state = .detail(summary, response, .failed(message: userError.errorDescription ?? L10n.Common.unknownError))
+                        self.state = .detail(current, currentResponse, .failed(message: userError.errorDescription ?? L10n.Common.unknownError))
                     }
                 }
             }
@@ -2257,12 +2323,29 @@ final class CompatibilityViewModel {
         autoTranslationOutcomes[attemptKey] = .failed
     }
 
-    /// 解读 Task 失败回写守卫(与成功分支的陈旧完成守卫同语义):
-    /// 当前态仍是该对的 detail 才允许写;await 期间换对(computing / 别对
-    /// detail / 非 detail)→ 陈旧失败不得覆写新对 UI。
-    private func canWriteInterpretState(summary: PairSummary) -> Bool {
-        guard case .detail(let current, _, _) = state else { return false }
-        return current.id == summary.id
+    /// 解读/翻译 Task 回写守卫(2026-10-07 review 升级,原 canWriteInterpretState):
+    /// 当前态仍是该对的 detail 才允许回写,并返回**当前** state 的
+    /// summary/response——链起跑时捕获的旧 response 不得回写 UI:await 期间
+    /// 引擎规则重算(refreshStaleEngineAssessment)可能已原位刷新评估卡,
+    /// 旧 response 回写会把卡片覆盖回旧标签。await 期间换对(computing /
+    /// 别对 detail / 非 detail)→ 陈旧完成不得覆写新对 UI,返回 nil。
+    private func currentDetailIfMatches(
+        _ summary: PairSummary
+    ) -> (summary: PairSummary, response: CompatibilityResponse)? {
+        guard case .detail(let current, let currentResponse, _) = state,
+              current.id == summary.id else { return nil }
+        return (current, currentResponse)
+    }
+
+    /// URL 层取消判定(2026-10-07 三查补漏):APIClient 会把 session.data 的
+    /// URLError 包装成 `APIError.networkError` 抛出,裸 URLError 转型只覆盖
+    /// 未经过网络栈包装的路径——两层都判,取消分诊才不依赖
+    /// `Task.isCancelled` 单腿(请求被非 Task 机制取消时同样按中断处理)。
+    private static func isURLErrorCancelled(_ error: Error) -> Bool {
+        if case .networkError(let urlError)? = error as? APIError {
+            return urlError.code == .cancelled
+        }
+        return (error as? URLError)?.code == .cancelled
     }
 
     // MARK: - 跨语言翻译执行(D10.4/D10.5,S7)
@@ -2290,6 +2373,11 @@ final class CompatibilityViewModel {
         translationFailed = false
         cacheReadTask?.cancel()
         interpretTask?.cancel()
+        // 在飞标记同步清(code-review P2):cancel 后旧链 catch/defer 要等网络
+        // 取消错误传回 MainActor 才收口(毫秒窗口),窗口内 openDetail 的
+        // .fetching 初始态与两处守卫会读到僵尸标记——同对重进卡永久转圈。
+        // 此处置 nil 闭合窗口;旧链 defer 的 token 比对(nil ≠ token)天然不误伤。
+        interpretInFlight = nil
         translateTask = Task { [weak self] in
             guard let self else { return }
             defer { self.isTranslating = false }
@@ -2324,7 +2412,7 @@ final class CompatibilityViewModel {
                 // 覆写新对 state。openDetail 虽同步 cancel + MainActor 串行使
                 // isCancelled 检查已够,守卫对不取消路径承载真实负载。仍在本对
                 // detail 才允许回写。
-                guard self.canWriteInterpretState(summary: summary) else {
+                guard let (current, currentResponse) = self.currentDetailIfMatches(summary) else {
                     self.autoTranslationOutcomes[attemptKey] = .interrupted
                     AppLogger.app.info(
                         "compatVM.acceptTranslation.stale_completion_skip compatibilityHash=\(compatHash, privacy: .public)"
@@ -2340,8 +2428,8 @@ final class CompatibilityViewModel {
                     ? .okPaid(text: resp.interpretation, cached: resp.cached)
                     : .okFree(text: resp.interpretation, cached: resp.cached)
                 self.translationOffer = nil
-                self.state = .detail(summary, response, newState)
-                self.markSummaryInterpreted(id: summary.id)
+                self.state = .detail(current, currentResponse, newState)
+                self.markSummaryInterpreted(id: current.id)
                 // 译完收口:结局键清除——未来同键新提议(如再次版本 bump)可重新
                 // 自动翻译
                 self.autoTranslationOutcomes.removeValue(forKey: attemptKey)
@@ -2364,7 +2452,7 @@ final class CompatibilityViewModel {
                     "compatVM.acceptTranslation.failed compatibilityHash=\(compatHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 原文与提示条保留"
                 )
                 if APIError.isStaleSource(error) {
-                    guard self.canWriteInterpretState(summary: summary) else {
+                    guard self.currentDetailIfMatches(summary) != nil else {
                         self.autoTranslationOutcomes[attemptKey] = .interrupted
                         return
                     }
@@ -2382,8 +2470,9 @@ final class CompatibilityViewModel {
                     self.generateInterpretation(quotaExempt: true)
                     return
                 }
-                // 同上:失败回写也须仍在本对 detail(换对后旧对失败态不得覆写)
-                guard self.canWriteInterpretState(summary: summary) else { return }
+                // 同上:失败回写也须仍在本对 detail(换对后旧对失败态不得覆写),
+                // 且用当前 state 的 response(引擎重算落定后不得覆写回旧标签)
+                guard let (current, currentResponse) = self.currentDetailIfMatches(summary) else { return }
                 let hasEntitlement = self.entitlementStore.getActive(
                     contentHash: compatHash,
                     module: EntitlementModule.compatibility,
@@ -2396,7 +2485,7 @@ final class CompatibilityViewModel {
                 // 结局记 .failed(重开恢复提示条走手动)
                 self.translationFailed = true
                 self.autoTranslationOutcomes[attemptKey] = .failed
-                self.state = .detail(summary, response, restored)
+                self.state = .detail(current, currentResponse, restored)
             }
         }
     }
@@ -2428,6 +2517,10 @@ final class CompatibilityViewModel {
     func clearDetailKeepRoster() {
         computeTask?.cancel()
         interpretTask?.cancel()
+        // 在飞标记同步清(code-review P2,同 acceptTranslation):cancel 后旧链
+        // catch/defer 收口有毫秒窗口,窗口内重进同对会被 openDetail 的 .fetching
+        // 初始态 + 在飞守卫判成「生成中」而实际无任务在跑(永久转圈)。
+        interpretInFlight = nil
         cacheReadTask?.cancel()
         translateTask?.cancel()
         engineRefreshTask?.cancel()

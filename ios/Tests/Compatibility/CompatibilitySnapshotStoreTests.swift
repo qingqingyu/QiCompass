@@ -268,6 +268,45 @@ final class CompatibilitySnapshotStoreTests: XCTestCase {
         XCTAssertEqual(found?.compatibilityHash, canonicalKey)
     }
 
+    // MARK: - 引擎规则版本门(2026-10-07)
+
+    /// isFreshEngineRule 四态锁定:比较语义必须是 **`>=` 而非 `==`**——后端先
+    /// bump(正常部署序)时,新规则快照(version > expected)对未更新的在野
+    /// 客户端必须判新鲜;`==` 会让全部在野客户端对该快照每开必重算、永不收敛
+    /// (离线时全打不开)。老快照 nil / version < expected → 判旧须重算。
+    @MainActor
+    func testIsFreshEngineRule_四态_大于等于比较语义() throws {
+        let expected = CompatibilitySnapshotStore.expectedEngineRuleVersion
+
+        func makeSnapshot(ruleVersion: Int?) -> CompatibilitySnapshot {
+            CompatibilitySnapshot(
+                compatibilityHash: "rv_\(ruleVersion.map(String.init) ?? "nil")",
+                personAHash: "a", personBHash: "b", context: "general",
+                qualitativeAssessment: Data(),
+                syncedFortune: Data(),
+                interpretation: nil,
+                engineRuleVersion: ruleVersion
+            )
+        }
+
+        XCTAssertFalse(
+            CompatibilitySnapshotStore.isFreshEngineRule(makeSnapshot(ruleVersion: nil)),
+            "nil(2026-10-07 规则版本列引入前的老快照)必须判旧,落穿重算"
+        )
+        XCTAssertFalse(
+            CompatibilitySnapshotStore.isFreshEngineRule(makeSnapshot(ruleVersion: expected - 1)),
+            "version < expected(旧规则算出)必须判旧,落穿重算"
+        )
+        XCTAssertTrue(
+            CompatibilitySnapshotStore.isFreshEngineRule(makeSnapshot(ruleVersion: expected)),
+            "version == expected 必须判新鲜(预查复用)"
+        )
+        XCTAssertTrue(
+            CompatibilitySnapshotStore.isFreshEngineRule(makeSnapshot(ruleVersion: expected + 1)),
+            "version > expected(后端先 bump 的部署窗口期)必须判新鲜,不得每开必重算"
+        )
+    }
+
     // MARK: - 辅助
 
     /// 直接用 ModelContext 插入快照(支持自定义 createdAt)。
