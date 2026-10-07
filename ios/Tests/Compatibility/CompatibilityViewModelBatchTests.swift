@@ -2328,6 +2328,209 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         await drainDetailBackgroundTasks()
     }
 
+    /// 🔴 第九轮 #1(重试绕过门):门失败(.failed)恰好把用户推向重试入口,
+    /// 修复前 retryInterpretation 直调 generateInterpretation——旧标签照样进
+    /// prompt。修复后重试过门:重算仍失败时零 interpret 请求 + .failed 透按对
+    /// 根因(离线 → 网络不可用文案);网络恢复后重试自愈(门内补发重算)。
+    func test重试_引擎规则过期_过门拦截不生成旧标签_网络恢复后自愈() async throws {
+        let summary = try makeStaleEngineRuleFixture(tag: "gateR1")
+        apiClient.compatibilityResponder = { _ in
+            throw APIError.networkError(URLError(.notConnectedToInternet))
+        }
+        vm.openDetail(summary)
+        let gateFailed = await waitForInterpretState { state in
+            if case .failed = state { return true }
+            return false
+        }
+        XCTAssertTrue(gateFailed, "前置:自动链过门失败落 .failed(重试入口出现),实际:\(vm.state)")
+
+        // 重试:门拦截(重算仍离线),旧标签不得进 prompt
+        vm.retryInterpretation()
+        try? await Task.sleep(nanoseconds: 800_000_000)
+        if case .detail(_, _, .failed(let message)) = vm.state {
+            XCTAssertEqual(
+                message, L10n.Errors.networkTitle,
+                "门失败文案按对透根因(离线 → 网络不可用),实际:\(message)"
+            )
+        } else {
+            XCTFail("重试过门失败应保持 .failed,实际:\(vm.state)")
+        }
+        XCTAssertTrue(
+            apiClient.recordedInterpretRequests.isEmpty,
+            "重试同样受门限:重算未成不得生成(旧标签不进 prompt),实际 interpret=\(apiClient.recordedInterpretRequests.count)"
+        )
+
+        // 网络恢复:重试自愈(门内补发重算 → 过门 → 生成落地)
+        apiClient.compatibilityResponder = nil
+        vm.retryInterpretation()
+        let ok = await waitForInterpretState { state in
+            if case .okFree = state { return true }
+            return false
+        }
+        XCTAssertTrue(ok, "网络恢复后重试必须自愈(重算成功过门生成),实际:\(vm.state)")
+        await drainDetailBackgroundTasks()
+    }
+
+    /// 🔴 第九轮 #2(版本号不收敛不得拦死):重算**成功**但服务端版本仍落后
+    /// (部署倒挂 / 旧后端不回 rule_version)——标签已是服务端当前口径,门必须
+    /// 放行生成。修复前:verify 恒 false → 所有对(含购买回调)永久「未知错误」
+    /// 且不能自愈。三查追加断言:放行链的 prompt 与评估卡都必须携带**重算后**
+    /// 的服务端标签(state 原位刷新不以版本新鲜度为前置——否则放行论据
+    /// 「标签已是服务端当前口径」落空,旧本地标签照样进双层缓存)。
+    func test引擎门_重算成功但版本落后_放行生成不卡死() async throws {
+        let tag = "gateVL"
+        let summary = try makeStaleEngineRuleFixture(tag: tag)
+        // 重算成功但 ruleVersion 仍 1(< expected):模拟服务端版本落后
+        apiClient.compatibilityResponder = { _ in
+            CompatibilityResponse(
+                compatibilityHash: "mock_compat_\(tag)_a_\(tag)_b_general",
+                personAChart: nil, personBChart: nil,
+                qualitativeAssessment: QualitativeAssessmentDTO(
+                    fiveElements: "倒挂新版五行", dayMasterRelation: "倒挂新版关系",
+                    zodiacMatch: "倒挂六合", branchHarmony: "倒挂无冲"
+                ),
+                syncedFortune: [], calcRuleSnapshot: nil, ruleVersion: 1
+            )
+        }
+
+        vm.openDetail(summary)
+
+        let ok = await waitForInterpretState { state in
+            if case .okFree = state { return true }
+            return false
+        }
+        XCTAssertTrue(
+            ok,
+            "重算成功 + 版本落后(服务端当前口径)必须放行生成,不得永久拦截,实际:\(vm.state)"
+        )
+        XCTAssertEqual(
+            apiClient.recordedInterpretRequests.count, 1,
+            "恰好一次 interpret(放行后正常生成)"
+        )
+        // 放行链生成的 prompt 必须携带重算后的服务端标签(镜像 gateP2 断言)
+        if let req = apiClient.recordedInterpretRequests.first {
+            let contextJSON = try String(
+                decoding: JSONEncoder().encode(req.context), as: UTF8.self
+            )
+            XCTAssertTrue(
+                contextJSON.contains("倒挂新版五行"),
+                "版本落后放行时 prompt 必须携带重算后的服务端当前标签(state 已原位刷新),实际:\(contextJSON)"
+            )
+            XCTAssertFalse(
+                contextJSON.contains("旧版五行"),
+                "旧本地标签不得进放行链 prompt,实际:\(contextJSON)"
+            )
+        }
+        // 评估卡同样随重算原位刷新(卡与正文同源,不再 24h 错配)
+        if case .detail(_, let response, _) = vm.state {
+            XCTAssertEqual(
+                response.qualitativeAssessment.fiveElements, "倒挂新版五行",
+                "重算成功后评估卡必须原位刷新为服务端当前标签,实际:\(response.qualitativeAssessment.fiveElements)"
+            )
+        }
+        await drainDetailBackgroundTasks()
+    }
+
+    /// 🟠 第九轮 #3(达限卡被门失败覆盖):次数耗尽 + 规则过期时,门不看剩余
+    /// 次数直接写 .failed 会把「达限 + 购买」卡换掉。修复后耗尽维持 .idle
+    /// (UI 按 remainingReads 渲染达限卡),不过门、不写失败、零 interpret。
+    func test自动链_次数耗尽_维持idle达限卡不被门失败覆盖() async throws {
+        let summary = try makeStaleEngineRuleFixture(tag: "gateQ")
+        apiClient.compatibilityResponder = { _ in
+            throw APIError.networkError(URLError(.notConnectedToInternet))
+        }
+        while counter.tryConsume(module: "test_drain") {}
+        XCTAssertEqual(vm.remainingReads, 0, "前置:共享池已耗尽")
+
+        vm.openDetail(summary)
+        // 等待自动链走完(缓存 miss → 形态/门判定)
+        try? await Task.sleep(nanoseconds: 800_000_000)
+
+        if case .detail(_, _, let interpret) = vm.state {
+            guard case .idle = interpret else {
+                XCTFail("次数耗尽必须维持 .idle(UI 渲染达限卡),不得被门失败盖 .failed,实际:\(interpret)")
+                return
+            }
+        } else {
+            XCTFail("应保持 detail 态,实际:\(vm.state)")
+            return
+        }
+        XCTAssertTrue(
+            apiClient.recordedInterpretRequests.isEmpty,
+            "耗尽时不得发注定 dailyLimitReached 的生成,实际 interpret=\(apiClient.recordedInterpretRequests.count)"
+        )
+        await drainDetailBackgroundTasks()
+    }
+
+    /// 🟠 第九轮 #4(购买后生成任务无人管):购买回调的门 Task 不持有——门
+    /// 等待期退出再重进同对,自动链已起生成,旧购买门任务随后落定又调
+    /// generateInterpretation = 双 LLM + 双扣次数。修复后 interpretGateTask 被
+    /// clearDetail/openDetail 取消,只自动链一次生成。
+    func test购买回调_门等待期退出重进_不双起生成() async throws {
+        let summary = try makeStaleEngineRuleFixture(tag: "gateD")
+        // 直构 detail(购买回调形态;默认 mock 重算 300ms → 门处于等待期)
+        vm.state = .detail(summary, CompatibilityResponse(
+            compatibilityHash: summary.compatibilityHash,
+            personAChart: nil, personBChart: nil,
+            qualitativeAssessment: QualitativeAssessmentDTO(
+                fiveElements: "旧版五行", dayMasterRelation: "旧版关系",
+                zodiacMatch: "旧版生肖", branchHarmony: "旧版合冲"
+            ),
+            syncedFortune: [], calcRuleSnapshot: nil, ruleVersion: 1
+        ), .idle)
+
+        vm.generateInterpretationAfterPurchase()
+        // 门等待重算中(mock 300ms)→ 退出 detail(取消门任务)→ 重进同对
+        try? await Task.sleep(nanoseconds: 80_000_000)
+        vm.clearDetailKeepRoster()
+        vm.openDetail(summary)
+
+        let ok = await waitForInterpretState { state in
+            if case .okFree = state { return true }
+            return false
+        }
+        XCTAssertTrue(ok, "重进后自动链正常生成,实际:\(vm.state)")
+        // 让旧购买门任务的收尾窗口(等被取消的重算落定)跑完再断言
+        try? await Task.sleep(nanoseconds: 600_000_000)
+        XCTAssertEqual(
+            apiClient.recordedInterpretRequests.count, 1,
+            "旧购买门任务必须被取消:只自动链一次生成(修复前=双 LLM+双扣次)"
+        )
+        await drainDetailBackgroundTasks()
+    }
+
+    /// 🟠 第九轮 #4(在飞守卫):门等待期/购买时自动链已为本对起链(重进场景)
+    /// → 门过后的生成让位,不取消在飞链再扣一次配额。快照已新鲜时门读 store
+    /// 即短路,购买回调直达在飞守卫分支。
+    func test购买回调_自动链在飞_让位不重复起链() async throws {
+        let summary = try makeAutoGenFixture(tag: "gateF")
+        let readsBefore = vm.remainingReads
+        vm.openDetail(summary)
+        // 等自动链进入生成中(mock interpret 400ms 在飞窗口)
+        let fetching = await waitForInterpretState { state in
+            if case .fetching = state { return true }
+            return false
+        }
+        XCTAssertTrue(fetching, "前置:自动链已起生成(.fetching 在飞),实际:\(vm.state)")
+
+        vm.generateInterpretationAfterPurchase()
+
+        let ok = await waitForInterpretState { state in
+            if case .okFree = state { return true }
+            return false
+        }
+        XCTAssertTrue(ok, "在飞链落地即内容,实际:\(vm.state)")
+        XCTAssertEqual(
+            apiClient.recordedInterpretRequests.count, 1,
+            "购买回调让位在飞链:不得取消再起(修复前=双请求)"
+        )
+        XCTAssertEqual(
+            vm.remainingReads, readsBefore - 1,
+            "全程只消耗自动链那一次配额(购买回调不得再扣)"
+        )
+        await drainDetailBackgroundTasks()
+    }
+
     /// 🟠#4:非豁免生成只清**本对**豁免标记——X 对生成(含快照缺失提前
     /// return)不得把 Y 对待重试的豁免语义一并抹掉(修复前无条件置 nil,
     /// Y 的 .failed 重试退回扣次数)。

@@ -207,12 +207,22 @@ final class CompatibilityViewModel {
     /// 引擎规则版本失配快照的后台重算 task(2026-10-07;openDetail 触发,
     /// 落定后仍在本对则原位刷新评估卡)。
     private var engineRefreshTask: Task<Void, Never>?
+    /// 门内生成(runGatedGeneration)的 task(第九轮 review #4):手动重试 /
+    /// 购买回调先过引擎规则门再转 generateInterpretation,门等待期的 Task 必须
+    /// 持有——不持有 = 购买回调的 Task 无人管,退出/换对后与自动链并发双起
+    /// generateInterpretation(双 LLM + 双扣次数)。openDetail /
+    /// clearDetailKeepRoster 取消。
+    private var interpretGateTask: Task<Void, Never>?
 
-    /// 最近一次引擎重算(refreshStaleEngineAssessment)的失败;重算成功清
-    /// nil。引擎规则门拦下自动生成时用它透出真实根因(错误显式传播:不拿
-    /// 固定「网络不可用」冒充 500/解码失败)。Task 取消不记——那是换对,
-    /// 不是重算失败(2026-10-07 review #2)。
-    private var lastEngineRefreshError: Error?
+    /// 最近一次引擎重算(refreshStaleEngineAssessment)的**按对**结局;
+    /// 重算成功记 .success、真失败记 .failure,取消不记(那是换对,不是重算
+    /// 失败,2026-10-07 review #2)。引擎规则门拦下生成时按对透出真实根因
+    /// (错误显式传播:不拿固定「网络不可用」冒充 500/解码失败);第九轮
+    /// review #5:原全局单值会显示别对的错误、被别对的成功清掉,改按
+    /// compatibilityHash 键控。门尾还消费 .success 语义:重算成功而版本仍
+    /// 落后(部署倒挂/旧后端不回 rule_version)时放行生成(见
+    /// engineRuleBecameFresh 尾注)。
+    private var engineRefreshOutcomes: [String: Result<Void, Error>] = [:]
 
     // MARK: 跨语言翻译(D10.5,S7)
 
@@ -1654,15 +1664,15 @@ final class CompatibilityViewModel {
         } catch {
             // 规则重算失败回落旧快照(2026-10-07 review;同轮再修收窄):stale
             // 快照本地仍有完整旧标签——**离线/超时类**(isOfflineOrTimeout,
-            // 单一事实源 UserFacingError.isOffline)回落显示旧结果(openDetail
-            // 后台重算 + 下轮 compute 预查联网自愈),优于整对失败卡。
-            // 4xx/5xx/解码失败是后端真错误,回落旧标签 = 拿旧值掩盖失败
-            // (CLAUDE.md 错误显式传播禁止),必须显式失败卡。
+            // 单一事实源 UserFacingError.isOfflineOrTimeout)回落显示旧结果
+            // (openDetail 后台重算 + 下轮 compute 预查联网自愈),优于整对
+            // 失败卡。4xx/5xx/解码失败是后端真错误,回落旧标签 = 拿旧值掩盖
+            // 失败(CLAUDE.md 错误显式传播禁止),必须显式失败卡。
             // 取消不回落(旧对取消须作废)。
             if Task.isCancelled { throw error }
             guard let existing = staleSnapshot,
                   let staleBHash = entry.resolvedContentHash,
-                  Self.isOfflineOrTimeout(error) else {
+                  UserFacingError.isOfflineOrTimeout(error) else {
                 throw error
             }
             AppLogger.app.error(
@@ -1811,6 +1821,7 @@ final class CompatibilityViewModel {
         cacheReadTask?.cancel()
         translateTask?.cancel()
         engineRefreshTask?.cancel()
+        interpretGateTask?.cancel()
         isTranslating = false
         translationOffer = nil
         translationFailed = false
@@ -1932,14 +1943,22 @@ final class CompatibilityViewModel {
             // 门、也不写失败;门失败分支若在此形态盖 .failed 会丢原文展示。
             guard case .detail(let gateSummary, _, .idle) = self.state,
                   gateSummary.id == summary.id else { return }
+            // 次数耗尽前置于引擎规则门(第九轮 review #3):门不看剩余次数就
+            // 写 .failed 会把「达限 + 购买」卡换掉——耗尽时维持 .idle(UI 按
+            // remainingReads 渲染达限卡),不过门、不发注定 dailyLimitReached 的
+            // 生成(镜像 autoGenerateInterpretationIfIdle 的同款守卫)。
+            guard self.remainingReads > 0 else { return }
             // 引擎重算成门(2026-10-07 review 再修,原「只等待不看结果」):
-            // 重算失败或落定仍是旧版本时**不起自动生成**——旧标签会随 prompt
+            // 重算失败且快照仍未新鲜时**不起自动生成**——旧标签会随 prompt
             // 写进新生成的正文并落双层缓存,重算成功后评估卡换新标签、正文却
-            // 按旧标签滞后 24h,同屏自相矛盾。门未过 → 显式失败给重试入口
-            // (重试是用户显式触发,不受门限);.idle + 次数有余在 UI 渲染成
-            // 「推演中」,不写失败 = 死转圈。缓存命中展示不受此门(取舍④口径)。
-            // retryAfterDeadTask=false:本链 .failed 的重试不走门,补发重算
-            // 对自动链零收益(离线下只多打一个注定失败的请求)。
+            // 按旧标签滞后 24h,同屏自相矛盾。重算成功但版本号仍落后时放行
+            // (第九轮 #2:倒挂/旧后端不得拦死,见 engineRuleBecameFresh 尾注,
+            // state 已随重算原位刷新为服务端当前标签)。门未过 → 显式失败给
+            // 重试入口(重试同样过门,runGatedGeneration);.idle + 次数有余在
+            // UI 渲染成「推演中」,不写失败 = 死转圈。缓存命中展示不受此门
+            // (取舍④口径)。
+            // retryAfterDeadTask=false:自动链不复用死任务补发重算(离线下只
+            // 多打一个注定失败的请求,零收益;.failed 的重试走门,门内会补发)。
             let ruleFresh = await self.engineRuleBecameFresh(summary, retryAfterDeadTask: false)
             guard !Task.isCancelled else { return }
             guard ruleFresh else {
@@ -1950,15 +1969,10 @@ final class CompatibilityViewModel {
                     AppLogger.app.warning(
                         "op=compatibility.autoGenerate.deferred reason=engine_rule_stale hash=\(summaryHash, privacy: .public) — 重算未成,不把旧标签写进生成 prompt"
                     )
-                    let message: String
-                    if let refreshError = self.lastEngineRefreshError {
-                        message = UserFacingError.from(
-                            refreshError, stage: .compatibilityDeterministic
-                        ).errorDescription ?? L10n.Common.unknownError
-                    } else {
-                        message = L10n.Common.unknownError
-                    }
-                    self.state = .detail(current, currentResponse, .failed(message: message))
+                    self.state = .detail(
+                        current, currentResponse,
+                        .failed(message: self.engineGateFailureMessage(for: summaryHash))
+                    )
                 }
                 return
             }
@@ -1969,7 +1983,7 @@ final class CompatibilityViewModel {
     /// 引擎规则版本失配快照的后台重算(2026-10-07):旧值先渲染兜底,重算
     /// (runDeterministic 内含 upsert 覆盖)落定且仍在本对 detail 时原位刷新
     /// 评估卡;换对/退出则只留库(下轮 compute 预查自然取新)。失败留痕不吞
-    /// (并记入 lastEngineRefreshError 供引擎规则门透出根因),不打断已渲染
+    /// (并按对记入 engineRefreshOutcomes 供引擎规则门透出根因),不打断已渲染
     /// 的旧内容。
     /// 返回本次创建的重算任务;早退(A 盘缺失,注定无法重算)返回 nil。
     /// 调用方(openDetail / engineRuleBecameFresh)不得拿返回值当「重算成功」
@@ -2016,18 +2030,24 @@ final class CompatibilityViewModel {
                 _ = try await self.orchestrator.runDeterministic(
                     request: request, personAHash: chartA.snapshotHash
                 )
-                // 重算请求成功(失败/取消不适用):清根因记录,引擎规则门据此
-                // 放行;后续 verify 仍以 store 新鲜度为准(服务端仍回旧版时门
-                // 照样拦,这里只记录「网络层面没有失败」)
-                self.lastEngineRefreshError = nil
-                // 仍在本对 detail 才原位刷新;保留当前 interpretState(可能在飞)
+                // 重算请求成功(取消不适用——被取消的重算不落定任何语义):
+                // 按对记 .success,引擎规则门据此放行(版本仍落后时的处置见
+                // engineRuleBecameFresh 尾注);后续 verify 仍以 store 新鲜度为
+                // 准,这里只记录「网络层面没有失败」
+                self.engineRefreshOutcomes[summary.compatibilityHash] = .success(())
+                // 仍在本对 detail 才原位刷新;保留当前 interpretState(可能在飞)。
+                // 第九轮三查修正:刷新**不设 isFreshEngineRule 前置**——200 + upsert
+                // 落库后 store 内容就是服务端当前口径,版本号落后(expected 领先 =
+                // 部署倒挂/旧后端缺字段)不改变「内容是新的」;若跳过刷新,
+                // engineRuleBecameFresh 的 .success 放行会让生成 prompt 读 state
+                // 里的旧本地标签,放行论据「标签已是服务端当前口径」落空,倒挂
+                // 窗口内旧标签照样进双层缓存(与评估卡错配 24h)。
                 guard !Task.isCancelled,
                       case .detail(let current, _, let interpretState) = self.state,
                       current.id == summaryID,
                       let refreshed = try self.compatibilityStore.get(
                           compatibilityHash: summary.compatibilityHash
-                      ),
-                      CompatibilitySnapshotStore.isFreshEngineRule(refreshed)
+                      )
                 else { return }
                 let qualitative = try self.compatibilityStore.decodeQualitative(from: refreshed)
                 let synced = try self.compatibilityStore.decodeSyncedFortune(from: refreshed)
@@ -2045,7 +2065,7 @@ final class CompatibilityViewModel {
                 )
             } catch {
                 if !Task.isCancelled {
-                    self.lastEngineRefreshError = error
+                    self.engineRefreshOutcomes[summary.compatibilityHash] = .failure(error)
                     AppLogger.persistence.error(
                         "op=compatibility.refreshStaleEngineAssessment.failed hash=\(summary.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 保留旧渲染,下轮 compute 预查重算"
                     )
@@ -2056,14 +2076,23 @@ final class CompatibilityViewModel {
         return task
     }
 
-    /// 引擎规则门(2026-10-07 review #2/#3):自动生成 / STALE_SOURCE 豁免
-    /// 重生成共用的成门判定——本对快照规则版本过期时,等待(没有则发起)后台
-    /// 重算,返回**重算后快照是否已新鲜**。
+    /// 引擎规则门(2026-10-07 review #2/#3;第九轮 review #1/#2 再修):自动
+    /// 生成 / STALE_SOURCE 豁免重生成 / 手动重试 / 购买回调(runGatedGeneration)
+    /// 共用的成门判定——本对快照规则版本过期时,等待(没有则发起)后台重算,
+    /// 返回**重算后的快照可否作为生成依据**。
     ///
-    /// 只等待不看结果是假门(本轮修复的缺口):重算失败(离线/后端故障)或
-    /// 落定仍是旧版本时照常生成,旧标签随 prompt 写进正文并落双层缓存,重算
-    /// 成功后正文滞后 24h 与评估卡自相矛盾。门只拦**自动链**;用户手动重试是
-    /// 显式触发(离线自会失败),不拦。
+    /// 只等待不看结果是假门(第七轮修复的缺口):重算失败(离线/后端故障)时
+    /// 照常生成,旧标签随 prompt 写进正文并落双层缓存,重算成功后正文滞后 24h
+    /// 与评估卡自相矛盾。重算失败 → 拦,显式失败给重试入口(重试过门,门内
+    /// 补发重算自愈)。
+    ///
+    /// 第九轮 #2(版本号不收敛不得拦死):store 复验仍不新鲜、但本对最近一次
+    /// 重算**成功**时放行——runDeterministic 200 且 upsert 落库,标签就是服务端
+    /// 当前口径(refreshStaleEngineAssessment 已随重算把 state 原位刷新,prompt
+    /// 读到的即新标签);版本号落后只说明客户端 expected 领先(部署倒挂)或
+    /// 旧后端不回 rule_version,拦下等于所有对(含已付款购买回调)永久
+    /// 「未知错误」且无法自愈,是更坏的失败。核心保护不受损:「旧标签进
+    /// prompt」的前提(重算失败/未跑)在重算成功时不成立。
     ///
     /// 读 `engineRefreshTask` 是安全的:任务真伪不靠它判,门尾必须重读 store
     /// 验证新鲜度——旧任务被取消 / refreshStaleEngineAssessment 早退 nil 时,
@@ -2075,39 +2104,34 @@ final class CompatibilityViewModel {
     /// translateTask / cacheReadTask(openDetail),await 后的 isCancelled 守卫
     /// 保证补发不会取消别对在飞重算后再起新任务。
     /// - Parameter retryAfterDeadTask: 复用的重算任务已落定且复验仍过期时
-    ///   是否补发。翻译 STALE_SOURCE 链传 **true**——手动重试会再次进门,
-    ///   死任务不补发 = 门被钉死;openDetail 自动链传 **false**——其 .failed
-    ///   重试不走门(手动重生成不受门限),补发只会在离线下每次进对多打
-    ///   一个注定失败的请求,零收益。
+    ///   是否补发。手动重试 / 购买回调 / 翻译 STALE_SOURCE 链传 **true**——
+    ///   用户显式动作,死任务不补发 = 门被钉死、自愈承诺落空;openDetail
+    ///   自动链传 **false**——其 .failed 重试走门(门内补发),自动链补发只会
+    ///   在离线下每次进对多打一个注定失败的请求,零收益。
     private func engineRuleBecameFresh(
         _ summary: PairSummary, retryAfterDeadTask: Bool
     ) async -> Bool {
         let compatHash = summary.compatibilityHash
-        do {
-            if let snapshot = try compatibilityStore.get(compatibilityHash: compatHash),
-               CompatibilitySnapshotStore.isFreshEngineRule(snapshot) {
-                return true
-            }
-        } catch {
-            AppLogger.persistence.error(
-                "op=compatibility.engineRuleGate.read_failed hash=\(compatHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 按未新鲜处理(不起生成)"
-            )
-            return false
-        }
+        if snapshotIsFreshInStore(compatHash: compatHash) { return true }
         let existingTask = engineRefreshTask
         let refresh = existingTask ?? refreshStaleEngineAssessment(for: summary)
         if let refresh { await refresh.value }
         guard !Task.isCancelled else { return false }
-        if existingTask != nil {
+        if snapshotIsFreshInStore(compatHash: compatHash) { return true }
+        if existingTask != nil, retryAfterDeadTask {
+            // 死任务复用后仍未新鲜:补发一次重算(显式动作的自愈路径)
+            let retry = refreshStaleEngineAssessment(for: summary)
+            if let retry { await retry.value }
+            guard !Task.isCancelled else { return false }
             if snapshotIsFreshInStore(compatHash: compatHash) { return true }
-            if retryAfterDeadTask {
-                // 死任务复用后仍未新鲜:补发一次重算(手动重试的自愈路径)
-                let retry = refreshStaleEngineAssessment(for: summary)
-                if let retry { await retry.value }
-                guard !Task.isCancelled else { return false }
-            }
         }
-        return snapshotIsFreshInStore(compatHash: compatHash)
+        if case .success? = engineRefreshOutcomes[compatHash] {
+            AppLogger.app.warning(
+                "op=compatibility.engineRuleGate.refresh_ok_version_lag hash=\(compatHash, privacy: .public) expected=\(CompatibilitySnapshotStore.expectedEngineRuleVersion, privacy: .public) — 重算成功按放行(服务端版本落后=部署倒挂/缺字段,不拦生成)"
+            )
+            return true
+        }
+        return false
     }
 
     /// 引擎规则门的 store 复验:读失败显式日志 + 按未新鲜处理(false = 拦,
@@ -2435,65 +2459,24 @@ final class CompatibilityViewModel {
     }
 
     /// 购买成功后的重跑入口(PaywallView onPurchaseSuccess,按对绑定 D4)。
-    /// 引擎规则成门(2026-10-07 外评购买路径补漏——第七轮只修了 409 豁免
-    /// 半边,本入口是同一外评单的购买半边):门等待期(.idle)购买完成时直调
-    /// generateInterpretation 会把旧标签写进 prompt——付费解读落
-    /// (hash, compatibility_paid) 键,后端缓存让它活过 24h,「评估卡刑害/
-    /// 正文和谐」的错配对已付款用户长期存在。门语义镜像 409 豁免链
-    /// (retryAfterDeadTask=true:用户刚完成付款,明确期待内容,死重算任务
-    /// 钉门时补发一次);门未过 → .failed 透真根因(重试入口不走门,网络
-    /// 恢复后手动重试自愈)。快照已新鲜时门读 store 即短路,无额外等待。
+    /// 引擎规则成门(第八轮购买路径补漏;第九轮 #1/#4 收编统一门内入口):
+    /// 门等待期(.idle)购买完成时直调 generateInterpretation 会把旧标签写进
+    /// prompt——付费解读落 (hash, compatibility_paid) 键,后端缓存让它活过
+    /// 24h,「评估卡刑害/正文和谐」的错配对已付款用户长期存在。正常扣次
+    /// (quotaExempt=false,入口覆写豁免标记)。快照已新鲜时门读 store 即
+    /// 短路,无额外等待。
     func generateInterpretationAfterPurchase() {
-        guard case .detail(let summary, _, _) = state else {
-            // 不静默吞(CLAUDE.md 全局约束):购买回调到达但不在 detail 态,
-            // 说明状态机错乱(或用户已离开),显式记录
-            AppLogger.app.error(
-                "op=compatibility.generateInterpretationAfterPurchase invalid_state state=\(String(describing: self.state), privacy: .public)"
-            )
-            return
-        }
-        Task { @MainActor [weak self] in
-            guard let self else { return }
-            let ruleFresh = await self.engineRuleBecameFresh(summary, retryAfterDeadTask: true)
-            if Task.isCancelled { return }
-            // 门等待期间换对/退出 → 放弃(重开/新对的链路自会接管)
-            guard let (current, currentResponse) = self.currentDetailIfMatches(summary) else {
-                AppLogger.app.info(
-                    "op=compatibility.generateInterpretationAfterPurchase.stale_pair_skip compatibilityHash=\(summary.compatibilityHash, privacy: .public)"
-                )
-                return
-            }
-            guard ruleFresh else {
-                // 取舍(三查):此处 .failed 不像自动链那样只限 .idle 形态——
-                // 购买是用户显式动作,失败反馈优先于展示保留(本路径生成失败的
-                // 既有语义同样会把 .okFree 盖成 .failed);.fetching 在飞链随后
-                // 落地会覆盖本失败态,自愈不积压。
-                AppLogger.app.warning(
-                    "op=compatibility.generateInterpretationAfterPurchase.deferred reason=engine_rule_stale compatibilityHash=\(summary.compatibilityHash, privacy: .public) — 重算未成,不把旧标签写进已购生成 prompt"
-                )
-                let message: String
-                if let refreshError = self.lastEngineRefreshError {
-                    message = UserFacingError.from(
-                        refreshError, stage: .compatibilityDeterministic
-                    ).errorDescription ?? L10n.Common.unknownError
-                } else {
-                    message = L10n.Common.unknownError
-                }
-                self.state = .detail(current, currentResponse, .failed(message: message))
-                return
-            }
-            // 门过 → 走正常生成(读当前 state 的已刷新 response,新标签进
-            // prompt;正常扣次,入口覆写豁免标记)
-            self.generateInterpretation()
-        }
+        runGatedGeneration(quotaExempt: false)
     }
 
     /// .failed / .dailyLimitReached 态的重试入口(结果页 onGenerateInterpret
     /// 接线,2026-10-06):按对透传上次尝试的豁免语义——STALE_SOURCE 降级链
     /// 失败后的重试不再把语言切换成本转嫁给用户配额;别对的 .failed(非豁免
-    /// 来源)不蹭豁免。用户主动重算/自动起链仍直调 generateInterpretation()
-    /// (正常扣次,入口会覆写标记);购买成功回调走
-    /// generateInterpretationAfterPurchase()(引擎规则成门后转生成)。
+    /// 来源)不蹭豁免。
+    /// 第九轮 review #1(重试绕过门):重试改为过门——此前直调
+    /// generateInterpretation,而门失败(.failed)恰好把用户推向重试入口,
+    /// 旧标签照样进 prompt 并落已购缓存(豁免标记对还免配额),门形同虚设。
+    /// 自动起链的门在 openDetail 尾部(cacheReadTask),不经本入口。
     func retryInterpretation() {
         var passthrough = false
         if case .detail(let summary, _, _) = state,
@@ -2503,7 +2486,71 @@ final class CompatibilityViewModel {
         if passthrough {
             AppLogger.app.info("compatVM.retryInterpretation.quota_exempt_passthrough")
         }
-        generateInterpretation(quotaExempt: passthrough)
+        runGatedGeneration(quotaExempt: passthrough)
+    }
+
+    /// 门内生成统一入口(第九轮 review #1/#4):手动重试 / 购买回调共用——
+    /// 先过引擎规则门(retryAfterDeadTask=true:显式动作,复用的死重算任务
+    /// 须补发重算自愈),门过且仍在原对才转 generateInterpretation;门败显式
+    /// 落 .failed 透**按对**重算根因。Task 持有在 interpretGateTask(#4:
+    /// 不持有 = 购买回调的 Task 无人管,退出/换对后与自动链并发双起
+    /// generateInterpretation = 双 LLM + 双扣次数);门过后的在飞守卫:等待期
+    /// 自动链可能已为本对起链(重进场景),重复起会取消在飞链再扣一次配额。
+    private func runGatedGeneration(quotaExempt: Bool) {
+        guard case .detail(let summary, _, _) = state else {
+            // 不静默吞(CLAUDE.md 全局约束):入口到达但不在 detail 态,说明
+            // 状态机错乱(或用户已离开),显式记录
+            AppLogger.app.error(
+                "op=compatibility.runGatedGeneration invalid_state state=\(String(describing: self.state), privacy: .public)"
+            )
+            return
+        }
+        interpretGateTask?.cancel()
+        interpretGateTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            let ruleFresh = await self.engineRuleBecameFresh(summary, retryAfterDeadTask: true)
+            if Task.isCancelled { return }
+            // 门等待期间换对/退出 → 放弃(重开/新对的链路自会接管)
+            guard let (current, currentResponse) = self.currentDetailIfMatches(summary) else {
+                AppLogger.app.info(
+                    "op=compatibility.runGatedGeneration.stale_pair_skip hash=\(summary.compatibilityHash, privacy: .public)"
+                )
+                return
+            }
+            guard ruleFresh else {
+                // 显式动作(重试/购买):失败反馈优先于展示保留(生成失败的既有
+                // 语义同样会把 .okFree 盖成 .failed);.fetching 在飞链随后落地
+                // 会覆盖本失败态,自愈不积压。
+                AppLogger.app.warning(
+                    "op=compatibility.runGatedGeneration.deferred reason=engine_rule_stale hash=\(summary.compatibilityHash, privacy: .public) — 重算未成,不把旧标签写进生成 prompt"
+                )
+                self.state = .detail(
+                    current, currentResponse,
+                    .failed(message: self.engineGateFailureMessage(for: summary.compatibilityHash))
+                )
+                return
+            }
+            // 在飞守卫:门等待期自动链已为本对起链 → 让位(其落地即内容)
+            if self.interpretInFlight?.compatHash == summary.compatibilityHash {
+                AppLogger.app.info(
+                    "op=compatibility.runGatedGeneration skip reason=interpret_in_flight hash=\(summary.compatibilityHash, privacy: .public) — 在飞链让位,不重复起链"
+                )
+                return
+            }
+            self.generateInterpretation(quotaExempt: quotaExempt)
+        }
+    }
+
+    /// 引擎规则门失败的用户文案:按对取最近一次重算失败根因(第九轮 #5:
+    /// 全局单值会透出别对的错误/被别对的成功清掉);无失败记录(未跑重算/
+    /// A 盘缺失早退/取消)→ 未知错误。
+    private func engineGateFailureMessage(for compatHash: String) -> String {
+        if case .failure(let refreshError)? = engineRefreshOutcomes[compatHash] {
+            return UserFacingError.from(
+                refreshError, stage: .compatibilityDeterministic
+            ).errorDescription ?? L10n.Common.unknownError
+        }
+        return L10n.Common.unknownError
     }
 
     /// 豁免重生成链(STALE 降级)失败落定(2026-10-07 review):重开恢复提示条
@@ -2540,20 +2587,6 @@ final class CompatibilityViewModel {
             return urlError.code == .cancelled
         }
         return (error as? URLError)?.code == .cancelled
-    }
-
-    /// 离线/超时判定(2026-10-07 review #5):computePair 重算失败回落旧快照的
-    /// 适用面收窄用。单一事实源 = `UserFacingError.isOffline`(含 timedOut);
-    /// APIClient 会把 URLError 包成 APIError.networkError,两层解包——4xx/5xx/
-    /// 解码失败不在此列,回落 = 用旧值掩盖真错误(CLAUDE.md 禁止)。
-    private static func isOfflineOrTimeout(_ error: Error) -> Bool {
-        if case .networkError(let urlError)? = error as? APIError {
-            return UserFacingError.isOffline(urlError)
-        }
-        if let urlError = error as? URLError {
-            return UserFacingError.isOffline(urlError)
-        }
-        return false
     }
 
     /// 取消在飞解读链并同步清在飞标记(2026-10-07 review 收口,原
@@ -2757,6 +2790,7 @@ final class CompatibilityViewModel {
         cacheReadTask?.cancel()
         translateTask?.cancel()
         engineRefreshTask?.cancel()
+        interpretGateTask?.cancel()
         isTranslating = false
         translationOffer = nil
         translationFailed = false

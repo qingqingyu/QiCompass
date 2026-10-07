@@ -2044,7 +2044,12 @@ enum DeepStaleM0MarkerPersistence {
     /// 混叙事进共享缓存(2026-10-07 外评重提核实:「部分进度后重启 + 解码
     /// 失败」时 M0 行已清、下游行仍在,按空集走翻译,M0 的 409 自愈救不了
     /// 没有 M0 行的重试链;原「空集自愈」理由只覆盖 M0 行还在的场景)。
-    /// 后续 mark() 读改写会以合法 JSON 覆盖坏数据,存储自愈。
+    /// 自愈边界(第九轮 review #6 核实):mark()/clear() 的读改写只在新事件
+    /// 真正落盘时才以合法 JSON 覆盖坏数据;损坏期间无新降级事件 → 集合持续
+    /// 未知、消费方持续按已降级处理(重复豁免重生成)。这是安全侧的既定
+    /// 代价——坏数据无法重建未知集合,按空集起读会重新打开「旧 M0 下游原文
+    /// 混拼进共享键」的洞;UserDefaults 整键 JSON 损坏概率趋近于零,不做更重
+    /// 的表示法(版本化/校验和包装)。
     static func load() -> Set<String>? {
         guard let data = UserDefaults.standard.data(forKey: storageKey) else { return [] }
         do {
