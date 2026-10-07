@@ -242,6 +242,45 @@ class InterpretationCache:
             ).fetchone()
         return row is not None
 
+    def get_interpretation_by_source_key(
+        self, content_hash: str, module: str, prompt_version: int,
+        language: str, prompt_hash: str, parent_hash: str,
+        user_input_hash: str, target_date: str | None = None,
+    ) -> str | None:
+        """按**源缓存键**(排除 provider/model)取行文本(2026-10-07)。
+
+        用途:v1 翻译防伪的源键链式推导(interpret.py
+        `_derive_v1_source_key`)——从自存源语言上游行提取链式字段。
+        键口径与 has_interpretation_exact 完全一致(SELECT interpretation
+        而非 1)。
+
+        provider/model 不参与匹配:同键多 provider 行并存时取 generated_at
+        最新一行(单 provider 部署下键唯一;多行时若取到的行与客户端当年
+        提取链字段的那行不同,下游 prompt_hash 核验不匹配 → 409 降级
+        重生成,安全侧收敛)。
+
+        Returns:
+            命中 → interpretation 全文;未命中 → None
+
+        Raises:
+            sqlite3.Error: 读失败(不吞,向上抛)
+        """
+        td = target_date or ""
+        with self._connect() as conn:
+            conn.row_factory = sqlite3.Row
+            row = conn.execute(
+                "SELECT interpretation FROM interpretation_cache "
+                "WHERE content_hash=? AND module=? AND prompt_version=? "
+                "AND target_date=? AND language=? AND prompt_hash=? "
+                "AND parent_hash=? AND user_input_hash=? "
+                "ORDER BY generated_at DESC LIMIT 1",
+                (content_hash, module, prompt_version, td, language,
+                 prompt_hash, parent_hash, user_input_hash),
+            ).fetchone()
+        if row is None:
+            return None
+        return row["interpretation"]
+
     def delete(self, key: CacheKey) -> None:
         """删除缓存行(用于清理被禁词污染的坏缓存)。
 

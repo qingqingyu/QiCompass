@@ -18,6 +18,7 @@ from fastapi import APIRouter, Request
 from starlette.concurrency import run_in_threadpool
 
 from ..context_binding import (
+    build_chart_tokens,
     compat_fields,
     issue_token,
     payload_fields,
@@ -91,7 +92,14 @@ async def compatibility(
 
     # 模式 B:B 盘服务端现排(受信源),从结果构建 claims
     if claims_b is None:
-        claims_b = payload_fields(result.person_b_chart.model_dump())
+        b_dump = result.person_b_chart.model_dump()
+        claims_b = payload_fields(b_dump)
+        # 同源签发 B 盘 context_tokens(2026-10-07 P0 收口;分层修复后签名
+        # 收口 API 层,与 /api/bazi/calculate 同款,引擎保持纯计算)。
+        # iOS 把 person_b_chart 隐式落地为 ChartSnapshot 时存档 token——
+        # 否则该盘的深度解析/每日/合盘-as-A 全部 403 且无补签入口。
+        # 纯 CPU(镜像字段 + HMAC),留 event loop。
+        result.person_b_chart.context_tokens = build_chart_tokens(b_dump)
 
     # 签发 compat 族 token(绑定核心字段子集;interpret/translate 验签)
     result.context_token = issue_token(

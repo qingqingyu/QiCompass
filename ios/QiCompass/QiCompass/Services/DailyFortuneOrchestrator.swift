@@ -64,16 +64,28 @@ final class DailyFortuneOrchestrator {
         let baziResponse = try chartStore.decodeResponse(from: snapshot)
         let chartPayload = ChartPayloadDTO.from(baziResponse: baziResponse)
 
-        // 2. 查本地 daily 缓存(非强制刷新时)
+        // 2. 查本地 daily 缓存(非强制刷新时)。
+        // 2026-10-07 P0 收口补丁:老快照(security 收口前)无 contextToken →
+        // 命中也不能用——interpret 阶段验签必 403,且重排盘不会刷新 daily
+        // 快照(当天 cachedUntil 前一直命中本分支),用户当天余下时间死锁。
+        // token nil 视同 miss 落穿后端:daily-fortune 端点凭 chart 快照的
+        // payload token 重签发新 daily token,upsert 覆盖自愈(chart 快照
+        // 也老 → 后端 403 显式暴露,走 contextTokenExpired「重新排盘」文案)。
         if !forceRefresh,
             let cached = try dailyStore.getCachedIfFresh(
                 chartHash: chartHash, targetDate: businessDate
             ) {
-            let response = try dailyStore.response(from: cached)
-            AppLogger.app.info(
-                "daily.deterministic.cache_hit hash=\(chartHash, privacy: .public) targetDate=\(businessDate, privacy: .public)"
-            )
-            return (response, true)
+            if cached.contextToken == nil {
+                AppLogger.app.warning(
+                    "daily.deterministic.cache_hit_without_token hash=\(chartHash, privacy: .public) targetDate=\(businessDate, privacy: .public) — 视为 miss,落穿后端重签 token"
+                )
+            } else {
+                let response = try dailyStore.response(from: cached)
+                AppLogger.app.info(
+                    "daily.deterministic.cache_hit hash=\(chartHash, privacy: .public) targetDate=\(businessDate, privacy: .public)"
+                )
+                return (response, true)
+            }
         }
 
         // 3. 未命中 → POST /api/bazi/daily-fortune

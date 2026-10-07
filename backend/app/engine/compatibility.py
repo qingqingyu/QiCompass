@@ -19,7 +19,6 @@ from datetime import datetime, timezone
 
 from lunar_python import Solar
 
-from ..context_binding import build_chart_tokens
 from ..core.tz_resolution import resolve_wall_time
 from ..engine.bazi_engine import BaziEngine
 from ..engine.pillars import (
@@ -386,12 +385,10 @@ def compute_compatibility(
                 longitude=pb.longitude, zi_hour_rule=pb.zi_hour_rule,
                 dst_flags=resolved_b.dst_flags, birth_timezone=pb.timezone,
             )
-            # BaziEngine.calculate 返回 dict, 转为 BaziCalculateResponse
-            # 2026-10-07 P0 收口:模式 B 现排的 B 盘须与 /api/bazi/calculate
-            # 同源签发 context_tokens(deep/payload/v1)——否则 iOS 把
-            # person_b_chart 隐式落地为 ChartSnapshot 时 token 缺失,之后该
-            # 盘的深度解析/每日/合盘-as-A 全部 403 且无补签入口。
-            b_result["context_tokens"] = build_chart_tokens(b_result)
+            # BaziEngine.calculate 返回 dict, 转为 BaziCalculateResponse。
+            # context_tokens 签发在 API 层(api/compatibility.py,与
+            # /api/bazi/calculate 同款)——引擎保持纯计算,不掺签名
+            # (2026-10-07 review 分层修复;此前 3f9e343 在此签发)。
             b_full_response = BaziCalculateResponse(**b_result)
             # 把 B 排盘结果转为 ChartPayload(供后续评估用)
             b_payload = ChartPayload(

@@ -623,7 +623,11 @@ async def test_endpoint_mode_a_happy_path():
 
 
 async def test_endpoint_mode_b_happy_path():
-    """模式 B 端到端 200 + person_b_chart 非空。"""
+    """模式 B 端到端 200 + person_b_chart 非空。
+
+    2026-10-07 分层修复:B 盘 context_tokens 签发移到 API 层(引擎纯计算),
+    此处同时断言签发产物可对 B 盘 hash 验签(deep/payload 两族恒签)。"""
+    from app.context_binding import verify_token
     payload = {
         "person_a_hash": "a" * 64,
         "person_b": {
@@ -640,3 +644,11 @@ async def test_endpoint_mode_b_happy_path():
     assert body["person_b_chart"] is not None
     assert body["person_b_chart"]["content_hash"]
     assert body["person_a_chart"] is None
+    tokens = body["person_b_chart"]["context_tokens"]
+    assert tokens, ("模式 B 现排 B 盘必须同源签发 context_tokens"
+                    "(否则 iOS 隐式落地后无 token,403 死锁)")
+    b_hash = body["person_b_chart"]["content_hash"]
+    for family in ("deep", "payload"):
+        claims = verify_token(tokens[family], content_hash=b_hash,
+                              family=family)
+        assert claims["hash"] == b_hash

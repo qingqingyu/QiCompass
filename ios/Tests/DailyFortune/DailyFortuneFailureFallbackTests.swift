@@ -149,6 +149,97 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         return false
     }
 
+    // MARK: - 2026-10-07 P0 收口补丁:老快照无 token 不得命中缓存
+
+    /// 独立每日响应夹具(默认无 token = 模拟 security 收口前老后端产物)。
+    private static func makeDailyResponse(contextToken: String?) -> DailyFortuneResponse {
+        DailyFortuneResponse(
+            dayPillar: "丙子",
+            dayRelationToDayMaster: "偏印",
+            dayChong: nil,
+            dayChongTargets: [],
+            hourPillars: [
+                HourPillarDTO(
+                    hour: "子", timeRange: "23:00-01:00",
+                    pillar: "甲子", relation: "偏印", chong: nil, chongTargets: []
+                )
+            ],
+            currentHourIndex: nil,
+            lunarDate: "七月初十",
+            huangliYi: ["出行"],
+            huangliJi: ["动土"],
+            tomorrowPreview: TomorrowPreviewDTO(
+                dayPillar: "丁丑", dayRelation: "正印", dayChong: nil
+            ),
+            calcRuleSnapshot: CalcRuleSnapshotDTO(
+                library: "lunar_python", sect: 1, ziHourRule: "zi_next_day",
+                trueSolarLongitude: 116.4, trueSolarOffsetMinutes: 0,
+                schemaVersion: 1
+            ),
+            contextToken: contextToken
+        )
+    }
+
+    func test老快照无token_视为miss_落穿后端重签并覆盖自愈() async throws {
+        try seedChart(hash: "daily_token_refresh")
+        let businessDate = Date.now
+        // 预置「security 收口前」的当日快照:新鲜(cachedUntil 未过)但无 token
+        try dailyStore.upsert(
+            chartHash: "daily_token_refresh",
+            targetDate: businessDate,
+            response: Self.makeDailyResponse(contextToken: nil),
+            interpretation: "",
+            cachedUntil: BusinessDateCalculator.cachedUntil(forBusinessDate: businessDate)
+        )
+        await api.setDailyFortuneToken("v1.newly-signed-token")
+
+        let (response, fromCache) = try await orchestrator.runDeterministic(
+            chartHash: "daily_token_refresh",
+            ziHourRule: "zi_next_day",
+            businessDate: businessDate
+        )
+        XCTAssertFalse(fromCache, "无 token 快照必须视为 miss 落穿后端(否则 interpret 阶段 403 全天死锁)")
+        XCTAssertEqual(response.contextToken, "v1.newly-signed-token")
+        let calls = await api.dailyFortuneAttempts()
+        XCTAssertEqual(calls, 1, "恰好一次后端调用(重签)")
+
+        // 覆盖自愈:快照已带上新 token,后续命中走正常路径
+        let refreshed = try dailyStore.getCachedIfFresh(
+            chartHash: "daily_token_refresh", targetDate: businessDate
+        )
+        XCTAssertEqual(refreshed?.contextToken, "v1.newly-signed-token")
+
+        let (_, cachedSecond) = try await orchestrator.runDeterministic(
+            chartHash: "daily_token_refresh",
+            ziHourRule: "zi_next_day",
+            businessDate: businessDate
+        )
+        XCTAssertTrue(cachedSecond, "token 就位后恢复正常缓存命中")
+        let callsAfterSecond = await api.dailyFortuneAttempts()
+        XCTAssertEqual(callsAfterSecond, 1, "命中后不得再打后端")
+    }
+
+    func test有token快照_正常命中_不打后端() async throws {
+        try seedChart(hash: "daily_token_hit")
+        let businessDate = Date.now
+        try dailyStore.upsert(
+            chartHash: "daily_token_hit",
+            targetDate: businessDate,
+            response: Self.makeDailyResponse(contextToken: "v1.existing-token"),
+            interpretation: "",
+            cachedUntil: BusinessDateCalculator.cachedUntil(forBusinessDate: businessDate)
+        )
+        let (response, fromCache) = try await orchestrator.runDeterministic(
+            chartHash: "daily_token_hit",
+            ziHourRule: "zi_next_day",
+            businessDate: businessDate
+        )
+        XCTAssertTrue(fromCache, "带 token 的正常快照照常命中")
+        XCTAssertEqual(response.contextToken, "v1.existing-token")
+        let calls = await api.dailyFortuneAttempts()
+        XCTAssertEqual(calls, 0, "缓存命中不得打后端")
+    }
+
     // MARK: - 自动失败 → 一次静默重试 → 成功
 
     func test自动解读失败_保持failed置重试标记_静默重试成功转okFree() async throws {
@@ -755,6 +846,11 @@ private actor FailingInterpretAPIClient: APIClient {
         dailyFortuneGate = gate
     }
     func recordedInterpretHashes() -> [String] { interpretHashes }
+    /// 2026-10-07 无 token 快照回归:dailyFortune 调用计数 + 可注入 token。
+    private var dailyFortuneCalls = 0
+    private var dailyFortuneToken: String?
+    func setDailyFortuneToken(_ token: String?) { dailyFortuneToken = token }
+    func dailyFortuneAttempts() -> Int { dailyFortuneCalls }
 
     func translate(request: TranslateRequest) async throws -> InterpretResponse {
         translateCalls += 1
@@ -792,6 +888,7 @@ private actor FailingInterpretAPIClient: APIClient {
     }
 
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse {
+        dailyFortuneCalls += 1
         if let dailyFortuneGate {
             await dailyFortuneGate(request.chartHash)
         }
@@ -815,7 +912,8 @@ private actor FailingInterpretAPIClient: APIClient {
                 library: "lunar_python", sect: 1, ziHourRule: "zi_next_day",
                 trueSolarLongitude: 116.4, trueSolarOffsetMinutes: 0,
                 schemaVersion: 1
-            )
+            ),
+            contextToken: dailyFortuneToken
         )
     }
 
