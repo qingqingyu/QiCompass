@@ -17,6 +17,11 @@ struct CompatibilityRequest: Codable, Sendable {
     let chartPayloadA: ChartPayloadDTO
     let chartPayloadB: ChartPayloadDTO?
     let context: String
+    /// per-chart token(2026-10-07 P0 收口):A/B 盘各自排盘响应的
+    /// contextTokens["payload"],后端对账 token↔hash↔payload 后才签发合盘
+    /// token(模式 B 后端现排 B,无需 B token)。
+    var contextTokenA: String
+    var contextTokenB: String?
 
     enum CodingKeys: String, CodingKey {
         case personAHash = "person_a_hash"
@@ -25,6 +30,8 @@ struct CompatibilityRequest: Codable, Sendable {
         case chartPayloadA = "chart_payload_a"
         case chartPayloadB = "chart_payload_b"
         case context
+        case contextTokenA = "context_token_a"
+        case contextTokenB = "context_token_b"
     }
 
     /// 模式 A:B 已存档。
@@ -33,7 +40,9 @@ struct CompatibilityRequest: Codable, Sendable {
         personBHash: String,
         chartPayloadA: ChartPayloadDTO,
         chartPayloadB: ChartPayloadDTO,
-        context: String
+        context: String,
+        contextTokenA: String,
+        contextTokenB: String
     ) {
         self.personAHash = personAHash
         self.personBHash = personBHash
@@ -41,6 +50,8 @@ struct CompatibilityRequest: Codable, Sendable {
         self.chartPayloadA = chartPayloadA
         self.chartPayloadB = chartPayloadB
         self.context = context
+        self.contextTokenA = contextTokenA
+        self.contextTokenB = contextTokenB
     }
 
     /// 模式 B:B 临时输入(后端现排)。
@@ -48,7 +59,8 @@ struct CompatibilityRequest: Codable, Sendable {
         personAHash: String,
         personB: PersonBInput,
         chartPayloadA: ChartPayloadDTO,
-        context: String
+        context: String,
+        contextTokenA: String
     ) {
         self.personAHash = personAHash
         self.personBHash = nil
@@ -56,6 +68,8 @@ struct CompatibilityRequest: Codable, Sendable {
         self.chartPayloadA = chartPayloadA
         self.chartPayloadB = nil
         self.context = context
+        self.contextTokenA = contextTokenA
+        self.contextTokenB = nil
     }
 
     /// 编码:跳过 nil 字段(避免传 `"person_b_hash": null` 干扰后端互斥校验)。
@@ -67,6 +81,8 @@ struct CompatibilityRequest: Codable, Sendable {
         try container.encode(chartPayloadA, forKey: .chartPayloadA)
         try container.encodeIfPresent(chartPayloadB, forKey: .chartPayloadB)
         try container.encode(context, forKey: .context)
+        try container.encode(contextTokenA, forKey: .contextTokenA)
+        try container.encodeIfPresent(contextTokenB, forKey: .contextTokenB)
     }
 }
 
@@ -156,6 +172,9 @@ struct CompatibilityResponse: Codable, Sendable {
     /// var + nil 默认:memberwise 才有默认值(let 可选无隐式默认,老构造点
     /// 会缺参);解码/显式传参照常覆盖
     var ruleVersion: Int? = nil
+    /// compat 族 context_token(2026-10-07 P0 收口):interpret/translate 验签;
+    /// 老后端缺字段 → nil(触发重算)。合成 Codable 的 decodeIfPresent。
+    var contextToken: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case compatibilityHash = "compatibility_hash"
@@ -165,6 +184,7 @@ struct CompatibilityResponse: Codable, Sendable {
         case syncedFortune = "synced_fortune"
         case calcRuleSnapshot = "calc_rule_snapshot"
         case ruleVersion = "rule_version"
+        case contextToken = "context_token"
     }
 }
 

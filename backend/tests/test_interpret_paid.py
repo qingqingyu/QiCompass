@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import pytest
 
+from tests.fixtures.context_token_helper import token_for_context
 from tests.fixtures.interpret_cases import BAZI_DEEP_CONTEXT, COMPATIBILITY_CONTEXT
 
 
@@ -35,6 +36,9 @@ def _paid_payload(content_hash: str = "test-hash-paid-001",
         "context": BAZI_DEEP_CONTEXT,
         "target_date": None,
         "user_local_id": user_local_id,
+        "context_token": token_for_context(
+            content_hash=content_hash, module="bazi_deep_paid",
+            context=BAZI_DEEP_CONTEXT),
     }
 
 
@@ -44,6 +48,9 @@ def _free_payload(content_hash: str = "test-hash-free-001") -> dict:
         "module": "bazi_deep_free",
         "context": BAZI_DEEP_CONTEXT,
         "target_date": None,
+        "context_token": token_for_context(
+            content_hash=content_hash, module="bazi_deep_free",
+            context=BAZI_DEEP_CONTEXT),
     }
 
 
@@ -53,6 +60,9 @@ def _alias_payload(content_hash: str = "test-hash-alias-001") -> dict:
         "module": "bazi_deep",  # alias(决策 B 向后兼容)
         "context": BAZI_DEEP_CONTEXT,
         "target_date": None,
+        "context_token": token_for_context(
+            content_hash=content_hash, module="bazi_deep",
+            context=BAZI_DEEP_CONTEXT),
     }
 
 
@@ -225,6 +235,9 @@ def _compat_free_payload(content_hash: str = "test-hash-compat-free-001") -> dic
         "module": "compatibility_free",
         "context": COMPATIBILITY_CONTEXT,
         "target_date": None,
+        "context_token": token_for_context(
+            content_hash=content_hash, module="compatibility_free",
+            context=COMPATIBILITY_CONTEXT),
     }
 
 
@@ -236,6 +249,9 @@ def _compat_paid_payload(content_hash: str = "test-hash-compat-paid-001",
         "context": COMPATIBILITY_CONTEXT,
         "target_date": None,
         "user_local_id": user_local_id,
+        "context_token": token_for_context(
+            content_hash=content_hash, module="compatibility_paid",
+            context=COMPATIBILITY_CONTEXT),
     }
 
 
@@ -247,6 +263,9 @@ def _compat_alias_payload(content_hash: str = "test-hash-compat-alias-001",
         "context": COMPATIBILITY_CONTEXT,
         "target_date": None,
         "user_local_id": user_local_id,
+        "context_token": token_for_context(
+            content_hash=content_hash, module="compatibility",
+            context=COMPATIBILITY_CONTEXT),
     }
 
 

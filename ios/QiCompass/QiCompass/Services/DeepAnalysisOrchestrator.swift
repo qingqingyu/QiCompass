@@ -155,7 +155,8 @@ final class DeepAnalysisOrchestrator {
                 context: context,
                 targetDate: nil,
                 question: nil,
-                userLocalId: UserIdentity.userLocalId
+                userLocalId: UserIdentity.userLocalId,
+                contextToken: response.contextToken(forModule: module)
             )
             let resp = try await AppLogger.measure(
                 AppLogger.networking,
@@ -521,7 +522,8 @@ final class DeepAnalysisOrchestrator {
             m4Age: m4Input?.age,
             m4CurrentConcern: m4Input?.concern,
             m5AssetsSummary: m5Input?.assets,
-            m5Preference: m5Input?.preference
+            m5Preference: m5Input?.preference,
+            contextToken: response.contextToken(forModule: module)
         )
     }
 

@@ -121,8 +121,11 @@ if DAILY_IMAGE_LIMIT <= 0:
 IMAGE_SIZE = "1536x1024"
 
 # ---------- Apple App Store Server API(M2b 后端付费系统)----------
-# 缺失时启动不失败(M2a/b 测试 / dev 用 MockAppleServerAPI);调用 /api/entitlement/redeem
-# 时若仍为 Mock 会显式报 503(对齐 AI_PROVIDER key 缺失策略)。
+# 5 个 APP_STORE_* env 不齐时启动挂 MockAppleServerAPI(2026-10-07 收口后):
+# - APP_STORE_ENVIRONMENT=production → 启动 RuntimeError(fail-fast,
+#   生产缺配 = 任意 transaction_id 免费兑换付费权益,不可静默)
+# - sandbox → Mock 默认锁定(redeem 显式 503);dev 想走通链路须显式设
+#   QICOMPASS_ALLOW_MOCK_APPLE=1(原 config 注释宣称的 503 保护自此兑现)
 # M6 TestFlight 阶段才需真值(去 App Store Connect > Users and Access > Keys 申请)。
 
 APP_STORE_BUNDLE_ID: str | None = (
@@ -200,6 +203,15 @@ GOOGLE_PUBLIC_KEYS_CACHE_TTL = int(
 )
 
 # prompt 版本号单一事实源:ai/prompts.py 的 PROMPT_VERSIONS,路由层从那里导入
+
+# ---------- 免费 LLM 生成每日上限(2026-10-07 匿名滥用收口) ----------
+# 只计真烧 LLM 的免费 module 生成(缓存命中不计 / 付费豁免);
+# 高于 iOS 本地 10/日,正常用户无感;匿名刷 LLM 的成本面被压掉 97%+。
+FREE_DAILY_LIMIT = int(
+    os.environ.get("QICOMPASS_FREE_DAILY_LIMIT") or "30")
+if FREE_DAILY_LIMIT <= 0:
+    raise ValueError(
+        f"QICOMPASS_FREE_DAILY_LIMIT must be positive (got {FREE_DAILY_LIMIT})")
 
 # ---------- evalkit L3 裁判(S05,2026-08-18;默认回落生成侧,现有部署零感知) ----------
 # 独立 env:同模型自评有系统性偏袒;独立配置才能"用更强的模型当裁判",

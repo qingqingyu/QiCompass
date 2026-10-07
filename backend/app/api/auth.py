@@ -91,7 +91,9 @@ async def sign_in(req: SignInRequest, request: Request) -> SignInResponse:
             # 但 backfill 是辅助路径,降级比 fail-the-login 用户体验更好)
             logger.exception(
                 "auth.sign_in.backfill_failed user_id=%s user_local_id=%s error=%r",
-                user.id, req.user_local_id, e,
+                # user_local_id 脱敏只留前 8 位(2026-10-07:它在 entitlement
+                # 兜底查询里起密钥作用,全文进日志 = 泄露即可冒用购买记录)
+                user.id, req.user_local_id[:8], e,
             )
 
     # 5. 计算过期时间(返给客户端便于 UI 显示)

@@ -18,6 +18,7 @@ from __future__ import annotations
 from datetime import date, timezone, timedelta
 
 import pytest
+from conftest import _auto_context_token_hook
 from httpx import ASGITransport, AsyncClient
 from lunar_python import Solar
 
@@ -45,7 +46,8 @@ DOC_CHART = ChartPayload(
 
 async def _post(payload: dict) -> tuple[int, dict, dict]:
     async with AsyncClient(transport=ASGITransport(app=app),
-                           base_url="http://test") as ac:
+                           base_url="http://test",
+                           event_hooks={"request": [_auto_context_token_hook]}) as ac:
         resp = await ac.post("/api/bazi/daily-fortune", json=payload)
     return resp.status_code, resp.json(), dict(resp.headers)
 

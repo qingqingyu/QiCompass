@@ -16,8 +16,9 @@ from typing import NoReturn
 from fastapi import APIRouter, Request
 from starlette.concurrency import run_in_threadpool
 
+from ..context_binding import daily_fields, issue_token, verify_payload_against_chart
 from ..engine.daily_fortune import compute_daily_fortune
-from ..errors import BaziError, InvalidInputError
+from ..errors import BaziError, ContextTokenRequiredError, InvalidInputError
 from ..models.daily_fortune import DailyFortuneRequest, DailyFortuneResponse
 
 router = APIRouter()
@@ -38,6 +39,18 @@ async def daily_fortune(
     }
     logger.info("daily.fortune.start %s", input_log)
 
+    # 2026-10-07 P0 收口:per-chart token 对账先行(chart_payload 客户端自持,
+    # 不可复算;伪造 payload 不进引擎)。schema 层可 None(生图端点复用模型
+    # 且不需要 token),本端点显式强制。ContextToken*Error 走全局 handler(403)。
+    if not req.context_token:
+        raise ContextTokenRequiredError(
+            "daily-fortune 请求须携带 context_token"
+            "(该盘排盘响应的 context_tokens.payload)",
+            content_hash=req.chart_hash)
+    chart_claims = verify_payload_against_chart(
+        req.context_token,
+        chart_hash=req.chart_hash, chart_payload=req.chart_payload)
+
     try:
         result = await run_in_threadpool(
             compute_daily_fortune,
@@ -55,6 +68,13 @@ async def daily_fortune(
         )
         wrapped.request_id = request_id
         _log_and_reraise(wrapped, input_log, start, chart_hash=req.chart_hash)
+
+    # 签发 daily 族 token(claims 含 target_date,同盘不同日不可互用)
+    result.context_token = issue_token(
+        content_hash=req.chart_hash, family="daily",
+        fields=daily_fields(
+            claims=chart_claims, response=result,
+            target_date_iso=req.target_date.isoformat()))
 
     elapsed_ms = (time.perf_counter() - start) * 1000
     logger.info(

@@ -988,12 +988,15 @@ final class CompatibilityViewModel {
             // 预解 A payload(每对复用,避免循环内重复 decode)
             let payloadA: ChartPayloadDTO
             let aHourGate: HourUnknownGate
+            // 2026-10-07 P0 收口:A 盘 per-chart token(老快照 nil → 后端 403 显式暴露)
+            let aToken: String?
             do {
                 let baziA = try self.chartStore.decodeResponse(from: chartA.snapshot)
                 // 合盘路径必须带 luckPillars(「无运」修复,见 compatibilityPayload 注释)
                 payloadA = ChartPayloadDTO.compatibilityPayload(from: baziA)
                 // S07 拦截判据(单一事实源 = A 盘存档 payload,不重复推断)
                 aHourGate = baziA.hourUnknownGate
+                aToken = baziA.payloadContextToken
             } catch {
                 if !Task.isCancelled {
                     self.state = .failed(UserFacingError.from(error, stage: .compatibilityDeterministic))
@@ -1012,7 +1015,8 @@ final class CompatibilityViewModel {
                         chartA: chartA,
                         payloadA: payloadA,
                         aHourGate: aHourGate,
-                        contextValue: contextValue
+                        contextValue: contextValue,
+                        tokenA: aToken
                     )
                     newSummaries.append(summary)
                 } catch is CancellationError {
@@ -1368,7 +1372,8 @@ final class CompatibilityViewModel {
                     chartA: chartA,
                     payloadA: payloadA,
                     aHourGate: baziA.hourUnknownGate,
-                    contextValue: contextValue
+                    contextValue: contextValue,
+                    tokenA: baziA.payloadContextToken
                 )
                 if !Task.isCancelled {
                     AppLogger.app.info("op=compatibility.retryPair.ok summary_id=\(summaryId, privacy: .public)")
@@ -1570,7 +1575,8 @@ final class CompatibilityViewModel {
         chartA: ArchivedChart,
         payloadA: ChartPayloadDTO,
         aHourGate: HourUnknownGate,
-        contextValue: String
+        contextValue: String,
+        tokenA: String? = nil
     ) async throws -> PairSummary {
         let aHash = chartA.snapshotHash
 
@@ -1641,7 +1647,10 @@ final class CompatibilityViewModel {
                 personBHash: bChart.snapshotHash,
                 chartPayloadA: payloadA,
                 chartPayloadB: payloadB,
-                context: contextValue
+                context: contextValue,
+                // 2026-10-07 P0 收口:per-chart token,后端 token↔hash↔payload 对账
+                contextTokenA: tokenA ?? "",
+                contextTokenB: baziB.payloadContextToken ?? ""
             )
             bSnapshotForUI = bChart.snapshot
 
@@ -1650,7 +1659,8 @@ final class CompatibilityViewModel {
                 personAHash: aHash,
                 personB: input,
                 chartPayloadA: payloadA,
-                context: contextValue
+                context: contextValue,
+                contextTokenA: tokenA ?? ""
             )
             bSnapshotForUI = nil
         }
@@ -1795,7 +1805,9 @@ final class CompatibilityViewModel {
                 qualitativeAssessment: qualitative,
                 syncedFortune: synced,
                 calcRuleSnapshot: nil,
-                ruleVersion: snapshot.engineRuleVersion
+                ruleVersion: snapshot.engineRuleVersion,
+                // 2026-10-07 P0 收口:interpret/translate 验签 token(老快照 nil)
+                contextToken: snapshot.contextToken
             )
             // 在飞重进显示生成中(2026-10-07 review):本对解读仍在飞(豁免
             // 重生成被换出后再进)→ 初始 .fetching 而非 .idle——否则生成期间
@@ -2018,14 +2030,17 @@ final class CompatibilityViewModel {
                         personBHash: bHash,
                         chartPayloadA: payloadA,
                         chartPayloadB: ChartPayloadDTO.compatibilityPayload(from: baziB),
-                        context: contextValue
+                        context: contextValue,
+                        contextTokenA: baziA.payloadContextToken ?? "",
+                        contextTokenB: baziB.payloadContextToken ?? ""
                     )
                 case .temp(let input, _, _, _):
                     request = CompatibilityRequest(
                         personAHash: chartA.snapshotHash,
                         personB: input,
                         chartPayloadA: payloadA,
-                        context: contextValue
+                        context: contextValue,
+                        contextTokenA: baziA.payloadContextToken ?? ""
                     )
                 }
                 _ = try await self.orchestrator.runDeterministic(
@@ -2386,7 +2401,9 @@ final class CompatibilityViewModel {
                     nameA: inputs.nameA,
                     nameB: inputs.nameB,
                     module: module,
-                    quotaExempt: quotaExempt
+                    quotaExempt: quotaExempt,
+                    // 2026-10-07 P0 收口:compat 族 token(快照存档回传)
+                    contextToken: response.contextToken
                 )
 
                 if Task.isCancelled { return }
@@ -2680,7 +2697,9 @@ final class CompatibilityViewModel {
                     module: offer.module,
                     sourceLanguage: offer.sourceLanguage,
                     sourcePromptVersion: offer.promptVersion,
-                    sourceInterpretation: offer.text
+                    sourceInterpretation: offer.text,
+                    // 2026-10-07 P0 收口:翻译同闸(译文落共享键,盘身须与 token 一致)
+                    contextToken: response.contextToken
                 )
                 if Task.isCancelled {
                     self.autoTranslationOutcomes[attemptKey] = .interrupted

@@ -71,7 +71,9 @@ final class CompatibilityDTOTests: XCTestCase {
             personBHash: "beta",
             chartPayloadA: payloadA,
             chartPayloadB: payloadB,
-            context: "general"
+            context: "general",
+            contextTokenA: "token-a",
+            contextTokenB: "token-b"
         )
         let data = try APICoder.encoder.encode(req)
         let decoded = try APICoder.decoder.decode(CompatibilityRequest.self, from: data)
@@ -97,7 +99,8 @@ final class CompatibilityDTOTests: XCTestCase {
             personAHash: "alpha",
             personB: personB,
             chartPayloadA: payloadA,
-            context: "business"
+            context: "business",
+            contextTokenA: "token-a"
         )
         let data = try APICoder.encoder.encode(req)
         let decoded = try APICoder.decoder.decode(CompatibilityRequest.self, from: data)

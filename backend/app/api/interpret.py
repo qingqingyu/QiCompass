@@ -50,7 +50,8 @@ from ..ai.prompts import (
 )
 from ..ai.singleflight import SingleflightCoalescer
 from ..auth.dependencies import get_current_user_id
-from ..config import AI_MAX_OUTPUT_TOKENS, resolve_temperature
+from ..config import AI_MAX_OUTPUT_TOKENS, FREE_DAILY_LIMIT, resolve_temperature
+from ..context_binding import verify_interpret_context
 from ..engine.term_translations import (
     ChartJSONDecodeError,
     build_translation_term_pairs,
@@ -64,6 +65,7 @@ from ..errors import (
     InterpretationCacheError,
     InterpretationForbiddenError,
     InvalidInputError,
+    QuotaExceededError,
     StaleSourceError,
 )
 from ..models.interpret import (
@@ -631,6 +633,39 @@ async def _require_entitlement(
         )
 
 
+async def _enforce_free_daily_quota(
+    request: Request,
+    req: InterpretRequest,
+    current_user_id: str | None,
+) -> None:
+    """免费 module 真烧 LLM 前的每日服务端配额(2026-10-07 匿名滥用收口)。
+
+    只在缓存未命中、即将调用 provider 的路径上执行(缓存命中零成本不计);
+    付费 module 豁免(token 绑定后单盘单模块缓存有界)。bucket:登录按
+    user_id,匿名按 IP(user_local_id 客户端可伪造,不作 bucket)。
+    达限 → QuotaExceededError(429),不静默降级。
+    """
+    from ..quota.store import FreeLLMQuotaStore
+    store: FreeLLMQuotaStore = request.app.state.free_quota_store
+    if current_user_id:
+        bucket = f"user:{current_user_id}"
+    else:
+        host = request.client.host if request.client else "unknown"
+        bucket = f"ip:{host}"
+    day = datetime.now(timezone.utc).date().isoformat()
+    ok = await run_in_threadpool(
+        store.try_consume, bucket=bucket, day=day, limit=FREE_DAILY_LIMIT)
+    if not ok:
+        logger.warning(
+            "interpret.free_quota_exceeded bucket=%s day=%s limit=%d "
+            "module=%s content_hash=%s",
+            bucket, day, FREE_DAILY_LIMIT, req.module, req.content_hash)
+        raise QuotaExceededError(
+            f"今日免费解读生成次数已达服务端上限({FREE_DAILY_LIMIT}/日),"
+            f"明日再来;付费内容不受此限",
+            content_hash=req.content_hash)
+
+
 async def _load_validated_cache_row(
     cache: InterpretationCache,
     cache_key: CacheKey,
@@ -714,6 +749,20 @@ async def interpret(
     # 共享 _prepare_prompt_and_key——D10.1 缓存键对齐的关键:两个端点跑同一段
     # 代码,译文写入的键与目标语言正常生成的键逐字段相等)
     prepared = _prepare_prompt_and_key(req, language, request_id, start, ai_client)
+
+    # 2.2 context_token 验签(2026-10-07 P0 收口,一刀切:免费+付费)。
+    # context 核心字段(四柱/喜忌/日主强度等盘身)必须与排盘端点签发的
+    # token 一致——「买一次盘给任意命盘生成付费内容」的通道在此关闭;
+    # 翻译端点同闸(见 interpret_translate),否则伪造原文投毒共享键关不死。
+    # 置于 _prepare 之后:形状非法的 context 先吃 422(客户端契约错误优先
+    # 暴露),验签用 raw context(绑定字段与语言无关);仍在 entitlement /
+    # 缓存 / LLM 之前,安全序不变。
+    verify_interpret_context(
+        req.context_token, module=req.module, content_hash=req.content_hash,
+        context=req.context,
+        target_date_iso=(req.target_date.isoformat()
+                         if req.target_date else None),
+    )
     prompt_version = prepared.prompt_version
     translated_context = prepared.translated_context
     prompt = prepared.prompt
@@ -756,6 +805,10 @@ async def interpret(
     # 4. 调用选中 provider(async httpx 直接 await,不走线程池)
     #    singleflight 合并:同 key 并发只调一次 LLM,所有等待者共享结果
     #    (成本 + 延迟双省;多 worker 下各自独立,跨进程合并是 v2 Redis 的事)
+    # 3.7 免费配额(2026-10-07 匿名滥用收口):仅对真烧 LLM 的免费 module
+    #     计数(缓存命中已在上方返回);付费豁免。达限 429 不降级。
+    if req.module not in PAID_MODULES:
+        await _enforce_free_daily_quota(request, req, current_user_id)
     # v1 prompt 系统:按 module 分级 temperature(M0-M2=0.3 稳结构,M3-M7=0.6
     # 重质感,老模块=0.6 向后兼容);Stage 2 已铺基础设施,此处接入路由
     logger.info("interpret.provider_called %s", log_ctx)
@@ -1189,6 +1242,17 @@ async def interpret_translate(
         log_ctx, req.source_language,
     )
 
+    # 4.2 context_token 验签(2026-10-07 P0 收口,与 /api/interpret 同一道):
+    # 翻译写跨用户共享键,context 盘身必须与 token 一致——「受害者 hash +
+    # 自己生成的原文 + 受害者 context」投毒目标语言键的通道依赖此闸关闭。
+    # 置于 _prepare 之后(同 /api/interpret:形状 422 优先),entitlement 之前。
+    verify_interpret_context(
+        req.context_token, module=req.module, content_hash=req.content_hash,
+        context=req.context,
+        target_date_iso=(req.target_date.isoformat()
+                         if req.target_date else None),
+    )
+
     # 5. entitlement(与 /api/interpret 完全同一道;不另收费、不消耗次数)
     await _require_entitlement(request, req, current_user_id, request_id)
 
@@ -1265,6 +1329,9 @@ async def interpret_translate(
         "interpret.translate.provider_called %s source_language=%s target=%s",
         log_ctx, req.source_language, language,
     )
+    # 免费配额(与 /api/interpret 同一道):真烧 LLM 的翻译计数;付费豁免
+    if req.module not in PAID_MODULES:
+        await _enforce_free_daily_quota(request, req, current_user_id)
     sf: SingleflightCoalescer = request.app.state.llm_singleflight
     try:
         translated = await sf.coalesce(

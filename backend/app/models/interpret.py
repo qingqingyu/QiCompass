@@ -110,16 +110,23 @@ class InterpretRequest(BaseModel):
     """POST /api/interpret 请求。"""
 
     content_hash: str = Field(
-        ..., description="缓存键:bazi_deep 用命盘 hash,compatibility 用 compatibility_hash,"
-                         "daily_fortune 用命盘 hash")
+        ..., max_length=128,
+        description="缓存键:bazi_deep 用命盘 hash,compatibility 用 compatibility_hash,"
+                    "daily_fortune 用命盘 hash")
     module: Module
     context: dict[str, Any] = Field(
-        ..., description="prompt 渲染负载(各 module 形状不同,由 ai/prompts.py 校验)")
+        ..., description="prompt 渲染负载(各 module 形状不同,由 ai/prompts.py 校验;"
+                         "字段长度上限见 validate_context,盘身核心字段须与 context_token 一致)")
+    context_token: str | None = Field(
+        None, max_length=32768,
+        description="排盘/合盘/每日端点签发的 context 绑定 token(2026-10-07 P0 收口,"
+                    "一刀切强制:免费+付费;缺失/验签失败 → 403 CONTEXT_TOKEN_*)")
     target_date: date | None = Field(
         None, description="daily_fortune 必填(ISO date),其他 module 必须为 null")
     user_local_id: str | None = Field(
-        None, description="付费 module 必填(PAID_MODULES),其他可选;"
-                          "用于 entitlement 查询(MONETIZATION.md)")
+        None, max_length=128,
+        description="付费 module 必填(PAID_MODULES),其他可选;"
+                    "用于 entitlement 查询(MONETIZATION.md);日志脱敏只留前 8 位")
     question: Any | None = Field(
         None, description="保留字段,MVP 忽略")
 

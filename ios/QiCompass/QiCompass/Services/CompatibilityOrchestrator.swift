@@ -159,7 +159,8 @@ final class CompatibilityOrchestrator {
         nameA: String,
         nameB: String,
         module: String = "compatibility",
-        quotaExempt: Bool = false
+        quotaExempt: Bool = false,
+        contextToken: String? = nil
     ) async throws -> InterpretResponse {
         // 规则 2:函数入口日志
         AppLogger.app.info("compat.runInterpretation.start compatibilityHash=\(compatibilityHash, privacy: .public) context=\(context, privacy: .public) module=\(module, privacy: .public)")
@@ -235,7 +236,9 @@ final class CompatibilityOrchestrator {
                 // 2026-08-23:compatibility_paid 进后端 PAID_MODULES 后 user_local_id
                 // 必填(entitlement 查询维度);免费 module 统一传无副作用,
                 // 对齐 DeepAnalysisOrchestrator 的做法
-                userLocalId: UserIdentity.userLocalId
+                userLocalId: UserIdentity.userLocalId,
+                // 2026-10-07 P0 收口:合盘 context 盘身验签(CompatibilityResponse 签发)
+                contextToken: contextToken
             )
             let resp = try await AppLogger.measure(
                 AppLogger.networking,
@@ -422,7 +425,8 @@ final class CompatibilityOrchestrator {
         module: String,
         sourceLanguage: String,
         sourcePromptVersion: Int,
-        sourceInterpretation: String
+        sourceInterpretation: String,
+        contextToken: String? = nil
     ) async throws -> InterpretResponse {
         // 先查后译(D10.1):目标语言已有缓存(他设备生成/先前翻译)直接返回
         if let cached = try await interpretationReader.read(
@@ -460,7 +464,9 @@ final class CompatibilityOrchestrator {
             context: promptContext,
             targetDate: nil,
             question: nil,
-            userLocalId: UserIdentity.userLocalId
+            userLocalId: UserIdentity.userLocalId,
+            // 2026-10-07 P0 收口:翻译同闸(译文落跨用户共享键,盘身须与 token 一致)
+            contextToken: contextToken
         )
         let translateReq = TranslateRequest(
             base: req,

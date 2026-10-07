@@ -872,15 +872,30 @@ class _StrictFormatDict(dict):
         raise KeyError(f"prompt 模板占位符 {{{key}}} 在 context 中缺失")
 
 
+# context 字段长度上限(2026-10-07 滥用收口):context 完全客户端提交,
+# 无上限 = 10KB 注入文本照单全收(PoC 实证)+ prompt 膨胀 DoS 面。
+# 分档:默认 4096;结构化大字段单独放宽(合法值量级 + 余量)。
+_FIELD_CHAR_LIMITS: dict[str, int] = {
+    "chart": 65536,                    # v1 完整命盘 JSON(嵌套结构,~10-20 倍余量)
+    "synced_fortune_table": 16384,     # 3 行流年同步
+    "hour_pillars_with_relations": 16384,  # 12 时辰条
+    "shensha_list": 8192,              # ≤20 条神煞
+}
+_DEFAULT_FIELD_CHAR_LIMIT = 4096
+# context 总量上限(含未注册的额外 key:防垃圾键绕过单字段档)
+_CONTEXT_TOTAL_CHAR_LIMIT = 131072
+
+
 def validate_context(module: str, context: dict) -> None:
-    """渲染前显式校验必填字段 + 值类型。
+    """渲染前显式校验必填字段 + 值类型 + 字段长度上限。
 
     Args:
         module: 注册到 REQUIRED_FIELDS 的任一 module(老 7 + v1 8)
         context: prompt 渲染负载
 
     Raises:
-        InvalidInputError(422): 缺字段或值类型非法(非标量),message 含详情
+        InvalidInputError(422): 缺字段或值类型非法(非标量)或超长,
+            message 含详情
         ValueError: module 未注册(代码 bug,非用户错误)
 
     daily_fortune 特例(S09):context.day_master_strength == "unknown_hour" 时
@@ -907,6 +922,22 @@ def validate_context(module: str, context: dict) -> None:
             raise InvalidInputError(
                 f"prompt 渲染字段 {field} 类型非法:{type(value).__name__},"
                 f"期望 str/int/float/bool(module={module})")
+    # 长度上限(2026-10-07):必填 + 额外 key 全量扫描(额外 key 虽不进
+    # prompt,仍占请求体与内存;总量档兜底)
+    total = 0
+    for field, value in context.items():
+        if not isinstance(value, str):
+            continue
+        total += len(value)
+        limit = _FIELD_CHAR_LIMITS.get(field, _DEFAULT_FIELD_CHAR_LIMIT)
+        if len(value) > limit:
+            raise InvalidInputError(
+                f"context 字段 {field} 长度 {len(value)} 超上限 {limit}"
+                f"(module={module};疑似注入/滥用负载)")
+    if total > _CONTEXT_TOTAL_CHAR_LIMIT:
+        raise InvalidInputError(
+            f"context 总长度 {total} 超上限 {_CONTEXT_TOTAL_CHAR_LIMIT}"
+            f"(module={module})")
 
 
 @lru_cache(maxsize=None)

@@ -69,7 +69,9 @@ async def redeem(
         "product_id": req.product_id,
         "content_hash": req.content_hash,
         "module": req.module,
-        "user_local_id": req.user_local_id,
+        # user_local_id 脱敏只留前 8 位(2026-10-07:get_active 按它兜底查询,
+        # 全文进日志 = 泄露即可冒用购买记录;DB 存全文不受影响)
+        "user_local_id": req.user_local_id[:8],
     }
     logger.info("entitlement.redeem.start %s", log_ctx)
 

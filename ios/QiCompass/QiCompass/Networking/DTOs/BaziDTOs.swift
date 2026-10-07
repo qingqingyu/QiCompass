@@ -299,6 +299,10 @@ struct BaziResponse: Codable, Sendable {
     /// 由 `ChartSnapshotStore.setHourUnknownAccepted` 写入存档 payload(后端响应
     /// 不回显此字段,与 lateNight 同款注入路径);老 payload 缺 key → nil(decodeIfPresent)。
     var hourUnknownAccepted: Bool? = nil
+    /// context_token 三族(2026-10-07 P0 收口):deep / payload(/v1 可用时有)。
+    /// interpret/translate 验签用——context 盘身必须与 token 一致。
+    /// 老快照缺 key → nil(消费方触发重排盘补取,无孤儿化)。存档进 payload。
+    var contextTokens: [String: String]? = nil
 
     /// 存档/响应是否含时柱(时辰未知 S04)。单一事实源是后端
     /// `calc_rule_snapshot.hour_known`;老 payload 缺 key → true(decodeIfPresent ?? true)。
@@ -346,6 +350,7 @@ struct BaziResponse: Codable, Sendable {
         case shenshaIncomplete = "shensha_incomplete"
         case pillarAmbiguity = "pillar_ambiguity"
         case hourUnknownAccepted = "hour_unknown_accepted"
+        case contextTokens = "context_tokens"
     }
 
     // Stage 7b 关键修复:自定义 init(from:) 让 v1 字段真能解码。
@@ -439,6 +444,9 @@ struct BaziResponse: Codable, Sendable {
         // S10 静默态 flag(后端不回显,仅 ChartSnapshotStore.setHourUnknownAccepted 注入;
         // 老 payload 缺 key → nil 不 crash,2026-08-15 keyNotFound 教训)
         hourUnknownAccepted = try c.decodeIfPresent(Bool.self, forKey: .hourUnknownAccepted)
+        // 2026-10-07 P0 收口:context_token 三族(老响应/老快照缺 key → nil)
+        contextTokens = try c.decodeIfPresent(
+            [String: String].self, forKey: .contextTokens)
     }
 
     // Stage 7b:memberwise init(自定义 init(from:) 后失去合成,手写带默认值
@@ -476,7 +484,8 @@ struct BaziResponse: Codable, Sendable {
         lateNight: Bool? = nil,
         shenshaIncomplete: Bool = false,
         pillarAmbiguity: PillarAmbiguityDTO? = nil,
-        hourUnknownAccepted: Bool? = nil
+        hourUnknownAccepted: Bool? = nil,
+        contextTokens: [String: String]? = nil
     ) {
         self.contentHash = contentHash
         self.trueSolarTime = trueSolarTime
@@ -511,6 +520,7 @@ struct BaziResponse: Codable, Sendable {
         self.shenshaIncomplete = shenshaIncomplete
         self.pillarAmbiguity = pillarAmbiguity
         self.hourUnknownAccepted = hourUnknownAccepted
+        self.contextTokens = contextTokens
     }
 }
 
@@ -545,6 +555,25 @@ extension BaziResponse {
         if !isHourKnown { return .hourUnknownDayDetermined }
         return .hourKnown
     }
+
+    /// interpret module → context_token(2026-10-07 P0 收口,单一事实源)。
+    ///
+    /// bazi_deep 家族(含 alias/free/paid)用 "deep" 族;m0-m7 用 "v1" 族
+    /// (m7_manual 无 chart 字段,后端做签名级校验,同 v1 族取件)。
+    /// 合盘/每日模块不经此取(各自从 CompatibilityResponse.contextToken /
+    /// DailyFortuneResponse.contextToken 取,内容 hash 维度不同)。
+    /// 老快照无 token → nil(后端 403 CONTEXT_TOKEN_REQUIRED 显式暴露,重新排盘即恢复)。
+    func contextToken(forModule module: String) -> String? {
+        switch module {
+        case "bazi_deep", "bazi_deep_free", "bazi_deep_paid":
+            return contextTokens?["deep"]
+        default:
+            return contextTokens?["v1"]
+        }
+    }
+
+    /// 合盘/每日端点对账用 per-chart token(payload 族)。
+    var payloadContextToken: String? { contextTokens?["payload"] }
 }
 
 // MARK: - Error

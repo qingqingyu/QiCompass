@@ -97,7 +97,9 @@ final class CompatibilitySnapshotStoreTests: XCTestCase {
             personBHash: "b_hash",
             chartPayloadA: payloadA,
             chartPayloadB: payloadB,
-            context: "marriage"
+            context: "marriage",
+            contextTokenA: "token-a",
+            contextTokenB: "token-b"
         )
         let data = try APICoder.encoder.encode(req)
         let json = try XCTUnwrap(String(data: data, encoding: .utf8))
@@ -118,7 +120,8 @@ final class CompatibilitySnapshotStoreTests: XCTestCase {
             personAHash: "a_hash",
             personB: personB,
             chartPayloadA: payloadA,
-            context: "business"
+            context: "business",
+            contextTokenA: "token-a"
         )
         let data = try APICoder.encoder.encode(req)
         let json = try XCTUnwrap(String(data: data, encoding: .utf8))

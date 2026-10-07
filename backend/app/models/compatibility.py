@@ -116,6 +116,17 @@ class CompatibilityRequest(BaseModel):
     chart_payload_b: ChartPayload | None = Field(
         None, description="模式 A 必填; 模式 B 由后端现排后内部生成")
     context: Context = Field("general", description="合盘语境, 仅参与 hash + AI prompt")
+    # 2026-10-07 P0 收口:chart_payload 与 hash 单向不可逆,服务端无法复算——
+    # 携带排盘端点签发的 payload 族 per-chart token,端点做 token↔hash↔payload
+    # 三方对账后才签发合盘 token(否则「假 payload 换合法签发」循环信任)。
+    context_token_a: str | None = Field(
+        None, max_length=32768,
+        description="A 盘 per-chart token(/api/bazi/calculate 响应 "
+                    "context_tokens.payload);schema 可选,端点显式强制"
+                    "(缺失 → 403,让单测可直接构造本模型)")
+    context_token_b: str | None = Field(
+        None, max_length=32768,
+        description="模式 A: B 盘 per-chart token(模式 B 后端现排, 必须为 null)")
 
     @model_validator(mode="after")
     def person_b_mode_exclusive(self) -> "CompatibilityRequest":
@@ -134,10 +145,19 @@ class CompatibilityRequest(BaseModel):
 
     @model_validator(mode="after")
     def chart_payload_b_consistency(self) -> "CompatibilityRequest":
-        """模式 A (person_b_hash 给定) 下 chart_payload_b 必填（不静默）。"""
+        """模式 A (person_b_hash 给定) 下 chart_payload_b 必填（不静默）。
+
+        context_token_b 的模式约束:模式 A 允许、模式 B 必须为 null
+        (B 由后端现排无 token);「模式 A 必须带 token」不在 schema 层强制
+        (token 存在性由端点 403 把关,单测构造模型不必带)。
+        """
         if self.person_b_hash is not None and self.chart_payload_b is None:
             raise ValueError(
                 "模式 A (person_b_hash) 下 chart_payload_b 必填")
+        if self.person_b is not None and self.context_token_b is not None:
+            raise ValueError(
+                "模式 B (person_b) 下 context_token_b 必须为 null"
+                "(B 由后端现排, 无 per-chart token)")
         return self
 
 
@@ -198,3 +218,7 @@ class CompatibilityResponse(BaseModel):
             "确定性引擎规则版本(客户端快照据此判断是否须重算; "
             "不参与 compatibility_hash)"
         ))
+    # 2026-10-07 P0 收口:合盘 context 核心字段绑定 token(interpret/translate
+    # 验签;由已对账的 A/B payload token claims + 引擎定性评估派生)
+    context_token: str | None = Field(
+        None, description="compat 族 context_token(客户端存档随请求回传)")
