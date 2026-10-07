@@ -2568,7 +2568,7 @@ final class CompatibilityViewModel {
             let passthrough = allowExemptPassthrough
                 && self.exemptAttemptCompatHash == summary.compatibilityHash
             if passthrough {
-                AppLogger.app.info("compatVM.retryInterpretation.quota_exempt_passthrough")
+                AppLogger.app.info("op=compatibility.runGatedGeneration.quota_exempt_passthrough")
             }
             self.generateInterpretation(quotaExempt: passthrough)
         }
