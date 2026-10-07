@@ -19,6 +19,7 @@ import json
 
 import pytest
 
+from app.ai.prompts import PROMPT_VERSIONS
 from app.engine.term_translations import (
     TERM_TRANSLATIONS,
     build_translation_term_pairs,
@@ -65,40 +66,40 @@ def _seed_source_row(cache, payload: dict, text: str,
                      target_date: str | None = None) -> None:
     """直接落一行 source_language 原文(翻译防伪前提)。
 
-    2026-10-07 收紧:v1/daily 翻译防伪改走 `has_interpretation_exact`,
-    按源语言重渲染 prompt 后比对 prompt_hash / parent_hash /
-    user_input_hash——占位 hash 不再可核验,此处须算出真实渲染值
-    (与 _prepare_prompt_and_key(req, source_language) 同源:translate_context
-    → render_prompt → sha256)。provider/model 不参与防伪,任意值即可。
+    与端点同源:经 `_prepare_prompt_and_key(req, source_language)` 算真实
+    渲染键(translate_context → **链式字段规范化** → render_prompt →
+    sha256,2026-10-07 回归修复后与生成/防伪三方同一路径),杜绝测试种子
+    与生产键算法漂移(v1 M1-M7 的链字段形态不同即 409)。provider/model
+    不参与防伪,任意值即可。
     target_date 可显式覆盖(默认取 payload 的)——日期防伪用例用它制造
     「原文行的日期 ≠ 请求声明的日期」的错位行。
     """
-    import hashlib
-
     from app.ai.cache_key import CacheKey
-    from app.ai.prompts import render_prompt
-    from app.engine.term_translations import translate_context
+    from app.api.interpret import _prepare_prompt_and_key
+    from app.models.interpret import TranslateRequest
 
-    lang = payload["source_language"]
-    translated = translate_context(payload["context"], lang, payload["module"])
-    prompt = render_prompt(payload["module"], translated, language=lang)
-    prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
-    fp = payload.get("parent_fingerprint")
-    parent_hash = hashlib.sha256(fp.encode("utf-8")).hexdigest() if fp else ""
+    if target_date is not None:
+        payload = {**payload, "target_date": target_date}
+    req = TranslateRequest(**payload)
 
+    class _SeedAIClient:
+        provider = "anthropic"
+        model = "mock-anthropic-model"
+
+    prepared = _prepare_prompt_and_key(
+        req, payload["source_language"], "seed", 0.0, _SeedAIClient())
     cache.set(
         CacheKey(
             content_hash=payload["content_hash"],
             module=payload["module"],
             prompt_version=payload["source_prompt_version"],
-            target_date=target_date if target_date is not None
-            else (payload.get("target_date") or ""),
-            prompt_hash=prompt_hash,
+            target_date=payload.get("target_date") or "",
+            prompt_hash=prepared.cache_key.prompt_hash,
             provider="anthropic",
             model="mock-anthropic-model",
-            parent_hash=parent_hash,
-            user_input_hash="",
-            language=lang,
+            parent_hash=prepared.cache_key.parent_hash,
+            user_input_hash=prepared.cache_key.user_input_hash,
+            language=payload["source_language"],
         ),
         text,
         "2026-10-01T00:00:00+00:00",
@@ -186,6 +187,599 @@ async def test_translate_cache_hit_skips_llm(
     assert second.json()["interpretation"] == M0_HANT_JSON
     assert second.json()["translated_from"] is None  # 命中行来源不区分
     assert mock_ai_client.call_count == calls
+
+
+# ---------- v1 M1-M7 链式翻译(2026-10-07 回归修复:D10.4 译后链字段) ----------
+
+
+def _ios_serialize(value) -> str:
+    """镜像 iOS JSONSerialization.data(withJSONObject:) 的紧凑序列化。
+
+    插入序、无空白分隔——与服务端 canonical 形态(sort_keys)刻意不同,
+    用于证明 prompt_hash 已与客户端序列化字节形式解耦。
+    """
+    return json.dumps(value, ensure_ascii=False, separators=(",", ":"))
+
+
+M1_ZH_JSON = json.dumps({
+    "innate": [{"name": "抗压转化", "behavior": "高压下稳定输出",
+                "evidence": "年柱七杀有制", "energy": "gain"}],
+    "trained": [{"name": "流程管理", "behavior": "先建清单再动手",
+                 "trained_by": "环境压力", "evidence": "偏财"}],
+    "defensive": [{"name": "过度自律", "looks_like": "可靠",
+                   "actual_cost": "耗元气", "evidence": "正官"}],
+    "one_leverage": "把压力转化为产出的能力",
+}, ensure_ascii=False)
+
+M1_HANT_JSON = json.dumps({
+    "innate": [{"name": "抗壓轉化", "behavior": "高壓下穩定輸出",
+                "evidence": "年柱七殺有制", "energy": "gain"}],
+    "trained": [{"name": "流程管理", "behavior": "先建清單再動手",
+                 "trained_by": "環境壓力", "evidence": "偏財"}],
+    "defensive": [{"name": "過度自律", "looks_like": "可靠",
+                   "actual_cost": "耗元氣", "evidence": "正官"}],
+    "one_leverage": "把壓力轉化為產出的能力",
+}, ensure_ascii=False)
+
+
+def _m1_context(chain_output: dict, chart: str = M0_CHART) -> dict:
+    """M1 请求 context(iOS 口径:链字段 = 上游输出的紧凑序列化字符串)。"""
+    return {
+        "chart": chart,
+        "structure_fingerprint": chain_output["structure_fingerprint"],
+        "main_axis": _ios_serialize(chain_output["main_axis"]),
+        "core_loop": _ios_serialize(chain_output["core_loop"]),
+    }
+
+
+async def _generate(interpret_client, mock_ai_client, *, content_hash,
+                    module, context, parent_fingerprint=None,
+                    mock_response=None, language=None, **extra) -> dict:
+    """经真实 /api/interpret 落一行生成缓存(与 iOS 生成路径逐字节同源)。"""
+    if mock_response is not None:
+        mock_ai_client.set_response(mock_response)
+    payload = {
+        "content_hash": content_hash, "module": module,
+        "context": context, "target_date": None,
+    }
+    if parent_fingerprint is not None:
+        payload["parent_fingerprint"] = parent_fingerprint
+    payload.update(extra)
+    headers = {"X-QiCompass-Lang": language} if language else None
+    resp = await interpret_client.post("/api/interpret", json=payload,
+                                       headers=headers)
+    assert resp.status_code == 200, resp.text
+    return resp.json()
+
+
+async def test_m1_translate_with_translated_chain_round_trip(
+        interpret_client, mock_ai_client):
+    """P1 回归锚(2026-10-07):iOS 真实流程下 M1-M7 翻译必须可用。
+
+    流程(D10.4):zh 生成 M0/M1 → M0 译 zh-hant → M1 携**译后 M0 的
+    链字段**翻译。9958cf1 按请求 context 源语言重渲染算键,目标语言链字段
+    嵌进源键后永不相等 → 合法翻译恒 409。修复后:链字段规范化(语义化)
+    + 源键按缓存上游链重建 → 200;且译后 M1 落在 native zh-hant M1 键上
+    (目标语言正常生成请求命中 cached=true)。
+    """
+    ch = "hash-chain-m1"
+    m0_zh = json.loads(M0_ZH_JSON)
+    m0_hant = json.loads(M0_HANT_JSON)
+
+    # 1. zh 生成 M0 + M1(链字段 = zh M0 输出的 iOS 序列化形态)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m0_structure", context={"chart": M0_CHART},
+                    mock_response=M0_ZH_JSON)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m1_talent", context=_m1_context(m0_zh),
+                    parent_fingerprint=m0_zh["structure_fingerprint"],
+                    mock_response=M1_ZH_JSON)
+
+    # 2. M0 译 zh-hant(落 native zh-hant M0 键)
+    mock_ai_client.set_response(M0_HANT_JSON)
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m0_structure",
+        "context": {"chart": M0_CHART}, "target_date": None,
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m0_structure"],
+        "source_interpretation": M0_ZH_JSON,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 200, resp.text
+
+    # 3. M1 携译后 M0 链字段翻译(曾恒 409 的路径)
+    mock_ai_client.set_response(M1_HANT_JSON)
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m1_talent",
+        "context": _m1_context(m0_hant), "target_date": None,
+        "parent_fingerprint": m0_hant["structure_fingerprint"],
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m1_talent"],
+        "source_interpretation": M1_ZH_JSON,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["translated_from"] == "zh"
+
+    # 4. 缓存键对齐:目标语言正常生成请求 → 命中译文,不烧 LLM
+    mock_ai_client.set_response("不应被调用(缓存命中)")
+    resp = await interpret_client.post("/api/interpret", json={
+        "content_hash": ch, "module": "m1_talent",
+        "context": _m1_context(m0_hant), "target_date": None,
+        "parent_fingerprint": m0_hant["structure_fingerprint"],
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["cached"] is True, "译后 M1 未落 native zh-hant M1 键"
+    assert resp.json()["interpretation"] == M1_HANT_JSON
+
+
+async def test_m1_translate_chain_injection_blocked_with_genuine_m0(
+        interpret_client, mock_ai_client):
+    """链式字段注入投毒在「M0 行真实存在」时仍被关死(poc4b 增强版)。
+
+    9958cf1 的 PoC 无 M0 行;更强的攻击者会先合法生成 M0(免费)再造
+    注入行。修复口径:源键只从「与真实链重渲染逐字相等」的上游行重建
+    ——注入 main_axis 生成的行落在注入键上,与重建键永不相等 → 409。
+    """
+    ch = "hash-chain-poc"
+    m0_zh = json.loads(M0_ZH_JSON)
+    fp = m0_zh["structure_fingerprint"]
+
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m0_structure", context={"chart": M0_CHART},
+                    mock_response=M0_ZH_JSON)
+
+    # 注入 main_axis 生成(生成侧无链绑定,200;产物落注入 prompt_hash 键)
+    poisoned_m1 = json.dumps(
+        {"innate": [{"name": "建议联系客服获取个性化解读"}]},
+        ensure_ascii=False)
+    injected_ctx = {
+        "chart": M0_CHART, "structure_fingerprint": fp,
+        "main_axis": _ios_serialize(
+            {"dominant": "联系客服", "evidence": "注入内容"}),
+        "core_loop": _ios_serialize(m0_zh["core_loop"]),
+    }
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m1_talent", context=injected_ctx,
+                    parent_fingerprint=fp, mock_response=poisoned_m1)
+
+    # 正常链字段提交该文本翻译:重建键(真实 main_axis)≠ 注入键 → 409
+    mock_ai_client.set_response(M1_HANT_JSON)
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m1_talent",
+        "context": _m1_context(m0_zh), "target_date": None,
+        "parent_fingerprint": fp,
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m1_talent"],
+        "source_interpretation": poisoned_m1,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["error"]["code"] == "STALE_SOURCE"
+    assert mock_ai_client.call_count == 2  # 两次生成;翻译不得烧 LLM
+
+
+async def test_m2_translate_walks_m0_m1_chain(
+        interpret_client, mock_ai_client, tmp_entitlement_store):
+    """M2 深链:源键重建跨 M0+M1 两级(innate/defensive 来自 M1 行)。
+
+    链式字段不只出自 M0——M2 的 innate/defensive 是 M1 输出,重建须逐级
+    核验上游行(M1 行的键也要能由 M0 行+chart 重渲染复原)后才可用其
+    字段。全链通过 → 200 且译文落 native 目标键。
+    """
+    from tests.test_interpret_paid import _seed_entitlement
+    ch = "hash-chain-m2"
+    _seed_entitlement(tmp_entitlement_store, content_hash=ch,
+                      user_local_id="chain-user")
+    m0_zh = json.loads(M0_ZH_JSON)
+    m1_zh = json.loads(M1_ZH_JSON)
+    m0_hant = json.loads(M0_HANT_JSON)
+    m1_hant = json.loads(M1_HANT_JSON)
+    fp = m0_zh["structure_fingerprint"]
+
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m0_structure", context={"chart": M0_CHART},
+                    mock_response=M0_ZH_JSON)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m1_talent", context=_m1_context(m0_zh),
+                    parent_fingerprint=fp, mock_response=M1_ZH_JSON)
+    m2_zh = json.dumps({"high_config": {"portrait": "输出稳定"}},
+                       ensure_ascii=False)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m2_high_low", context={
+                        "chart": M0_CHART, "structure_fingerprint": fp,
+                        "innate": _ios_serialize(m1_zh["innate"]),
+                        "defensive": _ios_serialize(m1_zh["defensive"]),
+                    }, parent_fingerprint=fp, mock_response=m2_zh,
+                    user_local_id="chain-user")
+
+    # 译后链:M0/M1 均用译后输出(zh-hant 链),M2 携译后 innate/defensive
+    m2_hant = json.dumps({"high_config": {"portrait": "輸出穩定"}},
+                         ensure_ascii=False)
+    mock_ai_client.set_response(m2_hant)
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m2_high_low",
+        "context": {
+            "chart": M0_CHART,
+            "structure_fingerprint": m0_hant["structure_fingerprint"],
+            "innate": _ios_serialize(m1_hant["innate"]),
+            "defensive": _ios_serialize(m1_hant["defensive"]),
+        },
+        "target_date": None,
+        "parent_fingerprint": m0_hant["structure_fingerprint"],
+        "user_local_id": "chain-user",
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m2_high_low"],
+        "source_interpretation": m2_zh,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["translated_from"] == "zh"
+    assert resp.json()["interpretation"] == m2_hant
+
+
+async def test_m2_translate_from_en_walks_translated_chart(
+        interpret_client, mock_ai_client, tmp_entitlement_store):
+    """en 源深链(2026-10-07 review):walk 重渲染必须过 translate_context。
+
+    en 行生成时 chart 已被 _translate_deep_context 译成英文术语(庚午→
+    Geng Wu);walk 若用请求原始 chart 重渲染,hash 与 en 行生成 hash 永不
+    相等 → 合法翻译恒 409(与被修回归同类,换源语言)。修复 = walk 渲染
+    前同序过 translate_context(zh 源是 identity,故 zh 测试未暴露此洞)。
+    """
+    from tests.test_interpret_paid import _seed_entitlement
+    ch = "hash-chain-m2-en"
+    _seed_entitlement(tmp_entitlement_store, content_hash=ch,
+                      user_local_id="chain-en-user")
+    m0_en = {
+        "structure_fingerprint": "Seven Killings driven structure",
+        "main_axis": {"dominant": "Seven Killings",
+                      "evidence": "year pillar reveals Seven Killings"},
+        "core_loop": {"from": "Seven Killings", "to": "Indirect Wealth",
+                      "flow": "pressure converts to output", "n": 2},
+    }
+    m1_en = {
+        "innate": [{"name": "pressure conversion",
+                    "behavior": "stable output under pressure",
+                    "evidence": "controlled Seven Killings", "energy": "gain"}],
+        "trained": [{"name": "process management"}],
+        "defensive": [{"name": "over-discipline", "looks_like": "reliable"}],
+        "one_leverage": "turning pressure into output",
+    }
+
+    async def _gen_en(module, context, response, **extra):
+        await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                        module=module, context=context,
+                        mock_response=response, language="en",
+                        user_local_id="chain-en-user", **extra)
+
+    await _gen_en("m0_structure", {"chart": M0_CHART},
+                  json.dumps(m0_en, ensure_ascii=False))
+    fp = m0_en["structure_fingerprint"]
+    await _gen_en("m1_talent", {
+        "chart": M0_CHART, "structure_fingerprint": fp,
+        "main_axis": _ios_serialize(m0_en["main_axis"]),
+        "core_loop": _ios_serialize(m0_en["core_loop"]),
+    }, json.dumps(m1_en, ensure_ascii=False), parent_fingerprint=fp)
+    m2_en = json.dumps({"high_config": {"portrait": "steady output"}},
+                       ensure_ascii=False)
+    await _gen_en("m2_high_low", {
+        "chart": M0_CHART, "structure_fingerprint": fp,
+        "innate": _ios_serialize(m1_en["innate"]),
+        "defensive": _ios_serialize(m1_en["defensive"]),
+    }, m2_en, parent_fingerprint=fp)
+
+    # en → zh-hant:M2 携 zh-hant 链字段(译后覆盖),源链须从 en 行重建
+    m2_hant = json.dumps({"high_config": {"portrait": "輸出穩定"}},
+                         ensure_ascii=False)
+    mock_ai_client.set_response(m2_hant)
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m2_high_low",
+        "context": {
+            "chart": M0_CHART,
+            "structure_fingerprint": "七殺驅動(译后)",
+            "innate": _ios_serialize([{"name": "抗壓轉化"}]),
+            "defensive": _ios_serialize([{"name": "過度自律"}]),
+        },
+        "target_date": None,
+        "parent_fingerprint": "七殺驅動(译后)",
+        "user_local_id": "chain-en-user",
+        "source_language": "en",
+        "source_prompt_version": PROMPT_VERSIONS["m2_high_low"],
+        "source_interpretation": m2_en,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["translated_from"] == "en"
+    assert resp.json()["interpretation"] == m2_hant
+
+
+async def test_deeply_nested_chain_field_not_500(
+        interpret_client, mock_ai_client):
+    """深嵌套链字段(≤4096 字符、解析超递归上限)→ 不打 500。
+
+    规范化 parse 先于 validate_context 执行:json.loads 对深嵌套抛
+    RecursionError,未捕获会 500——绕过 validate_context 的
+    RecursionError→422 加固(2026-10-07 同日收口)。修复后按「不可解析
+    JSON」同款宽松保留原文,照常生成(其键不可重建,翻译自然 409)。
+    """
+    deep = "[" * 2000 + "]" * 2000  # 4000 字符 < 4096 上限;深度 2000
+    m0_zh = json.loads(M0_ZH_JSON)
+    mock_ai_client.set_response(M1_ZH_JSON)
+    resp = await interpret_client.post("/api/interpret", json={
+        "content_hash": "hash-chain-deep-nest", "module": "m1_talent",
+        "context": {
+            "chart": M0_CHART,
+            "structure_fingerprint": m0_zh["structure_fingerprint"],
+            "main_axis": deep,
+            "core_loop": _ios_serialize(m0_zh["core_loop"]),
+        },
+        "target_date": None,
+        "parent_fingerprint": m0_zh["structure_fingerprint"],
+    })
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["cached"] is False
+
+
+async def test_m4_translate_cross_user_input_blocked(
+        interpret_client, mock_ai_client, tmp_entitlement_store):
+    """m4/m5 跨用户输入投毒关死:输入 A 生成的原文不得译进输入 B 的键。
+
+    user_input_hash 进源键(m4 = age+concern):用 B 输入的请求重建的
+    源键与 A 输入生成的行永不相等 → 409(即便盘身/链字段全真)。
+    """
+    from tests.test_interpret_paid import _seed_entitlement
+    ch = "hash-chain-m4"
+    _seed_entitlement(tmp_entitlement_store, content_hash=ch,
+                      user_local_id="m4-user")
+    m0_zh = json.loads(M0_ZH_JSON)
+    fp = m0_zh["structure_fingerprint"]
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m0_structure", context={"chart": M0_CHART},
+                    mock_response=M0_ZH_JSON)
+
+    m4_zh = json.dumps({"sleep": "入睡慢,高压期更明显"}, ensure_ascii=False)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m4_health", context={
+                        "chart": M0_CHART, "structure_fingerprint": fp,
+                        "age": 30, "current_concern": "睡眠差",
+                    }, parent_fingerprint=fp, mock_response=m4_zh,
+                    m4_age=30, m4_current_concern="睡眠差",
+                    user_local_id="m4-user")
+
+    # 同盘同链,仅用户输入换成 B → 源键(输入 B)≠ 行键(输入 A)→ 409
+    mock_ai_client.set_response('{"sleep":"不應到達"}')
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m4_health",
+        "context": {"chart": M0_CHART, "structure_fingerprint": fp,
+                    "age": 30, "current_concern": "体重管理"},
+        "target_date": None, "parent_fingerprint": fp,
+        "user_local_id": "m4-user",
+        "m4_age": 30, "m4_current_concern": "体重管理",
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m4_health"],
+        "source_interpretation": m4_zh,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 409, resp.text
+    assert resp.json()["error"]["code"] == "STALE_SOURCE"
+
+    # 对照:同输入 A 的合法翻译 → 200(user_input_hash 键对齐)
+    m4_hant = json.dumps({"sleep": "入睡慢,高壓期更明顯"}, ensure_ascii=False)
+    mock_ai_client.set_response(m4_hant)
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m4_health",
+        "context": {"chart": M0_CHART, "structure_fingerprint": fp,
+                    "age": 30, "current_concern": "睡眠差"},
+        "target_date": None, "parent_fingerprint": fp,
+        "user_local_id": "m4-user",
+        "m4_age": 30, "m4_current_concern": "睡眠差",
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m4_health"],
+        "source_interpretation": m4_zh,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 200, resp.text
+
+
+async def test_m7_translate_full_chain(
+        interpret_client, mock_ai_client, tmp_entitlement_store):
+    """M7(无 chart 模板)翻译:chart 恒在 context(iOS buildV1Request
+    无条件注入),四级上游链(M1/M2/M3/M6)重建可核验 → 200。"""
+    from tests.test_interpret_paid import _seed_entitlement
+    ch = "hash-chain-m7"
+    _seed_entitlement(tmp_entitlement_store, content_hash=ch,
+                      user_local_id="m7-user")
+    m0_zh = json.loads(M0_ZH_JSON)
+    m1_zh = json.loads(M1_ZH_JSON)
+    fp = m0_zh["structure_fingerprint"]
+
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m0_structure", context={"chart": M0_CHART},
+                    mock_response=M0_ZH_JSON)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m1_talent", context=_m1_context(m0_zh),
+                    parent_fingerprint=fp, mock_response=M1_ZH_JSON)
+    m2_out = {"threshold": {"environment": {"enables": "自主空间",
+                                            "suppresses": "层层审批"}},
+              "switch_actions": ["每周复盘一次", "砍掉一个低价值任务"]}
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m2_high_low", context={
+                        "chart": M0_CHART, "structure_fingerprint": fp,
+                        "innate": _ios_serialize(m1_zh["innate"]),
+                        "defensive": _ios_serialize(m1_zh["defensive"]),
+                    }, parent_fingerprint=fp,
+                    mock_response=json.dumps(m2_out, ensure_ascii=False),
+                    user_local_id="m7-user")
+    m3_out = {"ideal_life_structure": {"mode": "小步快跑"},
+              "environment_checklist": ["日照", "安静的清晨"]}
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m3_system", context={
+                        "chart": M0_CHART, "structure_fingerprint": fp,
+                    }, parent_fingerprint=fp,
+                    mock_response=json.dumps(m3_out, ensure_ascii=False),
+                    user_local_id="m7-user")
+    m6_ctx = {
+        "chart": M0_CHART, "structure_fingerprint": fp,
+        "core_loop": _ios_serialize(m0_zh["core_loop"]),
+        "innate": _ios_serialize(m1_zh["innate"]),
+        "defensive": _ios_serialize(m1_zh["defensive"]),
+        "threshold": _ios_serialize(m2_out["threshold"]),
+    }
+    m6_out = {"leverage": {"point": "七杀压力", "risk": "过载"}}
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m6_dynamics", context=m6_ctx,
+                    parent_fingerprint=fp,
+                    mock_response=json.dumps(m6_out, ensure_ascii=False),
+                    user_local_id="m7-user")
+    m7_zh = json.dumps({"manual": "把手头的压力源列成清单"}, ensure_ascii=False)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m7_manual", context={
+                        "chart": M0_CHART, "structure_fingerprint": fp,
+                        "one_leverage": m1_zh["one_leverage"],
+                        "switch_actions": _ios_serialize(m2_out["switch_actions"]),
+                        "environment_checklist": _ios_serialize(
+                            m3_out["environment_checklist"]),
+                        "leverage": _ios_serialize(m6_out["leverage"]),
+                    }, parent_fingerprint=fp, mock_response=m7_zh,
+                    user_local_id="m7-user")
+
+    m7_hant = json.dumps({"manual": "把手頭的壓力源列成清單"},
+                         ensure_ascii=False)
+    mock_ai_client.set_response(m7_hant)
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m7_manual",
+        "context": {
+            "chart": M0_CHART, "structure_fingerprint": fp,
+            "one_leverage": m1_zh["one_leverage"] + "(译)",
+            "switch_actions": _ios_serialize(m2_out["switch_actions"]),
+            "environment_checklist": _ios_serialize(
+                m3_out["environment_checklist"]),
+            "leverage": _ios_serialize(m6_out["leverage"]),
+        },
+        "target_date": None, "parent_fingerprint": fp,
+        "user_local_id": "m7-user",
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m7_manual"],
+        "source_interpretation": m7_zh,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["translated_from"] == "zh"
+
+
+async def test_m1_translate_upstream_missing_returns_409(
+        interpret_client, mock_ai_client):
+    """上游行缺失(清库/换环境)→ 不可核验 → 409(iOS 走重新生成降级)。"""
+    m0_zh = json.loads(M0_ZH_JSON)
+    mock_ai_client.set_response(M1_HANT_JSON)
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": "hash-chain-empty", "module": "m1_talent",
+        "context": _m1_context(m0_zh), "target_date": None,
+        "parent_fingerprint": m0_zh["structure_fingerprint"],
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m1_talent"],
+        "source_interpretation": M1_ZH_JSON,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 409, resp.text
+    assert mock_ai_client.call_count == 0
+
+
+async def test_m1_translate_legacy_noncanonical_row_409(
+        interpret_client, mock_ai_client, tmp_cache):
+    """旧序列化形态行(规范化部署前的键)自然失效:重建走 canonical
+    形态,与旧行键不相等 → 409 → 客户端重新生成(一次性迁移成本)。"""
+    ch = "hash-chain-legacy"
+    m0_zh = json.loads(M0_ZH_JSON)
+    fp = m0_zh["structure_fingerprint"]
+    # M0 行正常(zh 生成);M1 行按**旧形态**(iOS 序列化字节直嵌,未规范化)落
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m0_structure", context={"chart": M0_CHART},
+                    mock_response=M0_ZH_JSON)
+    import hashlib
+
+    from app.ai.cache_key import CacheKey
+    from app.ai.prompts import render_prompt
+    from app.engine.term_translations import translate_context
+    legacy_ctx = _m1_context(m0_zh)
+    legacy_prompt = render_prompt(
+        "m1_talent",
+        translate_context(legacy_ctx, "zh", "m1_talent"), language="zh")
+    tmp_cache.set(
+        CacheKey(content_hash=ch, module="m1_talent",
+                 prompt_version=PROMPT_VERSIONS["m1_talent"], target_date="",
+                 prompt_hash=hashlib.sha256(
+                     legacy_prompt.encode("utf-8")).hexdigest(),
+                 provider="anthropic", model="mock-anthropic-model",
+                 parent_hash=hashlib.sha256(fp.encode()).hexdigest(),
+                 user_input_hash="", language="zh"),
+        M1_ZH_JSON, "2026-10-01T00:00:00+00:00")
+
+    mock_ai_client.set_response(M1_HANT_JSON)
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m1_talent",
+        "context": _m1_context(m0_zh), "target_date": None,
+        "parent_fingerprint": fp,
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m1_talent"],
+        "source_interpretation": M1_ZH_JSON,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 409, resp.text
+
+
+def test_v1_chain_tables_sync_guard():
+    """链式镜像表守护栏(_V1_CHAIN_PRODUCER / _V1_SOURCE_WALK_DEPS)。
+
+    两表手写镜像 iOS ModuleDefinitions(dependencies / extractChainFields)
+    与 prompts.py REQUIRED_FIELDS 三方——漂移 = 翻译防伪静默全线 409,
+    无行为测试能红(409 与「上游缺失」不可区分)。本项目镜像表惯例是
+    机器锁(sku_sync / term_sync 同理),此处锁四个不变量:
+
+    ① 表键域完整:_V1_SOURCE_WALK_DEPS 覆盖且仅覆盖 V1_CHILDREN_MODULES;
+       产出者 ⊆ V1_MODULES。
+    ② 上游依赖完备:叶子模块 REQUIRED 中的链式字段,其产出模块必在 deps。
+    ③ deps 拓扑序:走到任一上游 d 时,d 的 REQUIRED 链式字段已由更早的
+       deps 产出(m0 恒首位,其字段视为就绪)。
+    ④ 叶子覆盖:叶子 REQUIRED 的非链字段只剩 chart 与 m4/m5 用户输入
+       (随请求回传),不得出现第三类未知来源字段。
+    """
+    from app.ai.prompts import REQUIRED_FIELDS
+    from app.api.interpret import (
+        _V1_CHAIN_PRODUCER, _V1_SOURCE_WALK_DEPS)
+    from app.models.interpret import V1_CHILDREN_MODULES, V1_MODULES
+
+    # ① 键域
+    assert set(_V1_SOURCE_WALK_DEPS) == V1_CHILDREN_MODULES
+    assert set(_V1_CHAIN_PRODUCER.values()) <= V1_MODULES
+    # 用户输入字段(m4/m5;CONTEXT 侧字段名,区别于请求顶层 m4_* )
+    user_input_context_fields = {
+        "m4_health": {"age", "current_concern"},
+        "m5_wealth": {"assets_summary", "preference"},
+    }
+
+    for module, deps in _V1_SOURCE_WALK_DEPS.items():
+        assert "m0_structure" in deps, f"{module}: m0 必在 deps(链根)"
+        assert len(deps) == len(set(deps)), f"{module}: deps 有重复"
+        # ② 叶子链字段完备
+        for field in REQUIRED_FIELDS[module]:
+            if field == "chart" or field in user_input_context_fields.get(
+                    module, set()):
+                continue
+            assert field in _V1_CHAIN_PRODUCER, (
+                f"{module}: REQUIRED 字段 {field} 既非 chart/用户输入,"
+                f"也不在 _V1_CHAIN_PRODUCER(表失同步)")
+            producer = _V1_CHAIN_PRODUCER[field]
+            assert producer in deps, (
+                f"{module}: 链字段 {field} 的产出者 {producer} 不在 deps")
+        # ③ deps 拓扑序(上游模块的链字段须由更早的 deps 产出)
+        for i, upstream in enumerate(deps):
+            if upstream == "m0_structure":
+                continue
+            for field in REQUIRED_FIELDS[upstream]:
+                if field == "chart" or field in user_input_context_fields.get(
+                        upstream, set()):
+                    continue
+                producer = _V1_CHAIN_PRODUCER[field]
+                assert producer in deps[:i], (
+                    f"{module}: deps 顺序非拓扑——{upstream} 消费 {field}"
+                    f"(产自 {producer})但后者排在其后")
+        # ④ 无第三类来源
+        known = ({"chart"} | user_input_context_fields.get(module, set())
+                 | set(_V1_CHAIN_PRODUCER))
+        unknown = set(REQUIRED_FIELDS[module]) - known
+        assert not unknown, f"{module}: REQUIRED 出现未知来源字段 {unknown}"
 
 
 # ---------- 门控:版本 / 白名单 / 语言 / 长度 ----------
@@ -446,15 +1040,61 @@ async def test_paid_module_translate_without_entitlement_403(
 
 async def test_paid_module_translate_with_entitlement_200(
         interpret_client, mock_ai_client, tmp_entitlement_store, tmp_cache):
-    """m2_high_low 有 entitlement → 200(翻译不另收费、不消耗次数)。"""
+    """m2_high_low 有 entitlement → 200(翻译不另收费、不消耗次数)。
+
+    2026-10-07 回归修复后:m2 源键按上游链重建,须先落一致的 M0/M1 行
+    (链字段与叶子行 parent_hash 逐字对齐),否则防伪 409。
+    """
     from tests.test_interpret_paid import _seed_entitlement
     _seed_entitlement(tmp_entitlement_store,
                       content_hash="hash-tr-m0", module="bazi_deep")
+
+    m0_out = json.dumps({
+        "structure_fingerprint": "fp-m2",
+        "main_axis": {"dominant": "七杀"},
+        "core_loop": {"from": "七杀", "to": "偏财"},
+    }, ensure_ascii=False)
+    m1_out = json.dumps({
+        "innate": "抗压产出", "defensive": "过度自律", "one_leverage": "稳",
+    }, ensure_ascii=False)
+    _seed_source_row(tmp_cache, {
+        "content_hash": "hash-tr-m0", "module": "m0_structure",
+        "context": {"chart": M0_CHART}, "target_date": None,
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m0_structure"],
+        "source_interpretation": m0_out,
+    }, m0_out)
+    _seed_source_row(tmp_cache, {
+        "content_hash": "hash-tr-m0", "module": "m1_talent",
+        "context": {
+            "chart": M0_CHART, "structure_fingerprint": "fp-m2",
+            "main_axis": _ios_serialize({"dominant": "七杀"}),
+            "core_loop": _ios_serialize({"from": "七杀", "to": "偏财"}),
+        },
+        "target_date": None, "parent_fingerprint": "fp-m2",
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m1_talent"],
+        "source_interpretation": m1_out,
+    }, m1_out)
 
     src = json.dumps({"high_config": {"portrait": "输出稳定"}},
                      ensure_ascii=False)
     tgt = json.dumps({"high_config": {"portrait": "輸出穩定"}},
                      ensure_ascii=False)
+    # 源生成镜像:叶子行的 context fp 恒等于源 M0 行 fp(iOS 从其提取)
+    _seed_source_row(tmp_cache, {
+        "content_hash": "hash-tr-m0", "module": "m2_high_low",
+        "context": {
+            "chart": M0_CHART, "structure_fingerprint": "fp-m2",
+            "innate": "抗压产出", "defensive": "过度自律",
+        },
+        "target_date": None, "parent_fingerprint": "fp-m2",
+        "user_local_id": "user-1",
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m2_high_low"],
+        "source_interpretation": src,
+    }, src)
+    # 翻译请求(context 链字段是目标语言口径的任意合法值,防伪按源链重建)
     payload = _m0_translate_payload(source_interpretation=src)
     payload.update({
         "module": "m2_high_low",
@@ -463,9 +1103,8 @@ async def test_paid_module_translate_with_entitlement_200(
             "innate": "抗压产出", "defensive": "过度自律",
         },
         "user_local_id": "user-1",
-        "parent_fingerprint": "fp-m2",
+        "parent_fingerprint": "七杀驱动(译)",
     })
-    _seed_source_row(tmp_cache, payload, src)
     mock_ai_client.set_response(tgt)
     resp = await interpret_client.post(
         "/api/interpret/translate", json=payload,

@@ -1001,8 +1001,16 @@ def _load_template(module: str, language: str, version: int) -> str:
     )
 
 
-def render_prompt(module: str, context: dict, language: str = "zh") -> str:
+def render_prompt(
+    module: str, context: dict, language: str = "zh",
+    prompt_version: int | None = None,
+) -> str:
     """渲染 prompt:先校验必填字段,按 language 加载模板,再 str.format_map 填充。
+
+    prompt_version(可选):覆盖 PROMPT_VERSIONS[module] 的当前值,按**指定
+    版本**取模板。翻译防伪的 v1 上游链重建用(interpret.py)——上游缓存行
+    可能落在早于当前版本的键下,须按行自身存储的版本重渲染才能逐字复原其
+    prompt_hash;默认 None = 当前版本(全部既有调用方行为不变)。
 
     bazi_deep 系列(alias / _free / _paid)命中 day_master_strength ==
     "special_pattern" 时追加从格诚实降级约束段(T1c 文件化:
@@ -1045,7 +1053,7 @@ def render_prompt(module: str, context: dict, language: str = "zh") -> str:
         context = dict(context)
         context.setdefault("name_a", "A")
         context.setdefault("name_b", "B")
-    version = PROMPT_VERSIONS[module]
+    version = PROMPT_VERSIONS[module] if prompt_version is None else prompt_version
     # S09 时辰未知降级:daily_fortune 的 unknown_hour context 整体切降级模板变体
     # (日柱×流日十神关系为轴;喜忌栏/12 时辰段数据块不进 prompt)。
     # 变体不在 REQUIRED_FIELDS / _LEGACY_TEMPLATES 注册——它只是主 module 的
