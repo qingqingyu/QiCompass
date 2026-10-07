@@ -924,7 +924,10 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
                     zodiacMatch: "六合", branchHarmony: "无冲无刑"
                 ),
                 syncedFortune: [],
-                calcRuleSnapshot: nil
+                calcRuleSnapshot: nil,
+                // 规则版本带期望值:本用例测恢复直达,快照须按"当前规则"算出
+                // (nil/旧版本 = 预查判过期走重算,2026-10-07)
+                ruleVersion: CompatibilitySnapshotStore.expectedEngineRuleVersion
             )
         }
         // R3 恢复走 canonicalKey 直查(computePair 预查同源),fixture 快照的
@@ -1356,7 +1359,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
                 zodiacMatch: "六合", branchHarmony: "无冲无刑"
             ),
             syncedFortune: [],
-            calcRuleSnapshot: nil
+            calcRuleSnapshot: nil,
+            ruleVersion: CompatibilitySnapshotStore.expectedEngineRuleVersion
         )
         let snapshot = try insertCompatibilitySnapshot(response: response, aHash: "h_a", bHash: "h_b", context: "general")
 
@@ -1414,7 +1418,10 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
                 zodiacMatch: "六合", branchHarmony: "无冲无刑"
             ),
             syncedFortune: [],
-            calcRuleSnapshot: nil
+            calcRuleSnapshot: nil,
+            // 带期望版本:本夹具走 openDetail 自动链,nil 会触发规则版本
+            // 过期的后台重算分支(多余 API 调用,2026-10-07)
+            ruleVersion: CompatibilitySnapshotStore.expectedEngineRuleVersion
         )
         let snapshot = try insertCompatibilitySnapshot(
             response: response,
@@ -1615,6 +1622,194 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             apiClient.recordedTranslateRequests.count, translateCountAfterFirst,
             "去重命中不得新增翻译请求(自动不重试语义不变)"
         )
+        await drainDetailBackgroundTasks()
+    }
+
+    /// #2(2026-10-07 review):豁免重生成在飞时重进同对 → 不得再起翻译。
+    /// 修复前:重进 → 跨语言命中 → 续译 → 再收 STALE → generateInterpretation
+    /// 取消**在飞且后端已扣费**的重生成 → 再起新重生成(同对双花 LLM);
+    /// 若用户不在页面时重生成失败,结局键停留 .interrupted,每次重进重复
+    /// 「翻译→409→重生成」整圈。修复:在飞守卫 + 失败落定不依赖 UI 态。
+    func testOpenDetail_豁免重生成在飞_重进不再翻译不重复起链() async throws {
+        // 生效语言 zh-hant(zh 原文行 → 跨语言命中 + 自动翻译;L1/F2 双写)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+        let summary = try makeAutoGenFixture(tag: "inflight")
+        try interpretStore.upsert(
+            contentHash: summary.compatibilityHash,
+            module: "compatibility_free",
+            promptVersion: 1,
+            targetDate: nil,
+            language: "zh",
+            provider: "anthropic",
+            model: "mock-anthropic-model",
+            interpretation: "第一章 基础相处模式\n\n跨语言原文。",
+            generatedAt: .now
+        )
+        // 翻译恒 409(触发豁免重生成);重生成成功
+        apiClient.translateResponder = { _ in
+            throw APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
+        }
+        apiClient.interpretResponder = { _ in
+            InterpretResponse(
+                interpretation: "第一章 基础相处模式\n\n豁免重生成正文。",
+                promptVersion: 1, cached: false, generatedAt: .now,
+                provider: "anthropic", model: "mock-anthropic-model",
+                language: AppLanguage.currentWire
+            )
+        }
+        let readsBefore = vm.remainingReads
+
+        // 第一次打开:跨语言命中 → 自动翻译 → 409 → 豁免重生成起跑(mock
+        // interpret 400ms 窗口 = 在飞期)
+        vm.openDetail(summary)
+        let inFlight = await Self.waitUntil(timeout: 8) {
+            !self.apiClient.recordedInterpretRequests.isEmpty
+        }
+        XCTAssertTrue(inFlight, "前置:豁免重生成必须已发起(interpret 在飞)")
+        let translateAfterFirst = apiClient.recordedTranslateRequests.count
+        XCTAssertEqual(translateAfterFirst, 1, "前置:恰好一次翻译尝试(收到 409 后转降级)")
+
+        // 在飞窗口内重进:跨语言探测命中也不得续译/重复起链(修复点)
+        vm.openDetail(summary)
+        let settled = await waitForInterpretState { state in
+            if case .okFree = state { return true }
+            return false
+        }
+        XCTAssertTrue(settled, "在飞豁免重生成落定后应写 .okFree,实际:\(vm.state)")
+        try? await Task.sleep(nanoseconds: 600_000_000)
+
+        XCTAssertEqual(
+            apiClient.recordedTranslateRequests.count, 1,
+            "重进不得再起翻译(在飞重生成会落当前语言内容;再译=再 409=双花)"
+        )
+        XCTAssertEqual(
+            apiClient.recordedInterpretRequests.count, 1,
+            "重生成恰好一次(不得取消在飞再起新链)"
+        )
+        XCTAssertEqual(vm.remainingReads, readsBefore, "豁免重生成全程不扣次数")
+        await drainDetailBackgroundTasks()
+    }
+
+    /// #1(2026-10-07 review):引擎规则版本过期的快照,computePair 预查不得
+    /// 复用(旧合冲标签与新版刑害点名同屏自相矛盾)——必须落穿 API 重算,
+    /// 新档携带当前引擎版本。CLAUDE.md「同一输入同一输出(含规则快照)」。
+    func testCompute_规则版本过期的快照_预查落穿API重算() async throws {
+        let chartA = try insertChart(hash: "rv_a", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "rv_b", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        vm.toggleArchived(hash: "rv_b")
+
+        // 旧规则快照(canonicalKey 命中键,ruleVersion 1 < 期望值)
+        let canonicalKey = CompatibilitySnapshotStore.canonicalKey(
+            aHash: "rv_a", bHash: "rv_b", context: "general"
+        )
+        _ = try insertCompatibilitySnapshot(
+            response: CompatibilityResponse(
+                compatibilityHash: canonicalKey,
+                personAChart: nil, personBChart: nil,
+                qualitativeAssessment: QualitativeAssessmentDTO(
+                    fiveElements: "互补佳", dayMasterRelation: "同气",
+                    zodiacMatch: "六合", branchHarmony: "多合少冲"  // 旧标签
+                ),
+                syncedFortune: [], calcRuleSnapshot: nil,
+                ruleVersion: 1
+            ),
+            aHash: "rv_a", bHash: "rv_b", context: "general"
+        )
+
+        vm.compute()
+        // 单对算成直达 detail;预查判过期 → 走 API,summary hash = mock 落档键
+        let done = await Self.waitUntil(timeout: 8) {
+            if case .detail = self.vm.state { return true }
+            return self.vm.state == .list
+        }
+        XCTAssertTrue(done, "compute 应落成,实际:\(vm.state)")
+
+        let usedHash = vm.summaries.first?.compatibilityHash
+        XCTAssertNotEqual(usedHash, canonicalKey, "规则版本过期的快照不得复用(必须落穿 API 重算)")
+        if case .detail(let s, _, _) = vm.state {
+            XCTAssertEqual(s.compatibilityHash, usedHash, "detail 展示的必须是重算结果")
+        }
+        // 重算落档携带当前引擎版本(mock 响应镜像 expectedEngineRuleVersion)
+        let recomputed = try compatibilityStore.get(compatibilityHash: usedHash ?? "")
+        XCTAssertEqual(
+            recomputed?.engineRuleVersion, CompatibilitySnapshotStore.expectedEngineRuleVersion,
+            "重算快照必须带当前引擎版本(下次预查可复用)"
+        )
+        await drainDetailBackgroundTasks()
+    }
+
+    /// #1(2026-10-07 review)openDetail 侧:规则版本过期快照先渲染旧值,后台
+    /// refreshStaleEngineAssessment 重算须真实发生且原位刷新——锁「openDetail 内
+    /// cancel 块与刷新任务创建的顺序」:修复前 refresh 任务创建后立即被同函数
+    /// 尾部的 engineRefreshTask?.cancel() 取消,请求静默死掉(快照停留旧版本,
+    /// 断言超时)。快照落库键取 mock compatibility 响应键公式
+    /// (mock_compat_{aHash}_{bHash}_{context}),重算 upsert 同键 → store 轮询可见。
+    func testOpenDetail_规则版本过期_渲染旧值后台重算原位刷新() async throws {
+        let chartA = try insertChart(hash: "odr_a", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "odr_b", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        // mock compatibility(mode A)的落档键 —— 后台重算 upsert 同键,自愈可见
+        let mockKey = "mock_compat_odr_a_odr_b_general"
+        _ = try insertCompatibilitySnapshot(
+            response: CompatibilityResponse(
+                compatibilityHash: mockKey,
+                personAChart: nil, personBChart: nil,
+                qualitativeAssessment: QualitativeAssessmentDTO(
+                    fiveElements: "旧版五行结论", dayMasterRelation: "旧版日主关系",
+                    zodiacMatch: "旧版生肖", branchHarmony: "旧版合冲"
+                ),
+                syncedFortune: [], calcRuleSnapshot: nil,
+                ruleVersion: 1
+            ),
+            aHash: "odr_a", bHash: "odr_b", context: "general"
+        )
+        let summary = PairSummary(
+            id: mockKey,
+            entry: .archived(snapshotHash: "odr_b"),
+            personBHash: "odr_b",
+            displayName: "B",
+            birthDate: nil,
+            dayMaster: "甲",
+            fiveElements: "旧版五行结论",
+            dayMasterRelation: "旧版日主关系",
+            compatibilityHash: mockKey,
+            isInterpreted: false,
+            status: .computed
+        )
+
+        vm.openDetail(summary)
+
+        // 先渲染旧值(同步):detail 态 + 旧标签,不得因过期而拒绝渲染
+        guard case .detail(let s0, let r0, _) = vm.state else {
+            XCTFail("过期快照也应先渲染 detail 旧值,实际:\(vm.state)")
+            return
+        }
+        XCTAssertEqual(s0.id, mockKey)
+        XCTAssertEqual(r0.qualitativeAssessment.fiveElements, "旧版五行结论", "首屏渲染旧值(离线也有内容)")
+
+        // 后台重算真实发生:store 同键快照被 mock 响应覆盖(engine 版本刷新)
+        let recomputed = await Self.waitUntil(timeout: 8) {
+            let snap = try? self.compatibilityStore.get(compatibilityHash: mockKey)
+            return snap?.engineRuleVersion == CompatibilitySnapshotStore.expectedEngineRuleVersion
+        }
+        XCTAssertTrue(recomputed, "后台重算必须落库自愈(修复前任务被取消,快照停留旧版本)")
+
+        // 原位刷新:仍在本对 detail,评估卡换成新标签(mock 标签 ≠ 旧版标签)
+        let refreshed = await Self.waitUntil(timeout: 8) {
+            if case .detail(let s, let r, _) = self.vm.state {
+                return s.id == mockKey && r.qualitativeAssessment.fiveElements == "互补佳"
+            }
+            return false
+        }
+        XCTAssertTrue(refreshed, "重算落定后应原位刷新评估卡,实际:\(vm.state)")
         await drainDetailBackgroundTasks()
     }
 

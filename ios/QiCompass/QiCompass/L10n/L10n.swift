@@ -645,11 +645,20 @@ enum L10n {
         /// zh: "你的流年";en: "Your year"
         static let syncedYourYear = String(localized: "hepan.synced.yourYear")
 
-        /// A 盘(命主本人)在合盘全文与 UI 中的称呼(2026-09-27:用户拍板 A 恒用「你」,
-        /// 而非命主 alias)。2026-10-07 头部人物牌「我/Me」并入本称呼——全文统一
-        /// 「你/You」,不再 Me/you 两种叫法。
-        /// zh: "你";en: "You"
+        /// A 盘(命主本人)在合盘全文中的称呼(2026-09-27:用户拍板 A 恒用「你」,
+        /// 而非命主 alias)。**prompt 输入语义**:此值进 v4 模板 name_a 与流年
+        /// 同步表 → 渲染后 prompt_hash;en 必须小写 "you"(2026-10-07 review
+        /// 修订:曾随头部 UI 改 "You" = 全量 EN 合盘 prompt_hash 变更,后端
+        /// 缓存集体失效 + 用户重新扣次数)。UI 显示位用 selfDisplay。
+        /// zh: "你";en: "you"
         static let selfReferenceYou = String(localized: "hepan.names.self")
+
+        /// A 盘(命主本人)在 UI 显示位(头部人物牌 / 双盘列头 / 五行分布列头)
+        /// 的称呼(2026-10-07:头部「我/Me」并入「你」,EN 取句首大写 You)。
+        /// 与 selfReferenceYou 分键:显示想要大写、prompt 必须小写——共键会让
+        /// 大小写调整渗进 prompt_hash(缓存全失效,见 selfReferenceYou 注释)。
+        /// zh: "你";en: "You"
+        static let selfDisplay = String(localized: "hepan.names.selfDisplay")
 
         /// 列头「同步」。
         /// zh: "同步";en: "Sync"

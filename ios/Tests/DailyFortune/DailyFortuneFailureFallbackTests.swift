@@ -607,6 +607,82 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
             "STALE 降级生成必须豁免次数(R1:语言切换引起,非用户过错)"
         )
     }
+
+    // MARK: - #4(2026-10-07 review):旧刷新管线世代号守卫
+
+    /// refresh() 直连 runFullPipeline、不经 load() 的 determinantTask 取消——
+    /// A 盘下拉刷新挂起窗口内切 B 盘,A 旧管线晚返回时:①不得把 UI 写回 A 的
+    /// .ready;②不得为 A 自动扣一次解读(修复前:旧管线凭局部 .idle 触发
+    /// generateInterpretation,interpret 计数多 1 且用户界面闪回旧盘)。
+    func test旧刷新管线_切盘后晚返回_不覆写新盘不代扣旧盘() async throws {
+        _ = try seedChart(hash: "gen_a")
+        _ = try seedChart(hash: "gen_b")
+
+        // A 先就绪(首刷无门)
+        vm.onAppear(currentChartHash: "gen_a", ziHourRule: "zi_next_day")
+        let aReady = await waitFor { Self.isOkFree(self.vm.state) }
+        XCTAssertTrue(aReady, "前置:A 盘必须先就绪(自动解读落 .okFree)")
+
+        // A 下拉刷新挂起在 dailyFortune(refresh 直连 runFullPipeline,切盘后
+        // 不会被 determinantTask 取消——正是旧管线的复活通道)
+        let gate = ChartGate()
+        await api.setDailyFortuneGate { chartHash in
+            if chartHash == "gen_a" { await gate.wait() }
+        }
+        Task { await self.vm.refresh(currentChartHash: "gen_a", ziHourRule: "zi_next_day") }
+
+        // 挂起窗口内切 B 盘(View 同款:hash 变化先置 .empty 脱离旧态再 onAppear)
+        vm.state = .empty
+        vm.onAppear(currentChartHash: "gen_b", ziHourRule: "zi_next_day")
+        let bReady = await waitFor {
+            let calls = await self.api.interpretAttempts()
+            return Self.isOkFree(self.vm.state) && calls >= 1
+        }
+        XCTAssertTrue(bReady, "B 新管线必须独立落成(.okFree + 自动解读)")
+
+        // 放行 A 旧管线:世代失配 → 整体自弃(不写 .ready、不自动解读)
+        gate.fulfill()
+        try? await Task.sleep(nanoseconds: 800_000_000)
+
+        // A 的解读恰好 1 次(首次 onAppear 的自动解读)——旧刷新管线晚返回
+        // 不得再为 A 代扣一次(修复前:旧管线凭局部 .idle 再触发,gen_a 计 2)
+        let interpretHashes = await api.recordedInterpretHashes()
+        XCTAssertEqual(
+            interpretHashes.filter { $0 == "gen_a" }.count, 1,
+            "A 旧管线不得为旧盘自动扣解读,实际序列:\(interpretHashes)"
+        )
+        XCTAssertEqual(
+            interpretHashes.filter { $0 == "gen_b" }.count, 1,
+            "B 新管线自动解读恰好一次,实际序列:\(interpretHashes)"
+        )
+        XCTAssertTrue(Self.isOkFree(vm.state), "A 晚返回不得把 UI 覆写回旧盘/非就绪态,实际:\(vm.state)")
+    }
+}
+
+/// #4 交错回归夹具:挂起指定调用直到 fulfill(NSLock 串行化,测试线程
+/// fulfill、double 的 actor 上下文 await)。
+private final class ChartGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var released = false
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            lock.lock(); defer { lock.unlock() }
+            if released {
+                continuation.resume()
+            } else {
+                self.continuation = continuation
+            }
+        }
+    }
+
+    func fulfill() {
+        lock.lock(); defer { lock.unlock() }
+        released = true
+        continuation?.resume()
+        continuation = nil
+    }
 }
 
 // MARK: - Test Double
@@ -633,6 +709,14 @@ private actor FailingInterpretAPIClient: APIClient {
     func setTranslateText(_ text: String?) { translateText = text }
     func interpretAttempts() -> Int { attempts }
     func translateAttempts() -> Int { translateCalls }
+    /// #4(2026-10-07)交错回归:非 nil 时 dailyFortune 按 chartHash 挂起。
+    private var dailyFortuneGate: (@Sendable (_ chartHash: String) async -> Void)?
+    /// interpret 请求的 contentHash 序列(#4 断言"只代扣新盘"用)。
+    private var interpretHashes: [String] = []
+    func setDailyFortuneGate(_ gate: (@Sendable (String) async -> Void)?) {
+        dailyFortuneGate = gate
+    }
+    func recordedInterpretHashes() -> [String] { interpretHashes }
 
     func translate(request: TranslateRequest) async throws -> InterpretResponse {
         translateCalls += 1
@@ -670,7 +754,10 @@ private actor FailingInterpretAPIClient: APIClient {
     }
 
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse {
-        DailyFortuneResponse(
+        if let dailyFortuneGate {
+            await dailyFortuneGate(request.chartHash)
+        }
+        return DailyFortuneResponse(
             dayPillar: "丙子",
             dayRelationToDayMaster: "偏印",
             dayChong: nil,
@@ -696,6 +783,7 @@ private actor FailingInterpretAPIClient: APIClient {
 
     func interpret(request: InterpretRequest) async throws -> InterpretResponse {
         attempts += 1
+        interpretHashes.append(request.contentHash)
         if attempts <= failFirst {
             throw APIError.networkError(URLError(.timedOut))
         }

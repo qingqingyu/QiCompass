@@ -602,7 +602,10 @@ final class MockAPIClient: APIClient {
             personBChart: personBChart,
             qualitativeAssessment: assessment,
             syncedFortune: synced,
-            calcRuleSnapshot: calcRule
+            calcRuleSnapshot: calcRule,
+            // 镜像后端当前 COMPATIBILITY_RULE_VERSION(mock 保真:快照重算
+            // 门控在 mock 链路下同样工作)
+            ruleVersion: CompatibilitySnapshotStore.expectedEngineRuleVersion
         )
     }
 

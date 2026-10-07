@@ -80,7 +80,7 @@ struct ElementBalanceSection: View {
         HStack(spacing: 8) {
             Text(L10n.Compatibility.balanceElement)
                 .frame(width: labelColumnWidth, alignment: .leading)
-            Text(L10n.Compatibility.selfReferenceYou)
+            Text(L10n.Compatibility.selfDisplay)
                 .frame(maxWidth: .infinity, alignment: .leading)
             Text(nameB)
                 .lineLimit(1)

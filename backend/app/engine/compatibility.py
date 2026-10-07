@@ -29,6 +29,7 @@ from .branch_relations import LIUHE, LIUCHONG, SANHE, SANXING, XIANGHAI
 from ..errors import BaziCalculationFailedError, BaziError
 from ..models.bazi import BaziCalculateResponse, CalcRuleSnapshot, LuckPillar
 from ..models.compatibility import (
+    COMPATIBILITY_RULE_VERSION,
     CompatibilityRequest,
     CompatibilityResponse,
     QualitativeAssessment,
@@ -332,6 +333,10 @@ def compute_compatibility_hash(a_hash: str, b_hash: str, context: str) -> str:
     - min/max 规范化 → A/B 顺序无关
     - context 参与: 同对夫妻不同 context 各自独立缓存
     - 不加 calc_rule_version: content_hash 已编码各自规则, 冗余
+    - 不加 COMPATIBILITY_RULE_VERSION(2026-10-07): hash 是 entitlement/AI
+      缓存的 content_hash 维度, 掺规则版本会孤儿化全部已购记录与既有缓存键;
+      引擎规则变更的失效走客户端"快照重算"(rule_version 失配), 不走"换键"
+      (语义见 models/compatibility.py)
     """
     h1, h2 = min(a_hash, b_hash), max(a_hash, b_hash)
     payload = (
@@ -464,6 +469,9 @@ def compute_compatibility(
             qualitative_assessment=assessment,
             synced_fortune=synced,
             calc_rule_snapshot=calc_rule_snapshot,
+            # 引擎规则版本显式带上(2026-10-07):客户端快照重算判据,
+            # 语义见 models/compatibility.py COMPATIBILITY_RULE_VERSION
+            rule_version=COMPATIBILITY_RULE_VERSION,
         )
     except (BaziError, ValueError):
         # 已是结构化错误或 ValueError(如模式 B 字段非法), 原样向上抛,

@@ -257,8 +257,11 @@ struct CompatibilityView: View {
                             interpretState: interpretState,
                             chartASnapshot: chartA,
                             chartBSnapshot: chartB,
-                            // 2026-09-27 A/B 代号 → 名字:A 恒命主本人「你」,B 用对方称呼
-                            nameA: L10n.Compatibility.selfReferenceYou,
+                            // 2026-09-27 A/B 代号 → 名字:A 恒命主本人「你」,B 用对方称呼。
+                            // nameA 此处纯显示(双盘列头等),用 selfDisplay(EN "You");
+                            // prompt 侧的 name_a 用 selfReferenceYou(EN "you",见
+                            // buildCompatPromptInputs)
+                            nameA: L10n.Compatibility.selfDisplay,
                             nameB: summary.displayName,
                             onBackToConfig: { vm.clearDetailKeepRoster() },
                             // 2026-10-06 Bug5:重试入口改走 retryInterpretation——
