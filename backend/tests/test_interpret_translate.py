@@ -65,12 +65,27 @@ def _seed_source_row(cache, payload: dict, text: str,
                      target_date: str | None = None) -> None:
     """直接落一行 source_language 原文(翻译防伪前提)。
 
-    `has_interpretation_text` 不匹配 hash 维度(见 app/ai/cache.py 注释),
-    hash 列用占位值即可;version/language/content_hash/module/text 须真值。
+    2026-10-07 收紧:v1/daily 翻译防伪改走 `has_interpretation_exact`,
+    按源语言重渲染 prompt 后比对 prompt_hash / parent_hash /
+    user_input_hash——占位 hash 不再可核验,此处须算出真实渲染值
+    (与 _prepare_prompt_and_key(req, source_language) 同源:translate_context
+    → render_prompt → sha256)。provider/model 不参与防伪,任意值即可。
     target_date 可显式覆盖(默认取 payload 的)——日期防伪用例用它制造
     「原文行的日期 ≠ 请求声明的日期」的错位行。
     """
+    import hashlib
+
     from app.ai.cache_key import CacheKey
+    from app.ai.prompts import render_prompt
+    from app.engine.term_translations import translate_context
+
+    lang = payload["source_language"]
+    translated = translate_context(payload["context"], lang, payload["module"])
+    prompt = render_prompt(payload["module"], translated, language=lang)
+    prompt_hash = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
+    fp = payload.get("parent_fingerprint")
+    parent_hash = hashlib.sha256(fp.encode("utf-8")).hexdigest() if fp else ""
+
     cache.set(
         CacheKey(
             content_hash=payload["content_hash"],
@@ -78,12 +93,12 @@ def _seed_source_row(cache, payload: dict, text: str,
             prompt_version=payload["source_prompt_version"],
             target_date=target_date if target_date is not None
             else (payload.get("target_date") or ""),
-            prompt_hash="seed-placeholder",
+            prompt_hash=prompt_hash,
             provider="anthropic",
             model="mock-anthropic-model",
-            parent_hash="",
+            parent_hash=parent_hash,
             user_input_hash="",
-            language=payload["source_language"],
+            language=lang,
         ),
         text,
         "2026-10-01T00:00:00+00:00",

@@ -1264,24 +1264,60 @@ async def interpret_translate(
     # 不可核验 → 409 STALE_SOURCE(iOS 既有 STALE 处理 = 清提议走重新
     # 生成,不会陷入重试翻译循环);正常流不受影响——iOS 本地原文就是
     # 后端生成后逐字存档的那份,后端缓存行持久(无 TTL)。
-    try:
-        # target_date 一并进防伪(2026-10-02):daily_fortune 不比对日期会让
-        # 昨天的原文通过核验、译文写进今天的共享键;schema 层
-        # target_date_matches_module 已保证 daily 请求必带(缺 → 422,不放行)。
-        source_verified = await run_in_threadpool(
-            cache.has_interpretation_text,
-            req.content_hash, req.module, current_version,
-            req.source_language, req.source_interpretation,
-            req.target_date.isoformat() if req.target_date else None,
-        )
-    except Exception as e:
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        logger.exception(
-            "interpret.translate.source_verify_failed elapsed_ms=%.1f %s "
-            "error=%r", elapsed_ms, log_ctx, e,
-        )
-        raise InterpretationCacheError(
-            f"后端原文核验读失败({type(e).__name__}): {e}") from e
+    #
+    # 2026-10-07 收紧(v1/daily):此前 has_interpretation_text 不匹配
+    # prompt_hash 维度,攻击者可用「真盘 + 未绑定链式字段(main_axis/
+    # core_loop/structure_fingerprint)注入」生成 → 产物落注入 prompt_hash
+    # 键,再用正常 context 提交该文本翻译 → 松匹配照样命中 → 投进正常键。
+    # 现改为按源语言重渲染得完整源缓存键(prompt_hash / parent_hash /
+    # user_input_hash 逐字段一致),原文必须存在于该键下——关死此通道。
+    # 合盘 name_a/name_b 随语言本地化(Compatibility.selfReferenceYou
+    # 你/you),服务端算不出源语言 name 值,保留宽松文本核验(单独记风险)。
+    # target_date 一并进防伪(2026-10-02):daily_fortune 不比对日期会让
+    # 昨天的原文通过核验、译文写进今天的共享键;schema 层
+    # target_date_matches_module 已保证 daily 请求必带(缺 → 422,不放行)。
+    target_date_iso = req.target_date.isoformat() if req.target_date else None
+    if req.module in _TRANSLATE_COMPAT_MODULES:
+        try:
+            source_verified = await run_in_threadpool(
+                cache.has_interpretation_text,
+                req.content_hash, req.module, current_version,
+                req.source_language, req.source_interpretation,
+                target_date_iso,
+            )
+        except Exception as e:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.exception(
+                "interpret.translate.source_verify_failed elapsed_ms=%.1f %s "
+                "error=%r", elapsed_ms, log_ctx, e,
+            )
+            raise InterpretationCacheError(
+                f"后端原文核验读失败({type(e).__name__}): {e}") from e
+    else:
+        # v1/daily:按源语言重渲染得完整源缓存键(prompt_hash/parent_hash/
+        # user_input_hash)。重渲染的 422/500 语义与 /api/interpret 同源,
+        # 原样上抛不包装为缓存错误(源 context 本应合法,违例即客户端/配置
+        # 错误,不该伪装成基础设施故障)。
+        source_prepared = _prepare_prompt_and_key(
+            req, req.source_language, request_id, start, ai_client)
+        try:
+            source_verified = await run_in_threadpool(
+                cache.has_interpretation_exact,
+                req.content_hash, req.module, source_prepared.prompt_version,
+                req.source_language, req.source_interpretation,
+                source_prepared.cache_key.prompt_hash,
+                source_prepared.cache_key.parent_hash,
+                source_prepared.cache_key.user_input_hash,
+                target_date_iso,
+            )
+        except Exception as e:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.exception(
+                "interpret.translate.source_verify_failed elapsed_ms=%.1f %s "
+                "error=%r", elapsed_ms, source_prepared.log_ctx, e,
+            )
+            raise InterpretationCacheError(
+                f"后端原文核验读失败({type(e).__name__}): {e}") from e
     if not source_verified:
         logger.warning(
             "interpret.translate.source_unverified request_id=%s module=%s "
