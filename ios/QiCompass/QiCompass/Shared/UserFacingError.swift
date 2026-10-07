@@ -18,6 +18,9 @@ enum UserFacingError: Error, Equatable, LocalizedError {
     case interpretFailed(originalDescription: String)
     /// 每日次数达上限。
     case dailyLimitReached(nextReset: Date)
+    /// context_token 缺失/失效(2026-10-07 P0 收口):老快照无 token 或
+    /// secret 已轮换,须重新排盘取新 token。
+    case contextTokenExpired
     /// 兜底。
     case generic(message: String)
 
@@ -41,6 +44,12 @@ enum UserFacingError: Error, Equatable, LocalizedError {
         // APIError 包装的 URLError / 裸 URLError → 网络错误
         if Self.isOfflineOrTimeout(error) {
             return .networkUnavailable
+        }
+
+        // context_token 缺失/失效(老快照无 token / secret 已轮换)→ 须重新
+        // 排盘,任何 stage 都不可当通用失败(否则用户不知要重新录入出生信息)
+        if APIError.isContextTokenError(error) {
+            return .contextTokenExpired
         }
 
         // 后端排盘库错误(stage 决定归类)
@@ -110,6 +119,8 @@ enum UserFacingError: Error, Equatable, LocalizedError {
             return L10n.Errors.interpretTitle
         case .dailyLimitReached:
             return L10n.Errors.limitTitle
+        case .contextTokenExpired:
+            return L10n.Errors.contextTokenTitle
         case .generic(let m):
             return m
         }
@@ -126,6 +137,8 @@ enum UserFacingError: Error, Equatable, LocalizedError {
             return L10n.Errors.interpretSubtitle
         case .dailyLimitReached:
             return L10n.Errors.limitSubtitle
+        case .contextTokenExpired:
+            return L10n.Errors.contextTokenSubtitle
         case .generic(let m):
             return m
         }

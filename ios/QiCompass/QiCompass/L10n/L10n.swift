@@ -1340,6 +1340,11 @@ enum L10n {
         static let limitTitle = String(localized: "error.userFacing.limit.title")
         /// 达限副标。zh: "每日 10 次已用完,午夜重置";en: "10 readings a day, resets at midnight"
         static let limitSubtitle = String(localized: "error.userFacing.limit.subtitle")
+
+        /// context_token 失效标题。zh: "解读凭证已失效";en: "Reading credential expired"
+        static let contextTokenTitle = String(localized: "error.userFacing.contextToken.title")
+        /// context_token 失效副标。zh: "请重新排盘后继续";en: "Recalculate your chart to continue"
+        static let contextTokenSubtitle = String(localized: "error.userFacing.contextToken.subtitle")
     }
 
     // MARK: - 盘面术语行脚手架(2026-09-27 展示层语言 U3)

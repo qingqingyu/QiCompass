@@ -41,4 +41,15 @@ extension APIError {
         }
         return code == "STALE_SOURCE"
     }
+
+    /// 后端 403 CONTEXT_TOKEN_* 判定(2026-10-07 P0 收口):老快照无 token
+    /// (CONTEXT_TOKEN_REQUIRED)或 secret 已轮换/伪造(CONTEXT_TOKEN_INVALID)。
+    /// 二者都需重新排盘取新 token 才能恢复,用户可见文案应给「重新排盘」
+    /// 而非通用「解读失败」(否则用户不知道要重新录入出生信息)。
+    static func isContextTokenError(_ error: Error) -> Bool {
+        guard case .backendError(let code, _, _)? = error as? APIError else {
+            return false
+        }
+        return code == "CONTEXT_TOKEN_REQUIRED" || code == "CONTEXT_TOKEN_INVALID"
+    }
 }

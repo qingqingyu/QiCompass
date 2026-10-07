@@ -178,6 +178,17 @@ final class CompatibilitySnapshotStore {
         return version >= expectedEngineRuleVersion
     }
 
+    /// 快照是否可直接复用(2026-10-07 review 修复 #5):引擎规则新鲜 **且**
+    /// 持有 `contextToken`。P0 收口后 interpret/translate 一刀切验签,老快照
+    /// (security 收口前)无 token → 验签必 403;若规则版本新鲜(version >= 2),
+    /// 三个复用点(computePair 预查 / openDetail 后台重算 / 引擎规则门 store
+    /// 复验)都只查 `isFreshEngineRule` → 判「新鲜」不触发重算 → 这对永远
+    /// 403 死锁(重算自愈进不来)。token 缺失视同不可复用 → 落穿 compute 重算
+    /// 重签,`upsertQualitative` 覆盖自愈。
+    static func isReusable(_ snapshot: CompatibilitySnapshot) -> Bool {
+        return isFreshEngineRule(snapshot) && snapshot.contextToken != nil
+    }
+
     /// 客户端 SHA-256 复刻后端 `compute_compatibility_hash`。
     /// 用于 A/B 已知但 API 未调用时预查(D13 对称性验证测试亦用)。
     /// 公式:`SHA-256(utf8len(h1):h1|utf8len(h2):h2|utf8len(ctx):ctx)`(h1=min,h2=max)。

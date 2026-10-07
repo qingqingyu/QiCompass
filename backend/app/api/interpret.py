@@ -633,10 +633,35 @@ async def _require_entitlement(
         )
 
 
+def _normalize_client_ip(host: str) -> str:
+    """匿名 bucket 的 IP 归一化:IPv6 收敛到 /64 前缀(2026-10-07 review)。
+
+    IPv6 用户有 2^64 地址空间,单地址作 bucket 可换地址无限刷免费额度;
+    收敛到 /64(运营商会分给一个子网的典型粒度)封死此通道。IPv4 原样。
+    """
+    if ":" not in host:
+        return host
+    import ipaddress
+    try:
+        return str(ipaddress.IPv6Network(f"{host}/64", strict=False))
+    except ValueError:
+        return host
+
+
+def _free_quota_bucket(request: Request, current_user_id: str | None) -> str:
+    """免费配额 bucket:登录按 user_id,匿名按客户端 IP(user_local_id 客户端
+    可伪造,不作 bucket;IP 经 _normalize_client_ip 归一化)。"""
+    if current_user_id:
+        return f"user:{current_user_id}"
+    host = request.client.host if request.client else "unknown"
+    return f"ip:{_normalize_client_ip(host)}"
+
+
 async def _enforce_free_daily_quota(
     request: Request,
     req: InterpretRequest,
     current_user_id: str | None,
+    day: str,
 ) -> None:
     """免费 module 真烧 LLM 前的每日服务端配额(2026-10-07 匿名滥用收口)。
 
@@ -644,15 +669,14 @@ async def _enforce_free_daily_quota(
     付费 module 豁免(token 绑定后单盘单模块缓存有界)。bucket:登录按
     user_id,匿名按 IP(user_local_id 客户端可伪造,不作 bucket)。
     达限 → QuotaExceededError(429),不静默降级。
+
+    `day` 由调用方(生成 factory)一次性算出并同时传给 enforce/refund——
+    避免扣与退各自取「现在」导致 UTC 跨午夜时退款打到 day N+1 的空行,
+    泄漏 1 次计数(2026-10-07 double review)。
     """
     from ..quota.store import FreeLLMQuotaStore
     store: FreeLLMQuotaStore = request.app.state.free_quota_store
-    if current_user_id:
-        bucket = f"user:{current_user_id}"
-    else:
-        host = request.client.host if request.client else "unknown"
-        bucket = f"ip:{host}"
-    day = datetime.now(timezone.utc).date().isoformat()
+    bucket = _free_quota_bucket(request, current_user_id)
     ok = await run_in_threadpool(
         store.try_consume, bucket=bucket, day=day, limit=FREE_DAILY_LIMIT)
     if not ok:
@@ -664,6 +688,32 @@ async def _enforce_free_daily_quota(
             f"今日免费解读生成次数已达服务端上限({FREE_DAILY_LIMIT}/日),"
             f"明日再来;付费内容不受此限",
             content_hash=req.content_hash)
+
+
+async def _refund_free_daily_quota(
+    request: Request,
+    req: InterpretRequest,
+    current_user_id: str | None,
+    day: str,
+) -> None:
+    """LLM 调用失败回滚免费配额(compensating action,2026-10-07 review)。
+
+    服务商故障期间用户重试不应烧光当日额度——provider 抛错时退回本应
+    计的那 1 次。退款失败只记日志不遮蔽主错误(退款是补偿动作,非主路径;
+    对齐 DeepAnalysisOrchestrator userLink 降级记日志的先例)。
+
+    `day` 由调用方一次性算出(与 enforce 同一 day,防跨午夜退款打空行)。
+    """
+    from ..quota.store import FreeLLMQuotaStore
+    store: FreeLLMQuotaStore = request.app.state.free_quota_store
+    bucket = _free_quota_bucket(request, current_user_id)
+    try:
+        await run_in_threadpool(store.refund, bucket=bucket, day=day)
+    except Exception as e:
+        logger.exception(
+            "interpret.free_quota_refund_failed bucket=%s day=%s error=%r",
+            bucket, day, e,
+        )
 
 
 async def _load_validated_cache_row(
@@ -807,8 +857,9 @@ async def interpret(
     #    (成本 + 延迟双省;多 worker 下各自独立,跨进程合并是 v2 Redis 的事)
     # 3.7 免费配额(2026-10-07 匿名滥用收口):仅对真烧 LLM 的免费 module
     #     计数(缓存命中已在上方返回);付费豁免。达限 429 不降级。
-    if req.module not in PAID_MODULES:
-        await _enforce_free_daily_quota(request, req, current_user_id)
+    #     扣/退移入 singleflight factory(2026-10-07 review):只有真正发
+    #     LLM 的 leader 扣 1 次(并发同 key 的 follower 共享结果不重复扣);
+    #     provider 抛错退回(服务商故障期间重试不烧光当日额度)。
     # v1 prompt 系统:按 module 分级 temperature(M0-M2=0.3 稳结构,M3-M7=0.6
     # 重质感,老模块=0.6 向后兼容);Stage 2 已铺基础设施,此处接入路由
     logger.info("interpret.provider_called %s", log_ctx)
@@ -817,12 +868,23 @@ async def interpret(
     # (语义对齐:同 cache key 的并发 LLM 调用合并为一次)
     sf_key = cache_key
     temperature = resolve_temperature(req.module)
+
+    async def _generate() -> str:
+        day = datetime.now(timezone.utc).date().isoformat()
+        if req.module not in PAID_MODULES:
+            await _enforce_free_daily_quota(request, req, current_user_id, day)
+        try:
+            return await ai_client.interpret(prompt, temperature=temperature)
+        except Exception:
+            # 只在真烧过 LLM 的路径退回(配额已扣);QuotaExceededError 在
+            # 扣费前抛出,不会走到这里。CancelledError 是 BaseException,
+            # 不进 except Exception,不误退。
+            if req.module not in PAID_MODULES:
+                await _refund_free_daily_quota(request, req, current_user_id, day)
+            raise
+
     try:
-        interpretation = await sf.coalesce(
-            sf_key, lambda: ai_client.interpret(
-                prompt, temperature=temperature,
-            ),
-        )
+        interpretation = await sf.coalesce(sf_key, _generate)
     except AIProviderError as e:
         elapsed_ms = (time.perf_counter() - start) * 1000
         logger.exception(
@@ -1329,15 +1391,27 @@ async def interpret_translate(
         "interpret.translate.provider_called %s source_language=%s target=%s",
         log_ctx, req.source_language, language,
     )
-    # 免费配额(与 /api/interpret 同一道):真烧 LLM 的翻译计数;付费豁免
-    if req.module not in PAID_MODULES:
-        await _enforce_free_daily_quota(request, req, current_user_id)
+    # 免费配额(与 /api/interpret 同一道):真烧 LLM 的翻译计数;付费豁免。
+    # 扣/退移入 singleflight factory(同 /api/interpret 的 2026-10-07 review
+    # 收口:leader 扣一次、provider 抛错退回)。
     sf: SingleflightCoalescer = request.app.state.llm_singleflight
+
+    async def _generate_translation() -> str:
+        day = datetime.now(timezone.utc).date().isoformat()
+        if req.module not in PAID_MODULES:
+            await _enforce_free_daily_quota(request, req, current_user_id, day)
+        try:
+            return await ai_client.interpret(
+                translate_prompt, temperature=resolve_temperature("translate"),
+            )
+        except Exception:
+            if req.module not in PAID_MODULES:
+                await _refund_free_daily_quota(request, req, current_user_id, day)
+            raise
+
     try:
         translated = await sf.coalesce(
-            ("translate", cache_key), lambda: ai_client.interpret(
-                translate_prompt, temperature=resolve_temperature("translate"),
-            ),
+            ("translate", cache_key), _generate_translation,
         )
     except AIProviderError as e:
         elapsed_ms = (time.perf_counter() - start) * 1000

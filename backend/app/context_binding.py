@@ -104,9 +104,19 @@ def verify_token(
             "context_token 格式非法(期望 v1.<body>.<sig>)",
             content_hash=content_hash)
     _, body, sig = parts
-    expected = hmac.new(_secret(), body.encode("ascii"),
-                        hashlib.sha256).hexdigest()
-    if not hmac.compare_digest(sig, expected):
+    # body/sig 必须是 ASCII(base64url body + hex sig)。非 ASCII(中文/emoji
+    # 等)直接判非法——`body.encode("ascii")` 会抛 UnicodeEncodeError、
+    # `hmac.compare_digest` 遇非 ASCII str 会抛 TypeError,二者都不该让
+    # 畸形 token 打出 500(2026-10-07 review 实测复现,须回 403)。
+    try:
+        body_bytes = body.encode("ascii")
+        sig_bytes = sig.encode("ascii")
+    except UnicodeEncodeError as e:
+        raise ContextTokenInvalidError(
+            "context_token 含非 ASCII 字符(期望 base64url body + hex sig)",
+            content_hash=content_hash) from e
+    expected = hmac.new(_secret(), body_bytes, hashlib.sha256).hexdigest()
+    if not hmac.compare_digest(sig_bytes, expected.encode("ascii")):
         raise ContextTokenInvalidError(
             "context_token 签名不匹配(伪造或 secret 已轮换,请重新排盘获取)",
             content_hash=content_hash)

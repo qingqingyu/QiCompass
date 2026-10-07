@@ -260,7 +260,10 @@ final class CompatibilityViewModel {
     /// 不得再起翻译(修复前:重进 → 跨语言命中 → 自动翻译 → 原文过期 →
     /// generateInterpretation 取消**在飞且后端已扣费**的重生成 → 再起新重生成
     /// = 同对双花 LLM),autoGenerate 也不得对同对重复起链。
-    private var interpretInFlight: (compatHash: String, token: UUID)?
+    /// `isPaid`(2026-10-07 review 修复 #8):链起跑时是否付费 module——
+    /// 购买回调须区分「在飞免费链」(用户刚付款,付费生成应取代免费链产
+    /// .okFree 免费内容)与「在飞付费链」(已按付费身份生成,让位不重复)。
+    private var interpretInFlight: (compatHash: String, token: UUID, isPaid: Bool)?
 
     /// L3/F1(2026-10-01 拍板,修订 D10.5):跨语言命中 → 打开即自动翻译。
     /// 翻译中提示条隐藏,只在失败时出现(重试入口);nil = 不显示。
@@ -1599,7 +1602,7 @@ final class CompatibilityViewModel {
             )
             do {
                 if let existing = try compatibilityStore.get(compatibilityHash: canonicalKey) {
-                    if CompatibilitySnapshotStore.isFreshEngineRule(existing) {
+                    if CompatibilitySnapshotStore.isReusable(existing) {
                         AppLogger.app.info(
                             "op=compatibility.computePair.cache_hit canonicalKey=\(canonicalKey, privacy: .public) entry_id=\(entry.id, privacy: .public)"
                         )
@@ -1842,7 +1845,7 @@ final class CompatibilityViewModel {
         // 常规入口是 computePair 预查(每轮 compute 全量过),此处只兜
         // openDetail 直达而预查未及的边缘。cacheReadTask 尾部的引擎规则门
         // (engineRuleBecameFresh)会等这个任务落定再决定是否自动生成。
-        if !CompatibilitySnapshotStore.isFreshEngineRule(snapshot) {
+        if !CompatibilitySnapshotStore.isReusable(snapshot) {
             AppLogger.app.info(
                 "op=compatibility.openDetail.rule_version_stale hash=\(summary.compatibilityHash, privacy: .public) snapshot=\(snapshot.engineRuleVersion.map(String.init) ?? "nil", privacy: .public) expected=\(CompatibilitySnapshotStore.expectedEngineRuleVersion, privacy: .public) — 渲染旧值并后台重算"
             )
@@ -2074,7 +2077,11 @@ final class CompatibilityViewModel {
                     qualitativeAssessment: qualitative,
                     syncedFortune: synced,
                     calcRuleSnapshot: nil,
-                    ruleVersion: refreshed.engineRuleVersion
+                    ruleVersion: refreshed.engineRuleVersion,
+                    // 2026-10-07 double review 🔴:重算后须带上新快照的 contextToken,
+                    // 否则门放行(快照已有 token)但 generateInterpretation 读到
+                    // response.contextToken = nil → 首战 403(与 openDetail 对称)。
+                    contextToken: refreshed.contextToken
                 ), interpretState)
                 AppLogger.app.info(
                     "op=compatibility.refreshStaleEngineAssessment.ok hash=\(summary.compatibilityHash, privacy: .public)"
@@ -2173,7 +2180,7 @@ final class CompatibilityViewModel {
             guard let snapshot = try compatibilityStore.get(compatibilityHash: compatHash) else {
                 return false
             }
-            return CompatibilitySnapshotStore.isFreshEngineRule(snapshot)
+            return CompatibilitySnapshotStore.isReusable(snapshot)
         } catch {
             AppLogger.persistence.error(
                 "op=compatibility.engineRuleGate.verify_failed hash=\(compatHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 按未新鲜处理(不起生成)"
@@ -2327,10 +2334,6 @@ final class CompatibilityViewModel {
             return
         }
 
-        // 在飞标记(#2 修复):重进同对时 cacheReadTask 据此抑制翻译/重复起链
-        let inFlightToken = UUID()
-        interpretInFlight = (compatHash, inFlightToken)
-
         // M4:查本地 entitlement 决定 module(基础名 "compatibility")
         let hasEntitlement = entitlementStore.getActive(
             contentHash: compatHash,
@@ -2338,6 +2341,11 @@ final class CompatibilityViewModel {
             userLocalId: UserIdentity.userLocalId
         ) != nil
         let module = hasEntitlement ? "compatibility_paid" : "compatibility_free"
+
+        // 在飞标记(#2 修复):重进同对时 cacheReadTask 据此抑制翻译/重复起链;
+        // isPaid 供购买回调区分在飞免费链/付费链(#8)
+        let inFlightToken = UUID()
+        interpretInFlight = (compatHash, inFlightToken, hasEntitlement)
         // 规则 2:用户主动触发 + 付费分支决策日志
         AppLogger.app.info("compatVM.generateInterpretation.start compatibilityHash=\(compatHash, privacy: .public) module=\(module, privacy: .public) hasEntitlement=\(hasEntitlement, privacy: .public)")
 
@@ -2571,11 +2579,27 @@ final class CompatibilityViewModel {
             // 取消重启先落定的在飞链(已发请求被取消 = 服务端配额与本地台账
             // 漂移)。本对已有在飞生成(先落定的重试/购买回调/自动链)→ 交给
             // 它,不再起链(镜像 autoGenerateInterpretationIfIdle 的口径)。
-            guard self.interpretInFlight?.compatHash != summary.compatibilityHash else {
+            // #8(2026-10-07 review 修复):同对在飞若已是**付费链**(isPaid)则
+            // 让位不重复;若在飞是**免费链**且用户此刻已有付费身份(购买刚完成)
+            // → 不拦——付费生成取代免费链(generateInterpretation 内部 cancel
+            // 旧免费链),否则免费链落 .okFree 与已付款身份不符,用户得手动再触发。
+            if let inFlight = self.interpretInFlight,
+               inFlight.compatHash == summary.compatibilityHash {
+                let nowPaid = entitlementStore.getActive(
+                    contentHash: summary.compatibilityHash,
+                    module: EntitlementModule.compatibility,
+                    userLocalId: UserIdentity.userLocalId
+                ) != nil
+                if inFlight.isPaid || !nowPaid {
+                    AppLogger.app.info(
+                        "op=compatibility.runGatedGeneration skip reason=interpret_in_flight hash=\(summary.compatibilityHash, privacy: .public) in_flight_paid=\(inFlight.isPaid, privacy: .public) now_paid=\(nowPaid, privacy: .public) — 在飞链让位,不重复起链"
+                    )
+                    return
+                }
+                // 在飞免费链 + 已付款 → 落穿,付费生成取代免费链
                 AppLogger.app.info(
-                    "op=compatibility.runGatedGeneration skip reason=interpret_in_flight hash=\(summary.compatibilityHash, privacy: .public) — 在飞链让位,不重复起链"
+                    "op=compatibility.runGatedGeneration supersede_free_in_flight hash=\(summary.compatibilityHash, privacy: .public) — 购买完成,付费生成取代在飞免费链"
                 )
-                return
             }
             // 豁免语义门后重读(三查 R1 / code-review P2):门等待是重算级,
             // tap 时刻捕获的 exemptAttemptCompatHash 会过期——期间并发豁免链

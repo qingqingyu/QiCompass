@@ -62,7 +62,7 @@ struct ErrorStateView: View {
 
             if case .dailyLimitReached(let nextReset) = userFacingError {
                 CountdownResetLabel(nextReset: nextReset)
-            } else {
+            } else if showsRetryButton {
                 Button(action: { HapticEngine.light(); retry() }) {
                     Text("重试")
                         .font(.body.weight(.semibold))
@@ -105,6 +105,17 @@ struct ErrorStateView: View {
         .baziAnimation(value: userFacingError)
     }
 
+    /// 达上限(等重置)与凭证失效(须重新排盘换新 token)都不渲染「重试」——
+    /// 重试只会再次 403 死循环,恢复指引已在 subtitle(2026-10-07 double review)。
+    private var showsRetryButton: Bool {
+        switch userFacingError {
+        case .dailyLimitReached, .contextTokenExpired:
+            return false
+        default:
+            return true
+        }
+    }
+
 #if DEBUG
     /// networkUnavailable 时无需展示原始 URLError 细节;其余允许展开。
     private var showsDetailSection: Bool {
@@ -122,6 +133,8 @@ struct ErrorStateView: View {
             return String(localized: "网络异常")
         case .dailyLimitReached:
             return String(localized: "每日 10 次已用完")
+        case .contextTokenExpired:
+            return L10n.Errors.contextTokenSubtitle
         }
     }
 #endif
@@ -142,6 +155,10 @@ struct ErrorStateView: View {
                 .foregroundStyle(BaziTheme.cinnabar.opacity(0.7))
         case .dailyLimitReached:
             Image(systemName: "hourglass")
+                .font(.system(size: 40))
+                .foregroundStyle(BaziTheme.cinnabar.opacity(0.7))
+        case .contextTokenExpired:
+            Image(systemName: "arrow.clockwise")
                 .font(.system(size: 40))
                 .foregroundStyle(BaziTheme.cinnabar.opacity(0.7))
         }

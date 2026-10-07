@@ -635,6 +635,14 @@ def test_validate_context_scalar_types_accepted():
     validate_context("bazi_deep", mixed)  # 不抛即通过
 
 
+def test_validate_context_nested_garbage_counted_toward_total():
+    """额外 key 塞嵌套 list 垃圾字段 → 计入总量并 422(2026-10-07 review:
+    旧实现只累加字符串值,嵌套 list/dict 绕过 _CONTEXT_TOTAL_CHAR_LIMIT)。"""
+    garbage = {**BAZI_DEEP_CONTEXT, "garbage": ["x" * 8] * 20000}
+    with pytest.raises(InvalidInputError, match="总长度"):
+        validate_context("bazi_deep", garbage)
+
+
 # ===== v1 prompt 系统(Stage 5):M0-M7 模板渲染 =====
 
 

@@ -106,6 +106,15 @@ def test_verify_missing_token_rejected():
         verify_token("   ", content_hash="h1", family="deep")
 
 
+def test_verify_non_ascii_token_rejected():
+    """畸形 token 带非 ASCII → 403,不得打 500(2026-10-07 review 实测复现:
+    body.encode('ascii') 抛 UnicodeEncodeError、compare_digest 遇非 ASCII
+    str 抛 TypeError)。"""
+    for tok in ("v1.中文.asdf", "v1.abc.中文", "v1.中文"):
+        with pytest.raises(ContextTokenInvalidError):
+            verify_token(tok, content_hash="h1", family="deep")
+
+
 # ===== 镜像 parity:token 与 Swift PromptContextBuilder 语义逐字段对齐 =====
 
 
@@ -459,6 +468,108 @@ def test_free_quota_store_unit(tmp_free_quota_store):
     assert s.try_consume(bucket="ip:1.2.3.4", day="2026-10-08", limit=3)
     # 其他 bucket 独立
     assert s.try_consume(bucket="ip:5.6.7.8", day="2026-10-07", limit=3)
+
+
+def test_free_quota_store_refund(tmp_free_quota_store):
+    """refund 单元:退还 1 次,不为负;无记录 no-op。"""
+    s = tmp_free_quota_store
+    s.try_consume(bucket="ip:9.9.9.9", day="2026-10-07", limit=3)
+    s.refund(bucket="ip:9.9.9.9", day="2026-10-07")
+    # 退还后 count 回 0:再退不产生负值(no-op)
+    s.refund(bucket="ip:9.9.9.9", day="2026-10-07")
+    assert s.try_consume(bucket="ip:9.9.9.9", day="2026-10-07", limit=1)
+
+
+async def test_quota_refunded_on_llm_failure(
+    raw_interpret_client, tmp_free_quota_store,
+):
+    """LLM 失败 → 免费配额退回(2026-10-07 review:服务商故障期间重试不烧光)。"""
+    from tests.fixtures.mock_ai import FailingAIClient
+    from app.main import app
+
+    token = token_for_context(content_hash="refund-h",
+                              module="bazi_deep_free",
+                              context=BAZI_DEEP_CONTEXT)
+    saved = app.state.ai_client
+    app.state.ai_client = FailingAIClient()
+    try:
+        resp = await raw_interpret_client.post("/api/interpret", json={
+            "content_hash": "refund-h", "module": "bazi_deep_free",
+            "context": BAZI_DEEP_CONTEXT, "target_date": None,
+            "context_token": token,
+        })
+        assert resp.status_code == 503, resp.json()
+    finally:
+        app.state.ai_client = saved
+
+    conn = sqlite3.connect(tmp_free_quota_store._db_path)
+    try:
+        total = conn.execute(
+            "SELECT COALESCE(SUM(count), 0) FROM free_llm_quota"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    assert total == 0, f"LLM 失败应退回配额,实际剩余计数 {total}"
+
+
+async def test_quota_concurrent_same_key_single_consume(
+    interpret_client, mock_ai_client, tmp_free_quota_store,
+):
+    """并发同 key 只扣 1 次配额 + 1 次 LLM(2026-10-07 review:旧实现各扣一次)。
+
+    用慢速 mock 强制并发重叠到 singleflight——若在 singleflight 之外扣费,
+    10 并发会扣 10 次。
+    """
+    import asyncio
+
+    class SlowMockAIClient:
+        provider = "anthropic"
+        model = "test-model"
+
+        def __init__(self):
+            self.call_count = 0
+            self.last_prompt = None
+            self.last_temperature = None
+
+        async def interpret(self, prompt, *, temperature=0.6):
+            self.call_count += 1
+            self.last_prompt = prompt
+            self.last_temperature = temperature
+            await asyncio.sleep(0.05)
+            return "【mock 命书文本】"
+
+    from app.main import app
+    token = token_for_context(content_hash="concurrent-h",
+                              module="bazi_deep_free",
+                              context=BAZI_DEEP_CONTEXT)
+    saved = app.state.ai_client
+    slow = SlowMockAIClient()
+    app.state.ai_client = slow
+    try:
+        payload = {
+            "content_hash": "concurrent-h", "module": "bazi_deep_free",
+            "context": BAZI_DEEP_CONTEXT, "target_date": None,
+            "context_token": token,
+        }
+        results = await asyncio.gather(*[
+            interpret_client.post("/api/interpret", json=payload)
+            for _ in range(10)
+        ])
+        assert all(r.status_code == 200 for r in results), \
+            [r.json() for r in results if r.status_code != 200]
+    finally:
+        app.state.ai_client = saved
+
+    assert slow.call_count == 1, \
+        f"并发同 key 应只调 1 次 LLM,实际 {slow.call_count}"
+    conn = sqlite3.connect(tmp_free_quota_store._db_path)
+    try:
+        total = conn.execute(
+            "SELECT COALESCE(SUM(count), 0) FROM free_llm_quota"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    assert total == 1, f"并发同 key 应只扣 1 次配额,实际 {total}"
 
 
 async def test_oversized_field_rejected(raw_interpret_client):

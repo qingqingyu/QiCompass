@@ -35,6 +35,7 @@ PROMPT_VERSIONS 与模板常量放同文件邻近位置:改模板时必须 bump 
 
 from __future__ import annotations
 
+import json
 import logging
 from functools import lru_cache
 from pathlib import Path
@@ -923,17 +924,32 @@ def validate_context(module: str, context: dict) -> None:
                 f"prompt 渲染字段 {field} 类型非法:{type(value).__name__},"
                 f"期望 str/int/float/bool(module={module})")
     # 长度上限(2026-10-07):必填 + 额外 key 全量扫描(额外 key 虽不进
-    # prompt,仍占请求体与内存;总量档兜底)
+    # prompt,仍占请求体与内存;总量档兜底)。非字符串值(list/dict 等额外
+    # key)按 JSON 序列化长度计入总量——否则可塞几 MB 嵌套垃圾字段绕过
+    # 总量档(2026-10-07 review)。
     total = 0
     for field, value in context.items():
-        if not isinstance(value, str):
-            continue
-        total += len(value)
-        limit = _FIELD_CHAR_LIMITS.get(field, _DEFAULT_FIELD_CHAR_LIMIT)
-        if len(value) > limit:
-            raise InvalidInputError(
-                f"context 字段 {field} 长度 {len(value)} 超上限 {limit}"
-                f"(module={module};疑似注入/滥用负载)")
+        if isinstance(value, str):
+            total += len(value)
+            limit = _FIELD_CHAR_LIMITS.get(field, _DEFAULT_FIELD_CHAR_LIMIT)
+            if len(value) > limit:
+                raise InvalidInputError(
+                    f"context 字段 {field} 长度 {len(value)} 超上限 {limit}"
+                    f"(module={module};疑似注入/滥用负载)")
+        elif isinstance(value, (list, dict)):
+            try:
+                total += len(json.dumps(value, ensure_ascii=False))
+            except RecursionError:
+                # 嵌套过深:json.dumps 触 Python 递归上限,量长度必然再递归;
+                # 直接判 422(恶意/滥用负载),不回 500(2026-10-07 double review)。
+                raise InvalidInputError(
+                    f"context 字段 {field} 嵌套过深(module={module};"
+                    f"疑似注入/滥用负载)")
+            except (TypeError, ValueError):
+                # 不可序列化值按 str 长度计(请求体 JSON 通常到不了这里)
+                total += len(str(value))
+        else:
+            total += len(str(value))
     if total > _CONTEXT_TOTAL_CHAR_LIMIT:
         raise InvalidInputError(
             f"context 总长度 {total} 超上限 {_CONTEXT_TOTAL_CHAR_LIMIT}"

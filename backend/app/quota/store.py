@@ -65,3 +65,20 @@ class FreeLLMQuotaStore:
             )
             conn.commit()
             return cursor.rowcount > 0
+
+    def refund(self, *, bucket: str, day: str) -> None:
+        """退还 1 次(LLM 调用失败时回滚,不计入当日额度)。
+
+        只对已消耗的计数减 1,count 不为负;无记录时 no-op(INSERT 未发生,
+        无行可退)。
+
+        Raises:
+            sqlite3.Error: 写失败(向上抛,不静默吞)
+        """
+        with self._connect() as conn:
+            conn.execute(
+                "UPDATE free_llm_quota SET count = count - 1 "
+                "WHERE bucket = ? AND day = ? AND count > 0",
+                (bucket, day),
+            )
+            conn.commit()
