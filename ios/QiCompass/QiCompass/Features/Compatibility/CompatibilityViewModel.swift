@@ -1938,7 +1938,9 @@ final class CompatibilityViewModel {
             // 按旧标签滞后 24h,同屏自相矛盾。门未过 → 显式失败给重试入口
             // (重试是用户显式触发,不受门限);.idle + 次数有余在 UI 渲染成
             // 「推演中」,不写失败 = 死转圈。缓存命中展示不受此门(取舍④口径)。
-            let ruleFresh = await self.engineRuleBecameFresh(summary)
+            // retryAfterDeadTask=false:本链 .failed 的重试不走门,补发重算
+            // 对自动链零收益(离线下只多打一个注定失败的请求)。
+            let ruleFresh = await self.engineRuleBecameFresh(summary, retryAfterDeadTask: false)
             guard !Task.isCancelled else { return }
             guard ruleFresh else {
                 // 仍在本对且仍 .idle 才写:门等待期间在飞豁免链可能已落
@@ -2065,8 +2067,21 @@ final class CompatibilityViewModel {
     ///
     /// 读 `engineRefreshTask` 是安全的:任务真伪不靠它判,门尾必须重读 store
     /// 验证新鲜度——旧任务被取消 / refreshStaleEngineAssessment 早退 nil 时,
-    /// 验证步给出正确答案(仍过期 → 拦)。
-    private func engineRuleBecameFresh(_ summary: PairSummary) async -> Bool {
+    /// 验证步给出正确答案(仍过期 → 拦)。**但复用的必须是活任务**:
+    /// `engineRefreshTask` 从不置 nil,openDetail 起的重算失败落定后就是死任务
+    /// ——翻译提示条手动重试再入 409 又进本门时只等死任务,门被死任务钉死,
+    /// 「网络恢复后手动重试自愈」的承诺落空(三查 R1)。此场景按
+    /// `retryAfterDeadTask` 补发一次重算再验。换对会先 cancel 本门所在的
+    /// translateTask / cacheReadTask(openDetail),await 后的 isCancelled 守卫
+    /// 保证补发不会取消别对在飞重算后再起新任务。
+    /// - Parameter retryAfterDeadTask: 复用的重算任务已落定且复验仍过期时
+    ///   是否补发。翻译 STALE_SOURCE 链传 **true**——手动重试会再次进门,
+    ///   死任务不补发 = 门被钉死;openDetail 自动链传 **false**——其 .failed
+    ///   重试不走门(手动重生成不受门限),补发只会在离线下每次进对多打
+    ///   一个注定失败的请求,零收益。
+    private func engineRuleBecameFresh(
+        _ summary: PairSummary, retryAfterDeadTask: Bool
+    ) async -> Bool {
         let compatHash = summary.compatibilityHash
         do {
             if let snapshot = try compatibilityStore.get(compatibilityHash: compatHash),
@@ -2079,13 +2094,30 @@ final class CompatibilityViewModel {
             )
             return false
         }
-        let refresh = engineRefreshTask ?? refreshStaleEngineAssessment(for: summary)
+        let existingTask = engineRefreshTask
+        let refresh = existingTask ?? refreshStaleEngineAssessment(for: summary)
         if let refresh { await refresh.value }
+        guard !Task.isCancelled else { return false }
+        if existingTask != nil {
+            if snapshotIsFreshInStore(compatHash: compatHash) { return true }
+            if retryAfterDeadTask {
+                // 死任务复用后仍未新鲜:补发一次重算(手动重试的自愈路径)
+                let retry = refreshStaleEngineAssessment(for: summary)
+                if let retry { await retry.value }
+                guard !Task.isCancelled else { return false }
+            }
+        }
+        return snapshotIsFreshInStore(compatHash: compatHash)
+    }
+
+    /// 引擎规则门的 store 复验:读失败显式日志 + 按未新鲜处理(false = 拦,
+    /// 不拿读失败冒充「已新鲜」放行生成)。
+    private func snapshotIsFreshInStore(compatHash: String) -> Bool {
         do {
-            guard let refreshed = try compatibilityStore.get(compatibilityHash: compatHash) else {
+            guard let snapshot = try compatibilityStore.get(compatibilityHash: compatHash) else {
                 return false
             }
-            return CompatibilitySnapshotStore.isFreshEngineRule(refreshed)
+            return CompatibilitySnapshotStore.isFreshEngineRule(snapshot)
         } catch {
             AppLogger.persistence.error(
                 "op=compatibility.engineRuleGate.verify_failed hash=\(compatHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 按未新鲜处理(不起生成)"
@@ -2588,8 +2620,10 @@ final class CompatibilityViewModel {
                     // 同门——本对规则版本过期且重算未成时,重生成会把旧标签写进
                     // 新生成正文并落双层缓存。门未过 → 恢复失败提示条走手动
                     // (网络恢复、重算成功后手动重试自愈:再点提示条重试 → 409 →
-                    // 门已过 → 豁免重生成),原文展示态不动。
-                    let ruleFresh = await self.engineRuleBecameFresh(summary)
+                    // 门已过 → 豁免重生成),原文展示态不动。retryAfterDeadTask
+                    // =true:手动重试会再次进门,复用的死重算任务须补发重算,
+                    // 否则门被死任务钉死、自愈承诺落空(三查 R1)。
+                    let ruleFresh = await self.engineRuleBecameFresh(summary, retryAfterDeadTask: true)
                     if Task.isCancelled { return }
                     // 门等待期间换对/退出 → 中断语义(重开自动续),不落提示条
                     guard self.currentDetailIfMatches(summary) != nil else {

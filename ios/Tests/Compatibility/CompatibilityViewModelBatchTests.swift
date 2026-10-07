@@ -1455,6 +1455,44 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         return false
     }
 
+    /// 引擎规则门系列共用夹具(2026-10-07 第七轮):旧引擎规则版本
+    /// (ruleVersion 1)的合盘快照 + 对应 PairSummary——openDetail 渲染旧值,
+    /// 重算/门走 API(mock 应答键 = "mock_compat_<tag>_a_<tag>_b_general",
+    /// 重算成功后 upsert 落同键,门的 store 复验可见)。
+    @discardableResult
+    private func makeStaleEngineRuleFixture(tag: String) throws -> PairSummary {
+        let chartA = try insertChart(hash: "\(tag)_a", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "\(tag)_b", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        let mockKey = "mock_compat_\(tag)_a_\(tag)_b_general"
+        _ = try insertCompatibilitySnapshot(
+            response: CompatibilityResponse(
+                compatibilityHash: mockKey,
+                personAChart: nil, personBChart: nil,
+                qualitativeAssessment: QualitativeAssessmentDTO(
+                    fiveElements: "旧版五行", dayMasterRelation: "旧版关系",
+                    zodiacMatch: "旧版生肖", branchHarmony: "旧版合冲"
+                ),
+                syncedFortune: [], calcRuleSnapshot: nil, ruleVersion: 1
+            ),
+            aHash: "\(tag)_a", bHash: "\(tag)_b", context: "general"
+        )
+        return PairSummary(
+            id: mockKey,
+            entry: .archived(snapshotHash: "\(tag)_b"),
+            personBHash: "\(tag)_b",
+            displayName: "B",
+            birthDate: nil,
+            dayMaster: "甲",
+            fiveElements: "旧版五行",
+            dayMasterRelation: "旧版关系",
+            compatibilityHash: mockKey,
+            isInterpreted: false,
+            status: .computed
+        )
+    }
+
     /// 轮询等待任意条件(F3 用例,对齐 waitForInterpretState 范式)。
     private static func waitUntil(
         timeout: TimeInterval = 8, _ condition: @escaping () -> Bool
@@ -2079,36 +2117,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
     /// prompt 写进正文并落双层缓存,重算成功后正文滞后 24h 与评估卡矛盾);
     /// 门未过在 .idle 形态下显式失败给重试入口(不写失败 =「推演中」死转圈)。
     func testOpenDetail_重算失败_不起自动生成_显式失败() async throws {
-        let chartA = try insertChart(hash: "gate2_a", alias: "A", hourKnown: true)
-        let chartB = try insertChart(hash: "gate2_b", alias: "B", hourKnown: true)
-        vm.archivedCharts = [chartA, chartB]
-        vm.selectedChartAIndex = 0
-        let mockKey = "mock_compat_gate2_a_gate2_b_general"
-        _ = try insertCompatibilitySnapshot(
-            response: CompatibilityResponse(
-                compatibilityHash: mockKey,
-                personAChart: nil, personBChart: nil,
-                qualitativeAssessment: QualitativeAssessmentDTO(
-                    fiveElements: "旧版五行", dayMasterRelation: "旧版关系",
-                    zodiacMatch: "旧版生肖", branchHarmony: "旧版合冲"
-                ),
-                syncedFortune: [], calcRuleSnapshot: nil, ruleVersion: 1
-            ),
-            aHash: "gate2_a", bHash: "gate2_b", context: "general"
-        )
-        let summary = PairSummary(
-            id: mockKey,
-            entry: .archived(snapshotHash: "gate2_b"),
-            personBHash: "gate2_b",
-            displayName: "B",
-            birthDate: nil,
-            dayMaster: "甲",
-            fiveElements: "旧版五行",
-            dayMasterRelation: "旧版关系",
-            compatibilityHash: mockKey,
-            isInterpreted: false,
-            status: .computed
-        )
+        let summary = try makeStaleEngineRuleFixture(tag: "gate2")
         apiClient.compatibilityResponder = { _ in
             throw APIError.networkError(URLError(.notConnectedToInternet))
         }
@@ -2140,38 +2149,9 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
         }
 
-        let chartA = try insertChart(hash: "gate3_a", alias: "A", hourKnown: true)
-        let chartB = try insertChart(hash: "gate3_b", alias: "B", hourKnown: true)
-        vm.archivedCharts = [chartA, chartB]
-        vm.selectedChartAIndex = 0
-        let mockKey = "mock_compat_gate3_a_gate3_b_general"
-        _ = try insertCompatibilitySnapshot(
-            response: CompatibilityResponse(
-                compatibilityHash: mockKey,
-                personAChart: nil, personBChart: nil,
-                qualitativeAssessment: QualitativeAssessmentDTO(
-                    fiveElements: "旧版五行", dayMasterRelation: "旧版关系",
-                    zodiacMatch: "旧版生肖", branchHarmony: "旧版合冲"
-                ),
-                syncedFortune: [], calcRuleSnapshot: nil, ruleVersion: 1
-            ),
-            aHash: "gate3_a", bHash: "gate3_b", context: "general"
-        )
-        let summary = PairSummary(
-            id: mockKey,
-            entry: .archived(snapshotHash: "gate3_b"),
-            personBHash: "gate3_b",
-            displayName: "B",
-            birthDate: nil,
-            dayMaster: "甲",
-            fiveElements: "旧版五行",
-            dayMasterRelation: "旧版关系",
-            compatibilityHash: mockKey,
-            isInterpreted: false,
-            status: .computed
-        )
+        let summary = try makeStaleEngineRuleFixture(tag: "gate3")
         try interpretStore.upsert(
-            contentHash: mockKey,
+            contentHash: summary.compatibilityHash,
             module: "compatibility_free",
             promptVersion: 1,
             targetDate: nil,
@@ -2212,6 +2192,62 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             apiClient.recordedInterpretRequests.isEmpty,
             "规则过期未重算成时不得重生成(旧标签不得进 prompt),实际 interpret=\(apiClient.recordedInterpretRequests.count)"
         )
+        await drainDetailBackgroundTasks()
+    }
+
+    /// 🟠#3 补充(三查 R1 回归):门失败恢复提示条后网络恢复再点重试——门
+    /// 不得被已落定的**死重算任务**钉死(engineRefreshTask 从不置 nil,修复前
+    /// 门只等死任务、复验恒过期,提示条死循环):复用任务验旧后须补发一次
+    /// 重算,门过 → 豁免重生成落地,原文态被新正文取代。
+    func testTranslate_STALE_SOURCE_重试时死任务复用_补发重算自愈() async throws {
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+
+        let summary = try makeStaleEngineRuleFixture(tag: "gate3r")
+        try interpretStore.upsert(
+            contentHash: summary.compatibilityHash,
+            module: "compatibility_free",
+            promptVersion: 1,
+            targetDate: nil,
+            language: "zh",
+            provider: "anthropic",
+            model: "mock-anthropic-model",
+            interpretation: "第一章 基础相处模式\n\n简体原文。",
+            generatedAt: .now
+        )
+        apiClient.translateResponder = { _ in
+            throw APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
+        }
+        apiClient.compatibilityResponder = { _ in
+            throw APIError.networkError(URLError(.notConnectedToInternet))
+        }
+
+        vm.openDetail(summary)
+        let bannerShown = await Self.waitUntil {
+            self.vm.translationOffer != nil && self.vm.translationFailed
+        }
+        XCTAssertTrue(
+            bannerShown,
+            "前置:首进门失败恢复失败提示条,实际 offer=\(String(describing: vm.translationOffer)) failed=\(vm.translationFailed)"
+        )
+
+        // 网络恢复:重算回落默认 mock(ruleVersion = expected,upsert 覆盖旧快照)
+        apiClient.compatibilityResponder = nil
+        vm.acceptTranslation()
+
+        let regenerated = await waitForInterpretState { state in
+            if case .okFree(let text, _) = state { return text.contains("Mock 命书占位") }
+            return false
+        }
+        XCTAssertTrue(
+            regenerated,
+            "重试必须自愈:复用死任务验旧后补发重算过门,豁免重生成落地,实际:\(vm.state)"
+        )
+        XCTAssertNil(vm.translationOffer, "重生成落地后翻译提议收口")
         await drainDetailBackgroundTasks()
     }
 
