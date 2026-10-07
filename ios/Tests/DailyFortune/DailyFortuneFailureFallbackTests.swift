@@ -225,6 +225,39 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         XCTAssertFalse(vm.isSilentRetrying, "手动路径不置静默重试标记")
     }
 
+    // MARK: - #7 世代号守卫 vs 已扣次数(2026-10-07 外评)
+
+    /// refresh() 直连 runFullPipeline、不经 load() 的 interpretTask 取消——
+    /// 解读在飞时下拉刷新会推进世代号,已扣次数的成功结果按世代失配自弃
+    /// = 白扣(次数恰好耗尽时达限卡还会盖住刚付费的内容)。修复:同业务日
+    /// 的迟到成功照常落地(取当前 response;跨业务日/换盘照旧自弃)。
+    /// 预扣 9 次 → G1 消耗最后 1 次 → 刷新管线尾部次数耗尽且无跨语言源,
+    /// 不再自动起链(不会取消在飞的 G1),迟到落地成为唯一归宿。
+    func test解读在飞时下拉刷新_同日迟到成功不丢弃() async throws {
+        try seedChart(hash: "late_land")
+        for _ in 0..<9 { _ = counter.tryConsume(module: "daily_fortune") }
+        // G1 挂起 700ms:制造「在飞窗口内刷新」的确定性时序
+        await api.setInterpretGate { try? await Task.sleep(nanoseconds: 700_000_000) }
+
+        vm.onAppear(currentChartHash: "late_land", ziHourRule: "zi_next_day")
+        let g1Started = await waitFor {
+            await self.api.interpretAttempts() >= 1
+        }
+        XCTAssertTrue(g1Started, "前置:G1 解读已发起(挂起中)")
+
+        await vm.refresh(currentChartHash: "late_land", ziHourRule: "zi_next_day")
+
+        let ok = await waitFor { Self.isOkFree(self.vm.state) }
+        XCTAssertTrue(ok, "同日迟到成功必须落地(已扣次数不丢),实际:\(vm.state)")
+        if case .ready(_, .okFree(let text, _), _) = vm.state {
+            XCTAssertEqual(text, "静默重试成功后的解读文本(mock)。", "落地的必须是 G1 的结果")
+        }
+        // 迟到落地后不得再补发(丢弃重扣是修复前的次生病灶)
+        try? await Task.sleep(nanoseconds: 400_000_000)
+        let calls = await api.interpretAttempts()
+        XCTAssertEqual(calls, 1, "已扣次数的结果不得被丢弃后重扣,实际 interpret=\(calls)")
+    }
+
     // MARK: - L5 门控(2026-10-07 review 修复)
 
     /// 次数耗尽 + 切语言:存在可翻译的跨语言源 → 仍自动触发(翻译不耗次数,
@@ -711,6 +744,11 @@ private actor FailingInterpretAPIClient: APIClient {
     func translateAttempts() -> Int { translateCalls }
     /// #4(2026-10-07)交错回归:非 nil 时 dailyFortune 按 chartHash 挂起。
     private var dailyFortuneGate: (@Sendable (_ chartHash: String) async -> Void)?
+    /// #7(2026-10-07)迟到落地回归:非 nil 时 interpret 返回前挂起(控制在飞窗口)。
+    private var interpretGate: (@Sendable () async -> Void)?
+    func setInterpretGate(_ gate: (@Sendable () async -> Void)?) {
+        interpretGate = gate
+    }
     /// interpret 请求的 contentHash 序列(#4 断言"只代扣新盘"用)。
     private var interpretHashes: [String] = []
     func setDailyFortuneGate(_ gate: (@Sendable (String) async -> Void)?) {
@@ -786,6 +824,9 @@ private actor FailingInterpretAPIClient: APIClient {
         interpretHashes.append(request.contentHash)
         if attempts <= failFirst {
             throw APIError.networkError(URLError(.timedOut))
+        }
+        if let interpretGate {
+            await interpretGate()
         }
         return InterpretResponse(
             interpretation: interpretText,

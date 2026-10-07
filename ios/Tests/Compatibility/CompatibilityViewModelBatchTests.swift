@@ -2045,6 +2045,339 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         await drainDetailBackgroundTasks()
     }
 
+    // MARK: - 2026-10-07 第七轮外评(取消分诊 / 引擎规则门 / 回落收窄 / 按对豁免)
+
+    /// 🔴#1:请求被取消但 Task 未取消(session 失效等基建性取消)→ 按真失败
+    /// 落 .failed(重试入口在)。修复前该分支静默 return:状态机停在 .fetching
+    /// 且 interpretInFlight 已被 defer 清掉——页面死转圈,而手动生成入口已
+    /// 拔除(#13),用户无出路。
+    func test自动生成_请求取消但Task未取消_落failed不死转圈() async throws {
+        let summary = try makeAutoGenFixture(tag: "urlcancel")
+        apiClient.interpretResponder = { _ in
+            throw APIError.networkError(URLError(.cancelled))
+        }
+
+        vm.openDetail(summary)
+        let failed = await waitForInterpretState { state in
+            if case .failed = state { return true }
+            return false
+        }
+        XCTAssertTrue(failed, "基建性取消必须落 .failed(修复前静默 return 死转圈),实际:\(vm.state)")
+
+        // 重试入口必须可用:恢复默认应答 → 重试成功
+        apiClient.interpretResponder = nil
+        vm.retryInterpretation()
+        let ok = await waitForInterpretState { state in
+            if case .okFree = state { return true }
+            return false
+        }
+        XCTAssertTrue(ok, "失败态重试必须可达 .okFree,实际:\(vm.state)")
+        await drainDetailBackgroundTasks()
+    }
+
+    /// 🟠#2:引擎规则门——重算失败(离线)时不得起自动生成(旧标签会随
+    /// prompt 写进正文并落双层缓存,重算成功后正文滞后 24h 与评估卡矛盾);
+    /// 门未过在 .idle 形态下显式失败给重试入口(不写失败 =「推演中」死转圈)。
+    func testOpenDetail_重算失败_不起自动生成_显式失败() async throws {
+        let chartA = try insertChart(hash: "gate2_a", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "gate2_b", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        let mockKey = "mock_compat_gate2_a_gate2_b_general"
+        _ = try insertCompatibilitySnapshot(
+            response: CompatibilityResponse(
+                compatibilityHash: mockKey,
+                personAChart: nil, personBChart: nil,
+                qualitativeAssessment: QualitativeAssessmentDTO(
+                    fiveElements: "旧版五行", dayMasterRelation: "旧版关系",
+                    zodiacMatch: "旧版生肖", branchHarmony: "旧版合冲"
+                ),
+                syncedFortune: [], calcRuleSnapshot: nil, ruleVersion: 1
+            ),
+            aHash: "gate2_a", bHash: "gate2_b", context: "general"
+        )
+        let summary = PairSummary(
+            id: mockKey,
+            entry: .archived(snapshotHash: "gate2_b"),
+            personBHash: "gate2_b",
+            displayName: "B",
+            birthDate: nil,
+            dayMaster: "甲",
+            fiveElements: "旧版五行",
+            dayMasterRelation: "旧版关系",
+            compatibilityHash: mockKey,
+            isInterpreted: false,
+            status: .computed
+        )
+        apiClient.compatibilityResponder = { _ in
+            throw APIError.networkError(URLError(.notConnectedToInternet))
+        }
+
+        vm.openDetail(summary)
+
+        let failed = await waitForInterpretState { state in
+            if case .failed = state { return true }
+            return false
+        }
+        XCTAssertTrue(failed, "门未过必须显式失败(重试入口),实际:\(vm.state)")
+        // 门拦下自动生成:零 interpret 请求(旧标签不得进生成 prompt)
+        try? await Task.sleep(nanoseconds: 800_000_000)
+        XCTAssertTrue(
+            apiClient.recordedInterpretRequests.isEmpty,
+            "重算失败时不得自动生成(旧标签进 prompt = 正文按旧规则缓存 24h),实际 interpret=\(apiClient.recordedInterpretRequests.count)"
+        )
+        await drainDetailBackgroundTasks()
+    }
+
+    /// 🟠#3:翻译 409 STALE_SOURCE 的豁免重生成同样过引擎规则门——本对规则
+    /// 过期且重算未成时暂缓重生成:恢复失败提示条走手动(网络恢复重算成功
+    /// 后手动重试自愈),原文展示态不动,零 interpret 请求。
+    func testTranslate_STALE_SOURCE_引擎规则过期_暂缓重生成() async throws {
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+
+        let chartA = try insertChart(hash: "gate3_a", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "gate3_b", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        let mockKey = "mock_compat_gate3_a_gate3_b_general"
+        _ = try insertCompatibilitySnapshot(
+            response: CompatibilityResponse(
+                compatibilityHash: mockKey,
+                personAChart: nil, personBChart: nil,
+                qualitativeAssessment: QualitativeAssessmentDTO(
+                    fiveElements: "旧版五行", dayMasterRelation: "旧版关系",
+                    zodiacMatch: "旧版生肖", branchHarmony: "旧版合冲"
+                ),
+                syncedFortune: [], calcRuleSnapshot: nil, ruleVersion: 1
+            ),
+            aHash: "gate3_a", bHash: "gate3_b", context: "general"
+        )
+        let summary = PairSummary(
+            id: mockKey,
+            entry: .archived(snapshotHash: "gate3_b"),
+            personBHash: "gate3_b",
+            displayName: "B",
+            birthDate: nil,
+            dayMaster: "甲",
+            fiveElements: "旧版五行",
+            dayMasterRelation: "旧版关系",
+            compatibilityHash: mockKey,
+            isInterpreted: false,
+            status: .computed
+        )
+        try interpretStore.upsert(
+            contentHash: mockKey,
+            module: "compatibility_free",
+            promptVersion: 1,
+            targetDate: nil,
+            language: "zh",
+            provider: "anthropic",
+            model: "mock-anthropic-model",
+            interpretation: "第一章 基础相处模式\n\n简体原文。",
+            generatedAt: .now
+        )
+        apiClient.translateResponder = { _ in
+            throw APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
+        }
+        apiClient.compatibilityResponder = { _ in
+            throw APIError.networkError(URLError(.notConnectedToInternet))
+        }
+
+        vm.openDetail(summary)
+
+        let bannerShown = await Self.waitUntil {
+            self.vm.translationOffer != nil && self.vm.translationFailed
+        }
+        XCTAssertTrue(
+            bannerShown,
+            "门未过恢复失败提示条(手动重试入口),实际 offer=\(String(describing: vm.translationOffer)) failed=\(vm.translationFailed)"
+        )
+        // 原文展示态保持(门失败不得覆盖跨语言原文)
+        if case .detail(_, _, let interpret) = vm.state {
+            guard case .okFree(let text, _) = interpret, text.contains("简体原文") else {
+                XCTFail("原文展示态不得被门失败覆盖,实际:\(interpret)")
+                return
+            }
+        } else {
+            XCTFail("应保持 detail 态,实际:\(vm.state)")
+            return
+        }
+        try? await Task.sleep(nanoseconds: 800_000_000)
+        XCTAssertTrue(
+            apiClient.recordedInterpretRequests.isEmpty,
+            "规则过期未重算成时不得重生成(旧标签不得进 prompt),实际 interpret=\(apiClient.recordedInterpretRequests.count)"
+        )
+        await drainDetailBackgroundTasks()
+    }
+
+    /// 🟠#4:非豁免生成只清**本对**豁免标记——X 对生成(含快照缺失提前
+    /// return)不得把 Y 对待重试的豁免语义一并抹掉(修复前无条件置 nil,
+    /// Y 的 .failed 重试退回扣次数)。
+    func test非豁免生成_不清别对豁免标记() async throws {
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+
+        // Y 对:STALE 降级重生成失败 → .failed,豁免标记 = Y
+        let y = try makeAutoGenFixture(tag: "markY")
+        try interpretStore.upsert(
+            contentHash: y.compatibilityHash,
+            module: "compatibility_free",
+            promptVersion: 1,
+            targetDate: nil,
+            language: "zh",
+            provider: "anthropic",
+            model: "mock-anthropic-model",
+            interpretation: "第一章 基础相处模式\n\n简体原文。",
+            generatedAt: .now
+        )
+        apiClient.translateResponder = { _ in
+            throw APIError.backendError(code: "STALE_SOURCE", message: "原文 prompt_version 已过期", requestId: nil)
+        }
+        apiClient.interpretResponder = { _ in
+            throw APIError.networkError(URLError(.timedOut))
+        }
+        vm.openDetail(y)
+        let yFailed = await waitForInterpretState { state in
+            if case .failed = state { return true }
+            return false
+        }
+        XCTAssertTrue(yFailed, "前置:Y 豁免链失败落 .failed,实际:\(vm.state)")
+        XCTAssertEqual(vm.exemptAttemptCompatHash, y.compatibilityHash, "前置:豁免标记指向 Y")
+
+        // X 对:非豁免自动生成在「B 快照缺失」守卫处提前 return——标记赋值
+        // 发生在守卫之前,修复前会把 Y 的标记一并清掉。openDetail 只需 A 盘
+        // 与合盘快照,B ChartSnapshot 缺失正是提前 return 的触发条件。
+        let xA = try insertChart(hash: "mk_x_a", alias: "A", hourKnown: true)
+        vm.archivedCharts = [xA]
+        vm.selectedChartAIndex = 0
+        let xKey = CompatibilitySnapshotStore.canonicalKey(
+            aHash: "mk_x_a", bHash: "mk_x_b", context: "general"
+        )
+        _ = try insertCompatibilitySnapshot(
+            response: CompatibilityResponse(
+                compatibilityHash: xKey,
+                personAChart: nil, personBChart: nil,
+                qualitativeAssessment: QualitativeAssessmentDTO(
+                    fiveElements: "互补佳", dayMasterRelation: "同气",
+                    zodiacMatch: "六合", branchHarmony: "无冲无刑"
+                ),
+                syncedFortune: [], calcRuleSnapshot: nil,
+                ruleVersion: CompatibilitySnapshotStore.expectedEngineRuleVersion
+            ),
+            aHash: "mk_x_a", bHash: "mk_x_b", context: "general"
+        )
+        // personBHash 指向不存在的 ChartSnapshot → generateInterpretation 快照
+        // 守卫提前失败(openDetail 本身不需要 B 快照)
+        let xSummary = PairSummary(
+            id: xKey,
+            entry: .archived(snapshotHash: "mk_x_b"),
+            personBHash: "mk_x_b_missing",
+            displayName: "B",
+            birthDate: nil,
+            dayMaster: "甲",
+            fiveElements: "互补佳",
+            dayMasterRelation: "同气",
+            compatibilityHash: xKey,
+            isInterpreted: false,
+            status: .computed
+        )
+        apiClient.interpretResponder = nil
+        vm.openDetail(xSummary)
+        let xFailed = await waitForInterpretState { state in
+            if case .failed = state { return true }
+            return false
+        }
+        XCTAssertTrue(xFailed, "X 快照缺失提前失败应显式 .failed,实际:\(vm.state)")
+        XCTAssertEqual(
+            vm.exemptAttemptCompatHash, y.compatibilityHash,
+            "X 的非豁免生成不得清 Y 的豁免标记(修复前无条件置 nil)"
+        )
+        await drainDetailBackgroundTasks()
+    }
+
+    /// 🟠#5a:重算失败**离线**回落旧快照——显示旧标签(openDetail 后台重算 +
+    /// 下轮 compute 预查联网自愈),优于整对失败卡。
+    func testCompute_重算失败_离线回落旧快照() async throws {
+        let chartA = try insertChart(hash: "fb_a", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "fb_b", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        vm.toggleArchived(hash: "fb_b")
+        let canonicalKey = CompatibilitySnapshotStore.canonicalKey(
+            aHash: "fb_a", bHash: "fb_b", context: "general"
+        )
+        _ = try insertCompatibilitySnapshot(
+            response: CompatibilityResponse(
+                compatibilityHash: canonicalKey,
+                personAChart: nil, personBChart: nil,
+                qualitativeAssessment: QualitativeAssessmentDTO(
+                    fiveElements: "旧版五行", dayMasterRelation: "旧版关系",
+                    zodiacMatch: "旧版生肖", branchHarmony: "旧版合冲"
+                ),
+                syncedFortune: [], calcRuleSnapshot: nil, ruleVersion: 1
+            ),
+            aHash: "fb_a", bHash: "fb_b", context: "general"
+        )
+        apiClient.compatibilityResponder = { _ in
+            throw APIError.networkError(URLError(.notConnectedToInternet))
+        }
+
+        vm.compute()
+        let done = await waitForDetailState()
+        XCTAssertTrue(done, "离线回落应直达 detail(旧标签渲染),实际:\(vm.state)")
+        XCTAssertEqual(vm.summaries.first?.compatibilityHash, canonicalKey, "离线回落旧规则快照")
+        if case .detail(_, let r, _) = vm.state {
+            XCTAssertEqual(r.qualitativeAssessment.fiveElements, "旧版五行", "回落渲染旧标签(联网后自愈)")
+        }
+        await drainDetailBackgroundTasks()
+    }
+
+    /// 🟠#5b:后端 5xx **不回落**——真错误显式失败卡,旧标签不得掩盖失败
+    /// (修复前所有非取消错误都回落)。
+    func testCompute_重算失败_后端5xx不回落显式失败() async throws {
+        let chartA = try insertChart(hash: "fb5_a", alias: "A", hourKnown: true)
+        let chartB = try insertChart(hash: "fb5_b", alias: "B", hourKnown: true)
+        vm.archivedCharts = [chartA, chartB]
+        vm.selectedChartAIndex = 0
+        vm.toggleArchived(hash: "fb5_b")
+        let canonicalKey = CompatibilitySnapshotStore.canonicalKey(
+            aHash: "fb5_a", bHash: "fb5_b", context: "general"
+        )
+        _ = try insertCompatibilitySnapshot(
+            response: CompatibilityResponse(
+                compatibilityHash: canonicalKey,
+                personAChart: nil, personBChart: nil,
+                qualitativeAssessment: QualitativeAssessmentDTO(
+                    fiveElements: "旧版五行", dayMasterRelation: "旧版关系",
+                    zodiacMatch: "旧版生肖", branchHarmony: "旧版合冲"
+                ),
+                syncedFortune: [], calcRuleSnapshot: nil, ruleVersion: 1
+            ),
+            aHash: "fb5_a", bHash: "fb5_b", context: "general"
+        )
+        apiClient.compatibilityResponder = { _ in
+            throw APIError.httpError(statusCode: 500, body: nil)
+        }
+
+        vm.compute()
+        let listed = await waitForListState()
+        XCTAssertTrue(listed, "5xx 必须走对级失败(list 兜底),实际:\(vm.state)")
+        guard case .failed? = vm.summaries.first?.status else {
+            XCTFail("5xx 不得回落旧快照(修复前所有非取消错误都回落),实际:\(String(describing: vm.summaries.first?.status))")
+            return
+        }
+        await drainDetailBackgroundTasks()
+    }
+
     func testBackToConfig_detail态_一步回配置态_保留summaries() {
         // 2026-09-07 单选直达:closeDetail 退役,detail「编辑名单」toolbar 直达
         // 配置态(clearDetailKeepRoster 兼任 list 兜底态返回)

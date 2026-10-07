@@ -274,6 +274,26 @@ final class DailyFortuneViewModel {
                         .okFree(text: resp.interpretation, cached: resp.cached),
                         businessDate,
                     )
+                } else if !Task.isCancelled,
+                          case .ready(let currentResponse, _, let currentDate) = state,
+                          Calendar.current.isDate(currentDate, inSameDayAs: businessDate) {
+                    // 同日迟到成功落地(2026-10-07 review #7):refresh() 直连
+                    // runFullPipeline 不取消 interpretTask,解读在飞时下拉刷新
+                    // 会推进世代号——此时成功结果**已扣次数**,按世代失配自弃
+                    // = 白扣,次数恰好耗尽时用户看到达限卡盖住刚付费的内容。
+                    // 同业务日的解读按 (chart, 业务日) 键缓存,内容不随管线重跑
+                    // 错配;落**当前** response(不回写旧管线的 response)。跨业务
+                    // 日 / 换盘照旧自弃(换盘走 load 会取消本任务,Task.isCancelled
+                    // 兜底;跨日内容已无人可见,落地无意义)。
+                    AppLogger.app.notice(
+                        "op=dailyFortune.interpret.late_success_landed hash=\(hash, privacy: .public) gen=\(generation, privacy: .public) current=\(self.pipelineGeneration, privacy: .public) — 世代失配但同业务日,已扣次数的迟到成功照常展示"
+                    )
+                    isSilentRetrying = false
+                    state = .ready(
+                        currentResponse,
+                        .okFree(text: resp.interpretation, cached: resp.cached),
+                        currentDate,
+                    )
                 }
             } catch is CancellationError {
                 return
