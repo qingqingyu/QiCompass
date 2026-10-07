@@ -293,6 +293,10 @@ final class MockAPIClient: APIClient {
     /// D10(S7):translate 应答注入钩子。nil = 默认应答(译文 = 原文标记
     /// 译后语言);测试注入以模拟译后 M0 JSON / STALE_SOURCE 409 / 同构失败。
     var translateResponder: ((TranslateRequest) throws -> InterpretResponse)?
+    /// 测试钩子(2026-10-07):compatibility 应答注入——模拟确定性合盘/规则
+    /// 重算的离线与后端失败(回落收窄、引擎规则门回归用)。nil = 默认 mock
+    /// 应答;录制钩子不适用本端点(断言走 store 落档状态)。
+    var compatibilityResponder: ((CompatibilityRequest) throws -> CompatibilityResponse)?
     /// 测试钩子(2026-10-07):translate 挂起点门,按调用序号(0-based,
     /// 录制序)回调——交错回归用:让第 N 个 translate 在 A→B→A 换盘窗口内
     /// 保持挂起,验证旧世代链的收尾守卫。nil = 无门(不影响既有测试)。
@@ -322,6 +326,9 @@ final class MockAPIClient: APIClient {
     func compatibility(request: CompatibilityRequest) async throws -> CompatibilityResponse {
         AppLogger.networking.debug("mock.compatibility 调起 personAHash=\(request.personAHash.prefix(12), privacy: .public) personBProvided=\(String(describing: request.personB != nil), privacy: .public)")
         try? await Task.sleep(nanoseconds: 300_000_000)
+        if let compatibilityResponder {
+            return try compatibilityResponder(request)
+        }
         return try Self.mockCompatibilityResponse(for: request)
     }
 

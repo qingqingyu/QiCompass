@@ -417,12 +417,37 @@ final class TranslationFlowTests: XCTestCase {
         DeepStaleM0MarkerPersistence.clearAll()
         // 模拟活实例在 resetAllData 之后的下一次写入
         DeepStaleM0MarkerPersistence.mark("hashB|zh-hant")
-        let keys = DeepStaleM0MarkerPersistence.load()
+        let keys = DeepStaleM0MarkerPersistence.load() ?? []
         XCTAssertFalse(
             keys.contains("hashA|zh-hant"),
             "resetAllData 清掉的标记不得被后续写回复活(读改写,非内存快照整份写回)"
         )
         XCTAssertTrue(keys.contains("hashB|zh-hant"), "新标记正常落盘")
+        DeepStaleM0MarkerPersistence.clearAll()
+    }
+
+    /// 外评重提项(2026-10-07):解码失败不得冒充空集——「部分进度后重启 +
+    /// 存储损坏」时 M0 行已清、下游行仍在,按空集走翻译会把基于旧 M0 的下游
+    /// 原文混叙事写进共享缓存。持久化层钉住三件事:坏数据 load() 返 nil(非
+    /// 空集)、消费方语义(nil 按已降级 = 下游转重生成)由
+    /// runTranslationChain 的 `?? true` 承载、mark() 读改写顺手以合法 JSON
+    /// 覆盖坏数据(存储自愈)。
+    func testStaleM0标记_坏数据解码失败返nil且mark自愈存储() {
+        DeepStaleM0MarkerPersistence.clearAll()
+        // 非法 JSON(单字节 0xFF 必解码失败)
+        UserDefaults.standard.set(Data([0xFF]), forKey: DeepStaleM0MarkerPersistence.storageKey)
+
+        XCTAssertNil(
+            DeepStaleM0MarkerPersistence.load(),
+            "解码失败必须返 nil(未知),不得冒充空集(确定无标记)"
+        )
+
+        // mark() 读改写:坏数据起读为空,save 覆盖为合法 JSON → 存储自愈
+        DeepStaleM0MarkerPersistence.mark("hashC|zh-hant")
+        XCTAssertEqual(
+            DeepStaleM0MarkerPersistence.load(), ["hashC|zh-hant"],
+            "mark 后存储必须已自愈为合法 JSON"
+        )
         DeepStaleM0MarkerPersistence.clearAll()
     }
 
@@ -651,7 +676,7 @@ final class TranslationFlowTests: XCTestCase {
         }
         XCTAssertTrue(round1, "M1 降级重生成失败必须断链落 .failed,实际:\(String(describing: vm.autoTranslationState))")
         XCTAssertTrue(
-            DeepStaleM0MarkerPersistence.load().contains(response.contentHash + "|zh-hant"),
+            DeepStaleM0MarkerPersistence.load()?.contains(response.contentHash + "|zh-hant") ?? false,
             "M0 降级标记必须落 UserDefaults(重启前置事实)"
         )
 
@@ -679,7 +704,7 @@ final class TranslationFlowTests: XCTestCase {
         )
         XCTAssertEqual(vm2.remainingReads, readsBefore, "两轮降级重生成全程不得消耗每日次数")
         XCTAssertFalse(
-            DeepStaleM0MarkerPersistence.load().contains(response.contentHash + "|zh-hant"),
+            DeepStaleM0MarkerPersistence.load()?.contains(response.contentHash + "|zh-hant") ?? false,
             "全部落定后标记随提议收空清除"
         )
     }

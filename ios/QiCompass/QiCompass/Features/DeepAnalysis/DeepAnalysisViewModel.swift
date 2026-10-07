@@ -1472,7 +1472,7 @@ final class DeepAnalysisViewModel {
         // 重试进链时 M0 行已不在 crossLanguageRows,局部变量重置会把基于旧
         // M0 的下游原文拿去翻译而非重生成(混叙事 + 缓存键错位)。
         // F5(2026-10-06):标记再落 UserDefaults——重启后提议重建仍靠它导向。
-        var staleM0Downgraded = DeepStaleM0MarkerPersistence.load().contains(staleKey)
+        var staleM0Downgraded = DeepStaleM0MarkerPersistence.load().map { $0.contains(staleKey) } ?? true
         // 降级重生成有失败(网络等):保留原行供重试,终态走失败提示条,不 resume
         var staleRegenFailed = false
         for module in ModuleID.allCases {
@@ -2037,17 +2037,23 @@ enum DeepStaleM0MarkerPersistence {
 
     static let storageKey = "deep.staleM0DowngradedKeys"
 
-    /// 读回;解码失败显式日志 + 按空集处理(后果:重启后多走一次 STALE 409
-    /// 降级重生成,自愈;不拿坏数据冒充)。
-    static func load() -> Set<String> {
+    /// 读回;解码失败显式日志 + 返回 **nil(≠ 空集)**。
+    /// 空集 = 确定无标记;nil = 存储损坏、标记集合**未知**——消费方
+    /// (runTranslationChain)按「当前键已降级」处理(下游转豁免重生成):
+    /// 安全侧是宁可多一次豁免重生成,也不能把基于旧 M0 的下游原文拿去翻译
+    /// 混叙事进共享缓存(2026-10-07 外评重提核实:「部分进度后重启 + 解码
+    /// 失败」时 M0 行已清、下游行仍在,按空集走翻译,M0 的 409 自愈救不了
+    /// 没有 M0 行的重试链;原「空集自愈」理由只覆盖 M0 行还在的场景)。
+    /// 后续 mark() 读改写会以合法 JSON 覆盖坏数据,存储自愈。
+    static func load() -> Set<String>? {
         guard let data = UserDefaults.standard.data(forKey: storageKey) else { return [] }
         do {
             return try JSONDecoder().decode(Set<String>.self, from: data)
         } catch {
             AppLogger.persistence.error(
-                "op=deepStaleM0Marker.decode_failed error=\(String(describing: error), privacy: .public) — 按空集处理(重启后多一次 STALE 降级,自愈)"
+                "op=deepStaleM0Marker.decode_failed error=\(String(describing: error), privacy: .public) — 标记集合未知,消费方按已降级处理(安全侧:宁多重生成不混叙事)"
             )
-            return []
+            return nil
         }
     }
 
@@ -2063,16 +2069,17 @@ enum DeepStaleM0MarkerPersistence {
         }
     }
 
-    /// 标记(读改写,磁盘为事实源):已存在则跳过落盘。
+    /// 标记(读改写,磁盘为事实源):已存在则跳过落盘。解码失败(nil)按空集
+    /// 起读——坏数据本就不可恢复,本次 save 顺手以合法 JSON 覆盖(自愈)。
     static func mark(_ key: String) {
-        var keys = load()
+        var keys = load() ?? []
         guard keys.insert(key).inserted else { return }
         save(keys)
     }
 
     /// 清除(读改写):无此键时跳过落盘,防无谓写。
     static func clear(_ key: String) {
-        var keys = load()
+        var keys = load() ?? []
         guard keys.remove(key) != nil else { return }
         save(keys)
     }
