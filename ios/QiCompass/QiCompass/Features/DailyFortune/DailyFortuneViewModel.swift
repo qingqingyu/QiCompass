@@ -584,19 +584,9 @@ final class DailyFortuneViewModel {
             )
             return
         }
-        // 非网络类错误不进 fallback
-        let isNetworkError: Bool = {
-            if case .networkError(let urlError)? = error as? APIError,
-               UserFacingError.isOffline(urlError) {
-                return true
-            }
-            if let urlError = error as? URLError, UserFacingError.isOffline(urlError) {
-                return true
-            }
-            return false
-        }()
-
-        guard isNetworkError else {
+        // 非网络类错误不进 fallback(单一事实源 = UserFacingError.
+        // isOfflineOrTimeout,第九轮 review #7 收编三份两层解包)
+        guard UserFacingError.isOfflineOrTimeout(error) else {
             // 非网络错误 → 显示"天意未明"墨溅卡
             if !Task.isCancelled {
                 state = .failed(UserFacingError.from(error, stage: .dailyDeterministic))

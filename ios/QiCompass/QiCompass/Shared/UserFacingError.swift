@@ -38,13 +38,8 @@ enum UserFacingError: Error, Equatable, LocalizedError {
             return .dailyLimitReached(nextReset: reset)
         }
 
-        // APIError 包装的 URLError → 网络错误
-        if case .networkError(let urlError)? = error as? APIError,
-           Self.isOffline(urlError) {
-            return .networkUnavailable
-        }
-        // 裸 URLError
-        if let urlError = error as? URLError, Self.isOffline(urlError) {
+        // APIError 包装的 URLError / 裸 URLError → 网络错误
+        if Self.isOfflineOrTimeout(error) {
             return .networkUnavailable
         }
 
@@ -88,6 +83,21 @@ enum UserFacingError: Error, Equatable, LocalizedError {
         default:
             return false
         }
+    }
+
+    /// Error 级离线/超时判定(单一事实源,2026-10-07 第九轮 review #7 收编
+    /// 三份两层解包):APIClient 会把 session URLError 包成
+    /// `APIError.networkError` 抛出,裸 URLError 转型只覆盖一层——两层都解。
+    /// 4xx/5xx/解码失败不在此列(调用方回落旧值 = 用旧值掩盖真错误,
+    /// CLAUDE.md 禁止)。`.cancelled` 亦不在此列(见 isOffline 注释)。
+    static func isOfflineOrTimeout(_ error: Error) -> Bool {
+        if case .networkError(let urlError)? = error as? APIError {
+            return isOffline(urlError)
+        }
+        if let urlError = error as? URLError {
+            return isOffline(urlError)
+        }
+        return false
     }
 
     var errorDescription: String? {

@@ -73,6 +73,15 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - 为什么拦：同一 SKU 双端 module 值不同 → 客户端 guard 放行 → 后端 403 `ENTITLEMENT_ERROR` → 客户端当终态 `finish()` 销毁已付款消耗型交易（不可逆资损）。加新 SKU 只加一边不致命（502 非终态 / 返 nil 跳过）但同样算漂移
 - 脚本纯 stdlib 静态解析（不 import backend，无 venv 也能跑）；不接 GitHub Actions，拦截靠本规则
 
+### 引擎规则版本 × 合盘 prompt 版本联动守护栏(2026-10-07,第九轮外评)
+
+- **强制**:bump `backend/app/models/compatibility.py::COMPATIBILITY_RULE_VERSION` 时,必须同一次变更里同步做三件事,缺一不可:
+  1. iOS `CompatibilitySnapshotStore.expectedEngineRuleVersion` 同步 bump(既有纪律,见该文件注释)——快照重算判定用
+  2. `compatibility_free` / `compatibility_paid` 的 `PROMPT_VERSIONS` 各 +1(zh/zh-hant/en 三语模板文件同步创建,跑 `tools/check_prompt_sync.py` PASS)——**旧标签生成的既有解读失效**:客户端 24h 缓存键含 prompt_version,bump 后老缓存自然 miss,重开走引擎规则门内重生成;不 bump 则规则重算后旧解读继续命中缓存,与新评估卡同屏错配 24h+(第八轮遗留「解读缓存键加规则版本」的拍板结论:**走 prompt 版本联动,不改缓存键**——不动 entitlement 键、无 SwiftData 迁移)
+  3. `cd backend && python -m evalkit.runner` 无 regression(改模板的既有护栏)
+- 门(生成侧)与 prompt 版本(展示侧)互补不可互替:prompt bump 盖不住「重算在飞窗口」的生成侧毒化(旧标签照样能写进新版本键的缓存),`engineRuleBecameFresh` 门保留
+- 「hash 掺规则版本」方案已两轮驳回(entitlement/缓存键孤儿化,见 `backend/app/engine/compatibility.py::compute_compatibility_hash` 注释)
+
 ### context_token 绑定守护栏（2026-10-07，P0 安全收口）
 
 - **背景**（已 PoC 实证）：interpret/translate 权限只认 `(content_hash, module, user_local_id)`，context 从不与 hash 对账 → 买一次盘即可给任意命盘生成付费内容；翻译端点同理可把伪造原文投进受害者目标语言共享缓存键。收口 = 排盘端点签发自包含签名 token（五族：`deep`/`v1`/`payload`/`compat`/`daily`），interpret/translate 一刀切验签（免费+付费），合盘/每日端点先做 per-chart `payload` token 对账再签发
