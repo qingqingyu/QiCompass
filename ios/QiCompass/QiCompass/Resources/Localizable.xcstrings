@@ -8082,7 +8082,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You"
+            "value" : "you"
           }
         },
         "zh-Hans" : {
@@ -8099,13 +8099,13 @@
         }
       }
     },
-    "hepan.names.selfPrompt" : {
+    "hepan.names.selfDisplay" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "you"
+            "value" : "You"
           }
         },
         "zh-Hans" : {

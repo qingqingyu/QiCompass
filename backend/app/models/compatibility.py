@@ -25,6 +25,21 @@ from .daily_fortune import ChartPayload
 
 Context = Literal["general", "marriage", "business"]
 
+# ---------- 引擎规则版本 ----------
+
+#: 合盘确定性引擎规则版本（2026-10-07 合冲标签判定序修复起 = 2）。
+#: 语义：iOS CompatibilitySnapshot 持久化此值，加载/预查时与本地镜像比对——
+#: 版本不同 = 快照按旧规则算出，须重算（合冲判定序/阈值变更后老快照不得
+#: 继续展示旧标签，详见 compute_compatibility_hash 的"不加版本"注释与
+#: CLAUDE.md "同一输入同一输出（含规则快照）"约束）。
+#: **不参与 compatibility_hash**：hash 是 entitlement / AI 缓存的 content_hash
+#: 维度，掺版本会孤儿化全部已购记录与既有缓存键——失效走"快照重算"而非
+#: "换键"。
+#: bump 时机：_assess_branch_harmony 等确定性判定规则变更；**必须与 iOS
+#: CompatibilitySnapshotStore.expectedEngineRuleVersion 同步 bump**（漏 bump
+#: 最坏 = 老快照多活一版，不崩溃）。
+COMPATIBILITY_RULE_VERSION = 2
+
 
 # ---------- Request ----------
 
@@ -176,4 +191,10 @@ class CompatibilityResponse(BaseModel):
         None, description=(
             "模式 B 用 B 排盘的快照; 模式 A 若 payload 带了快照则用 A 的, "
             "否则为 None(模式 A 后端零排盘,无真实经度/时区偏移,不塞占位值)"
+        ))
+    rule_version: int = Field(
+        default=COMPATIBILITY_RULE_VERSION,
+        description=(
+            "确定性引擎规则版本(客户端快照据此判断是否须重算; "
+            "不参与 compatibility_hash)"
         ))

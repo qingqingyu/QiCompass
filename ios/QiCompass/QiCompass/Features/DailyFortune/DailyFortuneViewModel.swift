@@ -110,15 +110,13 @@ final class DailyFortuneViewModel {
     /// 当前展示用的 chartPayload(在阶段 1 后缓存,阶段 2 复用)
     private var cachedChartPayload: ChartPayloadDTO?
 
-    /// 管线世代号(2026-10-07 review 修复;同日第五轮 review 收口到全部尾部):
-    /// 每次 runFullPipeline 入口推进。`refresh()` 直接 await runFullPipeline
-    /// (不被 `load()` 的 determinantTask?.cancel() 管辖),runDeterministic /
-    /// cachedInterpretationIfFresh / L5 探针任一挂起窗口内换盘或重拉都会推进
-    /// 世代;旧管线复活后的**一切**尾部写入(state = .ready、自动解读触发、
-    /// 离线兜底、chartMissing)都不得落在新管线之上——否则旧盘 response 覆盖
-    /// 新盘展示,或自动解读读当前 .ready 后把「旧 chartHash × 新盘
-    /// response/payload」的跨盘内容静默写进旧盘 24h 缓存键。世代失配即自弃,
-    /// 镜像 deep VM translationGeneration。
+    /// 管线世代号(2026-10-07 review 修复):每次 runFullPipeline 入口推进。
+    /// L5 门控探针(`hasCrossLanguageDailySource`)在 `state = .ready` 之后引入
+    /// 了挂起点——`refresh()` 直接 await runFullPipeline(不被 `load()` 的
+    /// determinantTask?.cancel() 管辖),探针窗口内换盘会推进新管线;旧管线
+    /// 复活后凭局部 interpretState == .idle 触发 generateInterpretation(旧
+    /// chartHash × 当前 .ready 的**新盘** response/payload)→ 跨盘内容静默写
+    /// 进旧盘 24h 缓存键。世代失配即自弃,镜像 deep VM translationGeneration。
     private var pipelineGeneration = 0
 
     /// S6 信号注释判据:喜忌是否可用(时辰未知/从格 → 后端喜忌双空)。
@@ -444,7 +442,9 @@ final class DailyFortuneViewModel {
                 AppLogger.app.warning(
                     "daily.runFullPipeline.dayAmbiguous_blocked hash=\(chartHash, privacy: .public) note=S09_D5_日柱歧义全拦_两类请求均不发起"
                 )
-                guard !Task.isCancelled else { return }
+                // 世代号守卫(2026-10-07 review 修复 #4):refresh 直连本函数不经
+                // determinantTask 取消,旧管线晚到不得覆写新管线 UI
+                guard !Task.isCancelled, pipelineGeneration == generation else { return }
                 state = .hourAmbiguousBlocked
                 return
             }
@@ -473,22 +473,13 @@ final class DailyFortuneViewModel {
                 interpretState = .failed(message: L10n.DailyFortune.interpretCacheReadFailed)
             }
 
-            // 世代号守卫(2026-10-07 第五轮 review 修复,原守卫只盖 L5 探针分支):
-            // runDeterministic / cachedInterpretationIfFresh 的 await 窗口内,
-            // refresh(不经 determinantTask 取消)或换盘 load 会推进世代并让新
-            // 管线接管——本管线属旧世代时,后续一切尾部写入(state = .ready /
-            // 自动解读触发 / 离线兜底)都属旧盘收尾:轻则旧盘 response 覆盖新盘
-            // 展示,重则自动解读读当前 .ready 后把「旧 chartHash × 新盘
-            // response/payload」的跨盘内容静默写进旧盘 24h 缓存键(见
-            // pipelineGeneration 属性注释)。世代失配即整体自弃,镜像 deep VM
-            // translationGeneration 的链入口守卫形态。
-            guard !Task.isCancelled, pipelineGeneration == generation else {
-                AppLogger.app.warning(
-                    "daily.runFullPipeline.stale_generation hash=\(chartHash, privacy: .public) gen=\(generation, privacy: .public) current=\(self.pipelineGeneration, privacy: .public) — 旧管线尾部整体自弃"
-                )
-                return
-            }
+            // 世代号守卫(2026-10-07 review 修复 #4):refresh() 直连本函数、不经
+            // load() 的 determinantTask 取消——A 盘下拉刷新后切 B 盘,旧刷新管线
+            // 晚返回时会把 UI 写回 A 并给 A 自动扣一次解读。世代失配即自弃
+            // (L5 探针世代言注释的姊妹守卫,本处覆盖 .ready 写点与自动触发)。
+            guard !Task.isCancelled, pipelineGeneration == generation else { return }
             state = .ready(response, interpretState, businessDate)
+
             // 自动解读(2026-09-07 用户拍板「一上来就直接解析,不要点一下」):
             // 缓存未命中(.idle)且当日次数未耗尽 → 自动触发 AI 阶段。
             // 离线兜底路径不走 runFullPipeline 成功分支,不会无网空转;
@@ -502,6 +493,11 @@ final class DailyFortuneViewModel {
                 BusinessDateCalculator.businessDate(now: .now, ziHourRule: ziHourRule),
                 inSameDayAs: businessDate
             )
+            // 探测前置门(2026-10-07 review 修复 #5):.idle 之外(已有今日解读
+            // .okFree / 读缓存失败 .failed)不发探测——探测含 identity resolve
+            // (一次 health 往返),对注定不触发的管线是纯浪费;次数有余时零
+            // 探测直接可触发。
+            guard case .idle = interpretState, isBusinessDateStillCurrent else { return }
             // L5(2026-10-07 review 修复):次数耗尽但存在可翻译的跨语言源 →
             // 仍自动触发(翻译不耗次数,守住「换语言当天也有解读」拍板;
             // 此前 remainingReads > 0 一刀切,耗尽 + 切语言 = 当天无解读,
@@ -512,8 +508,11 @@ final class DailyFortuneViewModel {
                 canAutoTrigger = await orchestrator.hasCrossLanguageDailySource(
                     chartHash: chartHash, targetDate: businessDate
                 )
-                // 探针挂起窗口内世代可能又推进(上方守卫与这里之间唯一的
-                // await)——旧管线不得再触发自动解读。
+                // 探针挂起窗口内新管线可能已接管(refresh 不经
+                // determinantTask 取消;换盘走 load 新管线)——本管线属旧
+                // 世代时不得再触发:generateInterpretation 读当前 .ready,
+                // 旧 chartHash × 新盘 response/payload 会把跨盘内容静默写
+                // 进旧盘 24h 缓存键。
                 guard pipelineGeneration == generation else {
                     let currentGeneration = self.pipelineGeneration
                     AppLogger.app.warning(
@@ -521,8 +520,12 @@ final class DailyFortuneViewModel {
                     )
                     return
                 }
+                // 注:探针与后续链内 crossLanguageSourceIfFresh 会各查一次
+                // (探针只判有无,链内取全行是权威读)——传行需穿透 VM→
+                // orchestrator 三层 plumbing,此处留一次幂等 health+本地读,
+                // 换取触发路径单一事实源。
             }
-            if case .idle = interpretState, canAutoTrigger, isBusinessDateStillCurrent {
+            if !Task.isCancelled, canAutoTrigger {
                 generateInterpretation(currentChartHash: chartHash, trigger: .automatic)
             }
         } catch let error as DailyFortuneError where error == .chartMissing {
@@ -531,16 +534,9 @@ final class DailyFortuneViewModel {
         } catch is CancellationError {
             return
         } catch {
-            // 世代失配的旧管线不进离线兜底:兜底尾部同样写 state(旧盘缓存
-            // 内容覆盖新盘展示),与成功分支同弃。
-            guard pipelineGeneration == generation else {
-                AppLogger.app.warning(
-                    "daily.runFullPipeline.stale_generation_catch hash=\(chartHash, privacy: .public) gen=\(generation, privacy: .public) current=\(self.pipelineGeneration, privacy: .public) — 旧管线异常收尾自弃"
-                )
-                return
-            }
             await handleNetworkFailureFallback(
-                error: error, chartHash: chartHash, businessDate: businessDate
+                error: error, chartHash: chartHash, businessDate: businessDate,
+                generation: generation
             )
         }
     }
@@ -552,8 +548,17 @@ final class DailyFortuneViewModel {
     /// 快照中的历史 AI 文本不作为当前身份缓存命中；无法联网确认身份时,
     /// 确定性内容仍可展示,AI 子状态显式进入 error。
     private func handleNetworkFailureFallback(
-        error: Error, chartHash: String, businessDate: Date
+        error: Error, chartHash: String, businessDate: Date, generation: Int
     ) async {
+        // 世代号守卫(2026-10-07 review 修复 #4):本函数体内无挂起点(纯同步
+        // 读),入口一次判定即覆盖全部写点——旧管线的离线/失败态同样不得
+        // 覆写新管线 UI
+        guard pipelineGeneration == generation else {
+            AppLogger.app.warning(
+                "daily.offline_fallback.stale_generation_drop hash=\(chartHash, privacy: .public) gen=\(generation, privacy: .public) — 旧管线失败态自弃"
+            )
+            return
+        }
         // 非网络类错误不进 fallback
         let isNetworkError: Bool = {
             if case .networkError(let urlError)? = error as? APIError,

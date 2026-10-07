@@ -32,10 +32,7 @@ extension PromptContextBuilder {
     ///   - assessment: 后端 4 项定性评估
     ///   - syncedFortune: 3 年流年同步
     ///   - nameA/nameB: 两人称呼(2026-09-27 A/B 代号修复;A 恒命主本人 → 传
-    ///     prompt 侧小写变体 `L10n.Compatibility.selfReferenceYouPrompt`
-    ///     (2026-10-07 第五轮 review 拆分:大写 "You" 进 prompt 会被 LLM 当人名
-    ///     复述 + 改变 prompt_hash 使 en 缓存全失效;UI 牌签才用
-    ///     `selfReferenceYou`),B 传对方 alias/兜底名)。
+    ///     `L10n.Compatibility.selfReferenceYou`,B 传对方 alias/兜底名)。
     ///     后端 v4 模板以 {name_a}/{name_b} 称呼全文,并后置替换残留 A/B 代号;
     ///     老后端(v3 模板)忽略多余字段,不影响。
     static func buildCompatibility(
