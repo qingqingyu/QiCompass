@@ -100,12 +100,7 @@ struct AssessmentCardGrid: View {
                     Rectangle()
                         .fill(BaziTheme.hairline)
                         .frame(height: 0.5)
-                    Text(
-                        String(
-                            format: String(localized: "两人地支见刑害(%1$@):摩擦多在习惯与小事上,早点说开。"),
-                            pairs.joined(separator: "、")
-                        )
-                    )
+                    Text(Self.frictionNote(branchHarmony: assessment.branchHarmony, pairs: pairs))
                     .font(BaziFont.caption(size: 12))
                     .foregroundStyle(BaziTheme.inkMuted)
                     .fixedSize(horizontal: false, vertical: true)
@@ -114,6 +109,22 @@ struct AssessmentCardGrid: View {
             }
         }
         .fadeIn()
+    }
+
+    /// 刑害提示行文案(internal 供测试)。按合冲标签分两档(2026-10-07):
+    /// 「多刑多害」标签下若沿用「习惯与小事」轻语气,会与同屏卡解释
+    /// 「刑害偏多,近距离相处消耗较大」打架——判定序修复(backend 89c3489,
+    /// 合不得掩盖刑害)后该标签才真正可达,本行写于其不可达时(2026-10-01
+    /// BP #10);其余标签(略有冲刑害 / 多合少冲带零星刑害)卡解释本就轻
+    /// 语气,保留原句。
+    static func frictionNote(branchHarmony: String, pairs: [String]) -> String {
+        let format: String
+        if branchHarmony == "多刑多害" {
+            format = String(localized: "两人地支见刑害(%1$@):相处消耗偏大,有摩擦要早点说开,别积压。")
+        } else {
+            format = String(localized: "两人地支见刑害(%1$@):摩擦多在习惯与小事上,早点说开。")
+        }
+        return String(format: format, pairs.joined(separator: "、"))
     }
 
     /// 评估值 → 简短解释(后端枚举取值集,见 compatibility.py:107-119)。

@@ -198,6 +198,9 @@ struct PartnerHeader: View {
         return VStack(alignment: .leading, spacing: 2) {
             Text(String(format: String(localized: "日主 %@"), gan))
                 .lineLimit(1)
+                // 挤压时(窄屏 + EN "Day Master 丁" + 同排「补时辰」入口)缩字号
+                // 而非截断——截掉的恰是日主本身(同名字行 0.75 先例,2026-10-01 #1)
+                .minimumScaleFactor(0.8)
             if let date = person.birthDateString {
                 Text(date)
                     .monospacedDigit()
