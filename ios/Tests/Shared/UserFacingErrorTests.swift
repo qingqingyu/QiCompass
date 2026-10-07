@@ -250,6 +250,39 @@ final class UserFacingErrorTests: XCTestCase {
     }
 
     func test二级文案_达上限() {
-        XCTAssertEqual(UserFacingError.dailyLimitReached(nextReset: Date()).subtitle, "每日 10 次已用完,午夜重置")
+        XCTAssertEqual(UserFacingError.dailyLimitReached(nextReset: Date()).subtitle, "今日免费解读次数已用完,重置后自动恢复")
+    }
+
+    // MARK: - 服务端 429 QUOTA_EXCEEDED(2026-10-08)
+
+    func test后端429_配额超限映射为达限态() {
+        let apiError = APIError.backendError(
+            code: "QUOTA_EXCEEDED",
+            message: "今日免费解读生成次数已达服务端上限",
+            requestId: "req-q"
+        )
+        let userError = UserFacingError.from(apiError, stage: .interpret)
+
+        guard case .dailyLimitReached(let nextReset) = userError else {
+            return XCTFail("应为 .dailyLimitReached,实际:\(userError)")
+        }
+        XCTAssertEqual(nextReset, UserFacingError.nextUTCMidnight())
+    }
+
+    func test下一个UTC零点_为UTC零点整且晚于当前() {
+        // 固定输入:北京 2026-10-08 20:00(UTC 12:00),下一个 UTC 零点 =
+        // UTC 2026-10-09 00:00 = 北京 08:00
+        var utcCal = Calendar(identifier: .gregorian)
+        utcCal.timeZone = TimeZone(identifier: "UTC")!
+        let input = utcCal.date(from: DateComponents(
+            year: 2026, month: 10, day: 8, hour: 12))!
+
+        let midnight = UserFacingError.nextUTCMidnight(now: input)
+
+        let comps = utcCal.dateComponents([.hour, .minute, .second], from: midnight)
+        XCTAssertEqual(comps.hour, 0, "UTC 零点整(小时)")
+        XCTAssertEqual(comps.minute, 0)
+        XCTAssertEqual(comps.second, 0)
+        XCTAssertEqual(midnight.timeIntervalSince(input), 12 * 3600, "距 UTC 零点 12h")
     }
 }

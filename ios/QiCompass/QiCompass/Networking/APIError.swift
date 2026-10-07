@@ -52,4 +52,14 @@ extension APIError {
         }
         return code == "CONTEXT_TOKEN_REQUIRED" || code == "CONTEXT_TOKEN_INVALID"
     }
+
+    /// 后端 429 QUOTA_EXCEEDED 判定(2026-10-08):服务端免费生成配额
+    /// (登录按 user_id / 匿名按 IP 的共享池,与本地 10 次/日池独立维度)。
+    /// 达限时不得走通用「解读失败 + 重试」——重试必再 429,应显示达限态。
+    static func isQuotaExceeded(_ error: Error) -> Bool {
+        guard case .backendError(let code, _, _)? = error as? APIError else {
+            return false
+        }
+        return code == "QUOTA_EXCEEDED"
+    }
 }

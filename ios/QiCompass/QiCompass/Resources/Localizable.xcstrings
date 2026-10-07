@@ -7100,19 +7100,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "10 readings a day, resets at midnight"
+            "value" : "Today's free readings are used up — they reset automatically"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "每日 10 次已用完,午夜重置"
+            "value" : "今日免费解读次数已用完,重置后自动恢复"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "每日 10 次已用完,午夜重置"
+            "value" : "今日免費解讀次數已用完,重置後自動恢復"
           }
         }
       }

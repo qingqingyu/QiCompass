@@ -1338,7 +1338,11 @@ enum L10n {
 
         /// 达限标题。zh: "今日机缘已尽,明日再来";en: "Today's allotment is used up — come back tomorrow"
         static let limitTitle = String(localized: "error.userFacing.limit.title")
-        /// 达限副标。zh: "每日 10 次已用完,午夜重置";en: "10 readings a day, resets at midnight"
+        /// 达限副标。zh: "今日免费解读次数已用完,重置后自动恢复";en: "Today's free
+        /// readings are used up — they reset automatically"
+        /// 2026-10-08 改写:达限有两个来源——本地 10 次/日池(午夜重置)与服务端
+        /// 共享池 429(登录 user_id/匿名 IP,UTC 零点重置),文案不再钉死具体
+        /// 次数与时刻,对两池都成立;倒计时各自按真实重置时刻显示。
         static let limitSubtitle = String(localized: "error.userFacing.limit.subtitle")
 
         /// context_token 失效标题。zh: "解读凭证已失效";en: "Reading credential expired"

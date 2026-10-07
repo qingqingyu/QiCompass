@@ -52,6 +52,16 @@ enum UserFacingError: Error, Equatable, LocalizedError {
             return .contextTokenExpired
         }
 
+        // 服务端免费配额 429(QUOTA_EXCEEDED)→ 达限态(禁重试 + 倒计时,
+        // 2026-10-08):与本地 10 次/日池不同源(共享 IP / 多设备会把服务端
+        // 池先耗尽),通用「解读失败 + 重试」会让用户反复点重试反复 429。
+        // nextReset 取下一个 **UTC 零点**(后端 bucket 按 UTC 日,北京时间
+        // 08:00 换日)——若显示本地零点,零点后重试仍在同一 UTC 日,会被
+        // 当成倒计时骗人。
+        if APIError.isQuotaExceeded(error) {
+            return .dailyLimitReached(nextReset: Self.nextUTCMidnight())
+        }
+
         // 后端排盘库错误(stage 决定归类)
         if case .backendError(let code, _, _)? = error as? APIError,
            code == "BAZI_CALCULATION_FAILED" {
@@ -92,6 +102,19 @@ enum UserFacingError: Error, Equatable, LocalizedError {
         default:
             return false
         }
+    }
+
+    /// 下一个 UTC 零点(服务端免费配额 bucket 的换日界)。
+    ///
+    /// 固定 gregorian + UTC 日历计算,不受用户本地时区影响;与本地池的
+    /// `DailyReadCounter.nextResetDate`(本地日界)刻意不同源——两者对齐的
+    /// 是各自配额的真实重置时刻,而非彼此。
+    static func nextUTCMidnight(now: Date = .now) -> Date {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .current
+        let startOfTomorrow = calendar.date(
+            byAdding: .day, value: 1, to: calendar.startOfDay(for: now))
+        return startOfTomorrow ?? now
     }
 
     /// Error 级离线/超时判定(单一事实源,2026-10-07 第九轮 review #7 收编
