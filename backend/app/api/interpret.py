@@ -14,6 +14,11 @@
 
 线程池策略:
 - validate_context + render_prompt 纯字符串操作,快,留在 event loop
+  (每请求一次的主渲染路径;**翻译防伪的源键核验除外**——见下)
+- /api/interpret/translate 的源键核验(M1-M7 链重建 walk 逐行重渲染 /
+  链尾源键渲染 / M0+daily 源重渲染)虽然同为纯 CPU,但一次请求可含
+  多次渲染且模板加载带磁盘读(_load_template 无缓存),2026-10-07 起
+  全部经 run_in_threadpool(dd0e5dd)
 - ai_client.interpret 走 async httpx 直接 await(不再占线程池,根除并发瓶颈)
 - cache.get / cache.set 仍走 run_in_threadpool(SQLite 同步)
   不与 provider 调用合并:缓存命中时零 LLM 调用
