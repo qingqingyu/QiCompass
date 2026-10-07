@@ -18,7 +18,9 @@ set -a; source .env; set +a
 WORKERS="${WEB_CONCURRENCY:-2}"
 echo "starting uvicorn workers=$WORKERS host=0.0.0.0 port=8000"
 
-exec .venv/bin/uvicorn app.main:app \
+# arch -arm64:Rosetta(x86_64)语境下 venv 的 arm64 编译包(pydantic_core 等)
+# ImportError 启动即崩,显式钉死架构(2026-10-07 本机复现两次)。
+exec arch -arm64 .venv/bin/uvicorn app.main:app \
     --host 0.0.0.0 \
     --port 8000 \
     --workers "$WORKERS"
