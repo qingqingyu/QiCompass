@@ -451,6 +451,24 @@ final class TranslationFlowTests: XCTestCase {
         DeepStaleM0MarkerPersistence.clearAll()
     }
 
+    /// 🔴(2026-10-07 外评再修):存储损坏的**检测点一次性修复**——
+    /// healCorruptedStorage 以合法空集合覆写坏数据(与 mark 自愈的鉴别:
+    /// mark 只剩当前键 = 静默把别盘「未知」裁成「未降级」;heal 为空 + 调用方
+    /// 补 mark 当前键,别盘裁决显式留在调用点日志/注释)。修复前消费方
+    /// `?? true` 全局按已降级 + clear() 坏数据上恒 no-op = 损坏永不自愈,
+    /// 所有盘切语言永远 8 次完整 LLM 生成(持续烧钱)。
+    func testStaleM0标记_healCorruptedStorage空集合覆写() {
+        UserDefaults.standard.set(Data([0xFF]), forKey: DeepStaleM0MarkerPersistence.storageKey)
+
+        DeepStaleM0MarkerPersistence.healCorruptedStorage()
+
+        XCTAssertEqual(
+            DeepStaleM0MarkerPersistence.load(), [],
+            "heal 后存储必须为合法空集合(非 nil),损坏不得驻留"
+        )
+        DeepStaleM0MarkerPersistence.clearAll()
+    }
+
     // MARK: - D10.4 #2:译后 M0 字段驱动 M1 请求(核心用例,自动翻译触发)
 
     func testAcceptTranslationUsesTranslatedM0FieldsForM1Request() async throws {
@@ -601,6 +619,53 @@ final class TranslationFlowTests: XCTestCase {
         XCTAssertTrue(generatedModules.contains("m1_talent"), "M1 必须跟进重生成,实际:\(generatedModules)")
         // 豁免配额(L4/F5:语言切换引发,用户无过错)
         XCTAssertEqual(vm.remainingReads, readsBefore, "降级重生成不得消耗每日次数")
+    }
+
+    /// 🔴(2026-10-07 外评再修):标记**存储损坏**的一次性修复——修复前
+    /// `?? true` 让所有盘所有语言永远按已降级走豁免重生成(每盘切语言 8 次
+    /// 完整 LLM 生成,持续烧钱),且 clear() 坏数据上恒 no-op(永不自愈)。
+    /// 修复后:链起手检测到损坏 → heal(空集合覆写)+ 当前键补 mark → 本链
+    /// 照安全侧走豁免重生成。与 STALE 409 路径的鉴别:M0 连翻译尝试都没有
+    /// (staleM0Downgraded 起手即 true),全程零翻译请求。
+    func test标记存储损坏_一次性修复_本链走豁免重生成() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedZHCache(hash: response.contentHash, module: .m0, text: Self.m0ZH)
+        try seedZHCache(hash: response.contentHash, module: .m1, text: Self.m1ZH)
+        let readsBefore = vm.remainingReads
+        // 坏数据(单字节 0xFF 必解码失败)
+        UserDefaults.standard.set(Data([0xFF]), forKey: DeepStaleM0MarkerPersistence.storageKey)
+
+        vm.loadArchivedChart(response: response, request: request)
+
+        let settled = await waitUntil(timeout: 10) {
+            self.vm.translationOffer == nil
+                && self.vm.autoTranslationState == nil
+                && !self.vm.isTranslatingChain
+                && self.vm.moduleStates[.m0]?.isOk == true
+                && self.vm.moduleStates[.m1]?.isOk == true
+        }
+        XCTAssertTrue(
+            settled,
+            "损坏按已降级处理:两章必须豁免重生成落定,实际:\(vm.moduleStates) auto=\(String(describing: vm.autoTranslationState))"
+        )
+
+        // 安全侧:零翻译请求(M0 也不译——集合未知时任何原文都可能基于旧 M0)
+        XCTAssertTrue(
+            apiClient.recordedTranslateRequests.isEmpty,
+            "标记集合未知时不得把任何原文拿去翻译(混叙事风险),实际 translate=\(apiClient.recordedTranslateRequests.count)"
+        )
+        let generatedModules = apiClient.recordedInterpretRequests
+            .map(\.module)
+            .filter { ModuleID(rawValue: $0) != nil }
+        XCTAssertEqual(generatedModules, ["m0_structure", "m1_talent"], "两章必须全部走豁免重生成,实际:\(generatedModules)")
+        XCTAssertEqual(vm.remainingReads, readsBefore, "豁免重生成不得消耗每日次数")
+
+        // 一次性修复:存储必须已自愈为合法 JSON,且链完成后当前键清除
+        XCTAssertEqual(
+            DeepStaleM0MarkerPersistence.load(), [],
+            "存储必须已自愈为合法空集合(链完成清当前键),实际:\(String(describing: DeepStaleM0MarkerPersistence.load()))"
+        )
     }
 
     /// 中段章节(M1)过期:仅该章降级重生成,M0 已译成保留,后续章继续翻译。

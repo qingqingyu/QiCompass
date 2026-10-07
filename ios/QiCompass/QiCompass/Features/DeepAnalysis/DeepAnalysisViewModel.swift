@@ -1472,7 +1472,21 @@ final class DeepAnalysisViewModel {
         // 重试进链时 M0 行已不在 crossLanguageRows,局部变量重置会把基于旧
         // M0 的下游原文拿去翻译而非重生成(混叙事 + 缓存键错位)。
         // F5(2026-10-06):标记再落 UserDefaults——重启后提议重建仍靠它导向。
-        var staleM0Downgraded = DeepStaleM0MarkerPersistence.load().map { $0.contains(staleKey) } ?? true
+        // 损坏一次性修复(2026-10-07 外评再修,原「?? true 全局按已降级」):
+        // nil = 存储损坏、集合未知——全局降级会让**所有盘所有语言**永远走
+        // 豁免重生成(每盘切语言 8 次完整 LLM 生成,持续烧钱),且 clear()
+        // 读改写在坏数据上恒 no-op(损坏永不自愈)、mark() 只覆写当前键(别盘
+        // 「未知」被静默裁成「未降级」,混叙事原文重新可翻译)。改为:检测
+        // 当场 heal + 当前键补 mark(中途断链重进仍导向重生成),本链按已
+        // 降级处理(安全侧不变)。取舍:别盘键的未知状态就此一次性裁为
+        // 「未标记」——残留是别盘恰有基于旧 M0 的下游原文时会走翻译,与
+        // 「持续烧钱」二选一,拍板取一次性(healCorruptedStorage 注释有全账)。
+        let staleM0MarkerSet = DeepStaleM0MarkerPersistence.load()
+        if staleM0MarkerSet == nil {
+            DeepStaleM0MarkerPersistence.healCorruptedStorage()
+            DeepStaleM0MarkerPersistence.mark(staleKey)
+        }
+        var staleM0Downgraded = staleM0MarkerSet?.contains(staleKey) ?? true
         // 降级重生成有失败(网络等):保留原行供重试,终态走失败提示条,不 resume
         var staleRegenFailed = false
         for module in ModuleID.allCases {
@@ -2044,7 +2058,8 @@ enum DeepStaleM0MarkerPersistence {
     /// 混叙事进共享缓存(2026-10-07 外评重提核实:「部分进度后重启 + 解码
     /// 失败」时 M0 行已清、下游行仍在,按空集走翻译,M0 的 409 自愈救不了
     /// 没有 M0 行的重试链;原「空集自愈」理由只覆盖 M0 行还在的场景)。
-    /// 后续 mark() 读改写会以合法 JSON 覆盖坏数据,存储自愈。
+    /// 检测到 nil 的主修复路径 = `healCorruptedStorage()`(调用方随即补
+    /// mark 当前键),坏数据不会长期驻留。
     static func load() -> Set<String>? {
         guard let data = UserDefaults.standard.data(forKey: storageKey) else { return [] }
         do {
@@ -2069,15 +2084,31 @@ enum DeepStaleM0MarkerPersistence {
         }
     }
 
+    /// 存储损坏的一次性修复(2026-10-07 外评 🔴):以合法**空集合**覆写坏数据。
+    /// 调用点 = runTranslationChain 起手检测到 load() == nil(集合未知),调用方
+    /// 随后 mark(staleKey) 落当前键——中途断链重进仍导向重生成。别盘键的未知
+    /// 状态就此一次性裁为「未标记」(残留:别盘恰有基于旧 M0 的下游原文时会走
+    /// 翻译混叙事)——与「全局永远按已降级(每盘切语言 8 次完整 LLM 生成,
+    /// 持续烧钱)且 clear() 恒 no-op、损坏永不自愈」二选一,拍板取一次性修复。
+    static func healCorruptedStorage() {
+        AppLogger.persistence.error(
+            "op=deepStaleM0Marker.heal_corrupted — 空集合覆写坏数据(一次性修复,当前键由调用方补 mark)"
+        )
+        save([])
+    }
+
     /// 标记(读改写,磁盘为事实源):已存在则跳过落盘。解码失败(nil)按空集
-    /// 起读——坏数据本就不可恢复,本次 save 顺手以合法 JSON 覆盖(自愈)。
+    /// 起读、save 顺手以合法 JSON 覆盖——这是**罕见的二次损坏兜底**(检测点
+    /// heal 之后窗口内又损坏),语义同为「只剩当前键」;主修复路径见
+    /// healCorruptedStorage。
     static func mark(_ key: String) {
         var keys = load() ?? []
         guard keys.insert(key).inserted else { return }
         save(keys)
     }
 
-    /// 清除(读改写):无此键时跳过落盘,防无谓写。
+    /// 清除(读改写):无此键时跳过落盘,防无谓写。坏数据上恒 no-op(集合
+    /// 未知时不臆造「已清」)——损坏留给下次链起手的 healCorruptedStorage。
     static func clear(_ key: String) {
         var keys = load() ?? []
         guard keys.remove(key) != nil else { return }
