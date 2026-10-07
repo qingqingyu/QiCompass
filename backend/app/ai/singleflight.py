@@ -23,9 +23,10 @@ class SingleflightCoalescer:
     """asyncio.Task 合并器:key → inflight Task。
 
     线程安全策略:
-    - 用 asyncio.Lock 保护 inflight dict 的读写(单 worker 事件循环内串行化)
-    - 所有等待者通过 asyncio.shield 共享同一个 Task,避免某个等待者被 cancel
-      时连带 cancel 掉正在执行的 inflight
+    - 用 asyncio.Lock 保护 inflight dict 的读写(单 worker 事件循环内串行化);
+      锁内不做任何 await(等 LLM 一律出锁后),锁不会被长占
+    - 所有调用者(含创建者)通过 asyncio.shield 等待同一个 Task,避免任何
+      调用者被 cancel 时连带 cancel 掉正在执行的 inflight
     """
 
     def __init__(self) -> None:
@@ -49,18 +50,31 @@ class SingleflightCoalescer:
         Raises:
             factory 抛什么就抛什么(原样传播给所有等待者)
         """
+        # 锁内只做 dict 读写(无 await 点),取出/创建 task 后**出锁**再等——
+        # 若在锁内 await inflight task(2026-10-08 修复前),等待者会持全局锁
+        # 等 LLM 调用(约 20s),期间**所有 key** 的 coalesce 全部堵在锁入口,
+        # 一对重复请求即可把单 worker 后端退化成串行。
         async with self._lock:
             existing = self._inflight.get(key)
             if existing is not None:
-                # shield 防止当前等待者被 cancel 时连带 cancel inflight Task
-                return await asyncio.shield(existing)  # type: ignore[no-any-return]
-            task = asyncio.ensure_future(factory())
-            self._inflight[key] = task
+                task = existing
+                creator = False
+            else:
+                task = asyncio.ensure_future(factory())
+                self._inflight[key] = task
+                creator = True
 
         try:
-            return await task  # type: ignore[no-any-return]
+            # shield(含创建者):任何调用者被 cancel(如客户端断连)都不
+            # 连带 cancel 共享 task——创建者裸 await 会把取消传播给正被其他
+            # 等待者共享的 LLM 调用,一起失败(2026-10-08 修复前行为)。
+            return await asyncio.shield(task)  # type: ignore[no-any-return]
         finally:
-            async with self._lock:
-                # 只删自己创建的 task,防止 race(后到等待者已新建另一个 task)
-                if self._inflight.get(key) is task:
-                    del self._inflight[key]
+            if creator:
+                async with self._lock:
+                    # 只删自己创建的 task,防止 race(后到等待者已新建另一个
+                    # task)。创建者提前 cancel 时 task 可能仍在跑——删除 key
+                    # 会让下个同 key 请求重开一次调用(重复成本,正确性无损),
+                    # 优于留着 entry 无人清理的长驻泄漏。
+                    if self._inflight.get(key) is task:
+                        del self._inflight[key]

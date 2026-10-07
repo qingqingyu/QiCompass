@@ -124,3 +124,63 @@ async def test_refactory_after_exception():
     result3 = await sf.coalesce("k1", factory)
     assert result3 == "call-3"
     assert call_count == 3
+
+
+# ---------- 2026-10-08 修复回归:持锁 await 与创建者连坐 ----------
+
+
+async def test_waiter_does_not_block_other_keys_while_factory_inflight():
+    """同 key 等待者不得持锁阻塞其他 key(修复前:等待者在锁内 await
+    inflight task ≈ 20s,期间所有 key 的 coalesce 全堵在锁入口,单 worker
+    退化成串行)。
+
+    判定:慢 factory(k1)在飞时,k2 的请求必须在 k1 完成**之前**返回。
+    """
+    sf = SingleflightCoalescer()
+    k1_done = asyncio.Event()
+
+    async def slow_factory():
+        await asyncio.sleep(0.2)
+        k1_done.set()
+        return "slow"
+
+    async def fast_factory():
+        # 若被持锁等待者阻塞,这里要等 0.2s 后才可能执行/返回
+        return "fast"
+
+    creator = asyncio.ensure_future(sf.coalesce("k1", slow_factory))
+    await asyncio.sleep(0.02)  # 让 creator 真正进入 inflight
+
+    waiter = asyncio.ensure_future(sf.coalesce("k1", slow_factory))
+    other = asyncio.ensure_future(sf.coalesce("k2", fast_factory))
+
+    fast_result = await asyncio.wait_for(other, timeout=0.1)
+    assert fast_result == "fast", "k2 被 k1 的等待者持锁阻塞(全站串行回归)"
+    assert not k1_done.is_set(), "k2 应在 k1 factory 完成前返回"
+
+    assert await creator == "slow"
+    assert await waiter == "slow"
+
+
+async def test_creator_cancel_does_not_cancel_waiters():
+    """创建者被 cancel 不得连带 cancel 共享 task(修复前:创建者裸 await,
+    断连传播 CancelledError 给 inflight task,所有搭车等待者一起失败)。"""
+    sf = SingleflightCoalescer()
+    factory_started = asyncio.Event()
+
+    async def factory():
+        factory_started.set()
+        await asyncio.sleep(0.1)
+        return "shared"
+
+    creator = asyncio.ensure_future(sf.coalesce("k1", factory))
+    await factory_started.wait()
+    waiter = asyncio.ensure_future(sf.coalesce("k1", factory))
+
+    creator.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await creator
+
+    # 等待者仍拿到结果(未被连坐 cancel)
+    assert await asyncio.wait_for(waiter, timeout=1.0) == "shared"
+    assert "k1" not in sf._inflight, "创建者退出后应清理 inflight"

@@ -969,6 +969,15 @@ async def interpret(
     temperature = resolve_temperature(req.module)
 
     async def _generate() -> str:
+        # 已知取舍(2026-10-08 review 点名,记录不修):配额在 singleflight
+        # factory 内只按 **leader 的身份** 扣——并发同 key 的 follower 共享
+        # 结果,自己的 bucket 不扣。即:leader 超额 → 同 key 的有额用户一起
+        # 429;leader 有额 → 超额用户搭车白得一次。触发前提是不同用户同时
+        # 对同一 (盘, module, 语言) 发起请求(同 content_hash 共享键),实际
+        # 并发窗口极窄;按身份分别扣需要把配额闸移出 factory 在 coalesce 外
+        # 逐请求执行,会失去「并发重复请求只烧一次 LLM」的合并价值,得不偿失。
+        # iOS 侧 429 已映射达限态(QUOTA_EXCEEDED → dailyLimitReached),
+        # 误伤用户有明确出口。
         day = datetime.now(timezone.utc).date().isoformat()
         if req.module not in PAID_MODULES:
             await _enforce_free_daily_quota(request, req, current_user_id, day)
@@ -977,7 +986,11 @@ async def interpret(
         except Exception:
             # 只在真烧过 LLM 的路径退回(配额已扣);QuotaExceededError 在
             # 扣费前抛出,不会走到这里。CancelledError 是 BaseException,
-            # 不进 except Exception,不误退。
+            # 不进 except Exception,不误退。LLM 正常返回后的失败(v1 JSON
+            # 契约/禁词/翻译保真)不退——LLM 费用已实际发生;若要改成
+            # 「用户没拿到成品就该退」,须连同防刷边界一起决定(伪造触发
+            # 禁词的输入若退款 = 免费烧 LLM 不扣额的通道,2026-10-08
+            # review 双方各执一端,留待产品口径拍板)。
             if req.module not in PAID_MODULES:
                 await _refund_free_daily_quota(request, req, current_user_id, day)
             raise

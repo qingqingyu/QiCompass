@@ -660,6 +660,74 @@ async def test_m7_translate_full_chain(
     assert resp.json()["translated_from"] == "zh"
 
 
+async def test_m1_translate_full_engine_chart_round_trip(
+        interpret_client, mock_ai_client):
+    """完整引擎 chart 形态的 M1 翻译回归锚(2026-10-08)。
+
+    既有 round_trip 用例(test_m1_translate_with_translated_chain_round_trip)
+    的 chart 是手写极简形态(2 个字段);本锚用 BaziEngine 真排盘 +
+    build_v1_chart 的**完整** chart(ten_gods.hidden / five_elements /
+    luck_pillars / current_year 等全字段,~2KB)+ 完整 prompt schema 的
+    M0 输出——外部 review 曾据 826aee0(b25ddbd 修复合入前)报「M1-M7
+    翻译恒 409」,此锚证明当前实现在最真实形态下 zh→zh-hant 全链 200。
+    """
+    import datetime as dt
+    from zoneinfo import ZoneInfo
+
+    from app.engine.bazi_engine import BaziEngine
+    from app.engine.chart_builder import build_v1_chart
+
+    snapshot = BaziEngine().calculate(
+        birth=dt.datetime(1990, 5, 17, 14, 30,
+                          tzinfo=ZoneInfo("Asia/Shanghai")),
+        gender="male", longitude=116.4, zi_hour_rule="zi_next_day",
+    )
+    chart = json.dumps(build_v1_chart(snapshot), ensure_ascii=False)
+    assert len(chart) > 1000, "完整 chart 形态(极简形态有既有锚,别退化)"
+
+    m0_zh = json.loads(M0_ZH_JSON)
+    m0_hant = json.loads(M0_HANT_JSON)
+    ch = "hash-chain-m1-full-chart"
+
+    def ctx(m0_out: dict) -> dict:
+        return {
+            "chart": chart,
+            "structure_fingerprint": m0_out["structure_fingerprint"],
+            "main_axis": _ios_serialize(m0_out["main_axis"]),
+            "core_loop": _ios_serialize(m0_out["core_loop"]),
+        }
+
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m0_structure", context={"chart": chart},
+                    mock_response=M0_ZH_JSON)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m1_talent", context=ctx(m0_zh),
+                    parent_fingerprint=m0_zh["structure_fingerprint"],
+                    mock_response=M1_ZH_JSON)
+
+    mock_ai_client.set_response(M0_HANT_JSON)
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m0_structure",
+        "context": {"chart": chart}, "target_date": None,
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m0_structure"],
+        "source_interpretation": M0_ZH_JSON,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 200, resp.text
+
+    mock_ai_client.set_response(M1_HANT_JSON)
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m1_talent",
+        "context": ctx(m0_hant), "target_date": None,
+        "parent_fingerprint": m0_hant["structure_fingerprint"],
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m1_talent"],
+        "source_interpretation": M1_ZH_JSON,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["translated_from"] == "zh"
+
+
 async def test_m1_translate_upstream_missing_returns_409(
         interpret_client, mock_ai_client):
     """上游行缺失(清库/换环境)→ 不可核验 → 409(iOS 走重新生成降级)。"""
