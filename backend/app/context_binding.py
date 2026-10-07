@@ -104,7 +104,12 @@ def verify_token(
             "context_token 格式非法(期望 v1.<body>.<sig>)",
             content_hash=content_hash)
     _, body, sig = parts
-    expected = hmac.new(_secret(), body.encode("ascii"),
+    # body 用 utf-8 而非 ascii 编码:客户端可提交任意字节(含非 ASCII)的
+    # 伪造 token,`body.encode("ascii")` 会抛 UnicodeEncodeError(ValueError
+    # 子类)且不在下方 try/except 内 → 500 而非 403,日志被刷脏、错误类型
+    # 错。合法 body 恒为 base64url(ASCII 子集),utf-8 编码对其逐字节等价;
+    # 非 ASCII body 编出的 HMAC 不可能匹配服务端签名 → 落入下方 403。
+    expected = hmac.new(_secret(), body.encode("utf-8"),
                         hashlib.sha256).hexdigest()
     if not hmac.compare_digest(sig, expected):
         raise ContextTokenInvalidError(

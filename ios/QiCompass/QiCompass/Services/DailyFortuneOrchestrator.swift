@@ -570,7 +570,8 @@ extension DailyFortuneSnapshotStore {
                 library: "", sect: 1, ziHourRule: "",
                 trueSolarLongitude: 0, trueSolarOffsetMinutes: 0,
                 schemaVersion: 1
-            )
+            ),
+            contextToken: snapshot.contextToken
         )
     }
 }

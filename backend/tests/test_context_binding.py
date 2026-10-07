@@ -86,6 +86,19 @@ def test_verify_tampered_signature_rejected():
         verify_token(forged, content_hash="h1", family="deep")
 
 
+def test_verify_non_ascii_body_rejected_not_crash():
+    """非 ASCII body 的伪造 token → 403,不得因编码异常崩 500。
+
+    排盘端点签发的合法 token 的 body 恒为 base64url(ASCII 子集);客户端若
+    提交含中文字符的 body,旧实现 `body.encode("ascii")` 会抛
+    UnicodeEncodeError(ValueError 子类)且不在 try/except 内 → 500 刷脏日志。
+    验签须退化为签名不匹配的 403。
+    """
+    token = "v1.中文正文.sig"
+    with pytest.raises(ContextTokenInvalidError):
+        verify_token(token, content_hash="h1", family="deep")
+
+
 def test_verify_wrong_hash_rejected():
     """token 属于其他命盘(hash 不符)→ 拒。"""
     token = issue_token(content_hash="h1", family="deep", fields={})

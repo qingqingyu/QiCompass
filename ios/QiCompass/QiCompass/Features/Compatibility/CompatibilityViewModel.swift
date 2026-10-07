@@ -2074,7 +2074,8 @@ final class CompatibilityViewModel {
                     qualitativeAssessment: qualitative,
                     syncedFortune: synced,
                     calcRuleSnapshot: nil,
-                    ruleVersion: refreshed.engineRuleVersion
+                    ruleVersion: refreshed.engineRuleVersion,
+                    contextToken: refreshed.contextToken
                 ), interpretState)
                 AppLogger.app.info(
                     "op=compatibility.refreshStaleEngineAssessment.ok hash=\(summary.compatibilityHash, privacy: .public)"
