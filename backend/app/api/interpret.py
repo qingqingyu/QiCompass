@@ -33,7 +33,7 @@ import re
 import time
 import uuid
 from datetime import datetime, timezone
-from typing import Any, Final, NamedTuple
+from typing import Final, NamedTuple
 
 from fastapi import APIRouter, Depends, Request
 from starlette.concurrency import run_in_threadpool
@@ -74,6 +74,7 @@ from ..models.interpret import (
     InterpretResponse,
     PAID_MODULES,
     TranslateRequest,
+    V1_CHILDREN_MODULES,
     V1_MODULES,
     V1_NEEDS_USER_INPUT,
     entitlement_base_module,
@@ -446,6 +447,90 @@ def _log_offchart_ganzhi(
         )
 
 
+# ---------- v1 链式字段:规范化 + 上游链映射(2026-10-07 翻译防伪回归修复) ----------
+
+# 链式字段 → 产出模块(镜像 iOS DeepAnalysisViewModel.extractChainFields 的
+# switch 分支与 prompts.py 各模板「产 X 供 Y 链式注入」注释)。只登记被下游
+# REQUIRED_FIELDS 消费的字段(M1 的 trained 无人消费,不进表)。
+_V1_CHAIN_PRODUCER: Final[dict[str, str]] = {
+    "structure_fingerprint": "m0_structure",
+    "main_axis": "m0_structure",
+    "core_loop": "m0_structure",
+    "innate": "m1_talent",
+    "defensive": "m1_talent",
+    "one_leverage": "m1_talent",
+    "threshold": "m2_high_low",
+    "switch_actions": "m2_high_low",
+    "ideal_life_structure": "m3_system",
+    "environment_checklist": "m3_system",
+    "leverage": "m6_dynamics",
+}
+
+# M1-M7 的源键重建依赖(拓扑序:被依赖者在前)。镜像 iOS
+# ModuleDefinitions.swift dependencies;m7 模板不读 chart 但其请求仍带
+# chart(DeepAnalysisOrchestrator.buildV1Request 恒注入)且 parent_fingerprint
+# 取自 M0 产出,故 m0 也在依赖内。
+_V1_SOURCE_WALK_DEPS: Final[dict[str, tuple[str, ...]]] = {
+    "m1_talent": ("m0_structure",),
+    "m2_high_low": ("m0_structure", "m1_talent"),
+    "m3_system": ("m0_structure",),
+    "m4_health": ("m0_structure",),
+    "m5_wealth": ("m0_structure", "m1_talent", "m3_system"),
+    "m6_dynamics": ("m0_structure", "m1_talent", "m2_high_low"),
+    "m7_manual": ("m0_structure", "m1_talent", "m2_high_low", "m3_system",
+                  "m6_dynamics"),
+}
+
+
+def _canonical_chain_value(value: object) -> str | None:
+    """上游输出值 → context 字符串形态(与 iOS 序列化口径对齐)。
+
+    - str(标量链字段,如 structure_fingerprint / one_leverage):原样
+      (iOS `as? String` 直取)
+    - dict / list:canonical JSON(sort_keys + 紧凑分隔符 + ensure_ascii=False)
+      ——iOS 侧是 JSONSerialization 的紧凑输出,键序/空白与 dict 内部顺序
+      相关;服务端统一 canonical 形态,使 prompt_hash 只取决于字段的
+      **语义内容**,与两端序列化字节形式解耦(这正是本修复的前提)
+    - 其他标量(数字/布尔):iOS 端 JSONSerialization 顶层非容器会抛错、
+      字段不会被设置,此处返回 None 跳过,镜像之
+    """
+    if isinstance(value, str):
+        return value
+    if isinstance(value, (dict, list)):
+        return json.dumps(value, sort_keys=True, ensure_ascii=False,
+                          separators=(",", ":"))
+    return None
+
+
+def _canonicalize_v1_chain_fields(module: str, context: dict) -> dict:
+    """v1 模块 context 的链式字段规范化(dict/list → canonical JSON)。
+
+    非合法 JSON 的链式字段值原样保留(渲染层照常嵌入;其源键将无法重建,
+    翻译防伪自然拒绝——宽松生成、严格翻译)。非 v1 模块原样返回。
+    规范化是幂等的:canonical 形态再规范化不变。
+    """
+    if module not in V1_MODULES:
+        return context
+    canonical = dict(context)
+    for name in _V1_CHAIN_PRODUCER:
+        value = canonical.get(name)
+        if not isinstance(value, str):
+            continue
+        try:
+            parsed = json.loads(value)
+        except (json.JSONDecodeError, RecursionError):
+            # RecursionError:深嵌套值(≤4096 字符即可超解析递归上限)按
+            # 「不可解析」同款处理——本函数先于 validate_context 执行,
+            # 不捕获会让滥用负载打出 500,绕过 validate_context 的
+            # RecursionError→422 加固(2026-10-07 同日收口,勿回退)。
+            continue
+        if isinstance(parsed, (dict, list)):
+            canonical[name] = json.dumps(
+                parsed, sort_keys=True, ensure_ascii=False,
+                separators=(",", ":"))
+    return canonical
+
+
 # ---------- 端点共享层(D10.1:两个端点共用,禁止复制粘贴) ----------
 
 class _PreparedPrompt(NamedTuple):
@@ -494,8 +579,16 @@ def _prepare_prompt_and_key(
 
     # 2. 校验 context + 渲染 prompt。缓存键必须覆盖 prompt 内容,否则同一
     # content_hash 携带不同 context 会污染跨用户缓存。
+    # v1 链式字段先规范化(2026-10-07 回归修复):dict/list 链字段的
+    # prompt_hash 取 canonical 形态,与客户端序列化字节形式解耦——翻译
+    # 防伪的源键重建(interpret_translate)才能从上游缓存行精确复原生成键。
+    # 一次性影响:M1-M7 既有后端缓存键含旧序列化形态,部署后自然失效重生成
+    # (iOS 本地缓存键不含 prompt_hash,不受影响)。
     try:
-        translated_context = translate_context(req.context, language, req.module)
+        translated_context = _canonicalize_v1_chain_fields(
+            req.module,
+            translate_context(req.context, language, req.module),
+        )
         validate_context(req.module, translated_context)
         prompt = render_prompt(req.module, translated_context, language=language)
     except InvalidInputError as e:
@@ -589,202 +682,6 @@ def _prepare_prompt_and_key(
         cache_key=cache_key,
         log_ctx=log_ctx,
     )
-
-
-# ---------- v1 翻译防伪:源键链式推导(2026-10-07 🔴 修复) ----------
-#
-# 问题(外评实测走查):iOS 译完 M0 后 extractChainFields 以**目标语言**的
-# structure_fingerprint/main_axis/core_loop 覆盖 v1ChainFields,M1-M7 的
-# 翻译请求携带的就是目标语言链字段;9958cf1 的防伪拿这份 context 按
-# **源语言**重渲染源键,prompt_hash/parent_hash 永远对不上源行 → M1-M7
-# 翻译必 409 → 客户端全链豁免重生成(每盘每次切语言多 ~7 次 LLM 调用,
-# 原文不保留)。后端测试盲区:_seed_source_row 用翻译请求同一份 context
-# seed 源行,自洽故测不出。
-#
-# 修复原则:**不信客户端声明的任何链字段**。目标语言链字段服务于目标键
-# (键对齐必须),客户端另带一份"源语言链字段"也不行——声明注入值重开
-# 9958cf1 关死的投毒通道(生成侧注入 → 注入键 → 翻译按声明值复现注入键
-# → 松过核验 → 毒进正常目标键)。唯一可信锚 = 服务端自存源语言上游行:
-# m0 键只由 token 绑定的 chart 决定(无链字段、无注入面),自 m0 起按
-# 依赖序逐级渲染-取行-提取,推出的键即「正常生成」的键。上游行缺失
-# (清库/旧版本)→ 409 STALE_SOURCE(客户端既有降级路径,重生成自愈)。
-
-# 生产者 → 其 JSON 输出中**被下游 prompt 消费**的字段(镜像 iOS
-# DeepAnalysisViewModel.extractChainFields 的 switch;trained 不进表——
-# 无下游消费)。iOS 端改产出字段拓扑时须同步此表 + _V1_DERIVE_ORDER,
-# 否则推导取不到字段 → 上游行不可解析 → 409 降级(安全侧,非静默)。
-_V1_CHAIN_PRODUCERS: Final[dict[str, tuple[str, ...]]] = {
-    "m0_structure": ("structure_fingerprint", "main_axis", "core_loop"),
-    "m1_talent": ("innate", "defensive", "one_leverage"),
-    "m2_high_low": ("threshold", "switch_actions"),
-    "m3_system": ("ideal_life_structure", "environment_checklist"),
-    "m6_dynamics": ("leverage",),
-}
-# 推导序(依赖拓扑,前项的产出是后项的输入):
-# m1←m0; m2←m0+m1; m3←m0; m6←m0+m1+m2。目标 module 的消费字段沿此序
-# 反向闭包展开后正向加载。
-_V1_DERIVE_ORDER: Final[tuple[str, ...]] = (
-    "m0_structure", "m1_talent", "m2_high_low", "m3_system", "m6_dynamics",
-)
-# M4/M5 用户输入 context 字段(不随语言变,源键直接从请求透传,不走推导)
-_V1_USER_INPUT_CONTEXT_FIELDS: Final[frozenset[str]] = frozenset({
-    "age", "current_concern", "assets_summary", "preference",
-})
-
-
-class _V1SourceDerivationError(Exception):
-    """上游源链不可推导(行缺失/JSON 不可解析/字段缺失)→ 409 STALE_SOURCE。"""
-
-
-def _v1_chain_context_fields(module: str) -> tuple[str, ...]:
-    """module 渲染 prompt 所需的**链式** context 字段。
-
-    = REQUIRED_FIELDS[module] 减 chart(M1-M7 翻译请求恒携带,token 绑定)
-    减 M4/M5 用户输入字段(不随语言变,请求透传)。
-    """
-    return tuple(
-        f for f in REQUIRED_FIELDS[module]
-        if f != "chart" and f not in _V1_USER_INPUT_CONTEXT_FIELDS
-    )
-
-
-def _ios_style_json(value: Any) -> str:
-    """镜像 iOS JSONSerialization 的序列化(链字段进 context 的口径)。
-
-    compact 分隔符 + 解析序保序 + 非 ASCII 原样,与 NSJSONSerialization
-    默认输出一致;唯一差异点:Foundation 默认把字符串值内的 "/" 转义为
-    "\\/",Python 不转义——显式补齐。逐字节一致是 prompt_hash 对齐的
-    前提(dumps 输出中 "/" 只可能出现在字符串值内,全局替换忠实)。
-    """
-    return json.dumps(
-        value, ensure_ascii=False, separators=(",", ":"),
-    ).replace("/", "\\/")
-
-
-def _extract_v1_chain_fields(
-    module: str, row_text: str, wanted: tuple[str, ...],
-) -> dict[str, str]:
-    """从上游源行 JSON 提取链字段(测试与推导共用,保证 seed/推导同口径)。
-
-    - str 字段(如 structure_fingerprint/one_leverage)原样
-    - dict/array 字段按 _ios_style_json 序列化(镜像 iOS extractChainFields)
-    """
-    try:
-        parsed = json.loads(row_text)
-    except json.JSONDecodeError as e:
-        raise _V1SourceDerivationError(
-            f"上游行非合法 JSON(module={module}): {e}") from e
-    if not isinstance(parsed, dict):
-        raise _V1SourceDerivationError(
-            f"上游行 JSON 顶层非对象(module={module})")
-    extracted: dict[str, str] = {}
-    for field in wanted:
-        if field not in parsed:
-            raise _V1SourceDerivationError(
-                f"上游行缺字段 {field}(module={module};"
-                f"版本行结构漂移或 _V1_CHAIN_PRODUCERS 失同步)")
-        value = parsed[field]
-        extracted[field] = (
-            value if isinstance(value, str) else _ios_style_json(value))
-    return extracted
-
-
-def _render_source_prompt_hash(module: str, context: dict, language: str) -> str:
-    """源语言渲染 → prompt_hash(错误映射与 _prepare_prompt_and_key 同源)。"""
-    try:
-        translated = translate_context(context, language, module)
-        validate_context(module, translated)
-        prompt = render_prompt(module, translated, language=language)
-    except InvalidInputError:
-        raise  # 422 原样上抛(与既有源重渲染口径一致,不伪装缓存故障)
-    except KeyError as e:
-        raise BaziCalculationFailedError(
-            f"源键推导术语翻译失败({e}),需补齐 term_translations.py 翻译表",
-        ) from e
-    except FileNotFoundError as e:
-        raise BaziCalculationFailedError(
-            f"源键推导 prompt 模板缺失({e}),需补齐 prompts/{{language}}/ 目录",
-        ) from e
-    return hashlib.sha256(prompt.encode("utf-8")).hexdigest()
-
-
-def _derive_v1_source_key(
-    req: TranslateRequest, cache: InterpretationCache, source_language: str,
-) -> tuple[str, str, str, list[str]]:
-    """v1 M1-M7 翻译防伪源键推导(同步,调用方须包 run_in_threadpool)。
-
-    Returns:
-        (prompt_hash, parent_hash, user_input_hash, loaded_chain)——
-        loaded_chain 供日志(推导走了哪些上游行)。
-
-    Raises:
-        _V1SourceDerivationError: 上游行缺失/不可解析 → 调用方转 409
-        InvalidInputError / BaziCalculationFailedError: 渲染层错误原样上抛
-    """
-    chart = req.context.get("chart")
-    if not isinstance(chart, str):
-        raise _V1SourceDerivationError(
-            "context.chart 缺失(v1 翻译请求恒应携带,buildV1Request 对 M7 "
-            "也带 chart;老客户端缺 → 无法锚定 m0 源键)")
-    target_fields = _v1_chain_context_fields(req.module)
-    unknown = [f for f in target_fields if f not in {
-        field for fields in _V1_CHAIN_PRODUCERS.values() for field in fields}]
-    if unknown:
-        # 目标 module 消费了生产者表之外的字段 = 拓扑失同步(代码 bug),
-        # 显式暴露而非静默 409
-        raise RuntimeError(
-            f"_V1_CHAIN_PRODUCERS 失同步:module={req.module} 消费 "
-            f"{unknown},生产者表无供给(须补表并同步 iOS extractChainFields)")
-
-    # 需求闭包(反向一遍即可:生产者需求严格指向推导序的前项)
-    need = set(target_fields) | {"structure_fingerprint"}  # M1-M7 恒需 parent fp
-    for producer in reversed(_V1_DERIVE_ORDER):
-        produces = _V1_CHAIN_PRODUCERS[producer]
-        if need & set(produces):
-            need |= set(_v1_chain_context_fields(producer))
-
-    # 正向加载:逐级渲染-取行-提取
-    loaded: dict[str, str] = {}
-    loaded_from: list[str] = []
-    for producer in _V1_DERIVE_ORDER:
-        wanted = tuple(
-            f for f in _V1_CHAIN_PRODUCERS[producer] if f in need)
-        if not wanted:
-            continue
-        producer_ctx: dict[str, Any] = {"chart": chart}
-        for f in _v1_chain_context_fields(producer):
-            producer_ctx[f] = loaded[f]  # 闭包已保证前项就绪
-        prompt_hash = _render_source_prompt_hash(
-            producer, producer_ctx, source_language)
-        row_text = cache.get_interpretation_by_source_key(
-            req.content_hash, producer, PROMPT_VERSIONS[producer],
-            source_language, prompt_hash,
-            parent_hash=_hash_parent_fingerprint(
-                loaded.get("structure_fingerprint")),
-            user_input_hash="",
-        )
-        if row_text is None:
-            raise _V1SourceDerivationError(
-                f"上游源行缺失(module={producer},source_language="
-                f"{source_language};清库/版本更替后请重新生成)")
-        loaded.update(_extract_v1_chain_fields(producer, row_text, wanted))
-        loaded_from.append(producer)
-
-    # 目标 module 的源键:chart(如模板消费)+ 推导链字段 + 用户输入透传。
-    # 用户输入用 .get(缺字段由 validate_context 统一 422,不下标裸 KeyError)
-    target_ctx: dict[str, Any] = {}
-    for f in REQUIRED_FIELDS[req.module]:
-        if f == "chart":
-            target_ctx["chart"] = chart
-        elif f in _V1_USER_INPUT_CONTEXT_FIELDS:
-            target_ctx[f] = req.context.get(f)  # 用户输入不随语言变
-        else:
-            target_ctx[f] = loaded[f]
-    prompt_hash = _render_source_prompt_hash(
-        req.module, target_ctx, source_language)
-    parent_hash = _hash_parent_fingerprint(loaded["structure_fingerprint"])
-    user_input_hash = _hash_user_input(req)
-    return prompt_hash, parent_hash, user_input_hash, loaded_from
 
 
 async def _require_entitlement(
@@ -1189,6 +1086,201 @@ async def _invalidate_poisoned_cache(
         ) from e
 
 
+# ---------- v1 M1-M7 翻译防伪:源语言上游链重建(2026-10-07 回归修复) ----------
+
+def _extract_v1_output(text: str) -> dict | None:
+    """缓存行原文 → 解析后的 JSON 对象(v1 输出契约;坏行/非对象 → None)。
+
+    坏行(截断时代遗留)对链重建不可用,返回 None 由调用方跳过该行——
+    这不是吞错:行级可用性是搜索空间剪枝,最终核验失败仍显式 409。
+    """
+    try:
+        parsed = json.loads(_strip_code_fences(text))
+    except (json.JSONDecodeError, RecursionError):
+        # RecursionError 与 JSONDecodeError 同款按坏行剪枝(行是服务端
+        # 生成,现实风险低;不捕获会 500,防御与 _canonicalize 一致)。
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
+
+def _render_v1_upstream_prompt_hash(
+    module: str, chart: str, verified_fields: dict[str, str],
+    language: str, prompt_version: int,
+) -> str | None:
+    """按已核验上游字段 + 请求 chart 重渲染上游模块 prompt,返回 prompt_hash。
+
+    与行生成路径(_prepare_prompt_and_key)同序:先 translate_context(源
+    语言非 zh 时 chart 会被 _translate_deep_context 翻译——跳过它则重渲染
+    hash 与 en/zh-hant 行的生成 hash 永不相等,合法翻译恒 409),再链字段
+    规范化(幂等:入参已 canonical 时 no-op,自含不变量不依赖调用方预处理),
+    再渲染。
+    context = REQUIRED_FIELDS[module] 中可由链提供的字段 + chart(上游
+    m1/m2/m3/m6 的模板只消费这两类;用户输入字段 m4/m5 不在链上)。
+    字段缺失(上游输出缺 key)/渲染失败 → None(该行不可核验,剪枝)。
+    """
+    required = REQUIRED_FIELDS[module]
+    context: dict[str, str] = {}
+    for name in required:
+        if name == "chart":
+            context["chart"] = chart
+        elif name in verified_fields:
+            context[name] = verified_fields[name]
+        else:
+            return None
+    try:
+        translated = _canonicalize_v1_chain_fields(
+            module, translate_context(context, language, module))
+        rendered = render_prompt(
+            module, translated, language=language,
+            prompt_version=prompt_version)
+    except (InvalidInputError, KeyError, FileNotFoundError, ValueError):
+        # ChartJSONDecodeError(ValueError 子类,chart 非法 JSON)/术语
+        # KeyError(翻译表缺)等:行生成时同样会失败、行不存在,此处按
+        # 「该行不可核验」剪枝(→ 409),不伪装成基础设施故障。
+        return None
+    return hashlib.sha256(rendered.encode("utf-8")).hexdigest()
+
+
+async def _verify_v1_chain_translation_source(
+    request: Request,
+    req: TranslateRequest,
+    source_language: str,
+    source_interpretation: str,
+    target_date_iso: str | None,
+    current_version: int,
+    request_id: str,
+    start: float,
+) -> bool:
+    """v1 M1-M7 翻译原文防伪:源语言上游链递归核验 + 完整源键精确比对。
+
+    背景(2026-10-07 回归,9958cf1 引入):D10.4 下 iOS 翻译 M1-M7 携带
+    **目标语言**链式字段(译后上游输出即时覆盖 v1ChainFields),原文却由
+    源语言链字段生成——按请求 context 源语言重渲染算出的 prompt_hash /
+    parent_hash 永远对不上,合法翻译恒 409。改为从缓存**重建**源键:
+
+    1. 按 (content_hash, module, source_language) 枚举上游行。M0 行作链根:
+       其 context 仅 chart,而 chart 由 context_token 绑定验签,行恒真。
+    2. 逐个非 M0 上游行:parent_hash 须等于 sha256(M0 fp) + user_input_hash
+       须为空,且用「已核验上游字段 + 请求 chart」按**行自身版本**重渲染的
+       prompt_hash 与行实际键逐字相等——注入链字段(如伪造 main_axis)生成
+       的行落在注入键上,与真实链重建的键永不相等,在此被排除。
+    3. 全链核验后,以「源语言上游字段(canonical 形态)+ 请求 chart + 请求
+       用户输入(m4/m5,随请求回传保键对齐)」构建源 context,经
+       _prepare_prompt_and_key(与生成同一代码路径,含链字段规范化)算出
+       完整源键,has_interpretation_exact 逐字核验原文。
+
+    上游行缺失/坏行(清库、换环境、旧序列化形态行)→ False → 409
+    STALE_SOURCE(iOS 既有降级路径:该章转目标语言重新生成,不卡死)。
+    """
+    cache: InterpretationCache = request.app.state.cache
+    deps = _V1_SOURCE_WALK_DEPS[req.module]
+    chart = req.context.get("chart")
+    if not isinstance(chart, str):
+        # m1-m6 的 chart 是 REQUIRED(schema 422 已拦);m7 的 chart 由 iOS
+        # 恒注入但契约上可选——缺失即无法重渲染上游,不可核验。
+        return False
+
+    rows_by_module: dict[str, list[tuple[CacheKey, str]]] = {}
+    for m in deps:
+        try:
+            rows_by_module[m] = await run_in_threadpool(
+                cache.get_module_rows, req.content_hash, m, source_language)
+        except Exception as e:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.exception(
+                "interpret.translate.chain_walk_rows_failed elapsed_ms=%.1f "
+                "request_id=%s module=%s upstream=%s error=%r",
+                elapsed_ms, request_id, req.module, m, e,
+            )
+            raise InterpretationCacheError(
+                f"后端原文核验读失败({type(e).__name__}): {e}") from e
+
+    for _, m0_text in rows_by_module.get("m0_structure") or []:
+        m0_out = _extract_v1_output(m0_text)
+        fingerprint = (
+            m0_out.get("structure_fingerprint") if m0_out else None)
+        if not isinstance(fingerprint, str) or not fingerprint:
+            continue  # 坏根行剪枝(M0 输出缺 fingerprint)
+        parent_hash = _hash_parent_fingerprint(fingerprint)
+        verified: dict[str, str] = {"structure_fingerprint": fingerprint}
+        for name in ("main_axis", "core_loop"):
+            value = _canonical_chain_value(
+                m0_out.get(name)) if m0_out else None
+            if value is not None:
+                verified[name] = value
+
+        chain_ok = True
+        for upstream in deps:
+            if upstream == "m0_structure":
+                continue
+            # 非回溯匹配:同根下多个可核验行只取首个(同版本同 context 的行
+            # 被 PK 去重,实际并存的只有跨版本行;iOS 链按版本顺序生成,
+            # 叶子行由当前版本上游驱动——取到旧版行致叶子核验失败时走
+            # 409 降级,不做笛卡尔积回溯,2026-10-07 取舍)。
+            matched_text: str | None = None
+            for key, text in rows_by_module.get(upstream) or []:
+                if (key.parent_hash != parent_hash
+                        or key.user_input_hash != ""):
+                    continue
+                expected_hash = _render_v1_upstream_prompt_hash(
+                    upstream, chart, verified, source_language,
+                    key.prompt_version)
+                if (expected_hash is not None
+                        and expected_hash == key.prompt_hash):
+                    matched_text = text
+                    break
+            if matched_text is None:
+                chain_ok = False
+                break
+            upstream_out = _extract_v1_output(matched_text)
+            if upstream_out is None:
+                chain_ok = False
+                break
+            for name, producer in _V1_CHAIN_PRODUCER.items():
+                if producer == upstream and name in upstream_out:
+                    value = _canonical_chain_value(upstream_out.get(name))
+                    if value is not None:
+                        verified[name] = value
+
+        if not chain_ok:
+            continue
+
+        # 源键 = 与生成同一代码路径(_prepare_prompt_and_key,含规范化 +
+        # user_input_hash),链字段/parent_fingerprint 换成源语言已核验值。
+        source_context = dict(req.context)
+        for name in _V1_CHAIN_PRODUCER:
+            if name in verified:
+                source_context[name] = verified[name]
+        source_req = req.model_copy(update={
+            "context": source_context,
+            "parent_fingerprint": fingerprint,
+        })
+        source_prepared = _prepare_prompt_and_key(
+            source_req, source_language, request_id, start,
+            request.app.state.ai_client)
+        try:
+            source_verified = await run_in_threadpool(
+                cache.has_interpretation_exact,
+                req.content_hash, req.module, current_version,
+                source_language, source_interpretation,
+                source_prepared.cache_key.prompt_hash,
+                parent_hash,
+                source_prepared.cache_key.user_input_hash,
+                target_date_iso,
+            )
+        except Exception as e:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.exception(
+                "interpret.translate.source_verify_failed elapsed_ms=%.1f %s "
+                "error=%r", elapsed_ms, source_prepared.log_ctx, e,
+            )
+            raise InterpretationCacheError(
+                f"后端原文核验读失败({type(e).__name__}): {e}") from e
+        if source_verified:
+            return True
+    return False
+
+
 # ---------- POST /api/interpret/translate(D10,2026-10-01) ----------
 
 # 客户端提交原文的长度硬上限:按 max_tokens × 语言系数折算字符数(D10.1)。
@@ -1524,18 +1616,16 @@ async def interpret_translate(
     # 生成,不会陷入重试翻译循环);正常流不受影响——iOS 本地原文就是
     # 后端生成后逐字存档的那份,后端缓存行持久(无 TTL)。
     #
-    # 2026-10-07 收紧(v1/daily):此前 has_interpretation_text 不匹配
-    # prompt_hash 维度,攻击者可用「真盘 + 未绑定链式字段(main_axis/
-    # core_loop/structure_fingerprint)注入」生成 → 产物落注入 prompt_hash
-    # 键,再用正常 context 提交该文本翻译 → 松匹配照样命中 → 投进正常键。
-    # 现改为按源语言重渲染得完整源缓存键(prompt_hash / parent_hash /
-    # user_input_hash 逐字段一致),原文必须存在于该键下——关死此通道。
-    # 2026-10-07 🔴 修正:M1-M7 的源键渲染输入不再取自请求 context(其
-    # 链字段是目标语言值),改由 `_derive_v1_source_key` 从服务端自存源
-    # 语言上游链递推(见该函数 docstring);m0/daily 无链字段,仍由请求
-    # context 直接重渲染。合盘 name_a/name_b 随语言本地化
-    # (Compatibility.selfReferenceYou
-    # 你/you),服务端算不出源语言 name 值,保留宽松文本核验(单独记风险)。
+    # 分支口径(2026-10-07 回归修复后):
+    # - 合盘:name_a/name_b 随语言本地化(Compatibility.selfReferenceYou
+    #   你/you),服务端算不出源语言 name 值,保留宽松文本核验(单独记风险)。
+    # - v1 M1-M7:D10.4 下请求携带**目标语言**链式字段,源键不可由请求
+    #   context 重渲染(9958cf1 如此做 → 合法翻译恒 409 回归);改为从缓存
+    #   按上游链递归核验后精确重建源键(_verify_v1_chain_translation_source)
+    #   ——链字段注入生成的行落在注入键上,与真实链重建的键永不相等,
+    #   投毒通道保持关死。
+    # - v1 M0 / daily:context 全部确定性(M0 仅 chart,daily 的 date 固定
+    #   中文格式),按源语言重渲染即原文生成键,精确比对。
     # target_date 一并进防伪(2026-10-02):daily_fortune 不比对日期会让
     # 昨天的原文通过核验、译文写进今天的共享键;schema 层
     # target_date_matches_module 已保证 daily 请求必带(缺 → 422,不放行)。
@@ -1556,65 +1646,32 @@ async def interpret_translate(
             )
             raise InterpretationCacheError(
                 f"后端原文核验读失败({type(e).__name__}): {e}") from e
+    elif req.module in V1_CHILDREN_MODULES:
+        source_verified = await _verify_v1_chain_translation_source(
+            request, req, req.source_language, req.source_interpretation,
+            target_date_iso, current_version, request_id, start)
     else:
-        # v1/daily:按源语言重渲染得完整源缓存键(prompt_hash/parent_hash/
-        # user_input_hash)。重渲染的 422/500 语义与 /api/interpret 同源,
-        # 原样上抛不包装为缓存错误(源 context 本应合法,违例即客户端/配置
-        # 错误,不该伪装成基础设施故障)。
-        #
-        # v1 M1-M7(2026-10-07 🔴 修复):请求 context 的链字段是**目标语言**
-        # 值(iOS 译后 extractChainFields 覆盖),拿它重渲染源键恒不匹配 →
-        # 改由 `_derive_v1_source_key` 从服务端自存源语言上游链递推(m0 起
-        # 逐级渲染-取行-提取,不信客户端声明);threadpool:推导含 SQLite 读。
-        # m0(无链字段,chart 语言无关)与 daily(context 全确定性字段)仍走
-        # 请求 context 直接重渲染。
-        if req.module == "m0_structure" or req.module == "daily_fortune":
-            source_prepared = _prepare_prompt_and_key(
-                req, req.source_language, request_id, start, ai_client)
-            src_prompt_hash = source_prepared.cache_key.prompt_hash
-            src_parent_hash = source_prepared.cache_key.parent_hash
-            src_user_input_hash = source_prepared.cache_key.user_input_hash
-            src_log_ctx = source_prepared.log_ctx
-        else:
-            try:
-                (src_prompt_hash, src_parent_hash, src_user_input_hash,
-                 loaded_from) = await run_in_threadpool(
-                    _derive_v1_source_key, req, cache, req.source_language)
-            except _V1SourceDerivationError as e:
-                elapsed_ms = (time.perf_counter() - start) * 1000
-                logger.warning(
-                    "interpret.translate.source_derive_failed "
-                    "elapsed_ms=%.1f request_id=%s module=%s "
-                    "source_language=%s content_hash=%s error=%s",
-                    elapsed_ms, request_id, req.module, req.source_language,
-                    req.content_hash, e,
-                )
-                raise StaleSourceError(
-                    f"原文源键不可推导({e};上游源行缺失/漂移后请重新生成,"
-                    f"伪造原文不予翻译)",
-                    request_id=request_id, content_hash=req.content_hash,
-                ) from e
-            src_log_ctx = {
-                "request_id": request_id,
-                "content_hash": req.content_hash,
-                "module": req.module,
-                "prompt_version": current_version,
-                "source_language": req.source_language,
-                "derived_chain": "->".join(loaded_from),
-            }
+        # v1 M0 / daily:按源语言重渲染得完整源缓存键(prompt_hash/
+        # parent_hash/user_input_hash)。重渲染的 422/500 语义与
+        # /api/interpret 同源,原样上抛不包装为缓存错误(源 context 本应
+        # 合法,违例即客户端/配置错误,不该伪装成基础设施故障)。
+        source_prepared = _prepare_prompt_and_key(
+            req, req.source_language, request_id, start, ai_client)
         try:
             source_verified = await run_in_threadpool(
                 cache.has_interpretation_exact,
-                req.content_hash, req.module, current_version,
+                req.content_hash, req.module, source_prepared.prompt_version,
                 req.source_language, req.source_interpretation,
-                src_prompt_hash, src_parent_hash, src_user_input_hash,
+                source_prepared.cache_key.prompt_hash,
+                source_prepared.cache_key.parent_hash,
+                source_prepared.cache_key.user_input_hash,
                 target_date_iso,
             )
         except Exception as e:
             elapsed_ms = (time.perf_counter() - start) * 1000
             logger.exception(
                 "interpret.translate.source_verify_failed elapsed_ms=%.1f %s "
-                "error=%r", elapsed_ms, src_log_ctx, e,
+                "error=%r", elapsed_ms, source_prepared.log_ctx, e,
             )
             raise InterpretationCacheError(
                 f"后端原文核验读失败({type(e).__name__}): {e}") from e
