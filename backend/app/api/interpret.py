@@ -1222,7 +1222,11 @@ async def _verify_v1_chain_translation_source(
                 if (key.parent_hash != parent_hash
                         or key.user_input_hash != ""):
                     continue
-                expected_hash = _render_v1_upstream_prompt_hash(
+                # 渲染是纯 CPU(translate_context + 模板 format + sha256),
+                # 候选行逐行重渲染放线程池防阻塞事件循环(2026-10-07 review
+                # 收尾:行读取已在池,渲染同款)。
+                expected_hash = await run_in_threadpool(
+                    _render_v1_upstream_prompt_hash,
                     upstream, chart, verified, source_language,
                     key.prompt_version)
                 if (expected_hash is not None
@@ -1255,7 +1259,10 @@ async def _verify_v1_chain_translation_source(
             "context": source_context,
             "parent_fingerprint": fingerprint,
         })
-        source_prepared = _prepare_prompt_and_key(
+        # 纯 CPU(校验 + 渲染 + hash),放线程池(2026-10-07 review 收尾,
+        # 与行读取/逐行重渲染同款;源键渲染是本函数最重的一步)。
+        source_prepared = await run_in_threadpool(
+            _prepare_prompt_and_key,
             source_req, source_language, request_id, start,
             request.app.state.ai_client)
         try:
@@ -1655,8 +1662,11 @@ async def interpret_translate(
         # parent_hash/user_input_hash)。重渲染的 422/500 语义与
         # /api/interpret 同源,原样上抛不包装为缓存错误(源 context 本应
         # 合法,违例即客户端/配置错误,不该伪装成基础设施故障)。
-        source_prepared = _prepare_prompt_and_key(
-            req, req.source_language, request_id, start, ai_client)
+        # 纯 CPU,放线程池防阻塞事件循环(2026-10-07 review;M1-M7 链
+        # 重建侧 _verify_v1_chain_translation_source 同款)。
+        source_prepared = await run_in_threadpool(
+            _prepare_prompt_and_key, req, req.source_language,
+            request_id, start, ai_client)
         try:
             source_verified = await run_in_threadpool(
                 cache.has_interpretation_exact,
