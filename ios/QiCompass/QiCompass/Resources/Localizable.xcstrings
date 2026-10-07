@@ -12447,6 +12447,23 @@
         }
       }
     },
+    "两人地支见刑害(%1$@):相处消耗偏大,有摩擦要早点说开,别积压。" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your branches punish or work against each other (%1$@). Friction runs high — don't let it pile up, name it early."
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "兩人地支見刑害(%1$@):相處消耗偏大,有摩擦要早點說開,別積壓。"
+          }
+        }
+      }
+    },
     "合盘" : {
       "extractionState" : "manual",
       "localizations" : {

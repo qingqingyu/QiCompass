@@ -266,4 +266,44 @@ final class CompatibilityRelationDetailTests: XCTestCase {
         XCTAssertNil(SyncedFortuneTable.SyncMark.syncMark(for: "In sync"))
         XCTAssertNil(SyncedFortuneTable.SyncMark.syncMark(for: ""))
     }
+
+    // MARK: 刑害提示行按合冲标签分档(2026-10-07 判定序修复配套)
+
+    func test刑害提示_多刑多害_重语气变体_与卡解释同调() {
+        let note = AssessmentCardGrid.frictionNote(
+            branchHarmony: "多刑多害", pairs: ["子卯刑", "寅巳刑害", "午丑害"]
+        )
+        if AppLanguage.current.isChinese {
+            // 重档:与卡解释「刑害偏多,近距离相处消耗较大」同调,不再「小事上」轻描
+            // (isChinese 含 zh-Hant,轻语气短语双体并检防繁体环境假红)
+            XCTAssertTrue(note.contains("消耗偏大"), "实际:\(note)")
+            XCTAssertFalse(
+                note.contains("习惯与小事") || note.contains("習慣與小事"),
+                "多刑多害不得沿用轻语气,实际:\(note)"
+            )
+        } else {
+            XCTAssertTrue(note.contains("Friction runs high"), "实际:\(note)")
+            XCTAssertFalse(note.contains("habits and small things"), "实际:\(note)")
+        }
+        // 刑害点名照常注入
+        XCTAssertTrue(note.contains("子卯刑") && note.contains("午丑害"), "实际:\(note)")
+    }
+
+    func test刑害提示_其余标签_保留轻语气() {
+        // 略有冲刑害 / 多合少冲(带零星刑害)的卡解释本就轻语气,提示行保持原句
+        for label in ["略有冲刑害", "多合少冲", "一冲一合"] {
+            let note = AssessmentCardGrid.frictionNote(branchHarmony: label, pairs: ["子卯刑"])
+            if AppLanguage.current.isChinese {
+                // zh-Hant 同句异体(習慣與小事),双体并检
+                XCTAssertTrue(
+                    note.contains("习惯与小事") || note.contains("習慣與小事"),
+                    "\(label) 实际:\(note)"
+                )
+                XCTAssertFalse(note.contains("消耗偏大"), "\(label) 实际:\(note)")
+            } else {
+                XCTAssertTrue(note.contains("habits and small things"), "\(label) 实际:\(note)")
+                XCTAssertFalse(note.contains("Friction runs high"), "\(label) 实际:\(note)")
+            }
+        }
+    }
 }
