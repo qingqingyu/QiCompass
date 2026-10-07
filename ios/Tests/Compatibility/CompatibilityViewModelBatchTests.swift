@@ -2531,6 +2531,71 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         await drainDetailBackgroundTasks()
     }
 
+    /// 🔴(2026-10-07 外评再修,bug3 会话并入):门失败态的**重试**不得绕过
+    /// 引擎规则门——修复前 retryInterpretation 直连生成,离线打开的过期对在
+    /// 网络恢复后重试会用旧标签生成正文并落双层缓存(正是这道门要防的)。
+    /// 鉴别:离线时重试仍被拦(补发重算照旧失败,零 interpret);网络恢复后
+    /// 重试复用死任务验旧 → 补发重算 → 门过 → 按重算后的新标签生成(镜像
+    /// 购买回调过门用例)。
+    func test重试_引擎规则门不被绕过_补发重算后按新标签生成() async throws {
+        let summary = try makeStaleEngineRuleFixture(tag: "gateRetry")
+        apiClient.compatibilityResponder = { _ in
+            throw APIError.networkError(URLError(.notConnectedToInternet))
+        }
+
+        vm.openDetail(summary)
+        let failed = await waitForInterpretState { state in
+            if case .failed = state { return true }
+            return false
+        }
+        XCTAssertTrue(failed, "前置:门未过显式失败(重试入口),实际:\(vm.state)")
+
+        // 仍离线时重试:门再拦(复用死任务验旧 + 补发重算照旧失败),不得生成。
+        // 等 800ms 让重试链的重算落定(mock 300ms 窗口)——状态本就 .failed,
+        // 轮询会瞬时返回,不等会在飞窗口误判/与下一步翻网络竞态。
+        vm.retryInterpretation()
+        try? await Task.sleep(nanoseconds: 800_000_000)
+        if case .detail(_, _, let interpret) = vm.state {
+            guard case .failed = interpret else {
+                XCTFail("离线时重试必须仍被门拦下(维持 .failed),实际:\(interpret)")
+                return
+            }
+        } else {
+            XCTFail("应保持 detail 态,实际:\(vm.state)")
+            return
+        }
+        XCTAssertTrue(
+            apiClient.recordedInterpretRequests.isEmpty,
+            "重试不得绕过门直连生成(旧标签进 prompt = 正文按旧规则缓存 24h),实际 interpret=\(apiClient.recordedInterpretRequests.count)"
+        )
+
+        // 网络恢复:重试补发重算 → 门过 → 按重算后的新标签生成
+        apiClient.compatibilityResponder = nil
+        let readsBefore = vm.remainingReads
+        vm.retryInterpretation()
+        let ok = await waitForInterpretState { state in
+            if case .okFree = state { return true }
+            return false
+        }
+        XCTAssertTrue(ok, "网络恢复后重试必须自愈过门生成,实际:\(vm.state)")
+        XCTAssertEqual(apiClient.recordedInterpretRequests.count, 1, "恰好一次 interpret 请求")
+        if let req = apiClient.recordedInterpretRequests.first {
+            let contextJSON = try String(
+                decoding: JSONEncoder().encode(req.context), as: UTF8.self
+            )
+            XCTAssertTrue(
+                contextJSON.contains("互补佳"),
+                "重试生成必须携带重算后的新标签,实际:\(contextJSON)"
+            )
+            XCTAssertFalse(
+                contextJSON.contains("旧版五行"),
+                "旧标签不得进重试生成 prompt,实际:\(contextJSON)"
+            )
+        }
+        XCTAssertEqual(vm.remainingReads, readsBefore - 1, "重试生成消耗 1 次全局池配额(非豁免来源)")
+        await drainDetailBackgroundTasks()
+    }
+
     /// 🟠#4:非豁免生成只清**本对**豁免标记——X 对生成(含快照缺失提前
     /// return)不得把 Y 对待重试的豁免语义一并抹掉(修复前无条件置 nil,
     /// Y 的 .failed 重试退回扣次数)。

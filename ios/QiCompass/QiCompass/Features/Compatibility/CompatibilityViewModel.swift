@@ -1954,11 +1954,12 @@ final class CompatibilityViewModel {
             // 按旧标签滞后 24h,同屏自相矛盾。重算成功但版本号仍落后时放行
             // (第九轮 #2:倒挂/旧后端不得拦死,见 engineRuleBecameFresh 尾注,
             // state 已随重算原位刷新为服务端当前标签)。门未过 → 显式失败给
-            // 重试入口(重试同样过门,runGatedGeneration);.idle + 次数有余在
-            // UI 渲染成「推演中」,不写失败 = 死转圈。缓存命中展示不受此门
-            // (取舍④口径)。
-            // retryAfterDeadTask=false:自动链不复用死任务补发重算(离线下只
-            // 多打一个注定失败的请求,零收益;.failed 的重试走门,门内会补发)。
+            // 重试入口(重试入口 retryInterpretation 同样过门并补发重算,
+            // runGatedGeneration);.idle + 次数有余在 UI 渲染成「推演中」,
+            // 不写失败 = 死转圈。缓存命中展示不受此门(取舍④口径)。
+            // retryAfterDeadTask=false:补发重算推迟到用户显式重试(重试链
+            // 传 true,门内补发),自动链每次进对不空打注定失败的请求(离线
+            // 零收益)。
             let ruleFresh = await self.engineRuleBecameFresh(summary, retryAfterDeadTask: false)
             guard !Task.isCancelled else { return }
             guard ruleFresh else {
@@ -2084,7 +2085,10 @@ final class CompatibilityViewModel {
     /// 只等待不看结果是假门(第七轮修复的缺口):重算失败(离线/后端故障)时
     /// 照常生成,旧标签随 prompt 写进正文并落双层缓存,重算成功后正文滞后 24h
     /// 与评估卡自相矛盾。重算失败 → 拦,显式失败给重试入口(重试过门,门内
-    /// 补发重算自愈)。
+    /// 补发重算自愈)。自动链(openDetail)与手动链(retryInterpretation /
+    /// 购买回调,runGatedGeneration)都过门(第九轮外评再修,原「手动重试
+    /// 不拦」——门失败态的重试入口直连生成,离线过期对恰好在网络恢复后被
+    /// 旧标签污染)。
     ///
     /// 第九轮 #2(版本号不收敛不得拦死):store 复验仍不新鲜、但本对最近一次
     /// 重算**成功**时放行——runDeterministic 200 且 upsert 落库,标签就是服务端
@@ -2102,12 +2106,17 @@ final class CompatibilityViewModel {
     /// 「网络恢复后手动重试自愈」的承诺落空(三查 R1)。此场景按
     /// `retryAfterDeadTask` 补发一次重算再验。换对会先 cancel 本门所在的
     /// translateTask / cacheReadTask(openDetail),await 后的 isCancelled 守卫
-    /// 保证补发不会取消别对在飞重算后再起新任务。
+    /// 保证补发不会取消别对在飞重算后再起新任务;重试/购买回调的门 Task
+    /// (interpretGateTask)虽已持有并在换对时取消,补发前的
+    /// currentDetailIfMatches 换对守卫仍兜同一件事(三查 R1,纵深防御)。
     /// - Parameter retryAfterDeadTask: 复用的重算任务已落定且复验仍过期时
-    ///   是否补发。手动重试 / 购买回调 / 翻译 STALE_SOURCE 链传 **true**——
-    ///   用户显式动作,死任务不补发 = 门被钉死、自愈承诺落空;openDetail
-    ///   自动链传 **false**——其 .failed 重试走门(门内补发),自动链补发只会
-    ///   在离线下每次进对多打一个注定失败的请求,零收益。
+    ///   是否补发。手动链(翻译 STALE_SOURCE 重试 / 购买回调 /
+    ///   retryInterpretation,runGatedGeneration)传 **true**——用户显式动作是
+    ///   网络恢复后的自愈入口,死任务不补发 = 门被钉死;openDetail 自动链传
+    ///   **false**——补发推迟到用户显式重试,自动链每次进对不空打注定失败的
+    ///   请求(离线零收益)。已知残留(2026-10-07 外评 #9,未修):
+    ///   engineRefreshTask 不清空使自动链的重算每会话只发第一次,后续对靠
+    ///   手动重试的补发自愈。
     private func engineRuleBecameFresh(
         _ summary: PairSummary, retryAfterDeadTask: Bool
     ) async -> Bool {
@@ -2119,6 +2128,14 @@ final class CompatibilityViewModel {
         guard !Task.isCancelled else { return false }
         if snapshotIsFreshInStore(compatHash: compatHash) { return true }
         if existingTask != nil, retryAfterDeadTask {
+            // 补发前换对守卫(2026-10-07 三查 R1):门不都跑在会被换对取消的
+            // 任务里(compute 换对不取消 translateTask;interpretGateTask 虽已
+            // 持有,守卫是纵深防御)——await 醒来已不在本对 detail 时,补发的
+            // refreshStaleEngineAssessment 会 engineRefreshTask?.cancel() 把
+            // **新对刚起**的在飞重算取消,新对自动链被拒显网络错误。已换对
+            // → 不补发,按未新鲜返回(调用方的 stale_pair_skip 守卫自会放弃,
+            // 旧对留给重开后的链路接管)。
+            guard currentDetailIfMatches(summary) != nil else { return false }
             // 死任务复用后仍未新鲜:补发一次重算(显式动作的自愈路径)
             let retry = refreshStaleEngineAssessment(for: summary)
             if let retry { await retry.value }
@@ -2149,6 +2166,10 @@ final class CompatibilityViewModel {
             return false
         }
     }
+
+    /// 引擎规则门未过时的失败文案(三入口共用,按对取根由)见
+    /// `engineGateFailureMessage(for:)`——第九轮 #5 已从全局单值改为按对
+    /// engineRefreshOutcomes;版本落后场景走门尾放行(不再停「未知错误」)。
 
     /// 进入 detail 后的自动起链守卫:仍在本对的 .idle 态且次数未耗尽才触发。
     /// 次数耗尽保持 .idle(UI 按 remainingReads 渲染达限卡);缓存命中/已起链
@@ -2459,44 +2480,42 @@ final class CompatibilityViewModel {
     }
 
     /// 购买成功后的重跑入口(PaywallView onPurchaseSuccess,按对绑定 D4)。
-    /// 引擎规则成门(第八轮购买路径补漏;第九轮 #1/#4 收编统一门内入口):
-    /// 门等待期(.idle)购买完成时直调 generateInterpretation 会把旧标签写进
-    /// prompt——付费解读落 (hash, compatibility_paid) 键,后端缓存让它活过
-    /// 24h,「评估卡刑害/正文和谐」的错配对已付款用户长期存在。正常扣次
-    /// (quotaExempt=false,入口覆写豁免标记)。快照已新鲜时门读 store 即
-    /// 短路,无额外等待。
+    /// 引擎规则成门(第八轮购买路径补漏;第九轮 #1/#4 收编统一门内入口
+    /// runGatedGeneration):门等待期(.idle)购买完成时直调 generateInterpretation
+    /// 会把旧标签写进 prompt——付费解读落 (hash, compatibility_paid) 键,后端
+    /// 缓存让它活过 24h,「评估卡刑害/正文和谐」的错配对已付款用户长期存在。
+    /// 正常扣次(豁免语义恒不透传,allowExemptPassthrough=false)。快照已新鲜
+    /// 时门读 store 即短路,无额外等待。
     func generateInterpretationAfterPurchase() {
-        runGatedGeneration(quotaExempt: false)
+        runGatedGeneration(allowExemptPassthrough: false)
     }
 
     /// .failed / .dailyLimitReached 态的重试入口(结果页 onGenerateInterpret
     /// 接线,2026-10-06):按对透传上次尝试的豁免语义——STALE_SOURCE 降级链
     /// 失败后的重试不再把语言切换成本转嫁给用户配额;别对的 .failed(非豁免
-    /// 来源)不蹭豁免。
-    /// 第九轮 review #1(重试绕过门):重试改为过门——此前直调
-    /// generateInterpretation,而门失败(.failed)恰好把用户推向重试入口,
-    /// 旧标签照样进 prompt 并落已购缓存(豁免标记对还免配额),门形同虚设。
-    /// 自动起链的门在 openDetail 尾部(cacheReadTask),不经本入口。
+    /// 来源)不蹭豁免。用户主动重算/自动起链仍直调 generateInterpretation()
+    /// (正常扣次,入口会覆写标记);购买成功回调走
+    /// generateInterpretationAfterPurchase()。
+    ///
+    /// 引擎规则成门(第九轮外评再修,原「重试不走门」):门失败态的 .failed
+    /// 正是重试入口,直连生成会让离线打开的过期对在网络恢复后被旧标签污染
+    /// 正文并落双层缓存——正是这道门要防的。门未过 → 无条件写 .failed 透真
+    /// 根因(可再试;门等待期间并发链落定的 .okFree 会被盖回——镜像购买
+    /// 回调的「显式动作失败反馈优先于展示保留」取舍);豁免语义门后按对
+    /// 重读透传(见 runGatedGeneration 尾注)。
     func retryInterpretation() {
-        var passthrough = false
-        if case .detail(let summary, _, _) = state,
-           exemptAttemptCompatHash == summary.compatibilityHash {
-            passthrough = true
-        }
-        if passthrough {
-            AppLogger.app.info("compatVM.retryInterpretation.quota_exempt_passthrough")
-        }
-        runGatedGeneration(quotaExempt: passthrough)
+        runGatedGeneration(allowExemptPassthrough: true)
     }
 
-    /// 门内生成统一入口(第九轮 review #1/#4):手动重试 / 购买回调共用——
-    /// 先过引擎规则门(retryAfterDeadTask=true:显式动作,复用的死重算任务
-    /// 须补发重算自愈),门过且仍在原对才转 generateInterpretation;门败显式
+    /// 门内生成统一入口(第九轮 review #1/#4;撞车消解收编 bug3 会话 R1
+    /// 三加固):手动重试 / 购买回调共用——先过引擎规则门
+    /// (retryAfterDeadTask=true:显式动作是网络恢复后的自愈入口,死重算任务
+    /// 须补发一次重算),门过且仍在原对才转 generateInterpretation;门败显式
     /// 落 .failed 透**按对**重算根因。Task 持有在 interpretGateTask(#4:
     /// 不持有 = 购买回调的 Task 无人管,退出/换对后与自动链并发双起
-    /// generateInterpretation = 双 LLM + 双扣次数);门过后的在飞守卫:等待期
-    /// 自动链可能已为本对起链(重进场景),重复起会取消在飞链再扣一次配额。
-    private func runGatedGeneration(quotaExempt: Bool) {
+    /// generateInterpretation = 双 LLM + 双扣次数);openDetail /
+    /// clearDetailKeepRoster 取消。
+    private func runGatedGeneration(allowExemptPassthrough: Bool) {
         guard case .detail(let summary, _, _) = state else {
             // 不静默吞(CLAUDE.md 全局约束):入口到达但不在 detail 态,说明
             // 状态机错乱(或用户已离开),显式记录
@@ -2530,14 +2549,28 @@ final class CompatibilityViewModel {
                 )
                 return
             }
-            // 在飞守卫:门等待期自动链已为本对起链 → 让位(其落地即内容)
-            if self.interpretInFlight?.compatHash == summary.compatibilityHash {
+            // 在飞守卫(三查 R1):门等待是重算级(秒级),期间态保持 .failed、
+            // 重试按钮持续可点,连点产生的多个门任务串行落定——无守卫时后者
+            // 取消重启先落定的在飞链(已发请求被取消 = 服务端配额与本地台账
+            // 漂移)。本对已有在飞生成(先落定的重试/购买回调/自动链)→ 交给
+            // 它,不再起链(镜像 autoGenerateInterpretationIfIdle 的口径)。
+            guard self.interpretInFlight?.compatHash != summary.compatibilityHash else {
                 AppLogger.app.info(
                     "op=compatibility.runGatedGeneration skip reason=interpret_in_flight hash=\(summary.compatibilityHash, privacy: .public) — 在飞链让位,不重复起链"
                 )
                 return
             }
-            self.generateInterpretation(quotaExempt: quotaExempt)
+            // 豁免语义门后重读(三查 R1 / code-review P2):门等待是重算级,
+            // tap 时刻捕获的 exemptAttemptCompatHash 会过期——期间并发豁免链
+            // 成功已清标记(再透传 = 双 LLM + 失效豁免覆盖新正文),反向新设
+            // 标记同理拿到旧 false。此处与 generateInterpretation 同一 MainActor
+            // 同步块,无交错窗口。
+            let passthrough = allowExemptPassthrough
+                && self.exemptAttemptCompatHash == summary.compatibilityHash
+            if passthrough {
+                AppLogger.app.info("compatVM.retryInterpretation.quota_exempt_passthrough")
+            }
+            self.generateInterpretation(quotaExempt: passthrough)
         }
     }
 
