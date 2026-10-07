@@ -141,7 +141,7 @@ def build_v1_chart(snapshot: dict[str, Any]) -> dict[str, Any]:
                 f"current_luck_pillar gan_zhi 长度异常: {gz!r}(期望 2 字符)")
         # CurrentPillar model 只有 start_year/end_year(不含 start_age),
         # 反查 luck_pillars 找匹配 start_age(无匹配 → None,LLM 看 start_year 推)
-        start_age = _lookup_current_luck_start_age(
+        start_age = lookup_current_luck_start_age(
             snapshot["luck_pillars"],
             clp["start_year"], clp["end_year"],
         )
@@ -191,7 +191,7 @@ def build_v1_chart(snapshot: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _lookup_current_luck_start_age(
+def lookup_current_luck_start_age(
     luck_pillars: list[dict[str, Any]],
     start_year: int,
     end_year: int,

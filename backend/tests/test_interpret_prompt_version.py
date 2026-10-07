@@ -9,6 +9,7 @@
 
 from __future__ import annotations
 
+from conftest import _auto_context_token_hook
 from httpx import ASGITransport, AsyncClient
 
 from app.ai.prompts import PROMPT_VERSIONS
@@ -155,7 +156,8 @@ async def test_api_key_not_configured(tmp_cache):
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app),
-                               base_url="http://test") as ac:
+                               base_url="http://test",
+                               event_hooks={"request": [_auto_context_token_hook]}) as ac:
             payload = {
                 "content_hash": "test-hash-no-key",
                 "module": "bazi_deep",

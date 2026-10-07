@@ -73,6 +73,14 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - 为什么拦：同一 SKU 双端 module 值不同 → 客户端 guard 放行 → 后端 403 `ENTITLEMENT_ERROR` → 客户端当终态 `finish()` 销毁已付款消耗型交易（不可逆资损）。加新 SKU 只加一边不致命（502 非终态 / 返 nil 跳过）但同样算漂移
 - 脚本纯 stdlib 静态解析（不 import backend，无 venv 也能跑）；不接 GitHub Actions，拦截靠本规则
 
+### context_token 绑定守护栏（2026-10-07，P0 安全收口）
+
+- **背景**（已 PoC 实证）：interpret/translate 权限只认 `(content_hash, module, user_local_id)`，context 从不与 hash 对账 → 买一次盘即可给任意命盘生成付费内容；翻译端点同理可把伪造原文投进受害者目标语言共享缓存键。收口 = 排盘端点签发自包含签名 token（五族：`deep`/`v1`/`payload`/`compat`/`daily`），interpret/translate 一刀切验签（免费+付费），合盘/每日端点先做 per-chart `payload` token 对账再签发
+- **强制**：动了以下任一，必须跑 `cd backend && arch -arm64 /Users/TWJ/工作/git/QiCompass/backend/.venv/bin/python -m pytest tests/test_context_binding.py` 全绿才算完成——backend `app/context_binding.py`（族字段集/镜像格式化/canonical）、`app/api/interpret.py`（验签与配额闸位）、`app/api/{bazi,compatibility,daily_fortune}.py`（签发点）、iOS `PromptContextBuilder*.swift`（**绑定字段的格式化口径——join/占位/查表规则与 `_deep_fields`/`compat_fields`/`daily_fields` 镜像逐条对应，改一侧必改另一侧**）、`BaziDTOs.swift` 的 `contextToken(forModule:)` 族映射
+- 镜像 parity 由 `test_deep_token_parity_with_swift_style_context` / `test_v1_token_parity_with_ios_style_chart_json` 锁定（测试内**独立**第二实现，不 import 镜像函数）；iOS 真机走查含「老快照无 token → 403 → 重新排盘恢复」路径
+- token secret 从 `JWT_SECRET_KEY` HMAC 域分隔派生（轮换 JWT 密钥 = 同时轮换 token，老 token 全 403，重排盘即恢复，无孤儿化）；`QICOMPASS_ALLOW_MOCK_APPLE` / `QICOMPASS_FREE_DAILY_LIMIT` 见 `backend/.env.example`
+- 免费滥用护栏：context 字段长度上限（`validate_context`，默认 4096/chart 64KB/总量 128KB）+ 免费 module 真烧 LLM 的服务端每日计数（登录按 user_id 匿名按 IP，付费豁免缓存命中不计）
+
 ### SwiftData
 
 - 最低 iOS 17.2（17.0/17.1 SwiftData `@Relationship` 有 crash）

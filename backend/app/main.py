@@ -129,6 +129,13 @@ async def lifespan(app: FastAPI):
     entitlement_store.init_schema()
     app.state.entitlement_store = entitlement_store
 
+    # 2026-10-07:免费 LLM 生成每日配额 store(lifespan 正式实例,
+    # 覆盖模块级 fallback;ASGITransport 单测由 conftest fixture 替换)
+    from app.quota.store import FreeLLMQuotaStore
+    free_quota_store = FreeLLMQuotaStore(DB_PATH)
+    free_quota_store.init_schema()
+    app.state.free_quota_store = free_quota_store
+
     # M2b:Apple Server API 切换
     # - env 配齐(5 个 Apple env)+ SDK 已装 → AppleServerAPIClient(真调 Apple)
     # - 否则 → MockAppleServerAPI(dev/test,iOS 用 mock transaction_id 走通链路)
@@ -169,9 +176,21 @@ def _build_apple_server_api():
     对齐 CLAUDE.md 错误显式传播:该报错就报错。
     """
     if not apple_env_configured():
+        # 2026-10-07 收口:生产缺配 = 任意 transaction_id 免费兑换付费权益
+        # (PoC 实证)——fail-fast,不再静默挂会放行的 Mock。sandbox 缺配仍挂
+        # Mock(dev/test),但 Mock 默认锁定(redeem 503),须显式
+        # QICOMPASS_ALLOW_MOCK_APPLE=1 才放行(见 protocol.py)。
+        if APP_STORE_ENVIRONMENT == "production":
+            raise RuntimeError(
+                "APP_STORE_ENVIRONMENT=production 但 5 个 APP_STORE_* env 未配齐"
+                "(BUNDLE_ID/KEY_ID/ISSUER_ID/PRIVATE_KEY/APP_APPLE_ID)——"
+                "生产缺配会静默挂 Mock = 任意交易免费兑换付费权益,拒绝启动。"
+                "请配齐 env 或显式降回 sandbox"
+            )
         logger.info(
-            "apple_server_api=mock reason=env_incomplete "
-            "(M6 TestFlight 前正常,填齐 5 个 APP_STORE_* env 自动切真)"
+            "apple_server_api=mock_locked reason=env_incomplete "
+            "(sandbox 默认锁定,redeem 显式 503;dev 走通链路设 "
+            "QICOMPASS_ALLOW_MOCK_APPLE=1;生产须配齐 5 个 APP_STORE_* env)"
         )
         return MockAppleServerAPI()
 
@@ -223,6 +242,11 @@ from app.sync.store import UserChartSyncStore  # noqa: E402
 _default_chart_sync_store = UserChartSyncStore(DB_PATH)
 _default_chart_sync_store.init_schema()
 app.state.user_chart_sync_store = _default_chart_sync_store
+# 2026-10-07:免费 LLM 生成每日配额 store(同 DB_PATH,多 worker 共库计数)
+from app.quota.store import FreeLLMQuotaStore  # noqa: E402
+_default_free_quota_store = FreeLLMQuotaStore(DB_PATH)
+_default_free_quota_store.init_schema()
+app.state.free_quota_store = _default_free_quota_store
 app.state.apple_server_api = MockAppleServerAPI()
 # 测试环境 fallback:ASGITransport 单测不触发 lifespan,挂默认 singleflight 实例
 # 避免路由层 AttributeError(与 cache / entitlement_store 同策略)

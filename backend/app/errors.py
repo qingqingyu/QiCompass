@@ -126,3 +126,41 @@ class DailyImageLimitError(BaziError):
 
     code = "DAILY_IMAGE_LIMIT"
     http_status = 429
+
+
+# ---------- context_token 验签(2026-10-07 P0 安全收口)----------
+
+
+class ContextTokenRequiredError(BaziError):
+    """interpret/translate 请求未携带 context_token(403)。
+
+    一刀切强制(免费+付费,2026-10-07 用户拍板无存量外部 build):
+    token 由排盘端点签发,客户端从 ChartSnapshot 取;缺失即拒。
+    """
+
+    code = "CONTEXT_TOKEN_REQUIRED"
+    http_status = 403
+
+
+class ContextTokenInvalidError(BaziError):
+    """context_token 验签失败:伪造 / 篡改 / 属于其他命盘 / secret 已轮换。
+
+    P0 收口主闸:context 核心字段(四柱/喜忌/日主强度等盘身)必须与
+    排盘端点签发的 token 一致——买一次盘给任意命盘生成付费内容的通道
+    在此关闭。403 语义同 EntitlementNotFoundError:「知道你是谁,但内容对不上」。
+    """
+
+    code = "CONTEXT_TOKEN_INVALID"
+    http_status = 403
+
+
+class QuotaExceededError(BaziError):
+    """免费解读的每日服务端生成上限触发(2026-10-07 匿名滥用收口)。
+
+    计数口径:真烧 LLM 的生成(缓存命中不计)、免费 module(付费已购
+    单盘缓存有界,豁免);bucket = 登录 user_id,匿名按 IP。上限
+    QICOMPASS_FREE_DAILY_LIMIT(默认 30,高于 iOS 本地 10/日,正常用户无感)。
+    """
+
+    code = "QUOTA_EXCEEDED"
+    http_status = 429

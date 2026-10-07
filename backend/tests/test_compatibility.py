@@ -15,6 +15,7 @@ from __future__ import annotations
 from datetime import datetime, timedelta, timezone
 
 import pytest
+from conftest import _auto_context_token_hook
 from httpx import ASGITransport, AsyncClient
 
 from app.engine.compatibility import (
@@ -100,7 +101,8 @@ DOC_B = _make_chart(
 
 async def _post(payload: dict) -> tuple[int, dict]:
     async with AsyncClient(transport=ASGITransport(app=app),
-                           base_url="http://test") as ac:
+                           base_url="http://test",
+                           event_hooks={"request": [_auto_context_token_hook]}) as ac:
         resp = await ac.post("/api/bazi/compatibility", json=payload)
     return resp.status_code, resp.json()
 

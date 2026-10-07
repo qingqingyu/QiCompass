@@ -11,6 +11,8 @@ M2a 阶段只 import 这个文件 + store.py,M2b 才 import apple_client.py(真 
 
 from __future__ import annotations
 
+import os
+
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from typing import Literal, Protocol
@@ -62,13 +64,14 @@ class MockAppleServerAPI:
     """测试 / dev 用的 Mock 实现(M2a 默认挂这个,不真调 Apple)。
 
     使用方式:
-    - 默认:verify_transaction 返回固定 info(product_id 从输入取)
+    - 默认(allow=None):按 env QICOMPASS_ALLOW_MOCK_APPLE 决定锁定与否——
+      未显式开启时 verify_transaction/verify_notification 抛 503
+      (2026-10-07 收口:生产缺 env 静默挂 Mock = 任意 transaction_id
+      免费兑换付费权益,PoC 实证;dev 想走通链路在 .env 显式设
+      QICOMPASS_ALLOW_MOCK_APPLE=1,conftest 已为测试默认开启)
+    - allow=True/False:显式覆盖(单测精确控制)
     - verify_fails=True:抛 AppleVerificationError(测试错误路径)
     - tx_info 自定义:精确控制返回的 dataclass
-
-    M2a 阶段:后端启动时若无 Apple key,挂 MockAppleServerAPI(),
-    iOS dev 可以用任何 transaction_id 走通 redeem 流程(只为打通链路,
-    生产前必须切真 SDK)。
     """
 
     def __init__(
@@ -77,7 +80,11 @@ class MockAppleServerAPI:
         verify_fails: bool = False,
         tx_info: AppleTransactionInfo | None = None,
         notification: AppleNotificationPayload | None = None,
+        allow: bool | None = None,
     ):
+        if allow is None:
+            allow = os.environ.get("QICOMPASS_ALLOW_MOCK_APPLE") == "1"
+        self._allowed = allow
         self._verify_fails = verify_fails
         self._default_tx_info = tx_info or AppleTransactionInfo(
             transaction_id="<mock>",
@@ -99,6 +106,14 @@ class MockAppleServerAPI:
 
     def verify_transaction(self, transaction_id: str) -> AppleTransactionInfo:
         self.verify_transaction_calls.append(transaction_id)
+        if not self._allowed:
+            # 2026-10-07 收口:未显式开启的 Mock 一律拒绝验证(显式 503,
+            # 不静默放行假交易——放行 = 免费解锁付费权益)
+            from ..errors import AppleVerificationError
+            raise AppleVerificationError(
+                "Mock Apple 验证未启用:APP_STORE_* env 未配齐且未显式设 "
+                "QICOMPASS_ALLOW_MOCK_APPLE=1;生产环境请配齐 5 个 APP_STORE_* "
+                "env(缺配即拒绝 redeem,不再静默放行)")
         if self._verify_fails:
             # 延迟 import 避免循环依赖
             from ..errors import AppleVerificationError
@@ -115,6 +130,11 @@ class MockAppleServerAPI:
 
     def verify_notification(self, jws_body: str) -> AppleNotificationPayload:
         self.verify_notification_calls.append(jws_body)
+        if not self._allowed:
+            from ..errors import AppleVerificationError
+            raise AppleVerificationError(
+                "Mock Apple 验证未启用(webhook):APP_STORE_* env 未配齐且未显式设 "
+                "QICOMPASS_ALLOW_MOCK_APPLE=1;生产环境请配齐 5 个 APP_STORE_* env")
         if self._verify_fails:
             from ..errors import AppleVerificationError
             raise AppleVerificationError(

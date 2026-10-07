@@ -13,6 +13,7 @@ import sqlite3
 import hashlib
 import logging
 
+from conftest import _auto_context_token_hook
 from httpx import ASGITransport, AsyncClient
 
 from app.ai.cache_key import CacheKey
@@ -207,7 +208,8 @@ async def test_provider_failure_propagates(tmp_cache):
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app),
-                               base_url="http://test") as ac:
+                               base_url="http://test",
+                               event_hooks={"request": [_auto_context_token_hook]}) as ac:
             payload = {
                 "content_hash": "test-hash-provider-fail",
                 "module": "bazi_deep",
@@ -253,7 +255,8 @@ async def test_cache_get_failure_propagates(tmp_cache, mock_ai_client):
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app),
-                               base_url="http://test") as ac:
+                               base_url="http://test",
+                               event_hooks={"request": [_auto_context_token_hook]}) as ac:
             payload = {
                 "content_hash": "test-hash-cache-fail",
                 "module": "bazi_deep",
@@ -290,7 +293,8 @@ async def test_cache_set_failure_propagates(tmp_cache):
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app),
-                               base_url="http://test") as ac:
+                               base_url="http://test",
+                               event_hooks={"request": [_auto_context_token_hook]}) as ac:
             payload = {
                 "content_hash": "test-hash-cache-set-fail",
                 "module": "bazi_deep",
@@ -322,7 +326,8 @@ async def test_provider_returns_forbidden_words_returns_422(tmp_cache):
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app),
-                               base_url="http://test") as ac:
+                               base_url="http://test",
+                               event_hooks={"request": [_auto_context_token_hook]}) as ac:
             payload = {
                 "content_hash": "test-hash-forbidden-provider",
                 "module": "bazi_deep",
@@ -386,7 +391,8 @@ async def test_cache_hit_forbidden_words_returns_422_and_deletes(tmp_cache):
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app),
-                               base_url="http://test") as ac:
+                               base_url="http://test",
+                               event_hooks={"request": [_auto_context_token_hook]}) as ac:
             payload = {
                 "content_hash": content_hash,
                 "module": "bazi_deep",
@@ -538,7 +544,8 @@ async def test_daily_fortune_poisoned_cache_row_falls_through_and_regenerates(
 
     try:
         async with AsyncClient(transport=ASGITransport(app=app),
-                               base_url="http://test") as ac:
+                               base_url="http://test",
+                               event_hooks={"request": [_auto_context_token_hook]}) as ac:
             payload = {
                 "content_hash": content_hash,
                 "module": "daily_fortune",

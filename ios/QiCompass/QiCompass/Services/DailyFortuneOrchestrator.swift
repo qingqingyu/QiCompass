@@ -77,10 +77,13 @@ final class DailyFortuneOrchestrator {
         }
 
         // 3. 未命中 → POST /api/bazi/daily-fortune
+        // 2026-10-07 P0 收口:per-chart token(端点对账 token↔hash↔payload;
+        // 老快照 nil → 后端 403 CONTEXT_TOKEN_REQUIRED 显式暴露)
         let request = DailyFortuneRequest(
             chartHash: chartHash,
             targetDate: businessDate,
             chartPayload: chartPayload,
+            contextToken: baziResponse.payloadContextToken
         )
         let response = try await AppLogger.measure(
             AppLogger.networking,
@@ -246,7 +249,9 @@ final class DailyFortuneOrchestrator {
                 module: module,
                 context: context,
                 targetDate: targetDate,
-                question: nil
+                question: nil,
+                // 2026-10-07 P0 收口:daily 族 token(claims 含 target_date)
+                contextToken: dailyResponse.contextToken
             )
             let resp = try await AppLogger.measure(
                 AppLogger.networking,
@@ -405,7 +410,9 @@ final class DailyFortuneOrchestrator {
                 module: module,
                 context: context,
                 targetDate: businessDate,
-                question: nil
+                question: nil,
+                // 2026-10-07 P0 收口:翻译同闸(译文落共享键,盘身须与 token 一致)
+                contextToken: dailyResponse.contextToken
             ),
             sourceLanguage: source.language ?? "zh",
             sourcePromptVersion: source.promptVersion,

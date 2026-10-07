@@ -18,6 +18,7 @@ from typing import NoReturn
 from fastapi import APIRouter, Request
 from starlette.concurrency import run_in_threadpool
 
+from ..context_binding import build_chart_tokens
 from ..core.tz_resolution import resolve_wall_time
 from ..engine.bazi_engine import BaziEngine, hour_unknown_placeholder
 from ..errors import BaziError
@@ -77,6 +78,10 @@ async def calculate_bazi(req: BaziCalculateRequest, request: Request) -> BaziCal
         e.request_id = request_id
         _log_and_reraise(e, {**input_log, "content_hash": e.content_hash}, start,
                          content_hash=e.content_hash)
+
+    # 3.9 签发 context_token(2026-10-07 P0 收口):deep / payload(/v1 可用时有)
+    # 三族,interpret/translate 验签用。纯 CPU(镜像字段 + HMAC),留 event loop。
+    result["context_tokens"] = build_chart_tokens(result)
 
     elapsed_ms = (time.perf_counter() - start) * 1000
     logger.info(

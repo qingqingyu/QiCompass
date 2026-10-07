@@ -17,11 +17,15 @@ struct DailyFortuneRequest: Codable, Sendable {
     let chartHash: String
     let targetDate: Date
     let chartPayload: ChartPayloadDTO
+    /// per-chart token(2026-10-07 P0 收口):该盘排盘响应的
+    /// contextTokens["payload"],端点对账后签发当日 daily token。
+    var contextToken: String?
 
     enum CodingKeys: String, CodingKey {
         case chartHash = "chart_hash"
         case targetDate = "target_date"
         case chartPayload = "chart_payload"
+        case contextToken = "context_token"
     }
 
     /// 业务日期序列化器:固定 `yyyy-MM-dd`,本地时区解释。
@@ -40,10 +44,12 @@ struct DailyFortuneRequest: Codable, Sendable {
         return f
     }()
 
-    init(chartHash: String, targetDate: Date, chartPayload: ChartPayloadDTO) {
+    init(chartHash: String, targetDate: Date, chartPayload: ChartPayloadDTO,
+         contextToken: String? = nil) {
         self.chartHash = chartHash
         self.targetDate = targetDate
         self.chartPayload = chartPayload
+        self.contextToken = contextToken
     }
 
     /// 兼容旧调用(stub 期间只传 hash + date)。实际生产请用完整 init。
@@ -62,6 +68,7 @@ struct DailyFortuneRequest: Codable, Sendable {
         try c.encode(chartHash, forKey: .chartHash)
         try c.encode(Self.isoDateFormatter.string(from: targetDate), forKey: .targetDate)
         try c.encode(chartPayload, forKey: .chartPayload)
+        try c.encodeIfPresent(contextToken, forKey: .contextToken)
     }
 
     init(from decoder: Decoder) throws {
@@ -76,6 +83,7 @@ struct DailyFortuneRequest: Codable, Sendable {
         }
         targetDate = parsed
         chartPayload = try c.decode(ChartPayloadDTO.self, forKey: .chartPayload)
+        contextToken = try c.decodeIfPresent(String.self, forKey: .contextToken)
     }
 }
 
@@ -203,6 +211,9 @@ struct DailyFortuneResponse: Codable, Sendable {
     let huangliJi: [String]
     let tomorrowPreview: TomorrowPreviewDTO
     let calcRuleSnapshot: CalcRuleSnapshotDTO
+    /// daily 族 context_token(2026-10-07 P0 收口):interpret 验签,
+    /// claims 含 target_date(当日有效);老后端缺字段 → nil。
+    var contextToken: String? = nil
 
     enum CodingKeys: String, CodingKey {
         case dayPillar = "day_pillar"
@@ -218,6 +229,7 @@ struct DailyFortuneResponse: Codable, Sendable {
         case huangliJi = "huangli_ji"
         case tomorrowPreview = "tomorrow_preview"
         case calcRuleSnapshot = "calc_rule_snapshot"
+        case contextToken = "context_token"
     }
 }
 

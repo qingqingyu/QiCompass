@@ -111,6 +111,14 @@ class DailyFortuneRequest(BaseModel):
     chart_hash: str = Field(..., description="缓存键 + 日志关联，**不**做完整性断言")
     target_date: date = Field(..., description="业务日期（iOS 按 zi_hour_rule 算好）")
     chart_payload: ChartPayload
+    # 2026-10-07 P0 收口:chart_payload 客户端自持不可复算——携带排盘端点签发的
+    # payload 族 per-chart token,端点对账后才签发当日 daily token。
+    # schema 层可None(生图端点复用本模型且不需要 token,有独立成本护栏);
+    # /api/bazi/daily-fortune 端点显式强制,缺失 → 403 CONTEXT_TOKEN_REQUIRED。
+    context_token: str | None = Field(
+        None, max_length=32768,
+        description="该盘排盘响应的 context_tokens.payload(per-chart 对账用;"
+                    "daily-fortune 端点必填,image 端点忽略)")
 
 
 class DailyFortuneResponse(BaseModel):
@@ -136,3 +144,7 @@ class DailyFortuneResponse(BaseModel):
     huangli_ji: list[str] = Field(default_factory=list, description="黄历忌")
     tomorrow_preview: TomorrowPreview
     calc_rule_snapshot: dict[str, Any] = Field(..., description="规则快照，含 library/sect 等")
+    # 2026-10-07 P0 收口:daily context 核心字段绑定 token(interpret 验签;
+    # claims 含 target_date,同盘不同日不可互用)
+    context_token: str | None = Field(
+        None, description="daily 族 context_token(当日签发,客户端随 interpret 请求回传)")

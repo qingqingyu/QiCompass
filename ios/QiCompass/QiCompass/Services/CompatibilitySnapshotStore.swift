@@ -54,6 +54,7 @@ final class CompatibilitySnapshotStore {
             snapshot.qualitativeAssessment = assessmentData
             snapshot.syncedFortune = syncedData
             snapshot.engineRuleVersion = response.ruleVersion
+            snapshot.contextToken = response.contextToken
             try self.context.save()
             AppLogger.persistence.info(
                 "op=compatibilitySnapshot.upsert hash=\(hash, privacy: .public) result=updated"
@@ -68,7 +69,8 @@ final class CompatibilitySnapshotStore {
                 qualitativeAssessment: assessmentData,
                 syncedFortune: syncedData,
                 interpretation: nil,
-                engineRuleVersion: response.ruleVersion
+                engineRuleVersion: response.ruleVersion,
+                contextToken: response.contextToken
             )
             self.context.insert(snapshot)
             try self.context.save()

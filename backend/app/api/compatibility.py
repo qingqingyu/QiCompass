@@ -17,8 +17,18 @@ from typing import NoReturn
 from fastapi import APIRouter, Request
 from starlette.concurrency import run_in_threadpool
 
+from ..context_binding import (
+    compat_fields,
+    issue_token,
+    payload_fields,
+    verify_payload_against_chart,
+)
 from ..engine.compatibility import compute_compatibility
-from ..errors import BaziError, InvalidInputError
+from ..errors import (
+    BaziError,
+    ContextTokenRequiredError,
+    InvalidInputError,
+)
 from ..models.compatibility import CompatibilityRequest, CompatibilityResponse
 
 router = APIRouter()
@@ -42,6 +52,29 @@ async def compatibility(
     }
     logger.info("compatibility.start %s", input_log)
 
+    # 2026-10-07 P0 收口:per-chart token 对账先行(伪造 payload 不进引擎)。
+    # chart_payload 与 hash 单向不可逆,服务端无法复算——token 是唯一锚;
+    # schema 层可选(单测直接构造模型),端点显式强制。
+    # ContextToken*Error 由全局 handler 接管(403)。
+    if not req.context_token_a:
+        raise ContextTokenRequiredError(
+            "合盘请求须携带 context_token_a"
+            "(A 盘排盘响应的 context_tokens.payload)",
+            content_hash=req.person_a_hash)
+    claims_a = verify_payload_against_chart(
+        req.context_token_a,
+        chart_hash=req.person_a_hash, chart_payload=req.chart_payload_a)
+    claims_b: dict | None = None
+    if req.person_b_hash is not None:
+        if not req.context_token_b:
+            raise ContextTokenRequiredError(
+                "模式 A 合盘请求须携带 context_token_b"
+                "(B 盘排盘响应的 context_tokens.payload)",
+                content_hash=req.person_b_hash)
+        claims_b = verify_payload_against_chart(
+            req.context_token_b,
+            chart_hash=req.person_b_hash, chart_payload=req.chart_payload_b)
+
     try:
         result = await run_in_threadpool(compute_compatibility, req=req)
     except BaziError as e:
@@ -55,6 +88,17 @@ async def compatibility(
         )
         wrapped.request_id = request_id
         _log_and_reraise(wrapped, input_log, start)
+
+    # 模式 B:B 盘服务端现排(受信源),从结果构建 claims
+    if claims_b is None:
+        claims_b = payload_fields(result.person_b_chart.model_dump())
+
+    # 签发 compat 族 token(绑定核心字段子集;interpret/translate 验签)
+    result.context_token = issue_token(
+        content_hash=result.compatibility_hash, family="compat",
+        fields=compat_fields(
+            context=req.context, claims_a=claims_a, claims_b=claims_b,
+            assessment=result.qualitative_assessment))
 
     elapsed_ms = (time.perf_counter() - start) * 1000
     logger.info(

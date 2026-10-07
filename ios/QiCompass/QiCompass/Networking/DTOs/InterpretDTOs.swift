@@ -32,6 +32,9 @@ struct InterpretRequest: Codable, Sendable {
     let m5AssetsSummary: String?
     /// M5 财富模块必填:偏好(保守/平衡/进攻)。
     let m5Preference: String?
+    /// context_token(2026-10-07 P0 收口):排盘/合盘/每日端点签发,一刀切
+    /// 强制(免费+付费);缺 token → 后端 403 CONTEXT_TOKEN_REQUIRED。
+    let contextToken: String?
 
     enum CodingKeys: String, CodingKey {
         case contentHash = "content_hash"
@@ -45,6 +48,7 @@ struct InterpretRequest: Codable, Sendable {
         case m4CurrentConcern = "m4_current_concern"
         case m5AssetsSummary = "m5_assets_summary"
         case m5Preference = "m5_preference"
+        case contextToken = "context_token"
     }
 
     init(
@@ -59,7 +63,8 @@ struct InterpretRequest: Codable, Sendable {
         m4Age: Int? = nil,
         m4CurrentConcern: String? = nil,
         m5AssetsSummary: String? = nil,
-        m5Preference: String? = nil
+        m5Preference: String? = nil,
+        contextToken: String? = nil
     ) {
         self.contentHash = contentHash
         self.module = module
@@ -72,6 +77,7 @@ struct InterpretRequest: Codable, Sendable {
         self.m4CurrentConcern = m4CurrentConcern
         self.m5AssetsSummary = m5AssetsSummary
         self.m5Preference = m5Preference
+        self.contextToken = contextToken
     }
 
     init(from decoder: Decoder) throws {
@@ -99,6 +105,7 @@ struct InterpretRequest: Codable, Sendable {
         m4CurrentConcern = try container.decodeIfPresent(String.self, forKey: .m4CurrentConcern)
         m5AssetsSummary = try container.decodeIfPresent(String.self, forKey: .m5AssetsSummary)
         m5Preference = try container.decodeIfPresent(String.self, forKey: .m5Preference)
+        contextToken = try container.decodeIfPresent(String.self, forKey: .contextToken)
     }
 
     func encode(to encoder: Encoder) throws {
@@ -119,6 +126,7 @@ struct InterpretRequest: Codable, Sendable {
         try container.encodeIfPresent(m4CurrentConcern, forKey: .m4CurrentConcern)
         try container.encodeIfPresent(m5AssetsSummary, forKey: .m5AssetsSummary)
         try container.encodeIfPresent(m5Preference, forKey: .m5Preference)
+        try container.encodeIfPresent(contextToken, forKey: .contextToken)
     }
 
     private static func formatTargetDate(_ date: Date) -> String {

@@ -299,6 +299,10 @@ class BaziCalculateResponse(BaseModel):
 
     calc_rule_snapshot: CalcRuleSnapshot
     boundary_warning: str | None = None
+    # 2026-10-07 P0 收口:deep / payload(/v1 可用时有)三族 context_token,
+    # interpret/translate 验签用(老客户端 decodeIfPresent 缺省 None → 403,
+    # 重排盘即可重取,无孤儿化)
+    context_tokens: dict[str, str] | None = None
 
 
 # ---------- Error ----------
