@@ -170,6 +170,14 @@ final class DeepAnalysisViewModel {
     /// v1 链式调用 Task(用户重新触发或 reset 时取消)。
     private var v1ChainTask: Task<Void, Never>?
 
+    /// 翻译链 Task(2026-10-07 第五轮 review 补,与 v1ChainTask 对称持有)。
+    /// 世代号守卫已拦旧链的状态写入,持有引用的净收益 = 换盘/reset 时能立刻
+    /// `cancel()` 在飞翻译请求(协作取消让 URLSession 尽早断开、runSingleV1Module
+    /// 提前短路),而非等它在下一个模块边界撞世代守卫自弃。cancel 后链内
+    /// CancellationError / 世代失配的既有分诊语义不变(.interrupted 由 defer
+    /// 按世代落账)。
+    private var translationChainTask: Task<Void, Never>?
+
     /// v1 链是否在跑(2026-09-08 断点续跑:主页进度横幅 / CTA loading / resume 防重消费)。
     /// 注意 `v1ChainTask != nil` 不能当活跃判据(Task 结束后属性仍非 nil),
     /// 由 `runV1Chain` 的 defer 按世代号复位。
@@ -624,6 +632,7 @@ final class DeepAnalysisViewModel {
             // await 中,只清标志不推进世代的话,旧链尾部 defer 会把新链刚置位的
             // 标志再清掉(见 translationGeneration 注释)。
             translationGeneration &+= 1
+            translationChainTask?.cancel()
             isTranslatingChain = false
             autoTranslationState = nil
             // #7(2026-10-02):M4/M5 用户输入也属旧盘——残留会让新盘沿用旧盘
@@ -1329,7 +1338,10 @@ final class DeepAnalysisViewModel {
         AppLogger.app.info(
             "deepVM.acceptTranslation source=\(offer.sourceLanguage, privacy: .public) modules=\(self.crossLanguageRows.keys.map(\.rawValue).sorted().joined(separator: ","), privacy: .public)"
         )
-        Task { @MainActor [weak self] in
+        // isTranslatingChain 幂等守卫已挡并发链,再 cancel 属防御位(镜像
+        // interpretTask?.cancel() 模式),代价为零。
+        translationChainTask?.cancel()
+        translationChainTask = Task { @MainActor [weak self] in
             await self?.runTranslationChain(
                 response: response,
                 sourceLanguage: offer.sourceLanguage,
@@ -1664,9 +1676,15 @@ final class DeepAnalysisViewModel {
     /// 已达后端、模型已在生成(服务端 LLM 成本已发生)——归 .interrupted 会
     /// 让每次重进页面都自动重试(hydrate 路径不消耗 offlineRetryUsed 额度),
     /// 模型调用费无上限。超时按真失败走 .failed + 手动重试。
+    /// .networkConnectionLost 同口径排除(2026-10-07 第五轮 review 补):
+    /// 连接建立后中断,请求同样可能已送达后端、成本可能已发生——与 .timedOut
+    /// 同属「可能已送达」族,不享受离线自动重试。
     private static func isOfflineTranslationError(_ error: Error) -> Bool {
         if case .networkError(let urlError)? = error as? APIError {
-            guard urlError.code != .timedOut else { return false }
+            guard urlError.code != .timedOut,
+                  urlError.code != .networkConnectionLost else {
+                return false
+            }
             return UserFacingError.isOffline(urlError)
         }
         return false
@@ -1794,6 +1812,7 @@ final class DeepAnalysisViewModel {
         // 同步清标志 + 推进世代(同 loadArchivedChart 换盘守卫;旧链 defer 按世代
         // 失配自弃,不再覆写新链标志)。
         translationGeneration &+= 1
+        translationChainTask?.cancel()
         isTranslatingChain = false
         // L3/F1:回表单态清自动翻译展示态(提示条/章首小注随页面退场)
         autoTranslationState = nil

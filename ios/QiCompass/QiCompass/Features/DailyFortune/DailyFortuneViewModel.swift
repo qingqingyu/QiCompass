@@ -110,13 +110,15 @@ final class DailyFortuneViewModel {
     /// 当前展示用的 chartPayload(在阶段 1 后缓存,阶段 2 复用)
     private var cachedChartPayload: ChartPayloadDTO?
 
-    /// 管线世代号(2026-10-07 review 修复):每次 runFullPipeline 入口推进。
-    /// L5 门控探针(`hasCrossLanguageDailySource`)在 `state = .ready` 之后引入
-    /// 了挂起点——`refresh()` 直接 await runFullPipeline(不被 `load()` 的
-    /// determinantTask?.cancel() 管辖),探针窗口内换盘会推进新管线;旧管线
-    /// 复活后凭局部 interpretState == .idle 触发 generateInterpretation(旧
-    /// chartHash × 当前 .ready 的**新盘** response/payload)→ 跨盘内容静默写
-    /// 进旧盘 24h 缓存键。世代失配即自弃,镜像 deep VM translationGeneration。
+    /// 管线世代号(2026-10-07 review 修复;同日第五轮 review 收口到全部尾部):
+    /// 每次 runFullPipeline 入口推进。`refresh()` 直接 await runFullPipeline
+    /// (不被 `load()` 的 determinantTask?.cancel() 管辖),runDeterministic /
+    /// cachedInterpretationIfFresh / L5 探针任一挂起窗口内换盘或重拉都会推进
+    /// 世代;旧管线复活后的**一切**尾部写入(state = .ready、自动解读触发、
+    /// 离线兜底、chartMissing)都不得落在新管线之上——否则旧盘 response 覆盖
+    /// 新盘展示,或自动解读读当前 .ready 后把「旧 chartHash × 新盘
+    /// response/payload」的跨盘内容静默写进旧盘 24h 缓存键。世代失配即自弃,
+    /// 镜像 deep VM translationGeneration。
     private var pipelineGeneration = 0
 
     /// S6 信号注释判据:喜忌是否可用(时辰未知/从格 → 后端喜忌双空)。
@@ -471,55 +473,72 @@ final class DailyFortuneViewModel {
                 interpretState = .failed(message: L10n.DailyFortune.interpretCacheReadFailed)
             }
 
-            if !Task.isCancelled {
-                state = .ready(response, interpretState, businessDate)
-                // 自动解读(2026-09-07 用户拍板「一上来就直接解析,不要点一下」):
-                // 缓存未命中(.idle)且当日次数未耗尽 → 自动触发 AI 阶段。
-                // 离线兜底路径不走 runFullPipeline 成功分支,不会无网空转;
-                // 次数耗尽保持 .idle(UI 按 remainingReads 渲染达限卡);
-                // 缓存读取失败(.failed)不自动重试,留手动入口。
-                // 跨业务日守卫:管线跨过子时换日边界才完成时(如 22:59 发起、
-                // 23:00 后落地),不为已被换日的旧 businessDate 自动消耗配额
-                // (历史回看 UI 已拔除,旧日解读无人可见=纯浪费)。判据与
-                // checkBusinessDateChanged 同源;tick 随即触发整页重载+新日自动解读。
-                let isBusinessDateStillCurrent = Calendar.current.isDate(
-                    BusinessDateCalculator.businessDate(now: .now, ziHourRule: ziHourRule),
-                    inSameDayAs: businessDate
+            // 世代号守卫(2026-10-07 第五轮 review 修复,原守卫只盖 L5 探针分支):
+            // runDeterministic / cachedInterpretationIfFresh 的 await 窗口内,
+            // refresh(不经 determinantTask 取消)或换盘 load 会推进世代并让新
+            // 管线接管——本管线属旧世代时,后续一切尾部写入(state = .ready /
+            // 自动解读触发 / 离线兜底)都属旧盘收尾:轻则旧盘 response 覆盖新盘
+            // 展示,重则自动解读读当前 .ready 后把「旧 chartHash × 新盘
+            // response/payload」的跨盘内容静默写进旧盘 24h 缓存键(见
+            // pipelineGeneration 属性注释)。世代失配即整体自弃,镜像 deep VM
+            // translationGeneration 的链入口守卫形态。
+            guard !Task.isCancelled, pipelineGeneration == generation else {
+                AppLogger.app.warning(
+                    "daily.runFullPipeline.stale_generation hash=\(chartHash, privacy: .public) gen=\(generation, privacy: .public) current=\(self.pipelineGeneration, privacy: .public) — 旧管线尾部整体自弃"
                 )
-                // L5(2026-10-07 review 修复):次数耗尽但存在可翻译的跨语言源 →
-                // 仍自动触发(翻译不耗次数,守住「换语言当天也有解读」拍板;
-                // 此前 remainingReads > 0 一刀切,耗尽 + 切语言 = 当天无解读,
-                // L5/F3 的承诺被本门槛挡死)。无源则维持原门槛:不发起注定
-                // dailyLimitReached 的空调用,避免每次进页闪一段 fetching 转圈。
-                var canAutoTrigger = remainingReads > 0
-                if !canAutoTrigger {
-                    canAutoTrigger = await orchestrator.hasCrossLanguageDailySource(
-                        chartHash: chartHash, targetDate: businessDate
+                return
+            }
+            state = .ready(response, interpretState, businessDate)
+            // 自动解读(2026-09-07 用户拍板「一上来就直接解析,不要点一下」):
+            // 缓存未命中(.idle)且当日次数未耗尽 → 自动触发 AI 阶段。
+            // 离线兜底路径不走 runFullPipeline 成功分支,不会无网空转;
+            // 次数耗尽保持 .idle(UI 按 remainingReads 渲染达限卡);
+            // 缓存读取失败(.failed)不自动重试,留手动入口。
+            // 跨业务日守卫:管线跨过子时换日边界才完成时(如 22:59 发起、
+            // 23:00 后落地),不为已被换日的旧 businessDate 自动消耗配额
+            // (历史回看 UI 已拔除,旧日解读无人可见=纯浪费)。判据与
+            // checkBusinessDateChanged 同源;tick 随即触发整页重载+新日自动解读。
+            let isBusinessDateStillCurrent = Calendar.current.isDate(
+                BusinessDateCalculator.businessDate(now: .now, ziHourRule: ziHourRule),
+                inSameDayAs: businessDate
+            )
+            // L5(2026-10-07 review 修复):次数耗尽但存在可翻译的跨语言源 →
+            // 仍自动触发(翻译不耗次数,守住「换语言当天也有解读」拍板;
+            // 此前 remainingReads > 0 一刀切,耗尽 + 切语言 = 当天无解读,
+            // L5/F3 的承诺被本门槛挡死)。无源则维持原门槛:不发起注定
+            // dailyLimitReached 的空调用,避免每次进页闪一段 fetching 转圈。
+            var canAutoTrigger = remainingReads > 0
+            if !canAutoTrigger {
+                canAutoTrigger = await orchestrator.hasCrossLanguageDailySource(
+                    chartHash: chartHash, targetDate: businessDate
+                )
+                // 探针挂起窗口内世代可能又推进(上方守卫与这里之间唯一的
+                // await)——旧管线不得再触发自动解读。
+                guard pipelineGeneration == generation else {
+                    let currentGeneration = self.pipelineGeneration
+                    AppLogger.app.warning(
+                        "daily.runFullPipeline.stale_generation_tail hash=\(chartHash, privacy: .public) gen=\(generation, privacy: .public) current=\(currentGeneration, privacy: .public) — 旧管线尾部自弃,不自动触发"
                     )
-                    // 探针挂起窗口内新管线可能已接管(refresh 不经
-                    // determinantTask 取消;换盘走 load 新管线)——本管线属旧
-                    // 世代时不得再触发:generateInterpretation 读当前 .ready,
-                    // 旧 chartHash × 新盘 response/payload 会把跨盘内容静默写
-                    // 进旧盘 24h 缓存键。
-                    guard pipelineGeneration == generation else {
-                        let currentGeneration = self.pipelineGeneration
-                        AppLogger.app.warning(
-                            "daily.runFullPipeline.stale_generation_tail hash=\(chartHash, privacy: .public) gen=\(generation, privacy: .public) current=\(currentGeneration, privacy: .public) — 旧管线尾部自弃,不自动触发"
-                        )
-                        return
-                    }
+                    return
                 }
-                if !Task.isCancelled, case .idle = interpretState, canAutoTrigger, isBusinessDateStillCurrent {
-                    generateInterpretation(currentChartHash: chartHash, trigger: .automatic)
-                }
+            }
+            if case .idle = interpretState, canAutoTrigger, isBusinessDateStillCurrent {
+                generateInterpretation(currentChartHash: chartHash, trigger: .automatic)
             }
         } catch let error as DailyFortuneError where error == .chartMissing {
-            if !Task.isCancelled {
-                state = .chartMissing
-            }
+            guard !Task.isCancelled, pipelineGeneration == generation else { return }
+            state = .chartMissing
         } catch is CancellationError {
             return
         } catch {
+            // 世代失配的旧管线不进离线兜底:兜底尾部同样写 state(旧盘缓存
+            // 内容覆盖新盘展示),与成功分支同弃。
+            guard pipelineGeneration == generation else {
+                AppLogger.app.warning(
+                    "daily.runFullPipeline.stale_generation_catch hash=\(chartHash, privacy: .public) gen=\(generation, privacy: .public) current=\(self.pipelineGeneration, privacy: .public) — 旧管线异常收尾自弃"
+                )
+                return
+            }
             await handleNetworkFailureFallback(
                 error: error, chartHash: chartHash, businessDate: businessDate
             )

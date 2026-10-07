@@ -1937,7 +1937,10 @@ final class CompatibilityViewModel {
         }
         return CompatPromptInputs(
             baziA: baziA, baziB: baziB, chartA: chartA, chartB: chartB,
-            nameA: L10n.Compatibility.selfReferenceYou, nameB: nameB
+            // nameA 用 prompt 侧变体(小写 you,2026-10-07 第五轮 review 拆分):
+            // 生成与翻译共用本入口(user_input 维度单一事实源),UI 牌签仍走
+            // selfReferenceYou("You")。见 L10n 注释。
+            nameA: L10n.Compatibility.selfReferenceYouPrompt, nameB: nameB
         )
     }
 

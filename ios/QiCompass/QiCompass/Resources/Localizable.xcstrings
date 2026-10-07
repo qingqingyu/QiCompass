@@ -8099,6 +8099,29 @@
         }
       }
     },
+    "hepan.names.selfPrompt" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "you"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你"
+          }
+        }
+      }
+    },
     "hepan.partner.addPartner" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13262,7 +13285,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "地支合衝"
+            "value" : "地支合沖"
           }
         }
       }

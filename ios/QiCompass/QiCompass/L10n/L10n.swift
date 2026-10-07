@@ -645,11 +645,20 @@ enum L10n {
         /// zh: "你的流年";en: "Your year"
         static let syncedYourYear = String(localized: "hepan.synced.yourYear")
 
-        /// A 盘(命主本人)在合盘全文与 UI 中的称呼(2026-09-27:用户拍板 A 恒用「你」,
-        /// 而非命主 alias)。2026-10-07 头部人物牌「我/Me」并入本称呼——全文统一
+        /// A 盘(命主本人)在合盘 UI 牌签中的称呼(2026-09-27:用户拍板 A 恒用「你」,
+        /// 而非命主 alias)。2026-10-07 头部人物牌「我/Me」并入本称呼——UI 全文统一
         /// 「你/You」,不再 Me/you 两种叫法。
         /// zh: "你";en: "You"
         static let selfReferenceYou = String(localized: "hepan.names.self")
+
+        /// A 盘称呼的 **prompt 侧**专用变体(2026-10-07 第五轮 review 拆分):
+        /// UI 牌签要大写 "You"(独立 chip,句首形态),但同一字符串进 prompt 的
+        /// `name_a` 后,LLM 会把 "You" 当人名通篇复述进句中(英文散文中位应小写);
+        /// 且后端缓存键含渲染 prompt 的 sha256(prompt_hash),大写使全部 en 合盘
+        /// 缓存键失效重烧。prompt 侧恒小写 "you"(zh 不变 → 中文缓存键不动,
+        /// en 恢复 2026-10-07 之前的 prompt_hash,旧 en 缓存复活)。
+        /// zh: "你";en: "you"
+        static let selfReferenceYouPrompt = String(localized: "hepan.names.selfPrompt")
 
         /// 列头「同步」。
         /// zh: "同步";en: "Sync"

@@ -607,6 +607,74 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
             "STALE 降级生成必须豁免次数(R1:语言切换引起,非用户过错)"
         )
     }
+
+    // MARK: - 世代号守卫(2026-10-07 第五轮 review):旧管线尾部整体自弃
+
+    /// refresh(A) 挂在 runDeterministic 网络窗内 → 换盘 load(B) 完成接管并
+    /// 解读成功 → 放行 A:A 的旧管线尾部(state = .ready(A) + 自动解读触发)
+    /// 必须按世代失配整体自弃。修复前守卫只盖 L5 探针分支:A 复活会
+    /// (1)用 A 的 response 覆盖 B 的展示;(2)凭局部 .idle 自动触发解读
+    /// (interpret 第 2 次),而此时 cachedChartPayload 已是 B 的 payload →
+    /// 「A 的 chartHash × B 的 payload」跨盘内容写进 A 的 24h 缓存键。
+    func test旧管线网络窗内换盘_尾部不得覆盖新盘也不得自动解读() async throws {
+        try seedChart(hash: "gen_stale_a")
+        try seedChart(hash: "gen_stale_b")
+        // 两盘响应可区分(A=甲子日 / B=丁丑日)
+        await api.setDailyResponse(Self.makeDailyResponse(dayPillar: "甲子"), for: "gen_stale_a")
+        await api.setDailyResponse(Self.makeDailyResponse(dayPillar: "丁丑"), for: "gen_stale_b")
+        await api.holdDailyFortune(for: "gen_stale_a")
+
+        // A 的 refresh 挂在 dailyFortune 网络窗内(refresh 不经 determinantTask 取消)
+        let refreshTask = Task { await vm.refresh(currentChartHash: "gen_stale_a", ziHourRule: "zi_next_day") }
+        let held = await waitFor { await self.api.isDailyHeld("gen_stale_a") }
+        XCTAssertTrue(held, "A 管线应挂起在 dailyFortune 网络调用上")
+
+        // 换盘到 B:onAppear → load(B) 全链完成并自动解读
+        vm.onAppear(currentChartHash: "gen_stale_b", ziHourRule: "zi_next_day")
+        let bReady = await waitFor {
+            Self.isOkFree(self.vm.state) && Self.dayPillar(of: self.vm.state) == "丁丑"
+        }
+        XCTAssertTrue(bReady, "B 盘应完成接管并解读成功,实际:\(vm.state)")
+        let callsAfterB = await api.interpretAttempts()
+        XCTAssertEqual(callsAfterB, 1, "B 的自动解读恰好一次")
+
+        // 放行 A 的旧管线:其尾部必须整体自弃
+        await api.releaseDailyFortune(for: "gen_stale_a")
+        _ = await refreshTask.value
+        try? await Task.sleep(nanoseconds: 300_000_000)
+
+        XCTAssertEqual(
+            Self.dayPillar(of: vm.state), "丁丑",
+            "A 的旧管线不得用 A 的 response 覆盖 B 的展示,实际:\(vm.state)"
+        )
+        let calls = await api.interpretAttempts()
+        XCTAssertEqual(calls, 1, "旧管线不得再触发解读(A hash × B payload 跨盘写缓存)")
+    }
+
+    private static func makeDailyResponse(dayPillar: String) -> DailyFortuneResponse {
+        DailyFortuneResponse(
+            dayPillar: dayPillar,
+            dayRelationToDayMaster: "偏印",
+            dayChong: nil,
+            dayChongTargets: [],
+            hourPillars: [],
+            currentHourIndex: nil,
+            lunarDate: "七月初十",
+            huangliYi: ["出行"],
+            huangliJi: ["动土"],
+            tomorrowPreview: TomorrowPreviewDTO(dayPillar: "戊寅", dayRelation: "偏印", dayChong: nil),
+            calcRuleSnapshot: CalcRuleSnapshotDTO(
+                library: "lunar_python", sect: 1, ziHourRule: "zi_next_day",
+                trueSolarLongitude: 116.4, trueSolarOffsetMinutes: 0,
+                schemaVersion: 1
+            )
+        )
+    }
+
+    private static func dayPillar(of state: DailyFortuneViewState) -> String? {
+        if case .ready(let response, _, _) = state { return response.dayPillar }
+        return nil
+    }
 }
 
 // MARK: - Test Double
@@ -626,6 +694,12 @@ private actor FailingInterpretAPIClient: APIClient {
     /// L5 测试注入:非 nil 时 translate 返回该文本(合法 v4 五段 = 译文成功)。
     private var translateText: String?
     private var translateCalls = 0
+    /// 世代号测试注入(2026-10-07 第五轮 review):挂起指定盘的 dailyFortune
+    /// 直到显式放行,复现「旧管线在网络 await 中、新管线已接管」的竞态窗口;
+    /// `dailyOverrides` 按 chartHash 覆写响应,让 A/B 两盘可区分。
+    private var heldDaily: Set<String> = []
+    private var pendingDaily: [String: CheckedContinuation<Void, Never>] = [:]
+    private var dailyOverrides: [String: DailyFortuneResponse] = [:]
 
     func setInterpretFailFirst(_ n: Int) { failFirst = n }
     func setInterpretText(_ text: String) { interpretText = text }
@@ -633,6 +707,15 @@ private actor FailingInterpretAPIClient: APIClient {
     func setTranslateText(_ text: String?) { translateText = text }
     func interpretAttempts() -> Int { attempts }
     func translateAttempts() -> Int { translateCalls }
+
+    func holdDailyFortune(for hash: String) { heldDaily.insert(hash) }
+    func isDailyHeld(_ hash: String) -> Bool { pendingDaily[hash] != nil }
+    func releaseDailyFortune(for hash: String) {
+        pendingDaily.removeValue(forKey: hash)?.resume()
+    }
+    func setDailyResponse(_ response: DailyFortuneResponse, for hash: String) {
+        dailyOverrides[hash] = response
+    }
 
     func translate(request: TranslateRequest) async throws -> InterpretResponse {
         translateCalls += 1
@@ -670,7 +753,15 @@ private actor FailingInterpretAPIClient: APIClient {
     }
 
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse {
-        DailyFortuneResponse(
+        if heldDaily.remove(request.chartHash) != nil {
+            await withCheckedContinuation { (cont: CheckedContinuation<Void, Never>) in
+                pendingDaily[request.chartHash] = cont
+            }
+        }
+        if let override = dailyOverrides[request.chartHash] {
+            return override
+        }
+        return DailyFortuneResponse(
             dayPillar: "丙子",
             dayRelationToDayMaster: "偏印",
             dayChong: nil,

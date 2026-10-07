@@ -123,4 +123,59 @@ final class DailyReadCounterTests: XCTestCase {
         )
         XCTAssertEqual(reset, expectedMidnight)
     }
+
+    // MARK: - InterpretQuotaLedger(2026-10-07 第五轮 review:跨午夜退款同日)
+
+    /// 23:59 扣次、00:01 失败退款:退款必须回到扣次当日 key——修复前按
+    /// 「退款时刻」.now 计日,D 日扣的次数退进 D+1 日(D 日白扣一次,
+    /// D+1 日凭空多一次额度)。
+    func test账本_跨午夜失败退款退回扣次当日() {
+        let counter = makeCounter()
+        let cal = Calendar.autoupdatingCurrent
+        let today2359 = cal.date(
+            bySettingHour: 23, minute: 59, second: 0, of: Date()
+        )!
+        let tomorrow0001 = cal.date(byAdding: .minute, value: 2, to: today2359)!
+
+        // D 日 23:59 扣 1 次;D+1 日 00:01 前另一链又扣 1 次(链式在飞场景)
+        var ledgerA = InterpretQuotaLedger(
+            counter: counter, module: "bazi_deep", hashForLog: "h-midnight"
+        )
+        XCTAssertNoThrow(try ledgerA.consume(quotaExempt: false, logLabel: "test", date: today2359))
+        var ledgerB = InterpretQuotaLedger(
+            counter: counter, module: "bazi_deep", hashForLog: "h-midnight-b"
+        )
+        XCTAssertNoThrow(try ledgerB.consume(quotaExempt: false, logLabel: "test", date: tomorrow0001))
+
+        // A 跨午夜失败:退款时刻已是 D+1,但必须退回 D 日
+        ledgerA.refundOnFailure()
+
+        XCTAssertEqual(
+            counter.remaining(date: today2359), 10,
+            "D 日扣 1 退 1,额度必须归位(修复前退款落 D+1,D 日白扣)"
+        )
+        XCTAssertEqual(
+            counter.remaining(date: tomorrow0001), 9,
+            "D+1 日只含自己的 1 次消耗,不得被 A 的退款多送一次"
+        )
+    }
+
+    /// 命中后端缓存退款(settleCacheHit)同口径:也必须退回扣次当日。
+    func test账本_跨午夜缓存命中退款退回扣次当日() {
+        let counter = makeCounter()
+        let cal = Calendar.autoupdatingCurrent
+        let today2359 = cal.date(
+            bySettingHour: 23, minute: 59, second: 0, of: Date()
+        )!
+        let tomorrow0001 = cal.date(byAdding: .minute, value: 2, to: today2359)!
+
+        var ledger = InterpretQuotaLedger(
+            counter: counter, module: "daily_fortune", hashForLog: "h-midnight-cache"
+        )
+        XCTAssertNoThrow(try ledger.consume(quotaExempt: false, logLabel: "test", date: today2359))
+        ledger.settleCacheHit(cached: true)  // 跨午夜后才返回 cached=true
+
+        XCTAssertEqual(counter.remaining(date: today2359), 10)
+        XCTAssertEqual(counter.remaining(date: tomorrow0001), 10)
+    }
 }
