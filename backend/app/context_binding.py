@@ -108,6 +108,9 @@ def verify_token(
     # 等)直接判非法——`body.encode("ascii")` 会抛 UnicodeEncodeError、
     # `hmac.compare_digest` 遇非 ASCII str 会抛 TypeError,二者都不该让
     # 畸形 token 打出 500(2026-10-07 review 实测复现,须回 403)。
+    # 注:与 main 3f9e343 的 utf-8 方案合并时取本实现——main 版只把 body
+    # 改 utf-8,sig 仍走 str 比较,非 ASCII sig 会让 compare_digest 抛
+    # TypeError 仍回 500;本实现 body/sig 均显式 ascii 收口 403。
     try:
         body_bytes = body.encode("ascii")
         sig_bytes = sig.encode("ascii")

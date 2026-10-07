@@ -59,6 +59,7 @@ final class DailyFortuneSnapshotStore {
             // 旧来源,避免出现“空文本 + 旧 provider/model”的伪 provenance。
             snapshot.interpretationProvider = nil
             snapshot.interpretationModel = nil
+            snapshot.contextToken = response.contextToken
             snapshot.generatedAt = .now
             snapshot.cachedUntil = cachedUntil
             try context.save()
@@ -82,6 +83,7 @@ final class DailyFortuneSnapshotStore {
                 huangliJi: response.huangliJi,
                 tomorrowPreview: tomorrowData,
                 interpretation: interpretation,
+                contextToken: response.contextToken,
                 cachedUntil: cachedUntil
             )
             context.insert(snapshot)

@@ -86,6 +86,19 @@ def test_verify_tampered_signature_rejected():
         verify_token(forged, content_hash="h1", family="deep")
 
 
+def test_verify_non_ascii_body_rejected_not_crash():
+    """非 ASCII body 的伪造 token → 403,不得因编码异常崩 500。
+
+    排盘端点签发的合法 token 的 body 恒为 base64url(ASCII 子集);客户端若
+    提交含中文字符的 body,旧实现 `body.encode("ascii")` 会抛
+    UnicodeEncodeError(ValueError 子类)且不在 try/except 内 → 500 刷脏日志。
+    验签须退化为签名不匹配的 403。
+    """
+    token = "v1.中文正文.sig"
+    with pytest.raises(ContextTokenInvalidError):
+        verify_token(token, content_hash="h1", family="deep")
+
+
 def test_verify_wrong_hash_rejected():
     """token 属于其他命盘(hash 不符)→ 拒。"""
     token = issue_token(content_hash="h1", family="deep", fields={})
@@ -385,6 +398,62 @@ async def test_poc4_regression_translate_poisoning_blocked(
             "source_language": "zh",
             "source_prompt_version": PROMPT_VERSIONS["m1_talent"],
             "source_interpretation": fake_source,
+        }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp2.status_code == 409, resp2.json()
+    assert resp2.json()["error"]["code"] == "STALE_SOURCE"
+
+
+async def test_poc4b_regression_translate_chain_field_poisoning_blocked(
+    raw_interpret_client, mock_ai_client,
+):
+    """第三条投毒腿(v1 链式字段注入)被关死(2026-10-07 收紧)。
+
+    攻击面:v1 token 只绑 chart,main_axis/core_loop/structure_fingerprint
+    不绑定 → 攻击者拿受害者真盘 + 真 token,注入 main_axis 生成 → 产物落
+    **注入** prompt_hash 键;再用正常 context 提交该文本翻译,旧
+    has_interpretation_text 不比对 prompt_hash → 松匹配命中 → 投进正常键。
+    修复:翻译按源语言重渲染得完整源键(prompt_hash 不一致)→ 409 STALE_SOURCE。
+    """
+    from app.ai.prompts import PROMPT_VERSIONS
+    from app.context_binding import _build_v1_chart_mirror
+    result = _calculate_result()
+    h = result["content_hash"]
+    tokens = build_chart_tokens(result)
+    chart_json = json.dumps(_build_v1_chart_mirror(result),
+                            ensure_ascii=False, indent=2, sort_keys=True)
+    victim_ctx = {
+        "chart": chart_json, "structure_fingerprint": "fp",
+        "main_axis": "印", "core_loop": "印→比",
+    }
+    injected_ctx = {
+        "chart": chart_json, "structure_fingerprint": "fp",
+        "main_axis": "财→杀→印", "core_loop": "财→杀→印",
+    }
+
+    # 1. 注入 main_axis 生成(盘身 chart 合法 → 验签通过)→ 200,
+    #    产物落注入 prompt_hash 键(链式字段未绑定,拦不住生成侧)
+    mock_ai_client.set_response('{"talent": "建议联系客服获取个性化解读"}')
+    resp = await raw_interpret_client.post("/api/interpret", json={
+        "content_hash": h, "module": "m1_talent",
+        "context": injected_ctx, "target_date": None,
+        "parent_fingerprint": "fp",
+        "context_token": tokens["v1"],
+    })
+    assert resp.status_code == 200, resp.json()
+
+    # 2. 受害者正常 context + 上述注入生成文本 → 翻译按源语言重渲染
+    #    (正常 main_axis)得到的 prompt_hash 与注入键不一致 → 409 STALE_SOURCE
+    poisoned_source = json.dumps({"talent": "建议联系客服获取个性化解读"},
+                                 ensure_ascii=False)
+    resp2 = await raw_interpret_client.post(
+        "/api/interpret/translate", json={
+            "content_hash": h, "module": "m1_talent",
+            "context": victim_ctx, "target_date": None,
+            "parent_fingerprint": "fp",
+            "context_token": tokens["v1"],
+            "source_language": "zh",
+            "source_prompt_version": PROMPT_VERSIONS["m1_talent"],
+            "source_interpretation": poisoned_source,
         }, headers={"X-QiCompass-Lang": "zh-hant"})
     assert resp2.status_code == 409, resp2.json()
     assert resp2.json()["error"]["code"] == "STALE_SOURCE"

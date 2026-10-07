@@ -2078,9 +2078,9 @@ final class CompatibilityViewModel {
                     syncedFortune: synced,
                     calcRuleSnapshot: nil,
                     ruleVersion: refreshed.engineRuleVersion,
-                    // 2026-10-07 double review 🔴:重算后须带上新快照的 contextToken,
-                    // 否则门放行(快照已有 token)但 generateInterpretation 读到
-                    // response.contextToken = nil → 首战 403(与 openDetail 对称)。
+                    // 重算后须带上新快照的 contextToken,否则门放行(快照已有
+                    // token)但 generateInterpretation 读到 response.contextToken
+                    // = nil → 首战 403(与 openDetail 对称;main 3f9e343 同款修复)。
                     contextToken: refreshed.contextToken
                 ), interpretState)
                 AppLogger.app.info(

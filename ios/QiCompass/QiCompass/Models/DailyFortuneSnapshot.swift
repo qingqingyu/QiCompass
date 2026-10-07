@@ -37,6 +37,10 @@ final class DailyFortuneSnapshot {
     // 视为 zh,与 InterpretationCache 同口径)。离线兜底展示时语言不一致
     // 加小注「离线 · 显示的是××版本」——离线没有更好的选择,如实标注。
     var interpretationLanguage: String?
+    // daily 族 context_token(2026-10-07 P0 收口):interpret 验签必需。
+    // Optional + nil 默认——SwiftData 轻量迁移,老快照缺列解码为 nil,
+    // 重建 response 时 token 缺失 → interpret 请求 403(需重新排盘恢复)。
+    var contextToken: String?
     var generatedAt: Date
     var cachedUntil: Date
 
@@ -60,6 +64,7 @@ final class DailyFortuneSnapshot {
         interpretationProvider: String? = nil,
         interpretationModel: String? = nil,
         interpretationLanguage: String? = nil,
+        contextToken: String? = nil,
         generatedAt: Date = .now,
         cachedUntil: Date
     ) {
@@ -82,6 +87,7 @@ final class DailyFortuneSnapshot {
         self.interpretationProvider = interpretationProvider
         self.interpretationModel = interpretationModel
         self.interpretationLanguage = interpretationLanguage
+        self.contextToken = contextToken
         self.generatedAt = generatedAt
         self.cachedUntil = cachedUntil
     }

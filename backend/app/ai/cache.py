@@ -200,6 +200,48 @@ class InterpretationCache:
             ).fetchone()
         return row is not None
 
+    def has_interpretation_exact(
+        self, content_hash: str, module: str, prompt_version: int,
+        language: str, interpretation: str,
+        prompt_hash: str, parent_hash: str, user_input_hash: str,
+        target_date: str | None = None,
+    ) -> bool:
+        """翻译防伪收紧版(2026-10-07):按**完整源缓存键**核验原文。
+
+        与 has_interpretation_text 的差别:额外匹配 prompt_hash / parent_hash /
+        user_input_hash——这三维由源 context(含链式字段 main_axis / core_loop /
+        structure_fingerprint)与 parent_fingerprint / M4-M5 用户输入派生,
+        是「攻击者用真盘 + 未绑定链式字段注入生成 → 落在注入键 → 翻译投进
+        正常键」通道的关死点。排除 provider / model(服务端配置,非攻击面,
+        且防 provider 漂移误杀合法翻译)。
+
+        Args:
+            content_hash / module / prompt_version / language / interpretation:
+                同 has_interpretation_text(逐字相等)
+            prompt_hash / parent_hash / user_input_hash:源语言重渲染后的缓存
+                键维度(路由层经 _prepare_prompt_and_key(req, source_language)
+                算出,与原文生成时逐字段一致)
+            target_date:ISO 日期串;daily_fortune 必传,其他 module 传 None
+
+        Returns:
+            True = 完整源键下存在逐字一致的行;False = 不存在
+
+        Raises:
+            sqlite3.Error: 读失败(不吞,向上抛,路由层转 500)
+        """
+        td = target_date or ""
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT 1 FROM interpretation_cache "
+                "WHERE content_hash=? AND module=? AND prompt_version=? "
+                "AND target_date=? AND language=? AND prompt_hash=? "
+                "AND parent_hash=? AND user_input_hash=? AND interpretation=? "
+                "LIMIT 1",
+                (content_hash, module, prompt_version, td, language,
+                 prompt_hash, parent_hash, user_input_hash, interpretation),
+            ).fetchone()
+        return row is not None
+
     def delete(self, key: CacheKey) -> None:
         """删除缓存行(用于清理被禁词污染的坏缓存)。
 
