@@ -226,17 +226,19 @@ final class CachedInterpretationReader {
         hits.values.map(\.promptVersion).max() ?? 0
     }
 
-    /// 跨语言探测(模块优先版,2026-10-02 修复):按 `modules` 顺序在
-    /// 「其它语言」里逐模块探测,先命中先返回。
+    /// 跨语言探测(模块优先版,2026-10-02 修复;2026-10-07 第五轮 review 补
+    /// 版本裁决):按 `modules` 顺序在「其它语言」里逐模块探测,同 module
+    /// 命中多语言时**版本高者优先,平手保 `allCases` 语言序**(确定性)。
     ///
-    /// 与逐模块调 `readAllCrossLanguage` 的结果逐例相等(单模块探测下
-    /// 「命中模块数最多」退化为首个命中语言,语言序同为 `allCases` 序),
-    /// 但 **identity 只 resolve 一次**:合盘 cross-language 查询若逐模块
-    /// 调 `readAllCrossLanguage`,每次内部又逐语言调 `readAll`——每次
-    /// resolve 都是一次 `/api/health` 往返,一次 detail 打开最多 5 次;
-    /// 收敛到 1 次后行为不变(同批共享 resolve 不违反 ADR-0009,见
-    /// `readAll` 注释)。行读取走共享 `latestHit`(与 `readAll` 同一套
-    /// getLatest/自愈/新鲜度口径)。
+    /// 与逐模块调 `readAllCrossLanguage` 行为对齐(Bug4 平手裁决同款,合盘
+    /// 双键单模块场景即其等价形态):修复前先命中先返回,PROMPT_VERSIONS
+    /// bump 后旧版源(如 zh v1 行)会压过另一语言的有效行(v4)→ 翻译必
+    /// 409 STALE_SOURCE 落穿重生成,本可翻译保结论的源被掩蔽,切语言内容
+    /// 漂移。identity 只 resolve 一次(合盘 cross-language 查询若逐模块调
+    /// `readAllCrossLanguage`,每次内部又逐语言调 `readAll`——每次 resolve
+    /// 都是一次 `/api/health` 往返,一次 detail 打开最多 5 次;同批共享
+    /// resolve 不违反 ADR-0009,见 `readAll` 注释)。行读取走共享
+    /// `latestHit`(与 `readAll` 同一套 getLatest/自愈/新鲜度口径)。
     ///
     /// - Returns:命中的 module 名 + 语言 + 缓存行;全部 miss → nil
     /// - Throws:identity 解析失败或 SwiftData 读失败向上抛
@@ -251,6 +253,7 @@ final class CachedInterpretationReader {
             .map(\.rawValue)
             .filter { $0 != AppLanguage.currentWire }
         for module in modules {
+            var best: (language: String, row: InterpretationCache)?
             for language in otherLanguages {
                 guard let cache = try latestHit(
                     contentHash: contentHash,
@@ -260,7 +263,16 @@ final class CachedInterpretationReader {
                     maxAge: maxAge,
                     identity: identity
                 ) else { continue }
-                return (module, language, cache)
+                // 版本高者胜出;平手(<=)保先到的语言序,与 readAllCrossLanguage
+                // 的 Bug4 裁决同款
+                if let current = best,
+                   cache.promptVersion <= current.row.promptVersion {
+                    continue
+                }
+                best = (language, cache)
+            }
+            if let best {
+                return (module, best.language, best.row)
             }
         }
         return nil

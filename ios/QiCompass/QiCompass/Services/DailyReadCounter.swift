@@ -161,6 +161,12 @@ struct InterpretQuotaLedger {
     private let hashForLog: String
     private var consumed = false
     private var refunded = false
+    /// 扣次时刻快照(2026-10-07 第五轮 review 修复):counter 的日期 key 按
+    /// 调用时刻 `.now` 计算——退款若也用「退款时刻」,跨午夜失败会把 D 日
+    /// 扣的次数退到 D+1 日(23:59 扣、00:01 失败:D 日白扣一次,D+1 日凭空
+    /// 多一次额度;链式多模块跨午夜在飞时真实可触)。退款必须回扣次同日,
+    /// 故在 consume 成功处快照,与 consumed 同步置位。
+    private var consumedDate: Date?
 
     init(counter: DailyReadCounter, module: String, hashForLog: String) {
         self.counter = counter
@@ -168,7 +174,9 @@ struct InterpretQuotaLedger {
         self.hashForLog = hashForLog
     }
 
-    mutating func consume(quotaExempt: Bool, logLabel: String) throws {
+    mutating func consume(
+        quotaExempt: Bool, logLabel: String, date: Date = .now
+    ) throws {
         // OSLogMessage 插值是 escaping autoclosure,mutating 方法内捕获 self
         // 会编译失败——先把属性拷进局部变量再进插值。
         let hash = hashForLog
@@ -179,7 +187,7 @@ struct InterpretQuotaLedger {
             )
             return
         }
-        guard counter.tryConsume(module: moduleKey) else {
+        guard counter.tryConsume(module: moduleKey, date: date) else {
             let nextReset = counter.nextResetDate()
             AppLogger.app.warning(
                 "\(logLabel, privacy: .public).daily_limit_reached hash=\(hash, privacy: .public) module=\(moduleKey, privacy: .public) nextReset=\(nextReset.description, privacy: .public)"
@@ -189,17 +197,32 @@ struct InterpretQuotaLedger {
         // 达限抛出时不得置位(未消费却标已消费,后续 refundOnFailure 会白送
         // 配额)——只在 tryConsume 真正成功后才记账。
         consumed = true
+        consumedDate = date
     }
 
     mutating func settleCacheHit(cached: Bool) {
         guard cached, consumed, !refunded else { return }
-        counter.refund(module: module)
-        refunded = true
+        refundConsumed()
     }
 
     mutating func refundOnFailure() {
         guard consumed, !refunded else { return }
-        counter.refund(module: module)
+        refundConsumed()
+    }
+
+    /// 退款落账(两出口统一):日期用扣次时刻快照,跨午夜失败不串日。
+    /// consumedDate 与 consumed 在 consume 成功处同步置位,结构上不会缺失;
+    /// 防御位显式留痕而非拿 .now 掩盖(那是本修复要消灭的行为)。
+    private mutating func refundConsumed() {
+        // 同 consume:mutating 方法内 OSLog 插值不能捕获 self,先拷局部变量。
+        let moduleKey = module
+        guard let date = consumedDate else {
+            AppLogger.app.error(
+                "op=interpretQuotaLedger.consume_date_missing module=\(moduleKey, privacy: .public) — 退款跳过(结构不变量违反,人工排查)"
+            )
+            return
+        }
+        counter.refund(module: moduleKey, date: date)
         refunded = true
     }
 }

@@ -29,6 +29,8 @@ final class CompatibilitySnapshotStore {
     /// upsert 定性评估结果(无 AI 文本,由 AI 阶段单独写入)。
     /// 主 key = `response.compatibilityHash`(后端已规范化)。
     /// personAHash / personBHash 按调用方传入的 UI 顺序记录(展示用)。
+    /// engineRuleVersion 随 response 落列(2026-10-07):老快照 nil/旧版本 →
+    /// 预查与 openDetail 判失配走重算。
     func upsertQualitative(
         response: CompatibilityResponse,
         personAHash: String,
@@ -51,6 +53,7 @@ final class CompatibilitySnapshotStore {
             snapshot.context = context
             snapshot.qualitativeAssessment = assessmentData
             snapshot.syncedFortune = syncedData
+            snapshot.engineRuleVersion = response.ruleVersion
             try self.context.save()
             AppLogger.persistence.info(
                 "op=compatibilitySnapshot.upsert hash=\(hash, privacy: .public) result=updated"
@@ -64,7 +67,8 @@ final class CompatibilitySnapshotStore {
                 context: context,
                 qualitativeAssessment: assessmentData,
                 syncedFortune: syncedData,
-                interpretation: nil
+                interpretation: nil,
+                engineRuleVersion: response.ruleVersion
             )
             self.context.insert(snapshot)
             try self.context.save()
@@ -153,6 +157,19 @@ final class CompatibilitySnapshotStore {
     }
 
     // MARK: - 工具:规范化 hash(测试用 / 预查场景)
+
+    /// 本客户端期待的引擎规则版本(镜像 backend
+    /// `app/models/compatibility.py::COMPATIBILITY_RULE_VERSION`,2026-10-07
+    /// 合冲判定序修复起 = 2)。**backend bump 判定规则时此处必须同步 bump**;
+    /// 漏 bump 最坏 = 老快照多活一版(不崩溃),提前 bump = 多一次重算。
+    /// 用途:快照 `engineRuleVersion` 失配(含老快照 nil)→ 判定按旧规则算出,
+    /// 预查/openDetail 不得直接复用,须走后端重算(upsert 覆盖自愈)。
+    static let expectedEngineRuleVersion = 2
+
+    /// 快照是否仍按当前引擎规则算出(规则版本失配 = 旧标签,须重算)。
+    static func isFreshEngineRule(_ snapshot: CompatibilitySnapshot) -> Bool {
+        snapshot.engineRuleVersion == expectedEngineRuleVersion
+    }
 
     /// 客户端 SHA-256 复刻后端 `compute_compatibility_hash`。
     /// 用于 A/B 已知但 API 未调用时预查(D13 对称性验证测试亦用)。

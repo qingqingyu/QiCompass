@@ -170,6 +170,14 @@ final class DeepAnalysisViewModel {
     /// v1 链式调用 Task(用户重新触发或 reset 时取消)。
     private var v1ChainTask: Task<Void, Never>?
 
+    /// 翻译链 Task(2026-10-07 第五轮 review 补,与 v1ChainTask 对称持有)。
+    /// 世代号守卫已拦旧链的状态写入,持有引用的净收益 = 换盘/reset 时能立刻
+    /// `cancel()` 在飞翻译请求(协作取消让 URLSession 尽早断开、runSingleV1Module
+    /// 提前短路),而非等它在下一个模块边界撞世代守卫自弃。cancel 后链内
+    /// CancellationError / 世代失配的既有分诊语义不变(.interrupted 由 defer
+    /// 按世代落账)。
+    private var translationChainTask: Task<Void, Never>?
+
     /// v1 链是否在跑(2026-09-08 断点续跑:主页进度横幅 / CTA loading / resume 防重消费)。
     /// 注意 `v1ChainTask != nil` 不能当活跃判据(Task 结束后属性仍非 nil),
     /// 由 `runV1Chain` 的 defer 按世代号复位。
@@ -624,6 +632,7 @@ final class DeepAnalysisViewModel {
             // await 中,只清标志不推进世代的话,旧链尾部 defer 会把新链刚置位的
             // 标志再清掉(见 translationGeneration 注释)。
             translationGeneration &+= 1
+            translationChainTask?.cancel()
             isTranslatingChain = false
             autoTranslationState = nil
             // #7(2026-10-02):M4/M5 用户输入也属旧盘——残留会让新盘沿用旧盘
@@ -1178,16 +1187,28 @@ final class DeepAnalysisViewModel {
     /// 不调 orchestrator(等用户填 sheet 提交后再重试)。
     @MainActor
     private func runSingleV1Module(
-        _ module: ModuleID, response: BaziResponse, quotaExempt: Bool = false
+        _ module: ModuleID, response: BaziResponse, quotaExempt: Bool = false,
+        chainGeneration: Int? = nil
     ) async {
         // 同盘守卫(双 review P1 修复):retryV1Module / retryLockedV1Modules 的
         // 任务 fire-and-forget 不被持有,loadArchivedChart 换盘清洗只 cancel
         // v1ChainTask——旧盘在飞任务若不清拦,会把旧盘的 locked/needsInput/
         // fetching/ok/failed 写进新盘 moduleStates(跨盘污染:新盘目录显示旧盘
         // 「已读」、阅读页展示旧盘正文)。入口 + await 返回后双检,覆盖全部写点。
+        // chainGeneration(2026-10-07 review 修复 A):翻译链降级路径传入链世代
+        // ——isCurrentChart 只比 contentHash,A→B→A 换回后旧链(旧世代)会被
+        // 重新放行,与新链并发写 moduleStates/v1ChainFields(双花 LLM + 译后
+        // 指纹互覆)。世代号在换盘/换回/reset 都推进,是链所有权的强判据;
+        // 非(翻译)链调用方传 nil,维持 isCurrentChart 原语义。
         guard isCurrentChart(response) else {
             AppLogger.app.warning(
                 "deepVM.runSingleV1Module.stale_chart module=\(module.rawValue, privacy: .public) hash=\(response.contentHash, privacy: .public) — 旧盘任务丢弃"
+            )
+            return
+        }
+        if let chainGeneration, translationGeneration != chainGeneration {
+            AppLogger.app.warning(
+                "deepVM.runSingleV1Module.stale_generation module=\(module.rawValue, privacy: .public) hash=\(response.contentHash, privacy: .public) gen=\(chainGeneration, privacy: .public) current=\(self.translationGeneration, privacy: .public) — 旧链降级任务丢弃(A→B→A 防并发)"
             )
             return
         }
@@ -1269,6 +1290,15 @@ final class DeepAnalysisViewModel {
                 )
                 return
             }
+            // 世代第二检(2026-10-07 修复 A):A→B→A 换回后 isCurrentChart 会
+            // 重新放行旧链——此时 moduleStates/v1ChainFields 已被新链接管,
+            // 旧链结果(extractChainFields/.ok 落态)必须丢弃
+            if let chainGeneration, translationGeneration != chainGeneration {
+                AppLogger.app.warning(
+                    "deepVM.runSingleV1Module.stale_generation_after_await module=\(module.rawValue, privacy: .public) hash=\(response.contentHash, privacy: .public) gen=\(chainGeneration, privacy: .public) current=\(self.translationGeneration, privacy: .public) — 旧链结果丢弃"
+                )
+                return
+            }
 
             // 解析 LLM 输出 JSON,提取链式字段给下游模块用
             // 失败不抛(下游模块可能仍能跑,只是字段缺失会触发后端 validate_context 422)
@@ -1287,16 +1317,31 @@ final class DeepAnalysisViewModel {
         } catch is CancellationError {
             AppLogger.app.info("deepVM.runSingleV1Module.cancelled module=\(module.rawValue, privacy: .public)")
         } catch let error as DeepAnalysisError {
-            if !Task.isCancelled && isCurrentChart(response) {
-                AppLogger.app.warning("deepVM.runSingleV1Module.deepAnalysisError module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
-                moduleStates[module] = .failed(message: error.errorDescription ?? L10n.Common.unknownError)
+            // 世代门(2026-10-07 review 修复 A 补齐):失败落态与成功落态同判——
+            // A→B→A 换回后旧链失败不得以 .failed 覆写新链已接管的 moduleStates
+            // (慢旧链会盖掉新链刚落的 .ok);丢弃时留痕不吞。
+            guard !Task.isCancelled, isCurrentChart(response),
+                  chainGeneration == nil || translationGeneration == chainGeneration
+            else {
+                AppLogger.app.warning(
+                    "deepVM.runSingleV1Module.stale_failure_drop module=\(module.rawValue, privacy: .public) hash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 旧链失败丢弃,不落新链状态"
+                )
+                return
             }
+            AppLogger.app.warning("deepVM.runSingleV1Module.deepAnalysisError module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
+            moduleStates[module] = .failed(message: error.errorDescription ?? L10n.Common.unknownError)
         } catch {
-            if !Task.isCancelled && isCurrentChart(response) {
-                AppLogger.app.error("deepVM.runSingleV1Module.failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
-                let userError = UserFacingError.from(error, stage: .interpret)
-                moduleStates[module] = .failed(message: userError.errorDescription ?? L10n.Common.unknownError)
+            guard !Task.isCancelled, isCurrentChart(response),
+                  chainGeneration == nil || translationGeneration == chainGeneration
+            else {
+                AppLogger.app.warning(
+                    "deepVM.runSingleV1Module.stale_failure_drop module=\(module.rawValue, privacy: .public) hash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 旧链失败丢弃,不落新链状态"
+                )
+                return
             }
+            AppLogger.app.error("deepVM.runSingleV1Module.failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
+            let userError = UserFacingError.from(error, stage: .interpret)
+            moduleStates[module] = .failed(message: userError.errorDescription ?? L10n.Common.unknownError)
         }
     }
 
@@ -1329,7 +1374,11 @@ final class DeepAnalysisViewModel {
         AppLogger.app.info(
             "deepVM.acceptTranslation source=\(offer.sourceLanguage, privacy: .public) modules=\(self.crossLanguageRows.keys.map(\.rawValue).sorted().joined(separator: ","), privacy: .public)"
         )
-        Task { @MainActor [weak self] in
+        // isTranslatingChain 幂等守卫已挡并发链,再 cancel 属防御位(镜像
+        // interpretTask?.cancel() 模式),代价为零;兼防「换盘同步清标志后
+        // 旧任务仍在飞、新链立刻起跑」的窗口双发。
+        translationChainTask?.cancel()
+        translationChainTask = Task { @MainActor [weak self] in
             await self?.runTranslationChain(
                 response: response,
                 sourceLanguage: offer.sourceLanguage,
@@ -1453,7 +1502,7 @@ final class DeepAnalysisViewModel {
                     crossLanguageRows[module] = nil
                     continue
                 }
-                await runSingleV1Module(module, response: response, quotaExempt: true)
+                await runSingleV1Module(module, response: response, quotaExempt: true, chainGeneration: generation)
                 // 世代复检(2026-10-02 双 review):上方 await 是秒级 interpret
                 // 网络窗,期间换盘/reset 的话 runSingleV1Module 自身同盘守卫
                 // 会静默丢弃(不写 moduleStates)——若继续按 moduleStates 判
@@ -1594,7 +1643,7 @@ final class DeepAnalysisViewModel {
                         staleM0Downgraded = true
                         DeepStaleM0MarkerPersistence.mark(staleKey)
                     }
-                    await runSingleV1Module(module, response: response, quotaExempt: true)
+                    await runSingleV1Module(module, response: response, quotaExempt: true, chainGeneration: generation)
                     // 世代复检(2026-10-02 双 review,同上方 staleM0Downgraded
                     // 分支):此 await 期间换盘/reset 的话,成败判定与行清除
                     // 都属旧盘收尾,不得落在新盘状态上。
@@ -1658,16 +1707,24 @@ final class DeepAnalysisViewModel {
         }
     }
 
-    /// 翻译失败的离线分诊(L3/F1):网络层离线类 → true(联网后可自动重试,
-    /// 请求未达后端零 LLM 成本);后端/校验/取消类 → false(手动重试)。
-    /// 超时**不算**离线(2026-10-07 review 修复):.timedOut 意味着请求可能
-    /// 已达后端、模型已在生成(服务端 LLM 成本已发生)——归 .interrupted 会
-    /// 让每次重进页面都自动重试(hydrate 路径不消耗 offlineRetryUsed 额度),
-    /// 模型调用费无上限。超时按真失败走 .failed + 手动重试。
+    /// 翻译失败的离线分诊(L3/F1):**确定未出网**的离线类 → true(联网后可
+    /// 自动重试,请求未达后端零 LLM 成本);其余一律 → false(手动重试)。
+    /// 判定收窄(2026-10-07 review 修复 E):只认 `.notConnectedToInternet` /
+    /// `.dataNotAllowed` / `.internationalRoamingOff`——这三种系统保证请求
+    /// 根本没出设备。此前的超时**不算**离线(.timedOut 可能已达后端、模型
+    /// 已在生成),同理 `.networkConnectionLost`(连接中断,请求可能已送达)/
+    /// `.cannotConnectToHost` / `.cannotFindHost`(连接被拒/DNS 失败,中间层
+    /// 可能已转发)也不算——这些路径归 .interrupted 会让每次重进都自动重试
+    /// (hydrate 每轮重建提议都复位 offlineRetryUsed,额度形同虚设),模型
+    /// 调用费无上限;现在统一按真失败走 .failed + 手动重试。
     private static func isOfflineTranslationError(_ error: Error) -> Bool {
         if case .networkError(let urlError)? = error as? APIError {
-            guard urlError.code != .timedOut else { return false }
-            return UserFacingError.isOffline(urlError)
+            switch urlError.code {
+            case .notConnectedToInternet, .dataNotAllowed, .internationalRoamingOff:
+                return true
+            default:
+                return false
+            }
         }
         return false
     }
@@ -1794,6 +1851,7 @@ final class DeepAnalysisViewModel {
         // 同步清标志 + 推进世代(同 loadArchivedChart 换盘守卫;旧链 defer 按世代
         // 失配自弃,不再覆写新链标志)。
         translationGeneration &+= 1
+        translationChainTask?.cancel()
         isTranslatingChain = false
         // L3/F1:回表单态清自动翻译展示态(提示条/章首小注随页面退场)
         autoTranslationState = nil

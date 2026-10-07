@@ -460,6 +460,89 @@ final class CachedInterpretationReaderTests: XCTestCase {
         XCTAssertEqual(result?.hits["daily_fortune"]?.promptVersion, 4)
     }
 
+    // 18. Bug4 同款·模块优先版(2026-10-07 第五轮 review 补):合盘选源走
+    // readCrossLanguageByModulePriority,修复前同 module 多语言命中时先命中
+    // 先返回(allCases 序 zh 在前),zh 旧版源(v1)压过 en 有效源(v4)→
+    // 翻译必 409 STALE_SOURCE 落穿重生成,切语言内容漂移——与 test 17 同根,
+    // 但路径独立,须分别锁。
+    func testReadCrossLanguageByModulePriorityPrefersHigherPromptVersion() async throws {
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        // 合盘双键场景:zh 旧版 / en 新版,同 module 命中数平手
+        try store.upsert(
+            contentHash: "h11", module: "compatibility_paid", promptVersion: 1,
+            targetDate: nil, language: "zh",
+            provider: "anthropic", model: "claude-test",
+            interpretation: "整体合拍(旧版源)。", generatedAt: .now
+        )
+        try store.upsert(
+            contentHash: "h11", module: "compatibility_paid", promptVersion: 4,
+            targetDate: nil, language: "en",
+            provider: "anthropic", model: "claude-test",
+            interpretation: "Solid match overall (valid source).", generatedAt: .now
+        )
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: ReaderTestAPIClient(healthResults: [
+                .success(Self.health(provider: "anthropic", model: "claude-test")),
+            ])),
+            cacheStore: store
+        )
+        let result = try await reader.readCrossLanguageByModulePriority(
+            contentHash: "h11",
+            modules: ["compatibility_paid", "compatibility_free"],
+            maxAge: 24 * 3600
+        )
+        XCTAssertEqual(result?.module, "compatibility_paid")
+        XCTAssertEqual(
+            result?.language, "en",
+            "同 module 多语言命中时高 promptVersion 源必须胜出(修复前先命中先返回取 zh 旧版源)"
+        )
+        XCTAssertEqual(result?.row.promptVersion, 4)
+    }
+
+    // 19. 版本平手时保语言序(allCases 确定性):zh 与 en 同版本 → 取先到的
+    // zh,不因遍历顺序漂移。
+    func testReadCrossLanguageByModulePriorityTieKeepsLanguageOrder() async throws {
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        try store.upsert(
+            contentHash: "h12", module: "compatibility_paid", promptVersion: 4,
+            targetDate: nil, language: "zh",
+            provider: "anthropic", model: "claude-test",
+            interpretation: "整体合拍(平手 zh)。", generatedAt: .now
+        )
+        try store.upsert(
+            contentHash: "h12", module: "compatibility_paid", promptVersion: 4,
+            targetDate: nil, language: "en",
+            provider: "anthropic", model: "claude-test",
+            interpretation: "Solid match (tie en).", generatedAt: .now
+        )
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: ReaderTestAPIClient(healthResults: [
+                .success(Self.health(provider: "anthropic", model: "claude-test")),
+            ])),
+            cacheStore: store
+        )
+        let result = try await reader.readCrossLanguageByModulePriority(
+            contentHash: "h12",
+            modules: ["compatibility_paid"],
+            maxAge: 24 * 3600
+        )
+        XCTAssertEqual(result?.language, "zh", "版本平手时保 allCases 语言序(确定性)")
+    }
+
     // MARK: - Helpers
 
     private static func healthOnlyClient(

@@ -378,6 +378,37 @@ final class TranslationFlowTests: XCTestCase {
         XCTAssertTrue(retried, "手动重试必须译完")
     }
 
+    /// 新#2-余(2026-10-07 第五轮 review):.networkConnectionLost 与 .timedOut
+    /// 同属「请求可能已送达后端」族——连接建立后中断,服务端 LLM 成本可能已
+    /// 发生,同样不得享受离线自动重试(修复前归 .interrupted,重进即自动
+    /// 续译,模型调用费无上限)。按真失败落 .failed + 手动重试。
+    func test连接中断翻译失败_落failed终态_重进不自动重试() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedZHCache(hash: response.contentHash, module: .m0, text: Self.m0ZH)
+        apiClient.translateResponder = { _ in
+            throw APIError.networkError(URLError(.networkConnectionLost))
+        }
+
+        vm.loadArchivedChart(response: response, request: request)
+        let failed = await waitUntil(timeout: 10) {
+            self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
+        }
+        XCTAssertTrue(
+            failed,
+            "连接中断必须按真失败落 .failed(不得 .offlinePending/.interrupted),实际:\(String(describing: vm.autoTranslationState))"
+        )
+
+        // 重进同盘(hydrate 路径):不得自动重试
+        let countAfterFirst = apiClient.recordedTranslateRequests.count
+        vm.loadArchivedChart(response: response, request: request)
+        try? await Task.sleep(nanoseconds: 800_000_000)
+        XCTAssertEqual(
+            apiClient.recordedTranslateRequests.count, countAfterFirst,
+            "连接中断终态:重进不得自动重试(修复前 hydrate 按 .interrupted 无限续译)"
+        )
+    }
+
     /// 新#3(2026-10-07 review):staleM0 标记磁盘为事实源——resetAllData 清键后,
     /// 活实例后续写入不得凭内存快照把旧标记整份写回复活(修复前 VM 驻内存
     /// 镜像 + 写穿,重置等于没做)。此处在持久化层钉住读改写语义。

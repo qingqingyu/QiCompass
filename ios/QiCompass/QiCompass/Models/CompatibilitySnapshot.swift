@@ -5,6 +5,9 @@ import SwiftData
 ///
 /// `personAHash` / `personBHash` 软引用 `ChartSnapshot.contentHash`,不用 `@Relationship`。
 /// `qualitativeAssessment` / `syncedFortune` 为 JSON Data(决策 A2:不给数字分,只给定性描述)。
+/// `engineRuleVersion`(2026-10-07):算出本快照的引擎规则版本,与
+/// `CompatibilitySnapshotStore.expectedEngineRuleVersion` 比对——失配即快照
+/// 按旧规则算出,须重算(可选属性:老快照 nil = 过期;SwiftData 加列自动轻量迁移)。
 @Model
 final class CompatibilitySnapshot {
     @Attribute(.unique) var compatibilityHash: String
@@ -16,6 +19,7 @@ final class CompatibilitySnapshot {
     var interpretation: String?
     var interpretationProvider: String?
     var interpretationModel: String?
+    var engineRuleVersion: Int?
     var createdAt: Date
 
     init(
@@ -28,6 +32,7 @@ final class CompatibilitySnapshot {
         interpretation: String? = nil,
         interpretationProvider: String? = nil,
         interpretationModel: String? = nil,
+        engineRuleVersion: Int? = nil,
         createdAt: Date = .now
     ) {
         self.compatibilityHash = compatibilityHash
@@ -39,6 +44,7 @@ final class CompatibilitySnapshot {
         self.interpretation = interpretation
         self.interpretationProvider = interpretationProvider
         self.interpretationModel = interpretationModel
+        self.engineRuleVersion = engineRuleVersion
         self.createdAt = createdAt
     }
 }

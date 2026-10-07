@@ -28,6 +28,7 @@ from app.engine.compatibility import (
 from app.main import app
 from app.models.bazi import CalcRuleSnapshot, LuckPillar
 from app.models.compatibility import (
+    COMPATIBILITY_RULE_VERSION,
     CompatibilityRequest,
     PersonBInput,
 )
@@ -294,6 +295,31 @@ def test_mode_a_end_to_end_hash_stable():
     # 模式 A 不排 B → person_b_chart 为 None
     assert resp1.person_a_chart is None
     assert resp1.person_b_chart is None
+
+
+def test_response_carries_rule_version():
+    """规则版本透出(2026-10-07): 客户端快照重算判据——引擎改判定规则时
+    bump COMPATIBILITY_RULE_VERSION, 老快照按版本失配重算;版本不参与
+    compatibility_hash(已购 entitlement 不孤儿化)。"""
+    import hashlib
+
+    req = _make_archived_request()
+    resp = compute_compatibility(req)
+    assert resp.rule_version == COMPATIBILITY_RULE_VERSION, (
+        f"响应必须携带当前引擎规则版本, 实际={resp.rule_version}")
+    # 版本不掺 hash(防回归): 用测试内独立实现的公式重算(不调
+    # compute_compatibility_hash, 防同源漂移)——若有人把 rule_version 掺进
+    # 生产公式的 payload, 此处即失配。掺版本 = 孤儿化全部已购 entitlement
+    # 与既有 AI 缓存键(失效应走客户端"快照重算", 不走"换键")。
+    a_hash, b_hash = sorted([req.person_a_hash, req.person_b_hash])
+    expected = hashlib.sha256(
+        f"{len(a_hash.encode('utf-8'))}:{a_hash}"
+        f"|{len(b_hash.encode('utf-8'))}:{b_hash}"
+        f"|{len(req.context.encode('utf-8'))}:{req.context}".encode("utf-8")
+    ).hexdigest()
+    assert resp.compatibility_hash == expected, (
+        "compatibility_hash 必须仍是 (a_hash, b_hash, context) 的纯函数——"
+        f"rule_version 不得掺入, 实际={resp.compatibility_hash} 期望={expected}")
 
 
 def test_mode_a_zero_recompute_performance():

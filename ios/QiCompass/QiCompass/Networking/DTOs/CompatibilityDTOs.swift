@@ -144,6 +144,8 @@ struct PersonBInput: Codable, Sendable, Equatable {
 /// 对齐 backend CompatibilityResponse:
 /// - `personAChart` **始终 nil**(A 永远从本地存档渲染,后端不重排)
 /// - `personBChart`:模式 A nil(B 也从本地存档渲染);模式 B 为后端现排的 B 盘完整响应
+/// - `ruleVersion`:引擎规则版本(2026-10-07)——客户端快照重算判据,不参与
+///   compatibilityHash;老后端缺字段 → nil(视同过期,重算兜底)
 struct CompatibilityResponse: Codable, Sendable {
     let compatibilityHash: String
     let personAChart: BaziResponse?
@@ -151,6 +153,9 @@ struct CompatibilityResponse: Codable, Sendable {
     let qualitativeAssessment: QualitativeAssessmentDTO
     let syncedFortune: [SyncedFortuneDTO]
     let calcRuleSnapshot: CalcRuleSnapshotDTO?
+    /// var + nil 默认:memberwise 才有默认值(let 可选无隐式默认,老构造点
+    /// 会缺参);解码/显式传参照常覆盖
+    var ruleVersion: Int? = nil
 
     enum CodingKeys: String, CodingKey {
         case compatibilityHash = "compatibility_hash"
@@ -159,6 +164,7 @@ struct CompatibilityResponse: Codable, Sendable {
         case qualitativeAssessment = "qualitative_assessment"
         case syncedFortune = "synced_fortune"
         case calcRuleSnapshot = "calc_rule_snapshot"
+        case ruleVersion = "rule_version"
     }
 }
 

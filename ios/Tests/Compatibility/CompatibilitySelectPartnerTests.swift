@@ -639,7 +639,10 @@ private actor SelectPartnerRecordingAPIClient: APIClient {
                 zodiacMatch: "六合", branchHarmony: "无冲无刑"
             ),
             syncedFortune: [],
-            calcRuleSnapshot: nil
+            calcRuleSnapshot: nil,
+            // 带期望版本:落库快照须按"当前规则"算出,否则规则版本门在
+            // 二次 compute 预查时判过期重算(多余请求,2026-10-07)
+            ruleVersion: CompatibilitySnapshotStore.expectedEngineRuleVersion
         )
     }
 
