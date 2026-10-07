@@ -2071,7 +2071,9 @@ final class CompatibilityViewModel {
     /// 「网络恢复后手动重试自愈」的承诺落空(三查 R1)。此场景按
     /// `retryAfterDeadTask` 补发一次重算再验。换对会先 cancel 本门所在的
     /// translateTask / cacheReadTask(openDetail),await 后的 isCancelled 守卫
-    /// 保证补发不会取消别对在飞重算后再起新任务。
+    /// 保证补发不会取消别对在飞重算后再起新任务;重试/购买回调的门跑在匿名
+    /// Task 里无人取消(compute 换对也不取消 translateTask),补发前的
+    /// currentDetailIfMatches 换对守卫兜同一件事(三查 R1)。
     /// - Parameter retryAfterDeadTask: 复用的重算任务已落定且复验仍过期时
     ///   是否补发。手动链(翻译 STALE_SOURCE 重试 / 购买回调 /
     ///   retryInterpretation)传 **true**——用户显式动作是网络恢复后的自愈
@@ -2101,6 +2103,14 @@ final class CompatibilityViewModel {
         if existingTask != nil {
             if snapshotIsFreshInStore(compatHash: compatHash) { return true }
             if retryAfterDeadTask {
+                // 补发前换对守卫(2026-10-07 三查 R1):手动链的门不都跑在会被
+                // 换对取消的任务里(重试/购买回调是匿名 Task,compute 换对亦不
+                // 取消 translateTask)——await 醒来已不在本对 detail 时,补发的
+                // refreshStaleEngineAssessment 会 engineRefreshTask?.cancel() 把
+                // **新对刚起**的在飞重算取消,新对自动链被拒显网络错误。已换对
+                // → 不补发,按未新鲜返回(调用方的 stale_pair_skip 守卫自会放弃,
+                // 旧对留给重开后的链路接管)。
+                guard currentDetailIfMatches(summary) != nil else { return false }
                 // 死任务复用后仍未新鲜:补发一次重算(手动重试的自愈路径)
                 let retry = refreshStaleEngineAssessment(for: summary)
                 if let retry { await retry.value }
@@ -2509,8 +2519,10 @@ final class CompatibilityViewModel {
     /// .failed 正是重试入口,直连生成会让离线打开的过期对在网络恢复后被
     /// 旧标签污染正文并落双层缓存——正是这道门要防的。门语义镜像购买回调/
     /// 409 豁免链(retryAfterDeadTask=true:手动重试是网络恢复后的自愈入口,
-    /// 复用的死重算任务必须补发一次重算)。门未过 → 维持 .failed 透真根因
-    /// (可再试);豁免语义按对透传(见 quotaExempt)。
+    /// 复用的死重算任务必须补发一次重算)。门未过 → 无条件写 .failed 透真
+    /// 根因(可再试;门等待期间并发链落定的 .okFree 会被盖回——镜像购买
+    /// 回调的「显式动作失败反馈优先于展示保留」取舍);豁免语义按对透传
+    /// (见 quotaExempt)。
     func retryInterpretation() {
         guard case .detail(let summary, _, _) = state else {
             // 不静默吞(CLAUDE.md 全局约束):UI 收到点击说明状态机错乱,显式记录
@@ -2518,11 +2530,6 @@ final class CompatibilityViewModel {
                 "op=compatibility.retryInterpretation invalid_state state=\(String(describing: self.state), privacy: .public)"
             )
             return
-        }
-        var passthrough = false
-        if exemptAttemptCompatHash == summary.compatibilityHash {
-            passthrough = true
-            AppLogger.app.info("compatVM.retryInterpretation.quota_exempt_passthrough")
         }
         Task { @MainActor [weak self] in
             guard let self else { return }
@@ -2545,7 +2552,27 @@ final class CompatibilityViewModel {
                 )
                 return
             }
-            // 门过 → 走正常生成(读当前 state 的已刷新 response,新标签进 prompt)
+            // 门过 → 在飞守卫(2026-10-07 三查 R1)再走正常生成:门等待是
+            // 重算级(秒级),期间态保持 .failed、重试按钮持续可点,连点产生的
+            // 多个门任务会串行落定——无守卫时后者取消重启先落定的在飞链
+            // (已发请求被取消 = 服务端配额与本地台账漂移)。本对已有在飞生成
+            // (先落定的重试/购买回调)→ 交给它,不再起链(镜像
+            // autoGenerateInterpretationIfIdle 的在飞守卫口径)。
+            guard self.interpretInFlight?.compatHash != summary.compatibilityHash else {
+                AppLogger.app.info(
+                    "compatVM.retryInterpretation.skip reason=interpret_in_flight compatibilityHash=\(summary.compatibilityHash, privacy: .public)"
+                )
+                return
+            }
+            // 豁免语义门后重读(2026-10-07 code-review P2):门等待是重算级,
+            // tap 时刻捕获的 exemptAttemptCompatHash 会过期——期间并发豁免链
+            // 成功已清标记(再透传 = 双 LLM + 失效豁免覆盖新正文),反向新设
+            // 标记同理拿到旧 false。此处与 generateInterpretation 同一 MainActor
+            // 同步块,无交错窗口。
+            let passthrough = self.exemptAttemptCompatHash == summary.compatibilityHash
+            if passthrough {
+                AppLogger.app.info("compatVM.retryInterpretation.quota_exempt_passthrough")
+            }
             self.generateInterpretation(quotaExempt: passthrough)
         }
     }
