@@ -60,9 +60,11 @@ struct CompatibilityView: View {
                             // 拦截对正常进不了 detail,此处与 VM 阶段 2 守卫同源防御)
                             hourUnknownGate: vm?.currentDetailHourUnknownGate ?? .hourKnown,
                             onPurchaseSuccess: {
-                                // 购买成功 → dismiss + 重新调该对的解读(决策 D4 按对绑定)
+                                // 购买成功 → dismiss + 重新调该对的解读(决策 D4 按对绑定);
+                                // 走引擎规则成门入口(2026-10-07 review):规则重算等待期
+                                // 购买完成时,旧标签不得写进已购正文并落 paid 缓存
                                 showPaywall = false
-                                vm?.generateInterpretation()
+                                vm?.generateInterpretationAfterPurchase()
                             }
                         )
                     )

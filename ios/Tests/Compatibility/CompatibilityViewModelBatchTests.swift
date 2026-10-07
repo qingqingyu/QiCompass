@@ -2251,6 +2251,83 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         await drainDetailBackgroundTasks()
     }
 
+    /// 🟠 购买路径补漏(2026-10-07 外评,第七轮只修了 409 半边):门等待期(.idle)购买完成时,
+    /// 购买回调直调 generateInterpretation 会把旧标签写进已购正文并落
+    /// (hash, compatibility_paid) 缓存(后端缓存活过 24h,错配长期存在)。
+    /// 修复后购买回调过引擎规则门——重算未成时零 interpret 请求 + .failed
+    /// 透真根因(付费后网络恢复手动重试自愈,重试入口不走门)。
+    func test购买回调_引擎规则过期重算失败_不生成旧标签已购正文() async throws {
+        let summary = try makeStaleEngineRuleFixture(tag: "gateP1")
+        apiClient.compatibilityResponder = { _ in
+            throw APIError.networkError(URLError(.notConnectedToInternet))
+        }
+        // 直构 detail 态(购买回调前置 = 门等待期的 .idle 形态;不经
+        // openDetail——那是另一条已被门保护的自动链路径)
+        vm.state = .detail(summary, CompatibilityResponse(
+            compatibilityHash: summary.compatibilityHash,
+            personAChart: nil, personBChart: nil,
+            qualitativeAssessment: QualitativeAssessmentDTO(
+                fiveElements: "旧版五行", dayMasterRelation: "旧版关系",
+                zodiacMatch: "旧版生肖", branchHarmony: "旧版合冲"
+            ),
+            syncedFortune: [], calcRuleSnapshot: nil, ruleVersion: 1
+        ), .idle)
+
+        vm.generateInterpretationAfterPurchase()
+
+        let failed = await waitForInterpretState { state in
+            if case .failed = state { return true }
+            return false
+        }
+        XCTAssertTrue(failed, "门未过必须显式失败(已付款用户有重试入口),实际:\(vm.state)")
+        try? await Task.sleep(nanoseconds: 800_000_000)
+        XCTAssertTrue(
+            apiClient.recordedInterpretRequests.isEmpty,
+            "规则过期未重算成时购买回调不得生成(旧标签不得进已购 prompt),实际 interpret=\(apiClient.recordedInterpretRequests.count)"
+        )
+        await drainDetailBackgroundTasks()
+    }
+
+    /// 🟠 购买路径补漏(外评续):重算成功过门后,购买回调按**当前**(重算已原位
+    /// 刷新的)标签生成——prompt 必须携带新标签,旧标签不得混入。
+    func test购买回调_重算成功过门_按新标签生成() async throws {
+        let summary = try makeStaleEngineRuleFixture(tag: "gateP2")
+        vm.state = .detail(summary, CompatibilityResponse(
+            compatibilityHash: summary.compatibilityHash,
+            personAChart: nil, personBChart: nil,
+            qualitativeAssessment: QualitativeAssessmentDTO(
+                fiveElements: "旧版五行", dayMasterRelation: "旧版关系",
+                zodiacMatch: "旧版生肖", branchHarmony: "旧版合冲"
+            ),
+            syncedFortune: [], calcRuleSnapshot: nil, ruleVersion: 1
+        ), .idle)
+        let readsBefore = vm.remainingReads
+
+        vm.generateInterpretationAfterPurchase()
+
+        let ok = await waitForInterpretState { state in
+            if case .okFree = state { return true }
+            return false
+        }
+        XCTAssertTrue(ok, "重算过门后购买回调必须落地生成,实际:\(vm.state)")
+        XCTAssertEqual(apiClient.recordedInterpretRequests.count, 1, "恰好一次 interpret 请求")
+        if let req = apiClient.recordedInterpretRequests.first {
+            let contextJSON = try String(
+                decoding: JSONEncoder().encode(req.context), as: UTF8.self
+            )
+            XCTAssertTrue(
+                contextJSON.contains("互补佳"),
+                "prompt 必须携带重算后的新标签,实际:\(contextJSON)"
+            )
+            XCTAssertFalse(
+                contextJSON.contains("旧版五行"),
+                "旧标签不得进已购生成 prompt,实际:\(contextJSON)"
+            )
+        }
+        XCTAssertEqual(vm.remainingReads, readsBefore - 1, "购买回调生成消耗 1 次全局池配额")
+        await drainDetailBackgroundTasks()
+    }
+
     /// 🟠#4:非豁免生成只清**本对**豁免标记——X 对生成(含快照缺失提前
     /// return)不得把 Y 对待重试的豁免语义一并抹掉(修复前无条件置 nil,
     /// Y 的 .failed 重试退回扣次数)。

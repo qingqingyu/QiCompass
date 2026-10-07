@@ -2434,11 +2434,66 @@ final class CompatibilityViewModel {
         }
     }
 
+    /// 购买成功后的重跑入口(PaywallView onPurchaseSuccess,按对绑定 D4)。
+    /// 引擎规则成门(2026-10-07 外评购买路径补漏——第七轮只修了 409 豁免
+    /// 半边,本入口是同一外评单的购买半边):门等待期(.idle)购买完成时直调
+    /// generateInterpretation 会把旧标签写进 prompt——付费解读落
+    /// (hash, compatibility_paid) 键,后端缓存让它活过 24h,「评估卡刑害/
+    /// 正文和谐」的错配对已付款用户长期存在。门语义镜像 409 豁免链
+    /// (retryAfterDeadTask=true:用户刚完成付款,明确期待内容,死重算任务
+    /// 钉门时补发一次);门未过 → .failed 透真根因(重试入口不走门,网络
+    /// 恢复后手动重试自愈)。快照已新鲜时门读 store 即短路,无额外等待。
+    func generateInterpretationAfterPurchase() {
+        guard case .detail(let summary, _, _) = state else {
+            // 不静默吞(CLAUDE.md 全局约束):购买回调到达但不在 detail 态,
+            // 说明状态机错乱(或用户已离开),显式记录
+            AppLogger.app.error(
+                "op=compatibility.generateInterpretationAfterPurchase invalid_state state=\(String(describing: self.state), privacy: .public)"
+            )
+            return
+        }
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            let ruleFresh = await self.engineRuleBecameFresh(summary, retryAfterDeadTask: true)
+            if Task.isCancelled { return }
+            // 门等待期间换对/退出 → 放弃(重开/新对的链路自会接管)
+            guard let (current, currentResponse) = self.currentDetailIfMatches(summary) else {
+                AppLogger.app.info(
+                    "op=compatibility.generateInterpretationAfterPurchase.stale_pair_skip compatibilityHash=\(summary.compatibilityHash, privacy: .public)"
+                )
+                return
+            }
+            guard ruleFresh else {
+                // 取舍(三查):此处 .failed 不像自动链那样只限 .idle 形态——
+                // 购买是用户显式动作,失败反馈优先于展示保留(本路径生成失败的
+                // 既有语义同样会把 .okFree 盖成 .failed);.fetching 在飞链随后
+                // 落地会覆盖本失败态,自愈不积压。
+                AppLogger.app.warning(
+                    "op=compatibility.generateInterpretationAfterPurchase.deferred reason=engine_rule_stale compatibilityHash=\(summary.compatibilityHash, privacy: .public) — 重算未成,不把旧标签写进已购生成 prompt"
+                )
+                let message: String
+                if let refreshError = self.lastEngineRefreshError {
+                    message = UserFacingError.from(
+                        refreshError, stage: .compatibilityDeterministic
+                    ).errorDescription ?? L10n.Common.unknownError
+                } else {
+                    message = L10n.Common.unknownError
+                }
+                self.state = .detail(current, currentResponse, .failed(message: message))
+                return
+            }
+            // 门过 → 走正常生成(读当前 state 的已刷新 response,新标签进
+            // prompt;正常扣次,入口覆写豁免标记)
+            self.generateInterpretation()
+        }
+    }
+
     /// .failed / .dailyLimitReached 态的重试入口(结果页 onGenerateInterpret
     /// 接线,2026-10-06):按对透传上次尝试的豁免语义——STALE_SOURCE 降级链
     /// 失败后的重试不再把语言切换成本转嫁给用户配额;别对的 .failed(非豁免
-    /// 来源)不蹭豁免。用户主动重算/购买成功回调/自动起链仍直调
-    /// generateInterpretation()(正常扣次,入口会覆写标记)。
+    /// 来源)不蹭豁免。用户主动重算/自动起链仍直调 generateInterpretation()
+    /// (正常扣次,入口会覆写标记);购买成功回调走
+    /// generateInterpretationAfterPurchase()(引擎规则成门后转生成)。
     func retryInterpretation() {
         var passthrough = false
         if case .detail(let summary, _, _) = state,
