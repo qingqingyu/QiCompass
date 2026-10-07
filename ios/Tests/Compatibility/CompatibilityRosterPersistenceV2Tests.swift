@@ -293,7 +293,10 @@ final class CompatibilityRosterPersistenceV2Tests: XCTestCase {
                     fiveElements: "互补", dayMasterRelation: "同气",
                     zodiacMatch: "六合", branchHarmony: "无冲无刑"
                 ),
-                syncedFortune: [], calcRuleSnapshot: nil
+                syncedFortune: [], calcRuleSnapshot: nil,
+                // 带期望版本:本用例断言「零请求直达」——nil/旧版本会被
+                // 规则版本门判过期走重算(2026-10-07)
+                ruleVersion: CompatibilitySnapshotStore.expectedEngineRuleVersion
             ),
             personAHash: "v2_fa", personBHash: "v2_fb", context: "general"
         )
