@@ -254,6 +254,11 @@ final class DailyFortuneViewModel {
         // .silentRetry:保持当前 .failed(模板文案继续显示,不闪「推演中」),
         // isSilentRetrying 已在调度时置 true。
 
+        // 世代号快照(2026-10-07 review):refresh() 直连 runFullPipeline,不经
+        // load() 的 interpretTask 取消——旧解读任务晚到会覆写新管线内容
+        // (典型:刷新后缓存命中,无新解读可取消旧任务)。写点全部比对世代,
+        // 失配自弃(镜像 runFullPipeline 各写点的 pipelineGeneration 守卫)。
+        let generation = pipelineGeneration
         interpretTask = Task {
             do {
                 let resp = try await orchestrator.runInterpretation(
@@ -262,7 +267,7 @@ final class DailyFortuneViewModel {
                     dailyResponse: response,
                     businessDate: businessDate,
                 )
-                if !Task.isCancelled {
+                if !Task.isCancelled, pipelineGeneration == generation {
                     isSilentRetrying = false
                     state = .ready(
                         response,
@@ -273,7 +278,7 @@ final class DailyFortuneViewModel {
             } catch is CancellationError {
                 return
             } catch let error as DeepAnalysisError {
-                if !Task.isCancelled {
+                if !Task.isCancelled, pipelineGeneration == generation {
                     // dailyLimitReached 独立形态(方案 step 4):禁用生成按钮、不显示重试
                     if case .dailyLimitReached(let reset, _) = error {
                         isSilentRetrying = false
@@ -291,7 +296,7 @@ final class DailyFortuneViewModel {
                     }
                 }
             } catch {
-                if !Task.isCancelled {
+                if !Task.isCancelled, pipelineGeneration == generation {
                     let userError = UserFacingError.from(error, stage: .interpret)
                     if case .dailyLimitReached(let reset) = userError {
                         isSilentRetrying = false

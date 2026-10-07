@@ -161,14 +161,19 @@ final class CompatibilitySnapshotStore {
     /// 本客户端期待的引擎规则版本(镜像 backend
     /// `app/models/compatibility.py::COMPATIBILITY_RULE_VERSION`,2026-10-07
     /// 合冲判定序修复起 = 2)。**backend bump 判定规则时此处必须同步 bump**;
-    /// 漏 bump 最坏 = 老快照多活一版(不崩溃),提前 bump = 多一次重算。
+    /// 漏 bump 最坏 = 老快照多活一版(不崩溃),提前 bump = 部署窗口期多一次重算。
     /// 用途:快照 `engineRuleVersion` 失配(含老快照 nil)→ 判定按旧规则算出,
     /// 预查/openDetail 不得直接复用,须走后端重算(upsert 覆盖自愈)。
     static let expectedEngineRuleVersion = 2
 
     /// 快照是否仍按当前引擎规则算出(规则版本失配 = 旧标签,须重算)。
+    /// 比较语义(2026-10-07 review 修复):**`>=` 而非 `==`**——后端先 bump
+    /// (正常部署序)时,新规则快照(version 3)对未更新的在野客户端
+    /// (expected 2)必须判新鲜;`==` 会让全部在野客户端对该快照每开必重算、
+    /// 永不收敛(离线时全打不开)。老快照 nil / version < expected → 判旧。
     static func isFreshEngineRule(_ snapshot: CompatibilitySnapshot) -> Bool {
-        snapshot.engineRuleVersion == expectedEngineRuleVersion
+        guard let version = snapshot.engineRuleVersion else { return false }
+        return version >= expectedEngineRuleVersion
     }
 
     /// 客户端 SHA-256 复刻后端 `compute_compatibility_hash`。

@@ -1097,9 +1097,15 @@ final class DeepAnalysisViewModel {
 
         AppLogger.app.info("deepVM.retryV1Module.start module=\(module.rawValue, privacy: .public)")
 
+        // 世代号快照(2026-10-07 review):重试任务此前不持引用、传 nil 走
+        // isCurrentChart 语义——A→B→A 换回后 isCurrentChart 重新放行旧盘重试,
+        // 与新链并发写 moduleStates/v1ChainFields。快照 translationGeneration
+        // (换盘/换回清洗都推进),复用 runSingleV1Module 四处世代守卫,与翻译
+        // 降级链同规;同盘内的翻译/重试互不推进世代,不受影响。
+        let generation = translationGeneration
         Task { @MainActor [weak self] in
             guard let self else { return }
-            await self.runSingleV1Module(module, response: response)
+            await self.runSingleV1Module(module, response: response, chainGeneration: generation)
         }
     }
 
@@ -1123,10 +1129,13 @@ final class DeepAnalysisViewModel {
 
         AppLogger.app.info("deepVM.retryLockedV1Modules.start count=\(lockedModules.count, privacy: .public) contentHash=\(response.contentHash, privacy: .public)")
 
+        // 世代号快照同 retryV1Module(2026-10-07 review):A→B→A 换回后旧批
+        // 重试按世代失配丢弃,不与新链并发写状态
+        let generation = translationGeneration
         Task { @MainActor [weak self] in
             guard let self else { return }
             for module in lockedModules {
-                await self.runSingleV1Module(module, response: response)
+                await self.runSingleV1Module(module, response: response, chainGeneration: generation)
             }
         }
     }
