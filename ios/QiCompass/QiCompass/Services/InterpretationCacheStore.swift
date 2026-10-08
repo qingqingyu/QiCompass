@@ -28,12 +28,18 @@ final class InterpretationCacheStore {
     /// 不再命中(否则旧解读照常展示并被写进新合盘快照,bump 在客户端失防)。
     /// 版本未知(空表/老后端)不设过滤,维持旧行为;`max(by: promptVersion)`
     /// 在过滤后是同版本行集的稳定序,保留。
+    /// includeStaleVersions(十四轮外评 #5):跨语言探测专用旁路——prompt bump
+    /// 后旧语言原文行只在旧版本下,bump 当下既无可翻译的新版源,又因版本过滤
+    /// 探测不到旧版源 → 切语言直落普通生成(扣次数/额度),设计的「翻译 →
+    /// 409 STALE → quotaExempt 重生成」降级路径整条旁路。探测侧传 true 放行
+    /// 旧版行;展示/回填路径(默认 false)维持只认当前版本的防毒口径。
     func getLatest(
         contentHash: String,
         module: String,
         targetDate: Date?,
         language: String? = nil,
-        identity: AIIdentity
+        identity: AIIdentity,
+        includeStaleVersions: Bool = false
     ) throws -> InterpretationCache? {
         let desc = FetchDescriptor<InterpretationCache>(
             predicate: #Predicate {
@@ -56,9 +62,11 @@ final class InterpretationCacheStore {
                 // language 维度:nil 老缓存视为 "zh"(i18n Q13 决策)
                 let cacheLanguage = cache.language ?? "zh"
                 let languageMatches = cacheLanguage == normalizedLanguage
-                // 版本维度:服务端已知当前版本时只认该版本(见函数注释)
+                // 版本维度:服务端已知当前版本时只认该版本(见函数注释);
+                // includeStaleVersions 旁路只服务跨语言探测(旧版源行)
                 let versionMatches: Bool
-                if let current = serverPromptVersion {
+                if let current = serverPromptVersion,
+                   !includeStaleVersions {
                     versionMatches = cache.promptVersion == current
                 } else {
                     versionMatches = true

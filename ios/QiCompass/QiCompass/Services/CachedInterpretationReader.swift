@@ -100,13 +100,17 @@ final class CachedInterpretationReader {
 
     /// 批量读核心(调用方传入已 resolve 的 identity;#8,2026-10-02 抽出:
     /// 跨语言读取按语言循环时复用同一 identity,不再每语言各打一次 health)。
+    /// includeStaleVersions(十四轮外评 #5):跨语言探测传 true——prompt bump
+    /// 后旧语言原文只在旧版本下,版本过滤会把探测源一并滤掉(设计降级路径
+    /// 「翻译 → 409 STALE → quotaExempt 重生成」被旁路成普通生成扣额)。
     private func readAll(
         contentHash: String,
         modules: [String],
         language: String,
         targetDate: Date?,
         maxAge: TimeInterval?,
-        identity: AIIdentity
+        identity: AIIdentity,
+        includeStaleVersions: Bool = false
     ) throws -> [String: InterpretationCache] {
         var hits: [String: InterpretationCache] = [:]
         for module in modules {
@@ -116,7 +120,8 @@ final class CachedInterpretationReader {
                 language: language,
                 targetDate: targetDate,
                 maxAge: maxAge,
-                identity: identity
+                identity: identity,
+                includeStaleVersions: includeStaleVersions
             ) else {
                 continue
             }
@@ -134,14 +139,16 @@ final class CachedInterpretationReader {
         language: String,
         targetDate: Date?,
         maxAge: TimeInterval?,
-        identity: AIIdentity
+        identity: AIIdentity,
+        includeStaleVersions: Bool = false
     ) throws -> InterpretationCache? {
         guard let cache = try cacheStore.getLatest(
             contentHash: contentHash,
             module: module,
             targetDate: targetDate,
             language: language,
-            identity: identity
+            identity: identity,
+            includeStaleVersions: includeStaleVersions
         ) else {
             return nil
         }
@@ -194,7 +201,11 @@ final class CachedInterpretationReader {
                 language: language,
                 targetDate: targetDate,
                 maxAge: maxAge,
-                identity: identity
+                identity: identity,
+                // 旧版源行放行(十四轮外评 #5):跨语言探测的目的是找「可翻译
+                // 的既有原文」,bump 前的旧版行正是翻译降级路径的源;命中后
+                // 提交翻译,后端 STALE 门控 409 → quotaExempt 重生成,链路闭环。
+                includeStaleVersions: true
             )
             if let rowIsValid {
                 hits = hits.filter { rowIsValid($0.value) }

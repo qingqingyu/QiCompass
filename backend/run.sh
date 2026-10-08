@@ -37,8 +37,9 @@ fi
 # (反代与后端同机);**Docker Compose 部署时反代在另一容器**,uvicorn 看到的
 # 对端是 Docker 内网地址(如 172.18.0.x)——须在 .env 填 Docker 网段
 # (如 172.18.0.0/16)或反代容器 IP,否则 X-Forwarded-For 不被信任,全站匿名
-# 用户仍共享一份配额。uvicorn 支持逗号分隔多值/CIDR 网段/`*`(仅信任边界
-# 完全可控时才可用 `*`:直连暴露端口下任意客户端可伪造转发头刷额度)。
+# 用户仍共享一份配额。uvicorn 支持逗号分隔多值/CIDR 网段/`*`(CIDR 需
+# >=0.31,requirements 已锁;仅信任边界完全可控时才可用 `*`:直连暴露
+# 端口下任意客户端可伪造转发头刷额度)。
 FORWARDED_ALLOW_IPS="${FORWARDED_ALLOW_IPS:-127.0.0.1}"
 exec $UVICORN_BIN app.main:app \
     --host 0.0.0.0 \

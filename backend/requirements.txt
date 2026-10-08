@@ -1,9 +1,17 @@
 fastapi>=0.110
-# uvicorn 上界锁(2026-10-08 review):X-Forwarded-For 取段行为已核验
-# 0.27.0 与 0.52.1 均为「从右往左取第一个不可信段」——追加式 XFF 下客户端
-# 伪造前缀被忽略,匿名配额分桶不可刷。放开上界 = 未经核验的未来版本可能
-# 改写该语义(run.sh 的 --forwarded-allow-ips 依赖它)。
-uvicorn[standard]>=0.27,<0.53
+# uvicorn 版本锁(2026-10-08 review + 十四轮外评):
+# - 上界 <0.53:X-Forwarded-For 取段行为已核验 0.27.0 与 0.52.1 均为
+#   「从右往左取第一个不可信段」——追加式 XFF 下客户端伪造前缀被忽略,
+#   匿名配额分桶不可刷。放开上界 = 未经核验的未来版本可能改写该语义
+#   (run.sh 的 --forwarded-allow-ips 依赖它)。
+# - 下界 >=0.31(十四轮外评,源码实证):0.27~0.30 的
+#   --forwarded-allow-ips 是**精确字符串匹配**,CIDR(如 .env.example
+#   推荐的 172.18.0.0/16,Docker Compose 反代跨容器场景)会被静默忽略
+#   → 所有匿名用户共用一个 IP 桶共享免费额度,且无任何报错;
+#   0.31.0 起 _TrustedHosts 用 ipaddress.ip_network 才支持 CIDR
+#   (0.31 源码已复核:取段语义与 0.52 同族,[0.31, 0.53) 全区间落在
+#   已核验的 XFF 行为族内)。
+uvicorn[standard]>=0.31,<0.53
 pydantic>=2.5
 lunar_python==1.4.8
 pytest>=8.0

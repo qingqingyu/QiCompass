@@ -936,6 +936,10 @@ final class DeepAnalysisViewModel {
     /// 翻译提议挂着不跑(D10.5:原文缺失的模块应由译后 M0 的目标语言链字段
     /// 驱动生成,自动跑会用原文 fingerprint 造成缓存键错位——翻译收尾再续跑)。
     func resumeV1ChainIfNeeded() {
+        // 达限态过期归一(十四轮外评 #2)须在 .ready 守卫前:回前台
+        // scenePhase 触发本方法,先解除已过 nextReset 的达限态,下方
+        // hasRunnableUnfinished 才会把这些章视为可续跑。
+        expireStaleServerQuotaStates()
         guard case .ready(let response, _) = state else {
             AppLogger.app.info("deepVM.resumeV1ChainIfNeeded.skip reason=not_ready")
             return
@@ -1084,12 +1088,32 @@ final class DeepAnalysisViewModel {
     /// 世代号 +1:旧链(已被 cancel)在挂起点恢复后,其 defer 不得清当代链的
     /// `isChainRunning`(详见 runV1Chain 的 defer)。
     private func startV1Chain(response: BaziResponse) {
+        expireStaleServerQuotaStates()
         chainGeneration &+= 1
         let generation = chainGeneration
         isChainRunning = true
         v1ChainTask = Task { @MainActor [weak self] in
             guard let self else { return }
             await self.runV1Chain(response: response, generation: generation)
+        }
+    }
+
+    /// 服务端配额达限态的过期归一(十四轮外评 #2):`.dailyLimitReached` 落态
+    /// 后,resume 守卫/链前检/断链三处都不看 `nextReset`——UTC 零点已过、
+    /// 服务端额度已重置,状态却残留达限,该章及下游在 App 重启前永久卡死
+    /// (章节页达限态禁重试,hydrate 也不回填)。归一 = nextReset 已过 →
+    /// 回 `.failed`(可重试/可回填/可自动续跑,三处守卫与重试按钮自然接管;
+    /// 再 429 会重新落达限态,幂等)。message 复用达限标题(描述先前失败,
+    /// 自动续跑路径下该态瞬时不可见,不新增 xcstrings key)。
+    private func expireStaleServerQuotaStates() {
+        let now = Date()
+        for (module, state) in moduleStates {
+            if case .dailyLimitReached(let nextReset) = state, nextReset <= now {
+                moduleStates[module] = .failed(message: L10n.Errors.limitTitle)
+                AppLogger.app.info(
+                    "deepVM.quotaStateExpired module=\(module.rawValue, privacy: .public) nextReset=\(nextReset.description, privacy: .public) — 服务端配额已重置,达限态解除"
+                )
+            }
         }
     }
 
