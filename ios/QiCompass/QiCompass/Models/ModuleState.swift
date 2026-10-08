@@ -24,12 +24,16 @@ enum ModuleState: Equatable {
     case locked
     /// M4/M5 需要用户输入(显示"提供输入"CTA,Stage 8 弹 sheet)
     case needsInput
+    /// context_token 缺失/失效(2026-10-08):老快照盘生成/翻译必 403,重试
+    /// 无意义——章节页渲染「重新排盘」出口而非「重试本章」(落态入口:
+    /// DeepAnalysisViewModel 通用 catch 的 APIError.isContextTokenError)。
+    case contextTokenExpired
 
     /// 是否终态(可响应用户操作)。pending/fetching 是非终态。
     var isTerminal: Bool {
         switch self {
         case .pending, .fetching: return false
-        case .ok, .failed, .locked, .needsInput: return true
+        case .ok, .failed, .locked, .needsInput, .contextTokenExpired: return true
         }
     }
 

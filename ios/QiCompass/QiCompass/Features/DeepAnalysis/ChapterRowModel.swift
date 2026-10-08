@@ -29,7 +29,9 @@ enum ChapterRowModel: Equatable {
                 return .read
             case .fetching:
                 return .generating
-            case .failed:
+            case .failed, .contextTokenExpired:
+                // 凭证失效同走 retryable(可进章):章内渲染的是「重新排盘」
+                // 出口而非重试按钮(2026-10-08),这里只管圆徽/行视觉
                 return .retryable
             case .needsInput:
                 return .needsInput

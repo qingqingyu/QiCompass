@@ -51,6 +51,9 @@ struct CompatibilityInterpretationSection: View {
                 failedBlock(message)
             case .dailyLimitReached(let nextReset):
                 DailyLimitReachedView(nextReset: nextReset)
+            case .contextTokenExpired:
+                // 凭证失效(2026-10-08):403 重试无意义,「重新排盘」出口
+                ContextTokenExpiredView()
             }
         }
     }

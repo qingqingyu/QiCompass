@@ -62,6 +62,8 @@ struct ErrorStateView: View {
 
             if case .dailyLimitReached(let nextReset) = userFacingError {
                 CountdownResetLabel(nextReset: nextReset)
+            } else if case .contextTokenExpired = userFacingError {
+                RecalculateChartButton()
             } else if showsRetryButton {
                 Button(action: { HapticEngine.light(); retry() }) {
                     Text("重试")
@@ -106,7 +108,8 @@ struct ErrorStateView: View {
     }
 
     /// 达上限(等重置)与凭证失效(须重新排盘换新 token)都不渲染「重试」——
-    /// 重试只会再次 403 死循环,恢复指引已在 subtitle(2026-10-07 double review)。
+    /// 重试只会再次 403 死循环(2026-10-07 double review);凭证失效的出口
+    /// 是「重新排盘」按钮(2026-10-08,替代只有一句指引的死胡同)。
     private var showsRetryButton: Bool {
         switch userFacingError {
         case .dailyLimitReached, .contextTokenExpired:
@@ -162,5 +165,53 @@ struct ErrorStateView: View {
                 .font(.system(size: 40))
                 .foregroundStyle(BaziTheme.cinnabar.opacity(0.7))
         }
+    }
+}
+
+// MARK: - 凭证失效出口(2026-10-08)
+
+/// 「重新排盘」按钮:contextTokenExpired 态的统一恢复出口。
+///
+/// 动作 = post `.switchTab("deepAnalysis")` 落到深度解析 tab(排盘表单所在,
+/// 与 Onboarding 完成后的落地同款路由):ChartSnapshot 不存 hourKnown/钟面
+/// 时间(真太阳时不可逆推),**无法自动重签**——用户重排后新 chart 快照带
+/// 新 token,每日(daily 快照 token nil 视同 miss 重签)与深度解析链自动
+/// 自愈。用在:ErrorStateView / InterpretState.contextTokenExpired(每日/
+/// 合盘解读区)/ ModuleState.contextTokenExpired(深度章节页)。
+struct RecalculateChartButton: View {
+    var body: some View {
+        Button {
+            HapticEngine.light()
+            NotificationCenter.default.post(
+                name: .switchTab, object: nil,
+                userInfo: ["tab": "deepAnalysis"])
+        } label: {
+            Text(L10n.Errors.contextTokenRecalculate)
+                .font(.body.weight(.semibold))
+                .foregroundStyle(BaziTheme.onInkDeep)
+                .padding(.horizontal, 28)
+                .padding(.vertical, 12)
+                .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
+        }
+    }
+}
+
+/// 凭证失效态共用视图(InterpretState/ModuleState 的 .contextTokenExpired
+/// 分支渲染):标题 + 指引副标 + `RecalculateChartButton`。
+struct ContextTokenExpiredView: View {
+    var body: some View {
+        VStack(spacing: 12) {
+            Text(L10n.Errors.contextTokenTitle)
+                .font(.subheadline.weight(.medium))
+                .foregroundStyle(BaziTheme.shenshaInauspicious)
+            Text(L10n.Errors.contextTokenSubtitle)
+                .font(.caption)
+                .tracking(1)
+                .foregroundStyle(BaziTheme.inkMuted)
+                .multilineTextAlignment(.center)
+            RecalculateChartButton()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 8)
     }
 }

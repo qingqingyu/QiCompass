@@ -127,6 +127,8 @@ struct ChapterReadingView: View {
                 calculatingBody
             case .failed(let message):
                 failedBody(message: message)
+            case .contextTokenExpired:
+                contextTokenExpiredBody
             case .locked:
                 lockedBody
             case .needsInput:
@@ -319,6 +321,31 @@ struct ChapterReadingView: View {
             Text("重试不消耗今日次数")
                 .font(BaziFont.caption(size: 10.5))
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
+            Spacer()
+        }
+        .padding(.horizontal, 26)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 凭证失效(2026-10-08):老快照盘的章节生成/翻译必 403——章题 +
+    /// 失效说明 + 「重新排盘」出口(无「重试本章」,点了必然再 403)。
+    /// 排盘表单在深度解析 tab,重排后新 chart 快照带新 token,链自动自愈。
+    private var contextTokenExpiredBody: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(chapterTitle)
+                .font(BaziFont.display(size: 21))
+                .tracking(3)
+                .foregroundStyle(BaziTheme.ink)
+                .padding(.top, 46)
+            Text(L10n.Errors.contextTokenTitle)
+                .font(BaziFont.caption(size: 13))
+                .foregroundStyle(BaziTheme.destructive)
+                .lineSpacing(5)
+            Text(L10n.Errors.contextTokenSubtitle)
+                .font(BaziFont.caption(size: 10.5))
+                .tracking(1)
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
+            RecalculateChartButton()
             Spacer()
         }
         .padding(.horizontal, 26)

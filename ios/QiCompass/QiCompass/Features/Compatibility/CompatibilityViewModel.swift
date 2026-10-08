@@ -2493,6 +2493,12 @@ final class CompatibilityViewModel {
                 }
                 self.settleExemptRegenOutcomeIfCurrent(compatHash: compatHash, attemptKey: attemptKey)
                 if let (current, currentResponse) = self.currentDetailIfMatches(summary) {
+                    // 凭证失效(2026-10-08):403 重试无意义,独立态渲染「重新排盘」
+                    // 出口(老 A/B 快照盘的恢复 = 重新排盘拿新 token 后重算落新快照)
+                    if APIError.isContextTokenError(error) {
+                        self.state = .detail(current, currentResponse, .contextTokenExpired)
+                        return
+                    }
                     let userError = UserFacingError.from(error, stage: .interpret)
                     if case .dailyLimitReached(let reset) = userError {
                         self.state = .detail(current, currentResponse, .dailyLimitReached(nextReset: reset))

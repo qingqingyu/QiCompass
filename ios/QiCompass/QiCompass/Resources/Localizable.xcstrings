@@ -17503,6 +17503,29 @@
           }
         }
       }
+    },
+    "error.userFacing.contextToken.recalculate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新排盘"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "重新排盤"
+          }
+        },
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Recalculate Chart"
+          }
+        }
+      }
     }
   },
   "version" : "1.0"

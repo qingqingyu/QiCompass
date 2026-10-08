@@ -1349,6 +1349,9 @@ enum L10n {
         static let contextTokenTitle = String(localized: "error.userFacing.contextToken.title")
         /// context_token 失效副标。zh: "请重新排盘后继续";en: "Recalculate your chart to continue"
         static let contextTokenSubtitle = String(localized: "error.userFacing.contextToken.subtitle")
+        /// 「重新排盘」按钮(contextTokenExpired 态恢复出口,2026-10-08)。
+        /// zh: "重新排盘";zh-Hant: "重新排盤";en: "Recalculate Chart"
+        static let contextTokenRecalculate = String(localized: "error.userFacing.contextToken.recalculate")
     }
 
     // MARK: - 盘面术语行脚手架(2026-09-27 展示层语言 U3)

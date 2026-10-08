@@ -811,7 +811,8 @@ final class DeepAnalysisViewModel {
     private static func isRestorableModuleState(_ state: ModuleState?) -> Bool {
         switch state {
         case nil, .failed: return true
-        case .ok, .fetching, .pending, .locked, .needsInput: return false
+        case .ok, .fetching, .pending, .locked, .needsInput, .contextTokenExpired:
+            return false
         }
     }
 
@@ -951,6 +952,10 @@ final class DeepAnalysisViewModel {
                 return false
             case nil, .pending, .failed:
                 return entitled(module)
+            case .contextTokenExpired:
+                // 凭证失效:续跑必再 403(2026-10-08),恢复走「重新排盘」,
+                // 不进自动续跑清单
+                return false
             }
         }
         guard hasRunnableUnfinished else {
@@ -1349,6 +1354,12 @@ final class DeepAnalysisViewModel {
                 return
             }
             AppLogger.app.error("deepVM.runSingleV1Module.failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
+            // 凭证失效(2026-10-08):老快照盘生成/翻译必 403,「重试本章」按钮
+            // 点了必然再 403——独立态渲染「重新排盘」出口
+            if APIError.isContextTokenError(error) {
+                moduleStates[module] = .contextTokenExpired
+                return
+            }
             let userError = UserFacingError.from(error, stage: .interpret)
             moduleStates[module] = .failed(message: userError.errorDescription ?? L10n.Common.unknownError)
         }

@@ -317,6 +317,17 @@ final class DailyFortuneViewModel {
                 }
             } catch {
                 if !Task.isCancelled, pipelineGeneration == generation {
+                    // 凭证失效(2026-10-08):403 重试无意义,不走 enterInterpretFailed
+                    // (那会再排一次静默重试白打 403)——独立态渲染「重新排盘」出口
+                    if APIError.isContextTokenError(error) {
+                        isSilentRetrying = false
+                        state = .ready(
+                            response,
+                            .contextTokenExpired,
+                            businessDate,
+                        )
+                        return
+                    }
                     let userError = UserFacingError.from(error, stage: .interpret)
                     if case .dailyLimitReached(let reset) = userError {
                         isSilentRetrying = false

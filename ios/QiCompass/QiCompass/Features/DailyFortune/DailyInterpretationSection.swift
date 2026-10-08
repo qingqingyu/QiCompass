@@ -146,6 +146,9 @@ struct DailyInterpretationSection: View {
             case .dailyLimitReached(let nextReset):
                 DailyLimitReachedView(nextReset: nextReset)
                 // 达上限:**禁用生成按钮、不显示重试**(方案 step 4)
+            case .contextTokenExpired:
+                // 凭证失效(2026-10-08):403 重试无意义,「重新排盘」出口
+                ContextTokenExpiredView()
             }
         }
     }

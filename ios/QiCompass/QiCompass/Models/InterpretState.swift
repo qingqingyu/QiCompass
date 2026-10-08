@@ -28,4 +28,9 @@ enum InterpretState: Equatable {
     /// ××版本」小注;nil = 语言一致或未知,不显示。
     case offlineLegacy(text: String, languageNote: String?)
     case dailyLimitReached(nextReset: Date)
+    /// context_token 缺失/失效(2026-10-08):老快照无 token / secret 轮换,
+    /// 解读请求必 403,重试无意义——渲染「重新排盘」出口而非通用重试
+    /// (此前塞 .failed 会显示重试按钮,点了必然再 403;每日还会白跑一次
+    /// 静默重试)。落态入口:各 VM catch 处 APIError.isContextTokenError。
+    case contextTokenExpired
 }
