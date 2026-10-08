@@ -759,12 +759,24 @@ async def test_m1_translate_legacy_noncanonical_row_409(
     import hashlib
 
     from app.ai.cache_key import CacheKey
-    from app.ai.prompts import render_prompt
+    from app.ai.prompts import (
+        canonicalize_v1_chain_fields, render_prompt)
     from app.engine.term_translations import translate_context
+    # 旧行构造(2026-10-08 调整):render_prompt 已内联链字段规范化,直接调它
+    # 得到的是 canonical 形态,不再是「规范化部署前」的键——改为对 canonical
+    # prompt 做链字段整段字符串还原(占位符内容替换回 iOS 插入序序列化),
+    # 字节形态与规范化部署前的 render 等价。
     legacy_ctx = _m1_context(m0_zh)
+    translated_ctx = translate_context(legacy_ctx, "zh", "m1_talent")
+    canonical_ctx = canonicalize_v1_chain_fields("m1_talent", translated_ctx)
     legacy_prompt = render_prompt(
-        "m1_talent",
-        translate_context(legacy_ctx, "zh", "m1_talent"), language="zh")
+        "m1_talent", canonical_ctx, language="zh")
+    for name in ("main_axis", "core_loop"):
+        legacy_prompt = legacy_prompt.replace(
+            canonical_ctx[name], translated_ctx[name])
+    assert legacy_prompt != render_prompt("m1_talent", canonical_ctx,
+                                          language="zh"), \
+        "fixture 链字段插入序恰与 sort_keys 相同,构造不出旧行,换 fixture"
     tmp_cache.set(
         CacheKey(content_hash=ch, module="m1_talent",
                  prompt_version=PROMPT_VERSIONS["m1_talent"], target_date="",
@@ -788,7 +800,7 @@ async def test_m1_translate_legacy_noncanonical_row_409(
 
 
 def test_v1_chain_tables_sync_guard():
-    """链式镜像表守护栏(_V1_CHAIN_PRODUCER / _V1_SOURCE_WALK_DEPS)。
+    """链式镜像表守护栏(V1_CHAIN_PRODUCER / _V1_SOURCE_WALK_DEPS)。
 
     两表手写镜像 iOS ModuleDefinitions(dependencies / extractChainFields)
     与 prompts.py REQUIRED_FIELDS 三方——漂移 = 翻译防伪静默全线 409,
@@ -803,14 +815,13 @@ def test_v1_chain_tables_sync_guard():
     ④ 叶子覆盖:叶子 REQUIRED 的非链字段只剩 chart 与 m4/m5 用户输入
        (随请求回传),不得出现第三类未知来源字段。
     """
-    from app.ai.prompts import REQUIRED_FIELDS
-    from app.api.interpret import (
-        _V1_CHAIN_PRODUCER, _V1_SOURCE_WALK_DEPS)
+    from app.ai.prompts import REQUIRED_FIELDS, V1_CHAIN_PRODUCER
+    from app.api.interpret import _V1_SOURCE_WALK_DEPS
     from app.models.interpret import V1_CHILDREN_MODULES, V1_MODULES
 
     # ① 键域
     assert set(_V1_SOURCE_WALK_DEPS) == V1_CHILDREN_MODULES
-    assert set(_V1_CHAIN_PRODUCER.values()) <= V1_MODULES
+    assert set(V1_CHAIN_PRODUCER.values()) <= V1_MODULES
     # 用户输入字段(m4/m5;CONTEXT 侧字段名,区别于请求顶层 m4_* )
     user_input_context_fields = {
         "m4_health": {"age", "current_concern"},
@@ -825,10 +836,10 @@ def test_v1_chain_tables_sync_guard():
             if field == "chart" or field in user_input_context_fields.get(
                     module, set()):
                 continue
-            assert field in _V1_CHAIN_PRODUCER, (
+            assert field in V1_CHAIN_PRODUCER, (
                 f"{module}: REQUIRED 字段 {field} 既非 chart/用户输入,"
-                f"也不在 _V1_CHAIN_PRODUCER(表失同步)")
-            producer = _V1_CHAIN_PRODUCER[field]
+                f"也不在 V1_CHAIN_PRODUCER(表失同步)")
+            producer = V1_CHAIN_PRODUCER[field]
             assert producer in deps, (
                 f"{module}: 链字段 {field} 的产出者 {producer} 不在 deps")
         # ③ deps 拓扑序(上游模块的链字段须由更早的 deps 产出)
@@ -839,13 +850,13 @@ def test_v1_chain_tables_sync_guard():
                 if field == "chart" or field in user_input_context_fields.get(
                         upstream, set()):
                     continue
-                producer = _V1_CHAIN_PRODUCER[field]
+                producer = V1_CHAIN_PRODUCER[field]
                 assert producer in deps[:i], (
                     f"{module}: deps 顺序非拓扑——{upstream} 消费 {field}"
                     f"(产自 {producer})但后者排在其后")
         # ④ 无第三类来源
         known = ({"chart"} | user_input_context_fields.get(module, set())
-                 | set(_V1_CHAIN_PRODUCER))
+                 | set(V1_CHAIN_PRODUCER))
         unknown = set(REQUIRED_FIELDS[module]) - known
         assert not unknown, f"{module}: REQUIRED 出现未知来源字段 {unknown}"
 
@@ -1566,3 +1577,138 @@ class TestBuildTranslationTermPairs:
     def test_same_language_rejected(self):
         with pytest.raises(ValueError, match="相同"):
             build_translation_term_pairs("zh", "zh")
+
+
+# ---------- 2026-10-08 外评 #1/#3:链走查版本偏好 + 目标缓存前置 + 上限 ----------
+
+
+async def test_m1_translate_target_cache_hit_skips_source_verification(
+        interpret_client, mock_ai_client, tmp_cache):
+    """目标缓存命中前置于链式源核验(2026-10-08 外评 #3):原文不可核验
+    (伪造,但形状合法)时,若目标语言已有缓存行,直接返回命中——行写入时
+    已过当时的全量校验,本请求 token+entitlement 已拦未授权读取,不引入
+    新内容面;修复前源核验在前,伪造原文必 409。
+    """
+    ch = "hash-chain-cache-first"
+    m0_zh = json.loads(M0_ZH_JSON)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m0_structure", context={"chart": M0_CHART},
+                    mock_response=M0_ZH_JSON)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m1_talent", context=_m1_context(m0_zh),
+                    parent_fingerprint=m0_zh["structure_fingerprint"],
+                    mock_response=M1_ZH_JSON)
+    # 第一次翻译成功:目标语言(zh-hant)缓存行落键
+    mock_ai_client.set_response(M1_HANT_JSON)
+    payload = {
+        "content_hash": ch, "module": "m1_talent",
+        "context": _m1_context(m0_zh), "target_date": None,
+        "parent_fingerprint": m0_zh["structure_fingerprint"],
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m1_talent"],
+        "source_interpretation": M1_ZH_JSON,
+    }
+    first = await interpret_client.post("/api/interpret/translate", json=payload,
+                                        headers={"X-QiCompass-Lang": "zh-hant"})
+    assert first.status_code == 200, first.text
+    calls = mock_ai_client.call_count
+
+    # 同键再译但原文被篡改(形状合法、内容不在后端缓存):目标缓存命中直接返回
+    tampered = json.loads(M1_ZH_JSON)
+    tampered["one_leverage"] = "伪造的杠杆描述"
+    tampered_payload = {**payload,
+                        "source_interpretation": json.dumps(
+                            tampered, ensure_ascii=False)}
+    mock_ai_client.set_response("占位(不应被调用)")
+    second = await interpret_client.post(
+        "/api/interpret/translate", json=tampered_payload,
+        headers={"X-QiCompass-Lang": "zh-hant"})
+    assert second.status_code == 200, second.text
+    assert second.json()["cached"] is True, "目标缓存命中必须先于源核验返回"
+    assert second.json()["interpretation"] == M1_HANT_JSON
+    assert mock_ai_client.call_count == calls, "命中路径不得再调 LLM"
+
+
+async def test_m1_translate_survives_junk_upstream_rows(
+        interpret_client, mock_ai_client, tmp_cache):
+    """注入行不影响合法链核验(2026-10-08 外评 #3):攻击面 = 持 token 者在
+    自己盘的注入键下量产行放大逐行重渲染 CPU。本测试锁两点:① 注入行
+    (parent 匹配但 hash 与真实链重建永不相等)不劫持/不破坏合法核验;
+    ② 行数截断在偏好序之后执行,真行(生成时序在前)不被剪掉。
+    """
+    import hashlib
+
+    from app.ai.cache_key import CacheKey
+    ch = "hash-chain-junk"
+    m0_zh = json.loads(M0_ZH_JSON)
+    fp = m0_zh["structure_fingerprint"]
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m0_structure", context={"chart": M0_CHART},
+                    mock_response=M0_ZH_JSON)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m1_talent", context=_m1_context(m0_zh),
+                    parent_fingerprint=fp,
+                    mock_response=M1_ZH_JSON)
+    # 真行之后追加 10 条注入行(同 parent / 当前版本 / hash 随机——逐行
+    # 重渲染后必不命中,只消耗走查预算)
+    for i in range(10):
+        tmp_cache.set(
+            CacheKey(
+                content_hash=ch, module="m1_talent",
+                prompt_version=PROMPT_VERSIONS["m1_talent"], target_date="",
+                prompt_hash=hashlib.sha256(
+                    f"junk-{i}".encode()).hexdigest(),
+                provider="anthropic", model="mock-anthropic-model",
+                parent_hash=hashlib.sha256(fp.encode()).hexdigest(),
+                user_input_hash="", language="zh"),
+            M1_ZH_JSON, "2026-10-01T00:00:00+00:00")
+
+    mock_ai_client.set_response(M1_HANT_JSON)
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m1_talent",
+        "context": _m1_context(m0_zh), "target_date": None,
+        "parent_fingerprint": fp,
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m1_talent"],
+        "source_interpretation": M1_ZH_JSON,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["interpretation"] == M1_HANT_JSON
+
+
+def test_prefer_current_version_rows_order_and_cap():
+    """偏好序 + 截断(2026-10-08 外评 #1):当前版本优先,其余版本降序;
+    超上限截断。修复前 get_module_rows 无 ORDER BY(插入序≈版本升序),
+    首个匹配会取到 bump 前旧行——保留式 bump(v4/v5 文件并存,dec18de 起
+    惯例)下旧行可自核验,其输出值与当前版本叶子的键重建永不相等 →
+    合法翻译恒 409。"""
+    import hashlib
+
+    from app.ai.cache_key import CacheKey
+    from app.api.interpret import (
+        _V1_CHAIN_MAX_ROWS_PER_MODULE, _prefer_current_version_rows)
+
+    def row(version: int, salt: str) -> tuple[CacheKey, str]:
+        return (CacheKey(
+            content_hash="h", module="m1_talent", prompt_version=version,
+            target_date="", prompt_hash=hashlib.sha256(
+                f"{version}-{salt}".encode()).hexdigest(),
+            provider="anthropic", model="m", parent_hash="p",
+            user_input_hash="", language="zh"), f"text-{version}-{salt}")
+
+    # 插入序模拟现实:老版本行在前(先落库),当前版本(3)行居中,新库尾部
+    rows = [row(1, "a"), row(2, "a"), row(3, "real"), row(3, "b"), row(2, "b")]
+    ordered = _prefer_current_version_rows(rows, 3)
+    assert [k.prompt_version for k, _ in ordered] == [3, 3, 2, 2, 1], \
+        "当前版本优先,其余按版本降序"
+    assert ordered[0][1] == "text-3-real", "当前版本组内保插入序(稳定排序,真行在前)"
+
+    # 现实攻击形态:正常链生成(真行先落库)之后才注入 junk——同版本组内
+    # 稳定排序保插入序,真行恒在截断窗口内。(junk 先于真行落库的形态只有
+    # chart 持有者自己能构造——context_token 绑定盘,写行即自伤自己的核验,
+    # 不属防护目标;上限的意义是把该自伤面的 CPU 烧成有界。)
+    many = [row(3, "real")] + [row(3, f"junk-{i}") for i in range(20)]
+    capped = _prefer_current_version_rows(many, 3)
+    assert len(capped) == _V1_CHAIN_MAX_ROWS_PER_MODULE
+    assert capped[0][1] == "text-3-real", \
+        "截断不剪生成时序在前的真行(注入行只能追加在真行之后)"

@@ -144,6 +144,11 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         return false
     }
 
+    private static func isContextTokenExpired(_ state: DailyFortuneViewState) -> Bool {
+        if case .ready(_, .contextTokenExpired, _) = state { return true }
+        return false
+    }
+
     private static func isOkFree(_ state: DailyFortuneViewState) -> Bool {
         if case .ready(_, .okFree, _) = state { return true }
         return false
@@ -238,6 +243,60 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         XCTAssertEqual(response.contextToken, "v1.existing-token")
         let calls = await api.dailyFortuneAttempts()
         XCTAssertEqual(calls, 0, "缓存命中不得打后端")
+    }
+
+    /// 2026-10-08 外评 #5 回归:「token 在但已失效」(如 JWT_SECRET_KEY 轮换)
+    /// 的快照照样复用 → interpret 403 → 死循环到当天结束。修复 = 403 时清快照
+    /// token,落回「无 token 视同 miss」重签路径自愈(b921223 nil 补丁的姊妹)。
+    func test解读403凭证失效_清快照失效token_下次进入重签自愈() async throws {
+        try seedChart(hash: "daily_token_stale")
+        // 播种用 VM 同款业务日(startOfDay 截断;直接用 Date.now 会因含时分秒
+        // 与 VM 的 selectedDate 不等,快照 miss 落穿,测不到「复用坏 token」路径)
+        let businessDate = BusinessDateCalculator.businessDate(
+            now: .now, ziHourRule: "zi_next_day"
+        )
+        try dailyStore.upsert(
+            chartHash: "daily_token_stale",
+            targetDate: businessDate,
+            response: Self.makeDailyResponse(contextToken: "v1.rotated-secret-token"),
+            interpretation: "",
+            cachedUntil: BusinessDateCalculator.cachedUntil(forBusinessDate: businessDate)
+        )
+        await api.setInterpretError(APIError.backendError(
+            code: "CONTEXT_TOKEN_INVALID",
+            message: "解读凭证已失效",
+            requestId: nil
+        ))
+        vm.silentRetryDelay = 0.05
+
+        vm.onAppear(currentChartHash: "daily_token_stale", ziHourRule: "zi_next_day")
+
+        // 403 → .contextTokenExpired 独立态(不走 failed 静默重试循环)
+        let expired = await waitFor { Self.isContextTokenExpired(self.vm.state) }
+        XCTAssertTrue(expired, "凭证失效必须落 .contextTokenExpired,实际:\(vm.state)")
+
+        // 失效 token 已清:快照本身仍新鲜(日粒度 cachedUntil 未过),但 token 归空
+        let snapshot = try dailyStore.getCachedIfFresh(
+            chartHash: "daily_token_stale", targetDate: businessDate
+        )
+        XCTAssertNotNil(snapshot, "快照日粒度新鲜度不受 token 清除影响")
+        XCTAssertNil(snapshot?.contextToken, "403 后必须清快照失效 token(否则当天每次进入都复用坏 token)")
+
+        // 自愈闭环:后端恢复正常(错误清空 + 可重签)→ 下次 runDeterministic
+        // 视同 miss 落穿重签(不再复用坏 token 再 403)
+        await api.setInterpretError(nil)
+        await api.setDailyFortuneToken("v1.fresh-token")
+        let (response, fromCache) = try await orchestrator.runDeterministic(
+            chartHash: "daily_token_stale",
+            ziHourRule: "zi_next_day",
+            businessDate: businessDate
+        )
+        XCTAssertFalse(fromCache, "token 清空后必须落穿后端重签(死锁出口)")
+        XCTAssertEqual(response.contextToken, "v1.fresh-token")
+        let refreshed = try dailyStore.getCachedIfFresh(
+            chartHash: "daily_token_stale", targetDate: businessDate
+        )
+        XCTAssertEqual(refreshed?.contextToken, "v1.fresh-token", "重签 token 覆盖自愈")
     }
 
     // MARK: - 自动失败 → 一次静默重试 → 成功
@@ -821,6 +880,9 @@ private actor FailingInterpretAPIClient: APIClient {
     private var failFirst: Int = 0
     private var attempts = 0
     private var interpretText: String = "静默重试成功后的解读文本(mock)。"
+    /// 2026-10-08 外评 #5 回归:非 nil 时 interpret 抛此错(凭证失效 403 面)。
+    private var interpretError: APIError?
+    func setInterpretError(_ error: APIError?) { interpretError = error }
     /// R1 测试注入:非 nil 时 translate 抛此错(STALE_SOURCE 等翻译失败面)。
     private var translateError: APIError?
     /// L5 测试注入:非 nil 时 translate 返回该文本(合法 v4 五段 = 译文成功)。
@@ -920,6 +982,9 @@ private actor FailingInterpretAPIClient: APIClient {
     func interpret(request: InterpretRequest) async throws -> InterpretResponse {
         attempts += 1
         interpretHashes.append(request.contentHash)
+        if let interpretError {
+            throw interpretError
+        }
         if attempts <= failFirst {
             throw APIError.networkError(URLError(.timedOut))
         }

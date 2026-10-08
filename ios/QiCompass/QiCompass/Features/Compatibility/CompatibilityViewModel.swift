@@ -2500,8 +2500,21 @@ final class CompatibilityViewModel {
                 self.settleExemptRegenOutcomeIfCurrent(compatHash: compatHash, attemptKey: attemptKey)
                 if let (current, currentResponse) = self.currentDetailIfMatches(summary) {
                     // 凭证失效(2026-10-08):403 重试无意义,独立态渲染「重新排盘」
-                    // 出口(老 A/B 快照盘的恢复 = 重新排盘拿新 token 后重算落新快照)
+                    // 出口(老 A/B 快照盘的恢复 = 重新排盘拿新 token 后重算落新快照)。
+                    // 同时清快照失效 token(外评 #5):isReusable 只查「token 非空」,
+                    // 坏 token 不清会让重新排盘后每次打开都复用它再 403;清空落
+                    // computePair 重算重签自愈。
                     if APIError.isContextTokenError(error) {
+                        do {
+                            try compatibilityStore.clearContextToken(
+                                compatibilityHash: compatHash)
+                        } catch {
+                            // 清除失败不吞(错误显式传播):记日志,主流程仍进
+                            // 失效态;重算路径在下次打开时重试清除效果。
+                            AppLogger.persistence.error(
+                                "op=compatibility.interpret.clearToken_failed hash=\(compatHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                            )
+                        }
                         self.state = .detail(current, currentResponse, .contextTokenExpired)
                         return
                     }
@@ -2831,7 +2844,18 @@ final class CompatibilityViewModel {
                 }
                 // 凭证失效(镜像深度解析 doc E,2026-10-08):重试必再 403——
                 // 恢复原文展示态,提示条改「重新排盘」指引(不渲染重试按钮)。
+                // 快照失效 token 一并清(外评 #5,与 interpret 403 落点同款):
+                // 翻译用的也是快照里的 compat token,不清则重排后每次打开都
+                // 复用坏 token 再 403。
                 if APIError.isContextTokenError(error) {
+                    do {
+                        try compatibilityStore.clearContextToken(
+                            compatibilityHash: compatHash)
+                    } catch {
+                        AppLogger.persistence.error(
+                            "op=compatibility.translate.clearToken_failed hash=\(compatHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                        )
+                    }
                     guard let (current, currentResponse) = self.currentDetailIfMatches(summary) else { return }
                     let hasEntitlement = self.entitlementStore.getActive(
                         contentHash: compatHash,

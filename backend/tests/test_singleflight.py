@@ -184,3 +184,44 @@ async def test_creator_cancel_does_not_cancel_waiters():
     # 等待者仍拿到结果(未被连坐 cancel)
     assert await asyncio.wait_for(waiter, timeout=1.0) == "shared"
     assert "k1" not in sf._inflight, "创建者退出后应清理 inflight"
+
+
+async def test_creator_cancel_window_keeps_entry_for_later_joiner():
+    """创建者取消后的在飞窗口(2026-10-08 外评 #8):条目清理挂在任务完成
+    时机(done_callback)而非创建者 finally——窗口内后来的同 key 请求直接
+    共享在飞任务,不再重开一次 factory(重复 LLM 成本/重复扣额)。
+    修复前:创建者 finally 立即删 key,后来者 coalesce 落空重开 factory。
+    """
+    sf = SingleflightCoalescer()
+    call_count = 0
+    started = asyncio.Event()
+    release = asyncio.Event()
+
+    async def factory():
+        nonlocal call_count
+        call_count += 1
+        started.set()
+        await release.wait()
+        return "done"
+
+    creator = asyncio.ensure_future(sf.coalesce("k1", factory))
+    await started.wait()
+
+    creator.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await creator
+    # factory 未完成:shield 保住共享 task,条目仍在 inflight
+    assert "k1" in sf._inflight, "创建者取消不得移除仍在飞的任务条目"
+
+    # 窗口内后来者:共享在飞任务,不重开 factory
+    joiner = asyncio.ensure_future(sf.coalesce("k1", factory))
+    await asyncio.sleep(0.01)
+    release.set()
+    assert await asyncio.wait_for(joiner, timeout=1.0) == "done"
+    assert call_count == 1, f"窗口内同 key 应共享在飞任务只调 1 次,实际 {call_count}"
+
+    # 任务完成后条目清理(done_callback):同 key 再来走全新 factory
+    await asyncio.sleep(0.05)  # 让 done_callback 有机会执行
+    again = asyncio.ensure_future(sf.coalesce("k1", factory))
+    assert await asyncio.wait_for(again, timeout=1.0) == "done"
+    assert call_count == 2, f"完成后条目应清理,后续同 key 重新执行,实际 {call_count}"

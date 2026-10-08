@@ -201,6 +201,25 @@ final class DailyFortuneSnapshotStore {
         snapshot.interpretationLanguage = language
         try context.save()
     }
+
+    /// 凭证失效自愈(2026-10-08 外评 #5):interpret/translate 403 时清本快照
+    /// 的 contextToken——复用判据(getCachedIfFresh)只看 `cachedUntil` + 上层
+    /// 「token 非空」,**token 在但已失效**(如 JWT_SECRET_KEY 轮换)的快照
+    /// 照样复用,重新排盘后当天余下时间每次进入都拿坏 token 再 403。清空即
+    /// 落回「无 token 视同 miss」路径:下次 runDeterministic 落穿后端,凭
+    /// chart 快照的 payload token 重签 daily token,upsert 覆盖自愈
+    /// (chart 快照也老 → 后端 403 → contextTokenExpired「重新排盘」出口,
+    /// 语义与既有 nil-token 补丁一致,见 DailyFortuneOrchestrator 同款注释)。
+    func clearContextToken(chartHash: String, targetDate: Date) throws {
+        guard let snapshot = try get(chartHash: chartHash, targetDate: targetDate)
+        else { return }
+        guard snapshot.contextToken != nil else { return }
+        snapshot.contextToken = nil
+        try context.save()
+        AppLogger.persistence.warning(
+            "op=dailyFortune.clearContextToken hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public) — token 失效,清空落回重签路径"
+        )
+    }
 }
 
 /// DailyFortuneSnapshotStore 领域错误。

@@ -388,6 +388,49 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         )
     }
 
+    /// 2026-10-08 外评 #6 回归:服务端免费配额 429(QUOTA_EXCEEDED)与本地
+    /// 10 次/日池不同源——修复前落 .failed,「重试本章」+ 回前台自动续跑
+    /// 反复撞 429。修复后章节落 .dailyLimitReached(禁重试+UTC 零点倒计时),
+    /// 不进自动续跑清单,链在达限章处断(不逐章烧 429)。
+    func test服务端429_章节落达限态_自动续跑不重试() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        apiClient.interpretResponder = { _ in
+            throw APIError.backendError(
+                code: "QUOTA_EXCEEDED",
+                message: "今日免费解读次数已用完(服务端配额)",
+                requestId: nil
+            )
+        }
+        vm.loadArchivedChart(response: response, request: request)
+
+        let limited = await waitUntil(timeout: 10) {
+            if case .dailyLimitReached? = self.vm.moduleStates[.m0] { return true }
+            return false
+        }
+        XCTAssertTrue(limited, "429 必须映射 .dailyLimitReached(禁重试态),实际:\(vm.moduleStates)")
+        XCTAssertEqual(
+            ChapterRowModel.resolve(
+                module: .m0, state: vm.moduleStates[.m0], hasEntitlement: false),
+            .retryable,
+            "达限章行视觉可进章(章内渲染倒计时而非重试按钮)"
+        )
+        // 链在达限章断:下游不发注定 429 的请求
+        XCTAssertFalse(
+            apiClient.recordedInterpretRequests.contains { $0.module == "m1_talent" },
+            "达限断链后不得继续请求下游章(反复 429)"
+        )
+
+        // 回前台自动续跑入口(resumeV1ChainIfNeeded)不把达限章当可跑项
+        let callsAfterLimit = apiClient.recordedInterpretRequests.count
+        vm.resumeV1ChainIfNeeded()
+        try? await Task.sleep(nanoseconds: 600_000_000)
+        XCTAssertEqual(
+            apiClient.recordedInterpretRequests.count, callsAfterLimit,
+            "达限章不得进自动续跑清单(重试必再 429)"
+        )
+    }
+
     func testLoadArchivedChartRestoresCachedModulesAsOkCachedTrue() async throws {
         let request = Self.beijingRequest()
         let response = try await apiClient.calculateBazi(request: request)

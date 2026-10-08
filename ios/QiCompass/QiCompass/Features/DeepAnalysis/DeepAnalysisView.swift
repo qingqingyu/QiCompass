@@ -58,7 +58,13 @@ struct DeepAnalysisView: View {
                         module: module,
                         response: response,
                         onShowPaywall: { showPaywall = true },
-                        onNavigate: { target in path = [target] }
+                        onNavigate: { target in path = [target] },
+                        // 重新排盘出口(2026-10-08 外评 #7):用户已在深度 tab,
+                        // switchTab 无可见效果——清阅读页导航 + reset 回排盘表单
+                        onRecalculateChart: {
+                            path = []
+                            vm.reset()
+                        }
                     )
                 } else {
                     // 阅读页依赖 .ready;状态机回退时诚实报错不闪空屏

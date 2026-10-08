@@ -41,6 +41,7 @@ from functools import lru_cache
 from pathlib import Path
 
 from ..errors import InvalidInputError
+from ..models.interpret import V1_MODULES
 
 logger = logging.getLogger(__name__)
 
@@ -871,6 +872,61 @@ REQUIRED_FIELDS: dict[str, list[str]] = {
 }
 
 
+# ---------- v1 链式字段规范化(2026-10-07 翻译防伪;2026-10-08 外评 #9 收口进本层) ----------
+
+# 链式字段 → 产出模块(镜像 iOS DeepAnalysisViewModel.extractChainFields 的
+# switch 分支与本文件各模板「产 X 供 Y 链式注入」注释)。只登记被下游
+# REQUIRED_FIELDS 消费的字段(M1 的 trained 无人消费,不进表)。
+V1_CHAIN_PRODUCER: dict[str, str] = {
+    "structure_fingerprint": "m0_structure",
+    "main_axis": "m0_structure",
+    "core_loop": "m0_structure",
+    "innate": "m1_talent",
+    "defensive": "m1_talent",
+    "one_leverage": "m1_talent",
+    "threshold": "m2_high_low",
+    "switch_actions": "m2_high_low",
+    "ideal_life_structure": "m3_system",
+    "environment_checklist": "m3_system",
+    "leverage": "m6_dynamics",
+}
+
+
+def canonicalize_v1_chain_fields(module: str, context: dict) -> dict:
+    """v1 模块 context 的链式字段规范化(dict/list → canonical JSON)。
+
+    非合法 JSON 的链式字段值原样保留(渲染层照常嵌入;其源键将无法重建,
+    翻译防伪自然拒绝——宽松生成、严格翻译)。非 v1 模块原样返回。
+    规范化是幂等的:canonical 形态再规范化不变。
+
+    2026-10-08 从 app/api/interpret.py 移入本层:prompt_hash 的单一决定点
+    是 render_prompt,规范化只做在 API 层时,evalkit/spike 等直调
+    render_prompt 的调用方渲染出的 prompt 与线上字节不一致(链字段以
+    各自的序列化形态直入模板),prompt 回归守护栏覆盖不到线上真实形态
+    ——收口进渲染层后所有调用方自动对齐。
+    """
+    if module not in V1_MODULES:
+        return context
+    canonical = dict(context)
+    for name in V1_CHAIN_PRODUCER:
+        value = canonical.get(name)
+        if not isinstance(value, str):
+            continue
+        try:
+            parsed = json.loads(value)
+        except (json.JSONDecodeError, RecursionError):
+            # RecursionError:深嵌套值(≤4096 字符即可超解析递归上限)按
+            # 「不可解析」同款处理——API 层本函数先于 validate_context 执行,
+            # 不捕获会让滥用负载打出 500,绕过 validate_context 的
+            # RecursionError→422 加固(2026-10-07 同日收口,勿回退)。
+            continue
+        if isinstance(parsed, (dict, list)):
+            canonical[name] = json.dumps(
+                parsed, sort_keys=True, ensure_ascii=False,
+                separators=(",", ":"))
+    return canonical
+
+
 class _StrictFormatDict(dict):
     """str.format_map 的字典:缺失 key 时抛清晰 KeyError(不静默填空)。"""
 
@@ -1047,6 +1103,13 @@ def render_prompt(
         InvalidInputError: context 缺字段或值类型非法
         ValueError: module 未注册
     """
+    # v1 链式字段规范化收口(2026-10-08 外评 #9):render_prompt 是 prompt_hash
+    # 的单一决定点,规范化若只留在 API 层,直调本函数的调用方(evalkit/spike/
+    # 翻译防伪链重建)渲染出的 prompt 会与线上字节不一致。幂等,API 层
+    # (_prepare_prompt_and_key)先规范化后校验的既有次序不变(长度校验看
+    # canonical 形态),此处二次应用是无害 no-op;浅拷贝防污染调用方 dict。
+    if module in V1_MODULES:
+        context = canonicalize_v1_chain_fields(module, context)
     validate_context(module, context)
     # 合盘名字注入(2026-09-27 A/B 代号修复):name_a/name_b 是**可选扩展字段**,
     # 不进 REQUIRED_FIELDS——老 iOS context 不带名字,此处 setdefault 兜底 "A"/"B",

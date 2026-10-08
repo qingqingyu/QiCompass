@@ -90,6 +90,23 @@ final class CompatibilitySnapshotStore {
         return try context.fetch(desc).first
     }
 
+    /// 凭证失效自愈(2026-10-08 外评 #5,镜像 DailyFortuneSnapshotStore 同名
+    /// 方法):interpret/translate 403 时清本快照 contextToken——`isReusable`
+    /// 只查「token 非空」,**token 在但已失效**(如 JWT_SECRET_KEY 轮换)的
+    /// 快照照样被判可复用,重新排盘后每次打开该对都拿坏 token 再 403。清空
+    /// 即落穿 computePair 重算:凭(重排后的)chart payload token 重签 compat
+    /// token,upsertQualitative 覆盖自愈。
+    func clearContextToken(compatibilityHash: String) throws {
+        guard let snapshot = try get(compatibilityHash: compatibilityHash)
+        else { return }
+        guard snapshot.contextToken != nil else { return }
+        snapshot.contextToken = nil
+        try context.save()
+        AppLogger.persistence.warning(
+            "op=compatibilitySnapshot.clearContextToken hash=\(compatibilityHash, privacy: .public) — token 失效,清空落回重算重签路径"
+        )
+    }
+
     /// S05 新增:按 A hash + context 查询全部 CompatibilitySnapshot(createdAt DESC)。
     /// 供 S06 跨启动恢复使用(恢复列表 = list 结果 ∩ 持久化名单)。
     /// personAHash 是调用时 UI 顺序的 A(决策 D8:context 作用域;per-pair context 不做,v2)。

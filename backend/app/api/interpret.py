@@ -51,6 +51,8 @@ from ..ai.prompts import (
     COMPATIBILITY_MODULES,
     PROMPT_VERSIONS,
     REQUIRED_FIELDS,
+    V1_CHAIN_PRODUCER,
+    canonicalize_v1_chain_fields,
     render_prompt,
     validate_context,
 )
@@ -454,24 +456,12 @@ def _log_offchart_ganzhi(
         )
 
 
-# ---------- v1 链式字段:规范化 + 上游链映射(2026-10-07 翻译防伪回归修复) ----------
+# ---------- v1 链式字段:上游链映射(2026-10-07 翻译防伪回归修复) ----------
 
-# 链式字段 → 产出模块(镜像 iOS DeepAnalysisViewModel.extractChainFields 的
-# switch 分支与 prompts.py 各模板「产 X 供 Y 链式注入」注释)。只登记被下游
-# REQUIRED_FIELDS 消费的字段(M1 的 trained 无人消费,不进表)。
-_V1_CHAIN_PRODUCER: Final[dict[str, str]] = {
-    "structure_fingerprint": "m0_structure",
-    "main_axis": "m0_structure",
-    "core_loop": "m0_structure",
-    "innate": "m1_talent",
-    "defensive": "m1_talent",
-    "one_leverage": "m1_talent",
-    "threshold": "m2_high_low",
-    "switch_actions": "m2_high_low",
-    "ideal_life_structure": "m3_system",
-    "environment_checklist": "m3_system",
-    "leverage": "m6_dynamics",
-}
+# 链式字段 → 产出模块的映射表(V1_CHAIN_PRODUCER)与字段规范化
+# (canonicalize_v1_chain_fields)自 2026-10-08 起收口在 app/ai/prompts.py
+# (render_prompt 内联规范化,直调渲染的 evalkit/spike 与线上字节对齐),
+# 本文件经 import 消费,不再各持一份。
 
 # M1-M7 的源键重建依赖(拓扑序:被依赖者在前)。镜像 iOS
 # ModuleDefinitions.swift dependencies;m7 模板不读 chart 但其请求仍带
@@ -507,35 +497,6 @@ def _canonical_chain_value(value: object) -> str | None:
         return json.dumps(value, sort_keys=True, ensure_ascii=False,
                           separators=(",", ":"))
     return None
-
-
-def _canonicalize_v1_chain_fields(module: str, context: dict) -> dict:
-    """v1 模块 context 的链式字段规范化(dict/list → canonical JSON)。
-
-    非合法 JSON 的链式字段值原样保留(渲染层照常嵌入;其源键将无法重建,
-    翻译防伪自然拒绝——宽松生成、严格翻译)。非 v1 模块原样返回。
-    规范化是幂等的:canonical 形态再规范化不变。
-    """
-    if module not in V1_MODULES:
-        return context
-    canonical = dict(context)
-    for name in _V1_CHAIN_PRODUCER:
-        value = canonical.get(name)
-        if not isinstance(value, str):
-            continue
-        try:
-            parsed = json.loads(value)
-        except (json.JSONDecodeError, RecursionError):
-            # RecursionError:深嵌套值(≤4096 字符即可超解析递归上限)按
-            # 「不可解析」同款处理——本函数先于 validate_context 执行,
-            # 不捕获会让滥用负载打出 500,绕过 validate_context 的
-            # RecursionError→422 加固(2026-10-07 同日收口,勿回退)。
-            continue
-        if isinstance(parsed, (dict, list)):
-            canonical[name] = json.dumps(
-                parsed, sort_keys=True, ensure_ascii=False,
-                separators=(",", ":"))
-    return canonical
 
 
 # ---------- 端点共享层(D10.1:两个端点共用,禁止复制粘贴) ----------
@@ -592,7 +553,7 @@ def _prepare_prompt_and_key(
     # 一次性影响:M1-M7 既有后端缓存键含旧序列化形态,部署后自然失效重生成
     # (iOS 本地缓存键不含 prompt_hash,不受影响)。
     try:
-        translated_context = _canonicalize_v1_chain_fields(
+        translated_context = canonicalize_v1_chain_fields(
             req.module,
             translate_context(req.context, language, req.module),
         )
@@ -989,6 +950,12 @@ async def interpret(
     #     provider 抛错退回(服务商故障期间重试不烧光当日额度)。
     # v1 prompt 系统:按 module 分级 temperature(M0-M2=0.3 稳结构,M3-M7=0.6
     # 重质感,老模块=0.6 向后兼容);Stage 2 已铺基础设施,此处接入路由
+    #
+    # 后置处理(4.2)/ 契约校验(4.4)/ 禁词(4.5)/ 写缓存(5)一并收进
+    # factory(2026-10-08 外评 #8):此前它们在 handler 侧 coalesce 之后执行,
+    # 创建者请求被取消(客户端断连)时 shield 保护的 factory 照常烧完 LLM、
+    # 扣掉配额,但结果随 handler 取消被丢弃——重试 = 再烧一次 LLM 再扣一次
+    # 额度。收进 factory 后无论调用方存亡,成品必经验证并落缓存。
     logger.info("interpret.provider_called %s", log_ctx)
     sf: SingleflightCoalescer = request.app.state.llm_singleflight
     # CacheKey 是 frozen dataclass,自动 hashable,直接作 singleflight dict key
@@ -996,14 +963,8 @@ async def interpret(
     sf_key = cache_key
     temperature = resolve_temperature(req.module)
 
-    # 本请求是否真的扣过免费配额(singleflight leader 才扣;2026-10-08
-    # 分类退款的正确性前提):LLM 正常返回后的失败退款(4.4 契约/截断)只对
-    # 真正扣款者执行——follower 共享结果未扣款,退了会把自己 bucket 里
-    # **其他请求**的计数减 1(泄漏额度)。provider 抛错路径的退款在 factory
-    # 内,天然只有 leader 执行。
-    quota_consumed_day: dict[str, str | None] = {"day": None}
+    async def _generate() -> tuple[str, str]:
 
-    async def _generate() -> str:
         # 已知取舍(2026-10-08 review 点名,记录不修):配额在 singleflight
         # factory 内只按 **leader 的身份** 扣——并发同 key 的 follower 共享
         # 结果,自己的 bucket 不扣。即:leader 超额 → 同 key 的有额用户一起
@@ -1016,9 +977,9 @@ async def interpret(
         day = datetime.now(timezone.utc).date().isoformat()
         if req.module not in PAID_MODULES:
             await _enforce_free_daily_quota(request, req, current_user_id, day)
-            quota_consumed_day["day"] = day
         try:
-            return await ai_client.interpret(prompt, temperature=temperature)
+            interpretation = await ai_client.interpret(
+                prompt, temperature=temperature)
         except Exception:
             # 只在真烧过 LLM 的路径退回(配额已扣);QuotaExceededError 在
             # 扣费前抛出,不会走到这里。CancelledError 是 BaseException,
@@ -1028,8 +989,72 @@ async def interpret(
                 await _refund_free_daily_quota(request, req, current_user_id, day)
             raise
 
+        # 4.2 合盘后置处理(2026-09-27):A/B 代号确定性替换 + 干支接地违约观测。
+        # 在禁词扫描/写缓存之前——扫描与缓存看到的都是最终文本。
+        # 名字从 translated_context 取(老客户端无名字 → render_prompt 已 setdefault
+        # 兜底 "A"/"B",替换退化为恒等)。
+        if req.module in _COMPAT_POSTPROCESS_MODULES:
+            interpretation = _maybe_replace_ab_labels(
+                interpretation,
+                translated_context.get("name_a") or "A",
+                translated_context.get("name_b") or "B",
+                language,
+            )
+            _log_offchart_ganzhi(interpretation, translated_context, log_ctx)
+
+        # 4.4 v1 JSON 契约校验(2026-09-27):M0-M7 输出必须是完整 JSON 对象。
+        # 截断/违约 → AIProviderError(503),不进禁词扫描、不写缓存、不返回
+        # (半截 JSON 一旦入缓存,iOS 渲染层 parse 失败退回散文 = 正文 JSON 裸奔,
+        # 真机 m1_talent 实证)。daily_fortune v4 五键契约同门(2026-09-30):
+        # 违约不进双层缓存,防 iOS 端「Retry 拿回同一段坏文本」的缓存毒化循环。
+        try:
+            _validate_v1_module_json(req.module, interpretation)
+            _validate_daily_fortune_json(req.module, interpretation)
+        except AIProviderError as e:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            e.request_id = request_id
+            logger.error(
+                "interpret.v1_invalid_json elapsed_ms=%.1f %s error=%s",
+                elapsed_ms, log_ctx, e,
+            )
+            # 分类退款(2026-10-08 拍板):契约/截断失败属服务商侧非用户过错
+            # (09-27 max_tokens 截断事故实证主因)——校验已收进 factory,
+            # 天然只由真正扣款的 leader 执行(follower 共享结果未扣款,退了
+            # 会把自己 bucket 其他请求的计数减 1);受退款日上限保护。
+            if req.module not in PAID_MODULES:
+                await _refund_free_daily_quota(request, req, current_user_id, day)
+            raise
+
+        # 4.5 禁词扫描(LLM 输出守卫,US-COMP-04)
+        # 命中即拦截:不替换文本,不写缓存,不返回原文,直接抛错让客户端进入
+        # error 态。分类退款口径(2026-10-08 拍板):禁词命中**不退**——用户
+        # 可构造能触发禁词的输入,退款 = 免费烧 LLM 不扣额的通道(退款日上限
+        # 只兜底,此处直接不进退款类)。
+        validate_interpretation(
+            interpretation,
+            request_id=request_id,
+            content_hash=req.content_hash,
+            log_ctx=log_ctx,
+        )
+
+        # 5. 写缓存(同步 → 线程池)
+        now_iso = datetime.now(timezone.utc).isoformat()
+        try:
+            await run_in_threadpool(
+                cache.set, cache_key, interpretation, now_iso,
+            )
+        except Exception as e:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.exception(
+                "interpret.cache_set_failed elapsed_ms=%.1f %s error=%s",
+                elapsed_ms, log_ctx, e,
+            )
+            raise InterpretationCacheError(
+                f"后端缓存写失败({type(e).__name__}): {e}") from e
+        return interpretation, now_iso
+
     try:
-        interpretation = await sf.coalesce(sf_key, _generate)
+        interpretation, now_iso = await sf.coalesce(sf_key, _generate)
     except AIProviderError as e:
         elapsed_ms = (time.perf_counter() - start) * 1000
         logger.exception(
@@ -1041,71 +1066,9 @@ async def interpret(
     # 非预期异常(AttributeError/TypeError 等代码 bug)不包装,
     # 向上抛由全局 handler 处理为 500,避免用 503 掩盖代码缺陷
 
-    # 4.2 合盘后置处理(2026-09-27):A/B 代号确定性替换 + 干支接地违约观测。
-    # 在禁词扫描/写缓存之前——扫描与缓存看到的都是最终文本。
-    # 名字从 translated_context 取(老客户端无名字 → render_prompt 已 setdefault
-    # 兜底 "A"/"B",替换退化为恒等)。
-    if req.module in _COMPAT_POSTPROCESS_MODULES:
-        interpretation = _maybe_replace_ab_labels(
-            interpretation,
-            translated_context.get("name_a") or "A",
-            translated_context.get("name_b") or "B",
-            language,
-        )
-        _log_offchart_ganzhi(interpretation, translated_context, log_ctx)
-
-    # 4.4 v1 JSON 契约校验(2026-09-27):M0-M7 输出必须是完整 JSON 对象。
-    # 截断/违约 → AIProviderError(503),不进禁词扫描、不写缓存、不返回
-    # (半截 JSON 一旦入缓存,iOS 渲染层 parse 失败退回散文 = 正文 JSON 裸奔,
-    # 真机 m1_talent 实证)。失败 refund 由 iOS 端重试链路承接(重试不耗次数)。
-    # daily_fortune v4 五键契约同门(2026-09-30):违约不进双层缓存,
-    # 防 iOS 端「Retry 拿回同一段坏文本」的缓存毒化循环。
-    try:
-        _validate_v1_module_json(req.module, interpretation)
-        _validate_daily_fortune_json(req.module, interpretation)
-    except AIProviderError as e:
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        e.request_id = request_id
-        logger.error(
-            "interpret.v1_invalid_json elapsed_ms=%.1f %s error=%s",
-            elapsed_ms, log_ctx, e,
-        )
-        # 分类退款(2026-10-08 拍板):契约/截断失败属服务商侧非用户过错
-        # (09-27 max_tokens 截断事故实证主因)——只对本请求真正扣过款的
-        # leader 退 1 次(受退款日上限保护);follower 未扣款不退。
-        if quota_consumed_day["day"] is not None:
-            await _refund_free_daily_quota(
-                request, req, current_user_id, quota_consumed_day["day"])
-        raise
-
-    # 4.5 禁词扫描(LLM 输出守卫,US-COMP-04)
-    # 命中即拦截:不替换文本,不写缓存,不返回原文,直接抛错让客户端进入 error 态。
-    # 分类退款口径(2026-10-08 拍板):禁词命中**不退**——用户可构造能触发
-    # 禁词的输入,退款 = 免费烧 LLM 不扣额的通道(退款日上限只兜底,此处
-    # 直接不进退款类)。
-    validate_interpretation(
-        interpretation,
-        request_id=request_id,
-        content_hash=req.content_hash,
-        log_ctx=log_ctx,
-    )
-
-    # 5. 写缓存(同步 → 线程池)
-    now_iso = datetime.now(timezone.utc).isoformat()
-    try:
-        await run_in_threadpool(
-            cache.set, cache_key, interpretation, now_iso,
-        )
-    except Exception as e:
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        logger.exception(
-            "interpret.cache_set_failed elapsed_ms=%.1f %s error=%s",
-            elapsed_ms, log_ctx, e,
-        )
-        raise InterpretationCacheError(
-            f"后端缓存写失败({type(e).__name__}): {e}") from e
-
-    # 6. 返回
+    # 6. 返回(后置处理 4.2 / 契约校验 4.4 / 禁词 4.5 / 写缓存 5 已收进
+    # factory,2026-10-08 外评 #8:创建者请求被取消时 shield 保护的 factory
+    # 仍会完整跑完「LLM → 校验 → 落缓存」,重试命中缓存而不再烧 LLM/扣额度)
     elapsed_ms = (time.perf_counter() - start) * 1000
     logger.info(
         "interpret.ok elapsed_ms=%.1f cached=False %s",
@@ -1188,7 +1151,7 @@ def _render_v1_upstream_prompt_hash(
         else:
             return None
     try:
-        translated = _canonicalize_v1_chain_fields(
+        translated = canonicalize_v1_chain_fields(
             module, translate_context(context, language, module))
         rendered = render_prompt(
             module, translated, language=language,
@@ -1199,6 +1162,33 @@ def _render_v1_upstream_prompt_hash(
         # 「该行不可核验」剪枝(→ 409),不伪装成基础设施故障。
         return None
     return hashlib.sha256(rendered.encode("utf-8")).hexdigest()
+
+
+# 链走查每模块候选行上限(2026-10-08 外评 #3):合法场景同 (盘, 模块, 语言)
+# 仅 1-3 行(版本 bump / 重生成残留);持有 token 者可在自己盘的注入键下
+# 量产行放大逐行重渲染 CPU——截断在偏好序之后执行,当前版本行恒在窗口内。
+_V1_CHAIN_MAX_ROWS_PER_MODULE: Final[int] = 8
+
+
+def _prefer_current_version_rows(
+    rows: list[tuple[CacheKey, str]], current_version: int,
+) -> list[tuple[CacheKey, str]]:
+    """候选行偏好序:当前版本优先,其余按版本降序;截断到每模块上限。
+
+    get_module_rows 无 ORDER BY(行序 = 插入序 ≈ 版本升序),首个匹配若取到
+    bump 前的旧行,其输出值与叶子行(当前版本、由新版上游驱动)重建的键
+    永不相等 → 合法翻译恒 409 整章重生成(2026-10-08 外评 #1 🔴)。排序让
+    当前版本行最先被尝试;旧版本行仍保留作回退(M0 根值跨版本稳定的场景,
+    叶子可能由旧值驱动)。截断亦在本序上进行。
+    """
+    ordered = sorted(
+        rows,
+        key=lambda item: (
+            item[0].prompt_version != current_version,
+            -item[0].prompt_version,
+        ),
+    )
+    return ordered[:_V1_CHAIN_MAX_ROWS_PER_MODULE]
 
 
 async def _verify_v1_chain_translation_source(
@@ -1231,6 +1221,13 @@ async def _verify_v1_chain_translation_source(
 
     上游行缺失/坏行(清库、换环境、旧序列化形态行)→ False → 409
     STALE_SOURCE(iOS 既有降级路径:该章转目标语言重新生成,不卡死)。
+
+    已知取舍(2026-10-08 外评 #2,接受不修):重渲染用的是**当前请求**的
+    chart,而 chart 含 current_luck / current_year 等时变字段(build_v1_chart)
+    ——用户跨年(或重排盘刷新时点)后,既有 M1-M7 行的键由旧 chart 驱动,
+    与当前 chart 重建的键不相等 → 409 → 该章按目标语言重新生成。影响每年
+    至多一次/每次重排一次,且重排后 iOS 链本就重算;按「宁可重生成不可
+    放松防伪」接受。行序与上限见 _prefer_current_version_rows(#1/#3)。
     """
     cache: InterpretationCache = request.app.state.cache
     deps = _V1_SOURCE_WALK_DEPS[req.module]
@@ -1243,7 +1240,7 @@ async def _verify_v1_chain_translation_source(
     rows_by_module: dict[str, list[tuple[CacheKey, str]]] = {}
     for m in deps:
         try:
-            rows_by_module[m] = await run_in_threadpool(
+            rows = await run_in_threadpool(
                 cache.get_module_rows, req.content_hash, m, source_language)
         except Exception as e:
             elapsed_ms = (time.perf_counter() - start) * 1000
@@ -1254,6 +1251,10 @@ async def _verify_v1_chain_translation_source(
             )
             raise InterpretationCacheError(
                 f"后端原文核验读失败({type(e).__name__}): {e}") from e
+        # 偏好序 + 截断(2026-10-08 外评 #1/#3):当前版本行优先尝试,防首个
+        # 匹配取到 bump 前旧行致合法翻译恒 409;截断封注入行放大 CPU 的通道。
+        rows_by_module[m] = _prefer_current_version_rows(
+            rows, PROMPT_VERSIONS[m])
 
     for _, m0_text in rows_by_module.get("m0_structure") or []:
         m0_out = _extract_v1_output(m0_text)
@@ -1274,9 +1275,12 @@ async def _verify_v1_chain_translation_source(
             if upstream == "m0_structure":
                 continue
             # 非回溯匹配:同根下多个可核验行只取首个(同版本同 context 的行
-            # 被 PK 去重,实际并存的只有跨版本行;iOS 链按版本顺序生成,
-            # 叶子行由当前版本上游驱动——取到旧版行致叶子核验失败时走
-            # 409 降级,不做笛卡尔积回溯,2026-10-07 取舍)。
+            # 被 PK 去重,实际并存的只有跨版本行)。行集已按「当前版本优先、
+            # 版本降序」排好(2026-10-08 外评 #1 修复:此前行序 = 插入序 ≈
+            # 版本升序,首个匹配取到 bump 前旧行,其输出值与当前版本叶子的
+            # 键重建永不相等 → 每次升上游版本全体切语言用户合法翻译恒 409
+            # 整章重生成)。仍不做笛卡尔积回溯——M0 根层回溯 + 版本偏好序已
+            # 覆盖现实链状态,回溯会让注入行把走查成本放大成组合爆炸。
             matched_text: str | None = None
             for key, text in rows_by_module.get(upstream) or []:
                 if (key.parent_hash != parent_hash
@@ -1300,7 +1304,7 @@ async def _verify_v1_chain_translation_source(
             if upstream_out is None:
                 chain_ok = False
                 break
-            for name, producer in _V1_CHAIN_PRODUCER.items():
+            for name, producer in V1_CHAIN_PRODUCER.items():
                 if producer == upstream and name in upstream_out:
                     value = _canonical_chain_value(upstream_out.get(name))
                     if value is not None:
@@ -1312,7 +1316,7 @@ async def _verify_v1_chain_translation_source(
         # 源键 = 与生成同一代码路径(_prepare_prompt_and_key,含规范化 +
         # user_input_hash),链字段/parent_fingerprint 换成源语言已核验值。
         source_context = dict(req.context)
-        for name in _V1_CHAIN_PRODUCER:
+        for name in V1_CHAIN_PRODUCER:
             if name in verified:
                 source_context[name] = verified[name]
         source_req = req.model_copy(update={
@@ -1590,12 +1594,15 @@ async def interpret_translate(
        prompt_hash / parent_hash / user_input_hash / language)——之后任何
        设备以目标语言请求 /api/interpret 都命中这份译文
     5. entitlement 同检(付费模块;翻译不另收费、不消耗次数)
+    5.4 先查后译(2026-10-08 外评 #3 前置到防伪之前):目标键命中 →
+        cached=True 直接返回(不调 LLM、不走链式源核验——命中行写入时已过
+        全量校验,token+entitlement 已拦住未授权读取);防伪通过后步骤 6
+        同道再查一次(仅剩并发窗口落盘的译文可命中,免烧一次 LLM)
     5.5 服务端原文防伪(P1 安全收口):译文落的是**跨用户共享键**,客户端
        自由文本不可作为内容事实源——否则知道某盘出生数据的人可向该盘的
        目标语言键投毒任意文案。要求原文逐字存在于本后端为
        (content_hash, module, 当前版本, source_language) 生成过的缓存行;
        不可核验(清库 / 换环境 / 伪造)→ 409 STALE_SOURCE,客户端走重新生成
-    6. 先查后译:目标键命中 → cached=True 直接返回(不调 LLM)
     7. translate_v1 模板(按目标语言)+ 术语对注入 + 原文 → LLM(singleflight)
     8. 保真校验(v1 JSON 递归同构 / 合盘章节数+名字)+ 禁词;失败显式
        AIProviderError,**不回退原文、不静默改走重新生成、不写缓存**
@@ -1675,6 +1682,45 @@ async def interpret_translate(
     await _require_entitlement(request, req, current_user_id, request_id)
 
     cache: InterpretationCache = request.app.state.cache
+
+    async def _cached_hit_response() -> InterpretResponse | None:
+        """目标键缓存命中 → cached=True 响应(D10.1 共享,5.4 与步骤 6 同一道)。
+
+        命中行可能是他设备正常生成 / 先前翻译,同键内容等价,不区分来源
+        (translated_from=None,来源只进日志不进 DB)。未命中 / 中毒行已删
+        落穿 → None。禁词/JSON 契约自愈由 _load_validated_cache_row 承担。
+        """
+        cached_row = await _load_validated_cache_row(
+            cache, cache_key, req.module, log_ctx, request_id, req.content_hash,
+            start,
+        )
+        if cached_row is None:
+            return None
+        elapsed_ms = (time.perf_counter() - start) * 1000
+        logger.info(
+            "interpret.translate.cache_hit elapsed_ms=%.1f %s",
+            elapsed_ms, log_ctx,
+        )
+        return InterpretResponse(
+            interpretation=cached_row["interpretation"],
+            prompt_version=prompt_version,
+            cached=True,
+            generated_at=cached_row["generated_at"],
+            provider=cached_row["provider"],
+            model=cached_row["model"],
+            language=language,
+            translated_from=None,
+        )
+
+    # 5.4 先查后译,提前到原文防伪**之前**(2026-10-08 外评 #3):v1 M1-M7 的
+    # 链式源核验要枚举上游行逐行重渲染(CPU 最重的一步),目标语言已有缓存
+    # 时纯属白走——且持有 token 者可反复请求同一叶子模块把走查当 CPU 放大器。
+    # 安全性:目标缓存行的内容在**写入时**已经过当时的生成/翻译全量校验,
+    # 本请求又已过 token 验签(盘身一致)+ entitlement(付费门),直接返回
+    # 不引入新内容面;命中即免走查,重放也打不出成本。
+    hit = await _cached_hit_response()
+    if hit is not None:
+        return hit
 
     # 5.5 服务端原文防伪(P1 安全收口,见端点 docstring):原文必须逐字
     # 存在于本后端为该盘 / 该模块 / 当前版本 / source_language 生成过的
@@ -1757,28 +1803,13 @@ async def interpret_translate(
             f"{req.source_language};清库/换环境后请重新生成,伪造原文不予翻译)",
             request_id=request_id, content_hash=req.content_hash)
 
-    # 6. 先查后译(命中行的禁词/JSON 自愈与 /api/interpret 共享)
-    cached_row = await _load_validated_cache_row(
-        cache, cache_key, req.module, log_ctx, request_id, req.content_hash,
-        start,
-    )
-    if cached_row is not None:
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        logger.info(
-            "interpret.translate.cache_hit elapsed_ms=%.1f %s",
-            elapsed_ms, log_ctx,
-        )
-        return InterpretResponse(
-            interpretation=cached_row["interpretation"],
-            prompt_version=prompt_version,
-            cached=True,
-            generated_at=cached_row["generated_at"],
-            provider=cached_row["provider"],
-            model=cached_row["model"],
-            language=language,
-            # 缓存行可能是他设备正常生成 / 先前翻译,同键内容等价,不区分来源
-            translated_from=None,
-        )
+    # 6. 先查后译(与 5.4 同一道,非冗余):5.4 miss 到此处之间隔着原文
+    # 防伪(纯读不写),另一并发请求(同键翻译/生成)恰在此窗口落盘时,
+    # 此处命中可免烧一次 LLM——这是 5.4 前置后本检查仅剩的存在价值,
+    # 语义与 D10.1「译文落目标键后任何设备直接命中」一致。
+    hit = await _cached_hit_response()
+    if hit is not None:
+        return hit
 
     # 7. 翻译 prompt + LLM(singleflight 按目标 cache_key 合并同 key 并发)。
     #    键加 "translate" 命名空间(2026-10-02 修复):翻译与 /api/interpret
@@ -1794,18 +1825,22 @@ async def interpret_translate(
     )
     # 免费配额(与 /api/interpret 同一道):真烧 LLM 的翻译计数;付费豁免。
     # 扣/退移入 singleflight factory(同 /api/interpret 的 2026-10-07 review
-    # 收口:leader 扣一次、provider 抛错退回)。quota_consumed_day 同
-    # /api/interpret:后置保真失败(步骤 8)的退款只对真正扣款的 leader 执行。
+    # 收口:leader 扣一次、provider 抛错退回)。
+    # 后置处理(7.5)/ 保真校验(8)/ 写缓存(9)一并收进 factory(2026-10-08
+    # 外评 #8):此前的结构里创建者请求被取消(客户端断连)时 shield 保护的
+    # factory 任务照常烧完 LLM、扣掉配额,但校验+写缓存在 handler 侧随请求
+    # 一起被取消——结果丢弃,重试 = 再烧一次 LLM 再扣一次额度。收进 factory
+    # 后无论调用方存亡,成品必经验证并落缓存;退款按 2026-10-08 拍板的
+    # 分类口径(provider 抛错/保真失败退,禁词不退,均受退款日上限保护,
+    # 见 factory 内注释)。
     sf: SingleflightCoalescer = request.app.state.llm_singleflight
-    quota_consumed_day: dict[str, str | None] = {"day": None}
 
-    async def _generate_translation() -> str:
+    async def _generate_translation() -> tuple[str, str]:
         day = datetime.now(timezone.utc).date().isoformat()
         if req.module not in PAID_MODULES:
             await _enforce_free_daily_quota(request, req, current_user_id, day)
-            quota_consumed_day["day"] = day
         try:
-            return await ai_client.interpret(
+            translated = await ai_client.interpret(
                 translate_prompt, temperature=resolve_temperature("translate"),
             )
         except Exception:
@@ -1813,8 +1848,59 @@ async def interpret_translate(
                 await _refund_free_daily_quota(request, req, current_user_id, day)
             raise
 
+        # 7.5 合盘后置处理(A/B 代号兜底 + 干支接地观测,与 /api/interpret 同款)
+        name_a = translated_context.get("name_a") or "A"
+        name_b = translated_context.get("name_b") or "B"
+        if req.module in _TRANSLATE_COMPAT_MODULES:
+            translated = _maybe_replace_ab_labels(
+                translated, name_a, name_b, language)
+            _log_offchart_ganzhi(translated, translated_context, log_ctx)
+
+        # 8. 保真校验(同构/章节/名字)+ 禁词;失败显式抛错,不写缓存(D10.3)
+        try:
+            _assert_translation_fidelity(
+                req.module, req.source_interpretation, translated,
+                name_a, name_b)
+        except AIProviderError as e:
+            e.request_id = request_id
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.error(
+                "interpret.translate.fidelity_failed elapsed_ms=%.1f %s error=%s",
+                elapsed_ms, log_ctx, e,
+            )
+            # 分类退款(2026-10-08 拍板):保真失败属服务商侧非用户过错
+            # (源文经源键核验为缓存原文,非用户可直接构造)——校验已收进
+            # factory,天然只由真正扣款的 leader 执行;受退款日上限保护。
+            if req.module not in PAID_MODULES:
+                await _refund_free_daily_quota(request, req, current_user_id, day)
+            raise
+        # 禁词不退(2026-10-08 拍板分类口径:用户输入可触发的失败退款
+        # = 免费烧 LLM 通道;同 /api/interpret 4.5)
+        validate_interpretation(
+            translated,
+            request_id=request_id,
+            content_hash=req.content_hash,
+            log_ctx=log_ctx,
+        )
+
+        # 9. 写缓存(键 = 目标语言正常生成的键)
+        now_iso = datetime.now(timezone.utc).isoformat()
+        try:
+            await run_in_threadpool(
+                cache.set, cache_key, translated, now_iso,
+            )
+        except Exception as e:
+            elapsed_ms = (time.perf_counter() - start) * 1000
+            logger.exception(
+                "interpret.translate.cache_set_failed elapsed_ms=%.1f %s error=%s",
+                elapsed_ms, log_ctx, e,
+            )
+            raise InterpretationCacheError(
+                f"后端缓存写失败({type(e).__name__}): {e}") from e
+        return translated, now_iso
+
     try:
-        translated = await sf.coalesce(
+        translated, now_iso = await sf.coalesce(
             ("translate", cache_key), _generate_translation,
         )
     except AIProviderError as e:
@@ -1826,54 +1912,8 @@ async def interpret_translate(
         e.request_id = request_id
         raise
 
-    # 7.5 合盘后置处理(A/B 代号兜底 + 干支接地观测,与 /api/interpret 同款)
-    name_a = translated_context.get("name_a") or "A"
-    name_b = translated_context.get("name_b") or "B"
-    if req.module in _TRANSLATE_COMPAT_MODULES:
-        translated = _maybe_replace_ab_labels(translated, name_a, name_b, language)
-        _log_offchart_ganzhi(translated, translated_context, log_ctx)
-
-    # 8. 保真校验(同构/章节/名字)+ 禁词;失败显式抛错,不写缓存(D10.3)
-    try:
-        _assert_translation_fidelity(
-            req.module, req.source_interpretation, translated, name_a, name_b)
-    except AIProviderError as e:
-        e.request_id = request_id
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        logger.error(
-            "interpret.translate.fidelity_failed elapsed_ms=%.1f %s error=%s",
-            elapsed_ms, log_ctx, e,
-        )
-        # 分类退款(2026-10-08 拍板):保真失败属服务商侧非用户过错(源文经
-        # 源键核验为缓存原文,非用户可直接构造)——只对真正扣款的 leader 退。
-        if quota_consumed_day["day"] is not None:
-            await _refund_free_daily_quota(
-                request, req, current_user_id, quota_consumed_day["day"])
-        raise
-    # 禁词不退(同 /api/interpret 4.5 的分类口径:用户输入可触发的失败
-    # 退款 = 免费烧 LLM 通道)
-    validate_interpretation(
-        translated,
-        request_id=request_id,
-        content_hash=req.content_hash,
-        log_ctx=log_ctx,
-    )
-
-    # 9. 写缓存(键 = 目标语言正常生成的键)+ 返回
-    now_iso = datetime.now(timezone.utc).isoformat()
-    try:
-        await run_in_threadpool(
-            cache.set, cache_key, translated, now_iso,
-        )
-    except Exception as e:
-        elapsed_ms = (time.perf_counter() - start) * 1000
-        logger.exception(
-            "interpret.translate.cache_set_failed elapsed_ms=%.1f %s error=%s",
-            elapsed_ms, log_ctx, e,
-        )
-        raise InterpretationCacheError(
-            f"后端缓存写失败({type(e).__name__}): {e}") from e
-
+    # 7.5 / 8 / 9(后置处理/保真校验/写缓存)已收进 factory,见上方注释;
+    # 下方直接用 factory 产出的 (translated, now_iso) 返回
     elapsed_ms = (time.perf_counter() - start) * 1000
     logger.info(
         "interpret.translate.ok elapsed_ms=%.1f cached=False %s "
