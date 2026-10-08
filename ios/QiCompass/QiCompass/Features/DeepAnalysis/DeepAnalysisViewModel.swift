@@ -1372,8 +1372,12 @@ final class DeepAnalysisViewModel {
                 response: response,
                 module: module.rawValue,
                 parentFingerprint: parentFingerprint,
-                m4Input: m4UserInput,
-                m5Input: m5UserInput,
+                // 输入按模块过滤(镜像翻译链 1684-1685 的口径):orchestrator 校验
+                // 「非 m4 带 m4Input / 非 m5 带 m5Input 即 invalidV1ModuleInput」,
+                // 无条件直传会把持久化的两份输入灌给所有模块——用户先填 M4 再填
+                // M5 后,M5 及一切单章重试/断点续跑全部被拒(2026-10-08 走查实锤)。
+                m4Input: module == .m4 ? m4UserInput : nil,
+                m5Input: module == .m5 ? m5UserInput : nil,
                 chainFields: chainFields,
                 quotaExempt: quotaExempt
             )

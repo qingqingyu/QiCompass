@@ -759,22 +759,31 @@ def _quota_bucket(
     return base if tier == "free" else f"paid:{base}"
 
 
-async def _free_quota_exhausted(
-    request: Request, current_user_id: str | None, day: str,
+async def _quota_exhausted(
+    request: Request, req: InterpretRequest,
+    current_user_id: str | None, day: str,
 ) -> bool:
-    """免费配额 peek(只读不消费;十四轮外评 #4)。
+    """配额 peek(只读不消费;十四轮外评 #4;免费/付费分档)。
 
     翻译端点在「目标缓存 miss 之后、v1 链走查(逐行重渲染,CPU 最重)之前」
     用:达限 bucket 直接 429,堵住「持 token 换链字段值 → 目标键必 miss →
     无限重放走查烧 CPU」的放大通道(走查本身不计配额,原「缓存命中即免
     走查」的假设挡不住主动 miss)。缓存命中路径在 peek 之前返回,不受影响。
+
+    分档(十五轮接缝修正):付费不再豁免 peek——「付费 factory 内仍有
+    PAID_DAILY_LIMIT 硬闸」的原注释只界定了 **LLM 烧次**,不界定制表重放:
+    付费桶耗尽后持 entitlement 者换链字段值重放,每次仍跑完整走查(有界/
+    模块但请求无界),与已关闭的免费洞同构;peek 与 enforce 同 tier 同桶
+    (见 _quota_tier/_quota_bucket),合法达限用户的目标缓存命中不受影响
+    (命中先返回)。
     """
     from ..quota.store import FreeLLMQuotaStore
     store: FreeLLMQuotaStore = request.app.state.free_quota_store
-    bucket = _free_quota_bucket(request, current_user_id)
+    tier, limit = _quota_tier(req)
+    bucket = _quota_bucket(request, req, current_user_id)
     count = await run_in_threadpool(
         store.get_count, bucket=bucket, day=day)
-    return count >= FREE_DAILY_LIMIT
+    return count >= limit
 
 
 def _raise_quota_exceeded(content_hash: str, *, tier: str, limit: int) -> NoReturn:
@@ -862,21 +871,29 @@ async def _refund_daily_quota(
         )
 
 
-# 退款豁免模块(2026-10-08 十四轮外评 #3):分类退款拍板(2026-10-08:
-# 契约/截断/保真退,禁词不退)的前提是「失败属服务商侧、非用户过错」。
-# 以下免费模块的失败可被用户输入**故意触发**,退款 = 每日至多
-# REFUND_DAILY_LIMIT 次免费烧 LLM 的通道,直接豁免:
-# - m1_talent(生成契约失败退):链式字段是客户端自由文本,prompt 注入
-#   「忽略 JSON 格式要求」可让契约校验失败。截断不在此列——截断在
-#   provider client 层已显式报错(stop_reason=max_tokens),走 4.1 的
-#   provider 异常退款路径,不受本豁免影响。
-# - compatibility_free(翻译保真失败退):name_a/name_b 是用户输入,取
+# 退款豁免模块(2026-10-08 十四轮外评 #3;十五轮接缝扩面):分类退款拍板
+# (2026-10-08:契约/截断/保真退,禁词不退)的前提是「失败属服务商侧、
+# 非用户过错」。以下模块的失败可被用户输入**故意触发**,退款 = 每日至多
+# REFUND_DAILY_LIMIT 次免费烧 LLM 的通道(免费桶)/付费桶白嫖(付费
+# 退款随第十四轮付费上限拍板激活,滥用面同款),直接豁免:
+# - 契约失败退豁免 = 全部 context 含客户端自由文本的 v1 模块(m1-m7):
+#   m1-m3/m6/m7 的链式字段是客户端序列化文本,m4 的 current_concern /
+#   m5 的 assets_summary/preference 是自由文本用户输入——同一注入向量
+#   (「忽略 JSON 格式要求」),tier 无关。**十五轮接缝修正**:原案只列
+#   m1_talent(彼时付费不退款,豁免免费面即够);付费退款激活后 m2-m7
+#   同向量重开,与附五 #4 给 compatibility_paid 补保真豁免同理扩面。
+#   截断不在此列——截断在 provider client 层已显式报错
+#   (stop_reason=max_tokens),走 4.1 的 provider 异常退款路径,不受本
+#   豁免影响。
+# - 翻译保真失败退豁免 = 合盘两拆分模块:name_a/name_b 是用户输入,取
 #   中文常用单字(如「的」)时 zh→en 翻译保真校验**必定**失败(该字在
 #   zh 原文作为语法粒子必然出现,en 译文必然不含此汉字)。
-# m0/daily 的 context 全部服务端确定性派生(chart 由 token 绑定、日期
-# 固定格式),契约/保真失败不可注入触发,退款保留。
+# m0_structure/daily_fortune 的 context 全部服务端确定性派生(chart 由
+# token 绑定+根行核验、日期固定格式),契约/保真失败不可注入触发,
+# 退款保留。
 _REFUND_CONTRACT_EXEMPT_MODULES: Final[frozenset[str]] = frozenset({
-    "m1_talent",
+    "m1_talent", "m2_high_low", "m3_system", "m4_health",
+    "m5_wealth", "m6_dynamics", "m7_manual",
 })
 _REFUND_FIDELITY_EXEMPT_MODULES: Final[frozenset[str]] = frozenset({
     "compatibility_free",
@@ -1111,9 +1128,10 @@ async def interpret(
             # (09-27 max_tokens 截断事故实证主因)——校验已收进 factory,
             # 天然只由真正扣款的 leader 执行(follower 共享结果未扣款,退了
             # 会把自己 bucket 其他请求的计数减 1);受退款日上限保护。
-            # 豁免(十四轮外评 #3):m1_talent 链式字段可注入触发契约失败,
-            # 退款 = 免费烧 LLM 通道(截断走 4.1 provider 异常路径不受影响)。
-            # 退款按 tier 桶(第十四轮付费上限):免费/付费各自封顶,不豁免付费。
+            # 豁免(十四轮外评 #3;十五轮接缝扩面 m1-m7):链式字段/m4/m5
+            # 自由文本是客户端注入向量,可故意触发契约失败,退款 = 免费/
+            # 付费桶白烧 LLM 通道(截断走 4.1 provider 异常路径不受影响)。
+            # 退款按 tier 桶(第十四轮付费上限):免费/付费各自封顶。
             if req.module not in _REFUND_CONTRACT_EXEMPT_MODULES:
                 await _refund_daily_quota(request, req, current_user_id, day)
             raise
@@ -1889,22 +1907,22 @@ async def interpret_translate(
     if hit is not None:
         return hit
 
-    # 5.45 免费配额 peek 闸(十四轮外评 #4):走查(5.5)不烧 LLM 原本不计
-    # 配额,但达限 bucket 换链字段值重放 = 无限 CPU;peek 只读不消费,真烧
-    # LLM 的扣计数仍在 factory 内(leader 一次)。付费 module 不走免费 peek
-    #(走查 CPU 放大要求持有该盘 entitlement,成本面有界;付费 factory 内
-    # 仍有 PAID_DAILY_LIMIT 硬闸)。达限 429 与 factory 内 429 同错误面,
-    # 客户端既有 429 处理接管。
-    if req.module not in PAID_MODULES:
-        day = datetime.now(timezone.utc).date().isoformat()
-        if await _free_quota_exhausted(request, current_user_id, day):
-            logger.warning(
-                "interpret.translate.quota_peek_exceeded request_id=%s "
-                "module=%s content_hash=%s",
-                request_id, req.module, req.content_hash,
-            )
-            _raise_quota_exceeded(
-                req.content_hash, tier="free", limit=FREE_DAILY_LIMIT)
+    # 5.45 配额 peek 闸(十四轮外评 #4;十五轮接缝修正扩到付费档):走查
+    #(5.5)不烧 LLM 原本不计配额,但达限 bucket 换链字段值重放 = 无限 CPU;
+    # peek 只读不消费,真烧 LLM 的扣计数仍在 factory 内(leader 一次)。
+    # 付费不再豁免 peek:「factory 内 PAID_DAILY_LIMIT 硬闸」只界 定 LLM
+    # 烧次,付费桶耗尽后的走查重放仍是免费 CPU——与免费洞同构,peek 与
+    # enforce 同 tier 同桶。达限 429 与 factory 内 429 同错误面,客户端既有
+    # 429 处理接管;缓存命中在 peek 之前返回,合法达限用户命中不受影响。
+    day = datetime.now(timezone.utc).date().isoformat()
+    tier, limit = _quota_tier(req)
+    if await _quota_exhausted(request, req, current_user_id, day):
+        logger.warning(
+            "interpret.translate.quota_peek_exceeded tier=%s request_id=%s "
+            "module=%s content_hash=%s",
+            tier, request_id, req.module, req.content_hash,
+        )
+        _raise_quota_exceeded(req.content_hash, tier=tier, limit=limit)
 
     # 5.5 服务端原文防伪(P1 安全收口,见端点 docstring):原文必须逐字
     # 存在于本后端为该盘 / 该模块 / 当前版本 / source_language 生成过的

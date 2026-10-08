@@ -33,6 +33,7 @@ from ..engine.branch_relations import compute_friends_and_clash
 from ..engine.luck import build_luck_pillars
 from ..engine.pillar_ambiguity import detect_pillar_ambiguity
 from ..engine.pillars import (
+    EN2ZH,
     GAN_ELEMENT,
     build_auxiliary_gong,
     build_pillars,
@@ -462,8 +463,15 @@ def _build_anchor_sentence(
         辅助显示,strength 扩展时 anchor 自动降级到"旺衰未判定"是可接受 graceful degrade。
         真正的契约违反(未知 strength)由 xiji 自身的 Literal 类型注解 + mypy 在编译期捕获。
     """
+    # 2026-10-08 外评修复:
+    # ① gan_element 是英文 key(wood),直拼成「乙（wood）」中英半截混排 →
+    #   经 EN2ZH(单一事实源)转中文;未知 key 原样保留(与下方 .get 降级同哲学)。
+    # ② 去掉 ** 两侧空格:MarkdownSanitizer 走 AttributedString(markdown:)
+    #   真渲染加粗,英文 markdown 惯例的两侧空格在中文句子里是多余间隙
+    #   (「是 乙」「整体 偏旺」「忌 木/水」即此产物)。
+    element_zh = EN2ZH.get(day_gan_element, day_gan_element)
     label = _STRENGTH_LABEL.get(day_master_strength, "旺衰未判定")
-    base = f"你的日主是 **{day_gan}**（{day_gan_element}），命局整体 **{label}**"
+    base = f"你的日主是**{day_gan}**（{element_zh}），命局整体**{label}**"
 
     # 从格诚实降级:不下硬性喜忌
     if day_master_strength == "special_pattern":
@@ -473,16 +481,16 @@ def _build_anchor_sentence(
     # (日主本身已知,anchor 仍给日主半句)
     if day_master_strength == "unknown_hour":
         return (
-            f"你的日主是 **{day_gan}**（{day_gan_element}），"
+            f"你的日主是**{day_gan}**（{element_zh}），"
             "出生时辰未知，旺衰与喜忌未判定。"
         )
 
     # 防御:喜/忌任一为空(理论上普通盘不应为空,但保护)
     parts: list[str] = []
     if favorable:
-        parts.append("**喜** " + "/".join(favorable))
+        parts.append("**喜**" + "/".join(favorable))
     if unfavorable:
-        parts.append("**忌** " + "/".join(unfavorable))
+        parts.append("**忌**" + "/".join(unfavorable))
 
     if not parts:
         return base + "。"

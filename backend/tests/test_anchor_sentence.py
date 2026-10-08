@@ -6,6 +6,8 @@
 - empty: favorable/unfavorable 任一为空时防御性拼接
 - 未知 strength(含 None): fallback "旺衰未判定"
 - markdown ** 加粗 + 中文标点 字面正确
+- 2026-10-08:** 两侧无空格(zh 排版;英文 markdown 空格惯例产物「是 乙」已修)
+- 2026-10-08:英文 element key(wood)→ 中文(木),不再「乙(wood)」半截混排
 """
 
 from __future__ import annotations
@@ -27,8 +29,8 @@ class TestBuildAnchorSentenceNormal:
             unfavorable=["水", "金"],
         )
         # 模板(用户 Q2 拍板 A 完整版):
-        # "你的日主是 **庚**（金），命局整体 **偏旺**，**喜** 火/土、**忌** 水/金。"
-        assert s == "你的日主是 **庚**（金），命局整体 **偏旺**，**喜** 火/土、**忌** 水/金。"
+        # "你的日主是**庚**（金），命局整体**偏旺**，**喜**火/土、**忌**水/金。"
+        assert s == "你的日主是**庚**（金），命局整体**偏旺**，**喜**火/土、**忌**水/金。"
 
     def test_weak_full_template(self):
         s = _build_anchor_sentence(
@@ -38,7 +40,7 @@ class TestBuildAnchorSentenceNormal:
             favorable=["水", "木"],
             unfavorable=["金", "土"],
         )
-        assert s == "你的日主是 **乙**（木），命局整体 **偏弱**，**喜** 水/木、**忌** 金/土。"
+        assert s == "你的日主是**乙**（木），命局整体**偏弱**，**喜**水/木、**忌**金/土。"
 
     def test_balanced_full_template(self):
         s = _build_anchor_sentence(
@@ -48,7 +50,7 @@ class TestBuildAnchorSentenceNormal:
             favorable=["火", "土"],
             unfavorable=["水", "木"],
         )
-        assert s == "你的日主是 **戊**（土），命局整体 **中和**，**喜** 火/土、**忌** 水/木。"
+        assert s == "你的日主是**戊**（土），命局整体**中和**，**喜**火/土、**忌**水/木。"
 
     def test_single_element_join(self):
         """单元素喜/忌不 join,直接输出。"""
@@ -59,7 +61,30 @@ class TestBuildAnchorSentenceNormal:
             favorable=["木"],
             unfavorable=["金"],
         )
-        assert s == "你的日主是 **甲**（木），命局整体 **偏旺**，**喜** 木、**忌** 金。"
+        assert s == "你的日主是**甲**（木），命局整体**偏旺**，**喜**木、**忌**金。"
+
+    def test_english_element_key_translated(self):
+        """2026-10-08:英文 element key(pillars.gan_element 实际传参)→ 中文,
+        不再出现「乙(wood)」中英半截混排;未知 key 原样保留(降级哲学)。"""
+        s = _build_anchor_sentence(
+            day_gan="乙",
+            day_gan_element="wood",
+            day_master_strength="strong",
+            favorable=["火", "土", "金"],
+            unfavorable=["木", "水"],
+        )
+        assert s == "你的日主是**乙**（木），命局整体**偏旺**，**喜**火/土/金、**忌**木/水。"
+
+    def test_unknown_element_key_passthrough(self):
+        s = _build_anchor_sentence(
+            day_gan="乙",
+            day_gan_element="???",
+            day_master_strength="strong",
+            favorable=["火"],
+            unfavorable=["水"],
+        )
+        # 未知 key 不 raise(anchor 是辅助显示,降级原样保留)
+        assert "（???）" in s
 
 
 class TestBuildAnchorSentenceSpecialPattern:
@@ -75,7 +100,7 @@ class TestBuildAnchorSentenceSpecialPattern:
             unfavorable=[],
         )
         # base + "。" 不接喜忌
-        assert s == "你的日主是 **壬**（水），命局整体 **呈现从格特征**。"
+        assert s == "你的日主是**壬**（水），命局整体**呈现从格特征**。"
         # 关键:不出现"喜"/"忌"硬性结论
         assert "喜" not in s
         assert "忌" not in s
@@ -105,7 +130,7 @@ class TestBuildAnchorSentenceEmpty:
             favorable=[],
             unfavorable=[],
         )
-        assert s == "你的日主是 **丙**（火），命局整体 **偏旺**。"
+        assert s == "你的日主是**丙**（火），命局整体**偏旺**。"
 
     def test_only_favorable_empty(self):
         s = _build_anchor_sentence(
@@ -116,7 +141,7 @@ class TestBuildAnchorSentenceEmpty:
             unfavorable=["金"],
         )
         # 只有忌
-        assert s == "你的日主是 **丙**（火），命局整体 **偏弱**，**忌** 金。"
+        assert s == "你的日主是**丙**（火），命局整体**偏弱**，**忌**金。"
 
     def test_only_unfavorable_empty(self):
         s = _build_anchor_sentence(
@@ -126,7 +151,7 @@ class TestBuildAnchorSentenceEmpty:
             favorable=["木"],
             unfavorable=[],
         )
-        assert s == "你的日主是 **丙**（火），命局整体 **偏弱**，**喜** 木。"
+        assert s == "你的日主是**丙**（火），命局整体**偏弱**，**喜**木。"
 
 
 class TestBuildAnchorSentenceUnknownStrength:

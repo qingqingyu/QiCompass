@@ -254,10 +254,14 @@ def test_v1_prompt_versions_all_registered_as_2():
         "m0_structure", "m1_talent", "m2_high_low", "m3_system",
         "m4_health", "m5_wealth", "m6_dynamics", "m7_manual",
     }
+    # v3 2026-10-08:m0 单独 bump(证据引用纪律五条,见 prompts.py 注释);
+    # 其余模块维持 v2。后续逐模块 bump 时在此登记。
+    expected = {m: 2 for m in v1_modules}
+    expected["m0_structure"] = 3
     for module in v1_modules:
         assert module in PROMPT_VERSIONS, f"{module} 未注册 PROMPT_VERSIONS"
-        assert PROMPT_VERSIONS[module] == 2, (
-            f"{module} 期望版本 2,实际 {PROMPT_VERSIONS[module]}")
+        assert PROMPT_VERSIONS[module] == expected[module], (
+            f"{module} 期望版本 {expected[module]},实际 {PROMPT_VERSIONS[module]}")
 
 
 def test_v1_modules_all_registered_in_templates_and_required_fields():
