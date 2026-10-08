@@ -77,8 +77,7 @@ def _validate_scores(scores: Any) -> dict[str, int | str]:
     # special_pattern_诚实 缺键视为 N/A(2026-10-08 首轮真实 run:46 条裁判 error
     # 全因普通盘上裁判合理省略该维度——rubric 本就允许 N/A,缺键与显式 N/A
     # 同义;其余维度缺键仍是 error)。
-    for k in _NA_ALLOWED_KEYS:
-        scores = {**scores, k: scores.get(k, "N/A")}
+    scores = {**scores, **{k: scores.get(k, "N/A") for k in _NA_ALLOWED_KEYS}}
     missing = [k for k in _SCORE_KEYS if k not in scores]
     if missing:
         raise ValueError(f"裁判输出 scores 缺维度: {missing}")
