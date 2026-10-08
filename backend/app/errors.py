@@ -155,13 +155,15 @@ class ContextTokenInvalidError(BaziError):
 
 
 class QuotaExceededError(BaziError):
-    """免费解读的每日服务端生成上限触发(2026-10-07 匿名滥用收口)。
+    """解读生成的每日服务端上限触发(2026-10-07 匿名滥用收口)。
 
-    计数口径:真烧 LLM 的生成(缓存命中不计)、免费 module(付费已购
-    单盘缓存有界,豁免);bucket = 登录 user_id,匿名按 IP。上限
-    QICOMPASS_FREE_DAILY_LIMIT(2026-10-08 拍板放宽默认 150:CGNAT 共享
-    IPv4 出口下 30/日是全出口共享,正常用户互相挤兑;脚本可换 IP 绕过,
-    上限主要约束共享出口成本面)。
+    计数口径:真烧 LLM 的生成(缓存命中不计);bucket = 登录 user_id,
+    匿名按 IP;免费/付费分档(2026-10-08 第十四轮拍板:付费不再豁免,
+    独立 paid: 前缀分桶)。免费上限 QICOMPASS_FREE_DAILY_LIMIT(默认
+    150:CGNAT 共享 IPv4 出口下 30/日是全出口共享,正常用户互相挤兑;
+    脚本可换 IP 绕过,上限主要约束共享出口成本面);付费上限
+    QICOMPASS_PAID_DAILY_LIMIT(默认 100,拦 M4/M5 换输入无限烧 LLM 的
+    脚本滥用,不影响正常单用户 usage)。
     """
 
     code = "QUOTA_EXCEEDED"

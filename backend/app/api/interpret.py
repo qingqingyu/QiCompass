@@ -59,7 +59,8 @@ from ..ai.prompts import (
 from ..ai.singleflight import SingleflightCoalescer
 from ..auth.dependencies import get_current_user_id
 from ..config import (
-    AI_MAX_OUTPUT_TOKENS, FREE_DAILY_LIMIT, REFUND_DAILY_LIMIT, resolve_temperature,
+    AI_MAX_OUTPUT_TOKENS, FREE_DAILY_LIMIT, PAID_DAILY_LIMIT,
+    REFUND_DAILY_LIMIT, resolve_temperature,
 )
 from ..context_binding import verify_interpret_context
 from ..engine.term_translations import (
@@ -734,17 +735,42 @@ def _free_quota_bucket(request: Request, current_user_id: str | None) -> str:
     return f"ip:{_normalize_client_ip(host)}"
 
 
-async def _enforce_free_daily_quota(
+def _quota_tier(req: InterpretRequest) -> tuple[str, int]:
+    """配额分档(2026-10-08 第十四轮拍板:付费不再豁免)。
+
+    免费/付费同 bucket 维度(登录 user_id / 匿名 IP)但**分桶计数**
+    (付费 paid: 前缀),互不挤兑;付费上限 PAID_DAILY_LIMIT 拦的是
+    M4/M5 换输入无限烧 LLM 的脚本滥用,不影响任何正常单用户 usage。
+    """
+    if req.module in PAID_MODULES:
+        return "paid", PAID_DAILY_LIMIT
+    return "free", FREE_DAILY_LIMIT
+
+
+def _quota_bucket(
+    request: Request, req: InterpretRequest, current_user_id: str | None,
+) -> str:
+    """配额 bucket:tier 前缀 + (user_id | 归一化 IP)。
+
+    免费桶保持无前缀旧格式(既有计数行不失效);付费桶 paid: 前缀。
+    """
+    tier, _ = _quota_tier(req)
+    base = _free_quota_bucket(request, current_user_id)
+    return base if tier == "free" else f"paid:{base}"
+
+
+async def _enforce_daily_quota(
     request: Request,
     req: InterpretRequest,
     current_user_id: str | None,
     day: str,
 ) -> None:
-    """免费 module 真烧 LLM 前的每日服务端配额(2026-10-07 匿名滥用收口)。
+    """真烧 LLM 前的每日服务端配额(2026-10-07 匿名滥用收口;2026-10-08
+    第十四轮付费收口:付费从豁免改为独立分桶计数)。
 
-    只在缓存未命中、即将调用 provider 的路径上执行(缓存命中零成本不计);
-    付费 module 豁免(token 绑定后单盘单模块缓存有界)。bucket:登录按
-    user_id,匿名按 IP(user_local_id 客户端可伪造,不作 bucket)。
+    只在缓存未命中、即将调用 provider 的路径上执行(缓存命中零成本不计)。
+    bucket:登录按 user_id,匿名按 IP(user_local_id 客户端可伪造,不作
+    bucket);免费/付费分桶(见 _quota_bucket)。
     达限 → QuotaExceededError(429),不静默降级。
 
     `day` 由调用方(生成 factory)一次性算出并同时传给 enforce/refund——
@@ -753,27 +779,32 @@ async def _enforce_free_daily_quota(
     """
     from ..quota.store import FreeLLMQuotaStore
     store: FreeLLMQuotaStore = request.app.state.free_quota_store
-    bucket = _free_quota_bucket(request, current_user_id)
+    tier, limit = _quota_tier(req)
+    bucket = _quota_bucket(request, req, current_user_id)
     ok = await run_in_threadpool(
-        store.try_consume, bucket=bucket, day=day, limit=FREE_DAILY_LIMIT)
+        store.try_consume, bucket=bucket, day=day, limit=limit)
     if not ok:
         logger.warning(
-            "interpret.free_quota_exceeded bucket=%s day=%s limit=%d "
+            "interpret.quota_exceeded tier=%s bucket=%s day=%s limit=%d "
             "module=%s content_hash=%s",
-            bucket, day, FREE_DAILY_LIMIT, req.module, req.content_hash)
-        raise QuotaExceededError(
-            f"今日免费解读生成次数已达服务端上限({FREE_DAILY_LIMIT}/日),"
-            f"明日再来;付费内容不受此限",
-            content_hash=req.content_hash)
+            tier, bucket, day, limit, req.module, req.content_hash)
+        if tier == "paid":
+            message = (f"今日解读生成次数已达服务端每日上限({limit}/日),"
+                       f"明日再来")
+        else:
+            message = (f"今日免费解读生成次数已达服务端上限({limit}/日),"
+                       f"明日再来")
+        raise QuotaExceededError(message, content_hash=req.content_hash)
 
 
-async def _refund_free_daily_quota(
+async def _refund_daily_quota(
     request: Request,
     req: InterpretRequest,
     current_user_id: str | None,
     day: str,
 ) -> None:
-    """免费配额退款(compensating action;2026-10-08 拍板:分类退+防刷上限)。
+    """配额退款(compensating action;2026-10-08 拍板:分类退+防刷上限;
+    第十四轮起免费/付费同款,按各自 tier 桶退)。
 
     分类:provider 抛错(服务商故障)与 LLM 正常返回后的**非用户过错**
     失败(v1 JSON 契约/截断、翻译保真)退;禁词命中等用户输入可触发的
@@ -786,19 +817,19 @@ async def _refund_free_daily_quota(
     """
     from ..quota.store import FreeLLMQuotaStore
     store: FreeLLMQuotaStore = request.app.state.free_quota_store
-    bucket = _free_quota_bucket(request, current_user_id)
+    bucket = _quota_bucket(request, req, current_user_id)
     try:
         refunded = await run_in_threadpool(
             store.try_refund, bucket=bucket, day=day, limit=REFUND_DAILY_LIMIT)
     except Exception as e:
         logger.exception(
-            "interpret.free_quota_refund_failed bucket=%s day=%s error=%r",
+            "interpret.quota_refund_failed bucket=%s day=%s error=%r",
             bucket, day, e,
         )
         return
     if not refunded:
         logger.warning(
-            "interpret.free_quota_refund_capped bucket=%s day=%s "
+            "interpret.quota_refund_capped bucket=%s day=%s "
             "refund_limit=%d — 当日退款次数已达上限,本次不退(防刷封顶)",
             bucket, day, REFUND_DAILY_LIMIT,
         )
@@ -943,8 +974,10 @@ async def interpret(
     # 4. 调用选中 provider(async httpx 直接 await,不走线程池)
     #    singleflight 合并:同 key 并发只调一次 LLM,所有等待者共享结果
     #    (成本 + 延迟双省;多 worker 下各自独立,跨进程合并是 v2 Redis 的事)
-    # 3.7 免费配额(2026-10-07 匿名滥用收口):仅对真烧 LLM 的免费 module
-    #     计数(缓存命中已在上方返回);付费豁免。达限 429 不降级。
+    # 3.7 每日配额(2026-10-07 匿名滥用收口;2026-10-08 第十四轮付费收口):
+    #     仅对真烧 LLM 的调用计数(缓存命中已在上方返回);免费/付费分桶
+    #     分档(付费从豁免改为 PAID_DAILY_LIMIT 独立计数,M4/M5 换输入
+    #     无限烧的通道收口)。达限 429 不降级。
     #     扣/退移入 singleflight factory(2026-10-07 review):只有真正发
     #     LLM 的 leader 扣 1 次(并发同 key 的 follower 共享结果不重复扣);
     #     provider 抛错退回(服务商故障期间重试不烧光当日额度)。
@@ -975,8 +1008,7 @@ async def interpret(
         # iOS 侧 429 已映射达限态(QUOTA_EXCEEDED → dailyLimitReached),
         # 误伤用户有明确出口。
         day = datetime.now(timezone.utc).date().isoformat()
-        if req.module not in PAID_MODULES:
-            await _enforce_free_daily_quota(request, req, current_user_id, day)
+        await _enforce_daily_quota(request, req, current_user_id, day)
         try:
             interpretation = await ai_client.interpret(
                 prompt, temperature=temperature)
@@ -985,8 +1017,7 @@ async def interpret(
             # 扣费前抛出,不会走到这里。CancelledError 是 BaseException,
             # 不进 except Exception,不误退。LLM 正常返回后的失败见 4.4/4.5
             # 的分类退款(2026-10-08 拍板:契约/截断/保真退,禁词不退)。
-            if req.module not in PAID_MODULES:
-                await _refund_free_daily_quota(request, req, current_user_id, day)
+            await _refund_daily_quota(request, req, current_user_id, day)
             raise
 
         # 4.2 合盘后置处理(2026-09-27):A/B 代号确定性替换 + 干支接地违约观测。
@@ -1021,8 +1052,7 @@ async def interpret(
             # (09-27 max_tokens 截断事故实证主因)——校验已收进 factory,
             # 天然只由真正扣款的 leader 执行(follower 共享结果未扣款,退了
             # 会把自己 bucket 其他请求的计数减 1);受退款日上限保护。
-            if req.module not in PAID_MODULES:
-                await _refund_free_daily_quota(request, req, current_user_id, day)
+            await _refund_daily_quota(request, req, current_user_id, day)
             raise
 
         # 4.5 禁词扫描(LLM 输出守卫,US-COMP-04)
@@ -1164,31 +1194,40 @@ def _render_v1_upstream_prompt_hash(
     return hashlib.sha256(rendered.encode("utf-8")).hexdigest()
 
 
-# 链走查每模块候选行上限(2026-10-08 外评 #3):合法场景同 (盘, 模块, 语言)
-# 仅 1-3 行(版本 bump / 重生成残留);持有 token 者可在自己盘的注入键下
-# 量产行放大逐行重渲染 CPU——截断在偏好序之后执行,当前版本行恒在窗口内。
+# 链走查每模块候选行重渲染探查上限(2026-10-08 外评 #3 + 第十五轮 #2):
+# 合法场景同 (盘, 模块, 语言) 仅 1-3 行(版本 bump / 重生成残留);持有 token
+# 者可在自己盘的注入键下量产行放大逐行重渲染 CPU。上限只施在**可判别过滤
+# 之后**(下游:parent_hash/user_input_hash 匹配行;上游:见根行探查上限)
+# ——同版本行序不可判别(查询计划序),按行序先截断会把链核验真正需要的
+# 行随机砍掉(第十五轮 #2 的误伤形态,不得回潮)。
 _V1_CHAIN_MAX_ROWS_PER_MODULE: Final[int] = 8
+# M0 根行探查上限(2026-10-08 第十五轮 #2):根行核验须逐行重渲染,上限
+# 封住「变体刷行把走查当 CPU 放大器」;128 是免费配额(150/日)量级内的
+# 高水位——真行被挤出此窗口要求攻击者已烧 ≥128 次真 LLM,届时 409 →
+# STALE 重生成(iOS quotaExempt)自愈,不再是「随机砍行」的静默误伤。
+_V1_CHAIN_ROOT_PROBE_LIMIT: Final[int] = 128
 
 
 def _prefer_current_version_rows(
     rows: list[tuple[CacheKey, str]], current_version: int,
 ) -> list[tuple[CacheKey, str]]:
-    """候选行偏好序:当前版本优先,其余按版本降序;截断到每模块上限。
+    """候选行偏好序:当前版本优先,其余按版本降序(**不截断**)。
 
-    get_module_rows 无 ORDER BY(行序 = 插入序 ≈ 版本升序),首个匹配若取到
-    bump 前的旧行,其输出值与叶子行(当前版本、由新版上游驱动)重建的键
-    永不相等 → 合法翻译恒 409 整章重生成(2026-10-08 外评 #1 🔴)。排序让
-    当前版本行最先被尝试;旧版本行仍保留作回退(M0 根值跨版本稳定的场景,
-    叶子可能由旧值驱动)。截断亦在本序上进行。
+    get_module_rows 无 ORDER BY,行序 = 查询计划序(PK 索引下同版本内按
+    prompt_hash 随机序;INSERT OR REPLACE 后 rowid 序也不稳定)——
+    「先截断后过滤」会把链核验真正需要的那行随机砍掉:同版本行 >8 时
+    (换服务商/跨年/变体刷行),叶子翻译恒 409 整章重生成,且攻击者对
+    任何持有 token 的盘可主动触发(2026-10-08 第十五轮 #2 🔴)。本函数
+    只做版本偏好排序;行数上限移到各消费点的**可判别过滤之后**(M0 根行
+    核验探查上限 / 同根下 parent_hash 匹配后的重渲染探查上限)。
     """
-    ordered = sorted(
+    return sorted(
         rows,
         key=lambda item: (
             item[0].prompt_version != current_version,
             -item[0].prompt_version,
         ),
     )
-    return ordered[:_V1_CHAIN_MAX_ROWS_PER_MODULE]
 
 
 async def _verify_v1_chain_translation_source(
@@ -1208,12 +1247,17 @@ async def _verify_v1_chain_translation_source(
     源语言链字段生成——按请求 context 源语言重渲染算出的 prompt_hash /
     parent_hash 永远对不上,合法翻译恒 409。改为从缓存**重建**源键:
 
-    1. 按 (content_hash, module, source_language) 枚举上游行。M0 行作链根:
-       其 context 仅 chart,而 chart 由 context_token 绑定验签,行恒真。
+    1. 按 (content_hash, module, source_language) 枚举上游行。M0 行作链根,
+       且须先过**根行核验**(第十五轮 #2):行自身 prompt_hash 与「请求
+       chart 按行自身版本重渲染」逐字相等——token 验签保证解析内容等价
+       (重复键已拒),根行核验保证序列化字节一致,「行恒真」双层成立,
+       变体刷行(解析等价、字节不同的 chart)在此出局。
     2. 逐个非 M0 上游行:parent_hash 须等于 sha256(M0 fp) + user_input_hash
        须为空,且用「已核验上游字段 + 请求 chart」按**行自身版本**重渲染的
        prompt_hash 与行实际键逐字相等——注入链字段(如伪造 main_axis)生成
-       的行落在注入键上,与真实链重建的键永不相等,在此被排除。
+       的行落在注入键上,与真实链重建的键永不相等,在此被排除。行数上限
+       在这些**可判别过滤之后**才生效(根行核验探查 ≤128 / 同根匹配行重
+       渲染 ≤8),不再存在「先截断后过滤」随机砍掉合法行的形态。
     3. 全链核验后,以「源语言上游字段(canonical 形态)+ 请求 chart + 请求
        用户输入(m4/m5,随请求回传保键对齐)」构建源 context,经
        _prepare_prompt_and_key(与生成同一代码路径,含链字段规范化)算出
@@ -1251,12 +1295,34 @@ async def _verify_v1_chain_translation_source(
             )
             raise InterpretationCacheError(
                 f"后端原文核验读失败({type(e).__name__}): {e}") from e
-        # 偏好序 + 截断(2026-10-08 外评 #1/#3):当前版本行优先尝试,防首个
-        # 匹配取到 bump 前旧行致合法翻译恒 409;截断封注入行放大 CPU 的通道。
-        rows_by_module[m] = _prefer_current_version_rows(
-            rows, PROMPT_VERSIONS[m])
+        # 偏好序(2026-10-08 外评 #1/#3 + 第十五轮 #2):当前版本行优先,
+        # 防 bump 前旧行致合法翻译恒 409;**不在此时截断**——同版本行序
+        # 不可判别,截断须发生在根行核验/parent_hash 过滤之后。
+        ordered = _prefer_current_version_rows(rows, PROMPT_VERSIONS[m])
+        if m == "m0_structure":
+            # M0 根行形态前置过滤:m0 生成行恒 parent_hash=""/user_input_hash=""
+            #(无上游、无用户输入),带值的行是伪造键形态,免费剪掉再进核验。
+            ordered = [
+                (k, t) for k, t in ordered
+                if k.parent_hash == "" and k.user_input_hash == ""
+            ]
+        rows_by_module[m] = ordered
 
-    for _, m0_text in rows_by_module.get("m0_structure") or []:
+    m0_rows = rows_by_module.get("m0_structure") or []
+    for m0_key, m0_text in m0_rows[:_V1_CHAIN_ROOT_PROBE_LIMIT]:
+        # 根行核验(2026-10-08 第十五轮 #2):M0 行的 prompt_hash 必须与
+        # 「请求 chart 按行自身版本重渲染」逐字相等。「M0 行恒真」的前提由
+        # token 验签(解析内容等价,重复键已拒)+ 此处字节核验(序列化形态
+        # 一致)双层成立——变体刷行(空格/键序不同、解析等价的 chart)生成
+        # 的行在此出局,其 fingerprint 不进链重建;合法根行只要在探查窗口
+        # 内必被选中,与行序无关(先截断后过滤的误伤形态不再存在)。
+        m0_expected = await run_in_threadpool(
+            _render_v1_upstream_prompt_hash,
+            "m0_structure", chart, {}, source_language,
+            m0_key.prompt_version,
+        )
+        if m0_expected is None or m0_expected != m0_key.prompt_hash:
+            continue
         m0_out = _extract_v1_output(m0_text)
         fingerprint = (
             m0_out.get("structure_fingerprint") if m0_out else None)
@@ -1281,11 +1347,18 @@ async def _verify_v1_chain_translation_source(
             # 键重建永不相等 → 每次升上游版本全体切语言用户合法翻译恒 409
             # 整章重生成)。仍不做笛卡尔积回溯——M0 根层回溯 + 版本偏好序已
             # 覆盖现实链状态,回溯会让注入行把走查成本放大成组合爆炸。
+            # 探查上限在 parent_hash/user_input 过滤**之后**(第十五轮 #2):
+            # 同根匹配行才重渲染,上限封 CPU;合法行(同根下同 context 被 PK
+            # 去重)实际 ≤ 跨版本行数,8 足够。
             matched_text: str | None = None
+            probes = 0
             for key, text in rows_by_module.get(upstream) or []:
                 if (key.parent_hash != parent_hash
                         or key.user_input_hash != ""):
                     continue
+                probes += 1
+                if probes > _V1_CHAIN_MAX_ROWS_PER_MODULE:
+                    break
                 # 渲染是纯 CPU(translate_context + 模板 format + sha256),
                 # 候选行逐行重渲染放线程池防阻塞事件循环(2026-10-07 review
                 # 收尾:行读取已在池,渲染同款)。
@@ -1823,7 +1896,9 @@ async def interpret_translate(
         "interpret.translate.provider_called %s source_language=%s target=%s",
         log_ctx, req.source_language, language,
     )
-    # 免费配额(与 /api/interpret 同一道):真烧 LLM 的翻译计数;付费豁免。
+    # 每日配额(与 /api/interpret 同一道,免费/付费分桶分档):真烧 LLM 的
+    # 翻译计数(付费翻译同计 paid 桶——源文须先落缓存行,翻译侧消耗有界,
+    # 计数只为护栏口径统一)。
     # 扣/退移入 singleflight factory(同 /api/interpret 的 2026-10-07 review
     # 收口:leader 扣一次、provider 抛错退回)。
     # 后置处理(7.5)/ 保真校验(8)/ 写缓存(9)一并收进 factory(2026-10-08
@@ -1837,15 +1912,13 @@ async def interpret_translate(
 
     async def _generate_translation() -> tuple[str, str]:
         day = datetime.now(timezone.utc).date().isoformat()
-        if req.module not in PAID_MODULES:
-            await _enforce_free_daily_quota(request, req, current_user_id, day)
+        await _enforce_daily_quota(request, req, current_user_id, day)
         try:
             translated = await ai_client.interpret(
                 translate_prompt, temperature=resolve_temperature("translate"),
             )
         except Exception:
-            if req.module not in PAID_MODULES:
-                await _refund_free_daily_quota(request, req, current_user_id, day)
+            await _refund_daily_quota(request, req, current_user_id, day)
             raise
 
         # 7.5 合盘后置处理(A/B 代号兜底 + 干支接地观测,与 /api/interpret 同款)
@@ -1868,11 +1941,15 @@ async def interpret_translate(
                 "interpret.translate.fidelity_failed elapsed_ms=%.1f %s error=%s",
                 elapsed_ms, log_ctx, e,
             )
-            # 分类退款(2026-10-08 拍板):保真失败属服务商侧非用户过错
-            # (源文经源键核验为缓存原文,非用户可直接构造)——校验已收进
-            # factory,天然只由真正扣款的 leader 执行;受退款日上限保护。
-            if req.module not in PAID_MODULES:
-                await _refund_free_daily_quota(request, req, current_user_id, day)
+            # 分类退款(2026-10-08 拍板;第十五轮 #4 收口):v1/daily 的
+            # 源文经链走查/精确键核验为缓存原文,保真失败 = 服务商侧非用户
+            # 过错,退;**合盘例外不退**——保真校验的 name_a/name_b 来自
+            # 请求且随语言本地化、不在 token 绑定集,用户可构造必败称呼
+            #(原文里有、译文语言不可能出现的字)换「非用户过错」退款,
+            # 该失败类归入用户可触发(防刷口径同禁词)。校验已收进 factory,
+            # 天然只由真正扣款的 leader 执行;退款受日上限保护。
+            if req.module not in _TRANSLATE_COMPAT_MODULES:
+                await _refund_daily_quota(request, req, current_user_id, day)
             raise
         # 禁词不退(2026-10-08 拍板分类口径:用户输入可触发的失败退款
         # = 免费烧 LLM 通道;同 /api/interpret 4.5)

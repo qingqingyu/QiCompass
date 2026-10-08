@@ -605,6 +605,25 @@ def daily_fields(
 
 # ---------- interpret/translate 端点验签入口 ----------
 
+def _reject_duplicate_keys(pairs: list[tuple[str, Any]]) -> dict:
+    """json.loads 的 object_pairs_hook:对象内同名键重复即抛错。
+
+    2026-10-08 外评(第十四轮)关死的注入通道:json.loads 默认保留重复键
+    的**最后一个**值,而渲染层用原始字符串——「{"current_luck":"注入指令",
+    …真实命盘(含 current_luck)…}」解析值与 token 镜像完全相等 → 验签
+    通过,但注入文本原样进 zh prompt(落注入 prompt_hash 键);translate
+    目标侧 _translate_chart_json 的 loads+dumps 重序列化又把重复键折叠
+    → 毒译文落**干净共享键**(M0 精确核验/链走查同时被绕过:链根本身
+    可投毒)。拒绝重复键,让「验签解析到的」与「渲染的」内容恒一致。
+    """
+    out: dict = {}
+    for key, value in pairs:
+        if key in out:
+            raise ValueError(f"对象含重复键 {key!r}")
+        out[key] = value
+    return out
+
+
 def verify_interpret_context(
     token: str | None, *, module: str, content_hash: str, context: dict,
     target_date_iso: str | None = None,
@@ -630,10 +649,18 @@ def verify_interpret_context(
                 "v1 模块 context.chart 缺失或非字符串(无法与 token 比对)",
                 content_hash=content_hash)
         try:
-            parsed = json.loads(chart)
+            parsed = json.loads(chart, object_pairs_hook=_reject_duplicate_keys)
         except json.JSONDecodeError as e:
             raise ContextTokenInvalidError(
                 f"context.chart 非合法 JSON,无法验签:{e}",
+                content_hash=content_hash) from e
+        except (ValueError, RecursionError) as e:
+            # ValueError:重复键(见 _reject_duplicate_keys——验签解析值与
+            # 渲染原文的内容分叉 = 注入通道,一律拒绝);RecursionError:深
+            # 嵌套负载,对齐 canonicalize_v1_chain_fields 的「不可解析同款
+            # 处理」先例,不让滥用负载打出 500。
+            raise ContextTokenInvalidError(
+                f"context.chart 无法安全验签:{e}",
                 content_hash=content_hash) from e
         if _canon(parsed) != _canon(expected.get("chart")):
             raise ContextTokenInvalidError(

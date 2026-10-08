@@ -703,6 +703,24 @@ final class DeepAnalysisViewModel {
             AppLogger.app.info("deepVM.hydrateAndResume.already_hydrating hash=\(response.contentHash, privacy: .public)")
             return
         }
+        // 凭证失效态降级(2026-10-08 第十五轮 #6):同 hash 重入(Tab 重挂/
+        // 补时辰取消回退)时,快照 token 可能已被任何重算路径 upsert 翻新
+        //(排盘确定性 → 同 hash 新 token 内容等价)——.contextTokenExpired
+        // 章节降级 .pending,让链用当前 token 重试;若 token 仍失效,链首章
+        // 再 403 回落失效态并断链(断链前置检查兜底),有界不多烧。翻译链
+        // 提示条同口径清除(reset 路径既有语义;此处覆盖同 hash 无 reset 的
+        // 恢复路径,否则重排后翻译指引条残留到手动操作)。
+        for (module, state) in moduleStates {
+            if case .contextTokenExpired = state {
+                AppLogger.app.info(
+                    "deepVM.hydrateAndResume token_expired_demoted module=\(module.rawValue, privacy: .public)"
+                )
+                moduleStates[module] = .pending
+            }
+        }
+        if translationTokenExpired {
+            translationTokenExpired = false
+        }
         // L2/F4 起手读回持久化的 M4/M5 输入(重启后 m4UserInput/m5UserInput 为
         // nil——翻译链缺输入会把已生成章标 .needsInput,原文从屏幕消失)。
         // 内存已有值不覆盖(同会话重入 hydrate 不吞掉刚提交的新输入)。
@@ -936,6 +954,10 @@ final class DeepAnalysisViewModel {
     /// 翻译提议挂着不跑(D10.5:原文缺失的模块应由译后 M0 的目标语言链字段
     /// 驱动生成,自动跑会用原文 fingerprint 造成缓存键错位——翻译收尾再续跑)。
     func resumeV1ChainIfNeeded() {
+        // 达限态过期归一须在 runnable 判定**之前**(第十五轮 #5):.dailyLimitReached
+        // 不进自动续跑清单,零点后若不先归一,resume 恒 no_runnable_unfinished,
+        // 章节钉死到重启/换盘
+        normalizeExpiredLimitStates()
         guard case .ready(let response, _) = state else {
             AppLogger.app.info("deepVM.resumeV1ChainIfNeeded.skip reason=not_ready")
             return
@@ -1156,6 +1178,24 @@ final class DeepAnalysisViewModel {
         }
     }
 
+    /// 达限态过期归一(2026-10-08 第十五轮 #5):服务端配额按 UTC 日重置,
+    /// 内存 `.dailyLimitReached` 却无过期重估——零点过后 resume/回填/起链
+    /// 三处都跳过该态,章节钉死到重启或换盘。nextReset 已过 → 降级 .pending
+    /// (可续跑/可重试);若服务端仍限则本章再 429 回落达限态,有界。
+    /// 调用点:resumeV1ChainIfNeeded(runnable 判定前)+ runV1Chain 入口
+    /// (购买回调等不经 resume 的起链路径)。
+    private func normalizeExpiredLimitStates() {
+        let now = Date()
+        for (module, state) in moduleStates {
+            if case .dailyLimitReached(let nextReset) = state, nextReset <= now {
+                AppLogger.app.info(
+                    "deepVM.limit_state_expired module=\(module.rawValue, privacy: .public) — 降级 .pending 可续跑"
+                )
+                moduleStates[module] = .pending
+            }
+        }
+    }
+
     /// 链式调用主循环:按 ModuleID.allCases 顺序串行执行(M0 → M1 → ... → M7)。
     ///
     /// 断点续跑(2026-09-08):已 `.ok` 的章直接跳过(缓存回填/前次链已完成的
@@ -1172,6 +1212,7 @@ final class DeepAnalysisViewModel {
                 isChainRunning = false
             }
         }
+        normalizeExpiredLimitStates()
         for module in ModuleID.allCases {
             if Task.isCancelled { return }
             if moduleStates[module]?.isOk == true { continue }

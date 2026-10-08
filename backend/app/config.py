@@ -205,7 +205,8 @@ GOOGLE_PUBLIC_KEYS_CACHE_TTL = int(
 # prompt 版本号单一事实源:ai/prompts.py 的 PROMPT_VERSIONS,路由层从那里导入
 
 # ---------- 免费 LLM 生成每日上限(2026-10-07 匿名滥用收口) ----------
-# 只计真烧 LLM 的免费 module 生成(缓存命中不计 / 付费豁免);
+# 只计真烧 LLM 的免费 module 生成(缓存命中不计;付费另见下方
+# PAID_DAILY_LIMIT 独立分桶,2026-10-08 第十四轮起不再豁免);
 # 高于 iOS 本地 10/日,正常用户无感;匿名刷 LLM 的成本面被压掉 97%+。
 # 2026-10-08 拍板 30 → 150:国内移动网/校园网 CGNAT 下大量真实用户共用
 # 一个 IPv4 出口,30/日是全出口共享——正常使用即达限;而脚本本可换 IP
@@ -227,6 +228,18 @@ REFUND_DAILY_LIMIT = int(
 if REFUND_DAILY_LIMIT <= 0:
     raise ValueError(
         f"QICOMPASS_REFUND_DAILY_LIMIT must be positive (got {REFUND_DAILY_LIMIT})")
+
+# ---------- 付费 LLM 生成每日上限(2026-10-08 第十四轮拍板) ----------
+# 付费 module 不再豁免服务端计数:M4/M5 用户输入不绑 token,每次换输入 =
+# 新缓存键 = 新 LLM 调用,已购用户可无限烧(成本 DoS 面)。付费按同款
+# bucket 维度(登录 user_id / 匿名 IP)独立计数(paid: 前缀分桶,与免费
+# 互不挤兑),上限高于任何正常单用户 usage(深度链 8 章 + M4/M5 数轮 +
+# 合盘,一天几十次以内),只拦脚本滥用。缓存命中仍不计。
+PAID_DAILY_LIMIT = int(
+    os.environ.get("QICOMPASS_PAID_DAILY_LIMIT") or "100")
+if PAID_DAILY_LIMIT <= 0:
+    raise ValueError(
+        f"QICOMPASS_PAID_DAILY_LIMIT must be positive (got {PAID_DAILY_LIMIT})")
 
 # ---------- evalkit L3 裁判(S05,2026-08-18;默认回落生成侧,现有部署零感知) ----------
 # 独立 env:同模型自评有系统性偏袒;独立配置才能"用更强的模型当裁判",

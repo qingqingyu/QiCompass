@@ -100,6 +100,15 @@ final class CachedInterpretationReader {
 
     /// 批量读核心(调用方传入已 resolve 的 identity;#8,2026-10-02 抽出:
     /// 跨语言读取按语言循环时复用同一 identity,不再每语言各打一次 health)。
+    ///
+    /// 链一致守卫(2026-10-08 第十五轮 #7):本地缓存键不含上游指纹,getLatest
+    /// 只按**本模块**版本过滤——上游(如 M0)单侧 bump 后,下游旧版本行照常
+    /// 命中 → 命书新旧混拼 + 这些章翻译恒 409(服务端链走查按新上游重建键)。
+    /// 模块按传入序消费(M0→M7,生产者恒在消费者前):任一模块「服务端版本
+    /// 已知且本地无当前版本命中」→ 其后模块全部跳过回填,链整段重算(服务端
+    /// 新键自然 miss;下游既有行经重取自愈,不多烧 LLM)。「无命中」兼含
+    /// 「从未生成」——该场景下游也未生成,跳过无副作用;「该章此前失败但
+    /// 下游有行」的代价仅为下游重取(服务端缓存命中,零 LLM)。
     private func readAll(
         contentHash: String,
         modules: [String],
@@ -109,7 +118,13 @@ final class CachedInterpretationReader {
         identity: AIIdentity
     ) throws -> [String: InterpretationCache] {
         var hits: [String: InterpretationCache] = [:]
+        // 守卫只对 v1 链生效(modules 以 m0_structure 起头 = DeepAnalysis
+        // 链式回填);合盘的「paid/free 任一命中」语义里 paid 常年缺席,
+        // 前缀切断会误伤 free 行命中,不适用
+        let isV1Chain = modules.first == "m0_structure"
+        var chainCut = false
         for module in modules {
+            guard !chainCut else { break }
             guard let cache = try latestHit(
                 contentHash: contentHash,
                 module: module,
@@ -118,6 +133,11 @@ final class CachedInterpretationReader {
                 maxAge: maxAge,
                 identity: identity
             ) else {
+                // 版本已知却无当前版本行 = 上游已 bump 本地未跟上 → 下游行
+                // 是旧上游驱动的,不再回填(版本未知 = 老后端,维持旧行为)
+                if isV1Chain, identity.promptVersions[module] != nil {
+                    chainCut = true
+                }
                 continue
             }
             hits[module] = cache

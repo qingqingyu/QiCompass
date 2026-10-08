@@ -591,6 +591,69 @@ final class CachedInterpretationReaderTests: XCTestCase {
         XCTAssertEqual(legacyHit?.interpretation, "v5 新解读")
     }
 
+    // MARK: - v1 链一致守卫(2026-10-08 第十五轮 #7)
+
+    /// 上游(如 M0)单侧 bump 后,本地缓存键不含上游指纹、getLatest 只按
+    /// **本模块**版本过滤——下游旧版本行照常命中会拼出「新旧混合链」
+    /// (命书混拼 + 这些章翻译恒 409,服务端链走查按新上游重建键)。
+    /// 守卫:v1 链(modules 以 m0_structure 起头,生产者恒在消费者前)中
+    /// 任一模块「服务端版本已知且本地无当前版本行」→ 其后模块全部跳过回填;
+    /// 版本未知(老后端)守卫关闭,维持旧行为。
+    func testReadAllCutsV1ChainWhenUpstreamVersionMissing() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        // m0 本地只有 v1 行(服务端已 bump 到 v2);m1/m2 本地 v1 = 服务端当前
+        // ——下游行是旧 M0 驱动的,版本过滤单独看每章都「有效」
+        try store.upsert(
+            contentHash: "h-cut", module: "m0_structure", promptVersion: 1,
+            targetDate: nil, provider: "anthropic", model: "claude-test",
+            interpretation: Self.v1JSON("m0 旧版"), generatedAt: .now
+        )
+        try store.upsert(
+            contentHash: "h-cut", module: "m1_talent", promptVersion: 1,
+            targetDate: nil, provider: "anthropic", model: "claude-test",
+            interpretation: Self.v1JSON("m1 旧 M0 驱动"), generatedAt: .now
+        )
+        try store.upsert(
+            contentHash: "h-cut", module: "m2_high_low", promptVersion: 1,
+            targetDate: nil, provider: "anthropic", model: "claude-test",
+            interpretation: Self.v1JSON("m2 旧 M0 驱动"), generatedAt: .now
+        )
+
+        func readerWith(versions: [String: Int]?) -> CachedInterpretationReader {
+            var health = Self.health(provider: "anthropic", model: "claude-test")
+            health.promptVersions = versions
+            return CachedInterpretationReader(
+                identityResolver: AIIdentityResolver(apiClient:
+                    ReaderTestAPIClient(healthResults: [.success(health)])),
+                cacheStore: store
+            )
+        }
+        let chain = Array(Self.v1Modules.prefix(3))  // m0 → m1 → m2
+
+        // 1. m0 服务端 v2 已知、本地无 v2 行 → 链在 m0 切断,m1/m2 既有行
+        //    不再回填(修复前:m1/m2 命中 → 新旧混拼 + 这些章翻译恒 409)
+        let cut = try await readerWith(versions: [
+            "m0_structure": 2, "m1_talent": 1, "m2_high_low": 1,
+        ]).readAll(contentHash: "h-cut", modules: chain, language: "zh")
+        XCTAssertTrue(cut.isEmpty, "上游版本缺行须切断其后所有回填(实际:\(cut.keys.sorted()))")
+
+        // 2. 版本未知(老后端无 prompt_versions)→ 守卫关闭,维持旧行为:
+        //    全部行照常命中(m0 旧行按旧语义取本地最高,不触发切断)
+        let legacy = try await readerWith(versions: nil)
+            .readAll(contentHash: "h-cut", modules: chain, language: "zh")
+        XCTAssertEqual(legacy.count, 3)
+        XCTAssertNotNil(legacy["m0_structure"])
+        XCTAssertNotNil(legacy["m1_talent"])
+        XCTAssertNotNil(legacy["m2_high_low"])
+
+        // 3. 对照:全模块版本对齐(服务端 v1 = 本地 v1)→ 全命中,守卫不误伤
+        let allCurrent = try await readerWith(versions: [
+            "m0_structure": 1, "m1_talent": 1, "m2_high_low": 1,
+        ]).readAll(contentHash: "h-cut", modules: chain, language: "zh")
+        XCTAssertEqual(allCurrent.count, 3)
+    }
+
     // MARK: - Helpers
 
     private static func healthOnlyClient(

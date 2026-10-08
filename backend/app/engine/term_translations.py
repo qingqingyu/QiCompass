@@ -752,15 +752,30 @@ def _translate_chart_json(chart_json: str, table: dict[str, str],
     except json.JSONDecodeError as e:
         # 收窄进翻译层:包成专用类型,路由层按本类包装 500(见类注释)
         raise ChartJSONDecodeError(str(e)) from e
+    except RecursionError as e:
+        # 深嵌套负载与非法 JSON 同款(2026-10-08 双 review 实证:en/zh-hant
+        # 下本函数先于 verify_interpret_context 的解析执行,不捕获会让
+        # 滥用负载打出未处理 500 刷 traceback;对齐 canonicalize_v1_chain_
+        # fields / _extract_v1_output 的 RecursionError 收口先例)
+        raise ChartJSONDecodeError(
+            f"深嵌套 JSON 超解析递归上限:{e}") from e
     untranslatable: list[str] = []
-    walked = _walk_chart_value(data, table, untranslatable, joiner)
-    if untranslatable:
-        logger.warning(
-            "translate_context: chart 内 %d 个值未注册翻译,保留中文:%r"
-            "(按需在 term_translations.py 扩表)",
-            len(untranslatable), sorted(set(untranslatable))[:10],
-        )
-    return json.dumps(walked, ensure_ascii=False)
+    try:
+        walked = _walk_chart_value(data, table, untranslatable, joiner)
+        if untranslatable:
+            logger.warning(
+                "translate_context: chart 内 %d 个值未注册翻译,保留中文:%r"
+                "(按需在 term_translations.py 扩表)",
+                len(untranslatable), sorted(set(untranslatable))[:10],
+            )
+        return json.dumps(walked, ensure_ascii=False)
+    except RecursionError as e:
+        # walk/dumps 是 Python 级递归,上限远低于 C 解析器(3.12 实测:
+        # loads 收 depth ≤ ~1497,walk 在 ~998 即炸)——depth ∈ (walk 上限,
+        # loads 上限] 的负载过了 loads 仍会在 walk 打未处理 RecursionError,
+        # 与 loads 同款收窄为结构化 500。
+        raise ChartJSONDecodeError(
+            f"深嵌套 JSON 超遍历递归上限:{e}") from e
 
 
 def _walk_chart_value(node: object, table: dict[str, str],

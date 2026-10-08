@@ -1677,11 +1677,12 @@ async def test_m1_translate_survives_junk_upstream_rows(
 
 
 def test_prefer_current_version_rows_order_and_cap():
-    """偏好序 + 截断(2026-10-08 外评 #1):当前版本优先,其余版本降序;
-    超上限截断。修复前 get_module_rows 无 ORDER BY(插入序≈版本升序),
-    首个匹配会取到 bump 前旧行——保留式 bump(v4/v5 文件并存,dec18de 起
-    惯例)下旧行可自核验,其输出值与当前版本叶子的键重建永不相等 →
-    合法翻译恒 409。"""
+    """偏好序(2026-10-08 外评 #1 + 第十五轮 #2):当前版本优先,其余版本
+    降序;**不截断**——get_module_rows 无 ORDER BY,同版本行序 = 查询计划
+    序(不可判别),「先截断后过滤」会把链核验真正需要的行随机砍掉(变体
+    刷行场景合法翻译恒 409)。行数上限移到消费点的可判别过滤之后:M0 根行
+    核验探查 / 同根 parent_hash 匹配后的重渲染探查(见
+    _verify_v1_chain_translation_source)。"""
     import hashlib
 
     from app.ai.cache_key import CacheKey
@@ -1703,12 +1704,12 @@ def test_prefer_current_version_rows_order_and_cap():
         "当前版本优先,其余按版本降序"
     assert ordered[0][1] == "text-3-real", "当前版本组内保插入序(稳定排序,真行在前)"
 
-    # 现实攻击形态:正常链生成(真行先落库)之后才注入 junk——同版本组内
-    # 稳定排序保插入序,真行恒在截断窗口内。(junk 先于真行落库的形态只有
-    # chart 持有者自己能构造——context_token 绑定盘,写行即自伤自己的核验,
-    # 不属防护目标;上限的意义是把该自伤面的 CPU 烧成有界。)
+    # 第十五轮 #2 契约:不再截断(旧 [:_V1_CHAIN_MAX_ROWS_PER_MODULE] 在
+    # 不可判别行序上随机砍行 = 同盘受害者合法翻译恒 409 的攻击面)。
+    # 全量返回,排序契约不变;探查上限由消费点在可判别过滤后执行。
     many = [row(3, "real")] + [row(3, f"junk-{i}") for i in range(20)]
-    capped = _prefer_current_version_rows(many, 3)
-    assert len(capped) == _V1_CHAIN_MAX_ROWS_PER_MODULE
-    assert capped[0][1] == "text-3-real", \
-        "截断不剪生成时序在前的真行(注入行只能追加在真行之后)"
+    full = _prefer_current_version_rows(many, 3)
+    assert len(full) == len(many), "不截断:全量返回,上限移到消费点过滤之后"
+    assert len(full) > _V1_CHAIN_MAX_ROWS_PER_MODULE, \
+        "锁死不再按每模块上限截断(防旧契约回潮)"
+    assert full[0][1] == "text-3-real", "当前版本组内保插入序(真行在前)"
