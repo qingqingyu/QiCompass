@@ -1403,8 +1403,10 @@ final class DeepAnalysisViewModel {
             // 服务端免费配额 429(2026-10-08 外评 #6):与本地 10 次/日池不同源,
             // 「重试本章」+ 回前台自动续跑只会反复 429——达限态禁重试 + 倒计时
             // (含本地池耗尽的 DeepAnalysisError.dailyLimitReached,UserFacingError
-            // .from 已把两路收编成同一分类)。
-            if case .dailyLimitReached(let reset) = userError {
+            // .from 已把两路收编成同一分类)。章节级 ModuleState 暂不接
+            // serverPool 登录引导(本地池先触发,该面 429 罕见;两池同渲染
+            // 倒计时,serverPool 只影响 InterpretState 侧文案)。
+            if case .dailyLimitReached(let reset, _) = userError {
                 moduleStates[module] = .dailyLimitReached(nextReset: reset)
                 return
             }
