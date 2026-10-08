@@ -50,8 +50,15 @@ M0_HANT_JSON = json.dumps({
 
 def _m0_translate_payload(source_interpretation: str = M0_ZH_JSON,
                           source_language: str = "zh",
-                          source_prompt_version: int = 2) -> dict:
-    """zh→目标语言的 m0 翻译请求(m0 免费,无 entitlement 字段)。"""
+                          source_prompt_version: int | None = None) -> dict:
+    """zh→目标语言的 m0 翻译请求(m0 免费,无 entitlement 字段)。
+
+    source_prompt_version 默认取当前 PROMPT_VERSIONS["m0_structure"]
+    (2026-10-08 m0 2→3 bump 实踩:硬编码 2 会在 bump 后全量假红——种下的
+    source 行版本对不上,translate 409。版本错位类用例仍显式传参覆盖)。
+    """
+    if source_prompt_version is None:
+        source_prompt_version = PROMPT_VERSIONS["m0_structure"]
     return {
         "content_hash": "hash-tr-m0",
         "module": "m0_structure",
@@ -138,7 +145,8 @@ async def test_translate_then_interpret_hits_same_cache_key(
     assert body["cached"] is False
     assert body["language"] == "zh-hant"
     assert body["translated_from"] == "zh"
-    assert body["prompt_version"] == 2
+    # 版本断言随 PROMPT_VERSIONS 走(bump 后硬编码会假红,2026-10-08 m0 2→3 实踩)
+    assert body["prompt_version"] == PROMPT_VERSIONS["m0_structure"]
     llm_calls_after_translate = mock_ai_client.call_count
 
     # 3. 以目标语言调 /api/interpret → 命中翻译写入的键
@@ -1108,6 +1116,8 @@ async def test_paid_module_translate_without_entitlement_403(
         },
         "user_local_id": "user-1",
         "parent_fingerprint": "fp-m2",
+        # 版本须跟 module 走(夹具默认是 m0 的当前版本,bump 后不再恒等)
+        "source_prompt_version": PROMPT_VERSIONS["m2_high_low"],
     })
     resp = await interpret_client.post(
         "/api/interpret/translate", json=payload,
@@ -1183,6 +1193,8 @@ async def test_paid_module_translate_with_entitlement_200(
         },
         "user_local_id": "user-1",
         "parent_fingerprint": "七杀驱动(译)",
+        # 版本须跟 module 走(夹具默认是 m0 的当前版本,bump 后不再恒等)
+        "source_prompt_version": PROMPT_VERSIONS["m2_high_low"],
     })
     mock_ai_client.set_response(tgt)
     resp = await interpret_client.post(

@@ -101,7 +101,15 @@ PROMPT_VERSIONS: dict[str, int] = {
     # 半截 JSON 入了两层缓存,iOS 渲染层 parse 失败退散文 = 正文 JSON 裸奔)。
     # M0 重生成后 temp 0.3 非确定性 → fingerprint 变 → 下游缓存键连带失效
     # (链式设计如此,行为正确)。iOS 的 promptVersion 从响应学得,无需发版。
-    "m0_structure": 2,     # 免费:识别主线结构 + 产 structure_fingerprint
+    "m0_structure": 3,     # 免费:识别主线结构 + 产 structure_fingerprint
+    # v3 2026-10-08 排版/内容评审收口(证据引用纪律五条):①evidence 禁机器字段名
+    # (ten_god_weights/year_stem/hour_branch 等裸引四次复现,像看日志);②藏干十神
+    # 归属照 pillars.shishen_zhi 表,正印/偏印不混(用户盘把辰藏癸算进 Direct
+    # Resource,lunar_python 实测癸=偏印,引擎无罪系 LLM 概率性翻车);③权重并列
+    # 禁「最重」表述(Direct Wealth 9 vs Companion 9 同分矛盾);④flow 不复述
+    # from→to 链符号(渲染层已单列 from/to);⑤叙事口径随 day_master_strength/
+    # useful_god_candidates(身旺忌水局把印讲成助力 = 前后矛盾)。老 v2 缓存随
+    # prompt_version 自然失效;M0 重生成 fingerprint 变 → 下游链式连带失效(既有行为)。
     "m1_talent": 2,        # 免费:天赋能力(innate/trained/defensive + one_leverage)
     "m2_high_low": 2,      # 付费:高配/低配 + 阈值(环境/信念/觉察)
     "m3_system": 2,        # 付费:人生系统模式(运行模式/失效环境/理想结构)
@@ -500,6 +508,13 @@ _V1_SYSTEM_PROMPT = """你是一位命理结构分析师，工作方式接近系
 
 # M0 · 识别主线结构(免费,产 structure_fingerprint 供 M1-M7 链式注入)
 M0_STRUCTURE_TEMPLATE = _V1_SYSTEM_PROMPT + """
+【证据引用纪律】（v3，违反即返工）
+- evidence 必须用人话写依据（如「正财权重 9，年干戊土透出，年支与时支藏干再各计一分」），**禁止出现输入 JSON 的机器字段名**——ten_god_weights、ten_gods、year_stem、hour_branch、day_branch、pillars 之类一律不得出现在任何输出字符串里
+- 十神的藏干归属必须照输入 pillars 里各柱 shishen_zhi 的藏干十神表引用：正印与偏印、正财与偏财等性质**不可互换**；某个十神的权重只能归到表中实际属于它的字，不许把藏干凑进相近的十神
+- ten_god_weights 出现并列最高时，必须明写「并列最重」，禁止任何「最重的单一十神」表述
+- core_loop.flow 直接讲循环的机制与代价，**不复述 from→to 的链条符号**（from/to 已单独成字段展示给用户，flow 里再写「A → B → A」就是复读）
+- 叙事口径必须与 day_master_strength 和 useful_god_candidates 一致：日主偏旺（喜克泄耗）时，印与比劫在循环里是负担、分流或自我复制，不是助力；日主偏弱（喜生扶）时，才可以把印讲成滋养。同一章内前后口径必须一致
+
 
 ===== 模块 M0:识别主线结构 =====
 
@@ -508,7 +523,7 @@ M0_STRUCTURE_TEMPLATE = _V1_SYSTEM_PROMPT + """
 请从十神结构出发分析这个命局，不要讲吉凶和神煞。
 
 1. 十神主线是什么？（区分主导、次要、潜伏三层，各自依据是什么）
-2. 哪两个十神形成了核心循环结构？写出能量流向（A → B → A），并说明这个循环靠什么驱动、在哪里损耗。
+2. 哪两个十神形成了核心循环结构？（填入 from/to）说明这个循环靠什么驱动、在哪里损耗（写入 flow，讲机制即可，不必复述链条符号）。
 3. 这个结构在命理中属于什么类型？给它一个能概括运转方式的名字。
 4. 这类结构的人，核心能力通常来自哪里？（来自循环的哪一段）
 
@@ -523,7 +538,7 @@ M0_STRUCTURE_TEMPLATE = _V1_SYSTEM_PROMPT + """
 
 structure_fingerprint:一句话,不超过 40 字,概括这个人的运转方式。后续所有模块都会继承它,因此必须精确、可复用、不含形容词。
 
-校验:core_loop.from / core_loop.to 必须是十神名;structure_fingerprint 不含吉凶词与形容词。
+校验:core_loop.from / core_loop.to 必须是十神名;structure_fingerprint 不含吉凶词与形容词;所有输出字符串不含机器字段名。
 """
 
 # v1 prompt 系统篇幅约束(2026-08-11 用户决策:M1/M2/M3/M5/M7 加长至 1500-2500 字)

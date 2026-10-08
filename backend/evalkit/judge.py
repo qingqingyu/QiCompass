@@ -12,11 +12,13 @@ overall 由本地重算而非采信裁判算术:scores 是唯一事实源,N/A �
 from __future__ import annotations
 
 import asyncio
+import os
 from dataclasses import dataclass
 from typing import Any
 
 from app.ai.client import AIClient, create_ai_client
 from app.config import (
+    ANTHROPIC_BASE_URL,
     JUDGE_API_KEY,
     JUDGE_BASE_URL,
     JUDGE_MODEL,
@@ -47,13 +49,22 @@ class JudgeResult:
 def create_judge_client() -> AIClient:
     """按 JUDGE_* env 构造裁判 client(默认回落生成侧 AI_*)。
 
-    openai 裁判走 JUDGE_BASE_URL(独立网关覆盖);anthropic 裁判走官方
-    默认 endpoint(create_ai_client 对 anthropic 分支不消费 openai_base_url)。
+    openai 裁判走 JUDGE_BASE_URL(独立网关覆盖)。anthropic 裁判 2026-10-08 起
+    同样支持 base_url:优先**显式设置**的 JUDGE_BASE_URL env(跨网关交叉验证
+    场景),否则回落生成侧 ANTHROPIC_BASE_URL(z.ai 中转部署下直打官方
+    endpoint 会 401)。注意不能直接用 config.JUDGE_BASE_URL——它无脑回落
+    OPENAI_BASE_URL,anthropic 裁判会被指向 openai 网关 → /v1/v1/messages 404
+    (2026-10-08 首轮真实 run 128 error 的根因)。
     """
+    explicit_judge_base = os.environ.get("JUDGE_BASE_URL", "").strip() or None
     return create_ai_client(
         provider=JUDGE_PROVIDER,
         anthropic_api_key=JUDGE_API_KEY if JUDGE_PROVIDER == "anthropic" else None,
         anthropic_model=JUDGE_MODEL,
+        anthropic_base_url=(
+            (explicit_judge_base or ANTHROPIC_BASE_URL)
+            if JUDGE_PROVIDER == "anthropic" else None
+        ),
         openai_api_key=JUDGE_API_KEY if JUDGE_PROVIDER == "openai" else None,
         openai_model=JUDGE_MODEL,
         openai_base_url=JUDGE_BASE_URL,
@@ -63,6 +74,11 @@ def create_judge_client() -> AIClient:
 def _validate_scores(scores: Any) -> dict[str, int | str]:
     if not isinstance(scores, dict):
         raise ValueError(f"裁判输出 scores 非 object(type={type(scores).__name__})")
+    # special_pattern_诚实 缺键视为 N/A(2026-10-08 首轮真实 run:46 条裁判 error
+    # 全因普通盘上裁判合理省略该维度——rubric 本就允许 N/A,缺键与显式 N/A
+    # 同义;其余维度缺键仍是 error)。
+    for k in _NA_ALLOWED_KEYS:
+        scores = {**scores, k: scores.get(k, "N/A")}
     missing = [k for k in _SCORE_KEYS if k not in scores]
     if missing:
         raise ValueError(f"裁判输出 scores 缺维度: {missing}")

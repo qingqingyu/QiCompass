@@ -3,11 +3,14 @@ import SwiftUI
 // MARK: - 章节结构化正文排版(2026-09-02)
 //
 // ChapterContent 节点树的视觉层,版面语言对齐 DESIGN.md(水墨孤本):
-// - 引言/正文 = 楷体 15.5 · 行距 2.15× · 首行缩进 2em(与散文态同规格,§Body)
-// - 小节题   = 前置短墨横(12×1.2)+ 楷体 14pt tracking 3;嵌套小节 12pt 墨青降级
-// - 键值行   = 标签 caption 11.5 墨灰 + 值楷体 14.5;「据/注」小字注 11pt
-// - 条目列   = 「·」条目楷体 14.5
-// - 条目卡   = 题楷体 14.5 + 字段,卡间 hairline 分隔(卡片让位 hairline)
+// - 引言/正文 = 楷体 15.5 · 行距 2.15×(EN 8pt,2026-10-08 分语言)· 首行缩进 2em
+// - 小节题   = 前置短墨横(12×1.2)+ 楷体 15pt tracking 3;嵌套小节 13pt 墨青降级
+//   (2026-10-08 层级修复:旧 14/12 档被引言 15.5 与条目题 14.5 双向压过,
+//   EN 视觉模型直接判「header looks subordinate to the paragraphs beneath」)
+// - 键值行   = 标签 caption 11.5 墨灰 + 值楷体 14.5(EN 行距 6pt);「据/注」小字注 11pt
+// - 条目列   = 「·」条目楷体 14.5(EN 行距 6pt)
+// - 条目卡   = 题楷体 14 + 字段,卡间 hairline 分隔(卡片让位 hairline)
+//   (题从 14.5 收到 14:条目题不得大于所在小节题)
 // 无卡片底 / 无渐变 / 朱红不进。纯展示,数据源单一(ChapterContent)。
 
 struct ChapterContentView: View {
@@ -66,7 +69,7 @@ private struct NodeView: View {
                     Text("· \(item)")
                         .font(BaziFont.body(size: 14.5))
                         .foregroundStyle(BaziTheme.ink)
-                        .lineSpacing(16)
+                        .lineSpacing(valueLineSpacing)
                         .fixedSize(horizontal: false, vertical: true)
                 }
             }
@@ -115,16 +118,22 @@ private struct NodeView: View {
         return nil
     }
 
+    /// 正文行距分语言:zh 楷体 2.15× 疏朗是设计语言;EN New York 衬线同参数
+    /// 有效行高 ~2.4×,视觉模型判「almost poster-like」(2026-10-08 外评)。
+    private var proseLineSpacing: CGFloat { AppLanguage.current == .en ? 8 : 18 }
+    /// 键值/条目行距同款分档(zh 16 / EN 6)。
+    private var valueLineSpacing: CGFloat { AppLanguage.current == .en ? 6 : 16 }
+
     /// 引言段:与阅读页散文态同规格(15.5pt · 行距 2.15× · 缩进 2em)。
     private func leadParagraph(_ text: String) -> some View {
         Text("　　" + text)
             .bodySerifText(size: 15.5)
-            .lineSpacing(18)
+            .lineSpacing(proseLineSpacing)
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// 小节题:顶层短墨横 + 楷体;嵌套小节去横、字级降 12、墨灰。
+    /// 小节题:顶层短墨横 + 楷体;嵌套小节去横、字级降 13、墨灰。
     @ViewBuilder
     private func sectionHeader(_ title: String) -> some View {
         if depth == 0 {
@@ -133,13 +142,13 @@ private struct NodeView: View {
                     .fill(BaziTheme.ink)
                     .frame(width: 12, height: 1.2)
                 Text(title)
-                    .font(BaziFont.display(size: 14))
+                    .font(BaziFont.display(size: 15))
                     .tracking(3)
                     .foregroundStyle(BaziTheme.ink)
             }
         } else {
             Text(title)
-                .font(BaziFont.display(size: 12))
+                .font(BaziFont.display(size: 13))
                 .tracking(2)
                 .foregroundStyle(BaziTheme.inkMuted)
         }
@@ -162,7 +171,7 @@ private struct NodeView: View {
                     .foregroundStyle(BaziTheme.inkMuted)
                 Text(field.value)
                     .bodySerifText(size: 14.5)
-                    .lineSpacing(16)
+                    .lineSpacing(valueLineSpacing)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
@@ -172,8 +181,9 @@ private struct NodeView: View {
     private func itemView(_ item: ChapterItem) -> some View {
         VStack(alignment: .leading, spacing: 8) {
             if let title = item.title {
+                // 题从 14.5 收到 14(2026-10-08 层级修复):条目题必须 ≤ 小节题 15。
                 Text(title)
-                    .font(BaziFont.display(size: 14.5))
+                    .font(BaziFont.display(size: 14))
                     .tracking(1)
                     .foregroundStyle(BaziTheme.ink)
                     .fixedSize(horizontal: false, vertical: true)
@@ -191,7 +201,7 @@ private struct NodeView: View {
                         Text("· \(bullet)")
                             .font(BaziFont.body(size: 14.5))
                             .foregroundStyle(BaziTheme.ink)
-                            .lineSpacing(16)
+                            .lineSpacing(valueLineSpacing)
                             .fixedSize(horizontal: false, vertical: true)
                     }
                 }
