@@ -111,6 +111,26 @@ enum ModuleID: String, CaseIterable, Codable, Sendable {
         }
     }
 
+    /// 传递依赖方闭包(直接/间接依赖本模块的全部模块;不含自身)。
+    /// 链一致守卫的切断范围用(2026-10-08 十六轮 #1):上游 miss 只切断
+    /// 真正依赖它的下游,而不是其后所有章——M4/M5 从未生成(用户没填输入)
+    /// 不应切断任何章(依赖图上无模块依赖 M4/M5),否则 M5-M7 的本地缓存
+    /// 行被误判不可回填,重启后白走网络重取、切语言时被当无原文重新生成。
+    /// 全模块数量 8,BFS 短闭包,调用侧(`readAll` 循环)按模块一次计算,
+    /// 无性能顾虑。
+    var transitiveDependents: Set<ModuleID> {
+        var result: Set<ModuleID> = []
+        var queue = ModuleID.allCases.filter { $0.dependencies.contains(self) }
+        while let next = queue.popLast() {
+            guard !result.contains(next) else { continue }
+            result.insert(next)
+            queue.append(contentsOf: ModuleID.allCases.filter {
+                $0.dependencies.contains(next) && !result.contains($0)
+            })
+        }
+        return result
+    }
+
     /// 本模块渲染 prompt 必带的**链式字段**(backend `REQUIRED_FIELDS` 减去
     /// chart / structure_fingerprint / M4/M5 用户输入——那三类由
     /// DeepAnalysisOrchestrator.runV1Module 直接组装)。

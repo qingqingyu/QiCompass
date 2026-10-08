@@ -101,15 +101,24 @@ final class CachedInterpretationReader {
     /// 批量读核心(调用方传入已 resolve 的 identity;#8,2026-10-02 抽出:
     /// 跨语言读取按语言循环时复用同一 identity,不再每语言各打一次 health)。
     ///
-    /// 链一致守卫(2026-10-08 第十五轮 #7):本地缓存键不含上游指纹,getLatest
-    /// 只按**本模块**版本过滤——上游(如 M0)单侧 bump 后,下游旧版本行照常
-    /// 命中 → 命书新旧混拼 + 这些章翻译恒 409(服务端链走查按新上游重建键)。
-    /// 模块按传入序消费(M0→M7,生产者恒在消费者前):任一模块「服务端版本
-    /// 已知且本地无当前版本命中」→ 其后模块全部跳过回填,链整段重算(服务端
-    /// 新键自然 miss;下游既有行经重取自愈,不多烧 LLM)。「无命中」兼含
-    /// 「从未生成」——该场景下游也未生成,跳过无副作用;「该章此前失败但
-    /// 下游有行」的代价仅为下游重取(服务端缓存命中,零 LLM)。跨语言探测
-    /// (includeStaleVersions=true)下「无命中」= 真无行,守卫同义成立。
+    /// 链一致守卫(2026-10-08 第十五轮 #7;十六轮 #1 改按依赖图切断):
+    /// 本地缓存键不含上游指纹,getLatest 只按**本模块**版本过滤——上游
+    /// (如 M0)单侧 bump 后,下游旧版本行照常命中 → 命书新旧混拼 + 这些
+    /// 章翻译恒 409(服务端链走查按新上游重建键)。模块按传入序消费
+    /// (M0→M7,生产者恒在消费者前):任一模块「服务端版本已知且本地无
+    /// 当前版本命中」→ **其传递依赖方**(`ModuleID.transitiveDependents`)
+    /// 跳过回填,链按依赖重算(服务端新键自然 miss;被跳过章的既有行经
+    /// 重取自愈,服务端缓存命中时零 LLM)。
+    ///
+    /// 为什么不是「其后全部跳过」(前缀切断,十五轮原版):依赖图上
+    /// **没有模块依赖 M4/M5**——用户没填输入时这两章从未生成(回填清单
+    /// 里它们 miss 是常态),前缀切断会把 M5-M7 的有效本地行一并跳过,
+    /// 重启后白走网络重取、切语言时被当无原文重新生成(而非翻译)。按
+    /// 依赖切断后:M4/M5 miss 不切任何章;m0 bump 仍切断全部(全员传递
+    /// 依赖 m0,行为与原版一致);m1 bump 只切 m2/m5/m6/m7,保留 m3/m4。
+    /// 「该章此前失败但下游有行」的代价仅为下游重取(服务端缓存命中,
+    /// 零 LLM)。跨语言探测(includeStaleVersions=true)下「无命中」=
+    /// 真无行,守卫同义成立。
     ///
     /// includeStaleVersions(十四轮外评 #5):跨语言探测传 true——prompt bump
     /// 后旧语言原文只在旧版本下,版本过滤会把探测源一并滤掉(设计降级路径
@@ -132,9 +141,12 @@ final class CachedInterpretationReader {
         // 行命中。判定用 allSatisfy 而非「first == m0」:后者会让部分清单
         // 静默绕过守卫,#7 的混拼场景在同会话 Tab 重挂下复现(重启才自愈)。
         let isV1Chain = modules.allSatisfy { ModuleID(rawValue: $0) != nil }
-        var chainCut = false
+        var cutModules = Set<ModuleID>()
         for module in modules {
-            guard !chainCut else { break }
+            if let id = ModuleID(rawValue: module), cutModules.contains(id) {
+                // 上游版本缺行且本模块是其传递依赖方:不查不回填
+                continue
+            }
             guard let cache = try latestHit(
                 contentHash: contentHash,
                 module: module,
@@ -144,10 +156,12 @@ final class CachedInterpretationReader {
                 identity: identity,
                 includeStaleVersions: includeStaleVersions
             ) else {
-                // 版本已知却无当前版本行 = 上游已 bump 本地未跟上 → 下游行
-                // 是旧上游驱动的,不再回填(版本未知 = 老后端,维持旧行为)
-                if isV1Chain, identity.promptVersions[module] != nil {
-                    chainCut = true
+                // 版本已知却无当前版本行 = 上游已 bump 本地未跟上 → 依赖
+                // 它的下游行是旧上游驱动的,不再回填(版本未知 = 老后端,
+                // 维持旧行为)
+                if isV1Chain, let id = ModuleID(rawValue: module),
+                   identity.promptVersions[module] != nil {
+                    cutModules.formUnion(id.transitiveDependents)
                 }
                 continue
             }

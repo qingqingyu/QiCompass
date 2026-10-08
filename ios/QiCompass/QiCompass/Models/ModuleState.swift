@@ -27,7 +27,11 @@ enum ModuleState: Equatable {
     /// context_token 缺失/失效(2026-10-08):老快照盘生成/翻译必 403,重试
     /// 无意义——章节页渲染「重新排盘」出口而非「重试本章」(落态入口:
     /// DeepAnalysisViewModel 通用 catch 的 APIError.isContextTokenError)。
-    case contextTokenExpired
+    /// failedToken(十六轮 #4):失败当时所用的 v1 族 token——hydrate 重入时
+    /// 只有当前 token ≠ failedToken(已被重排翻新)才降级 .pending 重试;
+    /// 仍同枚则保持失效态,不白发注定 403 的请求、不抹掉「重新排盘」指引。
+    /// nil = 请求未携带 token(老快照无 contextTokens,403 由缺失引起)。
+    case contextTokenExpired(failedToken: String?)
     /// 服务端免费配额 429 QUOTA_EXCEEDED(2026-10-08 外评 #6):与本地 10 次/日
     /// 池不同源(共享 IP/多设备会把服务端池先耗尽),重试本章/回前台自动续跑
     /// 只会反复 429——达限态禁重试,章节页渲染倒计时(UTC 零点换日,与

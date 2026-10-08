@@ -71,7 +71,10 @@ def _m0_translate_payload(source_interpretation: str = M0_ZH_JSON,
 
 
 def _seed_source_row(cache, payload: dict, text: str,
-                     target_date: str | None = None) -> None:
+                     target_date: str | None = None, *,
+                     provider: str = "anthropic",
+                     model: str = "mock-anthropic-model",
+                     generated_at: str = "2026-10-01T00:00:00+00:00") -> None:
     """直接落一行 source_language 原文(翻译防伪前提)。
 
     与端点同源:经 `_prepare_prompt_and_key(req, source_language)` 算真实
@@ -81,6 +84,10 @@ def _seed_source_row(cache, payload: dict, text: str,
     不参与防伪,任意值即可。
     target_date 可显式覆盖(默认取 payload 的)——日期防伪用例用它制造
     「原文行的日期 ≠ 请求声明的日期」的错位行。
+    provider/model/generated_at(2026-10-08 十六轮 #3)可显式覆盖:provider
+    变体用例靠它们制造「同键不同 provider 的并存行 + 新旧 generated_at
+    偏好序」(缓存 PK 十维含 provider/model,默认值即与端点 mock 行
+    「test-anthropic-model」PK 可区分)。
     """
     from app.ai.cache_key import CacheKey
     from app.api.interpret import _prepare_prompt_and_key
@@ -103,14 +110,14 @@ def _seed_source_row(cache, payload: dict, text: str,
             prompt_version=payload["source_prompt_version"],
             target_date=payload.get("target_date") or "",
             prompt_hash=prepared.cache_key.prompt_hash,
-            provider="anthropic",
-            model="mock-anthropic-model",
+            provider=provider,
+            model=model,
             parent_hash=prepared.cache_key.parent_hash,
             user_input_hash=prepared.cache_key.user_input_hash,
             language=payload["source_language"],
         ),
         text,
-        "2026-10-01T00:00:00+00:00",
+        generated_at,
     )
 
 
@@ -414,6 +421,93 @@ async def test_m2_translate_walks_m0_m1_chain(
         "target_date": None,
         "parent_fingerprint": m0_hant["structure_fingerprint"],
         "user_local_id": "chain-user",
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m2_high_low"],
+        "source_interpretation": m2_zh,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["translated_from"] == "zh"
+    assert resp.json()["interpretation"] == m2_hant
+
+
+async def test_m2_translate_provider_variant_fork_backtracks(
+        interpret_client, mock_ai_client, tmp_cache, tmp_entitlement_store):
+    """provider/model 变体分叉回溯(2026-10-08 十六轮外评 #3)。
+
+    缓存 PK 十维含 provider/model:换模型重生成后新旧行**并存**——同
+    context → 同 prompt_hash,LLM 文本不同 → M1 贡献的 innate/defensive
+    不同。M2 叶子由旧 M1 行驱动,而偏好序(generated_at 降序)恒把新变体
+    排在前面:旧实现逐层只提交首个匹配行 → M2 期望键按新变体字段渲染 →
+    与旧 M2 行对不上 → 持旧文的合法翻译恒 409(中段分叉,M0 根层回溯
+    救不了——两条链共享同一根)。修复:逐层收集全部匹配行、按链字段贡献
+    去重后回溯 → 旧链分支被选中 → 200。
+    """
+    from tests.test_interpret_paid import _seed_entitlement
+    ch = "hash-chain-m2-fork"
+    _seed_entitlement(tmp_entitlement_store, content_hash=ch,
+                      user_local_id="fork-user")
+    m0_zh = json.loads(M0_ZH_JSON)
+    m1_zh = json.loads(M1_ZH_JSON)
+    m0_hant = json.loads(M0_HANT_JSON)
+    m1_hant = json.loads(M1_HANT_JSON)
+    fp = m0_zh["structure_fingerprint"]
+
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m0_structure", context={"chart": M0_CHART},
+                    mock_response=M0_ZH_JSON)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m1_talent", context=_m1_context(m0_zh),
+                    parent_fingerprint=fp, mock_response=M1_ZH_JSON)
+    m2_zh = json.dumps({"high_config": {"portrait": "输出稳定"}},
+                       ensure_ascii=False)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m2_high_low", context={
+                        "chart": M0_CHART, "structure_fingerprint": fp,
+                        "innate": _ios_serialize(m1_zh["innate"]),
+                        "defensive": _ios_serialize(m1_zh["defensive"]),
+                    }, parent_fingerprint=fp, mock_response=m2_zh,
+                    user_local_id="fork-user")
+
+    # M1 变体 B(模拟换模型重生成):同 context/版本/parent → 同 prompt_hash
+    # 与 parent_hash;不同 provider/model(PK 并存,不覆盖旧行)+ 更晚
+    # generated_at(偏好序首位,复现旧实现「首匹配提交新变体」)+ 不同
+    # innate/defensive(链字段贡献不同 → 独立分支)。
+    m1_variant_b = json.dumps({
+        "innate": [{"name": "变体天赋", "behavior": "变体行为",
+                    "evidence": "变体证据", "energy": "gain"}],
+        "trained": [{"name": "变体训练"}],
+        "defensive": [{"name": "变体防御", "looks_like": "变体表现",
+                       "actual_cost": "变体代价", "evidence": "变体官"}],
+        "one_leverage": "变体杠杆",
+    }, ensure_ascii=False)
+    _seed_source_row(
+        tmp_cache, {
+            "content_hash": ch, "module": "m1_talent",
+            "context": _m1_context(m0_zh),
+            "target_date": None,
+            "parent_fingerprint": fp,
+            "source_language": "zh",
+            "source_prompt_version": PROMPT_VERSIONS["m1_talent"],
+            "source_interpretation": m1_variant_b,
+        }, m1_variant_b,
+        provider="openai", model="test-openai-model",
+        generated_at="2099-01-01T00:00:00+00:00")
+
+    # 译 M2(旧 M1 驱动的原文):修复后走查回溯选中旧链分支 → 200
+    m2_hant = json.dumps({"high_config": {"portrait": "輸出穩定"}},
+                         ensure_ascii=False)
+    mock_ai_client.set_response(m2_hant)
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m2_high_low",
+        "context": {
+            "chart": M0_CHART,
+            "structure_fingerprint": m0_hant["structure_fingerprint"],
+            "innate": _ios_serialize(m1_hant["innate"]),
+            "defensive": _ios_serialize(m1_hant["defensive"]),
+        },
+        "target_date": None,
+        "parent_fingerprint": m0_hant["structure_fingerprint"],
+        "user_local_id": "fork-user",
         "source_language": "zh",
         "source_prompt_version": PROMPT_VERSIONS["m2_high_low"],
         "source_interpretation": m2_zh,

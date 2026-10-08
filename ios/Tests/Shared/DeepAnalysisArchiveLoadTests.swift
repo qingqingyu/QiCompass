@@ -577,6 +577,54 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         }
     }
 
+    func testHydrateTokenExpiredDemotionOnlyWhenTokenChanged() async throws {
+        // 十六轮 #4:凭证失效态降级条件化。token 与失败当时那枚相同(含
+        // 双 nil:老快照无 token + mock 响应亦无 contextTokens)→ 保持失效态,
+        // 不白发注定 403 的请求、不抹「重新排盘」指引;token 已翻新(≠ 失败
+        // 那枚)→ 降 .pending 等链用当前 token 重试。
+        // 观察点:health 恒失败客户端让 hydrate 走到降级后 performRestore 抛错
+        // → 不起链,状态停在降级结果上,断言确定(镜像上例离线路径)。
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+
+        let failing = HealthFailingAPIClient(base: apiClient)
+        let context = container.mainContext
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: failing),
+            cacheStore: InterpretationCacheStore(context: context)
+        )
+        let orchestrator = DeepAnalysisOrchestrator(
+            apiClient: failing,
+            chartStore: chartStore,
+            interpretStore: InterpretationCacheStore(context: context),
+            counter: counter,
+            interpretationReader: reader,
+            userLinkStore: UserSnapshotLinkStore(context: context)
+        )
+        let offlineVM = DeepAnalysisViewModel(
+            orchestrator: orchestrator,
+            entitlementStore: entitlementStore
+        )
+        // mock 响应无 contextTokens → 当前 v1 token = nil。
+        // m0:失败当时也无 token(nil == nil,同枚)→ 不降级;
+        // m3:失败当时带旧 token("tok-old" ≠ nil = 已翻新)→ 降 .pending。
+        offlineVM.moduleStates[.m0] = .contextTokenExpired(failedToken: nil)
+        offlineVM.moduleStates[.m3] = .contextTokenExpired(failedToken: "tok-old")
+
+        offlineVM.loadArchivedChart(response: response, request: request)
+        try await Task.sleep(nanoseconds: 800_000_000)
+
+        guard case .contextTokenExpired? = offlineVM.moduleStates[.m0] else {
+            return XCTFail(
+                "token 未翻新(同 nil)不得降级——保持失效态等用户重排,实际:\(String(describing: offlineVM.moduleStates[.m0]))"
+            )
+        }
+        XCTAssertEqual(
+            offlineVM.moduleStates[.m3], .pending,
+            "token 已翻新(nil ≠ 失败那枚)必须降级 .pending 走链重试"
+        )
+    }
+
     func testResumeSkippedWhenDayAmbiguous() async throws {
         // 日柱歧义盘:hydrate/resume 双守卫,零 interpret 请求
         let request = Self.beijingRequest()

@@ -598,8 +598,9 @@ final class CachedInterpretationReaderTests: XCTestCase {
     /// (命书混拼 + 这些章翻译恒 409,服务端链走查按新上游重建键)。
     /// 守卫:v1 链(清单内全部是 M0-M7 模块,含同会话部分清单——模块按
     /// allCases 序、生产者恒在消费者前)中任一模块「服务端版本已知且本地
-    /// 无当前版本行」→ 其后模块全部跳过回填;版本未知(老后端)守卫关闭,
-    /// 维持旧行为。
+    /// 无当前版本行」→ 其**传递依赖方**跳过回填(十六轮 #1 起按依赖图,
+    /// 不再前缀;m0 缺行时全员传递依赖 m0,与旧语义等价);版本未知
+    /// (老后端)守卫关闭,维持旧行为。
     func testReadAllCutsV1ChainWhenUpstreamVersionMissing() async throws {
         let container = try ModelContainerFactory.makeInMemory()
         let store = InterpretationCacheStore(context: container.mainContext)
@@ -662,6 +663,64 @@ final class CachedInterpretationReaderTests: XCTestCase {
             "m0_structure": 1, "m1_talent": 2, "m2_high_low": 1,
         ]).readAll(contentHash: "h-cut", modules: Array(chain.dropFirst()), language: "zh")
         XCTAssertTrue(partial.isEmpty, "部分清单守卫:上游版本缺行须切断其后回填(实际:\(partial.keys.sorted()))")
+    }
+
+    /// 十六轮 #1:切断范围按依赖图(`ModuleID.transitiveDependents`),
+    /// 不再前缀切断。修复前:M4/M5 从未生成(用户没填输入,清单里 miss 是
+    /// 常态)会把其后的 M5-M7 有效本地行一并跳过 → 重启后白走网络重取、
+    /// 切语言时被当无原文重新生成(而非翻译)。依赖图上无任何模块依赖
+    /// M4/M5;对照:M1 miss 只切断其传递依赖方 m2/m5/m6/m7,保留 m3/m4。
+    func testReadAllCutIsDependencyScopedNotPrefix() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+
+        func reader(versions: [String: Int]) -> CachedInterpretationReader {
+            var health = Self.health(provider: "anthropic", model: "claude-test")
+            health.promptVersions = versions
+            return CachedInterpretationReader(
+                identityResolver: AIIdentityResolver(apiClient:
+                    ReaderTestAPIClient(healthResults: [.success(health)])),
+                cacheStore: store
+            )
+        }
+        func seed(_ hash: String, _ module: String) throws {
+            try store.upsert(
+                contentHash: hash, module: module, promptVersion: 1,
+                targetDate: nil, provider: "anthropic", model: "claude-test",
+                interpretation: Self.v1JSON("\(module) 原文"), generatedAt: .now
+            )
+        }
+
+        // 场景 1:M4 从未生成(无行,服务端版本已知),其余七章 v1 行在、
+        // 版本对齐 → m4 miss 不切断任何章(无模块依赖 M4),M5-M7 照常回填
+        let h1 = "h-dep-cut-m4"
+        for module in Self.v1Modules where module != "m4_health" {
+            try seed(h1, module)
+        }
+        let m4Missing = try await reader(versions: [
+            "m0_structure": 1, "m1_talent": 1, "m2_high_low": 1, "m3_system": 1,
+            "m4_health": 1, "m5_wealth": 1, "m6_dynamics": 1, "m7_manual": 1,
+        ]).readAll(contentHash: h1, modules: Self.v1Modules, language: "zh")
+        XCTAssertEqual(
+            Set(m4Missing.keys), Set(Self.v1Modules).subtracting(["m4_health"]),
+            "M4 从未生成不得切断任何章(修复前前缀切断:M5-M7 被误跳过),实际命中:\(m4Missing.keys.sorted())"
+        )
+
+        // 场景 2:M1 版本落后(服务端 v2,本地 v1 行被版本过滤)→ 只切断
+        // 传递依赖方 m2/m5/m6/m7;不依赖 M1 的 m3/m4(依赖 m0)照常回填
+        let h2 = "h-dep-cut-m1"
+        for module in Self.v1Modules {
+            try seed(h2, module)
+        }
+        let m1Stale = try await reader(versions: [
+            "m0_structure": 1, "m1_talent": 2, "m2_high_low": 1, "m3_system": 1,
+            "m4_health": 1, "m5_wealth": 1, "m6_dynamics": 1, "m7_manual": 1,
+        ]).readAll(contentHash: h2, modules: Self.v1Modules, language: "zh")
+        XCTAssertEqual(
+            Set(m1Stale.keys),
+            ["m0_structure", "m3_system", "m4_health"],
+            "M1 miss 只切断依赖方(m2/m5/m6/m7),m3/m4 独立于 M1 须回填(实际:\(m1Stale.keys.sorted()))"
+        )
     }
 
     // MARK: - Helpers
