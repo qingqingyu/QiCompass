@@ -409,6 +409,59 @@ final class TranslationFlowTests: XCTestCase {
         )
     }
 
+    /// doc E(2026-10-08 维持不修决策评审,下轮项落地):翻译链 403
+    /// CONTEXT_TOKEN_* → 原文保留 + 提示条改「重新排盘」指引
+    /// (translationTokenExpired 置位);不入 translationFailedModules(章首
+    /// 小注「翻译失败 · 重试」对本态是死循环入口);断链防后续章白烧。
+    /// 修复前走通用失败路径:提示条与小注都给恒 403 的重试。
+    func test翻译链凭证失效_原文保留_提示条走重新排盘指引() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedZHCache(hash: response.contentHash, module: .m0, text: Self.m0ZH)
+        try seedZHCache(hash: response.contentHash, module: .m1, text: Self.m1ZH)
+        apiClient.translateResponder = { _ in
+            throw APIError.backendError(
+                code: "CONTEXT_TOKEN_INVALID", message: "token invalid", requestId: nil)
+        }
+
+        vm.loadArchivedChart(response: response, request: request)
+        let failed = await waitUntil(timeout: 10) {
+            self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
+        }
+        XCTAssertTrue(
+            failed,
+            "凭证失效必须落 .failed(提示条出指引),实际:\(String(describing: vm.autoTranslationState))"
+        )
+        XCTAssertTrue(vm.translationTokenExpired, "指引旗标必须置位(提示条由它分叉文案)")
+        // 原文保留显示(不落 .failed 错误文案把原文从屏幕抹掉)
+        XCTAssertEqual(
+            vm.moduleStates[.m0], .ok(text: Self.m0ZH, cached: true),
+            "403 章必须保留 .ok 原文显示"
+        )
+        XCTAssertEqual(
+            vm.moduleStates[.m1], .ok(text: Self.m1ZH, cached: true),
+            "断链后未处理的 M1 原文照常显示"
+        )
+        XCTAssertFalse(
+            vm.translationFailedModules.contains(.m0),
+            "凭证失效不得入 translationFailedModules(章首小注 = 死循环入口)"
+        )
+        // 断链:M0 一次 403 即停,不得再对 M1 发翻译请求(同 token 必再 403)
+        XCTAssertEqual(
+            apiClient.recordedTranslateRequests.count, 1,
+            "凭证失效必须断链,不白烧后续章"
+        )
+
+        // 重进同盘(hydrate):结局 .failed → 不自动重试(403 恒复现,续译即白烧)
+        let countAfterFirst = apiClient.recordedTranslateRequests.count
+        vm.loadArchivedChart(response: response, request: request)
+        try? await Task.sleep(nanoseconds: 800_000_000)
+        XCTAssertEqual(
+            apiClient.recordedTranslateRequests.count, countAfterFirst,
+            "重进不得自动重试(修复前按通用失败可被反复点重试)"
+        )
+    }
+
     /// 新#3(2026-10-07 review):staleM0 标记磁盘为事实源——resetAllData 清键后,
     /// 活实例后续写入不得凭内存快照把旧标记整份写回复活(修复前 VM 驻内存
     /// 镜像 + 写穿,重置等于没做)。此处在持久化层钉住读改写语义。

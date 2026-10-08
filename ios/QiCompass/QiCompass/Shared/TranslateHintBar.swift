@@ -16,6 +16,10 @@ struct TranslateHintBar: View {
         case failure(sourceLanguage: String, failureText: String)
         /// 离线:联网后回前台自动译(无按钮)。
         case offline(targetLanguage: String)
+        /// 凭证失效(doc E,2026-10-08):老快照盘翻译 403 CONTEXT_TOKEN_*,
+        /// 重试必再 403——不渲染重试按钮,指引文案对齐生成路径
+        /// ContextTokenExpiredView 的「重新排盘」出口语义(不引入新 VM 态)。
+        case tokenExpired(sourceLanguage: String)
     }
 
     let mode: Mode
@@ -47,6 +51,16 @@ struct TranslateHintBar: View {
                 Text(String(
                     format: String(localized: "联网后重新打开 App 即自动译为%@"),
                     AppLanguage.displayName(forWire: targetLanguage)
+                ))
+                .font(BaziFont.caption(size: 11))
+                .foregroundStyle(BaziTheme.inkMuted)
+            case .tokenExpired(let sourceLanguage):
+                // doc E(2026-10-08):重试按钮对本态是死循环入口(403 恒复现),
+                // 不渲染;原文已保留显示,指引走「重新排盘」。
+                Text(String(
+                    format: String(localized: "此报告以%@生成 · %@"),
+                    AppLanguage.displayName(forWire: sourceLanguage),
+                    String(localized: "解读凭证已失效,请重新排盘")
                 ))
                 .font(BaziFont.caption(size: 11))
                 .foregroundStyle(BaziTheme.inkMuted)

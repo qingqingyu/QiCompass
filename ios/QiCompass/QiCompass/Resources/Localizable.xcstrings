@@ -16051,6 +16051,29 @@
         }
       }
     },
+    "解读凭证已失效,请重新排盘" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Reading credential expired — recalculate your chart"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解读凭证已失效,请重新排盘"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "解讀憑證已失效,請重新排盤"
+          }
+        }
+      }
+    },
     "解读包含不合规绝对结论,请重试" : {
       "extractionState" : "manual",
       "localizations" : {

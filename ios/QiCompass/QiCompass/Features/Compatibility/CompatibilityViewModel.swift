@@ -268,6 +268,10 @@ final class CompatibilityViewModel {
     /// L3/F1(2026-10-01 拍板,修订 D10.5):跨语言命中 → 打开即自动翻译。
     /// 翻译中提示条隐藏,只在失败时出现(重试入口);nil = 不显示。
     private(set) var translationFailed = false
+    /// 翻译链凭证失效标记(镜像深度解析 doc E,2026-10-08):翻译 403
+    /// CONTEXT_TOKEN_* 时置位,提示条改「重新排盘」指引、不渲染重试
+    /// (重试必再 403 的死循环入口)。不引入新结局态——仍记 .failed。
+    private(set) var translationTokenExpired = false
     /// 自动翻译会话去重 + 结局分诊(2026-10-06 修订,镜像深度解析):同
     /// (compatibilityHash, target) 自动只起一次(防反复 openDetail 循环烧
     /// LLM);但记录上次尝试的**结局**——被换对/退出 detail 打断(translateTask
@@ -1840,6 +1844,7 @@ final class CompatibilityViewModel {
         isTranslating = false
         translationOffer = nil
         translationFailed = false
+        translationTokenExpired = false
         // 规则版本失配(2026-10-07):快照按旧引擎规则算出 → 上面已照常渲染
         // (离线也有内容),此处后台重算;落定且仍在本对时原位刷新。
         // 常规入口是 computePair 预查(每轮 compute 全量过),此处只兜
@@ -2356,6 +2361,7 @@ final class CompatibilityViewModel {
         translationOffer = nil
         isTranslating = false
         translationFailed = false
+        translationTokenExpired = false
         state = .detail(summary, response, .fetching)
 
         interpretTask = Task { [weak self] in
@@ -2704,6 +2710,7 @@ final class CompatibilityViewModel {
         )
         isTranslating = true
         translationFailed = false
+        translationTokenExpired = false
         cacheReadTask?.cancel()
         cancelInterpretChain()
         translateTask = Task { [weak self] in
@@ -2822,6 +2829,27 @@ final class CompatibilityViewModel {
                     self.generateInterpretation(quotaExempt: true)
                     return
                 }
+                // 凭证失效(镜像深度解析 doc E,2026-10-08):重试必再 403——
+                // 恢复原文展示态,提示条改「重新排盘」指引(不渲染重试按钮)。
+                if APIError.isContextTokenError(error) {
+                    guard let (current, currentResponse) = self.currentDetailIfMatches(summary) else { return }
+                    let hasEntitlement = self.entitlementStore.getActive(
+                        contentHash: compatHash,
+                        module: EntitlementModule.compatibility,
+                        userLocalId: UserIdentity.userLocalId
+                    ) != nil
+                    let restored: InterpretState = hasEntitlement
+                        ? .okPaid(text: offer.text, cached: true)
+                        : .okFree(text: offer.text, cached: true)
+                    AppLogger.app.warning(
+                        "compatVM.acceptTranslation.context_token_expired compatibilityHash=\(compatHash, privacy: .public) — 原文保留,提示条改重新排盘指引"
+                    )
+                    self.translationTokenExpired = true
+                    self.translationFailed = true
+                    self.autoTranslationOutcomes[attemptKey] = .failed
+                    self.state = .detail(current, currentResponse, restored)
+                    return
+                }
                 // 同上:失败回写也须仍在本对 detail(换对后旧对失败态不得覆写),
                 // 且用当前 state 的 response(引擎重算落定后不得覆写回旧标签)
                 guard let (current, currentResponse) = self.currentDetailIfMatches(summary) else { return }
@@ -2876,6 +2904,7 @@ final class CompatibilityViewModel {
         isTranslating = false
         translationOffer = nil
         translationFailed = false
+        translationTokenExpired = false
         state = .configuring
     }
 

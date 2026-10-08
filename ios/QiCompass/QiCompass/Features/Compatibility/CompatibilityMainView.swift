@@ -60,13 +60,16 @@ struct CompatibilityMainView: View {
                 )
 
                 // L3/F1(修订 D10.5):打开即自动翻译——翻译中不显示提示条,
-                // 只在失败时出现(重试入口)
+                // 只在失败时出现(重试入口)。凭证失效(doc E,2026-10-08):
+                // 改渲染「重新排盘」指引,不渲染重试(403 恒复现)。
                 if let offer = vm.translationOffer, vm.translationFailed {
                     TranslateHintBar(
-                        mode: .failure(
-                            sourceLanguage: offer.sourceLanguage,
-                            failureText: String(localized: "翻译失败")
-                        ),
+                        mode: vm.translationTokenExpired
+                            ? .tokenExpired(sourceLanguage: offer.sourceLanguage)
+                            : .failure(
+                                sourceLanguage: offer.sourceLanguage,
+                                failureText: String(localized: "翻译失败")
+                            ),
                         onRetry: { vm.acceptTranslation() }
                     )
                     .padding(.top, 4)

@@ -46,6 +46,11 @@ struct DeepAnalysisHomeView: View {
         case .inProgress:
             return nil
         case .failed:
+            // 凭证失效(doc E,2026-10-08):提示条改「重新排盘」指引,不渲染
+            // 重试(403 恒复现,重试即死循环入口)。
+            if vm.translationTokenExpired {
+                return .tokenExpired(sourceLanguage: offer.sourceLanguage)
+            }
             return .failure(
                 sourceLanguage: offer.sourceLanguage,
                 failureText: String(localized: "部分章节翻译失败")

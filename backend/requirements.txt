@@ -1,5 +1,9 @@
 fastapi>=0.110
-uvicorn[standard]>=0.27
+# uvicorn 上界锁(2026-10-08 review):X-Forwarded-For 取段行为已核验
+# 0.27.0 与 0.52.1 均为「从右往左取第一个不可信段」——追加式 XFF 下客户端
+# 伪造前缀被忽略,匿名配额分桶不可刷。放开上界 = 未经核验的未来版本可能
+# 改写该语义(run.sh 的 --forwarded-allow-ips 依赖它)。
+uvicorn[standard]>=0.27,<0.53
 pydantic>=2.5
 lunar_python==1.4.8
 pytest>=8.0

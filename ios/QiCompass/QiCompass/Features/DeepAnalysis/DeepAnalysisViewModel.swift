@@ -264,6 +264,11 @@ final class DeepAnalysisViewModel {
     /// (不再标 .failed——那会把原文从屏幕上抹掉,只剩错误文案),用本集合
     /// 驱动章首「翻译失败 · 重试」小注;译成/重生成/换盘/reset 时清除。
     private(set) var translationFailedModules: Set<ModuleID> = []
+    /// 翻译链凭证失效标记(doc E,2026-10-08 维持不修决策评审):翻译 403
+    /// CONTEXT_TOKEN_* 时置位,提示条由「翻译失败 · 重试」(重试必再 403 的
+    /// 死循环入口)改渲染「重新排盘」指引。不新增 autoTranslationState 态——
+    /// 仍落 .failed,由本标记分叉文案。
+    private(set) var translationTokenExpired = false
 
     /// F5(2026-10-02;2026-10-06 持久化;2026-10-07 去内存镜像):M0 原文已
     /// STALE 降级重生成的 (contentHash|targetLang) 集合,事实源 = UserDefaults
@@ -628,6 +633,7 @@ final class DeepAnalysisViewModel {
             translationOffer = nil
             crossLanguageRows.removeAll()
             translationFailedModules.removeAll()
+            translationTokenExpired = false
             // 同步清标志 + 推进世代(2026-10-02 双 review 补):旧翻译链在网络
             // await 中,只清标志不推进世代的话,旧链尾部 defer 会把新链刚置位的
             // 标志再清掉(见 translationGeneration 注释)。
@@ -1391,6 +1397,7 @@ final class DeepAnalysisViewModel {
         let generation = translationGeneration
         isTranslatingChain = true
         autoTranslationState = .inProgress
+        translationTokenExpired = false
         AppLogger.app.info(
             "deepVM.acceptTranslation source=\(offer.sourceLanguage, privacy: .public) modules=\(self.crossLanguageRows.keys.map(\.rawValue).sorted().joined(separator: ","), privacy: .public)"
         )
@@ -1605,6 +1612,7 @@ final class DeepAnalysisViewModel {
                     }
                     crossLanguageRows.removeAll()
                     translationFailedModules.removeAll()
+                    translationTokenExpired = false
                     translationOffer = nil
                     autoTranslationState = nil
                     // 提议已弃,F5 标记一并清(残留会让未来同键提议的下游
@@ -1699,6 +1707,20 @@ final class DeepAnalysisViewModel {
                     }
                     continue
                 }
+                // 凭证失效(doc E,2026-10-08 维持不修决策评审):老快照盘翻译
+                // 必 403,提示条与章首小注的「重试」都是死循环入口——原文保留
+                // 显示 + 提示条改「重新排盘」指引(不入 translationFailedModules,
+                // 章首小注即不渲染);断链:同 token 后续章必再 403,不白烧。
+                if APIError.isContextTokenError(error) {
+                    AppLogger.app.warning(
+                        "deepVM.runTranslationChain.context_token_expired module=\(module.rawValue, privacy: .public) — 原文保留,提示条改重新排盘指引,断链"
+                    )
+                    moduleStates[module] = .ok(text: source.interpretation, cached: true)
+                    translationTokenExpired = true
+                    autoTranslationOutcomes[staleKey] = .failed
+                    autoTranslationState = .failed
+                    return
+                }
                 AppLogger.app.warning(
                     "deepVM.runTranslationChain.failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public) — 原文保留显示,已译成保留,剩余可重试"
                 )
@@ -1734,6 +1756,7 @@ final class DeepAnalysisViewModel {
         if crossLanguageRows.isEmpty {
             translationOffer = nil
             autoTranslationState = nil
+            translationTokenExpired = false
             DeepStaleM0MarkerPersistence.clear(staleKey)
             autoTranslationOutcomes.removeValue(forKey: staleKey)
             AppLogger.app.info("deepVM.runTranslationChain.all_translated")
@@ -1882,6 +1905,7 @@ final class DeepAnalysisViewModel {
         translationOffer = nil
         crossLanguageRows.removeAll()
         translationFailedModules.removeAll()
+        translationTokenExpired = false
         // 同步清标志 + 推进世代(同 loadArchivedChart 换盘守卫;旧链 defer 按世代
         // 失配自弃,不再覆写新链标志)。
         translationGeneration &+= 1
