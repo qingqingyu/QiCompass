@@ -520,6 +520,46 @@ final class AddHourFlowTests: XCTestCase {
     }
 
     /// async 版 XCTUnwrap(项目无该 helper,本地定义)。
+    // MARK: - 排盘入参存档(G 条 2026-10-08 拍板:只补存字段,行为不变)
+
+    func testUpsert_排盘入参存档字段随Payload往返_老形状缺key不崩() throws {
+        // 带全字段的请求:钟面 birth_datetime + geoname_id 必须落 payload 并可解回
+        let request = BaziCalculateRequest(
+            birthDatetime: "1990-03-15T14:30:00",
+            timezone: "Asia/Shanghai",
+            gender: "male",
+            longitude: 116.4,
+            latitude: 39.9,
+            placeName: "北京",
+            geonameId: 1816670,
+            ziHourRule: "zi_next_day",
+            hourKnown: true,
+            lateNight: nil
+        )
+        let response = Self.knownResponse(contentHash: "g_archive_roundtrip")
+        _ = try chartStore.upsert(response: response, request: request)
+        let snapshot = try XCTUnwrap(chartStore.get(contentHash: "g_archive_roundtrip"))
+        let decoded = try chartStore.decodeResponse(from: snapshot)
+        XCTAssertEqual(
+            decoded.archivedBirthDatetime, "1990-03-15T14:30:00",
+            "钟面 birth_datetime 必须原样存档(未来自动重签的原料)")
+        XCTAssertEqual(decoded.archivedGeonameId, 1816670)
+
+        // 老快照形状(payload 无 archived_* key)必须照常解码为 nil
+        // (2026-08-15 keyNotFound 教训:payload 加字段必须 decodeIfPresent)
+        let json = try JSONSerialization.jsonObject(with: snapshot.payload)
+        guard var dict = json as? [String: Any] else {
+            return XCTFail("payload 应为 JSON 对象")
+        }
+        XCTAssertNotNil(dict.removeValue(forKey: "archived_birth_datetime"),
+                        "前置:新存档 payload 应含 archived_birth_datetime")
+        XCTAssertNotNil(dict.removeValue(forKey: "archived_geoname_id"))
+        let strippedData = try JSONSerialization.data(withJSONObject: dict)
+        let legacy = try APICoder.decoder.decode(BaziResponse.self, from: strippedData)
+        XCTAssertNil(legacy.archivedBirthDatetime, "老 payload 缺 key → nil(不得 keyNotFound)")
+        XCTAssertNil(legacy.archivedGeonameId)
+    }
+
     private func XCTUnwrapAsync<T>(_ expression: @autoclosure () async throws -> T?,
                                    _ message: String = "") async throws -> T {
         let value = try await expression()

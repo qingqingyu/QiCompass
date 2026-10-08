@@ -50,6 +50,9 @@ final class ChartSnapshotStore {
     ///   时辰未知存档(S04):hour_known 随后端 calc_rule_snapshot.hour_known 落 payload;
     ///   late_night 是用户输入、后端响应不回显 → 编码前从 request 注入(var lateNight,
     ///   nil 时 encodeIfPresent 省 key,老盘形状不变)
+    ///   排盘入参存档(G 条 2026-10-08):archived_birth_datetime(钟面)/
+    ///   archived_geoname_id 同款从 request 注入——未来「自动重签」的原料,
+    ///   本期只存不改行为;老 payload 缺 key → nil(decodeIfPresent)
     func upsert(response: BaziResponse, request: BaziCalculateRequest) throws -> ChartSnapshotUpsertResult {
         let hash = response.contentHash
         let desc = FetchDescriptor<ChartSnapshot>(
@@ -59,6 +62,11 @@ final class ChartSnapshotStore {
 
         var archivableResponse = response
         archivableResponse.lateNight = request.lateNight
+        // 排盘入参存档(G 条 2026-10-08 拍板「只补存字段,行为不变」):钟面
+        // birth_datetime + geoname_id 注入 payload——未来「自动重签」的原料
+        // (真太阳时不可逆推钟面,见 BaziResponse.archived* 注释)
+        archivableResponse.archivedBirthDatetime = request.birthDatetime
+        archivableResponse.archivedGeonameId = request.geonameId
         let payloadData = try APICoder.encoder.encode(archivableResponse)
         let calcRuleData = try APICoder.encoder.encode(response.calcRuleSnapshot)
         let cityLongitude = response.calcRuleSnapshot.trueSolarLongitude
