@@ -764,6 +764,75 @@ final class CachedInterpretationReaderTests: XCTestCase {
         )
     }
 
+    /// 依赖图切断·十六轮 houduan #1 场景(撞车消解移植,断言经
+    /// transitiveDependents 机制复核等价):①M4 从未生成(无行)不得切断
+    /// 任何章(修复前前缀切断:M5-M7 被误跳过)→ 也不进迁移集(无行);
+    /// ②M1 版本落后只切断传递依赖方 m2/m5/m6/m7,m3/m4 独立于 M1 照常回填。
+    func testReadAllCutIsDependencyScopedNotPrefix() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+
+        func reader(versions: [String: Int]) -> CachedInterpretationReader {
+            var health = Self.health(provider: "anthropic", model: "claude-test")
+            health.promptVersions = versions
+            return CachedInterpretationReader(
+                identityResolver: AIIdentityResolver(apiClient:
+                    ReaderTestAPIClient(healthResults: [.success(health)])),
+                cacheStore: store
+            )
+        }
+        func seed(_ hash: String, _ module: String) throws {
+            try store.upsert(
+                contentHash: hash, module: module, promptVersion: 1,
+                targetDate: nil, provider: "anthropic", model: "claude-test",
+                interpretation: Self.v1JSON("\(module) 原文"), generatedAt: .now
+            )
+        }
+
+        // 场景 1:M4 从未生成(无行,服务端版本已知),其余七章 v1 行在、
+        // 版本对齐 → m4 miss 不切断任何章(无模块依赖 M4),M5-M7 照常回填;
+        // m4 无任何版本行 → 不进版本迁移重生成集(首次生成照常计费)
+        let h1 = "h-dep-cut-m4"
+        for module in Self.v1Modules where module != "m4_health" {
+            try seed(h1, module)
+        }
+        let m4Missing = try await reader(versions: [
+            "m0_structure": 1, "m1_talent": 1, "m2_high_low": 1, "m3_system": 1,
+            "m4_health": 1, "m5_wealth": 1, "m6_dynamics": 1, "m7_manual": 1,
+        ]).readAllForRestore(contentHash: h1, modules: Self.v1Modules, language: "zh")
+        XCTAssertEqual(
+            Set(m4Missing.hits.keys),
+            Set(Self.v1Modules).subtracting(["m4_health"]),
+            "M4 从未生成不得切断任何章(修复前前缀切断:M5-M7 被误跳过),实际命中:\(m4Missing.hits.keys.sorted())"
+        )
+        XCTAssertTrue(
+            m4Missing.migrationRegenModules.isEmpty,
+            "M4 无任何版本行 = 首次生成,不豁免;其余章版本对齐不迁移"
+        )
+
+        // 场景 2:M1 版本落后(服务端 v2,本地 v1 行被版本过滤)→ 只切断
+        // 传递依赖方 m2/m5/m6/m7;不依赖 M1 的 m0/m3/m4 照常回填。
+        // m2/m5/m6/m7 本地有行 → 全进迁移集;m1 有 v1 行也在集内
+        let h2 = "h-dep-cut-m1"
+        for module in Self.v1Modules {
+            try seed(h2, module)
+        }
+        let m1Stale = try await reader(versions: [
+            "m0_structure": 1, "m1_talent": 2, "m2_high_low": 1, "m3_system": 1,
+            "m4_health": 1, "m5_wealth": 1, "m6_dynamics": 1, "m7_manual": 1,
+        ]).readAllForRestore(contentHash: h2, modules: Self.v1Modules, language: "zh")
+        XCTAssertEqual(
+            Set(m1Stale.hits.keys),
+            ["m0_structure", "m3_system", "m4_health"],
+            "M1 miss 只切断依赖方(m2/m5/m6/m7),m3/m4 独立于 M1 须回填(实际:\(m1Stale.hits.keys.sorted()))"
+        )
+        XCTAssertEqual(
+            m1Stale.migrationRegenModules,
+            ["m1_talent", "m2_high_low", "m5_wealth", "m6_dynamics", "m7_manual"],
+            "缺行的 M1 与血统过期的四个依赖方均为版本迁移重生成"
+        )
+    }
+
     // MARK: - Helpers
 
     private static func healthOnlyClient(

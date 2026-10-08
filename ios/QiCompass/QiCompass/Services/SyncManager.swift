@@ -250,11 +250,14 @@ final class SyncManager {
 
     /// ChartSnapshot + UserSnapshotLink → ChartSyncData。
     /// 失败返 nil(编码异常 / 隐私字段剔除失败——后者跳过该盘不推,不静默
-    /// 上传未评估的个人信息)。
+    /// 上传未评估的个人信息;失败详情进日志,十六轮 #9:不吞错误类别)。
     private func toSyncData(link: UserSnapshotLink, snapshot: ChartSnapshot) -> ChartSyncData? {
-        guard let strippedPayload = Self.stripLocalOnlyFields(from: snapshot.payload) else {
+        let strippedPayload: Data
+        do {
+            strippedPayload = try Self.stripLocalOnlyFields(from: snapshot.payload)
+        } catch {
             AppLogger.persistence.error(
-                "op=sync.toSyncData.strip_failed hash=\(snapshot.contentHash, privacy: .public) — payload 剔除本地专属字段失败,该盘跳过同步(不上传未评估字段)"
+                "op=sync.toSyncData.strip_failed hash=\(snapshot.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — payload 剔除本地专属字段失败,该盘跳过同步(不上传未评估字段)"
             )
             return nil
         }
@@ -278,14 +281,22 @@ final class SyncManager {
     /// 未来「自动重签」的**本地**原料,拍板范围不含服务端消费——但 payload
     /// 整包随 syncPush 上传,新增个人信息会未评估地进服务端库。在推送边界
     /// 剔除(快照本地保留不动;pull 侧老行无这两 key,decodeIfPresent 兼容)。
-    /// 失败返 nil(调用方跳过该盘并留痕,不静默推)。
-    private static func stripLocalOnlyFields(from payload: Data) -> Data? {
-        guard let obj = (try? JSONSerialization.jsonObject(with: payload)) as? [String: Any] else {
-            return nil
+    /// 失败 throws(解析/序列化异常 + 顶层非对象;调用方跳过该盘并把错误
+    /// 详情留痕,不静默推——十六轮 #9:此前 try? 吞掉错误类别,strip_failed
+    /// 日志查不出根因)。
+    private enum SyncStripError: Error {
+        /// payload 顶层不是 JSON 对象(数组/标量/损坏数据)
+        case notAnObject(Any?)
+    }
+
+    private static func stripLocalOnlyFields(from payload: Data) throws -> Data {
+        let parsed = try JSONSerialization.jsonObject(with: payload)
+        guard let obj = parsed as? [String: Any] else {
+            throw SyncStripError.notAnObject(parsed)
         }
         var mutable = obj
         mutable.removeValue(forKey: "archived_birth_datetime")
         mutable.removeValue(forKey: "archived_geoname_id")
-        return try? JSONSerialization.data(withJSONObject: mutable)
+        return try JSONSerialization.data(withJSONObject: mutable)
     }
 }

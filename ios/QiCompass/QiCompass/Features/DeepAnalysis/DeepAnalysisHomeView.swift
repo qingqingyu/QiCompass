@@ -89,16 +89,27 @@ struct DeepAnalysisHomeView: View {
     /// 四柱列间距(mock .pillars 无显式 gap,由 1fr 比例自然分距;取窄距保日列宽度)。
     private static let pillarGap: CGFloat = 8
 
+    /// hero 总高(2026-10-08 排版 review:@ScaledMetric——Font.custom 默认随系统
+    /// 字号放大,写死 185 会在大字号下把四柱底部裁进喜忌行;默认值与定稿一致)。
+    @ScaledMetric(relativeTo: .body) private var heroHeight: CGFloat = 185
+    /// 干支槽位高(同上:写死 92 在大字号下被 .bottom 对齐把干支往上顶、压柱标)。
+    @ScaledMetric(relativeTo: .body) private var ganzhiSlotHeight: CGFloat = 92
+
     private var hero: some View {
         ZStack {
             // 淡墨圆:居中垫底(mock .enso opacity .07,略偏左上),常驻极缓呼吸
             // (DESIGN.md breathe 7-8s;此透明度下呼吸几不可察,保留品牌指纹不抢戏)
             // 垫底墨圆:方头端帽(2026-10-08 外评:圆头被误读成进度条环)+
-            // hero 限幅裁切(300pt 圆在 185pt hero 内会溢出压到下方喜忌/锚句行,
+            // 墨圆层限幅裁切(300pt 圆在 hero 内会溢出压到下方喜忌/锚句行,
             // 裁在 hero 边界即「留白裁弧」的水墨语言,不再越界压字)。
+            // 裁切只挂墨圆层(2026-10-08 排版 review:原挂整个 ZStack 连四柱一起
+            // 裁——EN 日柱副行两行/Dynamic Type 放大时日柱底部被硬截不可见;
+            // 四柱不裁,极端溢出只自然压入喜忌行上方 24pt 留白,不截字)。
             EnsoView(size: 300, breathing: true, cap: .butt)
                 .opacity(0.07)
                 .offset(x: -16, y: -8)
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .clipped()
             // 四柱四列:1 : 1 : 1.35 : 1(mock grid-template-columns,日列加宽)
             GeometryReader { geo in
                 let unit = (geo.size.width - 3 * Self.pillarGap) / 4.35
@@ -111,8 +122,7 @@ struct DeepAnalysisHomeView: View {
                 .frame(width: geo.size.width, height: geo.size.height, alignment: .top)
             }
         }
-        .frame(height: 185)
-        .clipped()
+        .frame(height: heroHeight)
         .padding(.horizontal, 34)
         .padding(.top, 24)
         // S5 术语释义(交互先例 = 今日页 HeroShiShenNoteSheet,2026-09-29 D3)
@@ -148,7 +158,7 @@ struct DeepAnalysisHomeView: View {
                         .font(BaziFont.ganzhi(size: isDay ? 34 : 25))
                         .foregroundStyle(elementTextColor(pillar.zhiElement))
                 }
-                .frame(height: 92, alignment: .bottom)
+                .frame(height: ganzhiSlotHeight, alignment: .bottom)
                 // en 小字带调拼音(§3:只在 hero 首次出现处给;zh/zh-hant 不渲染)
                 if AppLanguage.current == .en, let pinyin = BaziTerms.romanized(pillar.ganZhi) {
                     Text(pinyin)
@@ -301,7 +311,9 @@ struct DeepAnalysisHomeView: View {
     /// 五行值经 BaziTerms 取显示语;未知值显式回落灰墨着色,不吞。
     /// 断行纪律(2026-10-08 外评:EN「Favored … Less supportive / Wood」断在
     /// label 与其元素之间,短语被腰斩):label↔元素、元素↔元素用不换行空格钉成
-    /// 两个组,仅「·」分隔符前留可断空格——两行时必然整组换行,不再组内腰斩。
+    /// 两个组;「·」分隔符用不换行空格钉在前组词尾、可断空格留在「·」后
+    /// (与 enDayGodSubline 同口径:「·」不孤悬行首)——两行时必然整组换行,
+    /// 不再组内腰斩。
     private var xijiText: Text {
         var t = Text("").font(BaziFont.body(size: 14.5))
         if !response.favorableElements.isEmpty {
@@ -317,7 +329,7 @@ struct DeepAnalysisHomeView: View {
         }
         if !response.unfavorableElements.isEmpty {
             if !response.favorableElements.isEmpty {
-                t = t + Text(" ·\u{00A0}")
+                t = t + Text("\u{00A0}· ")
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
             }
             t = t + Text(L10n.DeepChart.xijiUnfavorableLabel)

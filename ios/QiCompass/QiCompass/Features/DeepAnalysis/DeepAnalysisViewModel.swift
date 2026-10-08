@@ -278,6 +278,11 @@ final class DeepAnalysisViewModel {
     /// 死循环入口)改渲染「重新排盘」指引。不新增 autoTranslationState 态——
     /// 仍落 .failed,由本标记分叉文案。
     private(set) var translationTokenExpired = false
+    /// 翻译链 403 当时所用的 v1 族 token(十六轮 #4):hydrate 重入时只有
+    /// 当前 token ≠ 失败那枚(已被重排翻新)才清 `translationTokenExpired`
+    /// 提示条——镜像章节级 `.contextTokenExpired(failedToken:)` 的条件降级,
+    /// token 真失效时不反复白发 403、指引条不消失。
+    private var translationTokenFailedToken: String?
 
     /// F5(2026-10-02;2026-10-06 持久化;2026-10-07 去内存镜像):M0 原文已
     /// STALE 降级重生成的 (contentHash|targetLang) 集合,事实源 = UserDefaults
@@ -715,22 +720,32 @@ final class DeepAnalysisViewModel {
             AppLogger.app.info("deepVM.hydrateAndResume.already_hydrating hash=\(response.contentHash, privacy: .public)")
             return
         }
-        // 凭证失效态降级(2026-10-08 第十五轮 #6):同 hash 重入(Tab 重挂/
-        // 补时辰取消回退)时,快照 token 可能已被任何重算路径 upsert 翻新
-        //(排盘确定性 → 同 hash 新 token 内容等价)——.contextTokenExpired
-        // 章节降级 .pending,让链用当前 token 重试;若 token 仍失效,链首章
-        // 再 403 回落失效态并断链(断链前置检查兜底),有界不多烧。翻译链
-        // 提示条同口径清除(reset 路径既有语义;此处覆盖同 hash 无 reset 的
-        // 恢复路径,否则重排后翻译指引条残留到手动操作)。
+        // 凭证失效态降级(2026-10-08 第十五轮 #6;十六轮 #4 改条件化):
+        // 同 hash 重入(Tab 重挂/补时辰取消回退)时,快照 token 可能已被
+        // 任何重算路径 upsert 翻新(排盘确定性 → 同 hash 新 token 内容
+        // 等价)——token 确已翻新(≠ 失败当时那枚,见 failedToken)的章节
+        // 降级 .pending,让链用当前 token 重试;若 token 仍失效,链首章
+        // 再 403 回落失效态并断链(断链前置检查兜底),有界不多烧。
+        // **仍同枚则不降级**:token 真失效(如服务端密钥轮换)时,每次进
+        // 深度页都白发一次注定 403 的请求,且「重新排盘」指引会被抹掉——
+        // 保持失效态等用户重排。翻译链提示条同口径条件清除(失败 token
+        // 已记录;换盘/reset 路径仍无条件清,属旧盘/整页重来语义)。
         for (module, state) in moduleStates {
-            if case .contextTokenExpired = state {
+            if case .contextTokenExpired(let failedToken) = state {
+                let currentToken = response.contextToken(
+                    forModule: module.rawValue)
+                guard currentToken != failedToken else { continue }
                 AppLogger.app.info(
                     "deepVM.hydrateAndResume token_expired_demoted module=\(module.rawValue, privacy: .public)"
                 )
                 moduleStates[module] = .pending
             }
         }
-        translationTokenExpired = false
+        if translationTokenExpired,
+           response.contextToken(forModule: ModuleID.m0.rawValue)
+               != translationTokenFailedToken {
+            translationTokenExpired = false
+        }
         // L2/F4 起手读回持久化的 M4/M5 输入(重启后 m4UserInput/m5UserInput 为
         // nil——翻译链缺输入会把已生成章标 .needsInput,原文从屏幕消失)。
         // 内存已有值不覆盖(同会话重入 hydrate 不吞掉刚提交的新输入)。
@@ -1148,13 +1163,14 @@ final class DeepAnalysisViewModel {
     /// 服务端额度已重置,状态却残留达限,该章及下游在 App 重启前永久卡死
     /// (章节页达限态禁重试,hydrate 也不回填)。归一 = nextReset 已过 →
     /// 回 `.failed`(可重试/可回填/可自动续跑,三处守卫与重试按钮自然接管;
-    /// 再 429 会重新落达限态,幂等)。message 复用达限标题(描述先前失败,
-    /// 自动续跑路径下该态瞬时不可见,不新增 xcstrings key)。
+    /// 再 429 会重新落达限态,幂等)。message 用通用失败标题(十六轮 #7:
+    /// 配额已重置却显示「今日机缘已尽,明日再来」与可重试的失败态自相矛盾;
+    /// interpretTitle「命书生成失败」与重试按钮语义一致,不新增 xcstrings key)。
     private func expireStaleServerQuotaStates() {
         let now = Date()
         for (module, state) in moduleStates {
             if case .dailyLimitReached(let nextReset) = state, nextReset <= now {
-                moduleStates[module] = .failed(message: L10n.Errors.limitTitle)
+                moduleStates[module] = .failed(message: L10n.Errors.interpretTitle)
                 AppLogger.app.info(
                     "deepVM.quotaStateExpired module=\(module.rawValue, privacy: .public) nextReset=\(nextReset.description, privacy: .public) — 服务端配额已重置,达限态解除"
                 )
@@ -1476,9 +1492,13 @@ final class DeepAnalysisViewModel {
             }
             AppLogger.app.error("deepVM.runSingleV1Module.failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
             // 凭证失效(2026-10-08):老快照盘生成/翻译必 403,「重试本章」按钮
-            // 点了必然再 403——独立态渲染「重新排盘」出口
+            // 点了必然再 403——独立态渲染「重新排盘」出口。failedToken 记录
+            // 失败当时那枚(十六轮 #4):hydrate 重入据此判「token 是否已翻新」
+            // 才降级重试,同枚不再白发注定 403 的请求。
             if APIError.isContextTokenError(error) {
-                moduleStates[module] = .contextTokenExpired
+                moduleStates[module] = .contextTokenExpired(
+                    failedToken: response.contextToken(
+                        forModule: module.rawValue))
                 return
             }
             let userError = UserFacingError.from(error, stage: .interpret)
@@ -1842,6 +1862,9 @@ final class DeepAnalysisViewModel {
                     )
                     moduleStates[module] = .ok(text: source.interpretation, cached: true)
                     translationTokenExpired = true
+                    // 十六轮 #4:记录失败当时那枚,hydrate 重入据此条件清提示条
+                    translationTokenFailedToken = response.contextToken(
+                        forModule: module.rawValue)
                     autoTranslationOutcomes[staleKey] = .failed
                     autoTranslationState = .failed
                     return

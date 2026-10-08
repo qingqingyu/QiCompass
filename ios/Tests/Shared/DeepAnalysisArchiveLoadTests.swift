@@ -287,6 +287,15 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
     private static let m1CacheJSON =
         "{\"innate\":{\"behavior\":\"天生对结构敏感\",\"trained_by\":\"多年复盘\"},\"one_leverage\":\"把敏感变成产出\"}"
 
+    /// M1 链字段夹具(M5 必带 innate;刻意不含 defensive,让 M2 停 .pending
+    /// 减少下方案例的自动链噪音)。
+    private static let m1ChainCacheJSON =
+        "{\"innate\":{\"behavior\":\"对结构敏感\",\"trained_by\":\"复盘\"},\"one_leverage\":\"把敏感变成产出\"}"
+
+    /// M3 链字段夹具(M5 必带 ideal_life_structure)。
+    private static let m3ChainCacheJSON =
+        "{\"ideal_life_structure\":{\"节奏\":\"上午深活\"}}"
+
     /// 预置一章节本地缓存(身份对齐 MockAPIClient.health:anthropic / mock-anthropic-model)。
     private func seedV1Cache(hash: String, module: ModuleID, text: String) throws {
         try interpretStore.upsert(
@@ -386,6 +395,51 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             apiClient.recordedInterpretRequests.contains { $0.module == "m2_high_low" },
             "缺链式字段时不得发出 m2 请求(注定 422,浪费每日次数)"
         )
+    }
+
+    /// 2026-10-08 排版批次 P1 回归:M4/M5 输入按模块过滤后随请求发送——
+    /// 修复前 runSingleV1Module 无条件直传两份持久化输入,orchestrator 契约
+    /// 校验「非 m4 带 m4Input / 非 m5 带 m5Input」即 invalidV1ModuleInput:
+    /// 用户先填 M4 再填 M5 后,M4/M5 的断点续跑与单章重试全部被拒
+    /// (.failed,请求发不出)。镜像翻译链 1731 的口径。
+    func test双输入在场_M4M5续跑不拒_请求只带本模块输入() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedDeepEntitlement(hash: response.contentHash)
+        // 链字段就位:M0(fingerprint)+ M1(innate)+ M3(ideal_life_structure)
+        try seedV1Cache(hash: response.contentHash, module: .m0, text: Self.m0CacheJSON)
+        try seedV1Cache(hash: response.contentHash, module: .m1, text: Self.m1ChainCacheJSON)
+        try seedV1Cache(hash: response.contentHash, module: .m3, text: Self.m3ChainCacheJSON)
+        // 双输入都在场(hydrate 起手读回 → m4UserInput/m5UserInput 双非 nil)
+        DeepUserInputPersistence.saveM4(
+            .init(age: 41, concern: "体力"), contentHash: response.contentHash
+        )
+        DeepUserInputPersistence.saveM5(
+            .init(assets: "存款", preference: "保守"), contentHash: response.contentHash
+        )
+
+        vm.loadArchivedChart(response: response, request: request)
+
+        let settled = await waitUntil(timeout: 12) {
+            self.vm.moduleStates[.m4]?.isOk == true
+                && self.vm.moduleStates[.m5]?.isOk == true
+        }
+        XCTAssertTrue(
+            settled,
+            "双输入在场时 M4/M5 必须可生成(修复前 invalidV1ModuleInput 全拒),实际:\(vm.moduleStates)"
+        )
+
+        guard let m4Req = apiClient.recordedInterpretRequests.last(where: { $0.module == "m4_health" }) else {
+            return XCTFail("必须发出 m4_health 请求,实际模块:\(apiClient.recordedInterpretRequests.map(\.module))")
+        }
+        XCTAssertEqual(m4Req.m4Age, 41)
+        XCTAssertNil(m4Req.m5AssetsSummary, "m4 请求不得携带 m5 输入(修复前无条件直传两份)")
+
+        guard let m5Req = apiClient.recordedInterpretRequests.last(where: { $0.module == "m5_wealth" }) else {
+            return XCTFail("必须发出 m5_wealth 请求,实际模块:\(apiClient.recordedInterpretRequests.map(\.module))")
+        }
+        XCTAssertEqual(m5Req.m5AssetsSummary, "存款")
+        XCTAssertNil(m5Req.m4Age, "m5 请求不得携带 m4 输入")
     }
 
     /// 2026-10-08 外评 #6 回归:服务端免费配额 429(QUOTA_EXCEEDED)与本地
@@ -575,6 +629,54 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         guard case .ready = offlineVM.state else {
             return XCTFail("hydrate 失败不得打断主状态机,实际:\(offlineVM.state)")
         }
+    }
+
+    func testHydrateTokenExpiredDemotionOnlyWhenTokenChanged() async throws {
+        // 十六轮 #4:凭证失效态降级条件化。token 与失败当时那枚相同(含
+        // 双 nil:老快照无 token + mock 响应亦无 contextTokens)→ 保持失效态,
+        // 不白发注定 403 的请求、不抹「重新排盘」指引;token 已翻新(≠ 失败
+        // 那枚)→ 降 .pending 等链用当前 token 重试。
+        // 观察点:health 恒失败客户端让 hydrate 走到降级后 performRestore 抛错
+        // → 不起链,状态停在降级结果上,断言确定(镜像上例离线路径)。
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+
+        let failing = HealthFailingAPIClient(base: apiClient)
+        let context = container.mainContext
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient: failing),
+            cacheStore: InterpretationCacheStore(context: context)
+        )
+        let orchestrator = DeepAnalysisOrchestrator(
+            apiClient: failing,
+            chartStore: chartStore,
+            interpretStore: InterpretationCacheStore(context: context),
+            counter: counter,
+            interpretationReader: reader,
+            userLinkStore: UserSnapshotLinkStore(context: context)
+        )
+        let offlineVM = DeepAnalysisViewModel(
+            orchestrator: orchestrator,
+            entitlementStore: entitlementStore
+        )
+        // mock 响应无 contextTokens → 当前 v1 token = nil。
+        // m0:失败当时也无 token(nil == nil,同枚)→ 不降级;
+        // m3:失败当时带旧 token("tok-old" ≠ nil = 已翻新)→ 降 .pending。
+        offlineVM.moduleStates[.m0] = .contextTokenExpired(failedToken: nil)
+        offlineVM.moduleStates[.m3] = .contextTokenExpired(failedToken: "tok-old")
+
+        offlineVM.loadArchivedChart(response: response, request: request)
+        try await Task.sleep(nanoseconds: 800_000_000)
+
+        guard case .contextTokenExpired? = offlineVM.moduleStates[.m0] else {
+            return XCTFail(
+                "token 未翻新(同 nil)不得降级——保持失效态等用户重排,实际:\(String(describing: offlineVM.moduleStates[.m0]))"
+            )
+        }
+        XCTAssertEqual(
+            offlineVM.moduleStates[.m3], .pending,
+            "token 已翻新(nil ≠ 失败那枚)必须降级 .pending 走链重试"
+        )
     }
 
     func testResumeSkippedWhenDayAmbiguous() async throws {

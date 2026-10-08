@@ -137,19 +137,18 @@ final class CachedInterpretationReader {
     /// 批量读核心(调用方传入已 resolve 的 identity;#8,2026-10-02 抽出:
     /// 跨语言读取按语言循环时复用同一 identity,不再每语言各打一次 health)。
     ///
-    /// 链一致守卫(2026-10-08 第十五轮 #7;第十六轮外评 #2 改**依赖判据**):
+    /// 链一致守卫(2026-10-08 第十五轮 #7;十六轮改**依赖图切断**——houduan
+    /// `transitiveDependents` 机制 + neirong 版本迁移集,撞车消解融合):
     /// 本地缓存键不含上游指纹,getLatest 只按**本模块**版本过滤——上游
     /// (如 M0)单侧 bump 后,下游旧版本行照常命中 → 命书新旧混拼 + 这些章
-    /// 翻译恒 409(服务端链走查按新上游重建键)。守卫只切断**真正依赖缺行
-    /// 上游**的模块(血统依赖,见 `lineageDependencies(of:)`——镜像后端
-    /// `_V1_SOURCE_WALK_DEPS`,生产者恒在消费者前、按 allCases 序传入):
-    /// 旧「列表序前缀一刀切」会误伤不依赖缺失章的下游(如 M4 缺行时
-    /// M5/M6/M7 全被跳过——M4 不在任何模块的 dependencies 里,本不必断;
-    /// 离线可读/跨语言可译的行白丢)。
-    /// 判定维度是「上游**自身**无当前版本行」(ownVersionMissing),不含
-    /// 「被守卫跳过的模块」——被跳过的模块可能持有当前版本行(血统过期),
-    /// 级联进判定会放大切断面。跨语言探测(includeStaleVersions=true)下
-    /// 「无命中」= 真无行,守卫同义成立。
+    /// 翻译恒 409(服务端链走查按新上游重建键)。守卫只切断缺行模块的
+    /// **传递依赖方**(`ModuleID.transitiveDependents`,镜像后端
+    /// `_V1_SOURCE_WALK_DEPS` 的血统含 m0——M1-M7 的 parent_fingerprint
+    /// 恒取自 M0,m7 声明依赖虽不含 m0 也在传递闭包内):旧「列表序前缀
+    /// 一刀切」会误伤不依赖缺失章的下游(如 M4 缺行时 M5-M7 全被跳过
+    /// ——M4 不在任何模块的依赖里,本不必断;离线可读/跨语言可译的行白丢)。
+    /// 跨语言探测(includeStaleVersions=true)下「无命中」= 真无行,
+    /// 守卫同义成立。
     ///
     /// includeStaleVersions(十四轮外评 #5):跨语言探测传 true——prompt bump
     /// 后旧语言原文只在旧版本下,版本过滤会把探测源一并滤掉(设计降级路径
@@ -173,14 +172,14 @@ final class CachedInterpretationReader {
         // 行命中。判定用 allSatisfy 而非「first == m0」:后者会让部分清单
         // 静默绕过守卫,#7 的混拼场景在同会话 Tab 重挂下复现(重启才自愈)。
         let isV1Chain = modules.allSatisfy { ModuleID(rawValue: $0) != nil }
-        // 「服务端版本已知且本地无当前版本行」的模块集(判定维度,见上)
-        var ownVersionMissing: Set<ModuleID> = []
+        // 版本缺行模块的传递依赖方集(切断范围;版本未知 = 老后端守卫关闭)
+        var cutModules = Set<ModuleID>()
         for module in modules {
-            // 依赖判据:任一血统依赖的上游自身缺当前版本行 → 本模块既有行
-            // 是旧上游驱动的,跳过回填(血统过期)。版本未知(老后端)守卫关闭。
             if let id = ModuleID(rawValue: module), isV1Chain,
-               identity.promptVersions[module] != nil,
-               !ownVersionMissing.isDisjoint(with: lineageDependencies(of: id)) {
+               cutModules.contains(id) {
+                // 血统过期跳过:上游自身缺当前版本行,本模块是其传递依赖方,
+                // 既有行是旧上游驱动的,不回填;本地有任意版本行 → 记入
+                // 版本迁移重生成集(重算非用户过错,调用方豁免本地次数)
                 if try hasAnyVersionRow(
                     contentHash: contentHash, module: module,
                     language: language, targetDate: targetDate,
@@ -199,11 +198,12 @@ final class CachedInterpretationReader {
                 identity: identity,
                 includeStaleVersions: includeStaleVersions
             ) else {
-                // 版本已知却无当前版本行 = 自身已 bump 本地未跟上 → 记入
-                // 缺失集,依赖它的下游将被切断(版本未知 = 老后端,维持旧行为)
+                // 版本已知却无当前版本行 = 自身已 bump 本地未跟上(或从未
+                // 生成)→ 传递依赖方将被切断;本地有任意版本行 → 迁移重生成
+                // (从未生成无行,照常计费)
                 if isV1Chain, let id = ModuleID(rawValue: module),
                    identity.promptVersions[module] != nil {
-                    ownVersionMissing.insert(id)
+                    cutModules.formUnion(id.transitiveDependents)
                     if try hasAnyVersionRow(
                         contentHash: contentHash, module: module,
                         language: language, targetDate: targetDate,
@@ -219,19 +219,6 @@ final class CachedInterpretationReader {
         return V1ChainRestoreOutcome(
             hits: hits, migrationRegenModules: migrationRegen
         )
-    }
-
-    /// 血统依赖 = `ModuleID.dependencies` + M0(除 M0 自身):M1-M7 全部
-    /// 必带 parent_fingerprint(M0 产出,进服务端 `CacheKey.parent_hash`),
-    /// 后端 `_V1_SOURCE_WALK_DEPS` 对 m1-m7 的走查依赖**全部含 m0**;
-    /// `ModuleID.dependencies` 的 m7 条目不含 m0 只反映「模板不读 chart」
-    /// 的执行序依赖图。守卫若只按声明依赖,M0 bump(版本迁移旗舰场景)时
-    /// m7 旧血统行漏切 → 命书混拼在 m7 单点复活,故镜像按后端形态补齐。
-    private func lineageDependencies(of id: ModuleID) -> Set<ModuleID> {
-        guard id != .m0 else { return [] }
-        return id.dependencies.contains(.m0)
-            ? Set(id.dependencies)
-            : Set(id.dependencies + [.m0])
     }
 
     /// 该 (盘, 模块, 语言) 本地是否存在**任意版本**的缓存行(中毒行口径与

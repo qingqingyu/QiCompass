@@ -235,8 +235,13 @@ if REFUND_DAILY_LIMIT <= 0:
 # bucket 维度(登录 user_id / 匿名 IP)独立计数(paid: 前缀分桶,与免费
 # 互不挤兑),上限高于任何正常单用户 usage(深度链 8 章 + M4/M5 数轮 +
 # 合盘,一天几十次以内),只拦脚本滥用。缓存命中仍不计。
+# 2026-10-08 十六轮拍板 100 → 500:匿名付费按 IP 分桶,与免费桶同样的
+# CGNAT 共享出口问题——正常付费用户每人每盘 6 个付费章真烧(m0 bump 日
+# 全链重生成),一个出口下 ~16 盘就挤兑触顶,付费用户撞 429 体验最差;
+# 登录付费按 user_id 不受影响。500 下正常 CGNAT 付费群体几乎不可能集体
+# 触顶(≈83 盘/日),脚本滥用仍有硬闸。env QICOMPASS_PAID_DAILY_LIMIT 可调。
 PAID_DAILY_LIMIT = int(
-    os.environ.get("QICOMPASS_PAID_DAILY_LIMIT") or "100")
+    os.environ.get("QICOMPASS_PAID_DAILY_LIMIT") or "500")
 if PAID_DAILY_LIMIT <= 0:
     raise ValueError(
         f"QICOMPASS_PAID_DAILY_LIMIT must be positive (got {PAID_DAILY_LIMIT})")
