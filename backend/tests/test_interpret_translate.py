@@ -1722,14 +1722,15 @@ async def test_m2_translate_survives_junk_m1_rows(
     assert resp.json()["interpretation"] == m2_hant
 
 
-async def test_m2_translate_eviction_residual_409_after_mass_newer_junk(
+async def test_m2_translate_survives_mass_newer_junk_rows_exact_lookup(
         interpret_client, mock_ai_client, tmp_cache, tmp_entitlement_store):
-    """驱逐残留锁定(十四轮外评 #1,已知取舍防重开):≥8 条**晚于**真行的
-    同 parent 注入行把 m1 真行压出 8 行窗口 → 走查失败 → 409 STALE_SOURCE
-    (iOS 既有降级 = 该章按目标语言重生成,新行落库即最新 → 回窗口顶,
-    同方向后续翻译走目标键缓存命中不再走查;注入行每行都真烧过一次 LLM
-    配额,契约失败行不落缓存造不出行)。生成侧链绑定可根治但已两轮驳回
-    (断点续跑卡死,见第十轮),不重开——本测试把残留行为钉住。
+    """精确主键查找钉住(第十六轮外评 #3,翻转原「驱逐残留 409」钉住测试):
+    ≥8 条**晚于**真行的同 parent 注入行(prompt_hash 是乱序盐、不与任何
+    版本重渲染值相等)不再能把 m1 真行挤出任何窗口——期望键按行集 distinct
+    版本逐版本重渲染后**精确匹配**,与行数/行序/落库时间无关。旧「偏好序
+    + 8 行窗口 + 逐行比对」形态下此场景恒 409(十四轮 #1 记录的有意接受),
+    精确查找下结构性关闭,本测试断言翻译照常 200(注入行零额外 LLM 消耗,
+    仅翻译本身烧 1 次)。
     """
     import hashlib
     from datetime import datetime, timedelta, timezone
@@ -1775,7 +1776,9 @@ async def test_m2_translate_eviction_residual_409_after_mass_newer_junk(
             M1_ZH_JSON,
             (now + timedelta(hours=i + 1)).isoformat())
 
-    mock_ai_client.set_response("占位(不应被调用)")
+    m2_hant = json.dumps({"high_config": {"portrait": "輸出穩定"}},
+                         ensure_ascii=False)
+    mock_ai_client.set_response(m2_hant)
     calls_before = mock_ai_client.call_count
     resp = await interpret_client.post("/api/interpret/translate", json={
         "content_hash": ch, "module": "m2_high_low",
@@ -1792,73 +1795,50 @@ async def test_m2_translate_eviction_residual_409_after_mass_newer_junk(
         "source_prompt_version": PROMPT_VERSIONS["m2_high_low"],
         "source_interpretation": m2_zh,
     }, headers={"X-QiCompass-Lang": "zh-hant"})
-    assert resp.status_code == 409, resp.text
-    assert "STALE_SOURCE" in resp.json()["error"]["code"]
-    assert mock_ai_client.call_count == calls_before, "409 路径不得烧 LLM"
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["interpretation"] == m2_hant
+    assert mock_ai_client.call_count == calls_before + 1, \
+        "注入行不触发任何额外 LLM 调用,唯一一次消耗 = 翻译本身"
 
 
-def test_ordered_v1_chain_candidates_filter_order_cap():
-    """过滤 + 偏好序 + 截断(十四轮外评 #1 重做):parent 过滤前置、当前版本
-    优先、同版本内 generated_at 降序、超上限截断。修复前(2026-10-08 外评
-    #1 版)截断先于 parent 过滤且依赖「fetch 序=插入序」——get_module_rows
-    无 ORDER BY 时 fetch 序 = PK 的 prompt_hash 字典序(随机),既有断言
-    「真行在前」靠 hash 运气成立。"""
+def test_match_exact_v1_row_four_way_identity():
+    """精确匹配单元(第十六轮外评 #3):命中要求 (prompt_version,
+    prompt_hash, parent_hash, user_input_hash) 四元同时相等——parent 不符 /
+    带用户输入 / 同版本异 hash(注入行)一律 miss,与行数、行序、
+    generated_at 全部无关(取代已删除的 _ordered_v1_chain_candidates
+    偏好序 + 截断窗口单测)。"""
     import hashlib
 
     from app.ai.cache_key import CacheKey
-    from app.api.interpret import (
-        _V1_CHAIN_MAX_ROWS_PER_MODULE, _ordered_v1_chain_candidates)
+    from app.api.interpret import _match_exact_v1_row
 
-    def row(version: int, salt: str, generated_at: str,
-            parent: str = "p", user_input: str = "") -> tuple:
+    def row(version: int, salt: str, parent: str = "p",
+            user_input: str = "") -> tuple:
         return (CacheKey(
             content_hash="h", module="m1_talent", prompt_version=version,
             target_date="", prompt_hash=hashlib.sha256(
                 f"{version}-{salt}".encode()).hexdigest(),
             provider="anthropic", model="m", parent_hash=parent,
             user_input_hash=user_input, language="zh"),
-            f"text-{version}-{salt}", generated_at)
+            f"text-{version}-{salt}", "2026-10-08T00:00:00+00:00")
 
-    # 1) parent 过滤前置:parent 不符 / 带用户输入的行不占窗口
+    expected = hashlib.sha256("3-real".encode()).hexdigest()
+    real = row(3, "real")
     rows = [
-        row(3, "real", "2026-10-08T01:00:00+00:00"),
-        row(3, "wrong-parent", "2026-10-08T02:00:00+00:00", parent="other"),
-        row(3, "user-input", "2026-10-08T03:00:00+00:00", user_input="u1"),
+        real,
+        row(3, "wrong-parent", parent="other"),
+        row(3, "user-input", user_input="u1"),
+        row(3, "junk"),  # 同版本、parent 相同但 hash 不等(注入形态)
+        row(2, "real"),  # hash 盐相同但版本不同
     ]
-    got = _ordered_v1_chain_candidates(rows, "p", 3)
-    assert [t for _, t, _ in got] == ["text-3-real"], \
-        "parent 不符 / user_input 非空的行须在截断前被过滤,不占窗口"
-
-    # 2) 偏好序:当前版本优先,其余版本降序;同版本内 generated_at 降序
-    #    (不依赖调用方输入序——输入序按 prompt_hash 随机给出也须排对)
-    rows = [
-        row(1, "a", "2026-01-01T00:00:00+00:00"),
-        row(3, "older", "2026-10-08T01:00:00+00:00"),
-        row(3, "newer", "2026-10-08T05:00:00+00:00"),
-        row(2, "b", "2026-05-01T00:00:00+00:00"),
-        row(2, "c", "2026-06-01T00:00:00+00:00"),
-    ]
-    got = _ordered_v1_chain_candidates(rows, "p", 3)
-    assert [t for _, t, _ in got] == [
-        "text-3-newer", "text-3-older", "text-2-c", "text-2-b", "text-1-a"], \
-        "当前版本优先 → 版本降序 → 同版本 generated_at 降序"
-
-    # 3) 截断:窗口外的行剪掉;parent 过滤后不足上限时全保留
-    many = [row(3, "real", "2026-10-08T00:00:00+00:00")] + [
-        row(3, f"junk-{i}", f"2026-10-08T{i + 1:02d}:00:00+00:00")
-        for i in range(20)]
-    capped = _ordered_v1_chain_candidates(many, "p", 3)
-    assert len(capped) == _V1_CHAIN_MAX_ROWS_PER_MODULE
-    assert capped[0][1] == "text-3-junk-19", \
-        "同版本 generated_at 降序,最新行(注入形态)排首——真行被压出窗口" \
-        "属已知残留(自愈 = 重生成落最新行回窗口顶,见函数 docstring)"
-    few = [row(3, "real", "2026-10-08T00:00:00+00:00"),
-           row(2, "old", "2026-01-01T00:00:00+00:00")]
-    assert len(_ordered_v1_chain_candidates(few, "p", 3)) == 2
-
-    # 4) parent=None(M0 根腿):无 parent 维度,全量进偏好序
-    got = _ordered_v1_chain_candidates(few, None, 3)
-    assert [t for _, t, _ in got] == ["text-3-real", "text-2-old"]
+    matched = _match_exact_v1_row(rows, 3, expected, "p")
+    assert matched is not None and matched[1] == "text-3-real", \
+        "四元精确命中真行;parent/user_input/hash/版本 任一不符的行全部出局"
+    assert _match_exact_v1_row(rows[:1], 3, expected, "p") is not None, \
+        "行集只有真行也命中(与行数无关)"
+    assert _match_exact_v1_row(
+        rows[1:], 3, expected, "p") is None, "真行不在行集 = miss(链断 409)"
+    assert _match_exact_v1_row(rows, 3, expected, "other") is None
 
 
 # ---------- 十四轮外评 #3/#4:退款豁免 + 走查前配额 peek ----------

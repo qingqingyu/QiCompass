@@ -716,10 +716,12 @@ async def test_quota_paid_daily_limit(
 
 
 def test_quota_tier_routes_all_module_families():
-    """配额分档路由(第十四轮拍板):付费 module 族全部进 paid 档
-    (interpret 与 translate 共用 `_enforce_daily_quota`,tier 由 module
-    决定——本单测把「付费翻译同计 paid 桶」的路由前提钉死),免费族进
-    free 档;paid 桶 paid: 前缀、免费桶保持无前缀旧格式。"""
+    """配额分档路由(第十四轮拍板;第十六轮外评 #4 改付费桶维度):付费
+    module 族全部进 paid 档(interpret 与 translate 共用
+    `_enforce_daily_quota`,tier 由 module 决定——本单测把「付费翻译同计
+    paid 桶」的路由前提钉死),免费族进 free 档;付费桶按 **entitlement
+    主体**(paid:ent:{user_id|user_local_id})分桶——CGNAT 后付费用户不再
+    共享 IP 桶(100 < 免费桶 150 的倒挂一并消除);免费桶保持无前缀旧格式。"""
     from app.api.interpret import _quota_bucket, _quota_tier
     from app.config import FREE_DAILY_LIMIT, PAID_DAILY_LIMIT
     from app.models.interpret import InterpretRequest
@@ -751,10 +753,15 @@ def test_quota_tier_routes_all_module_families():
                     "daily_fortune"]
     for module in free_modules:
         assert _quota_tier(req(module)) == ("free", FREE_DAILY_LIMIT), module
-    # 桶前缀:付费 paid: 前缀独立分桶,免费无前缀(既有计数行不失效);
-    # current_user_id 非空时 _free_quota_bucket 不触碰 request.client,传 None 即可
+    # 付费桶 = entitlement 主体(登录 user_id 优先);免费桶无前缀旧格式
+    # (既有计数行不失效)。current_user_id 非空 / 付费档时不触碰
+    # request.client,传 None 即可
     assert _quota_bucket(
-        None, req("m4_health"), "user-u1") == "paid:user:user-u1"
+        None, req("m4_health"), "user-u1") == "paid:ent:user-u1"
+    assert _quota_bucket(
+        None, req("m4_health"), None) == "paid:ent:user-1", (
+        "匿名付费按 user_local_id 分桶(付费调用先过 entitlement 匹配,"
+        " 伪造/轮换 user_local_id = 丢权益 403,桶不可白嫖轮换)")
     assert _quota_bucket(
         None, req("m0_structure"), "user-u1") == "user:user-u1"
 

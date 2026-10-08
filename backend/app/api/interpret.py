@@ -15,7 +15,7 @@
 线程池策略:
 - validate_context + render_prompt 纯字符串操作,快,留在 event loop
   (每请求一次的主渲染路径;**翻译防伪的源键核验除外**——见下)
-- /api/interpret/translate 的源键核验(M1-M7 链重建 walk 逐行重渲染 /
+- /api/interpret/translate 的源键核验(M1-M7 链重建 walk 逐版本重渲染 /
   链尾源键渲染 / M0+daily 源重渲染)虽然同为纯 CPU,但一次请求可含
   多次渲染且模板加载带磁盘读(_load_template 无缓存),2026-10-07 起
   全部经 run_in_threadpool(dd0e5dd)
@@ -738,9 +738,10 @@ def _free_quota_bucket(request: Request, current_user_id: str | None) -> str:
 def _quota_tier(req: InterpretRequest) -> tuple[str, int]:
     """配额分档(2026-10-08 第十四轮拍板:付费不再豁免)。
 
-    免费/付费同 bucket 维度(登录 user_id / 匿名 IP)但**分桶计数**
-    (付费 paid: 前缀),互不挤兑;付费上限 PAID_DAILY_LIMIT 拦的是
-    M4/M5 换输入无限烧 LLM 的脚本滥用,不影响任何正常单用户 usage。
+    免费/付费**分档计数**互不挤兑(维度差异见 _quota_bucket:免费 =
+    user_id | 归一化 IP,付费 = entitlement 主体);付费上限
+    PAID_DAILY_LIMIT 拦的是 M4/M5 换输入无限烧 LLM 的脚本滥用,
+    不影响任何正常单用户 usage。
     """
     if req.module in PAID_MODULES:
         return "paid", PAID_DAILY_LIMIT
@@ -750,13 +751,25 @@ def _quota_tier(req: InterpretRequest) -> tuple[str, int]:
 def _quota_bucket(
     request: Request, req: InterpretRequest, current_user_id: str | None,
 ) -> str:
-    """配额 bucket:tier 前缀 + (user_id | 归一化 IP)。
+    """配额 bucket:免费 = (user_id | 归一化 IP) 无前缀旧格式;付费 = 购买主体。
 
-    免费桶保持无前缀旧格式(既有计数行不失效);付费桶 paid: 前缀。
+    付费桶改按 entitlement 主体(第十六轮外评 #4):登录 user_id、匿名
+    user_local_id。旧形态 paid:{user:|ip:} 复用免费桶维度,匿名分支按 IP
+    计——CGNAT/运营商 NAT 后的付费用户共享 PAID_DAILY_LIMIT(100,反而
+    低于免费桶 150),换 IP(移动网络重连)即重置,既拦不住滥用又误伤
+    正常付费。改按购买主体:付费调用必先过 _require_entitlement
+    (get_active 按 user_local_id / user_id 匹配权益),伪造 user_local_id
+    无权益 403 在前,轮换身份 = 丢权益,桶不可白嫖轮换。残留:restore
+    重绑新 user_local_id 可开新桶,但每桶都要一轮 Apple 校验往返,比旧
+    IP 自由轮换严格(记录于 docs/维持不修决策评审-2026-10-08.md 附七)。
+    免费桶保持无前缀旧格式(既有计数行不失效);付费旧 paid:{ip:|user:}
+    计数行按 day 键自然过期,无迁移。
     """
     tier, _ = _quota_tier(req)
-    base = _free_quota_bucket(request, current_user_id)
-    return base if tier == "free" else f"paid:{base}"
+    if tier == "paid":
+        owner = current_user_id or req.user_local_id
+        return f"paid:ent:{owner}"
+    return _free_quota_bucket(request, current_user_id)
 
 
 async def _quota_exhausted(
@@ -765,7 +778,7 @@ async def _quota_exhausted(
 ) -> bool:
     """配额 peek(只读不消费;十四轮外评 #4;免费/付费分档)。
 
-    翻译端点在「目标缓存 miss 之后、v1 链走查(逐行重渲染,CPU 最重)之前」
+    翻译端点在「目标缓存 miss 之后、v1 链走查(逐版本重渲染,CPU 最重)之前」
     用:达限 bucket 直接 429,堵住「持 token 换链字段值 → 目标键必 miss →
     无限重放走查烧 CPU」的放大通道(走查本身不计配额,原「缓存命中即免
     走查」的假设挡不住主动 miss)。缓存命中路径在 peek 之前返回,不受影响。
@@ -1278,74 +1291,37 @@ def _render_v1_upstream_prompt_hash(
     return hashlib.sha256(rendered.encode("utf-8")).hexdigest()
 
 
-# 链走查每模块候选行重渲染探查上限(2026-10-08 外评 #3 + 第十五轮 #2):
-# 合法场景同 (盘, 模块, 语言, parent) 仅 1-3 行(版本 bump / 重生成残留);
-# 持有 token 者可在注入键下量产行放大逐行重渲染 CPU。截断只施在
-# **可判别过滤之后**(parent_hash/user_input_hash 匹配 + 偏好序)——
-# 同版本行序不可判别(查询计划序 = PK prompt_hash 随机序),按行序先截断
-# 会把链核验真正需要的行随机砍掉(第十五轮 #2 的误伤形态,不得回潮)。
-_V1_CHAIN_MAX_ROWS_PER_MODULE: Final[int] = 8
-# M0 根行探查上限(2026-10-08 第十五轮 #2):根行核验须逐行重渲染,上限
-# 封住「变体刷行把走查当 CPU 放大器」;128 是免费配额(150/日)量级内的
-# 高水位——真行被挤出此窗口要求攻击者已烧 ≥128 次真 LLM,届时 409 →
-# STALE 重生成(iOS quotaExempt)自愈,不再是「随机砍行」的静默误伤。
-_V1_CHAIN_ROOT_PROBE_LIMIT: Final[int] = 128
+# 链走查版本探查上限(2026-10-08 第十六轮外评 #3 重做:精确主键查找):
+# 期望 prompt_hash 按「行集内 distinct prompt_version」逐版本计算,渲染
+# 次数 = 版本数(现实 ≤3:保留式 bump 历史),与行数解耦——变体刷行
+# (同版本量产行)既不再放大逐行重渲染 CPU,也不再能把真行挤出任何窗口
+# (无窗口)。上限只是防御性封顶:行版本 ∈ PROMPT_VERSIONS 历史,攻击者
+# 造不出新版本号(生成只按当前版本写行)。
+_V1_CHAIN_MAX_VERSION_PROBES: Final[int] = 8
 
 
-def _ordered_v1_chain_candidates(
-    rows: list[tuple[CacheKey, str, str]],
-    parent_hash: str | None,
-    current_version: int,
-    *,
-    truncate: bool = True,
-) -> list[tuple[CacheKey, str, str]]:
-    """候选行过滤 + 偏好序 + 截断(十四轮外评 #1 重做;十五轮 #2 补 truncate 旋钮)。
+def _match_exact_v1_row(
+    rows: list[tuple[CacheKey, str, str]], version: int,
+    expected_hash: str, parent_hash: str,
+) -> tuple[CacheKey, str] | None:
+    """(prompt_version, prompt_hash, parent_hash, user_input_hash="") 四元
+    精确匹配行集(第十六轮外评 #3 根治)。
 
-    三层次序,缺一不可:
-    1. **parent 过滤前置**(parent_hash 非 None 时):parent_hash 相符 +
-       user_input_hash 为空的行才有资格进窗口。截断先于过滤的旧结构里,
-       同版本注入行可凭 get_module_rows 的 PK 随机序(prompt_hash 字典序)
-       把真行挤出 8 行窗口——过滤前置后窗口只花在 parent 相符的行上。
-    2. **确定性偏好序**:当前版本优先,其余版本降序;同版本内按
-       generated_at 降序(不是稳定插入序——无 ORDER BY 的 fetch 序是
-       prompt_hash 随机序,「真行先落库故在前」不成立)。generated_at 降序
-       同时是驱逐攻击的自愈通道:真行被注入行压出窗口 → 409 → 该章按目标
-       语言重生成落新行(最新)→ 回到窗口顶部。注入行本身每行都要真烧
-       一次 LLM(契约失败不落缓存,注入行必须产出合法 JSON 才写得进)。
-    3. **截断到每模块上限**(truncate=True 时):有界化逐行重渲染 CPU
-       (外评 #3 原目的)。
-
-    残留取舍(记录不修):「真行落库之后追加 ≥8 条同 parent 注入行」仍可
-    把真行暂时压出窗口(受害者视角 = 一次 409 + 一次重生成,目标键落盘后
-    同方向翻译走缓存命中不再走查);生成侧链绑定可根治但已两轮驳回
-    (断点续跑卡死,见第十轮 b25ddbd 注释),不重开。
-
-    parent_hash=None(M0 根腿):无 parent 维度,全部行进偏好序。**M0 腿
-    必须 truncate=False**(十五轮 #2):「M0 键不可注入」不成立——chart
-    字节变体(空格/键序,解析等价 → 过 token 验签,prompt_hash 不同)可
-    量产同版本行,且变体行恒新于真行,generated_at 降序 + 截断会把真根
-    挤出窗口;真根由调用侧根行核验(行 prompt_hash == 请求 chart 按行
-    版本重渲染)选中,与行序无关,窗口由 _V1_CHAIN_ROOT_PROBE_LIMIT 封顶。
+    prompt_hash 是缓存键维度,同键行唯一(写入按键 upsert),精确命中即
+    链核验真正需要的那一行——与行序、行数、落库时间全部无关。取代旧
+    「候选行偏好序 + 8 行窗口 + 逐行重渲染比对」(_ordered_v1_chain_candidates,
+    十四轮 #1 / 十五轮 #2):该形态的两处残余(①同 parent 同版本量产行
+    把真行挤出窗口 → 受害章 409;②量产行放大逐行重渲染 CPU)在精确查找
+    下结构性不存在。「生成侧链绑定」(根治的另一路径)维持两轮驳回口径
+    (断点续跑卡死,第十轮),不重开。
     """
-    if parent_hash is not None:
-        pool = [
-            item for item in rows
-            if item[0].parent_hash == parent_hash
-            and item[0].user_input_hash == ""
-        ]
-    else:
-        pool = rows
-    # 同版本组内 generated_at 降序:sorted 稳定,先按生成时间降序排一遍,
-    # 再按版本偏好稳定排,组内即保持生成时间降序(ISO 8601 UTC 字符串
-    # 字典序 = 时间序)
-    ordered = sorted(
-        sorted(pool, key=lambda item: item[2], reverse=True),
-        key=lambda item: (
-            item[0].prompt_version != current_version,
-            -item[0].prompt_version,
-        ),
-    )
-    return ordered[:_V1_CHAIN_MAX_ROWS_PER_MODULE] if truncate else ordered
+    for key, text, _ in rows:
+        if (key.prompt_version == version
+                and key.prompt_hash == expected_hash
+                and key.parent_hash == parent_hash
+                and key.user_input_hash == ""):
+            return key, text
+    return None
 
 
 async def _verify_v1_chain_translation_source(
@@ -1365,17 +1341,19 @@ async def _verify_v1_chain_translation_source(
     源语言链字段生成——按请求 context 源语言重渲染算出的 prompt_hash /
     parent_hash 永远对不上,合法翻译恒 409。改为从缓存**重建**源键:
 
-    1. 按 (content_hash, module, source_language) 枚举上游行。M0 行作链根,
-       且须先过**根行核验**(第十五轮 #2):行自身 prompt_hash 与「请求
-       chart 按行自身版本重渲染」逐字相等——token 验签保证解析内容等价
-       (重复键已拒),根行核验保证序列化字节一致,「行恒真」双层成立,
-       变体刷行(解析等价、字节不同的 chart)在此出局。
-    2. 逐个非 M0 上游行:parent_hash 须等于 sha256(M0 fp) + user_input_hash
-       须为空,且用「已核验上游字段 + 请求 chart」按**行自身版本**重渲染的
-       prompt_hash 与行实际键逐字相等——注入链字段(如伪造 main_axis)生成
-       的行落在注入键上,与真实链重建的键永不相等,在此被排除。行数上限
-       在这些**可判别过滤之后**才生效(根行核验探查 ≤128 / 同根匹配行重
-       渲染 ≤8),不再存在「先截断后过滤」随机砍掉合法行的形态。
+    1. 按 (content_hash, module, source_language) 取上游行。M0 行作链根,
+       且须过**根行核验**:行自身 prompt_hash 与「请求 chart 按行自身版本
+       重渲染」逐字相等——token 验签保证解析内容等价(重复键已拒),根行
+       核验保证序列化字节一致,「行恒真」双层成立,变体刷行(解析等价、
+       字节不同的 chart)在此出局。
+    2. 逐个非 M0 上游行:用「已核验上游字段 + 请求 chart」按**行集内
+       distinct 版本降序**逐版本重渲染期望 prompt_hash,对行集做
+       (prompt_version, prompt_hash, parent_hash, user_input_hash="")
+       四元**精确匹配**(_match_exact_v1_row,第十六轮外评 #3 重做)——
+       注入链字段(如伪造 main_axis)生成的行落在注入键上,与真实链重建
+       的键永不相等,在此被排除。匹配与行数/行序/落库时间无关:同 parent
+       同版本量产行(变体刷行)既挤不掉真行(无窗口),也放大不了走查
+       CPU(渲染次数 = 版本数,≤ _V1_CHAIN_MAX_VERSION_PROBES)。
     3. 全链核验后,以「源语言上游字段(canonical 形态)+ 请求 chart + 请求
        用户输入(m4/m5,随请求回传保键对齐)」构建源 context,经
        _prepare_prompt_and_key(与生成同一代码路径,含链字段规范化)算出
@@ -1389,7 +1367,7 @@ async def _verify_v1_chain_translation_source(
     ——用户跨年(或重排盘刷新时点)后,既有 M1-M7 行的键由旧 chart 驱动,
     与当前 chart 重建的键不相等 → 409 → 该章按目标语言重新生成。影响每年
     至多一次/每次重排一次,且重排后 iOS 链本就重算;按「宁可重生成不可
-    放松防伪」接受。行序与上限见 _ordered_v1_chain_candidates(#1/#3)。
+    放松防伪」接受。
     """
     cache: InterpretationCache = request.app.state.cache
     deps = _V1_SOURCE_WALK_DEPS[req.module]
@@ -1413,33 +1391,31 @@ async def _verify_v1_chain_translation_source(
             )
             raise InterpretationCacheError(
                 f"后端原文核验读失败({type(e).__name__}): {e}") from e
-        # 全量行入库,parent 过滤 + 偏好序 + 截断推迟到知晓 parent_hash 的
-        # 循环内做(十四轮外评 #1:截断先于过滤 + fetch 序随机 = 注入行可
-        # 凭 hash 运气占满窗口挤掉真行)。
+        # 全量行入库,精确匹配推迟到知晓 parent_hash 的循环内做。
         rows_by_module[m] = rows
 
-    # M0 根腿(十四轮 #1 + 十五轮 #2 融合):parent 维度不适用(context 仅
-    # chart),但「键不可注入」不成立——chart 字节变体(空格/键序,解析
-    # 等价 → 过 token 验签,prompt_hash 不同)可量产同版本行且恒新于真行,
-    # generated_at 降序 + 截断会把真根挤出窗口。故 M0 腿:①truncate=False
-    # (窗口由探查上限封顶);②根行核验——行 prompt_hash 须与「请求 chart
-    # 按行自身版本重渲染」逐字相等,「M0 行恒真」= token 验签(内容等价,
-    # 重复键已拒)+ 此处字节核验(序列化形态一致)双层成立,变体行出局、
-    # 真根与行序无关必被选中。
-    m0_probes = 0
-    for m0_key, m0_text, _ in _ordered_v1_chain_candidates(
-            rows_by_module.get("m0_structure") or [], None,
-            PROMPT_VERSIONS["m0_structure"], truncate=False):
-        m0_probes += 1
-        if m0_probes > _V1_CHAIN_ROOT_PROBE_LIMIT:
-            break
+    # M0 根腿(第十六轮外评 #3 重做:精确主键查找):按行集 distinct 版本
+    # 降序,每版本用「请求 chart 按该版本重渲染」算期望 prompt_hash,行集
+    # 内四元精确匹配(_match_exact_v1_row)= 根行核验的等价形式(行键与
+    # 重渲染逐字相等)。「M0 键不可注入」仍不成立——chart 字节变体(空格/
+    # 键序,解析等价 → 过 token 验签,prompt_hash 不同)可量产同版本行;
+    # 精确查找下变体行期望 hash 对不上自然出局,真根与行数/行序无关必被
+    # 选中,旧形态(枚举行 + 逐行重渲染 + 探查上限 128)的 CPU 放大面
+    # 一并消失(渲染次数 = 版本数)。
+    m0_rows = rows_by_module.get("m0_structure") or []
+    m0_versions = sorted(
+        {key.prompt_version for key, _, _ in m0_rows}, reverse=True)
+    for m0_version in m0_versions[:_V1_CHAIN_MAX_VERSION_PROBES]:
         m0_expected = await run_in_threadpool(
             _render_v1_upstream_prompt_hash,
-            "m0_structure", chart, {}, source_language,
-            m0_key.prompt_version,
+            "m0_structure", chart, {}, source_language, m0_version,
         )
-        if m0_expected is None or m0_expected != m0_key.prompt_hash:
+        if m0_expected is None:
             continue
+        m0_matched = _match_exact_v1_row(m0_rows, m0_version, m0_expected, "")
+        if m0_matched is None:
+            continue
+        m0_text = m0_matched[1]
         m0_out = _extract_v1_output(m0_text)
         fingerprint = (
             m0_out.get("structure_fingerprint") if m0_out else None)
@@ -1457,27 +1433,31 @@ async def _verify_v1_chain_translation_source(
         for upstream in deps:
             if upstream == "m0_structure":
                 continue
-            # 非回溯匹配:同根下多个可核验行只取首个(同版本同 context 的行
-            # 被 PK 去重,实际并存的只有跨版本行)。候选集 = parent 过滤 +
-            # 偏好序(当前版本优先 → 版本降序 → generated_at 降序)+ 截断
-            # (_ordered_v1_chain_candidates,十四轮外评 #1/#3;截断在
-            # 可判别过滤之后,十五轮 #2 的误伤形态不成立)。仍不做笛卡尔
-            # 积回溯——M0 根层回溯 + 版本偏好序已覆盖现实链状态,回溯会让
-            # 注入行把走查成本放大成组合爆炸。
+            # 精确主键查找(第十六轮外评 #3):同根下期望键唯一——用已核验
+            # 上游字段 + 请求 chart 按行集 distinct 版本降序逐版本重渲染,
+            # (prompt_version, prompt_hash, parent_hash, user_input_hash="")
+            # 四元精确匹配(_match_exact_v1_row)。旧「parent 过滤 + 偏好序
+            # + 8 行窗口 + 逐行比对」的驱逐残留(≥8 条更新的同 parent 注入
+            # 行可暂时压出真行 → 409)与 CPU 放大(渲染次数 ∝ 行数)就此
+            # 关闭;仍不做笛卡尔积回溯——M0 根层回溯 + 版本降序已覆盖现实
+            # 链状态,回溯会被注入行放大成组合爆炸(第十轮驳回口径)。
             matched_text: str | None = None
-            for key, text, _ in _ordered_v1_chain_candidates(
-                    rows_by_module.get(upstream) or [], parent_hash,
-                    PROMPT_VERSIONS[upstream]):
+            up_rows = rows_by_module.get(upstream) or []
+            up_versions = sorted(
+                {key.prompt_version for key, _, _ in up_rows}, reverse=True)
+            for up_version in up_versions[:_V1_CHAIN_MAX_VERSION_PROBES]:
                 # 渲染是纯 CPU(translate_context + 模板 format + sha256),
-                # 候选行逐行重渲染放线程池防阻塞事件循环(2026-10-07 review
-                # 收尾:行读取已在池,渲染同款)。
+                # 放线程池防阻塞事件循环(2026-10-07 review 收尾:行读取
+                # 已在池,渲染同款)。
                 expected_hash = await run_in_threadpool(
                     _render_v1_upstream_prompt_hash,
-                    upstream, chart, verified, source_language,
-                    key.prompt_version)
-                if (expected_hash is not None
-                        and expected_hash == key.prompt_hash):
-                    matched_text = text
+                    upstream, chart, verified, source_language, up_version)
+                if expected_hash is None:
+                    continue
+                matched = _match_exact_v1_row(
+                    up_rows, up_version, expected_hash, parent_hash)
+                if matched is not None:
+                    matched_text = matched[1]
                     break
             if matched_text is None:
                 chain_ok = False
@@ -1506,7 +1486,7 @@ async def _verify_v1_chain_translation_source(
             "parent_fingerprint": fingerprint,
         })
         # 纯 CPU(校验 + 渲染 + hash),放线程池(2026-10-07 review 收尾,
-        # 与行读取/逐行重渲染同款;源键渲染是本函数最重的一步)。
+        # 与行读取/逐版本重渲染同款;源键渲染是本函数最重的一步)。
         source_prepared = await run_in_threadpool(
             _prepare_prompt_and_key,
             source_req, source_language, request_id, start,
@@ -1895,7 +1875,7 @@ async def interpret_translate(
         )
 
     # 5.4 先查后译,提前到原文防伪**之前**(2026-10-08 外评 #3):v1 M1-M7 的
-    # 链式源核验要枚举上游行逐行重渲染(CPU 最重的一步),目标语言已有缓存
+    # 链式源核验要按 distinct 版本逐版本重渲染(CPU 最重的一步),目标语言已有缓存
     # 时纯属白走——且持有 token 者可反复请求同一叶子模块把走查当 CPU 放大器。
     # 安全性:目标缓存行的内容在**写入时**已经过当时的生成/翻译全量校验,
     # 本请求又已过 token 验签(盘身一致)+ entitlement(付费门),直接返回

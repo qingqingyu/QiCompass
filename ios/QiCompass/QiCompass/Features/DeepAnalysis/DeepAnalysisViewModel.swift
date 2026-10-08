@@ -157,6 +157,15 @@ final class DeepAnalysisViewModel {
     /// 失败重试时复用已成功的上游字段(不重跑整个链)。
     private var v1ChainFields: [String: String] = [:]
 
+    /// 版本迁移重生成豁免集(2026-10-08 第十六轮外评 #1):hydrate 回填时
+    /// 由 `restoreCachedV1Modules` 识别——被链一致守卫跳过、本地仍有任意
+    /// 版本行的章。这些章的重算是服务端 prompt 版本 bump 强制的(用户无
+    /// 过错),`runSingleV1Module` 对集合内章合并 `quotaExempt: true` 豁免
+    /// 本地每日次数——否则 M0 升版 → 整链重算逐章扣本地池(付费盘 2 张 =
+    /// 16 次 > 10 次/日),已购内容当天达限不可见。章成功落当前版本行后
+    /// 出集(一次性);hydrate 每次整集重derive(替换非合并),换盘/reset 清空。
+    private var versionMigrationExempt: Set<ModuleID> = []
+
     /// M4 用户输入(Stage 8;盘面小景 S3 起由阅读页页内表单 ChapterReadingInputForm 填写)。
     /// nil = 用户尚未填 → M4 模块标 .needsInput,等用户填。
     /// 非 nil = 用户填过 → runSingleV1Module(.m4) 用此值调 orchestrator。
@@ -629,6 +638,9 @@ final class DeepAnalysisViewModel {
             isHydrating = false
             moduleStates.removeAll()
             v1ChainFields.removeAll()
+            // 版本迁移豁免集属旧盘(第十六轮外评 #1):新盘的豁免集由它自己
+            // 的 hydrate 重新 derive,旧盘残留会让新盘首链白拿豁免
+            versionMigrationExempt.removeAll()
             // 翻译提议属旧盘(D10.5):换盘一并清洗,防旧盘提示条挂新盘
             translationOffer = nil
             crossLanguageRows.removeAll()
@@ -846,16 +858,33 @@ final class DeepAnalysisViewModel {
         guard !modulesToRestore.isEmpty else { return .restored }
 
         do {
-            let hits = try await orchestrator.restoreCachedV1Modules(
+            let restoreOutcome = try await orchestrator.restoreCachedV1Modules(
                 contentHash: response.contentHash,
                 modules: modulesToRestore.map(\.rawValue)
             )
+            let hits = restoreOutcome.hits
             // await 期间可能换盘(补时辰重算/存档切换):旧盘回填丢弃
             guard isCurrentChart(response) else {
                 AppLogger.app.warning(
                     "deepVM.hydrateAndResume.stale_chart_after_await hash=\(response.contentHash, privacy: .public) — 回填丢弃"
                 )
                 return .staleChart
+            }
+            // 版本迁移重生成集整集替换(非合并):每次 hydrate 按当前库态
+            // 重derive——已重算成功的章不再进集(一次性豁免),未完成的
+            // 迁移章保留(跨会话/跨天续跑照常豁免)。旧盘集合随 staleChart
+            // 上方早退自然丢弃,不污染新盘。
+            versionMigrationExempt = Set(
+                restoreOutcome.migrationRegenModules.compactMap(ModuleID.init(rawValue:))
+            )
+            if !versionMigrationExempt.isEmpty {
+                // OSLogMessage 插值是 lazy capture,instance property 须先提
+                // local 变量(对齐 runInterpretation 的 nextReset 同款坑)
+                let exemptModules = versionMigrationExempt
+                    .map(\.rawValue).sorted().joined(separator: ",")
+                AppLogger.app.info(
+                    "deepVM.hydrateAndResume.version_migration_exempt hash=\(response.contentHash, privacy: .public) modules=\(exemptModules, privacy: .public) — 版本 bump 强制重算,豁免本地次数"
+                )
             }
             // 按 allCases 顺序写;extractChainFields 幂等重建下游链字段
             // (structure_fingerprint 等,续跑 M1-M7 时注入 context 用)。
@@ -1379,7 +1408,10 @@ final class DeepAnalysisViewModel {
                 m4Input: module == .m4 ? m4UserInput : nil,
                 m5Input: module == .m5 ? m5UserInput : nil,
                 chainFields: chainFields,
-                quotaExempt: quotaExempt
+                // 版本迁移豁免(第十六轮外评 #1):集合内章的重算由服务端
+                // prompt bump 强制,非用户过错,与翻译 STALE 降级同款豁免;
+                // 章成功后出集(下方 .ok 落态处),一次性。
+                quotaExempt: quotaExempt || versionMigrationExempt.contains(module)
             )
 
             if Task.isCancelled { return }
@@ -1405,6 +1437,9 @@ final class DeepAnalysisViewModel {
             extractChainFields(from: resp.interpretation, for: module)
 
             moduleStates[module] = .ok(text: resp.interpretation, cached: resp.cached)
+            // 版本迁移豁免一次性(第十六轮外评 #1):当前版本行已落库,
+            // 后续任何重跑(用户主动重试/换语言)恢复计费
+            versionMigrationExempt.remove(module)
             // 跨语言原文行作废(2026-10-02 修复):本章已按当前语言重新生成,
             // 残留的原文行会让翻译重试把这一章按旧原文再翻一遍——版本已
             // bump 的原文触发 STALE_SOURCE 时,好的 .ok 会被覆盖成 .failed。
@@ -1984,6 +2019,7 @@ final class DeepAnalysisViewModel {
         isHydrating = false
         moduleStates.removeAll()
         v1ChainFields.removeAll()
+        versionMigrationExempt.removeAll()
         // Stage 8 修复:清 M4/M5 用户输入,避免跨命盘污染
         // (排盘 A 填的 concern 不能给排盘 B 用,违反「八字计算必须确定性」语义)
         m4UserInput = nil

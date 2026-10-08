@@ -228,21 +228,25 @@ final class DeepAnalysisOrchestrator {
     /// upsert 存 `resp.language`,后端渲染语言与请求语言一致,二值相等)——
     /// 读写键必须同批迁移,否则 en 用户每次冷启动必 miss → 自动续跑反复
     /// 烧全链 LLM(2026-09-23 review P0-2 收口)。
+    /// 返回值含「版本迁移重生成集」(2026-10-08 第十六轮外评 #1):被链
+    /// 一致守卫跳过、本地仍有任意版本行的章,重算非用户过错,调用方生成
+    /// 时豁免本地每日次数(防 M0 升版 → 整链重算扣满 10 次/日,已购内容
+    /// 当天不可见)。
     /// 错误处理:identity 解析失败(离线)或 SwiftData 读失败原样上抛;
     /// 调用方(VM hydrateAndResume)记日志后跳过自动续跑,不打断 UI。
     func restoreCachedV1Modules(
         contentHash: String,
         modules: [String]
-    ) async throws -> [String: InterpretationCache] {
-        let hits = try await interpretationReader.readAll(
+    ) async throws -> V1ChainRestoreOutcome {
+        let outcome = try await interpretationReader.readAllForRestore(
             contentHash: contentHash,
             modules: modules,
             language: AppLanguage.currentWire
         )
         AppLogger.app.info(
-            "deep.restoreCachedV1Modules hash=\(contentHash, privacy: .public) queried=\(modules.count) hits=\(hits.count)"
+            "deep.restoreCachedV1Modules hash=\(contentHash, privacy: .public) queried=\(modules.count) hits=\(outcome.hits.count) migrationRegen=\(outcome.migrationRegenModules.count)"
         )
-        return hits
+        return outcome
     }
 
     /// 跨语言恢复(D10.5,S7):当前语言 miss 的模块,探测其它注册语言的

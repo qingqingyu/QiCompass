@@ -591,15 +591,15 @@ final class CachedInterpretationReaderTests: XCTestCase {
         XCTAssertEqual(legacyHit?.interpretation, "v5 新解读")
     }
 
-    // MARK: - v1 链一致守卫(2026-10-08 第十五轮 #7)
+    // MARK: - v1 链一致守卫(2026-10-08 第十五轮 #7;第十六轮外评 #2 依赖判据)
 
     /// 上游(如 M0)单侧 bump 后,本地缓存键不含上游指纹、getLatest 只按
     /// **本模块**版本过滤——下游旧版本行照常命中会拼出「新旧混合链」
     /// (命书混拼 + 这些章翻译恒 409,服务端链走查按新上游重建键)。
-    /// 守卫:v1 链(清单内全部是 M0-M7 模块,含同会话部分清单——模块按
-    /// allCases 序、生产者恒在消费者前)中任一模块「服务端版本已知且本地
-    /// 无当前版本行」→ 其后模块全部跳过回填;版本未知(老后端)守卫关闭,
-    /// 维持旧行为。
+    /// 守卫(依赖判据):v1 链中任一模块「服务端版本已知且本地无当前版本
+    /// 行」→ 仅**依赖它的下游**(`ModuleID.dependencies`)跳过回填;
+    /// 版本未知(老后端)守卫关闭。`migrationRegenModules` = 被跳过/缺行
+    /// 且本地有任意版本行的章(版本迁移重生成,调用方豁免本地次数)。
     func testReadAllCutsV1ChainWhenUpstreamVersionMissing() async throws {
         let container = try ModelContainerFactory.makeInMemory()
         let store = InterpretationCacheStore(context: container.mainContext)
@@ -632,36 +632,136 @@ final class CachedInterpretationReaderTests: XCTestCase {
         }
         let chain = Array(Self.v1Modules.prefix(3))  // m0 → m1 → m2
 
-        // 1. m0 服务端 v2 已知、本地无 v2 行 → 链在 m0 切断,m1/m2 既有行
-        //    不再回填(修复前:m1/m2 命中 → 新旧混拼 + 这些章翻译恒 409)
+        // 1. m0 服务端 v2 已知、本地无 v2 行 → m0 缺行(m1/m2 依赖它)全部
+        //    跳过回填(修复前:m1/m2 命中 → 新旧混拼 + 这些章翻译恒 409);
+        //    三章本地都有任意版本行 → 全进版本迁移重生成集(重算豁免本地次数)
         let cut = try await readerWith(versions: [
             "m0_structure": 2, "m1_talent": 1, "m2_high_low": 1,
-        ]).readAll(contentHash: "h-cut", modules: chain, language: "zh")
-        XCTAssertTrue(cut.isEmpty, "上游版本缺行须切断其后所有回填(实际:\(cut.keys.sorted()))")
+        ]).readAllForRestore(contentHash: "h-cut", modules: chain, language: "zh")
+        XCTAssertTrue(cut.hits.isEmpty, "上游版本缺行须切断依赖它的回填(实际:\(cut.hits.keys.sorted()))")
+        XCTAssertEqual(
+            cut.migrationRegenModules,
+            ["m0_structure", "m1_talent", "m2_high_low"],
+            "三章均为版本迁移重生成(本地有旧版行),重算须豁免本地次数"
+        )
 
-        // 2. 版本未知(老后端无 prompt_versions)→ 守卫关闭,维持旧行为:
-        //    全部行照常命中(m0 旧行按旧语义取本地最高,不触发切断)
+        // 2. 版本未知(老后端无 prompt_versions)→ 守卫与迁移集都关闭,
+        //    维持旧行为:全部行照常命中(m0 旧行按旧语义取本地最高,不触发切断)
         let legacy = try await readerWith(versions: nil)
-            .readAll(contentHash: "h-cut", modules: chain, language: "zh")
-        XCTAssertEqual(legacy.count, 3)
-        XCTAssertNotNil(legacy["m0_structure"])
-        XCTAssertNotNil(legacy["m1_talent"])
-        XCTAssertNotNil(legacy["m2_high_low"])
+            .readAllForRestore(contentHash: "h-cut", modules: chain, language: "zh")
+        XCTAssertEqual(legacy.hits.count, 3)
+        XCTAssertNotNil(legacy.hits["m0_structure"])
+        XCTAssertNotNil(legacy.hits["m1_talent"])
+        XCTAssertNotNil(legacy.hits["m2_high_low"])
+        XCTAssertTrue(legacy.migrationRegenModules.isEmpty, "老后端版本未知,不判迁移")
 
-        // 3. 对照:全模块版本对齐(服务端 v1 = 本地 v1)→ 全命中,守卫不误伤
+        // 3. 对照:全模块版本对齐(服务端 v1 = 本地 v1)→ 全命中,守卫不误伤,
+        //    迁移集为空(重算才计费)
         let allCurrent = try await readerWith(versions: [
             "m0_structure": 1, "m1_talent": 1, "m2_high_low": 1,
-        ]).readAll(contentHash: "h-cut", modules: chain, language: "zh")
-        XCTAssertEqual(allCurrent.count, 3)
+        ]).readAllForRestore(contentHash: "h-cut", modules: chain, language: "zh")
+        XCTAssertEqual(allCurrent.hits.count, 3)
+        XCTAssertTrue(allCurrent.migrationRegenModules.isEmpty)
 
         // 4. 部分清单(同会话重挂:M0 已 .ok 不进回填清单,modules 从 m1
         //    起头)守卫仍须生效:m1 服务端已 bump v2、本地无 v2 行 → m1
-        //    之后的 m2 一并跳过(修复前 first != m0 → 守卫关闭 → m2 旧行
-        //    照常回填 = #7 混拼的同会话残余面,重启全量清单才自愈)
+        //    缺行、m2(依赖 m1)跳过(修复前 first != m0 → 守卫关闭 → m2
+        //    旧行照常回填 = #7 混拼的同会话残余面,重启全量清单才自愈)
         let partial = try await readerWith(versions: [
             "m0_structure": 1, "m1_talent": 2, "m2_high_low": 1,
-        ]).readAll(contentHash: "h-cut", modules: Array(chain.dropFirst()), language: "zh")
-        XCTAssertTrue(partial.isEmpty, "部分清单守卫:上游版本缺行须切断其后回填(实际:\(partial.keys.sorted()))")
+        ]).readAllForRestore(
+            contentHash: "h-cut", modules: Array(chain.dropFirst()), language: "zh"
+        )
+        XCTAssertTrue(partial.hits.isEmpty, "部分清单守卫:上游版本缺行须切断依赖它的回填(实际:\(partial.hits.keys.sorted()))")
+        XCTAssertEqual(partial.migrationRegenModules, ["m1_talent", "m2_high_low"])
+
+        // 5. 首次生成(本地无任何行)不进迁移集:照常计费——迁移豁免只盖
+        //    「有旧行被版本 bump 作废」的章,不白送新章
+        let fresh = try await readerWith(versions: [
+            "m0_structure": 2, "m1_talent": 1, "m2_high_low": 1,
+        ]).readAllForRestore(
+            contentHash: "h-fresh-cut", modules: chain, language: "zh"
+        )
+        XCTAssertTrue(fresh.hits.isEmpty)
+        XCTAssertTrue(fresh.migrationRegenModules.isEmpty, "无任何本地行 = 首次生成,不豁免")
+    }
+
+    /// 依赖判据精度(第十六轮外评 #2):缺行章只切断**真正依赖它**的下游,
+    /// 不再按列表序一刀切。M4 不在任何模块的 dependencies 里 → M4 缺行时
+    /// M5/M6/M7 照常回填(旧「前缀切断」会误伤三章:离线不可读/跨语言不可译);
+    /// M2 缺行只断 M6/M7(依赖 M2),M3/M4/M5 不受影响。
+    func testReadAllDepsGuardOnlyCutsDependents() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        for module in Self.v1Modules {
+            try store.upsert(
+                contentHash: "h-deps", module: module, promptVersion: 1,
+                targetDate: nil, provider: "anthropic", model: "claude-test",
+                interpretation: Self.v1JSON("text-\(module)"), generatedAt: .now
+            )
+        }
+
+        var healthM4Bumped = Self.health(provider: "anthropic", model: "claude-test")
+        healthM4Bumped.promptVersions = [
+            "m0_structure": 1, "m1_talent": 1, "m2_high_low": 1, "m3_system": 1,
+            "m4_health": 2, "m5_wealth": 1, "m6_dynamics": 1, "m7_manual": 1,
+        ]
+        let m4Bumped = try await CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient:
+                ReaderTestAPIClient(healthResults: [.success(healthM4Bumped)])),
+            cacheStore: store
+        ).readAllForRestore(contentHash: "h-deps", modules: Self.v1Modules, language: "zh")
+        // M4 缺行,但 M5(deps m0/m1/m3)/M6(m0/m1/m2)/M7(m1/m2/m3/m6)都不依赖 M4
+        XCTAssertEqual(
+            Set(m4Bumped.hits.keys), Set(Self.v1Modules.filter { $0 != "m4_health" }),
+            "M4 缺行只影响 M4 自己;M5/M6/M7 不依赖 M4,照常回填(旧前缀切断会误伤)"
+        )
+        XCTAssertEqual(m4Bumped.migrationRegenModules, ["m4_health"])
+
+        var healthM2Bumped = Self.health(provider: "anthropic", model: "claude-test")
+        healthM2Bumped.promptVersions = [
+            "m0_structure": 1, "m1_talent": 1, "m2_high_low": 2, "m3_system": 1,
+            "m4_health": 1, "m5_wealth": 1, "m6_dynamics": 1, "m7_manual": 1,
+        ]
+        let m2Bumped = try await CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient:
+                ReaderTestAPIClient(healthResults: [.success(healthM2Bumped)])),
+            cacheStore: store
+        ).readAllForRestore(contentHash: "h-deps", modules: Self.v1Modules, language: "zh")
+        // M2 缺行:依赖 M2 的 M6、依赖 M6/M2 的 M7 被切断;M3(deps m0)/
+        // M4(deps m0)/M5(deps m0/m1/m3)不受影响
+        XCTAssertEqual(
+            Set(m2Bumped.hits.keys),
+            ["m0_structure", "m1_talent", "m3_system", "m4_health", "m5_wealth"],
+            "M2 缺行只切断依赖它的 M6/M7;M3/M4/M5 照常回填"
+        )
+        XCTAssertEqual(
+            m2Bumped.migrationRegenModules,
+            ["m2_high_low", "m6_dynamics", "m7_manual"],
+            "缺行的 M2 与血统过期的 M6/M7 均为版本迁移重生成"
+        )
+
+        // M0 bump(版本迁移旗舰场景,附七 #1):M7 的声明依赖不含 M0
+        //    (m7 模板不读 chart),但其 parent_fingerprint 恒取自 M0(后端
+        //    `_V1_SOURCE_WALK_DEPS["m7_manual"]` 含 m0)——守卫按**血统依赖**
+        //    判定时 M7 必须一并切断,否则旧血统 m7 行回填 = 命书混拼在 m7
+        //    单点复活(且 m7 不进迁移集,重算不豁免)
+        var healthM0Bumped = Self.health(provider: "anthropic", model: "claude-test")
+        healthM0Bumped.promptVersions = [
+            "m0_structure": 2, "m1_talent": 1, "m2_high_low": 1, "m3_system": 1,
+            "m4_health": 1, "m5_wealth": 1, "m6_dynamics": 1, "m7_manual": 1,
+        ]
+        let m0Bumped = try await CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient:
+                ReaderTestAPIClient(healthResults: [.success(healthM0Bumped)])),
+            cacheStore: store
+        ).readAllForRestore(contentHash: "h-deps", modules: Self.v1Modules, language: "zh")
+        XCTAssertTrue(m0Bumped.hits.isEmpty, "M0 缺行切断全链(含声明依赖不含 M0 的 M7)")
+        XCTAssertEqual(
+            m0Bumped.migrationRegenModules,
+            Set(Self.v1Modules),
+            "八章本地都有旧版行,全部为版本迁移重生成(M7 含在内,重算豁免本地次数)"
+        )
     }
 
     // MARK: - Helpers

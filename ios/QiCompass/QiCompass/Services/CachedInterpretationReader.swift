@@ -1,5 +1,16 @@
 import Foundation
 
+/// V1 链回填读结果(`readAllForRestore`,2026-10-08 第十六轮外评 #1)。
+struct V1ChainRestoreOutcome {
+    /// 命中 module 名 → 缓存行(与 `readAll` 同口径:中毒行已删当 miss)
+    let hits: [String: InterpretationCache]
+    /// 版本迁移重生成集:被链一致守卫跳过回填、且本地存在任意版本行的模块。
+    /// 这些章的重算由服务端 prompt 版本 bump 强制(用户无过错),调用方
+    /// `runV1Module` 应传 `quotaExempt: true` 豁免本地每日次数;章成功落
+    /// 当前版本行后由调用方出集(一次性豁免)。
+    let migrationRegenModules: Set<String>
+}
+
 /// 客户端读 AI 缓存的唯一入口 module。
 ///
 /// 集中执行 ADR-0009 强约束:读 AI 缓存前必须 health 解析身份,只接受 provider/model 完全匹配的行,
@@ -88,7 +99,32 @@ final class CachedInterpretationReader {
         maxAge: TimeInterval? = nil
     ) async throws -> [String: InterpretationCache] {
         let identity = try await identityResolver.resolve()
-        return try readAll(
+        return try readAllCore(
+            contentHash: contentHash,
+            modules: modules,
+            language: language,
+            targetDate: targetDate,
+            maxAge: maxAge,
+            identity: identity
+        ).hits
+    }
+
+    /// V1 链回填读(2026-10-08 第十六轮外评 #1):`readAll` 的回填专用形态,
+    /// 额外返回**版本迁移重生成集**——被链一致守卫跳过回填、且本地存在任意
+    /// 版本行(中毒行经 latestHit 口径先行清除)的模块。这些模块的重算是
+    /// 服务端 prompt 版本 bump 强制的(用户无过错):调用方重生成时应豁免
+    /// 本地每日次数,否则 M0 升版 → 整链重算逐章扣本地池(付费盘 2 张 =
+    /// 16 次 > 10 次/日),已购内容当天达限不可见。首次生成(本地无任何行)
+    /// 不进集合,照常计费。
+    func readAllForRestore(
+        contentHash: String,
+        modules: [String],
+        language: String,
+        targetDate: Date? = nil,
+        maxAge: TimeInterval? = nil
+    ) async throws -> V1ChainRestoreOutcome {
+        let identity = try await identityResolver.resolve()
+        return try readAllCore(
             contentHash: contentHash,
             modules: modules,
             language: language,
@@ -101,20 +137,24 @@ final class CachedInterpretationReader {
     /// 批量读核心(调用方传入已 resolve 的 identity;#8,2026-10-02 抽出:
     /// 跨语言读取按语言循环时复用同一 identity,不再每语言各打一次 health)。
     ///
-    /// 链一致守卫(2026-10-08 第十五轮 #7):本地缓存键不含上游指纹,getLatest
-    /// 只按**本模块**版本过滤——上游(如 M0)单侧 bump 后,下游旧版本行照常
-    /// 命中 → 命书新旧混拼 + 这些章翻译恒 409(服务端链走查按新上游重建键)。
-    /// 模块按传入序消费(M0→M7,生产者恒在消费者前):任一模块「服务端版本
-    /// 已知且本地无当前版本命中」→ 其后模块全部跳过回填,链整段重算(服务端
-    /// 新键自然 miss;下游既有行经重取自愈,不多烧 LLM)。「无命中」兼含
-    /// 「从未生成」——该场景下游也未生成,跳过无副作用;「该章此前失败但
-    /// 下游有行」的代价仅为下游重取(服务端缓存命中,零 LLM)。跨语言探测
-    /// (includeStaleVersions=true)下「无命中」= 真无行,守卫同义成立。
+    /// 链一致守卫(2026-10-08 第十五轮 #7;第十六轮外评 #2 改**依赖判据**):
+    /// 本地缓存键不含上游指纹,getLatest 只按**本模块**版本过滤——上游
+    /// (如 M0)单侧 bump 后,下游旧版本行照常命中 → 命书新旧混拼 + 这些章
+    /// 翻译恒 409(服务端链走查按新上游重建键)。守卫只切断**真正依赖缺行
+    /// 上游**的模块(血统依赖,见 `lineageDependencies(of:)`——镜像后端
+    /// `_V1_SOURCE_WALK_DEPS`,生产者恒在消费者前、按 allCases 序传入):
+    /// 旧「列表序前缀一刀切」会误伤不依赖缺失章的下游(如 M4 缺行时
+    /// M5/M6/M7 全被跳过——M4 不在任何模块的 dependencies 里,本不必断;
+    /// 离线可读/跨语言可译的行白丢)。
+    /// 判定维度是「上游**自身**无当前版本行」(ownVersionMissing),不含
+    /// 「被守卫跳过的模块」——被跳过的模块可能持有当前版本行(血统过期),
+    /// 级联进判定会放大切断面。跨语言探测(includeStaleVersions=true)下
+    /// 「无命中」= 真无行,守卫同义成立。
     ///
     /// includeStaleVersions(十四轮外评 #5):跨语言探测传 true——prompt bump
     /// 后旧语言原文只在旧版本下,版本过滤会把探测源一并滤掉(设计降级路径
     /// 「翻译 → 409 STALE → quotaExempt 重生成」被旁路成普通生成扣额)。
-    private func readAll(
+    private func readAllCore(
         contentHash: String,
         modules: [String],
         language: String,
@@ -122,19 +162,34 @@ final class CachedInterpretationReader {
         maxAge: TimeInterval?,
         identity: AIIdentity,
         includeStaleVersions: Bool = false
-    ) throws -> [String: InterpretationCache] {
+    ) throws -> V1ChainRestoreOutcome {
         var hits: [String: InterpretationCache] = [:]
+        var migrationRegen: Set<String> = []
         // 守卫只对 v1 链模块集生效(清单内全部是 M0-M7 = DeepAnalysis 链式
         // 回填;**含同会话部分清单**——M0 已 .ok 等不可回填态时清单从 m1
-        // 起头,模块仍按 allCases 序、生产者恒在消费者前,切断语义不变)。
+        // 起头,不在清单内的上游由「本会话已 .ok = 已有当前版本行」前提兜底)。
         // 合盘/每日/老 module 名不在 ModuleID 集,不适用——合盘的
-        // 「paid/free 任一命中」语义里 paid 常年缺席,前缀切断会误伤 free
+        // 「paid/free 任一命中」语义里 paid 常年缺席,依赖切断会误伤 free
         // 行命中。判定用 allSatisfy 而非「first == m0」:后者会让部分清单
         // 静默绕过守卫,#7 的混拼场景在同会话 Tab 重挂下复现(重启才自愈)。
         let isV1Chain = modules.allSatisfy { ModuleID(rawValue: $0) != nil }
-        var chainCut = false
+        // 「服务端版本已知且本地无当前版本行」的模块集(判定维度,见上)
+        var ownVersionMissing: Set<ModuleID> = []
         for module in modules {
-            guard !chainCut else { break }
+            // 依赖判据:任一血统依赖的上游自身缺当前版本行 → 本模块既有行
+            // 是旧上游驱动的,跳过回填(血统过期)。版本未知(老后端)守卫关闭。
+            if let id = ModuleID(rawValue: module), isV1Chain,
+               identity.promptVersions[module] != nil,
+               !ownVersionMissing.isDisjoint(with: lineageDependencies(of: id)) {
+                if try hasAnyVersionRow(
+                    contentHash: contentHash, module: module,
+                    language: language, targetDate: targetDate,
+                    identity: identity
+                ) {
+                    migrationRegen.insert(module)
+                }
+                continue
+            }
             guard let cache = try latestHit(
                 contentHash: contentHash,
                 module: module,
@@ -144,16 +199,61 @@ final class CachedInterpretationReader {
                 identity: identity,
                 includeStaleVersions: includeStaleVersions
             ) else {
-                // 版本已知却无当前版本行 = 上游已 bump 本地未跟上 → 下游行
-                // 是旧上游驱动的,不再回填(版本未知 = 老后端,维持旧行为)
-                if isV1Chain, identity.promptVersions[module] != nil {
-                    chainCut = true
+                // 版本已知却无当前版本行 = 自身已 bump 本地未跟上 → 记入
+                // 缺失集,依赖它的下游将被切断(版本未知 = 老后端,维持旧行为)
+                if isV1Chain, let id = ModuleID(rawValue: module),
+                   identity.promptVersions[module] != nil {
+                    ownVersionMissing.insert(id)
+                    if try hasAnyVersionRow(
+                        contentHash: contentHash, module: module,
+                        language: language, targetDate: targetDate,
+                        identity: identity
+                    ) {
+                        migrationRegen.insert(module)
+                    }
                 }
                 continue
             }
             hits[module] = cache
         }
-        return hits
+        return V1ChainRestoreOutcome(
+            hits: hits, migrationRegenModules: migrationRegen
+        )
+    }
+
+    /// 血统依赖 = `ModuleID.dependencies` + M0(除 M0 自身):M1-M7 全部
+    /// 必带 parent_fingerprint(M0 产出,进服务端 `CacheKey.parent_hash`),
+    /// 后端 `_V1_SOURCE_WALK_DEPS` 对 m1-m7 的走查依赖**全部含 m0**;
+    /// `ModuleID.dependencies` 的 m7 条目不含 m0 只反映「模板不读 chart」
+    /// 的执行序依赖图。守卫若只按声明依赖,M0 bump(版本迁移旗舰场景)时
+    /// m7 旧血统行漏切 → 命书混拼在 m7 单点复活,故镜像按后端形态补齐。
+    private func lineageDependencies(of id: ModuleID) -> Set<ModuleID> {
+        guard id != .m0 else { return [] }
+        return id.dependencies.contains(.m0)
+            ? Set(id.dependencies)
+            : Set(id.dependencies + [.m0])
+    }
+
+    /// 该 (盘, 模块, 语言) 本地是否存在**任意版本**的缓存行(中毒行口径与
+    /// latestHit 一致:先清后查)。「版本迁移重生成」判据用——M0 自身 bump
+    /// 后旧版行仍在库;m1-m7 自身版本未变但血统过期,当前版本行仍在库;
+    /// 从未生成的模块无行(照常计费)。
+    private func hasAnyVersionRow(
+        contentHash: String,
+        module: String,
+        language: String,
+        targetDate: Date?,
+        identity: AIIdentity
+    ) throws -> Bool {
+        try latestHit(
+            contentHash: contentHash,
+            module: module,
+            language: language,
+            targetDate: targetDate,
+            maxAge: nil,
+            identity: identity,
+            includeStaleVersions: true
+        ) != nil
     }
 
     /// 单行读取(getLatest + 中毒自愈 + 新鲜度三步,#8 抽出为唯一实现):
@@ -221,7 +321,7 @@ final class CachedInterpretationReader {
             .filter { $0 != AppLanguage.currentWire }
         var best: (language: String, hits: [String: InterpretationCache])?
         for language in otherLanguages {
-            var hits = try readAll(
+            var hits = try readAllCore(
                 contentHash: contentHash,
                 modules: modules,
                 language: language,
@@ -232,7 +332,7 @@ final class CachedInterpretationReader {
                 // 的既有原文」,bump 前的旧版行正是翻译降级路径的源;命中后
                 // 提交翻译,后端 STALE 门控 409 → quotaExempt 重生成,链路闭环。
                 includeStaleVersions: true
-            )
+            ).hits
             if let rowIsValid {
                 hits = hits.filter { rowIsValid($0.value) }
             }
