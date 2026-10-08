@@ -459,18 +459,20 @@ async def test_poc4b_regression_translate_chain_field_poisoning_blocked(
     assert resp2.json()["error"]["code"] == "STALE_SOURCE"
 
 
-# ===== 匿名滥用回归(P1:30/日 服务端上限)=====
+# ===== 匿名滥用回归(P1:服务端每日上限;默认 150,2026-10-08 拍板放宽)=====
 
 
 async def test_poc2_regression_free_daily_quota(
     raw_interpret_client, mock_ai_client,
 ):
-    """免费 module 真烧 LLM 计数:第 31 次 → 429;换 user_local_id 不绕开
-    (bucket 按 IP,客户端可伪造的 UUID 不作 bucket)。"""
+    """免费 module 真烧 LLM 计数:第 limit+1 次 → 429;换 user_local_id
+    不绕开(bucket 按 IP,客户端可伪造的 UUID 不作 bucket)。上限读
+    FREE_DAILY_LIMIT(动态,不锁死具体数字)。"""
+    from app.config import FREE_DAILY_LIMIT
     token = token_for_context(content_hash="flood-base",
                               module="bazi_deep_free",
                               context=BAZI_DEEP_CONTEXT)
-    for i in range(30):
+    for i in range(FREE_DAILY_LIMIT):
         resp = await raw_interpret_client.post("/api/interpret", json={
             "content_hash": f"flood-{i}", "module": "bazi_deep_free",
             "context": BAZI_DEEP_CONTEXT, "target_date": None,
@@ -479,18 +481,18 @@ async def test_poc2_regression_free_daily_quota(
                 context=BAZI_DEEP_CONTEXT),
         })
         assert resp.status_code == 200, (i, resp.json())
-    assert mock_ai_client.call_count == 30
+    assert mock_ai_client.call_count == FREE_DAILY_LIMIT
 
-    resp31 = await raw_interpret_client.post("/api/interpret", json={
-        "content_hash": "flood-30", "module": "bazi_deep_free",
+    resp_over = await raw_interpret_client.post("/api/interpret", json={
+        "content_hash": "flood-over", "module": "bazi_deep_free",
         "context": BAZI_DEEP_CONTEXT, "target_date": None,
         "user_local_id": "fresh-fake-uuid",  # 换伪造 UUID 不重置 bucket
         "context_token": token_for_context(
-            content_hash="flood-30", module="bazi_deep_free",
+            content_hash="flood-over", module="bazi_deep_free",
             context=BAZI_DEEP_CONTEXT),
     })
-    assert resp31.status_code == 429
-    assert resp31.json()["error"]["code"] == "QUOTA_EXCEEDED"
+    assert resp_over.status_code == 429
+    assert resp_over.json()["error"]["code"] == "QUOTA_EXCEEDED"
 
 
 async def test_quota_paid_exempt_and_cache_hit_not_counted(
@@ -558,13 +560,26 @@ def test_free_quota_store_unit(tmp_free_quota_store):
 
 
 def test_free_quota_store_refund(tmp_free_quota_store):
-    """refund 单元:退还 1 次,不为负;无记录 no-op。"""
+    """try_refund 单元(2026-10-08 拍板:分类退+防刷上限):
+    退还 1 次/配额不为负/退款次数达上限后封顶不退。"""
     s = tmp_free_quota_store
     s.try_consume(bucket="ip:9.9.9.9", day="2026-10-07", limit=3)
-    s.refund(bucket="ip:9.9.9.9", day="2026-10-07")
-    # 退还后 count 回 0:再退不产生负值(no-op)
-    s.refund(bucket="ip:9.9.9.9", day="2026-10-07")
+    assert s.try_refund(bucket="ip:9.9.9.9", day="2026-10-07", limit=5)
+    # 退还后 count 回 0:再退配额不产生负值,但退款计数照常消耗(防刷口径:
+    # 无消耗的退款刷计数同样是滥用面)
+    assert s.try_refund(bucket="ip:9.9.9.9", day="2026-10-07", limit=5)
     assert s.try_consume(bucket="ip:9.9.9.9", day="2026-10-07", limit=1)
+    # 退款上限:limit=2 的桶,前 2 次退成功,第 3 次封顶返回 False
+    s.try_consume(bucket="ip:8.8.8.8", day="2026-10-07", limit=10)
+    s.try_consume(bucket="ip:8.8.8.8", day="2026-10-07", limit=10)
+    assert s.try_refund(bucket="ip:8.8.8.8", day="2026-10-07", limit=2)
+    assert s.try_refund(bucket="ip:8.8.8.8", day="2026-10-07", limit=2)
+    assert not s.try_refund(bucket="ip:8.8.8.8", day="2026-10-07", limit=2)
+    # 封顶后配额计数不再下降(已退 2 次 → 0,consume 证明未被第 3 次退款
+    # 打成负数或泄漏)
+    assert s.try_consume(bucket="ip:8.8.8.8", day="2026-10-07", limit=1)
+    # 跨日退款计数独立
+    assert s.try_refund(bucket="ip:8.8.8.8", day="2026-10-08", limit=2)
 
 
 async def test_quota_refunded_on_llm_failure(
@@ -597,6 +612,119 @@ async def test_quota_refunded_on_llm_failure(
     finally:
         conn.close()
     assert total == 0, f"LLM 失败应退回配额,实际剩余计数 {total}"
+
+
+async def test_quota_refunded_on_contract_failure(
+    raw_interpret_client, tmp_free_quota_store,
+):
+    """v1 JSON 契约失败(截断型)→ 退 1 次(2026-10-08 拍板:分类退)。
+
+    契约/截断失败属服务商侧非用户过错(09-27 max_tokens 截断事故主因)。
+    """
+    from tests.fixtures.mock_ai import MockAIClient
+    from app.main import app
+    from app.context_binding import build_chart_tokens, _build_v1_chart_mirror
+
+    result = _calculate_result()
+    chart_json = json.dumps(
+        _build_v1_chart_mirror(result), ensure_ascii=False)
+    tokens = build_chart_tokens(result)
+    saved = app.state.ai_client
+    # 半截 JSON:provider 正常返回但契约校验失败(截断事故形态)
+    app.state.ai_client = MockAIClient(
+        response='{"structure_fingerprint": "fp", "main_ax')
+    try:
+        resp = await raw_interpret_client.post("/api/interpret", json={
+            "content_hash": result["content_hash"],
+            "module": "m0_structure",
+            "context": {"chart": chart_json}, "target_date": None,
+            "context_token": tokens["v1"],
+        })
+        assert resp.status_code == 503, resp.json()
+    finally:
+        app.state.ai_client = saved
+
+    conn = sqlite3.connect(tmp_free_quota_store._db_path)
+    try:
+        total = conn.execute(
+            "SELECT COALESCE(SUM(count), 0) FROM free_llm_quota"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    assert total == 0, f"契约失败应退回配额,实际剩余计数 {total}"
+
+
+async def test_quota_not_refunded_on_forbidden_words(
+    raw_interpret_client, tmp_free_quota_store,
+):
+    """禁词命中 → **不**退(2026-10-08 拍板分类口径:用户可构造触发禁词的
+    输入,退款 = 免费烧 LLM 不扣额的通道)。"""
+    from tests.fixtures.mock_ai import MockAIClient
+    from app.main import app
+
+    token = token_for_context(content_hash="forbid-h",
+                              module="bazi_deep_free",
+                              context=BAZI_DEEP_CONTEXT)
+    saved = app.state.ai_client
+    app.state.ai_client = MockAIClient(response="此盘注定大富大贵,绝对亨通")
+    try:
+        resp = await raw_interpret_client.post("/api/interpret", json={
+            "content_hash": "forbid-h", "module": "bazi_deep_free",
+            "context": BAZI_DEEP_CONTEXT, "target_date": None,
+            "context_token": token,
+        })
+        assert resp.status_code == 422, resp.json()
+        assert resp.json()["error"]["code"] == "INTERPRETATION_FORBIDDEN"
+    finally:
+        app.state.ai_client = saved
+
+    conn = sqlite3.connect(tmp_free_quota_store._db_path)
+    try:
+        total = conn.execute(
+            "SELECT COALESCE(SUM(count), 0) FROM free_llm_quota"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    assert total == 1, f"禁词命中不应退配额(LLM 费用已发生),实际 {total}"
+
+
+async def test_quota_refund_capped_after_limit_failures(
+    raw_interpret_client, tmp_free_quota_store,
+):
+    """退款日上限封顶:连续 provider 失败,超过 REFUND_DAILY_LIMIT 后不再退
+    (2026-10-08 拍板防刷边界:「构造可触发退款的失败 = 免费烧 LLM」每日
+    至多白嫖 limit 次)。"""
+    from tests.fixtures.mock_ai import FailingAIClient
+    from app.main import app
+    from app.config import REFUND_DAILY_LIMIT
+
+    saved = app.state.ai_client
+    app.state.ai_client = FailingAIClient()
+    attempts = REFUND_DAILY_LIMIT + 2
+    try:
+        for i in range(attempts):
+            h = f"cap-{i}"
+            resp = await raw_interpret_client.post("/api/interpret", json={
+                "content_hash": h, "module": "bazi_deep_free",
+                "context": BAZI_DEEP_CONTEXT, "target_date": None,
+                "context_token": token_for_context(
+                    content_hash=h, module="bazi_deep_free",
+                    context=BAZI_DEEP_CONTEXT),
+            })
+            assert resp.status_code == 503, (i, resp.json())
+    finally:
+        app.state.ai_client = saved
+
+    conn = sqlite3.connect(tmp_free_quota_store._db_path)
+    try:
+        total = conn.execute(
+            "SELECT COALESCE(SUM(count), 0) FROM free_llm_quota"
+        ).fetchone()[0]
+    finally:
+        conn.close()
+    assert total == attempts - REFUND_DAILY_LIMIT, (
+        f"退款应封顶在 {REFUND_DAILY_LIMIT} 次,"
+        f"实际净计数 {total}(期望 {attempts - REFUND_DAILY_LIMIT})")
 
 
 async def test_quota_concurrent_same_key_single_consume(

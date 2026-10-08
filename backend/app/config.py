@@ -207,11 +207,26 @@ GOOGLE_PUBLIC_KEYS_CACHE_TTL = int(
 # ---------- 免费 LLM 生成每日上限(2026-10-07 匿名滥用收口) ----------
 # 只计真烧 LLM 的免费 module 生成(缓存命中不计 / 付费豁免);
 # 高于 iOS 本地 10/日,正常用户无感;匿名刷 LLM 的成本面被压掉 97%+。
+# 2026-10-08 拍板 30 → 150:国内移动网/校园网 CGNAT 下大量真实用户共用
+# 一个 IPv4 出口,30/日是全出口共享——正常使用即达限;而脚本本可换 IP
+# 绕过,30 挡住的主要是共享出口的真实用户。放宽后单 IP 最坏 150 次/日
+# (免费模块以 M0/每日短文为主),成本可控。
 FREE_DAILY_LIMIT = int(
-    os.environ.get("QICOMPASS_FREE_DAILY_LIMIT") or "30")
+    os.environ.get("QICOMPASS_FREE_DAILY_LIMIT") or "150")
 if FREE_DAILY_LIMIT <= 0:
     raise ValueError(
         f"QICOMPASS_FREE_DAILY_LIMIT must be positive (got {FREE_DAILY_LIMIT})")
+
+# ---------- 免费配额退款每日上限(2026-10-08 拍板:分类退 + 防刷上限) ----------
+# 退款(服务商故障/契约截断/翻译保真失败)按 (bucket, day) 计数,超过上限
+# 不再退——「构造可触发退款的失败 = 免费烧 LLM 不扣额」的通道被每日退款
+# 次数封顶。默认 5:正常用户一天内触发 5 次以上非用户过错失败几乎不可能
+# (服务商故障期集中失败由 limit 保护成本面,不让退款变成无界)。
+REFUND_DAILY_LIMIT = int(
+    os.environ.get("QICOMPASS_REFUND_DAILY_LIMIT") or "5")
+if REFUND_DAILY_LIMIT <= 0:
+    raise ValueError(
+        f"QICOMPASS_REFUND_DAILY_LIMIT must be positive (got {REFUND_DAILY_LIMIT})")
 
 # ---------- evalkit L3 裁判(S05,2026-08-18;默认回落生成侧,现有部署零感知) ----------
 # 独立 env:同模型自评有系统性偏袒;独立配置才能"用更强的模型当裁判",

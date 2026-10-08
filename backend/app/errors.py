@@ -159,7 +159,9 @@ class QuotaExceededError(BaziError):
 
     计数口径:真烧 LLM 的生成(缓存命中不计)、免费 module(付费已购
     单盘缓存有界,豁免);bucket = 登录 user_id,匿名按 IP。上限
-    QICOMPASS_FREE_DAILY_LIMIT(默认 30,高于 iOS 本地 10/日,正常用户无感)。
+    QICOMPASS_FREE_DAILY_LIMIT(2026-10-08 拍板放宽默认 150:CGNAT 共享
+    IPv4 出口下 30/日是全出口共享,正常用户互相挤兑;脚本可换 IP 绕过,
+    上限主要约束共享出口成本面)。
     """
 
     code = "QUOTA_EXCEEDED"

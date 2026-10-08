@@ -56,7 +56,9 @@ from ..ai.prompts import (
 )
 from ..ai.singleflight import SingleflightCoalescer
 from ..auth.dependencies import get_current_user_id
-from ..config import AI_MAX_OUTPUT_TOKENS, FREE_DAILY_LIMIT, resolve_temperature
+from ..config import (
+    AI_MAX_OUTPUT_TOKENS, FREE_DAILY_LIMIT, REFUND_DAILY_LIMIT, resolve_temperature,
+)
 from ..context_binding import verify_interpret_context
 from ..engine.term_translations import (
     ChartJSONDecodeError,
@@ -810,11 +812,14 @@ async def _refund_free_daily_quota(
     current_user_id: str | None,
     day: str,
 ) -> None:
-    """LLM 调用失败回滚免费配额(compensating action,2026-10-07 review)。
+    """免费配额退款(compensating action;2026-10-08 拍板:分类退+防刷上限)。
 
-    服务商故障期间用户重试不应烧光当日额度——provider 抛错时退回本应
-    计的那 1 次。退款失败只记日志不遮蔽主错误(退款是补偿动作,非主路径;
-    对齐 DeepAnalysisOrchestrator userLink 降级记日志的先例)。
+    分类:provider 抛错(服务商故障)与 LLM 正常返回后的**非用户过错**
+    失败(v1 JSON 契约/截断、翻译保真)退;禁词命中等用户输入可触发的
+    失败不退(伪造触发禁词的输入若退款 = 免费烧 LLM 不扣额的通道)。
+    防刷:退款按 (bucket, day) 计数,超过 REFUND_DAILY_LIMIT 封顶不退。
+    退款失败只记日志不遮蔽主错误(退款是补偿动作,非主路径;对齐
+    DeepAnalysisOrchestrator userLink 降级记日志的先例)。
 
     `day` 由调用方一次性算出(与 enforce 同一 day,防跨午夜退款打空行)。
     """
@@ -822,11 +827,19 @@ async def _refund_free_daily_quota(
     store: FreeLLMQuotaStore = request.app.state.free_quota_store
     bucket = _free_quota_bucket(request, current_user_id)
     try:
-        await run_in_threadpool(store.refund, bucket=bucket, day=day)
+        refunded = await run_in_threadpool(
+            store.try_refund, bucket=bucket, day=day, limit=REFUND_DAILY_LIMIT)
     except Exception as e:
         logger.exception(
             "interpret.free_quota_refund_failed bucket=%s day=%s error=%r",
             bucket, day, e,
+        )
+        return
+    if not refunded:
+        logger.warning(
+            "interpret.free_quota_refund_capped bucket=%s day=%s "
+            "refund_limit=%d — 当日退款次数已达上限,本次不退(防刷封顶)",
+            bucket, day, REFUND_DAILY_LIMIT,
         )
 
 
@@ -983,6 +996,13 @@ async def interpret(
     sf_key = cache_key
     temperature = resolve_temperature(req.module)
 
+    # 本请求是否真的扣过免费配额(singleflight leader 才扣;2026-10-08
+    # 分类退款的正确性前提):LLM 正常返回后的失败退款(4.4 契约/截断)只对
+    # 真正扣款者执行——follower 共享结果未扣款,退了会把自己 bucket 里
+    # **其他请求**的计数减 1(泄漏额度)。provider 抛错路径的退款在 factory
+    # 内,天然只有 leader 执行。
+    quota_consumed_day: dict[str, str | None] = {"day": None}
+
     async def _generate() -> str:
         # 已知取舍(2026-10-08 review 点名,记录不修):配额在 singleflight
         # factory 内只按 **leader 的身份** 扣——并发同 key 的 follower 共享
@@ -996,16 +1016,14 @@ async def interpret(
         day = datetime.now(timezone.utc).date().isoformat()
         if req.module not in PAID_MODULES:
             await _enforce_free_daily_quota(request, req, current_user_id, day)
+            quota_consumed_day["day"] = day
         try:
             return await ai_client.interpret(prompt, temperature=temperature)
         except Exception:
             # 只在真烧过 LLM 的路径退回(配额已扣);QuotaExceededError 在
             # 扣费前抛出,不会走到这里。CancelledError 是 BaseException,
-            # 不进 except Exception,不误退。LLM 正常返回后的失败(v1 JSON
-            # 契约/禁词/翻译保真)不退——LLM 费用已实际发生;若要改成
-            # 「用户没拿到成品就该退」,须连同防刷边界一起决定(伪造触发
-            # 禁词的输入若退款 = 免费烧 LLM 不扣额的通道,2026-10-08
-            # review 双方各执一端,留待产品口径拍板)。
+            # 不进 except Exception,不误退。LLM 正常返回后的失败见 4.4/4.5
+            # 的分类退款(2026-10-08 拍板:契约/截断/保真退,禁词不退)。
             if req.module not in PAID_MODULES:
                 await _refund_free_daily_quota(request, req, current_user_id, day)
             raise
@@ -1052,10 +1070,19 @@ async def interpret(
             "interpret.v1_invalid_json elapsed_ms=%.1f %s error=%s",
             elapsed_ms, log_ctx, e,
         )
+        # 分类退款(2026-10-08 拍板):契约/截断失败属服务商侧非用户过错
+        # (09-27 max_tokens 截断事故实证主因)——只对本请求真正扣过款的
+        # leader 退 1 次(受退款日上限保护);follower 未扣款不退。
+        if quota_consumed_day["day"] is not None:
+            await _refund_free_daily_quota(
+                request, req, current_user_id, quota_consumed_day["day"])
         raise
 
     # 4.5 禁词扫描(LLM 输出守卫,US-COMP-04)
-    # 命中即拦截:不替换文本,不写缓存,不返回原文,直接抛错让客户端进入 error 态
+    # 命中即拦截:不替换文本,不写缓存,不返回原文,直接抛错让客户端进入 error 态。
+    # 分类退款口径(2026-10-08 拍板):禁词命中**不退**——用户可构造能触发
+    # 禁词的输入,退款 = 免费烧 LLM 不扣额的通道(退款日上限只兜底,此处
+    # 直接不进退款类)。
     validate_interpretation(
         interpretation,
         request_id=request_id,
@@ -1767,13 +1794,16 @@ async def interpret_translate(
     )
     # 免费配额(与 /api/interpret 同一道):真烧 LLM 的翻译计数;付费豁免。
     # 扣/退移入 singleflight factory(同 /api/interpret 的 2026-10-07 review
-    # 收口:leader 扣一次、provider 抛错退回)。
+    # 收口:leader 扣一次、provider 抛错退回)。quota_consumed_day 同
+    # /api/interpret:后置保真失败(步骤 8)的退款只对真正扣款的 leader 执行。
     sf: SingleflightCoalescer = request.app.state.llm_singleflight
+    quota_consumed_day: dict[str, str | None] = {"day": None}
 
     async def _generate_translation() -> str:
         day = datetime.now(timezone.utc).date().isoformat()
         if req.module not in PAID_MODULES:
             await _enforce_free_daily_quota(request, req, current_user_id, day)
+            quota_consumed_day["day"] = day
         try:
             return await ai_client.interpret(
                 translate_prompt, temperature=resolve_temperature("translate"),
@@ -1814,7 +1844,14 @@ async def interpret_translate(
             "interpret.translate.fidelity_failed elapsed_ms=%.1f %s error=%s",
             elapsed_ms, log_ctx, e,
         )
+        # 分类退款(2026-10-08 拍板):保真失败属服务商侧非用户过错(源文经
+        # 源键核验为缓存原文,非用户可直接构造)——只对真正扣款的 leader 退。
+        if quota_consumed_day["day"] is not None:
+            await _refund_free_daily_quota(
+                request, req, current_user_id, quota_consumed_day["day"])
         raise
+    # 禁词不退(同 /api/interpret 4.5 的分类口径:用户输入可触发的失败
+    # 退款 = 免费烧 LLM 通道)
     validate_interpretation(
         translated,
         request_id=request_id,
