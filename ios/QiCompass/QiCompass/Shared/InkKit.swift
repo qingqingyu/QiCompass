@@ -72,6 +72,9 @@ struct EnsoView: View {
     var breathing = false
     /// false = 跳过入场动画直出完整墨圆(ImageRenderer 静态渲染 / tab 图标场景)。
     var animated = true
+    /// 笔端形状:默认 .round(品牌笔触);装饰性垫底实例传 .butt——圆头端帽在
+    /// 大尺寸低透明度场景会被误读成进度条环(2026-10-08 外评),方头弱化该联想。
+    var cap: CGLineCap = .round
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var progress: CGFloat = 0
@@ -87,12 +90,12 @@ struct EnsoView: View {
             Circle()
                 .trim(from: 0.05, to: 0.05 + 0.84 * effectiveProgress)
                 .stroke(BaziTheme.inkDeep,
-                        style: StrokeStyle(lineWidth: stroke, lineCap: .round))
+                        style: StrokeStyle(lineWidth: stroke, lineCap: cap))
             // 飞白弧:收笔方向的细弧,半透明
             Circle()
                 .trim(from: 0.90, to: 0.90 + 0.085 * effectiveProgress)
                 .stroke(BaziTheme.inkDeep.opacity(0.55),
-                        style: StrokeStyle(lineWidth: stroke * 0.32, lineCap: .round))
+                        style: StrokeStyle(lineWidth: stroke * 0.32, lineCap: cap))
             // 枯笔墨点:确定性位置,入场尾段浮现
             dryBrushSpecks
         }

@@ -93,7 +93,10 @@ struct DeepAnalysisHomeView: View {
         ZStack {
             // 淡墨圆:居中垫底(mock .enso opacity .07,略偏左上),常驻极缓呼吸
             // (DESIGN.md breathe 7-8s;此透明度下呼吸几不可察,保留品牌指纹不抢戏)
-            EnsoView(size: 300, breathing: true)
+            // 垫底墨圆:方头端帽(2026-10-08 外评:圆头被误读成进度条环)+
+            // hero 限幅裁切(300pt 圆在 185pt hero 内会溢出压到下方喜忌/锚句行,
+            // 裁在 hero 边界即「留白裁弧」的水墨语言,不再越界压字)。
+            EnsoView(size: 300, breathing: true, cap: .butt)
                 .opacity(0.07)
                 .offset(x: -16, y: -8)
             // 四柱四列:1 : 1 : 1.35 : 1(mock grid-template-columns,日列加宽)
@@ -109,6 +112,7 @@ struct DeepAnalysisHomeView: View {
             }
         }
         .frame(height: 185)
+        .clipped()
         .padding(.horizontal, 34)
         .padding(.top, 24)
         // S5 术语释义(交互先例 = 今日页 HeroShiShenNoteSheet,2026-09-29 D3)
@@ -132,6 +136,10 @@ struct DeepAnalysisHomeView: View {
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
                 .padding(.bottom, 12)
             if let pillar {
+                // 干支槽位固定高、底对齐(2026-10-08 外评:日柱 34pt 他柱 25pt 顺排
+                // 时,日柱的拼音/十神行比其他柱低 ~18pt,四柱副行基线不齐)。槽位
+                // 以日柱两行 34pt 全高为准,所有柱的支字底线钉在槽底 → 拼音/十神
+                // 行四柱同一起点;非日柱在标签与干支间自然多出留白,视为呼吸。
                 VStack(spacing: isDay ? 1 : 2) {
                     Text(pillar.gan)
                         .font(BaziFont.ganzhi(size: isDay ? 34 : 25))
@@ -140,6 +148,7 @@ struct DeepAnalysisHomeView: View {
                         .font(BaziFont.ganzhi(size: isDay ? 34 : 25))
                         .foregroundStyle(elementTextColor(pillar.zhiElement))
                 }
+                .frame(height: 92, alignment: .bottom)
                 // en 小字带调拼音(§3:只在 hero 首次出现处给;zh/zh-hant 不渲染)
                 if AppLanguage.current == .en, let pinyin = BaziTerms.romanized(pillar.ganZhi) {
                     Text(pinyin)
@@ -242,9 +251,10 @@ struct DeepAnalysisHomeView: View {
     }
 
     /// EN 日柱 god 副行:「Day Master · Strong」;旺衰未知 → 只 Day Master。
+    /// 「·」前用不换行空格钉住(2026-10-08 外评:窄列断行后「·」孤悬行首)。
     private var enDayGodSubline: String {
         guard let strength = dayStrengthTerm else { return BaziTerms.display("日主") }
-        return "\(BaziTerms.display("日主")) · \(BaziTerms.display(strength))"
+        return "\(BaziTerms.display("日主"))\u{00A0}· \(BaziTerms.display(strength))"
     }
 
     /// 干支五行着色(2026-10-01 拍板:hero 干支全上五行色,DESIGN.md 五行色映射)。
@@ -289,13 +299,16 @@ struct DeepAnalysisHomeView: View {
 
     /// 喜忌拼接 Text:label 灰墨 + 元素字五行色(Kaiti Medium,模拟 mock em 加重)。
     /// 五行值经 BaziTerms 取显示语;未知值显式回落灰墨着色,不吞。
+    /// 断行纪律(2026-10-08 外评:EN「Favored … Less supportive / Wood」断在
+    /// label 与其元素之间,短语被腰斩):label↔元素、元素↔元素用不换行空格钉成
+    /// 两个组,仅「·」分隔符前留可断空格——两行时必然整组换行,不再组内腰斩。
     private var xijiText: Text {
         var t = Text("").font(BaziFont.body(size: 14.5))
         if !response.favorableElements.isEmpty {
             t = t + Text(L10n.DeepChart.xijiFavorableLabel)
                 .foregroundStyle(BaziTheme.inkMuted)
             for element in response.favorableElements {
-                t = t + Text(" ")
+                t = t + Text("\u{00A0}")
                     .foregroundStyle(BaziTheme.inkMuted)
                     + Text(BaziTerms.display(element))
                         .font(BaziFont.display(size: 14.5))
@@ -304,13 +317,13 @@ struct DeepAnalysisHomeView: View {
         }
         if !response.unfavorableElements.isEmpty {
             if !response.favorableElements.isEmpty {
-                t = t + Text(" · ")
+                t = t + Text(" ·\u{00A0}")
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
             }
             t = t + Text(L10n.DeepChart.xijiUnfavorableLabel)
                 .foregroundStyle(BaziTheme.inkMuted)
             for element in response.unfavorableElements {
-                t = t + Text(" ")
+                t = t + Text("\u{00A0}")
                     .foregroundStyle(BaziTheme.inkMuted)
                     + Text(BaziTerms.display(element))
                         .font(BaziFont.display(size: 14.5))
@@ -525,17 +538,16 @@ struct DeepAnalysisHomeView: View {
                     Text(module.subtitle)
                         .font(BaziFont.caption(size: 11))
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
-                        .lineLimit(1)
+                        // 2026-10-08 外评:lineLimit(1) 把 EN 长副题截在词中
+                        // ("where it l…");放两行,zh 短副题自然单行不受影响。
+                        .lineLimit(2)
                 }
                 Spacer(minLength: 8)
                 switch row {
                 case .read:
-                    HStack(spacing: 8) {
-                        Circle()
-                            .fill(BaziTheme.ink)
-                            .frame(width: 6, height: 6)
-                        rowChevron
-                    }
+                    // 2026-10-08 外评:已读行「●+›」双符号含义不清(圆点=已读,
+                    // 箭头=可进,同屏两义)。已读语义由「已读 x/8」承载,行尾只留 ›。
+                    rowChevron
                 case .lockedPaid:
                     PaidTag()
                 case .generating:

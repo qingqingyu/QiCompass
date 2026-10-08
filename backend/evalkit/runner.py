@@ -50,6 +50,7 @@ from app.ai.prompts import PROMPT_VERSIONS, REQUIRED_FIELDS, render_prompt
 from app.config import (
     AI_PROVIDER,
     ANTHROPIC_API_KEY,
+    ANTHROPIC_BASE_URL,
     ANTHROPIC_MODEL,
     OPENAI_API_KEY,
     OPENAI_BASE_URL,
@@ -571,6 +572,10 @@ async def execute_run(
             provider=AI_PROVIDER,
             anthropic_api_key=ANTHROPIC_API_KEY,
             anthropic_model=ANTHROPIC_MODEL,
+            # 2026-10-08:补传 anthropic_base_url(此前漏传,z.ai 中转部署下
+            # evalkit 直打官方 endpoint 必 401,真实 run 全军覆没;app/main.py:215
+            # 的线上装配一直有传,evalkit 是唯一缺口)
+            anthropic_base_url=ANTHROPIC_BASE_URL,
             openai_api_key=OPENAI_API_KEY,
             openai_model=OPENAI_MODEL,
             openai_base_url=OPENAI_BASE_URL,

@@ -6985,7 +6985,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cached chapters don't use reads"
+            "value" : "Re-opening finished chapters is free"
           }
         },
         "zh-Hans" : {
@@ -11399,7 +11399,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Daily free reads used up · Read chapters stay open"
+            "value" : "Daily free generations used up · Finished chapters stay open"
           }
         },
         "zh-Hans" : {

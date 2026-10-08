@@ -2,7 +2,8 @@ import SwiftUI
 
 /// 章节沉浸阅读页(盘面小景 ⑤-⑧):长文排版的唯一去处。
 ///
-/// 结构:自定义顶 bar(‹ + 章题 + 目录)+ 左缘竖章号栏(44pt,hairline 分隔,
+/// 结构:自定义顶 bar(‹ + 目录,2026-10-08 去中央章题防与正文大标题复读)+
+/// 左缘竖章号栏(36pt,hairline 分隔,
 /// 章号 28pt 楷体,随页贯穿)+ 正文区 + 底部翻章条(hairline 上边)。
 ///
 /// 正文排版(DESIGN.md §Body 首次落地):楷体 15.5pt · 行距 2.15× · 首行缩进
@@ -76,13 +77,9 @@ struct ChapterReadingView: View {
                     .padding(6)
             }
             Spacer()
-            // 2026-09-25 暗色走查 #11:顶 bar 不再带章号——左缘竖章号栏(edgeNumeral)已表达
-            // 「贰」,正文大标题表达「天赋能力」,原先三处重复读起来像复读。
-            Text(chapterTitle)
-                .font(BaziFont.caption(size: 12.5))
-                .tracking(2)
-                .foregroundStyle(BaziTheme.inkMuted)
-            Spacer()
+            // 2026-10-08 外评:顶 bar 中央章题与正文 21pt 大章题同屏重复(且
+            // 12.5pt 小字在 EN 下反而抢层级)。顶 bar 只留「‹ / 目录」两个动作,
+            // 章名章号由竖章号栏 + 正文大标题表达(2026-09-25 #11 同向收束)。
             Button {
                 dismiss()
             } label: {
@@ -107,7 +104,9 @@ struct ChapterReadingView: View {
         Text(chapterNumeral)
             .font(BaziFont.display(size: 28))
             .foregroundStyle(BaziTheme.ink)
-            .frame(width: 44)
+            // 2026-10-08 external review: main text is visually right-shifted as a whole (left 44pt column + leading24 vs trailing26);
+            // narrowed to 36pt (user decision: "just narrowing is enough", do not delete), vertical chapter number semantics retained.
+            .frame(width: 36)
             .frame(maxHeight: .infinity, alignment: .top)
             .padding(.top, 50)
             .overlay(alignment: .trailing) {
@@ -220,7 +219,9 @@ struct ChapterReadingView: View {
                 )
                 Text(indentedProse(text))
                     .bodySerifText(size: 15.5)
-                    .lineSpacing(18) // 行距 2.15× ≈ 15.5 × 1.15(SwiftUI 默认行高 ~1.2em)
+                    // 行距分语言(2026-10-08 外评):2.15× 为 zh 楷体的疏朗设计,
+                    // EN New York 衬线同参数下有效行高 ~2.4×,一段话被拉成海报。
+                    .lineSpacing(AppLanguage.current == .en ? 8 : 18)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
@@ -240,7 +241,8 @@ struct ChapterReadingView: View {
             SealStamp(character: "批", size: 26, rotation: 3, stampDelay: 0.2)
         }
         .padding(.trailing, 8)
-        .padding(.bottom, 24)
+        // 2026-10-08 external review: last section of the main text was hard-cut against the chapter navigation bar; add 8pt of breathing room at the end of the chapter
+        .padding(.bottom, 32)
     }
 
     /// 首行缩进 2em:SwiftUI Text 无 text-indent,全角空格前缀实现;
