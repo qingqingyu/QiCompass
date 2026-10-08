@@ -1291,10 +1291,11 @@ _V1_CHAIN_MAX_ROWS_PER_MODULE: Final[int] = 8
 # STALE 重生成(iOS quotaExempt)自愈,不再是「随机砍行」的静默误伤。
 _V1_CHAIN_ROOT_PROBE_LIMIT: Final[int] = 128
 # 走查重渲染总预算(2026-10-08 十六轮外评 #3):provider/model 变体回溯
-# 会让非 M0 层的重渲染按分支数相乘,预算给全函数单次请求封顶(每次候选
-# 行重渲染 -1,耗尽即停枚举,走查按 False 落 409 → STALE 自愈)。2048
-# 高于任何合法链需求(≤5 层 × ≤8 行 × 个位数变体),同时把旧实现的最坏
-# 面(128 根 × 5 层 × 8 行 = 5120 次渲染)压下来——变体回溯不扩大 CPU 面。
+# 会让非 M0 层的重渲染按分支数相乘,预算给全函数单次请求封顶(枚举候选
+# 行重渲染与叶子源键渲染各 -1,耗尽即停,走查按 False 落 409 → STALE 自愈)。
+# 2048 高于任何合法链需求(≤5 层 × ≤8 行 × 个位数变体 + 1-3 条分支的叶子
+# 渲染),同时把旧实现的最坏面(128 根 × 5 层 × 8 行 = 5120 次渲染)压下来
+# ——变体回溯不扩大 CPU 面。
 _V1_CHAIN_WALK_RENDER_BUDGET: Final[int] = 2048
 
 
@@ -1558,8 +1559,14 @@ async def _verify_v1_chain_translation_source(
             continue
 
         # 每条核验分支各做一次完整源键精确比对;首分支 = 旧实现的逐层
-        # 首匹配序,无变体并存的链行为不变。
+        # 首匹配序,无变体并存的链行为不变。叶子源键渲染与枚举重渲染同级别
+        # CPU(translate_context + render + sha256),进同一渲染预算——分支数
+        # 最坏 8^4 量级,不封顶则预算只盖住枚举半边、总渲染超旧实现最坏面
+        # (three-check 2026-10-08 第十六轮 R1)。
         for branch_verified in branches:
+            if render_budget[0] <= 0:
+                break
+            render_budget[0] -= 1
             # 源键 = 与生成同一代码路径(_prepare_prompt_and_key,含规范化 +
             # user_input_hash),链字段/parent_fingerprint 换成源语言已核验值。
             source_context = dict(req.context)
