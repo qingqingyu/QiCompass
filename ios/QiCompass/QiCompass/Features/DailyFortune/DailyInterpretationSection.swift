@@ -143,8 +143,8 @@ struct DailyInterpretationSection: View {
                 }
             case .failed(let message):
                 degradedBody(message: message, rawText: nil)
-            case .dailyLimitReached(let nextReset):
-                DailyLimitReachedView(nextReset: nextReset)
+            case .dailyLimitReached(let nextReset, let serverPool):
+                DailyLimitReachedView(nextReset: nextReset, suggestsLogin: serverPool)
                 // 达上限:**禁用生成按钮、不显示重试**(方案 step 4)
             case .contextTokenExpired:
                 // 凭证失效(2026-10-08):403 重试无意义,「重新排盘」出口

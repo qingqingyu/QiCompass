@@ -15,6 +15,7 @@ struct ErrorStateView: View {
     let retry: () -> Void
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @EnvironmentObject private var env: AppEnvironment
 #if DEBUG
     @State private var showDetail = false
 #endif
@@ -60,8 +61,15 @@ struct ErrorStateView: View {
                     .padding(.horizontal)
             }
 
-            if case .dailyLimitReached(let nextReset) = userFacingError {
+            if case .dailyLimitReached(let nextReset, let serverPool) = userFacingError {
                 CountdownResetLabel(nextReset: nextReset)
+                // 服务端共享池 429 + 未登录(2026-10-08 拍板):附登录引导行
+                // (本地池与登录无关,不引导)
+                if serverPool, !env.accountManager.isLoggedIn {
+                    Text(L10n.Common.loginQuotaHint)
+                        .font(.caption2)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                }
             } else if case .contextTokenExpired = userFacingError {
                 RecalculateChartButton()
             } else if showsRetryButton {

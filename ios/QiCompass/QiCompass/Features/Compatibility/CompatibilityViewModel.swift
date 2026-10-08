@@ -2467,7 +2467,7 @@ final class CompatibilityViewModel {
                 self.settleExemptRegenOutcomeIfCurrent(compatHash: compatHash, attemptKey: attemptKey)
                 if !Task.isCancelled, let (current, currentResponse) = self.currentDetailIfMatches(summary) {
                     if case .dailyLimitReached(let reset, _) = error {
-                        self.state = .detail(current, currentResponse, .dailyLimitReached(nextReset: reset))
+                        self.state = .detail(current, currentResponse, .dailyLimitReached(nextReset: reset, serverPool: false))
                     } else {
                         self.state = .detail(current, currentResponse, .failed(message: error.errorDescription ?? L10n.Common.unknownError))
                     }
@@ -2506,8 +2506,8 @@ final class CompatibilityViewModel {
                         return
                     }
                     let userError = UserFacingError.from(error, stage: .interpret)
-                    if case .dailyLimitReached(let reset) = userError {
-                        self.state = .detail(current, currentResponse, .dailyLimitReached(nextReset: reset))
+                    if case .dailyLimitReached(let reset, let serverPool) = userError {
+                        self.state = .detail(current, currentResponse, .dailyLimitReached(nextReset: reset, serverPool: serverPool))
                     } else {
                         self.state = .detail(current, currentResponse, .failed(message: userError.errorDescription ?? L10n.Common.unknownError))
                     }

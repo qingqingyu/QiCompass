@@ -125,8 +125,9 @@ final class UserFacingErrorTests: XCTestCase {
         let error = DeepAnalysisError.dailyLimitReached(nextReset: nextReset, remaining: 0)
         let userError = UserFacingError.from(error, stage: .interpret)
 
-        if case .dailyLimitReached(let mapped) = userError {
+        if case .dailyLimitReached(let mapped, let serverPool) = userError {
             XCTAssertEqual(mapped, nextReset)
+            XCTAssertFalse(serverPool, "本地池(DeepAnalysisError)不得标服务端池(登录引导仅服务端 429)")
         } else {
             XCTFail("应为 .dailyLimitReached,实际:\(userError)")
         }
@@ -250,7 +251,7 @@ final class UserFacingErrorTests: XCTestCase {
     }
 
     func test二级文案_达上限() {
-        XCTAssertEqual(UserFacingError.dailyLimitReached(nextReset: Date()).subtitle, "今日免费解读次数已用完,重置后自动恢复")
+        XCTAssertEqual(UserFacingError.dailyLimitReached(nextReset: Date(), serverPool: false).subtitle, "今日免费解读次数已用完,重置后自动恢复")
     }
 
     // MARK: - 服务端 429 QUOTA_EXCEEDED(2026-10-08)
@@ -263,10 +264,11 @@ final class UserFacingErrorTests: XCTestCase {
         )
         let userError = UserFacingError.from(apiError, stage: .interpret)
 
-        guard case .dailyLimitReached(let nextReset) = userError else {
+        guard case .dailyLimitReached(let nextReset, let serverPool) = userError else {
             return XCTFail("应为 .dailyLimitReached,实际:\(userError)")
         }
         XCTAssertEqual(nextReset, UserFacingError.nextUTCMidnight())
+        XCTAssertTrue(serverPool, "服务端 429 须标 serverPool(未登录时显示登录引导)")
     }
 
     func test下一个UTC零点_为UTC零点整且晚于当前() {

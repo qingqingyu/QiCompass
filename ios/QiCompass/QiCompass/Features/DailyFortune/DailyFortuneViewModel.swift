@@ -304,7 +304,7 @@ final class DailyFortuneViewModel {
                         isSilentRetrying = false
                         state = .ready(
                             response,
-                            .dailyLimitReached(nextReset: reset),
+                            .dailyLimitReached(nextReset: reset, serverPool: false),
                             businessDate,
                         )
                     } else {
@@ -329,11 +329,11 @@ final class DailyFortuneViewModel {
                         return
                     }
                     let userError = UserFacingError.from(error, stage: .interpret)
-                    if case .dailyLimitReached(let reset) = userError {
+                    if case .dailyLimitReached(let reset, let serverPool) = userError {
                         isSilentRetrying = false
                         state = .ready(
                             response,
-                            .dailyLimitReached(nextReset: reset),
+                            .dailyLimitReached(nextReset: reset, serverPool: serverPool),
                             businessDate,
                         )
                     } else {

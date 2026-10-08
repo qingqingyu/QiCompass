@@ -1277,6 +1277,12 @@ enum L10n {
         /// 达上限提示(zh="今日机缘已尽,明日再来")
         static let limitReached = String(localized: "common.limitReached")
 
+        /// 服务端池达限且未登录时的引导行(2026-10-08 拍板,CGNAT 共享出口
+        /// 匿名撞限的出口指引;本地池与登录无关不显示)。
+        /// zh: "登录后可获得独立额度";zh-Hant: "登錄後可獲得獨立額度";
+        /// en: "Sign in for your own daily quota"
+        static let loginQuotaHint = String(localized: "common.loginQuotaHint")
+
         /// 通用确认按钮(zh="好的";en="OK")。2026-09-24 二段:全仓 alert 收编。
         static let ok = String(localized: "common.ok")
 

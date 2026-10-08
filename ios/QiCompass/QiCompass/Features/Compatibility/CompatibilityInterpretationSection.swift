@@ -49,8 +49,8 @@ struct CompatibilityInterpretationSection: View {
                 CompatibilityChapterText(text: text)
             case .failed(let message):
                 failedBlock(message)
-            case .dailyLimitReached(let nextReset):
-                DailyLimitReachedView(nextReset: nextReset)
+            case .dailyLimitReached(let nextReset, let serverPool):
+                DailyLimitReachedView(nextReset: nextReset, suggestsLogin: serverPool)
             case .contextTokenExpired:
                 // 凭证失效(2026-10-08):403 重试无意义,「重新排盘」出口
                 ContextTokenExpiredView()

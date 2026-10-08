@@ -16,8 +16,11 @@ enum UserFacingError: Error, Equatable, LocalizedError {
     case chartFailed(originalDescription: String)
     /// AI 解读阶段失败(命书生成)。
     case interpretFailed(originalDescription: String)
-    /// 每日次数达上限。
-    case dailyLimitReached(nextReset: Date)
+    /// 每日次数达上限。serverPool(2026-10-08 拍板):true = 服务端共享池
+    /// 429(登录 user_id/匿名 IP 维度),false = iOS 本地 10/日池(按设备,
+    /// 与登录无关)——达限文案据此决定是否引导登录(仅服务端池 + 未登录
+    /// 时提示「登录后可获得独立额度」,本地池引导属误导)。
+    case dailyLimitReached(nextReset: Date, serverPool: Bool)
     /// context_token 缺失/失效(2026-10-07 P0 收口):老快照无 token 或
     /// secret 已轮换,须重新排盘取新 token。
     case contextTokenExpired
@@ -38,7 +41,7 @@ enum UserFacingError: Error, Equatable, LocalizedError {
         // 达上限(三模块统一抛 DeepAnalysisError.dailyLimitReached)
         if let daily = error as? DeepAnalysisError,
            case .dailyLimitReached(let reset, _) = daily {
-            return .dailyLimitReached(nextReset: reset)
+            return .dailyLimitReached(nextReset: reset, serverPool: false)
         }
 
         // APIError 包装的 URLError / 裸 URLError → 网络错误
@@ -59,7 +62,8 @@ enum UserFacingError: Error, Equatable, LocalizedError {
         // 08:00 换日)——若显示本地零点,零点后重试仍在同一 UTC 日,会被
         // 当成倒计时骗人。
         if APIError.isQuotaExceeded(error) {
-            return .dailyLimitReached(nextReset: Self.nextUTCMidnight())
+            return .dailyLimitReached(
+                nextReset: Self.nextUTCMidnight(), serverPool: true)
         }
 
         // 后端排盘库错误(stage 决定归类)
