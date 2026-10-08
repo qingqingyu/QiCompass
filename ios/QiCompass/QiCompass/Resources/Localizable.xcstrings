@@ -551,7 +551,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Cached within 24h · uses no reads"
+            "value" : "Cached within 24h · uses no generations"
           }
         },
         "zh-Hant" : {
@@ -11422,7 +11422,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%lld reads left today"
+            "value" : "%lld generations left today"
           }
         },
         "zh-Hans" : {
@@ -11445,7 +11445,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Today's reads are used up · resets at %@ tomorrow"
+            "value" : "Today's generations are used up · resets at %@ tomorrow"
           }
         },
         "zh-Hans" : {
@@ -17023,7 +17023,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Retries use none of today's reads"
+            "value" : "Retries use none of today's generations"
           }
         },
         "zh-Hant" : {

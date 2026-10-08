@@ -242,13 +242,15 @@ def test_v7_does_not_require_chart():
 
 # ===== 6. PROMPT_VERSIONS 完整性 =====
 
-def test_v1_prompt_versions_all_registered_as_2():
-    """8 个 v1 module 在 PROMPT_VERSIONS 注册,值统一为 2。
+def test_v1_prompt_versions_registry_matches_expected():
+    """8 个 v1 module 在 PROMPT_VERSIONS 注册,版本 = expected 表。
 
     v2(2026-09-27):模板内容不变(_v1.md → _v2.md 改名),bump 唯一目的是
     失效双侧已中毒的截断缓存(max_tokens 1024 时代 m1 等长模块输出被拦腰
     截断,半截 JSON 入了后端 SQLite + iOS SwiftData 两层缓存)。改版本须
     同步改名模板文件(加载器按 {module}_v{version}.md 寻址)。
+    v3(2026-10-08):m0 单独 bump;此后各模块版本不再统一,断言以 expected
+    表为准(原函数名 ..._all_registered_as_2 已名不符实,改名)。
     """
     v1_modules = {
         "m0_structure", "m1_talent", "m2_high_low", "m3_system",
