@@ -108,14 +108,20 @@ final class CachedInterpretationReader {
     /// 已知且本地无当前版本命中」→ 其后模块全部跳过回填,链整段重算(服务端
     /// 新键自然 miss;下游既有行经重取自愈,不多烧 LLM)。「无命中」兼含
     /// 「从未生成」——该场景下游也未生成,跳过无副作用;「该章此前失败但
-    /// 下游有行」的代价仅为下游重取(服务端缓存命中,零 LLM)。
+    /// 下游有行」的代价仅为下游重取(服务端缓存命中,零 LLM)。跨语言探测
+    /// (includeStaleVersions=true)下「无命中」= 真无行,守卫同义成立。
+    ///
+    /// includeStaleVersions(十四轮外评 #5):跨语言探测传 true——prompt bump
+    /// 后旧语言原文只在旧版本下,版本过滤会把探测源一并滤掉(设计降级路径
+    /// 「翻译 → 409 STALE → quotaExempt 重生成」被旁路成普通生成扣额)。
     private func readAll(
         contentHash: String,
         modules: [String],
         language: String,
         targetDate: Date?,
         maxAge: TimeInterval?,
-        identity: AIIdentity
+        identity: AIIdentity,
+        includeStaleVersions: Bool = false
     ) throws -> [String: InterpretationCache] {
         var hits: [String: InterpretationCache] = [:]
         // 守卫只对 v1 链生效(modules 以 m0_structure 起头 = DeepAnalysis
@@ -131,7 +137,8 @@ final class CachedInterpretationReader {
                 language: language,
                 targetDate: targetDate,
                 maxAge: maxAge,
-                identity: identity
+                identity: identity,
+                includeStaleVersions: includeStaleVersions
             ) else {
                 // 版本已知却无当前版本行 = 上游已 bump 本地未跟上 → 下游行
                 // 是旧上游驱动的,不再回填(版本未知 = 老后端,维持旧行为)
@@ -154,14 +161,16 @@ final class CachedInterpretationReader {
         language: String,
         targetDate: Date?,
         maxAge: TimeInterval?,
-        identity: AIIdentity
+        identity: AIIdentity,
+        includeStaleVersions: Bool = false
     ) throws -> InterpretationCache? {
         guard let cache = try cacheStore.getLatest(
             contentHash: contentHash,
             module: module,
             targetDate: targetDate,
             language: language,
-            identity: identity
+            identity: identity,
+            includeStaleVersions: includeStaleVersions
         ) else {
             return nil
         }
@@ -214,7 +223,11 @@ final class CachedInterpretationReader {
                 language: language,
                 targetDate: targetDate,
                 maxAge: maxAge,
-                identity: identity
+                identity: identity,
+                // 旧版源行放行(十四轮外评 #5):跨语言探测的目的是找「可翻译
+                // 的既有原文」,bump 前的旧版行正是翻译降级路径的源;命中后
+                // 提交翻译,后端 STALE 门控 409 → quotaExempt 重生成,链路闭环。
+                includeStaleVersions: true
             )
             if let rowIsValid {
                 hits = hits.filter { rowIsValid($0.value) }

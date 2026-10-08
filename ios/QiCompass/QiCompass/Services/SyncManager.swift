@@ -249,8 +249,15 @@ final class SyncManager {
     }
 
     /// ChartSnapshot + UserSnapshotLink → ChartSyncData。
-    /// 失败返 nil(编码异常)。
+    /// 失败返 nil(编码异常 / 隐私字段剔除失败——后者跳过该盘不推,不静默
+    /// 上传未评估的个人信息)。
     private func toSyncData(link: UserSnapshotLink, snapshot: ChartSnapshot) -> ChartSyncData? {
+        guard let strippedPayload = Self.stripLocalOnlyFields(from: snapshot.payload) else {
+            AppLogger.persistence.error(
+                "op=sync.toSyncData.strip_failed hash=\(snapshot.contentHash, privacy: .public) — payload 剔除本地专属字段失败,该盘跳过同步(不上传未评估字段)"
+            )
+            return nil
+        }
         return ChartSyncData(
             contentHash: snapshot.contentHash,
             alias: link.alias,
@@ -261,8 +268,24 @@ final class SyncManager {
             cityTimezone: snapshot.cityTimezone,
             ziHourRule: snapshot.ziHourRule,
             calcRuleSnapshotBase64: snapshot.calcRuleSnapshot.base64EncodedString(),
-            payloadJson: String(data: snapshot.payload, encoding: .utf8) ?? "{}",
+            payloadJson: String(data: strippedPayload, encoding: .utf8) ?? "{}",
             createdAt: SyncDateFormatter.format(link.createdAt)
         )
+    }
+
+    /// 同步边界剔除「本地存档专属」字段(十四轮外评 #8):G 条拍板(2026-10-08)
+    /// 补存的排盘入参(archived_birth_datetime 钟面 / archived_geoname_id)是
+    /// 未来「自动重签」的**本地**原料,拍板范围不含服务端消费——但 payload
+    /// 整包随 syncPush 上传,新增个人信息会未评估地进服务端库。在推送边界
+    /// 剔除(快照本地保留不动;pull 侧老行无这两 key,decodeIfPresent 兼容)。
+    /// 失败返 nil(调用方跳过该盘并留痕,不静默推)。
+    private static func stripLocalOnlyFields(from payload: Data) -> Data? {
+        guard let obj = (try? JSONSerialization.jsonObject(with: payload)) as? [String: Any] else {
+            return nil
+        }
+        var mutable = obj
+        mutable.removeValue(forKey: "archived_birth_datetime")
+        mutable.removeValue(forKey: "archived_geoname_id")
+        return try? JSONSerialization.data(withJSONObject: mutable)
     }
 }

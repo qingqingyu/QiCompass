@@ -156,7 +156,7 @@ class InterpretationCache:
 
     def get_module_rows(
         self, content_hash: str, module: str, language: str,
-    ) -> list[tuple[CacheKey, str]]:
+    ) -> list[tuple[CacheKey, str, str]]:
         """按 (content_hash, module, language) 枚举该模块的全部缓存行。
 
         翻译防伪的 v1 上游链重建用(interpret.py,2026-10-07 回归修复):
@@ -168,8 +168,15 @@ class InterpretationCache:
         不含 target_date 维度:v1 模块恒为空串(仅 daily_fortune 有日期),
         本查询只服务 v1 链,daily 走 has_interpretation_exact 精确键。
 
+        ORDER BY(2026-10-08 十四轮外评 #1):无 ORDER BY 时 SQLite 按 PK
+        索引序返回 = prompt_hash 字典序(同版本内随机),调用方任何「稳定
+        排序保插入序」的前提都不成立——注入行可凭 hash 运气占据截断窗口。
+        版本降序 + generated_at 降序给调用方一个确定性输入序,调用侧再按
+        偏好序重排。
+
         Returns:
-            [(CacheKey, interpretation)] — 每行的完整键 + 原文
+            [(CacheKey, interpretation, generated_at)] — 每行的完整键 +
+            原文 + 生成时间(ISO 8601 UTC,偏好序 tie-break 用)
 
         Raises:
             sqlite3.Error: 读失败(不吞,向上抛,路由层转 500)
@@ -178,10 +185,12 @@ class InterpretationCache:
             conn.row_factory = sqlite3.Row
             rows = conn.execute(
                 "SELECT prompt_version, target_date, prompt_hash, provider, "
-                "model, parent_hash, user_input_hash, language, interpretation "
+                "model, parent_hash, user_input_hash, language, "
+                "interpretation, generated_at "
                 "FROM interpretation_cache "
                 "WHERE content_hash=? AND module=? AND target_date='' "
-                "AND language=?",
+                "AND language=? "
+                "ORDER BY prompt_version DESC, generated_at DESC",
                 (content_hash, module, language),
             ).fetchall()
         return [
@@ -193,7 +202,7 @@ class InterpretationCache:
                 model=row["model"], parent_hash=row["parent_hash"],
                 user_input_hash=row["user_input_hash"],
                 language=row["language"],
-            ), row["interpretation"])
+            ), row["interpretation"], row["generated_at"])
             for row in rows
         ]
 

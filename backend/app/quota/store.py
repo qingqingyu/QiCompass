@@ -85,6 +85,24 @@ class FreeLLMQuotaStore:
             conn.commit()
             return cursor.rowcount > 0
 
+    def get_count(self, *, bucket: str, day: str) -> int:
+        """读当日已用次数(不消费;十四轮外评 #4 翻译走查前的配额 peek 用)。
+
+        与 try_consume 的差别:纯读不写——翻译端点在目标缓存 miss 后、
+        v1 链走查(逐行重渲染,CPU 最重的一步)之前 peek 一次,达限直接
+        429,不给达限 bucket 无限重放走查当 CPU 放大器的通道。真烧 LLM
+        的计数仍只由 factory 内 try_consume 执行,peek 不引入多计数。
+
+        Raises:
+            sqlite3.Error: 读失败(向上抛,不吞)
+        """
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT count FROM free_llm_quota WHERE bucket=? AND day=?",
+                (bucket, day),
+            ).fetchone()
+        return int(row[0]) if row is not None else 0
+
     def try_refund(self, *, bucket: str, day: str, limit: int) -> bool:
         """退还 1 次,受 (bucket, day) 级退款次数上限保护(2026-10-08 拍板)。
 
