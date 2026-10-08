@@ -817,7 +817,8 @@ final class DeepAnalysisViewModel {
     private static func isRestorableModuleState(_ state: ModuleState?) -> Bool {
         switch state {
         case nil, .failed: return true
-        case .ok, .fetching, .pending, .locked, .needsInput, .contextTokenExpired:
+        case .ok, .fetching, .pending, .locked, .needsInput, .contextTokenExpired,
+             .dailyLimitReached:
             return false
         }
     }
@@ -961,6 +962,10 @@ final class DeepAnalysisViewModel {
             case .contextTokenExpired:
                 // 凭证失效:续跑必再 403(2026-10-08),恢复走「重新排盘」,
                 // 不进自动续跑清单
+                return false
+            case .dailyLimitReached:
+                // 服务端配额 429(2026-10-08 外评 #6):续跑必再 429,
+                // 恢复走 UTC 零点重置,不进自动续跑清单
                 return false
             }
         }
@@ -1183,6 +1188,26 @@ final class DeepAnalysisViewModel {
                 }
                 continue
             }
+            // 断链前置检查(2026-10-08 外评 #6 续修):链因达限/凭证失效断过后
+            // 状态残留,resume/回前台重启链时**不得重跑**这些章——下方 runV1Chain
+            // 尾部的断链只在「本次刚跑完」时生效,重启场景由这里拦(resume 守卫
+            // 的 nil-下游判据拦不住:M1-M7 为 nil 时 hasRunnableUnfinished 恒真)。
+            // 达限断链对齐本地池断链先验(重跑必再 429;付费章等 UTC 重置);
+            // 凭证失效同一 token 全链必 403,同断。
+            switch moduleStates[module] {
+            case .dailyLimitReached:
+                AppLogger.app.warning(
+                    "deepVM.runV1Chain server_quota_break_precheck module=\(module.rawValue, privacy: .public)"
+                )
+                return
+            case .contextTokenExpired:
+                AppLogger.app.warning(
+                    "deepVM.runV1Chain token_expired_break_precheck module=\(module.rawValue, privacy: .public)"
+                )
+                return
+            default:
+                break
+            }
             await runSingleV1Module(module, response: response)
             // M0 失败 → 中断链(下游缺 structure_fingerprint 无法跑)
             if module == .m0 && moduleStates[.m0]?.isOk != true {
@@ -1193,6 +1218,14 @@ final class DeepAnalysisViewModel {
             if case .failed = moduleStates[module], remainingReads <= 0 {
                 AppLogger.app.warning(
                     "deepVM.runV1Chain daily_limit_break module=\(module.rawValue, privacy: .public)"
+                )
+                return
+            }
+            // 服务端配额达限(2026-10-08 外评 #6):剩余章必再 429,提前断链
+            // (与上方本地池断链同款;双池不同源,本地 remaining 判不了服务端)
+            if case .dailyLimitReached = moduleStates[module] {
+                AppLogger.app.warning(
+                    "deepVM.runV1Chain server_quota_break module=\(module.rawValue, privacy: .public)"
                 )
                 return
             }
@@ -1367,6 +1400,14 @@ final class DeepAnalysisViewModel {
                 return
             }
             let userError = UserFacingError.from(error, stage: .interpret)
+            // 服务端免费配额 429(2026-10-08 外评 #6):与本地 10 次/日池不同源,
+            // 「重试本章」+ 回前台自动续跑只会反复 429——达限态禁重试 + 倒计时
+            // (含本地池耗尽的 DeepAnalysisError.dailyLimitReached,UserFacingError
+            // .from 已把两路收编成同一分类)。
+            if case .dailyLimitReached(let reset) = userError {
+                moduleStates[module] = .dailyLimitReached(nextReset: reset)
+                return
+            }
             moduleStates[module] = .failed(message: userError.errorDescription ?? L10n.Common.unknownError)
         }
     }

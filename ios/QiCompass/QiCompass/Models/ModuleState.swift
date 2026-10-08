@@ -28,12 +28,20 @@ enum ModuleState: Equatable {
     /// 无意义——章节页渲染「重新排盘」出口而非「重试本章」(落态入口:
     /// DeepAnalysisViewModel 通用 catch 的 APIError.isContextTokenError)。
     case contextTokenExpired
+    /// 服务端免费配额 429 QUOTA_EXCEEDED(2026-10-08 外评 #6):与本地 10 次/日
+    /// 池不同源(共享 IP/多设备会把服务端池先耗尽),重试本章/回前台自动续跑
+    /// 只会反复 429——达限态禁重试,章节页渲染倒计时(UTC 零点换日,与
+    /// InterpretState.dailyLimitReached 同口径),不进自动续跑清单(落态入口:
+    /// DeepAnalysisViewModel 通用 catch 的 UserFacingError.dailyLimitReached)。
+    case dailyLimitReached(nextReset: Date)
 
     /// 是否终态(可响应用户操作)。pending/fetching 是非终态。
     var isTerminal: Bool {
         switch self {
         case .pending, .fetching: return false
-        case .ok, .failed, .locked, .needsInput, .contextTokenExpired: return true
+        case .ok, .failed, .locked, .needsInput, .contextTokenExpired,
+             .dailyLimitReached:
+            return true
         }
     }
 

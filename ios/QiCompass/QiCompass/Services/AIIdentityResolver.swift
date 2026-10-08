@@ -46,7 +46,12 @@ final class AIIdentityResolver {
             AppLogger.networking.info(
                 "aiIdentity.resolve.ok provider=\(provider, privacy: .public) model=\(model, privacy: .public) elapsed=\(elapsed)"
             )
-            return AIIdentity(provider: provider, model: model)
+            // prompt 版本表随身份同源带回(2026-10-08 外评 #4):读缓存侧
+            // 只认服务端当前版本;老后端无此字段 → nil → 空表(不设上限)。
+            return AIIdentity(
+                provider: provider, model: model,
+                promptVersions: health.promptVersions ?? [:]
+            )
         } catch {
             let elapsed = start.duration(to: .now)
             AppLogger.networking.error(

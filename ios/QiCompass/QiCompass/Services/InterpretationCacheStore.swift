@@ -23,6 +23,11 @@ final class InterpretationCacheStore {
     /// 只查询当前 provider/model/language 的最新缓存;legacy nil 身份永不命中。
     /// language 参数:目标语言代码("zh" / "en")。nil 视为 "zh"(向后兼容老调用,
     /// 后续 Orchestrator/Reader 应传入 AppLanguage.current)。
+    /// 版本维度(2026-10-08 外评 #4):identity.promptVersions 含该 module 的
+    /// 服务端当前版本时,本地行**只认该版本**——prompt bump 后 24h 内的旧版行
+    /// 不再命中(否则旧解读照常展示并被写进新合盘快照,bump 在客户端失防)。
+    /// 版本未知(空表/老后端)不设过滤,维持旧行为;`max(by: promptVersion)`
+    /// 在过滤后是同版本行集的稳定序,保留。
     func getLatest(
         contentHash: String,
         module: String,
@@ -37,6 +42,7 @@ final class InterpretationCacheStore {
         )
         let results = try context.fetch(desc)
         let normalizedLanguage = language ?? "zh"
+        let serverPromptVersion = identity.promptVersions[module]
         let hit = results
             .filter { cache in
                 let targetMatches: Bool
@@ -50,8 +56,16 @@ final class InterpretationCacheStore {
                 // language 维度:nil 老缓存视为 "zh"(i18n Q13 决策)
                 let cacheLanguage = cache.language ?? "zh"
                 let languageMatches = cacheLanguage == normalizedLanguage
+                // 版本维度:服务端已知当前版本时只认该版本(见函数注释)
+                let versionMatches: Bool
+                if let current = serverPromptVersion {
+                    versionMatches = cache.promptVersion == current
+                } else {
+                    versionMatches = true
+                }
                 return targetMatches
                     && languageMatches
+                    && versionMatches
                     && cache.provider == identity.provider
                     && cache.model == identity.model
             }

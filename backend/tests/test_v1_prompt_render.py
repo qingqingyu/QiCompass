@@ -530,3 +530,33 @@ def test_e2e_chart_builder_to_m0_render():
     assert "===== 模块 M0" in prompt
     # JSON 输出 schema
     assert "structure_fingerprint" in prompt
+
+
+def test_render_prompt_canonicalizes_v1_chain_fields():
+    """render_prompt 内联链字段规范化(2026-10-08 外评 #9 收口):非 canonical
+    形态(带空格分隔 / 键序非 sort_keys)的链字段直调渲染也被收敛——evalkit /
+    spike 等直调方与线上 prompt 字节一致,prompt 回归守护栏覆盖线上真实形态。
+    修复前规范化只在 API 层(_prepare_prompt_and_key),直调 render_prompt 会把
+    evalkit 的默认分隔符形态(带空格)直接嵌进模板。"""
+    import hashlib
+
+    # 插入序与 sort_keys 不同 + 默认分隔符(带空格)——双重非 canonical
+    spaced = json.dumps(
+        {"latent": "正印", "dominant": "劫财"}, ensure_ascii=False)
+    canonical = json.dumps(
+        {"latent": "正印", "dominant": "劫财"}, ensure_ascii=False,
+        sort_keys=True, separators=(",", ":"))
+    assert spaced != canonical, "fixture 恰为 canonical 形态,构造失效"
+    ctx = dict(_M1_CONTEXT)
+    ctx["main_axis"] = spaced
+
+    prompt = render_prompt("m1_talent", ctx, language="zh")
+    assert canonical in prompt, "渲染必须内嵌 canonical 形态(键排序+紧凑分隔)"
+    assert spaced not in prompt, "非 canonical 序列化形态不得残留进 prompt"
+    # 幂等:API 层先规范化再渲染,与直调渲染字节一致(同一 prompt_hash)
+    from app.ai.prompts import canonicalize_v1_chain_fields
+    pre_canonical = render_prompt(
+        "m1_talent", canonicalize_v1_chain_fields("m1_talent", ctx),
+        language="zh")
+    assert hashlib.sha256(prompt.encode()).hexdigest() == hashlib.sha256(
+        pre_canonical.encode()).hexdigest(), "双重规范化必须幂等(字节一致)"

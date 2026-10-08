@@ -318,8 +318,21 @@ final class DailyFortuneViewModel {
             } catch {
                 if !Task.isCancelled, pipelineGeneration == generation {
                     // 凭证失效(2026-10-08):403 重试无意义,不走 enterInterpretFailed
-                    // (那会再排一次静默重试白打 403)——独立态渲染「重新排盘」出口
+                    // (那会再排一次静默重试白打 403)——独立态渲染「重新排盘」出口。
+                    // 同时清 daily 快照的失效 token(外评 #5):快照复用判据只看
+                    // 「token 非空」,坏 token 不清会让重新排盘后的当天每次进入都
+                    // 复用它再 403;清空落回「无 token 视同 miss」重签路径自愈。
                     if APIError.isContextTokenError(error) {
+                        do {
+                            try dailyStore.clearContextToken(
+                                chartHash: hash, targetDate: businessDate)
+                        } catch {
+                            // 清除失败不吞(错误显式传播):记日志,主流程仍进
+                            // 失效态;快照到期(当日 24:00)自然兜底。
+                            AppLogger.persistence.error(
+                                "op=dailyFortune.interpret.clearToken_failed hash=\(hash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                            )
+                        }
                         isSilentRetrying = false
                         state = .ready(
                             response,

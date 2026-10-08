@@ -22,6 +22,10 @@ struct ChapterReadingView: View {
     var onShowPaywall: () -> Void
     /// 章间跳转(上一章/下一章):宿主替换 navigation path,单destination不叠栈。
     var onNavigate: (ModuleID) -> Void
+    /// 「重新排盘」出口(2026-10-08 外评 #7):深度 tab 内的 RecalculateChartButton
+    /// 传宿主动作——清阅读页导航 + vm.reset() 落回排盘表单。用户已在深度 tab,
+    /// 按钮默认的 switchTab 在此无可见效果(点了没反应),必须显式换动作。
+    var onRecalculateChart: () -> Void
 
     @Environment(\.dismiss) private var dismiss
 
@@ -129,6 +133,8 @@ struct ChapterReadingView: View {
                 failedBody(message: message)
             case .contextTokenExpired:
                 contextTokenExpiredBody
+            case .dailyLimitReached(let nextReset):
+                dailyLimitReachedBody(nextReset: nextReset)
             case .locked:
                 lockedBody
             case .needsInput:
@@ -329,7 +335,9 @@ struct ChapterReadingView: View {
 
     /// 凭证失效(2026-10-08):老快照盘的章节生成/翻译必 403——章题 +
     /// 失效说明 + 「重新排盘」出口(无「重试本章」,点了必然再 403)。
-    /// 排盘表单在深度解析 tab,重排后新 chart 快照带新 token,链自动自愈。
+    /// 出口动作 = onRecalculateChart(清导航 + reset 回表单,外评 #7:
+    /// 用户已在深度 tab,switchTab 无可见效果);重排后新 chart 快照带新
+    /// token,链自动自愈。
     private var contextTokenExpiredBody: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(chapterTitle)
@@ -345,7 +353,34 @@ struct ChapterReadingView: View {
                 .font(BaziFont.caption(size: 10.5))
                 .tracking(1)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
-            RecalculateChartButton()
+            RecalculateChartButton(action: onRecalculateChart)
+            Spacer()
+        }
+        .padding(.horizontal, 26)
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 服务端免费配额达限(2026-10-08 外评 #6):章题 + 达限文案(b3c76d8 双池
+    /// 口径中立版)+ UTC 零点倒计时。**禁重试**——重试本章/回前台自动续跑
+    /// 只会反复 429(服务端池与本地 10 次/日池不同源,共享 IP/多设备会先耗尽
+    /// 服务端池);nextReset 取下一个 UTC 零点(后端 bucket 按 UTC 日)。
+    private func dailyLimitReachedBody(nextReset: Date) -> some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(chapterTitle)
+                .font(BaziFont.display(size: 21))
+                .tracking(3)
+                .foregroundStyle(BaziTheme.ink)
+                .padding(.top, 46)
+            Text(L10n.Errors.limitTitle)
+                .font(BaziFont.caption(size: 13))
+                .foregroundStyle(BaziTheme.destructive)
+                .lineSpacing(5)
+            Text(L10n.Errors.limitSubtitle)
+                .font(BaziFont.caption(size: 10.5))
+                .tracking(1)
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
+            CountdownResetLabel(nextReset: nextReset)
+                .padding(.top, 2)
             Spacer()
         }
         .padding(.horizontal, 26)

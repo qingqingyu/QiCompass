@@ -27,6 +27,10 @@ class SingleflightCoalescer:
       锁内不做任何 await(等 LLM 一律出锁后),锁不会被长占
     - 所有调用者(含创建者)通过 asyncio.shield 等待同一个 Task,避免任何
       调用者被 cancel 时连带 cancel 掉正在执行的 inflight
+    - inflight 条目的清理挂在 **task 完成时机**(done_callback)而非创建者
+      finally(2026-10-08 外评 #8):创建者提前 cancel 时 task 仍在跑,立即
+      删 key 会让窗口内同 key 请求重开一次 LLM(重复成本);挂完成后清理,
+      窗口内后来者直接共享在飞任务
     """
 
     def __init__(self) -> None:
@@ -58,23 +62,30 @@ class SingleflightCoalescer:
             existing = self._inflight.get(key)
             if existing is not None:
                 task = existing
-                creator = False
             else:
                 task = asyncio.ensure_future(factory())
                 self._inflight[key] = task
-                creator = True
+                task.add_done_callback(self._make_cleanup_callback(key, task))
 
-        try:
-            # shield(含创建者):任何调用者被 cancel(如客户端断连)都不
-            # 连带 cancel 共享 task——创建者裸 await 会把取消传播给正被其他
-            # 等待者共享的 LLM 调用,一起失败(2026-10-08 修复前行为)。
-            return await asyncio.shield(task)  # type: ignore[no-any-return]
-        finally:
-            if creator:
-                async with self._lock:
-                    # 只删自己创建的 task,防止 race(后到等待者已新建另一个
-                    # task)。创建者提前 cancel 时 task 可能仍在跑——删除 key
-                    # 会让下个同 key 请求重开一次调用(重复成本,正确性无损),
-                    # 优于留着 entry 无人清理的长驻泄漏。
-                    if self._inflight.get(key) is task:
-                        del self._inflight[key]
+        # shield(含创建者):任何调用者被 cancel(如客户端断连)都不
+        # 连带 cancel 共享 task——创建者裸 await 会把取消传播给正被其他
+        # 等待者共享的 LLM 调用,一起失败(2026-10-08 修复前行为)。
+        return await asyncio.shield(task)  # type: ignore[no-any-return]
+
+    def _make_cleanup_callback(
+        self, key: object, task: asyncio.Task[object],
+    ) -> Callable[[asyncio.Task[object]], None]:
+        """task 完成即从 inflight 移除(同 key 防误删后到者的新 task)。
+
+        回调在事件循环上下文同步执行且无 await 点,与 coalesce 锁段的
+        dict 读写天然互斥,无需再取锁。异常任务在创建者被取消且无其他
+        等待者时无人 await——此处读取 exception 标记已检索,防
+        「Task exception was never retrieved」噪音;异常本身已传播给当时
+        在场的全部等待者,不存在吞错。
+        """
+        def _cleanup(_finished: asyncio.Task[object]) -> None:
+            if self._inflight.get(key) is task:
+                del self._inflight[key]
+            if not task.cancelled():
+                task.exception()
+        return _cleanup

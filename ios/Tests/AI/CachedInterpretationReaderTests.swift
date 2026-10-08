@@ -543,6 +543,54 @@ final class CachedInterpretationReaderTests: XCTestCase {
         XCTAssertEqual(result?.language, "zh", "版本平手时保 allCases 语言序(确定性)")
     }
 
+    // MARK: - 服务端 prompt 版本过滤(2026-10-08 外评 #4)
+
+    /// health 携带各模块服务端当前 prompt 版本 → 本地行**只认该版本**:
+    /// prompt bump 后 24h 内的旧版行不再命中(否则旧解读照常展示并被写进
+    /// 新合盘快照,bump 在客户端失防);版本未知(老后端无字段)维持旧行为。
+    func testReadOnlyTrustsServerPromptVersion() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        // 同盘同模块:v4(旧)+ v5(服务端当前)两行
+        try store.upsert(
+            contentHash: "h-pv", module: "compatibility_paid", promptVersion: 4,
+            targetDate: nil, provider: "anthropic", model: "claude-test",
+            interpretation: "v4 旧解读", generatedAt: .now
+        )
+        try store.upsert(
+            contentHash: "h-pv", module: "compatibility_paid", promptVersion: 5,
+            targetDate: nil, provider: "anthropic", model: "claude-test",
+            interpretation: "v5 新解读", generatedAt: .now
+        )
+
+        func readerWith(versions: [String: Int]?) -> CachedInterpretationReader {
+            var health = Self.health(provider: "anthropic", model: "claude-test")
+            health.promptVersions = versions
+            return CachedInterpretationReader(
+                identityResolver: AIIdentityResolver(apiClient:
+                    ReaderTestAPIClient(healthResults: [.success(health)])),
+                cacheStore: store
+            )
+        }
+
+        // 服务端声明当前 v5:只命中 v5 行(v4 旧版行被版本过滤排除)
+        let hitCurrent = try await readerWith(versions: ["compatibility_paid": 5])
+            .read(contentHash: "h-pv", module: "compatibility_paid")
+        XCTAssertEqual(hitCurrent?.interpretation, "v5 新解读")
+
+        // 服务端声明 v5 而本地只有更旧 v4 时也应 miss(用独立 store 验证,
+        // 避免与上行 v5 行同盘):此处直接复用同盘——v5 行在,miss 断言用
+        // 声明 v6(本地无 v6 行,最高版 v5 也不得放行「取本地最高」旧行为)
+        let missBelowServer = try await readerWith(versions: ["compatibility_paid": 6])
+            .read(contentHash: "h-pv", module: "compatibility_paid")
+        XCTAssertNil(missBelowServer, "本地最高版本低于服务端当前版本时必须 miss(不得回落取本地最高)")
+
+        // 版本未知(老后端无 prompt_versions)→ 维持旧行为:取本地最高版行
+        let legacyHit = try await readerWith(versions: nil)
+            .read(contentHash: "h-pv", module: "compatibility_paid")
+        XCTAssertEqual(legacyHit?.interpretation, "v5 新解读")
+    }
+
     // MARK: - Helpers
 
     private static func healthOnlyClient(

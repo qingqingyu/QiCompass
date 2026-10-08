@@ -175,16 +175,27 @@ struct ErrorStateView: View {
 /// 动作 = post `.switchTab("deepAnalysis")` 落到深度解析 tab(排盘表单所在,
 /// 与 Onboarding 完成后的落地同款路由):ChartSnapshot 不存 hourKnown/钟面
 /// 时间(真太阳时不可逆推),**无法自动重签**——用户重排后新 chart 快照带
-/// 新 token,每日(daily 快照 token nil 视同 miss 重签)与深度解析链自动
-/// 自愈。用在:ErrorStateView / InterpretState.contextTokenExpired(每日/
+/// 新 token,每日(daily 快照 token 失效即清、视同 miss 重签)与深度解析链
+/// 自动自愈。用在:ErrorStateView / InterpretState.contextTokenExpired(每日/
 /// 合盘解读区)/ ModuleState.contextTokenExpired(深度章节页)。
+///
+/// `action`(2026-10-08 外评 #7):深度 tab **内**使用时必须传——用户已在
+/// 目标 tab,默认的 switchTab 无任何可见效果(章节页点了没反应)。深度
+/// 章节页传「清阅读页导航 + vm.reset()」直接落回排盘表单;nil = 其他 tab
+/// 的既有 switchTab 行为。
 struct RecalculateChartButton: View {
+    var action: (() -> Void)? = nil
+
     var body: some View {
         Button {
             HapticEngine.light()
-            NotificationCenter.default.post(
-                name: .switchTab, object: nil,
-                userInfo: ["tab": "deepAnalysis"])
+            if let action {
+                action()
+            } else {
+                NotificationCenter.default.post(
+                    name: .switchTab, object: nil,
+                    userInfo: ["tab": "deepAnalysis"])
+            }
         } label: {
             Text(L10n.Errors.contextTokenRecalculate)
                 .font(.body.weight(.semibold))
