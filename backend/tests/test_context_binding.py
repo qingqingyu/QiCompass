@@ -525,6 +525,24 @@ async def test_quota_paid_exempt_and_cache_hit_not_counted(
         assert ri.status_code == 200, (i, ri.json())
 
 
+def test_normalize_client_ip_ipv4_mapped_unwrapped():
+    """IPv4 映射形态解出内层 IPv4 分桶(2026-10-08 修复)。
+
+    双栈 socket / 部分反代把 IPv4 对端写成 ::ffff:a.b.c.d——修复前直接按
+    IPv6 /64 归并,::ffff:* 全部落到 ::/64,全站 IPv4 匿名用户共享一个配额
+    桶;修复后解出内层 IPv4 按单地址分桶。原生 IPv6 仍 /64;非 IP 原样。
+    """
+    from app.api.interpret import _normalize_client_ip
+    assert _normalize_client_ip("::ffff:1.2.3.4") == "1.2.3.4"
+    assert _normalize_client_ip("::ffff:5.6.7.8") == "5.6.7.8"
+    assert (_normalize_client_ip("::ffff:1.2.3.4")
+            != _normalize_client_ip("::ffff:5.6.7.8")), \
+        "两个 IPv4 映射地址不得并进同一 bucket"
+    assert _normalize_client_ip("2001:db8:1:2:3:4:5:6") == "2001:db8:1:2::/64"
+    assert _normalize_client_ip("1.2.3.4") == "1.2.3.4"
+    assert _normalize_client_ip("unknown") == "unknown"
+
+
 def test_free_quota_store_unit(tmp_free_quota_store):
     """store 单元:达限不修改并返回 False;跨日独立。"""
     s = tmp_free_quota_store

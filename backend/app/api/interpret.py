@@ -737,14 +737,29 @@ def _normalize_client_ip(host: str) -> str:
 
     IPv6 用户有 2^64 地址空间,单地址作 bucket 可换地址无限刷免费额度;
     收敛到 /64(运营商会分给一个子网的典型粒度)封死此通道。IPv4 原样。
+
+    IPv4 映射形态的 IPv6 地址(`::ffff:a.b.c.d`)必须先解出内层 IPv4
+    (2026-10-08 修复):双栈 socket / 部分反代把 IPv4 对端写成映射形态,
+    若直接按 IPv6 /64 归并,`::ffff:*` 全部落到 `::/64` 同一个网络地址
+    ——**全站 IPv4 匿名用户被并进一个配额桶**(实测 `::ffff:1.2.3.4` 与
+    `::ffff:5.6.7.8` 均归并为 `::/64`)。解出后按普通 IPv4 单地址分桶。
+    非 IP 字符串(测试桩 / 异常环境)原样返回,与旧行为一致。
     """
     if ":" not in host:
         return host
     import ipaddress
     try:
-        return str(ipaddress.IPv6Network(f"{host}/64", strict=False))
+        addr = ipaddress.ip_address(host)
     except ValueError:
         return host
+    if isinstance(addr, ipaddress.IPv6Address):
+        mapped = addr.ipv4_mapped
+        if mapped is not None:
+            return str(mapped)
+        return str(ipaddress.IPv6Network(f"{host}/64", strict=False))
+    # IPv6 字面量之外能解析成 IPv4 的(理论不可达:无冒号已在顶部返回;
+    # 带冒号的 IPv4 不存在)——按解析结果原样返回,行为可预测
+    return str(addr)
 
 
 def _free_quota_bucket(request: Request, current_user_id: str | None) -> str:

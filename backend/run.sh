@@ -30,12 +30,19 @@ if [[ "$(uname -s)" == "Darwin" ]] \
     UVICORN_BIN="arch -arm64 .venv/bin/uvicorn"
 fi
 
-# --proxy-headers --forwarded-allow-ips 127.0.0.1:匿名免费配额按
-# request.client.host 计,反代(Caddy/Nginx)后无此参数时所有匿名用户都被算成
-# 127.0.0.1、全站共享一份每日配额(2026-10-07 review,部署必须项)。
+# --proxy-headers --forwarded-allow-ips:匿名免费配额按 request.client.host 计,
+# 反代(Caddy/Nginx)后无此参数时所有匿名用户都被算成反代地址、全站共享一份
+# 每日配额(2026-10-07 review,部署必须项)。
+# 信任地址经 FORWARDED_ALLOW_IPS 配置(2026-10-08 review):默认 127.0.0.1
+# (反代与后端同机);**Docker Compose 部署时反代在另一容器**,uvicorn 看到的
+# 对端是 Docker 内网地址(如 172.18.0.x)——须在 .env 填 Docker 网段
+# (如 172.18.0.0/16)或反代容器 IP,否则 X-Forwarded-For 不被信任,全站匿名
+# 用户仍共享一份配额。uvicorn 支持逗号分隔多值/CIDR 网段/`*`(仅信任边界
+# 完全可控时才可用 `*`:直连暴露端口下任意客户端可伪造转发头刷额度)。
+FORWARDED_ALLOW_IPS="${FORWARDED_ALLOW_IPS:-127.0.0.1}"
 exec $UVICORN_BIN app.main:app \
     --host 0.0.0.0 \
     --port 8000 \
     --workers "$WORKERS" \
     --proxy-headers \
-    --forwarded-allow-ips 127.0.0.1
+    --forwarded-allow-ips "$FORWARDED_ALLOW_IPS"
