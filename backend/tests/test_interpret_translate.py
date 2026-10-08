@@ -930,7 +930,6 @@ async def test_en_source_uses_en_char_limit(
     assert en_limit > zh_limit, "en 档必须比 zh 档宽(4 字符/token vs 1 字/token)"
     payload = _compat_translate_payload(source_interpretation="a" * (zh_limit + 100))
     payload["source_language"] = "en"
-    payload["source_prompt_version"] = 4
     resp = await interpret_client.post(
         "/api/interpret/translate", json=payload,
         headers={"X-QiCompass-Lang": "zh"},
@@ -1284,7 +1283,9 @@ def _compat_translate_payload(source_interpretation: str = _COMPAT_SRC) -> dict:
         "context": dict(_COMPAT_CTX),
         "target_date": None,
         "source_language": "zh",
-        "source_prompt_version": 4,
+        # 动态取当前版本:静态硬编码会在每次 bump 后把「版本门 409」误当
+        # 「防伪 409」修(test_compat_translate_* 全数假红)
+        "source_prompt_version": PROMPT_VERSIONS["compatibility_free"],
         "source_interpretation": source_interpretation,
     }
 

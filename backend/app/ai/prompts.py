@@ -66,8 +66,13 @@ PROMPT_VERSIONS: dict[str, int] = {
     # setdefault 兜底 A/B) + 干支接地禁令(禁引用盘外干支,修「申位庚金」编造)
     # + zh 纯简体中文约束(修「tends to」夹杂) + 章节标题独立成行约定
     # (iOS 按行解析分章排版)。alias `compatibility` 供老 iOS,模板不动不 bump。
-    "compatibility_free": 4,
-    "compatibility_paid": 4,
+    # v5(2026-10-08 联动补课):COMPATIBILITY_RULE_VERSION 1→2(50dc6aa,
+    # 合冲判定序变更)时联动守护栏尚未立,compat prompt 版本未同步 bump——
+    # 旧 v4 解读缓存(判定序变更前生成)继续命中,与新规则评估卡同屏错配
+    # 24h+。按现行守护栏(CLAUDE.md「引擎规则版本×合盘 prompt 版本联动」)
+    # 补课 bump;模板内容不变(v5 文件 = v4 byte-identical),纯缓存失效。
+    "compatibility_free": 5,
+    "compatibility_paid": 5,
     "daily_fortune": 4,    # v4 结构化今日洞察(2026-09-30 BP 评审 S6)
     # v3 Medium voice(50-80 字散文)→ v4 JSON 五段 {headline,work,relationships,
     # energy,reminder},总 90-130 字(修订 2026-08-01 Medium voice 决策);术语首现
@@ -375,7 +380,7 @@ COMPATIBILITY_TEMPLATE = _COMPATIBILITY_LEGACY_HEADER + """写作要求（6 章�
 # 章节:1. 基础相处模式 2. 互补与冲突总览
 # 免费内容必须真有料,让用户感知"AI 真有料"才肯买(对齐深度解析免费 2 章策略)
 # v4(2026-09-27):名字化 header + 称谓/干支接地/纯中文约束 + 标题行约定
-# (与 prompts/zh/compatibility_free_v4.md byte-identical,tests 锁定)
+# (与 prompts/zh/compatibility_free_v5.md byte-identical,tests 锁定;v5=联动补课,内容同 v4)
 COMPATIBILITY_FREE_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（免费 2 章，每章 200-300 字，总 400-600 字）：
 
 **第一章 基础相处模式**（200-300 字）
@@ -408,7 +413,7 @@ COMPATIBILITY_FREE_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（免费 2
 # 章节:1. 五行共振(S1 替换原「爱情深度」,决策 §Q3/§Q4) 2. 合作事业 3. 财运合拍 4. 流年同步
 # 具体领域预测是用户付费动力(对齐深度解析付费 5 章策略)
 # v4(2026-09-27):名字化 header + 称谓/干支接地/纯中文约束 + 标题行约定
-# (与 prompts/zh/compatibility_paid_v4.md byte-identical,tests 锁定)
+# (与 prompts/zh/compatibility_paid_v5.md byte-identical,tests 锁定;v5=联动补课,内容同 v4)
 COMPATIBILITY_PAID_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（付费 4 章，每章 200-300 字，总 800-1200 字）：
 
 **第一章 五行共振**（200-300 字）
