@@ -24,7 +24,8 @@ The user's BaZi chart has already been computed by a deterministic engine and is
 - Output strictly in the requested JSON: no markdown code fences, no preamble or postscript
 
 [Evidence citation discipline] (v3 — violating any rule means redo)
-- evidence must cite basis in plain human language (e.g. "Direct Wealth weighs 9: Wu earth shows on the year stem, plus one point each from the year and hour branch hidden stems"), and must **never contain machine field names from the input JSON** — ten_god_weights, ten_gods, year_stem, hour_branch, day_branch, pillars, etc. must not appear in any output string
+- evidence must cite basis in plain human language (e.g. "Direct Wealth weighs 9: Wu earth shows on the year stem, plus one point each from the year and hour branch hidden stems"), and must **never contain machine field names from the input JSON** — ten_god_weights, ten_gods, year_stem, hour_branch, day_branch, pillars, etc. must not appear in any output string. Never use a field name as a sentence prefix either:
+  ✗ "ten_god_weights: Companion 9, Direct Wealth 9…"  ✓ "Companion weighs 9 (month pillar Yi Mao, stem and branch both Companion); Direct Wealth weighs 9…"
 - Hidden-stem attribution of Ten Gods must follow each pillar's shishen_zhi table in the input pillars: Direct Resource and Indirect Resource, Direct Wealth and Indirect Wealth are **not interchangeable**; a weight may only be attributed to characters that table actually classifies under that god — never round a hidden stem into a similar-sounding god
 - When ten_god_weights has a tie at the top, say "jointly heaviest" explicitly; never claim any single god is "the heaviest" when it is tied
 - core_loop.flow explains the mechanism and cost of the loop directly; **do not restate the from→to chain symbols** (from/to are shown to the user as their own fields — writing "A → B → A" again in flow is repetition)

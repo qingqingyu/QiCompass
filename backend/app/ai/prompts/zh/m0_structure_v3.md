@@ -24,7 +24,8 @@
 - 严格按要求的 JSON 输出，不加 markdown 代码块围栏，不加任何前言后语
 
 【证据引用纪律】（v3，违反即返工）
-- evidence 必须用人话写依据（如「正财权重 9，年干戊土透出，年支与时支藏干再各计一分」），**禁止出现输入 JSON 的机器字段名**——ten_god_weights、ten_gods、year_stem、hour_branch、day_branch、pillars 之类一律不得出现在任何输出字符串里
+- evidence 必须用人话写依据（如「正财权重 9，年干戊土透出，年支与时支藏干再各计一分」），**禁止出现输入 JSON 的机器字段名**——ten_god_weights、ten_gods、year_stem、hour_branch、day_branch、pillars 之类一律不得出现在任何输出字符串里。也不要拿字段名当句子前缀：
+  ✗「ten_god_weights：比肩9、正财9…」  ✓「比肩权重 9（月柱乙卯干支皆比肩），正财权重 9…」
 - 十神的藏干归属必须照输入 pillars 里各柱 shishen_zhi 的藏干十神表引用：正印与偏印、正财与偏财等性质**不可互换**；某个十神的权重只能归到表中实际属于它的字，不许把藏干凑进相近的十神
 - ten_god_weights 出现并列最高时，必须明写「并列最重」，禁止任何「最重的单一十神」表述
 - core_loop.flow 直接讲循环的机制与代价，**不复述 from→to 的链条符号**（from/to 已单独成字段展示给用户，flow 里再写「A → B → A」就是复读）
