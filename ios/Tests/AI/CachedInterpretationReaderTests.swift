@@ -596,9 +596,10 @@ final class CachedInterpretationReaderTests: XCTestCase {
     /// 上游(如 M0)单侧 bump 后,本地缓存键不含上游指纹、getLatest 只按
     /// **本模块**版本过滤——下游旧版本行照常命中会拼出「新旧混合链」
     /// (命书混拼 + 这些章翻译恒 409,服务端链走查按新上游重建键)。
-    /// 守卫:v1 链(modules 以 m0_structure 起头,生产者恒在消费者前)中
-    /// 任一模块「服务端版本已知且本地无当前版本行」→ 其后模块全部跳过回填;
-    /// 版本未知(老后端)守卫关闭,维持旧行为。
+    /// 守卫:v1 链(清单内全部是 M0-M7 模块,含同会话部分清单——模块按
+    /// allCases 序、生产者恒在消费者前)中任一模块「服务端版本已知且本地
+    /// 无当前版本行」→ 其后模块全部跳过回填;版本未知(老后端)守卫关闭,
+    /// 维持旧行为。
     func testReadAllCutsV1ChainWhenUpstreamVersionMissing() async throws {
         let container = try ModelContainerFactory.makeInMemory()
         let store = InterpretationCacheStore(context: container.mainContext)
@@ -652,6 +653,15 @@ final class CachedInterpretationReaderTests: XCTestCase {
             "m0_structure": 1, "m1_talent": 1, "m2_high_low": 1,
         ]).readAll(contentHash: "h-cut", modules: chain, language: "zh")
         XCTAssertEqual(allCurrent.count, 3)
+
+        // 4. 部分清单(同会话重挂:M0 已 .ok 不进回填清单,modules 从 m1
+        //    起头)守卫仍须生效:m1 服务端已 bump v2、本地无 v2 行 → m1
+        //    之后的 m2 一并跳过(修复前 first != m0 → 守卫关闭 → m2 旧行
+        //    照常回填 = #7 混拼的同会话残余面,重启全量清单才自愈)
+        let partial = try await readerWith(versions: [
+            "m0_structure": 1, "m1_talent": 2, "m2_high_low": 1,
+        ]).readAll(contentHash: "h-cut", modules: Array(chain.dropFirst()), language: "zh")
+        XCTAssertTrue(partial.isEmpty, "部分清单守卫:上游版本缺行须切断其后回填(实际:\(partial.keys.sorted()))")
     }
 
     // MARK: - Helpers

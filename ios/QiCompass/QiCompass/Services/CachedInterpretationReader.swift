@@ -124,10 +124,14 @@ final class CachedInterpretationReader {
         includeStaleVersions: Bool = false
     ) throws -> [String: InterpretationCache] {
         var hits: [String: InterpretationCache] = [:]
-        // 守卫只对 v1 链生效(modules 以 m0_structure 起头 = DeepAnalysis
-        // 链式回填);合盘的「paid/free 任一命中」语义里 paid 常年缺席,
-        // 前缀切断会误伤 free 行命中,不适用
-        let isV1Chain = modules.first == "m0_structure"
+        // 守卫只对 v1 链模块集生效(清单内全部是 M0-M7 = DeepAnalysis 链式
+        // 回填;**含同会话部分清单**——M0 已 .ok 等不可回填态时清单从 m1
+        // 起头,模块仍按 allCases 序、生产者恒在消费者前,切断语义不变)。
+        // 合盘/每日/老 module 名不在 ModuleID 集,不适用——合盘的
+        // 「paid/free 任一命中」语义里 paid 常年缺席,前缀切断会误伤 free
+        // 行命中。判定用 allSatisfy 而非「first == m0」:后者会让部分清单
+        // 静默绕过守卫,#7 的混拼场景在同会话 Tab 重挂下复现(重启才自愈)。
+        let isV1Chain = modules.allSatisfy { ModuleID(rawValue: $0) != nil }
         var chainCut = false
         for module in modules {
             guard !chainCut else { break }

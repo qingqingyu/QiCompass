@@ -20,7 +20,7 @@ from __future__ import annotations
 import copy
 import json
 import sqlite3
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
 import pytest
 
@@ -713,6 +713,50 @@ async def test_quota_paid_daily_limit(
             context=BAZI_DEEP_CONTEXT),
     })
     assert rf.status_code == 200, rf.json()
+
+
+def test_quota_tier_routes_all_module_families():
+    """配额分档路由(第十四轮拍板):付费 module 族全部进 paid 档
+    (interpret 与 translate 共用 `_enforce_daily_quota`,tier 由 module
+    决定——本单测把「付费翻译同计 paid 桶」的路由前提钉死),免费族进
+    free 档;paid 桶 paid: 前缀、免费桶保持无前缀旧格式。"""
+    from app.api.interpret import _quota_bucket, _quota_tier
+    from app.config import FREE_DAILY_LIMIT, PAID_DAILY_LIMIT
+    from app.models.interpret import InterpretRequest
+
+    def req(module: str) -> InterpretRequest:
+        # 各 module 的模型交叉校验:付费必填 user_local_id、M1-M7 必填
+        # parent_fingerprint、m4/m5 各自必填输入(且仅对应 module 可非空)
+        # ——tier 路由本身不读这些字段,给最小合法值即可
+        kwargs: dict = {"user_local_id": "user-1"}
+        if module != "m0_structure":
+            kwargs["parent_fingerprint"] = "tier-fp"
+        kwargs["target_date"] = (
+            date(2026, 10, 8) if module == "daily_fortune" else None)
+        if module == "m4_health":
+            kwargs.update(m4_age=30, m4_current_concern="睡眠")
+        if module == "m5_wealth":
+            kwargs.update(m5_assets_summary="工资", m5_preference="平衡")
+        return InterpretRequest(
+            content_hash="tier-h", module=module, context={}, **kwargs)
+
+    paid_modules = [
+        "bazi_deep_paid", "compatibility_paid", "compatibility",
+        "m2_high_low", "m3_system", "m4_health", "m5_wealth",
+        "m6_dynamics", "m7_manual",
+    ]
+    for module in paid_modules:
+        assert _quota_tier(req(module)) == ("paid", PAID_DAILY_LIMIT), module
+    free_modules = ["bazi_deep_free", "m0_structure", "m1_talent",
+                    "daily_fortune"]
+    for module in free_modules:
+        assert _quota_tier(req(module)) == ("free", FREE_DAILY_LIMIT), module
+    # 桶前缀:付费 paid: 前缀独立分桶,免费无前缀(既有计数行不失效);
+    # current_user_id 非空时 _free_quota_bucket 不触碰 request.client,传 None 即可
+    assert _quota_bucket(
+        None, req("m4_health"), "user-u1") == "paid:user:user-u1"
+    assert _quota_bucket(
+        None, req("m0_structure"), "user-u1") == "user:user-u1"
 
 
 def test_normalize_client_ip_ipv4_mapped_unwrapped():

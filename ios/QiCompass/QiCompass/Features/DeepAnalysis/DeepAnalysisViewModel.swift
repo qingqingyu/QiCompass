@@ -718,9 +718,7 @@ final class DeepAnalysisViewModel {
                 moduleStates[module] = .pending
             }
         }
-        if translationTokenExpired {
-            translationTokenExpired = false
-        }
+        translationTokenExpired = false
         // L2/F4 起手读回持久化的 M4/M5 输入(重启后 m4UserInput/m5UserInput 为
         // nil——翻译链缺输入会把已生成章标 .needsInput,原文从屏幕消失)。
         // 内存已有值不覆盖(同会话重入 hydrate 不吞掉刚提交的新输入)。
@@ -1198,6 +1196,18 @@ final class DeepAnalysisViewModel {
         }
     }
 
+    /// 链式调用主循环:按 ModuleID.allCases 顺序串行执行(M0 → M1 → ... → M7)。
+    ///
+    /// 断点续跑(2026-09-08):已 `.ok` 的章直接跳过(缓存回填/前次链已完成的
+    /// 部分不重跑,缓存命中 refund 语义虽不耗次,但跳过连请求都不发);世代号
+    /// 保证只有「当代链」能清 `isChainRunning`(取消竞态见 startV1Chain)。
+    ///
+    /// 注:简化版采用全串行;v2 可优化为按依赖图并行(M2/M3/M4/M5 可同时跑)。
+    /// 串行好处:状态机简单,失败定位清晰,无并发竞争。
+    /// (doc + @MainActor 于 9da2444 合并消解 normalizeExpiredLimitStates 时被
+    /// 连带误删,2026-10-08 双 review 恢复——两父提交均有,类级 @MainActor
+    /// 下隔离语义不变,纯文档失而复得)
+    @MainActor
     private func runV1Chain(response: BaziResponse, generation: Int) async {
         defer {
             // 只有当代链能清标志:旧链(cancel 后在挂起点恢复)不得掐灭新链横幅
