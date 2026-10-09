@@ -21,14 +21,17 @@ class MockAIClient:
         self.call_count = 0
         self.last_prompt: str | None = None
         self.last_temperature: float | None = None
+        self.last_module: str | None = None
 
     async def interpret(
         self, prompt: str, *, temperature: float = 0.6,
+        module: str | None = None,
     ) -> str:
-        """对齐真实 AIClient 协议(Stage 2 加 temperature 参数)。"""
+        """对齐真实 AIClient 协议(Stage 2 加 temperature,监控加 module)。"""
         self.call_count += 1
         self.last_prompt = prompt
         self.last_temperature = temperature
+        self.last_module = module
         return self._response
 
     def set_response(self, response: str) -> None:
@@ -45,10 +48,12 @@ class FailingAIClient(MockAIClient):
 
     async def interpret(
         self, prompt: str, *, temperature: float = 0.6,
+        module: str | None = None,
     ) -> str:
         self.call_count += 1
         self.last_prompt = prompt
         self.last_temperature = temperature
+        self.last_module = module
         if self._error:
             raise self._error
-        raise AIProviderError("mock AI provider failure")
+        raise AIProviderError("mock AI provider failure", reason="mock_failure")

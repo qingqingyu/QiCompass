@@ -1457,7 +1457,8 @@ async def test_translate_and_generate_do_not_coalesce(
     class _SlowScriptedMock(MockAIClient):
         """按 prompt 是否翻译模板分答应 + 人工延迟制造并发窗口。"""
 
-        async def interpret(self, prompt: str, *, temperature: float = 0.6) -> str:
+        async def interpret(self, prompt: str, *, temperature: float = 0.6,
+                            module: str | None = None) -> str:
             await asyncio.sleep(0.05)
             self.call_count += 1
             self.last_prompt = prompt
