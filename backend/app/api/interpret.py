@@ -37,8 +37,10 @@ import logging
 import re
 import time
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import aclosing
 from datetime import datetime, timezone
-from typing import AsyncIterator, Final, NamedTuple, NoReturn
+from typing import Final, NamedTuple, NoReturn
 
 from fastapi import APIRouter, Depends, Request
 from starlette.concurrency import run_in_threadpool
@@ -1387,7 +1389,7 @@ def _match_exact_v1_rows(
     驱逐残留(≥8 条更新的同 parent 注入行可暂时压出真行 → 409)结构性
     关闭;同 (版本, hash) 的 provider/model 变体行(PK 十维含
     provider/model,同键异文本并存,十六轮 houduan #3)**全收集**,
-    交由 `_collect_v1_chain_branches` 按链字段贡献去重回溯。
+    交由 `_iter_v1_chain_branches` 按链字段贡献去重回溯。
     """
     matched = [
         item for item in rows
@@ -1400,7 +1402,7 @@ def _match_exact_v1_rows(
     return matched
 
 
-async def _collect_v1_chain_branches(
+async def _iter_v1_chain_branches(
     upstreams: tuple[str, ...],
     rows_by_module: dict[str, list[tuple[CacheKey, str, str]]],
     chart: str,
@@ -1409,8 +1411,8 @@ async def _collect_v1_chain_branches(
     base_verified: dict[str, str],
     render_budget: list[int],
 ) -> AsyncIterator[dict[str, str]]:
-    """非 M0 上游链的核验分支枚举(2026-10-08 十六轮外评 #3:变体回溯;
-    2026-10-09 十七轮外评 #3 改异步生成器)。
+    """非 M0 上游链的核验分支惰性枚举(2026-10-08 十六轮外评 #3:变体回溯;
+    同日双 review 建议收口:边生成边核验)。
 
     缓存主键十维含 provider/model:换 provider/模型重生成后,同(版本,
     parent_hash, prompt_hash)的新旧行**并存**——prompt 相同 → prompt_hash
@@ -1420,11 +1422,18 @@ async def _collect_v1_chain_branches(
     的合法用户恒 409(「同版本同 context 的行被 PK 去重」的旧注释不成立,
     PK 含 provider/model)。M0 根层回溯救不了中段分叉——两条链共享同一根。
 
-    本函数逐层收集**全部** hash 匹配行,按「该行贡献的链字段(canonical
-    形态)」去重后递归展开组合;分支首序 = 旧实现的逐层首匹配序(无变体
+    本函数逐层枚举**全部** hash 匹配行,按「该行贡献的链字段(canonical
+    形态)」去重后 DFS 展开;分支首序 = 旧实现的逐层首匹配序(无变体
     并存时行为不变)。组合爆炸由 render_budget 封顶——注入行要进分支必须
     先产出合法 JSON 落库(真烧 LLM),真实变体每层 ≤2-3,合法链远触不到
     预算。
+
+    **异步生成器(边生成边核验)**:调用方对每条分支立即做叶子源键精确
+    比对、首条通过即停止迭代——①无变体请求只枚举首条路径(每层 ~1 次
+    重渲染,与旧「逐层首匹配」实现同开销,不吃「先列完全部分支」的
+    每层 ≤8 版本探查);②后段分支的枚举渲染不再先于首条核验消耗预算
+    (「列完全部才核验」形态下,首条合法分支可能被枚举阶段饿死在预算
+    外 → 409)。
 
     候选枚举(2026-10-08 十六轮 neirong #3 撞车消解融合)= 按行集 distinct
     版本降序逐版本重渲染期望 hash,`_match_exact_v1_rows` 四元精确匹配
@@ -1433,13 +1442,6 @@ async def _collect_v1_chain_branches(
     provider/model 变体行全数进入(回溯语义不变)。每次版本渲染 -1
     render_budget。坏行(输出不可解析)剪枝但不阻断同层其它变体——旧
     实现首匹配行坏即整链弃,此处顺带修复。
-
-    惰性流出(2026-10-09 十七轮 #3):旧「先全量收集 list 再逐个叶子核对」
-    在收集耗尽渲染预算时把已产出的合法分支一并丢给 409(叶子循环开局即
-    break),且首分支核对通过也要白付全量枚举的渲染。改为生成器:DFS 找到
-    一条完整分支立即 yield 交调用方做叶子源键核对,首分支命中即整树短路,
-    不再展开剩余组合——枚举渲染与叶子渲染在同一预算池内交错,先到的分支
-    先占预算。
     """
     async def collect(
         idx: int, verified: dict[str, str],
@@ -1525,7 +1527,7 @@ async def _verify_v1_chain_translation_source(
        #3)——只取首匹配会把新变体字段提交给旧链叶子,合法翻译恒 409;
        组合由走查渲染总预算封顶(_V1_CHAIN_WALK_RENDER_BUDGET);分支惰性
        流出 + 单分支叶子校验失败仅跳过该分支(十七轮 #2/#3,详见
-       _collect_v1_chain_branches docstring 与叶子循环注释)。
+       _iter_v1_chain_branches docstring 与叶子循环注释)。
     3. 全链核验后,以「源语言上游字段(canonical 形态)+ 请求 chart + 请求
        用户输入(m4/m5,随请求回传保键对齐)」构建源 context,经
        _prepare_prompt_and_key(与生成同一代码路径,含链字段规范化)算出
@@ -1619,74 +1621,76 @@ async def _verify_v1_chain_translation_source(
             if value is not None:
                 verified[name] = value
 
-        # 非 M0 上游:逐层收集全部 hash 匹配行(变体回溯,十六轮 #3),分支
-        # 惰性流出(十七轮 #3):DFS 找到一条完整分支立即做叶子源键核对,首
-        # 分支命中即整树短路,不再展开剩余组合;首分支 = 旧实现的逐层首匹配
-        # 序,无变体并存的链行为不变。叶子源键渲染与枚举重渲染同级别 CPU
-        # (translate_context + render + sha256),进同一渲染预算——分支数最坏
-        # 8^4 量级,不封顶则预算只盖住枚举半边、总渲染超旧实现最坏面
-        # (three-check 2026-10-08 第十六轮 R1);交错后「先到的分支先占预算」,
-        # 收集耗尽预算不再丢弃已产出的合法分支。
-        async for branch_verified in _collect_v1_chain_branches(
+        # 非 M0 上游:逐层枚举全部 hash 匹配行(变体回溯,十六轮 #3),
+        # **异步生成器边生成边核验**——首条通过即停止迭代(aclosing 显式
+        # 关闭挂起的生成器):无变体时只枚举首条路径,后段分支的枚举渲染
+        # 不先于首条核验吃预算。
+        # 每条核验分支各做一次完整源键精确比对;首分支 = 旧实现的逐层
+        # 首匹配序,无变体并存的链行为不变。叶子源键渲染与枚举重渲染同级别
+        # CPU(translate_context + render + sha256),进同一渲染预算——分支数
+        # 最坏 8^4 量级,不封顶则预算只盖住枚举半边、总渲染超旧实现最坏面
+        # (three-check 2026-10-08 第十六轮 R1)。
+        async with aclosing(_iter_v1_chain_branches(
                 non_m0_deps, rows_by_module, chart, source_language,
-                parent_hash, verified, render_budget):
-            if render_budget[0] <= 0:
-                break
-            render_budget[0] -= 1
-            # 源键 = 与生成同一代码路径(_prepare_prompt_and_key,含规范化 +
-            # user_input_hash),链字段/parent_fingerprint 换成源语言已核验值。
-            source_context = dict(req.context)
-            for name in V1_CHAIN_PRODUCER:
-                if name in branch_verified:
-                    source_context[name] = branch_verified[name]
-            source_req = req.model_copy(update={
-                "context": source_context,
-                "parent_fingerprint": fingerprint,
-            })
-            # 纯 CPU(校验 + 渲染 + hash),放线程池(2026-10-07 review 收尾,
-            # 与行读取/版本重渲染同款;源键渲染是本函数最重的一步)。
-            try:
-                source_prepared = await run_in_threadpool(
-                    _prepare_prompt_and_key,
-                    source_req, source_language, request_id, start,
-                    request.app.state.ai_client)
-            except InvalidInputError as e:
-                # 该分支的链字段值过不了 context 校验(十七轮外评 #2):输出
-                # 字段长度在**生成侧**从不校验(上限只拦下游模块的 context),
-                # 变体 LLM 输出的超长字段(如 5000 字 one_leverage)可随分支
-                # 进叶子的 validate_context(对额外 key 全量长度扫描)抛
-                # InvalidInputError——该分支不可能重建出任何真实生成键,跳过
-                # 续试下一分支(→ 409 自愈路径保留;否则单个毒化变体把整个
-                # 走查钉死在 42x,iOS 既有 STALE 重生成不触发,且回溯走不到
-                # 后面的合法分支)。其它异常族(KeyError/FileNotFoundError 等
-                # 基建/配置错)与分支内容无关,仍上抛——伪装成 409 会掩盖真故障。
-                elapsed_ms = (time.perf_counter() - start) * 1000
-                logger.warning(
-                    "interpret.translate.chain_branch_invalid "
-                    "elapsed_ms=%.1f request_id=%s module=%s error=%r",
-                    elapsed_ms, request_id, req.module, e,
-                )
-                continue
-            try:
-                source_verified = await run_in_threadpool(
-                    cache.has_interpretation_exact,
-                    req.content_hash, req.module, current_version,
-                    source_language, source_interpretation,
-                    source_prepared.cache_key.prompt_hash,
-                    parent_hash,
-                    source_prepared.cache_key.user_input_hash,
-                    target_date_iso,
-                )
-            except Exception as e:
-                elapsed_ms = (time.perf_counter() - start) * 1000
-                logger.exception(
-                    "interpret.translate.source_verify_failed elapsed_ms=%.1f "
-                    "%s error=%r", elapsed_ms, source_prepared.log_ctx, e,
-                )
-                raise InterpretationCacheError(
-                    f"后端原文核验读失败({type(e).__name__}): {e}") from e
-            if source_verified:
-                return True
+                parent_hash, verified, render_budget)) as branches:
+            async for branch_verified in branches:
+                if render_budget[0] <= 0:
+                    break
+                render_budget[0] -= 1
+                # 源键 = 与生成同一代码路径(_prepare_prompt_and_key,含规范化 +
+                # user_input_hash),链字段/parent_fingerprint 换成源语言已核验值。
+                source_context = dict(req.context)
+                for name in V1_CHAIN_PRODUCER:
+                    if name in branch_verified:
+                        source_context[name] = branch_verified[name]
+                source_req = req.model_copy(update={
+                    "context": source_context,
+                    "parent_fingerprint": fingerprint,
+                })
+                # 纯 CPU(校验 + 渲染 + hash),放线程池(2026-10-07 review 收尾,
+                # 与行读取/版本重渲染同款;源键渲染是本函数最重的一步)。
+                try:
+                    source_prepared = await run_in_threadpool(
+                        _prepare_prompt_and_key,
+                        source_req, source_language, request_id, start,
+                        request.app.state.ai_client)
+                except InvalidInputError as e:
+                    # 该分支的链字段值过不了 context 校验(十七轮外评 #2):输出
+                    # 字段长度在**生成侧**从不校验(上限只拦下游模块的 context),
+                    # 变体 LLM 输出的超长字段(如 5000 字 one_leverage)可随分支
+                    # 进叶子的 validate_context(对额外 key 全量长度扫描)抛
+                    # InvalidInputError——该分支不可能重建出任何真实生成键,跳过
+                    # 续试下一分支(→ 409 自愈路径保留;否则单个毒化变体把整个
+                    # 走查钉死在 42x,iOS 既有 STALE 重生成不触发,且回溯走不到
+                    # 后面的合法分支)。其它异常族(KeyError/FileNotFoundError 等
+                    # 基建/配置错)与分支内容无关,仍上抛——伪装成 409 会掩盖真故障。
+                    elapsed_ms = (time.perf_counter() - start) * 1000
+                    logger.warning(
+                        "interpret.translate.chain_branch_invalid "
+                        "elapsed_ms=%.1f request_id=%s module=%s error=%r",
+                        elapsed_ms, request_id, req.module, e,
+                    )
+                    continue
+                try:
+                    source_verified = await run_in_threadpool(
+                        cache.has_interpretation_exact,
+                        req.content_hash, req.module, current_version,
+                        source_language, source_interpretation,
+                        source_prepared.cache_key.prompt_hash,
+                        parent_hash,
+                        source_prepared.cache_key.user_input_hash,
+                        target_date_iso,
+                    )
+                except Exception as e:
+                    elapsed_ms = (time.perf_counter() - start) * 1000
+                    logger.exception(
+                        "interpret.translate.source_verify_failed elapsed_ms=%.1f "
+                        "%s error=%r", elapsed_ms, source_prepared.log_ctx, e,
+                    )
+                    raise InterpretationCacheError(
+                        f"后端原文核验读失败({type(e).__name__}): {e}") from e
+                if source_verified:
+                    return True
     return False
 
 
