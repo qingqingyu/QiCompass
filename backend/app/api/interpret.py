@@ -2218,11 +2218,12 @@ async def interpret_translate(
 
     async def _generate_translation() -> tuple[str, str]:
         day = datetime.now(timezone.utc).date().isoformat()
-        # paid_owner 必传(十八轮外评 #1):漏传时 enforce 扣「请求者身份」桶,
-        # 而 peek(5.45)与两处 refund 都在「权益记录主体」桶——登录账号翻译
-        # 匿名购买的盘时,退款打到另一个空桶 no-op(请求者桶白丢 1 次),
-        # 且翻译用量永远碰不到 peek 所查的桶(切账号叠桶的口子在翻译路
-        # 没关上)。扣/查/退三处同桶由回归测试锁定。
+        # paid_owner 必传(2026-10-09 外评):漏传时扣次按请求者身份找桶,
+        # 而本端点 peek(前置)与退款(下方两处)按 entitlement 主体找桶——
+        # 同一笔匿名购买被多个登录账号翻译时,每号各开一个付费桶(十七轮
+        # #4 关掉的通道在翻译侧重开),且扣 A 桶退 B 桶、B 桶无消耗行时
+        # 退款 no-op 仍烧退款计数(B 桶有消耗行时更糟:合法计数被退款冲掉,
+        # 见十八轮同桶回归测试)。
         await _enforce_daily_quota(
             request, req, current_user_id, day, paid_owner=paid_owner)
         try:
