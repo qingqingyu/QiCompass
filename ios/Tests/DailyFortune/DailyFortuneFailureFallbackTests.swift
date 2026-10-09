@@ -224,6 +224,74 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         XCTAssertEqual(callsAfterSecond, 1, "命中后不得再打后端")
     }
 
+    // MARK: - 老盘自动重签(附八拍板②:加载期 ensure + 失效期 403 重签重试)
+
+    /// 加载期:老盘 chart 快照无 token + 有重签原料 → runDeterministic 起手
+    /// 静默重排换新 chart token(hash 断言在 store),daily 请求带新 token。
+    func test老盘无chartToken_加载期静默重签_请求带新token() async throws {
+        try seedChart(hash: "daily_resign_a")
+        var fresh = Self.makeResponse(hash: "daily_resign_a")
+        fresh.contextTokens = ["payload": "np"]
+        await api.setCannedCalculate(fresh)
+        await api.setDailyFortuneToken("daily-t1")
+
+        let (response, fromCache) = try await orchestrator.runDeterministic(
+            chartHash: "daily_resign_a",
+            ziHourRule: "zi_next_day",
+            businessDate: Date.now
+        )
+        XCTAssertFalse(fromCache)
+        XCTAssertEqual(response.contextToken, "daily-t1")
+        let calcCalls = await api.calculateAttempts()
+        XCTAssertEqual(calcCalls, 1, "老盘无 token → 恰好一次静默重签排盘")
+        let requests = await api.recordedDailyFortuneRequests()
+        XCTAssertEqual(
+            requests.first?.contextToken, "np",
+            "daily 请求必须携带重签后的 payload 族 token"
+        )
+    }
+
+    /// 失效期:chart token 在档但被服务端拒(403)→ 静默重签 chart token 后
+    /// 恰好重试一次成功;重签不可用(排盘失败)→ 原样上抛(既有出口)。
+    func test每日token被拒403_静默重签后重试一次() async throws {
+        // chart 快照带「已死」token(加载期 ensure 直返不重签)
+        var seeded = Self.makeResponse(hash: "daily_resign_b")
+        seeded.contextTokens = ["payload": "old-dead"]
+        let request = BaziCalculateRequest(
+            birthDatetime: "1990-03-15T12:00:00",
+            timezone: "Asia/Shanghai",
+            gender: "male",
+            longitude: 116.4074,
+            latitude: 39.9042,
+            placeName: "北京",
+            geonameId: 1816670,
+            ziHourRule: "zi_next_day",
+            hourKnown: true
+        )
+        _ = try chartStore.upsert(response: seeded, request: request)
+        var fresh = Self.makeResponse(hash: "daily_resign_b")
+        fresh.contextTokens = ["payload": "np2"]
+        await api.setCannedCalculate(fresh)
+        await api.setDailyFortuneToken("daily-t2")
+        await api.setDailyFortuneError(
+            APIError.backendError(
+                code: "CONTEXT_TOKEN_INVALID", message: "token 失效",
+                requestId: nil),
+            times: 1)
+
+        let (response, _) = try await orchestrator.runDeterministic(
+            chartHash: "daily_resign_b",
+            ziHourRule: "zi_next_day",
+            businessDate: Date.now
+        )
+        XCTAssertEqual(response.contextToken, "daily-t2")
+        let calls = await api.dailyFortuneAttempts()
+        XCTAssertEqual(calls, 2, "首调 403 → 静默重签 → 恰好重试一次")
+        let requests = await api.recordedDailyFortuneRequests()
+        XCTAssertEqual(requests[0].contextToken, "old-dead", "首调用快照里的旧 token")
+        XCTAssertEqual(requests[1].contextToken, "np2", "重试携带重签后的新 chart token")
+    }
+
     func test有token快照_正常命中_不打后端() async throws {
         try seedChart(hash: "daily_token_hit")
         let businessDate = Date.now
@@ -913,6 +981,26 @@ private actor FailingInterpretAPIClient: APIClient {
     private var dailyFortuneToken: String?
     func setDailyFortuneToken(_ token: String?) { dailyFortuneToken = token }
     func dailyFortuneAttempts() -> Int { dailyFortuneCalls }
+    /// 拍板②老盘重签回归(2026-10-09):前 N 次 dailyFortune 抛此错
+    /// (403 CONTEXT_TOKEN_* 面);calculateBazi 可注入重签应答;两者均计数/录请求。
+    private var dailyFortuneError: APIError?
+    private var dailyFortuneErrorTimes = 0
+    private var dailyFortuneErrorsThrown = 0
+    private var dailyFortuneRequests: [DailyFortuneRequest] = []
+    private var cannedCalculate: BaziResponse?
+    private var calculateCalls = 0
+    func setDailyFortuneError(_ error: APIError?, times: Int = 1) {
+        dailyFortuneError = error
+        dailyFortuneErrorTimes = times
+        dailyFortuneErrorsThrown = 0
+    }
+    func setCannedCalculate(_ response: BaziResponse?) {
+        cannedCalculate = response
+    }
+    func calculateAttempts() -> Int { calculateCalls }
+    func recordedDailyFortuneRequests() -> [DailyFortuneRequest] {
+        dailyFortuneRequests
+    }
 
     func translate(request: TranslateRequest) async throws -> InterpretResponse {
         translateCalls += 1
@@ -951,6 +1039,11 @@ private actor FailingInterpretAPIClient: APIClient {
 
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse {
         dailyFortuneCalls += 1
+        dailyFortuneRequests.append(request)
+        if let dailyFortuneError, dailyFortuneErrorsThrown < dailyFortuneErrorTimes {
+            dailyFortuneErrorsThrown += 1
+            throw dailyFortuneError
+        }
         if let dailyFortuneGate {
             await dailyFortuneGate(request.chartHash)
         }
@@ -1003,7 +1096,10 @@ private actor FailingInterpretAPIClient: APIClient {
     }
 
     func calculateBazi(request: BaziCalculateRequest) async throws -> BaziResponse {
-        throw FlakyTestError.unexpectedCall
+        // 拍板②重签回归:未注入 canned 应答时维持「意外调用即抛」护栏
+        calculateCalls += 1
+        guard let cannedCalculate else { throw FlakyTestError.unexpectedCall }
+        return cannedCalculate
     }
     func compatibility(request: CompatibilityRequest) async throws -> CompatibilityResponse {
         throw FlakyTestError.unexpectedCall

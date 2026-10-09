@@ -166,6 +166,12 @@ final class DeepAnalysisViewModel {
     /// 出集(一次性);hydrate 每次整集重derive(替换非合并),换盘/reset 清空。
     private var versionMigrationExempt: Set<ModuleID> = []
 
+    /// 老盘 token 失效重签已尝试的盘(附八拍板②失效期入口,一次/盘/会话):
+    /// 存在 `.contextTokenExpired` 章且 token 仍与失败时同枚 → hydrate 起手
+    /// 静默重排一次;失败(离线/hash 不一致/无原料)不再重试(防每次回前台
+    /// 白发排盘请求),既有「重新排盘」出口接管。
+    private var contextTokenReSignAttempted: Set<String> = []
+
     /// 该章重跑是否消耗本地池(2026-10-09 十七轮拍板①:付费章 m2-m7 **不扣
     /// 本地池**——本地池语义回归「免费体验配额」,付费滥用护栏由服务端
     /// paid 桶(按购买主体 500/日)承担;此前 2 盘首日购买 = 16 次 > 10 次
@@ -799,16 +805,58 @@ final class DeepAnalysisViewModel {
             AppLogger.app.info("deepVM.hydrateAndResume.already_hydrating hash=\(response.contentHash, privacy: .public)")
             return
         }
+        // 置位上提(拍板②重签插入点):原「守卫→置位」间全同步无 await,
+        // 重签 await 落在两者之间会开重入窗口——先占 isHydrating 再挂起。
+        inflightHydrateCount += 1
+        defer { inflightHydrateCount -= 1 }  // 覆盖所有出口(含世代失配自弃)
+        isHydrating = true
+        // 老盘自动重签·失效期(附八拍板②,2026-10-09):存在凭证失效章且
+        // token 仍与失败当时同枚(下方降级不会触发——token 本体被服务端
+        // 拒,如 JWT 密钥轮换)→ 静默重排换新 token,一次/盘/会话。成功则
+        // 原位替换 response + .ready 落态(同 hash,换盘守卫不清洗)+ 落档
+        // (store 内 upsert),下方降级循环凭「token ≠ 失败枚」自然降级、
+        // 链用新 token 重试;失败(nil = 无原料/hash 不一致/离线)维持既有
+        // 「重新排盘」出口。
+        var response = response
+        let hasTokenExpiredState = moduleStates.values.contains {
+            if case .contextTokenExpired = $0 { return true }
+            return false
+        } || translationTokenExpired
+        if hasTokenExpiredState,
+           !contextTokenReSignAttempted.contains(response.contentHash) {
+            contextTokenReSignAttempted.insert(response.contentHash)
+            if let fresh = await orchestrator.refreshChartContextTokens(
+                contentHash: response.contentHash),
+               fresh.contentHash == response.contentHash,
+               isCurrentChart(response) {
+                response = fresh
+                if case .ready(_, let sub) = state {
+                    state = .ready(fresh, sub)
+                }
+                AppLogger.app.info(
+                    "deepVM.hydrateAndResume token_resigned hash=\(response.contentHash, privacy: .public) — 失效章凭新 token 降级重试"
+                )
+            }
+        }
+        // 重签 await 窗口内可能已换盘(chart_changed 推进世代+清洗状态):
+        // 旧盘收尾整体丢弃(镜像下方 performRestore 后的同款检查;旧盘的
+        // 降级/输入恢复写进新盘状态 = 跨盘污染)
+        guard hydrateGeneration == generation else {
+            AppLogger.app.warning(
+                "deepVM.hydrateAndResume.stale_generation_after_resign hash=\(response.contentHash, privacy: .public) — 旧盘 hydrate 收尾丢弃"
+            )
+            return
+        }
         // 凭证失效态降级(2026-10-08 第十五轮 #6;十六轮 #4 改条件化):
         // 同 hash 重入(Tab 重挂/补时辰取消回退)时,快照 token 可能已被
         // 任何重算路径 upsert 翻新(排盘确定性 → 同 hash 新 token 内容
-        // 等价)——token 确已翻新(≠ 失败当时那枚,见 failedToken)的章节
-        // 降级 .pending,让链用当前 token 重试;若 token 仍失效,链首章
-        // 再 403 回落失效态并断链(断链前置检查兜底),有界不多烧。
-        // **仍同枚则不降级**:token 真失效(如服务端密钥轮换)时,每次进
-        // 深度页都白发一次注定 403 的请求,且「重新排盘」指引会被抹掉——
-        // 保持失效态等用户重排。翻译链提示条同口径条件清除(失败 token
-        // 已记录;换盘/reset 路径仍无条件清,属旧盘/整页重来语义)。
+        // 等价)——token 确已翻新(≠ 失败当时那枚,见 failedToken;上方
+        // 重签成功也走这条)的章节降级 .pending,让链用当前 token 重试;
+        // 若 token 仍失效,链首章再 403 回落失效态并断链,有界不多烧。
+        // **仍同枚则不降级**:token 真失效且重签不可用时,每次进深度页都
+        // 白发一次注定 403 的请求,且「重新排盘」指引会被抹掉——保持失效
+        // 态等用户重排。翻译链提示条同口径条件清除(失败 token 已记录;
+        // 换盘/reset 路径仍无条件清,属旧盘/整页重来语义)。
         for (module, state) in moduleStates {
             if case .contextTokenExpired(let failedToken) = state {
                 let currentToken = response.contextToken(
@@ -838,9 +886,6 @@ final class DeepAnalysisViewModel {
             m5UserInput = (saved.assets, saved.preference)
             AppLogger.app.info("deepVM.hydrateAndResume.m5_input_restored hash=\(response.contentHash, privacy: .public)")
         }
-        inflightHydrateCount += 1
-        defer { inflightHydrateCount -= 1 }  // 覆盖所有出口(含世代失配自弃)
-        isHydrating = true
         let outcome = await performRestore(response: response)
         // 世代失配 = await 期间已换盘:isHydrating 由新盘 hydrate 持有,此处
         // 不得复位(提前解除会放行第三次重入);收尾(autoTranslate/resume)

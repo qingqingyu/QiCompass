@@ -232,7 +232,11 @@ struct DeepAnalysisView: View {
                 vm.state = .chartFailed(.generic(message: String(localized: "命盘存档读取失败,请重新排盘")))
                 return
             }
-            let response = try env.chartSnapshotStore.decodeResponse(from: snapshot)
+            // 老盘自动重签·加载期(附八拍板②):老快照无 context_tokens →
+            // 静默重排换新 token 再进页(hash 断言在 store;无原料/失败 →
+            // 旧 response 原样,生成路径 403 走既有「重新排盘」出口)
+            let response = try await env.chartSnapshotStore.ensureContextTokens(
+                snapshot: snapshot, apiClient: env.apiClient)
             vm.loadArchivedChart(response: response, request: snapshot.archivedDisplayRequest)
         } catch {
             AppLogger.persistence.error(

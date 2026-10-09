@@ -560,6 +560,153 @@ final class AddHourFlowTests: XCTestCase {
         XCTAssertNil(legacy.archivedGeonameId)
     }
 
+    // MARK: - 老盘自动重签(附八拍板②:静默重排 + hash 断言)
+
+    /// 重签测试共用:入参齐全的存档请求(与 G 条存档测试同款)。
+    private static func reSignArchiveRequest(
+        birthDatetime: String = "1990-03-15T14:30:00"
+    ) -> BaziCalculateRequest {
+        BaziCalculateRequest(
+            birthDatetime: birthDatetime,
+            timezone: "Asia/Shanghai",
+            gender: "male",
+            longitude: 116.4,
+            latitude: 39.9,
+            placeName: "北京",
+            geonameId: 1816670,
+            ziHourRule: "zi_next_day",
+            hourKnown: true,
+            lateNight: nil
+        )
+    }
+
+    /// 已有 token → ensure 零网络直返(新盘快路径,不白发排盘请求)。
+    func testEnsureContextTokens_已有token_零网络直返() async throws {
+        let request = Self.reSignArchiveRequest()
+        var response = Self.knownResponse(contentHash: "resign_has_token")
+        response.contextTokens = ["deep": "d1", "v1": "v1", "payload": "p1"]
+        _ = try chartStore.upsert(response: response, request: request)
+        let snapshot = try XCTUnwrap(chartStore.get(contentHash: "resign_has_token"))
+
+        apiClient.calculateResponder = { _ in
+            XCTFail("已有 token 不得触发排盘")
+            throw UserFacingError.generic(message: "unreachable")
+        }
+        let ensured = try await chartStore.ensureContextTokens(
+            snapshot: snapshot, apiClient: apiClient)
+        XCTAssertEqual(ensured.contextTokens?.keys.count, 3)
+        XCTAssertTrue(apiClient.recordedCalculateRequests.isEmpty)
+    }
+
+    /// 无原料(更老快照,archived_* 缺失)→ ensure 原样返回,零网络
+    /// (该人群维持既有「重新排盘」出口,静默重签帮不了)。
+    func testEnsureContextTokens_无原料_原样返回零网络() async throws {
+        let request = Self.reSignArchiveRequest()
+        let response = Self.knownResponse(contentHash: "resign_no_materials")
+        _ = try chartStore.upsert(response: response, request: request)
+        guard let snapshot = try chartStore.get(contentHash: "resign_no_materials") else {
+            return XCTFail("快照应已存档")
+        }
+        // 剥掉 archived_*(模拟 3695b6a 之前的老快照形状)
+        let json = try JSONSerialization.jsonObject(with: snapshot.payload)
+        guard var dict = json as? [String: Any] else {
+            return XCTFail("payload 应为 JSON 对象")
+        }
+        dict.removeValue(forKey: "archived_birth_datetime")
+        dict.removeValue(forKey: "archived_geoname_id")
+        snapshot.payload = try JSONSerialization.data(withJSONObject: dict)
+        try container.mainContext.save()
+
+        apiClient.calculateResponder = { _ in
+            XCTFail("无原料不得触发排盘")
+            throw UserFacingError.generic(message: "unreachable")
+        }
+        let ensured = try await chartStore.ensureContextTokens(
+            snapshot: snapshot, apiClient: apiClient)
+        XCTAssertNil(ensured.contextTokens, "无原料 → 旧 response 原样(无 token)")
+        XCTAssertTrue(apiClient.recordedCalculateRequests.isEmpty)
+    }
+
+    /// 无 token + 有原料 + 重排同 hash 带新 token → 接受并落档:
+    /// 返回值/存档 payload 都有 token;后端不回显的存档侧字段
+    /// (lateNight / hourUnknownAccepted)在覆盖后不丢。
+    func testEnsureContextTokens_重签成功_落档且存档侧字段不丢() async throws {
+        let request = Self.reSignArchiveRequest()
+        var old = Self.knownResponse(contentHash: "resign_ok")
+        old.hourUnknownAccepted = true  // S10 静默偏好(仅 payload,后端不回显)
+        _ = try chartStore.upsert(response: old, request: request)
+        guard let snapshot = try chartStore.get(contentHash: "resign_ok") else {
+            return XCTFail("快照应已存档")
+        }
+
+        var fresh = Self.knownResponse(contentHash: "resign_ok")  // 同 hash
+        fresh.contextTokens = ["deep": "nd", "v1": "nv", "payload": "np"]
+        apiClient.calculateResponder = { req in
+            // 重签请求必须用存档的原钟面,不是真太阳时近似
+            XCTAssertEqual(req.birthDatetime, "1990-03-15T14:30:00")
+            XCTAssertEqual(req.geonameId, 1816670)
+            return fresh
+        }
+        let ensured = try await chartStore.ensureContextTokens(
+            snapshot: snapshot, apiClient: apiClient)
+        XCTAssertEqual(ensured.contextTokens?["v1"], "nv")
+        XCTAssertEqual(apiClient.recordedCalculateRequests.count, 1)
+
+        // 落档断言:重 decode 快照(引用已被 upsert 原位覆盖)
+        let persisted = try chartStore.decodeResponse(from: snapshot)
+        XCTAssertEqual(persisted.contextTokens?["payload"], "np")
+        XCTAssertEqual(persisted.hourUnknownAccepted, true,
+                       "S10 静默偏好随重签覆盖保留(后端不回显,须显式带)")
+        XCTAssertEqual(persisted.archivedBirthDatetime, "1990-03-15T14:30:00",
+                       "重签落档后原料自续(后续失效期重签仍可用)")
+    }
+
+    /// G 条断言保险:重排 hash 不一致(后端规则演化/原料损坏)→ 不接受
+    /// 新 token、不落档,ensure 原样返回旧 response(既有出口接管)。
+    func testEnsureContextTokens_hash不一致_不接受不落档() async throws {
+        let request = Self.reSignArchiveRequest()
+        let old = Self.knownResponse(contentHash: "resign_mismatch")
+        _ = try chartStore.upsert(response: old, request: request)
+        guard let snapshot = try chartStore.get(contentHash: "resign_mismatch") else {
+            return XCTFail("快照应已存档")
+        }
+
+        var stranger = Self.knownResponse(contentHash: "resign_mismatch_NEW")
+        stranger.contextTokens = ["deep": "x"]
+        apiClient.calculateResponder = { _ in stranger }
+        let ensured = try await chartStore.ensureContextTokens(
+            snapshot: snapshot, apiClient: apiClient)
+        XCTAssertNil(ensured.contextTokens, "hash 不一致 → 旧 response 原样")
+        let persisted = try chartStore.decodeResponse(from: snapshot)
+        XCTAssertNil(persisted.contextTokens, "存档不得被「另一张盘」的 token 覆盖")
+        XCTAssertEqual(apiClient.recordedCalculateRequests.count, 1)
+    }
+
+    /// 失效期入口(refresh):排盘失败(离线等)→ nil(调用方维持既有
+    /// 403 出口);成功 → 带 token 的新 response。
+    func testRefreshContextTokens_排盘失败返回nil_成功返回新token() async throws {
+        let request = Self.reSignArchiveRequest()
+        let old = Self.knownResponse(contentHash: "resign_refresh")
+        _ = try chartStore.upsert(response: old, request: request)
+        guard let snapshot = try chartStore.get(contentHash: "resign_refresh") else {
+            return XCTFail("快照应已存档")
+        }
+
+        apiClient.calculateResponder = { _ in
+            throw APIError.httpError(statusCode: 503, body: nil)  // 任意网络/后端失败
+        }
+        let failed = try await chartStore.refreshContextTokens(
+            snapshot: snapshot, apiClient: apiClient)
+        XCTAssertNil(failed, "排盘失败 → nil,不是旧 response(调用方判 nil 走既有出口)")
+
+        var fresh = Self.knownResponse(contentHash: "resign_refresh")
+        fresh.contextTokens = ["v1": "again"]
+        apiClient.calculateResponder = { _ in fresh }
+        let ok = try await chartStore.refreshContextTokens(
+            snapshot: snapshot, apiClient: apiClient)
+        XCTAssertEqual(ok?.contextTokens?["v1"], "again")
+    }
+
     private func XCTUnwrapAsync<T>(_ expression: @autoclosure () async throws -> T?,
                                    _ message: String = "") async throws -> T {
         let value = try await expression()

@@ -261,6 +261,19 @@ final class DeepAnalysisOrchestrator {
         )
     }
 
+    /// 老盘 token 失效重签(附八拍板②,失效期入口):章节 403 落
+    /// `.contextTokenExpired` 且 token 与失败时同枚(token 本体失效,如
+    /// 服务端 JWT 密钥轮换)时,VM 经此触发 `ChartSnapshotStore
+    /// .refreshContextTokens`——静默重排换新 token,hash 断言在 store 内。
+    /// 快照缺失(理论不可达:response 在档必有快照)→ nil,不 throw
+    /// (重签是 best-effort 恢复,nil = 维持既有 403 出口)。
+    func refreshChartContextTokens(contentHash: String) async -> BaziResponse? {
+        guard let snapshot = try? chartStore.get(contentHash: contentHash)
+        else { return nil }
+        return try? await chartStore.refreshContextTokens(
+            snapshot: snapshot, apiClient: apiClient)
+    }
+
     // MARK: - 阶段 2 v1:v1 prompt 系统模块化调用(Stage 7b)
 
     /// v1 prompt 系统单模块调用入口(M0-M7 链式调用每次调一个 module)。

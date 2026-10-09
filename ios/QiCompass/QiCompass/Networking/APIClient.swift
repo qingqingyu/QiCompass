@@ -305,6 +305,19 @@ final class MockAPIClient: APIClient {
     /// (cached: false);测试注入以模拟后端缓存命中(cached: true)/按模块
     /// 分级失败。录制在钩子之前完成,断言不受影响。
     var interpretResponder: ((InterpretRequest) throws -> InterpretResponse)?
+    /// calculate 应答注入钩子(拍板②老盘重签回归,2026-10-09):nil = 默认
+    /// mock 排盘;测试注入以模拟「重签返回同 hash 新 token / hash 不一致 /
+    /// 排盘失败」。请求录制与 interpret 同款 NSLock 保护(VM fire-and-forget
+    /// 重签可与链重叠)。
+    var calculateResponder: ((BaziCalculateRequest) throws -> BaziResponse)?
+    /// dailyFortune 应答注入钩子(拍板②失效期重签回归,2026-10-09):
+    /// nil = 默认 mock;测试注入以模拟 403 CONTEXT_TOKEN_* → 重签 → 重试。
+    var dailyFortuneResponder: ((DailyFortuneRequest) throws -> DailyFortuneResponse)?
+    private var _recordedCalculateRequests: [BaziCalculateRequest] = []
+    var recordedCalculateRequests: [BaziCalculateRequest] {
+        recordLock.lock(); defer { recordLock.unlock() }
+        return _recordedCalculateRequests
+    }
     func health() async throws -> HealthResponse {
         AppLogger.networking.debug("mock.health 调起")
         try? await Task.sleep(nanoseconds: 200_000_000)
@@ -319,7 +332,13 @@ final class MockAPIClient: APIClient {
 
     func calculateBazi(request: BaziCalculateRequest) async throws -> BaziResponse {
         AppLogger.networking.debug("mock.calculateBazi 调起 birth_datetime=\(request.birthDatetime, privacy: .public) tz=\(request.timezone, privacy: .public)")
+        recordLock.lock()
+        _recordedCalculateRequests.append(request)
+        recordLock.unlock()
         try? await Task.sleep(nanoseconds: 300_000_000)
+        if let calculateResponder {
+            return try calculateResponder(request)
+        }
         return try Self.mockBaziResponse(for: request)
     }
 
@@ -335,6 +354,9 @@ final class MockAPIClient: APIClient {
     func dailyFortune(request: DailyFortuneRequest) async throws -> DailyFortuneResponse {
         AppLogger.networking.debug("mock.dailyFortune 调起 chart_hash=\(request.chartHash.prefix(12), privacy: .public) target_date=\(request.targetDate.description, privacy: .public)")
         try? await Task.sleep(nanoseconds: 300_000_000)
+        if let dailyFortuneResponder {
+            return try dailyFortuneResponder(request)
+        }
         return Self.mockDailyFortuneResponse(for: request)
     }
 

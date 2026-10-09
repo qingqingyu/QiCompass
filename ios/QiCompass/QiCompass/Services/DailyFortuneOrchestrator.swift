@@ -61,7 +61,11 @@ final class DailyFortuneOrchestrator {
             AppLogger.app.warning("daily.runDeterministic.chart_missing chartHash=\(chartHash, privacy: .public)")
             throw DailyFortuneError.chartMissing
         }
-        let baziResponse = try chartStore.decodeResponse(from: snapshot)
+        // 老盘自动重签·加载期(附八拍板②):老快照无 context_tokens →
+        // 静默重排换 token 后再落穿;无原料/失败 → 原样旧 response,
+        // 后端 403 显式暴露(既有「重新排盘」出口)。decode 失败仍上抛。
+        let baziResponse = try await chartStore.ensureContextTokens(
+            snapshot: snapshot, apiClient: apiClient)
         let chartPayload = ChartPayloadDTO.from(baziResponse: baziResponse)
 
         // 2. 查本地 daily 缓存(非强制刷新时)。
@@ -90,22 +94,49 @@ final class DailyFortuneOrchestrator {
 
         // 3. 未命中 → POST /api/bazi/daily-fortune
         // 2026-10-07 P0 收口:per-chart token(端点对账 token↔hash↔payload;
-        // 老快照 nil → 后端 403 CONTEXT_TOKEN_REQUIRED 显式暴露)
-        let request = DailyFortuneRequest(
+        // 老快照 nil → 上方 ensure 已静默重签补齐,补不齐才 403 显式暴露)
+        var request = DailyFortuneRequest(
             chartHash: chartHash,
             targetDate: businessDate,
             chartPayload: chartPayload,
             contextToken: baziResponse.payloadContextToken
         )
-        let response = try await AppLogger.measure(
-            AppLogger.networking,
-            operation: "dailyFortune",
-            context: [
-                "chart_hash": chartHash,
-                "target_date": Self.dateFormatter.string(from: businessDate),
-            ]
-        ) {
-            try await self.apiClient.dailyFortune(request: request)
+        var response: DailyFortuneResponse
+        do {
+            response = try await AppLogger.measure(
+                AppLogger.networking,
+                operation: "dailyFortune",
+                context: [
+                    "chart_hash": chartHash,
+                    "target_date": Self.dateFormatter.string(from: businessDate),
+                ]
+            ) {
+                try await self.apiClient.dailyFortune(request: request)
+            }
+        } catch {
+            // 老盘自动重签·失效期(附八拍板②):token 在档但被服务端拒
+            //(403,如密钥轮换)→ 静默重排换新 chart token 后重试一次;
+            // 重签失败(nil = 无原料/hash 不一致/离线)→ 原样上抛,
+            // 既有「重新排盘」出口接管,不新增错误面。
+            guard APIError.isContextTokenError(error),
+                  let fresh = try? await chartStore.refreshContextTokens(
+                    snapshot: snapshot, apiClient: apiClient),
+                  let freshToken = fresh.payloadContextToken
+            else { throw error }
+            AppLogger.app.info(
+                "daily.deterministic.token_rejected_resigned hash=\(chartHash, privacy: .public) — 静默重签后重试一次"
+            )
+            request.contextToken = freshToken
+            response = try await AppLogger.measure(
+                AppLogger.networking,
+                operation: "dailyFortune",
+                context: [
+                    "chart_hash": chartHash,
+                    "target_date": Self.dateFormatter.string(from: businessDate),
+                ]
+            ) {
+                try await self.apiClient.dailyFortune(request: request)
+            }
         }
 
         // 4. upsert(缓存判据:businessDate 本地 23:59:59 + 1s)

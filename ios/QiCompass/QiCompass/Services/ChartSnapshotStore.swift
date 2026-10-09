@@ -184,6 +184,123 @@ final class ChartSnapshotStore {
             "op=chartSnapshot.setHourUnknownAccepted hash=\(contentHash, privacy: .public) accepted=\(accepted, privacy: .public)"
         )
     }
+
+    // MARK: - 老盘自动重签(附八拍板②,2026-10-09)
+
+    /// 加载期补底:payload 缺 context_tokens 且有重签原料时静默重排换 token;
+    /// 已有 token / 无原料 / 重签失败 → 原样返回旧 response(零行为变化,
+    /// 既有 403「重新排盘」出口接管)。调用方用**返回值**(而非自行 decode)
+    /// 作为生成请求的 response 来源。
+    func ensureContextTokens(
+        snapshot: ChartSnapshot, apiClient: APIClient
+    ) async throws -> BaziResponse {
+        let response = try decodeResponse(from: snapshot)
+        if let tokens = response.contextTokens, !tokens.isEmpty {
+            return response
+        }
+        return try await reSign(
+            snapshot: snapshot, response: response, apiClient: apiClient,
+            reason: "ensure") ?? response
+    }
+
+    /// 失效期重签:token 在档但被服务端拒(403,如 JWT 密钥轮换)时由调用方
+    /// 显式触发——无条件重排换新 token。成功返回带新 token 的 response;
+    /// 无原料 / 排盘失败 / hash 不一致 / 新响应仍无 token → **nil**(调用方
+    /// 维持既有 403 出口语义,不新增错误面)。
+    func refreshContextTokens(
+        snapshot: ChartSnapshot, apiClient: APIClient
+    ) async throws -> BaziResponse? {
+        let response = try decodeResponse(from: snapshot)
+        return try await reSign(
+            snapshot: snapshot, response: response, apiClient: apiClient,
+            reason: "refresh")
+    }
+
+    /// 重签核心(两入口共用):重建排盘请求 → 静默 POST /api/bazi/calculate
+    /// (确定性,不烧 LLM)→ **断言新旧 contentHash 一致才接受**(G 条断言
+    /// 保险:排盘确定性下同输入必同 hash;不一致 = 后端规则演化或原料损坏,
+    /// 重签结果属于「另一张盘」,静默换 token 会张冠李戴破坏内容寻址与
+    /// 缓存/购买绑定)。任一失败路径 → nil(ensure 映射回旧 response;
+    /// refresh 的调用方据此维持既有 403 出口)。decode 失败在两入口上抛
+    /// ——那是快照本体损坏,不是重签能修的。
+    private func reSign(
+        snapshot: ChartSnapshot,
+        response: BaziResponse,
+        apiClient: APIClient,
+        reason: String,
+    ) async throws -> BaziResponse? {
+        guard let request = Self.reSignRequest(
+            snapshot: snapshot, response: response)
+        else {
+            AppLogger.persistence.info(
+                "op=chartSnapshot.re_sign skip reason=no_materials hash=\(snapshot.contentHash, privacy: .public) trigger=\(reason, privacy: .public) — 更早快照无排盘入参,维持既有「重新排盘」出口"
+            )
+            return nil
+        }
+        let fresh: BaziResponse
+        do {
+            fresh = try await apiClient.calculateBazi(request: request)
+        } catch {
+            AppLogger.app.info(
+                "op=chartSnapshot.re_sign skip reason=calculate_failed hash=\(snapshot.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 老盘维持既有 403 出口"
+            )
+            return nil
+        }
+        guard fresh.contentHash == snapshot.contentHash else {
+            // G 条断言保险:不一致 = 换盘而非重签,绝不静默接受新 token
+            AppLogger.app.warning(
+                "op=chartSnapshot.re_sign hash_mismatch old=\(snapshot.contentHash, privacy: .public) new=\(fresh.contentHash, privacy: .public) trigger=\(reason, privacy: .public) — 不接受新 token,既有「重新排盘」出口接管"
+            )
+            return nil
+        }
+        guard let freshTokens = fresh.contextTokens, !freshTokens.isEmpty else {
+            AppLogger.app.info(
+                "op=chartSnapshot.re_sign skip reason=fresh_without_tokens hash=\(snapshot.contentHash, privacy: .public) — 后端未回 token,不覆盖存档"
+            )
+            return nil
+        }
+        // 后端不回显的存档侧字段补齐后再落档/返回:lateNight/archived* 由
+        // upsert 从 request 注入 payload;hourUnknownAccepted(S10 静默偏好)
+        // 无注入路径,须显式带上防覆盖丢失。createdAt 由 upsert 保留。
+        var archivable = fresh
+        archivable.hourUnknownAccepted = response.hourUnknownAccepted
+        _ = try upsert(response: archivable, request: request)
+        archivable.lateNight = response.lateNight
+        archivable.archivedBirthDatetime = request.birthDatetime
+        archivable.archivedGeonameId = request.geonameId
+        AppLogger.persistence.info(
+            "op=chartSnapshot.re_sign hash=\(snapshot.contentHash, privacy: .public) trigger=\(reason, privacy: .public) — 老盘 token 重签落档 families=\(freshTokens.keys.sorted().joined(separator: ","), privacy: .public)"
+        )
+        return archivable
+    }
+
+    /// 重签排盘请求重建(与 `archivedDisplayRequest` 的关键差异:本请求**会**
+    /// 回传 /api/bazi/calculate)。birthDatetime 用存档的原钟面
+    /// (archived_birth_datetime,3695b6a 起 upsert 注入;真太阳时派生的
+    /// 近似钟面在 DST 边界不可靠,不用),geonameId 用 archived_geoname_id;
+    /// hourKnown/lateNight 从 payload 回读(时辰未知盘的 12:00 占位钟面 +
+    /// hourKnown=false + lateNight 同输入必同 hash)。原料缺失 → nil
+    /// (更早快照,调用方走既有出口)。
+    private static func reSignRequest(
+        snapshot: ChartSnapshot, response: BaziResponse
+    ) -> BaziCalculateRequest? {
+        guard let wall = response.archivedBirthDatetime,
+              let tzName = snapshot.cityTimezone,
+              TimeZone(identifier: tzName) != nil
+        else { return nil }
+        return BaziCalculateRequest(
+            birthDatetime: wall,
+            timezone: tzName,
+            gender: snapshot.gender,
+            longitude: snapshot.cityLongitude,
+            latitude: snapshot.cityLatitude,
+            placeName: snapshot.cityName,
+            geonameId: response.archivedGeonameId,
+            ziHourRule: snapshot.ziHourRule,
+            hourKnown: response.isHourKnown,
+            lateNight: response.lateNight
+        )
+    }
 }
 
 // MARK: - 存档请求重建(2026-08-16 深度解析直读存档)
