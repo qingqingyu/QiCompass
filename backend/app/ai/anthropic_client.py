@@ -41,6 +41,7 @@ class AnthropicClient:
         self, prompt: str, *, temperature: float = 0.6,
         max_tokens: int | None = None,
         timeout: float | None = None,
+        module: str | None = None,
     ) -> str:
         """调 Anthropic Messages API,返回第一个非空文本块。
 
@@ -53,11 +54,14 @@ class AnthropicClient:
                 长文调用方(如 promo-site 加长版)按需放大。
             timeout: 请求超时秒数;None 用 config.AI_TIMEOUT_SECONDS(App 150s)。
                 长 max_tokens 生成耗时更长,调用方应同步放大。
+            module: 发起调用的业务 module(监控计数维度)。真实 client 不
+                消费,由 MeteredAIClient 包装层读取;None 计 "unknown"。
         """
         if not self._api_key:
             raise AIProviderError(
                 "ANTHROPIC_API_KEY not configured"
-                "(后端未设置 API key,无法调用 Anthropic)"
+                "(后端未设置 API key,无法调用 Anthropic)",
+                reason="no_api_key",
             )
         if max_tokens is not None and max_tokens <= 0:
             raise ValueError(
@@ -89,43 +93,53 @@ class AnthropicClient:
                 resp.raise_for_status()
         except httpx.TimeoutException as e:
             raise AIProviderError(
-                f"Anthropic API 超时({type(e).__name__}): {e}"
+                f"Anthropic API 超时({type(e).__name__}): {e}",
+                reason="timeout",
             ) from e
         except httpx.HTTPStatusError as e:
             status_code = e.response.status_code
             if status_code == 429:
                 raise AIProviderError(
-                    f"Anthropic API 限流({type(e).__name__}): HTTP {status_code}"
+                    f"Anthropic API 限流({type(e).__name__}): HTTP {status_code}",
+                    reason="rate_limit",
                 ) from e
             if status_code == 401:
                 raise AIProviderError(
                     "Anthropic API key 无效或未授权(HTTP 401),"
-                    "请检查 ANTHROPIC_API_KEY 配置"
+                    "请检查 ANTHROPIC_API_KEY 配置",
+                    reason="auth",
                 ) from e
             raise AIProviderError(
-                f"Anthropic API HTTP {status_code}({type(e).__name__})"
+                f"Anthropic API HTTP {status_code}({type(e).__name__})",
+                reason="http_error",
             ) from e
         except httpx.RequestError as e:
             raise AIProviderError(
-                f"Anthropic API 调用失败({type(e).__name__}): {e}"
+                f"Anthropic API 调用失败({type(e).__name__}): {e}",
+                reason="network",
             ) from e
 
         try:
             payload = resp.json()
         except ValueError as e:
             raise AIProviderError(
-                f"Anthropic 返回非 JSON 响应({type(e).__name__}): {e}"
+                f"Anthropic 返回非 JSON 响应({type(e).__name__}): {e}",
+                reason="bad_response",
             ) from e
 
         if not isinstance(payload, dict):
             raise AIProviderError(
                 "Anthropic 返回 JSON 顶层不是 object"
-                f"(type={type(payload).__name__})"
+                f"(type={type(payload).__name__})",
+                reason="bad_response",
             )
 
         content = payload.get("content")
         if not isinstance(content, list) or not content:
-            raise AIProviderError("Anthropic 返回空 content(无文本块)")
+            raise AIProviderError(
+                "Anthropic 返回空 content(无文本块)",
+                reason="bad_response",
+            )
 
         # 截断显式报错(2026-09-27):stop_reason=max_tokens 时文本必然不完整,
         # v1 模块契约是完整 JSON,半截 JSON 一旦入缓存会被 iOS 当散文渲染
@@ -134,7 +148,8 @@ class AnthropicClient:
         if payload.get("stop_reason") == "max_tokens":
             raise AIProviderError(
                 "Anthropic 输出被 max_tokens 截断(stop_reason=max_tokens,"
-                f"文本不完整,model={self._model})"
+                f"文本不完整,model={self._model})",
+                reason="truncated",
             )
 
         for block in content:
@@ -146,5 +161,6 @@ class AnthropicClient:
         first_type = first.get("type", "?") if isinstance(first, dict) else "?"
         raise AIProviderError(
             "Anthropic 返回 content 无 text 字段"
-            f"(first_type={first_type})"
+            f"(first_type={first_type})",
+            reason="bad_response",
         )

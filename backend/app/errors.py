@@ -37,10 +37,30 @@ class AIProviderError(BaziError):
     """AI provider 调用失败(超时/限流/5xx/空内容/key 未配置)。
 
     错误显式传播:不吞、不重试、不自动 fallback,失败即报错。
+
+    reason(2026-10-09 监控):机器可读失败分型,client 层(anthropic/
+    openai)全 raise 点标注,供 MeteredAIClient 落计数表——对外契约不变
+    (仍是同一 code/message/http_status,iOS 零感知;不进响应负载,只进
+    日志与 metrics)。取值:
+    - no_api_key:key 未配置(调用即失败,零网络往返)
+    - timeout / rate_limit / auth / http_error / network:HTTP 层
+    - bad_response:响应形状非法(非 JSON / 空 content / 无 text 等)
+    - truncated:stop_reason=max_tokens / finish_reason=length 截断
+    - content_filter:OpenAI 内容过滤拒绝(anthropic 无此分型)
+    - unexpected:client 未包到的异常(MeteredAIClient 兜底计数)
+    - unknown:默认值(interpret.py 的契约/保真等 pipeline 失败不参与
+      provider 可用性统计,不细分)
     """
 
     code = "AI_PROVIDER_ERROR"
     http_status = 503
+
+    def __init__(self, message: str, *, request_id: str | None = None,
+                 content_hash: str | None = None,
+                 reason: str = "unknown"):
+        super().__init__(message, request_id=request_id,
+                         content_hash=content_hash)
+        self.reason = reason
 
 
 class InterpretationCacheError(BaziError):

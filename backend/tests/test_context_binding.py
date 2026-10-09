@@ -1081,7 +1081,8 @@ async def test_quota_concurrent_same_key_single_consume(
             self.last_prompt = None
             self.last_temperature = None
 
-        async def interpret(self, prompt, *, temperature=0.6):
+        async def interpret(self, prompt, *, temperature=0.6,
+                            module=None):
             self.call_count += 1
             self.last_prompt = prompt
             self.last_temperature = temperature

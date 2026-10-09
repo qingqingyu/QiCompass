@@ -1138,7 +1138,7 @@ async def interpret(
             request, req, current_user_id, day, paid_owner=paid_owner)
         try:
             interpretation = await ai_client.interpret(
-                prompt, temperature=temperature)
+                prompt, temperature=temperature, module=req.module)
         except Exception as e:
             # 只在真烧过 LLM 的路径退回(配额已扣);QuotaExceededError 在
             # 扣费前抛出,不会走到这里。CancelledError 是 BaseException,
@@ -2228,7 +2228,9 @@ async def interpret_translate(
             request, req, current_user_id, day, paid_owner=paid_owner)
         try:
             translated = await ai_client.interpret(
-                translate_prompt, temperature=resolve_temperature("translate"),
+                translate_prompt,
+                temperature=resolve_temperature("translate"),
+                module=req.module,
             )
         except Exception as e:
             # factory 内留痕(十四轮外评 #6,同 /api/interpret 4.1):创建者

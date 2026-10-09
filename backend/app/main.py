@@ -142,7 +142,16 @@ async def lifespan(app: FastAPI):
     # M6 TestFlight 阶段才需要真 SDK;M2b 骨架阶段用户未 pip install
     app.state.apple_server_api = _build_apple_server_api()
 
-    app.state.ai_client = _build_ai_client()
+    # 2026-10-09 监控闭环 A 档:LLM 调用结果计数 + 失败率告警。
+    # store 与配额 store 同库共表空间;client 包一层 MeteredAIClient
+    # (计数/告警只旁观,协议与行为零变化)。
+    from app.monitoring.store import LLMOutcomeStore
+    llm_metrics_store = LLMOutcomeStore(DB_PATH)
+    llm_metrics_store.init_schema()
+    app.state.llm_metrics_store = llm_metrics_store
+    from app.monitoring.metered import MeteredAIClient
+    app.state.ai_client = MeteredAIClient(
+        _build_ai_client(), llm_metrics_store)
     ai_client = app.state.ai_client
     selected_key_configured = (
         bool(ANTHROPIC_API_KEY)
@@ -222,7 +231,7 @@ def _build_ai_client():
 app = FastAPI(title="QiCompass Bazi Backend", version=MODEL_ID, lifespan=lifespan)
 # ASGITransport 单测不触发 lifespan;先挂默认实例,启动时再重建一次。
 # entitlement_store / apple_server_api 也挂 fallback(测试 fixture 可覆盖)。
-app.state.ai_client = _build_ai_client()
+# ai_client 默认实例在下方 DB 目录就绪后统一挂 MeteredAIClient 包装版。
 # 模块加载时确保 DB 目录存在(对齐 lifespan 内 makedirs,fix CI 全新 checkout
 # 没有 data/ 目录导致 sqlite3 open 失败)。lifespan 内同名调用保留作 production
 # startup 的 defense-in-depth。
@@ -247,6 +256,16 @@ from app.quota.store import FreeLLMQuotaStore  # noqa: E402
 _default_free_quota_store = FreeLLMQuotaStore(DB_PATH)
 _default_free_quota_store.init_schema()
 app.state.free_quota_store = _default_free_quota_store
+# 2026-10-09 监控:metrics store 默认实例 + 默认 ai_client 包 MeteredAIClient
+# (ASGITransport 单测不触发 lifespan 也有监控;测试 fixture 整体替换
+# app.state.ai_client 为裸 mock 时计数自然旁路,不影响行为断言)
+from app.monitoring.metered import MeteredAIClient  # noqa: E402
+from app.monitoring.store import LLMOutcomeStore  # noqa: E402
+_default_llm_metrics_store = LLMOutcomeStore(DB_PATH)
+_default_llm_metrics_store.init_schema()
+app.state.llm_metrics_store = _default_llm_metrics_store
+app.state.ai_client = MeteredAIClient(
+    _build_ai_client(), _default_llm_metrics_store)
 app.state.apple_server_api = MockAppleServerAPI()
 # 测试环境 fallback:ASGITransport 单测不触发 lifespan,挂默认 singleflight 实例
 # 避免路由层 AttributeError(与 cache / entitlement_store 同策略)

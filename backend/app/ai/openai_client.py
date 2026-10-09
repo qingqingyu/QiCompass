@@ -39,8 +39,12 @@ class OpenAIClient:
         self, prompt: str, *, temperature: float = 0.6,
         max_tokens: int | None = None,
         timeout: float | None = None,
+        module: str | None = None,
     ) -> str:
         """调 OpenAI Chat Completions API,返回 choices[0].message.content。
+
+        module: 发起调用的业务 module(监控计数维度,真实 client 不消费,
+        由 MeteredAIClient 包装层读取;None 计 "unknown")。
 
         Args:
             prompt: 用户 prompt 文本
@@ -55,7 +59,8 @@ class OpenAIClient:
         if not self._api_key:
             raise AIProviderError(
                 "OPENAI_API_KEY not configured"
-                "(后端未设置 API key,无法调用 OpenAI)"
+                "(后端未设置 API key,无法调用 OpenAI)",
+                reason="no_api_key",
             )
         if max_tokens is not None and max_tokens <= 0:
             raise ValueError(
@@ -92,68 +97,84 @@ class OpenAIClient:
                 resp.raise_for_status()
         except httpx.TimeoutException as e:
             raise AIProviderError(
-                f"OpenAI API 超时({type(e).__name__}): {e}"
+                f"OpenAI API 超时({type(e).__name__}): {e}",
+                reason="timeout",
             ) from e
         except httpx.HTTPStatusError as e:
             status_code = e.response.status_code
             if status_code == 429:
                 raise AIProviderError(
-                    f"OpenAI API 限流({type(e).__name__}): HTTP {status_code}"
+                    f"OpenAI API 限流({type(e).__name__}): HTTP {status_code}",
+                    reason="rate_limit",
                 ) from e
             if status_code == 401:
                 raise AIProviderError(
                     "OpenAI API key 无效或未授权(HTTP 401),"
-                    "请检查 OPENAI_API_KEY 配置"
+                    "请检查 OPENAI_API_KEY 配置",
+                    reason="auth",
                 ) from e
             raise AIProviderError(
-                f"OpenAI API HTTP {status_code}({type(e).__name__})"
+                f"OpenAI API HTTP {status_code}({type(e).__name__})",
+                reason="http_error",
             ) from e
         except httpx.RequestError as e:
             raise AIProviderError(
-                f"OpenAI API 调用失败({type(e).__name__}): {e}"
+                f"OpenAI API 调用失败({type(e).__name__}): {e}",
+                reason="network",
             ) from e
 
         try:
             payload = resp.json()
         except ValueError as e:
             raise AIProviderError(
-                f"OpenAI 返回非 JSON 响应({type(e).__name__}): {e}"
+                f"OpenAI 返回非 JSON 响应({type(e).__name__}): {e}",
+                reason="bad_response",
             ) from e
 
         if not isinstance(payload, dict):
             raise AIProviderError(
                 "OpenAI 返回 JSON 顶层不是 object"
-                f"(type={type(payload).__name__})"
+                f"(type={type(payload).__name__})",
+                reason="bad_response",
             )
 
         choices = payload.get("choices")
         if not isinstance(choices, list) or not choices:
-            raise AIProviderError("OpenAI 返回空 choices(无 message)")
+            raise AIProviderError(
+                "OpenAI 返回空 choices(无 message)",
+                reason="bad_response",
+            )
 
         first = choices[0]
         if not isinstance(first, dict):
             raise AIProviderError(
-                f"OpenAI choices[0] 不是 object(type={type(first).__name__})"
+                f"OpenAI choices[0] 不是 object(type={type(first).__name__})",
+                reason="bad_response",
             )
 
         # content_filter 优先抛错(类比 Responses API 的 refusal 处理):
         # 即使有部分文本,只要被 filter 拦截就视为解读不可用,不能展示半截。
         finish_reason = first.get("finish_reason")
         if finish_reason == "content_filter":
-            raise AIProviderError("OpenAI 拒绝生成解读(content_filter)")
+            raise AIProviderError(
+                "OpenAI 拒绝生成解读(content_filter)",
+                reason="content_filter",
+            )
         # 截断显式报错(2026-09-27):finish_reason=length 时文本必然不完整,
         # v1 模块契约是完整 JSON,半截 JSON 一旦入缓存会被 iOS 当散文渲染
         # (与 anthropic_client 的 stop_reason=max_tokens 拦截同口径)。
         if finish_reason == "length":
             raise AIProviderError(
                 f"OpenAI 输出被 max_tokens 截断(finish_reason=length,"
-                f"文本不完整,model={self._model})"
+                f"文本不完整,model={self._model})",
+                reason="truncated",
             )
 
         message = first.get("message")
         if not isinstance(message, dict):
             raise AIProviderError(
-                f"OpenAI message 不是 object(type={type(message).__name__})"
+                f"OpenAI message 不是 object(type={type(message).__name__})",
+                reason="bad_response",
             )
 
         content = message.get("content")
@@ -162,5 +183,6 @@ class OpenAIClient:
         # content 可能是 None / 空串 / 非预期类型(如 tool_calls 触发)
         raise AIProviderError(
             "OpenAI 返回 message.content 为空"
-            f"(finish_reason={finish_reason!r}, type={type(content).__name__})"
+            f"(finish_reason={finish_reason!r}, type={type(content).__name__})",
+            reason="bad_response",
         )
