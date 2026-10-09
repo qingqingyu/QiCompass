@@ -37,6 +37,8 @@ import logging
 import re
 import time
 import uuid
+from collections.abc import AsyncIterator
+from contextlib import aclosing
 from datetime import datetime, timezone
 from typing import Final, NamedTuple, NoReturn
 
@@ -1387,7 +1389,7 @@ def _match_exact_v1_rows(
     驱逐残留(≥8 条更新的同 parent 注入行可暂时压出真行 → 409)结构性
     关闭;同 (版本, hash) 的 provider/model 变体行(PK 十维含
     provider/model,同键异文本并存,十六轮 houduan #3)**全收集**,
-    交由 `_collect_v1_chain_branches` 按链字段贡献去重回溯。
+    交由 `_iter_v1_chain_branches` 按链字段贡献去重回溯。
     """
     matched = [
         item for item in rows
@@ -1400,7 +1402,7 @@ def _match_exact_v1_rows(
     return matched
 
 
-async def _collect_v1_chain_branches(
+async def _iter_v1_chain_branches(
     upstreams: tuple[str, ...],
     rows_by_module: dict[str, list[tuple[CacheKey, str, str]]],
     chart: str,
@@ -1408,8 +1410,9 @@ async def _collect_v1_chain_branches(
     parent_hash: str,
     base_verified: dict[str, str],
     render_budget: list[int],
-) -> list[dict[str, str]]:
-    """非 M0 上游链的核验分支枚举(2026-10-08 十六轮外评 #3:变体回溯)。
+) -> AsyncIterator[dict[str, str]]:
+    """非 M0 上游链的核验分支惰性枚举(2026-10-08 十六轮外评 #3:变体回溯;
+    同日双 review 建议收口:边生成边核验)。
 
     缓存主键十维含 provider/model:换 provider/模型重生成后,同(版本,
     parent_hash, prompt_hash)的新旧行**并存**——prompt 相同 → prompt_hash
@@ -1419,11 +1422,18 @@ async def _collect_v1_chain_branches(
     的合法用户恒 409(「同版本同 context 的行被 PK 去重」的旧注释不成立,
     PK 含 provider/model)。M0 根层回溯救不了中段分叉——两条链共享同一根。
 
-    本函数逐层收集**全部** hash 匹配行,按「该行贡献的链字段(canonical
-    形态)」去重后递归展开组合;分支首序 = 旧实现的逐层首匹配序(无变体
+    本函数逐层枚举**全部** hash 匹配行,按「该行贡献的链字段(canonical
+    形态)」去重后 DFS 展开;分支首序 = 旧实现的逐层首匹配序(无变体
     并存时行为不变)。组合爆炸由 render_budget 封顶——注入行要进分支必须
     先产出合法 JSON 落库(真烧 LLM),真实变体每层 ≤2-3,合法链远触不到
     预算。
+
+    **异步生成器(边生成边核验)**:调用方对每条分支立即做叶子源键精确
+    比对、首条通过即停止迭代——①无变体请求只枚举首条路径(每层 ~1 次
+    重渲染,与旧「逐层首匹配」实现同开销,不吃「先列完全部分支」的
+    每层 ≤8 版本探查);②后段分支的枚举渲染不再先于首条核验消耗预算
+    (「列完全部才核验」形态下,首条合法分支可能被枚举阶段饿死在预算
+    外 → 409)。
 
     候选枚举(2026-10-08 十六轮 neirong #3 撞车消解融合)= 按行集 distinct
     版本降序逐版本重渲染期望 hash,`_match_exact_v1_rows` 四元精确匹配
@@ -1435,11 +1445,11 @@ async def _collect_v1_chain_branches(
     """
     async def collect(
         idx: int, verified: dict[str, str],
-    ) -> list[dict[str, str]]:
+    ) -> AsyncIterator[dict[str, str]]:
         if idx == len(upstreams):
-            return [verified]
+            yield verified
+            return
         upstream = upstreams[idx]
-        out: list[dict[str, str]] = []
         seen_contributions: set[str] = set()
         up_rows = rows_by_module.get(upstream) or []
         up_versions = sorted(
@@ -1477,10 +1487,11 @@ async def _collect_v1_chain_branches(
                 seen_contributions.add(signature)
                 merged = dict(verified)
                 merged.update(contribution)
-                out.extend(await collect(idx + 1, merged))
-        return out
+                async for branch in collect(idx + 1, merged):
+                    yield branch
 
-    return await collect(0, base_verified)
+    async for branch in collect(0, base_verified):
+        yield branch
 
 
 async def _verify_v1_chain_translation_source(
@@ -1604,58 +1615,58 @@ async def _verify_v1_chain_translation_source(
             if value is not None:
                 verified[name] = value
 
-        # 非 M0 上游:逐层收集全部 hash 匹配行(变体回溯,十六轮 #3)。
-        branches = await _collect_v1_chain_branches(
-            non_m0_deps, rows_by_module, chart, source_language,
-            parent_hash, verified, render_budget)
-        if not branches:
-            continue
-
+        # 非 M0 上游:逐层枚举全部 hash 匹配行(变体回溯,十六轮 #3),
+        # **异步生成器边生成边核验**——首条通过即停止迭代(aclosing 显式
+        # 关闭挂起的生成器):无变体时只枚举首条路径,后段分支的枚举渲染
+        # 不先于首条核验吃预算。
         # 每条核验分支各做一次完整源键精确比对;首分支 = 旧实现的逐层
         # 首匹配序,无变体并存的链行为不变。叶子源键渲染与枚举重渲染同级别
         # CPU(translate_context + render + sha256),进同一渲染预算——分支数
         # 最坏 8^4 量级,不封顶则预算只盖住枚举半边、总渲染超旧实现最坏面
         # (three-check 2026-10-08 第十六轮 R1)。
-        for branch_verified in branches:
-            if render_budget[0] <= 0:
-                break
-            render_budget[0] -= 1
-            # 源键 = 与生成同一代码路径(_prepare_prompt_and_key,含规范化 +
-            # user_input_hash),链字段/parent_fingerprint 换成源语言已核验值。
-            source_context = dict(req.context)
-            for name in V1_CHAIN_PRODUCER:
-                if name in branch_verified:
-                    source_context[name] = branch_verified[name]
-            source_req = req.model_copy(update={
-                "context": source_context,
-                "parent_fingerprint": fingerprint,
-            })
-            # 纯 CPU(校验 + 渲染 + hash),放线程池(2026-10-07 review 收尾,
-            # 与行读取/版本重渲染同款;源键渲染是本函数最重的一步)。
-            source_prepared = await run_in_threadpool(
-                _prepare_prompt_and_key,
-                source_req, source_language, request_id, start,
-                request.app.state.ai_client)
-            try:
-                source_verified = await run_in_threadpool(
-                    cache.has_interpretation_exact,
-                    req.content_hash, req.module, current_version,
-                    source_language, source_interpretation,
-                    source_prepared.cache_key.prompt_hash,
-                    parent_hash,
-                    source_prepared.cache_key.user_input_hash,
-                    target_date_iso,
-                )
-            except Exception as e:
-                elapsed_ms = (time.perf_counter() - start) * 1000
-                logger.exception(
-                    "interpret.translate.source_verify_failed elapsed_ms=%.1f "
-                    "%s error=%r", elapsed_ms, source_prepared.log_ctx, e,
-                )
-                raise InterpretationCacheError(
-                    f"后端原文核验读失败({type(e).__name__}): {e}") from e
-            if source_verified:
-                return True
+        async with aclosing(_iter_v1_chain_branches(
+                non_m0_deps, rows_by_module, chart, source_language,
+                parent_hash, verified, render_budget)) as branches:
+            async for branch_verified in branches:
+                if render_budget[0] <= 0:
+                    break
+                render_budget[0] -= 1
+                # 源键 = 与生成同一代码路径(_prepare_prompt_and_key,含规范化 +
+                # user_input_hash),链字段/parent_fingerprint 换成源语言已核验值。
+                source_context = dict(req.context)
+                for name in V1_CHAIN_PRODUCER:
+                    if name in branch_verified:
+                        source_context[name] = branch_verified[name]
+                source_req = req.model_copy(update={
+                    "context": source_context,
+                    "parent_fingerprint": fingerprint,
+                })
+                # 纯 CPU(校验 + 渲染 + hash),放线程池(2026-10-07 review 收尾,
+                # 与行读取/版本重渲染同款;源键渲染是本函数最重的一步)。
+                source_prepared = await run_in_threadpool(
+                    _prepare_prompt_and_key,
+                    source_req, source_language, request_id, start,
+                    request.app.state.ai_client)
+                try:
+                    source_verified = await run_in_threadpool(
+                        cache.has_interpretation_exact,
+                        req.content_hash, req.module, current_version,
+                        source_language, source_interpretation,
+                        source_prepared.cache_key.prompt_hash,
+                        parent_hash,
+                        source_prepared.cache_key.user_input_hash,
+                        target_date_iso,
+                    )
+                except Exception as e:
+                    elapsed_ms = (time.perf_counter() - start) * 1000
+                    logger.exception(
+                        "interpret.translate.source_verify_failed elapsed_ms=%.1f "
+                        "%s error=%r", elapsed_ms, source_prepared.log_ctx, e,
+                    )
+                    raise InterpretationCacheError(
+                        f"后端原文核验读失败({type(e).__name__}): {e}") from e
+                if source_verified:
+                    return True
     return False
 
 
