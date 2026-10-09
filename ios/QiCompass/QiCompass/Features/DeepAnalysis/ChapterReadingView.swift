@@ -145,7 +145,7 @@ struct ChapterReadingView: View {
     }
 
     /// 正文态:章题 + 副题 + hairline + 正文(模块 JSON → ChapterContentView 结构化
-    /// 排版;散文退回 15.5/2.15×/缩进 2em;JSON 形态但解析失败 → 显式异常态)+ 章末批印。
+    /// 排版;散文退回 16/~1.65×/缩进 2em;JSON 形态但解析失败 → 显式异常态)+ 章末批印。
     private func chapterBody(text: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(chapterTitle)
@@ -512,8 +512,10 @@ struct ChapterReadingView: View {
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 10))
                         }
-                        .font(BaziFont.caption(size: 13))
-                        .tracking(1)
+                        // 与 pagerButton 同规格(15pt / tracking 0.5,DESIGN.md
+                        // 「翻章条 15pt」单口径;锁 icon 10pt 小一号表锁定态)。
+                        .font(BaziFont.caption(size: 15))
+                        .tracking(0.5)
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
                         .padding(6)
                     }
