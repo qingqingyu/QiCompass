@@ -138,7 +138,8 @@ final class CachedInterpretationReader {
     /// 跨语言读取按语言循环时复用同一 identity,不再每语言各打一次 health)。
     ///
     /// 链一致守卫(2026-10-08 第十五轮 #7;十六轮改**依赖图切断**——houduan
-    /// `transitiveDependents` 机制 + neirong 版本迁移集,撞车消解融合):
+    /// `transitiveDependents` 机制 + neirong 版本迁移集,撞车消解融合;
+    /// 十七轮 #3 补**清单外上游**缺行检查):
     /// 本地缓存键不含上游指纹,getLatest 只按**本模块**版本过滤——上游
     /// (如 M0)单侧 bump 后,下游旧版本行照常命中 → 命书新旧混拼 + 这些章
     /// 翻译恒 409(服务端链走查按新上游重建键)。守卫只切断缺行模块的
@@ -147,8 +148,16 @@ final class CachedInterpretationReader {
     /// 恒取自 M0,m7 声明依赖虽不含 m0 也在传递闭包内):旧「列表序前缀
     /// 一刀切」会误伤不依赖缺失章的下游(如 M4 缺行时 M5-M7 全被跳过
     /// ——M4 不在任何模块的依赖里,本不必断;离线可读/跨语言可译的行白丢)。
+    /// 缺行判定含**不在本次清单里的上游**(十七轮 #3):上游可能处于
+    /// .dailyLimitReached / .contextTokenExpired / .fetching / .pending 等
+    /// 不可回填态而不进清单,但「不在清单」≠「有当前版本行」——只看清单
+    /// 内模块时,M0 升版重生成 429 达限后重进页面,M1-M7 旧行会被恢复成
+    /// 旧链(混拼 + 翻译 409)。对「清单内模块的依赖 ∪ {m0} − 清单」逐一
+    /// 查行,缺行则其传递依赖方同款切断。
     /// 跨语言探测(includeStaleVersions=true)下「无命中」= 真无行,
-    /// 守卫同义成立。
+    /// 守卫同义成立(行判定同样放行旧版行——旧版源正是可翻译的探测源);
+    /// 该模式下迁移集不计算(调用方只消费 hits,十七轮 #7:省掉白做的
+    /// hasAnyVersionRow 查询)。
     ///
     /// includeStaleVersions(十四轮外评 #5):跨语言探测传 true——prompt bump
     /// 后旧语言原文只在旧版本下,版本过滤会把探测源一并滤掉(设计降级路径
@@ -165,26 +174,62 @@ final class CachedInterpretationReader {
         var hits: [String: InterpretationCache] = [:]
         var migrationRegen: Set<String> = []
         // 守卫只对 v1 链模块集生效(清单内全部是 M0-M7 = DeepAnalysis 链式
-        // 回填;**含同会话部分清单**——M0 已 .ok 等不可回填态时清单从 m1
-        // 起头,不在清单内的上游由「本会话已 .ok = 已有当前版本行」前提兜底)。
-        // 合盘/每日/老 module 名不在 ModuleID 集,不适用——合盘的
-        // 「paid/free 任一命中」语义里 paid 常年缺席,依赖切断会误伤 free
-        // 行命中。判定用 allSatisfy 而非「first == m0」:后者会让部分清单
-        // 静默绕过守卫,#7 的混拼场景在同会话 Tab 重挂下复现(重启才自愈)。
+        // 回填;含同会话部分清单)。合盘/每日/老 module 名不在 ModuleID 集,
+        // 不适用——合盘的「paid/free 任一命中」语义里 paid 常年缺席,依赖
+        // 切断会误伤 free 行命中。判定用 allSatisfy 而非「first == m0」:
+        // 后者会让部分清单静默绕过守卫,#7 的混拼场景在同会话 Tab 重挂下
+        // 复现(重启才自愈)。
         let isV1Chain = modules.allSatisfy { ModuleID(rawValue: $0) != nil }
         // 版本缺行模块的传递依赖方集(切断范围;版本未知 = 老后端守卫关闭)
         var cutModules = Set<ModuleID>()
+        // 清单外血统上游缺行检查(十七轮 #3,见函数注释):依赖 ∪ {m0} −
+        // 清单;行判定与主循环同模式(回填只认当前版本行/跨语言任意版本行)
+        if isV1Chain {
+            var externalDeps = Set<ModuleID>([.m0])
+            for module in modules {
+                if let id = ModuleID(rawValue: module) {
+                    externalDeps.formUnion(id.dependencies)
+                }
+            }
+            let listed = Set(modules.compactMap(ModuleID.init(rawValue:)))
+            externalDeps.subtract(listed)
+            for dep in externalDeps
+            where identity.promptVersions[dep.rawValue] != nil {
+                let hasRow = try latestHit(
+                    contentHash: contentHash, module: dep.rawValue,
+                    language: language, targetDate: targetDate,
+                    maxAge: nil, identity: identity,
+                    includeStaleVersions: includeStaleVersions
+                ) != nil
+                if !hasRow {
+                    cutModules.formUnion(dep.transitiveDependents)
+                    // 缺行的清单外上游自身若有任意版本行,同样进迁移集
+                    // (回填模式):它此后重算非用户过错,否则同会话跨
+                    // UTC 零点恢复时其重跑会被计费
+                    if !includeStaleVersions,
+                       try hasAnyVersionRow(
+                           contentHash: contentHash, module: dep.rawValue,
+                           language: language, targetDate: targetDate,
+                           identity: identity
+                       ) {
+                        migrationRegen.insert(dep.rawValue)
+                    }
+                }
+            }
+        }
         for module in modules {
             if let id = ModuleID(rawValue: module), isV1Chain,
                cutModules.contains(id) {
                 // 血统过期跳过:上游自身缺当前版本行,本模块是其传递依赖方,
                 // 既有行是旧上游驱动的,不回填;本地有任意版本行 → 记入
-                // 版本迁移重生成集(重算非用户过错,调用方豁免本地次数)
-                if try hasAnyVersionRow(
+                // 版本迁移重生成集(重算非用户过错,调用方豁免本地次数;
+                // 跨语言模式不算迁移集,见函数注释)
+                if !includeStaleVersions,
+                   try hasAnyVersionRow(
                     contentHash: contentHash, module: module,
                     language: language, targetDate: targetDate,
                     identity: identity
-                ) {
+                   ) {
                     migrationRegen.insert(module)
                 }
                 continue
@@ -204,11 +249,12 @@ final class CachedInterpretationReader {
                 if isV1Chain, let id = ModuleID(rawValue: module),
                    identity.promptVersions[module] != nil {
                     cutModules.formUnion(id.transitiveDependents)
-                    if try hasAnyVersionRow(
+                    if !includeStaleVersions,
+                       try hasAnyVersionRow(
                         contentHash: contentHash, module: module,
                         language: language, targetDate: targetDate,
                         identity: identity
-                    ) {
+                       ) {
                         migrationRegen.insert(module)
                     }
                 }

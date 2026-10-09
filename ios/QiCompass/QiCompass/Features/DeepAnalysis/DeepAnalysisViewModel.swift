@@ -166,6 +166,29 @@ final class DeepAnalysisViewModel {
     /// 出集(一次性);hydrate 每次整集重derive(替换非合并),换盘/reset 清空。
     private var versionMigrationExempt: Set<ModuleID> = []
 
+    /// 该章重跑是否消耗本地池(2026-10-09 十七轮拍板①:付费章 m2-m7 **不扣
+    /// 本地池**——本地池语义回归「免费体验配额」,付费滥用护栏由服务端
+    /// paid 桶(按购买主体 500/日)承担;此前 2 盘首日购买 = 16 次 > 10 次
+    /// 达限,已购内容当天不可见。版本迁移豁免章同属免扣)。compat/daily
+    /// 的付费内容维持现状,后续批次跟进。
+    private func consumesLocalQuota(_ module: ModuleID) -> Bool {
+        !module.isPaid && !versionMigrationExempt.contains(module)
+    }
+
+    /// 状态是否「可跑未完成」(十七轮 #1 抽出,resume 守卫与达限断链两处
+    /// 共用,防两份 switch 漂移):nil/.pending/.failed 且已解锁可跑;
+    /// .ok/.locked/.needsInput/.fetching/.contextTokenExpired/.dailyLimitReached
+    /// 均不可跑(凭证失效恢复走「重新排盘」,服务端达限走 UTC 零点重置)。
+    private static func isRunnableState(_ state: ModuleState?, entitled: Bool) -> Bool {
+        switch state {
+        case .ok, .locked, .needsInput, .fetching,
+             .contextTokenExpired, .dailyLimitReached:
+            return false
+        case nil, .pending, .failed:
+            return entitled
+        }
+    }
+
     /// M4 用户输入(Stage 8;盘面小景 S3 起由阅读页页内表单 ChapterReadingInputForm 填写)。
     /// nil = 用户尚未填 → M4 模块标 .needsInput,等用户填。
     /// 非 nil = 用户填过 → runSingleV1Module(.m4) 用此值调 orchestrator。
@@ -1017,27 +1040,20 @@ final class DeepAnalysisViewModel {
         let entitled = { (module: ModuleID) in
             !module.isPaid || self.hasDeepEntitlement(contentHash: response.contentHash)
         }
-        let hasRunnableUnfinished = ModuleID.allCases.contains { module in
-            switch moduleStates[module] {
-            case .ok, .locked, .needsInput, .fetching:
-                return false
-            case nil, .pending, .failed:
-                return entitled(module)
-            case .contextTokenExpired:
-                // 凭证失效:续跑必再 403(2026-10-08),恢复走「重新排盘」,
-                // 不进自动续跑清单
-                return false
-            case .dailyLimitReached:
-                // 服务端配额 429(2026-10-08 外评 #6):续跑必再 429,
-                // 恢复走 UTC 零点重置,不进自动续跑清单
-                return false
-            }
+        // 可跑未完成章谓词(共用 isRunnableState,语义同旧内联 switch)
+        func isRunnableUnfinished(_ module: ModuleID) -> Bool {
+            Self.isRunnableState(moduleStates[module], entitled: entitled(module))
         }
-        guard hasRunnableUnfinished else {
+        guard ModuleID.allCases.contains(where: isRunnableUnfinished) else {
             AppLogger.app.info("deepVM.resumeV1ChainIfNeeded.skip reason=no_runnable_unfinished")
             return
         }
-        guard remainingReads > 0 else {
+        // 本地池耗尽仍放行:存在不消耗本地池的可跑章(十七轮 #1 + 拍板①:
+        // 付费章/版本迁移豁免章免扣——当天次数用在别的盘上,不应挡住
+        // 已购盘的迁移重算/付费链续跑,这正是十六轮 #1 要修的场景)
+        guard remainingReads > 0
+            || ModuleID.allCases.contains(where: { !consumesLocalQuota($0) && isRunnableUnfinished($0) })
+        else {
             AppLogger.app.info("deepVM.resumeV1ChainIfNeeded.skip reason=daily_limit")
             return
         }
@@ -1302,12 +1318,26 @@ final class DeepAnalysisViewModel {
                 AppLogger.app.warning("deepVM.runV1Chain m0_failed_breaking_chain contentHash=\(response.contentHash, privacy: .public)")
                 return
             }
-            // 每日次数耗尽 → 剩余章 tryConsume 必逐个失败,提前断链不制造满屏 failed
+            // 每日次数耗尽 → 仅当剩余可跑章**全部**要扣本地次数才断链
+            // (十七轮 #1 + 拍板①:付费章/版本迁移豁免章免扣,池空仍可
+            // 继续跑它们;一刀切断会让已购盘在当天次数耗尽时整链卡死)
             if case .failed = moduleStates[module], remainingReads <= 0 {
-                AppLogger.app.warning(
-                    "deepVM.runV1Chain daily_limit_break module=\(module.rawValue, privacy: .public)"
+                let quotaFreeAhead = ModuleID.allCases.contains {
+                    !consumesLocalQuota($0)
+                        && Self.isRunnableState(
+                            moduleStates[$0],
+                            entitled: !$0.isPaid
+                                || self.hasDeepEntitlement(contentHash: response.contentHash))
+                }
+                if !quotaFreeAhead {
+                    AppLogger.app.warning(
+                        "deepVM.runV1Chain daily_limit_break module=\(module.rawValue, privacy: .public)"
+                    )
+                    return
+                }
+                AppLogger.app.info(
+                    "deepVM.runV1Chain daily_limit_skip_break module=\(module.rawValue, privacy: .public) — 剩余含免扣本地池章(付费/迁移豁免),链继续"
                 )
-                return
             }
             // 服务端配额达限(2026-10-08 外评 #6):剩余章必再 429,提前断链
             // (与上方本地池断链同款;双池不同源,本地 remaining 判不了服务端)
@@ -1426,8 +1456,12 @@ final class DeepAnalysisViewModel {
                 chainFields: chainFields,
                 // 版本迁移豁免(第十六轮外评 #1):集合内章的重算由服务端
                 // prompt bump 强制,非用户过错,与翻译 STALE 降级同款豁免;
-                // 章成功后出集(下方 .ok 落态处),一次性。
-                quotaExempt: quotaExempt || versionMigrationExempt.contains(module)
+                // 章成功后出集(下方 .ok 落态处),一次性。付费章豁免
+                // (十七轮拍板①):本地池语义回归「免费体验配额」,付费滥用
+                // 护栏由服务端 paid 桶承担——服务端照常计数,此处只免本地扣次。
+                quotaExempt: quotaExempt
+                    || versionMigrationExempt.contains(module)
+                    || module.isPaid
             )
 
             if Task.isCancelled { return }

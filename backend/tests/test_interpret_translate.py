@@ -1895,6 +1895,66 @@ async def test_m2_translate_survives_mass_newer_junk_rows_exact_lookup(
         "注入行不触发任何额外 LLM 调用,唯一一次消耗 = 翻译本身"
 
 
+async def test_m1_translate_survives_m0_root_variant_flood(
+        interpret_client, mock_ai_client, tmp_cache, tmp_entitlement_store):
+    """M0 根腿变体洪水(十七轮外评 #2):>128 条同版本、解析等价但
+    prompt_hash 不等的 M0 变体行下,合法翻译仍 200——旧形态(行枚举 +
+    128 探查上限)里变体行(generated_at 更新)占满探查窗口,真根恒在
+    窗口外被跳过 → 恒 409;精确主键查找(按版本算期望 hash 四元匹配)
+    无窗口,真根与行数/行序无关。变体行零额外 LLM 消耗。
+    """
+    import hashlib
+    from datetime import datetime, timedelta, timezone
+
+    from app.ai.cache_key import CacheKey
+    from tests.test_interpret_paid import _seed_entitlement
+
+    ch = "hash-m0-flood"
+    _seed_entitlement(tmp_entitlement_store, content_hash=ch,
+                      user_local_id="flood-user")
+    m0_zh = json.loads(M0_ZH_JSON)
+    m1_zh = json.loads(M1_ZH_JSON)
+    m0_hant = json.loads(M0_HANT_JSON)
+    fp = m0_zh["structure_fingerprint"]
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m0_structure", context={"chart": M0_CHART},
+                    mock_response=M0_ZH_JSON)
+    m1_zh_text = M1_ZH_JSON
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m1_talent", context=_m1_context(m0_zh),
+                    parent_fingerprint=fp, mock_response=m1_zh_text)
+
+    now = datetime.now(timezone.utc)
+    for i in range(130):
+        tmp_cache.set(
+            CacheKey(
+                content_hash=ch, module="m0_structure",
+                prompt_version=PROMPT_VERSIONS["m0_structure"], target_date="",
+                prompt_hash=hashlib.sha256(
+                    f"m0-flood-{i}".encode()).hexdigest(),
+                provider="anthropic", model="mock-anthropic-model",
+                parent_hash="", user_input_hash="", language="zh"),
+            M0_ZH_JSON,
+            (now + timedelta(hours=i + 1)).isoformat())
+
+    mock_ai_client.set_response(M1_HANT_JSON)
+    calls_before = mock_ai_client.call_count
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m1_talent",
+        "context": _m1_context(m0_hant),
+        "target_date": None,
+        "parent_fingerprint": m0_hant["structure_fingerprint"],
+        "user_local_id": "flood-user",
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m1_talent"],
+        "source_interpretation": m1_zh_text,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["interpretation"] == M1_HANT_JSON
+    assert mock_ai_client.call_count == calls_before + 1, \
+        "变体行不触发额外 LLM 调用,唯一消耗 = 翻译本身"
+
+
 def test_match_exact_v1_rows_four_way_identity():
     """精确匹配单元(2026-10-08 十六轮 neirong #3):命中要求 (prompt_version,
     prompt_hash, parent_hash, user_input_hash) 四元同时相等——parent 不符 /

@@ -833,6 +833,75 @@ final class CachedInterpretationReaderTests: XCTestCase {
         )
     }
 
+    /// 清单外血统上游缺行(十七轮 #3):M0 处于不可回填态(.dailyLimitReached
+    /// 等)不进恢复清单,但「不在清单」≠「有当前版本行」——守卫只看清单内
+    /// 模块时,M0 升版重生成 429 达限后重进页面,M1-M7 旧行会被恢复成旧链
+    /// (混拼 + 翻译 409)。修复:对「清单内模块的依赖 ∪ {m0} − 清单」逐一
+    /// 查行,缺行则其传递依赖方同款切断;缺行的清单外上游自身(M0)有任意
+    /// 版本行也进迁移集(同会话跨 UTC 零点恢复时其重跑免计费)。
+    /// 跨语言探测模式下该检查放行旧版行(旧版源正是可翻译的探测源,
+    /// 附三 #5 口径)——不因 M0 无当前版本行而切断探测。
+    func testReadAllForRestoreCutsWhenUpstreamOutsideListMissesCurrentRow() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        // M0 本地只有 v1 行(服务端 v2);M1-M7 本地 v1 = 服务端当前
+        try store.upsert(
+            contentHash: "h-ext", module: "m0_structure", promptVersion: 1,
+            targetDate: nil, provider: "anthropic", model: "claude-test",
+            interpretation: Self.v1JSON("m0 旧版"), generatedAt: .now
+        )
+        for module in Self.v1Modules.dropFirst() {
+            try store.upsert(
+                contentHash: "h-ext", module: module, promptVersion: 1,
+                targetDate: nil, provider: "anthropic", model: "claude-test",
+                interpretation: Self.v1JSON("text-\(module)"), generatedAt: .now
+            )
+        }
+
+        var health = Self.health(provider: "anthropic", model: "claude-test")
+        health.promptVersions = [
+            "m0_structure": 2, "m1_talent": 1, "m2_high_low": 1, "m3_system": 1,
+            "m4_health": 1, "m5_wealth": 1, "m6_dynamics": 1, "m7_manual": 1,
+        ]
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient:
+                ReaderTestAPIClient(healthResults: [.success(health)])),
+            cacheStore: store
+        )
+
+        // 1. 回填模式:清单 = [m1..m7](M0 不在——如处于 .dailyLimitReached)。
+        //    M0 无当前版本行 → 全链切断,hits 空;八章全进迁移集
+        //    (M0 经清单外检查补入,M1-M7 经切断路径)
+        let partial = try await reader.readAllForRestore(
+            contentHash: "h-ext",
+            modules: Array(Self.v1Modules.dropFirst()), language: "zh"
+        )
+        XCTAssertTrue(partial.hits.isEmpty, "清单外 M0 缺当前版本行须切断全链(实际:\(partial.hits.keys.sorted()))")
+        XCTAssertEqual(
+            partial.migrationRegenModules, Set(Self.v1Modules),
+            "M0(清单外检查补入)与 M1-M7(切断路径)均为版本迁移重生成"
+        )
+
+        // 2. 跨语言探测模式:M0 有任意版本行(旧版源可翻译)→ 不切断,
+        //    zh 行照常作为探测源命中(不因外部检查误伤翻译降级路径)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("zh-hant", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+        let reader2 = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient:
+                ReaderTestAPIClient(healthResults: [.success(health)])),
+            cacheStore: store
+        )
+        let crossLang = try await reader2.readAllCrossLanguage(
+            contentHash: "h-ext", modules: Array(Self.v1Modules.dropFirst())
+        )
+        XCTAssertEqual(crossLang?.language, "zh", "跨语言探测:M0 旧版行放行,zh 源照常可探测(切断仅回填模式)")
+        XCTAssertEqual(crossLang?.hits.count, 7)
+    }
+
     // MARK: - Helpers
 
     private static func healthOnlyClient(

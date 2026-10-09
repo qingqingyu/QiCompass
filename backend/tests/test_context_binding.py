@@ -766,6 +766,99 @@ def test_quota_tier_routes_all_module_families():
         None, req("m0_structure"), "user-u1") == "user:user-u1"
 
 
+def test_paid_bucket_owner_from_entitlement_record():
+    """付费桶 owner 取**命中的 entitlement 记录自身主体**(十七轮外评 #4):
+    get_active 是「user_id 优先、user_local_id 兜底」双轨匹配——同一笔匿名
+    购买(user_id=NULL, ulid=X)可被 N 个登录账号命中,若桶键用请求身份
+    (current_user_id or ulid),切账号即可叠开 N 个付费桶(每账号一个
+    PAID_DAILY_LIMIT);按记录 owner 分桶,同一笔购买恒定共享一个桶,
+    切账号不重置。请求身份仅在无记录(免费 module)时兜底。
+    """
+    from app.api.interpret import _paid_bucket_owner, _quota_bucket
+    from app.models.interpret import InterpretRequest
+
+    def req(module: str = "m4_health") -> InterpretRequest:
+        kwargs: dict = {"user_local_id": "device-ulid",
+                        "parent_fingerprint": "tier-fp",
+                        "m4_age": 30, "m4_current_concern": "睡眠",
+                        "target_date": None}
+        return InterpretRequest(
+            content_hash="owner-h", module=module, context={}, **kwargs)
+
+    ulid_owned = {"user_id": None, "user_local_id": "device-ulid"}
+    uid_owned = {"user_id": "acct-original", "user_local_id": "device-ulid"}
+    empty = None  # 免费 module(不触达 owner)
+
+    # 匿名购买记录:N 个登录账号命中同一笔 → owner 恒为记录的 ulid
+    assert _paid_bucket_owner(ulid_owned, req(), "acct-A") == "device-ulid"
+    assert _paid_bucket_owner(ulid_owned, req(), "acct-B") == "device-ulid"
+    assert _paid_bucket_owner(ulid_owned, req(), None) == "device-ulid"
+    # 桶键同语义:登录账号不 fork 匿名购买的付费桶
+    assert _quota_bucket(
+        None, req(), "acct-A", paid_owner=_paid_bucket_owner(
+            ulid_owned, req(), "acct-A")) == "paid:ent:device-ulid"
+    assert _quota_bucket(
+        None, req(), "acct-B", paid_owner=_paid_bucket_owner(
+            ulid_owned, req(), "acct-B")) == "paid:ent:device-ulid"
+    # 登录购买的记录:owner = 记录的 user_id(即使请求带同 ulid 也不切)
+    assert _paid_bucket_owner(uid_owned, req(), None) == "acct-original"
+    # 免费 module(无记录):请求身份兜底(该分支不进 paid 桶,仅完备)
+    assert _paid_bucket_owner(empty, req(), "acct-A") == "acct-A"
+
+
+async def test_paid_refund_lands_on_entitlement_owner_bucket(
+        raw_interpret_client, tmp_entitlement_store, tmp_free_quota_store):
+    """退款桶与 enforce 桶恒一致(十七轮 #4 收口的 refund 半边,推前双
+    review 补钉):匿名购买记录(user_id NULL)被登录账号命中时,owner =
+    记录的 ulid——enforce 从 paid:ent:{ulid} 扣,refund 必须退回同一桶;
+    修复前 refund 用请求身份落 paid:ent:{登录user_id}(空桶 no-op),记录
+    主体桶的计数永不回账,合法退款(服务商故障)静默丢失。
+    """
+    from app.auth.jwt_service import create_access_token
+    from app.main import app
+    from tests.fixtures.mock_ai import FailingAIClient
+
+    ch = "refund-owner-h"
+    # 匿名购买(user_id NULL):get_active 对登录账号走 ulid 兜底命中
+    tmp_entitlement_store.insert(
+        transaction_id="tx-owner-refund",
+        product_id="com.qicompass.deep_analysis.single",
+        content_hash=ch, module="bazi_deep",
+        user_local_id="anon-ulid",
+        purchased_at="2026-07-18T12:00:00+00:00",
+        original_purchase_date="2026-07-18T11:55:00+00:00",
+    )
+    saved = app.state.ai_client
+    app.state.ai_client = FailingAIClient()
+    try:
+        resp = await raw_interpret_client.post("/api/interpret", json={
+            "content_hash": ch, "module": "bazi_deep_paid",
+            "context": BAZI_DEEP_CONTEXT, "target_date": None,
+            "user_local_id": "anon-ulid",
+            "context_token": token_for_context(
+                content_hash=ch, module="bazi_deep_paid",
+                context=BAZI_DEEP_CONTEXT),
+        }, headers={"Authorization": "Bearer " + create_access_token(
+            "acct-cross")})
+        assert resp.status_code == 503, resp.json()
+    finally:
+        app.state.ai_client = saved
+
+    conn = sqlite3.connect(tmp_free_quota_store._db_path)
+    try:
+        rows = dict(conn.execute(
+            "SELECT bucket, count FROM free_llm_quota "
+            "WHERE bucket LIKE 'paid:ent:%'").fetchall())
+    finally:
+        conn.close()
+    # 记录主体桶:enforce 扣 1 + refund 退 1 → 计数归零(行可在)
+    assert rows.get("paid:ent:anon-ulid", 0) == 0, \
+        f"退款必须退回 entitlement 记录主体桶(实际 paid 桶:{rows})"
+    # 请求身份桶:不应被创建(退款打错桶会在此留下退款副作用行)
+    assert "paid:ent:acct-cross" not in rows, \
+        f"退款不得落请求身份桶(实际 paid 桶:{rows})"
+
+
 def test_normalize_client_ip_ipv4_mapped_unwrapped():
     """IPv4 映射形态解出内层 IPv4 分桶(2026-10-08 修复)。
 
