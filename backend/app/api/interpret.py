@@ -2171,7 +2171,13 @@ async def interpret_translate(
 
     async def _generate_translation() -> tuple[str, str]:
         day = datetime.now(timezone.utc).date().isoformat()
-        await _enforce_daily_quota(request, req, current_user_id, day)
+        # paid_owner 必传(2026-10-09 外评):漏传时扣次按请求者身份找桶,
+        # 而本端点 peek(前置)与退款(下方两处)按 entitlement 主体找桶——
+        # 同一笔匿名购买被多个登录账号翻译时,每号各开一个付费桶(十七轮
+        # #4 关掉的通道在翻译侧重开),且扣 A 桶退 B 桶、B 桶无消耗行时
+        # 退款 no-op 仍烧退款计数。
+        await _enforce_daily_quota(
+            request, req, current_user_id, day, paid_owner=paid_owner)
         try:
             translated = await ai_client.interpret(
                 translate_prompt, temperature=resolve_temperature("translate"),

@@ -162,8 +162,9 @@ class QuotaExceededError(BaziError):
     独立 paid: 前缀分桶)。免费上限 QICOMPASS_FREE_DAILY_LIMIT(默认
     150:CGNAT 共享 IPv4 出口下 30/日是全出口共享,正常用户互相挤兑;
     脚本可换 IP 绕过,上限主要约束共享出口成本面);付费上限
-    QICOMPASS_PAID_DAILY_LIMIT(默认 100,拦 M4/M5 换输入无限烧 LLM 的
-    脚本滥用,不影响正常单用户 usage)。
+    QICOMPASS_PAID_DAILY_LIMIT(默认 500,拦 M4/M5 换输入无限烧 LLM 的
+    脚本滥用;2026-10-08 十六轮拍板 100 → 500——匿名付费按 IP 分桶,
+    CGNAT 共享出口下 100 会让正常付费群体互相挤兑触顶)。
     """
 
     code = "QUOTA_EXCEEDED"

@@ -1484,6 +1484,110 @@ async def test_paid_module_translate_with_entitlement_200(
     assert resp.json()["translated_from"] == "zh"
 
 
+async def test_paid_translate_consume_lands_on_entitlement_owner_bucket(
+        interpret_client, mock_ai_client, tmp_entitlement_store, tmp_cache,
+        tmp_free_quota_store):
+    """付费翻译扣次与 peek/退款同桶(2026-10-09 外评修复,十七轮 #4 补全):
+
+    翻译 factory 内 _enforce_daily_quota 此前漏传 paid_owner——扣次按
+    **请求者身份**找桶,而本端点 peek(走查前)与退款(factory 内两处)
+    按 entitlement 记录主体找桶。同一笔匿名购买(user_id NULL)被登录
+    账号翻译时:每号各开一个付费桶(十七轮 #4 关掉的 fork 通道在翻译侧
+    重开),且扣请求者桶、退记录主体桶(空桶 no-op 仍烧退款计数)。
+    修复后扣/退/peek 三处恒同桶 paid:ent:{记录主体}。
+    """
+    import sqlite3
+    from app.auth.jwt_service import create_access_token
+    from tests.test_interpret_paid import _seed_entitlement
+
+    ch = "paid-tr-owner-h"
+    # 匿名购买(user_id NULL):get_active 对登录账号走 ulid 兜底命中
+    _seed_entitlement(tmp_entitlement_store, content_hash=ch,
+                      user_local_id="anon-ulid")
+
+    m0_out = json.dumps({
+        "structure_fingerprint": "fp-tr-owner",
+        "main_axis": {"dominant": "七杀"},
+        "core_loop": {"from": "七杀", "to": "偏财"},
+    }, ensure_ascii=False)
+    m1_out = json.dumps({
+        "innate": "抗压产出", "defensive": "过度自律", "one_leverage": "稳",
+    }, ensure_ascii=False)
+    _seed_source_row(tmp_cache, {
+        "content_hash": ch, "module": "m0_structure",
+        "context": {"chart": M0_CHART}, "target_date": None,
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m0_structure"],
+        "source_interpretation": m0_out,
+    }, m0_out)
+    _seed_source_row(tmp_cache, {
+        "content_hash": ch, "module": "m1_talent",
+        "context": {
+            "chart": M0_CHART, "structure_fingerprint": "fp-tr-owner",
+            "main_axis": _ios_serialize({"dominant": "七杀"}),
+            "core_loop": _ios_serialize({"from": "七杀", "to": "偏财"}),
+        },
+        "target_date": None, "parent_fingerprint": "fp-tr-owner",
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m1_talent"],
+        "source_interpretation": m1_out,
+    }, m1_out)
+
+    src = json.dumps({"high_config": {"portrait": "输出稳定"}},
+                     ensure_ascii=False)
+    tgt = json.dumps({"high_config": {"portrait": "輸出穩定"}},
+                     ensure_ascii=False)
+    _seed_source_row(tmp_cache, {
+        "content_hash": ch, "module": "m2_high_low",
+        "context": {
+            "chart": M0_CHART, "structure_fingerprint": "fp-tr-owner",
+            "innate": "抗压产出", "defensive": "过度自律",
+        },
+        "target_date": None, "parent_fingerprint": "fp-tr-owner",
+        "user_local_id": "anon-ulid",
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m2_high_low"],
+        "source_interpretation": src,
+    }, src)
+
+    # 登录账号(≠记录主体)持同 ulid 翻译:请求身份 acct-cross,
+    # entitlement 记录主体 anon-ulid,paid_owner 必须取后者
+    payload = _m0_translate_payload(source_interpretation=src)
+    payload.update({
+        "content_hash": ch,
+        "module": "m2_high_low",
+        "context": {
+            "chart": M0_CHART, "structure_fingerprint": "七杀驱动",
+            "innate": "抗压产出", "defensive": "过度自律",
+        },
+        "user_local_id": "anon-ulid",
+        "parent_fingerprint": "七杀驱动(译)",
+        "source_prompt_version": PROMPT_VERSIONS["m2_high_low"],
+    })
+    mock_ai_client.set_response(tgt)
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=payload,
+        headers={
+            "X-QiCompass-Lang": "zh-hant",
+            "Authorization": "Bearer " + create_access_token("acct-cross"),
+        },
+    )
+    assert resp.status_code == 200, resp.text
+
+    conn = sqlite3.connect(tmp_free_quota_store._db_path)
+    try:
+        rows = dict(conn.execute(
+            "SELECT bucket, count FROM free_llm_quota "
+            "WHERE bucket LIKE 'paid:ent:%'").fetchall())
+    finally:
+        conn.close()
+    # 扣次落 entitlement 记录主体桶(修复前落请求身份桶,200 照常返回)
+    assert rows.get("paid:ent:anon-ulid") == 1, \
+        f"付费翻译扣次必须落记录主体桶(实际 paid 桶:{rows})"
+    assert "paid:ent:acct-cross" not in rows, \
+        f"登录账号不得 fork 匿名购买的付费桶(实际 paid 桶:{rows})"
+
+
 # ---------- 保真校验(D10.3:失败显式错误,不写缓存) ----------
 
 async def test_translated_not_json_returns_503(interpret_client,
