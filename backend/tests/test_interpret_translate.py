@@ -517,6 +517,191 @@ async def test_m2_translate_provider_variant_fork_backtracks(
     assert resp.json()["interpretation"] == m2_hant
 
 
+async def test_m2_translate_poisoned_variant_branch_skipped_not_422(
+        interpret_client, mock_ai_client, tmp_cache, tmp_entitlement_store):
+    """毒化变体分支只跳过、不钉死整个走查(2026-10-09 十七轮外评 #2)。
+
+    输出字段长度在生成侧从不校验(长度上限只拦下游模块的 context):变体
+    M1 行(同 prompt_hash/parent,PK 异 provider 并存,generated_at 最新 →
+    分支首序)的超长 one_leverage(5001 > 4096)会随分支进叶子的
+    validate_context(对额外 key 全量长度扫描)抛 InvalidInputError。旧实现
+    叶子 _prepare_prompt_and_key 不在 try 里 → 整树 422(非 409,iOS 的
+    STALE 重生成自愈不触发),回溯也走不到后面驱动真实链的合法分支。
+    修复:单分支校验失败仅跳过该分支 → 真实链分支仍被选中 → 200。
+    """
+    from tests.test_interpret_paid import _seed_entitlement
+    ch = "hash-chain-m2-pois"
+    _seed_entitlement(tmp_entitlement_store, content_hash=ch,
+                      user_local_id="pois-user")
+    m0_zh = json.loads(M0_ZH_JSON)
+    m1_zh = json.loads(M1_ZH_JSON)
+    m0_hant = json.loads(M0_HANT_JSON)
+    m1_hant = json.loads(M1_HANT_JSON)
+    fp = m0_zh["structure_fingerprint"]
+
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m0_structure", context={"chart": M0_CHART},
+                    mock_response=M0_ZH_JSON)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m1_talent", context=_m1_context(m0_zh),
+                    parent_fingerprint=fp, mock_response=M1_ZH_JSON)
+    m2_zh = json.dumps({"high_config": {"portrait": "输出稳定"}},
+                       ensure_ascii=False)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m2_high_low", context={
+                        "chart": M0_CHART, "structure_fingerprint": fp,
+                        "innate": _ios_serialize(m1_zh["innate"]),
+                        "defensive": _ios_serialize(m1_zh["defensive"]),
+                    }, parent_fingerprint=fp, mock_response=m2_zh,
+                    user_local_id="pois-user")
+
+    # 毒化变体 M1 行:同 context(prompt_hash/parent 同)→ 走查匹配;不同
+    # provider/model(PK 并存)+ 最新 generated_at(分支首序)——仅
+    # one_leverage 超长,其余链字段与真实 M1 输出一致。
+    m1_poisoned = dict(m1_zh)
+    m1_poisoned["one_leverage"] = "长" * 5001
+    m1_poisoned_json = json.dumps(m1_poisoned, ensure_ascii=False)
+    _seed_source_row(
+        tmp_cache, {
+            "content_hash": ch, "module": "m1_talent",
+            "context": _m1_context(m0_zh),
+            "target_date": None,
+            "parent_fingerprint": fp,
+            "source_language": "zh",
+            "source_prompt_version": PROMPT_VERSIONS["m1_talent"],
+            "source_interpretation": m1_poisoned_json,
+        }, m1_poisoned_json,
+        provider="openai", model="test-openai-model",
+        generated_at="2099-01-01T00:00:00+00:00")
+
+    m2_hant = json.dumps({"high_config": {"portrait": "輸出穩定"}},
+                         ensure_ascii=False)
+    mock_ai_client.set_response(m2_hant)
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m2_high_low",
+        "context": {
+            "chart": M0_CHART,
+            "structure_fingerprint": m0_hant["structure_fingerprint"],
+            "innate": _ios_serialize(m1_hant["innate"]),
+            "defensive": _ios_serialize(m1_hant["defensive"]),
+        },
+        "target_date": None,
+        "parent_fingerprint": m0_hant["structure_fingerprint"],
+        "user_local_id": "pois-user",
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m2_high_low"],
+        "source_interpretation": m2_zh,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["translated_from"] == "zh"
+    assert resp.json()["interpretation"] == m2_hant
+
+
+async def test_m6_translate_budget_interleaves_leaf_verification(
+        interpret_client, mock_ai_client, tmp_cache, tmp_entitlement_store,
+        monkeypatch):
+    """分支惰性流出:叶子核对与枚举交错共享渲染预算(2026-10-09 十七轮 #3)。
+
+    预算 3 = M1 版本渲染 + M2 版本渲染(真实前缀) + 叶子源键渲染,恰好
+    覆盖首分支全链(M0 根渲染走 m0_probes 探查上限,不进本预算)。旧实现
+    「先全量收集再逐个叶子核对」:陈旧 M1 变体的死前缀(M2 期望 hash 匹配
+    不到行)也先烧一枚渲染 → 预算耗尽 → 已产出的合法分支开局即 break →
+    409。修复后 DFS 找到一条完整分支立即核对,首分支命中即整树短路,
+    陈旧变体子树不再被展开。
+    """
+    import app.api.interpret as interpret_module
+    monkeypatch.setattr(interpret_module, "_V1_CHAIN_WALK_RENDER_BUDGET", 3)
+
+    from tests.test_interpret_paid import _seed_entitlement
+    ch = "hash-chain-m6-budget"
+    _seed_entitlement(tmp_entitlement_store, content_hash=ch,
+                      user_local_id="budget-user")
+    m0_zh = json.loads(M0_ZH_JSON)
+    m1_zh = json.loads(M1_ZH_JSON)
+    m0_hant = json.loads(M0_HANT_JSON)
+    m1_hant = json.loads(M1_HANT_JSON)
+    fp = m0_zh["structure_fingerprint"]
+
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m0_structure", context={"chart": M0_CHART},
+                    mock_response=M0_ZH_JSON)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m1_talent", context=_m1_context(m0_zh),
+                    parent_fingerprint=fp, mock_response=M1_ZH_JSON)
+    m2_zh = json.dumps({
+        "threshold": "高压紧张即输出",
+        "switch_actions": ["先建清单"],
+        "high_config": {"portrait": "输出稳定"},
+    }, ensure_ascii=False)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m2_high_low", context={
+                        "chart": M0_CHART, "structure_fingerprint": fp,
+                        "innate": _ios_serialize(m1_zh["innate"]),
+                        "defensive": _ios_serialize(m1_zh["defensive"]),
+                    }, parent_fingerprint=fp, mock_response=m2_zh,
+                    user_local_id="budget-user")
+    m6_zh = json.dumps({"energy_path": {"now": "压力→产出"}},
+                       ensure_ascii=False)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m6_dynamics", context={
+                        "chart": M0_CHART,
+                        "structure_fingerprint": fp,
+                        "core_loop": _ios_serialize(m0_zh["core_loop"]),
+                        "innate": _ios_serialize(m1_zh["innate"]),
+                        "defensive": _ios_serialize(m1_zh["defensive"]),
+                        "threshold": "高压紧张即输出",
+                    }, parent_fingerprint=fp, mock_response=m6_zh,
+                    user_local_id="budget-user")
+
+    # 陈旧 M1 变体(2026-01-01 落库 < 真实行的当前时间 → 匹配序在真实行
+    # 之后;死前缀:M2 行按真实 innate/defensive 落键,该前缀的 M2 期望
+    # hash 匹配不到任何行)。旧实现全量收集会为它烧一枚 M2 渲染。
+    m1_stale = json.dumps({
+        "innate": [{"name": "陈旧天赋", "behavior": "陈旧行为",
+                    "evidence": "陈旧证据", "energy": "gain"}],
+        "trained": [{"name": "陈旧训练"}],
+        "defensive": [{"name": "陈旧防御", "looks_like": "陈旧表现",
+                       "actual_cost": "陈旧代价", "evidence": "陈旧官"}],
+        "one_leverage": "陈旧杠杆",
+    }, ensure_ascii=False)
+    _seed_source_row(
+        tmp_cache, {
+            "content_hash": ch, "module": "m1_talent",
+            "context": _m1_context(m0_zh),
+            "target_date": None,
+            "parent_fingerprint": fp,
+            "source_language": "zh",
+            "source_prompt_version": PROMPT_VERSIONS["m1_talent"],
+            "source_interpretation": m1_stale,
+        }, m1_stale,
+        provider="openai", model="test-openai-model",
+        generated_at="2026-01-01T00:00:00+00:00")
+
+    m6_hant = json.dumps({"energy_path": {"now": "壓力→產出"}},
+                         ensure_ascii=False)
+    mock_ai_client.set_response(m6_hant)
+    resp = await interpret_client.post("/api/interpret/translate", json={
+        "content_hash": ch, "module": "m6_dynamics",
+        "context": {
+            "chart": M0_CHART,
+            "structure_fingerprint": m0_hant["structure_fingerprint"],
+            "core_loop": _ios_serialize(m0_hant["core_loop"]),
+            "innate": _ios_serialize(m1_hant["innate"]),
+            "defensive": _ios_serialize(m1_hant["defensive"]),
+            "threshold": "高壓緊張即輸出",
+        },
+        "target_date": None,
+        "parent_fingerprint": m0_hant["structure_fingerprint"],
+        "user_local_id": "budget-user",
+        "source_language": "zh",
+        "source_prompt_version": PROMPT_VERSIONS["m6_dynamics"],
+        "source_interpretation": m6_zh,
+    }, headers={"X-QiCompass-Lang": "zh-hant"})
+    assert resp.status_code == 200, resp.text
+    assert resp.json()["translated_from"] == "zh"
+    assert resp.json()["interpretation"] == m6_hant
+
+
 async def test_m2_translate_from_en_walks_translated_chart(
         interpret_client, mock_ai_client, tmp_entitlement_store):
     """en 源深链(2026-10-07 review):walk 重渲染必须过 translate_context。

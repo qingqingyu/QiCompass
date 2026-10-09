@@ -285,18 +285,17 @@ final class SyncManager {
     /// 详情留痕,不静默推——十六轮 #9:此前 try? 吞掉错误类别,strip_failed
     /// 日志查不出根因)。
     private enum SyncStripError: Error {
-        /// payload 顶层不是 JSON 对象(数组/标量/损坏数据)。关联值只带
-        /// **类型描述**(十七轮外评:曾带整个解析值且调用方以 .public 打
-        /// 日志——payload 含出生信息,错误详情会把未评估的个人字段全文
-        /// 泄进日志,与「剔除未评估字段」的初衷相反)。
-        case notAnObject(typeDescription: String)
+        /// payload 顶层不是 JSON 对象(数组/标量/损坏数据)。
+        /// 只记类型名不存解析值——错误经 strip_failed 以 .public 级别进日志,
+        /// 存整包解析值会把命盘内容带进公开日志(十六轮后 review 收口)。
+        case notAnObject(type: String)
     }
 
     private static func stripLocalOnlyFields(from payload: Data) throws -> Data {
         let parsed = try JSONSerialization.jsonObject(with: payload)
         guard let obj = parsed as? [String: Any] else {
             throw SyncStripError.notAnObject(
-                typeDescription: String(describing: Swift.type(of: parsed)))
+                type: String(describing: type(of: parsed)))
         }
         var mutable = obj
         mutable.removeValue(forKey: "archived_birth_datetime")

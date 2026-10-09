@@ -37,7 +37,8 @@ import logging
 import re
 import time
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import AsyncIterator
+from contextlib import aclosing
 from datetime import datetime, timezone
 from typing import Any, Final, NamedTuple, NoReturn
 
@@ -894,9 +895,6 @@ async def _refund_daily_quota(
     """
     from ..quota.store import FreeLLMQuotaStore
     store: FreeLLMQuotaStore = request.app.state.free_quota_store
-    # 桶键与 enforce 同源(十七轮 #4:owner = 命中的 entitlement 记录主体)
-    # ——refund 不传 paid_owner 时,跨账号场景(匿名购买记录被登录账号
-    # 命中)退款打向请求身份的空桶(no-op),enforce 扣的记录主体桶永不回账。
     bucket = _quota_bucket(request, req, current_user_id, paid_owner)
     try:
         refunded = await run_in_threadpool(
@@ -1182,7 +1180,7 @@ async def interpret(
             # 退款按 tier 桶(第十四轮付费上限):免费/付费各自封顶。
             if req.module not in _REFUND_CONTRACT_EXEMPT_MODULES:
                 await _refund_daily_quota(
-                    request, req, current_user_id, day, paid_owner=paid_owner)
+                request, req, current_user_id, day, paid_owner=paid_owner)
             raise
 
         # 4.5 禁词扫描(LLM 输出守卫,US-COMP-04)
@@ -1327,6 +1325,7 @@ def _render_v1_upstream_prompt_hash(
     return hashlib.sha256(rendered.encode("utf-8")).hexdigest()
 
 
+
 # 走查重渲染总预算(2026-10-08 十六轮外评 #3):provider/model 变体回溯
 # 会让重渲染按分支数相乘,预算给全函数单次请求封顶(M0 根渲染 / 非 M0
 # 版本渲染 / 叶子源键渲染各 -1,耗尽即停,走查按 False 落 409 → STALE 自愈)。
@@ -1354,7 +1353,7 @@ def _match_exact_v1_rows(
     驱逐残留(≥8 条更新的同 parent 注入行可暂时压出真行 → 409)结构性
     关闭;同 (版本, hash) 的 provider/model 变体行(PK 十维含
     provider/model,同键异文本并存,十六轮 houduan #3)**全收集**,
-    交由 `_collect_v1_chain_branches` 按链字段贡献去重回溯。
+    交由 `_iter_v1_chain_branches` 按链字段贡献去重回溯。
     """
     matched = [
         item for item in rows
@@ -1367,7 +1366,7 @@ def _match_exact_v1_rows(
     return matched
 
 
-async def _collect_v1_chain_branches(
+async def _iter_v1_chain_branches(
     upstreams: tuple[str, ...],
     rows_by_module: dict[str, list[tuple[CacheKey, str, str]]],
     chart: str,
@@ -1375,9 +1374,9 @@ async def _collect_v1_chain_branches(
     parent_hash: str,
     base_verified: dict[str, str],
     render_budget: list[int],
-    validate_leaf: Callable[[dict[str, str]], Awaitable[bool]],
-) -> bool:
-    """非 M0 上游链的核验分支枚举(2026-10-08 十六轮外评 #3:变体回溯)。
+) -> AsyncIterator[dict[str, str]]:
+    """非 M0 上游链的核验分支惰性枚举(2026-10-08 十六轮外评 #3:变体回溯;
+    同日双 review 建议收口:边生成边核验)。
 
     缓存主键十维含 provider/model:换 provider/模型重生成后,同(版本,
     parent_hash, prompt_hash)的新旧行**并存**——prompt 相同 → prompt_hash
@@ -1387,13 +1386,18 @@ async def _collect_v1_chain_branches(
     的合法用户恒 409(「同版本同 context 的行被 PK 去重」的旧注释不成立,
     PK 含 provider/model)。M0 根层回溯救不了中段分叉——两条链共享同一根。
 
-    本函数逐层收集**全部** hash 匹配行,按「该行贡献的链字段(canonical
-    形态)」去重后递归展开;**边枚举边验叶**(十七轮 #5):每条分支到达
-    叶子即调 validate_leaf,通过则整体短路返回 True——旧「先枚举完全部
-    分支再逐个验叶」在分支多时预算可能耗在枚举段,首个合法分支也 409。
-    分支首序 = 旧实现的逐层首匹配序(无变体并存时行为不变)。组合爆炸由
-    render_budget 封顶——注入行要进分支必须先产出合法 JSON 落库(真烧
-    LLM),真实变体每层 ≤2-3,合法链远触不到预算。
+    本函数逐层枚举**全部** hash 匹配行,按「该行贡献的链字段(canonical
+    形态)」去重后 DFS 展开;分支首序 = 旧实现的逐层首匹配序(无变体
+    并存时行为不变)。组合爆炸由 render_budget 封顶——注入行要进分支必须
+    先产出合法 JSON 落库(真烧 LLM),真实变体每层 ≤2-3,合法链远触不到
+    预算。
+
+    **异步生成器(边生成边核验)**:调用方对每条分支立即做叶子源键精确
+    比对、首条通过即停止迭代——①无变体请求只枚举首条路径(每层 ~1 次
+    重渲染,与旧「逐层首匹配」实现同开销,不吃「先列完全部分支」的
+    每层 ≤8 版本探查);②后段分支的枚举渲染不再先于首条核验消耗预算
+    (「列完全部才核验」形态下,首条合法分支可能被枚举阶段饿死在预算
+    外 → 409)。
 
     候选枚举(2026-10-08 十六轮 neirong #3 撞车消解融合)= 按行集 distinct
     版本降序逐版本重渲染期望 hash,`_match_exact_v1_rows` 四元精确匹配
@@ -1405,13 +1409,14 @@ async def _collect_v1_chain_branches(
     """
     async def collect(
         idx: int, verified: dict[str, str],
-    ) -> bool:
+    ) -> AsyncIterator[dict[str, str]]:
         if idx == len(upstreams):
-            return await validate_leaf(verified)
+            yield verified
+            return
         upstream = upstreams[idx]
         seen_contributions: set[str] = set()
-        # parent/user_input 预过滤(确定性维度,十七轮 #7:在版本枚举前剪掉
-        # 必不匹配的行——只存在于其它 parent 下的版本不再触发渲染)
+        # parent/user_input 预过滤(确定性维度,十七轮 #7):版本枚举前剪掉
+        # 必不匹配的行——只存在于其它 parent 下的版本不再触发渲染
         up_rows = [
             item for item in (rows_by_module.get(upstream) or [])
             if item[0].parent_hash == parent_hash
@@ -1433,8 +1438,8 @@ async def _collect_v1_chain_branches(
                 upstream, chart, verified, source_language, up_version)
             if expected_hash is None:
                 continue
-            # 行集匹配(过滤+排序)放线程池: flooded 行集下不让 O(n)
-            # 比较占事件循环(十七轮 #7;匹配行 ≤ 变体数,JSON 解析留循环内)
+            # 行集匹配(过滤+排序)放线程池:flooded 行集下不让 O(n)
+            # 比较占事件循环(匹配行 ≤ 变体数,JSON 解析留循环内)
             for _, text, _ in await run_in_threadpool(
                     _match_exact_v1_rows,
                     up_rows, up_version, expected_hash, parent_hash):
@@ -1455,11 +1460,11 @@ async def _collect_v1_chain_branches(
                 seen_contributions.add(signature)
                 merged = dict(verified)
                 merged.update(contribution)
-                if await collect(idx + 1, merged):
-                    return True
-        return False
+                async for branch in collect(idx + 1, merged):
+                    yield branch
 
-    return await collect(0, base_verified)
+    async for branch in collect(0, base_verified):
+        yield branch
 
 
 async def _verify_v1_chain_translation_source(
@@ -1487,13 +1492,15 @@ async def _verify_v1_chain_translation_source(
     2. 逐个非 M0 上游行:parent_hash 须等于 sha256(M0 fp) + user_input_hash
        须为空,且用「已核验上游字段 + 请求 chart」按**行自身版本**重渲染的
        prompt_hash 与行实际键逐字相等——注入链字段(如伪造 main_axis)生成
-       的行落在注入键上,与真实链重建的键永不相等,在此被排除。无行窗口/
-       探查上限(十七轮 #2 重做:期望 hash 按 distinct 版本重渲染 + 四元
-       精确匹配,真行与行数/行序无关)。同
+       的行落在注入键上,与真实链重建的键永不相等,在此被排除。行数上限
+       无行窗口/探查上限(十七轮 #2 起按版本精确匹配,M0 根腿同款),
+       不存在「截断/窗口随机砍掉合法行」的形态。同
        (版本, parent, prompt_hash) 的 provider/model 变体行(换模型重生成
        后并存,文本不同)逐层**全收集**并按链字段贡献去重回溯(十六轮
        #3)——只取首匹配会把新变体字段提交给旧链叶子,合法翻译恒 409;
-       组合由走查渲染总预算封顶(_V1_CHAIN_WALK_RENDER_BUDGET)。
+       组合由走查渲染总预算封顶(_V1_CHAIN_WALK_RENDER_BUDGET);分支惰性
+       流出 + 单分支叶子校验失败仅跳过该分支(十七轮 #2/#3,详见
+       _iter_v1_chain_branches docstring 与叶子循环注释)。
     3. 全链核验后,以「源语言上游字段(canonical 形态)+ 请求 chart + 请求
        用户输入(m4/m5,随请求回传保键对齐)」构建源 context,经
        _prepare_prompt_and_key(与生成同一代码路径,含链字段规范化)算出
@@ -1533,8 +1540,12 @@ async def _verify_v1_chain_translation_source(
                 f"后端原文核验读失败({type(e).__name__}): {e}") from e
         # 全量行入库,parent 过滤 + 偏好序 + 截断推迟到知晓 parent_hash 的
         # 循环内做(十四轮外评 #1:截断先于过滤 + fetch 序随机 = 注入行可
-        # 凭 hash 运气占满窗口挤掉真行)。
-        rows_by_module[m] = rows
+        # 凭 hash 运气占满窗口挤掉真行)。取行后一次性按 generated_at 降序
+        # 预排(十七轮外评 #5b):下游消费方(_ordered_v1_chain_candidates /
+        # _match_exact_v1_rows)共享同一有序输入,递归内每次调用的重排序
+        # 退化为 Timsort 已序快路径;偏好序语义不变(排序键与两处契约一致)。
+        rows_by_module[m] = sorted(
+            rows, key=lambda item: item[2], reverse=True)
 
     # M0 根腿(十七轮外评 #2 重做:精确主键查找,删 128 行探查上限)——
     # 期望 hash 按「行集 distinct 版本降序」逐版本重渲染一次,行集内四元
@@ -1542,22 +1553,19 @@ async def _verify_v1_chain_translation_source(
     # 「M0 行恒真」= token 验签(内容等价,重复键已拒)+ 字节核验(行键与
     # 重渲染逐字相等)双层成立:变体行期望 hash 对不上自然出局,真根与
     # 行数/行序无关。旧形态(枚举行 + 128 探查上限)在 ≥128 条同版本变体
-    # 行下真根恒在窗口外被跳过——十六轮撞车合并时被 houduan 行枚举形态
-    # 带回,附七 #3「128 上限已删」的描述当时未兑现,十七轮补齐。同
-    # (版本, hash) 的 provider/model 变体根行全收集(不同文本 → 不同
-    # fingerprint,逐个作根尝试)。
+    # 行下真根恒在窗口外被跳过——neirong 十七轮补齐;同 (版本, hash) 的
+    # provider/model 变体根行全收集(不同文本 → 不同 fingerprint,逐个
+    # 作根尝试)。走查总量由 _V1_CHAIN_WALK_RENDER_BUDGET 统一封顶。
     m0_rows = rows_by_module.get("m0_structure") or []
-    # 走查渲染预算(list 单元素 = 可变 cell,跨根共享:M0 根渲染 / 非 M0
-    # 版本渲染 / 叶子源键渲染统一 -1,见 _V1_CHAIN_WALK_RENDER_BUDGET)。
     render_budget = [_V1_CHAIN_WALK_RENDER_BUDGET]
     non_m0_deps = tuple(
         m for m in deps if m != "m0_structure")
     m0_versions = sorted(
         {key.prompt_version for key, _, _ in m0_rows}, reverse=True)
+    # M0 根渲染**不进渲染预算**(main 惯例,预算锁钉死):根渲染按版本每
+    # 请求至多一次、不受分支数放大,由 _V1_CHAIN_MAX_VERSION_PROBES 封顶;
+    # 预算只盖「分支乘法」面(非 M0 版本渲染 × 分支前缀 + 叶子渲染)
     for m0_version in m0_versions[:_V1_CHAIN_MAX_VERSION_PROBES]:
-        if render_budget[0] <= 0:
-            break
-        render_budget[0] -= 1
         m0_expected = await run_in_threadpool(
             _render_v1_upstream_prompt_hash,
             "m0_structure", chart, {}, source_language, m0_version,
@@ -1573,66 +1581,83 @@ async def _verify_v1_chain_translation_source(
             if not isinstance(fingerprint, str) or not fingerprint:
                 continue  # 坏根行剪枝(M0 输出缺 fingerprint)
             parent_hash = _hash_parent_fingerprint(fingerprint)
-            verified: dict[str, str] = {
-                "structure_fingerprint": fingerprint}
+            verified: dict[str, str] = {"structure_fingerprint": fingerprint}
             for name in ("main_axis", "core_loop"):
                 value = _canonical_chain_value(
                     m0_out.get(name)) if m0_out else None
                 if value is not None:
                     verified[name] = value
 
-            # 叶子核验闭包(十七轮 #5:边枚举边验,首条通过即整体短路,
-            # 不再把全部分支枚举完才验叶——分支多时预算可能耗在枚举段,
-            # 首个合法分支也 409):源键与生成同一代码路径
-            # (_prepare_prompt_and_key,含规范化 + user_input_hash),链字段/
-            # parent_fingerprint 换成源语言已核验值;叶子渲染进同一渲染
-            # 预算。闭包在根循环体内定义,绑定本根的 fingerprint/parent_hash
-            # (防 Python 晚绑定串根)。
-            async def _validate_branch(
-                    branch_verified: dict[str, str]) -> bool:
-                if render_budget[0] <= 0:
-                    return False
-                render_budget[0] -= 1
-                source_context = dict(req.context)
-                for name in V1_CHAIN_PRODUCER:
-                    if name in branch_verified:
-                        source_context[name] = branch_verified[name]
-                source_req = req.model_copy(update={
-                    "context": source_context,
-                    "parent_fingerprint": fingerprint,
-                })
-                source_prepared = await run_in_threadpool(
-                    _prepare_prompt_and_key,
-                    source_req, source_language, request_id, start,
-                    request.app.state.ai_client)
-                try:
-                    source_verified = await run_in_threadpool(
-                        cache.has_interpretation_exact,
-                        req.content_hash, req.module, current_version,
-                        source_language, source_interpretation,
-                        source_prepared.cache_key.prompt_hash,
-                        parent_hash,
-                        source_prepared.cache_key.user_input_hash,
-                        target_date_iso,
-                    )
-                except Exception as e:
-                    elapsed_ms = (time.perf_counter() - start) * 1000
-                    logger.exception(
-                        "interpret.translate.source_verify_failed "
-                        "elapsed_ms=%.1f %s error=%r",
-                        elapsed_ms, source_prepared.log_ctx, e,
-                    )
-                    raise InterpretationCacheError(
-                        f"后端原文核验读失败({type(e).__name__}): {e}") from e
-                return bool(source_verified)
-
-            # 非 M0 上游:逐层精确匹配收集 + 变体回溯(十六轮 #3);
-            # 任一分支叶子核验通过 → 整体短路返回 True
-            if await _collect_v1_chain_branches(
+            # 非 M0 上游:逐层枚举全部 hash 匹配行(变体回溯,十六轮 #3),
+            # **异步生成器边生成边核验**——首条通过即停止迭代(aclosing 显式
+            # 关闭挂起的生成器):无变体时只枚举首条路径,后段分支的枚举渲染
+            # 不先于首条核验吃预算。
+            # 每条核验分支各做一次完整源键精确比对;首分支 = 旧实现的逐层
+            # 首匹配序,无变体并存的链行为不变。叶子源键渲染与枚举重渲染同级别
+            # CPU(translate_context + render + sha256),进同一渲染预算——分支数
+            # 最坏 8^4 量级,不封顶则预算只盖住枚举半边、总渲染超旧实现最坏面
+            # (three-check 2026-10-08 第十六轮 R1)。
+            async with aclosing(_iter_v1_chain_branches(
                     non_m0_deps, rows_by_module, chart, source_language,
-                    parent_hash, verified, render_budget,
-                    _validate_branch):
-                return True
+                    parent_hash, verified, render_budget)) as branches:
+                async for branch_verified in branches:
+                    if render_budget[0] <= 0:
+                        break
+                    render_budget[0] -= 1
+                    # 源键 = 与生成同一代码路径(_prepare_prompt_and_key,含规范化 +
+                    # user_input_hash),链字段/parent_fingerprint 换成源语言已核验值。
+                    source_context = dict(req.context)
+                    for name in V1_CHAIN_PRODUCER:
+                        if name in branch_verified:
+                            source_context[name] = branch_verified[name]
+                    source_req = req.model_copy(update={
+                        "context": source_context,
+                        "parent_fingerprint": fingerprint,
+                    })
+                    # 纯 CPU(校验 + 渲染 + hash),放线程池(2026-10-07 review 收尾,
+                    # 与行读取/版本重渲染同款;源键渲染是本函数最重的一步)。
+                    try:
+                        source_prepared = await run_in_threadpool(
+                            _prepare_prompt_and_key,
+                            source_req, source_language, request_id, start,
+                            request.app.state.ai_client)
+                    except InvalidInputError as e:
+                        # 该分支的链字段值过不了 context 校验(十七轮外评 #2):输出
+                        # 字段长度在**生成侧**从不校验(上限只拦下游模块的 context),
+                        # 变体 LLM 输出的超长字段(如 5000 字 one_leverage)可随分支
+                        # 进叶子的 validate_context(对额外 key 全量长度扫描)抛
+                        # InvalidInputError——该分支不可能重建出任何真实生成键,跳过
+                        # 续试下一分支(→ 409 自愈路径保留;否则单个毒化变体把整个
+                        # 走查钉死在 42x,iOS 既有 STALE 重生成不触发,且回溯走不到
+                        # 后面的合法分支)。其它异常族(KeyError/FileNotFoundError 等
+                        # 基建/配置错)与分支内容无关,仍上抛——伪装成 409 会掩盖真故障。
+                        elapsed_ms = (time.perf_counter() - start) * 1000
+                        logger.warning(
+                            "interpret.translate.chain_branch_invalid "
+                            "elapsed_ms=%.1f request_id=%s module=%s error=%r",
+                            elapsed_ms, request_id, req.module, e,
+                        )
+                        continue
+                    try:
+                        source_verified = await run_in_threadpool(
+                            cache.has_interpretation_exact,
+                            req.content_hash, req.module, current_version,
+                            source_language, source_interpretation,
+                            source_prepared.cache_key.prompt_hash,
+                            parent_hash,
+                            source_prepared.cache_key.user_input_hash,
+                            target_date_iso,
+                        )
+                    except Exception as e:
+                        elapsed_ms = (time.perf_counter() - start) * 1000
+                        logger.exception(
+                            "interpret.translate.source_verify_failed elapsed_ms=%.1f "
+                            "%s error=%r", elapsed_ms, source_prepared.log_ctx, e,
+                        )
+                        raise InterpretationCacheError(
+                            f"后端原文核验读失败({type(e).__name__}): {e}") from e
+                    if source_verified:
+                        return True
     return False
 
 
@@ -2146,8 +2171,7 @@ async def interpret_translate(
 
     async def _generate_translation() -> tuple[str, str]:
         day = datetime.now(timezone.utc).date().isoformat()
-        await _enforce_daily_quota(
-            request, req, current_user_id, day, paid_owner=paid_owner)
+        await _enforce_daily_quota(request, req, current_user_id, day)
         try:
             translated = await ai_client.interpret(
                 translate_prompt, temperature=resolve_temperature("translate"),
@@ -2192,7 +2216,7 @@ async def interpret_translate(
             # 天然只由真正扣款的 leader 执行;退款受日上限保护。
             if req.module not in _REFUND_FIDELITY_EXEMPT_MODULES:
                 await _refund_daily_quota(
-                    request, req, current_user_id, day, paid_owner=paid_owner)
+                request, req, current_user_id, day, paid_owner=paid_owner)
             raise
         # 禁词不退(2026-10-08 拍板分类口径:用户输入可触发的失败退款
         # = 免费烧 LLM 通道;同 /api/interpret 4.5)
