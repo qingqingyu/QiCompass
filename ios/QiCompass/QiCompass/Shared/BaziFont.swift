@@ -86,7 +86,7 @@ enum BaziFont {
         kaiti(size: size, weight: weight)
     }
 
-    /// 命书正文(中文 Kaiti / 英文系统 sans;阅读页 15.5pt 行距 2.15× 由调用侧 lineSpacing 控制)。
+    /// 命书正文(中文 Kaiti / 英文系统 sans;阅读页 16pt 行距 ~1.65× 由调用侧 lineSpacing 控制,2026-10-09 改版)。
     static func body(size: CGFloat = 16) -> Font {
         guard isChineseUI, let name = kaitiName else {
             return .system(size: size)
