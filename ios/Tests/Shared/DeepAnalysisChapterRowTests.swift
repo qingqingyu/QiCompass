@@ -138,11 +138,24 @@ final class DeepAnalysisChapterRowTests: XCTestCase {
         )
     }
 
-    func test_cta_limitReached_blocksEntitledPaidResume() {
-        // 次数耗尽但已购:续读付费章同样被次数拦(v1 全模块计次)→ limitReached
+    func test_cta_limitReached_passesEntitledPaidResume() {
+        // 次数耗尽但下一章是**已购付费章**(拍板①:付费 m2-m7 不扣本地池,
+        // 本地池 = 免费体验配额,付费护栏在服务端 paid 桶)→ 开卷不拦;
+        // 修复前 remaining≤0 一刀切 .limitReached,已购内容被 CTA 谎报拦死
         let states: [ModuleID: ModuleState] = [
             .m0: .ok(text: "a", cached: true),
             .m1: .ok(text: "b", cached: true),
+        ]
+        XCTAssertEqual(
+            HomeCTAModel.resolve(moduleStates: states, remainingReads: 0, hasEntitlement: true),
+            .resume(.m2)
+        )
+    }
+
+    func test_cta_limitReached_stillBlocksFreeNext() {
+        // 次数耗尽且下一章是免费章(要扣本地池)→ 仍 .limitReached
+        let states: [ModuleID: ModuleState] = [
+            .m0: .ok(text: "a", cached: true),
         ]
         XCTAssertEqual(
             HomeCTAModel.resolve(moduleStates: states, remainingReads: 0, hasEntitlement: true),

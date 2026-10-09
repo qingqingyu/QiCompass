@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import json
 import logging
+from datetime import datetime, timezone
 
 import pytest
 
@@ -428,6 +429,121 @@ async def test_m2_translate_walks_m0_m1_chain(
     assert resp.status_code == 200, resp.text
     assert resp.json()["translated_from"] == "zh"
     assert resp.json()["interpretation"] == m2_hant
+
+
+async def test_translate_paid_consume_peek_refund_same_entitlement_bucket(
+        interpret_client, mock_ai_client, tmp_entitlement_store,
+        tmp_free_quota_store):
+    """翻译扣/查/退三处同桶(十八轮外评 #1):/translate 的配额 peek(5.45)、
+    enforce(factory 内真烧 LLM)与 refund(provider 故障)必须全部落
+    **权益记录主体**桶——十七轮把 peek/refund 接到 paid_owner 后,唯一
+    扣费点(enforce)漏传:登录账号翻译匿名购买的盘时,扣打请求者身份桶、
+    退款打记录主体空桶 no-op(请求者桶白丢 1 次且永不回账),翻译用量也
+    永远碰不到 peek 所查的桶(切账号叠开付费桶的口子在翻译路上没关上)。
+    锁定方式:provider 失败路径「扣 1 → 退 1 → 记录主体桶净变化 0、请求
+    者桶不存在」+ 达限后 peek 直接 429(不走查不烧 LLM)。
+    """
+    import sqlite3
+
+    from app.auth.jwt_service import create_access_token
+    from app.config import PAID_DAILY_LIMIT
+    from app.main import app
+    from tests.fixtures.mock_ai import FailingAIClient
+    from tests.test_interpret_paid import _seed_entitlement
+
+    ch = "hash-tr-same-bucket"
+    # 匿名购买(user_id NULL):登录账号 acct-cross 经 ulid 兜底命中同一笔
+    _seed_entitlement(tmp_entitlement_store, content_hash=ch,
+                      user_local_id="anon-ulid-tr")
+    m0_zh = json.loads(M0_ZH_JSON)
+    m1_zh = json.loads(M1_ZH_JSON)
+    fp = m0_zh["structure_fingerprint"]
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m0_structure", context={"chart": M0_CHART},
+                    mock_response=M0_ZH_JSON)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m1_talent", context=_m1_context(m0_zh),
+                    parent_fingerprint=fp, mock_response=M1_ZH_JSON)
+    m2_zh = json.dumps({"high_config": {"portrait": "输出稳定"}},
+                       ensure_ascii=False)
+    await _generate(interpret_client, mock_ai_client, content_hash=ch,
+                    module="m2_high_low", context={
+                        "chart": M0_CHART, "structure_fingerprint": fp,
+                        "innate": _ios_serialize(m1_zh["innate"]),
+                        "defensive": _ios_serialize(m1_zh["defensive"]),
+                    }, parent_fingerprint=fp, mock_response=m2_zh,
+                    user_local_id="anon-ulid-tr")
+
+    def paid_rows() -> dict[str, int]:
+        conn = sqlite3.connect(tmp_free_quota_store._db_path)
+        try:
+            return dict(conn.execute(
+                "SELECT bucket, count FROM free_llm_quota "
+                "WHERE bucket LIKE 'paid:ent:%'").fetchall())
+        finally:
+            conn.close()
+
+    owner_bucket = "paid:ent:ulid:anon-ulid-tr"
+    # m2 生成本身消耗 1 次记录主体桶(匿名生成,owner = 记录 ulid)
+    assert paid_rows().get(owner_bucket, 0) == 1
+
+    # provider 失败的翻译:enforce 扣 1 + refund 退 1 → 主体桶回到 1;
+    # 修复前 enforce 落请求者桶(paid:ent:user:acct-cross),退款打空桶 no-op
+    saved_ai = app.state.ai_client
+    app.state.ai_client = FailingAIClient()
+    try:
+        resp = await interpret_client.post(
+            "/api/interpret/translate", json={
+                "content_hash": ch, "module": "m2_high_low",
+                "context": {
+                    "chart": M0_CHART, "structure_fingerprint": fp,
+                    "innate": _ios_serialize(m1_zh["innate"]),
+                    "defensive": _ios_serialize(m1_zh["defensive"]),
+                },
+                "target_date": None, "parent_fingerprint": fp,
+                "user_local_id": "anon-ulid-tr",
+                "source_language": "zh",
+                "source_prompt_version": PROMPT_VERSIONS["m2_high_low"],
+                "source_interpretation": m2_zh,
+            }, headers={
+                "X-QiCompass-Lang": "zh-hant",
+                "Authorization": "Bearer " + create_access_token(
+                    "acct-cross"),
+            })
+        assert resp.status_code == 503, resp.text
+    finally:
+        app.state.ai_client = saved_ai
+
+    rows = paid_rows()
+    assert rows.get(owner_bucket, 0) == 1, (
+        f"翻译 enforce+refund 必须同落记录主体桶(净变化 0;实际 paid 桶:{rows})")
+    assert "paid:ent:user:acct-cross" not in rows, (
+        f"扣费不得落请求者身份桶(实际 paid 桶:{rows})")
+
+    # peek 同桶:主体桶填到 PAID_DAILY_LIMIT → 翻译在走查前 429(不烧 LLM)
+    day = datetime.now(timezone.utc).date().isoformat()
+    while tmp_free_quota_store.try_consume(
+            bucket=owner_bucket, day=day, limit=PAID_DAILY_LIMIT):
+        pass
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json={
+            "content_hash": ch, "module": "m2_high_low",
+            "context": {
+                "chart": M0_CHART, "structure_fingerprint": fp,
+                "innate": _ios_serialize(m1_zh["innate"]),
+                "defensive": _ios_serialize(m1_zh["defensive"]),
+            },
+            "target_date": None, "parent_fingerprint": fp,
+            "user_local_id": "anon-ulid-tr",
+            "source_language": "zh",
+            "source_prompt_version": PROMPT_VERSIONS["m2_high_low"],
+            "source_interpretation": m2_zh,
+        }, headers={
+            "X-QiCompass-Lang": "zh-hant",
+            "Authorization": "Bearer " + create_access_token("acct-cross"),
+        })
+    assert resp.status_code == 429, resp.text
+    assert resp.json()["error"]["code"] == "QUOTA_EXCEEDED"
 
 
 async def test_m2_translate_provider_variant_fork_backtracks(

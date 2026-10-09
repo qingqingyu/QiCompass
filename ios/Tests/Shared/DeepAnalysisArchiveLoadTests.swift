@@ -485,6 +485,81 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         )
     }
 
+    // MARK: - 续跑守卫空转(十八轮外评 #3)
+
+    /// reviewer 复现原形:M0 未完成 + 池耗尽 + 已购付费章待生成 → M0
+    /// attempt 必本地抛达限(DeepAnalysisError 落 .failed)并断整链
+    /// (m0_failed_breaking_chain)。旧 contains 判据只看「存在免扣可跑章」
+    /// (m2-m7 nil 已购即计),守卫放行 → 每次回前台起一次空链,M0 反复
+    /// 被翻 .failed、横幅闪,零推进。新判据按链串行语义推演:M0 受阻即拦。
+    func testResume本地池耗尽_M0未成_守卫拦截() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedDeepEntitlement(hash: response.contentHash)
+        while counter.tryConsume(module: "bazi_deep") {}
+        XCTAssertEqual(vm.remainingReads, 0, "前置:本地池必须已耗尽")
+
+        vm.loadArchivedChart(response: response, request: request)
+        // 等 hydrate 落定(restore + 探测 + resume 判据都在其中),再断言守卫结果
+        _ = await waitUntil(timeout: 8) {
+            !self.vm.isHydrating && self.vm.inflightHydrateCount == 0
+        }
+        try? await Task.sleep(nanoseconds: 300_000_000)
+
+        XCTAssertNil(
+            vm.moduleStates[.m0],
+            "M0 不得被 attempt 翻 .failed(空转源),实际:\(vm.moduleStates)"
+        )
+        XCTAssertFalse(vm.isChainRunning, "守卫应 skip(reason=daily_limit),不起链")
+    }
+
+    /// M1(扣次章)受阻 + M0 已成 + 已购:M3 免扣可跑,链经 quotaFreeAhead
+    /// **继续**跑 M3(十七轮付费链续跑语义,新判据不得过紧拦掉)——M1
+    /// 本地抛达限一次性落 .failed(无网络成本),M2 缺 defensive 停 pending,
+    /// M3 真实请求照发(免扣 ≠ 不发)。
+    func testResume本地池耗尽_M1受阻_付费链经quotaFreeAhead续跑M3() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedV1Cache(hash: response.contentHash, module: .m0, text: Self.m0CacheJSON)
+        try seedDeepEntitlement(hash: response.contentHash)
+        while counter.tryConsume(module: "bazi_deep") {}
+
+        vm.loadArchivedChart(response: response, request: request)
+        let m3Ok = await waitUntil(timeout: 10) {
+            self.vm.moduleStates[.m3]?.isOk == true
+        }
+        XCTAssertTrue(m3Ok, "M0 已成、M3 无链字段依赖,链必须续跑到 M3,实际:\(vm.moduleStates)")
+        XCTAssertTrue(
+            apiClient.recordedInterpretRequests.contains { $0.module == "m3_system" },
+            "M3 必须发出真实请求(免扣 ≠ 不发)"
+        )
+        guard case .failed? = vm.moduleStates[.m1] else {
+            return XCTFail("M1 attempt 本地达限应一次性落 .failed,实际:\(vm.moduleStates)")
+        }
+    }
+
+    /// 对照面:M0/M1 已成、池耗尽 → 第一个可跑章本身就是免扣付费章,
+    /// 守卫放行,M3 照常生成(m1ChainCacheJSON 刻意不含 defensive,M2 停
+    /// pending,链字段路径上第一个可跑付费章 = M3)。
+    func testResume本地池耗尽_上游已成_付费链仍续跑() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try seedV1Cache(hash: response.contentHash, module: .m0, text: Self.m0CacheJSON)
+        try seedV1Cache(hash: response.contentHash, module: .m1, text: Self.m1ChainCacheJSON)
+        try seedDeepEntitlement(hash: response.contentHash)
+        while counter.tryConsume(module: "bazi_deep") {}
+
+        vm.loadArchivedChart(response: response, request: request)
+        let m3Ok = await waitUntil(timeout: 10) {
+            self.vm.moduleStates[.m3]?.isOk == true
+        }
+        XCTAssertTrue(m3Ok, "付费章免扣本地池,上游已成时链必须续跑到 M3,实际:\(vm.moduleStates)")
+        XCTAssertTrue(
+            apiClient.recordedInterpretRequests.contains { $0.module == "m3_system" },
+            "M3 必须发出真实请求(免扣 ≠ 不发)"
+        )
+    }
+
     func testLoadArchivedChartRestoresCachedModulesAsOkCachedTrue() async throws {
         let request = Self.beijingRequest()
         let response = try await apiClient.calculateBazi(request: request)

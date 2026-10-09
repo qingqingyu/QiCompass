@@ -755,11 +755,12 @@ def test_quota_tier_routes_all_module_families():
         assert _quota_tier(req(module)) == ("free", FREE_DAILY_LIMIT), module
     # 付费桶 = entitlement 主体(登录 user_id 优先);免费桶无前缀旧格式
     # (既有计数行不失效)。current_user_id 非空 / 付费档时不触碰
-    # request.client,传 None 即可
+    # request.client,传 None 即可。十八轮 #4:owner token 带 id 类型前缀
+    # (user:/ulid:),两种 UUID 各占键空间,理论撞键结构性消除。
     assert _quota_bucket(
-        None, req("m4_health"), "user-u1") == "paid:ent:user-u1"
+        None, req("m4_health"), "user-u1") == "paid:ent:user:user-u1"
     assert _quota_bucket(
-        None, req("m4_health"), None) == "paid:ent:user-1", (
+        None, req("m4_health"), None) == "paid:ent:ulid:user-1", (
         "匿名付费按 user_local_id 分桶(付费调用先过 entitlement 匹配,"
         " 伪造/轮换 user_local_id = 丢权益 403,桶不可白嫖轮换)")
     assert _quota_bucket(
@@ -772,7 +773,9 @@ def test_paid_bucket_owner_from_entitlement_record():
     购买(user_id=NULL, ulid=X)可被 N 个登录账号命中,若桶键用请求身份
     (current_user_id or ulid),切账号即可叠开 N 个付费桶(每账号一个
     PAID_DAILY_LIMIT);按记录 owner 分桶,同一笔购买恒定共享一个桶,
-    切账号不重置。请求身份仅在无记录(免费 module)时兜底。
+    切账号不重置。请求身份仅在无记录(免费 module)时兜底。十八轮 #4:
+    owner token 带 id 类型前缀(user:/ulid:)——user_id 与 user_local_id
+    同为 UUID 字符串、共用键空间,不区分则 paid:ent:{uuid} 理论可撞键。
     """
     from app.api.interpret import _paid_bucket_owner, _quota_bucket
     from app.models.interpret import InterpretRequest
@@ -789,21 +792,21 @@ def test_paid_bucket_owner_from_entitlement_record():
     uid_owned = {"user_id": "acct-original", "user_local_id": "device-ulid"}
     empty = None  # 免费 module(不触达 owner)
 
-    # 匿名购买记录:N 个登录账号命中同一笔 → owner 恒为记录的 ulid
-    assert _paid_bucket_owner(ulid_owned, req(), "acct-A") == "device-ulid"
-    assert _paid_bucket_owner(ulid_owned, req(), "acct-B") == "device-ulid"
-    assert _paid_bucket_owner(ulid_owned, req(), None) == "device-ulid"
+    # 匿名购买记录:N 个登录账号命中同一笔 → owner 恒为记录的 ulid(带类型前缀)
+    assert _paid_bucket_owner(ulid_owned, req(), "acct-A") == "ulid:device-ulid"
+    assert _paid_bucket_owner(ulid_owned, req(), "acct-B") == "ulid:device-ulid"
+    assert _paid_bucket_owner(ulid_owned, req(), None) == "ulid:device-ulid"
     # 桶键同语义:登录账号不 fork 匿名购买的付费桶
     assert _quota_bucket(
         None, req(), "acct-A", paid_owner=_paid_bucket_owner(
-            ulid_owned, req(), "acct-A")) == "paid:ent:device-ulid"
+            ulid_owned, req(), "acct-A")) == "paid:ent:ulid:device-ulid"
     assert _quota_bucket(
         None, req(), "acct-B", paid_owner=_paid_bucket_owner(
-            ulid_owned, req(), "acct-B")) == "paid:ent:device-ulid"
+            ulid_owned, req(), "acct-B")) == "paid:ent:ulid:device-ulid"
     # 登录购买的记录:owner = 记录的 user_id(即使请求带同 ulid 也不切)
-    assert _paid_bucket_owner(uid_owned, req(), None) == "acct-original"
+    assert _paid_bucket_owner(uid_owned, req(), None) == "user:acct-original"
     # 免费 module(无记录):请求身份兜底(该分支不进 paid 桶,仅完备)
-    assert _paid_bucket_owner(empty, req(), "acct-A") == "acct-A"
+    assert _paid_bucket_owner(empty, req(), "acct-A") == "user:acct-A"
 
 
 async def test_paid_refund_lands_on_entitlement_owner_bucket(
@@ -852,10 +855,10 @@ async def test_paid_refund_lands_on_entitlement_owner_bucket(
     finally:
         conn.close()
     # 记录主体桶:enforce 扣 1 + refund 退 1 → 计数归零(行可在)
-    assert rows.get("paid:ent:anon-ulid", 0) == 0, \
+    assert rows.get("paid:ent:ulid:anon-ulid", 0) == 0, \
         f"退款必须退回 entitlement 记录主体桶(实际 paid 桶:{rows})"
     # 请求身份桶:不应被创建(退款打错桶会在此留下退款副作用行)
-    assert "paid:ent:acct-cross" not in rows, \
+    assert "paid:ent:user:acct-cross" not in rows, \
         f"退款不得落请求身份桶(实际 paid 桶:{rows})"
 
 

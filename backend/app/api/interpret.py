@@ -708,14 +708,24 @@ async def _require_entitlement(
 def _paid_bucket_owner(
     entitlement: dict[str, Any] | None,
     req: InterpretRequest, current_user_id: str | None,
-) -> str | None:
-    """付费桶键的 owner(十七轮 #4):命中的 entitlement 记录自身主体,
-    请求身份只作兜底(免费 module / 极端缺记录时不应触达)。"""
+) -> str:
+    """付费桶键的 owner token(十七轮 #4 + 十八轮 #4):命中的 entitlement
+    记录自身主体,请求身份只作兜底(免费 module / 极端缺记录时不应触达)。
+
+    返回值带 id 类型前缀(`user:` / `ulid:`):user_id 与 user_local_id
+    同为客户端/服务端各自铸造的 UUID 字符串,共用一个键空间——不加区分
+    时 `paid:ent:{uuid}` 理论上可被两种身份形态撞键(概率 ~0 但格式上
+    不可证伪)。前缀是**纯键空间切分**,不改变分桶语义:同一笔记录恒定
+    同一个桶。旧格式 `paid:ent:{裸uuid}` 计数行按 day 键自然过期,无迁移
+    (同上次付费桶维度变更的口径)。"""
     if entitlement:
-        owner = entitlement.get("user_id") or entitlement.get("user_local_id")
-        if owner:
-            return owner
-    return current_user_id or req.user_local_id
+        if entitlement.get("user_id"):
+            return f"user:{entitlement['user_id']}"
+        if entitlement.get("user_local_id"):
+            return f"ulid:{entitlement['user_local_id']}"
+    if current_user_id:
+        return f"user:{current_user_id}"
+    return f"ulid:{req.user_local_id}"
 
 
 def _normalize_client_ip(host: str) -> str:
@@ -791,10 +801,13 @@ def _quota_bucket(
     (`_paid_bucket_owner`)——get_active 双轨匹配(user_id 优先、ulid
     兜底)下,同一笔匿名购买可被 N 个登录账号命中,按请求身份分桶 =
     切账号叠开 N 个付费桶;按记录 owner 分桶,同一笔购买恒定一个桶。
+    十八轮 #4:owner token 统一由 `_paid_bucket_owner` 铸造(带 user:/
+    ulid: 类型前缀,防两种 UUID 键空间撞键),本函数不再自行拼接裸 id;
+    兜底路径同经该函数,全链路单一格式化点。
     """
     tier, _ = _quota_tier(req)
     if tier == "paid":
-        owner = paid_owner or (current_user_id or req.user_local_id)
+        owner = paid_owner or _paid_bucket_owner(None, req, current_user_id)
         return f"paid:ent:{owner}"
     return _free_quota_bucket(request, current_user_id)
 
@@ -1327,10 +1340,17 @@ def _render_v1_upstream_prompt_hash(
 
 
 # 走查重渲染总预算(2026-10-08 十六轮外评 #3):provider/model 变体回溯
-# 会让重渲染按分支数相乘,预算给全函数单次请求封顶(M0 根渲染 / 非 M0
-# 版本渲染 / 叶子源键渲染各 -1,耗尽即停,走查按 False 落 409 → STALE 自愈)。
+# 会让重渲染按分支数相乘,预算给全函数单次请求封顶(**非 M0 版本渲染 ×
+# 分支前缀 + 叶子源键渲染**各 -1,耗尽即停,走查按 False 落 409 → STALE
+# 自愈)。M0 根渲染**不进预算**(十七轮起 main 惯例:按行集版本每请求每
+# 版本至多一次、不受分支数放大,由 _V1_CHAIN_MAX_VERSION_PROBES 封顶——
+# 见 _verify_v1_chain_translation_source 内「M0 根渲染不进渲染预算」注释;
+# 本注释原写「M0 根渲染各 -1」与实现不符,十八轮外评更正)。
 # 2048 高于任何合法链需求(≤5 层 × 个位数版本 × 个位数变体 + 分支叶子
-# 渲染),同时把旧实现的最坏面压下来——变体回溯不扩大 CPU 面。
+# 渲染),同时把旧实现的最坏面压下来——变体回溯不扩大 CPU 面。预算边界
+# 语义:耗尽时刚枚举完的分支叶子核验被跳过(先查后退,不赊账)——硬预算
+# 必须切掉某人,只影响变体洪水下的 409 落点,合法链(预算用量个位数)
+# 不可达(十八轮外评定性,维持)。
 _V1_CHAIN_WALK_RENDER_BUDGET: Final[int] = 2048
 # 走查版本探查上限(2026-10-08 十六轮 neirong #3,精确主键查找):每层候选
 # 枚举按「行集内 distinct prompt_version」降序逐版本算期望 hash,渲染次数
@@ -1407,6 +1427,29 @@ async def _iter_v1_chain_branches(
     render_budget。坏行(输出不可解析)剪枝但不阻断同层其它变体——旧
     实现首匹配行坏即整链弃,此处顺带修复。
     """
+    # parent/user_input 预过滤 + 版本清单(确定性维度,十七轮 #7):版本枚举
+    # 前剪掉必不匹配的行。按 (upstream, parent_hash) 记忆化(十八轮外评
+    # #3):parent_hash 在单根内恒定(= sha256(M0 fp)),旧实现每个分支
+    # 前缀都重跑一遍全行集过滤/排序(变体洪水下 O(n) 列表推导占事件循环);
+    # 记忆化后每 (层, 根) 只算一次,且计算本身放线程池(与
+    # _match_exact_v1_rows 同款收口,不再占事件循环)。
+    prefilter_cache: dict[
+        tuple[str, str],
+        tuple[list[tuple[CacheKey, str, str]], list[int]],
+    ] = {}
+
+    def _prefilter_rows(
+        module_rows: list[tuple[CacheKey, str, str]], parent: str,
+    ) -> tuple[list[tuple[CacheKey, str, str]], list[int]]:
+        up_rows = [
+            item for item in module_rows
+            if item[0].parent_hash == parent
+            and item[0].user_input_hash == ""
+        ]
+        up_versions = sorted(
+            {key.prompt_version for key, _, _ in up_rows}, reverse=True)
+        return up_rows, up_versions
+
     async def collect(
         idx: int, verified: dict[str, str],
     ) -> AsyncIterator[dict[str, str]]:
@@ -1415,15 +1458,12 @@ async def _iter_v1_chain_branches(
             return
         upstream = upstreams[idx]
         seen_contributions: set[str] = set()
-        # parent/user_input 预过滤(确定性维度,十七轮 #7):版本枚举前剪掉
-        # 必不匹配的行——只存在于其它 parent 下的版本不再触发渲染
-        up_rows = [
-            item for item in (rows_by_module.get(upstream) or [])
-            if item[0].parent_hash == parent_hash
-            and item[0].user_input_hash == ""
-        ]
-        up_versions = sorted(
-            {key.prompt_version for key, _, _ in up_rows}, reverse=True)
+        prefilter_key = (upstream, parent_hash)
+        if prefilter_key not in prefilter_cache:
+            prefilter_cache[prefilter_key] = await run_in_threadpool(
+                _prefilter_rows,
+                rows_by_module.get(upstream) or [], parent_hash)
+        up_rows, up_versions = prefilter_cache[prefilter_key]
         for up_version in up_versions[:_V1_CHAIN_MAX_VERSION_PROBES]:
             if render_budget[0] <= 0:
                 break
@@ -1460,8 +1500,14 @@ async def _iter_v1_chain_branches(
                 seen_contributions.add(signature)
                 merged = dict(verified)
                 merged.update(contribution)
-                async for branch in collect(idx + 1, merged):
-                    yield branch
+                # 内层递归生成器显式 aclosing(十八轮外评 #4):顶层消费方
+                # 在首叶命中后 break 时,GeneratorExit 只打到最外层 yield,
+                # 内层生成器靠 GC 异步回收——现在无 finally 无实害,后续
+                # 在 collect 内加清理逻辑(如预算回滚 finally)时会静默
+                # 不执行。确定性关闭与顶层(调用方 aclosing)同款。
+                async with aclosing(collect(idx + 1, merged)) as inner:
+                    async for branch in inner:
+                        yield branch
 
     async for branch in collect(0, base_verified):
         yield branch
@@ -1541,9 +1587,10 @@ async def _verify_v1_chain_translation_source(
         # 全量行入库,parent 过滤 + 偏好序 + 截断推迟到知晓 parent_hash 的
         # 循环内做(十四轮外评 #1:截断先于过滤 + fetch 序随机 = 注入行可
         # 凭 hash 运气占满窗口挤掉真行)。取行后一次性按 generated_at 降序
-        # 预排(十七轮外评 #5b):下游消费方(_ordered_v1_chain_candidates /
-        # _match_exact_v1_rows)共享同一有序输入,递归内每次调用的重排序
-        # 退化为 Timsort 已序快路径;偏好序语义不变(排序键与两处契约一致)。
+        # 预排(十七轮外评 #5b):下游消费方(M0 根循环 / _iter_v1_chain_
+        # branches 的 _prefilter_rows / _match_exact_v1_rows)共享同一有序
+        # 输入,递归内每次调用的重排序退化为 Timsort 已序快路径;偏好序
+        # 语义不变(排序键与消费方契约一致)。
         rows_by_module[m] = sorted(
             rows, key=lambda item: item[2], reverse=True)
 
@@ -2171,7 +2218,13 @@ async def interpret_translate(
 
     async def _generate_translation() -> tuple[str, str]:
         day = datetime.now(timezone.utc).date().isoformat()
-        await _enforce_daily_quota(request, req, current_user_id, day)
+        # paid_owner 必传(十八轮外评 #1):漏传时 enforce 扣「请求者身份」桶,
+        # 而 peek(5.45)与两处 refund 都在「权益记录主体」桶——登录账号翻译
+        # 匿名购买的盘时,退款打到另一个空桶 no-op(请求者桶白丢 1 次),
+        # 且翻译用量永远碰不到 peek 所查的桶(切账号叠桶的口子在翻译路
+        # 没关上)。扣/查/退三处同桶由回归测试锁定。
+        await _enforce_daily_quota(
+            request, req, current_user_id, day, paid_owner=paid_owner)
         try:
             translated = await ai_client.interpret(
                 translate_prompt, temperature=resolve_temperature("translate"),

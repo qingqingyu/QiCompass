@@ -110,9 +110,12 @@ enum HomeCTAModel: Equatable {
         }
 
         if let next {
-            // 免费未读且次数耗尽 → 次数用尽 ghost(付费已解锁的章不受每日次数影响
-            // 的口径不存在——v1 全模块计次,故 remaining≤0 即拦)
-            if remainingReads <= 0 {
+            // 次数耗尽只拦「要扣本地次数」的章(2026-10-09 拍板①:付费章
+            // m2-m7 不扣本地池——本地池语义 = 免费体验配额,付费护栏在
+            // 服务端 paid 桶;next 的查找已排除未购付费章,故 next 为付费
+            // = 已购,池空仍可开卷)。版本迁移豁免的免费章理论上也免扣,
+            // 但该集合是 VM 瞬态、CTA 纯模型不感知,不在本层展开。
+            if remainingReads <= 0, !next.isPaid {
                 return .limitReached
             }
             return readCount == 0 ? .openFirst(next) : .resume(next)

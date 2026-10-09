@@ -202,6 +202,29 @@ final class CachedInterpretationReader {
                     includeStaleVersions: includeStaleVersions
                 ) != nil
                 if !hasRow {
+                    // 跨语言救援(十八轮外评 #2,仅回填模式):本语言整行
+                    // 缺席 + 其它语言有既有行 = 跨语言状态(该章经原文行
+                    // 显示/翻译流接管),血统锚点是原文行——parent_hash 由
+                    // structure_fingerprint 派生、语言无关。此时切断下游会把
+                    // 它们**已有当前语言行**误判血统过期 → 标迁移豁免免费
+                    // 重生成(白烧 LLM),而正确行为是照常回填 + 本章交随后的
+                    // 跨语言探测。版本迁移场景(本语言有旧版行)不触发救援,
+                    // 切断维持。探测模式不救援:下游行要当翻译源,服务端链
+                    // 走查按同语言上游行核验,缺上游行的「源」翻译必 409,
+                    // 本地切断正是那个前置的镜像。
+                    if !includeStaleVersions,
+                       try !hasAnyVersionRow(
+                           contentHash: contentHash, module: dep.rawValue,
+                           language: language, targetDate: targetDate,
+                           identity: identity
+                       ),
+                       try hasRowInOtherLanguage(
+                           contentHash: contentHash, module: dep.rawValue,
+                           language: language, targetDate: targetDate,
+                           identity: identity
+                       ) {
+                        continue
+                    }
                     cutModules.formUnion(dep.transitiveDependents)
                     // 缺行的清单外上游自身若有任意版本行,同样进迁移集
                     // (回填模式):它此后重算非用户过错,否则同会话跨
@@ -245,9 +268,24 @@ final class CachedInterpretationReader {
             ) else {
                 // 版本已知却无当前版本行 = 自身已 bump 本地未跟上(或从未
                 // 生成)→ 传递依赖方将被切断;本地有任意版本行 → 迁移重生成
-                // (从未生成无行,照常计费)
+                // (从未生成无行,照常计费)。跨语言救援(十八轮 #2,仅回填
+                // 模式,判据与清单外上游分支同款):本语言整行缺席 + 其它
+                // 语言有既有行 → 翻译流接管本章,不切断不豁免。
                 if isV1Chain, let id = ModuleID(rawValue: module),
                    identity.promptVersions[module] != nil {
+                    if !includeStaleVersions,
+                       try !hasAnyVersionRow(
+                        contentHash: contentHash, module: module,
+                        language: language, targetDate: targetDate,
+                        identity: identity
+                       ),
+                       try hasRowInOtherLanguage(
+                        contentHash: contentHash, module: module,
+                        language: language, targetDate: targetDate,
+                        identity: identity
+                       ) {
+                        continue
+                    }
                     cutModules.formUnion(id.transitiveDependents)
                     if !includeStaleVersions,
                        try hasAnyVersionRow(
@@ -287,6 +325,35 @@ final class CachedInterpretationReader {
             identity: identity,
             includeStaleVersions: true
         ) != nil
+    }
+
+    /// 该 (盘, 模块) 在**其它注册语言**下是否有任意版本缓存行(跨语言救援
+    /// 判据,十八轮外评 #2):与 `hasAnyVersionRow` 同口径(latestHit +
+    /// includeStaleVersions + 中毒行先清后查)。查到的行正是随后跨语言探测
+    /// (`readAllCrossLanguage`)会命中的源——两者口径一致,救援放行的章
+    /// 探测必有源,翻译流(原文显示 → 自动翻译)接管。
+    private func hasRowInOtherLanguage(
+        contentHash: String,
+        module: String,
+        language: String,
+        targetDate: Date?,
+        identity: AIIdentity
+    ) throws -> Bool {
+        for other in AppLanguage.allCases.map(\.rawValue)
+        where other != language {
+            if try latestHit(
+                contentHash: contentHash,
+                module: module,
+                language: other,
+                targetDate: targetDate,
+                maxAge: nil,
+                identity: identity,
+                includeStaleVersions: true
+            ) != nil {
+                return true
+            }
+        }
+        return false
     }
 
     /// 单行读取(getLatest + 中毒自愈 + 新鲜度三步,#8 抽出为唯一实现):

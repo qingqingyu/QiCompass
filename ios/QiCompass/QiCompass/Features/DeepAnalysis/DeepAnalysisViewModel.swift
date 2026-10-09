@@ -189,6 +189,62 @@ final class DeepAnalysisViewModel {
         }
     }
 
+    /// 本地池耗尽时链是否仍有**真实进展**(十八轮外评 #3):按 runV1Chain
+    /// 的串行语义走一遍 m0→m7。链只会对「第一个未被跳过的章」发请求:
+    /// .locked/.needsInput/.缺链字段/.缺用户输入的章链内 no-op 跳过;
+    /// .dailyLimitReached/.contextTokenExpired 直接断链;M0 在飞重试整链
+    /// 让位;扣次章在空池下 attempt 必本地抛达限(DeepAnalysisError 落
+    /// .failed,无网络成本)——M0 失败断整链,非 M0 按链内 quotaFreeAhead
+    /// 判定是否继续。旧 resume 判据(contains 任意免扣可跑章)不看链序:
+    /// 上游 M0/M1 被本地次数挡住时付费章照样计入,守卫放行 → 链在受阻
+    /// 上游处空转(横幅闪、未完成 M0 每次被翻 .failed),零推进。
+    /// **镜像 runV1Chain/runSingleV1Module 的跳过与断链判定,改那边必须同步这里。**
+    private func canProgressWithoutLocalQuota(
+        entitled: (ModuleID) -> Bool
+    ) -> Bool {
+        for module in ModuleID.allCases {
+            switch moduleStates[module] {
+            case .ok, .locked, .needsInput:
+                continue  // 链内跳过(ok 直接过 / 后两者 no-op 重置同态)
+            case .fetching:
+                // M0 重试在飞 → 链让位(deferring),此刻无新进展;
+                // M1-M7 在飞 → 链跳过,由该重试自担成败
+                if module == .m0 { return false }
+                continue
+            case .dailyLimitReached, .contextTokenExpired:
+                return false  // 断链前置检查:重跑必再拒
+            case nil, .pending, .failed:
+                // 付费未解锁 → 链内标 .locked 跳过(不发请求)
+                if !entitled(module) { continue }
+                // M4/M5 缺用户输入 → 链内标 .needsInput 跳过
+                if module == .m4, m4UserInput == nil { continue }
+                if module == .m5, m5UserInput == nil { continue }
+                // 缺链字段/上游指纹 → 链内标 .pending 跳过(不发请求)
+                if module.requiresParentFingerprint {
+                    let missing = (v1ChainFields["structure_fingerprint"] == nil
+                        ? ["structure_fingerprint"] : [])
+                        + module.requiredChainFields.filter { v1ChainFields[$0] == nil }
+                    if !missing.isEmpty { continue }
+                }
+                // 链将真跑本章:免扣(付费已购/迁移豁免)= 有真实进展
+                if !consumesLocalQuota(module) { return true }
+                // 扣次章 + 空池:attempt 本地抛达限落 .failed——
+                // M0 → m0_failed_breaking_chain 断整链,无进展
+                if module == .m0 { return false }
+                // 非 M0 → 链按 quotaFreeAhead 决定继续与否(与 runV1Chain
+                // 达限断链同判据:存在免扣可跑章则继续走,否则断)
+                let quotaFreeAhead = ModuleID.allCases.contains {
+                    !consumesLocalQuota($0)
+                        && Self.isRunnableState(
+                            moduleStates[$0], entitled: entitled($0))
+                }
+                if !quotaFreeAhead { return false }
+                continue
+            }
+        }
+        return false
+    }
+
     /// M4 用户输入(Stage 8;盘面小景 S3 起由阅读页页内表单 ChapterReadingInputForm 填写)。
     /// nil = 用户尚未填 → M4 模块标 .needsInput,等用户填。
     /// 非 nil = 用户填过 → runSingleV1Module(.m4) 用此值调 orchestrator。
@@ -1048,11 +1104,14 @@ final class DeepAnalysisViewModel {
             AppLogger.app.info("deepVM.resumeV1ChainIfNeeded.skip reason=no_runnable_unfinished")
             return
         }
-        // 本地池耗尽仍放行:存在不消耗本地池的可跑章(十七轮 #1 + 拍板①:
-        // 付费章/版本迁移豁免章免扣——当天次数用在别的盘上,不应挡住
-        // 已购盘的迁移重算/付费链续跑,这正是十六轮 #1 要修的场景)
+        // 本地池耗尽仍放行:链仍有真实进展(十七轮 #1 + 拍板①:付费章/
+        // 版本迁移豁免章免扣——当天次数用在别的盘上,不应挡住已购盘的
+        // 迁移重算/付费链续跑)。判据按链串行语义推演
+        // (canProgressWithoutLocalQuota,十八轮 #3):旧 contains 判据会把
+        // 上游被本地次数挡住的付费章计入,守卫放行后链在达限上游处即断,
+        // 每次回前台起一次空链零推进。
         guard remainingReads > 0
-            || ModuleID.allCases.contains(where: { !consumesLocalQuota($0) && isRunnableUnfinished($0) })
+            || canProgressWithoutLocalQuota(entitled: entitled)
         else {
             AppLogger.app.info("deepVM.resumeV1ChainIfNeeded.skip reason=daily_limit")
             return

@@ -902,6 +902,157 @@ final class CachedInterpretationReaderTests: XCTestCase {
         XCTAssertEqual(crossLang?.hits.count, 7)
     }
 
+    /// 跨语言救援(十八轮外评 #2):上游(M0)在当前语言**整行缺席**、其它
+    /// 语言有既有行 = 跨语言状态(原文行显示/翻译流接管),血统锚点是原文
+    /// 行(parent_hash 由 fingerprint 派生、语言无关)——下游已有当前语言行
+    /// 必须照常回填,不得切断 + 标迁移豁免(旧判据会让它们免费重生成白烧
+    /// LLM,而正确行为 = 回填 + M0 交随后的跨语言探测翻译)。版本迁移场景
+    /// (本语言有旧版行)不触发救援,切断维持(对照面钉死)。
+    func testReadAllForRestoreCrossLanguageUpstreamRescue() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        let chain = Array(Self.v1Modules.prefix(3))  // m0 → m1 → m2
+        // M0 只有 zh 原文行;M1/M2 有 en 行(翻译落键产物),显示语言 en
+        try store.upsert(
+            contentHash: "h-xlang", module: "m0_structure", promptVersion: 1,
+            targetDate: nil, provider: "anthropic", model: "claude-test",
+            interpretation: Self.v1JSON("m0 zh 原文"), generatedAt: .now
+        )
+        for module in chain.dropFirst() {
+            try store.upsert(
+                contentHash: "h-xlang", module: module, promptVersion: 1,
+                targetDate: nil, language: "en",
+                provider: "anthropic", model: "claude-test",
+                interpretation: Self.v1JSON("en-\(module)"), generatedAt: .now
+            )
+        }
+
+        var health = Self.health(provider: "anthropic", model: "claude-test")
+        health.promptVersions = [
+            "m0_structure": 1, "m1_talent": 1, "m2_high_low": 1,
+        ]
+        func makeReader() -> CachedInterpretationReader {
+            CachedInterpretationReader(
+                identityResolver: AIIdentityResolver(apiClient:
+                    ReaderTestAPIClient(healthResults: [.success(health)])),
+                cacheStore: store
+            )
+        }
+
+        // 1. 全清单(en):M0 无 en 行但有 zh 原文行 → 不切断不豁免,
+        //    M1/M2 的 en 行照常回填(修复前:hits 空 + M1/M2 进迁移集白烧)
+        let full = try await makeReader().readAllForRestore(
+            contentHash: "h-xlang", modules: chain, language: "en"
+        )
+        XCTAssertEqual(
+            Set(full.hits.keys), ["m1_talent", "m2_high_low"],
+            "跨语言状态:下游当前语言行必须回填(实际:\(full.hits.keys.sorted()))"
+        )
+        XCTAssertTrue(
+            full.migrationRegenModules.isEmpty,
+            "M0 有其它语言行 = 翻译流接管,不得标迁移豁免(实际:\(full.migrationRegenModules.sorted()))"
+        )
+
+        // 2. 部分清单(M0 在清单外,如处于 .dailyLimitReached):清单外上游
+        //    检查同样救援——M1/M2 照常回填(修复前:全链切断 + 全进迁移集)
+        let partial = try await makeReader().readAllForRestore(
+            contentHash: "h-xlang", modules: Array(chain.dropFirst()), language: "en"
+        )
+        XCTAssertEqual(
+            Set(partial.hits.keys), ["m1_talent", "m2_high_low"],
+            "清单外上游跨语言救援(实际:\(partial.hits.keys.sorted()))"
+        )
+        XCTAssertTrue(partial.migrationRegenModules.isEmpty)
+
+        // 3. 跨语言探测**不**救援(服务端链走查按同语言上游行核验,缺上游
+        //    语言的「源」翻译必 409——本地切断正是那个前置的镜像)。当前
+        //    语言 en;M0 只有 zh-hant 行、M1/M2 只有 zh 行:探测 zh 时 M0
+        //    缺行 → M1/M2 的 zh 行被切断(若误救援,zh 侧 2 章 > zh-hant
+        //    侧 1 章,会当选探测源 → 翻译必 409)
+        try store.upsert(
+            contentHash: "h-xlang-probe", module: "m0_structure", promptVersion: 1,
+            targetDate: nil, language: "zh-hant",
+            provider: "anthropic", model: "claude-test",
+            interpretation: Self.v1JSON("m0 zh-hant"), generatedAt: .now
+        )
+        for module in chain.dropFirst() {
+            try store.upsert(
+                contentHash: "h-xlang-probe", module: module, promptVersion: 1,
+                targetDate: nil, language: "zh",
+                provider: "anthropic", model: "claude-test",
+                interpretation: Self.v1JSON("zh-\(module)"), generatedAt: .now
+            )
+        }
+        UserDefaults.standard.set("en", forKey: AppLanguage.overrideDefaultsKey)
+        UserDefaults.standard.set("en", forKey: AppLanguage.launchSnapshotDefaultsKey)
+        defer {
+            UserDefaults.standard.removeObject(forKey: AppLanguage.overrideDefaultsKey)
+            UserDefaults.standard.removeObject(forKey: AppLanguage.launchSnapshotDefaultsKey)
+        }
+        let probe = try await makeReader().readAllCrossLanguage(
+            contentHash: "h-xlang-probe", modules: chain
+        )
+        XCTAssertEqual(
+            probe?.language, "zh-hant",
+            "zh 侧 M0 缺行时 M1/M2 不得当选翻译源(误救援会让 zh 侧 2 章当选 → 必 409)"
+        )
+        XCTAssertEqual(
+            probe.map { Set($0.hits.keys) } ?? [],
+            ["m0_structure"] as Set<String>
+        )
+    }
+
+    /// 救援不弱化版本迁移切断(对照面):M0 在**当前语言**有旧版行(版本
+    /// bump 作废)时,即使其它语言也有行,仍按旧语义切断 + 迁移豁免——
+    /// 救援只盖「本语言整行缺席」的跨语言状态。
+    func testReadAllForRestoreVersionMigrationCutNotWeakenedByCrossLanguageRows() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        let chain = Array(Self.v1Modules.prefix(3))
+        // M0:en v1 行(旧版)+ zh-hant v1 行;服务端 M0 已 bump v2,显示语言 en
+        try store.upsert(
+            contentHash: "h-vmig", module: "m0_structure", promptVersion: 1,
+            targetDate: nil, language: "en",
+            provider: "anthropic", model: "claude-test",
+            interpretation: Self.v1JSON("m0 en 旧版"), generatedAt: .now
+        )
+        try store.upsert(
+            contentHash: "h-vmig", module: "m0_structure", promptVersion: 1,
+            targetDate: nil, language: "zh-hant",
+            provider: "anthropic", model: "claude-test",
+            interpretation: Self.v1JSON("m0 zh-hant 旧版"), generatedAt: .now
+        )
+        for module in chain.dropFirst() {
+            try store.upsert(
+                contentHash: "h-vmig", module: module, promptVersion: 1,
+                targetDate: nil, language: "en",
+                provider: "anthropic", model: "claude-test",
+                interpretation: Self.v1JSON("en-\(module)"), generatedAt: .now
+            )
+        }
+
+        var health = Self.health(provider: "anthropic", model: "claude-test")
+        health.promptVersions = [
+            "m0_structure": 2, "m1_talent": 1, "m2_high_low": 1,
+        ]
+        let reader = CachedInterpretationReader(
+            identityResolver: AIIdentityResolver(apiClient:
+                ReaderTestAPIClient(healthResults: [.success(health)])),
+            cacheStore: store
+        )
+        let outcome = try await reader.readAllForRestore(
+            contentHash: "h-vmig", modules: chain, language: "en"
+        )
+        XCTAssertTrue(
+            outcome.hits.isEmpty,
+            "本语言有旧版行 = 版本迁移,切断维持(实际:\(outcome.hits.keys.sorted()))"
+        )
+        XCTAssertEqual(
+            outcome.migrationRegenModules, ["m0_structure", "m1_talent", "m2_high_low"],
+            "版本迁移三章照旧豁免(其它语言有行不得弱化该语义)"
+        )
+    }
+
     // MARK: - Helpers
 
     private static func healthOnlyClient(
