@@ -91,9 +91,19 @@ struct DeepAnalysisHomeView: View {
 
     /// hero 总高(2026-10-08 排版 review:@ScaledMetric——Font.custom 默认随系统
     /// 字号放大,写死 185 会在大字号下把四柱底部裁进喜忌行;默认值与定稿一致)。
-    @ScaledMetric(relativeTo: .body) private var heroHeight: CGFloat = 185
+    /// 十七轮外评:custom(size:) 的缩放只对 zh/zh-hant 的 Kaiti 路径成立——
+    /// en 干支走 .system(size:) 固定字号(87264b3 驳回 #8 口径),高度若仍随
+    /// Dynamic Type 缩放,小字号下四柱(~174pt)溢出固定内容、大字号下卡片
+    /// 虚高留白。高度缩放与字形缩放同口径:中文 UI 随 Dynamic Type,en 固定。
+    @ScaledMetric(relativeTo: .body) private var heroHeightScaled: CGFloat = 185
     /// 干支槽位高(同上:写死 92 在大字号下被 .bottom 对齐把干支往上顶、压柱标)。
-    @ScaledMetric(relativeTo: .body) private var ganzhiSlotHeight: CGFloat = 92
+    @ScaledMetric(relativeTo: .body) private var ganzhiSlotHeightScaled: CGFloat = 92
+    private var heroHeight: CGFloat {
+        AppLanguage.current.isChinese ? heroHeightScaled : 185
+    }
+    private var ganzhiSlotHeight: CGFloat {
+        AppLanguage.current.isChinese ? ganzhiSlotHeightScaled : 92
+    }
 
     private var hero: some View {
         ZStack {
