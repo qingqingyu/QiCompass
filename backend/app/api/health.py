@@ -1,9 +1,17 @@
-"""GET /api/health。"""
+"""GET /api/health + GET /api/health/llm。"""
+
+from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Request, Response
 
 from ..ai.prompts import PROMPT_VERSIONS
-from ..config import LUNAR_PYTHON_VERSION, MODEL_ID
+from ..config import (
+    LLM_ALERT_FAILURE_RATE,
+    LLM_ALERT_MIN_CALLS,
+    LUNAR_PYTHON_VERSION,
+    MODEL_ID,
+)
+from ..monitoring.store import LLMOutcomeStore, hour_key
 
 router = APIRouter()
 
@@ -26,4 +34,114 @@ def health(request: Request, response: Response) -> dict:
         "ai_provider": ai_client.provider,
         "ai_model": ai_client.model,
         "prompt_versions": dict(PROMPT_VERSIONS),
+    }
+
+
+def _aggregate(counts: dict, provider: str) -> dict:
+    """{(provider, module, outcome): count} → 单 provider 窗口汇总。
+
+    失败率 = 非 success 占比;total=0 时 rate=None(JSON null)——空窗口
+    没有「0% 失败」的含义,别拿 0 误导运维。
+    """
+    total = success = 0
+    failures: dict[str, int] = {}
+    for (p, _m, outcome), c in counts.items():
+        if p != provider:
+            continue
+        total += c
+        if outcome == "success":
+            success += c
+        else:
+            failures[outcome] = failures.get(outcome, 0) + c
+    return {
+        "success": success,
+        "failures": failures,
+        "total": total,
+        "failure_rate": (round((total - success) / total, 4)
+                         if total else None),
+    }
+
+
+def _by_module(counts: dict, provider: str) -> dict:
+    """今日窗口按 module 拆分(定位「哪个模块在烧失败」)。"""
+    modules: dict[str, dict] = {}
+    for (p, module, outcome), c in counts.items():
+        if p != provider:
+            continue
+        slot = modules.setdefault(
+            module, {"success": 0, "failures": {}, "total": 0})
+        slot["total"] += c
+        if outcome == "success":
+            slot["success"] += c
+        else:
+            slot["failures"][outcome] = \
+                slot["failures"].get(outcome, 0) + c
+    for slot in modules.values():
+        slot["failure_rate"] = (
+            round((slot["total"] - slot["success"]) / slot["total"], 4)
+            if slot["total"] else None)
+    return modules
+
+
+@router.get("/api/health/llm")
+def health_llm(request: Request, response: Response) -> dict:
+    """LLM provider 可用性监控(2026-10-09 监控闭环 A 档,运维只读出口)。
+
+    数据源 llm_metrics_store(MeteredAIClient 只计真烧 LLM 的调用;口径
+    见 app/monitoring/metered.py docstring)。全部按**当前 provider** 过滤
+    ——切换 provider 后旧 provider 的历史计数不再混入可用性判断。
+
+    窗口(小时桶聚合,UTC):
+    - current_hour:当前 UTC 小时桶(告警同一窗口;小时开头样本少,
+      failure_rate 抖动大属正常,min_calls 下限在告警侧防误报)
+    - last_24h:近 24 个小时桶(含当前)
+    - today:UTC 当日
+
+    alert.active 与 MeteredAIClient._evaluate_alert 同公式无状态重算
+    (current_hour 总数 ≥ min_calls 且失败率 ≥ 阈值),与进程内告警日志
+    互为印证。
+    """
+    store: LLMOutcomeStore = request.app.state.llm_metrics_store
+    ai_client = request.app.state.ai_client
+    response.headers["Cache-Control"] = "no-store"
+
+    now = datetime.now(timezone.utc)
+    current = hour_key(now)
+    start_24h = hour_key(now - timedelta(hours=23))
+    today_start = f"{now.date().isoformat()}T00"
+
+    counts_1h = store.get_counts(start_hour=current, end_hour=current)
+    counts_24h = store.get_counts(start_hour=start_24h, end_hour=current)
+    counts_today = store.get_counts(start_hour=today_start, end_hour=current)
+
+    current_window = _aggregate(counts_1h, ai_client.provider)
+    alert_active = (
+        current_window["total"] >= LLM_ALERT_MIN_CALLS
+        and current_window["failure_rate"] is not None
+        and current_window["failure_rate"] >= LLM_ALERT_FAILURE_RATE
+    )
+
+    last_error = store.get_last_error()
+    if last_error is not None and last_error["provider"] != ai_client.provider:
+        # 与全端点口径一致:只看当前 provider(切换后旧 provider 的
+        # 最近失败不再展示,避免误判当前可用性)
+        last_error = None
+
+    return {
+        "provider": ai_client.provider,
+        "model": ai_client.model,
+        "windows": {
+            "current_hour": current_window,
+            "last_24h": _aggregate(counts_24h, ai_client.provider),
+            "today": _aggregate(counts_today, ai_client.provider),
+        },
+        "today_by_module": _by_module(counts_today, ai_client.provider),
+        "last_error": last_error,
+        "alert": {
+            "active": alert_active,
+            "failure_rate": current_window["failure_rate"],
+            "window": "current_hour",
+            "min_calls": LLM_ALERT_MIN_CALLS,
+            "threshold": LLM_ALERT_FAILURE_RATE,
+        },
     }

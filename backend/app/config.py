@@ -246,6 +246,24 @@ if PAID_DAILY_LIMIT <= 0:
     raise ValueError(
         f"QICOMPASS_PAID_DAILY_LIMIT must be positive (got {PAID_DAILY_LIMIT})")
 
+# ---------- LLM 失败率告警阈值(2026-10-09 监控闭环 A 档) ----------
+# 近 1h 窗口内 provider 调用总数 ≥ LLM_ALERT_MIN_CALLS 且失败率 ≥
+# LLM_ALERT_FAILURE_RATE 时,MeteredAIClient 打 ERROR 级「ALERT
+# llm_failure_rate」标记日志(grep/外接 hook 可消费;不引入外部告警
+# 服务,进程内 10min 节流,多 worker 各自独立节流)。min_calls 下限
+# 防低流量误报(如 1 次调用失败 = 100% 失败率不该告警)。
+LLM_ALERT_FAILURE_RATE = float(
+    os.environ.get("QICOMPASS_LLM_ALERT_FAILURE_RATE") or "0.5")
+if not (0 < LLM_ALERT_FAILURE_RATE <= 1):
+    raise ValueError(
+        "QICOMPASS_LLM_ALERT_FAILURE_RATE must be in (0, 1] "
+        f"(got {LLM_ALERT_FAILURE_RATE})")
+LLM_ALERT_MIN_CALLS = int(
+    os.environ.get("QICOMPASS_LLM_ALERT_MIN_CALLS") or "5")
+if LLM_ALERT_MIN_CALLS <= 0:
+    raise ValueError(
+        f"QICOMPASS_LLM_ALERT_MIN_CALLS must be positive (got {LLM_ALERT_MIN_CALLS})")
+
 # ---------- evalkit L3 裁判(S05,2026-08-18;默认回落生成侧,现有部署零感知) ----------
 # 独立 env:同模型自评有系统性偏袒;独立配置才能"用更强的模型当裁判",
 # 也才能做「Anthropic 生成 / OpenAI 裁判」交叉验证。换裁判 = 换一批分数,

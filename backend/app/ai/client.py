@@ -23,6 +23,7 @@ class AIClient(Protocol):
         self, prompt: str, *, temperature: float = 0.6,
         max_tokens: int | None = None,
         timeout: float | None = None,
+        module: str | None = None,
     ) -> str: ...
 
 
