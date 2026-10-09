@@ -1,23 +1,21 @@
 import SwiftUI
 
-// MARK: - 章节结构化正文排版(2026-09-02)
+// MARK: - 章节结构化正文排版(2026-09-02;2026-10-09 按用户 HTML 目标稿改版)
 //
 // ChapterContent 节点树的视觉层,版面语言对齐 DESIGN.md(水墨孤本):
-// - 引言/正文 = 楷体 15.5 · 行距 2.15×(EN 8pt,2026-10-08 分语言)· 首行缩进 2em
-// - 小节题   = 前置短墨横(12×1.2)+ 楷体 15pt tracking 3;嵌套小节 13pt 墨青降级
-//   (2026-10-08 层级修复:旧 14/12 档被引言 15.5 与条目题 14.5 双向压过,
-//   EN 视觉模型直接判「header looks subordinate to the paragraphs beneath」)
-// - 键值行   = 标签 caption 11.5 墨灰 + 值楷体 14.5(EN 行距 6pt);「据/注」小字注 11pt
-// - 条目列   = 「·」条目楷体 14.5(EN 行距 6pt)
-// - 条目卡   = 题楷体 14 + 字段,卡间 hairline 分隔(卡片让位 hairline)
-//   (题从 14.5 收到 14:条目题不得大于所在小节题)
+// - 引言/正文 = 楷体 16 · 行距 ~1.65× · 首行缩进 2em(2026-10-09 目标稿:
+//   收 09-01 的 2.15× 疏朗口径,EN/zh 统一密度,不再分档)
+// - 小节题   = 前置短墨横(16×1.5)+ 楷体 20pt tracking 1;嵌套小节 15.5pt 墨青降级
+// - 键值行   = 标签 caption 11.5 墨灰 + 值楷体 16;「据/注」小字注 12.5pt
+// - 条目列   = 「·」条目楷体 15
+// - 条目卡   = 题楷体 16 + 字段,卡间 hairline 分隔(卡片让位 hairline)
 // 无卡片底 / 无渐变 / 朱红不进。纯展示,数据源单一(ChapterContent)。
 
 struct ChapterContentView: View {
     let content: ChapterContent
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 20) {
+        VStack(alignment: .leading, spacing: 28) {
             ForEach(Array(content.nodes.enumerated()), id: \.offset) { _, node in
                 NodeView(node: node, depth: 0)
             }
@@ -37,18 +35,18 @@ private struct NodeView: View {
             leadParagraph(text)
         case .note(let label, let text):
             Text("\(label) · \(text)")
-                .font(BaziFont.caption(size: 11))
+                .font(BaziFont.caption(size: 12.5))
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
-                .lineSpacing(4)
+                .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
         case .section(let title, let children):
-            VStack(alignment: .leading, spacing: 11) {
+            VStack(alignment: .leading, spacing: 16) {
                 sectionHeader(title)
                 // S4 M1 三层引导句(R12:天赋/训练/防御三层内容已具备,差一句
                 // 「这一节是什么」;静态映射,只挂天赋章三节,其余章节不受影响)
                 if let guide = Self.sectionGuide(forSectionTitle: title) {
                     Text(guide)
-                        .font(BaziFont.caption(size: 10.5))
+                        .font(BaziFont.caption(size: 12.5))
                         .tracking(1)
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -58,16 +56,16 @@ private struct NodeView: View {
                 }
             }
         case .fields(let fields):
-            VStack(alignment: .leading, spacing: 9) {
+            VStack(alignment: .leading, spacing: 12) {
                 ForEach(Array(fields.enumerated()), id: \.offset) { _, field in
                     fieldRow(field)
                 }
             }
         case .bullets(let items):
-            VStack(alignment: .leading, spacing: 7) {
+            VStack(alignment: .leading, spacing: 8) {
                 ForEach(Array(items.enumerated()), id: \.offset) { _, item in
                     Text("· \(item)")
-                        .font(BaziFont.body(size: 14.5))
+                        .font(BaziFont.body(size: 15))
                         .foregroundStyle(BaziTheme.ink)
                         .lineSpacing(valueLineSpacing)
                         .fixedSize(horizontal: false, vertical: true)
@@ -118,88 +116,86 @@ private struct NodeView: View {
         return nil
     }
 
-    /// 正文行距分语言:zh 楷体 2.15× 疏朗是设计语言;EN New York 衬线同参数
-    /// 有效行高 ~2.4×,视觉模型判「almost poster-like」(2026-10-08 外评)。
-    private var proseLineSpacing: CGFloat { AppLanguage.current == .en ? 8 : 18 }
-    /// 键值/条目行距同款分档(zh 16 / EN 6)。
-    private var valueLineSpacing: CGFloat { AppLanguage.current == .en ? 6 : 16 }
+    /// 正文行距(2026-10-09 目标稿):统一 ~1.65× 密度,EN/zh 不再分档。
+    private var proseLineSpacing: CGFloat { 7 }
+    /// 键值/条目行距同款。
+    private var valueLineSpacing: CGFloat { 4 }
 
-    /// 引言段:与阅读页散文态同规格(15.5pt · 行距 2.15× · 缩进 2em)。
+    /// 引言段:与阅读页散文态同规格(16pt · 行距 ~1.65× · 缩进 2em)。
     private func leadParagraph(_ text: String) -> some View {
         Text("　　" + text)
-            .bodySerifText(size: 15.5)
+            .bodySerifText(size: 16)
             .lineSpacing(proseLineSpacing)
             .multilineTextAlignment(.leading)
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// 小节题:顶层短墨横 + 楷体;嵌套小节去横、字级降 13、墨灰。
+    /// 小节题:顶层短墨横(16×1.5)+ 楷体 20;嵌套小节去横、字级降 15.5、墨灰。
     @ViewBuilder
     private func sectionHeader(_ title: String) -> some View {
         if depth == 0 {
-            HStack(spacing: 8) {
+            HStack(spacing: 10) {
                 Rectangle()
                     .fill(BaziTheme.ink)
-                    .frame(width: 12, height: 1.2)
+                    .frame(width: 16, height: 1.5)
                 Text(title)
-                    .font(BaziFont.display(size: 15))
-                    .tracking(3)
+                    .font(BaziFont.display(size: 20))
+                    .tracking(1)
                     .foregroundStyle(BaziTheme.ink)
             }
         } else {
             Text(title)
-                .font(BaziFont.display(size: 13))
-                .tracking(2)
+                .font(BaziFont.display(size: 15.5))
+                .tracking(1)
                 .foregroundStyle(BaziTheme.inkMuted)
         }
     }
 
-    /// 键值行:标签小字 + 值楷体;「据/注」类压成一行小字注。
+    /// 键值行:标签小字 + 值楷体 16;「据/注」类压成一行小字注。
     @ViewBuilder
     private func fieldRow(_ field: ChapterField) -> some View {
         if field.isNote {
             Text("\(field.label) · \(field.value)")
-                .font(BaziFont.caption(size: 11))
+                .font(BaziFont.caption(size: 12.5))
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
-                .lineSpacing(4)
+                .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
         } else {
-            VStack(alignment: .leading, spacing: 2) {
+            VStack(alignment: .leading, spacing: 3) {
                 Text(field.label)
                     .font(BaziFont.caption(size: 11.5))
                     .tracking(1)
                     .foregroundStyle(BaziTheme.inkMuted)
                 Text(field.value)
-                    .bodySerifText(size: 14.5)
+                    .bodySerifText(size: 16)
                     .lineSpacing(valueLineSpacing)
                     .fixedSize(horizontal: false, vertical: true)
             }
         }
     }
 
-    /// 条目卡:题(可空)+ 键值组 + 条目列,上下 10pt 呼吸。
+    /// 条目卡:题(可空)+ 键值组 + 条目列,上下 12pt 呼吸。
     private func itemView(_ item: ChapterItem) -> some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: 10) {
             if let title = item.title {
-                // 题从 14.5 收到 14(2026-10-08 层级修复):条目题必须 ≤ 小节题 15。
                 Text(title)
-                    .font(BaziFont.display(size: 14))
+                    .font(BaziFont.display(size: 16))
                     .tracking(1)
                     .foregroundStyle(BaziTheme.ink)
                     .fixedSize(horizontal: false, vertical: true)
             }
             if !item.fields.isEmpty {
-                VStack(alignment: .leading, spacing: 8) {
+                VStack(alignment: .leading, spacing: 10) {
                     ForEach(Array(item.fields.enumerated()), id: \.offset) { _, field in
                         fieldRow(field)
                     }
                 }
             }
             if !item.bullets.isEmpty {
-                VStack(alignment: .leading, spacing: 7) {
+                VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(item.bullets.enumerated()), id: \.offset) { _, bullet in
                         Text("· \(bullet)")
-                            .font(BaziFont.body(size: 14.5))
+                            .font(BaziFont.body(size: 15))
                             .foregroundStyle(BaziTheme.ink)
                             .lineSpacing(valueLineSpacing)
                             .fixedSize(horizontal: false, vertical: true)
@@ -207,6 +203,6 @@ private struct NodeView: View {
                 }
             }
         }
-        .padding(.vertical, 10)
+        .padding(.vertical, 12)
     }
 }

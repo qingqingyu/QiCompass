@@ -6,8 +6,9 @@ import SwiftUI
 /// 左缘竖章号栏(36pt,hairline 分隔,
 /// 章号 28pt 楷体,随页贯穿)+ 正文区 + 底部翻章条(hairline 上边)。
 ///
-/// 正文排版(DESIGN.md §Body 首次落地):楷体 15.5pt · 行距 2.15× · 首行缩进
-/// 2em(全角空格实现,SwiftUI Text 无 text-indent)· 两端对齐;章末右下朱批印。
+/// 正文排版(2026-10-09 按用户 HTML 目标稿「QiCompass Chart Redesign」改版,
+/// 修订 09-01 §Body 古籍行距口径):章题 30 · 副题 13 · 小节题 20 · 值 16 ·
+/// 行距 ~1.65×(收疏朗 2.15×)· 首行缩进 2em 保留;章末 hairline + 朱批印。
 ///
 /// 四态(同一页原地切换,不 pop):
 /// - .ok:正文 + 章末「批」印(JSON 形态但解析失败 → 显式异常态 + 重生成 CTA,不裸奔)
@@ -84,7 +85,7 @@ struct ChapterReadingView: View {
                 dismiss()
             } label: {
                 Text("目录")
-                    .font(BaziFont.caption(size: 12.5))
+                    .font(BaziFont.caption(size: 13))
                     .foregroundStyle(BaziTheme.inkMuted)
                     .padding(6)
             }
@@ -148,20 +149,19 @@ struct ChapterReadingView: View {
     private func chapterBody(text: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(chapterTitle)
-                .font(BaziFont.display(size: 21))
-                .tracking(3)
+                .font(BaziFont.display(size: 30))
+                .tracking(1)
                 .foregroundStyle(BaziTheme.ink)
-                .padding(.top, 46)
+                .padding(.top, 42)
             Text(module.subtitle)
-                .font(BaziFont.caption(size: 10.5))
+                .font(BaziFont.caption(size: 13))
                 .tracking(1)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
-                .padding(.top, 4)
+                .padding(.top, 6)
             Rectangle()
                 .fill(BaziTheme.hairline)
                 .frame(height: 0.5)
-                .padding(.trailing, 34)
-                .padding(.top, 16)
+                .padding(.top, 20)
             // L3/F1:本章仍是待译原文且翻译链在飞 → 章首小注(原文照常展示,
             // 译完整章替换)。视觉:hairline ink@18% 级弱提示,不用朱红。
             if vm.isChapterTranslationPending(module) {
@@ -202,7 +202,7 @@ struct ChapterReadingView: View {
             // 显式异常态,不再把 JSON 原文当散文排版(裸奔)。
             if let content = ChapterContent.parse(text) {
                 ChapterContentView(content: content)
-                    .padding(.top, 15)
+                    .padding(.top, 24)
                     .padding(.bottom, 18)
                 chapterSeal
             } else if ChapterContent.looksLikeJSON(text) {
@@ -218,14 +218,14 @@ struct ChapterReadingView: View {
                     "chapterReading.contentParseMiss module=\(module.rawValue, privacy: .public) — 退回散文排版"
                 )
                 Text(indentedProse(text))
-                    .bodySerifText(size: 15.5)
-                    // 行距分语言(2026-10-08 外评):2.15× 为 zh 楷体的疏朗设计,
-                    // EN New York 衬线同参数下有效行高 ~2.4×,一段话被拉成海报。
-                    .lineSpacing(AppLanguage.current == .en ? 8 : 18)
+                    .bodySerifText(size: 16)
+                    // 行距 ~1.65×(2026-10-09 目标稿改版:收 09-01 的 2.15× 疏朗口径;
+                    // EN 与 zh 统一密度,不再分档)。
+                    .lineSpacing(7)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
                     .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 15)
+                    .padding(.top, 24)
                     .padding(.bottom, 18)
                 chapterSeal
             }
@@ -234,13 +234,21 @@ struct ChapterReadingView: View {
         .padding(.trailing, 26)
     }
 
-    /// 章末朱批印(落款,非朱字批语——后者依赖 prompt 输出,backlog)。
+    /// 章末落款(hairline + 朱批印;朱字批语依赖 prompt 输出,backlog)。
+    /// 2026-10-09 目标稿:批印 26→34,上缘 closing hairline(章成收笔的视觉句号)。
     private var chapterSeal: some View {
-        HStack {
-            Spacer()
-            SealStamp(character: "批", size: 26, rotation: 3, stampDelay: 0.2)
+        VStack(spacing: 0) {
+            Rectangle()
+                .fill(BaziTheme.hairline)
+                .frame(height: 0.5)
+            HStack {
+                Spacer()
+                SealStamp(character: "批", size: 34, rotation: 3, stampDelay: 0.2)
+            }
+            .padding(.trailing, 8)
+            .padding(.top, 22)
         }
-        .padding(.trailing, 8)
+        .padding(.top, 28)
         // 2026-10-08 external review: last section of the main text was hard-cut against the chapter navigation bar; add 8pt of breathing room at the end of the chapter
         .padding(.bottom, 32)
     }
@@ -312,10 +320,10 @@ struct ChapterReadingView: View {
     private func failedBody(message: String) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(chapterTitle)
-                .font(BaziFont.display(size: 21))
-                .tracking(3)
+                .font(BaziFont.display(size: 30))
+                .tracking(1)
                 .foregroundStyle(BaziTheme.ink)
-                .padding(.top, 46)
+                .padding(.top, 42)
             Text(message)
                 .font(BaziFont.caption(size: 13))
                 .foregroundStyle(BaziTheme.destructive)
@@ -343,10 +351,10 @@ struct ChapterReadingView: View {
     private var contextTokenExpiredBody: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(chapterTitle)
-                .font(BaziFont.display(size: 21))
-                .tracking(3)
+                .font(BaziFont.display(size: 30))
+                .tracking(1)
                 .foregroundStyle(BaziTheme.ink)
-                .padding(.top, 46)
+                .padding(.top, 42)
             Text(L10n.Errors.contextTokenTitle)
                 .font(BaziFont.caption(size: 13))
                 .foregroundStyle(BaziTheme.destructive)
@@ -369,10 +377,10 @@ struct ChapterReadingView: View {
     private func dailyLimitReachedBody(nextReset: Date) -> some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(chapterTitle)
-                .font(BaziFont.display(size: 21))
-                .tracking(3)
+                .font(BaziFont.display(size: 30))
+                .tracking(1)
                 .foregroundStyle(BaziTheme.ink)
-                .padding(.top, 46)
+                .padding(.top, 42)
             Text(L10n.Errors.limitTitle)
                 .font(BaziFont.caption(size: 13))
                 .foregroundStyle(BaziTheme.destructive)
@@ -404,10 +412,10 @@ struct ChapterReadingView: View {
     private var lockedBody: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(chapterTitle)
-                .font(BaziFont.display(size: 21))
-                .tracking(3)
+                .font(BaziFont.display(size: 30))
+                .tracking(1)
                 .foregroundStyle(BaziTheme.ink)
-                .padding(.top, 46)
+                .padding(.top, 42)
             HStack(spacing: 8) {
                 Image(systemName: "lock.fill")
                     .font(.caption)
@@ -443,12 +451,12 @@ struct ChapterReadingView: View {
     private var needsInputBody: some View {
         VStack(alignment: .leading, spacing: 14) {
             Text(chapterTitle)
-                .font(BaziFont.display(size: 21))
-                .tracking(3)
+                .font(BaziFont.display(size: 30))
+                .tracking(1)
                 .foregroundStyle(BaziTheme.ink)
-                .padding(.top, 46)
+                .padding(.top, 42)
             Text(module.subtitle)
-                .font(BaziFont.caption(size: 10.5))
+                .font(BaziFont.caption(size: 13))
                 .tracking(1)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
             if module.needsUserInput {
@@ -502,9 +510,9 @@ struct ChapterReadingView: View {
                         HStack(spacing: 3) {
                             Text(pagerTitle(next))
                             Image(systemName: "lock.fill")
-                                .font(.system(size: 8.5))
+                                .font(.system(size: 10))
                         }
-                        .font(BaziFont.caption(size: 11.5))
+                        .font(BaziFont.caption(size: 13))
                         .tracking(1)
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
                         .padding(6)
@@ -529,8 +537,8 @@ struct ChapterReadingView: View {
             onNavigate(target)
         } label: {
             Text(label)
-                .font(BaziFont.caption(size: 11.5))
-                .tracking(1)
+                .font(BaziFont.caption(size: 15))
+                .tracking(0.5)
                 .foregroundStyle(BaziTheme.inkMuted)
                 .lineLimit(1)
                 .padding(6)
