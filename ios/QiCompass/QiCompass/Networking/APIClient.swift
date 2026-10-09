@@ -313,6 +313,10 @@ final class MockAPIClient: APIClient {
     /// dailyFortune 应答注入钩子(拍板②失效期重签回归,2026-10-09):
     /// nil = 默认 mock;测试注入以模拟 403 CONTEXT_TOKEN_* → 重签 → 重试。
     var dailyFortuneResponder: ((DailyFortuneRequest) throws -> DailyFortuneResponse)?
+    /// health 应答注入钩子(十八轮 #4 迁移豁免回归,2026-10-09):nil = 默认
+    /// mock(无 prompt_versions,版本未知 → 迁移判定守卫关闭);测试注入以
+    /// 模拟「服务端已 bump m0 版本」驱动 hydrate 的迁移重生成 derive。
+    var healthResponder: (() throws -> HealthResponse)?
     private var _recordedCalculateRequests: [BaziCalculateRequest] = []
     var recordedCalculateRequests: [BaziCalculateRequest] {
         recordLock.lock(); defer { recordLock.unlock() }
@@ -321,6 +325,9 @@ final class MockAPIClient: APIClient {
     func health() async throws -> HealthResponse {
         AppLogger.networking.debug("mock.health 调起")
         try? await Task.sleep(nanoseconds: 200_000_000)
+        if let healthResponder {
+            return try healthResponder()
+        }
         return HealthResponse(
             status: "ok",
             lunarPythonVersion: "1.4.8-mock",

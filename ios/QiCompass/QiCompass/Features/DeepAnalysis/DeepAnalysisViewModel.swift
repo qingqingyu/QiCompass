@@ -1009,12 +1009,20 @@ final class DeepAnalysisViewModel {
                 )
                 return .staleChart
             }
-            // 版本迁移重生成集整集替换(非合并):每次 hydrate 按当前库态
-            // 重derive——已重算成功的章不再进集(一次性豁免),未完成的
-            // 迁移章保留(跨会话/跨天续跑照常豁免)。旧盘集合随 staleChart
-            // 上方早退自然丢弃,不污染新盘。
-            versionMigrationExempt = Set(
+            // 版本迁移重生成集 = 本轮 derive ∪ 既有未完成豁免(十八轮 houduan
+            // #4):derive 只看**本次查询清单**(nil/.failed 态的章)——
+            // generateV1AllModules 把全链重置 .pending 后,迁移未完成的章
+            // 不再进清单,纯整集替换会把它们逐出豁免集;M0 重试成功续跑时
+            // 这些章的迁移重算恢复计费(十六轮 #1 要防的「升版重算扣满本地
+            // 池」重开)。保留「未落当前版本行(非 .ok)」的既有豁免章,出集
+            // 条件不变:成功落 .ok 时 runSingleV1Module 移除(一次性豁免);
+            // 换盘/reset 的 removeAll 不受影响,旧盘集合随 staleChart 上方
+            // 早退自然丢弃,不污染新盘。
+            let derivedExempt = Set(
                 restoreOutcome.migrationRegenModules.compactMap(ModuleID.init(rawValue:))
+            )
+            versionMigrationExempt = derivedExempt.union(
+                versionMigrationExempt.filter { moduleStates[$0]?.isOk != true }
             )
             if !versionMigrationExempt.isEmpty {
                 // OSLogMessage 插值是 lazy capture,instance property 须先提

@@ -353,9 +353,12 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         "{\"ideal_life_structure\":{\"节奏\":\"上午深活\"}}"
 
     /// 预置一章节本地缓存(身份对齐 MockAPIClient.health:anthropic / mock-anthropic-model)。
-    private func seedV1Cache(hash: String, module: ModuleID, text: String) throws {
+    private func seedV1Cache(
+        hash: String, module: ModuleID, text: String, promptVersion: Int = 1
+    ) throws {
         try interpretStore.upsert(
-            contentHash: hash, module: module.rawValue, promptVersion: 1, targetDate: nil,
+            contentHash: hash, module: module.rawValue, promptVersion: promptVersion,
+            targetDate: nil,
             provider: "anthropic", model: "mock-anthropic-model",
             interpretation: text, generatedAt: .now
         )
@@ -614,6 +617,93 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             apiClient.recordedInterpretRequests.contains { $0.module == "m3_system" },
             "M3 必须发出真实请求(免扣 ≠ 不发)"
         )
+    }
+
+    // MARK: - 迁移豁免集逐出(十八轮 houduan #4)
+
+    /// 版本 bump 迁移重算期间,generateV1AllModules 把全链重置 .pending 后,
+    /// 后续 hydrate 的查询清单(仅 nil/.failed 态)不再含迁移未完成的章——
+    /// 修复前 performRestore 整集替换豁免集把它们逐出,M0 重试成功续跑时
+    /// M1 的迁移重算恢复扣本地池(十六轮 #1「升版重算扣满本地池」重开)。
+    /// 修复 = derive ∪ 保留非 .ok 既有豁免;锁定:M0 三次 attempt 与 M1
+    /// 重算全程零本地消耗。
+    func testHydrate不逐出pending迁移章_M1迁移重算仍豁免本地池() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        // 本地 v1 行 × 服务端 m0 已 bump v2:m0 自身缺当前行 + m1 血统被
+        // 切断 → 首 hydrate derive 豁免集 = {m0, m1}(m2-m7 无本地行不进集)
+        try seedV1Cache(hash: response.contentHash, module: .m0, text: Self.m0CacheJSON)
+        try seedV1Cache(hash: response.contentHash, module: .m1, text: Self.m1CacheJSON)
+        apiClient.healthResponder = {
+            HealthResponse(
+                status: "ok", lunarPythonVersion: "1.4.8-mock",
+                model: "bazi-calculate-v1-mock", aiProvider: "anthropic",
+                aiModel: "mock-anthropic-model",
+                promptVersions: [
+                    "m0_structure": 2, "m1_talent": 1, "m2_high_low": 1,
+                    "m3_system": 1, "m4_health": 1, "m5_wealth": 1,
+                    "m6_dynamics": 1, "m7_manual": 1,
+                ])
+        }
+        // M0 前两次 attempt 失败(制造 .pending 重置 + 逐出窗口),第三次起成功
+        let box = AttemptBox()
+        apiClient.interpretResponder = { req in
+            if req.module == "m0_structure" {
+                box.count += 1
+                if box.count <= 2 {
+                    throw APIError.backendError(
+                        code: "AI_PROVIDER_ERROR", message: "服务暂不可用",
+                        requestId: nil)
+                }
+                return InterpretResponse(
+                    interpretation: Self.m0CacheJSON,
+                    promptVersion: 2, cached: false, generatedAt: .now,
+                    provider: "anthropic", model: "mock-anthropic-model",
+                    language: "zh")
+            }
+            return InterpretResponse(
+                interpretation: Self.m1CacheJSON,
+                promptVersion: 1, cached: false, generatedAt: .now,
+                provider: "anthropic", model: "mock-anthropic-model",
+                language: "zh")
+        }
+        let reads0 = vm.remainingReads
+
+        // load#1:hydrate derive {m0,m1} → 续跑链 M0 attempt#1 失败 → 断链
+        vm.loadArchivedChart(response: response, request: request)
+        let firstFailed = await waitUntil(timeout: 10) {
+            if case .failed? = self.vm.moduleStates[.m0] { return true }
+            return false
+        }
+        XCTAssertTrue(firstFailed, "前置:M0 首次迁移重算失败,实际:\(vm.moduleStates)")
+
+        // 用户点开卷:全链重置 .pending → M0 attempt#2 失败 → m1-m7 残留 .pending
+        vm.generateV1AllModules()
+        let secondFailed = await waitUntil(timeout: 10) {
+            self.vm.moduleStates[.m1] == .pending
+                && (self.vm.moduleStates[.m0].map { if case .failed = $0 { return true }; return false } ?? false)
+        }
+        XCTAssertTrue(secondFailed, "前置:M0 二连败 + m1 落 .pending(逐出窗口),实际:\(vm.moduleStates)")
+
+        // load#2:同 hash 重入,hydrate 查询清单只含 m0(.failed)——修复前
+        // 整集替换把 m1 逐出豁免集;修复后并集保留 → M0 attempt#3 成功后续跑
+        // M1 迁移重算,全程零本地消耗
+        vm.loadArchivedChart(response: response, request: request)
+        let m1Ok = await waitUntil(timeout: 12) {
+            self.vm.moduleStates[.m1]?.isOk == true
+        }
+        XCTAssertTrue(m1Ok, "M0 重试成功后 M1 迁移重算必须完成,实际:\(vm.moduleStates)")
+        XCTAssertEqual(
+            vm.remainingReads, reads0,
+            "M0 三次 attempt(豁免)+ M1 迁移重算(并集保留豁免)全程不得扣本地池,"
+            + "扣了 \(reads0 - vm.remainingReads) 次 = m1 被整集替换逐出(十六轮 #1 重开)"
+        )
+    }
+
+    /// responder 闭包内可变的 attempt 计数(mock interpret 与测试不在同 actor,
+    /// 用引用类型避免值捕获副本)。
+    private final class AttemptBox {
+        var count = 0
     }
 
     func testLoadArchivedChartRestoresCachedModulesAsOkCachedTrue() async throws {
