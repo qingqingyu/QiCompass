@@ -202,16 +202,18 @@ final class CachedInterpretationReader {
                     includeStaleVersions: includeStaleVersions
                 ) != nil
                 if !hasRow {
-                    // 跨语言救援(十八轮外评 #2,仅回填模式):本语言整行
-                    // 缺席 + 其它语言有既有行 = 跨语言状态(该章经原文行
-                    // 显示/翻译流接管),血统锚点是原文行——parent_hash 由
+                    // 跨语言救援(十八轮外评 #2,仅回填模式;2026-10-10
+                    // 收紧:锚点须为当前版本行):本语言整行缺席 + 其它语言
+                    // 有**当前版本**行 = 跨语言状态(该章经原文行显示/翻译
+                    // 流接管),血统锚点是原文行——parent_hash 由
                     // structure_fingerprint 派生、语言无关。此时切断下游会把
                     // 它们**已有当前语言行**误判血统过期 → 标迁移豁免免费
                     // 重生成(白烧 LLM),而正确行为是照常回填 + 本章交随后的
-                    // 跨语言探测。版本迁移场景(本语言有旧版行)不触发救援,
-                    // 切断维持。探测模式不救援:下游行要当翻译源,服务端链
-                    // 走查按同语言上游行核验,缺上游行的「源」翻译必 409,
-                    // 本地切断正是那个前置的镜像。
+                    // 跨语言探测。锚点是旧版本行(它语言也升版未跟)时不
+                    // 救援:下游当前语言行仍是旧血统,照常切断 + 豁免(收紧
+                    // 前任意版本锚点会放行混拼)。探测模式不救援:下游行要
+                    // 当翻译源,服务端链走查按同语言上游行核验,缺上游行的
+                    // 「源」翻译必 409,本地切断正是那个前置的镜像。
                     if !includeStaleVersions,
                        try !hasAnyVersionRow(
                            contentHash: contentHash, module: dep.rawValue,
@@ -269,8 +271,9 @@ final class CachedInterpretationReader {
                 // 版本已知却无当前版本行 = 自身已 bump 本地未跟上(或从未
                 // 生成)→ 传递依赖方将被切断;本地有任意版本行 → 迁移重生成
                 // (从未生成无行,照常计费)。跨语言救援(十八轮 #2,仅回填
-                // 模式,判据与清单外上游分支同款):本语言整行缺席 + 其它
-                // 语言有既有行 → 翻译流接管本章,不切断不豁免。
+                // 模式,判据与清单外上游分支同款,锚点收紧到当前版本行):
+                // 本语言整行缺席 + 其它语言有当前版本行 → 翻译流接管本章,
+                // 不切断不豁免;锚点旧版 → 照常切断(防旧血统行回填混拼)。
                 if isV1Chain, let id = ModuleID(rawValue: module),
                    identity.promptVersions[module] != nil {
                     if !includeStaleVersions,
@@ -327,11 +330,15 @@ final class CachedInterpretationReader {
         ) != nil
     }
 
-    /// 该 (盘, 模块) 在**其它注册语言**下是否有任意版本缓存行(跨语言救援
-    /// 判据,十八轮外评 #2):与 `hasAnyVersionRow` 同口径(latestHit +
-    /// includeStaleVersions + 中毒行先清后查)。查到的行正是随后跨语言探测
-    /// (`readAllCrossLanguage`)会命中的源——两者口径一致,救援放行的章
-    /// 探测必有源,翻译流(原文显示 → 自动翻译)接管。
+    /// 该 (盘, 模块) 在**其它注册语言**下是否有**当前版本**缓存行(跨语言
+    /// 救援判据,十八轮外评 #2;2026-10-10 外评收紧到当前版本):与
+    /// `hasAnyVersionRow` 同口径的中毒行先清后查,但版本过滤不旁路——
+    /// 锚点行必须是服务端当前版本的行。旧判据「任意版本行即可」会让
+    /// **其它语言的旧版锚点**(M0 升版前的 v2 行)放行血统已过期的下游
+    /// 当前语言行:照常回填 = 命书新旧混拼,且绕过版本迁移豁免(下游重算
+    /// 被计费);收紧后锚点过期照常切断 + 豁免,锚点为当前版本(真跨语言
+    /// 状态)才救援。查到的行正是随后跨语言探测(`readAllCrossLanguage`,
+    /// 探测自身仍放行旧版源——409 STALE → 豁免重生成兜底)会命中的源。
     private func hasRowInOtherLanguage(
         contentHash: String,
         module: String,
@@ -348,7 +355,7 @@ final class CachedInterpretationReader {
                 targetDate: targetDate,
                 maxAge: nil,
                 identity: identity,
-                includeStaleVersions: true
+                includeStaleVersions: false
             ) != nil {
                 return true
             }

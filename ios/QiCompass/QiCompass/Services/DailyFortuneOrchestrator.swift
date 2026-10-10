@@ -61,11 +61,10 @@ final class DailyFortuneOrchestrator {
             AppLogger.app.warning("daily.runDeterministic.chart_missing chartHash=\(chartHash, privacy: .public)")
             throw DailyFortuneError.chartMissing
         }
-        // 老盘自动重签·加载期(附八拍板②):老快照无 context_tokens →
-        // 静默重排换 token 后再落穿;无原料/失败 → 原样旧 response,
-        // 后端 403 显式暴露(既有「重新排盘」出口)。decode 失败仍上抛。
-        let baziResponse = try await chartStore.ensureContextTokens(
-            snapshot: snapshot, apiClient: apiClient)
+        // 老盘自动重签·加载期入口已删(2026-10-10:「有入参却缺 token」的
+        // 快照不存在,ensure 重签分支不可达):直接 decode;token 失效由
+        // 下方失效期重签兜底。decode 失败仍上抛。
+        let baziResponse = try chartStore.decodeResponse(from: snapshot)
         let chartPayload = ChartPayloadDTO.from(baziResponse: baziResponse)
 
         // 2. 查本地 daily 缓存(非强制刷新时)。
@@ -94,7 +93,8 @@ final class DailyFortuneOrchestrator {
 
         // 3. 未命中 → POST /api/bazi/daily-fortune
         // 2026-10-07 P0 收口:per-chart token(端点对账 token↔hash↔payload;
-        // 老快照 nil → 上方 ensure 已静默重签补齐,补不齐才 403 显式暴露)
+        // 老快照 nil → 首调直发,403 后由下方失效期重签兜底——加载期 ensure
+        // 入口已删,2026-10-10)
         var request = DailyFortuneRequest(
             chartHash: chartHash,
             targetDate: businessDate,
@@ -117,16 +117,32 @@ final class DailyFortuneOrchestrator {
             // 老盘自动重签·失效期(附八拍板②):token 在档但被服务端拒
             //(403,如密钥轮换)→ 静默重排换新 chart token 后重试一次;
             // 重签失败(nil = 无原料/hash 不一致/离线)→ 原样上抛,
-            // 既有「重新排盘」出口接管,不新增错误面。
-            guard APIError.isContextTokenError(error),
-                  let fresh = try? await chartStore.refreshContextTokens(
-                    snapshot: snapshot, apiClient: apiClient),
-                  let freshToken = fresh.payloadContextToken
+            // 既有「重新排盘」出口接管,不新增错误面。refreshContextTokens
+            // 的 decode/排盘失败在 do/catch 显式留痕后按 nil 处理(错误
+            // 显式传播:吞没不留痕违反 CLAUDE.md,且排盘失败即重试必败的
+            // 根因会丢线索)。
+            guard APIError.isContextTokenError(error) else { throw error }
+            let fresh: BaziResponse?
+            do {
+                fresh = try await chartStore.refreshContextTokens(
+                    snapshot: snapshot, apiClient: apiClient)
+            } catch {
+                AppLogger.app.error(
+                    "daily.deterministic.resign_failed hash=\(chartHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 维持既有 403 出口"
+                )
+                fresh = nil
+            }
+            guard let fresh, let freshToken = fresh.payloadContextToken
             else { throw error }
             AppLogger.app.info(
                 "daily.deterministic.token_rejected_resigned hash=\(chartHash, privacy: .public) — 静默重签后重试一次"
             )
+            // 重签响应是 hash 断言过的当前服务端视图:chartPayload 必须随之
+            // 重建(2026-10-10 外评 #6)——排盘规则演化可让同 hash 派生字段
+            // 变化,新 token 签的是新 payload;只换 token 不换 payload,唯一
+            // 一次重试会因 token↔payload 对不上再 403 白白浪费。
             request.contextToken = freshToken
+            request.chartPayload = ChartPayloadDTO.from(baziResponse: fresh)
             response = try await AppLogger.measure(
                 AppLogger.networking,
                 operation: "dailyFortune",

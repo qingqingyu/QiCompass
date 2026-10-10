@@ -998,10 +998,9 @@ final class CompatibilityViewModel {
             // 2026-10-07 P0 收口:A 盘 per-chart token(老快照 nil → 后端 403 显式暴露)
             let aToken: String?
             do {
-                // 老盘自动重签·加载期(拍板②):A 盘 ensure token 后再取
-                // payloadContextToken(老快照不再必 403)
-                let baziA = try await self.orchestrator.ensureChartContextTokens(
-                    snapshot: chartA.snapshot)
+                // 存档 decode 后取 payloadContextToken(2026-10-10 起
+                // 加载期 ensure 重签已删,老快照缺 token 由后端 403 暴露)
+                let baziA = try self.orchestrator.decodeChartResponse(snapshot: chartA.snapshot)
                 // 合盘路径必须带 luckPillars(「无运」修复,见 compatibilityPayload 注释)
                 payloadA = ChartPayloadDTO.compatibilityPayload(from: baziA)
                 // S07 拦截判据(单一事实源 = A 盘存档 payload,不重复推断)
@@ -1375,9 +1374,9 @@ final class CompatibilityViewModel {
                 self.retryingIds.remove(summaryId)
             }
             do {
-                // 老盘自动重签·加载期(拍板②):单对重试同款 ensure token
-                let baziA = try await self.orchestrator.ensureChartContextTokens(
-                    snapshot: chartA.snapshot)
+                // 单对重试同款:存档 decode(ensure 入口已删,老快照缺 token
+                // 由后端 403 暴露走既有出口)
+                let baziA = try self.orchestrator.decodeChartResponse(snapshot: chartA.snapshot)
                 let payloadA = ChartPayloadDTO.compatibilityPayload(from: baziA)
                 let newSummary = try await self.computePair(
                     entry: entry,
@@ -1644,8 +1643,8 @@ final class CompatibilityViewModel {
             guard let bChart = archivedCharts.first(where: { $0.snapshotHash == bHash }) else {
                 throw UserFacingError.generic(message: String(localized: "B 盘存档已不存在,请重新选择"))
             }
-            // 老盘自动重签·加载期(拍板②):B 盘 ensure token(老快照不再必 403)
-            let baziB = try await orchestrator.ensureChartContextTokens(
+            // B 盘存档 decode(ensure 入口已删,老快照缺 token 由后端 403 暴露)
+            let baziB = try orchestrator.decodeChartResponse(
                 snapshot: bChart.snapshot)
             // S07:存档 B 盘无时辰(payload 判据,含日柱歧义)→ 该对拦
             // (后端 four_pillars 必含 hour,发了必 422;免费亦拦,见 computePair 文档)
@@ -2030,9 +2029,8 @@ final class CompatibilityViewModel {
         let task = Task<Void, Never> { [weak self] in
             guard let self else { return }
             do {
-                // 老盘自动重签·加载期(拍板②):后台重算同款 ensure token
-                let baziA = try await self.orchestrator.ensureChartContextTokens(
-                    snapshot: chartA.snapshot)
+                // 后台重算同款:存档 decode(ensure 入口已删)
+                let baziA = try self.orchestrator.decodeChartResponse(snapshot: chartA.snapshot)
                 let payloadA = ChartPayloadDTO.compatibilityPayload(from: baziA)
                 // 请求构造镜像 computePair(archived 带存档 B payload;temp 现排)
                 let request: CompatibilityRequest
@@ -2041,7 +2039,7 @@ final class CompatibilityViewModel {
                     guard let bChart = try self.chartStore.get(contentHash: bHash) else {
                         throw UserFacingError.generic(message: String(localized: "对方命盘快照缺失,请重新选择"))
                     }
-                    let baziB = try await self.orchestrator.ensureChartContextTokens(
+                    let baziB = try self.orchestrator.decodeChartResponse(
                         snapshot: bChart)
                     request = CompatibilityRequest(
                         personAHash: chartA.snapshotHash,

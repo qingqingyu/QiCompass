@@ -38,13 +38,13 @@ final class CompatibilityOrchestrator {
         self.interpretationReader = interpretationReader
     }
 
-    /// 老盘自动重签·加载期入口(附八拍板②):A/B 盘 decode 后经此确保
-    /// context_tokens 在档(缺失且有原料时静默重排,hash 断言在 store 内;
-    /// 无原料/失败原样返回旧 response)。合盘生成路径(批量/单对重试/翻译)
-    /// 取 payloadContextToken 前都应经此——老快照不再必 403。
-    func ensureChartContextTokens(snapshot: ChartSnapshot) async throws -> BaziResponse {
-        try await chartStore.ensureContextTokens(
-            snapshot: snapshot, apiClient: apiClient)
+    /// 存档 decode 入口(合盘取 payloadContextToken 前统一经此)。原
+    /// 加载期 ensure 重签入口已删(2026-10-10 核实不可达:token 上线
+    /// 早于补存排盘入参,「有入参却缺 token」的快照不存在)——老快照
+    /// 缺 token 由后端 403 显式暴露,走既有「重新排盘」出口;合盘失效期
+    /// 重签仍为 follow-up(见老盘自动重签落地记录)。
+    func decodeChartResponse(snapshot: ChartSnapshot) throws -> BaziResponse {
+        try chartStore.decodeResponse(from: snapshot)
     }
 
     // MARK: - 阶段 1:确定性合盘

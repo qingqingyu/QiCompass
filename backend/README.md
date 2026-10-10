@@ -9,3 +9,7 @@
   环境自带零动作;**Alpine 容器需 `apk add tzdata`**,否则历史夏令时规则
   (1986-91 中国夏令时等)缺失,启动自检会直接失败(`app/main.py` 探针)。
 - 运行:`./run.sh`;测试:`python3 -m pytest tests/ -q`(根目录 `pytest.ini`)。
+- **`GET /api/health/llm` 需要 Bearer token**(2026-10-10 起未配置
+  `QICOMPASS_LLM_HEALTH_TOKEN` 时端点整体 404,fail-closed):该端点暴露
+  provider 原始错误片段与调用量,只限运维本人查;
+  `curl -H "Authorization: Bearer $QICOMPASS_LLM_HEALTH_TOKEN" .../api/health/llm`。

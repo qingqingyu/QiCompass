@@ -76,7 +76,10 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
     }
 
     /// 已知时辰的完整盘(本文只测 interpret 失败链路,排盘侧固定走 happy path)。
-    private static func makeResponse(hash: String) -> BaziResponse {
+    /// favorableElements 可注入(重签 payload 重建用例:模拟规则演化翻转喜忌)。
+    private static func makeResponse(
+        hash: String, favorableElements: [String] = ["木", "水"]
+    ) -> BaziResponse {
         let pillar = makePillar()
         let ganzhi = GanZhiNaYinDTO(ganZhi: "甲子", nayin: "海中金")
         return BaziResponse(
@@ -88,7 +91,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
             ),
             mingGong: ganzhi, shenGong: ganzhi, taiYuan: ganzhi,
             elementBalance: ElementBalanceDTO(wood: 2, fire: 1, earth: 1, metal: 1, water: 3),
-            favorableElements: ["木", "水"],
+            favorableElements: favorableElements,
             unfavorableElements: ["土"],
             dayMasterStrength: "balanced",
             tiaoshouApplied: false,
@@ -224,15 +227,15 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         XCTAssertEqual(callsAfterSecond, 1, "命中后不得再打后端")
     }
 
-    // MARK: - 老盘自动重签(附八拍板②:加载期 ensure + 失效期 403 重签重试)
+    // MARK: - 老盘自动重签(附八拍板②;2026-10-10 起仅失效期 403 重签重试,
+    // 加载期 ensure 已删:「有入参却缺 token」的快照在生产不可达——token
+    // 上线 10-07 早于补存排盘入参 10-08)
 
-    /// 加载期:老盘 chart 快照无 token + 有重签原料 → runDeterministic 起手
-    /// 静默重排换新 chart token(hash 断言在 store),daily 请求带新 token。
-    func test老盘无chartToken_加载期静默重签_请求带新token() async throws {
+    /// 加载期不再重签(行为锁定):无 token 老盘(理论不可达防御面)→ 零
+    /// 排盘调用直发 daily 请求,token 缺席由后端 403 → 失效期重签兜底
+    /// (下一条用例);mock 后端不校验 token 时首调即成功。
+    func test老盘无chartToken_加载期不重签_直发请求() async throws {
         try seedChart(hash: "daily_resign_a")
-        var fresh = Self.makeResponse(hash: "daily_resign_a")
-        fresh.contextTokens = ["payload": "np"]
-        await api.setCannedCalculate(fresh)
         await api.setDailyFortuneToken("daily-t1")
 
         let (response, fromCache) = try await orchestrator.runDeterministic(
@@ -243,18 +246,20 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         XCTAssertFalse(fromCache)
         XCTAssertEqual(response.contextToken, "daily-t1")
         let calcCalls = await api.calculateAttempts()
-        XCTAssertEqual(calcCalls, 1, "老盘无 token → 恰好一次静默重签排盘")
+        XCTAssertEqual(calcCalls, 0, "加载期重签已删,不得白发排盘请求")
         let requests = await api.recordedDailyFortuneRequests()
-        XCTAssertEqual(
-            requests.first?.contextToken, "np",
-            "daily 请求必须携带重签后的 payload 族 token"
+        XCTAssertNil(
+            requests.first?.contextToken,
+            "快照无 token → 首调直发(nil);403 兜底走失效期重签"
         )
     }
 
     /// 失效期:chart token 在档但被服务端拒(403)→ 静默重签 chart token 后
-    /// 恰好重试一次成功;重签不可用(排盘失败)→ 原样上抛(既有出口)。
-    func test每日token被拒403_静默重签后重试一次() async throws {
-        // chart 快照带「已死」token(加载期 ensure 直返不重签)
+    /// 恰好重试一次成功;重试的 chartPayload 随新 token **一并重建**
+    /// (2026-10-10 外评 #6:规则演化下同 hash 派生字段可能已变,新 token
+    /// 签的是新 payload,只换 token 不换 payload 唯一一次重试必再 403)。
+    func test每日token被拒403_静默重签后重试一次且payload重建() async throws {
+        // chart 快照带「已死」token
         var seeded = Self.makeResponse(hash: "daily_resign_b")
         seeded.contextTokens = ["payload": "old-dead"]
         let request = BaziCalculateRequest(
@@ -269,7 +274,9 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
             hourKnown: true
         )
         _ = try chartStore.upsert(response: seeded, request: request)
-        var fresh = Self.makeResponse(hash: "daily_resign_b")
+        // 重签应答:同 hash + 新 token + **喜忌结论翻转**(模拟规则演化:
+        // contentHash 只含出生信息,派生字段可变)
+        var fresh = Self.makeResponse(hash: "daily_resign_b", favorableElements: ["火", "土"])
         fresh.contextTokens = ["payload": "np2"]
         await api.setCannedCalculate(fresh)
         await api.setDailyFortuneToken("daily-t2")
@@ -290,6 +297,10 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         let requests = await api.recordedDailyFortuneRequests()
         XCTAssertEqual(requests[0].contextToken, "old-dead", "首调用快照里的旧 token")
         XCTAssertEqual(requests[1].contextToken, "np2", "重试携带重签后的新 chart token")
+        XCTAssertEqual(
+            requests[1].chartPayload.favorableElements, ["火", "土"],
+            "重试的 chartPayload 必须随重签 response 重建(而非沿用旧快照派生字段)"
+        )
     }
 
     func test有token快照_正常命中_不打后端() async throws {

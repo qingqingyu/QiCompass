@@ -166,10 +166,12 @@ final class DeepAnalysisViewModel {
     /// 出集(一次性);hydrate 每次整集重derive(替换非合并),换盘/reset 清空。
     private var versionMigrationExempt: Set<ModuleID> = []
 
-    /// 老盘 token 失效重签已尝试的盘(附八拍板②失效期入口,一次/盘/会话):
-    /// 存在 `.contextTokenExpired` 章且 token 仍与失败时同枚 → hydrate 起手
-    /// 静默重排一次;失败(离线/hash 不一致/无原料)不再重试(防每次回前台
-    /// 白发排盘请求),既有「重新排盘」出口接管。
+    /// 老盘 token 失效重签已尝试的盘(附八拍板②,一次/盘/会话;2026-10-10
+    /// 入口从 hydrate 起手重定位到 **403 摄入点**):生成链/翻译链任何一章
+    /// 403 → `recoverFromContextTokenExpiry` 静默重排一次;失败(离线/hash
+    /// 不一致/无原料)不再重试(防每次回前台白发排盘请求),既有「重新排盘」
+    /// 出口接管。原 hydrate 入口要求失效态先存在——冷启动密钥轮换场景
+    /// (moduleStates 全空)永远够不到,已删。
     private var contextTokenReSignAttempted: Set<String> = []
 
     /// 该章重跑是否消耗本地池(2026-10-09 十七轮拍板①:付费章 m2-m7 **不扣
@@ -805,54 +807,24 @@ final class DeepAnalysisViewModel {
             AppLogger.app.info("deepVM.hydrateAndResume.already_hydrating hash=\(response.contentHash, privacy: .public)")
             return
         }
-        // 置位上提(拍板②重签插入点):原「守卫→置位」间全同步无 await,
-        // 重签 await 落在两者之间会开重入窗口——先占 isHydrating 再挂起。
+        // 置位上提(原「守卫→置位」间全同步无 await 的不变量保持):先占
+        // isHydrating 再挂起,重入守卫无窗口。
+        // 老盘自动重签的 hydrate 期入口已删(2026-10-10 外评 #4:该入口
+        // 要求失效态**先**存在,冷启动密钥轮换——最需要它的场景——永远
+        // 够不到,且重签网络请求横在 isHydrating 期间,慢网络时卡住续跑/
+        // 翻译/离线重试):重签统一收敛到 403 摄入点(runSingleV1Module /
+        // runTranslationChain 的 isContextTokenError 分支 →
+        // recoverFromContextTokenExpiry),任何地方的 403 都能就地恢复。
         inflightHydrateCount += 1
         defer { inflightHydrateCount -= 1 }  // 覆盖所有出口(含世代失配自弃)
         isHydrating = true
-        // 老盘自动重签·失效期(附八拍板②,2026-10-09):存在凭证失效章且
-        // token 仍与失败当时同枚(下方降级不会触发——token 本体被服务端
-        // 拒,如 JWT 密钥轮换)→ 静默重排换新 token,一次/盘/会话。成功则
-        // 原位替换 response + .ready 落态(同 hash,换盘守卫不清洗)+ 落档
-        // (store 内 upsert),下方降级循环凭「token ≠ 失败枚」自然降级、
-        // 链用新 token 重试;失败(nil = 无原料/hash 不一致/离线)维持既有
-        // 「重新排盘」出口。
-        var response = response
-        let hasTokenExpiredState = moduleStates.values.contains {
-            if case .contextTokenExpired = $0 { return true }
-            return false
-        } || translationTokenExpired
-        if hasTokenExpiredState,
-           !contextTokenReSignAttempted.contains(response.contentHash) {
-            contextTokenReSignAttempted.insert(response.contentHash)
-            if let fresh = await orchestrator.refreshChartContextTokens(
-                contentHash: response.contentHash),
-               fresh.contentHash == response.contentHash,
-               isCurrentChart(response) {
-                response = fresh
-                if case .ready(_, let sub) = state {
-                    state = .ready(fresh, sub)
-                }
-                AppLogger.app.info(
-                    "deepVM.hydrateAndResume token_resigned hash=\(response.contentHash, privacy: .public) — 失效章凭新 token 降级重试"
-                )
-            }
-        }
-        // 重签 await 窗口内可能已换盘(chart_changed 推进世代+清洗状态):
-        // 旧盘收尾整体丢弃(镜像下方 performRestore 后的同款检查;旧盘的
-        // 降级/输入恢复写进新盘状态 = 跨盘污染)
-        guard hydrateGeneration == generation else {
-            AppLogger.app.warning(
-                "deepVM.hydrateAndResume.stale_generation_after_resign hash=\(response.contentHash, privacy: .public) — 旧盘 hydrate 收尾丢弃"
-            )
-            return
-        }
         // 凭证失效态降级(2026-10-08 第十五轮 #6;十六轮 #4 改条件化):
         // 同 hash 重入(Tab 重挂/补时辰取消回退)时,快照 token 可能已被
         // 任何重算路径 upsert 翻新(排盘确定性 → 同 hash 新 token 内容
-        // 等价)——token 确已翻新(≠ 失败当时那枚,见 failedToken;上方
-        // 重签成功也走这条)的章节降级 .pending,让链用当前 token 重试;
-        // 若 token 仍失效,链首章再 403 回落失效态并断链,有界不多烧。
+        // 等价;今日运势 Tab 的失效期重签也会翻新同一快照)——token 确已
+        // 翻新(≠ 失败当时那枚,见 failedToken)的章节降级 .pending,让链
+        // 用当前 token 重试;若 token 仍失效,链首章再 403 回落失效态并
+        // 断链(403 摄入点会再试一次重签,一次/盘/会话),有界不多烧。
         // **仍同枚则不降级**:token 真失效且重签不可用时,每次进深度页都
         // 白发一次注定 403 的请求,且「重新排盘」指引会被抹掉——保持失效
         // 态等用户重排。翻译链提示条同口径条件清除(失败 token 已记录;
@@ -1382,6 +1354,9 @@ final class DeepAnalysisViewModel {
     /// 下隔离语义不变,纯文档失而复得)
     @MainActor
     private func runV1Chain(response: BaziResponse, generation: Int) async {
+        // 循环内可变副本:403 就地重签(见下方同步点)会把 .ready 换成
+        // 同 hash 新 token 的 response,下游章须用新 token 续链
+        var response = response
         defer {
             // 只有当代链能清标志:旧链(cancel 后在挂起点恢复)不得掐灭新链横幅
             if chainGeneration == generation {
@@ -1425,6 +1400,13 @@ final class DeepAnalysisViewModel {
                 break
             }
             await runSingleV1Module(module, response: response)
+            // 403 就地重签成功时 .ready 已换成新 token 的同 hash response:
+            // 下游章必须改用新 response(旧 token 再请求必 403,而重签额度
+            // 一次/盘/会话已用掉——不同步会让整链从下一章起逐章报废)。
+            if case .ready(let latest, _) = state,
+               latest.contentHash == response.contentHash {
+                response = latest
+            }
             // M0 失败 → 中断链(下游缺 structure_fingerprint 无法跑)
             if module == .m0 && moduleStates[.m0]?.isOk != true {
                 AppLogger.app.warning("deepVM.runV1Chain m0_failed_breaking_chain contentHash=\(response.contentHash, privacy: .public)")
@@ -1641,10 +1623,22 @@ final class DeepAnalysisViewModel {
             // 点了必然再 403——独立态渲染「重新排盘」出口。failedToken 记录
             // 失败当时那枚(十六轮 #4):hydrate 重入据此判「token 是否已翻新」
             // 才降级重试,同枚不再白发注定 403 的请求。
+            // 403 摄入点就地重签(2026-10-10 入口重定位,附八拍板②):token
+            // 本体被服务端拒(密钥轮换)时静默重排换新 token **原位重试本章**;
+            // 重签不可用(nil = 无原料/hash 不一致/离线)维持既有「重新排盘」
+            // 出口。覆盖冷启动轮换场景(此前 hydrate 入口要求失效态先存在,
+            // 永远够不到)。递归深度有界:重签一次/盘/会话,重试再 403 时
+            // attempted 集合已含本盘,直接落失效态。
             if APIError.isContextTokenError(error) {
                 moduleStates[module] = .contextTokenExpired(
                     failedToken: response.contextToken(
                         forModule: module.rawValue))
+                if let fresh = await recoverFromContextTokenExpiry(
+                    response: response) {
+                    await runSingleV1Module(
+                        module, response: fresh, quotaExempt: quotaExempt,
+                        chainGeneration: chainGeneration)
+                }
                 return
             }
             let userError = UserFacingError.from(error, stage: .interpret)
@@ -1669,6 +1663,45 @@ final class DeepAnalysisViewModel {
             return now.contentHash == response.contentHash
         }
         return false
+    }
+
+    /// 凭证失效一次性恢复(403 摄入点调用,附八拍板②入口重定位 2026-10-10):
+    /// 用补存排盘入参静默重排换新 token(hash 断言在 store 内)。成功 →
+    /// 原位换 response(同 hash,.ready 落态)+ 降级全部失效 token 已翻新的
+    /// `.contextTokenExpired` 章 + 条件清翻译提示条,返回新 response 供
+    /// 调用方原位重试;失败(一次/盘/会话已用 / 无原料 / hash 不一致 /
+    /// 排盘失败 / await 期间换盘)→ nil,维持既有「重新排盘」出口。
+    @MainActor
+    private func recoverFromContextTokenExpiry(
+        response: BaziResponse
+    ) async -> BaziResponse? {
+        guard !contextTokenReSignAttempted.contains(response.contentHash) else {
+            return nil
+        }
+        contextTokenReSignAttempted.insert(response.contentHash)
+        guard let fresh = await orchestrator.refreshChartContextTokens(
+            contentHash: response.contentHash),
+            fresh.contentHash == response.contentHash,
+            isCurrentChart(response)
+        else { return nil }
+        if case .ready(_, let sub) = state {
+            state = .ready(fresh, sub)
+        }
+        for (module, moduleState) in moduleStates {
+            if case .contextTokenExpired(let failedToken) = moduleState,
+               fresh.contextToken(forModule: module.rawValue) != failedToken {
+                moduleStates[module] = .pending
+            }
+        }
+        if translationTokenExpired,
+           fresh.contextToken(forModule: ModuleID.m0.rawValue)
+               != translationTokenFailedToken {
+            translationTokenExpired = false
+        }
+        AppLogger.app.info(
+            "deepVM.recoverFromContextTokenExpiry token_resigned hash=\(fresh.contentHash, privacy: .public) — 失效章凭新 token 降级,调用方原位重试"
+        )
+        return fresh
     }
 
     // MARK: - 跨语言翻译执行(D10.4,S7)
@@ -1743,6 +1776,9 @@ final class DeepAnalysisViewModel {
         sourceLanguage: String,
         generation: Int
     ) async {
+        // 循环内可变副本:降级重生成的 403 就地重签会把 .ready 换成同 hash
+        // 新 token 的 response,后续翻译请求须用新 token 续链(见循环内同步点)
+        var response = response
         // staleKey 提前到 defer 之前:defer 要在**所有**出口(含入口自弃)记录
         // 结局,必须先于 defer 可用。
         let staleKey = response.contentHash + "|" + AppLanguage.currentWire
@@ -1835,6 +1871,13 @@ final class DeepAnalysisViewModel {
                     continue
                 }
                 await runSingleV1Module(module, response: response, quotaExempt: true, chainGeneration: generation)
+                // 重生成链内 403 → 就地重签可能已把 .ready 换成同 hash 新
+                // token 的 response:循环内后续请求(翻译/重生成)必须用新
+                // token 续链(与 do/catch 内降级路径的同款同步点)
+                if case .ready(let latest, _) = state,
+                   latest.contentHash == response.contentHash {
+                    response = latest
+                }
                 // 世代复检(2026-10-02 双 review):上方 await 是秒级 interpret
                 // 网络窗,期间换盘/reset 的话 runSingleV1Module 自身同盘守卫
                 // 会静默丢弃(不写 moduleStates)——若继续按 moduleStates 判
@@ -1977,6 +2020,13 @@ final class DeepAnalysisViewModel {
                         DeepStaleM0MarkerPersistence.mark(staleKey)
                     }
                     await runSingleV1Module(module, response: response, quotaExempt: true, chainGeneration: generation)
+                    // 降级重生成链内 403 → 就地重签可能已把 .ready 换成同
+                    // hash 新 token 的 response:后续翻译请求必须用新 token
+                    //(旧 token 再请求必 403,而重签额度一次/盘/会话已用掉)
+                    if case .ready(let latest, _) = state,
+                       latest.contentHash == response.contentHash {
+                        response = latest
+                    }
                     // 世代复检(2026-10-02 双 review,同上方 staleM0Downgraded
                     // 分支):此 await 期间换盘/reset 的话,成败判定与行清除
                     // 都属旧盘收尾,不得落在新盘状态上。
@@ -2002,11 +2052,37 @@ final class DeepAnalysisViewModel {
                 // 必 403,提示条与章首小注的「重试」都是死循环入口——原文保留
                 // 显示 + 提示条改「重新排盘」指引(不入 translationFailedModules,
                 // 章首小注即不渲染);断链:同 token 后续章必再 403,不白烧。
+                // 2026-10-10 入口重定位补链:403 先就地一次性重签(与生成链同款
+                // recoverFromContextTokenExpiry),成功则凭新 response **重入本链**
+                // 续译剩余章(已译章已出 crossLanguageRows,自然跳过);重签不可用
+                // 才落失效指引 + 断链——否则重签只剩「换 Tab 重进触发 hydrate」
+                // 一条窄路,冷启动轮换场景死路。
                 if APIError.isContextTokenError(error) {
+                    moduleStates[module] = .ok(text: source.interpretation, cached: true)
+                    if let fresh = await recoverFromContextTokenExpiry(
+                        response: response) {
+                        guard translationGeneration == generation,
+                              isCurrentChart(fresh)
+                        else { return }
+                        translationTokenExpired = false
+                        AppLogger.app.info(
+                            "deepVM.runTranslationChain token_resigned_resuming module=\(module.rawValue, privacy: .public) — 凭新 token 续译剩余章"
+                        )
+                        await runTranslationChain(
+                            response: fresh,
+                            sourceLanguage: sourceLanguage,
+                            generation: generation
+                        )
+                        return
+                    }
+                    // 重签不可用 / await 期间换盘世代失配:重检后才落失效态
+                    //(失败标记写进新盘 = 跨盘污染)
+                    guard translationGeneration == generation,
+                          isCurrentChart(response)
+                    else { return }
                     AppLogger.app.warning(
                         "deepVM.runTranslationChain.context_token_expired module=\(module.rawValue, privacy: .public) — 原文保留,提示条改重新排盘指引,断链"
                     )
-                    moduleStates[module] = .ok(text: source.interpretation, cached: true)
                     translationTokenExpired = true
                     // 十六轮 #4:记录失败当时那枚,hydrate 重入据此条件清提示条
                     translationTokenFailedToken = response.contextToken(

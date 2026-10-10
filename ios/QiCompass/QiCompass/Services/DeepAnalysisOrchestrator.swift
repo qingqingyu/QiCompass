@@ -262,16 +262,37 @@ final class DeepAnalysisOrchestrator {
     }
 
     /// 老盘 token 失效重签(附八拍板②,失效期入口):章节 403 落
-    /// `.contextTokenExpired` 且 token 与失败时同枚(token 本体失效,如
-    /// 服务端 JWT 密钥轮换)时,VM 经此触发 `ChartSnapshotStore
-    /// .refreshContextTokens`——静默重排换新 token,hash 断言在 store 内。
-    /// 快照缺失(理论不可达:response 在档必有快照)→ nil,不 throw
-    /// (重签是 best-effort 恢复,nil = 维持既有 403 出口)。
+    /// `.contextTokenExpired` 时,VM 在 403 摄入点经此触发
+    /// `ChartSnapshotStore.refreshContextTokens`——静默重排换新 token,
+    /// hash 断言在 store 内。快照读失败 / decode 失败 / 排盘失败 →
+    /// **显式留痕后按 nil 返回**,不 throw(重签是 best-effort 恢复,
+    /// nil = 维持既有 403 出口;但 SwiftData/网络失败必须留日志——静默
+    /// 吞掉违反 CLAUDE.md 错误显式传播,快照写入坏了会无线索)。
     func refreshChartContextTokens(contentHash: String) async -> BaziResponse? {
-        guard let snapshot = try? chartStore.get(contentHash: contentHash)
-        else { return nil }
-        return try? await chartStore.refreshContextTokens(
-            snapshot: snapshot, apiClient: apiClient)
+        let snapshot: ChartSnapshot
+        do {
+            guard let found = try chartStore.get(contentHash: contentHash) else {
+                AppLogger.persistence.warning(
+                    "op=deepOrchestrator.refreshChartContextTokens snapshot_missing hash=\(contentHash, privacy: .public) — 理论不可达(response 在档必有快照),维持既有 403 出口"
+                )
+                return nil
+            }
+            snapshot = found
+        } catch {
+            AppLogger.persistence.error(
+                "op=deepOrchestrator.refreshChartContextTokens snapshot_read_failed hash=\(contentHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+            )
+            return nil
+        }
+        do {
+            return try await chartStore.refreshContextTokens(
+                snapshot: snapshot, apiClient: apiClient)
+        } catch {
+            AppLogger.app.error(
+                "op=deepOrchestrator.refreshChartContextTokens resign_failed hash=\(contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 维持既有 403 出口"
+            )
+            return nil
+        }
     }
 
     // MARK: - 阶段 2 v1:v1 prompt 系统模块化调用(Stage 7b)

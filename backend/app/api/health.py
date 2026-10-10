@@ -1,13 +1,15 @@
 """GET /api/health + GET /api/health/llm。"""
 
+import secrets
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, HTTPException, Request, Response
 
 from ..ai.prompts import PROMPT_VERSIONS
 from ..config import (
     LLM_ALERT_FAILURE_RATE,
     LLM_ALERT_MIN_CALLS,
+    LLM_HEALTH_TOKEN,
     LUNAR_PYTHON_VERSION,
     MODEL_ID,
 )
@@ -83,9 +85,36 @@ def _by_module(counts: dict, provider: str) -> dict:
     return modules
 
 
+def _authorize_llm_health(request: Request) -> None:
+    """/api/health/llm 鉴权(2026-10-10 外评 #2,fail-closed)。
+
+    - token 未配置 → 404:端点返回 provider 原始错误片段(llm_last_error
+      .message,可能含中转地址/上游响应内容)与按模块调用量,属运维敏感
+      信息——反代会转发全部路径,不配置就当端点不存在,不暴露存在性;
+    - token 配置但 Authorization: Bearer 不匹配 → 401;
+    - 比对走 secrets.compare_digest,防时序侧信道逐字节试探。
+    """
+    if not LLM_HEALTH_TOKEN:
+        raise HTTPException(status_code=404, detail="Not Found")
+    auth = request.headers.get("Authorization", "")
+    provided = auth[7:].strip() if auth.startswith("Bearer ") else ""
+    if not provided:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    # 非 ASCII bearer(经 latin-1 头解码可达)会让 compare_digest 抛
+    # TypeError → 500;畸形输入只配 401(对齐 context_binding.verify_token
+    # 的既有收口与回归测试,2026-10-07 review 实测同类)。
+    try:
+        matched = secrets.compare_digest(provided, LLM_HEALTH_TOKEN)
+    except TypeError:
+        matched = False
+    if not matched:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
 @router.get("/api/health/llm")
 def health_llm(request: Request, response: Response) -> dict:
-    """LLM provider 可用性监控(2026-10-09 监控闭环 A 档,运维只读出口)。
+    """LLM provider 可用性监控(2026-10-09 监控闭环 A 档,运维只读出口;
+    2026-10-10 起须 Bearer QICOMPASS_LLM_HEALTH_TOKEN,未配置整体 404)。
 
     数据源 llm_metrics_store(MeteredAIClient 只计真烧 LLM 的调用;口径
     见 app/monitoring/metered.py docstring)。全部按**当前 provider** 过滤
@@ -101,6 +130,7 @@ def health_llm(request: Request, response: Response) -> dict:
     (current_hour 总数 ≥ min_calls 且失败率 ≥ 阈值),与进程内告警日志
     互为印证。
     """
+    _authorize_llm_health(request)
     store: LLMOutcomeStore = request.app.state.llm_metrics_store
     ai_client = request.app.state.ai_client
     response.headers["Cache-Control"] = "no-store"

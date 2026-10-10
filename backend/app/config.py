@@ -264,6 +264,14 @@ if LLM_ALERT_MIN_CALLS <= 0:
     raise ValueError(
         f"QICOMPASS_LLM_ALERT_MIN_CALLS must be positive (got {LLM_ALERT_MIN_CALLS})")
 
+# /api/health/llm 运维只读出口的 Bearer token(2026-10-10 外评 #2):该端点
+# 返回当前 provider/模型身份、按模块调用量与 provider 原始错误信息片段
+# (llm_last_error.message,可能含中转地址/上游响应内容),不得匿名公开。
+# 未配置 → 端点整体 404(fail-closed:连存在性都不暴露);配置后须带
+# Authorization: Bearer <token> 访问,不匹配 → 401。生产用
+# `openssl rand -hex 32` 生成;本地开发想看该端点才配置。
+LLM_HEALTH_TOKEN = os.environ.get("QICOMPASS_LLM_HEALTH_TOKEN") or ""
+
 # ---------- evalkit L3 裁判(S05,2026-08-18;默认回落生成侧,现有部署零感知) ----------
 # 独立 env:同模型自评有系统性偏袒;独立配置才能"用更强的模型当裁判",
 # 也才能做「Anthropic 生成 / OpenAI 裁判」交叉验证。换裁判 = 换一批分数,

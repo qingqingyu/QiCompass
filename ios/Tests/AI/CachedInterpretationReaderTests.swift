@@ -1053,6 +1053,87 @@ final class CachedInterpretationReaderTests: XCTestCase {
         )
     }
 
+    /// 救援锚点收紧(2026-10-10 外评):当前语言 M0 **整行缺席**(如中毒行
+    /// 被清 / M0 翻译 409 后重生成未落),但其它语言的 M0 行是**旧版本**
+    /// (服务端已 bump)→ 旧判据「任意版本锚点即可救援」会放行下游**当前
+    /// 版本**的当前语言行照常回填——它们是旧 M0 血统,新 M0 重生成落键后
+    /// 命书新旧混拼,且下游重算被计费(绕过迁移豁免)。收紧后:锚点旧版
+    /// → 照常切断 + 下游行(本地有任意版本行)进迁移豁免集。
+    func testReadAllForRestoreStaleOtherLanguageAnchorCutsNotRescues() async throws {
+        let container = try ModelContainerFactory.makeInMemory()
+        let store = InterpretationCacheStore(context: container.mainContext)
+        let chain = Array(Self.v1Modules.prefix(3))
+        // M0:zh 无任何行;en 只有 v1 旧版行(服务端 m0 已 bump v2)
+        try store.upsert(
+            contentHash: "h-stale-anchor", module: "m0_structure",
+            promptVersion: 1, targetDate: nil, language: "en",
+            provider: "anthropic", model: "claude-test",
+            interpretation: Self.v1JSON("m0 en 旧版"), generatedAt: .now
+        )
+        // M1/M2:zh 当前版本行(v1 = 服务端当前;血统是旧 M0 驱动的)
+        for module in chain.dropFirst() {
+            try store.upsert(
+                contentHash: "h-stale-anchor", module: module,
+                promptVersion: 1, targetDate: nil, language: "zh",
+                provider: "anthropic", model: "claude-test",
+                interpretation: Self.v1JSON("zh-\(module)"), generatedAt: .now
+            )
+        }
+
+        var health = Self.health(provider: "anthropic", model: "claude-test")
+        health.promptVersions = [
+            "m0_structure": 2, "m1_talent": 1, "m2_high_low": 1,
+        ]
+        // 每次读都独立 resolve 一次 health——两轮场景各建 reader
+        //(ReaderTestAPIClient 的 healthResults 队列一次性消费)
+        func makeReader() -> CachedInterpretationReader {
+            CachedInterpretationReader(
+                identityResolver: AIIdentityResolver(apiClient:
+                    ReaderTestAPIClient(healthResults: [.success(health)])),
+                cacheStore: store
+            )
+        }
+        let outcome = try await makeReader().readAllForRestore(
+            contentHash: "h-stale-anchor", modules: chain, language: "zh"
+        )
+        XCTAssertTrue(
+            outcome.hits.isEmpty,
+            "锚点是其它语言旧版行 → 下游当前语言行不得回填(混拼;实际:\(outcome.hits.keys.sorted()))"
+        )
+        XCTAssertEqual(
+            outcome.migrationRegenModules, ["m1_talent", "m2_high_low"],
+            "下游行是旧血统,切断后照常进迁移豁免(重算非用户过错);M0 本身"
+                + "无 zh 行不进集(交跨语言探测→409→豁免重生成路径)"
+        )
+
+        // 对照面:en 的 M0 行换成当前版本(v2)→ 真跨语言状态,救援恢复
+        try store.upsert(
+            contentHash: "h-stale-anchor-fresh", module: "m0_structure",
+            promptVersion: 2, targetDate: nil, language: "en",
+            provider: "anthropic", model: "claude-test",
+            interpretation: Self.v1JSON("m0 en 当前版"), generatedAt: .now
+        )
+        for module in chain.dropFirst() {
+            try store.upsert(
+                contentHash: "h-stale-anchor-fresh", module: module,
+                promptVersion: 1, targetDate: nil, language: "zh",
+                provider: "anthropic", model: "claude-test",
+                interpretation: Self.v1JSON("zh-\(module)"), generatedAt: .now
+            )
+        }
+        let rescued = try await makeReader().readAllForRestore(
+            contentHash: "h-stale-anchor-fresh", modules: chain, language: "zh"
+        )
+        XCTAssertEqual(
+            Set(rescued.hits.keys), ["m1_talent", "m2_high_low"],
+            "锚点为当前版本行 → 救援恢复,下游当前语言行照常回填"
+        )
+        XCTAssertTrue(
+            rescued.migrationRegenModules.isEmpty,
+            "救援章不标迁移豁免(交翻译流接管)"
+        )
+    }
+
     // MARK: - Helpers
 
     private static func healthOnlyClient(

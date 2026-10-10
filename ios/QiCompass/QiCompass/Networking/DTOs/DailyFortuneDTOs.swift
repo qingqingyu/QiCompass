@@ -16,7 +16,9 @@ import Foundation
 struct DailyFortuneRequest: Codable, Sendable {
     let chartHash: String
     let targetDate: Date
-    let chartPayload: ChartPayloadDTO
+    /// var(2026-10-10):失效期重签成功后随新 token 一并重建(token 签的
+    /// 是当前服务端 payload 视图,规则演化下同 hash 派生字段可能已变)。
+    var chartPayload: ChartPayloadDTO
     /// per-chart token(2026-10-07 P0 收口):该盘排盘响应的
     /// contextTokens["payload"],端点对账后签发当日 daily token。
     var contextToken: String?

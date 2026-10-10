@@ -239,6 +239,7 @@ async def test_metered_success_records_outcome(tmp_metrics_store):
     client = MeteredAIClient(inner, tmp_metrics_store)
 
     text = await client.interpret("prompt", module="m0_structure")
+    await metered_module.wait_for_pending_records()
 
     assert text == "命书"
     assert inner.last_module == "m0_structure"
@@ -262,6 +263,7 @@ async def test_metered_failure_records_reason_and_reraises(
 
     with pytest.raises(AIProviderError) as exc_info:
         await client.interpret("prompt", module="m4_health")
+    await metered_module.wait_for_pending_records()
 
     assert exc_info.value is boom, "异常对象必须原样上抛"
     hour = hour_key(datetime.now(timezone.utc))
@@ -282,6 +284,7 @@ async def test_metered_unexpected_exception_bucket(tmp_metrics_store):
 
     with pytest.raises(RuntimeError) as exc_info:
         await client.interpret("prompt")
+    await metered_module.wait_for_pending_records()
     assert exc_info.value is boom
     hour = hour_key(datetime.now(timezone.utc))
     counts = tmp_metrics_store.get_counts(start_hour=hour, end_hour=hour)
@@ -302,6 +305,7 @@ async def test_metered_store_failure_does_not_break_call(tmp_metrics_store):
     tmp_metrics_store.record_last_error = _boom
     tmp_metrics_store.get_counts = _boom
     text = await client.interpret("prompt", module="m0_structure")
+    await metered_module.wait_for_pending_records()
     assert text == "命书"
 
 
@@ -311,10 +315,14 @@ async def test_metered_store_failure_does_not_break_call(tmp_metrics_store):
 async def test_alert_emits_when_threshold_crossed(
         tmp_metrics_store, monkeypatch, caplog):
     """当前小时桶 ≥min_calls 且失败率 ≥阈值 → ERROR ALERT 恰一次;
-    持续失败受 10min 节流不再刷屏。"""
+    持续失败受 10min 节流不再刷屏。monotonic 钉死在小值:告警判定不依赖
+    机器开机时长(首告警被节流吞的回归锁,2026-10-10 外评 #1)。"""
     import logging
     monkeypatch.setattr(metered_module, "LLM_ALERT_MIN_CALLS", 3)
     monkeypatch.setattr(metered_module, "LLM_ALERT_FAILURE_RATE", 0.5)
+    # 模拟刚开机 89 秒的机器:修复前 get(provider, 0.0) 把「从未告警」当
+    # 「第 0 秒告警过」,89 < 600 → 首告警被吞(开机久的开发机测不出)
+    monkeypatch.setattr(metered_module.time, "monotonic", lambda: 89.0)
     caplog.set_level(logging.ERROR, logger="app.monitoring.metered")
 
     inner = _StubInner()
@@ -325,6 +333,7 @@ async def test_alert_emits_when_threshold_crossed(
     for _ in range(5):  # 5 次全败,率 1.0 ≥ 0.5,total 5 ≥ 3
         with pytest.raises(AIProviderError):
             await client.interpret("prompt", module="m0_structure")
+    await metered_module.wait_for_pending_records()
 
     alerts = [r for r in caplog.records
               if "ALERT llm_failure_rate" in r.message]
@@ -347,6 +356,7 @@ async def test_alert_silent_below_min_calls(
     for _ in range(2):
         with pytest.raises(AIProviderError):
             await client.interpret("prompt")
+    await metered_module.wait_for_pending_records()
     assert not [r for r in caplog.records
                 if "ALERT llm_failure_rate" in r.message]
 
@@ -365,12 +375,14 @@ async def test_alert_resolved_after_recovery(
     for _ in range(2):  # 2/2 全败 → ALERT
         with pytest.raises(AIProviderError):
             await client.interpret("prompt")
+    await metered_module.wait_for_pending_records()
     assert [r for r in caplog.records
             if "ALERT llm_failure_rate" in r.message]
 
     inner.action = ("return", "恢复")
     for _ in range(3):  # 2 败 + 3 成 → 率 0.4 < 0.5
         await client.interpret("prompt")
+    await metered_module.wait_for_pending_records()
     resolved = [r for r in caplog.records
                 if "ALERT_RESOLVED llm_failure_rate" in r.message]
     assert len(resolved) == 1, "恢复恰留痕一次"
@@ -384,7 +396,9 @@ class _HealthStubClient:
     model = "stub-model"
 
 
-async def _get_llm_health(store, ai_client=None):
+async def _get_llm_health(store, ai_client=None, headers=None):
+    """请求 /api/health/llm(鉴权 token 由调用方 monkeypatch health 模块
+    的 LLM_HEALTH_TOKEN + 传 Authorization header;见鉴权测试)。"""
     from httpx import ASGITransport, AsyncClient
     from app.main import app
     saved_store = getattr(app.state, "llm_metrics_store", None)
@@ -396,17 +410,62 @@ async def _get_llm_health(store, ai_client=None):
         async with AsyncClient(
             transport=ASGITransport(app=app), base_url="http://test",
         ) as ac:
-            resp = await ac.get("/api/health/llm")
+            resp = await ac.get("/api/health/llm", headers=headers)
     finally:
         app.state.llm_metrics_store = saved_store
         app.state.ai_client = saved_client
     return resp
 
 
-async def test_health_llm_empty_store(tmp_metrics_store):
+_TEST_LLM_HEALTH_TOKEN = "unit-test-llm-health-token"
+
+
+@pytest.fixture
+def llm_health_token(monkeypatch):
+    """钉住 health 模块的鉴权 token(模块 import 时读 env,测试经属性注入)。"""
+    from app.api import health as health_module
+    monkeypatch.setattr(health_module, "LLM_HEALTH_TOKEN",
+                        _TEST_LLM_HEALTH_TOKEN)
+    return _TEST_LLM_HEALTH_TOKEN
+
+
+async def test_health_llm_auth_fail_closed(tmp_metrics_store, monkeypatch):
+    """鉴权 fail-closed:token 未配置 → 404(端点视为不存在,不暴露存在性);
+    配置后缺 header / 错 token / 非 ASCII 畸形 token → 401;正确 Bearer → 200。"""
+    from app.api import health as health_module
+    monkeypatch.setattr(health_module, "LLM_HEALTH_TOKEN", "")
+
+    resp = await _get_llm_health(tmp_metrics_store, _HealthStubClient())
+    assert resp.status_code == 404, "未配置 token 不得暴露端点存在性"
+
+    monkeypatch.setattr(health_module, "LLM_HEALTH_TOKEN",
+                        _TEST_LLM_HEALTH_TOKEN)
+    no_header = await _get_llm_health(tmp_metrics_store, _HealthStubClient())
+    assert no_header.status_code == 401
+    wrong = await _get_llm_health(
+        tmp_metrics_store, _HealthStubClient(),
+        headers={"Authorization": "Bearer wrong-token"})
+    assert wrong.status_code == 401
+    # 非 ASCII bearer(原始字节直发,httpx 的 str 头会先 ascii 编码拒绝,
+    # 但攻击方不受 httpx 约束;服务端按 latin-1 decode 回非 ASCII str)
+    # 会让 compare_digest 抛 TypeError——畸形输入只配 401,不得 500
+    #(对齐 test_verify_non_ascii_token_rejected 的同类收口)。
+    malformed = await _get_llm_health(
+        tmp_metrics_store, _HealthStubClient(),
+        headers={"Authorization": "Bearer 畸形-token".encode("utf-8")})
+    assert malformed.status_code == 401, malformed.text
+    ok = await _get_llm_health(
+        tmp_metrics_store, _HealthStubClient(),
+        headers={"Authorization": f"Bearer {_TEST_LLM_HEALTH_TOKEN}"})
+    assert ok.status_code == 200, ok.text
+
+
+async def test_health_llm_empty_store(tmp_metrics_store, llm_health_token):
     """空库:零计数、failure_rate=null(不是误导性的 0)、无 last_error、
     告警 inactive——新部署首查不 500。"""
-    resp = await _get_llm_health(tmp_metrics_store, _HealthStubClient())
+    auth = {"Authorization": f"Bearer {llm_health_token}"}
+    resp = await _get_llm_health(tmp_metrics_store, _HealthStubClient(),
+                                 headers=auth)
     assert resp.status_code == 200, resp.text
     body = resp.json()
     assert body["provider"] == "anthropic"
@@ -419,7 +478,8 @@ async def test_health_llm_empty_store(tmp_metrics_store):
     assert body["alert"]["min_calls"] >= 1
 
 
-async def test_health_llm_aggregates_and_alert(tmp_metrics_store, monkeypatch):
+async def test_health_llm_aggregates_and_alert(tmp_metrics_store, monkeypatch,
+                                                llm_health_token):
     """种子计数 → 三窗口聚合 / by_module / last_error / 告警态。
     阈值 monkeypatch 钉死(不吃环境变量):min_calls=5, rate=0.5,
     6 败 1 成 → total 7 ≥ 5、率 6/7 ≥ 0.5 → active。"""
@@ -445,7 +505,9 @@ async def test_health_llm_aggregates_and_alert(tmp_metrics_store, monkeypatch):
         hour=hour, provider="openai", module="m0_structure",
         outcome="success")
 
-    resp = await _get_llm_health(tmp_metrics_store, _HealthStubClient())
+    auth = {"Authorization": f"Bearer {llm_health_token}"}
+    resp = await _get_llm_health(tmp_metrics_store, _HealthStubClient(),
+                                 headers=auth)
     assert resp.status_code == 200, resp.text
     body = resp.json()
 
@@ -467,19 +529,23 @@ async def test_health_llm_aggregates_and_alert(tmp_metrics_store, monkeypatch):
 
 
 async def test_health_llm_last_error_other_provider_hidden(
-        tmp_metrics_store):
+        tmp_metrics_store, llm_health_token):
     """last_error 属旧 provider(切换后)→ 当前视图 null,不误导。"""
     from datetime import datetime, timezone
     tmp_metrics_store.record_last_error(
         occurred_at=datetime.now(timezone.utc).isoformat(),
         provider="openai", module="m4_health", reason="timeout",
         message="OpenAI API 超时")
-    resp = await _get_llm_health(tmp_metrics_store, _HealthStubClient())
+    resp = await _get_llm_health(
+        tmp_metrics_store, _HealthStubClient(),
+        headers={"Authorization": f"Bearer {llm_health_token}"})
     assert resp.status_code == 200, resp.text
     assert resp.json()["last_error"] is None
 
 
-async def test_health_llm_cache_control_no_store(tmp_metrics_store):
+async def test_health_llm_cache_control_no_store(tmp_metrics_store, llm_health_token):
     """禁 HTTP 缓存(与 /api/health 同款,读的是即时监控值)。"""
-    resp = await _get_llm_health(tmp_metrics_store, _HealthStubClient())
+    resp = await _get_llm_health(
+        tmp_metrics_store, _HealthStubClient(),
+        headers={"Authorization": f"Bearer {llm_health_token}"})
     assert resp.headers["Cache-Control"] == "no-store"

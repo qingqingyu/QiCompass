@@ -278,56 +278,62 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
 
     // MARK: - 老盘 token 失效静默重签(附八拍板②,失效期入口)
 
-    /// 章节凭证失效(403,token 本体被拒)且 token 与失败时同枚 → hydrate
-    /// 起手静默重排换新 token(一次/盘/会话),失效章凭「token ≠ 失败枚」
-    /// 自然降级 .pending,链以新 token 重试成功——「重新排盘」显错出口在该
-    /// 场景下消失。重签 hash 断言在 store 层(单测见 AddHourFlowTests)。
-    func testHydrate_凭证失效章_静默重签后降级重试() async throws {
+    /// 章节凭证失效(403,token 本体被拒)→ **403 摄入点**就地静默重排换
+    /// 新 token(一次/盘/会话)并原位重试本章成功——「重新排盘」显错出口
+    /// 在该场景下消失。2026-10-10 入口重定位:原 hydrate 起手入口要求失效
+    /// 态先存在,冷启动密钥轮换(moduleStates 全空)永远够不到;现在首链
+    /// 第一个 403 就地恢复。重签 hash 断言在 store 层(单测见 AddHourFlowTests)。
+    func testChain403_就地静默重签原位重试() async throws {
         let request = Self.beijingRequest()
         let response = try await apiClient.calculateBazi(request: request)
         // 落档排盘入参(拍板②原料;loadArchivedChart 不 upsert,这里模拟既有存档)
         _ = try chartStore.upsert(response: response, request: request)
 
-        // 首链:interpret 403 → m0 落 .contextTokenExpired(failedToken: nil)
-        apiClient.interpretResponder = { _ in
-            throw APIError.backendError(
-                code: "CONTEXT_TOKEN_INVALID", message: "token 失效",
-                requestId: nil)
-        }
-        vm.loadArchivedChart(response: response, request: request)
-        let expired = await waitUntil(timeout: 10) {
-            if case .contextTokenExpired? = self.vm.moduleStates[.m0] {
-                return true
-            }
-            return false
-        }
-        XCTAssertTrue(expired, "首链 403 → m0 落凭证失效态,实际:\(vm.moduleStates)")
-
-        // 静默重签:同 hash 新 token;interpret 恢复默认成功应答
+        // 重签应答:同 hash 新 token(首链 403 触发时就位,重签才能成功)
         var fresh = response
         fresh.contextTokens = ["deep": "nd", "v1": "fresh-v1", "payload": "np"]
         apiClient.calculateResponder = { _ in fresh }
-        apiClient.interpretResponder = nil
         let calculatesBefore = apiClient.recordedCalculateRequests.count
-        vm.loadArchivedChart(response: response, request: request)  // 同 hash 重入
+
+        // interpret:第一次 m0 调用 403(token 被服务端拒),之后恢复成功
+        // (重签后的原位重试必须能走通;对齐 mock 默认 m0 应答,链字段可提取)
+        var interpretCallCount = 0
+        apiClient.interpretResponder = { _ in
+            interpretCallCount += 1
+            if interpretCallCount == 1 {
+                throw APIError.backendError(
+                    code: "CONTEXT_TOKEN_INVALID", message: "token 失效",
+                    requestId: nil)
+            }
+            return InterpretResponse(
+                interpretation: "{\"structure_fingerprint\":\"mock-fp\",\"main_axis\":{},\"core_loop\":{}}",
+                promptVersion: 1,
+                cached: false,
+                generatedAt: .now,
+                provider: "anthropic",
+                model: "mock",
+                language: "zh",
+                translatedFrom: nil)
+        }
+        vm.loadArchivedChart(response: response, request: request)
 
         let recovered = await waitUntil(timeout: 10) {
             self.vm.moduleStates[.m0]?.isOk == true
         }
         XCTAssertTrue(
             recovered,
-            "静默重签 → 失效章降级 .pending → 链以新 token 重试成功,实际:\(vm.moduleStates)"
+            "403 → 就地重签 → 原位重试成功,实际:\(vm.moduleStates)"
         )
+        // 注:上方 seed 的 calculateBazi 也进录制,断言用相对计数
         XCTAssertEqual(
             apiClient.recordedCalculateRequests.count, calculatesBefore + 1,
             "重签恰好一次(一次/盘/会话)"
         )
-        let m0Request = try XCTUnwrap(
-            apiClient.recordedInterpretRequests.last { $0.module == "m0_structure" },
-            "重试必须发出 m0 请求"
-        )
+        let m0Requests = apiClient.recordedInterpretRequests
+            .filter { $0.module == "m0_structure" }
+        XCTAssertEqual(m0Requests.count, 2, "403 一次 + 重签后原位重试一次")
         XCTAssertEqual(
-            m0Request.contextToken, "fresh-v1",
+            m0Requests.last?.contextToken, "fresh-v1",
             "重试必须携带重签后的 v1 族 token"
         )
     }

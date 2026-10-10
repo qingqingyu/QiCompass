@@ -170,7 +170,12 @@ async def lifespan(app: FastAPI):
         apple_kind,
     )
     yield
-    # 无特殊清理(SQLite / httpx 均为短连接)
+    # 后台计数任务收尾(2026-10-10 监控后台化):优雅停机时 join 在飞的
+    # LLM 计数/告警任务,末尾几条监控不随进程退出丢失(暴力停机仍可能丢,
+    # 监控本就是 best-effort,不因此阻塞停机——gather 无超时,任务只剩
+    # SQLite 短连接操作,亚秒级)。
+    from app.monitoring.metered import wait_for_pending_records
+    await wait_for_pending_records()
 
 
 def _build_apple_server_api():

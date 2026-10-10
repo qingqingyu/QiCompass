@@ -185,28 +185,17 @@ final class ChartSnapshotStore {
         )
     }
 
-    // MARK: - 老盘自动重签(附八拍板②,2026-10-09)
-
-    /// 加载期补底:payload 缺 context_tokens 且有重签原料时静默重排换 token;
-    /// 已有 token / 无原料 / 重签失败 → 原样返回旧 response(零行为变化,
-    /// 既有 403「重新排盘」出口接管)。调用方用**返回值**(而非自行 decode)
-    /// 作为生成请求的 response 来源。
-    func ensureContextTokens(
-        snapshot: ChartSnapshot, apiClient: APIClient
-    ) async throws -> BaziResponse {
-        let response = try decodeResponse(from: snapshot)
-        if let tokens = response.contextTokens, !tokens.isEmpty {
-            return response
-        }
-        return try await reSign(
-            snapshot: snapshot, response: response, apiClient: apiClient,
-            reason: "ensure") ?? response
-    }
+    // MARK: - 老盘自动重签(附八拍板②,2026-10-09;2026-10-10 入口重定位)
 
     /// 失效期重签:token 在档但被服务端拒(403,如 JWT 密钥轮换)时由调用方
-    /// 显式触发——无条件重排换新 token。成功返回带新 token 的 response;
-    /// 无原料 / 排盘失败 / hash 不一致 / 新响应仍无 token → **nil**(调用方
-    /// 维持既有 403 出口语义,不新增错误面)。
+    /// 在 **403 摄入点**显式触发——无条件重排换新 token。成功返回带新
+    /// token 的 response;无原料 / 排盘失败 / hash 不一致 / 新响应仍无
+    /// token → **nil**(调用方维持既有 403 出口语义,不新增错误面)。
+    ///
+    /// 加载期 ensure 入口已删(2026-10-10 外评核实为不可达死代码):
+    /// token 上线(10-07)早于补存排盘入参(10-08),「有重签原料但缺
+    /// token」的快照在时间线上不存在——有入参的快照必已有 token,无
+    /// token 的老快照必无入参。重签统一收敛到 403 之后的路径。
     func refreshContextTokens(
         snapshot: ChartSnapshot, apiClient: APIClient
     ) async throws -> BaziResponse? {
@@ -216,13 +205,13 @@ final class ChartSnapshotStore {
             reason: "refresh")
     }
 
-    /// 重签核心(两入口共用):重建排盘请求 → 静默 POST /api/bazi/calculate
-    /// (确定性,不烧 LLM)→ **断言新旧 contentHash 一致才接受**(G 条断言
-    /// 保险:排盘确定性下同输入必同 hash;不一致 = 后端规则演化或原料损坏,
-    /// 重签结果属于「另一张盘」,静默换 token 会张冠李戴破坏内容寻址与
-    /// 缓存/购买绑定)。任一失败路径 → nil(ensure 映射回旧 response;
-    /// refresh 的调用方据此维持既有 403 出口)。decode 失败在两入口上抛
-    /// ——那是快照本体损坏,不是重签能修的。
+    /// 重签核心(refresh 入口专用;原 ensure 加载期入口已删,2026-10-10):
+    /// 重建排盘请求 → 静默 POST /api/bazi/calculate(确定性,不烧 LLM)→
+    /// **断言新旧 contentHash 一致才接受**(G 条断言保险:排盘确定性下同
+    /// 输入必同 hash;不一致 = 后端规则演化或原料损坏,重签结果属于
+    /// 「另一张盘」,静默换 token 会张冠李戴破坏内容寻址与缓存/购买绑定)。
+    /// 任一失败路径 → nil(refresh 的调用方据此维持既有 403 出口)。
+    /// decode 失败在入口上抛——那是快照本体损坏,不是重签能修的。
     private func reSign(
         snapshot: ChartSnapshot,
         response: BaziResponse,

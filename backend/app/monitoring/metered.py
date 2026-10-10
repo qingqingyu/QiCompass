@@ -19,6 +19,12 @@
 store 写失败只记 ERROR 日志、不反噬主路径(监控可用性不能以牺牲主请求
 为代价;对齐 _refund_daily_quota 退款失败只记日志的先例)。
 
+计数与告警评估在**后台任务**里做(2026-10-10 外评 #3):interpret() 返回
+前不再等待 SQLite 写 + 聚合查询——store 短连接 timeout=5s,锁竞争时已经
+成功的 LLM 响应最多被监控拖住 ~10s。后台化后订单仍保持「先 record 后
+evaluate」(同一任务内串行),告警及时性不变;任务持强引用防 GC 中途丢弃,
+`wait_for_pending_records()` 供测试 join 与优雅停机收尾。
+
 计数口径与配额一致:只计真烧 LLM 的调用(缓存命中不进 client 天然
 不计);module 维度由调用方经 interpret(module=...) 传入,None 计
 "unknown"。
@@ -44,6 +50,17 @@ _ALERT_REEMIT_SECONDS = 600.0
 # 进程内告警状态:{provider: 上次 ALERT 发出时刻(monotonic)}。
 # 只做节流与恢复检测,不做跨进程聚合(多 worker 独立,见模块 docstring)。
 _last_alert_emit: dict[str, float] = {}
+
+# 在飞后台计数任务注册表(强引用;完成即出集):fire-and-forget 任务只被
+# 事件循环弱持有,不落强引用可能被 GC 中途丢弃(CPython asyncio 文档口径)。
+_pending_records: set[asyncio.Task] = set()
+
+
+async def wait_for_pending_records() -> None:
+    """join 全部在飞计数/告警任务(测试确定性断言 + 优雅停机收尾用)。"""
+    pending = [t for t in _pending_records if not t.done()]
+    if pending:
+        await asyncio.gather(*pending)
 
 
 class _InnerClient(Protocol):
@@ -88,19 +105,43 @@ class MeteredAIClient:
                 prompt, temperature=temperature, max_tokens=max_tokens,
                 timeout=timeout, module=module)
         except AIProviderError as e:
-            await self._after_call(
-                module, outcome=e.reason, message=e.message)
+            self._spawn_record(module, outcome=e.reason, message=e.message)
             raise
         except Exception as e:
             # client 层契约:一切 provider 侧故障已包成 AIProviderError。
             # 走到这里 = 包装修漏(代码 bug)或环境级意外——可用性兜底
             # 同样计数,异常本身原样上抛。
-            await self._after_call(
+            self._spawn_record(
                 module, outcome="unexpected",
                 message=f"{type(e).__name__}: {e}")
             raise
-        await self._after_call(module, outcome="success")
+        self._spawn_record(module, outcome="success")
         return text
+
+    def _spawn_record(
+        self, module: str | None, *, outcome: str, message: str | None = None,
+    ) -> None:
+        """计数 + 告警评估转后台任务(不阻塞 interpret 返回;见模块 docstring)。
+
+        任务体内 `_record_observed` 已全捕获,异常不会外溢为
+        "Task exception was never retrieved"。
+        """
+        task = asyncio.create_task(
+            self._record_observed(module, outcome=outcome, message=message))
+        _pending_records.add(task)
+        task.add_done_callback(_pending_records.discard)
+
+    async def _record_observed(
+        self, module: str | None, *, outcome: str, message: str | None = None,
+    ) -> None:
+        try:
+            await self._after_call(module, outcome=outcome, message=message)
+        except Exception:
+            # 理论不可达(_after_call/_evaluate_alert 已自捕获);兜底防
+            # 无人 await 的后台任务异常噪音
+            logger.exception(
+                "llm_metrics.record_task_failed provider=%s module=%s "
+                "outcome=%s", self.provider, module, outcome)
 
     async def _after_call(self, module: str | None, *, outcome: str,
                           message: str | None = None) -> None:
@@ -144,8 +185,13 @@ class MeteredAIClient:
         rate = failures / total
         if rate >= LLM_ALERT_FAILURE_RATE:
             now_mono = time.monotonic()
-            if (now_mono - _last_alert_emit.get(self.provider, 0.0)
-                    < _ALERT_REEMIT_SECONDS):
+            # 「从未告警」不节流:last 缺省若取 0.0,会把 monotonic 的基准点
+            # (Linux/macOS = 开机时刻)误当第 0 秒告警过——机器开机不到
+            # _ALERT_REEMIT_SECONDS 时**首次告警被吞**(服务器重启/刚部署
+            # 恰是最需要告警的时刻)。None = 首告警直发(2026-10-10 外评 #1)。
+            last_emit = _last_alert_emit.get(self.provider)
+            if (last_emit is not None
+                    and now_mono - last_emit < _ALERT_REEMIT_SECONDS):
                 return
             _last_alert_emit[self.provider] = now_mono
             logger.error(
