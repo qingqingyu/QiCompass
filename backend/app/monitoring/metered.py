@@ -57,8 +57,28 @@ _pending_records: set[asyncio.Task] = set()
 
 
 async def wait_for_pending_records() -> None:
-    """join 全部在飞计数/告警任务(测试确定性断言 + 优雅停机收尾用)。"""
-    pending = [t for t in _pending_records if not t.done()]
+    """join 全部在飞计数/告警任务(测试确定性断言 + 优雅停机收尾用)。
+
+    跨事件循环残留防御(2026-10-10 review):历史测试若 spawn 后未 join
+    且其事件循环已关闭,done_callback 不会执行,task 残留本集合——不
+    过滤会让下一个无关测试在 join 时抛 "attached to a different loop"
+    (错位归因,难排查)。残留任务在发现时出集 + 记警告;忘 join 的测试
+    自身断言(等 store 写完)仍会红,错误显式不错位。优雅停机路径下
+    任务与本函数同 loop,行为不变。
+    """
+    current_loop = asyncio.get_running_loop()
+    pending: list[asyncio.Task] = []
+    for task in list(_pending_records):
+        if task.done():
+            _pending_records.discard(task)  # 幂等兜底(done_callback 已做)
+            continue
+        if task.get_loop() is not current_loop:
+            logger.warning(
+                "llm_metrics.record_task_orphaned_loop — 计数任务所属"
+                "事件循环已关闭(测试 spawn 后未 join?),残留任务出集跳过")
+            _pending_records.discard(task)
+            continue
+        pending.append(task)
     if pending:
         await asyncio.gather(*pending)
 

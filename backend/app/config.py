@@ -271,6 +271,14 @@ if LLM_ALERT_MIN_CALLS <= 0:
 # Authorization: Bearer <token> 访问,不匹配 → 401。生产用
 # `openssl rand -hex 32` 生成;本地开发想看该端点才配置。
 LLM_HEALTH_TOKEN = os.environ.get("QICOMPASS_LLM_HEALTH_TOKEN") or ""
+if LLM_HEALTH_TOKEN and not LLM_HEALTH_TOKEN.isascii():
+    # fail-fast(2026-10-10 review):Bearer 头经 latin-1 传输,非 ASCII
+    # token 会让 secrets.compare_digest 恒抛 TypeError → 恒 401(端点
+    # 静默不可用且无根因线索)——配置错误在启动时报,不留给运维猜。
+    raise ValueError(
+        "QICOMPASS_LLM_HEALTH_TOKEN must be ASCII-only (Bearer header 是 "
+        "latin-1 字节,非 ASCII 令 compare_digest 恒 TypeError → 端点永远 "
+        "401);请用 `openssl rand -hex 32` 生成")
 
 # ---------- evalkit L3 裁判(S05,2026-08-18;默认回落生成侧,现有部署零感知) ----------
 # 独立 env:同模型自评有系统性偏袒;独立配置才能"用更强的模型当裁判",
