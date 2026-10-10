@@ -3,6 +3,8 @@
 本文档描述从源码到 TestFlight 可安装 build 的完整人工流程。**side project 阶段主路径**:一周一次手动 archive,不上 CI 自动 upload。
 
 > 前置条件清单见 [`README.md`](../README.md#前置条件清单用户做)(Apple Developer Program 会员 / Xcode 登录 / Signing Team / Bundle ID / App Store Connect App)。本文档假设前置条件已全部完成。
+>
+> **后端前置**:TestFlight 测试者打的是线上后端——送测前服务器须部署与送测 build 匹配的后端版本,环境变量与部署口径(反代真实 IP / 服务端配额 / LLM 监控 token / JWT 轮换影响)见 [`backend/README.md`](../backend/README.md) 部署备忘。
 
 ---
 
