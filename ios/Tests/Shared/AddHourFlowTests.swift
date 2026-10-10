@@ -691,6 +691,59 @@ final class AddHourFlowTests: XCTestCase {
         XCTAssertEqual(ok?.contextTokens?["v1"], "again")
     }
 
+    /// 同 hash 并发重签去重(2026-10-10 接线补强):深度 403 摄入点与每日
+    /// 403 重试对同一张盘并发触发 refresh 时只发一次 /calculate,后到者搭车
+    /// 等同一结果(mock calculateBazi 内建 300ms 挂起,去重缺位时必 2 次)。
+    func testRefreshContextTokens_并发同hash_去重只发一次排盘() async throws {
+        let request = Self.reSignArchiveRequest()
+        let old = Self.knownResponse(contentHash: "resign_dedup")
+        _ = try chartStore.upsert(response: old, request: request)
+        let snapshot = try XCTUnwrap(chartStore.get(contentHash: "resign_dedup"))
+
+        var fresh = Self.knownResponse(contentHash: "resign_dedup")
+        fresh.contextTokens = ["v1": "dedup-v1"]
+        apiClient.calculateResponder = { _ in fresh }
+
+        async let a = chartStore.refreshContextTokens(
+            snapshot: snapshot, apiClient: apiClient)
+        async let b = chartStore.refreshContextTokens(
+            snapshot: snapshot, apiClient: apiClient)
+        let (first, second) = try await (a, b)
+
+        XCTAssertEqual(first?.contextTokens?["v1"], "dedup-v1")
+        XCTAssertEqual(second?.contextTokens?["v1"], "dedup-v1")
+        XCTAssertEqual(
+            apiClient.recordedCalculateRequests.count, 1,
+            "同 hash 在飞重签必须合并为一次 /calculate"
+        )
+    }
+
+    /// 会话级注定失败记忆(2026-10-10):hash 不一致一次判负后,本会话内
+    /// 再次 refresh 不再重发注定失败的重签(每日 403 重试路径无 VM 层
+    /// 「一次/盘/会话」预算,不记忆则每次进今日页白发一次);网络类失败
+    /// 不记忆(由 testRefreshContextTokens_排盘失败返回nil_成功返回新token 锁定)。
+    func testRefreshContextTokens_hash不一致_本会话不再重发() async throws {
+        let request = Self.reSignArchiveRequest()
+        let old = Self.knownResponse(contentHash: "resign_hopeless")
+        _ = try chartStore.upsert(response: old, request: request)
+        let snapshot = try XCTUnwrap(chartStore.get(contentHash: "resign_hopeless"))
+
+        var stranger = Self.knownResponse(contentHash: "resign_hopeless_NEW")
+        stranger.contextTokens = ["v1": "x"]
+        apiClient.calculateResponder = { _ in stranger }
+
+        _ = try await chartStore.refreshContextTokens(
+            snapshot: snapshot, apiClient: apiClient)
+        XCTAssertEqual(apiClient.recordedCalculateRequests.count, 1)
+
+        _ = try await chartStore.refreshContextTokens(
+            snapshot: snapshot, apiClient: apiClient)
+        XCTAssertEqual(
+            apiClient.recordedCalculateRequests.count, 1,
+            "注定失败(hash 不一致)本会话记忆,不重发"
+        )
+    }
+
     private func XCTUnwrapAsync<T>(_ expression: @autoclosure () async throws -> T?,
                                    _ message: String = "") async throws -> T {
         let value = try await expression()

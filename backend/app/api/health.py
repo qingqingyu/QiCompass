@@ -1,5 +1,6 @@
 """GET /api/health + GET /api/health/llm。"""
 
+import re
 import secrets
 from datetime import datetime, timedelta, timezone
 
@@ -156,6 +157,13 @@ def health_llm(request: Request, response: Response) -> dict:
         # 与全端点口径一致:只看当前 provider(切换后旧 provider 的
         # 最近失败不再展示,避免误判当前可用性)
         last_error = None
+    if last_error is not None:
+        # URL 脱敏(2026-10-10):httpx 异常文本可能带上游 endpoint(如中转
+        # 网关地址)——运维排障要 reason/类型,不需要具体 URL;出口层脱敏,
+        # DB 存原文(health 之外的排障通道仍可见全量)。鉴权之外的第二道
+        # 纵深:令牌一旦泄漏,中转拓扑不随之裸奔。
+        last_error["message"] = re.sub(r"https?://\S+", "[url]",
+                                       last_error["message"])
 
     return {
         "provider": ai_client.provider,

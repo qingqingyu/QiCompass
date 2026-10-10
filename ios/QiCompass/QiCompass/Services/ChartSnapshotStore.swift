@@ -187,6 +187,18 @@ final class ChartSnapshotStore {
 
     // MARK: - 老盘自动重签(附八拍板②,2026-10-09;2026-10-10 入口重定位)
 
+    /// 同 hash 在飞重签任务(2026-10-10 接线补强):深度 403 摄入点与每日
+    /// 403 重试对同一张盘并发触发 refresh 时,同 hash 只发一次 /calculate,
+    /// 后到者直接搭车等结果(任务为非结构化 Task,不随首个调用方取消)。
+    private var inFlightReSigns: [String: Task<BaziResponse?, Never>] = [:]
+
+    /// 本会话内**注定失败**的盘(2026-10-10 接线补强):hash 不一致 /
+    /// 后端不回 token / 无原料三类结局由后端状态决定,重试必然同结果——
+    /// 记住后本会话不再重发(每日 403 重试路径无 VM 层「一次/盘/会话」
+    /// 预算,hash 不一致的盘每次进今日页都会白发一次注定失败的排盘)。
+    /// 网络类失败(calculate_failed)**不记忆**:离线恢复后可再试。
+    private var reSignHopelessHashes: Set<String> = []
+
     /// 失效期重签:token 在档但被服务端拒(403,如 JWT 密钥轮换)时由调用方
     /// 在 **403 摄入点**显式触发——无条件重排换新 token。成功返回带新
     /// token 的 response;无原料 / 排盘失败 / hash 不一致 / 新响应仍无
@@ -205,6 +217,38 @@ final class ChartSnapshotStore {
             reason: "refresh")
     }
 
+    /// 重签入口(会话级注定失败短路 + 同 hash 在飞去重后进 `performReSign`)。
+    private func reSign(
+        snapshot: ChartSnapshot,
+        response: BaziResponse,
+        apiClient: APIClient,
+        reason: String,
+    ) async throws -> BaziResponse? {
+        let hash = snapshot.contentHash
+        if reSignHopelessHashes.contains(hash) {
+            AppLogger.persistence.info(
+                "op=chartSnapshot.re_sign skip reason=session_hopeless hash=\(hash, privacy: .public) trigger=\(reason, privacy: .public) — 本会话已判注定失败,不再重发(重新排盘即恢复)"
+            )
+            return nil
+        }
+        if let inFlight = inFlightReSigns[hash] {
+            AppLogger.persistence.info(
+                "op=chartSnapshot.re_sign dedup_join hash=\(hash, privacy: .public) trigger=\(reason, privacy: .public) — 搭乘同 hash 在飞重签"
+            )
+            return await inFlight.value
+        }
+        // 非结构化 Task:不继承调用方取消(搭车者仍需结果);本类 @MainActor,
+        // Task 同在主 actor,落档无跨线程问题
+        let task = Task { [weak self] () -> BaziResponse? in
+            await self?.performReSign(
+                snapshot: snapshot, response: response,
+                apiClient: apiClient, reason: reason) ?? nil
+        }
+        inFlightReSigns[hash] = task
+        defer { inFlightReSigns[hash] = nil }
+        return await task.value
+    }
+
     /// 重签核心(refresh 入口专用;原 ensure 加载期入口已删,2026-10-10):
     /// 重建排盘请求 → 静默 POST /api/bazi/calculate(确定性,不烧 LLM)→
     /// **断言新旧 contentHash 一致才接受**(G 条断言保险:排盘确定性下同
@@ -212,15 +256,20 @@ final class ChartSnapshotStore {
     /// 「另一张盘」,静默换 token 会张冠李戴破坏内容寻址与缓存/购买绑定)。
     /// 任一失败路径 → nil(refresh 的调用方据此维持既有 403 出口)。
     /// decode 失败在入口上抛——那是快照本体损坏,不是重签能修的。
-    private func reSign(
+    /// **落档是尽力而为**(2026-10-10):save/encode 失败不反噬重签——
+    /// 返回值仍带新 token 服务本次生成,存档保持旧貌下次再试,错误显式
+    /// 记日志(重签本就是 best-effort 恢复,落档失败把已到手的恢复抹成
+    /// 「整盘加载失败」才是放大事故)。
+    private func performReSign(
         snapshot: ChartSnapshot,
         response: BaziResponse,
         apiClient: APIClient,
         reason: String,
-    ) async throws -> BaziResponse? {
+    ) async -> BaziResponse? {
         guard let request = Self.reSignRequest(
             snapshot: snapshot, response: response)
         else {
+            reSignHopelessHashes.insert(snapshot.contentHash)
             AppLogger.persistence.info(
                 "op=chartSnapshot.re_sign skip reason=no_materials hash=\(snapshot.contentHash, privacy: .public) trigger=\(reason, privacy: .public) — 更早快照无排盘入参,维持既有「重新排盘」出口"
             )
@@ -230,19 +279,23 @@ final class ChartSnapshotStore {
         do {
             fresh = try await apiClient.calculateBazi(request: request)
         } catch {
+            // 网络类失败不进 hopeless 集:离线恢复后仍可重试
             AppLogger.app.info(
                 "op=chartSnapshot.re_sign skip reason=calculate_failed hash=\(snapshot.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 老盘维持既有 403 出口"
             )
             return nil
         }
         guard fresh.contentHash == snapshot.contentHash else {
-            // G 条断言保险:不一致 = 换盘而非重签,绝不静默接受新 token
+            // G 条断言保险:不一致 = 换盘而非重签,绝不静默接受新 token;
+            // 结局确定性(后端规则演化)→ 本会话不再重试
+            reSignHopelessHashes.insert(snapshot.contentHash)
             AppLogger.app.warning(
                 "op=chartSnapshot.re_sign hash_mismatch old=\(snapshot.contentHash, privacy: .public) new=\(fresh.contentHash, privacy: .public) trigger=\(reason, privacy: .public) — 不接受新 token,既有「重新排盘」出口接管"
             )
             return nil
         }
         guard let freshTokens = fresh.contextTokens, !freshTokens.isEmpty else {
+            reSignHopelessHashes.insert(snapshot.contentHash)
             AppLogger.app.info(
                 "op=chartSnapshot.re_sign skip reason=fresh_without_tokens hash=\(snapshot.contentHash, privacy: .public) — 后端未回 token,不覆盖存档"
             )
@@ -250,10 +303,28 @@ final class ChartSnapshotStore {
         }
         // 后端不回显的存档侧字段补齐后再落档/返回:lateNight/archived* 由
         // upsert 从 request 注入 payload;hourUnknownAccepted(S10 静默偏好)
-        // 无注入路径,须显式带上防覆盖丢失。createdAt 由 upsert 保留。
+        // 无注入路径,须显式带上防覆盖丢失——**落盘前重读当前 payload**
+        // (2026-10-10):重签网络等待期间用户可能刚切换「我确实不知道」
+        // (setHourUnknownAccepted 已落盘),用请求前的旧值覆盖会静默丢
+        // 用户设置;重读失败(等待期间 payload 被写坏,理论不可达)留痕
+        // 沿用入口值,不反噬重签。createdAt 由 upsert 保留。
         var archivable = fresh
-        archivable.hourUnknownAccepted = response.hourUnknownAccepted
-        _ = try upsert(response: archivable, request: request)
+        do {
+            archivable.hourUnknownAccepted = try decodeResponse(from: snapshot)
+                .hourUnknownAccepted
+        } catch {
+            AppLogger.persistence.error(
+                "op=chartSnapshot.re_sign reread_accepted_failed hash=\(snapshot.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 静默偏好沿用重签前值"
+            )
+            archivable.hourUnknownAccepted = response.hourUnknownAccepted
+        }
+        do {
+            _ = try upsert(response: archivable, request: request)
+        } catch {
+            AppLogger.persistence.error(
+                "op=chartSnapshot.re_sign persist_failed hash=\(snapshot.contentHash, privacy: .public) trigger=\(reason, privacy: .public) error=\(String(describing: error), privacy: .public) — 新 token 仅本次返回生效,存档未更新(下次加载再试)"
+            )
+        }
         archivable.lateNight = response.lateNight
         archivable.archivedBirthDatetime = request.birthDatetime
         archivable.archivedGeonameId = request.geonameId

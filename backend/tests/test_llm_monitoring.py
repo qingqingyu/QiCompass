@@ -580,3 +580,26 @@ async def test_translate_records_prefixed_module_dimension(
     assert resp.status_code == 200, resp.text
     assert mock_ai_client.last_module == "translate:m0_structure", (
         "翻译调 LLM 的监控维度必须与生成分桶(translate: 前缀)")
+
+
+# ===== 7. last_error URL 脱敏(2026-10-10,鉴权之外的第二道纵深) =====
+
+
+async def test_health_llm_last_error_urls_redacted(
+        tmp_metrics_store, llm_health_token):
+    """last_error.message 的 URL 脱敏(2026-10-10):httpx 异常文本带上游
+    endpoint(如中转网关地址)时,出口只留 [url] 占位——鉴权之外的第二道
+    纵深,令牌泄漏也不随之暴露中转拓扑。DB 存原文,仅出口层脱敏。"""
+    from datetime import datetime, timezone
+    tmp_metrics_store.record_last_error(
+        occurred_at=datetime.now(timezone.utc).isoformat(),
+        provider="anthropic", module="m4_health", reason="network",
+        message="Anthropic API 调用失败(ConnectError): "
+                "https://secret-gateway.example/api/anthropic 连接被拒")
+    resp = await _get_llm_health(
+        tmp_metrics_store, _HealthStubClient(),
+        headers={"Authorization": f"Bearer {llm_health_token}"})
+    assert resp.status_code == 200, resp.text
+    message = resp.json()["last_error"]["message"]
+    assert "secret-gateway.example" not in message
+    assert "[url]" in message
