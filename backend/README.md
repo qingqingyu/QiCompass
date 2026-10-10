@@ -41,7 +41,7 @@
 |---|---|---|
 | `QICOMPASS_FREE_DAILY_LIMIT` | 150 | 免费 module 每日上限,只计真烧 LLM(缓存命中不计) |
 | `QICOMPASS_PAID_DAILY_LIMIT` | 500 | 付费按购买主体独立分桶,与免费互不挤兑,拦脚本滥用 |
-| `QICOMPASS_REFUND_DAILY_LIMIT` | 5 | 分类退(服务商故障/截断/翻译保真失败退,禁词类不退)的每日退款上限,堵「构造失败免费烧 LLM」 |
+| `QICOMPASS_REFUND_DAILY_LIMIT` | 5 | 分类退(服务商故障/截断/翻译保真失败退;禁词、合盘保真失败等用户可触发失败不退,明细见 `.env.example`)的每日退款上限,堵「构造失败免费烧 LLM」 |
 
 ### LLM 监控(2026-10-09 A 档 + 10-10 鉴权收口)
 
@@ -52,8 +52,8 @@
   靠日志平台 grep / hook 该锚点。
 - 出口:**`GET /api/health/llm` 需要 Bearer token**——未配置
   `QICOMPASS_LLM_HEALTH_TOKEN` 时端点整体 404(fail-closed,不暴露存在性);
-  配置后须带 `Authorization: Bearer <token>`(token 仅 ASCII,含空白启动
-  即拒)。该端点暴露 provider 身份/按模块调用量/provider 原始错误片段
+  配置后须带 `Authorization: Bearer <token>`(token 仅 ASCII、无首尾空白,
+  违者启动即拒)。该端点暴露 provider 身份/按模块调用量/provider 原始错误片段
   (URL 已脱敏),只限运维本人查:
   `curl -H "Authorization: Bearer $QICOMPASS_LLM_HEALTH_TOKEN" .../api/health/llm`
 
@@ -63,8 +63,9 @@
 `app/context_binding.py`)同源——轮换密钥时:
 
 1. **登录会话**:所有已发 JWT 立即失效,用户需重新登录;
-2. **context_token**:老 token 全部 403。客户端自愈路径:深度解析/每日运势
-   在 403 摄入点静默重签恢复(有补存排盘入参的盘),更老的盘与合盘走既有
-   「重新排盘」出口;
+2. **context_token**:老 token 全部 403。客户端自愈路径分模块——深度解析
+   在 403 摄入点**就地静默重签**(有补存排盘入参的盘,一次/盘/会话);每日
+   运势 403 时清失效 token,当次显示失效态、**下次进入**重签自愈;更老的盘
+   与合盘走既有「重新排盘」出口;
 3. 服务端**无需清理任何存储**(无孤儿化);但轮换后短时间内 iOS 端会有一波
    403 + 重排盘流量,**选低峰执行**。
