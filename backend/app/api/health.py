@@ -98,7 +98,12 @@ def _authorize_llm_health(request: Request) -> None:
     if not LLM_HEALTH_TOKEN:
         raise HTTPException(status_code=404, detail="Not Found")
     auth = request.headers.get("Authorization", "")
-    provided = auth[7:].strip() if auth.startswith("Bearer ") else ""
+    # scheme 大小写不敏感(RFC 7235),解析对齐仓内既有 JWT 侧
+    # (app/auth/dependencies.py 的 split + lower)——curl 小写 bearer
+    # 在 JWT 端点可用、本端点却恒 401 的行为分叉不要。
+    parts = auth.split(maxsplit=1)
+    provided = (parts[1].strip()
+                if len(parts) == 2 and parts[0].lower() == "bearer" else "")
     if not provided:
         raise HTTPException(status_code=401, detail="Unauthorized")
     # 非 ASCII bearer(经 latin-1 头解码可达)会让 compare_digest 抛

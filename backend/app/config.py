@@ -279,6 +279,15 @@ if LLM_HEALTH_TOKEN and not LLM_HEALTH_TOKEN.isascii():
         "QICOMPASS_LLM_HEALTH_TOKEN must be ASCII-only (Bearer header 是 "
         "latin-1 字节,非 ASCII 令 compare_digest 恒 TypeError → 端点永远 "
         "401);请用 `openssl rand -hex 32` 生成")
+if LLM_HEALTH_TOKEN != LLM_HEALTH_TOKEN.strip():
+    # fail-fast(同上类别,2026-10-10 review 二轮):鉴权侧对请求 token 做
+    # .strip() 而配置侧不 strip——首尾空白(CRLF .env 的经典事故)会让
+    # compare_digest 恒 False → 端点静默永远 401,与非 ASCII 同属「配置
+    # 错误静默不可用」,启动时报不留给运维猜。
+    raise ValueError(
+        "QICOMPASS_LLM_HEALTH_TOKEN 首尾不得有空白(请求侧 token 会 "
+        "strip 而配置侧不 strip → compare_digest 恒不匹配,端点永远 401);"
+        "请检查 .env 行尾换行/引号内空格")
 
 # ---------- evalkit L3 裁判(S05,2026-08-18;默认回落生成侧,现有部署零感知) ----------
 # 独立 env:同模型自评有系统性偏袒;独立配置才能"用更强的模型当裁判",

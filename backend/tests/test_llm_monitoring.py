@@ -14,6 +14,8 @@
 
 from __future__ import annotations
 
+import types
+
 import httpx
 import pytest
 
@@ -323,8 +325,13 @@ async def test_alert_emits_when_threshold_crossed(
     monkeypatch.setattr(metered_module, "LLM_ALERT_MIN_CALLS", 3)
     monkeypatch.setattr(metered_module, "LLM_ALERT_FAILURE_RATE", 0.5)
     # 模拟刚开机 89 秒的机器:修复前 get(provider, 0.0) 把「从未告警」当
-    # 「第 0 秒告警过」,89 < 600 → 首告警被吞(开机久的开发机测不出)
-    monkeypatch.setattr(metered_module.time, "monotonic", lambda: 89.0)
+    # 「第 0 秒告警过」,89 < 600 → 首告警被吞(开机久的开发机测不出)。
+    # 补丁打在 metered 命名空间的 time 引用上(而非 stdlib time 模块本体
+    # ——那是全进程共享的,asyncio loop.time()/任何 sleep 都吃它,冻结后
+    # 被测链路一旦引入定时器测试就从红变永久挂起)
+    monkeypatch.setattr(
+        metered_module, "time",
+        types.SimpleNamespace(monotonic=lambda: 89.0))
     caplog.set_level(logging.ERROR, logger="app.monitoring.metered")
 
     inner = _StubInner()
@@ -460,6 +467,42 @@ async def test_health_llm_auth_fail_closed(tmp_metrics_store, monkeypatch):
         tmp_metrics_store, _HealthStubClient(),
         headers={"Authorization": f"Bearer {_TEST_LLM_HEALTH_TOKEN}"})
     assert ok.status_code == 200, ok.text
+    # scheme 大小写不敏感(RFC 7235,对齐 app/auth/dependencies.py 的 JWT
+    # 侧 split+lower 解析):小写 bearer + 正确 token 不得 401——修复前
+    # startswith("Bearer ") 严格匹配,curl 小写 bearer 在 JWT 端点可用、
+    # 本端点却恒 401 的行为分叉。
+    ok_lower = await _get_llm_health(
+        tmp_metrics_store, _HealthStubClient(),
+        headers={"Authorization": f"bearer {_TEST_LLM_HEALTH_TOKEN}"})
+    assert ok_lower.status_code == 200, ok_lower.text
+
+
+def test_llm_health_token_malformed_fails_fast_at_startup():
+    """token 配置错误启动即崩(2026-10-10 fail-fast 家族,env 快照 + reload
+    对齐 test_evalkit_config 模式):非 ASCII(Bearer 头 latin-1 传输 →
+    compare_digest 恒 TypeError → 恒 401)与首尾空白(请求侧 strip 而配置
+    侧不 strip → compare_digest 恒不匹配 → 恒 401)都属「端点静默永远
+    不可用且无根因线索」,配置错误在启动时报,不留给运维猜。"""
+    import importlib
+    import os
+
+    import app.config as cfg
+    saved = os.environ.get("QICOMPASS_LLM_HEALTH_TOKEN")
+    try:
+        os.environ["QICOMPASS_LLM_HEALTH_TOKEN"] = "令牌-非ascii"
+        with pytest.raises(ValueError, match="ASCII-only"):
+            importlib.reload(cfg)
+        os.environ["QICOMPASS_LLM_HEALTH_TOKEN"] = "trailing-newline\n"
+        with pytest.raises(ValueError, match="首尾不得有空白"):
+            importlib.reload(cfg)
+    finally:
+        # 恢复 env 后 reload 回进程初始状态(失败 reload 留下的部分绑定
+        # 一并复位;其他模块 from-import 持有的是首轮对象,值相等无漂移)
+        if saved is None:
+            os.environ.pop("QICOMPASS_LLM_HEALTH_TOKEN", None)
+        else:
+            os.environ["QICOMPASS_LLM_HEALTH_TOKEN"] = saved
+        importlib.reload(cfg)
 
 
 async def test_health_llm_empty_store(tmp_metrics_store, llm_health_token):
