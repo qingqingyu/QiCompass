@@ -728,17 +728,17 @@ final class CachedInterpretationReaderTests: XCTestCase {
                 ReaderTestAPIClient(healthResults: [.success(healthM2Bumped)])),
             cacheStore: store
         ).readAllForRestore(contentHash: "h-deps", modules: Self.v1Modules, language: "zh")
-        // M2 缺行:依赖 M2 的 M6、依赖 M6/M2 的 M7 被切断;M3(deps m0)/
-        // M4(deps m0)/M5(deps m0/m1/m3)不受影响
+        // M2 缺行:v3 加粗链条(2026-10-10)后 M3 依赖 M1+M2,M5 依赖 M3 →
+        // 切断集 = M2/M3/M5/M6/M7;M4(deps m0/m1)不受影响
         XCTAssertEqual(
             Set(m2Bumped.hits.keys),
-            ["m0_structure", "m1_talent", "m3_system", "m4_health", "m5_wealth"],
-            "M2 缺行只切断依赖它的 M6/M7;M3/M4/M5 照常回填"
+            ["m0_structure", "m1_talent", "m4_health"],
+            "M2 缺行切断依赖它的 M3/M6/M7 及传递依赖方 M5;M4 照常回填"
         )
         XCTAssertEqual(
-            m2Bumped.migrationRegenModules,
-            ["m2_high_low", "m6_dynamics", "m7_manual"],
-            "缺行的 M2 与血统过期的 M6/M7 均为版本迁移重生成"
+            Set(m2Bumped.migrationRegenModules),
+            ["m2_high_low", "m3_system", "m5_wealth", "m6_dynamics", "m7_manual"],
+            "缺行的 M2 与血统过期的 M3/M5/M6/M7 均为版本迁移重生成"
         )
 
         // M0 bump(版本迁移旗舰场景,附七 #1):M7 的声明依赖不含 M0
@@ -811,8 +811,9 @@ final class CachedInterpretationReaderTests: XCTestCase {
         )
 
         // 场景 2:M1 版本落后(服务端 v2,本地 v1 行被版本过滤)→ 只切断
-        // 传递依赖方 m2/m5/m6/m7;不依赖 M1 的 m0/m3/m4 照常回填。
-        // m2/m5/m6/m7 本地有行 → 全进迁移集;m1 有 v1 行也在集内
+        // 传递依赖方。v3 加粗链条(2026-10-10)后 M3/M4 也依赖 M1 →
+        // 切断集 = m2/m3/m4/m5/m6/m7;独立于 M1 的只有 m0。
+        // 各被切断章本地有行 → 全进迁移集;m1 有 v1 行也在集内
         let h2 = "h-dep-cut-m1"
         for module in Self.v1Modules {
             try seed(h2, module)
@@ -823,13 +824,14 @@ final class CachedInterpretationReaderTests: XCTestCase {
         ]).readAllForRestore(contentHash: h2, modules: Self.v1Modules, language: "zh")
         XCTAssertEqual(
             Set(m1Stale.hits.keys),
-            ["m0_structure", "m3_system", "m4_health"],
-            "M1 miss 只切断依赖方(m2/m5/m6/m7),m3/m4 独立于 M1 须回填(实际:\(m1Stale.hits.keys.sorted()))"
+            ["m0_structure"],
+            "M1 miss 切断全部依赖方 m2-m7(v3 起 m3/m4 也依赖 M1),仅 m0 回填(实际:\(m1Stale.hits.keys.sorted()))"
         )
         XCTAssertEqual(
-            m1Stale.migrationRegenModules,
-            ["m1_talent", "m2_high_low", "m5_wealth", "m6_dynamics", "m7_manual"],
-            "缺行的 M1 与血统过期的四个依赖方均为版本迁移重生成"
+            Set(m1Stale.migrationRegenModules),
+            ["m1_talent", "m2_high_low", "m3_system", "m4_health",
+             "m5_wealth", "m6_dynamics", "m7_manual"],
+            "缺行的 M1 与血统过期的六个依赖方均为版本迁移重生成"
         )
     }
 

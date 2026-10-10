@@ -103,8 +103,12 @@ enum ModuleID: String, CaseIterable, Codable, Sendable {
         case .m0: return []
         case .m1: return [.m0]
         case .m2: return [.m0, .m1]
-        case .m3: return [.m0]
-        case .m4: return [.m0]
+        // v3(2026-10-10 L1 加粗链条):M3/M4 的 requiredChainFields 加厚,
+        // 依赖图随之扩边(M3 消费 m1 的 innate + m2 的 threshold;M4 消费
+        // m1 的 innate)。链一致守卫的切断范围(transitiveDependents)自动
+        // 跟随本表;M4/M5 仍无人依赖,断链切断语义不变。
+        case .m3: return [.m0, .m1, .m2]
+        case .m4: return [.m0, .m1]
         case .m5: return [.m0, .m1, .m3]
         case .m6: return [.m0, .m1, .m2]
         case .m7: return [.m1, .m2, .m3, .m6]
@@ -146,9 +150,13 @@ enum ModuleID: String, CaseIterable, Codable, Sendable {
         switch self {
         case .m0: return []
         case .m1: return ["main_axis", "core_loop"]
-        case .m2: return ["innate", "defensive"]
-        case .m3: return []
-        case .m4: return []
+        // v3(2026-10-10 L1 加粗链条)起 m2/m3/m4 注入集加厚,与 backend
+        // REQUIRED_FIELDS + interpret._V1_SOURCE_WALK_DEPS 三处镜像,
+        // check_prompt_sync ③ 锁相等。M3 是链上最薄一章(此前只有 40 字
+        // fingerprint,与 M0-M2 割裂最重);M4 恢复杠杆对齐 energy=gain 天赋。
+        case .m2: return ["core_loop", "innate", "defensive"]
+        case .m3: return ["main_axis", "core_loop", "innate", "threshold"]
+        case .m4: return ["innate"]
         case .m5: return ["innate", "ideal_life_structure"]
         case .m6: return ["core_loop", "innate", "defensive", "threshold"]
         case .m7: return ["one_leverage", "switch_actions", "environment_checklist", "leverage"]

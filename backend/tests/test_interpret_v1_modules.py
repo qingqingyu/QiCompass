@@ -477,6 +477,7 @@ def test_entitlement_base_module_unknown_raises_runtime_error():
 _V1_M2_CONTEXT = {
     "chart": '{"pillars": "test-chart"}',
     "structure_fingerprint": "fp-test",
+    "core_loop": '{"from":"A","to":"B"}',
     "innate": '["天赋A"]',
     "defensive": '["防御B"]',
 }

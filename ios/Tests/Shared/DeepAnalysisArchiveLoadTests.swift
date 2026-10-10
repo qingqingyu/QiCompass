@@ -354,6 +354,10 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
     private static let m1ChainCacheJSON =
         "{\"innate\":{\"behavior\":\"对结构敏感\",\"trained_by\":\"复盘\"},\"one_leverage\":\"把敏感变成产出\"}"
 
+    /// M2 链字段夹具(v3 起M3/M6 必带 threshold;switch_actions 供 M7)。
+    private static let m2ChainCacheJSON =
+        "{\"threshold\":{\"environment\":{\"enables\":\"自主空间\"}},\"switch_actions\":[\"每周复盘\"]}"
+
     /// M3 链字段夹具(M5 必带 ideal_life_structure)。
     private static let m3ChainCacheJSON =
         "{\"ideal_life_structure\":{\"节奏\":\"上午深活\"}}"
@@ -578,11 +582,12 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         XCTAssertFalse(vm.isChainRunning, "守卫应 skip(reason=daily_limit),不起链")
     }
 
-    /// M1(扣次章)受阻 + M0 已成 + 已购:M3 免扣可跑,链经 quotaFreeAhead
-    /// **继续**跑 M3(十七轮付费链续跑语义,新判据不得过紧拦掉)——M1
-    /// 本地抛达限一次性落 .failed(无网络成本),M2 缺 defensive 停 pending,
-    /// M3 真实请求照发(免扣 ≠ 不发)。
-    func testResume本地池耗尽_M1受阻_付费链经quotaFreeAhead续跑M3() async throws {
+    /// M1(扣次章)受阻 + M0 已成 + 已购:v3 加粗链条(2026-10-10)后 M3/M4
+    /// 也消费 M1/M2 输出,「跳过受阻扣次章继续跑 M3」的旧语义已死——
+    /// m2-m7 全部依赖 m1,免扣可跑章集合为空 → 续跑守卫(十八轮 #3 判据)
+    /// 直接 skip:链不起、M1 不被 attempt 翻 .failed(零空转)、零请求。
+    /// 付费链免扣续跑的存活语义由下一条锁定。
+    func testResume本地池耗尽_M1受阻_M3依赖链字段拦pending() async throws {
         let request = Self.beijingRequest()
         let response = try await apiClient.calculateBazi(request: request)
         try seedV1Cache(hash: response.contentHash, module: .m0, text: Self.m0CacheJSON)
@@ -590,27 +595,34 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         while counter.tryConsume(module: "bazi_deep") {}
 
         vm.loadArchivedChart(response: response, request: request)
-        let m3Ok = await waitUntil(timeout: 10) {
-            self.vm.moduleStates[.m3]?.isOk == true
+        let settled = await waitUntil(timeout: 10) {
+            self.vm.moduleStates[.m0]?.isOk == true
+                && self.vm.moduleStates[.m1] == nil
+                && !self.vm.isChainRunning && !self.vm.isHydrating
+                && self.vm.inflightHydrateCount == 0
         }
-        XCTAssertTrue(m3Ok, "M0 已成、M3 无链字段依赖,链必须续跑到 M3,实际:\(vm.moduleStates)")
+        XCTAssertTrue(settled, """
+        M1 受阻(池耗尽)且全链依赖 M1:守卫 skip、链不起、M1 不被空转 attempt。\
+        实际:\(vm.moduleStates) isChainRunning=\(vm.isChainRunning)
+        """)
         XCTAssertTrue(
-            apiClient.recordedInterpretRequests.contains { $0.module == "m3_system" },
-            "M3 必须发出真实请求(免扣 ≠ 不发)"
+            apiClient.recordedInterpretRequests.filter {
+                $0.module != ModuleID.m0.rawValue
+            }.isEmpty,
+            "M1-M7 零请求(不发注定 422/达限的请求)"
         )
-        guard case .failed? = vm.moduleStates[.m1] else {
-            return XCTFail("M1 attempt 本地达限应一次性落 .failed,实际:\(vm.moduleStates)")
-        }
     }
 
-    /// 对照面:M0/M1 已成、池耗尽 → 第一个可跑章本身就是免扣付费章,
-    /// 守卫放行,M3 照常生成(m1ChainCacheJSON 刻意不含 defensive,M2 停
-    /// pending,链字段路径上第一个可跑付费章 = M3)。
+    /// 对照面:M0/M1/M2 已成、池耗尽 → 第一个可跑章本身就是免扣付费章,
+    /// 守卫放行,M3 照常生成(m1ChainCacheJSON 刻意不含 defensive,M2 行
+    /// 由缓存种子提供 threshold,链字段路径上第一个可跑付费章 = M3;
+    /// v3 加粗链条后 M3 消费 main_axis/core_loop/innate/threshold)。
     func testResume本地池耗尽_上游已成_付费链仍续跑() async throws {
         let request = Self.beijingRequest()
         let response = try await apiClient.calculateBazi(request: request)
         try seedV1Cache(hash: response.contentHash, module: .m0, text: Self.m0CacheJSON)
         try seedV1Cache(hash: response.contentHash, module: .m1, text: Self.m1ChainCacheJSON)
+        try seedV1Cache(hash: response.contentHash, module: .m2, text: Self.m2ChainCacheJSON)
         try seedDeepEntitlement(hash: response.contentHash)
         while counter.tryConsume(module: "bazi_deep") {}
 
@@ -741,24 +753,26 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
 
         vm.loadArchivedChart(response: response, request: request)
 
-        // 已购盘:M0 回填跳过,M1/M3 续跑生成,M4/M5 停在 needsInput;
+        // 已购盘:M0 回填跳过,M1 续跑生成,M4/M5 停在 needsInput;
         // M1 若是 .pending = 上游链字段守卫触发(main_axis/core_loop 没重建——
         // 2026-09-25 起 M1 必带这两个字段,M1 .ok 即证明链字段重建成功)。
-        // M2/M6/M7 .pending = 其必带字段(innate/defensive 等)来自 M1 输出,
-        // 而 mock M1 返回散文无可解析字段 → 守卫拦下不发(旧断言曾期望它们
-        // .ok,这正是"发了注定 422 请求"被 mock 掩盖的 bug 表征,已纠正)。
+        // M2/M3/M6/M7 .pending = 其必带字段(innate/defensive/threshold 等)
+        // 来自 M1/M2 输出,而 mock M1 返回占位 JSON 无可解析链字段 → 守卫
+        // 拦下不发(旧断言曾期望它们 .ok,这正是"发了注定 422 请求"被 mock
+        // 掩盖的 bug 表征,已纠正;v3 加粗链条 2026-10-10 起 M3 同样消费
+        // innate+threshold,从"M1 无依赖续跑章"归队为依赖 M1/M2 的下游章)。
         let settled = await waitUntil(timeout: 12) {
             self.vm.moduleStates[.m1]?.isOk == true
-                && self.vm.moduleStates[.m3]?.isOk == true
                 && self.vm.moduleStates[.m2] == .pending
+                && self.vm.moduleStates[.m3] == .pending
                 && self.vm.moduleStates[.m6] == .pending
                 && self.vm.moduleStates[.m7] == .pending
                 && self.vm.moduleStates[.m4] == .needsInput
                 && !self.vm.isChainRunning
         }
         XCTAssertTrue(settled, """
-        回填 + 续跑:M0 缓存跳过、M1/M3 续跑(证明链字段重建)、\
-        M2/M6/M7 缺上游字段拦 .pending、M4/M5 待输入。\
+        回填 + 续跑:M0 缓存跳过、M1 续跑(证明链字段重建)、\
+        M2/M3/M6/M7 缺上游字段拦 .pending、M4/M5 待输入。\
         实际:\(vm.moduleStates) isChainRunning=\(vm.isChainRunning)
         """)
         XCTAssertEqual(
@@ -1202,8 +1216,13 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         "{\"innate\":{\"behavior\":\"稳\"},\"defensive\":{\"habit\":\"慢\"},\"one_leverage\":\"聚焦\"}"
 
     private static func stubInterpretResponse() -> InterpretResponse {
+        // threshold/switch_actions:M2 输出被 extractChainFields 提取供
+        // M3/M6/M7(v3 加粗链条起 M3 必带 threshold),纯 {"ok":true} 会把
+        // M3 拦在 .pending。
         InterpretResponse(
-            interpretation: "{\"ok\":true}", promptVersion: 1, cached: false,
+            interpretation:
+                "{\"ok\":true,\"threshold\":{\"environment\":{\"enables\":\"自主\"}},\"switch_actions\":[\"复盘\"]}",
+            promptVersion: 1, cached: false,
             generatedAt: .now, provider: "anthropic", model: "mock-anthropic-model",
             language: "zh")
     }
@@ -1285,10 +1304,14 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
     /// 修复前 VM 层一次/盘/会话闸门对第二个摄入点直接 nil(够不到 store 层
     /// inFlightReSigns 去重)——第一章重签成功,第二章却落「重新排盘」。
     /// 锁定:两章都恢复 + 同盘重签只发一次 /calculate。
+    /// v3 加粗链条(2026-10-10)注:并发对从 M2+M3 改为 M2+M4——M3 起消费
+    /// M2 的 threshold,M2 未恢复时 M3 被上游守卫拦 .pending 发不出请求,
+    /// 无法充当独立摄入点;M4 依赖 m0/m1(种子已备)可并发直发。
     func test并发重试_第二摄入点搭车在飞重签_两章都恢复() async throws {
         let (response, _) = try await setUpLockedPaidModules()
         let baseCalculates = apiClient.recordedCalculateRequests.count  // 含夹具起手排盘
         try seedDeepEntitlement(hash: response.contentHash)
+        vm.submitM4Input(age: 30, concern: "睡眠差")
 
         var fresh = response
         fresh.contextTokens = ["v1": "new-v1", "deep": "new-deep", "payload": "new-p"]
@@ -1299,16 +1322,16 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         }
 
         vm.retryV1Module(.m2)
-        vm.retryV1Module(.m3)
+        vm.retryV1Module(.m4)
         let done = await waitUntil(timeout: 12) {
             self.vm.moduleStates[.m2]?.isOk == true
-                && self.vm.moduleStates[.m3]?.isOk == true
+                && self.vm.moduleStates[.m4]?.isOk == true
         }
         XCTAssertTrue(done, "两章都必须恢复(修复前第二章落「重新排盘」),实际:\(vm.moduleStates)")
         XCTAssertEqual(
             apiClient.recordedCalculateRequests.count - baseCalculates, 1,
             "在飞搭车:同盘两摄入点合并为一次重签排盘(基线含夹具起手排盘)")
-        for module in [ModuleID.m2, .m3] {
+        for module in [ModuleID.m2, .m4] {
             let requests = apiClient.recordedInterpretRequests.filter {
                 $0.module == module.rawValue
             }
@@ -1389,11 +1412,15 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             return false
         }
         XCTAssertTrue(expired, "重签失败终态必须落失效态(既有「重新排盘」出口),实际:\(String(describing: vm.moduleStates[.m2]))")
-        let m3Expired = await waitUntil(timeout: 10) {
-            if case .contextTokenExpired? = self.vm.moduleStates[.m3] { return true }
-            return false
-        }
-        XCTAssertTrue(m3Expired, "额度已用后 M3 的 403 维持失效态(不发第二次重签),实际:\(String(describing: vm.moduleStates[.m3]))")
+        // v3 加粗链条(2026-10-10)注:M3 起依赖 M2 的 threshold,M2 失效后
+        // M3 被上游守卫拦 .pending(不发注定 422/403 的请求)——原「M3 403
+        // 维持失效态」语义已由 M2 自身覆盖,M3 侧锁定改为不发请求。
+        XCTAssertEqual(
+            vm.moduleStates[.m3], .pending,
+            "M2 失效后 M3 不得发请求(缺 threshold),实际:\(String(describing: vm.moduleStates[.m3]))")
+        XCTAssertFalse(
+            apiClient.recordedInterpretRequests.contains { $0.module == ModuleID.m3.rawValue },
+            "M3 零请求 = 不产生第二个 403 摄入点(零二次重签的更强形态)")
         XCTAssertEqual(
             apiClient.recordedCalculateRequests.count - baseCalculates, 1,
             "重签额度一次/盘/会话,失败后不再重发(基线含夹具起手排盘)")

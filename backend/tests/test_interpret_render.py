@@ -718,13 +718,19 @@ def test_v1_m2_to_m6_render_with_chain_inputs():
     test_cases = [
         ("m2_high_low", {
             "chart": _v1_chart_json(), "structure_fingerprint": "fp",
+            "core_loop": '{"from":"伤官","to":"财"}',
             "innate": '[{"name":"创造力"}]', "defensive": '[{"name":"讨好"}]',
         }),
         ("m3_system", {
             "chart": _v1_chart_json(), "structure_fingerprint": "fp",
+            "main_axis": '{"dominant":"伤官"}',
+            "core_loop": '{"from":"伤官","to":"财"}',
+            "innate": '[{"name":"创造力"}]',
+            "threshold": '{"environment":{"enables":"自主权"}}',
         }),
         ("m4_health", {
             "chart": _v1_chart_json(), "structure_fingerprint": "fp",
+            "innate": '[{"name":"创造力"}]',
             "age": 30, "current_concern": "睡眠不好",
         }),
         ("m5_wealth", {
@@ -773,6 +779,7 @@ def test_v1_m4_accepts_int_age():
     ctx = {
         "chart": _v1_chart_json(),
         "structure_fingerprint": "fp",
+        "innate": '[{"name":"创造力"}]',
         "age": 35,  # int
         "current_concern": "焦虑",
     }
