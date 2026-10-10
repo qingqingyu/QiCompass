@@ -1193,6 +1193,299 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             meta: base.meta
         )
     }
+
+    // MARK: - 403 摄入点就地重签(第二十轮外评 #1-#4)
+
+    /// m2 依赖的链字段齐备版 M1 缓存行(m0CacheJSON 已带 fingerprint/
+    /// main_axis/core_loop,此处补 m2 必需的 innate/defensive)。
+    private static let m1FullChainJSON =
+        "{\"innate\":{\"behavior\":\"稳\"},\"defensive\":{\"habit\":\"慢\"},\"one_leverage\":\"聚焦\"}"
+
+    private static func stubInterpretResponse() -> InterpretResponse {
+        InterpretResponse(
+            interpretation: "{\"ok\":true}", promptVersion: 1, cached: false,
+            generatedAt: .now, provider: "anthropic", model: "mock-anthropic-model",
+            language: "zh")
+    }
+
+    private static func contextTokenRejected() -> APIError {
+        APIError.backendError(
+            code: "CONTEXT_TOKEN_INVALID", message: "token invalid", requestId: nil)
+    }
+
+    /// 补购批跑夹具:m0/m1/m4-m7 缓存回填 .ok,m2/m3 置 .locked(付费墙态,
+    /// 模拟用户已见锁章、即将补购);快照带旧 token + 重签原料(archived_*)。
+    /// VM 到 .ready(旧 token response)且链静默后返回。
+    private func setUpLockedPaidModules() async throws -> (BaziResponse, BaziCalculateRequest) {
+        let request = Self.beijingRequest()
+        var response = try await apiClient.calculateBazi(request: request)
+        response.contextTokens = ["v1": "old-v1", "deep": "old-deep", "payload": "old-p"]
+        _ = try chartStore.upsert(response: response, request: request)
+
+        try seedV1Cache(hash: response.contentHash, module: .m0, text: Self.m0CacheJSON)
+        try seedV1Cache(hash: response.contentHash, module: .m1, text: Self.m1FullChainJSON)
+        for module in [ModuleID.m4, .m5, .m6, .m7] {
+            try seedV1Cache(hash: response.contentHash, module: module, text: "{\"ok\":true}")
+        }
+
+        vm.loadArchivedChart(response: response, request: request)
+        let settled = await waitUntil(timeout: 10) {
+            self.vm.moduleStates[.m0]?.isOk == true
+                && self.vm.moduleStates[.m1]?.isOk == true
+                && !self.vm.isChainRunning && !self.vm.isHydrating
+                && self.vm.inflightHydrateCount == 0
+        }
+        XCTAssertTrue(settled, "前置:免费章回填 .ok 且链静默,实际:\(vm.moduleStates)")
+        vm.moduleStates[.m2] = .locked
+        vm.moduleStates[.m3] = .locked
+        return (response, request)
+    }
+
+    /// 🔴#1(第二十轮外评):补购批跑 retryLockedV1Modules 的 response 轮换。
+    /// 轮换密钥后用户补购解锁:M2 首请求旧 token 403 → 就地重签换新 token
+    /// ——批跑循环必须改用新 response 给 M3 续跑。修复前循环持循环前那份
+    /// response,M3 带旧 token 必再 403,而重签额度(一次/盘/会话)已用 →
+    /// 剩余付费章全落「重新排盘」误报(快照里其实已有有效 token)。
+    /// 锁定:M3 单请求且带新 token。
+    func test补购批跑_重签后后续章用新token续跑() async throws {
+        let (response, _) = try await setUpLockedPaidModules()
+        let baseCalculates = apiClient.recordedCalculateRequests.count  // 含夹具起手排盘
+        try seedDeepEntitlement(hash: response.contentHash)
+
+        var fresh = response
+        fresh.contextTokens = ["v1": "new-v1", "deep": "new-deep", "payload": "new-p"]
+        apiClient.calculateResponder = { _ in fresh }
+        apiClient.interpretResponder = { req in
+            if req.contextToken == "old-v1" { throw Self.contextTokenRejected() }
+            return Self.stubInterpretResponse()
+        }
+
+        vm.retryLockedV1Modules()
+        let done = await waitUntil(timeout: 12) {
+            self.vm.moduleStates[.m2]?.isOk == true
+                && self.vm.moduleStates[.m3]?.isOk == true
+        }
+        XCTAssertTrue(done, "M2/M3 必须凭新 token 跑成,实际:\(vm.moduleStates)")
+
+        let m3Requests = apiClient.recordedInterpretRequests.filter {
+            $0.module == ModuleID.m3.rawValue
+        }
+        XCTAssertEqual(
+            m3Requests.count, 1,
+            "M3 必须一次直发成功——修复前持旧 response,先白发一次注定 403 的请求")
+        XCTAssertEqual(
+            m3Requests.first?.contextToken, "new-v1",
+            "M3 必须带重签后的新 token(修复前为 old-v1)")
+        XCTAssertEqual(
+            apiClient.recordedCalculateRequests.count - baseCalculates, 1,
+            "重签恰好一次(一次/盘/会话;基线含夹具起手排盘)")
+    }
+
+    /// 🟠#2(第二十轮外评):连点两章重试,第二个 403 摄入点搭车在飞重签。
+    /// 修复前 VM 层一次/盘/会话闸门对第二个摄入点直接 nil(够不到 store 层
+    /// inFlightReSigns 去重)——第一章重签成功,第二章却落「重新排盘」。
+    /// 锁定:两章都恢复 + 同盘重签只发一次 /calculate。
+    func test并发重试_第二摄入点搭车在飞重签_两章都恢复() async throws {
+        let (response, _) = try await setUpLockedPaidModules()
+        let baseCalculates = apiClient.recordedCalculateRequests.count  // 含夹具起手排盘
+        try seedDeepEntitlement(hash: response.contentHash)
+
+        var fresh = response
+        fresh.contextTokens = ["v1": "new-v1", "deep": "new-deep", "payload": "new-p"]
+        apiClient.calculateResponder = { _ in fresh }
+        apiClient.interpretResponder = { req in
+            if req.contextToken == "old-v1" { throw Self.contextTokenRejected() }
+            return Self.stubInterpretResponse()
+        }
+
+        vm.retryV1Module(.m2)
+        vm.retryV1Module(.m3)
+        let done = await waitUntil(timeout: 12) {
+            self.vm.moduleStates[.m2]?.isOk == true
+                && self.vm.moduleStates[.m3]?.isOk == true
+        }
+        XCTAssertTrue(done, "两章都必须恢复(修复前第二章落「重新排盘」),实际:\(vm.moduleStates)")
+        XCTAssertEqual(
+            apiClient.recordedCalculateRequests.count - baseCalculates, 1,
+            "在飞搭车:同盘两摄入点合并为一次重签排盘(基线含夹具起手排盘)")
+        for module in [ModuleID.m2, .m3] {
+            let requests = apiClient.recordedInterpretRequests.filter {
+                $0.module == module.rawValue
+            }
+            XCTAssertEqual(
+                requests.last?.contextToken, "new-v1",
+                "\(module.rawValue) 的成功请求必须带新 token")
+        }
+    }
+
+    /// 🟠#3(第二十轮外评):快照已被别处翻新(每日 Tab 失效期重签 / 手动
+    /// 重新排盘)时,403 摄入点先读存档比对——token 已换新就直接复用,不烧
+    /// 一次/盘/会话重签额度、不多发 /calculate。锁定:全程零排盘请求。
+    func test快照已被别处翻新_403直接复用新token_零重签排盘() async throws {
+        let (response, request) = try await setUpLockedPaidModules()
+        let baseCalculates = apiClient.recordedCalculateRequests.count  // 含夹具起手排盘
+        try seedDeepEntitlement(hash: response.contentHash)
+
+        // 别处(每日 Tab)已把同 hash 快照翻新:存档 token 已换新
+        var renewed = response
+        renewed.contextTokens = ["v1": "renewed-v1", "deep": "renewed-deep", "payload": "renewed-p"]
+        _ = try chartStore.upsert(response: renewed, request: request)
+
+        apiClient.calculateResponder = { _ in
+            XCTFail("快照已翻新,不得再发重签排盘")
+            throw APIError.httpError(statusCode: 500, body: nil)
+        }
+        apiClient.interpretResponder = { req in
+            if req.contextToken == "old-v1" { throw Self.contextTokenRejected() }
+            return Self.stubInterpretResponse()
+        }
+
+        vm.retryLockedV1Modules()
+        let done = await waitUntil(timeout: 12) {
+            self.vm.moduleStates[.m2]?.isOk == true
+                && self.vm.moduleStates[.m3]?.isOk == true
+        }
+        XCTAssertTrue(done, "M2/M3 必须凭翻新 token 跑成,实际:\(vm.moduleStates)")
+        XCTAssertEqual(
+            apiClient.recordedCalculateRequests.count, baseCalculates,
+            "快照已翻新时零新增 /calculate(复用别处翻新的 token,重签额度不动;基线含夹具起手排盘)")
+        let m2Requests = apiClient.recordedInterpretRequests.filter {
+            $0.module == ModuleID.m2.rawValue
+        }
+        XCTAssertEqual(
+            m2Requests.last?.contextToken, "renewed-v1",
+            "重试必须用存档里翻新后的 token")
+    }
+
+    /// 🟡#4(第二十轮外评):恢复期占位 .fetching,恢复失败才落失效态。
+    /// 修复前 403 一到就先标 .contextTokenExpired 再等重签——重签进行中
+    /// 「重新排盘」按钮闪现,用户点了它就把马上会成功的自动恢复丢掉。
+    /// 锁定:重签在飞窗口(calculate 已记录、未返回)内 m2 仍是 .fetching;
+    /// 重签失败(排盘 503)终态才是 .contextTokenExpired。
+    func test恢复期占位fetching_失败终态才落重新排盘() async throws {
+        let (response, _) = try await setUpLockedPaidModules()
+        let baseCalculates = apiClient.recordedCalculateRequests.count  // 含夹具起手排盘
+        try seedDeepEntitlement(hash: response.contentHash)
+
+        apiClient.calculateResponder = { _ in
+            throw APIError.httpError(statusCode: 503, body: nil)  // 重签排盘失败
+        }
+        apiClient.interpretResponder = { req in
+            if req.contextToken == "old-v1" { throw Self.contextTokenRejected() }
+            return Self.stubInterpretResponse()
+        }
+
+        vm.retryLockedV1Modules()
+        let midRecovery = await waitUntil(timeout: 8) {
+            self.apiClient.recordedCalculateRequests.count > baseCalculates
+                && self.vm.moduleStates[.m2] == .fetching
+        }
+        XCTAssertTrue(
+            midRecovery,
+            "重签在飞时不得闪现失效态(修复前此刻已是 .contextTokenExpired),实际:\(String(describing: vm.moduleStates[.m2]))")
+
+        let expired = await waitUntil(timeout: 10) {
+            if case .contextTokenExpired? = self.vm.moduleStates[.m2] { return true }
+            return false
+        }
+        XCTAssertTrue(expired, "重签失败终态必须落失效态(既有「重新排盘」出口),实际:\(String(describing: vm.moduleStates[.m2]))")
+        let m3Expired = await waitUntil(timeout: 10) {
+            if case .contextTokenExpired? = self.vm.moduleStates[.m3] { return true }
+            return false
+        }
+        XCTAssertTrue(m3Expired, "额度已用后 M3 的 403 维持失效态(不发第二次重签),实际:\(String(describing: vm.moduleStates[.m3]))")
+        XCTAssertEqual(
+            apiClient.recordedCalculateRequests.count - baseCalculates, 1,
+            "重签额度一次/盘/会话,失败后不再重发(基线含夹具起手排盘)")
+    }
+
+    /// 🟡#6(第二十轮外评):豁免集「非 .ok」过滤必须后置于本轮回填写回。
+    /// 场景:m1 在豁免集(升版迁移中),后续 hydrate 恰把它回填 .ok(上游
+    /// m0 已补上当前版本行)——修复前过滤读的是回填前状态,一次性豁免残留,
+    /// 之后全链再生成时 m1 不扣本地次数;修复后本轮回填成功的章即时出集。
+    /// 锁定:再生成后 m0+m1 各扣 1 次(修复前 m1 豁免残留只扣 1 次)。
+    func test豁免章本轮回填ok_即时出集_再生成恢复计费() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        // 本地 v1 行 × 服务端 m0 已 bump v2:m0 缺当前行 + m1 血统被切断 →
+        // 首 hydrate derive 豁免集 = {m0, m1}(同 testHydrate不逐出pending迁移章)
+        try seedV1Cache(hash: response.contentHash, module: .m0, text: Self.m0CacheJSON)
+        try seedV1Cache(hash: response.contentHash, module: .m1, text: Self.m1CacheJSON)
+        apiClient.healthResponder = {
+            HealthResponse(
+                status: "ok", lunarPythonVersion: "1.4.8-mock",
+                model: "bazi-calculate-v1-mock", aiProvider: "anthropic",
+                aiModel: "mock-anthropic-model",
+                promptVersions: [
+                    "m0_structure": 2, "m1_talent": 1, "m2_high_low": 1,
+                    "m3_system": 1, "m4_health": 1, "m5_wealth": 1,
+                    "m6_dynamics": 1, "m7_manual": 1,
+                ])
+        }
+        let box = AttemptBox()
+        apiClient.interpretResponder = { req in
+            if req.module == "m0_structure" {
+                box.count += 1
+                if box.count <= 1 {
+                    throw APIError.backendError(
+                        code: "AI_PROVIDER_ERROR", message: "服务暂不可用",
+                        requestId: nil)
+                }
+                return InterpretResponse(
+                    interpretation: Self.m0CacheJSON,
+                    promptVersion: 2, cached: false, generatedAt: .now,
+                    provider: "anthropic", model: "mock-anthropic-model",
+                    language: "zh")
+            }
+            return InterpretResponse(
+                interpretation: Self.m1CacheJSON,
+                promptVersion: 1, cached: false, generatedAt: .now,
+                provider: "anthropic", model: "mock-anthropic-model",
+                language: "zh")
+        }
+
+        // load#1:derive 豁免 {m0,m1};M0 attempt#1 失败断链(m1 留在豁免集)
+        vm.loadArchivedChart(response: response, request: request)
+        let firstFailed = await waitUntil(timeout: 10) {
+            if case .failed? = self.vm.moduleStates[.m0] { return true }
+            return false
+        }
+        XCTAssertTrue(firstFailed, "前置:M0 首次迁移重算失败,实际:\(vm.moduleStates)")
+
+        // 用户手动重试 M0:attempt#2 成功 → 当前版本行落库 + m0 出集
+        vm.retryV1Module(.m0)
+        let m0Ok = await waitUntil(timeout: 10) {
+            self.vm.moduleStates[.m0]?.isOk == true
+        }
+        XCTAssertTrue(m0Ok, "前置:M0 重试成功,实际:\(vm.moduleStates)")
+
+        // load#2:上游已成 → m1 血统恢复,本轮回填补上 .ok——修复前豁免残留
+        vm.loadArchivedChart(response: response, request: request)
+        let m1Backfilled = await waitUntil(timeout: 10) {
+            self.vm.moduleStates[.m1] == .ok(text: Self.m1CacheJSON, cached: true)
+        }
+        XCTAssertTrue(
+            m1Backfilled,
+            "前置:m1 本轮回填 .ok(cached)(上游 m0 当前版本行已补),实际:\(String(describing: vm.moduleStates[.m1]))")
+        let idle = await waitUntil(timeout: 10) {
+            !self.vm.isChainRunning && !self.vm.isHydrating && self.vm.inflightHydrateCount == 0
+        }
+        XCTAssertTrue(idle)
+        let reads0 = vm.remainingReads
+
+        // 全链再生成:m0(重试成功已出集)+ m1(修复后本轮回填即时出集)各扣
+        // 1 次;m2-m7 无 entitlement 落 .locked 不扣
+        vm.generateV1AllModules()
+        let regenDone = await waitUntil(timeout: 12) {
+            self.vm.moduleStates[.m0]?.isOk == true
+                && self.vm.moduleStates[.m1]?.isOk == true
+        }
+        XCTAssertTrue(regenDone, "再生成必须完成,实际:\(vm.moduleStates)")
+        XCTAssertEqual(
+            reads0 - vm.remainingReads, 2,
+            "m0 与 m1 再生成各扣 1 次(修复前 m1 一次性豁免残留,只扣 1 次)"
+        )
+    }
 }
 
 // MARK: - Test Doubles

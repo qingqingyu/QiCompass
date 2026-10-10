@@ -261,6 +261,28 @@ final class DeepAnalysisOrchestrator {
         )
     }
 
+    /// 读取当前存档 response(第二十轮外评 #3 预检口):403 摄入点先比对
+    /// 快照 token 是否已被别处翻新(每日 Tab 失效期重签 / 手动重新排盘),
+    /// 已翻新则直接复用,不烧一次/盘/会话重签额度、不多发 /calculate。
+    /// nil = 无快照 / 读失败 / decode 失败(均留痕;预检 best-effort,失败
+    /// 按未翻新处理,重签主路径自带的显式日志不受影响)。
+    func readArchivedResponse(contentHash: String) -> BaziResponse? {
+        do {
+            guard let snapshot = try chartStore.get(contentHash: contentHash) else {
+                AppLogger.persistence.warning(
+                    "op=deepOrchestrator.readArchivedResponse snapshot_missing hash=\(contentHash, privacy: .public) — 无存档可预检"
+                )
+                return nil
+            }
+            return try chartStore.decodeResponse(from: snapshot)
+        } catch {
+            AppLogger.persistence.error(
+                "op=deepOrchestrator.readArchivedResponse read_failed hash=\(contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 按未翻新处理"
+            )
+            return nil
+        }
+    }
+
     /// 老盘 token 失效重签(附八拍板②,失效期入口):章节 403 落
     /// `.contextTokenExpired` 时,VM 在 403 摄入点经此触发
     /// `ChartSnapshotStore.refreshContextTokens`——静默重排换新 token,

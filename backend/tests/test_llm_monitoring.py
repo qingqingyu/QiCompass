@@ -646,3 +646,33 @@ async def test_health_llm_last_error_urls_redacted(
     message = resp.json()["last_error"]["message"]
     assert "secret-gateway.example" not in message
     assert "[url]" in message
+
+
+# ===== 8. join 容忍被取消任务(2026-10-10 第二十轮外评 #7) =====
+
+
+async def test_wait_for_pending_records_swallows_cancelled_task():
+    """优雅停机 join 对被取消任务不炸(第二十轮外评 #7):cancel 已请求、
+    CancelledError 尚未落地(未 done)的任务会进 gather——裸 gather 把
+    CancelledError 抛进 lifespan shutdown 钩子,其余记录随之不被 join;
+    return_exceptions 后取消结果被收编,健康任务照常等完。
+
+    构造要点:cancel 后**不**让步(不 sleep(0))直接 join——一旦让步,
+    取消落地、任务变 done,会在 join 头部的 done 过滤被剔除,测不到
+    gather 路径(停机窗口的真实形态恰是「取消在途」)。"""
+    import asyncio
+
+    async def forever() -> None:
+        await asyncio.sleep(3600)
+
+    healthy = asyncio.ensure_future(asyncio.sleep(0.01))
+    victim = asyncio.ensure_future(forever())
+    metered_module._pending_records.update({healthy, victim})
+    victim.cancel()
+    try:
+        await metered_module.wait_for_pending_records()
+    finally:
+        metered_module._pending_records.discard(healthy)
+        metered_module._pending_records.discard(victim)
+    assert not healthy.cancelled(), "健康记录任务必须被 join 到完成"
+    assert victim.cancelled(), "前置自检:victim 确以取消收场(进过 gather)"

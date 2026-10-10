@@ -174,6 +174,14 @@ final class DeepAnalysisViewModel {
     /// (moduleStates 全空)永远够不到,已删。
     private var contextTokenReSignAttempted: Set<String> = []
 
+    /// 同盘在飞重签任务表(第二十轮外评 #2):第二个 403 摄入点(用户连点
+    /// 两章重试 / 生成链与翻译链并发)不得直接 nil——搭车等在飞那次的结果
+    /// 走同一收尾。VM 层闸门先于 store 层 `inFlightReSigns` 短路,store 的
+    /// 去重此处够不到,须自建。Task 非结构化,不随首个调用方取消(镜像
+    /// store 层手法,搭车者仍需结果);完成即出表(后到者由快照翻新预检
+    /// 兜住,预检读到已翻新的存档等价于搭上了结果)。
+    private var contextTokenReSignTasks: [String: Task<BaziResponse?, Never>] = [:]
+
     /// 该章重跑是否消耗本地池(2026-10-09 十七轮拍板①:付费章 m2-m7 **不扣
     /// 本地池**——本地池语义回归「免费体验配额」,付费滥用护栏由服务端
     /// paid 桶(按购买主体 500/日)承担;此前 2 盘首日购买 = 16 次 > 10 次
@@ -981,30 +989,6 @@ final class DeepAnalysisViewModel {
                 )
                 return .staleChart
             }
-            // 版本迁移重生成集 = 本轮 derive ∪ 既有未完成豁免(十八轮 houduan
-            // #4):derive 只看**本次查询清单**(nil/.failed 态的章)——
-            // generateV1AllModules 把全链重置 .pending 后,迁移未完成的章
-            // 不再进清单,纯整集替换会把它们逐出豁免集;M0 重试成功续跑时
-            // 这些章的迁移重算恢复计费(十六轮 #1 要防的「升版重算扣满本地
-            // 池」重开)。保留「未落当前版本行(非 .ok)」的既有豁免章,出集
-            // 条件不变:成功落 .ok 时 runSingleV1Module 移除(一次性豁免);
-            // 换盘/reset 的 removeAll 不受影响,旧盘集合随 staleChart 上方
-            // 早退自然丢弃,不污染新盘。
-            let derivedExempt = Set(
-                restoreOutcome.migrationRegenModules.compactMap(ModuleID.init(rawValue:))
-            )
-            versionMigrationExempt = derivedExempt.union(
-                versionMigrationExempt.filter { moduleStates[$0]?.isOk != true }
-            )
-            if !versionMigrationExempt.isEmpty {
-                // OSLogMessage 插值是 lazy capture,instance property 须先提
-                // local 变量(对齐 runInterpretation 的 nextReset 同款坑)
-                let exemptModules = versionMigrationExempt
-                    .map(\.rawValue).sorted().joined(separator: ",")
-                AppLogger.app.info(
-                    "deepVM.hydrateAndResume.version_migration_exempt hash=\(response.contentHash, privacy: .public) modules=\(exemptModules, privacy: .public) — 版本 bump 强制重算,豁免本地次数"
-                )
-            }
             // 按 allCases 顺序写;extractChainFields 幂等重建下游链字段
             // (structure_fingerprint 等,续跑 M1-M7 时注入 context 用)。
             // 写回时**重检**状态:await 窗口内用户可能已点开卷/重试(模块翻
@@ -1031,6 +1015,34 @@ final class DeepAnalysisViewModel {
             AppLogger.app.info(
                 "deepVM.hydrateAndResume.restored hash=\(response.contentHash, privacy: .public) queried=\(modulesToRestore.count) hits=\(hits.count) written=\(writtenCount)"
             )
+
+            // 版本迁移重生成集 = 本轮 derive ∪ 既有未完成豁免(十八轮 houduan
+            // #4):derive 只看**本次查询清单**(nil/.failed 态的章)——
+            // generateV1AllModules 把全链重置 .pending 后,迁移未完成的章
+            // 不再进清单,纯整集替换会把它们逐出豁免集;M0 重试成功续跑时
+            // 这些章的迁移重算恢复计费(十六轮 #1 要防的「升版重算扣满本地
+            // 池」重开)。保留「未落当前版本行(非 .ok)」的既有豁免章。
+            // **计算后置于上方回填写回之后**(第二十轮外评 #6):先滤后写
+            // 读的是回填前状态,既有豁免章若恰在本轮回填补上当前版本行
+            // (.ok),一次性豁免会残留——之后该章任何重生成都不扣次数;
+            // 写回后再滤,本轮回填成功的章即时出集(与 runSingleV1Module
+            // 成功路径的出集条件同一口径)。换盘/reset 的 removeAll 不受
+            // 影响,旧盘集合随 staleChart 上方早退自然丢弃,不污染新盘。
+            let derivedExempt = Set(
+                restoreOutcome.migrationRegenModules.compactMap(ModuleID.init(rawValue:))
+            )
+            versionMigrationExempt = derivedExempt.union(
+                versionMigrationExempt.filter { moduleStates[$0]?.isOk != true }
+            )
+            if !versionMigrationExempt.isEmpty {
+                // OSLogMessage 插值是 lazy capture,instance property 须先提
+                // local 变量(对齐 runInterpretation 的 nextReset 同款坑)
+                let exemptModules = versionMigrationExempt
+                    .map(\.rawValue).sorted().joined(separator: ",")
+                AppLogger.app.info(
+                    "deepVM.hydrateAndResume.version_migration_exempt hash=\(response.contentHash, privacy: .public) modules=\(exemptModules, privacy: .public) — 版本 bump 强制重算,豁免本地次数"
+                )
+            }
 
             // D10.5(S7):当前语言 miss 的可回填章,探测其它语言的既有解读 →
             // 先显示原文 + 自动翻译(L3/F1 修订 D10.5)。链字段用原文重建
@@ -1335,8 +1347,19 @@ final class DeepAnalysisViewModel {
         let generation = translationGeneration
         Task { @MainActor [weak self] in
             guard let self else { return }
+            // 403 就地重签同步点(镜像 runV1Chain,第二十轮外评 #1):重签
+            // 成功会把 .ready 换成同 hash 新 token 的 response,循环持循环前
+            // 那份旧 response 会让后续付费章带旧 token 逐章 403——而重签
+            // 额度(一次/盘/会话)已用掉,全部落「重新排盘」,快照里其实已有
+            // 有效 token。每章结束后同步 .ready 最新值(同 hash才换)。
+            var current = response
             for module in lockedModules {
-                await self.runSingleV1Module(module, response: response, chainGeneration: generation)
+                await self.runSingleV1Module(
+                    module, response: current, chainGeneration: generation)
+                if case .ready(let latest, _) = self.state,
+                   latest.contentHash == current.contentHash {
+                    current = latest
+                }
             }
         }
     }
@@ -1630,14 +1653,20 @@ final class DeepAnalysisViewModel {
             // 永远够不到)。递归深度有界:重签一次/盘/会话,重试再 403 时
             // attempted 集合已含本盘,直接落失效态。
             if APIError.isContextTokenError(error) {
-                moduleStates[module] = .contextTokenExpired(
-                    failedToken: response.contextToken(
-                        forModule: module.rawValue))
+                // 恢复期占位 .fetching(第二十轮外评 #4):先把章落失效态再等
+                // 重签,「重新排盘」按钮会在恢复进行中闪现——用户点了它,马上
+                // 会成功的自动恢复就被丢掉。占位 .fetching(与请求在飞同观感,
+                // 链侧已有在飞让位语义),恢复失败才落失效态。
+                moduleStates[module] = .fetching
                 if let fresh = await recoverFromContextTokenExpiry(
                     response: response) {
                     await runSingleV1Module(
                         module, response: fresh, quotaExempt: quotaExempt,
                         chainGeneration: chainGeneration)
+                } else {
+                    moduleStates[module] = .contextTokenExpired(
+                        failedToken: response.contextToken(
+                            forModule: module.rawValue))
                 }
                 return
             }
@@ -1671,18 +1700,63 @@ final class DeepAnalysisViewModel {
     /// `.contextTokenExpired` 章 + 条件清翻译提示条,返回新 response 供
     /// 调用方原位重试;失败(一次/盘/会话已用 / 无原料 / hash 不一致 /
     /// 排盘失败 / await 期间换盘)→ nil,维持既有「重新排盘」出口。
+    ///
+    /// 2026-10-10 第二十轮外评 #2/#3 补强:
+    /// - **在飞搭车**:同 hash 重签在飞时,后来的 403 摄入点等它出结果走
+    ///   同一收尾,不再直接 nil(用户连点两章重试,第二不该看到「重新排盘」
+    ///   ——重签马上会成功);
+    /// - **快照翻新预检**:重签前先读存档比对 token——每日 Tab 失效期重签 /
+    ///   手动重新排盘已把快照翻新时直接复用翻新后的 response,不烧一次/
+    ///   盘/会话额度、不多发一次 /calculate(预检读档失败按未翻新处理,
+    ///   不反噬重签主路径)。
     @MainActor
     private func recoverFromContextTokenExpiry(
         response: BaziResponse
     ) async -> BaziResponse? {
-        guard !contextTokenReSignAttempted.contains(response.contentHash) else {
-            return nil
+        let hash = response.contentHash
+        if let inFlight = contextTokenReSignTasks[hash] {
+            AppLogger.app.info(
+                "deepVM.recoverFromContextTokenExpiry dedup_join hash=\(hash, privacy: .public) — 搭乘同盘在飞重签"
+            )
+            return finalizeContextTokenRecovery(
+                await inFlight.value, for: response)
         }
-        contextTokenReSignAttempted.insert(response.contentHash)
-        guard let fresh = await orchestrator.refreshChartContextTokens(
-            contentHash: response.contentHash),
-            fresh.contentHash == response.contentHash,
-            isCurrentChart(response)
+        if let archived = orchestrator.readArchivedResponse(contentHash: hash),
+           archived.contentHash == hash,
+           Self.hasNewerContextTokens(archived, than: response) {
+            AppLogger.app.info(
+                "deepVM.recoverFromContextTokenExpiry snapshot_already_renewed hash=\(hash, privacy: .public) — 复用别处翻新的 token,不烧重签额度"
+            )
+            return finalizeContextTokenRecovery(archived, for: response)
+        }
+        guard !contextTokenReSignAttempted.contains(hash) else { return nil }
+        contextTokenReSignAttempted.insert(hash)
+        // 非结构化 Task:不随首个调用方取消(搭车者仍需结果);VM @MainActor,
+        // 任务同主 actor,收尾无跨线程问题(镜像 store 层 reSign 手法)
+        let task = Task { [weak self] () -> BaziResponse? in
+            await self?.orchestrator.refreshChartContextTokens(contentHash: hash) ?? nil
+        }
+        contextTokenReSignTasks[hash] = task
+        defer { contextTokenReSignTasks[hash] = nil }
+        let fresh = await task.value
+        if fresh != nil {
+            AppLogger.app.info(
+                "deepVM.recoverFromContextTokenExpiry token_resigned hash=\(hash, privacy: .public) — 失效章凭新 token 降级,调用方原位重试"
+            )
+        }
+        return finalizeContextTokenRecovery(fresh, for: response)
+    }
+
+    /// 重签/翻新结果的共用收尾(nil 直通):原位换 .ready(同 hash)+ 降级
+    /// token 已翻新的 `.contextTokenExpired` 章 + 条件清翻译提示条。幂等
+    /// ——在飞搭车的多个调用方各自过一遍,结果一致。
+    @MainActor
+    private func finalizeContextTokenRecovery(
+        _ fresh: BaziResponse?, for response: BaziResponse
+    ) -> BaziResponse? {
+        guard let fresh,
+              fresh.contentHash == response.contentHash,
+              isCurrentChart(response)
         else { return nil }
         if case .ready(_, let sub) = state {
             state = .ready(fresh, sub)
@@ -1698,10 +1772,20 @@ final class DeepAnalysisViewModel {
                != translationTokenFailedToken {
             translationTokenExpired = false
         }
-        AppLogger.app.info(
-            "deepVM.recoverFromContextTokenExpiry token_resigned hash=\(fresh.contentHash, privacy: .public) — 失效章凭新 token 降级,调用方原位重试"
-        )
         return fresh
+    }
+
+    /// 快照 token 是否比失败时那套新(任一 module 族 token 非空且不同)。
+    /// 全 nil(老快照无 token)不算翻新——那类盘重签也无原料,预检放行
+    /// 走重签主路径后自然维持既有「重新排盘」出口。
+    private static func hasNewerContextTokens(
+        _ candidate: BaziResponse, than failed: BaziResponse
+    ) -> Bool {
+        ModuleID.allCases.contains { module in
+            guard let renewed = candidate.contextToken(forModule: module.rawValue)
+            else { return false }
+            return renewed != failed.contextToken(forModule: module.rawValue)
+        }
     }
 
     // MARK: - 跨语言翻译执行(D10.4,S7)

@@ -744,6 +744,44 @@ final class AddHourFlowTests: XCTestCase {
         )
     }
 
+    /// hopeless 判定随落新档作废(第二十轮外评 #5):hash 不一致判负后,用户
+    /// 手动重新排盘(购买后重算/补时辰等同款 upsert 同 hash 新档)= 服务端
+    /// 已重新签发该盘,老判定基于旧快照——不清除会让手动重排盘后的本会话
+    /// 自动重签继续失效(入参这次已在档,重签本可成功)。修复前 hopeless 集
+    /// 只进不出,判负终身有效。
+    func testRefreshContextTokens_落新档后hopeless判定作废() async throws {
+        let request = Self.reSignArchiveRequest()
+        let old = Self.knownResponse(contentHash: "resign_hopeless_revive")
+        _ = try chartStore.upsert(response: old, request: request)
+        let snapshot = try XCTUnwrap(chartStore.get(contentHash: "resign_hopeless_revive"))
+
+        var stranger = Self.knownResponse(contentHash: "resign_hopeless_revive_NEW")
+        stranger.contextTokens = ["v1": "x"]
+        apiClient.calculateResponder = { _ in stranger }
+        _ = try await chartStore.refreshContextTokens(
+            snapshot: snapshot, apiClient: apiClient)
+        XCTAssertEqual(apiClient.recordedCalculateRequests.count, 1)
+
+        // 用户手动重新排盘:同 hash 落新档(带新 token,判负依据的旧快照被覆盖)
+        var renewed = Self.knownResponse(contentHash: "resign_hopeless_revive")
+        renewed.contextTokens = ["v1": "manual-v1"]
+        _ = try chartStore.upsert(response: renewed, request: request)
+
+        var fresh = Self.knownResponse(contentHash: "resign_hopeless_revive")
+        fresh.contextTokens = ["v1": "resigned-v1"]
+        apiClient.calculateResponder = { _ in fresh }
+        let ok = try await chartStore.refreshContextTokens(
+            snapshot: snapshot, apiClient: apiClient)
+        XCTAssertEqual(
+            ok?.contextTokens?["v1"], "resigned-v1",
+            "落新档后 hopeless 判定必须作废,本会话自动重签恢复可用"
+        )
+        XCTAssertEqual(
+            apiClient.recordedCalculateRequests.count, 2,
+            "判负作废后重签必须真发排盘(修复前被 hopeless 短路,停在 1)"
+        )
+    }
+
     private func XCTUnwrapAsync<T>(_ expression: @autoclosure () async throws -> T?,
                                    _ message: String = "") async throws -> T {
         let value = try await expression()

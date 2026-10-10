@@ -86,6 +86,12 @@ final class ChartSnapshotStore {
             snapshot.calcRuleSnapshot = calcRuleData
             snapshot.payload = payloadData
             try context.save()
+            // hopeless 判定作废(第二十轮外评 #5):任何路径为该 hash 落新档
+            //(手动重新排盘/购买后重算/重签自身)= 服务端已重新签发该盘,老
+            // 判定(no_materials/hash_mismatch)基于旧快照,不清除会让手动
+            // 重排盘后的本会话自动重签继续失效——入参这次已在档,重签本可
+            // 成功。新建分支同款。
+            reSignHopelessHashes.remove(hash)
             AppLogger.persistence.info(
                 "op=chartSnapshot.upsert hash=\(hash, privacy: .public) result=updated schemaVersion=\(snapshot.schemaVersion)"
             )
@@ -106,6 +112,7 @@ final class ChartSnapshotStore {
             )
             context.insert(snapshot)
             try context.save()
+            reSignHopelessHashes.remove(hash)
             AppLogger.persistence.info(
                 "op=chartSnapshot.upsert hash=\(hash, privacy: .public) result=created schemaVersion=\(snapshot.schemaVersion)"
             )

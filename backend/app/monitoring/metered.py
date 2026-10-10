@@ -80,7 +80,12 @@ async def wait_for_pending_records() -> None:
             continue
         pending.append(task)
     if pending:
-        await asyncio.gather(*pending)
+        # return_exceptions(2026-10-10 第二十轮外评 #7):优雅停机窗口内个别
+        # 记录任务被取消时,裸 gather 会把 CancelledError 抛进 lifespan
+        # shutdown 钩子,其余仍在跑的记录随之不被 join——收尾要的是「等完
+        # 所有还在跑的」,单个被取消不反噬整体(_record_observed 已自捕获
+        # Exception,此处只补 CancelledError 这类 BaseException 的口子)。
+        await asyncio.gather(*pending, return_exceptions=True)
 
 
 class _InnerClient(Protocol):
