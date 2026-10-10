@@ -47,6 +47,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from app.ai.client import AIClient, create_ai_client
 from app.ai.prompts import PROMPT_VERSIONS, REQUIRED_FIELDS, render_prompt
+from app.errors import AIProviderError
 from app.config import (
     AI_PROVIDER,
     ANTHROPIC_API_KEY,
@@ -213,8 +214,20 @@ async def _call_module(
             cached = True
     if not cached:
         temperature = resolve_temperature(module)
-        response = await ai_client.interpret(
-            rendered, temperature=temperature)
+        # 瞬态网络重试(2026-10-10 L3 收口):代理 ConnectError/ReadTimeout 一次
+        # 即断整盘链(m0 挂 = 8 条 error),重跑收敛不了——每晚实测 15 分钟 4 次
+        # 瞬断。只重试 timeout/network 两类瞬时 reason,退避 5s/15s;rate_limit
+        # 等其它 reason 显式上抛(不掩盖真实故障,对齐 CLAUDE.md 错误传播纪律)。
+        for attempt in range(3):
+            try:
+                response = await ai_client.interpret(
+                    rendered, temperature=temperature)
+                break
+            except AIProviderError as e:
+                transient = getattr(e, "reason", None) in ("timeout", "network")
+                if not transient or attempt == 2:
+                    raise
+                await asyncio.sleep(5 * (attempt + 1))
 
     try:
         parsed = parse_llm_json(response)
