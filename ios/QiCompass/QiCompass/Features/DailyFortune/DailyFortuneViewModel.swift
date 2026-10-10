@@ -499,7 +499,7 @@ final class DailyFortuneViewModel {
             }
 
             // 阶段 1
-            let (response, _) = try await orchestrator.runDeterministic(
+            let (response, _, renewedPayload) = try await orchestrator.runDeterministic(
                 chartHash: chartHash,
                 ziHourRule: ziHourRule,
                 businessDate: businessDate,
@@ -527,6 +527,12 @@ final class DailyFortuneViewModel {
             // 晚返回时会把 UI 写回 A 并给 A 自动扣一次解读。世代失配即自弃
             // (L5 探针世代言注释的姊妹守卫,本处覆盖 .ready 写点与自动触发)。
             guard !Task.isCancelled, pipelineGeneration == generation else { return }
+            // 重签后 payload 回写(2026-10-10 review):runDeterministic 失效期
+            // 重签成功时按重签 response 重建了 payload 并随返——阶段 2 的
+            // interpret context 必须从这份派生;管线开头那份旧快照解码
+            // 配重签后的新 daily token,规则演化派生字段变化时必再 403。
+            // 守卫内写:失配旧管线晚到不得用旧盘 payload 覆盖新管线的。
+            cachedChartPayload = renewedPayload
             state = .ready(response, interpretState, businessDate)
 
             // 自动解读(2026-09-07 用户拍板「一上来就直接解析,不要点一下」):

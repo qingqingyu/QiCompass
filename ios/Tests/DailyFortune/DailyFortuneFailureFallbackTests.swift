@@ -201,7 +201,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         )
         await api.setDailyFortuneToken("v1.newly-signed-token")
 
-        let (response, fromCache) = try await orchestrator.runDeterministic(
+        let (response, fromCache, _) = try await orchestrator.runDeterministic(
             chartHash: "daily_token_refresh",
             ziHourRule: "zi_next_day",
             businessDate: businessDate
@@ -217,7 +217,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         )
         XCTAssertEqual(refreshed?.contextToken, "v1.newly-signed-token")
 
-        let (_, cachedSecond) = try await orchestrator.runDeterministic(
+        let (_, cachedSecond, _) = try await orchestrator.runDeterministic(
             chartHash: "daily_token_refresh",
             ziHourRule: "zi_next_day",
             businessDate: businessDate
@@ -238,7 +238,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         try seedChart(hash: "daily_resign_a")
         await api.setDailyFortuneToken("daily-t1")
 
-        let (response, fromCache) = try await orchestrator.runDeterministic(
+        let (response, fromCache, _) = try await orchestrator.runDeterministic(
             chartHash: "daily_resign_a",
             ziHourRule: "zi_next_day",
             businessDate: Date.now
@@ -286,7 +286,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
                 requestId: nil),
             times: 1)
 
-        let (response, _) = try await orchestrator.runDeterministic(
+        let (response, _, renewedPayload) = try await orchestrator.runDeterministic(
             chartHash: "daily_resign_b",
             ziHourRule: "zi_next_day",
             businessDate: Date.now
@@ -301,6 +301,10 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
             requests[1].chartPayload.favorableElements, ["火", "土"],
             "重试的 chartPayload 必须随重签 response 重建(而非沿用旧快照派生字段)"
         )
+        XCTAssertEqual(
+            renewedPayload.favorableElements, ["火", "土"],
+            "随返给 VM 的 chartPayload 必须同是重签后重建值(2026-10-10 review:阶段 2 interpret context 同源,旧快照派生配新 daily token 必再 403)"
+        )
     }
 
     func test有token快照_正常命中_不打后端() async throws {
@@ -313,7 +317,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
             interpretation: "",
             cachedUntil: BusinessDateCalculator.cachedUntil(forBusinessDate: businessDate)
         )
-        let (response, fromCache) = try await orchestrator.runDeterministic(
+        let (response, fromCache, _) = try await orchestrator.runDeterministic(
             chartHash: "daily_token_hit",
             ziHourRule: "zi_next_day",
             businessDate: businessDate
@@ -365,7 +369,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         // 视同 miss 落穿重签(不再复用坏 token 再 403)
         await api.setInterpretError(nil)
         await api.setDailyFortuneToken("v1.fresh-token")
-        let (response, fromCache) = try await orchestrator.runDeterministic(
+        let (response, fromCache, _) = try await orchestrator.runDeterministic(
             chartHash: "daily_token_stale",
             ziHourRule: "zi_next_day",
             businessDate: businessDate

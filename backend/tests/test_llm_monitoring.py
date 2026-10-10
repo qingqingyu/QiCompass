@@ -397,6 +397,38 @@ async def test_alert_resolved_after_recovery(
     assert len(resolved) == 1, "恢复恰留痕一次"
 
 
+async def test_alert_resolved_despite_low_hourly_volume(
+        tmp_metrics_store, monkeypatch, caplog):
+    """恢复不受 min_calls 下限遮蔽(2026-10-10 review):告警后跨整点/
+    流量骤停,新小时桶 total < min_calls(乃至 0)→ 仍须收尾 RESOLVED。
+    修复前 total < min_calls 提前 return,日志平台上这次故障永远挂
+    「未恢复」。告警发射侧仍要求 total ≥ min_calls(低流量不误报,
+    test_alert_silent_below_min_calls 锁定,行为不变)。"""
+    import logging
+    monkeypatch.setattr(metered_module, "LLM_ALERT_MIN_CALLS", 2)
+    monkeypatch.setattr(metered_module, "LLM_ALERT_FAILURE_RATE", 0.5)
+    caplog.set_level(logging.INFO, logger="app.monitoring.metered")
+
+    inner = _StubInner()
+    inner.action = ("raise", AIProviderError("超时", reason="timeout"))
+    client = MeteredAIClient(inner, tmp_metrics_store)
+    for _ in range(2):  # 2/2 全败 → ALERT(当前小时桶)
+        with pytest.raises(AIProviderError):
+            await client.interpret("prompt")
+    await metered_module.wait_for_pending_records()
+    assert [r for r in caplog.records
+            if "ALERT llm_failure_rate" in r.message]
+
+    # 跨整点:下一小时桶空(total=0 < min_calls=2)——恢复仍要落地
+    from datetime import datetime, timedelta, timezone
+    next_hour = hour_key(
+        datetime.now(timezone.utc) + timedelta(hours=1))
+    client.evaluate_alert(hour=next_hour)
+    resolved = [r for r in caplog.records
+                if "ALERT_RESOLVED llm_failure_rate" in r.message]
+    assert len(resolved) == 1, "跨整点空桶也要收尾 RESOLVED"
+
+
 # ===== 5. GET /api/health/llm =====
 
 
@@ -596,6 +628,46 @@ async def test_health_llm_cache_control_no_store(tmp_metrics_store, llm_health_t
     assert resp.headers["Cache-Control"] == "no-store"
 
 
+async def test_health_llm_query_triggers_alert_resolution(
+        tmp_metrics_store, llm_health_token, monkeypatch, caplog):
+    """巡检顺带评估(2026-10-10 review):告警后流量停摆(无新 LLM 调用),
+    后台恢复评估永不再跑——运维查 /api/health/llm 即触发一次收尾,
+    ALERT_RESOLVED 落地。成功样本直接进 store(不经 interpret,隔离
+    「新调用自身触发评估」路径,本测试只锁 health 接线)。"""
+    import logging
+    monkeypatch.setattr(metered_module, "LLM_ALERT_MIN_CALLS", 2)
+    monkeypatch.setattr(metered_module, "LLM_ALERT_FAILURE_RATE", 0.5)
+    caplog.set_level(logging.INFO, logger="app.monitoring.metered")
+
+    inner = _StubInner()
+    inner.action = ("raise", AIProviderError("超时", reason="timeout"))
+    metered = MeteredAIClient(inner, tmp_metrics_store)
+    for _ in range(2):  # 2/2 全败 → ALERT
+        with pytest.raises(AIProviderError):
+            await metered.interpret("prompt")
+    await metered_module.wait_for_pending_records()
+    assert [r for r in caplog.records
+            if "ALERT llm_failure_rate" in r.message]
+    assert not [r for r in caplog.records
+                if "ALERT_RESOLVED llm_failure_rate" in r.message]
+
+    # 流量恢复(仅计数落库,无新 interpret → 后台评估不跑)
+    from datetime import datetime, timezone
+    current = hour_key(datetime.now(timezone.utc))
+    for _ in range(3):
+        tmp_metrics_store.record(
+            hour=current, provider="anthropic",
+            module="unknown", outcome="success")
+
+    resp = await _get_llm_health(
+        tmp_metrics_store, metered,
+        headers={"Authorization": f"Bearer {llm_health_token}"})
+    assert resp.status_code == 200, resp.text
+    resolved = [r for r in caplog.records
+                if "ALERT_RESOLVED llm_failure_rate" in r.message]
+    assert len(resolved) == 1, "health 巡检必须顺带收尾告警生命周期"
+
+
 # ===== 6. 翻译监控维度 translate: 前缀(2026-10-10 外评建议) =====
 
 
@@ -632,7 +704,11 @@ async def test_health_llm_last_error_urls_redacted(
         tmp_metrics_store, llm_health_token):
     """last_error.message 的 URL 脱敏(2026-10-10):httpx 异常文本带上游
     endpoint(如中转网关地址)时,出口只留 [url] 占位——鉴权之外的第二道
-    纵深,令牌泄漏也不随之暴露中转拓扑。DB 存原文,仅出口层脱敏。"""
+    纵深,令牌泄漏也不随之暴露中转拓扑。DB 存原文,仅出口层脱敏。
+
+    覆盖面(2026-10-10 review 放宽):任意 scheme(httpx 代理错误可带
+    socks5:// 等,不止 http(s))+ 无 scheme 的 user:pass@host 裸凭证;
+    邮箱无冒号段结构不误伤。"""
     from datetime import datetime, timezone
     tmp_metrics_store.record_last_error(
         occurred_at=datetime.now(timezone.utc).isoformat(),
@@ -646,6 +722,35 @@ async def test_health_llm_last_error_urls_redacted(
     message = resp.json()["last_error"]["message"]
     assert "secret-gateway.example" not in message
     assert "[url]" in message
+
+
+async def test_health_llm_last_error_proxy_and_credentials_redacted(
+        tmp_metrics_store, llm_health_token):
+    """脱敏覆盖非 http(s) scheme 与裸凭证(2026-10-10 review):修复前
+    https?:// 之外的 socks5:// 代理地址、无 scheme 的 user:pass@host
+    全部漏网——运维排障要的是 reason/类型,不是中转拓扑与代理口令。"""
+    from datetime import datetime, timezone
+    tmp_metrics_store.record_last_error(
+        occurred_at=datetime.now(timezone.utc).isoformat(),
+        provider="anthropic", module="m4_health", reason="network",
+        message="代理握手失败: socks5://ops:secret@proxy.internal:1080 "
+                "超时;裸凭证重试 user:pass@10.0.0.8:3128 同败; "
+                "联系 ops@example.com 而非 ops@10.0.0.8")
+    resp = await _get_llm_health(
+        tmp_metrics_store, _HealthStubClient(),
+        headers={"Authorization": f"Bearer {llm_health_token}"})
+    assert resp.status_code == 200, resp.text
+    message = resp.json()["last_error"]["message"]
+    # 任意 scheme 的 URL(含内嵌凭证)整段占位
+    assert "proxy.internal" not in message
+    assert "socks5" not in message
+    assert "[url]" in message
+    # 无 scheme 的 user:pass@host:port 裸凭证占位
+    assert "10.0.0.8:3128" not in message
+    assert "user:pass@" not in message
+    assert "[credentials@host]" in message
+    # 邮箱(user@host,无「user:pass@」冒号段)不误伤
+    assert "ops@example.com" in message
 
 
 # ===== 8. join 容忍被取消任务(2026-10-10 第二十轮外评 #7) =====

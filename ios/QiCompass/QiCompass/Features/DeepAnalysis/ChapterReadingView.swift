@@ -508,7 +508,11 @@ struct ChapterReadingView: View {
                         // 2026-09-25 暗色走查 #11:🔒 彩色 emoji 与水墨单色语言冲突,
                         // 换单色 SF Symbol(继承 inkMutedSecondary,深浅色自适应)。
                         HStack(spacing: 3) {
+                            // lineLimit(1) 与 pagerButton 同规格(2026-10-10
+                            // review):字号 11.5→15 后 EN 长标题在 375pt 宽会
+                            // 折两三行,翻章条左右两侧错位。
                             Text(pagerTitle(next))
+                                .lineLimit(1)
                             Image(systemName: "lock.fill")
                                 .font(.system(size: 10))
                         }

@@ -14,7 +14,8 @@
 标记日志(运维 grep / 日志平台 hook 该锚点;无外部推送通道是「不引入
 新依赖」拍板的代价)。进程内每 provider 10 分钟节流;uvicorn 多 worker
 各自独立节流(上限 = workers × 6 条/小时,日志量有界)。曾告警后转
-健康 → INFO 级「ALERT_RESOLVED llm_failure_rate」。
+健康 → INFO 级「ALERT_RESOLVED llm_failure_rate」(恢复不受 min_calls
+下限遮蔽;流量停摆后无新调用时由 /api/health/llm 巡检顺带评估收尾)。
 
 store 写失败只记 ERROR 日志、不反噬主路径(监控可用性不能以牺牲主请求
 为代价;对齐 _refund_daily_quota 退款失败只记日志的先例)。
@@ -162,7 +163,7 @@ class MeteredAIClient:
         try:
             await self._after_call(module, outcome=outcome, message=message)
         except Exception:
-            # 理论不可达(_after_call/_evaluate_alert 已自捕获);兜底防
+            # 理论不可达(_after_call/evaluate_alert 已自捕获);兜底防
             # 无人 await 的后台任务异常噪音
             logger.exception(
                 "llm_metrics.record_task_failed provider=%s module=%s "
@@ -189,13 +190,21 @@ class MeteredAIClient:
                 "outcome=%s error=%r",
                 self.provider, module_key, outcome, e)
             return
-        await self._evaluate_alert(hour)
+        await asyncio.to_thread(self.evaluate_alert, hour)
 
-    async def _evaluate_alert(self, hour: str) -> None:
-        """当前小时桶失败率告警/恢复评估(仅本 provider 维度)。"""
+    def evaluate_alert(self, hour: str) -> None:
+        """当前小时桶失败率告警/恢复评估(同步核心;后台任务与 health
+        巡检共用)。store 读失败只记日志,不外溢。
+
+        恢复判据不受 min_calls 下限遮蔽(2026-10-10 review):告警发射
+        仍要求 total ≥ min_calls(低流量不误报),但**恢复**只看「本进程
+        曾告警过且当前不满足告警条件」——total < min_calls(跨整点新桶
+        样本还少 / 流量已停)时提前 return 会让 ALERT_RESOLVED 永不落地,
+        日志平台上这次故障一直挂「未恢复」。total=0 时 rate 取 0.0
+        (除零防御,语义=不满足告警条件)。
+        """
         try:
-            counts = await asyncio.to_thread(
-                self._store.get_counts, start_hour=hour, end_hour=hour)
+            counts = self._store.get_counts(start_hour=hour, end_hour=hour)
         except Exception as e:
             logger.error(
                 "llm_metrics.alert_eval_failed provider=%s error=%r",
@@ -203,12 +212,11 @@ class MeteredAIClient:
             return
         total = sum(c for (p, _m, _o), c in counts.items()
                     if p == self.provider)
-        if total < LLM_ALERT_MIN_CALLS:
-            return
         failures = sum(c for (p, _m, o), c in counts.items()
                        if p == self.provider and o != "success")
-        rate = failures / total
-        if rate >= LLM_ALERT_FAILURE_RATE:
+        rate = failures / total if total else 0.0
+        if (total >= LLM_ALERT_MIN_CALLS
+                and rate >= LLM_ALERT_FAILURE_RATE):
             now_mono = time.monotonic()
             # 「从未告警」不节流:last 缺省若取 0.0,会把 monotonic 的基准点
             # (Linux/macOS = 开机时刻)误当第 0 秒告警过——机器开机不到
@@ -225,7 +233,7 @@ class MeteredAIClient:
                 self.provider, hour, total, failures, rate,
                 LLM_ALERT_FAILURE_RATE)
         elif self.provider in _last_alert_emit:
-            # 曾在本进程告警过,现低于阈值 → 恢复留痕(各 worker 独立,
+            # 曾在本进程告警过,现不满足告警条件 → 恢复留痕(各 worker 独立,
             # 至少一个 worker 看到恢复即有日志锚点)
             _last_alert_emit.pop(self.provider, None)
             logger.info(

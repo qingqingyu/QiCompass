@@ -46,13 +46,20 @@ final class DailyFortuneOrchestrator {
     ///   - ziHourRule: 当前命盘的子时规则(来自 ChartSnapshot.ziHourRule)
     ///   - businessDate: VM 算好的业务日期(决策 §3.6,不传 now 以让 VM 控制)
     ///   - forceRefresh: true 时跳过本地缓存,强制重调后端
-    /// - Returns: DailyFortuneResponse(新鲜或缓存)+ 是否来自缓存
+    /// - Returns: DailyFortuneResponse(新鲜或缓存)+ 是否来自缓存 +
+    ///   实际使用的 chartPayload(2026-10-10 review:重签路径按重签后的
+    ///   response 重建,与发给 /daily-fortune 的 payload 严格同源——
+    ///   VM 阶段 2 的 context 字段必须从同一份派生,旧快照解码的 payload
+    ///   配重签后的新 daily token,规则演化派生字段变化时必再 403)
     func runDeterministic(
         chartHash: String,
         ziHourRule: String,
         businessDate: Date,
         forceRefresh: Bool = false
-    ) async throws -> (response: DailyFortuneResponse, fromCache: Bool) {
+    ) async throws -> (
+        response: DailyFortuneResponse, fromCache: Bool,
+        chartPayload: ChartPayloadDTO
+    ) {
         // 规则 2:函数入口日志
         AppLogger.app.info("daily.runDeterministic.start chartHash=\(chartHash, privacy: .public) targetDate=\(Self.dateFormatter.string(from: businessDate), privacy: .public) forceRefresh=\(forceRefresh, privacy: .public)")
         // 1. 取存档 ChartSnapshot(无 → chartMissing)
@@ -87,7 +94,7 @@ final class DailyFortuneOrchestrator {
                 AppLogger.app.info(
                     "daily.deterministic.cache_hit hash=\(chartHash, privacy: .public) targetDate=\(businessDate, privacy: .public)"
                 )
-                return (response, true)
+                return (response, true, chartPayload)
             }
         }
 
@@ -141,6 +148,9 @@ final class DailyFortuneOrchestrator {
             // 重建(2026-10-10 外评 #6)——排盘规则演化可让同 hash 派生字段
             // 变化,新 token 签的是新 payload;只换 token 不换 payload,唯一
             // 一次重试会因 token↔payload 对不上再 403 白白浪费。
+            // 重建值同时是返回给 VM 的 chartPayload(同源透传,见签名注释):
+            // 阶段 2 的 interpret context 若仍取旧快照解码的 payload,
+            // 同样 token↔payload 对不上 → 唯一一次解读也 403。
             request.contextToken = freshToken
             request.chartPayload = ChartPayloadDTO.from(baziResponse: fresh)
             response = try await AppLogger.measure(
@@ -168,7 +178,9 @@ final class DailyFortuneOrchestrator {
         AppLogger.app.info(
             "daily.deterministic.ok hash=\(chartHash, privacy: .public) dayPillar=\(response.dayPillar, privacy: .public) lunarDate=\(response.lunarDate, privacy: .public)"
         )
-        return (response, false)
+        // request.chartPayload 与发给后端的那份严格同一(正常路径=快照解码,
+        // 重签路径=重签后重建)——VM 阶段 2 用它派生 interpret context。
+        return (response, false, request.chartPayload)
     }
 
     // MARK: - 阶段 2:AI 解读

@@ -14,6 +14,7 @@ from ..config import (
     LUNAR_PYTHON_VERSION,
     MODEL_ID,
 )
+from ..monitoring.metered import MeteredAIClient
 from ..monitoring.store import LLMOutcomeStore, hour_key
 
 router = APIRouter()
@@ -132,9 +133,10 @@ def health_llm(request: Request, response: Response) -> dict:
     - last_24h:近 24 个小时桶(含当前)
     - today:UTC 当日
 
-    alert.active 与 MeteredAIClient._evaluate_alert 同公式无状态重算
+    alert.active 与 MeteredAIClient.evaluate_alert 同公式无状态重算
     (current_hour 总数 ≥ min_calls 且失败率 ≥ 阈值),与进程内告警日志
-    互为印证。
+    互为印证;查询时顺带跑一次 evaluate_alert 收尾告警生命周期
+    (见下方巡检注释)。
     """
     _authorize_llm_health(request)
     store: LLMOutcomeStore = request.app.state.llm_metrics_store
@@ -143,6 +145,16 @@ def health_llm(request: Request, response: Response) -> dict:
 
     now = datetime.now(timezone.utc)
     current = hour_key(now)
+
+    # 巡检顺带评估告警/恢复(2026-10-10 review):恢复评估原本只挂在
+    # 「新 LLM 调用落计数」之后,流量停摆或跨整点低流量时永不再跑,
+    # ALERT_RESOLVED 一直缺位——运维查 health 恰是「有人在看监控」的
+    # 在场证明,查询即收尾(各 worker 独立口径不变;store 读失败在
+    # evaluate_alert 内自捕获,不反噬本端点。测试 stub 非 MeteredAIClient
+    # 跳过)。
+    if isinstance(ai_client, MeteredAIClient):
+        ai_client.evaluate_alert(hour=current)
+
     start_24h = hour_key(now - timedelta(hours=23))
     today_start = f"{now.date().isoformat()}T00"
 
@@ -167,8 +179,14 @@ def health_llm(request: Request, response: Response) -> dict:
         # 网关地址)——运维排障要 reason/类型,不需要具体 URL;出口层脱敏,
         # DB 存原文(health 之外的排障通道仍可见全量)。鉴权之外的第二道
         # 纵深:令牌一旦泄漏,中转拓扑不随之裸奔。
-        last_error["message"] = re.sub(r"https?://\S+", "[url]",
-                                       last_error["message"])
+        # 任意 scheme(2026-10-10 review):代理错误文本可带 socks5:// 等
+        # 非 http(s) 地址,https?:// 之外的都成漏网;凭证形态(user:pass@
+        # host,URL 里已被上一条整段吞掉,此处兜无 scheme 的裸写)一并
+        # 屏蔽——邮箱无「user:pass@」冒号段结构,不误伤。
+        message = re.sub(r"[a-zA-Z][a-zA-Z0-9+.\-]*://\S+", "[url]",
+                         last_error["message"])
+        last_error["message"] = re.sub(
+            r"[^\s/:?#]+:[^\s/@?#]+@[^\s]+", "[credentials@host]", message)
 
     return {
         "provider": ai_client.provider,
