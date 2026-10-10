@@ -1,13 +1,15 @@
 """LLM 监控闭环测试(2026-10-09 A 档):reason 分型 / store / MeteredAIClient
 / 失败率告警 / GET /api/health/llm。
 
-四层:
+六块:
 1. client reason 分型(anthropic/openai 全 raise 点,mirror
    test_anthropic_client.py 的 fake AsyncClient 注入法)
 2. LLMOutcomeStore 单元(小时桶计数/滚动窗口/last_error 覆盖与截断)
 3. MeteredAIClient(计数旁路不改写异常;success/unexpected 分型)
-4. 告警节流 + 恢复(caplog)
-5. /api/health/llm 聚合(空库/种子/provider 过滤/告警态)
+4. 告警节流 + 恢复(caplog;含 2026-10-10 开机首警不被吞,monotonic 钉死)
+5. /api/health/llm 聚合(空库/种子/provider 过滤/告警态)+ Bearer token
+   鉴权(2026-10-10:未配置 404 / 缺头错值畸形 401)
+6. 翻译监控维度 translate: 前缀(2026-10-10 外评:与生成分桶)
 """
 
 from __future__ import annotations
@@ -549,3 +551,32 @@ async def test_health_llm_cache_control_no_store(tmp_metrics_store, llm_health_t
         tmp_metrics_store, _HealthStubClient(),
         headers={"Authorization": f"Bearer {llm_health_token}"})
     assert resp.headers["Cache-Control"] == "no-store"
+
+
+# ===== 6. 翻译监控维度 translate: 前缀(2026-10-10 外评建议) =====
+
+
+async def test_translate_records_prefixed_module_dimension(
+        interpret_client, mock_ai_client, tmp_cache):
+    """翻译调 LLM 的 module 形参带 translate: 前缀(与生成分桶,失败率
+    可分型是本次修复的全部目的)。module 形参仅 MeteredAIClient 消费,
+    真实 client 不消费,前缀不影响缓存键/配额桶——但若有人改回裸
+    module 或误伤其它维度,此测试红。
+
+    复用 test_interpret_translate 的 payload 构造器(键对齐同源,杜绝
+    测试种子与生产键算法漂移);走真实端点锁调用点接线,而非只测
+    MeteredAIClient 透传(那锁不到 interpret.py 的 f-string)。
+    """
+    from tests.test_interpret_translate import (
+        M0_HANT_JSON, M0_ZH_JSON, _m0_translate_payload, _seed_source_row,
+    )
+    payload = _m0_translate_payload()
+    _seed_source_row(tmp_cache, payload, M0_ZH_JSON)
+    mock_ai_client.set_response(M0_HANT_JSON)
+    resp = await interpret_client.post(
+        "/api/interpret/translate", json=payload,
+        headers={"X-QiCompass-Lang": "zh-hant"},
+    )
+    assert resp.status_code == 200, resp.text
+    assert mock_ai_client.last_module == "translate:m0_structure", (
+        "翻译调 LLM 的监控维度必须与生成分桶(translate: 前缀)")

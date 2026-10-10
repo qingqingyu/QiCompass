@@ -2230,7 +2230,11 @@ async def interpret_translate(
             translated = await ai_client.interpret(
                 translate_prompt,
                 temperature=resolve_temperature("translate"),
-                module=req.module,
+                # 监控维度加 translate: 前缀(2026-10-10 外评建议):翻译与
+                # 生成同 module 名混在一个桶,失败率分不出哪类出问题;
+                # module 形参仅 MeteredAIClient 消费,真实 client 不消费,
+                # 前缀不影响缓存键/配额桶(各自独立维度)。
+                module=f"translate:{req.module}",
             )
         except Exception as e:
             # factory 内留痕(十四轮外评 #6,同 /api/interpret 4.1):创建者
