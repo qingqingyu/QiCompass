@@ -103,16 +103,22 @@ _M1_CONTEXT = {
 _M2_CONTEXT = {
     "chart": CHART_JSON,
     "structure_fingerprint": "fp",
+    "core_loop": _CORE_LOOP_JSON,
     "innate": _INNATE_JSON,
     "defensive": _DEFENSIVE_JSON,
 }
 _M3_CONTEXT = {
     "chart": CHART_JSON,
     "structure_fingerprint": "fp",
+    "main_axis": _MAIN_AXIS_JSON,
+    "core_loop": _CORE_LOOP_JSON,
+    "innate": _INNATE_JSON,
+    "threshold": _THRESHOLD_JSON,
 }
 _M4_CONTEXT = {
     "chart": CHART_JSON,
     "structure_fingerprint": "fp",
+    "innate": _INNATE_JSON,
     "age": "30",
     "current_concern": "睡眠差",
 }
@@ -256,10 +262,14 @@ def test_v1_prompt_versions_registry_matches_expected():
         "m0_structure", "m1_talent", "m2_high_low", "m3_system",
         "m4_health", "m5_wealth", "m6_dynamics", "m7_manual",
     }
-    # v3 2026-10-08:m0 单独 bump(证据引用纪律五条,见 prompts.py 注释);
-    # 其余模块维持 v2。后续逐模块 bump 时在此登记。
+    # v3 2026-10-08:m0 单独 bump(证据引用纪律五条,见 prompts.py 注释)。
+    # v3 2026-10-10 L1 加粗链条:m2/m3/m4 bump(注入集加厚,见 prompts.py 注释);
+    # m1/m5/m6/m7 维持 v2。后续逐模块 bump 时在此登记。
     expected = {m: 2 for m in v1_modules}
     expected["m0_structure"] = 3
+    expected["m2_high_low"] = 3
+    expected["m3_system"] = 3
+    expected["m4_health"] = 3
     for module in v1_modules:
         assert module in PROMPT_VERSIONS, f"{module} 未注册 PROMPT_VERSIONS"
         assert PROMPT_VERSIONS[module] == expected[module], (

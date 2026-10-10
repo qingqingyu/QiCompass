@@ -471,11 +471,17 @@ def _log_offchart_ganzhi(
 # chart(DeepAnalysisOrchestrator.buildV1Request 恒注入)且 parent_fingerprint
 # 取自 M0 产出,故 m0 也在依赖内。
 _V1_SOURCE_WALK_DEPS: Final[dict[str, tuple[str, ...]]] = {
+    # 层序 = _iter_v1_chain_branches 的逐层展开序:下游模块自身 REQUIRED_FIELDS
+    # 里的链字段必须全部由**排在它前面的层**产出(m3 v3 起消费 m2 的 threshold,
+    # 故 m2_high_low 必须在 m3_system 之前;2026-10-10 L1 加粗链条,mirror
+    # REQUIRED_FIELDS 与 iOS ModuleID.dependencies)。
     "m1_talent": ("m0_structure",),
     "m2_high_low": ("m0_structure", "m1_talent"),
-    "m3_system": ("m0_structure",),
-    "m4_health": ("m0_structure",),
-    "m5_wealth": ("m0_structure", "m1_talent", "m3_system"),
+    "m3_system": ("m0_structure", "m1_talent", "m2_high_low"),
+    "m4_health": ("m0_structure", "m1_talent"),
+    # m5 自身只消费 m1/m3 的输出,但走到 m3 层要按 m3 的 REQUIRED(含
+    # threshold)重渲染 → m2 必须排在 m3 前(guard ③ 拓扑序锁定)
+    "m5_wealth": ("m0_structure", "m1_talent", "m2_high_low", "m3_system"),
     "m6_dynamics": ("m0_structure", "m1_talent", "m2_high_low"),
     "m7_manual": ("m0_structure", "m1_talent", "m2_high_low", "m3_system",
                   "m6_dynamics"),

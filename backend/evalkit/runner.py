@@ -448,10 +448,16 @@ async def run_chain_for_case(
         })
 
         parsed = status["parsed"]
-        if status["ok"] and not dry_run and parsed is not None:
+        # 写回条件 = parsed 非 None(对齐生产行为,2026-10-10 L1 加粗链条
+        # 收口修正):iOS 端只要模块 2xx + JSON 合法就 extractChainFields,
+        # **不看质量判据**——旧条件 status["ok"] 把 L1 质量失败(字数/
+        # 证据纪律类)也当断链,LLM 输出波动被放大成下游全链 error 条目
+        # (评测假红,case_05 m1/ case_09 m2 实证)。链字段可用性由 parsed
+        # 保证(解析失败 parsed=None,结构性缺失由 L1 判据单独报)。
+        if not dry_run and parsed is not None:
             _write_back_chain_ctx(chain_ctx, module, parsed)
             chain_outputs[module] = parsed
-        elif module == "m0_structure" and not status["ok"]:
+        elif module == "m0_structure" and status["parsed"] is None:
             chain_broken = True
 
     # L3 接线:只裁判 L1/L2 都过的条目(verdict=="pass" 的生成条目;

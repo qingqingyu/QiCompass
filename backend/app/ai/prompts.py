@@ -111,9 +111,17 @@ PROMPT_VERSIONS: dict[str, int] = {
     # useful_god_candidates(身旺忌水局把印讲成助力 = 前后矛盾)。老 v2 缓存随
     # prompt_version 自然失效;M0 重生成 fingerprint 变 → 下游链式连带失效(既有行为)。
     "m1_talent": 2,        # 免费:天赋能力(innate/trained/defensive + one_leverage)
-    "m2_high_low": 2,      # 付费:高配/低配 + 阈值(环境/信念/觉察)
-    "m3_system": 2,        # 付费:人生系统模式(运行模式/失效环境/理想结构)
-    "m4_health": 2,        # 付费:健康续航(需 age + current_concern)
+    # v3 2026-10-10 L1 加粗链条(治章节割裂):M2 补注入 core_loop(此前只有
+    # fingerprint+innate+defensive,高低配分界与核心循环的损耗段各说各话)。
+    "m2_high_low": 3,      # 付费:高配/低配 + 阈值(环境/信念/觉察)
+    # v3 2026-10-10 L1 加粗链条:M3 是链上上下文最薄的一章(此前只有 40 字
+    # fingerprint + 原始盘,等于独立重新推一遍结构,与 M0-M2 割裂最重)。
+    # 补注入 main_axis + core_loop + innate + threshold,模板加「结论一致性」
+    # 指令。deps 顺序 m0→m1→m2 保证走查逐层可重建(_V1_SOURCE_WALK_DEPS 同步)。
+    "m3_system": 3,        # 付费:人生系统模式(运行模式/失效环境/理想结构)
+    # v3 2026-10-10 L1 加粗链条:M4 补注入 innate(恢复杠杆与「能量回升型天赋」
+    # 对齐,不再只凭五行偏性泛泛而谈)。
+    "m4_health": 3,        # 付费:健康续航(需 age + current_concern)
     "m5_wealth": 2,        # 付费:财富结构(需 assets_summary + preference)
     "m6_dynamics": 2,      # 付费:结构动力学高阶(能量路径/杠杆/易损点/升级路径)
     "m7_manual": 2,        # 付费:落地手册(true_leverage + 90 天行动)
@@ -594,7 +602,8 @@ M2_HIGH_LOW_TEMPLATE = _V1_SYSTEM_PROMPT + """
 
 {chart}
 
-结构:{structure_fingerprint}　天赋:{innate}　防御能力:{defensive}
+结构:{structure_fingerprint}　核心循环:{core_loop}
+天赋:{innate}　防御能力:{defensive}
 
 请分析:
 1. 我的命局走高配版会表现成什么样?(行为画像 + 外部可观察的信号)
@@ -607,6 +616,7 @@ M2_HIGH_LOW_TEMPLATE = _V1_SYSTEM_PROMPT + """
 5. 从低配切回高配的 3 个动作(可在两周内开始做)
 
 重要:不要把高低配写成命定的两条路。它是同一个结构在不同环境与信念下的两种跑法。
+核心循环的 leak(损耗段)是低配化的常见入口:分析分界点时先核对能量在哪里损耗、被谁摊薄,结论与循环保持一致,不要另找一套解释。
 
 输出 JSON:
 {{
@@ -630,6 +640,8 @@ M3_SYSTEM_TEMPLATE = _V1_SYSTEM_PROMPT + """
 {chart}
 
 结构:{structure_fingerprint}
+主线:{main_axis}　核心循环:{core_loop}
+天赋:{innate}　高低配分界:{threshold}
 
 如果把我的命局当成一个系统:
 1. 它最自然的运行模式是什么?(输入什么、加工什么、输出什么、靠什么回血)
@@ -637,6 +649,8 @@ M3_SYSTEM_TEMPLATE = _V1_SYSTEM_PROMPT + """
 3. 它最适合什么类型的生活结构?(时间结构、协作密度、反馈周期、收入节奏)
 4. 它更适合稳定型人生,还是高变量人生?给出理由与前提条件。
 5. 给我一份"环境筛选清单":在接受一份工作、一个合作、一次搬迁前,我应该先问自己的 5 个判断题。每题都要能用是/否回答。
+
+以上主线、循环、天赋、分界是前面章节已确定的结论,不是背景资料:运行模式要解释这个循环如何转起来,失效环境要对应循环的损耗段与防御能力的触发条件,生活结构与稳定判断要落在天赋能力实际能兑现的形态上。不要重新推导结构,也不要与这些结论矛盾。
 
 输出 JSON:
 {{
@@ -656,7 +670,7 @@ M4_HEALTH_TEMPLATE = _V1_SYSTEM_PROMPT + """
 {chart}
 
 结构:{structure_fingerprint}
-年龄:{age}　当前最困扰:{current_concern}
+天赋:{innate}　年龄:{age}　当前最困扰:{current_concern}
 
 你是我的健康与能量教练。请基于命局强弱与五行偏性,输出:
 
@@ -664,6 +678,8 @@ M4_HEALTH_TEMPLATE = _V1_SYSTEM_PROMPT + """
 2) 我最容易失衡的 3 个身体系统(睡眠 / 炎症 / 消化 / 焦虑等)+ 各自的触发条件(触发条件要写成具体情境,比如"连续三天以上高强度对外沟通")
 3) 我最有效的 3 个恢复杠杆——最省力但见效快的,按性价比排序
 4) 一份 7 天复位方案 + 一份可长期每周执行的维护方案
+
+天赋条目中 energy=gain 的项是你的天然回血活动,恢复杠杆优先从这里出发;防御能力条目对应的是长期消耗,它指向的身体系统在失衡风险里重点展开。
 
 严格约束:
 - 你不是医生。不诊断疾病、不命名病症、不涉及任何药物、补剂或剂量。
@@ -869,9 +885,19 @@ REQUIRED_FIELDS: dict[str, list[str]] = {
     # chart = json.dumps(snapshot_dict, ensure_ascii=False, indent=2)
     "m0_structure": ["chart"],
     "m1_talent": ["chart", "structure_fingerprint", "main_axis", "core_loop"],
-    "m2_high_low": ["chart", "structure_fingerprint", "innate", "defensive"],
-    "m3_system": ["chart", "structure_fingerprint"],
-    "m4_health": ["chart", "structure_fingerprint", "age", "current_concern"],
+    # v3(2026-10-10 L1 加粗链条)起 m2/m3/m4 的注入集加厚;iOS 镜像 =
+    # ModuleID.requiredChainFields(tools/check_prompt_sync.py ③ 锁相等),
+    # interpret.py _V1_SOURCE_WALK_DEPS(translate 走查层序)同步。
+    # 兼容性:走查按行自身版本重渲染上游旧 v2 行时,context 恒为超集
+    # (旧模板 format_map 忽略多余键),渲染字节不变 → 存量链不因字段集
+    # 变化而 409;旧 App 发 v2 形态请求会 422 缺字段,需跟版(发版前无
+    # 生产用户,可接受)。
+    "m2_high_low": ["chart", "structure_fingerprint", "core_loop",
+                     "innate", "defensive"],
+    "m3_system": ["chart", "structure_fingerprint", "main_axis",
+                   "core_loop", "innate", "threshold"],
+    "m4_health": ["chart", "structure_fingerprint", "innate",
+                   "age", "current_concern"],
     "m5_wealth": [
         "chart", "structure_fingerprint", "innate", "ideal_life_structure",
         "assets_summary", "preference",
