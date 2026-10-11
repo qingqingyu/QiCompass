@@ -13,7 +13,7 @@ import Foundation
 /// - **单一语言开关**(D9,2026-10-01):UI 文案、命盘术语(`BaziTerms`)、
 ///   三模块 AI 解读语言共用本枚举——**全仓只允许经 `AppLanguage.current` /
 ///   `currentWire` 取语言,禁止新增第二个语言来源**(拆开会同屏混语:
-///   「Wealth Rival」标签配「劫財」正文)。
+///   「Rob Wealth」标签配「劫財」正文)。
 /// - **App 内切换**(D6,S4):`Override.system/zh/zhHant/en` 存
 ///   `UserDefaults`(key = `overrideDefaultsKey`),UI 层同时镜像写
 ///   `AppleLanguages` 并引导重启(String Catalog 走 Bundle 解析,重启生效

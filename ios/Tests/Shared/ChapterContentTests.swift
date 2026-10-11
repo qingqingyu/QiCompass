@@ -202,4 +202,35 @@ final class ChapterContentTests: XCTestCase {
         XCTAssertFalse(ChapterContent.looksLikeJSON(""))
         XCTAssertFalse(ChapterContent.looksLikeJSON("   "))
     }
+
+    // MARK: - text 主散文体无标签(2026-10-11 EN 外评)
+
+    func test_scalarObjectTextKeyRendersAsLeadNotLabeledField() {
+        // "Body/正文" 数据腔标签修复:全标量对象里的 text 按引言段落排版,
+        // 不打字段标签;其余标量键照旧键值行(混结构路径本就 .lead)。
+        let json = """
+        { "capability_source": { "text": "你最强的时刻,是硬需求递到手上的时候。", "evidence": "七杀重(6)——月支酉金当令。" } }
+        """
+        guard case .section(_, let children)? = ChapterContent.parse(json)?.nodes.first,
+              case .lead(let prose)? = children.first,
+              case .fields(let fields)? = children.last else {
+            return XCTFail("text 应为引言段 + 其余键值组,实际: \(String(describing: ChapterContent.parse(json)?.nodes))")
+        }
+        XCTAssertTrue(prose.contains("硬需求"), "text 值按引言段落全文呈现")
+        XCTAssertEqual(fields.map(\.label), ["据"], "text 不再占用字段标签位")
+    }
+
+    func test_nonStringTextKeyFallsBackToFieldNotDropped() {
+        // 违约输出防御:text 值为 number/null 时不转引言段,但也不静默丢弃
+        // ——回落键值行(label 未登记 → 裸 key 透出,对齐未知 key 约定)。
+        let json = """
+        { "capability_source": { "text": 5, "evidence": "七杀重。" } }
+        """
+        guard case .section(_, let children)? = ChapterContent.parse(json)?.nodes.first,
+              case .fields(let fields)? = children.first else {
+            return XCTFail("非 string text 应回落键值组,实际: \(String(describing: ChapterContent.parse(json)?.nodes))")
+        }
+        XCTAssertEqual(fields.count, 2, "number text 不消失")
+        XCTAssertTrue(fields.contains { $0.label == "text" && $0.value == "5" }, "裸 key + 原值透出")
+    }
 }

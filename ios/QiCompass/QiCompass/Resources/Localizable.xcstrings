@@ -5191,7 +5191,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "In one line"
+            "value" : "In brief"
           }
         },
         "zh-Hans" : {
@@ -5779,29 +5779,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "身體系統"
-          }
-        }
-      }
-    },
-    "deepanalysis.chapter.text" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Body"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正文"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "正文"
           }
         }
       }
