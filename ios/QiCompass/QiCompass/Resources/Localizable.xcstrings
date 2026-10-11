@@ -9789,29 +9789,6 @@
         }
       }
     },
-    "onboarding.reveal.stanceLine" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Same birth data, same chart · Calculated by classical rules, not guesswork"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "同一组生辰，同一张盘 · 喜忌由规则判，AI 只润色"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "同一組生辰，同一張盤 · 喜忌由規則判，AI 只潤色"
-          }
-        }
-      }
-    },
     "onboarding.reveal.yearAmbiguous.hint" : {
       "extractionState" : "manual",
       "localizations" : {

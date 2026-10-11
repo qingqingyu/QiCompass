@@ -67,12 +67,10 @@ enum L10n {
         /// zh: "需磨合";en: "Needs patience"
         static let revealClashTitle = String(localized: "onboarding.reveal.clashTitle")
 
-        /// 立场微文案(反馈屏底部,Q1 拆分下沉:收到结论那一刻给可信度背书)。
-        /// zh: "同一组生辰,同一张盘 · 喜忌由规则判,AI 只润色"
-        /// en: "Same birth data, same chart · Calculated by classical rules, not guesswork"
-        /// (2026-09-23 review:原 EN "Rules decide, AI polishes" 读着像开发备注,
-        /// 改用户视角表述;zh 不变)
-        static let revealStanceLine = String(localized: "onboarding.reveal.stanceLine")
+        // 立场微文案 2026-10-11 拍板删除(原 key onboarding.reveal.stanceLine):
+        // 工程纪律直译("喜忌由规则判,AI 只润色")生硬且无引导作用,用户母语实测违和
+        // (EN 侧 09-23 已以"读着像开发备注"修过一轮,zh 留的口子至此收掉);
+        // 立场完整版三条仍在 Profile 关于页「为什么可信」(aboutStance1-3)。
 
         /// 个人化 teaser(2026-09-23 EN review:属相层之上补一句只属于本人的确定性
         /// 事实——日主,引流深度解析;%@ = 日主展示串,ZodiacHelper.revealDayMasterDisplay)。

@@ -6,7 +6,7 @@ import SwiftUI
 /// - **时序**(Q4 Z):oneshot 仪式(此屏)+ 低调常驻(ChartHeader 文字 + ProfileView 命主卡)
 /// - **布局**(Q11 β → 2026-08-13 Q5 改):hero 压缩 ~140pt + 内容滚动 + CTA 钉底
 ///   [hero(印章图 + 主/次文字)→ 人格段落 → 好朋友 3 chips → 需磨合 1 chip
-///    → 日主 teaser(2026-09-23)→ 立场微文案]
+///    → 日主 teaser(2026-09-23)→ 收尾 hairline(立场微文案 2026-10-11 删除)]
 /// - **主文字**(Q12 iii):`辰 · 龙`(中点分隔,Songti SC display)
 /// - **次文字**(Q13 C+ii):`乾造(男) · 庚辰年(2000)`(命理 + 公历双轨)
 /// - **好朋友**(2026-08-13 Q3/Q4):六合 1 + 三合 2 = 3 个生肖 chip,墨青 jade(吉神色)
@@ -173,18 +173,14 @@ struct ZodiacRevealView: View {
                     .opacity(textOpacity)
             }
 
-            // MARK: 立场微文案(Q1 拆分下沉:收到结论那一刻给可信度背书)
-            VStack(spacing: BaziTheme.Spacing.md) {
-                Rectangle()
-                    .fill(BaziTheme.hairline)
-                    .frame(height: 0.5)
-                Text(L10n.Onboarding.revealStanceLine)
-                    .font(BaziFont.caption(size: 12))
-                    .foregroundStyle(BaziTheme.inkMuted)
-                    .multilineTextAlignment(.center)
-            }
-            .opacity(textOpacity)
-            .padding(.top, BaziTheme.Spacing.sm)
+            // MARK: 收尾 hairline(2026-10-11 拍板:立场微文案整行删除——原文案
+            // 工程视角直译"喜忌由规则判,AI 只润色",生硬且无引导作用;立场完整版
+            // 三条仍在 Profile 关于页「为什么可信」,此屏只留分隔线收尾)
+            Rectangle()
+                .fill(BaziTheme.hairline)
+                .frame(height: 0.5)
+                .opacity(textOpacity)
+                .padding(.top, BaziTheme.Spacing.sm)
         }
         .padding(.horizontal, BaziTheme.Spacing.xl)
         .padding(.bottom, BaziTheme.Spacing.lg)
@@ -244,18 +240,12 @@ struct ZodiacRevealView: View {
             .contentShape(Rectangle())
             .opacity(textOpacity)
 
-            // 立场微文案(与正常态同一收尾:如实告知之后的可信度背书)
-            VStack(spacing: BaziTheme.Spacing.md) {
-                Rectangle()
-                    .fill(BaziTheme.hairline)
-                    .frame(height: 0.5)
-                Text(L10n.Onboarding.revealStanceLine)
-                    .font(BaziFont.caption(size: 12))
-                    .foregroundStyle(BaziTheme.inkMuted)
-                    .multilineTextAlignment(.center)
-            }
-            .opacity(textOpacity)
-            .padding(.top, BaziTheme.Spacing.sm)
+            // 收尾 hairline(与正常态同一收尾;2026-10-11 立场微文案删除,同上)
+            Rectangle()
+                .fill(BaziTheme.hairline)
+                .frame(height: 0.5)
+                .opacity(textOpacity)
+                .padding(.top, BaziTheme.Spacing.sm)
         }
         .padding(.horizontal, BaziTheme.Spacing.xl)
         .padding(.bottom, BaziTheme.Spacing.lg)

@@ -11,8 +11,8 @@ import SwiftUI
 /// 整体切换成 ZodiacRevealView 终态屏。反馈屏不可回退,CTA 是唯一出路,
 /// 编辑走 Profile 重置命盘(与 2026-08-10 生肖决策 Q20 v1 不开放编辑一致)。
 ///
-/// 信任文案下沉(Q1):隐私微文案 → 表单页底;立场微文案 → 反馈屏底;
-/// 完整版立场+隐私 → Profile 关于页。
+/// 信任文案下沉(Q1):隐私微文案 → 表单页底;完整版立场+隐私 → Profile 关于页。
+/// (立场微文案原在反馈屏底,2026-10-11 拍板删除——生硬且无引导作用。)
 ///
 /// 状态边界(Q7):提交成功即回调 onChartArchived(RootTabView 设 hasSeenOnboarding=true),
 /// 修复"反馈屏 kill App → 重启重走 onboarding → 重复排盘"bug。
