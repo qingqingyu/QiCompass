@@ -133,7 +133,7 @@
 - **决策**:只有 D6 那一个「语言 / Language」设置项,同时决定 UI 文案、命盘术语显示(`BaziTerms`)和三模块 AI 解读语言。**不做**独立的「解读语言」开关
 - **理由**:
   1. 主诉求(英文系统的海外华人想看中文命书)D6 的 override 已覆盖
-  2. 拆开会同屏混语:术语 chip / 章节标签走 `AppLanguage.current`,正文走 LLM 输出语言,出现「Wealth Rival」标签配「劫財」正文
+  2. 拆开会同屏混语:术语 chip / 章节标签走 `AppLanguage.current`,正文走 LLM 输出语言,出现「Rob Wealth」标签配「劫財」正文
   3. evalkit / `check_term_sync` / 缓存键都按单一语言设计,拆开组合翻倍
 - **实现约束**:全仓只允许经 `AppLanguage.current` / `currentWire` 取语言;禁止新增第二个语言来源
 
