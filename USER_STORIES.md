@@ -230,11 +230,11 @@
 - 三屏流程:
   1. **Welcome**(吸引屏,不变):朱砂印章 "玄" + "玄机问道" + 副标题 "读懂你的命局" + 论语经文
   2. **出生表单**(TabView 第 2 页):出生时间 / 时辰快捷选 / 性别 / 出生地 / 提交 CTA;底部隐私微文案 "命盘只存你手机 · 无账号"
-  3. **生肖反馈**(终态屏,提交成功后整体切换,无 swipe 回退):生肖印章图(盖章动效)+ "辰 · 龙" + "乾造(男) · 庚辰年(2000)" + 人格段落 + 好朋友 3 chips + 需磨合 1 chip + 立场微文案 + CTA "查看今日运势"(钉底)
-- 信任文案下沉:隐私微文案 → 表单页底;立场微文案 → 反馈屏底;完整版 → Profile 关于页
+  3. **生肖反馈**(终态屏,提交成功后整体切换,无 swipe 回退):生肖印章图(盖章动效)+ "辰 · 龙" + "乾造(男) · 庚辰年(2000)" + 人格段落 + 好朋友 3 chips + 需磨合 1 chip + 日主 teaser(2026-09-23 加)+ 收尾 hairline(立场微文案 2026-10-11 删除)+ CTA "开始深度解析"(钉底;2026-08-31 改,原"查看今日运势")
+- 信任文案下沉:隐私微文案 → 表单页底;完整版 → Profile 关于页(立场微文案原在反馈屏底,**2026-10-11 拍板删除**——工程腔生硬且无引导作用)
 - `@AppStorage("hasSeenOnboarding")` 只做启动 gate;sheet 显示由 `showOnboarding` 独立 @State 控制
 - 提交成功(chart 已存档)即设 `hasSeenOnboarding = true`(kill 重启不重走 onboarding,避免重复排盘)
-- 点反馈屏 CTA → dismiss sheet + 落地今日运势 Tab
+- 点反馈屏 CTA → dismiss sheet + 落地深度解析 Tab(2026-08-31 改,原今日运势)
 - **禁止下滑 dismiss**(`.interactiveDismissDisabled()`)
 - 提交前二次确认 sheet(防首次输错 → 重置代价大)
 - 无障碍:VoiceOver labels(印章 + CTA hint),Reduce Motion 跳过盖章动效
@@ -254,11 +254,12 @@ Onboarding sheet(3 屏,禁止下滑 dismiss;2026-08-13 三屏重构)
   │          提交 → 二次确认 sheet → 排盘 + chart 存档)
   └─ 屏 3 生肖反馈(提交成功整体切换,终态无回退:
      盖章动效印章图 + 辰·龙 + 乾造·庚辰年 + 人格段落 +
-     好朋友 3 chips + 需磨合 1 chip + 立场微文案 + CTA 钉底)
-  ↓ 点 CTA "查看今日运势",dismiss sheet,落地每日运势 Tab(默认 Tab)
-每日运势 Tab
+     好朋友 3 chips + 需磨合 1 chip + 日主 teaser + CTA 钉底)
+  ↓ 点 CTA "开始深度解析",dismiss sheet,落地深度解析 Tab(2026-08-31 改)
+深度解析 Tab(命书链已于排盘成功时自动开跑,2026-09-08 起;
+  β 点击触发已废,推翻 08-01「用户主动触发」)
   ↓
-用户主动进深度解析 Tab → 已排盘直接看结果 → 点 "生成命书" β 触发 AI 解读
+今日运势 Tab:首次进入即自动生成 AI 解读(2026-09-07 起)
   ↓
 DeepAnalysisResultView(ScrollView)
   ├─ ChartHeaderView(命主信息 + 真太阳时偏差 + 边界 warning)
