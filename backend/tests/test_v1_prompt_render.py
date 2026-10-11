@@ -266,15 +266,17 @@ def test_v1_prompt_versions_registry_matches_expected():
     # v3 2026-10-10 L1 加粗链条:m2/m3/m4 bump(注入集加厚,见 prompts.py 注释)。
     # v4→v5/v3→v4 2026-10-10~11 L3 模板深化 + 解析回归修正:全 8 模块随共享
     # header【输出前自检】升版,v4 措辞诱导草稿泄漏后改「内部完成+引号规则」。
+    # v6/v5 2026-10-11 EN 质量批(母语者外评):en 模板加证据纪律扩全模块 +
+    # 裸数据格式禁令 + 母语风格基准;zh/zh-hant v-next byte-identical 纯失效。
     expected = {m: 2 for m in v1_modules}
-    expected["m0_structure"] = 5
-    expected["m1_talent"] = 4
-    expected["m2_high_low"] = 5
-    expected["m3_system"] = 5
-    expected["m4_health"] = 5
-    expected["m5_wealth"] = 4
-    expected["m6_dynamics"] = 4
-    expected["m7_manual"] = 4
+    expected["m0_structure"] = 6
+    expected["m1_talent"] = 5
+    expected["m2_high_low"] = 6
+    expected["m3_system"] = 6
+    expected["m4_health"] = 6
+    expected["m5_wealth"] = 5
+    expected["m6_dynamics"] = 5
+    expected["m7_manual"] = 5
     for module in v1_modules:
         assert module in PROMPT_VERSIONS, f"{module} 未注册 PROMPT_VERSIONS"
         assert PROMPT_VERSIONS[module] == expected[module], (

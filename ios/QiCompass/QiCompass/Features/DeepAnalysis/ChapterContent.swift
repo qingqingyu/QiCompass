@@ -90,10 +90,26 @@ struct ChapterContent: Equatable {
             return arrayNode(key: key, values: values)
         case .object(let pairs):
             // 对象一律成节(小节题是语义信息:主线/核心循环/电池类型…);
-            // 值全标量 → 子节点为单个键值组;混结构值 → 子节点递归。
+            // 值全标量 → 子节点为键值组(「text」除外);混结构值 → 子节点递归。
             let children: [ChapterNode]
             if pairs.allSatisfy({ $0.1.isScalar }) {
-                children = [.fields(pairs.map { field(key: $0.0, value: $0.1) })]
+                // 「text」是节的主散文体(如 capability_source.text):不打
+                // 「正文/Body」字段标签、按引言段落排版(2026-10-11 EN 外评:
+                // "Body" 数据腔标签);其余标量键照旧键值行。非 string 的
+                // text(违约输出 number/null)不转 lead 也不丢,回落键值行
+                // (label 未登记 → 裸 key 透出,不静默丢内容)。
+                // 谓词只写这一处(单趟分流):lead 组与其余组的边界不可能漂移。
+                var proseNodes: [ChapterNode] = []
+                var rest: [(String, JSONValue)] = []
+                for (k, v) in pairs {
+                    if k == "text", case .string(let s) = v {
+                        proseNodes.append(.lead(s))
+                    } else {
+                        rest.append((k, v))
+                    }
+                }
+                children = proseNodes
+                    + (rest.isEmpty ? [] : [.fields(rest.map { field(key: $0.0, value: $0.1) })])
             } else {
                 children = pairs.compactMap { node(key: $0.0, value: $0.1) }
             }
@@ -211,7 +227,8 @@ struct ChapterContent: Equatable {
         // 公共
         "evidence": "据",
         "name": "名称",
-        "text": "正文",
+        // "text" 不登记:全标量对象内按引言段落排版,不打「正文/Body」标签
+        // (2026-10-11 EN 外评);顶层/混结构路径本就无标签。
         "one_line": "一句话",
         "type": "类型",
         // M0 主线结构

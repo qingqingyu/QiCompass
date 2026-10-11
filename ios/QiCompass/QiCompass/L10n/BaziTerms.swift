@@ -68,11 +68,12 @@ enum BaziTerms {
     ]
 
     // MARK: - 十神(11 含偏官/七杀同义;en 对齐后端 TEN_GODS_EN,Joey Yap 体系。
-    // 劫财例外:2026-09-29 拍板弃直译「Rob Wealth」改「Wealth Rival」,后端同步)
+    // 劫财:2026-09-29 曾拍板弃直译改「Wealth Rival」;2026-10-11 母语者外评
+    // 推翻(英文八字圈通用叫法是 Rob Wealth,交流/搜索友好),改回,后端同步)
 
     static let tenGods: [Term] = [
         .init(zh: "比肩", zhHant: "比肩", en: "Companion"),
-        .init(zh: "劫财", zhHant: "劫財", en: "Wealth Rival"),
+        .init(zh: "劫财", zhHant: "劫財", en: "Rob Wealth"),
         .init(zh: "食神", zhHant: "食神", en: "Eating God"),
         .init(zh: "伤官", zhHant: "傷官", en: "Hurting Officer"),
         .init(zh: "偏财", zhHant: "偏財", en: "Indirect Wealth"),
