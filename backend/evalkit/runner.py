@@ -88,12 +88,17 @@ V1_MODULES: tuple[str, ...] = (
 
 # 链式依赖(上游模块粒度)。--modules 子集漏了任一上游 → 显式报错,
 # 不静默注入空值(空 fingerprint 会让下游 prompt 渲染出无意义内容)。
+# v3(2026-10-10 L1 加粗链条)起 m3/m4 注入集加厚,本表是依赖图第四处
+# 镜像(REQUIRED_FIELDS / interpret._V1_SOURCE_WALK_DEPS / iOS
+# ModuleID.dependencies 之外),m3 消费 m1 的 innate + m2 的 threshold、
+# m4 消费 m1 的 innate——漏更新会让「m3/m4 缺上游的子集」过 CLI 校验后
+# 在渲染层才炸(InvalidInputError),违背上方 fail-fast 契约。
 MODULE_DEPS: dict[str, tuple[str, ...]] = {
     "m0_structure": (),
     "m1_talent": ("m0_structure",),
     "m2_high_low": ("m0_structure", "m1_talent"),
-    "m3_system": ("m0_structure",),
-    "m4_health": ("m0_structure",),
+    "m3_system": ("m0_structure", "m1_talent", "m2_high_low"),
+    "m4_health": ("m0_structure", "m1_talent"),
     "m5_wealth": ("m0_structure", "m1_talent", "m3_system"),
     "m6_dynamics": ("m0_structure", "m1_talent", "m2_high_low"),
     "m7_manual": ("m1_talent", "m2_high_low", "m3_system", "m6_dynamics"),
@@ -472,7 +477,7 @@ async def run_chain_for_case(
             _write_back_chain_ctx(chain_ctx, module, parsed)
             chain_outputs[module] = parsed
         elif (module == "m0_structure" and not dry_run
-              and status["parsed"] is None):
+              and parsed is None):
             # not dry_run:dry-run 的 parsed 恒 None,不看 dry_run 会把
             # 全链误记「M0 失败」且 M1-M7 prompt 不再渲染(2026-10-11
             # 双 review 修复,--dry-run 冒烟当时退出码 1;回归锁 =

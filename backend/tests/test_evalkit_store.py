@@ -413,6 +413,33 @@ async def test_run_dir_reuse_rejected(tmp_path):
             dry_run=True, case_limit=1, run_id="same-id", runs_dir=tmp_path)
 
 
+def test_module_deps_cover_chain_field_producers():
+    """MODULE_DEPS(依赖图第四处镜像)不变量锁(2026-10-11 双 review 修复)。
+
+    MODULE_DEPS 与 REQUIRED_FIELDS / interpret._V1_SOURCE_WALK_DEPS /
+    iOS ModuleID.dependencies 平行存在,不锁会在链字段加厚时漏更新
+    (L1 加粗链条 m3/m4 实踩:漏更新让「m3 缺 m1/m2 的子集」过 CLI
+    校验后在渲染层才炸 InvalidInputError,违背 fail-fast 契约)。
+    不变量:每个模块 REQUIRED 链字段的**全部产出模块**
+    (V1_CHAIN_PRODUCER)都须出现在它的 MODULE_DEPS 里;允许超集
+    (m0/m7 的 chart 供给语义)。
+    """
+    from app.ai.prompts import REQUIRED_FIELDS, V1_CHAIN_PRODUCER
+    from evalkit.runner import MODULE_DEPS
+
+    for module, deps in MODULE_DEPS.items():
+        producers = {
+            V1_CHAIN_PRODUCER[field]
+            for field in REQUIRED_FIELDS[module]
+            if field in V1_CHAIN_PRODUCER
+        }
+        missing = producers - set(deps)
+        assert not missing, (
+            f"{module} 的 MODULE_DEPS 缺产出方 {sorted(missing)}"
+            f"(REQUIRED 链字段的上游必须齐全,fail-fast 契约)"
+        )
+
+
 async def test_dry_run_smoke_renders_all_modules(tmp_path):
     """dry-run 冒烟锁(2026-10-11 双 review 修复回归锚)。
 
