@@ -237,7 +237,7 @@
 - 点反馈屏 CTA → dismiss sheet + 落地深度解析 Tab(2026-08-31 改,原今日运势)
 - **禁止下滑 dismiss**(`.interactiveDismissDisabled()`)
 - 提交前二次确认 sheet(防首次输错 → 重置代价大)
-- 无障碍:VoiceOver labels(印章 + CTA hint),Reduce Motion 跳过盖章动效
+- 无障碍:VoiceOver 由主/次文字朗读(印章组合整体隐藏防「辰 龙」读两次;CTA hint 已于 2026-09-23 删除——硬编码中文对 EN VoiceOver 是噪音),Reduce Motion 跳过盖章动效
 
 ---
 
@@ -259,8 +259,6 @@ Onboarding sheet(3 屏,禁止下滑 dismiss;2026-08-13 三屏重构)
 深度解析 Tab(命书链已于排盘成功时自动开跑,2026-09-08 起;
   β 点击触发已废,推翻 08-01「用户主动触发」)
   ↓
-今日运势 Tab:首次进入即自动生成 AI 解读(2026-09-07 起)
-  ↓
 DeepAnalysisResultView(ScrollView)
   ├─ ChartHeaderView(命主信息 + 真太阳时偏差 + 边界 warning)
   ├─ PillarsTable(四柱,日柱 cinnabar 高亮)
@@ -270,7 +268,9 @@ DeepAnalysisResultView(ScrollView)
   ├─ ShenshaChips(吉 jade / 凶 暗朱砂)
   ├─ LuckPillarsTimeline(大运,当前柱 cinnabar)
   ├─ CurrentStatusCard(当下大运/流年/流日/流时)
-  └─ InterpretationSection(AI 命书,idle 态显示 CTA "生成命书")
+  └─ InterpretationSection(AI 命书,排盘成功即自动起链,idle 手动 CTA 已废——2026-09-08)
+之后切 Tab 3 →
+今日运势 Tab:首次进入即自动生成 AI 解读(2026-09-07 起)
 ```
 
 **断点风险:**
@@ -411,7 +411,7 @@ AI 解读生成(400-500 字)
 
 ### 无障碍 review
 
-- [ ] Onboarding VoiceOver labels(印章 + CTA hint)
+- [ ] Onboarding VoiceOver 走查(主/次文字朗读;印章组合隐藏;CTA hint 2026-09-23 已删)
 - [ ] Onboarding Reduce Motion(TabView .page 系统处理)
 - [ ] 主要 CTA 有 accessibilityHint(待补全)
 - [ ] 装饰性元素 accessibilityHidden(待补全)
