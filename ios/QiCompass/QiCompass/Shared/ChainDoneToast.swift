@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// 命书整链完成 in-app toast(方案二前台渠道,2026-10-11):
 /// `ChainCompletionNotifier` 发出完成广播 → 顶部浮现水墨 toast
@@ -6,7 +7,11 @@ import SwiftUI
 ///
 /// 视觉:cardSurface 底 + hairline 描边 + radius 5(DESIGN.md:卡片让位
 /// hairline、无渐变、朱红仅印章级小元素)。后台完成走系统通知,与本视图无关。
+/// 动效(三查修复):卡片本体只做淡入+顶部滑入(easeOut,非弹簧——DESIGN.md
+/// §Motion 弹簧仅限 stamp,卡内「成」印走 SealStamp 自带 stamp 三式);
+/// reduce-motion 全降级为 0.3s 纯淡入(DESIGN.md §Motion 降级纪律)。
 struct ChainDoneToast: View {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @State private var isShown = false
     @State private var chapterCount = 0
     @State private var isOwned = false
@@ -16,7 +21,9 @@ struct ChainDoneToast: View {
         Group {
             if isShown {
                 toastCard
-                    .transition(.opacity.combined(with: .move(edge: .top)))
+                    .transition(
+                        reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .top))
+                    )
             }
         }
         .onReceive(NotificationCenter.default.publisher(
@@ -36,13 +43,19 @@ struct ChainDoneToast: View {
             }
             // 连续完成(重开卷后再次成书)不叠队列:撤旧计时重起
             dismissTask?.cancel()
-            withAnimation(.spring(response: 0.42, dampingFraction: 0.82)) {
+            withAnimation(.easeOut(duration: reduceMotion ? 0.3 : 0.4)) {
                 isShown = true
             }
+            // VoiceOver:toast 是 4.5s 瞬态浮层,焦点不自动落上去——不播报
+            // 的话盲用户整场错过完成反馈;标题+正文一并念出
+            UIAccessibility.post(
+                notification: .announcement,
+                argument: "\(L10n.DeepChain.notifyTitle(isOwned: isOwned))。\(L10n.DeepChain.notifyBody(chapterCount: chapterCount, isOwned: isOwned))"
+            )
             dismissTask = Task { @MainActor in
                 try? await Task.sleep(nanoseconds: 4_500_000_000)
                 guard !Task.isCancelled else { return }
-                withAnimation(.easeOut(duration: 0.4)) {
+                withAnimation(.easeOut(duration: 0.3)) {
                     isShown = false
                 }
             }

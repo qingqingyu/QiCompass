@@ -279,6 +279,13 @@ final class DeepAnalysisViewModel {
     /// 后台系统通知)在 notifier 内部按当下 App 状态裁定。
     private let chainCompletionNotifier: ChainCompletionNotifying
 
+    /// 已发「整链完成」通知的登记键集(contentHash|isOwned,2026-10-11 三查):
+    /// 跨语言重生成循环对已成全书逐章重跑、已购用户后续补 M4/M5 输入,都会
+    /// 再次走到 remaining==0——不登记会对同一本已成的书重复通知(后台渠道
+    /// =多条系统通知轰炸)。reset 重开卷时清除:用户重新等了一整条链,
+    /// 完成仍值得告知(方案二拍板「只发整链完成一条」=每轮成书一条,非每章)。
+    private var bookCompletionNotified: Set<String> = []
+
     /// 翻译链 Task(2026-10-07 第五轮 review 补,与 v1ChainTask 对称持有)。
     /// 世代号守卫已拦旧链的状态写入,持有引用的净收益 = 换盘/reset 时能立刻
     /// `cancel()` 在飞翻译请求(协作取消让 URLSession 尽早断开、runSingleV1Module
@@ -1721,6 +1728,16 @@ final class DeepAnalysisViewModel {
             hasM4Input: m4UserInput != nil,
             hasM5Input: m5UserInput != nil
         ) else { return }
+        // 去重登记(2026-10-11 三查):跨语言重生成/补 M4/M5 输入会对同一本
+        // 已成的书再次走到 remaining==0——同一轮成书只发一条(见字段注释)
+        let notifiedKey = "\(response.contentHash)|\(isOwned)"
+        guard !bookCompletionNotified.contains(notifiedKey) else {
+            AppLogger.app.info(
+                "deepVM.bookCompleteNotify skip_duplicate key=\(notifiedKey, privacy: .public) — 本轮成书已通知过"
+            )
+            return
+        }
+        bookCompletionNotified.insert(notifiedKey)
         let count = ModuleID.allCases.filter { moduleStates[$0]?.isOk == true }.count
         AppLogger.app.info(
             "deepVM.bookCompleteNotify module=\(module.rawValue, privacy: .public) count=\(count, privacy: .public) isOwned=\(isOwned, privacy: .public)"
@@ -2410,6 +2427,9 @@ final class DeepAnalysisViewModel {
         moduleStates.removeAll()
         v1ChainFields.removeAll()
         versionMigrationExempt.removeAll()
+        // 整链完成通知登记一并清(2026-10-11 三查):reset = 重开卷,重排同盘
+        // 重新等一整条链,成书时仍应通知(登记只拦「同一轮成书」的重复)。
+        bookCompletionNotified.removeAll()
         // Stage 8 修复:清 M4/M5 用户输入,避免跨命盘污染
         // (排盘 A 填的 concern 不能给排盘 B 用,违反「八字计算必须确定性」语义)
         m4UserInput = nil

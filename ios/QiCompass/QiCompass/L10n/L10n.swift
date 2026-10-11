@@ -1276,7 +1276,8 @@ enum L10n {
             String(localized: isOwned ? "deepchain.notify.titleOwned" : "deepchain.notify.titleFree")
         }
 
-        /// 完成通知正文(章数为「可跑」口径:已购 8,未购 2)。
+        /// 完成通知正文(章数为当下已成章数,随可跑口径浮动:未购 2;
+        /// 已购且 M4/M5 输入已填 8;已购但 M4/M5 待输入时=6,如实报数不虚诺)。
         /// zh owned: "%lld 章俱备 · 回来续读" / free: "免费 %lld 章已成 · 回来开启"
         /// en owned: "%lld chapters woven — come back and read" / free: "%lld free chapters ready — come explore"
         static func notifyBody(chapterCount: Int, isOwned: Bool) -> String {

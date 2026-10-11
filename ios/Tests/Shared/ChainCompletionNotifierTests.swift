@@ -212,6 +212,34 @@ final class ChainCompletionNotifierTests: XCTestCase {
         XCTAssertEqual(spy.completions.first?.isOwned, false)
     }
 
+    func test_vm_retryOnCompleteBook_doesNotReNotify() async throws {
+        // 去重登记(三查修复):已成之书上重跑单章(fresh ok + remaining==0)
+        // 不得再次通知——跨语言重生成循环(逐章 runSingleV1Module)与已购用户
+        // 后补 M4/M5 输入是同型路径,不拦会对同一本书连发通知。
+        filledForm()
+        vm.calculate()
+        _ = await waitUntil(timeout: 12) {
+            self.vm.moduleStates[.m0]?.isOk == true
+                && self.vm.moduleStates[.m1]?.isOk == true
+                && !self.vm.isChainRunning
+        }
+        _ = await waitUntil(timeout: 2) { !self.spy.completions.isEmpty }
+        XCTAssertEqual(spy.completions.count, 1, "前置:首轮成书恰好通知一次")
+
+        // 成书后原地重跑 M0:fetching → fresh ok,remaining 仍为 0
+        vm.retryV1Module(.m0)
+        _ = await waitUntil(timeout: 8) { self.vm.moduleStates[.m0] == .fetching }
+        let reOk = await waitUntil(timeout: 12) {
+            if case .ok(_, let cached)? = self.vm.moduleStates[.m0], !cached { return true }
+            return false
+        }
+        XCTAssertTrue(reOk, "重跑未落 fresh ok: m0=\(String(describing: vm.moduleStates[.m0]))")
+
+        // 去重登记应拦下第二次通知(fire-and-forget Task 给一拍再断言)
+        try? await Task.sleep(nanoseconds: 400_000_000)
+        XCTAssertEqual(spy.completions.count, 1, "已成之书重跑单章不得重复通知: \(spy.completions)")
+    }
+
     private func waitUntil(
         timeout: TimeInterval = 8,
         _ condition: () -> Bool

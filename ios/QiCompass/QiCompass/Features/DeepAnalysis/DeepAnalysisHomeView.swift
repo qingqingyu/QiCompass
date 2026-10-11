@@ -30,9 +30,10 @@ struct DeepAnalysisHomeView: View {
     /// 等待卡里刚授权完回来,横幅要能换上「成书时通知你」变体。
     @State private var notifyAuthorized = false
 
-    /// 落章朱印本会话已播登记(方案四防重播):链在跑期间离开深度 tab 再回来,
+    /// 落章朱印本视图生命周期已播登记(方案四防重播):离开深度 tab 再回来,
     /// 已 fresh 落定的章不重播「成」印——仪式只属于「刚落定」的那一次,
-    /// 重挂载只看 ›(印章落定后由 onSettled 回调登记)。
+    /// 重挂载只看 ›(印章落定后由 onSettled 回调登记;冷启动 hydrate 的行
+    /// cached=true,由挂载条件另行排除)。
     @State private var stampedModules: Set<ModuleID> = []
 
     /// 从格:hero 竖注与喜忌行降级(喜忌留空,详见命书)。
@@ -587,10 +588,15 @@ struct DeepAnalysisHomeView: View {
                 case .read:
                     // 2026-10-08 外评:已读行「●+›」双符号含义不清(圆点=已读,
                     // 箭头=可进,同屏两义)。已读语义由「已读 x/8」承载,行尾只留 ›。
-                    // 2026-10-11 方案四:链在跑期间的 fresh ok(非缓存回填)→
-                    // 行尾先盖一枚小「成」印短暂落定,再回落 ›(落章仪式);
-                    // stampedModules 登记后重挂载不重播(回看不重播仪式)
-                    if case .ok(_, let cached)? = state, !cached, vm.isChainRunning,
+                    // 2026-10-11 方案四:fresh ok(非缓存回填)→ 行尾先盖一枚
+                    // 小「成」印短暂落定,再回落 ›(落章仪式)。挂载条件**不含**
+                    // vm.isChainRunning(三查修复):最后一章 ok 写入与链 defer
+                    // 清 isChainRunning 之间无挂起点,两次状态变更被合并渲染,
+                    // 条件带上它会让完成章(仪式的高潮)永不盖印。重播防护由
+                    // stampedModules 登记(onSettled)+ cached 排除承担:本视图
+                    // 生命周期内每章只播一次,缓存回填/冷启动 hydrate(cached)
+                    // 不播。
+                    if case .ok(_, let cached)? = state, !cached,
                        !stampedModules.contains(module) {
                         ChapterRowDoneStamp {
                             stampedModules.insert(module)
@@ -755,10 +761,10 @@ struct DeepAnalysisHomeView: View {
 
 // MARK: - 落章朱印(方案四,2026-10-11)
 
-/// 目录行「刚成章」仪式:链在跑期间章 fresh ok(非缓存回填)→ 行尾盖一枚
-/// 小「成」印(stamp 动效,印章级小元素符合朱红纪律),约 1.8s 后回落 ›。
-/// 缓存回填(cached=true)与链已停场景由调用方排除;`onSettled` 在回落完成
-/// 时回调,调用方登记后重挂载(离开再回主页)只看 ›——回看不重播仪式。
+/// 目录行「刚成章」仪式:章 fresh ok(非缓存回填)→ 行尾盖一枚小「成」印
+/// (stamp 动效,印章级小元素符合朱红纪律),约 1.8s 后回落 ›。缓存回填
+/// (cached=true)由调用方排除;`onSettled` 在回落完成时回调,调用方登记后
+/// 重挂载(离开再回主页)只看 ›——回看不重播仪式。
 private struct ChapterRowDoneStamp: View {
     /// 印章回落完成回调(登记已播;取消离场不回调,重挂载可补播)。
     var onSettled: (() -> Void)?
