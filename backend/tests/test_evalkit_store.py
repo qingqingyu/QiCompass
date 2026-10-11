@@ -413,6 +413,87 @@ async def test_run_dir_reuse_rejected(tmp_path):
             dry_run=True, case_limit=1, run_id="same-id", runs_dir=tmp_path)
 
 
+async def test_dry_run_smoke_renders_all_modules(tmp_path):
+    """dry-run 冒烟锁(2026-10-11 双 review 修复回归锚)。
+
+    dry-run 的 parsed 恒 None——run_chain_for_case 的 chain_broken 判据
+    若不看 dry_run,M0 会被误判失败,M1-M7 全记「链路中断」error 条目、
+    prompt 不再渲染(--dry-run CLI 退出码 1,dry-run 的声明用途「验证
+    排盘 + chart 构建 + prompt 渲染 + 链式注入」整体失效)。锁:8 模块
+    零 error + 每模块 prompt.txt 落盘(链式占位注入生效)。
+    """
+    summary = await execute_run(
+        dry_run=True, case_limit=1, run_id="dry-smoke", runs_dir=tmp_path)
+    assert summary["total"] == 8
+    assert summary["pass"] == 8
+    assert summary["error"] == 0
+    for module in ("m0_structure", "m1_talent", "m2_high_low", "m3_system",
+                   "m4_health", "m5_wealth", "m6_dynamics", "m7_manual"):
+        prompt_path = (tmp_path / "dry-smoke" / "case_00" / module
+                       / "prompt.txt")
+        assert prompt_path.exists(), f"{module} 的 prompt 未渲染"
+        # 链式占位注入生效:M1-M7 的 prompt 里能看到上游占位字段值
+        if module != "m0_structure":
+            assert "[dry-run placeholder]" in prompt_path.read_text(
+                encoding="utf-8"), f"{module} 未注入链式占位字段"
+
+
+async def test_call_module_retries_transient_and_raises_others(
+        monkeypatch, tmp_path):
+    """_call_module 瞬态网络重试(2026-10-10 L3 收口)的分支锁。
+
+    - timeout / network 两类 reason:线性退避 5s/10s 重试,共 3 次尝试后成功
+    - 其它 reason(rate_limit 等):首次失败即上抛——错误显式传播,
+      不掩盖真实故障(对齐 CLAUDE.md 错误传播纪律)
+    asyncio.sleep 打桩避免真实 15s 等待;use_cache=False 绕开磁盘缓存。
+    """
+    import evalkit.runner as runner_mod
+    from app.errors import AIProviderError
+
+    sleeps: list[float] = []
+
+    async def _fake_sleep(seconds: float) -> None:
+        sleeps.append(seconds)
+
+    monkeypatch.setattr(runner_mod.asyncio, "sleep", _fake_sleep)
+
+    class _FlakyClient:
+        provider, model = "stub", "stub-model"
+
+        def __init__(self):
+            self.calls = 0
+
+        async def interpret(self, prompt: str, **kwargs) -> str:
+            self.calls += 1
+            if self.calls <= 2:
+                raise AIProviderError("proxy ConnectError",
+                                      reason="network")
+            return json.dumps(
+                {"structure_fingerprint": "指纹"}, ensure_ascii=False)
+
+    client = _FlakyClient()
+    _, parsed, _, cached = await runner_mod._call_module(
+        module="m0_structure", context={"chart": "{}"},
+        ai_client=client, dry_run=False, case_id="retry-case",
+        use_cache=False, runs_dir=tmp_path)
+    assert client.calls == 3, "network 瞬断应重试到第 3 次"
+    assert sleeps == [5.0, 10.0], "线性退避节奏 5s/10s"
+    assert parsed == {"structure_fingerprint": "指纹"}
+    assert cached is False
+
+    class _RateLimitedClient:
+        provider, model = "stub", "stub-model"
+
+        async def interpret(self, prompt: str, **kwargs) -> str:
+            raise AIProviderError("429", reason="rate_limit")
+
+    with pytest.raises(AIProviderError):
+        await runner_mod._call_module(
+            module="m0_structure", context={"chart": "{}"},
+            ai_client=_RateLimitedClient(), dry_run=False,
+            case_id="retry-case", use_cache=False, runs_dir=tmp_path)
+
+
 async def test_identity_reflects_module_subset(tmp_path):
     """子集 run 的身份 prompt_versions 只含选中模块(diff 不跨范围混淆)。"""
     summary = await execute_run(

@@ -1089,18 +1089,23 @@ async def test_m7_translate_full_chain(
     assert resp.json()["translated_from"] == "zh"
 
 
-async def test_m3_v3_translate_walks_legacy_v2_m2_row(
+async def test_m3_translate_walks_legacy_pre_core_loop_m2_row(
         interpret_client, mock_ai_client, tmp_cache, tmp_entitlement_store):
-    """混合版本链回归锚(2026-10-10 L1 加粗链条)。
+    """混合版本链回归锚(2026-10-10 L1 加粗链条;2026-10-11 双 review 修
+    seed 版本漂移)。
 
-    存量用户升级后的真实形态 = m2 行落 **v2 键**(其 context 无 core_loop)、
-    叶子 m3 走 **v3**(必带 threshold,值取自 v2 m2 行的输出)。走查对 v2
-    m2 行按「当前 REQUIRED(含 core_loop)∩ verified(core_loop 由 M0 根
-    补齐)= 超集 context」+ v2 模板重渲染 → format_map 忽略多余键 →
-    渲染字节与 v2 行键相等 → 行匹配、threshold 提取、叶子源键按 v3 重建
-    → 200。任何人改 _render_v1_upstream_prompt_hash 的 context 构造
-    (如改成「按模板占位符过滤」)都会让超集失效 → 存量链翻译恒 409,
-    此锚红。
+    存量用户升级后的真实形态 = m2 行落 **v2 键**(v2 是最后一个 REQUIRED
+    不含 core_loop 的版本,当年 context 无 core_loop)、叶子 m3 走**当前
+    版**(必带 threshold,值取自 v2 m2 行的输出)。走查对 v2 m2 行按
+    「当前 REQUIRED(含 core_loop)∩ verified(core_loop 由 M0 根补齐)=
+    超集 context」+ v2 模板重渲染 → format_map 忽略多余键 → 渲染字节与
+    v2 行键相等 → 行匹配、threshold 提取、叶子源键按当前版重建 → 200。
+    任何人改 _render_v1_upstream_prompt_hash 的 context 构造(如改成
+    「按模板占位符过滤」)都会让超集失效 → 存量链翻译恒 409,此锚红。
+
+    seed 版本钉死字面量 2,不用 PROMPT_VERSIONS-1:L3 bump m2 3→5 后
+    相对值静默变成 4(v4 行本就必带 core_loop),锚点退化为「新版行
+    重渲染」,真正的 v2 兼容叙事失锁(测试仍绿但守不住它声称的漂移)。
     """
     import hashlib
 
@@ -1110,6 +1115,7 @@ async def test_m3_v3_translate_walks_legacy_v2_m2_row(
     from app.engine.term_translations import translate_context
     from tests.test_interpret_paid import _seed_entitlement
 
+    legacy_m2_version = 2  # 钉死,勿改回 PROMPT_VERSIONS-1(见 docstring)
     ch = "hash-chain-mixed-v2m2"
     _seed_entitlement(tmp_entitlement_store, content_hash=ch,
                       user_local_id="mixed-user")
@@ -1143,11 +1149,11 @@ async def test_m3_v3_translate_walks_legacy_v2_m2_row(
         "m2_high_low", legacy_translated)
     legacy_prompt = render_prompt(
         "m2_high_low", legacy_canonical, language="zh",
-        prompt_version=PROMPT_VERSIONS["m2_high_low"] - 1)
+        prompt_version=legacy_m2_version)
     tmp_cache.set(
         CacheKey(
             content_hash=ch, module="m2_high_low",
-            prompt_version=PROMPT_VERSIONS["m2_high_low"] - 1,
+            prompt_version=legacy_m2_version,
             target_date="",
             prompt_hash=hashlib.sha256(
                 legacy_prompt.encode("utf-8")).hexdigest(),
@@ -1157,7 +1163,7 @@ async def test_m3_v3_translate_walks_legacy_v2_m2_row(
         json.dumps(m2_out, ensure_ascii=False),
         "2026-10-09T00:00:00+00:00")
 
-    # v3 叶子行:threshold 取自 v2 m2 行输出(iOS extractChainFields 口径)
+    # 当前版叶子行:threshold 取自 v2 m2 行输出(iOS extractChainFields 口径)
     m3_zh = json.dumps({"operating_mode": {"input": "深挖"}},
                        ensure_ascii=False)
     await _generate(interpret_client, mock_ai_client, content_hash=ch,

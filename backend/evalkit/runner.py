@@ -216,8 +216,9 @@ async def _call_module(
         temperature = resolve_temperature(module)
         # 瞬态网络重试(2026-10-10 L3 收口):代理 ConnectError/ReadTimeout 一次
         # 即断整盘链(m0 挂 = 8 条 error),重跑收敛不了——每晚实测 15 分钟 4 次
-        # 瞬断。只重试 timeout/network 两类瞬时 reason,退避 5s/15s;rate_limit
-        # 等其它 reason 显式上抛(不掩盖真实故障,对齐 CLAUDE.md 错误传播纪律)。
+        # 瞬断。只重试 timeout/network 两类瞬时 reason,线性退避 5s/10s
+        # (5*(attempt+1));rate_limit 等其它 reason 显式上抛(不掩盖真实
+        # 故障,对齐 CLAUDE.md 错误传播纪律)。
         for attempt in range(3):
             try:
                 response = await ai_client.interpret(
@@ -470,7 +471,12 @@ async def run_chain_for_case(
         if not dry_run and parsed is not None:
             _write_back_chain_ctx(chain_ctx, module, parsed)
             chain_outputs[module] = parsed
-        elif module == "m0_structure" and status["parsed"] is None:
+        elif (module == "m0_structure" and not dry_run
+              and status["parsed"] is None):
+            # not dry_run:dry-run 的 parsed 恒 None,不看 dry_run 会把
+            # 全链误记「M0 失败」且 M1-M7 prompt 不再渲染(2026-10-11
+            # 双 review 修复,--dry-run 冒烟当时退出码 1;回归锁 =
+            # test_dry_run_smoke_renders_all_modules)
             chain_broken = True
 
     # L3 接线:只裁判 L1/L2 都过的条目(verdict=="pass" 的生成条目;
