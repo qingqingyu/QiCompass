@@ -453,3 +453,30 @@ struct GenderChipRow: View {
         .accessibilityAddTraits(isSelected ? [.isSelected] : [])
     }
 }
+
+// MARK: - breathe 修饰符(常驻微呼吸,DESIGN.md §Motion 7-8s 档)
+
+/// 极缓呼吸(不透明度 1 ↔ 0.92):布算中三墨点 / 目录行生成中指示的常驻
+/// 微动效。reduce-motion 静态降级。原为 ChapterReadingView 私有实现,
+/// 2026-10-11 方案四目录行也要用,上移至 InkKit 共享。
+struct BreatheModifier: ViewModifier {
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @State private var breathing = false
+
+    func body(content: Content) -> some View {
+        content
+            .opacity(breathing ? 0.92 : 1)
+            .onAppear {
+                guard !reduceMotion else { return }
+                withAnimation(.easeInOut(duration: 3.6).repeatForever(autoreverses: true)) {
+                    breathing = true
+                }
+            }
+    }
+}
+
+extension View {
+    func breathe() -> some View {
+        modifier(BreatheModifier())
+    }
+}

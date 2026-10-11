@@ -90,6 +90,11 @@ struct RootTabView: View {
         .tint(BaziTheme.ink)
         // 纸纹:全 App 一次,overlay 在内容上(multiply 混合,不挡交互)
         .overlay(PaperGrain())
+        // 命书整链完成 toast(方案二,2026-10-11):前台完成时顶部浮现,
+        // 点按跳深度解析;后台完成走系统通知(ChainCompletionNotifier)
+        .overlay(alignment: .top) {
+            ChainDoneToast()
+        }
         // 冷启动品牌转场(DESIGN.md §Motion 三式:ink-in + stamp,1.6s 内淡出不阻塞)
         .overlay {
             if showSplash {

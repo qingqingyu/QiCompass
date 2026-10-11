@@ -15,6 +15,9 @@ struct QiCompassApp: App {
         // 重启前切换设置项不再半生效(界面术语/header/缓存键三者一致)。
         AppLanguage.freezeLaunchSnapshot()
         AppLogger.app.info("QiCompassApp.init 开始")
+        // 整链完成通知 delegate(方案二,2026-10-11):启动即挂——冷启动由
+        // 通知点入的场景,didReceive 要在launch 完成前就绪才不丢
+        _ = ChainCompletionNotifier.shared
         let container: ModelContainer
         do {
             container = try ModelContainerFactory.make()

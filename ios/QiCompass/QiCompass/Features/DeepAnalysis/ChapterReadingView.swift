@@ -31,6 +31,9 @@ struct ChapterReadingView: View {
 
     @Environment(\.dismiss) private var dismiss
 
+    /// 通知授权状态(等待卡条件文案「成书后将通知你」用):进生成中态时刷新。
+    @State private var notifyAuthorized = false
+
     /// 本地 entitlement 查询:VM 单源方法(与付费守卫/主页目录行同口径),只读。
     /// 翻章条 🔒 判定用——已购用户的付费章翻章不弹墙,进章布算/原地重试。
     private var hasEntitlementForPaid: Bool {
@@ -286,9 +289,14 @@ struct ChapterReadingView: View {
         .padding(.bottom, 18)
     }
 
-    /// 生成中:三墨点 breathe + 竖排「布算中」(reduce-motion 静态降级)。
+    /// 生成中:三墨点 breathe + 竖排「布算中」 + 等待卡(方案一,2026-10-11)。
+    /// 等待卡把三件事说显性:①后台正在生成(全本进度行,仅链在跑时显示——
+    /// 单章重试时其余章不在生成,报全本 ETA 是虚诺);②可以先走(可离开说明
+    /// + 「先去逛逛」CTA 回目录,横幅继续报进度);③成书会通知(仅已授权时
+    /// 显示——未授权不虚诺)。权限请求也挂在这里:第一次进生成中章节时
+    /// 上下文式请求一次(等待卡文案就是铺垫),已定则静默。
     private var calculatingBody: some View {
-        VStack(spacing: 22) {
+        VStack(spacing: 0) {
             Spacer(minLength: 90)
             HStack(spacing: 14) {
                 ForEach(Array([1.0, 0.55, 0.22].enumerated()), id: \.offset) { _, opacity in
@@ -299,21 +307,77 @@ struct ChapterReadingView: View {
                 }
             }
             .breathe()
-            Text("布算中")
+            Text(L10n.DeepChain.readingTitle)
                 .font(BaziFont.display(size: 15))
                 .tracking(8)
                 .foregroundStyle(BaziTheme.ink)
-            Text(L10n.DeepChain.readingGenerating)
-                .font(BaziFont.caption(size: 10.5))
-                .tracking(1)
-                .foregroundStyle(BaziTheme.inkMutedSecondary)
-            Text(L10n.DeepChain.readingLeaveHint)
-                .font(BaziFont.caption(size: 10.5))
-                .tracking(1)
-                .foregroundStyle(BaziTheme.inkMutedSecondary)
+                .padding(.top, 22)
+            VStack(spacing: 8) {
+                waitCaption(L10n.DeepChain.readingGenerating)
+                if vm.isChainRunning, chainProgress.remaining > 0 {
+                    waitCaption(L10n.DeepChain.waitChainStatus(
+                        done: chainProgress.done,
+                        total: chainProgress.total,
+                        minutes: chainProgress.estimatedMinutes
+                    ))
+                }
+                waitCaption(L10n.DeepChain.waitLeaveHint)
+                if notifyAuthorized {
+                    waitCaption(L10n.DeepChain.waitNotifyOn)
+                }
+            }
+            .padding(.top, 14)
+            // 「先去逛逛」:dashed ghost(临时态语言,DESIGN.md §Layout);
+            // 「留在本页等待」是默认行为,不做无动作的对称按钮
+            Button {
+                dismiss()
+            } label: {
+                Text(L10n.DeepChain.waitBrowse)
+                    .font(BaziFont.caption(size: 11))
+                    .tracking(2)
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .padding(.horizontal, 26)
+                    .padding(.vertical, 10)
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 5)
+                            .stroke(BaziTheme.hairlineDashed, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                    )
+            }
+            .buttonStyle(.plain)
+            .padding(.top, 24)
             Spacer(minLength: 90)
         }
         .frame(maxWidth: .infinity)
+        .onAppear { requestNotificationAuthorizationIfChainRunning() }
+    }
+
+    /// 等待卡出现时的上下文式权限请求(方案二):链在跑才问——单章重试
+    /// 半分钟即成,为它要通知权限是打扰;状态已定(授权/拒绝)iOS 不再弹,
+    /// 本方法静默返回。
+    private func requestNotificationAuthorizationIfChainRunning() {
+        guard vm.isChainRunning else { return }
+        Task { @MainActor in
+            await ChainCompletionNotifier.shared.requestAuthorizationOnce()
+            notifyAuthorized = await ChainCompletionNotifier.shared.isAuthorized()
+        }
+    }
+
+    /// 等待卡说明行统一样式(4 行同款,单点收口防漂移)。
+    private func waitCaption(_ text: String) -> some View {
+        Text(text)
+            .font(BaziFont.caption(size: 10.5))
+            .tracking(1)
+            .foregroundStyle(BaziTheme.inkMutedSecondary)
+    }
+
+    /// 全本链进度(等待卡进度行;口径与主页 chainBanner 一致)。
+    private var chainProgress: (done: Int, total: Int, remaining: Int, estimatedMinutes: Int) {
+        ChainProgress.resolve(
+            moduleStates: vm.moduleStates,
+            hasEntitlement: hasEntitlementForPaid,
+            hasM4Input: vm.m4UserInput != nil,
+            hasM5Input: vm.m5UserInput != nil
+        )
     }
 
     /// 失败:人话错误 + 原地重试(失败 refund,重试不耗次数)。
@@ -558,29 +622,5 @@ struct ChapterReadingView: View {
         let name = module.displayName
         let title = name.range(of: "· ").map { String(name[$0.upperBound...]) } ?? name
         return "\(NumeralBadge.numeral(idx + 1)) \(title)"
-    }
-}
-
-// MARK: - breathe 修饰符(三墨点,DESIGN.md §Motion 常驻微呼吸 7-8s)
-
-private struct BreatheModifier: ViewModifier {
-    @Environment(\.accessibilityReduceMotion) private var reduceMotion
-    @State private var breathing = false
-
-    func body(content: Content) -> some View {
-        content
-            .opacity(breathing ? 0.92 : 1)
-            .onAppear {
-                guard !reduceMotion else { return }
-                withAnimation(.easeInOut(duration: 3.6).repeatForever(autoreverses: true)) {
-                    breathing = true
-                }
-            }
-    }
-}
-
-private extension View {
-    func breathe() -> some View {
-        modifier(BreatheModifier())
     }
 }

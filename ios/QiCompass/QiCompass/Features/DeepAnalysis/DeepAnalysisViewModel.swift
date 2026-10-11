@@ -274,6 +274,11 @@ final class DeepAnalysisViewModel {
     /// v1 链式调用 Task(用户重新触发或 reset 时取消)。
     private var v1ChainTask: Task<Void, Never>?
 
+    /// 整链完成通知器(方案二,2026-10-11):默认真实现(单例),测试注入
+    /// spy 断言调用。持有为 let,不随 reset/换盘更换——投递决策(前台 toast /
+    /// 后台系统通知)在 notifier 内部按当下 App 状态裁定。
+    private let chainCompletionNotifier: ChainCompletionNotifying
+
     /// 翻译链 Task(2026-10-07 第五轮 review 补,与 v1ChainTask 对称持有)。
     /// 世代号守卫已拦旧链的状态写入,持有引用的净收益 = 换盘/reset 时能立刻
     /// `cancel()` 在飞翻译请求(协作取消让 URLSession 尽早断开、runSingleV1Module
@@ -419,9 +424,14 @@ final class DeepAnalysisViewModel {
     /// nil 时无操作,保持当前 Tab。
     var onChartArchived: (() -> Void)?
 
-    init(orchestrator: DeepAnalysisOrchestrator, entitlementStore: EntitlementStore) {
+    init(
+        orchestrator: DeepAnalysisOrchestrator,
+        entitlementStore: EntitlementStore,
+        chainCompletionNotifier: ChainCompletionNotifying = ChainCompletionNotifier.shared
+    ) {
         self.orchestrator = orchestrator
         self.entitlementStore = entitlementStore
+        self.chainCompletionNotifier = chainCompletionNotifier
     }
 
     // MARK: - 出生地时区(WYSIWYG)
@@ -1616,6 +1626,8 @@ final class DeepAnalysisViewModel {
                 syncTranslationOfferWithRows()
             }
             AppLogger.app.info("deepVM.runSingleV1Module.ok module=\(module.rawValue, privacy: .public) cached=\(resp.cached, privacy: .public)")
+            // 整链完成通知(方案二,2026-10-11):fresh ok 落态后判全本是否已齐
+            maybeNotifyBookComplete(freshlyCompleted: module, cached: resp.cached, response: response)
         } catch is CancellationError {
             AppLogger.app.info("deepVM.runSingleV1Module.cancelled module=\(module.rawValue, privacy: .public)")
         } catch let error as DeepAnalysisError {
@@ -1683,6 +1695,55 @@ final class DeepAnalysisViewModel {
             }
             moduleStates[module] = .failed(message: userError.errorDescription ?? L10n.Common.unknownError)
         }
+    }
+
+    // MARK: - 整链完成通知(方案二,2026-10-11)
+
+    /// 单章 fresh ok 落态后的完成检查:全本「可跑」章已齐 → 通知用户
+    /// (前台 toast / 后台系统通知一条,由 notifier 裁定渠道)。
+    ///
+    /// 口径:
+    /// - **cached 回填不算**(冷启动 hydrate 把存量 ok 回填齐时不弹「已成」
+    ///   ——用户没在等任何东西,弹了反而是打扰)
+    /// - **单章重试补齐最后一章也算**:用户视角是「书读齐了」,与链跑完同义
+    /// - **翻译回填不触发**(acceptTranslation 落档不走 runSingleV1Module 的
+    ///   fresh ok 路径,保守不弹:换语言补齐的场景用户就在操作现场)
+    private func maybeNotifyBookComplete(
+        freshlyCompleted module: ModuleID,
+        cached: Bool,
+        response: BaziResponse
+    ) {
+        guard !cached else { return }
+        let isOwned = hasDeepEntitlement(contentHash: response.contentHash)
+        guard Self.shouldNotifyBookComplete(
+            moduleStates: moduleStates,
+            hasEntitlement: isOwned,
+            hasM4Input: m4UserInput != nil,
+            hasM5Input: m5UserInput != nil
+        ) else { return }
+        let count = ModuleID.allCases.filter { moduleStates[$0]?.isOk == true }.count
+        AppLogger.app.info(
+            "deepVM.bookCompleteNotify module=\(module.rawValue, privacy: .public) count=\(count, privacy: .public) isOwned=\(isOwned, privacy: .public)"
+        )
+        Task { await chainCompletionNotifier.notifyBookComplete(chapterCount: count, isOwned: isOwned) }
+    }
+
+    /// 完成判定(纯函数,测试直接断言):复用 `ChainProgress` 的「可跑」口径
+    /// ——付费未解锁与 M4/M5 未填输入不计入分母,remaining == 0 即齐。
+    /// 未购用户 total=2(M0/M1),免费两章齐即「免费章节已成」。
+    static func shouldNotifyBookComplete(
+        moduleStates: [ModuleID: ModuleState],
+        hasEntitlement: Bool,
+        hasM4Input: Bool,
+        hasM5Input: Bool
+    ) -> Bool {
+        let progress = ChainProgress.resolve(
+            moduleStates: moduleStates,
+            hasEntitlement: hasEntitlement,
+            hasM4Input: hasM4Input,
+            hasM5Input: hasM5Input
+        )
+        return progress.total > 0 && progress.remaining == 0
     }
 
     /// 同盘判定:入参 response 是否仍是当前 .ready 的命盘(换盘清洗的配套守卫)。

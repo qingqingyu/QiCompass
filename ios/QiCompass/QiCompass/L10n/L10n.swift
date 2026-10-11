@@ -1216,10 +1216,6 @@ enum L10n {
         /// en: "Weaving this chapter · about half a minute · failures cost nothing"
         static let readingGenerating = String(localized: "deepchain.reading.generating")
 
-        /// 阅读页布算中副行:可返回提示。
-        /// zh: "可先返回,章成自动点亮";en: "You can go back — the chapter will light up when done"
-        static let readingLeaveHint = String(localized: "deepchain.reading.leaveHint")
-
         /// 目录次数小注(2026-09-19 S05:状态行「今日剩余 N 次」下,解释消耗口径)。
         /// 2026-09-23 review #4:删「· 每日重置」尾巴——达限态 tocStatusText 已有
         /// 「明日 HH:mm 重置」,三态恒显的小注再说一遍是重复。
@@ -1232,6 +1228,63 @@ enum L10n {
         /// zh: "命书 = 按章节生成的完整命盘解读:先看主线与天赋(免费),再展开运行方式、财富、健康与行动。"
         /// en: "Your reading, chapter by chapter — the structure and talents first (free), then how you run, money, health and next steps."
         static let tocIntro = String(localized: "deepchain.toc.intro")
+
+        // MARK: 等待卡 + 完成通知(方案一/二/四,2026-10-11)
+
+        /// 阅读页布算中大字(从硬编码 "布算中" 迁入,EN 此前无译文)。
+        /// zh: "布算中";en: "Weaving"
+        static let readingTitle = String(localized: "deepchain.reading.title")
+
+        /// 等待卡全本进度行(链在跑时显示;单章重试不显示——其余章不在生成,
+        /// 报全本 ETA 是虚诺)。
+        /// zh: "全本已成 %lld/%lld 章 · 约需 %lld 分钟"
+        /// en: "%lld/%lld chapters done · about %lld min left"
+        static func waitChainStatus(done: Int, total: Int, minutes: Int) -> String {
+            String(
+                format: String(localized: "deepchain.wait.chainStatus"),
+                done, total, minutes
+            )
+        }
+
+        /// 等待卡可离开说明(点「先去逛逛」前的承诺)。
+        /// zh: "生成在后台继续,可先去浏览其他章节"
+        /// en: "Generation continues in the background — feel free to look around"
+        static let waitLeaveHint = String(localized: "deepchain.wait.leaveHint")
+
+        /// 等待卡通知承诺行(仅已授权时显示;未授权不虚诺)。
+        /// zh: "成书后将通知你";en: "We'll notify you when it's ready"
+        static let waitNotifyOn = String(localized: "deepchain.wait.notifyOn")
+
+        /// 等待卡「先去逛逛」CTA(回目录,横幅继续报进度)。
+        /// zh: "先去逛逛";en: "Keep browsing"
+        static let waitBrowse = String(localized: "deepchain.wait.browse")
+
+        /// 目录行生成中小字(从硬编码 "生成中…" 迁入;行内另有呼吸墨点)。
+        /// zh: "生成中";en: "Weaving"
+        static let tocGenerating = String(localized: "deepchain.toc.generating")
+
+        /// 横幅副行·已授权通知变体(方案四:告知完成会通知)。
+        /// zh: "可先离开 · 章成自动点亮 · 成书时通知你"
+        /// en: "Feel free to leave — we'll notify you when it's done"
+        static let bannerLeaveHintNotified = String(localized: "deepchain.banner.leaveHintNotified")
+
+        /// 完成通知标题(toast 与系统通知共用;未购两章与已购全本分档,
+        /// 「命书已成」只许已购全本用)。
+        /// zh owned: "命书已成" / free: "免费章节已成"
+        /// en owned: "Your reading is ready" / free: "Free chapters ready"
+        static func notifyTitle(isOwned: Bool) -> String {
+            String(localized: isOwned ? "deepchain.notify.titleOwned" : "deepchain.notify.titleFree")
+        }
+
+        /// 完成通知正文(章数为「可跑」口径:已购 8,未购 2)。
+        /// zh owned: "%lld 章俱备 · 回来续读" / free: "免费 %lld 章已成 · 回来开启"
+        /// en owned: "%lld chapters woven — come back and read" / free: "%lld free chapters ready — come explore"
+        static func notifyBody(chapterCount: Int, isOwned: Bool) -> String {
+            String(
+                format: String(localized: isOwned ? "deepchain.notify.bodyOwned" : "deepchain.notify.bodyFree"),
+                chapterCount
+            )
+        }
     }
 
     // MARK: - 排盘等待页可收起(2026-09-08)
