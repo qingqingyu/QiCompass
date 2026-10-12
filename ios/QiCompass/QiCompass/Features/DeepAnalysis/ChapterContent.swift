@@ -30,6 +30,19 @@ enum ChapterNode: Equatable {
     case items([ChapterItem])
     /// 顶层小字注(medical_note / disclaimer / 顶层 evidence):标签 + 正文。
     case note(label: String, text: String)
+    /// 行内标签段(M0 专用,2026-10-12 S4-A):段首小标签 + 正文连排,
+    /// 取代逐行 caption 键值行——8 个小标签连排像表单不像命书(E1)。
+    case inlineLabel(label: String, text: String)
+    /// 循环起止行(M0 专用):from/to 两个孤立标签行合成一行小字。
+    case loopFromTo(from: String, to: String)
+    /// 章末「据」折叠区(M0 专用):各小节的 evidence 收拢,默认收起。
+    case evidenceFold([ChapterNote])
+}
+
+/// 折叠区里的单条注(M0 evidence 收拢用)。
+struct ChapterNote: Equatable {
+    let label: String
+    let text: String
 }
 
 /// 键值行(结构体而非元组:元组带标签不合成 Equatable,单测要断言全树)。
@@ -54,9 +67,22 @@ struct ChapterContent: Equatable {
     /// 解析模块正文。非 JSON / 顶层非对象 / 非法 JSON → nil(调用方退回散文)。
     /// 容错:剥掉 LLM 违约附加的 ```json 围栏(prompt 已禁但防御)。
     static func parse(_ text: String) -> ChapterContent? {
+        parse(text, for: nil)
+    }
+
+    /// 按模块解析(2026-10-12 S4-A):M0 走行内标签段落化特化组装,
+    /// 其余模块走通用节点树。module 为 nil = 通用(中毒判读等不关心排版)。
+    /// M0 缺关键结构(main_axis/core_loop 任一非对象,老缓存/违约)→
+    /// 回落通用渲染,不静默丢内容。
+    static func parse(_ text: String, for module: ModuleID?) -> ChapterContent? {
         guard let root = OrderedJSONParser.parse(OrderedJSONParser.stripCodeFences(text)) else { return nil }
         guard case .object(let pairs) = root else { return nil }
-        let nodes = pairs.compactMap { node(key: $0.0, value: $0.1) }
+        let nodes: [ChapterNode]
+        if module == .m0, let specialized = m0Nodes(from: pairs) {
+            nodes = specialized
+        } else {
+            nodes = pairs.compactMap { node(key: $0.0, value: $0.1) }
+        }
         return nodes.isEmpty ? nil : ChapterContent(nodes: nodes)
     }
 
@@ -73,6 +99,106 @@ struct ChapterContent: Equatable {
     }
 
     // MARK: - 规范化
+
+    // MARK: M0 特化组装(2026-10-12 S4-A,用户拍板方案 A)
+    //
+    // 通用键值行渲染把 M0 的 8 个小标签(主导/次要/潜伏/起点/终点/流向/
+    // 驱动/损耗)排成表单样(plan E1);v7 起 dominant/secondary/latent 值
+    // 已是带权重依据的完整长句,逐行 caption 更显割裂。特化:
+    // - 三层与循环字段 → 段首行内标签连排(.inlineLabel)
+    // - from/to 两行 → 一行小字(.loopFromTo)
+    // - 四组 evidence → 章末「据」折叠区默认收起(.evidenceFold)
+    // 组装用固定阅读序(不按 JSON 书写序):主线 → 核心循环 → 结构类型 →
+    // 能力来源 → 运转概括 → 据。
+    private static func m0Nodes(from pairs: [(String, JSONValue)]) -> [ChapterNode]? {
+        func object(_ key: String) -> [(String, JSONValue)]? {
+            for (k, v) in pairs where k == key {
+                if case .object(let inner) = v { return inner }
+                return nil
+            }
+            return nil
+        }
+        func string(_ obj: [(String, JSONValue)], _ key: String) -> String? {
+            for (k, v) in obj where k == key {
+                if case .string(let s) = v { return s }
+                return nil
+            }
+            return nil
+        }
+        func inline(_ key: String, _ obj: [(String, JSONValue)]) -> ChapterNode? {
+            guard let s = string(obj, key) else { return nil }
+            return .inlineLabel(label: label(key), text: s)
+        }
+
+        guard let mainAxis = object("main_axis"),
+              let coreLoop = object("core_loop") else { return nil }
+
+        var notes: [ChapterNote] = []
+
+        // 主线:三层行内标签段
+        var mainChildren: [ChapterNode] = [
+            inline("dominant", mainAxis),
+            inline("secondary", mainAxis),
+            inline("latent", mainAxis),
+        ].compactMap { $0 }
+        // evidence 收集与 core_loop 同款无条件:退化输入(三层全非 string)
+        // 下不静默丢 main_axis.evidence(与 core_loop 一致,见下)
+        if let ev = string(mainAxis, "evidence") {
+            notes.append(ChapterNote(label: label("main_axis"), text: ev))
+        }
+
+        // 核心循环:起止一行小字 + 流向/驱动/损耗行内标签段
+        var loopChildren: [ChapterNode] = []
+        if let from = string(coreLoop, "from"), let to = string(coreLoop, "to") {
+            loopChildren.append(.loopFromTo(from: from, to: to))
+        }
+        loopChildren += [
+            inline("flow", coreLoop),
+            inline("driver", coreLoop),
+            inline("leak", coreLoop),
+        ].compactMap { $0 }
+        if let ev = string(coreLoop, "evidence") {
+            notes.append(ChapterNote(label: label("core_loop"), text: ev))
+        }
+
+        // 结构类型:名称行内标签 + 一句话作引言段
+        var typeChildren: [ChapterNode] = []
+        if let structureType = object("structure_type") {
+            typeChildren += [
+                inline("name", structureType),
+                string(structureType, "one_line").map { .lead($0) },
+            ].compactMap { $0 }
+        }
+
+        // 能力来源:text 作引言段(既有 2026-10-11 口径),据收拢
+        if let capability = object("capability_source") {
+            if let ev = string(capability, "evidence") {
+                notes.append(ChapterNote(label: label("capability_source"), text: ev))
+            }
+        }
+
+        var nodes: [ChapterNode] = []
+        if !mainChildren.isEmpty {
+            nodes.append(.section(label("main_axis"), mainChildren))
+        }
+        if !loopChildren.isEmpty {
+            nodes.append(.section(label("core_loop"), loopChildren))
+        }
+        if !typeChildren.isEmpty {
+            nodes.append(.section(label("structure_type"), typeChildren))
+        }
+        if let capability = object("capability_source"),
+           let text = string(capability, "text") {
+            nodes.append(.section(label("capability_source"), [.lead(text)]))
+        }
+        if let fingerprint = string(pairs, "structure_fingerprint") {
+            nodes.append(.lead(fingerprint))
+        }
+        if !notes.isEmpty {
+            nodes.append(.evidenceFold(notes))
+        }
+        return nodes.isEmpty ? nil : nodes
+    }
 
     private static func node(key: String, value: JSONValue) -> ChapterNode? {
         switch value {

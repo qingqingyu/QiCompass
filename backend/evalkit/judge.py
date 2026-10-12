@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import asyncio
 import os
+import re
 from dataclasses import dataclass
 from typing import Any
 
@@ -71,9 +72,35 @@ def create_judge_client() -> AIClient:
     )
 
 
+def _canonical_dim(key: str) -> str:
+    """维度名规范化:剔除分隔符。裁判 LLM 抄维度名时会连字符/下划线漂移
+    (2026-10-12 首轮带裁判全量 run 实踩:special_pattern_诚实 被写成
+    special-pattern_诚实,严格 unknown 检查把整条 entry 炸成 error——
+    裁判输出格式漂移不该毁掉生成侧已完成的结论)。只做分隔符级规范化
+    (空格/下划线/连字符/间隔号),规范化后仍未知的照旧 raise(真·新
+    维度要暴露,不是吞掉)。"""
+    return re.sub(r"[\s_\-·]", "", key)
+
+
 def _validate_scores(scores: Any) -> dict[str, int | str]:
     if not isinstance(scores, dict):
         raise ValueError(f"裁判输出 scores 非 object(type={type(scores).__name__})")
+    # 维度名漂移容错(见 _canonical_dim):规范化后能对上已知维度就改回
+    # 正名。规范化碰撞(两个原始键落到同一正名)显式 raise,不静默覆盖。
+    # 必须在 N/A 缺省补键**之前**做——补键会写入正名,先补后改名会把
+    # 漂移键与补出来的正名键判成碰撞。
+    canonical = {_canonical_dim(k): k for k in _SCORE_KEYS}
+    renamed: dict[str, int | str] = {}
+    first_raw: dict[str, str] = {}
+    for raw_key, value in scores.items():
+        key = canonical.get(_canonical_dim(raw_key), raw_key)
+        if key in renamed:
+            raise ValueError(
+                f"裁判输出 scores 维度重复(规范化后同键):"
+                f"{first_raw[key]!r} 与 {raw_key!r} 都落到 {key!r}")
+        first_raw[key] = raw_key
+        renamed[key] = value
+    scores = renamed
     # special_pattern_诚实 缺键视为 N/A(2026-10-08 首轮真实 run:46 条裁判 error
     # 全因普通盘上裁判合理省略该维度——rubric 本就允许 N/A,缺键与显式 N/A
     # 同义;其余维度缺键仍是 error)。
@@ -92,6 +119,15 @@ def _validate_scores(scores: Any) -> dict[str, int | str]:
                     f"(仅 {_NA_ALLOWED_KEYS} 可 N/A)"
                 )
             continue
+        # 数字串容错(2026-10-12 首轮带裁判全量 run 实踩:裁判把分数写成
+        # 字符串 '3',严格 int 检查把 entry 炸成 error)。'3'→3 是裁判的
+        # 真实分数不是默认分,转了不违反「不给默认分」红线;非数字串
+        # ('好'/'high' 等)照旧 raise。谓词用 isdecimal 而非 isdigit:
+        # isdigit 连上标数字('³')也放行,int() 解析不了会以裸 ValueError
+        # 崩掉、丢失「非 1-5 整数」报错语境;isdecimal 只收十进制数字
+        # (全角 '３' 仍在,int 可解析),上标落入下方 raise 分支。
+        if isinstance(value, str) and value.strip().isdecimal():
+            scores[key] = value = int(value.strip())
         if isinstance(value, bool) or not isinstance(value, int):
             raise ValueError(
                 f"裁判输出 scores[{key!r}] 非 1-5 整数(值 {value!r})")

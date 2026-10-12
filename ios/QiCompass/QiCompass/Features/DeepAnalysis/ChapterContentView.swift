@@ -82,6 +82,12 @@ private struct NodeView: View {
                     }
                 }
             }
+        case .inlineLabel(let label, let text):
+            inlineLabelParagraph(label: label, text: text)
+        case .loopFromTo(let from, let to):
+            loopFromToLine(from: from, to: to)
+        case .evidenceFold(let notes):
+            EvidenceFoldView(notes: notes)
         }
     }
 
@@ -174,6 +180,42 @@ private struct NodeView: View {
         }
     }
 
+    /// 行内标签段(M0,2026-10-12 S4-A):段首小标签 + 「 · 」+ 正文连排,
+    /// 取代 caption 标签行 + 值的上下两行结构——读感像书页段落不像表单。
+    /// 换行续行回全文宽(标签只在段首),与「据 · 」小字注同一符号语言。
+    /// 拼接只可用 Text 级 modifier(font/foregroundStyle 返回 Text;
+    /// bodySerifText 返回 View 不能进拼接,lineSpacing 挂整段)。
+    private func inlineLabelParagraph(label: String, text: String) -> some View {
+        (Text(label)
+            .font(BaziFont.caption(size: 11.5))
+            .tracking(1)
+            .foregroundStyle(BaziTheme.inkMuted)
+        + Text(" · ")
+            .font(BaziFont.caption(size: 12.5))
+            .foregroundStyle(BaziTheme.inkMutedSecondary)
+        + Text(text)
+            .font(BaziFont.body(size: 16))
+            .foregroundStyle(BaziTheme.ink))
+            .lineSpacing(valueLineSpacing)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// 循环起止一行小字(M0):from/to 两个孤立标签行合成的弱化信息行。
+    /// 标签走既有 dot-key 本地化(起点/终点),值是十神名(输出口径已本地)。
+    private func loopFromToLine(from: String, to: String) -> some View {
+        (Text(ChapterContent.localizedLabel("from"))
+            .foregroundStyle(BaziTheme.inkMuted)
+        + Text(" \(from)　")
+            .foregroundStyle(BaziTheme.ink)
+        + Text(ChapterContent.localizedLabel("to"))
+            .foregroundStyle(BaziTheme.inkMuted)
+        + Text(" \(to)")
+            .foregroundStyle(BaziTheme.ink))
+            .font(BaziFont.caption(size: 12.5))
+            .tracking(0.5)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
     /// 条目卡:题(可空)+ 键值组 + 条目列,上下 12pt 呼吸。
     private func itemView(_ item: ChapterItem) -> some View {
         VStack(alignment: .leading, spacing: 10) {
@@ -204,5 +246,47 @@ private struct NodeView: View {
             }
         }
         .padding(.vertical, 12)
+    }
+}
+
+/// 章末「据」折叠区(M0,2026-10-12 S4-A):各小节的 evidence 从正文里
+/// 抽出收拢,默认收起、轻触展开——依据要可查但不打断阅读。视觉沿用
+/// 小字注语言(hairline 分隔 + caption 墨灰),无卡片无渐变(DESIGN.md)。
+private struct EvidenceFoldView: View {
+    let notes: [ChapterNote]
+
+    @State private var expanded = false
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Rectangle()
+                .fill(BaziTheme.hairline)
+                .frame(height: 0.5)
+            Button {
+                expanded.toggle()
+            } label: {
+                HStack(spacing: 6) {
+                    Text(ChapterContent.localizedLabel("evidence"))
+                        .font(BaziFont.caption(size: 11.5))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                    Image(systemName: expanded ? "chevron.down" : "chevron.right")
+                        .font(BaziFont.caption(size: 10))
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                }
+            }
+            .buttonStyle(.plain)
+            if expanded {
+                VStack(alignment: .leading, spacing: 8) {
+                    ForEach(Array(notes.enumerated()), id: \.offset) { _, note in
+                        Text("\(note.label) · \(note.text)")
+                            .font(BaziFont.caption(size: 12.5))
+                            .foregroundStyle(BaziTheme.inkMutedSecondary)
+                            .lineSpacing(3)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+            }
+        }
     }
 }

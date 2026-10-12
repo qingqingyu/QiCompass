@@ -203,7 +203,7 @@ struct ChapterReadingView: View {
             // 解析失败(非 JSON/非法 JSON,如老缓存散文或 LLM 违约)退回散文并记日志。
             // 2026-10-01 加固:parse 失败且内容呈 JSON 形态(截断半截/契约破坏)→
             // 显式异常态,不再把 JSON 原文当散文排版(裸奔)。
-            if let content = ChapterContent.parse(text) {
+            if let content = ChapterContent.parse(text, for: module) {
                 ChapterContentView(content: content)
                     .padding(.top, 24)
                     .padding(.bottom, 18)

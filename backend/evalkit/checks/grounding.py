@@ -1,8 +1,9 @@
 """L2 接地校验层(不花钱,本系列价值核心)。
 
 把"LLM 编造了后端没给的东西"从"要靠裁判读出来"变成"机器直接判死"。
-五个纯函数,统一签名 (module, parsed_output, engine_result) -> list[str],
-只读入参不做 IO——这是它们能被大量单测覆盖的前提。
+纯函数,统一签名 (module, parsed_output, engine_result) -> list[str]
+(链式一致性多一个可选 chain_context),只读入参不做 IO——这是它们
+能被大量单测覆盖的前提。
 
 关于误报的立场(宁可漏报,不可误报):
 - 模式匹配一律保守:证据不足就不判(歧义句跳过、信号词与五行必须
@@ -10,6 +11,13 @@
   二次否决——金融/土地/火车这类日常词里的五行字不算五行义)
 - 每条 failure 自带命中原文片段 + 冲突的 ground truth 值,可在 UI 人工复核
 - 首轮基线(S06)后人工复核全部 L2 failure;误报优先收紧模式
+
+2026-10-12 M0 质量批(docs/命书M0主线结构内容质量修复-plan.md S2)新增
+五项 m0 结构纪律检查 + 复合格局名模式:A1(格名模式)/A3(分层)/A4(flow
+箭头)/A5(机器字段名)/B1(地支五行)/B2(十神归类)。其中 A3/A4/A5/B1/B2
+仅对 m0_structure 生效——zh m1-m7 模板尚未含机器字段名禁令等规则(本批
+范围外,plan S5),全开会把旧模板的概率性泄漏放大成 evalkit fail 且本批
+无法修复;m1-m7 模板补齐规则时再放开。
 
 对齐:ADR-0004(喜忌确定性)/ 0005(神煞 20 固定清单)/ 0006(格局砍掉
 模糊叙事)/ 0007(从格诚实降级)。
@@ -21,6 +29,7 @@ import re
 from difflib import SequenceMatcher
 from typing import Any, Iterator
 
+from app.engine.chart_builder import build_v1_chart
 from app.engine.shensha import SHENSHA_NAMES
 
 # ---------- 五行中英映射 ----------
@@ -62,12 +71,23 @@ def _iter_text_leaves(obj: Any) -> Iterator[str]:
             yield from _iter_text_leaves(item)
 
 
-_SENTENCE_SPLIT = re.compile(r"[。!?!?;;\n\r]")
+# 切句标点(半/全角都要)。2026-10-12 M0 批全量 run 分诊修复:原集合把
+# 半角 ; 写了两遍、全角 ；(U+FF1B)从未收录——真机 m7 输出「…在喜用位；水
+# 透出层为 0」没被切开,「喜用.{0,2}水」跨子句命中,把「推荐土金(正确)」
+# 误报成「推荐水(忌)」。! 与 ? 同病(两个全是半角重复,全角 ！？ 从未
+# 收录),双 review 第 1 轮一并补齐。
+_SENTENCE_SPLIT = re.compile(r"[。!？！?;；\n\r]")
 
 
 def _iter_sentences(text: str) -> list[str]:
     """切句:推荐/规避判定只在句内做,跨句不判。"""
     return [s for s in _SENTENCE_SPLIT.split(text) if s.strip()]
+
+
+# 信号词与五行的近距 gap(≤2 字):排除开括号(半/全角)——信号词跨进括号
+# 插入语再遇五行字,是两个语义单元(2026-10-12 全量 run m6 实踩:「回补
+# (水行计数 0」被判「补(水」推荐水;括号内是数据陈述不是推荐对象)。
+_GAP = "[^\uff08(]{0,2}"
 
 
 def _clip(text: str, limit: int = 40) -> str:
@@ -122,7 +142,13 @@ _NON_WUXING_SUFFIX: dict[str, tuple[str, ...]] = {
 }
 _NON_WUXING_PREFIX: dict[str, tuple[str, ...]] = {
     "金": ("资", "现", "黄", "奖", "基", "佣"),  # 资金 现金 黄金 奖金 基金 佣金
-    "水": ("薪",),                      # 薪水
+    # 补 2026-10-12 全量 run 实踩:「补水」高频词义歧义——m4 生理饮水
+    # (「补水少」)/m5 流动性隐喻(「补水 0 的缓冲缺口」),真五行推荐另有
+    # 宜/喜用/适合 等信号词携带;宁可漏报,只有 水 收「补」前缀。
+    # 其余行不收:「宜补火」是真五行推荐实踩样本(见
+    # test_special_pattern_real_fabrication_still_fails),补火/补土
+    # 不是日常词,收了就是把真编造放走。
+    "水": ("薪", "补"),                  # 薪水 补水
     "土": ("本",),                      # 本土
     "火": ("上",),                      # 上火
 }
@@ -143,12 +169,12 @@ def _reco_hits(sentence: str, element_zh: str) -> list[str]:
     """
     hits: list[str] = []
     for sig in _RECO_SIGNALS_FIRST:
-        pattern = rf"{_signal_regex(sig)}.{{0,2}}{re.escape(element_zh)}"
+        pattern = rf"{_signal_regex(sig)}{_GAP}{re.escape(element_zh)}"
         for m in re.finditer(pattern, sentence):
             if not _is_non_wuxing_compound(sentence, m.end() - 1, element_zh):
                 hits.append(m.group(0))
     for sig in _RECO_SIGNALS_LAST:
-        pattern = rf"{re.escape(element_zh)}.{{0,2}}{_signal_regex(sig)}"
+        pattern = rf"{re.escape(element_zh)}{_GAP}{_signal_regex(sig)}"
         for m in re.finditer(pattern, sentence):
             if not _is_non_wuxing_compound(sentence, m.start(), element_zh):
                 hits.append(m.group(0))
@@ -159,12 +185,12 @@ def _avoid_hits(sentence: str, element_zh: str) -> list[str]:
     """句内"规避某五行"的命中模式(同样过复合词二次否决)。"""
     hits: list[str] = []
     for sig in _AVOID_SIGNALS_FIRST:
-        pattern = rf"{_signal_regex(sig)}.{{0,2}}{re.escape(element_zh)}"
+        pattern = rf"{_signal_regex(sig)}{_GAP}{re.escape(element_zh)}"
         for m in re.finditer(pattern, sentence):
             if not _is_non_wuxing_compound(sentence, m.end() - 1, element_zh):
                 hits.append(m.group(0))
     for sig in _AVOID_SIGNALS_LAST:
-        pattern = rf"{re.escape(element_zh)}.{{0,2}}{_signal_regex(sig)}"
+        pattern = rf"{re.escape(element_zh)}{_GAP}{_signal_regex(sig)}"
         for m in re.finditer(pattern, sentence):
             if not _is_non_wuxing_compound(sentence, m.start(), element_zh):
                 hits.append(m.group(0))
@@ -264,6 +290,31 @@ _HARD_GEJU_WORDS: tuple[str, ...] = (
     "劫财格", "建禄格", "羊刃格",
 )
 
+# 复合格局名模式(2026-10-12 M0 质量批 A1):固定词表只列了 13 个单十神
+# 格名,复合格名(杀印相生格/伤官配印格/食神制杀格/财滋弱杀格…)漏网,
+# 真机 M0 实踩。两层否决——立场仍是宁可漏报:白名单/排除集从宽收录,
+# 实跑误报样本出现时再补。
+# ① 后缀白名单(词尾「X格」的日常/认可措辞,token.endswith 命中即放行)。
+#   「常格」「从格」必须在内:special_pattern 诚实降级表述「不入常格/
+#   从格特征」是 _HONEST_WORDS 与 _special_pattern_suffix 模板认可的
+#   措辞(20 盘语料 5 盘从格盘,M0-M7 都被要求这么写),不能被模式误杀;
+#   「从格」只在 special_pattern 盘放行,普通盘写「从格」是把身强身弱
+#   讲错,仍应拦。
+# ② 负向前瞻(格后紧跟「局/式/外/调/子/…」时放行):「格局/格式/格外/
+#   格调/格子」等格字开头的日常词,endswith 结构性救不了,只能按后继
+#   字排除。「杀印相生格局」这类后继字写法随之漏报——接受(宁可漏报)。
+_COMMON_GE_SUFFIX_WORDS: tuple[str, ...] = (
+    "性格", "风格", "规格", "资格", "价格", "人格", "表格", "合格",
+    "及格", "品格", "体格", "定格", "破格", "升格", "降格", "严格",
+    "顶格", "一格", "宾格", "主格", "常格", "从格", "出格", "九宫格",
+    "满格",  # 2026-10-12 全量 run 实踩:m6「精力是否回到满格」误报
+    "掉格",  # 同族:m7「拆解时电池不掉格」(电池/信号条量词)
+    "正格",  # 同 run 实踩:m7 推翻信号段「按正格的方式运转」(从格的否定
+    # 语域,泛指常规命局,不是具体格局名)
+)
+_GEJU_NEXT_CHAR_EXEMPT = "局式外调子言物斗挡"
+_GEJU_RE = re.compile(rf"[一-鿿]{{2,6}}格(?![{_GEJU_NEXT_CHAR_EXEMPT}])")
+
 
 def check_no_hard_geju(
     module: str,
@@ -272,16 +323,41 @@ def check_no_hard_geju(
 ) -> list[str]:
     """硬性格局分类是红线(ADR-0006),命中即 fail,不打分。
 
-    只扫"××格"整词;单独的"格局"二字是允许的中性表述。
+    词表(13 个单十神格名)+ 模式(2-6 个汉字 + 格,即任意复合格名)双层;
+    单独的"格局"二字是允许的中性表述。模式命中后过两层否决:日常词后缀
+    白名单(别具一格/高规格/不入常格…)+ 格字开头日常词的负向前瞻
+    (格局/格式/格外…,见 _GEJU_RE)。「从格」仅在 special_pattern 盘放行
+    (_HONEST_WORDS 认可的诚实降级措辞)。
     """
+    congge_allowed = (
+        engine_result["day_master_strength"] == "special_pattern")
+    suffixes = _COMMON_GE_SUFFIX_WORDS if congge_allowed else tuple(
+        w for w in _COMMON_GE_SUFFIX_WORDS if w != "从格")
     failures: list[str] = []
     for leaf in _iter_text_leaves(parsed_output):
-        for word in _HARD_GEJU_WORDS:
-            if word in leaf:
-                failures.append(
-                    f"硬性格局:文本出现「{word}」(只准「命局呈现××倾向」"
-                    f"模糊叙事,原文:{_clip(leaf)!r})"
-                )
+        reported_words = {
+            word for word in _HARD_GEJU_WORDS if word in leaf}
+        for word in sorted(reported_words):
+            failures.append(
+                f"硬性格局:文本出现「{word}」(只准「命局呈现××倾向」"
+                f"模糊叙事,原文:{_clip(leaf)!r})"
+            )
+        reported_tokens: set[str] = set()
+        for m in _GEJU_RE.finditer(leaf):
+            token = m.group(0)
+            # 词表已单独报过的不再重复报;token 内含词表词(贪婪匹配吃进
+            # 前缀,如「此为正官格」)也已由词表覆盖
+            if any(word in token for word in reported_words):
+                continue
+            if token in reported_tokens:
+                continue
+            if any(token.endswith(w) for w in suffixes):
+                continue
+            reported_tokens.add(token)
+            failures.append(
+                f"硬性格局:文本出现「{token}」(以「格」结尾的传统格局名"
+                f"一律禁止,含复合格名;原文:{_clip(leaf)!r})"
+            )
     return failures
 
 
@@ -384,6 +460,238 @@ def check_chain_consistency(
     return []
 
 
+# ---------- 6. M0 结构纪律(2026-10-12 M0 质量批 S2) ----------
+#
+# 来源:用户真机截图(丙寅辛丑庚午庚辰盘)M0 输出实测翻车五类。
+# 全部 m0_structure 专属(理由见模块 docstring);正例 = 真机翻车原文,
+# 反例 = 日常措辞不误报。
+
+_TEN_GOD_NAMES: tuple[str, ...] = (
+    "比肩", "劫财", "食神", "伤官", "偏财", "正财",
+    "七杀", "正官", "偏印", "正印",
+)
+# 十神五类归属(命理固定,与 prompt v7 自检规则同源)
+_TEN_GOD_FAMILY: dict[str, str] = {
+    "比肩": "比劫", "劫财": "比劫",
+    "食神": "食伤", "伤官": "食伤",
+    "偏财": "财星", "正财": "财星",
+    "七杀": "官杀", "正官": "官杀",
+    "偏印": "印星", "正印": "印星",
+}
+# 地支五行归属(命理固定):五行字面 → 该五行地支集
+_ELEMENT_BRANCHES: dict[str, frozenset[str]] = {
+    "木": frozenset("寅卯"), "火": frozenset("巳午"),
+    "金": frozenset("申酉"), "水": frozenset("亥子"),
+    "土": frozenset("辰戌丑未"),
+}
+_BRANCH_ELEMENT: dict[str, str] = {
+    branch: element
+    for element, branches in _ELEMENT_BRANCHES.items()
+    for branch in branches
+}
+
+# 「X支(…)」/「X支:…」列举地支(plan B1:保守——只在五行字面紧跟
+# 括号/冒号列举时判,散句提及不判)。冒号列举的停止类必须含全角
+# 「；！?」与半/全角逗号:「土支:丑辰；火支:巳午」「土支:丑辰，火支:
+# 巳午」这类排比若不在组分隔标点停,会把下一组的巳午吞进土支列举 →
+# 误报(逗号 2026-10-12 双 review 第 1 轮补:全角逗号是 LLM zh 排比的
+# 自然标点)。代价:列举内部用逗号分项(「土支:丑,辰」)只检到逗号前,
+# 漏报接受。空格分隔无标点的排比仍可能吞组——语料未见,按「实跑误报
+# 样本出现时再补」立场搁置。
+_BRANCH_PAREN_RE = re.compile(r"([木火土金水])支\s*[（(]([^）)]*)[）)]")
+_BRANCH_COLON_RE = re.compile(r"([木火土金水])支\s*[：:]([^。;；!！?？\n,，]*)")
+# 「财星(…)」/「财星组(…)」/「印星家族(…)」列举十神(plan B2)
+_FAMILY_PAREN_RE = re.compile(
+    r"(比劫|食伤|财星|官杀|印星)(?:组|类|家族)?\s*[（(]([^）)]*)[）)]")
+
+
+def check_no_machine_field_names(
+    module: str,
+    parsed_output: dict[str, Any],
+    engine_result: dict[str, Any],
+) -> list[str]:
+    """A5 机器字段名外泄:输出字符串出现 chart JSON 的 snake_case 键名。
+
+    键名从 build_v1_chart(engine_result) 动态收集(LLM 实际看到什么键就
+    禁什么键,不手写死清单),只取含下划线的多词标识符——stem/branch/
+    pillar 这类单词是 EN 输出的合法英文词,收进来必误报(宁可漏报)。
+    真机翻车原文:「据 · five_elements: 水0,木1;ten_god_weights: 食神0…」。
+    """
+    if module != "m0_structure":
+        return []
+    keys: set[str] = set()
+
+    def _walk(node: Any) -> None:
+        if isinstance(node, dict):
+            for k, v in node.items():
+                if isinstance(k, str) and "_" in k:
+                    keys.add(k)
+                _walk(v)
+        elif isinstance(node, list):
+            for item in node:
+                _walk(item)
+
+    _walk(build_v1_chart(engine_result))
+
+    failures: list[str] = []
+    for leaf in _iter_text_leaves(parsed_output):
+        for key in sorted(keys):
+            # ASCII 词边界:下划线标识符两侧不得是字母/数字/下划线
+            # (CJK 视为边界,「如five_elements:」这种紧贴写法也能命中)
+            if re.search(
+                rf"(?<![A-Za-z0-9_]){re.escape(key)}(?![A-Za-z0-9_])", leaf
+            ):
+                failures.append(
+                    f"机器字段名外泄:输出出现「{key}」(依据必须用人话写,"
+                    f"原文:{_clip(leaf)!r})"
+                )
+    return failures
+
+
+def check_branch_element_attribution(
+    module: str,
+    parsed_output: dict[str, Any],
+    engine_result: dict[str, Any],
+) -> list[str]:
+    """B1 地支五行错置:「土支(丑月、辰时、午日)」——午属火不属土。
+
+    只判括号/冒号紧跟列举的形式;列举里的非地支字(月/时/日等)忽略。
+    真机翻车原文即 driver 段「土支(丑月、辰时、午日)生助正印」。
+    """
+    if module != "m0_structure":
+        return []
+    failures: list[str] = []
+    for leaf in _iter_text_leaves(parsed_output):
+        matches = list(_BRANCH_PAREN_RE.finditer(leaf)) + list(
+            _BRANCH_COLON_RE.finditer(leaf))
+        for m in matches:
+            element, inside = m.group(1), m.group(2)
+            wrong = sorted({
+                ch for ch in inside if ch in _BRANCH_ELEMENT
+                and _BRANCH_ELEMENT[ch] != element
+            })
+            if wrong:
+                detail = "、".join(
+                    f"{ch}({_BRANCH_ELEMENT[ch]})" for ch in wrong)
+                failures.append(
+                    f"地支五行错置:「{element}支」列举里出现 {detail}"
+                    f"(原文:{_clip(m.group(0))!r})"
+                )
+    return failures
+
+
+def check_ten_god_category_attribution(
+    module: str,
+    parsed_output: dict[str, Any],
+    engine_result: dict[str, Any],
+) -> list[str]:
+    """B2 十神归类错置:「财星组(偏财、劫财)」——劫财属比劫不属财星。
+
+    只判五类标签紧跟括号列举的形式;括号里没有十神名则跳过。
+    """
+    if module != "m0_structure":
+        return []
+    failures: list[str] = []
+    for leaf in _iter_text_leaves(parsed_output):
+        for m in _FAMILY_PAREN_RE.finditer(leaf):
+            family, inside = m.group(1), m.group(2)
+            wrong = sorted({
+                god for god in _TEN_GOD_NAMES
+                if god in inside and _TEN_GOD_FAMILY[god] != family
+            })
+            if wrong:
+                detail = "、".join(
+                    f"{g}({_TEN_GOD_FAMILY[g]})" for g in wrong)
+                failures.append(
+                    f"十神归类错置:「{family}」括注里出现 {detail}"
+                    f"(原文:{_clip(m.group(0))!r})"
+                )
+    return failures
+
+
+def check_flow_no_chain_symbols(
+    module: str,
+    parsed_output: dict[str, Any],
+    engine_result: dict[str, Any],
+) -> list[str]:
+    """A4 flow 复述链条:from/to 已单独成字段,flow 里再写「A → B → A」
+    就是复读。≥2 个箭头符号(→ / ->)即 fail(单箭头容许,保守)。
+
+    真机翻车原文:flow 含 4 个箭头,把 from→to 链条完整复述一遍还多转一圈。
+    """
+    if module != "m0_structure":
+        return []
+    core_loop = parsed_output.get("core_loop")
+    if not isinstance(core_loop, dict):
+        return []
+    flow = core_loop.get("flow")
+    if not isinstance(flow, str):
+        return []
+    arrows = flow.count("→") + flow.count("->")
+    if arrows >= 2:
+        return [
+            f"flow 复述链条:含 {arrows} 个箭头符号,from/to 已单独成字段,"
+            f"flow 只讲机制(原文:{_clip(flow)!r})"
+        ]
+    return []
+
+
+def check_layering_consistency(
+    module: str,
+    parsed_output: dict[str, Any],
+    engine_result: dict[str, Any],
+) -> list[str]:
+    """A3 分层与权重一致:dominant/latent 两层的强度序不得倒挂。
+
+    两条:①并列最高的十神不得出现在 latent(真机翻车:七杀 6 = 劫财 6,
+    劫财被塞进「潜伏」层);②dominant 层的强度代表(该层提及十神的**最高**
+    权重)≥ latent 层的强度代表。用最高而非最低:LLM 常按十神家族分层
+    (dominant=「比劫(劫财 7…比肩仅 1…)」),家族内低权重神是叙事说明
+    不是层成员判定,按最低权重比对会把正当的家族分层误杀(2026-10-12
+    全量 run 三条实踩);层的强弱由它的领衔十神决定。十神名提取不到
+    (EN 输出等)跳过不判(宁可漏报)。
+    """
+    if module != "m0_structure":
+        return []
+    axis = parsed_output.get("main_axis")
+    if not isinstance(axis, dict):
+        return []
+    weights = engine_result["ten_god_weights"]
+    dominant, latent = axis.get("dominant"), axis.get("latent")
+    if not isinstance(dominant, str) or not isinstance(latent, str):
+        return []
+    dom_weights = {
+        g: weights[g] for g in _TEN_GOD_NAMES
+        if g in dominant and g in weights
+    }
+    lat_weights = {
+        g: weights[g] for g in _TEN_GOD_NAMES
+        if g in latent and g in weights
+    }
+    if not dom_weights or not lat_weights:
+        return []
+    failures: list[str] = []
+    max_weight = max(weights.values())
+    if max_weight > 0:
+        top_in_latent = sorted(
+            g for g, w in lat_weights.items() if w == max_weight)
+        if top_in_latent:
+            failures.append(
+                f"分层失真:并列最重 {'、'.join(top_in_latent)}"
+                f"(权重 {max_weight})不得落在 latent 层"
+            )
+    dom_max = max(dom_weights.values())
+    lat_max = max(lat_weights.values())
+    if dom_max < lat_max:
+        dom_lead = max(dom_weights, key=lambda g: dom_weights[g])
+        lat_lead = max(lat_weights, key=lambda g: lat_weights[g])
+        failures.append(
+            f"分层失真:dominant 层领衔「{dom_lead}」权重 {dom_max} 低于 "
+            f"latent 层领衔「{lat_lead}」权重 {lat_max}"
+        )
+    return failures
+
+
 # ---------- 聚合入口 ----------
 
 def check_grounding(
@@ -392,7 +700,7 @@ def check_grounding(
     engine_result: dict[str, Any],
     chain_context: dict[str, Any] | None = None,
 ) -> list[str]:
-    """L2 聚合:顺序跑五项并合并 failures(空 = 全过)。"""
+    """L2 聚合:顺序跑全部检查并合并 failures(空 = 全过)。"""
     failures: list[str] = []
     failures += check_xiji_consistency(module, parsed_output, engine_result)
     failures += check_shensha_bounded(module, parsed_output, engine_result)
@@ -400,4 +708,14 @@ def check_grounding(
     failures += check_special_pattern_honesty(module, parsed_output, engine_result)
     failures += check_chain_consistency(
         module, parsed_output, engine_result, chain_context=chain_context)
+    failures += check_no_machine_field_names(
+        module, parsed_output, engine_result)
+    failures += check_branch_element_attribution(
+        module, parsed_output, engine_result)
+    failures += check_ten_god_category_attribution(
+        module, parsed_output, engine_result)
+    failures += check_flow_no_chain_symbols(
+        module, parsed_output, engine_result)
+    failures += check_layering_consistency(
+        module, parsed_output, engine_result)
     return failures

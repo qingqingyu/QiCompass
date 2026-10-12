@@ -316,3 +316,447 @@ def test_xiji_buyi_now_produces_failure():
     failures = check_xiji_consistency("m1_talent", out, _engine())
     assert any("喜忌矛盾" in f and "金" in f and "favorable" in f
                for f in failures)
+
+
+@pytest.mark.parametrize("sep", ["；", ";"], ids=["full-width", "half-width"])
+def test_xiji_semicolon_splits_clause(sep):
+    """全/半角分号都必须切句(2026-10-12 全量 run m7 实踩,真机是全角)。
+
+    「…在喜用位<sep>水透出层为 0」:前半句推荐的是土金(favorable,正确),
+    分号后是陈述句;修复前全角 ；(U+FF1B)不在切句集合 → 两句粘连,
+    「喜用.{0,2}水」跨子句命中,把正确推荐误报成推荐忌神水。半角 ; 修复
+    前就已被收录,参数化双向锁定——只锁全角则半角回退同样无人察觉。
+    """
+    engine = _engine(unfavorable_elements=["木", "水", "火"])
+    out = {"summary": f"日主中和、喜土金,偏印属土在喜用位{sep}水透出层为 0"}
+    assert check_xiji_consistency("m1_talent", out, engine) == []
+
+
+@pytest.mark.parametrize("text", [
+    "连续赶工一周,补水少,皮肤状态先报警",       # 生理饮水(m4 实踩)
+    "现金储备要垫底,补水 0 的缓冲缺口",         # 流动性隐喻(m5 实踩)
+])
+def test_xiji_bushui_not_element_recommendation(text):
+    """「补水」词义歧义:饮水/流动性隐喻不作五行推荐判(宁可漏报)。
+
+    真五行推荐另有 宜/喜用/适合 信号词携带;把「补」加进水的非五行
+    前缀否决表后,补水类复合词不再命中(代价:纯「补水」式推荐漏报,
+    接受)。水同时压进 unfavorable,判据真扫到才算过关。
+    """
+    engine = _engine(unfavorable_elements=["水"])
+    assert check_xiji_consistency("m4_health", {"s": text}, engine) == []
+
+
+def test_special_pattern_bushui_not_fabrication():
+    """special 盘同理:「补水少」不得判为编造喜忌。"""
+    out = {"s": "连续多日高强度输出,同时补水少,注意饮水。本盘为从格,不入常格。"}
+    assert check_special_pattern_honesty("m4_health", out, _special_engine()) == []
+
+
+def test_xiji_signal_across_paren_not_recommendation():
+    """信号词跨开括号进插入语 ≠ 推荐括号内的五行(2026-10-12 全量 run m6 实踩)。
+
+    「回补(水行计数 0,天干无财)」:推荐语义落在回补-财星,括号内是数据
+    陈述;修复前「补.{0,2}水」跨「(」命中,把陈述句误报成推荐忌神水。
+    """
+    engine = _engine(unfavorable_elements=["木", "水", "金"])
+    out = {"s": "产出无法经财星回补(水行计数 0,天干无财),消耗没有结构性对冲"}
+    assert check_xiji_consistency("m6_dynamics", out, engine) == []
+
+
+def test_xiji_adjacent_recommendation_still_fails():
+    """gap 收紧不伤正常命中:信号词与五行紧邻的推荐照旧抓。"""
+    out = {"summary": "宜多用火,提升行动力。"}
+    failures = check_xiji_consistency("m1_talent", out, _engine())
+    assert any("喜忌矛盾" in f and "火" in f for f in failures)
+
+
+# ===== 6. M0 结构纪律(2026-10-12 M0 质量批 S2) =====
+#
+# 样本盘 = plan 第 0 节真机截图盘(丙寅辛丑庚午庚辰,1987-01-21 08:00
+# +08:00 male):真实引擎输出做 ground truth(确定性,同盘同结果)。
+# 样本输出 = 后端缓存行原文照录(截图内容经 DB 核实为 EN 生成后 translate
+# 译回的产物,见 plan S3 实施记录)。
+
+from datetime import datetime, timedelta, timezone  # noqa: E402
+from functools import lru_cache  # noqa: E402
+
+from evalkit.checks.grounding import (  # noqa: E402
+    check_branch_element_attribution,
+    check_flow_no_chain_symbols,
+    check_layering_consistency,
+    check_no_machine_field_names,
+    check_ten_god_category_attribution,
+)
+
+
+@lru_cache(maxsize=1)
+def _sample_engine() -> dict:
+    """样本盘引擎真值:七杀6/劫财6 并列最重,水0 木1,日主偏旺。"""
+    from app.engine.bazi_engine import BaziEngine
+
+    birth = datetime(1987, 1, 21, 8, 0, tzinfo=timezone(timedelta(hours=8)))
+    return BaziEngine().calculate(
+        birth=birth, gender="male", longitude=116.41,
+        zi_hour_rule="zi_next_day",
+    )
+
+
+# 真机 M0 输出原文照录(每类问题的命中现场)
+_SAMPLE_M0_OUTPUT = {
+    "main_axis": {
+        "dominant": "七杀",
+        "secondary": "正印",
+        "latent": "伤官与财星组(偏财、劫财)",
+        "evidence": (
+            "七杀:年干丙坐于日主之上,权重6,加上年支寅中暗藏七杀以及"
+            "日支午的正官并入官杀家族。正印:权重4,现于月支丑与日支午的"
+            "藏干,土数为2。潜在:伤官权重2在月支与时支,劫财权重6为月干,"
+            "偏财权重3在年支——存在但多为暗藏或带争夺性。"
+        ),
+    },
+    "core_loop": {
+        "from": "七杀",
+        "to": "正印",
+        "flow": (
+            "七杀(压力、外部要求)→ 正印(系统化,吸收为方法与资历)"
+            "→ 回到七杀(方法使你能承受更大压力,承担带权柄的角色)"
+            "→ 七杀 → 正印"
+        ),
+        "driver": (
+            "日主庚偏旺,有比肩(权重5)与劫财(权重6)扶持,因此命局能够"
+            "承受七杀而不被压垮;土支(丑月、辰时、午日)生助正印,"
+            "使转化通道保持畅通。"
+        ),
+        "leak": (
+            "此循环在水与木处泄漏:水为0,因此食伤桥梁(伤官/食神,食神=0)"
+            "几乎不存在——转化后的印难以以可见的输出或作品形式展现;"
+            "木(财)为1,因此由印至财的一段薄弱。能量也经由劫财(权重6)"
+            "流失:资源与成果在尚未巩固之前,便在同辈之间被争夺或耗散。"
+        ),
+        "evidence": (
+            "five_elements: 水0,木1;ten_god_weights: 食神0,伤官2,劫财6;"
+            "月柱辛丑在正印的本支上见劫财。"
+        ),
+    },
+    "structure_type": {
+        "name": "杀印相生格(杀印相生格)",
+        "one_line": "以外部压力为原材料,通过系统与资历将其转化为承载能力,但对外输出的可见成果很少。",
+    },
+    "capability_source": {
+        "text": "核心能力来自转化环节:当压力到来(七杀)时,你将其导入结构——规则、流程、资质、领地(正印)。",
+        "evidence": "七杀权重6在年干;正印权重4,有土2生助;水0且食神0。",
+    },
+    "structure_fingerprint": "吸收压力,将其转化为系统与资历;吸入强,输出弱;同辈争夺同一资源时巩固能力差。",
+}
+
+
+# ---- 6a. 复合格局名(A1) ----
+
+
+@pytest.mark.parametrize("word", [
+    "杀印相生格", "伤官配印格", "食神制杀格", "财滋弱杀格", "从革格",
+])
+def test_geju_composite_pattern_fails(word):
+    """A1:复合格局名是固定词表漏网项,模式层必须命中。"""
+    out = {"name": f"此为{word}"}
+    failures = check_no_hard_geju("m0_structure", out, _sample_engine())
+    assert any("硬性格局" in f and word in f for f in failures)
+
+
+@pytest.mark.parametrize("text", [
+    "别具一格的做事风格",          # 一格 / 风格
+    "对交付规格要求高",            # 规格
+    "个人性格偏内敛",              # 性格
+    "像一张表格一样清晰",          # 表格
+    "价格敏感度高",                # 价格
+    "严格遵守约定",                # 严格
+    "考试及格线附近",              # 及格
+    "消费降格的现象",              # 降格
+    "顶格处罚的案例",              # 顶格
+    "整体格局偏流动",              # 格局(中性表述)
+    "这个格局偏流动",              # 格局:前缀 2 字 + 格 + 局,负向前瞻排除
+    "输出格式很干净",              # 格式
+    "对你格外重要",                # 格外
+    "生活有格调",                  # 格调
+    "排成九宫格子",                # 格子
+    "画一个九宫格。",              # 九宫格(句尾独立用法,后缀白名单)
+    "他的行事出格",                # 出格
+    "像格言一样凝练",              # 格言
+    "休假三天后,精力是否回到满格",  # 满格(2026-10-12 全量 run m6 实踩)
+    "它只保证你拆解时电池不掉格",    # 掉格(同族:m7 实踩)
+    "从格前提不成立,你的结构在按正格的方式运转",  # 正格 = 从格的否定语域
+    "本盘不入常格,从格特征,扶抑框架不适用",  # 常格 = 诚实降级措辞
+])
+def test_geju_daily_words_pass(text):
+    """A1 反例:以「格」结尾的日常词不得误报(宁可漏报,白名单从宽)。"""
+    out = {"note": text}
+    assert check_no_hard_geju("m1_talent", out, _engine()) == []
+
+
+def test_geju_congge_allowed_on_special_pattern_chart():
+    """从格 = _HONEST_WORDS 认可措辞,_special_pattern_suffix 模板明文
+    要求从格盘这么写(20 盘语料 5 盘),不得被模式层误杀。"""
+    out = {"note": "本命盘呈现从格特征,喜忌结论留空。"}
+    assert check_no_hard_geju("m0_structure", out, _special_engine()) == []
+
+
+def test_geju_congge_still_flagged_on_normal_chart():
+    """普通盘写「从格」= 把身强身弱讲错,仍应拦。"""
+    out = {"note": "此为从格,随势而动。"}
+    failures = check_no_hard_geju("m0_structure", out, _engine())
+    assert any("从格" in f for f in failures)
+
+
+def test_geju_wordlist_hit_not_double_reported():
+    """词表命中的单十神格名不被模式层重复报第二条。"""
+    out = {"note": "此为正官格。"}
+    failures = check_no_hard_geju("m1_talent", out, _engine())
+    geju_hits = [f for f in failures if "正官格" in f]
+    assert len(geju_hits) == 1
+
+
+def test_geju_duplicate_token_reported_once():
+    """同一 leaf 内同一复合格名出现两次(真机括注重复原文)只报一条。"""
+    out = {"name": "杀印相生格(杀印相生格)"}
+    failures = check_no_hard_geju("m0_structure", out, _sample_engine())
+    pattern_hits = [
+        f for f in failures if "杀印相生格" in f and "复合格名" in f]
+    assert len(pattern_hits) == 1
+
+
+# ---- 6b. 机器字段名外泄(A5) ----
+
+
+def test_field_name_sample_evidence_fails():
+    """A5:真机原文「five_elements: 水0…;ten_god_weights: …」两键都要命中。"""
+    out = {"evidence": _SAMPLE_M0_OUTPUT["core_loop"]["evidence"]}
+    failures = check_no_machine_field_names(
+        "m0_structure", out, _sample_engine())
+    assert any("five_elements" in f for f in failures)
+    assert any("ten_god_weights" in f for f in failures)
+
+
+@pytest.mark.parametrize("field", ["day_master", "luck_pillars", "shishen_zhi", "useful_god_candidates"])
+def test_field_name_chart_keys_fails(field):
+    """A5:chart 实际键(动态收集)逐个命中。"""
+    out = {"e": f"据 {field} 显示偏旺"}
+    failures = check_no_machine_field_names(
+        "m0_structure", out, _sample_engine())
+    assert any(field in f and "机器字段名外泄" in f for f in failures)
+
+
+def test_field_name_english_prose_passes():
+    """A5 反例:stem/branch/pillar 是 EN 合法英文词(无下划线),不误报。"""
+    out = {"e": ("The month stem and branch are both Companion; "
+                 "his luck pillars favor wood runs.")}
+    assert check_no_machine_field_names(
+        "m0_structure", out, _sample_engine()) == []
+
+
+def test_field_name_glued_prefix_still_hits():
+    """A5:CJK 紧贴写法「如five_elements:」(ASCII 词边界两侧 CJK 算边界)。"""
+    out = {"e": "如five_elements:水0则食伤弱"}
+    failures = check_no_machine_field_names(
+        "m0_structure", out, _sample_engine())
+    assert any("five_elements" in f for f in failures)
+
+
+def test_field_name_gated_to_m0():
+    """m1-m7 zh 模板尚未含禁令(plan S5),检查只对 m0 生效。"""
+    out = {"e": "five_elements: 水0"}
+    assert check_no_machine_field_names(
+        "m1_talent", out, _sample_engine()) == []
+
+
+# ---- 6c. 地支五行错置(B1) ----
+
+
+def test_branch_element_sample_driver_fails():
+    """B1:真机原文「土支(丑月、辰时、午日)」——午属火。"""
+    out = {"driver": _SAMPLE_M0_OUTPUT["core_loop"]["driver"]}
+    failures = check_branch_element_attribution(
+        "m0_structure", out, _sample_engine())
+    assert any("地支五行错置" in f and "午" in f and "火" in f
+               for f in failures)
+
+
+@pytest.mark.parametrize("text", [
+    "土支(丑、辰)", "水支(亥、子)", "木支:寅卯皆旺", "火支(巳、午)",
+    "金支:申酉当令",
+])
+def test_branch_element_correct_passes(text):
+    out = {"s": text}
+    assert check_branch_element_attribution(
+        "m0_structure", out, _sample_engine()) == []
+
+
+def test_branch_element_no_pattern_passes():
+    """B1 反例:「资金支持」的 支 前是金字但后随非括号,不判。"""
+    out = {"s": "本地分支机构不多,资金支持一般。"}
+    assert check_branch_element_attribution(
+        "m0_structure", out, _sample_engine()) == []
+
+
+def test_branch_element_parallel_colon_listing_passes():
+    """B1 反例:全角分号排比「土支:丑辰；火支:巳午」——冒号列举必须在
+    全角分号停,把下一组的巳午吞进土支列举就是误报。"""
+    out = {"s": "土支:丑辰；火支:巳午。"}
+    assert check_branch_element_attribution(
+        "m0_structure", out, _sample_engine()) == []
+
+
+@pytest.mark.parametrize("sep", ["，", ","], ids=["full-width", "half-width"])
+def test_branch_element_comma_parallel_listing_passes(sep):
+    """B1 反例:逗号排比同病(2026-10-12 双 review 第 1 轮补,全角逗号是
+    LLM zh 排比的自然标点):「土支:丑辰，火支:巳午」不停在逗号,巳午被
+    吞进土支列举 → 误报。半/全角双向锁定。"""
+    out = {"s": f"土支:丑辰{sep}火支:巳午。"}
+    assert check_branch_element_attribution(
+        "m0_structure", out, _sample_engine()) == []
+
+
+# ---- 6d. 十神归类错置(B2) ----
+
+
+def test_category_sample_latent_fails():
+    """B2:真机原文「财星组(偏财、劫财)」——劫财属比劫。"""
+    out = {"latent": _SAMPLE_M0_OUTPUT["main_axis"]["latent"]}
+    failures = check_ten_god_category_attribution(
+        "m0_structure", out, _sample_engine())
+    assert any("十神归类错置" in f and "劫财" in f and "比劫" in f
+               for f in failures)
+
+
+@pytest.mark.parametrize("text", [
+    "比劫(比肩、劫财)", "印星(正印、偏印)", "官杀(七杀、正官)",
+    "财星类(正财、偏财)", "食伤家族(食神、伤官)",
+])
+def test_category_correct_passes(text):
+    out = {"s": text}
+    assert check_ten_god_category_attribution(
+        "m0_structure", out, _sample_engine()) == []
+
+
+def test_category_no_paren_passes():
+    """B2 反例:无括号列举的日常提及不判。"""
+    out = {"s": "财星权重低,比劫争财,印星生身。"}
+    assert check_ten_god_category_attribution(
+        "m0_structure", out, _sample_engine()) == []
+
+
+# ---- 6e. flow 复述链条(A4) ----
+
+
+def test_flow_sample_fails():
+    """A4:真机原文 flow 含 4 个箭头,把链条复述一遍还多转一圈。"""
+    failures = check_flow_no_chain_symbols(
+        "m0_structure", _SAMPLE_M0_OUTPUT, _sample_engine())
+    assert any("flow 复述链条" in f for f in failures)
+
+
+def test_flow_single_arrow_passes():
+    out = {"core_loop": {"flow": "压力 -> 方法,方法承载压力"}}
+    assert check_flow_no_chain_symbols(
+        "m0_structure", out, _sample_engine()) == []
+
+
+def test_flow_prose_passes():
+    out = {"core_loop": {"flow": "压力被吸收为方法,方法再承接更大压力"}}
+    assert check_flow_no_chain_symbols(
+        "m0_structure", out, _sample_engine()) == []
+
+
+def test_flow_missing_field_passes():
+    assert check_flow_no_chain_symbols("m0_structure", {}, _sample_engine()) == []
+
+
+# ---- 6f. 分层与权重一致(A3) ----
+
+
+def test_layering_sample_fails():
+    """A3:七杀 6 = 劫财 6 并列最重,劫财被塞进 latent 必须命中。"""
+    failures = check_layering_consistency(
+        "m0_structure", _SAMPLE_M0_OUTPUT, _sample_engine())
+    assert any("分层失真" in f and "劫财" in f and "并列最重" in f
+               for f in failures)
+
+
+def test_layering_tie_in_dominant_passes():
+    """并列最高同处 dominant(写明并列最重)即合规。"""
+    out = {"main_axis": {"dominant": "七杀与劫财(并列最重)",
+                         "latent": "伤官"}}
+    assert check_layering_consistency(
+        "m0_structure", out, _sample_engine()) == []
+
+
+def test_layering_inversion_fails():
+    """dominant 层领衔权重低于 latent 层领衔权重 = 倒挂。"""
+    out = {"main_axis": {"dominant": "正印", "latent": "劫财"}}
+    failures = check_layering_consistency(
+        "m0_structure", out, _sample_engine())
+    assert any("正印" in f and "权重 4" in f for f in failures)
+
+
+def test_layering_family_grouping_passes():
+    """按十神家族分层不是倒挂(2026-10-12 全量 run 三条实踩)。
+
+    dominant=「比劫(劫财 7…比肩仅 1…)」:比肩 1 是家族叙事说明,不是层
+    成员判定;层的强弱由领衔十神(劫财 7)决定,不得按最低权重比对误杀。
+    本检查只读 ten_god_weights,自备 ground truth 复现 case_05 盘面。
+    """
+    engine = {"ten_god_weights": {
+        "比肩": 1, "劫财": 7, "食神": 0, "伤官": 6, "偏财": 0,
+        "正财": 6, "七杀": 3, "正官": 2, "偏印": 4, "正印": 6,
+    }}
+    out = {"main_axis": {
+        "dominant": "比劫(劫财权重 7 为最重,比肩仅 1)",
+        "latent": "偏印(4)、七杀(3)、正官(2),官杀只藏不透",
+    }}
+    assert check_layering_consistency(
+        "m0_structure", out, engine) == []
+
+
+def test_layering_family_grouping_sample_cases_pass():
+    """全量 run 实踩的另两形态:食伤家族主导 / 财星家族主导。"""
+    cases = [
+        ({"比肩": 1, "劫财": 5, "食神": 8, "伤官": 2, "偏财": 7,
+          "正财": 5, "七杀": 1, "正官": 2, "偏印": 3, "正印": 0},
+         "主导是食伤,食神权重 8 最重,伤官权重 2 为辅",
+         "印星与官杀藏而不透:偏印 3、正官 2、七杀 1"),
+        ({"比肩": 0, "劫财": 1, "食神": 5, "伤官": 6, "偏财": 8,
+          "正财": 2, "七杀": 6, "正官": 2, "偏印": 1, "正印": 3},
+         "财星(偏财与正财),偏财权重 8 为全盘最高,正财 2",
+         "印星与比劫藏而力薄:正印 3、偏印 1、劫财 1"),
+    ]
+    for weights, dominant, latent in cases:
+        out = {"main_axis": {"dominant": dominant, "latent": latent}}
+        assert check_layering_consistency(
+            "m0_structure", out, {"ten_god_weights": weights}) == []
+
+
+def test_layering_en_output_skips():
+    """提取不到中文十神名(EN 输出)跳过不判(宁可漏报)。"""
+    out = {"main_axis": {"dominant": "Seven Killings",
+                         "latent": "Hurting Officer"}}
+    assert check_layering_consistency(
+        "m0_structure", out, _sample_engine()) == []
+
+
+# ---- 6g. 聚合:plan S2 验收(六条全部命中) ----
+
+
+def test_aggregate_m0_sample_hits_all_six_categories():
+    """样本输出喂聚合入口:A1/A3/A4/A5/B1/B2 六类 failure 全部命中。"""
+    failures = check_grounding(
+        "m0_structure", _SAMPLE_M0_OUTPUT, _sample_engine())
+    markers = (
+        "硬性格局",            # A1 复合格局名
+        "分层失真",            # A3 并列最高落 latent
+        "flow 复述链条",       # A4 箭头复述
+        "机器字段名外泄",       # A5 字段名
+        "地支五行错置",         # B1 午≠土
+        "十神归类错置",         # B2 劫财≠财星
+    )
+    for marker in markers:
+        assert any(marker in f for f in failures), f"缺 {marker} 命中"

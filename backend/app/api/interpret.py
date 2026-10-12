@@ -1741,7 +1741,7 @@ _CHAPTER_TITLE_RE: Final[re.Pattern[str]] = re.compile(
 def _render_translate_prompt(
     source_language: str, target_language: str, source_interpretation: str,
 ) -> str:
-    """拼翻译 prompt(translate_v1.md 按**目标语言**取件 + 术语对 + 原文)。
+    """拼翻译 prompt(translate 模板按**目标语言**与当前版本取件 + 术语对 + 原文)。
 
     原文以拼接方式附加(不走 str.format_map):v1 模块原文是 JSON,含大量
     字面花括号,进 format_map 会 KeyError/误替换——模板只渲染 {term_table}
@@ -1965,7 +1965,7 @@ async def interpret_translate(
        目标语言键投毒任意文案。要求原文逐字存在于本后端为
        (content_hash, module, 当前版本, source_language) 生成过的缓存行;
        不可核验(清库 / 换环境 / 伪造)→ 409 STALE_SOURCE,客户端走重新生成
-    7. translate_v1 模板(按目标语言)+ 术语对注入 + 原文 → LLM(singleflight)
+    7. translate 模板(按目标语言,当前版本)+ 术语对注入 + 原文 → LLM(singleflight)
     8. 保真校验(v1 JSON 递归同构 / 合盘章节数+名字)+ 禁词;失败显式
        AIProviderError,**不回退原文、不静默改走重新生成、不写缓存**
     9. 写缓存 + 返回(translated_from = source_language,来源只进日志不进 DB)

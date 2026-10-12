@@ -190,6 +190,79 @@ async def test_judge_one_missing_dimension_raises():
             engine_result=_engine_result(), judge_client=client)
 
 
+async def test_judge_one_separator_drift_dimension_renamed():
+    """维度名分隔符漂移容错(2026-10-12 首轮带裁判全量 run 实踩)。
+
+    裁判把 special_pattern_诚实 写成 special-pattern_诚实 → 规范化后
+    对上正名,正常出分而不是把整条 entry 炸成 error。
+    """
+    payload = json.loads(_valid_judge_json(sp_score=4))
+    payload["scores"] = {
+        ("special-pattern_诚实" if k == "special_pattern_诚实" else k): v
+        for k, v in payload["scores"].items()
+    }
+    client = _MockJudge(json.dumps(payload, ensure_ascii=False))
+    result = await judge_one(
+        module="m0_structure", parsed_output=_parsed_output(),
+        engine_result=_engine_result(), judge_client=client)
+    assert result.scores["special_pattern_诚实"] == 4
+
+
+async def test_judge_one_unknown_dimension_still_raises():
+    """分隔符规范化只认已知维度:真·新维度名照旧显式 raise(不吞)。"""
+    payload = json.loads(_valid_judge_json())
+    payload["scores"]["编出来的维度"] = 3
+    client = _MockJudge(json.dumps(payload, ensure_ascii=False))
+    with pytest.raises(ValueError, match="未知维度"):
+        await judge_one(
+            module="m0_structure", parsed_output=_parsed_output(),
+            engine_result=_engine_result(), judge_client=client)
+
+
+async def test_judge_one_canonical_collision_raises():
+    """规范化碰撞(两键同正名)显式 raise,不静默覆盖。"""
+    payload = json.loads(_valid_judge_json(sp_score=4))
+    payload["scores"]["special-pattern_诚实"] = payload["scores"].pop(
+        "special_pattern_诚实")
+    payload["scores"]["special pattern 诚实"] = 4
+    client = _MockJudge(json.dumps(payload, ensure_ascii=False))
+    with pytest.raises(ValueError, match="维度重复"):
+        await judge_one(
+            module="m0_structure", parsed_output=_parsed_output(),
+            engine_result=_engine_result(), judge_client=client)
+
+
+async def test_judge_one_numeric_string_score_coerced():
+    """数字串分值容错(2026-10-12 首轮带裁判全量 run 实踩)。
+
+    裁判把分数写成字符串 '3'(JSON LLM 常见形态)→ 转 int 正常出分,
+    而不是把 entry 炸成 error。'3' 是裁判的真实分数,不是默认分,
+    不违反「不给默认分」红线;非数字串照旧 raise。全角 '３' 同判
+    (isdecimal 收十进制数字含全角,int 可解析;上标 '³' 不收,
+    落入 raise 分支而不是在 int() 里裸崩)。
+    """
+    for raw in ("3", "３"):
+        payload = json.loads(_valid_judge_json(sp_score=4))
+        payload["scores"]["special_pattern_诚实"] = raw  # 字符串分值
+        client = _MockJudge(json.dumps(payload, ensure_ascii=False))
+        result = await judge_one(
+            module="m0_structure", parsed_output=_parsed_output(),
+            engine_result=_engine_result(), judge_client=client)
+        assert result.scores["special_pattern_诚实"] == 3
+        assert isinstance(result.scores["special_pattern_诚实"], int)
+
+
+async def test_judge_one_non_numeric_string_score_raises():
+    """非数字串('好'/'high')不是分数,照旧显式 raise。"""
+    payload = json.loads(_valid_judge_json(sp_score=4))
+    payload["scores"]["special_pattern_诚实"] = "high"
+    client = _MockJudge(json.dumps(payload, ensure_ascii=False))
+    with pytest.raises(ValueError, match="非 1-5 整数"):
+        await judge_one(
+            module="m0_structure", parsed_output=_parsed_output(),
+            engine_result=_engine_result(), judge_client=client)
+
+
 async def test_judge_one_out_of_range_score_raises():
     client = _MockJudge(_mutated_judge_json(**{"scores.五行完整": 7}))
     with pytest.raises(ValueError, match="越界"):

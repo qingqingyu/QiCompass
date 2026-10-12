@@ -50,6 +50,141 @@ final class ChapterContentTests: XCTestCase {
         XCTAssertEqual(lead, "务实积累型:先立住成果,再放大协作")
     }
 
+    // MARK: - M0 特化组装(2026-10-12 S4-A:行内标签段落化 + 章末据折叠)
+
+    func test_m0_moduleAssemblesInlineLabels() {
+        let json = """
+        {
+          "main_axis": {
+            "dominant": "七杀与劫财(并列最重)",
+            "secondary": "正印与偏印",
+            "latent": "伤官与财星藏而不透",
+            "evidence": "七杀 6=劫财 6 并列最高"
+          },
+          "core_loop": {
+            "from": "七杀",
+            "to": "正印",
+            "flow": "压力被吸收为方法",
+            "driver": "年干丙火七杀透出",
+            "leak": "输出通道窄,水运打开",
+            "evidence": "水透出计数为 0"
+          },
+          "structure_type": { "name": "硬扛聚能型", "one_line": "压力进来,能量聚在事里" },
+          "capability_source": { "text": "你最强的时刻,是硬需求递到手上的时候。", "evidence": "七杀重(6)。" },
+          "structure_fingerprint": "吸收压力转为系统,输出等水木运"
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m0) else {
+            return XCTFail("M0 模块应特化解析成功")
+        }
+        // 固定阅读序:主线 / 核心循环 / 结构类型 / 能力来源 / 概括 / 据折叠
+        XCTAssertEqual(content.nodes.count, 6)
+
+        guard case .section("主线", let mainChildren) = content.nodes[0] else {
+            return XCTFail("首节点应为「主线」小节,实际:\(content.nodes[0])")
+        }
+        XCTAssertEqual(mainChildren.compactMap { node -> String? in
+            if case .inlineLabel(let label, _) = node { return label }
+            return nil
+        }, ["主导", "次要", "潜伏"], "三层应为行内标签段")
+        guard case .inlineLabel(_, let dominantText)? = mainChildren.first else {
+            return XCTFail("dominant 应为 inlineLabel,实际:\(mainChildren)")
+        }
+        XCTAssertTrue(dominantText.contains("并列最重"))
+
+        guard case .section("核心循环", let loopChildren) = content.nodes[1] else {
+            return XCTFail("次节点应为「核心循环」小节")
+        }
+        guard case .loopFromTo(let from, let to)? = loopChildren.first else {
+            return XCTFail("core_loop 首子节点应为 loopFromTo,实际:\(loopChildren)")
+        }
+        XCTAssertEqual(from, "七杀")
+        XCTAssertEqual(to, "正印")
+        let loopLabels = loopChildren.dropFirst().compactMap { node -> String? in
+            if case .inlineLabel(let label, _) = node { return label }
+            return nil
+        }
+        XCTAssertEqual(loopLabels, ["流向", "驱动", "损耗"])
+
+        guard case .section("结构类型", let typeChildren) = content.nodes[2] else {
+            return XCTFail("第三节点应为「结构类型」小节")
+        }
+        XCTAssertTrue(typeChildren.contains {
+            if case .inlineLabel("名称", _) = $0 { return true }
+            return false
+        }, "名称应为行内标签段")
+        XCTAssertTrue(typeChildren.contains {
+            if case .lead(let prose) = $0 { return prose.contains("压力进来") }
+            return false
+        }, "one_line 应作引言段")
+
+        guard case .section("能力来源", let capChildren) = content.nodes[3],
+              case .lead(let capText)? = capChildren.first else {
+            return XCTFail("能力来源 text 应作引言段")
+        }
+        XCTAssertTrue(capText.contains("硬需求"))
+
+        guard case .lead(let fingerprint) = content.nodes[4] else {
+            return XCTFail("structure_fingerprint 应为引言")
+        }
+        XCTAssertTrue(fingerprint.contains("吸收压力"))
+
+        guard case .evidenceFold(let notes) = content.nodes[5] else {
+            return XCTFail("末节点应为据折叠区,实际:\(content.nodes[5])")
+        }
+        XCTAssertEqual(notes.map(\.label), ["主线", "核心循环", "能力来源"])
+        XCTAssertTrue(notes[1].text.contains("透出计数"))
+    }
+
+    func test_m0_specializationFallsBackOnMissingCoreLoop() {
+        // 老缓存/违约:缺 core_loop → 回落通用渲染,不静默丢内容
+        let json = """
+        { "main_axis": { "dominant": "七杀", "secondary": "正印", "latent": "伤官" } }
+        """
+        guard let content = ChapterContent.parse(json, for: .m0) else {
+            return XCTFail("缺 core_loop 仍应通用解析成功")
+        }
+        guard case .section("主线", let children) = content.nodes[0],
+              case .fields(let fields)? = children.first else {
+            return XCTFail("回落路径应为通用键值组,实际:\(content.nodes)")
+        }
+        XCTAssertEqual(fields.map(\.label), ["主导", "次要", "潜伏"])
+    }
+
+    func test_m0_degenerateMainAxisKeepsEvidenceNote() {
+        // 退化输入:main_axis 对象在但三层全非 string(无主线节),其
+        // evidence 不得静默丢——与 core_loop 同款无条件收进「据」折叠
+        let json = """
+        {
+          "main_axis": { "evidence": "七杀 6=劫财 6 并列最高" },
+          "core_loop": { "from": "七杀", "to": "正印", "flow": "压力被吸收为方法" }
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m0) else {
+            return XCTFail("退化 main_axis 仍应特化解析成功")
+        }
+        XCTAssertFalse(content.nodes.contains {
+            if case .section("主线", _) = $0 { return true }
+            return false
+        }, "三层全缺不应有空主线节")
+        guard case .evidenceFold(let notes)? = content.nodes.last else {
+            return XCTFail("末节点应为据折叠区,实际:\(content.nodes)")
+        }
+        XCTAssertEqual(notes.map(\.label), ["主线"])
+        XCTAssertEqual(notes.first?.text, "七杀 6=劫财 6 并列最高")
+    }
+
+    func test_m0_jsonWithNilModuleStaysGeneric() {
+        // module = nil(中毒判读等):行为与既有通用路径逐字一致
+        let json = "{ \"main_axis\": { \"dominant\": \"正财\" } }"
+        guard case .section("主线", let children)? = ChapterContent.parse(json)?.nodes.first,
+              case .fields(let fields)? = children.first else {
+            return XCTFail("nil module 应走通用渲染")
+        }
+        XCTAssertEqual(fields.first?.label, "主导")
+        XCTAssertFalse(fields.first?.isNote ?? true)
+    }
+
     // MARK: - 嵌套小节(M2 threshold:对象里混结构值 → 递归小节)
 
     func test_m2_nestedSection() {
