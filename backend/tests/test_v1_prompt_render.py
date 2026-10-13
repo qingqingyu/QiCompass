@@ -270,8 +270,10 @@ def test_v1_prompt_versions_registry_matches_expected():
     # 裸数据格式禁令 + 母语风格基准;zh/zh-hant v-next byte-identical 纯失效。
     # v7(m0) 2026-10-12 M0 主线结构内容质量修复:禁复合格局名/分层权重一致/
     # 十神归类与地支五行自检/数据口径声明/短板配条件出路/字段职责去重。
+    # v8(m0) 2026-10-13 review 修复:flow/leak 代价矛盾/从格示例去样本盘
+    # 干支/zh·zh-hant 补「数字只进 evidence 式句子」规则(对齐 EN v7)。
     expected = {m: 2 for m in v1_modules}
-    expected["m0_structure"] = 7
+    expected["m0_structure"] = 8
     expected["m1_talent"] = 5
     expected["m2_high_low"] = 6
     expected["m3_system"] = 6

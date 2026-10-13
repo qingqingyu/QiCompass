@@ -148,16 +148,36 @@ _NON_WUXING_PREFIX: dict[str, tuple[str, ...]] = {
     # 其余行不收:「宜补火」是真五行推荐实踩样本(见
     # test_special_pattern_real_fabrication_still_fails),补火/补土
     # 不是日常词,收了就是把真编造放走。
+    # 2026-10-13 review 修复:无条件否决连真违规一起放走了——水为忌盘
+    # 「宜补水」/从格盘「适合补水」整句漏报(信号词直接挂在补水前,明明
+    # 是五行断言)。收紧为**条件放行**:仅当补水复合词前 ≤2 字窗口内
+    # 无推荐/规避信号词时才当日常词否决(见 _BU_SHUI_SIGNAL_BEFORE)。
     "水": ("薪", "补"),                  # 薪水 补水
     "土": ("本",),                      # 本土
     "火": ("上",),                      # 上火
 }
 
 
+# 「补水」条件放行的信号词前瞻(2026-10-13 review 修复):复合词「补水」
+# 前紧挂推荐/规避信号词(信号 ≤2 字 + gap ≤2 字 ⇒ 锚定补字前查尾部),
+# 按五行断言处理——否决不再适用。信号集 = 推荐词(除「补」自身)∪ 规避
+# 词,与 _RECO/_AVOID 两表同源;LAST 型信号(「补水有利」)不在此列——
+# 该句式日常义更自然,维持否决(宁可漏报)。
+# 已知残留误报面(gap ≤2 的代价,拍板接受):m4 饮水建议「夏季宜多补水」
+# (宜 与补水隔 1 字垫字)会按五行断言误报。不收窄 gap=0——真违规同样
+# 有垫字形(「宜以补水调理」),两侧都真实,取舍为抓编造优先(编造漏报
+# 无人工复核兜底,饮水误报有);实跑出现误报样本再按词收紧。
+_BU_SHUI_SIGNAL_BEFORE = re.compile(
+    r"(?:不宜|喜用|适合|增强|用神|克制|忌|避|宜)[^（(]{0,2}$")
+
+
 def _is_non_wuxing_compound(sentence: str, idx: int, element_zh: str) -> bool:
     """sentence[idx] 处的五行字是否与相邻一字构成常见非五行复合词。"""
     prefix = sentence[idx - 1: idx]
     suffix = sentence[idx + 1: idx + 2]
+    if (element_zh == "水" and prefix == "补"
+            and _BU_SHUI_SIGNAL_BEFORE.search(sentence[:idx - 1])):
+        return False
     return (prefix in _NON_WUXING_PREFIX.get(element_zh, ())
             or suffix in _NON_WUXING_SUFFIX.get(element_zh, ()))
 
@@ -311,8 +331,18 @@ _COMMON_GE_SUFFIX_WORDS: tuple[str, ...] = (
     "掉格",  # 同族:m7「拆解时电池不掉格」(电池/信号条量词)
     "正格",  # 同 run 实踩:m7 推翻信号段「按正格的方式运转」(从格的否定
     # 语域,泛指常规命局,不是具体格局名)
+    "网格", "空格", "方格",  # 2026-10-13 review:「网格化管理/按空格分开/
+    # 九宫格里排方格」误报(方格一词还救贪婪吞长的「…九宫格…方格」token)
+    "半格",  # 2026-10-13 全量 run 实踩:m4「电量从半格充到满格」(电量条
+    # 量词,满格/掉格同族)
+    "格格",  # 成语「格格不入」:负向前瞻放行第一枚格后,贪婪匹配会在
+    # 第二枚格上另成 token「你越显得格格」,endswith 格格 放行——与
+    # _GEJU_NEXT_CHAR_EXEMPT 的「格」双侧堵,只堵一侧另一枚仍被吞
+    # (2026-10-13 全量 run m3 实踩「越规范的组织里你越显得格格不入」)
 )
-_GEJU_NEXT_CHAR_EXEMPT = "局式外调子言物斗挡"
+# 格后紧跟「格」= 格格不入类成语的第一枚格(2026-10-13 全量 run 实踩),
+# 负向前瞻放行;真实格局名无一以「格格」收尾,按宁可漏报从宽
+_GEJU_NEXT_CHAR_EXEMPT = "局式外调子言物斗挡格"
 _GEJU_RE = re.compile(rf"[一-鿿]{{2,6}}格(?![{_GEJU_NEXT_CHAR_EXEMPT}])")
 
 
@@ -636,6 +666,47 @@ def check_flow_no_chain_symbols(
     return []
 
 
+# 干净括号列举的分隔符(「财星组(偏财、劫财)」/「比劫(偏印，正印)」)。
+_PAREN_ENUM_SPLIT_RE = re.compile(r"[、，,]|与|和")
+_PAREN_ANY_RE = re.compile(r"（([^（）]*)）|\(([^()]*)\)")
+
+
+def _layer_member_weights(
+        text: str, weights: dict[str, int]) -> dict[str, int]:
+    """层成员 → 权重:首个出现的十神(层领衔)+ 干净括号列举的十神。
+
+    括号「干净」= 内容按分隔符拆分后**全部**是十神名(全神列举才是成员
+    声明;「(权重 2,被七杀压制)」「(并列最重)」这类混排括号不是)。
+    句中其余顺带提及(压制者/对照)不算成员——见 check docstring。
+    """
+    members: dict[str, int] = {}
+    first_pos: int | None = None
+    for god in _TEN_GOD_NAMES:
+        if god not in weights:
+            continue
+        pos = text.find(god)
+        if pos < 0:
+            continue
+        if first_pos is None or pos < first_pos:
+            first_pos = pos
+    if first_pos is not None:
+        for god in _TEN_GOD_NAMES:
+            if god in weights and text.find(god) == first_pos:
+                members[god] = weights[god]
+                break
+    for m in _PAREN_ANY_RE.finditer(text):
+        inside = m.group(1) if m.group(1) is not None else m.group(2)
+        # token 容忍首尾空白(LLM 顿号后带空格的排版,2026-10-13 三查第 3 轮):
+        # 去空白后是神名的 token 语义上就是该神,不strip 会把整列按混排丢弃
+        tokens = [t for t in
+                  (tok.strip() for tok in _PAREN_ENUM_SPLIT_RE.split(inside)) if t]
+        if tokens and all(t in _TEN_GOD_NAMES for t in tokens):
+            for god in tokens:
+                if god in weights:
+                    members[god] = weights[god]
+    return members
+
+
 def check_layering_consistency(
     module: str,
     parsed_output: dict[str, Any],
@@ -644,12 +715,16 @@ def check_layering_consistency(
     """A3 分层与权重一致:dominant/latent 两层的强度序不得倒挂。
 
     两条:①并列最高的十神不得出现在 latent(真机翻车:七杀 6 = 劫财 6,
-    劫财被塞进「潜伏」层);②dominant 层的强度代表(该层提及十神的**最高**
-    权重)≥ latent 层的强度代表。用最高而非最低:LLM 常按十神家族分层
-    (dominant=「比劫(劫财 7…比肩仅 1…)」),家族内低权重神是叙事说明
-    不是层成员判定,按最低权重比对会把正当的家族分层误杀(2026-10-12
-    全量 run 三条实踩);层的强弱由它的领衔十神决定。十神名提取不到
-    (EN 输出等)跳过不判(宁可漏报)。
+    劫财被塞进「潜伏」层);②dominant 层的强度代表 ≥ latent 层的强度代表。
+
+    层成员判定(2026-10-13 review 修复,原实现取句内**全部**提及十神):
+    v7 起三层是带依据的长句,句中顺带提及的其他十神是叙事不是成员——
+    「伤官权重 2……被七杀与劫财的强势压住」里七杀/劫财是压制者,照旧
+    判会把它们当成潜伏层成员,误报「并列最重落 latent」。收紧为:
+    **首个出现的十神(层领衔)+ 干净括号列举**(括号内按 、/，/与/和 拆分
+    后全是十神名才算成员列举,「财星组(偏财、劫财)」式真列举仍抓)。
+    顺带提及(与/顿号连的叙事、「被 X 压住」的压制者)不再算成员——
+    宁可漏报。十神名提取不到(EN 输出等)跳过不判。
     """
     if module != "m0_structure":
         return []
@@ -660,14 +735,8 @@ def check_layering_consistency(
     dominant, latent = axis.get("dominant"), axis.get("latent")
     if not isinstance(dominant, str) or not isinstance(latent, str):
         return []
-    dom_weights = {
-        g: weights[g] for g in _TEN_GOD_NAMES
-        if g in dominant and g in weights
-    }
-    lat_weights = {
-        g: weights[g] for g in _TEN_GOD_NAMES
-        if g in latent and g in weights
-    }
+    dom_weights = _layer_member_weights(dominant, weights)
+    lat_weights = _layer_member_weights(latent, weights)
     if not dom_weights or not lat_weights:
         return []
     failures: list[str] = []

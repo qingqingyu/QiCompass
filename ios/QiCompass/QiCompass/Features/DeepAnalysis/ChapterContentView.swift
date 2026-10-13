@@ -276,6 +276,12 @@ private struct EvidenceFoldView: View {
                 }
             }
             .buttonStyle(.plain)
+            // VoiceOver:展开/收起状态须可闻(2026-10-13 review 修复——
+            // 视觉靠 chevron 方向传达,读屏拿不到;Apple 折叠控件惯例用
+            // value 报状态)
+            .accessibilityLabel(Text(ChapterContent.localizedLabel("evidence")))
+            .accessibilityValue(
+                expanded ? String(localized: "已展开") : String(localized: "已收起"))
             if expanded {
                 VStack(alignment: .leading, spacing: 8) {
                     ForEach(Array(notes.enumerated()), id: \.offset) { _, note in

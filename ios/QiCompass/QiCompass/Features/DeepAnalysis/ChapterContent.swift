@@ -110,6 +110,11 @@ struct ChapterContent: Equatable {
     // - 四组 evidence → 章末「据」折叠区默认收起(.evidenceFold)
     // 组装用固定阅读序(不按 JSON 书写序):主线 → 核心循环 → 结构类型 →
     // 能力来源 → 运转概括 → 据。
+    //
+    // 2026-10-13 review 修复:特化原先只认固定几个键,模型多给的键 / 非对象
+    // 形态的已知键(如 structure_type 退化为字符串)被静默丢弃——页面无
+    // 显示也无日志。现改为:未成功消费的键一律走通用节点渲染(内容不丢),
+    // 并把键路径记日志(schema 漂移信号不吞)。
     private static func m0Nodes(from pairs: [(String, JSONValue)]) -> [ChapterNode]? {
         func object(_ key: String) -> [(String, JSONValue)]? {
             for (k, v) in pairs where k == key {
@@ -125,8 +130,11 @@ struct ChapterContent: Equatable {
             }
             return nil
         }
-        func inline(_ key: String, _ obj: [(String, JSONValue)]) -> ChapterNode? {
+        func inline(
+            _ key: String, _ obj: [(String, JSONValue)], consumed: inout Set<String>
+        ) -> ChapterNode? {
             guard let s = string(obj, key) else { return nil }
+            consumed.insert(key)
             return .inlineLabel(label: label(key), text: s)
         }
 
@@ -134,48 +142,91 @@ struct ChapterContent: Equatable {
               let coreLoop = object("core_loop") else { return nil }
 
         var notes: [ChapterNote] = []
+        var extras: [String] = []
 
         // 主线:三层行内标签段
+        var mainConsumed: Set<String> = []
         var mainChildren: [ChapterNode] = [
-            inline("dominant", mainAxis),
-            inline("secondary", mainAxis),
-            inline("latent", mainAxis),
+            inline("dominant", mainAxis, consumed: &mainConsumed),
+            inline("secondary", mainAxis, consumed: &mainConsumed),
+            inline("latent", mainAxis, consumed: &mainConsumed),
         ].compactMap { $0 }
         // evidence 收集与 core_loop 同款无条件:退化输入(三层全非 string)
         // 下不静默丢 main_axis.evidence(与 core_loop 一致,见下)
         if let ev = string(mainAxis, "evidence") {
+            mainConsumed.insert("evidence")
             notes.append(ChapterNote(label: label("main_axis"), text: ev))
         }
+        mainChildren += leftoverNodes(
+            from: mainAxis, skipping: mainConsumed,
+            path: "main_axis", extras: &extras)
 
         // 核心循环:起止一行小字 + 流向/驱动/损耗行内标签段
+        var loopConsumed: Set<String> = []
         var loopChildren: [ChapterNode] = []
         if let from = string(coreLoop, "from"), let to = string(coreLoop, "to") {
+            loopConsumed.formUnion(["from", "to"])
             loopChildren.append(.loopFromTo(from: from, to: to))
         }
         loopChildren += [
-            inline("flow", coreLoop),
-            inline("driver", coreLoop),
-            inline("leak", coreLoop),
+            inline("flow", coreLoop, consumed: &loopConsumed),
+            inline("driver", coreLoop, consumed: &loopConsumed),
+            inline("leak", coreLoop, consumed: &loopConsumed),
         ].compactMap { $0 }
         if let ev = string(coreLoop, "evidence") {
+            loopConsumed.insert("evidence")
             notes.append(ChapterNote(label: label("core_loop"), text: ev))
         }
+        loopChildren += leftoverNodes(
+            from: coreLoop, skipping: loopConsumed,
+            path: "core_loop", extras: &extras)
 
         // 结构类型:名称行内标签 + 一句话作引言段
         var typeChildren: [ChapterNode] = []
         if let structureType = object("structure_type") {
-            typeChildren += [
-                inline("name", structureType),
-                string(structureType, "one_line").map { .lead($0) },
-            ].compactMap { $0 }
+            var typeConsumed: Set<String> = []
+            var typeNodes: [ChapterNode?] = [
+                inline("name", structureType, consumed: &typeConsumed),
+            ]
+            if let line = string(structureType, "one_line") {
+                typeConsumed.insert("one_line")
+                typeNodes.append(.lead(line))
+            }
+            typeChildren = typeNodes.compactMap { $0 } + leftoverNodes(
+                from: structureType, skipping: typeConsumed,
+                path: "structure_type", extras: &extras)
         }
 
         // 能力来源:text 作引言段(既有 2026-10-11 口径),据收拢
+        var capabilityChildren: [ChapterNode] = []
         if let capability = object("capability_source") {
+            var capConsumed: Set<String> = []
+            if let text = string(capability, "text") {
+                capConsumed.insert("text")
+                capabilityChildren.append(.lead(text))
+            }
             if let ev = string(capability, "evidence") {
+                capConsumed.insert("evidence")
                 notes.append(ChapterNote(label: label("capability_source"), text: ev))
             }
+            capabilityChildren += leftoverNodes(
+                from: capability, skipping: capConsumed,
+                path: "capability_source", extras: &extras)
         }
+
+        // 顶层:已知键按「成功消费」计;未消费(含非约定形态,如退化为
+        // 字符串的 structure_type / 非字符串的 structure_fingerprint)
+        // 走通用节点,不静默丢
+        var topConsumed: Set<String> = ["main_axis", "core_loop"]
+        if object("structure_type") != nil { topConsumed.insert("structure_type") }
+        if object("capability_source") != nil { topConsumed.insert("capability_source") }
+        var fingerprintLead: ChapterNode?
+        if let fingerprint = string(pairs, "structure_fingerprint") {
+            topConsumed.insert("structure_fingerprint")
+            fingerprintLead = .lead(fingerprint)
+        }
+        let topExtras = leftoverNodes(
+            from: pairs, skipping: topConsumed, path: "m0", extras: &extras)
 
         var nodes: [ChapterNode] = []
         if !mainChildren.isEmpty {
@@ -187,17 +238,40 @@ struct ChapterContent: Equatable {
         if !typeChildren.isEmpty {
             nodes.append(.section(label("structure_type"), typeChildren))
         }
-        if let capability = object("capability_source"),
-           let text = string(capability, "text") {
-            nodes.append(.section(label("capability_source"), [.lead(text)]))
+        if !capabilityChildren.isEmpty {
+            nodes.append(.section(label("capability_source"), capabilityChildren))
         }
-        if let fingerprint = string(pairs, "structure_fingerprint") {
-            nodes.append(.lead(fingerprint))
+        nodes += topExtras
+        if let fingerprintLead {
+            nodes.append(fingerprintLead)
         }
         if !notes.isEmpty {
             nodes.append(.evidenceFold(notes))
         }
+        if !extras.isEmpty {
+            // OSLog 插值约束:privacy 参数须在单一字面量内,不可拼接
+            AppLogger.app.info(
+                "m0 chapter rendered \(extras.count) non-contract field(s) via generic nodes: \(extras.joined(separator: ","), privacy: .public)")
+        }
         return nodes.isEmpty ? nil : nodes
+    }
+
+    /// 特化组装未消费的键 → 通用节点(内容不丢),键路径记入 extras 供日志。
+    private static func leftoverNodes(
+        from pairs: [(String, JSONValue)],
+        skipping consumed: Set<String>,
+        path: String,
+        extras: inout [String]
+    ) -> [ChapterNode] {
+        pairs.compactMap { key, value in
+            guard !consumed.contains(key) else { return nil }
+            if case .null = value { return nil }
+            // node() 对无内容值(全 null 数组)返回 nil:不计入 extras
+            // (日志只记真正渲染了的键,防计数失真)
+            guard let rendered = node(key: key, value: value) else { return nil }
+            extras.append("\(path).\(key)")
+            return rendered
+        }
     }
 
     private static func node(key: String, value: JSONValue) -> ChapterNode? {

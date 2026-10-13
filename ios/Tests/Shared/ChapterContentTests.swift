@@ -185,6 +185,91 @@ final class ChapterContentTests: XCTestCase {
         XCTAssertFalse(fields.first?.isNote ?? true)
     }
 
+    func test_m0_extraFieldsNotSilentlyDropped() {
+        // 2026-10-13 review 修复:schema 外字段与非对象形态的已知键不得
+        // 静默丢弃(原先页面无显示也无日志)——未消费键走通用节点渲染
+        let json = """
+        {
+          "main_axis": {
+            "dominant": "七杀与劫财(并列最重)",
+            "secondary": "正印",
+            "latent": "伤官",
+            "evidence": "七杀 6=劫财 6 并列最高",
+            "note": "权重口径见据"
+          },
+          "core_loop": {
+            "from": "七杀",
+            "to": "正印",
+            "flow": "压力被吸收为方法",
+            "driver": "年干丙火七杀透出",
+            "leak": "输出通道窄,水运打开"
+          },
+          "structure_type": "硬扛聚能型",
+          "summary": "整体:吸入强输出弱",
+          "structure_fingerprint": "吸收压力转为系统,输出等水木运"
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m0) else {
+            return XCTFail("含 schema 外字段的 M0 应特化解析成功")
+        }
+        // main_axis 内多余键:主线节内走通用节点渲染(string → .lead 引言段,
+        // node() 不打裸键标签),不丢
+        guard case .section("主线", let mainChildren)? = content.nodes.first else {
+            return XCTFail("首节点应为「主线」小节,实际:\(content.nodes)")
+        }
+        XCTAssertTrue(mainChildren.contains {
+            if case .lead("权重口径见据") = $0 { return true }
+            return false
+        }, "main_axis.note 应走通用节点渲染(lead),不得静默丢弃")
+
+        // structure_type 退化为字符串:顶层通用节点(引言),不丢
+        XCTAssertTrue(content.nodes.contains {
+            if case .lead("硬扛聚能型") = $0 { return true }
+            return false
+        }, "非对象 structure_type 应作顶层引言渲染")
+
+        // schema 外顶层键:通用节点,不丢
+        XCTAssertTrue(content.nodes.contains {
+            if case .lead("整体:吸入强输出弱") = $0 { return true }
+            return false
+        }, "schema 外顶层键应走通用渲染")
+
+        // 阅读序不受影响:据折叠仍收尾,fingerprint 仍为引言
+        guard case .evidenceFold(let notes)? = content.nodes.last else {
+            return XCTFail("末节点应为据折叠区,实际:\(content.nodes)")
+        }
+        XCTAssertEqual(notes.map(\.label), ["主线"])
+        XCTAssertTrue(content.nodes.contains {
+            if case .lead(let t) = $0 { return t.contains("吸收压力") }
+            return false
+        }, "structure_fingerprint 应作引言渲染")
+    }
+
+    func test_m0_nonStringLayerNotSilentlyDropped() {
+        // 违约形态:dominant 非字符串(数字)——特化 inline 拿不到,原值
+        // 走通用节点(裸标量作引言),不静默丢
+        let json = """
+        {
+          "main_axis": { "dominant": 6, "secondary": "正印", "latent": "伤官" },
+          "core_loop": { "from": "七杀", "to": "正印", "flow": "压力被吸收为方法" }
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m0) else {
+            return XCTFail("非 string 层的 M0 应特化解析成功")
+        }
+        guard case .section("主线", let children)? = content.nodes.first else {
+            return XCTFail("首节点应为「主线」小节,实际:\(content.nodes)")
+        }
+        XCTAssertTrue(children.contains {
+            if case .lead("6") = $0 { return true }
+            return false
+        }, "非 string 的 dominant 应回落通用渲染,不得静默丢弃")
+        XCTAssertTrue(children.contains {
+            if case .inlineLabel("次要", _) = $0 { return true }
+            return false
+        }, "正常层不受影响")
+    }
+
     // MARK: - 嵌套小节(M2 threshold:对象里混结构值 → 递归小节)
 
     func test_m2_nestedSection() {

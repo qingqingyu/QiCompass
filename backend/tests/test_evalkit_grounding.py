@@ -353,6 +353,25 @@ def test_special_pattern_bushui_not_fabrication():
     assert check_special_pattern_honesty("m4_health", out, _special_engine()) == []
 
 
+def test_xiji_bushui_with_signal_still_fails():
+    """2026-10-13 review 修复:「补水」无条件否决把真违规一起放走——
+    信号词直接挂在补水前(「宜补水」)是五行断言,必须仍被抓
+    (修复前水为忌盘「宜补水」整句漏报)。"""
+    engine = _engine(unfavorable_elements=["水"])
+    out = {"s": "宜补水，滋养命局。"}
+    failures = check_xiji_consistency("m0_structure", out, engine)
+    assert any("喜忌矛盾" in f and "水" in f for f in failures)
+
+
+def test_special_pattern_bushui_recommendation_fabrication_fails():
+    """同上,special 盘:「适合补水」= 替引擎下喜忌结论(v7 从格条款
+    明禁的写法,第一轮全量 run 实踩类别),不得被补水否决放走。"""
+    out = {"s": "适合补水。本盘为从格，不入常格。"}
+    failures = check_special_pattern_honesty(
+        "m0_structure", out, _special_engine())
+    assert any("编造喜忌" in f and "水" in f for f in failures)
+
+
 def test_xiji_signal_across_paren_not_recommendation():
     """信号词跨开括号进插入语 ≠ 推荐括号内的五行(2026-10-12 全量 run m6 实踩)。
 
@@ -487,6 +506,13 @@ def test_geju_composite_pattern_fails(word):
     "它只保证你拆解时电池不掉格",    # 掉格(同族:m7 实踩)
     "从格前提不成立,你的结构在按正格的方式运转",  # 正格 = 从格的否定语域
     "本盘不入常格,从格特征,扶抑框架不适用",  # 常格 = 诚实降级措辞
+    "日程网格化管理",              # 网格(2026-10-13 review 实踩)
+    "字与字按空格分开",            # 空格
+    "九宫格里排方格",              # 方格(贪婪吞长的 token 靠 endswith 救)
+    "早上醒来没有满电感,电量从半格充到满格",  # 半格(2026-10-13 全量 run m4 实踩,电量条量词)
+    "越规范的组织里你越显得格格不入",  # 格格不入(同 run m3 实踩,成语;
+    # 第一枚格靠负向前瞻的「格」放行,贪婪吞到第二枚格的 token 靠 endswith
+    # 「格格」放行,双侧缺一即误报)
 ])
 def test_geju_daily_words_pass(text):
     """A1 反例:以「格」结尾的日常词不得误报(宁可漏报,白名单从宽)。"""
@@ -741,6 +767,53 @@ def test_layering_en_output_skips():
                          "latent": "Hurting Officer"}}
     assert check_layering_consistency(
         "m0_structure", out, _sample_engine()) == []
+
+
+def test_layering_latent_narrative_mention_not_members():
+    """2026-10-13 review 修复:潜伏层长句里顺带提及的十神(压制者)不是
+    层成员——「伤官…被七杀与劫财的强势压住」不得误报「并列最重落
+    latent」。成员 = 首个十神(领衔)+ 干净括号列举,叙事提及不作数。"""
+    out = {"main_axis": {
+        "dominant": "七杀与劫财（并列最重）",
+        "latent": "伤官权重 2，藏于丑辰，被七杀与劫财的强势压住未透出",
+    }}
+    assert check_layering_consistency(
+        "m0_structure", out, _sample_engine()) == []
+
+
+def test_layering_paren_member_enumeration_still_counts():
+    """括号内全是十神名的列举 = 成员声明:并列最重的劫财被列进潜伏层
+    仍要抓(真机夹具形态,防 2026-10-13 收紧过头变漏报)。"""
+    out = {"main_axis": {"dominant": "七杀",
+                         "latent": "伤官与财星组(偏财、劫财)"}}
+    failures = check_layering_consistency(
+        "m0_structure", out, _sample_engine())
+    assert any("分层失真" in f and "劫财" in f for f in failures)
+
+
+def test_layering_paren_enumeration_tolerates_separator_whitespace():
+    """同上,顿号后带空格的排版变体(「偏财、 劫财」,英文训练影响的
+    LLM 常见排版)不得把整列按混排丢弃——2026-10-13 三查第 3 轮:
+    无 strip 时该形态漏报真违规。"""
+    out = {"main_axis": {"dominant": "七杀",
+                         "latent": "伤官与财星组(偏财、 劫财)"}}
+    failures = check_layering_consistency(
+        "m0_structure", out, _sample_engine())
+    assert any("分层失真" in f and "劫财" in f for f in failures)
+
+
+def test_layering_inversion_by_lead_not_narrative_mention():
+    """倒挂比对按层领衔(首个十神)而非句内最高提及:潜伏层叙事里更重
+    的十神(「被劫财 7 的压力抵消」)不作数,修复前此处误报倒挂。"""
+    engine = {"ten_god_weights": {
+        "比肩": 1, "劫财": 7, "食神": 0, "伤官": 6, "偏财": 0,
+        "正财": 6, "七杀": 3, "正官": 2, "偏印": 4, "正印": 6,
+    }}
+    out = {"main_axis": {
+        "dominant": "伤官权重 6 领衔的食伤层",
+        "latent": "偏印 4 潜伏,常被劫财 7 的强势抵消",
+    }}
+    assert check_layering_consistency("m0_structure", out, engine) == []
 
 
 # ---- 6g. 聚合:plan S2 验收(六条全部命中) ----
