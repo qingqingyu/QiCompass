@@ -1,8 +1,9 @@
-# 命书 M0「主线结构」白话结论层 plan(v8)
+# 命书 M0「主线结构」白话结论层 plan(v9)
 
-> 2026-10-13 · 基点 origin/main `a8ef4f7`(M0 已是 v7,iOS 已有 S4-A 行内标签 + 章末「据」折叠)
+> 2026-10-13 · 基点:**bug 批外评修复(m0 v8)合并后的 main**——实施前先 `git log` re-check(用户 10-13 拍板:等 bug 批合 main 后再实施)
 > 来源:用户真机截图(v7 重新生成后)+ 用户给出的目标写法 + 代码核查
-> 前置文档:`docs/命书M0主线结构内容质量修复-plan.md`(v7 批,本 plan 是它的**增量**,v7 的全部规则保留)
+> 前置文档:`docs/命书M0主线结构内容质量修复-plan.md`(v7 批)→ bug 批外评修复(m0 **v8**:flow 只讲机制指回 leak / 从格示例去样本盘干支+禁照抄 / 正文禁裸数据三语对齐 / translate v3 / evalkit 三修 / iOS m0Nodes 未消费键兜底)。**本 plan 是 v8 的增量,v7+v8 的全部规则保留**
+> 版本沿革:v7(主线结构内容质量)→ v8(外评修复,bug 批占用)→ **v9(本 plan,白话结论层三层写法)**。初稿曾标 v8,因 v8 被 bug 批占用而顺延(2026-10-13)
 > 执行方:实施 AI → Claude review。**本文是需求与验收清单,不是实现**。
 > 做之前先读仓库根 `CLAUDE.md`(「Prompt 回归守护栏」「三语模板同步守护栏」「Design System」)和 `DESIGN.md`。
 
@@ -44,6 +45,8 @@
 
 v7 已修掉的(不用再做):格名(输出「印财对峙、食伤通关型」,无「格」字、无括注)、并列最重分层正确、十神归属与藏干位置正确、翻译回译括注。
 
+bug 批 v8(外评修复)已修掉的(截图是对 v7 拍的,v8 落地后 P1–P8 大概率仍在——v8 没动 schema 和分层排版,但实施时先确认):正文裸数字(「权重 6」式)三语禁;从格大运干支照抄示例禁;flow 只讲机制、代价只在 leak(v8 前模板两处条款自相矛盾)。
+
 v7 之后**仍然存在**的问题,也就是本 plan 要解决的:
 
 | # | 现象(截图原文) | 根因 |
@@ -52,7 +55,7 @@ v7 之后**仍然存在**的问题,也就是本 plan 要解决的:
 | P2 | 结构名「印财对峙、食伤通关型」仍是术语(印、财、食伤、通关) | v7 只禁了「格」,没禁十神名及其简称 |
 | P3 | 正文里没有任何十神白话释义,外行读不懂「比肩生食神、食神生偏财这一段」 | 只有 daily_fortune v4 有「术语首现附白话」规则,M0 没有 |
 | P4 | 工程腔、翻译腔:「通道」「转换层」「输出链」「正印端不断供」「这一段」「咽喉」 | v7 只给了一组 ✗/✓ 示例,没有禁用词表 |
-| P5 | 「先做出能跑的版本,再拿它去换空间」——**照抄**了共享 header 的 ✓ 示例句(「先做出一个能跑的版本」) | 提示词里的示例句没有「不得复用」约束,也没有机器检查 |
+| P5 | 「先做出能跑的版本,再拿它去换空间」——**照抄**了共享 header 的 ✓ 示例句(「先做出一个能跑的版本」) | 提示词里的示例句没有「不得复用」约束,也没有机器检查。v8 只禁了从格示例的**干支**照抄,示例**句子**复用仍无约束 |
 | P6 | 流向:「正印生比肩 → 比肩生食神 → 食神生偏财 → 偏财回克正印」三个箭头 | v7 规则④ 只靠 prompt,LLM 未遵守;evalkit A4 能拦但生产侧不拦(BASELINE 里也有 1 例) |
 | P7 | 「七杀仅 1,藏于时支戌中不透…官杀系统整体缺位」——七杀权重 1(藏),却写成「缺位」 | 违反 v7 ⑥「缺/藏/弱」三分法,没有机器检查 |
 | P8 | 结尾运转概括「吸收与抓取两端等重…输出一多吸收就被压缩」与损耗段「吸收和沉淀的通道就被压缩」重复 | structure_fingerprint 是给下游链式继承用的 40 字机器锚点,「不含形容词」读起来干;在 M0 章里展示等于再说一遍 |
@@ -70,15 +73,18 @@ v7 之后**仍然存在**的问题,也就是本 plan 要解决的:
 | D3 | 格名红线不变(v7 / ADR-0006),结构名只用白话 | 既有 |
 | D4 | 「高阶版开关」本轮不做(见 §7) | 用户 10-13(采纳 Claude 建议) |
 | D5 | 不改字段名,只**新增** `headline` / `main_axis.body`,其余字段改内容约束和展示位置。理由:evalkit 的分层检查读 `dominant/latent`、A4 读 `core_loop.flow`,M1–M3 注入 `main_axis/core_loop`;改名会连带改一串 | Claude 建议,实施前如有异议提出 |
-| D6 | v8 章节**不再展示** `structure_fingerprint`(仍然产出,下游照常继承) | Claude 建议(P8);可逆,只是 iOS 一行 |
+| D6 | v9 章节**不再展示** `structure_fingerprint`(仍然产出,下游照常继承) | Claude 建议(P8);可逆,只是 iOS 一行 |
+| D7 | 版本号顺延为 **v9**(初稿标 v8;v8 已被 bug 批外评修复占用,两条线内容不同不得混用同一版本)。实施等 bug 批合并 main 后开始 | 用户 10-13 |
 
 ---
 
 ## 3. 修复切片
 
-### S1 · M0 prompt v8(后端,必做)
+### S1 · M0 prompt v9(后端,必做)
 
-**文件**:新建 `backend/app/ai/prompts/{zh,zh-hant,en}/m0_structure_v8.md`(v7 保留不动);`prompts.py` 里 `PROMPT_VERSIONS["m0_structure"]` 7→8,并在上方按既有格式写版本注释;`M0_STRUCTURE_TEMPLATE` 常量与 zh v8 文件**逐字节一致**(`tests/test_v1_prompt_render.py` 锁定)。
+**文件**:新建 `backend/app/ai/prompts/{zh,zh-hant,en}/m0_structure_v9.md`(v7/v8 保留不动);`prompts.py` 里 `PROMPT_VERSIONS["m0_structure"]` 8→9,并在上方按既有格式写版本注释;`M0_STRUCTURE_TEMPLATE` 常量与 zh v9 文件**逐字节一致**(`tests/test_v1_prompt_render.py` 锁定)。
+
+**起稿基线**:zh v9 从合并后的 v8 模板拷贝起稿(含 bug 批三处修复:flow 只讲机制并指回 leak / 正文禁裸数据 / 从格示例「某步运」+干支不得照抄示例),在其上叠加本 plan 增量;**v7+v8 规则零删失**(diff 核)。
 
 **不动** `_V1_SYSTEM_PROMPT` 共享 header(动它要 8 个模块全 bump + evalkit 全量重跑)。header 里的 ✓ 示例句通过下面的「不得复用」规则处理。
 
@@ -103,7 +109,7 @@ v7 之后**仍然存在**的问题,也就是本 plan 要解决的:
 }
 ```
 
-#### 1.2 字段职责表(写进模板,替换 v7「字段职责」那一条)
+#### 1.2 字段职责表(写进模板,替换现 v8 模板的「字段职责」那一条)
 
 | 字段 | 层 | 写什么 | 禁止 |
 |---|---|---|---|
@@ -143,14 +149,14 @@ v7 之后**仍然存在**的问题,也就是本 plan 要解决的:
 
    en / zh-hant 版本的十神名用 `term_translations.py` 的现行译名,白话释义各自按母语写,不机翻。
 
-3. **数字只进据**:展开层和结论层不得出现权重、五行计数等数字;唯一例外是「约 X 岁」这种年龄。
+3. **数字只进据**:展开层和结论层不得出现权重、五行计数等数字;唯一例外是「约 X 岁」这种年龄。(v8 已有「正文禁裸数据」条款,v9 用分层结构把同一目标落定:据类字段之外一律无数字)
 4. **大运写法**:展开层提到大运时写「约 X 岁起的那十年」(用输入大运的起运岁数),干支写进 evidence。这是对 v7 ⑦「引用大运实际干支」的改写:**依据仍然必须来自输入大运**,只是干支挪到据里。
 5. **生活场景**:全章至少一个具体场景,要带上「什么时候、对谁、做什么」。
-6. **不得复用示例**:本提示词里出现的任何示例句(包括上方共享部分的 ✓/✗ 示例、下方写法示范)只演示写法,内容一律不得照搬或改写使用。
+6. **不得复用示例**:本提示词里出现的任何示例句(包括上方共享部分的 ✓/✗ 示例、下方写法示范)只演示写法,内容一律不得照搬或改写使用。(v8 只禁了从格示例的干支照抄,v9 扩到所有示例句)
 7. **禁用词**(展开层与结论层):通道、链条、输出链、环节、转换层、「X 端」(输出端 / 吸收端 / 正印端)、「这一段 / 那一段」(指循环中的某段)、承载、权柄、泄漏、流失、巩固、咽喉、缺位、对峙、通关。想说这些意思时,改用可观察的行为来写。
 8. **缺 / 藏 / 弱 再强调**(P7):权重 >0 的十神或十神类别,任何地方都不得写成「缺位 / 缺失 / 没有 / 不存在」。
 
-#### 1.4 四个问题改写(替换 v7 的 1–4 问)
+#### 1.4 四个问题改写(替换现行的 1–4 问,v7 起未变)
 
 ```
 请从十神结构出发分析这个命局,不要讲吉凶和神煞。四节各答一件事,不互相重复:
@@ -205,17 +211,17 @@ zh-hant / en 按同语义各写一份,不机翻。en 的「禁用词」换成 en
 3. **权重 >0 不得写缺**(P7):同一句里(按 `。;!?` 切句,复用现有 `_SENTENCE_SPLIT`),十神名或十神类别后 6 字内出现「缺位 / 缺失 / 没有 / 不存在」,而该十神(类别取类内权重之和)权重 >0 → fail。正例:「官杀系统整体缺位」(七杀 1)。反例:「正官为 0」(正官权重 0)。
 4. **禁用词**:§1.3 第 7 条词表命中展开层或结论层 → **只提示不判 fail**(词表会误伤,先观察分布)。注意:现有 warn 档来自 L3 裁判分数(`evalkit/store.py`),L2 grounding 检查接口只返回 failures 列表;实施方先确认能否在 L2 出 warn,不能就做成 run 报告里的统计项,不进 failures。
 5. **抄袭示例**:输出任一叶子字符串含 §1.5 登记的独特短语 → fail。清单放在模板旁边的常量里,模板改示例时同步改。正例:「先做出能跑的版本」(含「能跑的版本」)。
-6. **回归**:v7 已有的 A3 分层检查要在 dominant 只写十神名的新形态下仍然正确;A4 只读 `core_loop.flow`,确认 `core_loop.headline` 里的白话箭头不会被误判。各补一条用例。
+6. **回归**:A3 分层检查(bug 批 v8 已收紧为「首个十神领衔 + 干净括号列举」形态)要在 dominant 只写十神名的新形态(「偏财、正印(并列最重)」)下仍然正确;A4 只读 `core_loop.flow`,确认 `core_loop.headline` 里的白话箭头不会被误判。各补一条用例。
 
-**验收**:`cd backend && python -m pytest tests/test_evalkit_grounding.py` 全绿;§1 截图原文喂进去,1/2/3/5 都命中。然后 `cd backend && python -m evalkit.runner` 跑一轮,对比现有 BASELINE `20261012T161603` **无 regressed**(禁止改 BASELINE 掩盖)。有 regressed 用 `./eval.sh` 逐条判:真退化改模板,误报改判据。
+**验收**:`cd backend && python -m pytest tests/test_evalkit_grounding.py` 全绿;§1 截图原文喂进去,1/2/3/5 都命中。然后 `cd backend && python -m evalkit.runner` 跑一轮,对比合并后 main 的 BASELINE(当前 `20261012T161603`,以合并后为准)**无 regressed**(禁止改 BASELINE 掩盖)。有 regressed 用 `./eval.sh` 逐条判:真退化改模板,误报改判据。
 
 ### S3 · iOS 渲染(必做,依赖 S1 schema)
 
 **文件**:`ChapterContent.swift`(`m0Nodes`)、`ChapterContentView.swift`、`ios/Tests/Shared/ChapterContentTests.swift`。无新文件,不用登记 pbxproj。
 
-1. **v8 分支**:`m0Nodes` 检测到 `main_axis.headline` 存在就走 v8 组装,否则走现有 v7 组装(老缓存、v7 内容**渲染完全不变**,单测锁定)。
-2. **注意现状**:`m0Nodes` 只取它显式列出的键,其他键直接丢弃。v8 的 `headline` / `body` 必须显式接上,否则后端输出了也不显示。
-3. **v8 每节阅读序**:
+1. **v9 分支**:`m0Nodes` 检测到 `main_axis.headline` 存在就走 v9 组装,否则走现有组装(v7/v8 同构;老缓存、v7 内容**渲染完全不变**,单测锁定)。
+2. **注意现状**:bug 批已让 `m0Nodes` 未显式消费的键走通用节点兜底 + os_log 留痕(不再静默丢弃)——兜底只保证内容不丢,`headline` / `body` 仍须显式接上,否则样式、阅读序、章末「据」折叠不受控。
+3. **v9 每节阅读序**:
    - 主线:headline → body
    - 核心循环:headline → flow → leak(两段散文,不带「流向 / 损耗」小标签)
    - 结构类型:name 作结论(去掉「名称 ·」标签)→ one_line
@@ -223,7 +229,7 @@ zh-hant / en 按同语义各写一份,不机翻。en 的「禁用词」换成 en
    - 章末「据 ›」折叠,顺序:主线分层一行(「主导 X · 次要 Y · 潜伏 Z」,标签复用现有 dot-key)→ 循环起止一行(复用 `loopFromTo` 样式)→ 驱动(driver)→ 各节 evidence
    - 不展示 `structure_fingerprint`(D6)
 4. **结论句样式**:新增一种节点(如 `.headline(String)`),和正文区分开。`BaziFont.kaiti` 用 `.custom` 时**不吃 weight**(`BaziFont.swift:43`),所以「加粗」不能靠 `.bold()`。先在真机上确认 Kaiti SC 有没有可用的粗体字重;没有就用字号 + 浓墨色区分(比如 display 17pt、ink、不缩进)。只用 DESIGN.md 已有的 token,不加新颜色,朱红禁用。最终样式截图给用户确认后再合。
-5. **单测**:v8 fixture 断言整棵节点树;v7 fixture 断言渲染不变;v8 里某节缺 headline 时该节照常渲染其余字段,不丢内容;`structure_fingerprint` 在 v8 分支不出现、在 v7 分支照旧出现。
+5. **单测**:v9 fixture 断言整棵节点树;v7 fixture 断言渲染不变;v9 里某节缺 headline 时该节照常渲染其余字段,不丢内容;`structure_fingerprint` 在 v9 分支不出现、在 v7 分支照旧出现。
 
 **验收**:`ChapterContentTests` 全绿;真机看两张样本盘,截图附在实施记录里。
 
@@ -231,7 +237,7 @@ zh-hant / en 按同语义各写一份,不机翻。en 的「禁用词」换成 en
 
 ## 4. 链式与守护栏影响
 
-- M0 7→8 → fingerprint / main_axis / core_loop 变 → M1–M7 下游缓存连带失效重生成(既有行为)
+- M0 8→9 → fingerprint / main_axis / core_loop 变 → M1–M7 下游缓存连带失效重生成(既有行为;bug 批 v8 已让 M1–M7 重生成过一轮,v9 再来一轮)
 - `main_axis` / `core_loop` 的链式注入值经 `_canonical_chain_value` 规范化,新增键会随之进入 M1/M2/M3 的 context,不需要改下游模板;`validate_context` 单字段上限 4096,新增内容在量级内
 - 链式字段不在 `context_binding` 的 token 绑定字段里 → 预期**不触发** context_token 守护栏(实施时 grep `app/context_binding.py` 确认;若发现要改,先停下问用户)
 - 不动 `term_translations.py` / `BaziTerms.swift` → 不触发 `check_term_sync`
@@ -239,17 +245,19 @@ zh-hant / en 按同语义各写一份,不机翻。en 的「禁用词」换成 en
 
 ## 5. 执行顺序
 
-S1 → S2(同一批,evalkit 要用 v8 输出验证)→ 两张样本盘实跑 + `evalkit.runner` → S3 → 真机截图给用户确认结论句样式 → commit(三段式)
+前置:确认 bug 批(m0 v8 外评修复)已合并 main——`git log` re-check,PROMPT_VERSIONS 里 m0 已是 8;未合并则等,不并线实施(D7)。
+
+S1 → S2(同一批,evalkit 要用 v9 输出验证)→ 两张样本盘实跑 + `evalkit.runner` → S3 → 真机截图给用户确认结论句样式 → commit(三段式)
 
 ## 6. Review 清单
 
-- [ ] §1 P1–P8 在 v8 输出里消失,或有机器检查兜底(P1/P2/P5/P7 有 evalkit,P6 沿用 A4)
+- [ ] §1 P1–P8 在 v9 输出里消失,或有机器检查兜底(P1/P2/P5/P7 有 evalkit,P6 沿用 A4)
 - [ ] 两张样本盘的读感接近 §0.1 目标样例:每节第一句不懂命理也能看懂
 - [ ] 第 4 题符合 D2:结论两个场景;text 不讲代价;代价只在 leak
-- [ ] v7 规则零删失(diff 核:v8 = v7 + 本 plan 增量)
-- [ ] 三语 v8 文件齐全,`M0_STRUCTURE_TEMPLATE` 与 zh v8 逐字节一致,`PROMPT_VERSIONS` bump 有注释
+- [ ] v7+v8 规则零删失(diff 核:v9 = v8 + 本 plan 增量;v8 = v7 + 外评修复,同样不得回退)
+- [ ] 三语 v9 文件齐全,`M0_STRUCTURE_TEMPLATE` 与 zh v9 逐字节一致,`PROMPT_VERSIONS` bump 有注释
 - [ ] evalkit 新检查有正例 + 反例,无误报;runner 对 BASELINE 无 regressed
-- [ ] iOS:v7 内容渲染不变;v8 结论句样式经用户确认;无新颜色,无朱红
+- [ ] iOS:v7 内容渲染不变;v9 结论句样式经用户确认;无新颜色,无朱红
 - [ ] commit 三段式(Why / What / Impact)
 
 ## 7. 不在本轮(仅记录)
