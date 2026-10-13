@@ -4,7 +4,8 @@ import SwiftUI
 ///
 /// 结构:自定义顶 bar(‹ + 目录,2026-10-08 去中央章题防与正文大标题复读)+
 /// 左缘竖章号栏(36pt,hairline 分隔,
-/// 章号 28pt 楷体,随页贯穿)+ 正文区 + 底部翻章条(hairline 上边)。
+/// 章号 28pt 楷体,随页贯穿)+ 正文区 + 底部翻章条(hairline 上边)+
+/// 全屏右滑回目录手势(2026-10-13)。
 ///
 /// 正文排版(2026-10-09 按用户 HTML 目标稿「QiCompass Chart Redesign」改版,
 /// 修订 09-01 §Body 古籍行距口径):章题 30 · 副题 13 · 小节题 20 · 值 16 ·
@@ -66,6 +67,21 @@ struct ChapterReadingView: View {
         }
         .background(BaziTheme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        // 右滑回目录(2026-10-13):导航栏隐藏后系统左缘右滑返回失效,全屏
+        // 右滑补同等出口,动作与「‹ / 目录」一致(dismiss())。挂
+        // simultaneousGesture 不截获正文纵向滚动;起手 25pt 后才开始跟踪,
+        // 收手时横向位移 >60pt 且水平主导(|dx|>|dy|)才触发——斜向/纵向
+        // 滚动不误触。全页各态(ok/布算中/失败/表单)统一生效;离开丢的是
+        // M4/M5 表单**未提交**的在填值(本地 @State,与点「目录」按钮同口径,
+        // 已提交值才存 VM);「目录」按钮保留,无障碍路径不受影响。
+        .simultaneousGesture(
+            DragGesture(minimumDistance: 25)
+                .onEnded { value in
+                    let dx = value.translation.width
+                    guard dx > 60, abs(dx) > abs(value.translation.height) else { return }
+                    dismiss()
+                }
+        )
     }
 
     // MARK: - 顶 bar(自定义,系统导航栏隐藏)
