@@ -2,8 +2,8 @@ import SwiftUI
 
 /// success 态主布局(**2026-10-01 Today 定稿**,事实源 designs/review-fix-20261001/
 /// today-final.html @393px,px≈pt 1:1):
-/// 头部区(大字日 + 三行 meta + 左对齐 chips,出图上纸面)→ hero 画卡
-/// (17pt 边距,落款 + 宜忌字层)→ AI 解读(24pt,无卡片直接排纸面,
+/// 头部区(大字日 + 三行 meta + 左对齐 chips,出图上纸面)→ hero 光晕
+/// (17pt 边距,2026-10-14 改 B 版:五行光晕 + 竖排今日一签 + 宜忌双列)→ AI 解读(24pt,无卡片直接排纸面,
 /// 2026-09-07 起进入即自动生成)→ 居中页脚 →(时辰未知降级盘)末尾补时辰静默行。
 /// 各块 ink-in 错峰入场(mockup .content>* 0/.08/.16/.24s 同款节奏)。
 ///
@@ -82,10 +82,13 @@ struct DailyFortuneMainView: View {
                 .padding(.top, 6)
                 .inkIn()
 
-                // ===== hero 画卡(D1/D2 定稿:17pt 边距宽于文本区,chips 下 6pt)=====
+                // ===== hero 光晕(2026-10-14 改 B 版:五行光晕 + 竖排今日一签 +
+                // 宜忌双列;17pt 边距宽于文本区,chips 下 6pt)=====
                 DailyImageHeroSection(
                     dayPillar: response.dayPillar,
                     dayRelation: response.dayRelationToDayMaster,
+                    dayElements: response.dayElements,
+                    daySignal: response.daySignal,
                 )
                 .padding(.horizontal, 17)
                 .padding(.top, 6)

@@ -1,329 +1,313 @@
 import SwiftUI
 
-/// glass-v2 玻璃画卡(2026-08-31 用户拍板;2026-09-01 底图改单张固定资产;
-/// **2026-10-01 Today 定稿改版**,视觉事实源 `~/.gstack/projects/qingqingyu-
-/// QiCompass/designs/review-fix-20261001/today-final.html`,px≈pt 1:1 @393):
-/// 头部日期区与 chips **出图上纸面**(见 `DailyHeaderSection`,D3);画内只留
-/// 右上干支竖排落款(艺术层,D1)+ 底部宜/忌双列字层(压在融纸渐隐区上,D2)。
+/// 今日 hero「光晕」(**2026-10-14 用户拍板改用 B 版**,设计画布「今日页 · 窗影改稿」
+/// B · 光晕;替换 2026-10-01 定稿的 glass-v2 浅绛山水画卡):
+/// 宣纸上几团流日五行色的柔光晕缓慢漂移,左侧竖排「今日一签」两句(楷体),
+/// 左下小标;光晕下方接宜/忌双列(B 稿顺序:签 → 宜忌)。头部日期区与 chips
+/// 仍由 `DailyHeaderSection` 承担(本轮只换 hero,用户拍板)。
 ///
-/// **2026-10-02 留白修复**(docs/today-hero-留白修复-plan.md,外评「画卡上部
-/// 太空」):卡比例 916:1000→916:780 **底对齐裁顶部空天**(实测山顶在全图
-/// 38%,顶部 ~135pt 空天撑不住画面,像图没加载完);落款 16→22pt 靠山;
-/// 底部融纸提前(0.66→0.46 起步)保宜忌对比度。图层配方与顺序不变,参数随
-/// 新卡高(@393pt 屏 ≈306,原 ≈392)重校。
-/// **2026-10-06 暗色裁切修正**:底对齐按亮图空天标定,暗图夜景无空天、
-/// 山脊(全图 24-25%)被裁进卡顶纸色渐隐——山被横截洗掉;暗色改**居中裁**
-/// (顶/底各 110,底裁纯黑死水),山脊落 ≈16-18% 与亮色 20.5% 呼应。
+/// **光晕取色(确定性,0 AI)**:主晕 = 流日天干五行;副晕 = 流日地支五行(与
+/// 天干同行则取天干所生);小晕 = 今日信号里首个「喜用 ↑」且未占用的五行,
+/// 无则取副晕所生。`dayElements` 缺失(老后端/老快照)→ 天干五行按日柱首字
+/// 查表(`ElementColors.ofGan`,纯展示查表非历法),查不到记日志回落 inkMuted。
 ///
-/// 玻璃配方(全程序化图层,效果不依赖生图端;底图与滤镜逐像素不动——定稿
-/// 验收项,baseLayer 滤镜四参数禁改;2026-10-02 起裁切对齐方式属布局参数):
-/// 1 基底滤镜:降饱和/提亮/压对比/1.3pt 柔焦(SwiftUI 原生 modifier)
-/// 2 径向 mask:实心 58% → 94% 融纸,只留最外一线洇进宣纸
-/// 3 纸色纱罩:呼吸 7s(动效三式 breathe 同源),整幅压灰
-/// 4 宣纸压边 rim:四周纸色收边,保证整幅图都在玻璃下
-/// 4b 底部融纸渐隐(D1 加高):纯纸渐变 ≈ 卡高 1/3,给宜忌字层让位
-/// 4c 四边融纸(2026-09-28 外评「顶部矩形切边」)
-/// 5 磨砂颗粒:PaperGrain(确定性噪点,ink@0.05)
-/// 6 云雾:两团宣纸色软雾异速反向漂(26s/34s),山间岚气
-/// (7 飞鸟层 2026-09-29 D1 拍板删除:09-25 打磨后外评仍读成乱码,视觉减法)
-/// 定稿起 hero 上**无任何印章**(D1 拍板);入场 ink-in 由宿主按块错峰。
-/// reduce-motion:循环动效全停。
+/// **今日一签**:按流日十神查静态表(`HeroDailyLot`,同 HeroYiJiColumns 口径,
+/// 不调 AI、不做喜忌判断);zh/zh-Hant 竖排两列(首句在右,古籍右起),EN
+/// 横排两行衬线(竖排拉丁不可读)。
 ///
-/// 图内中文 = 宋体 Songti SC(「图内宋/文中楷」分层,2026-08-31 拍板,DESIGN.md 补录);
-/// 落款题款 = 始终楷体(BaziFont.brush,品牌层不走 EN 路由);
-/// EN = New York 衬线表头 + 衬线条目(2026-09-24 收敛,字体一族衬线)。
+/// **DESIGN.md 破例**:光晕是 RadialGradient + blur 的色团,属「禁止渐变背景」
+/// 的显式豁免——它是 hero 艺术层(同旧画卡的径向 mask / 云雾层性质),不是
+/// 页面背景;页面底仍是纯色宣纸(2026-10-14 用户拍板「光晕破例,字体保持楷体」)。
+/// 暗色:光晕透明度整体压低,避免夜宣纸上像霓虹。reduce-motion:漂移全停。
 struct DailyImageHeroSection: View {
     let dayPillar: String
     let dayRelation: String
+    /// 流日天干/地支五行(S6;nil = 老后端/老快照,走日柱首字查表兜底)。
+    var dayElements: DayElementsDTO? = nil
+    /// 今日信号(喜用 ↑ / 忌 ↓),只用来挑小晕颜色。
+    var daySignal: [DaySignalItemDTO]? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
 
-    /// 卡高:916×780(2026-10-02 裁顶部空天:原 916×1000 裁掉 220 asset 单位
-    /// ≈86pt @393;**亮色底对齐、暗色 2026-10-06 起居中**——两图内容布局
-    /// 不同,见 baseLayer 裁切注释)。宽 = 屏宽−34(hero 区 17pt 边距),高随
-    /// 宽自适配(393pt 屏 ≈306,原 ≈392)。亮图实测山顶在全图 38%/山脚 81%
-    /// (baseLayer 旧注释「25%/63%」是裁窗设计意图,与生成成品不符,
-    /// 2026-10-02 像素剖面核实);亮色底对齐裁后山顶落新卡 ≈20.5%、山脚
-    /// ≈75.6%,底部水面不动(scale 359/916 不变,文字锚定卡底,文字背后
-    /// 像素与裁前逐点一致)。暗图山脊在全图 24-25%(2026-10-06 复测),
-    /// 居中裁后落新卡 ≈16-18%、月光倒影 56-86%。
-    private static let imageAspectRatio: CGFloat = 916.0 / 780.0
+    /// 光晕舞台高(B 稿 hero 420px @390 含上下留白;app 内 hero 左右 17pt 边距、
+    /// 宜忌另起,舞台收到 340 恰好容纳竖排两列 6 字 + 底部小标)。
+    private static let stageHeight: CGFloat = 340
 
-    // 玻璃参数(glass-v2「浅绛彩色底」档;水墨档 sat 0.32,重晕档未移植——画布可回调)
-    private static let gSaturation: Double = 0.92
-    private static let gBrightness: Double = 0.03
-    private static let gContrast: Double = 0.93
-    private static let gBlur: CGFloat = 1.3
-
-    // 循环动效状态(reduce-motion 时永不启动)
-    @State private var breathe = false
-    @State private var soak = false
-    @State private var mistA = false
-    @State private var mistB = false
+    // 漂移状态(B 稿 12s alternate,四团错相——SwiftUI 无 animation-delay,
+    // 用四个不同周期近似错相)
+    @State private var driftA = false
+    @State private var driftB = false
+    @State private var driftC = false
+    @State private var driftD = false
 
     var body: some View {
-        ZStack {
-            baseLayer
-            veilLayer
-            rimLayer
-            bottomFadeLayer
-            edgeFadeLayer
-            mistLayer
-            grainLayer
+        VStack(alignment: .leading, spacing: 0) {
+            ZStack(alignment: .topLeading) {
+                haloLayer
+                lotText
+                    .padding(.leading, 17)
+                    .padding(.top, 36)
+                lotCaption
+                    .padding(.leading, 19)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+                    .padding(.bottom, 14)
+            }
+            .frame(height: Self.stageHeight)
+            .frame(maxWidth: .infinity)
 
-            // 内容浮层(落款 + 宜忌字层)
-            contentOverlay
-                .accessibilityHidden(true)
+            HeroYiJiColumns(dayRelation: dayRelation)
+                .padding(.horizontal, 11)
+                .padding(.top, 18)
         }
-        .aspectRatio(Self.imageAspectRatio, contentMode: .fit)
-        .frame(maxWidth: .infinity)
-        .clipped()
         .onAppear(perform: startCycles)
-        // 无障碍:合并为单元素,落款 + 宜忌词一并进 label(不被 .ignore 吞掉)。
-        // 冲与十神释义入口由出图后的独立 chips(DailyHeaderSection)承担。
         .accessibilityElement(children: .ignore)
         .accessibilityLabel(Text(verbatim: heroAccessibilityLabel))
     }
 
-    /// 无障碍合并 label:干支落款 + 页首短标 + 宜/忌词。
+    /// 无障碍合并 label:一签 + 宜/忌词(装饰光晕不读)。
     private var heroAccessibilityLabel: String {
+        let lot = HeroDailyLot.lines(for: dayRelation)
         let yiJi = HeroYiJiColumns.mapping[dayRelation] ?? HeroYiJiColumns.fallback
-        return "\(dayPillar) \(L10n.DailyFortune.shortLabel), "
+        return "\(HeroDailyLot.caption()): \(lot.joined(separator: " ")), "
             + "\(L10n.DailyFortune.yiLabel) \(yiJi.yi.joined(separator: "、")), "
             + "\(L10n.DailyFortune.jiLabel) \(yiJi.ji.joined(separator: "、"))"
     }
 
-    // MARK: - 玻璃图层
+    // MARK: - 光晕
 
-    private var baseLayer: some View {
-        // 固定底图(2026-09-01 用户拍板「单张固定图」):画布定稿浅绛山水烘进
-        // Asset Catalog,不再调生图 API——零成本/零延迟/零 IMAGE_API_KEY 依赖。
-        // 2026-09-01 晚改竖版:原 3:2 横幅(1536×1024)在 ~0.92:1 卡内 scaledToFill
-        // 要放大到 603pt 宽裁掉 39% 画面;重生成竖版 916×1717(B「极简空灵」,
-        // gpt-image-2)后按卡比例裁 916×1000,山顶落卡高 25%/山脚 63%,整幅完整呈现。
-        // prompt 与裁窗溯源:designs/daily-glass-20260831/hero-provenance.md。
-        // 2026-10-02 实测修正:生成资产实际山顶在 38%/山脚 81%(上文「25%/63%」
-        // 为裁窗设计意图,与成品不符,像素剖面核实),顶部 0-25% 为纯空天——
-        // 由此起卡比例改 916:780 并底对齐裁顶(见 imageAspectRatio 注释)。
-        // 2026-09-25 暗色走查 #2:Asset Catalog 加 dark variant(HeroLandscape_dark.png,
-        // 夜景版:深墨底淡白山影+月光倒影,gpt-image-2 三候选按亮度剖面客观选型,
-        // 裁窗 (0,411,1024,1529) 同「山顶落卡高 25%」语义;溯源同文件夜版章节)——
-        // 修订 08-30「暗色保持纸底」拍板:亮画在夜里像一盏灯,且冷白浮层文字
-        // 压亮画不可读;夜景版下浮层文字(米白)恢复对比。系统按外观自动换图。
-        // 2026-10-06 像素剖面复测夜景成品:山脊在全图 24-25%(清晰轮廓 L>70-80;
-        // 上文「25%」设计意图与夜版成品基本相符)/月光倒影 55-78%/底部 88%
-        // 以下纯黑死水(无亮像素)——暗色裁切对齐由此改居中(见下方 frame 注释)。
-        // 1 基底滤镜 → clip → 2 径向 mask → 墨渗缩放(晕团在玻璃内缓胀)
-        Group {
-            Image("HeroLandscape")
-                .resizable()
-                .scaledToFill()
-                .saturation(Self.gSaturation)
-                .brightness(Self.gBrightness)
-                .contrast(Self.gContrast)
-                .blur(radius: Self.gBlur)
-                // 裁切对齐分外观(亮色 2026-10-02 底对齐 / 暗色 2026-10-06 居中):
-                // scaledToFill 默认居中裁,卡变矮共裁 220 asset 单位。亮图顶部
-                // 0-25% 纯空天 → 底对齐只裁空天,保底部水面不动(方案 §1.2)。
-                // 暗图夜景无空天可裁:山脊在全图 24-25%,底对齐会把山脊裁进
-                // 卡顶 0-14% 纸色渐隐(edgeFadeLayer)——山被横截洗掉,复现
-                // 09-28「顶部矩形切边」;暗图底部 88% 以下纯黑死水(亮像素
-                // 0),居中裁(顶/底各 110)山脊落 ≈16-18% 与亮色 20.5% 呼应,
-                // 倒影 56-86% 接近原 916:1000 构图。对比度复核(合成像素
-                // 剖面):居中后宜忌正文行 1-3 全 ≥4.5:1,行 2/3 仍 ≥12:1。
-                .frame(maxWidth: .infinity, maxHeight: .infinity,
-                       alignment: scheme == .dark ? .center : .bottom)
-                .clipped()
-                .mask { bloomMask }
-                .scaleEffect(soak ? 1.05 : 1.01)
-        }
-    }
-
-    /// 径向融纸 mask:实心到 58%,94% 全透明(CSS ellipse 152%/130% 的圆形近似;
-    /// 2026-10-02 随新卡高重校:圆心 y 0.42→0.50 跟山体视觉重心,半径收窄
-    /// 400→340(方案 §1.3 初值;卡高 306 对角线≈472,但径向渐变超出 endRadius
-    /// 即末停点色全透明融纸,本就无需覆盖到角,偏差由 rim 层兜底)。
-    private var bloomMask: some View {
-        Rectangle().fill(
-            RadialGradient(
-                stops: [
-                    .init(color: .black, location: 0.58),
-                    .init(color: .clear, location: 0.94),
-                ],
-                center: UnitPoint(x: 0.5, y: 0.50),
-                startRadius: 0,
-                endRadius: 340
-            )
-        )
-    }
-
-    /// 3 纸色纱罩 + 呼吸(paper 是 dyn 双值,夜宣纸自动换底)。
-    /// 2026-09-25 暗色走查 #2:暗色换夜景版底图后,亮色档的呼吸纱罩(0.33-0.46)
-    /// 会把本已沉入夜色的山影压死——暗色只留一档轻纱统一色温,呼吸幅度同步收窄。
-    private var veilLayer: some View {
-        Rectangle()
-            .fill(BaziTheme.paper)
-            .opacity(scheme == .dark ? (breathe ? 0.20 : 0.12) : (breathe ? 0.46 : 0.33))
-            .allowsHitTesting(false)
-    }
-
-    /// 4 宣纸压边:四周以纸色收边,只留最外一线融纸(2026-10-02 随新卡高
-    /// 重校:圆心 y 0.45→0.50、半径 430→370,与 bloomMask 同步)。
-    private var rimLayer: some View {
-        Rectangle()
-            .fill(
-                RadialGradient(
-                    stops: [
-                        .init(color: .clear, location: 0.58),
-                        .init(color: BaziTheme.paper, location: 0.97),
-                    ],
-                    center: UnitPoint(x: 0.5, y: 0.50),
-                    startRadius: 0,
-                    endRadius: 370
-                )
-            )
-            .allowsHitTesting(false)
-    }
-
-    /// 4b 底部融纸渐隐(2026-09-25 打磨 → 09-28/10-01 两轮提前 → **2026-10-02
-    /// 三停点提前**):卡高变矮(392→306)后宜忌字层占卡高比例变大(~37%→
-    /// ~47%),旧 0.66 单起步下「记账/务本」压在山脚残墨上(外评对比度不足)。
-    /// 新曲线 0.46 起 → 0.66 处 85% 纸 → 0.90 全纸;按新卡高真实像素数值验证:
-    /// 最坏 1% 像素下宜忌第 2/3 行对 ink 文字对比 ≥12:1(验收线 4.5:1;亮色
-    /// 底对齐与暗色居中裁两版均过——2026-10-06 暗色改居中裁后同法复测,行 1
-    /// 亦 ≥4.5:1;像素剖面脚本结论,截图复核归验收清单)。比例式而非写死 pt,
-    /// 随屏宽/卡高自适配。
-    private var bottomFadeLayer: some View {
-        LinearGradient(
-            stops: [
-                .init(color: BaziTheme.paper.opacity(0), location: 0.46),
-                .init(color: BaziTheme.paper.opacity(0.85), location: 0.66),
-                .init(color: BaziTheme.paper, location: 0.90),
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
-        .allowsHitTesting(false)
-    }
-
-    /// 4c 四边融纸(2026-09-28 外评「hero 顶部/左右矩形硬边」;2026-10-02
-    /// 数值随新 mask 更新):bloomMask 圆心 y=0.50、endRadius 340 下,卡顶
-    /// 距圆心 ≈153pt、左右 ≈180pt,都落在实心阈 0.58×340≈197pt 内——顶边与
-    /// 左右边完全不透明,rim 层同因,只有底边有 bottomFadeLayer,山水在这
-    /// 三条边被直线切断。本层以纸色压顶(0→0.14)与左右(0→0.07 / 0.93→1)
-    /// 极窄渐变融边;与 bottomFadeLayer 同性质(叠在图上的纸色遮罩,不是
-    /// 背景渐变),paper 为 dyn 双值,暗色自动夜宣纸。
-    private var edgeFadeLayer: some View {
-        ZStack {
-            LinearGradient(
-                stops: [
-                    .init(color: BaziTheme.paper, location: 0),
-                    .init(color: BaziTheme.paper.opacity(0), location: 0.14),
-                ],
-                startPoint: .top,
-                endPoint: .bottom
-            )
-            LinearGradient(
-                stops: [
-                    .init(color: BaziTheme.paper, location: 0),
-                    .init(color: BaziTheme.paper.opacity(0), location: 0.07),
-                    .init(color: BaziTheme.paper.opacity(0), location: 0.93),
-                    .init(color: BaziTheme.paper, location: 1),
-                ],
-                startPoint: .leading,
-                endPoint: .trailing
-            )
+    /// 四团光晕(B 稿坐标 @390 宽:主晕右上 250×290、淡主晕左上 200×220、
+    /// 副晕左下 150×170、小晕右下 120×140)。不 clip:blur 边缘自然洇进
+    /// 页边与宜忌区,不出现矩形切边。
+    private var haloLayer: some View {
+        let palette = HaloPalette(dayPillar: dayPillar, dayElements: dayElements, daySignal: daySignal)
+        let dim = scheme == .dark ? 0.55 : 1.0
+        return GeometryReader { geo in
+            let w = geo.size.width
+            let h = geo.size.height
+            ZStack(alignment: .topLeading) {
+                halo(palette.main, opacity: 0.55 * dim, width: 200, height: 220)
+                    .position(x: -40 + 100, y: -10 + 110)
+                    .offset(drift(driftB))
+                halo(palette.main, opacity: 0.85 * dim, width: 250, height: 290)
+                    .position(x: w + 30 - 125, y: 20 + 145)
+                    .offset(drift(driftA))
+                halo(palette.second, opacity: 0.6 * dim, width: 150, height: 170)
+                    .position(x: 40 + 75, y: h + 10 - 85)
+                    .offset(drift(driftC))
+                halo(palette.third, opacity: 0.5 * dim, width: 120, height: 140)
+                    .position(x: w - 70 - 60, y: h - 20 - 70)
+                    .offset(drift(driftD))
+            }
         }
         .allowsHitTesting(false)
+        .accessibilityHidden(true)
     }
 
-    /// 6 云雾:两团宣纸色软雾,异速反向横漂(26s / 34s 半程)。2026-10-02 随
-    /// 新卡高(≈306)重校 y 偏移 76/178→40/120(方案 §1.3 初值,非按卡高
-    /// 折算):雾心分别落山腰下部(≈63%,介于山顶 20.5% 与山脚 75.6% 之间
-    /// ——方案 §1.3「雾落山腰」)与水面字层区(≈89%),较旧卡高下的
-    /// 69%/95% 各上收约 6 个百分点,不爬进新裁后的顶部空天区;下团纸雾垫
-    /// 在宜忌字层背后,下半沉出卡底由 clipped 收(旧版同构),顺带提对比。
-    private var mistLayer: some View {
-        ZStack {
-            mistBlob(width: 300, height: 190, y: 40, x: mistA ? 52 : -52, opacity: 0.5)
-            mistBlob(width: 255, height: 165, y: 120, x: mistB ? -46 : 46, opacity: 0.38)
-        }
-        .allowsHitTesting(false)
-    }
-
-    private func mistBlob(width: CGFloat, height: CGFloat, y: CGFloat, x: CGFloat, opacity: Double) -> some View {
+    /// 单团光晕:closest-side 径向(实心色 → 透明)+ blur 26(B 稿 filter 同值)。
+    private func halo(_ color: Color, opacity: Double, width: CGFloat, height: CGFloat) -> some View {
         Ellipse()
             .fill(
                 RadialGradient(
-                    stops: [
-                        .init(color: BaziTheme.paper, location: 0),
-                        .init(color: BaziTheme.paper.opacity(0), location: 0.72),
-                    ],
+                    colors: [color.opacity(opacity), color.opacity(0)],
                     center: .center,
                     startRadius: 0,
-                    endRadius: 180
+                    endRadius: min(width, height) / 2
                 )
             )
             .frame(width: width, height: height)
-            .blur(radius: 16)
-            .opacity(opacity)
-            .offset(x: x, y: y)
+            .blur(radius: 26)
     }
 
-    /// 5 磨砂颗粒(确定性 Canvas 噪点;亮=multiply 细噪 / 暗=screen 亮噪)。
-    private var grainLayer: some View {
-        PaperGrain(opacity: 0.05)
-            .blendMode(scheme == .dark ? .screen : .multiply)
-            .allowsHitTesting(false)
+    /// B 稿 keyframes:translate(8px,-10px) 往返(scale 1.05 省略——blur 色团
+    /// 上肉眼不可辨,少一个变换)。
+    private func drift(_ on: Bool) -> CGSize {
+        on ? CGSize(width: 8, height: -10) : .zero
     }
 
-    /// 循环动效启动(呼吸/墨渗/云雾)。duration = 半程,与画布 alternate 全程 2× 一致。
     private func startCycles() {
         guard !reduceMotion else { return }
-        withAnimation(.easeInOut(duration: 3.5).repeatForever(autoreverses: true)) { breathe = true }
-        withAnimation(.easeInOut(duration: 5.5).repeatForever(autoreverses: true)) { soak = true }
-        withAnimation(.easeInOut(duration: 13).repeatForever(autoreverses: true)) { mistA = true }
-        withAnimation(.easeInOut(duration: 17).repeatForever(autoreverses: true)) { mistB = true }
+        withAnimation(.easeInOut(duration: 6).repeatForever(autoreverses: true)) { driftA = true }
+        withAnimation(.easeInOut(duration: 7.3).repeatForever(autoreverses: true)) { driftB = true }
+        withAnimation(.easeInOut(duration: 5.2).repeatForever(autoreverses: true)) { driftC = true }
+        withAnimation(.easeInOut(duration: 8.1).repeatForever(autoreverses: true)) { driftD = true }
     }
 
-    // MARK: - 内容浮层(落款 + 宜忌字层)
+    // MARK: - 今日一签
 
-    /// 字层结构(D1/D2 定稿):右上竖排落款 + 底部宜忌双列,画在下、字在上。
-    /// 落款距顶 = 卡高 10%(2026-10-02:相对值随卡高自适配,GeometryReader 取
-    /// 卡高,不写死 pt——落款下端落在山顶右侧 ≈29% 处,与山呼应)。
-    private var contentOverlay: some View {
-        ZStack {
-            GeometryReader { geo in
-                pillarSignature
-                    .padding(.top, geo.size.height * 0.10)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topTrailing)
+    /// zh/zh-Hant:竖排两列,首句在右(右起),楷体 28、字距 10、列距 22;
+    /// EN:横排两行衬线 22,左对齐。品牌层汉字走 BaziFont.brush(始终楷体)。
+    @ViewBuilder
+    private var lotText: some View {
+        let lines = HeroDailyLot.lines(for: dayRelation)
+        if AppLanguage.current == .en {
+            VStack(alignment: .leading, spacing: 8) {
+                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
+                    Text(verbatim: line)
+                        .font(BaziFont.display(size: 22, weight: .regular))
+                        .foregroundStyle(BaziTheme.ink)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
             }
-            HeroYiJiColumns(dayRelation: dayRelation)
-                .padding(.horizontal, 22)
-                .padding(.bottom, 28)
-                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
+            .padding(.trailing, 120)
+            .padding(.top, 40)
+        } else {
+            HStack(alignment: .top, spacing: 22) {
+                ForEach(Array(lines.reversed().enumerated()), id: \.offset) { _, line in
+                    VStack(spacing: 10) {
+                        ForEach(Array(line.enumerated()), id: \.offset) { _, char in
+                            Text(verbatim: String(char))
+                                .font(BaziFont.brush(size: 28, weight: .regular))
+                                .foregroundStyle(BaziTheme.ink)
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    /// 左下小标「—— 今日一签」(B 稿 .sign-cap:22pt 短线 + 字距标签)。
+    private var lotCaption: some View {
+        HStack(spacing: 10) {
+            Rectangle()
+                .fill(BaziTheme.inkMuted.opacity(0.6))
+                .frame(width: 22, height: 0.5)
+            Text(verbatim: HeroDailyLot.caption())
+                .font(BaziFont.caption(size: 11))
+                .tracking(AppLanguage.current == .en ? 1.5 : 3.5)
+                .foregroundStyle(BaziTheme.inkMuted)
+        }
+    }
+}
+
+// MARK: - 光晕取色
+
+/// 光晕三色(主/副/小,见 DailyImageHeroSection 头注)。internal 供测试钉取色规则。
+struct HaloPalette {
+    let mainKey: String?
+    let secondKey: String?
+    let thirdKey: String?
+
+    /// 五行相生(木→火→土→金→水→木),英文 key 口径同 ElementColors。
+    static let sheng: [String: String] = [
+        "wood": "fire", "fire": "earth", "earth": "metal", "metal": "water", "water": "wood",
+    ]
+
+    init(dayPillar: String, dayElements: DayElementsDTO?, daySignal: [DaySignalItemDTO]?) {
+        let main: String?
+        if let stem = dayElements?.stemElement {
+            main = ElementColors.fromZh(stem)
+        } else {
+            main = dayPillar.first.flatMap { ElementColors.ofGan(String($0)) }
+        }
+        if main == nil {
+            AppLogger.app.warning(
+                "op=heroHalo.elementMiss dayPillar=\(dayPillar, privacy: .public) -> inkMuted"
+            )
+        }
+
+        var second = dayElements.flatMap { ElementColors.fromZh($0.branchElement) }
+        if second == nil || second == main {
+            second = main.flatMap { Self.sheng[$0] }
+        }
+
+        let used = Set([main, second].compactMap { $0 })
+        let favorable = (daySignal ?? [])
+            .filter { $0.direction == "up" }
+            .compactMap { ElementColors.fromZh($0.element) }
+            .first { !used.contains($0) }
+        let third = favorable ?? second.flatMap { Self.sheng[$0] }
+
+        self.mainKey = main
+        self.secondKey = second
+        self.thirdKey = third
+    }
+
+    var main: Color { Self.color(mainKey) }
+    var second: Color { Self.color(secondKey) }
+    var third: Color { Self.color(thirdKey) }
+
+    private static func color(_ key: String?) -> Color {
+        key.flatMap(ElementColors.from)?.color ?? BaziTheme.inkMuted
+    }
+}
+
+// MARK: - 今日一签静态表(2026-10-14,B 光晕 hero)
+
+/// 按流日十神的两句签文。key = 后端简体十神(决策 7 不翻译);zh 每句 ≤6 字
+/// (竖排 28pt 一列放得下),语气与 HeroYiJiColumns 宜忌词不相矛盾。
+/// 只是态度提示,不涉喜忌判断(LLM/规则边界不变)。
+enum HeroDailyLot {
+    static let zh: [String: [String]] = [
+        "比肩": ["退一步不损己", "今日守静即安"],
+        "劫财": ["先稳住阵脚", "再与人同行"],
+        "食神": ["心闲手自巧", "今日宜慢享"],
+        "伤官": ["言多不如言准", "锋芒收三分"],
+        "偏财": ["机会在门外", "量力再伸手"],
+        "正财": ["一分一厘皆实", "今日稳中求进"],
+        "七杀": ["压力即磨刀", "迎难不硬扛"],
+        "正官": ["守住分内事", "自有人看见"],
+        "偏印": ["独处非孤僻", "静中有所得"],
+        "正印": ["多听少急答", "养好这口气"],
+    ]
+
+    static let hant: [String: [String]] = [
+        "比肩": ["退一步不損己", "今日守靜即安"],
+        "劫财": ["先穩住陣腳", "再與人同行"],
+        "食神": ["心閒手自巧", "今日宜慢享"],
+        "伤官": ["言多不如言準", "鋒芒收三分"],
+        "偏财": ["機會在門外", "量力再伸手"],
+        "正财": ["一分一釐皆實", "今日穩中求進"],
+        "七杀": ["壓力即磨刀", "迎難不硬扛"],
+        "正官": ["守住分內事", "自有人看見"],
+        "偏印": ["獨處非孤僻", "靜中有所得"],
+        "正印": ["多聽少急答", "養好這口氣"],
+    ]
+
+    static let en: [String: [String]] = [
+        "比肩": ["A step back costs nothing.", "Stay still, stay steady."],
+        "劫财": ["Find your footing first,", "then walk with others."],
+        "食神": ["An easy mind, deft hands.", "Savor the day slowly."],
+        "伤官": ["Say less, say it true.", "Sheathe a little edge."],
+        "偏财": ["Chances wait at the door.", "Reach only as far as you can."],
+        "正财": ["Every coin counts.", "Steady gains today."],
+        "七杀": ["Pressure sharpens the blade.", "Meet it; don't just brace."],
+        "正官": ["Tend to what is yours;", "it will be seen."],
+        "偏印": ["Alone is not lonely.", "Quiet brings its own insight."],
+        "正印": ["Listen more, answer slower.", "Keep your breath easy."],
+    ]
+
+    static func table(for language: AppLanguage) -> [String: [String]] {
+        switch language {
+        case .zh:     return zh
+        case .zhHant: return hant
+        case .en:     return en
         }
     }
 
-    /// 右上干支竖排落款(D1):「戊申」,Kaiti 22pt、ink 82%、竖排字距 4、
-    /// 距顶 = 卡高 10%(见 contentOverlay)、距右 22pt(与宜忌左右内边距对齐)。
-    /// 2026-10-02 适度放大 16→22(≈1.4×):顶部空天裁掉后落款独自撑上部
-    /// 留白,16pt 过小像图没加载完;仍显著小于大字日 58pt——落款是题款,
-    /// 不喧宾夺主,也不放大 2-3×(外评 B 采纳但收幅度)。无印章、无朱红
-    /// (D1:hero 上无任何印章)。品牌层汉字始终楷体(BaziFont.brush,不走
-    /// EN 衬线路由——VText 的 display 会随 EN 落衬线,故自绘两字竖排);
-    /// 落款属画上题款艺术层,是 D4「EN 基座零汉字」的显式豁免位;固定字号
-    /// 不随 Dynamic Type 缩放(装饰层,XXL 档下仍远离宜忌字层,无重叠)。
-    private var pillarSignature: some View {
-        VStack(spacing: 4) {
-            ForEach(Array(dayPillar.enumerated()), id: \.offset) { _, char in
-                Text(verbatim: String(char))
-                    .font(BaziFont.brush(size: 22))
-                    .foregroundStyle(BaziTheme.ink.opacity(0.82))
-            }
+    static func fallback(for language: AppLanguage) -> [String] {
+        switch language {
+        case .zh:     return ["顺势而行", "不急不躁"]
+        case .zhHant: return ["順勢而行", "不急不躁"]
+        case .en:     return ["Go with the flow,", "no need to rush."]
         }
-        .padding(.trailing, 22)
+    }
+
+    static func caption(for language: AppLanguage = AppLanguage.current) -> String {
+        switch language {
+        case .zh:     return "今日一签"
+        case .zhHant: return "今日一籤"
+        case .en:     return "WORD FOR TODAY"
+        }
+    }
+
+    /// 查表命中失败记日志后兜底(错误显式传播,同 HeroYiJiColumns.pair)。
+    static func lines(for relation: String, language: AppLanguage = AppLanguage.current) -> [String] {
+        if let hit = table(for: language)[relation] { return hit }
+        AppLogger.app.warning(
+            "op=heroLot.lookupMiss day_relation=\(relation, privacy: .public) -> fallback"
+        )
+        return fallback(for: language)
     }
 }
 
