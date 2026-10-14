@@ -850,6 +850,40 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         XCTAssertEqual(PillarSlotModel.resolve(Self.fixturePillar), .known(Self.fixturePillar))
     }
 
+    // MARK: - 盘面细目页头日期解析(ChartHeaderView,2026-10-14 仿 HTML 目标稿)
+
+    func testChartHeaderHeroDateParts() throws {
+        // 钟面原值解析:UTC 锁定,年月日时分与字符串逐项相等(不随测试机时区漂移)
+        let date = try XCTUnwrap(ChartHeaderView.heroDate(fromBirthDatetime: "1993-03-21T19:28:00"))
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = try XCTUnwrap(TimeZone(identifier: "UTC"))
+        let comps = cal.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+        XCTAssertEqual([comps.year, comps.month, comps.day, comps.hour, comps.minute],
+                       [1993, 3, 21, 19, 28])
+    }
+
+    func testChartHeaderHeroDateTextLocale() throws {
+        // 日期大字 locale 感知(zh 年月日 / en 月日, 年);时刻恒为钟面 HH:mm
+        XCTAssertEqual(
+            ChartHeaderView.heroDateText(fromBirthDatetime: "1993-03-21T19:28:00",
+                                         locale: Locale(identifier: "zh_CN")),
+            "1993年3月21日"
+        )
+        XCTAssertEqual(
+            ChartHeaderView.heroDateText(fromBirthDatetime: "1993-03-21T19:28:00",
+                                         locale: Locale(identifier: "en_US")),
+            "March 21, 1993"
+        )
+        XCTAssertEqual(ChartHeaderView.heroTimeText(fromBirthDatetime: "1993-03-21T09:05:00"), "09:05")
+    }
+
+    func testChartHeaderHeroDateInvalidReturnsNil() {
+        // 非法/缺时刻字符串 → nil(页头不渲染日期行,不猜;解析失败已在函数内记日志)
+        XCTAssertNil(ChartHeaderView.heroDate(fromBirthDatetime: "not-a-date"))
+        XCTAssertNil(ChartHeaderView.heroDateText(fromBirthDatetime: ""))
+        XCTAssertNil(ChartHeaderView.heroTimeText(fromBirthDatetime: "1993-03-21"))
+    }
+
     func testDualPillarSourceFromHourUnknownPair() throws {
         // A 盘无时柱、B 盘四柱全:时柱行 ganA nil(留白)、ganB 有值;其余行两侧完整
         let a = Self.makeResponse(pillars: PillarsDTO(

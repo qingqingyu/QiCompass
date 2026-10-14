@@ -1463,16 +1463,57 @@ enum L10n {
         /// 已读进度条 VoiceOver 标签。zh: "已读进度";en: "Reading progress"
         static let readProgressA11y = String(localized: "deepanalysis.toc.progressA11y")
 
-        // -- 四柱表小字段 --
+        // -- 四柱表(2026-10-14 表格重构:左侧行标签列承载语义,格内只放裸值不带前缀) --
 
-        /// 十二长生行(%@ = 长生术语显示值)。zh: "长生:%@";en: "Stage: %@"
-        static func stageLabel(_ stage: String) -> String {
-            String(format: String(localized: "deepanalysis.pillars.stage"), stage)
+        /// 表头柱名(%@ = 年/月/日/时)。zh: "%@柱";zh-Hant: "%@柱";en: "%@"
+        static func pillarTitle(_ label: String) -> String {
+            String(format: String(localized: "deepanalysis.chart.pillarTitleFormat"), label)
         }
 
-        /// 旬空行(%@ = 干支对,保持汉字)。zh: "旬空:%@";en: "Void: %@"
-        static func voidLabel(_ xunkong: String) -> String {
-            String(format: String(localized: "deepanalysis.pillars.void"), xunkong)
+        /// 行标签:主星(天干十神)。zh: "主星";en: "Star"
+        static let rowStar = String(localized: "deepanalysis.pillars.row.star")
+
+        /// 行标签:天干。zh: "天干";en: "Stem"
+        static let rowStem = String(localized: "deepanalysis.pillars.row.stem")
+
+        /// 行标签:地支。zh: "地支";en: "Branch"
+        static let rowBranch = String(localized: "deepanalysis.pillars.row.branch")
+
+        /// 行标签:藏干。zh: "藏干";en: "Hidden"
+        static let rowHidden = String(localized: "deepanalysis.pillars.row.hidden")
+
+        /// 行标签:纳音。zh: "纳音";zh-Hant: "納音";en: "Nayin"
+        static let rowNayin = String(localized: "deepanalysis.pillars.row.nayin")
+
+        /// 行标签:星运(十二长生)。zh: "星运";zh-Hant: "星運";en: "Stage"
+        static let rowStage = String(localized: "deepanalysis.pillars.row.stage")
+
+        /// 行标签:空亡(旬空)。zh: "空亡";en: "Void"
+        static let rowVoid = String(localized: "deepanalysis.pillars.row.void")
+
+        /// 四柱表脚注。zh: "星运以日主论长生;空亡按各柱所在旬。"
+        /// en: "Stages follow the day master; void follows each pillar's ten-day cycle."
+        static let pillarsCaption = String(localized: "deepanalysis.pillars.caption")
+
+        /// 四柱节 trailing 日主注(%@ = 日干+五行显示串,如 辛金)。zh: "日主 %@";en: "Day master %@"
+        static func dayMaster(_ display: String) -> String {
+            String(format: String(localized: "deepanalysis.chart.dayMasterFormat"), display)
+        }
+
+        /// 五行分布节 trailing(%ld = 已知八字字数,时辰未知盘=6)。zh: "八字共 %ld 字";en: "%ld characters"
+        static func elementTotal(_ count: Int) -> String {
+            String(format: String(localized: "deepanalysis.chart.elementTotalFormat"), count)
+        }
+
+        /// 五行分布脚注。zh: "按天干地支本气计。";en: "Counted by stems and branches (main qi)."
+        static let elementCaption = String(localized: "deepanalysis.chart.elementCaption")
+
+        /// 五行为 0 的「缺」徽章。zh: "缺";zh-Hant: "缺";en: "Lacking"
+        static let lackLabel = String(localized: "deepanalysis.chart.lackLabel")
+
+        /// 页头生肖 chip(%@ = 生肖显示名,如 鸡/Rooster)。zh: "属%@";zh-Hant: "屬%@";en: "Year of the %@"
+        static func zodiacTag(_ display: String) -> String {
+            String(format: String(localized: "deepanalysis.chart.zodiacFormat"), display)
         }
 
         // -- 喜忌卡 --
@@ -1518,7 +1559,8 @@ enum L10n {
             String(format: String(localized: "deepanalysis.chart.trueSolarFormat"), formatted)
         }
 
-        /// 真太阳时偏差(%@ = 正负号,%.1f = 分钟)。zh: "偏差 %@%.1f 分";en: "Offset %@%.1f min"
+        /// 真太阳时偏差(%@ = 正负号,%.1f = 分钟;2026-10-14 页头改版「偏差」→「较北京时间」)。
+        /// zh: "较北京时间 %@%.1f 分";zh-Hant: "較北京時間 %@%.1f 分";en: "Offset %@%.1f min"
         static func solarOffset(sign: String, minutes: Double) -> String {
             String(format: String(localized: "deepanalysis.chart.solarOffsetFormat"), sign, minutes)
         }

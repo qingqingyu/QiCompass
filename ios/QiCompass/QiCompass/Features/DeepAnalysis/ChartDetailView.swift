@@ -3,10 +3,11 @@ import SwiftUI
 /// hairline 分节容器(盘面小景定稿 ⑩):节标 14.5pt 楷体 + 右侧小注,
 /// 上边 hairline 分隔,左右边距 32。替代原九卡的 cardSurface 卡壳——
 /// 「改壳不改芯」:内容组件只卸卡,排版进本容器(DESIGN.md 卡片让位 hairline)。
-/// 文案与被替换页面同口径中文直出(i18n 开口子随既有 i18n slices)。
+/// trailing 由 String 改 Text(2026-10-14):四柱节「日主 辛金」需值段朱红混排,
+/// 样式(字号/灰度)仍统一在容器内施加,调用方只给内容。
 private struct HairlineSection<Content: View>: View {
     let title: String
-    var trailing: String? = nil
+    var trailing: Text? = nil
     @ViewBuilder let content: Content
 
     var body: some View {
@@ -18,7 +19,7 @@ private struct HairlineSection<Content: View>: View {
                     .foregroundStyle(BaziTheme.ink)
                 Spacer(minLength: 12)
                 if let trailing {
-                    Text(trailing)
+                    trailing
                         .font(BaziFont.caption(size: 10.5))
                         .foregroundStyle(BaziTheme.inkMuted)
                         .lineLimit(1)
@@ -59,7 +60,7 @@ struct ChartDetailView: View {
                         .padding(.top, 8)
                         .padding(.bottom, 4)
 
-                    HairlineSection(title: String(localized: "四柱"), trailing: chartHeaderNote) {
+                    HairlineSection(title: String(localized: "四柱"), trailing: dayMasterTrailing) {
                         PillarsTable(pillars: response.pillars, onAddHour: onAddHour)
                     }
 
@@ -71,11 +72,11 @@ struct ChartDetailView: View {
                         )
                     }
 
-                    HairlineSection(title: String(localized: "五行分布")) {
+                    HairlineSection(title: String(localized: "五行分布"), trailing: elementTotalTrailing) {
                         ElementBalanceBar(balance: response.elementBalance)
                     }
 
-                    HairlineSection(title: String(localized: "喜忌分析"), trailing: xijiTrailingNote) {
+                    HairlineSection(title: String(localized: "喜忌分析"), trailing: xijiTrailingNote.map(Text.init)) {
                         XijiCard(response: response)
                     }
 
@@ -94,29 +95,39 @@ struct ChartDetailView: View {
                         CurrentStatusCard(response: response)
                     }
                 }
-                .padding(.bottom, 32)
+                // 96:悬浮 Tab 栏(iOS 26 liquid glass)不压末节内容,对齐
+                // ProfileView 底部留白先例(2026-10-14 仿 HTML 目标稿)
+                .padding(.bottom, 96)
             }
         }
         .navigationTitle("盘面细目")
         .navigationBarTitleDisplayMode(.inline)
     }
 
-    /// 四柱节右侧小注:真太阳时 + 出生地 + 偏差(时辰未知 → 不造时间,只显其余)。
-    private var chartHeaderNote: String {
-        var parts: [String] = []
-        if let ts = response.trueSolarTime {
-            let f = DateFormatter()
-            f.dateFormat = "yyyy-MM-dd HH:mm"
-            f.timeZone = .current
-            parts.append(L10n.DeepChart.trueSolarTime(f.string(from: ts)))
+    /// 四柱节 trailing:「日主 辛金」——标签灰、值段朱红加粗(HTML 目标稿);
+    /// 显示串复用 ZodiacHelper.revealDayMasterDisplay(zh「辛金」/ en "Xin Metal",
+    /// 单一事实源)。日柱歧义(S05)→ nil 不渲染(不猜)。
+    private var dayMasterTrailing: Text? {
+        guard let day = response.pillars.day,
+              let display = ZodiacHelper.revealDayMasterDisplay(
+                  gan: day.gan,
+                  ganElement: day.ganElement,
+                  language: AppLanguage.current
+              ) else { return nil }
+        var attributed = AttributedString(L10n.DeepChart.dayMaster(display))
+        // 值段找不到(理论不可达:display 就是格式串参数)→ 整段灰,不 crash
+        if let range = attributed.range(of: display) {
+            attributed[range].foregroundColor = BaziTheme.cinnabar
+            attributed[range].inlinePresentationIntent = .stronglyEmphasized
         }
-        if let place = request.placeName, !place.isEmpty {
-            parts.append(place)
-        }
-        let offset = response.trueSolarOffsetMinutes
-        let sign = offset >= 0 ? "+" : ""
-        parts.append(L10n.DeepChart.solarOffset(sign: sign, minutes: offset))
-        return parts.joined(separator: " · ")
+        return Text(attributed)
+    }
+
+    /// 五行分布节 trailing:「八字共 8 字」。求和即口径(时辰未知盘自然 = 6,
+    /// 对齐 backend compute_element_balance 注释,不加标注字段)。
+    private var elementTotalTrailing: Text? {
+        let b = response.elementBalance
+        return Text(L10n.DeepChart.elementTotal(b.wood + b.fire + b.earth + b.metal + b.water))
     }
 
     /// 喜忌节右侧小注:旺衰(原 XijiCard badge 迁来)+ 调候触发 + 算法。
