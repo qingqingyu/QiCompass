@@ -372,9 +372,14 @@ class _M0OnlyGenClient:
 
     async def interpret(self, prompt: str, **kwargs) -> str:
         self.calls += 1
+        # v9 形态:四条结论句齐全——L2 v9-1「结论层缺失」才不会把
+        # 裁判 warn 场景误判成 L2 fail
         return json.dumps({
-            "main_axis": {}, "core_loop": {}, "structure_type": {},
-            "capability_source": {}, "structure_fingerprint": "伤官生财测试指纹",
+            "main_axis": {"headline": "压力推着你走,测试结论。"},
+            "core_loop": {"headline": "扛压 → 沉淀 → 扛更大的压。"},
+            "structure_type": {"name": "测试专业型"},
+            "capability_source": {"headline": "最强在测试的时候。"},
+            "structure_fingerprint": "伤官生财测试指纹",
         }, ensure_ascii=False)
 
 

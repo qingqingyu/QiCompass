@@ -33,6 +33,10 @@ enum ChapterNode: Equatable {
     /// 行内标签段(M0 专用,2026-10-12 S4-A):段首小标签 + 正文连排,
     /// 取代逐行 caption 键值行——8 个小标签连排像表单不像命书(E1)。
     case inlineLabel(label: String, text: String)
+    /// 结论句(M0 v9 白话结论层专用,2026-10-14):每节第一层的白话结论,
+    /// 不带任何标签、不缩进——Kaiti .custom 不吃 weight(BaziFont.swift:43),
+    /// 靠字号 + 浓墨与正文区分(样式经用户真机确认,plan S3-4)。
+    case headline(String)
     /// 循环起止行(M0 专用):from/to 两个孤立标签行合成一行小字。
     case loopFromTo(from: String, to: String)
     /// 章末「据」折叠区(M0 专用):各小节的 evidence 收拢,默认收起。
@@ -116,30 +120,24 @@ struct ChapterContent: Equatable {
     // 显示也无日志。现改为:未成功消费的键一律走通用节点渲染(内容不丢),
     // 并把键路径记日志(schema 漂移信号不吞)。
     private static func m0Nodes(from pairs: [(String, JSONValue)]) -> [ChapterNode]? {
-        func object(_ key: String) -> [(String, JSONValue)]? {
-            for (k, v) in pairs where k == key {
-                if case .object(let inner) = v { return inner }
-                return nil
-            }
-            return nil
-        }
-        func string(_ obj: [(String, JSONValue)], _ key: String) -> String? {
-            for (k, v) in obj where k == key {
-                if case .string(let s) = v { return s }
-                return nil
-            }
-            return nil
-        }
         func inline(
             _ key: String, _ obj: [(String, JSONValue)], consumed: inout Set<String>
         ) -> ChapterNode? {
-            guard let s = string(obj, key) else { return nil }
+            guard let s = m0String(obj, key) else { return nil }
             consumed.insert(key)
             return .inlineLabel(label: label(key), text: s)
         }
 
-        guard let mainAxis = object("main_axis"),
-              let coreLoop = object("core_loop") else { return nil }
+        guard let mainAxis = m0Object(pairs, "main_axis"),
+              let coreLoop = m0Object(pairs, "core_loop") else { return nil }
+
+        // v9 白话结论层(plan docs/命书M0白话结论层-plan.md S3):
+        // main_axis.headline 存在 → 三层组装(结论/展开/据);v7/v8 老缓存
+        // 无此键,照旧走下方组装,渲染逐字节不变(单测双向锁定)。
+        if m0String(mainAxis, "headline") != nil {
+            return m0V9Nodes(
+                pairs: pairs, mainAxis: mainAxis, coreLoop: coreLoop)
+        }
 
         var notes: [ChapterNote] = []
         var extras: [String] = []
@@ -153,7 +151,7 @@ struct ChapterContent: Equatable {
         ].compactMap { $0 }
         // evidence 收集与 core_loop 同款无条件:退化输入(三层全非 string)
         // 下不静默丢 main_axis.evidence(与 core_loop 一致,见下)
-        if let ev = string(mainAxis, "evidence") {
+        if let ev = m0String(mainAxis, "evidence") {
             mainConsumed.insert("evidence")
             notes.append(ChapterNote(label: label("main_axis"), text: ev))
         }
@@ -164,7 +162,7 @@ struct ChapterContent: Equatable {
         // 核心循环:起止一行小字 + 流向/驱动/损耗行内标签段
         var loopConsumed: Set<String> = []
         var loopChildren: [ChapterNode] = []
-        if let from = string(coreLoop, "from"), let to = string(coreLoop, "to") {
+        if let from = m0String(coreLoop, "from"), let to = m0String(coreLoop, "to") {
             loopConsumed.formUnion(["from", "to"])
             loopChildren.append(.loopFromTo(from: from, to: to))
         }
@@ -173,7 +171,7 @@ struct ChapterContent: Equatable {
             inline("driver", coreLoop, consumed: &loopConsumed),
             inline("leak", coreLoop, consumed: &loopConsumed),
         ].compactMap { $0 }
-        if let ev = string(coreLoop, "evidence") {
+        if let ev = m0String(coreLoop, "evidence") {
             loopConsumed.insert("evidence")
             notes.append(ChapterNote(label: label("core_loop"), text: ev))
         }
@@ -183,12 +181,12 @@ struct ChapterContent: Equatable {
 
         // 结构类型:名称行内标签 + 一句话作引言段
         var typeChildren: [ChapterNode] = []
-        if let structureType = object("structure_type") {
+        if let structureType = m0Object(pairs, "structure_type") {
             var typeConsumed: Set<String> = []
             var typeNodes: [ChapterNode?] = [
                 inline("name", structureType, consumed: &typeConsumed),
             ]
-            if let line = string(structureType, "one_line") {
+            if let line = m0String(structureType, "one_line") {
                 typeConsumed.insert("one_line")
                 typeNodes.append(.lead(line))
             }
@@ -199,13 +197,13 @@ struct ChapterContent: Equatable {
 
         // 能力来源:text 作引言段(既有 2026-10-11 口径),据收拢
         var capabilityChildren: [ChapterNode] = []
-        if let capability = object("capability_source") {
+        if let capability = m0Object(pairs, "capability_source") {
             var capConsumed: Set<String> = []
-            if let text = string(capability, "text") {
+            if let text = m0String(capability, "text") {
                 capConsumed.insert("text")
                 capabilityChildren.append(.lead(text))
             }
-            if let ev = string(capability, "evidence") {
+            if let ev = m0String(capability, "evidence") {
                 capConsumed.insert("evidence")
                 notes.append(ChapterNote(label: label("capability_source"), text: ev))
             }
@@ -218,10 +216,10 @@ struct ChapterContent: Equatable {
         // 字符串的 structure_type / 非字符串的 structure_fingerprint)
         // 走通用节点,不静默丢
         var topConsumed: Set<String> = ["main_axis", "core_loop"]
-        if object("structure_type") != nil { topConsumed.insert("structure_type") }
-        if object("capability_source") != nil { topConsumed.insert("capability_source") }
+        if m0Object(pairs, "structure_type") != nil { topConsumed.insert("structure_type") }
+        if m0Object(pairs, "capability_source") != nil { topConsumed.insert("capability_source") }
         var fingerprintLead: ChapterNode?
-        if let fingerprint = string(pairs, "structure_fingerprint") {
+        if let fingerprint = m0String(pairs, "structure_fingerprint") {
             topConsumed.insert("structure_fingerprint")
             fingerprintLead = .lead(fingerprint)
         }
@@ -254,6 +252,188 @@ struct ChapterContent: Equatable {
                 "m0 chapter rendered \(extras.count) non-contract field(s) via generic nodes: \(extras.joined(separator: ","), privacy: .public)")
         }
         return nodes.isEmpty ? nil : nodes
+    }
+
+    // MARK: M0 v9 白话结论层组装(2026-10-14,plan S3)
+    //
+    // v9 起每题固定三层:白话结论(headline)/展开(散文 .lead)/据(章末折叠)。
+    // 阅读序固定:主线(headline→body)→ 核心循环(headline→flow→leak,两段
+    // 散文不带「流向/损耗」小标签)→ 结构类型(name 作结论无「名称 ·」标签
+    // →one_line)→ 能力来源(headline→text)→ 章末「据」折叠(主线分层一行
+    // →循环起止一行→驱动→各节 evidence)。
+    // - dominant/secondary/latent 只写十神名 → 据 fold 首行「主导 X · 次要
+    //   Y · 潜伏 Z」(标签复用现有 dot-key)
+    // - D6:v9 不展示 structure_fingerprint(仍然产出,下游链式照常继承;
+    //   键按已消费计,防经通用节点回流)
+    // - v7 组装的兜底口径照搬:未消费键走通用节点 + extras 日志(不静默丢)
+    private static func m0V9Nodes(
+        pairs: [(String, JSONValue)],
+        mainAxis: [(String, JSONValue)],
+        coreLoop: [(String, JSONValue)]
+    ) -> [ChapterNode]? {
+        var extras: [String] = []
+        var evidenceNotes: [ChapterNote] = []
+
+        // 主线:结论 + 展开;分层行进据 fold 首位
+        var mainConsumed: Set<String> = []
+        var mainChildren: [ChapterNode] = []
+        var layerLine: ChapterNote?
+        if let h = m0String(mainAxis, "headline") {
+            mainConsumed.insert("headline")
+            mainChildren.append(.headline(h))
+        }
+        if let body = m0String(mainAxis, "body") {
+            mainConsumed.insert("body")
+            mainChildren.append(.lead(body))
+        }
+        var layerParts: [String] = []
+        for key in ["dominant", "secondary", "latent"] {
+            if let s = m0String(mainAxis, key) {
+                mainConsumed.insert(key)
+                layerParts.append("\(label(key)) \(s)")
+            }
+        }
+        if !layerParts.isEmpty {
+            layerLine = ChapterNote(
+                label: label("main_axis"),
+                text: layerParts.joined(separator: " · "))
+        }
+        if let ev = m0String(mainAxis, "evidence") {
+            mainConsumed.insert("evidence")
+            evidenceNotes.append(ChapterNote(label: label("main_axis"), text: ev))
+        }
+        mainChildren += leftoverNodes(
+            from: mainAxis, skipping: mainConsumed,
+            path: "main_axis", extras: &extras)
+
+        // 核心循环:结论 + flow/leak 两段散文;起止/驱动进据 fold
+        var loopConsumed: Set<String> = []
+        var loopChildren: [ChapterNode] = []
+        var loopLine: ChapterNote?
+        var driverNote: ChapterNote?
+        if let h = m0String(coreLoop, "headline") {
+            loopConsumed.insert("headline")
+            loopChildren.append(.headline(h))
+        }
+        for key in ["flow", "leak"] {
+            if let s = m0String(coreLoop, key) {
+                loopConsumed.insert(key)
+                loopChildren.append(.lead(s))
+            }
+        }
+        if let from = m0String(coreLoop, "from"), let to = m0String(coreLoop, "to") {
+            loopConsumed.formUnion(["from", "to"])
+            loopLine = ChapterNote(
+                label: label("core_loop"),
+                text: "\(label("from")) \(from)　\(label("to")) \(to)")
+        }
+        if let driver = m0String(coreLoop, "driver") {
+            loopConsumed.insert("driver")
+            driverNote = ChapterNote(label: label("driver"), text: driver)
+        }
+        if let ev = m0String(coreLoop, "evidence") {
+            loopConsumed.insert("evidence")
+            evidenceNotes.append(ChapterNote(label: label("core_loop"), text: ev))
+        }
+        loopChildren += leftoverNodes(
+            from: coreLoop, skipping: loopConsumed,
+            path: "core_loop", extras: &extras)
+
+        // 结构类型:name 作结论(无「名称 ·」标签)→ one_line 展开
+        var typeChildren: [ChapterNode] = []
+        if let structureType = m0Object(pairs, "structure_type") {
+            var typeConsumed: Set<String> = []
+            if let name = m0String(structureType, "name") {
+                typeConsumed.insert("name")
+                typeChildren.append(.headline(name))
+            }
+            if let line = m0String(structureType, "one_line") {
+                typeConsumed.insert("one_line")
+                typeChildren.append(.lead(line))
+            }
+            typeChildren += leftoverNodes(
+                from: structureType, skipping: typeConsumed,
+                path: "structure_type", extras: &extras)
+        }
+
+        // 能力来源:结论 + text 展开;evidence 进据 fold
+        var capabilityChildren: [ChapterNode] = []
+        if let capability = m0Object(pairs, "capability_source") {
+            var capConsumed: Set<String> = []
+            if let h = m0String(capability, "headline") {
+                capConsumed.insert("headline")
+                capabilityChildren.append(.headline(h))
+            }
+            if let text = m0String(capability, "text") {
+                capConsumed.insert("text")
+                capabilityChildren.append(.lead(text))
+            }
+            if let ev = m0String(capability, "evidence") {
+                capConsumed.insert("evidence")
+                evidenceNotes.append(ChapterNote(label: label("capability_source"), text: ev))
+            }
+            capabilityChildren += leftoverNodes(
+                from: capability, skipping: capConsumed,
+                path: "capability_source", extras: &extras)
+        }
+
+        // 顶层:structure_fingerprint 按 D6 一律消费不展示(含非字符串形态,
+        // 防 null/违约形态经通用节点回流或计入 extras);其余未消费键通用渲染
+        var topConsumed: Set<String> = [
+            "main_axis", "core_loop", "structure_fingerprint",
+        ]
+        if m0Object(pairs, "structure_type") != nil { topConsumed.insert("structure_type") }
+        if m0Object(pairs, "capability_source") != nil { topConsumed.insert("capability_source") }
+        let topExtras = leftoverNodes(
+            from: pairs, skipping: topConsumed, path: "m0", extras: &extras)
+
+        var nodes: [ChapterNode] = []
+        if !mainChildren.isEmpty {
+            nodes.append(.section(label("main_axis"), mainChildren))
+        }
+        if !loopChildren.isEmpty {
+            nodes.append(.section(label("core_loop"), loopChildren))
+        }
+        if !typeChildren.isEmpty {
+            nodes.append(.section(label("structure_type"), typeChildren))
+        }
+        if !capabilityChildren.isEmpty {
+            nodes.append(.section(label("capability_source"), capabilityChildren))
+        }
+        nodes += topExtras
+        // 据 fold 固定序:分层 → 起止 → 驱动 → 各节 evidence(plan S3-3)
+        let notes = [layerLine, loopLine, driverNote].compactMap { $0 } + evidenceNotes
+        if !notes.isEmpty {
+            nodes.append(.evidenceFold(notes))
+        }
+        if !extras.isEmpty {
+            // OSLog 插值约束:privacy 参数须在单一字面量内,不可拼接
+            AppLogger.app.info(
+                "m0 v9 chapter rendered \(extras.count) non-contract field(s) via generic nodes: \(extras.joined(separator: ","), privacy: .public)")
+        }
+        return nodes.isEmpty ? nil : nodes
+    }
+
+    /// m0 特化键取值:顶层对象(非对象形态返回 nil,交由通用渲染不丢内容)。
+    private static func m0Object(
+        _ pairs: [(String, JSONValue)], _ key: String
+    ) -> [(String, JSONValue)]? {
+        for (k, v) in pairs where k == key {
+            if case .object(let inner) = v { return inner }
+            return nil
+        }
+        return nil
+    }
+
+    /// m0 特化键取值:对象内字符串(非字符串形态返回 nil,交由通用渲染)。
+    private static func m0String(
+        _ obj: [(String, JSONValue)], _ key: String
+    ) -> String? {
+        for (k, v) in obj where k == key {
+            if case .string(let s) = v { return s }
+            return nil
+        }
+        return nil
     }
 
     /// 特化组装未消费的键 → 通用节点(内容不丢),键路径记入 extras 供日志。

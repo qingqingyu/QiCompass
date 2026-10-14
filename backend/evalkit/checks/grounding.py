@@ -19,6 +19,12 @@
 范围外,plan S5),全开会把旧模板的概率性泄漏放大成 evalkit fail 且本批
 无法修复;m1-m7 模板补齐规则时再放开。
 
+2026-10-14 M0 白话结论层批(docs/命书M0白话结论层-plan.md S2,模板 v9)
+再增四项 m0-gated 检查:v9-1(结论层无术语/无干支/无数字,headline 缺失
+即 fail)/v9-2(展开层无数字,年龄豁免)/v9-3(权重>0 不得写缺)/v9-5(照抄
+示例短语);另有 v9-4 工程腔禁用词只统计不判 fail(warnings 旁路,
+collect_banned_register_warnings,词表误伤面未观察够前不进 failures)。
+
 对齐:ADR-0004(喜忌确定性)/ 0005(神煞 20 固定清单)/ 0006(格局砍掉
 模糊叙事)/ 0007(从格诚实降级)。
 """
@@ -29,6 +35,7 @@ import re
 from difflib import SequenceMatcher
 from typing import Any, Iterator
 
+from app.ai.prompts import M0_V9_EXAMPLE_PHRASES
 from app.engine.chart_builder import build_v1_chart
 from app.engine.shensha import SHENSHA_NAMES
 
@@ -339,6 +346,9 @@ _COMMON_GE_SUFFIX_WORDS: tuple[str, ...] = (
     # 第二枚格上另成 token「你越显得格格」,endswith 格格 放行——与
     # _GEJU_NEXT_CHAR_EXEMPT 的「格」双侧堵,只堵一侧另一枚仍被吞
     # (2026-10-13 全量 run m3 实踩「越规范的组织里你越显得格格不入」)
+    "够格",  # 2026-10-14 v9 全量 run m7 实踩:「两项力量不够格当杠杆」
+    # (够格/不够格=日常「资格」义,格后接「当」不在前瞻豁免集被误杀;
+    # 真实格局名无一以「够格」收尾,同 满格/掉格 族按 endswith 从宽)
 )
 # 格后紧跟「格」= 格格不入类成语的第一枚格(2026-10-13 全量 run 实踩),
 # 负向前瞻放行;真实格局名无一以「格格」收尾,按宁可漏报从宽
@@ -761,6 +771,263 @@ def check_layering_consistency(
     return failures
 
 
+# ---------- 7. M0 白话结论层(2026-10-14 v9 批 S2) ----------
+#
+# 来源:用户真机截图(v7 输出,癸酉乙卯辛丑戊戌盘)P1-P8 + plan
+# docs/命书M0白话结论层-plan.md。四项 m0-gated fail 检查(立场同前:
+# 宁可漏报)+ 一项只统计不判 fail 的禁用词 warn 收集器(词表会误伤,
+# 先观察分布,见 collect_banned_register_warnings docstring)。
+
+# 十神五类统称(结论层禁用;与 _TEN_GOD_FAMILY 值集同源)
+_TEN_GOD_FAMILY_NAMES: tuple[str, ...] = (
+    "比劫", "食伤", "财星", "官杀", "印星",
+)
+# 作十神简称用的单字:只在 structure_type.name 判(其他 headline 里
+# 「财」等单字可能是日常用词,宁可漏报——plan S2-1 拍板口径)
+_TG_SINGLE_CHAR_SHORTHAND: tuple[str, ...] = ("印", "财", "官", "杀")
+# 干支引用形态(2026-10-14 v9 样本盘实跑实踩:leak 写「丁未」「壬水」
+# 「庚金、戌土」——干支+五行注记也是引用具体字):天干+地支(乙卯/壬寅)、
+# 天干+五行(壬水/庚金)、地支+五行(戌土/酉金)。反向(支+干)与散见单字
+# 不判;日常词里 stem/branch 后紧跟五行字的组合不自然(乙醇/申请/未来
+# 都不带五行字),按引用判
+_GANZHI_CITE_RE = re.compile(
+    "[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]"
+    "|[甲乙丙丁戊己庚辛壬癸][金木水火土]"
+    "|[子丑寅卯辰巳午未申酉戌亥][金木水火土]")
+# 阿拉伯数字(半角 + 全角,全角也是阿拉伯数字的排版变体)
+_ARABIC_DIGIT_RE = re.compile(r"[0-9０-９]")
+_AGE_RE = re.compile(r"[0-9０-９]+\s*岁")
+
+# v9 结论层字段(路径, 是否判单字简称)
+_V9_HEADLINE_FIELDS: tuple[tuple[tuple[str, ...], bool], ...] = (
+    (("main_axis", "headline"), False),
+    (("core_loop", "headline"), False),
+    (("capability_source", "headline"), False),
+    (("structure_type", "name"), True),
+)
+# v9 展开层字段
+_V9_EXPANSION_FIELDS: tuple[tuple[str, ...], ...] = (
+    ("main_axis", "body"),
+    ("core_loop", "flow"),
+    ("core_loop", "leak"),
+    ("structure_type", "one_line"),
+    ("capability_source", "text"),
+)
+
+
+def _resolve_field(parsed_output: dict[str, Any],
+                   path: tuple[str, ...]) -> Any:
+    node: Any = parsed_output
+    for key in path:
+        if not isinstance(node, dict):
+            return None
+        node = node.get(key)
+    return node
+
+
+def check_headline_plain_language(
+    module: str,
+    parsed_output: dict[str, Any],
+    engine_result: dict[str, Any],
+) -> list[str]:
+    """v9-1 结论层无术语:headline 与 structure_type.name 不含十神名及
+    简称、干支组合、数字;字段缺失或非字符串即 fail(v9 三层契约)。
+
+    真机截图正例(v7 输出):name「印财对峙、食伤通关型」——无「格」字
+    绕过 A1,但印/财/食伤全是十神语(P2);headline 若带「偏财重 8」
+    同时踩术语+数字(P1)。单字简称只在 name 判,理由见
+    _TG_SINGLE_CHAR_SHORTHAND 注释。
+    """
+    if module != "m0_structure":
+        return []
+    failures: list[str] = []
+    for path, judge_single in _V9_HEADLINE_FIELDS:
+        label = ".".join(path)
+        value = _resolve_field(parsed_output, path)
+        if not isinstance(value, str) or not value.strip():
+            failures.append(
+                f"结论层缺失:{label} 须为非空字符串(v9 三层写法,"
+                f"结论句是第一层)")
+            continue
+        hit_terms = [n for n in _TEN_GOD_NAMES if n in value]
+        hit_terms += [n for n in _TEN_GOD_FAMILY_NAMES if n in value]
+        if judge_single:
+            hit_terms += [c for c in _TG_SINGLE_CHAR_SHORTHAND if c in value]
+        if hit_terms:
+            failures.append(
+                f"结论层含术语:{label} 出现 {'、'.join(sorted(set(hit_terms)))}"
+                f"(结论句不得出现十神名及简称,原文:{_clip(value)!r})"
+            )
+        m = _GANZHI_CITE_RE.search(value)
+        if m:
+            failures.append(
+                f"结论层含干支:{label} 出现「{m.group(0)}」"
+                f"(干支只进据类字段,原文:{_clip(value)!r})"
+            )
+        m = _ARABIC_DIGIT_RE.search(value)
+        if m:
+            failures.append(
+                f"结论层含数字:{label} 出现「{m.group(0)}」"
+                f"(数字只进据类字段,原文:{_clip(value)!r})"
+            )
+    return failures
+
+
+def check_expansion_no_figures(
+    module: str,
+    parsed_output: dict[str, Any],
+    engine_result: dict[str, Any],
+) -> list[str]:
+    """v9-2 展开层无数字与干支:body/flow/leak/one_line/text 不含阿拉伯
+    数字(「\\d+ 岁」豁免,大运写法「约 32 岁起的那十年」是唯一例外),
+    也不含干支引用(干支+五行注记形态同判:「丁未」「壬水」「庚金、戌土」
+    ——v9 样本盘实跑实踩,大运条件句的干支须落 evidence)。
+
+    真机截图正例:body「偏财重 8,正财重 8」(P1)。字段缺失跳过不判
+    (结论层缺失由 v9-1 报,这里不重复)。
+    """
+    if module != "m0_structure":
+        return []
+    failures: list[str] = []
+    for path in _V9_EXPANSION_FIELDS:
+        value = _resolve_field(parsed_output, path)
+        if not isinstance(value, str):
+            continue
+        stripped = _AGE_RE.sub("", value)
+        m = _ARABIC_DIGIT_RE.search(stripped)
+        if m:
+            failures.append(
+                f"展开层含数字:{'.'.join(path)} 出现「{m.group(0)}」"
+                f"(权重/计数等数字只进据类字段,年龄除外;"
+                f"原文:{_clip(value)!r})"
+            )
+        m = _GANZHI_CITE_RE.search(value)
+        if m:
+            failures.append(
+                f"展开层含干支:{'.'.join(path)} 出现「{m.group(0)}」"
+                f"(大运写「约 X 岁起的那十年」,具体干支进 evidence;"
+                f"原文:{_clip(value)!r})"
+            )
+    return failures
+
+
+# 「写缺」词与否定前瞻守卫(「不算缺失」类否定提及不算指控,宁可漏报)
+_MISSING_WORDS: tuple[str, ...] = ("缺位", "缺失", "没有", "不存在")
+_MISSING_NEGATION_BEFORE = ("不", "非", "未", "别")
+_MISSING_WINDOW = 6  # 十神名/统称后多少字内算「说它缺」
+
+
+def check_present_god_not_missing(
+    module: str,
+    parsed_output: dict[str, Any],
+    engine_result: dict[str, Any],
+) -> list[str]:
+    """v9-3 权重 >0 不得写缺(P7):同句内十神名或统称后 6 字出现
+    「缺位/缺失/没有/不存在」,而该十神(统称取类内权重之和)权重 >0
+    → fail。违反 v7 ⑥「缺/藏/弱」三分法,真机截图正例:七杀 1(藏于
+    戌)被写成「官杀系统整体缺位」。
+
+    守卫:缺词前 2 字内有否定词(不算/非缺…)跳过——否定提及不是指控;
+    「没有透出/没有露出」= 藏而不透的合规语义,同样跳过。
+    权重为 0 写「缺」是合规措辞,不判。
+    """
+    if module != "m0_structure":
+        return []
+    weights = engine_result["ten_god_weights"]
+    family_weights: dict[str, int] = {}
+    for god, family in _TEN_GOD_FAMILY.items():
+        family_weights[family] = (
+            family_weights.get(family, 0) + weights.get(god, 0))
+    failures: list[str] = []
+    for leaf in _iter_text_leaves(parsed_output):
+        for sentence in _iter_sentences(leaf):
+            for name in _TEN_GOD_NAMES + _TEN_GOD_FAMILY_NAMES:
+                weight = (weights.get(name, 0) if name in _TEN_GOD_NAMES
+                          else family_weights.get(name, 0))
+                if weight <= 0:
+                    continue
+                start = 0
+                while True:
+                    idx = sentence.find(name, start)
+                    if idx < 0:
+                        break
+                    start = idx + len(name)
+                    window = sentence[start:start + _MISSING_WINDOW]
+                    for word in _MISSING_WORDS:
+                        pos = window.find(word)
+                        if pos < 0:
+                            continue
+                        # 「没有透出/没有露出」= 藏而不透的合规措辞(应写
+                        # 藏/未透出,但语义不是指控缺席),不判——宁可漏报
+                        if word == "没有":
+                            after = window[pos + len(word):pos + len(word) + 1]
+                            if after and after[0] in "透露":
+                                continue
+                        word_at = start + pos
+                        before = sentence[max(0, word_at - 2):word_at]
+                        if any(n in before for n in _MISSING_NEGATION_BEFORE):
+                            continue
+                        failures.append(
+                            f"权重>0写缺:「{name}」权重 {weight}>0,"
+                            f"却写「{word}」(权重>0 只能写 藏/弱,"
+                            f"原文:{_clip(sentence)!r})"
+                        )
+    return failures
+
+
+def check_example_plagiarism(
+    module: str,
+    parsed_output: dict[str, Any],
+    engine_result: dict[str, Any],
+) -> list[str]:
+    """v9-5 照抄示例:输出任一叶子字符串含 M0_V9_EXAMPLE_PHRASES 短语
+    → fail。真机截图正例:「先做出能跑的版本」照搬共享 header 的 ✓
+    示例(P5)。清单在模板旁(prompts.py),模板改示例时同步改。"""
+    if module != "m0_structure":
+        return []
+    failures: list[str] = []
+    for leaf in _iter_text_leaves(parsed_output):
+        for phrase in M0_V9_EXAMPLE_PHRASES:
+            if phrase in leaf:
+                failures.append(
+                    f"照抄示例:输出含示例短语「{phrase}」"
+                    f"(示例只演示写法,不得复用;原文:{_clip(leaf)!r})"
+                )
+    return failures
+
+
+# 工程腔禁用词(P4):只统计不判 fail——词表会误伤(如「巩固」偶有日常
+# 义),先观察分布再定是否升级为 fail(plan S2-4 拍板)。runner 把命中
+# 写进 l2.warnings 进 run 报告,不进 failures、不影响 verdict。
+_BANNED_REGISTER_WORDS: tuple[str, ...] = (
+    "通道", "链条", "输出链", "环节", "转换层", "输出端", "吸收端",
+    "这一段", "那一段", "承载", "权柄", "泄漏", "流失", "巩固", "咽喉",
+    "缺位", "对峙", "通关",
+)
+
+
+def collect_banned_register_warnings(
+    module: str,
+    parsed_output: dict[str, Any],
+) -> list[str]:
+    """v9-4 工程腔禁用词统计(不进 failures):扫结论层+展开层字段,
+    命中词写成 warning 字符串。L2 检查接口只返回 failures,本函数是
+    显式的旁路通道,由 runner 并入 l2.warnings。"""
+    if module != "m0_structure":
+        return []
+    warnings: list[str] = []
+    headline_paths = [path for path, _ in _V9_HEADLINE_FIELDS]
+    for path in headline_paths + list(_V9_EXPANSION_FIELDS):
+        value = _resolve_field(parsed_output, path)
+        if not isinstance(value, str):
+            continue
+        hits = sorted({w for w in _BANNED_REGISTER_WORDS if w in value})
+        if hits:
+            warnings.append(
+                f"工程腔词:{'.'.join(path)} 出现 {'、'.join(hits)}")
+    return warnings
+
+
 # ---------- 聚合入口 ----------
 
 def check_grounding(
@@ -786,5 +1053,13 @@ def check_grounding(
     failures += check_flow_no_chain_symbols(
         module, parsed_output, engine_result)
     failures += check_layering_consistency(
+        module, parsed_output, engine_result)
+    failures += check_headline_plain_language(
+        module, parsed_output, engine_result)
+    failures += check_expansion_no_figures(
+        module, parsed_output, engine_result)
+    failures += check_present_god_not_missing(
+        module, parsed_output, engine_result)
+    failures += check_example_plagiarism(
         module, parsed_output, engine_result)
     return failures

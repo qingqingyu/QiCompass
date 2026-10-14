@@ -453,4 +453,192 @@ final class ChapterContentTests: XCTestCase {
         XCTAssertEqual(fields.count, 2, "number text 不消失")
         XCTAssertTrue(fields.contains { $0.label == "text" && $0.value == "5" }, "裸 key + 原值透出")
     }
+
+    // MARK: - M0 v9 白话结论层(2026-10-14,plan docs/命书M0白话结论层-plan.md S3)
+
+    private static let m0V9JSON = """
+    {
+      "main_axis": {
+        "headline": "压力推着你走,你靠「学规矩、攒资历」接住它。",
+        "body": "主导是七杀,也就是外部压力和硬要求;其次是正印,也就是体系、资质和靠山。",
+        "dominant": "七杀、劫财(并列最重)",
+        "secondary": "正印",
+        "latent": "伤官、偏财",
+        "evidence": "七杀与劫财并列最重(各 6)。"
+      },
+      "core_loop": {
+        "headline": "扛压 → 沉淀 → 扛更大的压。",
+        "from": "七杀",
+        "to": "正印",
+        "flow": "每次被逼着解决难题,你都会把它变成一套方法或一份资历。",
+        "driver": "日主庚金偏旺,官杀旺而有印星化之。",
+        "leak": "不爱表现。约 32 岁起的那十年,表达会变得容易。",
+        "evidence": "月柱辛丑,日支午藏丁火正官。"
+      },
+      "structure_type": { "name": "被逼出来的专业型", "one_line": "分量靠一件件扛下来的事攒出来。" },
+      "capability_source": {
+        "headline": "最强在「给你一个难题,并让你自己搭体系」的时候;最弱在要你公开展示、自己推销自己的时候。",
+        "text": "比如接手一个没人碰过的烂摊子,你会先把它拆成一块块可管的小事。",
+        "evidence": "七杀权重 6,与劫财并列最重。"
+      },
+      "structure_fingerprint": "杀劫并列,以规矩和资历承压"
+    }
+    """
+
+    func test_m0_v9AssemblesThreeLayers() {
+        guard let content = ChapterContent.parse(Self.m0V9JSON, for: .m0) else {
+            return XCTFail("v9 形态应特化解析成功")
+        }
+        // 阅读序:主线 / 核心循环 / 结构类型 / 能力来源 / 据(D6:无运转概括)
+        XCTAssertEqual(content.nodes.count, 5)
+
+        guard case .section("主线", let mainChildren) = content.nodes[0] else {
+            return XCTFail("首节点应为「主线」,实际:\(content.nodes[0])")
+        }
+        guard case .headline(let mainHeadline)? = mainChildren.first,
+              case .lead(let mainBody)? = mainChildren.dropFirst().first else {
+            return XCTFail("主线应为 结论句→展开 两层,实际:\(mainChildren)")
+        }
+        XCTAssertTrue(mainHeadline.contains("压力推着你走"))
+        XCTAssertTrue(mainBody.contains("七杀"))
+
+        guard case .section("核心循环", let loopChildren) = content.nodes[1] else {
+            return XCTFail("次节点应为「核心循环」")
+        }
+        guard case .headline(let loopHeadline)? = loopChildren.first else {
+            return XCTFail("循环首子节点应为结论句,实际:\(loopChildren)")
+        }
+        XCTAssertTrue(loopHeadline.contains("扛压"))
+        let loopProse = loopChildren.dropFirst().compactMap { node -> String? in
+            if case .lead(let s) = node { return s }
+            return nil
+        }
+        XCTAssertEqual(loopProse.count, 2, "flow/leak 应为两段散文,不带「流向/损耗」小标签")
+        XCTAssertTrue(loopProse[0].contains("方法"), "flow 在前")
+        XCTAssertTrue(loopProse[1].contains("32 岁"), "leak 在后")
+        XCTAssertFalse(loopChildren.contains {
+            if case .inlineLabel = $0 { return true }
+            return false
+        }, "v9 循环节不得出现行内标签段")
+
+        guard case .section("结构类型", let typeChildren) = content.nodes[2] else {
+            return XCTFail("第三节点应为「结构类型」")
+        }
+        guard case .headline(let name)? = typeChildren.first else {
+            return XCTFail("name 应作结论句(无「名称 ·」标签),实际:\(typeChildren)")
+        }
+        XCTAssertEqual(name, "被逼出来的专业型")
+        guard case .lead(let oneLine)? = typeChildren.dropFirst().first else {
+            return XCTFail("one_line 应作展开段")
+        }
+        XCTAssertTrue(oneLine.contains("攒出来"))
+
+        guard case .section("能力来源", let capChildren) = content.nodes[3] else {
+            return XCTFail("第四节点应为「能力来源」")
+        }
+        guard case .headline(let capHeadline)? = capChildren.first,
+              case .lead(let capText)? = capChildren.dropFirst().first else {
+            return XCTFail("能力来源应为 结论句→展开 两层,实际:\(capChildren)")
+        }
+        XCTAssertTrue(capHeadline.contains("最强在"))
+        XCTAssertTrue(capText.contains("烂摊子"))
+
+        // 据 fold 固定序:分层 → 起止 → 驱动 → 各节 evidence
+        guard case .evidenceFold(let notes) = content.nodes[4] else {
+            return XCTFail("末节点应为据折叠,实际:\(content.nodes[4])")
+        }
+        XCTAssertEqual(notes.count, 6)
+        XCTAssertEqual(notes[0].label, "主线")
+        XCTAssertEqual(notes[0].text, "主导 七杀、劫财(并列最重) · 次要 正印 · 潜伏 伤官、偏财")
+        XCTAssertEqual(notes[1].label, "核心循环")
+        XCTAssertEqual(notes[1].text, "起点 七杀　终点 正印")
+        XCTAssertEqual(notes[2].label, "驱动")
+        XCTAssertEqual(notes[3].label, "主线", "evidence 段开始")
+        XCTAssertEqual(notes[4].label, "核心循环")
+        XCTAssertEqual(notes[5].label, "能力来源")
+    }
+
+    func test_m0_v9FingerprintHidden() {
+        // D6:v9 不展示 structure_fingerprint(仍产出,下游链式照常继承);
+        // v7 的运转概括引言段由既有 test_m0_moduleAssemblesInlineLabels 锁定
+        guard let content = ChapterContent.parse(Self.m0V9JSON, for: .m0) else {
+            return XCTFail("v9 形态应特化解析成功")
+        }
+        XCTAssertFalse(content.nodes.contains { node in
+            if case .lead(let s) = node { return s.contains("承压") }
+            return false
+        }, "v9 顶层不得出现运转概括引言段")
+    }
+
+    func test_m0_v9MissingSectionHeadlineStillRendersSection() {
+        // 某节缺 headline:该节照常渲染其余字段,不丢内容(plan S3-5)
+        let json = """
+        {
+          "main_axis": { "headline": "压力推着你走。", "body": "主导是七杀,也就是外部压力。" },
+          "core_loop": { "from": "七杀", "to": "正印", "flow": "压力被吸收为方法。" },
+          "capability_source": { "text": "你最强的时刻,是硬需求递到手上的时候。" }
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m0) else {
+            return XCTFail("缺 headline 的 v9 形态(main_axis 有 headline)仍应特化")
+        }
+        guard content.nodes.count > 1,
+              case .section("核心循环", let loopChildren) = content.nodes[1] else {
+            return XCTFail("核心循环节应在,实际:\(content.nodes)")
+        }
+        XCTAssertTrue(loopChildren.contains {
+            if case .lead(let s) = $0 { return s.contains("压力被吸收") }
+            return false
+        }, "flow 不得因缺 headline 丢失")
+        guard content.nodes.count > 2,
+              case .section("能力来源", let capChildren) = content.nodes[2] else {
+            return XCTFail("能力来源节应在")
+        }
+        XCTAssertTrue(capChildren.contains {
+            if case .lead(let s) = $0 { return s.contains("硬需求") }
+            return false
+        }, "text 不得因缺 headline 丢失")
+        // 起止行仍进据 fold
+        guard case .evidenceFold(let notes)? = content.nodes.last else {
+            return XCTFail("据折叠应在")
+        }
+        XCTAssertTrue(notes.contains { $0.text.contains("起点 七杀") })
+    }
+
+    func test_m0_v9PartialLayersKeptInFoldLine() {
+        // 分层行:缺的层跳过,不写「主导 —」占位
+        let json = """
+        {
+          "main_axis": { "headline": "机会推着你走。", "secondary": "食神", "latent": "比肩" },
+          "core_loop": { "headline": "看见 → 做出 → 再看。" }
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m0),
+              case .evidenceFold(let notes)? = content.nodes.last else {
+            return XCTFail("应解析出据折叠")
+        }
+        XCTAssertEqual(notes.first?.text, "次要 食神 · 潜伏 比肩", "缺 dominant 不占位")
+    }
+
+    func test_m0_v9ExtraKeysNotSilentlyDropped() {
+        // v9 兜底口径与 v7 相同:未消费键走通用节点(内容不丢)
+        let json = """
+        {
+          "main_axis": {
+            "headline": "压力推着你走。",
+            "body": "主导是七杀,也就是外部压力。",
+            "extra_note": "schema 外的键"
+          },
+          "core_loop": { "headline": "扛压 → 沉淀。" }
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m0),
+              case .section("主线", let mainChildren)? = content.nodes.first else {
+            return XCTFail("v9 应解析成功")
+        }
+        XCTAssertTrue(mainChildren.contains {
+            if case .lead(let s) = $0 { return s == "schema 外的键" }
+            return false
+        }, "schema 外的键应走通用引言段渲染(v7 同款兜底),不静默丢")
+    }
 }

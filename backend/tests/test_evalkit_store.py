@@ -260,9 +260,13 @@ def test_diff_identity_diff_reported(tmp_path):
 
 
 _VALID_RESPONSES = {
+    # v9 形态:四条结论句齐全(L2 v9-1「结论层缺失」判据)
     "m0_structure": {
-        "main_axis": {}, "core_loop": {}, "structure_type": {},
-        "capability_source": {}, "structure_fingerprint": "伤官生财测试指纹",
+        "main_axis": {"headline": "压力推着你走,测试结论。"},
+        "core_loop": {"headline": "扛压 → 沉淀 → 扛更大的压。"},
+        "structure_type": {"name": "测试专业型"},
+        "capability_source": {"headline": "最强在测试的时候。"},
+        "structure_fingerprint": "伤官生财测试指纹",
     },
     "m1_talent": {"innate": [], "trained": [], "defensive": [],
                   "one_leverage": "创造力"},

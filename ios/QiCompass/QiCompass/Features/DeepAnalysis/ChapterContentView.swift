@@ -84,6 +84,8 @@ private struct NodeView: View {
             }
         case .inlineLabel(let label, let text):
             inlineLabelParagraph(label: label, text: text)
+        case .headline(let text):
+            headlineParagraph(text)
         case .loopFromTo(let from, let to):
             loopFromToLine(from: from, to: to)
         case .evidenceFold(let notes):
@@ -126,6 +128,8 @@ private struct NodeView: View {
     private var proseLineSpacing: CGFloat { 7 }
     /// 键值/条目行距同款。
     private var valueLineSpacing: CGFloat { 4 }
+    /// 结论句行距(M0 v9):17pt 大字一行为主,行距略收于正文。
+    private var headlineLineSpacing: CGFloat { 6 }
 
     /// 引言段:与阅读页散文态同规格(16pt · 行距 ~1.65× · 缩进 2em)。
     private func leadParagraph(_ text: String) -> some View {
@@ -197,6 +201,19 @@ private struct NodeView: View {
             .font(BaziFont.body(size: 16))
             .foregroundStyle(BaziTheme.ink))
             .lineSpacing(valueLineSpacing)
+            .fixedSize(horizontal: false, vertical: true)
+    }
+
+    /// 结论句(M0 v9 白话结论层,2026-10-14):每节第一层——白话结论,
+    /// 不缩进、无标签,与缩进 2em 的展开段在版面上自然分层。
+    /// Kaiti `.custom` 不吃 weight(BaziFont.swift:43),「加粗」不可用,
+    /// 靠字号(display 17 > 正文 16)+ 浓墨 + 不缩进区分;不加新颜色、
+    /// 无朱红(DESIGN.md)。样式经用户真机截图确认后定稿(plan S3-4)。
+    private func headlineParagraph(_ text: String) -> some View {
+        Text(text)
+            .font(BaziFont.display(size: 17))
+            .foregroundStyle(BaziTheme.ink)
+            .lineSpacing(headlineLineSpacing)
             .fixedSize(horizontal: false, vertical: true)
     }
 

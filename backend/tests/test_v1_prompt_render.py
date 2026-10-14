@@ -272,8 +272,10 @@ def test_v1_prompt_versions_registry_matches_expected():
     # 十神归类与地支五行自检/数据口径声明/短板配条件出路/字段职责去重。
     # v8(m0) 2026-10-13 review 修复:flow/leak 代价矛盾/从格示例去样本盘
     # 干支/zh·zh-hant 补「数字只进 evidence 式句子」规则(对齐 EN v7)。
+    # v9(m0) 2026-10-14 白话结论层:每题三层(白话结论/展开/据)+十神白话
+    # 释义表+数字干支只进据+工程腔禁词+示例句不得复用(plan 见 docs)。
     expected = {m: 2 for m in v1_modules}
-    expected["m0_structure"] = 8
+    expected["m0_structure"] = 9
     expected["m1_talent"] = 5
     expected["m2_high_low"] = 6
     expected["m3_system"] = 6
