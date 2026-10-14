@@ -547,6 +547,13 @@ def test_geju_wordlist_hit_not_double_reported():
     assert len(geju_hits) == 1
 
 
+def test_geju_bugouge_daily_word_passes():
+    """2026-10-14 v9 全量 run 实踩:「两项力量不够格当杠杆」误杀——
+    够格/不够格是日常「资格」义,同 满格/掉格 族白名单。"""
+    out = {"s": "你的另外两项力量不够格当杠杆,先把手上的做实。"}
+    assert check_no_hard_geju("m7_manual", out, _engine()) == []
+
+
 def test_geju_duplicate_token_reported_once():
     """同一 leaf 内同一复合格名出现两次(真机括注重复原文)只报一条。"""
     out = {"name": "杀印相生格(杀印相生格)"}
