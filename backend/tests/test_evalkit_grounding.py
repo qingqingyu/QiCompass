@@ -402,10 +402,15 @@ from functools import lru_cache  # noqa: E402
 
 from evalkit.checks.grounding import (  # noqa: E402
     check_branch_element_attribution,
+    check_example_plagiarism,
+    check_expansion_no_figures,
     check_flow_no_chain_symbols,
+    check_headline_plain_language,
     check_layering_consistency,
     check_no_machine_field_names,
+    check_present_god_not_missing,
     check_ten_god_category_attribution,
+    collect_banned_register_warnings,
 )
 
 
@@ -833,3 +838,372 @@ def test_aggregate_m0_sample_hits_all_six_categories():
     )
     for marker in markers:
         assert any(marker in f for f in failures), f"缺 {marker} 命中"
+
+
+# ===== 7. M0 白话结论层(v9 批,2026-10-14) =====
+#
+# 夹具:样本盘 2(癸酉乙卯辛丑戊戌)权重形态——偏财 8 = 正印 8 并列,
+# 食神 6,比肩 5,偏印 3,劫财 2,七杀 1,正官 0,伤官 0。截图正例来自
+# 用户真机 v7 输出原文,目标样例来自 plan §0.1。
+
+
+def _v9_engine():
+    """样本盘 2 权重形态(癸酉乙卯辛丑戊戌),挂在样本盘 1 的真排盘上
+    (A5 聚合入口要 build_v1_chart,须完整引擎输出;权重才归本检查管)。
+    必须浅拷贝后覆写:_sample_engine() 被 lru_cache 缓存,原地改写会把
+    样本盘 2 权重泄漏给之后所有 _sample_engine() 调用方(测试间污染)。"""
+    engine = dict(_sample_engine())
+    engine["ten_god_weights"] = {
+        "偏财": 8, "正印": 8, "食神": 6, "比肩": 5, "偏印": 3,
+        "劫财": 2, "七杀": 1, "正官": 0, "伤官": 0,
+    }
+    return engine
+
+
+# v7 截图问题形态复合(P1 术语+干支+数字 / P5 照抄示例 / P6 箭头 /
+# P7 权重>0 写缺 / P2 结构名术语)
+_SAMPLE_M0_V9_SCREENSHOT_OUTPUT = {
+    "main_axis": {
+        "headline": "偏财与正印并列主导,偏财重 8,天干月令透偏财(乙卯)",
+        "body": "你先做出能跑的版本,再拿它去换空间;偏财重 8。",
+        "dominant": "偏财、正印(并列最重)",
+        "secondary": "食神",
+        "latent": "比肩",
+        "evidence": "偏财权重 8,月干乙木透出。",
+    },
+    "core_loop": {
+        "headline": "抓机会 → 沉淀资历 → 抓更大的机会",
+        "from": "偏财", "to": "正印",
+        "flow": "正印生比肩 → 比肩生食神 → 食神生偏财",
+        "driver": "日主辛金,月令卯木当令。",
+        "leak": "官杀系统整体缺位,吸收与抓取两端等重,输出一多吸收就被压缩。",
+        "evidence": "月柱乙卯。",
+    },
+    "structure_type": {"name": "印财对峙、食伤通关型", "one_line": "两端拉锯。"},
+    "capability_source": {
+        "headline": "最强在抓机会的时候;最弱在沉淀的时候。",
+        "text": "机会来了你先上。",
+        "evidence": "偏财权重 8。",
+    },
+    "structure_fingerprint": "财印并重,抓取与沉淀轮流主导",
+}
+
+# plan §0.1 目标样例(白话结论层合规形态)
+_SAMPLE_M0_V9_TARGET_OUTPUT = {
+    "main_axis": {
+        "headline": "压力推着你走,你靠「学规矩、攒资历」接住它。",
+        "body": "主导是七杀,也就是外部压力和硬要求;其次是正印,也就是"
+                "体系、资质和靠山。藏着没发挥出来的,是表达力和赚钱能力。",
+        "dominant": "七杀、劫财(并列最重)",
+        "secondary": "正印",
+        "latent": "伤官、偏财",
+        "evidence": "七杀与劫财并列最重(各 6);日主庚金偏旺。",
+    },
+    "core_loop": {
+        "headline": "扛压 → 沉淀 → 扛更大的压。",
+        "from": "七杀", "to": "正印",
+        "flow": "每次被逼着解决难题,你都会把它变成一套方法或一份资历,"
+                "这又让你接得住下一个更重的担子。",
+        "driver": "日主庚金偏旺,官杀旺而有印星化之。",
+        "leak": "不爱表现:事情做成了也不太会讲出来。约 32 岁起的那十年,"
+                "表达会变得容易;眼下可以先在小范围讲给同伴听。",
+        "evidence": "月柱辛丑,日支午藏丁火正官。",
+    },
+    "structure_type": {"name": "被逼出来的专业型",
+                       "one_line": "分量靠一件件扛下来的事攒出来。"},
+    "capability_source": {
+        "headline": "最强在「给你一个难题,并让你自己搭体系」的时候;"
+                    "最弱在要你公开展示、自己推销自己的时候。",
+        "text": "比如接手一个没人碰过的烂摊子,你会先把它拆成一块块"
+                "可管的小事,一件件收口。",
+        "evidence": "七杀权重 6,与劫财并列最重。",
+    },
+    "structure_fingerprint": "杀劫并列,以规矩和资历承压",
+}
+
+
+# ---- 7a. v9-1 结论层无术语 ----
+
+
+def test_headline_screenshot_fails_three_ways():
+    """截图正例:headline 同踩 术语+干支+数字(P1)。"""
+    out = {"main_axis": _SAMPLE_M0_V9_SCREENSHOT_OUTPUT["main_axis"]}
+    failures = check_headline_plain_language(
+        "m0_structure", out, _v9_engine())
+    assert any("结论层含术语" in f and "偏财" in f for f in failures)
+    assert any("结论层含干支" in f and "乙卯" in f for f in failures)
+    assert any("结论层含数字" in f for f in failures)
+
+
+def test_headline_name_screenshot_fails():
+    """截图正例:name「印财对峙、食伤通关型」——单字简称只在 name 判。"""
+    out = {"structure_type": {"name": "印财对峙、食伤通关型"}}
+    failures = check_headline_plain_language(
+        "m0_structure", out, _v9_engine())
+    assert any("结论层含术语" in f and "食伤" in f for f in failures)
+    # 单字印/财在 name 里也算术语
+    assert any("结论层含术语" in f and "印" in f and "财" in f
+               for f in failures)
+
+
+def test_headline_single_char_daily_word_passes():
+    """反例:非 name 的 headline 里「财」是日常用词(指钱),不判
+    (四条结论齐全,排除 v9-1 缺失项的干扰)。"""
+    out = {
+        "main_axis": {"headline": "钱跟着作品走,财气跟着名气涨。"},
+        "core_loop": {"headline": "扛压 → 沉淀 → 扛更大的压。"},
+        "capability_source": {"headline": "最强在从零搭体系的时候。"},
+        "structure_type": {"name": "被逼出来的专业型"},
+    }
+    assert check_headline_plain_language(
+        "m0_structure", out, _v9_engine()) == []
+
+
+def test_headline_target_sample_passes():
+    """plan §0.1 目标样例四条结论全过。"""
+    assert check_headline_plain_language(
+        "m0_structure", _SAMPLE_M0_V9_TARGET_OUTPUT, _v9_engine()) == []
+
+
+def test_headline_missing_fails():
+    """headline 缺失即 fail(v9 三层契约:结论句是第一层)。"""
+    failures = check_headline_plain_language(
+        "m0_structure", {"main_axis": {"dominant": "七杀"}}, _v9_engine())
+    assert any("结论层缺失" in f and "main_axis.headline" in f
+               for f in failures)
+
+
+def test_headline_gated_to_m0():
+    out = {"structure_type": {"name": "印财对峙"}}
+    assert check_headline_plain_language(
+        "m1_talent", out, _v9_engine()) == []
+
+
+def test_headline_ganzhi_element_note_fails():
+    """结论层干支含「干支+五行注记」形态(壬水)。"""
+    out = {"main_axis": {"headline": "壬水生木,机会跟着来。"}}
+    failures = check_headline_plain_language(
+        "m0_structure", out, _v9_engine())
+    assert any("结论层含干支" in f and "壬水" in f for f in failures)
+
+
+# ---- 7b. v9-2 展开层无数字 ----
+
+
+def test_expansion_screenshot_fails():
+    """截图正例:body「偏财重 8」(P1 数字进正文)。"""
+    out = {"main_axis": _SAMPLE_M0_V9_SCREENSHOT_OUTPUT["main_axis"]}
+    failures = check_expansion_no_figures(
+        "m0_structure", out, _v9_engine())
+    assert any("展开层含数字" in f and "main_axis.body" in f
+               for f in failures)
+
+
+def test_expansion_age_exempt_passes():
+    """「约 32 岁起的那十年」是唯一例外(v9 大运写法)。"""
+    out = {"core_loop": {"leak": "约 32 岁起的那十年,表达会变得容易。"}}
+    assert check_expansion_no_figures(
+        "m0_structure", out, _v9_engine()) == []
+
+
+def test_expansion_target_sample_passes():
+    assert check_expansion_no_figures(
+        "m0_structure", _SAMPLE_M0_V9_TARGET_OUTPUT, _v9_engine()) == []
+
+
+def test_expansion_fullwidth_digit_fails():
+    """全角数字也是阿拉伯数字的排版变体,不豁免(年龄语境除外)。"""
+    out = {"core_loop": {"leak": "吸收被压缩,付出３倍心力才缓解。"}}
+    failures = check_expansion_no_figures(
+        "m0_structure", out, _v9_engine())
+    assert any("展开层含数字" in f for f in failures)
+
+
+def test_expansion_missing_field_skips():
+    assert check_expansion_no_figures(
+        "m0_structure", {}, _v9_engine()) == []
+
+
+def test_expansion_ganzhi_cite_fails():
+    """样本盘实跑实踩:leak 写大运干支(丁未)/干支+五行注记(壬水/庚金)。
+    v9 大运条件句只写「约 X 岁起的那十年」,干支落 evidence。"""
+    cases = [
+        {"core_loop": {"leak": "约四十六岁起的丁未运里,压力明显变多。"}},
+        {"core_loop": {"leak": "那两步大运天干是壬水、癸水,表达会顺一些。"}},
+        {"core_loop": {"leak": "约四十六岁起的那十年(庚金、戌土)帮身。"}},
+    ]
+    for out in cases:
+        failures = check_expansion_no_figures(
+            "m0_structure", out, _v9_engine())
+        assert any("展开层含干支" in f for f in failures), out
+
+
+def test_expansion_daily_words_with_branch_chars_pass():
+    """反例:日常词里的地支字(中午/孩子/申请)不误判。"""
+    out = {"core_loop": {
+        "flow": "他中午刚过就提交了申请,孩子喝了热水也没上火。"}}
+    assert check_expansion_no_figures(
+        "m0_structure", out, _v9_engine()) == []
+
+
+# ---- 7c. v9-3 权重>0 不得写缺 ----
+
+
+def test_present_god_missing_screenshot_fails():
+    """截图正例(P7):七杀 1(藏于戌)被写成「官杀系统整体缺位」。"""
+    out = {"core_loop": _SAMPLE_M0_V9_SCREENSHOT_OUTPUT["core_loop"]}
+    failures = check_present_god_not_missing(
+        "m0_structure", out, _v9_engine())
+    assert any("权重>0写缺" in f and "官杀" in f for f in failures)
+
+
+def test_present_god_wording_outside_lexicon_passes():
+    out = {"s": "七杀仅 1,藏于时支戌中不透,几乎没有存在感"}
+    # 「没有」后是「存」不触发透露守卫;「存在感」不等于「不存在」词表
+    # → 期望不误报(宁可漏报立场:词表之外的写法不追)
+    assert check_present_god_not_missing(
+        "m0_structure", out, _v9_engine()) == []
+
+
+def test_present_god_zero_weight_missing_passes():
+    """权重 0 写「缺」是合规措辞(三分法之「缺」)。"""
+    out = {"s": "正官为 0,此盘正官缺失,名分感要自己挣。"}
+    assert check_present_god_not_missing(
+        "m0_structure", out, _v9_engine()) == []
+
+
+def test_present_god_hidden_wording_passes():
+    """「没有透出」= 藏而不透的合规语义,不判。"""
+    out = {"s": "正财没有透出,藏在年支里,收入要靠时间攒。"}
+    assert check_present_god_not_missing(
+        "m0_structure", out, _v9_engine()) == []
+
+
+def test_present_god_negated_missing_passes():
+    """否定提及(「不算缺失」)不是指控。"""
+    out = {"s": "七杀只有 1,不算缺失,它是藏在时支里的硬要求。"}
+    assert check_present_god_not_missing(
+        "m0_structure", out, _v9_engine()) == []
+
+
+def test_present_god_far_window_passes():
+    """超过 6 字窗口的「缺」不归到该十神头上(远距另有所指)。"""
+    out = {"s": "官杀系统在漫长岁月的磨炼里被反复使用,整体缺位感并不存在"}
+    # 「缺位感并不存在」前 2 字含「不」→ 否定守卫;整句不判
+    assert check_present_god_not_missing(
+        "m0_structure", out, _v9_engine()) == []
+
+
+def test_present_god_gated_to_m0():
+    out = {"s": "官杀系统整体缺位。"}
+    assert check_present_god_not_missing(
+        "m1_talent", out, _v9_engine()) == []
+
+
+# ---- 7d. v9-4 工程腔禁用词(只统计不判 fail) ----
+
+
+def test_banned_register_collects_warning():
+    out = {"core_loop": {"flow": "转化通道保持畅通,但输出链有损耗。"}}
+    warnings = collect_banned_register_warnings("m0_structure", out)
+    assert any("通道" in w for w in warnings)
+    assert any("输出链" in w for w in warnings)
+
+
+def test_banned_register_not_in_failures():
+    """词表命中只进 warnings,聚合 failures 不受影响(plan S2-4)。
+    部分输出会让 v9-1 报「结论层缺失」,属另一检查的职责——本条只断言
+    工程腔词不进 failures。"""
+    out = {"core_loop": {"flow": "转化通道保持畅通。"}}
+    failures = check_grounding("m0_structure", out, _v9_engine())
+    assert all("工程腔" not in f for f in failures)
+    assert collect_banned_register_warnings("m0_structure", out)
+
+
+def test_banned_register_gated_to_m0():
+    out = {"s": "通道畅通。"}
+    assert collect_banned_register_warnings("m1_talent", out) == []
+
+
+# ---- 7e. v9-5 照抄示例 ----
+
+
+def test_plagiarism_screenshot_fails():
+    """截图正例(P5):「先做出能跑的版本」照搬共享 header ✓ 示例。"""
+    out = {"main_axis": _SAMPLE_M0_V9_SCREENSHOT_OUTPUT["main_axis"]}
+    failures = check_example_plagiarism(
+        "m0_structure", out, _v9_engine())
+    assert any("照抄示例" in f and "能跑的版本" in f for f in failures)
+
+
+def test_plagiarism_v9_sample_phrases_fail():
+    out = {"structure_type": {"name": "想到就做的作品型"}}
+    failures = check_example_plagiarism(
+        "m0_structure", out, _v9_engine())
+    assert any("想到就做的作品型" in f for f in failures)
+
+
+def test_plagiarism_target_sample_passes():
+    assert check_example_plagiarism(
+        "m0_structure", _SAMPLE_M0_V9_TARGET_OUTPUT, _v9_engine()) == []
+
+
+def test_plagiarism_gated_to_m0():
+    out = {"s": "先做出能跑的版本。"}
+    assert check_example_plagiarism("m1_talent", out, _v9_engine()) == []
+
+
+# ---- 7f. 回归:A3/A4 在 v9 新形态下 ----
+
+
+def test_layering_v9_dominant_shape_passes():
+    """v9 dominant 只写十神名(「偏财、正印(并列最重)」)+ 括号是
+    标注不是成员列举——首个十神领衔仍正确判定。"""
+    out = {"main_axis": {"dominant": "偏财、正印(并列最重)",
+                         "latent": "比肩、劫财"}}
+    assert check_layering_consistency(
+        "m0_structure", out, _v9_engine()) == []
+
+
+def test_layering_v9_tie_in_latent_fails():
+    out = {"main_axis": {"dominant": "偏财、正印(并列最重)",
+                         "latent": "正印、比肩"}}
+    failures = check_layering_consistency(
+        "m0_structure", out, _v9_engine())
+    assert any("分层失真" in f and "正印" in f for f in failures)
+
+
+def test_flow_v9_headline_arrows_not_judged():
+    """A4 只读 flow;headline 的白话箭头(「扛压 → 沉淀 → …」)不误判。"""
+    out = {"core_loop": {
+        "headline": "扛压 → 沉淀 → 扛更大的压",
+        "flow": "每次被逼着解决难题,你都会把它变成一套方法或一份资历。",
+    }}
+    assert check_flow_no_chain_symbols(
+        "m0_structure", out, _v9_engine()) == []
+
+
+# ---- 7g. 聚合:plan S2 验收(v9 四条全部命中) ----
+
+
+def test_aggregate_m0_v9_screenshot_hits_all_four():
+    """截图问题形态喂聚合入口:1/2/3/5 四类 failure 全部命中。"""
+    failures = check_grounding(
+        "m0_structure", _SAMPLE_M0_V9_SCREENSHOT_OUTPUT, _v9_engine())
+    markers = (
+        "结论层含术语",       # v9-1(P1+P2)
+        "展开层含数字",       # v9-2(P1)
+        "权重>0写缺",         # v9-3(P7)
+        "照抄示例",           # v9-5(P5)
+    )
+    for marker in markers:
+        assert any(marker in f for f in failures), f"缺 {marker} 命中"
+
+
+def test_aggregate_m0_v9_target_sample_only_expected_hits():
+    """目标样例跑聚合:v9 四项零命中(允许 A3 类既有判据按需另判)。
+    本例权重七杀 6=劫财 6,dominant/latent 排序正确 → 全绿。"""
+    failures = check_grounding(
+        "m0_structure", _SAMPLE_M0_V9_TARGET_OUTPUT, _sample_engine())
+    v9_markers = ("结论层", "展开层含数字", "权重>0写缺", "照抄示例")
+    assert not any(m in f for f in failures for m in v9_markers)

@@ -270,9 +270,27 @@ S1 → S2(同一批,evalkit 要用 v9 输出验证)→ 两张样本盘实跑 + `
 
 ## 8. 实施记录(实施方填写)
 
-- [ ] S1 完成,commit:
-- [ ] S2 完成,commit:
-- [ ] S3 完成,commit:
-- 样本盘实跑:
-- evalkit 结果:
-- 偏离本 plan 的地方及理由:
+- [x] S1 完成(2026-10-14,bug2 worktree):三语 `m0_structure_v9.md` 建齐(zh 与 `M0_STRUCTURE_TEMPLATE` byte-identical,脚本拼接+断言);`PROMPT_VERSIONS["m0_structure"]` 8→9 带注释;`check_prompt_sync` PASS;`test_i18n`/`test_v1_prompt_render` 绿
+- [x] S2 完成:`grounding.py` 新增 v9-1(结论层无术语/干支/数字+headline 缺失即 fail)/v9-2(展开层无数字[年龄豁免]与**干支**)/v9-3(权重>0 不得写缺,含「没有透出」藏而不透守卫与否定提及守卫)/v9-5(照抄示例,清单 `M0_V9_EXAMPLE_PHRASES` 放 prompts.py 模板旁)四项 fail 检查 + v9-4 工程腔词 `collect_banned_register_warnings` warnings 旁路(runner 写入 `l2.warnings` 进 results,不进 failures/verdict);A3/A4 v9 新形态回归用例;`test_evalkit_grounding` 161 绿;截图问题形态与 §0.1 目标样例双夹具
+- [x] S3 完成:`ChapterContent` 新增 `.headline(String)` 节点 + `m0V9Nodes` 三层组装(`main_axis.headline` 存在即走 v9,v7 老路径逐字节不变);`ChapterContentView` 结论句样式 = display 17pt + 浓墨 + 不缩进(Kaiti `.custom` 不吃 weight);据 fold 固定序(分层行→起止行→驱动→各节 evidence);D6 fingerprint 一律消费不展示;未消费键通用渲染 + os_log 留痕(v7 兜底口径照搬);零新增 xcstrings key;`ChapterContentTests` 25 绿(含 v9 全树断言/缺 headline 不丢内容/分层行缺层不占位/fingerprint 隐藏/schema 外键不丢)
+- 样本盘实跑(2 盘 ×3 次 ×6 轮模板迭代,共 ~36 次真调):结论层(headline/name)30+ 次调用零违约;展开层干支引用为顽固尾部(模型侧 ~30-50% 概率,三轮模板加压不收敛——已从「禁止」升级到「✗/✓ 对比 + evidence 落锚出口」),机器检查 100% 兜底;照抄示例在规则+检查落地后降为偶发(1/30);GLM JSON 格式波动 ~3/30(未转义引号/缺闭合括号,后端 `_validate_v1_module_json` 显式拒绝不进缓存,既有行为)
+- evalkit 结果:见下方「全量 run」
+- [ ] 真机走查:两张样本盘截图 + 结论句样式确认(用户步骤)
+- [ ] commit 三段式 + 双 review 收敛
+
+### 全量 run(2026-10-14)
+
+- run id:`20261014T003509-0ad3ce`(真跑 20 盘 × 8 模块 + 裁判)
+- 结果:【待填:pass/warn/fail/error 分布;m0 失败逐条归类;与 BASELINE `20261012T161603` 对比 regressed 清单与分诊结论】
+
+### 偏离本 plan 的地方及理由
+
+1. **S2 新增「展开层无干支」检查**(plan 原只列结论层禁干支):样本盘实跑发现 leak 大运条件句高频引用干支(「丁未」「壬水」「庚金、戌土」三形态),字段职责表本就禁——检查形态 = 干支组合 + 干支配五行注记(反向支+干与散见单字不判,日常词「中午/孩子/申请」反例锁定)
+2. **模板比 plan 多三轮加压**:①纪律短板条款与「数字只进据」自相矛盾(旧文要「引用实际干支」)——改写为「展开层只写约 X 岁,干支落 evidence」;②规则 4 加显式禁令 + 校验行;③✗/✓ 对比示例 + evidence 落锚出口(「X 岁段:(实际干支)运」)。示例一律用「某某运」占位,不写死干支(v8 从格示例照抄编造的先例)
+3. **v9-4 实现为 `l2.warnings` 旁路**:plan 预案「L2 出不了 warn 就做成 run 报告统计项」——warnings 进 results.jsonl 不进 failures,`compute_verdict` 不读该键(单测锁定不进 verdict)
+4. **裁判/存储测试 stub 升 v9 形态**(`test_evalkit_judge`/`test_evalkit_store` 的 mock M0 输出补四条 headline):v9-1「结论层缺失」会把裁判 warn 场景误判成 L2 fail
+5. 样本 2 排盘参数:`1993-03-21T20:00+08:00` + 经度 114.06(深圳),四柱核验 = 癸酉 乙卯 辛丑 戊戌 ✓
+
+### 双 review(2026-10-14,子 agent 三轮收敛)
+
+13 发现 / 6 修复:headline 行距魔法数提常量、两条测试名实不符修正、归档错节归位、`_v9_engine` 原地污染 `@lru_cache` 的 `_sample_engine`(改为浅拷贝,防测试顺序依赖)、`_STEM_BRANCH_RE` 死常量删除、warnings 收集循环合并(无行为变更)。**记录不修**:①eval.sh UI 不显示 `l2.warnings`(统计项已随 results.jsonl 落盘,UI 增量另起);②v9 判据词表 zh-only(`岁/缺失/十神简体`)——evalkit cases 全 zh 与既有判据同口径,多语言 run 立项前扩展。
