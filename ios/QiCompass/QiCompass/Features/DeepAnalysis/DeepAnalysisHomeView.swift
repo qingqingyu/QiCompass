@@ -13,6 +13,7 @@ import SwiftUI
 /// hourUnknownDayDetermined 显示「时」印补时辰拦截态,不卖)。hero 时柱
 /// 空位 = dashed 圆位,点击进补时辰 sheet(D7 触点 1,同 PillarsTable)。
 struct DeepAnalysisHomeView: View {
+    @Environment(\.accessibilityReduceMotion) private var accessibilityReduceMotion
     @Bindable var vm: DeepAnalysisViewModel
     let response: BaziResponse
     let request: BaziCalculateRequest
@@ -35,6 +36,11 @@ struct DeepAnalysisHomeView: View {
     /// 重挂载只看 ›(印章落定后由 onSettled 回调登记;冷启动 hydrate 的行
     /// cached=true,由挂载条件另行排除)。
     @State private var stampedModules: Set<ModuleID> = []
+
+    /// 排队章点击轻提示(2026-10-15):底部水墨小卡 ~2.2s 自收;连点撤旧
+    /// 计时重起(仿 ChainDoneToast 防叠队列)。
+    @State private var queuedHintShown = false
+    @State private var queuedHintTask: Task<Void, Never>?
 
     /// 从格:hero 竖注与喜忌行降级(喜忌留空,详见命书)。
     private var isSpecialPattern: Bool {
@@ -92,7 +98,39 @@ struct DeepAnalysisHomeView: View {
                 }
             }
         }
+        // 排队章点击轻提示:页内底部浮层(不与顶部的整链完成 toast 抢位)
+        .overlay(alignment: .bottom) {
+            if queuedHintShown {
+                QueuedChapterHintToast(text: L10n.DeepChain.tocQueuedHint)
+                    .padding(.bottom, 96)
+                    .transition(
+                        accessibilityReduceMotion
+                            ? .opacity
+                            : .opacity.combined(with: .move(edge: .bottom))
+                    )
+            }
+        }
         .onAppear { refreshNotifyAuthorized() }
+    }
+
+    /// 排队章轻提示显隐(~2.2s 自收;连点撤旧计时重起)。
+    private func showQueuedHint() {
+        queuedHintTask?.cancel()
+        withAnimation(.easeOut(duration: 0.3)) {
+            queuedHintShown = true
+        }
+        // VoiceOver:2.2s 瞬态浮层焦点不落上去,主动播报(与 ChainDoneToast 同纪律)
+        UIAccessibility.post(
+            notification: .announcement,
+            argument: L10n.DeepChain.tocQueuedHint
+        )
+        queuedHintTask = Task { @MainActor in
+            try? await Task.sleep(nanoseconds: 2_200_000_000)
+            guard !Task.isCancelled else { return }
+            withAnimation(.easeOut(duration: 0.3)) {
+                queuedHintShown = false
+            }
+        }
     }
 
     /// 横幅副行的通知承诺只在已授权时给(未授权不虚诺)。
@@ -544,7 +582,8 @@ struct DeepAnalysisHomeView: View {
         let row = ChapterRowModel.resolve(
             module: module,
             state: state,
-            hasEntitlement: hasEntitlementForPaid
+            hasEntitlement: hasEntitlementForPaid,
+            chainRunning: vm.isChainRunning
         )
 
         Button {
@@ -559,9 +598,14 @@ struct DeepAnalysisHomeView: View {
             case .read, .generating, .retryable, .needsInput:
                 // 已生成/生成中/失败/需输入 → 进阅读页(四态自呈现)
                 onOpenChapter(module)
+            case .queued:
+                // 排队中:不进章(等待页「约半分钟」对排队章是虚假承诺),
+                // 页内轻提示告知排队语义,~2.2s 自收
+                showQueuedHint()
             case .unreadFree:
                 if state == nil {
-                    // 一章未开始 → 开卷语义:起链;上游 pending(链在跑)只进章
+                    // 一章未开始 → 开卷语义:起链;链未跑的 pending 残留
+                    // (断链/达限)只进章——链在跑的 pending 走 .queued 分支
                     vm.generateV1AllModules()
                 }
                 onOpenChapter(module)
@@ -624,6 +668,13 @@ struct DeepAnalysisHomeView: View {
                             .tracking(1)
                             .foregroundStyle(BaziTheme.inkMutedSecondary)
                     }
+                case .queued:
+                    // 排队中(2026-10-15):静态小字,无 ›(不可进)、无动画
+                    // ——呼吸墨点专属链头「生成中」,两态同屏可区分
+                    Text(L10n.DeepChain.tocQueued)
+                        .font(BaziFont.caption(size: 10))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
                 case .unreadFree, .retryable, .needsInput:
                     rowChevron
                 }
@@ -632,6 +683,21 @@ struct DeepAnalysisHomeView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
+        // VoiceOver(2026-10-15):生成中/排队中的行尾语义靠视觉(呼吸墨点/
+        // › 缺席)传达,读屏拿不到——accessibilityValue 报状态,与「据」
+        // 折叠按钮同纪律
+        .accessibilityValue(
+            Text(rowAccessibilityValue(row))
+        )
+    }
+
+    /// 目录行状态播报文案(空串 = 无附加状态,accessibilityValue 不播)。
+    private func rowAccessibilityValue(_ row: ChapterRowModel) -> String {
+        switch row {
+        case .generating: return L10n.DeepChain.tocGenerating
+        case .queued: return L10n.DeepChain.tocQueued
+        default: return ""
+        }
     }
 
     /// 可点行行尾 ›(与「盘面细目」链接同语言;锁定行不挂,付费标已自表意)。
@@ -790,5 +856,38 @@ private struct ChapterRowDoneStamp: View {
             }
             onSettled?()
         }
+    }
+}
+
+// MARK: - 排队章轻提示(2026-10-15)
+
+/// 排队章点击的页内底部轻提示:纯文字水墨小卡(~2.2s 自收,显隐由宿主
+/// `showQueuedHint()` 管)。视觉与 ChainDoneToast 同语言但更轻——无朱印、
+/// 单行 caption;DESIGN.md 纪律:cardSurface 底 + hairline 描边 + radius 5,
+/// 无渐变、朱红不做大色块。
+private struct QueuedChapterHintToast: View {
+    let text: String
+
+    var body: some View {
+        Text(text)
+            .font(BaziFont.caption(size: 10.5))
+            .tracking(1)
+            .foregroundStyle(BaziTheme.inkMuted)
+            // 三查修复:EN 长文案 + 单行在 375pt 机型截断——文案已收短,
+            // 再挂 0.9 缩放兜底(与合盘日主行同款手段)
+            .lineLimit(1)
+            .minimumScaleFactor(0.9)
+            .padding(.horizontal, 16)
+            .padding(.vertical, 10)
+            .background(
+                RoundedRectangle(cornerRadius: 5)
+                    .fill(BaziTheme.cardSurface)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 5)
+                    .stroke(BaziTheme.hairline, lineWidth: 0.5)
+            )
+            // 极轻投影与内容分离(与 ChainDoneToast 同款,不做深阴影)
+            .shadow(color: BaziTheme.ink.opacity(0.10), radius: 8, y: 2)
     }
 }

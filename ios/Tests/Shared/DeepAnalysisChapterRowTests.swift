@@ -62,7 +62,8 @@ final class DeepAnalysisChapterRowTests: XCTestCase {
     }
 
     func test_row_pending_fallsBackToAccessSemantics() {
-        // 链上游 pending:免费章视觉同未读,付费未购同锁(进章显示布算中)
+        // 链上游 pending 且链未跑(断链/达限残留):免费章视觉同未读,
+        // 付费未购同锁——恢复主路径是 CTA 续读/回前台自动续跑,不在目录行
         XCTAssertEqual(
             ChapterRowModel.resolve(module: .m1, state: .pending, hasEntitlement: false),
             .unreadFree
@@ -70,6 +71,38 @@ final class DeepAnalysisChapterRowTests: XCTestCase {
         XCTAssertEqual(
             ChapterRowModel.resolve(module: .m6, state: .pending, hasEntitlement: false),
             .lockedPaid
+        )
+    }
+
+    func test_row_pending_chainRunningFree_isQueued() {
+        // 2026-10-15:链在跑 + 免费章排队 → 排队中(行尾静态小字,
+        // 点击不进章只提示——等待页「约半分钟」对排队章是虚假承诺)
+        XCTAssertEqual(
+            ChapterRowModel.resolve(
+                module: .m1, state: .pending, hasEntitlement: false,
+                chainRunning: true),
+            .queued
+        )
+    }
+
+    func test_row_pending_chainRunningPaidUnpaid_staysLockedPaid() {
+        // 付费未购章排队中不给「会自动生成」承诺:链走到它只会落 .locked,
+        // 维持付费锁视觉(PaidTag + 点击付费墙)
+        XCTAssertEqual(
+            ChapterRowModel.resolve(
+                module: .m2, state: .pending, hasEntitlement: false,
+                chainRunning: true),
+            .lockedPaid
+        )
+    }
+
+    func test_row_pending_chainRunningPaidEntitled_isQueued() {
+        // 已购付费章:链会自动生成它,排队承诺成立
+        XCTAssertEqual(
+            ChapterRowModel.resolve(
+                module: .m7, state: .pending, hasEntitlement: true,
+                chainRunning: true),
+            .queued
         )
     }
 

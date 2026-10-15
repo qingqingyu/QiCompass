@@ -1261,6 +1261,16 @@ enum L10n {
         /// zh: "生成中";en: "Weaving"
         static let tocGenerating = String(localized: "deepchain.toc.generating")
 
+        /// 目录行排队中小字(2026-10-15,静态无动画——呼吸墨点专属链头)。
+        /// zh: "排队中";en: "Queued"
+        static let tocQueued = String(localized: "deepchain.toc.queued")
+
+        /// 排队章点击轻提示(页内底部小卡 ~2.2s 自收)。
+        /// zh: "此章排队中 · 前面的章节完成后会自动生成"
+        /// en: "Queued — it starts once earlier chapters finish"(短句:toast 单行
+        /// lineLimit(1),长句在 375pt 机型截断)
+        static let tocQueuedHint = String(localized: "deepchain.toc.queuedHint")
+
         /// 横幅副行·已授权通知变体(方案四:告知完成会通知)。
         /// zh: "可先离开 · 章成自动点亮 · 成书时通知你"
         /// en: "Feel free to leave — we'll notify you when it's done"

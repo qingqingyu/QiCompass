@@ -17941,6 +17941,52 @@
         }
       }
     },
+    "deepchain.toc.queued" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Queued"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排队中"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排隊中"
+          }
+        }
+      }
+    },
+    "deepchain.toc.queuedHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Queued — it starts once earlier chapters finish"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此章排队中 · 前面的章节完成后会自动生成"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "此章排隊中 · 前面的章節完成後會自動生成"
+          }
+        }
+      }
+    },
     "deepchain.banner.leaveHintNotified" : {
       "extractionState" : "manual",
       "localizations" : {

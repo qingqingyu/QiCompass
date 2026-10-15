@@ -1,8 +1,9 @@
 import Foundation
 
 /// 捌章目录行渲染模型(盘面小景 S4,仿 PillarSlotModel 范式):
-/// 从 (module, moduleState, hasEntitlement) 纯派生行视觉与点击动作,
-/// 视图层零分支判断——测试 target 无 ViewInspector,行状态经此模型断言。
+/// 从 (module, moduleState, hasEntitlement, chainRunning) 纯派生行视觉与
+/// 点击动作,视图层零分支判断——测试 target 无 ViewInspector,行状态经此
+/// 模型断言。
 enum ChapterRowModel: Equatable {
     /// 已读:实线圆徽 + 右缘墨点,点击进阅读页
     case read
@@ -13,6 +14,10 @@ enum ChapterRowModel: Equatable {
     case lockedPaid
     /// 生成中:实线圆徽 + 右缘「生成中…」
     case generating
+    /// 排队中(2026-10-15):链在跑但未轮到本章——右缘「排队中」静态小字,
+    /// 无 ›;点击不进章,只给页内轻提示(等待页「约半分钟」文案对排队章
+    /// 是虚假承诺,拦截进章)
+    case queued
     /// 失败:进阅读页原地重试
     case retryable
     /// M4/M5 待输入:进阅读页页内两问表单
@@ -21,7 +26,8 @@ enum ChapterRowModel: Equatable {
     static func resolve(
         module: ModuleID,
         state: ModuleState?,
-        hasEntitlement: Bool
+        hasEntitlement: Bool,
+        chainRunning: Bool = false
     ) -> ChapterRowModel {
         if let state {
             switch state {
@@ -39,7 +45,15 @@ enum ChapterRowModel: Equatable {
             case .locked:
                 return .lockedPaid
             case .pending:
-                // 链上游 pending:视觉同未读免费/锁,点击进章显示布算中
+                // 2026-10-15(推翻 09-19「视觉同未读」口径,用户反馈排队章
+                // 无标识且点进是虚假承诺的等待页):链在跑 + 本章确定会自动
+                // 生成 → 排队中。付费未购章除外——链走到它只会落 .locked,
+                // 「会自动生成」对它是谎言,走下方回退维持付费锁视觉;
+                // 链未跑(断链/达限残留)也维持未读回退——该场景的恢复
+                // 主路径是 CTA 续读/回前台自动续跑,不在目录行触发(防烧配额)
+                if chainRunning, !(module.isPaid && !hasEntitlement) {
+                    return .queued
+                }
                 break
             }
         }
@@ -69,6 +83,7 @@ extension ChapterRowModel: CustomStringConvertible {
         case .unreadFree: return "unreadFree"
         case .lockedPaid: return "lockedPaid"
         case .generating: return "generating"
+        case .queued: return "queued"
         case .retryable: return "retryable"
         case .needsInput: return "needsInput"
         }
