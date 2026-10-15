@@ -1,6 +1,6 @@
 # 今日 hero「光晕」配色接入 · 实施方案
 
-> 2026-10-15 · 状态：**已拍板，待实施**（实施方交给另一个 AI，完成后由 Claude review）
+> 2026-10-15 · 状态：**已实施**（同日落地，commit `935c65a`；双 review 2 轮收敛，实施记录见文末）
 > 分支：`today-hero-halo`（在此分支上继续提交，不要新开分支，不要 rebase / force-push）
 > 前置：2026-10-14 已在本分支把 hero 从浅绛山水画卡换成 B「光晕」（commit `feat(ios): 今日页 hero 换 B「光晕」`）。本方案只调**光晕的配色、取色规则和动效参数**。
 
@@ -184,3 +184,19 @@ var support1Main: Color   // 光 4
 - [ ] 测试按 §6 覆盖；旧 HaloPalette 测试已替换（字段名变了，旧测试必须改，不能留着编译失败）
 - [ ] `DESIGN.md` Decisions Log 有 2026-10-15 条目
 - [ ] commit 三段式、在 `today-hero-halo` 分支、未 force-push
+
+---
+
+## 实施记录(2026-10-15)
+
+- commit `935c65a`(分支 `today-hero-halo`,已推 origin):`DailyImageHeroSection.swift` + `DailyImageHeroCopyTests.swift` + `DESIGN.md` 三文件,+206/−70。
+- 测试:`DailyImageHeroCopyTests` 25/25 绿(iPhone 16 Pro 模拟器 EE9F307E xcodebuild 实跑,xcresult 核验 7 个新用例全在列)。
+- 双 review(子 agent 循环):2 轮收敛,第 2 轮 Three Check + code-review-expert 均 0 问题。第 1 轮修复 1 处 = `.scaleEffect` 原挂在 `.position` 之后(§5 曾写「之前或之后都可」——实测之后挂法的锚点是舞台中心,光团中心到舞台中心的距离被缩放系数重复换算,辅光二最多 ≈8pt 发散位移;已移到 `.position` 之前)。
+- 其余全按规格落地:§2 十个色值逐一核对无误;§4 渲染保 RadialGradient 方案(两选一中的 A);§9 验收清单逐条过;后端/`ElementColors`/页面底色零变更。
+
+### 偏离本 plan 的地方及理由
+
+无实质偏离,两处备注:
+
+1. §5「scaleEffect 放在 `.position` 之前或之后都可」实测不成立(锚点差异,见上),本 plan 口径以**先挂(before position)**为准,实现照此。
+2. 顺带对齐了 `dayElements`/`daySignal` 属性注释里的旧术语(副晕/小晕 → 辅一;branchElement 不再参与取色),纯注释无行为变更。
