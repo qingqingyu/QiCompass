@@ -1,10 +1,11 @@
 import SwiftUI
 
 /// 今日 hero「光晕」(**2026-10-14 用户拍板改用 B 版**,设计画布「今日页 · 窗影改稿」
-/// B · 光晕;替换 2026-10-01 定稿的 glass-v2 浅绛山水画卡):
-/// 宣纸上几团流日五行色的柔光晕缓慢漂移,左侧竖排「今日一签」两句(楷体),
-/// 左下小标;光晕下方接宜/忌双列(B 稿顺序:签 → 宜忌)。头部日期区与 chips
-/// 仍由 `DailyHeaderSection` 承担(本轮只换 hero,用户拍板)。
+/// B · 光晕;替换 2026-10-01 定稿的 glass-v2 浅绛山水画卡。**2026-10-15 拍板
+/// 贴 B 稿终形**:去掉竖排签文(B 稿没有),光晕不再单独占舞台,改为铺在头部
+/// 日期区 / chips / 宜忌后面的**衬底**——`HaloBackdrop` 由宿主
+/// `DailyFortuneMainView` 挂在这一块的 `.background` 上。本 struct 只承载
+/// 宜/忌双列字层;头部日期区与 chips 仍由 `DailyHeaderSection` 承担。
 ///
 /// **光晕取色(确定性,0 AI;2026-10-15 用户五行光晕视觉规格版)**:主晕 =
 /// 流日天干五行;辅一 = 今日信号里首个「喜用 ↑」且 ≠ 主五行的五行(引擎
@@ -15,17 +16,37 @@ import SwiftUI
 /// 「我生/我克」只是选色推法,**不落任何文字**——宜借属喜忌判断,只来自
 /// 后端规则引擎,hero 不呈现命理结论。
 ///
-/// **今日一签**:按流日十神查静态表(`HeroDailyLot`,同 HeroYiJiColumns 口径,
-/// 不调 AI、不做喜忌判断);zh/zh-Hant 竖排两列(首句在右,古籍右起),EN
-/// 横排两行衬线(竖排拉丁不可读)。
-///
 /// **DESIGN.md 破例**:光晕是 RadialGradient + blur 的色团,属「禁止渐变背景」
 /// 的显式豁免——它是 hero 艺术层(同旧画卡的径向 mask / 云雾层性质),不是
-/// 页面背景;页面底仍是纯色宣纸(2026-10-14 用户拍板「光晕破例,字体保持楷体」)。
-/// 暗色:光晕透明度整体压低,避免夜宣纸上像霓虹。reduce-motion:漂移全停。
+/// 页面背景;2026-10-15 起光晕铺在头部和宜忌文字后面,仍只覆盖页面顶部约
+/// 420pt,页面底色仍是纯色宣纸(2026-10-14 用户拍板「光晕破例,字体保持
+/// 楷体」)。暗色:光晕透明度整体压低,避免夜宣纸上像霓虹。
+/// reduce-motion:漂移全停。
 struct DailyImageHeroSection: View {
-    let dayPillar: String
     let dayRelation: String
+
+    var body: some View {
+        HeroYiJiColumns(dayRelation: dayRelation)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(Text(verbatim: yiJiAccessibilityLabel))
+    }
+
+    /// 无障碍合并 label:宜/忌词(装饰光晕在 HaloBackdrop,不读)。
+    private var yiJiAccessibilityLabel: String {
+        let yiJi = HeroYiJiColumns.mapping[dayRelation] ?? HeroYiJiColumns.fallback
+        return "\(L10n.DailyFortune.yiLabel) \(yiJi.yi.joined(separator: "、")), "
+            + "\(L10n.DailyFortune.jiLabel) \(yiJi.ji.joined(separator: "、"))"
+    }
+}
+
+// MARK: - 光晕衬底(2026-10-15 贴 B 稿)
+
+/// 今日 hero 光晕衬底:四团流日五行色的柔光缓慢漂移,不带任何文字
+/// (**2026-10-15 从 `DailyImageHeroSection` 的 340pt 独立舞台抽出**——
+/// B 稿光晕铺在头部 / chips / 宜忌后面,由 `DailyFortuneMainView` 挂在
+/// 这一块的 `.background` 上)。取色规则见文件头注与 `HaloPalette`。
+struct HaloBackdrop: View {
+    let dayPillar: String
     /// 流日天干五行(S6;2026-10-15 起只取 stemElement,branchElement 不再
     /// 参与取色;nil = 老后端/老快照,走日柱首字查表兜底)。
     var dayElements: DayElementsDTO? = nil
@@ -35,9 +56,8 @@ struct DailyImageHeroSection: View {
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
     @Environment(\.colorScheme) private var scheme
 
-    /// 光晕舞台高(B 稿 hero 420px @390 含上下留白;app 内 hero 左右 17pt 边距、
-    /// 宜忌另起,舞台收到 340 恰好容纳竖排两列 6 字 + 底部小标)。
-    private static let stageHeight: CGFloat = 340
+    /// 光晕层高(设计坐标 390×420 原样,1:1 落位;2026-10-15 规格)。
+    static let height: CGFloat = 420
 
     // 漂移状态(B 稿 12s alternate,四团错相——SwiftUI 无 animation-delay,
     // 用四个不同周期近似错相)
@@ -47,53 +67,24 @@ struct DailyImageHeroSection: View {
     @State private var driftD = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            ZStack(alignment: .topLeading) {
-                haloLayer
-                lotText
-                    .padding(.leading, 17)
-                    .padding(.top, 36)
-                lotCaption
-                    .padding(.leading, 19)
-                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .bottomLeading)
-                    .padding(.bottom, 14)
-            }
-            .frame(height: Self.stageHeight)
-            .frame(maxWidth: .infinity)
-
-            HeroYiJiColumns(dayRelation: dayRelation)
-                .padding(.horizontal, 11)
-                .padding(.top, 18)
-        }
-        .onAppear(perform: startCycles)
-        .accessibilityElement(children: .ignore)
-        .accessibilityLabel(Text(verbatim: heroAccessibilityLabel))
+        haloLayer
+            .onAppear(perform: startCycles)
     }
-
-    /// 无障碍合并 label:一签 + 宜/忌词(装饰光晕不读)。
-    private var heroAccessibilityLabel: String {
-        let lot = HeroDailyLot.lines(for: dayRelation)
-        let yiJi = HeroYiJiColumns.mapping[dayRelation] ?? HeroYiJiColumns.fallback
-        return "\(HeroDailyLot.caption()): \(lot.joined(separator: " ")), "
-            + "\(L10n.DailyFortune.yiLabel) \(yiJi.yi.joined(separator: "、")), "
-            + "\(L10n.DailyFortune.jiLabel) \(yiJi.ji.joined(separator: "、"))"
-    }
-
-    // MARK: - 光晕
 
     /// 四团光晕(2026-10-15 用户五行光晕视觉规格,设计坐标系 390×420):
     /// 主光 dominantMain 250×290 @(295,165) / 伴光 dominantTint 200×220
     /// @(60,100) / 辅光一 support0Main 150×170 @(115,345) / 辅光二
     /// support1Main 120×140 @(260,330);不透明度 0.85/0.70/0.55/0.50。
-    /// 中心按 W/390、H/420 换算,尺寸按 W/390 等比(宽高同比保椭圆形状),
-    /// blur 半径固定 26 不随屏宽缩放。不 clip:blur 边缘自然洇进页边与
-    /// 宜忌区,不出现矩形切边。
+    /// 中心按 W/390、H/420 换算(衬底高恰 420,sy≈1,四团光按规格坐标
+    /// 1:1 落位),尺寸按 W/390 等比(宽高同比保椭圆形状),blur 半径固定
+    /// 26 不随屏宽缩放。不 clip:blur 边缘自然洇进页边与下方内容,
+    /// 不出现矩形切边。
     private var haloLayer: some View {
         let palette = HaloPalette(dayPillar: dayPillar, dayElements: dayElements, daySignal: daySignal)
         let dim = scheme == .dark ? 0.55 : 1.0
         return GeometryReader { geo in
             let sx = geo.size.width / 390   // 设计稿宽 390
-            let sy = geo.size.height / 420  // 设计稿高 420(实际舞台高 340)
+            let sy = geo.size.height / 420  // 设计稿高 420(衬底高恰 420,sy≈1)
             ZStack(alignment: .topLeading) {
                 // 绘制序(下→上):伴光 → 主光 → 辅光一 → 辅光二。
                 // scale 必须在 position 之前:之后挂 scaleEffect 的锚点是
@@ -159,52 +150,6 @@ struct DailyImageHeroSection: View {
         withAnimation(.easeInOut(duration: 6.8).repeatForever(autoreverses: true)) { driftB = true }
         withAnimation(.easeInOut(duration: 5.6).repeatForever(autoreverses: true)) { driftC = true }
         withAnimation(.easeInOut(duration: 7.4).repeatForever(autoreverses: true)) { driftD = true }
-    }
-
-    // MARK: - 今日一签
-
-    /// zh/zh-Hant:竖排两列,首句在右(右起),楷体 28、字距 10、列距 22;
-    /// EN:横排两行衬线 22,左对齐。品牌层汉字走 BaziFont.brush(始终楷体)。
-    @ViewBuilder
-    private var lotText: some View {
-        let lines = HeroDailyLot.lines(for: dayRelation)
-        if AppLanguage.current == .en {
-            VStack(alignment: .leading, spacing: 8) {
-                ForEach(Array(lines.enumerated()), id: \.offset) { _, line in
-                    Text(verbatim: line)
-                        .font(BaziFont.display(size: 22, weight: .regular))
-                        .foregroundStyle(BaziTheme.ink)
-                        .fixedSize(horizontal: false, vertical: true)
-                }
-            }
-            .padding(.trailing, 120)
-            .padding(.top, 40)
-        } else {
-            HStack(alignment: .top, spacing: 22) {
-                ForEach(Array(lines.reversed().enumerated()), id: \.offset) { _, line in
-                    VStack(spacing: 10) {
-                        ForEach(Array(line.enumerated()), id: \.offset) { _, char in
-                            Text(verbatim: String(char))
-                                .font(BaziFont.brush(size: 28, weight: .regular))
-                                .foregroundStyle(BaziTheme.ink)
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    /// 左下小标「—— 今日一签」(B 稿 .sign-cap:22pt 短线 + 字距标签)。
-    private var lotCaption: some View {
-        HStack(spacing: 10) {
-            Rectangle()
-                .fill(BaziTheme.inkMuted.opacity(0.6))
-                .frame(width: 22, height: 0.5)
-            Text(verbatim: HeroDailyLot.caption())
-                .font(BaziFont.caption(size: 11))
-                .tracking(AppLanguage.current == .en ? 1.5 : 3.5)
-                .foregroundStyle(BaziTheme.inkMuted)
-        }
     }
 }
 
@@ -304,85 +249,6 @@ struct HaloPalette {
 
     private static func tintColor(_ key: String?) -> Color {
         key.flatMap(HaloColors.tint) ?? BaziTheme.inkMuted
-    }
-}
-
-// MARK: - 今日一签静态表(2026-10-14,B 光晕 hero)
-
-/// 按流日十神的两句签文。key = 后端简体十神(决策 7 不翻译);zh 每句 ≤6 字
-/// (竖排 28pt 一列放得下),语气与 HeroYiJiColumns 宜忌词不相矛盾。
-/// 只是态度提示,不涉喜忌判断(LLM/规则边界不变)。
-enum HeroDailyLot {
-    static let zh: [String: [String]] = [
-        "比肩": ["退一步不损己", "今日守静即安"],
-        "劫财": ["先稳住阵脚", "再与人同行"],
-        "食神": ["心闲手自巧", "今日宜慢享"],
-        "伤官": ["言多不如言准", "锋芒收三分"],
-        "偏财": ["机会在门外", "量力再伸手"],
-        "正财": ["一分一厘皆实", "今日稳中求进"],
-        "七杀": ["压力即磨刀", "迎难不硬扛"],
-        "正官": ["守住分内事", "自有人看见"],
-        "偏印": ["独处非孤僻", "静中有所得"],
-        "正印": ["多听少急答", "养好这口气"],
-    ]
-
-    static let hant: [String: [String]] = [
-        "比肩": ["退一步不損己", "今日守靜即安"],
-        "劫财": ["先穩住陣腳", "再與人同行"],
-        "食神": ["心閒手自巧", "今日宜慢享"],
-        "伤官": ["言多不如言準", "鋒芒收三分"],
-        "偏财": ["機會在門外", "量力再伸手"],
-        "正财": ["一分一釐皆實", "今日穩中求進"],
-        "七杀": ["壓力即磨刀", "迎難不硬扛"],
-        "正官": ["守住分內事", "自有人看見"],
-        "偏印": ["獨處非孤僻", "靜中有所得"],
-        "正印": ["多聽少急答", "養好這口氣"],
-    ]
-
-    static let en: [String: [String]] = [
-        "比肩": ["A step back costs nothing.", "Stay still, stay steady."],
-        "劫财": ["Find your footing first,", "then walk with others."],
-        "食神": ["An easy mind, deft hands.", "Savor the day slowly."],
-        "伤官": ["Say less, say it true.", "Sheathe a little edge."],
-        "偏财": ["Chances wait at the door.", "Reach only as far as you can."],
-        "正财": ["Every coin counts.", "Steady gains today."],
-        "七杀": ["Pressure sharpens the blade.", "Meet it; don't just brace."],
-        "正官": ["Tend to what is yours;", "it will be seen."],
-        "偏印": ["Alone is not lonely.", "Quiet brings its own insight."],
-        "正印": ["Listen more, answer slower.", "Keep your breath easy."],
-    ]
-
-    static func table(for language: AppLanguage) -> [String: [String]] {
-        switch language {
-        case .zh:     return zh
-        case .zhHant: return hant
-        case .en:     return en
-        }
-    }
-
-    static func fallback(for language: AppLanguage) -> [String] {
-        switch language {
-        case .zh:     return ["顺势而行", "不急不躁"]
-        case .zhHant: return ["順勢而行", "不急不躁"]
-        case .en:     return ["Go with the flow,", "no need to rush."]
-        }
-    }
-
-    static func caption(for language: AppLanguage = AppLanguage.current) -> String {
-        switch language {
-        case .zh:     return "今日一签"
-        case .zhHant: return "今日一籤"
-        case .en:     return "WORD FOR TODAY"
-        }
-    }
-
-    /// 查表命中失败记日志后兜底(错误显式传播,同 HeroYiJiColumns.pair)。
-    static func lines(for relation: String, language: AppLanguage = AppLanguage.current) -> [String] {
-        if let hit = table(for: language)[relation] { return hit }
-        AppLogger.app.warning(
-            "op=heroLot.lookupMiss day_relation=\(relation, privacy: .public) -> fallback"
-        )
-        return fallback(for: language)
     }
 }
 
