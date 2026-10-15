@@ -328,36 +328,96 @@ final class DailyImageHeroCopyTests: XCTestCase {
         }
     }
 
-    /// 主晕 = 天干五行;副晕 = 地支五行;小晕 = 首个未占用的喜用信号。
-    func testHaloPaletteUsesStemBranchAndFavorableSignal() {
+    // MARK: - 光晕取色(2026-10-15 规格:喜用命中优先,否则我生 + 我克)
+
+    /// 不变式辅助:dominant 非 nil 时三色两两不同(§3)。
+    private func assertHaloKeysDistinct(_ p: HaloPalette, _ label: String) {
+        let keys = [p.dominantKey, p.support0Key, p.support1Key].compactMap { $0 }
+        XCTAssertEqual(Set(keys).count, keys.count, "\(label): 三色应两两不同")
+    }
+
+    /// 默认推法:庚申(金)+ 无信号 → 辅一 = 我生(水)、辅二 = 我克(木)。
+    func testHaloPaletteDefaultDerivation() {
+        let p = HaloPalette(
+            dayPillar: "庚申",
+            dayElements: DayElementsDTO(stemElement: "金", branchElement: "水"),
+            daySignal: nil
+        )
+        XCTAssertEqual(p.dominantKey, "metal")
+        XCTAssertEqual(p.support0Key, "water")
+        XCTAssertEqual(p.support1Key, "wood")
+        assertHaloKeysDistinct(p, "默认推法")
+    }
+
+    /// 五个主五行逐一:无信号 → 辅一 = 我生、辅二 = 我克(钉死规格表);
+    /// branchElement 不再参与取色(传占位值不影响结果,旧规则作废的回归锁)。
+    func testHaloPaletteFiveElementsDerivation() {
+        let expected: [(zh: String, dominant: String, s0: String, s1: String)] = [
+            ("金", "metal", "water", "wood"),
+            ("木", "wood", "fire", "earth"),
+            ("水", "water", "wood", "fire"),
+            ("火", "fire", "earth", "metal"),
+            ("土", "earth", "metal", "water"),
+        ]
+        for e in expected {
+            let p = HaloPalette(
+                dayPillar: "甲子",
+                dayElements: DayElementsDTO(stemElement: e.zh, branchElement: "金"),
+                daySignal: []
+            )
+            XCTAssertEqual(p.dominantKey, e.dominant, "\(e.zh) 主五行")
+            XCTAssertEqual(p.support0Key, e.s0, "\(e.zh) 辅一应=我生")
+            XCTAssertEqual(p.support1Key, e.s1, "\(e.zh) 辅二应=我克")
+            assertHaloKeysDistinct(p, e.zh)
+        }
+    }
+
+    /// 喜用信号优先:跳过等于 dominant 的金、跳过 down 的火 → 辅一 earth;
+    /// 辅二 = 我克 wood(未与辅一撞车)。
+    func testHaloPaletteFavorableSignalWins() {
         let p = HaloPalette(
             dayPillar: "庚申",
             dayElements: DayElementsDTO(stemElement: "金", branchElement: "水"),
             daySignal: [DaySignalItemDTO(element: "金", direction: "up"),
                         DaySignalItemDTO(element: "火", direction: "down"),
-                        DaySignalItemDTO(element: "木", direction: "up")]
+                        DaySignalItemDTO(element: "土", direction: "up")]
         )
-        XCTAssertEqual(p.mainKey, "metal")
-        XCTAssertEqual(p.secondKey, "water")
-        XCTAssertEqual(p.thirdKey, "wood")
+        XCTAssertEqual(p.dominantKey, "metal")
+        XCTAssertEqual(p.support0Key, "earth")
+        XCTAssertEqual(p.support1Key, "wood")
+        assertHaloKeysDistinct(p, "喜用优先")
     }
 
-    /// 干支同行 → 副晕取天干所生;无喜用信号 → 小晕取副晕所生;
-    /// dayElements 缺失 → 日柱首字查表。
-    func testHaloPaletteFallbacks() {
-        let same = HaloPalette(
+    /// 信号与我克撞车:信号先占了 ke[d] → 辅二回落我生。
+    func testHaloPaletteSignalClashWithKeFallsBackToSheng() {
+        let p = HaloPalette(
             dayPillar: "庚申",
-            dayElements: DayElementsDTO(stemElement: "金", branchElement: "金"),
-            daySignal: nil
+            dayElements: DayElementsDTO(stemElement: "金", branchElement: "水"),
+            daySignal: [DaySignalItemDTO(element: "木", direction: "up")]
         )
-        XCTAssertEqual(same.mainKey, "metal")
-        XCTAssertEqual(same.secondKey, "water")
-        XCTAssertEqual(same.thirdKey, "wood")
+        XCTAssertEqual(p.support0Key, "wood")
+        XCTAssertEqual(p.support1Key, "water")
+        assertHaloKeysDistinct(p, "撞车回落")
+    }
 
-        let legacy = HaloPalette(dayPillar: "丙午", dayElements: nil, daySignal: [])
-        XCTAssertEqual(legacy.mainKey, "fire")
-        XCTAssertEqual(legacy.secondKey, "earth")
-        XCTAssertEqual(legacy.thirdKey, "metal")
+    /// 老快照:dayElements 缺失 → 日柱首字查表;丙午 → fire / earth / metal。
+    func testHaloPaletteLegacySnapshotFallsBackToStemLookup() {
+        let p = HaloPalette(dayPillar: "丙午", dayElements: nil, daySignal: [])
+        XCTAssertEqual(p.dominantKey, "fire")
+        XCTAssertEqual(p.support0Key, "earth")
+        XCTAssertEqual(p.support1Key, "metal")
+        assertHaloKeysDistinct(p, "老快照")
+    }
+
+    /// 色板完整:五个 key 主色/伴色均非 nil;未知 key 双 nil(回落链路由
+    /// HaloPalette 的 inkMuted 兜底,测试不依赖设备环境)。
+    func testHaloColorsPaletteComplete() {
+        for key in ["metal", "wood", "water", "fire", "earth"] {
+            XCTAssertNotNil(HaloColors.main(key), "\(key) 主色缺失")
+            XCTAssertNotNil(HaloColors.tint(key), "\(key) 伴色缺失")
+        }
+        XCTAssertNil(HaloColors.main("void"), "未知 key 主色应 nil")
+        XCTAssertNil(HaloColors.tint("void"), "未知 key 伴色应 nil")
     }
 
     /// 十神带调拼音表(D6 释义卡教学层):键集合 == BaziTerms.tenGods 的 zh 键,

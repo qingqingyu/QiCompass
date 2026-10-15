@@ -6,10 +6,14 @@ import SwiftUI
 /// 左下小标;光晕下方接宜/忌双列(B 稿顺序:签 → 宜忌)。头部日期区与 chips
 /// 仍由 `DailyHeaderSection` 承担(本轮只换 hero,用户拍板)。
 ///
-/// **光晕取色(确定性,0 AI)**:主晕 = 流日天干五行;副晕 = 流日地支五行(与
-/// 天干同行则取天干所生);小晕 = 今日信号里首个「喜用 ↑」且未占用的五行,
-/// 无则取副晕所生。`dayElements` 缺失(老后端/老快照)→ 天干五行按日柱首字
-/// 查表(`ElementColors.ofGan`,纯展示查表非历法),查不到记日志回落 inkMuted。
+/// **光晕取色(确定性,0 AI;2026-10-15 用户五行光晕视觉规格版)**:主晕 =
+/// 流日天干五行;辅一 = 今日信号里首个「喜用 ↑」且 ≠ 主五行的五行(引擎
+/// 喜用命中优先),无则取我生(主五行所生);辅二 = 我克,与辅一撞车时改取
+/// 我生。`dayElements` 缺失(老后端/老快照)→ 天干五行按日柱首字查表
+/// (`ElementColors.ofGan`,纯展示查表非历法),查不到记日志回落 inkMuted。
+/// 色板走 `HaloColors`(主色+伴色,比 ElementColors 饱和,仅 hero 光晕用)。
+/// 「我生/我克」只是选色推法,**不落任何文字**——宜借属喜忌判断,只来自
+/// 后端规则引擎,hero 不呈现命理结论。
 ///
 /// **今日一签**:按流日十神查静态表(`HeroDailyLot`,同 HeroYiJiColumns 口径,
 /// 不调 AI、不做喜忌判断);zh/zh-Hant 竖排两列(首句在右,古籍右起),EN
@@ -22,9 +26,10 @@ import SwiftUI
 struct DailyImageHeroSection: View {
     let dayPillar: String
     let dayRelation: String
-    /// 流日天干/地支五行(S6;nil = 老后端/老快照,走日柱首字查表兜底)。
+    /// 流日天干五行(S6;2026-10-15 起只取 stemElement,branchElement 不再
+    /// 参与取色;nil = 老后端/老快照,走日柱首字查表兜底)。
     var dayElements: DayElementsDTO? = nil
-    /// 今日信号(喜用 ↑ / 忌 ↓),只用来挑小晕颜色。
+    /// 今日信号(喜用 ↑ / 忌 ↓),只用来挑辅一颜色(喜用命中优先)。
     var daySignal: [DaySignalItemDTO]? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
@@ -76,27 +81,43 @@ struct DailyImageHeroSection: View {
 
     // MARK: - 光晕
 
-    /// 四团光晕(B 稿坐标 @390 宽:主晕右上 250×290、淡主晕左上 200×220、
-    /// 副晕左下 150×170、小晕右下 120×140)。不 clip:blur 边缘自然洇进
-    /// 页边与宜忌区,不出现矩形切边。
+    /// 四团光晕(2026-10-15 用户五行光晕视觉规格,设计坐标系 390×420):
+    /// 主光 dominantMain 250×290 @(295,165) / 伴光 dominantTint 200×220
+    /// @(60,100) / 辅光一 support0Main 150×170 @(115,345) / 辅光二
+    /// support1Main 120×140 @(260,330);不透明度 0.85/0.70/0.55/0.50。
+    /// 中心按 W/390、H/420 换算,尺寸按 W/390 等比(宽高同比保椭圆形状),
+    /// blur 半径固定 26 不随屏宽缩放。不 clip:blur 边缘自然洇进页边与
+    /// 宜忌区,不出现矩形切边。
     private var haloLayer: some View {
         let palette = HaloPalette(dayPillar: dayPillar, dayElements: dayElements, daySignal: daySignal)
         let dim = scheme == .dark ? 0.55 : 1.0
         return GeometryReader { geo in
-            let w = geo.size.width
-            let h = geo.size.height
+            let sx = geo.size.width / 390   // 设计稿宽 390
+            let sy = geo.size.height / 420  // 设计稿高 420(实际舞台高 340)
             ZStack(alignment: .topLeading) {
-                halo(palette.main, opacity: 0.55 * dim, width: 200, height: 220)
-                    .position(x: -40 + 100, y: -10 + 110)
+                // 绘制序(下→上):伴光 → 主光 → 辅光一 → 辅光二。
+                // scale 必须在 position 之前:之后挂 scaleEffect 的锚点是
+                // 舞台-sized 视图的中心(= 舞台中心),会把光团中心到舞台
+                // 中心的距离一并放大,position 中心点被重复换算(plan §5 禁)。
+                halo(palette.dominantTint, opacity: 0.70 * dim,
+                     width: 200 * sx, height: 220 * sx)
+                    .scaleEffect(driftScale(driftB))
+                    .position(x: 60 * sx, y: 100 * sy)
                     .offset(drift(driftB))
-                halo(palette.main, opacity: 0.85 * dim, width: 250, height: 290)
-                    .position(x: w + 30 - 125, y: 20 + 145)
+                halo(palette.dominantMain, opacity: 0.85 * dim,
+                     width: 250 * sx, height: 290 * sx)
+                    .scaleEffect(driftScale(driftA))
+                    .position(x: 295 * sx, y: 165 * sy)
                     .offset(drift(driftA))
-                halo(palette.second, opacity: 0.6 * dim, width: 150, height: 170)
-                    .position(x: 40 + 75, y: h + 10 - 85)
+                halo(palette.support0Main, opacity: 0.55 * dim,
+                     width: 150 * sx, height: 170 * sx)
+                    .scaleEffect(driftScale(driftC))
+                    .position(x: 115 * sx, y: 345 * sy)
                     .offset(drift(driftC))
-                halo(palette.third, opacity: 0.5 * dim, width: 120, height: 140)
-                    .position(x: w - 70 - 60, y: h - 20 - 70)
+                halo(palette.support1Main, opacity: 0.50 * dim,
+                     width: 120 * sx, height: 140 * sx)
+                    .scaleEffect(driftScale(driftD))
+                    .position(x: 260 * sx, y: 330 * sy)
                     .offset(drift(driftD))
             }
         }
@@ -119,18 +140,25 @@ struct DailyImageHeroSection: View {
             .blur(radius: 26)
     }
 
-    /// B 稿 keyframes:translate(8px,-10px) 往返(scale 1.05 省略——blur 色团
-    /// 上肉眼不可辨,少一个变换)。
+    /// 规格 keyframes:translate(8px,-10px) + scale 1→1.05 往返
+    /// (2026-10-15 版补回 scale——伴色光团边界可辨,缩放可感知)。
     private func drift(_ on: Bool) -> CGSize {
         on ? CGSize(width: 8, height: -10) : .zero
     }
 
+    private func driftScale(_ on: Bool) -> CGFloat {
+        on ? 1.05 : 1
+    }
+
+    /// 四团错相:规格 12s 往返 + 负延迟;SwiftUI 无负延迟(`.delay(n)` 会先
+    /// 静止 n 秒,禁用),用略不同的半程时长近似错相(光 1/2/3/4 = 6.0/
+    /// 6.8/5.6/7.4s)。reduce-motion 时整体不启动(上方 guard)。
     private func startCycles() {
         guard !reduceMotion else { return }
-        withAnimation(.easeInOut(duration: 6).repeatForever(autoreverses: true)) { driftA = true }
-        withAnimation(.easeInOut(duration: 7.3).repeatForever(autoreverses: true)) { driftB = true }
-        withAnimation(.easeInOut(duration: 5.2).repeatForever(autoreverses: true)) { driftC = true }
-        withAnimation(.easeInOut(duration: 8.1).repeatForever(autoreverses: true)) { driftD = true }
+        withAnimation(.easeInOut(duration: 6.0).repeatForever(autoreverses: true)) { driftA = true }
+        withAnimation(.easeInOut(duration: 6.8).repeatForever(autoreverses: true)) { driftB = true }
+        withAnimation(.easeInOut(duration: 5.6).repeatForever(autoreverses: true)) { driftC = true }
+        withAnimation(.easeInOut(duration: 7.4).repeatForever(autoreverses: true)) { driftD = true }
     }
 
     // MARK: - 今日一签
@@ -182,53 +210,100 @@ struct DailyImageHeroSection: View {
 
 // MARK: - 光晕取色
 
-/// 光晕三色(主/副/小,见 DailyImageHeroSection 头注)。internal 供测试钉取色规则。
+/// 光晕专用五行色(2026-10-15 用户五行光晕视觉规格;比 ElementColors 饱和,
+/// 只用于 hero 光晕——ElementColors 是全 app 降饱和色系的设计,不动)。
+/// 亮/暗同一组色值,暗色只靠 haloLayer 的透明度系数 dim 压低,不另调色。
+/// key 用英文五行 key(同 ElementColors.rawValue);未知 key 返回 nil,
+/// 调用方回落 inkMuted(HaloPalette init 已有 elementMiss 日志,不新增
+/// 静默兜底)。构造写法与 ElementColors 一致(Color(red:r/255,…)),
+/// 不新增全局 Color(rgb:) extension。internal 供测试钉色板完整性。
+enum HaloColors {
+    /// 主色(金 #CDAA64 / 木 #78A06E / 水 #5F87AF / 火 #D77855 / 土 #C8A069)。
+    static func main(_ key: String) -> Color? {
+        switch key {
+        case "metal": return Color(red: 0xCD / 255, green: 0xAA / 255, blue: 0x64 / 255)
+        case "wood":  return Color(red: 0x78 / 255, green: 0xA0 / 255, blue: 0x6E / 255)
+        case "water": return Color(red: 0x5F / 255, green: 0x87 / 255, blue: 0xAF / 255)
+        case "fire":  return Color(red: 0xD7 / 255, green: 0x78 / 255, blue: 0x55 / 255)
+        case "earth": return Color(red: 0xC8 / 255, green: 0xA0 / 255, blue: 0x69 / 255)
+        default: return nil
+        }
+    }
+
+    /// 伴色(金 #B4BCC4 / 木 #BECD96 / 水 #A0BED2 / 火 #EBAF87 / 土 #B99878)。
+    static func tint(_ key: String) -> Color? {
+        switch key {
+        case "metal": return Color(red: 0xB4 / 255, green: 0xBC / 255, blue: 0xC4 / 255)
+        case "wood":  return Color(red: 0xBE / 255, green: 0xCD / 255, blue: 0x96 / 255)
+        case "water": return Color(red: 0xA0 / 255, green: 0xBE / 255, blue: 0xD2 / 255)
+        case "fire":  return Color(red: 0xEB / 255, green: 0xAF / 255, blue: 0x87 / 255)
+        case "earth": return Color(red: 0xB9 / 255, green: 0x98 / 255, blue: 0x78 / 255)
+        default: return nil
+        }
+    }
+}
+
+/// 光晕四色取色(主/辅一/辅二,规则见 DailyImageHeroSection 头注)。
+/// internal 供测试钉取色规则。不变式:dominant 非 nil 时三者两两不同
+/// (sheng/ke 均不自映射、互不重叠,辅二撞车回落我生,测试守护)。
 struct HaloPalette {
-    let mainKey: String?
-    let secondKey: String?
-    let thirdKey: String?
+    let dominantKey: String?   // 主五行(流日天干)
+    let support0Key: String?   // 辅一(喜用信号命中优先,否则我生)
+    let support1Key: String?   // 辅二(我克;与辅一撞车改我生)
 
     /// 五行相生(木→火→土→金→水→木),英文 key 口径同 ElementColors。
     static let sheng: [String: String] = [
         "wood": "fire", "fire": "earth", "earth": "metal", "metal": "water", "water": "wood",
     ]
 
+    /// 五行相克(我克:金→木、木→土、土→水、水→火、火→金)。
+    static let ke: [String: String] = [
+        "wood": "earth", "earth": "water", "water": "fire", "fire": "metal", "metal": "wood",
+    ]
+
     init(dayPillar: String, dayElements: DayElementsDTO?, daySignal: [DaySignalItemDTO]?) {
-        let main: String?
+        let dominant: String?
         if let stem = dayElements?.stemElement {
-            main = ElementColors.fromZh(stem)
+            dominant = ElementColors.fromZh(stem)
         } else {
-            main = dayPillar.first.flatMap { ElementColors.ofGan(String($0)) }
+            dominant = dayPillar.first.flatMap { ElementColors.ofGan(String($0)) }
         }
-        if main == nil {
+        if dominant == nil {
             AppLogger.app.warning(
                 "op=heroHalo.elementMiss dayPillar=\(dayPillar, privacy: .public) -> inkMuted"
             )
         }
 
-        var second = dayElements.flatMap { ElementColors.fromZh($0.branchElement) }
-        if second == nil || second == main {
-            second = main.flatMap { Self.sheng[$0] }
-        }
-
-        let used = Set([main, second].compactMap { $0 })
-        let favorable = (daySignal ?? [])
+        // 辅一:引擎喜用信号(↑ 且 ≠ 主五行)命中优先;否则我生。
+        // dominant 为 nil 时信号仍可命中(≠ nil 恒真),规则 4 的豁免项。
+        let signal0 = (daySignal ?? [])
             .filter { $0.direction == "up" }
             .compactMap { ElementColors.fromZh($0.element) }
-            .first { !used.contains($0) }
-        let third = favorable ?? second.flatMap { Self.sheng[$0] }
+            .first { dominant == nil || $0 != dominant }
+        let support0 = signal0 ?? dominant.flatMap { Self.sheng[$0] }
 
-        self.mainKey = main
-        self.secondKey = second
-        self.thirdKey = third
+        // 辅二:我克;信号先占了 ke[d] 则回落我生。dominant 为 nil 时无从
+        // 推导(sheng/ke 都以 dominant 为键),保持 nil。
+        let support1 = dominant.flatMap { d in
+            Self.ke[d] == support0 ? Self.sheng[d] : Self.ke[d]
+        }
+
+        self.dominantKey = dominant
+        self.support0Key = support0
+        self.support1Key = support1
     }
 
-    var main: Color { Self.color(mainKey) }
-    var second: Color { Self.color(secondKey) }
-    var third: Color { Self.color(thirdKey) }
+    var dominantMain: Color { Self.mainColor(dominantKey) }
+    var dominantTint: Color { Self.tintColor(dominantKey) }
+    var support0Main: Color { Self.mainColor(support0Key) }
+    var support1Main: Color { Self.mainColor(support1Key) }
 
-    private static func color(_ key: String?) -> Color {
-        key.flatMap(ElementColors.from)?.color ?? BaziTheme.inkMuted
+    private static func mainColor(_ key: String?) -> Color {
+        key.flatMap(HaloColors.main) ?? BaziTheme.inkMuted
+    }
+
+    private static func tintColor(_ key: String?) -> Color {
+        key.flatMap(HaloColors.tint) ?? BaziTheme.inkMuted
     }
 }
 
