@@ -1,6 +1,6 @@
 # 今日 hero 去「今日一签」、光晕改为衬底（贴 B 稿）· 实施方案
 
-> 2026-10-15 · 状态：**已拍板，待实施**
+> 2026-10-15 · 状态：**已实施（2026-10-16，commit ba77246，见文末实施记录）**
 > 给实施 AI 的改动说明。动手前先读 `DESIGN.md`（CLAUDE.md 强制），再读本文 §0、§1。
 > 设计事实源：设计画布「今日页 · 窗影改稿」→ 画板 **B · 光晕（完整长页）**（`project/Halo.dc.html`，390×1200）。
 > 前置：10-14 commit `686eb47`（hero 换 B 光晕 + 竖排今日一签）、10-15 commit `935c65a`（光晕配色接入）。本方案在它们的基础上改。
@@ -230,3 +230,25 @@ VStack(alignment: .leading, spacing: 0) {
 - commit message 按 CLAUDE.md 三段式（Why / What / Impact）。Impact 里写清：纯 iOS 展示层，后端 / prompt / 缓存键零变更；`HeroDailyLot` 删除；光晕参数不变。
 - 不要 rebase / force-push 别人的分支；在用户指定的分支上提交。
 - 实施完成后在本文件顶部把状态改成「已实施」，文末补「实施记录」（commit hash、测试结果、截图结论、与本方案的偏差），格式参考 `docs/today-hero-光晕配色-plan.md`。
+
+---
+
+## 实施记录（2026-10-16）
+
+- **commit**：`ba77246`（jiexi 分支；plan 文档本体为 cherry-pick 自 `claude/today-hero-remove-lot-plan` b0fb091 的 `d60ed5f`）。改动完全落在 §2-§5 六项（A-F），无方案外文件。
+- **代码层验收（§6.1 全过）**：
+  - `grep -rn "HeroDailyLot\|lotText\|lotCaption\|今日一签\|今日一籤\|WORD FOR TODAY" ios/` 与 `grep -rn "stageHeight" ios/` 均零命中。注：初查剩 2 处**注释里的历史说明**（两文件头注「去掉竖排签文」措辞），按 §2.3「注释里的历史说明也改掉」改写为不含签文串后归零。
+  - `xcodebuild test`（iPhone 16 Pro Max DA0476D9 / 18.3，私有机 + `-parallel-testing-enabled NO`）：**647/647 绿**，`DailyImageHeroCopyTests` 24 个（= 原 25 − 签文用例，符合预期）；`ios/Tests/DailyFortune/` 全量 57 个绿。改动后全量两轮 + 双 review 循环内两轮，共四轮 647 绿。
+  - CLAUDE.md 守护脚本（prompt/SKU/术语/城市库/context_token）本轮不涉及，未跑（符合 §6.1.5）。
+- **视觉层验收（§6.2）**：mock 盘（甲子日·木，非 §6.2 表里的庚申·金——mock 默认流日柱，布局结论不受配色差异影响）+ `USE_MOCK_API_CLIENT=YES` + throwaway 种子钩子（已还原未 commit）截图，iPhone 16 Pro Max @3x。两个视觉 MCP 全挂（zai 401 / 4_5v 400，10-08 已知），按 paiban 先例改 **PIL 直接像素核验**：
+  1. 亮色 zh：签文零残留（chips 底 172pt → 宜忌表头 210pt，间距 ≈38pt 与 `.padding(.top,30)` 吻合；172-210pt 带无任何墨迹）；光晕色像素（wood/tint）覆盖 12-233pt，即头部/chips/宜忌都在光晕前 ✓
+  2. 暗色 zh：同构图，光晕 dim 生效，宜忌文字可读（墨色条目带完整）✓
+  3. 亮色 zh-Hant：与 zh 像素 diff 非空（字形切换生效），表头位置一致 ✓
+  4. 亮色 EN：Do/Don't 表头落位同坐标（29-42 / 234-247pt），EN 基座零 CJK 由测试守护 ✓
+  5. 滚动场景（偏差见下）：改为静态等价验证——全屏逐行像素突变扫描**无任何全宽硬边**（仅刘海区 13-16pt）；光晕下缘（屏坐标 ~516pt）平滑洇进解读 kicker 区（392-404pt 起）；「跟内容滚」由结构保证（`.background` 挂在 ScrollView **内容 VStack** 上，非 ScrollView 本身）
+  6. reduce-motion：`com.apple.Accessibility ReduceMotionEnabled=1` 后两帧 2.5s 间隔像素 **完全一致**（基线开启前同间隔 diff>10 像素 149215 个=光晕确在漂移）✓
+  - 截图原件：`/tmp/hero-shots/01-light-zh.png ~ 04-light-en.png、rm-a.png`（临时目录，未入 git）。
+- **与本方案的偏差**：
+  1. §6.2 #5 滚动截图未能真滚动：simctl 无触摸注入；throwaway `ScrollViewReader.scrollTo` 钩子确认执行（os_log 留痕）但 ScrollView 纹丝不动（原因未查明，钩子已随 throwaway 一并还原，不影响交付代码）；按上述静态等价证据放行，**真机人工滑动复核留给用户**。
+  2. §6.2 #1 的「庚申日(金)」换成 mock 甲子日(木)（理由同上）。
+- **双 review 循环**：1 轮收敛（three-check 0 问题 / code-review-expert 0 可行动，2 条 P3 观察项被驳回：压平 DailyImageHeroSection 薄包装=偏离 §2.2 处方；测试文件陈旧豁免注释=本 diff hunk 外的 10-01 遗留）。循环内测试两轮 647 绿。
