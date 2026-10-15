@@ -2,8 +2,9 @@ import SwiftUI
 
 /// success 态主布局(**2026-10-01 Today 定稿**,事实源 designs/review-fix-20261001/
 /// today-final.html @393px,px≈pt 1:1):
-/// 头部区(大字日 + 三行 meta + 左对齐 chips,出图上纸面)→ hero 光晕
-/// (17pt 边距,2026-10-14 改 B 版:五行光晕 + 竖排今日一签 + 宜忌双列)→ AI 解读(24pt,无卡片直接排纸面,
+/// 头部区(大字日 + 三行 meta + 左对齐 chips,出图上纸面)+ 宜忌双列包进
+/// 同一容器,光晕作**衬底**铺在其后(**2026-10-15 贴 B 稿**:去竖排签文,
+/// 光晕不再单独占 340pt 舞台)→ AI 解读(24pt,无卡片直接排纸面,
 /// 2026-09-07 起进入即自动生成)→ 居中页脚 →(时辰未知降级盘)末尾补时辰静默行。
 /// 各块 ink-in 错峰入场(mockup .content>* 0/.08/.16/.24s 同款节奏)。
 ///
@@ -26,6 +27,10 @@ struct DailyFortuneMainView: View {
     /// S10 补时辰触点(D7 触点 2):末尾静默行点击 → 打开补时辰 sheet(宿主
     /// DailyFortuneView 注入)。静默行不是弹窗,是可点的一行文字。
     let onAddHour: () -> Void
+
+    /// 光晕衬底顶边低于头部顶边的距离(B 稿:光晕区从页面 y=110 起,头部从
+    /// y=76 起,差 34;真机截图后可微调,但只改这一个常量)。
+    private static let haloTopInset: CGFloat = 34
 
     init(
         vm: DailyFortuneViewModel,
@@ -69,30 +74,42 @@ struct DailyFortuneMainView: View {
                     .background(BaziTheme.ink.opacity(0.05), in: Capsule())
                 }
 
-                // ===== 头部区(D3 定稿:信息一行看全,页边距 24)=====
-                DailyHeaderSection(
-                    businessDate: businessDate,
-                    lunarDate: response.lunarDate,
-                    dayPillar: response.dayPillar,
-                    dayRelation: response.dayRelationToDayMaster,
-                    dayChong: response.dayChong,
-                    dayChongTargets: response.dayChongTargets,
-                )
-                .padding(.horizontal, 24)
-                .padding(.top, 6)
-                .inkIn()
+                // ===== 头部 + 宜忌(2026-10-15 贴 B 稿:光晕是这一块的衬底,
+                // 不再单独占舞台)=====
+                VStack(alignment: .leading, spacing: 0) {
+                    // 头部区(D3 定稿:信息一行看全,页边距 24)
+                    DailyHeaderSection(
+                        businessDate: businessDate,
+                        lunarDate: response.lunarDate,
+                        dayPillar: response.dayPillar,
+                        dayRelation: response.dayRelationToDayMaster,
+                        dayChong: response.dayChong,
+                        dayChongTargets: response.dayChongTargets,
+                    )
+                    .padding(.horizontal, 24)
+                    .padding(.top, 6)
+                    .inkIn()
 
-                // ===== hero 光晕(2026-10-14 改 B 版:五行光晕 + 竖排今日一签 +
-                // 宜忌双列;17pt 边距宽于文本区,chips 下 6pt)=====
-                DailyImageHeroSection(
-                    dayPillar: response.dayPillar,
-                    dayRelation: response.dayRelationToDayMaster,
-                    dayElements: response.dayElements,
-                    daySignal: response.daySignal,
-                )
-                .padding(.horizontal, 17)
-                .padding(.top, 6)
-                .inkIn(delay: 0.08)
+                    // 宜忌双列(紧跟 chips,B 稿 .block padding-top 30;
+                    // 水平 28 = 原 hero 舞台 17 + 宜忌内边距 11,左缘位置不变)
+                    DailyImageHeroSection(dayRelation: response.dayRelationToDayMaster)
+                        .padding(.horizontal, 28)
+                        .padding(.top, 30)
+                        .inkIn(delay: 0.08)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .background(alignment: .top) {
+                    // 光晕衬底:全屏宽、420pt 高、顶边低于头部 34pt;比宿主
+                    // 容器高,溢出部分洇进下方解读区是 B 稿本来的样子,不裁切。
+                    HaloBackdrop(
+                        dayPillar: response.dayPillar,
+                        dayElements: response.dayElements,
+                        daySignal: response.daySignal,
+                    )
+                    .frame(height: HaloBackdrop.height)
+                    .offset(y: Self.haloTopInset)
+                    .inkIn(delay: 0.08)
+                }
 
                 // AI 解读(D5 定稿:无卡片底直接排纸面,页边距 24、hero 下 24;
                 // S6 结构化今日洞察:v4 JSON 五段 + 确定性今日信号;2026-09-07 起

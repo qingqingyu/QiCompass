@@ -254,10 +254,6 @@ final class DailyImageHeroCopyTests: XCTestCase {
         }
         let enFallback = HeroYiJiColumns.fallback(for: .en)
         texts += enFallback.yi + enFallback.ji
-        // 今日一签(2026-10-14 B 光晕 hero)+ 小标 + 兜底
-        for lines in HeroDailyLot.en.values { texts += lines }
-        texts += HeroDailyLot.fallback(for: .en)
-        texts.append(HeroDailyLot.caption(for: .en))
         // 降级/兜底模板五段(失败态正文常驻可见,同受 D4 约束)
         for insight in EngineReadingTemplates.en.values {
             texts += [insight.headline, insight.work, insight.relationships,
@@ -306,26 +302,6 @@ final class DailyImageHeroCopyTests: XCTestCase {
         XCTAssertNil(BaziTerms.romanizedHyphen("甲子木"), "含非干支字符应 nil")
         XCTAssertNil(BaziTerms.romanizedHyphen("偏财"), "非干支术语 nil")
         XCTAssertNil(BaziTerms.romanizedHyphen(""), "空串 nil")
-    }
-
-    // MARK: - 今日一签 + 光晕取色(2026-10-14 B 光晕 hero)
-
-    /// 三语签文键集合 == 宜忌词表键集合(十神十键);每条两句非空;
-    /// zh/zh-Hant 每句 ≤6 字(竖排 28pt 一列在 340pt 舞台内放得下)。
-    func testDailyLotTablesCoverAllRelationsAndFitVertical() {
-        let keys = Set(HeroYiJiColumns.mappingZh.keys)
-        for (name, table) in [("zh", HeroDailyLot.zh), ("hant", HeroDailyLot.hant), ("en", HeroDailyLot.en)] {
-            XCTAssertEqual(Set(table.keys), keys, "\(name) 签文键集合与宜忌词表不一致")
-            for (relation, lines) in table {
-                XCTAssertEqual(lines.count, 2, "\(name) \(relation) 应为两句")
-                XCTAssertFalse(lines.contains { $0.isEmpty }, "\(name) \(relation) 有空句")
-            }
-        }
-        for (relation, lines) in HeroDailyLot.zh.merging(HeroDailyLot.hant.map { ("hant-" + $0.key, $0.value) }, uniquingKeysWith: { a, _ in a }) {
-            for line in lines {
-                XCTAssertLessThanOrEqual(line.count, 6, "\(relation) 竖排句超 6 字:「\(line)」")
-            }
-        }
     }
 
     // MARK: - 光晕取色(2026-10-15 规格:喜用命中优先,否则我生 + 我克)
