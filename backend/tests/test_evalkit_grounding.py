@@ -871,7 +871,7 @@ def _v9_engine():
 # P7 权重>0 写缺 / P2 结构名术语)
 _SAMPLE_M0_V9_SCREENSHOT_OUTPUT = {
     "main_axis": {
-        "headline": "偏财与正印并列主导,偏财重 8,天干月令透偏财(乙卯)",
+        "headline": "偏财与正印并列主导,偏财重 8,天干月令透偏财(辛丑)",
         "body": "你先做出能跑的版本,再拿它去换空间;偏财重 8。",
         "dominant": "偏财、正印(并列最重)",
         "secondary": "食神",
@@ -933,12 +933,16 @@ _SAMPLE_M0_V9_TARGET_OUTPUT = {
 
 
 def test_headline_screenshot_fails_three_ways():
-    """截图正例:headline 同踩 术语+干支+数字(P1)。"""
+    """截图正例:headline 同踩 术语+干支+数字(P1)。
+
+    2026-10-16 v10:干支改接地匹配(只认本盘四柱/大运实际形态),原句
+    「(乙卯)」不在样本盘 1(丙寅辛丑庚午庚辰,大运壬寅…庚戌)→ 换本盘
+    月柱「辛丑」,断言同步。"""
     out = {"main_axis": _SAMPLE_M0_V9_SCREENSHOT_OUTPUT["main_axis"]}
     failures = check_headline_plain_language(
         "m0_structure", out, _v9_engine())
     assert any("结论层含术语" in f and "偏财" in f for f in failures)
-    assert any("结论层含干支" in f and "乙卯" in f for f in failures)
+    assert any("结论层含干支" in f and "辛丑" in f for f in failures)
     assert any("结论层含数字" in f for f in failures)
 
 
@@ -1033,7 +1037,8 @@ def test_expansion_missing_field_skips():
 
 def test_expansion_ganzhi_cite_fails():
     """样本盘实跑实踩:leak 写大运干支(丁未)/干支+五行注记(壬水/庚金)。
-    v9 大运条件句只写「约 X 岁起的那十年」,干支落 evidence。"""
+    v10 干支只在「约 X 岁起的那十年(某某运)」括注里合法——三句干支都
+    在本盘接地集但都不在合法括注内,照报。"""
     cases = [
         {"core_loop": {"leak": "约四十六岁起的丁未运里,压力明显变多。"}},
         {"core_loop": {"leak": "那两步大运天干是壬水、癸水,表达会顺一些。"}},
@@ -1051,6 +1056,103 @@ def test_expansion_daily_words_with_branch_chars_pass():
         "flow": "他中午刚过就提交了申请,孩子喝了热水也没上火。"}}
     assert check_expansion_no_figures(
         "m0_structure", out, _v9_engine()) == []
+
+
+# ---- 7b-v10. 干支接地匹配 + 大运括注对账(2026-10-16,plan S2-1) ----
+#
+# 样本盘 1 真排盘:四柱 丙寅/辛丑/庚午/庚辰,大运 壬寅5/癸卯15/甲辰25/
+# 乙巳35/丙午45/丁未55/戊申65/己酉75/庚戌85。「己」在大运(己酉)→
+# 「己土」注记在接地集,「自己土气」须靠「自己」豁免放行。
+
+
+def test_expansion_daily_ziji_words_pass():
+    """反例(v10 接地匹配):review 实测 5 句误报全部放行。
+
+    己未/己水/己金/子火 不在本盘接地集(己未非本盘干支对、己水己金
+    五行不对、子非本盘字)天然不命中;「自己土气」的「己土」在集
+    (大运己酉带己),靠「己」前是「自」的豁免放行。"""
+    sentences = [
+        "你自己未必意识到这一点",
+        "你会先提升自己水平再出手",
+        "你很少在自己金钱上算计",
+        "你对自己土气的一面并不在意",
+        "作品一下子火了以后你反而退后",
+    ]
+    for s in sentences:
+        out = {"core_loop": {"leak": s}}
+        assert check_expansion_no_figures(
+            "m0_structure", out, _sample_engine()) == [], s
+
+
+def test_expansion_chart_ganzhi_fails():
+    """正例:展开层出现本盘干支对(庚午,日柱)照报——接地匹配只收窄
+    误报面,真引用不放过。"""
+    out = {"core_loop": {"leak": "日复一日硬扛,庚午帮你顶住压力。"}}
+    failures = check_expansion_no_figures(
+        "m0_structure", out, _sample_engine())
+    assert any("展开层含干支" in f and "庚午" in f for f in failures)
+
+
+def test_headline_luck_note_not_exempt():
+    """正例:结论层不享受括注豁免——即使括注干支/岁数全对,结论层
+    禁任何干支(plan S2-1.5)。"""
+    out = {"main_axis": {
+        "headline": "约 25 岁起的那十年(甲辰运),你开始发力。"}}
+    failures = check_headline_plain_language(
+        "m0_structure", out, _sample_engine())
+    assert any("结论层含干支" in f and "甲辰" in f for f in failures)
+
+
+def test_expansion_luck_note_valid_passes():
+    """括注三态之放行:「约 25 岁起的那十年(甲辰运)」——甲辰是本盘
+    大运且 start_age=25,干支合法落点,数字由年龄豁免,零 fail。
+    全角/半角括号都收;繁体「歲/運」(zh-hant 一等输出语言)同样对账
+    放行,不得误报。"""
+    for note in ("约 25 岁起的那十年（甲辰运）,表达会变得容易。",
+                 "约 25 岁起的那十年(甲辰运),表达会变得容易。",
+                 "約 25 歲起的那十年（甲辰運）,表達會變得容易。"):
+        out = {"core_loop": {"leak": note}}
+        assert check_expansion_no_figures(
+            "m0_structure", out, _sample_engine()) == [], note
+
+
+def test_expansion_luck_note_age_mismatch_fails():
+    """括注三态之错配:甲辰在盘但起运 25 岁,写「约 15 岁」→ fail。"""
+    out = {"core_loop": {"leak": "约 15 岁起的那十年(甲辰运),表达会变得容易。"}}
+    failures = check_expansion_no_figures(
+        "m0_structure", out, _sample_engine())
+    assert any("大运岁数与干支对不上" in f and "甲辰" in f
+               for f in failures)
+
+
+def test_expansion_luck_note_fabricated_fails():
+    """括注三态之编造:庚子不在本盘大运(壬寅…庚戌)→ fail。"""
+    out = {"core_loop": {"leak": "约 25 岁起的那十年(庚子运),表达会变得容易。"}}
+    failures = check_expansion_no_figures(
+        "m0_structure", out, _sample_engine())
+    assert any("编造大运干支" in f and "庚子" in f for f in failures)
+
+
+def test_expansion_luck_note_cn_age_passes():
+    """中文数字年龄的合法括注(样本实见「约四十六岁」形态)同样对账
+    放行:甲辰=25 岁运「约二十五岁」、癸卯=15 岁运「约十五岁」——
+    「十几」类(十位省略)是样本实跑实踩的解析坑,初版被拒成 None
+    误报「对不上」,此用例即其回归锁。"""
+    for note in ("约二十五岁起的那十年(甲辰运),表达会变得容易。",
+                 "约十五岁起的那十年(癸卯运),表达会变得容易。",
+                 "约五岁起的那十年(壬寅运),表达会变得容易。"):
+        out = {"core_loop": {"leak": note}}
+        assert check_expansion_no_figures(
+            "m0_structure", out, _sample_engine()) == [], note
+
+
+def test_expansion_luck_note_cn_age_mismatch_fails():
+    """中文数字错配:甲辰 25 岁,「约三十五岁」→ fail 对不上(解析正确
+    前提下的真错配;不用「十五」——它对癸卯是合法对,见上例)。"""
+    out = {"core_loop": {"leak": "约三十五岁起的那十年(甲辰运),表达会变得容易。"}}
+    failures = check_expansion_no_figures(
+        "m0_structure", out, _sample_engine())
+    assert any("大运岁数与干支对不上" in f for f in failures)
 
 
 # ---- 7c. v9-3 权重>0 不得写缺 ----
@@ -1080,10 +1182,27 @@ def test_present_god_zero_weight_missing_passes():
 
 
 def test_present_god_hidden_wording_passes():
-    """「没有透出」= 藏而不透的合规语义,不判。"""
+    """「没有透出」不判——v10 起「没有」整个移出词表(2026-10-16:
+    比较句「没有X重」/否定动词「没有压垮」两用,判不了,宁可漏报),
+    原「透露」守卫分支随之删除。"""
     out = {"s": "正财没有透出,藏在年支里,收入要靠时间攒。"}
     assert check_present_god_not_missing(
         "m0_structure", out, _v9_engine()) == []
+
+
+def test_present_god_meiyou_comparisons_pass():
+    """反例(v10 词表移除「没有」):review 实测 3 类误报全放行。
+    句中神名换成本盘权重 >0 的神(_v9_engine:偏财 8/七杀 1/劫财 2),
+    旧词表下三句全报——「十神名后 6 字窗口出现『没有』」。"""
+    sentences = [
+        "偏财没有七杀那么重,看机会的手感还在。",   # 比较句
+        "七杀的压力没有压垮你,反而变成动力。",       # 否定后面的动词
+        "劫财的锋芒没有用上,机会总差半步。",         # 藏而不用,不是缺
+    ]
+    for s in sentences:
+        out = {"s": s}
+        assert check_present_god_not_missing(
+            "m0_structure", out, _v9_engine()) == [], s
 
 
 def test_present_god_negated_missing_passes():

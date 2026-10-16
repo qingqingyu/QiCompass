@@ -274,8 +274,10 @@ def test_v1_prompt_versions_registry_matches_expected():
     # 干支/zh·zh-hant 补「数字只进 evidence 式句子」规则(对齐 EN v7)。
     # v9(m0) 2026-10-14 白话结论层:每题三层(白话结论/展开/据)+十神白话
     # 释义表+数字干支只进据+工程腔禁词+示例句不得复用(plan 见 docs)。
+    # v10(m0) 2026-10-16 大运括注放宽:「约 X 岁起的那十年(某某运)」,干支
+    # 只许在括注里,岁数/干支须与输入大运对账;结论层仍禁括注(plan 见 docs)。
     expected = {m: 2 for m in v1_modules}
-    expected["m0_structure"] = 9
+    expected["m0_structure"] = 10
     expected["m1_talent"] = 5
     expected["m2_high_low"] = 6
     expected["m3_system"] = 6

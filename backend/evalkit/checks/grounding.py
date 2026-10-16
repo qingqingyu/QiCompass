@@ -785,18 +785,157 @@ _TEN_GOD_FAMILY_NAMES: tuple[str, ...] = (
 # 作十神简称用的单字:只在 structure_type.name 判(其他 headline 里
 # 「财」等单字可能是日常用词,宁可漏报——plan S2-1 拍板口径)
 _TG_SINGLE_CHAR_SHORTHAND: tuple[str, ...] = ("印", "财", "官", "杀")
-# 干支引用形态(2026-10-14 v9 样本盘实跑实踩:leak 写「丁未」「壬水」
-# 「庚金、戌土」——干支+五行注记也是引用具体字):天干+地支(乙卯/壬寅)、
-# 天干+五行(壬水/庚金)、地支+五行(戌土/酉金)。反向(支+干)与散见单字
-# 不判;日常词里 stem/branch 后紧跟五行字的组合不自然(乙醇/申请/未来
-# 都不带五行字),按引用判
-_GANZHI_CITE_RE = re.compile(
-    "[甲乙丙丁戊己庚辛壬癸][子丑寅卯辰巳午未申酉戌亥]"
-    "|[甲乙丙丁戊己庚辛壬癸][金木水火土]"
-    "|[子丑寅卯辰巳午未申酉戌亥][金木水火土]")
+# 干支引用形态:2026-10-14 v9 样本盘实跑实踩 leak 写「丁未」「壬水」
+# 「庚金、戌土」(干支+五行注记也是引用具体字);2026-10-16 v10 改
+# **接地匹配**(plan S2-1):静态正则匹配任意干支相邻字,把 5 句日常
+# 中文全部误报(「自己未必」=己未 /「自己水平」=己水 /「自己金钱」=己金 /
+# 「自己土气」=己土 /「一下子火了」=子火)。改为只匹配**本盘实际存在**
+# 的形态——
+# - 干支对:四柱 gan_zhi + 大运每步 gan_zhi(「乙卯」不在本盘就不判)
+# - 「干/支+五行」注记:只收本身五行正确的组合(庚金/壬水/午火/戌土…),
+#   字取自上述干支;「自己水平」的「己水」五行不对(己属土),天然不命中
+# - 「自己」豁免:「己」开头的匹配且前一字符是「自」(反身代词)跳过
+# 已知漏报(接受):盘里不存在的干支(纯编造)在括注以外不被这项检查
+# 抓到,plan S4 另立项。
+_GAN_STEMS = "甲乙丙丁戊己庚辛壬癸"
+_GAN_ELEMENTS = {"甲": "木", "乙": "木", "丙": "火", "丁": "火", "戊": "土",
+                 "己": "土", "庚": "金", "辛": "金", "壬": "水", "癸": "水"}
+_ZHI_BRANCHES = "子丑寅卯辰巳午未申酉戌亥"
+_ZHI_ELEMENTS = {"子": "水", "丑": "土", "寅": "木", "卯": "木", "辰": "土",
+                 "巳": "火", "午": "火", "未": "土", "申": "金", "酉": "金",
+                 "戌": "土", "亥": "水"}
+
+
+def _citable_ganzhi_forms(engine_result: dict[str, Any]) -> tuple[str, ...]:
+    """本盘可引用干支形态集(排序保稳定):四柱+大运的干支对,与取自
+    这些字的五行正确注记。pillars/luck_pillars 缺失 → 空集(调用方跳过
+    干支判定,宁可漏报)。day/hour 可为 None(时辰未知),非 dict 跳过。"""
+    forms: set[str] = set()
+    pillars = engine_result.get("pillars")
+    if isinstance(pillars, dict):
+        for pillar in pillars.values():
+            if not isinstance(pillar, dict):
+                continue
+            gz = pillar.get("gan_zhi") or ""
+            if len(gz) == 2:
+                forms.add(gz)
+            gan, zhi = pillar.get("gan"), pillar.get("zhi")
+            if gan in _GAN_ELEMENTS:
+                forms.add(gan + _GAN_ELEMENTS[gan])
+            if zhi in _ZHI_ELEMENTS:
+                forms.add(zhi + _ZHI_ELEMENTS[zhi])
+    for pillar in engine_result.get("luck_pillars") or []:
+        if not isinstance(pillar, dict):
+            continue
+        gz = pillar.get("gan_zhi") or ""
+        if len(gz) == 2:
+            forms.add(gz)
+            if gz[0] in _GAN_ELEMENTS:
+                forms.add(gz[0] + _GAN_ELEMENTS[gz[0]])
+            if gz[1] in _ZHI_ELEMENTS:
+                forms.add(gz[1] + _ZHI_ELEMENTS[gz[1]])
+    return tuple(sorted(forms))
+
+
+def _find_ganzhi_citations(
+        value: str, forms: tuple[str, ...],
+        exempt_spans: tuple[tuple[int, int], ...] = ()) -> list[str]:
+    """value 中命中的本盘可引用干支形态(每形态报首个命中)。
+
+    「自己」豁免:「己」开头且前一字符是「自」跳过(反身代词,本盘带
+    己时「自己土气/自己未必」不误判)。exempt_spans 内的命中跳过
+    (合法大运括注,见 _check_luck_notes)。"""
+    hits: list[str] = []
+    for form in forms:
+        idx = value.find(form)
+        while idx >= 0:
+            end = idx + len(form)
+            in_exempt = any(s <= idx and end <= e
+                            for s, e in exempt_spans)
+            is_ziji = (form[0] == "己" and idx > 0
+                       and value[idx - 1] == "自")
+            if not in_exempt and not is_ziji:
+                hits.append(form)
+                break
+            idx = value.find(form, idx + 1)
+    return hits
+
+
+# v10 大运括注:「约 X 岁起的那十年(某某运)」——展开层干支的唯一合法
+# 落点(S1 放宽)。数字支持半角/全角阿拉伯与中文(「约四十六岁」样本
+# 实见);括号半角/全角;「约」可省;岁/运兼容繁体(歲/運,zh-hant 是
+# 一等输出语言,合规繁体括注不得误报)。中文年龄只解析 ≤99(起运岁数
+# 上限)。
+_LUCK_NOTE_RE = re.compile(
+    r"约?\s*([0-9０-９]+|[一二两三四五六七八九十]{1,3})\s*[岁歲]起的那十年"
+    rf"\s*[（(]\s*([{_GAN_STEMS}][{_ZHI_BRANCHES}])\s*[运運]\s*[)）]")
+_FW_DIGIT_TABLE = str.maketrans("０１２３４５６７８９", "0123456789")
+_CN_DIGIT_MAP = {"一": 1, "二": 2, "两": 2, "三": 3, "四": 4, "五": 5,
+                 "六": 6, "七": 7, "八": 8, "九": 9}
+
+
+def _parse_cn_age(raw: str) -> int | None:
+    """中文数字年龄(1-99)→ int;超出解析能力返回 None(调用方按
+    「岁数对不上」处理)。只覆盖 十/几十/十几/几十几(起运岁数域)。
+
+    样本实跑实踩(2026-10-16):「十几」类 tens_raw 为空串,初版长度
+    判 `len(tens_raw) != 1` 把「十五」整个拒成 None →「约十五岁起的那
+    十年(癸卯运)」癸卯恰是 15 岁运,被误报「岁数对不上」。空串=
+    十位省略(合法),只拒多字符。"""
+    if raw == "十":
+        return 10
+    if "十" in raw:
+        tens_raw, _, ones_raw = raw.partition("十")
+        if len(tens_raw) > 1 or len(ones_raw) > 1:
+            return None
+        tens = _CN_DIGIT_MAP.get(tens_raw, 0) if tens_raw else 1
+        ones = _CN_DIGIT_MAP.get(ones_raw, 0) if ones_raw else 0
+        if (tens_raw and tens == 0) or (ones_raw and ones == 0):
+            return None
+        return tens * 10 + ones
+    return _CN_DIGIT_MAP.get(raw) if len(raw) == 1 else None
+
+
+def _check_luck_notes(
+        value: str,
+        engine_result: dict[str, Any]) -> tuple[list[str], list[tuple[int, int]]]:
+    """括注岁数对账(plan S2-1.4,只用于展开层):「约 N 岁起的那十年
+    (XX运)」——XX 必须是 luck_pillars 里实际存在的干支,且该步
+    start_age == N。返回 (violations, 合法括注的 span 列表)。
+
+    XX 不在 luck_pillars → fail 编造大运干支;在但岁数不符(或中文
+    年龄无法解析)→ fail 岁数对不上;完全对上 → 该 span 豁免干支判定。
+    非干支形态的括号内容不匹配本正则(漏报接受)。"""
+    violations: list[str] = []
+    exempt: list[tuple[int, int]] = []
+    ages: dict[str, int | None] = {}
+    for pillar in engine_result.get("luck_pillars") or []:
+        if isinstance(pillar, dict) and pillar.get("gan_zhi"):
+            ages[pillar["gan_zhi"]] = pillar.get("start_age")
+    for m in _LUCK_NOTE_RE.finditer(value):
+        raw_age, gz = m.group(1), m.group(2)
+        if raw_age[0].isdigit():
+            age: int | None = int(raw_age.translate(_FW_DIGIT_TABLE))
+        else:
+            age = _parse_cn_age(raw_age)
+        if gz not in ages:
+            violations.append(
+                f"编造大运干支:括注「{gz}运」不在本盘大运里"
+                f"(干支必须引用输入实际存在的那步,原文:{_clip(value)!r})")
+        elif age != ages[gz]:
+            violations.append(
+                f"大运岁数与干支对不上:「{gz}运」起运 {ages[gz]} 岁,"
+                f"写了约 {raw_age} 岁(括注须同一步干支对得上;"
+                f"原文:{_clip(value)!r})")
+        else:
+            exempt.append(m.span())
+    return violations, exempt
+
+
 # 阿拉伯数字(半角 + 全角,全角也是阿拉伯数字的排版变体)
 _ARABIC_DIGIT_RE = re.compile(r"[0-9０-９]")
-_AGE_RE = re.compile(r"[0-9０-９]+\s*岁")
+# 年龄豁免(岁兼容繁体歲,zh-hant 输出的年龄数字同样只进 leak)
+_AGE_RE = re.compile(r"[0-9０-９]+\s*[岁歲]")
 
 # v9 结论层字段(路径, 是否判单字简称)
 _V9_HEADLINE_FIELDS: tuple[tuple[tuple[str, ...], bool], ...] = (
@@ -837,10 +976,16 @@ def check_headline_plain_language(
     绕过 A1,但印/财/食伤全是十神语(P2);headline 若带「偏财重 8」
     同时踩术语+数字(P1)。单字简称只在 name 判,理由见
     _TG_SINGLE_CHAR_SHORTHAND 注释。
+
+    v10:干支改接地匹配(_citable_ganzhi_forms,只认本盘四柱/大运实际
+    存在的形态);**结论层不享受大运括注豁免**——括注也是干支(plan
+    S2-1.5,headline/name 禁任何干支包括括注)。空集(引擎缺
+    pillars/luck_pillars)跳过干支判定。
     """
     if module != "m0_structure":
         return []
     failures: list[str] = []
+    forms = _citable_ganzhi_forms(engine_result)
     for path, judge_single in _V9_HEADLINE_FIELDS:
         label = ".".join(path)
         value = _resolve_field(parsed_output, path)
@@ -858,12 +1003,14 @@ def check_headline_plain_language(
                 f"结论层含术语:{label} 出现 {'、'.join(sorted(set(hit_terms)))}"
                 f"(结论句不得出现十神名及简称,原文:{_clip(value)!r})"
             )
-        m = _GANZHI_CITE_RE.search(value)
-        if m:
-            failures.append(
-                f"结论层含干支:{label} 出现「{m.group(0)}」"
-                f"(干支只进据类字段,原文:{_clip(value)!r})"
-            )
+        if forms:
+            hits = _find_ganzhi_citations(value, forms)
+            if hits:
+                failures.append(
+                    f"结论层含干支:{label} 出现「{hits[0]}」"
+                    f"(结论层禁任何干支,大运括注也不例外;"
+                    f"原文:{_clip(value)!r})"
+                )
         m = _ARABIC_DIGIT_RE.search(value)
         if m:
             failures.append(
@@ -881,7 +1028,14 @@ def check_expansion_no_figures(
     """v9-2 展开层无数字与干支:body/flow/leak/one_line/text 不含阿拉伯
     数字(「\\d+ 岁」豁免,大运写法「约 32 岁起的那十年」是唯一例外),
     也不含干支引用(干支+五行注记形态同判:「丁未」「壬水」「庚金、戌土」
-    ——v9 样本盘实跑实踩,大运条件句的干支须落 evidence)。
+    ——v9 样本盘实跑实踩)。
+
+    v10 放宽大运括注(plan S1/S2-1):「约 N 岁起的那十年(XX运)」是
+    展开层干支的**唯一合法落点**——先做岁数对账(_check_luck_notes:
+    XX 须为本盘实际大运且 start_age==N,编造/错配即 fail),完全合法的
+    括注 span 豁免干支判定;其余位置命中本盘可引用形态(_citable_
+    ganzhi_forms 接地匹配,修「自己未必/自己水平/一下子火了」误报)
+    即 fail。空集(引擎缺 pillars/luck_pillars)跳过干支判定。
 
     真机截图正例:body「偏财重 8,正财重 8」(P1)。字段缺失跳过不判
     (结论层缺失由 v9-1 报,这里不重复)。
@@ -889,6 +1043,7 @@ def check_expansion_no_figures(
     if module != "m0_structure":
         return []
     failures: list[str] = []
+    forms = _citable_ganzhi_forms(engine_result)
     for path in _V9_EXPANSION_FIELDS:
         value = _resolve_field(parsed_output, path)
         if not isinstance(value, str):
@@ -901,18 +1056,27 @@ def check_expansion_no_figures(
                 f"(权重/计数等数字只进据类字段,年龄除外;"
                 f"原文:{_clip(value)!r})"
             )
-        m = _GANZHI_CITE_RE.search(value)
-        if m:
+        if not forms:
+            continue
+        note_failures, exempt = _check_luck_notes(value, engine_result)
+        failures.extend(note_failures)
+        hits = _find_ganzhi_citations(value, forms, tuple(exempt))
+        if hits:
             failures.append(
-                f"展开层含干支:{'.'.join(path)} 出现「{m.group(0)}」"
-                f"(大运写「约 X 岁起的那十年」,具体干支进 evidence;"
-                f"原文:{_clip(value)!r})"
+                f"展开层含干支:{'.'.join(path)} 出现「{hits[0]}」"
+                f"(干支只许出现在「约 X 岁起的那十年(某某运)」的括注里,"
+                f"其余进 evidence;原文:{_clip(value)!r})"
             )
     return failures
 
 
-# 「写缺」词与否定前瞻守卫(「不算缺失」类否定提及不算指控,宁可漏报)
-_MISSING_WORDS: tuple[str, ...] = ("缺位", "缺失", "没有", "不存在")
+# 「写缺」词与否定前瞻守卫(「不算缺失」类否定提及不算指控,宁可漏报)。
+# 2026-10-16 v10 review 修复:「没有」从词表移除——review 实测 3 句全部
+# 误报:「正财没有七杀那么重」(比较句)/「压力没有压垮你」(否定后面的
+# 动词)/「伤官的锋芒没有用上」(藏而不用,不是缺)。中文「没有」多为
+# 比较或否定动词,判据无法与缺失指控区分,按宁可漏报放弃;真缺失指控由
+# 缺位/缺失/不存在 承担(「没有透出」守卫分支随之删除)。
+_MISSING_WORDS: tuple[str, ...] = ("缺位", "缺失", "不存在")
 _MISSING_NEGATION_BEFORE = ("不", "非", "未", "别")
 _MISSING_WINDOW = 6  # 十神名/统称后多少字内算「说它缺」
 
@@ -923,13 +1087,14 @@ def check_present_god_not_missing(
     engine_result: dict[str, Any],
 ) -> list[str]:
     """v9-3 权重 >0 不得写缺(P7):同句内十神名或统称后 6 字出现
-    「缺位/缺失/没有/不存在」,而该十神(统称取类内权重之和)权重 >0
+    「缺位/缺失/不存在」,而该十神(统称取类内权重之和)权重 >0
     → fail。违反 v7 ⑥「缺/藏/弱」三分法,真机截图正例:七杀 1(藏于
     戌)被写成「官杀系统整体缺位」。
 
-    守卫:缺词前 2 字内有否定词(不算/非缺…)跳过——否定提及不是指控;
-    「没有透出/没有露出」= 藏而不透的合规语义,同样跳过。
-    权重为 0 写「缺」是合规措辞,不判。
+    守卫:缺词前 2 字内有否定词(不算/非缺…)跳过——否定提及不是指控。
+    「没有」不在词表(2026-10-16 v10:比较句/否定动词两用,判不了,
+    宁可漏报,见 _MISSING_WORDS 注释)。权重为 0 写「缺」是合规措辞,
+    不判。
     """
     if module != "m0_structure":
         return []
@@ -957,12 +1122,6 @@ def check_present_god_not_missing(
                         pos = window.find(word)
                         if pos < 0:
                             continue
-                        # 「没有透出/没有露出」= 藏而不透的合规措辞(应写
-                        # 藏/未透出,但语义不是指控缺席),不判——宁可漏报
-                        if word == "没有":
-                            after = window[pos + len(word):pos + len(word) + 1]
-                            if after and after[0] in "透露":
-                                continue
                         word_at = start + pos
                         before = sentence[max(0, word_at - 2):word_at]
                         if any(n in before for n in _MISSING_NEGATION_BEFORE):
