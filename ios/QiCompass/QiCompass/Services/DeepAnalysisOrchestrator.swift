@@ -53,20 +53,36 @@ final class DeepAnalysisOrchestrator {
         // 不写 link 会让合盘 / 每日运势查不到本命盘(它们都按 UserSnapshotLink 取列表)。
         // upsert 按 (userId, snapshotHash) 去重:同盘重排不重复 insert,但 alias 会更新。
         //
+        // 替换语义(2026-10-17 拍板):写新 link 前先抓当前最新 link(旧命主);
+        // 新 hash ≠ 旧 hash 时删旧命主 link——旧版本盘不再降级进「我的」名册。
+        // 同盘重排(hash 相同)由 replaceLink 内部 no-op。取 latestLink 失败按
+        // nil 处理(保守:不删,留旧行可手删),不阻断排盘——但降级必须留痕
+        //(对齐 CLAUDE.md 错误显式传播:静默 try? 会让 SwiftData 读坏无线索)。
+        let previousPrimaryHash: String?
+        do {
+            previousPrimaryHash = try userLinkStore.latestLink()?.snapshotHash
+        } catch {
+            AppLogger.persistence.error(
+                "op=deepAnalysis.runCalculation latestLink.fetch_failed error=\(String(describing: error), privacy: .public)"
+            )
+            previousPrimaryHash = nil
+        }
+        //
         // 降级策略(避免 UX 不一致):ChartSnapshot 已存档 → 视为排盘成功。
         // link 写入失败时不 throw(否则 UI 看到 chartFailed 但盘已落库,重排会去重),
         // 改为显式 error 日志,便于运维追踪合盘查不到盘的根因。link 不写入不影响 Chart
         // 重排(下次重排 chartStore.upsert 命中,link upsert 重试)。
         do {
-            _ = try userLinkStore.upsert(
+            try userLinkStore.replaceLink(
                 userId: UserIdentity.userLocalId,
-                snapshotHash: response.contentHash,
-                alias: alias
+                newSnapshotHash: response.contentHash,
+                alias: alias,
+                oldSnapshotHash: previousPrimaryHash
             )
         } catch {
             // 不吞错:显式 error 日志,运维可据 traceId 定位合盘空列表根因。
             AppLogger.persistence.error(
-                "op=deepAnalysis.runCalculation userLink.upsert.failed contentHash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                "op=deepAnalysis.runCalculation userLink.replace.failed contentHash=\(response.contentHash, privacy: .public) oldHash=\(previousPrimaryHash ?? "nil", privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
         }
 

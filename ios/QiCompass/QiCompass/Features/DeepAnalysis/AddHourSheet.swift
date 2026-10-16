@@ -37,8 +37,9 @@ enum AddHourError: Error, LocalizedError {
 /// ChartSnapshot 不删即归档;缓存按新 hash 自然重建 → 付费墙/每日运势判据随
 /// payload `hour_known=true` 自然翻转,S07/S11 零额外改动)。
 ///
-/// **link 语义**:老盘有 UserSnapshotLink(命主 / Profile 新建的他人盘)→ 新盘按
-/// **原 alias** 补写 link(名字不丢,「妈妈」还是「妈妈」);老盘无 link(合盘临时人
+/// **link 语义(替换,2026-10-17 拍板)**:老盘有 UserSnapshotLink(命主 / Profile
+/// 新建的他人盘)→ 新盘按**原 alias** 写 link 且**删老盘 link**(名字不丢,
+/// 「妈妈」还是「妈妈」;旧版本盘不降级进「我的」名册);老盘无 link(合盘临时人
 /// 隐式落地的盘)→ 新盘同样不建(D6 红线「临时人不建 link」)。
 ///
 /// **他人盘**:同一入口同样适用于合盘 roster 里的他人命盘;重算后
@@ -199,19 +200,23 @@ final class AddHourViewModel {
             guard response.contentHash != snapshot.contentHash else {
                 throw AddHourError.hashNotChanged(contentHash: snapshot.contentHash)
             }
-            // link 补写:仅老盘有 link 时(编辑场景隔离——alias 继承;临时人不建,
-            // D6)。盘已落库,link 失败不拦 UI(与 runCalculation 同降级策略:
-            // 显式 error 日志,下次重排 upsert 命中重试)。
+            // link 替换(2026-10-17 拍板):仅老盘有 link 时(编辑场景隔离——
+            // alias 继承;临时人不建,D6)。新 link 写成功后**删老盘 link**——
+            // 旧版本盘不再降级进「我的」名册(ChartSnapshot 仍归档可回溯;合盘
+            // 名单/深度输入已 remap 到新 hash)。replaceLink 内部先写后删:
+            // 新 link 写失败时老 link 不动,防命盘无 link 可查。失败不拦 UI
+            // (盘已落库,显式 error 日志,旧行残留可由名册编辑态手删)。
             if let alias = displayAlias {
                 do {
-                    _ = try linkStore.upsert(
+                    try linkStore.replaceLink(
                         userId: UserIdentity.userLocalId,
-                        snapshotHash: response.contentHash,
-                        alias: alias
+                        newSnapshotHash: response.contentHash,
+                        alias: alias,
+                        oldSnapshotHash: snapshot.contentHash
                     )
                 } catch {
                     AppLogger.persistence.error(
-                        "op=addHour.submit userLink.upsert.failed newHash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                        "op=addHour.submit userLink.replace.failed oldHash=\(self.snapshot.contentHash, privacy: .public) newHash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
                     )
                 }
             }

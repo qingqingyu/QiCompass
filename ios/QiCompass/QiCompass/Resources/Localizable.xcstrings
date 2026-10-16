@@ -17138,22 +17138,6 @@
         }
       }
     },
-    "重新排盘" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Rechart"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "重新排盤"
-          }
-        }
-      }
-    },
     "重新生成本章" : {
       "extractionState" : "manual",
       "localizations" : {

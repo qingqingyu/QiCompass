@@ -728,15 +728,15 @@ struct DeepAnalysisHomeView: View {
                 .padding(.vertical, BaziTheme.Spacing.sm)
             }
             .buttonStyle(.plain)
-            Button("重新排盘") {
-                vm.reset()
-            }
-            .font(BaziFont.caption(size: 11))
-            .foregroundStyle(BaziTheme.cinnabar)
-            .padding(.bottom, 20)
+            // 「重新排盘」入口已拔(2026-10-17 用户拍板):生辰一经确定不可改——
+            // 改生辰 = 另一张盘,排盘/解读/缓存全作废。改错的真实兜底是「我的」
+            // Tab 重置命盘;contextToken 失效/日柱歧义等**错误恢复**出口
+            // (ErrorStateView 的 RecalculateChartButton、拦截页「返回表单」)
+            // 不是编辑入口,保留不动。勿因「主页少了编辑入口」重新加回。
         }
         .padding(.horizontal, 34)
         .padding(.top, 16)
+        .padding(.bottom, 20)
     }
 
     /// 主 CTA(状态派生在 HomeCTAModel,视图只渲染):开卷 / 续读 /

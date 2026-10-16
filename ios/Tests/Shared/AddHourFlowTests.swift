@@ -6,7 +6,8 @@ import XCTest
 /// S10 补时辰升级闭环测试(docs/时辰未知-slices/S10)。
 ///
 /// 覆盖 slice 验收:
-/// - **hash 重建**:submit → 新 content_hash ≠ 老盘;老盘归档保留(不删);
+/// - **hash 重建**:submit → 新 content_hash ≠ 老盘;老盘 ChartSnapshot 归档保留
+///   (2026-10-17 起 link 走**替换语义**——旧 link 删除,不降级进名册);
 ///   请求 = 「原出生日期 + 新时辰 + 原 gender/place」,`hour_known=true` + `late_night` 清空
 /// - **补后判据翻转**:新 payload `hour_known=true` → `hourUnknownGate == .hourKnown`,
 ///   付费墙拦截判据 `isPurchaseIntercepted` 翻回 false(价格与购买恢复)
@@ -185,18 +186,21 @@ final class AddHourFlowTests: XCTestCase {
         XCTAssertEqual(decoded.calcRuleSnapshot.hourKnown, true)
     }
 
-    func testSubmit_OldChartArchivedAndKept() async throws {
-        // 老三柱盘归档保留:内容寻址 + 不删 = 可回溯(hash 仍可查,link 不迁)
+    func testSubmit_OldChartArchived_LinkReplaced() async throws {
+        // 2026-10-17 替换语义:老三柱盘 **ChartSnapshot 归档保留**(内容寻址可回溯),
+        // 但**link 被删除**——旧版本盘不再降级进「我的」名册
         let old = try archiveOldChart()
         let vm = try makeVM(hash: old.contentHash)
         vm.setShichenHour(10)
 
         let newResponse = try await XCTUnwrapAsync(await vm.submit())
 
-        XCTAssertNotNil(try chartStore.get(contentHash: old.contentHash), "老盘必须保留(归档可查)")
+        XCTAssertNotNil(try chartStore.get(contentHash: old.contentHash), "老盘快照必须保留(归档可查)")
         XCTAssertNotNil(try chartStore.get(contentHash: newResponse.contentHash))
-        XCTAssertEqual(try linkStore.findAlias(snapshotHash: old.contentHash), "我自己",
-                       "老盘 link 不动(归档语义)")
+        XCTAssertNil(try linkStore.findAlias(snapshotHash: old.contentHash),
+                     "老盘 link 必须删除(替换语义,防名册残留旧版本盘)")
+        XCTAssertEqual(try linkStore.list(userId: UserIdentity.userLocalId).count, 1,
+                       "补时辰后单人名册恒一条 link(新盘)")
     }
 
     func testSubmit_InheritsAliasToNewLink() async throws {
@@ -220,6 +224,53 @@ final class AddHourFlowTests: XCTestCase {
 
         XCTAssertNil(try linkStore.findAlias(snapshotHash: newResponse.contentHash),
                      "老盘无 link → 新盘不得建 link(临时人不洗成正式命盘)")
+    }
+
+    // MARK: - 替换语义(2026-10-17 拍板):runCalculation 换 hash 删旧命主 link
+
+    /// 改生辰后的同源请求(只改 birthDatetime,其余字段不动)。
+    private static func changedRequest() -> BaziCalculateRequest {
+        BaziCalculateRequest(
+            birthDatetime: "1990-08-20T12:00:00",
+            timezone: "Asia/Shanghai",
+            gender: "female",
+            longitude: 116.4,
+            latitude: 39.9,
+            placeName: "北京",
+            geonameId: nil,
+            ziHourRule: "zi_next_day",
+            hourKnown: false,
+            lateNight: true
+        )
+    }
+
+    func testRunCalculation_HashChanged_ReplacesOldPrimaryLink() async throws {
+        // 首盘(onboarding 路径):写 link,无旧可删
+        let first = try await orchestrator.runCalculation(request: Self.oldRequest(), alias: "我自己")
+        XCTAssertEqual(try linkStore.findAlias(snapshotHash: first.contentHash), "我自己")
+
+        // 改生辰重排(mock hash 内嵌 birthDatetime → 必换 hash):
+        // 旧命主 link 被删,新 link 顶上——旧版本盘不降级进「我的」名册
+        let second = try await orchestrator.runCalculation(request: Self.changedRequest(), alias: "我自己")
+        XCTAssertNotEqual(second.contentHash, first.contentHash)
+        XCTAssertNil(try linkStore.findAlias(snapshotHash: first.contentHash),
+                     "旧命主 link 必须删除(替换语义)")
+        XCTAssertEqual(try linkStore.findAlias(snapshotHash: second.contentHash), "我自己")
+        XCTAssertEqual(try linkStore.list(userId: UserIdentity.userLocalId).count, 1,
+                       "单人单盘:不残留历史版本 link")
+        // ChartSnapshot 归档保留(内容寻址,历史解读缓存仍可回溯)
+        XCTAssertNotNil(try chartStore.get(contentHash: first.contentHash))
+    }
+
+    func testRunCalculation_SameHash_UpdatesAliasKeepsSingleLink() async throws {
+        // 同盘重排(contextToken 失效恢复出口常见路径):hash 相同 → 原位更新
+        // alias,不删不重建
+        let first = try await orchestrator.runCalculation(request: Self.oldRequest(), alias: "我自己")
+        let second = try await orchestrator.runCalculation(request: Self.oldRequest(), alias: "阿宇")
+        XCTAssertEqual(second.contentHash, first.contentHash)
+        XCTAssertEqual(try linkStore.findAlias(snapshotHash: first.contentHash), "阿宇",
+                       "同 hash 重排只更新 alias")
+        XCTAssertEqual(try linkStore.list(userId: UserIdentity.userLocalId).count, 1)
     }
 
     func testSubmit_HashNotChanged_GuardsExplicitly() async throws {

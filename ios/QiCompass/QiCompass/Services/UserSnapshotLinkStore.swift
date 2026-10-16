@@ -97,6 +97,66 @@ final class UserSnapshotLinkStore {
         return try context.fetch(desc)
     }
 
+    /// 最新 link(createdAt 倒序第一条)。**刻意不按 userId 过滤**——与深度 tab
+    /// `resolveArchivedChart` / 每日运势取盘同口径(裸 fetch),登录迁移中间态
+    /// (link.userId 已 backfill 到后端 id)不分叉。nil = 本机无任何 link。
+    func latestLink() throws -> UserSnapshotLink? {
+        let desc = FetchDescriptor<UserSnapshotLink>(
+            sortBy: [SortDescriptor(\.createdAt, order: .reverse)]
+        )
+        return try context.fetch(desc).first
+    }
+
+    /// 替换语义(2026-10-17 用户拍板):写新盘 link + 删旧盘 link,一步完成。
+    ///
+    /// 背景:重新排盘(改生辰)/ 补时辰会产出新 hash 新命盘。旧实现只 upsert
+    /// 新 link、旧 link 原样保留——旧版本盘按「最新 link = 命主」规则降级进
+    /// 「我的」名册。名册设计上是他人盘存档(v2 多人 UI),被自己的历史版本盘
+    /// 污染,用户观感是"我的资料被挪走了"。
+    ///
+    /// 顺序保证:**先写新后删旧**。upsert 失败直接 throw、旧 link 不动(若先删
+    /// 后写,删成功写失败会让本机一条 link 都不剩,深度/今日运势按 link 取盘
+    /// 直接空转)。删旧失败也 throw,由调用方决定降级(新盘已可用,残留旧行可
+    /// 由名册编辑态手删)。
+    ///
+    /// - `oldSnapshotHash` 传 nil / 与新 hash 相同(同盘重排)时无旧可删,no-op;
+    ///   按 hash 匹配不到 link(老盘本就无 link,如合盘临时人)同样 no-op。
+    ///
+    /// ChartSnapshot 不动(内容寻址,历史解读缓存仍可回溯);合盘名单/深度输入
+    /// 由调用方另行 remap 到新 hash。
+    ///
+    /// 已知缺口:sync push 是 UPSERT-only(无 delete endpoint),已登录用户下次
+    /// pull 可能把已删 link 从云端复活(对齐 ProfileView.resetAllData 的同款
+    /// TODO);v1 sync 未上生产,暂不阻断。
+    ///
+    /// 已知边界(老安装多人 link):`runCalculation` 以 latestLink 作「旧命主」,
+    /// 而全 App 命主判定本就是「最新 link」(ProfileView primary / 深度 tab
+    /// resolveArchivedChart 同款)。若老安装的**他人**存量 link(如「妈妈」,
+    /// 09-05 前入口创建)恰比命主 link 新,经错误恢复出口重排第三人盘时会把
+    /// 该他人 link 一并删除(名册行消失;ChartSnapshot/合盘 V2 名单仍可回溯)。
+    /// 数据模型无「同人」判别字段,alias 守卫会在命主改名后失效误伤——按拍板
+    /// 取「删最新」单一规则,单人世界(v1 常态)不受影响。
+    func replaceLink(
+        userId: String,
+        newSnapshotHash: String,
+        alias: String,
+        oldSnapshotHash: String?
+    ) throws {
+        _ = try upsert(userId: userId, snapshotHash: newSnapshotHash, alias: alias)
+        guard let oldSnapshotHash, oldSnapshotHash != newSnapshotHash else { return }
+        let pred = #Predicate<UserSnapshotLink> { $0.snapshotHash == oldSnapshotHash }
+        let desc = FetchDescriptor<UserSnapshotLink>(predicate: pred)
+        let stale = try context.fetch(desc)
+        guard !stale.isEmpty else { return }
+        for link in stale {
+            context.delete(link)
+        }
+        try context.save()
+        AppLogger.persistence.info(
+            "op=userLink.replaceLink oldHash=\(oldSnapshotHash, privacy: .public) newHash=\(newSnapshotHash, privacy: .public) removed=\(stale.count, privacy: .public)"
+        )
+    }
+
     /// 删除 link(ChartSnapshot 不动,历史解读缓存可回溯;今日运势 fallback 到次新命盘)。
     /// 用户在 ProfileView swipe 删除时调。
     func delete(linkId: UUID) throws {
