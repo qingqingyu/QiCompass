@@ -116,8 +116,8 @@ final class UserSnapshotLinkStore {
     ///
     /// 顺序保证:**先写新后删旧**。upsert 失败直接 throw、旧 link 不动(若先删
     /// 后写,删成功写失败会让本机一条 link 都不剩,深度/今日运势按 link 取盘
-    /// 直接空转)。删旧失败也 throw,由调用方决定降级(新盘已可用,残留旧行可
-    /// 由名册编辑态手删)。
+    /// 直接空转)。删旧失败也 throw,由调用方决定降级(新盘已可用;残留旧行
+    /// 无逐条管理 UI——名册节 2026-10-17 整节拔除,清理出口 = 重置命盘)。
     ///
     /// - `oldSnapshotHash` 传 nil / 与新 hash 相同(同盘重排)时无旧可删,no-op;
     ///   按 hash 匹配不到 link(老盘本就无 link,如合盘临时人)同样 no-op。
@@ -157,29 +157,11 @@ final class UserSnapshotLinkStore {
         )
     }
 
-    /// 删除 link(ChartSnapshot 不动,历史解读缓存可回溯;今日运势 fallback 到次新命盘)。
-    /// 用户在 ProfileView swipe 删除时调。
-    func delete(linkId: UUID) throws {
-        let pred = #Predicate<UserSnapshotLink> { $0.id == linkId }
-        let desc = FetchDescriptor<UserSnapshotLink>(predicate: pred)
-        let matches = try context.fetch(desc)
-        guard let link = matches.first else {
-            // 防御:fetch 不到说明 UI 状态过期(link 已被其他流程删),log + 不抛错
-            // (UI 不需要区分"已删" vs "刚删",只看 list 刷新后是否消失)
-            AppLogger.persistence.warning(
-                "op=userLink.delete linkId=\(linkId, privacy: .public) result=not_found_skip"
-            )
-            return
-        }
-        context.delete(link)
-        try context.save()
-        AppLogger.persistence.info(
-            "op=userLink.delete linkId=\(linkId, privacy: .public) alias=\(link.alias, privacy: .public) result=deleted"
-        )
-    }
+    // 2026-10-17 删除 delete(linkId:):唯一调用方是「我的」名册行删除,名册整节
+    // 拔除后成死代码;换新盘删旧 link 走上方 `replaceLink`(按 hash)。
 
     /// 更新 alias(只改 alias,不动 snapshotHash / createdAt / userId)。
-    /// 用户在 ProfileView swipe 改名时调。
+    /// 用户在 ProfileView 命主块「改名」时调。
     func updateAlias(linkId: UUID, newAlias: String) throws {
         let trimmed = newAlias.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {

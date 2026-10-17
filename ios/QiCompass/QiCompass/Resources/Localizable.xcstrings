@@ -11371,29 +11371,6 @@
         }
       }
     },
-    "云端同步 · 共 %lld 盘" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Cloud-synced · %lld charts"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "云端同步 · 共 %lld 盘"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "雲端同步 · 共 %lld 盤"
-          }
-        }
-      }
-    },
     "五行" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12206,22 +12183,6 @@
         }
       }
     },
-    "删除" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "刪除"
-          }
-        }
-      }
-    },
     "别名不能为空" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12864,29 +12825,6 @@
         }
       }
     },
-    "名 册" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Roster"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "名 册"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "名 冊"
-          }
-        }
-      }
-    },
     "名单已存在相同的对方" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -13147,22 +13085,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "命盤快照缺失,請重新合盤"
-          }
-        }
-      }
-    },
-    "命盘数据会保留(历史解读可回溯),仅从此列表移除。" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "The chart itself stays (past readings remain) — only the list entry goes."
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "命盤數據會保留(歷史解讀可回溯),僅從此列表移除。"
           }
         }
       }
@@ -14358,38 +14280,6 @@
         }
       }
     },
-    "编辑" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Edit"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "編輯"
-          }
-        }
-      }
-    },
-    "完成" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Done"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "完成"
-          }
-        }
-      }
-    },
     "数据异常:无请求记录" : {
       "localizations" : {
         "en" : {
@@ -15581,22 +15471,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "確認出生資訊"
-          }
-        }
-      }
-    },
-    "确认删除「%@」?" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Delete \"%@\"?"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "確認刪除「%@」?"
           }
         }
       }

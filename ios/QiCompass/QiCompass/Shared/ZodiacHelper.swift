@@ -293,10 +293,10 @@ enum ZodiacAvatarMode: Equatable {
 
 // MARK: - ZodiacAvatarMark(生肖头像位三态 View,S08)
 
-/// 生肖图/墨点头像位 View:「我的」tab 命主块(60pt)/名册行(36pt)与合盘配置页
-/// 命主行共用(2026-09-25 暗色走查 #11:自 ProfileView private 提升为 internal,
-/// 统一全 App 头像语言——原合盘命主行是 inkDeep 圆底首字,暗色下反转成亮白圆,
-/// 与生肖线稿体系割裂)。
+/// 生肖图/墨点头像位 View:「我的」tab 命主块(60pt)用(2026-09-25 暗色走查
+/// #11:自 ProfileView private 提升为 internal 以与合盘命主行统一头像语言;
+/// 合盘侧 10-01 Match 重构后改用日主字头像,名册行 36pt 随 2026-10-17 名册
+/// 拔除退役——现唯一消费方为命主块)。
 /// - `.zodiac` 正常生肖印章图(与 ZodiacRevealView 同一 asset 族)
 /// - `.inkDot` 年柱歧义(立春+时辰未知,D10)→ EnsoView 墨圆(品牌指纹,静态渲染):
 ///   有盘但属相待时辰而定,**不猜动物**;留白给正式表达(S05 兜底是整体隐藏命主卡)

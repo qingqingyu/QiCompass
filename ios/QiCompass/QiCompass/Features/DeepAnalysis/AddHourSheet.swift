@@ -205,7 +205,8 @@ final class AddHourViewModel {
             // 旧版本盘不再降级进「我的」名册(ChartSnapshot 仍归档可回溯;合盘
             // 名单/深度输入已 remap 到新 hash)。replaceLink 内部先写后删:
             // 新 link 写失败时老 link 不动,防命盘无 link 可查。失败不拦 UI
-            // (盘已落库,显式 error 日志,旧行残留可由名册编辑态手删)。
+            // (盘已落库,显式 error 日志;残留旧行无逐条管理 UI——名册节
+            // 2026-10-17 整节拔除,清理出口 = 重置命盘)。
             if let alias = displayAlias {
                 do {
                     try linkStore.replaceLink(

@@ -11,11 +11,10 @@ import SwiftData
 /// - **头部去徽章(F3)**:落款角标移除(EN 下挤断 metaLine 的 "Day/Master"),
 ///   登录态唯一落点 = 未登录登录盒(虚线框收组,F2 回归) /
 ///   已登录轻状态行(朱印「我」·已钤同步中)
-/// - **名册(F4)**:主命盘不进名册(与命主块重复);过滤后为空 → 整节隐藏
-///   (非命主 link 创建入口已全拔;2026-10-17 起重新排盘/补时辰走**替换语义**
-///   ——换新盘时删旧 link,自己的历史版本盘不再降级进名册,新用户恒空;
-///   老安装他人盘存量 link 仍在,隐藏非删码);
-///   行恢复纯导航(→ ChartDetailView),改名/删除收进头部 Edit 编辑态
+/// - **名册(F4 → 2026-10-17 整节拔除)**:App 未上线无存量用户,单人单盘下
+///   名册唯一会收集的是自己的历史版本盘(已由替换语义切断),整节 UI 删除
+///   (rosterSection/编辑态/删除确认);v2 多人 UI 重做时再恢复。命主块改名
+///   (linkToEdit/AliasEditView)保留。
 /// - **设置(F5/F6)**:子时说明紧跟子时行(重置后果由重置行 trailing 承载);
 ///   Language 行显示实际生效语言的 endonym;重置行文字回升浓墨
 ///
@@ -26,9 +25,9 @@ import SwiftData
 ///    整块可点 → push 盘面细目页(ChartDetailView,读查分离的「查」)
 /// 1. **登录引导盒**(未登录/失败态):dashed 未钤印 + 官方 SIWA 按钮
 ///    (HIG/品牌规范锁样式,浓墨 .black 与 inkDeep 视觉同源)
-/// 2. **名册**:UserSnapshotLink 全量存档(≠合盘名单,零联动)
-///    (2026-09-05「＋ 新建命盘」入口移除:多人盘建盘归 v2——家人盘会顶掉
-///    「最新 link = 命主」语义,劫持命主卡/深度解析/今日运势的取盘)
+/// 2. **名册**:UserSnapshotLink 全量存档(≠合盘名单,零联动)——
+///    2026-09-05「＋ 新建命盘」入口移除(多人盘建盘归 v2),2026-10-17 整节
+///    UI 拔除(替换语义后单人恒空;App 未上线无老用户存量可顾)
 /// 3. **已购 / 设置 / 关于**:hairline 分节;已购行两行式——合盘 entitlement 追加
 ///    「A × B」归属行(compatibilityHash 反查 CompatibilitySnapshot,快照缺失降级单行不猜);
 ///    子时规则改 Menu 行,退出登录收进设置(弱化);
@@ -44,7 +43,7 @@ struct ProfileView: View {
     @Query(sort: \Entitlement.purchasedAt, order: .reverse)
     private var entitlements: [Entitlement]
 
-    /// 命主卡/名册行需要 ChartSnapshot 取 birthSolarTime / payload(生肖·年柱干支·时辰态)。
+    /// 命主卡需要 ChartSnapshot 取 birthSolarTime / payload(生肖·年柱干支·时辰态)。
     @Query
     private var chartSnapshots: [ChartSnapshot]
 
@@ -77,15 +76,10 @@ struct ProfileView: View {
     /// 语言切换后的「重启生效」alert(D6:方案 A 既定 UX,明示而非静默半生效)。
     @State private var showLanguageRestartAlert = false
 
-    // MARK: 名册行内操作 state
+    // MARK: 改名 state
 
-    /// 待删 link(编辑态行内「删除」触发 → confirmationDialog 二次确认)。
-    @State private var linkToDelete: UserSnapshotLink?
-    /// 待编辑 link(编辑态行内「改名」触发 → 弹 AliasEditView)。
+    /// 待编辑 link(命主块「改名」触发 → 弹 AliasEditView)。
     @State private var linkToEdit: UserSnapshotLink?
-    /// 名册编辑态(F4 2026-10-01):破坏性操作收进显式编辑态——
-    /// 非编辑态行是纯导航(›),编辑态行内浮现改名/删除。
-    @State private var rosterEditing = false
 
     /// onboarding flag(RootTabView 用同 key 监听 onboarding sheet 触发)。
     /// 用 @AppStorage 而非 UserDefaults.standard 让 RootTabView 立即响应(避免 1 runloop 同步延迟)。
@@ -102,14 +96,11 @@ struct ProfileView: View {
             ZStack {
                 BaziTheme.paper.ignoresSafeArea()
                 ScrollView {
-                    // 单次求值:命主信息 + 名册行模型(每次访问都 decode payload JSON,
-                    // 提取为局部 let 避免 body 内多处 computed 反复 decode——沿袭旧 zodiacMode 注释的教训)。
+                    // 单次求值:命主信息(每次访问都 decode payload JSON,提取为局部
+                    // let 避免 body 内多处 computed 反复 decode——沿袭旧 zodiacMode 注释的教训)。
                     let profile = profileModel
-                    // F4(2026-10-01):主命盘不进名册(与命主块重复,只有「Me」
-                    // 一行时尤其明显);过滤后为空 → 整节隐藏(body 侧条件渲染)。
-                    let rosterVisible = profile.roster.filter { $0.link.id != profile.primary?.linkId }
                     VStack(alignment: .leading, spacing: 0) {
-                        if let primary = profile.primary {
+                        if let primary = profile {
                             identityBlock(primary)
                             sectionDivider
                             if primary.needsHour {
@@ -119,11 +110,8 @@ struct ProfileView: View {
                                 )
                             }
                         }
-                        if !rosterVisible.isEmpty {
-                            rosterSection(rosterVisible)
-                        }
-                        // S2(2026-09-30 BP 评审 R4/R5):账号信息在名册之后——
-                        // 信息优先级 = 我的命盘 → 名册 → 账号。F3(2026-10-01):
+                        // S2(2026-09-30 BP 评审 R4/R5):账号信息在命盘之后——
+                        // 信息优先级 = 我的命盘 → 账号。F3(2026-10-01):
                         // 登录态唯一落点收口到这里——未登录 = 登录盒(虚线钤印 +
                         // Unsealed 说明),已登录 = 轻状态行(朱印「我」·已钤同步中),
                         // 状态永不挤头部。零盘态约束不变:登录盒不依赖命盘存在,
@@ -149,14 +137,6 @@ struct ProfileView: View {
                     // 底 padding ≥96(2026-10-01 spec §三):浮动 tab 栏高度 + 间距,
                     // 保证 footer 在 tab 栏上方完整可见
                     .padding(.bottom, 96)
-                    // 编辑态悬挂出口(review 2026-10-01):编辑态删到最后一条非命主
-                    // link 时整节隐藏,rosterEditing 须归位——否则会话中途 link 回流
-                    //(登录链式 pull;push 是 UPSERT-only 不传播删除)时,名册未经
-                    // 操作直接呈现编辑态,行内 Delete 可见,违背 F4「破坏性操作
-                    // 必须显式进入」。
-                    .onChange(of: rosterVisible.count) { _, newCount in
-                        if newCount == 0 { rosterEditing = false }
-                    }
                 }
             }
             // D2(2026-09-29 拍板):四 tab 统一去系统导航标题,防系统字体与水墨层打架;
@@ -185,26 +165,6 @@ struct ProfileView: View {
                 AliasEditView(initialAlias: link.alias) { newAlias in
                     saveAlias(linkId: link.id, newAlias: newAlias)
                 }
-            }
-            .confirmationDialog(
-                String(format: String(localized: "确认删除「%@」?"), linkToDelete?.alias ?? ""),
-                isPresented: Binding(
-                    get: { linkToDelete != nil },
-                    set: { if !$0 { linkToDelete = nil } }
-                ),
-                titleVisibility: .visible
-            ) {
-                Button("删除", role: .destructive) {
-                    if let link = linkToDelete {
-                        deleteLink(linkId: link.id)
-                    }
-                    linkToDelete = nil
-                }
-                Button("取消", role: .cancel) {
-                    linkToDelete = nil
-                }
-            } message: {
-                Text("命盘数据会保留(历史解读可回溯),仅从此列表移除。")
             }
             // 双 .alert 修饰符:iOS 17.2+ 原生支持(部署目标满足)。
             // showResetConfirm 与 resetError 不会同时为 true(确认 alert dismiss 后才同步执行 resetAllData)。
@@ -272,11 +232,10 @@ struct ProfileView: View {
             .buttonStyle(.plain)
             .accessibilityHint("查看盘面细目")
 
-            // #9(2026-10-02,用户拍板):主命盘不进名册(F4)后全 App 无改名
-            // 入口——命主块补轻量改名触点(样式镜像名册编辑态行内「改名」;
-            // 放 NavigationLink 外侧防嵌套按钮吞导航点击;删除主命盘不做,
-            // 语义 v2 再说)。与 M2「右上偏挤」教训区分:单个 10.5pt 弱字,
-            // 垂直居中尾随,不与 kicker/标题抢第一行。
+            // #9(2026-10-02,用户拍板):命主块改名触点(名册整节拔除后全 App
+            // 唯一改名入口;放 NavigationLink 外侧防嵌套按钮吞导航点击;
+            // 删除主命盘不做,语义 v2 再说)。与 M2「右上偏挤」教训区分:
+            // 单个 10.5pt 弱字,垂直居中尾随,不与 kicker/标题抢第一行。
             Button {
                 linkToEdit = primary.link
             } label: {
@@ -306,7 +265,7 @@ struct ProfileView: View {
         .padding(.top, BaziTheme.Spacing.cmd)
     }
 
-    // MARK: - 登录引导节(未登录 / 失败;S2 移到名册之后)
+    // MARK: - 登录引导节(未登录 / 失败;S2 紧随命盘信息之后)
 
     /// 未登录/失败态登录盒。S2(2026-09-30 BP 评审 R5)曾去虚线框收轻;
     /// 2026-10-01 外评 F2 拍板回归**虚线框收组**(Seal 印 + 说明 + 按钮一组,
@@ -343,9 +302,7 @@ struct ProfileView: View {
     /// 命主块信息(首条可解码 link;decode 失败 → nil,身份块整体不展示,
     /// 具体 error 已由 `ChartSnapshotStore.decodeResponse` 内 Logger.error 记录)。
     private struct PrimaryProfileInfo {
-        let linkId: UUID
-        /// #9:命主块改名入口需要完整 link(sheet(item:) 用;linkId 保留给
-        /// 名册过滤的单点判据)。
+        /// #9:命主块改名入口需要完整 link(sheet(item:) 用)。
         let link: UserSnapshotLink
         let alias: String
         let zodiacMode: ZodiacAvatarMode
@@ -381,77 +338,26 @@ struct ProfileView: View {
         }
     }
 
-    /// 名册行模型(逐条 decode;失败行降级为纯文本,不阻断整节)。
-    /// F4(2026-10-01):补 snapshot/response 承载——行恢复纯导航(→ ChartDetailView),
-    /// 与命主块同构;nil = 降级行(snapshot 缺失/decode 失败),无导航目标,渲染纯文本行不误导。
-    private struct RosterEntry: Identifiable {
-        let link: UserSnapshotLink
-        let zodiacMode: ZodiacAvatarMode
-        let birthYear: Int?
-        let yearGanZhi: String?
-        let hourUnknown: Bool
-        let snapshot: ChartSnapshot?
-        let response: BaziResponse?
-
-        var id: UUID { link.id }
-
-        /// 「1995 · 乙亥 · 时辰待补」;全空(decode 失败)→ hash 前缀兜底。
-        var metaLine: String {
-            var parts: [String] = []
-            if let birthYear { parts.append("\(birthYear)") }
-            if let yearGanZhi { parts.append(yearGanZhi) }
-            if hourUnknown { parts.append(String(localized: "时辰待补")) }
-            return parts.isEmpty
-                ? String(link.snapshotHash.prefix(8))
-                : parts.joined(separator: " · ")
-        }
-    }
-
-    /// body 内单次求值的页面数据(命主 + 名册)。
-    /// 缺 snapshot / decode 失败的行:zodiacMode = .hidden + 空 meta(hash 兜底),
-    /// decode 失败的具体 error 已由 store 记录。
-    private var profileModel: (primary: PrimaryProfileInfo?, roster: [RosterEntry]) {
-        var primaryInfo: PrimaryProfileInfo?
-        var entries: [RosterEntry] = []
+    /// body 内单次求值的命主信息(createdAt 倒序首条**可解码** link)。
+    /// 缺 snapshot / decode 失败的 link 跳过取下一条(单人多 link 残留的兜底;
+    /// decode 失败的具体 error 已由 store 内 Logger.error 记录,不在此重复)。
+    private var profileModel: PrimaryProfileInfo? {
         for link in snapshotLinks {
-            // 缺 snapshot 与 decode 失败走同一条降级路(合并 guard,降级构造只写一份防漂移);
-            // decode 失败的具体 error 已由 store 内 Logger.error 记录,这里不吞(见上方 doc 注释)。
             guard
                 let snap = chartSnapshots.first(where: { $0.contentHash == link.snapshotHash }),
                 let response = try? env.chartSnapshotStore.decodeResponse(from: snap)
-            else {
-                entries.append(RosterEntry(link: link, zodiacMode: .hidden, birthYear: nil, yearGanZhi: nil, hourUnknown: false, snapshot: nil, response: nil))
-                continue
-            }
-            // 生肖印/时辰态单点求值:名册行与命主块共享同一判定结果——
-            // 若两处各自求值,将来单边改动会让首行名册与命主块的生肖印/「主」标静默分裂。
-            let zodiacMode = ZodiacAvatarMode.resolve(hasChart: true, zodiac: response.yearBranchZodiac)
-            let needsHour = response.hourUnknownGate != .hourKnown
-            entries.append(
-                RosterEntry(
-                    link: link,
-                    zodiacMode: zodiacMode,
-                    birthYear: Calendar.current.component(.year, from: snap.birthSolarTime),
-                    yearGanZhi: response.pillars.year?.ganZhi,
-                    hourUnknown: needsHour,
-                    snapshot: snap,
-                    response: response
-                )
+            else { continue }
+            return PrimaryProfileInfo(
+                link: link,
+                alias: link.alias,
+                zodiacMode: ZodiacAvatarMode.resolve(hasChart: true, zodiac: response.yearBranchZodiac),
+                snapshot: snap,
+                response: response,
+                needsHour: response.hourUnknownGate != .hourKnown,
+                isSilenced: response.isHourSilenced
             )
-            if primaryInfo == nil {
-                primaryInfo = PrimaryProfileInfo(
-                    linkId: link.id,
-                    link: link,
-                    alias: link.alias,
-                    zodiacMode: zodiacMode,
-                    snapshot: snap,
-                    response: response,
-                    needsHour: needsHour,
-                    isSilenced: response.isHourSilenced
-                )
-            }
         }
-        return (primaryInfo, entries)
+        return nil
     }
 
     // MARK: - S10 补时辰常驻入口(D7)
@@ -485,119 +391,6 @@ struct ProfileView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-    }
-
-    // MARK: - 名册(我的命盘)
-
-    /// F4(2026-10-01):名册只列**非命主** link(主命盘在上方命主块,重复即噪音;
-    /// 过滤在 body 侧完成,空 → 整节隐藏)。头部 Edit 进编辑态,行内浮现改名/删除
-    /// ——行内常驻红字 Delete 删的还是自己的盘,误触风险高,破坏性操作必须显式进入。
-    /// 已登录尾部注「云端同步 · 共 N 盘」(真机优点保留,N = 过滤后条数与行一致);
-    /// 未登录不加「数据仅存本机」尾注——与登录盒文案重复,信息已在登录盒。
-    private func rosterSection(_ visible: [RosterEntry]) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            // F4:header 复用 sectionHeader(F1 样式单点),trailing = 同步尾注 + Edit
-            //(组合尾注走 @ViewBuilder 重载,与其他节的字符串尾注共用同一标题样式)
-            sectionHeader(String(localized: "名 册")) {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
-                    if accountManagerSignedIn {
-                        Text(String(format: String(localized: "云端同步 · 共 %lld 盘"), visible.count))
-                            .font(BaziFont.caption(size: 10.5))
-                            .foregroundStyle(BaziTheme.inkMutedSecondary)
-                            .lineLimit(1)
-                    }
-                    Button {
-                        withAnimation { rosterEditing.toggle() }
-                    } label: {
-                        Text(rosterEditing ? String(localized: "完成") : String(localized: "编辑"))
-                            .font(BaziFont.caption(size: 12.5))
-                            .foregroundStyle(BaziTheme.inkMuted)
-                    }
-                    .buttonStyle(.plain)
-                }
-            }
-
-            ForEach(visible) { entry in
-                rosterRow(entry)
-            }
-        }
-        .padding(.top, BaziTheme.Spacing.cmd)
-    }
-
-    /// 名册行:非编辑态 = 纯导航行(→ ChartDetailView,与命主块同构);
-    /// 编辑态 = 行内浮现改名/删除(Delete 满色 destructive,确认弹窗兜底)。
-    /// 降级行(snapshot 缺失/decode 失败)无导航目标,渲染纯文本行不带 ›。
-    @ViewBuilder
-    private func rosterRow(_ entry: RosterEntry) -> some View {
-        if rosterEditing {
-            rosterRowContent(entry)
-                .overlay(alignment: .bottom) { sectionDivider }
-        } else if let snapshot = entry.snapshot, let response = entry.response {
-            NavigationLink {
-                ChartDetailView(
-                    response: response,
-                    request: snapshot.archivedDisplayRequest,
-                    onAddHour: { openAddHourSheet(hash: snapshot.contentHash) }
-                )
-            } label: {
-                rosterRowContent(entry)
-            }
-            .buttonStyle(.plain)
-            .overlay(alignment: .bottom) { sectionDivider }
-        } else {
-            rosterRowContent(entry)
-                .overlay(alignment: .bottom) { sectionDivider }
-        }
-    }
-
-    /// 名册行内容:头像 + 别名 + meta,尾随 ›(导航)或改名/删除(编辑态)。
-    private func rosterRowContent(_ entry: RosterEntry) -> some View {
-        HStack(spacing: BaziTheme.Spacing.cmd) {
-            ZodiacAvatarMark(mode: entry.zodiacMode, size: 36)
-
-            VStack(alignment: .leading, spacing: 3) {
-                Text(entry.link.alias)
-                    .font(BaziFont.display(size: 15))
-                    .foregroundStyle(BaziTheme.ink)
-                Text(entry.metaLine)
-                    .font(BaziFont.caption(size: 10.5))
-                    .foregroundStyle(BaziTheme.inkMutedSecondary)
-            }
-
-            Spacer(minLength: 12)
-
-            if rosterEditing {
-                HStack(spacing: BaziTheme.Spacing.cmd) {
-                    Button {
-                        linkToEdit = entry.link
-                    } label: {
-                        Text("改名")
-                            .font(BaziFont.caption(size: 10.5))
-                            .foregroundStyle(BaziTheme.inkMutedSecondary)
-                            .frame(minWidth: 34, minHeight: 36)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-
-                    Button {
-                        linkToDelete = entry.link
-                    } label: {
-                        Text("删除")
-                            .font(BaziFont.caption(size: 10.5))
-                            .foregroundStyle(BaziTheme.destructive)
-                            .frame(minWidth: 34, minHeight: 36)
-                            .contentShape(Rectangle())
-                    }
-                    .buttonStyle(.plain)
-                }
-            } else {
-                Text("›")
-                    .font(BaziFont.caption(size: 12))
-                    .foregroundStyle(BaziTheme.inkMutedSecondary)
-            }
-        }
-        .padding(.vertical, 9)
-        .contentShape(Rectangle())
     }
 
     private var accountManagerSignedIn: Bool {
@@ -642,7 +435,7 @@ struct ProfileView: View {
                     .font(BaziFont.caption(size: 10))
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
             }
-            // 合盘归属行:「A × B」(与名册行 title+metaLine 同构)
+            // 合盘归属行:「A × B」(与命主块 title+metaLine 同构)
             if let pair = pairLine(for: ent) {
                 Text(pair)
                     .font(BaziFont.caption(size: 10.5))
@@ -1002,8 +795,8 @@ struct ProfileView: View {
     /// 分节标题(F1 2026-10-01):`display(17)` 浓墨锚点(EN serif medium /
     /// zh 楷体)——区块标题是整页层级锚点,不再靠字距撑;trailing 尾注
     /// caption(10.5) 无 tracking。
-    /// 样式单点:roster 等需要组合尾注(文本 + 按钮)的节走 @ViewBuilder 重载,
-    /// 改标题样式只改这一处(对齐 profileModel zodiacMode 的单点求值原则)。
+    /// 样式单点:字符串尾注版委托下方 @ViewBuilder 重载,改标题样式只改一处
+    /// (对齐 profileModel zodiacMode 的单点求值原则)。
     private func sectionHeader(_ title: String, trailing: String? = nil) -> some View {
         sectionHeader(title) {
             if let trailing {
@@ -1015,7 +808,9 @@ struct ProfileView: View {
         }
     }
 
-    /// sectionHeader 的组合尾注重载(F4 roster:同步尾注 + Edit 按钮同基线)。
+    /// sectionHeader 的 @ViewBuilder 尾注重载(字符串尾注版的实现底座;
+    /// 名册节的「同步尾注 + Edit 按钮」组合尾注随 2026-10-17 名册拔除退役,
+    /// 重载保留供将来组合尾注复用)。
     private func sectionHeader<Trailing: View>(
         _ title: String,
         @ViewBuilder trailing: () -> Trailing
@@ -1030,7 +825,7 @@ struct ProfileView: View {
         .padding(.bottom, 2)
     }
 
-    // MARK: - 名册行内操作 / 补时辰
+    // MARK: - 改名 / 补时辰
 
     /// 打开补时辰 sheet(装配失败显式 alert,不静默不开)。
     private func openAddHourSheet(hash: String) {
@@ -1046,19 +841,6 @@ struct ProfileView: View {
                 "op=profile.openAddHour failed hash=\(hash, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
             addHourError = (error as? LocalizedError)?.errorDescription ?? L10n.AddHour.errorRebuild
-        }
-    }
-
-    private func deleteLink(linkId: UUID) {
-        do {
-            try env.userSnapshotLinkStore.delete(linkId: linkId)
-            // @Query 自动刷新 list,无需手动处理
-            // PR3.2:删除后 push(同步到云端)
-            Task { await env.syncManager.push() }
-        } catch {
-            AppLogger.persistence.error(
-                "op=profile.deleteLink failed linkId=\(linkId, privacy: .public) error=\(String(describing: error), privacy: .public)"
-            )
         }
     }
 
@@ -1182,5 +964,5 @@ private struct UnstampedSeal: View {
 
 // MARK: - ZodiacAvatarMark(生肖头像位三态表达,S08)
 // 2026-09-25 暗色走查 #11:本组件迁至 Shared/ZodiacHelper.swift(internal),
-// 合盘配置页命主行与「我的」tab 名册共用同一头像语言(原合盘为 inkDeep 圆底首字,
+// 合盘命主行与「我的」tab 命主块共用同一头像语言(原合盘为 inkDeep 圆底首字,
 // 暗色下反转成亮白圆,与生肖线稿体系割裂)。

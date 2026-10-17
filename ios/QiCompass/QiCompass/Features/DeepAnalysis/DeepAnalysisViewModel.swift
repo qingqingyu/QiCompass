@@ -2488,7 +2488,7 @@ final class DeepAnalysisViewModel {
 /// 新 @Model = pbxproj 4 处登记 + 迁移风险,UserDefaults 足够。
 /// 生命周期:写入 = submitM4/5Input;读回 = hydrateAndResume 起手(内存
 /// 缺值时);清扫 = ProfileView.resetAllData(前缀全清)。**link 删除不清**
-/// ——与 UserSnapshotLinkStore.delete 的「ChartSnapshot 不动,历史缓存可
+/// ——与 UserSnapshotLinkStore.replaceLink 的「ChartSnapshot 不动,历史缓存可
 /// 回溯」语义对齐(盘还在,输入就该在)。
 /// 隐私:仅本机,与命盘数据同等级;「重置命盘」随全量数据一并清除。
 enum DeepUserInputPersistence {
