@@ -152,6 +152,25 @@ final class CitySearchEngineTests: XCTestCase {
         XCTAssertEqual(json["geoname_id"] as? Int, 1816670)
         XCTAssertNil(json["city"], "旧 city 字段必须消失(S02 零兼容垫片)")
     }
+
+    // MARK: - 最近选择(UserDefaults;重置命盘域定义 2026-10-17)
+
+    func testRecentStore_RecordAndClear() {
+        // UserDefaults.standard 共享域,前后清干净防串扰其他用例
+        CityRecentStore.clear()
+        defer { CityRecentStore.clear() }
+
+        XCTAssertTrue(CityRecentStore.load().isEmpty, "clear 后应为空(幂等,key 不存在也成立)")
+        CityRecentStore.record(1816670)
+        CityRecentStore.record(1796236)
+        XCTAssertEqual(CityRecentStore.load(), [1796236, 1816670], "record 头插")
+        CityRecentStore.record(1816670)
+        XCTAssertEqual(CityRecentStore.load(), [1816670, 1796236], "重复 record 头插去重(不入列两次)")
+
+        // 重置命盘收口:clear 必须真正落 UserDefaults(非内存态)
+        CityRecentStore.clear()
+        XCTAssertTrue(CityRecentStore.load().isEmpty, "重置后最近城市应为空")
+    }
 }
 
 /// S05 自定义地点测试:PlaceSelection 解析 + CommonTimezones 静态表合法性 +

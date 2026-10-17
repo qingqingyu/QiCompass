@@ -174,7 +174,10 @@ struct ProfileView: View {
                 Button("取消", role: .cancel) {}
                 Button("确定重置", role: .destructive) { resetAllData() }
             } message: {
-                Text("此操作不可恢复。所有命盘、合盘记录、解读缓存都会被清空。购买记录保留在 App Store,重新录入出生信息后可恢复。")
+                // 域定义收口(2026-10-17):文案与 resetAllData 行为逐项对齐——
+                // 合盘含名单;明示 登录/设置/购买 不受影响;同生辰重排已购自动恢复
+                //(Entitlement 本地副本保留,匿名用户也能直接解锁)。
+                Text("此操作不可恢复。所有命盘、合盘记录(含名单)与解读缓存都会被清空;登录状态、语言与子时设置、购买记录不受影响——同一生辰重新排盘后,已购内容自动恢复。")
             }
             .alert("重置失败", isPresented: Binding(
                 get: { resetError != nil },
@@ -875,9 +878,18 @@ struct ProfileView: View {
         }
     }
 
-    /// Q20 B:重置命盘 — 清空所有 SwiftData @Model + 重置 onboarding flag。
-    /// 用户重新打开 app 走 onboarding 流程。
-    /// 购买记录保留在 StoreKit App Store,不在 SwiftData 范围,重新 onboarding 后恢复。
+    /// Q20 B:重置命盘 — **域定义收口(2026-10-17 拍板):清「命盘域」,保留
+    /// 「身份 / 设置 / 钱 / 防刷」四域。**用户重新打开 app 走 onboarding 流程。
+    ///
+    /// | 域 | 项目 | 处置 |
+    /// |---|---|---|
+    /// | 命盘域·SwiftData | ChartSnapshot / UserSnapshotLink / CompatibilitySnapshot / DailyFortuneSnapshot / InterpretationCache | 删 |
+    /// | 命盘域·UserDefaults | deep M4/M5 输入 + M0 降级标记 + **合盘 5 keys(名单V2/A盘/context/legacy/临时草稿)** + **最近城市选择** | 清 |
+    /// | 钱域 | **本地 Entitlement(购买凭证镜像)——保留**:匿名用户同生辰(content_hash 按 出生日+2h时辰桶+时区偏移+性别+经度 6 位小数(≈0.1m)+子时规则 寻址,见 backend `app/core/content_hash.py`)重排后付费章直接解锁,堵「匿名+重置+恢复不了→Apple 双扣款」洞;后端 entitlement 行本就不动;在飞购买续接记录(pending_redeems)同样保留(购买完整性>重置) | 留 |
+    /// | 防刷域 | 每日免费次数池(daily_read_count_*)——重置**不回满**当日额度(午夜自然重置) | 留 |
+    /// | 身份域 | user_local_id + Keychain 登录全套(重置 ≠ 登出 ≠ 换设备身份) | 留 |
+    /// | 设置域 | 语言 / 子时规则;hasSeenOnboarding 清(重走引导) | 语言子时留,onboarding 清 |
+    ///
     /// InterpretState 是 ViewModel UI enum(非 PersistentModel),不在删除范围。
     /// 用 fetch + loop delete 范式(与 UserSnapshotLinkStore / DailyFortuneSnapshotStore 一致,
     /// SwiftData batch `delete(T.self)` 在当前 Swift 编译器推断失败)。
@@ -892,12 +904,14 @@ struct ProfileView: View {
     /// 暂不阻断本功能:v1 sync 后端尚未上线生产,且重置是低频操作。
     private func resetAllData() {
         do {
-            // 显式逐类型 fetch + delete(对齐项目其他 Store 范式)
+            // 显式逐类型 fetch + delete(对齐项目其他 Store 范式)。
+            // Entitlement 刻意不在清单(钱域,见上方域定义表)——删了会让匿名用户
+            // 的已购内容在重排同盘后无法解锁(消耗型已 finish 不进 Transaction.all,
+            // 匿名又调不了后端列表端点),重新购买 = Apple 真扣第二次款。
             try fetchAndDeleteAll(UserSnapshotLink.self)
             try fetchAndDeleteAll(ChartSnapshot.self)
             try fetchAndDeleteAll(CompatibilitySnapshot.self)
             try fetchAndDeleteAll(DailyFortuneSnapshot.self)
-            try fetchAndDeleteAll(Entitlement.self)
             try fetchAndDeleteAll(InterpretationCache.self)
             try context.save()
             // L2/F4:M4/M5 用户输入按盘存 UserDefaults(不在 SwiftData),随全量
@@ -906,6 +920,11 @@ struct ProfileView: View {
             // F5(2026-10-06):M0 STALE 降级标记同存 UserDefaults,同批清扫
             // (命盘数据已全删,标记无主即噪音)
             DeepStaleM0MarkerPersistence.clearAll()
+            // 域定义收口(2026-10-17):合盘 5 keys(名单 V2/A 盘/context/legacy/
+            // 临时草稿)与最近城市选择都属命盘域——对齐确认文案「合盘记录(含
+            // 名单)都会被清空」;CityRecentStore 是表单便利,"从零开始"一并清。
+            CompatibilityRosterPersistence.clear()
+            CityRecentStore.clear()
             // 用 @AppStorage 写,RootTabView 的 @AppStorage("hasSeenOnboarding") 立即响应触发 onboarding sheet
             hasSeenOnboarding = false
             AppLogger.app.info("重置命盘完成,hasSeenOnboarding=false,RootTabView 应立即弹 onboarding sheet")

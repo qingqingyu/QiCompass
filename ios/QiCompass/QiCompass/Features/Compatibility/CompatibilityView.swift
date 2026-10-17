@@ -134,8 +134,16 @@ struct CompatibilityView: View {
             vm?.restoreRosterStateIfAvailable()
         }
         .onChange(of: hasSeenOnboarding) { _, seen in
+            guard seen else {
+                // 域定义收口(2026-10-17):Profile 重置时刻——命盘域(含合盘 5 keys)
+                // 已被 resetAllData 清空,活 VM 的内存名单/在飞任务必须对齐丢弃:
+                // 旧名单照常渲染与确认弹窗矛盾,后续交互经 persistRoster 整份
+                // 写回复活(写穿复活,见 VM.handleChartDomainReset 注释)。
+                // 镜像 DailyFortuneView 同款 onChange(其注释明示 Profile 重置落点)。
+                vm?.handleChartDomainReset()
+                return
+            }
             // 时序安全:flag 由 RootTabView 在 chart 存档后翻 true,重查时存档必已存在。
-            guard seen else { return }
             AppLogger.app.info("compat.onboarding_completed → 重新加载命盘存档")
             vm?.loadArchivedCharts()
         }

@@ -442,4 +442,10 @@ enum CityRecentStore {
         if ids.count > maxCount { ids = Array(ids.prefix(maxCount)) }
         UserDefaults.standard.set(ids, forKey: key)
     }
+
+    /// 重置命盘用(2026-10-17 域定义):最近城市选择属命盘域表单便利,
+    /// 随重置一并清空;幂等(key 不存在时 no-op)。
+    static func clear() {
+        UserDefaults.standard.removeObject(forKey: key)
+    }
 }

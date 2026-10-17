@@ -854,6 +854,65 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
     }
 
     @MainActor
+    func testHandleChartDomainReset_内存名单清空且不写回复活() throws {
+        // 域定义收口(2026-10-17)回归锁:ProfileView.resetAllData 清完命盘域
+        //(含合盘 5 keys)后,活 VM 的内存名单/临时表单镜像必须同步丢弃——
+        // 否则后续任何名单交互经 persistRoster 把内存名单整份写回复活
+        //(写穿复活,镜像 DeepStaleM0MarkerPersistence 2026-10-07 教训)。
+        CompatibilityRosterPersistence.clear()
+        // 常态前置:磁盘 V2 名单 1 个临时人 + 活 VM 已恢复接管名单
+        CompatibilityRosterPersistence.saveV2(
+            personAHash: "a_rst",
+            context: "general",
+            roster: .init(
+                entries: [.temp(
+                    input: PersonBInput(
+                        birthDatetime: "1991-06-06T09:30:00",
+                        timezone: "Asia/Shanghai",
+                        gender: "female",
+                        longitude: 116.4074,
+                        placeName: "自定义地点"
+                    ),
+                    alias: "乙", resolvedHash: nil,
+                    place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
+                )],
+                selectedEntryID: nil
+            )
+        )
+        let chartA = try insertChart(hash: "a_rst", alias: "A", hourKnown: true)
+        vm.archivedCharts = [chartA]
+        vm.restoreRosterStateIfAvailable()
+        XCTAssertEqual(vm.roster.count, 1, "前置:恢复后活 VM 持有名单")
+
+        // 模拟 resetAllData 的 UserDefaults 侧清扫(SwiftData 侧由内存容器
+        // 天然为空;此处只需证明内存镜像不再落回)
+        CompatibilityRosterPersistence.clear()
+
+        vm.handleChartDomainReset()
+        XCTAssertTrue(vm.roster.isEmpty, "内存名单必须清空")
+        XCTAssertTrue(vm.summaries.isEmpty)
+        XCTAssertTrue(vm.archivedCharts.isEmpty)
+        if case .empty = vm.state {} else {
+            XCTFail("重置后应落 .empty(存档已全删),实际:\(vm.state)")
+        }
+        XCTAssertNil(vm.tempBirthDate, "临时表单内存镜像对齐 defaultTempDraft")
+
+        // 反向锁:模拟重排后新盘(A=自己,B=新对方)+ 名单交互,
+        // persistRoster 不得把旧临时人写回(D1:勾 A 自己被拒,须用 B)
+        let chartNew = try insertChart(hash: "a_new", alias: "新A", hourKnown: true)
+        let chartB = try insertChart(hash: "b_new", alias: "新B", hourKnown: true)
+        vm.archivedCharts = [chartNew, chartB]
+        vm.toggleArchived(hash: "b_new")
+        let persisted = try XCTUnwrap(CompatibilityRosterPersistence.loadV2())
+        XCTAssertEqual(persisted.entries.count, 1, "只含新勾选;旧临时人(完整出生输入)不得复活")
+        if case .archived(let hash) = persisted.entries.first {
+            XCTAssertEqual(hash, "b_new")
+        } else {
+            XCTFail("唯一成员应为 .archived(b_new),实际:\(persisted.entries)")
+        }
+    }
+
+    @MainActor
     func testRestoreRosterStateIfAvailable_无合盘快照_不预勾_不进detail() throws {
         // R3(2026-09-30):勾选由持久化 selectedEntryID 承载——seed 无选中 +
         // 只有 ChartSnapshot 无合盘快照(如拦截对,从未算过)→ 不预勾,

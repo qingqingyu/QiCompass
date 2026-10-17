@@ -2923,6 +2923,48 @@ final class CompatibilityViewModel {
 
     // MARK: - 重置
 
+    /// 域定义收口(2026-10-17):ProfileView.resetAllData 清完命盘域(SwiftData
+    /// 全删 + 合盘 5 keys + 深度 UserDefaults 键 + 最近城市)后的活 VM 内存对齐。
+    ///
+    /// 为什么必须做(写穿复活,镜像 `DeepStaleM0MarkerPersistence` 2026-10-07
+    /// 教训):resetAllData 只清磁盘,本 VM 在 TabView 常驻持有整份内存名单
+    /// (含他人完整出生信息)与在飞任务——①旧名单仍渲染在屏上,与确认弹窗
+    /// 「合盘记录(含名单)都会被清空」直接矛盾;②任何名单交互(选中/移出/
+    /// 加人,`persistRoster` 多个调用点)把内存名单整份写回 UserDefaults,
+    /// `ownsPersistedRoster=true` 的防覆盖守卫不拦,重启后 `.temp` 成员(完整
+    /// 出生输入)复活——重置等于没做;③在飞 compute/interpret 完成时向 store
+    /// 落新快照,同样复活刚删的合盘域数据。
+    ///
+    /// 处置:复用 `clearDetailKeepRoster` 的任务取消集(新增任务类型只改一处)
+    /// + 命盘域内存态全清 + `ownsPersistedRoster` 归 false(磁盘已空,下次恢复
+    /// 重新接管)+ 临时表单内存镜像对齐 defaultTempDraft(磁盘 tempDraft 已清,
+    /// 镜像不清则下次 addTempToRoster 成功时 saveTempDraft 把旧值写回);
+    /// 落 `.empty`(存档已全删;`.task` 不会重跑,由本方法直接定态)。
+    /// 调用点:CompatibilityView `.onChange(of: hasSeenOnboarding)` false 分支
+    /// (Profile 重置时刻;镜像 DailyFortuneView 同款 onChange 的既有处理)。
+    func handleChartDomainReset() {
+        // 六类在飞任务取消 + 翻译态清空复用(中间态 .configuring 随后覆盖)
+        clearDetailKeepRoster()
+        interpretInFlight = nil
+        engineRefreshOutcomes = [:]
+        autoTranslationOutcomes = [:]
+        exemptAttemptCompatHash = nil
+        roster = []
+        selectedEntryIds = []
+        summaries = []
+        retryingIds = []
+        archivedCharts = []
+        selectedChartAIndex = 0
+        ownsPersistedRoster = false
+        tempBirthDate = CompatibilityRosterPersistence.defaultTempDraft.birthDate
+        tempBirthTime = DeepAnalysisViewModel.defaultBirthTimeAnchor
+        tempGender = CompatibilityRosterPersistence.defaultTempDraft.gender
+        tempPlace = CompatibilityRosterPersistence.defaultTempDraft.place
+        tempAlias = ""
+        state = .empty
+        AppLogger.app.info("op=compatibility.chartDomainReset in_memory_cleared=true")
+    }
+
     /// 清出 detail/computing 态、保留名单(2026-09-29 S5 改名,原 backToConfig——
     /// 配置页已退役,调用方:detail 快照缺失重试 / 换人 sheet 移出当前对方 /
     /// 测试 teardown)。cancel 三任务 + 进 .configuring(结果壳渲染 P5/P6 态)。
