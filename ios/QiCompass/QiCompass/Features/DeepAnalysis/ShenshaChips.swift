@@ -36,11 +36,16 @@ struct ShenshaChips: View {
         let color = isAuspicious ? BaziTheme.shenshaAuspicious : BaziTheme.shenshaInauspicious
         return HStack(spacing: 4) {
             // L3 术语:i18n-display-layer-handoff §3——神煞 en = 意译 + 汉字括注(chip 主标)
+            // 单行不换行(2026-10-17:「天罗地网 时柱」换行比同排 chip 高,对齐问题)
             Text(BaziTerms.shenshaChipText(item.name))
                 .font(.caption.weight(.medium))
+                .lineLimit(1)
+                .minimumScaleFactor(0.75)
             Text(BaziTerms.display(item.position))
                 .font(.caption2)
                 .foregroundStyle(BaziTheme.inkMuted)
+                .lineLimit(1)
+                .fixedSize()
         }
         .foregroundStyle(color)
         .padding(.horizontal, 8)

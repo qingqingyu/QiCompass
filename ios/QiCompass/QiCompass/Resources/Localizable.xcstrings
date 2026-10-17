@@ -343,28 +343,6 @@
         }
       }
     },
-    "%lld-%lld" : {
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld-%2$lld"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld-%2$lld"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%1$lld-%2$lld"
-          }
-        }
-      }
-    },
     "%lld-%lld岁" : {
       "localizations" : {
         "en" : {
