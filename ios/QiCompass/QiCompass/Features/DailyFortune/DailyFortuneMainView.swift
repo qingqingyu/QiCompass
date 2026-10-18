@@ -100,15 +100,37 @@ struct DailyFortuneMainView: View {
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .background(alignment: .top) {
-                    // 光晕衬底:全屏宽、420pt 高、顶边低于头部 34pt;比宿主
-                    // 容器高,溢出部分洇进下方解读区是 B 稿本来的样子,不裁切。
-                    HaloBackdrop(
-                        dayPillar: response.dayPillar,
-                        dayElements: response.dayElements,
-                        daySignal: response.daySignal,
-                    )
-                    .frame(height: HaloBackdrop.height)
-                    .offset(y: Self.haloTopInset)
+                    // 光晕衬底:全屏宽、420pt 高、顶边低于头部 34pt。
+                    // 2026-10-18 S4 修订 10-15「溢出不裁切」:加一层跟着宿主
+                    // 高度走的渐变遮罩,光晕到宜忌底(+16)渐隐至全透明——
+                    // 「今日解读」区域不再洇进光晕(外评 H:绿团压「忌」红字后
+                    // 像污渍)。遮罩是艺术层 mask 非页面背景,不违反禁渐变背景
+                    // (同 bottomFadeLayer 先例)。mask 坐标系跟随被遮罩视图的
+                    // 布置位置(offset 只改渲染不改布局),故 mask 的 offset
+                    // 须与 HaloBackdrop 的 offset 同值对齐。
+                    GeometryReader { host in
+                        let visible = max(host.size.height - Self.haloTopInset + 16, 0)
+                        HaloBackdrop(
+                            dayPillar: response.dayPillar,
+                            dayElements: response.dayElements,
+                            daySignal: response.daySignal,
+                        )
+                        .frame(height: HaloBackdrop.height)
+                        .offset(y: Self.haloTopInset)
+                        .mask(alignment: .top) {
+                            LinearGradient(
+                                stops: [
+                                    .init(color: .black, location: 0),
+                                    .init(color: .black, location: 0.72),
+                                    .init(color: .clear, location: 1),
+                                ],
+                                startPoint: .top,
+                                endPoint: .bottom
+                            )
+                            .frame(height: visible)
+                            .offset(y: Self.haloTopInset)
+                        }
+                    }
                     .inkIn(delay: 0.08)
                 }
 

@@ -74,7 +74,8 @@ struct HaloBackdrop: View {
     /// 四团光晕(2026-10-15 用户五行光晕视觉规格,设计坐标系 390×420):
     /// 主光 dominantMain 250×290 @(295,165) / 伴光 dominantTint 200×220
     /// @(60,100) / 辅光一 support0Main 150×170 @(115,345) / 辅光二
-    /// support1Main 120×140 @(260,330);不透明度 0.85/0.70/0.55/0.50。
+    /// support1Main 120×140 @(260,330);不透明度 0.60/0.70/0.55/0.50
+    /// (主光 2026-10-18 S4 由 0.85 降——真机外评:压在「忌」朱红字后像污渍)。
     /// 中心按 W/390、H/420 换算(衬底高恰 420,sy≈1,四团光按规格坐标
     /// 1:1 落位),尺寸按 W/390 等比(宽高同比保椭圆形状),blur 半径固定
     /// 26 不随屏宽缩放。不 clip:blur 边缘自然洇进页边与下方内容,
@@ -95,7 +96,7 @@ struct HaloBackdrop: View {
                     .scaleEffect(driftScale(driftB))
                     .position(x: 60 * sx, y: 100 * sy)
                     .offset(drift(driftB))
-                halo(palette.dominantMain, opacity: 0.85 * dim,
+                halo(palette.dominantMain, opacity: 0.60 * dim,
                      width: 250 * sx, height: 290 * sx)
                     .scaleEffect(driftScale(driftA))
                     .position(x: 295 * sx, y: 165 * sy)
