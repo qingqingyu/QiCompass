@@ -491,19 +491,27 @@ struct DailyHeaderSection: View {
 
 /// Today 定稿 chip:等高 26、radius 13(half-height capsule)、hairline 描边、
 /// 11pt sans ink、**无底填充**(取代旧 ChipView 的 tint 填充版;符牌小图与
-/// tint 底随 mockup 定稿一并退役)。固定字号 = hero 家族口径(防 Dynamic
-/// Type 顶破单行胶囊;语义朗读不受字号影响)。
+/// tint 底随 mockup 定稿一并退役)+ 尾缀 7pt chevron(2026-10-18 S6:两个
+/// chip 都是可点释义入口,外观无暗示被外评点「看不出能点」;chevron
+/// accessibilityHidden,语义朗读只读词本身)。固定字号 = hero 家族口径
+/// (防 Dynamic Type 顶破单行胶囊;语义朗读不受字号影响)。
 private struct TodayChip: View {
     let text: String
 
     var body: some View {
-        Text(text)
-            .font(.system(size: 11))
-            .foregroundStyle(BaziTheme.ink)
-            .lineLimit(1)
-            .padding(.horizontal, 10)
-            .frame(height: 26)
-            .background(Capsule().stroke(BaziTheme.hairline, lineWidth: 0.5))
+        HStack(spacing: 3) {
+            Text(text)
+                .font(.system(size: 11))
+                .foregroundStyle(BaziTheme.ink)
+                .lineLimit(1)
+            Image(systemName: "chevron.right")
+                .font(.system(size: 7, weight: .semibold))
+                .foregroundStyle(BaziTheme.inkMuted)
+                .accessibilityHidden(true)
+        }
+        .padding(.horizontal, 10)
+        .frame(height: 26)
+        .background(Capsule().stroke(BaziTheme.hairline, lineWidth: 0.5))
     }
 }
 

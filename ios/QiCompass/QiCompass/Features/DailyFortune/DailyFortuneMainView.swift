@@ -153,7 +153,8 @@ struct DailyFortuneMainView: View {
                 .padding(.top, 40)
                 .inkIn(delay: 0.16)
 
-                // 页脚小注(D4:EN 日柱拼音化;居中、ink-faint、去 hairline)
+                // 页脚免责声明(2026-10-18 S6 只留「解读仅供参照」——
+                // 「乙丑日 · 偏财 · …」与头部信息重复,外评 L;居中、ink-faint)
                 heroFootnote
                     .padding(.horizontal, 24)
                     .padding(.top, 36)
@@ -222,41 +223,15 @@ struct DailyFortuneMainView: View {
         return nil
     }
 
-    /// 页脚小注(2026-10-01 定稿):「戊申日 · 偏财 · 解读仅供参照」,
-    /// 居中、ink-faint 10.5——**去 hairline 与字距**(mockup .footnote 纯文字,
-    /// 全屏字距标签仅解读区 kicker 一处)。
+    /// 页脚免责声明(2026-10-18 S6 修订 10-01 D4):只显示
+    /// L10n.DailyFortune.disclaimer(「解读仅供参照」)——「乙丑日 · 偏财 · …」
+    /// 前两段与头部信息重复,拔除;居中、ink-faint 10.5、无字距。
     private var heroFootnote: some View {
-        Text(verbatim: Self.footnoteText(
-            dayPillar: response.dayPillar,
-            relation: response.dayRelationToDayMaster
-        ))
-        .font(BaziFont.caption(size: 10.5))
-        .foregroundStyle(BaziTheme.inkMutedSecondary)
-        .multilineTextAlignment(.center)
-        .frame(maxWidth: .infinity, alignment: .center)
-    }
-
-    /// 页脚文本(D4):EN = 「Wu-Shen day · Indirect Wealth · For reference
-    /// only」——日柱无调拼音连字(EN 基座零汉字);拼音查表 miss 显式回落
-    /// 旧「Day of 戊申」形态 + 日志(宁可露中文不猜)。zh/zh-Hant 维持
-    /// 「戊申日 · 偏财 · …」。static internal 供 DailyImageHeroCopyTests 的
-    /// EN 零 CJK 扫描(免责段走 xcstrings 跟设备语言,测试只钉拼音段)。
-    static func footnoteText(
-        dayPillar: String,
-        relation: String,
-        language: AppLanguage = AppLanguage.current
-    ) -> String {
-        let relationText = BaziTerms.display(relation, language: language)
-        if language == .en {
-            if let pillar = BaziTerms.romanizedHyphen(dayPillar) {
-                return "\(pillar) day · \(relationText) · \(L10n.DailyFortune.disclaimer)"
-            }
-            AppLogger.app.warning(
-                "op=heroFootnote.pinyinMiss dayPillar=\(dayPillar, privacy: .public) -> rawFallback"
-            )
-            return "Day of \(dayPillar) · \(relationText) · \(L10n.DailyFortune.disclaimer)"
-        }
-        return "\(dayPillar)\(L10n.DailyFortune.dayPillarSuffix) · \(relationText) · \(L10n.DailyFortune.disclaimer)"
+        Text(L10n.DailyFortune.disclaimer)
+            .font(BaziFont.caption(size: 10.5))
+            .foregroundStyle(BaziTheme.inkMutedSecondary)
+            .multilineTextAlignment(.center)
+            .frame(maxWidth: .infinity, alignment: .center)
     }
 }
 

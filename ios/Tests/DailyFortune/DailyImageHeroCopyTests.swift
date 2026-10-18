@@ -274,9 +274,8 @@ final class DailyImageHeroCopyTests: XCTestCase {
                 XCTFail("enLunarLine(\(lunar), \(pillar)) 应可转写")
             }
         }
-        // 页脚前两段(拼音日柱 + 十神 EN;免责段走 xcstrings 不扫)
-        let footnote = DailyFortuneMainView.footnoteText(dayPillar: "戊申", relation: "偏财", language: .en)
-        texts.append(String(footnote.components(separatedBy: " · ").prefix(2).joined(separator: " · ")))
+        // 页脚 2026-10-18 S6 起只留免责段(xcstrings 跟设备语言),原拼音日柱/
+        // 十神两段随 footnoteText 拔除,不再进扫描
 
         for text in texts {
             XCTAssertNil(
@@ -411,21 +410,11 @@ final class DailyImageHeroCopyTests: XCTestCase {
         XCTAssertEqual(HeroShiShenPinyin.table["偏财"], "piān cái", "mockup 样例")
     }
 
-    /// zh/zh-Hant 回归(D4 验收项):日柱仍显示汉字、宜忌表头仍「宜/忌」、
-    /// 页脚仍「戊申日」形态——D4 只动 EN 腿。
-    /// 断言的回归点是**日柱汉字戊申原样保留**;「日」后缀与免责段走 xcstrings
-    /// 按设备 bundle 语言解析(en 设备为 " Day"/"For reference only"),故
-    /// expected 前缀运行时用同一常量拼接——字面量断言在非 zh 设备会假红
-    /// (同 testchongLabel_zh回归 先例,2026-09-23 假红教训)。
+    /// zh/zh-Hant 回归(D4 验收项残部):页脚「戊申日」形态断言随 2026-10-18
+    /// S6 页脚精简(只留免责段,footnoteText 拔除)移除——日柱汉字展示仍在
+    /// 头部(DailyHeaderSection,由 EN 零 CJK 扫描的 lunarLine 转写间接守护),
+    /// 这里钉宜忌词表键仍为后端简体十神(决策 7)、zh 表值仍汉字。
     func testZhLegsKeepHanziUnderD4() {
-        let zhPrefix = "戊申\(L10n.DailyFortune.dayPillarSuffix) · "
-        XCTAssertTrue(DailyFortuneMainView.footnoteText(dayPillar: "戊申", relation: "偏财", language: .zh)
-            .hasPrefix(zhPrefix))
-        // relation 传后端契约键(简体,决策 7)——传繁体会让 display 走 miss
-        // 兜底而非 zhHant 路由(键集 = 简体 id)
-        XCTAssertTrue(DailyFortuneMainView.footnoteText(dayPillar: "戊申", relation: "偏财", language: .zhHant)
-            .hasPrefix(zhPrefix))
-        // 词表键仍为后端简体十神(决策 7),zh 表值仍汉字
         XCTAssertTrue(HeroYiJiColumns.mappingZh["偏财"]?.yi.contains("拓展") == true)
     }
 
