@@ -2028,10 +2028,15 @@ _DAILY_HANT_JSON = (
 def _daily_translate_payload(
         source_interpretation: str = _DAILY_ZH_JSON,
         source_language: str = "zh",
-        source_prompt_version: int = 4) -> dict:
+        source_prompt_version: int | None = None) -> dict:
     """zh→目标语言的 daily_fortune 翻译请求(免费模块,带 target_date——
-    缓存键对齐的前提:与 iOS runInterpretation 发的 context 同源)。"""
+    缓存键对齐的前提:与 iOS runInterpretation 发的 context 同源)。
+    source_prompt_version 默认取当前 PROMPT_VERSIONS["daily_fortune"]
+    (动态防 bump 假红,2026-10-18 S7 v4→bump 时实证:写死 4 会全线 409
+    STALE_SOURCE——过时源版本守卫是正确行为,夹具须跟随)。"""
     from tests.fixtures.interpret_cases import DAILY_FORTUNE_CONTEXT
+    if source_prompt_version is None:
+        source_prompt_version = PROMPT_VERSIONS["daily_fortune"]
     return {
         "content_hash": "hash-tr-daily",
         "module": "daily_fortune",
@@ -2071,7 +2076,7 @@ async def test_daily_translate_then_interpret_hits_same_cache_key(
     assert body["cached"] is False
     assert body["language"] == "zh-hant"
     assert body["translated_from"] == "zh"
-    assert body["prompt_version"] == 4
+    assert body["prompt_version"] == PROMPT_VERSIONS["daily_fortune"]
     llm_calls = mock_ai_client.call_count
 
     # 3. 目标语言 + 同 target_date 调 /api/interpret → 命中译文
