@@ -179,7 +179,7 @@ struct DailyInterpretationSection: View {
     private func insightBody(_ insight: DailyInsight) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(MarkdownSanitizer.rendered(insight.headline))
-                .font(BaziFont.display(size: 17))
+                .font(BaziFont.display(size: 19))
                 .foregroundStyle(BaziTheme.ink)
                 .lineSpacing(7)
                 .fixedSize(horizontal: false, vertical: true)
@@ -190,16 +190,26 @@ struct DailyInterpretationSection: View {
                 domainRow(label: L10n.DailyFortune.insightRelationships, text: insight.relationships)
                 domainRow(label: L10n.DailyFortune.insightEnergy, text: insight.energy)
             }
-            .padding(.top, 11)
+            .padding(.top, 16)
 
             signalRow
 
-            Text(MarkdownSanitizer.rendered(insight.reminder))
-                .font(reminderFont)
-                .tracking(AppLanguage.current.isChinese ? 1 : 0)
-                .foregroundStyle(BaziTheme.inkMuted)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.top, 12)
+            // 收尾句(2026-10-18 S3 评审:整页唯一可带走的一句,原 caption
+            // 小灰字被埋在底部)——短墨横 + 楷体大字居中,作为整页的收尾。
+            // 位置不动仍在信号行之后(不挪顶部、不做「签」,10-15 刚删今日一签)。
+            VStack(spacing: 14) {
+                Rectangle()
+                    .fill(BaziTheme.ink.opacity(0.35))
+                    .frame(width: 16, height: 1.5)
+                Text(MarkdownSanitizer.rendered(insight.reminder))
+                    .font(reminderFont)
+                    .foregroundStyle(BaziTheme.ink)
+                    .multilineTextAlignment(.center)
+                    .lineSpacing(6)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.top, 40)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
@@ -239,16 +249,17 @@ struct DailyInterpretationSection: View {
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .padding(.vertical, 11)
+            .padding(.vertical, 13)
         }
     }
 
-    /// 收尾提醒字体:EN serif italic 13 medium(mockup .reminder 衬线一族);
-    /// zh/zh-Hant 维持 sans caption 12(中文楷/宋斜体是伪斜,不取)。
+    /// 收尾句字体(2026-10-18 S3 提升):zh/zh-Hant 楷体 20(整页收尾大字,
+    /// 原 caption 12 小灰字);EN serif italic 17 medium(衬线一族,原 13)。
+    /// 不加 tracking(中文大字疏排靠 lineSpacing,不靠字距)。
     private var reminderFont: Font {
         AppLanguage.current.isChinese
-            ? BaziFont.caption(size: 12)
-            : .system(size: 13, weight: .medium, design: .serif).italic()
+            ? BaziFont.display(size: 20)
+            : .system(size: 17, weight: .medium, design: .serif).italic()
     }
 
     /// 今日信号行(确定性,非 AI)。**2026-10-18 S2 修订 D5「左右分立」**:
@@ -301,7 +312,7 @@ struct DailyInterpretationSection: View {
                         }
                     }
                 }
-                .padding(.vertical, 11)
+                .padding(.vertical, 13)
                 if let note = signalNote, (daySignal ?? []).isEmpty {
                     Text(note)
                         .font(BaziFont.caption(size: 10.5))

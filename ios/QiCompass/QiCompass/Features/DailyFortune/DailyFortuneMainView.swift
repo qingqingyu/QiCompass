@@ -128,13 +128,13 @@ struct DailyFortuneMainView: View {
                     onGenerate: onGenerateInterpret,
                 )
                 .padding(.horizontal, 24)
-                .padding(.top, 24)
+                .padding(.top, 40)
                 .inkIn(delay: 0.16)
 
                 // 页脚小注(D4:EN 日柱拼音化;居中、ink-faint、去 hairline)
                 heroFootnote
                     .padding(.horizontal, 24)
-                    .padding(.top, 26)
+                    .padding(.top, 36)
                     .inkIn(delay: 0.24)
 
                 // S10 接线(D7 触点 2,「一行文字,不是弹窗」):仅时辰未知·日柱

@@ -515,7 +515,7 @@ private struct TodayChip: View {
 /// 读作贴底,整体上移);表头 serif 16 medium(Do=墨青 / Don't=朱红;zh=宜/忌;
 /// mockup 15);条目 serif 15(mockup 14;EN 16 chars 预算本就按 serif 15pt
 /// 列宽核算,375pt 屏单列 ≈135pt 仍单行)、行距 1.5、条目间 0.5pt hairline
-/// 分隔、每条上下 padding 9。
+/// 分隔、每条上下 padding 11(2026-10-18 S3 纵向节奏,原 9)。
 ///
 /// 数据源(v1 简化,同前):前端十神→关键词查表,每列 3 词;
 /// 后续可挪后端基于喜忌+流日关系确定性映射(不增加 v1 后端复杂度)。
@@ -642,7 +642,7 @@ struct HeroYiJiColumns: View {
                         .foregroundStyle(BaziTheme.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.9)
-                        .padding(.vertical, 9)
+                        .padding(.vertical, 11)
                 }
             }
         }
