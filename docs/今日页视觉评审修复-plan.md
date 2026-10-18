@@ -1,5 +1,6 @@
 # 今日页视觉评审修复方案
 
+> **状态：S2-S7 + S1a 已实施（2026-10-18，bug 分支，见文末实施记录）；S1b 打包霞鹜文楷待做**——S1.0 真机探测证实缺字体，但 Apple 下载 API 在 iOS 27.2 真机实测 0 字节空成功（字体永不落盘），用户拍板打包霞鹜文楷（SIL OFL）。全部视觉验收（楷体下截图）随 S1b 落地后统一走查。
 > 2026-10-18 · 起因：用户真机截图（今日页，乙丑日 · 偏财，大屏 iPhone）+ 一份外部 AI 评审 + 用户自己的感受「上面挤、下面空」
 > 给执行 AI 看的改动说明。动手前先读 `DESIGN.md`（CLAUDE.md 强制），再读本文 §0。
 > **用户已拍板：本文所有条目全部要修。** 其中 S4（光晕淡出）、S5（Tab 图标）修订了用户此前的定稿，改动后必须更新 `DESIGN.md` 决策记录（见 §9）。
@@ -435,3 +436,33 @@ cd backend && python -m pytest tests/test_i18n.py tests/test_interpret_render.py
 - `feat(backend): daily_fortune prompt v5——减括注、禁文言缩略(三语)`
 
 全部完成后，在本文件顶部加一行「状态：已实施」，文末补「实施记录」：写明每个 slice 的 commit hash、测试结果、截图结论、和本方案的偏差。格式参考 `docs/today-hero-去签文贴B稿-plan.md`。
+
+---
+
+## 实施记录（2026-10-18，bug 分支）
+
+| Slice | Commit | 说明 |
+|---|---|---|
+| 计划落档 | 18f37ef | docs: 今日页视觉评审修复 plan(S1-S7) |
+| S1a 字体基础设施 | 1a52a20 | 探测不缓存 nil + ensureDownloadableFonts(CoreText 官方 API,目录条目名) + FontAvailability revision 全树刷新(RootTabView 读依赖,不 .id() 重建) + 文件头注释修订 |
+| S2 对齐 | faf77f6 | 宜忌水平 28→24;labelColumnWidth zh 52/EN 92 + lineLimit+0.85 缩放;signalRow 改 domainRow 同构(修订 D5「左右分立」),signalNote 缩进对齐正文列 |
+| S3 收尾句+节奏 | 47d3782 | reminder 改 VStack(短墨横 16×1.5 + 楷体 20 居中 + lineSpacing 6, top 40);reminderFont zh display 20 / EN serif italic 17;去 tracking;标题 17→19;节奏 9→11 / 24→40 / 11→16 / 11→13(信号行同步) / 26→36 |
+| S4 光晕 | 6cb4b98 | GeometryReader 读宿主高 + LinearGradient mask(黑→黑@72%→透明,高 = 宿主-34+16,offset 与光晕同为 34)渐隐到宜忌底;dominantMain 0.85→0.60 |
+| S5 Tab | be36102 | TodayScrollEdge .hard→.soft;合盘 3.9%→5.5%、我的 4.2%→5.5%×2;SealPersonArc 改 (30,116)→(86,116) 控制 (58,40) 落框半身像,头点 16.7%→18% |
+| S6 chips+页脚 | fdecce1 | TodayChip +7pt chevron(inkMuted,a11y hidden);heroFootnote 只留 disclaimer,footnoteText/拼音逻辑整删;测试断言 -3(条目删 2 处,计划已预告) |
+| S7 prompt v5 | 32e5e1e | 6 个 v5 模板(zh/zh-hant/en × 主/unknown_hour);PROMPT_VERSIONS 4→5;版本钉子 ==5 |
+| S7 连带 | 18b6b2c | translate daily 夹具写死 v4 → 4 条假红,改动态版本(同文件 M0-M7 既有模式) |
+| S8 文档 | (本 commit) | DESIGN.md §Typography/§Layout Tab/§Layout 每日运势 + Decisions Log 2026-10-18 行 |
+
+**测试**：backend 全量 1328 绿（修复夹具前 4 failed）；iOS 全量 651 绿（DA0476D9, 18.3, -parallel-testing-enabled NO）；tools/check_prompt_sync.py PASS。DailyImageHeroCopyTests 用例数不变（-3 断言）。
+
+**S1 偏差（计划未预见的实证）**：
+- S1.0 探测结论 = 全 false（根因确认），但 S1.1 的下载 API 在该机（iPhone 16 Pro / iOS 27.2）对所有名字写法毫秒级 didFinish「成功」且 TotalAssetSize=0，字体从未落盘——即计划的主方案在 iOS 27 真机不可行（对旧版 iOS 保留作尽力而为）。诊断手段 = 临时探测代码写 Documents + devicectl 拉回（os_log 免 sudo 拉不出、print stdout 不转发）。
+- 用户 2026-10-18 拍板：**打包霞鹜文楷完整版**（SIL OFL 1.1，~18MB/字重）= S1b，待实施。届时需定：字重组合（Regular+Medium≈37MB vs 单字重）、zh-hant 腿（霞鹜文楷 TC 另一族 vs 共用简形，涉 D7）、宋体（图内题记）是否开源替代。
+- 因此 S1.2 真机验收四场景与「前一份 plan 验收截图重拍」全部顺延至 S1b 后。
+
+**S5 目验**：模拟器（DA0476D9）28pt 实际尺寸亮/暗四图标并排截图（/tmp/tab-icons-zoom{,-dark}.png）线厚一致、「我的」半身像成立；**用户最终确认 pending**，不认可则单独回滚 S5.3（be36102 中 SealPersonArc/头点两处）。
+
+**其余顺延到 S1b 后统一走查**：S2.4 像素测左缘（三语）、S3.4 大屏/SE/降级态、S4.3 解读区像素采样与「忌」对比度（五行×亮暗）、S6 ViewThatFits 375pt EN chips、S7 真实模型 3 流日输出人工确认、§8 总验收 10 场景。
+
+**iOS 26 真机**：设备为 iOS 27.2，`.soft` 效果与 iOS 26 滚动边缘随总验收一并走查。
