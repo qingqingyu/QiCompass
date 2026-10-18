@@ -15,8 +15,11 @@ import SwiftData
 ///   名册唯一会收集的是自己的历史版本盘(已由替换语义切断),整节 UI 删除
 ///   (rosterSection/编辑态/删除确认);v2 多人 UI 重做时再恢复。命主块改名
 ///   (linkToEdit/AliasEditView)保留。
-/// - **设置(F5/F6)**:子时说明紧跟子时行(重置后果由重置行 trailing 承载);
-///   Language 行显示实际生效语言的 endonym;重置行文字回升浓墨
+/// - **设置(F5/F6)**:Language 行显示实际生效语言的 endonym;重置行文字回升浓墨。
+///   子时换日设置行 2026-10-18 拔除——它是从未接线的死开关(@AppStorage 无消费方,
+///   表单硬编码 zi_next_day,后端 Literal 也只收这一个值),二选一 UI 摆设与
+///   「专业不忽悠」相悖;规则单一化(setSect(1),23:00 换日),真要支持另一学派
+///   应在表单内按盘选择(仅 23:00-24:00 出生时浮现),不走全局默认值
 ///
 /// 2026-09-04 「落款角标 · 一卷到底」重排(design-shotgun A 案拍板,事实源
 /// `~/.gstack/projects/qingqingyu-QiCompass/designs/mine-tab-20260903/`):
@@ -30,7 +33,7 @@ import SwiftData
 ///    UI 拔除(替换语义后单人恒空;App 未上线无老用户存量可顾)
 /// 3. **已购 / 设置 / 关于**:hairline 分节;已购行两行式——合盘 entitlement 追加
 ///    「A × B」归属行(compatibilityHash 反查 CompatibilitySnapshot,快照缺失降级单行不猜);
-///    子时规则改 Menu 行,退出登录收进设置(弱化);
+///    退出登录收进设置(弱化);
 ///    立场三行居中,隐私折叠,版本 + GeoNames 归属收关于节
 ///
 /// 退化态:无 entitlements 时显示 placeholder 文案,不报错(状态显式表达);
@@ -63,10 +66,6 @@ struct ProfileView: View {
 
     /// 关于节「隐私与数据」折叠态(默认收起,立场三行常驻)。
     @State private var showPrivacy = false
-
-    /// 子时规则默认值。BirthFormView 后续 slice 起手读此 @AppStorage 作为初始值。
-    /// 默认 zi_next_day(对齐 CLAUDE.md 项目约束 + 既有 DeepAnalysisViewModel 默认值)。
-    @AppStorage("defaultZiHourRule") private var defaultZiHourRule = "zi_next_day"
 
     /// 语言覆盖(D6:四档 system/zh/zh-hant/en;key 与 AppLanguage.overrideDefaultsKey
     /// 同字面量)。@AppStorage 直写 UserDefaults 存「用户选了什么」;生效语言读
@@ -177,7 +176,7 @@ struct ProfileView: View {
                 // 域定义收口(2026-10-17):文案与 resetAllData 行为逐项对齐——
                 // 合盘含名单;明示 登录/设置/购买 不受影响;同生辰重排已购自动恢复
                 //(Entitlement 本地副本保留,匿名用户也能直接解锁)。
-                Text("此操作不可恢复。所有命盘、合盘记录(含名单)与解读缓存都会被清空;登录状态、语言与子时设置、购买记录不受影响——同一生辰重新排盘后,已购内容自动恢复。")
+                Text("此操作不可恢复。所有命盘、合盘记录(含名单)与解读缓存都会被清空;登录状态、语言设置、购买记录不受影响——同一生辰重新排盘后,已购内容自动恢复。")
             }
             .alert("重置失败", isPresented: Binding(
                 get: { resetError != nil },
@@ -497,7 +496,7 @@ struct ProfileView: View {
         VStack(alignment: .leading, spacing: 0) {
             sectionHeader(String(localized: "设 置"))
             // 语言(D6/S4):唯一语言开关——UI 文案 / 命盘术语 / AI 解读共用
-            // (D9 不做独立「解读语言」)。Menu + Picker 与子时规则同款交互。
+            // (D9 不做独立「解读语言」)。Menu + Picker 开放布局等价物。
             Menu {
                 Picker("语言", selection: $languageOverride) {
                     ForEach(AppLanguage.Override.allCases, id: \.rawValue) { override in
@@ -542,42 +541,13 @@ struct ProfileView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
 
-            // 子时规则默认:Menu + Picker(原 List Picker 的开放布局等价物)
-            Menu {
-                Picker("子时换日", selection: $defaultZiHourRule) {
-                    Text("子时属次日(23:00 换日)").tag("zi_next_day")
-                    Text("早晚子时(00:00 换日)").tag("zero_oclock")
-                }
-            } label: {
-                HStack {
-                    Text("子时换日")
-                        .font(BaziFont.caption(size: 13))
-                        .foregroundStyle(BaziTheme.ink)
-                    Spacer()
-                    Text(defaultZiHourRule == "zi_next_day" ? String(localized: "子时属次日 ›") : String(localized: "早晚子时 ›"))
-                        .font(BaziFont.caption(size: 10.5))
-                        .foregroundStyle(BaziTheme.inkMutedSecondary)
-                }
-                .padding(.vertical, 11)
-                .contentShape(Rectangle())
-            }
-            // F5(2026-10-01):说明紧跟子时行,只讲子时本身——原合并说明段挂在
-            // 设置区末尾,读起来全段在讲重置;重置的后果由重置行 trailing
-            // 「清空全部数据 ›」承载,不再有独立段落。
-            // 2026-09-25 暗色走查 #11 口径保留:去开发术语(snapshot/onboarding),说人话。
-            Text("只影响之后新填表单的初始值;已保存命盘的换算规则随盘保存")
-                .font(BaziFont.caption(size: 10))
-                .foregroundStyle(BaziTheme.inkMutedSecondary)
-                .padding(.vertical, 8)
-                .overlay(alignment: .bottom) { sectionDivider }
-
             // Q20 B:重置命盘 fallback。用户输错生日时清空所有数据重新 onboarding。
             Button {
                 showResetConfirm = true
             } label: {
                 HStack {
                     // F6(2026-10-01):label 回升浓墨——原 inkMuted 灰字让重置行
-                    // 看起来像禁用;与 Language / 子时行同权重,trailing 值保持弱色
+                    // 看起来像禁用;与 Language 行同权重,trailing 值保持弱色
                     Text("重置命盘")
                         .font(BaziFont.caption(size: 13))
                         .foregroundStyle(BaziTheme.ink)
@@ -888,7 +858,7 @@ struct ProfileView: View {
     /// | 钱域 | **本地 Entitlement(购买凭证镜像)——保留**:匿名用户同生辰(content_hash 按 出生日+2h时辰桶+时区偏移+性别+经度 6 位小数(≈0.1m)+子时规则 寻址,见 backend `app/core/content_hash.py`)重排后付费章直接解锁,堵「匿名+重置+恢复不了→Apple 双扣款」洞;后端 entitlement 行本就不动;在飞购买续接记录(pending_redeems)同样保留(购买完整性>重置) | 留 |
     /// | 防刷域 | 每日免费次数池(daily_read_count_*)——重置**不回满**当日额度(午夜自然重置) | 留 |
     /// | 身份域 | user_local_id + Keychain 登录全套(重置 ≠ 登出 ≠ 换设备身份) | 留 |
-    /// | 设置域 | 语言 / 子时规则;hasSeenOnboarding 清(重走引导) | 语言子时留,onboarding 清 |
+    /// | 设置域 | 语言(子时规则设置行 2026-10-18 拔除,不再有此 UserDefaults 键);hasSeenOnboarding 清(重走引导) | 语言留,onboarding 清 |
     ///
     /// InterpretState 是 ViewModel UI enum(非 PersistentModel),不在删除范围。
     /// 用 fetch + loop delete 范式(与 UserSnapshotLinkStore / DailyFortuneSnapshotStore 一致,
