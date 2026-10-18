@@ -52,6 +52,10 @@ struct RootTabView: View {
     }
 
     var body: some View {
+        // S1(2026-10-18):读一次字体安装状态——可下载楷体/宋体装好后 revision
+        // bump 触发重渲染,Font.custom 下次解析即命中新字体。只读属性建立
+        // Observation 依赖,不 .id() 重建视图树(会丢导航/onboarding 进度)。
+        let _ = FontAvailability.shared.revision
         TabView(selection: $selectedTab) {
             DailyFortuneView()
                 .tag(Tab.dailyFortune)
