@@ -631,7 +631,8 @@ struct HeroYiJiColumns: View {
     }
 
     /// 单列:表头(Do=墨青 / Don't=朱红;zh/zh-Hant 表头仍「宜/忌」,现状
-    /// 逻辑)+ 条目纵堆(hairline 分隔、上下 padding 9)。
+    /// 逻辑)+ 条目纵堆(hairline 分隔、上下 padding 11——2026-10-18 S3 纵向
+    /// 节奏,原 9)。
     /// EN 表头的「宜 yí / 忌 jì」汉字小注 2026-10-01 D4 删(EN 基座零汉字)。
     /// serif 一族:zh=宋体(图内宋)、EN=New York(songDisplay 自动路由)。
     private func column(isYi: Bool, header: String, items: [String]) -> some View {

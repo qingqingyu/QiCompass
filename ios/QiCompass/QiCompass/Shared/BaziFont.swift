@@ -137,7 +137,10 @@ enum BaziFont {
                 CTFontDescriptorCreateWithAttributes([kCTFontNameAttribute: $0] as CFDictionary)
             }
         }
-        CTFontDescriptorMatchFontDescriptorsWithProgressHandler(descriptors as CFArray, nil) { state, info in
+        // info 即进度字典本身(本工具链 audited import 把 CFDictionaryRef block
+        // 参数导入为 CFDictionary?,String(describing:) 直接打内容)——错误载荷在
+        // kCTFontDescriptorMatchingError,诊断键如 TotalAssetSize 同在。
+        let matchStarted = CTFontDescriptorMatchFontDescriptorsWithProgressHandler(descriptors as CFArray, nil) { state, info in
             switch state {
             case .didFailWithError:
                 // 不吞错:下载失败(无网/无描述符等)显式落日志,UI 走回退字体
@@ -149,6 +152,10 @@ enum BaziFont {
                 break
             }
             return true
+        }
+        // 返回 false = 匹配流程根本没启动(不触发任何回调)——不查就静默吞掉
+        if !matchStarted {
+            AppLogger.app.error("op=fontDownload.matchStartFailed missing=\(missing.map { $0.probes[0] }.joined(separator: ","), privacy: .public)")
         }
     }
 

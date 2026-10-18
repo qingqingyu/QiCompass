@@ -171,8 +171,9 @@ struct DailyInterpretationSection: View {
     // MARK: - S6 结构化洞察正文(v4 JSON 五段)
 
     /// 今日一句(标题句)+ 事业/关系/精力三行 + 今日信号(确定性)+ 收尾提醒。
-    /// 2026-10-01 D5 定稿:headline serif 17、领域行固定标签列(宽按语言
-    /// 52/92,2026-10-18 S2)+ hairline 行分隔;**signal 行 2026-10-18 S2
+    /// 2026-10-01 D5 定稿:headline serif 17(2026-10-18 S3 改 19)、领域行
+    /// 固定标签列(宽按语言 52/92,2026-10-18 S2)+ hairline 行分隔;
+    /// **signal 行 2026-10-18 S2
     /// 修订 D5「左右分立」**:改与领域行同构(标签列 + 左对齐值),三行与
     /// 信号行同列对齐;reminder EN serif italic;
     /// 与降级态同构(EngineReadingTemplates 同样输出五段),正常/降级不跳形态。
@@ -225,7 +226,8 @@ struct DailyInterpretationSection: View {
     /// 领域行(D5,2026-10-18 S2 修订):固定标签列宽按语言 52/92(原 92 是
     /// 按英文定的,中文两字只需 ~30pt,读成正文空隙)——标签 sans medium
     /// 12.5 inkMuted,常规大小写不拉字距 + 正文(sans 14 ink;zh 经
-    /// BaziFont.body 走楷体「文中楷」),行顶 hairline、上下 padding 11。
+    /// BaziFont.body 走楷体「文中楷」),行顶 hairline、上下 padding 13
+    /// (S3.2 纵向节奏,原 11;今日信号行同步)。
     /// alignment 必须 .leading(2026-10-01 真机截图修复):hairline Rectangle
     /// 贪宽占满行宽,而 HStack 是固有宽——VStack 默认 .center 会把每行内容
     /// 各自水平居中(实测三行标签起点 28/61/52pt 各不相同,Work 行只因内容
@@ -263,8 +265,9 @@ struct DailyInterpretationSection: View {
     }
 
     /// 今日信号行(确定性,非 AI)。**2026-10-18 S2 修订 D5「左右分立」**:
-    /// 改与 domainRow 完全同构——行顶 hairline、上下 padding 11、标签列
-    /// (labelColumnWidth,sans medium 12.5 inkMuted)+ 值**左对齐**紧随标签列,
+    /// 改与 domainRow 完全同构——行顶 hairline、上下 padding 13(S3.2 同步
+    /// domainRow)、标签列(labelColumnWidth,sans medium 12.5 inkMuted)+
+    /// 值**左对齐**紧随标签列,
     /// 事业/关系/精力三行与信号行同列对齐;方向着色沿用 ↑=墨青 / ↓=朱红。
     /// - daySignal 非空:Water ↑ · Wood ↓
     /// - daySignal 空但 dayElements 在:只显五行 + 降级注释(时辰未知/从格,
