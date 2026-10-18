@@ -90,10 +90,11 @@ struct DailyFortuneMainView: View {
                     .padding(.top, 6)
                     .inkIn()
 
-                    // 宜忌双列(紧跟 chips,B 稿 .block padding-top 30;
-                    // 水平 28 = 原 hero 舞台 17 + 宜忌内边距 11,左缘位置不变)
+                    // 宜忌双列(紧跟 chips,B 稿 .block padding-top 30;水平 24
+                    // = 与头部/解读区同左缘,2026-10-18 S2 统一——原 28 是已删的
+                    // 「光晕舞台 17 + 宜忌内边距 11」遗留)
                     DailyImageHeroSection(dayRelation: response.dayRelationToDayMaster)
-                        .padding(.horizontal, 28)
+                        .padding(.horizontal, 24)
                         .padding(.top, 30)
                         .inkIn(delay: 0.08)
                 }
