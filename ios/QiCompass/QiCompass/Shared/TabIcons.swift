@@ -7,7 +7,12 @@ import SwiftUI
 /// - **今日** = 墨圆环抱一点(EnsoView 同源笔触 + 7.2% 中心墨点),品牌指纹贯穿开屏 → tab
 /// - **深度** = 三叠横墨(长 134/96/56,左圆帽右平收,层层入深)
 /// - **合盘** = 双开口圆交叠(r 27.8%,圆心距 31%,缺口交错上下)
-/// - **我的** = 未钤空心印(64% 方,radius 边长 24%),与朱印 SealStamp 互为阴阳
+/// - **我的** = 未钤空心印(64% 方,radius 边长 24%),与朱印 SealStamp 互为阴阳;
+///   印内半身像(2026-10-18 S5:肩弧两端落在印框底边,原悬空弧被读成「撇嘴的脸」)
+///
+/// 线宽统一 5.5%(2026-10-18 S5,修订 09-29 D4「维持 08-30 定稿」):今日墨圆
+/// 5.5% 为基准,合盘双圆(原 3.9%)与我的印框/人形弧(原 4.2%)对齐;深度
+/// 三叠横墨为实心笔画不动。造型立意不变,只调线宽与人形。
 ///
 /// 单色 inkDeep 矢量,经 ImageRenderer 渲染为 UIImage 模板图,交系统 tabItem
 /// 模板着色(选中 tint=ink / 未选中系统次级灰,深浅色随 BaziTheme.dyn 自动反转)。
@@ -107,11 +112,12 @@ enum TabIcons {
         /// 320° 开口圆。Circle.trim 不回绕(from>to 会把 to 钳到 1 只画出残弧,
         /// 2026-08-30 首次实机验收踩过),因此用 from 0→0.8889 + 旋转放缺口:
         /// trim 缺口默认居 340°(右侧),旋转 -70°→缺口朝上(270°),+110°→朝下(90°)。
+        /// 线宽 5.5%(2026-10-18 S5 与今日墨圆统一,原 3.9% 偏细读成发丝)。
         private func openCircle(gapAtTop: Bool) -> some View {
             Circle()
                 .trim(from: 0, to: 0.8889)
                 .stroke(BaziTheme.inkDeep,
-                        style: StrokeStyle(lineWidth: size * 0.039, lineCap: .round))
+                        style: StrokeStyle(lineWidth: size * 0.055, lineCap: .round))
                 .frame(width: size * 0.556, height: size * 0.556)
                 .rotationEffect(.degrees(gapAtTop ? -70 : 110))
         }
@@ -119,18 +125,20 @@ enum TabIcons {
 
     // MARK: - 我的(未钤之印,印中有我)
 
-    /// 空心圆角方:116/180 = 64.4% 见方,rx 28(边长 24%),线宽 7.5/180 = 4.2%。
-    /// 印心一笔极简人形(2026-09-25 打磨:外评「空方框太抽象」——tab 高频位
+    /// 空心圆角方:116/180 = 64.4% 见方,rx 28(边长 24%),线宽 5.5%
+    /// (2026-10-18 S5 与今日墨圆统一,原 4.2%)。
+    /// 印心一笔极简半身像(2026-09-25 打磨:外评「空方框太抽象」——tab 高频位
     /// 不该依赖「未钤之印」的品牌语境才能读懂;头点复用今日图标的中心墨点
-    /// 语言,肩一道弧,不破坏印章立意)。不加内衬框(区别于 SealStamp 的
-    /// insetBorder)。
+    /// 语言,肩一道弧,不破坏印章立意。2026-10-18 S5 修订:肩弧两端落在
+    /// 印框底边,读作被印框截住的半身像——原悬空弧悬在头点下方,被读成
+    /// 「撇嘴的脸」)。不加内衬框(区别于 SealStamp 的 insetBorder)。
     struct MeTabIcon: View {
         var size: CGFloat = renderSize
 
         var body: some View {
             ZStack {
                 RoundedRectangle(cornerRadius: size * 0.644 * 0.241)
-                    .stroke(BaziTheme.inkDeep, lineWidth: size * 0.0417)
+                    .stroke(BaziTheme.inkDeep, lineWidth: size * 0.055)
                     .frame(width: size * 0.644, height: size * 0.644)
                 PersonInSeal(size: size)
             }
@@ -138,9 +146,9 @@ enum TabIcons {
         }
     }
 
-    /// 印心人形:头 = 实心墨点(直径 16.7% size,与今日中心点同语言,置于
-    /// 印中心上方),肩 = 一道上拱弧(印内 116 坐标系 (24,78)→(92,78),
-    /// 拱顶 (58,52))。
+    /// 印心人形:头 = 实心墨点(直径 18% size,与今日中心点同语言,置于印
+    /// 中心上方,2026-10-18 由 16.7% 微调放大),肩 = 两端落在印框底边的
+    /// 上拱弧(2026-10-18 S5,原 (24,78)→(92,78) 悬空弧退役)。
     private struct PersonInSeal: View {
         let size: CGFloat
 
@@ -149,24 +157,27 @@ enum TabIcons {
             return ZStack {
                 Circle()
                     .fill(BaziTheme.inkDeep)
-                    .frame(width: size * 0.167, height: size * 0.167)
+                    .frame(width: size * 0.18, height: size * 0.18)
                     .offset(y: -seal * 0.185)
                 SealPersonArc()
                     .stroke(BaziTheme.inkDeep,
-                            style: StrokeStyle(lineWidth: size * 0.0417, lineCap: .round))
+                            style: StrokeStyle(lineWidth: size * 0.055, lineCap: .round))
                     .frame(width: seal, height: seal)
             }
         }
     }
 
+    /// 肩 = 两端落在印框底边的拱弧(2026-10-18:原悬空弧被读成「撇嘴的脸」)。
+    /// 印内 116 坐标系:起止 (30,116)→(86,116)(避开 rx 28 圆角),控制点
+    /// (58,40),弧顶 ≈ y 78,与头点(中心 y≈36.5,半径≈16)留出 ~26 的颈距。
     private struct SealPersonArc: Shape {
         func path(in rect: CGRect) -> Path {
             let s = rect.width / 116  // 印内 116 坐标系
             var p = Path()
-            p.move(to: CGPoint(x: 24 * s, y: 78 * s))
+            p.move(to: CGPoint(x: 30 * s, y: 116 * s))
             p.addQuadCurve(
-                to: CGPoint(x: 92 * s, y: 78 * s),
-                control: CGPoint(x: 58 * s, y: 52 * s)
+                to: CGPoint(x: 86 * s, y: 116 * s),
+                control: CGPoint(x: 58 * s, y: 40 * s)
             )
             return p
         }

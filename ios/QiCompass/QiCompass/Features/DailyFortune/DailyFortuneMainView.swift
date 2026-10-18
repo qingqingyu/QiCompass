@@ -265,9 +265,10 @@ struct DailyFortuneMainView: View {
 /// Tab 栏下透出正文(2026-10-02 外评「透字显得脏」):iOS 26 浮动 Liquid
 /// Glass tab 栏下正文透视属系统默认行为,改用系统滚动边缘效果收底——
 /// **不手写 LinearGradient 盖 tab 栏**(DESIGN.md 禁渐变背景,且暗色易穿帮)。
-/// 先取 `.hard`(硬边纸色承接);与水墨风格冲突则回退系统默认 `.soft`
-/// (方案 §4,截图对比由用户拍板)。部署目标 17.2:#available 之下 17/18
-/// 行为不变。其余三个 tab 同病,**本轮只改今日页**,另开任务(方案 §4)。
+/// 2026-10-18 S5:`.hard` → `.soft`(方案 §4 预留的回退分支已执行——真机
+/// 外评 I:hard 在 tab 栏上方形成一条硬色带,与水墨纸面冲突,用户拍板)。
+/// 部署目标 17.2:#available 之下 17/18 行为不变。其余三个 tab 同病,
+/// 本轮只改今日页,另开任务(方案 §4)。
 /// Bug7(2026-10-06 review 核实):`scrollEdgeEffectStyle` 是 iOS 26 SDK 独有
 /// 符号,`#available` 只有运行时效果——Xcode 26 之前编译直接失败。外包
 /// `#if compiler(>=6.2)`(Xcode 26 = Swift 6.2)做编译期门槛,老工具链
@@ -276,7 +277,7 @@ private struct TodayScrollEdge: ViewModifier {
     func body(content: Content) -> some View {
         #if compiler(>=6.2)
         if #available(iOS 26.0, *) {
-            content.scrollEdgeEffectStyle(.hard, for: .bottom)
+            content.scrollEdgeEffectStyle(.soft, for: .bottom)
         } else {
             content
         }
