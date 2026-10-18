@@ -3,12 +3,12 @@ import SwiftUI
 // MARK: - 章节结构化正文排版(2026-09-02;2026-10-09 按用户 HTML 目标稿改版)
 //
 // ChapterContent 节点树的视觉层,版面语言对齐 DESIGN.md(水墨孤本):
-// - 引言/正文 = 楷体 16 · 行距 ~1.65× · 首行缩进 2em(2026-10-09 目标稿:
+// - 引言/正文 = 宋体 16 · 行距 ~1.65× · 首行缩进 2em(2026-10-09 目标稿:
 //   收 09-01 的 2.15× 疏朗口径,EN/zh 统一密度,不再分档)
-// - 小节题   = 前置短墨横(16×1.5)+ 楷体 20pt tracking 1;嵌套小节 15.5pt 墨灰降级
-// - 键值行   = 标签 caption 11.5 墨灰 + 值楷体 16;「据/注」小字注 12.5pt
-// - 条目列   = 「·」条目楷体 15
-// - 条目卡   = 题楷体 16 + 字段,卡间 hairline 分隔(卡片让位 hairline)
+// - 小节题   = 前置短墨横(16×1.5)+ 宋体 20pt tracking 1;嵌套小节 15.5pt 墨灰降级
+// - 键值行   = 标签 caption 11.5 墨灰 + 值宋体 16;「据/注」小字注 12.5pt
+// - 条目列   = 「·」条目宋体 15
+// - 条目卡   = 题宋体 16 + 字段,卡间 hairline 分隔(卡片让位 hairline)
 // 无卡片底 / 无渐变 / 朱红不进。纯展示,数据源单一(ChapterContent)。
 
 struct ChapterContentView: View {
@@ -140,7 +140,7 @@ private struct NodeView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// 小节题:顶层短墨横(16×1.5)+ 楷体 20;嵌套小节去横、字级降 15.5、墨灰。
+    /// 小节题:顶层短墨横(16×1.5)+ 宋体 20;嵌套小节去横、字级降 15.5、墨灰。
     @ViewBuilder
     private func sectionHeader(_ title: String) -> some View {
         if depth == 0 {
@@ -161,7 +161,7 @@ private struct NodeView: View {
         }
     }
 
-    /// 键值行:标签小字 + 值楷体 16;「据/注」类压成一行小字注。
+    /// 键值行:标签小字 + 值宋体 16;「据/注」类压成一行小字注。
     @ViewBuilder
     private func fieldRow(_ field: ChapterField) -> some View {
         if field.isNote {
@@ -206,7 +206,7 @@ private struct NodeView: View {
 
     /// 结论句(M0 v9 白话结论层,2026-10-14):每节第一层——白话结论,
     /// 不缩进、无标签,与缩进 2em 的展开段在版面上自然分层。
-    /// Kaiti `.custom` 不吃 weight(BaziFont.swift:43),「加粗」不可用,
+    /// 宋体 `.custom` 不吃 weight(BaziFont.songti),「加粗」不可用,
     /// 靠字号(display 17 > 正文 16)+ 浓墨 + 不缩进区分;不加新颜色、
     /// 无朱红(DESIGN.md)。样式经用户真机截图确认后定稿(plan S3-4)。
     private func headlineParagraph(_ text: String) -> some View {

@@ -163,7 +163,7 @@ struct TermNoteRequest: Identifiable {
 
 // MARK: - 术语释义卡(S5)
 
-/// 术语点开的释义卡:术语标题(楷体 display)+ 一句白话(楷体 body)。
+/// 术语点开的释义卡:术语标题(宋体 display)+ 一句白话(宋体 body)。
 /// 结构对齐今日页 HeroShiShenNoteSheet 先例(2026-09-29 D3):
 /// EN 标题附汉字括注(「意译 (漢字)」先例);detents 250 起步可拉大
 /// (AX 大字号下正文可完整展开);presentationBackground 纸色由调用侧注入。

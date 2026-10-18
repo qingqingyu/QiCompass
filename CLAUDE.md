@@ -140,9 +140,9 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 关键约束(摘自 `DESIGN.md`):
 
 - **美学方向**:水墨孤本(禅意水墨极简),不是国内命理黑金套路
-- **Memorable Thing**:"专业不忽悠,不像算命软件" — 宣纸上的焦墨圆、一枚朱印、一行竖排楷体
+- **Memorable Thing**:"专业不忽悠,不像算命软件" — 宣纸上的焦墨圆、一枚朱印、一行竖排宋体
 - **色板**:`#E7E2D5` 国画旧宣纸(主背景,2026-08-31 换轨,原冷宣纸 `#F3F1EC`) / `#17161A` 焦墨(CTA 底,`inkDeep`;暗色反转) / `#A83226` 印章朱红(`cinnabar`,**仅印章级小元素:SealStamp/付费标/聚焦线/当前时辰点,禁止 CTA 与大面积**) / `#2F5E4A` 墨青(吉) / `#1C1B1E` 浓墨文字;Dark = 夜宣纸(dyn 双值保留)
-- **字体**:楷体 = **打包霞鹜文楷**(LXGW WenKai,SIL OFL;zh-hant 用文楷 TC;「图内宋」= 思源宋体子集 QiSongti,OFL 保留名故子集改名)——2026-10-18 S1b 拍板:真机默认无楷/宋且 Apple 下载 API 在 iOS 27 空成功,系统字体不可依赖;BaziFont 探测序打包名优先/系统名回退 + SF Pro Text tabular-nums(数字) + latinCaps 大字距小写标(QICOMPASS)
+- **字体**:中文全走宋体 = **打包思源宋体子集**(SC=`QiSongti-Regular.otf` GBK 全汉字+App 词条;zh-hant=`QiSongtiTC-Regular.otf` Big5;OFL 保留名 "Source" 故子集改名)——2026-10-18 晚拍板全宋体(同日 S1b 文楷真机目验被用户否决);真机默认无楷/宋且 Apple 下载 API 在 iOS 27 空成功,系统字体不可依赖(S1.0 结论不变);BaziFont 探测序打包名优先/系统名回退 + SF Pro Text tabular-nums(数字) + latinCaps 大字距小写标(QICOMPASS)。**护栏**:动 `tools/build_songti_fonts.py` / 两 .otf / 新增含 CJK 界面词条后须跑该脚本(或 `--verify`)PASS
 - **品牌指纹**:墨圆 EnsoView / 朱印 SealStamp / 竖排 VText / 大写数字编号(壹-捌)
 - **布局**:卡片让位 hairline(ink@18%);dashed hairline 专用于锁框/临时态;Capsule 只留 chip;CTA radius 5
 - **动效三式**:ink-in(blur 7→0) / stamp(1.9→1 spring) / breathe(7s);reduce-motion 全降级

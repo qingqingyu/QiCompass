@@ -190,7 +190,7 @@ private struct GeneratingDots: View {
 
 /// 合盘解读分章排版:后端 v4 prompt 要求每章标题独立成行(「第一章 基础相处
 /// 模式」/ "Chapter 1 …"),本视图按行解析出标题并样式化,章行 = NumeralBadge
-/// 实线圆 + 楷体章名(对齐深度解析命书目录行语言),正文段缩进对齐章名。
+/// 实线圆 + 宋体章名(对齐深度解析命书目录行语言),正文段缩进对齐章名。
 ///
 /// 容错:标题行带全/半角冒号或 `**` 包裹(v3 时代输出习惯)同样解析;
 /// 解析不到任何标题行(老缓存散文本)→ `parse` 返回 nil,退回整段渲染,不丢内容。
@@ -340,7 +340,7 @@ struct CompatibilityChapterText: View {
         }
     }
 
-    /// 单章:NumeralBadge 实线圆 + 楷体章名 + 行尾墨点(已读语义,对齐深度解析
+    /// 单章:NumeralBadge 实线圆 + 宋体章名 + 行尾墨点(已读语义,对齐深度解析
     /// 目录行);正文段缩进对齐章名(52 = 徽 38 + 行距 14)。
     private func chapterBody(_ chapter: Chapter, badgeIndex: Int) -> some View {
         VStack(alignment: .leading, spacing: 0) {

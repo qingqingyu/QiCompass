@@ -73,7 +73,7 @@ enum AppLanguage: String, CaseIterable {
     static let launchSnapshotDefaultsKey = "appLanguageLaunchSnapshot"
 
     /// 是否中文语系——供字体 / 生肖 / 宜忌列头等"只区分中文与否"的场景用。
-    /// `zh` 与 `zhHant` 均 true;zhHant 在 BaziFont 分流 Kaiti TC(D7)。
+    /// `zh` 与 `zhHant` 均 true;zhHant 在 BaziFont 分流 QiSongtiTC(D7 繁体字形)。
     var isChinese: Bool {
         switch self {
         case .zh, .zhHant: return true

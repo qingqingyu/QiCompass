@@ -88,7 +88,7 @@ struct PillarsTable: View {
                 // 天干(未知列的 dashed 圆位落在本行——干支之位)
                 pillarRow(label: L10n.DeepChart.rowStem, band: middleBand, unknownCircle: true) { _, pillar in
                     Text(pillar.gan)
-                        // BaziFont.kaiti 的 custom 路径不接 weight,字重经 Text.fontWeight 生效
+                        // BaziFont.ganzhi 的 custom 路径不接 weight,字重经 Text.fontWeight 生效
                         .font(BaziFont.ganzhi(size: 28))
                         .fontWeight(.bold)
                         .foregroundStyle(ganColor(pillar))

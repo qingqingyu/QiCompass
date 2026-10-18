@@ -196,7 +196,7 @@ struct DailyInterpretationSection: View {
             signalRow
 
             // 收尾句(2026-10-18 S3 评审:整页唯一可带走的一句,原 caption
-            // 小灰字被埋在底部)——短墨横 + 楷体大字居中,作为整页的收尾。
+            // 小灰字被埋在底部)——短墨横 + 宋体大字居中,作为整页的收尾。
             // 位置不动仍在信号行之后(不挪顶部、不做「签」,10-15 刚删今日一签)。
             VStack(spacing: 14) {
                 Rectangle()
@@ -226,7 +226,7 @@ struct DailyInterpretationSection: View {
     /// 领域行(D5,2026-10-18 S2 修订):固定标签列宽按语言 52/92(原 92 是
     /// 按英文定的,中文两字只需 ~30pt,读成正文空隙)——标签 sans medium
     /// 12.5 inkMuted,常规大小写不拉字距 + 正文(sans 14 ink;zh 经
-    /// BaziFont.body 走楷体「文中楷」),行顶 hairline、上下 padding 13
+    /// BaziFont.body 走宋体),行顶 hairline、上下 padding 13
     /// (S3.2 纵向节奏,原 11;今日信号行同步)。
     /// alignment 必须 .leading(2026-10-01 真机截图修复):hairline Rectangle
     /// 贪宽占满行宽,而 HStack 是固有宽——VStack 默认 .center 会把每行内容
@@ -255,7 +255,7 @@ struct DailyInterpretationSection: View {
         }
     }
 
-    /// 收尾句字体(2026-10-18 S3 提升):zh/zh-Hant 楷体 20(整页收尾大字,
+    /// 收尾句字体(2026-10-18 S3 提升):zh/zh-Hant 宋体 20(整页收尾大字,
     /// 原 caption 12 小灰字);EN serif italic 17 medium(衬线一族,原 13)。
     /// 不加 tracking(中文大字疏排靠 lineSpacing,不靠字距)。
     private var reminderFont: Font {

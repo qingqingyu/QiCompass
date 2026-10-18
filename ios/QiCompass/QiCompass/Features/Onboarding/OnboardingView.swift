@@ -385,7 +385,7 @@ struct CompleteOnceGate {
 // MARK: - Page 1: Welcome(水墨孤本 O1,2026-08-26 重写)
 //
 // 参考 docs/design-ref/shuimo/onboarding-o1-welcome.html:
-// 墨圆居中承接开机转场 → 玄印落于圆心 → 楷体标题 → QICOMPASS 字距标 →
+// 墨圆居中承接开机转场 → 玄印落于圆心 → 宋体标题 → QICOMPASS 字距标 →
 // 副标题 → 竖排经文(版心左 hairline)。壁画佛手背景图退役(与新语言冲突)。
 // 错峰时序(承接 splash 后从简):enso 0s → 标题 0.2s → 副标 0.35s → 经文 0.55s → 印 0.9s。
 private struct WelcomePage: View {

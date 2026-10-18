@@ -147,7 +147,7 @@ struct DeepAnalysisHomeView: View {
 
     /// hero 总高(2026-10-08 排版 review:@ScaledMetric——Font.custom 默认随系统
     /// 字号放大,写死 185 会在大字号下把四柱底部裁进喜忌行;默认值与定稿一致)。
-    /// 十七轮外评:custom(size:) 的缩放只对 zh/zh-hant 的 Kaiti 路径成立——
+    /// 十七轮外评:custom(size:) 的缩放只对 zh/zh-hant 的宋体路径成立——
     /// en 干支走 .system(size:) 固定字号(87264b3 驳回 #8 口径),高度若仍随
     /// Dynamic Type 缩放,小字号下四柱(~174pt)溢出固定内容、大字号下卡片
     /// 虚高留白。高度缩放与字形缩放同口径:中文 UI 随 Dynamic Type,en 固定。
@@ -373,7 +373,7 @@ struct DeepAnalysisHomeView: View {
         .padding(.top, 24)
     }
 
-    /// 喜忌拼接 Text:label 灰墨 + 元素字五行色(Kaiti Medium,模拟 mock em 加重)。
+    /// 喜忌拼接 Text:label 灰墨 + 元素字五行色(宋体,模拟 mock em 加重)。
     /// 五行值经 BaziTerms 取显示语;未知值显式回落灰墨着色,不吞。
     /// 断行纪律(2026-10-08 外评:EN「Favored … Less supportive / Wood」断在
     /// label 与其元素之间,短语被腰斩):label↔元素、元素↔元素用不换行空格钉成
@@ -492,7 +492,7 @@ struct DeepAnalysisHomeView: View {
     private var tocHeader: some View {
         VStack(alignment: .leading, spacing: 7) {
             HStack(alignment: .firstTextBaseline) {
-                // 命书大标题(EN "Your Reading",S4 弃 book 比喻;mock 基准 28px serif;zh 两字楷体 22pt 同分量)
+                // 命书大标题(EN "Your Reading",S4 弃 book 比喻;mock 基准 28px serif;zh 两字宋体 22pt 同分量)
                 Text(L10n.DeepChart.tocTitle)
                     .font(BaziFont.display(size: 22))
                     .tracking(2)

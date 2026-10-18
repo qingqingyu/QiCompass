@@ -1,6 +1,6 @@
 import SwiftUI
 
-/// hairline 分节容器(盘面小景定稿 ⑩):节标 14.5pt 楷体 + 右侧小注,
+/// hairline 分节容器(盘面小景定稿 ⑩):节标 14.5pt 宋体 + 右侧小注,
 /// 上边 hairline 分隔,左右边距 32。替代原九卡的 cardSurface 卡壳——
 /// 「改壳不改芯」:内容组件只卸卡,排版进本容器(DESIGN.md 卡片让位 hairline)。
 /// trailing 由 String 改 Text(2026-10-14):四柱节「日主 辛金」需值段朱红混排,

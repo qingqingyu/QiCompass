@@ -1,27 +1,28 @@
 import SwiftUI
 import UIKit
 
-/// 统一字体入口(DESIGN.md §Typography,2026-08-26 水墨孤本换轨 + 英文 locale 路由)。
+/// 统一字体入口(DESIGN.md §Typography,水墨孤本 → 2026-10-18 全宋体拍板)。
 ///
 /// DESIGN.md §Typography 落地:
-/// - **Display / Ganzhi / Heading / Body(中文 UI)**:楷体 = **打包的霞鹜文楷**
-///   (LXGW WenKai,SIL OFL 1.1,`Resources/LXGWWenKai-Regular.ttf`;zh-hant 腿
-///   = 文楷 TC `LXGWWenKaiTC-Regular.ttf`,D7 繁体字形)。2026-10-18 S1b 拍板——
-///   此前「iOS 系统自带 Kaiti SC」不实:真机默认不带(探测实证 8 名全 false,
-///   模拟器才自带),Apple 下载 API 在 iOS 27 真机 0 字节空成功,系统楷体不可依赖;
-///   系统名(Kaiti SC/STKaiti)保留在探测序后半作回退。楷体扛全部中文展示层。
-/// - **图内题记宋体**:打包的思源宋体子集(QiSongti,`Resources/QiSongti-Regular.otf`,
-///   ~300KB,字符集 = 今日页图内宋层固定文案;OFL 保留名 "Source" 故子集改名),
-///   系统 Songti SC/STSong 作回退。
-/// - **英文 locale 路由(2026-08-26,DESIGN.md Decisions Log)**:楷体拉丁字形偏楷书衬线,
-///   英文正文可读性差——display/heading 回退系统 `.serif`(New York 系,气质匹配水墨),
-///   body 走系统 sans。品牌字(玄机问道/干支/印章)不走本路由,始终楷体(中文不翻译,决策 7)。
+/// - **Display / Ganzhi / Heading / Body / 品牌层(中文 UI)**:宋体 = **打包的思源宋体
+///   子集**(SC = `QiSongti-Regular.otf`,GBK 全汉字 + App 全词条;TC =
+///   `QiSongtiTC-Regular.otf`,Big5 + App 繁体词条(TW 源无简体字形——zh 串由
+///   SC 腿渲染,zh-hant 下偶现简体字回退系统);OFL 保留名 "Source" 故子集改名;
+///   `tools/build_songti_fonts.py` 单一事实源)。2026-10-18 晚拍板——同日早间 S1b
+///   打包的霞鹜文楷(教科书手写体血统,源自 Klee One)上真机后用户不满:「没有
+///   宋体那么好看」;主字体全宋体化(「宋刻孤本」),文楷 SC/TC(41MB)退役,
+///   「图内宋/文中楷」分层随之消解为单族。系统名(Songti SC/STSongti)保留在
+///   探测序后半作回退。
+/// - **英文 locale 路由(2026-08-26)**:宋体拉丁可读,但英文正文走系统 serif
+///   (New York 系)更利阅读——display 回退系统 `.serif`,body 走系统 sans。
+///   品牌字(玄机问道/干支/印章)不走本路由,始终宋体(中文不翻译,决策 7)。
 /// - **Numeric / Tabular**:系统默认 + `.monospacedDigit()`(SF Pro Text)。
 /// - **LatinCaps**:QICOMPASS 字距标(system + 调用侧 .tracking 大间距)。
 ///
-/// 历史:宋瓷时代 display 走系统 `.serif`(Songti SC)——2026-08-26 换轨为 Kaiti SC;
-/// 2026-10-18 S1a 曾走「系统可下载字体 + 启动按需下载」,S1b 打包确定性落地后
-/// 下载机制退役。`zcool*` API 名保留作 alias。
+/// 历史:宋瓷时代 display 走系统 `.serif`(Songti SC)——2026-08-26 换轨楷体
+/// (孤本手抄);真机无楷宋字体 + Apple 下载 API 空成功(S1.0 实证),2026-10-18
+/// S1b 打包霞鹜文楷落地,同日晚用户目验后拍板全宋体(思源宋体子集)。`zcool*`
+/// API 名保留作 alias。
 
 enum BaziFont {
     // MARK: - 字体名探测(S1b,2026-10-18)
@@ -32,85 +33,57 @@ enum BaziFont {
         names.first { UIFont(name: $0, size: 12) != nil }
     }
 
-    /// 楷体名缓存语义:**命中即缓存,nil 不缓存**——晚注册的字体下次取值重新
+    /// 字体名缓存语义:**命中即缓存,nil 不缓存**——晚注册的字体下次取值重新
     /// 探测即命中。约定主线程取值(SwiftUI body / Font 构造)。
-    private static var _kaitiSCCache: String?
-    /// 简体楷体:打包霞鹜文楷优先,系统 Kaiti SC / STKaitiSC-Regular 回退。
-    private static var kaitiSCName: String? {
-        if let cached = _kaitiSCCache { return cached }
-        let found = firstAvailableFont(["LXGWWenKai-Regular", "Kaiti SC", "STKaitiSC-Regular"])
-        if let found { _kaitiSCCache = found }
+    private static var _songtiSCCache: String?
+    /// 简体宋体:打包思源宋体子集(QiSongti)优先,系统 Songti SC / STSong 回退。
+    private static var songtiSCName: String? {
+        if let cached = _songtiSCCache { return cached }
+        let found = firstAvailableFont(["QiSongti-Regular", "Songti SC", "STSongti-SC-Regular", "STSong"])
+        if let found { _songtiSCCache = found }
         return found
     }
 
-    private static var _kaitiTCCache: String?
-    /// 繁体楷体(D7:繁体字形):打包霞鹜文楷 TC 优先,系统 Kaiti TC 回退。
-    private static var kaitiTCName: String? {
-        if let cached = _kaitiTCCache { return cached }
-        let found = firstAvailableFont(["LXGWWenKaiTC-Regular", "Kaiti TC", "STKaitiTC-Regular"])
-        if let found { _kaitiTCCache = found }
+    private static var _songtiTCCache: String?
+    /// 繁体宋体(D7:繁体字形):打包 QiSongtiTC 优先,系统 Songti TC 回退。
+    private static var songtiTCName: String? {
+        if let cached = _songtiTCCache { return cached }
+        let found = firstAvailableFont(["QiSongtiTC-Regular", "Songti TC", "STSongtiTC-Regular"])
+        if let found { _songtiTCCache = found }
         return found
     }
 
-    private static var _stkaitiCache: String?
-    /// "STKaiti" 旧名兜底(D7 保留)。
-    private static var stkaitiName: String? {
-        if let cached = _stkaitiCache { return cached }
-        let found = firstAvailableFont(["STKaiti"])
-        if let found { _stkaitiCache = found }
-        return found
-    }
-
-    /// 当前语言应用的楷体名(zh-hant → Kaiti TC,缺失回落 SC 再回落 STKaiti;
-    /// zh / en 品牌字维持 Kaiti SC 路径)。语言实时判定,切换后下次取值即生效。
-    private static var kaitiName: String? {
+    /// 当前语言应用的宋体名(zh-hant → QiSongtiTC,缺失回落 SC;zh / en 品牌字
+    /// 维持 SC 路径)。语言实时判定,切换后下次取值即生效。
+    private static var songtiName: String? {
         if AppLanguage.current == .zhHant {
-            return kaitiTCName ?? kaitiSCName ?? stkaitiName
+            return songtiTCName ?? songtiSCName
         }
-        return kaitiSCName ?? stkaitiName
+        return songtiSCName
     }
 
     /// 当前 UI 是否中文(AppLanguage 实时判定,系统语言切换后下次取值即生效)。
-    /// zh 与 zh-hant 均走中文;zh-hant 在 kaitiName 分流 Kaiti TC(D7)。
+    /// zh 与 zh-hant 均走中文;zh-hant 在 songtiName 分流 QiSongtiTC(D7)。
     private static var isChineseUI: Bool { AppLanguage.current.isChinese }
 
-    /// 楷体字体。kaitiName 不可用时回退系统 .serif(Songti SC),保证永远有衬线兜底。
-    private static func kaiti(size: CGFloat, weight: Font.Weight = .medium) -> Font {
-        if let name = kaitiName {
-            return .custom(name, size: size)
-        }
-        return .system(size: size, weight: weight, design: .serif)
-    }
-
-    /// 宋体名探测(「图内宋」hero 题记用,2026-08-31 glass-v2 分层):
-    /// 打包思源宋体子集(QiSongti)优先,系统 Songti SC / STSong 回退。
-    private static var _songtiCache: String?
-    private static var songtiName: String? {
-        if let cached = _songtiCache { return cached }
-        let found = firstAvailableFont(["QiSongti-Regular", "Songti SC", "STSongti-SC-Regular", "STSong"])
-        if let found { _songtiCache = found }
-        return found
-    }
-
-    /// 图内题记字体(2026-08-31 glass-v2 拍板:图内中文 = 宋体,刻本气质;
-    /// 解读框等其余展示层仍楷体——「图内宋/文中楷」分层,DESIGN.md 补录)。
-    /// 英文 locale 走系统 .serif(New York 系)。缺失时回退系统 .serif 永不裸奔。
-    static func songDisplay(size: CGFloat, weight: Font.Weight = .regular) -> Font {
-        guard isChineseUI else {
-            return .system(size: size, weight: weight, design: .serif)
-        }
+    /// 宋体字体。songtiName 不可用时回退系统 .serif(Songti SC),保证永远有衬线兜底。
+    /// 思源宋体仅打包 Regular 一档(对齐 S1b 拍板①;weight 参数只作用于回退分支)。
+    private static func songti(size: CGFloat, weight: Font.Weight = .regular) -> Font {
         if let name = songtiName {
             return .custom(name, size: size)
         }
         return .system(size: size, weight: weight, design: .serif)
     }
 
-    /// 显示字体(中文 Kaiti / 英文系统衬线)。楷体笔画细,展示层默认 Medium。
+    // MARK: - 语义字体(全宋体后单一字族,2026-10-18)
+
+    /// 显示字体(中文宋体 / 英文系统衬线;默认 Medium——作用于 EN 回退分支,
+    /// 打包宋体仅 Regular 一档,对齐 S1b 拍板①)。
     static func display(size: CGFloat, weight: Font.Weight = .medium) -> Font {
         guard isChineseUI else {
             return .system(size: size, weight: weight, design: .serif)
         }
-        return kaiti(size: size, weight: weight)
+        return songti(size: size, weight: weight)
     }
 
     /// 八字专用干支字体(与 display 同族;干支为中文术语,始终走 display 路由)。
@@ -118,17 +91,23 @@ enum BaziFont {
         display(size: size, weight: weight)
     }
 
-    /// 品牌层字体(**始终 Kaiti,不走 EN 路由**):干支题款/印章/品牌字用。
+    /// 品牌层字体(**始终宋体,不走 EN 路由**):干支题款/印章/品牌字用。
     /// display 在 EN locale 落系统衬线,而 DESIGN.md「品牌字(玄机问道/干支/
-    /// 印章)不走本路由,始终楷体」——hero 落款竖排汉字(2026-10-01 Today
-    /// 定稿 D1)需要跨语言稳定的楷形。探测失败同 kaiti() 回退衬线,永不裸奔。
+    /// 印章)不走本路由,始终中文字形」——hero 落款竖排汉字(2026-10-01 Today
+    /// 定稿 D1)需要跨语言稳定的字形。探测失败同 songti() 回退衬线,永不裸奔。
     static func brush(size: CGFloat, weight: Font.Weight = .medium) -> Font {
-        kaiti(size: size, weight: weight)
+        songti(size: size, weight: weight)
     }
 
-    /// 命书正文(中文 Kaiti / 英文系统 sans;阅读页 16pt 行距 ~1.65× 由调用侧 lineSpacing 控制,2026-10-09 改版)。
+    /// 图内题记字体(2026-08-31 glass-v2 引入「图内宋」;2026-10-18 全宋体后与
+    /// display 同族同链,API 保留防调用侧 churn)。英文 locale 走系统 .serif。
+    static func songDisplay(size: CGFloat, weight: Font.Weight = .regular) -> Font {
+        display(size: size, weight: weight)
+    }
+
+    /// 命书正文(中文宋体 / 英文系统 sans;阅读页 16pt 行距 ~1.65× 由调用侧 lineSpacing 控制,2026-10-09 改版)。
     static func body(size: CGFloat = 16) -> Font {
-        guard isChineseUI, let name = kaitiName else {
+        guard isChineseUI, let name = songtiName else {
             return .system(size: size)
         }
         return .custom(name, size: size)
@@ -150,7 +129,7 @@ enum BaziFont {
         .system(size: size, weight: .medium)
     }
 
-    /// 按钮(系统默认半粗;楷体按钮字重不足,按钮仍走系统字)。
+    /// 按钮(系统默认半粗;宋体按钮字重不足,按钮仍走系统字)。
     static func button(size: CGFloat = 16) -> Font {
         .system(size: size, weight: .semibold)
     }
@@ -162,32 +141,31 @@ enum BaziFont {
 
     // MARK: - 旧 API alias(渐进重构)
 
-    /// 旧 zcoolTitle → display(Songti SC)。
+    /// 旧 zcoolTitle → display。
     static func zcoolTitle(size: CGFloat) -> Font {
         display(size: size)
     }
 
-    /// 旧 bodySerif → body(DESIGN.md §Body 改用 PingFang SC 无衬线;旧"serif"语义废弃)。
-    /// ⚠️ 设计反转:DESIGN.md 把命书正文从 .serif 改为 PingFang SC。
+    /// 旧 bodySerif → body。
     static func bodySerif(size: CGFloat = 16) -> Font {
         body(size: size)
     }
 }
 
 extension View {
-    /// 页面标题样式(Kaiti SC Medium + 浓墨,DESIGN.md §Display)。
+    /// 页面标题样式(宋体 + 浓墨,DESIGN.md §Display)。
     func zcoolPageTitle(size: CGFloat = 24) -> some View {
         font(BaziFont.display(size: size))
             .foregroundStyle(BaziTheme.ink)
     }
 
-    /// 卡片标题样式(Kaiti SC Medium + 浓墨,小一号,DESIGN.md §Heading)。
+    /// 卡片标题样式(宋体 + 浓墨,小一号,DESIGN.md §Heading)。
     func zcoolCardTitle(size: CGFloat = 17) -> some View {
-        font(BaziFont.display(size: size, weight: .medium))
+        font(BaziFont.display(size: size))
             .foregroundStyle(BaziTheme.ink)
     }
 
-    /// 命书正文样式(Kaiti SC Regular + 浓墨,DESIGN.md §Body)。
+    /// 命书正文样式(宋体 + 浓墨,DESIGN.md §Body)。
     func bodySerifText(size: CGFloat = 16) -> some View {
         font(BaziFont.body(size: size))
             .foregroundStyle(BaziTheme.ink)

@@ -196,7 +196,7 @@ struct DualPillarsTable: View {
             .minimumScaleFactor(0.7)
     }
 
-    /// 单人柱单元格:干支(楷体,经 BaziFont 路由)+ 纳音。
+    /// 单人柱单元格:干支(宋体,经 BaziFont 路由)+ 纳音。
     /// S05:干支缺失(时柱未知 / S02 柱歧义)→ dashed 圆位留白,纳音行空,
     /// 不渲染占位干支(不猜);VoiceOver 读「时辰未知」。
     /// label 仅用于 VoiceOver(视觉称呼已上移行首,2026-10-07)。

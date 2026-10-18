@@ -7,7 +7,7 @@ import SwiftData
 /// `~/.gstack/projects/qingqingyu-QiCompass/designs/review-fix-20261001/me-final-spec.md`):
 /// - **字距收敛(F1)**:全页 tracking 只剩 owner kicker 与 footer QICOMPASS
 ///   两处品牌指纹;区块标题从宽字距小标升级为 `display(17)` 浓墨锚点
-///   (EN serif medium / zh 楷体),层级靠字号不靠字距
+///   (EN serif medium / zh 宋体),层级靠字号不靠字距
 /// - **头部去徽章(F3)**:落款角标移除(EN 下挤断 metaLine 的 "Day/Master"),
 ///   登录态唯一落点 = 未登录登录盒(虚线框收组,F2 回归) /
 ///   已登录轻状态行(朱印「我」·已钤同步中)
@@ -766,7 +766,7 @@ struct ProfileView: View {
     }
 
     /// 分节标题(F1 2026-10-01):`display(17)` 浓墨锚点(EN serif medium /
-    /// zh 楷体)——区块标题是整页层级锚点,不再靠字距撑;trailing 尾注
+    /// zh 宋体)——区块标题是整页层级锚点,不再靠字距撑;trailing 尾注
     /// caption(10.5) 无 tracking。
     /// 样式单点:字符串尾注版委托下方 @ViewBuilder 重载,改标题样式只改一处
     /// (对齐 profileModel zodiacMode 的单点求值原则)。

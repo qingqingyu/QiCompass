@@ -34,7 +34,7 @@ enum ChapterNode: Equatable {
     /// 取代逐行 caption 键值行——8 个小标签连排像表单不像命书(E1)。
     case inlineLabel(label: String, text: String)
     /// 结论句(M0 v9 白话结论层专用,2026-10-14):每节第一层的白话结论,
-    /// 不带任何标签、不缩进——Kaiti .custom 不吃 weight(BaziFont.swift:43),
+    /// 不带任何标签、不缩进——宋体 .custom 不吃 weight(BaziFont.songti),
     /// 靠字号 + 浓墨与正文区分(样式经用户真机确认,plan S3-4)。
     case headline(String)
     /// 循环起止行(M0 专用):from/to 两个孤立标签行合成一行小字。

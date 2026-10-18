@@ -6,7 +6,7 @@ import SwiftUI
 /// - 点击推 `CitySearchSheet`(S05:底部含「自定义地点」入口,三入口自动继承)
 /// - 视觉两形态(`style`,默认 `.card`,既有调用方零改动):
 ///   - `.card`:cardSurface 底 + hairline 描边 + 4pt 圆角(合盘配置等既有场景,样式不变)
-///   - `.underlined`:无框 + 底部 hairline 下划线(水墨 O2 生辰表单;楷体值行,占位淡墨)
+///   - `.underlined`:无框 + 底部 hairline 下划线(水墨 O2 生辰表单;宋体值行,占位淡墨)
 /// - 引擎与排序(CitySearchSheet / CitySearchEngine)不在本组件职责内,不碰
 struct CityPickerField: View {
     @Binding var selection: PlaceSelection?

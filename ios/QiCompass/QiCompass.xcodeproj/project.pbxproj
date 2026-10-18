@@ -105,11 +105,9 @@
 		9C000000000000000000005A /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005A /* L10n.swift */; };
 		9C000000000000000000005B /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005B /* Localizable.xcstrings */; };
 		9C000000000000000000005C /* cities.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005C /* cities.sqlite */; };
-		9C00000000000000000000F1 /* LXGWWenKai-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000F1 /* LXGWWenKai-Regular.ttf */; };
-		9C00000000000000000000F2 /* LXGWWenKaiTC-Regular.ttf in Resources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000F2 /* LXGWWenKaiTC-Regular.ttf */; };
 		9C00000000000000000000F3 /* QiSongti-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000F3 /* QiSongti-Regular.otf */; };
-		9C00000000000000000000F4 /* OFL-LXGWWenKai.txt in Resources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000F4 /* OFL-LXGWWenKai.txt */; };
 		9C00000000000000000000F5 /* LICENSE-SourceHanSerif-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000F5 /* LICENSE-SourceHanSerif-OFL.txt */; };
+		9C00000000000000000000F6 /* QiSongtiTC-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000F6 /* QiSongtiTC-Regular.otf */; };
 		9C0000000000000000000060 /* ZodiacHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000060 /* ZodiacHelper.swift */; };
 		9C0000000000000000000070 /* ModuleDefinitions.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000070 /* ModuleDefinitions.swift */; };
 		9C0000000000000000000071 /* ModuleState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000071 /* ModuleState.swift */; };
@@ -142,6 +140,7 @@
 		A00000000000000000000006 /* Shared/DailyReadCounterTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */; };
 		A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */; };
 		A00000000000000000000043 /* Shared/BaziTermsTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000043 /* Shared/BaziTermsTests.swift */; };
+		A00000000000000000000051 /* Shared/FontRegistrationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000051 /* Shared/FontRegistrationTests.swift */; };
 		9C2ECF614CADE1AAEFCB60F2 /* Shared/BaziTermNotesTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C0F8084E7453944F40781F3 /* Shared/BaziTermNotesTests.swift */; };
 		9C4F3D4E5F6A7B8C9D0E1F2B /* Shared/TranslationFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C4F3D4E5F6A7B8C9D0E1F2A /* Shared/TranslationFlowTests.swift */; };
 		A0000000000000000000050 /* Shared/ChainCompletionNotifierTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000050 /* Shared/ChainCompletionNotifierTests.swift */; };
@@ -300,11 +299,9 @@
 		9C100000000000000000005A /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = L10n.swift; path = QiCompass/L10n/L10n.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000005B /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		9C100000000000000000005C /* cities.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = cities.sqlite; sourceTree = "<group>"; };
-		9C1000000000000000000F1 /* LXGWWenKai-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = LXGWWenKai-Regular.ttf; sourceTree = "<group>"; };
-		9C1000000000000000000F2 /* LXGWWenKaiTC-Regular.ttf */ = {isa = PBXFileReference; lastKnownFileType = file; path = LXGWWenKaiTC-Regular.ttf; sourceTree = "<group>"; };
 		9C1000000000000000000F3 /* QiSongti-Regular.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = QiSongti-Regular.otf; sourceTree = "<group>"; };
-		9C1000000000000000000F4 /* OFL-LXGWWenKai.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = OFL-LXGWWenKai.txt; sourceTree = "<group>"; };
 		9C1000000000000000000F5 /* LICENSE-SourceHanSerif-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE-SourceHanSerif-OFL.txt; sourceTree = "<group>"; };
+		9C1000000000000000000F6 /* QiSongtiTC-Regular.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = QiSongtiTC-Regular.otf; sourceTree = "<group>"; };
 		9C1000000000000000000060 /* ZodiacHelper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ZodiacHelper.swift; path = QiCompass/Shared/ZodiacHelper.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000070 /* ModuleDefinitions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModuleDefinitions.swift; path = QiCompass/Models/ModuleDefinitions.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000071 /* ModuleState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ModuleState.swift; path = QiCompass/Models/ModuleState.swift; sourceTree = SOURCE_ROOT; };
@@ -337,6 +334,7 @@
 		A11000000000000000000006 /* Shared/DailyReadCounterTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DailyReadCounterTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/UserFacingErrorTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000043 /* Shared/BaziTermsTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/BaziTermsTests.swift; sourceTree = "<group>"; };
+		A11000000000000000000051 /* Shared/FontRegistrationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/FontRegistrationTests.swift; sourceTree = "<group>"; };
 		9C0F8084E7453944F40781F3 /* Shared/BaziTermNotesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/BaziTermNotesTests.swift; sourceTree = "<group>"; };
 		9C4F3D4E5F6A7B8C9D0E1F2A /* Shared/TranslationFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/TranslationFlowTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000050 /* Shared/ChainCompletionNotifierTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ChainCompletionNotifierTests.swift; sourceTree = "<group>"; };
@@ -626,11 +624,9 @@
 				9C100000000000000000001A /* Assets.xcassets */,
 				9C100000000000000000005B /* Localizable.xcstrings */,
 				9C100000000000000000005C /* cities.sqlite */,
-				9C1000000000000000000F1 /* LXGWWenKai-Regular.ttf */,
-				9C1000000000000000000F2 /* LXGWWenKaiTC-Regular.ttf */,
 				9C1000000000000000000F3 /* QiSongti-Regular.otf */,
-				9C1000000000000000000F4 /* OFL-LXGWWenKai.txt */,
 				9C1000000000000000000F5 /* LICENSE-SourceHanSerif-OFL.txt */,
+				9C1000000000000000000F6 /* QiSongtiTC-Regular.otf */,
 				9C100000000000000000001B /* Info.plist */,
 			);
 			path = Resources;
@@ -681,6 +677,7 @@ A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				A110000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift */,
 				A11000000000000000000007 /* Shared/UserFacingErrorTests.swift */,
 				A11000000000000000000043 /* Shared/BaziTermsTests.swift */,
+				A11000000000000000000051 /* Shared/FontRegistrationTests.swift */,
 				9C0F8084E7453944F40781F3 /* Shared/BaziTermNotesTests.swift */,
 				9C4F3D4E5F6A7B8C9D0E1F2A /* Shared/TranslationFlowTests.swift */,
 				A1100000000000000000050 /* Shared/ChainCompletionNotifierTests.swift */,
@@ -795,11 +792,9 @@ A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				9C000000000000000000001A /* Assets.xcassets in Resources */,
 				9C000000000000000000005B /* Localizable.xcstrings in Resources */,
 				9C000000000000000000005C /* cities.sqlite in Resources */,
-				9C00000000000000000000F1 /* LXGWWenKai-Regular.ttf in Resources */,
-				9C00000000000000000000F2 /* LXGWWenKaiTC-Regular.ttf in Resources */,
 				9C00000000000000000000F3 /* QiSongti-Regular.otf in Resources */,
-				9C00000000000000000000F4 /* OFL-LXGWWenKai.txt in Resources */,
 				9C00000000000000000000F5 /* LICENSE-SourceHanSerif-OFL.txt in Resources */,
+				9C00000000000000000000F6 /* QiSongtiTC-Regular.otf in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -973,6 +968,7 @@ A0000000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				A0000000000000000000000C /* Shared/DeepAnalysisViewModelFormTests.swift in Sources */,
 				A00000000000000000000007 /* Shared/UserFacingErrorTests.swift in Sources */,
 				A00000000000000000000043 /* Shared/BaziTermsTests.swift in Sources */,
+				A00000000000000000000051 /* Shared/FontRegistrationTests.swift in Sources */,
 				9C2ECF614CADE1AAEFCB60F2 /* Shared/BaziTermNotesTests.swift in Sources */,
 				9C4F3D4E5F6A7B8C9D0E1F2B /* Shared/TranslationFlowTests.swift in Sources */,
 				A0000000000000000000050 /* Shared/ChainCompletionNotifierTests.swift in Sources */,

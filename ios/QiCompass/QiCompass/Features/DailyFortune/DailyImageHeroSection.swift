@@ -20,7 +20,7 @@ import SwiftUI
 /// 的显式豁免——它是 hero 艺术层(同旧画卡的径向 mask / 云雾层性质),不是
 /// 页面背景;2026-10-15 起光晕铺在头部和宜忌文字后面,仍只覆盖页面顶部约
 /// 420pt,页面底色仍是纯色宣纸(2026-10-14 用户拍板「光晕破例,字体保持
-/// 楷体」)。暗色:光晕透明度整体压低,避免夜宣纸上像霓虹。
+/// 中文字形」;10-18 晚起为宋体)。暗色:光晕透明度整体压低,避免夜宣纸上像霓虹。
 /// reduce-motion:漂移全停。
 struct DailyImageHeroSection: View {
     let dayRelation: String
@@ -766,8 +766,8 @@ enum HeroShiShenPinyin {
 
 // MARK: - 十神释义小卡(D3;EN 三段头 2026-10-01 D6)
 
-/// 十神 chip 点开的释义卡。zh/zh-Hant:术语标题(楷体 display 21)+ 一句
-/// 静态释义(楷体 body)。EN(D6):三段头 = 汉字(Kaiti 17,EN 层收汉字的
+/// 十神 chip 点开的释义卡。zh/zh-Hant:术语标题(宋体 display 21)+ 一句
+/// 静态释义(宋体 body)。EN(D6):三段头 = 汉字(宋体 17,EN 层收汉字的
 /// 容器)+ 带调拼音(italic 11)+ EN 小标(caps 10 semibold)+ 释义正文
 /// (sans 13.5)——这正是 EN 基座收汉字后的教学出口。detents 250 起步可拉大
 /// (AX 大字号下正文可完整展开)。presentationBackground 纸色由调用侧注入。
@@ -798,7 +798,7 @@ struct HeroShiShenNoteSheet: View {
         .padding(.bottom, 20)
     }
 
-    /// EN 卡头(D6 三段):汉字(始终楷体——品牌层不走 EN 衬线路由)+
+    /// EN 卡头(D6 三段):汉字(始终宋体——品牌层不走 EN 衬线路由)+
     /// 带调拼音(italic 11,ink-faint)+ EN 小标(右对齐 caps)。mockup
     /// .ns-head「偏财 / piān cái / INDIRECT WEALTH」同构。
     private var enHeader: some View {
@@ -885,8 +885,8 @@ enum HeroChongNote {
 // MARK: - 冲释义小卡(2026-10-06)
 
 /// 冲 chip 点开的释义卡,与 HeroShiShenNoteSheet 同构:zh/zh-Hant 术语标题
-/// (楷体 display 21)+ 一句静态释义(楷体 body);EN 三段头(D6 同款)=
-/// 汉字「冲未」(Kaiti 17,EN 层收汉字的显式容器)+ 带调拼音(italic 11)+
+/// (宋体 display 21)+ 一句静态释义(宋体 body);EN 三段头(D6 同款)=
+/// 汉字「冲未」(宋体 17,EN 层收汉字的显式容器)+ 带调拼音(italic 11)+
 /// EN 小标(caps "Day Clash")+ sans 13.5 正文。detents 250 起步可拉大,
 /// presentationBackground 纸色由调用侧注入(两卡一致)。
 struct HeroChongNoteSheet: View {
@@ -923,7 +923,7 @@ struct HeroChongNoteSheet: View {
         L10n.DailyFortune.chongLabel(chong: chong, targets: [])
     }
 
-    /// EN 卡头(D6 三段同构):汉字「冲未」(始终楷体——品牌层不走 EN
+    /// EN 卡头(D6 三段同构):汉字「冲未」(始终宋体——品牌层不走 EN
     /// 衬线路由)+ 带调拼音 "chōng wèi"(冲不在 22 干支表,拼音固定;
     /// 地支查 romanized,miss 只缺拼音行)+ 右对齐 caps 小标。
     private var enHeader: some View {
