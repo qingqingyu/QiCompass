@@ -15,9 +15,6 @@ struct QiCompassApp: App {
         // 重启前切换设置项不再半生效(界面术语/header/缓存键三者一致)。
         AppLanguage.freezeLaunchSnapshot()
         AppLogger.app.info("QiCompassApp.init 开始")
-        // S1(2026-10-18):楷体/宋体是系统可下载字体,真机默认不带(探测实证
-        // 8 个名全 false)——启动即按需下载,完成后 FontAvailability 通知刷新
-        BaziFont.ensureDownloadableFonts()
         // 整链完成通知 delegate(方案二,2026-10-11):启动即挂——冷启动由
         // 通知点入的场景,didReceive 要在launch 完成前就绪才不丢
         _ = ChainCompletionNotifier.shared

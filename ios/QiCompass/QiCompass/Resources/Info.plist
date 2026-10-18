@@ -24,6 +24,12 @@
 	<string>$(USE_MOCK_API_CLIENT)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
+	<key>UIAppFonts</key>
+	<array>
+		<string>LXGWWenKai-Regular.ttf</string>
+		<string>LXGWWenKaiTC-Regular.ttf</string>
+		<string>QiSongti-Regular.otf</string>
+	</array>
 	<key>NSAppTransportSecurity</key>
 	<dict>
 		<key>NSAllowsLocalNetworking</key>

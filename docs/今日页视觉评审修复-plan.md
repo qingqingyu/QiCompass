@@ -1,6 +1,6 @@
 # 今日页视觉评审修复方案
 
-> **状态：S2-S7 + S1a 已实施（2026-10-18，bug 分支，见文末实施记录）；S1b 打包霞鹜文楷待做**——S1.0 真机探测证实缺字体，但 Apple 下载 API 在 iOS 27.2 真机实测 0 字节空成功（字体永不落盘），用户拍板打包霞鹜文楷（SIL OFL）。全部视觉验收（楷体下截图）随 S1b 落地后统一走查。
+> **状态：S1-S7 全部已实施（2026-10-18，bug 分支，见文末实施记录；S1b 打包霞鹜文楷同日落地）**。S1.0 真机探测证实缺字体、Apple 下载 API 在 iOS 27.2 真机 0 字节空成功 → 用户拍板打包（霞鹜文楷 Regular + 文楷 TC + 思源宋体子集 QiSongti），真机注册验证三字体全 true。楷体下视觉验收截图清单仍待统一走查（见实施记录末段）。
 > 2026-10-18 · 起因：用户真机截图（今日页，乙丑日 · 偏财，大屏 iPhone）+ 一份外部 AI 评审 + 用户自己的感受「上面挤、下面空」
 > 给执行 AI 看的改动说明。动手前先读 `DESIGN.md`（CLAUDE.md 强制），再读本文 §0。
 > **用户已拍板：本文所有条目全部要修。** 其中 S4（光晕淡出）、S5（Tab 图标）修订了用户此前的定稿，改动后必须更新 `DESIGN.md` 决策记录（见 §9）。
@@ -466,3 +466,15 @@ cd backend && python -m pytest tests/test_i18n.py tests/test_interpret_render.py
 **其余顺延到 S1b 后统一走查**：S2.4 像素测左缘（三语）、S3.4 大屏/SE/降级态、S4.3 解读区像素采样与「忌」对比度（五行×亮暗）、S6 ViewThatFits 375pt EN chips、S7 真实模型 3 流日输出人工确认、§8 总验收 10 场景。
 
 **iOS 26 真机**：设备为 iOS 27.2，`.soft` 效果与 iOS 26 滚动边缘随总验收一并走查。
+
+---
+
+## S1b 实施记录（2026-10-18 晚，用户委托按推荐方案拍板）
+
+**三项拍板（用户 10-18「按你说的来」）**：①单 Regular 字重（`.custom` 本就只取 Regular，Medium 从未生效，视觉与增量最小）；②zh-hant 腿打包霞鹜文楷 TC（D7 繁体字形正确性优先）；③「图内宋」保留分层，思源宋体按固定字符集子集化。
+
+**落地**：`Resources/LXGWWenKai-Regular.ttf`（25.9MB，v1.530 原件未改=OFL 合规）+ `LXGWWenKaiTC-Regular.ttf`（15.3MB）+ `QiSongti-Regular.otf`（295KB，思源宋体 CN Regular 子集 799 字符=DailyImageHeroSection 全部 CJK+数字；**OFL 保留名 "Source" 故子集改名 QiSongti**）+ 两份 OFL 许可文件随包；Info.plist UIAppFonts×3；pbxproj 5 文件×4 处登记（9C…F1-F5，程序化校验一致）；BaziFont 探测序打包名优先/系统名回退，**S1a 下载机制（ensureDownloadableFonts/FontAvailability/RootTabView hook）随打包确定性落地退役拔除**。
+
+**验证**：真机（iPhone 16 Pro/iOS 27.2）注册探测三打包字体全 true（系统 Kaiti/Songti 仍 false，无关紧要）；App 包 95MB（字体 +41MB）。App 安装在用户真机运行中，楷体视觉由用户现场目验。
+
+**顺延不变**：本 plan 的楷体下截图验收清单（三语像素测左缘/光晕对比度/375pt chips/总验收 10 场景）+ 前一份大运卡片 plan 的重拍。
