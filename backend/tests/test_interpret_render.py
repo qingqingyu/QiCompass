@@ -592,8 +592,10 @@ def test_validate_context_unknown_hour_exempts_known_hour_only_fields():
 def test_daily_fortune_version_bumped_s09_then_s6():
     """版本史:S09 2→3(时辰未知降级)→ S6(2026-09-30 BP 评审)3→4
     (输出散文 → JSON 五段今日洞察;变体与主模板共用版本号,
-    两个渲染面缓存按 prompt_hash 自然分叉,老 v3 缓存随 v4 失效)。"""
-    assert PROMPT_VERSIONS["daily_fortune"] == 4
+    两个渲染面缓存按 prompt_hash 自然分叉,老 v3 缓存随 v4 失效)
+    → S7(2026-10-18 今日页视觉评审)4→5(headline 不加括号/全文最多一处
+    括注/禁文言缩略;JSON 五段契约不变,老 v4 缓存随版本失效)。"""
+    assert PROMPT_VERSIONS["daily_fortune"] == 5
 
 
 # ===== validate_context 单元测试 =====

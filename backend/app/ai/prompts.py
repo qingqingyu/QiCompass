@@ -74,7 +74,11 @@ PROMPT_VERSIONS: dict[str, int] = {
     # 补课 bump;模板内容不变(v5 文件 = v4 byte-identical),纯缓存失效。
     "compatibility_free": 5,
     "compatibility_paid": 5,
-    "daily_fortune": 4,    # v4 结构化今日洞察(2026-09-30 BP 评审 S6)
+    "daily_fortune": 5,    # v5 减括注/禁文言缩略(2026-10-18 今日页视觉评审 S7)
+    # v5(2026-10-18 S7):headline 不加括号;全文最多一处括号白话注释(只给最难
+    # 懂的术语);禁文言缩略(「忌木故」式省略句),每句完整主谓——修订 v4 的
+    # 「术语首现括注 ≤6 字白话」规则(真机外评 M:正文括号注释读起来碎)。
+    # 变体 unknown_hour 同步 v5(共用版本号)。
     # v3 Medium voice(50-80 字散文)→ v4 JSON 五段 {headline,work,relationships,
     # energy,reminder},总 90-130 字(修订 2026-08-01 Medium voice 决策);术语首现
     # 附 ≤6 字白话(S7 语言层级原则随本次 bump 落地);喜忌按后端/不逐时辰点评/
@@ -542,8 +546,8 @@ COMPATIBILITY_PAID_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（付费 4
 
 # ---------- 每日运势 ----------
 # Slice 1 i18n 迁移:DAILY_FORTUNE_TEMPLATE 已迁移到外部 Markdown 文件
-# - prompts/zh/daily_fortune_v{version}.md(中文版,当前 v4)
-# - prompts/en/daily_fortune_v{version}.md(英文版,术语用 Joey Yap 体系,当前 v4)
+# - prompts/zh/daily_fortune_v{version}.md(中文版,当前 v5)
+# - prompts/en/daily_fortune_v{version}.md(英文版,术语用 Joey Yap 体系,当前 v5)
 # v4(2026-09-30 BP 评审 S6):输出散文 → JSON 五段(headline/work/relationships/
 # energy/reminder,总 90-130 字);模板内 JSON 大括号 {{ }} 转义(format_map 还原)。
 # v3(S09):喜忌约束改条件式(喜忌为空——从格/时辰未知——不再声称"喜忌已给出");
