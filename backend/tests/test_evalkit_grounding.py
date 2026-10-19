@@ -1133,6 +1133,18 @@ def test_expansion_luck_note_fabricated_fails():
     assert any("编造大运干支" in f and "庚子" in f for f in failures)
 
 
+def test_expansion_luck_note_exempt_span_locality():
+    """豁免 span 局部性回归锁(v10 豁免机制关键不变量):合法括注的
+    豁免只覆盖括注 span 本身——同一干支在括注外再次出现不沾豁免光,
+    照报「展开层含干支」。防未来改 span 判定逻辑时豁免意外泄漏到
+    全字段。"""
+    out = {"core_loop": {
+        "leak": "约 25 岁起的那十年(甲辰运)难,甲辰之外的时候顺。"}}
+    failures = check_expansion_no_figures(
+        "m0_structure", out, _sample_engine())
+    assert any("展开层含干支" in f and "甲辰" in f for f in failures)
+
+
 def test_expansion_luck_note_cn_age_passes():
     """中文数字年龄的合法括注(样本实见「约四十六岁」形态)同样对账
     放行:甲辰=25 岁运「约二十五岁」、癸卯=15 岁运「约十五岁」——
