@@ -72,13 +72,27 @@ enum L10n {
         // (EN 侧 09-23 已以"读着像开发备注"修过一轮,zh 留的口子至此收掉);
         // 立场完整版三条仍在 Profile 关于页「为什么可信」(aboutStance1-3)。
 
-        /// 个人化 teaser(2026-09-23 EN review:属相层之上补一句只属于本人的确定性
-        /// 事实——日主,引流深度解析;%@ = 日主展示串,ZodiacHelper.revealDayMasterDisplay)。
-        /// zh: "属相只是开篇 · 日主%@与五行喜忌，都在深度解析里"
-        /// en: "The zodiac is only the opening · day master %@ and your favorable elements are in the deep analysis"
+        /// 节点句四模板(2026-10-19 拍板替换旧 personalTease——原日主 teaser 的
+        /// 「只属于你」职责升级为后端规则引擎算出的过去节点;docs/生肖屏节点句
+        /// 设计决策.md §5;2026-10-20 拍板样式升 body 13 宋体)。zh-Hant 用字:
+        /// 沖/剋(对齐 10-06 衝→沖 校正)。kind 未知(未来后端新枚举 × 老客户端)
+        /// → nil,调用方 log 后不渲染(不静默吞)。
         /// 格式化收在 L10n 内(同 `confirmTimeUnknown` 惯例),格式串不泄漏到视图层。
-        static func revealPersonalTeaseText(_ dayMaster: String) -> String {
-            String(format: String(localized: "onboarding.reveal.personalTease"), dayMaster)
+        static func revealNodeSentenceText(kind: String, year: Int, age: Int) -> String? {
+            let format: String
+            switch kind {
+            case "chong_day_pillar":
+                format = String(localized: "onboarding.reveal.node.chongDayPillar")
+            case "chong_day_zhi":
+                format = String(localized: "onboarding.reveal.node.chongDayZhi")
+            case "chong_month_zhi":
+                format = String(localized: "onboarding.reveal.node.chongMonthZhi")
+            case "luck_transition":
+                format = String(localized: "onboarding.reveal.node.luckTransition")
+            default:
+                return nil
+            }
+            return String(format: format, year, age)
         }
 
         /// 反馈屏 CTA(2026-08-31 起落地深度解析;zh="开始深度解析", en="Start deep analysis")

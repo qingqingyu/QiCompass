@@ -7,6 +7,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from lunar_python import Solar
+
 from ..models.bazi import ElementBalance, GanZhiNaYin, Pillar, Pillars
 
 # 天干 → 五行(英文 key,对齐文档 element_balance)
@@ -34,6 +36,17 @@ ZODIAC_NAME: dict[str, str] = {
     "辰": "Dragon", "巳": "Snake", "午": "Horse", "未": "Goat",
     "申": "Monkey", "酉": "Rooster", "戌": "Dog", "亥": "Pig",
 }
+
+
+def year_pillar_ganzhi(year: int) -> str:
+    """某公历年的流年干支(按立春切换,与 current.py 流年口径一致)。
+
+    2026-10-20 从 compatibility._build_year_pillar_for_future 泛化改名而来
+    (生肖屏节点句引擎需要过去年份):Solar(year, 2, 4, 12, 0, 0) 落在该年
+    立春日正午,getYearInGanZhiByLiChun() 即该年干支;跨年稳定性 spike 已验证。
+    """
+    solar = Solar.fromYmdHms(year, 2, 4, 12, 0, 0)
+    return solar.getLunar().getYearInGanZhiByLiChun()
 
 
 def compute_year_zodiac(year_zhi: str) -> str:

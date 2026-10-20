@@ -174,7 +174,7 @@ struct OnboardingView: View {
                     ),
                     friendZodiacs: response.yearBranchFriends ?? [],
                     clashZodiac: response.yearBranchClash ?? "",
-                    personalTease: personalTeaseText(from: response),
+                    nodeSentence: nodeSentenceText(from: response),
                     onComplete: {
                         // Q7 闸门:降级态「继续」与正常态 CTA 同一放行逻辑,只放行第一次
                         if completeGate.fire(onComplete) {
@@ -346,16 +346,21 @@ struct OnboardingView: View {
         )
     }
 
-    /// 个人化 teaser(2026-09-23 EN review:第一屏只露年柱层太浅,补一句只属于本人
-    /// 的确定性事实——日主,引流 CTA)。日柱歧义(S02:day 柱 null)→ nil 不渲染,
-    /// 不猜(降级态整屏本就不走 fullContent)。
-    private func personalTeaseText(from response: BaziResponse) -> String? {
-        guard let dayMaster = ZodiacHelper.revealDayMasterDisplay(
-            gan: response.pillars.day?.gan,
-            ganElement: response.pillars.day?.ganElement,
-            language: AppLanguage.current
-        ) else { return nil }
-        return L10n.Onboarding.revealPersonalTeaseText(dayMaster)
+    /// 节点句(2026-10-19 拍板,docs/生肖屏节点句设计决策.md):后端四规则各取
+    /// 最强 1 个的**过去**节点——只属于本人的确定性陈述(D5 纯陈述零交互,
+    /// 替换 2026-09-23 日主 teaser)。nil = past_node 缺失(空池/规则缺席/
+    /// 老响应)或 kind 未知(未来后端 × 老客户端)→ 不渲染,不猜。
+    private func nodeSentenceText(from response: BaziResponse) -> String? {
+        guard let node = response.pastNode else { return nil }
+        guard let text = L10n.Onboarding.revealNodeSentenceText(
+            kind: node.kind, year: node.year, age: node.age
+        ) else {
+            AppLogger.app.warning(
+                "past_node kind 未知,节点句不渲染: \(node.kind, privacy: .public)"
+            )
+            return nil
+        }
+        return text
     }
 }
 

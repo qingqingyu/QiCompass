@@ -6,7 +6,7 @@ import SwiftUI
 /// - **时序**(Q4 Z):oneshot 仪式(此屏)+ 低调常驻(ChartHeader 文字 + ProfileView 命主卡)
 /// - **布局**(Q11 β → 2026-08-13 Q5 改):hero 压缩 ~140pt + 内容滚动 + CTA 钉底
 ///   [hero(印章图 + 主/次文字)→ 人格段落 → 好朋友 3 chips → 需磨合 1 chip
-///    → 日主 teaser(2026-09-23)→ 收尾 hairline(立场微文案 2026-10-11 删除)]
+///    → 节点句(2026-10-19 替换日主 teaser)→ 收尾 hairline(立场微文案 2026-10-11 删除)]
 /// - **主文字**(Q12 iii):`辰 · 龙`(中点分隔,宋体 display——S1b 起经 BaziFont 打包 QiSongti)
 /// - **次文字**(Q13 C+ii):`乾造(男) · 庚辰年(2000)`(命理 + 公历双轨)
 /// - **好朋友**(2026-08-13 Q3/Q4):六合 1 + 三合 2 = 3 个生肖 chip,墨青 jade(吉神色)
@@ -44,11 +44,12 @@ struct ZodiacRevealView: View {
     let friendZodiacs: [String]
     /// 需磨合英文生肖名(六冲 1 个,后端算)。
     let clashZodiac: String
-    /// 个人化 teaser 成品文案(2026-09-23 EN review:属相层之上补一句只属于本人
-    /// 的确定性事实——日主,引流深度解析;OnboardingView 用
-    /// `ZodiacHelper.revealDayMasterDisplay` + xcstrings 模板拼好传入)。
-    /// nil = 日柱歧义(S02)或降级态,该行诚实不渲染。默认 nil 兼容既有测试直构。
-    var personalTease: String? = nil
+    /// 节点句成品文案(2026-10-19 拍板,替换 2026-09-23 日主 teaser:
+    /// docs/生肖屏节点句设计决策.md——后端四规则各取最强 1 个的**过去**节点,
+    /// 只属于本人的确定性陈述,D5 纯陈述零交互;OnboardingView 用
+    /// `L10n.Onboarding.revealNodeSentenceText` 按拼好传入)。
+    /// nil = 空池/规则缺席/老响应/kind 未知,该行诚实不渲染。默认 nil 兼容既有测试直构。
+    var nodeSentence: String? = nil
     /// CTA 点击回调(进深度解析 tab,2026-08-31 改)。
     let onComplete: () -> Void
     /// S10 接线:立春降级态补时辰轻提示点击 → 打开补时辰 sheet(D7 被迫例外触点,
@@ -161,11 +162,13 @@ struct ZodiacRevealView: View {
             )
             .opacity(textOpacity)
 
-            // MARK: 个人化 teaser(2026-09-23 EN review:第一屏只露年柱层太浅,
-            // 补一句只属于本人的确定性事实——日主,引流 CTA;nil = 日柱歧义不渲染)
-            if let personalTease {
-                Text(personalTease)
-                    .font(BaziFont.caption(size: 12))
+            // MARK: 节点句(2026-10-19 拍板,替换 2026-09-23 日主 teaser:
+            // 只属于本人的确定性过去节点,规则名进文案=任何从业者可复核,
+            // 这是与冷读的分界线;2026-10-20 拍板样式升 body 13 宋体——
+            // 内容从引流提示升级为命局事实,字号同步升半档。nil = 诚实不渲染)
+            if let nodeSentence {
+                Text(nodeSentence)
+                    .font(BaziFont.body(size: 13))
                     .foregroundStyle(BaziTheme.inkMuted)
                     .multilineTextAlignment(.center)
                     .fixedSize(horizontal: false, vertical: true)
@@ -483,7 +486,7 @@ struct ZodiacRevealView: View {
         subLabel: "乾造(男) · 庚辰年(2000)",
         friendZodiacs: ["Rooster", "Rat", "Monkey"],
         clashZodiac: "Dog",
-        personalTease: "属相只是开篇 · 日主庚金与五行喜忌，都在深度解析里",
+        nodeSentence: "2016 年（约 16 岁），流年冲你的日支——命理中标记个人变动的一年。",
         onComplete: { print("onComplete") }
     )
 }
@@ -495,7 +498,7 @@ struct ZodiacRevealView: View {
         subLabel: "乾造(男) · 庚辰年(2000)",
         friendZodiacs: ["Rooster", "Rat", "Monkey"],
         clashZodiac: "Dog",
-        personalTease: "属相只是开篇 · 日主庚金与五行喜忌，都在深度解析里",
+        nodeSentence: "2016 年（约 16 岁），流年冲你的日支——命理中标记个人变动的一年。",
         onComplete: { print("onComplete") }
     )
     .preferredColorScheme(.dark)

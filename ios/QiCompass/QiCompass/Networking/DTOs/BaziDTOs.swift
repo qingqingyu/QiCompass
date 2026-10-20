@@ -224,6 +224,18 @@ struct MetaBlockDTO: Codable, Sendable, Equatable {
     }
 }
 
+// MARK: - 生肖屏节点句(2026-10-19 拍板,docs/生肖屏节点句设计决策.md)
+
+/// 过去命局节点(后端四规则各取最强 1 个:天克地冲日柱 / 冲日支 / 冲月支 /
+/// 换大运;只回望 ≤ 上一完整公历年,不预言)。后端只出结构化数据,
+/// 文案三语模板在 xcstrings(`L10n.Onboarding.revealNodeSentenceText`)。
+struct PastNodeDTO: Codable, Sendable, Equatable {
+    /// "chong_day_pillar" | "chong_day_zhi" | "chong_month_zhi" | "luck_transition"
+    let kind: String
+    let year: Int
+    let age: Int
+}
+
 // MARK: - Response
 
 /// POST /api/bazi/calculate 响应。对齐 backend BaziCalculateResponse
@@ -268,6 +280,10 @@ struct BaziResponse: Codable, Sendable {
     /// 老缓存缺 key 时本地查表兜底(见 init(from:))。
     let yearBranchFriends: [String]?
     let yearBranchClash: String?
+    /// 生肖屏节点句(2026-10-19 拍板):过去命局节点,只属于本人的确定性陈述
+    /// (D5 纯陈述零交互)。nil = 空池/规则缺席/老响应与老快照
+    /// (decodeIfPresent,2026-08-15 keyNotFound 教训)→ OnboardingView 不渲染,不猜。
+    var pastNode: PastNodeDTO? = nil
 
     // v1 prompt 系统 chart 注入字段(Stage 1 后端引入,iOS Stage 7b 接入)
     // 不在声明处给默认值(否则 init(from decoder:) + 默认值会触发"immutable value
@@ -351,6 +367,7 @@ struct BaziResponse: Codable, Sendable {
         case yearBranchZodiac = "year_branch_zodiac"
         case yearBranchFriends = "year_branch_friends"
         case yearBranchClash = "year_branch_clash"
+        case pastNode = "past_node"
         case tenGodWeights = "ten_god_weights"
         case usefulGodCandidates = "useful_god_candidates"
         case meta
@@ -441,6 +458,9 @@ struct BaziResponse: Codable, Sendable {
         yearBranchZodiac = try field(.yearBranchZodiac, present: zodiacKeyPresent, legacy: legacy?.zodiac)
         yearBranchFriends = try field(.yearBranchFriends, present: friendsKeyPresent, legacy: legacy?.friends)
         yearBranchClash = try field(.yearBranchClash, present: clashKeyPresent, legacy: legacy?.clash)
+        // 节点句(2026-10-19):老响应/老快照缺 key → nil(该行不渲染);
+        // 显式 null(空池/规则缺席)同透传 nil——两者都是诚实留白,无兜底语义
+        pastNode = try c.decodeIfPresent(PastNodeDTO.self, forKey: .pastNode)
         // v1 字段:decodeIfPresent + 默认值,缺 key 走默认(对齐 backend Stage 1+ 语义)
         tenGodWeights = try c.decodeIfPresent([String: Int].self, forKey: .tenGodWeights) ?? [:]
         usefulGodCandidates = try c.decodeIfPresent([String].self, forKey: .usefulGodCandidates) ?? []
@@ -502,7 +522,8 @@ struct BaziResponse: Codable, Sendable {
         hourUnknownAccepted: Bool? = nil,
         contextTokens: [String: String]? = nil,
         archivedBirthDatetime: String? = nil,
-        archivedGeonameId: Int? = nil
+        archivedGeonameId: Int? = nil,
+        pastNode: PastNodeDTO? = nil
     ) {
         self.contentHash = contentHash
         self.trueSolarTime = trueSolarTime
@@ -540,6 +561,7 @@ struct BaziResponse: Codable, Sendable {
         self.contextTokens = contextTokens
         self.archivedBirthDatetime = archivedBirthDatetime
         self.archivedGeonameId = archivedGeonameId
+        self.pastNode = pastNode
     }
 }
 

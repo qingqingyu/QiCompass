@@ -9997,25 +9997,94 @@
         }
       }
     },
-    "onboarding.reveal.personalTease" : {
+    "onboarding.reveal.node.chongDayPillar" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The zodiac is only the opening · day master %@ and your favorable elements are in the deep analysis"
+            "value" : "In %1$ld (around age %2$ld), the year clashed with and opposed your day pillar — the rarest marker of change in a bazi chart."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "属相只是开篇 · 日主%@与五行喜忌，都在深度解析里"
+            "value" : "%1$ld 年（约 %2$ld 岁），流年与你的日柱天克地冲——命局中最少见的变化之年。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "屬相只是開篇 · 日主%@與五行喜忌，都在深度解析裡"
+            "value" : "%1$ld 年（約 %2$ld 歲），流年與你的日柱天剋地沖——命局中最少見的變化之年。"
+          }
+        }
+      }
+    },
+    "onboarding.reveal.node.chongDayZhi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In %1$ld (around age %2$ld), the year's branch clashed with your day branch — a year bazi marks for personal change."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$ld 年（约 %2$ld 岁），流年冲你的日支——命理中标记个人变动的一年。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$ld 年（約 %2$ld 歲），流年沖你的日支——命理中標記個人變動的一年。"
+          }
+        }
+      }
+    },
+    "onboarding.reveal.node.chongMonthZhi" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In %1$ld (around age %2$ld), the year's branch clashed with your month branch — a year of shifting ground in your chart."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$ld 年（约 %2$ld 岁），流年冲你的月支——命理中环境与根基变动的一年。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$ld 年（約 %2$ld 歲），流年沖你的月支——命理中環境與根基變動的一年。"
+          }
+        }
+      }
+    },
+    "onboarding.reveal.node.luckTransition" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "In %1$ld (around age %2$ld), you stepped into a new decade pillar — a ten-year turn of the chart."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$ld 年（约 %2$ld 岁），你步入新的大运——命局十年一段的换轨之年。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%1$ld 年（約 %2$ld 歲），你步入新的大運——命局十年一段的換軌之年。"
           }
         }
       }

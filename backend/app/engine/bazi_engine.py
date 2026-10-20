@@ -41,6 +41,7 @@ from ..engine.pillars import (
     compute_year_zodiac,
 )
 from ..engine.shensha import compute_shensha
+from ..engine.verification import pick_past_node
 from ..engine.xiji import compute_xiji
 from ..errors import BaziCalculationFailedError
 from ..models.bazi import MetaBlock
@@ -277,6 +278,22 @@ class BaziEngine:
             current_hour = build_current_hour_pillar(now_local)
             current_luck = locate_current_luck_pillar(luck_pillars, now_local)
 
+            # 5.5 生肖屏节点句(docs/生肖屏节点句设计决策.md,2026-10-19 拍板):
+            # 过去节点四规则各取最强 1 个,只回望 ≤ 上一完整公历年(与
+            # current_* 同钟 now_local)。日/月柱歧义 → 对应规则自然缺席
+            # (不猜);月柱歧义时 luck_pillars 已级联置空,换大运同步缺席;
+            # 时辰未知不影响(四规则均不依赖时柱)
+            past_node = pick_past_node(
+                birth_year=birth.year,
+                day_gan=pillars.day.gan if pillars.day is not None else None,
+                day_zhi=pillars.day.zhi if pillars.day is not None else None,
+                month_zhi=(
+                    pillars.month.zhi if pillars.month is not None else None
+                ),
+                luck_pillars=luck_pillars,
+                last_complete_year=now_local.year - 1,
+            )
+
             # 6. calcRuleSnapshot(确定性,不含 calculated_at)
             calc_rule_snapshot = build_calc_rule_snapshot(
                 sect=SECT, zi_hour_rule=zi_hour_rule,
@@ -362,6 +379,11 @@ class BaziEngine:
                 # 年柱歧义时随年支系派生一并置 null
                 "year_branch_friends": year_branch_friends,
                 "year_branch_clash": year_branch_clash,
+                # 生肖屏节点句(2026-10-19 拍板):结构化过去节点,文案在
+                # iOS xcstrings;空池/规则缺席 → None(该行不渲染)
+                "past_node": (
+                    past_node.model_dump() if past_node is not None else None
+                ),
                 # 时辰未知 S02/D10:柱歧义标记(None = 已知时辰老路径,不变)
                 "pillar_ambiguity": (
                     pillar_ambiguity.model_dump()

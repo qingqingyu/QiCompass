@@ -169,6 +169,63 @@ final class ZodiacRevealTests: XCTestCase {
                      "未知天干必须 nil(fail-fast 而非展示错字)")
     }
 
+    /// 节点句模板映射 + 插值(2026-10-19,docs/生肖屏节点句设计决策.md):
+    /// 四 kind 各取对应 xcstrings 模板,%1$ld/%2$ld 插 year/age;未知 kind
+    /// (未来后端新枚举 × 老客户端)→ nil 不猜。
+    /// 断言用与生产同源的 format 运行时拼接(设备语言无关,2026-09-23 教训范式)。
+    func test_revealNodeSentenceText_kindMappingAndInterpolation() {
+        let pairs: [(kind: String, key: String)] = [
+            ("chong_day_pillar", "onboarding.reveal.node.chongDayPillar"),
+            ("chong_day_zhi", "onboarding.reveal.node.chongDayZhi"),
+            ("chong_month_zhi", "onboarding.reveal.node.chongMonthZhi"),
+            ("luck_transition", "onboarding.reveal.node.luckTransition"),
+        ]
+        for pair in pairs {
+            XCTAssertEqual(
+                L10n.Onboarding.revealNodeSentenceText(kind: pair.kind, year: 2016, age: 16),
+                String(format: String(localized: String.LocalizationValue(pair.key)), 2016, 16),
+                "kind → 模板映射或插值断裂: \(pair.kind)"
+            )
+        }
+        XCTAssertNil(
+            L10n.Onboarding.revealNodeSentenceText(kind: "unknown_kind", year: 2016, age: 16),
+            "未知 kind 必须 nil(不猜)"
+        )
+    }
+
+    /// 三语齐全守护(裸 key 坑,2026-09-24 zh-Hant 教训):四 key × zh-Hans/
+    /// zh-Hant/en 在编译产物 .strings 里都必须有非空译文且含两个数值占位
+    /// ——漏一语 = 对应设备回落裸 key 直接上屏。
+    func test_revealNodeSentenceKeys_allThreeLanguagesPresent() throws {
+        let keys = [
+            "onboarding.reveal.node.chongDayPillar",
+            "onboarding.reveal.node.chongDayZhi",
+            "onboarding.reveal.node.chongMonthZhi",
+            "onboarding.reveal.node.luckTransition",
+        ]
+        for lang in ["zh-Hans", "zh-Hant", "en"] {
+            let path = try XCTUnwrap(
+                Bundle.main.path(
+                    forResource: "Localizable", ofType: "strings",
+                    inDirectory: nil, forLocalization: lang
+                ),
+                "\(lang) 编译产物缺 Localizable.strings"
+            )
+            let dict = try XCTUnwrap(
+                NSDictionary(contentsOfFile: path) as? [String: String],
+                "\(lang) Localizable.strings 解析失败"
+            )
+            for key in keys {
+                let value = try XCTUnwrap(dict[key], "\(lang) 缺 key \(key)——裸 key 会上屏")
+                XCTAssertFalse(value.isEmpty, "\(lang) \(key) 译文为空")
+                XCTAssertTrue(
+                    value.contains("%1$ld") && value.contains("%2$ld"),
+                    "\(lang) \(key) 占位符不完整(须 %1$ld + %2$ld): \(value)"
+                )
+            }
+        }
+    }
+
     // MARK: - 3. 整屏渲染走查
 
     /// 正常态亮色:盖章动效落定后,印章带(顶部区)必须有墨——资产没进
@@ -236,7 +293,7 @@ final class ZodiacRevealTests: XCTestCase {
             subLabel: "坤造(女) · 乙丑年(1985)",
             friendZodiacs: ["Rat", "Snake", "Rooster"],
             clashZodiac: "Goat",
-            personalTease: "属相只是开篇 · 日主丁火与五行喜忌，都在深度解析里",
+            nodeSentence: "2016 年（约 16 岁），流年冲你的日支——命理中标记个人变动的一年。",
             onComplete: {}
         )
         let host = UIHostingController(rootView: reveal)
