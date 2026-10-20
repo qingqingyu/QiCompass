@@ -178,6 +178,18 @@ class CurrentPillar(BaseModel):
     end_year: int
 
 
+class PastNode(BaseModel):
+    """生肖屏节点句结构化数据(docs/生肖屏节点句设计决策.md §2.4,2026-10-19 拍板)。
+
+    后端只出结构化数据(kind/year/age),文案三语模板在 iOS xcstrings;
+    kind 四值对应四个模板:天克地冲日柱 / 冲日支 / 冲月支 / 换大运。
+    """
+    kind: Literal["chong_day_pillar", "chong_day_zhi", "chong_month_zhi",
+                  "luck_transition"]
+    year: int
+    age: int
+
+
 class CalcRuleSnapshot(BaseModel):
     library: str
     sect: int
@@ -286,6 +298,10 @@ class BaziCalculateResponse(BaseModel):
     # 年柱系派生:年柱歧义时随生肖一并置 null(对齐 year_branch_zodiac,不猜)
     year_branch_friends: list[str] | None = None
     year_branch_clash: str | None = None
+    # 2026-10-20 生肖屏节点句:过去命局节点(四规则取最强 1 个,冷读排除窗后
+    # 空池 → None 诚实留白不放宽;只回望 ≤ 上一完整公历年,不预言)。日/月柱
+    # 歧义时对应规则自然缺席(不猜);老响应无此字段,Optional 不破坏回显
+    past_node: PastNode | None = None
     # 时辰未知 S02/D10:柱歧义标记(见 PillarAmbiguity)。hour_known=true
     # 恒 None(老路径响应形状不变);hour_known=false 必有值(全 False =
     # 与 S01 基础态一致,零歧义)

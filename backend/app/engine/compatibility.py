@@ -17,13 +17,12 @@ import hashlib
 import logging
 from datetime import datetime, timezone
 
-from lunar_python import Solar
-
 from ..core.tz_resolution import resolve_wall_time
 from ..engine.bazi_engine import BaziEngine
 from ..engine.pillars import (
     GAN_ELEMENT, ZHI_ELEMENT,
     EN2ZH as EN2ZH_ELEMENT, WO_SHENG as SHENG, WO_KE as KE,
+    year_pillar_ganzhi,
 )
 from .branch_relations import LIUHE, LIUCHONG, SANHE, SANXING, XIANGHAI
 from ..errors import BaziCalculationFailedError, BaziError
@@ -240,15 +239,8 @@ def _assess_branch_harmony(
 
 
 # ---------- 流年同步性 ----------
-
-def _build_year_pillar_for_future(year: int) -> str:
-    """未来某年的流年干支(立春切换, 对齐 current.py:18)。
-
-    用 Solar(year, 2, 4, 12, 0, 0) 构造立春日, 取 getYearInGanZhiByLiChun()。
-    spike 已验证 2030/2031 等未来年份均稳定。
-    """
-    solar = Solar.fromYmdHms(year, 2, 4, 12, 0, 0)
-    return solar.getLunar().getYearInGanZhiByLiChun()
+# 流年干支构造 2026-10-20 移至 pillars.year_pillar_ganzhi(单一事实源,
+# 生肖屏节点句引擎复用同一函数)
 
 
 def _luck_pillar_for_year(
@@ -432,7 +424,7 @@ def compute_compatibility(
         synced: list[SyncedFortune] = []
         for offset in (1, 2, 3):
             year = now.year + offset
-            year_gz = _build_year_pillar_for_future(year)
+            year_gz = year_pillar_ganzhi(year)
             a_luck = _luck_pillar_for_year(a_payload.luck_pillars, year)
             b_luck = _luck_pillar_for_year(b_payload.luck_pillars, year)
             a_str = f"{a_luck.gan_zhi}运 {year_gz}年" if a_luck else f"无运 {year_gz}年"

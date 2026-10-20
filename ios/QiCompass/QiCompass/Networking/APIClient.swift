@@ -557,7 +557,10 @@ final class MockAPIClient: APIClient {
                 trueSolarTime: req.birthDatetime,  // mock 不做真太阳时换算,直接回显钟面
                 lateZishiRule: "day_change_at_23",  // 对齐产品默认 zi_next_day(23:00 换日)
                 solarTermBoundary: "立夏后"  // mock 占位;真实值由后端节气比对产出
-            )
+            ),
+            // 节点句示意(2026-10-19):mock 四柱全甲子(日支子→午年冲),
+            // 2014 甲午冲日支为形状保真示例;真实值由后端规则引擎按盘选出
+            pastNode: PastNodeDTO(kind: "chong_day_zhi", year: 2014, age: 30)
         )
     }
 
