@@ -84,19 +84,32 @@
 
 ## 4. 实施记录(实施方填写)
 
-- [ ] S1 commit:
-- [ ] S2 commit:
-- [ ] 样本盘实跑结果(leak 分段 / JSON 解析):
-- [ ] evalkit run id + M0 解析失败数对比:
-- [ ] DESIGN.md 更新位置:
+- [x] S1 commit:`76a9342`(iOS 4 文件 + DESIGN.md;+169/-48)
+- [x] S2 commit:`722b9c9`(backend:三语 v11 模板 + prompts.py + evalkit warning + 2 测试文件;+516/-14)
+- [x] 样本盘实跑结果(丙寅 辛丑 庚午 庚辰,1987-01-21T08:00+08:00 男,M0 v11 直连 ×3):3/3 全成——JSON 全部可解析,leak 全部恰好三段非空段(代价/何时会变/现在怎么做,无段首标签),大运括注岁数干支对账全过;原始 JSON 存 `/tmp/mingshu_v11_sample_out.txt`(throwaway,不入 git)
+- [x] evalkit run id + M0 解析失败数对比:首轮 `20261021T071156-38645a`(M0 解析失败 3→1,leak 三段 20/20;diff 35 regressed 中 23 条为 z.ai 网络瞬断级联,无对比数据);按 §6-2 缓存清洗重跑 `20261021T133548-38645a`(118/160 命中缓存,只重掷失败条)——**M0 JSON 解析失败 3→0,leak 三段 20/20,字面 \n 双写 0 命中,m0 生成侧 0 异常**。清洗轮 diff 18 regressed 逐条判定全部非真退化:5 条链式 error(根因=本轮 3 次下游新掷 JSON 解析失败 → 缺字段级联;glm 长模块已知脆弱,BASELINE 同类 6 条)+ 13 条内容降级,全部命中 BASELINE 已存在类别(生产禁词 9 / special_pattern 10 / 解析失败 6 / 干支 4 / 照抄 2 条),且同时存在 **40 条 fixed**(基线 fail → 本轮 pass/warn)——temp≠0 全链重掷的 verdict 翻转双向对称,单看 regressed 数无意义,逐条类别核对无一为 v11 新引入(case_19「绝对」簇已溯源为共享 header 规则文本被模型违反、fingerprint 干净,非链字段注入;m1-m7 模板与共享 header 本批未动)。BASELINE 未改
+- [x] DESIGN.md 更新位置:§Typography Body 行 + Type scale Body 行 + §「深度解析盘面小景」阅读页段 + §Decisions Log 新增 2026-10-21 条(修订 2026-10-09「首行缩进 2em 保留」)
+- 验收补充:`tools/check_prompt_sync.py` PASS;backend pytest 1351 绿;iOS 全量 658 绿(ChapterContentTests 28 条含新 3 条);双 review 循环 2 轮收敛(第 2 轮双方 0 问题,唯一修复为注释级)
 - 偏离本 plan 的地方及理由:
+  1. 「JSON 换行转义规则与 v5 中文引号规则放在一起」——中文引号规则在共享 `_V1_SYSTEM_PROMPT`,而共享 header 不能动(m1-m7 常量与其现役文件的 byte-identical 断言依赖,动它等于全模块 bump)。改为以 `_M0_NEWLINE_ESCAPE_CHECK` 常量行**拼接**在共享 header 自检块末行之后(zh v11 文件内与中文引号规则同块),语义等价
+  2. `.lead` 拆段选**模型层**实现(`ChapterContent.leadParagraphs`),且结构化渲染与散文回退态共用同一函数——plan 允许两层任选,单源可避免两处分头拆段漂移,测试打在模型层
+  3. 写法示范岁数从「约三十岁」改为「约 X 岁」占位(plan 第 2.1 节脚注「不写真实干支和岁数」的从严执行);示例短语全部保留 → `M0_V9_EXAMPLE_PHRASES` 零改动
 
 ## 5. Review 清单(Claude review 时逐条核)
 
-- [ ] 全局去缩进:结构化渲染与散文回退两处都改了,注释同步
-- [ ] `.lead` 换行拆段有测试;老缓存 M0 渲染树不受小节样式和节间距影响
-- [ ] 小节样式判定基于「首个子节点是 `.headline`」,没有按章节号硬编码
-- [ ] 没有新增颜色、字重、字体;DESIGN.md 已更新并记入 Decisions Log
-- [ ] 三语 v11 同步,v10 未改,常量 byte-identical;JSON 换行转义规则写进模板
-- [ ] evalkit 全量 M0 解析失败数未上升;BASELINE 未改
-- [ ] commit 三段式(Why / What / Impact)
+- [x] 全局去缩进:结构化渲染与散文回退两处都改了,注释同步
+- [x] `.lead` 换行拆段有测试;老缓存 M0 渲染树不受小节样式和节间距影响
+- [x] 小节样式判定基于章内节点形态(`containsHeadline`),没有按章节号硬编码——**2026-10-21 review 修订:按节判定改按整章判定**(模型漏写某节 headline 时该节回退 20pt 大标题与同章小标混排,v10 实测漏过 capability_source.headline)
+- [x] 没有新增颜色、字重、字体;DESIGN.md 已更新并记入 Decisions Log
+- [x] 三语 v11 同步,v10 未改,常量 byte-identical;JSON 换行转义规则写进模板
+- [x] evalkit 全量 M0 解析失败数未上升(3→1);BASELINE 未改
+- [x] commit 三段式(Why / What / Impact)
+
+## 6. Review 后续修复(2026-10-21 晚,同批落地)
+
+外部 review 四条,全部落地:
+
+1. **小标按整章判定**(iOS,`ChapterContentView`):`chapterHasHeadline` 逐层下传,章内含任一结论句则本章所有小节统一小标——漏写某节 headline 不再回退 20pt 大标题混排;测试补 `test_containsHeadline_trueEvenWhenSomeSectionMissesHeadline`
+2. **evalkit 清洗重跑**:首轮 run 的 23 条网络瞬断退化无对比数据不算数;缓存命中只重掷失败条重跑全量(`20261021T133548-38645a`,118/160 命中)——M0 全指标优于基线(解析失败 3→0 / leak 三段 20/20 / 字面 \n 0),剩余 18 regressed 逐条判定全部为存量债类别 + 重掷噪声(双向对称,另有 40 条 fixed),无 v11 引入的真退化,过闸(详见 §4)
+3. **换行双写判据**(`evalkit/checks/grounding.py::check_no_literal_newline_escape`,判 fail 不止 warning):任何输出字符串叶子含字面 `\n` 两字符 → fail(模型把 JSON 转义多写一层时,iOS 不拆段且正文直接显示「\n」;本轮 glm 0 命中,换模型/换供应商的风险面);与「JSON 解析失败」判据合成漏写/双写双向守;补 2 条测试
+4. **translate v4**(三语):加第 10 条「字符串值内的换行(\n)原样保留,分段位置与段数一一对应,JSON 输出照旧 \n 转义」——翻译模板原只要求同构 JSON,M0 v11 leak 三段译后可能被合成一段;按 D10.6 已接受口径 bump 不让已缓存译文失效
