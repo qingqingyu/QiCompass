@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>命书段落排版对比</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400&display=swap" rel="stylesheet">
+<style>
+:root{
+  --paper:#E7E2D5; --page:#DCD6C7; --ink:#1C1B1E; --muted:#77726A; --muted2:#A5A098;
+  --hair:rgba(28,27,30,.18); --cinnabar:#A83226; --frame:#CFC8B6;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#171412; --page:#0F0D0C; --ink:#EAE6DF; --muted:#9B968C; --muted2:#8E897F;
+    --hair:rgba(234,230,223,.18); --cinnabar:#C25143; --frame:#2A2622;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#171412; --page:#0F0D0C; --ink:#EAE6DF; --muted:#9B968C; --muted2:#8E897F;
+  --hair:rgba(234,230,223,.18); --cinnabar:#C25143; --frame:#2A2622;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:var(--page);color:var(--ink);font-family:"Noto Serif SC","Songti SC",serif;padding:28px 16px 60px}
+.intro{max-width:1200px;margin:0 auto 28px}
+.intro h1{font-size:24px;font-weight:400;letter-spacing:1px;margin-bottom:10px}
+.intro p{font-size:14.5px;line-height:1.8;color:var(--muted);max-width:760px}
+.grid{max-width:1700px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(330px,1fr));gap:28px;align-items:start}
+.col h2{font-size:17px;font-weight:400;margin-bottom:4px}
+.col h2 .tag{font-size:12px;color:var(--cinnabar);border:1px solid var(--cinnabar);padding:1px 5px;margin-left:6px;vertical-align:2px}
+.col .what{font-size:13px;color:var(--muted);line-height:1.7;margin-bottom:12px;min-height:66px}
+.phone{width:100%;max-width:390px;background:var(--paper);border:1px solid var(--frame);border-radius:28px;overflow:hidden;display:flex}
+.rail{width:36px;flex:none;border-right:.5px solid var(--hair);display:flex;justify-content:center;padding-top:30px;font-size:22px}
+.content{flex:1;min-width:0;padding:30px 22px 34px 22px}
+/* 章题 */
+.ct{font-size:30px;letter-spacing:1px;line-height:1.2}
+.cs{font-size:13px;color:var(--muted2);margin:8px 0 18px}
+.chr{height:.5px;background:var(--hair);margin-bottom:28px}
+/* 公共 */
+.lead{font-size:16px;line-height:1.65;text-indent:2em}
+.lead+.lead{margin-top:10px}
+.fold{border-top:.5px solid var(--hair);padding-top:12px;margin-top:8px;font-size:11.5px;color:var(--muted);letter-spacing:1px}
+.note{font-size:12.5px;color:var(--muted2);line-height:1.6;margin-top:8px}
+
+/* 现状 v9 */
+.v9 .sec{margin-bottom:28px}
+.v9 .st{display:flex;align-items:center;gap:10px;font-size:20px;letter-spacing:1px;margin-bottom:16px}
+.v9 .st i{display:block;width:16px;height:1.5px;background:var(--ink)}
+.v9 .hl{font-size:17px;line-height:1.55;margin-bottom:16px}
+
+/* A 结论即标题 */
+.a .sec{margin-bottom:44px}
+.a .lab{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);letter-spacing:2px;margin-bottom:10px}
+.a .lab i{display:block;width:12px;height:1px;background:var(--muted)}
+.a .hl{font-size:21px;line-height:1.5;letter-spacing:.5px;margin-bottom:16px}
+
+/* A' 不缩进 */
+.a2 .sec{margin-bottom:44px}
+.a2 .lab{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);letter-spacing:2px;margin-bottom:10px}
+.a2 .lab i{display:block;width:12px;height:1px;background:var(--muted)}
+.a2 .hl{font-size:21px;line-height:1.5;letter-spacing:.5px;margin-bottom:14px}
+.a2 .lead{text-indent:0}
+.a2 .lead+.lead{margin-top:14px}
+
+/* B 眉批线 */
+.b .sec{margin-bottom:32px}
+.b .st{display:flex;align-items:center;gap:10px;font-size:20px;letter-spacing:1px;margin-bottom:14px}
+.b .st i{display:block;width:16px;height:1.5px;background:var(--ink)}
+.b .hl{font-size:17.5px;line-height:1.6;border-left:1px solid var(--ink);padding:2px 0 2px 12px;margin-bottom:16px}
+
+/* C 段首提示 */
+.c .sec{margin-bottom:44px}
+.c .lab{display:flex;align-items:center;gap:8px;font-size:12.5px;color:var(--muted);letter-spacing:2px;margin-bottom:10px}
+.c .lab i{display:block;width:12px;height:1px;background:var(--muted)}
+.c .hl{font-size:21px;line-height:1.5;letter-spacing:.5px;margin-bottom:16px}
+.c .lead b{font-weight:400;font-size:12.5px;color:var(--muted);letter-spacing:1px;margin-right:4px}
+
+.verdict{max-width:1200px;margin:40px auto 0;font-size:14.5px;line-height:1.85}
+.verdict h3{font-size:18px;font-weight:400;margin-bottom:8px}
+.verdict li{margin-left:1.2em;margin-bottom:6px}
+.verdict .m{color:var(--muted)}
+</style>
+</head>
+<body>
+
+<div class="intro">
+  <h1>命书段落排版 · 对比</h1>
+  <p>同一段内容（样本盘丙寅 辛丑 庚午 庚辰，「壹 主线结构」前两节），只改排版。色板、宋体单字重、16pt 正文、1.65 倍行距、首行缩进 2em 都沿用 DESIGN.md，不引入新颜色和新字重。文字是按 v10 规则写的示意稿，不是真实生成结果。</p>
+</div>
+
+<div class="grid">
+
+<!-- 现状 -->
+<div class="col">
+  <h2>现状（v9）</h2>
+  <div class="what">小节题 20pt 带墨横，结论句 17pt，正文 16pt。结论句只比正文大 1pt，字重又一样，看上去像普通的第一段；「代价 + 何时会变 + 现在怎么做」挤在一整段里。</div>
+  <div class="phone v9"><div class="rail">壹</div><div class="content">
+    <div class="ct">主线结构</div><div class="cs">你这张盘的主线：靠什么驱动，在哪里打转</div><div class="chr"></div>
+    <div class="sec">
+      <div class="st"><i></i>主线</div>
+      <div class="hl">压力推着你走，你靠「学规矩、攒资历」接住它。</div>
+      <p class="lead">主导是七杀，也就是外部压力和硬要求；其次是正印，也就是体系、资质和靠山。藏着没发挥出来的，是表达力和赚钱的嗅觉。</p>
+    </div>
+    <div class="sec">
+      <div class="st"><i></i>核心循环</div>
+      <div class="hl">扛压 → 沉淀 → 扛更大的压。</div>
+      <p class="lead">每次被逼着解决难题，你都会把它变成一套方法或一份资历，这又让你接得住下一个更重的担子。</p>
+      <p class="lead">代价是你的本事大多沉在体系里，外人看不见；同辈一争，你还容易把成果让出去。约三十五岁起的那十年（乙巳运），赚钱的嗅觉会走到台前，把做成的事换成收入会比以前顺手。眼下可以给每件扛下来的事留一份「看得见的交付」：写成文档、讲给人听、署上名字。</p>
+    </div>
+    <div class="fold">据 ›</div>
+  </div></div>
+</div>
+
+<!-- A -->
+<div class="col">
+  <h2>A · 结论即标题</h2>
+  <div class="what">小节名降成 12.5pt 灰色小标，结论句升到 21pt，成为这一节真正的标题，和你的目标样例「主线 — 压力推着你走…」同一个思路。leak 拆成三段短段，节与节之间空 44pt。</div>
+  <div class="phone a"><div class="rail">壹</div><div class="content">
+    <div class="ct">主线结构</div><div class="cs">你这张盘的主线：靠什么驱动，在哪里打转</div><div class="chr"></div>
+    <div class="sec">
+      <div class="lab"><i></i>主线</div>
+      <div class="hl">压力推着你走，你靠「学规矩、攒资历」接住它。</div>
+      <p class="lead">主导是七杀，也就是外部压力和硬要求；其次是正印，也就是体系、资质和靠山。藏着没发挥出来的，是表达力和赚钱的嗅觉。</p>
+    </div>
+    <div class="sec">
+      <div class="lab"><i></i>核心循环</div>
+      <div class="hl">扛压 → 沉淀 → 扛更大的压。</div>
+      <p class="lead">每次被逼着解决难题，你都会把它变成一套方法或一份资历，这又让你接得住下一个更重的担子。</p>
+      <p class="lead">代价是你的本事大多沉在体系里，外人看不见；同辈一争，你还容易把成果让出去。</p>
+      <p class="lead">约三十五岁起的那十年（乙巳运），赚钱的嗅觉会走到台前，把做成的事换成收入会比以前顺手。</p>
+      <p class="lead">眼下可以给每件扛下来的事留一份「看得见的交付」：写成文档、讲给人听、署上名字。</p>
+    </div>
+    <div class="fold">据 ›</div>
+  </div></div>
+</div>
+
+<!-- A2 -->
+<div class="col">
+  <h2>A′ · 结论即标题，段首不缩进<span class="tag">你选的</span></h2>
+  <div class="what">和 A 一样，只是去掉段首两个字的缩进。段与段之间改用 14pt 空隙来分段，不然几段会粘成一块。</div>
+  <div class="phone a2"><div class="rail">壹</div><div class="content">
+    <div class="ct">主线结构</div><div class="cs">你这张盘的主线：靠什么驱动，在哪里打转</div><div class="chr"></div>
+    <div class="sec">
+      <div class="lab"><i></i>主线</div>
+      <div class="hl">压力推着你走，你靠「学规矩、攒资历」接住它。</div>
+      <p class="lead">主导是七杀，也就是外部压力和硬要求；其次是正印，也就是体系、资质和靠山。藏着没发挥出来的，是表达力和赚钱的嗅觉。</p>
+    </div>
+    <div class="sec">
+      <div class="lab"><i></i>核心循环</div>
+      <div class="hl">扛压 → 沉淀 → 扛更大的压。</div>
+      <p class="lead">每次被逼着解决难题，你都会把它变成一套方法或一份资历，这又让你接得住下一个更重的担子。</p>
+      <p class="lead">代价是你的本事大多沉在体系里，外人看不见；同辈一争，你还容易把成果让出去。</p>
+      <p class="lead">约三十五岁起的那十年（乙巳运），赚钱的嗅觉会走到台前，把做成的事换成收入会比以前顺手。</p>
+      <p class="lead">眼下可以给每件扛下来的事留一份「看得见的交付」：写成文档、讲给人听、署上名字。</p>
+    </div>
+    <div class="fold">据 ›</div>
+  </div></div>
+</div>
+
+<!-- B -->
+<div class="col">
+  <h2>B · 眉批线</h2>
+  <div class="what">小节题不变；结论句左侧加一条 1pt 墨线，像书页上的批注，不缩进。改动最小，层级比现状清楚，但「— 主线」和左竖线同屏会有两种装饰线。</div>
+  <div class="phone b"><div class="rail">壹</div><div class="content">
+    <div class="ct">主线结构</div><div class="cs">你这张盘的主线：靠什么驱动，在哪里打转</div><div class="chr"></div>
+    <div class="sec">
+      <div class="st"><i></i>主线</div>
+      <div class="hl">压力推着你走，你靠「学规矩、攒资历」接住它。</div>
+      <p class="lead">主导是七杀，也就是外部压力和硬要求；其次是正印，也就是体系、资质和靠山。藏着没发挥出来的，是表达力和赚钱的嗅觉。</p>
+    </div>
+    <div class="sec">
+      <div class="st"><i></i>核心循环</div>
+      <div class="hl">扛压 → 沉淀 → 扛更大的压。</div>
+      <p class="lead">每次被逼着解决难题，你都会把它变成一套方法或一份资历，这又让你接得住下一个更重的担子。</p>
+      <p class="lead">代价是你的本事大多沉在体系里，外人看不见；同辈一争，你还容易把成果让出去。</p>
+      <p class="lead">约三十五岁起的那十年（乙巳运），赚钱的嗅觉会走到台前，把做成的事换成收入会比以前顺手。</p>
+      <p class="lead">眼下可以给每件扛下来的事留一份「看得见的交付」：写成文档、讲给人听、署上名字。</p>
+    </div>
+    <div class="fold">据 ›</div>
+  </div></div>
+</div>
+
+<!-- C -->
+<div class="col">
+  <h2>C · A + 段首提示词</h2>
+  <div class="what">在 A 的基础上，代价段的三小段前面加灰色小字「代价 · / 何时会变 · / 现在可以 ·」，方便扫读。信息最清楚，但更像说明书，书卷气少一点。</div>
+  <div class="phone c"><div class="rail">壹</div><div class="content">
+    <div class="ct">主线结构</div><div class="cs">你这张盘的主线：靠什么驱动，在哪里打转</div><div class="chr"></div>
+    <div class="sec">
+      <div class="lab"><i></i>主线</div>
+      <div class="hl">压力推着你走，你靠「学规矩、攒资历」接住它。</div>
+      <p class="lead">主导是七杀，也就是外部压力和硬要求；其次是正印，也就是体系、资质和靠山。藏着没发挥出来的，是表达力和赚钱的嗅觉。</p>
+    </div>
+    <div class="sec">
+      <div class="lab"><i></i>核心循环</div>
+      <div class="hl">扛压 → 沉淀 → 扛更大的压。</div>
+      <p class="lead">每次被逼着解决难题，你都会把它变成一套方法或一份资历，这又让你接得住下一个更重的担子。</p>
+      <p class="lead"><b>代价 ·</b>你的本事大多沉在体系里，外人看不见；同辈一争，你还容易把成果让出去。</p>
+      <p class="lead"><b>何时会变 ·</b>约三十五岁起的那十年（乙巳运），赚钱的嗅觉会走到台前，把做成的事换成收入会比以前顺手。</p>
+      <p class="lead"><b>现在可以 ·</b>给每件扛下来的事留一份「看得见的交付」：写成文档、讲给人听、署上名字。</p>
+    </div>
+    <div class="fold">据 ›</div>
+  </div></div>
+</div>
+
+</div>
+
+<div class="verdict">
+  <h3>定稿：A′</h3>
+  <ul>
+    <li>结论句 21pt 作为每节标题，小节名降成 12.5pt 灰色小标。</li>
+    <li>正文不再首行缩进，段与段之间空 14pt。</li>
+    <li>代价段拆成「代价 / 何时会变 / 现在怎么做」三段短段。</li>
+    <li>节与节之间空 44pt，只用留白，不加线。</li>
+  </ul>
+</div>
+
+</body>
+</html>
