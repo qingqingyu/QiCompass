@@ -63,7 +63,11 @@ from app.engine.chart_builder import build_v1_chart
 
 from .cases import CASES, CASES_HASH, parse_birth
 from .checks.deterministic import check_deterministic
-from .checks.grounding import check_grounding, collect_banned_register_warnings
+from .checks.grounding import (
+    check_grounding,
+    collect_banned_register_warnings,
+    collect_leak_paragraph_warnings,
+)
 from .judge import JudgeResult, create_judge_client, judge_case_modules
 from .llm_json import parse_llm_json
 from .rubric import RUBRIC_VERSION
@@ -449,6 +453,10 @@ async def run_chain_for_case(
                 # 词表误伤面未观察够前不进 failures/verdict)
                 register_warnings = collect_banned_register_warnings(
                     module, status["parsed"])
+                # v11 leak 三段化:同款旁路,只统计分布不判 fail
+                # (plan 命书阅读页段落排版A′ S2-5)
+                leak_warnings = collect_leak_paragraph_warnings(
+                    module, status["parsed"])
             except Exception as e:
                 logger.error(
                     "[%s] %s L2 判据异常", case_id, module, exc_info=True)
@@ -456,7 +464,7 @@ async def run_chain_for_case(
             else:
                 l2 = {"passed": not grounding_failures,
                       "failures": grounding_failures,
-                      "warnings": register_warnings}
+                      "warnings": register_warnings + leak_warnings}
 
         entry_error = status["error"] or l2_error
         verdict = compute_verdict(

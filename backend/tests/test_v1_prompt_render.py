@@ -276,8 +276,10 @@ def test_v1_prompt_versions_registry_matches_expected():
     # 释义表+数字干支只进据+工程腔禁词+示例句不得复用(plan 见 docs)。
     # v10(m0) 2026-10-16 大运括注放宽:「约 X 岁起的那十年(某某运)」,干支
     # 只许在括注里,岁数/干支须与输入大运对账;结论层仍禁括注(plan 见 docs)。
+    # v11(m0) 2026-10-21 leak 三段化(A′ 排版批):core_loop.leak 固定三段
+    # (\n 分隔:代价/何时会变/现在怎么做)+ JSON 换行转义规则进自检块。
     expected = {m: 2 for m in v1_modules}
-    expected["m0_structure"] = 10
+    expected["m0_structure"] = 11
     expected["m1_talent"] = 5
     expected["m2_high_low"] = 6
     expected["m3_system"] = 6

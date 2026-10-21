@@ -169,7 +169,18 @@ PROMPT_VERSIONS: dict[str, int] = {
     # 形态(某某占位,防示范与规范打架),新增占位短语「某某运/某某運/
     # such-and-such pillar」登记进防抄清单(照抄占位符=照抄示例)。
     # 三语同步建 v10。
-    "m0_structure": 10,    # 免费:识别主线结构 + 产 structure_fingerprint
+    # v11 2026-10-21 M0 leak 三段化(plan docs/命书阅读页段落排版A′-plan.md
+    # S2,用户四版对比稿拍板 A′「结论即标题,段首不缩进」):core_loop.leak
+    # 从一段长文改**固定三段、段间 JSON 转义 \n 分隔**——①代价 ②何时会变
+    # (大运写法照 v10「约 X 岁起的那十年(某某运)」) ③现在怎么做,每段
+    # 1-2 句,不加「代价:」类段首标签(C 方案段首提示词用户没选)。渲染层
+    # .lead 换行拆段配合(iOS 同批落地)。写法示范 leak 句同步三段化,示例
+    # 岁数改「约 X 岁」占位(不再写三十岁);JSON 换行转义规则写进【输出前
+    # 自检】(与 v5「中文引号」规则同块——直接回车会让整个 JSON 解析失败,
+    # evalkit 全量 run 的 M0 解析失败数是验收指标)。同步改六处 leak 写法:
+    # 证据纪律短板条款/三层写法第 1 条/四问之 2/字段职责表 leak 行/写法
+    # 示范/文末校验行。三语同步建 v11。
+    "m0_structure": 11,    # 免费:识别主线结构 + 产 structure_fingerprint
     # v3 2026-10-08 排版/内容评审收口(证据引用纪律五条):①evidence 禁机器字段名
     # (ten_god_weights/year_stem/hour_branch 等裸引四次复现,像看日志);②藏干十神
     # 归属照 pillars.shishen_zhi 表,正印/偏印不混(用户盘把辰藏癸算进 Direct
@@ -600,8 +611,16 @@ _V1_SYSTEM_PROMPT = """你是一位命理结构分析师，工作方式接近系
 """
 
 # M0 · 识别主线结构(免费,产 structure_fingerprint 供 M1-M7 链式注入)
-M0_STRUCTURE_TEMPLATE = _V1_SYSTEM_PROMPT + """
-【证据引用纪律】（v10，违反即返工）
+# v11:自检块追加「换行必须写成 \n 转义」行——插在共享 header 之后、
+# 「中文引号」规则同块(plan S2-3)。共享 _V1_SYSTEM_PROMPT 本身不动:
+# m1-m7 常量与其现役文件的 byte-identical 断言依赖它,动它等于全模块 bump。
+_M0_NEWLINE_ESCAPE_CHECK = (
+    "- 字符串值内的换行一律写成 JSON 转义 \\n（反斜杠加 n 两个字符），"
+    "禁止在字符串里直接回车——直接回车会让整个 JSON 无法解析"
+    "（core_loop.leak 的三段就用它分隔）\n"
+)
+M0_STRUCTURE_TEMPLATE = _V1_SYSTEM_PROMPT + _M0_NEWLINE_ESCAPE_CHECK + """
+【证据引用纪律】（v11，违反即返工）
 - evidence 必须用人话写依据（如「正财权重 9，年干戊土透出，年支与时支藏干再各计一分」），**禁止出现输入 JSON 的机器字段名**——ten_god_weights、ten_gods、five_elements、day_master、useful_god_candidates、luck_pillars、current_luck、shishen_gan、shishen_zhi、year_stem、hour_branch、day_branch、pillars 之类一律不得出现在任何输出字符串里。也不要拿字段名当句子前缀：
   ✗「ten_god_weights：比肩9、正财9…」  ✓「比肩权重 9（月柱乙卯干支皆比肩），正财权重 9…」
 - 数字只进据：权重、五行计数等数字只出现在 driver 与各节 evidence 里；main_axis.dominant/secondary/latent 只写十神名与「并列最重」标注；headline、body、name、one_line、flow、leak、text 一律不含数字与等号——唯一例外是 leak 里「约 X 岁」的年龄写法
@@ -614,7 +633,7 @@ M0_STRUCTURE_TEMPLATE = _V1_SYSTEM_PROMPT + """
 - 同类十神正偏都大于 0 时必须都交代：印星（正印/偏印）、财星（正财/偏财）、官杀（正官/七杀）任一类两者权重都 >0，叙事须同时提及两者，不许只讲一个
 - core_loop.flow 直接讲循环的机制（代价只在 leak 讲，见下），**不复述 from→to 的链条符号**（from/to 已单独成字段展示给用户，flow 里再写「A → B → A」就是复读）
 - 叙事口径必须与 day_master_strength 和 useful_god_candidates 一致：日主偏旺（喜克泄耗）时，印与比劫在循环里是负担、分流或自我复制，不是助力；日主偏弱（喜生扶）时，才可以把印讲成滋养。同一章内前后口径必须一致
-- 短板不许只下判决：core_loop.leak 每提一个短板，必须同时写①它在什么条件下会变——依据必须落到输入大运里实际存在的那步运（展开层写「约 X 岁起的那十年（某某运）」——干支只许出现在这个括注里，见【三层写法】第 4 条——或「遇到 X 行旺的运」，该步干支照旧写进 evidence）②当下可以怎么用 / 怎么补
+- 短板不许只下判决：core_loop.leak 固定写成三段，段与段用 \\n 分隔（见【字段职责表】）：第一段只讲代价；第二段讲它何时会变——依据必须落到输入大运里实际存在的那步运（写「约 X 岁起的那十年（某某运）」——干支只许出现在这个括注里，见【三层写法】第 4 条——或「遇到 X 行旺的运」，该步干支照旧写进 evidence）；第三段讲现在可以怎么做 / 怎么补。每段 1–2 句，不加「代价：」之类的段首标签
 - 同一判断只在一个字段出现；每个字段写什么、禁什么，以下方【字段职责表】为准
 - 语言落到可观察的行为，不堆抽象名词：
   ✗「输出至财的一段薄弱」  ✓「你把事做成了，但不太会把它变成钱或可见的成果」
@@ -628,8 +647,8 @@ M0_STRUCTURE_TEMPLATE = _V1_SYSTEM_PROMPT + """
 - 写短板只能用三种措辞之一，且须与数据一致：「缺」=透出与藏干都没有；「藏」=藏而不透；「弱」=有但权重低
 - 喜忌为空（从格 / 专旺盘）时：正文明说一次「本盘不入常格，引擎不下喜忌结论」；大运条件句只作观察（如「某步运里水势转旺」——具体干支必须引用输入大运里实际存在的，不得照抄示例），禁止「补 X / 宜 X / 适合 X」类推荐措辞——引擎没下的结论，不得替它下
 
-【三层写法】（v10 核心，违反即返工）
-1. 每节固定三层：先一句白话结论（headline 类字段），再 2–3 句展开（body / flow / leak / one_line / text），命理依据只进「据」类字段（dominant / secondary / latent / driver / evidence）。结论句要让完全不懂命理的人一眼看懂。
+【三层写法】（v11 核心，违反即返工）
+1. 每节固定三层：先一句白话结论（headline 类字段），再 2–3 句展开（body / flow / one_line / text；leak 例外——固定三段、每段 1–2 句，见【字段职责表】），命理依据只进「据」类字段（dominant / secondary / latent / driver / evidence）。结论句要让完全不懂命理的人一眼看懂。
 2. 十神名第一次出现在展开层时，紧跟一句白话释义，之后可直接用名字。释义以本表为基准，可按本盘语境微调，不得与表意矛盾：
    | 十神 | 白话 |
    |---|---|
@@ -659,7 +678,7 @@ M0_STRUCTURE_TEMPLATE = _V1_SYSTEM_PROMPT + """
 请从十神结构出发分析这个命局，不要讲吉凶和神煞。四节各答一件事，不互相重复：
 
 1. 主线：是什么力量在推着你走？（main_axis：headline 写结论；body 展开主导、次要、潜伏三股力量；据里写十神分层与权重）
-2. 核心循环：这股力量怎么转起来，又在哪里付出代价？（core_loop：headline 写结论；flow 讲怎么转；leak 讲代价、变化条件与当下出路）
+2. 核心循环：这股力量怎么转起来，又在哪里付出代价？（core_loop：headline 写结论；flow 讲怎么转；leak 分三段讲——代价、何时会变、当下怎么做）
 3. 结构类型：用一个白话名字给你定性。（structure_type：name 是结论，one_line 是展开）
 4. 能力来源：你在什么场景最强、什么场景最弱？（capability_source：headline 两个场景各一句；text 只讲优势从哪来，弱的原因已在 leak 里讲过，不重复）
 
@@ -684,7 +703,7 @@ structure_fingerprint:一句话,不超过 40 字,概括这个人的运转方式�
 | core_loop.from / to | 据 | 十神名（循环起点 / 终点） | 十神名以外的一切内容 |
 | core_loop.flow | 展开 | 2–3 句：循环在生活里怎么转起来 | 箭头/链条符号、数字、干支 |
 | core_loop.driver | 据 | 命理上的驱动依据（日主旺衰、帮身等），可用术语和数字 | 机器字段名 |
-| core_loop.leak | 展开 | 唯一讲代价的地方：代价 + 变化条件 + 当下出路；大运写「约 X 岁起的那十年（某某运）」 | 数字（年龄除外）、括注以外的干支 |
+| core_loop.leak | 展开 | 唯一讲代价的地方，固定三段（段间 \\n 分隔，每段 1–2 句）：① 代价 ② 何时会变 ③ 现在怎么做；不加「代价：」类段首标签；大运写「约 X 岁起的那十年（某某运）」 | 数字（年龄除外）、括注以外的干支 |
 | structure_type.name | 结论 | 白话名，≤10 字，外行能懂 | 十神名及简称、「格」结尾、括注 |
 | structure_type.one_line | 展开 | 1–2 句，只讲结构怎么运转 | 代价、数字、干支 |
 | capability_source.headline | 结论 | 「最强在……；最弱在……」两个场景各一句，不讲原因 | 十神名及简称、干支、数字 |
@@ -699,13 +718,13 @@ structure_fingerprint:一句话,不超过 40 字,概括这个人的运转方式�
 - 主线 · headline：「你靠说出来、做出来打开局面，钱跟着作品走。」
 - 主线 · body：「主导是伤官，也就是表达欲和挑战规矩的锋芒；其次是正财，也就是稳定、一点点攒下来的收入。藏着没用上的是正印——系统学习、找靠山的能力。」
 - 循环 · headline：「冒出想法 → 做成东西 → 换成收入 → 再冒新想法。」
-- 循环 · leak：「代价是不爱打基础：做到七八成就想换方向，证书、资历这类要慢慢攒的东西总是欠着。约三十岁起的那十年（某某运），坐下来系统学习会变得容易坚持；眼下可以给每件事定一个『做完才换』的节点。」
+- 循环 · leak（固定三段，段间 \\n 分隔）：「代价是不爱打基础：做到七八成就想换方向，证书、资历这类要慢慢攒的东西总是欠着。\\n约 X 岁起的那十年（某某运），坐下来系统学习会变得容易坚持。\\n眼下可以给每件事定一个『做完才换』的节点。」
 - 类型 · name：「想到就做的作品型」
 - 能力 · headline：「最强在要你从零拿出方案的时候；最弱在要你照章办事、按部就班的时候。」
 - 能力 · text：「比如朋友聚会还在群里争去哪，你已经把路线和餐厅排好发出来了——从零到一的时刻，你反应最快。」
 （各节 evidence 从略：按【证据引用纪律】写依据，示范不展示）
 
-校验:core_loop.from / core_loop.to 必须是十神名;所有 headline 与 structure_type.name 不含十神名及简称、干支、数字;body / flow / leak / one_line / text 不含数字(「约 X 岁」的年龄除外)与括注以外的干支;structure_type.name 不得以「格」结尾、不得加括注;structure_fingerprint 不含吉凶词与形容词;所有输出字符串不含机器字段名。
+校验:core_loop.from / core_loop.to 必须是十神名;core_loop.leak 恰好三段非空段(\\n 分隔:代价/何时会变/现在怎么做);所有 headline 与 structure_type.name 不含十神名及简称、干支、数字;body / flow / leak / one_line / text 不含数字(「约 X 岁」的年龄除外)与括注以外的干支;structure_type.name 不得以「格」结尾、不得加括注;structure_fingerprint 不含吉凶词与形容词;所有输出字符串不含机器字段名。
 """
 
 # M0 v9 示例句防抄袭清单(evalkit L2 check_example_plagiarism 消费)。
@@ -713,7 +732,7 @@ structure_fingerprint:一句话,不超过 40 字,概括这个人的运转方式�
 # (v10 写法示范 leak 句加「某某运」括注占位,占位短语照抄=照抄示例,故
 # 一并登记);三语各列(输出语言与示例语言同文即命中)。**模板改示例时
 # 必须同步改本表**——漏登记 = 抄袭检测漏报;多登记 = 把正常措辞误判成
-# 抄袭。
+# 抄袭。(v11 leak 示例改三段结构但短语未变,本表不动。)
 M0_V9_EXAMPLE_PHRASES: tuple[str, ...] = (
     # zh / zh-hant 共享 header ✓ 示例(「先做出一个能跑的版本」)
     "能跑的版本",

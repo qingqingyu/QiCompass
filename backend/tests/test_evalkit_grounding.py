@@ -411,6 +411,7 @@ from evalkit.checks.grounding import (  # noqa: E402
     check_present_god_not_missing,
     check_ten_god_category_attribution,
     collect_banned_register_warnings,
+    collect_leak_paragraph_warnings,
 )
 
 
@@ -1261,6 +1262,34 @@ def test_banned_register_not_in_failures():
 def test_banned_register_gated_to_m0():
     out = {"s": "通道畅通。"}
     assert collect_banned_register_warnings("m1_talent", out) == []
+
+
+# ---- 7d-v11. leak 三段化(只统计不判 fail,plan 命书阅读页段落排版A′ S2-5) ----
+
+
+def test_leak_paragraph_counts_nonempty_segments():
+    """恰好 3 段非空段(含空行/首尾空白/段内空格的容忍)→ 无 warning;
+    2 段或 4 段 → warning 报实际段数。"""
+    three = {"core_loop": {"leak": "代价段。\n\n何时会变段。\n 现在怎么做段。 \n"}}
+    assert collect_leak_paragraph_warnings("m0_structure", three) == []
+    two = {"core_loop": {"leak": "代价段。何时会变段。\n现在怎么做段。"}}
+    warnings = collect_leak_paragraph_warnings("m0_structure", two)
+    assert len(warnings) == 1
+    assert "2 段" in warnings[0]
+    four = {"core_loop": {"leak": "一\n二\n三\n四"}}
+    assert "4 段" in collect_leak_paragraph_warnings("m0_structure", four)[0]
+
+
+def test_leak_paragraph_not_in_failures_and_gated_to_m0():
+    """与工程腔词同款旁路:不进 failures、不 gated 外模块;leak 缺失/
+    非字符串(v10 老输出无此形态除外)静默不计。"""
+    single = {"core_loop": {"leak": "单段旧写法。"}}
+    failures = check_grounding("m0_structure", single, _v9_engine())
+    assert all("leak 段数" not in f for f in failures)
+    assert collect_leak_paragraph_warnings("m0_structure", single)
+    assert collect_leak_paragraph_warnings("m1_talent", single) == []
+    assert collect_leak_paragraph_warnings(
+        "m0_structure", {"core_loop": {}}) == []
 
 
 # ---- 7e. v9-5 照抄示例 ----

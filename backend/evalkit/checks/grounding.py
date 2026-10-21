@@ -1188,6 +1188,30 @@ def collect_banned_register_warnings(
     return warnings
 
 
+def collect_leak_paragraph_warnings(
+    module: str,
+    parsed_output: dict[str, Any],
+) -> list[str]:
+    """v11 leak 三段化统计(不进 failures,plan 命书阅读页段落排版A′ S2-5):
+    core_loop.leak 按换行拆段后应恰好 3 段非空段(代价/何时会变/现在怎么
+    做)。先观察分布(模型对「\\n 分隔」的依从率),不进 verdict——同
+    collect_banned_register_warnings 的旁路通道,由 runner 并入
+    l2.warnings。v10 及更早的输出(单段 leak)也会命中本 warning,属
+    预期(判据按当前模板口径统计,不回溯豁免旧版本)。"""
+    if module != "m0_structure":
+        return []
+    leak = _resolve_field(parsed_output, ("core_loop", "leak"))
+    if not isinstance(leak, str):
+        return []
+    paragraphs = [p.strip() for p in leak.split("\n") if p.strip()]
+    if len(paragraphs) != 3:
+        return [
+            f"leak 段数:{len(paragraphs)} 段"
+            f"(v11 期望恰好 3 段非空段,\\n 分隔)"
+        ]
+    return []
+
+
 # ---------- 聚合入口 ----------
 
 def check_grounding(
