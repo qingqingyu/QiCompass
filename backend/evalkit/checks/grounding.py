@@ -1156,6 +1156,27 @@ def check_example_plagiarism(
     return failures
 
 
+def check_no_literal_newline_escape(
+    module: str,
+    parsed_output: dict[str, Any],
+    engine_result: dict[str, Any],
+) -> list[str]:
+    """v11 换行转义双写防护(2026-10-21 review,判 fail):任何输出字符串
+    叶子出现**字面**反斜杠+n 两字符 → fail。模型把 JSON 转义多写一层时,
+    "\\\\n" 解析后落成字面两字符——iOS 渲染层不拆段且正文直接显示「\\n」
+    (本轮 glm 全量 0 命中;换模型/换供应商的风险面,evalkit 先拦)。漏写
+    转义(字符串里真回车)解析层就炸(JSON 解析失败判据已有),与本条
+    合起来双写/漏写两向都有守。"""
+    failures: list[str] = []
+    for leaf in _iter_text_leaves(parsed_output):
+        if "\\n" in leaf:
+            failures.append(
+                f"换行转义双写:输出含字面「\\n」两字符(应写单个换行,"
+                f"渲染层才能拆段;原文:{_clip(leaf)!r})"
+            )
+    return failures
+
+
 # 工程腔禁用词(P4):只统计不判 fail——词表会误伤(如「巩固」偶有日常
 # 义),先观察分布再定是否升级为 fail(plan S2-4 拍板)。runner 把命中
 # 写进 l2.warnings 进 run 报告,不进 failures、不影响 verdict。
@@ -1245,5 +1266,7 @@ def check_grounding(
     failures += check_present_god_not_missing(
         module, parsed_output, engine_result)
     failures += check_example_plagiarism(
+        module, parsed_output, engine_result)
+    failures += check_no_literal_newline_escape(
         module, parsed_output, engine_result)
     return failures

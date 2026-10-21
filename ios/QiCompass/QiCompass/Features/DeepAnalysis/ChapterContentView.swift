@@ -7,7 +7,7 @@ import SwiftUI
 // - 引言/正文 = 宋体 16 · 行距 ~1.65× · 不缩进,段间距 16(2026-10-21 A′
 //   修订 10-09 的首行缩进 2em;文内换行经 `leadParagraphs` 拆段)
 // - 小节题   = 前置短墨横(16×1.5)+ 宋体 20pt tracking 1;嵌套小节 15.5pt 墨灰降级;
-//   首个子节点为结论句(.headline)的小节降为小标:12.5pt 墨灰 + 12×1 短横(A′)
+//   章内含结论句(.headline)时本章所有小节题降为小标:12.5pt 墨灰 + 12×1 短横(A′)
 // - 结论句   = 宋体 21pt(仅 M0 v9+ 章节出现,层级主角;A′ 由 17pt 升)
 // - 键值行   = 标签 caption 11.5 墨灰 + 值宋体 16;「据/注」小字注 12.5pt
 // - 条目列   = 「·」条目宋体 15
@@ -22,17 +22,19 @@ struct ChapterContentView: View {
         // 其余章节(含 v7/v8 老缓存)照旧 28。
         VStack(alignment: .leading, spacing: content.containsHeadline ? 44 : 28) {
             ForEach(Array(content.nodes.enumerated()), id: \.offset) { _, node in
-                NodeView(node: node, depth: 0)
+                NodeView(node: node, depth: 0, chapterHasHeadline: content.containsHeadline)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 
-/// 节点排版(递归;depth 控制嵌套小节的降级样式)。
+/// 节点排版(递归;depth 控制嵌套小节的降级样式;chapterHasHeadline 是
+/// 整章级结论句标记,与顶层 spacing 同源)。
 private struct NodeView: View {
     let node: ChapterNode
     let depth: CGFloat
+    let chapterHasHeadline: Bool
 
     var body: some View {
         switch node {
@@ -45,16 +47,19 @@ private struct NodeView: View {
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
         case .section(let title, let children):
-            // A′(2026-10-21):首个子节点是 .headline(白话结论句)的小节——
-            // 小节题降为小标样式、21pt 结论句接管层级主角。判定只看节点形态,
+            // A′(2026-10-21,同日 review 修订):小标按**整章**判定——章内
+            // 含任一结论句(containsHeadline)则本章所有小节统一小标,21pt
+            // 结论句接管层级主角。不按节判定:模型偶发漏写某节 headline
+            // (v10 实测漏过 capability_source.headline),按节判定会让该节
+            // 回退 20pt 大标题,同章两种样式混排。判定只看章内节点形态,
             // 不按章节号硬编码(目前仅 M0 v9+ 组装产出 .headline);老缓存
-            // 小节首个子节点是键值组/行内标签段,样式逐字不变。
+            // 章无结论句,小节照旧 20pt + 墨横。
             let opensWithHeadline = children.first.map { node in
                 if case .headline = node { return true }
                 return false
             } ?? false
             VStack(alignment: .leading, spacing: 16) {
-                sectionHeader(title, opensWithHeadline: opensWithHeadline)
+                sectionHeader(title, smallStyle: chapterHasHeadline)
                 // S4 M1 三层引导句(R12:天赋/训练/防御三层内容已具备,差一句
                 // 「这一节是什么」;静态映射,只挂天赋章三节,其余章节不受影响)
                 if let guide = Self.sectionGuide(forSectionTitle: title) {
@@ -65,8 +70,10 @@ private struct NodeView: View {
                         .fixedSize(horizontal: false, vertical: true)
                 }
                 ForEach(Array(children.enumerated()), id: \.offset) { index, child in
-                    NodeView(node: child, depth: depth + 1)
+                    NodeView(node: child, depth: depth + 1, chapterHasHeadline: chapterHasHeadline)
                         // 结论句与后续正文间距 14pt(A′):容器 spacing 16 上收 2pt
+                        // (只对本节真实存在的 headline 生效;漏写 headline 的节
+                        // 首个正文段照常 16pt)
                         .padding(.top, index == 1 && opensWithHeadline ? -2 : 0)
                 }
             }
@@ -166,12 +173,12 @@ private struct NodeView: View {
     }
 
     /// 小节题:顶层短墨横(16×1.5)+ 宋体 20;嵌套小节去横、字级降 15.5、墨灰。
-    /// A′(2026-10-21):首个子节点为 .headline 的小节(结论句是层级主角,
-    /// 目前仅 M0 v9+)小节题降为小标——12.5pt 墨灰 tracking 2 + 前置
-    /// 12×1 墨灰短横,不加新颜色/字重/字体。
+    /// A′(2026-10-21,同日 review 修订):章内含结论句(containsHeadline)时
+    /// 本章**所有**小节题统一降为小标——12.5pt 墨灰 tracking 2 + 前置 12×1
+    /// 墨灰短横,不加新颜色/字重/字体(按整章判定防混排,见 .section case)。
     @ViewBuilder
-    private func sectionHeader(_ title: String, opensWithHeadline: Bool) -> some View {
-        if opensWithHeadline {
+    private func sectionHeader(_ title: String, smallStyle: Bool) -> some View {
+        if smallStyle {
             HStack(spacing: 8) {
                 Rectangle()
                     .fill(BaziTheme.inkMuted)

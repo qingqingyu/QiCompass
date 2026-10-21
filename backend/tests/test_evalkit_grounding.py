@@ -407,6 +407,7 @@ from evalkit.checks.grounding import (  # noqa: E402
     check_flow_no_chain_symbols,
     check_headline_plain_language,
     check_layering_consistency,
+    check_no_literal_newline_escape,
     check_no_machine_field_names,
     check_present_god_not_missing,
     check_ten_god_category_attribution,
@@ -1318,6 +1319,35 @@ def test_plagiarism_target_sample_passes():
 def test_plagiarism_gated_to_m0():
     out = {"s": "先做出能跑的版本。"}
     assert check_example_plagiarism("m1_talent", out, _v9_engine()) == []
+
+
+# ---- 7e-v11. 换行转义双写(2026-10-21 review,判 fail) ----
+
+
+def test_literal_newline_escape_fails():
+    """模型把 \n 双重转义 → 解析出字面反斜杠+n 两字符:iOS 不拆段且正文
+    直接显示「\n」。任何叶子命中即 fail(嵌套含 leak 三段场景)。"""
+    out = {"core_loop": {"leak": "代价段。\\n约 X 岁起的那十年,状况会变。\\n眼下可以怎么做。"}}
+    failures = check_no_literal_newline_escape(
+        "m0_structure", out, _v9_engine())
+    assert len(failures) == 1
+    assert "换行转义双写" in failures[0]
+
+
+def test_literal_newline_escape_all_modules_and_clean_passes():
+    """判据不按 module 门控(字面 \n 在任何模块都是显示垃圾);真换行/
+    干净文本不误报。"""
+    clean = {"core_loop": {"leak": "代价段。\n何时会变段。\n现在怎么做段。"},
+             "main_axis": {"body": "主导是七杀,也就是外部压力。"}}
+    assert check_no_literal_newline_escape(
+        "m0_structure", clean, _v9_engine()) == []
+    assert check_no_literal_newline_escape(
+        "m5_wealth", {"leaks": [{"how_it_shows": "字符串里\\n字面转义"}]},
+        _v9_engine()) != []
+    # 聚合入口接线:命中进 failures
+    dirty = {"s": "含字面\\n转义"}
+    assert any("换行转义双写" in f for f in check_grounding(
+        "m2_high_low", dirty, _v9_engine()))
 
 
 # ---- 7f. 回归:A3/A4 在 v9 新形态下 ----

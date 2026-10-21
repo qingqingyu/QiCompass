@@ -692,4 +692,24 @@ final class ChapterContentTests: XCTestCase {
         XCTAssertTrue(v9Content.containsHeadline,
                       "v9+ 含结论句(headline 是小节子节点,须递归命中)")
     }
+
+    func test_containsHeadline_trueEvenWhenSomeSectionMissesHeadline() {
+        // 小标按整章判定(2026-10-21 review 修订):模型偶发漏写某节 headline
+        // (v10 实测漏过 capability_source.headline)——只要章内还有任一节
+        // 结论句,containsHeadline 仍为 true,本章所有小节统一小标,
+        // 不得回退 20pt 大标题造成同章两种样式混排。
+        let json = """
+        {
+          "main_axis": { "headline": "压力推着你走。", "body": "主导是七杀。" },
+          "core_loop": { "headline": "扛压 → 沉淀。", "from": "七杀", "to": "正印",
+            "flow": "压力被吸收为方法。", "leak": "不爱表现。\\n约 32 岁起的那十年,表达变易。\\n眼下可以多讲过程。" },
+          "capability_source": { "text": "你最强的时刻,是硬需求递到手上的时候。" }
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m0) else {
+            return XCTFail("漏写一节 headline 的 v9 形态应解析成功")
+        }
+        XCTAssertTrue(content.containsHeadline,
+                      "任一节有结论句即整章小标(漏写节不回退大标题)")
+    }
 }
