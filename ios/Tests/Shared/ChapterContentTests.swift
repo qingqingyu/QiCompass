@@ -641,4 +641,55 @@ final class ChapterContentTests: XCTestCase {
             return false
         }, "schema 外的键应走通用引言段渲染(v7 同款兜底),不静默丢")
     }
+
+    // MARK: - 段落拆分与结论句章判定(A′ 2026-10-21,plan
+    // docs/命书阅读页段落排版A′-plan.md S1)
+
+    func test_leadParagraphs_splitsOnAllNewlineForms() {
+        // \n\n / \n / 首尾空行混合:非空行各成一段,空行忽略
+        XCTAssertEqual(
+            ChapterContent.leadParagraphs("\n第一段。\n\n第二段:代价。\n第三段:怎么做。\n\n"),
+            ["第一段。", "第二段:代价。", "第三段:怎么做。"])
+        // CRLF 也按换行拆(行尾 \r 随空白裁掉)
+        XCTAssertEqual(
+            ChapterContent.leadParagraphs("段一\r\n\r\n段二"),
+            ["段一", "段二"])
+        // 单段无换行:原样一段
+        XCTAssertEqual(ChapterContent.leadParagraphs("只有一段。"), ["只有一段。"])
+    }
+
+    func test_leadParagraphs_neverEmitsIndentPrefixOrEmptyGap() {
+        // A′ 起正文不再有全角空格首行缩进(段与段靠间距分层);连续空行
+        // 不产生额外空隙(空段全部过滤);全空白文本 → 空数组
+        let paragraphs = ChapterContent.leadParagraphs("  段一  \n \n\n段二\n\t\n")
+        XCTAssertEqual(paragraphs, ["段一", "段二"])
+        XCTAssertFalse(paragraphs.contains { $0.hasPrefix("　　") },
+                       "不得出现全角空格首行缩进前缀")
+        XCTAssertEqual(ChapterContent.leadParagraphs("  \n\n \n\t"), [])
+    }
+
+    func test_containsHeadline_falseForV7Cache_trueForV9() {
+        // A′ 小节小标/结论句 21pt/节间距 44 都只随「章内含 .headline」启用;
+        // v7/v8 老缓存(无 headline)containsHeadline=false → 渲染树与
+        // 间距口径(28/20pt 小节题)逐字不变
+        let v7 = """
+        {
+          "main_axis": { "dominant": "七杀", "secondary": "正印", "latent": "伤官",
+            "evidence": "七杀 6" },
+          "core_loop": { "from": "七杀", "to": "正印", "flow": "压力被吸收为方法",
+            "driver": "日主庚金偏旺", "leak": "输出通道窄", "evidence": "水透出计数为 0" }
+        }
+        """
+        guard let v7Content = ChapterContent.parse(v7, for: .m0) else {
+            return XCTFail("v7 老缓存形态应解析成功")
+        }
+        XCTAssertFalse(v7Content.containsHeadline,
+                       "v7/v8 无 headline → 小节样式与节间距照旧")
+
+        guard let v9Content = ChapterContent.parse(Self.m0V9JSON, for: .m0) else {
+            return XCTFail("v9 形态应解析成功")
+        }
+        XCTAssertTrue(v9Content.containsHeadline,
+                      "v9+ 含结论句(headline 是小节子节点,须递归命中)")
+    }
 }

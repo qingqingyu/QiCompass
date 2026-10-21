@@ -1,11 +1,14 @@
 import SwiftUI
 
-// MARK: - 章节结构化正文排版(2026-09-02;2026-10-09 按用户 HTML 目标稿改版)
+// MARK: - 章节结构化正文排版(2026-09-02;2026-10-09 按用户 HTML 目标稿改版;
+// 2026-10-21 按用户四版对比稿选定 A′「结论即标题,段首不缩进」)
 //
 // ChapterContent 节点树的视觉层,版面语言对齐 DESIGN.md(水墨孤本):
-// - 引言/正文 = 宋体 16 · 行距 ~1.65× · 首行缩进 2em(2026-10-09 目标稿:
-//   收 09-01 的 2.15× 疏朗口径,EN/zh 统一密度,不再分档)
-// - 小节题   = 前置短墨横(16×1.5)+ 宋体 20pt tracking 1;嵌套小节 15.5pt 墨灰降级
+// - 引言/正文 = 宋体 16 · 行距 ~1.65× · 不缩进,段间距 16(2026-10-21 A′
+//   修订 10-09 的首行缩进 2em;文内换行经 `leadParagraphs` 拆段)
+// - 小节题   = 前置短墨横(16×1.5)+ 宋体 20pt tracking 1;嵌套小节 15.5pt 墨灰降级;
+//   首个子节点为结论句(.headline)的小节降为小标:12.5pt 墨灰 + 12×1 短横(A′)
+// - 结论句   = 宋体 21pt(仅 M0 v9+ 章节出现,层级主角;A′ 由 17pt 升)
 // - 键值行   = 标签 caption 11.5 墨灰 + 值宋体 16;「据/注」小字注 12.5pt
 // - 条目列   = 「·」条目宋体 15
 // - 条目卡   = 题宋体 16 + 字段,卡间 hairline 分隔(卡片让位 hairline)
@@ -15,7 +18,9 @@ struct ChapterContentView: View {
     let content: ChapterContent
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 28) {
+        // 含结论句的章节(M0 v9+)小节间距放大 44,只用留白不加线(A′);
+        // 其余章节(含 v7/v8 老缓存)照旧 28。
+        VStack(alignment: .leading, spacing: content.containsHeadline ? 44 : 28) {
             ForEach(Array(content.nodes.enumerated()), id: \.offset) { _, node in
                 NodeView(node: node, depth: 0)
             }
@@ -40,8 +45,16 @@ private struct NodeView: View {
                 .lineSpacing(3)
                 .fixedSize(horizontal: false, vertical: true)
         case .section(let title, let children):
+            // A′(2026-10-21):首个子节点是 .headline(白话结论句)的小节——
+            // 小节题降为小标样式、21pt 结论句接管层级主角。判定只看节点形态,
+            // 不按章节号硬编码(目前仅 M0 v9+ 组装产出 .headline);老缓存
+            // 小节首个子节点是键值组/行内标签段,样式逐字不变。
+            let opensWithHeadline = children.first.map { node in
+                if case .headline = node { return true }
+                return false
+            } ?? false
             VStack(alignment: .leading, spacing: 16) {
-                sectionHeader(title)
+                sectionHeader(title, opensWithHeadline: opensWithHeadline)
                 // S4 M1 三层引导句(R12:天赋/训练/防御三层内容已具备,差一句
                 // 「这一节是什么」;静态映射,只挂天赋章三节,其余章节不受影响)
                 if let guide = Self.sectionGuide(forSectionTitle: title) {
@@ -51,8 +64,10 @@ private struct NodeView: View {
                         .foregroundStyle(BaziTheme.inkMutedSecondary)
                         .fixedSize(horizontal: false, vertical: true)
                 }
-                ForEach(Array(children.enumerated()), id: \.offset) { _, child in
+                ForEach(Array(children.enumerated()), id: \.offset) { index, child in
                     NodeView(node: child, depth: depth + 1)
+                        // 结论句与后续正文间距 14pt(A′):容器 spacing 16 上收 2pt
+                        .padding(.top, index == 1 && opensWithHeadline ? -2 : 0)
                 }
             }
         case .fields(let fields):
@@ -128,22 +143,45 @@ private struct NodeView: View {
     private var proseLineSpacing: CGFloat { 7 }
     /// 键值/条目行距同款。
     private var valueLineSpacing: CGFloat { 4 }
-    /// 结论句行距(M0 v9):17pt 大字一行为主,行距略收于正文。
+    /// 结论句行距(A′ 2026-10-21):21pt 大字,行距 ~1.5×((25.2+6)/21),
+    /// 略收于正文;17pt 时代同为 6pt,升字号后自然落在 1.5× 口径上。
     private var headlineLineSpacing: CGFloat { 6 }
 
-    /// 引言段:与阅读页散文态同规格(16pt · 行距 ~1.65× · 缩进 2em)。
+    /// 引言段:与阅读页散文态同规格(16pt · 行距 ~1.65× · 不缩进,A′)。
+    /// 文内换行经 `ChapterContent.leadParagraphs` 拆段(M0 v11 leak 三段 /
+    /// 老内容偶发换行),段间距 16pt——拆分单源于模型层,散文档走同一实现。
     private func leadParagraph(_ text: String) -> some View {
-        Text("　　" + text)
-            .bodySerifText(size: 16)
-            .lineSpacing(proseLineSpacing)
-            .multilineTextAlignment(.leading)
-            .fixedSize(horizontal: false, vertical: true)
+        VStack(alignment: .leading, spacing: 16) {
+            ForEach(
+                Array(ChapterContent.leadParagraphs(text).enumerated()),
+                id: \.offset
+            ) { _, paragraph in
+                Text(paragraph)
+                    .bodySerifText(size: 16)
+                    .lineSpacing(proseLineSpacing)
+                    .multilineTextAlignment(.leading)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
     }
 
     /// 小节题:顶层短墨横(16×1.5)+ 宋体 20;嵌套小节去横、字级降 15.5、墨灰。
+    /// A′(2026-10-21):首个子节点为 .headline 的小节(结论句是层级主角,
+    /// 目前仅 M0 v9+)小节题降为小标——12.5pt 墨灰 tracking 2 + 前置
+    /// 12×1 墨灰短横,不加新颜色/字重/字体。
     @ViewBuilder
-    private func sectionHeader(_ title: String) -> some View {
-        if depth == 0 {
+    private func sectionHeader(_ title: String, opensWithHeadline: Bool) -> some View {
+        if opensWithHeadline {
+            HStack(spacing: 8) {
+                Rectangle()
+                    .fill(BaziTheme.inkMuted)
+                    .frame(width: 12, height: 1)
+                Text(title)
+                    .font(BaziFont.caption(size: 12.5))
+                    .tracking(2)
+                    .foregroundStyle(BaziTheme.inkMuted)
+            }
+        } else if depth == 0 {
             HStack(spacing: 10) {
                 Rectangle()
                     .fill(BaziTheme.ink)
@@ -204,14 +242,15 @@ private struct NodeView: View {
             .fixedSize(horizontal: false, vertical: true)
     }
 
-    /// 结论句(M0 v9 白话结论层,2026-10-14):每节第一层——白话结论,
-    /// 不缩进、无标签,与缩进 2em 的展开段在版面上自然分层。
-    /// 宋体 `.custom` 不吃 weight(BaziFont.songti),「加粗」不可用,
-    /// 靠字号(display 17 > 正文 16)+ 浓墨 + 不缩进区分;不加新颜色、
-    /// 无朱红(DESIGN.md)。样式经用户真机截图确认后定稿(plan S3-4)。
+    /// 结论句(M0 v9 白话结论层,2026-10-14;A′ 2026-10-21 升版):每节
+    /// 第一层——白话结论,不缩进、无标签,作小节的视觉主角。宋体 `.custom`
+    /// 不吃 weight(BaziFont.songti),「加粗」不可用,靠字号(display 21 >
+    /// 正文 16)+ 浓墨 + tracking 0.5 区分;不加新颜色、无朱红(DESIGN.md)。
+    /// 与后续正文间距 14pt 由小节容器控制(见 .section case)。
     private func headlineParagraph(_ text: String) -> some View {
         Text(text)
-            .font(BaziFont.display(size: 17))
+            .font(BaziFont.display(size: 21))
+            .tracking(0.5)
             .foregroundStyle(BaziTheme.ink)
             .lineSpacing(headlineLineSpacing)
             .fixedSize(horizontal: false, vertical: true)

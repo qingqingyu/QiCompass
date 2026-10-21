@@ -8,8 +8,10 @@ import SwiftUI
 /// 全屏右滑回目录手势(2026-10-13)。
 ///
 /// 正文排版(2026-10-09 按用户 HTML 目标稿「QiCompass Chart Redesign」改版,
-/// 修订 09-01 §Body 古籍行距口径):章题 30 · 副题 13 · 小节题 20 · 值 16 ·
-/// 行距 ~1.65×(收疏朗 2.15×)· 首行缩进 2em 保留;章末 hairline + 朱批印。
+/// 修订 09-01 §Body 古籍行距口径;2026-10-21 A′ 修订段首不缩进):章题 30 ·
+/// 副题 13 · 小节题 20(M0 结论句章降 12.5pt 小标,见 ChapterContentView)·
+/// 值 16 · 行距 ~1.65×(收疏朗 2.15×)· 不缩进,
+/// 按换行拆段、段间距 16;章末 hairline + 朱批印。
 ///
 /// 四态(同一页原地切换,不 pop):
 /// - .ok:正文 + 章末「批」印(JSON 形态但解析失败 → 显式异常态 + 重生成 CTA,不裸奔)
@@ -164,7 +166,8 @@ struct ChapterReadingView: View {
     }
 
     /// 正文态:章题 + 副题 + hairline + 正文(模块 JSON → ChapterContentView 结构化
-    /// 排版;散文退回 16/~1.65×/缩进 2em;JSON 形态但解析失败 → 显式异常态)+ 章末批印。
+    /// 排版;散文退回 16/~1.65× 按换行拆段不缩进;JSON 形态但解析失败 → 显式异常态)
+    /// + 章末批印。
     private func chapterBody(text: String) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(chapterTitle)
@@ -236,16 +239,26 @@ struct ChapterReadingView: View {
                 let _ = AppLogger.app.warning(
                     "chapterReading.contentParseMiss module=\(module.rawValue, privacy: .public) — 退回散文排版"
                 )
-                Text(indentedProse(text))
-                    .bodySerifText(size: 16)
-                    // 行距 ~1.65×(2026-10-09 目标稿改版:收 09-01 的 2.15× 疏朗口径;
-                    // EN 与 zh 统一密度,不再分档)。
-                    .lineSpacing(7)
-                    .multilineTextAlignment(.leading)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .padding(.top, 24)
-                    .padding(.bottom, 18)
+                // 散文回退(A′ 2026-10-21):不缩进,按换行拆段、非空行各成
+                // 一段、段间距 16pt(与结构化渲染一致,连续空行不产生额外
+                // 空隙);拆分与结构化 .lead 共用 `ChapterContent.leadParagraphs`。
+                VStack(alignment: .leading, spacing: 16) {
+                    ForEach(
+                        Array(ChapterContent.leadParagraphs(text).enumerated()),
+                        id: \.offset
+                    ) { _, paragraph in
+                        Text(paragraph)
+                            .bodySerifText(size: 16)
+                            // 行距 ~1.65×(2026-10-09 目标稿改版:收 09-01 的
+                            // 2.15× 疏朗口径;EN 与 zh 统一密度,不再分档)。
+                            .lineSpacing(7)
+                            .multilineTextAlignment(.leading)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.top, 24)
+                .padding(.bottom, 18)
                 chapterSeal
             }
         }
@@ -270,16 +283,6 @@ struct ChapterReadingView: View {
         .padding(.top, 28)
         // 2026-10-08 external review: last section of the main text was hard-cut against the chapter navigation bar; add 8pt of breathing room at the end of the chapter
         .padding(.bottom, 32)
-    }
-
-    /// 首行缩进 2em:SwiftUI Text 无 text-indent,全角空格前缀实现;
-    /// 多段(LLM 文本含换行)逐段缩进,空行保留为段间距。
-    private func indentedProse(_ text: String) -> String {
-        text.components(separatedBy: "\n")
-            .map { line in
-                line.trimmingCharacters(in: .whitespaces).isEmpty ? "" : "　　" + line
-            }
-            .joined(separator: "\n")
     }
 
     /// 内容异常态(parse 失败且内容呈 JSON 形态,2026-10-01):人话说明 + 原地重生成。

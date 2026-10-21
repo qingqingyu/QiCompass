@@ -90,6 +90,33 @@ struct ChapterContent: Equatable {
         return nodes.isEmpty ? nil : ChapterContent(nodes: nodes)
     }
 
+    /// 引言/散文段落拆分(A′ 2026-10-21):按换行拆段,非空行各成一段,
+    /// 空行忽略——`.lead` 文本可能含文内换行(M0 v11 leak 三段 / M1-M7
+    /// 偶发换行的旧内容),结构化渲染与散文回退态共用本拆分,渲染层统一
+    /// 段间距 16pt;正文自此不再有全角空格首行缩进,段与段靠间距分层。
+    static func leadParagraphs(_ text: String) -> [String] {
+        text.components(separatedBy: .newlines)
+            .map { $0.trimmingCharacters(in: .whitespaces) }
+            .filter { !$0.isEmpty }
+    }
+
+    /// 章内是否含结论层节点 `.headline`(A′ 2026-10-21):目前仅 M0 v9+
+    /// 组装产出。含 → 阅读层级以结论句为主角(小节题降小标、小节间距
+    /// 放大 44);v7/v8 老缓存无此节点 → 渲染树与间距全部照旧。递归查找
+    /// (headline 是小节子节点,不在顶层)。
+    var containsHeadline: Bool {
+        func has(_ nodes: [ChapterNode]) -> Bool {
+            nodes.contains { node in
+                switch node {
+                case .headline: return true
+                case .section(_, let children): return has(children)
+                default: return false
+                }
+            }
+        }
+        return has(nodes)
+    }
+
     /// 内容是否「像 JSON」:剥围栏 + 去首尾空白后以 `{` 或 `[` 开头。
     ///
     /// 阅读页散文退回前的最后防线(2026-10-01):parse 失败但内容呈 JSON 形态
