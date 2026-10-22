@@ -1,0 +1,43 @@
+{
+  "high_config": {
+    "portrait": "You run the loop cleanly: you go deep on a subject alone, turn what you learn into a small repeatable offer, and when peers copy you, you add a layer they have not checked and keep the ground. The research is the engine, not the escape. You set a handover date on each piece of work and meet it even when it feels unfinished, so the income step actually completes and the loop resets. You treat a competitor's move as a signal that the ground is worth holding, and you answer it with a technical detail only you have verified, not with a loud escalation. The visible pattern is a steady trickle of small, reliable conversions rather than one big score, and a habit of keeping notes nobody asked for that later become the thing you sell.",
+    "observable_signals": [
+      "You can name the last three findings you turned into a paid deliverable and the date each one left your desk. When a colleague asks how you know something obscure, you trace it through sources you checked yourself, and you can point to the template or checklist that came out of it.",
+      "When a peer starts offering what you built, you respond within the week by adding a layer they have not copied — a new check, a sharper case, a better handover — and you can show the diff. You do not abandon the ground; you make your version harder to replace.",
+      "You keep a running ledger of which research actually paid and which only interested you, and you prune the interesting-but-unpaid line before it eats a second month. Your calendar shows fixed handover dates, not open-ended study blocks."
+    ]
+  },
+  "low_config": {
+    "portrait": "The same loop runs, but the handover step keeps slipping. You start research with real energy, then pause before converting it because you are waiting for a title, an approval, or a formal role that the structure does not supply. The research sits on your desk past the point of usefulness. When peers notice the ground and start competing, you defend it — quietly correcting claims, protecting budget — but the defense drains you because your center of gravity is private study, not peer contest. So you go back to research to recover, and the cycle repeats. Visible output accumulates slowly, and you rarely get to point at something finished. The work is real; it just keeps returning to the desk instead of reaching other people.",
+    "observable_signals": [
+      "You have a document or model that has been 'almost ready' for weeks, and you can name the approval or title you are waiting for before you send it. The file's last-modified date is older than the last time you discussed it.",
+      "You spend meeting time correcting a competitor's claim with a detail only you checked, but you cannot point to a new offer you shipped this month. The defense is technical and correct, yet the income step did not complete.",
+      "Your notes grow faster than your deliverables. You can list what you learned last month but not what left your desk, and you have started a new research thread before closing the previous one."
+    ]
+  },
+  "threshold": {
+    "environment": {
+      "enables": "An environment that gives you room to go deep alone and a short path from finding to buyer: small teams, direct client contact, a manager who asks for a handover date rather than a permission slip. Metal and earth are named as the favorable elements, and the balanced Day Master means the research energy feeds the core rather than draining it — so a setting where your private study is treated as billable work, not overhead, lets the loop complete. Peer competition is present but not the whole room; you can defend ground without it becoming your job.",
+      "suppresses": "A setting where formal standing gates everything: long approval chains, title-based permission, a culture where work does not move until a role signs off. Formal position carries no weight in this chart, so waiting for it stalls the income step and the research piles up. A room where peer contest is constant and loud also suppresses the loop, because defense drains the private-study center and sends you back to research to recover instead of forward to conversion."
+    },
+    "belief": {
+      "limiting_belief": "The belief is: 'I cannot put this forward until I have the standing to back it up.' It grows out of the defensive ability of waiting for formal standing — you read your own patience as professionalism, but it is a compensatory pause. The chart gives formal position no weight, so the belief asks you to wait for something the structure does not supply, and the handover date slips while you look for permission.",
+      "origin": "It is a byproduct of the defense step. Rob Wealth sits on the hour stem and ties with Direct Wealth as the second-heaviest force, so peer competition is a structural step in the loop. When peers notice the ground you opened, defending it feels like the responsible move, and waiting for a title feels like the safe way to defend. The belief borrows the authority of the defense and turns a pause into a rule.",
+      "ceiling_effect": "The belief lowers the ceiling by delaying the income step that closes the loop. Research stays on the desk, the incremental conversions do not accumulate, and the visible result is slow. Because the loop then sends you back to study to recover from defense, the belief compounds: each round of waiting adds depth but not output, and the gap between what you know and what you have shipped widens."
+    },
+    "awareness": {
+      "key_moment": "The switch point is when you notice that the thing you are waiting for — the title, the approval, the official role — has no weight in how this structure actually runs, and that the handover date is yours to set. The moment is concrete: you catch yourself naming the approval you need before you send a piece of work, and you recognize that the defense step has quietly become a permission step.",
+      "what_to_notice": "Notice where the energy leaks in the loop: the handover step is where research fails to become income, and the defense step is where energy drains away from the private study that feeds you. Watch for the file that has been almost ready for weeks and the meeting correction that replaces a shipped offer. When you see both in the same week, the loop is running in low gear, and the fix is to set a date and hand over before the defense step starts."
+    }
+  },
+  "early_warnings": [
+    "You can name the approval or title you are waiting for before you send a piece of work, and the file's last-modified date is older than the last time you discussed it. This is the waiting-for-standing defense turning into a permission rule, and it stalls the income step that closes the loop.",
+    "You spend meeting time correcting a competitor's claim with a detail only you checked, but you cannot point to a new offer you shipped this month. The defense is technical and correct, yet the conversion step did not complete, so the loop is running from research into defense and back without the income middle.",
+    "Your notes grow faster than your deliverables: you can list what you learned last month but not what left your desk, and you have started a new research thread before closing the previous one. The private-study center is feeding itself instead of feeding the loop, and the visible result is slow accumulation."
+  ],
+  "switch_actions": [
+    "Pick the one piece of research that has been almost ready the longest and set a handover date within ten days. Send it on that date even if it feels unfinished, and write down the approval or title you were waiting for next to the date you actually sent it. This completes the income step and breaks the permission rule.",
+    "For the next two weeks, keep a one-line ledger each day: what you researched, what left your desk, and what you defended. At the end of each week, compare the three lines. If research and defense are full but the desk line is empty, prune the research thread that is only interesting and convert the one that has a buyer.",
+    "When a peer starts offering what you built, respond within the week by adding one layer they have not copied and shipping it, rather than correcting them in a meeting. Make the layer small enough to finish in a day, and note the date it left your desk. This turns the defense step into a conversion step and keeps the loop moving forward."
+  ]
+}

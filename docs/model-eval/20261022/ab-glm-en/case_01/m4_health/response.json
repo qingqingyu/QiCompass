@@ -1,0 +1,88 @@
+{
+  "battery_type": {
+    "type": "climb",
+    "evidence": "The Day Master Ji earth is listed as strong, so your raw capacity is large. But the useful candidates are metal, water and wood, and water sits at zero while fire runs through both Si branches and the current pillar — the cooling, moistening layer of the chart is empty. That combination reads as a big battery that charges slowly and overheats easily: Eating God output is the joint-heaviest force, so the drain is not excitement but sustained production.",
+    "charge_pattern": "You recharge through hands-on making — cooking, fixing, building, demonstrating. Finishing a tangible piece leaves you lighter rather than emptier because the heavy Eating God releases the pressure of a strong self. Recharge is gradual: a full morning of quiet craft restores you more than a short burst of fun.",
+    "drain_pattern": "The drain is cumulative and quiet. Direct Resource at solid weight lets you metabolize hard demands without protest, and Companion weight means you keep absorbing peer-level tasks personally. You notice fatigue only after several days of stacking — long meetings, harsh standards, doing it yourself — which matches your current pattern of poor sleep and weekday fatigue."
+  },
+  "imbalance_risks": [
+    {
+      "system": "sleep",
+      "trigger": "Sitting with a difficult requirement past your natural stopping point — the Direct Resource buffer keeps converting pressure into method, so you keep working when the body has already signaled stop; specifically, taking work problems to bed more than two nights in a row.",
+      "early_sign": "You fall asleep slowly with unfinished tasks looping in your head, and wake feeling unrested even after a full night."
+    },
+    {
+      "system": "inflammation-and-heat",
+      "trigger": "Fire runs through the month and hour branches Si and the current pillar Ding, with no water anywhere to cool it — long stretches of summer-like conditions: hot rooms, spicy heavy meals, back-to-back deadline sprints without any cooling pause.",
+      "early_sign": "Dry mouth, restless heat at night, mouth irritation, and a shortening fuse in the hours before sleep."
+    },
+    {
+      "system": "digestion",
+      "trigger": "Earth is the heaviest element and it stagnates when stationary — more than three consecutive days of sitting through meals at your desk while processing demands, with no walk between intake and the next task.",
+      "early_sign": "Heaviness after meals, irregular appetite — skipping meals on deadline days, overeating on the day a task finally closes."
+    }
+  ],
+  "recovery_levers": [
+    {
+      "action": "End each workday with a fifteen-minute hands-on task that produces a finished thing — cook the actual meal, repair the actual object, tidy the actual workbench.",
+      "why_it_works_for_you": "Eating God is your heaviest force and making things is your proven recharge — it drains the excess load of your strong self rather than draining you, and it gives the mind a clean stopping point that protects sleep.",
+      "cost": "low"
+    },
+    {
+      "action": "Add one water-element rhythm daily: a slow walk near water if available, otherwise a fixed cool-down window — dim lights, no screens, cool room, ten minutes of doing nothing.",
+      "why_it_works_for_you": "Water sits at zero in your chart and fire is overrepresented; introducing a cooling, flowing rhythm is the most direct counterweight, and it targets your top complaint of poor sleep first.",
+      "cost": "low"
+    },
+    {
+      "action": "One session per week of peer-level work done side by side with someone at your own level — no hierarchy, no client, just equals building or fixing together.",
+      "why_it_works_for_you": "Companion ties for heaviest weight and peer-mode operation costs you nothing to run; it restores you through the exact channel you already trust, while replacing the solo absorption that quietly drains you.",
+      "cost": "mid"
+    }
+  ],
+  "reset_7day": [
+    {
+      "day": 1,
+      "focus": "Stop point",
+      "action": "Pick tonight's stopping time before you start working, write it down, and honor it — the first day only installs the boundary, nothing else."
+    },
+    {
+      "day": 2,
+      "focus": "Cooling rhythm",
+      "action": "Add a ten-minute cool-down window before bed: dim lights, no screens, cool room. No craft, no planning — pure stopping."
+    },
+    {
+      "day": 3,
+      "focus": "Craft as valve",
+      "action": "Cook one full meal with your hands from raw ingredients, start to finish, at a relaxed pace. Eat it away from your desk."
+    },
+    {
+      "day": 4,
+      "focus": "Movement for digestion",
+      "action": "Take a ten-minute slow walk after your largest meal, and after any block of sitting longer than ninety minutes."
+    },
+    {
+      "day": 5,
+      "focus": "Unload the buffer",
+      "action": "Write down every open demand you are silently holding — the Direct Resource in you absorbs them without protest, so make the list external. Mark which ones are not actually yours."
+    },
+    {
+      "day": 6,
+      "focus": "Peer recharge",
+      "action": "Arrange or do one side-by-side working session with an equal — a friend, a colleague, a class — where you build or fix something together with no client watching."
+    },
+    {
+      "day": 7,
+      "focus": "Consolidate",
+      "action": "Review the week: which stop times held, which cool-downs happened. Keep the two that cost least and schedule them into next week before anything else."
+    }
+  ],
+  "weekly_maintenance": [
+    "Hold a fixed evening stop time on at least five of seven days — your structure drains silently, so the boundary must be external and visible, not felt.",
+    "Run the ten-minute cool-down window every night without exception; it is your cheapest counterweight to the overrepresented fire and your fastest lever on sleep.",
+    "Do three hands-on making sessions per week — cooking, repairing, building. These are not hobbies filling time; they are how your heaviest healthy force releases pressure.",
+    "Walk ten minutes after your largest meal each day to keep the heavy earth moving instead of stagnating.",
+    "Once a week, externalize your open-demand list and drop or hand back at least one item that belongs to someone else — your peer reliability makes over-absorption easy, so prune it deliberately.",
+    "Once a week, spend time near water or in a cool, quiet setting for at least half an hour, replenishing the element your chart carries none of."
+  ],
+  "medical_note": "You describe long-term poor sleep and persistent weekday fatigue. These are ongoing symptoms, not just a rhythm problem. Please see a doctor for a proper evaluation, and let the plans above run alongside medical care, not instead of it. If any symptom worsens — sleep quality dropping further, fatigue deepening, or new discomfort appearing — seek medical attention promptly."
+}

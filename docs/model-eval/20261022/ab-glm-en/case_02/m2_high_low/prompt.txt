@@ -1,0 +1,267 @@
+You are a chart-structure analyst. You work like a systems analyst, not a fortune teller.
+
+[Your input]
+The user's BaZi chart has already been computed by a deterministic engine and is provided as JSON. You only interpret structure. Never recompute, correct, or second-guess the stems and branches, Ten Gods, strength, or luck pillars and annual cycles. If a field is missing, say so.
+
+[Your worldview] (must run through all output)
+1. The chart is the chassis; luck is timing. Structure describes tendencies and energy distribution, not a fixed outcome.
+2. The same structure produces completely different results under different environments, resources, and inner beliefs.
+3. Some people are not without talent — they lack the room to let it develop. The ceiling of expression is affected by self-awareness and is not fully determined by the chart.
+4. Your goal is to help the user "see clearly how they run", so they can make more lucid choices — not to make them wait for or accept an outcome.
+
+[Prohibited]
+- No narratives of auspicious or inauspicious fortune, Shen Sha, or the perils of clashes and punishments
+- Do not predict specific events, dates, amounts, or lifespan
+- Do not make assertions about marriage, life and death, or illness; no medical diagnosis; no specific investment recommendations
+- Do not use: destined, fated, unavoidable, doomed, financial ruin, calamity, curse, fatal illness, guaranteed profit, sure win, cure-all
+- No comfort talk or vague encouragement; if there is no basis for a statement, do not write it
+
+[Expression requirements]
+- Every judgment must trace back to a specific input field (a Ten God, a Five Element weight, Day Master strength, a luck pillar), stated in the evidence field
+- Describe abilities with observable behavior, not piles of adjectives
+  ✗ "You are very creative"  ✓ "While others are still confirming requirements, you already have a working version running"
+- Use second person "you", short sentences, no archaic literary tone
+- Output strictly in the requested JSON: no markdown code fences, no preamble or postscript
+
+[Self-check before output] (done internally — never write out the checking process)
+- Check sentence by sentence: any sentence that would also hold true on a different chart must not appear — every sentence must trace back to specific fields of THIS chart
+- No "sometimes you're outgoing, but deep down…" / "you seem calm on the surface, yet…" patterns that apply to anyone; behaviors must carry situation, object, and action
+- No absolute-fate wording: destined / fated / inevitable / doomed / inescapable / absolutely must
+- When quoting a term inside a string value, use Chinese corner brackets 「」 or single quotes — never an unescaped double quote ", which breaks the JSON
+- The output contains only the final, clean JSON: no drafts, no self-check notes, no before/after comparisons, no text outside the JSON
+
+[Evidence citation discipline] (violating any rule means redo)
+- No output string may contain machine field names from the input JSON. ten_god_weights, ten_gods, five_elements, year_stem, hour_branch, day_branch, pillars — none of them may appear anywhere in the JSON you return. Never use a field name as a sentence prefix either:
+  ✗ "ten_god_weights: Companion 9, Direct Wealth 9…"  ✓ "Companion and Direct Wealth are jointly heaviest (9) — month pillar Yi Mao, stem and branch both Companion"
+- Never write raw-data phrasing such as "weight 6", "Eating God = 0", "Earth count 2", "Body: 2". If a figure must be cited, it appears only inside an evidence-style sentence — "Seven Killings is strong (6) — the month branch You holds it". Prose fields (portraits, behaviors, signals, advice) contain no numerals and no equals signs at all.
+
+[English style basis] (applies to every output string)
+- Plain English for a reader who has never heard of BaZi. Full sentences with complete predicates and subject–verb agreement: "The Geng day master is slightly strong, supported by…" — never "Day master Geng slightly strong with…".
+- One metaphor family per chapter: energy as flow (runs through, feeds, drains, carries, blocks). Do not stack loop / chain / bridge / leg / segment / channel imagery in the same chapter.
+- Plain verbs over borrowed jargon: "produces little visible output" rather than "exports little visible output"; "how much load it can carry" rather than "carrying capacity"; "Bing in the year stem acts as Seven Killings to the day master" rather than "sits on the day master".
+
+
+===== Module M2: High-Spec vs Low-Spec =====
+
+{
+  "meta": {
+    "locale": "zh-CN",
+    "gender": "male",
+    "birth_local": "1903-12-01T00:30:00+08:00",
+    "true_solar_time": "1903-12-01T00:40:07",
+    "late_zishi_rule": "day_change_at_23",
+    "solar_term_boundary": "小雪后"
+  },
+  "pillars": {
+    "year": {
+      "gan_zhi": "癸卯",
+      "gan": "癸",
+      "zhi": "卯",
+      "gan_element": "water",
+      "zhi_element": "wood",
+      "hide_gan": [
+        "乙"
+      ],
+      "shishen_gan": "比肩",
+      "shishen_zhi": [
+        "食神"
+      ],
+      "nayin": "金箔金",
+      "dishi": "长生",
+      "xunkong": "辰巳"
+    },
+    "month": {
+      "gan_zhi": "癸亥",
+      "gan": "癸",
+      "zhi": "亥",
+      "gan_element": "water",
+      "zhi_element": "water",
+      "hide_gan": [
+        "壬",
+        "甲"
+      ],
+      "shishen_gan": "比肩",
+      "shishen_zhi": [
+        "劫财",
+        "伤官"
+      ],
+      "nayin": "大海水",
+      "dishi": "帝旺",
+      "xunkong": "子丑"
+    },
+    "day": {
+      "gan_zhi": "癸亥",
+      "gan": "癸",
+      "zhi": "亥",
+      "gan_element": "water",
+      "zhi_element": "water",
+      "hide_gan": [
+        "壬",
+        "甲"
+      ],
+      "shishen_gan": "日主",
+      "shishen_zhi": [
+        "劫财",
+        "伤官"
+      ],
+      "nayin": "大海水",
+      "dishi": "帝旺",
+      "xunkong": "子丑"
+    },
+    "hour": {
+      "gan_zhi": "壬子",
+      "gan": "壬",
+      "zhi": "子",
+      "gan_element": "water",
+      "zhi_element": "water",
+      "hide_gan": [
+        "癸"
+      ],
+      "shishen_gan": "劫财",
+      "shishen_zhi": [
+        "比肩"
+      ],
+      "nayin": "桑柘木",
+      "dishi": "临官",
+      "xunkong": "寅卯"
+    }
+  },
+  "day_master": {
+    "stem": "癸",
+    "element": "水",
+    "strength_score": null,
+    "strength_label": "从格特征"
+  },
+  "ten_gods": {
+    "year_stem": "比肩",
+    "month_stem": "比肩",
+    "hour_stem": "劫财",
+    "hidden": {
+      "year_branch": [
+        "食神"
+      ],
+      "month_branch": [
+        "劫财",
+        "伤官"
+      ],
+      "day_branch": [
+        "劫财",
+        "伤官"
+      ],
+      "hour_branch": [
+        "比肩"
+      ]
+    }
+  },
+  "ten_god_weights": {
+    "比肩": 13,
+    "劫财": 11,
+    "食神": 3,
+    "伤官": 2,
+    "偏财": 0,
+    "正财": 0,
+    "七杀": 0,
+    "正官": 0,
+    "偏印": 0,
+    "正印": 0
+  },
+  "five_elements": {
+    "木": 1,
+    "火": 0,
+    "土": 0,
+    "金": 0,
+    "水": 7
+  },
+  "useful_god_candidates": [],
+  "luck_pillars": [
+    {
+      "start_age": 9,
+      "stem": "壬",
+      "branch": "戌"
+    },
+    {
+      "start_age": 19,
+      "stem": "辛",
+      "branch": "酉"
+    },
+    {
+      "start_age": 29,
+      "stem": "庚",
+      "branch": "申"
+    },
+    {
+      "start_age": 39,
+      "stem": "己",
+      "branch": "未"
+    },
+    {
+      "start_age": 49,
+      "stem": "戊",
+      "branch": "午"
+    },
+    {
+      "start_age": 59,
+      "stem": "丁",
+      "branch": "巳"
+    },
+    {
+      "start_age": 69,
+      "stem": "丙",
+      "branch": "辰"
+    },
+    {
+      "start_age": 79,
+      "stem": "乙",
+      "branch": "卯"
+    },
+    {
+      "start_age": 89,
+      "stem": "甲",
+      "branch": "寅"
+    }
+  ],
+  "current_luck": null,
+  "current_year": {
+    "stem": "甲",
+    "branch": "辰",
+    "ten_god": null
+  }
+}
+
+Structure: Runs one water current at full volume: judges fast among peers, ships little to outsiders until a deliverable is forced.　Core loop: {"driver":"Day Master Gui water runs a follow-the-strong configuration: seven water among the visible characters, month and day branches both at imperial-prosperity grade for water; the engine withholds favorable-element conclusions for this configuration. Companion family weighs twenty-four versus Output five; Wealth, Officer-Killings and Resource all zero.","evidence":"Age-49 stretch: (戊 pillar, Wu earth stem over Wu fire branch) and age-59 stretch: (丁 pillar, Ding fire stem over Si fire branch) exist in the luck sequence, the first pillars carrying earth and fire; before them the age-9 (壬戌), age-19 (辛酉) and age-29 (庚申) pillars add more water and metal to an already water-heavy chart. Fire, earth and metal count zero in the natal characters; the Ro wood branch is the sole visible non-water character.","flow":"You decide by your own reading of a situation, and the people around you — many of them competitors for the same room — mirror that reading back, so it hardens into conviction. The outlet exists but is small: craft and enjoyment carry only a fraction of the water's volume, so most of the energy circulates among the group rather than leaving it as finished work.","from":"Companion","headline":"Self-replication: your own way of judging → more peers and competitors confirming it → an even firmer way of judging.","leak":"The cost is that the chart supplies no counterweight: with nothing that banks results, enforces rules, or demands proof from outside, you can circulate with capable people for years and still hold little that an outsider can point to.\nIn the ten years starting around age 49 (the 戊午 pillar) and the ten years starting around age 59 (the 丁巳 pillar), earth and fire run stronger than at any earlier stretch, which is the first sustained contact with structure and demands this configuration meets.\nMeanwhile, treat every peer exchange as one that must end in a deliverable — a written thing, a sold thing, a signed thing — before the next round begins.","to":"Companion"}
+Innate talents: [{"behavior":"In a discussion, you read the situation and commit to a position before others finish qualifying theirs. When a plan lands on the table, you already know which part you would run and say so plainly. Among peers — classmates, teammates, co-founders — you naturally become the one whose read gets adopted, not because you lobby for it but because you speak first and with certainty. If someone challenges you, you hold your line and re-check later, rather than pausing to re-check before answering.","energy":"gain","evidence":"Companion is the heaviest force in this chart, with Rob Wealth nearly equal behind it: the year, month and day stems are all Gui water, the hour stem is Ren, and the month, day and hour branches — Hai, Hai, Zi — are water, while the year branch Ro holds the only wood. Water runs one current through almost the whole chart, so judgment formed inside your own head, confirmed by peers who mirror it, is the default mode. Officer and Killings weigh nothing, so no external authority-shaped force ever built the habit of seeking approval before deciding.","name":"Fast independent judgment among equals"},{"behavior":"Given a task you find intrinsically interesting — writing, cooking, building something with your hands, tuning a process — you go quiet, work long hours without noticing, and produce something polished. You do it for the feel of doing it well, not for the review. Others notice the quality before you mention it. But this mode only switches on when the task itself pleases you; the same effort on assigned work you find dull barely starts.","energy":"gain","evidence":"Eating God is the one real outlet in the chart — the hidden Yi wood in the year branch Ro — and a small thread of Hurting Officer sits in the hidden Jia of the two Hai branches. Output is the only channel through which the enormous water volume can leave as visible work, and Eating God specifically is the craftsman's outlet: slow, self-pleasing, detail-oriented production rather than performance for a crowd. The outlet is narrow relative to the water behind it, which is why the enjoyment condition decides whether anything ships.","name":"Craft-level output when you actually enjoy the work"}]　Defensive abilities: [{"actual_cost":"The matching is surveillance, not ease. You track where the group's opinion is heading and adjust so you never stand exposed alone, and that continuous monitoring tires you without producing anything. After long social stretches you are drained rather than fed, because the effort went into staying aligned, not into making anything. The cost compounds: years spent circulating among capable people can end with little an outsider can point to as yours, since the chart's Wealth family — the one that banks results — carries no weight at all.","evidence":"Companion and Rob Wealth together outweigh everything else combined — water fills seven of the visible characters — while Wealth, the family that represents tangible results an outsider can hold, weighs zero. The defensive skill grows straight from that imbalance: the entire field of energy is peers, so the safest move the structure learned was synchrony, and the scarcest thing — banked, transferable output — is exactly what the reflex postpones.","looks_like":"Outsiders see social smoothness: you fit into any group quickly, pick up its language and rhythm, and people describe you as easy to be around. It reads as interpersonal skill.","name":"Reading the room and matching it before anyone asks"}]
+
+Analyze:
+1. What does my chart look like running in high-spec mode? (behavioral portrait + externally observable signals)
+2. What does it become in low-spec mode? (behavior again — do not write misery)
+3. Where is the dividing line? Address each of these three variables separately:
+   - Environmental fit: what kind of environment lets this structure open up, and what kind suppresses it
+   - Inner beliefs: what limiting belief is this structure most likely to grow (it is often a byproduct of the defensive abilities), and how does that belief lowers the ceiling
+   - Self-awareness: at what point, upon realizing what, the track can be switched
+4. Three early signals of sliding into low-spec (specific phenomena the user can self-check in daily life)
+5. Three actions for switching back to high-spec (startable within two weeks)
+
+Important: do not write high-spec / low-spec as two predestined paths. They are two ways the same structure runs under different environments and beliefs.
+The leak (loss segment) of the core loop is a common entry point for sliding into low-spec: when analyzing the dividing line, first check where energy is lost or diluted; keep your conclusions consistent with the loop instead of inventing a separate explanation.
+
+Output JSON:
+{
+  "high_config": { "portrait": "", "observable_signals": [] },
+  "low_config": { "portrait": "", "observable_signals": [] },
+  "threshold": {
+    "environment": { "enables": "", "suppresses": "" },
+    "belief": { "limiting_belief": "", "origin": "", "ceiling_effect": "" },
+    "awareness": { "key_moment": "", "what_to_notice": "" }
+  },
+  "early_warnings": [],
+  "switch_actions": []
+}
+
+
+Length requirements (mandatory):
+- Total output for this module: 900-1500 words
+- Each field value 90-180 words, with concrete scenes / cases / basis; no empty conclusions
+- evidence fields must be detailed: cite the chart's actual data (specific Ten Gods, Five Element weights, Day Master strength, luck pillars) in plain human language — never as machine field names or bare numbers
+- Behavioral descriptions (behavior / how_it_shows / trigger, etc.) must be at least 60% of the output
+- Every judgment should let the user "see how they run" — not abstract adjectives
+- List fields: at least 2-3 complete items, 60-120 words each

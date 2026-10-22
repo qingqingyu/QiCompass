@@ -1,0 +1,106 @@
+{
+  "income_forms": [
+    {
+      "form": "salary",
+      "rank": 1,
+      "fit": "Salary is the form your chart runs on most naturally. You convert pressure into private mastery, then hold the ground you have earned. A fixed monthly inflow matches Direct Wealth's build-little-by-little rhythm: the money arrives on a known date, a fixed portion moves to savings before you spend, and the position compounds through renewals and a reputation for never dropping what you took on. Deep-dive work matures over months, so an employer who pays for the long window is effectively funding your natural processing style.",
+      "friction": "The friction is ceiling, not fit. Indirect Resource dominates everything else, and it works inward — you show little of what you know, so the organization may price you as a solid maintainer while your private notes hold far more. Salary rewards visibility you do not naturally produce. Without periodic outward checkpoints, raises track what colleagues can see, not what you actually hold.",
+      "evidence": "Direct Wealth is joint-heaviest — the year stem Yi wood carries it openly and it also hides in the day branch Chen — which is the classic steady-inflow signature. Eating God sits at zero and Hurting Officer at a low two, so the output channel that powers self-promotion is nearly dry. The balanced Geng day master, favoring metal and earth, holds a stable position without draining itself, which is why salary feels like rest rather than constraint."
+    },
+    {
+      "form": "consulting",
+      "rank": 2,
+      "fit": "Retained consulting fits you almost as well as salary, and pays better per hour of your actual skill. One or two long-term clients with defined domains — you maintain their system, you answer their odd regulatory questions, you keep their renewals alive — is exactly the low-density, high-specificity collaboration your life structure calls for. Your ability to cite the original clause numbers months later is precisely what retainers are bought for.",
+      "friction": "Consulting requires a sales conversation before the income starts, and that front-loaded pitching runs against your near-empty output channel. Written proposals and asynchronous handoffs ease this; live pitching marathons do not. Also watch scope creep — Rob Wealth weight means undefined boundaries with a client who acts like a peer trigger defensive negotiation that burns energy better spent on the work.",
+      "evidence": "Indirect Resource is the heaviest force — carried openly by the month stem Wu earth and hidden in three branches — so expertise is abundant and retrievable. Direct Wealth at equal weight to Rob Wealth means monetizing it works best one defined counterpart at a time. Seven Killings at a middle weight, hidden in the month and hour branches, gives you the tolerance to absorb a client's pressure without collapsing."
+    },
+    {
+      "form": "projects",
+      "rank": 3,
+      "fit": "Project work suits the depth side of you: a defined deliverable, a long measurement window, traceable results. Contracts where you own a domain end-to-end — build the reference file, maintain the system, hand over the documents — let your serial, solitary processing run at full power while the milestone structure protects you from mood-based evaluation.",
+      "friction": "Projects usually arrive through networks and joint bids, and that is where you leak. Rob Wealth running as heavy as Direct Wealth means a partner proposing an undefined split activates your ground-guarding: you spend the first week defining who owns what while the window closes. Multi-hand projects with fluid roles drain you before the work starts. Bid alone or with one counterpart whose role is written down, or the form's fit collapses.",
+      "evidence": "Rob Wealth and Direct Wealth sit at the same weight — the hour stem Xin metal and the year branch Chou feed the peer-contest side — so shared-resource situations cost you disproportionate energy. The output pair being nearly empty means the constant negotiation and renegotiation typical of consortium projects has little fuel behind it, while the resource side, dominated by Indirect Resource, wants to work alone with documents."
+    },
+    {
+      "form": "content",
+      "rank": 4,
+      "fit": "Content is your best growth lever, ranked below the earners only because it pays late. You already produce the raw material every night — traced source rules, clause-numbered answers, reference files nobody knows exist. Converting that private archive into a course, a technical guide, or a paid newsletter points the intake engine outward for the first time, and it monetizes without live pitching: buyers find the artifact, not your stage presence.",
+      "friction": "The near-empty output channel means production itself is effortful — you will draft, over-research, and revise long past publishable. Your pattern is to keep going past the point anyone asked for, which in content becomes an infinite polishing loop where nothing ships. A fixed publishing cadence with a hard 'good-enough' definition is the only way this form activates.",
+      "evidence": "Hurting Officer — the channel that expresses learning outward — sits at only two, while Indirect Resource sits at ten, so intake vastly outruns expression. The current window from age thirty-eight brings the Ren-Wu luck pillar, whose Ren stem introduces water — the element entirely absent from the chart's five-element spread — and water is what carries expression, which is why this form belongs to now rather than earlier decades."
+    },
+    {
+      "form": "investing",
+      "rank": 5,
+      "fit": "Investing earns a middle slot specifically because of who you are when you research: you will read the full prospectus, trace the underlying mechanism, and hold through noise. Patient, rule-based allocation with a fixed monthly contribution matches your savings-first rhythm, and your long measurement window protects you from panic reactions that hurt faster temperaments.",
+      "friction": "The friction is twofold. First, Rob Wealth's weight means leverage and crowded trades — positions everyone you know also holds — activate the same defensive spiraling you show in partnerships, but now against markets you cannot negotiate with. Second, zero output channel means no hedging agility: you decide slowly, so fast-moving speculation punishes you regardless of analysis quality.",
+      "evidence": "Direct Wealth's steadiness — the year stem Yi wood — supports accumulation through fixed contributions, but Rob Wealth at equal weight signals vulnerability in peer-driven positions. Water is entirely absent from the five-element count, and water governs flow and timing, which is why rapid tactical trading mismatches the chart while slow allocation does not. The stated moderate risk preference aligns with the balanced day master."
+    },
+    {
+      "form": "equity",
+      "rank": 6,
+      "fit": "Equity is the least compatible form, though not zero. It suits you only in one narrow shape: a small stake in a venture where your contribution is a defined technical or advisory domain, acquired through work you would do anyway, and held on a very long horizon. In that shape it behaves like a deferred retainer, and your patience is an advantage over founders who exit early.",
+      "friction": "Everything else about equity fights your structure. Value depends on funding rounds, co-founder politics, and constant persuasion of outsiders — all high-improvisation, high-visibility activity. Eating God at zero means you generate little persuasive public output, and Rob Wealth's weight means dilution fights and undefined contribution splits hit your deepest drain point. Most equity situations will cost you energy for years and return nothing your structure can defend.",
+      "evidence": "Equity rewards the output-and-visibility pair, which is the weakest axis here — Eating God empty, Hurting Officer minimal. Seven Killings at a middle weight gives pressure tolerance, but the pressure in equity ventures is social and continuous, unlike the solitary deadline pressure you metabolize well. The absence of water until the current luck pillar means the flexibility equity demands has historically had no fuel."
+    }
+  ],
+  "leaks": [
+    {
+      "type": "partnerships",
+      "how_it_shows": "You agree to a joint project in good faith, then spend the first two weeks privately drafting mental contracts about who owns which part. When the partner underdelivers, you quietly absorb their share rather than trigger a confrontation — the defensive instinct flips into over-carrying. Months later you resent the arrangement but cannot name the moment it went wrong, because the boundary was never spoken.",
+      "rule": "If a collaboration is proposed, then before any work begins, write a one-page split: who owns which deliverable, what happens if one side underdelivers, and an exit clause — and if the partner refuses to put it in writing, decline the project."
+    },
+    {
+      "type": "social obligations",
+      "how_it_shows": "Because you do not display what you know, colleagues underestimate you and you overcorrect by covering for the team — taking the maintenance task nobody wants, answering the odd question at midnight, quietly fixing things before anyone notices they broke. The team celebration drains you while the quiet rescue goes unbilled, so your reputation earns warmth while your income stays flat.",
+      "rule": "If you perform work outside your defined role more than twice in one month for the same person or team, then on the third request reply that you can take it on as a separately scoped task with its own timeline — and name a price or a trade."
+    },
+    {
+      "type": "impulses",
+      "how_it_shows": "Your impulses rarely look like shopping sprees; they look like equipment and courses. A new certification, a reference library, a better machine for the deep work — each purchase arrives dressed as investment in your private mastery, and most of them sit half-used because the researching was the actual pleasure. Small amounts, high frequency, invisible in monthly review.",
+      "rule": "If you want to buy anything that serves your learning or craft above a set daily-spend threshold you choose in advance, then wait seven days and write down which specific existing project it unblocks — and if no named project needs it, cancel the purchase."
+    },
+    {
+      "type": "risk exposure",
+      "how_it_shows": "Your slow-decision profile protects you from panic selling but exposes you to two specific traps: holding a deteriorating position because exiting feels like admitting your research was wrong, and copying a position a trusted peer holds because they did the homework — which hands your Rob Wealth trigger direct control of your money. Both leaks are silent; you discover them in the annual review.",
+      "rule": "If a position falls past a loss limit you set in writing at purchase, then sell the pre-decided portion on the next regular review date without renegotiating the limit — and if you only hold something because a specific person also holds it, then cut that position by half at the same review."
+    }
+  ],
+  "strategies": {
+    "conservative": {
+      "shape": "Keep salary as the engine and automate everything downstream: fixed percentage to savings on payday before spending, a fixed monthly amount into a simple diversified allocation chosen once with rules written down, and an emergency reserve built to a target you set now. Add nothing clever. The annual review checks whether the rules were followed, not whether returns beat anything.",
+      "precondition": "Use this when your current role still offers growth, or when work pressure is high and you have no protected hours left for building artifacts. This strategy asks almost nothing of your weakest channel — no output, no pitching — so it runs even in your most inward periods. It matches the chart's natural rhythm exactly but leaves the ceiling where it is."
+    },
+    "balanced": {
+      "shape": "Salary plus one consulting retainer plus the first content artifact. Convert one domain you have already mastered into a paid guide or retained advisory offering, marketed only through written materials — a document, a page, a sample chapter — never live pitching. Keep the moderate allocation from the conservative base untouched underneath. Each quarter, one visible checkpoint: a published writeup proving the long window is running.",
+      "precondition": "Use this when you have protected weekly hours — your life structure needs whole mornings or full days that nobody can reach. This is the strategy designed for the current window: water entering via the luck pillar that began in your late thirties feeds the expression channel for the first time, so the outward-facing component finally has fuel. Without protected hours, drop back to conservative rather than doing content badly."
+    },
+    "aggressive": {
+      "shape": "The aggressive version of you is not leverage — it is concentration on your own asset. Reduce the job to part-time or a single high-paying retainer, and spend the freed hours building a small product business around your reference mastery: a technical guide series, a niche compliance toolkit, a paid advisory subscription, each priced for institutions rather than individuals. Two defined clients fund the build; the artifacts compound and sell without you on stage.",
+      "precondition": "Use this only when all of the following hold: reserves covering a long runway that you define in advance, at least one signed long-term client, and a shipped artifact that has already earned its first payment — proof the output channel works, not just the research. Seven Killings at middle weight gives you pressure tolerance, but your structure metabolizes deadline pressure, not market-making pressure. If any of the three conditions is missing, run the balanced shape instead."
+    }
+  },
+  "asset_ideas": [
+    {
+      "idea": "A retained regulatory-and-standards advisory for small firms: clients pay a monthly fee to reach you with questions in one defined domain, and you answer from your traced source files within an agreed window.",
+      "uses_talent": "This converts your private deep-dive research directly into income — the clause-numbered answers you already produce at night become the deliverable, and your months-later retrieval ability is exactly what retainers buy.",
+      "fits_life_structure": "It is asynchronous by design: questions arrive in writing, you answer from protected hours, no meetings, no live pitching. One or two defined clients matches the low-density collaboration pattern your Rob Wealth weight demands.",
+      "startup_cost": "Low: your existing reference files, a one-page description of scope and response time, and one pilot client from your current network. Mainly time to package what exists.",
+      "likely_blocker": "Pricing and asking. Your near-empty output channel makes stating a fee feel like exposure, so you will underquote. Fix the number in writing before the first client conversation and do not renegotiate downward mid-sentence."
+    },
+    {
+      "idea": "A specialized reference guide or course built from your notes — for example, the definitive practical manual for one narrow compliance or technical topic you have already mapped, sold as a document or structured series.",
+      "uses_talent": "The manuscript largely exists in your personal archives; the work is curation and completion, not new research. Your compulsion to trace sources makes the artifact uniquely solid compared with typical quick guides.",
+      "fits_life_structure": "It monetizes without visibility: buyers purchase the document, you never present live. The long production window with one checkpoint per chapter matches your serial processing and the quarterly review rhythm.",
+      "startup_cost": "Low to moderate: protected writing hours over several months plus editing and a simple distribution setup. No inventory, no team.",
+      "likely_blocker": "The infinite polish loop — you will keep researching past publishable because finishing feels premature. Set a fixed chapter deadline and a written definition of good-enough before starting; ship on the deadline regardless."
+    },
+    {
+      "idea": "A maintenance-and-handover documentation service: you build the missing operational manual for a company's critical system — the one person who knows it is leaving — and update it on a recurring contract.",
+      "uses_talent": "It combines both innate talents: you research the system privately until you hold its mechanism, then you hold the ground as the paid keeper of the documentation, exactly the steady-accumulation pattern you run on.",
+      "fits_life_structure": "One defined domain per client, traceable deliverables, no shared ownership with a team, and renewals that compound — the closest business form to salary's rhythm while multiplying what each hour of deep work earns.",
+      "startup_cost": "Moderate: time for the initial deep-dive into each client's system, a template for the manual, and liability terms reviewed by a professional before the first contract.",
+      "likely_blocker": "Finding the first client without pitching. Solve it by written outreach only — a short document describing exactly what the service produces and which systems need it — and let the artifact do the persuading your output channel cannot."
+    }
+  ],
+  "disclaimer": "This module describes how your Ten Gods structure distributes energy across income forms and money behavior — it is self-knowledge, not investment advice. No specific instrument, asset, or market direction is recommended or predicted. For decisions involving large sums, contracts, tax, or retirement planning, consult a licensed financial or legal professional who can see your full situation."
+}

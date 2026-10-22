@@ -1,0 +1,61 @@
+{
+  "energy_path": [
+    {
+      "stage": "Produce first",
+      "gain_or_loss": "gain",
+      "mechanism": "Eating God is the leading force and jointly heaviest with Companion (9 and 8). The month stem is Eating God, the day branch is Eating God, and the year branch hidden stems include Eating God. The Day Master is slightly strong (偏旺), so output drains excess rather than depleting you. You start by making a draft, a fix, or a straight statement, and that act is how you engage with work and people."
+    },
+    {
+      "stage": "Hit a wall",
+      "gain_or_loss": "loss",
+      "mechanism": "The output runs into resistance — pushback, missing information, or a problem the current toolkit cannot solve. Because Eating God is the leading force, you keep producing from the same store instead of pausing to acquire new input. The output continues, but it narrows to variations of what you already know."
+    },
+    {
+      "stage": "Draw on the base",
+      "gain_or_loss": "gain",
+      "mechanism": "Direct Resource weighs 6, carried by the month and hour branch hidden stems (both 巳 hold 正印). The Day Master is slightly strong, so Resource functions as a store you draw on, not a source that overwhelms you. You reach for a framework, a past case, or a credential you already hold and use it to anchor the next version."
+    },
+    {
+      "stage": "Produce again from the base",
+      "gain_or_loss": "gain",
+      "mechanism": "The base lets you produce again without starting from zero. Companion is jointly heaviest with Eating God (8), and the hour stem is Companion. You pair with someone who is also building, split the work, and check in at short intervals. The co-production keeps the output moving when solo effort stalls."
+    },
+    {
+      "stage": "Recycle without topping up",
+      "gain_or_loss": "loss",
+      "mechanism": "The loop turns smoothly as long as the base keeps growing. When it does not — when new input is collected but never used — you keep producing from the same store. The Eating God output at the leading weight is still there, but it runs through a narrower channel. The range of what you can produce stops widening because the gate between new input and output stays closed."
+    }
+  ],
+  "leverage": {
+    "point": "The moment between drawing on the base and producing again",
+    "input": "One new piece of input — a course, a different project, an unfamiliar problem — that you actually use in a piece of output within the same week",
+    "output": "A wider range of output, not just more of the same. The Eating God output at the leading weight gets fresh material, and the Direct Resource base grows instead of recycling.",
+    "why": "Direct Resource weighs 6 and the Day Master is slightly strong (偏旺), so the base is already sufficient — it is a store, not a shortage. The bottleneck is not the size of the base but whether new input passes through the gate. The Bing Zi luck pillar starting around age 42 brings water into the branch, which makes new input easier to absorb. One unit of input used immediately moves the output from recycled to fresh, because the Eating God output is already the leading force and does not need to be built — it needs to be fed."
+  },
+  "vulnerability": {
+    "point": "Waiting for the base to be perfect",
+    "condition": "When a draft is finished but you check one more source before shipping, or when you collect new input but do not use it in output, or when your last three outputs share the same structure",
+    "mechanism": "Direct Resource weighs 6 and the Day Master is slightly strong, so Resource is a weight, not a lifeline. The defensive pattern is topping up without drawing. The Seven Killings filter in the year stem — the earliest position — trained you to check before you speak. The two together produce a habit: top up the base, then top it up again, and treat the waiting as a requirement rather than a reflex. The output gets delayed or narrowed, and the new input you collected never gets used because the gate never opens.",
+    "self_check": "Notice the gap between the sharp version you drafted in the evening and the softened version you said in the meeting. Notice the finished draft sitting in a folder while you check one more source. Notice when your last three outputs share the same structure. These are the signals that the loop is recycling rather than growing."
+  },
+  "upgrade_path": [
+    {
+      "phase": "Ship the finished draft",
+      "entry_condition": "You notice a finished draft sitting in a folder while you check one more source, or you notice the gap between the sharp version you drafted and the softened version you said",
+      "work": "Set a fixed block each week to study something outside your current toolkit, and finish one small piece of output from it before the week ends. Ship the draft that is already finished instead of checking one more source. Say the sharp version in the meeting instead of drafting it in the evening.",
+      "done_signal": "Your last three outputs no longer share the same structure, and the new input you collected has changed what you produce."
+    },
+    {
+      "phase": "Use the new input",
+      "entry_condition": "You have shipped the finished draft and said the sharp version, and you notice that the new input you collected is still sitting unused",
+      "work": "Take one piece of new input — a course, a different project, an unfamiliar problem — and build one small piece of output from it within the same week. Pair with a colleague who is also building, split the work, and check in at short intervals. The Companion energy shows up as co-production, not solo grinding.",
+      "done_signal": "The range of what you produce widens because the base is growing, and the loop turns on fresh material instead of recycling the same store."
+    },
+    {
+      "phase": "Widen the channel",
+      "entry_condition": "You have used new input in output for several consecutive weeks, and you notice that the Eating God output at the leading weight is running through a wider channel",
+      "work": "Keep the fixed block each week for new input, and keep shipping the finished draft. The Bing Zi luck pillar starting around age 42 brings water into the branch, which makes new input easier to absorb — use that window to deepen the base instead of recycling what you know. The awareness is not 'I should try harder'; it is 'I am waiting for a base that is already sufficient.'",
+      "done_signal": "The loop turns smoothly because the base keeps growing, and the output is no longer a variation of the same template."
+    }
+  ]
+}

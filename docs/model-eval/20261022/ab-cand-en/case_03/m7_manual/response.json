@@ -1,0 +1,33 @@
+{
+  "true_leverage": {
+    "statement": "Your true lever is the handoff between spotting an opening and folding its return into a repeatable arrangement — not the spotting itself, and not the steady-building instinct alone.",
+    "why_not_other_candidates": "The scanning instinct is innate and load-bearing, but it is not the lever because it produces nothing bankable on its own; it feeds the steady-building side, and without that handoff the return leaks away. The steady-building side is the heaviest single force, but it is a parking place, not an engine — it consolidates what the scan brings in and has no way to generate the next opening. The trained and defensive abilities are useful in specific rooms, but they drain energy and do not generate the next opening. The chart has no Companion and no Output, so there is no peer network and no visible production to fall back on; the only engine that can compound is the handoff itself. Keep the scanning habit, but treat the handoff as the lever.",
+    "evidence": "Indirect Wealth appears on two stems and sits alongside Direct Wealth as the joint heaviest family; Direct Wealth is the heaviest single weight and Indirect Wealth is second. Companion and Output are at zero, so there is no other engine to fall back on. The day master is slightly strong, supported by the month pillar, which means the chart can carry the load of both scanning and banking without collapsing into either. The light Direct Resource means the credential is not the main axis, so the handoff must be tested in the market rather than in a committee."
+  },
+  "use_cases": [
+    {
+      "scene": "You spot an opening in a meeting — a client need, a trade, an introduction — and your instinct is to note it and move on.",
+      "exact_action": "Before the meeting ends, write one sentence naming the opening and one sentence naming what a small test would return. Then say aloud: 'I will run a small version of this within two weeks and report what it returns.' Put the two sentences in a place you will see daily. The action is to convert the scan into a named test with a return attached, not to let it sit as a note.",
+      "evidence": "Indirect Wealth on two stems is the scanning force; Direct Wealth is the heaviest single weight and is the banking force. The handoff is lost when the scan is not converted into a bankable test. The zero Companion means no peer will chase the note for you, so the conversion must be yours."
+    },
+    {
+      "scene": "You have been doing a piece of work for years — a craft, a service, a repeated favor — and you have never charged for it because you are waiting for a credential or a formal title.",
+      "exact_action": "This month, pick one piece of that work and put a price on it. Offer it to one person who has already seen you do it. Do not wait for the credential. After the offer, write down what the person said and what they paid or refused. The action is to test whether the market will pay before the paper arrives, and to record the return so it can be folded into a stream.",
+      "evidence": "The Wealth family is the heaviest force, and the light Direct Resource means the credential is not your main axis. The chart has no Output, so the work is not automatically visible; the price is what makes it visible. The handoff requires a return to bank, and a price is the first return."
+    },
+    {
+      "scene": "You are in a meeting where the real decision is being avoided and everyone is waiting for the official chair to speak.",
+      "exact_action": "Name the real decision in one sentence, ask who owns it, and propose the next step. Do not wait for the chair. Then notice whether you moved or avoided. Write down which one you did and what happened next. The action is to use your read of leverage without a title, and to treat the difference between moving and avoiding as data about the handoff.",
+      "evidence": "The Officer-Killings thread is present but not dominant, so you can read leverage without a title. The zero Companion means consensus review drains the loop, so the action must be to move rather than to wait for the room. The handoff is tested in the move, not in the analysis."
+    }
+  ],
+  "next_90_days": {
+    "one_thing": "For the next ninety days, do only one thing: complete the handoff on every opening you spot. That means every scan must end in a named test with a return attached, and every return must be folded into a repeatable arrangement before you start the next scan. Do not start a new opening until the last one is either running without your daily attention or explicitly closed with its return recorded. The discipline is the handoff, not the scan.",
+    "verifiable_completion_signal": "At the end of ninety days, you can show a written list of every opening you spotted, the small test you ran for each, what each test returned, and which returns are now running without your daily attention. The signal is that the list has at least three entries where the return is still running without you, and no entry where a new scan was started before the previous handoff was completed. If the list shows restarts before handoffs, the lever was not amplified.",
+    "evidence": "Direct Wealth is the heaviest single weight and Indirect Wealth is second, so the two strongest forces are the spotting instinct and the banking instinct. The zero Companion and zero Output mean there is no peer network and no visible production to fall back on, so the handoff must be completed by you. The slightly strong day master can carry the discipline of the handoff without collapsing into either scanning or banking."
+  },
+  "falsification_signals": [
+    "If, after ninety days of completing the handoff on every opening, you find that the returns are not running without your daily attention — that every arrangement still depends on your presence — then this analysis is wrong about the handoff being the lever. The chart's Wealth family would then be a scanning force only, and the steady-building side would be a fiction. Throw it out and look for a different lever.",
+    "If, after ninety days, you find that the openings you spot are not testable within two weeks without a credential or a committee, and that every test you run is blocked by formal backing, then this analysis is wrong about the environment being able to support the handoff. The light Direct Resource would then be a structural block rather than a minor axis, and the lever would be unreachable in your current environment. Throw it out and change the environment before returning to the chart."
+  ]
+}

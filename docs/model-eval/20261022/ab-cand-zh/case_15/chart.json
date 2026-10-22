@@ -1,0 +1,184 @@
+{
+  "meta": {
+    "locale": "zh-CN",
+    "gender": "male",
+    "birth_local": "1903-12-01T00:30:00+08:00",
+    "true_solar_time": "1903-12-01T00:40:07",
+    "late_zishi_rule": "day_change_at_23",
+    "solar_term_boundary": "小雪后"
+  },
+  "pillars": {
+    "year": {
+      "gan_zhi": "癸卯",
+      "gan": "癸",
+      "zhi": "卯",
+      "gan_element": "water",
+      "zhi_element": "wood",
+      "hide_gan": [
+        "乙"
+      ],
+      "shishen_gan": "比肩",
+      "shishen_zhi": [
+        "食神"
+      ],
+      "nayin": "金箔金",
+      "dishi": "长生",
+      "xunkong": "辰巳"
+    },
+    "month": {
+      "gan_zhi": "癸亥",
+      "gan": "癸",
+      "zhi": "亥",
+      "gan_element": "water",
+      "zhi_element": "water",
+      "hide_gan": [
+        "壬",
+        "甲"
+      ],
+      "shishen_gan": "比肩",
+      "shishen_zhi": [
+        "劫财",
+        "伤官"
+      ],
+      "nayin": "大海水",
+      "dishi": "帝旺",
+      "xunkong": "子丑"
+    },
+    "day": {
+      "gan_zhi": "癸亥",
+      "gan": "癸",
+      "zhi": "亥",
+      "gan_element": "water",
+      "zhi_element": "water",
+      "hide_gan": [
+        "壬",
+        "甲"
+      ],
+      "shishen_gan": "日主",
+      "shishen_zhi": [
+        "劫财",
+        "伤官"
+      ],
+      "nayin": "大海水",
+      "dishi": "帝旺",
+      "xunkong": "子丑"
+    },
+    "hour": {
+      "gan_zhi": "壬子",
+      "gan": "壬",
+      "zhi": "子",
+      "gan_element": "water",
+      "zhi_element": "water",
+      "hide_gan": [
+        "癸"
+      ],
+      "shishen_gan": "劫财",
+      "shishen_zhi": [
+        "比肩"
+      ],
+      "nayin": "桑柘木",
+      "dishi": "临官",
+      "xunkong": "寅卯"
+    }
+  },
+  "day_master": {
+    "stem": "癸",
+    "element": "水",
+    "strength_score": null,
+    "strength_label": "从格特征"
+  },
+  "ten_gods": {
+    "year_stem": "比肩",
+    "month_stem": "比肩",
+    "hour_stem": "劫财",
+    "hidden": {
+      "year_branch": [
+        "食神"
+      ],
+      "month_branch": [
+        "劫财",
+        "伤官"
+      ],
+      "day_branch": [
+        "劫财",
+        "伤官"
+      ],
+      "hour_branch": [
+        "比肩"
+      ]
+    }
+  },
+  "ten_god_weights": {
+    "比肩": 13,
+    "劫财": 11,
+    "食神": 3,
+    "伤官": 2,
+    "偏财": 0,
+    "正财": 0,
+    "七杀": 0,
+    "正官": 0,
+    "偏印": 0,
+    "正印": 0
+  },
+  "five_elements": {
+    "木": 1,
+    "火": 0,
+    "土": 0,
+    "金": 0,
+    "水": 7
+  },
+  "useful_god_candidates": [],
+  "luck_pillars": [
+    {
+      "start_age": 9,
+      "stem": "壬",
+      "branch": "戌"
+    },
+    {
+      "start_age": 19,
+      "stem": "辛",
+      "branch": "酉"
+    },
+    {
+      "start_age": 29,
+      "stem": "庚",
+      "branch": "申"
+    },
+    {
+      "start_age": 39,
+      "stem": "己",
+      "branch": "未"
+    },
+    {
+      "start_age": 49,
+      "stem": "戊",
+      "branch": "午"
+    },
+    {
+      "start_age": 59,
+      "stem": "丁",
+      "branch": "巳"
+    },
+    {
+      "start_age": 69,
+      "stem": "丙",
+      "branch": "辰"
+    },
+    {
+      "start_age": 79,
+      "stem": "乙",
+      "branch": "卯"
+    },
+    {
+      "start_age": 89,
+      "stem": "甲",
+      "branch": "寅"
+    }
+  ],
+  "current_luck": null,
+  "current_year": {
+    "stem": "甲",
+    "branch": "辰",
+    "ten_god": null
+  }
+}

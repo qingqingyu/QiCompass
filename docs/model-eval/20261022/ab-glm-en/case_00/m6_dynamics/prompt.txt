@@ -1,0 +1,275 @@
+You are a chart-structure analyst. You work like a systems analyst, not a fortune teller.
+
+[Your input]
+The user's BaZi chart has already been computed by a deterministic engine and is provided as JSON. You only interpret structure. Never recompute, correct, or second-guess the stems and branches, Ten Gods, strength, or luck pillars and annual cycles. If a field is missing, say so.
+
+[Your worldview] (must run through all output)
+1. The chart is the chassis; luck is timing. Structure describes tendencies and energy distribution, not a fixed outcome.
+2. The same structure produces completely different results under different environments, resources, and inner beliefs.
+3. Some people are not without talent — they lack the room to let it develop. The ceiling of expression is affected by self-awareness and is not fully determined by the chart.
+4. Your goal is to help the user "see clearly how they run", so they can make more lucid choices — not to make them wait for or accept an outcome.
+
+[Prohibited]
+- No narratives of auspicious or inauspicious fortune, Shen Sha, or the perils of clashes and punishments
+- Do not predict specific events, dates, amounts, or lifespan
+- Do not make assertions about marriage, life and death, or illness; no medical diagnosis; no specific investment recommendations
+- Do not use: destined, fated, unavoidable, doomed, financial ruin, calamity, curse, fatal illness, guaranteed profit, sure win, cure-all
+- No comfort talk or vague encouragement; if there is no basis for a statement, do not write it
+
+[Expression requirements]
+- Every judgment must trace back to a specific input field (a Ten God, a Five Element weight, Day Master strength, a luck pillar), stated in the evidence field
+- Describe abilities with observable behavior, not piles of adjectives
+  ✗ "You are very creative"  ✓ "While others are still confirming requirements, you already have a working version running"
+- Use second person "you", short sentences, no archaic literary tone
+- Output strictly in the requested JSON: no markdown code fences, no preamble or postscript
+
+[Self-check before output] (done internally — never write out the checking process)
+- Check sentence by sentence: any sentence that would also hold true on a different chart must not appear — every sentence must trace back to specific fields of THIS chart
+- No "sometimes you're outgoing, but deep down…" / "you seem calm on the surface, yet…" patterns that apply to anyone; behaviors must carry situation, object, and action
+- No absolute-fate wording: destined / fated / inevitable / doomed / inescapable / absolutely must
+- When quoting a term inside a string value, use Chinese corner brackets 「」 or single quotes — never an unescaped double quote ", which breaks the JSON
+- The output contains only the final, clean JSON: no drafts, no self-check notes, no before/after comparisons, no text outside the JSON
+
+[Evidence citation discipline] (violating any rule means redo)
+- No output string may contain machine field names from the input JSON. ten_god_weights, ten_gods, five_elements, year_stem, hour_branch, day_branch, pillars — none of them may appear anywhere in the JSON you return. Never use a field name as a sentence prefix either:
+  ✗ "ten_god_weights: Companion 9, Direct Wealth 9…"  ✓ "Companion and Direct Wealth are jointly heaviest (9) — month pillar Yi Mao, stem and branch both Companion"
+- Never write raw-data phrasing such as "weight 6", "Eating God = 0", "Earth count 2", "Body: 2". If a figure must be cited, it appears only inside an evidence-style sentence — "Seven Killings is strong (6) — the month branch You holds it". Prose fields (portraits, behaviors, signals, advice) contain no numerals and no equals signs at all.
+
+[English style basis] (applies to every output string)
+- Plain English for a reader who has never heard of BaZi. Full sentences with complete predicates and subject–verb agreement: "The Geng day master is slightly strong, supported by…" — never "Day master Geng slightly strong with…".
+- One metaphor family per chapter: energy as flow (runs through, feeds, drains, carries, blocks). Do not stack loop / chain / bridge / leg / segment / channel imagery in the same chapter.
+- Plain verbs over borrowed jargon: "produces little visible output" rather than "exports little visible output"; "how much load it can carry" rather than "carrying capacity"; "Bing in the year stem acts as Seven Killings to the day master" rather than "sits on the day master".
+
+
+===== Module M6: Structural Dynamics (Advanced) =====
+
+{
+  "meta": {
+    "locale": "zh-CN",
+    "gender": "female",
+    "birth_local": "1985-02-10T10:30:00+08:00",
+    "true_solar_time": "1985-02-10T10:15:27",
+    "late_zishi_rule": "day_change_at_23",
+    "solar_term_boundary": "立春后"
+  },
+  "pillars": {
+    "year": {
+      "gan_zhi": "乙丑",
+      "gan": "乙",
+      "zhi": "丑",
+      "gan_element": "wood",
+      "zhi_element": "earth",
+      "hide_gan": [
+        "己",
+        "癸",
+        "辛"
+      ],
+      "shishen_gan": "正财",
+      "shishen_zhi": [
+        "正印",
+        "伤官",
+        "劫财"
+      ],
+      "nayin": "海中金",
+      "dishi": "墓",
+      "xunkong": "戌亥"
+    },
+    "month": {
+      "gan_zhi": "戊寅",
+      "gan": "戊",
+      "zhi": "寅",
+      "gan_element": "earth",
+      "zhi_element": "wood",
+      "hide_gan": [
+        "甲",
+        "丙",
+        "戊"
+      ],
+      "shishen_gan": "偏印",
+      "shishen_zhi": [
+        "偏财",
+        "七杀",
+        "偏印"
+      ],
+      "nayin": "城头土",
+      "dishi": "绝",
+      "xunkong": "申酉"
+    },
+    "day": {
+      "gan_zhi": "庚辰",
+      "gan": "庚",
+      "zhi": "辰",
+      "gan_element": "metal",
+      "zhi_element": "earth",
+      "hide_gan": [
+        "戊",
+        "乙",
+        "癸"
+      ],
+      "shishen_gan": "日主",
+      "shishen_zhi": [
+        "偏印",
+        "正财",
+        "伤官"
+      ],
+      "nayin": "白蜡金",
+      "dishi": "养",
+      "xunkong": "申酉"
+    },
+    "hour": {
+      "gan_zhi": "辛巳",
+      "gan": "辛",
+      "zhi": "巳",
+      "gan_element": "metal",
+      "zhi_element": "fire",
+      "hide_gan": [
+        "丙",
+        "庚",
+        "戊"
+      ],
+      "shishen_gan": "劫财",
+      "shishen_zhi": [
+        "七杀",
+        "比肩",
+        "偏印"
+      ],
+      "nayin": "白蜡金",
+      "dishi": "长生",
+      "xunkong": "申酉"
+    }
+  },
+  "day_master": {
+    "stem": "庚",
+    "element": "金",
+    "strength_score": null,
+    "strength_label": "中和"
+  },
+  "ten_gods": {
+    "year_stem": "正财",
+    "month_stem": "偏印",
+    "hour_stem": "劫财",
+    "hidden": {
+      "year_branch": [
+        "正印",
+        "伤官",
+        "劫财"
+      ],
+      "month_branch": [
+        "偏财",
+        "七杀",
+        "偏印"
+      ],
+      "day_branch": [
+        "偏印",
+        "正财",
+        "伤官"
+      ],
+      "hour_branch": [
+        "七杀",
+        "比肩",
+        "偏印"
+      ]
+    }
+  },
+  "ten_god_weights": {
+    "比肩": 1,
+    "劫财": 6,
+    "食神": 0,
+    "伤官": 2,
+    "偏财": 3,
+    "正财": 6,
+    "七杀": 4,
+    "正官": 0,
+    "偏印": 10,
+    "正印": 3
+  },
+  "five_elements": {
+    "木": 2,
+    "火": 1,
+    "土": 3,
+    "金": 2,
+    "水": 0
+  },
+  "useful_god_candidates": [
+    "金",
+    "土"
+  ],
+  "luck_pillars": [
+    {
+      "start_age": 8,
+      "stem": "己",
+      "branch": "卯"
+    },
+    {
+      "start_age": 18,
+      "stem": "庚",
+      "branch": "辰"
+    },
+    {
+      "start_age": 28,
+      "stem": "辛",
+      "branch": "巳"
+    },
+    {
+      "start_age": 38,
+      "stem": "壬",
+      "branch": "午"
+    },
+    {
+      "start_age": 48,
+      "stem": "癸",
+      "branch": "未"
+    },
+    {
+      "start_age": 58,
+      "stem": "甲",
+      "branch": "申"
+    },
+    {
+      "start_age": 68,
+      "stem": "乙",
+      "branch": "酉"
+    },
+    {
+      "start_age": 78,
+      "stem": "丙",
+      "branch": "戌"
+    },
+    {
+      "start_age": 88,
+      "stem": "丁",
+      "branch": "亥"
+    }
+  ],
+  "current_luck": {
+    "start_age": 38,
+    "stem": "壬",
+    "branch": "午",
+    "ten_god": null
+  },
+  "current_year": {
+    "stem": "甲",
+    "branch": "辰",
+    "ten_god": null
+  }
+}
+
+Structure: Converts pressure into private mastery, defends earned ground against peers, shows little of what she knows.　Loop: {"driver":"Day Master Geng metal is balanced (中和) and favors metal and earth, so the heavy Indirect Resource (10) feeds rather than floods the Day Master; the loop runs Resource-heavy with Output nearly dry — Eating God zero, Hurting Officer two, and the visible eight characters contain no water.","evidence":"Officer-Killings pressure (Seven Killings 4, hidden in Yin and Si) feeds Indirect Resource (10), which supports the balanced Geng Day Master; the day master sits on Chen earth and the hour stem Xin metal plus hour branch hidden Geng metal add Companion-side support, matching the metal-and-earth favorable reading. Output is nearly absent — Eating God 0, Hurting Officer 2, and no water among the eight visible characters — so the loop banks knowledge without expressing it. Age-38 stretch: Ren-Wu (Ren is water, the element this chart does not show).","flow":"A hard demand lands on you, and instead of pushing back outward you withdraw and study it until you understand it better than the person who set the demand. That private mastery becomes your standing, and your standing is what protects the steady income and savings you keep building. But the peers around you keep contesting the same resources, so the pressure never fully stops, and the loop starts again.","from":"Seven Killings","headline":"Pressure → study alone → hold ground → face more pressure.","leak":"The cost is that almost nothing you learn gets shown: you hold finished understanding inside, so colleagues see competence only when a crisis forces it out, and the credit often goes to whoever spoke first.\nIn the ten years starting around age 38 (the Ren-Wu pillar), water runs stronger and turning private study into visible work, writing, or teaching takes less effort to sustain than before.\nFor now, attach one visible artifact to every deep dive — a short document, a demo, a talk — so the mastery you bank in private has your name on it.","to":"Direct Wealth"}
+Talents: [{"behavior":"When a topic catches you — a new regulation, a technical standard, a client's odd requirement — you open documents on your own at night, trace the source rules yourself, and keep going past the point anyone asked for. In meetings you rarely speak first, but when someone finally asks you directly, the answer comes with the original clause numbers or the underlying mechanism attached. You build personal notes and reference files nobody else knows exist, and you can pull the exact detail months later while others search their inboxes. The studying itself restores you: a quiet evening with source material leaves you more settled than a full team celebration does.","energy":"gain","evidence":"Indirect Resource is the single heaviest force in this chart (ten) — the month stem Wu earth carries it openly, and it also hides in the month branch Yin, the day branch Chen, and the hour branch Si. The balanced Geng day master favors metal and earth, so this much resource feeds rather than floods you, which is why using it feels like recharging instead of depletion. Output is nearly absent — Eating God sits at zero and Hurting Officer at two — so the learning goes in and stays in, matching the pattern of deep intake with little outward display.","name":"Private deep-dive research"},{"behavior":"You keep meticulous track of what comes in and what goes out. Salary lands, a fixed portion moves to savings or a deposit before you spend anything, and you can state your account position without opening the app. At work you take the assignments with traceable results — a system you maintain, a client you keep renewing — rather than the flashy ones. When a colleague proposes splitting a project, your first instinct is to define exactly which part is yours and what happens if they underdeliver. Over years this produces visible ground: a stable position, reserves, and a reputation for never dropping what you took on.","energy":"gain","evidence":"Direct Wealth is joint-heaviest at six — the year stem Yi wood carries it openly, and it also hides in the day branch Chen — sitting beside Rob Wealth, also six, from the hour stem Xin metal and the year branch Chou. Wealth and peer-contest running together at the same weight describes someone who builds steadily precisely because others are reaching for the same resources. With the balanced day master favoring metal and earth, holding earned ground costs you little energy; it is how the chart naturally runs.","name":"Steady accumulation of assets and ground"}]　Defensive: [{"":"","actual_cost":"The stillness is real but it is a sealed lid. Because Output is nearly dry — Eating God at zero, Hurting Officer at two, and no water anywhere in the visible eight characters — pressure has no outward exit. Each hard demand goes in, gets studied privately, and the finished understanding stays inside, so colleagues see your competence only when a crisis forces it out, and the credit often goes to whoever spoke first. Meanwhile Seven Killings (hidden in Yin and Si) keeps the demand level high, and the visible eight characters contain no water to soften or carry expression outward. The long-term cost is accumulated unseen work: you carry the full load silently, visibility stays low, and exhaustion shows up as withdrawal rather than complaint — you go quieter and study more instead of asking for relief.","evidence":"Seven Killings at four feeds Indirect Resource at ten, and Output (Hurting Officer two, Eating God zero) cannot drain any of it into visible form; the water element is entirely absent from the visible pillars. This is the structural basis for banking mastery without showing it. The current pillar from age thirty-eight brings Ren water — the one element the visible chart lacks — so the seal loosens slightly: turning private study into writing, demos, or teaching now takes less sustained effort than it did in the metal-heavy pillars before it.","looks_like":"Unshakeable calm and total self-sufficiency — the colleague who never asks for help, never shows stress, and always has the answer prepared alone."}]　High/low-spec threshold: {"awareness":{"key_moment":"The switch point usually arrives as a specific repeatable moment: you watch someone present a conclusion you reached weeks ago, correctly and confidently, and feel the gap between what you hold and what is credited. The realization worth having is not 'I should speak more' — it is structural: 'this chart's leak is the exit, not the intake.' Output is nearly absent — the eating-god channel empty, Hurting Officer barely present, and no water among the visible characters — so nothing flows outward unless you deliberately build an artifact. Nobody will discover your depth by accident.","what_to_notice":"Notice the physical moment after finishing a deep dive — the settled, recharged feeling is real, Indirect Resource genuinely restores you. Then notice what happens next: by default, nothing. The understanding is banked and the day moves on. That gap — recharged but unexpressed — is exactly where the loop loses energy, and it is also the exact spot where a two-hour writeup changes the entire run. The water pillar from age thirty-eight makes this the lowest-effort window in decades to install the habit."},"belief":{"ceiling_effect":"The belief caps the return on everything you know. Your mastery is real and deep — the intake side runs at full power — but because the output channel is nearly dry, the ceiling is set by whoever else speaks, every time. Colleagues with half your understanding get the visible role; the balanced day master and strong Direct Wealth keep you financially and positionally stable, which makes the cap invisible — nothing is wrong, everything is just smaller than the engine underneath it. The structure can carry much more load than the belief lets it show.","limiting_belief":"'If the work is right, it will be seen on its own — and showing it myself is unseemly.' A close second: 'Asking for help or relief means the calm was fake.'","origin":"Both beliefs grow directly out of the defensive stance this chart builds. Indirect Resource at ten makes self-sufficiency genuinely effective — you can solve almost anything alone — and the near-empty Output channel means the act of displaying work was never part of the loop, so it feels foreign and slightly shameful rather than merely unfamiliar. Seven Killings' constant pressure, hidden in Yin and Si, trained you early that staying still and absorbing is the safe response; from inside that stance, self-presentation feels like the risk, not the protection."},"environment":{"enables":"An environment that opens this structure rewards verified depth over loud speed: places where documents, audit trails, standards, and traceable results decide who is trusted. In such settings your habit of tracing rules to the source becomes an advantage, and the artifact you produce after each dive is the currency — reviewers, regulators, and long-cycle clients all pay for exactly what you build. The age-thirty-eight Ren-Wu pillar brings water into the run, which is the element the visible chart entirely lacks; environments with a writing, teaching, or demonstrating component let that new flow carry your banked knowledge outward with less friction than the metal-heavy pillars before it.","suppresses":"Environments that suppress this structure are the ones where the fastest voice wins and visibility is allocated by self-promotion contests among peers. Rob Wealth sits as heavy as Direct Wealth in this chart, so a workplace where colleagues openly race for the same credit converts your steady accumulation into pure defense — you spend energy guarding ground instead of building it. Equally suppressing: an environment of constant interruption and shallow multitasking, because Indirect Resource is the heaviest force here — it feeds you through long, solitary contact with source material, and fragmented days starve your main channel of recharge while letting Seven Killings' demands pile up undischarged."}}
+
+Explain my chart through "structural dynamics":
+
+- What is my chart's energy loop path? Lay out the full chain, marking the gain segments and the loss segments
+- Where is my leverage? (one unit of input moves how much output, and why)
+- Where are my fragile points? (under what conditions this structure grinds itself down, and by what mechanism)
+- What is my upgrade path? In phases, each phase with entry conditions and completion signals
+
+Do not use metaphors in place of mechanisms. Every paragraph must make clear "what causes what".
+
+Output JSON:
+{
+  "energy_path": [{ "stage": "", "gain_or_loss": "gain|loss", "mechanism": "" }],
+  "leverage": { "point": "", "input": "", "output": "", "why": "" },
+  "vulnerability": { "point": "", "condition": "", "mechanism": "", "self_check": "" },
+  "upgrade_path": [{ "phase": "", "entry_condition": "", "work": "", "done_signal": "" }]
+}

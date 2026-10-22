@@ -1,0 +1,29 @@
+{
+  "main_axis": {
+    "headline": "You move forward by quietly mastering things alone, then defending what you have earned.",
+    "body": "The lead force is Indirect Resource — offbeat knowledge and researching alone; when a topic catches you, you dig past what anyone asked for. Close behind, and equally heavy, run Rob Wealth — competition among peers scrambling for resources — and Direct Wealth — steady income and savings built bit by bit; you hold your ground while others contest it. Underneath sits Seven Killings — external pressure and hard demands — which supplies the pressure that keeps the studying alive.",
+    "dominant": "Indirect Resource",
+    "secondary": "Rob Wealth, Direct Wealth (jointly heaviest)",
+    "latent": "Seven Killings, Indirect Wealth, Direct Resource, Hurting Officer",
+    "evidence": "Indirect Resource is heaviest (10) — the month stem Wu earth is Indirect Resource, and Indirect Resource also hides in the month branch Yin, the day branch Chen, and the hour branch Si. Rob Wealth (6) comes from the hour stem Xin metal plus its hidden stem in the year branch Chou. Direct Wealth (6) is the year stem Yi wood plus hidden stems in the day branch Chen. Seven Killings (4) hides in Yin and Si; Indirect Wealth (3) hides in Yin; Direct Resource (3) hides in Chou and Chen; Hurting Officer (2) hides in Chou and Chen."
+  },
+  "core_loop": {
+    "headline": "Pressure → study alone → hold ground → face more pressure.",
+    "from": "Seven Killings",
+    "to": "Direct Wealth",
+    "flow": "A hard demand lands on you, and instead of pushing back outward you withdraw and study it until you understand it better than the person who set the demand. That private mastery becomes your standing, and your standing is what protects the steady income and savings you keep building. But the peers around you keep contesting the same resources, so the pressure never fully stops, and the loop starts again.",
+    "driver": "Day Master Geng metal is balanced (中和) and favors metal and earth, so the heavy Indirect Resource (10) feeds rather than floods the Day Master; the loop runs Resource-heavy with Output nearly dry — Eating God zero, Hurting Officer two, and the visible eight characters contain no water.",
+    "leak": "The cost is that almost nothing you learn gets shown: you hold finished understanding inside, so colleagues see competence only when a crisis forces it out, and the credit often goes to whoever spoke first.\nIn the ten years starting around age 38 (the Ren-Wu pillar), water runs stronger and turning private study into visible work, writing, or teaching takes less effort to sustain than before.\nFor now, attach one visible artifact to every deep dive — a short document, a demo, a talk — so the mastery you bank in private has your name on it.",
+    "evidence": "Officer-Killings pressure (Seven Killings 4, hidden in Yin and Si) feeds Indirect Resource (10), which supports the balanced Geng Day Master; the day master sits on Chen earth and the hour stem Xin metal plus hour branch hidden Geng metal add Companion-side support, matching the metal-and-earth favorable reading. Output is nearly absent — Eating God 0, Hurting Officer 2, and no water among the eight visible characters — so the loop banks knowledge without expressing it. Age-38 stretch: Ren-Wu (Ren is water, the element this chart does not show)."
+  },
+  "structure_type": {
+    "name": "the quiet specialist who holds the fort",
+    "one_line": "You run on depth, not display: pressure turns into private mastery, mastery protects standing and steady income, and you win by outlasting contesting peers rather than out-talking them."
+  },
+  "capability_source": {
+    "headline": "Strongest when a hard problem must be cracked alone and the result defended; weakest when the job is to perform, present, and sell ideas in front of people.",
+    "text": "Your strength comes from the pressure-to-study reflex: when a system breaks or a topic is genuinely hard, you disappear into it and come back knowing it cold. In a concrete scene — a Friday afternoon when a vendor contract lands with terms nobody on the team can parse — you are the one who reads every clause that weekend and walks in Monday with the answer nobody else has. Peers contesting resources sharpen rather than unsettle you, because your grasp of details is deeper than theirs.",
+    "evidence": "Strength: Indirect Resource heaviest (10) plus Seven Killings (4, hidden in Yin and Si) — pressure converts into solo research. Rob Wealth (6, hour stem Xin plus year branch hidden stem) supplies the contested-resource environment. Weakness of display: Output family nearly empty — Eating God 0, Hurting Officer 2, no water in the eight visible characters (wood 2, fire 1, earth 3, metal 2, water 0)."
+  },
+  "structure_fingerprint": "Converts pressure into private mastery, defends earned ground against peers, shows little of what she knows."
+}

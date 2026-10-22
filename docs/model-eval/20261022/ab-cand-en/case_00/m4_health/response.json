@@ -1,0 +1,87 @@
+{
+  "battery_type": {
+    "type": "climb",
+    "evidence": "The Day Master is balanced, with Indirect Resource as the heaviest force (10) and Direct Wealth and Rob Wealth tied second (6 each). Metal and earth are the favorable elements, so the chart does not run on bursts of raw output — it runs on accumulated research that is converted into steady income and then defended. The current luck pillar brings a strong output-and-status pressure (壬午), which raises the baseline load without changing the underlying charge pattern.",
+    "charge_pattern": "You recharge through private, self-directed research — the kind where you open a file and work a question for an evening without anyone assigning it. That is the Indirect Resource channel, the heaviest force in your chart, and it feeds the core because metal and earth are favorable. A second charge channel is completing a small, repeatable conversion of what you learned into something you can deliver again — a template, a checklist, a short engagement. Finishing one of those closes the loop and returns energy rather than spending it.",
+    "drain_pattern": "You drain when the research phase is interrupted before it produces a usable output, and when you are pulled into defending ground against peers without having added a new layer first. Rob Wealth is tied with Direct Wealth at the second-heaviest weight, so peer competition is a structural step in your loop — but it drains you when it arrives before the research has been converted. The current luck pillar adds output and status pressure on top of that, which means the drain is cumulative across the week rather than a single event."
+  },
+  "imbalance_risks": [
+    {
+      "system": "sleep",
+      "trigger": "More than three consecutive days where you work a research question late into the evening and then move straight into peer-facing defense the next morning, without a completed conversion in between.",
+      "early_sign": "You lie down but the question keeps running — you are still tracing sources or rehearsing a correction you did not get to say. You wake at the same hour regardless of when you went to bed."
+    },
+    {
+      "system": "anxiety",
+      "trigger": "A peer starts offering something close to what you built, and you respond by going back to the source to add a layer before you have closed the previous conversion.",
+      "early_sign": "You re-check details only you have checked, and you notice you are preparing a quiet correction for a meeting rather than a new piece of work. The mental ledger of what paid and what only interested you starts running in the background."
+    },
+    {
+      "system": "digestion",
+      "trigger": "A week where the research-to-income loop is all intake and no output — you keep reading and testing but deliver nothing, and meals get fitted around the file instead of the other way around.",
+      "early_sign": "You eat at the desk without noticing, and you feel heavy rather than fed. The favorable earth element in your chart is the digestive analogy here, and it runs best when the loop closes."
+    }
+  ],
+  "recovery_levers": [
+    {
+      "action": "Close one small conversion before you open the next research question — finish the template, the checklist, or the short engagement you already have in progress, and only then start the new file.",
+      "why_it_works_for_you": "Direct Wealth is tied with Rob Wealth at the second-heaviest weight, and the Day Master is balanced, so the conversion step is the natural middle of your loop. Finishing it returns energy because it is the step your structure is built to complete, not an extra task.",
+      "cost": "low"
+    },
+    {
+      "action": "Schedule one evening a week with no peer-facing defense — no meetings, no corrections, no checking what a competitor is offering. Use it only for private research or for nothing at all.",
+      "why_it_works_for_you": "Indirect Resource is the single heaviest force and appears on the month stem and in hidden stems of the month, day, and hour branches. Private research is your primary charge channel, and removing the Rob Wealth defense from one evening lets that channel run without the drain that follows it.",
+      "cost": "low"
+    },
+    {
+      "action": "When you notice the question still running at bedtime, write the next concrete step on paper and close the file — do not try to finish the thought in your head.",
+      "why_it_works_for_you": "Your drain pattern is an interrupted research phase, and the sleep risk is triggered by carrying an unfinished question into the next day. Writing the next step gives the loop a stopping point without abandoning the research, which suits a chart where Indirect Resource is the heaviest force.",
+      "cost": "low"
+    }
+  ],
+  "reset_7day": [
+    {
+      "day": 1,
+      "focus": "Close an open conversion",
+      "action": "Pick the smallest unfinished conversion you already have — a template, a checklist, a short engagement — and finish it before opening any new research file. Do not start anything new today."
+    },
+    {
+      "day": 2,
+      "focus": "Protect one private research block",
+      "action": "Set aside one uninterrupted block for private research with no peer-facing messages. Keep it to a fixed length and stop when the time is up, even if the question is not resolved."
+    },
+    {
+      "day": 3,
+      "focus": "Write the next step before bed",
+      "action": "At the end of the research block, write the next concrete step on paper and close the file. Do not carry the question into the evening."
+    },
+    {
+      "day": 4,
+      "focus": "No defense day",
+      "action": "Take one full evening with no peer-facing defense — no meetings, no corrections, no checking what a competitor is offering. Use it for private research or for rest."
+    },
+    {
+      "day": 5,
+      "focus": "Close a second conversion",
+      "action": "Finish one more small conversion from your existing work. Keep the scope modest — the point is to close the loop, not to expand it."
+    },
+    {
+      "day": 6,
+      "focus": "Eat away from the file",
+      "action": "Take your main meals away from your desk, with the file closed. Notice whether you feel fed rather than heavy."
+    },
+    {
+      "day": 7,
+      "focus": "Review the ledger",
+      "action": "Look back at what you closed this week and what only interested you. Write down which conversions actually paid, and use that to choose what to research next week."
+    }
+  ],
+  "weekly_maintenance": [
+    "Keep one fixed private research block per week with no peer-facing messages, and stop at the end of the block even if the question is unresolved.",
+    "Close at least one small conversion each week before opening a new research question.",
+    "Keep one evening per week free of peer-facing defense.",
+    "Write the next concrete step on paper before bed whenever the question is still running.",
+    "Take main meals away from the file at least once a day."
+  ],
+  "medical_note": "You describe poor sleep quality and long-term fatigue on workdays. This plan only addresses rest rhythm and intensity management. If the sleep problem or the fatigue persists or worsens, see a doctor — do not use this plan as a substitute for medical assessment."
+}

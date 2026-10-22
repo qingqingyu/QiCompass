@@ -1,0 +1,29 @@
+{
+  "main_axis": {
+    "headline": "You are pushed by the drive to turn everything you touch into something that pays.",
+    "body": "The lead force is Direct Wealth — steady income and savings built bit by bit; it is the heaviest single weight in the chart. Right behind it sits Indirect Wealth — a nose for opportunities and mobilizing resources — so both the steady and the opportunistic money instincts run at once. Latent underneath is Direct Resource — systems, credentials, and backing — present but light, meaning you rarely wait for formal permission before acting.",
+    "dominant": "Direct Wealth, Indirect Wealth (jointly heaviest)",
+    "secondary": "Direct Resource",
+    "latent": "Seven Killings, Direct Officer",
+    "evidence": "Wealth family dominates: Direct Wealth 12 and Indirect Wealth 10 are jointly heaviest — Direct Wealth shows on the month stem and in the hidden stems of the year, day, and hour branches; Indirect Wealth shows on the year and hour stems. Direct Resource 4 comes from the hidden stem of the month branch and one hidden stem in the day branch. Seven Killings 3 sits in the day branch hidden stem; Direct Officer 2 sits in the year and hour branch hidden stems."
+  },
+  "core_loop": {
+    "headline": "Spot an opening → move resources toward it → collect the return → spot the next opening.",
+    "from": "Indirect Wealth",
+    "to": "Direct Wealth",
+    "flow": "You notice an angle before others do — a contact, a gap, a way to move something from one place to another — and you act on it quickly. The return from that move gets folded into steady, bankable results: savings, a reliable stream, something that holds. Then the same scanning habit restarts, looking for the next opening rather than sitting on what you have.",
+    "driver": "The Day Master is labeled as having special-pattern characteristics, and the engine withholds favorable-element conclusions; the Wealth family carries the overwhelming share of weight while Companion and Output are at zero, so the loop is driven almost entirely by money instinct with no built-in counterweight from peers or creative output.",
+    "leak": "The cost is that nothing in the chart slows the scanning habit down: you keep opening new fronts faster than you consolidate the ones already running, and the steady base you build stays thinner than the opportunities you chase.\nIn the ten years starting around age 43 (the Ren Chen pillar), water and earth both run stronger, giving the steady-building side more room to hold; in the ten years starting around age 53 (the Xin Mao pillar), metal and wood arrive and the resource-and-output side gets its first real footing.\nFor now, before starting the next opening, write down what the last one actually returned and whether it is still running without you.",
+    "evidence": "Wealth family totals 22 (Direct Wealth 12, Indirect Wealth 10) against Companion 0, Output 0, Officer-Killings 5, Resource 4. Day Master strength is labeled special-pattern with no score and no favorable-element candidates. Luck pillars: age-43 stretch is Ren Chen (water stem, earth branch); age-53 stretch is Xin Mao (metal stem, wood branch)."
+  },
+  "structure_type": {
+    "name": "the opportunity-to-savings operator",
+    "one_line": "You run on spotting openings and converting them into something that holds, and you keep that scanning habit running even when the base is not yet secure."
+  },
+  "capability_source": {
+    "headline": "Strongest when a loose opportunity needs someone to move resources toward it; weakest when the task requires sitting still and building a system from the ground up.",
+    "text": "Your strength comes from the Wealth family running at full weight with no Companion or Output drag: you read a situation in terms of what can be moved, who can be moved, and what comes back. In a room where a deal is half-formed and nobody has named the terms, you are the one who says who does what and what each side gets — that is the Indirect Wealth instinct firing. The steady Direct Wealth side then lets you bank the result rather than spend it.",
+    "evidence": "Direct Wealth 12 and Indirect Wealth 10 jointly heaviest; Companion 0 and Output 0; Direct Resource 4 and Seven Killings 3 are the only non-Wealth weights above zero."
+  },
+  "structure_fingerprint": "Scans for openings, moves resources toward them, banks the return, and restarts the scan before the base is secure."
+}

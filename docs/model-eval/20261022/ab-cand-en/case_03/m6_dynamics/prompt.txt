@@ -1,0 +1,255 @@
+You are a chart-structure analyst. You work like a systems analyst, not a fortune teller.
+
+[Your input]
+The user's BaZi chart has already been computed by a deterministic engine and is provided as JSON. You only interpret structure. Never recompute, correct, or second-guess the stems and branches, Ten Gods, strength, or luck pillars and annual cycles. If a field is missing, say so.
+
+[Your worldview] (must run through all output)
+1. The chart is the chassis; luck is timing. Structure describes tendencies and energy distribution, not a fixed outcome.
+2. The same structure produces completely different results under different environments, resources, and inner beliefs.
+3. Some people are not without talent — they lack the room to let it develop. The ceiling of expression is affected by self-awareness and is not fully determined by the chart.
+4. Your goal is to help the user "see clearly how they run", so they can make more lucid choices — not to make them wait for or accept an outcome.
+
+[Prohibited]
+- No narratives of auspicious or inauspicious fortune, Shen Sha, or the perils of clashes and punishments
+- Do not predict specific events, dates, amounts, or lifespan
+- Do not make assertions about marriage, life and death, or illness; no medical diagnosis; no specific investment recommendations
+- Do not use: destined, fated, unavoidable, doomed, financial ruin, calamity, curse, fatal illness, guaranteed profit, sure win, cure-all
+- No comfort talk or vague encouragement; if there is no basis for a statement, do not write it
+
+[Expression requirements]
+- Every judgment must trace back to a specific input field (a Ten God, a Five Element weight, Day Master strength, a luck pillar), stated in the evidence field
+- Describe abilities with observable behavior, not piles of adjectives
+  ✗ "You are very creative"  ✓ "While others are still confirming requirements, you already have a working version running"
+- Use second person "you", short sentences, no archaic literary tone
+- Output strictly in the requested JSON: no markdown code fences, no preamble or postscript
+
+[Self-check before output] (done internally — never write out the checking process)
+- Check sentence by sentence: any sentence that would also hold true on a different chart must not appear — every sentence must trace back to specific fields of THIS chart
+- No "sometimes you're outgoing, but deep down…" / "you seem calm on the surface, yet…" patterns that apply to anyone; behaviors must carry situation, object, and action
+- No absolute-fate wording: destined / fated / inevitable / doomed / inescapable / absolutely must
+- When quoting a term inside a string value, use Chinese corner brackets 「」 or single quotes — never an unescaped double quote ", which breaks the JSON
+- The output contains only the final, clean JSON: no drafts, no self-check notes, no before/after comparisons, no text outside the JSON
+
+[Evidence citation discipline] (violating any rule means redo)
+- No output string may contain machine field names from the input JSON. ten_god_weights, ten_gods, five_elements, year_stem, hour_branch, day_branch, pillars — none of them may appear anywhere in the JSON you return. Never use a field name as a sentence prefix either:
+  ✗ "ten_god_weights: Companion 9, Direct Wealth 9…"  ✓ "Companion and Direct Wealth are jointly heaviest (9) — month pillar Yi Mao, stem and branch both Companion"
+- Never write raw-data phrasing such as "weight 6", "Eating God = 0", "Earth count 2", "Body: 2". If a figure must be cited, it appears only inside an evidence-style sentence — "Seven Killings is strong (6) — the month branch You holds it". Prose fields (portraits, behaviors, signals, advice) contain no numerals and no equals signs at all.
+
+[English style basis] (applies to every output string)
+- Plain English for a reader who has never heard of BaZi. Full sentences with complete predicates and subject–verb agreement: "The Geng day master is slightly strong, supported by…" — never "Day master Geng slightly strong with…".
+- One metaphor family per chapter: energy as flow (runs through, feeds, drains, carries, blocks). Do not stack loop / chain / bridge / leg / segment / channel imagery in the same chapter.
+- Plain verbs over borrowed jargon: "produces little visible output" rather than "exports little visible output"; "how much load it can carry" rather than "carrying capacity"; "Bing in the year stem acts as Seven Killings to the day master" rather than "sits on the day master".
+
+
+===== Module M6: Structural Dynamics (Advanced) =====
+
+{
+  "meta": {
+    "locale": "zh-CN",
+    "gender": "female",
+    "birth_local": "1906-09-15T12:30:00+08:00",
+    "true_solar_time": "1906-09-15T12:35:29",
+    "late_zishi_rule": "day_change_at_23",
+    "solar_term_boundary": "白露后"
+  },
+  "pillars": {
+    "year": {
+      "gan_zhi": "丙午",
+      "gan": "丙",
+      "zhi": "午",
+      "gan_element": "fire",
+      "zhi_element": "fire",
+      "hide_gan": [
+        "丁",
+        "己"
+      ],
+      "shishen_gan": "偏财",
+      "shishen_zhi": [
+        "正财",
+        "正官"
+      ],
+      "nayin": "天河水",
+      "dishi": "胎",
+      "xunkong": "寅卯"
+    },
+    "month": {
+      "gan_zhi": "丁酉",
+      "gan": "丁",
+      "zhi": "酉",
+      "gan_element": "fire",
+      "zhi_element": "metal",
+      "hide_gan": [
+        "辛"
+      ],
+      "shishen_gan": "正财",
+      "shishen_zhi": [
+        "正印"
+      ],
+      "nayin": "山下火",
+      "dishi": "沐浴",
+      "xunkong": "辰巳"
+    },
+    "day": {
+      "gan_zhi": "壬戌",
+      "gan": "壬",
+      "zhi": "戌",
+      "gan_element": "water",
+      "zhi_element": "earth",
+      "hide_gan": [
+        "戊",
+        "辛",
+        "丁"
+      ],
+      "shishen_gan": "日主",
+      "shishen_zhi": [
+        "七杀",
+        "正印",
+        "正财"
+      ],
+      "nayin": "大海水",
+      "dishi": "冠带",
+      "xunkong": "子丑"
+    },
+    "hour": {
+      "gan_zhi": "丙午",
+      "gan": "丙",
+      "zhi": "午",
+      "gan_element": "fire",
+      "zhi_element": "fire",
+      "hide_gan": [
+        "丁",
+        "己"
+      ],
+      "shishen_gan": "偏财",
+      "shishen_zhi": [
+        "正财",
+        "正官"
+      ],
+      "nayin": "天河水",
+      "dishi": "胎",
+      "xunkong": "寅卯"
+    }
+  },
+  "day_master": {
+    "stem": "壬",
+    "element": "水",
+    "strength_score": null,
+    "strength_label": "从格特征"
+  },
+  "ten_gods": {
+    "year_stem": "偏财",
+    "month_stem": "正财",
+    "hour_stem": "偏财",
+    "hidden": {
+      "year_branch": [
+        "正财",
+        "正官"
+      ],
+      "month_branch": [
+        "正印"
+      ],
+      "day_branch": [
+        "七杀",
+        "正印",
+        "正财"
+      ],
+      "hour_branch": [
+        "正财",
+        "正官"
+      ]
+    }
+  },
+  "ten_god_weights": {
+    "比肩": 0,
+    "劫财": 0,
+    "食神": 0,
+    "伤官": 0,
+    "偏财": 10,
+    "正财": 12,
+    "七杀": 3,
+    "正官": 2,
+    "偏印": 0,
+    "正印": 4
+  },
+  "five_elements": {
+    "木": 0,
+    "火": 5,
+    "土": 1,
+    "金": 1,
+    "水": 1
+  },
+  "useful_god_candidates": [],
+  "luck_pillars": [
+    {
+      "start_age": 3,
+      "stem": "丙",
+      "branch": "申"
+    },
+    {
+      "start_age": 13,
+      "stem": "乙",
+      "branch": "未"
+    },
+    {
+      "start_age": 23,
+      "stem": "甲",
+      "branch": "午"
+    },
+    {
+      "start_age": 33,
+      "stem": "癸",
+      "branch": "巳"
+    },
+    {
+      "start_age": 43,
+      "stem": "壬",
+      "branch": "辰"
+    },
+    {
+      "start_age": 53,
+      "stem": "辛",
+      "branch": "卯"
+    },
+    {
+      "start_age": 63,
+      "stem": "庚",
+      "branch": "寅"
+    },
+    {
+      "start_age": 73,
+      "stem": "己",
+      "branch": "丑"
+    },
+    {
+      "start_age": 83,
+      "stem": "戊",
+      "branch": "子"
+    }
+  ],
+  "current_luck": null,
+  "current_year": {
+    "stem": "甲",
+    "branch": "辰",
+    "ten_god": null
+  }
+}
+
+Structure: Scans for openings, moves resources toward them, banks the return, and restarts the scan before the base is secure.　Loop: {"driver":"The Day Master is labeled as having special-pattern characteristics, and the engine withholds favorable-element conclusions; the Wealth family carries the overwhelming share of weight while Companion and Output are at zero, so the loop is driven almost entirely by money instinct with no built-in counterweight from peers or creative output.","evidence":"Wealth family totals 22 (Direct Wealth 12, Indirect Wealth 10) against Companion 0, Output 0, Officer-Killings 5, Resource 4. Day Master strength is labeled special-pattern with no score and no favorable-element candidates. Luck pillars: age-43 stretch is Ren Chen (water stem, earth branch); age-53 stretch is Xin Mao (metal stem, wood branch).","flow":"You notice an angle before others do — a contact, a gap, a way to move something from one place to another — and you act on it quickly. The return from that move gets folded into steady, bankable results: savings, a reliable stream, something that holds. Then the same scanning habit restarts, looking for the next opening rather than sitting on what you have.","from":"Indirect Wealth","headline":"Spot an opening → move resources toward it → collect the return → spot the next opening.","leak":"The cost is that nothing in the chart slows the scanning habit down: you keep opening new fronts faster than you consolidate the ones already running, and the steady base you build stays thinner than the opportunities you chase.\nIn the ten years starting around age 43 (the Ren Chen pillar), water and earth both run stronger, giving the steady-building side more room to hold; in the ten years starting around age 53 (the Xin Mao pillar), metal and wood arrive and the resource-and-output side gets its first real footing.\nFor now, before starting the next opening, write down what the last one actually returned and whether it is still running without you.","to":"Direct Wealth"}
+Talents: [{"behavior":"You walk into a room, a market, or a conversation and within minutes you have spotted the gap: a supplier who is underpricing, a contact who needs exactly what someone else is discarding, a service nobody is bundling. You do not wait for a formal invitation. You make the introduction, propose the trade, or move the money before the window closes. When others are still drafting a plan, you have already tested a small version and seen whether it returns anything. The scanning does not feel like work; it feels like noticing.","energy":"gain","evidence":"Indirect Wealth is the second-heaviest force in the chart, appearing on both the year stem and the hour stem, and it sits alongside Direct Wealth as the joint heaviest family. The Day Master is labeled as having special-pattern characteristics with no favorable-element candidates, and Companion and Output are both at zero, so the chart has no built-in counterweight to slow the opportunistic instinct down. The month branch holds Direct Resource, but it is light, meaning you rarely wait for credentials before acting.","name":"Opportunity scanning and rapid resource movement"},{"behavior":"When a deal lands, you do not immediately spend the proceeds on the next gamble. You route part of it into something that holds: a savings account, a reliable monthly arrangement, a small asset that keeps producing without your daily attention. You have a habit of asking, after a win, what part of this can be made repeatable. You will take a smaller, steadier return over a larger, one-off payout if the steady one means you do not have to renegotiate from scratch next month.","energy":"gain","evidence":"Direct Wealth is the single heaviest weight in the chart and appears on the month stem and in the hidden stems of the year, day, and hour branches. It is the joint heaviest family alongside Indirect Wealth, and the core loop runs from spotting an opening to collecting the return to folding it into steady, bankable results. The luck pillar starting around age 43 brings water and earth more strongly, giving this steady-building side more room to hold.","name":"Converting a windfall into a bankable stream"},{"behavior":"You do not need a title to move a group. In a meeting where the official chair is droning through an agenda, you are the one who names the real decision, asks who owns it, and proposes the next step. You notice who is blocking, who is waiting for permission, and who will move if someone simply asks them. You use other people's urgency as your timing signal. This is not manipulation; it is a practical read of where the energy is already flowing and a habit of stepping into that flow rather than fighting it.","energy":"gain","evidence":"Seven Killings sits in the day branch hidden stem and Direct Officer sits in the year and hour branch hidden stems, giving a combined Officer-Killings weight that is present but not dominant. Direct Resource is light, so you are not waiting for formal backing. The Wealth family dominates the chart, which means your read of a situation is filtered through what can be moved, traded, or banked, not through abstract principle.","name":"Reading the room for leverage without formal authority"}]　Defensive: [{"actual_cost":"The chart has no Companion and no Output, so there is no built-in counterweight to the Wealth instinct. When you over-consolidate, you are not balancing the chart; you are feeding the dominant side and starving the side that would give you peers and creative output. The cost is that the steady base stays thinner than the opportunities you are not chasing, and the scanning habit restarts later with less momentum than it had before.","evidence":"Companion and Output are both at zero, while the Wealth family totals the overwhelming share of weight. The Day Master is labeled special-pattern with no favorable-element candidates, so the chart does not offer a natural corrective. The core loop describes the leak directly: nothing in the chart slows the scanning habit down, and the steady base you build stays thinner than the opportunities you chase.","looks_like":"You appear disciplined and prudent. You fold the return from one opening into a savings arrangement, then another, then another, and you tell yourself and others that you are building a base. From the outside this looks like good financial hygiene. In practice, you are using consolidation as a way to avoid the discomfort of the next scan, because the next scan requires you to be exposed again.","name":"Over-consolidating before the base is secure"},{"actual_cost":"Direct Resource is light in the chart, so the credential does not come naturally and does not carry much weight when it arrives. The cost is time and energy spent on a formal structure that the chart says is not your main axis. Meanwhile the Wealth instinct, which is the heaviest force in the chart, is idling while you wait for a piece of paper that the chart never promised would be the thing that unlocks you.","evidence":"Direct Resource appears only in the hidden stem of the month branch and one hidden stem in the day branch, giving it a modest weight compared with the Wealth family. The Day Master is labeled special-pattern with no favorable-element candidates, and the luck pillar starting around age 53 is the first stretch that gives the resource-and-output side real footing, which means the credential-seeking habit has been running ahead of the structural support for most of the chart.","looks_like":"You appear thorough and professional. You enroll in the course, sit the exam, collect the certificate, and only then feel entitled to charge for the work you have already been doing for years. Outsiders see a person who takes standards seriously. What they do not see is that you are using the credential as a permission slip that your own track record should already have provided.","name":"Waiting for the formal credential before claiming the expertise"}]　High/low-spec threshold: {"awareness":{"key_moment":"The key moment is when you notice that you are using consolidation as a way to avoid the discomfort of the next scan. The core loop's leak is that nothing in the chart slows the scanning habit down, and the steady base you build stays thinner than the opportunities you chase. The switch can happen when you realize that the consolidation is not the goal — it is the pause between scans — and that the credential is not the gate — it is a side door you have been treating as the main entrance.","what_to_notice":"Notice the moment you tell yourself you are building a base and then feel relief that you do not have to scan today. That relief is the signal. Notice also the moment you postpone a conversation about charging for work you have already done because you are waiting for a certificate. The chart's Officer-Killings thread is present but not dominant, so you can read leverage without a title; the question is whether you are using that read to move or to hide."},"belief":{"ceiling_effect":"The ceiling effect is that you postpone the next opening until the credential arrives, and the credential keeps not arriving because the chart gives it modest weight. Meanwhile the Wealth instinct, which is the heaviest force in the chart, is idling. You end up with a track record that is thinner than your actual capability, and you charge less than the work is worth because you have not given yourself permission to charge without the paper.","limiting_belief":"The limiting belief this structure is most likely to grow is: 'I need the credential before I am allowed to claim the expertise.' It is a byproduct of the defensive ability of waiting for the formal credential. The light Direct Resource in the month branch makes the credential feel scarce and therefore authoritative, while the dominant Wealth family makes you impatient with anything that does not return quickly. The belief lowers the ceiling because it turns the credential into a gate you must pass before you can act on the scanning instinct that is already your strongest force.","origin":"The origin is structural: Direct Resource appears only in the hidden stem of the month branch and one hidden stem in the day branch, giving it a modest weight compared with the Wealth family. The Day Master is labeled special-pattern with no favorable-element candidates, so the chart does not offer a natural corrective. The luck pillar starting around age 53 is the first stretch that gives the resource-and-output side real footing, which means the credential-seeking habit has been running ahead of the structural support for most of the chart."},"environment":{"enables":"An environment that lets this structure open up has short feedback loops and low formal barriers. You need to be able to test a small version of an opening within days, see what it returns, and decide whether to formalize it — without waiting for a credential or a committee. The luck pillar starting around age 43, with water and earth running stronger, gives the steady-building side more room to hold; an environment that rewards repeatable arrangements over one-off wins fits that stretch. The luck pillar starting around age 53, with metal and wood arriving, gives the resource-and-output side its first real footing, so an environment that values formalized expertise and creative output becomes more viable then than it was earlier.","suppresses":"An environment that suppresses this structure has long feedback loops and high formal barriers. If every opening requires a credential, a committee approval, or a multi-month procurement cycle, the scanning instinct has nowhere to go and the banking instinct has nothing to bank. The chart has no Companion and no Output, so there is no built-in counterweight to keep you patient through slow cycles. An environment that rewards one-off wins over repeatable arrangements also suppresses the Direct Wealth side, which is the heaviest single force in the chart and needs a steady tempo to do its work."}}
+
+Explain my chart through "structural dynamics":
+
+- What is my chart's energy loop path? Lay out the full chain, marking the gain segments and the loss segments
+- Where is my leverage? (one unit of input moves how much output, and why)
+- Where are my fragile points? (under what conditions this structure grinds itself down, and by what mechanism)
+- What is my upgrade path? In phases, each phase with entry conditions and completion signals
+
+Do not use metaphors in place of mechanisms. Every paragraph must make clear "what causes what".
+
+Output JSON:
+{
+  "energy_path": [{ "stage": "", "gain_or_loss": "gain|loss", "mechanism": "" }],
+  "leverage": { "point": "", "input": "", "output": "", "why": "" },
+  "vulnerability": { "point": "", "condition": "", "mechanism": "", "self_check": "" },
+  "upgrade_path": [{ "phase": "", "entry_condition": "", "work": "", "done_signal": "" }]
+}

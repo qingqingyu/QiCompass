@@ -1,0 +1,88 @@
+{
+  "battery_type": {
+    "type": "burst",
+    "evidence": "The Day Master is labeled with special-pattern characteristics and no favorable-element candidates, while Companion and Output are both at zero — there is no internal buffer that lets you idle at a steady medium. Wealth is the dominant family (Direct Wealth and Indirect Wealth jointly heaviest), and the two Fire pillars at year and hour carry that Wealth outward, so your energy goes out in concentrated scans and moves rather than in an even hum. The luck pillar starting around age 43 adds water and earth, which is the first structural place where a steadier hold becomes available.",
+    "charge_pattern": "You recharge by noticing and closing a small loop: spotting an opening, making one introduction or one trade, and seeing it return something. A short burst of opportunity scanning restores you more than a long passive rest does. Quiet time alone does not refill you unless it contains a small, completed move.",
+    "drain_pattern": "You drain fastest when you are scanning without a closing point — open conversations, unresolved negotiations, contacts who never answer. Because Output is at zero, you have no natural vent that turns the scan into a finished product, so the loop stays open in your head and keeps running after the room has emptied. Consecutive workdays of external communication with no banked result are the classic drain."
+  },
+  "imbalance_risks": [
+    {
+      "system": "sleep",
+      "trigger": "More than three consecutive workdays of high-intensity external communication where you are reading rooms and moving resources but nothing is banked by the end of the day.",
+      "early_sign": "You lie down and the scan keeps running — you are still sorting who needs what, who is blocking, and what you should have proposed, instead of dropping into rest."
+    },
+    {
+      "system": "anxiety",
+      "trigger": "A window closes before you have tested a small version — a deal, an introduction, or a trade you spotted but did not act on within the moment it was open.",
+      "early_sign": "A low hum of restlessness during quiet hours, and a habit of re-running the missed opening in your head rather than letting it go."
+    },
+    {
+      "system": "digestion",
+      "trigger": "Eating on the move between contacts or trades, or eating while still mid-scan, especially across several days when the base is not yet secure.",
+      "early_sign": "A heavy, unsettled feeling after meals and a loss of regular appetite rhythm — you notice you ate but cannot recall stopping to eat."
+    }
+  ],
+  "recovery_levers": [
+    {
+      "action": "Close one small loop before you rest: pick a single open thread — one message, one introduction, one number to confirm — and finish it in under fifteen minutes, then stop.",
+      "why_it_works_for_you": "Your recharge comes from opportunity scanning and rapid resource movement, and your drain comes from scans that never close. A completed small move gives the same noticing instinct a landing point, so the loop stops running after hours.",
+      "cost": "low"
+    },
+    {
+      "action": "Bank one steady arrangement each week: route a fixed, small portion of what comes in into something that keeps producing without your daily attention, and treat that as the week's real output.",
+      "why_it_works_for_you": "Direct Wealth is the single heaviest force in your chart and sits in the hidden stems of three branches, so converting a windfall into a bankable stream is a natural strength. Doing it deliberately gives the burst energy a base to return to, which lowers the pressure to keep scanning.",
+      "cost": "low"
+    },
+    {
+      "action": "Name the real decision out loud once per meeting, then hand it to an owner and leave it there — do not carry the follow-up yourself.",
+      "why_it_works_for_you": "You read the room for leverage without formal authority, and the Officer-Killings weight is present but not dominant, so you can name the decision without needing the title. Handing off the follow-up closes the loop at the moment it is named, which is the point where your drain usually begins.",
+      "cost": "mid"
+    }
+  ],
+  "reset_7day": [
+    {
+      "day": 1,
+      "focus": "Stop the open scans",
+      "action": "Write down every unresolved thread you are currently carrying — contacts, trades, proposals — and mark which ones you can close in under fifteen minutes this week. Do not act on them yet; just list and mark."
+    },
+    {
+      "day": 2,
+      "focus": "Close one loop",
+      "action": "Finish one marked thread before noon, in under fifteen minutes, and then deliberately stop working on it for the rest of the day."
+    },
+    {
+      "day": 3,
+      "focus": "Protect the sleep window",
+      "action": "Set a fixed lights-out time and keep the last hour free of any message, call, or number-checking. If the scan starts running, write the thought on paper and leave it for the morning."
+    },
+    {
+      "day": 4,
+      "focus": "Eat seated",
+      "action": "Take one meal today sitting down with no screen and no contact in progress, and finish it before you re-enter any conversation."
+    },
+    {
+      "day": 5,
+      "focus": "Bank something",
+      "action": "Route one small, fixed portion of what came in this week into a steady arrangement, and note the amount and the arrangement in one line."
+    },
+    {
+      "day": 6,
+      "focus": "Name and hand off",
+      "action": "In one meeting or conversation, name the real decision, assign an owner, and explicitly say you are not carrying the follow-up."
+    },
+    {
+      "day": 7,
+      "focus": "Review the week's closes",
+      "action": "Read back your list from day one and count how many threads you actually closed. Keep the list short next week by closing before adding."
+    }
+  ],
+  "weekly_maintenance": [
+    "Keep one fixed lights-out time on workdays and protect the last hour from message-checking, so the scan has a hard stop.",
+    "Close at least two small open threads per week before starting any new one; the rule is close before add.",
+    "Bank one steady arrangement each week, however small, and record it in one line so the base visibly grows.",
+    "Take one meal a day seated with no screen and no contact in progress.",
+    "In any meeting where you name the decision, hand the follow-up to an owner in the same breath and do not pick it back up.",
+    "Keep one block of quiet time per week that contains a small completed move rather than pure rest, since passive rest alone does not refill you."
+  ],
+  "medical_note": "You describe poor sleep quality and long-term fatigue on workdays. This plan only addresses rest rhythm, intensity management, and recovery habits. If the sleep problem or the fatigue persists or gets worse, see a doctor — do not treat this plan as a substitute for medical assessment. The Five Element correspondences used here are an analogy within a traditional framework, not a physiological fact."
+}

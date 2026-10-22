@@ -1,0 +1,61 @@
+{
+  "energy_path": [
+    {
+      "stage": "Scanning for openings",
+      "gain_or_loss": "gain",
+      "mechanism": "Indirect Wealth is the second-heaviest force (10) and appears on both the year stem and the hour stem, so the chart's default mode is to notice gaps, contacts, and mispriced resources before others do. Because Companion and Output are both at zero, nothing in the structure slows this scanning down or redirects it toward peer collaboration or creative production."
+    },
+    {
+      "stage": "Moving resources toward the opening",
+      "gain_or_loss": "gain",
+      "mechanism": "The Wealth family dominates the chart (Direct Wealth 12, Indirect Wealth 10), and the day branch holds Seven Killings (3) alongside Direct Wealth. This combination means you act on the opening directly, without waiting for formal authority or a committee, because the Officer-Killings thread is present but not dominant enough to require a title before you move."
+    },
+    {
+      "stage": "Collecting the return",
+      "gain_or_loss": "gain",
+      "mechanism": "Direct Wealth is the single heaviest weight (12) and sits on the month stem and in the hidden stems of the year, day, and hour branches. Once a move returns something, the structure's strongest single instinct is to convert that return into a steady, bankable form — a savings arrangement, a repeatable monthly stream, an asset that keeps producing without daily attention."
+    },
+    {
+      "stage": "Restarting the scan before consolidation is complete",
+      "gain_or_loss": "loss",
+      "mechanism": "The core loop's leak is structural: with Companion at zero and Output at zero, there is no built-in counterweight to the Wealth instinct. The scanning habit restarts as soon as the return is banked, so the steady base you build stays thinner than the opportunities you chase. The loss is not a mistake in any single move; it is the absence of a brake on the restart."
+    },
+    {
+      "stage": "Waiting for the formal credential before claiming expertise",
+      "gain_or_loss": "loss",
+      "mechanism": "Direct Resource is light (4) and appears only in the hidden stem of the month branch and one hidden stem in the day branch. The credential feels scarce and therefore authoritative, so you postpone charging for work you already do until the paper arrives. Because the Wealth family is the heaviest force, this waiting idles your strongest instinct while the resource side, which the chart gives modest weight, keeps not arriving."
+    }
+  ],
+  "leverage": {
+    "point": "The handoff between spotting an opening and folding the return into a repeatable arrangement",
+    "input": "One small test of an opening — an introduction made, a trade proposed, a small version run — plus the discipline to route part of the return into something that holds",
+    "output": "A repeatable stream that keeps producing without your daily attention, which then frees you to scan the next opening from a position of existing base rather than from zero",
+    "why": "Direct Wealth is the heaviest single weight (12) and Indirect Wealth is second (10), so the chart's two strongest forces are the spotting instinct and the banking instinct. When they hand off cleanly, one unit of scanning input produces a bankable output that compounds. The leverage is lost only when the restart happens before the handoff completes, which is what the zero Companion and zero Output allow."
+  },
+  "vulnerability": {
+    "point": "Over-consolidating before the base is secure, and waiting for the credential before claiming expertise",
+    "condition": "The structure grinds itself down when you use consolidation as a way to avoid the discomfort of the next scan, or when you postpone charging for work you already do because a certificate has not arrived. Both conditions are more likely in environments with long feedback loops and high formal barriers, because the chart has no Companion or Output to keep you patient through slow cycles.",
+    "mechanism": "With Companion at zero and Output at zero, there is no counterweight to the Wealth instinct. Over-consolidation feeds the dominant side and starves the side that would give you peers and creative output, so the steady base stays thinner than the opportunities you are not chasing. Waiting for the credential idles the heaviest force in the chart while the light Direct Resource (4) keeps not arriving, so your track record stays thinner than your actual capability and you charge less than the work is worth.",
+    "self_check": "Notice the moment you tell yourself you are building a base and then feel relief that you do not have to scan today. That relief is the signal that consolidation has become avoidance. Notice also the moment you postpone a conversation about charging for work you have already done because you are waiting for a certificate. The Officer-Killings thread (5) is present but not dominant, so you can read leverage without a title; the question is whether you are using that read to move or to hide."
+  },
+  "upgrade_path": [
+    {
+      "phase": "Phase 1 — Separate consolidation from avoidance",
+      "entry_condition": "You notice the relief that comes when you decide to consolidate instead of scan, and you can name the specific opening you are avoiding.",
+      "work": "Before starting the next opening, write down what the last one actually returned and whether it is still running without you. If it is still running, the consolidation is real and you can scan. If it is not, the consolidation is avoidance and the next step is a small test, not another savings arrangement.",
+      "done_signal": "You can point to a repeatable stream that is still producing without your daily attention, and you have started a small test of the next opening without waiting for the base to feel fully secure."
+    },
+    {
+      "phase": "Phase 2 — Claim expertise before the credential arrives",
+      "entry_condition": "You catch yourself postponing a conversation about charging for work you already do because a certificate has not arrived.",
+      "work": "Use the Officer-Killings read (present but not dominant) to name the real decision, ask who owns it, and propose the next step without a title. Charge for the work you have already been doing, and treat the credential as a side door rather than the main entrance.",
+      "done_signal": "You have charged for work you already do without waiting for the paper, and the conversation about the next step happened without a formal gate."
+    },
+    {
+      "phase": "Phase 3 — Build the counterweight the chart does not supply",
+      "entry_condition": "You have a repeatable stream running and you have claimed expertise without the credential, but you notice the scanning habit still restarts before the base is secure.",
+      "work": "Deliberately add the two forces the chart leaves at zero: peers (Companion) and creative output (Output). This means routing part of your scanning energy into collaborative arrangements and into producing something visible that is not a trade. The luck pillar starting around age 43 gives water and earth more room to hold, and the one starting around age 53 gives the resource-and-output side its first real footing; use those stretches to formalize what you have built.",
+      "done_signal": "You have at least one peer arrangement and one visible creative output running alongside your repeatable streams, and the restart of the scan no longer leaves the base thinner than the opportunities you chase."
+    }
+  ]
+}

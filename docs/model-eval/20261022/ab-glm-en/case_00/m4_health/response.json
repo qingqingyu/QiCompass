@@ -1,0 +1,88 @@
+{
+  "battery_type": {
+    "type": "climb",
+    "evidence": "The Geng day master is labeled balanced, with metal and earth as its favorable elements, and Indirect Resource is the heaviest force by far — the month stem Wu carries it openly and it hides in three branches besides. Output stars are nearly empty — Eating God is absent and Hurting Officer barely registers — while Water, the element that carries expression and flow, is missing entirely. This is a high-capacity, slow-release battery: it fills through quiet intake and discharges through sustained, solitary work, but it has almost no fast-spending channel.",
+    "charge_pattern": "You recharge alone and slowly. A quiet evening reading source material, building notes, tracing how something works — that is your actual charging station, and it refills you more than social celebration ever does. Charge is gradual and deep: after two or three such evenings you can carry a heavy week.",
+    "drain_pattern": "You drain through continuous output and through defending ground. The hour stem Rob Wealth at six alongside Direct Wealth at six means peer competition runs as a constant background load — you are always tracking who might take what you built. The missing Water element means emotional and expressive flow has no outlet: frustration, words unspoken at meetings, half-finished arguments all get stored instead of released. The drain is slow and often invisible until it shows up as week-long fatigue."
+  },
+  "imbalance_risks": [
+    {
+      "system": "sleep quality",
+      "trigger": "An evening that ends with unfinished mental threads — a research question half-traced, a document you meant to finish — sends you to bed with the mind still climbing. Because Indirect Resource keeps pulling you back into material at night, more than two consecutive late study sessions past your usual bedtime is the clearest trigger. Stored, unexpressed tension from the day (Water absent, nothing flushes it out) keeps sleep shallow even when you lie down on time.",
+      "early_sign": "You lie in bed physically tired but mentally replaying a clause, a conversation, or tomorrow's task list; you wake at a fixed early hour regardless of when you fell asleep."
+    },
+    {
+      "system": "digestive rhythm",
+      "trigger": "Earth is the heaviest element count in this chart and carries the whole structure, so your middle system is where load literally sits. Skipping meals during a long solitary work block, eating while reading, or eating irregularly on high-pressure days — especially when Seven Killings pressure from the month and hour branches is active, such as a deadline stacked on a demanding review — disrupts the rhythm first.",
+      "early_sign": "Appetite flattens during intense weeks; you feel heavy or sluggish after meals eaten at the desk rather than hungry before them."
+    },
+    {
+      "system": "anxiety and background tension",
+      "trigger": "More than three consecutive days of high-intensity external demands — back-to-back coordination, defending your scope against colleagues, decisions forced before you have read enough — while your private study time stays at zero. Rob Wealth at full weight means contested situations keep your guard up even after they end; without your solitary intake hours, the tension has nowhere to discharge.",
+      "early_sign": "Shoulders and jaw tight by evening, a low hum of unease on rest days because you feel you should be producing or protecting something, and irritability at small interruptions."
+    }
+  ],
+  "recovery_levers": [
+    {
+      "action": "Protect one fixed nightly window (45–60 minutes) for solitary study or note-building on a topic you chose yourself — not work reading, something you are genuinely curious about.",
+      "why_it_works_for_you": "This is your documented gain activity: Indirect Resource is the chart's strongest force and using it feels like recharging rather than spending. The only correction needed is timing — anchor it early evening with a hard stop, so the climb ends before bed instead of running into it.",
+      "cost": "low"
+    },
+    {
+      "action": "Add a daily 15-minute physical discharge with rhythmic motion — brisk walk, easy cycling, repeated stair climbs — preferably after the workday ends and before dinner.",
+      "why_it_works_for_you": "Water is absent from your chart, so the flow that normally carries tension out does not run on its own. Rhythmic movement is the cheapest external substitute: it gives stored pressure a physical exit without requiring you to talk about anything, which suits a low-output structure.",
+      "cost": "low"
+    },
+    {
+      "action": "Set one weekly 'no-defense' block: two hours where you check nothing work-related, guard no scope, and answer no contested questions — a weekend morning reserved entirely for your own ground.",
+      "why_it_works_for_you": "Rob Wealth running at equal weight to Direct Wealth means defending earned resources is a constant background drain even when nothing is happening. A scheduled block where that guard duty is explicitly suspended lets the load drop without you having to win or concede anything.",
+      "cost": "low"
+    }
+  ],
+  "reset_7day": [
+    {
+      "day": 1,
+      "focus": "Stop the late climb",
+      "action": "Tonight, study window ends at a fixed time — set an alarm, close the material, and write one line in your notes marking where to resume tomorrow. Walk 15 minutes after closing. Bedtime is the only goal today."
+    },
+    {
+      "day": 2,
+      "focus": "Anchor meal rhythm",
+      "action": "Three meals at fixed times, eaten away from screens. During your study window, put the reading at the desk and keep food at the table — separate the two for one day and notice the difference."
+    },
+    {
+      "day": 3,
+      "focus": "Open the discharge channel",
+      "action": "Two 15-minute rhythmic movement blocks — one after work, one after dinner. No purpose, no step count, just steady motion. Keep the study window with the same hard stop."
+    },
+    {
+      "day": 4,
+      "focus": "Release unspoken material",
+      "action": "Spend 10 minutes writing down everything you did not say this week — meeting points swallowed, arguments not finished — then close the file. You are not sending it; you are draining stored pressure that has no verbal outlet."
+    },
+    {
+      "day": 5,
+      "focus": "Lower the guard once",
+      "action": "Pick one small contested item you would normally defend tonight and deliberately postpone handling it to Monday. Spend the freed evening on gain-activity reading with the fixed stop."
+    },
+    {
+      "day": 6,
+      "focus": "Full recharge day",
+      "action": "A half-day no-defense block in the morning: no work inputs, no scope checking. One long solitary session on your chosen topic, one long walk, meals on rhythm. Nothing else is required of you today."
+    },
+    {
+      "day": 7,
+      "focus": "Lock the template",
+      "action": "Review the week: note which fixed times actually held. Write your permanent schedule — study window with hard stop, meal times, daily movement, weekly no-defense block — and set the repeating reminders now."
+    }
+  ],
+  "weekly_maintenance": [
+    "Every weekday: study window with a hard stop at a fixed time, followed by 15 minutes of rhythmic movement before bed.",
+    "Every weekday: meals at fixed times, never taken while reading or working.",
+    "Every workday evening: 10 minutes of written dump for unspoken points — file closed afterward, not sent.",
+    "Once a week: a two-hour no-defense block, ideally a weekend morning, with no work inputs at all.",
+    "Once a week: one long solitary recharge session (two hours or more) on a self-chosen topic — this is your deepest refuel and should never be the first thing cut when the week gets busy.",
+    "Track one signal only: whether you fall asleep within roughly half an hour of lights-out. If that slips for several consecutive nights, trim the study window earlier rather than cutting movement."
+  ],
+  "medical_note": "You describe long-term fatigue on workdays and persistently poor sleep. If the poor sleep continues after two to three weeks of a stable rhythm, or if the fatigue worsens instead of easing, see a doctor for a proper evaluation — sleep and fatigue symptoms deserve medical assessment, and this plan is about rest and rhythm, not treatment."
+}

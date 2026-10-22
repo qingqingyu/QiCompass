@@ -1,0 +1,61 @@
+{
+  "energy_path": [
+    {
+      "stage": "Scan: the search for something worth holding",
+      "gain_or_loss": "gain",
+      "mechanism": "Indirect Wealth stands at both ends of the chart — the year stem Bing and the hour stem Bing both act as Indirect Wealth to your Ren water day master — so from early life onward your attention runs outward toward concrete objects of value: deals, resources, positions. This scanning produces options faster than peers who deliberate first."
+    },
+    {
+      "stage": "Commit: full-body entry into the opportunity",
+      "gain_or_loss": "gain",
+      "mechanism": "Because the output family — Eating God and Hurting Officer — weighs zero and wood is absent from the visible eight characters, your energy does not split into experimenting, drafting, or playing with alternatives. It runs in one line from spotting to taking. This concentration is why your first move on the actual object of value lands before others finish planning."
+    },
+    {
+      "stage": "Hold: keeping what was taken under thin backing",
+      "gain_or_loss": "gain",
+      "mechanism": "Direct Wealth is the single heaviest force — the month stem Ding shows it openly, and it hides again in the year branch Wu, the hour branch Wu, and inside the day branch Xu. Direct Resource, from Xin in the month branch You and in the day branch Xu, supplies a small backing of systems and credentials that lets one unsupported day master keep possession. What you hold, you keep, and it compounds."
+    },
+    {
+      "stage": "Pressure load: obligations landing on one point",
+      "gain_or_loss": "loss",
+      "mechanism": "Seven Killings hides in the day branch Xu, and Direct Officer hides in the year and hour branches Wu — a thin but constant layer of obligation sitting directly under you and at both flanks. With Companion and Rob Wealth both at zero, there is no peer energy to share the load, so every obligation is absorbed by the day master alone. Holding costs more than it appears to from outside."
+    },
+    {
+      "stage": "Blocked release: no valve for expression or rest",
+      "gain_or_loss": "loss",
+      "mechanism": "Because the output family weighs zero, tension that would normally drain through making, playing, or producing for enjoyment has no exit. Relief after securing something lasts briefly, the scan resumes, and the cycle restarts with nothing spent on recovery. This is the loss segment that compounds quietly over years: all holding, no spending."
+    }
+  ],
+  "leverage": {
+    "point": "The commit segment — the direct line from a spotted opportunity to a taken position",
+    "input": "One clear judgment that a resource is real and graspable",
+    "output": "A full commitment that secures the position while others are still evaluating, followed by retention that compounds through disciplined management",
+    "why": "Two Indirect Wealth stems flank the chart and Direct Wealth is heaviest overall, so the opportunity-facing force is present from early decades and reinforced at nearly every position. With output energy absent, nothing drains sideways into exploration, and with peers absent, no energy splits into negotiation or consensus — one unit of attention converts almost fully into a held position. Direct Resource hidden in the month branch You provides just enough structural backing to keep the held asset."
+  },
+  "vulnerability": {
+    "point": "The unsupported hold: one day master carrying accumulated obligation with no release",
+    "condition": "Conditions that grind this structure down are: obligations stacking without anyone sharing them, environments with nothing tangible to grasp (endless proposal cycles, committee decisions, flat salary structures), and long stretches with no time spent producing anything for its own sake.",
+    "mechanism": "The Officer-and-Killings layer hidden under the day branch and at both flanks keeps adding obligation. Companion energy at zero means no load is shared; output energy at zero means pressure has no exit through making or playing. The hold is maintained by will alone, so tension accumulates in the body and mood — the cost is real even when outsiders see only reliability. The grip tightens further because stopping feels like losing what is held.",
+    "self_check": "Ask one question after securing anything: did relief last more than a day before the next scan started? If no, the loop is running for its own sake. Ask a second: is there a specific person who would share load if asked? Their absence in your chart describes a habit, not a prohibition — test the habit once."
+  },
+  "upgrade_path": [
+    {
+      "phase": "Phase one: install the valve manually",
+      "entry_condition": "You recognize the loop running for its own sake — committing to the latest opportunity not because it was good but because stopping felt like losing.",
+      "work": "Schedule one recurring weekly block that produces nothing usable: a craft, a meal, a long walk with no goal. Keep it even when it feels like wasted holding time. The purpose is to build the release habit your chart does not supply, before any timing supplies it for you.",
+      "done_signal": "You can skip one spotted opportunity without anxiety lasting past that day, and the weekly block survives at least two busy months."
+    },
+    {
+      "phase": "Phase two: convert one hold into a shared structure",
+      "entry_condition": "You have one asset, ledger, or client relationship stable enough that delegating part of it risks little, and one person you would trust with a bounded piece of it.",
+      "work": "Hand one bounded piece — a portion of the books, one client, one recurring task — to a partner or junior who takes the peer role your chart lacks. Accept that their grip is looser than yours. Your acquisition talent stays local unless holding becomes shareable.",
+      "done_signal": "The shared piece runs acceptably without your daily touch, and your reaction to an error made by someone else is correction rather than full reclamation."
+    },
+    {
+      "phase": "Phase three: ride the opening timing",
+      "entry_condition": "The ten-year stretch beginning around age fifty-three, when the Mao wood branch enters the luck sequence, and the ten-year stretch beginning around age sixty-three, when the Yin wood branch enters — wood is the family your chart entirely lacks, and these branches carry it in.",
+      "work": "During these stretches, deliberately expand what you produce and express, not only what you hold: turn accumulated base into visible output — teaching the younger person, building something others can see and use. The channel is open from outside in these decades; using it on purpose multiplies what it carries.",
+      "done_signal": "A meaningful share of your weekly time goes to making and transmitting rather than holding, and stopping the scan no longer registers as loss."
+    }
+  ]
+}
