@@ -1,6 +1,6 @@
 # QiCompass Promo Site(内部宣传物料生成工具)
 
-> **位置**:`tmp/promo-site/`(已被 `.gitignore` 忽略,不进 git)
+> **位置**:`tmp/promo-site/`(`tmp/` 虽在顶层 `.gitignore`,但本目录源码 2026-08-15 起已 tracked 进 git;仅 `data/`、`tools/cities500.*` 等再生产物被忽略)
 > **目的**:为开发者本人(我)提供本地运行的八字解析网页物料生成工具,用于在 Reddit / X 等平台宣传 QiCompass。
 > **不做**:多用户 / 权限 / 公开部署 / 持久化缓存。
 
@@ -14,7 +14,7 @@
 - **命盘问答**(/ask)— 出生信息 + 任意问题 → 直答模式(结论先行/柱位根因/分期行动/反直觉提醒/结尾反问),800-1500 字。深度解析结果页尾部有**内嵌提问框**(导出边界外,截图不含),出生信息隐藏携带;GET /ask 支持 query 预填(`city_tz` 现随表单提交,防海外盘被默认时区重算换盘)
 - **禁词柔化**(2026-08-23):三模块 + 问答命中禁词不再整篇拦截,自动替换成模糊叙事词(必然→大概率 等,见 main.py `_FORBIDDEN_SOFTENERS`)后展示,结果页横幅明示替换明细(导出边界外)。仅替换到映射表覆盖的词,backend 词表新增未跟上映射的词仍走 422 拦截;**backend D10(App 路径「命中即拦截」)不变**
 - **合盘**(compatibility_paid)— 4 章 + 四项定性评估 + 3 年流年同步
-- **每日运势**(daily_fortune)— 50-80 字短解读 + 黄历宜忌 + 12 时辰
+- **每日运势**(daily_fortune)— App 档 = v4 起 JSON 五段(headline/work/relationships/energy/reminder,合计 90-130 字,结果页转 markdown 卡片);加长版 = 400-600 字散文 + 黄历宜忌 + 12 时辰
 
 每个结果页支持:
 - 网页在线展示(markdown 渲染)
@@ -49,6 +49,15 @@ uvicorn main:app --reload --port 8765
 **端口 8765**(避开 backend 的 8000,允许两者同时跑)。
 
 **不需要同时启动 backend**。promo-site 通过 `sys.path.insert` 直接 import backend 模块,完全独立。
+
+**注意(2026-10-07)**:backend 引擎 import 链(`bazi_engine → calc_rule_snapshot → config`)会带出
+`app/config.py`,`JWT_SECRET_KEY` 缺失时 import 即抛错——「绝不 import config」的旧说明已不成立。
+但 uvicorn 启动本服务**不需要** source .env:main.py 已在任何 backend import 之前注入 dev 占位符
+(见 main.py「JWT_SECRET_KEY 占位符」段)。需要 source .env 的场景是**绕过 main.py 直接 import
+引擎的脚本**(如 promo 断言/测试脚本),此时先 `set -a && source ../../../../backend/.env && set +a`
+(worktree 借主仓 .env,注意是 4 级 `..` 回到主仓;从 tmp/promo-site 出发 `../backend/.env` 指向
+worktree 内不存在的路径)。另:若本机有系统代理且要连 127.0.0.1 的本地 AI endpoint(如 mock),
+需 `export NO_PROXY=127.0.0.1,localhost`。
 
 **Anthropic 中转**:provider=Anthropic + 自定义 Base URL(如 z.ai `https://api.z.ai/api/anthropic`)由
 `AnthropicClient(base_url=...)` 支持(2026-08-13 加,`/v1/messages` 由 client 拼接);
@@ -95,7 +104,10 @@ tmp/promo-site/promo_prompts.py  render_prompt_with_length()
     └─ 篇幅档(2026-08-13):表单选「加长版」时,把 backend 模板的
        「写作要求」块整体换成 promo 长文版(每章 1000-1500 字 / 每日 400-600 字),
        HEADER(命主/四柱/评估数据)原样保留;「App 标准」= backend 原样。
-       同时加长版调 AI 用 max_tokens=24576 + timeout=420s
+       daily_fortune v4 起换块锚点改「输出格式（」(见 promo_prompts.py
+       `_MODULE_SPLIT_MARKERS`),其余 module 仍是「写作要求（」。
+       同时加长版调 AI 用 max_tokens=32768 + timeout=900s(2026-08-15 自
+       24576/420s 上调:9 章×1500 字会截断,z.ai 中转实测 >7 分钟)
        (App 路径仍是 config 默认 1024 / 90s,backend prompts.py 未动 —
        App Medium voice 是产品决策,只在 promo 调用侧放宽)。
     └─ 十神结构章(2026-08-14):深度解析加长版固定第一章为「十神结构与命局主线」
@@ -107,7 +119,10 @@ backend/spikes/prompt_validation/run_spike.py:75
                                      (避免 38 字段映射重复,已 20 盘验证)
 ```
 
-**关键规避**:promo-site **绝不** import `backend.app.config`,因为 `config.py:127` 的 `JWT_SECRET_KEY` 在 import 时强制检查会阻塞启动。所有 env 由 promo-site 自己读。
+**关键规避(2026-10-07 修正)**:promo-site 自身不直接 import `backend.app.config`,但引擎
+import 链(`bazi_engine → calc_rule_snapshot → config`)会带出它——`JWT_SECRET_KEY` 缺失时
+import 即抛错。main.py 已在 import 前注入 dev 占位符,uvicorn 服务路径不受影响;绕过 main.py
+直接 import 引擎的脚本需先 source 主仓 backend/.env(见「启动」节)。AI 调用相关 env 仍由 promo-site 自己读。
 
 ---
 
@@ -159,7 +174,7 @@ backend/spikes/prompt_validation/run_spike.py:75
 tmp/promo-site/
 ├── README.md                    # 本文档
 ├── requirements.txt             # fastapi + uvicorn + jinja2 + markdown + python-multipart
-├── .gitignore                   # *(双保险,顶层 .gitignore 已加 tmp/)
+├── .gitignore                   # 只忽略可再生/缓存产物(data/ 等;源码 2026-08-15 起进 git)
 ├── main.py                      # FastAPI app + sys.path 注入 + JWT 占位符 + 三模块路由
 ├── context_builder.py           # build_bazi/compat/daily_context(复用 spike)
 ├── templates/

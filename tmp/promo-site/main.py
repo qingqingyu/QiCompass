@@ -18,6 +18,7 @@
 
 from __future__ import annotations
 
+import json
 import logging
 import os
 import sqlite3
@@ -88,6 +89,7 @@ from promo_prompts import (  # noqa: E402
     CHART_QA_MAX_OUTPUT_TOKENS,
     CHART_QA_TIMEOUT_SECONDS,
     LENGTH_TIERS,
+    LENGTH_TIER_APP,
     LENGTH_TIER_LABELS,
     LENGTH_TIER_PROMO,
     PROMO_MAX_OUTPUT_TOKENS,
@@ -585,6 +587,63 @@ async def _interpret_with_tier(client: Any, prompt: str, length_tier: str) -> st
     return await client.interpret(prompt, temperature=0.6)
 
 
+def _strip_code_fences(text: str) -> str:
+    """剥 LLM 违约附加的 ```json 围栏(镜像 backend/app/api/interpret.py
+    `_strip_code_fences`,后者又镜像 iOS OrderedJSONParser.stripCodeFences,
+    三处算法必须逐字符对齐——口径:容忍围栏,prompt 已禁只是防御)。
+    不直接 import backend 那份:它是 api 层的下划线私有函数,跨层引用会把
+    promo 启动绑到 backend api 内部布局(重命名即炸);本地镜像,改算法时
+    三处同步。
+    """
+    t = text.strip()
+    if not t.startswith("```"):
+        return t
+    t = t[3:]
+    i = 0
+    while i < len(t) and t[i].isalpha():
+        i += 1
+    t = t[i:].lstrip()
+    fence_end = t.rfind("```")
+    if fence_end != -1:
+        t = t[:fence_end]
+    return t.strip()
+
+
+def _daily_json_to_markdown(text: str) -> str:
+    """daily_fortune v4 起 App 档返回 JSON 五段,转 markdown 卡片式展示(2026-10-07)。
+
+    backend 契约(v4 起,当前 v5)= {headline, work, relationships, energy,
+    reminder} 五个字符串字段。五键齐全才转;不合规(非 JSON / 缺键)原样返回
+    并留 warning 日志——裸文本可见即诚实降级,不静默吞。围栏容忍口径与
+    backend 校验层/iOS 渲染层对齐(_strip_code_fences)。仅 App 档调用
+    (/daily handler 按档分流);promo 长文档返回散文,由 handler 直接
+    透传不进本函数。
+    """
+    try:
+        payload = json.loads(_strip_code_fences(text))
+    except ValueError:
+        logger.warning("daily.json_parse_failed:非 JSON 响应,按原文展示")
+        return text
+    if not isinstance(payload, dict):
+        logger.warning("daily.json_non_dict:顶层非 object,按原文展示")
+        return text
+    keys = ("headline", "work", "relationships", "energy", "reminder")
+    if not all(isinstance(payload.get(k), str) and payload[k].strip() for k in keys):
+        logger.warning("daily.json_keys_incomplete keys=%s,按原文展示", sorted(payload, key=str))
+        return text
+    return "\n".join([
+        f"**{payload['headline'].strip()}**",
+        "",
+        f"**事业** — {payload['work'].strip()}",
+        "",
+        f"**关系** — {payload['relationships'].strip()}",
+        "",
+        f"**精力** — {payload['energy'].strip()}",
+        "",
+        f"> {payload['reminder'].strip()}",
+    ])
+
+
 @app.get("/bazi", response_class=HTMLResponse)
 async def bazi_form(request: Request):
     """深度解析输入表单。"""
@@ -1041,6 +1100,11 @@ async def daily_handler(request: Request):
         validate_interpretation(markdown_text)
         if forbidden_notes:
             logger.warning("promo.forbidden_softened notes=%s", forbidden_notes)
+        # App 档(v4 起 JSON 五段)转 markdown 卡片式展示;promo 长文档透传。
+        # 只对 app 档调用:promo 散文是契约输出,透传即可,进函数只会误打
+        # json_parse_failed warning(期望路径不该记成故障)。
+        if length_tier == LENGTH_TIER_APP:
+            markdown_text = _daily_json_to_markdown(markdown_text)
 
         # ⑥ 给 chart 加派生字段(供模板对齐 iOS)
         _prepare_chart_for_template(chart)

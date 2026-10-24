@@ -2,12 +2,13 @@
 
 设计:
 - **模板级换写作要求块**,不做"后文覆盖前文"式 suffix 追加:
-  backend 7 个老模板都是 `HEADER + 写作要求块`,写作要求块以字面
-  `写作要求（` 开头。promo 版 = 同一 HEADER(命主/四柱/评估数据)+ 本文件的
-  加长版写作要求。这样 prompt 里**只有一套字数约束**,避免
+  backend 老模板都是 `HEADER + 写作要求块`。promo 版 = 同一 HEADER(命主/四柱/
+  评估数据)+ 本文件的加长版写作要求。这样 prompt 里**只有一套字数约束**,避免
   "每章 200-300 字"与"每章 1000-1500 字"打架导致 LLM 折中。
+  写作要求区锚点默认取字面 `写作要求（`;2026-10-07 起 daily_fortune 随
+  backend v4 改 JSON 结构,锚点改 `输出格式（`(见 _MODULE_SPLIT_MARKERS)。
 - **不动 backend/app/ai/prompts.py**:App 的 Medium voice(200-300 字/章、
-  每日 50-80 字)是 2026-08-01 grill 产品决策,只对 promo 调用侧放宽。
+  每日 JSON 五段)是产品决策,只对 promo 调用侧放宽。
 - 从格诚实降级 suffix 逻辑与 render_prompt 对齐(bazi_deep 系列复制)。
 
 篇幅(激进 ~5x):
@@ -33,8 +34,14 @@ from app.ai.prompts import (
     validate_context,
 )
 
-# 写作要求块在模板中的起始标记(7 个老模板均以此开头,仅出现一次)
+# 写作要求块在模板中的起始标记(老模板均以此开头,仅出现一次)
 _REQUIREMENTS_MARKER = "写作要求（"
+
+# 每 module 的写作要求区起始锚点(2026-10-07:daily_fortune v4 改 JSON 结构,
+# 输出格式区从「输出格式（」开始,不再有「写作要求（」标记;HEADER 数据部分保留)
+_MODULE_SPLIT_MARKERS: dict[str, str] = {
+    "daily_fortune": "输出格式（",
+}
 
 
 def _backend_template(module: str) -> str:
@@ -289,13 +296,17 @@ def render_prompt_with_length(
         )
 
     template = _backend_template(base_module)
-    if _REQUIREMENTS_MARKER not in template:
-        # backend 模板结构变了(split 标记丢失),显式报错而不是渲染出残缺 prompt
+    marker = _MODULE_SPLIT_MARKERS.get(base_module, _REQUIREMENTS_MARKER)
+    if template.count(marker) != 1:
+        # backend 模板结构变了(split 锚点丢失/重复):split 只会按第一个出现位置
+        # 切分,锚点在 HEADER 数据区早现或重复都会渲染出残缺 prompt——显式报错
+        # 而不是静默劣化
         raise ValueError(
-            f"backend 模板 {base_module!r} 不含写作要求标记 {_REQUIREMENTS_MARKER!r},"
+            f"backend 模板 {base_module!r} 的写作要求区锚点 {marker!r} 出现"
+            f"{template.count(marker)} 次(期望恰好 1 次),"
             "promo 换块机制失效,需同步检查 promo_prompts.py"
         )
-    header = template.split(_REQUIREMENTS_MARKER, 1)[0]
+    header = template.split(marker, 1)[0]
     promo_template = header + PROMO_REQUIREMENTS[module]
 
     # 与 backend render_prompt 同一套校验(base module 的必填字段)+ 渲染路径
@@ -350,9 +361,12 @@ def render_chart_qa_prompt(context: dict, question: str) -> str:
     if not q:
         raise ValueError("question 不能为空(空问题的回答没有价值,拒绝生成)")
     template = _backend_template("bazi_deep_paid")
-    if _REQUIREMENTS_MARKER not in template:
+    if template.count(_REQUIREMENTS_MARKER) != 1:
+        # 与 render_prompt_with_length 同一收紧口径:锚点早现/重复 → split 取
+        # 首次出现会切出残缺 HEADER,显式报错不静默劣化
         raise ValueError(
-            f"backend 模板 bazi_deep_paid 不含写作要求标记 {_REQUIREMENTS_MARKER!r},"
+            f"backend 模板 bazi_deep_paid 的写作要求标记 {_REQUIREMENTS_MARKER!r} "
+            f"出现 {template.count(_REQUIREMENTS_MARKER)} 次(期望恰好 1 次),"
             "promo 换块机制失效,需同步检查 promo_prompts.py"
         )
     header = template.split(_REQUIREMENTS_MARKER, 1)[0]
