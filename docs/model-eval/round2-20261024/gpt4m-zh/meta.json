@@ -1,0 +1,46 @@
+{
+  "run_id": "gpt4m-zh",
+  "identity": {
+    "prompt_versions": {
+      "m0_structure": 11,
+      "m1_talent": 5,
+      "m2_high_low": 6,
+      "m3_system": 6,
+      "m4_health": 6,
+      "m5_wealth": 5,
+      "m6_dynamics": 5,
+      "m7_manual": 5
+    },
+    "provider": "openai",
+    "model": "openai/gpt-4o-mini",
+    "rubric_version": 0,
+    "judge_model": "",
+    "cases_hash": "2bd02c1d77927eaf4165ec249b7d3d3bd8033cde27efbf630d4905e0b868276b"
+  },
+  "dry_run": false,
+  "modules": [
+    "m0_structure",
+    "m1_talent",
+    "m2_high_low",
+    "m3_system",
+    "m4_health",
+    "m5_wealth",
+    "m6_dynamics",
+    "m7_manual"
+  ],
+  "case_count": 20,
+  "judge_enabled": false,
+  "started_at": "2026-10-23T18:24:10.980922+00:00",
+  "finished_at": "2026-10-23T18:52:50.314007+00:00",
+  "api_calls": 160,
+  "judge_calls": 0,
+  "cache_hits": 0,
+  "elapsed_ms": 1719333.1,
+  "counts": {
+    "total": 160,
+    "pass": 110,
+    "warn": 0,
+    "fail": 50,
+    "error": 0
+  }
+}

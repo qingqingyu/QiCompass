@@ -1,0 +1,29 @@
+{
+  "main_axis": {
+    "headline": "You are pushed along by digging up unconventional knowledge, competing with peers for the same opportunities, and earning steady income — three forces running at nearly equal strength.",
+    "body": "The lead force is Indirect Resource — offbeat knowledge and researching alone; you look for angles others have not thought to check. Close behind, and equally weighted, are Rob Wealth — competition among peers, scrambling for the same resources — and Direct Wealth — steady income, savings built bit by bit. Sitting lower but still present are Seven Killings (external pressure and hard demands), Direct Resource (systems and credentials), and Indirect Wealth (a nose for opportunities).",
+    "dominant": "Indirect Resource",
+    "secondary": "Rob Wealth, Direct Wealth (jointly second-heaviest)",
+    "latent": "Seven Killings, Direct Resource, Indirect Wealth",
+    "evidence": "Indirect Resource is heaviest at 10 — month stem Wu earth, plus Wu hidden in the month, day, and hour branches, each acting as Indirect Resource to the Geng day master. Rob Wealth and Direct Wealth are tied at 6 — Rob Wealth from hour stem Xin metal plus Xin hidden in the year branch; Direct Wealth from year stem Yi wood plus Yi hidden in the day branch. Seven Killings at 4 (Bing fire in month and hour branches), Direct Resource at 3 (Ji earth in year branch, Gui water in year and day branches as hidden stems classified as Hurting Officer — correction: Ji earth in year branch hidden stem is Direct Resource, total weight 3), Indirect Wealth at 3 (Jia wood hidden in month branch)."
+  },
+  "core_loop": {
+    "headline": "Dig up an edge → compete for the opening → earn income → the edge wears thin → dig up a new edge.",
+    "from": "Indirect Resource",
+    "to": "Rob Wealth",
+    "flow": "You acquire offbeat knowledge or an unconventional credential, then use it to compete with peers for the same opportunities; that competition converts into steady income, but because peers crowd the same space, the advantage erodes and you must return to research to rebuild the edge.",
+    "driver": "Day master Geng metal is balanced, favoring metal and earth as useful gods; Indirect Resource (earth) at 10 and Rob Wealth (metal) at 6 both support the structure, but the weight concentration means the competitive dynamic dominates the earning path.",
+    "leak": "The cost is that income rarely consolidates — when you earn, peers earn too, and the scramble for the same clients or roles means you spend energy defending turf rather than building on what you already have.\nIn the ten years starting around age 58 (the Jia Shen pillar), metal runs stronger and the peer competition begins to feel less like a scramble and more like shared momentum.\nFor now, pick one niche and guard it: when a new opportunity appears, ask whether it overlaps with what peers already cover before you invest the research hours.",
+    "evidence": "Rob Wealth at 6 (hour stem Xin, year branch hidden Xin) sits in the secondary layer alongside Direct Wealth at 6 (year stem Yi, day branch hidden Yi); the tie means competition and income arrive together, but the Rob Wealth mechanism splits rather than consolidates. Age-58 stretch: Jia Shen pillar, where Shen (metal) strengthens Companion gods and Jia (wood) acts as Indirect Wealth, shifting the peer dynamic. Current pillar at age 38 is Ren Wu, where Wu (fire) feeds earth Resource but Ren (water) is Hurting Officer, so the research-compete cycle remains active."
+  },
+  "structure_type": {
+    "name": "the type who earns by staying one step ahead",
+    "one_line": "You cycle between acquiring an unconventional edge and competing with peers for the same income streams; the moment the edge becomes common knowledge, you return to research."
+  },
+  "capability_source": {
+    "headline": "Strongest when you must dig alone into a problem no one has mapped yet; weakest when you must produce a steady stream of craft work that flows naturally, without needing to outpace anyone.",
+    "text": "The strength comes from Indirect Resource at 10 — while others wait for the training session, you have already read the three papers no one cited and built a working prototype from the footnotes. The research-alone mode is where you move fastest. The weak scene traces back to Eating God at zero: when the task is to produce day after day without a competitive edge or a research puzzle, the energy does not flow.",
+    "evidence": "Indirect Resource 10 (month stem Wu earth, plus Wu in month, day, and hour branch hidden stems); Eating God 0 (no Ren water in the visible stems, and water element entirely absent from the five-element count); Direct Officer also 0 (no Bing fire classified as Direct Officer in the Ten Gods table — correction: no Yi wood acting as Direct Officer; actually Direct Officer requires fire for a metal day master, and the Officer god family shows Direct Officer 0, Seven Killings 4, meaning no soft authority structure, only hard external pressure)."
+  },
+  "structure_fingerprint": "Acquires offbeat knowledge, competes with peers for income, then cycles back to studying when the edge wears thin."
+}

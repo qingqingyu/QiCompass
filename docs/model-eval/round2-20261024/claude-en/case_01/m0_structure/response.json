@@ -1,0 +1,29 @@
+{
+  "main_axis": {
+    "headline": "You build reserves and then put them to use, cycling between gathering strength and releasing it into craft.",
+    "body": "The lead force is Eating God — output that flows naturally, turning craft into enjoyment. Close behind is Companion — your own judgment and peers who move with you. Sitting ready but less active is Direct Resource, which represents systems, credentials, and backing.",
+    "dominant": "Eating God (9)",
+    "secondary": "Companion (8)",
+    "latent": "Direct Resource (6)",
+    "evidence": "Eating God is heaviest (9) — Xin metal month stem, plus Xin hidden in day branch You, plus three more points from hidden stems in the two Si branches (month and hour). Companion follows at (8) — year stem Yi acts as Seven Killings but the day stem and hour stem are both Ji earth (Companion to the day master), plus Ji hidden in year branch Chou and two Wu hidden in the Si branches (each Wu counts as Rob Wealth, part of the Companion family, contributing 2 total). Direct Resource sits at (6) — Bing fire hidden twice in the two Si branches plus one more from hidden stem, all acting as Direct Resource to Ji earth day master."
+  },
+  "core_loop": {
+    "headline": "Gather support → make things → gather more support.",
+    "from": "Direct Resource",
+    "to": "Eating God",
+    "flow": "You absorb from teachers, manuals, or structured environments, then you turn what you absorbed into finished work — code that runs, designs that ship, explanations that land. The work proves you know your trade, which brings you more room to keep building.",
+    "driver": "Day master Ji earth is slightly strong (偏旺), supported by fire Resource in the two Si branches and reinforced by Companion earth across three pillars. The engine favors metal (Output), water (Wealth), and wood (Officer-Killings) to balance the weight.",
+    "leak": "The cost is that you rarely turn the finished work into money or formal standing — projects end at 'it works' rather than 'it sold' or 'it got me promoted'.\nIn the ten years starting around age 42 (the Bing Zi pillar), water appears on the branch and income pathways open wider; in the stretch starting around age 52 (the Yi Hai pillar), both water and wood run strong and the gap narrows further.\nFor now, treat every completed project as the start of a negotiation, not the end of the task.",
+    "evidence": "The loop runs Resource → Output because the day master is strong and the favorable elements include metal (Output family). Direct Resource (6) feeds the day master, and Eating God (9) is the heaviest output channel. The leak exists because Wealth is nearly missing: Indirect Wealth sits at only (1) — one Gui water hidden in year branch Chou — and Direct Wealth is completely absent (0). Water element count is also zero across the eight visible characters. The age-42 stretch corresponds to the Bing Zi luck pillar in the input (start_age 42, stem Bing, branch Zi); Zi is water. The age-52 stretch corresponds to Yi Hai (start_age 52, stem Yi wood, branch Hai water). Both pillars bring the missing water element (Wealth family) and Yi also brings wood (Officer-Killings family), both on the favorable list."
+  },
+  "structure_type": {
+    "name": "the craft-focused builder",
+    "one_line": "You loop between absorbing knowledge and producing work, but the work rarely converts into income or titles without deliberate effort to monetize or formalize it."
+  },
+  "capability_source": {
+    "headline": "Strongest when you must produce a working prototype or solve a technical problem; weakest when you must sell the result or compete for a formal position.",
+    "text": "The heaviest weight sits in Eating God — turning ideas into tangible output — and you carry enough Companion to trust your own read of a problem. When the team needs a proof-of-concept by tomorrow, you ship it by tonight. The strength comes from Output being the heaviest force and Companion giving you the confidence to move without waiting for consensus.",
+    "evidence": "Eating God (9) is the single heaviest Ten God; Companion (8) is the second heaviest. Together they account for the ability to produce independently. The weak scene traces back to the Wealth gap already covered in core_loop.leak and its evidence — Indirect Wealth (1), Direct Wealth (0), water element absent from the visible pillars — so the capability to convert output into money or negotiate compensation stays underdeveloped."
+  },
+  "structure_fingerprint": "Absorbs structure, produces craft, but stops before monetizing or formalizing the output."
+}

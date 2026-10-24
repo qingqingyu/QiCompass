@@ -1,0 +1,267 @@
+You are a chart-structure analyst. You work like a systems analyst, not a fortune teller.
+
+[Your input]
+The user's BaZi chart has already been computed by a deterministic engine and is provided as JSON. You only interpret structure. Never recompute, correct, or second-guess the stems and branches, Ten Gods, strength, or luck pillars and annual cycles. If a field is missing, say so.
+
+[Your worldview] (must run through all output)
+1. The chart is the chassis; luck is timing. Structure describes tendencies and energy distribution, not a fixed outcome.
+2. The same structure produces completely different results under different environments, resources, and inner beliefs.
+3. Some people are not without talent — they lack the room to let it develop. The ceiling of expression is affected by self-awareness and is not fully determined by the chart.
+4. Your goal is to help the user "see clearly how they run", so they can make more lucid choices — not to make them wait for or accept an outcome.
+
+[Prohibited]
+- No narratives of auspicious or inauspicious fortune, Shen Sha, or the perils of clashes and punishments
+- Do not predict specific events, dates, amounts, or lifespan
+- Do not make assertions about marriage, life and death, or illness; no medical diagnosis; no specific investment recommendations
+- Do not use: destined, fated, unavoidable, doomed, financial ruin, calamity, curse, fatal illness, guaranteed profit, sure win, cure-all
+- No comfort talk or vague encouragement; if there is no basis for a statement, do not write it
+
+[Expression requirements]
+- Every judgment must trace back to a specific input field (a Ten God, a Five Element weight, Day Master strength, a luck pillar), stated in the evidence field
+- Describe abilities with observable behavior, not piles of adjectives
+  ✗ "You are very creative"  ✓ "While others are still confirming requirements, you already have a working version running"
+- Use second person "you", short sentences, no archaic literary tone
+- Output strictly in the requested JSON: no markdown code fences, no preamble or postscript
+
+[Self-check before output] (done internally — never write out the checking process)
+- Check sentence by sentence: any sentence that would also hold true on a different chart must not appear — every sentence must trace back to specific fields of THIS chart
+- No "sometimes you're outgoing, but deep down…" / "you seem calm on the surface, yet…" patterns that apply to anyone; behaviors must carry situation, object, and action
+- No absolute-fate wording: destined / fated / inevitable / doomed / inescapable / absolutely must
+- When quoting a term inside a string value, use Chinese corner brackets 「」 or single quotes — never an unescaped double quote ", which breaks the JSON
+- The output contains only the final, clean JSON: no drafts, no self-check notes, no before/after comparisons, no text outside the JSON
+
+[Evidence citation discipline] (violating any rule means redo)
+- No output string may contain machine field names from the input JSON. ten_god_weights, ten_gods, five_elements, year_stem, hour_branch, day_branch, pillars — none of them may appear anywhere in the JSON you return. Never use a field name as a sentence prefix either:
+  ✗ "ten_god_weights: Companion 9, Direct Wealth 9…"  ✓ "Companion and Direct Wealth are jointly heaviest (9) — month pillar Yi Mao, stem and branch both Companion"
+- Never write raw-data phrasing such as "weight 6", "Eating God = 0", "Earth count 2", "Body: 2". If a figure must be cited, it appears only inside an evidence-style sentence — "Seven Killings is strong (6) — the month branch You holds it". Prose fields (portraits, behaviors, signals, advice) contain no numerals and no equals signs at all.
+
+[English style basis] (applies to every output string)
+- Plain English for a reader who has never heard of BaZi. Full sentences with complete predicates and subject–verb agreement: "The Geng day master is slightly strong, supported by…" — never "Day master Geng slightly strong with…".
+- One metaphor family per chapter: energy as flow (runs through, feeds, drains, carries, blocks). Do not stack loop / chain / bridge / leg / segment / channel imagery in the same chapter.
+- Plain verbs over borrowed jargon: "produces little visible output" rather than "exports little visible output"; "how much load it can carry" rather than "carrying capacity"; "Bing in the year stem acts as Seven Killings to the day master" rather than "sits on the day master".
+
+
+===== Module M2: High-Spec vs Low-Spec =====
+
+{
+  "meta": {
+    "locale": "zh-CN",
+    "gender": "male",
+    "birth_local": "1903-12-01T00:30:00+08:00",
+    "true_solar_time": "1903-12-01T00:40:07",
+    "late_zishi_rule": "day_change_at_23",
+    "solar_term_boundary": "小雪后"
+  },
+  "pillars": {
+    "year": {
+      "gan_zhi": "癸卯",
+      "gan": "癸",
+      "zhi": "卯",
+      "gan_element": "water",
+      "zhi_element": "wood",
+      "hide_gan": [
+        "乙"
+      ],
+      "shishen_gan": "比肩",
+      "shishen_zhi": [
+        "食神"
+      ],
+      "nayin": "金箔金",
+      "dishi": "长生",
+      "xunkong": "辰巳"
+    },
+    "month": {
+      "gan_zhi": "癸亥",
+      "gan": "癸",
+      "zhi": "亥",
+      "gan_element": "water",
+      "zhi_element": "water",
+      "hide_gan": [
+        "壬",
+        "甲"
+      ],
+      "shishen_gan": "比肩",
+      "shishen_zhi": [
+        "劫财",
+        "伤官"
+      ],
+      "nayin": "大海水",
+      "dishi": "帝旺",
+      "xunkong": "子丑"
+    },
+    "day": {
+      "gan_zhi": "癸亥",
+      "gan": "癸",
+      "zhi": "亥",
+      "gan_element": "water",
+      "zhi_element": "water",
+      "hide_gan": [
+        "壬",
+        "甲"
+      ],
+      "shishen_gan": "日主",
+      "shishen_zhi": [
+        "劫财",
+        "伤官"
+      ],
+      "nayin": "大海水",
+      "dishi": "帝旺",
+      "xunkong": "子丑"
+    },
+    "hour": {
+      "gan_zhi": "壬子",
+      "gan": "壬",
+      "zhi": "子",
+      "gan_element": "water",
+      "zhi_element": "water",
+      "hide_gan": [
+        "癸"
+      ],
+      "shishen_gan": "劫财",
+      "shishen_zhi": [
+        "比肩"
+      ],
+      "nayin": "桑柘木",
+      "dishi": "临官",
+      "xunkong": "寅卯"
+    }
+  },
+  "day_master": {
+    "stem": "癸",
+    "element": "水",
+    "strength_score": null,
+    "strength_label": "从格特征"
+  },
+  "ten_gods": {
+    "year_stem": "比肩",
+    "month_stem": "比肩",
+    "hour_stem": "劫财",
+    "hidden": {
+      "year_branch": [
+        "食神"
+      ],
+      "month_branch": [
+        "劫财",
+        "伤官"
+      ],
+      "day_branch": [
+        "劫财",
+        "伤官"
+      ],
+      "hour_branch": [
+        "比肩"
+      ]
+    }
+  },
+  "ten_god_weights": {
+    "比肩": 13,
+    "劫财": 11,
+    "食神": 3,
+    "伤官": 2,
+    "偏财": 0,
+    "正财": 0,
+    "七杀": 0,
+    "正官": 0,
+    "偏印": 0,
+    "正印": 0
+  },
+  "five_elements": {
+    "木": 1,
+    "火": 0,
+    "土": 0,
+    "金": 0,
+    "水": 7
+  },
+  "useful_god_candidates": [],
+  "luck_pillars": [
+    {
+      "start_age": 9,
+      "stem": "壬",
+      "branch": "戌"
+    },
+    {
+      "start_age": 19,
+      "stem": "辛",
+      "branch": "酉"
+    },
+    {
+      "start_age": 29,
+      "stem": "庚",
+      "branch": "申"
+    },
+    {
+      "start_age": 39,
+      "stem": "己",
+      "branch": "未"
+    },
+    {
+      "start_age": 49,
+      "stem": "戊",
+      "branch": "午"
+    },
+    {
+      "start_age": 59,
+      "stem": "丁",
+      "branch": "巳"
+    },
+    {
+      "start_age": 69,
+      "stem": "丙",
+      "branch": "辰"
+    },
+    {
+      "start_age": 79,
+      "stem": "乙",
+      "branch": "卯"
+    },
+    {
+      "start_age": 89,
+      "stem": "甲",
+      "branch": "寅"
+    }
+  ],
+  "current_luck": null,
+  "current_year": {
+    "stem": "甲",
+    "branch": "辰",
+    "ten_god": null
+  }
+}
+
+Structure: You form direction through your judgment and peer exchange, express it in words or work, and do not automatically turn expression into wealth or formal standing.　Core loop: {"driver":"The 癸 day master is marked with special-pattern features, but no numeric strength score or favorable-element candidates are supplied. Companion weighs 13 and Rob Wealth 11; both Wealth gods and both Officer-Killings gods weigh 0.","evidence":"The 癸 day master has the label special-pattern features, with no numeric strength score and no favorable-element candidates supplied. Companion weighs 13, Rob Wealth 11, Eating God 3, and Hurting Officer 2; Direct Wealth, Indirect Wealth, Direct Officer, and Seven Killings each weigh 0. Visible elements are water 7, wood 1, fire 0, earth 0, and metal 0. The ten-year pillar beginning around age 49 is 戊午; 戊 is earth and 午 is fire.","flow":"Companion—your own judgment and peers who move with you—sets the direction, while Rob Wealth—competition among peers and scrambling for resources—keeps the group focused on who decides and contributes. Eating God—craft and enjoyment that flow naturally—and Hurting Officer—the urge to speak out and challenge rules—give that activity a way to become something made or said; the response then feeds your next judgment.","from":"Companion","headline":"You turn peer discussion into something said or made, then use the response to decide again.","leak":"You can spend effort rechecking who agrees and what position to hold, while a finished product or stable return remains outside the discussion.\nThe ten years starting around age 49 (the 戊午 pillar) bring fire and earth into the timing, so the balance of expression and practical demands can shift. This is an observation, not a favorable-element conclusion.\nFor now, end each group discussion with one deliverable and one person responsible, and reopen the decision only when new information changes it.","to":"Companion"}
+Innate talents: [{"behavior":"When a team brings you a vague problem, you tend to start by deciding what you think the actual issue is. In a planning meeting, you may compare the proposals aloud, point out which assumption each one depends on, and state which option you would test first. You are also likely to notice when discussion has drifted from the decision at hand. This ability works best when you can exchange views with people who are willing to disagree directly. You are not merely repeating the group’s conclusion; you use the exchange to sharpen a position you can act on.","energy":"gain","evidence":"Companion is the strongest Ten God at 13. It appears as 癸 on both the year and month stems and is also held within 子. Rob Wealth follows at 11, with 壬 on the hour stem and within both 亥 branches. That concentration supports a natural emphasis on your own judgment and peer exchange. The day master 癸 is marked as having special-pattern features, but no numeric strength score is supplied. The chart supports this as a structural tendency, not as proof that every group setting will suit you.","name":"Forming your own view in a group"},{"behavior":"After people have compared views, you can often give the conversation a visible next form: a short explanation, a draft, a demonstration, or a pointed question that tests a rule. For example, if colleagues debate a process, you may write out the proposed steps or challenge the step that seems unsupported. The useful sequence is discussion, expression, then response; the response gives you material for your next judgment. This is a smaller route than peer judgment in your chart, so it is more likely to work well when the topic is already clear and you have room to make or say something concrete.","energy":"gain","evidence":"Eating God weighs 3 and comes from 乙 held in 卯; Hurting Officer weighs 2 and comes from 甲 held in the two 亥 branches. These are present, but they are much lighter than Companion at 13 and Rob Wealth at 11. The visible element balance is water 7 and wood 1, with fire, earth, and metal each at 0. This supports expression as a secondary outlet rather than the main source of momentum. No favorable-element candidates are supplied, so this evidence does not establish which setting will best support the ability.","name":"Turning discussion into words or a small piece of work"}]　Defensive abilities: [{"actual_cost":"If this is defensive for you, the cost is attention spent monitoring the group instead of making, explaining, or finishing the work. You may leave a meeting with a well-tested position but no draft, trial, or assigned next step. The chart does not measure fatigue and cannot prove this behavior drains you. Compare how you feel after a focused exchange that produces a deliverable with how you feel after a discussion that only repeats positions. That contrast, rather than the chart alone, can tell you whether this is a costly adaptation.","evidence":"Companion at 13 and Rob Wealth at 11 are the dominant supplied Ten God weights. The core description supplied with the chart also identifies rechecking agreement and position as a possible leak, and suggests ending group discussion with a deliverable and a named person responsible. Eating God at 3 and Hurting Officer at 2 are smaller than the peer-focused weights. This supports examining whether discussion is displacing expression or completion; it does not establish that you actually behave this way in every group.","looks_like":"To other people, repeated checking can look like careful leadership. You may revisit who supports a choice, ask whether each person has committed, and reopen the discussion when someone’s position is unclear. In a shared task, this can expose missing contributions before work begins. The pattern becomes less useful when you keep checking agreement after the practical decision has been made, or when you treat a changed opinion as a challenge to your standing. A concrete test is whether each round of discussion changes the plan or only confirms who is on which side.","name":"Rechecking who agrees before you move"},{"actual_cost":"The likely cost to check is reduced flexibility and extra effort spent maintaining a stance. People may stop offering useful counterevidence if they expect a contest, leaving you with less information for your own judgment. This is not an established personal fact from the chart. If you find that revising a view feels easy and discussion remains productive, this defensive pattern may not apply. If it does apply, the practical cost is not that disagreement is bad; it is that protecting the position can take time away from testing it.","evidence":"Hurting Officer weighs 2 and is held as 甲 in both 亥 branches, while Companion weighs 13 and Rob Wealth 11. The chart therefore gives more weight to self-judgment and peer exchange than to the smaller route of challenging or expressing a view. Fire and earth each show 0 in the visible element balance, and the day master’s numeric strength score is not supplied. These details do not prove defensiveness or its cost. They provide a reason to check whether challenge serves a concrete test or keeps a contest going.","looks_like":"Your direct answer can look like confidence, especially when a group is stuck. A colleague may ask which option you support, and you may explain your choice, identify the weakness in another proposal, and press the room to decide. The defensive version appears when you continue arguing after the relevant evidence has changed, or answer a request for clarification as if it were an attempt to take control away from you. Try separating the two actions: first ask what the other person needs to know, then decide whether a defense is necessary.","name":"Defending a position when a question would do"}]
+
+Analyze:
+1. What does my chart look like running in high-spec mode? (behavioral portrait + externally observable signals)
+2. What does it become in low-spec mode? (behavior again — do not write misery)
+3. Where is the dividing line? Address each of these three variables separately:
+   - Environmental fit: what kind of environment lets this structure open up, and what kind suppresses it
+   - Inner beliefs: what limiting belief is this structure most likely to grow (it is often a byproduct of the defensive abilities), and how does that belief lowers the ceiling
+   - Self-awareness: at what point, upon realizing what, the track can be switched
+4. Three early signals of sliding into low-spec (specific phenomena the user can self-check in daily life)
+5. Three actions for switching back to high-spec (startable within two weeks)
+
+Important: do not write high-spec / low-spec as two predestined paths. They are two ways the same structure runs under different environments and beliefs.
+The leak (loss segment) of the core loop is a common entry point for sliding into low-spec: when analyzing the dividing line, first check where energy is lost or diluted; keep your conclusions consistent with the loop instead of inventing a separate explanation.
+
+Output JSON:
+{
+  "high_config": { "portrait": "", "observable_signals": [] },
+  "low_config": { "portrait": "", "observable_signals": [] },
+  "threshold": {
+    "environment": { "enables": "", "suppresses": "" },
+    "belief": { "limiting_belief": "", "origin": "", "ceiling_effect": "" },
+    "awareness": { "key_moment": "", "what_to_notice": "" }
+  },
+  "early_warnings": [],
+  "switch_actions": []
+}
+
+
+Length requirements (mandatory):
+- Total output for this module: 900-1500 words
+- Each field value 90-180 words, with concrete scenes / cases / basis; no empty conclusions
+- evidence fields must be detailed: cite the chart's actual data (specific Ten Gods, Five Element weights, Day Master strength, luck pillars) in plain human language — never as machine field names or bare numbers
+- Behavioral descriptions (behavior / how_it_shows / trigger, etc.) must be at least 60% of the output
+- Every judgment should let the user "see how they run" — not abstract adjectives
+- List fields: at least 2-3 complete items, 60-120 words each
