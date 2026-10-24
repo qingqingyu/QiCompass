@@ -109,9 +109,11 @@ struct DailyInterpretationSection: View {
                     } else if DailyInsight.looksLikeJSON(text) {
                         insightBody(EngineReadingTemplates.insight(for: dayRelation))
                     } else {
+                        // v3 散文快照:字号随 2026-10-25 字号梯度对齐 zh 族正常态
+                        // 正文 17(EN 离线散文快照维持既有字号差,罕见路径,待走查)
                         Text(MarkdownSanitizer.rendered(text))
-                            .bodySerifText(size: 16)
-                            .lineSpacing(9)
+                            .bodySerifText(size: 17)
+                            .lineSpacing(5)
                             .multilineTextAlignment(.leading)
                             .fixedSize(horizontal: false, vertical: true)
                             .fadeIn()
@@ -153,26 +155,25 @@ struct DailyInterpretationSection: View {
         }
     }
 
-    /// 区标 kicker(D5 定稿):**全屏唯一字距标签**——EN 全大写 9.5 semibold、
-    /// letter-spacing 0.14em(≈1.3pt)、inkMuted;zh/zh-Hant 维持小标 10 + 4pt
-    /// 字距(2026-09-28 S04 中文口径不变)。
+    /// 区标 kicker(**2026-10-25 字号梯度**:并入统一小标——sans 13 medium
+    /// tracking 1.5、inkMuted,与领域行/信号行/宜忌表头同一种;原 zh 10+4pt
+    /// 字距小标与 EN 9.5 semibold 双口径退役,EN 仅保留全大写惯例。
+    /// 修订 D5「全屏唯一字距标签」与 2026-09-28 S04 中文口径)。
     private var kicker: some View {
         Text(L10n.DailyFortune.interpretTitle)
-            .font(
-                AppLanguage.current.isChinese
-                    ? BaziFont.caption(size: 10)
-                    : .system(size: 9.5, weight: .semibold)
-            )
+            .font(.system(size: 13, weight: .medium))
             .textCase(AppLanguage.current.isChinese ? nil : .uppercase)
-            .tracking(AppLanguage.current.isChinese ? 4 : 1.3)
+            .tracking(1.5)
             .foregroundStyle(BaziTheme.inkMuted)
     }
 
     // MARK: - S6 结构化洞察正文(v4 JSON 五段)
 
     /// 今日一句(标题句)+ 事业/关系/精力三行 + 今日信号(确定性)+ 收尾提醒。
-    /// 2026-10-01 D5 定稿:headline serif 17(2026-10-18 S3 改 19)、领域行
-    /// 固定标签列(宽按语言 52/92,2026-10-18 S2)+ hairline 行分隔;
+    /// 2026-10-01 D5 定稿:headline serif 17(2026-10-18 S3 改 19,**2026-10-25
+    /// 字号梯度改 24**——全页大字第二处,仅次于日期 72;zh 族 24,EN 19 待
+    /// 走查)、领域行固定标签列(宽按语言 58/92,2026-10-25 随标签 13pt 放宽,
+    /// 原 52/92)+ hairline 行分隔;
     /// **signal 行 2026-10-18 S2
     /// 修订 D5「左右分立」**:改与领域行同构(标签列 + 左对齐值),三行与
     /// 信号行同列对齐;reminder EN serif italic;
@@ -180,9 +181,9 @@ struct DailyInterpretationSection: View {
     private func insightBody(_ insight: DailyInsight) -> some View {
         VStack(alignment: .leading, spacing: 0) {
             Text(MarkdownSanitizer.rendered(insight.headline))
-                .font(BaziFont.display(size: 19))
+                .font(BaziFont.display(size: AppLanguage.current.isChinese ? 24 : 19))
                 .foregroundStyle(BaziTheme.ink)
-                .lineSpacing(7)
+                .lineSpacing(AppLanguage.current.isChinese ? 6 : 7)
                 .fixedSize(horizontal: false, vertical: true)
                 .fadeIn()
 
@@ -196,38 +197,44 @@ struct DailyInterpretationSection: View {
             signalRow
 
             // 收尾句(2026-10-18 S3 评审:整页唯一可带走的一句,原 caption
-            // 小灰字被埋在底部)——短墨横 + 宋体大字居中,作为整页的收尾。
+            // 小灰字被埋在底部)——短墨横 + 宋体大字,作为整页的收尾。
+            // **2026-10-25 字号梯度:居中改左对齐**——20pt 中文十余字近占满
+            // 行时居中不可辨,读作比正文多缩进一截(外评 #3「结语看起来歪了」);
+            // 改与正文同左缘,墨横随左,EN italic 同步。
             // 位置不动仍在信号行之后(不挪顶部、不做「签」,10-15 刚删今日一签)。
-            VStack(spacing: 14) {
+            VStack(alignment: .leading, spacing: 14) {
                 Rectangle()
                     .fill(BaziTheme.ink.opacity(0.35))
                     .frame(width: 16, height: 1.5)
                 Text(MarkdownSanitizer.rendered(insight.reminder))
                     .font(reminderFont)
                     .foregroundStyle(BaziTheme.ink)
-                    .multilineTextAlignment(.center)
+                    .multilineTextAlignment(.leading)
                     .lineSpacing(6)
                     .fixedSize(horizontal: false, vertical: true)
             }
-            .frame(maxWidth: .infinity)
-            .padding(.top, 40)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .padding(.top, 44)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    /// 标签列宽(S2,2026-10-18):中文 52(容得下 4 字「今日信号/今日信號」,
-    /// 三行与信号行同列对齐);EN 维持 92(原按 "Relationships" 定的宽,
-    /// "Today's signal" 同档)。两档都偏紧 → 配 lineLimit(1) +
-    /// minimumScaleFactor(0.85) 缩放兜底。
+    /// 标签列宽(2026-10-25 字号梯度):中文 52→58——统一小标升 13pt +
+    /// tracking 1.5 后 4 字「今日信号/今日信號」在 52pt 会触发 ~0.9 缩放
+    /// (SwiftUI 路径是 lineLimit(1)+minimumScaleFactor 缩放而非换行;
+    /// HTML 对比稿无 lineLimit 才表现为换行,不迁移),故放宽到 58;
+    /// EN 维持 92(原按 "Relationships" 定的宽,"Today's signal" 同档)。
+    /// 配 lineLimit(1) + minimumScaleFactor(0.85) 缩放兜底不变。
     private var labelColumnWidth: CGFloat {
-        AppLanguage.current.isChinese ? 52 : 92
+        AppLanguage.current.isChinese ? 58 : 92
     }
 
-    /// 领域行(D5,2026-10-18 S2 修订):固定标签列宽按语言 52/92(原 92 是
-    /// 按英文定的,中文两字只需 ~30pt,读成正文空隙)——标签 sans medium
-    /// 12.5 inkMuted,常规大小写不拉字距 + 正文(sans 14 ink;zh 经
-    /// BaziFont.body 走宋体),行顶 hairline、上下 padding 13
-    /// (S3.2 纵向节奏,原 11;今日信号行同步)。
+    /// 领域行(D5,2026-10-18 S2 修订;**2026-10-25 字号梯度**):固定标签列
+    /// 宽按语言 58/92;标签并入统一小标 sans 13 medium inkMuted,tracking 1.5
+    /// 仅 zh 族(EN 无字距防 92pt 列宽截断,见行内注释;原 12.5 无字距——
+    /// 外评「粗黑小标签贴细宋体旁生硬」,四类标签归一);
+    /// 正文 zh 族 17(原 14;行高 ≈1.65)EN 14 不动待走查;行顶 hairline、
+    /// 上下 padding 13(S3.2 纵向节奏)不变;今日信号行同步。
     /// alignment 必须 .leading(2026-10-01 真机截图修复):hairline Rectangle
     /// 贪宽占满行宽,而 HStack 是固有宽——VStack 默认 .center 会把每行内容
     /// 各自水平居中(实测三行标签起点 28/61/52pt 各不相同,Work 行只因内容
@@ -239,15 +246,19 @@ struct DailyInterpretationSection: View {
                 .frame(height: 0.5)
             HStack(alignment: .firstTextBaseline, spacing: 10) {
                 Text(label)
-                    .font(.system(size: 12.5, weight: .medium))
+                    .font(.system(size: 13, weight: .medium))
+                    // tracking 1.5 仅 zh 族:EN "Today's signal" 13pt+tracking1.5
+                    // ≈109pt,92pt 列宽 ÷109 < 0.85 缩放地板 → 截断;EN 13pt
+                    // 无字距 ≈84-90pt 100% 装下(2026-10-25 字号梯度,EN 走查后再定)
+                    .tracking(AppLanguage.current.isChinese ? 1.5 : 0)
                     .foregroundStyle(BaziTheme.inkMuted)
                     .lineLimit(1)
                     .minimumScaleFactor(0.85)
                     .frame(width: labelColumnWidth, alignment: .leading)
                 Text(MarkdownSanitizer.rendered(text))
-                    .font(BaziFont.body(size: 14))
+                    .font(BaziFont.body(size: AppLanguage.current.isChinese ? 17 : 14))
                     .foregroundStyle(BaziTheme.ink)
-                    .lineSpacing(6)
+                    .lineSpacing(AppLanguage.current.isChinese ? 5 : 6)
                     .multilineTextAlignment(.leading)
                     .fixedSize(horizontal: false, vertical: true)
             }
@@ -266,7 +277,8 @@ struct DailyInterpretationSection: View {
 
     /// 今日信号行(确定性,非 AI)。**2026-10-18 S2 修订 D5「左右分立」**:
     /// 改与 domainRow 完全同构——行顶 hairline、上下 padding 13(S3.2 同步
-    /// domainRow)、标签列(labelColumnWidth,sans medium 12.5 inkMuted)+
+    /// domainRow)、标签列(labelColumnWidth,统一小标 13 medium inkMuted
+    /// tracking 1.5 仅 zh 族,2026-10-25 字号梯度随 domainRow 同步,原 12.5)+
     /// 值**左对齐**紧随标签列,
     /// 事业/关系/精力三行与信号行同列对齐;方向着色沿用 ↑=墨青 / ↓=朱红。
     /// - daySignal 非空:Water ↑ · Wood ↓
@@ -282,7 +294,9 @@ struct DailyInterpretationSection: View {
                     .frame(height: 0.5)
                 HStack(alignment: .firstTextBaseline, spacing: 10) {
                     Text(L10n.DailyFortune.insightSignal)
-                        .font(.system(size: 12.5, weight: .medium))
+                        .font(.system(size: 13, weight: .medium))
+                        // tracking 1.5 仅 zh 族(EN 列宽预算,同 domainRow 标签注释)
+                        .tracking(AppLanguage.current.isChinese ? 1.5 : 0)
                         .foregroundStyle(BaziTheme.inkMuted)
                         .lineLimit(1)
                         .minimumScaleFactor(0.85)
@@ -293,7 +307,7 @@ struct DailyInterpretationSection: View {
                             // 无方向:只显流日五行(天干/地支去重),不标 ↑↓
                             ForEach(uniqueElements(elements), id: \.self) { elem in
                                 Text(BaziTerms.display(elem))
-                                    .font(.system(size: 12, weight: .semibold))
+                                    .font(.system(size: 13, weight: .semibold))
                                     .foregroundStyle(BaziTheme.ink)
                             }
                         } else {
@@ -303,7 +317,7 @@ struct DailyInterpretationSection: View {
                                     Text(BaziTerms.display(item.element))
                                     Text(verbatim: isUp ? "↑" : "↓")
                                 }
-                                .font(.system(size: 12, weight: .semibold))
+                                .font(.system(size: 13, weight: .semibold))
                                 .foregroundStyle(isUp ? BaziTheme.jade : BaziTheme.cinnabar)
                                 // a11y(先例 = XijiCard chip):裸 ↑↓ 对 VoiceOver
                                 // 只是"上/下箭头"字符,合成"喜用 火 / 忌神 木"语义朗读

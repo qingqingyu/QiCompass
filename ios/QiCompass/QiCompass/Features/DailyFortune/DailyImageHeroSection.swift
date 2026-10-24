@@ -303,28 +303,35 @@ struct DailyHeaderSection: View {
 
     // MARK: 日期行
 
-    /// 大字日(serif medium 58,行高 0.95)+ 右侧纵排三行 meta
-    /// (Thursday 14 medium ink / October 2026 12 inkMuted / 农历·日柱 11 inkMuted)。
+    /// 大字日(serif medium 72)+ 右侧纵排三行 meta(星期全名 14 medium ink /
+    /// 月年 12.5 inkMuted / 农历·日柱 12.5 inkMuted)。
+    /// **2026-10-25 字号梯度修订**(外评 7 条,对比稿 docs/design-ref/
+    /// today-type/今日页字号梯度.html):58→72——全页大字只留两处之一(另一处
+    /// = 解读主句 24);右侧三行由顶对齐改**底部对齐数字基线**(alignmentGuide
+    /// 把 HStack 的 .bottom 锚到数字 firstTextBaseline)——修外评「星期六顶部
+    /// 高过数字、农历行离数字底线远,整块像飘着」;行距 3,与数字间距 16。
     /// serif 走 songDisplay:zh=宋体、EN=New York 系(图外题记同为衬线族)。
     private var dateRow: some View {
-        HStack(alignment: .top, spacing: 12) {
+        HStack(alignment: .bottom, spacing: 16) {
             Text(verbatim: "\(Calendar.current.component(.day, from: businessDate))")
-                .font(BaziFont.songDisplay(size: 58, weight: .medium))
+                .font(BaziFont.songDisplay(size: 72, weight: .medium))
                 .foregroundStyle(BaziTheme.ink)
-            VStack(alignment: .leading, spacing: 0) {
+                .alignmentGuide(.bottom) { $0[.firstTextBaseline] }
+            VStack(alignment: .leading, spacing: 3) {
                 Text(BaziDateFormatter.weekdayFull.string(from: businessDate))
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(BaziTheme.ink)
-                    .padding(.top, 9)
                 Text(BaziDateFormatter.monthYear.string(from: businessDate))
-                    .font(.system(size: 12))
+                    .font(.system(size: 12.5))
                     .foregroundStyle(BaziTheme.inkMuted)
-                    .padding(.top, 3)
                 Text(verbatim: lunarLine)
-                    .font(.system(size: 11))
+                    .font(.system(size: 12.5))
                     .foregroundStyle(BaziTheme.inkMuted)
                     .lineLimit(1)
-                    .padding(.top, 6)
+                    // EN 长形态(Leap Twelfth…≈46 chars)12.5pt 超出 375pt 屏
+                    // 可用宽,缩放兜底防尾部日柱被省略号吃掉(对齐 domainRow/
+                    // signalRow 标签 0.85 先例;2026-10-25 字号梯度随 11→12.5 引入)
+                    .minimumScaleFactor(0.85)
             }
         }
     }
@@ -521,10 +528,12 @@ private struct TodayChip: View {
 /// 压在 hero 融纸渐隐区上的字层——画在下、字在上)。
 /// 规格(mockup .yj @393px,px≈pt;2026-10-01 真机反馈微调,用户拍板):
 /// 两列 grid 列距 26、左右内边距 22(宿主注入)、底部 28(mockup 18——真机
-/// 读作贴底,整体上移);表头 serif 16 medium(Do=墨青 / Don't=朱红;zh=宜/忌;
-/// mockup 15);条目 serif 15(mockup 14;EN 16 chars 预算本就按 serif 15pt
-/// 列宽核算,375pt 屏单列 ≈135pt 仍单行)、行距 1.5、条目间 0.5pt hairline
-/// 分隔、每条上下 padding 11(2026-10-18 S3 纵向节奏,原 9)。
+/// 读作贴底,整体上移);表头 = 统一小标 sans 13 medium tracking 1.5
+/// (Do=墨青 / Don't=朱红;zh=宜/忌;**2026-10-25 字号梯度**,原 serif 16——
+/// 外评「标签与词条同大,宜像第一个词条」);条目 serif zh 17 / EN 15
+/// (原 15;EN 16 chars 预算按 serif 15pt 列宽核算,375pt 屏单列 ≈135pt 仍
+/// 单行,EN 尺寸随走查拍板)、条目间 0.5pt hairline 分隔(表头下也一条)、
+/// 每条上下 padding 9(2026-10-25 收紧,原 11)。
 ///
 /// 数据源(v1 简化,同前):前端十神→关键词查表,每列 3 词;
 /// 后续可挪后端基于喜忌+流日关系确定性映射(不增加 v1 后端复杂度)。
@@ -630,29 +639,32 @@ struct HeroYiJiColumns: View {
         }
     }
 
-    /// 单列:表头(Do=墨青 / Don't=朱红;zh/zh-Hant 表头仍「宜/忌」,现状
-    /// 逻辑)+ 条目纵堆(hairline 分隔、上下 padding 11——2026-10-18 S3 纵向
-    /// 节奏,原 9)。
+    /// 单列:表头 + 条目纵堆。
+    /// **2026-10-25 字号梯度修订**(外评「宜/忌标签与词条一样大,只靠颜色
+    /// 区分,宜读起来像第一个词条」):表头 serif 16 降为**统一小标**——
+    /// sans 13 medium tracking 1.5(与解读 kicker/领域行/信号行标签同一种),
+    /// 保留墨青/朱红语义色;条目 serif 15→17(zh 族;EN 15 不动,尺寸待
+    /// 真机走查拍板),上下 padding 11→9(大字下收紧行距,修订 2026-10-18
+    /// S3 的 11);表头下补一条 hairline(条目 0 也画顶线,标签与词条分家)。
     /// EN 表头的「宜 yí / 忌 jì」汉字小注 2026-10-01 D4 删(EN 基座零汉字)。
     /// serif 一族:zh=宋体(图内宋)、EN=New York(songDisplay 自动路由)。
     private func column(isYi: Bool, header: String, items: [String]) -> some View {
-        VStack(alignment: .leading, spacing: 2) {
+        VStack(alignment: .leading, spacing: 10) {
             Text(header)
-                .font(BaziFont.songDisplay(size: 16, weight: .medium))
+                .font(.system(size: 13, weight: .medium))
+                .tracking(1.5)
                 .foregroundStyle(isYi ? BaziTheme.jade : BaziTheme.cinnabar)
             VStack(alignment: .leading, spacing: 0) {
-                ForEach(Array(items.enumerated()), id: \.offset) { idx, item in
-                    if idx > 0 {
-                        Rectangle()
-                            .fill(BaziTheme.hairline)
-                            .frame(height: 0.5)
-                    }
+                ForEach(Array(items.enumerated()), id: \.offset) { _, item in
+                    Rectangle()
+                        .fill(BaziTheme.hairline)
+                        .frame(height: 0.5)
                     Text(item)
-                        .font(BaziFont.songDisplay(size: 15))
+                        .font(BaziFont.songDisplay(size: isEn ? 15 : 17))
                         .foregroundStyle(BaziTheme.ink)
                         .lineLimit(1)
                         .minimumScaleFactor(0.9)
-                        .padding(.vertical, 11)
+                        .padding(.vertical, 9)
                 }
             }
         }
