@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今日页 · 字号梯度改版(建议版)</title>
+<style>
+  /* ============================================================
+     今日运势页 字号梯度改版 —— 2026-10-24
+     依据:外评 7 条建议(层级打架/标签同大/结语伪居中/全角逗号洞/
+     样式过多/日期区错位/半角括号)。
+     核心:大字只留两处——日期数字 72 与主句 24,其余全部后退。
+     色板/字体对齐 DESIGN.md:paper #E7E2D5 / ink #1C1B1E /
+     inkMuted #77726A / jade #2F5E4A / cinnabar #A83226 /
+     hairline = ink 18% / 宋体 = Songti SC(Stand-in,App 内为思源宋体)。
+     px≈pt 1:1,画布 393。
+     ============================================================ */
+  :root {
+    --paper: #E7E2D5;
+    --ink: #1C1B1E;
+    --ink-muted: #77726A;
+    --jade: #2F5E4A;
+    --cinnabar: #A83226;
+    --hairline: rgba(28, 27, 30, 0.18);
+    --serif: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+    --sans: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    background: #D9D4C7;
+    font-family: var(--serif);
+    color: var(--ink);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 40px;
+    padding: 36px 16px 64px;
+  }
+
+  /* ---------- 手机画布 ---------- */
+  .phone {
+    position: relative;
+    width: 393px;
+    max-width: 100%;
+    background: var(--paper);
+    border-radius: 42px;
+    box-shadow: 0 24px 60px rgba(23, 20, 18, 0.28), 0 2px 8px rgba(23, 20, 18, 0.12);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .page { position: relative; padding: 64px 24px 118px; }
+  @media (max-width: 860px) {
+    body { padding: 0; }
+    .phone { width: 100%; border-radius: 0; box-shadow: none; }
+    .notes { display: none; }
+  }
+
+  /* ---------- 光晕衬底(HaloBackdrop stand-in) ---------- */
+  /* 流日辛金:主光=金,辅=水;仅为氛围层,不承担信息 */
+  .halo { position: absolute; inset: 0 0 auto 0; height: 430px; pointer-events: none; }
+  .halo i { position: absolute; border-radius: 50%; filter: blur(26px); }
+  .halo .h1 { width: 250px; height: 290px; right: 20px; top: 20px;
+              background: radial-gradient(closest-side, rgba(205,170,100,0.55), rgba(205,170,100,0)); }
+  .halo .h2 { width: 200px; height: 220px; left: 14px; top: 88px;
+              background: radial-gradient(closest-side, rgba(180,188,196,0.50), rgba(180,188,196,0)); }
+  .halo .h3 { width: 150px; height: 170px; left: 90px; top: 300px;
+              background: radial-gradient(closest-side, rgba(95,135,175,0.38), rgba(95,135,175,0)); }
+
+  /* ============================================================
+     ① 日期区 —— 数字 72;右侧三行底部对齐数字基线,顶部不再高过数字
+     ============================================================ */
+  .date-row {
+    position: relative;
+    display: flex;
+    align-items: flex-end;      /* meta 底部 ≈ 数字基线 */
+    gap: 16px;
+  }
+  .date-num {
+    font-size: 72px;
+    font-weight: 500;
+    line-height: 0.95;
+    letter-spacing: -0.01em;
+  }
+  .date-meta {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    margin-bottom: 5px;         /* 补数字基线下方的 descent 空间 */
+    font-family: var(--sans);
+  }
+  .date-meta .weekday { font-size: 14px; font-weight: 500; color: var(--ink); }
+  .date-meta .month   { font-size: 12.5px; color: var(--ink-muted); }
+  .date-meta .lunar   { font-size: 12.5px; color: var(--ink-muted); }
+
+  /* ============================================================
+     ② chips —— 全角括号、无空格
+     ============================================================ */
+  .chips { display: flex; gap: 8px; margin-top: 18px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    height: 26px; padding: 0 10px;
+    border: 0.5px solid var(--hairline);
+    border-radius: 13px;
+    font-family: var(--sans); font-size: 11.5px; color: var(--ink);
+    white-space: nowrap;
+  }
+  .chip::after { content: '›'; color: var(--ink-muted); font-size: 12px; margin-left: 1px; }
+
+  /* ============================================================
+     ③ 宜/忌 —— 表头降为统一小标(13 灰阶,保留吉凶语义色);
+        词条降到正文同级 17,行距收紧
+     ============================================================ */
+  .yiji {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    column-gap: 26px;
+    margin: 36px 2px 0;
+  }
+  .yj-head {
+    font-family: var(--sans);
+    font-size: 13px; font-weight: 500;
+    letter-spacing: 0.12em;
+    padding-bottom: 10px;
+  }
+  .yj-head--yi { color: var(--jade); }
+  .yj-head--ji { color: var(--cinnabar); }
+  .yj-item {
+    font-size: 17px;
+    padding: 9px 0;
+    border-top: 0.5px solid var(--hairline);
+  }
+
+  /* ============================================================
+     ④ 解读区
+     ============================================================ */
+
+  /* 统一小标:kicker / 领域行 / 信号行 / 宜忌表头同一种 */
+  .label {
+    font-family: var(--sans);
+    font-size: 13px; font-weight: 500;
+    letter-spacing: 0.12em;
+    color: var(--ink-muted);
+  }
+
+  .kicker { margin-top: 46px; }
+
+  /* 主句:全页第二大字;拆两行、去逗号,消灭全角逗号的洞与小屏换行 */
+  .headline {
+    margin-top: 14px;
+    font-size: 24px;
+    font-weight: 500;
+    line-height: 1.5;
+  }
+
+  /* 领域行 + 信号行:标签列 58(容 4 字「今日信号」13px + 0.12em 不换行,
+     App 内是 52 + minimumScale 缩放兜底),正文 17 / 行高 1.65 */
+  .rows { margin-top: 20px; }
+  .row {
+    display: grid;
+    grid-template-columns: 58px 1fr;
+    column-gap: 12px;
+    padding: 13px 0;
+    border-top: 0.5px solid var(--hairline);
+  }
+  .row .label { padding-top: 3px; }  /* 与 17px 首行视觉齐平 */
+  .row .text {
+    font-size: 17px;
+    line-height: 1.65;
+  }
+  .row--signal .text {
+    font-family: var(--sans);
+    font-size: 13px; font-weight: 600;
+    letter-spacing: 0.04em;
+    color: var(--jade);
+    padding-top: 3px;
+  }
+  .row--signal .text .sep { color: var(--ink-muted); font-weight: 400; margin: 0 6px; }
+
+  /* 结语:20,与正文左边距对齐(不再整行居中造成"伪缩进") */
+  .reminder { margin-top: 44px; }
+  .reminder .dash {
+    width: 16px; height: 1.5px;
+    background: rgba(28, 27, 30, 0.35);
+    margin-bottom: 14px;
+  }
+  .reminder .text {
+    font-size: 20px;
+    line-height: 1.6;
+  }
+
+  .footer {
+    margin-top: 34px;
+    text-align: center;
+    font-family: var(--sans);
+    font-size: 12px;
+    color: var(--ink-muted);
+  }
+
+  /* ---------- 悬浮 tab 栏(示意) ---------- */
+  .tabbar {
+    position: absolute;
+    left: 14px; right: 14px; bottom: 20px;
+    height: 66px;
+    display: flex;
+    border-radius: 33px;
+    background: rgba(246, 243, 236, 0.92);
+    -webkit-backdrop-filter: blur(16px);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 6px 18px rgba(23, 20, 18, 0.12);
+  }
+  .tab {
+    flex: 1;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 3px;
+    font-family: var(--sans); font-size: 10.5px;
+    color: var(--ink-muted);
+  }
+  .tab svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.4; }
+  .tab.active { color: var(--ink); }
+  .tab.active svg { stroke-width: 1.6; }
+
+  /* ---------- 侧栏说明(浏览器看,不进 App) ---------- */
+  .notes {
+    position: sticky; top: 36px;
+    width: 320px; flex-shrink: 0;
+    font-family: var(--sans);
+    color: #4A463F;
+  }
+  .notes h1 { font-size: 17px; font-weight: 600; margin-bottom: 4px; font-family: var(--serif); }
+  .notes .sub { font-size: 12px; color: #8A857A; margin-bottom: 18px; }
+  .notes h2 { font-size: 12.5px; font-weight: 600; margin: 16px 0 8px; color: #35322C; }
+  .notes table { width: 100%; border-collapse: collapse; font-size: 12px; }
+  .notes td { padding: 5px 6px 5px 0; border-bottom: 0.5px solid rgba(74,70,63,0.18); vertical-align: top; }
+  .notes td:first-child { white-space: nowrap; color: #8A857A; }
+  .notes ol { padding-left: 18px; font-size: 12.5px; line-height: 1.7; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="page">
+    <div class="halo" aria-hidden="true"><i class="h1"></i><i class="h2"></i><i class="h3"></i></div>
+
+    <!-- ① 日期区:72 大数字 + 右侧三行,底部对齐基线 -->
+    <div class="date-row">
+      <div class="date-num">24</div>
+      <div class="date-meta">
+        <span class="weekday">星期六</span>
+        <span class="month">2026年10月</span>
+        <span class="lunar">农历 九月十五 · 辛未日</span>
+      </div>
+    </div>
+
+    <!-- ② chips:全角括号 -->
+    <div class="chips">
+      <span class="chip">比肩</span>
+      <span class="chip">冲丑（日支丑）</span>
+    </div>
+
+    <!-- ③ 宜/忌:表头降小标,词条 17 -->
+    <div class="yiji">
+      <div>
+        <div class="yj-head yj-head--yi">宜</div>
+        <div class="yj-item">独立</div>
+        <div class="yj-item">立界</div>
+        <div class="yj-item">健身</div>
+      </div>
+      <div>
+        <div class="yj-head yj-head--ji">忌</div>
+        <div class="yj-item">争执</div>
+        <div class="yj-item">攀比</div>
+        <div class="yj-item">随众</div>
+      </div>
+    </div>
+
+    <!-- ④ 解读区 -->
+    <div class="kicker label">今日解读</div>
+    <div class="headline">比肩当值<br>同气相扶亦暗藏争夺</div>
+
+    <div class="rows">
+      <div class="row">
+        <span class="label">事业</span>
+        <span class="text">今日辛金遇比肩，做事有同伴相助，但利益分配容易起分歧，建议先明确界限再合作。</span>
+      </div>
+      <div class="row">
+        <span class="label">关系</span>
+        <span class="text">未时冲日支，与亲近之人容易因小事起摩擦，多听少辩，感情更稳。</span>
+      </div>
+      <div class="row">
+        <span class="label">精力</span>
+        <span class="text">土金相生，精力整体平稳，午后可能略感倦怠，散步或静坐即可恢复。</span>
+      </div>
+      <div class="row row--signal">
+        <span class="label">今日信号</span>
+        <span class="text">金↑<span class="sep">·</span>土↑</span>
+      </div>
+    </div>
+
+    <!-- 结语:左对齐 20 -->
+    <div class="reminder">
+      <div class="dash"></div>
+      <div class="text">守住自己的边界，其余随缘。</div>
+    </div>
+
+    <div class="footer">解读仅供参考</div>
+  </div>
+
+  <!-- 悬浮 tab 栏(示意) -->
+  <div class="tabbar">
+    <div class="tab active">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/></svg>
+      今日
+    </div>
+    <div class="tab">
+      <svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h10M5 17h13"/></svg>
+      深度
+    </div>
+    <div class="tab">
+      <svg viewBox="0 0 24 24"><circle cx="9.5" cy="12" r="5.5"/><circle cx="14.5" cy="12" r="5.5"/></svg>
+      合盘
+    </div>
+    <div class="tab">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.4"/><path d="M5.8 19c1-3.4 3.4-5 6.2-5s5.2 1.6 6.2 5"/></svg>
+      我的
+    </div>
+  </div>
+</div>
+
+<!-- ================= 侧栏说明(不进 App) ================= -->
+<aside class="notes">
+  <h1>今日页 · 字号梯度改版</h1>
+  <div class="sub">依据 2026-10-24 外评 7 条建议 · 内容与截图同盘(辛未日 · 比肩)</div>
+
+  <h2>字号梯度</h2>
+  <table>
+    <tr><td>日期数字</td><td>58 → <b>72</b>(全页仅有的两处大字之一)</td></tr>
+    <tr><td>今日主句</td><td>19 → <b>24</b>,拆两行去逗号</td></tr>
+    <tr><td>结语</td><td>20 居中 → <b>20 左对齐</b>正文边距</td></tr>
+    <tr><td>正文</td><td>14 → <b>17</b>,行高 1.65</td></tr>
+    <tr><td>宜忌词条</td><td>15 → <b>17</b>(与正文同级)</td></tr>
+    <tr><td>所有标签</td><td>宜/忌、事业、今日解读、今日信号 → <b>统一 13pt medium 灰、同字距</b></td></tr>
+  </table>
+
+  <h2>对应外评条目</h2>
+  <ol>
+    <li><b>层级打架</b>——四级字号挤在 19–27:现在只有 72 / 24 两级大字,其余退到 17 与 13。</li>
+    <li><b>宜/忌标签与词条同大</b>——表头降为统一小标(保留吉/凶语义色),不再像第一个词条。</li>
+    <li><b>结语"歪了"</b>——改为左对齐;居中且占满整行时看不出居中,只觉得多缩进一截。</li>
+    <li><b>全角逗号的洞</b>——主句拆两行、去逗号:比肩当值 / 同气相扶亦暗藏争夺;顺带解决小屏"夺"字换行。</li>
+    <li><b>样式种类过多</b>——8–9 种收到 4 种:宋体正文、统一小标、hairline、语义色(墨青/朱红)。</li>
+    <li><b>日期区错位</b>——右侧三行底部对齐 24 的基线,星期六顶部不再高过数字。</li>
+    <li><b>半角括号</b>——冲丑（日支丑）改全角、去空格。</li>
+  </ol>
+
+  <h2>留给你判断的点</h2>
+  <ol>
+    <li>宜忌词条的另一选项「一行三个横排」没有画——两列竖排已降到 17,先看这版气质对不对。</li>
+    <li>主句 24 两行的断行(4 字 + 9 字)左重右轻,是建议原样;也可试「比肩当值,同气相扶 / 亦暗藏争夺」保留逗号的断法。</li>
+    <li>今日信号的金↑土↑ 仍是小号加粗(非宋体),它是规则引擎产物不是行文,半档差异是刻意保留——要一并抹平也可以。</li>
+  </ol>
+</aside>
+
+</body>
+</html>

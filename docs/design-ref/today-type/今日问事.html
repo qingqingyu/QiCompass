@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今日页 · 问事窗(交互版)</title>
+<style>
+  /* ============================================================
+     今日页 · 问事窗 —— 2026-10-25
+     在「今日五行条.html」基础上加两级问事交互(浏览器可真点):
+       ① 今日页滚到最底 → 问事框从 tab 栏上方滑出;收在顶部 = 不可见
+       ② 点问事框 → 聊天 sheet 向上拉起成独立页(无 tab 栏);
+          开场第一条消息登录后已在 = AI 开场 + 几条候选问题,
+          点候选问题直接作为用户消息发出 → AI 按今日盘面回答
+     演示口径:候选问题与 AI 回答为手写示例(踩今天的真实盘面:
+     辛未日·比肩·宜独立立界健身·忌争执攀比随众·金↑土↑·未时冲日支)。
+     快捷参数:?cp=1 强制显示问事框;?chat=1 直接打开聊天 sheet。
+     ============================================================ */
+  :root {
+    --paper: #E7E2D5;
+    --paper-raise: #F1EDE3;
+    --ink: #1C1B1E;
+    --ink-muted: #77726A;
+    --jade: #2F5E4A;
+    --cinnabar: #A83226;
+    --hairline: rgba(28, 27, 30, 0.18);
+    --serif: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+    --sans: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+    --el-wood: #78A06E; --el-fire: #D77855; --el-earth: #C8A069;
+    --el-metal: #CDAA64; --el-water: #5F87AF;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    background: #D9D4C7;
+    font-family: var(--serif);
+    color: var(--ink);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 40px;
+    padding: 36px 16px 64px;
+  }
+
+  /* ---------- 手机画布:固定高度,内容在内部滚动 ---------- */
+  .phone {
+    position: relative;
+    width: 393px; max-width: 100%;
+    height: 852px;
+    background: var(--paper);
+    border-radius: 42px;
+    box-shadow: 0 24px 60px rgba(23, 20, 18, 0.28), 0 2px 8px rgba(23, 20, 18, 0.12);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  @media (max-width: 860px) {
+    body { padding: 0; }
+    .phone { width: 100%; height: 100dvh; border-radius: 0; box-shadow: none; }
+    .notes { display: none; }
+  }
+  .scroll { position: absolute; inset: 0; overflow-y: auto; scrollbar-width: none; }
+  .scroll::-webkit-scrollbar { display: none; }
+  .page { position: relative; padding: 64px 24px 150px; }
+
+  .halo { position: absolute; inset: 0 0 auto 0; height: 430px; pointer-events: none; }
+  .halo i { position: absolute; border-radius: 50%; filter: blur(26px); }
+  .halo .h1 { width: 250px; height: 290px; right: 20px; top: 20px;
+              background: radial-gradient(closest-side, rgba(205,170,100,0.55), rgba(205,170,100,0)); }
+  .halo .h2 { width: 200px; height: 220px; left: 14px; top: 88px;
+              background: radial-gradient(closest-side, rgba(180,188,196,0.50), rgba(180,188,196,0)); }
+  .halo .h3 { width: 150px; height: 170px; left: 90px; top: 300px;
+              background: radial-gradient(closest-side, rgba(95,135,175,0.38), rgba(95,135,175,0)); }
+
+  .date-row { position: relative; display: flex; align-items: flex-end; gap: 16px; }
+  .date-num { font-size: 72px; font-weight: 500; line-height: 0.95; letter-spacing: -0.01em; }
+  .date-meta { display: flex; flex-direction: column; gap: 3px; margin-bottom: 5px; font-family: var(--sans); }
+  .date-meta .weekday { font-size: 14px; font-weight: 500; color: var(--ink); }
+  .date-meta .month   { font-size: 12.5px; color: var(--ink-muted); }
+  .date-meta .lunar   { font-size: 12.5px; color: var(--ink-muted); }
+
+  .chips { display: flex; gap: 8px; margin-top: 18px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    height: 26px; padding: 0 10px;
+    border: 0.5px solid var(--hairline); border-radius: 13px;
+    font-family: var(--sans); font-size: 11.5px; color: var(--ink);
+    white-space: nowrap;
+  }
+  .chip::after { content: '›'; color: var(--ink-muted); font-size: 12px; margin-left: 1px; }
+
+  .yiji { display: grid; grid-template-columns: 1fr 1fr; column-gap: 26px; margin: 36px 2px 0; }
+  .yj-head { font-family: var(--sans); font-size: 13px; font-weight: 500; letter-spacing: 0.12em; padding-bottom: 10px; }
+  .yj-head--yi { color: var(--jade); }
+  .yj-head--ji { color: var(--cinnabar); }
+  .yj-item { font-size: 17px; padding: 9px 0; border-top: 0.5px solid var(--hairline); }
+
+  .label { font-family: var(--sans); font-size: 13px; font-weight: 500; letter-spacing: 0.12em; color: var(--ink-muted); }
+
+  .wx-block { margin-top: 44px; }
+  .wx-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .wx-hint { font-family: var(--sans); font-size: 12px; color: var(--ink-muted); letter-spacing: 0.08em; }
+  .wx-hint b { color: var(--ink); font-weight: 600; }
+  .wx { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: end; margin-top: 18px; }
+  .el { display: flex; flex-direction: column; align-items: center; gap: 9px; }
+  .el .tag { font-family: var(--sans); font-size: 10px; letter-spacing: 0.1em; color: var(--ink-muted); height: 13px; }
+  .el .track { width: 6px; height: 72px; border-radius: 3px; background: rgba(28,27,30,0.07); display: flex; align-items: flex-end; overflow: hidden; }
+  .el .fill { width: 100%; border-radius: 3px; }
+  .el .ch { font-size: 15px; color: var(--ink-muted); font-family: var(--serif); }
+  .el.hot .ch { color: var(--ink); font-weight: 600; }
+  .el.hot .tag { color: var(--ink); }
+
+  .kicker { margin-top: 46px; }
+  .headline { margin-top: 14px; font-size: 24px; font-weight: 500; line-height: 1.5; }
+
+  .rows { margin-top: 20px; }
+  .row { display: grid; grid-template-columns: 58px 1fr; column-gap: 12px; padding: 13px 0; border-top: 0.5px solid var(--hairline); }
+  .row .label { padding-top: 3px; }
+  .row .text { font-size: 17px; line-height: 1.65; }
+  .row--signal .text { font-family: var(--sans); font-size: 13px; font-weight: 600; letter-spacing: 0.04em; color: var(--jade); padding-top: 3px; }
+  .row--signal .text .sep { color: var(--ink-muted); font-weight: 400; margin: 0 6px; }
+
+  .reminder { margin-top: 44px; }
+  .reminder .dash { width: 16px; height: 1.5px; background: rgba(28, 27, 30, 0.35); margin-bottom: 14px; }
+  .reminder .text { font-size: 20px; line-height: 1.6; }
+
+  .footer { margin-top: 34px; text-align: center; font-family: var(--sans); font-size: 12px; color: var(--ink-muted); }
+
+  /* ============================================================
+     ① 问事框:滚到最底从 tab 栏上方滑出;收在顶部不可见
+     ============================================================ */
+  .composer {
+    position: absolute; left: 14px; right: 14px; bottom: 98px;  /* tab(20+66) + 12 */
+    z-index: 8;
+    background: rgba(246, 243, 236, 0.95);
+    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+    border: 0.5px solid var(--hairline);
+    border-radius: 20px;
+    padding: 14px 16px 12px;
+    box-shadow: 0 8px 24px rgba(23, 20, 18, 0.10);
+    transform: translateY(140%);
+    opacity: 0;
+    transition: transform .45s cubic-bezier(.22,.9,.3,1), opacity .3s ease;
+    cursor: pointer;
+  }
+  .composer.show { transform: translateY(0); opacity: 1; }
+  .cp-head { display: flex; align-items: center; gap: 8px; font-family: var(--sans); font-size: 11px; letter-spacing: 0.14em; color: var(--ink-muted); margin-bottom: 9px; }
+  .cp-head .dot { width: 7px; height: 7px; border-radius: 50%; background: var(--jade); }
+  .cp-line { font-size: 16px; line-height: 1.55; }
+  .cp-chips { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 11px; }
+  .cp-chip {
+    font-family: var(--sans); font-size: 12px; color: var(--ink);
+    border: 0.5px solid var(--hairline); border-radius: 13px;
+    padding: 5px 11px; background: transparent; white-space: nowrap;
+  }
+  .cp-foot { display: flex; justify-content: flex-end; align-items: center; gap: 3px; margin-top: 10px; font-family: var(--sans); font-size: 10.5px; letter-spacing: 0.12em; color: var(--ink-muted); }
+
+  .tabbar {
+    position: absolute; left: 14px; right: 14px; bottom: 20px; height: 66px;
+    display: flex; border-radius: 33px; z-index: 6;
+    background: rgba(246, 243, 236, 0.92);
+    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+    box-shadow: 0 6px 18px rgba(23, 20, 18, 0.12);
+  }
+  .tab {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 3px;
+    font-family: var(--sans); font-size: 10.5px; color: var(--ink-muted);
+  }
+  .tab svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.4; }
+  .tab.active { color: var(--ink); }
+  .tab.active svg { stroke-width: 1.6; }
+
+  /* ============================================================
+     ② 聊天 sheet:向上拉起的独立页(无 tab 栏)
+     ============================================================ */
+  .sheet {
+    position: absolute; inset: 0; z-index: 30;
+    background: var(--paper);
+    display: flex; flex-direction: column;
+    transform: translateY(100%);
+    transition: transform .5s cubic-bezier(.22,.9,.3,1);
+  }
+  .sheet.open { transform: translateY(0); }
+  .sh-head {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 10px;
+    padding: 54px 20px 14px;
+    border-bottom: 0.5px solid var(--hairline);
+  }
+  .sh-title { font-size: 17px; font-weight: 600; letter-spacing: 0.08em; }
+  .sh-ctx { font-family: var(--sans); font-size: 11px; color: var(--ink-muted); letter-spacing: 0.1em; }
+  .sh-close {
+    margin-left: auto; width: 30px; height: 30px;
+    display: grid; place-items: center;
+    border: 0.5px solid var(--hairline); border-radius: 15px;
+    background: transparent; color: var(--ink-muted);
+    font-size: 14px; line-height: 1; cursor: pointer;
+  }
+  .sh-scroll { flex: 1; overflow-y: auto; padding: 20px 20px 12px; scrollbar-width: none; }
+  .sh-scroll::-webkit-scrollbar { display: none; }
+
+  .msg { display: flex; margin-bottom: 14px; }
+  .msg .bubble { max-width: 78%; padding: 11px 14px; font-size: 16px; line-height: 1.7; }
+  .msg.ai { justify-content: flex-start; }
+  .msg.ai .bubble { background: var(--paper-raise); border: 0.5px solid var(--hairline); border-radius: 16px 16px 16px 4px; }
+  .msg.me { justify-content: flex-end; }
+  .msg.me .bubble { background: var(--ink); color: #F3F1EC; border-radius: 16px 16px 4px 16px; }
+  .msg .who { font-family: var(--sans); font-size: 10px; letter-spacing: 0.14em; color: var(--ink-muted); margin-bottom: 5px; }
+
+  /* 候选问题(AI 第一条消息携带,点击直接发出) */
+  .offers { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 14px; }
+  .offer {
+    text-align: left; font-family: var(--serif); font-size: 15.5px; color: var(--ink);
+    background: transparent; border: 0.5px solid var(--hairline); border-radius: 14px;
+    padding: 11px 14px; cursor: pointer;
+    transition: background .15s ease;
+  }
+  .offer:active { background: rgba(28,27,30,0.05); }
+  .offer .o-arrow { color: var(--ink-muted); font-family: var(--sans); font-size: 12px; margin-right: 6px; }
+
+  /* 输入中指示 */
+  .typing { display: inline-flex; gap: 4px; padding: 14px 16px; }
+  .typing i { width: 4px; height: 4px; border-radius: 50%; background: var(--ink-muted); animation: tp 1s infinite ease-in-out; }
+  .typing i:nth-child(2) { animation-delay: .18s; }
+  .typing i:nth-child(3) { animation-delay: .36s; }
+  @keyframes tp { 0%, 100% { opacity: .25; } 50% { opacity: 1; } }
+
+  .sh-input {
+    flex-shrink: 0;
+    display: flex; gap: 10px; align-items: center;
+    padding: 12px 16px 30px;
+    border-top: 0.5px solid var(--hairline);
+  }
+  .sh-input input {
+    flex: 1; height: 40px; border: 0.5px solid var(--hairline); border-radius: 20px;
+    background: var(--paper-raise); padding: 0 16px;
+    font: 15px/1 var(--serif); color: var(--ink); outline: none;
+  }
+  .sh-input input::placeholder { color: var(--ink-muted); opacity: .7; }
+  .sh-send {
+    width: 40px; height: 40px; border-radius: 20px; border: 0;
+    background: var(--ink); color: #F3F1EC; font-size: 17px; cursor: pointer;
+    display: grid; place-items: center;
+  }
+  .sh-send:disabled { opacity: .3; }
+
+  /* ---------- 侧栏说明 ---------- */
+  .notes { position: sticky; top: 36px; width: 330px; flex-shrink: 0; font-family: var(--sans); color: #4A463F; }
+  .notes h1 { font-size: 17px; font-weight: 600; margin-bottom: 4px; font-family: var(--serif); }
+  .notes .sub { font-size: 12px; color: #8A857A; margin-bottom: 18px; }
+  .notes h2 { font-size: 12.5px; font-weight: 600; margin: 16px 0 8px; color: #35322C; }
+  .notes p, .notes li { font-size: 12.5px; line-height: 1.75; }
+  .notes ol { padding-left: 18px; }
+  .notes b { color: #2A2622; }
+  .tips { background: rgba(74,70,63,0.06); border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.8; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="scroll" id="scroll">
+    <div class="page">
+      <div class="halo" aria-hidden="true"><i class="h1"></i><i class="h2"></i><i class="h3"></i></div>
+
+      <div class="date-row">
+        <div class="date-num">24</div>
+        <div class="date-meta">
+          <span class="weekday">星期六</span>
+          <span class="month">2026年10月</span>
+          <span class="lunar">农历 九月十五 · 辛未日</span>
+        </div>
+      </div>
+
+      <div class="chips">
+        <span class="chip">比肩</span>
+        <span class="chip">冲丑（日支丑）</span>
+      </div>
+
+      <div class="yiji">
+        <div>
+          <div class="yj-head yj-head--yi">宜</div>
+          <div class="yj-item">独立</div>
+          <div class="yj-item">立界</div>
+          <div class="yj-item">健身</div>
+        </div>
+        <div>
+          <div class="yj-head yj-head--ji">忌</div>
+          <div class="yj-item">争执</div>
+          <div class="yj-item">攀比</div>
+          <div class="yj-item">随众</div>
+        </div>
+      </div>
+
+      <section class="wx-block" aria-label="今日五行">
+        <div class="wx-head">
+          <span class="label">今日五行</span>
+          <span class="wx-hint"><b>土</b>气偏旺 · 宜借<b>金土</b></span>
+        </div>
+        <div class="wx">
+          <div class="el"><span class="tag"></span><div class="track"><div class="fill" style="height:8%;background:#78A06E;opacity:.4"></div></div><span class="ch">木</span></div>
+          <div class="el"><span class="tag"></span><div class="track"><div class="fill" style="height:33%;background:#D77855;opacity:.4"></div></div><span class="ch">火</span></div>
+          <div class="el hot"><span class="tag">过旺</span><div class="track"><div class="fill" style="height:100%;background:#C8A069;opacity:1"></div></div><span class="ch">土</span></div>
+          <div class="el"><span class="tag">宜借</span><div class="track"><div class="fill" style="height:67%;background:#CDAA64;opacity:.75"></div></div><span class="ch">金</span></div>
+          <div class="el"><span class="tag"></span><div class="track"></div><span class="ch">水</span></div>
+        </div>
+      </section>
+
+      <div class="kicker label">今日解读</div>
+      <div class="headline">比肩当值<br>同气相扶亦暗藏争夺</div>
+
+      <div class="rows">
+        <div class="row">
+          <span class="label">事业</span>
+          <span class="text">今日辛金遇比肩，做事有同伴相助，但利益分配容易起分歧，建议先明确界限再合作。</span>
+        </div>
+        <div class="row">
+          <span class="label">关系</span>
+          <span class="text">未时冲日支，与亲近之人容易因小事起摩擦，多听少辩，感情更稳。</span>
+        </div>
+        <div class="row">
+          <span class="label">精力</span>
+          <span class="text">土金相生，精力整体平稳，午后可能略感倦怠，散步或静坐即可恢复。</span>
+        </div>
+        <div class="row row--signal">
+          <span class="label">今日信号</span>
+          <span class="text">金↑<span class="sep">·</span>土↑</span>
+        </div>
+      </div>
+
+      <div class="reminder">
+        <div class="dash"></div>
+        <div class="text">守住自己的边界，其余随缘。</div>
+      </div>
+
+      <div class="footer">解读仅供参考</div>
+    </div>
+  </div>
+
+  <!-- ① 问事框:滚到底滑出,tab 栏上方 -->
+  <div class="composer" id="composer" role="button" aria-label="打开问事对话">
+    <div class="cp-head"><span class="dot"></span>问事 · 已看好今天的盘</div>
+    <div class="cp-line">比肩当值的一天。你的事，挑一条来问——</div>
+    <div class="cp-chips">
+      <button class="cp-chip" data-q="你今日适合去谈判吗？">今天适合去谈判吗？</button>
+      <button class="cp-chip" data-q="适合自己单干，还是找人搭伙？">单干还是搭伙？</button>
+    </div>
+    <div class="cp-foot">展开对话 ›</div>
+  </div>
+
+  <div class="tabbar">
+    <div class="tab active">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/></svg>
+      今日
+    </div>
+    <div class="tab">
+      <svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h10M5 17h13"/></svg>
+      深度
+    </div>
+    <div class="tab">
+      <svg viewBox="0 0 24 24"><circle cx="9.5" cy="12" r="5.5"/><circle cx="14.5" cy="12" r="5.5"/></svg>
+      合盘
+    </div>
+    <div class="tab">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.4"/><path d="M5.8 19c1-3.4 3.4-5 6.2-5s5.2 1.6 6.2 5"/></svg>
+      我的
+    </div>
+  </div>
+
+  <!-- ② 聊天 sheet -->
+  <div class="sheet" id="sheet" aria-label="问事对话">
+    <div class="sh-head">
+      <span class="sh-title">问事</span>
+      <span class="sh-ctx">辛未日 · 比肩</span>
+      <button class="sh-close" id="sheetClose" aria-label="关闭">✕</button>
+    </div>
+    <div class="sh-scroll" id="chatScroll">
+      <!-- 开场第一条(登录后已在):AI 开场 + 候选问题 -->
+      <div class="msg ai">
+        <div class="bubble">
+          <div class="who">问事</div>
+          这里的盘我看好了：比肩当值，宜独立、立界，忌争执、攀比。挑一条问，或直接说你的事。
+        </div>
+      </div>
+      <div class="offers" id="offers">
+        <button class="offer" data-q="你今日适合去谈判吗？"><span class="o-arrow">›</span>你今日适合去谈判吗？</button>
+        <button class="offer" data-q="今天有场争执要躲开吗？"><span class="o-arrow">›</span>今天有场争执要躲开吗？</button>
+        <button class="offer" data-q="适合自己单干，还是找人搭伙？"><span class="o-arrow">›</span>适合自己单干，还是找人搭伙？</button>
+      </div>
+    </div>
+    <div class="sh-input">
+      <input id="chatInput" type="text" placeholder="说你的事——时间、对象、纠结的点" />
+      <button class="sh-send" id="chatSend" aria-label="发送">↑</button>
+    </div>
+  </div>
+</div>
+
+<!-- ================= 侧栏说明(不进 App) ================= -->
+<aside class="notes">
+  <h1>今日页 · 问事窗</h1>
+  <div class="sub">两级交互:滚到底滑出问事框 → 点开拉起聊天 sheet</div>
+
+  <div class="tips">
+    <b>浏览器里可以真点:</b><br>
+    ① 在手机画布里往下滚,问事框从 tab 上方滑出(收在顶部 = 不可见);<br>
+    ② 点问事框 → 聊天页向上拉起;点候选问题直接发出,AI 回答;<br>
+    ③ 输入框随便打,有兜底回答;<br>
+    快捷参数:<code>?cp=1</code> 强制显示问事框,<code>?chat=1</code> 直接开聊天页。
+  </div>
+
+  <h2>交互口径(对齐你的描述)</h2>
+  <ol>
+    <li><b>出现时机</b>:今日页收在最上面时问事框不存在;滚到最底才滑出,停在 tab 栏上方——"运势读完"与"可以问事"是同一时刻。</li>
+    <li><b>点击拉起</b>:点问事框,聊天 sheet 向上拉成独立整页,无 tab 栏,顶栏「问事 + 辛未日·比肩 + ✕」。</li>
+    <li><b>开场不空白</b>:登录后第一条消息已在——AI 开场白 + 几条候选问题;<b>点候选问题直接作为你的消息发出</b>,不用打字。</li>
+    <li><b>回答踩盘</b>:AI 回答引用当日盘面(比肩/宜忌/未时冲日支),示例回答是手写的演示文案,非真 LLM。</li>
+  </ol>
+
+  <h2>落地时的数据问题(先记着,不急)</h2>
+  <ol>
+    <li><b>候选问题怎么来</b>:今日宜忌词条/流日关系 → 问题的映射,走确定性模板,还是 daily 解读那次 AI 调用搭车生成(待拍板)。</li>
+    <li><b>聊天链路</b>:上下文 = 命盘 + 今日运势;promo 站的命盘问答(/ask)已有后端链路可参照,in-app 属新入口。</li>
+    <li><b>配额口径</b>:问事是否吃每日次数/单独计费,需要拍板。</li>
+  </ol>
+</aside>
+
+<script>
+/* ============================================================
+ * 演示交互(真实现走 SwiftUI;此处只为看行为)
+ * ============================================================ */
+const scrollEl  = document.getElementById('scroll');
+const composer  = document.getElementById('composer');
+const sheet     = document.getElementById('sheet');
+const chatScroll= document.getElementById('chatScroll');
+const offersEl  = document.getElementById('offers');
+const inputEl   = document.getElementById('chatInput');
+const sendBtn   = document.getElementById('chatSend');
+
+/* ① 滚到底 → 问事框滑出;离开底部 → 收起(收在最上面 = 不可见) */
+function onScroll() {
+  const atBottom = scrollEl.scrollHeight - scrollEl.scrollTop - scrollEl.clientHeight < 64;
+  composer.classList.toggle('show', atBottom && !sheet.classList.contains('open'));
+}
+scrollEl.addEventListener('scroll', onScroll, { passive: true });
+
+/* ② sheet 开合 */
+function openSheet() { sheet.classList.add('open'); composer.classList.remove('show'); }
+function closeSheet() { sheet.classList.remove('open'); onScroll(); }
+document.getElementById('sheetClose').addEventListener('click', closeSheet);
+composer.addEventListener('click', openSheet);
+
+/* 手写示例回答(踩今日盘面:比肩/宜独立立界/忌争执攀比/未时冲日支) */
+const REPLIES = {
+  '你今日适合去谈判吗？':
+    '可以谈。比肩当值，同伴多、援手也多——但「比」字里藏着较量：今天容易在分成、功劳上较劲。\n两个提醒：一，界限先落成文字，口头共识今天特别容易被各自解读；二，别在桌上争口气，争里子。\n时辰上，午后未时冲日支，谈判尽量上午收尾，散场别恋战。',
+  '今天有场争执要躲开吗？':
+    '能躲就躲。今天的争执多半不在对错，在「不肯输」——比肩日的较量心比平时重，赢了道理，容易输了关系。\n真避不开：把话放慢半拍，只谈事、不评人；散场后也别复盘谁占了上风，今天的胜负欲不值得喂。',
+  '适合自己单干，还是找人搭伙？':
+    '今天的盘，单干顺。比肩主自立，宜「独立」「立界」——自己的节奏、自己的边界，今天都立得住。\n要搭伙也行，但只搭「各管一段」的伙：分工写清楚，别共用一个口袋。若要谈分成，回到谈判那条——先落文字。',
+};
+const FALLBACK_REPLY =
+  '就着今天的盘说：宜独立、立界，忌争执、攀比——你这件事若牵涉与人分利，先小人后君子；若是自己单方面的事，趁上午精力平稳推进。\n想问得准一点，把时间、对象、要争的那口气说清楚些。';
+
+let busy = false;
+function send(text) {
+  if (busy || !text.trim()) return;
+  busy = true;
+  offersEl.remove();                                    // 候选问题用过即收
+  appendMsg('me', text);
+  const typing = appendMsg('ai', '', true);
+  setTimeout(() => {
+    typing.remove();
+    appendMsg('ai', REPLIES[text.trim()] || FALLBACK_REPLY);
+    busy = false;
+  }, 900);
+}
+function appendMsg(who, text, isTyping) {
+  const wrap = document.createElement('div');
+  wrap.className = 'msg ' + who;
+  if (isTyping) {
+    wrap.innerHTML = '<div class="bubble typing"><i></i><i></i><i></i></div>';
+  } else {
+    const whoLabel = who === 'ai' ? '<div class="who">问事</div>' : '';
+    wrap.innerHTML = '<div class="bubble">' + whoLabel + text.replace(/\n/g, '<br>') + '</div>';
+  }
+  chatScroll.appendChild(wrap);
+  chatScroll.scrollTop = chatScroll.scrollHeight;
+  return wrap;
+}
+
+/* 候选问题:点一下直接发出(问事框与聊天页同源) */
+document.querySelectorAll('[data-q]').forEach(btn => {
+  btn.addEventListener('click', e => {
+    e.stopPropagation();
+    openSheet();
+    setTimeout(() => send(btn.dataset.q), 480);         // 等 sheet 拉起后再发
+  });
+});
+sendBtn.addEventListener('click', () => { send(inputEl.value); inputEl.value = ''; });
+inputEl.addEventListener('keydown', e => {
+  if (e.key === 'Enter') { send(inputEl.value); inputEl.value = ''; }
+});
+
+/* 快捷参数:截图/直连用 */
+if (location.search.includes('cp=1'))   composer.classList.add('show');
+if (location.search.includes('chat=1')) sheet.classList.add('open');
+onScroll();
+</script>
+
+</body>
+</html>

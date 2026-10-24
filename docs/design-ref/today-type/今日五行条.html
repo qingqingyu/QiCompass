@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今日页 · 五行条(数据版)</title>
+<style>
+  /* ============================================================
+     今日五行条 · 数据驱动版 —— 2026-10-24
+     在「今日页字号梯度.html」同款版式上,插入 B 稿的今日五行块;
+     五根条高度 = 真实确定性公式(历法推算,零 AI):
+       流日天干 ×1.0 + 流日地支藏干(主1.0/中0.5/余0.25)
+       + 月令地支藏干 ×2(当令加倍),归一化最高=100
+     「宜借」标签 = 该盘 day_signal ↑(流日五行命中喜用,规则引擎产物)。
+     演示盘:辛金日主(截图同盘),今日辛未日·戌月 → 土100 金67 火33 木8 水0。
+     ============================================================ */
+  :root {
+    --paper: #E7E2D5;
+    --ink: #1C1B1E;
+    --ink-muted: #77726A;
+    --jade: #2F5E4A;
+    --cinnabar: #A83226;
+    --hairline: rgba(28, 27, 30, 0.18);
+    --serif: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+    --sans: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+    /* 五行主色 = HaloColors(App 已拍板的光晕专用色板) */
+    --el-wood: #78A06E; --el-fire: #D77855; --el-earth: #C8A069;
+    --el-metal: #CDAA64; --el-water: #5F87AF;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    background: #D9D4C7;
+    font-family: var(--serif);
+    color: var(--ink);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 40px;
+    padding: 36px 16px 64px;
+  }
+
+  .phone {
+    position: relative;
+    width: 393px; max-width: 100%;
+    background: var(--paper);
+    border-radius: 42px;
+    box-shadow: 0 24px 60px rgba(23, 20, 18, 0.28), 0 2px 8px rgba(23, 20, 18, 0.12);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  .page { position: relative; padding: 64px 24px 118px; }
+  @media (max-width: 860px) {
+    body { padding: 0; }
+    .phone { width: 100%; border-radius: 0; box-shadow: none; }
+    .notes { display: none; }
+  }
+
+  .halo { position: absolute; inset: 0 0 auto 0; height: 430px; pointer-events: none; }
+  .halo i { position: absolute; border-radius: 50%; filter: blur(26px); }
+  .halo .h1 { width: 250px; height: 290px; right: 20px; top: 20px;
+              background: radial-gradient(closest-side, rgba(205,170,100,0.55), rgba(205,170,100,0)); }
+  .halo .h2 { width: 200px; height: 220px; left: 14px; top: 88px;
+              background: radial-gradient(closest-side, rgba(180,188,196,0.50), rgba(180,188,196,0)); }
+  .halo .h3 { width: 150px; height: 170px; left: 90px; top: 300px;
+              background: radial-gradient(closest-side, rgba(95,135,175,0.38), rgba(95,135,175,0)); }
+
+  .date-row { position: relative; display: flex; align-items: flex-end; gap: 16px; }
+  .date-num { font-size: 72px; font-weight: 500; line-height: 0.95; letter-spacing: -0.01em; }
+  .date-meta { display: flex; flex-direction: column; gap: 3px; margin-bottom: 5px; font-family: var(--sans); }
+  .date-meta .weekday { font-size: 14px; font-weight: 500; color: var(--ink); }
+  .date-meta .month   { font-size: 12.5px; color: var(--ink-muted); }
+  .date-meta .lunar   { font-size: 12.5px; color: var(--ink-muted); }
+
+  .chips { display: flex; gap: 8px; margin-top: 18px; }
+  .chip {
+    display: inline-flex; align-items: center; gap: 3px;
+    height: 26px; padding: 0 10px;
+    border: 0.5px solid var(--hairline); border-radius: 13px;
+    font-family: var(--sans); font-size: 11.5px; color: var(--ink);
+    white-space: nowrap;
+  }
+  .chip::after { content: '›'; color: var(--ink-muted); font-size: 12px; margin-left: 1px; }
+
+  .yiji { display: grid; grid-template-columns: 1fr 1fr; column-gap: 26px; margin: 36px 2px 0; }
+  .yj-head { font-family: var(--sans); font-size: 13px; font-weight: 500; letter-spacing: 0.12em; padding-bottom: 10px; }
+  .yj-head--yi { color: var(--jade); }
+  .yj-head--ji { color: var(--cinnabar); }
+  .yj-item { font-size: 17px; padding: 9px 0; border-top: 0.5px solid var(--hairline); }
+
+  .label {
+    font-family: var(--sans);
+    font-size: 13px; font-weight: 500; letter-spacing: 0.12em;
+    color: var(--ink-muted);
+  }
+
+  /* ============================================================
+     今日五行块(B 稿数据版)
+     ============================================================ */
+  .wx-block { margin-top: 44px; }
+  .wx-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .wx-hint { font-family: var(--sans); font-size: 12px; color: var(--ink-muted); letter-spacing: 0.08em; }
+  .wx-hint b { color: var(--ink); font-weight: 600; }
+  .wx { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); align-items: end; margin-top: 18px; }
+  .el { display: flex; flex-direction: column; align-items: center; gap: 9px; }
+  .el .tag { font-family: var(--sans); font-size: 10px; letter-spacing: 0.1em; color: var(--ink-muted); height: 13px; }
+  .el .track { width: 6px; height: 72px; border-radius: 3px; background: rgba(28,27,30,0.07); display: flex; align-items: flex-end; overflow: hidden; }
+  .el .fill { width: 100%; border-radius: 3px; }
+  .el .ch { font-size: 15px; color: var(--ink-muted); font-family: var(--serif); }
+  .el.hot .ch { color: var(--ink); font-weight: 600; }
+  .el.hot .tag { color: var(--ink); }
+
+  .kicker { margin-top: 46px; }
+  .headline { margin-top: 14px; font-size: 24px; font-weight: 500; line-height: 1.5; }
+
+  .rows { margin-top: 20px; }
+  .row {
+    display: grid; grid-template-columns: 58px 1fr; column-gap: 12px;
+    padding: 13px 0; border-top: 0.5px solid var(--hairline);
+  }
+  .row .label { letter-spacing: 0.12em; padding-top: 3px; }
+  .row .text { font-size: 17px; line-height: 1.65; }
+  .row--signal .text {
+    font-family: var(--sans); font-size: 13px; font-weight: 600;
+    letter-spacing: 0.04em; color: var(--jade); padding-top: 3px;
+  }
+  .row--signal .text .sep { color: var(--ink-muted); font-weight: 400; margin: 0 6px; }
+
+  .reminder { margin-top: 44px; }
+  .reminder .dash { width: 16px; height: 1.5px; background: rgba(28, 27, 30, 0.35); margin-bottom: 14px; }
+  .reminder .text { font-size: 20px; line-height: 1.6; }
+
+  .footer { margin-top: 34px; text-align: center; font-family: var(--sans); font-size: 12px; color: var(--ink-muted); }
+
+  .tabbar {
+    position: absolute; left: 14px; right: 14px; bottom: 20px; height: 66px;
+    display: flex; border-radius: 33px;
+    background: rgba(246, 243, 236, 0.92);
+    -webkit-backdrop-filter: blur(16px); backdrop-filter: blur(16px);
+    box-shadow: 0 6px 18px rgba(23, 20, 18, 0.12);
+  }
+  .tab {
+    flex: 1; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; gap: 3px;
+    font-family: var(--sans); font-size: 10.5px; color: var(--ink-muted);
+  }
+  .tab svg { width: 22px; height: 22px; stroke: currentColor; fill: none; stroke-width: 1.4; }
+  .tab.active { color: var(--ink); }
+  .tab.active svg { stroke-width: 1.6; }
+
+  /* ---------- 侧栏说明 ---------- */
+  .notes { position: sticky; top: 36px; width: 330px; flex-shrink: 0; font-family: var(--sans); color: #4A463F; }
+  .notes h1 { font-size: 17px; font-weight: 600; margin-bottom: 4px; font-family: var(--serif); }
+  .notes .sub { font-size: 12px; color: #8A857A; margin-bottom: 18px; }
+  .notes h2 { font-size: 12.5px; font-weight: 600; margin: 16px 0 8px; color: #35322C; }
+  .notes p, .notes li { font-size: 12.5px; line-height: 1.75; }
+  .notes ol { padding-left: 18px; }
+  .notes code { font-family: 'SF Mono', Menlo, monospace; font-size: 11px; background: rgba(74,70,63,0.08); padding: 1px 4px; border-radius: 3px; }
+  .notes .formula { background: rgba(74,70,63,0.06); border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.8; }
+
+  /* 换一天长什么样:迷你条组 */
+  .mini { display: flex; align-items: flex-end; gap: 14px; margin-top: 10px; }
+  .mini .mlab { font-size: 11.5px; color: #8A857A; line-height: 1.5; width: 92px; flex-shrink: 0; }
+  .mini .mlab b { color: #4A463F; font-weight: 600; }
+  .mini .bars { display: flex; align-items: flex-end; gap: 10px; }
+  .mini .mb { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .mini .mtrack { width: 4px; height: 44px; border-radius: 2px; background: rgba(74,70,63,0.1); display: flex; align-items: flex-end; overflow: hidden; }
+  .mini .mfill { width: 100%; }
+  .mini .mch { font-size: 10px; color: #8A857A; font-family: var(--serif); }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <div class="page">
+    <div class="halo" aria-hidden="true"><i class="h1"></i><i class="h2"></i><i class="h3"></i></div>
+
+    <div class="date-row">
+      <div class="date-num">24</div>
+      <div class="date-meta">
+        <span class="weekday">星期六</span>
+        <span class="month">2026年10月</span>
+        <span class="lunar">农历 九月十五 · 辛未日</span>
+      </div>
+    </div>
+
+    <div class="chips">
+      <span class="chip">比肩</span>
+      <span class="chip">冲丑（日支丑）</span>
+    </div>
+
+    <div class="yiji">
+      <div>
+        <div class="yj-head yj-head--yi">宜</div>
+        <div class="yj-item">独立</div>
+        <div class="yj-item">立界</div>
+        <div class="yj-item">健身</div>
+      </div>
+      <div>
+        <div class="yj-head yj-head--ji">忌</div>
+        <div class="yj-item">争执</div>
+        <div class="yj-item">攀比</div>
+        <div class="yj-item">随众</div>
+      </div>
+    </div>
+
+    <!-- ============ 今日五行(数据版) ============ -->
+    <section class="wx-block" aria-label="今日五行">
+      <div class="wx-head">
+        <span class="label">今日五行</span>
+        <span class="wx-hint"><b id="wx-dom"></b>气偏旺 · 宜借<b id="wx-sup"></b></span>
+      </div>
+      <div class="wx" id="wx"></div>
+    </section>
+
+    <div class="kicker label">今日解读</div>
+    <div class="headline">比肩当值<br>同气相扶亦暗藏争夺</div>
+
+    <div class="rows">
+      <div class="row">
+        <span class="label">事业</span>
+        <span class="text">今日辛金遇比肩，做事有同伴相助，但利益分配容易起分歧，建议先明确界限再合作。</span>
+      </div>
+      <div class="row">
+        <span class="label">关系</span>
+        <span class="text">未时冲日支，与亲近之人容易因小事起摩擦，多听少辩，感情更稳。</span>
+      </div>
+      <div class="row">
+        <span class="label">精力</span>
+        <span class="text">土金相生，精力整体平稳，午后可能略感倦怠，散步或静坐即可恢复。</span>
+      </div>
+      <div class="row row--signal">
+        <span class="label">今日信号</span>
+        <span class="text">金↑<span class="sep">·</span>土↑</span>
+      </div>
+    </div>
+
+    <div class="reminder">
+      <div class="dash"></div>
+      <div class="text">守住自己的边界，其余随缘。</div>
+    </div>
+
+    <div class="footer">解读仅供参考</div>
+  </div>
+
+  <div class="tabbar">
+    <div class="tab active">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.4" fill="currentColor" stroke="none"/></svg>
+      今日
+    </div>
+    <div class="tab">
+      <svg viewBox="0 0 24 24"><path d="M5 7h14M5 12h10M5 17h13"/></svg>
+      深度
+    </div>
+    <div class="tab">
+      <svg viewBox="0 0 24 24"><circle cx="9.5" cy="12" r="5.5"/><circle cx="14.5" cy="12" r="5.5"/></svg>
+      合盘
+    </div>
+    <div class="tab">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="9" r="3.4"/><path d="M5.8 19c1-3.4 3.4-5 6.2-5s5.2 1.6 6.2 5"/></svg>
+      我的
+    </div>
+  </div>
+</div>
+
+<!-- ================= 侧栏说明(不进 App) ================= -->
+<aside class="notes">
+  <h1>今日五行 · 数据版</h1>
+  <div class="sub">B 稿五行条,五根条高度 = 真实确定性公式(与 lunar_python 对过)</div>
+
+  <h2>高度从哪来(零 AI,历法推算)</h2>
+  <div class="formula">
+    流日天干 <code>+1.0</code><br>
+    流日地支藏干 <code>主1.0 / 中0.5 / 余0.25</code><br>
+    月令地支藏干 <code>同上 ×2</code>(当令加倍)<br>
+    归一化:最高项 = 100
+  </div>
+  <p>今天辛未日·戌月 → 土 100 · 金 67 · 火 33 · 木 8 · <b>水 0</b>(戌月土旺当令,未又藏土,辛干补金)。</p>
+
+  <h2>标签从哪来</h2>
+  <ol>
+    <li><b>过旺</b> = 分布最高项(历法推算,确定性)。</li>
+    <li><b>宜借</b> = 这张盘的 <code>day_signal ↑</code>(流日五行命中喜用,规则引擎产物)——今天是金↑土↑。换盘会变,换天也会变。</li>
+  </ol>
+
+  <h2>换一天长什么样(公式生成)</h2>
+  <div class="mini">
+    <span class="mlab"><b>11-25 癸卯日</b><br>亥月 · 水旺</span>
+    <div class="bars" data-mini="水,100,金,0,木,67,火,0,土,0"></div>
+  </div>
+  <div class="mini">
+    <span class="mlab"><b>02-04 甲寅日</b><br>寅月 · 木旺</span>
+    <div class="bars" data-mini="木,100,火,38,土,19,金,0,水,0"></div>
+  </div>
+
+  <h2>三个待拍板点</h2>
+  <ol>
+    <li><b>光晕与条形图口径不一致</b>:光晕主色 = 流日天干五行(金),条形图过旺 = 当令(土)——今天两者不同。文字跟谁?B 稿原样是跟条形图。</li>
+    <li><b>零高度条</b>:今日无水,条是空的。诚实保留(右),还是给 2% 保底让它看得见?</li>
+    <li><b>10-15「未采纳」翻案</b>:当时砍「宜借/气偏旺」文字的理由是它来自选色推法(我生我克)。这版文字全部来自引擎产物(分布=历法,宜借=day_signal),不经选色推法——若认这口径,需显式翻案记录。</li>
+  </ol>
+
+  <h2>后端落地形态(若拍板)</h2>
+  <p><code>daily_fortune</code> response 加 optional 字段 <code>day_element_strength: {木:8,火:33,土:100,金:67,水:0}</code>(0-100 整数,确定性纯函数);iOS Optional 解码,老缓存缺键整块隐藏。</p>
+</aside>
+
+<script>
+/* ============================================================
+ * 与后端未来函数同构的参考实现(演示用;真值进 App 走后端)
+ * 输入:流日干支 + 月令地支 → 五行分布(0-100)
+ * ============================================================ */
+const GAN  = { 甲:'木',乙:'木',丙:'火',丁:'火',戊:'土',己:'土',庚:'金',辛:'金',壬:'水',癸:'水' };
+const HIDE = {
+  子:[['癸',1.0]], 丑:[['己',1.0],['癸',0.5],['辛',0.25]], 寅:[['甲',1.0],['丙',0.5],['戊',0.25]],
+  卯:[['乙',1.0]], 辰:[['戊',1.0],['乙',0.5],['癸',0.25]], 巳:[['丙',1.0],['庚',0.5],['戊',0.25]],
+  午:[['丁',1.0],['己',0.5]], 未:[['己',1.0],['丁',0.5],['乙',0.25]], 申:[['庚',1.0],['壬',0.5],['戊',0.25]],
+  酉:[['辛',1.0]], 戌:[['戊',1.0],['辛',0.5],['丁',0.25]], 亥:[['壬',1.0],['甲',0.5]],
+};
+const MAIN = { 木:'#78A06E', 火:'#D77855', 土:'#C8A069', 金:'#CDAA64', 水:'#5F87AF' }; // = HaloColors
+
+function elementStrength(dayGanZhi, monthZhi) {
+  const s = { 木:0, 火:0, 土:0, 金:0, 水:0 };
+  s[GAN[dayGanZhi[0]]] += 1.0;                              // 流日天干
+  for (const [stem, w] of HIDE[dayGanZhi[1]]) s[GAN[stem]] += w;        // 流日支藏干
+  for (const [stem, w] of HIDE[monthZhi])     s[GAN[stem]] += w * 2;    // 月令 ×2
+  const mx = Math.max(...Object.values(s));
+  const out = {};
+  for (const k of ['木','火','土','金','水']) out[k] = mx ? Math.round(s[k] / mx * 100) : 0;
+  return out;
+}
+
+/* 今日真值(2026-10-24):辛未日 · 戌月;此盘 day_signal ↑ = 金、土 */
+const DAY = { ganzhi: '辛未', monthZhi: '戌', borrow: ['金', '土'] };
+
+(function render() {
+  const dist = elementStrength(DAY.ganzhi, DAY.monthZhi);
+  const dom  = Object.keys(dist).reduce((a, b) => dist[a] >= dist[b] ? a : b);
+  document.getElementById('wx-dom').textContent = dom;
+  document.getElementById('wx-sup').textContent = DAY.borrow.join('');
+
+  document.getElementById('wx').innerHTML = ['木','火','土','金','水'].map(ch => {
+    const h = dist[ch];
+    let tag = '', cls = 'el', op = 0.4;
+    if (ch === dom)                { tag = '过旺'; cls += ' hot'; op = 1; }
+    else if (DAY.borrow.includes(ch)) { tag = '宜借'; op = 0.75; }
+    return `<div class="${cls}">
+      <span class="tag">${tag}</span>
+      <div class="track"><div class="fill" style="height:${h}%;background:${MAIN[ch]};opacity:${op}"></div></div>
+      <span class="ch">${ch}</span>
+    </div>`;
+  }).join('');
+
+  /* 侧栏迷你条(data-mini = 元素,高度,...) */
+  document.querySelectorAll('.bars[data-mini]').forEach(el => {
+    const parts = el.dataset.mini.split(',');
+    el.innerHTML = parts.map((p, i) => (i % 2 === 0)
+      ? `<div class="mb"><div class="mtrack"><div class="mfill" style="height:${parts[i+1]}%;background:${MAIN[p]}"></div></div><span class="mch">${p}</span></div>`
+      : '').join('');
+  });
+})();
+</script>
+
+</body>
+</html>
