@@ -1,0 +1,23 @@
+{
+  "_note": "专家盲评排序(命理专业度为主;英文条目兼评母语读者自然度)。数组从好到差,字母为盲评包内的版本字母。键名与 SEALED_expert.json 一致。解封后按此表与映射表 join 计算各模型平均名次。",
+  "zh__case_01__m0_structure": ["C", "A", "D", "B", "E"],
+  "zh__case_01__m1_talent":    ["C", "D", "B", "E", "A"],
+  "zh__case_05__m0_structure": ["B", "D", "C", "E", "A"],
+  "zh__case_05__m1_talent":    ["D", "E", "A", "C", "B"],
+  "zh__case_09__m0_structure": ["C", "A", "E", "B", "D"],
+  "zh__case_09__m1_talent":    ["C", "E", "A", "D", "B"],
+  "zh__case_12__m0_structure": ["D", "B", "C", "A", "E"],
+  "zh__case_12__m1_talent":    ["D", "A", "C", "B", "E"],
+  "zh__case_15__m0_structure": ["A", "B", "D", "E", "C"],
+  "zh__case_15__m1_talent":    ["D", "E", "B", "A", "C"],
+  "zh__case_17__m0_structure": ["B", "E", "C", "A", "D"],
+  "zh__case_17__m1_talent":    ["C", "B", "D", "A", "E"],
+  "en__case_00__m0_structure": ["D", "A", "B", "C"],
+  "en__case_00__m1_talent":    ["D", "B", "C", "A"],
+  "en__case_01__m0_structure": ["A", "C", "B", "D"],
+  "en__case_01__m1_talent":    ["A", "B", "C", "D"],
+  "en__case_02__m0_structure": ["B", "C", "D", "A"],
+  "en__case_02__m1_talent":    ["D", "A", "B", "C"],
+  "en__case_03__m0_structure": ["D", "B", "C", "A"],
+  "en__case_03__m1_talent":    ["B", "D", "A", "C"]
+}
