@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block title %}接单台 · QiCompass{% endblock %}
+
+{% block content %}
+<section class="page-header">
+    <a href="/" class="back-link">← 返回首页</a>
+    <h1 class="page-title">接单台(免费解读轮)</h1>
+    <p class="page-subtitle">粘贴评论 → 解析(LLM 兜底)→ 人工确认 flagged 项 → 批量生成 → 逐单复制回帖。<strong>发送与过目永远留人</strong>。评论之间用 <code>---</code> 分隔。</p>
+</section>
+
+{% set err_msgs = {
+    'empty-blob': '没有可解析的评论块(粘贴内容为空或全空白)',
+    'ai-config': 'AI 配置无效(provider 必须是 anthropic 或 openai)',
+    'running': '批量任务已在跑,等它结束',
+    'no-ready': '没有 ready 状态的单子——先收单/人工修正',
+    'not-found': '订单不存在(可能已被删除)',
+    'numeric': '经度/时区偏移不是(有限)数字,或超出范围(经度 ±180 / 偏移 ±14)',
+    'bad-tz': '时区不是合法的 IANA 名(如 Asia/Shanghai),检查拼写',
+    'is-running': '该单正在生成中,等批次结束再修改(防止结果与数据错配)',
+    'not-ready': '该单还没生成完成',
+    'chart': '该单盘面重算失败,看服务端日志',
+    'too-many': '单次收单超过 30 块上限——分批粘贴(每批 ≤30 条评论)',
+    'dup': '存在与库内完全相同的评论原文,重复块已跳过(避免重复生成双倍烧钱)',
+    'city-db': '城市库缺失或不可读(cities.db)——按 tools/build_city_db.py 构建',
+} %}
+{% set err = request.query_params.get('err') %}
+{% if err %}
+<div class="console-flash console-flash--err">
+    ⚠ {{ err_msgs.get(err, '未知错误:' ~ err) }}
+</div>
+{% endif %}
+
+<div id="queue-state"
+     data-running="{{ '1' if running else '0' }}"
+     data-counts="{{ counts | tojson if counts is defined else '{}' }}"></div>
+<div id="console-stale" class="console-flash console-flash--stale" hidden>
+    ↻ 队列有更新,但你在编辑中——不自动刷新。完成编辑保存后手动刷新页面。
+</div>
+
+{# ---- 收单 ---- #}
+<form method="post" action="/console/intake" class="form console-section">
+    {% include "partials/ai_config.html" %}
+    <fieldset class="form__group">
+        <legend class="form__legend">收单(每条评论一块,块间用 --- 单独一行分隔)</legend>
+        <textarea name="blob" rows="8" class="form__input console-blob"
+placeholder="u/amy  born May 12 1990, 3:45pm, female, Singapore. question: career direction this year
+---
+1990年5月12日 晚上8点半 男 上海 想问:今年适合跳槽吗"></textarea>
+        <div class="console-actions">
+            <button type="submit" class="btn btn--primary">解析并收单</button>
+            <span class="form__hint">确定性提取优先;拿不准的字段(裸 12h/农历/多日期/同名城市)会标 review 留人工,绝不静默猜。</span>
+        </div>
+    </fieldset>
+</form>
+
+{# ---- 批量生成 ---- #}
+{# AI 配置只在上面的收单表单填一份(避免两个配置区互相打架):
+   提交瞬间由脚本把收单区的 ai_* 值(或 localStorage 保存的配置)注入本表单。 #}
+<form method="post" action="/console/run" class="form console-section">
+    <div class="console-actions">
+        <button type="submit" class="btn btn--primary" {{ 'disabled' if running }}>
+            {{ '批量生成中…' if running else '批量生成全部 ready 单' }}
+        </button>
+        <span class="form__hint">顺序逐单跑 /ask 同款链路;单单失败落库不中断批次。AI 配置取上方收单区(没填走环境变量)。页面每 3 秒自动刷新进度。</span>
+    </div>
+</form>
+
+{# ---- 队列 ---- #}
+<section class="console-section">
+    <h2 class="console-h2">队列({{ orders | length }} 单)</h2>
+    {% if not orders %}
+    <p class="form__hint">还没有单子。收一批试试。</p>
+    {% endif %}
+    {% for o in orders %}
+    <details class="console-order" data-order data-id="{{ o.id }}" data-username="{{ o.username or '' }}">
+        <summary class="console-order__summary">
+            <span class="console-badge console-badge--{{ o.status }}">{{ o.status }}</span>
+            <span class="console-order__user">{{ '#%d' % o.id }} @{{ o.username or '?' }}</span>
+            <span class="console-order__meta">
+                {{ o.birth_date or '??' }} {{ o.birth_time or '??:??' }}
+                · {{ '男' if o.gender == 'male' else ('女' if o.gender == 'female' else '性别?') }}
+                · {{ o.city or '城市?' }}
+                · tz {{ o.tz_offset if o.tz_offset is not none else '?' }}
+            </span>
+            {% if o.note %}<span class="console-order__note" title="{{ o.note }}">⚠ {{ o.note | truncate(60) }}</span>{% endif %}
+        </summary>
+
+        <div class="console-order__body">
+            <p class="console-raw"><strong>原文</strong>:{{ o.raw_text | truncate(200) }}</p>
+            <p class="console-raw"><strong>问题</strong>:{{ o.question or '(缺)' }}</p>
+
+            {% if o.status == 'done' and o.result %}
+            <div class="console-done">
+                <a class="btn btn--secondary" href="/console/order/{{ o.id }}" target="_blank">盘面/截图页 ↗</a>
+                <button type="button" class="btn btn--secondary copy-reply" data-id="{{ o.id }}">复制回帖文案</button>
+                <textarea class="order-result" hidden>{{ o.result }}</textarea>
+                {% if o.forbidden_notes %}<p class="form__hint">禁词柔化:{{ o.forbidden_notes }}</p>{% endif %}
+            </div>
+            {% elif o.status == 'failed' %}
+            <p class="console-err">失败原因:<code>{{ o.error or '(未记录,看服务端日志)' }}</code></p>
+            {% endif %}
+
+            <form method="post" action="/console/update/{{ o.id }}" class="form console-edit">
+                <div class="form__row">
+                    <label class="form__field"><span class="form__label">用户名</span>
+                        <input name="username" value="{{ o.username or '' }}" class="form__input"></label>
+                    <label class="form__field"><span class="form__label">出生日期</span>
+                        <input type="date" name="birth_date" value="{{ o.birth_date or '' }}" class="form__input"></label>
+                    <label class="form__field"><span class="form__label">时间</span>
+                        <input type="time" name="birth_time" value="{{ o.birth_time or '' }}" class="form__input"></label>
+                    <label class="form__field"><span class="form__label">性别</span>
+                        <select name="gender" class="form__input">
+                            {# 空占位:性别未知时选中它,提交空串→后端 None→review。
+                               没有它浏览器默认选第一项 male,不动下拉保存会静默改性别。 #}
+                            <option value="" {{ 'selected' if o.gender not in ('male', 'female') else '' }}>(待确认)</option>
+                            <option value="male" {{ 'selected' if o.gender == 'male' else '' }}>male</option>
+                            <option value="female" {{ 'selected' if o.gender == 'female' else '' }}>female</option>
+                        </select></label>
+                </div>
+                <div class="form__row">
+                    <label class="form__field"><span class="form__label">城市</span>
+                        <input name="city" value="{{ o.city or '' }}" class="form__input" list="console-city-list-{{ o.id }}">
+                        <datalist id="console-city-list-{{ o.id }}"></datalist></label>
+                    <label class="form__field"><span class="form__label">时区(IANA)</span>
+                        <input name="city_tz" value="{{ o.city_tz or '' }}" class="form__input" placeholder="Asia/Shanghai"></label>
+                    <label class="form__field"><span class="form__label">经度</span>
+                        <input type="number" step="any" name="longitude" value="{{ o.longitude if o.longitude is not none else '' }}" class="form__input"></label>
+                    <label class="form__field"><span class="form__label">tz 偏移(小时,可 5.5 / 5.75)</span>
+                        <input type="number" step="any" name="tz_offset" value="{{ o.tz_offset if o.tz_offset is not none else '' }}" class="form__input"></label>
+                </div>
+                <div class="form__row">
+                    <label class="form__field form__field--wide"><span class="form__label">问题</span>
+                        <textarea name="question" rows="2" class="form__input">{{ o.question or '' }}</textarea></label>
+                </div>
+                <div class="console-actions">
+                    <button type="submit" class="btn btn--primary">保存修正</button>
+                    <button type="button" class="btn btn--secondary city-lookup" data-id="{{ o.id }}">按城市名查库回填</button>
+                    <span class="form__hint">保存 = 对该单歧义 note 的人工确认,状态重新判定。</span>
+                </div>
+            </form>
+            <form method="post" action="/console/delete/{{ o.id }}" class="console-delete">
+                <button type="submit" class="btn btn--danger console-del-btn">删除此单</button>
+            </form>
+        </div>
+    </details>
+    {% endfor %}
+</section>
+
+<style>
+.console-section { margin: 28px 0; }
+.console-h2 { font-size: 18px; margin: 12px 0; }
+.console-blob { font-family: ui-monospace, monospace; font-size: 13px; }
+.console-actions { display: flex; gap: 12px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+.console-order { border: 1px solid rgba(0,0,0,.15); border-radius: 6px; margin: 8px 0; }
+.console-order__summary { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; padding: 10px 12px; cursor: pointer; }
+.console-order__user { font-weight: 600; }
+.console-order__meta { color: rgba(0,0,0,.65); font-size: 13px; }
+.console-order__note { color: #A83226; font-size: 12px; }
+.console-order__body { padding: 4px 14px 14px; border-top: 1px dashed rgba(0,0,0,.15); }
+.console-raw, .console-err { font-size: 13px; margin: 6px 0; word-break: break-word; }
+.console-err { color: #A83226; }
+.console-edit { margin-top: 10px; }
+.console-delete { display: inline-block; margin-top: 6px; }
+.console-done { display: flex; gap: 10px; align-items: center; margin: 10px 0; flex-wrap: wrap; }
+.console-badge { font-size: 11px; padding: 2px 8px; border-radius: 999px; border: 1px solid; }
+.console-badge--review { color: #8a6d3b; border-color: #8a6d3b; background: #fff8e6; }
+.console-badge--ready { color: #2F5E4A; border-color: #2F5E4A; background: #eef5f0; }
+.console-badge--running { color: #1c5d9a; border-color: #1c5d9a; background: #eef4fb; }
+.console-badge--done { color: #fff; border-color: #2F5E4A; background: #2F5E4A; }
+.console-badge--failed { color: #fff; border-color: #A83226; background: #A83226; }
+.console-flash { padding: 10px 14px; border-radius: 6px; margin: 10px 0; font-size: 14px; }
+.console-flash--err { background: #fbeae8; color: #A83226; border: 1px solid #A83226; }
+.console-flash--stale { background: #eef4fb; color: #1c5d9a; border: 1px solid #1c5d9a; }
+.btn[disabled] { opacity: .5; cursor: not-allowed; }
+.console-del-btn { color: #A83226; border-color: #A83226; background: transparent; }
+</style>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/key_manager.js?v=20260830a"></script>
+<script>
+(() => {
+    // 轮询:批次运行态或计数变化 → 整页刷新(本地单人工具,简单可靠)。
+    // 编辑保护:正在输入(focus 在表单控件)或改过未提交(dirty)时跳过
+    // 刷新,只在页面顶部提示有更新——防止批次进行中 wipe 掉正在修的单。
+    const stateEl = document.getElementById('queue-state');
+    const initialRunning = stateEl.dataset.running === '1';
+    const initialCounts = JSON.parse(stateEl.dataset.counts || '{}');
+    let dirty = false;
+    document.addEventListener('input', () => { dirty = true; showStale(false); });
+    document.querySelectorAll('form').forEach(f =>
+        f.addEventListener('submit', () => { dirty = false; showStale(false); }));
+    const staleEl = document.getElementById('console-stale');
+    function showStale(on) {
+        if (staleEl) staleEl.hidden = !on;
+    }
+    const isEditing = () => {
+        const el = document.activeElement;
+        return !!el && ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName);
+    };
+    setInterval(async () => {
+        try {
+            const r = await fetch('/console/status.json');
+            const d = await r.json();
+            const changed = (d.running !== initialRunning)
+                || JSON.stringify(d.counts) !== JSON.stringify(initialCounts);
+            if (!changed) return;
+            if (dirty || isEditing()) { showStale(true); return; }
+            location.reload();
+        } catch (e) {
+            // 轮询失败留痕等下轮(不弹窗打断操作;状态页拉不到不影响编辑)
+            console.warn('[console] status poll failed:', e);
+        }
+    }, 3000);
+
+    // err= 已渲染成横幅后从 URL 剥掉,防止后续轮询 reload 反复闪同一条
+    if (new URLSearchParams(location.search).has('err')) {
+        history.replaceState(null, '', location.pathname);
+    }
+
+    // AI 配置提交链:收单表单的可见配置是本页唯一事实源(页面只保留一个
+    // 配置区)。收单提交时,可见 key 为空则从 localStorage 回填(不产生
+    // 重名字段);批量生成表单没有可见配置,提交瞬间注入隐藏字段——
+    // 优先收单区现填值,key 为空回落 localStorage(均无则 env fallback)。
+    const intakeForm = document.querySelector('form[action="/console/intake"]');
+    if (intakeForm) {
+        intakeForm.addEventListener('submit', () => {
+            const keyInput = document.querySelector('[data-ai-key]');
+            if (keyInput && keyInput.value.trim()) return;  // 现填优先
+            const cfg = (typeof loadConfig === 'function') ? loadConfig() : null;
+            if (cfg && cfg.apiKey && typeof applyConfigToForm === 'function') {
+                applyConfigToForm(cfg);  // 填进可见字段,随表单正常提交
+            }
+        });
+    }
+    const runForm = document.querySelector('form[action="/console/run"]');
+    if (runForm) {
+        runForm.addEventListener('submit', () => {
+            runForm.querySelectorAll('input[data-ai-injected]').forEach(el => el.remove());
+            let cfg = (typeof getCurrentConfigFromForm === 'function')
+                ? getCurrentConfigFromForm() : null;
+            if (!cfg || !cfg.apiKey) {
+                const saved = (typeof loadConfig === 'function') ? loadConfig() : null;
+                if (saved && saved.apiKey) cfg = saved;
+            }
+            if (!cfg || !cfg.apiKey) return;  // 无可用 key → env fallback
+            for (const [name, value] of aiFormEntries(cfg)) {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = name;
+                input.value = value;
+                input.setAttribute('data-ai-injected', '');
+                runForm.appendChild(input);
+            }
+        });
+    }
+
+    // 复制回帖文案(原始 markdown,Reddit 直接可贴)
+    const REPLY_TEMPLATE = {{ reply_template | tojson }};
+    document.querySelectorAll('.copy-reply').forEach(btn => {
+        btn.addEventListener('click', () => {
+            const box = btn.closest('[data-order]');
+            const username = box.dataset.username || 'there';
+            const result = box.querySelector('textarea.order-result').value;
+            const text = REPLY_TEMPLATE
+                .replaceAll('{username}', username)
+                .replaceAll('{result}', result);
+            navigator.clipboard.writeText(text).then(
+                () => { btn.textContent = '已复制 ✓'; setTimeout(() => btn.textContent = '复制回帖文案', 1500); },
+                (e) => alert('复制失败:' + e));
+        });
+    });
+
+    // 城市查库回填:按本单城市输入框的值查 /geo/search,取第一名(人口
+    // 最大)回填 tz/经度——不是唯一命中,多候选全部进 datalist 供人工
+    // 换选,回填反馈带候选数提醒多候选时别闭眼保存。
+    document.querySelectorAll('.city-lookup').forEach(btn => {
+        btn.addEventListener('click', async () => {
+            const box = btn.closest('[data-order]');
+            const q = box.querySelector('input[name="city"]').value.trim();
+            if (!q) { alert('先在城市框里填城市名'); return; }
+            try {
+                const r = await fetch('/geo/search?q=' + encodeURIComponent(q));
+                const d = await r.json();
+                if (!d.results || !d.results.length) {
+                    alert('城市库无命中:' + q); return;
+                }
+                const c = d.results[0];
+                box.querySelector('input[name="city_tz"]').value = c.tz;
+                box.querySelector('input[name="longitude"]').value = c.lng;
+                const dl = box.querySelector('datalist');
+                dl.innerHTML = '';
+                d.results.forEach(x => {
+                    const opt = document.createElement('option');
+                    opt.value = x.zh;  // /geo/search 返回的中文名键是 zh(不是 name_zh)
+                    opt.label = `${x.name}, ${x.country} ${x.admin1 || ''} (${x.tz})`;
+                    dl.appendChild(opt);
+                });
+                const more = d.results.length > 1
+                    ? `(共 ${d.results.length} 个候选,已列入城市下拉)` : '';
+                btn.textContent = `已回填 ${c.zh}(${c.tz}) ✓ ${more}`;
+                setTimeout(() => btn.textContent = '按城市名查库回填', 2000);
+            } catch (e) { alert('查询失败:' + e); }
+        });
+    });
+})();
+</script>
+{% endblock %}

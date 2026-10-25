@@ -18,8 +18,10 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
+import math
 import os
 import sqlite3
 import sys
@@ -51,7 +53,7 @@ if not os.environ.get("JWT_SECRET_KEY"):
 
 from fastapi import FastAPI, Request  # noqa: E402
 from fastapi.concurrency import run_in_threadpool  # noqa: E402
-from fastapi.responses import HTMLResponse, JSONResponse  # noqa: E402
+from fastapi.responses import HTMLResponse, JSONResponse, RedirectResponse  # noqa: E402
 from fastapi.staticfiles import StaticFiles  # noqa: E402
 from fastapi.templating import Jinja2Templates  # noqa: E402
 
@@ -97,6 +99,27 @@ from promo_prompts import (  # noqa: E402
     render_chart_qa_prompt,
     render_prompt_with_length,
 )
+
+from console_orders import (  # noqa: E402
+    delete_order,
+    deterministic_parse,
+    finalize_record,
+    get_order,
+    insert_order,
+    list_by_status,
+    list_orders,
+    missing_critical,
+    normalize_date,
+    normalize_time,
+    resolve_city,
+    set_status,
+    split_blocks,
+    status_counts,
+    transition_status,
+    update_fields,
+    update_fields_if_not_status,
+)
+from console_orders import birth_datetime as _order_birth_datetime  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -1264,6 +1287,454 @@ async def ask_handler(request: Request):
         return templates.TemplateResponse(
             "ask_result.html", _forbidden_error_ctx(request, e, ask_back_url), status_code=422,
         )
+
+
+# ---------- 接单台(console,2026-10-25) ----------
+# Reddit「每周一轮免费解读」的批量收单:粘贴评论 → 解析(确定性优先,
+# LLM 兜底)→ 人工确认 flagged 项 → 批量跑 /ask 同款链路 → 出回帖文案。
+# 边界拍板:自动化到「生成完、待发送」;发送与过目永远留人。
+# 队列/解析/城市逻辑见 console_orders.py;本节只做路由与执行。
+
+# 回帖脚手架(英文,Reddit 英文市场):占位 {username} / {result}
+_CONSOLE_REPLY_TEMPLATE = """@{username} — here's your reading (free round):
+
+{result}
+
+---
+This was generated with my app QiCompass — same engine, true solar time. I open a free round like this every week; if you don't want to wait, the app gives 3 free questions when you sign up (link in my profile)."""
+
+_CONSOLE_EXTRACT_PROMPT = """Extract birth data from a social media comment for a BaZi (Chinese astrology) chart reading. Return ONLY a JSON object (no prose) with these keys, using null for anything not clearly stated — never guess:
+- username: the commenter's handle if present (string|null)
+- birth_date: "YYYY-MM-DD" (string|null)
+- birth_time: "HH:MM" 24-hour format (string|null)
+- gender: "male" or "female" (string|null)
+- city: city of birth, English or Chinese name (string|null)
+- question: what they want to know, one concise sentence in English (string|null)
+
+Comment:
+<<<
+{comment}
+>>>"""
+
+_console_run_task: asyncio.Task | None = None
+# 同步哨兵:console_run 的「任务在跑吗」检查与 create_task 之间隔着 await
+# 让出点,双击可双开两个批次。event loop 单线程,本 flag 的置位先于任何
+# await,窗口关闭;由 create_task 成功后的任务本体在 finally 释放,
+# 未成功启动的路径由 console_run 自己释放。
+_console_run_launching = False
+
+# 单次收单块数上限:每块一次 LLM 兜底(60s 超时)顺序执行,粘贴过多
+# 会让一次请求拖到分钟级,浏览器/代理先超时 → 操作者重粘 → 重复订单。
+_MAX_INTAKE_BLOCKS = 30
+
+
+async def _console_llm_extract(client: Any, block: str) -> dict[str, Any]:
+    """LLM 兜底提取;输出必须是 JSON object,否则显式抛(调用方记 note 不中断)。"""
+    raw = await client.interpret(
+        _CONSOLE_EXTRACT_PROMPT.format(comment=block[:2000]),
+        temperature=0, max_tokens=512, timeout=60,
+    )
+    payload = json.loads(_strip_code_fences(raw))
+    if not isinstance(payload, dict):
+        raise ValueError(f"LLM 提取返回非 JSON object:{type(payload).__name__}")
+    return payload
+
+
+def _merge_llm_extract(rec: dict[str, Any], payload: dict[str, Any],
+                       notes: list[str]) -> None:
+    """LLM 结果只填确定性阶段没拿到的字段(不覆盖),并做形状校验。
+
+    补齐的字段在 note 留痕(「LLM 补齐:birth_time,city」)——LLM 兜底是
+    设计内行为、不强制 review,但来源要在队列页可见,不静默。
+    """
+    filled: list[str] = []
+    username = payload.get("username")
+    if not rec.get("username") and isinstance(username, str) and username.strip():
+        rec["username"] = username.strip()[:40]
+    bd, err = normalize_date(payload.get("birth_date") if isinstance(payload.get("birth_date"), str) else None)
+    if err:
+        notes.append(f"LLM 日期被弃:{err}")
+    if not rec.get("birth_date") and bd:
+        rec["birth_date"] = bd
+        filled.append("birth_date")
+    bt, err = normalize_time(payload.get("birth_time") if isinstance(payload.get("birth_time"), str) else None)
+    if err:
+        notes.append(f"LLM 时刻被弃:{err}")
+    if not rec.get("birth_time") and bt:
+        rec["birth_time"] = bt
+        filled.append("birth_time")
+    gender = payload.get("gender")
+    if not rec.get("gender") and gender in ("male", "female"):
+        rec["gender"] = gender
+        filled.append("gender")
+    city = payload.get("city")
+    if isinstance(city, str) and city.strip() and not rec.get("city"):
+        rec["city"] = city.strip()[:80]  # 仅暂存名称,resolve_city 决定采用与否
+        filled.append("city")
+    question = payload.get("question")
+    if not rec.get("question") and isinstance(question, str) and question.strip():
+        rec["question"] = question.strip()[:300]
+        filled.append("question")
+    if filled:
+        notes.append("LLM 补齐:" + ",".join(filled))
+
+
+async def _resolve_city_into(rec: dict[str, Any], notes: list[str]) -> None:
+    """把 rec['city'](名称)解析成 city_tz/longitude;解析不了转 note + review。
+
+    resolve_city 对 cities.db(25 万行)做 LIKE 全表扫,是同步 CPU 活,
+    与 /geo/search 同口径丢线程池,不阻塞 event loop。
+    """
+    name = rec.get("city")
+    if not name or rec.get("city_tz"):
+        return
+    crec, candidates = await run_in_threadpool(resolve_city, name)
+    if crec:
+        rec.update(crec)
+        return
+    if candidates:
+        notes.append(f"城市多候选:{';'.join(candidates[:3])}")
+    else:
+        notes.append(f"城市未命中库:{name}")
+    rec["force_review"] = True
+
+
+async def _requeue_stuck_running() -> int:
+    """无批次任务在跑时,把残留 running 单降级回 ready(重启/崩溃自愈)。
+
+    批次跑一半服务重启(--reload / 手动)→ 内存任务消失,DB 里 running 行
+    永远不会被 runner 重选(只取 ready)。页面加载时发现「无任务却有
+    running 单」→ 全部降级 ready + note 留痕,重开批次即可续跑。
+    有任务在跑时不动(那些 running 是真在跑)。注意:判定只看本进程
+    任务引用——同时起两个实例共享 console.db 时,另一实例的页面加载会
+    把本实例在跑的单降级(重跑幂等无害,但会双烧 LLM,勿双开)。
+    """
+    rows = await run_in_threadpool(list_by_status, "running")
+    for o in rows:
+        note = o["note"] or ""
+        mark = "批次中断重启,已降级重排"
+        if mark not in note:
+            note = (note + ";" + mark).strip(";")
+        await run_in_threadpool(
+            update_fields, o["id"],
+            {"status": "ready", "note": note[:500]},
+        )
+        logger.warning("console.requeue_stuck_running id=%s", o["id"])
+    return len(rows)
+
+
+async def _console_run_queue(client: Any) -> None:
+    """顺序跑全部 ready 单(/ask 同款链路)。单单失败落库不炸整批。
+
+    SQLite 同步调用一律 run_in_threadpool(项目规则:不阻塞 event loop)。
+    """
+    try:
+        for o in await run_in_threadpool(list_by_status, "ready"):
+            # 条件抢单:批量启动后被操作者改成 review / 删除的单自然跳过
+            # (不覆盖人工决定);抢单成功后重取行,用最新数据而非启动快照
+            claimed = await run_in_threadpool(
+                transition_status, o["id"], "ready", "running")
+            if not claimed:
+                logger.info("console.order_skipped id=%s(批量启动后状态已变)", o["id"])
+                continue
+            o = await run_in_threadpool(get_order, o["id"])
+            if o is None:
+                continue
+            try:
+                birth = _order_birth_datetime(o)
+                chart = await run_in_threadpool(
+                    BaziEngine().calculate,
+                    birth=birth, gender=o["gender"],
+                    longitude=float(o["longitude"]),
+                    zi_hour_rule="zi_next_day",
+                )
+                context = build_bazi_context(
+                    chart, birth, o["gender"], float(o["longitude"]),
+                    city=o["city"] or None,
+                )
+                prompt = render_chart_qa_prompt(context, o["question"])
+                text = await client.interpret(
+                    prompt, temperature=0.6,
+                    max_tokens=CHART_QA_MAX_OUTPUT_TOKENS,
+                    timeout=CHART_QA_TIMEOUT_SECONDS,
+                )
+                text, notes = _soften_forbidden(text)
+                if not text or not text.strip():
+                    # validate_interpretation 只扫禁词不拦空串;空文本落
+                    # done 会造成「已完成却无结果」的矛盾态,按失败处理
+                    raise ValueError("AI 返回空文本")
+                validate_interpretation(text)
+                await run_in_threadpool(
+                    set_status, o["id"], "done", result=text,
+                    forbidden_notes=";".join(notes), error=None)
+                logger.info("console.order_done id=%s", o["id"])
+            except Exception as e:  # noqa: BLE001 —— 显式落库+日志,不静默
+                logger.exception("console.order_failed id=%s", o["id"])
+                await run_in_threadpool(
+                    set_status, o["id"], "failed",
+                    error=f"{type(e).__name__}: {e}")
+    except Exception:
+        # 批次级崩溃(如 DB 持续故障):日志留痕;状态由页面轮询暴露
+        logger.exception("console.run_queue_crashed")
+    finally:
+        global _console_run_launching
+        _console_run_launching = False
+
+
+def _order_prefill(o: Any) -> dict[str, str]:
+    """订单行 → /ask 预填(与 _ASK_PREFILL_KEYS 同字段口径)。
+
+    tz_offset 只在有 city_tz 时携带:/ask 表单的 form.js 会按 city_tz 重算
+    偏移(含 DST),携带是安全的;反之手动时区单(有 tz 无 city_tz)带
+    tz_offset 进 /ask 会被 Asia/Shanghai 默认值静默重算覆盖(ask_form.html
+    记载过的海外盘换时区坑),宁可不带。
+    """
+    out: dict[str, str] = {}
+    for k in ("birth_date", "birth_time", "gender", "city", "city_tz"):
+        if o[k]:
+            out[k] = str(o[k])
+    if o["longitude"] is not None:
+        out["longitude"] = str(o["longitude"])
+    if o["tz_offset"] is not None and o["city_tz"]:
+        out["tz_offset"] = str(o["tz_offset"])
+    return out
+
+
+@app.get("/console", response_class=HTMLResponse)
+async def console_page(request: Request):
+    """接单台主页:队列 + 粘贴入口 + 运行按钮(模板 console.html)。
+
+    顺带自愈:无批次任务在跑却存在 running 单(服务重启/崩溃残留)→
+    降级回 ready,避免永久卡死(见 _requeue_stuck_running)。
+    """
+    running = _console_run_task is not None and not _console_run_task.done()
+    if not running:
+        await _requeue_stuck_running()
+    orders = await run_in_threadpool(list_orders)
+    counts = await run_in_threadpool(status_counts)
+    return templates.TemplateResponse(
+        "console.html",
+        {
+            "request": request,
+            "orders": orders,
+            "counts": counts,
+            "running": running,
+            "reply_template": _CONSOLE_REPLY_TEMPLATE,
+        },
+    )
+
+
+@app.post("/console/intake")
+async def console_intake(request: Request):
+    """粘贴评论 → 逐块解析(确定性 → LLM 兜底 → 城市解析)→ 落库。
+
+    防护:块数上限(_MAX_INTAKE_BLOCKS);与库内 raw_text 完全相同的
+    重复块跳过(重复粘贴/浏览器重试不重复烧 LLM);cities.db 缺失属
+    基础设施错误,显式中止收单不半批落库后静默。
+    """
+    form = await request.form()
+    blob = (form.get("blob") or "").strip()
+    blocks = await run_in_threadpool(split_blocks, blob)
+    if not blocks:
+        return RedirectResponse("/console?err=empty-blob", status_code=303)
+    if len(blocks) > _MAX_INTAKE_BLOCKS:
+        return RedirectResponse("/console?err=too-many", status_code=303)
+    try:
+        client, _, _ = _get_client_for_request(form)
+    except ValueError as e:
+        logger.warning("console.intake_ai_config_failed error=%s", e)
+        return RedirectResponse("/console?err=ai-config", status_code=303)
+
+    existing = {o["raw_text"] for o in await run_in_threadpool(list_orders)}
+    skipped_dup = 0
+    for block in blocks:
+        if block in existing:
+            skipped_dup += 1
+            continue
+        rec = await run_in_threadpool(deterministic_parse, block)
+        notes = [rec["note"]] if rec["note"] else []
+        needs_llm = bool(missing_critical(rec)) or not rec.get("username") \
+            or not rec.get("city")
+        if needs_llm:
+            try:
+                payload = await _console_llm_extract(client, block)
+                _merge_llm_extract(rec, payload, notes)
+            except Exception as e:  # noqa: BLE001 —— 记 note,保留确定性结果
+                notes.append(f"LLM 兜底提取失败:{type(e).__name__}")
+                logger.warning("console.llm_extract_failed error=%s", e)
+        try:
+            await _resolve_city_into(rec, notes)
+        except FileNotFoundError as e:
+            logger.error("console.intake_city_db_missing error=%s", e)
+            return RedirectResponse("/console?err=city-db", status_code=303)
+        rec["note"] = ";".join(n for n in notes if n)
+        rec = await run_in_threadpool(finalize_record, rec)
+        await run_in_threadpool(insert_order, rec)
+        logger.info("console.intake user=%s status=%s note=%.120s",
+                    rec.get("username") or "-", rec.get("status"),
+                    rec.get("note") or "")
+    if skipped_dup:
+        logger.info("console.intake_dup_skipped n=%d", skipped_dup)
+        return RedirectResponse("/console?err=dup", status_code=303)
+    return RedirectResponse("/console", status_code=303)
+
+
+@app.post("/console/update/{order_id}")
+async def console_update(order_id: int, request: Request):
+    """人工修正 flagged 单;提交即视为对歧义 note 的人工确认。
+
+    running 单拒绝修改:批次 runner 持有旧行在跑,期间改出生字段会造成
+    终态 done 的 result(旧数据生成)与新字段重排的盘面错配 —— 等批次
+    结束再改(失败单/落 review 单随时可改)。
+    """
+    form = await request.form()
+    o = await run_in_threadpool(get_order, order_id)
+    if not o:
+        return RedirectResponse("/console?err=not-found", status_code=303)
+    if o["status"] == "running":
+        return RedirectResponse("/console?err=is-running", status_code=303)
+    rec = {
+        "username": (form.get("username") or "").strip()[:40],
+        "birth_date": (form.get("birth_date") or "").strip() or None,
+        "birth_time": (form.get("birth_time") or "").strip() or None,
+        "gender": form.get("gender") or None,
+        "question": (form.get("question") or "").strip()[:300] or None,
+        "note": o["note"] or "",
+    }
+    lng_raw = (form.get("longitude") or "").strip()
+    tz_raw = (form.get("tz_offset") or "").strip()
+    try:
+        rec["longitude"] = float(lng_raw) if lng_raw else None
+        rec["tz_offset"] = float(tz_raw) if tz_raw else None
+    except ValueError as e:
+        logger.warning("console.update_numeric_failed id=%s error=%s", order_id, e)
+        return RedirectResponse("/console?err=numeric", status_code=303)
+    for label, value, bound in (
+            ("longitude", rec["longitude"], 180.0),
+            ("tz_offset", rec["tz_offset"], 14.0)):
+        # float() 收 nan/inf 不抛错;NaN 入库变 NULL 但内存判定仍非 None,
+        # 会误判 ready。有限性 + 物理范围一起拦。
+        if value is not None and (not math.isfinite(value) or abs(value) > bound):
+            logger.warning("console.update_numeric_out_of_range id=%s %s=%r",
+                           order_id, label, value)
+            return RedirectResponse("/console?err=numeric", status_code=303)
+    if rec["gender"] not in ("male", "female"):
+        rec["gender"] = None
+    # 城市名可能被改;有 city_tz 就信(操作者可用 /geo/search 自查),没有则解析
+    rec["city"] = (form.get("city") or "").strip() or None
+    rec["city_tz"] = (form.get("city_tz") or "").strip() or None
+    if rec["city_tz"]:
+        try:
+            ZoneInfo(rec["city_tz"])
+        except (ZoneInfoNotFoundError, ValueError) as e:
+            # finalize_record 会拿它算 tz_offset,坏名字提前拦下,
+            # 不让 ZoneInfoNotFoundError 裸奔成 500
+            logger.warning("console.update_bad_tz id=%s tz=%s error=%s",
+                           order_id, rec["city_tz"], e)
+            return RedirectResponse("/console?err=bad-tz", status_code=303)
+    notes = [rec["note"]] if rec["note"] else []
+    await _resolve_city_into(rec, notes)
+    rec["note"] = ";".join(n for n in notes if n)
+    rec["force_review"] = False  # 人工提交 = 对历史 note 的确认
+    rec = await run_in_threadpool(finalize_record, rec)
+    written = await run_in_threadpool(
+        update_fields_if_not_status, order_id,
+        {
+            "username": rec["username"], "status": rec["status"],
+            "note": rec["note"], "birth_date": rec["birth_date"],
+            "birth_time": rec["birth_time"], "gender": rec["gender"],
+            "city": rec["city"], "city_tz": rec["city_tz"],
+            "longitude": rec["longitude"], "tz_offset": rec["tz_offset"],
+            "question": rec["question"], "error": None,
+        },
+        "running")
+    if not written:
+        # 入口检查之后、落库之前被 runner 抢单(毫秒级竞态)——条件写入兜底
+        logger.warning("console.update_rejected_running id=%s", order_id)
+        return RedirectResponse("/console?err=is-running", status_code=303)
+    return RedirectResponse("/console", status_code=303)
+
+
+@app.post("/console/delete/{order_id}")
+async def console_delete(order_id: int):
+    await run_in_threadpool(delete_order, order_id)
+    return RedirectResponse("/console", status_code=303)
+
+
+@app.post("/console/run")
+async def console_run(request: Request):
+    """启动批量生成(后台任务);已在跑/无 ready 单/配置坏 → 带 err 回跳。"""
+    global _console_run_task, _console_run_launching
+    if _console_run_task is not None and not _console_run_task.done():
+        return RedirectResponse("/console?err=running", status_code=303)
+    if _console_run_launching:
+        return RedirectResponse("/console?err=running", status_code=303)
+    _console_run_launching = True  # 同步占位,先于下方任何 await
+    launched = False
+    try:
+        form = await request.form()
+        try:
+            client, _, _ = _get_client_for_request(form)
+        except ValueError as e:
+            logger.warning("console.run_ai_config_failed error=%s", e)
+            return RedirectResponse("/console?err=ai-config", status_code=303)
+        ready = await run_in_threadpool(list_by_status, "ready")
+        if not ready:
+            return RedirectResponse("/console?err=no-ready", status_code=303)
+        _console_run_task = asyncio.create_task(_console_run_queue(client))
+        launched = True
+        return RedirectResponse("/console", status_code=303)
+    finally:
+        if not launched:
+            # 未成功启动(ai-config/no-ready/异常):哨兵立即释放
+            _console_run_launching = False
+
+
+@app.get("/console/status.json")
+async def console_status():
+    """页面轮询:批次运行态 + 各状态计数。"""
+    counts = await run_in_threadpool(status_counts)
+    running = _console_run_task is not None and not _console_run_task.done()
+    return {"running": running, "counts": counts}
+
+
+@app.get("/console/order/{order_id}", response_class=HTMLResponse)
+async def console_order(request: Request, order_id: int):
+    """单结果页:复用 ask_result.html(含截图模式/PNG 导出)。
+
+    引擎确定性 → 同输入重排同结果,故盘面按存档字段现算而不落盘 chart。
+    """
+    o = await run_in_threadpool(get_order, order_id)
+    if not o or o["status"] != "done" or not o["result"]:
+        return RedirectResponse("/console?err=not-ready", status_code=303)
+    try:
+        birth = _order_birth_datetime(o)
+        chart = await run_in_threadpool(
+            BaziEngine().calculate,
+            birth=birth, gender=o["gender"],
+            longitude=float(o["longitude"]),
+            zi_hour_rule="zi_next_day",
+        )
+    except (ValueError, BaziCalculationFailedError) as e:
+        logger.error("console.order_page_chart_failed id=%s error=%s", order_id, e)
+        return RedirectResponse("/console?err=chart", status_code=303)
+    _prepare_chart_for_template(chart)
+    notes = [n for n in (o["forbidden_notes"] or "").split(";") if n]
+    return templates.TemplateResponse(
+        "ask_result.html",
+        {
+            "request": request,
+            "chart": chart,
+            "content_hash_short": chart["content_hash"][:8],
+            "question": o["question"],
+            "markdown_html": _render_markdown_to_html(o["result"]),
+            "markdown_text": o["result"],
+            "ai_provider": "console",
+            "ai_model": "batch",
+            "forbidden_notes": notes,
+            "prefill": _order_prefill(o),
+        },
+    )
 
 
 # ---------- v1 prompt 系统(M0-M7 链式,2026-08-13 加) ----------
