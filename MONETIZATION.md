@@ -1,9 +1,11 @@
 # 付费系统设计决策(MONETIZATION)
 
-Generated on 2026-07-18, last updated 2026-08-15(二)
-Status: ACCEPTED（M2a/b/c + M3a/b/c + M4 已实现并合并 main，M6 TestFlight 待沙盒验证）
+Generated on 2026-07-18, last updated 2026-10-25(日)
+Status: ACCEPTED（M2a/b/c + M3a/b/c + M4 已实现并合并 main，M5 问事窗 2026-10-25 重新立项、S4b/S4c 待实施，M6 TestFlight 待沙盒验证）
 关联文档: `CLAUDE.md` / `bazi-app-design-doc.md` / `命理引擎设计决策.md` / `DESIGN.md`
 
+> **2026-10-25 更新**：问事(原「每日一问」)重新立项进 v1——今日页 S4a 问事窗 UI 已合 main,计费经逐题拍板定为**独立次数包**(15 问/$4.99)+ 装机赠 3 次终身,详见 §问事窗。2026-08-01「移出 v1」决定作废;既有两个 SKU 与 per-命盘 entitlement 结构不变;次数包走独立钱包台账,不绑 content_hash。
+>
 > **2026-08-01 grill-me 更新**：每日一问(原 §每日一问 + Slice M5 + 验收标准相关条目)移出 v1,进 v2 backlog。其他付费结构(深度解析 2+5 / 合盘 half-free / 消耗型 IAP per-命盘 / $17.99 / $11.99 / 后端 entitlement 校验)**全部保持不变**。三模块 voice 改 Medium / Medium-deep 短句节奏（今日运势=Medium 50-80 字 / 深度解析=Medium-deep 200-300 字×7 章 / 合盘=Medium 200-300 字×6 章，详见 `bazi-app-design-doc.md` §AI Voice 规范），不影响付费结构。
 >
 > **2026-08-15 晚间更新**：应产品要求按传统命书框架重构付费章节,9 章→8 章——命盘/日元/五行/格局倾向/事业与财富/婚姻感情/学习成长/身体健康。原 v1 叙事三章拆并进命盘(主线结构)、事业与财富(系统模式+晚运)、婚姻感情(六亲)、学习成长(天赋+高低配);格局章按「格局倾向」模糊叙事红线执行(禁硬分类)。`bazi_deep_paid` prompt_version 4→5。免费 2 章(性格底色+事业方向)不变;v1 链 M0-M7 不动;五阶段叙事结构转由 promo 宣传加长版承载。
@@ -30,9 +32,9 @@ Status: ACCEPTED（M2a/b/c + M3a/b/c + M4 已实现并合并 main，M6 TestFligh
 | 深度解析免费章节 | **性格底色 + 事业(2 章)** | 用户能从免费内容感知"AI 真有料"才肯买 |
 | 深度解析付费章节 | **命盘 / 日元 / 五行 / 格局倾向 / 事业与财富 / 婚姻感情 / 学习成长 / 身体健康(8 章,命书框架)** | 2026-08-15 晚按传统命书框架重构拆并;格局章按「模糊叙事」红线处理 |
 | 合盘付费形态 | **跟深度解析同形态(半免费)** | UX 一致,降低实现复杂度 |
-| 每日一问 | **开放问题 + 留历史** — ~~v1~~ **移出 v1，进 v2 backlog（2026-08-01 grill-me）** | 原计划留历史提升回访率;v1 三模块核心 + Medium voice 重写已占满工作量,且与今日运势有重叠,等 v1 用户反馈再决定是否做 |
+| 问事(原每日一问) | **独立次数包 15 问/$4.99 + 装机赠 3 次终身** — 2026-10-25 重新立项进 v1(见 §问事窗) | 今日页 S4a 问事窗 UI 已落地;habit 型轻付费,次数包锚点为命书价 28%;原 2026-08-01「移出 v1」决定作废 |
 | 定价基准 | **深度解析 $17.99 / 合盘 $11.99(USD)** | 高端定位,跟 `DESIGN.md` 的"克制、专业"对齐;合盘内容更少所以更便宜 |
-| 上架区域 | **全球,苹果 Price Tier 自动换算(基准 $17.99/$11.99)** | 苹果自动按 Tier 处理汇率,文案保持中文(v1 范围) |
+| 上架区域 | **全球,苹果 Price Tier 自动换算(基准 $17.99/$11.99/$4.99)** | 苹果自动按 Tier 处理汇率,文案保持中文(v1 范围) |
 | 后端校验 | **接 App Store Server API + 退款 webhook** | 越狱不可白嫖,收入保护优先;v1 用户量虽小但此基础设施一次建好,v2 复用 |
 
 ## 商品 SKU 列表
@@ -41,12 +43,13 @@ Status: ACCEPTED（M2a/b/c + M3a/b/c + M4 已实现并合并 main，M6 TestFligh
 |---|---|---|---|---|
 | `com.qicompass.deep_analysis.single` | Consumable | $17.99 | Tier 60 | 单次深度解析解锁,绑定到一个 `content_hash` |
 | `com.qicompass.compatibility.single` | Consumable | $11.99 | Tier 35 | 单次合盘解锁,绑定到一个 `compatibility_hash` |
+| `com.qicompass.daily_ask.pack15` | Consumable | $4.99 | Tier 15 | 问事 15 问次数包,2026-10-25 新增;**全局钱包,不绑 content_hash**(见 §问事窗) |
 
 **苹果 Price Tier 自动换算**(苹果按 Tier 算,开发者不逐市场设):
-- 美区:$17.99 / $11.99
-- 中国区:¥128 / ¥88(苹果按 Tier 自动算)
-- 日区:¥2,400 / ¥1,800
-- 欧区:€18.99 / €12.99
+- 美区:$17.99 / $11.99 / $4.99
+- 中国区:¥128 / ¥88 / ¥38(估,苹果按 Tier 自动算)
+- 日区:¥2,400 / ¥1,800 / ¥750(估)
+- 欧区:€18.99 / €12.99 / €5.99(估)
 
 具体 Tier 编号以 App Store Connect 实际配置为准。
 
@@ -70,9 +73,13 @@ Status: ACCEPTED（M2a/b/c + M3a/b/c + M4 已实现并合并 main，M6 TestFligh
 
 ### 每日运势
 
-**v1 全免费,无付费触点**(2026-09-07 拍板)。原「历史回看解锁」(2026-08-30,
+**解读本体 v1 全免费,无付费触点**(2026-09-07 拍板)。原「历史回看解锁」(2026-08-30,
 免费 7 天 / 任意购买解锁全部)随底部日期带整体拔除——今日 tab 定位是留存/习惯
 钩子,付费转化主战场在深度解析与合盘。
+
+**2026-10-25 增补**:今日页新增**问事窗**付费触点(独立次数包,见 §问事窗)——
+解读五段本体仍全免费,今日 tab 留存定位不变;问事属 habit 型轻付费,价格锚点
+明显低于命书,不与解读冲突。
 
 ### 合盘(M4 已拆分,2026-08-14 五行共振改造)
 
@@ -183,56 +190,43 @@ CREATE INDEX idx_entitlement_user ON entitlement(user_local_id, is_active);
 - 改任何一个 → content_hash 变 → 新 entitlement 需要 → 重新购买
 - **旧 entitlement 不失效**(用户还能看回旧命盘的付费内容)
 - iOS UI:改生辰前弹确认 — "修改生辰需重新购买深度解析,旧命盘已购内容保留。确认修改?"
+- **例外:问事次数包不绑 content_hash**——改生辰/换盘/删盘均不影响问事余额(全局钱包,见 §问事窗)
 
-## 每日一问(新功能) — **v2 backlog，2026-08-01 grill-me 决策移出 v1**
+## 问事窗(今日页 · 滚到底滑出) — **v1 立项(2026-10-25 拍板)**
 
-> **状态变更**：本节原为 v1 Slice M5 范围，2026-08-01 grill-me 战略 review 期间用户决定**移出 v1**。理由：(1) 三模块核心 + Medium voice 重写已占满 v1 工作量；(2) 每日一问与"今日运势"功能定位有部分重叠，等 v1 用户反馈再决定是否做以及如何差异化。下方原始设计保留作为 v2 参考。
+> **状态变更**：原「每日一问」2026-08-01 移出 v1 进 backlog;今日页 S1-S4a 改版
+> (2026-10-24~25)落地问事窗 UI 后,2026-10-25 经逐题拍板**重新立项进 v1**,口径全部
+> 重定。原 v2 backlog 设计(每天 1 次 / 共用 `DailyReadCounter` 10 次池 /
+> `POST /api/daily_question`)整体作废,见 git 历史。
 
-### Prompt 模板
+### 产品口径
 
-```
-你是一位精通中国传统四柱八字的导师。基于命主命盘信息和今日运势,
-回答命主的具体问题。
+| 决策点 | 口径 |
+|---|---|
+| 计费形态 | **独立次数包**(新消耗型 SKU `daily_ask.pack15`,15 问/$4.99),与命书解耦;不挂命书、不做订阅 |
+| 免费试用 | **装机即领 3 次,终身**——匿名=注册(2026-09-27 匿名购买落地后身份已拉平),锚 `user_local_id`,不区分登录态 |
+| 钱包属性 | **全局**:不绑盘、不绑日、永不过期;匿名可买(沿用匿名购买链路,可后绑) |
+| 扣费粒度 | **每条用户消息 1 次**(候选点选直发同价);开场白/候选列表/AI 回答/`follow_up_suggestions` 不扣 |
+| 重复问 | **照常扣 + AI 接住**:同用户同盘同日重问同题不免费重放——prompt 带重复语境重新作答并主动追问(「还在犹豫说明心里有事」),把重复变成往深聊的入口;纯重放(不烧 LLM,如回看历史)免费;跨用户同盘同题罕见命中免费秒回 |
+| 发散引导 | AI 每次作答末尾带 1-3 条「接着问」候选(`follow_up_suggestions` 字段,随作答返回;与今日解读返回的 `ask_suggestions` 入口候选(盘+日期维度)是两个字段,iOS 渲染可点 chip)——问事的价值在对话里,不在单条答案里 |
 
-命主:{gender},出生 {city},真太阳时 {true_solar_time}
-四柱:{year_gan}{year_zhi} / {month_gan}{month_zhi} / {day_gan}{day_zhi} / {hour_gan}{hour_zhi}
-今日运势(基于流日):{daily_fortune_summary}
+### 技术口径
 
-用户问题:{user_question}
+| 决策点 | 口径 |
+|---|---|
+| 扣减时机 | 服务端**预扣 + 失败自动退**(对齐 2026-10-08 分类退纪律);用户体感=成功才算一次 |
+| 钱包模型 | **不复用 per-命盘 entitlement 行**(次数包不绑 content_hash)——新 `ask_credits` 台账:redeem +15、ask -1;Apple 验证/redeem 流程复用现有链路;退款 webhook 扣回(下限 0) |
+| 防刷 | **IP 限铸造,不限调用**:每 IP 每日最多 20-30 个**新试用身份**铸造;已存身份的调用不占 IP 名额(公共网络真实用户互不挤占,2026-10-25 拍板改此口径);另设每 IP 300 次/日纯防脚本硬上限(正常用户不可达) |
+| 设备指纹 | **DeviceCheck v1 集成**(苹果系统 API,跨重装 2 比特,卸载重装不重置)——重装不再重发试用,2026-10-25 拍板 v1 就加 |
+| 验签 | 复用 **daily 族 context_token**(绑命盘 + `target_date`,天然活一天;恒定时间比较;密钥从 `JWT_SECRET_KEY` 域分隔派生)——不新开族,零新增签发/验签代码;今日解读正文服务端按缓存键自取,不进 token |
+| 缓存 | 键 = 盘 + 日期 + 问题哈希 + 对话上下文指纹;命中即免费秒回(对齐全仓「缓存命中不计」);同用户重复问走「重复语境重生成」分支(真烧 LLM 故扣费),不走重放 |
+| 模板/护栏 | 新 prompt 模板 `daily_ask`(zh/zh-hant/en 三语同步创建);新 SKU 双端登记走 `tools/check_sku_sync.py`;模板变更走 `check_prompt_sync` + evalkit 全套护栏 |
 
-要求:
-- 平实语言,不堆术语
-- 给出具体可执行建议(时辰 / 方位 / 行为),不空泛
-- 诚实告知不确定性,不假装预测 100% 准确
-- 控制在 300 字以内
-```
+### 实施顺序(2026-10-25)
 
-### 接口
-
-`POST /api/daily_question`
-```json
-{
-  "content_hash": "...",
-  "user_question": "今天适合面试吗?",
-  "target_date": "2026-07-18"
-}
-```
-
-### 限制 + 历史
-
-- **每天 1 次**(`user_local_id + target_date` 维度)
-- 跟 `DailyReadCounter` 共用全局每日 10 次池(决策 §3.8)
-- 历史存 SwiftData `DailyQuestion` model:
-  ```swift
-  @Model final class DailyQuestion {
-      @Attribute(.unique) var id: UUID
-      var contentHash: String
-      var question: String
-      var answer: String
-      var targetDate: Date
-      var createdAt: Date
-  }
-  ```
+1. **S4a UI 已合 main**(`52b74a5`:滚到底滑出问事框 + 整页聊天 sheet + 候选点选直发;作答暂为 `ServicePendingAskAnswerer` 诚实占位)
+2. **S4b 后端**:`POST /api/bazi/daily-ask`(验签→DeviceCheck/限铸→钱包配额→缓存→LLM→扣费,与 `/api/bazi/daily-fortune` 同前缀同 kebab-case 惯例)+ `ask_credits` 台账 + `daily_ask` 三语模板
+3. **S4c iOS**:次数包 SKU 接入 PurchaseManager/Paywall + 作答链路替换占位 + `follow_up_suggestions` chip + 试用/余额展示与付费错误码→paywall
 
 ## 实施路径(分 Slice)
 
@@ -242,8 +236,8 @@ CREATE INDEX idx_entitlement_user ON entitlement(user_local_id, is_active);
 | **M2** | 后端:entitlement 表 + `/api/entitlement/redeem` + App Store Server API 集成 + 退款 webhook + prompt 拆分(`bazi_deep_free` / `_paid`) | 大 | M1 |
 | **M3** | iOS:StoreKit 2 + PurchaseManager + 购买 UI + 锁标 + 付费章节展开 UI + Entitlement SwiftData model | 中 | M2 |
 | **M4** | 合盘付费(M2/M3 复制粘贴 + 价格档 + 合盘 prompt 拆分) | 中 | M3 |
-| **M5** | ~~每日一问(后端 prompt + 接口 + 限制 + iOS UI + 历史)~~ — **2026-08-01 移出 v1，进 v2 backlog** | - | - |
-| **M6** | App Store Connect 配置两个 Consumable + TestFlight 沙盒账号验证购买/退款流程 | 小 | M2-M4 |
+| **M5** | 问事窗:S4a UI 已合 main;S4b 后端(端点/钱包/防刷/模板)+ S4c iOS(购买链)待做——2026-10-25 重新立项,详见 §问事窗 | 大 | M2-M4(redeem/退款/StoreKit 基建复用) |
+| **M6** | App Store Connect 配置三个 Consumable(含 `daily_ask.pack15`)+ TestFlight 沙盒账号验证购买/退款流程 | 小 | M2-M4 |
 
 ### 新依赖待用户同意
 
@@ -253,6 +247,7 @@ CREATE INDEX idx_entitlement_user ON entitlement(user_local_id, is_active);
 |---|---|---|---|
 | **Python: `app-store-server-library`** | 苹果官方 SDK,封装 App Store Server API 的 JWT 签名 + JWS 验证 + transaction 查询 | 自己用 `httpx` + `cryptography` 手写 JWT 签名 + ECDSA P-256 验证(数百行) | 手写 crypto 错误风险高,且苹果升级 API 时要自己跟 |
 | **iOS: StoreKit 2** | 苹果系统自带,Swift 原生 API | — | 不引入 = 不能做 IAP |
+| **iOS: DeviceCheck** | 苹果系统自带,问事试用防卸载重装重刷(跨重装 2 比特;2026-10-25 拍板 v1 集成,同意已给) | 自建设备指纹(无法跨重装,防不住);或只靠 IP 限铸兜底 | 不引入 = 卸载重装可重刷 3 次试用 |
 | **iOS: SwiftData** | 项目已用,无新依赖 | — | — |
 
 ## 不做(v1 范围外,延后到 v2)
@@ -295,7 +290,8 @@ CREATE INDEX idx_entitlement_user ON entitlement(user_local_id, is_active);
 - [ ] 修改生辰 → content_hash 变 → 付费章节重新锁住,需重新购买
 - [ ] 沙盒模拟退款 → 后端 webhook 收到 → entitlement `is_active=0` → 付费章节 403
 - [ ] 越狱设备(或调试模式跳过 StoreKit)直接调 `/api/interpret bazi_deep_paid` → 403
-- [ ] ~~每日一问:第 1 次成功,第 2 次当天返回 429 `DAILY_LIMIT_REACHED`~~ — **2026-08-01 移出 v1**
-- [ ] ~~每日一问历史 SwiftData 持久化,跨启动能回看~~ — **2026-08-01 移出 v1**
-- [ ] App Store Connect 两个 product 配置正确,在 TestFlight build 上可见可购
+- [ ] 问事:沙盒购买 15 问包 → `ask_credits` +15 → 逐条扣减 → 余额尽返回付费错误码 → iOS 弹次数包 paywall
+- [ ] 问事:装机 3 次试用用尽 → 弹次数包 paywall;卸载重装(DeviceCheck 命中)不再重发试用;同一 IP 铸新试用超限被限铸闸拦截
+- [ ] 问事:作答失败自动退次数;同用户重复问同题扣 1 次且 AI 带重复语境作答并追问;跨用户同盘同题命中缓存免费秒回;每次作答带 `follow_up_suggestions` 候选
+- [ ] App Store Connect 三个 product 配置正确,在 TestFlight build 上可见可购
 - [ ] **M6 配 ASC 时 product_id 与 `ios/QiCompass/QiCompass/Products.storekit` 1:1 校对**(product_id / displayPrice / type=Consumable 三字段对齐,防止 .storekit 与 ASC 漂移)
