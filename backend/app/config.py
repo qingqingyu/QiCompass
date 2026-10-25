@@ -249,6 +249,35 @@ if PAID_DAILY_LIMIT <= 0:
     raise ValueError(
         f"QICOMPASS_PAID_DAILY_LIMIT must be positive (got {PAID_DAILY_LIMIT})")
 
+# ---------- 问事(今日页问事窗,S4b 2026-10-25;MONETIZATION.md §问事窗) ----------
+ASK_TRIAL_CREDITS = int(
+    os.environ.get("QICOMPASS_ASK_TRIAL_CREDITS") or "3")
+if ASK_TRIAL_CREDITS <= 0:
+    raise ValueError(
+        f"QICOMPASS_ASK_TRIAL_CREDITS must be positive (got {ASK_TRIAL_CREDITS})")
+# 防刷闸 = IP 限铸造(非限调用):每 IP 每日最多 N 个**新试用身份**;
+# 已存身份的调用不占 IP 名额(公共网络真实用户互不挤占,2026-10-25 拍板)。
+# 正常出口一天出 25 个「新装+首次问事」真人的场景不存在;重装农场
+# 一天最多铸 25 号 × 3 问封顶,无利可图。
+ASK_MINT_LIMIT_PER_IP = int(
+    os.environ.get("QICOMPASS_ASK_MINT_LIMIT_PER_IP") or "25")
+if ASK_MINT_LIMIT_PER_IP <= 0:
+    raise ValueError(
+        "QICOMPASS_ASK_MINT_LIMIT_PER_IP must be positive "
+        f"(got {ASK_MINT_LIMIT_PER_IP})")
+# 次数包(SKU com.qicompass.daily_ask.pack15)单包次数
+ASK_PACK_CREDITS = int(
+    os.environ.get("QICOMPASS_ASK_PACK_CREDITS") or "15")
+if ASK_PACK_CREDITS <= 0:
+    raise ValueError(
+        f"QICOMPASS_ASK_PACK_CREDITS must be positive (got {ASK_PACK_CREDITS})")
+# Apple DeviceCheck(跨重装设备指纹,v1 集成拍板 2026-10-25):三元组齐才启用,
+# 缺任一 → 纯限铸闸降级(启动 warning,非静默)。PRIVATE_KEY 支持 "@路径"。
+DEVICECHECK_TEAM_ID: str = os.environ.get("QICOMPASS_DEVICECHECK_TEAM_ID") or ""
+DEVICECHECK_KEY_ID: str = os.environ.get("QICOMPASS_DEVICECHECK_KEY_ID") or ""
+DEVICECHECK_PRIVATE_KEY: str = (
+    os.environ.get("QICOMPASS_DEVICECHECK_PRIVATE_KEY") or "")
+
 # ---------- LLM 失败率告警阈值(2026-10-09 监控闭环 A 档) ----------
 # 近 1h 窗口内 provider 调用总数 ≥ LLM_ALERT_MIN_CALLS 且失败率 ≥
 # LLM_ALERT_FAILURE_RATE 时,MeteredAIClient 打 ERROR 级「ALERT

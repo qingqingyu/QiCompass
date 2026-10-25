@@ -42,6 +42,9 @@ from .config import (
     IMAGE_API_KEY,
     APP_STORE_PRIVATE_KEY,
     DB_PATH,
+    DEVICECHECK_KEY_ID,
+    DEVICECHECK_PRIVATE_KEY,
+    DEVICECHECK_TEAM_ID,
     MODEL_ID,
     OPENAI_API_KEY,
     OPENAI_BASE_URL,
@@ -135,6 +138,20 @@ async def lifespan(app: FastAPI):
     free_quota_store = FreeLLMQuotaStore(DB_PATH)
     free_quota_store.init_schema()
     app.state.free_quota_store = free_quota_store
+
+    # 问事窗 S4b-2(2026-10-25):钱包/限铸/购买留痕/重复问四表 +
+    # DeviceCheck(未配三元组 → None,纯限铸闸降级)+ 铸造编排 service
+    from app.ask.devicecheck import DeviceCheckClient
+    from app.ask.service import AskGrantService
+    from app.ask.store import AskCreditsStore
+    ask_store = AskCreditsStore(DB_PATH)
+    ask_store.init_schema()
+    app.state.ask_store = ask_store
+    app.state.devicecheck_client = DeviceCheckClient.build_from_config(
+        team_id=DEVICECHECK_TEAM_ID, key_id=DEVICECHECK_KEY_ID,
+        private_key=DEVICECHECK_PRIVATE_KEY)
+    app.state.ask_grant_service = AskGrantService(
+        ask_store, app.state.devicecheck_client)
 
     # M2b:Apple Server API 切换
     # - env 配齐(5 个 Apple env)+ SDK 已装 → AppleServerAPIClient(真调 Apple)
@@ -261,6 +278,19 @@ from app.quota.store import FreeLLMQuotaStore  # noqa: E402
 _default_free_quota_store = FreeLLMQuotaStore(DB_PATH)
 _default_free_quota_store.init_schema()
 app.state.free_quota_store = _default_free_quota_store
+# 问事窗 S4b-2 默认实例(对齐 free_quota_store 双轨:lifespan 覆盖,
+# ASGITransport 单测不触发 lifespan 也有可用实例;fixture 按需替换)
+from app.ask.devicecheck import DeviceCheckClient  # noqa: E402
+from app.ask.service import AskGrantService  # noqa: E402
+from app.ask.store import AskCreditsStore  # noqa: E402
+_default_ask_store = AskCreditsStore(DB_PATH)
+_default_ask_store.init_schema()
+app.state.ask_store = _default_ask_store
+app.state.devicecheck_client = DeviceCheckClient.build_from_config(
+    team_id=DEVICECHECK_TEAM_ID, key_id=DEVICECHECK_KEY_ID,
+    private_key=DEVICECHECK_PRIVATE_KEY)
+app.state.ask_grant_service = AskGrantService(
+    _default_ask_store, app.state.devicecheck_client)
 # 2026-10-09 监控:metrics store 默认实例 + 默认 ai_client 包 MeteredAIClient
 # (ASGITransport 单测不触发 lifespan 也有监控;测试 fixture 整体替换
 # app.state.ai_client 为裸 mock 时计数自然旁路,不影响行为断言)
