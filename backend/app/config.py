@@ -271,6 +271,18 @@ ASK_PACK_CREDITS = int(
 if ASK_PACK_CREDITS <= 0:
     raise ValueError(
         f"QICOMPASS_ASK_PACK_CREDITS must be positive (got {ASK_PACK_CREDITS})")
+# 次数包 product_id(Apple 配置与 iOS PurchaseManager 双端一致;不入
+# PRODUCT_MODULE_MAP——它不是 module 权益,走 /api/ask/redeem 独立入账)
+ASK_PACK_PRODUCT_ID = (
+    os.environ.get("QICOMPASS_ASK_PACK_PRODUCT_ID")
+    or "com.qicompass.daily_ask.pack15")
+# 问事调用侧纯防脚本硬上限(每 IP 每日,只计真烧 LLM;正常用户不可达,
+# 2026-10-25 拍板「限铸造非限调用」的兜底闸)
+ASK_IP_DAILY_LIMIT = int(
+    os.environ.get("QICOMPASS_ASK_IP_DAILY_LIMIT") or "300")
+if ASK_IP_DAILY_LIMIT <= 0:
+    raise ValueError(
+        f"QICOMPASS_ASK_IP_DAILY_LIMIT must be positive (got {ASK_IP_DAILY_LIMIT})")
 # Apple DeviceCheck(跨重装设备指纹,v1 集成拍板 2026-10-25):三元组齐才启用,
 # 缺任一 → 纯限铸闸降级(启动 warning,非静默)。PRIVATE_KEY 支持 "@路径"。
 DEVICECHECK_TEAM_ID: str = os.environ.get("QICOMPASS_DEVICECHECK_TEAM_ID") or ""

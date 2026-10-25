@@ -20,6 +20,7 @@ from .ai.client import create_ai_client
 from .ai.singleflight import SingleflightCoalescer
 from .api import bazi as bazi_api
 from .api import compatibility as compatibility_api
+from .api import daily_ask as daily_ask_api
 from .api import daily_fortune as daily_fortune_api
 from .api import daily_image as daily_image_api
 from .api import entitlement as entitlement_api
@@ -318,6 +319,7 @@ app.add_middleware(RequestIdMiddleware)
 app.include_router(health_api.router)
 app.include_router(bazi_api.router)
 app.include_router(compatibility_api.router)
+app.include_router(daily_ask_api.router)
 app.include_router(daily_fortune_api.router)
 app.include_router(daily_image_api.router)
 app.include_router(interpret_api.router)

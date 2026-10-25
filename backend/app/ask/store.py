@@ -1,4 +1,5 @@
-"""问事钱包台账(ask_wallet / ask_trial_mints / ask_purchases / ask_history)。
+"""问事钱包台账(ask_wallet / ask_trial_mints / ask_purchases / ask_history
+/ ask_answer_cache——第五表为 S4b-3 共享答案缓存)。
 
 口径(MONETIZATION.md §问事窗,2026-10-25 逐题拍板):
 - 装机赠 3 次终身试用:锚 owner(user:/ulid: 前缀,对齐 interpret.py
@@ -62,6 +63,24 @@ CREATE TABLE IF NOT EXISTS ask_history (
 );
 """
 
+_CREATE_ANSWER_CACHE_SQL = """
+CREATE TABLE IF NOT EXISTS ask_answer_cache (
+    chart_hash      TEXT NOT NULL,
+    target_date     TEXT NOT NULL,
+    question_hash   TEXT NOT NULL,
+    conv_fingerprint TEXT NOT NULL,
+    interp_fingerprint TEXT NOT NULL,
+    language        TEXT NOT NULL,
+    prompt_version  INTEGER NOT NULL,
+    variant         TEXT NOT NULL,
+    answer_json     TEXT NOT NULL,
+    created_at      TEXT NOT NULL,
+    PRIMARY KEY (chart_hash, target_date, question_hash,
+                 conv_fingerprint, interp_fingerprint, language,
+                 prompt_version, variant)
+);
+"""
+
 
 def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
@@ -92,6 +111,7 @@ class AskCreditsStore:
             conn.execute(_CREATE_MINTS_SQL)
             conn.execute(_CREATE_PURCHASES_SQL)
             conn.execute(_CREATE_HISTORY_SQL)
+            conn.execute(_CREATE_ANSWER_CACHE_SQL)
             conn.commit()
 
     # ---------- 钱包 ----------
@@ -282,3 +302,65 @@ class AskCreditsStore:
                 "VALUES (?, ?, ?, ?, ?)",
                 (owner, chart_hash, day, question_hash, _now_iso()))
             conn.commit()
+
+    # ---------- 答案缓存(S4b-3;跨用户共享,命中免费秒回) ----------
+
+    def get_answer(
+        self, *, chart_hash: str, target_date: str, question_hash: str,
+        conv_fingerprint: str, interp_fingerprint: str, language: str,
+        prompt_version: int, variant: str,
+    ) -> str | None:
+        """查共享答案缓存;未命中返回 None。
+
+        键含 variant(fresh/repeat):重复问走「重复语境重生成」分支,
+        与首答(prompt 语境不同)天然分键,互不污染。interp_fingerprint
+        = 今日解读文本指纹(prompt 输入之一,客户端自由文本不进 token,
+        不进键则不同解读碰撞同键互取对方的答案)。
+        """
+        with self._connect() as conn:
+            row = conn.execute(
+                "SELECT answer_json FROM ask_answer_cache WHERE "
+                "chart_hash = ? AND target_date = ? AND question_hash = ? "
+                "AND conv_fingerprint = ? AND interp_fingerprint = ? "
+                "AND language = ? AND prompt_version = ? AND variant = ?",
+                (chart_hash, target_date, question_hash, conv_fingerprint,
+                 interp_fingerprint, language, prompt_version,
+                 variant)).fetchone()
+        return row[0] if row else None
+
+    def put_answer(
+        self, *, chart_hash: str, target_date: str, question_hash: str,
+        conv_fingerprint: str, interp_fingerprint: str, language: str,
+        prompt_version: int, variant: str, answer_json: str,
+    ) -> None:
+        """写答案缓存(UPSERT 同键幂等重写)。"""
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT INTO ask_answer_cache "
+                "(chart_hash, target_date, question_hash, conv_fingerprint, "
+                "interp_fingerprint, language, prompt_version, variant, "
+                "answer_json, created_at) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?) "
+                "ON CONFLICT(chart_hash, target_date, question_hash, "
+                "conv_fingerprint, interp_fingerprint, language, "
+                "prompt_version, variant) "
+                "DO UPDATE SET answer_json = excluded.answer_json, "
+                "created_at = excluded.created_at",
+                (chart_hash, target_date, question_hash, conv_fingerprint,
+                 interp_fingerprint, language, prompt_version, variant,
+                 answer_json, _now_iso()))
+            conn.commit()
+
+    def refund_consume(self, *, owner: str) -> bool:
+        """预扣回补(+1;失败退款路径,S4b-2 review 备忘项)。
+
+        只在有行处 +1(balance 0 行也可回补——刚扣完最后一次的失败退款
+        必须能退回);无行 = 未曾扣过,返回 False 不动账。
+        """
+        with self._connect() as conn:
+            cursor = conn.execute(
+                "UPDATE ask_wallet SET balance = balance + 1, "
+                "updated_at = ? WHERE owner = ?",
+                (_now_iso(), owner))
+            conn.commit()
+            return cursor.rowcount > 0

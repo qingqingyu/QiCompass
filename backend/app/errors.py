@@ -174,6 +174,20 @@ class ContextTokenInvalidError(BaziError):
     http_status = 403
 
 
+class AskCreditsRequiredError(BaziError):
+    """问事次数耗尽(试用 3 次 + 钱包余额皆空;铸造被 DC/限铸拦同理)。
+
+    402 + ASK_CREDITS_REQUIRED:iOS 据此弹次数包 paywall(S4c 契约)。
+    三种触发共用一个 code(iOS 只需一个分支):
+    - 试用+钱包余额为 0(正常商业路径)
+    - 新身份被 DeviceCheck 拦(同设备已铸过)/ IP 限铸拦(出口已被铸满)
+      ——购买次数包不铸造新身份,买后即解锁,402 仍是对的出口
+    """
+
+    code = "ASK_CREDITS_REQUIRED"
+    http_status = 402
+
+
 class QuotaExceededError(BaziError):
     """解读生成的每日服务端上限触发(2026-10-07 匿名滥用收口)。
 

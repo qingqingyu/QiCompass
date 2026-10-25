@@ -153,6 +153,9 @@ _MODULE_FAMILY: dict[str, str] = {
     "compatibility": "compat",
     "compatibility_free": "compat", "compatibility_paid": "compat",
     "daily_fortune": "daily",
+    # 问事(S4b 2026-10-25):上下文=命盘+今日,正是 daily 族绑的两维
+    # (MONETIZATION.md §问事窗拍板:复用,不新开族)
+    "daily_ask": "daily",
     **{m: "v1" for m in (
         "m0_structure", "m1_talent", "m2_high_low", "m3_system",
         "m4_health", "m5_wealth", "m6_dynamics", "m7_manual")},

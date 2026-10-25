@@ -38,7 +38,8 @@ def token_for_context(
         return issue_token(
             content_hash=content_hash, family="compat",
             fields={k: context.get(k) for k in _COMPAT_BIND_FIELDS})
-    if module == "daily_fortune":
+    if module == "daily_fortune" or module == "daily_ask":
+        # daily_ask(S4b-3)复用 daily 族:同字段集 + target_date
         fields = {k: context.get(k) for k in _DAILY_BIND_FIELDS}
         fields["target_date"] = target_date_iso
         return issue_token(content_hash=content_hash, family="daily",
