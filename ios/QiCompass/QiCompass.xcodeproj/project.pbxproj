@@ -53,6 +53,7 @@
 		9C0000000000000000000021 /* DailyFortuneMainView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000021 /* DailyFortuneMainView.swift */; };
 		9C0000000000000000000023 /* DailyInterpretationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000023 /* DailyInterpretationSection.swift */; };
 		9C0000000000000000000024 /* DailyImageHeroSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000024 /* DailyImageHeroSection.swift */; };
+		9C0000000000000000000025 /* DailyAskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000025 /* DailyAskView.swift */; };
 		9C0000000000000000000028 /* DailyFortuneVerifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000028 /* DailyFortuneVerifier.swift */; };
 		9C0000000000000000000029 /* InterpretState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000029 /* InterpretState.swift */; };
 		9C000000000000000000002A /* CompatibilitySnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000002A /* CompatibilitySnapshotStore.swift */; };
@@ -164,6 +165,7 @@
 		A00000000000000000000017 /* DailyFortune/DailyImageHeroCopyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000017 /* DailyFortune/DailyImageHeroCopyTests.swift */; };
 		A00000000000000000000022 /* DailyFortune/DailyFortuneFailureFallbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000022 /* DailyFortune/DailyFortuneFailureFallbackTests.swift */; };
 		A00000000000000000000023 /* DailyFortune/DailyFortuneHeroEnTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000023 /* DailyFortune/DailyFortuneHeroEnTests.swift */; };
+		A00000000000000000000024 /* DailyFortune/DailyAskTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000024 /* DailyFortune/DailyAskTests.swift */; };
 		A00000000000000000000013 /* Shared/AddHourFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000013 /* Shared/AddHourFlowTests.swift */; };
 		A00000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift */; };
 		A00000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift */; };
@@ -246,6 +248,7 @@
 		9C1000000000000000000021 /* DailyFortuneMainView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneMainView.swift; path = QiCompass/Features/DailyFortune/DailyFortuneMainView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000023 /* DailyInterpretationSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyInterpretationSection.swift; path = QiCompass/Features/DailyFortune/DailyInterpretationSection.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000024 /* DailyImageHeroSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyImageHeroSection.swift; path = QiCompass/Features/DailyFortune/DailyImageHeroSection.swift; sourceTree = SOURCE_ROOT; };
+		9C1000000000000000000025 /* DailyAskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyAskView.swift; path = QiCompass/Features/DailyFortune/DailyAskView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000028 /* DailyFortuneVerifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneVerifier.swift; path = QiCompass/Persistence/DailyFortuneVerifier.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000029 /* InterpretState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretState.swift; sourceTree = "<group>"; };
 		9C100000000000000000002A /* CompatibilitySnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilitySnapshotStore.swift; path = QiCompass/Services/CompatibilitySnapshotStore.swift; sourceTree = SOURCE_ROOT; };
@@ -353,6 +356,7 @@
 		A11000000000000000000017 /* DailyFortune/DailyImageHeroCopyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFortune/DailyImageHeroCopyTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000022 /* DailyFortune/DailyFortuneFailureFallbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFortune/DailyFortuneFailureFallbackTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000023 /* DailyFortune/DailyFortuneHeroEnTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFortune/DailyFortuneHeroEnTests.swift; sourceTree = "<group>"; };
+		A11000000000000000000024 /* DailyFortune/DailyAskTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFortune/DailyAskTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000013 /* Shared/AddHourFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/AddHourFlowTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisChapterRowTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/TestDailyReadCounterFactory.swift; sourceTree = "<group>"; };
@@ -650,6 +654,7 @@
 				9C1000000000000000000021 /* DailyFortuneMainView.swift */,
 				9C1000000000000000000023 /* DailyInterpretationSection.swift */,
 				9C1000000000000000000024 /* DailyImageHeroSection.swift */,
+				9C1000000000000000000025 /* DailyAskView.swift */,
 			);
 			path = DailyFortune;
 			sourceTree = "<group>";
@@ -688,6 +693,7 @@ A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				A11000000000000000000017 /* DailyFortune/DailyImageHeroCopyTests.swift */,
 				A11000000000000000000022 /* DailyFortune/DailyFortuneFailureFallbackTests.swift */,
 				A11000000000000000000023 /* DailyFortune/DailyFortuneHeroEnTests.swift */,
+				A11000000000000000000024 /* DailyFortune/DailyAskTests.swift */,
 				A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */,
 				A11000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift */,
 				A11000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift */,
@@ -877,6 +883,7 @@ A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				9C0000000000000000000020 /* DailyFortuneEmptyView.swift in Sources */,
 				9C0000000000000000000021 /* DailyFortuneMainView.swift in Sources */,
 				9C0000000000000000000024 /* DailyImageHeroSection.swift in Sources */,
+				9C0000000000000000000025 /* DailyAskView.swift in Sources */,
 				9C0000000000000000000023 /* DailyInterpretationSection.swift in Sources */,
 				9C0000000000000000000028 /* DailyFortuneVerifier.swift in Sources */,
 				9C0000000000000000000029 /* InterpretState.swift in Sources */,
@@ -980,6 +987,7 @@ A0000000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				A00000000000000000000017 /* DailyFortune/DailyImageHeroCopyTests.swift in Sources */,
 				A00000000000000000000022 /* DailyFortune/DailyFortuneFailureFallbackTests.swift in Sources */,
 				A00000000000000000000023 /* DailyFortune/DailyFortuneHeroEnTests.swift in Sources */,
+				A00000000000000000000024 /* DailyFortune/DailyAskTests.swift in Sources */,
 				A0000000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift in Sources */,
 				A00000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift in Sources */,
 				A00000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift in Sources */,

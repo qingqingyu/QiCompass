@@ -587,6 +587,62 @@ enum L10n {
         /// (行保留可点击——入口在,提示不在)。
         /// zh: "此运势基于你的日柱呈现。";en: "This reading is based on your day pillar."
         static let degradedHintSilent = String(localized: "dailyfortune.main.degradedHintSilent")
+
+        // -- S4 问事窗(2026-10-25,今日问事.html;消费方 DailyAskView)--
+
+        /// sheet 标题 / AI 气泡署名。zh: "问事";en: "Ask"
+        static let askTitle = String(localized: "dailyfortune.ask.title")
+
+        /// 问事框头行状态签(墨青圆点旁)。zh: "问事 · 已看好今天的盘";
+        /// en: "Ask · today's chart, already read"
+        static let askHeadStatus = String(localized: "dailyfortune.ask.headStatus")
+
+        /// 问事框脚行。zh: "展开对话 ›";en: "Open the conversation ›"
+        static let askComposerFoot = String(localized: "dailyfortune.ask.composerFoot")
+
+        /// 问事框引导句格式(@=十神显示名,如 "比肩")。
+        /// zh: "%@当值的一天。你的事,挑一条来问——";
+        /// en: "A %@ day. Bring one thing to ask —"
+        static let askComposerLineFormat = String(localized: "dailyfortune.ask.composerLine")
+
+        /// 开场白格式(@1=十神显示名,@2=宜词条前二,@3=忌词条前二)。
+        /// zh: "这里的盘我看好了:%1$@当值,宜%2$@,忌%3$@。挑一条问,或直接说你的事。"
+        static let askOpeningFormat = String(localized: "dailyfortune.ask.opening")
+
+        /// 输入框占位。zh: "说你的事——时间、对象、纠结的点";
+        /// en: "Your matter — the when, the who, the sticking point"
+        static let askInputPlaceholder = String(localized: "dailyfortune.ask.inputPlaceholder")
+
+        /// 作答端点未上线的诚实告知(S4b 落地前 ServicePendingAskAnswerer 返回)。
+        /// zh: "作答服务正在接入——上线后,这里会按你今天的盘面回答。"
+        static let askPendingReply = String(localized: "dailyfortune.ask.pendingReply")
+
+        /// 作答失败气泡(网络/端点错误,原文进日志)。
+        /// zh: "这一条没能作答,稍后再试。";en: "That one couldn't be answered — try again in a moment."
+        static let askReplyFailed = String(localized: "dailyfortune.ask.replyFailed")
+
+        /// 问事框整体 a11y 标签。zh: "打开问事对话";en: "Open the ask conversation"
+        static let askComposerA11y = String(localized: "dailyfortune.ask.composerA11y")
+
+        /// 聊天页关闭钮 a11y。zh: "关闭";en: "Close"
+        static let askCloseA11y = String(localized: "dailyfortune.ask.closeA11y")
+
+        /// 发送钮 a11y。zh: "发送";en: "Send"
+        static let askSendA11y = String(localized: "dailyfortune.ask.sendA11y")
+
+        /// 作答在飞输入指示 a11y(VO 用户发送后的状态反馈)。zh: "正在作答";
+        /// en: "Answering"
+        static let askTypingA11y = String(localized: "dailyfortune.ask.typingA11y")
+
+        /// 问事框引导句(组装见 DailyAskModel.make)。
+        static func askComposerLine(relation: String) -> String {
+            String(format: askComposerLineFormat, relation)
+        }
+
+        /// 开场白(组装见 DailyAskModel.make;词条与屏上宜忌双列同源)。
+        static func askOpening(relation: String, yi: String, ji: String) -> String {
+            String(format: askOpeningFormat, relation, yi, ji)
+        }
     }
 
     // MARK: - 合盘模块(DualPillarsTable / SyncedFortuneTable;i18n 补录 2026-08-29)

@@ -32,6 +32,57 @@ struct DailyFortuneMainView: View {
     /// y=76 起,差 34;真机截图后可微调,但只改这一个常量)。
     private static let haloTopInset: CGFloat = 34
 
+    /// 滚动坐标空间名(S4 问事框距底探针用)。
+    private static let scrollSpace = "todayScroll"
+
+    // MARK: - S4 问事窗状态(2026-10-25)
+
+    /// 问事对话模型。换日/换盘重建(对话随旧盘走);解读仍在生成时先以
+    /// 确定性候选兜底,解读落地且用户尚未开口(pristine)则刷新开场与候选,
+    /// 开口后不再重置(见 syncAskModel)。
+    @State private var askModel: DailyAskModel?
+    /// askModel 的数据身份(chartHash + dayPillar + businessDate):与现值
+    /// 不符 = 换盘/换日。chartHash 必入键——日柱是日期的属性而非命盘的,
+    /// 同日换盘 dayPillar/businessDate 都不变,缺它则旧盘对话残留。
+    @State private var askDayKey: String?
+    /// 聊天页是否拉起(fullScreenCover;拉起期间问事框强制不可见)。
+    @State private var chatPresented = false
+    /// 内容底(含 32pt 呼吸留白)在滚动坐标系里的 y——探针经 PreferenceKey 回传。
+    @State private var contentBottomInScroll: CGFloat = 0
+    /// 滚动视口高(overlay GeometryReader 回传;距底剩余 = 内容底 − 视口高)。
+    @State private var scrollViewportHeight: CGFloat = 0
+
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// 问事框可见性(DailyAskPresentation 纯函数,测试锁定)。探针几何值
+    /// 未回传前(viewport=0,remaining 按 0−0 算成 0 < 64)视为不可见——
+    /// 否则进页首帧在顶部也会假判「在底部」闪出问事框。
+    private var askComposerVisible: Bool {
+        scrollViewportHeight > 0
+            && DailyAskPresentation.composerVisible(
+                remainingToBottom: contentBottomInScroll - scrollViewportHeight,
+                isChatPresented: chatPresented
+            )
+    }
+
+    /// 同步问事模型:首建 / 换盘换日重建 / 同盘且未开口时随解读态刷新。
+    /// 只在事件上下文调用(task/onChange/按钮回调),不在 body 里改 @State。
+    @MainActor
+    private func syncAskModel() {
+        let key = "\(chartHash ?? "nil")-\(response.dayPillar)-\(businessDate.timeIntervalSince1970)"
+        if askModel == nil || askDayKey != key {
+            askDayKey = key
+            askModel = DailyAskModel.make(response: response, interpretState: interpretState)
+        } else if askModel?.isPristine == true {
+            // 解读态变化(fetching → okFree 等):用户尚未开口,开场/候选可
+            // 安全刷新;已开口则保对话不重置。已打的草稿随行保留——刷新
+            // 的是盘面文案,不该吃掉用户正在输入的内容。
+            let draft = askModel?.draft ?? ""
+            askModel = DailyAskModel.make(response: response, interpretState: interpretState)
+            if !draft.isEmpty { askModel?.draft = draft }
+        }
+    }
+
     init(
         vm: DailyFortuneViewModel,
         response: DailyFortuneResponse,
@@ -203,9 +254,99 @@ struct DailyFortuneMainView: View {
             // (iOS 26 浮动 tab 实测参与 safe area,2026-09-19 验证),
             // 此处 32pt 为 tab 栏上方的呼吸留白。
             .padding(.bottom, 32)
+            // S4 距底探针:0 高探针贴在内容底(含呼吸留白),报内容底在
+            // 滚动坐标系里的 y;allowsHitTesting 防探针吃滚动子视图的手势。
+            .overlay(alignment: .bottom) {
+                GeometryReader { geo in
+                    Color.clear.preference(
+                        key: TodayContentBottomKey.self,
+                        value: geo.frame(in: .named(Self.scrollSpace)).maxY
+                    )
+                }
+                .frame(height: 0)
+                .allowsHitTesting(false)
+            }
+        }
+        .coordinateSpace(name: Self.scrollSpace)
+        .onPreferenceChange(TodayContentBottomKey.self) { contentBottomInScroll = $0 }
+        // S4 视口高:距底剩余 = 内容底 − 视口高;尺寸变化(旋转/分屏)同步。
+        // allowsHitTesting(false) 同底部探针——本层铺满 ScrollView 正面且
+        // 纯测量,Color.clear 可命中,不关会截走全部内容点按(全仓前层
+        // overlay 惯例:InkKit/Splash 等无一例外)。
+        .overlay(
+            GeometryReader { geo in
+                Color.clear
+                    .onAppear { scrollViewportHeight = geo.size.height }
+                    .onChange(of: geo.size.height) { _, height in
+                        scrollViewportHeight = height
+                    }
+            }
+            .allowsHitTesting(false)
+        )
+        // S4 ① 问事框:滚到最底(< 64pt)从 tab 栏上方滑出,收在顶部不可见。
+        // 出现/离开均走 spring(HTML transition .45s cubic-bezier 的近似);
+        // reduce-motion 降级为纯淡入淡出(动效三式纪律)。
+        .overlay(alignment: .bottom) {
+            Group {
+                if askComposerVisible {
+                    DailyAskComposerCard(
+                        model: askModel ?? fallbackAskModel,
+                        onOpen: {
+                            HapticEngine.light()
+                            syncAskModel()
+                            chatPresented = true
+                        },
+                        onQuickAsk: { question in
+                            HapticEngine.light()
+                            syncAskModel()
+                            askModel?.sendOffer(question)
+                            chatPresented = true
+                        }
+                    )
+                    .padding(.horizontal, 14)
+                    .padding(.bottom, 12)
+                    .transition(
+                        reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .bottom))
+                    )
+                }
+            }
+            .animation(
+                .spring(response: 0.45, dampingFraction: 0.9),
+                value: askComposerVisible
+            )
+        }
+        // S4 ② 聊天页:整页拉起,无 tab 栏;关闭后在底部则问事框重新滑出
+        // (可见性计算含 chatPresented,fullScreenCover dismiss 自然重算)。
+        .fullScreenCover(isPresented: $chatPresented) {
+            if let model = askModel {
+                DailyAskChatView(model: model, onClose: { chatPresented = false })
+            } else {
+                // 防御:model 为 nil 时不可呈现空白整页(fullScreenCover 无
+                // 下滑 dismiss,空内容 = 用户被困)。理论不可达(.task 先于
+                // 任何交互),真发生则立即自愈收回。
+                Color.clear.onAppear { chatPresented = false }
+            }
         }
         .modifier(TodayScrollEdge())
         .refreshable { onRefresh() }
+        .task {
+            syncAskModel()
+        }
+        .onChange(of: interpretState) { _, _ in
+            // 解读态落地/变化 → 未开口时刷新开场与候选(已开口保对话)
+            syncAskModel()
+        }
+        .onChange(of: response.dayPillar) { _, _ in
+            // 换日:整模型重建(含对话历史——旧盘的对话不留到新盘)
+            syncAskModel()
+        }
+        .onChange(of: chartHash) { _, _ in
+            // 换盘:同日换盘 dayPillar/日期都不变,直接监听 chartHash 触发
+            // 重建——否则依赖 interpretState 变化间接触发,存在状态值巧合
+            // 相等(如双盘都 dailyLimitReached 且 nextReset 相同)不 fire 的
+            // 残余路径。key 仍是唯一裁决,这里只是敲门。
+            syncAskModel()
+        }
         .background(
             TimelineView(.periodic(from: .now, by: 60)) { _ in
                 Color.clear.onAppear {
@@ -216,6 +357,12 @@ struct DailyFortuneMainView: View {
                 }
             }
         )
+    }
+
+    /// 渲染兜底:task 尚未跑过(理论不可达——.task 在首帧后即刻执行)时
+    /// 问事框也要有内容可画;只读不落 @State,随后 task 的真模型即刻接管。
+    private var fallbackAskModel: DailyAskModel {
+        DailyAskModel.make(response: response, interpretState: interpretState)
     }
 
     // MARK: - hero 小注
@@ -274,5 +421,16 @@ private struct TodayScrollEdge: ViewModifier {
         #else
         content
         #endif
+    }
+}
+
+// MARK: - S4 距底探针 PreferenceKey
+
+/// 内容底在滚动坐标系里的 y(单探针,max 归并只为防御多探针形态)。
+private struct TodayContentBottomKey: PreferenceKey {
+    static var defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }
