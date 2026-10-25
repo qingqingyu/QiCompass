@@ -594,8 +594,11 @@ def test_daily_fortune_version_bumped_s09_then_s6():
     (输出散文 → JSON 五段今日洞察;变体与主模板共用版本号,
     两个渲染面缓存按 prompt_hash 自然分叉,老 v3 缓存随 v4 失效)
     → S7(2026-10-18 今日页视觉评审)4→5(headline 不加括号/全文最多一处
-    括注/禁文言缩略;JSON 五段契约不变,老 v4 缓存随版本失效)。"""
-    assert PROMPT_VERSIONS["daily_fortune"] == 5
+    括注/禁文言缩略;JSON 五段契约不变,老 v4 缓存随版本失效)
+    → S2(2026-10-25 问事窗)5→6(headline 两短句 \n 分隔去逗号 + 新增
+    可选第六键 ask_suggestions 三条候选;五键契约不变,老 v5 缓存照常
+    解析、候选回落 iOS 确定性表)。"""
+    assert PROMPT_VERSIONS["daily_fortune"] == 6
 
 
 # ===== validate_context 单元测试 =====

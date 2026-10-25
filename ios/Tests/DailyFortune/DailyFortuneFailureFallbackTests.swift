@@ -640,6 +640,118 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         XCTAssertEqual(DailyInsight.parse(extra)?.work, "w")
     }
 
+    // MARK: - v6 问事候选问题(2026-10-25 S2:ask_suggestions 可选键)
+
+    /// v6 契约:ask_suggestions 存在且非空 → 按换行拆 1-3 条;
+    /// v5 老缓存无键 → nil(UI 回落确定性表);键在但空 → 同 nil。
+    func testDailyInsightParse_v6候选问题_按换行拆分() {
+        let json = #"{"headline":"比肩当值\n同气相扶","work":"w","relationships":"r","energy":"e","reminder":"m","ask_suggestions":"今天适合去谈判吗？\n有争执要避一避吗？\n单干还是搭伙？"}"#
+        let insight = DailyInsight.parse(json)
+        XCTAssertEqual(
+            insight?.askSuggestions,
+            ["今天适合去谈判吗？", "有争执要避一避吗？", "单干还是搭伙？"],
+            "三条按 \n 拆好、去空白"
+        )
+    }
+
+    func testDailyInsightParse_v5老缓存_无候选键为nil() {
+        let json = #"{"headline":"h","work":"w","relationships":"r","energy":"e","reminder":"m"}"#
+        XCTAssertNil(DailyInsight.parse(json)?.askSuggestions, "v5 五键缓存照常解析,候选回落确定性表")
+    }
+
+    func testDailyInsightParse_候选键空串或全空白为nil() {
+        let blank = #"{"headline":"h","work":"w","relationships":"r","energy":"e","reminder":"m","ask_suggestions":" \n  "}"#
+        XCTAssertNil(DailyInsight.parse(blank)?.askSuggestions, "全空白 = 无候选,不产出空数组")
+    }
+
+    /// 模型把转义多写一层(JSON 值里留字面 `\n` 两字符)→ 归一为真换行,
+    /// 正文不得显出「\n」两字符(m0 v11 同款风险的客户端纵深)。
+    func testDailyInsightParse_字面转义换行归一() {
+        let json = #"{"headline":"比肩当值\\n同气相扶","work":"w","relationships":"r","energy":"e","reminder":"m","ask_suggestions":"去谈判吗？\\n争执避开吗？"}"#
+        let insight = DailyInsight.parse(json)
+        XCTAssertEqual(insight?.headline, "比肩当值\n同气相扶", "字面 \\n 归一为真换行")
+        XCTAssertEqual(insight?.askSuggestions?.count, 2, "候选同样归一后拆分")
+    }
+
+    /// 确定性候选表:降级态与 AI 态不跳形态——insight(for:) / fallbackInsight
+    /// 都带三条候选;查表 miss 回落通用三条;EN 全表零 CJK(D4 扫描同源约束)。
+    func testEngineReadingSuggestions_降级与兜底都带候选() {
+        XCTAssertEqual(
+            EngineReadingTemplates.insight(for: "比肩").askSuggestions?.count, 3,
+            "降级态命中十神表也带三条候选"
+        )
+        XCTAssertEqual(
+            EngineReadingTemplates.insight(for: "不存在的星").askSuggestions,
+            EngineReadingTemplates.fallbackSuggestions(for: AppLanguage.current),
+            "查表 miss 回落通用三条,不冒充十神特化"
+        )
+        XCTAssertFalse(
+            EngineReadingTemplates.fallbackInsight(for: .en).askSuggestions?.isEmpty ?? true,
+            "完全兜底态也带候选(EN 通用三条)"
+        )
+    }
+
+    /// 模型把 ask_suggestions 写成字符串数组(prompt 要求 \n 单字符串,但
+    /// 「三条问题」天然诱导数组)→ 照收拆分,不因形态差异丢候选。
+    func testDailyInsightParse_候选键数组形态照收() {
+        let json = #"{"headline":"h","work":"w","relationships":"r","energy":"e","reminder":"m","ask_suggestions":["去谈判吗？","争执避开吗？"]}"#
+        XCTAssertEqual(
+            DailyInsight.parse(json)?.askSuggestions,
+            ["去谈判吗？", "争执避开吗？"],
+            "数组形态拼回换行同路拆分"
+        )
+    }
+
+    func testEngineReadingSuggestions_EN零CJK() {
+        // CJK 判定用 unicode scalar 区间(U+3400-4DBF Ext-A + U+4E00-9FFF 基本区),
+        // 不用 Regex API(contains 重载按 capture 类型解析,纯字符类会踩错签名)
+        func containsCJK(_ s: String) -> Bool {
+            s.unicodeScalars.contains {
+                (0x4E00...0x9FFF).contains($0.value) || (0x3400...0x4DBF).contains($0.value)
+            }
+        }
+        for items in EngineReadingTemplates.suggestionsEn.values {
+            for q in items {
+                XCTAssertFalse(
+                    containsCJK(q),
+                    "EN 候选问题不得含汉字: \(q)"
+                )
+            }
+        }
+        for q in EngineReadingTemplates.fallbackSuggestions(for: .en) {
+            XCTAssertFalse(containsCJK(q), "EN 兜底候选不得含汉字: \(q)")
+        }
+    }
+
+    /// 三张候选表与五段表同键集(10 十神),防漏写一个星导致运行时回落。
+    func testEngineReadingSuggestions_键集与五段表一致() {
+        XCTAssertEqual(Set(EngineReadingTemplates.suggestionsZh.keys), Set(EngineReadingTemplates.zh.keys))
+        XCTAssertEqual(Set(EngineReadingTemplates.suggestionsHant.keys), Set(EngineReadingTemplates.hant.keys))
+        XCTAssertEqual(Set(EngineReadingTemplates.suggestionsEn.keys), Set(EngineReadingTemplates.en.keys))
+    }
+
+    /// v6 两短句主句的渲染层换行存活回归锁:`AttributedString(markdown:)`
+    /// 按 CommonMark soft-break 把 `\n` 折叠成空格(对照组断言钉死该 Foundation
+    /// 行为),headlineText 拆行拼回必须保住换行——两行主句静默并成一行
+    /// (且 zh 两短句间多一个半角空格)是 v6 批次 review 抓到的真实缺陷。
+    func testHeadlineText_两短句换行存活() {
+        let twoLines = "比肩当值\n同气相扶亦暗藏争夺"
+        // 对照组:直接走 MarkdownSanitizer(markdown 解析折叠软换行)
+        XCTAssertFalse(
+            String(MarkdownSanitizer.rendered(twoLines).characters).contains("\n"),
+            "前置断言:Foundation 行为若变(软换行不再折叠),本守卫可退役"
+        )
+        // headlineText:换行存活、两行内容逐字在
+        let rendered = String(DailyInterpretationSection.headlineText(twoLines).characters)
+        XCTAssertTrue(rendered.contains("\n"), "两短句之间的换行必须存活")
+        XCTAssertEqual(rendered, twoLines, "拆行拼回不增不删字符")
+        // v5 老缓存单句:行为不变
+        XCTAssertEqual(
+            String(DailyInterpretationSection.headlineText("同根同气,自立自守的一天").characters),
+            "同根同气,自立自守的一天"
+        )
+    }
+
     // MARK: - S6 缓存毒化自愈(2026-09-30 review 修复)
 
     func testDailyInsightLooksLikeJSON_三分支() {

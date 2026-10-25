@@ -74,7 +74,14 @@ PROMPT_VERSIONS: dict[str, int] = {
     # 补课 bump;模板内容不变(v5 文件 = v4 byte-identical),纯缓存失效。
     "compatibility_free": 5,
     "compatibility_paid": 5,
-    "daily_fortune": 5,    # v5 减括注/禁文言缩略(2026-10-18 今日页视觉评审 S7)
+    "daily_fortune": 6,    # v6 主句两短句\n分隔去逗号 + ask_suggestions 三条候选问题(2026-10-25 问事窗 S2)
+    # v6(2026-10-25 字号梯度+问事窗):headline 改两个短句,之间不用逗号/顿号、
+    # 写 JSON 转义 \n(修外评「全角逗号在大字号里留洞」+小屏主句排满换行;
+    # iOS 渲染层按换行拆行呈现(AttributedString(markdown:) 会把软换行折叠
+    # 成空格,headlineText 拆行拼回),v5 老缓存单句照常);新增 ask_suggestions 三条
+    # 「问事」候选问题(取材黄历宜/黄历忌/流日关系或冲,用户点选直发,换行
+    # \n 分隔)——S4 问事窗数据源,五段字数口径不变(suggestions 不计入)。
+    # 变体 unknown_hour 同步 v6(共用版本号)。
     # v5(2026-10-18 S7):headline 不加括号;全文最多一处括号白话注释(只给最难
     # 懂的术语);禁文言缩略(「忌木故」式省略句),每句完整主谓——修订 v4 的
     # 「术语首现括注 ≤6 字白话」规则(真机外评 M:正文括号注释读起来碎)。
@@ -563,8 +570,8 @@ COMPATIBILITY_PAID_TEMPLATE = _COMPATIBILITY_HEADER + """写作要求（付费 4
 
 # ---------- 每日运势 ----------
 # Slice 1 i18n 迁移:DAILY_FORTUNE_TEMPLATE 已迁移到外部 Markdown 文件
-# - prompts/zh/daily_fortune_v{version}.md(中文版,当前 v5)
-# - prompts/en/daily_fortune_v{version}.md(英文版,术语用 Joey Yap 体系,当前 v5)
+# - prompts/zh/daily_fortune_v{version}.md(中文版,当前 v6)
+# - prompts/en/daily_fortune_v{version}.md(英文版,术语用 Joey Yap 体系,当前 v6)
 # v4(2026-09-30 BP 评审 S6):输出散文 → JSON 五段(headline/work/relationships/
 # energy/reminder,总 90-130 字);模板内 JSON 大括号 {{ }} 转义(format_map 还原)。
 # v3(S09):喜忌约束改条件式(喜忌为空——从格/时辰未知——不再声称"喜忌已给出");

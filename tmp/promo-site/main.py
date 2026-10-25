@@ -612,8 +612,9 @@ def _strip_code_fences(text: str) -> str:
 def _daily_json_to_markdown(text: str) -> str:
     """daily_fortune v4 起 App 档返回 JSON 五段,转 markdown 卡片式展示(2026-10-07)。
 
-    backend 契约(v4 起,当前 v5)= {headline, work, relationships, energy,
-    reminder} 五个字符串字段。五键齐全才转;不合规(非 JSON / 缺键)原样返回
+    backend 契约(v4 起,当前 v6)= {headline, work, relationships, energy,
+    reminder} 五个字符串字段(v6 新增可选 ask_suggestions,promo 不消费)。
+    五键齐全才转;不合规(非 JSON / 缺键)原样返回
     并留 warning 日志——裸文本可见即诚实降级,不静默吞。围栏容忍口径与
     backend 校验层/iOS 渲染层对齐(_strip_code_fences)。仅 App 档调用
     (/daily handler 按档分流);promo 长文档返回散文,由 handler 直接
@@ -631,8 +632,13 @@ def _daily_json_to_markdown(text: str) -> str:
     if not all(isinstance(payload.get(k), str) and payload[k].strip() for k in keys):
         logger.warning("daily.json_keys_incomplete keys=%s,按原文展示", sorted(payload, key=str))
         return text
+    # v6(2026-10-25)起 headline 为两短句(\n 分隔,模型偶发双写转义):
+    # markdown 单行标题跨行加粗会碎,拼回「 · 」单行展示;App 内两行渲染是
+    # iOS 的事,promo 只管展示完整。ask_suggestions 为 v6 新增可选键,promo
+    # 不展示(五键校验宽容多余键,天然兼容)。
+    headline = payload["headline"].strip().replace("\\n", "\n").replace("\n", " · ")
     return "\n".join([
-        f"**{payload['headline'].strip()}**",
+        f"**{headline}**",
         "",
         f"**事业** — {payload['work'].strip()}",
         "",

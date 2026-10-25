@@ -180,7 +180,7 @@ struct DailyInterpretationSection: View {
     /// 与降级态同构(EngineReadingTemplates 同样输出五段),正常/降级不跳形态。
     private func insightBody(_ insight: DailyInsight) -> some View {
         VStack(alignment: .leading, spacing: 0) {
-            Text(MarkdownSanitizer.rendered(insight.headline))
+            Text(Self.headlineText(insight.headline))
                 .font(BaziFont.display(size: AppLanguage.current.isChinese ? 24 : 19))
                 .foregroundStyle(BaziTheme.ink)
                 .lineSpacing(AppLanguage.current.isChinese ? 6 : 7)
@@ -400,6 +400,27 @@ struct DailyInterpretationSection: View {
             }
         }
     }
+
+    /// v6 headline 两短句渲染:先按换行拆行、逐行过 MarkdownSanitizer,再用
+    /// 未解析的 AttributedString("\n") 拼回——`AttributedString(markdown:)`
+    /// 按 CommonMark soft-break 语义把 `\n` 折叠成空格(实测:两短句会静默
+    /// 并成一行且中间多一个半角空格),v6 的两行主句在渲染层必须自保。
+    /// v5 老缓存单句无换行,拆分退化为原路径,行为逐字不变。同 M0 v11
+    /// `leadParagraphs` 的「渲染层拆段」先例(那边逐段独立 Text;这里两短句
+    /// 属同一主句,保持单个 Text 共享 lineSpacing)。
+    /// internal:回归锁在 DailyFortuneFailureFallbackTests(换行存活断言)。
+    static func headlineText(_ headline: String) -> AttributedString {
+        let lines = headline
+            .split(whereSeparator: \.isNewline)
+            .map { String($0) }
+        guard !lines.isEmpty else { return MarkdownSanitizer.rendered(headline) }
+        var result = AttributedString()
+        for (index, line) in lines.enumerated() {
+            if index > 0 { result += AttributedString("\n") }
+            result += MarkdownSanitizer.rendered(line)
+        }
+        return result
+    }
 }
 
 private extension DailyInterpretationSection {
@@ -427,6 +448,9 @@ private extension DailyInterpretationSection {
 // MARK: - v4 结构化今日洞察模型(S6)
 
 /// daily_fortune v4 输出契约:{"headline","work","relationships","energy","reminder"}。
+/// v6(2026-10-25)新增**可选**第六键 "ask_suggestions"(问事候选问题,\n 分隔)
+/// 与 headline 的两短句 \n 分隔——五键契约不变(老 v5 缓存照常解析),
+/// ask_suggestions 缺键/空 → nil,调用方回落 `EngineReadingTemplates.suggestions`。
 /// 解析规则:剥 ```json 围栏(prompt 已禁但防御,对齐 ChapterContent 口径)→
 /// JSON 对象五键全非空字符串;任一缺失/为空/非 JSON → nil(调用方走降级,不静默)。
 struct DailyInsight: Equatable {
@@ -435,15 +459,37 @@ struct DailyInsight: Equatable {
     let relationships: String
     let energy: String
     let reminder: String
+    /// v6 起 AI 搭车输出的「问事」候选问题(已按换行拆好、去空白行;模型
+    /// 约定三条,条数不设上限——有几条收几条);
+    /// v5 老缓存/降级模板无此键 → nil。`var ... = nil` 保住 memberwise 默认值,
+    /// EngineReadingTemplates 既有 .init 五参构造零改动(neirong 批次教训:
+    /// optional let 无 memberwise 默认会连坐改 30 处构造)。
+    var askSuggestions: [String]? = nil
 
     static func parse(_ text: String) -> DailyInsight? {
         guard let value = OrderedJSONParser.parse(
             OrderedJSONParser.stripCodeFences(text)
         ), case .object(let pairs) = value else { return nil }
         var dict: [String: String] = [:]
+        var suggestionsFromArray: [String]? = nil
         for (key, v) in pairs {
-            guard case .string(let s) = v else { continue }
-            dict[key] = s
+            switch v {
+            case .string(let s):
+                dict[key] = s
+            case .array(let values):
+                // 模型偶发把 ask_suggestions 写成字符串数组(prompt 要求 \n
+                // 连接的单字符串,「三条问题」天然诱导数组)——照收,拼回
+                // 换行分隔与字符串形态同路;其余键的数组值维持忽略(五键
+                // 契约仍由下方 guard 把关,不因数组形态放松)。
+                if key == "ask_suggestions" {
+                    let items = values.compactMap {
+                        if case .string(let s) = $0 { return s } else { return nil }
+                    }
+                    if !items.isEmpty { suggestionsFromArray = items }
+                }
+            default:
+                break
+            }
         }
         guard let headline = dict["headline"], !headline.isEmpty,
               let work = dict["work"], !work.isEmpty,
@@ -451,10 +497,28 @@ struct DailyInsight: Equatable {
               let energy = dict["energy"], !energy.isEmpty,
               let reminder = dict["reminder"], !reminder.isEmpty
         else { return nil }
-        return DailyInsight(
-            headline: headline, work: work,
+        var insight = DailyInsight(
+            headline: Self.normalizeEscapedNewlines(headline), work: work,
             relationships: relationships, energy: energy, reminder: reminder
         )
+        if let raw = dict["ask_suggestions"] ?? suggestionsFromArray?.joined(separator: "\n") {
+            // 宽容拆分:键在但值空/全空白 → 保持 nil(UI 回落确定性候选);
+            // 1-2 条也照收,不倒扣(有多少显示多少,不假装失败)。
+            let items = Self.normalizeEscapedNewlines(raw)
+                .split(whereSeparator: \.isNewline)
+                .map { $0.trimmingCharacters(in: .whitespaces) }
+                .filter { !$0.isEmpty }
+            if !items.isEmpty { insight.askSuggestions = items }
+        }
+        return insight
+    }
+
+    /// 字面 `\n`(反斜杠+n 两字符)→ 真换行。v6 模板要求模型把换行写成 JSON
+    /// 转义;模型偶发多转一层时值里会留字面 `\n` 两字符,渲染会显出「\n」
+    /// ——在这里归一(m0 v11 同款风险的客户端纵深,非静默吞错:形状修复,
+    /// 内容不丢)。headline 与 ask_suggestions 共用。
+    private static func normalizeEscapedNewlines(_ s: String) -> String {
+        s.replacingOccurrences(of: "\\n", with: "\n")
     }
 
     /// 文本是否「JSON 形态」(剥围栏后首非空白字符为 `{`)。
@@ -673,29 +737,36 @@ internal enum EngineReadingTemplates {
     }
 
     /// 显式语言版(D4 EN 零 CJK 扫描测试用,不依赖设备语言)。
+    /// 兜底态同样带问事候选(通用三条,不冒充十神特化)。
     static func fallbackInsight(for language: AppLanguage) -> DailyInsight {
         switch language {
         case .en:
-            return DailyInsight(
+            var insight = DailyInsight(
                 headline: "Read the day from the lists above",
                 work: "Pick what matters; let the rest wait.",
                 relationships: "Keep words easy; friction costs twice.",
                 energy: "Move within your means today.",
                 reminder: "For reference only.")
+            insight.askSuggestions = fallbackSuggestions(for: language)
+            return insight
         case .zhHant:
-            return DailyInsight(
+            var insight = DailyInsight(
                 headline: "從上方宜忌一覽讀出今日基調",
                 work: "先做要緊的,其餘可以等。",
                 relationships: "話留三分,摩擦就少一半。",
                 energy: "今天按自己的節奏來。",
                 reminder: "解讀僅供參照。")
+            insight.askSuggestions = fallbackSuggestions(for: language)
+            return insight
         case .zh:
-            return DailyInsight(
+            var insight = DailyInsight(
                 headline: "从上方宜忌一览读出今日基调",
                 work: "先做要紧的,其余可以等。",
                 relationships: "话留三分,摩擦就少一半。",
                 energy: "今天按自己的节奏来。",
                 reminder: "解读仅供参照。")
+            insight.askSuggestions = fallbackSuggestions(for: language)
+            return insight
         }
     }
 
@@ -706,10 +777,88 @@ internal enum EngineReadingTemplates {
         case .zhHant: table = hant
         case .en: table = en
         }
-        if let hit = table[relation] { return hit }
+        if var hit = table[relation] {
+            // 降级态也带问事候选(v6 起 AI 侧搭车 ask_suggestions;降级与
+            // 正常态不跳形态——AI 缺的由确定性表补,角度对齐宜忌词条表)。
+            hit.askSuggestions = suggestions(for: relation)
+            return hit
+        }
         AppLogger.app.warning(
             "op=engineReading.lookupMiss day_relation=\(relation, privacy: .public) -> fallback"
         )
         return fallbackInsight()
+    }
+
+    // MARK: 问事候选问题(2026-10-25 问事窗 S2;v6 AI 缺键/降级态的确定性回落)
+
+    /// 三条候选问题的确定性回落表:角度对齐 `HeroYiJiColumns` 宜忌词条
+    /// (宜向一件 / 忌向一件 / 关系向一件),口吻 = 用户自己想问的话,
+    /// 直接可点发。键 = 后端简体十神(同上表);查 miss 走
+    /// `fallbackSuggestions` + 日志(不静默)。EN 条目零 CJK(D4 扫描同源约束)。
+    static let suggestionsZh: [String: [String]] = [
+        "比肩": ["今天适合自己单干吗？", "有争执要避一避吗？", "和同伴分利该注意什么？"],
+        "劫财": ["今天适合带头开拓吗？", "借钱给人稳当吗？", "今天容易冲动花钱吗？"],
+        "食神": ["今天适合创作表达吗？", "和老友聚一聚好吗？", "今天熬夜行吗？"],
+        "伤官": ["今天适合把想法说出来吗？", "说话容易冲撞人吗？", "今天能拿出新东西吗？"],
+        "偏财": ["今天适合拓展新客户吗？", "有便宜该不该占？", "今天投资稳当吗？"],
+        "正财": ["今天适合按部就班做事吗？", "记账理一理好吗？", "今天签约守约好吗？"],
+        "七杀": ["今天适合接难事吗？", "压力大了怎么解？", "今天容易和人硬碰吗？"],
+        "正官": ["今天适合守规矩办事吗？", "该复命的事今天办吗？", "今天越级行事好吗？"],
+        "偏印": ["今天适合独处想事吗？", "想太多会内耗吗？", "今天温故知新好吗？"],
+        "正印": ["今天适合学习纳言吗？", "长辈的话要听吗？", "今天早睡养神好吗？"],
+    ]
+
+    /// 繁体(用词对齐 mappingHant 惯例:記帳/覆命)。
+    static let suggestionsHant: [String: [String]] = [
+        "比肩": ["今天適合自己單幹嗎？", "有爭執要避一避嗎？", "和同伴分利該注意什麼？"],
+        "劫财": ["今天適合帶頭開拓嗎？", "借錢給人穩當嗎？", "今天容易衝動花錢嗎？"],
+        "食神": ["今天適合創作表達嗎？", "和老友聚一聚好嗎？", "今天熬夜行嗎？"],
+        "伤官": ["今天適合把想法說出來嗎？", "說話容易衝撞人嗎？", "今天能拿出新東西嗎？"],
+        "偏财": ["今天適合拓展新客戶嗎？", "有便宜該不該佔？", "今天投資穩當嗎？"],
+        "正财": ["今天適合按部就班做事嗎？", "記帳理一理好嗎？", "今天簽約守約好嗎？"],
+        "七杀": ["今天適合接難事嗎？", "壓力大了怎麼解？", "今天容易和人硬碰嗎？"],
+        "正官": ["今天適合守規矩辦事嗎？", "該覆命的事今天辦嗎？", "今天越級行事好嗎？"],
+        "偏印": ["今天適合獨處想事嗎？", "想太多會內耗嗎？", "今天溫故知新好嗎？"],
+        "正印": ["今天適合學習納言嗎？", "長輩的話要聽嗎？", "今天早睡養神好嗎？"],
+    ]
+
+    /// EN(每条 ≤12 words、零 CJK,问事窗点选直发)。
+    static let suggestionsEn: [String: [String]] = [
+        "比肩": ["Should I go my own way today?", "Is there an argument to sidestep?", "How should I split stakes with a peer?"],
+        "劫财": ["Should I take the lead today?", "Is it safe to lend money today?", "Will I spend on impulse today?"],
+        "食神": ["Should I make something today?", "Is it a good day to see friends?", "Can I stay up late tonight?"],
+        "伤官": ["Should I speak my mind today?", "Might my words rub people wrong?", "Can I show new work today?"],
+        "偏财": ["Should I chase new clients today?", "Is that bargain worth taking?", "Is it a safe day to invest?"],
+        "正财": ["Should I keep to routine today?", "Is it a good day to do the books?", "Should I sign and keep my word today?"],
+        "七杀": ["Should I take on the hard thing?", "How do I release the pressure?", "Might I clash with someone today?"],
+        "正官": ["Should I play by the rules today?", "Should I close the loop today?", "Is it wise to skip the line today?"],
+        "偏印": ["Should I sit with it alone today?", "Am I overthinking things today?", "Is it a good day to review old notes?"],
+        "正印": ["Should I learn something today?", "Should I take that advice?", "Is tonight good for an early sleep?"],
+    ]
+
+    /// 通用候选(查表 miss / 从格类盘):不冒充十神特化问题。
+    static func fallbackSuggestions(for language: AppLanguage) -> [String] {
+        switch language {
+        case .zh:     return ["今天做事顺利吗？", "要避开什么人和事？", "什么时候状态最好？"]
+        case .zhHant: return ["今天做事順利嗎？", "要避開什麼人和事？", "什麼時候狀態最好？"]
+        case .en:     return ["Will things go smoothly today?", "What should I steer around?", "When am I at my best today?"]
+        }
+    }
+
+    /// 候选问题查询:查不到显式回落通用三条 + 日志(同 insight 查询哲学)。
+    static func suggestions(
+        for relation: String, language: AppLanguage = AppLanguage.current
+    ) -> [String] {
+        let table: [String: [String]]
+        switch language {
+        case .zh: table = suggestionsZh
+        case .zhHant: table = suggestionsHant
+        case .en: table = suggestionsEn
+        }
+        if let hit = table[relation] { return hit }
+        AppLogger.app.warning(
+            "op=engineAskSuggestions.lookupMiss day_relation=\(relation, privacy: .public) -> fallback"
+        )
+        return fallbackSuggestions(for: language)
     }
 }
