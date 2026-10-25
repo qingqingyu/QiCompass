@@ -64,9 +64,19 @@ class TestDailyAskRegistration:
         # 区分不了「显式注册」与「碰巧默认」,须直锁字典条目
         for field, limit in (("user_question", 200),
                              ("daily_interpretation", 4096),
-                             ("ask_conversation", 8192),
+                             ("ask_conversation", 12288),
                              ("ask_mode_note", 300)):
             assert _FIELD_CHAR_LIMITS[field] == limit, field
+
+    def test_conversation_limit_covers_inject_window_worst_case(self):
+        """档 ≥ 注入窗最坏值:末 6 轮 ×(2000 字/轮 + 2 字前缀)+ 5 换行。
+
+        遵守 history 契约(DailyAskTurn.text ≤2000,注入末 6 轮)的客户端
+        拼接结果必须能通过长度档——否则输入契约与档自相矛盾(2026-10-26
+        S4b 大 review 修正的回归锚点)。"""
+        from app.api.daily_ask import _INJECT_TURNS
+        worst = _INJECT_TURNS * (2000 + 2) + (_INJECT_TURNS - 1)
+        assert _FIELD_CHAR_LIMITS["ask_conversation"] >= worst
 
 
 class TestDailyAskRender:
@@ -103,7 +113,7 @@ class TestDailyAskRender:
 
     @pytest.mark.parametrize("field,limit", [
         ("user_question", 200),
-        ("ask_conversation", 8192),
+        ("ask_conversation", 12288),
         ("ask_mode_note", 300),
     ])
     def test_ask_field_over_limit_raises_422(self, field, limit):

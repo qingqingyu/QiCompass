@@ -67,7 +67,10 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 # 对话注入上限:只取末 6 轮(prompt 上下文成本边界);超过 20 轮整单 422
-# (客户端截断责任,服务端不静默丢弃用户对话)
+# (客户端截断责任,服务端不静默丢弃用户对话)。
+# _INJECT_TURNS 的最坏拼接(6 × (2000+2) + 5 换行 = 12017 字)必须 ≤
+# prompts._FIELD_CHAR_LIMITS["ask_conversation"] 档——改本值须同步重推该档
+# (test_daily_ask_prompt.test_conversation_limit_covers_inject_window_worst_case 锁定)
 _MAX_HISTORY_TURNS = 20
 _INJECT_TURNS = 6
 

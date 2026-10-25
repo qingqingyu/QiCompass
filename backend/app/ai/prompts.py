@@ -1217,7 +1217,12 @@ _FIELD_CHAR_LIMITS: dict[str, int] = {
     # 「额外 key 全量扫描」按此上限拦超长负载)
     "user_question": 200,              # 一条提问,8-16 字候选口径 + 手打余量
     "daily_interpretation": 4096,      # 今日解读五段(v6 JSON 原文或确定性降级文本)
-    "ask_conversation": 8192,          # 最近几轮问答(端点截断后注入)
+    # 最近几轮问答(端点 _build_conversation 截断后注入):档 = 注入窗最坏值
+    # ——末 6 轮 × (2000 字/轮 + 2 字角色前缀) + 5 换行 = 12017,取整 12KB。
+    # 低于此值(曾为 8192)会让「完全遵守 history 契约(≤20 轮 × ≤2000 字)」
+    # 的客户端在 6 条长轮处撞 422——输入契约与长度档自相矛盾(2026-10-26
+    # S4b 大 review 修正;改 _INJECT_TURNS / 轮文本上限须同步重推此值)
+    "ask_conversation": 12288,
     "ask_mode_note": 300,              # 首问/重复问指令(端点拼装)
 }
 _DEFAULT_FIELD_CHAR_LIMIT = 4096
