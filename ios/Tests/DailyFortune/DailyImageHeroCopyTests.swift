@@ -430,4 +430,63 @@ final class DailyImageHeroCopyTests: XCTestCase {
                 || (0x3000...0x303F).contains(scalar.value)
         }
     }
+
+    // MARK: - 今日五行条判定(S3,2026-10-25)
+
+    /// 判定序钉死:最高项 = 过旺(并列取显示序首);宜借 = day_signal ↑
+    /// 保序去重;值对齐后端 2026-10-24 真值(辛未/戌月)。
+    func testElementStrength_dominantAndBorrow() {
+        let section = DailyElementStrengthSection(
+            strength: ["木": 8, "火": 33, "土": 100, "金": 67, "水": 0],
+            daySignal: [
+                DaySignalItemDTO(element: "金", direction: "up"),
+                DaySignalItemDTO(element: "土", direction: "up"),
+                DaySignalItemDTO(element: "金", direction: "up"),  // 去重
+            ]
+        )
+        XCTAssertEqual(section.dominant, "土")
+        XCTAssertEqual(section.borrowElements, ["金", "土"])
+    }
+
+    func testElementStrength_并列取显示序首_空信号宜借空() {
+        // 并列 100(木/土)→ 显示序首个「木」(确定性,不随 dict 序漂)
+        let tie = DailyElementStrengthSection(
+            strength: ["木": 100, "火": 0, "土": 100, "金": 0, "水": 0],
+            daySignal: nil)
+        XCTAssertEqual(tie.dominant, "木")
+        XCTAssertEqual(tie.borrowElements, [], "day_signal 空(时辰未知/从格)→ 宜借空,不编喜忌语义")
+        // 全零 → 无最高项(宿主空 dict 不渲染;防御性 nil)
+        let zero = DailyElementStrengthSection(
+            strength: ["木": 0, "火": 0, "土": 0, "金": 0, "水": 0],
+            daySignal: nil)
+        XCTAssertNil(zero.dominant)
+    }
+
+    /// DTO 解码:day_element_strength 缺键(老快照/老后端)→ nil 整块隐藏;
+    /// 有键 → 五键映射(2026-08-15 教训:payload 加字段必须可缺省)。
+    func testDailyFortuneResponse_dayElementStrengthDecode() throws {
+        let baseJSON = """
+        {"day_pillar":"辛未","day_relation_to_day_master":"比肩","day_chong":"丑",
+        "day_chong_targets":[],"hour_pillars":[],"current_hour_index":null,
+        "day_elements":{"stem_element":"金","branch_element":"土"},
+        "day_signal":[{"element":"金","direction":"up"}],
+        "lunar_date":"九月十五","huangli_yi":[],"huangli_ji":[],
+        "tomorrow_preview":{"day_pillar":"壬申","day_relation":"伤官","day_chong":null},
+        "calc_rule_snapshot":{"library":"lunar_python","sect":1,"zi_hour_rule":"zi_next_day",
+        "true_solar_longitude":116.4,"true_solar_offset_minutes":0,"schema_version":1}}
+        """
+        let decoder = JSONDecoder()
+        let baseData = try XCTUnwrap(baseJSON.data(using: .utf8))
+        XCTAssertNil(
+            try decoder.decode(DailyFortuneResponse.self, from: baseData).dayElementStrength,
+            "老快照缺键 → nil(宿主整块隐藏)")
+
+        var obj = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: baseData) as? [String: Any])
+        obj["day_element_strength"] = ["木": 8, "火": 33, "土": 100, "金": 67, "水": 0]
+        let withField = try JSONSerialization.data(withJSONObject: obj)
+        let decoded = try decoder.decode(DailyFortuneResponse.self, from: withField)
+        XCTAssertEqual(decoded.dayElementStrength?["土"], 100)
+        XCTAssertEqual(decoded.dayElementStrength?.count, 5)
+    }
 }

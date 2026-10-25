@@ -78,6 +78,70 @@ def test_day_pillar_matches_lunar_test_suite():
     assert resp.day_pillar == "丁亥"
 
 
+# ===== 今日五行力量(S3 五行条,2026-10-25;确定性历法推算)=====
+
+# 三个锚点日期 = 设计期与 lunar_python 手工对账的值(docs/design-ref/
+# today-type/今日五行条.html 换天样例同源);键序固定木火土金水。
+_ELEMENT_STRENGTH_ANCHORS = [
+    # 2026-10-24 辛未日/戌月:土当令(藏戊辛丁 ×2)+未藏己丁乙+辛干金
+    (date(2026, 10, 24), "辛未",
+     {"木": 8, "火": 33, "土": 100, "金": 67, "水": 0}),
+    # 2026-11-25 癸卯日/亥月:水当令冬月
+    (date(2026, 11, 25), "癸卯",
+     {"木": 67, "火": 0, "土": 0, "金": 0, "水": 100}),
+    # 2027-02-04 甲寅日/寅月:木当令春月
+    (date(2027, 2, 4), "甲寅",
+     {"木": 100, "火": 38, "土": 19, "金": 0, "水": 0}),
+]
+
+
+def test_day_element_strength_three_anchor_dates():
+    """三锚点日(秋土旺/冬水旺/春木旺)分布与手工对账值逐键相等;
+    键序 = 木火土金水(UI 五根条从左到右);与命盘无关(同日同值)。"""
+    for target, expect_pillar, expect_dist in _ELEMENT_STRENGTH_ANCHORS:
+        resp = compute_daily_fortune(
+            chart_hash="t-es", target_date=target, chart_payload=DOC_CHART,
+        )
+        assert resp.day_pillar == expect_pillar
+        assert resp.day_element_strength == expect_dist, (
+            f"{target} 分布漂移:{resp.day_element_strength} != {expect_dist}")
+        assert list(resp.day_element_strength.keys()) == [
+            "木", "火", "土", "金", "水"], "键序固定(UI 从左到右)"
+
+
+def test_day_element_strength_deterministic_and_chart_independent():
+    """确定性:同日两次调用 + 换命盘调用,分布一字不差(纯历法函数)。"""
+    r1 = compute_daily_fortune(
+        chart_hash="a", target_date=date(2026, 10, 24), chart_payload=DOC_CHART)
+    other_chart = ChartPayload(
+        day_master="庚", day_master_element="metal", day_master_strength="strong",
+        favorable_elements=["土", "金"], unfavorable_elements=["木", "火"],
+        four_pillars={
+            "year": PillarRef(gan="戊", zhi="寅"),
+            "month": PillarRef(gan="壬", zhi="戌"),
+            "day": PillarRef(gan="庚", zhi="辰"),
+            "hour": PillarRef(gan="丙", zhi="子"),
+        },
+    )
+    r2 = compute_daily_fortune(
+        chart_hash="b", target_date=date(2026, 10, 24), chart_payload=other_chart)
+    assert r1.day_element_strength == r2.day_element_strength == {
+        "木": 8, "火": 33, "土": 100, "金": 67, "水": 0}
+
+
+def test_day_element_strength_json_roundtrip_key_order():
+    """API 序列化:字段在 JSON 里键序保持木火土金水(iOS 端 dict 无序,
+    序由后端锚定)。"""
+    import json
+
+    r = compute_daily_fortune(
+        chart_hash="t-es-3", target_date=date(2026, 10, 24),
+        chart_payload=DOC_CHART)
+    raw = json.dumps(r.day_element_strength, ensure_ascii=False)
+    assert raw.index("木") < raw.index("火") < raw.index("土") \
+        < raw.index("金") < raw.index("水")
+
+
 def test_12_hour_pillars_count_and_relations():
     """12 条 + 十神 ∈ {比肩/劫财/食神/伤官/偏财/正财/七杀/正官/偏印/正印}。"""
     resp = compute_daily_fortune(

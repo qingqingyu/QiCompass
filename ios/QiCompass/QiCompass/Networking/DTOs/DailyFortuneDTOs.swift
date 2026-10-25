@@ -208,6 +208,10 @@ struct DailyFortuneResponse: Codable, Sendable {
     let currentHourIndex: Int?
     var dayElements: DayElementsDTO? = nil
     var daySignal: [DaySignalItemDTO]? = nil
+    /// 今日五行力量 0-100(键 = 木火土金水,后端锚定键序;S3 五行条
+    /// 2026-10-25)。Optional 解码:老后端/老快照缺键 → nil,UI 整块隐藏
+    /// (2026-08-15 教训同上)。
+    var dayElementStrength: [String: Int]? = nil
     let lunarDate: String
     let huangliYi: [String]
     let huangliJi: [String]
@@ -226,6 +230,7 @@ struct DailyFortuneResponse: Codable, Sendable {
         case currentHourIndex = "current_hour_index"
         case dayElements = "day_elements"
         case daySignal = "day_signal"
+        case dayElementStrength = "day_element_strength"
         case lunarDate = "lunar_date"
         case huangliYi = "huangli_yi"
         case huangliJi = "huangli_ji"

@@ -253,6 +253,202 @@ struct HaloPalette {
     }
 }
 
+// MARK: - 今日五行条(S3,2026-10-25)
+
+/// 今日五行力量五根条(对比稿 docs/design-ref/today-type/今日五行条.html 定稿)。
+///
+/// 数据全部确定性,零 AI:「过旺」标 = 分布最高项(后端 `day_element_strength`
+/// 纯历法推算:流日干 ×1.0 + 流日支藏干 主1.0/中0.5/余0.25 + 月令藏干 ×2,
+/// 归一化最高=100);「宜借」标/hint = `day_signal ↑`(规则引擎产物)——
+/// **不是**光晕选色推法(我生/我克),后者按 10-15 拍板永不落文字
+/// (DESIGN.md Decisions Log 2026-10-25 翻案记录:分布数据本批补齐,
+/// 宜借文字改引引擎产物后原「未采纳」理由不再成立)。
+/// 键序由后端 ELEMENT_ORDER 锚定(木火土金水 = 条从左到右);今日无某行
+/// (值 0)条空着,诚实保留;条色 = HaloColors(光晕同款五行色板)。
+struct DailyElementStrengthSection: View {
+    /// 五行力量(键 = 中文五行字,后端简体口径)。空 → 宿主不渲染本块。
+    let strength: [String: Int]
+    /// 今日信号(↑ = 宜借标);空(时辰未知/从格)→ 只标过旺,hint 收起
+    /// 「宜借」半句(不编造喜忌语义)。
+    var daySignal: [DaySignalItemDTO]? = nil
+
+    /// 显示序固定(dict 无序;与后端 ELEMENT_ORDER 逐字对齐,改须两侧同步)。
+    static let displayOrder: [String] = ["木", "火", "土", "金", "水"]
+
+    private var peakValue: Int {
+        Self.displayOrder.compactMap { strength[$0] }.max() ?? 0
+    }
+
+    /// 分布最高项;并列取显示序首个(确定性,同日后端同值)。
+    /// internal 供 DailyImageHeroCopyTests 钉判定序。
+    var dominant: String? {
+        guard peakValue > 0 else { return nil }
+        return Self.displayOrder.first { strength[$0] == peakValue }
+    }
+
+    /// 宜借集 = day_signal ↑ 命中的五行(保持 ↑ 顺序,去重)。
+    /// internal 供 DailyImageHeroCopyTests 钉判定序。
+    /// 命名避开 `borrow`:新 toolchain 里它是 accessor 关键字,语句位
+    /// (`borrow.map` 起句)会被当 accessor 解析而编译失败(实证 376 行)。
+    var borrowElements: [String] {
+        var seen = Set<String>()
+        // insert().inserted == 首次出现 → 保留;重复项 false → 丢弃(保序去重)
+        return (daySignal ?? [])
+            .filter { $0.direction == "up" && seen.insert($0.element).inserted }
+            .map(\.element)
+    }
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 18) {
+            headRow
+            HStack(alignment: .bottom, spacing: 0) {
+                ForEach(Self.displayOrder, id: \.self) { element in
+                    bar(element)
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .accessibilityElement(children: .ignore)
+        .accessibilityLabel(Text(verbatim: a11yLabel))
+    }
+
+    /// 区标 + hint:「土气偏旺 · 宜借金土」。宜借半句只在 day_signal ↑ 非空
+    /// 时出现;五行关键词浓墨 semibold,其余 inkMuted。
+    private var headRow: some View {
+        HStack(alignment: .firstTextBaseline) {
+            Text(L10n.DailyFortune.elementsTitle)
+                .font(.system(size: 13, weight: .medium))
+                .tracking(AppLanguage.current.isChinese ? 1.5 : 0)
+                .foregroundStyle(BaziTheme.inkMuted)
+            Spacer(minLength: 12)
+            hint
+        }
+    }
+
+    @ViewBuilder
+    private var hint: some View {
+        // Text 拼装走普通函数(ViewBuilder 体内不能跑 append);逐段带样式
+        // 后用 +(Text 拼接,保留分段浓墨)合成单段——Text 无 [Text] 初始化器。
+        if let merged = hintText() {
+            merged
+                .lineLimit(1)
+                .minimumScaleFactor(0.85)
+        }
+    }
+
+    /// hint 单段 Text(nil = 两半句皆空,不渲染);空数组不 reduce(无首段可取)。
+    private func hintText() -> Text? {
+        let parts = hintParts()
+        guard let first = parts.first else { return nil }
+        return parts.dropFirst().reduce(first, +)
+    }
+
+    /// hint 逐段 Text(弱段显式 .font 12,浓墨段 semibold 12;「 · 」仅在
+    /// 过旺半句存在时插入,dominant 缺席不产生前导分隔符)。
+    private func hintParts() -> [Text] {
+        let strong = Self.formatParts(L10n.DailyFortune.elementsStrongFormat)
+        let lean = Self.formatParts(L10n.DailyFortune.elementsBorrowFormat)
+        var parts: [Text] = []
+        if let dom = dominant {
+            parts.append(Text(verbatim: BaziTerms.display(dom))
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(BaziTheme.ink))
+            parts.append(Text(verbatim: strong.tail)
+                .font(.system(size: 12))
+                .foregroundStyle(BaziTheme.inkMuted))
+        }
+        if !borrowElements.isEmpty {
+            if dominant != nil {
+                parts.append(Text(verbatim: " · ")
+                    .font(.system(size: 12))
+                    .foregroundStyle(BaziTheme.inkMuted))
+            }
+            parts.append(Text(verbatim: lean.head)
+                .font(.system(size: 12))
+                .foregroundStyle(BaziTheme.inkMuted))
+            parts.append(Text(verbatim: borrowJoined)
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(BaziTheme.ink))
+        }
+        return parts
+    }
+
+    /// 宜借多词连接:zh/zh-hant 直连(金土);en 逗号分隔(Metal, Earth)。
+    private var borrowJoined: String {
+        borrowElements.map { BaziTerms.display($0) }
+            .joined(separator: AppLanguage.current.isChinese ? "" : ", ")
+    }
+
+    /// 单根条:顶标签(过旺/宜借/空)+ 6×72 轨道 + 五行字。
+    /// 最高项字重 ink 浓墨;宜借 0.75 透明度;其余 0.4;值 0 = 空轨道。
+    private func bar(_ element: String) -> some View {
+        let value = strength[element] ?? 0
+        let isDominant = (element == dominant)
+        let isBorrow = borrowElements.contains(element)
+        let tag: String? = isDominant
+            ? L10n.DailyFortune.elementsTagPeak
+            : (isBorrow ? L10n.DailyFortune.elementsTagLean : nil)
+        let opacity: Double = isDominant ? 1.0 : (isBorrow ? 0.75 : 0.4)
+        let color = ElementColors.fromZh(element)
+            .flatMap { HaloColors.main($0) } ?? BaziTheme.inkMuted
+
+        return VStack(alignment: .center, spacing: 9) {
+            Text(verbatim: tag ?? "")
+                .font(.system(size: 10))
+                .tracking(1)
+                .foregroundStyle(isDominant ? BaziTheme.ink : BaziTheme.inkMuted)
+                .frame(height: 13)
+            Capsule()
+                .fill(BaziTheme.ink.opacity(0.07))
+                .frame(width: 6, height: 72)
+                .overlay(alignment: .bottom) {
+                    // 值 0 = 空轨道(今日无此行,诚实保留)
+                    if value > 0 {
+                        Capsule()
+                            .fill(color)
+                            .opacity(opacity)
+                            .frame(width: 6, height: 72 * Double(value) / 100)
+                    }
+                }
+            Text(verbatim: BaziTerms.display(element))
+                .font(BaziFont.songDisplay(size: 15, weight: isDominant ? .medium : .regular))
+                .foregroundStyle(isDominant ? BaziTheme.ink : BaziTheme.inkMuted)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    /// 单 %@ 格式串拆头尾(zh "%@气偏旺" → ("", "气偏旺");en "lean on %@"
+    /// → ("lean on ", ""))。hint 要给 %@ 位置的词单独上浓墨,所以拆开
+    /// 拼装而不是整句 String(format:);a11y 整句朗读不拆,直接格式化。
+    private static func formatParts(_ format: String) -> (head: String, tail: String) {
+        let parts = format.components(separatedBy: "%@")
+        return (parts.first ?? "", parts.count > 1 ? parts[1] : "")
+    }
+
+    /// a11y 合并朗读:hint 全文(整句格式化,不拆浓墨)+ 五根条读数
+    /// (「木 8、火 33、土 100、金 67、水 0」;分隔符随语言)。
+    private var a11yLabel: String {
+        var out: [String] = []
+        if let dom = dominant {
+            out.append(String(format: L10n.DailyFortune.elementsStrongFormat,
+                              BaziTerms.display(dom)))
+        }
+        if !borrowElements.isEmpty {
+            out.append(String(format: L10n.DailyFortune.elementsBorrowFormat,
+                              borrowJoined))
+        }
+        let reading = Self.displayOrder.compactMap { el -> String? in
+            guard let v = strength[el] else { return nil }
+            return "\(BaziTerms.display(el)) \(v)"
+        }
+        if !reading.isEmpty {
+            out.append(reading.joined(
+                separator: AppLanguage.current.isChinese ? "、" : ", "))
+        }
+        return out.joined(separator: ",")
+    }
+}
+
 // MARK: - 头部区(2026-10-01 Today 定稿 D3:信息一行看全,出图上纸面)
 
 /// Today 头部区:大字日 + 右侧三行 meta(星期全名 / 月年 / 农历·日柱),

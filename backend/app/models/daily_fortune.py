@@ -139,6 +139,12 @@ class DailyFortuneResponse(BaseModel):
     day_signal: list[DaySignalItem] = Field(
         default_factory=list,
         description="流日五行对喜忌的命中（↑喜/↓忌）；喜忌为空（时辰未知/从格）为空表")
+    day_element_strength: dict[str, int] = Field(
+        ...,
+        description="今日五行力量 0-100（键序木火土金水，归一化最高=100；"
+                    "确定性历法推算=流日干+流日支藏干+月令藏干×2，S3 五行条"
+                    " 2026-10-25 翻案 10-15「未采纳：无当日分布数据」）。"
+                    "老客户端 Codable 忽略未知键；新客户端对老快照缺键整块隐藏")
     lunar_date: str = Field(..., description="形如「六月初六」")
     huangli_yi: list[str] = Field(default_factory=list, description="黄历宜")
     huangli_ji: list[str] = Field(default_factory=list, description="黄历忌")

@@ -134,6 +134,20 @@ struct DailyFortuneMainView: View {
                     .inkIn(delay: 0.08)
                 }
 
+                // 今日五行条(S3,2026-10-25):确定性力量分布(后端
+                // day_element_strength,纯历法推算)+ 宜借标(day_signal ↑
+                // 规则引擎产物)。老后端/老快照缺键 → nil 整块隐藏
+                // (2026-08-15 教训:payload 加字段必须可缺省)。
+                if let strength = response.dayElementStrength, !strength.isEmpty {
+                    DailyElementStrengthSection(
+                        strength: strength,
+                        daySignal: response.daySignal,
+                    )
+                    .padding(.horizontal, 24)
+                    .padding(.top, 44)
+                    .inkIn(delay: 0.12)
+                }
+
                 // AI 解读(D5 定稿:无卡片底直接排纸面,页边距 24、hero 下 40
                 // (2026-10-18 S3 纵向节奏,原 24);
                 // S6 结构化今日洞察:v4 JSON 五段 + 确定性今日信号;2026-09-07 起

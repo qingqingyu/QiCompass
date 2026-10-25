@@ -505,6 +505,24 @@ enum L10n {
         /// 解读区标题 + CTA 按钮标题(zh="今日解读", en="Today's Reading")
         static let interpretTitle = String(localized: "dailyfortune.interpret.title")
 
+        // -- 今日五行条(S3,2026-10-25;docs/design-ref/today-type/今日五行条.html)--
+
+        /// 区标(zh="今日五行", en="Today's Elements")
+        static let elementsTitle = String(localized: "dailyfortune.elements.title")
+
+        /// hint 前半:分布最高项(zh="%@气偏旺" / zh-hant="%@氣偏旺" / en="%@ runs strong")
+        static let elementsStrongFormat = String(localized: "dailyfortune.elements.strong")
+
+        /// hint 后半:喜用命中(en 语义 = 借力;day_signal 空时整半句收起)
+        /// zh="宜借%@" / en="lean on %@"
+        static let elementsBorrowFormat = String(localized: "dailyfortune.elements.borrow")
+
+        /// 条顶标签:分布最高项(zh="过旺" / zh-hant="過旺" / en="high")
+        static let elementsTagPeak = String(localized: "dailyfortune.elements.tag.peak")
+
+        /// 条顶标签:喜用命中(zh="宜借" / en="lean")
+        static let elementsTagLean = String(localized: "dailyfortune.elements.tag.lean")
+
         /// 缓存标识(zh="24h 内已缓存,不消耗次数")
         static let interpretCached = String(localized: "dailyfortune.interpret.cached")
 

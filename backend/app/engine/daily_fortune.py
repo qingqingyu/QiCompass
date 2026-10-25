@@ -17,7 +17,7 @@ import logging
 from datetime import date, timedelta
 from typing import Any
 
-from lunar_python import Solar
+from lunar_python import EightChar, Solar
 from lunar_python.util.LunarUtil import LunarUtil as _LunarUtil
 
 from ..core.calc_rule_snapshot import build_calc_rule_snapshot
@@ -123,6 +123,11 @@ def compute_daily_fortune(
             unfavorable=chart_payload.unfavorable_elements,
         )
 
+        # 3c. 今日五行力量(S3 五行条,确定性历法推算,0 AI 成本):
+        # 流日干 + 流日支藏干 + 月令藏干×2,归一化 0-100。翻案记录见
+        # DESIGN.md Decisions Log 2026-10-25(原 10-15「未采纳:无当日分布数据」)。
+        day_element_strength = compute_day_element_strength(day_ec, day_gan)
+
         # 4. 12 时辰扫排(子时统一用当天 00:30,保证日柱引用统一)
         hour_pillars: list[HourPillar] = []
         for zhi, time_range, mid_hour in HOUR_TABLE:
@@ -180,6 +185,7 @@ def compute_daily_fortune(
             current_hour_index=None,  # 服务端不替客户端决策
             day_elements=day_elements,
             day_signal=day_signal,
+            day_element_strength=day_element_strength,
             lunar_date=lunar_date,
             huangli_yi=huangli_yi,
             huangli_ji=huangli_ji,
@@ -235,6 +241,59 @@ def _day_signal(
         elif element in unfavorable:
             items.append(DaySignalItem(element=element, direction="down"))
     return items
+
+
+# ---------- 今日五行力量(S3,2026-10-25,确定性历法推算,0 AI)----------
+
+# 藏干权重:主气 1.0 / 中气 0.5 / 余气 0.25。藏干表用 lunar_python
+# EightChar.getDayHideGan/getMonthHideGan 单一事实源(顺序 = 主→中→余,
+# 与手写标准表逐支核对一致);超长藏干按余气权重封顶(理论不出现,防御)。
+_HIDE_GAN_WEIGHTS: tuple[float, float, float] = (1.0, 0.5, 0.25)
+# 月令当令加倍系数
+_MONTH_ZHI_FACTOR = 2.0
+# 输出键序固定(木火土金水 = UI 五根条从左到右;dict 保插入序,JSON 同序)
+ELEMENT_ORDER: tuple[str, ...] = ("木", "火", "土", "金", "水")
+
+
+def compute_day_element_strength(day_ec: EightChar, day_gan: str) -> dict[str, int]:
+    """今日五行力量 0-100(键序木火土金水,归一化最高项 = 100)。
+
+    公式:流日天干 ×1.0 + 流日地支藏干(主 1.0/中 0.5/余 0.25)
+    + 月令地支藏干 ×2(当令加倍),归一化取整。
+
+    口径事实源:docs/design-ref/today-type/今日五行条.html(含换天样例)
+    + DESIGN.md Decisions Log 2026-10-25(翻案 2026-10-15「五行强弱条
+    未采纳:后端无当日分布数据」——分布由本函数补齐;「宜借」文字 iOS 从
+    day_signal ↑ 规则引擎产物取,不进本函数)。纯历法推算,与命盘无关、
+    与 AI 无关、同日同值(确定性);零高度条(如戌月无水)诚实保留。
+
+    校准锚点(lunar_python 1.4.8 实测,回归测试锁定):
+    2026-10-24 辛未/戌月 = {木8, 火33, 土100, 金67, 水0}。
+
+    Raises:
+        ValueError: 天干/藏干查五行表失败或全零(结构性异常,不静默)。
+    """
+    scores: dict[str, float] = {e: 0.0 for e in ELEMENT_ORDER}
+
+    def _add(stems: list[str], factor: float) -> None:
+        for idx, stem in enumerate(stems):
+            element = GAN_WUXING.get(stem)
+            if element is None:
+                raise ValueError(
+                    f"藏干五行查表失败:stem={stem!r} 不在 WU_XING_GAN 表")
+            weight = _HIDE_GAN_WEIGHTS[min(idx, len(_HIDE_GAN_WEIGHTS) - 1)]
+            scores[element] += weight * factor
+
+    gan_element = GAN_WUXING.get(day_gan)
+    if gan_element is None:
+        raise ValueError(f"天干五行查表失败:day_gan={day_gan!r}")
+    scores[gan_element] += 1.0                        # 流日天干
+    _add(day_ec.getDayHideGan(), 1.0)                 # 流日地支藏干
+    _add(day_ec.getMonthHideGan(), _MONTH_ZHI_FACTOR)  # 月令当令 ×2
+    peak = max(scores.values())
+    if peak <= 0:
+        raise ValueError("今日五行力量全零(历法异常,不应发生)")
+    return {e: round(scores[e] / peak * 100) for e in ELEMENT_ORDER}
 
 
 def _chong_targets(chong: str | None,
