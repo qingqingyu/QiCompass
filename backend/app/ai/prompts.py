@@ -97,6 +97,16 @@ PROMPT_VERSIONS: dict[str, int] = {
     # 变体与主模板共用此版本号(同一 module 的两个渲染面,缓存按 prompt_hash 分叉)。
     # 附带:en context 的 day_master_strength 不再译 label(raw key 原样进
     # prompt,与 zh 一致)——该字段是渲染层分支控制信号,翻译会破坏降级判定。
+    # v1(2026-10-25 问事窗 S4b,MONETIZATION.md §问事窗):一对一踩盘问答。
+    # 上下文 = daily_fortune 同款盘面字段(REQUIRED_FIELDS 直接引用同一清单)
+    # + 服务端注入的 ask 专属字段(daily_interpretation/ask_conversation/
+    # user_question/ask_mode_note,由端点组装,不走 iOS builder)。
+    # 输出 {answer, follow_up_suggestions}:answer 踩盘直答,follow_ups
+    # 1-3 条「接着问」候选(发散引导,2026-10-25 拍板)。
+    # 重复问口径(②修订版):ask_mode_note 由端点按「是否已问过同题」注入
+    # 点破指令,模板不引用喜忌类/时柱类字段(unknown_hour 盘同模板可用,
+    # 裸 unknown_hour 值由模板通用要求里的时辰未知指令兜住)。
+    "daily_ask": 1,
     # 每日运势插画(gpt-image-2):prompt 由 image_prompt.py 代码拼装(无 .md 模板),
     # 版本号仍是缓存键维度——意象表/风格后缀改动时 bump 此处。
     # v1 纯水墨 / v2 2026-08-31 底色换轨锁 #E7E2D5(与 App paper 同值)/
@@ -1060,6 +1070,18 @@ _COMPATIBILITY_REQUIRED_FIELDS = [
     "synced_fortune_table",
 ]
 
+# 每日运势盘面字段清单(daily_fortune 与 daily_ask 共用,S4b 2026-10-25)
+_DAILY_FORTUNE_REQUIRED_FIELDS = [
+    "day_master", "day_master_element", "day_master_strength",
+    "favorable_elements", "unfavorable_elements",
+    "date", "lunar_date",
+    "day_pillar", "day_stem", "day_stem_element",
+    "day_branch", "day_branch_element",
+    "day_relation", "day_chong",
+    "hour_pillars_with_relations",
+    "huangli_yi", "huangli_ji",
+]
+
 # 时辰未知降级按 context 分字段集(S09,docs/时辰未知-slices/S09):
 # - 降级可用集 = REQUIRED_FIELDS["daily_fortune"] 去掉下面 3 个喜忌类/时柱类字段
 #   (日柱×流日叙事只需 day_master / day_pillar / day_relation 等日柱轴心字段)
@@ -1080,16 +1102,13 @@ REQUIRED_FIELDS: dict[str, list[str]] = {
     "compatibility": _COMPATIBILITY_REQUIRED_FIELDS,
     "compatibility_free": _COMPATIBILITY_REQUIRED_FIELDS,
     "compatibility_paid": _COMPATIBILITY_REQUIRED_FIELDS,
-    "daily_fortune": [
-        "day_master", "day_master_element", "day_master_strength",
-        "favorable_elements", "unfavorable_elements",
-        "date", "lunar_date",
-        "day_pillar", "day_stem", "day_stem_element",
-        "day_branch", "day_branch_element",
-        "day_relation", "day_chong",
-        "hour_pillars_with_relations",
-        "huangli_yi", "huangli_ji",
-    ],
+    "daily_fortune": _DAILY_FORTUNE_REQUIRED_FIELDS,
+    # daily_ask(S4b 2026-10-25)与 daily_fortune 共用同一份盘面字段清单
+    # (同引用同一 list 对象,永不分叉);ask 专属字段(daily_interpretation /
+    # ask_conversation / user_question / ask_mode_note)是**服务端注入**的
+    # 渲染负载,不进本清单——iOS builder 不产这些键,进清单会让
+    # check_prompt_sync 误报 FAIL。端点对 ask 专属字段另行显式校验。
+    "daily_ask": _DAILY_FORTUNE_REQUIRED_FIELDS,
     # v1 prompt 系统(Stage 5):链式注入字段都是 JSON 字符串(标量 str),
     # 由客户端从上一级 M 的 JSON 输出里取出后塞进 context。
     # chart = json.dumps(snapshot_dict, ensure_ascii=False, indent=2)
@@ -1194,6 +1213,12 @@ _FIELD_CHAR_LIMITS: dict[str, int] = {
     "synced_fortune_table": 16384,     # 3 行流年同步
     "hour_pillars_with_relations": 16384,  # 12 时辰条
     "shensha_list": 8192,              # ≤20 条神煞
+    # daily_ask 专属字段(S4b 2026-10-25;服务端注入,validate_context 的
+    # 「额外 key 全量扫描」按此上限拦超长负载)
+    "user_question": 200,              # 一条提问,8-16 字候选口径 + 手打余量
+    "daily_interpretation": 4096,      # 今日解读五段(v6 JSON 原文或确定性降级文本)
+    "ask_conversation": 8192,          # 最近几轮问答(端点截断后注入)
+    "ask_mode_note": 300,              # 首问/重复问指令(端点拼装)
 }
 _DEFAULT_FIELD_CHAR_LIMIT = 4096
 # context 总量上限(含未注册的额外 key:防垃圾键绕过单字段档)
@@ -1204,7 +1229,7 @@ def validate_context(module: str, context: dict) -> None:
     """渲染前显式校验必填字段 + 值类型 + 字段长度上限。
 
     Args:
-        module: 注册到 REQUIRED_FIELDS 的任一 module(老 7 + v1 8)
+        module: 注册到 REQUIRED_FIELDS 的任一 module(老 8 + v1 8)
         context: prompt 渲染负载
 
     Raises:
@@ -1212,15 +1237,18 @@ def validate_context(module: str, context: dict) -> None:
             message 含详情
         ValueError: module 未注册(代码 bug,非用户错误)
 
-    daily_fortune 特例(S09):context.day_master_strength == "unknown_hour" 时
-    喜忌类/时柱类字段免检(降级模板不引用;见 _DAILY_FORTUNE_KNOWN_HOUR_ONLY_FIELDS)。
+    daily_fortune / daily_ask 特例(S09,daily_ask S4b 起共用):
+    context.day_master_strength == "unknown_hour" 时喜忌类/时柱类字段
+    免检(两模板均不引用;见 _DAILY_FORTUNE_KNOWN_HOUR_ONLY_FIELDS)。
     """
     if module not in REQUIRED_FIELDS:
         raise ValueError(f"未知 module: {module}(代码 bug,需注册到 REQUIRED_FIELDS)")
     required = REQUIRED_FIELDS[module]
     # S09 时辰未知降级:unknown_hour context 不再要求喜忌类/时柱类字段
-    # (降级模板无这些占位符;iOS S05 对缺柱发占位,字段在也不会被渲染引用)
-    if (module == "daily_fortune"
+    # (降级模板无这些占位符;iOS S05 对缺柱发占位,字段在也不会被渲染引用)。
+    # daily_ask(S4b)共用同款放宽:模板只引用放宽集内字段,unknown_hour 盘
+    # 同一模板可渲染。
+    if (module in ("daily_fortune", "daily_ask")
             and context.get("day_master_strength") == "unknown_hour"):
         required = [f for f in required
                     if f not in _DAILY_FORTUNE_KNOWN_HOUR_ONLY_FIELDS]

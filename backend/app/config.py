@@ -74,6 +74,9 @@ MODULE_TEMPERATURES: dict[str, float] = {
     "bazi_deep": 0.6, "bazi_deep_free": 0.6, "bazi_deep_paid": 0.6,
     "compatibility": 0.6, "compatibility_free": 0.6, "compatibility_paid": 0.6,
     "daily_fortune": 0.6,
+    # 问事(S4b 2026-10-25):踩盘问答,与 daily_fortune 同档;对话感靠
+    # prompt 的 follow_up/重复问指令塑造,不靠 temperature
+    "daily_ask": 0.6,
     # 插画走 images/generations,无 temperature 参数——键存在只为
     # test_module_temperatures_covers_all_known_modules 的全覆盖断言
     # (PROMPT_VERSIONS 的 key 必须都在,防漂移),值不被消费。
