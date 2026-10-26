@@ -2702,6 +2702,52 @@
         }
       }
     },
+    "dailyfortune.ask.balanceRemaining" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%ld questions left"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剩余 %ld 问"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "剩 %ld 問"
+          }
+        }
+      }
+    },
+    "dailyfortune.ask.buyEntryCta" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+15 questions, keep asking"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+15 问,继续问事"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+15 問,繼續問事"
+          }
+        }
+      }
+    },
     "dailyfortune.ask.closeA11y" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2794,6 +2840,52 @@
         }
       }
     },
+    "dailyfortune.ask.creditsHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your three free questions are used up — add a pack of 15 and keep asking."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "装机赠送的三次已用完——加购一包,接着问。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "安裝贈送的三次已用完——加購一包,接著問。"
+          }
+        }
+      }
+    },
+    "dailyfortune.ask.creditsTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Out of questions"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "问事次数已用完"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "問事次數已用完"
+          }
+        }
+      }
+    },
     "dailyfortune.ask.headStatus" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2869,19 +2961,65 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The answering service is still being connected — once it's live, replies here will draw on today's chart."
+            "value" : "Today's chart isn't ready yet — check back in a moment and ask again."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "作答服务正在接入——上线后,这里会按你今天的盘面回答。"
+            "value" : "今天的盘面还没就绪——稍候片刻,再回来问。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "作答服務正在接入——上線後,這裡會按你今天的盤面回答。"
+            "value" : "今天的盤面還沒就緒——稍候片刻,再回來問。"
+          }
+        }
+      }
+    },
+    "dailyfortune.ask.purchaseSoon" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Credit packs are coming soon"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "次数包购买即将开放"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "次數包購買即將開放"
+          }
+        }
+      }
+    },
+    "dailyfortune.ask.replyContextExpired" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Today's chart pass has expired — pull to refresh on Today, then ask again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天的盘面凭证已过期——请回今日页下拉刷新,再接着问。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "今天的盤面憑證已過期——請回今日頁下拉刷新,再接著問。"
           }
         }
       }

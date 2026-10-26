@@ -27,6 +27,11 @@ struct DailyFortuneMainView: View {
     /// S10 补时辰触点(D7 触点 2):末尾静默行点击 → 打开补时辰 sheet(宿主
     /// DailyFortuneView 注入)。静默行不是弹窗,是可点的一行文字。
     let onAddHour: () -> Void
+    /// S4c 问事钱包(AppEnvironment 持有;余额随作答/赎回/首查回写)
+    let askWallet: AskWalletModel
+
+    /// Live 作答组装需要 apiClient(PaywallView 同款 EnvironmentObject 取法)
+    @EnvironmentObject private var env: AppEnvironment
 
     /// 光晕衬底顶边低于头部顶边的距离(B 稿:光晕区从页面 y=110 起,头部从
     /// y=76 起,差 34;真机截图后可微调,但只改这一个常量)。
@@ -47,6 +52,8 @@ struct DailyFortuneMainView: View {
     @State private var askDayKey: String?
     /// 聊天页是否拉起(fullScreenCover;拉起期间问事框强制不可见)。
     @State private var chatPresented = false
+    /// S4c 问事框 0 次态的购买墙 sheet(C3 换真墙)。
+    @State private var showAskPaywall = false
     /// 内容底(含 32pt 呼吸留白)在滚动坐标系里的 y——探针经 PreferenceKey 回传。
     @State private var contentBottomInScroll: CGFloat = 0
     /// 滚动视口高(overlay GeometryReader 回传;距底剩余 = 内容底 − 视口高)。
@@ -67,20 +74,62 @@ struct DailyFortuneMainView: View {
 
     /// 同步问事模型:首建 / 换盘换日重建 / 同盘且未开口时随解读态刷新。
     /// 只在事件上下文调用(task/onChange/按钮回调),不在 body 里改 @State。
+    /// S4c:上下文齐备(chartPayload + chartHash + context_token)→ 组装
+    /// LiveDailyAskAnswerer;缺 → ServicePending 降级(离线兜底路径)。
     @MainActor
     private func syncAskModel() {
         let key = "\(chartHash ?? "nil")-\(response.dayPillar)-\(businessDate.timeIntervalSince1970)"
         if askModel == nil || askDayKey != key {
             askDayKey = key
-            askModel = DailyAskModel.make(response: response, interpretState: interpretState)
+            askModel = makeAskModel()
         } else if askModel?.isPristine == true {
-            // 解读态变化(fetching → okFree 等):用户尚未开口,开场/候选可
-            // 安全刷新;已开口则保对话不重置。已打的草稿随行保留——刷新
-            // 的是盘面文案,不该吃掉用户正在输入的内容。
+            // 解读态变化(fetching → okFree 等):用户尚未开口,开场/候选/作答
+            // 上下文可安全刷新;已开口则保对话不重置(作答与开口时所见一致)。
+            // 已打的草稿随行保留——刷新的是盘面文案,不该吃掉用户输入。
             let draft = askModel?.draft ?? ""
-            askModel = DailyAskModel.make(response: response, interpretState: interpretState)
+            askModel = makeAskModel()
             if !draft.isEmpty { askModel?.draft = draft }
         }
+    }
+
+    /// 组装问事模型(上下文快照在此时点定版):
+    /// - context dict 与 daily_fortune interpret 同源(buildDailyFortune,
+    ///   与 token 绑定集一致)
+    /// - daily_interpretation = 屏上所渲染五段正文的确定性重建
+    /// - 任一要素缺失 → ServicePending 降级,不伪造作答
+    @MainActor
+    private func makeAskModel() -> DailyAskModel {
+        let answerer: DailyAskAnswering
+        if let chartHash,
+           let payload = vm.askChartPayload,
+           let contextToken = response.contextToken {
+            let context = DailyAskContext(
+                contentHash: chartHash,
+                context: PromptContextBuilder.buildDailyFortune(
+                    chartPayload: payload,
+                    response: response,
+                    businessDate: businessDate
+                ),
+                contextToken: contextToken,
+                targetDate: businessDate,
+                dailyInterpretation: DailyAskContext.interpretationText(
+                    for: interpretState,
+                    relation: response.dayRelationToDayMaster
+                )
+            )
+            answerer = LiveDailyAskAnswerer(apiClient: env.apiClient, context: context)
+        } else {
+            AppLogger.app.info(
+                "op=syncAskModel.pending_fallback chartHash=\(chartHash != nil, privacy: .public) payload=\(vm.askChartPayload != nil, privacy: .public) token=\(response.contextToken != nil, privacy: .public)"
+            )
+            answerer = ServicePendingAskAnswerer()
+        }
+        return DailyAskModel.make(
+            response: response,
+            interpretState: interpretState,
+            answerer: answerer,
+            wallet: askWallet
+        )
     }
 
     init(
@@ -93,6 +142,7 @@ struct DailyFortuneMainView: View {
         onRefresh: @escaping () -> Void,
         onGenerateInterpret: @escaping () -> Void,
         onAddHour: @escaping () -> Void,
+        askWallet: AskWalletModel,
     ) {
         self._vm = Bindable(wrappedValue: vm)
         self.response = response
@@ -103,6 +153,7 @@ struct DailyFortuneMainView: View {
         self.onRefresh = onRefresh
         self.onGenerateInterpret = onGenerateInterpret
         self.onAddHour = onAddHour
+        self.askWallet = askWallet
     }
 
     var body: some View {
@@ -291,6 +342,7 @@ struct DailyFortuneMainView: View {
                 if askComposerVisible {
                     DailyAskComposerCard(
                         model: askModel ?? fallbackAskModel,
+                        wallet: askWallet,
                         onOpen: {
                             HapticEngine.light()
                             syncAskModel()
@@ -301,7 +353,9 @@ struct DailyFortuneMainView: View {
                             syncAskModel()
                             askModel?.sendOffer(question)
                             chatPresented = true
-                        }
+                        },
+                        // S4c 0 次加购形态:点卡弹购买墙(占位,C3 换真墙)
+                        onBuyPack: { showAskPaywall = true }
                     )
                     .padding(.horizontal, 14)
                     .padding(.bottom, 12)
@@ -315,11 +369,19 @@ struct DailyFortuneMainView: View {
                 value: askComposerVisible
             )
         }
+        // S4c 问事框 0 次态购买墙(与聊天页内 sheet 各自独立 present;
+        // C3 换真墙)
+        .sheet(isPresented: $showAskPaywall) {
+            DailyAskChatView.AskPaywallPlaceholder()
+                .presentationDetents([.medium])
+                .presentationBackground(BaziTheme.cardSurface)
+                .presentationDragIndicator(.visible)
+        }
         // S4 ② 聊天页:整页拉起,无 tab 栏;关闭后在底部则问事框重新滑出
         // (可见性计算含 chatPresented,fullScreenCover dismiss 自然重算)。
         .fullScreenCover(isPresented: $chatPresented) {
             if let model = askModel {
-                DailyAskChatView(model: model, onClose: { chatPresented = false })
+                DailyAskChatView(model: model, wallet: askWallet, onClose: { chatPresented = false })
             } else {
                 // 防御:model 为 nil 时不可呈现空白整页(fullScreenCover 无
                 // 下滑 dismiss,空内容 = 用户被困)。理论不可达(.task 先于
@@ -331,6 +393,8 @@ struct DailyFortuneMainView: View {
         .refreshable { onRefresh() }
         .task {
             syncAskModel()
+            // S4c 首查余额(懒铸造 3 次试用;失败显式日志,不阻断页面)
+            await askWallet.refresh()
         }
         .onChange(of: interpretState) { _, _ in
             // 解读态落地/变化 → 未开口时刷新开场与候选(已开口保对话)
@@ -362,7 +426,7 @@ struct DailyFortuneMainView: View {
     /// 渲染兜底:task 尚未跑过(理论不可达——.task 在首帧后即刻执行)时
     /// 问事框也要有内容可画;只读不落 @State,随后 task 的真模型即刻接管。
     private var fallbackAskModel: DailyAskModel {
-        DailyAskModel.make(response: response, interpretState: interpretState)
+        makeAskModel()
     }
 
     // MARK: - hero 小注

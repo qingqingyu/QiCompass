@@ -142,14 +142,34 @@ final class DailyAskTests: XCTestCase {
 
     // MARK: - 对话流(注入假作答服务)
 
-    /// 立即回话的假作答服务。
-    private struct FakeAnswerer: DailyAskAnswering {
+    /// 立即回话的假作答服务(class:@MainActor 隔离即 Sendable,且
+    /// reply 内的录制对测试可见——struct 拷贝会丢录制)。
+    @MainActor
+    private final class FakeAnswerer: DailyAskAnswering {
         var replyText: String = "已按盘面作答"
+        var followUps: [String] = []
+        var balance: Int? = nil
         var error: Error? = nil
+        private(set) var callCount = 0
+        private(set) var recordedHistories: [[DailyAskTurn]] = []
 
-        func reply(to question: String) async throws -> String {
+        nonisolated init(
+            replyText: String = "已按盘面作答",
+            followUps: [String] = [],
+            balance: Int? = nil,
+            error: Error? = nil
+        ) {
+            self.replyText = replyText
+            self.followUps = followUps
+            self.balance = balance
+            self.error = error
+        }
+
+        func reply(to question: String, history: [DailyAskTurn]) async throws -> DailyAskReply {
+            callCount += 1
+            recordedHistories.append(history)
             if let error { throw error }
-            return replyText
+            return DailyAskReply(text: replyText, followUps: followUps, cached: false, balance: balance)
         }
     }
 
@@ -168,12 +188,24 @@ final class DailyAskTests: XCTestCase {
     }
 
     @MainActor
-    private func makeChatModel(answerer: FakeAnswerer = FakeAnswerer()) -> DailyAskModel {
+    private func makeChatModel(
+        answerer: FakeAnswerer = FakeAnswerer(),
+        wallet: AskWalletModel? = nil
+    ) -> DailyAskModel {
         DailyAskModel.make(
             response: makeResponse(),
             interpretState: .fetching,
-            answerer: answerer
+            answerer: answerer,
+            wallet: wallet
         )
+    }
+
+    /// 带 Mock 客户端的钱包(apply 直灌初值)。
+    @MainActor
+    private func makeWallet(_ balance: Int?) -> AskWalletModel {
+        let wallet = AskWalletModel(apiClient: MockAPIClient())
+        if let balance { wallet.apply(balance) }
+        return wallet
     }
 
     @MainActor
@@ -248,11 +280,156 @@ final class DailyAskTests: XCTestCase {
     @MainActor
     func testServicePendingAnswerer_诚实告知不冒充AI() async {
         let answerer = ServicePendingAskAnswerer()
-        let reply = try? await answerer.reply(to: "随便问")
-        XCTAssertEqual(
-            reply,
-            L10n.DailyFortune.askPendingReply,
-            "端点未上线 → 恒回「作答服务接入中」告知文案(不伪造 AI 回答)"
+        let reply = try? await answerer.reply(to: "随便问", history: [])
+        XCTAssertEqual(reply?.text, L10n.DailyFortune.askPendingReply, "降级告知文案(不伪造 AI 回答)")
+        XCTAssertEqual(reply?.followUps, [], "降级实现不带追问")
+        XCTAssertEqual(reply?.balance, nil, "降级实现不带余额")
+    }
+
+    // MARK: - S4c 作答链路(追问 / 402 分型 / 0 余额短路 / history)
+
+    @MainActor
+    func test对话流_作答成功_追问进候选_余额回写钱包() async {
+        let wallet = makeWallet(3)
+        let answerer = FakeAnswerer(followUps: ["几点开口最稳?", "对方不让步怎么办?"], balance: 2)
+        let model = makeChatModel(answerer: answerer, wallet: wallet)
+
+        model.sendOffer("今天适合去谈判吗？")
+        await waitUntilAnswered(model)
+
+        XCTAssertEqual(model.offers, ["几点开口最稳?", "对方不让步怎么办?"], "follow_ups 复用 offers 通道(点选直发)")
+        XCTAssertEqual(wallet.balance, 2, "作答响应的余额回写钱包")
+        XCTAssertFalse(model.creditsExhausted)
+    }
+
+    @MainActor
+    func test对话流_402_保留用户消息_置卡片态不发失败气泡() async {
+        let wallet = makeWallet(1)
+        let answerer = FakeAnswerer(
+            error: APIError.backendError(code: "ASK_CREDITS_REQUIRED", message: "次数尽", requestId: "t")
         )
+        let model = makeChatModel(answerer: answerer, wallet: wallet)
+
+        model.sendOffer("今天适合去谈判吗？")
+        await waitUntilAnswered(model)
+
+        XCTAssertEqual(model.messages.count, 2, "开场 + 用户问;402 不产生 AI 气泡(卡片才是回应)")
+        XCTAssertEqual(model.messages.last?.role, .user, "用户消息保留")
+        XCTAssertTrue(model.creditsExhausted, "置内嵌购买卡片态(拍板:不自动弹墙)")
+        XCTAssertEqual(wallet.balance, 0, "402 后钱包归零(与后端口径一致)")
+    }
+
+    @MainActor
+    func test对话流_403上下文过期_专用气泡引导刷新() async {
+        let answerer = FakeAnswerer(
+            error: APIError.backendError(code: "CONTEXT_TOKEN_INVALID", message: "凭证失效", requestId: "t")
+        )
+        let model = makeChatModel(answerer: answerer)
+
+        model.sendOffer("今天适合去谈判吗？")
+        await waitUntilAnswered(model)
+
+        XCTAssertEqual(
+            model.messages.last?.text,
+            L10n.DailyFortune.askReplyContextExpired,
+            "context_token 过期 → 引导回今日页下拉刷新的专用气泡(非通用失败)"
+        )
+        XCTAssertFalse(model.creditsExhausted)
+    }
+
+    @MainActor
+    func test对话流_余额0_本地短路不出网_草稿保留() async {
+        let wallet = makeWallet(0)
+        let answerer = FakeAnswerer()
+        let model = makeChatModel(answerer: answerer, wallet: wallet)
+
+        // 候选直发:不出网、消息不入流、置卡片态
+        model.sendOffer("今天适合去谈判吗？")
+        XCTAssertEqual(answerer.callCount, 0, "本地 0 余额短路,不出网(省一次必 402 往返)")
+        XCTAssertEqual(model.messages.count, 1, "问题未被回答,不入消息流")
+        XCTAssertTrue(model.creditsExhausted)
+
+        // 草稿:被闸拦时文字保留(买完可直接再发)
+        model.draft = "明天呢？"
+        model.sendDraft()
+        XCTAssertEqual(answerer.callCount, 0)
+        XCTAssertEqual(model.draft, "明天呢？", "短路被拦草稿保留,不误清")
+
+        // 余额回正 → 卡片复位,发送恢复
+        wallet.apply(3)
+        model.resetCreditsExhausted()
+        XCTAssertFalse(model.creditsExhausted)
+        model.sendDraft()
+        await waitUntilAnswered(model)
+        XCTAssertEqual(answerer.callCount, 1, "复位后正常出网")
+        XCTAssertEqual(model.messages.count, 3, "开场白 + 草稿那条问题 + AI 回答,正常入流作答")
+    }
+
+    @MainActor
+    func test对话流_history排除开场白_截末20轮() async throws {
+        let answerer = FakeAnswerer()
+        let model = makeChatModel(answerer: answerer)
+
+        // 21 轮问答(开场白之外 42 条消息),服务端契约整单 ≤20 轮
+        for round in 0..<21 {
+            model.sendOffer("第\(round)问？")
+            await waitUntilAnswered(model)
+        }
+
+        // 第 21 次发送(第 20 问)时:上文 = 已完成 20 轮 = 40 条消息,
+        // dropFirst 排开场白后取末 20 → 自「第10问」的 user 回合起
+        let lastHistory = try XCTUnwrap(answerer.recordedHistories.last)
+        XCTAssertEqual(lastHistory.count, 20, "history 截末 20 轮(服务端 >20 整单 422)")
+        XCTAssertEqual(lastHistory.first?.role, "user", "截取段首是 user 回合(开场白不入 history)")
+        XCTAssertEqual(lastHistory.first?.text, "第10问？", "最老的「第0-9问」被截掉")
+        XCTAssertEqual(lastHistory.last?.role, "ai", "末条是第 19 轮的 AI 回答")
+    }
+
+    // MARK: - DailyAskContext.interpretationText(纯函数四分支)
+
+    private func joined(_ insight: DailyInsight) -> String {
+        [insight.headline, insight.work, insight.relationships, insight.energy, insight.reminder]
+            .joined(separator: "\n")
+    }
+
+    func test解读正文_okFree五段重连() {
+        let v6 = "{\"headline\":\"静心开局\",\"work\":\"先做要紧的事\",\"relationships\":\"话留三分\",\"energy\":\"按节奏\",\"reminder\":\"量力而行\"}"
+        let text = DailyAskContext.interpretationText(for: .okFree(text: v6, cached: false), relation: "比肩")
+        XCTAssertEqual(text, "静心开局\n先做要紧的事\n话留三分\n按节奏\n量力而行", "五段值 \\n 连(label 是 UI 骨架不进上下文)")
+    }
+
+    func test解读正文_畸形JSON回落引擎模板() {
+        let text = DailyAskContext.interpretationText(for: .okFree(text: "不是JSON的散文", cached: false), relation: "比肩")
+        XCTAssertEqual(text, joined(EngineReadingTemplates.insight(for: "比肩")), "parse nil → 与屏上降级同路(引擎模板)")
+    }
+
+    func test解读正文_离线v3散文透传() {
+        let prose = "二〇二六年旧版散文快照,一段完整正文。"
+        let text = DailyAskContext.interpretationText(for: .offlineLegacy(text: prose, languageNote: nil), relation: "比肩")
+        XCTAssertEqual(text, prose, "v3 散文没有五段可拆,原文即屏上正文")
+    }
+
+    func test解读正文_离线畸形v4快照_回落引擎模板与屏上同路() {
+        // 离线快照 parse 失败 + looksLikeJSON = 畸形 v4(缓存毒化残留形态):
+        // 屏上兜底渲染引擎模板(DailyInterpretationSection 三分支),context 须同路,
+        // 不把原始畸形 JSON 串当「用户所见的今日解读」发给后端
+        let malformed = "{\"headline\":\"静心开局\",\"work\":\"先做要紧的事"
+        let text = DailyAskContext.interpretationText(for: .offlineLegacy(text: malformed, languageNote: nil), relation: "比肩")
+        XCTAssertEqual(
+            text,
+            joined(EngineReadingTemplates.insight(for: "比肩")),
+            "畸形 v4 离线快照 → 引擎模板(与屏上 degradedBody 同款),非原文透传"
+        )
+    }
+
+    func test解读正文_未就绪态走引擎模板_超4096截断() {
+        XCTAssertEqual(
+            DailyAskContext.interpretationText(for: .idle, relation: "劫财"),
+            joined(EngineReadingTemplates.insight(for: "劫财")),
+            "idle/fetching/failed 等未就绪态 = 降级态屏上渲染的引擎模板"
+        )
+        let long = String(repeating: "长", count: 5000)
+        let clamped = DailyAskContext.interpretationText(for: .offlineLegacy(text: long, languageNote: nil), relation: "比肩")
+        XCTAssertEqual(clamped.count, 4096, "统一 prefix(4096) clamp(服务端 max_length=4096)")
     }
 }

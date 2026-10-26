@@ -110,6 +110,10 @@ final class DailyFortuneViewModel {
     /// 当前展示用的 chartPayload(在阶段 1 后缓存,阶段 2 复用)
     private var cachedChartPayload: ChartPayloadDTO?
 
+    /// S4c 问事窗只读暴露:Live 作答组装(buildDailyFortune 同款入参)。
+    /// 只加访问器,不改管线任何逻辑。
+    var askChartPayload: ChartPayloadDTO? { cachedChartPayload }
+
     /// 管线世代号(2026-10-07 review 修复):每次 runFullPipeline 入口推进。
     /// L5 门控探针(`hasCrossLanguageDailySource`)在 `state = .ready` 之后引入
     /// 了挂起点——`refresh()` 直接 await runFullPipeline(不被 `load()` 的
