@@ -224,4 +224,112 @@ final class DailyAskServiceTests: XCTestCase {
         XCTAssertEqual(comps.queryItems?.first(where: { $0.name == "device_token" })?.value, "AbC+/123==")
         XCTAssertEqual(comps.queryItems?.first(where: { $0.name == "user_local_id" })?.value, "ulid-1")
     }
+
+    // MARK: - C2:LiveDailyAskAnswerer(组包/截断/录制断言)
+
+    @MainActor
+    func testLive作答_组包字段与上下文透传() async throws {
+        let mock = MockAPIClient()
+        let noon = Calendar.current.date(byAdding: .hour, value: 12, to: Calendar.current.startOfDay(for: .now))!
+        let context = DailyAskContext(
+            contentHash: "chash-live-1",
+            context: ["day_master": AnyCodableJSON("辛金")],
+            contextToken: "tok-daily-9",
+            targetDate: noon,
+            dailyInterpretation: "五段正文"
+        )
+        let answerer = LiveDailyAskAnswerer(apiClient: mock, context: context)
+        let reply = try await answerer.reply(
+            to: "今天适合去谈判吗?",
+            history: [DailyAskTurn(role: "user", text: "上一问")]
+        )
+
+        XCTAssertEqual(reply.text.isEmpty, false, "mock 默认应答非空")
+        let recorded = try XCTUnwrap(mock.recordedDailyAskRequests.last)
+        XCTAssertEqual(recorded.contentHash, "chash-live-1")
+        XCTAssertEqual(recorded.contextToken, "tok-daily-9", "token 取自上下文快照(daily-fortune 响应签发)")
+        XCTAssertEqual(recorded.dailyInterpretation, "五段正文")
+        XCTAssertEqual(recorded.history.count, 1)
+        XCTAssertEqual(recorded.history[0].role, "user")
+        XCTAssertNil(recorded.deviceToken, "作答请求恒不带 device_token(铸造职责在 balance 首查)")
+        XCTAssertEqual(reply.balance, 2, "balance 透传(mock 默认 3 自减)")
+    }
+
+    @MainActor
+    func testLive作答_问题200截断_history末20轮逐轮2000() async throws {
+        let mock = MockAPIClient()
+        let context = DailyAskContext(
+            contentHash: "c", context: [:], contextToken: "t",
+            targetDate: .now, dailyInterpretation: "d"
+        )
+        let answerer = LiveDailyAskAnswerer(apiClient: mock, context: context)
+        let longQuestion = String(repeating: "问", count: 350)
+        let longHistory = (0..<25).map { DailyAskTurn(role: "user", text: String(repeating: "\($0 % 10)", count: 1) + String(repeating: "字", count: 2100)) }
+        _ = try? await answerer.reply(to: longQuestion, history: longHistory)
+
+        let recorded = try XCTUnwrap(mock.recordedDailyAskRequests.last)
+        XCTAssertEqual(recorded.question.count, 200, "问题纵深截断 200(服务端超限 422)")
+        XCTAssertEqual(recorded.history.count, 20, "history 纵深截末 20 轮")
+        XCTAssertTrue(recorded.history.allSatisfy { $0.text.count <= 2000 }, "每轮 ≤2000")
+        XCTAssertTrue(recorded.history.contains { $0.text.hasPrefix("5") }, "保留的是末段(第 5 轮仍在,第 0-4 轮被截)")
+    }
+
+    // MARK: - C2:AskWalletModel(首查 device_token 置 flag / 单调守卫)
+
+    @MainActor
+    func test钱包_refresh首次带deviceToken_成败置flag后不再带() async {
+        UserDefaults.standard.removeObject(forKey: "qicompass.ask.mint_attempted.v1")
+        defer { UserDefaults.standard.removeObject(forKey: "qicompass.ask.mint_attempted.v1") }
+
+        let mock = MockAPIClient()
+        // 注入假 token 供给:模拟器不支持 DeviceCheck,不注入则「首查带
+        // token」语义不可测
+        let wallet = AskWalletModel(apiClient: mock, tokenProvider: { "dc-token-+/base64==" })
+        // 首查:后端拒绝(模拟 DC 拦 402)——已达后端,flag 应置
+        mock.askBalanceResponder = { _, _ in
+            throw APIError.backendError(code: "ASK_CREDITS_REQUIRED", message: "已铸过", requestId: "t")
+        }
+        await wallet.refresh()
+        XCTAssertEqual(mock.recordedAskBalanceCalls.count, 1)
+        XCTAssertEqual(mock.recordedAskBalanceCalls[0].deviceToken, "dc-token-+/base64==",
+                       "首次查询附 DeviceCheck token(Mock 层不经 URL 编码,录到注入原值;编码保真由 testQuery编码 用例另行锁定)")
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: "qicompass.ask.mint_attempted.v1"), "已达后端(402 拒铸)→ 置已尝试 flag,重发无意义")
+
+        // 二查:不再带 token
+        mock.askBalanceResponder = nil
+        await wallet.refresh()
+        XCTAssertEqual(mock.recordedAskBalanceCalls.count, 2)
+        XCTAssertNil(mock.recordedAskBalanceCalls[1].deviceToken, "flag 已置 → 不再附 token")
+        XCTAssertEqual(wallet.balance, 3, "mock 默认余额 3")
+    }
+
+    @MainActor
+    func test钱包_refresh网络失败_不置flag_下次再带token() async {
+        UserDefaults.standard.removeObject(forKey: "qicompass.ask.mint_attempted.v1")
+        defer { UserDefaults.standard.removeObject(forKey: "qicompass.ask.mint_attempted.v1") }
+
+        let mock = MockAPIClient()
+        let wallet = AskWalletModel(apiClient: mock, tokenProvider: { "dc-tok" })
+        mock.askBalanceResponder = { _, _ in
+            throw APIError.networkError(URLError(.notConnectedToInternet))
+        }
+        await wallet.refresh()
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: "qicompass.ask.mint_attempted.v1"), "网络层失败(请求未达后端)不置 flag,下次再试")
+
+        mock.askBalanceResponder = nil
+        await wallet.refresh()
+        XCTAssertEqual(mock.recordedAskBalanceCalls.count, 2, "第二次查询照常发起")
+        XCTAssertEqual(mock.recordedAskBalanceCalls[1].deviceToken, "dc-tok", "flag 未置 → 再次附 token")
+    }
+
+    @MainActor
+    func test钱包_apply单调守卫_旧回写不回卷() {
+        let wallet = AskWalletModel(apiClient: MockAPIClient())
+        let base = Date()
+        wallet.apply(5, issuedAt: base)
+        wallet.apply(3, issuedAt: base.addingTimeInterval(-10))
+        XCTAssertEqual(wallet.balance, 5, "更早时点的回写被丢(作答响应 vs refresh 并发乱序)")
+        wallet.apply(1, issuedAt: base.addingTimeInterval(10))
+        XCTAssertEqual(wallet.balance, 1, "更新时点正常生效")
+    }
 }

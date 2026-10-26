@@ -36,6 +36,9 @@ final class AppEnvironment: ObservableObject {
     let entitlementStore: EntitlementStore
     let purchaseManager: PurchaseManager
 
+    // S4c 新增:问事钱包(试用 + 次数包全局余额)
+    let askWallet: AskWalletModel
+
     // v2 PR2 新增:Apple 账号系统
     let accountManager: AccountManager
 
@@ -102,6 +105,10 @@ final class AppEnvironment: ObservableObject {
             entitlementStore: entitlementStore,
             apiClient: apiClient
         )
+        // S4c 装配:问事钱包(全局余额,server 单一事实源;AppEnvironment
+        // 级持有——今日页换盘/换日重建不丢;C3 购买链续接时 PurchaseManager
+        // 反向注入引用,余额回写单一口径)
+        self.askWallet = AskWalletModel(apiClient: apiClient)
         // M3b:启动 Transaction.updates listener(退款同步 + unfinished 续接)
         // Mock 模式下 Transaction.updates 不会有事件,但 listener 启动无害
         purchaseManager.startTransactionListener()

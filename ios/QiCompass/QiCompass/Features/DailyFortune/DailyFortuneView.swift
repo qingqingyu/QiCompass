@@ -181,6 +181,8 @@ struct DailyFortuneView: View {
                     },
                     // S10:D7 触点 2(末尾静默行)→ 补时辰 sheet
                     onAddHour: { openAddHourSheet() },
+                    // S4c 问事钱包(AppEnvironment 持有,换盘/换日不重建)
+                    askWallet: env.askWallet,
                 )
             case .failed(let userError):
                 ErrorStateView(

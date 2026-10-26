@@ -613,13 +613,40 @@ enum L10n {
         /// en: "Your matter — the when, the who, the sticking point"
         static let askInputPlaceholder = String(localized: "dailyfortune.ask.inputPlaceholder")
 
-        /// 作答端点未上线的诚实告知(S4b 落地前 ServicePendingAskAnswerer 返回)。
-        /// zh: "作答服务正在接入——上线后,这里会按你今天的盘面回答。"
+        /// 作答降级告知(S4c 起 ServicePendingAskAnswerer = 上下文不可组装
+        /// 时的降级,离线兜底缺 chartPayload/token;原文案「服务接入中」已失真)。
+        /// zh: "今天的盘面还没就绪——稍候片刻,再回来问。"
         static let askPendingReply = String(localized: "dailyfortune.ask.pendingReply")
 
         /// 作答失败气泡(网络/端点错误,原文进日志)。
         /// zh: "这一条没能作答,稍后再试。";en: "That one couldn't be answered — try again in a moment."
         static let askReplyFailed = String(localized: "dailyfortune.ask.replyFailed")
+
+        /// 盘面凭证过期气泡(403 CONTEXT_TOKEN_*;自愈路径 = 回今日页下拉刷新)。
+        /// zh: "今天的盘面凭证已过期——请回今日页下拉刷新,再接着问。"
+        static let askReplyContextExpired = String(localized: "dailyfortune.ask.replyContextExpired")
+
+        /// 余额签(问事框 head 行 + 聊天页 header 副题;%ld = 试用+已购合计)。
+        /// zh: "剩余 %ld 问"
+        static let askBalanceRemainingFormat = String(localized: "dailyfortune.ask.balanceRemaining")
+        static func askBalanceRemaining(_ count: Int) -> String {
+            String(format: askBalanceRemainingFormat, count)
+        }
+
+        /// 次数尽卡片标题(402 / 本地 0 余额;问事框 0 次形态同文案)。
+        /// zh: "问事次数已用完"
+        static let askCreditsTitle = String(localized: "dailyfortune.ask.creditsTitle")
+
+        /// 次数尽卡片说明。zh: "装机赠送的三次已用完——加购一包,接着问。"
+        static let askCreditsHint = String(localized: "dailyfortune.ask.creditsHint")
+
+        /// 加购 CTA(卡片按钮 + 问事框 0 次 chip;价格只在购买墙显示)。
+        /// zh: "+15 问,继续问事"
+        static let askBuyEntryCta = String(localized: "dailyfortune.ask.buyEntryCta")
+
+        /// C2 过渡:占位购买墙告知(C3 落真墙后随占位组件一并删除)。
+        /// zh: "次数包购买即将开放"
+        static let askPurchaseSoon = String(localized: "dailyfortune.ask.purchaseSoon")
 
         /// 问事框整体 a11y 标签。zh: "打开问事对话";en: "Open the ask conversation"
         static let askComposerA11y = String(localized: "dailyfortune.ask.composerA11y")

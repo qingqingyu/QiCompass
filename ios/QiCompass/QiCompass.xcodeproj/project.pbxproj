@@ -54,6 +54,7 @@
 		9C0000000000000000000023 /* DailyInterpretationSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000023 /* DailyInterpretationSection.swift */; };
 		9C0000000000000000000024 /* DailyImageHeroSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000024 /* DailyImageHeroSection.swift */; };
 		9C0000000000000000000025 /* DailyAskView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000025 /* DailyAskView.swift */; };
+		9C00000000000000000000F8 /* DailyAskService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C10000000000000000000F8 /* DailyAskService.swift */; };
 		9C0000000000000000000028 /* DailyFortuneVerifier.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000028 /* DailyFortuneVerifier.swift */; };
 		9C0000000000000000000029 /* InterpretState.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000029 /* InterpretState.swift */; };
 		9C000000000000000000002A /* CompatibilitySnapshotStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000002A /* CompatibilitySnapshotStore.swift */; };
@@ -251,6 +252,7 @@
 		9C1000000000000000000023 /* DailyInterpretationSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyInterpretationSection.swift; path = QiCompass/Features/DailyFortune/DailyInterpretationSection.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000024 /* DailyImageHeroSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyImageHeroSection.swift; path = QiCompass/Features/DailyFortune/DailyImageHeroSection.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000025 /* DailyAskView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyAskView.swift; path = QiCompass/Features/DailyFortune/DailyAskView.swift; sourceTree = SOURCE_ROOT; };
+		9C10000000000000000000F8 /* DailyAskService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyAskService.swift; path = QiCompass/Features/DailyFortune/DailyAskService.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000028 /* DailyFortuneVerifier.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DailyFortuneVerifier.swift; path = QiCompass/Persistence/DailyFortuneVerifier.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000029 /* InterpretState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = InterpretState.swift; sourceTree = "<group>"; };
 		9C100000000000000000002A /* CompatibilitySnapshotStore.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = CompatibilitySnapshotStore.swift; path = QiCompass/Services/CompatibilitySnapshotStore.swift; sourceTree = SOURCE_ROOT; };
@@ -660,6 +662,7 @@
 				9C1000000000000000000023 /* DailyInterpretationSection.swift */,
 				9C1000000000000000000024 /* DailyImageHeroSection.swift */,
 				9C1000000000000000000025 /* DailyAskView.swift */,
+				9C10000000000000000000F8 /* DailyAskService.swift */,
 			);
 			path = DailyFortune;
 			sourceTree = "<group>";
@@ -890,6 +893,7 @@ A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				9C0000000000000000000021 /* DailyFortuneMainView.swift in Sources */,
 				9C0000000000000000000024 /* DailyImageHeroSection.swift in Sources */,
 				9C0000000000000000000025 /* DailyAskView.swift in Sources */,
+				9C00000000000000000000F8 /* DailyAskService.swift in Sources */,
 				9C0000000000000000000023 /* DailyInterpretationSection.swift in Sources */,
 				9C0000000000000000000028 /* DailyFortuneVerifier.swift in Sources */,
 				9C0000000000000000000029 /* InterpretState.swift in Sources */,
