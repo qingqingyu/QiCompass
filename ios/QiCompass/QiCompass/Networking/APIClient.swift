@@ -21,6 +21,12 @@ protocol APIClient: Sendable {
     func syncPull() async throws -> SyncPullResponse
     /// PR3.2:上传本地命盘到云端(全量 UPSERT)
     func syncPush(request: SyncPushRequest) async throws -> SyncPushResponse
+    /// S4c:问事作答(每条用户消息扣 1 次;402 ASK_CREDITS_REQUIRED = 次数尽 → paywall)
+    func dailyAsk(request: DailyAskRequest) async throws -> DailyAskResponse
+    /// S4c:问事余额(user_local_id / device_token 为 query 参数;首查懒铸造 3 次试用)
+    func askBalance(userLocalId: String, deviceToken: String?) async throws -> AskBalanceResponse
+    /// S4c:次数包购买入账(Apple transaction id 明文;幂等,重放 credits=0)
+    func askRedeem(request: AskRedeemRequest) async throws -> AskRedeemResponse
 }
 
 extension APIClient {
@@ -32,6 +38,34 @@ extension APIClient {
         throw APIError.backendError(
             code: "TRANSLATE_UNSUPPORTED",
             message: "该 APIClient 实现未支持 translate(测试替身默认实现)",
+            requestId: nil
+        )
+    }
+
+    /// `dailyAsk` / `askBalance` / `askRedeem` 的默认实现(S4c):与 translate
+    /// 同款测试替身兜底——正式实现是 LiveAPIClient / MockAPIClient;不关心
+    /// 问事路径的测试 double 走到此处说明问事被意外触发,**显式抛错**
+    /// (问事走次数包钱包计费,静默返值会掩盖计费缺口)。
+    func dailyAsk(request: DailyAskRequest) async throws -> DailyAskResponse {
+        throw APIError.backendError(
+            code: "DAILY_ASK_UNSUPPORTED",
+            message: "该 APIClient 实现未支持 dailyAsk(测试替身默认实现)",
+            requestId: nil
+        )
+    }
+
+    func askBalance(userLocalId: String, deviceToken: String?) async throws -> AskBalanceResponse {
+        throw APIError.backendError(
+            code: "DAILY_ASK_UNSUPPORTED",
+            message: "该 APIClient 实现未支持 askBalance(测试替身默认实现)",
+            requestId: nil
+        )
+    }
+
+    func askRedeem(request: AskRedeemRequest) async throws -> AskRedeemResponse {
+        throw APIError.backendError(
+            code: "DAILY_ASK_UNSUPPORTED",
+            message: "该 APIClient 实现未支持 askRedeem(测试替身默认实现)",
             requestId: nil
         )
     }
@@ -163,21 +197,76 @@ final class LiveAPIClient: APIClient {
         return try decode(data, as: SyncPushResponse.self, endpoint: .syncPush)
     }
 
+    // S4c:问事作答(计费/防刷/缓存全在服务端;客户端只传问题与上下文)
+    func dailyAsk(request: DailyAskRequest) async throws -> DailyAskResponse {
+        let (data, _) = try await send(.dailyAsk, body: request)
+        return try decode(data, as: DailyAskResponse.self, endpoint: .dailyAsk)
+    }
+
+    // S4c:问事余额(GET;user_local_id / device_token 为 query 参数——
+    // 端点层维持纯 path,query 在 send 统一拼接)
+    func askBalance(userLocalId: String, deviceToken: String?) async throws -> AskBalanceResponse {
+        var items = [URLQueryItem(name: "user_local_id", value: userLocalId)]
+        if let deviceToken {
+            items.append(URLQueryItem(name: "device_token", value: deviceToken))
+        }
+        let (data, _) = try await send(.askBalance, body: nil as EmptyBody?, queryItems: items)
+        return try decode(data, as: AskBalanceResponse.self, endpoint: .askBalance)
+    }
+
+    // S4c:次数包赎回(服务端自验 App Store Server API;幂等)
+    func askRedeem(request: AskRedeemRequest) async throws -> AskRedeemResponse {
+        let (data, _) = try await send(.askRedeem, body: request)
+        return try decode(data, as: AskRedeemResponse.self, endpoint: .askRedeem)
+    }
+
     // MARK: - Internal
 
     private struct EmptyBody: Codable {}
+
+    /// S4c:query 串编码(含 `+` 补丁)。`URLComponents.queryItems` 不编码
+    /// RFC 合法的裸 `+`,而后端(starlette)按 `parse_qsl` 语义把裸 `+`
+    /// 解码为空格——base64 的 DeviceCheck token ≈必然含 `+`,不补 %2B 则
+    /// 令牌在服务端被静默腐蚀,DeviceCheck 防重装层整体失效(grant 流程
+    /// 「查询失败→放行」,限铸闸兜底,零报错)。internal 供测试锁定。
+    static func percentEscapedQuery(_ items: [URLQueryItem]) -> String? {
+        var comps = URLComponents()
+        comps.queryItems = items
+        guard let encoded = comps.percentEncodedQuery else { return nil }
+        return encoded.replacingOccurrences(of: "+", with: "%2B")
+    }
 
     /// 统一发送:编码 body → 构造 URLRequest → 发送 → 检查 HTTP 状态。
     /// 错误显式传播:网络错误 / HTTP 错误 / 后端结构化错误 全部 throw,不吞。
     ///
     /// 日志策略(用户规则 2 + 3):start/ok 都打 info,所有 fail 打 error。
     /// 一个 send 调用对应一对 start/ok 或 start/fail,不会缺漏。
+    ///
+    /// queryItems(S4c 新增,默认 nil = 纯 path 端点不变):GET query 拼接
+    /// 收口在此(askBalance 的 user_local_id/device_token);值由调用方保证
+    /// 非 nil——URLQueryItem(name:value:) 对 nil value 会崩,空串合法。
     private func send<Body: Codable>(
         _ endpoint: APIEndpoint,
         body: Body?,
+        queryItems: [URLQueryItem]? = nil,
         cachePolicy: URLRequest.CachePolicy = .useProtocolCachePolicy
     ) async throws -> (Data, HTTPURLResponse) {
-        let url = endpoint.url(base: baseURL)
+        let url: URL
+        if let queryItems, !queryItems.isEmpty {
+            var comps = URLComponents(
+                url: endpoint.url(base: baseURL),
+                resolvingAgainstBaseURL: false
+            )
+            comps?.percentEncodedQuery = Self.percentEscapedQuery(queryItems)
+            guard let resolved = comps?.url else {
+                // 非预期:端点 URL 与 query 拼不出合法 URL(编码非法字符等)
+                AppLogger.networking.error("api.url_build_failed endpoint=\(endpoint.path, privacy: .public) queryItems=\(queryItems.count, privacy: .public)")
+                throw APIError.httpError(statusCode: -1, body: nil)
+            }
+            url = resolved
+        } else {
+            url = endpoint.url(base: baseURL)
+        }
         var req = URLRequest(url: url)
         req.cachePolicy = cachePolicy
         req.httpMethod = endpoint.method
@@ -317,6 +406,49 @@ final class MockAPIClient: APIClient {
     /// mock(无 prompt_versions,版本未知 → 迁移判定守卫关闭);测试注入以
     /// 模拟「服务端已 bump m0 版本」驱动 hydrate 的迁移重生成 derive。
     var healthResponder: (() throws -> HealthResponse)?
+    /// S4c:dailyAsk 应答注入钩子。nil = 默认应答(固定答案 + 2 条追问,
+    /// 内部余额自减);测试注入以模拟 402 ASK_CREDITS_REQUIRED / 网络失败。
+    /// 录制在钩子之前完成,断言不受影响。
+    var dailyAskResponder: ((DailyAskRequest) throws -> DailyAskResponse)?
+    /// S4c:askBalance 应答注入钩子。nil = 默认(返回内部 mock 余额)。
+    var askBalanceResponder: ((String, String?) throws -> AskBalanceResponse)?
+    /// S4c:askRedeem 应答注入钩子。nil = 默认(+15 幂等入账)。
+    var askRedeemResponder: ((AskRedeemRequest) throws -> AskRedeemResponse)?
+    /// S4c:问事 mock 钱包余额(recordLock 保护——dailyAsk 自减与 askRedeem
+    /// 入账可并发;默认 3 = 装机试用)。测试可置 0 模拟耗尽。
+    private var _mockAskBalance = 3
+    var mockAskBalance: Int {
+        recordLock.lock(); defer { recordLock.unlock() }
+        return _mockAskBalance
+    }
+    /// S4c:重置 mock 钱包(测试间隔离用;recordLock 保护,线程安全)。
+    func setMockAskBalance(_ value: Int) {
+        recordLock.lock(); defer { recordLock.unlock() }
+        _mockAskBalance = value
+    }
+    /// S4c:askBalance 调用记录——C2「AskWalletModel 首查带 device_token
+    /// 置 flag」的断言面(device_token 是否真的发出去了只能在此验)。
+    struct RecordedAskBalanceCall: Equatable, Sendable {
+        let userLocalId: String
+        let deviceToken: String?
+    }
+    private var _recordedAskBalanceCalls: [RecordedAskBalanceCall] = []
+    var recordedAskBalanceCalls: [RecordedAskBalanceCall] {
+        recordLock.lock(); defer { recordLock.unlock() }
+        return _recordedAskBalanceCalls
+    }
+    private var _recordedDailyAskRequests: [DailyAskRequest] = []
+    var recordedDailyAskRequests: [DailyAskRequest] {
+        recordLock.lock(); defer { recordLock.unlock() }
+        return _recordedDailyAskRequests
+    }
+    private var _recordedAskRedeemRequests: [AskRedeemRequest] = []
+    var recordedAskRedeemRequests: [AskRedeemRequest] {
+        recordLock.lock(); defer { recordLock.unlock() }
+        return _recordedAskRedeemRequests
+    }
+    /// S4c:mock 已赎回 tx 集合(幂等判定,recordLock 保护)
+    private var _redeemedMockTxIds: Set<String> = []
     private var _recordedCalculateRequests: [BaziCalculateRequest] = []
     var recordedCalculateRequests: [BaziCalculateRequest] {
         recordLock.lock(); defer { recordLock.unlock() }
@@ -489,6 +621,81 @@ final class MockAPIClient: APIClient {
             userId: "mock-user",
             upsertedCount: request.charts.count,
             totalCount: request.charts.count
+        )
+    }
+
+    /// S4c:mock 问事作答。保真对齐后端语义:余额 >0 自减返新余额,
+    /// =0 抛 402 ASK_CREDITS_REQUIRED(与真后端同一 code,问事窗 402 →
+    /// 内嵌购买卡片的分型链路在 mock 走查下同样可验)。
+    func dailyAsk(request: DailyAskRequest) async throws -> DailyAskResponse {
+        AppLogger.networking.debug("mock.dailyAsk 调起 question=\(request.question.prefix(20), privacy: .public) history=\(request.history.count, privacy: .public)")
+        recordLock.lock()
+        _recordedDailyAskRequests.append(request)
+        recordLock.unlock()
+        try? await Task.sleep(nanoseconds: 300_000_000)
+        if let dailyAskResponder {
+            return try dailyAskResponder(request)
+        }
+        recordLock.lock()
+        let exhausted = _mockAskBalance <= 0
+        if !exhausted { _mockAskBalance -= 1 }
+        let balance = _mockAskBalance
+        recordLock.unlock()
+        if exhausted {
+            throw APIError.backendError(
+                code: "ASK_CREDITS_REQUIRED",
+                message: "问事次数已用完",
+                requestId: "mock-ask"
+            )
+        }
+        return DailyAskResponse(
+            answer: "宜先静后动:上午稳住手头事,午后看准再开口。此为脚手架阶段 Mock 文本,正式作答由后端 AI provider 生成。",
+            followUps: ["几点开口最稳?", "对方不让步怎么办?"],
+            cached: false,
+            balance: balance
+        )
+    }
+
+    /// S4c:mock 问事余额(默认返回内部 mock 钱包当前值;首查铸造语义
+    /// 不在 mock 里模拟——mock 钱包初始即 3)。
+    func askBalance(userLocalId: String, deviceToken: String?) async throws -> AskBalanceResponse {
+        AppLogger.networking.debug("mock.askBalance 调起 user=\(userLocalId.prefix(8), privacy: .public) deviceToken=\(deviceToken != nil, privacy: .public)")
+        recordLock.lock()
+        _recordedAskBalanceCalls.append(
+            RecordedAskBalanceCall(userLocalId: userLocalId, deviceToken: deviceToken))
+        recordLock.unlock()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        if let askBalanceResponder {
+            return try askBalanceResponder(userLocalId, deviceToken)
+        }
+        recordLock.lock(); defer { recordLock.unlock() }
+        return AskBalanceResponse(balance: _mockAskBalance)
+    }
+
+    /// S4c:mock 次数包赎回(默认 +15 幂等入账:同 tx 重放 credits=0,
+    /// 对齐后端 ask_purchases 幂等语义)。
+    func askRedeem(request: AskRedeemRequest) async throws -> AskRedeemResponse {
+        AppLogger.networking.debug("mock.askRedeem 调起 tx=\(request.transactionId, privacy: .public) product=\(request.productId, privacy: .public)")
+        recordLock.lock()
+        _recordedAskRedeemRequests.append(request)
+        recordLock.unlock()
+        try? await Task.sleep(nanoseconds: 200_000_000)
+        if let askRedeemResponder {
+            return try askRedeemResponder(request)
+        }
+        recordLock.lock()
+        let isFirst = !_redeemedMockTxIds.contains(request.transactionId)
+        if isFirst {
+            _redeemedMockTxIds.insert(request.transactionId)
+            _mockAskBalance += 15
+        }
+        let balance = _mockAskBalance
+        recordLock.unlock()
+        return AskRedeemResponse(
+            credits: isFirst ? 15 : 0,
+            balance: balance,
+            transactionId: request.transactionId,
+            purchasedAt: "2026-10-26T00:00:00Z"
         )
     }
 

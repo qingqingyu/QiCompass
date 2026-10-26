@@ -23,6 +23,12 @@
      entitlementModule 两个平行 switch 按 case 合成的 (SKU, module) 对,
      每对应与 backend map 相等——它直接喂 purchase(productId:module:),
      漂移走同一条 403→finish 杀链
+  ⑤ 问事次数包三方一致(S4c,2026-10-26 用户拍板扩栏):次数包 SKU 不走
+     module 权益,但同样是双端登记(backend config.ASK_PACK_PRODUCT_ID ↔
+     iOS AskPackProductID 常量 ↔ Products.storekit 条目)。三处值不等 →
+     iOS 买的 SKU 后端不认 → redeem 永远 422,交易卡在未 finish(买了不
+     入账的静默资损)。同时反向拦截:次数包 SKU 误入 PRODUCT_MODULE_MAP /
+     AppleProductID 闭包(它不是 module 权益,入列即语义错误)
 
 范围外(显式记录,不算缺口):PaywallModule 的 title/paidChapters 等纯 UI 字段。
 
@@ -34,15 +40,19 @@
 from __future__ import annotations
 
 import ast
+import json
 import re
 import sys
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 BACKEND_MODELS = ROOT / "backend/app/models/entitlement.py"
+BACKEND_CONFIG = ROOT / "backend/app/config.py"
 PURCHASE_MANAGER = ROOT / "ios/QiCompass/QiCompass/Services/PurchaseManager.swift"
 ENTITLEMENT_DTOS = ROOT / "ios/QiCompass/QiCompass/Networking/DTOs/EntitlementDTOs.swift"
+DAILY_ASK_DTOS = ROOT / "ios/QiCompass/QiCompass/Networking/DTOs/DailyAskDTOs.swift"
 PAYWALL_VM = ROOT / "ios/QiCompass/QiCompass/Features/Paywall/PaywallViewModel.swift"
+STOREKIT = ROOT / "ios/QiCompass/QiCompass/Products.storekit"
 
 KILL_CHAIN = (
     "同一 SKU 双端 module 值不同 → 客户端 guard 放行 → 后端 403 "
@@ -152,6 +162,53 @@ def paywall_pairs() -> dict[str, tuple[str, str]]:
             f"仅 entitlementModule={sorted(set(module_arm) - set(product_arm))}")
     return {case: (product_arm[case], module_arm[case])
             for case in product_arm}
+
+
+# ---------- ⑤ 问事次数包三方一致(backend config ↔ iOS 常量 ↔ storekit) ----------
+
+def _str_constants(node: ast.expr) -> list[str]:
+    """表达式树里的全部字符串常量(含 os.environ.get(...) or "默认" 形态)。"""
+    out: list[str] = []
+    for sub in ast.walk(node):
+        if isinstance(sub, ast.Constant) and isinstance(sub.value, str):
+            out.append(sub.value)
+    return out
+
+
+def ask_pack_tables() -> tuple[str, set[str], list[dict]]:
+    """(backend SKU, iOS AskPackProductID 常量值集合, storekit products 列表)。"""
+    tree = ast.parse(BACKEND_CONFIG.read_text())
+    backend_sku: str | None = None
+    for node in tree.body:
+        names: list[str] = []
+        value = None
+        if isinstance(node, ast.Assign):
+            names = [t.id for t in node.targets if isinstance(t, ast.Name)]
+            value = node.value
+        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+            names, value = [node.target.id], node.value
+        if value is None:
+            continue
+        if "ASK_PACK_PRODUCT_ID" in names:
+            # `os.environ.get("QICOMPASS_…") or "com.qicompass.…"` 里环境变量名
+            # 也是 str 常量——SKU 以 "com." 开头区分
+            skus = [s for s in _str_constants(value) if s.startswith("com.")]
+            if len(skus) != 1:
+                raise ValueError(
+                    f"{BACKEND_CONFIG.relative_to(ROOT)} 的 ASK_PACK_PRODUCT_ID "
+                    f"应恰含 1 个 com. 开头字面量(实得 {skus})")
+            backend_sku = skus[0]
+    if backend_sku is None:
+        raise ValueError(
+            f"{BACKEND_CONFIG.relative_to(ROOT)} 缺 ASK_PACK_PRODUCT_ID 定义")
+
+    ios_consts = _swift_enum_consts(DAILY_ASK_DTOS.read_text(), "AskPackProductID")
+
+    storekit = json.loads(STOREKIT.read_text())
+    products = storekit.get("products", [])
+    if not products:
+        raise ValueError(f"{STOREKIT.relative_to(ROOT)} products 为空")
+    return backend_sku, set(ios_consts.values()), products
 
 
 # ---------- 主流程 ----------
@@ -264,6 +321,44 @@ def main() -> int:
         failures.append(
             f"PaywallModule 配对漂移(它直接喂 purchase(productId:module:),"
             f"走 403→finish 杀链: {KILL_CHAIN}): {'; '.join(pair_drift)}")
+
+    print("=" * 64)
+    print("⑤ 问事次数包三方一致(config ↔ AskPackProductID ↔ storekit)")
+    print("=" * 64)
+    b_pack, ios_packs, sk_products = ask_pack_tables()
+    # 三方值相等
+    if ios_packs != {b_pack}:
+        failures.append(
+            f"次数包 SKU 漂移(买了不入账: redeem 永远 422, 交易卡未 finish): "
+            f"backend={b_pack!r} iOS={sorted(ios_packs)}")
+        print(f"  FAIL backend config ↔ iOS 常量不等: backend={b_pack!r} "
+              f"iOS={sorted(ios_packs)}")
+    else:
+        print(f"  OK   iOS AskPackProductID == backend config ({b_pack})")
+    pack_entries = [p for p in sk_products if p.get("id") == b_pack]
+    if len(pack_entries) != 1 or pack_entries[0].get("type") != "Consumable":
+        failures.append(
+            f"Products.storekit 次数包条目异常: 期望恰 1 条 id={b_pack!r} 且 "
+            f"type=Consumable(实得 {len(pack_entries)} 条"
+            + (f", type={pack_entries[0].get('type')!r}" if pack_entries else "") + ")")
+        print("  FAIL storekit 条目缺失/重复/非 Consumable")
+    else:
+        print(f"  OK   storekit 恰 1 条 {b_pack} (Consumable)")
+    # 反向拦截:次数包不得混入 module 权益闭包(它走 /api/ask/redeem 独立台账)
+    if b_pack in b_map:
+        failures.append(
+            f"次数包 SKU 误入 backend PRODUCT_MODULE_MAP({b_pack!r}):"
+            f"它不是 module 权益,走 /api/ask/redeem 独立入账")
+        print("  FAIL 次数包误入 PRODUCT_MODULE_MAP")
+    else:
+        print("  OK   次数包不在 PRODUCT_MODULE_MAP(独立钱包台账,语义正确)")
+    if b_pack in set(sku_consts.values()):
+        failures.append(
+            f"次数包 SKU 误入 iOS AppleProductID 常量({b_pack!r}):"
+            f"③ 闭包会要求它进 module(forProductID:) switch——它无 module 可映射")
+        print("  FAIL 次数包误入 AppleProductID")
+    else:
+        print("  OK   次数包不在 AppleProductID(module 闭包零扰动)")
 
     print("=" * 64)
     if failures:

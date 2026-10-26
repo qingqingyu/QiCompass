@@ -6,6 +6,7 @@ import Foundation
 /// `/api/bazi/daily-fortune`、`/api/interpret`、`/api/entitlement/redeem`(M2b)、
 /// `/api/entitlement/list`(Slice 1 新增,登录后批量同步用)、
 /// `/api/auth/sign-in`(PR2.5)、
+/// `/api/bazi/daily-ask` + `/api/ask/balance` + `/api/ask/redeem`(S4c 问事窗)、
 /// `/api/webhooks/appstore`(M2c,Apple 调,iOS 不调)
 ///
 /// 历史:每日运势插画端点(`/daily-fortune/image*`)随 2026-09-01「单张固定图」
@@ -22,6 +23,9 @@ enum APIEndpoint: Sendable {
     case authSignIn          // PR2.5 新增(Apple identity_token → 自家 JWT)
     case syncPull            // PR3.2 新增(拉云端命盘)
     case syncPush            // PR3.2 新增(上传本地命盘)
+    case dailyAsk            // S4c 新增(问事作答,次数包/试用钱包计费)
+    case askBalance          // S4c 新增(问事余额;首查懒铸造 3 次试用)
+    case askRedeem           // S4c 新增(次数包购买入账,幂等)
 
     var path: String {
         switch self {
@@ -36,6 +40,9 @@ enum APIEndpoint: Sendable {
         case .authSignIn:        return "/api/auth/sign-in"
         case .syncPull:          return "/api/sync/pull"
         case .syncPush:          return "/api/sync/push"
+        case .dailyAsk:          return "/api/bazi/daily-ask"
+        case .askBalance:        return "/api/ask/balance"
+        case .askRedeem:         return "/api/ask/redeem"
         }
     }
 
@@ -43,6 +50,7 @@ enum APIEndpoint: Sendable {
         switch self {
         case .health:            return "GET"
         case .entitlementList:   return "GET"
+        case .askBalance:        return "GET"
         default:                 return "POST"
         }
     }
