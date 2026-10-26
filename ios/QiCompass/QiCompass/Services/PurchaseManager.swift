@@ -21,6 +21,10 @@ import StoreKit
 final class PurchaseManager {
     private let entitlementStore: EntitlementStore
     private let apiClient: APIClient
+    /// S4c 问事钱包(AppEnvironment 装配后注入;weak 防环——两者都由
+    /// AppEnvironment 持有)。主路径/listener 续接/恢复购买三处 askRedeem
+    /// 成功后统一经它回写余额(单一回写口径)。
+    weak var askWallet: AskWalletModel?
 
     /// Transaction.updates listener 任务引用。
     /// `nonisolated(unsafe)`:Swift 6 严格模式下 deinit(@MainActor isolation 外)访问需要此标注。
@@ -76,8 +80,16 @@ final class PurchaseManager {
     }
 
     /// 退款/撤销同步:本地 deactivate(后端 webhook 已先处理)。
+    /// S4c:问事次数包记录(askPack)无 entitlement 行可 deactivate——后端
+    /// webhook 已扣回余额(refund_purchase 下限 0),iOS 只清档 + finish。
     private func handleRevocation(_ tx: Transaction) async {
         let txId = String(tx.id)
+        if let pending = PendingRedeemStore.get(txId: txId), pending.kind == .askPack {
+            PendingRedeemStore.remove(txId: txId)
+            await tx.finish()
+            AppLogger.app.info("purchase.askpack.revocation_handled tx=\(txId, privacy: .public) (credits clawed back server-side)")
+            return
+        }
         _ = entitlementStore.deactivate(transactionId: txId)
         // 已退款交易无续接价值,清 pending 记录防 listener 复活它
         PendingRedeemStore.remove(txId: txId)
@@ -103,6 +115,15 @@ final class PurchaseManager {
     ///    交易在下次启动被直接吞掉——钱付了,权益没了)。
     private func handleRedeemContinuation(_ tx: Transaction) async {
         let txId = String(tx.id)
+
+        // 0) S4c 问事次数包记录:走 askRedeem 续接。**不得**进下方
+        //    module 反查 guard——pack SKU 在 module(forProductID:) 返 nil
+        //    (设计如此,check_sku_sync ⑤ 反向锁定),原路径会把记录当
+        //    冲突销毁(清档+finish),已付款次数永久丢失。
+        if let pending = PendingRedeemStore.get(txId: txId), pending.kind == .askPack {
+            await continueAskPackRedeem(tx, txId: txId)
+            return
+        }
 
         // 1) pending 记录续接:用失败时点记住的原始上下文调 redeem(幂等,
         //    后端同 transactionId 已 active 时校验一致直接返回)
@@ -171,6 +192,37 @@ final class PurchaseManager {
             AppLogger.app.info("purchase.storekit.continuation_finished tx=\(txId, privacy: .public)")
         } else {
             AppLogger.app.info("purchase.storekit.continuation_deferred tx=\(txId, privacy: .public)")
+        }
+    }
+
+    /// S4c 问事次数包续接:askRedeem 幂等(服务端台账 transactionId PK,
+    /// 重放 credits=0),成功才清档 + finish + 余额回写;403
+    /// ENTITLEMENT_ERROR(交易已退款)→ 清档 + finish 收尾防死循环;
+    /// 其余错误保留(不 finish),下次重投递再续。
+    private func continueAskPackRedeem(_ tx: Transaction, txId: String) async {
+        do {
+            let resp = try await apiClient.askRedeem(
+                request: AskRedeemRequest(
+                    transactionId: txId,
+                    productId: tx.productID,
+                    userLocalId: UserIdentity.userLocalId
+                )
+            )
+            // 先清记录后 finish(与 entitlement 续接同序:反序崩溃窗口留死记录)
+            PendingRedeemStore.remove(txId: txId)
+            await tx.finish()
+            askWallet?.apply(resp.balance)
+            AppLogger.app.info("purchase.askpack.continuation_redeemed tx=\(txId, privacy: .public) credits=\(resp.credits, privacy: .public) balance=\(resp.balance, privacy: .public)")
+        } catch let apiError as APIError {
+            if case .backendError(let code, _, _) = apiError, code == "ENTITLEMENT_ERROR" {
+                PendingRedeemStore.remove(txId: txId)
+                await tx.finish()
+                AppLogger.app.info("purchase.askpack.continuation_refunded tx=\(txId, privacy: .public)")
+            } else {
+                AppLogger.app.error("purchase.askpack.continuation_redeem_failed tx=\(txId, privacy: .public) error=\(String(describing: apiError), privacy: .public)")
+            }
+        } catch {
+            AppLogger.app.error("purchase.askpack.continuation_redeem_failed tx=\(txId, privacy: .public) error=\(String(describing: error), privacy: .public)")
         }
     }
 
@@ -377,7 +429,7 @@ final class PurchaseManager {
             // 交易本体不带 content_hash,不记就永远无法自动续接。
             PendingRedeemStore.set(
                 txId: transactionId,
-                .init(productId: productId, contentHash: contentHash, module: module))
+                .init(productId: productId, contentHash: contentHash, module: module, kind: .entitlement))
             throw PurchaseError.backendRedeemFailed(underlying: error)
         }
 
@@ -399,7 +451,7 @@ final class PurchaseManager {
             // 幂等命中(后端已有 entitlement)+ 重试本地写入
             PendingRedeemStore.set(
                 txId: transactionId,
-                .init(productId: productId, contentHash: contentHash, module: module))
+                .init(productId: productId, contentHash: contentHash, module: module, kind: .entitlement))
             throw PurchaseError.entitlementStoreFailed(underlying: error)
         }
 
@@ -432,6 +484,133 @@ final class PurchaseManager {
         }
         AppLogger.app.info("purchase.storekit.ok tx=\(transactionId, privacy: .public) entitlement_transactionId=\(entitlement.transactionId, privacy: .public) isActive=\(entitlement.isActive, privacy: .public)")
         return entitlement
+    }
+
+    // MARK: - 问事次数包购买(S4c)
+
+    /// 购买问事次数包(15 问,Consumable)。与 entitlement 购买的核心差异:
+    /// **不绑 content_hash/module、无本地 SwiftData entitlement 行**——入账
+    /// 走 `POST /api/ask/redeem` 独立钱包台账,余额由 askWallet 回写。
+    /// 防漏单纪律与 purchase 同构:askRedeem 失败**不 finish** + 落
+    /// askPack 形态 pending 记录,listener 下次启动续接。
+    /// - Returns: 入账后余额
+    func purchaseAskPack() async throws -> Int {
+        AppLogger.app.info("purchase.askpack.start product=\(AskPackProductID.pack15, privacy: .public)")
+        if apiClient is MockAPIClient {
+            return try await purchaseAskPackMockPath()
+        }
+        return try await purchaseAskPackStoreKitPath()
+    }
+
+    /// Mock 路径:mock_tx 假 id 走完后端 askRedeem 链路(mock 钱包 +15 幂等)。
+    private func purchaseAskPackMockPath() async throws -> Int {
+        let mockTransactionId = "mock_tx_\(UUID().uuidString.prefix(8))"
+        do {
+            let resp = try await apiClient.askRedeem(
+                request: AskRedeemRequest(
+                    transactionId: mockTransactionId,
+                    productId: AskPackProductID.pack15,
+                    userLocalId: UserIdentity.userLocalId
+                )
+            )
+            askWallet?.apply(resp.balance)
+            AppLogger.app.info("purchase.askpack.mock_ok tx=\(mockTransactionId, privacy: .public) credits=\(resp.credits, privacy: .public) balance=\(resp.balance, privacy: .public)")
+            return resp.balance
+        } catch {
+            AppLogger.app.error("purchase.askpack.mock_redeem_failed error=\(String(describing: error), privacy: .public)")
+            throw PurchaseError.backendRedeemFailed(underlying: error)
+        }
+    }
+
+    /// StoreKit 真路径(与 purchaseStoreKitPath 同构,无本地 entitlement 写入环节):
+    /// purchase → askRedeem(服务端自验 App Store Server API)→ 清档 + finish
+    /// + 余额回写;redeem 失败不 finish 落档,由 listener 续接。
+    private func purchaseAskPackStoreKitPath() async throws -> Int {
+        // appAccountToken 规则与 entitlement 购买一致:登录态绑 UUID(userId),
+        // 匿名空 options;登录态解析失败显式抛(不 fallback 随机 UUID)
+        let userId = UserIdentity.isAuthenticated ? UserIdentity.currentUserId : nil
+        var appAccountToken: UUID? = nil
+        if let userId {
+            guard let parsed = UUID(uuidString: userId) else {
+                AppLogger.app.error("purchase.askpack.appAccountToken_parse_failed userId=\(userId.prefix(8), privacy: .public)")
+                throw PurchaseError.verificationFailed(message: String(localized: "账号凭证异常,请重新登录后再试"))
+            }
+            appAccountToken = parsed
+        }
+
+        let products: [Product]
+        do {
+            products = try await Product.products(for: [AskPackProductID.pack15])
+        } catch {
+            AppLogger.app.error("purchase.askpack.fetch_failed error=\(String(describing: error), privacy: .public)")
+            throw PurchaseError.networkFailed(underlying: error)
+        }
+        guard let product = products.first else {
+            AppLogger.app.error("purchase.askpack.product_not_found id=\(AskPackProductID.pack15, privacy: .public)")
+            throw PurchaseError.productNotFound(productId: AskPackProductID.pack15)
+        }
+
+        let result: Product.PurchaseResult
+        do {
+            result = try await product.purchase(
+                options: appAccountToken.map { [.appAccountToken($0)] } ?? []
+            )
+        } catch {
+            AppLogger.app.error("purchase.askpack.system_error error=\(String(describing: error), privacy: .public)")
+            throw PurchaseError.networkFailed(underlying: error)
+        }
+
+        let transaction: Transaction
+        switch result {
+        case .success(let verification):
+            switch verification {
+            case .verified(let tx):
+                transaction = tx
+            case .unverified(_, let error):
+                AppLogger.app.error("purchase.askpack.verification_failed error=\(String(describing: error), privacy: .public)")
+                throw PurchaseError.verificationFailed(message: String(localized: "购买验证失败,请重试"))
+            }
+        case .userCancelled:
+            AppLogger.app.info("purchase.askpack.user_cancelled")
+            throw PurchaseError.userCancelled
+        case .pending:
+            AppLogger.app.info("purchase.askpack.pending")
+            throw PurchaseError.pending
+        @unknown default:
+            AppLogger.app.error("purchase.askpack.unknown_result")
+            throw PurchaseError.verificationFailed(message: String(localized: "购买未完成,请重试"))
+        }
+
+        let transactionId = String(transaction.id)
+        AppLogger.app.info("purchase.askpack.tx_received tx=\(transactionId, privacy: .public)")
+        do {
+            let resp = try await apiClient.askRedeem(
+                request: AskRedeemRequest(
+                    transactionId: transactionId,
+                    productId: AskPackProductID.pack15,
+                    userLocalId: UserIdentity.userLocalId
+                )
+            )
+            // 先清档后 finish(崩溃窗口推理同 entitlement 主路径)
+            PendingRedeemStore.remove(txId: transactionId)
+            await transaction.finish()
+            askWallet?.apply(resp.balance)
+            AppLogger.app.info("purchase.askpack.ok tx=\(transactionId, privacy: .public) credits=\(resp.credits, privacy: .public) balance=\(resp.balance, privacy: .public)")
+            return resp.balance
+        } catch {
+            AppLogger.app.error("purchase.askpack.redeem_failed tx=\(transactionId, privacy: .public) error=\(String(describing: error), privacy: .public)")
+            // 防漏单:不 finish + 落 askPack 记录(contentHash/module 无意义填 "")
+            PendingRedeemStore.set(
+                txId: transactionId,
+                .init(
+                    productId: AskPackProductID.pack15,
+                    contentHash: "",
+                    module: "",
+                    kind: .askPack
+                )
+            )
+            throw PurchaseError.backendRedeemFailed(underlying: error)
+        }
     }
 
     // MARK: - 恢复购买(2026-09-27)
@@ -588,6 +767,72 @@ final class PurchaseManager {
         return restoredCount > 0 ? .restored(restoredCount) : .nothingFound
     }
 
+    /// S4c 问事次数包恢复购买。与 restorePurchases 的差异:次数包无
+    /// module 语义(**不进**其硬编码 SKU 集合与 module 守卫——那是
+    /// entitlement 闭包,check_sku_sync ③ 锁定);askRedeem 幂等(服务端
+    /// 台账 transactionId PK,重放 credits=0 返当前余额),恢复失败单笔
+    /// 跳过、真实网络错误整体显错,语义与 restorePurchases 同构。
+    /// Mock:无本地账可查 → .nothingFound。
+    func restoreAskPurchases() async throws -> RestoreOutcome {
+        if apiClient is MockAPIClient {
+            return .nothingFound
+        }
+        AppLogger.app.info("purchase.restore_ask.start product=\(AskPackProductID.pack15, privacy: .public)")
+
+        // AppStore.sync:重投递未完成交易(ask-to-buy 批准/中断购买);
+        // 用户取消静默(对齐 restorePurchases)
+        do {
+            try await AppStore.sync()
+        } catch {
+            if let skError = error as? SKError, skError.code == .paymentCancelled {
+                AppLogger.app.info("purchase.restore_ask.sync_user_cancelled")
+                throw PurchaseError.userCancelled
+            }
+            AppLogger.app.error("purchase.restore_ask.sync_failed error=\(String(describing: error), privacy: .public)")
+            throw PurchaseError.networkFailed(underlying: error)
+        }
+
+        var restoredCount = 0
+        var lastRedeemError: Error?
+        for await result in Transaction.all {
+            guard case .verified(let tx) = result else { continue }
+            guard tx.productID == AskPackProductID.pack15 else { continue }
+            guard tx.revocationDate == nil else { continue }
+            let txId = String(tx.id)
+            do {
+                let resp = try await apiClient.askRedeem(
+                    request: AskRedeemRequest(
+                        transactionId: txId,
+                        productId: tx.productID,
+                        userLocalId: UserIdentity.userLocalId
+                    )
+                )
+                askWallet?.apply(resp.balance)
+                PendingRedeemStore.remove(txId: txId)
+                await tx.finish()
+                restoredCount += 1
+                AppLogger.app.info("purchase.restore_ask.tx_recovered tx=\(txId, privacy: .public) credits=\(resp.credits, privacy: .public)")
+            } catch let apiError as APIError {
+                // 403 ENTITLEMENT_ERROR = 交易已退款:静默跳过(不 finish 不计数,
+                // 与 restorePurchases 同判据)
+                if case .backendError(let code, _, _) = apiError, code == "ENTITLEMENT_ERROR" {
+                    AppLogger.app.info("purchase.restore_ask.tx_skipped_refunded tx=\(txId, privacy: .public)")
+                    continue
+                }
+                lastRedeemError = apiError
+                AppLogger.app.error("purchase.restore_ask.tx_redeem_failed tx=\(txId, privacy: .public) error=\(String(describing: apiError), privacy: .public)")
+            } catch {
+                lastRedeemError = error
+                AppLogger.app.error("purchase.restore_ask.tx_failed tx=\(txId, privacy: .public) error=\(String(describing: error), privacy: .public)")
+            }
+        }
+
+        if restoredCount == 0, let lastRedeemError {
+            throw PurchaseError.backendRedeemFailed(underlying: lastRedeemError)
+        }
+        AppLogger.app.info("purchase.restore_ask.ok restored=\(restoredCount, privacy: .public)")
+        return restoredCount > 0 ? .restored(restoredCount) : .nothingFound
+    }
     /// Apple SKU → entitlement module(对齐后端 `PRODUCT_MODULE_MAP`,双端各一份:
     /// 后端是权威校验,iOS 用它过滤 restore 扫描,防止跨 SKU redeem)。
     /// 改此映射必须同步改后端 map 并跑 `tools/check_sku_sync.py` PASS
@@ -669,6 +914,16 @@ enum PendingRedeemStore {
         let productId: String
         let contentHash: String
         let module: String
+        /// 记录类别(S4c):nil = entitlement(v1 旧档 decodeIfPresent 天然
+        /// 归此——旧 JSON 无 kind 键,解码不崩,listener 走原路径);
+        /// .askPack = 问事次数包(contentHash/module 填 "",listener 据此
+        /// 走 askRedeem 续接)。默认 nil:既有 entitlement 落档调用点零改动。
+        var kind: Kind? = nil
+
+        enum Kind: String, Codable {
+            case entitlement
+            case askPack
+        }
     }
 
     static func get(txId: String) -> Record? {

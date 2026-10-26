@@ -644,10 +644,6 @@ enum L10n {
         /// zh: "+15 问,继续问事"
         static let askBuyEntryCta = String(localized: "dailyfortune.ask.buyEntryCta")
 
-        /// C2 过渡:占位购买墙告知(C3 落真墙后随占位组件一并删除)。
-        /// zh: "次数包购买即将开放"
-        static let askPurchaseSoon = String(localized: "dailyfortune.ask.purchaseSoon")
-
         /// 问事框整体 a11y 标签。zh: "打开问事对话";en: "Open the ask conversation"
         static let askComposerA11y = String(localized: "dailyfortune.ask.composerA11y")
 
@@ -989,6 +985,31 @@ enum L10n {
         /// 「进攻」选中 hint 注。
         /// zh: "高波动换高回报可能";en: "High volatility for a shot at high returns"
         static let riskAggressiveHint = String(localized: "wealthform.risk.aggressive.hint")
+    }
+
+    // MARK: - 问事次数包购买墙(S4c C3)
+
+    /// 问事次数包购买墙文案(消费方 AskPaywallView)。
+    enum AskPaywall {
+        /// zh: "问事次数包";en: "Ask Credit Pack"
+        static let title = String(localized: "paywall.askpack.title")
+
+        /// zh: "拾伍问 · 用完为止 · 不过期"
+        static let subtitle = String(localized: "paywall.askpack.subtitle")
+
+        /// CTA 格式(%@ = StoreKit displayPrice / 兜底价)。
+        /// zh: "+15 问(%@)"
+        static let ctaFormat = String(localized: "paywall.askpack.ctaFormat")
+        static func cta(price: String) -> String {
+            String(format: ctaFormat, price)
+        }
+
+        /// 润金行尾注(消耗型,与「买断制」区隔)。zh: "消耗型 · 用完为止"
+        static let priceNote = String(localized: "paywall.askpack.priceNote")
+
+        /// 说明行:消耗型 + 退款扣回口径(与后端 webhook 行为一致的诚实告知)。
+        /// zh: "次数包为消耗型项目,用完为止;退款按 Apple 政策处理,未用次数将被扣回。"
+        static let note = String(localized: "paywall.askpack.note")
     }
 
     // MARK: - 付费墙时辰未知拦截态(S07,iOS 一期临时态)

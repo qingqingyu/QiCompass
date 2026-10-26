@@ -437,8 +437,9 @@ struct DailyAskChatView: View {
     @ObservedObject var model: DailyAskModel
     @ObservedObject var wallet: AskWalletModel
     let onClose: () -> Void
-    /// 次数尽卡片 CTA → 弹次数包购买墙(S4c;C3 换真墙,现为占位 sheet)
+    /// 次数尽卡片 CTA → 弹次数包购买墙(S4c C3:AskPaywallView 真墙)
     @State private var showAskPaywall = false
+    @EnvironmentObject private var env: AppEnvironment
 
     /// AI 侧气泡形状(含 typing):尾角左下。HTML CSS `16px 16px 16px 4px`
     /// 顺序是 TL,TR,BR,BL → SwiftUI 元组须重排为 topLeading,
@@ -503,12 +504,15 @@ struct DailyAskChatView: View {
                 model.resetCreditsExhausted()
             }
         }
-        // 次数包购买墙(C3 接真墙;本片占位诚实告知购买入口将开)
+        // 次数包购买墙(S4c C3):买成功 dismiss,余额回写由 PurchaseManager
+        // 直写 wallet → 上方 onChange 收起 402 卡片
         .sheet(isPresented: $showAskPaywall) {
-            AskPaywallPlaceholder()
-                .presentationDetents([.medium])
-                .presentationBackground(BaziTheme.cardSurface)
-                .presentationDragIndicator(.visible)
+            AskPaywallView(
+                viewModel: AskPaywallViewModel(
+                    purchaseManager: env.purchaseManager,
+                    onPurchaseSuccess: { showAskPaywall = false }
+                )
+            )
         }
     }
 
@@ -599,29 +603,6 @@ struct DailyAskChatView: View {
                 Spacer(minLength: 64)
             }
             .accessibilityElement(children: .contain)
-        }
-    }
-
-    /// S4c C2 过渡占位购买墙(C3 换真墙):印章头 + 诚实告知——不伪造
-    /// 可购买假象。internal:聊天页与今日页问事框 0 次态两处共用;
-    /// C3 落 AskPaywallView 后本 struct 删除。
-    struct AskPaywallPlaceholder: View {
-        var body: some View {
-            VStack(spacing: BaziTheme.Spacing.md) {
-                SealStamp(character: "问", size: 34, rotation: -4, stampDelay: 0.2)
-                Text(L10n.DailyFortune.askCreditsTitle)
-                    .font(BaziFont.display(size: 17))
-                    .tracking(2)
-                    .foregroundStyle(BaziTheme.ink)
-                Text(L10n.DailyFortune.askPurchaseSoon)
-                    .font(BaziFont.caption(size: 11.5))
-                    .tracking(1)
-                    .foregroundStyle(BaziTheme.inkMuted)
-                    .multilineTextAlignment(.center)
-            }
-            .frame(maxWidth: .infinity)
-            .padding(.top, BaziTheme.Spacing.md)
-            .padding(.bottom, BaziTheme.Spacing.lg)
         }
     }
 
