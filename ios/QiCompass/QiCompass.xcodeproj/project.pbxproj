@@ -92,6 +92,7 @@
 		9C0000000000000000000044 /* PurchaseManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000044 /* PurchaseManager.swift */; };
 		9C0000000000000000000045 /* PaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000045 /* PaywallView.swift */; };
 		9C0000000000000000000046 /* PaywallViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000046 /* PaywallViewModel.swift */; };
+		9C00000000000000000000F9 /* AskPaywallView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C10000000000000000000F9 /* AskPaywallView.swift */; };
 		9C0000000000000000000050 /* ProfileView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000050 /* ProfileView.swift */; };
 		9C0000000000000000000051 /* AliasEditView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000051 /* AliasEditView.swift */; };
 		9C0000000000000000000052 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000052 /* KeychainHelper.swift */; };
@@ -163,6 +164,7 @@
 		A0000000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */; };
 		A00000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */; };
 		A00000000000000000000016 /* Paywall/PaywallContractStepTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000016 /* Paywall/PaywallContractStepTests.swift */; };
+		A00000000000000000000053 /* Paywall/AskPackRedeemTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000053 /* Paywall/AskPackRedeemTests.swift */; };
 		A00000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */; };
 		A00000000000000000000017 /* DailyFortune/DailyImageHeroCopyTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000017 /* DailyFortune/DailyImageHeroCopyTests.swift */; };
 		A00000000000000000000022 /* DailyFortune/DailyFortuneFailureFallbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000022 /* DailyFortune/DailyFortuneFailureFallbackTests.swift */; };
@@ -290,6 +292,7 @@
 		9C1000000000000000000044 /* PurchaseManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PurchaseManager.swift; path = QiCompass/Services/PurchaseManager.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000045 /* PaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PaywallView.swift; path = QiCompass/Features/Paywall/PaywallView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000046 /* PaywallViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PaywallViewModel.swift; path = QiCompass/Features/Paywall/PaywallViewModel.swift; sourceTree = SOURCE_ROOT; };
+		9C10000000000000000000F9 /* AskPaywallView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AskPaywallView.swift; path = QiCompass/Features/Paywall/AskPaywallView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000048 /* Products.storekit */ = {isa = PBXFileReference; lastKnownFileType = text.json.storekit; name = Products.storekit; path = QiCompass/Products.storekit; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000050 /* ProfileView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ProfileView.swift; path = QiCompass/Features/Profile/ProfileView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000051 /* AliasEditView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = AliasEditView.swift; path = QiCompass/Features/Profile/AliasEditView.swift; sourceTree = SOURCE_ROOT; };
@@ -357,6 +360,7 @@
 		A1100000000000000000000F /* Shared/DeepAnalysisArchiveLoadTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeepAnalysisArchiveLoadTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paywall/PaywallHourUnknownGateTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000016 /* Paywall/PaywallContractStepTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paywall/PaywallContractStepTests.swift; sourceTree = "<group>"; };
+		A11000000000000000000053 /* Paywall/AskPackRedeemTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Paywall/AskPackRedeemTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFortune/DailyFortuneHourUnknownGateTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000017 /* DailyFortune/DailyImageHeroCopyTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFortune/DailyImageHeroCopyTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000022 /* DailyFortune/DailyFortuneFailureFallbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DailyFortune/DailyFortuneFailureFallbackTests.swift; sourceTree = "<group>"; };
@@ -423,6 +427,7 @@
 				9C1000000000000000000057 /* SyncManager.swift */,
 				9C1000000000000000000045 /* PaywallView.swift */,
 				9C1000000000000000000046 /* PaywallViewModel.swift */,
+				9C10000000000000000000F9 /* AskPaywallView.swift */,
 				9C4000000000000000000002 /* QiCompass */,
 				9C400000000000000000000E /* Products */,
 				A40000000000000000000001 /* Tests */,
@@ -697,6 +702,7 @@ A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				9C4F1A2B3C5D7E9F0A1B2C3D /* Shared/AppLanguageTests.swift */,
 				A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */,
 				A11000000000000000000016 /* Paywall/PaywallContractStepTests.swift */,
+				A11000000000000000000053 /* Paywall/AskPackRedeemTests.swift */,
 				A11000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift */,
 				A11000000000000000000017 /* DailyFortune/DailyImageHeroCopyTests.swift */,
 				A11000000000000000000022 /* DailyFortune/DailyFortuneFailureFallbackTests.swift */,
@@ -959,6 +965,7 @@ A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				9C0000000000000000000044 /* PurchaseManager.swift in Sources */,
 				9C0000000000000000000045 /* PaywallView.swift in Sources */,
 				9C0000000000000000000046 /* PaywallViewModel.swift in Sources */,
+				9C00000000000000000000F9 /* AskPaywallView.swift in Sources */,
 				9C0000000000000000000060 /* ZodiacHelper.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -994,6 +1001,7 @@ A0000000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				A00000000000000000000021 /* Shared/ZodiacRevealTests.swift in Sources */,
 				A00000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift in Sources */,
 				A00000000000000000000016 /* Paywall/PaywallContractStepTests.swift in Sources */,
+				A00000000000000000000053 /* Paywall/AskPackRedeemTests.swift in Sources */,
 				A00000000000000000000012 /* DailyFortune/DailyFortuneHourUnknownGateTests.swift in Sources */,
 				A00000000000000000000017 /* DailyFortune/DailyImageHeroCopyTests.swift in Sources */,
 				A00000000000000000000022 /* DailyFortune/DailyFortuneFailureFallbackTests.swift in Sources */,

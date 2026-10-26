@@ -2978,29 +2978,6 @@
         }
       }
     },
-    "dailyfortune.ask.purchaseSoon" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Credit packs are coming soon"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "次数包购买即将开放"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "次數包購買即將開放"
-          }
-        }
-      }
-    },
     "dailyfortune.ask.replyContextExpired" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -10982,6 +10959,121 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "時辰未知 · 完整解讀暫不可購"
+          }
+        }
+      }
+    },
+    "paywall.askpack.ctaFormat" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+15 questions (%@)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+15 问(%@)"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "+15 問(%@)"
+          }
+        }
+      }
+    },
+    "paywall.askpack.note" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Credits are consumable and never expire. Refunds follow Apple's policy; unused credits are clawed back."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "次数包为消耗型项目,用完为止;退款按 Apple 政策处理,未用次数将被扣回。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "次數包為消耗型項目,用完為止;退款按 Apple 政策處理,未用次數將被扣回。"
+          }
+        }
+      }
+    },
+    "paywall.askpack.priceNote" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Consumable · use till gone"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "消耗型 · 用完为止"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "消耗型 · 用完為止"
+          }
+        }
+      }
+    },
+    "paywall.askpack.subtitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Fifteen questions · use anytime · never expires"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拾伍问 · 用完为止 · 不过期"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拾伍問 · 用完為止 · 不過期"
+          }
+        }
+      }
+    },
+    "paywall.askpack.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Ask Credit Pack"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "问事次数包"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "問事次數包"
           }
         }
       }

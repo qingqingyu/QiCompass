@@ -354,7 +354,7 @@ struct DailyFortuneMainView: View {
                             askModel?.sendOffer(question)
                             chatPresented = true
                         },
-                        // S4c 0 次加购形态:点卡弹购买墙(占位,C3 换真墙)
+                        // S4c 0 次加购形态:点卡弹次数包购买墙(C3 真墙)
                         onBuyPack: { showAskPaywall = true }
                     )
                     .padding(.horizontal, 14)
@@ -369,13 +369,15 @@ struct DailyFortuneMainView: View {
                 value: askComposerVisible
             )
         }
-        // S4c 问事框 0 次态购买墙(与聊天页内 sheet 各自独立 present;
-        // C3 换真墙)
+        // S4c 问事框 0 次态购买墙(AskPaywallView 真墙;买成功 dismiss,
+        // 余额经 wallet 回写 → 问事框自动退出加购形态)
         .sheet(isPresented: $showAskPaywall) {
-            DailyAskChatView.AskPaywallPlaceholder()
-                .presentationDetents([.medium])
-                .presentationBackground(BaziTheme.cardSurface)
-                .presentationDragIndicator(.visible)
+            AskPaywallView(
+                viewModel: AskPaywallViewModel(
+                    purchaseManager: env.purchaseManager,
+                    onPurchaseSuccess: { showAskPaywall = false }
+                )
+            )
         }
         // S4 ② 聊天页:整页拉起,无 tab 栏;关闭后在底部则问事框重新滑出
         // (可见性计算含 chatPresented,fullScreenCover dismiss 自然重算)。
