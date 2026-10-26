@@ -20,6 +20,15 @@
       "type" : "Consumable",
       "id" : "com.qicompass.compatibility.single",
       "description" : "Single compatibility unlock (per compatibility_hash)"
+    },
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "B0AEBADA-0003-4QIC-OMPA-SS000000003",
+      "referenceName" : "Daily Ask Pack 15",
+      "type" : "Consumable",
+      "id" : "com.qicompass.daily_ask.pack15",
+      "description" : "15 daily-ask credits (global wallet, never expires)"
     }
   ]
 }

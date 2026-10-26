@@ -62,4 +62,16 @@ extension APIError {
         }
         return code == "QUOTA_EXCEEDED"
     }
+
+    /// 后端 402 ASK_CREDITS_REQUIRED 判定(S4c,2026-10-26):问事次数尽
+    /// (试用 3 次 + 钱包余额皆空;新身份被 DeviceCheck / IP 限铸拦同码)。
+    /// 后端把三种触发共用一个 code,iOS 只需一个分支:聊天内嵌「次数已
+    /// 用完」购买卡片,**不得**走通用失败气泡(重试必再 402,无意义)。
+    /// 购买次数包不铸造新身份,买后即解锁——402 仍是对的出口。
+    static func isAskCreditsRequired(_ error: Error) -> Bool {
+        guard case .backendError(let code, _, _)? = error as? APIError else {
+            return false
+        }
+        return code == "ASK_CREDITS_REQUIRED"
+    }
 }
