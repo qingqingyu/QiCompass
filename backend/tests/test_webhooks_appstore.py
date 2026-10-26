@@ -221,3 +221,68 @@ async def test_webhook_lowercase_type_handled(
     # 小写不在 set 里 → 走 unhandled_type 路径,表不动
     # 测试若实际期待小写也处理,需要在 webhooks.py 加 .upper()
     # 现状:遵循 Apple 实际返回大写,不主动兼容小写
+
+
+# ===== 问事次数包退款联动(S4b-3,2026-10-26)=====
+
+
+@pytest.fixture
+def tmp_ask_store(tmp_path):
+    """webhook 测试专用 ask store(隔离模块级默认实例)。"""
+    from app.ask.store import AskCreditsStore
+    store = AskCreditsStore(str(tmp_path / "test_webhook_ask.db"))
+    store.init_schema()
+    return store
+
+
+async def test_webhook_refund_deducts_ask_credits(
+    webhook_client, mock_apple_notification, tmp_entitlement_store,
+    tmp_ask_store,
+):
+    """REFUND 问事次数包:钱包按剩余余额扣回(≤credits,下限 0);
+    entitlement 无此单不互抢;二次 webhook 幂等。"""
+    saved = app.state.ask_store
+    app.state.ask_store = tmp_ask_store
+    try:
+        tmp_ask_store.redeem_credits(
+            owner="ulid:user-1", transaction_id="tx-001", credits=15,
+            purchased_at="2026-10-25T00:00:00+00:00")
+        for _ in range(5):  # 已花 5,余 10
+            tmp_ask_store.try_consume(owner="ulid:user-1")
+        assert tmp_ask_store.get_balance(owner="ulid:user-1") == 10
+
+        resp = await webhook_client.post(
+            "/api/webhooks/appstore", content="fake-jws")
+        assert resp.status_code == 200
+        # 扣回 min(余额 10, 单量 15) = 10 → 0(已消耗的 5 不追负)
+        assert tmp_ask_store.get_balance(owner="ulid:user-1") == 0
+
+        # 二次同 tx webhook:refund_purchase 幂等返 0,仍 200,余额不动
+        r2 = await webhook_client.post(
+            "/api/webhooks/appstore", content="fake-jws")
+        assert r2.status_code == 200
+        assert tmp_ask_store.get_balance(owner="ulid:user-1") == 0
+    finally:
+        app.state.ask_store = saved
+
+
+async def test_webhook_ask_refund_failure_500(
+    webhook_client, mock_apple_notification,
+):
+    """ask 扣回写库失败 → 500 让 Apple 重试(entitlement 已 deactivate,
+    refund_purchase 幂等使重试安全)——Apple 重试契约的端点级回归锚点。"""
+
+    class _BoomAskStore:
+        def refund_purchase(self, *, transaction_id: str) -> int:
+            raise RuntimeError("simulated sqlite failure")
+
+    saved = app.state.ask_store
+    app.state.ask_store = _BoomAskStore()
+    try:
+        resp = await webhook_client.post(
+            "/api/webhooks/appstore", content="fake-jws")
+        assert resp.status_code == 500
+        assert (resp.json()["error"]["code"]
+                == "INTERPRETATION_CACHE_ERROR")
+    finally:
+        app.state.ask_store = saved

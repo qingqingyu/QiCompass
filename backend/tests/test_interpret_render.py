@@ -90,12 +90,14 @@ def test_daily_fortune_render_replaces_placeholders():
 
 
 def test_three_modules_all_fields_required():
-    """十五 module(老 7 + v1 8)的 REQUIRED_FIELDS 非空;bazi_deep / compatibility 系列(alias/_free/_paid)各共享字段清单。"""
+    """十六 module(老 8 + v1 8)的 REQUIRED_FIELDS 非空;bazi_deep / compatibility 系列(alias/_free/_paid)各共享字段清单。"""
     assert set(REQUIRED_FIELDS.keys()) == {
         # 老 module
         "bazi_deep", "bazi_deep_free", "bazi_deep_paid",
         "compatibility", "compatibility_free", "compatibility_paid",
         "daily_fortune",
+        # 问事窗(S4b 2026-10-25):盘面字段清单与 daily_fortune 同引用
+        "daily_ask",
         # v1 prompt 系统(Stage 5 落地)
         "m0_structure", "m1_talent", "m2_high_low", "m3_system",
         "m4_health", "m5_wealth", "m6_dynamics", "m7_manual",

@@ -103,7 +103,7 @@ async def appstore_webhook(request: Request) -> Response:
         logger.info("webhook.unhandled_type %s (skipped)", log_ctx)
         return Response(status_code=200)
 
-    # REFUND / REVOKE → deactivate entitlement
+    # REFUND / REVOKE → deactivate entitlement + 问事次数包退款扣回
     reason = "refund" if ntype == "REFUND" else "revoke"
     now_iso = datetime.now(timezone.utc).replace(microsecond=0).isoformat()
     try:
@@ -122,8 +122,33 @@ async def appstore_webhook(request: Request) -> Response:
             request_id=request_id,
         ) from e
 
+    # entitlement 侧结果先落日志再进 ask 扣回——ask 扣回失败抛 500 时,
+    # deactivate 事实不因后续异常丢日志(法证完整)
     logger.info(
         "webhook.deactivated %s reason=%s updated=%s",
         log_ctx, reason, updated,
     )
+
+    # 问事次数包退款(2026-10-25 S4b-3):同一 transaction 也可能是问事
+    # 次数包(独立 ask_purchases 台账)。refund_purchase 幂等——非问事单
+    # 返回 0,不与 entitlement deactivate 互抢。REFUND 扣回;REVOKE 同扣
+    # (家庭共享撤销,次数包 v1 未开家庭共享,防御性同路径)。
+    try:
+        ask_refunded = await run_in_threadpool(
+            request.app.state.ask_store.refund_purchase,
+            transaction_id=tx_id,
+        )
+    except Exception as e:
+        # entitlement 已 deactivate;ask 扣回失败 → 500 让 Apple 重试
+        # (refund_purchase 幂等,重试安全;ask 行 refunded_at 未置即重试有效)
+        logger.exception(
+            "webhook.ask_refund_failed %s error=%r", log_ctx, e)
+        raise InterpretationCacheError(
+            f"问事次数包退款失败({type(e).__name__}): {e}",
+            request_id=request_id,
+        ) from e
+    if ask_refunded:
+        logger.info(
+            "webhook.ask_refunded %s credits_back=%s", log_ctx, ask_refunded)
+
     return Response(status_code=200)
