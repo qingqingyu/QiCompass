@@ -54,22 +54,28 @@ struct DailyFortuneMainView: View {
     @State private var chatPresented = false
     /// S4c 问事框 0 次态的购买墙 sheet(C3 换真墙)。
     @State private var showAskPaywall = false
-    /// 内容底(含 32pt 呼吸留白)在滚动坐标系里的 y——探针经 PreferenceKey 回传。
-    @State private var contentBottomInScroll: CGFloat = 0
-    /// 滚动视口高(overlay GeometryReader 回传;距底剩余 = 内容底 − 视口高)。
-    @State private var scrollViewportHeight: CGFloat = 0
+    /// 距底探针原始值 + 过阈布尔。原始几何放引用型 probe(属性写入不触发
+    /// 视图失效),@State 只存过阈结果——探针值随滚动逐帧变化,直写 @State
+    /// 会让整页 body 随滚动帧率重算(2026-10-27 实现审查 P1 修复);过阈
+    /// (64pt 阈值两侧)才写 askAtBottom,body 只在跨越时失效一次。
+    @State private var probe = TodayScrollProbe()
+    @State private var askAtBottom = false
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
 
-    /// 问事框可见性(DailyAskPresentation 纯函数,测试锁定)。探针几何值
-    /// 未回传前(viewport=0,remaining 按 0−0 算成 0 < 64)视为不可见——
-    /// 否则进页首帧在顶部也会假判「在底部」闪出问事框。
+    /// 问事框可见性 = 几何过阈布尔(探针回传时已算好,含 viewport>0 首帧
+    /// 守卫,见 TodayScrollProbe.atBottom)× 聊天页拉起强制收起
+    /// (chatPresented 是离散事件,body 侧合并即随动)。
     private var askComposerVisible: Bool {
-        scrollViewportHeight > 0
-            && DailyAskPresentation.composerVisible(
-                remainingToBottom: contentBottomInScroll - scrollViewportHeight,
-                isChatPresented: chatPresented
-            )
+        askAtBottom && !chatPresented
+    }
+
+    /// 探针原始值更新后的过阈判定:只在跨越阈值时写 @State。
+    private func updateAskAtBottom() {
+        let atBottom = probe.atBottom()
+        if atBottom != askAtBottom {
+            askAtBottom = atBottom
+        }
     }
 
     /// 同步问事模型:首建 / 换盘换日重建 / 同盘且未开口时随解读态刷新。
@@ -319,7 +325,10 @@ struct DailyFortuneMainView: View {
             }
         }
         .coordinateSpace(name: Self.scrollSpace)
-        .onPreferenceChange(TodayContentBottomKey.self) { contentBottomInScroll = $0 }
+        .onPreferenceChange(TodayContentBottomKey.self) {
+            probe.contentBottom = $0
+            updateAskAtBottom()
+        }
         // S4 视口高:距底剩余 = 内容底 − 视口高;尺寸变化(旋转/分屏)同步。
         // allowsHitTesting(false) 同底部探针——本层铺满 ScrollView 正面且
         // 纯测量,Color.clear 可命中,不关会截走全部内容点按(全仓前层
@@ -327,9 +336,13 @@ struct DailyFortuneMainView: View {
         .overlay(
             GeometryReader { geo in
                 Color.clear
-                    .onAppear { scrollViewportHeight = geo.size.height }
+                    .onAppear {
+                        probe.viewportHeight = geo.size.height
+                        updateAskAtBottom()
+                    }
                     .onChange(of: geo.size.height) { _, height in
-                        scrollViewportHeight = height
+                        probe.viewportHeight = height
+                        updateAskAtBottom()
                     }
             }
             .allowsHitTesting(false)
@@ -487,6 +500,26 @@ private struct TodayScrollEdge: ViewModifier {
         #else
         content
         #endif
+    }
+}
+
+// MARK: - S4 距底探针原始值持有者(2026-10-27 审查 P1 修复)
+
+/// 引用类型持有探针原始几何:属性写入不触发视图失效,过阈布尔才进 @State。
+/// atBottom 内含 viewport>0 守卫——几何未回传前(remaining 按 0−0 算成
+/// 0 < 64)不假判「在底部」,进页首帧在顶部不闪问事框(原 @State 版口径
+/// 原样保留)。isChatPresented 由 body 侧合并,此处恒传 false(纯几何判定)。
+@MainActor
+private final class TodayScrollProbe {
+    var contentBottom: CGFloat = 0
+    var viewportHeight: CGFloat = 0
+
+    func atBottom() -> Bool {
+        viewportHeight > 0
+            && DailyAskPresentation.composerVisible(
+                remainingToBottom: contentBottom - viewportHeight,
+                isChatPresented: false
+            )
     }
 }
 

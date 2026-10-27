@@ -552,6 +552,9 @@ struct DailyAskChatView: View {
             }
             .buttonStyle(.plain)
             .accessibilityLabel(L10n.DailyFortune.askCloseA11y)
+            // HIG 命中目标 44pt(2026-10-27 审查 H2):视觉 30pt 圈不动,
+            // contentShape 负向外扩热区到 44——不改布局不碰视觉
+            .contentShape(Rectangle().inset(by: -7))
         }
         .padding(.horizontal, 20)
         .padding(.top, 10)
@@ -595,6 +598,9 @@ struct DailyAskChatView: View {
                     }
                     .buttonStyle(.plain)
                     .padding(.top, 4)
+                    // HIG 命中目标 44pt(2026-10-27 审查 H2):视觉 chip ~30pt
+                    // 不动,热区外扩;上方是说明文字(不可点),重叠无副作用
+                    .contentShape(Rectangle().inset(by: -7))
                 }
                 .padding(.horizontal, 14)
                 .padding(.vertical, 11)
@@ -726,6 +732,8 @@ struct DailyAskChatView: View {
             .disabled(!canSend)
             .opacity(canSend ? 1 : 0.3)
             .accessibilityLabel(L10n.DailyFortune.askSendA11y)
+            // HIG 命中目标 44pt(2026-10-27 审查 H2):视觉 40pt 圆不动,外扩 2pt
+            .contentShape(Rectangle().inset(by: -2))
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)
