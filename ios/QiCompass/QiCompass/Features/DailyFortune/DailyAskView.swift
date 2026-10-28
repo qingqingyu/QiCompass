@@ -59,8 +59,11 @@ struct ServicePendingAskAnswerer: DailyAskAnswering {
 /// 问事对话模型:开场消息 + 候选问题 + 消息流。宿主 DailyFortuneMainView
 /// 持有(@State),换日/换盘重建(对话随旧盘走),用户开口后(pristine 之外)
 /// 不再因解读态变化被重置。
+/// (2026-10-28 审查 P2:ObservableObject → @Observable,与全仓 5 个
+/// ViewModel 统一;聊天页因 $model.draft 用 @Bindable 注入)
+@Observable
 @MainActor
-final class DailyAskModel: ObservableObject {
+final class DailyAskModel {
     enum Role {
         case ai
         case user
@@ -73,16 +76,16 @@ final class DailyAskModel: ObservableObject {
     }
 
     /// 消息流(首条恒为 AI 开场白)。
-    @Published private(set) var messages: [Message]
+    private(set) var messages: [Message]
     /// 剩余候选问题(首发即收——HTML offers 用过即删,不占对话流)。
-    @Published private(set) var offers: [String]
+    private(set) var offers: [String]
     /// 输入框草稿(空白/作答中发送为 no-op,草稿保留不误清)。
-    @Published var draft: String = ""
+    var draft: String = ""
     /// 作答在飞(HTML busy 守卫:在飞期间新发送一律忽略)。
-    @Published private(set) var isAnswering = false
+    private(set) var isAnswering = false
     /// 次数已用尽(402 ASK_CREDITS_REQUIRED 或本地余额 0 短路):聊天流
     /// 内嵌购买卡片;购买成功(余额 >0)由聊天页 onChange 复位。
-    @Published private(set) var creditsExhausted = false
+    private(set) var creditsExhausted = false
 
     /// sheet 副题「辛未日 · 比肩」。
     let contextLine: String
@@ -92,7 +95,8 @@ final class DailyAskModel: ObservableObject {
     let composerChips: [String]
 
     private let answerer: DailyAskAnswering
-    /// 问事钱包(AppEnvironment 强持有,weak 防环;nil = 测试无钱包注入)
+    /// 问事钱包(weak 表达所有权归 AppEnvironment——模型不延长钱包生命
+    /// 周期;@Observable 的观察本身不持引用,weak 不再是防观察环;nil = 测试无钱包注入)
     weak var wallet: AskWalletModel?
 
     init(
@@ -187,8 +191,8 @@ final class DailyAskModel: ObservableObject {
     }
 
     /// 购买成功(余额 >0)后由聊天页调用:收起购买卡片,对话可继续
-    /// (外部主动复位而非模型自监听——模型不持有 wallet 的强引用,
-    /// 避免ObservableObject 双向耦合)。
+    /// (外部主动复位而非模型自监听——@Observable 观察不产生循环引用,
+    /// 不自监听是职责单一:模型管对话态,钱包归 AppEnvironment)。
     func resetCreditsExhausted() {
         creditsExhausted = false
     }
@@ -284,7 +288,7 @@ extension DailyAskModel {
 /// balance == 0 整卡切换加购形态(次数用完,点卡 = 弹购买墙,不进聊天)。
 struct DailyAskComposerCard: View {
     let model: DailyAskModel
-    @ObservedObject var wallet: AskWalletModel
+    let wallet: AskWalletModel
     let onOpen: () -> Void
     let onQuickAsk: (String) -> Void
     /// 0 次加购形态点卡入口(S4c:弹次数包购买墙;C3 换真墙)
@@ -385,12 +389,14 @@ struct DailyAskComposerCard: View {
             if !items.isEmpty {
                 ViewThatFits(in: .horizontal) {
                     HStack(spacing: 7) {
-                        ForEach(Array(items.enumerated()), id: \.offset) { _, q in
+                        // 身份用内容而非位置(2026-10-28 审查 P3):offers
+                        // 用后清/被 followUps 替换,offset 身份在行获状态时会咬人
+                        ForEach(items, id: \.self) { q in
                             chip(q)
                         }
                     }
                     VStack(alignment: .leading, spacing: 7) {
-                        ForEach(Array(items.enumerated()), id: \.offset) { _, q in
+                        ForEach(items, id: \.self) { q in
                             chip(q)
                         }
                     }
@@ -434,8 +440,8 @@ struct DailyAskComposerCard: View {
 /// 问题 + 次数尽内嵌购买卡 + 输入栏。作答在飞显示三点输入指示;新消息
 /// 自动滚到底(短对话 plain VStack,scrollTo 惰性坑不涉及)。
 struct DailyAskChatView: View {
-    @ObservedObject var model: DailyAskModel
-    @ObservedObject var wallet: AskWalletModel
+    @Bindable var model: DailyAskModel
+    let wallet: AskWalletModel
     let onClose: () -> Void
     /// 次数尽卡片 CTA → 弹次数包购买墙(S4c C3:AskPaywallView 真墙)
     @State private var showAskPaywall = false
@@ -676,7 +682,8 @@ struct DailyAskChatView: View {
 
     private var offerList: some View {
         VStack(spacing: 8) {
-            ForEach(Array(model.offers.enumerated()), id: \.offset) { _, question in
+            // 身份用内容而非位置(2026-10-28 审查 P3,同 chips 处口径)
+            ForEach(model.offers, id: \.self) { question in
                 Button {
                     model.sendOffer(question)
                 } label: {

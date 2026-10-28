@@ -1,5 +1,6 @@
 import DeviceCheck
 import Foundation
+import Observation
 
 // MARK: - 作答返回(S4c,协议载荷)
 
@@ -121,10 +122,13 @@ struct DailyAskContext: Sendable {
 /// 问事次数余额(试用 3 次 + 次数包合计,不绑盘不绑日永不过期)。
 /// AppEnvironment 级持有(MainView 换盘/换日重建不丢);server 是单一
 /// 事实源,内存只缓存最近值——每次作答响应 / 赎回 / 首查都回写。
+/// (2026-10-28 审查 P2:ObservableObject → @Observable,与全仓 5 个
+/// ViewModel 统一;消费侧 plain let 持有即按属性观察)
+@Observable
 @MainActor
-final class AskWalletModel: ObservableObject {
+final class AskWalletModel {
     /// nil = 未查询(UI 不显示余额签);0 = 耗尽(问事框切加购形态)
-    @Published private(set) var balance: Int?
+    private(set) var balance: Int?
 
     private let apiClient: APIClient
     /// DeviceCheck token 供给(默认真实现;测试注入假供给——模拟器不支持
