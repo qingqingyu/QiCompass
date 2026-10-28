@@ -2,11 +2,14 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
+	<!-- 禁止加回 com.apple.developer.devicecheck:iOS 的 DCDevice 不查该
+	     entitlement(SDK 头文件只要求 App ID 注册在开发者账号下),而
+	     Xcode 自动签名无法把它写进 provisioning profile(DVTPortal 能力
+	     目录无此 key)→ 真机签名必报 "not valid entitlement"。它是 Mac
+	     Catalyst 侧的要求。防重装指纹不受影响,后端验签走 .p8 Key。 -->
 	<key>com.apple.developer.applesignin</key>
 	<array>
 		<string>Default</string>
 	</array>
-	<key>com.apple.developer.devicecheck</key>
-	<true/>
 </dict>
 </plist>
