@@ -109,6 +109,7 @@
 		9C000000000000000000005A /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005A /* L10n.swift */; };
 		9C000000000000000000005B /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005B /* Localizable.xcstrings */; };
 		9C000000000000000000005C /* cities.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005C /* cities.sqlite */; };
+		9C0000000000000000000FF /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000FF /* PrivacyInfo.xcprivacy */; };
 		9C00000000000000000000F3 /* QiSongti-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000F3 /* QiSongti-Regular.otf */; };
 		9C00000000000000000000F5 /* LICENSE-SourceHanSerif-OFL.txt in Resources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000F5 /* LICENSE-SourceHanSerif-OFL.txt */; };
 		9C00000000000000000000F6 /* QiSongtiTC-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000F6 /* QiSongtiTC-Regular.otf */; };
@@ -310,6 +311,7 @@
 		9C100000000000000000005A /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = L10n.swift; path = QiCompass/L10n/L10n.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000005B /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
 		9C100000000000000000005C /* cities.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = cities.sqlite; sourceTree = "<group>"; };
+		9C1000000000000000000FF /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml.xcprivacy; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		9C1000000000000000000F3 /* QiSongti-Regular.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = QiSongti-Regular.otf; sourceTree = "<group>"; };
 		9C1000000000000000000F5 /* LICENSE-SourceHanSerif-OFL.txt */ = {isa = PBXFileReference; lastKnownFileType = text; path = LICENSE-SourceHanSerif-OFL.txt; sourceTree = "<group>"; };
 		9C1000000000000000000F6 /* QiSongtiTC-Regular.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = QiSongtiTC-Regular.otf; sourceTree = "<group>"; };
@@ -640,6 +642,7 @@
 				9C100000000000000000001A /* Assets.xcassets */,
 				9C100000000000000000005B /* Localizable.xcstrings */,
 				9C100000000000000000005C /* cities.sqlite */,
+				9C1000000000000000000FF /* PrivacyInfo.xcprivacy */,
 				9C1000000000000000000F3 /* QiSongti-Regular.otf */,
 				9C1000000000000000000F5 /* LICENSE-SourceHanSerif-OFL.txt */,
 				9C1000000000000000000F6 /* QiSongtiTC-Regular.otf */,
@@ -813,6 +816,7 @@ A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				9C000000000000000000001A /* Assets.xcassets in Resources */,
 				9C000000000000000000005B /* Localizable.xcstrings in Resources */,
 				9C000000000000000000005C /* cities.sqlite in Resources */,
+				9C0000000000000000000FF /* PrivacyInfo.xcprivacy in Resources */,
 				9C00000000000000000000F3 /* QiSongti-Regular.otf in Resources */,
 				9C00000000000000000000F5 /* LICENSE-SourceHanSerif-OFL.txt in Resources */,
 				9C00000000000000000000F6 /* QiSongtiTC-Regular.otf in Resources */,
