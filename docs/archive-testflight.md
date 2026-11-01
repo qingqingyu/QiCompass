@@ -70,7 +70,8 @@ Organizer 里选刚生成的 archive → 右上 **Distribute App** → 选 **App
    - **Other User Content** — 出生信息:发往后端排盘与 LLM 生成解读;登录后 `SyncManager.push` 上传命盘到后端
    - **User ID** — Sign in with Apple 用户 ID
    - **Purchase History** — entitlement / ask_credits 购买记录
-   - 用途均为 App Functionality;登录后与身份关联(Linked=是);**不用于追踪**(NSPrivacyTracking=false,无追踪域名)
+   - **Product Interaction**(TASK-06)— TelemetryDeck 匿名埋点(随机会话 ID,不关联身份);用途 Analytics、Linked=否、不追踪
+   - 其余三项用途均为 App Functionality;登录后与身份关联(Linked=是);**全部不用于追踪**(NSPrivacyTracking=false,无追踪域名)
 3. 首次 external tester build 需 **beta review**(~1 天);内部测试组免 review
 
 ---

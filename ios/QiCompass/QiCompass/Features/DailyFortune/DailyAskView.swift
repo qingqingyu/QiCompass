@@ -136,10 +136,17 @@ final class DailyAskModel: ObservableObject {
         // 本地 0 余额短路:不出网(必 402 的往返没有意义),置购买卡片态;
         // 消息不入流——问题还没被回答,买完原话还在草稿/候选里可再发
         if wallet?.balance == 0 {
-            creditsExhausted = true
+            if !creditsExhausted {
+                creditsExhausted = true
+                // TASK-06:余额打空瞬间记一次(试用尽 → 转化观察;置位幂等防重)
+                Analytics.askTrialExhausted()
+            }
             return false
         }
         offers = []
+        // TASK-06:paid 为保守代理——余额>试用上限(3)必含购买次数;余额≤3
+        // 记 trial(已花掉购买的会低估 paid,漏报不虚报;单一钱包无法逐次归因)
+        Analytics.askSent(paid: (wallet?.balance ?? 0) > 3)
         // 对话上文:排除开场白(它不是对话回合),截末 20 轮(服务端整单
         // >20 轮 422,只注入末 6 轮——客户端保末 20 给模型足量记忆)
         let history = messages.dropFirst().suffix(20).map { message in

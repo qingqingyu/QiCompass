@@ -62,6 +62,11 @@ struct PaywallView: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .task { await viewModel.loadProduct() }
+        .onAppear {
+            Analytics.paywallShown(source: (
+                viewModel.module.productId.contains("compatibility") ? .compat : .deep
+            ))
+        }
     }
 
     // MARK: - 账号绑定派生(2026-09-27 匿名购买:登录从购买前置降级为可选绑定)
@@ -187,6 +192,7 @@ struct PaywallView: View {
         VStack(spacing: BaziTheme.Spacing.sm) {
             Button {
                 HapticEngine.light()
+                Analytics.restoreTapped()
                 Task { await viewModel.restore() }
             } label: {
                 Text(viewModel.restoreState == .restoring ? String(localized: "恢复中…") : String(localized: "恢复购买"))

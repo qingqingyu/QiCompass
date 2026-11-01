@@ -522,6 +522,14 @@ struct ProfileView: View {
             }
             .onChange(of: languageOverride) { _, newValue in
                 applyLanguageOverride(newValue)
+                // TASK-06:显式选语言才记(跟随系统档不记);Override 档位值
+                // (zh/zh-hant/en)与上报 Language 值(zh-Hans/zh-Hant/en)显式映射
+                switch AppLanguage.Override(rawValue: newValue) {
+                case .zh: Analytics.languageSwitched(to: .zhHans)
+                case .zhHant: Analytics.languageSwitched(to: .zhHant)
+                case .en: Analytics.languageSwitched(to: .en)
+                case .system, nil: break
+                }
             }
             .alert(
                 String(localized: "重启后生效"),
