@@ -187,12 +187,9 @@ struct AskPaywallView: View {
 
                 restoreSection
 
-                // 法律免责(与 PaywallView 同文;次数包消耗型语义已在上方说明行)
-                Text("玄学娱乐,理性参考。\n购买即视为同意 Apple 标准用户协议。")
-                    .font(.caption2)
-                    .foregroundStyle(BaziTheme.inkMutedSecondary)
-                    .multilineTextAlignment(.center)
-                    .tracking(1)
+                // 法律免责 + 使用条款(EULA)链接(TASK-04:与 PaywallView
+                // 共用 PaywallLegalFooter;次数包消耗型语义已在上方说明行)
+                PaywallLegalFooter()
             }
             .padding(.top, BaziTheme.Spacing.md)
             .padding(.horizontal, BaziTheme.Spacing.lg)
