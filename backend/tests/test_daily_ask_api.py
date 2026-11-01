@@ -90,7 +90,8 @@ class _StubApple:
         return AppleTransactionInfo(
             transaction_id=transaction_id, product_id=self.product_id,
             original_purchase_date=datetime(2026, 10, 25, tzinfo=timezone.utc),
-            is_refunded=self.is_refunded)
+            is_refunded=self.is_refunded,
+            environment="sandbox")
 
 
 class _FakeDeviceCheck:

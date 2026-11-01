@@ -9,8 +9,9 @@
   → main.py lifespan 捕获后 fallback MockAppleServerAPI,不阻塞启动
 - **翻译层**:SDK 类型 JWSTransactionDecodedPayload 翻译成 AppleTransactionInfo
   dataclass,屏蔽 SDK 类型污染到路由层 / store
-- **错误统一**:所有失败模式(网络/签名/transaction 不存在/SDK 5xx)统一抛
-  AppleVerificationError(502),Apple 明确返回 status=退款时抛 EntitlementError
+- **错误统一**:所有失败模式(网络/签名/SDK 5xx/两环境均 404)统一抛
+  AppleVerificationError(502);退款经 is_refunded 标志上抛由路由层定夺
+  EntitlementError(403)
 
 线程池策略:SDK 全同步,路由层用 run_in_threadpool 调用。
 
@@ -24,7 +25,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Literal
 
-from ..errors import AppleVerificationError, EntitlementError
+from ..errors import AppleVerificationError
 from .protocol import (
     AppleNotificationPayload,
     AppleTransactionInfo,
@@ -50,7 +51,13 @@ def _parse_apple_date(ms_timestamp: int | None) -> datetime:
 class AppleServerAPIClient:
     """真 SDK 包装类。实现 AppleServerAPI Protocol。
 
-    构造时实际 import SDK + 实例化 AppStoreServerAPIClient + SignedDataVerifier。
+    构造时实际 import SDK + 实例化 **production + sandbox 两套**
+    AppStoreServerAPIClient / SignedDataVerifier(TASK-02 2026-11-01:
+    App Review 与 TestFlight 在生产构建里用的是沙盒交易,单环境客户端
+    查 prod 必 404 → redeem 失败 → 审核被拒 Guideline 2.1;Apple 官方
+    协议 = 先查 production,仅"交易不存在"回落 sandbox)。同一组 API key
+    / issuer / bundle id 对两环境通用,环境只是 client 构造参数。
+
     缺 SDK / env 配置 / Root CA 证书时抛 RuntimeError。
 
     2026-08-23 起 main.py 对本类构造失败**不降级 Mock**(fail-fast 启动失败):
@@ -64,7 +71,6 @@ class AppleServerAPIClient:
         key_id: str,
         issuer_id: str,
         private_key: str,
-        environment: Literal["sandbox", "production"],
         app_apple_id: str,
     ):
         # lazy import:SDK 缺失时抛清晰错误(不污染模块顶部 import)
@@ -85,30 +91,40 @@ class AppleServerAPIClient:
 
         self._bundle_id = bundle_id
         self._app_apple_id = app_apple_id
-        self._environment = environment
 
         try:
-            env_enum = (
-                Environment.PRODUCTION if environment == "production"
-                else Environment.SANDBOX
-            )
+            roots = _load_apple_root_certs()
 
-            self._client = AppStoreServerAPIClient(
+            # production 套件(交易查询的第一顺位)
+            self._client_prod = AppStoreServerAPIClient(
                 signing_key=private_key,
                 key_id=key_id,
                 bundle_id=bundle_id,
                 issuer_id=issuer_id,
-                environment=env_enum,
+                environment=Environment.PRODUCTION,
             )
-
-            # Apple Root CA(SDK 内置或从 Apple 官方下载)
-            # SDK 推荐用 RootCertificationsProvide 内置的 prod + test CA
-            # 这里用库提供的常量;实际实施时若 SDK API 有差异,按库版本调整
-            self._verifier = SignedDataVerifier(
-                root_certificates=_load_apple_root_certs(),
+            self._verifier_prod = SignedDataVerifier(
+                root_certificates=roots,
                 bundle_id=bundle_id,
                 app_apple_id=int(app_apple_id),
-                environment=env_enum,
+                environment=Environment.PRODUCTION,
+                enable_online_checks=False,
+            )
+
+            # sandbox 套件(App Review / TestFlight 交易的回落顺位;
+            # 验签器环境与 JWS payload environment claim 必须一致,选错必失败)
+            self._client_sbx = AppStoreServerAPIClient(
+                signing_key=private_key,
+                key_id=key_id,
+                bundle_id=bundle_id,
+                issuer_id=issuer_id,
+                environment=Environment.SANDBOX,
+            )
+            self._verifier_sbx = SignedDataVerifier(
+                root_certificates=roots,
+                bundle_id=bundle_id,
+                app_apple_id=int(app_apple_id),
+                environment=Environment.SANDBOX,
                 enable_online_checks=False,
             )
         except Exception as e:
@@ -118,51 +134,116 @@ class AppleServerAPIClient:
             ) from e
 
         logger.info(
-            "apple_client.init_ok bundle_id=%s environment=%s",
-            bundle_id, environment,
+            "apple_client.init_ok bundle_id=%s environments=production+sandbox",
+            bundle_id,
         )
 
     def verify_transaction(self, transaction_id: str) -> AppleTransactionInfo:
         """调 Apple getTransactionInfo + 验签 → 标准化 dataclass。
 
+        环境策略(TASK-02 2026-11-01):**production 优先,仅 404(交易
+        不存在)回落 sandbox**;其他错误(网络 / 签名 / 5xx / 4xx 非 404)
+        原样上抛不回落——回落掩盖真实故障违反错误显式传播。两环境均 404
+        → 显式 AppleVerificationError(Apple 官方协议如此规定的兜底语义)。
+
         Raises:
-            AppleVerificationError(502):网络 / 签名无效 / transaction 不存在
-            EntitlementError(403):Apple 明确返回已退款 status
+            AppleVerificationError(502):网络 / 签名无效 / 两环境均 404
         """
+        payload, environment = self._lookup_transaction(
+            "production", transaction_id)
+        if payload is None:
+            payload, environment = self._lookup_transaction(
+                "sandbox", transaction_id)
+            if payload is None:
+                raise AppleVerificationError(
+                    f"交易 {transaction_id} 在 production 与 sandbox 均不存在"
+                    f"(App Review / TestFlight 沙盒回落已尝试,两环境 404)"
+                )
+        return self._translate_payload(payload, transaction_id, environment)
+
+    def _lookup_transaction(
+        self, environment: Literal["production", "sandbox"],
+        transaction_id: str,
+    ) -> tuple[Any, Literal["production", "sandbox"] | None]:
+        """单环境查交易 + 用同环境 verifier 验签。
+
+        验签器环境必须与交易 JWS 的 environment claim 一致(选错必验签
+        失败),故 prod 查到的用 _verifier_prod、sandbox 查到的用
+        _verifier_sbx。
+
+        Returns:
+            (payload, environment):payload=None 表示该环境 404(交易不存在,
+            调用方可回落另一环境);environment 与入参一致,None 时无意义
+        Raises:
+            AppleVerificationError:非 404 的 API 错误 / 空响应 / 验签失败
+            (不回落,向上抛)
+        """
+        from appstoreserverlibrary.api_client import APIException
+
+        client, verifier = (
+            (self._client_prod, self._verifier_prod)
+            if environment == "production"
+            else (self._client_sbx, self._verifier_sbx)
+        )
         try:
-            # Step 1: 调 Apple API 拿 JWS
-            response = self._client.get_transaction_info(transaction_id)
+            response = client.get_transaction_info(transaction_id)
             signed_tx_info = response.signedTransactionInfo
             if not signed_tx_info:
                 raise AppleVerificationError(
-                    f"Apple 返回空 signedTransactionInfo (transaction_id={transaction_id})"
+                    f"Apple({environment}) 返回空 signedTransactionInfo "
+                    f"(transaction_id={transaction_id})"
                 )
-
-            # Step 2: 验签 JWS
-            payload = self._verifier.verify_and_decode_signed_transaction(
+            payload = verifier.verify_and_decode_signed_transaction(
                 signed_tx_info)
-
-            # Step 3: 翻译成 dataclass
-            return self._translate_payload(payload, transaction_id)
-
-        except (AppleVerificationError, EntitlementError):
+            return payload, environment
+        except AppleVerificationError:
             raise
+        except APIException as e:
+            if e.http_status_code == 404:
+                # 交易在该环境不存在:唯一允许触发回落的信号
+                return None, None
+            api_error_name = getattr(e.api_error, "name", None)
+            api_error_desc = (
+                f"api_error={api_error_name}" if api_error_name is not None
+                else f"raw_api_error={e.raw_api_error}"
+            )
+            raise AppleVerificationError(
+                f"Apple({environment}) getTransactionInfo 失败 "
+                f"(transaction_id={transaction_id}): "
+                f"http_status={e.http_status_code} "
+                f"{api_error_desc} "
+                f"{e.error_message or ''}".strip()
+            ) from e
         except Exception as e:
             # 统一包装:网络 / 签名 / SDK 内部错误
             raise AppleVerificationError(
-                f"Apple verify_transaction 失败 (transaction_id={transaction_id}): "
+                f"Apple({environment}) verify_transaction 失败 "
+                f"(transaction_id={transaction_id}): "
                 f"{type(e).__name__}: {e}"
             ) from e
 
     def verify_notification(self, jws_body: str) -> AppleNotificationPayload:
         """验签 Apple Server Notification V2 JWS payload。
 
+        环境路由(TASK-02 2026-11-01):按 JWS payload 的 environment
+        claim(嵌在内层 data / summary / externalPurchaseToken,外层
+        payload 无此字段——见 _peek_jws_environment 报文格式说明)选
+        同环境 verifier(prod/sandbox 验签器互斥,选错必失败)。
+        peek 仅用于路由,**不作信任依据**——真实性仍由所选 verifier 的
+        ECDSA P-256 + Apple Root CA 验签保证;缺 claim / 值未知 / JWS
+        格式坏 → 显式抛错,不猜默认环境。
+
         Raises:
-            AppleVerificationError(502):签名无效 / 解析失败
+            AppleVerificationError(502):签名无效 / 解析失败 / 缺 environment
         """
+        environment = _peek_jws_environment(jws_body)
+        verifier = (
+            self._verifier_prod if environment == "production"
+            else self._verifier_sbx
+        )
         try:
             notification = (
-                self._verifier.verify_and_decode_signed_notification(jws_body)
+                verifier.verify_and_decode_signed_notification(jws_body)
             )
 
             # notificationType 是 enum,取 .name 或 .value
@@ -172,26 +253,29 @@ class AppleServerAPIClient:
             )
 
             # data.signedTransactionInfo 二次 decode 拿 transaction_id
+            # (内层交易 JWS 与通知同环境,用同一个 verifier)
             tx_id = "<unknown>"
             data = getattr(notification, "data", None)
             if data and getattr(data, "signedTransactionInfo", None):
-                tx_payload = self._verifier.verify_and_decode_signed_transaction(
+                tx_payload = verifier.verify_and_decode_signed_transaction(
                     data.signedTransactionInfo)
                 tx_id = getattr(tx_payload, "transactionId", "<unknown>")
 
             return AppleNotificationPayload(
                 notification_type=str(ntype).upper(),
                 transaction_id=str(tx_id),
+                environment=environment,
                 raw_summary=f"type={ntype}",
             )
         except Exception as e:
             raise AppleVerificationError(
-                f"Apple verify_notification 失败: "
+                f"Apple verify_notification 失败({environment}): "
                 f"{type(e).__name__}: {e}"
             ) from e
 
     def _translate_payload(
         self, payload: Any, requested_tx_id: str,
+        environment: Literal["production", "sandbox"],
     ) -> AppleTransactionInfo:
         """SDK 的 JWSTransactionDecodedPayload → AppleTransactionInfo。
 
@@ -230,7 +314,110 @@ class AppleServerAPIClient:
             product_id=str(product_id),
             original_purchase_date=opd,
             is_refunded=is_refunded,
+            environment=environment,
         )
+
+
+def _normalize_environment_claim(
+    claim: object, *, source: str,
+) -> Literal["production", "sandbox"]:
+    """environment claim 原始值("Production"/"Sandbox")→ 环境枚举。
+
+    值缺失 / 非串 / 未知(Xcode / LocalTesting 等)→ 显式抛错,不猜
+    默认环境(错误显式传播;SDK 对未知环境也必验签失败,猜了只会
+    把失败推迟一层还丢掉可读性)。
+    """
+    if not isinstance(claim, str) or not claim.strip():
+        raise AppleVerificationError(
+            f"JWS payload {source} 缺 environment claim,"
+            f"无法路由 verifier(拒绝猜测默认环境)")
+    normalized = claim.strip().lower()
+    if normalized == "production":
+        return "production"
+    if normalized == "sandbox":
+        return "sandbox"
+    raise AppleVerificationError(
+        f"JWS payload {source} environment 值未知:{claim!r}"
+        f"(期望 Production/Sandbox)")
+
+
+def _peek_jws_environment(jws_body: str) -> Literal["production", "sandbox"]:
+    """未验签地读 JWS payload 的 environment claim(仅用于 verifier 路由)。
+
+    **报文格式事实(2026-11-01 修正)**:Apple Server Notification V2 的
+    外层 payload(responseBodyV2DecodedPayload)**没有**顶层 environment
+    字段——claim 按负载类型嵌在内层,与 SDK SignedDataVerifier.
+    _verify_notification 的推导同源(字段清单亦经 Apple 官方 Node SDK
+    ResponseBodyV2DecodedPayload.ts 核对):
+    1. data.environment(data / summary / externalPurchaseToken 三者互斥)
+    2. summary.environment
+    3. externalPurchaseToken.externalPurchaseId 以 "SANDBOX" 开头 →
+       sandbox,否则 production
+    此函数**不做任何信任判断**——只把 claim 翻译成环境枚举,真实性由
+    后续所选 verifier 的完整 ECDSA + Apple Root CA 验签保证(verifier
+    验签后还会复核 environment claim 与自身配置一致,选错必失败)。
+    三处都取不到 claim / 值未知 / JWS 格式坏 → 显式 AppleVerificationError,
+    不猜默认环境(错误显式传播)。
+    """
+    import base64
+    import json as _json
+
+    parts = jws_body.split(".")
+    if len(parts) != 3:
+        raise AppleVerificationError(
+            f"JWS 格式非法(段数={len(parts)},期望 3),"
+            f"无法读取 environment claim 路由 verifier")
+    payload_b64 = parts[1]
+    try:
+        padded = payload_b64 + "=" * (-len(payload_b64) % 4)
+        payload = _json.loads(base64.urlsafe_b64decode(padded))
+    except Exception as e:
+        raise AppleVerificationError(
+            f"JWS payload 解码失败,无法读取 environment claim: "
+            f"{type(e).__name__}: {e}"
+        ) from e
+    if not isinstance(payload, dict):
+        raise AppleVerificationError(
+            f"JWS payload 非对象({type(payload).__name__}),"
+            f"无法读取 environment claim 路由 verifier")
+
+    # data / summary / externalPurchaseToken 互斥,按 SDK 同款顺序推导;
+    # 键在场但非对象 = 报文畸形,报"非对象"而非笼统的"缺负载"(诊断准确)
+    data = payload.get("data")
+    if "data" in payload:
+        if not isinstance(data, dict):
+            raise AppleVerificationError(
+                f"JWS payload data 非对象({type(data).__name__}),"
+                f"无法读取 environment claim 路由 verifier")
+        return _normalize_environment_claim(
+            data.get("environment"), source="data")
+    summary = payload.get("summary")
+    if "summary" in payload:
+        if not isinstance(summary, dict):
+            raise AppleVerificationError(
+                f"JWS payload summary 非对象({type(summary).__name__}),"
+                f"无法读取 environment claim 路由 verifier")
+        return _normalize_environment_claim(
+            summary.get("environment"), source="summary")
+    ept = payload.get("externalPurchaseToken")
+    if "externalPurchaseToken" in payload:
+        if not isinstance(ept, dict):
+            raise AppleVerificationError(
+                f"JWS payload externalPurchaseToken 非对象"
+                f"({type(ept).__name__}),"
+                f"无法读取 environment claim 路由 verifier")
+        external_purchase_id = ept.get("externalPurchaseId")
+        if not isinstance(external_purchase_id, str) or not external_purchase_id:
+            raise AppleVerificationError(
+                "JWS payload externalPurchaseToken 缺 externalPurchaseId,"
+                "无法路由 verifier(拒绝猜测默认环境)")
+        return (
+            "sandbox" if external_purchase_id.startswith("SANDBOX")
+            else "production"
+        )
+    raise AppleVerificationError(
+        "JWS payload 缺 data / summary / externalPurchaseToken 负载,"
+        "无法定位 environment claim 路由 verifier(拒绝猜测默认环境)")
 
 
 def _load_apple_root_certs(certs_dir: Path | None = None) -> list[bytes]:
