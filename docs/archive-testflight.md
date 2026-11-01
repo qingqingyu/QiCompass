@@ -66,7 +66,11 @@ Organizer 里选刚生成的 archive → 右上 **Distribute App** → 选 **App
 ## 5. 验证(TestFlight 可见)
 
 1. App Store Connect → App → **TestFlight** 标签页 → 左侧 **iOS** → 看新 build 是否出现,状态是否 "Available"
-2. **首次上传**会被要求填 **App Privacy**(数据采集声明):App Store Connect → App → App 隐私 → 按实际填(QiCompass 本地存命盘数据,**不**上云,可按此口径填)
+2. **首次上传**会被要求填 **App Privacy**(数据采集声明):App Store Connect → App → App 隐私 → 按实际填。如实申报清单(2026-10-28 拍板,与 `MONETIZATION.md` 及 app 内 `PrivacyInfo.xcprivacy` 口径一致):
+   - **Other User Content** — 出生信息:发往后端排盘与 LLM 生成解读;登录后 `SyncManager.push` 上传命盘到后端
+   - **User ID** — Sign in with Apple 用户 ID
+   - **Purchase History** — entitlement / ask_credits 购买记录
+   - 用途均为 App Functionality;登录后与身份关联(Linked=是);**不用于追踪**(NSPrivacyTracking=false,无追踪域名)
 3. 首次 external tester build 需 **beta review**(~1 天);内部测试组免 review
 
 ---
