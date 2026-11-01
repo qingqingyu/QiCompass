@@ -54,6 +54,7 @@ def mock_apple() -> MockAppleServerAPI:
             product_id="com.qicompass.deep_analysis.single",
             original_purchase_date=datetime(2026, 7, 18, 11, 55, tzinfo=timezone.utc),
             is_refunded=False,
+            environment="sandbox",
         ),
     )
 
@@ -422,6 +423,7 @@ async def test_redeem_compat_product_module_pair_ok(
         product_id="com.qicompass.compatibility.single",
         original_purchase_date=datetime(2026, 7, 18, tzinfo=timezone.utc),
         is_refunded=False,
+        environment="sandbox",
     )
     resp = await redeem_client.post(
         "/api/entitlement/redeem",
@@ -444,6 +446,7 @@ async def test_redeem_product_id_mismatch_returns_502(
         product_id="com.qicompass.compatibility.single",  # 跟请求的 deep_analysis 不同
         original_purchase_date=datetime(2026, 7, 18, tzinfo=timezone.utc),
         is_refunded=False,
+        environment="sandbox",
     )
     resp = await redeem_client.post(
         "/api/entitlement/redeem", json=_redeem_payload(),
@@ -463,6 +466,7 @@ async def test_redeem_apple_returns_refunded_returns_403(
         product_id="com.qicompass.deep_analysis.single",
         original_purchase_date=datetime(2026, 7, 18, tzinfo=timezone.utc),
         is_refunded=True,  # Apple 说已退款
+        environment="sandbox",
     )
     resp = await redeem_client.post(
         "/api/entitlement/redeem", json=_redeem_payload(),
@@ -554,6 +558,7 @@ async def test_list_returns_only_current_user_entitlements(
         user_id=TEST_USER_ID,
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
     tmp_entitlement_store.insert(
         transaction_id="tx-user-002",
@@ -564,6 +569,7 @@ async def test_list_returns_only_current_user_entitlements(
         user_id=TEST_USER_ID,
         purchased_at="2026-07-19T12:00:00+00:00",
         original_purchase_date="2026-07-19T11:55:00+00:00",
+        environment="sandbox",
     )
     tmp_entitlement_store.insert(
         transaction_id="tx-other-001",
@@ -574,6 +580,7 @@ async def test_list_returns_only_current_user_entitlements(
         user_id=OTHER_USER_ID,
         purchased_at="2026-07-20T12:00:00+00:00",
         original_purchase_date="2026-07-20T11:55:00+00:00",
+        environment="sandbox",
     )
 
     # TEST_USER 调 list → 只看到自己的 2 条
@@ -611,6 +618,7 @@ async def test_list_includes_inactive_records(
         user_id=TEST_USER_ID,
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
     tmp_entitlement_store.insert(
         transaction_id="tx-refunded-001",
@@ -621,6 +629,7 @@ async def test_list_includes_inactive_records(
         user_id=TEST_USER_ID,
         purchased_at="2026-07-19T12:00:00+00:00",
         original_purchase_date="2026-07-19T11:55:00+00:00",
+        environment="sandbox",
     )
     tmp_entitlement_store.deactivate(
         transaction_id="tx-refunded-001", reason="refund",

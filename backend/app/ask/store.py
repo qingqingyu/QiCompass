@@ -48,9 +48,50 @@ CREATE TABLE IF NOT EXISTS ask_purchases (
     owner          TEXT NOT NULL,
     credits        INTEGER NOT NULL,
     purchased_at   TEXT NOT NULL,
-    refunded_at    TEXT
+    refunded_at    TEXT,
+    environment    TEXT
 );
 """
+
+
+def _add_purchases_environment_if_needed(
+    conn: sqlite3.Connection,
+) -> None:
+    """TASK-02(2026-11-01):老表(无 environment 字段)增量加列。
+
+    语义对齐 entitlement/store.py 的 _add_user_id_column_if_needed:
+    CREATE TABLE IF NOT EXISTS 不会给已存在的表补列,老库须 ALTER。
+    environment 记录交易来源环境(production / sandbox),对账排除沙盒
+    (App Review / TestFlight)记录用;老行为 NULL(未知环境,不猜)。
+    """
+    row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' "
+        "AND name='ask_purchases'"
+    ).fetchone()
+    if row is None:
+        return
+    columns = {
+        str(col[1])
+        for col in conn.execute("PRAGMA table_info(ask_purchases)").fetchall()
+    }
+    if "environment" not in columns:
+        try:
+            conn.execute(
+                "ALTER TABLE ask_purchases ADD COLUMN environment TEXT")
+        except sqlite3.OperationalError as e:
+            # 多 worker 并发启动竞态(run.sh 默认 WEB_CONCURRENCY=2):
+            # 另一进程刚加完列,本进程 ALTER 撞 "duplicate column name"。
+            # 重查 PRAGMA 验证列已在场 = 收敛成功(显式验证,非吞错);
+            # 其余 OperationalError 原样上抛。
+            if "duplicate column" not in str(e).lower():
+                raise
+            columns_after = {
+                str(col[1])
+                for col in conn.execute(
+                    "PRAGMA table_info(ask_purchases)").fetchall()
+            }
+            if "environment" not in columns_after:
+                raise
 
 _CREATE_HISTORY_SQL = """
 CREATE TABLE IF NOT EXISTS ask_history (
@@ -107,6 +148,7 @@ class AskCreditsStore:
     def init_schema(self) -> None:
         """建表(幂等)。 Raises: sqlite3.Error(不吞)。"""
         with self._connect() as conn:
+            _add_purchases_environment_if_needed(conn)  # TASK-02 老表补列
             conn.execute(_CREATE_WALLET_SQL)
             conn.execute(_CREATE_MINTS_SQL)
             conn.execute(_CREATE_PURCHASES_SQL)
@@ -203,20 +245,26 @@ class AskCreditsStore:
 
     def redeem_credits(
         self, *, owner: str, transaction_id: str, credits: int,
-        purchased_at: str,
+        purchased_at: str, environment: str,
     ) -> bool:
         """次数包入账(幂等:transaction_id 已记录 → False 不重复加)。
 
         事务 = 购买留痕 + 余额自增;同一 transaction_id 二次 redeem 在
         留痕处被 PK 挡下,余额不会被加两次(防重放双入账)。
+
+        environment:交易来源环境(TASK-02,"production" / "sandbox",
+        取 AppleTransactionInfo.environment;对账排除沙盒记录用。必传,
+        不设默认——忘传是错误而非静默错标)。
         """
         with self._connect() as conn:
             try:
                 conn.execute(
                     "INSERT INTO ask_purchases "
-                    "(transaction_id, owner, credits, purchased_at) "
-                    "VALUES (?, ?, ?, ?)",
-                    (transaction_id, owner, credits, purchased_at))
+                    "(transaction_id, owner, credits, purchased_at, "
+                    " environment) "
+                    "VALUES (?, ?, ?, ?, ?)",
+                    (transaction_id, owner, credits, purchased_at,
+                     environment))
             except sqlite3.IntegrityError:
                 # 撞 PK = 同 transaction_id 重放(幂等返回 False);若重查
                 # 查无此单,说明 IntegrityError 另有原因(NOT NULL 等),

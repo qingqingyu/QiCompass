@@ -288,6 +288,7 @@ def _seed_entitlement_for_v1(
         user_local_id=user_local_id,
         purchased_at="2026-08-01T00:00:00+00:00",
         original_purchase_date="2026-08-01T00:00:00+00:00",
+        environment="production",
     )
 
 

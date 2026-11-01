@@ -184,6 +184,10 @@ final class DeepAnalysisOrchestrator {
             ) {
                 try await self.apiClient.interpret(request: req)
             }
+            // TASK-06:免费章生成成功(deep 免费链 = bazi_deep_free)
+            if module == "bazi_deep_free" {
+                Analytics.freeChaptersGenerated(module: .deep)
+            }
 
             AppLogger.app.info("interpret.ok contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) pv=\(resp.promptVersion) cached=\(resp.cached)")
 
@@ -415,6 +419,10 @@ final class DeepAnalysisOrchestrator {
                 ]
             ) {
                 try await self.apiClient.interpret(request: req)
+            }
+            // TASK-06:免费章生成成功(deep 免费链 = bazi_deep_free)
+            if module == "bazi_deep_free" {
+                Analytics.freeChaptersGenerated(module: .deep)
             }
 
             AppLogger.app.info("interpret.v1.ok contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) pv=\(resp.promptVersion) cached=\(resp.cached)")
