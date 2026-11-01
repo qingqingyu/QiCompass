@@ -324,6 +324,7 @@ struct DailyFortuneMainView: View {
                 .allowsHitTesting(false)
             }
         }
+        .onAppear { Analytics.dailyFortuneViewed() }
         .coordinateSpace(name: Self.scrollSpace)
         .onPreferenceChange(TodayContentBottomKey.self) {
             probe.contentBottom = $0

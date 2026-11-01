@@ -27,6 +27,7 @@ def mock_apple_notification() -> MockAppleServerAPI:
         notification=AppleNotificationPayload(
             notification_type="REFUND",
             transaction_id="tx-001",
+            environment="sandbox",
             raw_summary="test-refund",
         ),
     )
@@ -57,6 +58,7 @@ def _seed_entitlement(store, *, transaction_id: str = "tx-001",
         user_local_id=user_local_id,
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
 
 
@@ -94,6 +96,7 @@ async def test_webhook_revoke_deactivates_entitlement(
     mock_apple_notification._default_notification = AppleNotificationPayload(
         notification_type="REVOKE",
         transaction_id="tx-001",
+        environment="sandbox",
         raw_summary="test-revoke",
     )
 
@@ -118,6 +121,7 @@ async def test_webhook_unhandled_type_skips_deactivate(
     mock_apple_notification._default_notification = AppleNotificationPayload(
         notification_type="SUBSCRIBED",
         transaction_id="tx-001",
+        environment="sandbox",
         raw_summary="test-subscribed",
     )
 
@@ -211,6 +215,7 @@ async def test_webhook_lowercase_type_handled(
     mock_apple_notification._default_notification = AppleNotificationPayload(
         notification_type="refund",  # 小写
         transaction_id="tx-001",
+        environment="sandbox",
         raw_summary="test-lowercase",
     )
 
@@ -246,7 +251,8 @@ async def test_webhook_refund_deducts_ask_credits(
     try:
         tmp_ask_store.redeem_credits(
             owner="ulid:user-1", transaction_id="tx-001", credits=15,
-            purchased_at="2026-10-25T00:00:00+00:00")
+            purchased_at="2026-10-25T00:00:00+00:00",
+            environment="sandbox")
         for _ in range(5):  # 已花 5,余 10
             tmp_ask_store.try_consume(owner="ulid:user-1")
         assert tmp_ask_store.get_balance(owner="ulid:user-1") == 10

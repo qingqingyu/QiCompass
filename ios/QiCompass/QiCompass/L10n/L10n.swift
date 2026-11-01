@@ -1012,6 +1012,19 @@ enum L10n {
         static let note = String(localized: "paywall.askpack.note")
     }
 
+    // MARK: - 付费墙法律注(TASK-04,两付费墙共用)
+
+    /// 付费墙法律注文案(消费方 PaywallLegalFooter)。
+    enum PaywallLegal {
+        /// 免责一行(命理内容口径,审核要求)。
+        /// zh: "内容仅供娱乐参考";en: "For entertainment purposes only"
+        static let disclaimer = String(localized: "paywall.legal.disclaimer")
+
+        /// 使用条款(EULA)链接标题,跳 Apple 标准许可协议页。
+        /// zh: "使用条款";en: "Terms of Use (EULA)"
+        static let terms = String(localized: "paywall.legal.terms")
+    }
+
     // MARK: - 付费墙时辰未知拦截态(S07,iOS 一期临时态)
 
     /// 付费墙/内容拦截态文案(docs/时辰未知设计决策.md D5/D6)。

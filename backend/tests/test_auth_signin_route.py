@@ -143,6 +143,7 @@ async def test_signin_backfills_legacy_entitlements(
         user_local_id="user-local-legacy",
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
         # user_id 不传 → None
     )
 
@@ -183,6 +184,7 @@ async def test_signin_backfill_idempotent_second_login_no_change(
         user_local_id="user-local-idem",
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
 
     # 第一次登录 → backfill 把 user_id 补上

@@ -226,7 +226,10 @@ def _build_apple_server_api():
         )
         return MockAppleServerAPI()
 
-    # env 齐:构造真 SDK 客户端。SDK 未装 / 私钥格式不对 / Root CA 缺失
+    # env 齐:构造真 SDK 客户端(TASK-02 2026-11-01 起恒为 production +
+    # sandbox 双环境:交易查询 prod 优先、仅 404 回落 sandbox;APP_STORE_
+    # ENVIRONMENT 不再参与客户端构造,只作上方生产缺配 fail-fast 的部署
+    # 意图声明)。SDK 未装 / 私钥格式不对 / Root CA 缺失
     # → RuntimeError 向上抛,lifespan 启动失败(不降级 Mock,理由见 docstring)
     from .entitlement.apple_client import AppleServerAPIClient
     return AppleServerAPIClient(
@@ -234,7 +237,6 @@ def _build_apple_server_api():
         key_id=APP_STORE_KEY_ID,  # type: ignore[arg-type]
         issuer_id=APP_STORE_ISSUER_ID,  # type: ignore[arg-type]
         private_key=APP_STORE_PRIVATE_KEY,  # type: ignore[arg-type]
-        environment=APP_STORE_ENVIRONMENT,  # type: ignore[arg-type]
         app_apple_id=APP_STORE_APP_APPLE_ID,  # type: ignore[arg-type]
     )
 

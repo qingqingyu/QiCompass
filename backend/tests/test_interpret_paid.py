@@ -82,6 +82,7 @@ def _seed_entitlement(store, *, content_hash: str, user_local_id: str = "user-1"
         user_local_id=user_local_id,
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="production",
     )
     if not is_active:
         store.deactivate(

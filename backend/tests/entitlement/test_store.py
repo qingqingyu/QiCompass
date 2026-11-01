@@ -47,6 +47,7 @@ def test_insert_returns_true_for_new(store):
         user_local_id="user-1",
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
     assert ok is True
 
@@ -61,6 +62,7 @@ def test_insert_returns_false_for_duplicate(store):
         user_local_id="user-1",
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
     assert store.insert(**args) is True
     assert store.insert(**args) is False  # 幂等
@@ -79,6 +81,7 @@ def test_get_by_transaction_hit(store):
         user_local_id="user-1",
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
     row = store.get_by_transaction("tx-001")
     assert row is not None
@@ -110,6 +113,7 @@ def test_get_active_hit(store):
         user_local_id="user-1",
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
     row = store.get_active(
         content_hash="hash-a", module="bazi_deep", user_local_id="user-1")
@@ -127,6 +131,7 @@ def test_get_active_miss_by_content_hash(store):
         user_local_id="user-1",
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
     row = store.get_active(
         content_hash="hash-other", module="bazi_deep", user_local_id="user-1")
@@ -143,6 +148,7 @@ def test_get_active_miss_by_user(store):
         user_local_id="user-1",
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
     row = store.get_active(
         content_hash="hash-a", module="bazi_deep", user_local_id="user-2")
@@ -164,6 +170,7 @@ def test_get_active_returns_latest_when_multiple(store):
         user_local_id="user-1",
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
     # 第二笔(2026-07-19,更近)
     store.insert(
@@ -174,6 +181,7 @@ def test_get_active_returns_latest_when_multiple(store):
         user_local_id="user-1",
         purchased_at="2026-07-19T12:00:00+00:00",
         original_purchase_date="2026-07-19T11:55:00+00:00",
+        environment="sandbox",
     )
     row = store.get_active(
         content_hash="hash-a", module="bazi_deep", user_local_id="user-1")
@@ -191,6 +199,7 @@ def test_get_active_skips_inactive(store):
         user_local_id="user-1",
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
     store.deactivate(
         transaction_id="tx-001", reason="refund",
@@ -213,6 +222,7 @@ def test_deactivate_refund_sets_refunded_at(store):
         user_local_id="user-1",
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
     ok = store.deactivate(
         transaction_id="tx-001", reason="refund",
@@ -234,6 +244,7 @@ def test_deactivate_revoke_sets_revoked_at(store):
         user_local_id="user-1",
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
     ok = store.deactivate(
         transaction_id="tx-001", reason="revoke",
@@ -255,6 +266,7 @@ def test_deactivate_idempotent(store):
         user_local_id="user-1",
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
     assert store.deactivate(
         transaction_id="tx-001", reason="refund",
@@ -293,6 +305,7 @@ def _insert_anonymous(store, transaction_id="tx-anon-001"):
         user_local_id="user-1",
         purchased_at="2026-09-27T12:00:00+00:00",
         original_purchase_date="2026-09-27T11:55:00+00:00",
+        environment="sandbox",
     )
 
 
@@ -316,6 +329,7 @@ def test_claim_user_id_noop_on_owned_row(store):
         user_id="user-owner",
         purchased_at="2026-09-27T12:00:00+00:00",
         original_purchase_date="2026-09-27T11:55:00+00:00",
+        environment="sandbox",
     )
     ok = store.claim_user_id(
         transaction_id="tx-owned-001", user_id="user-attacker")
