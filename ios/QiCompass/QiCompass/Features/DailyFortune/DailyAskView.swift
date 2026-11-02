@@ -50,7 +50,7 @@ protocol DailyAskAnswering: Sendable {
 /// 告知文案,不冒充 AI 回答(演示 HTML 的手写回复是看效果用的,不进 App)。
 struct ServicePendingAskAnswerer: DailyAskAnswering {
     func reply(to question: String, history: [DailyAskTurn]) async throws -> DailyAskReply {
-        DailyAskReply(text: L10n.DailyFortune.askPendingReply, followUps: [], cached: false, balance: nil)
+        DailyAskReply(text: L10n.DailyFortune.askPendingReply, followUps: [], cached: false, balance: nil, chargedFrom: nil)
     }
 }
 
@@ -144,9 +144,6 @@ final class DailyAskModel: ObservableObject {
             return false
         }
         offers = []
-        // TASK-06:paid 为保守代理——余额>试用上限(3)必含购买次数;余额≤3
-        // 记 trial(已花掉购买的会低估 paid,漏报不虚报;单一钱包无法逐次归因)
-        Analytics.askSent(paid: (wallet?.balance ?? 0) > 3)
         // 对话上文:排除开场白(它不是对话回合),截末 20 轮(服务端整单
         // >20 轮 422,只注入末 6 轮——客户端保末 20 给模型足量记忆)
         let history = messages.dropFirst().suffix(20).map { message in
@@ -158,6 +155,9 @@ final class DailyAskModel: ObservableObject {
             guard let self else { return }
             do {
                 let reply = try await self.answerer.reply(to: text, history: history)
+                // TASK-12:paid 精确归因——服务端返回本次实扣来源
+                // (缓存命中/免费重放 chargedFrom=nil 记 paid=false)
+                Analytics.askSent(paid: reply.chargedFrom == "purchased")
                 self.messages.append(.init(role: .ai, text: reply.text))
                 // 追问候选复用 offers 通道(点选直发;发起下一条时用过即收)
                 self.offers = reply.followUps

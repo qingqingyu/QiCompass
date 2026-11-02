@@ -524,3 +524,67 @@ def _ip_ask_count() -> int:
     host = "127.0.0.1"  # httpx ASGITransport 默认 client host
     return app.state.free_quota_store.get_count(
         bucket=f"ask-ip:{host}", day=_utc_day())
+
+
+class TestChargedFrom:
+    """TASK-12(2026-11-02):作答响应 charged_from 三值 + 失败回补退回原来源。"""
+
+    @staticmethod
+    def _wallet(db_owner="ulid:ulid-test-1"):
+        import sqlite3
+
+        from app.main import app  # noqa: F401 —— 只为说明 state 见 fixture
+        # 直接查 store 所在库:fixture 内 store 是新建的 test_ask.db
+        return None
+
+    async def test_first_question_charged_from_trial(self, ask_client):
+        ac, store, ai, _, _ = ask_client
+        resp = await ac.post("/api/bazi/daily-ask", json=_body())
+        assert resp.status_code == 200
+        assert resp.json()["charged_from"] == "trial"
+
+    async def test_after_trial_exhausted_charged_from_purchased(
+            self, ask_client):
+        ac, store, ai, _, _ = ask_client
+        # 试用铸造是惰性的(首次问询经 grant service);测试先手动铸 3,
+        # 再直接从 store 扣光(避免连发三问命中缓存不扣费),后补购买
+        result = store.try_grant_trial(
+            owner="ulid:ulid-test-1", ip="127.0.0.1", day="2026-11-02",
+            credits=3, mint_limit=25)
+        assert result.outcome == "granted"
+        for _ in range(3):
+            assert store.try_consume(owner="ulid:ulid-test-1") == "trial"
+        store.redeem_credits(
+            owner="ulid:ulid-test-1", transaction_id="txn-paid",
+            credits=15, purchased_at="2026-11-02T00:00:00+00:00",
+            environment="sandbox")
+        resp = await ac.post("/api/bazi/daily-ask", json=_body())
+        assert resp.status_code == 200
+        assert resp.json()["charged_from"] == "purchased"
+
+    async def test_cache_hit_charged_from_null(self, ask_client):
+        ac, store, ai, _, _ = ask_client
+        first = await ac.post("/api/bazi/daily-ask", json=_body())
+        assert first.status_code == 200
+        # 另一用户同盘同日同问(无上文)→ 共享缓存命中,未扣费
+        second = await ac.post(
+            "/api/bazi/daily-ask",
+            json=_body(user_local_id="ulid-test-2"))
+        assert second.status_code == 200
+        data = second.json()
+        assert data["cached"] is True
+        assert data["charged_from"] is None
+
+    async def test_llm_failure_refunds_to_original_source(self, ask_client):
+        """试用扣的失败退款退回试用:trial_balance 与 balance 双 +1。"""
+        ac, store, ai, _, _ = ask_client
+        failing = FailingAIClient()
+        ask_client_state_set_ai(failing)
+        resp = await ac.post("/api/bazi/daily-ask", json=_body())
+        assert resp.status_code == 503
+        import sqlite3
+        with sqlite3.connect(str(store._db_path)) as conn:
+            row = conn.execute(
+                "SELECT balance, trial_balance FROM ask_wallet "
+                "WHERE owner = 'ulid:ulid-test-1'").fetchone()
+        assert row == (3, 3)  # 回补退回试用来源,两本账复原
