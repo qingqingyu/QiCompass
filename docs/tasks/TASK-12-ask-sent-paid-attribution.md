@@ -5,8 +5,8 @@
 - 买过次数包的用户,用到余额 ≤3 后全被记成 `paid=false`(低估)
 - 无法回答「付费用户是否在持续用问事」
 
-## ⚠️ 前置:需用户确认一处账务口径
-本方案把退款扣回改为**只扣购买部分**(见下方「退款」)。现状是从总余额扣,可能扣到试用次数。实现前先请用户确认这一口径变更。
+## ✅ 账务口径已确认(用户 2026-11-02 同意)
+退款扣回改为**只扣购买部分**(见下方「退款」),不再从总余额扣到试用次数。可直接实施。
 
 ## 方案:钱包拆试用 / 购买两部分,试用先扣
 ### 后端 `backend/app/ask/store.py`
@@ -16,7 +16,7 @@
 - `try_grant_trial`:入账时 `trial_balance` 同步加 credits
 - `try_consume`:原子地扣 1,优先扣 `trial_balance`;返回扣费来源 `"trial"` / `"purchased"`(余额不足仍返回失败)。必须单事务原子(条件 UPDATE + RETURNING 或 `BEGIN IMMEDIATE` 内读改写),并发不双扣、不错标
 - `refund_consume`:新增必传参数 `charged_from`,退回到原来源
-- `refund_purchase`(退款):扣回上限改为 `min(balance - trial_balance, credits)`——只扣购买部分(**待用户确认**)
+- `refund_purchase`(退款):扣回上限改为 `min(balance - trial_balance, credits)`——只扣购买部分(用户 2026-11-02 已确认)
 
 ### 后端 `backend/app/api/daily_ask.py`
 - 作答响应增字段 `charged_from: "trial" | "purchased" | null`(缓存命中 / 免费重放不扣费时为 null)
