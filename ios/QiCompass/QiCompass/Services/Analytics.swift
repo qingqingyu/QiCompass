@@ -21,6 +21,27 @@ enum Analytics {
     /// 实测崩溃),显式闸掉最稳。
     private static var isConfigured = false
 
+    /// signal 出口(生产恒为 TelemetryDeck;测试可注入捕获闭包断言上报,
+    /// TASK-08 复核返工引入——runV1Module 免费章上报的行为可测性)
+    private static var signalSink: (String, [String: String]) -> Void =
+        { TelemetryDeck.signal($0, parameters: $1) }
+
+    #if DEBUG
+    /// 仅供测试:替换 signal 出口并强制启用(绕过 App ID 配置闸);
+    /// 用例结束必须调 resetSinkForTesting() 恢复,防串同进程其他用例。
+    static func replaceSinkForTesting(
+        _ sink: @escaping (String, [String: String]) -> Void
+    ) {
+        signalSink = sink
+        isConfigured = true
+    }
+
+    static func resetSinkForTesting() {
+        signalSink = { TelemetryDeck.signal($0, parameters: $1) }
+        isConfigured = false
+    }
+    #endif
+
     static func configure() {
         let appID = Bundle.main
             .object(forInfoDictionaryKey: appIDInfoKey) as? String
@@ -135,6 +156,6 @@ enum Analytics {
         _ name: String, _ parameters: [String: String] = [:],
     ) {
         guard isConfigured else { return }
-        TelemetryDeck.signal(name, parameters: parameters)
+        signalSink(name, parameters)
     }
 }

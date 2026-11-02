@@ -184,10 +184,6 @@ final class DeepAnalysisOrchestrator {
             ) {
                 try await self.apiClient.interpret(request: req)
             }
-            // TASK-06:免费章生成成功(deep 免费链 = bazi_deep_free)
-            if module == "bazi_deep_free" {
-                Analytics.freeChaptersGenerated(module: .deep)
-            }
 
             AppLogger.app.info("interpret.ok contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) pv=\(resp.promptVersion) cached=\(resp.cached)")
 
@@ -420,8 +416,11 @@ final class DeepAnalysisOrchestrator {
             ) {
                 try await self.apiClient.interpret(request: req)
             }
-            // TASK-06:免费章生成成功(deep 免费链 = bazi_deep_free)
-            if module == "bazi_deep_free" {
+            // TASK-08(复核返工):命书免费章 = m0/m1(ModuleID.isFree 判定,
+            // 不认字符串字面量);每个免费模块成功各报一次,事件参数保持
+            // 已确认值域(不加 module 细分)。旧 bazi_deep_free 分支是死代码
+            // 已删——v1 链时代无人再传该 module,曾致免费漏斗零数据。
+            if ModuleID(rawValue: module)?.isFree == true {
                 Analytics.freeChaptersGenerated(module: .deep)
             }
 

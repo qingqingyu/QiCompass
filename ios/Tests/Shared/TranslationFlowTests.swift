@@ -926,6 +926,58 @@ final class TranslationFlowTests: XCTestCase {
         XCTAssertEqual(counter.remaining(), readsBefore - 1, "非豁免真实生成消耗 1 次")
     }
 
+    // MARK: - TASK-08(2026-11-02 复核返工):免费章埋点按 ModuleID.isFree 上报
+
+    /// m0/m1(免费)各成功各报一次 free_chapters_generated(deep);
+    /// 付费模块(m2)成功**不**报。修复前判定挂在死掉的 bazi_deep_free
+    /// 字面量上,命书免费漏斗零数据。
+    func testFreeChaptersAnalyticsReportedPerFreeV1Module() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        let chainFields = ["main_axis": "{}", "core_loop": "{}"]
+
+        func resp() -> InterpretResponse {
+            InterpretResponse(
+                interpretation: "{\"innate\":{},\"one_leverage\":\"x\"}",
+                promptVersion: 1, cached: false, generatedAt: .now,
+                provider: "anthropic", model: "mock-anthropic-model",
+                language: AppLanguage.currentWire
+            )
+        }
+        apiClient.interpretResponder = { _ in resp() }
+
+        var reported: [(name: String, params: [String: String])] = []
+        Analytics.replaceSinkForTesting { name, params in
+            reported.append((name, params))
+        }
+        defer { Analytics.resetSinkForTesting() }
+
+        // M0(免费)→ 报 1 次 deep
+        _ = try await orchestrator.runV1Module(
+            response: response, module: "m0_structure",
+            chainFields: chainFields, quotaExempt: true)
+        let firstReports = reported.filter { $0.name == "free_chapters_generated" }
+        XCTAssertEqual(firstReports.count, 1, "m0 成功应上报一次 free_chapters_generated")
+        XCTAssertEqual(firstReports.first?.params["module"], "deep", "参数保持已确认值域(module=deep)")
+
+        // M2(付费)→ 不报(requiredChainFields: core_loop/innate/defensive)
+        _ = try await orchestrator.runV1Module(
+            response: response, module: "m2_high_low", parentFingerprint: "fp",
+            chainFields: ["core_loop": "{}", "innate": "{}", "defensive": "{}"],
+            quotaExempt: true)
+        XCTAssertEqual(
+            reported.filter { $0.name == "free_chapters_generated" }.count, 1,
+            "付费模块成功不得上报免费章事件")
+
+        // M1(免费)→ 再报 1 次(每免费模块各一次,口径=事件表确认稿)
+        _ = try await orchestrator.runV1Module(
+            response: response, module: "m1_talent", parentFingerprint: "fp",
+            chainFields: chainFields, quotaExempt: true)
+        XCTAssertEqual(
+            reported.filter { $0.name == "free_chapters_generated" }.count, 2,
+            "m1 成功应再上报一次(每免费模块各一次)")
+    }
+
     // MARK: - F2(2026-10-02):自动翻译失败后换盘再切回不得死路
 
     /// A 盘自动翻译失败 → 切 B(清洗)→ 切回 A:hydrate 重建提议但会话去重
