@@ -18,6 +18,8 @@ struct QiCompassApp: App {
         // 整链完成通知 delegate(方案二,2026-10-11):启动即挂——冷启动由
         // 通知点入的场景,didReceive 要在launch 完成前就绪才不丢
         _ = ChainCompletionNotifier.shared
+        // TASK-06:埋点初始化(App ID 未配置时内部自动关闭,显式日志)
+        Analytics.configure()
         let container: ModelContainer
         do {
             container = try ModelContainerFactory.make()

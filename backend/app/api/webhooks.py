@@ -94,6 +94,7 @@ async def appstore_webhook(request: Request) -> Response:
         "request_id": request_id,
         "notification_type": ntype,
         "transaction_id": tx_id,
+        "environment": notification.environment,  # TASK-02:沙盒/生产来源进日志
     }
     logger.info("webhook.notification %s", log_ctx)
 

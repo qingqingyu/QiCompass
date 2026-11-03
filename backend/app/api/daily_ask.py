@@ -475,7 +475,8 @@ async def ask_redeem(
     added = await run_in_threadpool(
         ask_store.redeem_credits, owner=owner,
         transaction_id=req.transaction_id,
-        credits=ASK_PACK_CREDITS, purchased_at=purchased_at)
+        credits=ASK_PACK_CREDITS, purchased_at=purchased_at,
+        environment=apple_info.environment)  # TASK-02:对账排除沙盒记录
     balance = await run_in_threadpool(ask_store.get_balance, owner=owner)
     logger.info(
         "ask.redeem.ok request_id=%s owner=%s added=%s balance=%d",

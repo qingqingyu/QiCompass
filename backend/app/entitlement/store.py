@@ -33,7 +33,8 @@ CREATE TABLE IF NOT EXISTS entitlement (
     is_active              INTEGER NOT NULL DEFAULT 1,
     refunded_at            TEXT,
     revoked_at             TEXT,
-    user_id                TEXT
+    user_id                TEXT,
+    environment            TEXT
 );
 """
 
@@ -60,7 +61,7 @@ ON entitlement(user_id, is_active);
 _EXPECTED_COLUMNS = frozenset({
     "transaction_id", "product_id", "content_hash", "module", "user_local_id",
     "purchased_at", "original_purchase_date", "is_active",
-    "refunded_at", "revoked_at", "user_id",
+    "refunded_at", "revoked_at", "user_id", "environment",
 })
 
 
@@ -105,6 +106,42 @@ def _add_user_id_column_if_needed(conn: sqlite3.Connection) -> None:
         conn.execute("ALTER TABLE entitlement ADD COLUMN user_id TEXT")
 
 
+def _add_environment_column_if_needed(conn: sqlite3.Connection) -> None:
+    """TASK-02(2026-11-01):老表(无 environment 字段)增量加列。
+
+    语义同 _add_user_id_column_if_needed:先 ALTER 避免 _drop_legacy 把
+    带购买数据的老表 DROP 掉。environment 记录交易来源环境
+    (production / sandbox),对账时排除沙盒(App Review / TestFlight)
+    记录用;老行为 NULL(未知环境,不猜)。
+    """
+    row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='entitlement'"
+    ).fetchone()
+    if row is None:
+        return
+    columns = {
+        str(col[1])
+        for col in conn.execute("PRAGMA table_info(entitlement)").fetchall()
+    }
+    if "environment" not in columns:
+        try:
+            conn.execute("ALTER TABLE entitlement ADD COLUMN environment TEXT")
+        except sqlite3.OperationalError as e:
+            # 多 worker 并发启动竞态(run.sh 默认 WEB_CONCURRENCY=2):
+            # 另一进程刚加完列,本进程的 ALTER 撞 "duplicate column name"。
+            # 重查 PRAGMA 验证列已在场 = 收敛成功(显式验证,非吞错);
+            # 其余 OperationalError(磁盘满/锁超时等)原样上抛。
+            if "duplicate column" not in str(e).lower():
+                raise
+            columns_after = {
+                str(col[1])
+                for col in conn.execute(
+                    "PRAGMA table_info(entitlement)").fetchall()
+            }
+            if "environment" not in columns_after:
+                raise
+
+
 class EntitlementStore:
     """Entitlement 表 CRUD + active 查询。
 
@@ -136,6 +173,7 @@ class EntitlementStore:
         """
         with self._connect() as conn:
             _add_user_id_column_if_needed(conn)  # 先加 user_id 避免被 _drop_legacy DROP
+            _add_environment_column_if_needed(conn)  # TASK-02:同上,先加 environment
             _drop_legacy_entitlement_if_needed(conn)
             conn.execute(CREATE_TABLE_SQL)
             conn.execute(CREATE_INDEX_LOOKUP_SQL)
@@ -157,7 +195,8 @@ class EntitlementStore:
             row = conn.execute(
                 "SELECT transaction_id, product_id, content_hash, module, "
                 "       user_local_id, user_id, purchased_at, "
-                "       original_purchase_date, is_active, refunded_at, revoked_at "
+                "       original_purchase_date, is_active, refunded_at, "
+                "       revoked_at, environment "
                 "FROM entitlement WHERE transaction_id=?",
                 (transaction_id,),
             ).fetchone()
@@ -198,7 +237,8 @@ class EntitlementStore:
                 row = conn.execute(
                     "SELECT transaction_id, product_id, content_hash, module, "
                     "       user_local_id, purchased_at, original_purchase_date, "
-                    "       is_active, refunded_at, revoked_at, user_id "
+                    "       is_active, refunded_at, revoked_at, user_id, "
+                    "       environment "
                     "FROM entitlement "
                     "WHERE content_hash=? AND module=? AND user_id=? "
                     "  AND is_active=1 "
@@ -226,6 +266,7 @@ class EntitlementStore:
         self, *, transaction_id: str, product_id: str, content_hash: str,
         module: str, user_local_id: str, purchased_at: str,
         original_purchase_date: str, user_id: str | None = None,
+        environment: str,
     ) -> bool:
         """写入 entitlement(INSERT OR IGNORE,同 PK 幂等)。
 
@@ -238,6 +279,9 @@ class EntitlementStore:
             purchased_at: ISO 8601 UTC(后端写入时间)
             original_purchase_date: ISO 8601 UTC(Apple 返回的原始购买时间)
             user_id: PR2.5 登录用户的服务端 user.id(可选,登录时填)
+            environment: 交易来源环境(TASK-02,"production" / "sandbox",
+                取 AppleTransactionInfo.environment;对账排除沙盒记录用。
+                必传——不设默认值,调用方忘传是类型/运行期错误而非静默错标)
 
         Returns:
             True = 新插入;False = PK 已存在(幂等,未修改)
@@ -249,10 +293,11 @@ class EntitlementStore:
             cursor = conn.execute(
                 "INSERT OR IGNORE INTO entitlement "
                 "(transaction_id, product_id, content_hash, module, user_local_id, "
-                " purchased_at, original_purchase_date, is_active, user_id) "
-                "VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?)",
+                " purchased_at, original_purchase_date, is_active, user_id, "
+                " environment) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?, 1, ?, ?)",
                 (transaction_id, product_id, content_hash, module, user_local_id,
-                 purchased_at, original_purchase_date, user_id),
+                 purchased_at, original_purchase_date, user_id, environment),
             )
             conn.commit()
             return cursor.rowcount > 0
@@ -311,7 +356,8 @@ class EntitlementStore:
             rows = conn.execute(
                 "SELECT transaction_id, product_id, content_hash, module, "
                 "       user_local_id, user_id, purchased_at, "
-                "       original_purchase_date, is_active, refunded_at, revoked_at "
+                "       original_purchase_date, is_active, refunded_at, "
+                "       revoked_at, environment "
                 "FROM entitlement WHERE user_id=? "
                 "ORDER BY purchased_at DESC",
                 (user_id,),

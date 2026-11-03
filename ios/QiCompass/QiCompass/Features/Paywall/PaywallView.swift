@@ -62,6 +62,14 @@ struct PaywallView: View {
         .presentationDetents([.medium, .large])
         .presentationDragIndicator(.visible)
         .task { await viewModel.loadProduct() }
+        .onAppear {
+            // 埋点维度直接 switch 付费模块枚举,不字符串反查 SKU
+            //(SKU 改名时枚举分支编译期跟随,不会静默错向)
+            switch viewModel.module {
+            case .compatibility: Analytics.paywallShown(source: .compat)
+            case .deepAnalysis: Analytics.paywallShown(source: .deep)
+            }
+        }
     }
 
     // MARK: - 账号绑定派生(2026-09-27 匿名购买:登录从购买前置降级为可选绑定)
@@ -159,12 +167,10 @@ struct PaywallView: View {
             // 购买的唯一跨设备通道);已登录整行隐藏
             bindingSection
 
-            // 法律免责(DESIGN.md 反 AI slop + 命理类审核要求)
-            Text("玄学娱乐,理性参考。\n购买即视为同意 Apple 标准用户协议。")
-                .font(.caption2)
-                .foregroundStyle(BaziTheme.inkMutedSecondary)
-                .multilineTextAlignment(.center)
-                .tracking(1)
+            // 法律免责 + 使用条款(EULA)链接(TASK-04:审核要求付费条款
+            // 可见;三语经 xcstrings)。「隐私政策」链接位预留——真实 URL
+            // 就绪后在 PaywallLegalFooter 追加,不放占位假链。
+            PaywallLegalFooter()
         }
     }
 
@@ -189,6 +195,7 @@ struct PaywallView: View {
         VStack(spacing: BaziTheme.Spacing.sm) {
             Button {
                 HapticEngine.light()
+                Analytics.restoreTapped()
                 Task { await viewModel.restore() }
             } label: {
                 Text(viewModel.restoreState == .restoring ? String(localized: "恢复中…") : String(localized: "恢复购买"))
@@ -438,5 +445,36 @@ struct HourUnknownGateNotice: View {
         }
         .frame(maxWidth: .infinity)
         .padding(.top, BaziTheme.Spacing.md)
+    }
+}
+
+/// 付费墙法律注(TASK-04,PaywallView / AskPaywallView 共用):
+/// 免责一行 + 使用条款(EULA)链接。样式遵循 DESIGN.md——caption2 次级
+/// 文字、居中、非 CTA、不用朱红;链接用 inkMuted + 下划线示意可点。
+///
+/// 「隐私政策」链接位预留:待公开邮箱定稿、真实 URL 就绪后在本组件内
+/// 追加(与使用条款同排),不放占位假链、不写假 URL。
+struct PaywallLegalFooter: View {
+    /// Apple 标准最终用户许可协议(App Store 惯例条款页)。
+    /// 字面量 URL 合法性由构造保证;若未来改成拼接来源,须改为可失败
+    /// 初始化并显式处理(禁止 force unwrap 扩散)。
+    private static let eulaURL = URL(
+        string: "https://www.apple.com/legal/internet-services/itunes/dev/stdeula/")!
+
+    var body: some View {
+        VStack(spacing: 3) {
+            Text(L10n.PaywallLegal.disclaimer)
+                .font(.caption2)
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
+                .multilineTextAlignment(.center)
+                .tracking(1)
+            Link(destination: Self.eulaURL) {
+                Text(L10n.PaywallLegal.terms)
+                    .font(.caption2)
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .tracking(1)
+                    .underline()
+            }
+        }
     }
 }

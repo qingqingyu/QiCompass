@@ -315,6 +315,11 @@ final class PaywallViewModel {
         let entitlementModule = module.entitlementModule
         let contentHash = self.contentHash
         AppLogger.app.info("paywall.purchase.start product=\(productId, privacy: .public) content_hash=\(contentHash, privacy: .public) module=\(entitlementModule, privacy: .public)")
+        // 埋点商品直接取付费模块枚举(不字符串反查 SKU,枚举分支编译期跟随)
+        let analyticsProduct: Analytics.PurchaseProduct = (
+            module == .compatibility ? .compatSingle : .deepSingle
+        )
+        Analytics.purchaseStarted(product: analyticsProduct)
         state = .purchasing
         do {
             _ = try await purchaseManager.purchase(
@@ -323,6 +328,7 @@ final class PaywallViewModel {
                 module: entitlementModule
             )
             AppLogger.app.info("paywall.purchase.ok product=\(productId, privacy: .public)")
+            Analytics.purchaseSucceeded(product: analyticsProduct)
             state = .success
             onPurchaseSuccess?()
         } catch let error as PurchaseError {
@@ -331,11 +337,20 @@ final class PaywallViewModel {
             // .backendRedeemFailed / .entitlementStoreFailed)。
             if error.isSilent {
                 AppLogger.app.info("paywall.purchase.silent_cancel product=\(productId, privacy: .public)")
+                Analytics.purchaseFailed(reason: .cancelled)
                 state = .idle
             } else {
                 AppLogger.app.error(
                     "paywall.purchase.failed product=\(productId, privacy: .public) error=\(String(describing: error), privacy: .public)"
                 )
+                let failureReason: Analytics.PurchaseFailureReason
+                switch error {
+                case .networkFailed: failureReason = .paymentFailed
+                case .verificationFailed: failureReason = .verificationFailed
+                case .backendRedeemFailed, .entitlementStoreFailed: failureReason = .backendRejected
+                default: failureReason = .unknown
+                }
+                Analytics.purchaseFailed(reason: failureReason)
                 // PurchaseError.localizedDescription 由 errorDescription 提供,isSilent=false 时一定有值
                 state = .failed(error.localizedDescription)
             }
@@ -344,6 +359,7 @@ final class PaywallViewModel {
             AppLogger.app.error(
                 "paywall.purchase.unknown_error product=\(productId, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
+            Analytics.purchaseFailed(reason: .unknown)
             state = .failed(String(localized: "购买未完成,请重试"))
         }
     }

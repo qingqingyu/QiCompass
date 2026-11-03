@@ -89,6 +89,7 @@ struct OnboardingView: View {
         .onAppear {
             // 首启 onboarding 呈现的入口日志,用于排查"没弹"问题
             AppLogger.app.info("OnboardingView.onAppear 首启动引导呈现")
+            Analytics.onboardingStepCompleted(.welcome)
         }
         .onChange(of: currentPage) { _, newPage in
             // 翻页日志:排查"卡在第 N 页 / 用户中途退出"等问题
@@ -99,7 +100,11 @@ struct OnboardingView: View {
         // 排盘收起态复位(2026-09-08):state 离开 .calculating(成功翻 reveal / 失败 /
         // 取消)即收起完成;不复位会让下次提交直接落在收起态。
         .onChange(of: vm?.state) { _, newState in
-            if case .calculating = newState {} else {
+            if case .calculating = newState {
+                // TASK-06:表单提交瞬间(进入排盘中)——hourKnown 取 VM 表单态
+                Analytics.birthFormSubmitted(hourKnown: vm?.hourKnown ?? true)
+                Analytics.onboardingStepCompleted(.birthForm)
+            } else {
                 isCalcCollapsed = false
             }
         }
@@ -179,6 +184,7 @@ struct OnboardingView: View {
                         // Q7 闸门:降级态「继续」与正常态 CTA 同一放行逻辑,只放行第一次
                         if completeGate.fire(onComplete) {
                             AppLogger.app.info("ZodiacRevealView CTA 点击 → 触发 onComplete")
+                            Analytics.onboardingStepCompleted(.done)
                         } else {
                             AppLogger.app.warning("ZodiacRevealView onComplete 已触发过,跳过重复调用")
                         }
@@ -187,6 +193,7 @@ struct OnboardingView: View {
                     onAddHour: { openAddHourSheet(hash: response.contentHash) }
                 )
                 .id(response.contentHash)
+                .onAppear { Analytics.onboardingStepCompleted(.zodiacReveal) }
             case .chartFailed(let userError):
                 ErrorStateView(error: userError, retry: vm.retryCalculation)
             }

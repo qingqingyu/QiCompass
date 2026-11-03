@@ -129,13 +129,13 @@ class TestRedeemAndRefund:
         store = _store(tmp_path)
         first = store.redeem_credits(
             owner="ulid:a", transaction_id="txn-1", credits=15,
-            purchased_at="2026-10-25T00:00:00+00:00")
+            purchased_at="2026-10-25T00:00:00+00:00", environment="sandbox")
         assert first is True
         assert store.get_balance(owner="ulid:a") == 15
         # 同 transaction_id 重放(网络重试/攻击)→ 不二次入账
         replay = store.redeem_credits(
             owner="ulid:a", transaction_id="txn-1", credits=15,
-            purchased_at="2026-10-25T00:00:00+00:00")
+            purchased_at="2026-10-25T00:00:00+00:00", environment="sandbox")
         assert replay is False
         assert store.get_balance(owner="ulid:a") == 15
 
@@ -146,7 +146,7 @@ class TestRedeemAndRefund:
             credits=3, mint_limit=25)
         store.redeem_credits(
             owner="ulid:a", transaction_id="txn-1", credits=15,
-            purchased_at="2026-10-25T00:00:00+00:00")
+            purchased_at="2026-10-25T00:00:00+00:00", environment="sandbox")
         assert store.get_balance(owner="ulid:a") == 18
 
     def test_refund_floors_at_zero(self, tmp_path):
@@ -154,7 +154,7 @@ class TestRedeemAndRefund:
         store = _store(tmp_path)
         store.redeem_credits(
             owner="ulid:a", transaction_id="txn-1", credits=15,
-            purchased_at="2026-10-25T00:00:00+00:00")
+            purchased_at="2026-10-25T00:00:00+00:00", environment="sandbox")
         for _ in range(14):  # 消耗到剩 1
             store.try_consume(owner="ulid:a")
         assert store.get_balance(owner="ulid:a") == 1
@@ -168,7 +168,7 @@ class TestRedeemAndRefund:
         store = _store(tmp_path)
         store.redeem_credits(
             owner="ulid:a", transaction_id="txn-1", credits=15,
-            purchased_at="2026-10-25T00:00:00+00:00")
+            purchased_at="2026-10-25T00:00:00+00:00", environment="sandbox")
         for _ in range(10):  # 消耗到剩 5
             store.try_consume(owner="ulid:a")
         assert store.get_balance(owner="ulid:a") == 5
@@ -180,7 +180,7 @@ class TestRedeemAndRefund:
         store = _store(tmp_path)
         store.redeem_credits(
             owner="ulid:a", transaction_id="txn-1", credits=15,
-            purchased_at="2026-10-25T00:00:00+00:00")
+            purchased_at="2026-10-25T00:00:00+00:00", environment="sandbox")
         with sqlite3.connect(str(tmp_path / "ask.db")) as conn:
             conn.execute("DELETE FROM ask_wallet WHERE owner = 'ulid:a'")
             conn.commit()
@@ -198,7 +198,7 @@ class TestRedeemAndRefund:
         with pytest.raises(sqlite3.IntegrityError):
             store.redeem_credits(  # type: ignore[arg-type]
                 owner="ulid:a", transaction_id="txn-bad", credits=None,
-                purchased_at="2026-10-25T00:00:00+00:00")
+                purchased_at="2026-10-25T00:00:00+00:00", environment="sandbox")
         # 未被误判为重放入账
         assert store.get_balance(owner="ulid:a") == 0
 
