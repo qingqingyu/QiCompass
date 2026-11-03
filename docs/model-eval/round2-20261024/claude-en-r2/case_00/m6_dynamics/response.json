@@ -1,0 +1,67 @@
+{
+  "energy_path": [
+    {
+      "stage": "Research phase",
+      "gain_or_loss": "gain",
+      "mechanism": "Indirect Resource at 10 drives you to absorb offbeat knowledge from non-standard channels. The Geng day master is balanced, so this intake does not overload you — instead it fuels differentiation. You scan adjacent domains, spot unclaimed angles, and build specialized capability before peers arrive. This stage is pure gain because the energy required to research matches your natural operating mode."
+    },
+    {
+      "stage": "Competition entry",
+      "gain_or_loss": "gain",
+      "mechanism": "Rob Wealth at 6 activates when you take the knowledge and enter a space where peers compete for the same opportunities. The hour stem Xin and year branch hidden Xin both act as Rob Wealth, meaning peer competition is structural, not situational. You convert the research edge into income by competing directly — bidding on the same projects, pitching the same clients, positioning against the same five providers. This stage is still gain because the offbeat knowledge from stage one gives you an advantage peers lack, so you win enough contests to generate cash flow."
+    },
+    {
+      "stage": "Income extraction",
+      "gain_or_loss": "gain",
+      "mechanism": "Direct Wealth at 6 represents steady, repeatable income from the clients or opportunities you captured in stage two. The year stem Yi and day branch hidden Yi both act as Direct Wealth, and the equal weight with Rob Wealth means income and competition arrive as a pair. You stack small wins — weekly retainers, recurring contracts, modest-but-reliable gigs — and the cash flow is positive as long as the edge from stage one still holds. This stage is gain because you are harvesting what you planted in stage one and defended in stage two."
+    },
+    {
+      "stage": "Saturation and erosion",
+      "gain_or_loss": "loss",
+      "mechanism": "Peers catch up. The knowledge you researched in stage one becomes common, the niche you entered in stage two fills with competitors, and the advantage that powered stage three erodes. Because Rob Wealth and Direct Wealth share equal weight at 6, you experience this as peers earning the same income from the same work — not because they are better, but because the asymmetry closed. You keep executing the same tasks, but the rate compresses, the clients comparison-shop, and you spend energy defending turf instead of building on it. This stage is loss because effort no longer converts into incremental gain."
+    },
+    {
+      "stage": "Restless re-research",
+      "gain_or_loss": "loss",
+      "mechanism": "You cycle back to research, but now from fatigue rather than curiosity. Indirect Resource at 10 means you cannot sustain low-margin repetitive work without recharging through learning, so you scan for the next offbeat angle. The risk is that you abandon stage three prematurely — you see two peers enter your niche and assume saturation even when the market could support five more providers. If you exit too early, you lose the income stability of stage three without yet having built the new edge for stage one. This stage is loss when the research is reactive avoidance rather than proactive positioning."
+    }
+  ],
+  "leverage": {
+    "point": "Stage one — early-move research into undersupplied categories",
+    "input": "One week of scanning non-standard sources, cross-referencing adjacent domains, and identifying a capability gap that peers have not yet named",
+    "output": "Six to eighteen months of competitive advantage in stage two and steady income in stage three, because you enter the niche before it saturates and you can name your rate without justifying it against twenty comparable providers",
+    "why": "Indirect Resource at 10 makes knowledge intake effortless for you and costly for peers who lack that drive, so the same research investment yields asymmetric returns. The leverage multiplies when you act on the research immediately — the gap between your entry and peer entry is where the entire gain concentrates. If you delay entry by six months to gather more credentials or wait for validation, peers close the gap and the leverage collapses."
+  },
+  "vulnerability": {
+    "point": "Stage four — peer saturation triggers premature exit",
+    "condition": "You see two or three peers launch offerings in the niche you researched, and you interpret their presence as proof the space is full",
+    "mechanism": "Rob Wealth at 6 makes peer competition viscerally threatening because your nervous system registers other people's success as a reduction in your own opportunity. The equal weight with Direct Wealth at 6 means you experience income and competition as zero-sum — if they earn, you earn less. This belief causes you to abandon niches before testing whether the market can support multiple providers, so you exit stage three while income is still positive and re-enter stage five without a new edge ready. The cycle then shortens: you research, enter, see peers, exit, research again, and the income stability of stage three never lasts long enough to fund the next research phase properly.",
+    "self_check": "Track exit timing. If you have exited three niches in two years, and each time the trigger was seeing peers rather than actual revenue decline, you are collapsing the cycle prematurely. The structural fix is to stay in stage three until revenue drops by thirty percent or more, not until peer count rises."
+  },
+  "upgrade_path": [
+    {
+      "phase": "One — map the loop you are already running",
+      "entry_condition": "You feel restless or resentful about income but cannot name why, or you notice you are researching constantly but income is not growing",
+      "work": "List every niche or skill you have researched in the past three years. Next to each one, write total income generated, how many peers you saw before you exited, and whether you left because revenue dropped or because you assumed saturation. Calculate your average cycle length — how long you stayed in stage three before returning to stage one. Identify which exits were revenue-driven and which were peer-driven. This is pure observation; you are not fixing anything yet, only seeing the pattern clearly.",
+      "done_signal": "You can describe your loop in one sentence without using vague words like 'opportunity' or 'market conditions' — you name the research topic, the peer trigger, the exit decision, and the income loss. You recognize that the cycle is structural, not a series of bad-luck failures."
+    },
+    {
+      "phase": "Two — extend stage three duration",
+      "entry_condition": "You have completed phase one and identified at least two exits that were peer-driven rather than revenue-driven",
+      "work": "Pick the niche you are currently in or most recently exited. Commit to staying in stage three until revenue declines by thirty percent from peak, regardless of how many peers enter. This requires overriding the Rob Wealth alarm that fires when you see competition. Set a simple rule: peer count is not an exit signal; only revenue decline is an exit signal. During this phase, when you feel the urge to research a new niche, channel that energy into iterating your current offer — tighten the positioning, add one upsell, or shift the client segment slightly. You are training yourself to harvest stage three fully before cycling back to stage one.",
+      "done_signal": "You stay in one niche for twelve months or longer, and you earn through at least one wave of new peer entrants without exiting. You experience the discomfort of visible competition and do not let it override the income data."
+    },
+    {
+      "phase": "Three — test differentiation under competition",
+      "entry_condition": "You have completed phase two and stayed in one niche long enough to see peers enter without abandoning your position",
+      "work": "Now that you can tolerate peer presence, test whether you can differentiate within a shared category rather than always seeking an empty one. Pick a niche where three to five peers already operate. Research not the topic itself but the gaps in how peers deliver — what questions do their clients still ask after buying, what use cases do they ignore, what format or speed or tone do they not offer. Build the smallest offer that fills one gap, price it at your usual rate, and sell it to ten clients. You are testing whether you can extract income from a competitive space by positioning rather than by arriving first.",
+      "done_signal": "You generate income in a niche where peers were already present when you entered, and you did not have to undercut on price to win. You prove to yourself that peer presence does not mean the room is full."
+    },
+    {
+      "phase": "Four — build a moat in stage three",
+      "entry_condition": "You have completed phase three and successfully differentiated in a competitive niche at least once",
+      "work": "Now you can leverage the full structure. Pick one niche and commit to making it defensible rather than disposable. Use Indirect Resource at 10 to build knowledge that peers cannot easily replicate — write the manual no one else wrote, build the tool that automates part of the workflow, or create a certification process that positions you as the standard-setter. Channel Rob Wealth energy into alliances rather than contests — when a peer enters your niche, explore whether you can refer overflow to each other or co-create a higher-tier offer instead of splitting the same client pool. The goal is to extend stage three from twelve months to three years, so that you fund the next research cycle from surplus rather than desperation.",
+      "done_signal": "You earn from the same niche for twenty-four months or longer, and at least one peer refers clients to you instead of competing with you. Your income in stage three is stable enough that you can enter stage one for the next niche without abandoning the current one."
+    }
+  ]
+}

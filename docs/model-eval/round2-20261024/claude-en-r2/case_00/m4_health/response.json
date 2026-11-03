@@ -1,0 +1,87 @@
+{
+  "battery_type": {
+    "type": "climb",
+    "evidence": "The Geng day master is balanced, not weak. Indirect Resource is heaviest at 10, sitting in the month stem and appearing three more times hidden in branches. Direct Wealth and Rob Wealth are both at 6. This means you can sustain long stretches of research and incremental earning, but you do not spike quickly — you need a warm-up period before hitting full capacity, and you recover through cumulative small inputs rather than one dramatic rest session.",
+    "charge_pattern": "You recharge by doing low-stakes learning or organizing tasks that feel like progress but carry no immediate deadline. Reading a long-form article, reorganizing a workflow document, or cataloging data all restore energy because they feed the Indirect Resource loop without demanding social performance or creative output. You need these sessions to be uninterrupted — even 20 minutes of unbroken time works better than an hour chopped into five pieces.",
+    "drain_pattern": "You drain when competitive pressure and income demands collide for multiple days without a knowledge-refresh break. Rob Wealth at 6 means you naturally track what peers are doing and adjust your position, but if that comparison runs for 72 hours straight with no chance to step aside and learn something new, your system starts running on reserve power. The day branch Chen holds Indirect Resource, Direct Wealth, and Hurt Officer together — when you are forced to produce visible output, compete for a client, and absorb new material all in the same day, the three streams cross and you feel more tired after eight hours than the workload should cause."
+  },
+  "imbalance_risks": [
+    {
+      "system": "sleep quality",
+      "trigger": "More than three consecutive days of needing to act immediately on someone else's schedule — back-to-back client calls, urgent requests that interrupt your own task sequence, or any pattern where you cannot control the start time of your deep-focus blocks. The month stem Wu and the hidden Wu in three branches represent Indirect Resource, which thrives on self-directed inquiry. When external demands override your internal rhythm for 72 hours or more, your nervous system stays in scanning mode even after work ends, and you lie awake replaying decision points or researching one more angle.",
+      "early_sign": "You find yourself opening a browser tab at 11 p.m. to verify one small fact that has no deadline, or you wake at 3 a.m. mentally drafting a reply to a message you already sent. These are not anxiety spirals — they are your Indirect Resource engine refusing to shut down because it did not get its daytime learning window."
+    },
+    {
+      "system": "digestive rhythm",
+      "trigger": "Skipping meals or eating while working for more than two days in a row, especially when you are tracking competitor moves or chasing a payment milestone. Rob Wealth at 6 and Direct Wealth at 6 create a push-pull: you want the steady income, but you also feel the pressure to move faster than the person next to you. When you skip the lunch break to keep up, your body interprets it as scarcity mode and digestion slows. The imbalance worsens if you are also absorbing new information during the meal — reading while eating fragments both processes.",
+      "early_sign": "You feel physically full after a normal portion, or you are hungry again 90 minutes after eating. Your stomach is not broken — the signal timing is off because you trained it to expect food during cognitive load, and it cannot distinguish fuel from stress."
+    },
+    {
+      "system": "physical tension in shoulders and neck",
+      "trigger": "Long research sessions with poor posture, especially when you are cross-referencing multiple sources or building a case for an unconventional approach. Indirect Resource at 10 means you naturally go deep, and the Geng day master in the month of Yin sits at the stage called 绝 — your vitality is not rooted in physical strength but in mental assembly. When your eyes and brain are fully engaged, you forget to move your body, and the upper back locks up. The problem compounds when you are also competing for a client or contract — Rob Wealth activates the jaw and shoulders because you are unconsciously bracing for the next move.",
+      "early_sign": "You reach for your phone or mouse and feel a dull ache in the shoulder blade that was not there an hour ago, or you notice your jaw is clenched when you finish reading a long document. The tension appears during focus, not after."
+    }
+  ],
+  "recovery_levers": [
+    {
+      "action": "Schedule one 25-minute block each morning, before any external communication, to read or organize something you are curious about but that has no work deadline. This can be an article, a new tool's documentation, a side topic you have been meaning to explore. The only rule: no one can interrupt it, and it must happen before you open email or messaging apps.",
+      "why_it_works_for_you": "Indirect Resource at 10 is your primary energy source, and it recharges when you learn without performance pressure. If you let external demands claim the first hour of your day, you spend the rest of the day running on fumes. This block feeds the research engine that powers everything else, and because it is short and early, it does not compete with your income work. The 25-minute length matches one Pomodoro cycle, which is long enough to feel like you learned something but short enough to protect the rest of your schedule.",
+      "cost": "low"
+    },
+    {
+      "action": "Set a recurring 5-minute timer every 90 minutes during work sessions to stand, stretch your shoulders back, and look at something farther than your screen. Do not skip this even if you are mid-task. If you are on a call, keep your camera on and stretch anyway.",
+      "why_it_works_for_you": "The Geng day master in the month of Yin at the 绝 stage means your energy runs through mental assembly, not physical stamina. Your body does not send a loud distress signal until the tension is already locked in. The 90-minute interval catches the buildup before it becomes pain, and the 5-minute cost is low enough that you will actually do it. The stretch does not need to be elaborate — pulling your shoulder blades together and rolling your neck once is enough to reset the holding pattern that Indirect Resource and Rob Wealth create when you are deep in focus or tracking a competitor.",
+      "cost": "low"
+    },
+    {
+      "action": "Eat one meal per day sitting down, with no screen, no reading, and no working. Chew slowly. If you live with others, this can be a shared meal. If you live alone, just sit at a table and eat without doing anything else. Start with lunch, because it is the easiest meal to protect from deadline pressure.",
+      "why_it_works_for_you": "Direct Wealth at 6 and Rob Wealth at 6 mean you are wired to keep moving, stacking small wins and watching what peers are doing. Eating while working feels efficient, but it trains your digestive system to stay in scanning mode, and over time the system stops distinguishing fuel from stress. One screen-free meal per day resets the signal. You do not need to do this for all three meals — one is enough to remind your body that eating is a separate event. The evidence is in the day branch Chen, which holds Indirect Resource, Direct Wealth, and Hurt Officer together; when all three run at once without a break, the body cannot process any of them cleanly.",
+      "cost": "low"
+    }
+  ],
+  "reset_7day": [
+    {
+      "day": 1,
+      "focus": "Establish the morning learning block",
+      "action": "Set a 25-minute timer tomorrow morning before you open email or messaging apps. Read one article or explore one tool you have been curious about. Do not take notes for work. Just read. If someone messages you during this block, do not reply until the timer ends. This block is the anchor for the rest of the week."
+    },
+    {
+      "day": 2,
+      "focus": "Install the movement interrupt",
+      "action": "Set a recurring timer for every 90 minutes starting when you begin work. When it rings, stand and stretch your shoulders back for 5 breaths. Do not skip it even if you are mid-sentence. The goal is not a perfect stretch — the goal is breaking the holding pattern before it locks."
+    },
+    {
+      "day": 3,
+      "focus": "Protect one meal",
+      "action": "Eat lunch today without a screen, without reading, without working. Sit at a table. Chew slowly. If your mind wanders to a work problem, notice it and bring your attention back to the food. You are not trying to relax — you are teaching your body that eating is a separate event."
+    },
+    {
+      "day": 4,
+      "focus": "Map your energy curve",
+      "action": "At the end of today, write down when you felt most focused, when you felt most drained, and what you were doing in each window. Do not analyze it yet. Just record the pattern. You are looking for whether your energy drops after certain types of tasks or after certain durations."
+    },
+    {
+      "day": 5,
+      "focus": "Test a small boundary",
+      "action": "If someone asks you to jump on a call or handle an urgent request during your morning learning block or within 30 minutes of a meal, say you can do it in 30 minutes and hold that boundary. Do not apologize. Do not explain. Just state the time you are available. The goal is to see whether the world actually collapses when you delay a response by 30 minutes. It will not."
+    },
+    {
+      "day": 6,
+      "focus": "Audit your recovery gaps",
+      "action": "Look at your calendar for the past week. Identify any day where you had no uninterrupted learning time, no movement break, and no screen-free meal. Those are the days that drained you. Tomorrow, block 25 minutes on your calendar for your morning learning session for the next two weeks. Treat it like a meeting. Do not move it."
+    },
+    {
+      "day": 7,
+      "focus": "Lock the weekly rhythm",
+      "action": "Review what worked this week. If the morning learning block felt impossible on certain days, move it to a different time slot but keep the 25-minute duration. If the 90-minute stretch timer annoyed you, adjust the interval to 2 hours but do not remove it. The rhythm matters more than perfection. Write down your adjusted schedule and commit to it for the next 14 days."
+    }
+  ],
+  "weekly_maintenance": [
+    "One 25-minute morning learning block every weekday, scheduled before external communication. This is non-negotiable. It is the primary recharge lever for Indirect Resource at 10.",
+    "One screen-free meal per day, five days per week. Start with lunch. If you miss a day, do not double up the next day — just resume the pattern.",
+    "A 5-minute movement break every 90 minutes during focused work. Use a timer. Do not rely on your body to remind you, because the Geng day master in the month of Yin at the 绝 stage does not send early warnings.",
+    "One evening per week where you stop all work-related reading and research by 8 p.m. This does not mean you must socialize or relax — you can do a non-work hobby, organize your space, or do nothing. The point is to let the Indirect Resource engine idle.",
+    "On Sunday evening, review your calendar for the coming week and mark any day that has back-to-back external demands with no buffer. Add a 15-minute blank block after each high-intensity window. You will not use this time for anything — it is just a separator so your nervous system knows the previous task is finished."
+  ],
+  "medical_note": "You describe long-term fatigue and poor sleep quality on workdays. The recovery framework here addresses rhythm, boundaries, and sustainable pacing, but if you have persistent difficulty falling asleep, staying asleep, or waking unrefreshed for more than two weeks even after improving your daily structure, see a doctor. Chronic sleep disruption can have medical causes that rest and routine alone will not resolve, and early intervention prevents longer-term issues. The same applies if you notice unexplained physical symptoms — persistent digestive discomfort, ongoing pain, or fatigue that worsens rather than improves with rest. This system helps you manage energy flow within normal variation; it does not diagnose or treat medical conditions."
+}
