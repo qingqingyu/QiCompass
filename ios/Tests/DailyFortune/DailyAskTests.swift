@@ -5,8 +5,9 @@ import XCTest
 /// - **出现时机**:DailyAskPresentation 单一阈值(< 64pt)+ 聊天页开 = 强制
 ///   不可见;内容不满屏(剩余为负)同样算「在底部」。
 /// - **数据组装**:候选 = v6 ask_suggestions 优先,缺键/解读未成 →
-///   EngineReadingTemplates 确定性表;开场白/引导句/副题引用当日盘面,
-///   宜忌词条与 HeroYiJiColumns 词表同源。
+///   EngineReadingTemplates 确定性表;开场白/窄条短引导/副题引用当日盘面,
+///   宜忌词条与 HeroYiJiColumns 词表同源(2026-11-03 窄条化:候选只在
+///   聊天页,问事条单行入口)。
 /// - **对话流**:首发即收候选、作答中双闸(候选/草稿均拦)、草稿只在
 ///   成功发出时清、作答失败走可见失败气泡(接缝 DailyAskAnswering 注入)。
 ///
@@ -80,7 +81,7 @@ final class DailyAskTests: XCTestCase {
     }
 
     @MainActor
-    func testMake_v6候选优先_前两条进问事框chip() {
+    func testMake_v6候选优先_原样进offers() {
         let json = #"{"headline":"比肩当值\n同气相扶","work":"w","relationships":"r","energy":"e","reminder":"m","ask_suggestions":"今天适合去谈判吗？\n单干还是搭伙？\n和同伴分利注意什么？"}"#
         let model = DailyAskModel.make(
             response: makeResponse(),
@@ -90,12 +91,7 @@ final class DailyAskTests: XCTestCase {
         XCTAssertEqual(
             model.offers,
             ["今天适合去谈判吗？", "单干还是搭伙？", "和同伴分利注意什么？"],
-            "v6 ask_suggestions 存在且非空 → 原样三条"
-        )
-        XCTAssertEqual(
-            model.composerChips,
-            ["今天适合去谈判吗？", "单干还是搭伙？"],
-            "问事框 chip 只取前两条(HTML cp-chips 两条)"
+            "v6 ask_suggestions 存在且非空 → 原样三条(窄条化后候选只在聊天页,不再截前二上条)"
         )
     }
 
@@ -129,15 +125,14 @@ final class DailyAskTests: XCTestCase {
 
         XCTAssertEqual(
             model.composerLine,
-            "比肩当值的一天。你的事,挑一条来问——",
-            "问事框引导句(zh 逐字,HTML cp-line)"
+            "比肩当值 · 有事来问",
+            "问事窄条短引导(zh 逐字,今日问事-窄条.html 2026-11-03 定稿)"
         )
         XCTAssertEqual(
             model.contextLine,
             "辛未日 · 比肩",
             "sheet 副题 = 日柱+日+十神(zh)"
         )
-        XCTAssertEqual(model.composerChips.count, 2, "chip 恒两条(确定性表也截前二)")
     }
 
     // MARK: - 对话流(注入假作答服务)

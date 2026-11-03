@@ -347,13 +347,13 @@ struct DailyFortuneMainView: View {
             }
             .allowsHitTesting(false)
         )
-        // S4 ① 问事框:滚到最底(< 64pt)从 tab 栏上方滑出,收在顶部不可见。
-        // 出现/离开均走 spring(HTML transition .45s cubic-bezier 的近似);
-        // reduce-motion 降级为纯淡入淡出(动效三式纪律)。
+        // S4 ① 问事窄条(2026-11-03 窄条化):滚到最底(< 64pt)从 tab 栏上方
+        // 滑出,收在顶部不可见。出现/离开均走 spring(HTML transition .45s
+        // cubic-bezier 的近似);reduce-motion 降级为纯淡入淡出(动效三式纪律)。
         .overlay(alignment: .bottom) {
             Group {
                 if askComposerVisible {
-                    DailyAskComposerCard(
+                    DailyAskComposerStrip(
                         model: askModel ?? fallbackAskModel,
                         wallet: askWallet,
                         onOpen: {
@@ -361,13 +361,7 @@ struct DailyFortuneMainView: View {
                             syncAskModel()
                             chatPresented = true
                         },
-                        onQuickAsk: { question in
-                            HapticEngine.light()
-                            syncAskModel()
-                            askModel?.sendOffer(question)
-                            chatPresented = true
-                        },
-                        // S4c 0 次加购形态:点卡弹次数包购买墙(C3 真墙)
+                        // S4c 0 次加购形态:点条弹次数包购买墙(C3 真墙)
                         onBuyPack: { showAskPaywall = true }
                     )
                     .padding(.horizontal, 14)
@@ -382,7 +376,7 @@ struct DailyFortuneMainView: View {
                 value: askComposerVisible
             )
         }
-        // S4c 问事框 0 次态购买墙(AskPaywallView 真墙;买成功 dismiss,
+        // S4c 问事窄条 0 次态购买墙(AskPaywallView 真墙;买成功 dismiss,
         // 余额经 wallet 回写 → 问事框自动退出加购形态)
         .sheet(isPresented: $showAskPaywall) {
             AskPaywallView(
