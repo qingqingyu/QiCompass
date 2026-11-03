@@ -80,6 +80,15 @@ final class AnalyticsContractTests: XCTestCase {
         XCTAssertEqual(Analytics.Language.en.rawValue, "en")
     }
 
+    func test_deepFreeChapterHookKeyedOnRootModuleID() {
+        // 2026-11-03 复核修复的回归锚:deep 免费内容事件的触发键 =
+        // ModuleID.m0.rawValue(枚举绑定,改名编译期跟随)。老
+        // "bazi_deep_free" 是 v1 链化前的死串——ModuleID 已无此 case,
+        // 任何代码再拿它当触发条件都是死代码(原 TASK-06 缺陷即此)。
+        XCTAssertEqual(ModuleID.m0.rawValue, "m0_structure")
+        XCTAssertNil(ModuleID(rawValue: "bazi_deep_free"))
+    }
+
     func test_configuredWithoutAppIDImplicitlyDisables() {
         // App ID 键缺席(测试环境无该 Info.plist 值)时 configure() 走关闭
         // 分支不崩——send 侧 SDK 未初始化也是安全 no-op(官方语义)
