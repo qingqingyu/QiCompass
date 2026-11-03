@@ -63,9 +63,12 @@ struct PaywallView: View {
         .presentationDragIndicator(.visible)
         .task { await viewModel.loadProduct() }
         .onAppear {
-            Analytics.paywallShown(source: (
-                viewModel.module.productId.contains("compatibility") ? .compat : .deep
-            ))
+            // 埋点维度直接 switch 付费模块枚举,不字符串反查 SKU
+            //(SKU 改名时枚举分支编译期跟随,不会静默错向)
+            switch viewModel.module {
+            case .compatibility: Analytics.paywallShown(source: .compat)
+            case .deepAnalysis: Analytics.paywallShown(source: .deep)
+            }
         }
     }
 

@@ -315,8 +315,9 @@ final class PaywallViewModel {
         let entitlementModule = module.entitlementModule
         let contentHash = self.contentHash
         AppLogger.app.info("paywall.purchase.start product=\(productId, privacy: .public) content_hash=\(contentHash, privacy: .public) module=\(entitlementModule, privacy: .public)")
+        // 埋点商品直接取付费模块枚举(不字符串反查 SKU,枚举分支编译期跟随)
         let analyticsProduct: Analytics.PurchaseProduct = (
-            productId.contains("compatibility") ? .compatSingle : .deepSingle
+            module == .compatibility ? .compatSingle : .deepSingle
         )
         Analytics.purchaseStarted(product: analyticsProduct)
         state = .purchasing

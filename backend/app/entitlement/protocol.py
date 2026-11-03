@@ -55,9 +55,9 @@ class AppleServerAPI(Protocol):
     所有方法同步(SDK 是同步的),由路由层通过 run_in_threadpool 调用。
 
     所有失败模式(网络 / 签名无效 / 两环境均查无交易 / Apple 5xx)统一抛
-    AppleVerificationError(502)。Apple 明确返回 status=退款时抛
-    EntitlementError(用户已无权)。交易查询恒 production 优先、仅 404
-    回落 sandbox(TASK-02 双环境语义,见 apple_client.py)。
+    AppleVerificationError(502)。退款不在此层抛——经 is_refunded 标志
+    上抛,由路由层定夺 EntitlementError(403)。交易查询恒 production
+    优先、仅 404 回落 sandbox(TASK-02 双环境语义,见 apple_client.py)。
     """
 
     def verify_transaction(self, transaction_id: str) -> AppleTransactionInfo:
