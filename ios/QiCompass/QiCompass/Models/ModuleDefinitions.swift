@@ -24,18 +24,15 @@ enum ModuleID: String, CaseIterable, Codable, Sendable {
 
     /// 显示名称(中文,对齐 v1.md §3 各模块标题;en 走 xcstrings 同 key)。
     /// 用于 ModuleCardView 的 header,格式 "M{N} · {标题}" 便于用户识别层级。
-    /// 2026-11-04 章名人话化(逐章拍板):主线结构→主线、系统模式→运行方式、
-    /// 财富结构→财富体质、结构动力学→优势杠杆;贰叁伍捌维持。章名是索引不是
-    /// 钩子(读者靠它记住/引用章节),钩子的活由 subtitle 承担。
     var displayName: String {
         switch self {
-        case .m0: return String(localized: "M0 · 主线")
+        case .m0: return String(localized: "M0 · 主线结构")
         case .m1: return String(localized: "M1 · 天赋能力")
         case .m2: return String(localized: "M2 · 高配 vs 低配")
-        case .m3: return String(localized: "M3 · 运行方式")
+        case .m3: return String(localized: "M3 · 系统模式")
         case .m4: return String(localized: "M4 · 健康续航")
-        case .m5: return String(localized: "M5 · 财富体质")
-        case .m6: return String(localized: "M6 · 优势杠杆")
+        case .m5: return String(localized: "M5 · 财富结构")
+        case .m6: return String(localized: "M6 · 结构动力学")
         case .m7: return String(localized: "M7 · 落地手册")
         }
     }
