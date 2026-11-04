@@ -48,15 +48,18 @@ enum ModuleID: String, CaseIterable, Codable, Sendable {
     /// 一句话副标题(S4 章名人话化,2026-09-30 BP 内容评审 R8/R12/R13:
     /// 系统分析术语 → 按各章实际产出说人话;en 走 xcstrings 同 key)。
     /// 目录行/阅读页章节头/付费墙卖点共同消费,改这里即三处同步。
+    /// 2026-11-04 命中感改版(逐章拍板):主语从「盘」换「你」,靠戳体验
+    /// 制造钩子——壹贰伍柒问句、叁陈述、肆卸罪断言;陆/捌已是标杆形态维持
+    /// 不动。问句不带问号,沿用既有副题标点风格。
     var subtitle: String {
         switch self {
-        case .m0: return String(localized: "你这张盘的主线:靠什么驱动,在哪里打转")
-        case .m1: return String(localized: "天生就会的 · 后天练出的 · 为自保养成、长期在消耗你的")
-        case .m2: return String(localized: "同一张盘,在好环境和坏环境里分别会活成什么样")
-        case .m3: return String(localized: "你怎样运转最好、什么环境会让你失灵、什么样的生活节奏适合你")
-        case .m4: return String(localized: "精力的起落规律,和最有效的恢复方式")
+        case .m0: return String(localized: "为什么你总在同一个地方打转")
+        case .m1: return String(localized: "为什么有的事你不学就会,有的事越努力越累")
+        case .m2: return String(localized: "同一个你,在有的环境发光,有的环境熄火")
+        case .m3: return String(localized: "你不是不自律,是不适合这种活法")
+        case .m4: return String(localized: "为什么睡够了还是累")
         case .m5: return String(localized: "适合你的赚钱方式,和最容易漏钱的地方")
-        case .m6: return String(localized: "你的发力点、薄弱点,以及下一阶段怎么升级")
+        case .m6: return String(localized: "往哪儿使劲最有用,哪儿再努力也白费")
         case .m7: return String(localized: "最值得押注的一件事,和接下来 90 天的行动")
         }
     }
