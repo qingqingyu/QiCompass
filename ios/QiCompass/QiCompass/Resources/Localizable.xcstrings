@@ -9802,25 +9802,25 @@
         }
       }
     },
-    "M0 · 主线结构" : {
+    "M0 · 主线" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M0 · Main structure"
+            "value" : "M0 · Throughline"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M0 · 主线结构"
+            "value" : "M0 · 主线"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M0 · 主線結構"
+            "value" : "M0 · 主線"
           }
         }
       }
@@ -9871,7 +9871,7 @@
         }
       }
     },
-    "M3 · 系统模式" : {
+    "M3 · 运行方式" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -9883,13 +9883,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M3 · 系统模式"
+            "value" : "M3 · 运行方式"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M3 · 系統模式"
+            "value" : "M3 · 運行方式"
           }
         }
       }
@@ -9917,48 +9917,48 @@
         }
       }
     },
-    "M5 · 财富结构" : {
+    "M5 · 财富体质" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M5 · Wealth structure"
+            "value" : "M5 · Wealth constitution"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M5 · 财富结构"
+            "value" : "M5 · 财富体质"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M5 · 財富結構"
+            "value" : "M5 · 財富體質"
           }
         }
       }
     },
-    "M6 · 结构动力学" : {
+    "M6 · 优势杠杆" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M6 · Dynamics"
+            "value" : "M6 · Leverage"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M6 · 结构动力学"
+            "value" : "M6 · 优势杠杆"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M6 · 結構動力學"
+            "value" : "M6 · 優勢槓桿"
           }
         }
       }
@@ -11733,19 +11733,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wealth & structure · shaped by you"
+            "value" : "Wealth constitution · shaped by you"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "财富结构 · 因你而异"
+            "value" : "财富体质 · 因你而异"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "財富結構 · 因你而異"
+            "value" : "財富體質 · 因你而異"
           }
         }
       }
@@ -11874,7 +11874,7 @@
         }
       }
     },
-    "主线结构与天赋能力两章已免费 · 余下陆章一次解锁" : {
+    "主线与天赋能力两章已免费 · 余下陆章一次解锁" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -11886,13 +11886,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "主线结构与天赋能力两章已免费 · 余下陆章一次解锁"
+            "value" : "主线与天赋能力两章已免费 · 余下陆章一次解锁"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "主線結構與天賦能力兩章已免費 · 餘下陸章一次解鎖"
+            "value" : "主線與天賦能力兩章已免費 · 餘下陸章一次解鎖"
           }
         }
       }
