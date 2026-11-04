@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>今日问事 · 多会话(方案稿)</title>
+<style>
+  /* ============================================================
+     今日问事 · 多会话 —— 2026-11-04 方案稿(待用户目验拍板)
+     用户指令:聊天页左上角「三道杠」按钮 → 左侧滑出会话抽屉,
+     抽屉里显示每次对话(一条一个)。
+     三道杠沿用「深度」tab 的三叠横墨线描语言(不引入外来的
+     hamburger 图形体系);抽屉从左滑出 + 半透明压暗。
+     生命周期(推断,可否):今日线可聊 / 往日线只读可看 / 不跨天续聊
+     ——盘面每日换,旧线里的回答踩的是旧盘;续聊 =「昨天的盘说X
+     今天的盘说Y」语义打架 + 后端作答端点大动,方案里明确不做。
+     浏览器可真点:☰ 开抽屉 / 切会话 / 往日只读态 / 新开一问。
+     快捷参数:?drawer=1 直接开抽屉。
+     ============================================================ */
+  :root {
+    --paper: #E7E2D5;
+    --paper-raise: #F1EDE3;
+    --ink: #1C1B1E;
+    --ink-muted: #77726A;
+    --jade: #2F5E4A;
+    --cinnabar: #A83226;
+    --hairline: rgba(28, 27, 30, 0.18);
+    --serif: 'Songti SC', 'STSong', 'Noto Serif SC', serif;
+    --sans: -apple-system, 'PingFang SC', 'Helvetica Neue', sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html { -webkit-font-smoothing: antialiased; }
+  body {
+    background: #D9D4C7;
+    font-family: var(--serif);
+    color: var(--ink);
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+    gap: 40px;
+    padding: 36px 16px 64px;
+  }
+
+  .phone {
+    position: relative;
+    width: 393px; max-width: 100%;
+    height: 852px;
+    background: var(--paper);
+    border-radius: 42px;
+    box-shadow: 0 24px 60px rgba(23, 20, 18, 0.28), 0 2px 8px rgba(23, 20, 18, 0.12);
+    overflow: hidden;
+    flex-shrink: 0;
+  }
+  @media (max-width: 860px) {
+    body { padding: 0; }
+    .phone { width: 100%; height: 100dvh; border-radius: 0; box-shadow: none; }
+    .notes { display: none; }
+  }
+
+  /* ---------- ② 聊天页(与今日问事.html 同骨架,顶栏左端加三叠横墨) ---------- */
+  .chat { position: absolute; inset: 0; display: flex; flex-direction: column; z-index: 20; }
+
+  .sh-head {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 10px;
+    padding: 54px 16px 14px 14px;
+    border-bottom: 0.5px solid var(--hairline);
+    background: var(--paper);
+  }
+  .menu-btn, .close-btn {
+    width: 30px; height: 30px; flex-shrink: 0;
+    display: grid; place-items: center;
+    border: 0.5px solid var(--hairline); border-radius: 15px;
+    background: transparent; color: var(--ink-muted); cursor: pointer;
+    transition: background .15s ease;
+  }
+  .menu-btn:active, .close-btn:active { background: rgba(28,27,30,0.06); }
+  .menu-btn svg { width: 15px; height: 13px; }
+  .menu-btn line { stroke: var(--ink); stroke-width: 1.6; stroke-linecap: round; }
+  .menu-btn .m2 { stroke-width: 2.4; }   /* 三叠横墨:中画略重(深度 tab 同款语言) */
+  .close-btn { font-size: 14px; line-height: 1; font-family: var(--sans); }
+
+  .sh-titles { min-width: 0; }
+  .sh-title { font-size: 17px; font-weight: 600; letter-spacing: 0.08em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .sh-ctx { font-family: var(--sans); font-size: 11px; color: var(--ink-muted); letter-spacing: 0.1em; margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+  .sh-scroll { flex: 1; overflow-y: auto; padding: 20px 20px 12px; scrollbar-width: none; }
+  .sh-scroll::-webkit-scrollbar { display: none; }
+
+  .msg { display: flex; margin-bottom: 14px; }
+  .msg .bubble { max-width: 78%; padding: 11px 14px; font-size: 16px; line-height: 1.7; }
+  .msg.ai { justify-content: flex-start; }
+  .msg.ai .bubble { background: var(--paper-raise); border: 0.5px solid var(--hairline); border-radius: 16px 16px 16px 4px; }
+  .msg.me { justify-content: flex-end; }
+  .msg.me .bubble { background: var(--ink); color: #F3F1EC; border-radius: 16px 16px 4px 16px; }
+  .msg .who { font-family: var(--sans); font-size: 10px; letter-spacing: 0.14em; color: var(--ink-muted); margin-bottom: 5px; }
+
+  .offers { display: flex; flex-direction: column; gap: 8px; margin: 4px 0 14px; }
+  .offer {
+    text-align: left; font-family: var(--serif); font-size: 15.5px; color: var(--ink);
+    background: transparent; border: 0.5px solid var(--hairline); border-radius: 14px;
+    padding: 11px 14px; cursor: pointer; transition: background .15s ease;
+  }
+  .offer:active { background: rgba(28,27,30,0.05); }
+  .offer .o-arrow { color: var(--ink-muted); font-family: var(--sans); font-size: 12px; margin-right: 6px; }
+
+  .sh-input {
+    flex-shrink: 0;
+    display: flex; gap: 10px; align-items: center;
+    padding: 12px 16px 30px;
+    border-top: 0.5px solid var(--hairline);
+  }
+  .sh-input input {
+    flex: 1; height: 40px; border: 0.5px solid var(--hairline); border-radius: 20px;
+    background: var(--paper-raise); padding: 0 16px;
+    font: 15px/1 var(--serif); color: var(--ink); outline: none;
+  }
+  .sh-input input::placeholder { color: var(--ink-muted); opacity: .7; }
+  .sh-send {
+    width: 40px; height: 40px; border-radius: 20px; border: 0;
+    background: var(--ink); color: #F3F1EC; font-size: 17px; cursor: pointer;
+    display: grid; place-items: center;
+  }
+  .sh-send:disabled { opacity: .3; }
+
+  /* 往日只读态:输入栏整体换成提示条 */
+  .sh-readonly {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 16px 30px;
+    border-top: 0.5px solid var(--hairline);
+    font-family: var(--sans); font-size: 12.5px; color: var(--ink-muted);
+  }
+  .sh-readonly .ro-new {
+    flex-shrink: 0; border: 0.5px solid var(--hairline); border-radius: 14px;
+    background: transparent; color: var(--ink);
+    font-family: var(--sans); font-size: 12px; padding: 6px 12px; cursor: pointer;
+  }
+
+  /* ---------- ① 会话抽屉(左滑出) ---------- */
+  .scrim {
+    position: absolute; inset: 0; z-index: 30;
+    background: rgba(23, 20, 18, 0.30);
+    opacity: 0; pointer-events: none;
+    transition: opacity .35s ease;
+  }
+  .scrim.open { opacity: 1; pointer-events: auto; }
+
+  .drawer {
+    position: absolute; top: 0; bottom: 0; left: 0; z-index: 40;
+    width: 78%;
+    background: var(--paper-raise);
+    border-right: 0.5px solid var(--hairline);
+    box-shadow: 12px 0 32px rgba(23, 20, 18, 0.14);
+    display: flex; flex-direction: column;
+    transform: translateX(-102%);
+    transition: transform .4s cubic-bezier(.22,.9,.3,1);
+  }
+  .drawer.open { transform: translateX(0); }
+
+  .dw-head {
+    flex-shrink: 0;
+    display: flex; align-items: center; gap: 8px;
+    padding: 56px 16px 12px 20px;
+    border-bottom: 0.5px solid var(--hairline);
+  }
+  .dw-title { font-size: 19px; font-weight: 600; letter-spacing: 0.14em; }
+  .dw-new {
+    margin-left: auto; border: 0.5px solid var(--hairline); border-radius: 14px;
+    background: transparent; color: var(--ink);
+    font-family: var(--sans); font-size: 12px; padding: 6px 11px; cursor: pointer;
+    transition: background .15s ease;
+  }
+  .dw-new:active { background: rgba(28,27,30,0.06); }
+
+  .dw-scroll { flex: 1; overflow-y: auto; padding: 8px 0 20px; scrollbar-width: none; }
+  .dw-scroll::-webkit-scrollbar { display: none; }
+
+  .dw-group { font-family: var(--sans); font-size: 11px; letter-spacing: 0.16em; color: var(--ink-muted); padding: 16px 20px 7px; }
+
+  .conv {
+    display: block; width: 100%; text-align: left;
+    background: transparent; border: 0; cursor: pointer;
+    padding: 10px 20px;
+    transition: background .15s ease;
+  }
+  .conv:active { background: rgba(28,27,30,0.05); }
+  .conv .row1 { display: flex; align-items: center; gap: 7px; }
+  .conv .t { font-size: 15px; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .conv .time { margin-left: auto; flex-shrink: 0; font-family: var(--sans); font-size: 10.5px; color: var(--ink-muted); }
+  .conv .p {
+    margin-top: 3px;
+    font-family: var(--sans); font-size: 11.5px; color: var(--ink-muted);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  /* 当前会话:墨青灯点 + 淡墨底(与窄条灯点同语言) */
+  .conv.current { background: rgba(28,27,30,0.05); }
+  .conv.current .row1::before {
+    content: ''; flex-shrink: 0; width: 7px; height: 7px; border-radius: 50%; background: var(--jade);
+  }
+  /* 往日只读:整项压淡 + 「只读」签 */
+  .conv.past { opacity: .58; }
+  .conv.past .t::after {
+    content: '只读'; font-family: var(--sans); font-size: 9.5px; color: var(--ink-muted);
+    border: 0.5px solid var(--hairline); border-radius: 8px;
+    padding: 1.5px 6px; margin-left: 7px; letter-spacing: 0.1em;
+  }
+  .dw-foot {
+    flex-shrink: 0; padding: 12px 20px 26px;
+    border-top: 0.5px solid var(--hairline);
+    font-family: var(--sans); font-size: 11px; color: var(--ink-muted); letter-spacing: 0.06em;
+  }
+
+  /* ---------- 侧栏说明(不进 App) ---------- */
+  .notes { position: sticky; top: 36px; width: 330px; flex-shrink: 0; font-family: var(--sans); color: #4A463F; }
+  .notes h1 { font-size: 17px; font-weight: 600; margin-bottom: 4px; font-family: var(--serif); }
+  .notes .sub { font-size: 12px; color: #8A857A; margin-bottom: 18px; }
+  .notes h2 { font-size: 12.5px; font-weight: 600; margin: 16px 0 8px; color: #35322C; }
+  .notes p, .notes li { font-size: 12.5px; line-height: 1.75; }
+  .notes ol { padding-left: 18px; }
+  .notes b { color: #2A2622; }
+  .tips { background: rgba(74,70,63,0.06); border-radius: 8px; padding: 10px 12px; font-size: 12px; line-height: 1.8; }
+</style>
+</head>
+<body>
+
+<div class="phone">
+  <!-- ② 聊天页(顶栏左端 = 三叠横墨钮) -->
+  <div class="chat">
+    <div class="sh-head">
+      <button class="menu-btn" id="menuBtn" aria-label="打开会话抽屉">
+        <svg viewBox="0 0 15 13">
+          <line class="m1" x1="1" y1="1.5" x2="14" y2="1.5"/>
+          <line class="m2" x1="1" y1="6.5" x2="14" y2="6.5"/>
+          <line class="m3" x1="4.5" y1="11.5" x2="14" y2="11.5"/>
+        </svg>
+      </button>
+      <div class="sh-titles">
+        <div class="sh-title" id="chatTitle">问事</div>
+        <div class="sh-ctx" id="chatCtx">辛未日 · 比肩 · 剩 3 问</div>
+      </div>
+      <div style="flex:1"></div>
+      <button class="close-btn" aria-label="关闭">✕</button>
+    </div>
+    <div class="sh-scroll" id="chatScroll"></div>
+    <div class="sh-input" id="inputBar">
+      <input id="chatInput" type="text" placeholder="说你的事——时间、对象、纠结的点" />
+      <button class="sh-send" id="chatSend" aria-label="发送">↑</button>
+    </div>
+    <div class="sh-readonly" id="readonlyBar" style="display:none">
+      <span>往日会话 · 只读——今天的盘已换,接着问请新开一问</span>
+      <button class="ro-new" id="roNew">新开一问</button>
+    </div>
+  </div>
+
+  <!-- 抽屉压暗层 -->
+  <div class="scrim" id="scrim"></div>
+
+  <!-- ① 会话抽屉 -->
+  <div class="drawer" id="drawer" aria-label="会话列表">
+    <div class="dw-head">
+      <span class="dw-title">问事录</span>
+      <button class="dw-new" id="newThread">＋ 新开一问</button>
+    </div>
+    <div class="dw-scroll" id="dwList"></div>
+    <div class="dw-foot">会话随当天的盘走 · 隔日转只读</div>
+  </div>
+</div>
+
+<!-- ================= 侧栏说明(不进 App) ================= -->
+<aside class="notes">
+  <h1>今日问事 · 多会话</h1>
+  <div class="sub">聊天页左上三叠横墨 → 左滑会话抽屉 → 每次对话一条</div>
+
+  <div class="tips">
+    <b>浏览器里可以真点:</b><br>
+    ① 点左上角三道杠 → 抽屉从左滑出(压暗后面);<br>
+    ② 「今天」区点任一条切换会话(当前条带墨青灯点);<br>
+    ③ 点「往日」任一条 → 只读态(输入栏换成提示条 + 新开一问);<br>
+    ④ 「＋ 新开一问」→ 全新开场白 + 候选问题;<br>
+    快捷参数:<code>?drawer=1</code> 直接开抽屉。
+  </div>
+
+  <h2>你的指令怎么落</h2>
+  <ol>
+    <li><b>三道杠</b>:沿用「深度」tab 的三叠横墨线描(中画略重),不引入系统 hamburger 图形——品牌语言不打折。</li>
+    <li><b>左滑抽屉</b>:宽 78%,纸面浮层 + 右缘 hairline;标题「问事录」与「命书」同族的书卷命名。</li>
+    <li><b>每次对话一条</b>:标题 = 首问截断(确定性,不烧 LLM);副行预览末轮;当前条 = 墨青灯点 + 淡墨底(与窄条灯点同语言)。</li>
+  </ol>
+
+  <h2>生命周期(我的推断,可否决)</h2>
+  <ol>
+    <li><b>今日线可聊 / 往日线只读 / 不跨天续聊</b>:盘面每日换,旧线里的回答踩的是旧盘;续聊会出现「昨天的盘说X、今天的盘说Y」的语义打架,且后端作答端点把上下文钉死在「今天的盘」,续聊要大动(prompt 版本/缓存键/计费口径全部重拍)。往日价值在回看,不在续问。</li>
+    <li><b>若你要的是「往日也能接着聊」</b>:说一声,那是另一套代价,我会重新出方案。</li>
+  </ol>
+
+  <h2>交互口径</h2>
+  <ol>
+    <li><b>窄条点开 = 最近一条会话</b>(今日页入口不变,不开列表);没有会话则新开。</li>
+    <li><b>每条线独立上下文</b>:各自 ≤20 轮(服务端契约本来如此),互不挤占。</li>
+    <li><b>跨午夜还在聊天页</b>:当前线自动转只读 + 提示「已换日」,续问 = 新开一问(新线踩新盘)。</li>
+    <li><b>计费照旧按问题计</b>,不按线计;次数尽卡片态在每条线内独立出现。</li>
+  </ol>
+
+  <h2>落地时的数据活(iOS 侧)</h2>
+  <ol>
+    <li><b>SwiftData 新实体</b> AskConversation:归属 (contentHash, dateKey) 双键 + 标题 + 消息子实体;顺手修掉「杀 App 丢会话」(现单会话只活在内存里,这是既有缺陷)。</li>
+    <li><b>换盘</b>:抽屉只显当前盘的会话(现行为:对话随旧盘走,不迁移)。</li>
+    <li><b>后端零改动</b>:作答端点无会话概念(每次带 history 重答),多会话纯客户端组织。</li>
+    <li><b>切片建议</b>:S1 SwiftData 模型+现有单会话迁移 → S2 顶栏钮+抽屉 UI → S3 切换/新开/只读态/跨午夜 → S4 真机走查。</li>
+  </ol>
+</aside>
+
+<script>
+/* ============================================================
+ * 演示交互(真实现走 SwiftUI;此处只为看形态)
+ * ============================================================ */
+const HAND_REPLIES = {
+  '今天适合去谈判吗？':
+    '可以谈。比肩当值,同伴多、援手也多——但「比」字里藏着较量:今天容易在分成、功劳上较劲。\n两个提醒:一,界限先落成文字;二,别在桌上争口气,争里子。午后未时冲日支,谈判尽量上午收尾。',
+  '单干还是搭伙？':
+    '今天的盘,单干顺。比肩主自立,宜「独立」「立界」——自己的节奏、自己的边界,今天都立得住。\n要搭伙也行,但只搭「各管一段」的伙:分工写清楚,别共用一个口袋。',
+};
+const OPENING = '这里的盘我看好了:比肩当值,宜独立、立界,忌争执、攀比。挑一条问,或直接说你的事。';
+
+/* 演示数据:id / title / ctx / time / past? / msgs */
+let seq = 100;
+function newConv(title, ctx, time, past, msgs) {
+  return { id: ++seq, title, ctx, time, past, msgs };
+}
+let conversations = [
+  newConv('单干还是搭伙', '辛未日 · 比肩', '14:02', false, [
+    ['me', '单干还是搭伙？'],
+    ['ai', HAND_REPLIES['单干还是搭伙？']],
+  ]),
+  newConv('今天适合去谈判吗', '辛未日 · 比肩', '11:47', false, [
+    ['me', '今天适合去谈判吗？'],
+    ['ai', HAND_REPLIES['今天适合去谈判吗？']],
+    ['me', '分成上我想争四成,今天就该松口吗?'],
+    ['ai', '争四成可以,但今天别当场松口也不必当场定死——比肩日的共识容易各说各话。今天收「原则同意,条款明天落字」,明早金水当值再签,利落。'],
+  ]),
+  newConv('跟合伙人的账怎么摊', '乙丑日 · 偏财', '昨天', true, [
+    ['me', '跟合伙人的账怎么摊才不伤感情?'],
+    ['ai', '偏财当值,财上见真章。账摊在明处:各记各的、月底对一次,感情才摊得久。忌今天口头「回头再说」——丑日最忌含糊。'],
+  ]),
+  newConv('要不要接这个私活', '甲子日 · 正印', '11月1日', true, [
+    ['me', '要不要接这个私活?'],
+    ['ai', '正印当值,名声大过眼前利。这单若添名,接;若只是添钱又耗你整月,缓一缓——正印日接的活,日后都成了你的招牌或你的债。'],
+  ]),
+];
+let currentId = conversations[1].id;   /* 默认展示「谈判」那条(多轮) */
+let freshOpeningShown = false;
+
+const drawer = document.getElementById('drawer');
+const scrim = document.getElementById('scrim');
+const chatScroll = document.getElementById('chatScroll');
+const inputBar = document.getElementById('inputBar');
+const readonlyBar = document.getElementById('readonlyBar');
+
+function current() { return conversations.find(c => c.id === currentId); }
+
+/* ---------- 抽屉 ---------- */
+function openDrawer() { drawer.classList.add('open'); scrim.classList.add('open'); }
+function closeDrawer() { drawer.classList.remove('open'); scrim.classList.remove('open'); }
+document.getElementById('menuBtn').addEventListener('click', openDrawer);
+scrim.addEventListener('click', closeDrawer);
+
+function renderList() {
+  const el = document.getElementById('dwList');
+  const today = conversations.filter(c => !c.past);
+  const past = conversations.filter(c => c.past);
+  let html = '<div class="dw-group">今天</div>';
+  for (const c of today) html += convHtml(c);
+  if (past.length) {
+    html += '<div class="dw-group">往日</div>';
+    for (const c of past) html += convHtml(c);
+  }
+  el.innerHTML = html;
+  el.querySelectorAll('.conv').forEach(btn => {
+    btn.addEventListener('click', () => { switchTo(Number(btn.dataset.id)); closeDrawer(); });
+  });
+}
+function convHtml(c) {
+  const last = c.msgs.length ? c.msgs[c.msgs.length - 1][1] : OPENING;
+  const preview = last.replace(/\n/g, ' ');
+  return `<button class="conv ${c.past ? 'past' : ''} ${c.id === currentId ? 'current' : ''}" data-id="${c.id}">
+    <div class="row1"><span class="t">${c.title}</span><span class="time">${c.time}</span></div>
+    <div class="p">${preview}</div>
+  </button>`;
+}
+
+/* ---------- 聊天区 ---------- */
+function bubble(who, text) {
+  const whoLabel = who === 'ai' ? '<div class="who">问事</div>' : '';
+  return `<div class="msg ${who}"><div class="bubble">${whoLabel}${text.replace(/\n/g, '<br>')}</div></div>`;
+}
+function renderChat() {
+  const c = current();
+  document.getElementById('chatTitle').textContent = c.title === '新的一问' ? '问事' : c.title;
+  document.getElementById('chatCtx').textContent =
+    c.ctx + (c.past ? '' : ' · 剩 3 问');
+  /* 标题行语义:抽屉里看全名;顶栏在「新的一问」空会话时显示模块名 */
+  let html = '';
+  if (c.msgs.length === 0) {
+    html += bubble('ai', OPENING);
+    html += `<div class="offers">
+      <button class="offer" data-q="今天适合去谈判吗？"><span class="o-arrow">›</span>今天适合去谈判吗？</button>
+      <button class="offer" data-q="单干还是搭伙？"><span class="o-arrow">›</span>单干还是搭伙？</button>
+    </div>`;
+  } else {
+    for (const [who, text] of c.msgs) html += bubble(who, text);
+  }
+  chatScroll.innerHTML = html;
+  chatScroll.scrollTop = chatScroll.scrollHeight;
+
+  /* 只读态切换 */
+  inputBar.style.display = c.past ? 'none' : 'flex';
+  readonlyBar.style.display = c.past ? 'flex' : 'none';
+
+  chatScroll.querySelectorAll('.offer').forEach(btn =>
+    btn.addEventListener('click', () => send(btn.dataset.q))
+  );
+}
+function switchTo(id) { currentId = id; renderList(); renderChat(); }
+
+/* ---------- 发送(手写演示) ---------- */
+function send(text) {
+  const c = current();
+  if (c.past || !text.trim()) return;
+  c.msgs.push(['me', text]);
+  if (c.title === '新的一问') { c.title = text.slice(0, 12); }   /* 首问 = 自动命名 */
+  renderList(); renderChat();
+  setTimeout(() => {
+    c.msgs.push(['ai', HAND_REPLIES[text.trim()] ||
+      '就着今天的盘说:宜独立、立界,忌争执、攀比——这事若与人分利,先小人后君子;若是自己的事,趁上午推进。']);
+    renderList(); renderChat();
+  }, 700);
+}
+document.getElementById('chatSend').addEventListener('click', () => {
+  const el = document.getElementById('chatInput');
+  send(el.value); el.value = '';
+});
+document.getElementById('chatInput').addEventListener('keydown', e => {
+  if (e.key === 'Enter') { const el = e.target; send(el.value); el.value = ''; }
+});
+
+/* ---------- 新开一问 ---------- */
+function newThread() {
+  const c = newConv('新的一问', '辛未日 · 比肩', '刚刚', false, []);
+  conversations.unshift(c);
+  switchTo(c.id);
+  closeDrawer();
+}
+document.getElementById('newThread').addEventListener('click', newThread);
+document.getElementById('roNew').addEventListener('click', newThread);
+
+/* ---------- 开场 ---------- */
+renderList(); renderChat();
+if (location.search.includes('drawer=1')) openDrawer();
+</script>
+
+</body>
+</html>
