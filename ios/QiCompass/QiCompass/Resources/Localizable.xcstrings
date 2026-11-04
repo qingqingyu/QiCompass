@@ -12404,25 +12404,25 @@
         }
       }
     },
-    "你不是不自律,是不适合这种活法" : {
+    "你怎样运转最好、什么环境会让你失灵、什么样的生活节奏适合你" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "You're not undisciplined — this way of living just doesn't fit you"
+            "value" : "How you run best, where you stall, and the life setup that fits you"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你不是不自律,是不适合这种活法"
+            "value" : "你怎样运转最好、什么环境会让你失灵、什么样的生活节奏适合你"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你不是不自律,是不適合這種活法"
+            "value" : "你怎樣運轉最好、什麼環境會讓你失靈、什麼樣的生活節奏適合你"
           }
         }
       }
@@ -12950,25 +12950,25 @@
         }
       }
     },
-    "为什么有的事你不学就会,有的事越努力越累" : {
+    "天生就会的 · 后天练出的 · 为自保养成、长期在消耗你的" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Why some things come naturally, and others drain you the harder you try"
+            "value" : "What comes naturally · what you trained · what you built to cope — and what it costs you"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "为什么有的事你不学就会,有的事越努力越累"
+            "value" : "天生就会的 · 后天练出的 · 为自保养成、长期在消耗你的"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "為什麼有的事你不學就會,有的事越努力越累"
+            "value" : "天生就會的 · 後天練出的 · 為自保養成、長期在消耗你的"
           }
         }
       }
@@ -13436,25 +13436,25 @@
         }
       }
     },
-    "同一个你,在有的环境发光,有的环境熄火" : {
+    "同一张盘,在好环境和坏环境里分别会活成什么样" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The same you, shining in some environments and stalling in others"
+            "value" : "The same chart at its best and at its worst"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "同一个你,在有的环境发光,有的环境熄火"
+            "value" : "同一张盘,在好环境和坏环境里分别会活成什么样"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "同一個你,在有的環境發光,有的環境熄火"
+            "value" : "同一張盤,在好環境和壞環境裡分別會活成什麼樣"
           }
         }
       }
@@ -14139,25 +14139,25 @@
         }
       }
     },
-    "为什么睡够了还是累" : {
+    "精力的起落规律,和最有效的恢复方式" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Why you're still tired after a full night's sleep"
+            "value" : "Your energy rhythm and how you recover best"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "为什么睡够了还是累"
+            "value" : "精力的起落规律,和最有效的恢复方式"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "為什麼睡夠了還是累"
+            "value" : "精力的起落規律,和最有效的恢復方式"
           }
         }
       }
@@ -16589,25 +16589,25 @@
         }
       }
     },
-    "往哪儿使劲最有用,哪儿再努力也白费" : {
+    "你的发力点、薄弱点,以及下一阶段怎么升级" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Where your effort pays off most — and where it never will"
+            "value" : "Your leverage, your weak spots, and how to level up"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "往哪儿使劲最有用,哪儿再努力也白费"
+            "value" : "你的发力点、薄弱点,以及下一阶段怎么升级"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "往哪兒使勁最有用,哪兒再努力也白費"
+            "value" : "你的發力點、薄弱點,以及下一階段怎麼升級"
           }
         }
       }
@@ -17012,25 +17012,25 @@
         }
       }
     },
-    "为什么你总在同一个地方打转" : {
+    "你这张盘的主线:靠什么驱动,在哪里打转" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Why you keep circling the same spot"
+            "value" : "What drives your chart, and where it loops"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "为什么你总在同一个地方打转"
+            "value" : "你这张盘的主线:靠什么驱动,在哪里打转"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "為什麼你總在同一個地方打轉"
+            "value" : "你這張盤的主線:靠什麼驅動,在哪裡打轉"
           }
         }
       }
