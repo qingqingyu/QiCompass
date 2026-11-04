@@ -926,7 +926,7 @@ enum L10n {
 
     // MARK: - M5 财富输入表单(WealthInputForm;i18n 补录 2026-08-29)
 
-    /// M5 财富结构「生成前两问」输入 sheet。
+    /// M5 财富体质「生成前两问」输入 sheet。
     /// 章头「取消」走 `L10n.Common.cancel`,「必答」/「生成本章」等走 `L10n.HealthForm`(共用)。
     /// preference value(保守/平衡/进攻)是提交 payload,不本地化,不进本表。
     enum WealthForm {
@@ -935,7 +935,7 @@ enum L10n {
         static let kicker = String(localized: "wealthform.kicker")
 
         /// 章题。
-        /// zh: "财富结构 · 因你而异";en: "Wealth & structure · shaped by you"
+        /// zh: "财富体质 · 因你而异";en: "Wealth constitution · shaped by you"
         static let title = String(localized: "wealthform.title")
 
         /// 副题(章题之下)。
