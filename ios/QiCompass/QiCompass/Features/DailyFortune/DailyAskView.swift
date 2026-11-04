@@ -1,12 +1,15 @@
 import SwiftUI
 
-// MARK: - S4 问事窗(2026-10-25,docs/design-ref/today-type/今日问事.html 用户已认可)
+// MARK: - S4 问事窗(2026-10-25 今日问事.html;2026-11-03 问事框窄条化,今日问事-窄条.html 定稿)
 
 /// 今日页底部两级问事交互:
-/// ① **问事框**(DailyAskComposerCard):今日页滚到最底才从 tab 栏上方滑出,
-///    收在顶部不可见——「运势读完」与「可以问事」是同一时刻(出现时机 =
+/// ① **问事窄条**(DailyAskComposerStrip):今日页滚到最底才从 tab 栏上方
+///    滑出,收在顶部不可见——「运势读完」与「可以问事」是同一时刻(出现时机 =
 ///    `DailyAskPresentation` 纯函数,宿主 DailyFortuneMainView 注入滚动探针);
-/// ② **聊天页**(DailyAskChatView):点问事框向上拉起独立整页(无 tab 栏),
+///    2026-11-03 窄条化(今日问事-窄条.html 四轮目验定稿):单行高 44、与
+///    tab 栏同宽、虚一档(透底 0.86 + 影减半,不描边);候选 chips 只留
+///    聊天页开场,窄条上不再展开;
+/// ② **聊天页**(DailyAskChatView):点问事窄条向上拉起独立整页(无 tab 栏),
 ///    开场不空白——登录后第一条消息已在 = AI 开场白 + 候选问题,点候选直接
 ///    作为用户消息发出。
 ///
@@ -89,10 +92,8 @@ final class DailyAskModel {
 
     /// sheet 副题「辛未日 · 比肩」。
     let contextLine: String
-    /// 问事框引导句「比肩当值的一天。你的事,挑一条来问——」。
+    /// 问事窄条短引导「比肩当值 · 有事来问」。
     let composerLine: String
-    /// 问事框 chip(候选前两条)。
-    let composerChips: [String]
 
     private let answerer: DailyAskAnswering
     /// 问事钱包(weak 表达所有权归 AppEnvironment——模型不延长钱包生命
@@ -110,7 +111,6 @@ final class DailyAskModel {
         self.messages = [.init(role: .ai, text: opening)]
         self.offers = offers
         self.composerLine = composerLine
-        self.composerChips = Array(offers.prefix(2))
         self.contextLine = contextLine
         self.answerer = answerer
         self.wallet = wallet
@@ -118,7 +118,7 @@ final class DailyAskModel {
 
     // MARK: 发送
 
-    /// 点候选问题直接发出(问事框 chip 与聊天页 offers 同源同路)。
+    /// 点候选问题直接发出(聊天页 offers 点选直发;窄条化后候选只在聊天页)。
     func sendOffer(_ question: String) {
         _ = send(question)
     }
@@ -140,10 +140,17 @@ final class DailyAskModel {
         // 本地 0 余额短路:不出网(必 402 的往返没有意义),置购买卡片态;
         // 消息不入流——问题还没被回答,买完原话还在草稿/候选里可再发
         if wallet?.balance == 0 {
-            creditsExhausted = true
+            if !creditsExhausted {
+                creditsExhausted = true
+                // TASK-06:余额打空瞬间记一次(试用尽 → 转化观察;置位幂等防重)
+                Analytics.askTrialExhausted()
+            }
             return false
         }
         offers = []
+        // TASK-06:paid 为保守代理——余额>试用上限(3)必含购买次数;余额≤3
+        // 记 trial(已花掉购买的会低估 paid,漏报不虚报;单一钱包无法逐次归因)
+        Analytics.askSent(paid: (wallet?.balance ?? 0) > 3)
         // 对话上文:排除开场白(它不是对话回合),截末 20 轮(服务端整单
         // >20 轮 422,只注入末 6 轮——客户端保末 20 给模型足量记忆)
         let history = messages.dropFirst().suffix(20).map { message in
@@ -276,161 +283,155 @@ extension DailyAskModel {
     }
 }
 
-// MARK: ① 问事框(滚到底滑出,tab 栏上方)
+// MARK: ① 问事窄条(滚到底滑出,tab 栏上方)
 
-/// 问事框卡片:整卡可点开聊天页;chip 是嵌套 Button(内层优先接管命中,
-/// 点击 = 开聊天页 + 直接发出该候选)。视觉对齐今日问事.html composer:
-/// cardSurface 底 + hairline 描边 + 轻投影(ChainDoneToast 同款浮层语言,
-/// 非 material——App 浮层惯用法一致优先于 HTML 的半透明模糊)。
-/// radius 20 为设计稿定值(超出 BaziTheme.Radius 层级,HTML 认可稿)。
-///
-/// S4c 余额形态(拍板:问事框 + 聊天页双处显示):head 行尾「剩余 N 问」;
-/// balance == 0 整卡切换加购形态(次数用完,点卡 = 弹购买墙,不进聊天)。
-struct DailyAskComposerCard: View {
+/// 问事窄条:今日页滚到最底从 tab 栏上方滑出的单行入口,整条可点开聊天页。
+/// 视觉规格事实源 = 今日问事-窄条.html(2026-11-03 四轮目验定稿):
+/// 与 tab 栏同宽(宿主注入左右 14 边距)/ 高 44 / radius = 高度一半(浮动
+/// 胶囊语言,对齐系统 tab 栏)/ 一行 = 墨青灯点 + 「问事」 + 竖分隔 +
+/// 短引导 + 余额签 + ›;**虚一档**(拍板「透底+减影」)= cardSurface 0.86
+/// 不透明度(纸色透上来,边界对比弱半档)+ 影减淡放散(秤砣比 tab 轻半档),
+/// **不描边**(细描边箍浅色窄条读作勾出来的框/临时态)。
+/// 原四段卡(状态行/引导句/候选 chips/展开脚注)随窄条退役——候选问题
+/// 只在聊天页开场携带;0 次加购形态同为一行:标题位换「问事次数已用完」+
+/// 尾部加购签,点条 = 弹购买墙,不进聊天。
+struct DailyAskComposerStrip: View {
     let model: DailyAskModel
     let wallet: AskWalletModel
     let onOpen: () -> Void
-    let onQuickAsk: (String) -> Void
-    /// 0 次加购形态点卡入口(S4c:弹次数包购买墙;C3 换真墙)
+    /// 0 次加购形态点条入口(S4c:弹次数包购买墙;C3 换真墙)
     let onBuyPack: () -> Void
 
     var body: some View {
         Button(action: wallet.balance == 0 ? onBuyPack : onOpen) {
-            VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 9) {
+                // 墨青灯点:原头行「已看好今天的盘」的灯,窄条化后只留灯不落字
+                Circle()
+                    .fill(BaziTheme.jade)
+                    .frame(width: 7, height: 7)
                 if wallet.balance == 0 {
-                    exhaustedBody
+                    exhaustedTexts
                 } else {
-                    normalBody
+                    normalTexts
                 }
-            }
-            .padding(.horizontal, 16)
-            .padding(.top, 14)
-            .padding(.bottom, 12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .fill(BaziTheme.cardSurface)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: 20, style: .continuous)
-                    .stroke(BaziTheme.hairline, lineWidth: 0.5)
-            )
-            .shadow(color: BaziTheme.ink.opacity(0.10), radius: 12, y: 4)
-        }
-        .buttonStyle(.plain)
-        .accessibilityLabel(
-            wallet.balance == 0 ? L10n.DailyFortune.askBuyEntryCta : L10n.DailyFortune.askComposerA11y
-        )
-    }
-
-    /// 正常形态:状态行(含余额签)+ 引导句 + 候选 chip + 展开脚注。
-    private var normalBody: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            head
-            Text(verbatim: model.composerLine)
-                .font(BaziFont.body(size: 16))
-                .foregroundStyle(BaziTheme.ink)
-                .lineSpacing(5)
-                .fixedSize(horizontal: false, vertical: true)
-            chips
-            foot
-        }
-    }
-
-    /// 0 次加购形态:标题 + CTA chip(chips/引导句/脚注让位——次数尽时
-    /// 唯一有意义的事是加购,保留卡片位不换形态会引导用户进死胡同)。
-    private var exhaustedBody: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            head
-            Text(L10n.DailyFortune.askCreditsTitle)
-                .font(BaziFont.body(size: 16))
-                .foregroundStyle(BaziTheme.ink)
-                .lineSpacing(5)
-                .fixedSize(horizontal: false, vertical: true)
-                .padding(.bottom, 11)
-            Text(L10n.DailyFortune.askBuyEntryCta)
-                .font(.system(size: 12, weight: .medium))
-                .tracking(1)
-                .foregroundStyle(BaziTheme.ink)
-                .padding(.horizontal, 11)
-                .padding(.vertical, 5)
-                .overlay(Capsule().stroke(BaziTheme.hairline, lineWidth: 0.5))
-        }
-    }
-
-    /// 头行:墨青圆点 + 状态签(HTML cp-head,圆点即「已看好」的灯)
-    /// + 尾部余额签(拍板:问事框显示剩余次数;nil = 未查询不显示)。
-    private var head: some View {
-        HStack(spacing: 8) {
-            Circle()
-                .fill(BaziTheme.jade)
-                .frame(width: 7, height: 7)
-            Text(L10n.DailyFortune.askHeadStatus)
-                .font(.system(size: 11))
-                .tracking(1.4)
-                .foregroundStyle(BaziTheme.inkMuted)
-            Spacer(minLength: 8)
-            if let balance = wallet.balance, balance > 0 {
-                Text(L10n.DailyFortune.askBalanceRemaining(balance))
-                    .font(.system(size: 11))
-                    .tracking(1)
+                Text(verbatim: "›")
+                    .font(.system(size: 13))
                     .foregroundStyle(BaziTheme.inkMuted)
             }
+            .padding(.horizontal, 16)
+            .frame(height: 44)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            // 虚一档·透底:0.86(HTML rgba 0.92→0.86 同源;cardSurface 半透
+            // 叠宣纸 = 纸色渗上来,形薄一档)
+            .background(
+                Capsule().fill(BaziTheme.cardSurface.opacity(0.86))
+            )
+            // 虚一档·减影:HTML 0 10px 26px·0.08(blur≈2×radius 的近似映射)
+            .shadow(color: BaziTheme.ink.opacity(0.08), radius: 13, y: 10)
         }
-        .padding(.bottom, 9)
+        .buttonStyle(.plain)
+        .accessibilityLabel(a11yLabel)
     }
 
-    /// 候选 chip 行:取前两条;EN 长文案放不下时上下堆叠(对齐头部 chips 行
-    /// 的 ViewThatFits 手法,HStack 永不换行)。
-    @ViewBuilder
-    private var chips: some View {
-        let items = model.composerChips
-        Group {
-            if !items.isEmpty {
-                ViewThatFits(in: .horizontal) {
-                    HStack(spacing: 7) {
-                        // 身份用内容而非位置(2026-10-28 审查 P3):offers
-                        // 用后清/被 followUps 替换,offset 身份在行获状态时会咬人
-                        ForEach(items, id: \.self) { q in
-                            chip(q)
-                        }
-                    }
-                    VStack(alignment: .leading, spacing: 7) {
-                        ForEach(items, id: \.self) { q in
-                            chip(q)
-                        }
-                    }
-                }
-                .padding(.top, 11)
+    /// VoiceOver 标签(红队审查修复:静态 label 会把余额/次数尽状态藏掉)
+    /// ——组合播报恒含信息:正常态 = 打开问事对话 + 剩余 N 问(视觉余额签
+    /// 被 ViewThatFits 掉时 VO 仍播报,EN 掉签不掉信息);0 次态 = 状态 +
+    /// 加购动作,不再只念 CTA。
+    private var a11yLabel: String {
+        if wallet.balance == 0 {
+            return "\(L10n.DailyFortune.askCreditsTitle), \(L10n.DailyFortune.askBuyEntryCta)"
+        }
+        var label = L10n.DailyFortune.askComposerA11y
+        if let balance = wallet.balance, balance > 0 {
+            label += ", \(L10n.DailyFortune.askBalanceRemaining(balance))"
+        }
+        return label
+    }
+
+    /// 正常形态一行:「问事 | 比肩当值 · 有事来问 —— 剩余 N 问」。一行放不下时
+    /// **先掉余额签保引导完整**(2026-11-03 拍板 A)——退化确定性:放不下 =
+    /// 不显示,不戴省略号截断;余额落地(nil→N)不产生截断跳变。zh 余量
+    /// ~40pt 永不触发;**EN 实测为常态触发**(带余额整行最短十神名也需
+    /// ~426pt 屏宽,标准机型 375-402pt 不显余额,仅 Plus/Max 可显)——EN
+    /// 余额仍见聊天页 header,VO 标签恒播报余额(a11yLabel)不受此影响。
+    /// 手法沿用本文件 chips 行(已退役)的 ViewThatFits 先例。
+    private var normalTexts: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 9) {
+                leadTexts
+                Spacer(minLength: 8)
+                balanceText
+            }
+            HStack(spacing: 9) {
+                leadTexts
+                Spacer(minLength: 8)
             }
         }
     }
 
-    private func chip(_ question: String) -> some View {
-        Button {
-            onQuickAsk(question)
-        } label: {
-            Text(verbatim: question)
-                .font(.system(size: 12))
+    /// 行首固定段:标题 + 竖分隔 + 短引导。
+    private var leadTexts: some View {
+        HStack(spacing: 9) {
+            Text(L10n.DailyFortune.askTitle)
+                .font(BaziFont.display(size: 15.5, weight: .semibold))
+                .tracking(1.2)
                 .foregroundStyle(BaziTheme.ink)
+            Rectangle()
+                .fill(BaziTheme.hairline)
+                .frame(width: 0.5, height: 14)
+            Text(verbatim: model.composerLine)
+                .font(.system(size: 12))
+                .tracking(0.5)
+                .foregroundStyle(BaziTheme.inkMuted)
                 .lineLimit(1)
-                .padding(.horizontal, 11)
-                .padding(.vertical, 5)
-                .overlay(Capsule().stroke(BaziTheme.hairline, lineWidth: 0.5))
         }
-        .buttonStyle(.plain)
     }
 
-    /// 脚行:右对齐「展开对话 ›」。
-    private var foot: some View {
-        HStack {
-            Spacer(minLength: 0)
-            Text(L10n.DailyFortune.askComposerFoot)
-                .font(.system(size: 10.5))
-                .tracking(1.2)
+    /// 行尾余额签(未查询 nil / 用尽 0 不显示)。
+    @ViewBuilder
+    private var balanceText: some View {
+        if let balance = wallet.balance, balance > 0 {
+            Text(L10n.DailyFortune.askBalanceRemaining(balance))
+                .font(.system(size: 11))
+                .tracking(0.5)
+                .lineLimit(1)
                 .foregroundStyle(BaziTheme.inkMuted)
         }
-        .padding(.top, 10)
+    }
+
+    /// 0 次加购形态一行:「问事次数已用完 —— +15 问,继续问事」(点条弹墙)。
+    /// EN 小屏放不下时同拍板 A:掉尾部加购签保主句(› 与点条动作仍在,
+    /// 加购语义不丢)。
+    private var exhaustedTexts: some View {
+        ViewThatFits(in: .horizontal) {
+            HStack(spacing: 9) {
+                exhaustedTitle
+                Spacer(minLength: 8)
+                buyCtaText
+            }
+            HStack(spacing: 9) {
+                exhaustedTitle
+                Spacer(minLength: 8)
+            }
+        }
+    }
+
+    /// 0 次形态主句。
+    private var exhaustedTitle: some View {
+        Text(L10n.DailyFortune.askCreditsTitle)
+            .font(BaziFont.display(size: 15.5, weight: .semibold))
+            .tracking(1.2)
+            .foregroundStyle(BaziTheme.ink)
+            .lineLimit(1)
+    }
+
+    /// 尾部加购签(正常态不渲染)。
+    private var buyCtaText: some View {
+        Text(L10n.DailyFortune.askBuyEntryCta)
+            .font(.system(size: 11))
+            .tracking(0.5)
+            .lineLimit(1)
+            .foregroundStyle(BaziTheme.inkMuted)
     }
 }
 
@@ -682,7 +683,8 @@ struct DailyAskChatView: View {
 
     private var offerList: some View {
         VStack(spacing: 8) {
-            // 身份用内容而非位置(2026-10-28 审查 P3,同 chips 处口径)
+            // 身份用内容而非位置(2026-10-28 审查 P3:offers 用后清/被
+            // followUps 替换,位置身份在行获状态时会咬人)
             ForEach(model.offers, id: \.self) { question in
                 Button {
                     model.sendOffer(question)

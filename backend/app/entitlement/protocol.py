@@ -30,6 +30,11 @@ class AppleTransactionInfo:
     product_id: str
     original_purchase_date: datetime  # UTC,Apple 返回的原始购买时间
     is_refunded: bool  # Apple statusField 表示已退款
+    # 交易来源环境(TASK-02 2026-11-01):verify_transaction 恒 production 优先、
+    # 404 回落 sandbox;redeem 落库到 entitlement / ask_purchases 的 environment
+    # 列,对账时可排除沙盒(App Review / TestFlight)记录。Mock 无真实环境,
+    # 恒标 sandbox(dev/test 链路心智)。
+    environment: Literal["production", "sandbox"]
 
 
 @dataclass(frozen=True)
@@ -38,6 +43,9 @@ class AppleNotificationPayload:
 
     notification_type: str  # "REFUND" / "REVOKE" / "DID_CHANGE_RENEWAL_STATUS" / ...
     transaction_id: str
+    # 来源环境:JWS 内层 data/summary 的 environment claim;
+    # EXTERNAL_PURCHASE_TOKEN 类无 claim,按 externalPurchaseId 前缀推导
+    environment: Literal["production", "sandbox"]
     raw_summary: str = ""  # 调试用,简短描述原始 payload(不包含敏感数据)
 
 
@@ -46,9 +54,10 @@ class AppleServerAPI(Protocol):
 
     所有方法同步(SDK 是同步的),由路由层通过 run_in_threadpool 调用。
 
-    所有失败模式(网络 / 签名无效 / transaction 不存在 / Apple 5xx)统一抛
-    AppleVerificationError(502)。Apple 明确返回 status=退款时抛
-    EntitlementError(用户已无权)。
+    所有失败模式(网络 / 签名无效 / 两环境均查无交易 / Apple 5xx)统一抛
+    AppleVerificationError(502)。退款不在此层抛——经 is_refunded 标志
+    上抛,由路由层定夺 EntitlementError(403)。交易查询恒 production
+    优先、仅 404 回落 sandbox(TASK-02 双环境语义,见 apple_client.py)。
     """
 
     def verify_transaction(self, transaction_id: str) -> AppleTransactionInfo:
@@ -94,10 +103,12 @@ class MockAppleServerAPI:
             # "Expected date string to be ISO8601-formatted")
             original_purchase_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
             is_refunded=False,
+            environment="sandbox",
         )
         self._default_notification = notification or AppleNotificationPayload(
             notification_type="REFUND",
             transaction_id="<mock>",
+            environment="sandbox",
             raw_summary="mock-notification",
         )
         # 调用计数 + 历史(测试用)
@@ -126,6 +137,7 @@ class MockAppleServerAPI:
             product_id=self._default_tx_info.product_id,
             original_purchase_date=self._default_tx_info.original_purchase_date,
             is_refunded=self._default_tx_info.is_refunded,
+            environment=self._default_tx_info.environment,
         )
 
     def verify_notification(self, jws_body: str) -> AppleNotificationPayload:

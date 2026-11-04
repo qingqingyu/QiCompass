@@ -1,8 +1,10 @@
 # 付费系统设计决策(MONETIZATION)
 
-Generated on 2026-07-18, last updated 2026-10-25(日)
+Generated on 2026-07-18, last updated 2026-11-01(日)
 Status: ACCEPTED（M2a/b/c + M3a/b/c + M4 已实现并合并 main，M5 问事窗 2026-10-25 重新立项、S4b/S4c 待实施，M6 TestFlight 待沙盒验证）
 关联文档: `CLAUDE.md` / `bazi-app-design-doc.md` / `命理引擎设计决策.md` / `DESIGN.md`
+
+> **2026-11-01 更新**:上架前口径修订(TASK-03,依据 2026-10-28 拍板)——①上架区域改**全球不含中国大陆**(APP 备案要求 + 命理内容下架风险 + 后端部署在新加坡);②商店文案 zh-Hans / zh-Hant / en 三语;③优惠码 v1 改用 **Apple Offer Codes(消耗型)** 赠送测评者。App Privacy 申报口径与 `docs/archive-testflight.md` §5、app 内 `PrivacyInfo.xcprivacy` 对齐。
 
 > **2026-10-25 更新**：问事(原「每日一问」)重新立项进 v1——今日页 S4a 问事窗 UI 已合 main,计费经逐题拍板定为**独立次数包**(15 问/$4.99)+ 装机赠 3 次终身,详见 §问事窗。2026-08-01「移出 v1」决定作废;既有两个 SKU 与 per-命盘 entitlement 结构不变;次数包走独立钱包台账,不绑 content_hash。
 >
@@ -34,7 +36,7 @@ Status: ACCEPTED（M2a/b/c + M3a/b/c + M4 已实现并合并 main，M5 问事窗
 | 合盘付费形态 | **跟深度解析同形态(半免费)** | UX 一致,降低实现复杂度 |
 | 问事(原每日一问) | **独立次数包 15 问/$4.99 + 装机赠 3 次终身** — 2026-10-25 重新立项进 v1(见 §问事窗) | 今日页 S4a 问事窗 UI 已落地;habit 型轻付费,次数包锚点为命书价 28%;原 2026-08-01「移出 v1」决定作废 |
 | 定价基准 | **深度解析 $17.99 / 合盘 $11.99(USD)** | 高端定位,跟 `DESIGN.md` 的"克制、专业"对齐;合盘内容更少所以更便宜 |
-| 上架区域 | **全球,苹果 Price Tier 自动换算(基准 $17.99/$11.99/$4.99)** | 苹果自动按 Tier 处理汇率,文案保持中文(v1 范围) |
+| 上架区域 | **全球不含中国大陆,苹果 Price Tier 自动换算(基准 $17.99/$11.99/$4.99)** | 不含大陆 = APP 备案要求 + 命理内容下架风险 + 后端在新加坡(2026-10-28 拍板);苹果自动按 Tier 处理汇率,商店文案 zh-Hans / zh-Hant / en 三语 |
 | 后端校验 | **接 App Store Server API + 退款 webhook** | 越狱不可白嫖,收入保护优先;v1 用户量虽小但此基础设施一次建好,v2 复用 |
 
 ## 商品 SKU 列表
@@ -258,9 +260,9 @@ CREATE INDEX idx_entitlement_user ON entitlement(user_local_id, is_active);
   + entitlement.user_id 字段 + /api/entitlement/list 批量同步 + 登录时 backfill + PurchaseManager
   传 appAccountToken(qicompass_user.id)。换设备 / 重装 / 退登回登场景全部 work:登录触发
   onSignedIn 链式 syncManager.pull → entitlementStore.synchronizeFromBackend → syncManager.push
-- **优惠码 / 推广活动** — v2
+- **优惠码(App Offer Codes)** — v1 用**消耗型**赠送测评者(2026-10-28 拍板);推广活动 — v2
 - **礼物卡 / 赠送** — v2
-- **苹果促销代码** — v1 不主动发(App Store Connect 默认支持)
+- **苹果促销代码** — 免费 App 下载兑换码,与上面的优惠码(Offer Codes)是两种东西;App 本体免费下载 + IAP 付费,v1 用不上,不主动发
 - **企业批量授权** — v2 B2B
 
 ## 风险 + 取舍

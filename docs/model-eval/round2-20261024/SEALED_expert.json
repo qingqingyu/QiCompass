@@ -1,0 +1,134 @@
+{
+  "zh__case_01__m0_structure": {
+    "A": "Luna",
+    "B": "Gemini",
+    "C": "GLM",
+    "D": "DeepSeek",
+    "E": "Claude"
+  },
+  "zh__case_01__m1_talent": {
+    "A": "Claude",
+    "B": "Luna",
+    "C": "GLM",
+    "D": "DeepSeek",
+    "E": "Gemini"
+  },
+  "zh__case_05__m0_structure": {
+    "A": "Claude",
+    "B": "GLM",
+    "C": "Luna",
+    "D": "Gemini",
+    "E": "DeepSeek"
+  },
+  "zh__case_05__m1_talent": {
+    "A": "DeepSeek",
+    "B": "Gemini",
+    "C": "Claude",
+    "D": "GLM",
+    "E": "Luna"
+  },
+  "zh__case_09__m0_structure": {
+    "A": "Luna",
+    "B": "Gemini",
+    "C": "GLM",
+    "D": "Claude",
+    "E": "DeepSeek"
+  },
+  "zh__case_09__m1_talent": {
+    "A": "Luna",
+    "B": "DeepSeek",
+    "C": "GLM",
+    "D": "Claude",
+    "E": "Gemini"
+  },
+  "zh__case_12__m0_structure": {
+    "A": "Luna",
+    "B": "Gemini",
+    "C": "DeepSeek",
+    "D": "GLM",
+    "E": "Claude"
+  },
+  "zh__case_12__m1_talent": {
+    "A": "GLM",
+    "B": "Luna",
+    "C": "DeepSeek",
+    "D": "Gemini",
+    "E": "Claude"
+  },
+  "zh__case_15__m0_structure": {
+    "A": "GLM",
+    "B": "Luna",
+    "C": "Claude",
+    "D": "Gemini",
+    "E": "DeepSeek"
+  },
+  "zh__case_15__m1_talent": {
+    "A": "Gemini",
+    "B": "Luna",
+    "C": "Claude",
+    "D": "GLM",
+    "E": "DeepSeek"
+  },
+  "zh__case_17__m0_structure": {
+    "A": "Claude",
+    "B": "GLM",
+    "C": "Gemini",
+    "D": "DeepSeek",
+    "E": "Luna"
+  },
+  "zh__case_17__m1_talent": {
+    "A": "DeepSeek",
+    "B": "Gemini",
+    "C": "GLM",
+    "D": "Luna",
+    "E": "Claude"
+  },
+  "en__case_00__m0_structure": {
+    "A": "DeepSeek",
+    "B": "Luna",
+    "C": "Claude",
+    "D": "GLM"
+  },
+  "en__case_00__m1_talent": {
+    "A": "Luna",
+    "B": "Claude",
+    "C": "DeepSeek",
+    "D": "GLM"
+  },
+  "en__case_01__m0_structure": {
+    "A": "GLM",
+    "B": "DeepSeek",
+    "C": "Luna",
+    "D": "Claude"
+  },
+  "en__case_01__m1_talent": {
+    "A": "GLM",
+    "B": "DeepSeek",
+    "C": "Luna",
+    "D": "Claude"
+  },
+  "en__case_02__m0_structure": {
+    "A": "Claude",
+    "B": "GLM",
+    "C": "Luna",
+    "D": "DeepSeek"
+  },
+  "en__case_02__m1_talent": {
+    "A": "Luna",
+    "B": "DeepSeek",
+    "C": "Claude",
+    "D": "GLM"
+  },
+  "en__case_03__m0_structure": {
+    "A": "Claude",
+    "B": "DeepSeek",
+    "C": "Luna",
+    "D": "GLM"
+  },
+  "en__case_03__m1_talent": {
+    "A": "Luna",
+    "B": "GLM",
+    "C": "Claude",
+    "D": "DeepSeek"
+  }
+}

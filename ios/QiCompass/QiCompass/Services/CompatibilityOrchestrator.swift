@@ -259,6 +259,10 @@ final class CompatibilityOrchestrator {
             ) {
                 try await self.apiClient.interpret(request: req)
             }
+            // TASK-06:免费章生成成功(compat 免费链 = compatibility_free)
+            if module == "compatibility_free" {
+                Analytics.freeChaptersGenerated(module: .compat)
+            }
 
             // 3. 禁词扫描(D10 显式失败,不做替换)
             let hits = ForbiddenWords.scan(resp.interpretation)

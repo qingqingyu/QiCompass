@@ -226,6 +226,7 @@ async def redeem(
             user_id=current_user_id,  # JWT 在场=绑账号;匿名 redeem 为 None(表列可空)
             purchased_at=purchased_at_iso,
             original_purchase_date=original_purchase_date_iso,
+            environment=apple_info.environment,  # TASK-02:对账排除沙盒记录
         )
     except Exception as e:
         logger.exception(

@@ -22,6 +22,14 @@
 - **付费上线(App Store 验证)须配齐 `APP_STORE_*` 5 项**(申请步骤见
   `.env.example`):缺配时 Mock 锁定、redeem 显式 503;production 缺配直接
   拒绝启动,不会带 Mock 假验证上线。
+- **交易验证恒为双环境**(2026-11-01 TASK-02):后端同时持有 production +
+  sandbox 两套 client/verifier,`getTransactionInfo` 先查 production,仅
+  404(交易不存在)回落 sandbox——App Review 与 TestFlight 在生产构建里
+  用的是沙盒交易,单查 production 必失败(Guideline 2.1)。交易来源环境
+  落 `entitlement` / `ask_purchases` 的 `environment` 列,对账可排除沙盒
+  记录;webhook 按 JWS payload 的 `environment` claim 路由验签器。
+  `APP_STORE_ENVIRONMENT` 不再决定客户端环境,只作 production 缺配
+  fail-fast 的部署意图声明。
 - 部署后核对:`GET /api/health` 的 `prompt_versions` / `lunar_python_version`
   / `ai_provider` 与预期版本一致,再放流量。
 

@@ -590,19 +590,12 @@ enum L10n {
 
         // -- S4 问事窗(2026-10-25,今日问事.html;消费方 DailyAskView)--
 
-        /// sheet 标题 / AI 气泡署名。zh: "问事";en: "Ask"
+        /// sheet 标题 / AI 气泡署名 / 问事窄条标题。zh: "问事";en: "Ask"
         static let askTitle = String(localized: "dailyfortune.ask.title")
 
-        /// 问事框头行状态签(墨青圆点旁)。zh: "问事 · 已看好今天的盘";
-        /// en: "Ask · today's chart, already read"
-        static let askHeadStatus = String(localized: "dailyfortune.ask.headStatus")
-
-        /// 问事框脚行。zh: "展开对话 ›";en: "Open the conversation ›"
-        static let askComposerFoot = String(localized: "dailyfortune.ask.composerFoot")
-
-        /// 问事框引导句格式(@=十神显示名,如 "比肩")。
-        /// zh: "%@当值的一天。你的事,挑一条来问——";
-        /// en: "A %@ day. Bring one thing to ask —"
+        /// 问事窄条短引导格式(@=十神显示名,如 "比肩";2026-11-03 窄条化
+        /// 由长引导句改短,一行放得下)。zh: "%@当值 · 有事来问";
+        /// en: "%@ day · your move"
         static let askComposerLineFormat = String(localized: "dailyfortune.ask.composerLine")
 
         /// 开场白格式(@1=十神显示名,@2=宜词条前二,@3=忌词条前二)。
@@ -626,8 +619,9 @@ enum L10n {
         /// zh: "今天的盘面凭证已过期——请回今日页下拉刷新,再接着问。"
         static let askReplyContextExpired = String(localized: "dailyfortune.ask.replyContextExpired")
 
-        /// 余额签(问事框 head 行 + 聊天页 header 副题;%ld = 试用+已购合计)。
-        /// zh: "剩余 %ld 问"
+        /// 余额签(问事窄条行内尾部 + 聊天页 header 副题;%ld = 试用+已购合计)。
+        /// zh: "剩余 %ld 问";en 带复数变体(one "%ld question left" / other
+        /// "%ld questions left",红队审查补——余额 1 时不再 "1 questions left")
         static let askBalanceRemainingFormat = String(localized: "dailyfortune.ask.balanceRemaining")
         static func askBalanceRemaining(_ count: Int) -> String {
             String(format: askBalanceRemainingFormat, count)
@@ -640,7 +634,7 @@ enum L10n {
         /// 次数尽卡片说明。zh: "装机赠送的三次已用完——加购一包,接着问。"
         static let askCreditsHint = String(localized: "dailyfortune.ask.creditsHint")
 
-        /// 加购 CTA(卡片按钮 + 问事框 0 次 chip;价格只在购买墙显示)。
+        /// 加购 CTA(次数尽卡片按钮 + 问事窄条 0 次形态尾部签;价格只在购买墙显示)。
         /// zh: "+15 问,继续问事"
         static let askBuyEntryCta = String(localized: "dailyfortune.ask.buyEntryCta")
 
@@ -1010,6 +1004,19 @@ enum L10n {
         /// 说明行:消耗型 + 退款扣回口径(与后端 webhook 行为一致的诚实告知)。
         /// zh: "次数包为消耗型项目,用完为止;退款按 Apple 政策处理,未用次数将被扣回。"
         static let note = String(localized: "paywall.askpack.note")
+    }
+
+    // MARK: - 付费墙法律注(TASK-04,两付费墙共用)
+
+    /// 付费墙法律注文案(消费方 PaywallLegalFooter)。
+    enum PaywallLegal {
+        /// 免责一行(命理内容口径,审核要求)。
+        /// zh: "内容仅供娱乐参考";en: "For entertainment purposes only"
+        static let disclaimer = String(localized: "paywall.legal.disclaimer")
+
+        /// 使用条款(EULA)链接标题,跳 Apple 标准许可协议页。
+        /// zh: "使用条款";en: "Terms of Use (EULA)"
+        static let terms = String(localized: "paywall.legal.terms")
     }
 
     // MARK: - 付费墙时辰未知拦截态(S07,iOS 一期临时态)

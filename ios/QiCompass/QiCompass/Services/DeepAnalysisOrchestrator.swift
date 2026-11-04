@@ -416,6 +416,13 @@ final class DeepAnalysisOrchestrator {
             ) {
                 try await self.apiClient.interpret(request: req)
             }
+            // TASK-06(2026-11-03 复核修复):deep 免费内容事件挂 m0 根章——
+            // m0 必先于其余章生成,一张盘一个信号,与合盘侧每盘一次的口径
+            // 对齐(拍板 A)。原判 "bazi_deep_free" 是 v1 链化前的死串,无
+            // 调用方再传 → 条件永假,事件恒不发(静默漏报)。
+            if module == ModuleID.m0.rawValue {
+                Analytics.freeChaptersGenerated(module: .deep)
+            }
 
             AppLogger.app.info("interpret.v1.ok contentHash=\(response.contentHash, privacy: .public) module=\(module, privacy: .public) pv=\(resp.promptVersion) cached=\(resp.cached)")
 

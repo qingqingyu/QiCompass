@@ -1,0 +1,208 @@
+{
+  "meta": {
+    "locale": "zh-CN",
+    "gender": "female",
+    "birth_local": "1995-04-10T10:30:00+08:00",
+    "true_solar_time": "1995-04-10T10:28:23",
+    "late_zishi_rule": "day_change_at_23",
+    "solar_term_boundary": "清明后"
+  },
+  "pillars": {
+    "year": {
+      "gan_zhi": "乙亥",
+      "gan": "乙",
+      "zhi": "亥",
+      "gan_element": "wood",
+      "zhi_element": "water",
+      "hide_gan": [
+        "壬",
+        "甲"
+      ],
+      "shishen_gan": "偏财",
+      "shishen_zhi": [
+        "伤官",
+        "正财"
+      ],
+      "nayin": "山头火",
+      "dishi": "沐浴",
+      "xunkong": "申酉"
+    },
+    "month": {
+      "gan_zhi": "庚辰",
+      "gan": "庚",
+      "zhi": "辰",
+      "gan_element": "metal",
+      "zhi_element": "earth",
+      "hide_gan": [
+        "戊",
+        "乙",
+        "癸"
+      ],
+      "shishen_gan": "劫财",
+      "shishen_zhi": [
+        "正印",
+        "偏财",
+        "食神"
+      ],
+      "nayin": "白蜡金",
+      "dishi": "墓",
+      "xunkong": "申酉"
+    },
+    "day": {
+      "gan_zhi": "辛未",
+      "gan": "辛",
+      "zhi": "未",
+      "gan_element": "metal",
+      "zhi_element": "earth",
+      "hide_gan": [
+        "己",
+        "丁",
+        "乙"
+      ],
+      "shishen_gan": "日主",
+      "shishen_zhi": [
+        "偏印",
+        "七杀",
+        "偏财"
+      ],
+      "nayin": "路旁土",
+      "dishi": "衰",
+      "xunkong": "戌亥"
+    },
+    "hour": {
+      "gan_zhi": "癸巳",
+      "gan": "癸",
+      "zhi": "巳",
+      "gan_element": "water",
+      "zhi_element": "fire",
+      "hide_gan": [
+        "丙",
+        "庚",
+        "戊"
+      ],
+      "shishen_gan": "食神",
+      "shishen_zhi": [
+        "正官",
+        "劫财",
+        "正印"
+      ],
+      "nayin": "长流水",
+      "dishi": "死",
+      "xunkong": "午未"
+    }
+  },
+  "day_master": {
+    "stem": "辛",
+    "element": "金",
+    "strength_score": null,
+    "strength_label": "偏旺"
+  },
+  "ten_gods": {
+    "year_stem": "偏财",
+    "month_stem": "劫财",
+    "hour_stem": "食神",
+    "hidden": {
+      "year_branch": [
+        "伤官",
+        "正财"
+      ],
+      "month_branch": [
+        "正印",
+        "偏财",
+        "食神"
+      ],
+      "day_branch": [
+        "偏印",
+        "七杀",
+        "偏财"
+      ],
+      "hour_branch": [
+        "正官",
+        "劫财",
+        "正印"
+      ]
+    }
+  },
+  "ten_god_weights": {
+    "比肩": 0,
+    "劫财": 6,
+    "食神": 6,
+    "伤官": 3,
+    "偏财": 7,
+    "正财": 1,
+    "七杀": 1,
+    "正官": 3,
+    "偏印": 3,
+    "正印": 4
+  },
+  "five_elements": {
+    "木": 1,
+    "火": 1,
+    "土": 2,
+    "金": 2,
+    "水": 2
+  },
+  "useful_god_candidates": [
+    "水",
+    "木",
+    "火"
+  ],
+  "luck_pillars": [
+    {
+      "start_age": 9,
+      "stem": "辛",
+      "branch": "巳"
+    },
+    {
+      "start_age": 19,
+      "stem": "壬",
+      "branch": "午"
+    },
+    {
+      "start_age": 29,
+      "stem": "癸",
+      "branch": "未"
+    },
+    {
+      "start_age": 39,
+      "stem": "甲",
+      "branch": "申"
+    },
+    {
+      "start_age": 49,
+      "stem": "乙",
+      "branch": "酉"
+    },
+    {
+      "start_age": 59,
+      "stem": "丙",
+      "branch": "戌"
+    },
+    {
+      "start_age": 69,
+      "stem": "丁",
+      "branch": "亥"
+    },
+    {
+      "start_age": 79,
+      "stem": "戊",
+      "branch": "子"
+    },
+    {
+      "start_age": 89,
+      "stem": "己",
+      "branch": "丑"
+    }
+  ],
+  "current_luck": {
+    "start_age": 29,
+    "stem": "癸",
+    "branch": "未",
+    "ten_god": null
+  },
+  "current_year": {
+    "stem": "甲",
+    "branch": "辰",
+    "ten_god": null
+  }
+}

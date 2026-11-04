@@ -1,0 +1,66 @@
+{
+  "energy_path": [
+    {
+      "stage": "知识积累",
+      "gain_or_loss": "gain",
+      "mechanism": "偏印的影响促使你不断追求知识，增强自我理解与表达能力。"
+    },
+    {
+      "stage": "自我表达",
+      "gain_or_loss": "gain",
+      "mechanism": "日主中和使得你的知识能够自然流露，促进他人的理解与支持。"
+    },
+    {
+      "stage": "资源获取",
+      "gain_or_loss": "gain",
+      "mechanism": "正财的作用使得你的表达能够转化为实际收益，形成物质支持。"
+    },
+    {
+      "stage": "再投资",
+      "gain_or_loss": "gain",
+      "mechanism": "获取的资源再用于知识积累，形成良性循环。"
+    },
+    {
+      "stage": "对外部压力的敏感",
+      "gain_or_loss": "loss",
+      "mechanism": "七杀的潜伏压力使你在资源获取时感到不安，限制了自我表达。"
+    },
+    {
+      "stage": "团队讨论中的谨慎",
+      "gain_or_loss": "loss",
+      "mechanism": "对外部评价的敏感导致你在表达时过于谨慎，抑制了潜在的资源获取。"
+    }
+  ],
+  "leverage": {
+    "point": "知识积累与表达",
+    "input": "主动分享研究成果",
+    "output": "提升团队理解与项目推进",
+    "why": "偏印权重高，能够有效促进知识的传播和资源整合。"
+  },
+  "vulnerability": {
+    "point": "对外部评价的敏感",
+    "condition": "在竞争激烈或批评声多的环境中",
+    "mechanism": "外部压力导致你在表达时过于谨慎，影响自信心与沟通能力。",
+    "self_check": "注意自己在讨论中的沉默，反思是否因对他人看法的过度关注而未能积极参与。"
+  },
+  "upgrade_path": [
+    {
+      "phase": "自我觉察",
+      "entry_condition": "意识到对外部评价的敏感性",
+      "work": "进行自我反思与调整，主动参与讨论",
+      "done_signal": "在团队中能够自信表达自己的观点"
+    },
+    {
+      "phase": "环境适应",
+      "entry_condition": "识别并进入支持性强的环境",
+      "work": "积极与团队沟通，分享想法",
+      "done_signal": "资源整合顺畅，项目推进高效"
+    },
+    {
+      "phase": "能力提升",
+      "entry_condition": "在支持性环境中积累经验",
+      "work": "持续学习与知识分享",
+      "done_signal": "在团队中成为知识的引导者与资源的整合者"
+    }
+  ]
+}

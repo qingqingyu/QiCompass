@@ -830,6 +830,7 @@ async def test_paid_refund_lands_on_entitlement_owner_bucket(
         user_local_id="anon-ulid",
         purchased_at="2026-07-18T12:00:00+00:00",
         original_purchase_date="2026-07-18T11:55:00+00:00",
+        environment="sandbox",
     )
     saved = app.state.ai_client
     app.state.ai_client = FailingAIClient()

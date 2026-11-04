@@ -80,22 +80,34 @@ final class AskPaywallViewModel {
             return
         }
         AppLogger.app.info("askpaywall.purchase.start")
+        Analytics.purchaseStarted(product: .askPack)
         state = .purchasing
         do {
             let balance = try await purchaseManager.purchaseAskPack()
             AppLogger.app.info("askpaywall.purchase.ok balance=\(balance, privacy: .public)")
+            Analytics.purchaseSucceeded(product: .askPack)
             state = .idle  // 成功即 dismiss(无 success 常驻态)
             onPurchaseSuccess?()
         } catch let error as PurchaseError {
             if error.isSilent {
                 AppLogger.app.info("askpaywall.purchase.silent_cancel")
+                Analytics.purchaseFailed(reason: .cancelled)
                 state = .idle
             } else {
                 AppLogger.app.error("askpaywall.purchase.failed error=\(String(describing: error), privacy: .public)")
+                let failureReason: Analytics.PurchaseFailureReason
+                switch error {
+                case .networkFailed: failureReason = .paymentFailed
+                case .verificationFailed: failureReason = .verificationFailed
+                case .backendRedeemFailed, .entitlementStoreFailed: failureReason = .backendRejected
+                default: failureReason = .unknown
+                }
+                Analytics.purchaseFailed(reason: failureReason)
                 state = .failed(error.localizedDescription)
             }
         } catch {
             AppLogger.app.error("askpaywall.purchase.unknown_error error=\(String(describing: error), privacy: .public)")
+            Analytics.purchaseFailed(reason: .unknown)
             state = .failed(String(localized: "购买未完成,请重试"))
         }
     }
@@ -103,6 +115,7 @@ final class AskPaywallViewModel {
     func restoreAsk() async {
         guard restoreState != .restoring else { return }
         AppLogger.app.info("askpaywall.restore.start")
+        Analytics.restoreTapped()
         restoreState = .restoring
         do {
             switch try await purchaseManager.restoreAskPurchases() {
@@ -187,12 +200,9 @@ struct AskPaywallView: View {
 
                 restoreSection
 
-                // 法律免责(与 PaywallView 同文;次数包消耗型语义已在上方说明行)
-                Text("玄学娱乐,理性参考。\n购买即视为同意 Apple 标准用户协议。")
-                    .font(.caption2)
-                    .foregroundStyle(BaziTheme.inkMutedSecondary)
-                    .multilineTextAlignment(.center)
-                    .tracking(1)
+                // 法律免责 + 使用条款(EULA)链接(TASK-04:与 PaywallView
+                // 共用 PaywallLegalFooter;次数包消耗型语义已在上方说明行)
+                PaywallLegalFooter()
             }
             .padding(.top, BaziTheme.Spacing.md)
             .padding(.horizontal, BaziTheme.Spacing.lg)
@@ -202,6 +212,7 @@ struct AskPaywallView: View {
         .presentationDetents([.medium])
         .presentationDragIndicator(.visible)
         .task { await viewModel.loadProduct() }
+        .onAppear { Analytics.paywallShown(source: .ask) }
     }
 
     // MARK: 润金行(PricePlate 的次数包变体;不改共享组件——PaywallLayoutTests

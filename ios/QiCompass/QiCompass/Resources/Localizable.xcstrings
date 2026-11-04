@@ -2706,9 +2706,21 @@
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%ld questions left"
+          "variations" : {
+            "plural" : {
+              "one" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%ld question left"
+                }
+              },
+              "other" : {
+                "stringUnit" : {
+                  "state" : "translated",
+                  "value" : "%ld questions left"
+                }
+              }
+            }
           }
         },
         "zh-Hans" : {
@@ -2794,48 +2806,25 @@
         }
       }
     },
-    "dailyfortune.ask.composerFoot" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Open the conversation ›"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "展开对话 ›"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "展開對話 ›"
-          }
-        }
-      }
-    },
     "dailyfortune.ask.composerLine" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A %@ day. Bring one thing to ask —"
+            "value" : "%@ day · your move"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@当值的一天。你的事,挑一条来问——"
+            "value" : "%@当值 · 有事来问"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@當值的一天。你的事,挑一條來問——"
+            "value" : "%@當值 · 有事來問"
           }
         }
       }
@@ -2882,29 +2871,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "問事次數已用完"
-          }
-        }
-      }
-    },
-    "dailyfortune.ask.headStatus" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Ask · today's chart, already read"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "问事 · 已看好今天的盘"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "問事 · 已看好今天的盤"
           }
         }
       }
@@ -10683,6 +10649,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "讀懂你的命局"
+          }
+        }
+      }
+    },
+    "paywall.legal.disclaimer" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For entertainment purposes only"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "内容仅供娱乐参考"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "內容僅供娛樂參考"
+          }
+        }
+      }
+    },
+    "paywall.legal.terms" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Terms of Use (EULA)"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用条款"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "使用條款"
           }
         }
       }

@@ -1,0 +1,20 @@
+{
+  "zh__case_00__m0_structure": {
+    "A": "DeepSeek",
+    "B": "Luna",
+    "C": "Claude",
+    "D": "GLM"
+  },
+  "zh__case_00__m1_talent": {
+    "A": "GLM",
+    "B": "Luna",
+    "C": "DeepSeek",
+    "D": "Claude"
+  },
+  "zh__case_00__m2_high_low": {
+    "A": "DeepSeek",
+    "B": "Claude",
+    "C": "GLM",
+    "D": "Luna"
+  }
+}
