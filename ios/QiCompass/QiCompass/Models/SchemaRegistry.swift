@@ -11,6 +11,7 @@ enum SchemaRegistry {
         CompatibilitySnapshot.self,
         DailyFortuneSnapshot.self,
         Entitlement.self,  // M3a 新增:付费授权
+        AskConversation.self,  // S多会话(2026-11-04):问事会话簿(消息走 JSON payload,无子实体)
     ]
 
     static func makeSchema() -> Schema {

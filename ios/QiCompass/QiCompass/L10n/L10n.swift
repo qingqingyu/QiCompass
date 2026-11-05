@@ -651,6 +651,43 @@ enum L10n {
         /// en: "Answering"
         static let askTypingA11y = String(localized: "dailyfortune.ask.typingA11y")
 
+        // -- S多会话抽屉(2026-11-04,今日问事-多会话.html 定稿;消费方 DailyAskView/AskConversationStore)--
+
+        /// 抽屉标题。zh: "问事录";en: "Ask Log"
+        static let askDrawerTitle = String(localized: "dailyfortune.ask.drawerTitle")
+
+        /// 新开一问 chip(抽屉头 + 只读提示条)。zh: "+ 新开一问";
+        /// en: "+ New thread"
+        static let askDrawerNew = String(localized: "dailyfortune.ask.drawerNew")
+
+        /// 抽屉「今天」分组标。zh: "今天";en: "Today"
+        static let askDrawerToday = String(localized: "dailyfortune.ask.drawerToday")
+
+        /// 抽屉「往日」分组标。zh: "往日";en: "Earlier"
+        static let askDrawerPast = String(localized: "dailyfortune.ask.drawerPast")
+
+        /// 往日行只读签。zh: "只读";en: "Read-only"
+        static let askReadonlyBadge = String(localized: "dailyfortune.ask.readonlyBadge")
+
+        /// 往日只读提示条(输入栏让位)。zh: "往日会话 · 只读——今天的盘已换,
+        /// 接着问请新开一问";en: "Past day, read-only. The chart has moved on —
+        /// start a new thread to keep asking"
+        static let askReadonlyHint = String(localized: "dailyfortune.ask.readonlyHint")
+
+        /// 抽屉脚注。zh: "会话随当天的盘走 · 隔日转只读";
+        /// en: "Threads live with the day's chart, then turn read-only"
+        static let askDrawerFoot = String(localized: "dailyfortune.ask.drawerFoot")
+
+        /// 抽屉空态(尚无任何落盘会话)。zh: "首问发出后,会话在这里成线";
+        /// en: "Threads land here after your first question"
+        static let askDrawerEmpty = String(localized: "dailyfortune.ask.drawerEmpty")
+
+        /// 抽屉钮 a11y。zh: "打开会话列表";en: "Open conversation list"
+        static let askMenuA11y = String(localized: "dailyfortune.ask.menuA11y")
+
+        /// 行尾时间签「昨天」。zh: "昨天";en: "Yesterday"
+        static let askTimeYesterday = String(localized: "dailyfortune.ask.timeYesterday")
+
         /// 问事框引导句(组装见 DailyAskModel.make)。
         static func askComposerLine(relation: String) -> String {
             String(format: askComposerLineFormat, relation)

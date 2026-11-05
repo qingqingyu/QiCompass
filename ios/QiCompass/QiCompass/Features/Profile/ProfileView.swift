@@ -891,6 +891,10 @@ struct ProfileView: View {
             try fetchAndDeleteAll(CompatibilitySnapshot.self)
             try fetchAndDeleteAll(DailyFortuneSnapshot.self)
             try fetchAndDeleteAll(InterpretationCache.self)
+            // S多会话(2026-11-05 red-team 补):问事会话簿是命盘域数据
+            // (chartHash 软引用 + 用户私问自由文本)——漏删会让重排同盘后
+            // 旧问答在新盘复活,或成永不清理的隐私残骸
+            try fetchAndDeleteAll(AskConversation.self)
             try context.save()
             // L2/F4:M4/M5 用户输入按盘存 UserDefaults(不在 SwiftData),随全量
             // 数据一并前缀清扫(隐私口径与命盘数据同级)
