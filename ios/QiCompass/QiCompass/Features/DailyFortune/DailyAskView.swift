@@ -149,7 +149,9 @@ final class DailyAskModel {
     }
 
     /// 往日只读(抽屉回看旧线;send 全闸不出网不入流——拍板不跨天续聊)。
-    var isReadOnly: Bool { dateKey != todayKeyProvider() }
+    /// 判定 = `AskDayKey.isPastDay`(早于今日才只读):23:00 滚日窗口
+    /// (页面日超前墙钟日)的新线必须可聊,判 `!=` 会 born-readonly。
+    var isReadOnly: Bool { AskDayKey.isPastDay(dateKey, todayKey: todayKeyProvider()) }
 
     /// 顶栏标题:落盘会话用其标题(首问定版);临时会话回模块名「问事」。
     var displayTitle: String {
@@ -869,16 +871,25 @@ struct DailyAskChatView: View {
     }
 
     /// 往日只读提示条:「不跨天续聊」拍板的落地形态——今天的盘不答昨天
-    /// 的线,回看可以,续问开新线。
+    /// 的线,回看可以,续问开新线。页面日落后墙钟日(离线陈旧页)时新线
+    /// 同样必只读,chip 隐藏 + 文案换陈旧页变体(不可操作的信息不上屏,
+    /// 文案不得指引已隐藏的动作)。
+    @ViewBuilder
     private var readonlyBar: some View {
         HStack(spacing: 10) {
-            Text(L10n.DailyFortune.askReadonlyHint)
+            Text(
+                store.canStartNewThread
+                    ? L10n.DailyFortune.askReadonlyHint
+                    : L10n.DailyFortune.askReadonlyHintStale
+            )
                 .font(.system(size: 12.5))
                 .foregroundStyle(BaziTheme.inkMuted)
                 .lineLimit(2)
                 .multilineTextAlignment(.leading)
             Spacer(minLength: 8)
-            newThreadChip { store.startNew() }
+            if store.canStartNewThread {
+                newThreadChip { store.startNew() }
+            }
         }
         .padding(.horizontal, 16)
         .padding(.top, 12)
@@ -952,9 +963,11 @@ struct DailyAskChatView: View {
                     .tracking(2)
                     .foregroundStyle(BaziTheme.ink)
                 Spacer(minLength: 8)
-                newThreadChip {
-                    store.startNew()
-                    dismissDrawer()
+                if store.canStartNewThread {
+                    newThreadChip {
+                        store.startNew()
+                        dismissDrawer()
+                    }
                 }
             }
             .padding(.top, 20)
@@ -1019,10 +1032,11 @@ struct DailyAskChatView: View {
     }
 
     /// 会话行:标题(首问定版)+ 只读签 + 时间签,副行末轮预览;当前条 =
-    /// 墨青灯点 + 淡墨底(与窄条灯点同语言);往日整行压淡。
+    /// 墨青灯点 + 淡墨底(与窄条灯点同语言);往日整行压淡。isPast 与模型
+    /// isReadOnly 同源(AskDayKey.isPastDay)——分组与只读闸不打架。
     private func drawerRow(_ summary: AskConversationSummary) -> some View {
         let isCurrent = summary.id == model.record?.id
-        let isPast = summary.dateKey != store.todayKey
+        let isPast = AskDayKey.isPastDay(summary.dateKey, todayKey: store.todayKey)
         return Button {
             HapticEngine.light()
             store.select(summary.id)

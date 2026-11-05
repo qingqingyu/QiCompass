@@ -674,6 +674,13 @@ enum L10n {
         /// start a new thread to keep asking"
         static let askReadonlyHint = String(localized: "dailyfortune.ask.readonlyHint")
 
+        /// 往日只读提示条·离线陈旧页变体(页面日落后墙钟日:新开一问也不可,
+        /// chip 已隐藏——文案不得再指引一个不存在的动作)。zh: "往日会话 ·
+        /// 只读——今日盘面尚未获取,联网刷新后可继续问事";en: "Past day,
+        /// read-only. Today's chart hasn't loaded yet — refresh online to
+        /// keep asking"
+        static let askReadonlyHintStale = String(localized: "dailyfortune.ask.readonlyHintStale")
+
         /// 抽屉脚注。zh: "会话随当天的盘走 · 隔日转只读";
         /// en: "Threads live with the day's chart, then turn read-only"
         static let askDrawerFoot = String(localized: "dailyfortune.ask.drawerFoot")

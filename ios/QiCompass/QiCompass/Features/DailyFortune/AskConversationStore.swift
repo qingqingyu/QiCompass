@@ -46,19 +46,22 @@ struct AskConversationSummary: Identifiable, Equatable {
 /// 问事多会话协调器(宿主 DailyFortuneMainView 持有 @State;2026-11-04 定稿):
 /// - 当前选中(selection:.auto/.record/.newThread 三态)+ 抽屉列表(今天/
 ///   往日,当前命盘范围);
-/// - 「今日可聊 / 往日只读」判定源 = todayKey(墙钟,只前进):syncDay 首行
-///   与聊天页 scenePhase 回前台都推动 refreshTodayKey——页面之日滚动后
-///   todayKey 绝不能滞留旧日(否则跨午夜后:旧线仍可聊 + 新线 born-readonly
-///   双重锁死,2026-11-05 对抗审查 F3);
+/// - 「今日可聊 / 往日只读」判定源 = todayKey(墙钟,只前进)+ `AskDayKey
+///   .isPastDay`(**早于**今日才只读):syncDay 首行与聊天页 scenePhase
+///   回前台都推动 refreshTodayKey——页面之日滚动后 todayKey 绝不能滞留旧日
+///   (否则跨午夜后:旧线仍可聊 + 新线 born-readonly 双重锁死,2026-11-05
+///   对抗审查 F3);反之 23:00 滚日窗口页面日**超前**墙钟日,新线踩前移后
+///   的新盘必须可聊——所以判「早于」不判「不等」,2026-11-06 双 review R1;
 /// - 只管簿记,不碰作答上下文——answerer/开场白/候选仍由宿主 makeAskModel
 ///   组装(同日同盘的所有会话共享同一作答上下文,后端本就按今天的盘签凭证)。
 @Observable
 @MainActor
 final class AskConversationStore {
-    /// 选择三态:.auto = 默认(最近一条今日会话,没有则新线——strip 打开
-    /// 语义);.record = 显式选中(含往日只读回看);.newThread = 新开一问。
-    /// select/startNew/resetSelection 驱动,宿主 onChange(of: selection)
-    /// 重建 askModel;**register 特意不动 selection**(见其注释)。
+    /// 选择三态:.auto = 默认(最近一条可聊会话——今日或页面超前日,没有
+    /// 则新线,strip 打开语义);.record = 显式选中(含往日只读回看);
+    /// .newThread = 新开一问。select/startNew/resetSelection 驱动,宿主
+    /// onChange(of: selection) 重建 askModel;**register 特意不动
+    /// selection**(见其注释)。
     enum Selection: Equatable {
         case auto
         case record(UUID)
@@ -72,6 +75,10 @@ final class AskConversationStore {
     private(set) var selection: Selection = .auto
     /// 今日键(墙钟 yyyy-MM-dd,**只前进**;旧线转只读的唯一判定源)。
     private(set) var todayKey: String
+    /// 页面日(syncDay 注入的 businessDate 键)——新线的 dateKey 取自它。
+    /// 超前(23:00 滚日窗口)= 新线可聊;落后(离线陈旧页)= 新线必只读,
+    /// 「+ 新开一问」须隐藏(点了也只会重建出一条只读线,死控件)。
+    private(set) var pageDateKey: String = ""
 
     private let context: ModelContext
     private var chartHash: String = ""
@@ -111,6 +118,7 @@ final class AskConversationStore {
             selection = .auto
         }
         self.chartHash = chartHash
+        pageDateKey = dateKey
         lastSyncedKey = key
         reload()
     }
@@ -129,18 +137,27 @@ final class AskConversationStore {
     }
 
     /// 当前应打开的会话记录:.record 选中优先(含往日只读回看);.newThread
-    /// 恒新线;.auto = 最近一条今日会话(没有则新线——由调用侧以 nil 落临时)。
+    /// 恒新线;.auto = 最近一条可聊会话(今日或页面超前日;没有则新线——
+    /// 由调用侧以 nil 落临时)。
     func resolveRecord() -> AskConversation? {
         let all = fetchAll()
         switch selection {
         case .auto:
-            return all.first { $0.dateKey == todayKey }
+            return all.first { !AskDayKey.isPastDay($0.dateKey, todayKey: todayKey) }
         case .record(let id):
             return all.first { $0.id == id }
-                ?? all.first { $0.dateKey == todayKey }
+                ?? all.first { !AskDayKey.isPastDay($0.dateKey, todayKey: todayKey) }
         case .newThread:
             return nil
         }
+    }
+
+    /// 新线是否可开(页面日未落后墙钟日)。false = 离线陈旧页:此刻新开
+    /// 一问只会重建出一条出生即只读的线(rebuild 守卫 no-op,点击无反馈)
+    /// ——「+ 新开一问」chip 须隐藏(不可操作的信息不上屏,同只读线隐藏
+    /// 余额/候选口径)。
+    var canStartNewThread: Bool {
+        !AskDayKey.isPastDay(pageDateKey, todayKey: todayKey)
     }
 
     // MARK: 抽屉动作
@@ -173,7 +190,9 @@ final class AskConversationStore {
         reload()
     }
 
-    /// 重载列表(今天/往日分组,updatedAt 降序)。
+    /// 重载列表(今天/往日分组,updatedAt 降序)。分组判定与模型 isReadOnly
+    /// 同源(`AskDayKey.isPastDay`):今天组 = 一切仍可聊的线(含 23:00 滚日
+    /// 窗口页面超前日的线),往日组 = 只读线——两组与只读闸永远不打架。
     func reload() {
         let conversations = fetchAll()
         let yesterdayKey = Calendar.current.date(byAdding: .day, value: -1, to: now())
@@ -181,7 +200,7 @@ final class AskConversationStore {
 
         func summary(_ conversation: AskConversation) -> AskConversationSummary {
             let timeLabel: String
-            if conversation.dateKey == todayKey {
+            if !AskDayKey.isPastDay(conversation.dateKey, todayKey: todayKey) {
                 timeLabel = Self.timeFormatter.string(from: conversation.updatedAt)
             } else if conversation.dateKey == yesterdayKey {
                 timeLabel = L10n.DailyFortune.askTimeYesterday
@@ -198,10 +217,10 @@ final class AskConversationStore {
         }
 
         todaySummaries = conversations
-            .filter { $0.dateKey == todayKey }
+            .filter { !AskDayKey.isPastDay($0.dateKey, todayKey: todayKey) }
             .map(summary)
         pastSummaries = conversations
-            .filter { $0.dateKey != todayKey }
+            .filter { AskDayKey.isPastDay($0.dateKey, todayKey: todayKey) }
             .map(summary)
     }
 
