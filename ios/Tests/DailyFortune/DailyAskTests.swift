@@ -513,9 +513,9 @@ final class DailyAskTests: XCTestCase {
             contextLine: "乙丑日 · 偏财"
         )
         context.insert(past)
-        past.append(role: "ai", text: "开场")
-        past.append(role: "user", text: "昨问")
-        past.append(role: "ai", text: "昨答")
+        past.append(role: AskConversation.AskTurnRecord.roleAI, text: "开场")
+        past.append(role: AskConversation.AskTurnRecord.roleUser, text: "昨问")
+        past.append(role: AskConversation.AskTurnRecord.roleAI, text: "昨答")
         try context.save()
 
         let today = AskDayKey.of(Date())
@@ -533,7 +533,7 @@ final class DailyAskTests: XCTestCase {
             ),
             todayKeyProvider: { today }
         )
-        XCTAssertTrue(model.isReadOnly, "记录日 ≠ 今日 = 只读")
+        XCTAssertTrue(model.isReadOnly, "记录日早于今日 = 只读")
         XCTAssertEqual(model.displayTitle, "昨天的问")
         XCTAssertEqual(model.contextLine, "乙丑日 · 偏财", "副题用记录定版值,不拿今天现算")
 
@@ -554,8 +554,8 @@ final class DailyAskTests: XCTestCase {
         var key = "2026-11-03"
         let record = AskConversation(chartHash: "A", dateKey: key, title: "t", contextLine: "c")
         context.insert(record)
-        record.append(role: "ai", text: "o")
-        record.append(role: "user", text: "q")
+        record.append(role: AskConversation.AskTurnRecord.roleAI, text: "o")
+        record.append(role: AskConversation.AskTurnRecord.roleUser, text: "q")
         try context.save()
 
         let model = DailyAskModel.make(
@@ -567,6 +567,61 @@ final class DailyAskTests: XCTestCase {
         XCTAssertFalse(model.isReadOnly, "当日可聊")
         key = "2026-11-04"   // provider 实时读 store.todayKey 的语义模拟
         XCTAssertTrue(model.isReadOnly, "跨午夜后旧线转只读")
+    }
+
+    /// 23:00 滚日窗口(zi_next_day,APIClient 硬编码产品默认):23:00–00:00
+    /// 页面 businessDate 已前移到次日而墙钟未跨日——该窗口的新线 dateKey =
+    /// 页面日(超前墙钟日一天),踩的正是已解锁的新盘,必须可聊;判 `!=`
+    /// 会每晚这一小时全部 born-readonly(2026-11-06 双 review R1)。
+    @MainActor
+    func test多会话_23点滚日窗口_页面超前日新线可聊() throws {
+        let container = try makeAskContainer()
+        let context = container.mainContext
+        let wallToday = AskDayKey.of(Date())
+        let pageTomorrow = AskDayKey.of(
+            Calendar.current.date(byAdding: .day, value: 1, to: Date())!
+        )
+        let answerer = FakeAnswerer()
+        // 临时新线:record = nil,dateKey = 页面日(超前)——不得判只读
+        let model = DailyAskModel.make(
+            response: makeResponse(),
+            interpretState: .fetching,
+            answerer: answerer,
+            persistence: makePersistence(context: context, dateKey: pageTomorrow),
+            todayKeyProvider: { wallToday }
+        )
+        XCTAssertFalse(model.isReadOnly, "页面超前日(23:00 滚日窗口)新线可聊")
+
+        // 落在窗口内创建的线(dateKey = 页面日):墙钟追平(次日)后仍是
+        // 当日线,继续可聊;再过一日才转只读
+        let windowLine = AskConversation(
+            chartHash: "hashA", dateKey: pageTomorrow, title: "t", contextLine: "c"
+        )
+        context.insert(windowLine)
+        try context.save()
+        let nextDay = DailyAskModel.make(
+            response: makeResponse(),
+            interpretState: .fetching,
+            persistence: makePersistence(context: context, record: windowLine, dateKey: pageTomorrow),
+            todayKeyProvider: { pageTomorrow }
+        )
+        XCTAssertFalse(nextDay.isReadOnly, "墙钟追平后 = 今日线,可聊")
+
+        // store 侧同口径:超前日线归「今天」组、不压只读签;canStartNewThread
+        // 在页面超前时为真(新开一问照常可点)
+        let store = AskConversationStore(context: context)
+        store.syncDay(chartHash: "hashA", dateKey: pageTomorrow)
+        XCTAssertEqual(store.todaySummaries.map(\.id), [windowLine.id], "超前日线归今天组(仍可聊)")
+        XCTAssertTrue(store.pastSummaries.isEmpty)
+        XCTAssertTrue(store.canStartNewThread, "页面超前日可开新线")
+
+        // 反向:离线陈旧页(页面日落后墙钟日)canStartNewThread = false
+        // ——新线必 born-readonly,「+ 新开一问」chip 该隐藏
+        let stalePage = AskDayKey.of(
+            Calendar.current.date(byAdding: .day, value: -2, to: Date())!
+        )
+        store.syncDay(chartHash: "hashA", dateKey: stalePage)
+        XCTAssertFalse(store.canStartNewThread, "页面落后墙钟日:新线不可开(chip 隐藏)")
     }
 
     @MainActor
@@ -672,8 +727,8 @@ final class DailyAskTests: XCTestCase {
         func seed(_ chart: String, _ day: String, title: String, updated: Date) -> AskConversation {
             let record = AskConversation(chartHash: chart, dateKey: day, title: title, contextLine: "ctx")
             context.insert(record)
-            record.append(role: "ai", text: "开场")
-            record.append(role: "user", text: title)
+            record.append(role: AskConversation.AskTurnRecord.roleAI, text: "开场")
+            record.append(role: AskConversation.AskTurnRecord.roleUser, text: title)
             record.updatedAt = updated
             return record
         }

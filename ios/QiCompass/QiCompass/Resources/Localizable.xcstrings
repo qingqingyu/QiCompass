@@ -3151,6 +3151,29 @@
         }
       }
     },
+    "dailyfortune.ask.readonlyHintStale" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Past day, read-only. Today's chart hasn't loaded yet — refresh online to keep asking"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "往日会话 · 只读——今日盘面尚未获取,联网刷新后可继续问事"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "往日會話 · 只讀——今日盤面尚未獲取,聯網刷新後可繼續問事"
+          }
+        }
+      }
+    },
     "dailyfortune.ask.replyContextExpired" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -136,4 +136,16 @@ enum AskDayKey {
         let c = calendar.dateComponents([.year, .month, .day], from: date)
         return String(format: "%04d-%02d-%02d", c.year ?? 0, c.month ?? 0, c.day ?? 0)
     }
+
+    /// 「往日」判定(**只读语义单一事实源**,模型 isReadOnly / store 归组 /
+    /// 抽屉往日签三处共用):dateKey **早于** todayKey 才是往日。相等 = 今日;
+    /// **晚于** = 23:00 滚日窗口的页面超前日(`zi_next_day`:23:00–00:00
+    /// 页面 businessDate 已前移而墙钟未跨日)——该窗口新线的 dateKey 取自
+    /// 前移后的页面日,踩的正是已解锁的新盘,必须可聊(墙钟追平后自然落
+    /// 回「今日」);若判 `!=`,每晚这一小时所有新线 born-readonly、「新开
+    /// 一问」成死控件(2026-11-06 双 review R1)。定宽 yyyy-MM-dd 的字典序
+    /// = 时间序,直接字符串比较。
+    static func isPastDay(_ dateKey: String, todayKey: String) -> Bool {
+        dateKey < todayKey
+    }
 }
