@@ -95,6 +95,18 @@ final class DailyAskModel {
     /// 问事窄条短引导「比肩当值 · 有事来问」。
     let composerLine: String
 
+    // MARK: S多会话(2026-11-04,今日问事-多会话.html 定稿)
+
+    /// 落盘记录(nil = 临时会话,首问发出时创建——空会话不落盘)。
+    private(set) var record: AskConversation?
+    /// 会话归属日(yyyy-MM-dd;≠ todayKeyProvider() = 往日只读)。
+    let dateKey: String
+    /// 今日键供给(闭包实时读——跨午夜由 store 刷新,不持旧值;默认恒等
+    /// dateKey = 永不只读:tests / 无落盘环境不注入)。
+    private let todayKeyProvider: () -> String
+    /// 落盘材料(nil = 纯内存会话:tests / 离线兜底无盘身份,现行为不变)。
+    private let persistence: AskPersistence?
+
     private let answerer: DailyAskAnswering
     /// 问事钱包(weak 表达所有权归 AppEnvironment——模型不延长钱包生命
     /// 周期;@Observable 的观察本身不持引用,weak 不再是防观察环;nil = 测试无钱包注入)
@@ -106,15 +118,47 @@ final class DailyAskModel {
         composerLine: String,
         contextLine: String,
         answerer: DailyAskAnswering = ServicePendingAskAnswerer(),
-        wallet: AskWalletModel? = nil
+        wallet: AskWalletModel? = nil,
+        persistence: AskPersistence? = nil,
+        todayKeyProvider: (() -> String)? = nil
     ) {
-        self.messages = [.init(role: .ai, text: opening)]
+        // 打开既有会话:消息从记录种入(开场白已随行入库),副题用
+        // 记录定版值——往日线的日柱/十神属当天,不能拿今天的现算。
+        // 损流水(解码失败 → turns 空)回落开场白:回看语境不塌成零气泡
+        // (testing 审查:空壳会让 isPristine 判真,宿主可能重建——回落后
+        // 记录仍在,行为退化为「重开只看得到开场白」,可见降级)。
+        self.record = persistence?.record
+        self.persistence = persistence
+        self.messages = persistence?.record.flatMap { record in
+            let seeded = record.turns.map { turn in
+                Message(
+                    role: turn.role == AskConversation.AskTurnRecord.roleUser ? .user : .ai,
+                    text: turn.text
+                )
+            }
+            return seeded.isEmpty ? nil : seeded
+        } ?? [.init(role: .ai, text: opening)]
         self.offers = offers
         self.composerLine = composerLine
-        self.contextLine = contextLine
+        self.contextLine = persistence?.record?.contextLine ?? contextLine
+        let key = persistence?.dateKey ?? AskDayKey.of(Date())
+        self.dateKey = key
+        self.todayKeyProvider = todayKeyProvider ?? { key }
         self.answerer = answerer
         self.wallet = wallet
     }
+
+    /// 往日只读(抽屉回看旧线;send 全闸不出网不入流——拍板不跨天续聊)。
+    var isReadOnly: Bool { dateKey != todayKeyProvider() }
+
+    /// 顶栏标题:落盘会话用其标题(首问定版);临时会话回模块名「问事」。
+    var displayTitle: String {
+        if let record { return record.title }
+        return L10n.DailyFortune.askTitle
+    }
+
+    /// 会话标题长度(首问截断;今日问事-多会话.html 定稿 12 字)。
+    static let titleLength = 12
 
     // MARK: 发送
 
@@ -137,6 +181,8 @@ final class DailyAskModel {
     private func send(_ raw: String) -> Bool {
         let text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !text.isEmpty, !isAnswering else { return false }
+        // 往日只读闸(在余额闸之前——旧线连「次数尽」卡都不该出,回看而已)
+        guard !isReadOnly else { return false }
         // 本地 0 余额短路:不出网(必 402 的往返没有意义),置购买卡片态;
         // 消息不入流——问题还没被回答,买完原话还在草稿/候选里可再发
         if wallet?.balance == 0 {
@@ -154,15 +200,22 @@ final class DailyAskModel {
         // 对话上文:排除开场白(它不是对话回合),截末 20 轮(服务端整单
         // >20 轮 422,只注入末 6 轮——客户端保末 20 给模型足量记忆)
         let history = messages.dropFirst().suffix(20).map { message in
-            DailyAskTurn(role: message.role == .user ? "user" : "ai", text: message.text)
+            DailyAskTurn(
+                role: message.role == .user
+                    ? AskConversation.AskTurnRecord.roleUser
+                    : AskConversation.AskTurnRecord.roleAI,
+                text: message.text
+            )
         }
         messages.append(.init(role: .user, text: text))
+        persistUserTurn(text)
         isAnswering = true
         Task { [weak self] in
             guard let self else { return }
             do {
                 let reply = try await self.answerer.reply(to: text, history: history)
                 self.messages.append(.init(role: .ai, text: reply.text))
+                self.persistAITurn(reply.text)
                 // 追问候选复用 offers 通道(点选直发;发起下一条时用过即收)
                 self.offers = reply.followUps
                 if let balance = reply.balance {
@@ -182,13 +235,59 @@ final class DailyAskModel {
                     self.wallet?.apply(0)
                 } else if APIError.isContextTokenError(error) {
                     self.messages.append(.init(role: .ai, text: L10n.DailyFortune.askReplyContextExpired))
+                    self.persistAITurn(L10n.DailyFortune.askReplyContextExpired)
                 } else {
                     self.messages.append(.init(role: .ai, text: L10n.DailyFortune.askReplyFailed))
+                    self.persistAITurn(L10n.DailyFortune.askReplyFailed)
                 }
             }
             self.isAnswering = false
         }
         return true
+    }
+
+    // MARK: 多会话落盘(2026-11-04;AskPersistence 为 nil 时全链路跳过)
+
+    /// 用户消息落盘:临时会话在此建记录——标题(首问截断)/副题/开场白
+    /// 随行入库(回看语境完整);已落会话只追加。**建记录分支不调 onTurn**
+    /// (register 已刷新列表,双调 = 同一轮三次 fetch,简化审查 S5)。
+    private func persistUserTurn(_ text: String) {
+        guard let p = persistence else { return }
+        if let record {
+            record.append(role: AskConversation.AskTurnRecord.roleUser, text: text)
+            AskPersistence.save(p.context, what: "userTurn")
+            p.onTurn?()
+        } else {
+            let conversation = AskConversation(
+                chartHash: p.chartHash,
+                dateKey: p.dateKey,
+                title: String(text.prefix(Self.titleLength)),
+                contextLine: contextLine
+            )
+            // 坑纪律:ModelContext 不保活 ModelContainer——生产侧容器由
+            // AppEnvironment 全程持有(安全);测试侧见 makeAskContainer 注释
+            p.context.insert(conversation)
+            if let opening = messages.first?.text {
+                conversation.append(
+                    role: AskConversation.AskTurnRecord.roleAI,
+                    text: opening,
+                    at: conversation.createdAt
+                )
+            }
+            conversation.append(role: AskConversation.AskTurnRecord.roleUser, text: text)
+            AskPersistence.save(p.context, what: "firstTurn")
+            record = conversation
+            p.onFirstTurn?(conversation)
+        }
+    }
+
+    /// AI 侧落盘(作答 / 失败 / 凭证过期气泡;402 无消息不入库——与消息流
+    /// 同口径,history 语义会话内外一致:重开回看的线就是当时的那条线)。
+    private func persistAITurn(_ text: String) {
+        guard let p = persistence, let record else { return }
+        record.append(role: AskConversation.AskTurnRecord.roleAI, text: text)
+        AskPersistence.save(p.context, what: "aiTurn")
+        p.onTurn?()
     }
 
     /// 用户是否尚未开口(仅开场白、无作答在飞)——宿主据此判断解读态
@@ -218,7 +317,9 @@ extension DailyAskModel {
         response: DailyFortuneResponse,
         interpretState: InterpretState,
         answerer: DailyAskAnswering = ServicePendingAskAnswerer(),
-        wallet: AskWalletModel? = nil
+        wallet: AskWalletModel? = nil,
+        persistence: AskPersistence? = nil,
+        todayKeyProvider: (() -> String)? = nil
     ) -> DailyAskModel {
         let relation = response.dayRelationToDayMaster
         let suggestions: [String]? = {
@@ -263,7 +364,9 @@ extension DailyAskModel {
             composerLine: L10n.DailyFortune.askComposerLine(relation: relationDisplay),
             contextLine: contextLine(dayPillar: response.dayPillar, relationDisplay: relationDisplay),
             answerer: answerer,
-            wallet: wallet
+            wallet: wallet,
+            persistence: persistence,
+            todayKeyProvider: todayKeyProvider
         )
     }
 
@@ -437,16 +540,25 @@ struct DailyAskComposerStrip: View {
 
 // MARK: ② 聊天页(fullScreenCover 整页,无 tab 栏)
 
-/// 问事聊天页:顶栏(问事 + 盘面副题 + 余额副题 + ✕)+ 消息流 + 候选
-/// 问题 + 次数尽内嵌购买卡 + 输入栏。作答在飞显示三点输入指示;新消息
-/// 自动滚到底(短对话 plain VStack,scrollTo 惰性坑不涉及)。
+/// 问事聊天页:顶栏(三叠横墨抽屉钮 + 会话标题 + 盘面副题 + 余额副题 +
+/// ✕)+ 消息流 + 候选问题 + 次数尽内嵌购买卡 + 输入栏(往日只读线换成
+/// 提示条)。S多会话(2026-11-04):左上抽屉钮拉开「问事录」——每次对话
+/// 一条,今日可聊 / 往日只读;作答在飞显示三点输入指示;新消息自动滚到底
+/// (短对话 plain VStack,scrollTo 惰性坑不涉及)。
 struct DailyAskChatView: View {
     @Bindable var model: DailyAskModel
     let wallet: AskWalletModel
+    /// 会话协调器(抽屉/只读条/换日刷新依赖它;宿主必建——lazy store 先于
+    /// 任何 askModel 存在,fullScreenCover 守卫处与 model 双解包)。
+    let store: AskConversationStore
     let onClose: () -> Void
     /// 次数尽卡片 CTA → 弹次数包购买墙(S4c C3:AskPaywallView 真墙)
     @State private var showAskPaywall = false
+    /// S多会话:问事录抽屉开合。
+    @State private var showDrawer = false
     @EnvironmentObject private var env: AppEnvironment
+    @Environment(\.accessibilityReduceMotion) private var reduceMotion
+    @Environment(\.scenePhase) private var scenePhase
 
     /// AI 侧气泡形状(含 typing):尾角左下。HTML CSS `16px 16px 16px 4px`
     /// 顺序是 TL,TR,BR,BL → SwiftUI 元组须重排为 topLeading,
@@ -476,7 +588,9 @@ struct DailyAskChatView: View {
                                 bubble(message)
                                     .id(message.id)
                             }
-                            if !model.offers.isEmpty {
+                            // 只读线的候选是死控件(点击被只读闸无声拦下)——
+                            // 不可操作的信息不上屏(red-team:同头栏余额隐藏口径)
+                            if !model.offers.isEmpty, !model.isReadOnly {
                                 offerList
                             }
                             if model.creditsExhausted {
@@ -499,7 +613,18 @@ struct DailyAskChatView: View {
                         }
                     }
                 }
-                inputBar
+                bottomBar
+            }
+            // S多会话:问事录抽屉(左滑 + 压暗;reduce-motion 降级纯淡入)
+            if showDrawer {
+                drawerLayer
+            }
+        }
+        // 跨午夜:回前台刷新今日键——旧线转只读、列表重新分组(拍板:
+        // 换日 = 新盘,昨天的活跃线不作数)
+        .onChange(of: scenePhase) { _, phase in
+            if phase == .active {
+                store.refreshTodayKey()
             }
         }
         // 购买成功(余额 >0)复位卡片态:inputBar 不禁用,买完可直接续问。
@@ -526,12 +651,30 @@ struct DailyAskChatView: View {
     // MARK: 顶栏
 
     private var header: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 10) {
-            Text(L10n.DailyFortune.askTitle)
-                .font(BaziFont.display(size: 17, weight: .semibold))
-                .tracking(1.4)
-                .foregroundStyle(BaziTheme.ink)
+        HStack(alignment: .center, spacing: 10) {
+            // S多会话:三叠横墨抽屉钮——沿用「深度」tab 的线描语言
+            // (今日问事-多会话.html 认可稿:不引入系统 hamburger 图形),
+            // 与右上 ✕ 对称的 30pt 描边圆钮
+            Button {
+                HapticEngine.light()
+                store.reload()
+                openDrawer()
+            } label: {
+                TabIcons.DeepTabIcon(size: 15)
+                    .frame(width: 30, height: 30)
+                    .overlay(Circle().stroke(BaziTheme.hairline, lineWidth: 0.5))
+            }
+            .buttonStyle(.plain)
+            .accessibilityLabel(L10n.DailyFortune.askMenuA11y)
+            // HIG 命中目标 44pt(2026-10-27 审查 H2 同款):视觉 30pt 圈不动
+            .contentShape(Rectangle().inset(by: -7))
             VStack(alignment: .leading, spacing: 2) {
+                // S多会话:标题 = 会话标题(首问定版;临时会话回模块名)
+                Text(verbatim: model.displayTitle)
+                    .font(BaziFont.display(size: 17, weight: .semibold))
+                    .tracking(1.4)
+                    .foregroundStyle(BaziTheme.ink)
+                    .lineLimit(1)
                 Text(verbatim: model.contextLine)
                     .font(.system(size: 11))
                     .tracking(1)
@@ -539,8 +682,9 @@ struct DailyAskChatView: View {
                     .lineLimit(1)
                 // 余额副题(拍板:聊天页也显示;nil = 未查询不显示)。
                 // 独立第二行而非 contextLine 尾接——EN 拼音副题已长,同行
-                // 挤压换行(fixedSize 坑同款教训)。
-                if let balance = wallet.balance, balance > 0 {
+                // 挤压换行(fixedSize 坑同款教训);往日只读线不显示
+                // (不可操作的信息不上屏)。
+                if let balance = wallet.balance, balance > 0, !model.isReadOnly {
                     Text(L10n.DailyFortune.askBalanceRemaining(balance))
                         .font(.system(size: 10.5))
                         .tracking(1)
@@ -563,7 +707,7 @@ struct DailyAskChatView: View {
             // contentShape 负向外扩热区到 44——不改布局不碰视觉
             .contentShape(Rectangle().inset(by: -7))
         }
-        .padding(.horizontal, 20)
+        .padding(.horizontal, 14)
         .padding(.top, 10)
         .padding(.bottom, 14)
         .overlay(alignment: .bottom) {
@@ -710,6 +854,225 @@ struct DailyAskChatView: View {
                 .buttonStyle(.plain)
             }
         }
+    }
+
+    // MARK: S多会话:问事录抽屉(左滑 + 压暗)
+
+    /// 底栏二态:今日线 = 输入栏;往日只读线 = 提示条(+新开一问直达)。
+    @ViewBuilder
+    private var bottomBar: some View {
+        if model.isReadOnly {
+            readonlyBar
+        } else {
+            inputBar
+        }
+    }
+
+    /// 往日只读提示条:「不跨天续聊」拍板的落地形态——今天的盘不答昨天
+    /// 的线,回看可以,续问开新线。
+    private var readonlyBar: some View {
+        HStack(spacing: 10) {
+            Text(L10n.DailyFortune.askReadonlyHint)
+                .font(.system(size: 12.5))
+                .foregroundStyle(BaziTheme.inkMuted)
+                .lineLimit(2)
+                .multilineTextAlignment(.leading)
+            Spacer(minLength: 8)
+            newThreadChip { store.startNew() }
+        }
+        .padding(.horizontal, 16)
+        .padding(.top, 12)
+        .padding(.bottom, 16)
+        .overlay(alignment: .top) {
+            Rectangle()
+                .fill(BaziTheme.hairline)
+                .frame(height: 0.5)
+        }
+    }
+
+    /// 抽屉开合(reduce-motion 降级淡入;动效三式纪律)。
+    private func openDrawer() {
+        withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.4, dampingFraction: 0.9)) {
+            showDrawer = true
+        }
+    }
+
+    private func dismissDrawer() {
+        withAnimation(reduceMotion ? .easeInOut(duration: 0.2) : .spring(response: 0.4, dampingFraction: 0.9)) {
+            showDrawer = false
+        }
+    }
+
+    /// 「+ 新开一问」chip(只读条 + 抽屉头共用,样式单一事实源;横向 11pt
+    /// = HTML 认可稿定值,简化审查 S3:两份手抄必漂移)。
+    private func newThreadChip(action: @escaping () -> Void) -> some View {
+        Button {
+            HapticEngine.light()
+            action()
+        } label: {
+            Text(L10n.DailyFortune.askDrawerNew)
+                .font(.system(size: 12))
+                .foregroundStyle(BaziTheme.ink)
+                .padding(.horizontal, 11)
+                .padding(.vertical, 6)
+                .overlay(Capsule().stroke(BaziTheme.hairline, lineWidth: 0.5))
+        }
+        .buttonStyle(.plain)
+        // HIG 44pt:视觉 chip ~30pt,热区外扩
+        .contentShape(Rectangle().inset(by: -7))
+    }
+
+    /// 抽屉层:压暗(点按即收)+ 左滑面板(宽 78%,**上限 420**——iPad/
+    /// 横屏 regular 宽度下 78% 会撑到 1000pt+,封顶回落手机规格列)。
+    /// VO:escape 手势可收抽屉(压暗层对 VO 不可见不可点,red-team a11y)。
+    private var drawerLayer: some View {
+        GeometryReader { geo in
+            ZStack(alignment: .leading) {
+                Rectangle()
+                    .fill(BaziTheme.inkDeep.opacity(0.30))
+                    .ignoresSafeArea()
+                    .onTapGesture(perform: dismissDrawer)
+                    .accessibilityHidden(true)
+                drawerPanel
+                    .frame(width: min(geo.size.width * 0.78, 420))
+            }
+        }
+        .transition(
+            reduceMotion ? .opacity : .opacity.combined(with: .move(edge: .leading))
+        )
+        .accessibilityAction(.escape) { dismissDrawer() }
+    }
+
+    /// 面板:头(问事录 + 新开一问)+ 会话列表(今天/往日)+ 脚注。
+    private var drawerPanel: some View {
+        VStack(spacing: 0) {
+            HStack(spacing: 8) {
+                Text(L10n.DailyFortune.askDrawerTitle)
+                    .font(BaziFont.display(size: 19, weight: .semibold))
+                    .tracking(2)
+                    .foregroundStyle(BaziTheme.ink)
+                Spacer(minLength: 8)
+                newThreadChip {
+                    store.startNew()
+                    dismissDrawer()
+                }
+            }
+            .padding(.top, 20)
+            .padding(.horizontal, 20)
+            .padding(.bottom, 12)
+            .overlay(alignment: .bottom) {
+                Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
+            }
+            ScrollView {
+                VStack(alignment: .leading, spacing: 0) {
+                    if store.todaySummaries.isEmpty && store.pastSummaries.isEmpty {
+                        Text(L10n.DailyFortune.askDrawerEmpty)
+                            .font(.system(size: 12))
+                            .foregroundStyle(BaziTheme.inkMuted)
+                            .padding(.horizontal, 20)
+                            .padding(.top, 16)
+                    } else {
+                        if !store.todaySummaries.isEmpty {
+                            drawerGroupLabel(L10n.DailyFortune.askDrawerToday)
+                            ForEach(store.todaySummaries) { summary in
+                                drawerRow(summary)
+                            }
+                        }
+                        if !store.pastSummaries.isEmpty {
+                            drawerGroupLabel(L10n.DailyFortune.askDrawerPast)
+                            ForEach(store.pastSummaries) { summary in
+                                drawerRow(summary)
+                            }
+                        }
+                    }
+                }
+                .padding(.bottom, 12)
+            }
+            Text(L10n.DailyFortune.askDrawerFoot)
+                .font(.system(size: 11))
+                .tracking(0.5)
+                .foregroundStyle(BaziTheme.inkMuted)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 12)
+                .overlay(alignment: .top) {
+                    Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
+                }
+        }
+        .frame(maxHeight: .infinity, alignment: .top)
+        .background(BaziTheme.cardSurface)
+        .overlay(alignment: .trailing) {
+            Rectangle().fill(BaziTheme.hairline).frame(width: 0.5)
+        }
+        // HTML 12px 0 32px·0.14 → 右向投影(x=12)
+        .shadow(color: BaziTheme.ink.opacity(0.14), radius: 16, x: 12)
+    }
+
+    private func drawerGroupLabel(_ text: String) -> some View {
+        Text(text)
+            .font(.system(size: 11))
+            .tracking(1.6)
+            .foregroundStyle(BaziTheme.inkMuted)
+            .padding(.horizontal, 20)
+            .padding(.top, 14)
+            .padding(.bottom, 6)
+    }
+
+    /// 会话行:标题(首问定版)+ 只读签 + 时间签,副行末轮预览;当前条 =
+    /// 墨青灯点 + 淡墨底(与窄条灯点同语言);往日整行压淡。
+    private func drawerRow(_ summary: AskConversationSummary) -> some View {
+        let isCurrent = summary.id == model.record?.id
+        let isPast = summary.dateKey != store.todayKey
+        return Button {
+            HapticEngine.light()
+            store.select(summary.id)
+            dismissDrawer()
+        } label: {
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(spacing: 7) {
+                    if isCurrent {
+                        Circle()
+                            .fill(BaziTheme.jade)
+                            .frame(width: 7, height: 7)
+                    }
+                    Text(verbatim: summary.title)
+                        .font(BaziFont.body(size: 15))
+                        .foregroundStyle(BaziTheme.ink)
+                        .lineLimit(1)
+                    if isPast {
+                        Text(L10n.DailyFortune.askReadonlyBadge)
+                            .font(.system(size: 9.5))
+                            .tracking(1)
+                            .foregroundStyle(BaziTheme.inkMuted)
+                            .padding(.horizontal, 6)
+                            .padding(.vertical, 1.5)
+                            .overlay(Capsule().stroke(BaziTheme.hairline, lineWidth: 0.5))
+                    }
+                    Spacer(minLength: 4)
+                    Text(verbatim: summary.timeLabel)
+                        .font(.system(size: 10.5))
+                        .foregroundStyle(BaziTheme.inkMuted)
+                }
+                Text(verbatim: summary.preview)
+                    .font(.system(size: 11.5))
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .lineLimit(1)
+            }
+            .padding(.horizontal, 12)
+            .padding(.vertical, 8)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: 8, style: .continuous)
+                    .fill(BaziTheme.ink.opacity(isCurrent ? 0.05 : 0))
+            )
+            .opacity(isPast ? 0.58 : 1)
+        }
+        .buttonStyle(.plain)
+        .padding(.horizontal, 8)
+        // VO:整行合并播报(标题+只读签+预览+时间),当前线加 isSelected
+        // 特征(墨青灯点是纯视觉,VO 用户无从得知在哪条线)
+        .accessibilityElement(children: .combine)
+        .accessibilityAddTraits(isCurrent ? .isSelected : [])
     }
 
     // MARK: 输入栏

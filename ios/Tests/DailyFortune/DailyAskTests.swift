@@ -1,4 +1,5 @@
 import XCTest
+import SwiftData
 @testable import QiCompass
 
 /// S4 问事窗(2026-10-25,今日问事.html 定稿)的纯逻辑与模型半边:
@@ -426,5 +427,310 @@ final class DailyAskTests: XCTestCase {
         let long = String(repeating: "长", count: 5000)
         let clamped = DailyAskContext.interpretationText(for: .offlineLegacy(text: long, languageNote: nil), relation: "比肩")
         XCTAssertEqual(clamped.count, 4096, "统一 prefix(4096) clamp(服务端 max_length=4096)")
+    }
+
+    // MARK: - S多会话(2026-11-04,今日问事-多会话.html 定稿)
+
+    /// 内存容器(@MainActor 测试)。用 `ModelContainerFactory.makeInMemory()`
+    /// 既有工厂。**调用方必须显式持有返回的 container**——ModelContext 不
+    /// 保活容器,容器释放后 context 上的操作会直接 trap(2026-11-05 测试
+    /// 二分实证);故本 helper 只返回 container,context 由调用方自行取,
+    /// 两者都在测试作用域内存活。
+    @MainActor
+    private func makeAskContainer() throws -> ModelContainer {
+        try ModelContainerFactory.makeInMemory()
+    }
+
+    @MainActor
+    private func makePersistence(
+        context: ModelContext,
+        record: AskConversation? = nil,
+        chartHash: String = "hashA",
+        dateKey: String,
+        onFirstTurn: ((AskConversation) -> Void)? = nil
+    ) -> AskPersistence {
+        AskPersistence(
+            record: record,
+            context: context,
+            chartHash: chartHash,
+            dateKey: dateKey,
+            onFirstTurn: onFirstTurn,
+            onTurn: nil
+        )
+    }
+
+    @MainActor
+    func test多会话_首问落盘_标题截断_重开回读() async throws {
+        let container = try makeAskContainer()
+        let context = container.mainContext
+        let today = AskDayKey.of(Date())
+        var registered: AskConversation?
+        let model = DailyAskModel.make(
+            response: makeResponse(),
+            interpretState: .fetching,
+            answerer: FakeAnswerer(),
+            persistence: makePersistence(context: context, dateKey: today) { registered = $0 },
+            todayKeyProvider: { today }
+        )
+        XCTAssertTrue(model.isPristine, "临时会话 pristine(空会话不落盘)")
+
+        let question = "这句话超过十二个字会被截断作为标题吗？"
+        model.sendOffer(question)
+        await waitUntilAnswered(model)
+
+        let record = try XCTUnwrap(registered, "首问发出即落盘并回告")
+        XCTAssertEqual(record.title, String(question.prefix(DailyAskModel.titleLength)), "标题 = 首问截断(12 字)")
+        XCTAssertEqual(record.chartHash, "hashA")
+        XCTAssertEqual(record.dateKey, today)
+        XCTAssertEqual(record.contextLine, "辛未日 · 比肩", "副题创建时定版")
+        XCTAssertEqual(record.turns.map(\.role), ["ai", "user", "ai"], "开场白随行入库 + 问 + 答")
+
+        // 重开:消息从记录种入,副题/标题用定版值;非 pristine 宿主不再重建
+        let reopened = DailyAskModel.make(
+            response: makeResponse(),
+            interpretState: .fetching,
+            persistence: makePersistence(context: context, record: record, dateKey: today),
+            todayKeyProvider: { today }
+        )
+        XCTAssertEqual(reopened.messages.count, 3)
+        XCTAssertEqual(reopened.messages.map(\.text), record.turns.map(\.text))
+        XCTAssertEqual(reopened.contextLine, record.contextLine)
+        XCTAssertEqual(reopened.displayTitle, record.title)
+        XCTAssertFalse(reopened.isPristine)
+    }
+
+    @MainActor
+    func test多会话_往日只读_发送短路不出网_草稿保留() throws {
+        let container = try makeAskContainer()
+        let context = container.mainContext
+        let yesterday = try XCTUnwrap(
+            Calendar.current.date(byAdding: .day, value: -1, to: Date())
+        )
+        let past = AskConversation(
+            chartHash: "hashA",
+            dateKey: AskDayKey.of(yesterday),
+            title: "昨天的问",
+            contextLine: "乙丑日 · 偏财"
+        )
+        context.insert(past)
+        past.append(role: "ai", text: "开场")
+        past.append(role: "user", text: "昨问")
+        past.append(role: "ai", text: "昨答")
+        try context.save()
+
+        let today = AskDayKey.of(Date())
+        let answerer = FakeAnswerer()
+        // 0 余额 + 只读同时在场:锁死闸序——只读在前,旧线连次数尽卡都不出
+        let model = DailyAskModel.make(
+            response: makeResponse(),
+            interpretState: .fetching,
+            answerer: answerer,
+            wallet: makeWallet(0),
+            persistence: makePersistence(
+                context: context,
+                record: past,
+                dateKey: AskDayKey.of(yesterday)
+            ),
+            todayKeyProvider: { today }
+        )
+        XCTAssertTrue(model.isReadOnly, "记录日 ≠ 今日 = 只读")
+        XCTAssertEqual(model.displayTitle, "昨天的问")
+        XCTAssertEqual(model.contextLine, "乙丑日 · 偏财", "副题用记录定版值,不拿今天现算")
+
+        // 只读闸在余额闸之前:不出网、不入流、草稿保留、不置次数尽卡
+        model.sendOffer("今天接着问？")
+        model.draft = "草稿保留"
+        model.sendDraft()
+        XCTAssertEqual(answerer.callCount, 0)
+        XCTAssertEqual(model.messages.count, 3)
+        XCTAssertEqual(model.draft, "草稿保留")
+        XCTAssertFalse(model.creditsExhausted, "只读闸在前:旧线连次数尽卡都不出")
+    }
+
+    @MainActor
+    func test多会话_跨午夜_provider实时翻转只读() throws {
+        let container = try makeAskContainer()
+        let context = container.mainContext
+        var key = "2026-11-03"
+        let record = AskConversation(chartHash: "A", dateKey: key, title: "t", contextLine: "c")
+        context.insert(record)
+        record.append(role: "ai", text: "o")
+        record.append(role: "user", text: "q")
+        try context.save()
+
+        let model = DailyAskModel.make(
+            response: makeResponse(),
+            interpretState: .fetching,
+            persistence: makePersistence(context: context, record: record, dateKey: key),
+            todayKeyProvider: { key }
+        )
+        XCTAssertFalse(model.isReadOnly, "当日可聊")
+        key = "2026-11-04"   // provider 实时读 store.todayKey 的语义模拟
+        XCTAssertTrue(model.isReadOnly, "跨午夜后旧线转只读")
+    }
+
+    @MainActor
+    func test多会话_损流水回落开场白_拒覆写保残骸() throws {
+        let container = try makeAskContainer()
+        let context = container.mainContext
+        let today = AskDayKey.of(Date())
+        let corrupt = AskConversation(
+            chartHash: "hashA",
+            dateKey: today,
+            title: "损",
+            contextLine: "c",
+            messagesData: Data("not-json".utf8)
+        )
+        context.insert(corrupt)
+        try context.save()
+        XCTAssertTrue(corrupt.turns.isEmpty, "损数据按空处理(留痕不崩)")
+
+        // 种入:空流水回落开场白,不塌成零气泡(testing 审查:空壳会让
+        // isPristine 判真 + 零气泡死屏)
+        let model = DailyAskModel.make(
+            response: makeResponse(),
+            interpretState: .fetching,
+            persistence: makePersistence(context: context, record: corrupt, dateKey: today),
+            todayKeyProvider: { today }
+        )
+        XCTAssertEqual(model.messages.first?.role, .ai, "回看语境完整:回落开场白")
+
+        // append 拒覆写(red-team:decode 空 + 追加 = 把残骸整块冲掉)
+        corrupt.append(role: AskConversation.AskTurnRecord.roleUser, text: "新问")
+        XCTAssertEqual(
+            String(data: corrupt.messagesData, encoding: .utf8),
+            "not-json",
+            "拒追加,残骸原样保留"
+        )
+    }
+
+    @MainActor
+    func test多会话_既有线追问与失败气泡_同口径落盘() async throws {
+        let container = try makeAskContainer()
+        let context = container.mainContext
+        let today = AskDayKey.of(Date())
+        var registered: AskConversation?
+        let model = DailyAskModel.make(
+            response: makeResponse(),
+            interpretState: .fetching,
+            answerer: FakeAnswerer(),
+            persistence: makePersistence(context: context, dateKey: today) { registered = $0 },
+            todayKeyProvider: { today }
+        )
+        model.sendOffer("第一问？")
+        await waitUntilAnswered(model)
+        let record = try XCTUnwrap(registered)
+
+        // 重开追问:走「既有线追加」分支,不建新记录,顺序交替
+        let reopened = DailyAskModel.make(
+            response: makeResponse(),
+            interpretState: .fetching,
+            persistence: makePersistence(context: context, record: record, dateKey: today),
+            todayKeyProvider: { today }
+        )
+        reopened.sendOffer("第二问？")
+        await waitUntilAnswered(reopened)
+        XCTAssertEqual(record.turns.map(\.role), ["ai", "user", "ai", "user", "ai"], "既有线只追加,顺序不乱")
+
+        // 失败气泡入库:重开回看可见当时那条失败线
+        let failing = DailyAskModel.make(
+            response: makeResponse(),
+            interpretState: .fetching,
+            answerer: FakeAnswerer(error: BoomError()),
+            persistence: makePersistence(context: context, record: record, dateKey: today),
+            todayKeyProvider: { today }
+        )
+        failing.sendOffer("第三问？")
+        await waitUntilAnswered(failing)
+        XCTAssertEqual(record.turns.last?.text, L10n.DailyFortune.askReplyFailed, "失败气泡随行入库")
+
+        // 402:用户问入库、无 AI 尾(与消息流同口径——卡片才是回应)
+        let exhausted = DailyAskModel.make(
+            response: makeResponse(),
+            interpretState: .fetching,
+            answerer: FakeAnswerer(
+                error: APIError.backendError(code: "ASK_CREDITS_REQUIRED", message: "次数尽", requestId: "t")
+            ),
+            wallet: makeWallet(1),
+            persistence: makePersistence(context: context, record: record, dateKey: today),
+            todayKeyProvider: { today }
+        )
+        exhausted.sendOffer("第四问？")
+        await waitUntilAnswered(exhausted)
+        XCTAssertEqual(record.turns.last?.role, "user", "402 无 AI 气泡入库")
+    }
+
+    @MainActor
+    func test多会话_store三态选择与今日归组_按盘过滤() throws {
+        let container = try makeAskContainer()
+        let context = container.mainContext
+        var fakeNow = Date()
+        let store = AskConversationStore(context: context, now: { fakeNow })
+        let today = store.todayKey
+        let yesterday = AskDayKey.of(Calendar.current.date(byAdding: .day, value: -1, to: Date())!)
+
+        func seed(_ chart: String, _ day: String, title: String, updated: Date) -> AskConversation {
+            let record = AskConversation(chartHash: chart, dateKey: day, title: title, contextLine: "ctx")
+            context.insert(record)
+            record.append(role: "ai", text: "开场")
+            record.append(role: "user", text: title)
+            record.updatedAt = updated
+            return record
+        }
+
+        let early = seed("A", today, title: "早的今日线", updated: Date(timeIntervalSinceNow: -100))
+        let late = seed("A", today, title: "晚的今日线", updated: Date())
+        let past = seed("A", yesterday, title: "昨日线", updated: Date(timeIntervalSinceNow: -50))
+        let twoDaysAgo = AskDayKey.of(Calendar.current.date(byAdding: .day, value: -2, to: Date())!)
+        _ = seed("A", twoDaysAgo, title: "前日线", updated: Date())
+        _ = seed("B", today, title: "别盘线", updated: Date())
+        try context.save()
+
+        store.syncDay(chartHash: "A", dateKey: today)
+        XCTAssertEqual(store.todaySummaries.map(\.title), ["晚的今日线", "早的今日线"], "updatedAt 降序;B 盘不混入")
+        XCTAssertEqual(store.pastSummaries.map(\.title), ["前日线", "昨日线"], "往日组 updatedAt 降序")
+
+        // 时间签三分支:今天 HH:mm / 昨天 / 更早 M月d日
+        XCTAssertTrue(
+            store.todaySummaries.allSatisfy {
+                $0.timeLabel.range(of: #"^\d{2}:\d{2}$"#, options: .regularExpression) != nil
+            },
+            "今天分支 HH:mm"
+        )
+        let byTitle = Dictionary(uniqueKeysWithValues: store.pastSummaries.map { ($0.title, $0) })
+        XCTAssertEqual(byTitle["昨日线"]?.timeLabel, L10n.DailyFortune.askTimeYesterday, "昨天分支")
+        XCTAssertFalse(byTitle["前日线"]?.timeLabel.isEmpty ?? true, "更早分支(M月d日 模板)已执行")
+
+        // .auto = 最近一条今日会话(strip 打开语义)
+        XCTAssertEqual(store.resolveRecord()?.id, late.id)
+        // .record = 显式选中(含往日只读回看)
+        store.select(past.id)
+        XCTAssertEqual(store.resolveRecord()?.id, past.id)
+        // .newThread = 恒新线(不回落最近一条)
+        store.startNew()
+        XCTAssertNil(store.resolveRecord())
+        // register(首问回告)= **只刷列表不动 selection**(对抗审查 F1:动
+        // selection 会让宿主把在飞作答的模型整个换掉)
+        store.register(early)
+        XCTAssertEqual(store.selection, .newThread, "selection 不动")
+        // 选择失效(记录已不存在)→ 回落最近今日线,不空开
+        store.select(UUID())
+        XCTAssertEqual(store.resolveRecord()?.id, late.id, "失效选择回落 strip 打开语义")
+        // strip 重开语义:回看完往日线后重置
+        store.select(past.id)
+        store.resetSelection()
+        XCTAssertEqual(store.resolveRecord()?.id, late.id, "重置回 auto = 最近今日线")
+        // 换盘重置回 auto:新盘的最近今日线
+        store.select(past.id)
+        store.syncDay(chartHash: "B", dateKey: today)
+        XCTAssertEqual(store.resolveRecord()?.title, "别盘线")
+
+        // 跨午夜(store 时钟注入):今日键前移 → 活跃选择作废 + 归组翻转
+        // (store 此刻视角 = B 盘:别盘线转入往日)
+        fakeNow = Calendar.current.date(byAdding: .day, value: 1, to: fakeNow)!
+        store.refreshTodayKey()
+        XCTAssertEqual(store.todayKey, AskDayKey.of(fakeNow))
+        XCTAssertTrue(store.todaySummaries.isEmpty, "昨天的今日线整体转入往日")
+        XCTAssertEqual(store.pastSummaries.map(\.title), ["别盘线"], "B 盘视角:唯一会话转入往日")
     }
 }

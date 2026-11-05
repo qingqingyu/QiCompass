@@ -46,6 +46,10 @@ struct DailyFortuneMainView: View {
     /// 确定性候选兜底,解读落地且用户尚未开口(pristine)则刷新开场与候选,
     /// 开口后不再重置(见 syncAskModel)。
     @State private var askModel: DailyAskModel?
+    /// S多会话(2026-11-04)协调器:会话簿记 + 抽屉列表 + 今日键(只读判定
+    /// 单一事实源)。懒建——需 env.modelContainer.mainContext,属性 init 时
+    /// 不可得;nil 只存活到首轮 syncAskModel。
+    @State private var askStore: AskConversationStore?
     /// askModel 的数据身份(chartHash + dayPillar + businessDate):与现值
     /// 不符 = 换盘/换日。chartHash 必入键——日柱是日期的属性而非命盘的,
     /// 同日换盘 dayPillar/businessDate 都不变,缺它则旧盘对话残留。
@@ -84,9 +88,15 @@ struct DailyFortuneMainView: View {
     /// LiveDailyAskAnswerer;缺 → ServicePending 降级(离线兜底路径)。
     @MainActor
     private func syncAskModel() {
+        // S多会话:协调器懒建(需 env.modelContainer,属性 init 时不可得)
+        if askStore == nil {
+            askStore = AskConversationStore(context: env.modelContainer.mainContext)
+        }
         let key = "\(chartHash ?? "nil")-\(response.dayPillar)-\(businessDate.timeIntervalSince1970)"
         if askModel == nil || askDayKey != key {
             askDayKey = key
+            // 换盘/换日:store 侧重置活跃选择(旧盘旧日的选择不作数)
+            askStore?.syncDay(chartHash: chartHash ?? "", dateKey: AskDayKey.of(businessDate))
             askModel = makeAskModel()
         } else if askModel?.isPristine == true {
             // 解读态变化(fetching → okFree 等):用户尚未开口,开场/候选/作答
@@ -95,6 +105,31 @@ struct DailyFortuneMainView: View {
             let draft = askModel?.draft ?? ""
             askModel = makeAskModel()
             if !draft.isEmpty { askModel?.draft = draft }
+        }
+    }
+
+    /// 抽屉选择变化(切换 / 新开 / strip 重置)→ 按新选择重建当前模型。
+    /// **守卫**(对抗审查 F1,multi-confirmed):新选择解析出的记录与当前
+    /// 模型一致时不重建——否则首问落盘回告(register)或在飞期间 strip 重开
+    /// 会把正在作答的模型换掉,回复气泡落不进用户眼前(记录里有、屏上没有)。
+    /// 已知边缘:作答在飞时用户主动切到别的线再切回,新模型种入时回复未落
+    /// 记录,气泡要重开该线才见——v1 接受(记录不丢),注释留痕。
+    /// 草稿随行保留(镜像 syncAskModel pristine 分支:刷新的是选择,不该
+    /// 吃掉用户输入;只读线不回填——回填了也发不出)。
+    @MainActor
+    private func rebuildAskModelForSelection() {
+        let resolved = askStore?.resolveRecord()
+        if let current = askModel {
+            let sameRecord = current.record?.id == resolved?.id
+            let bothTransient = current.record == nil && resolved == nil
+            if sameRecord || bothTransient {
+                return
+            }
+        }
+        let draft = askModel?.draft ?? ""
+        askModel = makeAskModel()
+        if !draft.isEmpty, askModel?.isReadOnly != true {
+            askModel?.draft = draft
         }
     }
 
@@ -130,11 +165,42 @@ struct DailyFortuneMainView: View {
             )
             answerer = ServicePendingAskAnswerer()
         }
+        // S多会话落盘材料:盘身份齐备(chartHash + store)才落盘;离线兜底
+        // 缺盘身份 = 纯内存会话(现行为不变)。记录由 store 解析:显式选中
+        // 优先(含往日只读回看),否则最近一条今日会话(strip 打开语义)。
+        // **归属日用记录自己的 dateKey**(对抗审查 F2:往日线打开必须只读,
+        // 传今天会让昨天的线可写、今天的作答写进昨天的记录);临时新线才
+        // 用页面日刻章。
+        let persistence: AskPersistence?
+        let todayKeyProvider: () -> String
+        if let askStore, let chartHash {
+            let record = askStore.resolveRecord()
+            let dateKey = record?.dateKey ?? AskDayKey.of(businessDate)
+            persistence = AskPersistence(
+                record: record,
+                context: env.modelContainer.mainContext,
+                chartHash: chartHash,
+                dateKey: dateKey,
+                onFirstTurn: { [weak askStore] registered in
+                    askStore?.register(registered)
+                },
+                onTurn: { [weak askStore] in
+                    askStore?.reload()
+                }
+            )
+            // store 短暂缺位(视图重建窗口)不误判只读:回落 = 构建时归属日
+            todayKeyProvider = { [weak askStore] in askStore?.todayKey ?? dateKey }
+        } else {
+            persistence = nil
+            todayKeyProvider = { AskDayKey.of(Date()) }
+        }
         return DailyAskModel.make(
             response: response,
             interpretState: interpretState,
             answerer: answerer,
-            wallet: askWallet
+            wallet: askWallet,
+            persistence: persistence,
+            todayKeyProvider: todayKeyProvider
         )
     }
 
@@ -330,6 +396,11 @@ struct DailyFortuneMainView: View {
             probe.contentBottom = $0
             updateAskAtBottom()
         }
+        // S多会话:抽屉选择变化(切换/新开/strip 重置/首问落盘回告)→
+        // 按新选择重建当前模型(onChange 归一驱动,与消息流 onChange 同挂法)
+        .onChange(of: askStore?.selection) { _, _ in
+            rebuildAskModelForSelection()
+        }
         // S4 视口高:距底剩余 = 内容底 − 视口高;尺寸变化(旋转/分屏)同步。
         // allowsHitTesting(false) 同底部探针——本层铺满 ScrollView 正面且
         // 纯测量,Color.clear 可命中,不关会截走全部内容点按(全仓前层
@@ -359,6 +430,9 @@ struct DailyFortuneMainView: View {
                         wallet: askWallet,
                         onOpen: {
                             HapticEngine.light()
+                            // strip 打开语义 = 最近一条今日会话(回看完往日
+                            // 线后重开不粘旧线)
+                            askStore?.resetSelection()
                             syncAskModel()
                             chatPresented = true
                         },
@@ -390,8 +464,13 @@ struct DailyFortuneMainView: View {
         // S4 ② 聊天页:整页拉起,无 tab 栏;关闭后在底部则问事框重新滑出
         // (可见性计算含 chatPresented,fullScreenCover dismiss 自然重算)。
         .fullScreenCover(isPresented: $chatPresented) {
-            if let model = askModel {
-                DailyAskChatView(model: model, wallet: askWallet, onClose: { chatPresented = false })
+            if let model = askModel, let store = askStore {
+                DailyAskChatView(
+                    model: model,
+                    wallet: askWallet,
+                    store: store,
+                    onClose: { chatPresented = false }
+                )
             } else {
                 // 防御:model 为 nil 时不可呈现空白整页(fullScreenCover 无
                 // 下滑 dismiss,空内容 = 用户被困)。理论不可达(.task 先于
