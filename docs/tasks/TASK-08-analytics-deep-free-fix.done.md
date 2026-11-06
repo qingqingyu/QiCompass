@@ -1,5 +1,9 @@
 # TASK-08 修复命书免费章埋点永不触发(TASK-06 复核返工)
 
+> 2026-11-06 复核闭环。代码按 main e9060d5 拍板 A(m0 根章一次)落地,
+> 本文 B 案叙述仅存史;行为测试已改 A 语义在 TranslationFlowTests
+> (testFreeChaptersAnalyticsFiresOnM0RootOnly:m0 报 / m2 不报 / m1 不报)。
+
 ## 背景(复核发现)
 `free_chapters_generated(module: deep)` 只在 `module == "bazi_deep_free"` 时上报:
 - `ios/QiCompass/QiCompass/Services/DeepAnalysisOrchestrator.swift:188`(`runInterpretation`)

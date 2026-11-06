@@ -1,5 +1,7 @@
 # TASK-12 `ask_sent.paid` 改为精确归因(TASK-06 复核小问题)
 
+> 2026-11-06 复核闭环。
+
 ## 背景(复核发现)
 `ios/QiCompass/QiCompass/Features/DailyFortune/DailyAskView.swift` 用 `余额 > 3` 近似「本次扣的是付费次数」。后端 `ask_wallet` 只有一个 `balance` 总数,分不清试用和购买,所以:
 - 买过次数包的用户,用到余额 ≤3 后全被记成 `paid=false`(低估)

@@ -9,8 +9,10 @@
 - 防刷 = **IP 限铸造**:每 IP 每日最多 N 个**新试用身份**(已存身份的
   调用不占 IP 名额——公共网络真实用户互不挤占,2026-10-25 拍板);
   不限调用(调用侧另有 ask-ip: 桶 300/日纯防脚本硬闸,S4b-3 接线)
-- 扣减原子性(双 review 提示项):条件 UPDATE balance>=1,check-then-act
-  缺口由 SQLite 单语句条件更新消除,并发不双扣不超扣
+- 扣减原子性(双 review 提示项;TASK-12 起两步):同一短事务内先条件
+  UPDATE trial_balance>=1(扣试用)、不中再条件 UPDATE balance>=1(扣
+  购买),SQLite 写串行保证事务内两步不被并发插入,不双扣不超扣不错标
+  来源(详见 try_consume)
 - 重复问判定(②修订版):ask_history 记 (owner,盘,日,问题哈希),
   「同用户同盘同日同题」命中 → 端点注入重复语境重生成(照扣)
 
@@ -46,6 +48,14 @@ def _add_wallet_trial_balance_if_needed(conn: sqlite3.Connection) -> None:
     有购买记录 → 保持 DEFAULT 0(历史混扣无法还原,按已付费处理;
     仅影响 TestFlight 期老用户)。多 worker 并发撞 duplicate column 的
     后到者不回填(先到者已做),幂等。
+
+    原子性(2026-11-06 复核修复):ALTER + 回填包在 BEGIN IMMEDIATE 显式
+    事务里一并 commit——python sqlite3 不给 DDL 开隐式事务,ALTER 单独
+    走 autocommit 会先于回填对外可见;若进程恰在「列已落、回填未落」
+    窗口崩溃,加列判定(trial_balance 是否在场)会让迁移永不重跑,存量
+    回填永久丢失(全部错标 purchased + 退款误扣试用)。显式事务保证
+    两者同生同灭:崩溃则一并回滚,下次启动完整重做。撞 duplicate
+    column 的收敛分支 rollback 释放写锁后再返回(本事务零写入,无损)。
     """
     row = conn.execute(
         "SELECT name FROM sqlite_master WHERE type='table' AND name='ask_wallet'"
@@ -58,13 +68,21 @@ def _add_wallet_trial_balance_if_needed(conn: sqlite3.Connection) -> None:
     }
     if "trial_balance" in columns:
         return
+    conn.execute("BEGIN IMMEDIATE")
     try:
         conn.execute(
             "ALTER TABLE ask_wallet "
             "ADD COLUMN trial_balance INTEGER NOT NULL DEFAULT 0")
+        # 仅本进程刚加列 → 一次性回填(无购买记录者全记试用),与 ALTER
+        # 同事务提交
+        conn.execute(
+            "UPDATE ask_wallet SET trial_balance = balance "
+            "WHERE owner NOT IN (SELECT DISTINCT owner FROM ask_purchases)")
+        conn.commit()
     except sqlite3.OperationalError as e:
         if "duplicate column" not in str(e).lower():
             raise
+        conn.rollback()  # 释放 BEGIN IMMEDIATE 写锁;本事务零写入,无损
         columns_after = {
             str(col[1])
             for col in conn.execute(
@@ -72,11 +90,7 @@ def _add_wallet_trial_balance_if_needed(conn: sqlite3.Connection) -> None:
         }
         if "trial_balance" not in columns_after:
             raise
-        return  # 另一 worker 刚加列并回填完毕,本进程无需再动
-    # 仅本进程刚加列 → 一次性回填(无购买记录者全记试用)
-    conn.execute(
-        "UPDATE ask_wallet SET trial_balance = balance "
-        "WHERE owner NOT IN (SELECT DISTINCT owner FROM ask_purchases)")
+        # 另一 worker 刚加列并回填完毕,本进程无需再动
 
 _CREATE_MINTS_SQL = """
 CREATE TABLE IF NOT EXISTS ask_trial_mints (

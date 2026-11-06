@@ -1,5 +1,7 @@
 # TASK-09 隐私申报补「邮箱地址」(TASK-01 / TASK-03 复核返工)
 
+> 2026-11-06 复核闭环。
+
 ## 背景(复核发现)
 Sign in with Apple(首次登录)与 Google 登录(每次)返回的 email 会上传后端并落库:
 - iOS:`Services/AccountManager.swift`(`gidUser.profile?.email` 等)

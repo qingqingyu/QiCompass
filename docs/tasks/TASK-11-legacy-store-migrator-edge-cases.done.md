@@ -1,5 +1,7 @@
 # TASK-11 老库迁移两处边界情况(TASK-05 复核小问题)
 
+> 2026-11-06 复核闭环。
+
 ## 背景(复核发现)
 `ios/QiCompass/QiCompass/Persistence/ModelContainerFactory.swift` 的 `LegacyStoreMigrator.migrate`:
 

@@ -1,5 +1,7 @@
 # TASK-10 商店文案免费章描述与实际不符(TASK-07 复核返工)
 
+> 2026-11-06 复核闭环。
+
 ## 背景(复核发现)
 `docs/appstore-metadata.md` 写「前两章免费:先读懂性格底色,再看事业方向」(en 同义:"understand your temperament, then your career direction")。
 App 实际免费章是 v1 链 **M0 · 主线结构** 与 **M1 · 天赋能力**(`Models/ModuleDefinitions.swift`,`isFree` = m0 / m1;后端 `PAID_MODULES` 不含两者)。商店描述与功能不符,有 Guideline 2.3(元数据准确性)被拒风险。根因:`MONETIZATION.md`「免费 / 付费内容分界」段仍是旧 `bazi_deep_free`(性格底色 + 事业)口径。

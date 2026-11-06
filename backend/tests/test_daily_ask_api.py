@@ -529,14 +529,6 @@ def _ip_ask_count() -> int:
 class TestChargedFrom:
     """TASK-12(2026-11-02):作答响应 charged_from 三值 + 失败回补退回原来源。"""
 
-    @staticmethod
-    def _wallet(db_owner="ulid:ulid-test-1"):
-        import sqlite3
-
-        from app.main import app  # noqa: F401 —— 只为说明 state 见 fixture
-        # 直接查 store 所在库:fixture 内 store 是新建的 test_ask.db
-        return None
-
     async def test_first_question_charged_from_trial(self, ask_client):
         ac, store, ai, _, _ = ask_client
         resp = await ac.post("/api/bazi/daily-ask", json=_body())
