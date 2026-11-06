@@ -152,7 +152,7 @@ final class DailyAskServiceTests: XCTestCase {
     func testMock作答_请求录制与responder注入() async throws {
         let mock = MockAPIClient()
         mock.dailyAskResponder = { req in
-            DailyAskResponse(answer: "注入答案", followUps: ["追问A"], cached: true, balance: 9)
+            DailyAskResponse(answer: "注入答案", followUps: ["追问A"], cached: true, balance: 9, chargedFrom: nil)
         }
         let resp = try await mock.dailyAsk(request: makeRequest(question: "录制断言"))
         XCTAssertEqual(resp.answer, "注入答案")
@@ -331,5 +331,34 @@ final class DailyAskServiceTests: XCTestCase {
         XCTAssertEqual(wallet.balance, 5, "更早时点的回写被丢(作答响应 vs refresh 并发乱序)")
         wallet.apply(1, issuedAt: base.addingTimeInterval(10))
         XCTAssertEqual(wallet.balance, 1, "更新时点正常生效")
+    }
+}
+
+// MARK: - TASK-12(2026-11-02):charged_from 解码
+
+final class DailyAskResponseChargedFromDecodeTests: XCTestCase {
+    private func decode(_ json: String) throws -> DailyAskResponse {
+        let decoder = JSONDecoder()
+        return try decoder.decode(
+            DailyAskResponse.self, from: Data(json.utf8))
+    }
+
+    func test_decodeWithChargedFrom() throws {
+        let resp = try decode("""
+        {"answer": "宜静。", "follow_up_suggestions": [],
+         "cached": false, "balance": 14, "charged_from": "purchased"}
+        """)
+        XCTAssertEqual(resp.chargedFrom, "purchased")
+        XCTAssertEqual(resp.balance, 14)
+    }
+
+    func test_decodeWithoutChargedFromToleratesOldBackend() throws {
+        // 旧后端无该字段 → nil(埋点按 paid=false 处理,兼容不崩)
+        let resp = try decode("""
+        {"answer": "宜静。", "follow_up_suggestions": [],
+         "cached": true, "balance": 3}
+        """)
+        XCTAssertNil(resp.chargedFrom)
+        XCTAssertTrue(resp.cached)
     }
 }

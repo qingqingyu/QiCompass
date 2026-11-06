@@ -69,6 +69,7 @@ Organizer 里选刚生成的 archive → 右上 **Distribute App** → 选 **App
 2. **首次上传**会被要求填 **App Privacy**(数据采集声明):App Store Connect → App → App 隐私 → 按实际填。如实申报清单(2026-10-28 拍板,与 `MONETIZATION.md` 及 app 内 `PrivacyInfo.xcprivacy` 口径一致):
    - **Other User Content** — 出生信息:发往后端排盘与 LLM 生成解读;登录后 `SyncManager.push` 上传命盘到后端
    - **User ID** — Sign in with Apple 用户 ID
+   - **Email Address** — 仅登录用户(Apple 首次登录返回 / Google 每次返回,含 Apple 私密转发地址——后者亦属此项);后端 user 表 email 列落库,fullName 不上后端(仅本机 Keychain)故不申报 Name
    - **Purchase History** — entitlement / ask_credits 购买记录
    - **Product Interaction**(TASK-06)— TelemetryDeck 匿名埋点(随机会话 ID,不关联身份);用途 Analytics、Linked=否、不追踪
    - 其余三项用途均为 App Functionality;登录后与身份关联(Linked=是);**全部不用于追踪**(NSPrivacyTracking=false,无追踪域名)

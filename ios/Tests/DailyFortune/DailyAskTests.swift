@@ -165,7 +165,7 @@ final class DailyAskTests: XCTestCase {
             callCount += 1
             recordedHistories.append(history)
             if let error { throw error }
-            return DailyAskReply(text: replyText, followUps: followUps, cached: false, balance: balance)
+            return DailyAskReply(text: replyText, followUps: followUps, cached: false, balance: balance, chargedFrom: "trial")
         }
     }
 

@@ -143,12 +143,16 @@ struct DailyAskResponse: Codable, Sendable, Equatable {
     let cached: Bool
     /// 本次之后的剩余次数(试用 + 钱包合计;iOS 展示用)
     let balance: Int
+    /// 本次扣费来源:"trial" / "purchased";缓存命中或免费重放未扣费 →
+    /// nil(TASK-12 精确归因;可选解码兼容旧后端)
+    let chargedFrom: String?
 
     enum CodingKeys: String, CodingKey {
         case answer
         case followUps = "follow_up_suggestions"
         case cached
         case balance
+        case chargedFrom = "charged_from"
     }
 }
 

@@ -652,7 +652,8 @@ final class MockAPIClient: APIClient {
             answer: "宜先静后动:上午稳住手头事,午后看准再开口。此为脚手架阶段 Mock 文本,正式作答由后端 AI provider 生成。",
             followUps: ["几点开口最稳?", "对方不让步怎么办?"],
             cached: false,
-            balance: balance
+            balance: balance,
+            chargedFrom: "trial"
         )
     }
 

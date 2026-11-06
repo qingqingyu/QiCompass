@@ -115,12 +115,21 @@ enum LegacyStoreMigrator {
         case noSource
         case migrated
         case destinationExists
+        /// 源目录只有孤立边车(-wal/-shm)、没有主库(TASK-11):不迁移
+        /// 不删除,fault 日志留人工排查——孤立边车被拷过去会被新库当
+        /// WAL 解析,行为不定且毁掉排查现场。
+        case orphanSidecars
+        /// 拷贝全部成功但部分源文件删除失败(TASK-11):数据已安全在
+        /// 目标目录,leftoverSourceFiles 列出残留源文件,不阻断启动。
+        case migratedWithLeftovers
     }
 
     struct Outcome: Equatable {
         let action: Action
         /// 实际搬运的文件名(迁移成功才有内容,诊断/日志用)。
         let movedFiles: [String]
+        /// 拷贝成功但删源失败的残留源文件(仅 migratedWithLeftovers 非空)。
+        let leftoverSourceFiles: [String]
     }
 
     static func migrate(
@@ -132,7 +141,18 @@ enum LegacyStoreMigrator {
             fileManager.fileExists(atPath: sourceDirectory.appendingPathComponent($0).path)
         }
         if present.isEmpty {
-            return Outcome(action: .noSource, movedFiles: [])
+            return Outcome(
+                action: .noSource, movedFiles: [], leftoverSourceFiles: [])
+        }
+
+        // TASK-11 边界 1:没有主库只有孤立边车 → 不迁不删,显式返回 +
+        // fault 日志(不是静默忽略);下次启动同样结果,幂等。
+        if !present.contains("default.store") {
+            AppLogger.persistence.fault(
+                "legacy store 源目录无主库仅孤立边车 files=\(present, privacy: .public)——不迁移不删除,留人工排查"
+            )
+            return Outcome(
+                action: .orphanSidecars, movedFiles: [], leftoverSourceFiles: [])
         }
 
         let destinationStore = destinationDirectory
@@ -141,7 +161,8 @@ enum LegacyStoreMigrator {
             AppLogger.persistence.info(
                 "legacy store 迁移跳过:目标已有 store(源文件保留不动)"
             )
-            return Outcome(action: .destinationExists, movedFiles: [])
+            return Outcome(
+                action: .destinationExists, movedFiles: [], leftoverSourceFiles: [])
         }
 
         try fileManager.createDirectory(
@@ -174,13 +195,31 @@ enum LegacyStoreMigrator {
             throw error
         }
 
-        // 全部拷贝成功,才删除源文件(任务书:迁移成功后才删除旧文件)
+        // 全部拷贝成功,才删除源文件(任务书:迁移成功后才删除旧文件)。
+        // TASK-11 边界 2:删源失败不阻断启动——数据已完整在目标目录,
+        // 下次启动走 destinationExists 正常打开;残留源文件显式返回 +
+        // error 日志(不吞:有结果值、有日志、可人工跟进)。
+        var leftovers: [String] = []
         for name in present {
-            try fileManager.removeItem(at: sourceDirectory.appendingPathComponent(name))
+            do {
+                try fileManager.removeItem(
+                    at: sourceDirectory.appendingPathComponent(name))
+            } catch {
+                leftovers.append(name)
+                AppLogger.persistence.error(
+                    "legacy store 删源失败(数据已安全在目标目录)file=\(name, privacy: .public) error=\(String(describing: error), privacy: .public)"
+                )
+            }
         }
-        AppLogger.persistence.info(
-            "legacy store 迁移成功 files=\(present, privacy: .public)"
-        )
-        return Outcome(action: .migrated, movedFiles: present)
+        if leftovers.isEmpty {
+            AppLogger.persistence.info(
+                "legacy store 迁移成功 files=\(present, privacy: .public)"
+            )
+            return Outcome(
+                action: .migrated, movedFiles: present, leftoverSourceFiles: [])
+        }
+        return Outcome(
+            action: .migratedWithLeftovers, movedFiles: present,
+            leftoverSourceFiles: leftovers)
     }
 }

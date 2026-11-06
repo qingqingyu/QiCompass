@@ -263,15 +263,18 @@ async def daily_ask(
                 return DailyAskResponse(
                     answer=payload["answer"],
                     follow_up_suggestions=payload["follow_up_suggestions"],
-                    cached=True, balance=balance)
+                    cached=True, balance=balance,
+                    charged_from=None)  # 缓存命中未扣费(TASK-12)
         except (json.JSONDecodeError, KeyError, TypeError) as e:
             # 缓存行损坏:不吞——记日志后按 miss 走重生成(缓存行随后被
             # UPSERT 覆盖),不让坏行把用户锁死在 500 上
             logger.exception(
                 "daily.ask.cache_corrupt_skip %s error=%r", log_ctx, e)
 
-    # 5. 余额闸(402;试用+钱包合计)
-    if not await run_in_threadpool(ask_store.try_consume, owner=owner):
+    # 5. 余额闸(402;试用+钱包合计,优先扣试用——TASK-12 归因)
+    charged_from = await run_in_threadpool(
+        ask_store.try_consume, owner=owner)
+    if charged_from is None:
         raise AskCreditsRequiredError(
             "问事次数已用完;购买次数包即可继续问事",
             request_id=request_id, content_hash=req.content_hash)
@@ -290,7 +293,8 @@ async def daily_ask(
     except InvalidInputError:
         # 渲染 422:回补次数即可——IP 闸在下一步,本路径从未消耗 IP 名额,
         # 误退会把同 IP 其他请求的真实消耗抹掉(见 _refund_charge 注释)
-        await _refund_charge(request, owner=owner, day=day)
+        await _refund_charge(
+            request, owner=owner, day=day, charged_from=charged_from)
         raise
 
     # 7. IP 硬闸(纯防脚本,300/日;真烧 LLM 路径才计)。拒绝路径同样
@@ -300,7 +304,8 @@ async def daily_ask(
         quota_store.try_consume, bucket=ip_bucket, day=day,
         limit=ASK_IP_DAILY_LIMIT)
     if not ip_ok:
-        await _refund_charge(request, owner=owner, day=day)
+        await _refund_charge(
+            request, owner=owner, day=day, charged_from=charged_from)
         logger.warning("daily.ask.ip_limit %s bucket=%s", log_ctx, ip_bucket)
         raise AIProviderError(
             f"当前网络今日问事生成次数已达服务端上限({ASK_IP_DAILY_LIMIT}/日),"
@@ -314,7 +319,7 @@ async def daily_ask(
         payload = _parse_daily_ask_output(raw)
     except AIProviderError:
         await _refund_charge(request, owner=owner, day=day,
-                             ip_bucket=ip_bucket)
+                             ip_bucket=ip_bucket, charged_from=charged_from)
         raise
 
     # 8.5 禁词扫描(US-COMP-04 后端终防线,对齐 interpret 4.5):命中即
@@ -353,11 +358,12 @@ async def daily_ask(
     return DailyAskResponse(
         answer=payload["answer"],
         follow_up_suggestions=payload["follow_up_suggestions"],
-        cached=False, balance=balance)
+        cached=False, balance=balance, charged_from=charged_from)
 
 
 async def _refund_charge(
-    request: Request, *, owner: str, day: str, ip_bucket: str | None = None,
+    request: Request, *, owner: str, day: str,
+    charged_from: str, ip_bucket: str | None = None,
 ) -> None:
     """失败退款:次数回补(必有)+ IP 闸回退(仅 ip_bucket 传入时)。
 
@@ -370,7 +376,9 @@ async def _refund_charge(
     """
     ask_store: AskCreditsStore = request.app.state.ask_store
     try:
-        await run_in_threadpool(ask_store.refund_consume, owner=owner)
+        await run_in_threadpool(
+            ask_store.refund_consume, owner=owner,
+            charged_from=charged_from)
     except Exception as e:  # noqa: BLE001 —— 补偿动作,不遮蔽主错误
         logger.exception(
             "daily.ask.refund_credits_failed owner=%s error=%r", owner[:13], e)
