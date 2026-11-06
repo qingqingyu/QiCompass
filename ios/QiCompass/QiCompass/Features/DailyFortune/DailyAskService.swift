@@ -12,6 +12,8 @@ struct DailyAskReply: Equatable, Sendable {
     let followUps: [String]
     let cached: Bool
     let balance: Int?
+    /// 本次扣费来源("trial"/"purchased";未扣费为 nil)——埋点归因用
+    let chargedFrom: String?
 }
 
 // MARK: - 真作答服务(S4c,替换 ServicePendingAskAnswerer 占位)
@@ -49,7 +51,8 @@ struct LiveDailyAskAnswerer: DailyAskAnswering {
             text: response.answer,
             followUps: response.followUps,
             cached: response.cached,
-            balance: response.balance
+            balance: response.balance,
+            chargedFrom: response.chargedFrom
         )
     }
 }

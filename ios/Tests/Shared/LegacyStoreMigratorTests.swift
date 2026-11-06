@@ -168,4 +168,60 @@ final class LegacyStoreMigratorTests: XCTestCase {
             }
         }
     }
+
+    // MARK: - TASK-11(2026-11-02 复核小问题):两处边界
+
+    /// 删源失败注入桩:removeItem 恒抛(其余走真实实现;仅用于
+    /// migratedWithLeftovers 路径——拷贝全部成功后才走到删源)。
+    private final class RemoveFailingFileManager: FileManager {
+        override func removeItem(at URL: URL) throws {
+            throw NSError(
+                domain: "test.remove-failure", code: 1,
+                userInfo: [NSLocalizedDescriptionKey: "注入的删源失败"])
+        }
+    }
+
+    /// 只有 -wal/-shm、没有主库 → orphanSidecars:不迁移、不删源、
+    /// 目标零文件(孤立边车拷过去会被新库当 WAL 解析,行为不定)。
+    func test_orphanSidecarsWithoutMainStoreNotMigrated() throws {
+        try writeStoreFiles(["default.store-wal", "default.store-shm"])
+
+        let outcome = try LegacyStoreMigrator.migrate(
+            sourceDirectory: source, destinationDirectory: destination)
+
+        XCTAssertEqual(outcome.action, .orphanSidecars)
+        XCTAssertEqual(outcome.movedFiles, [])
+        XCTAssertEqual(outcome.leftoverSourceFiles, [])
+        // 源文件原封不动(留人工排查),目标无任何文件
+        XCTAssertTrue(sourceExists("default.store-wal"))
+        XCTAssertTrue(sourceExists("default.store-shm"))
+        XCTAssertFalse(destinationExists("default.store"))
+        XCTAssertFalse(destinationExists("default.store-wal"))
+        XCTAssertFalse(destinationExists("default.store-shm"))
+    }
+
+    /// 拷贝全部成功、删源全失败 → migratedWithLeftovers 不抛:
+    /// 目标三文件齐全(数据已安全),残留源文件显式列出。
+    func test_deleteSourceFailureReturnsMigratedWithLeftovers() throws {
+        try writeStoreFiles(
+            ["default.store", "default.store-wal", "default.store-shm"])
+
+        let outcome = try LegacyStoreMigrator.migrate(
+            sourceDirectory: source, destinationDirectory: destination,
+            fileManager: RemoveFailingFileManager())
+
+        XCTAssertEqual(outcome.action, .migratedWithLeftovers)
+        XCTAssertEqual(
+            Set(outcome.movedFiles),
+            Set(["default.store", "default.store-wal", "default.store-shm"]))
+        XCTAssertEqual(
+            Set(outcome.leftoverSourceFiles),
+            Set(["default.store", "default.store-wal", "default.store-shm"]))
+        // 数据已完整落在目标目录
+        for name in LegacyStoreMigrator.storeFileNames {
+            XCTAssertTrue(destinationExists(name), "目标缺 \(name)")
+        }
+        // 删除被注入失败 → 源文件仍在
+        XCTAssertTrue(sourceExists("default.store"))
+    }
 }

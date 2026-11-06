@@ -145,6 +145,7 @@ final class DailyAskTests: XCTestCase {
         var replyText: String = "已按盘面作答"
         var followUps: [String] = []
         var balance: Int? = nil
+        var chargedFrom: String? = "trial"
         var error: Error? = nil
         private(set) var callCount = 0
         private(set) var recordedHistories: [[DailyAskTurn]] = []
@@ -153,11 +154,13 @@ final class DailyAskTests: XCTestCase {
             replyText: String = "已按盘面作答",
             followUps: [String] = [],
             balance: Int? = nil,
+            chargedFrom: String? = "trial",
             error: Error? = nil
         ) {
             self.replyText = replyText
             self.followUps = followUps
             self.balance = balance
+            self.chargedFrom = chargedFrom
             self.error = error
         }
 
@@ -165,7 +168,7 @@ final class DailyAskTests: XCTestCase {
             callCount += 1
             recordedHistories.append(history)
             if let error { throw error }
-            return DailyAskReply(text: replyText, followUps: followUps, cached: false, balance: balance)
+            return DailyAskReply(text: replyText, followUps: followUps, cached: false, balance: balance, chargedFrom: chargedFrom)
         }
     }
 
@@ -296,6 +299,53 @@ final class DailyAskTests: XCTestCase {
         XCTAssertEqual(model.offers, ["几点开口最稳?", "对方不让步怎么办?"], "follow_ups 复用 offers 通道(点选直发)")
         XCTAssertEqual(wallet.balance, 2, "作答响应的余额回写钱包")
         XCTAssertFalse(model.creditsExhausted)
+    }
+
+    /// TASK-12(2026-11-06 复核):ask_sent.paid 归因行为锁——归因落位在
+    /// 多会话重写过的 send() 成功分支,取 reply.chargedFrom == "purchased";
+    /// nil(缓存命中/免费重放)与 "trial" 均记 paid=false;作答失败不发
+    /// (旧「余额>3」代理已删,此处锁住新语义不再回退)。
+    @MainActor
+    func test对话流_askSent归因_purchased为真_trial与nil为假() async {
+        var reported: [(name: String, params: [String: String])] = []
+        Analytics.replaceSinkForTesting { name, params in
+            reported.append((name, params))
+        }
+        defer { Analytics.resetSinkForTesting() }
+
+        // 购买扣费 → paid=true
+        let paidAnswerer = FakeAnswerer(chargedFrom: "purchased")
+        let paidModel = makeChatModel(answerer: paidAnswerer)
+        paidModel.sendOffer("今天适合去谈判吗？")
+        await waitUntilAnswered(paidModel)
+
+        // 试用扣费 → paid=false
+        let trialModel = makeChatModel(
+            answerer: FakeAnswerer(chargedFrom: "trial"))
+        trialModel.sendOffer("单干还是搭伙？")
+        await waitUntilAnswered(trialModel)
+
+        // 未扣费(缓存命中,nil)→ paid=false
+        let cacheModel = makeChatModel(
+            answerer: FakeAnswerer(chargedFrom: nil))
+        cacheModel.sendOffer("和同伴分利注意什么？")
+        await waitUntilAnswered(cacheModel)
+
+        // 作答失败 → 不发 ask_sent(事件只对成功作答负责)
+        let failModel = makeChatModel(
+            answerer: FakeAnswerer(chargedFrom: "purchased", error: BoomError()))
+        failModel.sendOffer("失败的这条呢？")
+        await waitUntilAnswered(failModel)
+
+        let askSentEvents = reported.filter { $0.name == "ask_sent" }
+        XCTAssertEqual(
+            askSentEvents.count, 3,
+            "三次成功作答各发一次;失败作答不发(成功分支才归因)")
+        XCTAssertEqual(
+            askSentEvents.map { $0.params["paid"] },
+            ["true", "false", "false"],
+            "paid = chargedFrom == purchased;trial/nil 均 false"
+        )
     }
 
     @MainActor

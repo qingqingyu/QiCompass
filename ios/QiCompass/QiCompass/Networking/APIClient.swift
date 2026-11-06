@@ -417,14 +417,19 @@ final class MockAPIClient: APIClient {
     /// S4c:问事 mock 钱包余额(recordLock 保护——dailyAsk 自减与 askRedeem
     /// 入账可并发;默认 3 = 装机试用)。测试可置 0 模拟耗尽。
     private var _mockAskBalance = 3
+    /// TASK-12:mock 侧试用账(与后端两本账同构——试用先扣;askRedeem
+    /// 只入购买)。chargedFrom 归因据此返回,购买后不再错标 trial。
+    private var _mockAskTrialBalance = 3
     var mockAskBalance: Int {
         recordLock.lock(); defer { recordLock.unlock() }
         return _mockAskBalance
     }
     /// S4c:重置 mock 钱包(测试间隔离用;recordLock 保护,线程安全)。
+    /// 试用账随总余额收敛(不超总数)——置 0 模拟耗尽即试用亦空。
     func setMockAskBalance(_ value: Int) {
         recordLock.lock(); defer { recordLock.unlock() }
         _mockAskBalance = value
+        _mockAskTrialBalance = min(_mockAskTrialBalance, value)
     }
     /// S4c:askBalance 调用记录——C2「AskWalletModel 首查带 device_token
     /// 置 flag」的断言面(device_token 是否真的发出去了只能在此验)。
@@ -638,7 +643,15 @@ final class MockAPIClient: APIClient {
         }
         recordLock.lock()
         let exhausted = _mockAskBalance <= 0
-        if !exhausted { _mockAskBalance -= 1 }
+        // TASK-12:与后端同构——试用先扣(总余额恒随扣),归因按本次实扣来源
+        var chargedFrom = "purchased"
+        if !exhausted {
+            if _mockAskTrialBalance >= 1 {
+                _mockAskTrialBalance -= 1
+                chargedFrom = "trial"
+            }
+            _mockAskBalance -= 1
+        }
         let balance = _mockAskBalance
         recordLock.unlock()
         if exhausted {
@@ -652,7 +665,8 @@ final class MockAPIClient: APIClient {
             answer: "宜先静后动:上午稳住手头事,午后看准再开口。此为脚手架阶段 Mock 文本,正式作答由后端 AI provider 生成。",
             followUps: ["几点开口最稳?", "对方不让步怎么办?"],
             cached: false,
-            balance: balance
+            balance: balance,
+            chargedFrom: chargedFrom
         )
     }
 

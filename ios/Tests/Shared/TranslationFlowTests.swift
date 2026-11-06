@@ -926,6 +926,60 @@ final class TranslationFlowTests: XCTestCase {
         XCTAssertEqual(counter.remaining(), readsBefore - 1, "非豁免真实生成消耗 1 次")
     }
 
+    // MARK: - TASK-08(2026-11-02 复核返工;2026-11-06 合入改拍板 A 语义)
+
+    /// 拍板 A(2026-11-03,e9060d5):免费章事件挂 m0 根章,一张盘一个信号
+    /// ——m0 成功报一次 free_chapters_generated(deep);付费模块(m2)不报;
+    /// m1 虽免费但非根章**不**报(B 案「m0/m1 各报」被否:事件数双倍且仅
+    /// deep 双倍,聚合统计易误读)。修复前判定挂在死掉的 bazi_deep_free
+    /// 字面量上,命书免费漏斗零数据。
+    func testFreeChaptersAnalyticsFiresOnM0RootOnly() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        let chainFields = ["main_axis": "{}", "core_loop": "{}"]
+
+        func resp() -> InterpretResponse {
+            InterpretResponse(
+                interpretation: "{\"innate\":{},\"one_leverage\":\"x\"}",
+                promptVersion: 1, cached: false, generatedAt: .now,
+                provider: "anthropic", model: "mock-anthropic-model",
+                language: AppLanguage.currentWire
+            )
+        }
+        apiClient.interpretResponder = { _ in resp() }
+
+        var reported: [(name: String, params: [String: String])] = []
+        Analytics.replaceSinkForTesting { name, params in
+            reported.append((name, params))
+        }
+        defer { Analytics.resetSinkForTesting() }
+
+        // M0(免费根章)→ 报 1 次 deep
+        _ = try await orchestrator.runV1Module(
+            response: response, module: "m0_structure",
+            chainFields: chainFields, quotaExempt: true)
+        let firstReports = reported.filter { $0.name == "free_chapters_generated" }
+        XCTAssertEqual(firstReports.count, 1, "m0 成功应上报一次 free_chapters_generated")
+        XCTAssertEqual(firstReports.first?.params["module"], "deep", "参数保持已确认值域(module=deep)")
+
+        // M2(付费)→ 不报(requiredChainFields: core_loop/innate/defensive)
+        _ = try await orchestrator.runV1Module(
+            response: response, module: "m2_high_low", parentFingerprint: "fp",
+            chainFields: ["core_loop": "{}", "innate": "{}", "defensive": "{}"],
+            quotaExempt: true)
+        XCTAssertEqual(
+            reported.filter { $0.name == "free_chapters_generated" }.count, 1,
+            "付费模块成功不得上报免费章事件")
+
+        // M1(免费但非根章)→ 不报(拍板 A:一张盘一个信号)
+        _ = try await orchestrator.runV1Module(
+            response: response, module: "m1_talent", parentFingerprint: "fp",
+            chainFields: chainFields, quotaExempt: true)
+        XCTAssertEqual(
+            reported.filter { $0.name == "free_chapters_generated" }.count, 1,
+            "m1 成功不得再上报(拍板 A:仅 m0 根章,一张盘一个信号)")
+    }
+
     // MARK: - F2(2026-10-02):自动翻译失败后换盘再切回不得死路
 
     /// A 盘自动翻译失败 → 切 B(清洗)→ 切回 A:hydrate 重建提议但会话去重

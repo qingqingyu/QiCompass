@@ -63,6 +63,9 @@ class DailyAskResponse(BaseModel):
         ..., description="True = 命中共享缓存(未调 LLM、未扣次数)")
     balance: int = Field(
         ..., description="本次之后的剩余次数(试用+钱包合计;iOS 展示用)")
+    charged_from: str | None = Field(
+        ..., description="本次扣费来源:'trial' 试用 / 'purchased' 购买;"
+        "缓存命中或免费重放未扣费 → null(TASK-12,iOS 埋点归因用)")
 
 
 class AskBalanceResponse(BaseModel):

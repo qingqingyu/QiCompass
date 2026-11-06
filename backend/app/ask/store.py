@@ -9,8 +9,10 @@
 - 防刷 = **IP 限铸造**:每 IP 每日最多 N 个**新试用身份**(已存身份的
   调用不占 IP 名额——公共网络真实用户互不挤占,2026-10-25 拍板);
   不限调用(调用侧另有 ask-ip: 桶 300/日纯防脚本硬闸,S4b-3 接线)
-- 扣减原子性(双 review 提示项):条件 UPDATE balance>=1,check-then-act
-  缺口由 SQLite 单语句条件更新消除,并发不双扣不超扣
+- 扣减原子性(双 review 提示项;TASK-12 起两步):同一短事务内先条件
+  UPDATE trial_balance>=1(扣试用)、不中再条件 UPDATE balance>=1(扣
+  购买),SQLite 写串行保证事务内两步不被并发插入,不双扣不超扣不错标
+  来源(详见 try_consume)
 - 重复问判定(②修订版):ask_history 记 (owner,盘,日,问题哈希),
   「同用户同盘同日同题」命中 → 端点注入重复语境重生成(照扣)
 
@@ -27,11 +29,68 @@ from typing import Literal
 
 _CREATE_WALLET_SQL = """
 CREATE TABLE IF NOT EXISTS ask_wallet (
-    owner      TEXT PRIMARY KEY,
-    balance    INTEGER NOT NULL,
-    updated_at TEXT NOT NULL
+    owner         TEXT PRIMARY KEY,
+    balance       INTEGER NOT NULL,
+    updated_at    TEXT NOT NULL,
+    trial_balance INTEGER NOT NULL DEFAULT 0
 );
 """
+
+
+def _add_wallet_trial_balance_if_needed(conn: sqlite3.Connection) -> None:
+    """TASK-12(2026-11-02):老表(无 trial_balance)增量加列 + 存量回填。
+
+    余额拆「试用 / 购买」两部分(balance 仍为总数,语义不变),试用先扣,
+    供 ask_sent.paid 精确归因与退款只扣购买部分(口径经用户 2026-11-02 确认)。
+
+    回填口径:仅本次真正执行 ALTER 的进程做一次性回填——owner 在
+    ask_purchases 无购买记录 → trial_balance = balance(全视为试用);
+    有购买记录 → 保持 DEFAULT 0(历史混扣无法还原,按已付费处理;
+    仅影响 TestFlight 期老用户)。多 worker 并发撞 duplicate column 的
+    后到者不回填(先到者已做),幂等。
+
+    原子性(2026-11-06 复核修复):ALTER + 回填包在 BEGIN IMMEDIATE 显式
+    事务里一并 commit——python sqlite3 不给 DDL 开隐式事务,ALTER 单独
+    走 autocommit 会先于回填对外可见;若进程恰在「列已落、回填未落」
+    窗口崩溃,加列判定(trial_balance 是否在场)会让迁移永不重跑,存量
+    回填永久丢失(全部错标 purchased + 退款误扣试用)。显式事务保证
+    两者同生同灭:崩溃则一并回滚,下次启动完整重做。撞 duplicate
+    column 的收敛分支 rollback 释放写锁后再返回(本事务零写入,无损)。
+    """
+    row = conn.execute(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name='ask_wallet'"
+    ).fetchone()
+    if row is None:
+        return
+    columns = {
+        str(col[1])
+        for col in conn.execute("PRAGMA table_info(ask_wallet)").fetchall()
+    }
+    if "trial_balance" in columns:
+        return
+    conn.execute("BEGIN IMMEDIATE")
+    try:
+        conn.execute(
+            "ALTER TABLE ask_wallet "
+            "ADD COLUMN trial_balance INTEGER NOT NULL DEFAULT 0")
+        # 仅本进程刚加列 → 一次性回填(无购买记录者全记试用),与 ALTER
+        # 同事务提交
+        conn.execute(
+            "UPDATE ask_wallet SET trial_balance = balance "
+            "WHERE owner NOT IN (SELECT DISTINCT owner FROM ask_purchases)")
+        conn.commit()
+    except sqlite3.OperationalError as e:
+        if "duplicate column" not in str(e).lower():
+            raise
+        conn.rollback()  # 释放 BEGIN IMMEDIATE 写锁;本事务零写入,无损
+        columns_after = {
+            str(col[1])
+            for col in conn.execute(
+                "PRAGMA table_info(ask_wallet)").fetchall()
+        }
+        if "trial_balance" not in columns_after:
+            raise
+        # 另一 worker 刚加列并回填完毕,本进程无需再动
 
 _CREATE_MINTS_SQL = """
 CREATE TABLE IF NOT EXISTS ask_trial_mints (
@@ -149,6 +208,7 @@ class AskCreditsStore:
         """建表(幂等)。 Raises: sqlite3.Error(不吞)。"""
         with self._connect() as conn:
             _add_purchases_environment_if_needed(conn)  # TASK-02 老表补列
+            _add_wallet_trial_balance_if_needed(conn)  # TASK-12 加列+回填
             conn.execute(_CREATE_WALLET_SQL)
             conn.execute(_CREATE_MINTS_SQL)
             conn.execute(_CREATE_PURCHASES_SQL)
@@ -174,19 +234,34 @@ class AskCreditsStore:
             ).fetchone()
         return row is not None
 
-    def try_consume(self, *, owner: str) -> bool:
-        """原子扣 1 次:balance >= 1 才 UPDATE;rowcount=0 即余额不足。
+    def try_consume(self, *, owner: str) -> str | None:
+        """原子扣 1 次,**优先扣试用**:返回扣费来源,余额不足 None。
 
-        单语句条件更新,并发下不双扣不超扣(双 review 提示项的落实点)。
+        返回:"trial"(扣的试用部分)/ "purchased"(扣的购买部分)/
+        None(总余额不足,未扣)。TASK-12:ask_sent.paid 精确归因的事实源。
+
+        两步条件 UPDATE 在同一短事务内(python sqlite3 首条 DML 自动开启,
+        commit 提交)——SQLite 写串行,事务内两步不被并发插入,不双扣、
+        不超扣、不错标来源;失败(两步 rowcount 均 0)零改动。
         """
+        now = _now_iso()
         with self._connect() as conn:
             cursor = conn.execute(
-                "UPDATE ask_wallet SET balance = balance - 1, "
-                "updated_at = ? WHERE owner = ? AND balance >= 1",
-                (_now_iso(), owner),
+                "UPDATE ask_wallet SET trial_balance = trial_balance - 1, "
+                "balance = balance - 1, updated_at = ? "
+                "WHERE owner = ? AND trial_balance >= 1",
+                (now, owner),
+            )
+            if cursor.rowcount > 0:
+                conn.commit()
+                return "trial"
+            cursor = conn.execute(
+                "UPDATE ask_wallet SET balance = balance - 1, updated_at = ? "
+                "WHERE owner = ? AND balance >= 1",
+                (now, owner),
             )
             conn.commit()
-            return cursor.rowcount > 0
+            return "purchased" if cursor.rowcount > 0 else None
 
     # ---------- 试用铸造(IP 限铸闸) ----------
 
@@ -227,8 +302,8 @@ class AskCreditsStore:
 
             inserted = conn.execute(
                 "INSERT OR IGNORE INTO ask_wallet "
-                "(owner, balance, updated_at) VALUES (?, ?, ?)",
-                (owner, credits, _now_iso()))
+                "(owner, balance, trial_balance, updated_at) VALUES (?, ?, ?, ?)",
+                (owner, credits, credits, _now_iso()))
             if inserted.rowcount == 0:
                 # 竞态:并发请求同 owner 已入账——回退本次铸数,按 existing 返回
                 conn.execute(
@@ -310,14 +385,18 @@ class AskCreditsStore:
             if gate.rowcount == 0:
                 return 0
             balance_row = conn.execute(
-                "SELECT balance FROM ask_wallet WHERE owner = ?",
-                (owner,)).fetchone()
+                "SELECT balance, trial_balance FROM ask_wallet "
+                "WHERE owner = ?", (owner,)).fetchone()
             if balance_row is None:
                 conn.commit()
                 # 钱包无行(纯试用用户不可能有购买单,防御分支):
                 # 留痕已置位,余额无可扣
                 return 0
-            deducted = min(int(balance_row[0]), credits)
+            # TASK-12(用户 2026-11-02 确认口径):退款只扣**购买**部分,
+            # 上限 = min(balance - trial_balance, credits);试用次数不因
+            # 购买退款被收回。已消耗的次数不追负(原语义保留)。
+            balance, trial_balance = int(balance_row[0]), int(balance_row[1])
+            deducted = min(max(balance - trial_balance, 0), credits)
             if deducted > 0:
                 conn.execute(
                     "UPDATE ask_wallet SET balance = balance - ?, "
@@ -399,16 +478,24 @@ class AskCreditsStore:
                  answer_json, _now_iso()))
             conn.commit()
 
-    def refund_consume(self, *, owner: str) -> bool:
-        """预扣回补(+1;失败退款路径,S4b-2 review 备忘项)。
+    def refund_consume(self, *, owner: str, charged_from: str) -> bool:
+        """预扣回补(+1,**退回原来源**;失败退款路径,S4b-2 review 备忘项)。
 
+        charged_from 必传("trial"/"purchased",取 try_consume 的返回值):
+        试用扣的退试用、购买扣的退购买,两本账不串(TASK-12)。
         只在有行处 +1(balance 0 行也可回补——刚扣完最后一次的失败退款
         必须能退回);无行 = 未曾扣过,返回 False 不动账。
         """
+        if charged_from not in ("trial", "purchased"):
+            raise ValueError(
+                f"charged_from 必须是 'trial' 或 'purchased',收到 {charged_from!r}")
+        if charged_from == "trial":
+            sql = ("UPDATE ask_wallet SET trial_balance = trial_balance + 1, "
+                   "balance = balance + 1, updated_at = ? WHERE owner = ?")
+        else:
+            sql = ("UPDATE ask_wallet SET balance = balance + 1, "
+                   "updated_at = ? WHERE owner = ?")
         with self._connect() as conn:
-            cursor = conn.execute(
-                "UPDATE ask_wallet SET balance = balance + 1, "
-                "updated_at = ? WHERE owner = ?",
-                (_now_iso(), owner))
+            cursor = conn.execute(sql, (_now_iso(), owner))
             conn.commit()
             return cursor.rowcount > 0
