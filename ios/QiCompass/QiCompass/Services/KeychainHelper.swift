@@ -132,6 +132,8 @@ enum KeychainHelper {
 /// errorDescription 是**用户可见文案**(2026-08-16:代码性错误不进 UI)。
 /// 技术细节(OSStatus)留在 associated value,日志侧用 String(describing:) 记
 /// (errorDescription 已不含 OSStatus,不能当日志细节用)。
+/// D3(2026-11-06):文案从硬编码中文迁 String(localized:)(三语入 xcstrings,
+/// key `keychain.error.readWrite`)——en/zh-Hant 用户此前直出中文。
 enum KeychainError: LocalizedError {
     case osStatus(OSStatus)
     case invalidStringEncoding
@@ -140,7 +142,7 @@ enum KeychainError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .osStatus, .invalidStringEncoding, .unknown:
-            return "登录信息读写失败,请重试"
+            return String(localized: "keychain.error.readWrite")
         }
     }
 }

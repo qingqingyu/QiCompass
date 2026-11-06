@@ -138,4 +138,42 @@ final class AppLanguageTests: XCTestCase {
         XCTAssertEqual(AppLanguage.Override.zhHant.language, .zhHant)
         XCTAssertEqual(AppLanguage.Override.en.language, .en)
     }
+
+    // MARK: - D2/D3(2026-11-06):新迁词条三语收口
+
+    /// 迁入 L10n 的重置确认弹窗(D2)、断链引导态(B1)、KeychainError(D3)
+    /// 词条必须三语齐收——漏一语该语言用户直出 key/中文。读**编译产物**
+    /// (app bundle 各 lproj 的 Localizable.strings):验证的是真正随包发布
+    /// 的目录,而非仓库源文件(源文件路径在模拟器沙盒内不可达)。
+    func test新增词条_三语收口_D2B1D3() throws {
+        let keys = [
+            // D2:重置命盘确认弹窗(含第 1 轮 review 补收的失败弹窗标题)
+            "profile.reset.confirmTitle",
+            "profile.reset.confirmMessage",
+            "profile.reset.confirmAction",
+            "profile.reset.failedTitle",
+            // B1:断链残留引导态
+            "deepchain.stalled.note",
+            "deepchain.stalled.resume",
+            "deepchain.stalled.resuming",
+            // D3:KeychainError 用户文案
+            "keychain.error.readWrite",
+        ]
+        for lang in ["en", "zh-Hans", "zh-Hant"] {
+            let path = try XCTUnwrap(
+                Bundle.main.path(
+                    forResource: "Localizable", ofType: "strings",
+                    inDirectory: nil, forLocalization: lang),
+                "\(lang).lproj/Localizable.strings 不在 app bundle")
+            let table = try XCTUnwrap(
+                NSDictionary(contentsOfFile: path) as? [String: String],
+                "\(lang) Localizable.strings 解析失败:\(path)")
+            for key in keys {
+                let value = table[key]
+                XCTAssertNotNil(value, "\(lang) 缺词条:\(key)")
+                XCTAssertFalse(
+                    (value ?? "").isEmpty, "\(lang) 的 \(key) 译文不得为空")
+            }
+        }
+    }
 }

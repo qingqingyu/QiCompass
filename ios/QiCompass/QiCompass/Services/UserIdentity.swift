@@ -54,4 +54,12 @@ enum UserIdentity {
         }
         return true
     }
+
+    /// entitlement 双轨查询的 userId 轨入参(D1,2026-11-06):已登录传
+    /// currentUserId(EntitlementStore.getActive 优先按 userId 轨命中跨设备/
+    /// 重装已购),未登录传 nil(只走 userLocalId 兜底轨)。守卫侧 8 处调用点
+    /// 统一用这个,防三元口径各自漂移。
+    static var entitlementUserId: String? {
+        isAuthenticated ? currentUserId : nil
+    }
 }

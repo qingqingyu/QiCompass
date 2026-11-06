@@ -90,6 +90,30 @@ extension ChapterRowModel: CustomStringConvertible {
     }
 }
 
+// MARK: - 章节页 pending 态分诊(B1,2026-11-06)
+
+/// 阅读页 `.pending` 态的正文分诊(纯派生可测,与 ChapterRowModel 同范式):
+/// 链在跑 → 排队章,维持三墨点「布算中」等待观感;链已停 → 断链残留死页,
+/// 改渲染引导态(状态说明 + 「继续生成」CTA,复用 resumeV1ChainIfNeeded)。
+/// 其余 ModuleState 不经本模型(各走既有 body)。
+enum PendingChapterBody: Equatable {
+    /// 链在跑:本章排队中,等待观感(三墨点 + 等待卡)。
+    case calculating
+    /// 链已停:断链残留,引导续跑。
+    case stalledGuide
+
+    static func resolve(state: ModuleState?, chainRunning: Bool) -> PendingChapterBody {
+        switch state {
+        case .pending:
+            return chainRunning ? .calculating : .stalledGuide
+        default:
+            // 调用方只在 .pending 分支进入本模型;其余态防御性按等待观感
+            //(状态机错乱时宁可多等一拍,不误报「可续跑」)
+            return .calculating
+        }
+    }
+}
+
 /// 主页沉底 CTA 模型(盘面小景 S4):从模块状态 / 次数 / entitlement 纯派生,
 /// 覆盖定稿 ①②③⑪ 四态 + 重读态。视图层只管渲染,不重复判定。
 enum HomeCTAModel: Equatable {

@@ -248,4 +248,84 @@ final class DeepAnalysisChapterRowTests: XCTestCase {
         XCTAssertEqual(progress.done, 1)
         XCTAssertEqual(progress.remaining, 1)
     }
+
+    // MARK: - B1(2026-11-06):阅读页 pending 态分诊
+
+    func test_pendingChapterBody_链在跑_排队等待() {
+        XCTAssertEqual(
+            PendingChapterBody.resolve(state: .pending, chainRunning: true),
+            .calculating,
+            "链在跑的 pending = 排队章,维持三墨点等待观感"
+        )
+    }
+
+    func test_pendingChapterBody_链已停_断链残留引导() {
+        XCTAssertEqual(
+            PendingChapterBody.resolve(state: .pending, chainRunning: false),
+            .stalledGuide,
+            "链停 + pending = 无人生成的残留,必须渲染引导态(说明 + 继续生成 CTA),不得再演布算中"
+        )
+    }
+
+    func test_pendingChapterBody_非pending防御_等待观感() {
+        XCTAssertEqual(
+            PendingChapterBody.resolve(state: .fetching, chainRunning: false),
+            .calculating,
+            "非 pending 态不经本模型;防御性按等待观感(不误报可续跑)"
+        )
+        XCTAssertEqual(
+            PendingChapterBody.resolve(state: nil, chainRunning: false),
+            .calculating
+        )
+    }
+
+    // MARK: - A4(2026-11-06):大运「当前」高亮比 startYear
+
+    func test_luckPillar_isCurrent_比startYear_六十甲子回绕不双高亮() {
+        // 60 年前后两步同干支大运(ganZhi 相同,startYear 不同)
+        let early = LuckPillarDTO(ganZhi: "甲子", startYear: 1990, endYear: 1999, startAge: 1, endAge: 10)
+        let late = LuckPillarDTO(ganZhi: "甲子", startYear: 2050, endYear: 2059, startAge: 61, endAge: 70)
+        let current = CurrentPillarDTO(ganZhi: "甲子", startYear: 2050, endYear: 2059)
+
+        XCTAssertFalse(
+            LuckPillarsTimeline.isCurrent(early, current: current),
+            "ganZhi 同但 startYear 不同:早柱不得高亮(旧 ganZhi 比较会双高亮)"
+        )
+        XCTAssertTrue(
+            LuckPillarsTimeline.isCurrent(late, current: current),
+            "startYear 对齐的当前柱必须高亮"
+        )
+        XCTAssertFalse(
+            LuckPillarsTimeline.isCurrent(late, current: nil),
+            "无当前柱(nil)全不高亮"
+        )
+    }
+
+    // MARK: - A1(2026-11-06):真太阳时按出生地时区渲染
+
+    /// 北京出生盘的钟面必须按 +08 渲染,与设备时区无关(美东设备此前
+    /// 会把钟面/日期错位)。两消费点共用同款出生地时区语义。
+    func test_trueSolarTimeText_按出生地时区渲染() throws {
+        var beijing = Calendar(identifier: .gregorian)
+        beijing.timeZone = try XCTUnwrap(TimeZone(identifier: "Asia/Shanghai"))
+        let instant = beijing.date(from: DateComponents(
+            year: 1993, month: 5, day: 21, hour: 2, minute: 30))!
+
+        // meta 行消费点(ChartHeaderView)
+        XCTAssertEqual(
+            ChartHeaderView.trueSolarTimeText(instant, timezoneID: "Asia/Shanghai"),
+            "1993-05-21 02:30",
+            "真太阳时钟面按出生地时区(+08)渲染,设备时区无关"
+        )
+        // 合盘 prompt 出生串消费点(PromptContextBuilder.chartContext)
+        XCTAssertEqual(
+            PromptContextBuilder.birthClockText(instant, timezoneID: "Asia/Shanghai"),
+            "1993-05-21 02:30"
+        )
+        // 老快照 tzID nil:兜底设备时区(与既有行为一致,只断言可渲染)
+        XCTAssertFalse(ChartHeaderView.trueSolarTimeText(instant, timezoneID: nil).isEmpty)
+        XCTAssertFalse(PromptContextBuilder.birthClockText(instant, timezoneID: nil).isEmpty)
+        // 非法标识符同兜底,不崩
+        XCTAssertFalse(ChartHeaderView.trueSolarTimeText(instant, timezoneID: "Not/AZone").isEmpty)
+    }
 }

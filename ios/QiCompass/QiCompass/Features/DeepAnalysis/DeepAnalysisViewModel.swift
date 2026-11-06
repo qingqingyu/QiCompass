@@ -166,6 +166,14 @@ final class DeepAnalysisViewModel {
     /// 出集(一次性);hydrate 每次整集重derive(替换非合并),换盘/reset 清空。
     private var versionMigrationExempt: Set<ModuleID> = []
 
+    /// 本地池达限溯源集(B4,2026-11-06):DeepAnalysisError.dailyLimitReached
+    /// (本地池)落 `.dailyLimitReached` 后,断链/resume 语义须与服务端 429 区分
+    /// ——本地池沿用十七轮拍板①(付费/豁免章免扣,链可继续),服务端 429 维持
+    /// 无条件断(2026-10-08 外评 #6)。两者落同一 ModuleState,靠本集溯源。
+    /// 仅在 `moduleStates[module] == .dailyLimitReached` 时被消费;状态过期归一
+    /// (expireStaleServerQuotaStates → .failed)时同步出集。内存瞬态,≤8 元素。
+    private var localQuotaLimitedModules: Set<ModuleID> = []
+
     /// 老盘 token 失效重签已尝试的盘(附八拍板②,一次/盘/会话;2026-10-10
     /// 入口从 hydrate 起手重定位到 **403 摄入点**):生成链/翻译链任何一章
     /// 403 → `recoverFromContextTokenExpiry` 静默重排一次;失败(离线/hash
@@ -228,7 +236,18 @@ final class DeepAnalysisViewModel {
                 if module == .m0 { return false }
                 continue
             case .dailyLimitReached, .contextTokenExpired:
-                return false  // 断链前置检查:重跑必再拒
+                // B4 溯源:本地池达限(在溯源集内)与 .failed 同分析(拍板①
+                // 镜像——免扣可跑章仍是真实进展);服务端 429/凭证失效维持
+                // 原判「重跑必再拒」。
+                var localPoolLimited = false
+                if case .dailyLimitReached = moduleStates[module],
+                   localQuotaLimitedModules.contains(module) {
+                    localPoolLimited = true
+                }
+                if !localPoolLimited { return false }
+                // 本地池章是扣次章(m0/m1):重跑必本地抛达限,无自身进展——
+                // 落到与 .failed 空池同款的 quotaFreeAhead 分析(下方)
+                fallthrough
             case nil, .pending, .failed:
                 // 付费未解锁 → 链内标 .locked 跳过(不发请求)
                 if !entitled(module) { continue }
@@ -758,6 +777,8 @@ final class DeepAnalysisViewModel {
             // 版本迁移豁免集属旧盘(第十六轮外评 #1):新盘的豁免集由它自己
             // 的 hydrate 重新 derive,旧盘残留会让新盘首链白拿豁免
             versionMigrationExempt.removeAll()
+            // B4 溯源集同属旧盘状态,一并清洗
+            localQuotaLimitedModules.removeAll()
             // 翻译提议属旧盘(D10.5):换盘一并清洗,防旧盘提示条挂新盘
             translationOffer = nil
             crossLanguageRows.removeAll()
@@ -1269,6 +1290,8 @@ final class DeepAnalysisViewModel {
             moduleStates[module] = .pending
         }
         v1ChainFields.removeAll()
+        // B4 溯源集随状态整体重置出清(全新开始无本地池达限残留)
+        localQuotaLimitedModules.removeAll()
 
         startV1Chain(response: response)
     }
@@ -1300,6 +1323,8 @@ final class DeepAnalysisViewModel {
         for (module, state) in moduleStates {
             if case .dailyLimitReached(let nextReset) = state, nextReset <= now {
                 moduleStates[module] = .failed(message: L10n.Errors.interpretTitle)
+                // B4 溯源集同步出集:状态已归一 .failed,溯源不再有意义
+                localQuotaLimitedModules.remove(module)
                 AppLogger.app.info(
                     "deepVM.quotaStateExpired module=\(module.rawValue, privacy: .public) nextReset=\(nextReset.description, privacy: .public) — 服务端配额已重置,达限态解除"
                 )
@@ -1425,8 +1450,11 @@ final class DeepAnalysisViewModel {
             // 的 nil-下游判据拦不住:M1-M7 为 nil 时 hasRunnableUnfinished 恒真)。
             // 达限断链对齐本地池断链先验(重跑必再 429;付费章等 UTC 重置);
             // 凭证失效同一 token 全链必 403,同断。
+            // B4 溯源:本地池达限(.dailyLimitReached 且在溯源集内)不在此拦——
+            // 与 .failed 同走 runSingleV1Module 本地抛达限 → 尾部 quotaFreeAhead
+            // 判定(拍板①:免扣章仍可继续),服务端 429(溯源集外)维持原断。
             switch moduleStates[module] {
-            case .dailyLimitReached:
+            case .dailyLimitReached where !localQuotaLimitedModules.contains(module):
                 AppLogger.app.warning(
                     "deepVM.runV1Chain server_quota_break_precheck module=\(module.rawValue, privacy: .public)"
                 )
@@ -1452,10 +1480,21 @@ final class DeepAnalysisViewModel {
                 AppLogger.app.warning("deepVM.runV1Chain m0_failed_breaking_chain contentHash=\(response.contentHash, privacy: .public)")
                 return
             }
-            // 每日次数耗尽 → 仅当剩余可跑章**全部**要扣本地次数才断链
-            // (十七轮 #1 + 拍板①:付费章/版本迁移豁免章免扣,池空仍可
-            // 继续跑它们;一刀切断会让已购盘在当天次数耗尽时整链卡死)
+            // 达限断链判定(本地池,十七轮 #1 + 拍板①):仅当剩余可跑章**全部**
+            // 要扣本地次数才断链——付费章/版本迁移豁免章免扣,池空仍可继续跑
+            // 它们;一刀切断会让已购盘在当天次数耗尽时整链卡死。B4 起本地池
+            // 达限落 .dailyLimitReached(不再落 .failed),两形态同一判定:
+            // .failed + 池空(旧路径/过期归一)或 .dailyLimitReached 且在
+            // localQuotaLimitedModules 溯源集内(本地池,非服务端 429)。
+            var localPoolLimitedNow = false
             if case .failed = moduleStates[module], remainingReads <= 0 {
+                localPoolLimitedNow = true
+            }
+            if case .dailyLimitReached = moduleStates[module],
+               localQuotaLimitedModules.contains(module) {
+                localPoolLimitedNow = true
+            }
+            if localPoolLimitedNow {
                 let quotaFreeAhead = ModuleID.allCases.contains {
                     !consumesLocalQuota($0)
                         && Self.isRunnableState(
@@ -1474,10 +1513,21 @@ final class DeepAnalysisViewModel {
                 )
             }
             // 服务端配额达限(2026-10-08 外评 #6):剩余章必再 429,提前断链
-            // (与上方本地池断链同款;双池不同源,本地 remaining 判不了服务端)
-            if case .dailyLimitReached = moduleStates[module] {
+            // (双池不同源,本地 remaining 判不了服务端;溯源集外的
+            // .dailyLimitReached 即服务端 429——本地池形态已在上方放行判定)
+            if case .dailyLimitReached = moduleStates[module],
+               !localQuotaLimitedModules.contains(module) {
                 AppLogger.app.warning(
                     "deepVM.runV1Chain server_quota_break module=\(module.rawValue, privacy: .public)"
+                )
+                return
+            }
+            // 凭证失效(B2,与 .dailyLimitReached 同款):token 失效且就地重签
+            // 不可用后,同 token 的后续章必再 403——不断链会把剩余章逐章白发
+            // 请求、逐章落本态(重签额度一次/盘/会话已用掉时白烧)
+            if case .contextTokenExpired = moduleStates[module] {
+                AppLogger.app.warning(
+                    "deepVM.runV1Chain token_expired_break module=\(module.rawValue, privacy: .public)"
                 )
                 return
             }
@@ -1650,6 +1700,15 @@ final class DeepAnalysisViewModel {
                 return
             }
             AppLogger.app.warning("deepVM.runSingleV1Module.deepAnalysisError module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
+            // B4(本地池达限):原 .failed 渲染的是可无限点的「重试本章」死按钮
+            //(重试必再本地抛达限)——改落 .dailyLimitReached(nextReset=本地午夜)
+            // 与服务端 429 共用现成禁重试 + 倒计时渲染。断链判定见 runV1Chain 尾部
+            //(localQuotaLimitedModules 溯源,拍板① quotaFreeAhead 语义保持)。
+            if case .dailyLimitReached(let nextReset, _) = error {
+                localQuotaLimitedModules.insert(module)
+                moduleStates[module] = .dailyLimitReached(nextReset: nextReset)
+                return
+            }
             moduleStates[module] = .failed(message: error.errorDescription ?? L10n.Common.unknownError)
         } catch {
             guard !Task.isCancelled, isCurrentChart(response),
@@ -1692,8 +1751,9 @@ final class DeepAnalysisViewModel {
             let userError = UserFacingError.from(error, stage: .interpret)
             // 服务端免费配额 429(2026-10-08 外评 #6):与本地 10 次/日池不同源,
             // 「重试本章」+ 回前台自动续跑只会反复 429——达限态禁重试 + 倒计时
-            // (含本地池耗尽的 DeepAnalysisError.dailyLimitReached,UserFacingError
-            // .from 已把两路收编成同一分类)。章节级 ModuleState 暂不接
+            // (B4 起本地池耗尽的 DeepAnalysisError.dailyLimitReached 由上方
+            // 特定 catch 先行拦截落态并入溯源集,本分支只剩服务端 429 一路,
+            // 不进溯源集)。章节级 ModuleState 暂不接
             // serverPool 登录引导(本地池先触发,该面 429 罕见;两池同渲染
             // 倒计时,serverPool 只影响 InterpretState 侧文案)。
             if case .dailyLimitReached(let reset, _) = userError {
@@ -2069,6 +2129,10 @@ final class DeepAnalysisViewModel {
             if module.isPaid, !hasDeepEntitlement(contentHash: response.contentHash) {
                 AppLogger.app.info("deepVM.runTranslationChain.paid_locked_skip module=\(module.rawValue, privacy: .public)")
                 crossLanguageRows[module] = nil
+                // B5(集合滞后):清行后同步收口提议——行清空则撤提议(resume 的
+                // translation_pending 守卫解除),否则提议的 modules 集合与剩余
+                // 待译章漂移(重试会按陈旧集合再处理已清行)
+                syncTranslationOfferWithRows()
                 continue
             }
             // M4/M5 缺用户输入:翻译请求需要 user_input 维度(键对齐);
@@ -2076,11 +2140,13 @@ final class DeepAnalysisViewModel {
             if module == .m4 && m4UserInput == nil {
                 moduleStates[module] = .needsInput
                 crossLanguageRows[module] = nil
+                syncTranslationOfferWithRows()  // B5:同上,清行后收口提议
                 continue
             }
             if module == .m5 && m5UserInput == nil {
                 moduleStates[module] = .needsInput
                 crossLanguageRows[module] = nil
+                syncTranslationOfferWithRows()  // B5:同上,清行后收口提议
                 continue
             }
             // 下游链字段守卫(镜像 runSingleV1Module:译后 M0 字段缺 = 提取失败)
@@ -2427,6 +2493,8 @@ final class DeepAnalysisViewModel {
         moduleStates.removeAll()
         v1ChainFields.removeAll()
         versionMigrationExempt.removeAll()
+        // B4 溯源集随 reset 清(与 moduleStates 同生命周期)
+        localQuotaLimitedModules.removeAll()
         // 整链完成通知登记一并清(2026-10-11 三查):reset = 重开卷,重排同盘
         // 重新等一整条链,成书时仍应通知(登记只拦「同一轮成书」的重复)。
         bookCompletionNotified.removeAll()
@@ -2465,7 +2533,10 @@ final class DeepAnalysisViewModel {
         entitlementStore.getActive(
             contentHash: contentHash,
             module: EntitlementModule.baziDeep,
-            userLocalId: UserIdentity.userLocalId
+            userLocalId: UserIdentity.userLocalId,
+            // D1(跨设备/重装):userId 轨对齐购买路径(PurchaseManager 同款)——
+            // 只传 userLocalId 时换设备/重装的已购内容会被误判未购,锁死+诱导重复购买
+            userId: UserIdentity.entitlementUserId
         ) != nil
     }
 

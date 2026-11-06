@@ -151,13 +151,24 @@ struct ChartHeaderView: View {
     // MARK: - meta 行
 
     /// 真太阳时 · 出生地 · 较北京时间 ±x 分(中点分隔;真太阳时 nil → 跳过)。
+    /// 真太阳时钟面串(纯函数供单测):按**出生地时区**渲染,不随设备时区
+    /// 漂移(A1)——真太阳时是出生地当地时间值,跨时区设备(美东手机看北京
+    /// 盘)按 .current 渲染会把钟面/日期错位。tzID nil/非法(老快照)兜底
+    /// 设备时区(老快照无处回退,维持既有行为)。
+    static func trueSolarTimeText(_ date: Date, timezoneID: String?) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        f.timeZone = timezoneID.flatMap(TimeZone.init(identifier:)) ?? .current
+        return f.string(from: date)
+    }
+
     private var metaLine: String {
         var parts: [String] = []
         if let ts = response.trueSolarTime {
-            let f = DateFormatter()
-            f.dateFormat = "yyyy-MM-dd HH:mm"
-            f.timeZone = .current
-            parts.append(L10n.DeepChart.trueSolarTime(f.string(from: ts)))
+            parts.append(L10n.DeepChart.trueSolarTime(
+                Self.trueSolarTimeText(ts, timezoneID: response.calcRuleSnapshot.birthTimezone)
+            ))
         }
         parts.append(cityDisplay)
         let offset = response.trueSolarOffsetMinutes

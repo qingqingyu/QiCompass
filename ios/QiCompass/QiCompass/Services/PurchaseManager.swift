@@ -749,12 +749,16 @@ final class PurchaseManager {
             await entitlementStore.synchronizeFromBackend(apiClient: apiClient)
         }
 
-        // 计数口径:本地已有当前盘 entitlement(同步带回)也算恢复成功
+        // 计数口径:本地已有当前盘 entitlement(同步带回)也算恢复成功。
+        // D1:补传 userId 轨——重装/换设备登录用户的 entitlement 行挂在
+        // userId 维度(userLocalId 是新装 UUID),只查 userLocalId 会漏计
+        // → 误报 nothingFound → 诱导对消耗型重复购买(双扣款)。
         if restoredCount == 0, UserIdentity.isAuthenticated,
            entitlementStore.getActive(
                contentHash: contentHash,
                module: module,
-               userLocalId: UserIdentity.userLocalId
+               userLocalId: UserIdentity.userLocalId,
+               userId: UserIdentity.currentUserId
            ) != nil {
             restoredCount += 1
         }

@@ -507,6 +507,11 @@ struct DailyFortuneMainView: View {
                         currentChartHash: chartHash,
                         ziHourRule: ziHourRule,
                     )
+                    // C1(前台跨午夜):businessDate 连续不变时无键变/无 scenePhase
+                    // 可乘,store 今日键会滞留昨日——昨日线仍可聊且被 auto 命中,
+                    // 违反「不跨天续聊」。tick 顺手推键(store 只前进、幂等;
+                    // 23:00 滚日窗口的墙钟回退由 store 内部只前进语义拦)。
+                    askStore?.refreshTodayKey()
                 }
             }
         )

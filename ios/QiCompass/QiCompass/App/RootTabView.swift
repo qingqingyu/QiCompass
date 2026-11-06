@@ -111,6 +111,14 @@ struct RootTabView: View {
             }
             // PR3.2:App 启动(若已登录)→ 后台静默 pull(同步云端命盘)
             Task { await env.syncManager.pull() }
+            // D1 冷启动补同步:keychain 恢复登录态的路径不触发 onSignedIn
+            //(该回调只挂在 exchange 成功链上),换设备/重装首启的云端
+            // entitlement 无人拉回——已购内容锁死到下次登录。与命盘 pull 同款
+            // 启动语义;失败由 synchronizeFromBackend 内部记日志(启动路径
+            // 既定降级口径,不打扰启动,下次启动/登录再试)。
+            if UserIdentity.isAuthenticated {
+                Task { await env.entitlementStore.synchronizeFromBackend(apiClient: env.apiClient) }
+            }
         }
         .sheet(isPresented: $showOnboarding) {
             OnboardingView(

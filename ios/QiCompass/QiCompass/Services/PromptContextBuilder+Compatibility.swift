@@ -102,8 +102,10 @@ extension PromptContextBuilder {
         return ChartPromptContext(
             gender: genderToChinese(gender),
             cityDisplay: cityDisplay,
+            // A1:出生串按出生地时区渲染(设备时区会让跨时区盘的钟面/日期
+            // 错位进 prompt);birth_a/b 非绑定字段,口径改动安全
             birthDisplay: response.trueSolarTime
-                .map(dateTimeFormatter.string(from:)) ?? placeholder,
+                .map { birthClockText($0, timezoneID: response.calcRuleSnapshot.birthTimezone) } ?? placeholder,
             dayMaster: p.day?.gan ?? placeholder,
             dayMasterStrength: response.dayMasterStrength ?? "special_pattern",
             favorable: response.favorableElements.isEmpty

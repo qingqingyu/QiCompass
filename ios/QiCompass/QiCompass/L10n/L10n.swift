@@ -874,6 +874,27 @@ enum L10n {
         /// zh: "已设为不再提醒;点击可重新打开提示"
         /// en: "Reminders are off — tap to turn them back on"
         static let addHourSilentNote = String(localized: "profile.addHour.silentNote")
+
+        // -- 重置命盘确认弹窗(D2,2026-11-06 从裸中文迁入)--
+
+        /// 重置确认弹窗标题。
+        /// zh: "确定要清空所有命盘和解读记录吗?";en: "Erase every chart and reading?"
+        static let resetConfirmTitle = String(localized: "profile.reset.confirmTitle")
+
+        /// 重置确认弹窗长文案(域定义收口 2026-10-17:不可恢复警告 + 清空范围
+        /// + 登录/语言/购买不受影响 + 同生辰重排恢复已购)。
+        /// zh: "此操作不可恢复。所有命盘、合盘记录(含名单)与解读缓存都会被清空;登录状态、语言设置、购买记录不受影响——同一生辰重新排盘后,已购内容自动恢复。"
+        /// en: "This cannot be undone. All charts, compatibility records (including the saved list), and cached interpretations will be cleared. Your sign-in, language settings, and purchases are unaffected — after re-charting the same birth data, purchased content unlocks automatically."
+        static let resetConfirmMessage = String(localized: "profile.reset.confirmMessage")
+
+        /// 重置确认弹窗destructive按钮(en 沿用既有字面键译文 "Reset now")。
+        /// zh: "确定重置";en: "Reset now"
+        static let resetConfirmAction = String(localized: "profile.reset.confirmAction")
+
+        /// 重置失败弹窗标题(D2 同族补收:确认弹窗迁 L10n 时失败弹窗
+        /// 标题漏迁,en/zh-hant 直出中文)。
+        /// zh: "重置失败";en: "Reset failed"
+        static let resetFailedTitle = String(localized: "profile.reset.failedTitle")
     }
 
     // MARK: - M4 健康输入两问(ChapterReadingInputForm 消费;i18n 补录 2026-08-29)
@@ -1430,6 +1451,21 @@ enum L10n {
                 done, total, minutes
             )
         }
+
+        // -- 断链残留引导态(B1,2026-11-06)--
+
+        /// 引导态状态说明(pending + 链停:本章未生成且无人会来生成)。
+        /// zh: "本章尚未生成。命书生成中断过,点下方继续,从本章接着写。"
+        /// en: "This chapter hasn't been written yet. Generation was interrupted — continue below to pick up where it left off."
+        static let stalledPendingNote = String(localized: "deepchain.stalled.note")
+
+        /// 引导态「继续生成」CTA。
+        /// zh: "继续生成";en: "Continue writing"
+        static let stalledPendingResume = String(localized: "deepchain.stalled.resume")
+
+        /// 引导态 CTA 进行中标题。
+        /// zh: "生成中…";en: "Writing…"
+        static let stalledPendingResuming = String(localized: "deepchain.stalled.resuming")
 
         /// 等待卡可离开说明(点「先去逛逛」前的承诺)。
         /// zh: "生成在后台继续,可先去浏览其他章节"
