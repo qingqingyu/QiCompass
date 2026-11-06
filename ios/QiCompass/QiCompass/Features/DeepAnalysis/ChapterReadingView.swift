@@ -148,8 +148,20 @@ struct ChapterReadingView: View {
             switch chapterState {
             case .ok(let text, _):
                 chapterBody(text: text)
-            case .fetching, .pending:
+            case .fetching:
                 calculatingBody
+            case .pending:
+                // B1(断链残留死页):pending + 链停 = 无人生成的残留(上游断链/
+                // 达限后),三墨点「布算中」是虚假承诺且无 CTA 无自愈。改渲染
+                // 引导态(状态说明 + 「继续生成」,复用 resumeV1ChainIfNeeded
+                // 既有续跑入口);链在跑(排队章)维持等待观感。
+                switch PendingChapterBody.resolve(
+                    state: chapterState, chainRunning: vm.isChainRunning) {
+                case .calculating:
+                    calculatingBody
+                case .stalledGuide:
+                    stalledPendingBody
+                }
             case .failed(let message):
                 failedBody(message: message)
             case .contextTokenExpired:
@@ -397,6 +409,33 @@ struct ChapterReadingView: View {
             hasM4Input: vm.m4UserInput != nil,
             hasM5Input: vm.m5UserInput != nil
         )
+    }
+
+    /// 断链残留引导态(B1,2026-11-06):链已停而本章 pending——生成中断在
+    /// 上游,本章从未被生成也无人会再来生成。一句状态说明 + 「继续生成」
+    /// CTA(动作 = vm.resumeV1ChainIfNeeded 既有续跑入口,守卫链在 VM 侧
+    /// 幂等;不新写生成逻辑)。视觉与 .failed 态同构(章题 + 说明 + CTA)。
+    private var stalledPendingBody: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            Text(chapterTitle)
+                .font(BaziFont.display(size: 30))
+                .tracking(1)
+                .foregroundStyle(BaziTheme.ink)
+                .padding(.top, 42)
+            Text(L10n.DeepChain.stalledPendingNote)
+                .font(BaziFont.caption(size: 13))
+                .foregroundStyle(BaziTheme.inkMuted)
+                .lineSpacing(5)
+            PrimaryCTAButton(
+                title: L10n.DeepChain.stalledPendingResume,
+                loadingTitle: L10n.DeepChain.stalledPendingResuming,
+                isLoading: false,
+                action: { vm.resumeV1ChainIfNeeded() }
+            )
+            Spacer()
+        }
+        .padding(.horizontal, 26)
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// 失败:人话错误 + 原地重试(失败 refund,重试不耗次数)。

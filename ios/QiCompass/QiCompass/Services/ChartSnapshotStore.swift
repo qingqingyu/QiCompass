@@ -374,14 +374,26 @@ final class ChartSnapshotStore {
 
 extension ChartSnapshot {
 
+    /// 只解 `archived_birth_datetime` 单键的最小 payload 视图(A2):
+    /// archivedDisplayRequest 仅消费这一个字段,键名映射与 BaziResponse 的
+    /// CodingKeys 同款(显式 snake_case),缺 key → nil(decodeIfPresent 语义
+    /// 由 Optional 承载)。
+    private struct ArchivedWallClock: Decodable {
+        let archivedBirthDatetime: String?
+        enum CodingKeys: String, CodingKey {
+            case archivedBirthDatetime = "archived_birth_datetime"
+        }
+    }
+
     /// 从存档字段重建 BaziCalculateRequest(与 `decodeResponse(from:)` 配对,
     /// 共同支撑「深度解析 Tab 直读存档,不重复填表」)。
     ///
     /// **用途边界(重要)**:此请求只喂给展示层与 prompt context 构建链路 ——
     /// 下游实际只消费 gender / placeName / longitude 三个字段
     /// (ChartHeaderView + PromptContextBuilder.build)。**绝不回传 /api/bazi/calculate**:
-    /// birthDatetime 由真太阳时(birthSolarTime)在出生城市时区下派生,是近似钟面,
-    /// 不是用户当初输入的裸墙钟(S02 契约),用它重排会得到错误的 contentHash。
+    /// birthDatetime 老快照由真太阳时(birthSolarTime)在出生城市时区下派生,
+    /// 是近似钟面,不是用户当初输入的裸墙钟(S02 契约),用它重排会得到错误的
+    /// contentHash。
     ///
     /// 字段映射:cityLongitude→longitude、cityLatitude→latitude、cityName→placeName、
     /// cityTimezone→timezone(老快照 nil 兜底设备时区)、geonameId 不入存档(→ nil,
@@ -395,6 +407,34 @@ extension ChartSnapshot {
         // 时区,避免「timezone 声明 X、birthDatetime 却按设备时区渲染」的自相矛盾。
         let resolvedTZ = cityTimezone.flatMap(TimeZone.init(identifier:)) ?? .current
         let tzName = resolvedTZ.identifier
+        // A2(2026-11-06):hero「出生时刻」优先取存档 payload 的**精确钟面**
+        // archived_birth_datetime(3695b6a 起随 upsert 注入,就是用户当初输入的
+        // 裸墙钟);仅老 payload 缺 key 时回退真太阳时近似派生(现状)。
+        // 只解本键的最小视图(镜像 BaziResponse 的 CodingKeys 映射):本请求
+        // 只消费这一个 payload 字段,无关字段损坏不牵连本字段误回退,解码
+        // 也无需扫全量;老 payload 缺 key 解码为 nil 不 crash,payload 整体
+        // 非 JSON(损坏)显式记日志后回退派生值——展示层兜底,不断头。
+        var archivedWall: String? = nil
+        do {
+            archivedWall = try APICoder.decoder
+                .decode(ArchivedWallClock.self, from: payload).archivedBirthDatetime
+        } catch {
+            AppLogger.persistence.error(
+                "op=chartSnapshot.archivedDisplayRequest payload_decode_failed hash=\(self.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 回退真太阳时近似钟面"
+            )
+        }
+        if let archivedWall, !archivedWall.isEmpty {
+            return BaziCalculateRequest(
+                birthDatetime: archivedWall,
+                timezone: tzName,
+                gender: gender,
+                longitude: cityLongitude,
+                latitude: cityLatitude,
+                placeName: cityName,
+                geonameId: nil,
+                ziHourRule: ziHourRule
+            )
+        }
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"

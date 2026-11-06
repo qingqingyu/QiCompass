@@ -213,9 +213,10 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         XCTAssertEqual(rebuilt.latitude ?? 0, 39.9042, accuracy: 1e-9)
         XCTAssertEqual(rebuilt.ziHourRule, "zi_next_day")
         XCTAssertNil(rebuilt.geonameId, "geonameId 不入存档(展示元数据,不参与计算)")
-        // birthDatetime = 真太阳时在出生城市时区的钟面(派生近似值,绝不回传 /calculate)
-        let bjTZ = try XCTUnwrap(TimeZone(identifier: "Asia/Shanghai"))
-        XCTAssertEqual(rebuilt.birthDatetime, Self.wallString(snapshot.birthSolarTime, timeZone: bjTZ))
+        // A2(2026-11-06):birthDatetime 优先取存档的精确钟面 archived_birth_datetime
+        //(= 用户当初输入的裸墙钟);老 payload 缺 key 才回退真太阳时派生近似值。
+        // 此请求仍绝不回传 /api/bazi/calculate。
+        XCTAssertEqual(rebuilt.birthDatetime, request.birthDatetime)
     }
 
     // MARK: - archivedDisplayRequest(自定义地点盘)
@@ -241,8 +242,9 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         XCTAssertEqual(rebuilt.timezone, "Asia/Urumqi")
         XCTAssertEqual(rebuilt.longitude, 87.62, accuracy: 1e-9)
         XCTAssertNil(rebuilt.latitude)
-        let urumqiTZ = try XCTUnwrap(TimeZone(identifier: "Asia/Urumqi"))
-        XCTAssertEqual(rebuilt.birthDatetime, Self.wallString(snapshot.birthSolarTime, timeZone: urumqiTZ))
+        // A2:精确钟面优先——自定义地点盘(非 +08 设备时区下真太阳时派生会错位
+        // 2h)hero 显示用户输入墙钟 08:00,不再用派生近似 06:00
+        XCTAssertEqual(rebuilt.birthDatetime, request.birthDatetime)
     }
 
     // MARK: - archivedDisplayRequest(老快照:S03 前无时区/城市元数据)
@@ -1512,6 +1514,311 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             reads0 - vm.remainingReads, 2,
             "m0 与 m1 再生成各扣 1 次(修复前 m1 一次性豁免残留,只扣 1 次)"
         )
+    }
+
+    // MARK: - D1(2026-11-06):Entitlement userId 双轨被 UI 守卫消费
+
+    /// 跨设备/重装场景:entitlement 行挂在 userId 维度(synchronizeFromBackend
+    /// 从云端拉回的形态),userLocalId 是新装 UUID。守卫(hasDeepEntitlement)
+    /// 必须命中 userId 轨——只传 userLocalId 会把已购内容误判未购。
+    func testHasDeepEntitlement_跨设备userId轨道命中() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        let crossDeviceLocalId = "install-uuid-\(UUID().uuidString.prefix(6))"
+        let backendUserId = "11111111-2222-3333-4444-555555555555"
+
+        // 登录态:keychain 写 qicompassUserId(UserIdentity.isAuthenticated 判据)
+        try KeychainHelper.saveString(backendUserId, for: .qicompassUserId)
+        defer { try? KeychainHelper.delete(.qicompassUserId) }
+
+        // 云端同步落档形态:userId 维度 + 旧设备的 userLocalId
+        try entitlementStore.upsert(
+            transactionId: "tx-crossdevice-\(response.contentHash.prefix(6))",
+            productId: AppleProductID.deepAnalysisSingle,
+            contentHash: response.contentHash,
+            module: EntitlementModule.baziDeep,
+            userLocalId: crossDeviceLocalId,
+            userId: backendUserId,
+            purchasedAt: .now,
+            originalPurchaseDate: .now
+        )
+
+        XCTAssertTrue(
+            vm.hasDeepEntitlement(contentHash: response.contentHash),
+            "登录态守卫必须经 userId 轨命中跨设备 entitlement"
+        )
+
+        // 退出登录(keychain 清):isAuthenticated=false → 不传 userId 轨,
+        // userLocalId 兜底也 miss(行属旧设备)→ 未购。证明命中的确实是 userId 轨。
+        try KeychainHelper.delete(.qicompassUserId)
+        XCTAssertFalse(
+            vm.hasDeepEntitlement(contentHash: response.contentHash),
+            "未登录不查 userId 轨;userLocalId 兜底 miss 时须如实未购"
+        )
+    }
+
+    // MARK: - B2(2026-11-06):runV1Chain 中章 403 断链
+
+    /// 中章凭证失效落 .contextTokenExpired 后,链必须立刻断——不修的话
+    /// 下游(链字段齐备的章)会逐章白发注定 403 的请求。计数断言。
+    func testRunV1Chain_中章403_后续章不再发请求() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        // 已购:m2-m7 过付费守卫(否则它们落 .locked 不发请求,测不出断链)
+        try entitlementStore.upsert(
+            transactionId: "tx-403chain-\(response.contentHash.prefix(6))",
+            productId: AppleProductID.deepAnalysisSingle,
+            contentHash: response.contentHash,
+            module: EntitlementModule.baziDeep,
+            userLocalId: UserIdentity.userLocalId,
+            purchasedAt: .now,
+            originalPurchaseDate: .now
+        )
+
+        // m0/m1/m2 正常(m1/m2 需带下游链字段产出);m3 起一律 403 token 失效
+        apiClient.interpretResponder = { req in
+            if req.module == ModuleID.m0.rawValue {
+                return InterpretResponse(
+                    interpretation: "{\"structure_fingerprint\":\"fp\",\"main_axis\":{},\"core_loop\":{}}",
+                    promptVersion: 1, cached: false, generatedAt: .now,
+                    provider: "anthropic", model: "mock", language: AppLanguage.currentWire)
+            }
+            if req.module == ModuleID.m1.rawValue {
+                return InterpretResponse(
+                    interpretation: "{\"innate\":[],\"defensive\":[],\"one_leverage\":\"x\"}",
+                    promptVersion: 1, cached: false, generatedAt: .now,
+                    provider: "anthropic", model: "mock", language: AppLanguage.currentWire)
+            }
+            if req.module == ModuleID.m2.rawValue {
+                return InterpretResponse(
+                    interpretation: "{\"threshold\":{},\"switch_actions\":[]}",
+                    promptVersion: 1, cached: false, generatedAt: .now,
+                    provider: "anthropic", model: "mock", language: AppLanguage.currentWire)
+            }
+            throw APIError.backendError(
+                code: "CONTEXT_TOKEN_INVALID", message: "token expired", requestId: "t")
+        }
+
+        vm.loadArchivedChart(response: response, request: request)
+        let settled = await waitUntil(timeout: 12) {
+            if case .contextTokenExpired = self.vm.moduleStates[.m3] { return true }
+            return false
+        }
+        XCTAssertTrue(settled, "m3 必须落失效态,实际:\(vm.moduleStates)")
+        let idle = await waitUntil(timeout: 10) {
+            !self.vm.isChainRunning && !self.vm.isHydrating
+        }
+        XCTAssertTrue(idle)
+
+        let modules = Set(apiClient.recordedInterpretRequests.map(\.module))
+        // 链字段供给:m4 只需 innate(m1 已产)→ 不修断链它必白发 403;
+        // m6 需要 threshold(m2 已产)→ 同。两者是断链判定的行为证据。
+        XCTAssertFalse(
+            modules.contains(ModuleID.m4.rawValue),
+            "m3 失效后 m4(链字段齐备)不得再发请求,实际发了:\(modules.sorted())"
+        )
+        XCTAssertFalse(
+            modules.contains(ModuleID.m6.rawValue),
+            "m3 失效后 m6(链字段齐备)不得再发请求,实际发了:\(modules.sorted())"
+        )
+    }
+
+    // MARK: - B4(2026-11-06):本地池达限落达限态(无死重试)+ 拍板① 保持
+
+    /// 本地池耗尽时免费章抛 DeepAnalysisError.dailyLimitReached——原落
+    /// .failed 渲染可无限点的「重试本章」死按钮;修复后落 .dailyLimitReached
+    /// (禁重试 + 倒计时)。无已购场景链断,m1 不被触碰。
+    func testRunV1Chain_本地池达限_落达限态_链断() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        vm.loadArchivedChart(response: response, request: request)
+        let idle0 = await waitUntil(timeout: 10) {
+            !self.vm.isChainRunning && !self.vm.isHydrating && self.vm.inflightHydrateCount == 0
+        }
+        XCTAssertTrue(idle0)
+
+        // 排空本地池(隔离 counter,10 次/日)
+        for _ in 0..<DailyReadCounter.ReadLimit.globalDaily {
+            _ = counter.tryConsume(module: "test.drainer")
+        }
+        XCTAssertEqual(vm.remainingReads, 0)
+
+        vm.generateV1AllModules()
+        let settled = await waitUntil(timeout: 10) {
+            if case .dailyLimitReached = self.vm.moduleStates[.m0] { return true }
+            return false
+        }
+        XCTAssertTrue(
+            settled,
+            "m0 本地池达限必须落 .dailyLimitReached(禁重试态),实际:\(String(describing: vm.moduleStates[.m0]))"
+        )
+        if case .dailyLimitReached(let nextReset) = vm.moduleStates[.m0] {
+            XCTAssertGreaterThan(nextReset, Date(), "nextReset = 本地午夜,须在未来")
+        }
+        let idle = await waitUntil(timeout: 10) { !self.vm.isChainRunning }
+        XCTAssertTrue(idle)
+        // generateV1AllModules 起手把全部章重置 .pending:链在 m0 处断 →
+        // m1 保持 .pending(链若继续,m1 会跑并同样落 .dailyLimitReached)
+        XCTAssertEqual(
+            vm.moduleStates[.m1], .pending,
+            "无已购(quotaFreeAhead=false)断链,m1 不被跑(保持 reset 后的 .pending)"
+        )
+    }
+
+    /// 拍板①(十七轮):本地池耗尽 + 已购(免扣付费章可跑)→ 链**不**断,
+    /// m4/M5 照常落 .needsInput(链继续走到的证据),达限章保留禁重试态。
+    func testRunV1Chain_本地池达限_已购链继续_拍板一保持() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        try entitlementStore.upsert(
+            transactionId: "tx-quota1-\(response.contentHash.prefix(6))",
+            productId: AppleProductID.deepAnalysisSingle,
+            contentHash: response.contentHash,
+            module: EntitlementModule.baziDeep,
+            userLocalId: UserIdentity.userLocalId,
+            purchasedAt: .now,
+            originalPurchaseDate: .now
+        )
+        vm.loadArchivedChart(response: response, request: request)
+        let idle0 = await waitUntil(timeout: 10) {
+            !self.vm.isChainRunning && !self.vm.isHydrating && self.vm.inflightHydrateCount == 0
+        }
+        XCTAssertTrue(idle0)
+
+        // 预排 9 次:m0 消费第 10 次 → m1 本地抛达限(免费章只有 m0/m1)
+        for _ in 0..<(DailyReadCounter.ReadLimit.globalDaily - 1) {
+            _ = counter.tryConsume(module: "test.drainer")
+        }
+
+        vm.generateV1AllModules()
+        // 断链判定的行为证据:链继续走到 m4/m5(generateV1AllModules 起手把
+        // 全章重置 .pending,m4/m5 再落 .needsInput = 链确实走过了 m0/m1 的
+        // 本地池达限;链若在 m0 断,m4/m5 将停留 .pending)
+        let settled = await waitUntil(timeout: 12) {
+            self.vm.moduleStates[.m4] == .needsInput
+                && self.vm.moduleStates[.m5] == .needsInput
+                && self.vm.moduleStates[.m2] == .pending
+                && !self.vm.isChainRunning
+        }
+        XCTAssertTrue(
+            settled,
+            "已购 + 本地池在 m1 处耗尽:链须继续走完(m4/m5 落 .needsInput),实际:\(vm.moduleStates)"
+        )
+        guard case .dailyLimitReached = vm.moduleStates[.m1] else {
+            return XCTFail(
+                "m1 本地池达限须落 .dailyLimitReached(禁重试态),实际:\(String(describing: vm.moduleStates[.m1]))"
+            )
+        }
+        // m2 缺 m1 链字段(innate/defensive)→ 链内标 .pending 不发请求
+        XCTAssertEqual(vm.moduleStates[.m2], .pending)
+        XCTAssertFalse(
+            apiClient.recordedInterpretRequests.contains { $0.module == ModuleID.m2.rawValue },
+            "m2 缺上游链字段不得白发请求"
+        )
+    }
+
+    // MARK: - B1(2026-11-06):断链残留 pending + 链停的续跑入口
+
+    /// 引导态 CTA 的动作是 resumeV1ChainIfNeeded:pending 残留 + 链停时调用
+    /// 必须真正起链(渲染分诊的纯模型半边在 DeepAnalysisChapterRowTests)。
+    func testResumeV1ChainIfNeeded_断链残留pending链停_续跑起链() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        vm.loadArchivedChart(response: response, request: request)
+        let idle0 = await waitUntil(timeout: 10) {
+            !self.vm.isChainRunning && !self.vm.isHydrating && self.vm.inflightHydrateCount == 0
+        }
+        XCTAssertTrue(idle0)
+        // 自动链已把 m0/m1 跑 ok;人为造断链残留:m1 整体拿掉回 pending 形态
+        // (等价「上游断链后残留」),链停。
+        vm.moduleStates[.m1] = .pending
+        XCTAssertFalse(vm.isChainRunning)
+
+        vm.resumeV1ChainIfNeeded()
+
+        XCTAssertTrue(vm.isChainRunning, "续跑入口必须起链")
+        let m1Ran = await waitUntil(timeout: 12) {
+            self.apiClient.recordedInterpretRequests.contains {
+                $0.module == ModuleID.m1.rawValue
+            }
+        }
+        XCTAssertTrue(m1Ran, "续跑链必须对残留 pending 章发请求")
+        let idle = await waitUntil(timeout: 10) { !self.vm.isChainRunning }
+        XCTAssertTrue(idle)
+    }
+
+    // MARK: - A2(2026-11-06):存档直读 hero 用精确钟面
+
+    /// payload 有 archived_birth_datetime(3695b6a 起注入)→ archivedDisplayRequest
+    /// 必须原样用用户输入的裸墙钟(真太阳时近似钟面在 DST 边界会错);
+    /// 老 payload 缺 key → 回退真太阳时派生,不崩。
+    func testArchivedDisplayRequest_精确钟面优先_老payload回退() async throws {
+        let request = Self.beijingRequest()
+        let response = try await apiClient.calculateBazi(request: request)
+        let result = try chartStore.upsert(response: response, request: request)
+
+        XCTAssertEqual(
+            result.snapshot.archivedDisplayRequest.birthDatetime,
+            request.birthDatetime,
+            "有 archived_birth_datetime 时 hero 钟面 = 用户输入墙钟(非真太阳时近似)"
+        )
+
+        // 老 payload:剥掉 archived_birth_datetime key(2026-10-08 之前形状)
+        let stored = try XCTUnwrap(chartStore.get(contentHash: response.contentHash))
+        let original = try APICoder.decoder.decode(BaziResponse.self, from: stored.payload)
+        XCTAssertNotNil(original.archivedBirthDatetime, "前置:新档确有该字段")
+        let data = try APICoder.encoder.encode(response)
+        var root = try XCTUnwrap(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        root.removeValue(forKey: "archived_birth_datetime")
+        stored.payload = try JSONSerialization.data(withJSONObject: root)
+
+        let fallback = stored.archivedDisplayRequest
+        XCTAssertEqual(fallback.timezone, "Asia/Shanghai")
+        XCTAssertFalse(
+            fallback.birthDatetime.isEmpty,
+            "老 payload 回退真太阳时派生,不崩且仍出钟面"
+        )
+    }
+
+    // MARK: - A3(2026-11-06):Profile 出生年份按出生地时区
+
+    /// 跨年钟面(北京 1994-01-01 凌晨 = 纽约 1993-12-31 晚):
+    /// Calendar.current 会取到 1993,出生地时区取年必须是 1994。
+    func testProfileBirthYear_出生地时区取年_跨年不漂移() throws {
+        var beijing = Calendar(identifier: .gregorian)
+        beijing.timeZone = TimeZone(identifier: "Asia/Shanghai")!
+        let instant = beijing.date(from: DateComponents(
+            year: 1994, month: 1, day: 1, hour: 0, minute: 30))!
+
+        let snapshot = ChartSnapshot(
+            contentHash: "a3-crossyear",
+            birthSolarTime: instant,
+            gender: "male",
+            cityLongitude: 116.4,
+            cityTimezone: "Asia/Shanghai",
+            cityName: "北京",
+            ziHourRule: "zi_next_day",
+            calcRuleSnapshot: Data(),
+            payload: Data()
+        )
+        XCTAssertEqual(
+            ProfileView.birthYear(of: snapshot), 1994,
+            "出生年份按出生地钟面取,不随设备时区跨年漂移"
+        )
+
+        // 老快照 cityTimezone nil:兜底设备时区,只断言不崩且有值
+        let legacy = ChartSnapshot(
+            contentHash: "a3-legacy",
+            birthSolarTime: instant,
+            gender: "male",
+            cityLongitude: 116.4,
+            cityTimezone: nil,
+            cityName: nil,
+            ziHourRule: "zi_next_day",
+            calcRuleSnapshot: Data(),
+            payload: Data()
+        )
+        _ = ProfileView.birthYear(of: legacy)
     }
 }
 

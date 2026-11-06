@@ -392,6 +392,21 @@ enum PromptContextBuilder {
         return f
     }()
 
+    /// 出生地钟面串(A1,纯函数供单测):合盘 prompt 的 birth_a/birth_b 出生串
+    /// (trueSolarTime 派生)按**出生地时区**渲染,不随设备时区漂移——美东
+    /// 设备看北京盘,按 .current 渲染会把钟面/日期错位喂进 prompt。tzID
+    /// nil/非法(老快照)兜底 .current(维持既有行为)。formatter 按调用新建
+    /// (timeZone 异构不共享;chartContext 每次合盘生成才调,频度可忽略)。
+    /// **注意边界**:deep 族 token 绑定字段 `true_solar_time` 仍走
+    /// `dateTimeFormatter`(.current),绑定口径不随本修复改动。
+    static func birthClockText(_ date: Date, timezoneID: String?) -> String {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.dateFormat = "yyyy-MM-dd HH:mm"
+        f.timeZone = timezoneID.flatMap(TimeZone.init(identifier:)) ?? .current
+        return f.string(from: date)
+    }
+
     /// 后端 prompt 模板期望中文"男"/"女",request.gender 是 "male"/"female"
     static func genderToChinese(_ gender: String) -> String {
         gender == "male" ? "男" : "女"

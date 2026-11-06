@@ -73,8 +73,16 @@ struct LuckPillarsTimeline: View {
         )
     }
 
+    /// 「当前大运」判定(纯函数供单测,A4):比 startYear 而非 ganZhi——
+    /// 60 甲子一轮回, ganZhi 相同的两柱(如 60 年前后两步同干支大运)会双高亮;
+    /// startYear 是后端给的单调定位键,与 CurrentPillarDTO 逐柱唯一对齐。
+    /// 同 startYear 不同 ganZhi(防御:后端契约异常)不高亮,不猜。
+    static func isCurrent(_ lp: LuckPillarDTO, current: CurrentPillarDTO?) -> Bool {
+        guard let current else { return false }
+        return lp.startYear == current.startYear
+    }
+
     private func isCurrent(_ lp: LuckPillarDTO) -> Bool {
-        guard let current = currentLuckPillar else { return false }
-        return lp.ganZhi == current.ganZhi
+        Self.isCurrent(lp, current: currentLuckPillar)
     }
 }

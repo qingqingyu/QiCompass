@@ -176,6 +176,47 @@ final class PaywallContractStepTests: XCTestCase {
         XCTAssertEqual(vm.restoreState, .restored)
     }
 
+    /// D1(2026-11-06):restore 计数兜底补传 userId 轨——重装/换设备登录用户的
+    /// entitlement 行挂在 userId 维度(userLocalId 是新装 UUID),只查
+    /// userLocalId 会误报 nothingFound → 诱导对消耗型重复购买(双扣款)。
+    @MainActor
+    func test_restore_跨设备userId轨道计数_restored() async throws {
+        let backendUserId = "99999999-8888-7777-6666-555555555555"
+        let crossDeviceLocalId = "old-install-\(UUID().uuidString.prefix(6))"
+        let container = try ModelContainerFactory.makeInMemory()
+        let entitlementStore = EntitlementStore(modelContext: container.mainContext)
+        let apiClient = MockAPIClient()
+        let purchaseManager = PurchaseManager(
+            entitlementStore: entitlementStore,
+            apiClient: apiClient
+        )
+        // 云端同步落档形态(synchronizeFromBackend 拉回):userId 维度 + 旧设备 localId
+        try entitlementStore.upsert(
+            transactionId: "tx-restore-crossdevice",
+            productId: AppleProductID.deepAnalysisSingle,
+            contentHash: "cross_device_hash",
+            module: EntitlementModule.baziDeep,
+            userLocalId: crossDeviceLocalId,
+            userId: backendUserId,
+            purchasedAt: .now,
+            originalPurchaseDate: .now
+        )
+        try KeychainHelper.saveString(backendUserId, for: .qicompassUserId)
+        defer { try? KeychainHelper.delete(.qicompassUserId) }
+
+        let vm = PaywallViewModel(
+            module: .deepAnalysis,
+            contentHash: "cross_device_hash",
+            purchaseManager: purchaseManager
+        )
+        await vm.restore()
+
+        XCTAssertEqual(
+            vm.restoreState, .restored,
+            "登录态 restore 计数兜底必须命中 userId 轨(修复前误报 nothingFound → 诱导重复购买)"
+        )
+    }
+
     // MARK: - 防漏单 pending 记录(2026-09-29 listener 续接闭环)
 
     /// PendingRedeemStore 是购买失败时点的资损关键持久化:listener 续接

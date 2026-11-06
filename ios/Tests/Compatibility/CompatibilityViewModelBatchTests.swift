@@ -2896,6 +2896,98 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertTrue(vm.retryingIds.isEmpty, "非 list 态不应进入重试")
     }
 
+    /// C3(2026-11-06):retryPair Task 持有 + 域重置取消。修复前 fire-and-forget,
+    /// 域重置后旧重试照常落定(观察不到取消);修复后句柄入 retryPairTasks,
+    /// handleChartDomainReset 的 cancel 传导进在飞重试(CancellationError)。
+    func testRetryPair_域重置取消在飞重试() async throws {
+        // 可解码 A 盘(mock 排盘 + upsert 落档,hour_known=true)
+        let request = BaziCalculateRequest(
+            birthDatetime: "1990-06-15T10:00:00",
+            timezone: "Asia/Shanghai",
+            gender: "male",
+            longitude: 116.4074,
+            latitude: 39.9,
+            placeName: "北京",
+            geonameId: nil,
+            ziHourRule: "zi_next_day"
+        )
+        let aResponse = try await apiClient.calculateBazi(request: request)
+        let upserted = try chartStore.upsert(response: aResponse, request: request)
+        vm.archivedCharts = [ArchivedChart(
+            snapshotHash: aResponse.contentHash,
+            alias: "我",
+            birthDate: upserted.snapshot.birthSolarTime,
+            gender: "male",
+            dayMaster: "甲",
+            snapshot: upserted.snapshot
+        )]
+
+        // 观察盒:responder 进入标记 + 在飞窗口(Thread.sleep 阻塞 400ms,
+        // 制造「重试在飞」窗口)+ 取消观察
+        final class CancelProbe: @unchecked Sendable {
+            private let lock = NSLock()
+            private var _entered = false
+            private var _finished = false
+            var sawCancellation = false
+            var entered: Bool { lock.lock(); defer { lock.unlock() }; return _entered }
+            var finished: Bool { lock.lock(); defer { lock.unlock() }; return _finished }
+            func markEntered() { lock.lock(); _entered = true; lock.unlock() }
+            func markFinished(cancelled: Bool) {
+                lock.lock(); sawCancellation = cancelled; _finished = true; lock.unlock()
+            }
+        }
+        let probe = CancelProbe()
+        apiClient.compatibilityResponder = { _ in
+            probe.markEntered()
+            Thread.sleep(forTimeInterval: 0.4)  // 在飞窗口
+            let cancelled = Task.isCancelled
+            probe.markFinished(cancelled: cancelled)
+            if cancelled { throw CancellationError() }
+            // 未被取消的路径(修复前形态):抛错走失败回写——由断言甄别
+            throw UserFacingError.generic(message: "responder completed uncancelled")
+        }
+
+        let entry: RosterEntry = .temp(
+            input: PersonBInput(
+                birthDatetime: "1991-06-06T09:30:00", timezone: "Asia/Shanghai",
+                gender: "female", longitude: 116.4074
+            ),
+            alias: nil, resolvedHash: nil,
+            place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
+        )
+        let summary = PairSummary(
+            id: "failed:temp",
+            entry: entry,
+            personBHash: "",
+            displayName: "对方",
+            birthDate: nil,
+            dayMaster: "—",
+            fiveElements: "",
+            dayMasterRelation: "",
+            compatibilityHash: "",
+            isInterpreted: false,
+            status: .failed(.generic(message: "first failure"))
+        )
+        vm.summaries = [summary]
+        vm.state = .list
+
+        vm.retryPair(summary: summary)
+        let entered = await Self.waitUntil(timeout: 5) { probe.entered }
+        XCTAssertTrue(entered, "前置:重试请求已进入在飞窗口")
+
+        // 域重置(Profile 重置命盘时刻):句柄已持有 → cancel 传导
+        vm.handleChartDomainReset()
+
+        let finished = await Self.waitUntil(timeout: 5) { probe.finished }
+        XCTAssertTrue(finished)
+        XCTAssertTrue(
+            probe.sawCancellation,
+            "修复:retryPair Task 被持有,域重置 cancel 必须传导进在飞重试(修复前 fire-and-forget 观察不到取消)"
+        )
+        XCTAssertTrue(vm.retryingIds.isEmpty, "defer 清理重试标记")
+        XCTAssertTrue(vm.summaries.isEmpty, "域已清空,无孤儿 summary 回写")
+    }
+
     func testMakeFailedSummary_可以通过构造验证字段() {
         // 间接测:retryPair 在非 list 态会失败,但 makeFailedSummary 字段对失败卡片展示是关键
         // 这里直接构造一个 failed summary 验证字段语义

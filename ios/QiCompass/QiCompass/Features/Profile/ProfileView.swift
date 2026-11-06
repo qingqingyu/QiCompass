@@ -169,16 +169,18 @@ struct ProfileView: View {
             // showResetConfirm 与 resetError 不会同时为 true(确认 alert dismiss 后才同步执行 resetAllData)。
             // resetError 赋值用 Task { @MainActor } 延迟一帧(见 resetAllData catch 分支),
             // 规避 iOS 17 连续两个 alert 在同一 runloop 内呈现被吞掉(经验性 workaround,非契约保证)。
-            .alert("确定要清空所有命盘和解读记录吗?", isPresented: $showResetConfirm) {
-                Button("取消", role: .cancel) {}
-                Button("确定重置", role: .destructive) { resetAllData() }
+            .alert(L10n.Profile.resetConfirmTitle, isPresented: $showResetConfirm) {
+                Button(L10n.Common.cancel, role: .cancel) {}
+                Button(L10n.Profile.resetConfirmAction, role: .destructive) { resetAllData() }
             } message: {
                 // 域定义收口(2026-10-17):文案与 resetAllData 行为逐项对齐——
                 // 合盘含名单;明示 登录/设置/购买 不受影响;同生辰重排已购自动恢复
                 //(Entitlement 本地副本保留,匿名用户也能直接解锁)。
-                Text("此操作不可恢复。所有命盘、合盘记录(含名单)与解读缓存都会被清空;登录状态、语言设置、购买记录不受影响——同一生辰重新排盘后,已购内容自动恢复。")
+                // D2(2026-11-06):标题/长文案迁 L10n(en/zh-hant 此前漏收,裸中文
+                // 直出)。按钮沿用既有通用键(cancel/下方 resetConfirmAction)。
+                Text(L10n.Profile.resetConfirmMessage)
             }
-            .alert("重置失败", isPresented: Binding(
+            .alert(L10n.Profile.resetFailedTitle, isPresented: Binding(
                 get: { resetError != nil },
                 set: { newValue in if !newValue { resetError = nil } }
             )) {
@@ -301,6 +303,17 @@ struct ProfileView: View {
 
     // MARK: - 数据装配(单次 decode)
 
+    /// 出生年份(按出生地时区取,A3 纯函数供单测):birthSolarTime 是绝对时刻,
+    /// `Calendar.current` 会在跨年钟面(如北京时间 1 月 1 日凌晨 = 纽约 12 月
+    /// 31 日晚)漂移一年——年份属出生地钟面语义,与 OnboardingView placeCalendar
+    /// 同口径。cityTimezone nil/非法(老快照)兜底设备时区。
+    static func birthYear(of snapshot: ChartSnapshot) -> Int {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = snapshot.cityTimezone
+            .flatMap(TimeZone.init(identifier:)) ?? .current
+        return calendar.component(.year, from: snapshot.birthSolarTime)
+    }
+
     /// 命主块信息(首条可解码 link;decode 失败 → nil,身份块整体不展示,
     /// 具体 error 已由 `ChartSnapshotStore.decodeResponse` 内 Logger.error 记录)。
     private struct PrimaryProfileInfo {
@@ -316,7 +329,7 @@ struct ProfileView: View {
         /// 「1995 年生 · 乙亥 · 日主丁火 · 时辰待补」(年柱/日柱歧义 → 对应段省略,不猜)。
         var metaLine: String {
             var parts: [String] = []
-            let year = Calendar.current.component(.year, from: snapshot.birthSolarTime)
+            let year = ProfileView.birthYear(of: snapshot)
             // 2026-09-28 修复:i18n 改写时漏了 append,名册行从「1995 年生 · 乙亥」
             // 退化成「乙亥」(unused-result 警告不拦 CI)。
             parts.append(String(format: String(localized: "%lld 年生"), year))

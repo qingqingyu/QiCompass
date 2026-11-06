@@ -838,4 +838,41 @@ final class DailyAskTests: XCTestCase {
         XCTAssertTrue(store.todaySummaries.isEmpty, "昨天的今日线整体转入往日")
         XCTAssertEqual(store.pastSummaries.map(\.title), ["别盘线"], "B 盘视角:唯一会话转入往日")
     }
+
+    /// C1(2026-11-06):前台跨午夜滞留——今日页每分钟 tick 调 refreshTodayKey
+    /// (store 只前进、幂等)。跨日后 auto(resolveRecord)不得再命中昨日线,
+    /// 否则昨日线仍可聊、被 auto 打开,违反「不跨天续聊」拍板。
+    @MainActor
+    func test跨午夜_refreshTodayKey后_auto不再命中昨日线() throws {
+        let container = try makeAskContainer()
+        let context = container.mainContext
+        var fakeNow = Date()
+        let store = AskConversationStore(context: context, now: { fakeNow })
+        let today = store.todayKey
+
+        let record = AskConversation(
+            chartHash: "A", dateKey: today, title: "今日线", contextLine: "ctx"
+        )
+        context.insert(record)
+        record.append(role: AskConversation.AskTurnRecord.roleAI, text: "开场")
+        try context.save()
+        store.syncDay(chartHash: "A", dateKey: today)
+        XCTAssertEqual(store.resolveRecord()?.id, record.id, "前置:今日线被 auto 命中")
+
+        // 墙钟跨日(注入时钟)→ tick 同款 refreshTodayKey(只前进)
+        fakeNow = Calendar.current.date(byAdding: .day, value: 1, to: fakeNow)!
+        store.refreshTodayKey()
+
+        XCTAssertNil(
+            store.resolveRecord(),
+            "跨日后 auto 不得命中昨日线(修复前 todayKey 滞留 → 昨日线仍可聊)"
+        )
+        XCTAssertTrue(
+            AskDayKey.isPastDay(record.dateKey, todayKey: store.todayKey),
+            "昨日线按 store 前移后的今日键判为往日(只读)"
+        )
+        // 幂等/只前进:同键再刷不重复作废,墙钟未跨日(回拨)不动
+        store.refreshTodayKey()
+        XCTAssertEqual(store.todayKey, AskDayKey.of(fakeNow))
+    }
 }

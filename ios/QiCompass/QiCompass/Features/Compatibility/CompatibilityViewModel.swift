@@ -189,6 +189,13 @@ final class CompatibilityViewModel {
     /// S03:正在重试的对 id 集合(UI 据此 disable 重试按钮,避免同对并发双请求)。
     var retryingIds: Set<String> = []
 
+    /// 单对重试 Task 表(C3,按对 id 键控——retryingIds 语义本就支持多对并发,
+    /// 单句柄会互相顶掉):持有后域重置(handleChartDomainReset 清 retryingIds
+    /// 处)可真正 cancel 在飞重试,fire-and-forget 时代的 Task.isCancelled 检查
+    /// 形同虚设——旧重试落定会把孤儿 summary 写回已清空的域(与文件内其余
+    /// 六类任务的持有纪律一致)。
+    private var retryPairTasks: [String: Task<Void, Never>] = [:]
+
     // MARK: 依赖
 
     private let orchestrator: CompatibilityOrchestrator
@@ -1367,11 +1374,13 @@ final class CompatibilityViewModel {
         let contextValue = context
         let summaryId = summary.id
 
-        Task { [weak self] in
+        // C3:存句柄入按对任务表(域重置可取消;defer 出表防字典无限增长)
+        let task = Task { [weak self] in
             guard let self else { return }
             // VM @MainActor + Task 继承 actor → defer 同步执行已在 MainActor,无需嵌套 Task 派发
             defer {
                 self.retryingIds.remove(summaryId)
+                self.retryPairTasks[summaryId] = nil
             }
             do {
                 // 单对重试同款:存档 decode(ensure 入口已删,老快照缺 token
@@ -1403,6 +1412,7 @@ final class CompatibilityViewModel {
                 }
             }
         }
+        retryPairTasks[summary.id] = task
     }
 
     /// 列表内替换某对 summary(重试成功 / 失败后用)。
@@ -1876,7 +1886,10 @@ final class CompatibilityViewModel {
                     let hasEntitlement = self.entitlementStore.getActive(
                         contentHash: summaryHash,
                         module: EntitlementModule.compatibility,
-                        userLocalId: UserIdentity.userLocalId
+                        userLocalId: UserIdentity.userLocalId,
+                        // D1:userId 轨对齐购买路径——只查 userLocalId 会把
+                        // 换设备/重装登录用户的已购合盘误判未购
+                        userId: UserIdentity.entitlementUserId
                     ) != nil
                     let newState: InterpretState = hasEntitlement
                         ? .okPaid(text: cached.text, cached: true)
@@ -1906,7 +1919,10 @@ final class CompatibilityViewModel {
                     let hasEntitlement = self.entitlementStore.getActive(
                         contentHash: summaryHash,
                         module: EntitlementModule.compatibility,
-                        userLocalId: UserIdentity.userLocalId
+                        userLocalId: UserIdentity.userLocalId,
+                        // D1:userId 轨对齐购买路径——只查 userLocalId 会把
+                        // 换设备/重装登录用户的已购合盘误判未购
+                        userId: UserIdentity.entitlementUserId
                     ) != nil
                     // 付费键原文但无 entitlement:不显示付费级原文(越权),
                     // 也不提示翻译(翻译也会被后端拦);不早退——#13(2026-10-01)
@@ -2351,7 +2367,9 @@ final class CompatibilityViewModel {
         let hasEntitlement = entitlementStore.getActive(
             contentHash: compatHash,
             module: EntitlementModule.compatibility,
-            userLocalId: UserIdentity.userLocalId
+            userLocalId: UserIdentity.userLocalId,
+            // D1:userId 轨对齐购买路径(跨设备/重装已购找回)
+            userId: UserIdentity.entitlementUserId
         ) != nil
         let module = hasEntitlement ? "compatibility_paid" : "compatibility_free"
 
@@ -2621,7 +2639,9 @@ final class CompatibilityViewModel {
                 let nowPaid = entitlementStore.getActive(
                     contentHash: summary.compatibilityHash,
                     module: EntitlementModule.compatibility,
-                    userLocalId: UserIdentity.userLocalId
+                    userLocalId: UserIdentity.userLocalId,
+                    // D1:userId 轨对齐购买路径(跨设备/重装已购找回)
+                    userId: UserIdentity.entitlementUserId
                 ) != nil
                 if inFlight.isPaid || !nowPaid {
                     AppLogger.app.info(
@@ -2780,7 +2800,9 @@ final class CompatibilityViewModel {
                 let hasEntitlement = self.entitlementStore.getActive(
                     contentHash: compatHash,
                     module: EntitlementModule.compatibility,
-                    userLocalId: UserIdentity.userLocalId
+                    userLocalId: UserIdentity.userLocalId,
+                    // D1:userId 轨对齐购买路径(跨设备/重装已购找回)
+                    userId: UserIdentity.entitlementUserId
                 ) != nil
                 let newState: InterpretState = hasEntitlement
                     ? .okPaid(text: resp.interpretation, cached: resp.cached)
@@ -2868,7 +2890,10 @@ final class CompatibilityViewModel {
                     let hasEntitlement = self.entitlementStore.getActive(
                         contentHash: compatHash,
                         module: EntitlementModule.compatibility,
-                        userLocalId: UserIdentity.userLocalId
+                        userLocalId: UserIdentity.userLocalId,
+                        // D1:userId 轨对齐购买路径——只查 userLocalId 会把
+                        // 换设备/重装登录用户的已购合盘误判未购
+                        userId: UserIdentity.entitlementUserId
                     ) != nil
                     let restored: InterpretState = hasEntitlement
                         ? .okPaid(text: offer.text, cached: true)
@@ -2888,7 +2913,9 @@ final class CompatibilityViewModel {
                 let hasEntitlement = self.entitlementStore.getActive(
                     contentHash: compatHash,
                     module: EntitlementModule.compatibility,
-                    userLocalId: UserIdentity.userLocalId
+                    userLocalId: UserIdentity.userLocalId,
+                    // D1:userId 轨对齐购买路径(跨设备/重装已购找回)
+                    userId: UserIdentity.entitlementUserId
                 ) != nil
                 let restored: InterpretState = hasEntitlement
                     ? .okPaid(text: offer.text, cached: true)
@@ -2945,6 +2972,10 @@ final class CompatibilityViewModel {
     func handleChartDomainReset() {
         // 六类在飞任务取消 + 翻译态清空复用(中间态 .configuring 随后覆盖)
         clearDetailKeepRoster()
+        // C3:单对重试任务同批取消(句柄已持有,取消让 Task.isCancelled 检查
+        // 真正生效——旧重试落定不得把孤儿 summary 写回已清空的域)
+        for (_, task) in retryPairTasks { task.cancel() }
+        retryPairTasks.removeAll()
         interpretInFlight = nil
         engineRefreshOutcomes = [:]
         autoTranslationOutcomes = [:]
