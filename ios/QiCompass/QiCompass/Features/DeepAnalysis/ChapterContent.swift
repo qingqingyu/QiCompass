@@ -74,15 +74,16 @@ struct ChapterContent: Equatable {
         parse(text, for: nil)
     }
 
-    /// 按模块解析(2026-10-12 S4-A):M0 走行内标签段落化特化组装,
-    /// 其余模块走通用节点树。module 为 nil = 通用(中毒判读等不关心排版)。
-    /// M0 缺关键结构(main_axis/core_loop 任一非对象,老缓存/违约)→
-    /// 回落通用渲染,不静默丢内容。
+    /// 按模块解析(2026-10-12 S4-A):M0/M1 走特化组装,其余模块走通用节点树。
+    /// module 为 nil = 通用(中毒判读等不关心排版)。特化章缺关键结构
+    /// (老缓存/违约)→ 回落通用渲染,不静默丢内容。
     static func parse(_ text: String, for module: ModuleID?) -> ChapterContent? {
         guard let root = OrderedJSONParser.parse(OrderedJSONParser.stripCodeFences(text)) else { return nil }
         guard case .object(let pairs) = root else { return nil }
         let nodes: [ChapterNode]
         if module == .m0, let specialized = m0Nodes(from: pairs) {
+            nodes = specialized
+        } else if module == .m1, let specialized = m1Nodes(from: pairs) {
             nodes = specialized
         } else {
             nodes = pairs.compactMap { node(key: $0.0, value: $0.1) }
@@ -293,6 +294,49 @@ struct ChapterContent: Equatable {
     // - D6:v9 不展示 structure_fingerprint(仍然产出,下游链式照常继承;
     //   键按已消费计,防经通用节点回流)
     // - v7 组装的兜底口径照搬:未消费键走通用节点 + extras 日志(不静默丢)
+    /// M1 专属装配(2026-11-07,贰章命名层拍板):天赋/训练/防御三组条目卡与
+    /// 唯一杠杆收进问句门头。此前 M1 走通用路径,数组直接成 .items 裸卡堆,
+    /// 三分类只能靠字段形状猜(回血/训练来源/实际代价),labels 里四词无门可
+    /// 上(S4 R12 三层引导句也因此从未命中过)。与 m0Nodes 同款纪律:四键
+    /// 各自条件成节,未消费键走 leftoverNodes 不静默丢;四键一个节都不成 →
+    /// 返回 nil 落回通用渲染(老缓存/违约形态)。
+    private static func m1Nodes(from pairs: [(String, JSONValue)]) -> [ChapterNode]? {
+        var extras: [String] = []
+        var consumed: Set<String> = []
+        var nodes: [ChapterNode] = []
+
+        // 三分类:数组整体(对象条目卡/字符串条目列)入节;空数组算消费过
+        // (空态不是错,不该再进 leftover 渲染一遍键名)。对象形态(违约)留给
+        // leftover 走通用渲染——node() 对对象已自产同款问句门头,在此再包
+        // 一层会双重门头,且通用路径计入 extras 日志(m0 同款纪律)。
+        for key in ["innate", "trained", "defensive"] {
+            guard let (_, value) = pairs.first(where: { $0.0 == key }) else { continue }
+            if case .object = value { continue }
+            if let child = node(key: key, value: value) {
+                nodes.append(.section(sectionTitle(key), [child]))
+                consumed.insert(key)
+            } else if case .array = value {
+                consumed.insert(key)
+            }
+        }
+
+        // 唯一杠杆:一句话答案,配问句门头单独成节;非字符串形态留给 leftover
+        if let (_, value) = pairs.first(where: { $0.0 == "one_leverage" }),
+           case .string(let s) = value, !s.isEmpty {
+            nodes.append(.section(sectionTitle("one_leverage"), [.lead(s)]))
+            consumed.insert("one_leverage")
+        }
+
+        guard !nodes.isEmpty else { return nil }
+        nodes += leftoverNodes(from: pairs, skipping: consumed, path: "m1", extras: &extras)
+        if !extras.isEmpty {
+            // OSLog 插值约束:privacy 参数须在单一字面量内,不可拼接
+            AppLogger.app.info(
+                "m1 chapter rendered \(extras.count) non-contract field(s) via generic nodes: \(extras.joined(separator: ","), privacy: .public)")
+        }
+        return nodes
+    }
+
     private static func m0V9Nodes(
         pairs: [(String, JSONValue)],
         mainAxis: [(String, JSONValue)],
@@ -655,7 +699,7 @@ struct ChapterContent: Equatable {
         "structure_type": "结构类型",
         "capability_source": "能力来源",
         "structure_fingerprint": "运转概括",
-        // M1 天赋能力
+        // M1 天赋本事(2026-11-07 章名改字;labels 值维持短名词,门头走问句)
         "innate": "天赋能力",
         "trained": "训练能力",
         "defensive": "防御性能力",
@@ -761,16 +805,23 @@ struct ChapterContent: Equatable {
         "falsification_signals": "推翻信号",
     ]
 
-    /// M0 小节门头问句(2026-11-07 拍板,docs/命书壹章标题推敲.md):壹章四个
-    /// 小节名改用素材问句原样——读者带着问题进章,每节首行结论句作答。**只喂
-    /// .section 门头**;据注/行内标签仍是 `labels` 的短名词(「据 · 主线」不能
-    /// 变问句)。en/zh-Hant 走 xcstrings dot-key `deepanalysis.chapter.q.<key>`,
-    /// zh 缺省回落本表值(同 label() 范式)。其余章 key 不在本表 → 回落 labels。
+    /// 小节门头问句(M0 2026-11-07 拍板,docs/命书壹章标题推敲.md;M1 同日
+    /// 贰章拍板并入):壹/贰两章小节名改用素材问句原样——读者带着问题进章,
+    /// 每节首行结论句作答。**只喂 .section 门头**;据注/行内标签仍是 `labels`
+    /// 的短名词(「据 · 主线」不能变问句)。en/zh-Hant 走 xcstrings dot-key
+    /// `deepanalysis.chapter.q.<key>`,zh 缺省回落本表值(同 label() 范式)。
+    /// 其余章 key 不在本表 → 回落 labels。
     static let sectionQuestions: [String: String] = [
         "main_axis": "我的十神主线是什么?",
         "core_loop": "哪两个十神形成核心循环结构?",
         "structure_type": "这个结构在命理中属于什么类型?",
         "capability_source": "这类结构的人,核心能力通常来自哪里?",
+        // M1(2026-11-07 贰章拍板,docs/命书贰章标题推敲.md):素材问1/问4
+        // 原句 + 模板原句(defensive 转问句、one_leverage 原样不带「为什么」)。
+        "innate": "我最自然、不费力的能力是什么?",
+        "trained": "哪种能力是后天环境训练出来的?",
+        "defensive": "哪些能力外人看着像优点,其实在消耗你?",
+        "one_leverage": "如果只能保留一项能力当作杠杆,是哪一项?",
     ]
 
     /// 小节门头取题:有问句用问句,无问句回落短名词标签(其余章维持名词门头)。
@@ -778,7 +829,14 @@ struct ChapterContent: Equatable {
         guard let question = sectionQuestions[key] else { return label(key) }
         return NSLocalizedString(
             "deepanalysis.chapter.q.\(key)", value: question,
-            comment: "M0 小节问句门头")
+            comment: "小节问句门头")
+    }
+
+    /// 视图层引导句匹配用(`ChapterContentView.sectionGuides`):与 .section
+    /// 门头**同一取题实现**——两侧同源,改译文/换门头不会漂移(2026-11-07
+    /// 起门头为问句,引导句挂在问句下)。
+    static func localizedSectionTitle(_ key: String) -> String {
+        sectionTitle(key)
     }
 
     /// 条目卡取题优先级(对象数组首字段作题)。

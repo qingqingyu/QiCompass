@@ -6118,6 +6118,52 @@
         }
       }
     },
+    "deepanalysis.chapter.q.defensive" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Which abilities look like strengths, but actually drain you?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "哪些能力外人看着像优点,其实在消耗你?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "哪些能力外人看著像優點,其實在消耗你?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.innate" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What comes most naturally to me, without effort?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我最自然、不费力的能力是什么?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我最自然、不費力的能力是什麼?"
+          }
+        }
+      }
+    },
     "deepanalysis.chapter.q.main_axis" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6141,6 +6187,29 @@
         }
       }
     },
+    "deepanalysis.chapter.q.one_leverage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "If you could keep only one ability as leverage, which would it be?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果只能保留一项能力当作杠杆,是哪一项?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "如果只能保留一項能力當作槓桿,是哪一項?"
+          }
+        }
+      }
+    },
     "deepanalysis.chapter.q.structure_type" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6160,6 +6229,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "這個結構在命理中屬於什麼類型?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.trained" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Which abilities were trained into you by your environment?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "哪种能力是后天环境训练出来的?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "哪種能力是後天環境訓練出來的?"
           }
         }
       }
@@ -10170,7 +10262,7 @@
         }
       }
     },
-    "M1 · 天赋能力" : {
+    "M1 · 天赋本事" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -10182,13 +10274,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M1 · 天赋能力"
+            "value" : "M1 · 天赋本事"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M1 · 天賦能力"
+            "value" : "M1 · 天賦本事"
           }
         }
       }
@@ -12219,7 +12311,7 @@
         }
       }
     },
-    "主线结构与天赋能力两章已免费 · 余下陆章一次解锁" : {
+    "主线结构与天赋本事两章已免费 · 余下陆章一次解锁" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -12231,13 +12323,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "主线结构与天赋能力两章已免费 · 余下陆章一次解锁"
+            "value" : "主线结构与天赋本事两章已免费 · 余下陆章一次解锁"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "主線結構與天賦能力兩章已免費 · 餘下陸章一次解鎖"
+            "value" : "主線結構與天賦本事兩章已免費 · 餘下陸章一次解鎖"
           }
         }
       }
