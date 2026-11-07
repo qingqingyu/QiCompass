@@ -24,6 +24,7 @@ from typing import Literal, NamedTuple
 
 from ..engine.pillars import GAN_ELEMENT, ZHI_ELEMENT
 from ..models.bazi import Pillars, ShenshaItem
+from .branch_relations import SANHE_TRIPLES, SANHUI_TRIPLES
 
 # ---------- 四柱迭代辅助 ----------
 
@@ -61,20 +62,14 @@ def _validate_pillars(pillars: Pillars) -> None:
 
 # ---------- 三合局 / 三会局 ----------
 
-# 三合局(B 类神煞基准分组)
+# 三合局(B 类神煞基准分组)/三会局(D 类孤辰寡宿基准分组):
+# 2026-11-07 借鉴项②起从 branch_relations 正典派生(组名=成员序拼接,
+# 与旧字面量 byte-identical,既有神煞测试即等价证明),单一事实源。
 SANHE_GROUPS: dict[str, tuple[str, str, str]] = {
-    "申子辰": ("申", "子", "辰"),
-    "寅午戌": ("寅", "午", "戌"),
-    "巳酉丑": ("巳", "酉", "丑"),
-    "亥卯未": ("亥", "卯", "未"),
+    "".join(triple): triple for triple in SANHE_TRIPLES
 }
-
-# 三会局(D 类孤辰寡宿基准分组)
 SANHUI_GROUPS: dict[str, tuple[str, str, str]] = {
-    "亥子丑": ("亥", "子", "丑"),
-    "寅卯辰": ("寅", "卯", "辰"),
-    "巳午未": ("巳", "午", "未"),
-    "申酉戌": ("申", "酉", "戌"),
+    "".join(triple): triple for triple in SANHUI_TRIPLES
 }
 
 
