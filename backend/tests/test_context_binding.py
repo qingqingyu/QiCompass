@@ -1290,14 +1290,18 @@ def test_bind_fields_are_subset_of_required():
 async def test_chain_walk_variant_row_flood_still_translates(
     raw_interpret_client, mock_ai_client,
 ):
-    """同版本 M0 变体刷行不拖垮合法翻译(第十五轮 #2 🔴)。
+    """同版本 M0 变体刷行不拖垮合法翻译(第十五轮 #2;2026-11-07 演化)。
 
-    攻击面:chart 字节变体(空格/键序不同、解析等价 → 过 token 验签)每条
-    生成一行同版本 M0;旧行序截断 [:8] 建立在不可判别的行序上(查询计划序
-    = PK prompt_hash 随机序),合法根行可被变体行随机挤出窗口 → 同盘受害
-    者 M1 翻译恒 409 整章重生成。修复:版本序不截断 + M0 根行逐行核验
-    (prompt_hash == 请求 chart 按行版本重渲染),变体行出局,合法根行与
-    行序无关必被选中。
+    原攻击面:chart 字节变体(空格/键序不同、解析等价 → 过 token 验签)每条
+    生成一行同版本 M0,合法根行可被变体行挤出窗口 → 同盘受害者 M1 翻译恒
+    409。第十五轮修复(版本序不截断 + M0 根行逐行核验)保留,防御非 chart
+    来源的行变体(provider/model 变体根行)。
+
+    2026-11-07 运神注入(enrich_v1_chart_ten_gods 收口在 translate_context)
+    带来渲染层 chart 归一:解析等价的字节变体渲染出**同一 prompt**(注入
+    重序列化统一 indent=2)→ 同一 prompt_hash → 变体请求直接命中缓存,
+    不再产生新行——该攻击面在 v1 chart 上**结构性消失**。本测锁定:
+    ①变体请求仍 200(命中合法行内容);②行数不增(==1);③受害者翻译 200。
     """
     from app.context_binding import _build_v1_chart_mirror
     result = _calculate_result()
@@ -1333,9 +1337,10 @@ async def test_chain_walk_variant_row_flood_still_translates(
     assert r1.status_code == 200, r1.json()
     m1_text = r1.json()["interpretation"]
 
-    # 3. 变体刷行 12 条:解析等价、字节不同(indent=i 各异,且均异于
-    #    canonical 的无缩进形态),全过验签,各落一行同版本 M0
-    #    (fingerprint 各异,即便被误选为根也连不上链)
+    # 3. 变体请求 12 条:解析等价、字节不同(indent=i 各异,且均异于
+    #    canonical 的无缩进形态),全过验签——但渲染层注入归一后与合法行
+    #    同 prompt_hash → 缓存命中返回合法内容,不落新行(注入若失效,
+    #    这里会退回「12 行变体」攻击面,行数断言即红)
     for i in range(12):
         variant = json.dumps(mirror, ensure_ascii=False, indent=i)
         assert variant != canonical
@@ -1350,14 +1355,13 @@ async def test_chain_walk_variant_row_flood_still_translates(
         })
         assert ri.status_code == 200, (i, ri.json())
 
-    # 刷行实证:同 (盘, m0, zh) 当前版本行 ≥ 13(1 合法 + 12 变体),
-    # 旧 [:8] 截断必然丢行
+    # 归一实证:同 (盘, m0, zh) 当前版本行恒 1(变体全部命中缓存未落行)
     from app.main import app
     rows = app.state.cache.get_module_rows(h, "m0_structure", "zh")
-    assert len(rows) >= 13, len(rows)
+    assert len(rows) == 1, len(rows)
 
     # 4. 受害者(同盘,canonical chart)M1 翻译仍 200——根行核验选中
-    #    fp-legit 行,变体行全出局,与行序无关
+    #    fp-legit 行,与行序无关
     from app.ai.prompts import PROMPT_VERSIONS
     mock_ai_client.set_response(json.dumps({
         "innate": "天賦", "defensive": "防禦", "one_leverage": "槓桿"},

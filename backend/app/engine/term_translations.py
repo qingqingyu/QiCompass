@@ -39,6 +39,8 @@ import logging
 import re
 from typing import Final
 
+from .chart_builder import enrich_v1_chart_ten_gods
+
 logger = logging.getLogger(__name__)
 
 
@@ -611,7 +613,8 @@ def translate_context(context: dict, language: str, module: str) -> dict:
     翻译到目标语言,让 LLM 拿到全目标语言的 prompt。
 
     策略:
-    - language == "zh" → 直接返回原 context(identity)
+    - v1 deep module 且带 chart → 先注入大运运神十神(见下方注释,zh 也不例外)
+    - language == "zh" → 返回 context(注入后;除 chart 注入外 identity)
     - module 已实现翻译规则 → 按 rule 翻译
     - module 未实现 → log warning,返回原 context(Slice 2/3/4 逐步覆盖)
 
@@ -623,6 +626,28 @@ def translate_context(context: dict, language: str, module: str) -> dict:
     Returns:
         翻译后的 context(新 dict,不修改原)
     """
+    # v1 chart 运神注入(2026-11-07 借鉴项①,方案 B):大运十神不进 token
+    # 绑定契约(客户端 chart 不带,镜像不动),渲染前由后端确定性推导注入。
+    # 两个不可移位的次序约束:
+    # 1. 必须在值翻译(zh-hant/en 分支的 _translate_chart_json)**之前**——
+    #    注入的 zh 十神值随管道译成目标语言,放 render_prompt 里会泄漏简体
+    # 2. 必须覆盖 zh 直通分支(放 _translate_deep_context 里会漏掉 zh 请求)
+    # 本函数是生成(_prepare_prompt_and_key)与翻译防伪链重建
+    # (_render_v1_upstream_prompt_hash)共用的唯一渲染前入口——注入收口在
+    # 此,两条路径的 prompt_hash 由构造保证一致;幂等,build_v1_chart 直出
+    # 的 chart 再过一次是 no-op。
+    # 坏/深嵌套 chart 在注入层**不收口**(defer-to-gate):zh 由验签 403、
+    # en 由 _translate_chart_json 的结构化 500 各自拒绝(既有契约,
+    # test_deeply_nested_chart_no_unhandled_500 锁定)——注入不是安全边界,
+    # verify/翻译才是,不在此抢跑改码。ten_god 漂移 ValueError 不在此列,
+    # 原样上抛(代码 bug 必须显式)。
+    if module in _V1_DEEP_MODULES and isinstance(context.get("chart"), str):
+        try:
+            enriched = enrich_v1_chart_ten_gods(context["chart"])
+        except (json.JSONDecodeError, RecursionError):
+            pass
+        else:
+            context = {**context, "chart": enriched}
     if language == "zh":
         return context
     if module == "daily_fortune":

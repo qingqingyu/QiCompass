@@ -15,9 +15,10 @@ render_prompt("m0_structure", {"chart": json.dumps(..., ensure_ascii=False, inde
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
-from .pillars import EN2ZH  # 英文五行 → 中文
+from .pillars import EN2ZH, GAN_ELEMENT, ten_god  # 英文五行 → 中文;十干;日干+他干 → 十神
 
 # day_master_strength(engine 返回值) → 中文 label(对齐设计文档示例"偏弱/偏旺/中和")
 # 与 bazi_engine._STRENGTH_LABEL 同源但**不共用**,两者语义不同:
@@ -124,6 +125,9 @@ def build_v1_chart(snapshot: dict[str, Any]) -> dict[str, Any]:
             "start_age": lp["start_age"],
             "stem": gz[0],
             "branch": gz[1],
+            # 运神:大运天干对日主的十神,确定性查表(2026-11-07 借鉴项①,
+            # 修「LLM 自推十神」概率翻车面;表已上移 pillars.SHISHEN_GAN)
+            "ten_god": ten_god(day_gan, gz[0]),
         })
 
     # ----- current_luck(可能为 None:用户未入运/已出运) -----
@@ -149,10 +153,10 @@ def build_v1_chart(snapshot: dict[str, Any]) -> dict[str, Any]:
             "start_age": start_age,
             "stem": gz[0],
             "branch": gz[1],
-            # ten_god:流年/大运天干对日主的十神,确定性可推。
-            # 后端没现成工具函数算 gan-vs-gan 十神,留 None 让 LLM 自推
-            # (LLM 命理基础知识,根据 day_master.stem + current_luck.stem 100% 准确算)
-            "ten_god": None,
+            # 当前大运运神,确定性查表(旧注释「后端没现成工具算 gan-vs-gan
+            # 十神,留 None 让 LLM 自推」已过时:pillars.SHISHEN_GAN 即是表,
+            # 且 LLM 自推有概率翻车前科,见 prompts.py 证据纪律注释)
+            "ten_god": ten_god(day_gan, gz[0]),
         }
 
     # ----- current_year(字符串 "丙午" → stem "丙" + branch "午") -----
@@ -171,7 +175,8 @@ def build_v1_chart(snapshot: dict[str, Any]) -> dict[str, Any]:
     current_year = {
         "stem": cyp_str[0],
         "branch": cyp_str[1],
-        "ten_god": None,  # 同 current_luck.ten_god:留空让 LLM 自推
+        # 流年天干对日主的十神,确定性查表(同 current_luck.ten_god)
+        "ten_god": ten_god(day_gan, cyp_str[0]),
     }
 
     return {
@@ -209,3 +214,75 @@ def lookup_current_luck_start_age(
         if lp["start_year"] == start_year and lp["end_year"] == end_year:
             return lp["start_age"]
     return None
+
+
+# ---------- v1 chart 运神注入(2026-11-07 借鉴项①,方案 B 后端注入)----------
+
+def enrich_v1_chart_ten_gods(chart_json: str) -> str:
+    """为 v1 chart 注入大运运神十神(luck_pillars / current_luck / current_year)。
+
+    背景:大运十神不在 token 绑定契约里——客户端 chart 不带该键、镜像不动
+    (动它 = iOS 锁步发版 + 旧 App 重排盘后新 token 与旧 chart 恒不匹配的
+    403 死锁)。渲染前由后端从 chart 自身数据确定性推导注入,所有已装 App
+    立即受益,且客户端永远无法伪造十神标签(安全边界仍是 token 验签,
+    本函数不是闸门)。
+
+    幂等:build_v1_chart 直出的 chart(已带值)再过本函数是字节级 no-op;
+    已有**不等值** ten_god 显式抛 ValueError(该值按契约只可能来自服务端
+    build_v1_chart,不等 = 表与 schema 漂移,代码 bug 不静默)。
+
+    脏数据语义(本函数运行在 token 验签**之前**——渲染先于验签是既有次序,
+    未验签 chart 可能含任意内容):
+    - chart 非合法 JSON → json.JSONDecodeError 原样上抛;顶层非对象 →
+      原样返回(两者均由调用方 defer-to-gate:zh 由验签 403,en 由
+      _translate_chart_json 结构化 500)
+    - day_master 缺失 / stem 非十干 → 整体原样返回,不猜(篡改盘由验签
+      403 统一拒绝;时辰未知盘日主恒在,此分支纯防御)
+    - luck 条目 stem 非十干 → 该条目跳过不填(同上,交验签拒绝)
+
+    Returns:
+        注入后的 chart JSON 字符串(ensure_ascii=False, indent=2,与
+        build_v1_chart 调用方的序列化形态一致;无改动时原字符串直接返回)
+    """
+    data = json.loads(chart_json)
+    if not isinstance(data, dict):
+        # 顶层非对象(如深嵌套数组——test_deeply_nested_chart 同款构造):
+        # 不是 v1 chart 语义,原样放行交 token 验签拒绝(defer-to-gate)
+        return chart_json
+    day_master = data.get("day_master")
+    if not isinstance(day_master, dict):
+        return chart_json
+    day_gan = day_master.get("stem")
+    if not isinstance(day_gan, str) or day_gan not in GAN_ELEMENT:
+        return chart_json
+
+    def _fill(entry: object) -> bool:
+        """单条注入;返回是否有改动(脏 stem 跳过,见 docstring)。"""
+        if not isinstance(entry, dict):
+            return False
+        stem = entry.get("stem")
+        if not isinstance(stem, str) or stem not in GAN_ELEMENT:
+            return False
+        expected = ten_god(day_gan, stem)  # stem 已验 ∈ 十干,查表必中
+        existing = entry.get("ten_god")
+        if existing == expected:
+            return False
+        if existing is not None:
+            raise ValueError(
+                f"v1 chart ten_god 漂移:day_master={day_gan!r} "
+                f"stem={stem!r} 已有 {existing!r} ≠ 表值 {expected!r}"
+                "(build_v1_chart 与 SHISHEN_GAN 表不一致,代码 bug)")
+        entry["ten_god"] = expected
+        return True
+
+    changed = False
+    luck_pillars = data.get("luck_pillars")
+    if isinstance(luck_pillars, list):
+        for lp in luck_pillars:
+            changed = _fill(lp) or changed
+    for key in ("current_luck", "current_year"):
+        if isinstance(data.get(key), dict):
+            changed = _fill(data[key]) or changed
+    if not changed:
+        return chart_json
+    return json.dumps(data, ensure_ascii=False, indent=2)

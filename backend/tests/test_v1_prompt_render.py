@@ -32,7 +32,8 @@ from app.ai.prompts import (
     REQUIRED_FIELDS,
     render_prompt,
 )
-from app.engine.chart_builder import build_v1_chart
+from app.engine.chart_builder import build_v1_chart, enrich_v1_chart_ten_gods
+from app.engine.term_translations import translate_context
 from app.errors import InvalidInputError
 
 
@@ -461,31 +462,39 @@ def test_chart_builder_five_elements_translated_to_chinese():
 
 
 def test_chart_builder_luck_pillars_split_gan_zhi():
-    """luck_pillars 把 gan_zhi '戊寅' 拆为 stem '戊' + branch '寅'。"""
+    """luck_pillars 把 gan_zhi '戊寅' 拆为 stem '戊' + branch '寅' + 运神十神。
+
+    运神 = 大运天干对日主(甲)的十神,确定性查表(pillars.SHISHEN_GAN,
+    2026-11-07 借鉴项①;期望值手算自表:甲见戊=偏财,甲见丙=食神)。
+    """
     chart = build_v1_chart(_make_snapshot())
     lp0 = chart["luck_pillars"][0]
     assert lp0["start_age"] == 7
     assert lp0["stem"] == "戊"
     assert lp0["branch"] == "寅"
+    assert lp0["ten_god"] == "偏财"
+    lp1 = chart["luck_pillars"][1]
+    assert lp1["stem"] == "丙"
+    assert lp1["ten_god"] == "食神"
 
 
 def test_chart_builder_current_luck_split_and_lookup_start_age():
-    """current_luck 拆 gan_zhi + 反查 luck_pillars 拿 start_age。"""
+    """current_luck 拆 gan_zhi + 反查 luck_pillars 拿 start_age + 运神十神。"""
     chart = build_v1_chart(_make_snapshot())
     cl = chart["current_luck"]
     assert cl["stem"] == "丙"
     assert cl["branch"] == "子"
     assert cl["start_age"] == 27  # 反查 luck_pillars[1].start_age
-    assert cl["ten_god"] is None  # 留空让 LLM 自推
+    assert cl["ten_god"] == "食神"  # 甲日主见丙(手算自表,不再让 LLM 自推)
 
 
 def test_chart_builder_current_year_split_string():
-    """current_year 把 '丙午' 字符串拆为 stem '丙' + branch '午'。"""
+    """current_year 把 '丙午' 字符串拆为 stem '丙' + branch '午' + 十神。"""
     chart = build_v1_chart(_make_snapshot())
     cy = chart["current_year"]
     assert cy["stem"] == "丙"
     assert cy["branch"] == "午"
-    assert cy["ten_god"] is None
+    assert cy["ten_god"] == "食神"
 
 
 def test_chart_builder_special_pattern_clears_useful_god_candidates():
@@ -593,3 +602,111 @@ def test_render_prompt_canonicalizes_v1_chain_fields():
         language="zh")
     assert hashlib.sha256(prompt.encode()).hexdigest() == hashlib.sha256(
         pre_canonical.encode()).hexdigest(), "双重规范化必须幂等(字节一致)"
+
+
+# ===== 运神注入(2026-11-07 借鉴项①,方案 B 后端注入)=====
+
+def test_enrich_fills_ten_gods_golden_values():
+    """注入金值:甲日主 → 戊=偏财 / 丙=食神(手算自 SHISHEN_GAN 表,
+    构造性 ground truth——表本身即 lunar_python 对盘数据源)。"""
+    enriched = json.loads(enrich_v1_chart_ten_gods(CHART_JSON))
+    assert enriched["luck_pillars"][0]["ten_god"] == "偏财"
+    assert enriched["current_luck"]["ten_god"] == "食神"
+    assert enriched["current_year"]["ten_god"] == "食神"
+
+
+def test_enrich_idempotent_on_build_v1_chart_output():
+    """幂等:build_v1_chart 直出(已带值)再注入是字节级 no-op——
+    evalkit/spike 直调渲染与线上注入路径因此天然字节一致。"""
+    chart_json = json.dumps(build_v1_chart(_make_snapshot()),
+                            ensure_ascii=False, indent=2)
+    assert enrich_v1_chart_ten_gods(chart_json) == chart_json
+
+
+def test_enrich_byte_variants_collapse_to_same_form():
+    """渲染层归一:解析等价的字节变体注入后字节相同——变体刷行攻击面
+    结构性消失的单元锚(集成面见 test_context_binding 变体刷行测试)。"""
+    compact = json.dumps(_CHART_DICT, ensure_ascii=False)
+    padded = json.dumps(_CHART_DICT, ensure_ascii=False, indent=4)
+    assert compact != padded
+    assert enrich_v1_chart_ten_gods(compact) == enrich_v1_chart_ten_gods(padded)
+
+
+def test_enrich_noop_without_valid_day_master():
+    """day_master 缺失 / stem 非十干 → 原样返回不猜(脏数据交 token 验签
+    统一拒绝,注入不是安全边界)。"""
+    no_dm = json.dumps({"luck_pillars": [{"stem": "戊"}]}, ensure_ascii=False)
+    assert enrich_v1_chart_ten_gods(no_dm) == no_dm
+    dirty = json.dumps(
+        {"day_master": {"stem": "Ω"},
+         "luck_pillars": [{"stem": "戊"}]}, ensure_ascii=False)
+    assert enrich_v1_chart_ten_gods(dirty) == dirty
+
+
+def test_enrich_skips_dirty_stem_entries():
+    """未验签 chart 的脏 stem 条目跳过不填,不影响其余条目注入。"""
+    chart = json.dumps({
+        "day_master": {"stem": "甲"},
+        "luck_pillars": [{"stem": "戊"}, {"stem": "Ψ"}],
+    }, ensure_ascii=False)
+    out = json.loads(enrich_v1_chart_ten_gods(chart))
+    assert out["luck_pillars"][0]["ten_god"] == "偏财"
+    assert "ten_god" not in out["luck_pillars"][1]
+
+
+def test_enrich_raises_on_drift_value():
+    """已有不等值 ten_god(按契约只可能来自服务端 build_v1_chart)→
+    显式抛不静默:表与 schema 漂移 = 代码 bug。"""
+    chart = json.dumps({
+        "day_master": {"stem": "甲"},
+        "current_year": {"stem": "丙", "ten_god": "正官"},
+    }, ensure_ascii=False)
+    with pytest.raises(ValueError, match="漂移"):
+        enrich_v1_chart_ten_gods(chart)
+
+
+def test_enrich_bad_json_raises_decode_error():
+    """坏 JSON 原样上抛 json.JSONDecodeError(调用方 translate_context
+    defer-to-gate:zh 由验签 403 / en 由 _translate_chart_json 结构化 500)。"""
+    with pytest.raises(json.JSONDecodeError):
+        enrich_v1_chart_ten_gods("{not json")
+
+
+def test_translate_context_injects_before_translation():
+    """注入必须发生在值翻译之前:zh-hant 请求拿到繁体十神,无简体泄漏
+    (若注入挪到 render_prompt/翻译后,这里会是简体「偏财」)。"""
+    translated = translate_context(
+        {"chart": CHART_JSON}, "zh-hant", "m0_structure")
+    chart = json.loads(translated["chart"])
+    assert chart["luck_pillars"][0]["ten_god"] == "偏財"
+    assert chart["current_year"]["ten_god"] == "食神"
+
+
+def test_translate_context_zh_path_injects_too():
+    """zh 直通分支同样注入(放 _translate_deep_context 会漏掉 zh 请求);
+    非 v1 deep module 不注入。"""
+    translated = translate_context({"chart": CHART_JSON}, "zh", "m0_structure")
+    assert json.loads(translated["chart"])["current_luck"]["ten_god"] == "食神"
+    daily = translate_context({"chart": CHART_JSON}, "zh", "daily_fortune")
+    assert daily["chart"] == CHART_JSON
+
+
+def test_prepare_path_prompt_contains_ten_god():
+    """路由同款管道(translate_context → render_prompt,与
+    _prepare_prompt_and_key / 链走查同一代码路径)渲染出的 M0 prompt
+    含确定性运神值——「不再让 LLM 自推十神」的端到端锚点。"""
+    prompt = render_prompt(
+        "m0_structure",
+        translate_context({"chart": CHART_JSON}, "zh", "m0_structure"),
+        language="zh",
+    )
+    assert '"ten_god": "偏财"' in prompt
+    assert '"ten_god": "食神"' in prompt
+
+
+def test_enrich_noop_on_non_dict_top_level():
+    """顶层非对象(深嵌套数组构造)原样返回——defer-to-gate,
+    zh 验签 403 / en _translate_chart_json 结构化 500(契约见
+    test_context_binding.test_deeply_nested_chart_no_unhandled_500)。"""
+    deep = "[" * 1200 + "]" * 1200
+    assert enrich_v1_chart_ten_gods(deep) == deep
