@@ -255,16 +255,16 @@ struct ChapterContent: Equatable {
 
         var nodes: [ChapterNode] = []
         if !mainChildren.isEmpty {
-            nodes.append(.section(label("main_axis"), mainChildren))
+            nodes.append(.section(sectionTitle("main_axis"), mainChildren))
         }
         if !loopChildren.isEmpty {
-            nodes.append(.section(label("core_loop"), loopChildren))
+            nodes.append(.section(sectionTitle("core_loop"), loopChildren))
         }
         if !typeChildren.isEmpty {
-            nodes.append(.section(label("structure_type"), typeChildren))
+            nodes.append(.section(sectionTitle("structure_type"), typeChildren))
         }
         if !capabilityChildren.isEmpty {
-            nodes.append(.section(label("capability_source"), capabilityChildren))
+            nodes.append(.section(sectionTitle("capability_source"), capabilityChildren))
         }
         nodes += topExtras
         if let fingerprintLead {
@@ -416,16 +416,16 @@ struct ChapterContent: Equatable {
 
         var nodes: [ChapterNode] = []
         if !mainChildren.isEmpty {
-            nodes.append(.section(label("main_axis"), mainChildren))
+            nodes.append(.section(sectionTitle("main_axis"), mainChildren))
         }
         if !loopChildren.isEmpty {
-            nodes.append(.section(label("core_loop"), loopChildren))
+            nodes.append(.section(sectionTitle("core_loop"), loopChildren))
         }
         if !typeChildren.isEmpty {
-            nodes.append(.section(label("structure_type"), typeChildren))
+            nodes.append(.section(sectionTitle("structure_type"), typeChildren))
         }
         if !capabilityChildren.isEmpty {
-            nodes.append(.section(label("capability_source"), capabilityChildren))
+            nodes.append(.section(sectionTitle("capability_source"), capabilityChildren))
         }
         nodes += topExtras
         // 据 fold 固定序:分层 → 起止 → 驱动 → 各节 evidence(plan S3-3)
@@ -520,7 +520,10 @@ struct ChapterContent: Equatable {
             } else {
                 children = pairs.compactMap { node(key: $0.0, value: $0.1) }
             }
-            return .section(Self.label(key), children)
+            // 门头统一走 sectionTitle:M0 四键回落路径(退化/nil module 走到
+            // 此通用构造器)与专属路径同款问句门头;其余章 key 无问句,回落
+            // label 短名词,行为不变。
+            return .section(sectionTitle(key), children)
         }
     }
 
@@ -757,6 +760,26 @@ struct ChapterContent: Equatable {
         "next_90_days": "未来九十天",
         "falsification_signals": "推翻信号",
     ]
+
+    /// M0 小节门头问句(2026-11-07 拍板,docs/命书壹章标题推敲.md):壹章四个
+    /// 小节名改用素材问句原样——读者带着问题进章,每节首行结论句作答。**只喂
+    /// .section 门头**;据注/行内标签仍是 `labels` 的短名词(「据 · 主线」不能
+    /// 变问句)。en/zh-Hant 走 xcstrings dot-key `deepanalysis.chapter.q.<key>`,
+    /// zh 缺省回落本表值(同 label() 范式)。其余章 key 不在本表 → 回落 labels。
+    static let sectionQuestions: [String: String] = [
+        "main_axis": "我的十神主线是什么?",
+        "core_loop": "哪两个十神形成核心循环结构?",
+        "structure_type": "这个结构在命理中属于什么类型?",
+        "capability_source": "这类结构的人,核心能力通常来自哪里?",
+    ]
+
+    /// 小节门头取题:有问句用问句,无问句回落短名词标签(其余章维持名词门头)。
+    private static func sectionTitle(_ key: String) -> String {
+        guard let question = sectionQuestions[key] else { return label(key) }
+        return NSLocalizedString(
+            "deepanalysis.chapter.q.\(key)", value: question,
+            comment: "M0 小节问句门头")
+    }
 
     /// 条目卡取题优先级(对象数组首字段作题)。
     static let titleKeys: [String] = [

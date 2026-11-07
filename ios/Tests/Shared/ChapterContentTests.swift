@@ -38,7 +38,7 @@ final class ChapterContentTests: XCTestCase {
               case .fields(let fields)? = children.first else {
             return XCTFail("main_axis 应为含键值组的小节,实际:\(content.nodes[0])")
         }
-        XCTAssertEqual(title, "主线")
+        XCTAssertEqual(title, "我的十神主线是什么?")
         XCTAssertEqual(fields.map(\.label), ["主导", "次要", "潜伏", "据"])
         XCTAssertEqual(fields[0].value, "正财")
         XCTAssertTrue(fields[3].isNote)
@@ -77,11 +77,11 @@ final class ChapterContentTests: XCTestCase {
         guard let content = ChapterContent.parse(json, for: .m0) else {
             return XCTFail("M0 模块应特化解析成功")
         }
-        // 固定阅读序:主线 / 核心循环 / 结构类型 / 能力来源 / 概括 / 据折叠
+        // 固定阅读序:四问句门头(主线/核心循环/结构类型/能力来源)/ 概括 / 据折叠
         XCTAssertEqual(content.nodes.count, 6)
 
-        guard case .section("主线", let mainChildren) = content.nodes[0] else {
-            return XCTFail("首节点应为「主线」小节,实际:\(content.nodes[0])")
+        guard case .section("我的十神主线是什么?", let mainChildren) = content.nodes[0] else {
+            return XCTFail("首节点应为「我的十神主线是什么?」小节,实际:\(content.nodes[0])")
         }
         XCTAssertEqual(mainChildren.compactMap { node -> String? in
             if case .inlineLabel(let label, _) = node { return label }
@@ -92,8 +92,8 @@ final class ChapterContentTests: XCTestCase {
         }
         XCTAssertTrue(dominantText.contains("并列最重"))
 
-        guard case .section("核心循环", let loopChildren) = content.nodes[1] else {
-            return XCTFail("次节点应为「核心循环」小节")
+        guard case .section("哪两个十神形成核心循环结构?", let loopChildren) = content.nodes[1] else {
+            return XCTFail("次节点应为「哪两个十神形成核心循环结构?」小节")
         }
         guard case .loopFromTo(let from, let to)? = loopChildren.first else {
             return XCTFail("core_loop 首子节点应为 loopFromTo,实际:\(loopChildren)")
@@ -106,8 +106,8 @@ final class ChapterContentTests: XCTestCase {
         }
         XCTAssertEqual(loopLabels, ["流向", "驱动", "损耗"])
 
-        guard case .section("结构类型", let typeChildren) = content.nodes[2] else {
-            return XCTFail("第三节点应为「结构类型」小节")
+        guard case .section("这个结构在命理中属于什么类型?", let typeChildren) = content.nodes[2] else {
+            return XCTFail("第三节点应为「这个结构在命理中属于什么类型?」小节")
         }
         XCTAssertTrue(typeChildren.contains {
             if case .inlineLabel("名称", _) = $0 { return true }
@@ -118,7 +118,7 @@ final class ChapterContentTests: XCTestCase {
             return false
         }, "one_line 应作引言段")
 
-        guard case .section("能力来源", let capChildren) = content.nodes[3],
+        guard case .section("这类结构的人,核心能力通常来自哪里?", let capChildren) = content.nodes[3],
               case .lead(let capText)? = capChildren.first else {
             return XCTFail("能力来源 text 应作引言段")
         }
@@ -144,7 +144,7 @@ final class ChapterContentTests: XCTestCase {
         guard let content = ChapterContent.parse(json, for: .m0) else {
             return XCTFail("缺 core_loop 仍应通用解析成功")
         }
-        guard case .section("主线", let children) = content.nodes[0],
+        guard case .section("我的十神主线是什么?", let children) = content.nodes[0],
               case .fields(let fields)? = children.first else {
             return XCTFail("回落路径应为通用键值组,实际:\(content.nodes)")
         }
@@ -164,7 +164,7 @@ final class ChapterContentTests: XCTestCase {
             return XCTFail("退化 main_axis 仍应特化解析成功")
         }
         XCTAssertFalse(content.nodes.contains {
-            if case .section("主线", _) = $0 { return true }
+            if case .section("我的十神主线是什么?", _) = $0 { return true }
             return false
         }, "三层全缺不应有空主线节")
         guard case .evidenceFold(let notes)? = content.nodes.last else {
@@ -177,7 +177,7 @@ final class ChapterContentTests: XCTestCase {
     func test_m0_jsonWithNilModuleStaysGeneric() {
         // module = nil(中毒判读等):行为与既有通用路径逐字一致
         let json = "{ \"main_axis\": { \"dominant\": \"正财\" } }"
-        guard case .section("主线", let children)? = ChapterContent.parse(json)?.nodes.first,
+        guard case .section("我的十神主线是什么?", let children)? = ChapterContent.parse(json)?.nodes.first,
               case .fields(let fields)? = children.first else {
             return XCTFail("nil module 应走通用渲染")
         }
@@ -214,8 +214,8 @@ final class ChapterContentTests: XCTestCase {
         }
         // main_axis 内多余键:主线节内走通用节点渲染(string → .lead 引言段,
         // node() 不打裸键标签),不丢
-        guard case .section("主线", let mainChildren)? = content.nodes.first else {
-            return XCTFail("首节点应为「主线」小节,实际:\(content.nodes)")
+        guard case .section("我的十神主线是什么?", let mainChildren)? = content.nodes.first else {
+            return XCTFail("首节点应为「我的十神主线是什么?」小节,实际:\(content.nodes)")
         }
         XCTAssertTrue(mainChildren.contains {
             if case .lead("权重口径见据") = $0 { return true }
@@ -257,8 +257,8 @@ final class ChapterContentTests: XCTestCase {
         guard let content = ChapterContent.parse(json, for: .m0) else {
             return XCTFail("非 string 层的 M0 应特化解析成功")
         }
-        guard case .section("主线", let children)? = content.nodes.first else {
-            return XCTFail("首节点应为「主线」小节,实际:\(content.nodes)")
+        guard case .section("我的十神主线是什么?", let children)? = content.nodes.first else {
+            return XCTFail("首节点应为「我的十神主线是什么?」小节,实际:\(content.nodes)")
         }
         XCTAssertTrue(children.contains {
             if case .lead("6") = $0 { return true }
@@ -489,11 +489,11 @@ final class ChapterContentTests: XCTestCase {
         guard let content = ChapterContent.parse(Self.m0V9JSON, for: .m0) else {
             return XCTFail("v9 形态应特化解析成功")
         }
-        // 阅读序:主线 / 核心循环 / 结构类型 / 能力来源 / 据(D6:无运转概括)
+        // 阅读序:四问句门头(主线/核心循环/结构类型/能力来源)/ 据(D6:无运转概括)
         XCTAssertEqual(content.nodes.count, 5)
 
-        guard case .section("主线", let mainChildren) = content.nodes[0] else {
-            return XCTFail("首节点应为「主线」,实际:\(content.nodes[0])")
+        guard case .section("我的十神主线是什么?", let mainChildren) = content.nodes[0] else {
+            return XCTFail("首节点应为「我的十神主线是什么?」,实际:\(content.nodes[0])")
         }
         guard case .headline(let mainHeadline)? = mainChildren.first,
               case .lead(let mainBody)? = mainChildren.dropFirst().first else {
@@ -502,8 +502,8 @@ final class ChapterContentTests: XCTestCase {
         XCTAssertTrue(mainHeadline.contains("压力推着你走"))
         XCTAssertTrue(mainBody.contains("七杀"))
 
-        guard case .section("核心循环", let loopChildren) = content.nodes[1] else {
-            return XCTFail("次节点应为「核心循环」")
+        guard case .section("哪两个十神形成核心循环结构?", let loopChildren) = content.nodes[1] else {
+            return XCTFail("次节点应为「哪两个十神形成核心循环结构?」")
         }
         guard case .headline(let loopHeadline)? = loopChildren.first else {
             return XCTFail("循环首子节点应为结论句,实际:\(loopChildren)")
@@ -521,8 +521,8 @@ final class ChapterContentTests: XCTestCase {
             return false
         }, "v9 循环节不得出现行内标签段")
 
-        guard case .section("结构类型", let typeChildren) = content.nodes[2] else {
-            return XCTFail("第三节点应为「结构类型」")
+        guard case .section("这个结构在命理中属于什么类型?", let typeChildren) = content.nodes[2] else {
+            return XCTFail("第三节点应为「这个结构在命理中属于什么类型?」")
         }
         guard case .headline(let name)? = typeChildren.first else {
             return XCTFail("name 应作结论句(无「名称 ·」标签),实际:\(typeChildren)")
@@ -533,8 +533,8 @@ final class ChapterContentTests: XCTestCase {
         }
         XCTAssertTrue(oneLine.contains("攒出来"))
 
-        guard case .section("能力来源", let capChildren) = content.nodes[3] else {
-            return XCTFail("第四节点应为「能力来源」")
+        guard case .section("这类结构的人,核心能力通常来自哪里?", let capChildren) = content.nodes[3] else {
+            return XCTFail("第四节点应为「这类结构的人,核心能力通常来自哪里?」")
         }
         guard case .headline(let capHeadline)? = capChildren.first,
               case .lead(let capText)? = capChildren.dropFirst().first else {
@@ -583,16 +583,16 @@ final class ChapterContentTests: XCTestCase {
             return XCTFail("缺 headline 的 v9 形态(main_axis 有 headline)仍应特化")
         }
         guard content.nodes.count > 1,
-              case .section("核心循环", let loopChildren) = content.nodes[1] else {
-            return XCTFail("核心循环节应在,实际:\(content.nodes)")
+              case .section("哪两个十神形成核心循环结构?", let loopChildren) = content.nodes[1] else {
+            return XCTFail("核心循环节应在(问句门头),实际:\(content.nodes)")
         }
         XCTAssertTrue(loopChildren.contains {
             if case .lead(let s) = $0 { return s.contains("压力被吸收") }
             return false
         }, "flow 不得因缺 headline 丢失")
         guard content.nodes.count > 2,
-              case .section("能力来源", let capChildren) = content.nodes[2] else {
-            return XCTFail("能力来源节应在")
+              case .section("这类结构的人,核心能力通常来自哪里?", let capChildren) = content.nodes[2] else {
+            return XCTFail("能力来源节应在(问句门头)")
         }
         XCTAssertTrue(capChildren.contains {
             if case .lead(let s) = $0 { return s.contains("硬需求") }
@@ -633,7 +633,7 @@ final class ChapterContentTests: XCTestCase {
         }
         """
         guard let content = ChapterContent.parse(json, for: .m0),
-              case .section("主线", let mainChildren)? = content.nodes.first else {
+              case .section("我的十神主线是什么?", let mainChildren)? = content.nodes.first else {
             return XCTFail("v9 应解析成功")
         }
         XCTAssertTrue(mainChildren.contains {

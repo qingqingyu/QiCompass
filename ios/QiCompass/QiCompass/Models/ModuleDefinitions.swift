@@ -48,9 +48,11 @@ enum ModuleID: String, CaseIterable, Codable, Sendable {
     /// 一句话副标题(S4 章名人话化,2026-09-30 BP 内容评审 R8/R12/R13:
     /// 系统分析术语 → 按各章实际产出说人话;en 走 xcstrings 同 key)。
     /// 目录行/阅读页章节头/付费墙卖点共同消费,改这里即三处同步。
+    /// 2026-11-07 壹章副题改「你的盘是什么类型」(用户原话定稿,无问号沿
+    /// 副题标点风格;与小节③问句构成进门-作答回声,见 docs/命书壹章标题推敲.md)。
     var subtitle: String {
         switch self {
-        case .m0: return String(localized: "你这张盘的主线:靠什么驱动,在哪里打转")
+        case .m0: return String(localized: "你的盘是什么类型")
         case .m1: return String(localized: "天生就会的 · 后天练出的 · 为自保养成、长期在消耗你的")
         case .m2: return String(localized: "同一张盘,在好环境和坏环境里分别会活成什么样")
         case .m3: return String(localized: "你怎样运转最好、什么环境会让你失灵、什么样的生活节奏适合你")
