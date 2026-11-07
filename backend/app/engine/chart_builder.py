@@ -88,7 +88,7 @@ def build_v1_chart(snapshot: dict[str, Any]) -> dict[str, Any]:
         "stem": day_gan,
         "element": day_gan_element_zh,
         # strength_score: BaziEngine.calculate() 没透传 xiji.score
-        # (score 是 _compute_fuyi_score 算出的日主旺衰分数,见 xiji.py:156)
+        # (score 是 xiji._compute_fuyi_score 算出的日主旺衰分数,v2 起为 float)
         # 留 None 让 LLM 走 strength_label 判断,而非误导性的数字
         "strength_score": None,
         "strength_label": strength_label,

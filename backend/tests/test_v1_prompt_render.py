@@ -917,14 +917,15 @@ def test_xiji_detail_strong_with_tiaoshou_dual_source():
 
 
 def test_xiji_detail_weak_direction_reasons():
-    """戊土日主子月身弱(仅日支余气根):比劫帮身/印星生扶 + 忌克泄耗三件套;
+    """戊土日主子月身弱(v2 口径:月令正财失令,全局仅时支申中余气微根,
+    年月日支皆无根、天干无比劫印):比劫帮身/印星生扶 + 忌克泄耗三件套;
     调候火已在喜(印),不产生移位。"""
     from app.engine.pillars import compute_element_balance
     from app.engine.xiji import compute_xiji, xiji_detail
     from app.models.bazi import Pillar, Pillars
 
-    chart = _chart_with_pillars(year="甲午", month="甲子",
-                                day="戊辰", hour="庚申")
+    chart = _chart_with_pillars(year="甲子", month="甲子",
+                                day="戊子", hour="庚申")
     pl = Pillars(**{k: Pillar(**v) for k, v in chart["pillars"].items()})
     result = compute_xiji(pl, compute_element_balance(pl))
     assert result.day_master_strength == "weak"
