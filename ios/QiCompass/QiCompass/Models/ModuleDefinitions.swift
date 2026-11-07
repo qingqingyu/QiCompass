@@ -14,7 +14,7 @@ import Foundation
 /// 本 enum 仅服务 v1 模块化路径(DeepAnalysisViewModel 的 moduleStates 字典)。
 enum ModuleID: String, CaseIterable, Codable, Sendable {
     case m0 = "m0_structure"     // 免费:识别主线结构
-    case m1 = "m1_talent"        // 免费:天赋能力
+    case m1 = "m1_talent"        // 免费:天赋本事
     case m2 = "m2_high_low"      // 付费:高配/低配
     case m3 = "m3_system"        // 付费:人生系统模式
     case m4 = "m4_health"        // 付费:健康续航(需 age + current_concern)
@@ -27,7 +27,7 @@ enum ModuleID: String, CaseIterable, Codable, Sendable {
     var displayName: String {
         switch self {
         case .m0: return String(localized: "M0 · 主线结构")
-        case .m1: return String(localized: "M1 · 天赋能力")
+        case .m1: return String(localized: "M1 · 天赋本事")
         case .m2: return String(localized: "M2 · 高配 vs 低配")
         case .m3: return String(localized: "M3 · 系统模式")
         case .m4: return String(localized: "M4 · 健康续航")

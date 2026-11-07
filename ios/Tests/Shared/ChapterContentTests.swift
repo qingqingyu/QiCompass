@@ -321,6 +321,107 @@ final class ChapterContentTests: XCTestCase {
         XCTAssertEqual(items[0].fields.last?.value, "回血")
     }
 
+    // MARK: - M1 天赋本事(2026-11-07 贰章问句门头装配)
+    func test_m1_specializationWrapsFourQuestionDoors() {
+        let json = """
+        {
+          "innate": [
+            { "name": "深度理解与转述", "behavior": "把复杂的东西吃透再讲明白", "evidence": "印星旺", "energy": "gain" }
+          ],
+          "trained": [
+            { "name": "快速执行", "behavior": "先做出能跑的版本", "trained_by": "创业期环境", "evidence": "财星" }
+          ],
+          "defensive": [
+            { "name": "凡事亲力亲为", "looks_like": "靠谱", "actual_cost": "耗尽自己", "evidence": "比劫" }
+          ],
+          "one_leverage": "深度理解与转述——它是其他能力的放大器。"
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m1) else {
+            return XCTFail("M1 应特化解析")
+        }
+        let titles = content.nodes.compactMap { node -> String? in
+            guard case .section(let title, _) = node else { return nil }
+            return title
+        }
+        XCTAssertEqual(titles.count, content.nodes.count, "四节点应全为节,实际:\(content.nodes)")
+        XCTAssertEqual(titles, [
+            "我最自然、不费力的能力是什么?",
+            "哪种能力是后天环境训练出来的?",
+            "哪些能力外人看着像优点,其实在消耗你?",
+            "如果只能保留一项能力当作杠杆,是哪一项?",
+        ])
+        guard case .section(_, let innateChildren)? = content.nodes.first,
+              case .items(let items)? = innateChildren.first else {
+            return XCTFail("innate 节内应为条目卡")
+        }
+        XCTAssertEqual(items.first?.title, "深度理解与转述")
+        guard case .section(_, let leverChildren)? = content.nodes.last,
+              case .lead(let lever)? = leverChildren.first else {
+            return XCTFail("one_leverage 节内应为引言段")
+        }
+        XCTAssertTrue(lever.hasPrefix("深度理解"))
+    }
+
+    func test_m1_specializationFallsBackWithoutM1Keys() {
+        // 无 M1 四键 → 特化返 nil 落回通用;M0 形态的 JSON 在通用路径照常
+        // 出节(m0 键在通用路径也走问句门头,与壹章同款)
+        let json = """
+        { "main_axis": { "headline": "h", "body": "b", "dominant": "比肩", "secondary": "劫财", "latent": "食神", "evidence": "e" } }
+        """
+        guard let content = ChapterContent.parse(json, for: .m1) else {
+            return XCTFail("应解析成功")
+        }
+        guard case .section("我的十神主线是什么?", _)? = content.nodes.first else {
+            return XCTFail("通用回落应为问句门头,实际:\(content.nodes)")
+        }
+    }
+
+    func test_m1_emptyArraysCountAsConsumedNotLeftover() {
+        // 拍板纪律(2026-11-07):空数组算「消费过」不进 leftover——空态不是
+        // 错,不该再走通用节点把键名渲染一遍
+        let json = """
+        {
+          "innate": [ { "name": "深度理解与转述", "behavior": "b", "evidence": "e", "energy": "gain" } ],
+          "trained": [],
+          "defensive": []
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m1) else {
+            return XCTFail("M1 应特化解析")
+        }
+        // 只有 innate 成节;trained/defensive 空数组被吞(不渲染键名也不算错)
+        XCTAssertEqual(content.nodes.count, 1, "空数组不应产生节点,实际:\(content.nodes)")
+        guard case .section("我最自然、不费力的能力是什么?", _)? = content.nodes.first else {
+            return XCTFail("唯一节点应为 innate 问句门头,实际:\(content.nodes)")
+        }
+    }
+
+    func test_m1_degenerateObjectKeyFallsToLeftoverSingleDoor() {
+        // 违约形态(2026-11-07):三分类键呈对象 → 特化循环跳过、走 leftover
+        // 通用渲染——单层问句门头,不得再包一层同题门头(双重门头回归锁)
+        let json = """
+        {
+          "innate": { "name": "深度理解与转述", "behavior": "b" },
+          "trained": [ { "name": "快速执行", "behavior": "b", "trained_by": "e", "evidence": "e" } ]
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m1) else {
+            return XCTFail("trained 成节,应特化解析成功")
+        }
+        XCTAssertEqual(content.nodes.count, 2, "实际:\(content.nodes)")
+        guard case .section("哪种能力是后天环境训练出来的?", _)? = content.nodes.first else {
+            return XCTFail("trained 数组应走特化门头,实际:\(content.nodes)")
+        }
+        guard case .section("我最自然、不费力的能力是什么?", let children)? = content.nodes.last else {
+            return XCTFail("innate 对象应走 leftover 单层问句门头,实际:\(content.nodes)")
+        }
+        XCTAssertFalse(children.contains { node in
+            if case .section = node { return true }
+            return false
+        }, "对象形态子层不得再嵌同题 section(双重门头),实际:\(children)")
+    }
+
     func test_m4_dayNumberBecomesTitle() {
         let json = """
         {

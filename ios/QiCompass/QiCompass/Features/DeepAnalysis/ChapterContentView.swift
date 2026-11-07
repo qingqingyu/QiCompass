@@ -121,20 +121,21 @@ private struct NodeView: View {
     /// §AI Voice 语言层级。
     ///
     /// 查找在 body 侧经 `sectionGuideTitle` 完成:key 必须用与节题渲染**完全
-    /// 相同的本地化查找**生成——节题经 `ChapterContent.label(_:)`(即
-    /// `deepanalysis.chapter.<key>` 的 xcstrings 查询)本地化,EN 下是
-    /// "Innate"/"Trained"/"Defensive",静态 zh 硬编码 key 会永不命中
-    /// (引导句在 EN 整体静默缺失)。两侧同源后,改译文/加语言都不会漂移。
+    /// 相同的本地化查找**生成——节题经 `ChapterContent.localizedSectionTitle`
+    /// (M1 四键 2026-11-07 起为问句,`deepanalysis.chapter.q.<key>`;无问句
+    /// 的键回落 `label(_:)` 短名词),静态 zh 硬编码 key 会永不命中(引导句在
+    /// EN 整体静默缺失)。两侧同源后,改译文/加语言都不会漂移。
     private static let sectionGuides: [String: String] = [
         "innate": String(localized: "用起来不累,反而回血的能力。"),
         "trained": String(localized: "环境逼出来的本事,好用但有代价。"),
         "defensive": String(localized: "看着像优点,其实在消耗你。"),
     ]
 
-    /// 引导句 key → 节题本地化值(委托 `ChapterContent.localizedLabel`,
-    /// 与节题渲染同一实现——两侧永不漂移)。
+    /// 引导句 key → 节题本地化值(委托 `ChapterContent.localizedSectionTitle`,
+    /// 与节题渲染同一实现——两侧永不漂移;2026-11-07 起 M1 门头为问句,
+    /// 引导句挂在问句之下,问句给钩子、引导句给口径)。
     private static func sectionGuideTitle(_ key: String) -> String {
-        ChapterContent.localizedLabel(key)
+        ChapterContent.localizedSectionTitle(key)
     }
 
     /// 节题(已本地化)→ 引导句。节题必须经 `sectionGuideTitle` 反查而非

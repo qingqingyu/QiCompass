@@ -81,7 +81,7 @@ enum PaywallModule {
     /// 2026-09-30 S4:深度付费章数随清单重排 8 → 6(捌 → 陆),与目录一致。
     var freeChaptersHint: String {
         switch self {
-        case .deepAnalysis: return String(localized: "主线结构与天赋能力两章已免费 · 余下陆章一次解锁")
+        case .deepAnalysis: return String(localized: "主线结构与天赋本事两章已免费 · 余下陆章一次解锁")
         case .compatibility: return String(localized: "基础相处与互补总览两章已免费 · 余下肆章一次解锁")
         }
     }

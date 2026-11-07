@@ -635,7 +635,7 @@ struct ChapterReadingView: View {
         .buttonStyle(.plain)
     }
 
-    /// 翻章条标题:「贰 天赋能力」(M0=壹 … M7=捌,与章号同口径 +1)。
+    /// 翻章条标题:「贰 天赋本事」(M0=壹 … M7=捌,与章号同口径 +1)。
     private func pagerTitle(_ module: ModuleID) -> String {
         let idx = ModuleID.allCases.firstIndex(of: module) ?? 0
         let name = module.displayName
