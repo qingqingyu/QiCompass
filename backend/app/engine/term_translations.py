@@ -39,7 +39,11 @@ import logging
 import re
 from typing import Final
 
-from .chart_builder import enrich_v1_chart_branch_relations, enrich_v1_chart_ten_gods
+from .chart_builder import (
+    enrich_v1_chart_branch_relations,
+    enrich_v1_chart_ten_gods,
+    enrich_v1_chart_xiji_detail,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -411,6 +415,49 @@ BRANCH_RELATION_TERMS_ZH_HANT: Final[dict[str, str]] = {
     "四柱地支客观关系;成化与否未判定": "四柱地支客觀關係;成化與否未判定",
 }
 
+# ---------- v1 chart 喜用口径分层(xiji_detail 注入值,2026-11-07 借鉴项③)----------
+# source 值 + method 串 + 闭集理由文案(短术语式,用户拍板)。同形 zh-hant
+# 条目显式注册,理由同 BRANCH_RELATION_TERMS 注释(不依赖「碰巧同形」)。
+
+XIJI_TERMS_EN: Final[dict[str, str]] = {
+    "扶抑": "Support-Restraint",
+    "调候": "Climate Adjustment",
+    "扶抑+调候": "Support-Restraint + Climate Adjustment",
+    "扶抑+调候(中和)": "Support-Restraint + Climate Adjustment (balanced)",
+    "比劫帮身": "Companion stars support the day master",
+    "印星生扶": "Resource stars nourish the day master",
+    "食伤泄身": "Output stars drain the day master",
+    "食伤泄秀": "Output stars release excess strength",
+    "财星耗身": "Wealth stars consume the day master",
+    "官杀克身": "Officer stars attack the day master",
+    "官杀制身": "Officer stars discipline the day master",
+    "身旺忌比劫助身": "Strong day master: avoid companion support",
+    "身旺忌印再生身": "Strong day master: avoid further nourishment",
+    "严寒月调候,暖局为先": "Severe-cold month: warmth comes first",
+    "燥热月调候,润局为先": "Scorching month: moisture comes first",
+    "调候与扶抑冲突时以调候为先": (
+        "When climate adjustment conflicts with support-restraint, "
+        "climate takes precedence"),
+}
+XIJI_TERMS_ZH_HANT: Final[dict[str, str]] = {
+    "扶抑": "扶抑",
+    "调候": "調候",
+    "扶抑+调候": "扶抑+調候",
+    "扶抑+调候(中和)": "扶抑+調候(中和)",
+    "比劫帮身": "比劫幫身",
+    "印星生扶": "印星生扶",
+    "食伤泄身": "食傷泄身",
+    "食伤泄秀": "食傷泄秀",
+    "财星耗身": "財星耗身",
+    "官杀克身": "官殺克身",
+    "官杀制身": "官殺制身",
+    "身旺忌比劫助身": "身旺忌比劫助身",
+    "身旺忌印再生身": "身旺忌印再生身",
+    "严寒月调候,暖局为先": "嚴寒月調候,暖局為先",
+    "燥热月调候,润局为先": "燥熱月調候,潤局為先",
+    "调候与扶抑冲突时以调候为先": "調候與扶抑衝突時以調候為先",
+}
+
 # ---------- 翻译注册表(语言 → {中文术语 → 目标语言术语}) ----------
 # 加新语言时只需在此 dict 加一个 key,无需改 translate_term() 函数。
 TERM_TRANSLATIONS: Final[dict[str, dict[str, str]]] = {
@@ -429,6 +476,7 @@ TERM_TRANSLATIONS: Final[dict[str, dict[str, str]]] = {
         **COMPAT_TERMS_EN,
         **SHENSHA_EN,
         **BRANCH_RELATION_TERMS_EN,
+        **XIJI_TERMS_EN,
     },
     "zh-hant": {
         **HEAVENLY_STEMS_ZH_HANT,
@@ -443,6 +491,7 @@ TERM_TRANSLATIONS: Final[dict[str, dict[str, str]]] = {
         **COMPAT_TERMS_ZH_HANT,
         **SHENSHA_ZH_HANT,
         **BRANCH_RELATION_TERMS_ZH_HANT,
+        **XIJI_TERMS_ZH_HANT,
     },
 }
 
@@ -649,9 +698,9 @@ def translate_context(context: dict, language: str, module: str) -> dict:
     Returns:
         翻译后的 context(新 dict,不修改原)
     """
-    # v1 chart 服务端注入(2026-11-07 借鉴项①②,方案 B):运神十神 + 四柱
-    # 地支关系都不进 token 绑定契约(客户端 chart 不带,镜像不动),渲染前
-    # 由后端确定性推导注入。两个不可移位的次序约束:
+    # v1 chart 服务端注入(2026-11-07 借鉴项①②③,方案 B):运神十神 +
+    # 四柱地支关系 + 喜用口径分层都不进 token 绑定契约(客户端 chart 不带,
+    # 镜像不动),渲染前由后端确定性推导注入。两个不可移位的次序约束:
     # 1. 必须在值翻译(zh-hant/en 分支的 _translate_chart_json)**之前**——
     #    注入的 zh 值随管道译成目标语言,放 render_prompt 里会泄漏简体
     # 2. 必须覆盖 zh 直通分支(放 _translate_deep_context 里会漏掉 zh 请求)
@@ -668,6 +717,7 @@ def translate_context(context: dict, language: str, module: str) -> dict:
         try:
             enriched = enrich_v1_chart_ten_gods(context["chart"])
             enriched = enrich_v1_chart_branch_relations(enriched)
+            enriched = enrich_v1_chart_xiji_detail(enriched)
         except (json.JSONDecodeError, RecursionError):
             pass
         else:

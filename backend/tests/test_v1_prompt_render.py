@@ -37,6 +37,7 @@ from app.engine.chart_builder import (
     build_v1_chart,
     enrich_v1_chart_branch_relations,
     enrich_v1_chart_ten_gods,
+    enrich_v1_chart_xiji_detail,
 )
 from app.engine.term_translations import translate_context
 from app.errors import InvalidInputError
@@ -428,12 +429,12 @@ def _make_snapshot(strength: str = "weak") -> dict:
 
 def test_chart_builder_returns_all_v1_schema_keys():
     """build_v1_chart 输出含设计文档 §1 全部 10 个顶层 keys + branch_relations
-    (2026-11-07 借鉴项②新增,共 11 键)。"""
+    + xiji_detail(2026-11-07 借鉴项②③新增,共 12 键)。"""
     chart = build_v1_chart(_make_snapshot())
     expected_keys = {
         "meta", "pillars", "day_master", "ten_gods", "ten_god_weights",
         "five_elements", "useful_god_candidates", "luck_pillars",
-        "current_luck", "current_year", "branch_relations",
+        "current_luck", "current_year", "branch_relations", "xiji_detail",
     }
     assert set(chart.keys()) == expected_keys
 
@@ -842,3 +843,196 @@ def test_translate_context_injects_branch_relations_translated():
     br = translated["branch_relations"]
     assert br["groups"][0]["type"] == "三會"
     assert br["note"] == "四柱地支客觀關係;成化與否未判定"
+
+
+# ===== 喜用口径分层注入(2026-11-07 借鉴项③,纯暴露不改规则)=====
+
+# 手工盘构造器:金值测试用(xiji_detail 消费 Pillars 模型)
+_GAN_EL = {"甲": "wood", "乙": "wood", "丙": "fire", "丁": "fire", "戊": "earth",
+           "己": "earth", "庚": "metal", "辛": "metal", "壬": "water", "癸": "water"}
+_ZHI_EL = {"子": "water", "丑": "earth", "寅": "wood", "卯": "wood", "辰": "earth",
+           "巳": "fire", "午": "fire", "未": "earth", "申": "metal", "酉": "metal",
+           "戌": "earth", "亥": "water"}
+_HIDE = {"子": ["癸"], "丑": ["己", "癸", "辛"], "寅": ["甲", "丙", "戊"],
+         "卯": ["乙"], "辰": ["戊", "乙", "癸"], "巳": ["丙", "庚", "戊"],
+         "午": ["丁", "己"], "未": ["己", "丁", "乙"], "申": ["庚", "壬", "戊"],
+         "酉": ["辛"], "戌": ["戊", "辛", "丁"], "亥": ["壬", "甲"]}
+
+
+def _chart_with_pillars(**pillars_gz) -> dict:
+    """构造带完整四柱的 chart dict(十神由 ten_god 表从日主确定性推导——
+    compute_xiji 链上的 compute_ten_god_weights 校验 shishen 合法性,
+    占位假值会 ValueError,引擎防御恰好由本构造器绕不过)。"""
+    from app.engine.pillars import ten_god
+
+    chart = dict(_CHART_DICT)
+    day_gz = pillars_gz["day"]
+    day_gan = day_gz[0]
+    pillars = {}
+    for key, gz in pillars_gz.items():
+        if gz is None:
+            pillars[key] = None
+            continue
+        pillars[key] = {
+            "gan_zhi": gz, "gan": gz[0], "zhi": gz[1],
+            "gan_element": _GAN_EL[gz[0]], "zhi_element": _ZHI_EL[gz[1]],
+            "hide_gan": _HIDE[gz[1]],
+            "shishen_gan": ("日主" if key == "day"
+                            else ten_god(day_gan, gz[0])),
+            "shishen_zhi": [ten_god(day_gan, h) for h in _HIDE[gz[1]]],
+            "nayin": "测", "dishi": "测", "xunkong": "测",
+        }
+    chart["pillars"] = pillars
+    return chart
+
+
+def test_xiji_detail_strong_with_tiaoshou_dual_source():
+    """甲木日主子月身强:火同时是扶抑(食伤)与调候(暖局)方向——标调候
+    (更具体的口径);note 声明冲突优先级。"""
+    from app.engine.pillars import compute_element_balance
+    from app.engine.xiji import compute_xiji, xiji_detail
+    from app.models.bazi import Pillar, Pillars
+
+    def model(chart):
+        return Pillars(**{
+            k: Pillar(**v) if isinstance(v, dict) else None
+            for k, v in chart["pillars"].items()})
+
+    chart = _chart_with_pillars(year="庚午", month="丙子",
+                                day="甲寅", hour="甲子")
+    pl = model(chart)
+    result = compute_xiji(pl, compute_element_balance(pl))
+    assert result.day_master_strength == "strong"
+    assert result.favorable_elements == ["火", "土", "金"]
+    detail = xiji_detail(result, pl)
+    assert detail["method"] == "扶抑+调候"
+    assert detail["favorable"] == [
+        {"element": "火", "source": "调候", "reason": "严寒月调候,暖局为先"},
+        {"element": "土", "source": "扶抑", "reason": "财星耗身"},
+        {"element": "金", "source": "扶抑", "reason": "官杀制身"}]
+    assert detail["unfavorable"] == [
+        {"element": "木", "source": "扶抑", "reason": "身旺忌比劫助身"},
+        {"element": "水", "source": "扶抑", "reason": "身旺忌印再生身"}]
+    assert detail["note"] == "调候与扶抑冲突时以调候为先"
+
+
+def test_xiji_detail_weak_direction_reasons():
+    """戊土日主子月身弱(仅日支余气根):比劫帮身/印星生扶 + 忌克泄耗三件套;
+    调候火已在喜(印),不产生移位。"""
+    from app.engine.pillars import compute_element_balance
+    from app.engine.xiji import compute_xiji, xiji_detail
+    from app.models.bazi import Pillar, Pillars
+
+    chart = _chart_with_pillars(year="甲午", month="甲子",
+                                day="戊辰", hour="庚申")
+    pl = Pillars(**{k: Pillar(**v) for k, v in chart["pillars"].items()})
+    result = compute_xiji(pl, compute_element_balance(pl))
+    assert result.day_master_strength == "weak"
+    detail = xiji_detail(result, pl)
+    assert detail["favorable"] == [
+        {"element": "土", "source": "扶抑", "reason": "比劫帮身"},
+        {"element": "火", "source": "调候", "reason": "严寒月调候,暖局为先"}]
+    assert detail["unfavorable"] == [
+        {"element": "金", "source": "扶抑", "reason": "食伤泄身"},
+        {"element": "水", "source": "扶抑", "reason": "财星耗身"},
+        {"element": "木", "source": "扶抑", "reason": "官杀克身"}]
+
+
+def test_xiji_detail_special_and_unknown_return_none():
+    """从格/时辰未知 → None(喜忌留空,模板诚实降级条款接管);
+    三甲克戊盘命中从格检测(引擎 D3 行为,非本批改动)。"""
+    from app.engine.pillars import compute_element_balance
+    from app.engine.xiji import compute_xiji, xiji_detail
+    from app.models.bazi import Pillar, Pillars
+
+    congge = _chart_with_pillars(year="甲寅", month="甲子",
+                                 day="戊午", hour="甲寅")
+    pl = Pillars(**{k: Pillar(**v) for k, v in congge["pillars"].items()})
+    result = compute_xiji(pl, compute_element_balance(pl))
+    assert result.day_master_strength == "special_pattern"
+    assert xiji_detail(result, pl) is None
+    unknown = _chart_with_pillars(year="庚午", month="丙子",
+                                  day="甲寅", hour=None)
+    result2 = compute_xiji(
+        Pillars(**{k: (Pillar(**v) if isinstance(v, dict) else None)
+                   for k, v in unknown["pillars"].items()}),
+        compute_element_balance(
+            Pillars(**{k: (Pillar(**v) if isinstance(v, dict) else None)
+                       for k, v in unknown["pillars"].items()})))
+    assert result2.day_master_strength == "unknown_hour"
+    assert xiji_detail(result2, Pillars(**{
+        k: (Pillar(**v) if isinstance(v, dict) else None)
+        for k, v in unknown["pillars"].items()})) is None
+
+
+def test_enrich_xiji_detail_golden_and_idempotent():
+    """客户端 chart(无 xiji_detail)注入;build_v1_chart 直出再过一次字节级
+    no-op;chart 期望与重算一致(本测试的 chart 由同引擎金值构造)。"""
+    from app.engine.pillars import compute_element_balance
+    from app.engine.xiji import compute_xiji
+    from app.models.bazi import Pillar, Pillars
+
+    chart = _chart_with_pillars(year="庚午", month="丙子",
+                                day="甲寅", hour="甲子")
+    pl = Pillars(**{k: Pillar(**v) for k, v in chart["pillars"].items()})
+    result = compute_xiji(pl, compute_element_balance(pl))
+    chart["day_master"]["strength_label"] = "偏旺"
+    chart["useful_god_candidates"] = list(result.favorable_elements)
+    client_json = json.dumps(chart, ensure_ascii=False)
+    enriched = json.loads(enrich_v1_chart_xiji_detail(client_json))
+    assert enriched["xiji_detail"]["method"] == "扶抑+调候"
+    assert enriched["xiji_detail"]["favorable"][0]["source"] == "调候"
+    built = json.dumps(build_v1_chart(_make_snapshot()),
+                       ensure_ascii=False, indent=2)
+    assert enrich_v1_chart_xiji_detail(built) == built
+
+
+def test_enrich_xiji_detail_skew_and_drift_and_defer():
+    """重算与 chart 期望不一致 → 降级跳过(前向兼容,不 raise);
+    已有不等值 → 漂移 raise;顶层非对象/缺 pillars → 原样返回。"""
+    chart = _chart_with_pillars(year="庚午", month="丙子",
+                                day="甲寅", hour="甲子")
+    chart["day_master"]["strength_label"] = "偏弱"  # 与重算(strong)不一致
+    chart["useful_god_candidates"] = ["水"]
+    skewed = json.dumps(chart, ensure_ascii=False)
+    assert enrich_v1_chart_xiji_detail(skewed) == skewed
+    # 漂移分支要求重算成功(pillars 合法且与期望一致)而已有值不等——
+    # 用金值盘 + 伪造 xiji_detail 构造
+    drift_chart = _chart_with_pillars(year="庚午", month="丙子",
+                                      day="甲寅", hour="甲子")
+    drift_chart["day_master"]["strength_label"] = "偏旺"
+    from app.engine.pillars import compute_element_balance
+    from app.engine.xiji import compute_xiji
+    from app.models.bazi import Pillar, Pillars
+    pl = Pillars(**{k: (Pillar(**v) if isinstance(v, dict) else None)
+                    for k, v in drift_chart["pillars"].items()})
+    drift_chart["useful_god_candidates"] = list(
+        compute_xiji(pl, compute_element_balance(pl)).favorable_elements)
+    drift_chart["xiji_detail"] = {"method": "伪造"}
+    with pytest.raises(ValueError, match="漂移"):
+        enrich_v1_chart_xiji_detail(
+            json.dumps(drift_chart, ensure_ascii=False))
+    assert enrich_v1_chart_xiji_detail("[1]") == "[1]"
+    no_pillars = json.dumps({"day_master": {"stem": "甲"}}, ensure_ascii=False)
+    assert enrich_v1_chart_xiji_detail(no_pillars) == no_pillars
+
+
+def test_translate_context_injects_xiji_detail_translated():
+    """注入的 zh 值随管道译成 zh-hant:調候/嚴寒月調候 无简体泄漏。"""
+    from app.engine.pillars import compute_element_balance
+    from app.engine.xiji import compute_xiji
+    from app.models.bazi import Pillar, Pillars
+
+    chart = _chart_with_pillars(year="庚午", month="丙子",
+                                day="甲寅", hour="甲子")
+    pl = Pillars(**{k: Pillar(**v) for k, v in chart["pillars"].items()})
+    result = compute_xiji(pl, compute_element_balance(pl))
+    chart["day_master"]["strength_label"] = "偏旺"
+    chart["useful_god_candidates"] = list(result.favorable_elements)
+    translated = json.loads(translate_context(
+        {"chart": json.dumps(chart, ensure_ascii=False)},
+        "zh-hant", "m0_structure")["chart"])
+    detail = translated["xiji_detail"]
+    assert detail["favorable"][0] == {
+        "element": "火", "source": "調候", "reason": "嚴寒月調候,暖局為先"}
+    assert detail["method"] == "扶抑+調候"

@@ -16,10 +16,22 @@ render_prompt("m0_structure", {"chart": json.dumps(..., ensure_ascii=False, inde
 from __future__ import annotations
 
 import json
+import logging
 from typing import Any
 
+from pydantic import ValidationError
+
+from ..models.bazi import Pillar, Pillars
 from .branch_relations import analyze_natal_branch_relations
-from .pillars import EN2ZH, GAN_ELEMENT, ten_god  # 英文五行 → 中文;十干;日干+他干 → 十神
+from .pillars import (
+    EN2ZH,
+    GAN_ELEMENT,
+    compute_element_balance,
+    ten_god,  # 英文五行 → 中文;十干;日干+他干 → 十神
+)
+from .xiji import compute_xiji, xiji_detail
+
+logger = logging.getLogger(__name__)
 
 # day_master_strength(engine 返回值) → 中文 label(对齐设计文档示例"偏弱/偏旺/中和")
 # 与 bazi_engine._STRENGTH_LABEL 同源但**不共用**,两者语义不同:
@@ -197,6 +209,11 @@ def build_v1_chart(snapshot: dict[str, Any]) -> dict[str, Any]:
         # 四柱地支关系清单(2026-11-07 借鉴项②:三合局/三会方/六合/六冲/
         # 相害/三刑+自刑,成化不判定——引擎有数据 deep 链没接的缺口补上)
         "branch_relations": analyze_natal_branch_relations(pillars_dict),
+        # 喜用口径分层明细(2026-11-07 借鉴项③:扶抑/调候分列+闭集理由,
+        # 纯暴露不改规则;从格/时辰未知 → None,模板诚实降级条款接管)
+        "xiji_detail": _xiji_detail_for_chart(
+            pillars_dict, strength_label,
+            list(snapshot["useful_god_candidates"])),
     }
 
 
@@ -323,4 +340,83 @@ def enrich_v1_chart_branch_relations(chart_json: str) -> str:
             "v1 chart branch_relations 漂移:已有值 ≠ 从四柱地支推导值"
             "(build_v1_chart 与 analyze_natal_branch_relations 不一致,代码 bug)")
     data["branch_relations"] = expected
+    return json.dumps(data, ensure_ascii=False, indent=2)
+
+# ---------- v1 chart 喜用口径分层注入(2026-11-07 借鉴项③)----------
+
+def _xiji_detail_for_chart(
+    pillars_dict: dict[str, Any],
+    expected_strength_label: str,
+    expected_favorable: list[str],
+) -> dict | None:
+    """chart pillars dict → xiji_detail(build_v1_chart 与注入共用同一路径)。
+
+    用引擎同一函数(compute_xiji + xiji_detail)从 chart 四柱重算——与
+    calculate 时同代码路径,单部署内恒一致。两类降级(返回 None,不 raise):
+    - 脏数据(字段缺失/未知干支/pydantic 校验失败):defer-to-gate,
+      篡改盘由 token 验签拒绝(注入不是安全边界)
+    - 重算与 chart 期望不一致(strength label / favorable 列表):引擎
+      规则跨部署升级后老 chart 的前向兼容降级——老盘按旧口径渲染照常,
+      warning 可观测(这是运维状态不是 bug,不 500 不 403)
+    从格/时辰未知盘 → None(xiji_detail 本体语义,非降级)。
+    """
+    try:
+        pillars = Pillars(
+            year=Pillar(**pillars_dict["year"]),
+            month=Pillar(**pillars_dict["month"]),
+            day=Pillar(**pillars_dict["day"]),
+            hour=(Pillar(**pillars_dict["hour"])
+                  if isinstance(pillars_dict.get("hour"), dict) else None),
+        )
+        result = compute_xiji(pillars, compute_element_balance(pillars))
+    except (ValueError, ValidationError, KeyError, TypeError) as e:
+        logger.debug("xiji_detail 跳过(chart 数据脏,交验签拒绝):%r", e)
+        return None
+    detail = xiji_detail(result, pillars)
+    if detail is None:
+        return None
+    recomputed_label = _STRENGTH_LABEL_ZH.get(result.day_master_strength)
+    if (recomputed_label != expected_strength_label
+            or list(result.favorable_elements) != list(expected_favorable)):
+        logger.warning(
+            "xiji_detail 跳过(引擎重算与 chart 期望不一致,疑似规则版本"
+            "跨部署差异或数据异常):label %r≠%r favorable %r≠%r",
+            recomputed_label, expected_strength_label,
+            result.favorable_elements, expected_favorable)
+        return None
+    return detail
+
+
+def enrich_v1_chart_xiji_detail(chart_json: str) -> str:
+    """为 v1 chart 注入喜用口径分层明细(xiji_detail,借鉴项③)。
+
+    与前两个注入器同契约(幂等/漂移 raise/defer-to-gate);差异点:
+    引擎重算与 chart 期望不一致时**降级跳过**而非失败(前向兼容,
+    见 _xiji_detail_for_chart)。useful_god_candidates 形状不动
+    (token 契约 + 老 App [String] 解码依赖),分层走新键。
+    """
+    data = json.loads(chart_json)
+    if not isinstance(data, dict):
+        return chart_json
+    pillars = data.get("pillars")
+    day_master = data.get("day_master")
+    if not isinstance(pillars, dict) or not isinstance(day_master, dict):
+        return chart_json
+    label = day_master.get("strength_label")
+    favorable = data.get("useful_god_candidates")
+    if not isinstance(label, str) or not isinstance(favorable, list):
+        return chart_json
+    expected = _xiji_detail_for_chart(
+        pillars, label,
+        [f for f in favorable if isinstance(f, str)])
+    if expected is None:
+        return chart_json
+    existing = data.get("xiji_detail")
+    if existing == expected:
+        return chart_json
+    if existing is not None:
+        raise ValueError(
+            "v1 chart xiji_detail 漂移:已有值 ≠ 从四柱重算值"
+            "(build_v1_chart 与 xiji_detail 不一致,代码 bug)")
+    data["xiji_detail"] = expected
     return json.dumps(data, ensure_ascii=False, indent=2)

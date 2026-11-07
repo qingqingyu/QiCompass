@@ -318,3 +318,70 @@ def compute_xiji(pillars: Pillars, element_balance: ElementBalance) -> XijiResul
         ten_god_weights=ten_god_weights,
         useful_god_candidates=list(favorable),
     )
+
+# ---------- 喜用口径分层明细(2026-11-07 借鉴项③,纯暴露不改规则)----------
+
+def xiji_detail(result: XijiResult, pillars: Pillars) -> dict | None:
+    """XijiResult → 喜用口径分层明细(v1 chart xiji_detail 注入数据)。
+
+    纯暴露(2026-11-07 拍板):不改任何喜忌规则——调候表/阈值/从格检测
+    一概不动,只把 compute_xiji 已算出的分层信息结构化,让 LLM 讲得出
+    「为什么喜水」(此前最终列表把口径来源抹掉了):
+    - favorable/unfavorable 每项带 source(扶抑/调候)+ reason(闭集短术语,
+      白话化是模板层既有职责,数据层保持术语精度)
+    - 调候命中的五行标 source=调候(冲突已由 compute_xiji 在列表层解决:
+      从忌移除+提至喜首位;调候元素本就在喜时同样标调候——两口径皆可取,
+      取更具体的那个)
+    - tiaoshou_applied 时附 note 说明冲突优先级
+    - 从格/时辰未知 → None(喜忌留空,模板既有诚实降级条款接管)
+    - balanced 盘 direction 按倾斜口径取(与 compute_xiji 产列表同向)
+
+    确定性:同输入同输出(闭集文案,三语注册见 term_translations XIJI_TERMS)。
+    """
+    if result.day_master_strength in ("special_pattern", "unknown_hour"):
+        return None
+    if pillars.day is None or pillars.month is None:
+        # 理论不可达(上述两态已挡住缺柱场景),防御不猜
+        return None
+    day_element = _element_of_gan(pillars.day.gan)
+    if result.day_master_strength == "balanced":
+        direction = (
+            "strong" if result.score >= BALANCED_TILT_THRESHOLD else "weak")
+    else:
+        direction = result.day_master_strength
+    if direction == "weak":
+        reasons: dict[str, tuple[str, str]] = {
+            EN2ZH[day_element]: ("扶抑", "比劫帮身"),
+            EN2ZH[SHENG_WO[day_element]]: ("扶抑", "印星生扶"),
+            EN2ZH[WO_SHENG[day_element]]: ("扶抑", "食伤泄身"),
+            EN2ZH[WO_KE[day_element]]: ("扶抑", "财星耗身"),
+            EN2ZH[KE_WO[day_element]]: ("扶抑", "官杀克身"),
+        }
+    else:
+        reasons = {
+            EN2ZH[WO_SHENG[day_element]]: ("扶抑", "食伤泄秀"),
+            EN2ZH[WO_KE[day_element]]: ("扶抑", "财星耗身"),
+            EN2ZH[KE_WO[day_element]]: ("扶抑", "官杀制身"),
+            EN2ZH[day_element]: ("扶抑", "身旺忌比劫助身"),
+            EN2ZH[SHENG_WO[day_element]]: ("扶抑", "身旺忌印再生身"),
+        }
+    tiaoshou = TIAOSHOU.get(pillars.month.zhi)
+    if tiaoshou is not None and result.tiaoshou_applied:
+        # 严寒月(子/丑→fire 暖局) / 燥热月(午/未→water 润局)
+        reasons[EN2ZH[tiaoshou]] = (
+            "调候",
+            "严寒月调候,暖局为先" if tiaoshou == "fire"
+            else "燥热月调候,润局为先")
+
+    def _tag(element_zh: str) -> dict:
+        source, reason = reasons[element_zh]
+        return {"element": element_zh, "source": source, "reason": reason}
+
+    detail: dict = {
+        "method": result.xiji_method,
+        "favorable": [_tag(e) for e in result.favorable_elements],
+        "unfavorable": [_tag(e) for e in result.unfavorable_elements],
+    }
+    if result.tiaoshou_applied:
+        detail["note"] = "调候与扶抑冲突时以调候为先"
+    return detail
