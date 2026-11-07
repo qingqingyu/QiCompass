@@ -5819,6 +5819,98 @@
         }
       }
     },
+    "deepanalysis.chapter.q.capability_source" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where does this structure's core ability come from?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这类结构的人,核心能力通常来自哪里?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這類結構的人,核心能力通常來自哪裡?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.core_loop" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Which two Ten Gods form the core loop?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "哪两个十神形成核心循环结构?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "哪兩個十神形成核心循環結構?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.main_axis" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What is my main axis?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的十神主线是什么?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的十神主線是什麼?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.structure_type" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What type is this structure?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "这个结构在命理中属于什么类型?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "這個結構在命理中屬於什麼類型?"
+          }
+        }
+      }
+    },
     "deepanalysis.chapter.rank" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -17012,25 +17104,25 @@
         }
       }
     },
-    "你这张盘的主线:靠什么驱动,在哪里打转" : {
+    "你的盘是什么类型" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "What drives your chart, and where it loops"
+            "value" : "What type is your chart"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你这张盘的主线:靠什么驱动,在哪里打转"
+            "value" : "你的盘是什么类型"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你這張盤的主線:靠什麼驅動,在哪裡打轉"
+            "value" : "你的盤是什麼類型"
           }
         }
       }
