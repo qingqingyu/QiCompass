@@ -55,10 +55,19 @@ if not OPENAI_BASE_URL:
 # m1_talent 实证)。cap≠目标:短模块(daily_fortune 50-80 字)输出由 prompt
 # 篇幅约束,不因 cap 放开变长。截断本身由 client 层 stop_reason/finish_reason
 # 显式报错兜底(不再静默成功)。
-AI_MAX_OUTPUT_TOKENS = 8192
+# 2026-11-07 8192→16384(随 glm-5.2→glm-5.3 换型,用户拍板):z.ai 中转下
+# 5.3 的 thinking 默认开启且推理 token 计入输出预算(2026-10-10
+# /tmp/qicompass_model_ab 实测,2026-11-07 冒烟复测仍成立)——长章
+# (m1/m2/m3/m5/m7)正文 3000-4000 token + JSON 开销 + thinking,8192 大概率
+# 截断显式报错。z.ai 对 65536 照收(2026-11-07 实测),16384 无上限障碍;
+# 下游联动 interpret.py 翻译档位 ×1.5/×4(zh 24576 / en 65536)同批放开。
+AI_MAX_OUTPUT_TOKENS = 16384
 # 推理模型(gpt-5.x / claude-sonnet)生成命书需要 30-50s;max_tokens 放开到
 # 8192 后长模块(m1/m2/m3/m5/m7)实际生成 ~3000-4000 token,预计 40-90s,
-# 90s 贴线,给 150s 留余量(超时即报 503,不会无限挂)。iOS APIClient
+# 90s 贴线,给 150s 留余量(超时即报 503,不会无限挂)。
+# 2026-11-07 glm-5.3 换型注:5.3 延迟 3-4 倍于 5.2(10-10 实测 M3 142.5s
+# 贴本线);再往上调须与 iOS 侧 180s 联动(改值要发版),故暂不动——
+# 金丝雀期盯超时 503 尾部数据再议。iOS APIClient
 # timeoutIntervalForRequest=180s(2026-09-28,150+30s 余量):本值之外还有
 # entitlement 校验/缓存写/序列化,客户端同卡 150 会把后端已成功的生成变成
 # 客户端失败而次数已扣——两值有意不等,客户端改值时同步此注释。

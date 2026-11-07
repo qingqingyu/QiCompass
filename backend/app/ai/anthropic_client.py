@@ -50,7 +50,7 @@ class AnthropicClient:
             temperature: 0.0-1.0(Anthropic 范围);v1 prompt 系统按 module 分级,
                 M0-M2 结构层 0.3,M3-M7 叙述层 0.6。调用方通过
                 config.resolve_temperature(module) 取值后传入。
-            max_tokens: 输出 token 上限;None 用 config.AI_MAX_OUTPUT_TOKENS(App 8192)。
+            max_tokens: 输出 token 上限;None 用 config.AI_MAX_OUTPUT_TOKENS(App 16384)。
                 长文调用方(如 promo-site 加长版)按需放大。
             timeout: 请求超时秒数;None 用 config.AI_TIMEOUT_SECONDS(App 150s)。
                 长 max_tokens 生成耗时更长,调用方应同步放大。
