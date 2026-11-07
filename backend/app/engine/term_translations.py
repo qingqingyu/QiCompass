@@ -39,7 +39,7 @@ import logging
 import re
 from typing import Final
 
-from .chart_builder import enrich_v1_chart_ten_gods
+from .chart_builder import enrich_v1_chart_branch_relations, enrich_v1_chart_ten_gods
 
 logger = logging.getLogger(__name__)
 
@@ -390,6 +390,27 @@ SHENSHA_ZH_HANT: Final[dict[str, str]] = {
     "红艳": "紅艷",
 }
 
+# ---------- v1 chart 地支关系(branch_relations 注入值,2026-11-07 借鉴项②)----------
+# 六合/三合/六冲/三刑/相害 已在 COMPAT_TERMS 注册;此处只补缺口:
+# 三会 / 相刑(子卯对级)/ 自刑 / 成化声明整句(chart branch_relations.note)。
+# zh-hant 同形条目(相刑/自刑)也显式注册——不注册会走逐字回退,字形碰巧
+# 相同但每条收集 warning 噪声,且依赖「碰巧同形」而非显式契约。
+
+BRANCH_RELATION_TERMS_EN: Final[dict[str, str]] = {
+    "三会": "Directional Meeting",
+    "相刑": "Punishment",
+    "自刑": "Self Punishment",
+    "四柱地支客观关系;成化与否未判定": (
+        "Objective branch relations among the four pillars; "
+        "whether they transform into a unified element is not determined"),
+}
+BRANCH_RELATION_TERMS_ZH_HANT: Final[dict[str, str]] = {
+    "三会": "三會",
+    "相刑": "相刑",
+    "自刑": "自刑",
+    "四柱地支客观关系;成化与否未判定": "四柱地支客觀關係;成化與否未判定",
+}
+
 # ---------- 翻译注册表(语言 → {中文术语 → 目标语言术语}) ----------
 # 加新语言时只需在此 dict 加一个 key,无需改 translate_term() 函数。
 TERM_TRANSLATIONS: Final[dict[str, dict[str, str]]] = {
@@ -407,6 +428,7 @@ TERM_TRANSLATIONS: Final[dict[str, dict[str, str]]] = {
         **GENDER_EN,
         **COMPAT_TERMS_EN,
         **SHENSHA_EN,
+        **BRANCH_RELATION_TERMS_EN,
     },
     "zh-hant": {
         **HEAVENLY_STEMS_ZH_HANT,
@@ -420,6 +442,7 @@ TERM_TRANSLATIONS: Final[dict[str, dict[str, str]]] = {
         **GENDER_ZH_HANT,
         **COMPAT_TERMS_ZH_HANT,
         **SHENSHA_ZH_HANT,
+        **BRANCH_RELATION_TERMS_ZH_HANT,
     },
 }
 
@@ -626,11 +649,11 @@ def translate_context(context: dict, language: str, module: str) -> dict:
     Returns:
         翻译后的 context(新 dict,不修改原)
     """
-    # v1 chart 运神注入(2026-11-07 借鉴项①,方案 B):大运十神不进 token
-    # 绑定契约(客户端 chart 不带,镜像不动),渲染前由后端确定性推导注入。
-    # 两个不可移位的次序约束:
+    # v1 chart 服务端注入(2026-11-07 借鉴项①②,方案 B):运神十神 + 四柱
+    # 地支关系都不进 token 绑定契约(客户端 chart 不带,镜像不动),渲染前
+    # 由后端确定性推导注入。两个不可移位的次序约束:
     # 1. 必须在值翻译(zh-hant/en 分支的 _translate_chart_json)**之前**——
-    #    注入的 zh 十神值随管道译成目标语言,放 render_prompt 里会泄漏简体
+    #    注入的 zh 值随管道译成目标语言,放 render_prompt 里会泄漏简体
     # 2. 必须覆盖 zh 直通分支(放 _translate_deep_context 里会漏掉 zh 请求)
     # 本函数是生成(_prepare_prompt_and_key)与翻译防伪链重建
     # (_render_v1_upstream_prompt_hash)共用的唯一渲染前入口——注入收口在
@@ -639,11 +662,12 @@ def translate_context(context: dict, language: str, module: str) -> dict:
     # 坏/深嵌套 chart 在注入层**不收口**(defer-to-gate):zh 由验签 403、
     # en 由 _translate_chart_json 的结构化 500 各自拒绝(既有契约,
     # test_deeply_nested_chart_no_unhandled_500 锁定)——注入不是安全边界,
-    # verify/翻译才是,不在此抢跑改码。ten_god 漂移 ValueError 不在此列,
-    # 原样上抛(代码 bug 必须显式)。
+    # verify/翻译才是,不在此抢跑改码。ten_god / branch_relations 漂移
+    # ValueError 不在此列,原样上抛(代码 bug 必须显式)。
     if module in _V1_DEEP_MODULES and isinstance(context.get("chart"), str):
         try:
             enriched = enrich_v1_chart_ten_gods(context["chart"])
+            enriched = enrich_v1_chart_branch_relations(enriched)
         except (json.JSONDecodeError, RecursionError):
             pass
         else:

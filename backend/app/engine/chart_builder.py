@@ -18,6 +18,7 @@ from __future__ import annotations
 import json
 from typing import Any
 
+from .branch_relations import analyze_natal_branch_relations
 from .pillars import EN2ZH, GAN_ELEMENT, ten_god  # 英文五行 → 中文;十干;日干+他干 → 十神
 
 # day_master_strength(engine 返回值) → 中文 label(对齐设计文档示例"偏弱/偏旺/中和")
@@ -193,6 +194,9 @@ def build_v1_chart(snapshot: dict[str, Any]) -> dict[str, Any]:
         "luck_pillars": luck_pillars_v1,
         "current_luck": current_luck,
         "current_year": current_year,
+        # 四柱地支关系清单(2026-11-07 借鉴项②:三合局/三会方/六合/六冲/
+        # 相害/三刑+自刑,成化不判定——引擎有数据 deep 链没接的缺口补上)
+        "branch_relations": analyze_natal_branch_relations(pillars_dict),
     }
 
 
@@ -285,4 +289,38 @@ def enrich_v1_chart_ten_gods(chart_json: str) -> str:
             changed = _fill(data[key]) or changed
     if not changed:
         return chart_json
+    return json.dumps(data, ensure_ascii=False, indent=2)
+
+def enrich_v1_chart_branch_relations(chart_json: str) -> str:
+    """为 v1 chart 注入四柱地支关系清单(branch_relations,借鉴项②)。
+
+    与 enrich_v1_chart_ten_gods 同契约(2026-11-07 借鉴项①②共用注入基建):
+    - 地支关系不在 token 绑定契约里(客户端 chart 不带该键,镜像不动),
+      渲染前由后端从 chart 自身四柱地支确定性推导注入
+    - 幂等:build_v1_chart 直出的 chart(已带值)再过本函数是字节级 no-op;
+      已有**不等值** branch_relations 显式抛 ValueError(漂移=代码 bug)
+    - defer-to-gate:顶层非对象 / pillars 缺失 / 无有效地支 → 原样返回,
+      坏 JSON 上抛 json.JSONDecodeError(调用方 translate_context 统一放行
+      交验签/翻译闸门拒绝;脏 zhi 由分析器内部跳过)
+
+    空关系盘(四柱无任何合冲刑害)注入空清单+注记——「无」也是事实,
+      与「缺」(整键缺失)区分,对齐数据口径声明哲学。
+    """
+    data = json.loads(chart_json)
+    if not isinstance(data, dict):
+        return chart_json
+    pillars = data.get("pillars")
+    if not isinstance(pillars, dict):
+        return chart_json
+    expected = analyze_natal_branch_relations(pillars)
+    if expected is None:
+        return chart_json
+    existing = data.get("branch_relations")
+    if existing == expected:
+        return chart_json
+    if existing is not None:
+        raise ValueError(
+            "v1 chart branch_relations 漂移:已有值 ≠ 从四柱地支推导值"
+            "(build_v1_chart 与 analyze_natal_branch_relations 不一致,代码 bug)")
+    data["branch_relations"] = expected
     return json.dumps(data, ensure_ascii=False, indent=2)

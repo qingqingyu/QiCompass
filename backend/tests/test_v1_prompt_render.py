@@ -32,7 +32,12 @@ from app.ai.prompts import (
     REQUIRED_FIELDS,
     render_prompt,
 )
-from app.engine.chart_builder import build_v1_chart, enrich_v1_chart_ten_gods
+from app.engine.branch_relations import analyze_natal_branch_relations
+from app.engine.chart_builder import (
+    build_v1_chart,
+    enrich_v1_chart_branch_relations,
+    enrich_v1_chart_ten_gods,
+)
 from app.engine.term_translations import translate_context
 from app.errors import InvalidInputError
 
@@ -422,12 +427,13 @@ def _make_snapshot(strength: str = "weak") -> dict:
 
 
 def test_chart_builder_returns_all_v1_schema_keys():
-    """build_v1_chart 输出含设计文档 §1 全部 10 个顶层 keys。"""
+    """build_v1_chart 输出含设计文档 §1 全部 10 个顶层 keys + branch_relations
+    (2026-11-07 借鉴项②新增,共 11 键)。"""
     chart = build_v1_chart(_make_snapshot())
     expected_keys = {
         "meta", "pillars", "day_master", "ten_gods", "ten_god_weights",
         "five_elements", "useful_god_candidates", "luck_pillars",
-        "current_luck", "current_year",
+        "current_luck", "current_year", "branch_relations",
     }
     assert set(chart.keys()) == expected_keys
 
@@ -710,3 +716,129 @@ def test_enrich_noop_on_non_dict_top_level():
     test_context_binding.test_deeply_nested_chart_no_unhandled_500)。"""
     deep = "[" * 1200 + "]" * 1200
     assert enrich_v1_chart_ten_gods(deep) == deep
+
+
+# ===== 地支关系注入(2026-11-07 借鉴项②,方案 B 复用①管道)=====
+
+def test_analyze_xuziping_sample_chart_golden():
+    """徐子平 sample 盘(年午/月巳/日酉/时未):年-时六合 + 巳午未三会火方
+    ——与 paipan.py sample_output.txt 逐条对齐(A4 证据复现)。"""
+    out = analyze_natal_branch_relations(
+        {"year": {"zhi": "午"}, "month": {"zhi": "巳"},
+         "day": {"zhi": "酉"}, "hour": {"zhi": "未"}})
+    assert out["pairs"] == [{
+        "pillars": ["year", "hour"], "branches": ["午", "未"], "type": "六合"}]
+    assert out["groups"] == [{
+        "pillars": ["year", "month", "hour"],
+        "branches": ["巳", "午", "未"], "type": "三会", "element": "火"}]
+    assert out["note"] == "四柱地支客观关系;成化与否未判定"
+
+
+def test_analyze_sanhe_group_with_element_and_chong():
+    """申子辰全 → 三合水局;子午并存 → 六冲(组/对并存)。"""
+    out = analyze_natal_branch_relations(
+        {"year": {"zhi": "申"}, "month": {"zhi": "子"},
+         "day": {"zhi": "辰"}, "hour": {"zhi": "午"}})
+    assert out["groups"] == [{
+        "pillars": ["year", "month", "day"],
+        "branches": ["子", "辰", "申"], "type": "三合", "element": "水"}]
+    assert out["pairs"] == [{
+        "pillars": ["month", "hour"], "branches": ["子", "午"],
+        "type": "六冲"}]
+
+
+def test_analyze_level_double_recording():
+    """层级双录:寅巳 pair 记相害,寅巳申全时组层另记三刑;同盘寅申六冲、
+    巳申六合各自独立成条(清单陈列,非合盘汇总标签竞争序)。"""
+    out = analyze_natal_branch_relations(
+        {"year": {"zhi": "寅"}, "month": {"zhi": "巳"},
+         "day": {"zhi": "申"}, "hour": {"zhi": "子"}})
+    assert {(p["pillars"][0], p["pillars"][1], p["type"]) for p in out["pairs"]} == {
+        ("year", "month", "相害"), ("year", "day", "六冲"),
+        ("month", "day", "六合")}
+    assert out["groups"] == [{
+        "pillars": ["year", "month", "day"],
+        "branches": ["寅", "巳", "申"], "type": "三刑"}]
+
+
+def test_analyze_zixing_and_zimao_xing():
+    """辰辰重复 → 自刑;子卯 → 相刑;卯辰 → 相害;卯重复(非自刑支)不记。"""
+    out = analyze_natal_branch_relations(
+        {"year": {"zhi": "辰"}, "month": {"zhi": "辰"},
+         "day": {"zhi": "子"}, "hour": {"zhi": "卯"}})
+    types = [(p["pillars"][0], p["pillars"][1], p["type"]) for p in out["pairs"]]
+    assert ("year", "month", "自刑") in types
+    assert ("day", "hour", "相刑") in types
+    assert ("month", "hour", "相害") in types  # 辰卯 相害
+    assert ("year", "hour", "相害") in types
+    assert all(t != ("month", "day", "自刑") for t in types)  # 辰子非自刑
+
+
+def test_analyze_unknown_hour_and_empty_and_dirty():
+    """时柱缺失只算三支;全缺 → None;脏支跳过(交验签拒绝)。"""
+    three = analyze_natal_branch_relations(
+        {"year": {"zhi": "寅"}, "month": {"zhi": "戌"},
+         "day": {"zhi": "申"}, "hour": None})
+    assert three["pairs"] == [{
+        "pillars": ["year", "day"], "branches": ["寅", "申"], "type": "六冲"}]
+    assert analyze_natal_branch_relations({}) is None
+    assert analyze_natal_branch_relations(
+        {"year": {"zhi": "Ω"}, "hour": {"zhi": "子"}})["pairs"] == []
+    # 零关系盘(「无」与「缺」区分):满四柱下不存在零关系组合(暴力验证
+    # C(12,4)=495 全空),三支盘存在——子/寅/辰 无任何 pair/group
+    zero = analyze_natal_branch_relations(
+        {"year": {"zhi": "子"}, "month": {"zhi": "寅"},
+         "day": {"zhi": "辰"}, "hour": None})
+    assert zero["pairs"] == [] and zero["groups"] == [] and zero["note"]
+
+
+def test_chart_builder_branch_relations_from_snapshot():
+    """build_v1_chart 含 branch_relations(fixture 午/卯/子/卯:子午冲 +
+    子卯刑×2,组空)——10 键断言已更新为 11 键(见 schema keys 测试)。"""
+    chart = build_v1_chart(_make_snapshot())
+    br = chart["branch_relations"]
+    assert br is not None
+    assert [(p["pillars"], p["type"]) for p in br["pairs"]] == [
+        (["year", "day"], "六冲"), (["month", "day"], "相刑"),
+        (["day", "hour"], "相刑")]
+    assert br["groups"] == []
+
+
+def test_enrich_branch_relations_golden_idempotent():
+    """客户端 chart(无 branch_relations 键)注入;build_v1_chart 直出再过
+    一次是字节级 no-op。"""
+    client_chart = json.dumps(_CHART_DICT, ensure_ascii=False)
+    enriched = json.loads(enrich_v1_chart_branch_relations(client_chart))
+    assert enriched["branch_relations"]["note"] == "四柱地支客观关系;成化与否未判定"
+    built = json.dumps(build_v1_chart(_make_snapshot()),
+                       ensure_ascii=False, indent=2)
+    assert enrich_v1_chart_branch_relations(built) == built
+
+
+def test_enrich_branch_relations_drift_and_defer():
+    """漂移 raise(代码 bug 显式);顶层非对象/无 pillars → 原样返回。"""
+    drifted = json.dumps({
+        "pillars": {"year": {"zhi": "午"}},
+        "branch_relations": {"pairs": [], "groups": [], "note": "伪造"}},
+        ensure_ascii=False)
+    with pytest.raises(ValueError, match="漂移"):
+        enrich_v1_chart_branch_relations(drifted)
+    assert enrich_v1_chart_branch_relations("[1,2,3]") == "[1,2,3]"
+    no_pillars = json.dumps({"day_master": {"stem": "甲"}}, ensure_ascii=False)
+    assert enrich_v1_chart_branch_relations(no_pillars) == no_pillars
+
+
+def test_translate_context_injects_branch_relations_translated():
+    """注入的 zh 值随管道译成 zh-hant:三会→三會、注记整句翻译,
+    无简体泄漏(次序约束①的回归锚)。"""
+    zh = translate_context({"chart": CHART_JSON}, "zh", "m0_structure")
+    assert "branch_relations" in json.loads(zh["chart"])
+    chart = json.dumps({
+        "pillars": {"year": {"zhi": "巳"}, "month": {"zhi": "午"},
+                    "day": {"zhi": "未"}, "hour": {"zhi": "子"}}},
+        ensure_ascii=False)
+    translated = json.loads(translate_context(
+        {"chart": chart}, "zh-hant", "m0_structure")["chart"])
+    br = translated["branch_relations"]
+    assert br["groups"][0]["type"] == "三會"
+    assert br["note"] == "四柱地支客觀關係;成化與否未判定"
