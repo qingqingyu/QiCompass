@@ -8,6 +8,7 @@ from __future__ import annotations
 from typing import Any
 
 from lunar_python import Solar
+from lunar_python.util.LunarUtil import LunarUtil as _LunarUtil
 
 from ..models.bazi import ElementBalance, GanZhiNaYin, Pillar, Pillars
 
@@ -233,6 +234,33 @@ def compute_ten_god_weights(pillars: Pillars) -> dict[str, int]:
             weights[name] += _ZHI_MAIN_WEIGHT if zhi_idx == 0 else _ZHI_RESIDUAL_WEIGHT
 
     return weights
+
+
+# ---------- 十神查表(日干 + 他干 → 十神)----------
+
+# lunar_python 1.4.8 内部 SHI_SHEN 表(100 条,10×10),通过内部 import 取用。
+# requirements.txt 已锁 1.4.8,此处 assert 防版本不兼容(升级时立即报错)。
+# 单一事实源:任意两干(含非四柱之干,如大运/流年/流日天干)的十神都查本表
+# (2026-11-07 自 daily_fortune.py 上移,chart_builder 大运运神标注同源)。
+SHISHEN_GAN: dict[str, str] = dict(_LunarUtil.SHI_SHEN)
+assert len(SHISHEN_GAN) == 100, (
+    f"SHI_SHEN 表异常:{len(SHISHEN_GAN)} ≠ 100 条,"
+    "lunar_python 版本不兼容,需复核 engine/pillars.py")
+
+
+def ten_god(day_master: str, other_gan: str) -> str:
+    """日干 + 他干 → 十神(查 SHISHEN_GAN 表,缺键抛 ValueError 不静默)。
+
+    用于任意非四柱之干对日主的十神:大运运神 / 流年 / 流日 / 流时
+    (四柱自身的十神由 lunar_python EightChar 直接给出,不走本函数)。
+    """
+    key = day_master + other_gan
+    god = SHISHEN_GAN.get(key)
+    if god is None:
+        raise ValueError(
+            f"十神查表失败:day_master={day_master!r} other_gan={other_gan!r}"
+            f" key={key!r} 不在 SHISHEN_GAN 表")
+    return god
 
 
 def build_auxiliary_gong(ec: Any) -> tuple[GanZhiNaYin, GanZhiNaYin, GanZhiNaYin]:

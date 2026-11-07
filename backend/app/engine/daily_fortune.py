@@ -31,17 +31,9 @@ from ..models.daily_fortune import (
     PillarRef,
     TomorrowPreview,
 )
+from .pillars import ten_god
 
 logger = logging.getLogger(__name__)
-
-# ---------- 十神查表(日干 + 他干 → 十神)----------
-
-# lunar_python 1.4.8 内部 SHI_SHEN 表(100 条,10×10),通过内部 import 取用。
-# requirements.txt 已锁 1.4.8,此处 assert 防版本不兼容(升级时立即报错)。
-SHISHEN_GAN: dict[str, str] = dict(_LunarUtil.SHI_SHEN)
-assert len(SHISHEN_GAN) == 100, (
-    f"SHI_SHEN 表异常:{len(SHISHEN_GAN)} ≠ 100 条,"
-    "lunar_python 版本不兼容,需复核 engine/daily_fortune.py")
 
 # ---------- 干支五行查表(S6 今日信号:流日五行对喜忌的命中)----------
 
@@ -99,7 +91,7 @@ def compute_daily_fortune(
         day_chong: str | None = day_lunar.getDayChong() or None
 
         # 2. 流日对日主十神
-        day_relation = _ten_god(day_master, day_gan)
+        day_relation = ten_god(day_master, day_gan)
 
         # 3. 流日冲命中盘四柱位置
         day_chong_targets = _chong_targets(day_chong, four_pillars)
@@ -204,17 +196,6 @@ def compute_daily_fortune(
 
 
 # ---------- 内部 helpers ----------
-
-def _ten_god(day_master: str, other_gan: str) -> str:
-    """日干 + 他干 → 十神(查 SHI_SHEN 表,缺键抛 ValueError 不静默)。"""
-    key = day_master + other_gan
-    god = SHISHEN_GAN.get(key)
-    if god is None:
-        raise ValueError(
-            f"十神查表失败:day_master={day_master!r} other_gan={other_gan!r}"
-            f" key={key!r} 不在 SHISHEN_GAN 表")
-    return god
-
 
 def _day_signal(
     *,
@@ -339,7 +320,7 @@ def _build_hour_pillar(
 
     pillar = ec.getTime()
     time_gan = ec.getTimeGan()
-    relation = _ten_god(day_master, time_gan)
+    relation = ten_god(day_master, time_gan)
     hour_chong: str | None = lunar.getTimeChong() or None
     chong_targets = _chong_targets(hour_chong, four_pillars)
 
@@ -365,7 +346,7 @@ def _build_tomorrow_preview(
     ec.setSect(1)
     day_pillar = ec.getDay()
     day_gan = ec.getDayGan()
-    day_relation = _ten_god(day_master, day_gan)
+    day_relation = ten_god(day_master, day_gan)
     day_chong: str | None = lunar.getDayChong() or None
     return TomorrowPreview(
         day_pillar=day_pillar,
