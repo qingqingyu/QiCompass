@@ -202,7 +202,13 @@ PROMPT_VERSIONS: dict[str, int] = {
     # evalkit 全量 run 的 M0 解析失败数是验收指标)。同步改六处 leak 写法:
     # 证据纪律短板条款/三层写法第 1 条/四问之 2/字段职责表 leak 行/写法
     # 示范/文末校验行。三语同步建 v11。
-    "m0_structure": 11,    # 免费:识别主线结构 + 产 structure_fingerprint
+    # v12/6/7…(2026-11-09 deep×XIJI 联动 bump,review P2 收口):XIJI_RULE_VERSION
+    # 1→2(xiji v2 旺衰公式,喜忌翻转 9/45)改变 m0-m7 的 chart 输入——deep
+    # 缓存无引擎规则维度,翻转盘的旧缓存命书会与新喜忌卡同屏错配(与合盘
+    # 「引擎规则版本×prompt 版本联动」护栏同构问题,review 抓出后用户拍板
+    # 修)。全部 8 模块 +1,三语文件 byte-identical(纯缓存失效,无文案变化);
+    # daily 族 24h 自愈、bazi_deep legacy 仅喂老 App,不在本批。
+    "m0_structure": 12,    # 免费:识别主线结构 + 产 structure_fingerprint
     # v3 2026-10-08 排版/内容评审收口(证据引用纪律五条):①evidence 禁机器字段名
     # (ten_god_weights/year_stem/hour_branch 等裸引四次复现,像看日志);②藏干十神
     # 归属照 pillars.shishen_zhi 表,正印/偏印不混(用户盘把辰藏癸算进 Direct
@@ -211,21 +217,21 @@ PROMPT_VERSIONS: dict[str, int] = {
     # from→to 链符号(渲染层已单列 from/to);⑤叙事口径随 day_master_strength/
     # useful_god_candidates(身旺忌水局把印讲成助力 = 前后矛盾)。老 v2 缓存随
     # prompt_version 自然失效;M0 重生成 fingerprint 变 → 下游链式连带失效(既有行为)。
-    "m1_talent": 5,        # 免费:天赋能力(innate/trained/defensive + one_leverage);v5=EN 质量批(10-11)
+    "m1_talent": 6,        # 免费:天赋能力(innate/trained/defensive + one_leverage);v5=EN 质量批(10-11)
     # v3 2026-10-10 L1 加粗链条(治章节割裂):M2 补注入 core_loop(此前只有
     # fingerprint+innate+defensive,高低配分界与核心循环的损耗段各说各话)。
-    "m2_high_low": 6,      # 付费:高配/低配 + 阈值(环境/信念/觉察);v6=EN 质量批(10-11)
+    "m2_high_low": 7,      # 付费:高配/低配 + 阈值(环境/信念/觉察);v6=EN 质量批(10-11)
     # v3 2026-10-10 L1 加粗链条:M3 是链上上下文最薄的一章(此前只有 40 字
     # fingerprint + 原始盘,等于独立重新推一遍结构,与 M0-M2 割裂最重)。
     # 补注入 main_axis + core_loop + innate + threshold,模板加「结论一致性」
     # 指令。deps 顺序 m0→m1→m2 保证走查逐层可重建(_V1_SOURCE_WALK_DEPS 同步)。
-    "m3_system": 6,        # 付费:人生系统模式(运行模式/失效环境/理想结构);v6=EN 质量批(10-11)
+    "m3_system": 7,        # 付费:人生系统模式(运行模式/失效环境/理想结构);v6=EN 质量批(10-11)
     # v3 2026-10-10 L1 加粗链条:M4 补注入 innate(恢复杠杆与「能量回升型天赋」
     # 对齐,不再只凭五行偏性泛泛而谈)。
-    "m4_health": 6,        # 付费:健康续航(需 age + current_concern);v6=EN 质量批(10-11)
-    "m5_wealth": 5,        # 付费:财富结构(需 assets_summary + preference);v5=EN 质量批(10-11)
-    "m6_dynamics": 5,      # 付费:结构动力学高阶(能量路径/杠杆/易损点/升级路径);v5=EN 质量批(10-11)
-    "m7_manual": 5,        # 付费:落地手册(true_leverage + 90 天行动);v5=EN 质量批(10-11)
+    "m4_health": 7,        # 付费:健康续航(需 age + current_concern);v6=EN 质量批(10-11)
+    "m5_wealth": 6,        # 付费:财富结构(需 assets_summary + preference);v5=EN 质量批(10-11)
+    "m6_dynamics": 6,      # 付费:结构动力学高阶(能量路径/杠杆/易损点/升级路径);v5=EN 质量批(10-11)
+    "m7_manual": 6,        # 付费:落地手册(true_leverage + 90 天行动);v5=EN 质量批(10-11)
     # 翻译模板(D10.2,2026-10-01):/api/interpret/translate 专用,按**目标语言**
     # 取文件(zh/zh-hant/en 三份)。translate 不进 v1 module 清单(不影响
     # check_prompt_sync ② 组 ^m\d_ 匹配),也不进 REQUIRED_FIELDS(不消费
