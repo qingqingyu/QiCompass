@@ -31,10 +31,10 @@ def _build_cases() -> list[dict[str, Any]]:
     normal_spec: list[tuple[str, str, str, str]] = [
         # (birth_datetime, gender, expected_strength, season_note)
         # 春(spring, 月 2-4)
-        ("1985-02-10T10:30:00+08:00", "female", "balanced", "春·初春"),
+        ("1985-02-10T10:30:00+08:00", "female", "weak", "春·初春"),
         ("1985-03-10T10:30:00+08:00", "male", "weak", "春·仲春"),
-        ("1990-03-10T10:30:00+08:00", "male", "balanced", "春·仲春"),
-        ("1995-04-10T10:30:00+08:00", "female", "strong", "春·暮春"),
+        ("1990-03-10T10:30:00+08:00", "male", "strong", "春·仲春"),
+        ("1995-04-10T10:30:00+08:00", "female", "balanced", "春·暮春"),
         # 夏(summer, 月 5-7)
         ("1985-05-10T10:30:00+08:00", "male", "strong", "夏·初夏"),
         ("1985-07-10T10:30:00+08:00", "male", "strong", "夏·盛夏"),
@@ -45,10 +45,10 @@ def _build_cases() -> list[dict[str, Any]]:
         ("1995-10-10T10:30:00+08:00", "female", "weak", "秋·深秋"),
         ("1990-09-10T10:30:00+08:00", "male", "weak", "秋·初秋"),
         # 冬(winter, 月 11-1)
-        ("1985-12-10T10:30:00+08:00", "female", "balanced", "冬·仲冬"),
+        ("1985-12-10T10:30:00+08:00", "female", "strong", "冬·仲冬"),
         ("1990-01-10T10:30:00+08:00", "male", "weak", "冬·深冬"),
         ("1990-12-10T10:30:00+08:00", "female", "weak", "冬·仲冬"),
-        ("2000-01-10T10:30:00+08:00", "male", "balanced", "冬·初冬"),
+        ("2000-01-10T10:30:00+08:00", "male", "weak", "冬·初冬"),
     ]
 
     for birth, gender, strength, note in normal_spec:

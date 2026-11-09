@@ -47,7 +47,7 @@ def _build_pillars_from_birth(birth_str: str):
 
 
 def test_normal_strong_pan():
-    """普通身强盘:1985-01-10 丑月,日干丙火,应有 strong + 非空喜忌。"""
+    """普通身强盘:1985-01-10 丑月,日干己土,应有 strong + 非空喜忌。"""
     pillars, eb = _build_pillars_from_birth("1985-01-10T10:30:00+08:00")
     result = compute_xiji(pillars, eb)
     assert result.day_master_strength == "strong"
@@ -71,11 +71,18 @@ def test_normal_weak_pan():
 
 
 def test_balanced_pan_boundary():
-    """balanced 盘:1985-02-10,score 在 4-5 之间,标注中和。"""
-    pillars, eb = _build_pillars_from_birth("1985-02-10T10:30:00+08:00")
+    """balanced 盘:1990-07-10(庚午 癸未 丙子 癸巳),score=2.75 落在
+    (2.5, 4.25) 开区间,标注中和。
+
+    (v2 标定翻转说明:原用 1985-02-10,v2 公式下翻为 weak——见
+    spikes/xiji_v2_calibration_report.md 翻转明细,9 盘翻转经用户问真
+    抽样核对确认 v2 更准,2026-11-09 拍板换盘。)
+    """
+    pillars, eb = _build_pillars_from_birth("1990-07-10T10:30:00+08:00")
     result = compute_xiji(pillars, eb)
     assert result.day_master_strength == "balanced"
     assert WEAK_THRESHOLD < result.score < STRONG_THRESHOLD
+    assert result.score == pytest.approx(2.75), f"实得 {result.score}"
     assert "中和" in result.xiji_method
     assert result.favorable_elements, "balanced 盘应有倾斜方向的喜用"
     assert result.pattern_hint is None
@@ -157,17 +164,20 @@ def test_special_pattern_score_not_used():
 
 
 def test_fuyi_score_components():
-    """扶抑打分:得令(月支主气)+ 得地(日支藏干)+ 得势(年/月/时干)。
+    """扶抑打分 v2:月令十神分档 + 全柱通根(本/中/余气)+ 位置×十神因子。
 
-    1985-01-10 丑月,日干己土:
-    - 得令: 月支丑(土,比劫) → +5
-    - 得地: 日支酉藏干[辛(金)] 不生扶 → +0
-    - 得势: 月干丁(火,印)+1, 时干己(土,比劫)+1, 年干甲(木)不生扶 → +2
-    - 总分 = 5 + 0 + 2 = 7 → strong
+    1985-01-10(甲子 丁丑 己酉 己巳)丑月,日干己土:
+    - 月令:丑主气己(比肩) → +3.00
+    - 通根:月丑藏己(本气)+1.75;时巳藏戊(余气,同五行)+0.50
+      (日支酉藏辛金非根;年支子藏癸非根——v2 真根口径只认同五行)
+    - 得势:月干丁(印)1.2×0.8=+0.96;时干己(比)1.0×1.0=+1.00
+      (年干甲木不生扶 → 0)
+    - 总分 = 3.00+1.75+0.50+0.96+1.00 = 7.21 → strong(≥4.25)
     """
     pillars, eb = _build_pillars_from_birth("1985-01-10T10:30:00+08:00")
     result = compute_xiji(pillars, eb)
-    assert result.score == 7, f"预期 score=7(得令5+得地0+得势2),实得 {result.score}"
+    assert result.score == pytest.approx(7.21), (
+        f"预期 score=7.21(v2 分解见 docstring),实得 {result.score}")
     assert result.day_master_strength == "strong"
 
 

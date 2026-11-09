@@ -276,7 +276,7 @@ async def test_compatibility_free_no_entitlement_passes(interpret_client):
         "/api/interpret", json=_compat_free_payload())
     assert resp.status_code == 200, resp.json()
     body = resp.json()
-    assert body["prompt_version"] == 5  # v5(2026-10-08 规则版本联动补课,内容不变)
+    assert body["prompt_version"] == 6  # v6(2026-11-09 规则版本联动:xiji v2 喜忌翻转,内容不变)
     assert body["interpretation"]
 
 
@@ -310,7 +310,7 @@ async def test_compatibility_paid_with_entitlement_passes(
         "/api/interpret", json=_compat_paid_payload())
     assert resp.status_code == 200, resp.json()
     body = resp.json()
-    assert body["prompt_version"] == 5  # v5(2026-10-08 规则版本联动补课,内容不变)
+    assert body["prompt_version"] == 6  # v6(2026-11-09 规则版本联动:xiji v2 喜忌翻转,内容不变)
     assert body["interpretation"]
 
 

@@ -56,10 +56,11 @@ GAN_POSITION_FACTOR: dict[str, float] = {"year": 0.8, "month": 1.2, "hour": 1.0}
 GAN_PEER_FACTOR = 1.0
 GAN_RESOURCE_FACTOR = 0.8
 
-# 强弱阈值(v2 初值;50 盘标定后定稿——调整须同步
-# tests/fixtures/xiji_cases.py 的 expected)
-STRONG_THRESHOLD: float = 4.5     # score >= STRONG → strong
-WEAK_THRESHOLD: float = 1.5       # score <= WEAK → weak
+# 强弱阈值(v2 定稿 2026-11-09:50 盘标定网格最优 + 用户问真抽样核对
+# 9 盘翻转方向全部确认 v2 更准后拍板;翻转 9/45,分布 24/4/17——调整须
+# 同步 tests/fixtures/xiji_cases.py 的 expected 与 evalkit/cases.py)
+STRONG_THRESHOLD: float = 4.25    # score >= STRONG → strong
+WEAK_THRESHOLD: float = 2.5       # score <= WEAK → weak
 # (WEAK, STRONG) 开区间 → balanced;balanced 时按 score 倾斜:
 # >= 中点偏强走 strong 喜忌,< 中点偏弱走 weak
 BALANCED_TILT_THRESHOLD = (STRONG_THRESHOLD + WEAK_THRESHOLD) / 2  # 随阈值联动,勿手写数值

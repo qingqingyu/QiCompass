@@ -44,8 +44,8 @@
 
 | 盘 | v1(钉) | v2(引擎) | score |
 |---|---|---|---|
-| 1985-02-10T10:30:00+08:00 female | balanced | balanced | 2.21 |
-| 1985-03-10T10:30:00+08:00 male | weak | balanced ←翻转 | 2.25 |
+| 1985-02-10T10:30:00+08:00 female | balanced | weak ←翻转 | 2.21 |
+| 1985-03-10T10:30:00+08:00 male | weak | weak | 2.25 |
 | 1990-03-10T10:30:00+08:00 male | balanced | strong ←翻转 | 4.75 |
 | 1995-04-10T10:30:00+08:00 female | strong | balanced ←翻转 | 4.20 |
 | 1985-05-10T10:30:00+08:00 male | strong | strong | 5.75 |
@@ -57,8 +57,8 @@
 | 1990-09-10T10:30:00+08:00 male | weak | weak | 1.05 |
 | 1985-12-10T10:30:00+08:00 female | balanced | strong ←翻转 | 5.75 |
 | 1990-01-10T10:30:00+08:00 male | weak | weak | -0.25 |
-| 1990-12-10T10:30:00+08:00 female | weak | balanced ←翻转 | 2.45 |
-| 2000-01-10T10:30:00+08:00 male | balanced | balanced | 2.00 |
+| 1990-12-10T10:30:00+08:00 female | weak | weak | 2.45 |
+| 2000-01-10T10:30:00+08:00 male | balanced | weak ←翻转 | 2.00 |
 | 1903-12-01T00:30:00+08:00 male | special_pattern | special_pattern | 11.25 |
 | 1906-07-01T12:30:00+08:00 male | special_pattern | special_pattern | 12.56 |
 | 1906-09-15T12:30:00+08:00 female | special_pattern | special_pattern | 2.00 |
@@ -67,6 +67,6 @@
 
 evalkit 翻转 5/20;cases.py 的 expected_strength 须在阈值拍板后同步重钉(CASES_HASH 变=新 run 身份,设计内)。special_pattern 盘引擎实际 score=-1(未计算),表中 score 为标定脚本假设走的扶抑分数,仅参考。
 
-## 现行占位阈值(4.5/1.5)对照
+## 现行阈值(4.25/2.5)对照
 
-- 翻转 11/45,分布 24/10/11
+- 翻转 9/45,分布 24/4/17

@@ -197,7 +197,7 @@ def main() -> None:
                  " 须在阈值拍板后同步重钉(CASES_HASH 变=新 run 身份,设计内)。"
                  "special_pattern 盘引擎实际 score=-1(未计算),表中 score 为"
                  "标定脚本假设走的扶抑分数,仅参考。\n")
-    lines.append(f"## 现行占位阈值({STRONG_THRESHOLD}/{WEAK_THRESHOLD})对照\n")
+    lines.append(f"## 现行阈值({STRONG_THRESHOLD}/{WEAK_THRESHOLD})对照\n")
     cur_flips = sum(1 for r in normal
                     if _classify(r["score_v2"], STRONG_THRESHOLD,
                                  WEAK_THRESHOLD) != r["v1"])

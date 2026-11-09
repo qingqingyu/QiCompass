@@ -72,8 +72,13 @@ PROMPT_VERSIONS: dict[str, int] = {
     # 旧 v4 解读缓存(判定序变更前生成)继续命中,与新规则评估卡同屏错配
     # 24h+。按现行守护栏(CLAUDE.md「引擎规则版本×合盘 prompt 版本联动」)
     # 补课 bump;模板内容不变(v5 文件 = v4 byte-identical),纯缓存失效。
-    "compatibility_free": 5,
-    "compatibility_paid": 5,
+    # v6(2026-11-09 联动):XIJI_RULE_VERSION 1→2(xiji v2 旺衰公式,喜忌
+    # 翻转 9/45)改变合盘 five_elements/流年同步标签的输入——按守护栏
+    # 「引擎规则版本 × 合盘 prompt 版本联动」补课 bump;模板内容不变
+    # (v6 文件 = v5 byte-identical),纯缓存失效(客户端 24h 缓存键含
+    # prompt_version,老缓存自然 miss 重生成)。
+    "compatibility_free": 6,
+    "compatibility_paid": 6,
     "daily_fortune": 6,    # v6 主句两短句\n分隔去逗号 + ask_suggestions 三条候选问题(2026-10-25 问事窗 S2)
     # v6(2026-10-25 字号梯度+问事窗):headline 改两个短句,之间不用逗号/顿号、
     # 写 JSON 转义 \n(修外评「全角逗号在大字号里留洞」+小屏主句排满换行;
