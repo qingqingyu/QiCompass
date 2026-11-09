@@ -285,15 +285,17 @@ def test_v1_prompt_versions_registry_matches_expected():
     # 只许在括注里,岁数/干支须与输入大运对账;结论层仍禁括注(plan 见 docs)。
     # v11(m0) 2026-10-21 leak 三段化(A′ 排版批):core_loop.leak 固定三段
     # (\n 分隔:代价/何时会变/现在怎么做)+ JSON 换行转义规则进自检块。
+    # v12/6/7…(2026-11-09 deep×XIJI 联动 bump,xiji v2 喜忌翻转后的缓存
+    # 错配收口;三语 byte-identical 纯失效,见 prompts.py 版本注释)
     expected = {m: 2 for m in v1_modules}
-    expected["m0_structure"] = 11
-    expected["m1_talent"] = 5
-    expected["m2_high_low"] = 6
-    expected["m3_system"] = 6
-    expected["m4_health"] = 6
-    expected["m5_wealth"] = 5
-    expected["m6_dynamics"] = 5
-    expected["m7_manual"] = 5
+    expected["m0_structure"] = 12
+    expected["m1_talent"] = 6
+    expected["m2_high_low"] = 7
+    expected["m3_system"] = 7
+    expected["m4_health"] = 7
+    expected["m5_wealth"] = 6
+    expected["m6_dynamics"] = 6
+    expected["m7_manual"] = 6
     for module in v1_modules:
         assert module in PROMPT_VERSIONS, f"{module} 未注册 PROMPT_VERSIONS"
         assert PROMPT_VERSIONS[module] == expected[module], (
