@@ -58,6 +58,7 @@ from ..ai.prompts import (
     render_prompt,
     validate_context,
 )
+from ..ai.router import resolve_ai_client
 from ..ai.singleflight import SingleflightCoalescer
 from ..auth.dependencies import get_current_user_id
 from ..config import (
@@ -1042,7 +1043,8 @@ async def interpret(
     # 解析层见 backend/app/api/language.py(i18n 决策 2:方案 4 双 header 混合)
     language = resolve_language(request)
 
-    ai_client = request.app.state.ai_client
+    # 分模块路由(2026-11-09):CacheKey 身份/生成调用/响应身份全吃 resolved
+    ai_client = resolve_ai_client(request.app.state.ai_client, req.module)
 
     # 1-2. 校验 context + 渲染 prompt + 算缓存键(与 /api/interpret/translate
     # 共享 _prepare_prompt_and_key——D10.1 缓存键对齐的关键:两个端点跑同一段
@@ -1568,6 +1570,9 @@ async def _verify_v1_chain_translation_source(
     至多一次/每次重排一次,且重排后 iOS 链本就重算;按「宁可重生成不可
     放松防伪」接受。
     """
+    # 分模块路由(2026-11-09):源键重建用「按源模块路由」的 client——
+    # 与 translate 端点生成侧同一对象,译后内容落同一缓存键
+    ai_client = resolve_ai_client(request.app.state.ai_client, req.module)
     cache: InterpretationCache = request.app.state.cache
     deps = _V1_SOURCE_WALK_DEPS[req.module]
     chart = req.context.get("chart")
@@ -1673,7 +1678,7 @@ async def _verify_v1_chain_translation_source(
                         source_prepared = await run_in_threadpool(
                             _prepare_prompt_and_key,
                             source_req, source_language, request_id, start,
-                            request.app.state.ai_client)
+                            ai_client)
                     except InvalidInputError as e:
                         # 该分支的链字段值过不了 context 校验(十七轮外评 #2):输出
                         # 字段长度在**生成侧**从不校验(上限只拦下游模块的 context),
@@ -2016,7 +2021,8 @@ async def interpret_translate(
     elif req.module == "daily_fortune":
         _parse_daily_source_interpretation(req.source_interpretation)
 
-    ai_client = request.app.state.ai_client
+    # 分模块路由:translate 按源模块路由(译后内容落当前翻译 client 的键)
+    ai_client = resolve_ai_client(request.app.state.ai_client, req.module)
 
     # 4. 共享「校验 → 翻译 → 渲染 → 算 key」(缓存键对齐的关键,见 docstring)
     prepared = _prepare_prompt_and_key(req, language, request_id, start, ai_client)

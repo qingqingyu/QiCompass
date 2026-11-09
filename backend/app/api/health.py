@@ -7,6 +7,7 @@ from datetime import datetime, timedelta, timezone
 from fastapi import APIRouter, HTTPException, Request, Response
 
 from ..ai.prompts import PROMPT_VERSIONS
+from ..ai.router import AIClientRouter
 from ..config import (
     LLM_ALERT_FAILURE_RATE,
     LLM_ALERT_MIN_CALLS,
@@ -152,8 +153,14 @@ def health_llm(request: Request, response: Response) -> dict:
     # 在场证明,查询即收尾(各 worker 独立口径不变;store 读失败在
     # evaluate_alert 内自捕获,不反噬本端点。测试 stub 非 MeteredAIClient
     # 跳过)。
-    if isinstance(ai_client, MeteredAIClient):
-        ai_client.evaluate_alert(hour=current)
+    # router 挂载时用默认路由的 Metered 做巡检收尾(各路由 client 的
+    # evaluate_alert 仍随各自模块的调用触发;巡检只兜默认路——2026-11-09
+    # 路由化已知限制,store 无 model 维度同 provider 合并统计)
+    alert_client = (
+        ai_client.default if isinstance(ai_client, AIClientRouter)
+        else ai_client)
+    if isinstance(alert_client, MeteredAIClient):
+        alert_client.evaluate_alert(hour=current)
 
     start_24h = hour_key(now - timedelta(hours=23))
     today_start = f"{now.date().isoformat()}T00"
@@ -188,7 +195,10 @@ def health_llm(request: Request, response: Response) -> dict:
         last_error["message"] = re.sub(
             r"[^\s/:?#]+:[^\s/@?#]+@[^\s]+", "[credentials@host]", message)
 
-    return {
+    # 分模块路由(2026-11-09):router 时透出每路身份(additive,非 router
+    # 无此键,老消费者形状不变);windows/last_error 仍按默认路由 provider
+    # 口径(store 无 model 维度,同 provider 异 model 合并统计——已知限制)
+    payload = {
         "provider": ai_client.provider,
         "model": ai_client.model,
         "windows": {
@@ -206,3 +216,12 @@ def health_llm(request: Request, response: Response) -> dict:
             "threshold": LLM_ALERT_FAILURE_RATE,
         },
     }
+    if isinstance(ai_client, AIClientRouter):
+        grouped: dict[int, dict] = {}
+        for module, client in ai_client.routes.items():
+            entry = grouped.setdefault(id(client), {
+                "provider": client.provider, "model": client.model,
+                "modules": []})
+            entry["modules"].append(module)
+        payload["routes"] = list(grouped.values())
+    return payload
