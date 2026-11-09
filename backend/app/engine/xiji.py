@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from ..engine.pillars import (
-    GAN_ELEMENT, ZHI_ELEMENT,
+    GAN_ELEMENT,
     EN2ZH, SHENG_WO, WO_SHENG, WO_KE, KE_WO,
     compute_ten_god_weights,
 )
@@ -25,20 +25,47 @@ TIAOSHOU: dict[str, str] = {
     "午": "water", "未": "water",
 }
 
-# ---------- 扶抑打分权重(初值,待 50 盘 spike 标定) ----------
+# ---------- 扶抑打分 v2(2026-11-07 借鉴项④:证据面扩充)----------
+# v1(至 2026-11-06):得令二值 +5/0、得地仅日支、得势平权——证据面窄,
+# 月令十神分量差(印 vs 比劫、食伤 vs 官杀)全部丢失,通根只看日支。
+# v2 扩面(权重=徐子平基线,docs/prompt对比-徐子平skill-20261107.md A1;
+# 阈值=占位初值,50 盘标定候选已产出待拍板,见
+# spikes/xiji_v2_calibration.py 及其生成的标定报告):
+# - 月令按主气十神分档(含负档,失令程度差异化)
+# - 通根查全部四柱,按藏干层次(本/中/余气)加权,真根口径(同五行,
+#   不含印生——v1 得地含印,v2 收紧为传统通根口径)
+# - 天干得势带位置因子(月干最重)与十神因子(比劫>印),只加不减
+#   (克泄耗已在月令负档体现,不双重惩罚)
+# 规则版本 XIJI_RULE_VERSION 见 config(观测通道 calc_rule_snapshot;
+# content_hash 刻意不含规则版本——「hash 掺版本」已两轮驳回)。
 
-DELING_WEIGHT = 5          # 得令:月支主气同类/生我
-DEDI_MAIN_WEIGHT = 2       # 得地:日支主气同类/生我
-DEDI_RESIDUAL_WEIGHT = 1   # 得地:日支余气同类/生我(每个)
-DESHI_WEIGHT = 1           # 得势:年/月/时干每个同类/生我
+# 月令分档:月支主气藏干对日主的十神 → 加权
+MONTH_TENGOD_WEIGHTS: dict[str, float] = {
+    "比肩": 3.0, "劫财": 3.0,
+    "正印": 2.0, "偏印": 2.0,
+    "食神": -1.75, "伤官": -1.75,
+    "正财": -1.25, "偏财": -1.25,
+    "七杀": -2.5, "正官": -2.5,
+}
 
-# 强弱阈值(初值,待 50 盘 spike 标定)
-STRONG_THRESHOLD = 6       # score >= 6 → strong
-WEAK_THRESHOLD = 3         # score <= 3 → weak
-# 4-5 → balanced;balanced 时按 score 倾斜:>= 中点偏强走 strong 喜忌,< 中点偏弱走 weak
-BALANCED_TILT_THRESHOLD = (STRONG_THRESHOLD + WEAK_THRESHOLD) / 2  # 4.5
+# 通根:四柱地支藏干首个与日主同五行者,按藏干层次计
+ROOT_WEIGHTS: tuple[float, ...] = (1.75, 1.0, 0.5)  # 本气/中气/余气
 
-# 从格阈值(初值,待 50 盘 spike 标定)
+# 天干得势:位置因子(年/月/时)× 十神因子(比劫 1.0/印 0.8)
+GAN_POSITION_FACTOR: dict[str, float] = {"year": 0.8, "month": 1.2, "hour": 1.0}
+GAN_PEER_FACTOR = 1.0
+GAN_RESOURCE_FACTOR = 0.8
+
+# 强弱阈值(v2 定稿 2026-11-09:50 盘标定网格最优 + 用户问真抽样核对
+# 9 盘翻转方向全部确认 v2 更准后拍板;翻转 9/45,分布 24/4/17——调整须
+# 同步 tests/fixtures/xiji_cases.py 的 expected 与 evalkit/cases.py)
+STRONG_THRESHOLD: float = 4.25    # score >= STRONG → strong
+WEAK_THRESHOLD: float = 2.5       # score <= WEAK → weak
+# (WEAK, STRONG) 开区间 → balanced;balanced 时按 score 倾斜:
+# >= 中点偏强走 strong 喜忌,< 中点偏弱走 weak
+BALANCED_TILT_THRESHOLD = (STRONG_THRESHOLD + WEAK_THRESHOLD) / 2  # 随阈值联动,勿手写数值
+
+# 从格阈值(与打分公式无关,按五行计数,v2 不动)
 ZHUANWANG_THRESHOLD = 6    # 日主同气五行 >= 6 → 专旺
 CONG_THRESHOLD = 5         # 某一行 >= 5 → 从格(需日主孤立)
 
@@ -55,8 +82,8 @@ class XijiResult:
     tiaoshou_applied: bool = False
     xiji_method: str = ""
     pattern_hint: str | None = None  # "zhuanwang"|"cong"|None
-    # 内部字段(不进 API):扶抑打分,special_pattern 时为 -1 表示未计算
-    score: int = -1
+    # 内部字段(不进 API):扶抑打分(v2 float),special_pattern 时为 -1 表示未计算
+    score: float = -1.0
     # v1 prompt 系统:M0 chart 注入字段
     # ten_god_weights: 全局十神权重(从 pillars.compute_ten_god_weights 透传)
     # useful_god_candidates: 喜用五行中文 list(普通盘 = favorable_elements 拷贝;
@@ -73,19 +100,6 @@ def _element_of_gan(gan: str) -> str:
     if elem is None:
         raise ValueError(f"未知天干: {gan!r}")
     return elem
-
-
-def _element_of_zhi(zhi: str) -> str:
-    """地支主气 → 五行(英文)。未知抛 ValueError。"""
-    elem = ZHI_ELEMENT.get(zhi)
-    if elem is None:
-        raise ValueError(f"未知地支: {zhi!r}")
-    return elem
-
-
-def _is_support(element: str, day_element: str) -> bool:
-    """该五行是否生扶日主(同类比劫 或 生我印)。"""
-    return element == day_element or element == SHENG_WO[day_element]
 
 
 # ---------- 从格检测(D3) ----------
@@ -123,35 +137,55 @@ def _detect_special_pattern(
 
 # ---------- 扶抑打分 ----------
 
-def _compute_fuyi_score(pillars: Pillars, day_element: str) -> int:
-    """扶抑打分 = 得令 + 得地 + 得势。
+def _compute_fuyi_score(pillars: Pillars, day_element: str) -> float:
+    """扶抑打分 v2 = 月令十神分档 + 全柱通根 + 天干得势(位置×十神因子)。
 
-    - 得令:月支主气同类/生我 → +DELING_WEIGHT
-    - 得地:日支藏干主气同类/生我 → +DEDI_MAIN_WEIGHT;余气每个 +DEDI_RESIDUAL_WEIGHT
-    - 得势:年/月/时干每个同类/生我 → +DESHI_WEIGHT
+    - 月令分档:月支主气藏干对日主的十神(月柱 shishen_zhi[0])按
+      MONTH_TENGOD_WEIGHTS 加权,含负档(失令程度差异化)
+    - 通根:四柱每柱藏干首个与日主**同五行**者按层次计(真根,不含印生)
+    - 得势:年/月/时干比劫或印 → GAN_POSITION_FACTOR × 十神因子,只加不减
+
+    Raises:
+        ValueError: 月支藏干十神为空 / 十神不在分档表 / 任一柱藏干为空
+            (数据异常,显式暴露)
     """
-    score = 0
+    score = 0.0
 
-    # 得令:月支主气
-    month_zhi_element = _element_of_zhi(pillars.month.zhi)
-    if _is_support(month_zhi_element, day_element):
-        score += DELING_WEIGHT
-
-    # 得地:日支藏干(pillars.day.hide_gan[0] 是主气,其余是余气)
-    hide_gan = pillars.day.hide_gan
-    if not hide_gan:
-        # 地支必有藏干,空则数据异常,抛出(不吞)
+    # 1. 月令分档(shishen_zhi[0] = 主气藏干的十神)
+    if not pillars.month.shishen_zhi:
         raise ValueError(
-            f"日支藏干为空:日柱 {pillars.day.gan_zhi!r} zhi={pillars.day.zhi!r}"
+            f"月支藏干十神为空:月柱 {pillars.month.gan_zhi!r} "
+            f"zhi={pillars.month.zhi!r}"
         )
-    for idx, gan in enumerate(hide_gan):
-        if _is_support(_element_of_gan(gan), day_element):
-            score += DEDI_MAIN_WEIGHT if idx == 0 else DEDI_RESIDUAL_WEIGHT
+    month_main_god = pillars.month.shishen_zhi[0]
+    month_weight = MONTH_TENGOD_WEIGHTS.get(month_main_god)
+    if month_weight is None:
+        raise ValueError(
+            f"月令十神不在分档表:{month_main_god!r}"
+            f"(月柱 {pillars.month.gan_zhi!r},数据异常)")
+    score += month_weight
 
-    # 得势:年/月/时干
-    for gan in (pillars.year.gan, pillars.month.gan, pillars.hour.gan):
-        if _is_support(_element_of_gan(gan), day_element):
-            score += DESHI_WEIGHT
+    # 2. 通根:四柱,每柱藏干首个同五行者按层次计(取首个即最高档)
+    for pillar in (pillars.year, pillars.month, pillars.day, pillars.hour):
+        if not pillar.hide_gan:
+            # 地支必有藏干,空则数据异常(不吞;不依赖 compute_xiji 里
+            # compute_ten_god_weights 先跑的同款守卫,本函数自守卫)
+            raise ValueError(
+                f"地支藏干为空:柱 {pillar.gan_zhi!r} zhi={pillar.zhi!r}")
+        for idx, gan in enumerate(pillar.hide_gan):
+            if _element_of_gan(gan) == day_element:
+                score += (ROOT_WEIGHTS[idx] if idx < len(ROOT_WEIGHTS)
+                          else ROOT_WEIGHTS[-1])
+                break
+
+    # 3. 天干得势:比劫(同五行)×1.0 / 印(生我)×0.8,乘位置因子
+    for key, pillar in (("year", pillars.year), ("month", pillars.month),
+                        ("hour", pillars.hour)):
+        gan_element = _element_of_gan(pillar.gan)
+        if gan_element == day_element:
+            score += GAN_POSITION_FACTOR[key] * GAN_PEER_FACTOR
+        elif gan_element == SHENG_WO[day_element]:
+            score += GAN_POSITION_FACTOR[key] * GAN_RESOURCE_FACTOR
 
     return score
 
@@ -237,8 +271,8 @@ def compute_xiji(pillars: Pillars, element_balance: ElementBalance) -> XijiResul
     #    权重公式按 8 字校准,缺字硬算数值意义已变;喜忌是三模块根基,
     #    可靠性无法验证就不给。ten_god_weights/useful_god_candidates 一并留空
     #    (客观统计缺时柱/日柱后与 8 字口径不可比,不降级呈现)
-    #    月柱歧义(D10 级联,S02):调候(查月支)与得令(DELING_WEIGHT 查
-    #    月支)失去输入;年柱歧义(立春日):扶抑得势项缺年干。经引擎路径
+    #    月柱歧义(D10 级联,S02):调候(查月支)与月令分档(查月支
+    #    藏干十神)失去输入;年柱歧义(立春日):扶抑得势项缺年干。经引擎路径
     #    两者必伴随 hour=None,本守卫使部分柱直调同样诚实降级(不硬算)
     if (pillars.hour is None or pillars.day is None
             or pillars.year is None or pillars.month is None):
@@ -249,7 +283,7 @@ def compute_xiji(pillars: Pillars, element_balance: ElementBalance) -> XijiResul
             tiaoshou_applied=False,
             xiji_method="时辰未知,喜忌未计算(需补时辰)",
             pattern_hint=None,
-            score=-1,
+            score=-1.0,
             ten_god_weights={},
             useful_god_candidates=[],
         )

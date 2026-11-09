@@ -228,7 +228,7 @@ class BaziEngine:
             month_zhi = pillars.month.zhi if pillars.month is not None else None
             logger.info(
                 "bazi.xiji content_hash=%s day_gan=%s day_element=%s month_zhi=%s "
-                "strength=%s score=%d tiaoshou=%s pattern=%s elapsed_ms=%.2f",
+                "strength=%s score=%.2f tiaoshou=%s pattern=%s elapsed_ms=%.2f",
                 content_hash, day_gan, day_element, month_zhi,
                 xiji.day_master_strength, xiji.score, xiji.tiaoshou_applied,
                 xiji.pattern_hint, xiji_elapsed_ms,

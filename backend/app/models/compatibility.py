@@ -27,7 +27,8 @@ Context = Literal["general", "marriage", "business"]
 
 # ---------- 引擎规则版本 ----------
 
-#: 合盘确定性引擎规则版本（2026-10-07 合冲标签判定序修复起 = 2）。
+#: 合盘确定性引擎规则版本（3 = 2026-11-09 xiji v2 旺衰公式上线,喜忌翻转
+#: 影响 five_elements 互补与流年同步标签;2 = 2026-10-07 合冲判定序修复）。
 #: 语义：iOS CompatibilitySnapshot 持久化此值，加载/预查时与本地镜像比对——
 #: 版本不同 = 快照按旧规则算出，须重算（合冲判定序/阈值变更后老快照不得
 #: 继续展示旧标签，详见 compute_compatibility_hash 的"不加版本"注释与
@@ -38,7 +39,7 @@ Context = Literal["general", "marriage", "business"]
 #: bump 时机：_assess_branch_harmony 等确定性判定规则变更；**必须与 iOS
 #: CompatibilitySnapshotStore.expectedEngineRuleVersion 同步 bump**（漏 bump
 #: 最坏 = 老快照多活一版，不崩溃）。
-COMPATIBILITY_RULE_VERSION = 2
+COMPATIBILITY_RULE_VERSION = 3
 
 
 # ---------- Request ----------

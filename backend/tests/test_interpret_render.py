@@ -283,12 +283,14 @@ def test_compatibility_v4_chapter_title_standalone_rule():
     assert "Grounding" in en_paid
 
 
-def test_compatibility_versions_bumped_v5():
+def test_compatibility_versions_bumped_v6():
     """v3→4(2026-09-27):名字化 + 干支接地 + 纯中文 + 标题行;v4→5
-    (2026-10-08):COMPATIBILITY_RULE_VERSION 1→2 联动补课(判定序变更前的
-    旧 v4 解读缓存自然失效;模板内容不变);alias 老模板不动(供老 iOS,不 bump)。"""
-    assert PROMPT_VERSIONS["compatibility_free"] == 5
-    assert PROMPT_VERSIONS["compatibility_paid"] == 5
+    (2026-10-08):COMPATIBILITY_RULE_VERSION 1→2 联动补课;v5→6(2026-11-09):
+    COMPATIBILITY_RULE_VERSION 2→3 联动(xiji v2 旺衰公式改变喜忌 → 合盘
+    five_elements/流年同步标签输入变化;模板内容不变,纯缓存失效);
+    alias 老模板不动(供老 iOS,不 bump)。"""
+    assert PROMPT_VERSIONS["compatibility_free"] == 6
+    assert PROMPT_VERSIONS["compatibility_paid"] == 6
     assert PROMPT_VERSIONS["compatibility"] == 3
 
 

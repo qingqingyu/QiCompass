@@ -9,6 +9,13 @@ LUNAR_PYTHON_VERSION = "1.4.8"
 # 当前 schema 版本(ChartSnapshot D1)
 SCHEMA_VERSION = 1
 
+# 喜忌引擎规则版本(2026-11-07 借鉴项④引入 v2:月令十神分档/全柱通根/
+# 位置因子)。观测通道:进 calcRuleSnapshot(响应字段可查,老快照缺省=1),
+# **不进 content_hash**——「hash 掺规则版本」已两轮驳回,新老区分靠
+# prompt_hash(喜忌进 prompt)与重排盘;老 snapshot 喜忌被 token 镜像
+# 签死不受影响
+XIJI_RULE_VERSION = 2
+
 # API 模型标识
 MODEL_ID = "bazi-calculate-v1"
 

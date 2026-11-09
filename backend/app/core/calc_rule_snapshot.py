@@ -7,7 +7,7 @@
 
 from __future__ import annotations
 
-from ..config import LUNAR_PYTHON_VERSION, SCHEMA_VERSION
+from ..config import LUNAR_PYTHON_VERSION, SCHEMA_VERSION, XIJI_RULE_VERSION
 
 
 def build_calc_rule_snapshot(sect: int, zi_hour_rule: str,
@@ -46,6 +46,7 @@ def build_calc_rule_snapshot(sect: int, zi_hour_rule: str,
         "true_solar_longitude": round(longitude, 6),
         "true_solar_offset_minutes": round(offset_minutes, 2),
         "schema_version": SCHEMA_VERSION,
+        "xiji_rule_version": XIJI_RULE_VERSION,
         "birth_timezone": birth_timezone,
         "hour_known": hour_known,
         "pillar_ambiguity": pillar_ambiguity,

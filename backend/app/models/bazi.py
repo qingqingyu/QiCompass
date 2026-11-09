@@ -197,6 +197,10 @@ class CalcRuleSnapshot(BaseModel):
     true_solar_longitude: float
     true_solar_offset_minutes: float
     schema_version: int
+    # 喜忌引擎规则版本(2026-11-07 v2 起随快照透出,观测字段:不进
+    # content_hash / 缓存键)。老快照缺省 = v1(v2 前只有 v1 口径;
+    # 2026-08-15 教训:payload 加字段必须可缺省)
+    xiji_rule_version: int = 1
     # S02 契约:出生地 IANA 时区(审计/展示;老快照可能为空)
     birth_timezone: str | None = None
     # 时辰未知 S01:排盘是否含时柱(缺此字段则补时辰前后无法从快照分辨,
