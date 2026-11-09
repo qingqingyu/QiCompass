@@ -1,6 +1,7 @@
 """应用全局常量。"""
 
 import os
+import re
 
 # lunar_python 版本(与 requirements.txt 锁定一致)
 LUNAR_PYTHON_VERSION = "1.4.8"
@@ -111,6 +112,93 @@ def resolve_temperature(module: str) -> float:
     把 module → temperature 分级真正接通。Stage 2 只铺基础设施,不接入路由。
     """
     return MODULE_TEMPERATURES.get(module, AI_DEFAULT_TEMPERATURE)
+
+
+# ---------- 分模块模型路由(2026-11-09 机制先行,路由表留空=全走默认路由)----------
+# 每条路由 = AI_ROUTE_{N}_MODULES / _PROVIDER / _MODEL / _BASE_URL / _API_KEY
+# (N=1..8,flat 编号组,对齐本仓库 flat env 风格)。MODULES 逗号分隔的模块名
+# 精确映射到该路;未命中模块走默认路由(现有 AI_PROVIDER/ANTHROPIC_*/
+# OPENAI_* 主 env 名,evalkit 也读主名——单模型/run 语义不受影响)。
+# 无 fallback(ADR-0010):路由是部署级静态决策,不是故障切换。
+# 模块名合法性校验放 main.py 启动期(此层 import prompts 会环);
+# provider 值与组完整性在此层 fail-fast。
+
+from dataclasses import dataclass
+
+
+@dataclass(frozen=True)
+class AIRouteConfig:
+    """一条编号路由组(纯数据,client 装配在 main.py)。"""
+
+    index: int
+    modules: tuple[str, ...]
+    provider: str          # anthropic | openai
+    model: str
+    base_url: str | None   # None = 该协议官方端点
+    api_key: str | None    # 缺失不阻启动,调用时显式 503(对齐主路由)
+
+
+def _parse_ai_routes() -> list[AIRouteConfig]:
+    # 越界序号守卫:AI_ROUTE_{N}_*(N∉1..8,如 AI_ROUTE_9_* / AI_ROUTE_10_*)
+    # 在下方 range 之外会被静默忽略——operator 配错组号即整组无声失效,
+    # 与「配置不完整显式报错不静默丢路由」同罪,扫全量 env 显式拒绝。
+    # 前导零(如 AI_ROUTE_01_*)同罪:int("01")=1 守卫会放行,但解析循环
+    # 只读 AI_ROUTE_1_* 键 → 整组照样静默忽略,故非规范十进制串一并拒绝。
+    _ROUTE_INDEX_RE = re.compile(r"^AI_ROUTE_(\d+)_")
+    for key in os.environ:
+        m = _ROUTE_INDEX_RE.match(key)
+        if not m:
+            continue
+        raw_index = m.group(1)
+        if raw_index != str(int(raw_index)):
+            raise ValueError(
+                f"路由组号含前导零:{key}(组号须为 1..8 的规范十进制,如 "
+                f"AI_ROUTE_1_*;AI_ROUTE_01_* 解析循环读不到,该组会被静默"
+                f"忽略——显式报错)")
+        if not 1 <= int(raw_index) <= 8:
+            raise ValueError(
+                f"路由组号越界:{key} 的组号 {raw_index} 不在 1..8 内"
+                f"(该组会被静默忽略,模块无声回落默认路由——显式报错)")
+    routes: list[AIRouteConfig] = []
+    for i in range(1, 9):
+        modules_raw = (os.environ.get(f"AI_ROUTE_{i}_MODULES") or "").strip()
+        sibling_keys = (
+            f"AI_ROUTE_{i}_PROVIDER", f"AI_ROUTE_{i}_MODEL",
+            f"AI_ROUTE_{i}_BASE_URL", f"AI_ROUTE_{i}_API_KEY",
+        )
+        if not modules_raw:
+            if any((os.environ.get(k) or "").strip() for k in sibling_keys):
+                raise ValueError(
+                    f"AI_ROUTE_{i}_* 配了 PROVIDER/MODEL 等但缺 "
+                    f"AI_ROUTE_{i}_MODULES(配置不完整,显式报错不静默丢路由)")
+            continue
+        provider = (os.environ.get(f"AI_ROUTE_{i}_PROVIDER") or "").strip().lower()
+        if provider not in {"anthropic", "openai"}:
+            raise ValueError(
+                f"AI_ROUTE_{i}_PROVIDER must be one of: anthropic, openai "
+                f"(got {provider!r})")
+        model = (os.environ.get(f"AI_ROUTE_{i}_MODEL") or "").strip()
+        if not model:
+            raise ValueError(f"AI_ROUTE_{i}_MODEL must not be blank")
+        base_url = (os.environ.get(f"AI_ROUTE_{i}_BASE_URL") or "").strip().rstrip("/") or None
+        api_key = os.environ.get(f"AI_ROUTE_{i}_API_KEY") or None
+        modules = tuple(
+            m.strip() for m in modules_raw.split(",") if m.strip())
+        if not modules:
+            # MODULES 只有分隔符/空白(如 "," 或 "  "):解析后零映射,
+            # 该组静默失效——与缺 MODULES 同罪,显式报错。
+            raise ValueError(
+                f"AI_ROUTE_{i}_MODULES 值 {modules_raw!r} 解析后为空"
+                f"(需逗号分隔的模块名;配置不完整,显式报错不静默丢路由)")
+        routes.append(AIRouteConfig(
+            index=i,
+            modules=modules,
+            provider=provider, model=model,
+            base_url=base_url, api_key=api_key))
+    return routes
+
+
+AI_ROUTES: list[AIRouteConfig] = _parse_ai_routes()
 
 # 后端 SQLite 缓存路径(D2 第二级);可被 env 覆盖
 DB_PATH = os.environ.get("QICOMPASS_DB_PATH", "data/qicompass.db")

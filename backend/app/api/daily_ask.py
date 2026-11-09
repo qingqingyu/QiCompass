@@ -33,6 +33,7 @@ from starlette.concurrency import run_in_threadpool
 from ..ai.forbidden_words import scan as scan_forbidden_words
 from ..ai.forbidden_words import validate_interpretation
 from ..ai.prompts import PROMPT_VERSIONS, render_prompt
+from ..ai.router import resolve_ai_client
 from ..ask.service import AskGrantService
 from ..ask.store import AskCreditsStore
 from ..auth.dependencies import get_current_user_id
@@ -313,7 +314,8 @@ async def daily_ask(
 
     # 8. LLM(module=daily_ask 进监控桶;失败退:次数回补 + IP 闸回退——
     #    此路径 IP 名额已真实消耗,两样都退)
-    ai_client = request.app.state.ai_client
+    # 分模块路由(2026-11-09):与 interpret 端点同款 resolve
+    ai_client = resolve_ai_client(request.app.state.ai_client, "daily_ask")
     try:
         raw = await ai_client.interpret(prompt, module="daily_ask")
         payload = _parse_daily_ask_output(raw)

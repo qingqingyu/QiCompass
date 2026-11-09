@@ -31,6 +31,7 @@ from .api import auth as auth_api
 from .api import sync as sync_api
 from .config import (
     AI_PROVIDER,
+    AI_ROUTES,
     ANTHROPIC_API_KEY,
     ANTHROPIC_BASE_URL,
     ANTHROPIC_MODEL,
@@ -168,8 +169,11 @@ async def lifespan(app: FastAPI):
     llm_metrics_store.init_schema()
     app.state.llm_metrics_store = llm_metrics_store
     from app.monitoring.metered import MeteredAIClient
-    app.state.ai_client = MeteredAIClient(
-        _build_ai_client(), llm_metrics_store)
+    # 分模块模型路由(2026-11-09):default 先包 Metered 再外套 router;
+    # 路由表留空时 _build_ai_router 原样返回 default(零行为变化)
+    app.state.ai_client = _build_ai_router(
+        MeteredAIClient(_build_ai_client(), llm_metrics_store),
+        llm_metrics_store)
     ai_client = app.state.ai_client
     selected_key_configured = (
         bool(ANTHROPIC_API_KEY)
@@ -178,14 +182,20 @@ async def lifespan(app: FastAPI):
     )
     apple_kind = "mock" if isinstance(
         app.state.apple_server_api, MockAppleServerAPI) else "apple_sdk"
+    from app.ai.router import AIClientRouter
+    # 计数口径 = 被路由走的**模块**数(非路由组数;一组 7 模块 → 7)
+    ai_route_count = (
+        len(ai_client.routes) if isinstance(ai_client, AIClientRouter) else 0)
     logger.info(
         "startup ok db_path=%s ai_provider=%s ai_model=%s "
-        "selected_api_key_configured=%s apple_server_api=%s",
+        "selected_api_key_configured=%s apple_server_api=%s "
+        "ai_route_modules=%d",
         DB_PATH,
         ai_client.provider,
         ai_client.model,
         selected_key_configured,
         apple_kind,
+        ai_route_count,
     )
     yield
     # 后台计数任务收尾(2026-10-10 监控后台化):优雅停机时 join 在飞的
@@ -253,6 +263,60 @@ def _build_ai_client():
     )
 
 
+def _build_ai_router(default_client, metrics_store):
+    """默认路由 + AI_ROUTES 路由表 → AIClientRouter(每路独立 Metered)。
+
+    启动期校验(fail-fast,对齐 _build_apple_server_api 先例):
+    - 路由表模块名必须 ∈ PROMPT_VERSIONS ∪ {daily_ask}(防 typo 静默丢路由)
+    - 同一模块不得分配到多条路由(首条生效的静默遮蔽不可接受)
+    key 缺失不阻启动(调用时显式 503,对齐主路由 key 策略)。
+    """
+    from app.ai.client import AIClient
+    from app.ai.prompts import PROMPT_VERSIONS
+    from app.ai.router import AIClientRouter
+    from app.monitoring.metered import MeteredAIClient
+
+    valid_modules = set(PROMPT_VERSIONS) | {"daily_ask"}
+    routes: dict[str, AIClient] = {}
+    for route in AI_ROUTES:
+        if route.api_key is None:
+            # key 缺失不阻启动(对齐主路由),但运行期 503 文案只点名
+            # ANTHROPIC_API_KEY/OPENAI_API_KEY——路由场景实际缺的是
+            # AI_ROUTE_{N}_API_KEY,启动期留痕防 operator 被引去查错变量。
+            logger.warning(
+                "ai_route_%d provider=%s model=%s 缺 AI_ROUTE_%d_API_KEY"
+                "(不阻启动;该路模块=%s 调用时将显式 503)",
+                route.index, route.provider, route.model, route.index,
+                ",".join(route.modules))
+        for module in route.modules:
+            if module not in valid_modules:
+                raise RuntimeError(
+                    f"AI_ROUTE_{route.index}_MODULES 含未知模块 {module!r}"
+                    f"(合法集合:PROMPT_VERSIONS 全部键 + daily_ask;"
+                    f"防 typo 静默丢路由,启动期显式暴露)")
+            if module in routes:
+                raise RuntimeError(
+                    f"模块 {module!r} 被分配到多条路由"
+                    f"(AI_ROUTE_{route.index} 与先前路由重复;静态映射须无歧义)")
+            routes[module] = MeteredAIClient(create_ai_client(
+                provider=route.provider,
+                anthropic_api_key=(
+                    route.api_key if route.provider == "anthropic" else None),
+                anthropic_model=(
+                    route.model if route.provider == "anthropic" else ""),
+                anthropic_base_url=(
+                    route.base_url if route.provider == "anthropic" else None),
+                openai_api_key=(
+                    route.api_key if route.provider == "openai" else None),
+                openai_model=route.model if route.provider == "openai" else "",
+                openai_base_url=(
+                    route.base_url or "https://api.openai.com/v1"),
+            ), metrics_store)
+    if not routes:
+        return default_client  # 表留空:零路由,行为与今日逐字节一致
+    return AIClientRouter(default=default_client, routes=routes)
+
+
 app = FastAPI(title="QiCompass Bazi Backend", version=MODEL_ID, lifespan=lifespan)
 # ASGITransport 单测不触发 lifespan;先挂默认实例,启动时再重建一次。
 # entitlement_store / apple_server_api 也挂 fallback(测试 fixture 可覆盖)。
@@ -302,8 +366,9 @@ from app.monitoring.store import LLMOutcomeStore  # noqa: E402
 _default_llm_metrics_store = LLMOutcomeStore(DB_PATH)
 _default_llm_metrics_store.init_schema()
 app.state.llm_metrics_store = _default_llm_metrics_store
-app.state.ai_client = MeteredAIClient(
-    _build_ai_client(), _default_llm_metrics_store)
+app.state.ai_client = _build_ai_router(
+    MeteredAIClient(_build_ai_client(), _default_llm_metrics_store),
+    _default_llm_metrics_store)
 app.state.apple_server_api = MockAppleServerAPI()
 # 测试环境 fallback:ASGITransport 单测不触发 lifespan,挂默认 singleflight 实例
 # 避免路由层 AttributeError(与 cache / entitlement_store 同策略)
