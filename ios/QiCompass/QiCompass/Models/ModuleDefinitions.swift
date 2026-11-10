@@ -13,26 +13,27 @@ import Foundation
 /// 现有 InterpretState(单文本态)保留给合盘 / 每日运势 / 老 bazi_deep 路径继续用,
 /// 本 enum 仅服务 v1 模块化路径(DeepAnalysisViewModel 的 moduleStates 字典)。
 enum ModuleID: String, CaseIterable, Codable, Sendable {
-    case m0 = "m0_structure"     // 免费:识别主线结构
+    case m0 = "m0_structure"     // 免费:人生主线(rawValue 是 backend module ID,不随章名改)
     case m1 = "m1_talent"        // 免费:天赋本事
     case m2 = "m2_high_low"      // 付费:高配/低配
-    case m3 = "m3_system"        // 付费:人生系统模式
-    case m4 = "m4_health"        // 付费:健康续航(需 age + current_concern)
-    case m5 = "m5_wealth"        // 付费:财富结构(需 assets_summary + preference)
-    case m6 = "m6_dynamics"      // 付费:结构动力学(高阶)
+    case m3 = "m3_system"        // 付费:使用说明
+    case m4 = "m4_health"        // 付费:精力曲线(需 age + current_concern)
+    case m5 = "m5_wealth"        // 付费:生财之道(需 assets_summary + preference)
+    case m6 = "m6_dynamics"      // 付费:升级路线
     case m7 = "m7_manual"        // 付费:落地手册
 
-    /// 显示名称(中文,对齐 v1.md §3 各模块标题;en 走 xcstrings 同 key)。
+    /// 显示名称(中文,产品命名层——2026-11-08 目录批起与 v1 模块标题有意分离,
+    /// 契约对齐只走 rawValue/backend module ID;en 走 xcstrings 同 key)。
     /// 用于 ModuleCardView 的 header,格式 "M{N} · {标题}" 便于用户识别层级。
     var displayName: String {
         switch self {
-        case .m0: return String(localized: "M0 · 主线结构")
+        case .m0: return String(localized: "M0 · 人生主线")
         case .m1: return String(localized: "M1 · 天赋本事")
         case .m2: return String(localized: "M2 · 高配 vs 低配")
-        case .m3: return String(localized: "M3 · 系统模式")
-        case .m4: return String(localized: "M4 · 健康续航")
-        case .m5: return String(localized: "M5 · 财富结构")
-        case .m6: return String(localized: "M6 · 结构动力学")
+        case .m3: return String(localized: "M3 · 使用说明")
+        case .m4: return String(localized: "M4 · 精力曲线")
+        case .m5: return String(localized: "M5 · 生财之道")
+        case .m6: return String(localized: "M6 · 升级路线")
         case .m7: return String(localized: "M7 · 落地手册")
         }
     }
@@ -50,12 +51,15 @@ enum ModuleID: String, CaseIterable, Codable, Sendable {
     /// 目录行/阅读页章节头/付费墙卖点共同消费,改这里即三处同步。
     /// 2026-11-07 壹章副题改「你的盘是什么类型」(用户原话定稿,无问号沿
     /// 副题标点风格;与小节③问句构成进门-作答回声,见 docs/命书壹章标题推敲.md)。
+    /// 2026-11-08 目录批(外部建议用户整批背书,docs/命书目录批改-2026-11-08.md):
+    /// 章名去分析者后缀(结构/系统/动力学)→ 人生主线/使用说明/精力曲线/
+    /// 生财之道/升级路线;肆章副题换「·」三段式(与贰统一)。
     var subtitle: String {
         switch self {
         case .m0: return String(localized: "你的盘是什么类型")
         case .m1: return String(localized: "天生就会的 · 后天练出的 · 为自保养成、长期在消耗你的")
         case .m2: return String(localized: "同一张盘,在好环境和坏环境里分别会活成什么样")
-        case .m3: return String(localized: "你怎样运转最好、什么环境会让你失灵、什么样的生活节奏适合你")
+        case .m3: return String(localized: "最佳运行条件 · 容易失灵的场景 · 适合你的节奏")
         case .m4: return String(localized: "精力的起落规律,和最有效的恢复方式")
         case .m5: return String(localized: "适合你的赚钱方式,和最容易漏钱的地方")
         case .m6: return String(localized: "你的发力点、薄弱点,以及下一阶段怎么升级")
