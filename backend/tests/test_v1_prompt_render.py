@@ -287,15 +287,16 @@ def test_v1_prompt_versions_registry_matches_expected():
     # (\n 分隔:代价/何时会变/现在怎么做)+ JSON 换行转义规则进自检块。
     # v12/6/7…(2026-11-09 deep×XIJI 联动 bump,xiji v2 喜忌翻转后的缓存
     # 错配收口;三语 byte-identical 纯失效,见 prompts.py 版本注释)
+    # v13/7/8…(2026-11-10 DeepSeek 质量适配批:照抄/禁词/干支注记/从格条款)
     expected = {m: 2 for m in v1_modules}
-    expected["m0_structure"] = 12
-    expected["m1_talent"] = 6
-    expected["m2_high_low"] = 7
-    expected["m3_system"] = 7
-    expected["m4_health"] = 7
-    expected["m5_wealth"] = 6
-    expected["m6_dynamics"] = 6
-    expected["m7_manual"] = 6
+    expected["m0_structure"] = 13
+    expected["m1_talent"] = 7
+    expected["m2_high_low"] = 8
+    expected["m3_system"] = 8
+    expected["m4_health"] = 8
+    expected["m5_wealth"] = 7
+    expected["m6_dynamics"] = 7
+    expected["m7_manual"] = 7
     for module in v1_modules:
         assert module in PROMPT_VERSIONS, f"{module} 未注册 PROMPT_VERSIONS"
         assert PROMPT_VERSIONS[module] == expected[module], (
@@ -326,6 +327,36 @@ def test_v1_modules_all_registered_in_templates_and_required_fields():
             f"{module} 文件与常量不一致(必须 byte-identical,见 T1a 迁移)")
         assert module in REQUIRED_FIELDS, f"{module} 未注册 REQUIRED_FIELDS"
         assert module in PROMPT_VERSIONS, f"{module} 未注册 PROMPT_VERSIONS"
+
+
+def test_v1_special_pattern_clause_trigger_scope():
+    """v13 从格条款: m1-m7 常量都含条款,触发条件按各模块可见输入分流。
+
+    m1-m6 接 {chart}(看得到 useful_god_candidates),条款以「字段为空」为
+    触发;m7 不接 chart(REQUIRED_FIELDS 仅四项上游结论,ModuleDefinitions
+    requiredChainFields 同锁),初版条款照抄 m1-m6 的「useful_god_candidates
+    为空时适用」= 引用模型看不见的字段——死触发,还会诱导在普通盘上无中生有
+    声明从格。v13 双 review 改为凭上游结论声明触发。声明句统一 M0 既有
+    规范句「引擎不下喜忌结论」(m0 数据口径节),不得再出「未下」变体——
+    同一张从格盘的命书里 M0 章与 M1-M7 章声明必须同文。
+    """
+    with_chart = [
+        ("m1_talent", M1_TALENT_TEMPLATE), ("m2_high_low", M2_HIGH_LOW_TEMPLATE),
+        ("m3_system", M3_SYSTEM_TEMPLATE), ("m4_health", M4_HEALTH_TEMPLATE),
+        ("m5_wealth", M5_WEALTH_TEMPLATE), ("m6_dynamics", M6_DYNAMICS_TEMPLATE),
+    ]
+    for name, tpl in with_chart:
+        assert "从格盘条款（收到 chart 且 useful_god_candidates 是空列表时适用——从格/专旺盘）：" in tpl, (
+            f"{name} 缺从格条款(字段为空触发)")
+        assert "引擎不下喜忌结论" in tpl, f"{name} 声明句不是规范句"
+    # m7:不接盘面,触发改凭上游结论;模板渲染面不得出现 useful_god_candidates
+    assert "useful_god_candidates" not in M7_MANUAL_TEMPLATE, (
+        "M7 不接 chart,模板里出现 useful_god_candidates = 引用不可见字段")
+    assert "上游任一结论声明过「本盘不入常格」" in M7_MANUAL_TEMPLATE
+    assert "引擎不下喜忌结论" in M7_MANUAL_TEMPLATE
+    # 全模块声明句不得出现「未下」变体(与 M0 规范句一字之差)
+    for name, tpl in [*with_chart, ("m7_manual", M7_MANUAL_TEMPLATE)]:
+        assert "引擎未下喜忌结论" not in tpl, f"{name} 声明句出现「未下」变体"
 
 
 def test_compat_free_paid_zh_files_byte_identical():
