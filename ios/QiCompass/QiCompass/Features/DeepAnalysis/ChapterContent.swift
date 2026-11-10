@@ -85,6 +85,8 @@ struct ChapterContent: Equatable {
             nodes = specialized
         } else if module == .m1, let specialized = m1Nodes(from: pairs) {
             nodes = specialized
+        } else if module == .m2, let specialized = m2Nodes(from: pairs) {
+            nodes = specialized
         } else {
             nodes = pairs.compactMap { node(key: $0.0, value: $0.1) }
         }
@@ -335,6 +337,24 @@ struct ChapterContent: Equatable {
                 "m1 chapter rendered \(extras.count) non-contract field(s) via generic nodes: \(extras.joined(separator: ","), privacy: .public)")
         }
         return nodes
+    }
+
+    /// M2 专属装配(2026-11-10,叁章拍板):high_config/low_config/threshold 对象
+    /// 节走通用构造器已自动获得问句门头;early_warnings/switch_actions 是字符串
+    /// 数组,通用路径渲染成裸 .bullets 无门(M1 同款病)——本装配按顶层 pairs
+    /// 原序把「问题表内的数组」包进问句门头,其余键透传 node()。一个问题数组
+    /// 都没有(非 M2 形态)→ 返回 nil 落回通用渲染。
+    private static func m2Nodes(from pairs: [(String, JSONValue)]) -> [ChapterNode]? {
+        var wrappedAny = false
+        let nodes = pairs.compactMap { (key, value) -> ChapterNode? in
+            if case .array = value, sectionQuestions[key] != nil,
+               let child = node(key: key, value: value) {
+                wrappedAny = true
+                return .section(sectionTitle(key), [child])
+            }
+            return node(key: key, value: value)
+        }
+        return wrappedAny ? nodes : nil
     }
 
     private static func m0V9Nodes(
@@ -806,7 +826,8 @@ struct ChapterContent: Equatable {
     ]
 
     /// 小节门头问句(M0 2026-11-07 拍板,docs/命书壹章标题推敲.md;M1 同日
-    /// 贰章拍板并入):壹/贰两章小节名改用素材问句原样——读者带着问题进章,
+    /// 贰章拍板并入;M2 2026-11-10 叁章拍板并入):壹/贰/叁各章小节名改用
+    /// 素材问句原样——读者带着问题进章,
     /// 每节首行结论句作答。**只喂 .section 门头**;据注/行内标签仍是 `labels`
     /// 的短名词(「据 · 主线」不能变问句)。en/zh-Hant 走 xcstrings dot-key
     /// `deepanalysis.chapter.q.<key>`,zh 缺省回落本表值(同 label() 范式)。
@@ -822,6 +843,13 @@ struct ChapterContent: Equatable {
         "trained": "哪种能力是后天环境训练出来的?",
         "defensive": "哪些能力外人看着像优点,其实在消耗你?",
         "one_leverage": "如果只能保留一项能力当作杠杆,是哪一项?",
+        // M2(2026-11-10 叁章拍板,docs/命书叁章标题推敲.md):素材问1-3 原句
+        // + 模板问4/5 转问句(剪「3 个」——门头焊死数字,模型条目数一漂移就撒谎)。
+        "high_config": "我的命局走高配版会表现成什么样?",
+        "low_config": "走低配版会变成什么?",
+        "threshold": "两者的分界点在哪里?",
+        "early_warnings": "低配化的早期信号是什么?",
+        "switch_actions": "怎么从低配切回高配?",
     ]
 
     /// 小节门头取题:有问句用问句,无问句回落短名词标签(其余章维持名词门头)。
