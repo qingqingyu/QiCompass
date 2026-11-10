@@ -5,7 +5,7 @@ import XCTest
 /// 保序/标签表/条目卡取题/枚举值中文化/围栏容错/散文降级。
 final class ChapterContentTests: XCTestCase {
 
-    // MARK: - M0 主线结构(对象全标量 → 键值组,顺序保持)
+    // MARK: - M0 人生主线(对象全标量 → 键值组,顺序保持)
 
     func test_m0_fieldsOrderPreserved() {
         let json = """

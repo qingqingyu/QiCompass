@@ -834,7 +834,7 @@ enum L10n {
 
     // MARK: - M4 健康输入两问(ChapterReadingInputForm 消费;i18n 补录 2026-08-29)
 
-    /// M4 健康续航「生成前两问」(阅读页页内表单)。
+    /// M4 精力曲线「生成前两问」(阅读页页内表单;2026-11-08 目录批章名更新,原健康续航)。
     /// `required` / `cta.*` 与 M5 财富两问共用引用(key 不重复建)。
     /// 选项 value(睡眠/疲劳/体重/情绪/其他)是提交 payload,不本地化,不进本表。
     enum HealthForm {
@@ -843,7 +843,7 @@ enum L10n {
         static let kicker = String(localized: "healthform.kicker")
 
         /// 章题。
-        /// zh: "健康续航 · 因你而异";en: "Health & vitality · shaped by you"
+        /// zh: "精力曲线 · 因你而异";en: "Energy curve · shaped by you"
         static let title = String(localized: "healthform.title")
 
         /// 副题(章题之下)。
@@ -926,7 +926,7 @@ enum L10n {
 
     // MARK: - M5 财富输入表单(WealthInputForm;i18n 补录 2026-08-29)
 
-    /// M5 财富结构「生成前两问」输入 sheet。
+    /// M5 生财之道「生成前两问」输入 sheet(2026-11-08 目录批章名更新,原财富结构)。
     /// 章头「取消」走 `L10n.Common.cancel`,「必答」/「生成本章」等走 `L10n.HealthForm`(共用)。
     /// preference value(保守/平衡/进攻)是提交 payload,不本地化,不进本表。
     enum WealthForm {
@@ -935,7 +935,7 @@ enum L10n {
         static let kicker = String(localized: "wealthform.kicker")
 
         /// 章题。
-        /// zh: "财富结构 · 因你而异";en: "Wealth & structure · shaped by you"
+        /// zh: "生财之道 · 因你而异";en: "How you earn · shaped by you"
         static let title = String(localized: "wealthform.title")
 
         /// 副题(章题之下)。
@@ -1365,9 +1365,9 @@ enum L10n {
         static let tocQuotaNote = String(localized: "deepchain.toc.quotaNote")
 
         /// 目录节标下命书概念行(S4:「命书」/EN "reading" 首次出现的铺垫,
-        /// 未读完 8 章时显示)。
-        /// zh: "命书 = 按章节生成的完整命盘解读:先看主线与天赋(免费),再展开运行方式、财富、健康与行动。"
-        /// en: "Your reading, chapter by chapter — the structure and talents first (free), then how you run, money, health and next steps."
+        /// 未读完 8 章时显示;2026-11-08 目录批:章名引用更新)。
+        /// zh: "命书 = 按章节生成的完整命盘解读:先看人生主线与天赋本事(免费),再展开高配低配、使用说明、生财之道、精力曲线与行动。"
+        /// en: "Your reading, chapter by chapter — your throughline and talents first (free), then high/low configs, your manual, how you earn, energy and next steps."
         static let tocIntro = String(localized: "deepchain.toc.intro")
 
         // MARK: 等待卡 + 完成通知(方案一/二/四,2026-10-11)

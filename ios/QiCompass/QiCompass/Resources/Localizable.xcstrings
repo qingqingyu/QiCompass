@@ -7849,19 +7849,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your reading, chapter by chapter — the structure and talents first (free), then how you run, money, health and next steps."
+            "value" : "Your reading, chapter by chapter — your throughline and talents first (free), then high/low configs, your manual, how you earn, energy and next steps."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命书 = 按章节生成的完整命盘解读:先看主线与天赋(免费),再展开运行方式、财富、健康与行动。"
+            "value" : "命书 = 按章节生成的完整命盘解读:先看人生主线与天赋本事(免费),再展开高配低配、使用说明、生财之道、精力曲线与行动。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命書 = 按章節生成的完整命盤解讀:先看主線與天賦(免費),再展開運行方式、財富、健康與行動。"
+            "value" : "命書 = 按章節生成的完整命盤解讀:先看人生主線與天賦本事(免費),再展開高配低配、使用說明、生財之道、精力曲線與行動。"
           }
         }
       }
@@ -8716,19 +8716,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Health & vitality · shaped by you"
+            "value" : "Energy curve · shaped by you"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "健康续航 · 因你而异"
+            "value" : "精力曲线 · 因你而异"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "健康續航 · 因你而異"
+            "value" : "精力曲線 · 因你而異"
           }
         }
       }
@@ -9986,25 +9986,25 @@
         }
       }
     },
-    "M0 · 主线结构" : {
+    "M0 · 人生主线" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M0 · Main structure"
+            "value" : "M0 · Life throughline"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M0 · 主线结构"
+            "value" : "M0 · 人生主线"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M0 · 主線結構"
+            "value" : "M0 · 人生主線"
           }
         }
       }
@@ -10055,94 +10055,94 @@
         }
       }
     },
-    "M3 · 系统模式" : {
+    "M3 · 使用说明" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M3 · How you run"
+            "value" : "M3 · User manual"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M3 · 系统模式"
+            "value" : "M3 · 使用说明"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M3 · 系統模式"
+            "value" : "M3 · 使用說明"
           }
         }
       }
     },
-    "M4 · 健康续航" : {
+    "M4 · 精力曲线" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M4 · Health & stamina"
+            "value" : "M4 · Energy curve"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M4 · 健康续航"
+            "value" : "M4 · 精力曲线"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M4 · 健康續航"
+            "value" : "M4 · 精力曲線"
           }
         }
       }
     },
-    "M5 · 财富结构" : {
+    "M5 · 生财之道" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M5 · Wealth structure"
+            "value" : "M5 · How you earn"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M5 · 财富结构"
+            "value" : "M5 · 生财之道"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M5 · 財富結構"
+            "value" : "M5 · 生財之道"
           }
         }
       }
     },
-    "M6 · 结构动力学" : {
+    "M6 · 升级路线" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M6 · Dynamics"
+            "value" : "M6 · Upgrade path"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M6 · 结构动力学"
+            "value" : "M6 · 升级路线"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "M6 · 結構動力學"
+            "value" : "M6 · 升級路線"
           }
         }
       }
@@ -11917,19 +11917,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Wealth & structure · shaped by you"
+            "value" : "How you earn · shaped by you"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "财富结构 · 因你而异"
+            "value" : "生财之道 · 因你而异"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "財富結構 · 因你而異"
+            "value" : "生財之道 · 因你而異"
           }
         }
       }
@@ -12058,7 +12058,7 @@
         }
       }
     },
-    "主线结构与天赋本事两章已免费 · 余下陆章一次解锁" : {
+    "人生主线与天赋本事两章已免费 · 余下陆章一次解锁" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -12070,13 +12070,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "主线结构与天赋本事两章已免费 · 余下陆章一次解锁"
+            "value" : "人生主线与天赋本事两章已免费 · 余下陆章一次解锁"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "主線結構與天賦本事兩章已免費 · 餘下陸章一次解鎖"
+            "value" : "人生主線與天賦本事兩章已免費 · 餘下陸章一次解鎖"
           }
         }
       }
@@ -12588,25 +12588,25 @@
         }
       }
     },
-    "你怎样运转最好、什么环境会让你失灵、什么样的生活节奏适合你" : {
+    "最佳运行条件 · 容易失灵的场景 · 适合你的节奏" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "How you run best, where you stall, and the life setup that fits you"
+            "value" : "Best running conditions · where you stall · the rhythm that fits you"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你怎样运转最好、什么环境会让你失灵、什么样的生活节奏适合你"
+            "value" : "最佳运行条件 · 容易失灵的场景 · 适合你的节奏"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你怎樣運轉最好、什麼環境會讓你失靈、什麼樣的生活節奏適合你"
+            "value" : "最佳運行條件 · 容易失靈的場景 · 適合你的節奏"
           }
         }
       }

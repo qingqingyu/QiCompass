@@ -685,7 +685,7 @@ struct ChapterContent: Equatable {
         // (2026-10-11 EN 外评);顶层/混结构路径本就无标签。
         "one_line": "一句话",
         "type": "类型",
-        // M0 主线结构
+        // M0 人生主线
         "main_axis": "主线",
         "dominant": "主导",
         "secondary": "次要",
@@ -727,7 +727,7 @@ struct ChapterContent: Equatable {
         "what_to_notice": "该看见什么",
         "early_warnings": "低配早期信号",
         "switch_actions": "切回高配的动作",
-        // M3 人生系统模式
+        // M3 使用说明
         "operating_mode": "运行模式",
         "input": "输入",
         "processing": "加工",
@@ -746,7 +746,7 @@ struct ChapterContent: Equatable {
         "reason": "理由",
         "precondition": "前提条件",
         "environment_checklist": "环境筛选清单",
-        // M4 健康续航
+        // M4 精力曲线
         "battery_type": "电池类型",
         "charge_pattern": "充电规律",
         "drain_pattern": "耗电规律",
@@ -763,7 +763,7 @@ struct ChapterContent: Equatable {
         "focus": "焦点",
         "weekly_maintenance": "每周维护",
         "medical_note": "医嘱",
-        // M5 财富结构
+        // M5 生财之道
         "income_forms": "收入形态",
         "form": "形态",
         "rank": "顺位",
@@ -783,7 +783,7 @@ struct ChapterContent: Equatable {
         "startup_cost": "启动成本",
         "likely_blocker": "最可能卡住的环节",
         "disclaimer": "免责",
-        // M6 结构动力学
+        // M6 升级路线
         "energy_path": "能量路径",
         "stage": "阶段",
         "gain_or_loss": "增益或损耗",
