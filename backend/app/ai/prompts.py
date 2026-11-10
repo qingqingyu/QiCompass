@@ -10,8 +10,9 @@ PROMPT_VERSIONS 与模板常量放同文件邻近位置:改模板时必须 bump 
 从格诚实降级(对齐 CLAUDE.md "从格检测…LLM 诚实告知"):
 - bazi_deep 模板渲染时检查 day_master_strength == "special_pattern"
 - 命中则在 prompt 末尾追加降级约束段,要求 LLM 诚实告知未下硬性喜忌结论
-- v1 prompt 系统不需此 suffix:设计文档 §2 全局 Prompt 已要求"字段缺失就说明缺失",
-  从格命中时 chart_builder 会把 useful_god_candidates=[],由 LLM 自然降级
+- v1 prompt 系统不走 render-time suffix:从格约束以静态条款写在模板里(m0 自
+  v7 数据口径节、m1-m7 自 v13 从格盘条款),从格命中时 chart_builder 把
+  useful_god_candidates=[],m1-m6 条款据此触发,m7 不接盘面凭上游结论声明触发
 
 时辰未知诚实降级(S06,docs/时辰未知-slices/S06,镜像从格先例但双语):
 - day_master_strength == "unknown_hour"(S01 引擎输出,喜忌留空)时,
@@ -202,13 +203,19 @@ PROMPT_VERSIONS: dict[str, int] = {
     # evalkit 全量 run 的 M0 解析失败数是验收指标)。同步改六处 leak 写法:
     # 证据纪律短板条款/三层写法第 1 条/四问之 2/字段职责表 leak 行/写法
     # 示范/文末校验行。三语同步建 v11。
+    # v13/7/8…(2026-11-10 DeepSeek 质量适配批,evalkit 首轮 DeepSeek 全量
+    # 分诊驱动):①共享 header ✓示范占位符化+m0 写法示范占位符化(治照抄×8)
+    # ②自检块禁词逐句扫+✗样板+片段重合也算抄(治绝对×6/必然/稳赚)
+    # ③大运写法补「干支+五行」注记 ✗ 样板(治寅木/申金式×5)
+    # ④m1-m7 补从格诚实告知条款(v7 批记录的欠账,治隐藏降级×12;m7 不接
+    #   盘面,触发改凭上游结论声明而非 useful_god_candidates 字段,勿对齐回)。
     # v12/6/7…(2026-11-09 deep×XIJI 联动 bump,review P2 收口):XIJI_RULE_VERSION
     # 1→2(xiji v2 旺衰公式,喜忌翻转 9/45)改变 m0-m7 的 chart 输入——deep
     # 缓存无引擎规则维度,翻转盘的旧缓存命书会与新喜忌卡同屏错配(与合盘
     # 「引擎规则版本×prompt 版本联动」护栏同构问题,review 抓出后用户拍板
     # 修)。全部 8 模块 +1,三语文件 byte-identical(纯缓存失效,无文案变化);
     # daily 族 24h 自愈、bazi_deep legacy 仅喂老 App,不在本批。
-    "m0_structure": 12,    # 免费:识别主线结构 + 产 structure_fingerprint
+    "m0_structure": 13,    # 免费:识别主线结构 + 产 structure_fingerprint
     # v3 2026-10-08 排版/内容评审收口(证据引用纪律五条):①evidence 禁机器字段名
     # (ten_god_weights/year_stem/hour_branch 等裸引四次复现,像看日志);②藏干十神
     # 归属照 pillars.shishen_zhi 表,正印/偏印不混(用户盘把辰藏癸算进 Direct
@@ -217,21 +224,21 @@ PROMPT_VERSIONS: dict[str, int] = {
     # from→to 链符号(渲染层已单列 from/to);⑤叙事口径随 day_master_strength/
     # useful_god_candidates(身旺忌水局把印讲成助力 = 前后矛盾)。老 v2 缓存随
     # prompt_version 自然失效;M0 重生成 fingerprint 变 → 下游链式连带失效(既有行为)。
-    "m1_talent": 6,        # 免费:天赋能力(innate/trained/defensive + one_leverage);v5=EN 质量批(10-11)
+    "m1_talent": 7,        # 免费:天赋能力(innate/trained/defensive + one_leverage);v5=EN 质量批(10-11)
     # v3 2026-10-10 L1 加粗链条(治章节割裂):M2 补注入 core_loop(此前只有
     # fingerprint+innate+defensive,高低配分界与核心循环的损耗段各说各话)。
-    "m2_high_low": 7,      # 付费:高配/低配 + 阈值(环境/信念/觉察);v6=EN 质量批(10-11)
+    "m2_high_low": 8,      # 付费:高配/低配 + 阈值(环境/信念/觉察);v6=EN 质量批(10-11)
     # v3 2026-10-10 L1 加粗链条:M3 是链上上下文最薄的一章(此前只有 40 字
     # fingerprint + 原始盘,等于独立重新推一遍结构,与 M0-M2 割裂最重)。
     # 补注入 main_axis + core_loop + innate + threshold,模板加「结论一致性」
     # 指令。deps 顺序 m0→m1→m2 保证走查逐层可重建(_V1_SOURCE_WALK_DEPS 同步)。
-    "m3_system": 7,        # 付费:人生系统模式(运行模式/失效环境/理想结构);v6=EN 质量批(10-11)
+    "m3_system": 8,        # 付费:人生系统模式(运行模式/失效环境/理想结构);v6=EN 质量批(10-11)
     # v3 2026-10-10 L1 加粗链条:M4 补注入 innate(恢复杠杆与「能量回升型天赋」
     # 对齐,不再只凭五行偏性泛泛而谈)。
-    "m4_health": 7,        # 付费:健康续航(需 age + current_concern);v6=EN 质量批(10-11)
-    "m5_wealth": 6,        # 付费:财富结构(需 assets_summary + preference);v5=EN 质量批(10-11)
-    "m6_dynamics": 6,      # 付费:结构动力学高阶(能量路径/杠杆/易损点/升级路径);v5=EN 质量批(10-11)
-    "m7_manual": 6,        # 付费:落地手册(true_leverage + 90 天行动);v5=EN 质量批(10-11)
+    "m4_health": 8,        # 付费:健康续航(需 age + current_concern);v6=EN 质量批(10-11)
+    "m5_wealth": 7,        # 付费:财富结构(需 assets_summary + preference);v5=EN 质量批(10-11)
+    "m6_dynamics": 7,      # 付费:结构动力学高阶(能量路径/杠杆/易损点/升级路径);v5=EN 质量批(10-11)
+    "m7_manual": 7,        # 付费:落地手册(true_leverage + 90 天行动);v5=EN 质量批(10-11)
     # 翻译模板(D10.2,2026-10-01):/api/interpret/translate 专用,按**目标语言**
     # 取文件(zh/zh-hant/en 三份)。translate 不进 v1 module 清单(不影响
     # check_prompt_sync ② 组 ^m\d_ 匹配),也不进 REQUIRED_FIELDS(不消费
@@ -632,14 +639,17 @@ _V1_SYSTEM_PROMPT = """你是一位命理结构分析师，工作方式接近系
 【表达要求】
 - 每一个判断都必须能追溯到输入中的具体字段（某个十神、五行力量、日主强弱、大运），在 evidence 字段写明依据
 - 用可观察的行为描述能力，不要用形容词堆砌
-  ✗"你很有创造力"  ✓"你会在别人还在确认需求时，先做出一个能跑的版本"
+  ✗"你很有创造力"  ✓"你会在别人还在【做什么】的时候，先【做出的具体成果】"
+  (示范句是骨架不是句子——【】内换成这张盘的具体内容,不得照搬示例措辞)
 - 第二人称"你"，句子短，不用文言腔
 - 严格按要求的 JSON 输出，不加 markdown 代码块围栏，不加任何前言后语
 
 【输出前自检】（内部完成，绝不写出自检过程）
 - 逐句自查：任何一句拿到别的命盘上也成立的话，不要写进去——每句都必须能追溯到这张盘的具体字段
 - 禁止「你有时外向，其实内心……」「你表面冷静，但……」这类对任何人都成立的句式；写行为必须带情境、对象、动作
-- 绝对化用词不写：注定 / 必然 / 绝对 / 一定 / 逃不掉
+- 绝对化用词逐句扫：绝对 / 必然 / 一定 / 注定 / 逃不掉 / 稳赚——出现即整句改写
+  ✗"你绝对能靠这门手艺立足"  ✓"你大概率能靠这门手艺立足"
+- 你的输出与提示词里任何示例句比对：连措辞带场景都不得复用，片段重合也算抄
 - 字符串值内引用词语一律用中文引号「」，禁止半角双引号 " ——它会让整个 JSON 无法解析
 - 输出只含最终定稿的纯 JSON：不含草稿、自检说明、修改前后对比或任何 JSON 之外的文字
 """
@@ -697,7 +707,7 @@ M0_STRUCTURE_TEMPLATE = _V1_SYSTEM_PROMPT + _M0_NEWLINE_ESCAPE_CHECK + """
    | 偏印 | 偏门的学识、一个人钻研 |
    | 正印 | 体系、资质和靠山 |
 3. 数字只进据：结论层与展开层不得出现权重、五行计数等数字；唯一例外是「约 X 岁」这种年龄。
-4. 大运写法（v10 放宽）：展开层提到大运，统一写成「约 X 岁起的那十年（某某运）」——X 必须是输入大运里那一步的起运岁数，括号里必须是同一步的干支，两者要对得上。干支**只允许**出现在这个紧跟年龄短语的括注里；括注只写干支和「运」，不加任何解释。展开层的其他位置照旧不得写出干支字，也不得写「干支＋五行」注记（如「壬水」「庚金」式）——那些一律只出现在 evidence / driver / from / to 里。依据必须来自输入大运里实际存在的大运，不得编造、不得照抄示例（示例只用 X 和「某某」占位，不写真实干支与岁数）：
+4. 大运写法（v10 放宽）：展开层提到大运，统一写成「约 X 岁起的那十年（某某运）」——X 必须是输入大运里那一步的起运岁数，括号里必须是同一步的干支，两者要对得上。干支**只允许**出现在这个紧跟年龄短语的括注里；括注只写干支和「运」，不加任何解释。展开层的其他位置照旧不得写出干支字，也不得写「干支＋五行」注记——✗「寅木」「申金」「壬水」这类干支带五行的连写都算，一律只出现在 evidence / driver / from / to 里。依据必须来自输入大运里实际存在的大运，不得编造、不得照抄示例（示例只用 X 和「某某」占位，不写真实干支与岁数）：
   ✗「约 X 岁起的那十年走某某运」（干支写在括注外）
   ✗「到了某某运，你会……」（没有年龄短语）
   ✓「约 X 岁起的那十年（某某运），……」
@@ -755,7 +765,7 @@ structure_fingerprint:一句话,不超过 40 字,概括这个人的运转方式�
 - 循环 · leak（固定三段，段间 \\n 分隔）：「代价是不爱打基础：做到七八成就想换方向，证书、资历这类要慢慢攒的东西总是欠着。\\n约 X 岁起的那十年（某某运），坐下来系统学习会变得容易坚持。\\n眼下可以给每件事定一个『做完才换』的节点。」
 - 类型 · name：「想到就做的作品型」
 - 能力 · headline：「最强在要你从零拿出方案的时候；最弱在要你照章办事、按部就班的时候。」
-- 能力 · text：「比如朋友聚会还在群里争去哪，你已经把路线和餐厅排好发出来了——从零到一的时刻，你反应最快。」
+- 能力 · text：「比如【何时、对谁的具体场景】，你已经先【具体动作与成果】——【该场景】里你反应最快。」(【】内写这张盘的实际内容,不照搬本示范)
 （各节 evidence 从略：按【证据引用纪律】写依据，示范不展示）
 
 校验:core_loop.from / core_loop.to 必须是十神名;core_loop.leak 恰好三段非空段(\\n 分隔:代价/何时会变/现在怎么做);所有 headline 与 structure_type.name 不含十神名及简称、干支、数字;body / flow / leak / one_line / text 不含数字(「约 X 岁」的年龄除外)与括注以外的干支;structure_type.name 不得以「格」结尾、不得加括注;structure_fingerprint 不含吉凶词与形容词;所有输出字符串不含机器字段名。
@@ -766,7 +776,9 @@ structure_fingerprint:一句话,不超过 40 字,概括这个人的运转方式�
 # (v10 写法示范 leak 句加「某某运」括注占位,占位短语照抄=照抄示例,故
 # 一并登记);三语各列(输出语言与示例语言同文即命中)。**模板改示例时
 # 必须同步改本表**——漏登记 = 抄袭检测漏报;多登记 = 把正常措辞误判成
-# 抄袭。(v11 leak 示例改三段结构但短语未变,本表不动。)
+# 抄袭。(v11 leak 示例改三段结构但短语未变,本表不动。)(v13 示范句占位符
+# 化,「能跑的版本/从零到一的时刻/路线和餐厅」等短语已不在模板中——保留
+# 用于检出既有缓存与旧版本输出的照抄,勿删;【】骨架不是示例句,不登记。)
 M0_V9_EXAMPLE_PHRASES: tuple[str, ...] = (
     # zh / zh-hant 共享 header ✓ 示例(「先做出一个能跑的版本」)
     "能跑的版本",
@@ -824,6 +836,12 @@ M1_TALENT_TEMPLATE = _V1_SYSTEM_PROMPT + """
 }}
 
 one_leverage:如果只能保留一项能力当作杠杆,是哪一项,为什么。
+
+
+从格盘条款（收到 chart 且 useful_god_candidates 是空列表时适用——从格/专旺盘）：
+- 本模块必须在正文诚实声明一次「本盘不入常格，引擎不下喜忌结论」
+- 之后的分析只作结构观察（这个结构如何运转），不得出现「喜 / 宜 / 忌 / 适合 / 补」类推荐措辞
+- 不得自行推断喜用——引擎没下的结论，不得替它下
 """ + _V1_LENGTH_HINT_LONG
 
 # M2 · 高配版 vs 低配版(付费,产 threshold 供 M6 链式注入)
@@ -861,6 +879,12 @@ M2_HIGH_LOW_TEMPLATE = _V1_SYSTEM_PROMPT + """
   "early_warnings": [],
   "switch_actions": []
 }}
+
+
+从格盘条款（收到 chart 且 useful_god_candidates 是空列表时适用——从格/专旺盘）：
+- 本模块必须在正文诚实声明一次「本盘不入常格，引擎不下喜忌结论」
+- 之后的分析只作结构观察（这个结构如何运转），不得出现「喜 / 宜 / 忌 / 适合 / 补」类推荐措辞
+- 不得自行推断喜用——引擎没下的结论，不得替它下
 """ + _V1_LENGTH_HINT_LONG
 
 # M3 · 人生系统模式(付费,产 ideal_life_structure 供 M5 链式注入)
@@ -891,6 +915,12 @@ M3_SYSTEM_TEMPLATE = _V1_SYSTEM_PROMPT + """
   "stability_vs_volatility": {{ "verdict": "", "reason": "", "precondition": "" }},
   "environment_checklist": []
 }}
+
+
+从格盘条款（收到 chart 且 useful_god_candidates 是空列表时适用——从格/专旺盘）：
+- 本模块必须在正文诚实声明一次「本盘不入常格，引擎不下喜忌结论」
+- 之后的分析只作结构观察（这个结构如何运转），不得出现「喜 / 宜 / 忌 / 适合 / 补」类推荐措辞
+- 不得自行推断喜用——引擎没下的结论，不得替它下
 """ + _V1_LENGTH_HINT_LONG
 
 # M4 · 健康续航系统(付费,需 age + current_concern 用户输入)
@@ -927,6 +957,12 @@ M4_HEALTH_TEMPLATE = _V1_SYSTEM_PROMPT + """
   "weekly_maintenance": [],
   "medical_note": ""
 }}
+
+
+从格盘条款（收到 chart 且 useful_god_candidates 是空列表时适用——从格/专旺盘）：
+- 本模块必须在正文诚实声明一次「本盘不入常格，引擎不下喜忌结论」
+- 之后的分析只作结构观察（这个结构如何运转），不得出现「喜 / 宜 / 忌 / 适合 / 补」类推荐措辞
+- 不得自行推断喜用——引擎没下的结论，不得替它下
 """
 
 # M5 · 财富结构(付费,需 assets_summary + preference 用户输入)
@@ -961,6 +997,12 @@ M5_WEALTH_TEMPLATE = _V1_SYSTEM_PROMPT + """
   "asset_ideas": [{{ "idea": "", "uses_talent": "", "fits_life_structure": "", "startup_cost": "", "likely_blocker": "" }}],
   "disclaimer": ""
 }}
+
+
+从格盘条款（收到 chart 且 useful_god_candidates 是空列表时适用——从格/专旺盘）：
+- 本模块必须在正文诚实声明一次「本盘不入常格，引擎不下喜忌结论」
+- 之后的分析只作结构观察（这个结构如何运转），不得出现「喜 / 宜 / 忌 / 适合 / 补」类推荐措辞
+- 不得自行推断喜用——引擎没下的结论，不得替它下
 """ + _V1_LENGTH_HINT_LONG
 
 # M6 · 结构动力学(付费,高阶,需 M1+M2 输出注入)
@@ -989,6 +1031,12 @@ M6_DYNAMICS_TEMPLATE = _V1_SYSTEM_PROMPT + """
   "vulnerability": {{ "point": "", "condition": "", "mechanism": "", "self_check": "" }},
   "upgrade_path": [{{ "phase": "", "entry_condition": "", "work": "", "done_signal": "" }}]
 }}
+
+
+从格盘条款（收到 chart 且 useful_god_candidates 是空列表时适用——从格/专旺盘）：
+- 本模块必须在正文诚实声明一次「本盘不入常格，引擎不下喜忌结论」
+- 之后的分析只作结构观察（这个结构如何运转），不得出现「喜 / 宜 / 忌 / 适合 / 补」类推荐措辞
+- 不得自行推断喜用——引擎没下的结论，不得替它下
 """
 
 # M7 · 落地手册(付费,基于 M1-M6 结论的总结,不需要 chart)
@@ -1017,6 +1065,12 @@ leverage(M6 杠杆点): {leverage}
   "next_90_days": {{}},
   "falsification_signals": []
 }}
+
+
+从格盘条款（上游任一结论声明过「本盘不入常格」时适用——本模块不接盘面，只凭上游结论判断）：
+- 沿用该声明：本模块也须在正文诚实声明一次「本盘不入常格，引擎不下喜忌结论」
+- 之后的分析只作结构观察，不得出现「喜 / 宜 / 忌 / 适合 / 补」类推荐措辞
+- 不得自行推断喜用——引擎没下的结论，不得替它下
 """ + _V1_LENGTH_HINT_LONG
 
 # 注:v1 模板里 JSON schema 的大括号全部用 {{ }} 转义,str.format_map 会
