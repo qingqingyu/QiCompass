@@ -285,8 +285,8 @@ final class ChapterContentTests: XCTestCase {
         guard let content = ChapterContent.parse(json) else {
             return XCTFail("M2 样例应解析成功")
         }
-        guard case .section("分界点", let children) = content.nodes[0] else {
-            return XCTFail("threshold 应为「分界点」小节,实际:\(content.nodes[0])")
+        guard case .section("两者的分界点在哪里?", let children) = content.nodes[0] else {
+            return XCTFail("threshold 应为问句门头,实际:\(content.nodes[0])")
         }
         XCTAssertEqual(children.count, 3)
         guard case .section("环境资源", let envChildren) = children[0],
@@ -294,6 +294,58 @@ final class ChapterContentTests: XCTestCase {
             return XCTFail("environment 应为「环境资源」嵌套小节")
         }
         XCTAssertEqual(envFields.map(\.label), ["跑得开的环境", "压制它的环境"])
+    }
+
+    // MARK: - M2 高配 vs 低配(2026-11-10 叁章问句门头装配)
+    func test_m2_specializationWrapsFiveQuestionDoors() {
+        let json = """
+        {
+          "high_config": { "portrait": "状态好时主动开新局", "observable_signals": ["主动约人", "作息稳"] },
+          "low_config": { "portrait": "状态差时缩着应付", "observable_signals": ["拖延回消息"] },
+          "threshold": {
+            "environment": { "enables": "资源充足的环境", "suppresses": "人情捆绑的环境" },
+            "belief": { "limiting_belief": "我不配", "origin": "早年", "ceiling_effect": "不敢要" },
+            "awareness": { "key_moment": "被压价时", "what_to_notice": "身体反应" }
+          },
+          "early_warnings": ["连续三天刷到半夜", "开始回避同事"],
+          "switch_actions": ["把大事拆小", "约一个能说话的人"]
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m2) else {
+            return XCTFail("M2 应特化解析")
+        }
+        let titles = content.nodes.compactMap { node -> String? in
+            guard case .section(let title, _) = node else { return nil }
+            return title
+        }
+        XCTAssertEqual(titles, [
+            "我的命局走高配版会表现成什么样?",
+            "走低配版会变成什么?",
+            "两者的分界点在哪里?",
+            "低配化的早期信号是什么?",
+            "怎么从低配切回高配?",
+        ])
+        // 对象节走通用构造器门头(节内形态不变);数组节是「问句门头 + 条目列」
+        guard case .section(_, let earlyChildren)? = content.nodes.dropFirst(3).first,
+              case .bullets(let warnings)? = earlyChildren.first else {
+            return XCTFail("early_warnings 节内应为条目列")
+        }
+        XCTAssertEqual(warnings.count, 2)
+    }
+
+    func test_m2_specializationFallsBackWithoutQuestionArrays() {
+        // 无问题表内数组 → m2Nodes 返 nil 落回通用;threshold 对象在通用路径
+        // 照样获得问句门头(壹章批把通用构造器接入了 sectionTitle)
+        let json = """
+        { "threshold": { "environment": { "enables": "a", "suppresses": "b" } } }
+        """
+        guard let content = ChapterContent.parse(json, for: .m2) else {
+            return XCTFail("应解析成功")
+        }
+        guard case .section("两者的分界点在哪里?", let children)? = content.nodes.first,
+              case .section("环境资源", _)? = children.first else {
+            return XCTFail("通用回落应为问句门头+名词嵌套,实际:\(content.nodes)")
+        }
     }
 
     // MARK: - 对象数组 → 条目卡(M1 天赋 / M4 七天复位)

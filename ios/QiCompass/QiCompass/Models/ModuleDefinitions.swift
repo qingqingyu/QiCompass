@@ -54,11 +54,13 @@ enum ModuleID: String, CaseIterable, Codable, Sendable {
     /// 2026-11-08 目录批(外部建议用户整批背书,docs/命书目录批改-2026-11-08.md):
     /// 章名去分析者后缀(结构/系统/动力学)→ 人生主线/使用说明/精力曲线/
     /// 生财之道/升级路线;肆章副题换「·」三段式(与贰统一)。
+    /// 2026-11-10 叁章副题改「如有神助和倒霉透顶,差的不是运气」(用户原话
+    /// 定稿;与五小节问句门头同批,见 docs/命书叁章标题推敲.md)。
     var subtitle: String {
         switch self {
         case .m0: return String(localized: "你的盘是什么类型")
         case .m1: return String(localized: "天生就会的 · 后天练出的 · 为自保养成、长期在消耗你的")
-        case .m2: return String(localized: "同一张盘,在好环境和坏环境里分别会活成什么样")
+        case .m2: return String(localized: "如有神助和倒霉透顶,差的不是运气")
         case .m3: return String(localized: "最佳运行条件 · 容易失灵的场景 · 适合你的节奏")
         case .m4: return String(localized: "精力的起落规律,和最有效的恢复方式")
         case .m5: return String(localized: "适合你的赚钱方式,和最容易漏钱的地方")
