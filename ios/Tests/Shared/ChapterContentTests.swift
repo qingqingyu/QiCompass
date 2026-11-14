@@ -334,7 +334,7 @@ final class ChapterContentTests: XCTestCase {
     }
 
     func test_m2_specializationFallsBackWithoutQuestionArrays() {
-        // 无问题表内数组 → m2Nodes 返 nil 落回通用;threshold 对象在通用路径
+        // 无问题表内数组 → questionArrayNodes 返 nil 落回通用;threshold 对象在通用路径
         // 照样获得问句门头(壹章批把通用构造器接入了 sectionTitle)
         let json = """
         { "threshold": { "environment": { "enables": "a", "suppresses": "b" } } }
@@ -346,6 +346,61 @@ final class ChapterContentTests: XCTestCase {
               case .section("环境资源", _)? = children.first else {
             return XCTFail("通用回落应为问句门头+名词嵌套,实际:\(content.nodes)")
         }
+    }
+
+    // MARK: - M3 使用说明(2026-11-12 肆章问句门头,m2Nodes 改名共用)
+    func test_m3_specializationWrapsFiveQuestionDoors() {
+        let json = """
+        {
+          "operating_mode": { "input": "完整信息", "processing": "独立吃透", "output": "成型的方案", "recovery": "独处" },
+          "failure_environments": [
+            { "env": "层级多的大组织", "mechanism": "每层都在稀释你的判断" }
+          ],
+          "ideal_life_structure": { "time": "整块时间", "collaboration": "低密度", "feedback_cycle": "长周期", "income_rhythm": "项目制" },
+          "stability_vs_volatility": { "verdict": "高变量", "reason": "结构靠变化回血", "precondition": "底仓稳定" },
+          "environment_checklist": ["新环境里,我的判断能直达终点吗?", "失败一次,代价是出局还是学习?"]
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m3) else {
+            return XCTFail("M3 应特化解析")
+        }
+        let titles = content.nodes.compactMap { node -> String? in
+            guard case .section(let title, _) = node else { return nil }
+            return title
+        }
+        XCTAssertEqual(titles, [
+            "它最自然的运行模式是什么?",
+            "它最怕什么环境?",
+            "它最适合什么类型的生活结构?",
+            "它更适合稳定型人生,还是高变量人生?",
+            "换环境前,先问自己什么?",
+        ])
+        // 对象数组节 = 问句门头 + 条目卡;字符串数组节 = 问句门头 + 条目列
+        guard case .section(_, let failureChildren)? = content.nodes.dropFirst(1).first,
+              case .items(let failures)? = failureChildren.first else {
+            return XCTFail("failure_environments 节内应为条目卡")
+        }
+        XCTAssertEqual(failures.count, 1)
+        guard case .section(_, let checklistChildren)? = content.nodes.last,
+              case .bullets(let checks)? = checklistChildren.first else {
+            return XCTFail("environment_checklist 节内应为条目列")
+        }
+        XCTAssertEqual(checks.count, 2)
+    }
+
+    func test_m3_specializationFallsBackWithoutQuestionArrays() {
+        // 无问题表内数组 → 装配返 nil 落回通用;对象节照样获得问句门头
+        let json = """
+        { "operating_mode": { "input": "a", "processing": "b", "output": "c", "recovery": "d" } }
+        """
+        guard let content = ChapterContent.parse(json, for: .m3) else {
+            return XCTFail("应解析成功")
+        }
+        guard case .section("它最自然的运行模式是什么?", let children)? = content.nodes.first,
+              case .fields(let fields)? = children.first else {
+            return XCTFail("通用回落应为问句门头+键值组,实际:\(content.nodes)")
+        }
+        XCTAssertEqual(fields.map(\.label), ["输入", "加工", "输出", "回血"])
     }
 
     // MARK: - 对象数组 → 条目卡(M1 天赋 / M4 七天复位)

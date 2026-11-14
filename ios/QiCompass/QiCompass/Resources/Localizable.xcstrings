@@ -6164,6 +6164,52 @@
         }
       }
     },
+    "deepanalysis.chapter.q.environment_checklist" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What to ask yourself before changing environments?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "换环境前,先问自己什么?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "換環境前,先問自己什麼?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.failure_environments" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What environments does it fear most?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它最怕什么环境?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它最怕什麼環境?"
+          }
+        }
+      }
+    },
     "deepanalysis.chapter.q.high_config" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6183,6 +6229,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "我的命局走高配版會表現成什麼樣?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.ideal_life_structure" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What kind of life structure suits it best?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它最适合什么类型的生活结构?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它最適合什麼類型的生活結構?"
           }
         }
       }
@@ -6275,6 +6344,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "如果只能保留一項能力當作槓桿,是哪一項?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.operating_mode" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What's its most natural way of running?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它最自然的运行模式是什么?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它最自然的運行模式是什麼?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.stability_vs_volatility" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Does it suit a steady life, or a high-variance one?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它更适合稳定型人生,还是高变量人生?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "它更適合穩定型人生,還是高變量人生?"
           }
         }
       }
