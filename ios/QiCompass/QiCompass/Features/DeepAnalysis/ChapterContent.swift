@@ -74,9 +74,10 @@ struct ChapterContent: Equatable {
         parse(text, for: nil)
     }
 
-    /// 按模块解析(2026-10-12 S4-A):M0/M1 走特化组装,其余模块走通用节点树。
-    /// module 为 nil = 通用(中毒判读等不关心排版)。特化章缺关键结构
-    /// (老缓存/违约)→ 回落通用渲染,不静默丢内容。
+    /// 按模块解析(2026-10-12 S4-A):M0/M1 各自特化组装,M2/M3 共用问句
+    /// 门头数组装配,其余模块走通用节点树。module 为 nil = 通用(中毒判读
+    /// 等不关心排版)。特化章缺关键结构(老缓存/违约)→ 回落通用渲染,
+    /// 不静默丢内容。
     static func parse(_ text: String, for module: ModuleID?) -> ChapterContent? {
         guard let root = OrderedJSONParser.parse(OrderedJSONParser.stripCodeFences(text)) else { return nil }
         guard case .object(let pairs) = root else { return nil }
@@ -85,7 +86,8 @@ struct ChapterContent: Equatable {
             nodes = specialized
         } else if module == .m1, let specialized = m1Nodes(from: pairs) {
             nodes = specialized
-        } else if module == .m2, let specialized = m2Nodes(from: pairs) {
+        } else if (module == .m2 || module == .m3),
+                  let specialized = questionArrayNodes(from: pairs) {
             nodes = specialized
         } else {
             nodes = pairs.compactMap { node(key: $0.0, value: $0.1) }
@@ -339,12 +341,12 @@ struct ChapterContent: Equatable {
         return nodes
     }
 
-    /// M2 专属装配(2026-11-10,叁章拍板):high_config/low_config/threshold 对象
-    /// 节走通用构造器已自动获得问句门头;early_warnings/switch_actions 是字符串
-    /// 数组,通用路径渲染成裸 .bullets 无门(M1 同款病)——本装配按顶层 pairs
-    /// 原序把「问题表内的数组」包进问句门头,其余键透传 node()。一个问题数组
-    /// 都没有(非 M2 形态)→ 返回 nil 落回通用渲染。
-    private static func m2Nodes(from pairs: [(String, JSONValue)]) -> [ChapterNode]? {
+    /// 问句门头数组装配(M2/M3 共用;2026-11-10 叁章拍板引入,2026-11-12 肆章
+    /// 复用并自 m2Nodes 改名):对象节走通用构造器已自动获得问句门头;字符串/
+    /// 对象数组在通用路径渲染成裸 .bullets/.items 无门(M1 同款病)——本装配按
+    /// 顶层 pairs 原序把「问题表内的数组」包进问句门头,其余键透传 node()。
+    /// 一个问题数组都没有(非本章形态)→ 返回 nil 落回通用渲染。
+    private static func questionArrayNodes(from pairs: [(String, JSONValue)]) -> [ChapterNode]? {
         var wrappedAny = false
         let nodes = pairs.compactMap { (key, value) -> ChapterNode? in
             if case .array = value, sectionQuestions[key] != nil,
@@ -850,6 +852,14 @@ struct ChapterContent: Equatable {
         "threshold": "两者的分界点在哪里?",
         "early_warnings": "低配化的早期信号是什么?",
         "switch_actions": "怎么从低配切回高配?",
+        // M3(2026-11-12 肆章拍板,docs/命书肆章标题推敲.md):素材第四阶段问
+        // 1-4 原句 + 模板问5 转问句(剪「5 个判断题」防数字漂移)。「它」=
+        // 你这台机器,由章名「使用说明」的设备比喻接住。
+        "operating_mode": "它最自然的运行模式是什么?",
+        "failure_environments": "它最怕什么环境?",
+        "ideal_life_structure": "它最适合什么类型的生活结构?",
+        "stability_vs_volatility": "它更适合稳定型人生,还是高变量人生?",
+        "environment_checklist": "换环境前,先问自己什么?",
     ]
 
     /// 小节门头取题:有问句用问句,无问句回落短名词标签(其余章维持名词门头)。
