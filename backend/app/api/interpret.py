@@ -83,6 +83,8 @@ from ..errors import (
     StaleSourceError,
 )
 from ..models.interpret import (
+    ChapterFeedbackRequest,
+    ChapterFeedbackResponse,
     InterpretRequest,
     InterpretResponse,
     PAID_MODULES,
@@ -2346,3 +2348,58 @@ async def interpret_translate(
         language=language,
         translated_from=req.source_language,
     )
+
+
+@router.post(
+    "/api/interpret/feedback", response_model=ChapterFeedbackResponse)
+async def chapter_feedback(
+    req: ChapterFeedbackRequest, request: Request
+) -> ChapterFeedbackResponse:
+    """章末「准 / 不准」反馈落表(2026-11-15,三拍控件的上报端)。
+
+    免鉴权 + 幂等尽力而为:同 (content_hash, module, IP, 日) 重复与达
+    IP 日限都回 200(差异只在日志与落表与否);prompt_version / provider /
+    model 由 store 从 interpretation_cache 同行 best-effort 反查(miss 落
+    NULL)——客户端只报展示层事实,禁止客户端自报版本/模型(可伪造,分析
+    失真)。store 层 sqlite 异常显式上抛(反馈是旁路但不静默吞失败)。
+    """
+    from ..ai.feedback_store import FeedbackOutcome
+
+    store = request.app.state.chapter_feedback_store
+    client_ip = request.client.host if request.client else "unknown"
+    start = time.perf_counter()
+    try:
+        outcome = await run_in_threadpool(
+            store.record,
+            content_hash=req.content_hash,
+            module=req.module,
+            verdict=req.verdict,
+            section=req.section,
+            app_language=req.app_language,
+            client_ip=client_ip,
+        )
+    except Exception as e:
+        # 落库失败 = 基础设施故障(与 cache 层同生死),500 + 留痕,不吞
+        logger.exception(
+            "interpret.chapter_feedback.store_failed elapsed_ms=%.1f "
+            "module=%s verdict=%s error=%s",
+            (time.perf_counter() - start) * 1000,
+            req.module, req.verdict, e,
+        )
+        raise
+    elapsed_ms = (time.perf_counter() - start) * 1000
+    if outcome == FeedbackOutcome.RECORDED:
+        logger.info(
+            "interpret.chapter_feedback.recorded elapsed_ms=%.1f module=%s "
+            "verdict=%s section=%s language=%s",
+            elapsed_ms, req.module, req.verdict,
+            req.section or "-", req.app_language,
+        )
+    else:
+        # DUPLICATE / RATE_LIMITED:客户端语义无差(控件已三拍退场),只留痕
+        logger.info(
+            "interpret.chapter_feedback.skipped elapsed_ms=%.1f module=%s "
+            "outcome=%s",
+            elapsed_ms, req.module, outcome.value,
+        )
+    return ChapterFeedbackResponse(status="ok")

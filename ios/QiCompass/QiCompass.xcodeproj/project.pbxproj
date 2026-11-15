@@ -130,6 +130,7 @@
 		9C0000000000000000000092 /* DeepAnalysisHomeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000092 /* DeepAnalysisHomeView.swift */; };
 		9C0000000000000000000093 /* ChapterReadingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000093 /* ChapterReadingView.swift */; };
 		9C0000000000000000000094 /* ChapterReadingInputForm.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000094 /* ChapterReadingInputForm.swift */; };
+		9C00000000000000000009D /* ChapterFeedbackControl.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C10000000000000000009D /* ChapterFeedbackControl.swift */; };
 		9C0000000000000000000095 /* ChapterRowModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000095 /* ChapterRowModel.swift */; };
 		9C0000000000000000000096 /* ChapterContent.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000096 /* ChapterContent.swift */; };
 		9C0000000000000000000097 /* ChapterContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000097 /* ChapterContentView.swift */; };
@@ -179,6 +180,7 @@
 		A00000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift */; };
 		A00000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift */; };
 		A0000000000000000000020 /* Shared/ChapterContentTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000020 /* Shared/ChapterContentTests.swift */; };
+		A0000000000000000000021 /* Shared/ChapterFeedbackTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000021 /* Shared/ChapterFeedbackTests.swift */; };
 		A0000000000000000000099 /* Shared/PaywallLayoutTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000099 /* Shared/PaywallLayoutTests.swift */; };
 		A00000000000000000000A6 /* Shared/AnalyticsContractTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000A6 /* Shared/AnalyticsContractTests.swift */; };
 		A00000000000000000000A5 /* Shared/LegacyStoreMigratorTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000A5 /* Shared/LegacyStoreMigratorTests.swift */; };
@@ -337,6 +339,7 @@
 		9C1000000000000000000092 /* DeepAnalysisHomeView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DeepAnalysisHomeView.swift; path = QiCompass/Features/DeepAnalysis/DeepAnalysisHomeView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000093 /* ChapterReadingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChapterReadingView.swift; path = QiCompass/Features/DeepAnalysis/ChapterReadingView.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000094 /* ChapterReadingInputForm.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChapterReadingInputForm.swift; path = QiCompass/Features/DeepAnalysis/ChapterReadingInputForm.swift; sourceTree = SOURCE_ROOT; };
+		9C10000000000000000009D /* ChapterFeedbackControl.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChapterFeedbackControl.swift; path = QiCompass/Features/DeepAnalysis/ChapterFeedbackControl.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000095 /* ChapterRowModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChapterRowModel.swift; path = QiCompass/Features/DeepAnalysis/ChapterRowModel.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000096 /* ChapterContent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChapterContent.swift; path = QiCompass/Features/DeepAnalysis/ChapterContent.swift; sourceTree = SOURCE_ROOT; };
 		9C1000000000000000000097 /* ChapterContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChapterContentView.swift; path = QiCompass/Features/DeepAnalysis/ChapterContentView.swift; sourceTree = SOURCE_ROOT; };
@@ -385,6 +388,7 @@
 		A110000000000000000000D /* Shared/GoldenQueriesTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/GoldenQueriesTests.swift; sourceTree = "<group>"; };
 		A110000000000000000000E /* golden_queries.json */ = {isa = PBXFileReference; lastKnownFileType = text.json; name = golden_queries.json; path = "../../tools/city-data/golden_queries.json"; sourceTree = SOURCE_ROOT; };
 		A1100000000000000000020 /* Shared/ChapterContentTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ChapterContentTests.swift; sourceTree = "<group>"; };
+		A1100000000000000000021 /* Shared/ChapterFeedbackTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ChapterFeedbackTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000099 /* Shared/PaywallLayoutTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/PaywallLayoutTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000A6 /* Shared/AnalyticsContractTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/AnalyticsContractTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000A5 /* Shared/LegacyStoreMigratorTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/LegacyStoreMigratorTests.swift; sourceTree = "<group>"; };
@@ -472,6 +476,7 @@
 				9C1000000000000000000091 /* ChartDetailView.swift */,
 				9C1000000000000000000093 /* ChapterReadingView.swift */,
 				9C1000000000000000000094 /* ChapterReadingInputForm.swift */,
+				9C10000000000000000009D /* ChapterFeedbackControl.swift */,
 				9C1000000000000000000095 /* ChapterRowModel.swift */,
 				9C1000000000000000000096 /* ChapterContent.swift */,
 				9C1000000000000000000097 /* ChapterContentView.swift */,
@@ -731,6 +736,7 @@ A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				A11000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift */,
 				A11000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift */,
 				A1100000000000000000020 /* Shared/ChapterContentTests.swift */,
+				A1100000000000000000021 /* Shared/ChapterFeedbackTests.swift */,
 				A11000000000000000000013 /* Shared/AddHourFlowTests.swift */,
 				A11000000000000000000021 /* Shared/ZodiacRevealTests.swift */,
 			);
@@ -902,6 +908,7 @@ A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				9C0000000000000000000091 /* ChartDetailView.swift in Sources */,
 				9C0000000000000000000093 /* ChapterReadingView.swift in Sources */,
 				9C0000000000000000000094 /* ChapterReadingInputForm.swift in Sources */,
+				9C00000000000000000009D /* ChapterFeedbackControl.swift in Sources */,
 				9C0000000000000000000095 /* ChapterRowModel.swift in Sources */,
 				9C0000000000000000000096 /* ChapterContent.swift in Sources */,
 				9C0000000000000000000097 /* ChapterContentView.swift in Sources */,
@@ -1038,6 +1045,7 @@ A0000000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				A00000000000000000000015 /* Shared/TestDailyReadCounterFactory.swift in Sources */,
 				A00000000000000000000014 /* Shared/DeepAnalysisChapterRowTests.swift in Sources */,
 				A0000000000000000000020 /* Shared/ChapterContentTests.swift in Sources */,
+				A0000000000000000000021 /* Shared/ChapterFeedbackTests.swift in Sources */,
 				A00000000000000000000013 /* Shared/AddHourFlowTests.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;

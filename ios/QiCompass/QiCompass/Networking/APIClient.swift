@@ -27,6 +27,8 @@ protocol APIClient: Sendable {
     func askBalance(userLocalId: String, deviceToken: String?) async throws -> AskBalanceResponse
     /// S4c:次数包购买入账(Apple transaction id 明文;幂等,重放 credits=0)
     func askRedeem(request: AskRedeemRequest) async throws -> AskRedeemResponse
+    /// 章末「准 / 不准」反馈上报(2026-11-15):尽力而为,幂等,失败不重试。
+    func chapterFeedback(request: ChapterFeedbackRequest) async throws -> ChapterFeedbackResponse
 }
 
 extension APIClient {
@@ -66,6 +68,17 @@ extension APIClient {
         throw APIError.backendError(
             code: "DAILY_ASK_UNSUPPORTED",
             message: "该 APIClient 实现未支持 askRedeem(测试替身默认实现)",
+            requestId: nil
+        )
+    }
+
+    /// `chapterFeedback` 默认实现(2026-11-15):同款测试替身兜底——正式实现
+    /// 是 LiveAPIClient / MockAPIClient;反馈是 fire-and-forget,测试 double
+    /// 走到此处说明反馈被意外触发,显式抛错而非静默成功(掩盖上报缺口)。
+    func chapterFeedback(request: ChapterFeedbackRequest) async throws -> ChapterFeedbackResponse {
+        throw APIError.backendError(
+            code: "CHAPTER_FEEDBACK_UNSUPPORTED",
+            message: "该 APIClient 实现未支持 chapterFeedback(测试替身默认实现)",
             requestId: nil
         )
     }
@@ -218,6 +231,12 @@ final class LiveAPIClient: APIClient {
     func askRedeem(request: AskRedeemRequest) async throws -> AskRedeemResponse {
         let (data, _) = try await send(.askRedeem, body: request)
         return try decode(data, as: AskRedeemResponse.self, endpoint: .askRedeem)
+    }
+
+    // 章末「准 / 不准」反馈(2026-11-15):调用方 fire-and-forget,失败记日志不重试
+    func chapterFeedback(request: ChapterFeedbackRequest) async throws -> ChapterFeedbackResponse {
+        let (data, _) = try await send(.chapterFeedback, body: request)
+        return try decode(data, as: ChapterFeedbackResponse.self, endpoint: .chapterFeedback)
     }
 
     // MARK: - Internal
@@ -452,6 +471,12 @@ final class MockAPIClient: APIClient {
         recordLock.lock(); defer { recordLock.unlock() }
         return _recordedAskRedeemRequests
     }
+    /// 章末反馈录制(2026-11-15):测试断言上报的 verdict / section 用
+    private var _recordedChapterFeedbackRequests: [ChapterFeedbackRequest] = []
+    var recordedChapterFeedbackRequests: [ChapterFeedbackRequest] {
+        recordLock.lock(); defer { recordLock.unlock() }
+        return _recordedChapterFeedbackRequests
+    }
     /// S4c:mock 已赎回 tx 集合(幂等判定,recordLock 保护)
     private var _redeemedMockTxIds: Set<String> = []
     private var _recordedCalculateRequests: [BaziCalculateRequest] = []
@@ -684,6 +709,17 @@ final class MockAPIClient: APIClient {
         }
         recordLock.lock(); defer { recordLock.unlock() }
         return AskBalanceResponse(balance: _mockAskBalance)
+    }
+
+    /// 章末反馈(2026-11-15):默认恒成功(反馈尽力而为,mock 不模拟失败面)。
+    func chapterFeedback(request: ChapterFeedbackRequest) async throws -> ChapterFeedbackResponse {
+        AppLogger.networking.debug(
+            "mock.chapterFeedback 调起 module=\(request.module, privacy: .public) verdict=\(request.verdict.rawValue, privacy: .public)")
+        recordLock.lock()
+        _recordedChapterFeedbackRequests.append(request)
+        recordLock.unlock()
+        try? await Task.sleep(nanoseconds: 100_000_000)
+        return ChapterFeedbackResponse(status: "ok")
     }
 
     /// S4c:mock 次数包赎回(默认 +15 幂等入账:同 tx 重放 credits=0,

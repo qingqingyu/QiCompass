@@ -1397,6 +1397,16 @@ enum L10n {
         static let errorAlertTitle = String(localized: "addhour.error.alertTitle")
     }
 
+    // MARK: - 章末反馈控件(2026-11-15 拍板:B6 极简 × B9 三拍退场)
+
+    /// 章末「准 / 不准」三拍反馈词条。刻意不带问句(拍板 B6:刚读完一章
+    /// 的人不需要被问);「收到」是瞬时回执,约一秒后随整组退场,不留常驻。
+    enum ChapterFeedback {
+        static let accurate = String(localized: "deepanalysis.feedback.accurate")
+        static let inaccurate = String(localized: "deepanalysis.feedback.inaccurate")
+        static let received = String(localized: "deepanalysis.feedback.received")
+    }
+
     // MARK: - 深度解析命书链(2026-09-08 自动起链 + 断点续跑)
 
     /// 深度解析 v1 链进度文案(主页 chainBanner / 阅读页布算中消费)。

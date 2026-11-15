@@ -334,3 +334,39 @@ struct AnyCodableJSON: Codable, Equatable, @unchecked Sendable {
         }
     }
 }
+
+// MARK: - 章末反馈(2026-11-15 拍板:B6 极简 × B9 三拍退场)
+
+/// POST /api/interpret/feedback 请求。对齐 backend/app/models/interpret.py:ChapterFeedbackRequest
+///
+/// 客户端只报展示层事实;prompt_version / provider / model 由后端从
+/// interpretation_cache 同 (content_hash, module) 最新行 best-effort 反查
+/// (用户读的是本地缓存,后端行可能已被清 → 反查 miss 落 NULL,不拒绝)。
+struct ChapterFeedbackRequest: Codable, Sendable {
+    enum Verdict: String, Codable, Sendable {
+        case accurate
+        case inaccurate
+    }
+
+    let contentHash: String
+    let module: String
+    let verdict: Verdict
+    /// 「不准」时选中的小节 key(snake_case,与模板 JSON 契约同词);
+    /// nil = 只记总评(「准」或未选小节的「不准」)。
+    let section: String?
+    /// 展示语言 wire 值(zh / zh-hant / en;AppLanguage.currentWire)。
+    let appLanguage: String
+
+    enum CodingKeys: String, CodingKey {
+        case contentHash = "content_hash"
+        case module
+        case verdict
+        case section
+        case appLanguage = "app_language"
+    }
+}
+
+/// POST /api/interpret/feedback 响应(幂等:重复/达限都回 200,反馈尽力而为)。
+struct ChapterFeedbackResponse: Codable, Sendable {
+    let status: String
+}

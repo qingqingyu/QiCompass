@@ -389,3 +389,46 @@ class TranslateRequest(InterpretRequest):
                 f"compatibility_free/paid + daily_fortune;alias 老模块"
                 f"不投入,见 i18n-zh-hant-plan.md D10)")
         return self
+
+
+# ---------- 章末反馈(POST /api/interpret/feedback,2026-11-15) ----------
+# 拍板背景:章末「准 / 不准」三拍控件(B6 极简 × B9 三拍退场),用户读完一章
+# 即评;客户端只报展示层事实,prompt_version / provider / model 由后端从
+# interpretation_cache 同 (content_hash, module) 最新行 best-effort 反查
+# (用户读的是本地缓存,后端行可能已被清 → 反查 miss 落 NULL,不拒绝)。
+# 反馈幂等尽力而为:同 (content_hash, module, client_ip, 日) 重复上报 /
+# 达 IP 日限都回 200,差异只在日志与落表与否(见 ai/feedback_store.py)。
+
+
+class ChapterFeedbackRequest(BaseModel):
+    """章末反馈上报(iOS ChapterFeedbackRequest 镜像,snake_case 同名)。"""
+
+    content_hash: str = Field(
+        ..., min_length=8, max_length=64,
+        description="命盘内容指纹(与 interpret 同一口径)")
+    module: str = Field(
+        ..., description="v1 模块 ID(m0_structure 等;V1_MODULES 外 → 422)")
+    verdict: Literal["accurate", "inaccurate"] = Field(
+        ..., description="总评:准 / 不准")
+    section: str | None = Field(
+        None, max_length=64, pattern=r"^[a-z][a-z0-9_]*$",
+        description="「不准」时选中的小节 key(snake_case,与模板 JSON 契约同词);"
+                    "None = 只记总评(「准」或未选小节的「不准」)")
+    app_language: str = Field(
+        "zh", pattern=r"^(zh|zh-hant|en)$",
+        description="展示语言 wire 值(分析时按语言切的辅助维度)")
+
+    @field_validator("module")
+    @classmethod
+    def module_must_be_v1(cls, v: str) -> str:
+        """反馈只对 v1 章节(M0-M7)有意义;alias 老模块 → 422。"""
+        if v not in V1_MODULES:
+            raise ValueError(
+                f"module={v} 不在 v1 模块集(反馈只收 M0-M7)")
+        return v
+
+
+class ChapterFeedbackResponse(BaseModel):
+    """章末反馈响应:恒 ok(幂等;重复 / 达限与首次回应相同)。"""
+
+    status: Literal["ok"] = "ok"

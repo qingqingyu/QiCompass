@@ -280,12 +280,28 @@ struct ChapterReadingView: View {
 
     /// 章末落款(hairline + 朱批印;朱字批语依赖 prompt 输出,backlog)。
     /// 2026-10-09 目标稿:批印 26→34,上缘 closing hairline(章成收笔的视觉句号)。
+    /// 2026-11-15:落款行左侧挂「准 / 不准」反馈(拍板 B6×B9)——只在本章
+    /// 正常成文(chapterSeal 仅 .ok 态被引用,与批印同生命周期)且未反馈过
+    /// (ChapterFeedbackStore,反馈一次性)时出现;反馈走完三拍后整组退场,
+    /// 章末回到批印独处。
     private var chapterSeal: some View {
         VStack(spacing: 0) {
             Rectangle()
                 .fill(BaziTheme.hairline)
                 .frame(height: 0.5)
-            HStack {
+            HStack(alignment: .top) {
+                if !ChapterFeedbackStore.hasFeedback(
+                    contentHash: response.contentHash, module: module)
+                {
+                    ChapterFeedbackControl(
+                        sections: module.feedbackSectionKeys,
+                        onSubmit: { verdict, section in
+                            vm.submitChapterFeedback(
+                                module: module,
+                                verdict: verdict,
+                                section: section)
+                        })
+                }
                 Spacer()
                 SealStamp(character: "批", size: 34, rotation: 3, stampDelay: 0.2)
             }
