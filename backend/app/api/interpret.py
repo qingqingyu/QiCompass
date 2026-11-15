@@ -2366,7 +2366,12 @@ async def chapter_feedback(
     from ..ai.feedback_store import FeedbackOutcome
 
     store = request.app.state.chapter_feedback_store
-    client_ip = request.client.host if request.client else "unknown"
+    # IP 归一化(2026-11-15 三查修复,对齐 _free_quota_bucket / daily_ask):
+    # 幂等键与 IP 日限都以 client_ip 为键,不归一化 = IPv6 在 /64 内换址
+    # 即绕过同章幂等(灌假反馈污染版本/模型对比)且日限失效;::ffff: 映射
+    # 形态与裸 IPv4 也须收敛为同一键。
+    client_ip = _normalize_client_ip(
+        request.client.host if request.client else "unknown")
     start = time.perf_counter()
     try:
         outcome = await run_in_threadpool(
