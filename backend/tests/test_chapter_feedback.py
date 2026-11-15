@@ -140,6 +140,26 @@ async def test_meta_null_when_cache_row_missing(fb_client):
     assert row == (None, None, None)
 
 
+async def test_meta_falls_back_to_any_language_row(fb_client):
+    """反查语言回落分支(2026-11-15 三查 R2):同 language 行 miss → 任意
+    语言最新行——换语言阅读(展示语言无行、原文语言有行)时归因仍成立,
+    与 store docstring「优先同 language 行;miss 再取任意语言最新行」锁定。
+    """
+    ac, db_path, _ = fb_client
+    # 只有 zh 行;反馈自报 app_language=en(读的是 zh 原文回退展示)
+    _seed_cache_row(db_path, content_hash="a" * 40, module="m0_structure",
+                    language="zh")
+    resp = await ac.post("/api/interpret/feedback", json=_payload(
+        app_language="en"))
+    assert resp.status_code == 200
+    with sqlite3.connect(db_path) as conn:
+        row = conn.execute(
+            "SELECT prompt_version, provider, model, app_language "
+            "FROM chapter_feedback").fetchone()
+    # meta 取自 zh 行(回落),app_language 照记客户端自报的 en
+    assert row == (13, "openai", "glm-test", "en")
+
+
 async def test_inaccurate_with_section_recorded(fb_client):
     ac, db_path, _ = fb_client
     _seed_cache_row(db_path, content_hash="a" * 40, module="m0_structure",
