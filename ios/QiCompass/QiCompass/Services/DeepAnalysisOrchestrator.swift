@@ -131,6 +131,14 @@ final class DeepAnalysisOrchestrator {
         return response
     }
 
+    // MARK: - 章末反馈(2026-11-15)
+
+    /// 章末「准 / 不准」反馈上报:纯转发,不扣次数不进链路(调用方
+    /// fire-and-forget;失败在 VM 侧记日志,不重试不提示)。
+    func chapterFeedback(_ request: ChapterFeedbackRequest) async throws {
+        try await apiClient.chapterFeedback(request: request)
+    }
+
     // MARK: - 阶段 2:AI 命书
 
     /// AI 命书:次数检查 → /api/interpret → 存本地缓存。

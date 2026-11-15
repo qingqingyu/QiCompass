@@ -1332,6 +1332,41 @@ final class DeepAnalysisViewModel {
         }
     }
 
+    /// 章末「准 / 不准」反馈(2026-11-15 三拍控件):本地标记(决定即生效,
+    /// 不等上报)+ fire-and-forget 上报,失败记日志不重试不提示(反馈尽力
+    /// 而为,不打断阅读;「错误显式传播」体现在日志显式 error,不弹 UI)。
+    func submitChapterFeedback(
+        module: ModuleID,
+        verdict: ChapterFeedbackRequest.Verdict,
+        section: String?
+    ) {
+        guard case .ready(let response, _) = state else {
+            // 阅读页只在 .ok 态挂控件,理论上 state 必为 ready;非 ready =
+            // 控件出现在了不该出现的态,显式记录(不静默吞)。
+            AppLogger.app.error(
+                "deepVM.chapterFeedback.invalid_state module=\(module.rawValue, privacy: .public)")
+            return
+        }
+        ChapterFeedbackStore.markDone(
+            contentHash: response.contentHash, module: module)
+        let request = ChapterFeedbackRequest(
+            contentHash: response.contentHash,
+            module: module.rawValue,
+            verdict: verdict,
+            section: section,
+            appLanguage: AppLanguage.currentWire)
+        AppLogger.app.info(
+            "deepVM.chapterFeedback.submit module=\(module.rawValue, privacy: .public) verdict=\(verdict.rawValue, privacy: .public) section=\(section ?? "-", privacy: .public)")
+        Task { @MainActor in
+            do {
+                _ = try await orchestrator.chapterFeedback(request)
+            } catch {
+                AppLogger.app.error(
+                    "deepVM.chapterFeedback.report_failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public)")
+            }
+        }
+    }
+
     /// 单模块重试(用户点 ModuleCardView 的"重试"CTA)。
     ///
     /// 复用 v1ChainFields 中已成功的上游字段,不重跑整个链。

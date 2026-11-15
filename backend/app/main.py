@@ -47,6 +47,7 @@ from .config import (
     DEVICECHECK_KEY_ID,
     DEVICECHECK_PRIVATE_KEY,
     DEVICECHECK_TEAM_ID,
+    FEEDBACK_DAILY_LIMIT,
     MODEL_ID,
     OPENAI_API_KEY,
     OPENAI_BASE_URL,
@@ -117,6 +118,14 @@ async def lifespan(app: FastAPI):
     cache.init_schema()  # 幂等;失败则启动报错(不吞)
     app.state.cache = cache
     app.state.llm_singleflight = SingleflightCoalescer()
+
+    # 章末「准 / 不准」反馈(2026-11-15):与 cache 共库不同表;
+    # 反查 interpretation_cache 取版本/模型,故须在 cache 之后初始化
+    from app.ai.feedback_store import ChapterFeedbackStore
+    feedback_store = ChapterFeedbackStore(
+        DB_PATH, daily_ip_limit=FEEDBACK_DAILY_LIMIT)
+    feedback_store.init_schema()
+    app.state.chapter_feedback_store = feedback_store
 
     # 每日运势插画(S2):状态缓存 + 生图客户端 + 生图 singleflight。
     # key/base 缺失也构造,调用端点时显式 503(对齐 ai_client 策略)。

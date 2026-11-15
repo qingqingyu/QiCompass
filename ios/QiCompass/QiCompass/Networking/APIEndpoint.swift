@@ -26,6 +26,7 @@ enum APIEndpoint: Sendable {
     case dailyAsk            // S4c 新增(问事作答,次数包/试用钱包计费)
     case askBalance          // S4c 新增(问事余额;首查懒铸造 3 次试用)
     case askRedeem           // S4c 新增(次数包购买入账,幂等)
+    case chapterFeedback     // 章末「准 / 不准」反馈(2026-11-15 拍板,尽力而为,幂等)
 
     var path: String {
         switch self {
@@ -43,6 +44,7 @@ enum APIEndpoint: Sendable {
         case .dailyAsk:          return "/api/bazi/daily-ask"
         case .askBalance:        return "/api/ask/balance"
         case .askRedeem:         return "/api/ask/redeem"
+        case .chapterFeedback:   return "/api/interpret/feedback"
         }
     }
 

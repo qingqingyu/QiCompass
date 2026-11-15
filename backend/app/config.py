@@ -325,6 +325,17 @@ if FREE_DAILY_LIMIT <= 0:
     raise ValueError(
         f"QICOMPASS_FREE_DAILY_LIMIT must be positive (got {FREE_DAILY_LIMIT})")
 
+# ---------- 章末反馈 IP 日限(2026-11-15,章末「准 / 不准」控件) ----------
+# 反馈端点免鉴权(尽量低门槛,匿名也可评),IP 是唯一可用的粗闸;客户端
+# 一次阅读会话最多 8 章,100/日对 CGNAT 共享出口也只按人头算(见上方
+# FREE_DAILY_LIMIT 的 CGNAT 讨论),不构成正常用户面。
+FEEDBACK_DAILY_LIMIT = int(
+    os.environ.get("QICOMPASS_FEEDBACK_DAILY_LIMIT") or "100")
+if FEEDBACK_DAILY_LIMIT <= 0:
+    raise ValueError(
+        f"QICOMPASS_FEEDBACK_DAILY_LIMIT must be positive "
+        f"(got {FEEDBACK_DAILY_LIMIT})")
+
 # ---------- 免费配额退款每日上限(2026-10-08 拍板:分类退 + 防刷上限) ----------
 # 退款(服务商故障/契约截断/翻译保真失败)按 (bucket, day) 计数,超过上限
 # 不再退——「构造可触发退款的失败 = 免费烧 LLM 不扣额」的通道被每日退款
