@@ -1,0 +1,24 @@
+# 入口反代:自动签发/续期 HTTPS 证书,转发到 api 容器。
+# 域名由 compose 传入(API_DOMAIN,默认 api.knowfate.app)。
+{$API_DOMAIN} {
+	encode zstd gzip
+
+	# 无上传端点;context 总量上限 128KB(app/context_binding.py),1MB 足够。
+	request_body {
+		max_size 1MB
+	}
+
+	reverse_proxy api:8000 {
+		# LLM 调用超时 150s、生图 240s、iOS 资源超时 300s;360s 留余量。
+		# 这也是不能开 Cloudflare 橙云代理的原因(其约 100s 即断开)。
+		transport http {
+			response_header_timeout 360s
+			read_timeout 360s
+			write_timeout 360s
+		}
+	}
+
+	log {
+		output stdout
+	}
+}

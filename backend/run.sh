@@ -16,14 +16,17 @@ fi
 set -a; source .env; set +a
 
 WORKERS="${WEB_CONCURRENCY:-2}"
-echo "starting uvicorn workers=$WORKERS host=0.0.0.0 port=8000"
+echo "starting uvicorn workers=$WORKERS port=8000"
 
 # arch -arm64:Rosetta(x86_64)语境下 venv 的 arm64 编译包(pydantic_core 等)
 # ImportError 启动即崩,显式钉死架构(2026-10-07 本机复现两次)。**仅 macOS +
 # Rosetta** 需要:`arch` 是 macOS 专用命令,Linux 服务器上的 GNU coreutils
 # `arch` 只打印架构、不接受 `-arm64` 参数(2026-10-07 review,部署 Linux 会
 # 直接启动失败)。
-UVICORN_BIN=".venv/bin/uvicorn"
+# UVICORN_BIN 可由环境覆盖(2026-11-16):容器镜像里依赖装在系统 Python,
+# 没有 .venv,Dockerfile 设 UVICORN_BIN=uvicorn 复用本脚本——Mac 开发与生产
+# 走同一条启动命令与同一套 .env 解析(bash source),不再维护第二份。
+UVICORN_BIN="${UVICORN_BIN:-.venv/bin/uvicorn}"
 if [[ "$(uname -s)" == "Darwin" ]] \
     && [[ "$(uname -m)" == "x86_64" ]] \
     && [[ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" == "1" ]]; then
@@ -41,9 +44,18 @@ fi
 # >=0.31,requirements 已锁;仅信任边界完全可控时才可用 `*`:直连暴露
 # 端口下任意客户端可伪造转发头刷额度)。
 FORWARDED_ALLOW_IPS="${FORWARDED_ALLOW_IPS:-127.0.0.1}"
+# 监听地址(2026-11-16):默认 0.0.0.0(真机联调连 Mac / 容器内必须);
+# systemd 直跑且反代同机时设 UVICORN_HOST=127.0.0.1,不把 8000 暴露公网。
+UVICORN_HOST="${UVICORN_HOST:-0.0.0.0}"
+# 优雅停机(2026-11-16):发版重启时让在飞的 LLM 请求(超时线 150s)跑完,
+# 否则已扣次数的生成被砍断。200s 后仍未结束的连接才强制关闭;compose 的
+# stop_grace_period 须大于此值(deploy/docker-compose.yml 设 210s)。
+UVICORN_GRACEFUL_TIMEOUT="${UVICORN_GRACEFUL_TIMEOUT:-200}"
+echo "uvicorn host=$UVICORN_HOST graceful_timeout=${UVICORN_GRACEFUL_TIMEOUT}s"
 exec $UVICORN_BIN app.main:app \
-    --host 0.0.0.0 \
+    --host "$UVICORN_HOST" \
     --port 8000 \
     --workers "$WORKERS" \
     --proxy-headers \
-    --forwarded-allow-ips "$FORWARDED_ALLOW_IPS"
+    --forwarded-allow-ips "$FORWARDED_ALLOW_IPS" \
+    --timeout-graceful-shutdown "$UVICORN_GRACEFUL_TIMEOUT"

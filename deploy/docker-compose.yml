@@ -1,0 +1,73 @@
+# 生产编排:api(FastAPI)+ caddy(HTTPS 入口)。
+# 由 deploy/server-deploy.sh 调用,一般不直接手敲 docker compose。
+name: qicompass
+
+services:
+  api:
+    build: ../backend
+    image: qicompass-api:${IMAGE_TAG:-latest}
+    restart: unless-stopped
+    environment:
+      QICOMPASS_DB_PATH: /data/qicompass.db
+      # 信任 caddy 容器转发的 X-Forwarded-For;必须与下方 networks.qc 的网段一致。
+      # 配错不报错,但全站匿名用户会共享一份每日免费配额。
+      FORWARDED_ALLOW_IPS: 172.28.0.0/16
+    volumes:
+      - /srv/qicompass/data:/data
+      - /srv/qicompass/.env:/app/.env:ro
+    # 8000 不对公网发布,只在内部网络给 caddy 访问。
+    expose:
+      - "8000"
+    networks:
+      - qc
+    # 须大于 run.sh 的 UVICORN_GRACEFUL_TIMEOUT(200s),让在飞的 LLM 请求跑完。
+    stop_grace_period: 210s
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=5).status == 200 else 1)"
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - api
+    environment:
+      API_DOMAIN: ${API_DOMAIN:-api.knowfate.app}
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - qc
+    logging:
+      driver: json-file
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+networks:
+  qc:
+    ipam:
+      config:
+        - subnet: 172.28.0.0/16
+
+volumes:
+  # 证书存这里;删掉会触发重新签发(Let's Encrypt 有频率限制,勿随意删)。
+  caddy_data:
+  caddy_config:
