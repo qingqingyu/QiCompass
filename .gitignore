@@ -53,6 +53,9 @@ Icon?
 
 # 后端 SQLite 缓存(/api/interpret D2)
 data/
+# Apple Root CA(.cer)与宿主挂载源目录,不入 git(仅 .gitkeep 被跟踪;
+# S2 2026-11-18:compose 部署会在 backend/certs/ 建挂载源)
+certs/
 
 # v1 链式 spike 输出(每次运行动态产出,不进 git;老的 output_v1/ 已被跟踪)
 backend/spikes/prompt_validation/output_v1_chain/

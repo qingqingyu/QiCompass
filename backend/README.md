@@ -37,9 +37,10 @@
 
 - `run.sh` 已带 `--proxy-headers --forwarded-allow-ips`;信任的反代地址由
   `FORWARDED_ALLOW_IPS` 配置,默认 `127.0.0.1`(反代与后端同机)。
-- **Docker Compose(反代独立容器)必须填 Docker 网段**(如 `172.18.0.0/16`)
-  或反代容器 IP——否则 `X-Forwarded-For` 不被信任,所有匿名用户按反代地址
-  共享一份每日免费配额。
+- **Docker Compose(反代独立容器)必须填 compose 网段**(本仓
+  `docker-compose.yml` 已固定 `172.28.0.0/16`,照抄;勿抄 Docker 默认池的
+  `172.18.0.0/16`,CIDR 永不命中且无报错)或反代容器 IP——否则
+  `X-Forwarded-For` 不被信任,所有匿名用户按反代地址共享一份每日免费配额。
 - CIDR 写法需 uvicorn>=0.31(requirements 已锁下界);`*` 只在信任边界完全
   可控(端口不直连暴露)时用,否则任意客户端可伪造转发头刷额度。
 

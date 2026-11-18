@@ -1,0 +1,25 @@
+# QiCompass 反代入口(S2,2026-11-18;docs/后端部署设计决策.md §2.2)
+#
+# - response_header_timeout 360s:上游 LLM 150s / 生图 240s / iOS 资源超时
+#   300s(C3 硬约束)。Caddy v2 默认无上游超时,这里显式钉死防未来默认值
+#   变化把长模块掐断
+# - 请求体上限 1MB:纯 JSON API 无上传业务
+# - 证书:Let's Encrypt 自动签发/续期;域名经 env API_DOMAIN 注入(compose
+#   默认 api.bengming.app),ACME HTTP 挑战走 80 端口(compose 已映射)
+# - X-Forwarded-For / X-Forwarded-Proto / X-Request-ID:Caddy 默认透传/追加,
+#   不另配置;后端 uvicorn --proxy-headers + --forwarded-allow-ips 消费(§2.3)
+
+{$API_DOMAIN} {
+	encode gzip
+
+	request_body {
+		max_size 1MB
+	}
+
+	reverse_proxy api:8000 {
+		transport http {
+			response_header_timeout 360s
+			dial_timeout 10s
+		}
+	}
+}
