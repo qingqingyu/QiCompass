@@ -73,7 +73,7 @@ services:
       - "443:443"
     environment:
       # Caddyfile 经 {$API_DOMAIN} 消费;改域名改这里(或 .env 同名变量)
-      API_DOMAIN: ${API_DOMAIN:-api.bengming.app}
+      API_DOMAIN: ${API_DOMAIN:-api.knowfate.app}
     volumes:
       - ./Caddyfile:/etc/caddy/Caddyfile:ro
       - caddy_data:/data
