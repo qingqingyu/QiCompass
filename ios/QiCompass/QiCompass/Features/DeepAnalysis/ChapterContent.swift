@@ -74,7 +74,7 @@ struct ChapterContent: Equatable {
         parse(text, for: nil)
     }
 
-    /// 按模块解析(2026-10-12 S4-A):M0/M1 各自特化组装,M2/M3 共用问句
+    /// 按模块解析(2026-10-12 S4-A):M0/M1 各自特化组装,M2/M3/M4 共用问句
     /// 门头数组装配,其余模块走通用节点树。module 为 nil = 通用(中毒判读
     /// 等不关心排版)。特化章缺关键结构(老缓存/违约)→ 回落通用渲染,
     /// 不静默丢内容。
@@ -86,7 +86,7 @@ struct ChapterContent: Equatable {
             nodes = specialized
         } else if module == .m1, let specialized = m1Nodes(from: pairs) {
             nodes = specialized
-        } else if (module == .m2 || module == .m3),
+        } else if (module == .m2 || module == .m3 || module == .m4),
                   let specialized = questionArrayNodes(from: pairs) {
             nodes = specialized
         } else {
@@ -341,8 +341,9 @@ struct ChapterContent: Equatable {
         return nodes
     }
 
-    /// 问句门头数组装配(M2/M3 共用;2026-11-10 叁章拍板引入,2026-11-12 肆章
-    /// 复用并自 m2Nodes 改名):对象节走通用构造器已自动获得问句门头;字符串/
+    /// 问句门头数组装配(M2/M3/M4 共用;2026-11-10 叁章拍板引入,2026-11-12
+    /// 肆章复用并自 m2Nodes 改名,2026-11-19 伍章并入):对象节走通用构造器
+    /// 已自动获得问句门头;字符串/
     /// 对象数组在通用路径渲染成裸 .bullets/.items 无门(M1 同款病)——本装配按
     /// 顶层 pairs 原序把「问题表内的数组」包进问句门头,其余键透传 node()。
     /// 一个问题数组都没有(非本章形态)→ 返回 nil 落回通用渲染。
@@ -563,19 +564,20 @@ struct ChapterContent: Equatable {
             return arrayNode(key: key, values: values)
         case .object(let pairs):
             // 对象一律成节(小节题是语义信息:主线/核心循环/电池类型…);
-            // 值全标量 → 子节点为键值组(「text」除外);混结构值 → 子节点递归。
+            // 值全标量 → 子节点为键值组(proseKeys 除外);混结构值 → 子节点递归。
             let children: [ChapterNode]
             if pairs.allSatisfy({ $0.1.isScalar }) {
-                // 「text」是节的主散文体(如 capability_source.text):不打
-                // 「正文/Body」字段标签、按引言段落排版(2026-10-11 EN 外评:
-                // "Body" 数据腔标签);其余标量键照旧键值行。非 string 的
-                // text(违约输出 number/null)不转 lead 也不丢,回落键值行
+                // proseKeys 是节的主散文体(text 先例,如 capability_source.text
+                // 不打「正文/Body」字段标签——2026-10-11 EN 外评 "Body" 数据腔
+                // 标签;2026-11-18 伍章扩入 charge_pattern/drain_pattern):按
+                // 引言段落排版;其余标量键照旧键值行。非 string 的 prose 键
+                // (违约输出 number/null)不转 lead 也不丢,回落键值行
                 // (label 未登记 → 裸 key 透出,不静默丢内容)。
                 // 谓词只写这一处(单趟分流):lead 组与其余组的边界不可能漂移。
                 var proseNodes: [ChapterNode] = []
                 var rest: [(String, JSONValue)] = []
                 for (k, v) in pairs {
-                    if k == "text", case .string(let s) = v {
+                    if Self.proseKeys.contains(k), case .string(let s) = v {
                         proseNodes.append(.lead(s))
                     } else {
                         rest.append((k, v))
@@ -768,10 +770,12 @@ struct ChapterContent: Equatable {
         "reason": "理由",
         "precondition": "前提条件",
         "environment_checklist": "环境筛选清单",
-        // M4 精力曲线
-        "battery_type": "电池类型",
-        "charge_pattern": "充电规律",
-        "drain_pattern": "耗电规律",
+        // M4 精力曲线(2026-11-18 伍章:电池比喻全摘——battery_type 门头换问句、
+        // charge/drain 两键改无标签 prose,三枚标签随之退役勿回加;reset_7day
+        // 门头换问句后「七天复位」标签同成死键,一并清除勿回加。
+        // battery_type 2026-11-20 回加:标签另有反馈 chip 消费者
+        // (ChapterFeedbackControl),chip 专用短词「高分低谷」,不再作门头)
+        "battery_type": "高分低谷",
         "imbalance_risks": "失衡风险",
         "system": "身体系统",
         "trigger": "触发条件",
@@ -780,7 +784,6 @@ struct ChapterContent: Equatable {
         "action": "动作",
         "why_it_works_for_you": "对你有效的原理",
         "cost": "成本",
-        "reset_7day": "七天复位",
         "day": "天",
         "focus": "焦点",
         "weekly_maintenance": "每周维护",
@@ -828,8 +831,8 @@ struct ChapterContent: Equatable {
     ]
 
     /// 小节门头问句(M0 2026-11-07 拍板,docs/命书壹章标题推敲.md;M1 同日
-    /// 贰章拍板并入;M2 2026-11-10 叁章拍板并入):壹/贰/叁各章小节名改用
-    /// 素材问句原样——读者带着问题进章,
+    /// 贰章拍板并入;M2 2026-11-10 叁章拍板并入):已拍板各章(壹-伍)小节
+    /// 名改用素材问句原样——读者带着问题进章,
     /// 每节首行结论句作答。**只喂 .section 门头**;据注/行内标签仍是 `labels`
     /// 的短名词(「据 · 主线」不能变问句)。en/zh-Hant 走 xcstrings dot-key
     /// `deepanalysis.chapter.q.<key>`,zh 缺省回落本表值(同 label() 范式)。
@@ -860,6 +863,13 @@ struct ChapterContent: Equatable {
         "ideal_life_structure": "它最适合什么类型的生活结构?",
         "stability_vs_volatility": "它更适合稳定型人生,还是高变量人生?",
         "environment_checklist": "换环境前,先问自己什么?",
+        // M4(2026-11-18 伍章拍板,docs/命书伍章标题推敲.md):用户原句×2
+        // (高分低谷/累了怎么缓)+ 新造只用用户的词;「七天」剪掉随用户口风。
+        "battery_type": "高分在什么时候,低谷在什么时候?",
+        "imbalance_risks": "怎么会从高分掉下来?",
+        "recovery_levers": "累了怎么缓过来?",
+        "reset_7day": "掉进低谷,怎么爬出来?",
+        "weekly_maintenance": "怎么少掉进低谷?",
     ]
 
     /// 小节门头取题:有问句用问句,无问句回落短名词标签(其余章维持名词门头)。
@@ -885,6 +895,10 @@ struct ChapterContent: Equatable {
 
     /// 小字注键(「据 · 」/「注 · 」排版)。
     static let noteKeys: [String] = ["evidence", "medical_note", "disclaimer"]
+
+    /// 节内「直接说」的无标签字段(text 先例 2026-10-11;2026-11-18 伍章拍板
+    /// 扩入 charge_pattern/drain_pattern——小节内容直接说,报幕的标签下场)。
+    static let proseKeys: Set<String> = ["text", "charge_pattern", "drain_pattern"]
 
     /// 枚举值中文化(schema 约定的英文枚举;未知值原样透出)。
     static let valueMap: [String: [String: String]] = [

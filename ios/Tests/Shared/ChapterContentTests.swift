@@ -529,6 +529,75 @@ final class ChapterContentTests: XCTestCase {
         }, "对象形态子层不得再嵌同题 section(双重门头),实际:\(children)")
     }
 
+    // MARK: - M4 精力曲线(2026-11-19 伍章问句门头+无标签 prose)
+    func test_m4_specializationWrapsFiveQuestionDoors() {
+        let json = """
+        {
+          "battery_type": { "type": "爬坡", "evidence": "印星通关", "charge_pattern": "独处半天、睡饱,劲就回来", "drain_pattern": "连续三天高强度对外,必掉" },
+          "imbalance_risks": [
+            { "system": "睡眠", "trigger": "连续三天以上高强度对外沟通", "early_sign": "早上醒来看手机" }
+          ],
+          "recovery_levers": [
+            { "action": "中午独处半小时", "why_it_works_for_you": "印星回血", "cost": "low" }
+          ],
+          "reset_7day": [
+            { "day": 1, "focus": "睡眠时点", "action": "23 点前躺下" }
+          ],
+          "weekly_maintenance": ["每周留一个无安排的半天"]
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m4) else {
+            return XCTFail("M4 应特化解析")
+        }
+        let titles = content.nodes.compactMap { node -> String? in
+            guard case .section(let title, _) = node else { return nil }
+            return title
+        }
+        XCTAssertEqual(titles, [
+            "高分在什么时候,低谷在什么时候?",
+            "怎么会从高分掉下来?",
+            "累了怎么缓过来?",
+            "掉进低谷,怎么爬出来?",
+            "怎么少掉进低谷?",
+        ])
+        // battery_type 节:charge/drain 走无标签 prose(text 同款机制),
+        // 类型/据 留键值行——「小节内容直接说」拍板的排版锁定
+        guard case .section(_, let batteryChildren)? = content.nodes.first else {
+            return XCTFail("battery_type 应为问句门头")
+        }
+        XCTAssertEqual(batteryChildren.count, 3)
+        guard case .lead(let charge)? = batteryChildren.first else {
+            return XCTFail("charge_pattern 应为无标签引言段")
+        }
+        XCTAssertTrue(charge.hasPrefix("独处半天"))
+        guard case .fields(let batteryFields)? = batteryChildren.last else {
+            return XCTFail("类型/据应留键值行")
+        }
+        XCTAssertEqual(batteryFields.map(\.label), ["类型", "据"])
+        // 其余四节均为「问句门头 + 条目卡/条目列」
+        guard case .section(_, let weeklyChildren)? = content.nodes.last,
+              case .bullets(let weekly)? = weeklyChildren.first else {
+            return XCTFail("weekly_maintenance 节内应为条目列")
+        }
+        XCTAssertEqual(weekly, ["每周留一个无安排的半天"])
+    }
+
+    func test_m4_specializationFallsBackWithoutQuestionArrays() {
+        // 无问题表内数组 → 装配返 nil 落回通用;battery_type 对象在通用路径
+        // 照样获得问句门头,charge/drain 同样走无标签 prose
+        let json = """
+        { "battery_type": { "type": "波动", "evidence": "水火交战", "charge_pattern": "换环境当天", "drain_pattern": "无事可做超过两天" } }
+        """
+        guard let content = ChapterContent.parse(json, for: .m4) else {
+            return XCTFail("应解析成功")
+        }
+        guard case .section("高分在什么时候,低谷在什么时候?", let children)? = content.nodes.first,
+              case .lead(let charge)? = children.first else {
+            return XCTFail("通用回落应为问句门头+无标签 prose,实际:\(content.nodes)")
+        }
+        XCTAssertEqual(charge, "换环境当天")
+    }
+
     func test_m4_dayNumberBecomesTitle() {
         let json = """
         {
