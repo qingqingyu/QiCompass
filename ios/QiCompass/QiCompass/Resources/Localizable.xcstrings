@@ -4399,19 +4399,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Battery type"
+            "value" : "Highs & lows"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "电池类型"
+            "value" : "高分低谷"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "電池類型"
+            "value" : "高分低谷"
           }
         }
       }
@@ -4504,29 +4504,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "上限效應"
-          }
-        }
-      }
-    },
-    "deepanalysis.chapter.charge_pattern" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Charging pattern"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "充电规律"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "充電規律"
           }
         }
       }
@@ -4757,29 +4734,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "完成標誌"
-          }
-        }
-      }
-    },
-    "deepanalysis.chapter.drain_pattern" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Drain pattern"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "耗电规律"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "耗電規律"
           }
         }
       }
@@ -6072,6 +6026,29 @@
         }
       }
     },
+    "deepanalysis.chapter.q.battery_type" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "When are your highs, and when your lows?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高分在什么时候,低谷在什么时候?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "高分在什麼時候,低谷在什麼時候?"
+          }
+        }
+      }
+    },
     "deepanalysis.chapter.q.capability_source" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6256,6 +6233,29 @@
         }
       }
     },
+    "deepanalysis.chapter.q.imbalance_risks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What knocks you off your highs?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "怎么会从高分掉下来?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "怎麼會從高分掉下來?"
+          }
+        }
+      }
+    },
     "deepanalysis.chapter.q.innate" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6367,6 +6367,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "它最自然的運行模式是什麼?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.recovery_levers" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How do you bounce back when you're spent?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "累了怎么缓过来?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "累了怎麼緩過來?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.reset_7day" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Stuck in a slump — how do you climb out?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "掉进低谷,怎么爬出来?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "掉進低谷,怎麼爬出來?"
           }
         }
       }
@@ -6486,6 +6532,29 @@
         }
       }
     },
+    "deepanalysis.chapter.q.weekly_maintenance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How do you stay out of slumps?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "怎么少掉进低谷?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "怎麼少掉進低谷?"
+          }
+        }
+      }
+    },
     "deepanalysis.chapter.rank" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6574,29 +6643,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "恢復槓桿"
-          }
-        }
-      }
-    },
-    "deepanalysis.chapter.reset_7day" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "7-day reset"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "七天复位"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "七天復位"
           }
         }
       }
