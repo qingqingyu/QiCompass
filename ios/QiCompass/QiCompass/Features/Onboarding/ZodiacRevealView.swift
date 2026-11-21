@@ -50,6 +50,10 @@ struct ZodiacRevealView: View {
     /// `L10n.Onboarding.revealNodeSentenceText` 按拼好传入)。
     /// nil = 空池/规则缺席/老响应/kind 未知,该行诚实不渲染。默认 nil 兼容既有测试直构。
     var nodeSentence: String? = nil
+    /// T6(2026-11-22 竞品差评对照):农历新年 vs 立春生肖不一致对照句(K4,
+    /// 已拼好,`OnboardingView.lnyMismatchText`)。nil = 两口径相同 / 老响应 /
+    /// 年柱歧义 → 不渲染,不猜。点击打开排盘口径说明页(带个性化行)。
+    var lnyMismatchLine: String? = nil
     /// CTA 点击回调(进深度解析 tab,2026-08-31 改)。
     let onComplete: () -> Void
     /// S10 接线:立春降级态补时辰轻提示点击 → 打开补时辰 sheet(D7 被迫例外触点,
@@ -57,6 +61,9 @@ struct ZodiacRevealView: View {
     var onAddHour: (() -> Void)? = nil
 
     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+
+    /// T6:排盘口径说明页(生肖差异行点击入口)。
+    @State private var showBasisSheet = false
 
     // MARK: - 动画 state(初始态 = 入场前)
 
@@ -131,6 +138,29 @@ struct ZodiacRevealView: View {
                     .foregroundStyle(BaziTheme.inkMuted)
             }
             .opacity(textOpacity)
+
+            // MARK: T6 农历新年口径对照(K4;subLabel 下、人格段落上)
+            // 出生在立春与正月初一之间的人,大众生肖网站的生肖与本盘差一年——
+            // 一句对照说清「口径不同,不是算错」,点击打开排盘口径说明页
+            // (个性化行挂在「为什么生肖和其他网站不一样?」一节正文后)
+            if let lnyMismatchLine {
+                Button {
+                    HapticEngine.light()
+                    showBasisSheet = true
+                } label: {
+                    Text(lnyMismatchLine)
+                        .font(BaziFont.caption(size: 12))
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .multilineTextAlignment(.center)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, BaziTheme.Spacing.md)
+                }
+                .buttonStyle(.plain)
+                .opacity(textOpacity)
+                .sheet(isPresented: $showBasisSheet) {
+                    ChartBasisSheet(lnyMismatchLine: lnyMismatchLine)
+                }
+            }
 
             // MARK: 人格段落(2026-08-13 Q6:无标题,紧接主标)
             // S08:full 态由 `ZodiacRevealMode.resolve` 保证 zodiac 已知,

@@ -236,6 +236,23 @@ struct PastNodeDTO: Codable, Sendable, Equatable {
     let age: Int
 }
 
+// MARK: - 农历新年口径年柱对照(T6,2026-11-22 竞品差评对照)
+
+/// 农历新年(正月初一)口径的年干支 + 生肖。后端仅当与立春口径年柱**不同**
+/// 才透出(相同 / 年柱歧义 → null):大众生肖网站按农历新年换年,八字按
+/// 立春换年,出生在两者之间的人两边生肖差一年——K4 对照句的原料。
+/// 仅展示对照用,不参与任何计算与 token。
+struct LunarNewYearYearDTO: Codable, Sendable, Equatable {
+    let ganZhi: String
+    /// 英文生肖名(与 yearBranchZodiac 同值域,如 "Ox")
+    let zodiac: String
+
+    enum CodingKeys: String, CodingKey {
+        case ganZhi = "gan_zhi"
+        case zodiac
+    }
+}
+
 // MARK: - Response
 
 /// POST /api/bazi/calculate 响应。对齐 backend BaziCalculateResponse
@@ -284,6 +301,10 @@ struct BaziResponse: Codable, Sendable {
     /// (D5 纯陈述零交互)。nil = 空池/规则缺席/老响应与老快照
     /// (decodeIfPresent,2026-08-15 keyNotFound 教训)→ OnboardingView 不渲染,不猜。
     var pastNode: PastNodeDTO? = nil
+    /// T6(2026-11-22 竞品差评对照):农历新年口径年柱对照(仅当与立春口径
+    /// 年柱不同才给;相同 / 年柱歧义 → null)。仅展示对照用;老响应缺 key →
+    /// nil(decodeIfPresent,生肖屏不渲染 K4 行,不猜)。
+    var lunarNewYearYear: LunarNewYearYearDTO? = nil
 
     // v1 prompt 系统 chart 注入字段(Stage 1 后端引入,iOS Stage 7b 接入)
     // 不在声明处给默认值(否则 init(from decoder:) + 默认值会触发"immutable value
@@ -376,6 +397,7 @@ struct BaziResponse: Codable, Sendable {
         case yearBranchFriends = "year_branch_friends"
         case yearBranchClash = "year_branch_clash"
         case pastNode = "past_node"
+        case lunarNewYearYear = "lunar_new_year_year"
         case tenGodWeights = "ten_god_weights"
         case usefulGodCandidates = "useful_god_candidates"
         case meta
@@ -471,6 +493,9 @@ struct BaziResponse: Codable, Sendable {
         // 节点句(2026-10-19):老响应/老快照缺 key → nil(该行不渲染);
         // 显式 null(空池/规则缺席)同透传 nil——两者都是诚实留白,无兜底语义
         pastNode = try c.decodeIfPresent(PastNodeDTO.self, forKey: .pastNode)
+        // T6(2026-11-22):农历新年口径年柱对照;老响应缺 key → nil
+        lunarNewYearYear = try c.decodeIfPresent(
+            LunarNewYearYearDTO.self, forKey: .lunarNewYearYear)
         // v1 字段:decodeIfPresent + 默认值,缺 key 走默认(对齐 backend Stage 1+ 语义)
         tenGodWeights = try c.decodeIfPresent([String: Int].self, forKey: .tenGodWeights) ?? [:]
         usefulGodCandidates = try c.decodeIfPresent([String].self, forKey: .usefulGodCandidates) ?? []
@@ -540,7 +565,8 @@ struct BaziResponse: Codable, Sendable {
         archivedGeonameId: Int? = nil,
         pastNode: PastNodeDTO? = nil,
         clockTimePillars: [String: String]? = nil,
-        dstFlags: [String] = []
+        dstFlags: [String] = [],
+        lunarNewYearYear: LunarNewYearYearDTO? = nil
     ) {
         self.contentHash = contentHash
         self.trueSolarTime = trueSolarTime
@@ -581,6 +607,7 @@ struct BaziResponse: Codable, Sendable {
         self.pastNode = pastNode
         self.clockTimePillars = clockTimePillars
         self.dstFlags = dstFlags
+        self.lunarNewYearYear = lunarNewYearYear
     }
 }
 

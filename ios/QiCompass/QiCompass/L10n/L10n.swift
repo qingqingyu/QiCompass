@@ -113,6 +113,13 @@ enum L10n {
         /// zh: "继续";en: "Continue"
         static let revealCTADegraded = String(localized: "onboarding.reveal.cta.degraded")
 
+        /// T6 农历新年口径生肖差异句(K4,2026-11-22 竞品差评对照;
+        /// %1$@ = 农历口径生肖,%2$@ = 立春口径年柱对照,拼装见
+        /// `OnboardingView.lnyMismatchText`)。
+        static func lnyMismatch(_ lnyZodiac: String, yearPillar: String) -> String {
+            String(format: String(localized: "zodiac.lnyMismatch"), lnyZodiac, yearPillar)
+        }
+
         // -- 12 生肖人格文案(静态善意正面画像,Q6 锁定:1-2 句,不吹天命不写负面)--
 
         static let personalityRat = String(localized: "onboarding.personality.rat")

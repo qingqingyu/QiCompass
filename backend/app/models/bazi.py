@@ -190,6 +190,17 @@ class PastNode(BaseModel):
     age: int
 
 
+class LunarNewYearYear(BaseModel):
+    """农历新年(正月初一)口径的年干支 + 生肖(T6,2026-11-22 竞品差评对照)。
+
+    大众生肖网站按农历新年换年,八字按立春换年——仅当两口径年柱不同时
+    由引擎透出(相同 → None 无事可说;年柱歧义 → None 不猜)。仅展示
+    对照用:不参与 content_hash / calc_rule_snapshot / 任何判断与 token。
+    """
+    gan_zhi: str
+    zodiac: str  # 英文生肖名(pillars.ZODIAC_NAME 同值域)
+
+
 class CalcRuleSnapshot(BaseModel):
     library: str
     sect: int
@@ -302,6 +313,10 @@ class BaziCalculateResponse(BaseModel):
     # 年柱系派生:年柱歧义时随生肖一并置 null(对齐 year_branch_zodiac,不猜)
     year_branch_friends: list[str] | None = None
     year_branch_clash: str | None = None
+    # T6(2026-11-22 竞品差评对照):农历新年口径年柱对照,仅当与立春口径
+    # 年柱不同才给(相同 / 年柱歧义 → None)。仅展示用,不参与任何判断与
+    # hash;老响应缺 key → None(客户端 decodeIfPresent 不猜)
+    lunar_new_year_year: LunarNewYearYear | None = None
     # 2026-10-20 生肖屏节点句:过去命局节点(四规则取最强 1 个,冷读排除窗后
     # 空池 → None 诚实留白不放宽;只回望 ≤ 上一完整公历年,不预言)。日/月柱
     # 歧义时对应规则自然缺席(不猜);老响应无此字段,Optional 不破坏回显

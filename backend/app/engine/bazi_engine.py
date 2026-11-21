@@ -49,7 +49,7 @@ from ..engine.shensha import compute_shensha
 from ..engine.verification import pick_past_node
 from ..engine.xiji import compute_xiji
 from ..errors import BaziCalculationFailedError
-from ..models.bazi import MetaBlock
+from ..models.bazi import LunarNewYearYear, MetaBlock
 
 logger = logging.getLogger(__name__)
 
@@ -191,10 +191,21 @@ class BaziEngine:
                 )
                 year_branch_friends = [compute_year_zodiac(z) for z in friends_zhi]
                 year_branch_clash = compute_year_zodiac(clash_zhi)
+
+                # 3.3 农历新年口径年柱对照(T6,2026-11-22 竞品差评对照):
+                # 大众生肖网站按正月初一换年,与立春口径年柱不一致时透出,
+                # 供 iOS 解释「为什么和别的网站不一样」。时辰未知也照算
+                # (正月初一按日期换年,不依赖时辰);仅展示对照用——不参与
+                # content_hash / calc_rule_snapshot / 任何判断与 token
+                lunar_new_year_year = _lunar_new_year_year(
+                    calc_birth, lichun_gan_zhi=pillars.year.gan_zhi,
+                )
             else:
                 year_branch_zodiac = None
                 year_branch_friends = None
                 year_branch_clash = None
+                # 年柱歧义(立春日 + 时辰未知)→ 两侧口径都不可信,不猜
+                lunar_new_year_year = None
 
             # 3.5 contentHash(提前算,供后续日志关联;用输入时间,非真太阳时。
             # 时辰未知时 birth 为区间中点占位归一值:时辰桶不参与,
@@ -406,6 +417,12 @@ class BaziEngine:
                 # 年柱歧义时随年支系派生一并置 null
                 "year_branch_friends": year_branch_friends,
                 "year_branch_clash": year_branch_clash,
+                # T6(2026-11-22):农历新年口径年柱对照(仅当与立春口径年柱不同
+                # 才给;相同 / 年柱歧义 → None)。仅展示用,不参与任何判断与 hash
+                "lunar_new_year_year": (
+                    lunar_new_year_year.model_dump()
+                    if lunar_new_year_year is not None else None
+                ),
                 # 生肖屏节点句(2026-10-19 拍板):结构化过去节点,文案在
                 # iOS xcstrings;空池/规则缺席 → None(该行不渲染)
                 "past_node": (
@@ -466,6 +483,39 @@ def _clock_time_pillars(birth: datetime) -> dict[str, str]:
         "day": ec.getDay(),
         "hour": ec.getTime(),
     }
+
+
+def _lunar_new_year_year(
+    birth: datetime, lichun_gan_zhi: str | None,
+) -> LunarNewYearYear | None:
+    """农历新年(正月初一)口径的年干支 + 生肖对照(T6)。
+
+    大众生肖网站按农历新年换年,八字按立春换年——出生在两者之间的人两
+    边生肖差一年(lunar_python 1.4.8 实测:1986-02-05 农历口径乙丑牛、
+    立春口径丙寅虎)。与立春口径年柱相同 / 年柱歧义(lichun_gan_zhi
+    None)→ None(无事可说 / 不猜)。生肖经 pillars.compute_year_zodiac
+    查表(地支 → 英文名,与 year_branch_zodiac 同值域)。
+
+    用出生地钟面日期(lunar_python 按本地日历组件算,naive 即钟面;大众
+    口径按钟表日期,不用真太阳时);时辰未知时 calc_birth 已归一为区间
+    中点占位,正月初一按日期换年、不依赖时辰,占位不影响结果。
+
+    仅展示对照用:不参与 content_hash / 喜忌 / 任何判断与 token。
+
+    Raises:
+        BaziCalculationFailedError: 由 calculate() 统一包装;年支不在
+            生肖表 → compute_year_zodiac ValueError(干支恒在表内,防御)
+    """
+    if lichun_gan_zhi is None:
+        return None
+    naive = birth.replace(tzinfo=None)
+    lunar_year_gz = Solar.fromDate(naive).getLunar().getYearInGanZhi()
+    if lunar_year_gz == lichun_gan_zhi:
+        return None
+    return LunarNewYearYear(
+        gan_zhi=lunar_year_gz,
+        zodiac=compute_year_zodiac(lunar_year_gz[1]),
+    )
 
 
 # dst_flags 输出稳定排序(同输入同输出;frozenset 迭代序不保证)。

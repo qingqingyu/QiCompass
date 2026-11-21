@@ -12831,6 +12831,29 @@
         }
       }
     },
+    "zodiac.lnyMismatch" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Most zodiac sites will call you a %1$@, because they switch years at Lunar New Year. BaZi switches at the Start of Spring, so your year pillar is %2$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "大多数生肖网站会说你属%1$@（按农历新年换年）。八字以立春换年，你的年柱是%2$@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "多數生肖網站會說你屬%1$@（按農曆新年換年）。八字以立春換年，你的年柱是%2$@。"
+          }
+        }
+      }
+    },
     "上次合盘保留的对方" : {
       "extractionState" : "manual",
       "localizations" : {

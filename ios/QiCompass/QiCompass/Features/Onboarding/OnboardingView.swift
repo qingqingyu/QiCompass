@@ -180,6 +180,11 @@ struct OnboardingView: View {
                     friendZodiacs: response.yearBranchFriends ?? [],
                     clashZodiac: response.yearBranchClash ?? "",
                     nodeSentence: nodeSentenceText(from: response),
+                    lnyMismatchLine: Self.lnyMismatchText(
+                        lny: response.lunarNewYearYear,
+                        lichunGanZhi: response.pillars.year?.ganZhi,
+                        lichunZodiac: response.yearBranchZodiac,
+                        language: AppLanguage.current),
                     onComplete: {
                         // Q7 闸门:降级态「继续」与正常态 CTA 同一放行逻辑,只放行第一次
                         if completeGate.fire(onComplete) {
@@ -368,6 +373,45 @@ struct OnboardingView: View {
             return nil
         }
         return text
+    }
+
+    /// T6(2026-11-22 竞品差评对照):农历新年 vs 立春生肖不一致对照句(K4)。
+    /// 两口径年柱相同 / 老响应无字段 / 任一生肖未知 → nil(不渲染,不猜)。
+    /// 拼装纯函数,language 显式传参可单测:
+    /// - zh / zh-Hant:%1$@ = 生肖字(「牛」),%2$@ = 干支 + 生肖(「丙寅（虎）」,全角括号)
+    /// - en:两者均为元素 + 动物(「Wood Ox」/「Fire Tiger」,复用 T7 yearSignLabel,
+    ///   五行自干支天干查 ElementColors.ofGan)
+    static func lnyMismatchText(
+        lny: LunarNewYearYearDTO?,
+        lichunGanZhi: String?,
+        lichunZodiac: String?,
+        language: AppLanguage
+    ) -> String? {
+        guard let lny, let lichunGanZhi, !lichunGanZhi.isEmpty,
+              let lichunZodiac,
+              ZodiacHelper.isKnownZodiac(lny.zodiac),
+              ZodiacHelper.isKnownZodiac(lichunZodiac)
+        else { return nil }
+        switch language {
+        case .zh, .zhHant:
+            let animal = { (z: String) in
+                language == .zhHant
+                    ? ZodiacHelper.animalCharHant(forZodiac: z)
+                    : ZodiacHelper.animalChar(forZodiac: z)
+            }
+            return L10n.Onboarding.lnyMismatch(
+                animal(lny.zodiac),
+                yearPillar: "\(lichunGanZhi)（\(animal(lichunZodiac))）")
+        case .en:
+            let lnyGan = String(lny.ganZhi.prefix(1))
+            let lichunGan = String(lichunGanZhi.prefix(1))
+            guard let lnyLabel = ZodiacHelper.yearSignLabel(
+                      yearGanElement: ElementColors.ofGan(lnyGan), zodiac: lny.zodiac),
+                  let lichunLabel = ZodiacHelper.yearSignLabel(
+                      yearGanElement: ElementColors.ofGan(lichunGan), zodiac: lichunZodiac)
+            else { return nil }
+            return L10n.Onboarding.lnyMismatch(lnyLabel, yearPillar: lichunLabel)
+        }
     }
 }
 

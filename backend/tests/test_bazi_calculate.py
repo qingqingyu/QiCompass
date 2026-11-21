@@ -702,3 +702,95 @@ def test_dst_flags_unknown_value_raises_loudly():
             zi_hour_rule="zi_next_day",
             dst_flags=frozenset({"dst_bogus"}),
         )
+
+
+# ===== T6(2026-11-22 竞品差评对照):农历新年 vs 立春生肖不一致提示 =====
+
+
+async def test_lunar_new_year_mismatch_1986_02_05():
+    """立春(2/4)后、正月初一(2/9)前:农历口径乙丑,立春口径丙寅 → 透出对照。"""
+    code, body, _ = await _post({
+        "birth_datetime": "1986-02-05T10:00:00",
+        "timezone": "Asia/Shanghai",
+        "gender": "male",
+        "longitude": 116.4074,
+    })
+    assert code == 200, body
+    lny = body["lunar_new_year_year"]
+    assert lny is not None, "两口径年柱不同 → 必须透出对照"
+    assert lny["gan_zhi"] == "乙丑"
+    assert lny["zodiac"] == "Ox"
+
+
+async def test_lunar_new_year_same_before_lny_1986_01_25():
+    """正月初一前:两口径同乙丑 → None(无事可说)。"""
+    code, body, _ = await _post({
+        "birth_datetime": "1986-01-25T10:00:00",
+        "timezone": "Asia/Shanghai",
+        "gender": "male",
+        "longitude": 116.4074,
+    })
+    assert code == 200, body
+    assert body["lunar_new_year_year"] is None
+
+
+async def test_lunar_new_year_same_after_lny_1986_02_10():
+    """正月初一(2/9)后:两口径同丙寅 → None。"""
+    code, body, _ = await _post({
+        "birth_datetime": "1986-02-10T10:00:00",
+        "timezone": "Asia/Shanghai",
+        "gender": "male",
+        "longitude": 116.4074,
+    })
+    assert code == 200, body
+    assert body["lunar_new_year_year"] is None
+
+
+async def test_lunar_new_year_2024_02_05_guimao():
+    """2024-02-05(立春 2/4 后、除夕 2/9 前):农历口径癸卯。"""
+    code, body, _ = await _post({
+        "birth_datetime": "2024-02-05T10:00:00",
+        "timezone": "Asia/Shanghai",
+        "gender": "male",
+        "longitude": 116.4074,
+    })
+    assert code == 200, body
+    lny = body["lunar_new_year_year"]
+    assert lny is not None
+    assert lny["gan_zhi"] == "癸卯"
+    assert lny["zodiac"] == "Rabbit"
+
+
+async def test_lunar_new_year_hour_unknown_still_computed():
+    """时辰未知 → 照算(正月初一按日期换年,不依赖时辰);本例 2/5 仍跨口径。"""
+    code, body, _ = await _post({
+        "birth_datetime": "1986-02-05T00:00:00",
+        "timezone": "Asia/Shanghai",
+        "gender": "male",
+        "longitude": 116.4074,
+        "hour_known": False,
+        "late_night": False,
+    })
+    assert code == 200, body
+    lny = body["lunar_new_year_year"]
+    assert lny is not None
+    assert lny["gan_zhi"] == "乙丑"
+
+
+async def test_lunar_new_year_year_ambiguous_returns_none():
+    """立春日 + 时辰未知 → 年柱歧义(year_branch_zodiac None)→ 对照也 None(不猜)。
+
+    1986-02-04 为立春日(节气时刻后换年);时辰未知走 D10 双排盘比对 →
+    年柱歧义置 null,两侧口径都不可信。
+    """
+    code, body, _ = await _post({
+        "birth_datetime": "1986-02-04T00:00:00",
+        "timezone": "Asia/Shanghai",
+        "gender": "male",
+        "longitude": 116.4074,
+        "hour_known": False,
+        "late_night": None,
+    })
+    assert code == 200, body
+    assert body["year_branch_zodiac"] is None, "本例应触发年柱歧义(若不触发须换日期)"
+    assert body["lunar_new_year_year"] is None
