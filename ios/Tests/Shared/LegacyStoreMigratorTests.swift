@@ -134,7 +134,7 @@ final class LegacyStoreMigratorTests: XCTestCase {
             forSecurityApplicationGroupIdentifier: AppGroup.identifier) else {
             // 模拟器无 entitlement 场景 containerURL 也可用;真拿到 nil
             // 说明环境异常,显式失败而非跳过(布局假设未被验证)
-            XCTFail("App Group 容器不可用,布局锚定无法验证")
+            XCTFail("App Group 容器不可用，布局锚定无法验证")
             return
         }
         let storeURL = groupRoot.appendingPathComponent("default.store")
@@ -153,7 +153,7 @@ final class LegacyStoreMigratorTests: XCTestCase {
         // 容器初始化即落盘 store 文件(或本就存在);断言位置假设成立
         XCTAssertTrue(
             FileManager.default.fileExists(atPath: storeURL.path),
-            "SwiftData groupContainer 落盘位置与迁移目标不一致,布局假设被打破"
+            "SwiftData groupContainer 落盘位置与迁移目标不一致，布局假设被打破"
         )
 
         // 清理:仅删除本次测试新建的文件(既有文件不动——可能是别的

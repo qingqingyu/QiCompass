@@ -69,7 +69,7 @@ final class SyncManager {
             AppLogger.app.error(
                 "sync.pull.failed error=\(String(describing: error), privacy: .public)"
             )
-            state = .failed(String(localized: "同步拉取失败,请稍后重试"))
+            state = .failed(String(localized: "同步拉取失败，请稍后重试"))
         }
     }
 
@@ -212,7 +212,7 @@ final class SyncManager {
             AppLogger.app.error(
                 "sync.push.failed error=\(String(describing: error), privacy: .public)"
             )
-            state = .failed(String(localized: "同步上传失败,请稍后重试"))
+            state = .failed(String(localized: "同步上传失败，请稍后重试"))
         }
     }
 
@@ -257,7 +257,7 @@ final class SyncManager {
             strippedPayload = try Self.stripLocalOnlyFields(from: snapshot.payload)
         } catch {
             AppLogger.persistence.error(
-                "op=sync.toSyncData.strip_failed hash=\(snapshot.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — payload 剔除本地专属字段失败,该盘跳过同步(不上传未评估字段)"
+                "op=sync.toSyncData.strip_failed hash=\(snapshot.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — payload 剔除本地专属字段失败，该盘跳过同步(不上传未评估字段)"
             )
             return nil
         }

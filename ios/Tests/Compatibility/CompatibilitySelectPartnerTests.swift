@@ -74,7 +74,7 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
 
         vm.compute()
         let reached = await waitForDetailState()
-        XCTAssertTrue(reached, "前置:算成直达 detail,实际:\(vm.state)")
+        XCTAssertTrue(reached, "前置:算成直达 detail，实际:\(vm.state)")
         let callsBefore = await recording.compatibilityCallCount()
 
         // sheet 点当前已选者:VM 守卫 no-op(仅关 sheet 不重算)
@@ -105,7 +105,7 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
         XCTAssertEqual(vm.roster.count, 1)
 
         let reached = await waitForDetailState()
-        XCTAssertTrue(reached, "换人后算成直达 detail,实际:\(vm.state)")
+        XCTAssertTrue(reached, "换人后算成直达 detail，实际:\(vm.state)")
         if case .detail(let summary, _, _) = vm.state {
             XCTAssertEqual(summary.personBHash, "sp2_c_known", "detail 态携带新对")
         }
@@ -200,7 +200,7 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
         if case .computing = vm.state {
             // 期望:推演中
         } else {
-            XCTFail("前置:应处推演态,实际:\(vm.state)")
+            XCTFail("前置:应处推演态，实际:\(vm.state)")
         }
 
         // 推演中换人 → compute() 内既有 cancel(D13);头部立即切到 C
@@ -275,7 +275,7 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
         if case .computing = vm.state {
             // 期望:守卫放行,进入推演
         } else {
-            XCTFail("在册未勾选池行首击应发起 compute,实际:\(vm.state)")
+            XCTFail("在册未勾选池行首击应发起 compute，实际:\(vm.state)")
         }
         _ = await waitForDetailState()
         await drainDetailBackgroundTasks()
@@ -308,7 +308,7 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
         XCTAssertEqual(vm.roster.count, 2, "roster 成员资格零丢失")
         if case .computing = vm.state {
         } else {
-            XCTFail("应发起 compute,实际:\(vm.state)")
+            XCTFail("应发起 compute，实际:\(vm.state)")
         }
         _ = await waitForDetailState()
         await drainDetailBackgroundTasks()
@@ -326,7 +326,7 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
 
         vm.compute()
         let reached = await waitForDetailState()
-        XCTAssertTrue(reached, "前置:detail 在展,实际:\(vm.state)")
+        XCTAssertTrue(reached, "前置:detail 在展，实际:\(vm.state)")
         let callsBefore = await recording.compatibilityCallCount()
 
         // 无 force:同人 no-op(S1 契约回归)
@@ -341,7 +341,7 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
         if case .computing = vm.state {
             // 期望:force 立即触发 compute(compute 同步置 .computing)
         } else {
-            XCTFail("force 必须重新走 compute 路径,实际:\(vm.state)")
+            XCTFail("force 必须重新走 compute 路径，实际:\(vm.state)")
         }
         _ = await waitForDetailState()
         await drainDetailBackgroundTasks()
@@ -380,7 +380,7 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
 
         vm.compute()
         let reached = await waitForDetailState()
-        XCTAssertTrue(reached, "前置:detail 在展,实际:\(vm.state)")
+        XCTAssertTrue(reached, "前置:detail 在展，实际:\(vm.state)")
         let callsBefore = await recording.compatibilityCallCount()
 
         // 换人 sheet 移除当前对方的组合流(View 层 removeEntry 的 VM 侧效果):
@@ -393,7 +393,7 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
         if case .configuring = vm.state {
             // 期望:切出 detail(S3 起 .configuring 渲染为结果壳 P6 态)
         } else {
-            XCTFail("移除当前对方应切出 detail,实际:\(vm.state)")
+            XCTFail("移除当前对方应切出 detail，实际:\(vm.state)")
         }
         let calls = await recording.compatibilityCallCount()
         XCTAssertEqual(calls, callsBefore, "移除不得发起任何合盘请求")
@@ -429,7 +429,7 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
         vm.selectedEntryIds = ["archived:ca_x_known"]
         vm.compute()
         let reached = await waitForDetailState()
-        XCTAssertTrue(reached, "前置:当前对方 X 在展,实际:\(vm.state)")
+        XCTAssertTrue(reached, "前置:当前对方 X 在展，实际:\(vm.state)")
 
         // 换人 sheet 点无时辰的 Y → 补时辰 dismiss:内存 remap + 续接(P1-1 主场景)
         vm.applyHashRemap(from: "ca_y_old", to: "ca_y_new")
@@ -442,11 +442,11 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
         XCTAssertEqual(vm.selectedEntryIds, ["archived:ca_y_new"],
                        "续接选中补时辰的人")
         let reachedY = await waitForDetailState()
-        XCTAssertTrue(reachedY, "Y 应算成直达 detail,实际:\(vm.state)")
+        XCTAssertTrue(reachedY, "Y 应算成直达 detail，实际:\(vm.state)")
         if case .detail(let summary, _, _) = vm.state {
             XCTAssertEqual(summary.personBHash, "ca_y_new", "重算的是补时辰的人")
         } else {
-            XCTFail("应进入 Y 的 detail,实际:\(vm.state)")
+            XCTFail("应进入 Y 的 detail，实际:\(vm.state)")
         }
         await drainDetailBackgroundTasks()
     }
@@ -473,7 +473,7 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
         if case .computing = vm.state {
             // 期望:force 立即重算(compute 同步置 .computing)
         } else {
-            XCTFail("当前对应被强制重算,实际:\(vm.state)")
+            XCTFail("当前对应被强制重算，实际:\(vm.state)")
         }
         _ = await waitForDetailState()
         await drainDetailBackgroundTasks()
@@ -499,7 +499,7 @@ final class CompatibilitySelectPartnerTests: XCTestCase {
         XCTAssertEqual(vm.selectedEntryIds, ["archived:ca3_x"], "回落不改选人")
         if case .computing = vm.state {
         } else {
-            XCTFail("回落应对当前对方强制重算,实际:\(vm.state)")
+            XCTFail("回落应对当前对方强制重算，实际:\(vm.state)")
         }
         _ = await waitForDetailState()
         await drainDetailBackgroundTasks()

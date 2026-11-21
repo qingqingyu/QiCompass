@@ -52,7 +52,7 @@ enum Analytics {
         } ?? false
         guard configured, let appID else {
             AppLogger.app.info(
-                "TelemetryDeck 未配置 \(appIDInfoKey, privacy: .public),埋点关闭"
+                "TelemetryDeck 未配置 \(appIDInfoKey, privacy: .public)，埋点关闭"
             )
             return
         }

@@ -108,7 +108,7 @@ final class AskPaywallViewModel {
         } catch {
             AppLogger.app.error("askpaywall.purchase.unknown_error error=\(String(describing: error), privacy: .public)")
             Analytics.purchaseFailed(reason: .unknown)
-            state = .failed(String(localized: "购买未完成,请重试"))
+            state = .failed(String(localized: "购买未完成，请重试"))
         }
     }
 
@@ -137,7 +137,7 @@ final class AskPaywallViewModel {
             }
         } catch {
             AppLogger.app.error("askpaywall.restore.unknown_error error=\(String(describing: error), privacy: .public)")
-            restoreState = .failed(String(localized: "恢复失败,请稍后重试"))
+            restoreState = .failed(String(localized: "恢复失败，请稍后重试"))
         }
     }
 }
@@ -248,7 +248,7 @@ struct AskPaywallView: View {
             Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("价格 \(viewModel.rawPriceText),\(L10n.AskPaywall.priceNote)")
+        .accessibilityLabel("价格 \(viewModel.rawPriceText)，\(L10n.AskPaywall.priceNote)")
     }
 
     // MARK: 恢复购买(同 PaywallView.restoreSection 形态)

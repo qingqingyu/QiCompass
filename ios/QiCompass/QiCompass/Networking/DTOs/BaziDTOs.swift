@@ -441,7 +441,7 @@ struct BaziResponse: Codable, Sendable {
                 guard let fields = ZodiacHelper.legacyYearBranchFields(forYearZhi: yearZhi) else {
                     throw DecodingError.dataCorrupted(.init(
                         codingPath: [CodingKeys.yearBranchZodiac],
-                        debugDescription: "老缓存缺生肖字段且年支不在兜底表,无法推导"
+                        debugDescription: "老缓存缺生肖字段且年支不在兜底表，无法推导"
                     ))
                 }
                 legacy = fields

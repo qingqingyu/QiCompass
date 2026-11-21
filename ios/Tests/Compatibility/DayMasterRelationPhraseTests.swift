@@ -21,7 +21,7 @@ final class DayMasterRelationPhraseTests: XCTestCase {
         XCTAssertEqual(out.matchesBackend, true)
         XCTAssertNotNil(out.text)
         XCTAssertTrue(out.text?.contains("甲") == true && out.text?.contains("乙") == true,
-                      "同气短语含双方日干,实际:\(out.text ?? "nil")")
+                      "同气短语含双方日干，实际:\(out.text ?? "nil")")
         XCTAssertFalse(out.text?.contains("相生") == true)
     }
 
@@ -114,7 +114,7 @@ final class DayMasterRelationPhraseTests: XCTestCase {
         )
         XCTAssertEqual(out.matchesBackend, true)
         XCTAssertEqual(out.text, "日主 甲木生丙火",
-                       "短语本体与后端标签语言无关,实际:\(out.text ?? "nil")")
+                       "短语本体与后端标签语言无关，实际:\(out.text ?? "nil")")
     }
 
     // MARK: - 输入缺失(日柱歧义盘字段 nil)

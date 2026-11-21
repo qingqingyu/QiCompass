@@ -143,7 +143,7 @@ struct RootTabView: View {
         .onReceive(NotificationCenter.default.publisher(for: .switchTab)) { note in
             // guard 失败也要打日志:之前 silent return,出问题排查无据
             guard let raw = note.userInfo?["tab"] as? String else {
-                AppLogger.app.error("收到 .switchTab 通知但 userInfo 无 tab 字段,忽略 userInfoKeys=\(String(describing: note.userInfo?.keys), privacy: .public)")
+                AppLogger.app.error("收到 .switchTab 通知但 userInfo 无 tab 字段，忽略 userInfoKeys=\(String(describing: note.userInfo?.keys), privacy: .public)")
                 return
             }
             AppLogger.app.info("收到 .switchTab tab=\(raw, privacy: .public)")
@@ -153,7 +153,7 @@ struct RootTabView: View {
             case Tab.compatibility.switchKey: selectedTab = .compatibility
             case Tab.profile.switchKey:       selectedTab = .profile
             default:
-                AppLogger.app.error(".switchTab 收到未知 tab=\(raw, privacy: .public),忽略")
+                AppLogger.app.error(".switchTab 收到未知 tab=\(raw, privacy: .public)，忽略")
             }
         }
     }

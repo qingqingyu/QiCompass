@@ -163,7 +163,7 @@ final class PaywallLayoutTests: XCTestCase {
         if ideal.height > Self.mediumContentHeight {
             XCTAssertTrue(
                 hasScrollView,
-                "PaywallView 理想高度 \(Int(ideal.height))pt 超出 .medium 内容区 ~\(Int(Self.mediumContentHeight))pt,"
+                "PaywallView 理想高度 \(Int(ideal.height))pt 超出 .medium 内容区 ~\(Int(Self.mediumContentHeight))pt，"
                     + "但层级中没有 UIScrollView → 超高内容会被 sheet 垂直居中裁掉上下两端"
                     + "(2026-08-31 首章「壹」不可见回归)"
             )

@@ -197,12 +197,12 @@ final class CompatibilityRosterPersistenceV2Tests: XCTestCase {
 
         let restored = makeRestoredVM(archived: [chartA])
 
-        XCTAssertEqual(restored.roster.count, 3, "场景 A:三人全在,不再只剩最后一位")
+        XCTAssertEqual(restored.roster.count, 3, "场景 A:三人全在，不再只剩最后一位")
         XCTAssertEqual(Set(restored.roster.compactMap(\.tempAlias)), ["小王", "妈妈", "Lisa"],
                        "场景 B:称呼跨启动不丢")
         XCTAssertEqual(restored.selectedEntryIds, [lisa.id], "场景 F:选中 = 最后换到的那位")
         if case .detail = restored.state {
-            XCTFail("无缓存不得直达 detail,实际:\(restored.state)")
+            XCTFail("无缓存不得直达 detail，实际:\(restored.state)")
         }
         XCTAssertEqual(mama.tempAlias, "妈妈")
         XCTAssertTrue(try compatibilityStore.list(personAHash: "v2_a", context: "general").isEmpty,
@@ -229,7 +229,7 @@ final class CompatibilityRosterPersistenceV2Tests: XCTestCase {
         while Date() < deadline, vm.state != .list {
             try? await Task.sleep(nanoseconds: 30_000_000)
         }
-        XCTAssertEqual(vm.state, .list, "拦截对应进 .list 兜底,实际:\(vm.state)")
+        XCTAssertEqual(vm.state, .list, "拦截对应进 .list 兜底，实际:\(vm.state)")
 
         let restored = makeRestoredVM(archived: [chartA])
         XCTAssertEqual(restored.roster.count, 2, "场景 C:合盘失败不影响名单")
@@ -251,7 +251,7 @@ final class CompatibilityRosterPersistenceV2Tests: XCTestCase {
 
         let restored = makeRestoredVM(archived: [chartA])
         XCTAssertEqual(restored.roster.map(\.tempAlias), ["小王"], "场景 D:被移出的人不复活")
-        XCTAssertTrue(restored.selectedEntryIds.isEmpty, "无选中(回 P6,不自动选下一位)")
+        XCTAssertTrue(restored.selectedEntryIds.isEmpty, "无选中(回 P6，不自动选下一位)")
         XCTAssertTrue(try compatibilityStore.list(personAHash: "v2_da", context: "general").isEmpty,
                       "零请求")
     }
@@ -303,10 +303,10 @@ final class CompatibilityRosterPersistenceV2Tests: XCTestCase {
 
         let restored = makeRestoredVM(archived: [chartA])
         guard case .detail(let summary, _, _) = restored.state else {
-            return XCTFail("有缓存应零请求直达 detail,实际:\(restored.state)")
+            return XCTFail("有缓存应零请求直达 detail，实际:\(restored.state)")
         }
         XCTAssertEqual(summary.displayName, "妈妈",
-                       "R3:传名单真实 entry,称呼不再变回「对方 · 日期」兜底名")
+                       "R3:传名单真实 entry，称呼不再变回「对方 · 日期」兜底名")
         XCTAssertEqual(restored.selectedEntryIds, [entry.id])
         XCTAssertEqual(restored.summaries.count, 1)
     }
@@ -344,7 +344,7 @@ final class CompatibilityRosterPersistenceV2Tests: XCTestCase {
         )
 
         let restored = makeRestoredVM(archived: [chartA])
-        XCTAssertEqual(restored.roster.count, 1, ".archived 快照缺失剔除,.temp 恒保留")
+        XCTAssertEqual(restored.roster.count, 1, ".archived 快照缺失剔除，.temp 恒保留")
         XCTAssertNil(restored.roster.first?.resolvedContentHash,
                      "resolvedHash 指向的快照被删 → 置 nil(下次合盘重新请求)")
         XCTAssertEqual(restored.roster.first?.tempAlias, "妈妈")
@@ -372,10 +372,10 @@ final class CompatibilityRosterPersistenceV2Tests: XCTestCase {
         UserDefaults.standard.set(Data("not-json".utf8), forKey: "compat.rosterV2")
 
         let restored = makeRestoredVM(archived: [chartA])
-        XCTAssertTrue(restored.roster.isEmpty, "损坏 → 视为空,不崩")
+        XCTAssertTrue(restored.roster.isEmpty, "损坏 → 视为空，不崩")
         // loadV2 删损坏 key;恢复末次 persistRoster 写回干净空名单(自愈)
         let healed = CompatibilityRosterPersistence.loadV2()
-        XCTAssertTrue(healed?.entries.isEmpty ?? false, "自愈后为干净空名单,非损坏残留")
+        XCTAssertTrue(healed?.entries.isEmpty ?? false, "自愈后为干净空名单，非损坏残留")
     }
 
     func testV2_老key损坏JSON_迁移视为无_不崩() throws {
@@ -405,7 +405,7 @@ final class CompatibilityRosterPersistenceV2Tests: XCTestCase {
             place: .city(Self.makePlace(displayName: "北京"))
         ), "temp 的 resolvedHash 命中老 hash → 换新")
         XCTAssertEqual(loaded.selectedEntryID, temp.id,
-                       "temp id 不内嵌 hash,选中不动")
+                       "temp id 不内嵌 hash，选中不动")
         XCTAssertEqual(CompatibilityRosterPersistence.loadPersonAHash(), "a_unrelated",
                        "无关 A 盘不动")
     }
@@ -423,7 +423,7 @@ final class CompatibilityRosterPersistenceV2Tests: XCTestCase {
 
         XCTAssertNil(UserDefaults.standard.data(forKey: "compat.roster"), "老 key 已消费删除")
         let loaded = try XCTUnwrap(CompatibilityRosterPersistence.loadV2(),
-                                   "remap 未命中也必须落盘迁移结果——老 key 已删,不写 V2 = 老数据静默丢失")
+                                   "remap 未命中也必须落盘迁移结果——老 key 已删，不写 V2 = 老数据静默丢失")
         XCTAssertEqual(loaded.entries,
                        [.archived(snapshotHash: "legacy_b1"), .archived(snapshotHash: "legacy_b2")])
         XCTAssertNil(loaded.selectedEntryID)

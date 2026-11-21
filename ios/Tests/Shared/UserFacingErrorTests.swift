@@ -42,7 +42,7 @@ final class UserFacingErrorTests: XCTestCase {
 
     func test用户文案_AppleAuthError_appleError不含系统错误域() {
         let e = AppleAuthError.appleError(underlying: webAuthSessionError)
-        XCTAssertEqual(e.errorDescription, "Apple 登录未完成,请重试")
+        XCTAssertEqual(e.errorDescription, "Apple 登录未完成，请重试")
         assertUserFacing(e.errorDescription)
     }
 
@@ -80,13 +80,13 @@ final class UserFacingErrorTests: XCTestCase {
         // verificationFailed 直传构造点文案(PurchaseManager 各构造点已改人话),
         // 这里断言生产构造点实际使用的固定文案
         XCTAssertEqual(
-            PurchaseError.verificationFailed(message: "购买验证失败,请重试").errorDescription,
-            "购买验证失败,请重试"
+            PurchaseError.verificationFailed(message: "购买验证失败，请重试").errorDescription,
+            "购买验证失败，请重试"
         )
         // appAccountToken 解析失败(登录态 Keychain 损坏)的固定人话文案
         XCTAssertEqual(
-            PurchaseError.verificationFailed(message: "账号凭证异常,请重新登录后再试").errorDescription,
-            "账号凭证异常,请重新登录后再试"
+            PurchaseError.verificationFailed(message: "账号凭证异常，请重新登录后再试").errorDescription,
+            "账号凭证异常，请重新登录后再试"
         )
         assertUserFacing(PurchaseError.productNotFound(productId: "com.qicompass.deep_analysis.single").errorDescription)
         assertUserFacing(PurchaseError.pending.errorDescription)
@@ -129,7 +129,7 @@ final class UserFacingErrorTests: XCTestCase {
             XCTAssertEqual(mapped, nextReset)
             XCTAssertFalse(serverPool, "本地池(DeepAnalysisError)不得标服务端池(登录引导仅服务端 429)")
         } else {
-            XCTFail("应为 .dailyLimitReached,实际:\(userError)")
+            XCTFail("应为 .dailyLimitReached，实际:\(userError)")
         }
     }
 
@@ -178,7 +178,7 @@ final class UserFacingErrorTests: XCTestCase {
         if case .chartFailed = userError {
             // 通过
         } else {
-            XCTFail("stage=.chart 时应为 .chartFailed,实际:\(userError)")
+            XCTFail("stage=.chart 时应为 .chartFailed，实际:\(userError)")
         }
     }
 
@@ -193,7 +193,7 @@ final class UserFacingErrorTests: XCTestCase {
         if case .interpretFailed = userError {
             // 通过
         } else {
-            XCTFail("stage=.interpret 时应为 .interpretFailed,实际:\(userError)")
+            XCTFail("stage=.interpret 时应为 .interpretFailed，实际:\(userError)")
         }
     }
 
@@ -206,7 +206,7 @@ final class UserFacingErrorTests: XCTestCase {
         if case .chartFailed = userError {
             // 通过
         } else {
-            XCTFail("stage=.chart 未知错误应默认 .chartFailed,实际:\(userError)")
+            XCTFail("stage=.chart 未知错误应默认 .chartFailed，实际:\(userError)")
         }
     }
 
@@ -217,7 +217,7 @@ final class UserFacingErrorTests: XCTestCase {
         if case .interpretFailed = userError {
             // 通过
         } else {
-            XCTFail("stage=.interpret 未知错误应默认 .interpretFailed,实际:\(userError)")
+            XCTFail("stage=.interpret 未知错误应默认 .interpretFailed，实际:\(userError)")
         }
     }
 
@@ -239,19 +239,19 @@ final class UserFacingErrorTests: XCTestCase {
     // MARK: - subtitle
 
     func test二级文案_网络不可用() {
-        XCTAssertEqual(UserFacingError.networkUnavailable.subtitle, "网络不通或服务遥远,请稍后重试")
+        XCTAssertEqual(UserFacingError.networkUnavailable.subtitle, "网络不通或服务遥远，请稍后重试")
     }
 
     func test二级文案_排盘异常() {
-        XCTAssertEqual(UserFacingError.chartFailed(originalDescription: "x").subtitle, "排盘引擎暂不可用,请稍后重试")
+        XCTAssertEqual(UserFacingError.chartFailed(originalDescription: "x").subtitle, "排盘引擎暂不可用，请稍后重试")
     }
 
     func test二级文案_命书生成失败() {
-        XCTAssertEqual(UserFacingError.interpretFailed(originalDescription: "x").subtitle, "命书暂未能成形,可单独重试(命盘已就绪)")
+        XCTAssertEqual(UserFacingError.interpretFailed(originalDescription: "x").subtitle, "命书暂未能成形，可单独重试(命盘已就绪)")
     }
 
     func test二级文案_达上限() {
-        XCTAssertEqual(UserFacingError.dailyLimitReached(nextReset: Date(), serverPool: false).subtitle, "今日免费解读次数已用完,重置后自动恢复")
+        XCTAssertEqual(UserFacingError.dailyLimitReached(nextReset: Date(), serverPool: false).subtitle, "今日免费解读次数已用完，重置后自动恢复")
     }
 
     // MARK: - 服务端 429 QUOTA_EXCEEDED(2026-10-08)
@@ -265,7 +265,7 @@ final class UserFacingErrorTests: XCTestCase {
         let userError = UserFacingError.from(apiError, stage: .interpret)
 
         guard case .dailyLimitReached(let nextReset, let serverPool) = userError else {
-            return XCTFail("应为 .dailyLimitReached,实际:\(userError)")
+            return XCTFail("应为 .dailyLimitReached，实际:\(userError)")
         }
         XCTAssertEqual(nextReset, UserFacingError.nextUTCMidnight())
         XCTAssertTrue(serverPool, "服务端 429 须标 serverPool(未登录时显示登录引导)")

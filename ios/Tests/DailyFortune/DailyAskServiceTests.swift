@@ -145,7 +145,7 @@ final class DailyAskServiceTests: XCTestCase {
             _ = try await mock.dailyAsk(request: makeRequest())
             XCTFail("余额 0 应抛 ASK_CREDITS_REQUIRED")
         } catch {
-            XCTAssertTrue(APIError.isAskCreditsRequired(error), "mock 与真后端同 code,分型链路可走查")
+            XCTAssertTrue(APIError.isAskCreditsRequired(error), "mock 与真后端同 code，分型链路可走查")
         }
     }
 
@@ -159,7 +159,7 @@ final class DailyAskServiceTests: XCTestCase {
         XCTAssertTrue(resp.cached)
         let recorded = mock.recordedDailyAskRequests
         XCTAssertEqual(recorded.count, 1)
-        XCTAssertEqual(recorded[0].question, "录制断言", "录制在钩子之前完成,responder 不影响断言")
+        XCTAssertEqual(recorded[0].question, "录制断言", "录制在钩子之前完成，responder 不影响断言")
     }
 
     func testMock余额_返回内部钱包值() async throws {
@@ -179,7 +179,7 @@ final class DailyAskServiceTests: XCTestCase {
         let replay = try await mock.askRedeem(request: req)
         XCTAssertEqual(replay.credits, 0, "重放不重复入账")
         XCTAssertEqual(replay.balance, 18)
-        XCTAssertEqual(mock.recordedAskRedeemRequests.count, 2, "每次都录(后端语义:每次都验,幂等在台账层)")
+        XCTAssertEqual(mock.recordedAskRedeemRequests.count, 2, "每次都录(后端语义:每次都验，幂等在台账层)")
     }
 
     func testMock余额_调用录制含deviceToken携带态() async throws {
@@ -204,7 +204,7 @@ final class DailyAskServiceTests: XCTestCase {
             APIError.backendError(code: "QUOTA_EXCEEDED", message: "他码", requestId: "r-1")),
             "同走付费墙的旧码不得混入——分型错误会弹错卡片")
         XCTAssertFalse(APIError.isAskCreditsRequired(URLError(.timedOut)),
-                       "非 APIError(网络层错误)走通用失败面,不进购买卡")
+                       "非 APIError(网络层错误)走通用失败面，不进购买卡")
     }
 
     // MARK: - query 编码(send 统一拼接的 %2B 补丁)
@@ -271,7 +271,7 @@ final class DailyAskServiceTests: XCTestCase {
         XCTAssertEqual(recorded.question.count, 200, "问题纵深截断 200(服务端超限 422)")
         XCTAssertEqual(recorded.history.count, 20, "history 纵深截末 20 轮")
         XCTAssertTrue(recorded.history.allSatisfy { $0.text.count <= 2000 }, "每轮 ≤2000")
-        XCTAssertTrue(recorded.history.contains { $0.text.hasPrefix("5") }, "保留的是末段(第 5 轮仍在,第 0-4 轮被截)")
+        XCTAssertTrue(recorded.history.contains { $0.text.hasPrefix("5") }, "保留的是末段(第 5 轮仍在，第 0-4 轮被截)")
     }
 
     // MARK: - C2:AskWalletModel(首查 device_token 置 flag / 单调守卫)
@@ -292,8 +292,8 @@ final class DailyAskServiceTests: XCTestCase {
         await wallet.refresh()
         XCTAssertEqual(mock.recordedAskBalanceCalls.count, 1)
         XCTAssertEqual(mock.recordedAskBalanceCalls[0].deviceToken, "dc-token-+/base64==",
-                       "首次查询附 DeviceCheck token(Mock 层不经 URL 编码,录到注入原值;编码保真由 testQuery编码 用例另行锁定)")
-        XCTAssertTrue(UserDefaults.standard.bool(forKey: "qicompass.ask.mint_attempted.v1"), "已达后端(402 拒铸)→ 置已尝试 flag,重发无意义")
+                       "首次查询附 DeviceCheck token(Mock 层不经 URL 编码，录到注入原值;编码保真由 testQuery编码 用例另行锁定)")
+        XCTAssertTrue(UserDefaults.standard.bool(forKey: "qicompass.ask.mint_attempted.v1"), "已达后端(402 拒铸)→ 置已尝试 flag，重发无意义")
 
         // 二查:不再带 token
         mock.askBalanceResponder = nil
@@ -314,7 +314,7 @@ final class DailyAskServiceTests: XCTestCase {
             throw APIError.networkError(URLError(.notConnectedToInternet))
         }
         await wallet.refresh()
-        XCTAssertFalse(UserDefaults.standard.bool(forKey: "qicompass.ask.mint_attempted.v1"), "网络层失败(请求未达后端)不置 flag,下次再试")
+        XCTAssertFalse(UserDefaults.standard.bool(forKey: "qicompass.ask.mint_attempted.v1"), "网络层失败(请求未达后端)不置 flag，下次再试")
 
         mock.askBalanceResponder = nil
         await wallet.refresh()

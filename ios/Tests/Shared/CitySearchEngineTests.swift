@@ -78,7 +78,7 @@ final class CitySearchEngineTests: XCTestCase {
         let results = try engine.search("臺北")
         let top3 = Array(results.prefix(3))
         XCTAssertTrue(top3.contains { $0.geonameId == 1668341 },
-                      "臺北 → 台北(gid 1668341)应在前 3,实际:\(top3.map(\.displayName))")
+                      "臺北 → 台北(gid 1668341)应在前 3，实际:\(top3.map(\.displayName))")
     }
 
     func testSearchDiacriticsStrippedQuery() throws {
@@ -93,14 +93,14 @@ final class CitySearchEngineTests: XCTestCase {
         let results = try engine.search("海淀")
         let top8 = Array(results.prefix(8))
         XCTAssertTrue(top8.contains { $0.name == "Beijing" && $0.countryCode == "CN" },
-                      "海淀 → 北京 应在前 8(区县别名),实际:\(top8.map(\.displayName))")
+                      "海淀 → 北京 应在前 8(区县别名)，实际:\(top8.map(\.displayName))")
     }
 
     func testSearchDuplicateNameDisambiguatedByPopulation() throws {
         let results = try engine.search("Cambridge")
         let names = Set(results.map(\.countryCode))
         XCTAssertTrue(names.contains("GB") && names.contains("US"),
-                      "Cambridge 英/美两条都应出现,实际国家:\(names)")
+                      "Cambridge 英/美两条都应出现，实际国家:\(names)")
     }
 
     func testSearchChineseQueryBoostsChina() throws {
@@ -160,7 +160,7 @@ final class CitySearchEngineTests: XCTestCase {
         CityRecentStore.clear()
         defer { CityRecentStore.clear() }
 
-        XCTAssertTrue(CityRecentStore.load().isEmpty, "clear 后应为空(幂等,key 不存在也成立)")
+        XCTAssertTrue(CityRecentStore.load().isEmpty, "clear 后应为空(幂等，key 不存在也成立)")
         CityRecentStore.record(1816670)
         CityRecentStore.record(1796236)
         XCTAssertEqual(CityRecentStore.load(), [1796236, 1816670], "record 头插")

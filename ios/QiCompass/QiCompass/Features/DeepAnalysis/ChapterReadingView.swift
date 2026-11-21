@@ -244,7 +244,7 @@ struct ChapterReadingView: View {
                 // 拦截存量中毒行;到达此处 = 新破损绕过了上游校验,error 级留痕。
                 // 异常态不挂章末「批」印(印 = 章成落款,与 .failed 态同口径不盖章)。
                 let _ = AppLogger.app.error(
-                    "chapterReading.contentUnrenderableJSON module=\(module.rawValue, privacy: .public) len=\(text.count) — 显示异常态,不裸奔 JSON"
+                    "chapterReading.contentUnrenderableJSON module=\(module.rawValue, privacy: .public) len=\(text.count) — 显示异常态，不裸奔 JSON"
                 )
                 corruptedBody
             } else {
@@ -321,7 +321,7 @@ struct ChapterReadingView: View {
     /// STALE/翻译重试会把本章按旧原文再处理,白烧次数。
     private var corruptedBody: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(String(localized: "本章内容生成时出现异常,重新生成即可恢复"))
+            Text(String(localized: "本章内容生成时出现异常，重新生成即可恢复"))
                 .font(BaziFont.caption(size: 13))
                 .foregroundStyle(BaziTheme.inkMuted)
                 .lineSpacing(5)
@@ -558,7 +558,7 @@ struct ChapterReadingView: View {
                 Image(systemName: "lock.fill")
                     .font(.caption)
                     .foregroundStyle(BaziTheme.inkMutedSecondary)
-                Text("付费内容,解锁后可生成")
+                Text("付费内容，解锁后可生成")
                     .font(BaziFont.caption(size: 12))
                     .tracking(1)
                     .foregroundStyle(BaziTheme.inkMuted)

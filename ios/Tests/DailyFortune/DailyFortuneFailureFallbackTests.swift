@@ -246,7 +246,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         XCTAssertFalse(fromCache)
         XCTAssertEqual(response.contextToken, "daily-t1")
         let calcCalls = await api.calculateAttempts()
-        XCTAssertEqual(calcCalls, 0, "加载期重签已删,不得白发排盘请求")
+        XCTAssertEqual(calcCalls, 0, "加载期重签已删，不得白发排盘请求")
         let requests = await api.recordedDailyFortuneRequests()
         XCTAssertNil(
             requests.first?.contextToken,
@@ -303,7 +303,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         )
         XCTAssertEqual(
             renewedPayload.favorableElements, ["火", "土"],
-            "随返给 VM 的 chartPayload 必须同是重签后重建值(2026-10-10 review:阶段 2 interpret context 同源,旧快照派生配新 daily token 必再 403)"
+            "随返给 VM 的 chartPayload 必须同是重签后重建值(2026-10-10 review:阶段 2 interpret context 同源，旧快照派生配新 daily token 必再 403)"
         )
     }
 
@@ -356,7 +356,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
 
         // 403 → .contextTokenExpired 独立态(不走 failed 静默重试循环)
         let expired = await waitFor { Self.isContextTokenExpired(self.vm.state) }
-        XCTAssertTrue(expired, "凭证失效必须落 .contextTokenExpired,实际:\(vm.state)")
+        XCTAssertTrue(expired, "凭证失效必须落 .contextTokenExpired，实际:\(vm.state)")
 
         // 失效 token 已清:快照本身仍新鲜(日粒度 cachedUntil 未过),但 token 归空
         let snapshot = try dailyStore.getCachedIfFresh(
@@ -393,16 +393,16 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
 
         // 第一跳:自动生成失败 → .failed(模板文案态)+ 静默重试已调度
         let failed = await waitFor { Self.isFailed(self.vm.state) }
-        XCTAssertTrue(failed, "自动解读失败必须落 .failed,实际:\(vm.state)")
-        XCTAssertTrue(vm.isSilentRetrying, "失败即调度静默重试,标记应为 true")
+        XCTAssertTrue(failed, "自动解读失败必须落 .failed，实际:\(vm.state)")
+        XCTAssertTrue(vm.isSilentRetrying, "失败即调度静默重试，标记应为 true")
 
         // 第二跳:静默重试(第 2 次 interpret)成功 → .okFree,标记归位
         let ok = await waitFor { Self.isOkFree(self.vm.state) }
-        XCTAssertTrue(ok, "静默重试成功必须转 .okFree,实际:\(vm.state)")
+        XCTAssertTrue(ok, "静默重试成功必须转 .okFree，实际:\(vm.state)")
         XCTAssertFalse(vm.isSilentRetrying, "成功后重试标记必须归 false")
 
         let calls = await api.interpretAttempts()
-        XCTAssertEqual(calls, 2, "恰好两次:自动 1 次 + 静默重试 1 次,不得更多")
+        XCTAssertEqual(calls, 2, "恰好两次:自动 1 次 + 静默重试 1 次，不得更多")
     }
 
     // MARK: - 静默重试也失败 → 终态,不循环
@@ -418,13 +418,13 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         let settled = await waitFor {
             Self.isFailed(self.vm.state) && !self.vm.isSilentRetrying
         }
-        XCTAssertTrue(settled, "静默重试失败后应停在 .failed 且标记归 false,实际:\(vm.state) retrying=\(vm.isSilentRetrying)")
+        XCTAssertTrue(settled, "静默重试失败后应停在 .failed 且标记归 false，实际:\(vm.state) retrying=\(vm.isSilentRetrying)")
 
         // 一次为限:延迟 ≫ 0.05s 后仍恰好 2 次,证明没有第三轮调度
         try? await Task.sleep(nanoseconds: 400_000_000)
         let calls = await api.interpretAttempts()
-        XCTAssertEqual(calls, 2, "静默重试一次为限,不得循环重试")
-        XCTAssertTrue(Self.isFailed(vm.state), "终态保持 .failed(模板文案,恢复靠下拉刷新)")
+        XCTAssertEqual(calls, 2, "静默重试一次为限，不得循环重试")
+        XCTAssertTrue(Self.isFailed(vm.state), "终态保持 .failed(模板文案，恢复靠下拉刷新)")
     }
 
     // MARK: - 手动重试失败:不调度静默重试
@@ -440,7 +440,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         let settled = await waitFor {
             Self.isFailed(self.vm.state) && !self.vm.isSilentRetrying
         }
-        XCTAssertTrue(settled, "前置:应已到自动+静默重试双双失败的终态,实际:\(vm.state)")
+        XCTAssertTrue(settled, "前置:应已到自动+静默重试双双失败的终态，实际:\(vm.state)")
 
         // 手动触发(.manual,入口=.idle CTA 同一 API;Retry 按钮 2026-10-06
         // 已移除,此处直调 VM 契约):状态先转 .fetching 再落 .failed(轮询
@@ -450,7 +450,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
             let calls = await self.api.interpretAttempts()
             return Self.isFailed(self.vm.state) && !self.vm.isSilentRetrying && calls >= 3
         }
-        XCTAssertTrue(manualFailed, "手动重试失败应回到 .failed,实际:\(vm.state)")
+        XCTAssertTrue(manualFailed, "手动重试失败应回到 .failed，实际:\(vm.state)")
 
         try? await Task.sleep(nanoseconds: 400_000_000)
         let final = await api.interpretAttempts()
@@ -481,14 +481,14 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         await vm.refresh(currentChartHash: "late_land", ziHourRule: "zi_next_day")
 
         let ok = await waitFor { Self.isOkFree(self.vm.state) }
-        XCTAssertTrue(ok, "同日迟到成功必须落地(已扣次数不丢),实际:\(vm.state)")
+        XCTAssertTrue(ok, "同日迟到成功必须落地(已扣次数不丢)，实际:\(vm.state)")
         if case .ready(_, .okFree(let text, _), _) = vm.state {
             XCTAssertEqual(text, "静默重试成功后的解读文本(mock)。", "落地的必须是 G1 的结果")
         }
         // 迟到落地后不得再补发(丢弃重扣是修复前的次生病灶)
         try? await Task.sleep(nanoseconds: 400_000_000)
         let calls = await api.interpretAttempts()
-        XCTAssertEqual(calls, 1, "已扣次数的结果不得被丢弃后重扣,实际 interpret=\(calls)")
+        XCTAssertEqual(calls, 1, "已扣次数的结果不得被丢弃后重扣，实际 interpret=\(calls)")
     }
 
     // MARK: - L5 门控(2026-10-07 review 修复)
@@ -531,11 +531,11 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         vm.onAppear(currentChartHash: hash, ziHourRule: "zi_next_day")
 
         let ok = await waitFor { Self.isOkFree(self.vm.state) }
-        XCTAssertTrue(ok, "有可翻译跨语言源:必须自动翻译出当日解读(非达限卡),实际:\(vm.state)")
+        XCTAssertTrue(ok, "有可翻译跨语言源:必须自动翻译出当日解读(非达限卡)，实际:\(vm.state)")
         let translateCalls = await api.translateAttempts()
         XCTAssertEqual(translateCalls, 1, "必须恰好一次翻译调用")
         let interpretCalls = await api.interpretAttempts()
-        XCTAssertEqual(interpretCalls, 0, "不得走生成路径(耗次数);修复前被 remainingReads>0 门槛拦死,当天无解读")
+        XCTAssertEqual(interpretCalls, 0, "不得走生成路径(耗次数);修复前被 remainingReads>0 门槛拦死，当天无解读")
         XCTAssertEqual(vm.remainingReads, 0, "翻译不消耗次数")
     }
 
@@ -556,7 +556,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
             if case .ready(_, .idle, _) = self.vm.state { return true }
             return false
         }
-        XCTAssertTrue(settled, "耗尽 + 无源必须落 .ready(.idle)(达限卡),实际:\(vm.state)")
+        XCTAssertTrue(settled, "耗尽 + 无源必须落 .ready(.idle)(达限卡)，实际:\(vm.state)")
         // 若误触发自动链,给足发作时间再断言零调用
         try? await Task.sleep(nanoseconds: 400_000_000)
         let interpretCalls = await api.interpretAttempts()
@@ -582,11 +582,11 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         XCTAssertEqual(Set(EngineReadingTemplates.en.keys), Set(relations), "en 表键集必须恰为十神 10 键")
         // S6(2026-09-30)起模板五段化(与 v4 正常态同构):五字段全非空
         for (key, value) in EngineReadingTemplates.zh {
-            XCTAssertFalse(value.headline.isEmpty, "zh[\(key)] headline 空,疑似占位")
-            XCTAssertGreaterThan(value.work.count, 6, "zh[\(key)] work 过短,疑似占位")
-            XCTAssertGreaterThan(value.relationships.count, 6, "zh[\(key)] relationships 过短,疑似占位")
-            XCTAssertGreaterThan(value.energy.count, 6, "zh[\(key)] energy 过短,疑似占位")
-            XCTAssertFalse(value.reminder.isEmpty, "zh[\(key)] reminder 空,疑似占位")
+            XCTAssertFalse(value.headline.isEmpty, "zh[\(key)] headline 空，疑似占位")
+            XCTAssertGreaterThan(value.work.count, 6, "zh[\(key)] work 过短，疑似占位")
+            XCTAssertGreaterThan(value.relationships.count, 6, "zh[\(key)] relationships 过短，疑似占位")
+            XCTAssertGreaterThan(value.energy.count, 6, "zh[\(key)] energy 过短，疑似占位")
+            XCTAssertFalse(value.reminder.isEmpty, "zh[\(key)] reminder 空，疑似占位")
         }
         // 查表 miss → fallback 五段非空且不 crash(错误显式传播:miss 记日志,不静默)
         let fallback = EngineReadingTemplates.insight(for: "不存在的十神")
@@ -616,22 +616,22 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
 
     func testDailyInsightParse_缺键返回nil() {
         let missing = #"{"headline":"h","work":"w","relationships":"r","energy":"e"}"#
-        XCTAssertNil(DailyInsight.parse(missing), "缺 reminder 必须整体降级,不半渲染")
+        XCTAssertNil(DailyInsight.parse(missing), "缺 reminder 必须整体降级，不半渲染")
     }
 
     func testDailyInsightParse_空串值返回nil() {
         let emptyWork = #"{"headline":"h","work":"","relationships":"r","energy":"e","reminder":"m"}"#
-        XCTAssertNil(DailyInsight.parse(emptyWork), "空串视为缺失,整体降级")
+        XCTAssertNil(DailyInsight.parse(emptyWork), "空串视为缺失，整体降级")
     }
 
     func testDailyInsightParse_v3散文返回nil() {
-        let prose = "流日与你的日主同根同气,是自立自守的一天。今天适合按自己的节奏推进。"
+        let prose = "流日与你的日主同根同气，是自立自守的一天。今天适合按自己的节奏推进。"
         XCTAssertNil(DailyInsight.parse(prose), "v3 散文快照必须解析失败(离线兜底走原渲染)")
     }
 
     func testDailyInsightParse_非字符串值返回nil() {
         let nonString = #"{"headline":"h","work":"w","relationships":"r","energy":"e","reminder":null}"#
-        XCTAssertNil(DailyInsight.parse(nonString), "null 值视为缺失,不静默跳过该字段")
+        XCTAssertNil(DailyInsight.parse(nonString), "null 值视为缺失，不静默跳过该字段")
     }
 
     func testDailyInsightParse_宽容多余键() {
@@ -656,12 +656,12 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
 
     func testDailyInsightParse_v5老缓存_无候选键为nil() {
         let json = #"{"headline":"h","work":"w","relationships":"r","energy":"e","reminder":"m"}"#
-        XCTAssertNil(DailyInsight.parse(json)?.askSuggestions, "v5 五键缓存照常解析,候选回落确定性表")
+        XCTAssertNil(DailyInsight.parse(json)?.askSuggestions, "v5 五键缓存照常解析，候选回落确定性表")
     }
 
     func testDailyInsightParse_候选键空串或全空白为nil() {
         let blank = #"{"headline":"h","work":"w","relationships":"r","energy":"e","reminder":"m","ask_suggestions":" \n  "}"#
-        XCTAssertNil(DailyInsight.parse(blank)?.askSuggestions, "全空白 = 无候选,不产出空数组")
+        XCTAssertNil(DailyInsight.parse(blank)?.askSuggestions, "全空白 = 无候选，不产出空数组")
     }
 
     /// 模型把转义多写一层(JSON 值里留字面 `\n` 两字符)→ 归一为真换行,
@@ -683,7 +683,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         XCTAssertEqual(
             EngineReadingTemplates.insight(for: "不存在的星").askSuggestions,
             EngineReadingTemplates.fallbackSuggestions(for: AppLanguage.current),
-            "查表 miss 回落通用三条,不冒充十神特化"
+            "查表 miss 回落通用三条，不冒充十神特化"
         )
         XCTAssertFalse(
             EngineReadingTemplates.fallbackInsight(for: .en).askSuggestions?.isEmpty ?? true,
@@ -739,7 +739,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         // 对照组:直接走 MarkdownSanitizer(markdown 解析折叠软换行)
         XCTAssertFalse(
             String(MarkdownSanitizer.rendered(twoLines).characters).contains("\n"),
-            "前置断言:Foundation 行为若变(软换行不再折叠),本守卫可退役"
+            "前置断言:Foundation 行为若变(软换行不再折叠)，本守卫可退役"
         )
         // headlineText:换行存活、两行内容逐字在
         let rendered = String(DailyInterpretationSection.headlineText(twoLines).characters)
@@ -747,8 +747,8 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         XCTAssertEqual(rendered, twoLines, "拆行拼回不增不删字符")
         // v5 老缓存单句:行为不变
         XCTAssertEqual(
-            String(DailyInterpretationSection.headlineText("同根同气,自立自守的一天").characters),
-            "同根同气,自立自守的一天"
+            String(DailyInterpretationSection.headlineText("同根同气，自立自守的一天").characters),
+            "同根同气，自立自守的一天"
         )
     }
 
@@ -757,7 +757,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
     func testDailyInsightLooksLikeJSON_三分支() {
         XCTAssertTrue(DailyInsight.looksLikeJSON(#"{"headline":"h"}"#), "裸 JSON 对象为 JSON 形态")
         XCTAssertTrue(DailyInsight.looksLikeJSON("```json\n{\"headline\":\"h\"}\n```"), "围栏包裹为 JSON 形态")
-        XCTAssertFalse(DailyInsight.looksLikeJSON("流日与你的日主同根同气,是自立自守的一天。"), "v3 散文不是 JSON 形态")
+        XCTAssertFalse(DailyInsight.looksLikeJSON("流日与你的日主同根同气，是自立自守的一天。"), "v3 散文不是 JSON 形态")
         XCTAssertFalse(DailyInsight.looksLikeJSON("  \n  "), "纯空白不是 JSON 形态")
         XCTAssertTrue(
             DailyInsight.looksLikeJSON(#"{"headline": "静心开局", "work": "先做要紧的。", "relatio"#),
@@ -783,7 +783,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
             language: AppLanguage.currentWire,
             provider: "anthropic",
             model: "claude-test",
-            interpretation: "流日与你的日主同根同气,是自立自守的一天。",
+            interpretation: "流日与你的日主同根同气，是自立自守的一天。",
             generatedAt: .now
         )
 
@@ -821,7 +821,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
             businessDate: fixedDate
         )
         let attemptsAfterFirst = await api.interpretAttempts()
-        XCTAssertEqual(attemptsAfterFirst, 1, "v3 散文缓存行应被绕过,重新调网络生成")
+        XCTAssertEqual(attemptsAfterFirst, 1, "v3 散文缓存行应被绕过，重新调网络生成")
         XCTAssertFalse(resp.cached, "落穿生成的是新响应")
         XCTAssertEqual(DailyInsight.parse(resp.interpretation)?.headline, "静心开局", "新响应必须是合法 v4 五段")
 
@@ -833,7 +833,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
             businessDate: fixedDate
         )
         let attemptsAfterSecond = await api.interpretAttempts()
-        XCTAssertEqual(attemptsAfterSecond, attemptsAfterFirst, "合法 v4 行应命中本地缓存,不再调网络")
+        XCTAssertEqual(attemptsAfterSecond, attemptsAfterFirst, "合法 v4 行应命中本地缓存，不再调网络")
         XCTAssertTrue(resp2.cached, "第二次应命中缓存")
         XCTAssertEqual(resp2.interpretation, resp.interpretation)
     }
@@ -855,7 +855,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
             language: AppLanguage.currentWire,
             provider: "anthropic",
             model: "claude-test",
-            interpretation: "流日与你的日主同根同气,是自立自守的一天。",
+            interpretation: "流日与你的日主同根同气，是自立自守的一天。",
             generatedAt: .now
         )
 
@@ -890,7 +890,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
             chartHash: hash,
             targetDate: fixedDate
         )
-        XCTAssertNil(result, "毒化行应返回 nil,让 VM 走自动生成链路")
+        XCTAssertNil(result, "毒化行应返回 nil，让 VM 走自动生成链路")
 
         let snapshot = try dailyStore.get(chartHash: hash, targetDate: fixedDate)
         XCTAssertEqual(
@@ -974,7 +974,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         let translateCalls = await api.translateAttempts()
         XCTAssertEqual(translateCalls, 1, "必须先尝试过一次翻译(跨语言原文存在)")
         let interpretCalls = await api.interpretAttempts()
-        XCTAssertEqual(interpretCalls, 1, "STALE 后必须落穿网络生成,不得停在失败态")
+        XCTAssertEqual(interpretCalls, 1, "STALE 后必须落穿网络生成，不得停在失败态")
         XCTAssertFalse(resp.cached, "落穿生成的是新响应")
         XCTAssertEqual(
             DailyInsight.parse(resp.interpretation)?.headline, "静心开局",
@@ -982,7 +982,7 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         )
         XCTAssertEqual(
             orchestrator.remainingReads(), readsBefore,
-            "STALE 降级生成必须豁免次数(R1:语言切换引起,非用户过错)"
+            "STALE 降级生成必须豁免次数(R1:语言切换引起，非用户过错)"
         )
     }
 
@@ -1027,13 +1027,13 @@ final class DailyFortuneFailureFallbackTests: XCTestCase {
         let interpretHashes = await api.recordedInterpretHashes()
         XCTAssertEqual(
             interpretHashes.filter { $0 == "gen_a" }.count, 1,
-            "A 旧管线不得为旧盘自动扣解读,实际序列:\(interpretHashes)"
+            "A 旧管线不得为旧盘自动扣解读，实际序列:\(interpretHashes)"
         )
         XCTAssertEqual(
             interpretHashes.filter { $0 == "gen_b" }.count, 1,
-            "B 新管线自动解读恰好一次,实际序列:\(interpretHashes)"
+            "B 新管线自动解读恰好一次，实际序列:\(interpretHashes)"
         )
-        XCTAssertTrue(Self.isOkFree(vm.state), "A 晚返回不得把 UI 覆写回旧盘/非就绪态,实际:\(vm.state)")
+        XCTAssertTrue(Self.isOkFree(vm.state), "A 晚返回不得把 UI 覆写回旧盘/非就绪态，实际:\(vm.state)")
     }
 }
 

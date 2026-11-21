@@ -98,7 +98,7 @@ final class InterpretationCacheStore {
         context.delete(cache)
         try context.save()
         AppLogger.persistence.warning(
-            "op=interpretationCache.poisonedPurge hash=\(contentHash, privacy: .public) module=\(module, privacy: .public) pv=\(promptVersion) — 命中行过不了渲染层校验,删行落穿重新生成"
+            "op=interpretationCache.poisonedPurge hash=\(contentHash, privacy: .public) module=\(module, privacy: .public) pv=\(promptVersion) — 命中行过不了渲染层校验，删行落穿重新生成"
         )
     }
 

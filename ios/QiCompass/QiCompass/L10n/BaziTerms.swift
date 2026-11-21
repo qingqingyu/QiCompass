@@ -287,7 +287,7 @@ enum BaziTerms {
     static func display(_ term: String, language: AppLanguage = AppLanguage.current) -> String {
         guard let entry = index[term] else {
             AppLogger.app.warning(
-                "op=baziTerms.miss term=\(term, privacy: .public) -> raw(展示层回落原值,值域缺口可据此扩表)"
+                "op=baziTerms.miss term=\(term, privacy: .public) -> raw(展示层回落原值，值域缺口可据此扩表)"
             )
             return term
         }

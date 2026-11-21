@@ -169,7 +169,7 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
         vm.onAppear(currentChartHash: "s09_day_ambiguous", ziHourRule: "zi_next_day")
 
         let settled = await waitForState { $0 == .hourAmbiguousBlocked }
-        XCTAssertTrue(settled, "日柱歧义盘必须进 .hourAmbiguousBlocked 拦截态,实际:\(vm.state)")
+        XCTAssertTrue(settled, "日柱歧义盘必须进 .hourAmbiguousBlocked 拦截态，实际:\(vm.state)")
 
         // 路径断言:daily-fortune 排盘与 interpret 都不发起
         let dailyCalls = await api.dailyFortuneCallCount()
@@ -196,7 +196,7 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
 
         let interpretCalls = await api.interpretCallCount()
         XCTAssertEqual(interpretCalls, 0, "纵深防御:拦截盘 generateInterpretation 不得发起 interpret")
-        XCTAssertEqual(vm.state, .hourAmbiguousBlocked, "拦截态纹丝不动,不得被改写")
+        XCTAssertEqual(vm.state, .hourAmbiguousBlocked, "拦截态纹丝不动，不得被改写")
     }
 
     // MARK: - 无时辰·日柱确定:降级生成照常(context 链路打通)
@@ -214,7 +214,7 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
             }
             return false
         }
-        XCTAssertTrue(interpreted, "日柱确定的无时辰用户照常进 ready 且自动解读(后端降级模板),实际:\(vm.state)")
+        XCTAssertTrue(interpreted, "日柱确定的无时辰用户照常进 ready 且自动解读(后端降级模板)，实际:\(vm.state)")
         let dailyCalls = await api.dailyFortuneCallCount()
         XCTAssertEqual(dailyCalls, 1, "确定性排盘照常发起(免费降级成立)")
         XCTAssertEqual(vm.hourGate, .hourUnknownDayDetermined,
@@ -269,13 +269,13 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
         let payload = ChartPayloadDTO.from(baziResponse: bazi)
 
         XCTAssertEqual(payload.dayMasterStrength, "unknown_hour",
-                       "无时辰盘 strength 必须透传(后端按它切降级模板),不得伪装 special_pattern")
+                       "无时辰盘 strength 必须透传(后端按它切降级模板)，不得伪装 special_pattern")
         XCTAssertEqual(payload.dayMaster, "甲", "日柱在 → 日主保留(降级叙事轴)")
         XCTAssertEqual(payload.dayMasterElement, "wood")
         XCTAssertEqual(payload.favorableElements, [], "S01 契约:无时辰盘喜忌留空")
         XCTAssertEqual(payload.unfavorableElements, [])
         XCTAssertEqual(Set(payload.fourPillars.keys), ["year", "month", "day"],
-                       "hour 缺失 → four_pillars 不下发 hour 键(显式缺失,不猜)")
+                       "hour 缺失 → four_pillars 不下发 hour 键(显式缺失，不猜)")
         XCTAssertEqual(payload.fourPillars["day"]?.gan, "甲")
     }
 
@@ -283,8 +283,8 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
         let bazi = Self.makeResponse(hash: "r3_day_ambiguous", hourKnown: false, dayPresent: false)
         let payload = ChartPayloadDTO.from(baziResponse: bazi)
 
-        XCTAssertEqual(payload.dayMasterStrength, "unknown_hour", "歧义盘同样透传,不伪装从格")
-        XCTAssertEqual(payload.dayMaster, "", "无日主 → 空串 + 显式日志(不猜),上游 S09/S11 拦截")
+        XCTAssertEqual(payload.dayMasterStrength, "unknown_hour", "歧义盘同样透传，不伪装从格")
+        XCTAssertEqual(payload.dayMaster, "", "无日主 → 空串 + 显式日志(不猜)，上游 S09/S11 拦截")
         XCTAssertEqual(Set(payload.fourPillars.keys), ["year", "month"], "day/hour 键均省略")
     }
 
@@ -296,7 +296,7 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
 
         let payload = ChartPayloadDTO.from(baziResponse: bazi)
         XCTAssertEqual(payload.dayMasterStrength, "unknown_hour",
-                       "nil strength → 诚实降级 unknown_hour(旺衰未判定),绝不伪装 special_pattern")
+                       "nil strength → 诚实降级 unknown_hour(旺衰未判定)，绝不伪装 special_pattern")
         XCTAssertEqual(Set(payload.fourPillars.keys), ["year", "month", "day", "hour"],
                        "柱齐全的异常存档四柱照常下发")
     }
@@ -336,7 +336,7 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
             if case .ready = $0 { return true }
             return false
         }
-        XCTAssertTrue(ready, "日柱确定的无时辰用户走降级生成(S09),实际:\(vm.state)")
+        XCTAssertTrue(ready, "日柱确定的无时辰用户走降级生成(S09)，实际:\(vm.state)")
 
         let lastRequest = await api.lastDailyFortuneRequest()
         let request = try XCTUnwrap(lastRequest, "daily-fortune 排盘请求必须已发出")
@@ -345,7 +345,7 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
         XCTAssertEqual(payload.dayMaster, "甲", "日主非空(REQUIRED day_master)")
         XCTAssertEqual(payload.dayMasterElement, "wood", "五行英文 key(REQUIRED day_master_element)")
         XCTAssertEqual(Set(payload.fourPillars.keys), ["year", "month", "day"],
-                       "hour 键省略是契约允许的显式缺失(S01),非 422 形态")
+                       "hour 键省略是契约允许的显式缺失(S01)，非 422 形态")
 
         // 自动解读任务收尾等待(2026-09-08):本用例只等到 .ready,自动解读(09-07 起
         // 进入即发起)的 interpretTask 还在飞——不等就结束,tearDown 释放内存容器后
@@ -358,7 +358,7 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
             }
             return false
         }
-        XCTAssertTrue(interpreted, "降级盘自动解读应照常落定,实际:\(vm.state)")
+        XCTAssertTrue(interpreted, "降级盘自动解读应照常落定，实际:\(vm.state)")
     }
 
     func testR5_日柱歧义落地每日运势Tab_视图渲染拦截页_零网络请求_不白屏不crash() async throws {
@@ -482,7 +482,7 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
             }
             return false
         }
-        XCTAssertTrue(ready, "达限盘照常进 ready 且解读子态保持 .idle(达限卡),实际:\(vm.state)")
+        XCTAssertTrue(ready, "达限盘照常进 ready 且解读子态保持 .idle(达限卡)，实际:\(vm.state)")
         XCTAssertEqual(vm.remainingReads, 0, "夹具生效:全局池余量为 0")
 
         let interpretCalls = await api.interpretCallCount()
@@ -503,8 +503,8 @@ final class DailyFortuneHourUnknownGateTests: XCTestCase {
             }
             return false
         }
-        XCTAssertTrue(interpreted, "有时辰用户照常进 ready 且自动解读,实际:\(vm.state)")
-        XCTAssertEqual(vm.hourGate, .hourKnown, "零拦截,末尾提示位不显示")
+        XCTAssertTrue(interpreted, "有时辰用户照常进 ready 且自动解读，实际:\(vm.state)")
+        XCTAssertEqual(vm.hourGate, .hourKnown, "零拦截，末尾提示位不显示")
 
         let interpretCalls = await api.interpretCallCount()
         XCTAssertEqual(interpretCalls, 1, "自动解读恰好发起一次(无需测试手动触发)")

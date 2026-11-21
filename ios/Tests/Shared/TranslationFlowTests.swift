@@ -181,13 +181,13 @@ final class TranslationFlowTests: XCTestCase {
         let produced = await waitUntil(timeout: 10) {
             self.vm.translationOffer != nil || self.vm.moduleStates[.m0] != nil
         }
-        XCTAssertTrue(produced, "必须探测到跨语言原文,实际:\(vm.moduleStates)")
+        XCTAssertTrue(produced, "必须探测到跨语言原文，实际:\(vm.moduleStates)")
         let done = await waitUntil(timeout: 10) {
             self.vm.translationOffer == nil
                 && !self.vm.isTranslatingChain
                 && self.vm.autoTranslationState == nil
         }
-        XCTAssertTrue(done, "hydrate 后必须自动译完(无需用户点按),实际 offer=\(String(describing: vm.translationOffer)) translating=\(vm.isTranslatingChain) auto=\(String(describing: vm.autoTranslationState))")
+        XCTAssertTrue(done, "hydrate 后必须自动译完(无需用户点按)，实际 offer=\(String(describing: vm.translationOffer)) translating=\(vm.isTranslatingChain) auto=\(String(describing: vm.autoTranslationState))")
 
         // 自动发起(全程无手动 acceptTranslation)
         XCTAssertFalse(apiClient.recordedTranslateRequests.isEmpty, "必须自动发出翻译请求")
@@ -215,7 +215,7 @@ final class TranslationFlowTests: XCTestCase {
         let firstFailed = await waitUntil(timeout: 10) {
             self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
         }
-        XCTAssertTrue(firstFailed, "自动翻译第一轮必须失败落 .failed,实际:\(String(describing: vm.autoTranslationState))")
+        XCTAssertTrue(firstFailed, "自动翻译第一轮必须失败落 .failed，实际:\(String(describing: vm.autoTranslationState))")
         let requestsAfterFirst = apiClient.recordedTranslateRequests.count
         XCTAssertGreaterThan(requestsAfterFirst, 0)
 
@@ -254,7 +254,7 @@ final class TranslationFlowTests: XCTestCase {
         let offlinePending = await waitUntil(timeout: 10) {
             self.vm.autoTranslationState == .offlinePending && !self.vm.isTranslatingChain
         }
-        XCTAssertTrue(offlinePending, "离线失败必须落 .offlinePending,实际:\(String(describing: vm.autoTranslationState))")
+        XCTAssertTrue(offlinePending, "离线失败必须落 .offlinePending，实际:\(String(describing: vm.autoTranslationState))")
         let requestsAfterFirst = apiClient.recordedTranslateRequests.count
 
         // 回前台重试一次(scenePhase 路径),仍离线 → 二次失败转 .failed
@@ -264,7 +264,7 @@ final class TranslationFlowTests: XCTestCase {
             self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
                 && apiClient.recordedTranslateRequests.count > requestsAfterFirst
         }
-        XCTAssertTrue(secondFailed, "回前台必须自动重试一次,且二次失败转 .failed,实际:\(String(describing: vm.autoTranslationState))")
+        XCTAssertTrue(secondFailed, "回前台必须自动重试一次，且二次失败转 .failed，实际:\(String(describing: vm.autoTranslationState))")
         let countAfterSecond = apiClient.recordedTranslateRequests.count
 
         // 额度已用:再次回前台不再自动
@@ -272,7 +272,7 @@ final class TranslationFlowTests: XCTestCase {
         try await Task.sleep(nanoseconds: 400_000_000)
         XCTAssertEqual(
             apiClient.recordedTranslateRequests.count, countAfterSecond,
-            "离线自动重试额度一次性,用尽不再自动(手动重试仍可用)"
+            "离线自动重试额度一次性，用尽不再自动(手动重试仍可用)"
         )
     }
 
@@ -322,7 +322,7 @@ final class TranslationFlowTests: XCTestCase {
             self.vm.translationOffer == nil && !self.vm.isTranslatingChain
                 && self.vm.moduleStates[.m0] != nil
         }
-        XCTAssertTrue(newChainDone, "新链(新世代)必须独立跑完,实际:\(vm.moduleStates)")
+        XCTAssertTrue(newChainDone, "新链(新世代)必须独立跑完，实际:\(vm.moduleStates)")
 
         // 放行旧链:其 M0 应答带旧指纹回来——世代失配必须自弃
         mode.setOldChain()
@@ -356,7 +356,7 @@ final class TranslationFlowTests: XCTestCase {
         let failed = await waitUntil(timeout: 10) {
             self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
         }
-        XCTAssertTrue(failed, "超时必须按真失败落 .failed(不得 .offlinePending/.interrupted),实际:\(String(describing: vm.autoTranslationState))")
+        XCTAssertTrue(failed, "超时必须按真失败落 .failed(不得 .offlinePending/.interrupted)，实际:\(String(describing: vm.autoTranslationState))")
 
         // 重进同盘(hydrate 路径):不得自动重试
         let countAfterFirst = apiClient.recordedTranslateRequests.count
@@ -396,7 +396,7 @@ final class TranslationFlowTests: XCTestCase {
         }
         XCTAssertTrue(
             failed,
-            "连接中断必须按真失败落 .failed(不得 .offlinePending/.interrupted),实际:\(String(describing: vm.autoTranslationState))"
+            "连接中断必须按真失败落 .failed(不得 .offlinePending/.interrupted)，实际:\(String(describing: vm.autoTranslationState))"
         )
 
         // 重进同盘(hydrate 路径):不得自动重试
@@ -430,7 +430,7 @@ final class TranslationFlowTests: XCTestCase {
         }
         XCTAssertTrue(
             failed,
-            "凭证失效必须落 .failed(提示条出指引),实际:\(String(describing: vm.autoTranslationState))"
+            "凭证失效必须落 .failed(提示条出指引)，实际:\(String(describing: vm.autoTranslationState))"
         )
         XCTAssertTrue(vm.translationTokenExpired, "指引旗标必须置位(提示条由它分叉文案)")
         // 原文保留显示(不落 .failed 错误文案把原文从屏幕抹掉)
@@ -449,7 +449,7 @@ final class TranslationFlowTests: XCTestCase {
         // 断链:M0 一次 403 即停,不得再对 M1 发翻译请求(同 token 必再 403)
         XCTAssertEqual(
             apiClient.recordedTranslateRequests.count, 1,
-            "凭证失效必须断链,不白烧后续章"
+            "凭证失效必须断链，不白烧后续章"
         )
 
         // 重进同盘(hydrate):结局 .failed → 不自动重试(403 恒复现,续译即白烧)
@@ -473,7 +473,7 @@ final class TranslationFlowTests: XCTestCase {
         let keys = DeepStaleM0MarkerPersistence.load() ?? []
         XCTAssertFalse(
             keys.contains("hashA|zh-hant"),
-            "resetAllData 清掉的标记不得被后续写回复活(读改写,非内存快照整份写回)"
+            "resetAllData 清掉的标记不得被后续写回复活(读改写，非内存快照整份写回)"
         )
         XCTAssertTrue(keys.contains("hashB|zh-hant"), "新标记正常落盘")
         DeepStaleM0MarkerPersistence.clearAll()
@@ -492,7 +492,7 @@ final class TranslationFlowTests: XCTestCase {
 
         XCTAssertNil(
             DeepStaleM0MarkerPersistence.load(),
-            "解码失败必须返 nil(未知),不得冒充空集(确定无标记)"
+            "解码失败必须返 nil(未知)，不得冒充空集(确定无标记)"
         )
 
         // mark() 读改写:坏数据起读为空,save 覆盖为合法 JSON → 存储自愈
@@ -517,7 +517,7 @@ final class TranslationFlowTests: XCTestCase {
 
         XCTAssertEqual(
             DeepStaleM0MarkerPersistence.load(), [],
-            "heal 后存储必须为合法空集合(非 nil),损坏不得驻留"
+            "heal 后存储必须为合法空集合(非 nil)，损坏不得驻留"
         )
         DeepStaleM0MarkerPersistence.clearAll()
     }
@@ -538,17 +538,17 @@ final class TranslationFlowTests: XCTestCase {
         let produced = await waitUntil(timeout: 10) {
             self.vm.translationOffer != nil || self.vm.moduleStates[.m0] != nil
         }
-        XCTAssertTrue(produced, "必须探测到跨语言原文,实际:\(vm.moduleStates)")
+        XCTAssertTrue(produced, "必须探测到跨语言原文，实际:\(vm.moduleStates)")
         let done = await waitUntil(timeout: 10) {
             self.vm.translationOffer == nil && !self.vm.isTranslatingChain
         }
-        XCTAssertTrue(done, "翻译链必须落定,实际 offer=\(String(describing: vm.translationOffer)) translating=\(vm.isTranslatingChain)")
+        XCTAssertTrue(done, "翻译链必须落定，实际 offer=\(String(describing: vm.translationOffer)) translating=\(vm.isTranslatingChain)")
 
         // 翻译顺序:M0 先于 M1(D10.4 #1)
         let modules = apiClient.recordedTranslateRequests.map(\.base.module)
         guard let m0Idx = modules.firstIndex(of: "m0_structure"),
               let m1Idx = modules.firstIndex(of: "m1_talent") else {
-            return XCTFail("必须发出 m0 + m1 翻译请求,实际:\(modules)")
+            return XCTFail("必须发出 m0 + m1 翻译请求，实际:\(modules)")
         }
         XCTAssertLessThan(m0Idx, m1Idx, "必须先译 M0 再译 M1")
 
@@ -595,7 +595,7 @@ final class TranslationFlowTests: XCTestCase {
         let firstRound = await waitUntil(timeout: 10) {
             self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
         }
-        XCTAssertTrue(firstRound, "自动翻译失败必须落 .failed,实际:\(String(describing: vm.autoTranslationState))")
+        XCTAssertTrue(firstRound, "自动翻译失败必须落 .failed，实际:\(String(describing: vm.autoTranslationState))")
         // 已成功的保留(不回滚)
         XCTAssertEqual(vm.moduleStates[.m0], .ok(text: Self.m0Hant, cached: false))
         // R2(2026-10-02 review):失败章必须保留原文显示——不得标 .failed
@@ -654,7 +654,7 @@ final class TranslationFlowTests: XCTestCase {
                 && self.vm.moduleStates[.m0]?.isOk == true
                 && self.vm.moduleStates[.m1]?.isOk == true
         }
-        XCTAssertTrue(settled, "M0 STALE 必须降级重生成且下游跟进,实际:\(vm.moduleStates) auto=\(String(describing: vm.autoTranslationState))")
+        XCTAssertTrue(settled, "M0 STALE 必须降级重生成且下游跟进，实际:\(vm.moduleStates) auto=\(String(describing: vm.autoTranslationState))")
 
         // M0 走了翻译尝试(收到 409),M1 完全没翻译(降级转生成)
         XCTAssertEqual(
@@ -662,14 +662,14 @@ final class TranslationFlowTests: XCTestCase {
         )
         XCTAssertTrue(
             apiClient.recordedTranslateRequests.filter { $0.base.module == "m1_talent" }.isEmpty,
-            "M0 过期后下游不得再翻译(原文基于旧 M0,翻译会混叙事)"
+            "M0 过期后下游不得再翻译(原文基于旧 M0，翻译会混叙事)"
         )
         // 两章都走 /api/interpret 重生成(mock 应答 JSON 契约)
         let generatedModules = apiClient.recordedInterpretRequests
             .map(\.module)
             .filter { ModuleID(rawValue: $0) != nil }
-        XCTAssertTrue(generatedModules.contains("m0_structure"), "M0 必须重生成,实际:\(generatedModules)")
-        XCTAssertTrue(generatedModules.contains("m1_talent"), "M1 必须跟进重生成,实际:\(generatedModules)")
+        XCTAssertTrue(generatedModules.contains("m0_structure"), "M0 必须重生成，实际:\(generatedModules)")
+        XCTAssertTrue(generatedModules.contains("m1_talent"), "M1 必须跟进重生成，实际:\(generatedModules)")
         // 豁免配额(L4/F5:语言切换引发,用户无过错)
         XCTAssertEqual(vm.remainingReads, readsBefore, "降级重生成不得消耗每日次数")
     }
@@ -700,24 +700,24 @@ final class TranslationFlowTests: XCTestCase {
         }
         XCTAssertTrue(
             settled,
-            "损坏按已降级处理:两章必须豁免重生成落定,实际:\(vm.moduleStates) auto=\(String(describing: vm.autoTranslationState))"
+            "损坏按已降级处理:两章必须豁免重生成落定，实际:\(vm.moduleStates) auto=\(String(describing: vm.autoTranslationState))"
         )
 
         // 安全侧:零翻译请求(M0 也不译——集合未知时任何原文都可能基于旧 M0)
         XCTAssertTrue(
             apiClient.recordedTranslateRequests.isEmpty,
-            "标记集合未知时不得把任何原文拿去翻译(混叙事风险),实际 translate=\(apiClient.recordedTranslateRequests.count)"
+            "标记集合未知时不得把任何原文拿去翻译(混叙事风险)，实际 translate=\(apiClient.recordedTranslateRequests.count)"
         )
         let generatedModules = apiClient.recordedInterpretRequests
             .map(\.module)
             .filter { ModuleID(rawValue: $0) != nil }
-        XCTAssertEqual(generatedModules, ["m0_structure", "m1_talent"], "两章必须全部走豁免重生成,实际:\(generatedModules)")
+        XCTAssertEqual(generatedModules, ["m0_structure", "m1_talent"], "两章必须全部走豁免重生成，实际:\(generatedModules)")
         XCTAssertEqual(vm.remainingReads, readsBefore, "豁免重生成不得消耗每日次数")
 
         // 一次性修复:存储必须已自愈为合法 JSON,且链完成后当前键清除
         XCTAssertEqual(
             DeepStaleM0MarkerPersistence.load(), [],
-            "存储必须已自愈为合法空集合(链完成清当前键),实际:\(String(describing: DeepStaleM0MarkerPersistence.load()))"
+            "存储必须已自愈为合法空集合(链完成清当前键)，实际:\(String(describing: DeepStaleM0MarkerPersistence.load()))"
         )
     }
 
@@ -749,14 +749,14 @@ final class TranslationFlowTests: XCTestCase {
                 && self.vm.moduleStates[.m0]?.isOk == true
                 && self.vm.moduleStates[.m1]?.isOk == true
         }
-        XCTAssertTrue(settled, "M1 STALE 必须单章降级,其余照译,实际:\(vm.moduleStates)")
+        XCTAssertTrue(settled, "M1 STALE 必须单章降级，其余照译，实际:\(vm.moduleStates)")
 
         // M0 译成(译文落态),M1 走生成,链未断
         XCTAssertEqual(vm.moduleStates[.m0], .ok(text: Self.m0Hant, cached: false))
         let generatedModules = apiClient.recordedInterpretRequests
             .map(\.module)
             .filter { ModuleID(rawValue: $0) != nil }
-        XCTAssertEqual(generatedModules, ["m1_talent"], "只有 M1 重生成,实际:\(generatedModules)")
+        XCTAssertEqual(generatedModules, ["m1_talent"], "只有 M1 重生成，实际:\(generatedModules)")
         XCTAssertEqual(vm.remainingReads, readsBefore, "降级重生成不得消耗每日次数")
     }
 
@@ -792,7 +792,7 @@ final class TranslationFlowTests: XCTestCase {
         let round1 = await waitUntil(timeout: 10) {
             self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
         }
-        XCTAssertTrue(round1, "M1 降级重生成失败必须断链落 .failed,实际:\(String(describing: vm.autoTranslationState))")
+        XCTAssertTrue(round1, "M1 降级重生成失败必须断链落 .failed，实际:\(String(describing: vm.autoTranslationState))")
         XCTAssertTrue(
             DeepStaleM0MarkerPersistence.load()?.contains(response.contentHash + "|zh-hant") ?? false,
             "M0 降级标记必须落 UserDefaults(重启前置事实)"
@@ -813,7 +813,7 @@ final class TranslationFlowTests: XCTestCase {
         let round2 = await waitUntil(timeout: 10) {
             vm2.translationOffer == nil && !vm2.isTranslatingChain && vm2.moduleStates[.m1]?.isOk == true
         }
-        XCTAssertTrue(round2, "重启后自动链必须经持久化标记把 M1 导向重生成,实际:\(vm2.moduleStates) offer=\(String(describing: vm2.translationOffer))")
+        XCTAssertTrue(round2, "重启后自动链必须经持久化标记把 M1 导向重生成，实际:\(vm2.moduleStates) offer=\(String(describing: vm2.translationOffer))")
 
         // 核心断言:M1 全程零翻译请求(修复前:提议只剩 M1,会被当原文翻译)
         XCTAssertTrue(
@@ -865,7 +865,7 @@ final class TranslationFlowTests: XCTestCase {
         let resumed = await waitUntil(timeout: 10) {
             self.vm.autoTranslationState == .offlinePending && !self.vm.isTranslatingChain
         }
-        XCTAssertTrue(resumed, "切回后必须自动续译(再次离线落 .offlinePending),不得谎报 .failed,实际:\(String(describing: vm.autoTranslationState))")
+        XCTAssertTrue(resumed, "切回后必须自动续译(再次离线落 .offlinePending)，不得谎报 .failed，实际:\(String(describing: vm.autoTranslationState))")
         XCTAssertEqual(
             apiClient.recordedTranslateRequests.filter { $0.base.contentHash == responseA.contentHash }.count, 2,
             "切回后的续译必须再发翻译请求(两轮各一次)"
@@ -915,7 +915,7 @@ final class TranslationFlowTests: XCTestCase {
             response: response, module: module, parentFingerprint: "fp",
             chainFields: chainFields
         )
-        XCTAssertEqual(counter.remaining(), readsBefore, "非豁免 cached 命中:tryConsume 后 refund,净消耗 0")
+        XCTAssertEqual(counter.remaining(), readsBefore, "非豁免 cached 命中:tryConsume 后 refund，净消耗 0")
 
         // 非豁免 × 未命中:净 -1(真生成消耗)
         apiClient.interpretResponder = { _ in resp(cached: false) }
@@ -977,7 +977,7 @@ final class TranslationFlowTests: XCTestCase {
             chainFields: chainFields, quotaExempt: true)
         XCTAssertEqual(
             reported.filter { $0.name == "free_chapters_generated" }.count, 1,
-            "m1 成功不得再上报(拍板 A:仅 m0 根章,一张盘一个信号)")
+            "m1 成功不得再上报(拍板 A:仅 m0 根章，一张盘一个信号)")
     }
 
     // MARK: - F2(2026-10-02):自动翻译失败后换盘再切回不得死路
@@ -1010,7 +1010,7 @@ final class TranslationFlowTests: XCTestCase {
         let firstFailed = await waitUntil(timeout: 10) {
             self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
         }
-        XCTAssertTrue(firstFailed, "A 盘自动翻译第一轮必须失败,实际:\(String(describing: vm.autoTranslationState))")
+        XCTAssertTrue(firstFailed, "A 盘自动翻译第一轮必须失败，实际:\(String(describing: vm.autoTranslationState))")
         let translateCountAfterFirst = apiClient.recordedTranslateRequests.count
 
         // 切 B:换盘清洗把 autoTranslationState 清 nil
@@ -1026,7 +1026,7 @@ final class TranslationFlowTests: XCTestCase {
                 && !self.vm.isHydrating
                 && !self.vm.isTranslatingChain
         }
-        XCTAssertTrue(restored, "切回 A 后必须有 offer + .failed(提示条手动重试形态),实际 offer=\(String(describing: vm.translationOffer)) auto=\(String(describing: vm.autoTranslationState))")
+        XCTAssertTrue(restored, "切回 A 后必须有 offer + .failed(提示条手动重试形态)，实际 offer=\(String(describing: vm.translationOffer)) auto=\(String(describing: vm.autoTranslationState))")
         XCTAssertEqual(
             apiClient.recordedTranslateRequests.count, translateCountAfterFirst,
             "去重命中不得新增翻译请求(自动不重试语义不变)"
@@ -1123,7 +1123,7 @@ final class TranslationFlowTests: XCTestCase {
         let firstFailed = await waitUntil(timeout: 10) {
             self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
         }
-        XCTAssertTrue(firstFailed, "M1 降级重生成失败必须落 .failed,实际:\(String(describing: vm.autoTranslationState))")
+        XCTAssertTrue(firstFailed, "M1 降级重生成失败必须落 .failed，实际:\(String(describing: vm.autoTranslationState))")
         XCTAssertEqual(vm.remainingReads, readsBefore, "降级重生成豁免配额(M0+M1 各一次尝试)")
         XCTAssertEqual(
             apiClient.recordedTranslateRequests.count, 1,
@@ -1145,7 +1145,7 @@ final class TranslationFlowTests: XCTestCase {
                 && self.vm.moduleStates[.m1]?.isOk == true
                 && self.vm.moduleStates[.m2]?.isOk == true
         }
-        XCTAssertTrue(settled, "重试后 M1/M2 必须以重生成落 ok,实际:\(vm.moduleStates)")
+        XCTAssertTrue(settled, "重试后 M1/M2 必须以重生成落 ok，实际:\(vm.moduleStates)")
         XCTAssertEqual(
             apiClient.recordedTranslateRequests.count, 1,
             "F5:重试不得再发翻译请求(M0 降级标记跨重试存活)"
@@ -1154,8 +1154,8 @@ final class TranslationFlowTests: XCTestCase {
             apiClient.recordedInterpretRequests.map(\.module)
                 .filter { ModuleID(rawValue: $0) != nil }
         )
-        XCTAssertTrue(generatedModules.contains("m1_talent"), "M1 重试必须走重生成,实际:\(generatedModules)")
-        XCTAssertTrue(generatedModules.contains("m2_high_low"), "M2 必须跟进重生成,实际:\(generatedModules)")
+        XCTAssertTrue(generatedModules.contains("m1_talent"), "M1 重试必须走重生成，实际:\(generatedModules)")
+        XCTAssertTrue(generatedModules.contains("m2_high_low"), "M2 必须跟进重生成，实际:\(generatedModules)")
     }
 
     /// #6:中段章节(M1)自身 STALE → 降级重生成失败 → 必须断链(原为
@@ -1196,7 +1196,7 @@ final class TranslationFlowTests: XCTestCase {
         let failed = await waitUntil(timeout: 10) {
             self.vm.autoTranslationState == .failed && !self.vm.isTranslatingChain
         }
-        XCTAssertTrue(failed, "M1 降级重生成失败必须落 .failed,实际:\(String(describing: vm.autoTranslationState))")
+        XCTAssertTrue(failed, "M1 降级重生成失败必须落 .failed，实际:\(String(describing: vm.autoTranslationState))")
 
         // M0 已译成保留;M1 走了生成尝试(降级)且失败
         XCTAssertEqual(vm.moduleStates[.m0], .ok(text: Self.m0Hant, cached: false))
@@ -1324,7 +1324,7 @@ final class CompatibilityCrossLanguageCacheTests: XCTestCase {
         let hit = try await orchestrator.cachedCrossLanguageInterpretationIfFresh(
             compatibilityHash: "compat-hash-2"
         )
-        XCTAssertNil(hit, "目标语言已有行时不得跨语言(译文已在缓存,不应展示旧原文+提议)")
+        XCTAssertNil(hit, "目标语言已有行时不得跨语言(译文已在缓存，不应展示旧原文+提议)")
     }
 }
 
@@ -1497,7 +1497,7 @@ final class DailyFortuneTranslateTests: XCTestCase {
             cachedUntil: BusinessDateCalculator.cachedUntil(forBusinessDate: date)
         )
         XCTAssertNil(try dailyStore.get(chartHash: "l6-snap", targetDate: date)?.interpretationLanguage,
-                     "新快照未写解读前列为 nil(老快照同形;R6 后 VM 对 nil 不显示离线语言小注,不断言语言)")
+                     "新快照未写解读前列为 nil(老快照同形;R6 后 VM 对 nil 不显示离线语言小注，不断言语言)")
 
         try dailyStore.updateInterpretation(
             Self.zhJSON, forChartHash: "l6-snap", targetDate: date,
@@ -1533,7 +1533,7 @@ final class DailyFortuneTranslateTests: XCTestCase {
         )
         apiClient.translateResponder = { _ in
             InterpretResponse(
-                interpretation: "半截散文,不是五键 JSON",
+                interpretation: "半截散文，不是五键 JSON",
                 promptVersion: 4, cached: false, generatedAt: .now,
                 provider: "anthropic", model: "mock-anthropic-model",
                 language: "zh-hant", translatedFrom: "zh"
@@ -1545,10 +1545,10 @@ final class DailyFortuneTranslateTests: XCTestCase {
                 chartHash: "l5-daily-3", chartPayload: payload,
                 dailyResponse: dailyResponse, businessDate: date
             )
-            XCTFail("坏译文必须抛错,不得 200")
+            XCTFail("坏译文必须抛错，不得 200")
         } catch {
             guard case DeepAnalysisError.translatedContentInvalid = error else {
-                return XCTFail("应抛 translatedContentInvalid,实际:\(error)")
+                return XCTFail("应抛 translatedContentInvalid，实际:\(error)")
             }
         }
         let cached = try await reader.read(
@@ -1640,7 +1640,7 @@ final class DailyFortuneTranslateTests: XCTestCase {
                 chartHash: "f4-offline", chartPayload: payload,
                 dailyResponse: dailyResponse, businessDate: date
             )
-            XCTFail("离线类翻译失败必须上抛,不得假成功")
+            XCTFail("离线类翻译失败必须上抛，不得假成功")
         } catch {
             // 期望:网络错误原样上抛(可重试)
         }

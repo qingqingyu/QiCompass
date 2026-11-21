@@ -209,7 +209,7 @@ enum TabIcons {
         renderer.proposedSize = ProposedViewSize(width: renderSize, height: renderSize)
         renderer.scale = 3
         guard let image = renderer.uiImage else {
-            preconditionFailure("TabIcons.uiImage(\(tab)) 渲染失败:内容非空,属编程错误")
+            preconditionFailure("TabIcons.uiImage(\(tab)) 渲染失败:内容非空，属编程错误")
         }
         return image.withRenderingMode(.alwaysTemplate)
     }

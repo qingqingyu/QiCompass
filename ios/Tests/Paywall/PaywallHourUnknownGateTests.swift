@@ -111,7 +111,7 @@ final class PaywallHourUnknownGateTests: XCTestCase {
         XCTAssertEqual(
             Self.makeResponse(hourKnown: false, hourPresent: false).hourUnknownGate,
             .hourUnknownDayDetermined,
-            "日柱确定的无时辰用户:免费 2 章照给,付费墙拦截态"
+            "日柱确定的无时辰用户:免费 2 章照给，付费墙拦截态"
         )
     }
 
@@ -119,7 +119,7 @@ final class PaywallHourUnknownGateTests: XCTestCase {
         XCTAssertEqual(
             Self.makeResponse(hourKnown: false, hourPresent: false, dayPresent: false).hourUnknownGate,
             .dayAmbiguous,
-            "日柱歧义:不进内容页,免费 2 章亦拦"
+            "日柱歧义:不进内容页，免费 2 章亦拦"
         )
     }
 
@@ -166,7 +166,7 @@ final class PaywallHourUnknownGateTests: XCTestCase {
 
             await vm.purchase()
 
-            XCTAssertEqual(vm.state, .idle, "拦截态 purchase() 必须原路返回,state 纹丝不动(gate=\(testCase.gate))")
+            XCTAssertEqual(vm.state, .idle, "拦截态 purchase() 必须原路返回，state 纹丝不动(gate=\(testCase.gate))")
             // mock redeem 路径从未运行 → entitlement 零写入(PurchaseManager.purchase 不可达的行为证据)
             XCTAssertNil(
                 entitlementStore.getActive(
@@ -206,7 +206,7 @@ final class PaywallHourUnknownGateTests: XCTestCase {
 
         // 未登录不再被拦截:mock redeem 成功 → .success + 本地 entitlement 落档
         // (user_local_id 维度,登录后由后端 backfill/claim 补绑账号)
-        XCTAssertEqual(vm.state, .success, "匿名购买链路完全可达,实际:\(vm.state)")
+        XCTAssertEqual(vm.state, .success, "匿名购买链路完全可达，实际:\(vm.state)")
         XCTAssertNotNil(
             entitlementStore.getActive(
                 contentHash: "normal_hash",
@@ -229,6 +229,6 @@ final class PaywallHourUnknownGateTests: XCTestCase {
             contentHash: "price_hash",
             purchaseManager: purchaseManager
         )
-        XCTAssertTrue(vm.displayPriceText.contains("¥128"), "价格文案不受拦截改造影响,实际:\(vm.displayPriceText)")
+        XCTAssertTrue(vm.displayPriceText.contains("¥128"), "价格文案不受拦截改造影响，实际:\(vm.displayPriceText)")
     }
 }

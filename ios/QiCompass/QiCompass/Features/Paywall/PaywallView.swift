@@ -339,7 +339,7 @@ struct PricePlate: View {
             Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
         }
         .accessibilityElement(children: .combine)
-        .accessibilityLabel("价格 \(rawPrice),买断制,不含订阅")
+        .accessibilityLabel("价格 \(rawPrice)，买断制，不含订阅")
     }
 }
 

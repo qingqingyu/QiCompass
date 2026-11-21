@@ -149,7 +149,7 @@ enum LegacyStoreMigrator {
         // fault 日志(不是静默忽略);下次启动同样结果,幂等。
         if !present.contains("default.store") {
             AppLogger.persistence.fault(
-                "legacy store 源目录无主库仅孤立边车 files=\(present, privacy: .public)——不迁移不删除,留人工排查"
+                "legacy store 源目录无主库仅孤立边车 files=\(present, privacy: .public)——不迁移不删除，留人工排查"
             )
             return Outcome(
                 action: .orphanSidecars, movedFiles: [], leftoverSourceFiles: [])
@@ -181,7 +181,7 @@ enum LegacyStoreMigrator {
             // 半途失败:目标回到无 store 状态(下次启动可重试完整迁移),
             // 源文件保留,原始错误上抛。清理自身失败不吞——记日志后同样上抛。
             AppLogger.persistence.error(
-                "legacy store 迁移失败,回滚本次拷贝 error=\(String(describing: error), privacy: .public)"
+                "legacy store 迁移失败，回滚本次拷贝 error=\(String(describing: error), privacy: .public)"
             )
             for partial in copied {
                 do {

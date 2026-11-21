@@ -290,7 +290,7 @@ final class DailyFortuneViewModel {
                     // 日 / 换盘照旧自弃(换盘走 load 会取消本任务,Task.isCancelled
                     // 兜底;跨日内容已无人可见,落地无意义)。
                     AppLogger.app.notice(
-                        "op=dailyFortune.interpret.late_success_landed hash=\(hash, privacy: .public) gen=\(generation, privacy: .public) current=\(self.pipelineGeneration, privacy: .public) — 世代失配但同业务日,已扣次数的迟到成功照常展示"
+                        "op=dailyFortune.interpret.late_success_landed hash=\(hash, privacy: .public) gen=\(generation, privacy: .public) current=\(self.pipelineGeneration, privacy: .public) — 世代失配但同业务日，已扣次数的迟到成功照常展示"
                     )
                     isSilentRetrying = false
                     state = .ready(
@@ -575,7 +575,7 @@ final class DailyFortuneViewModel {
                 guard pipelineGeneration == generation else {
                     let currentGeneration = self.pipelineGeneration
                     AppLogger.app.warning(
-                        "daily.runFullPipeline.stale_generation_tail hash=\(chartHash, privacy: .public) gen=\(generation, privacy: .public) current=\(currentGeneration, privacy: .public) — 旧管线尾部自弃,不自动触发"
+                        "daily.runFullPipeline.stale_generation_tail hash=\(chartHash, privacy: .public) gen=\(generation, privacy: .public) current=\(currentGeneration, privacy: .public) — 旧管线尾部自弃，不自动触发"
                     )
                     return
                 }

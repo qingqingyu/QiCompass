@@ -255,7 +255,7 @@ final class DeepAnalysisChapterRowTests: XCTestCase {
         XCTAssertEqual(
             PendingChapterBody.resolve(state: .pending, chainRunning: true),
             .calculating,
-            "链在跑的 pending = 排队章,维持三墨点等待观感"
+            "链在跑的 pending = 排队章，维持三墨点等待观感"
         )
     }
 
@@ -263,7 +263,7 @@ final class DeepAnalysisChapterRowTests: XCTestCase {
         XCTAssertEqual(
             PendingChapterBody.resolve(state: .pending, chainRunning: false),
             .stalledGuide,
-            "链停 + pending = 无人生成的残留,必须渲染引导态(说明 + 继续生成 CTA),不得再演布算中"
+            "链停 + pending = 无人生成的残留，必须渲染引导态(说明 + 继续生成 CTA)，不得再演布算中"
         )
     }
 
@@ -315,7 +315,7 @@ final class DeepAnalysisChapterRowTests: XCTestCase {
         XCTAssertEqual(
             ChartHeaderView.trueSolarTimeText(instant, timezoneID: "Asia/Shanghai"),
             "1993-05-21 02:30",
-            "真太阳时钟面按出生地时区(+08)渲染,设备时区无关"
+            "真太阳时钟面按出生地时区(+08)渲染，设备时区无关"
         )
         // 合盘 prompt 出生串消费点(PromptContextBuilder.chartContext)
         XCTAssertEqual(

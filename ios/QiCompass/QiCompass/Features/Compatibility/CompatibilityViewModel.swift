@@ -365,7 +365,7 @@ final class CompatibilityViewModel {
                 "op=compatibility.loadArchivedCharts failed error=\(String(describing: error), privacy: .public)"
             )
             // 不静默吞:错误显式传到 UI(人话文案,原始 error 已记上方日志)
-            state = .failed(.generic(message: String(localized: "读取命盘存档失败,请重试")))
+            state = .failed(.generic(message: String(localized: "读取命盘存档失败，请重试")))
         }
     }
 
@@ -910,7 +910,7 @@ final class CompatibilityViewModel {
         guard let idx = roster.firstIndex(where: { $0.id == entry.id }) else {
             // 不静默吞:sheet 开着时 entry 被移走属并发异常,显式报给 UI
             AppLogger.app.error("op=compatibility.updateTempEntry skip reason=not_found entry_id=\(entry.id, privacy: .public)")
-            throw UserFacingError.generic(message: String(localized: "该对方已不在名单中,请重新选择"))
+            throw UserFacingError.generic(message: String(localized: "该对方已不在名单中，请重新选择"))
         }
         roster[idx] = newEntry
         if selectedEntryIds.contains(entry.id) {
@@ -946,7 +946,7 @@ final class CompatibilityViewModel {
         }
         if tempPlace == nil {
             AppLogger.app.warning("op=compatibility.validateTemp skip reason=b_place_empty")
-            throw UserFacingError.generic(message: String(localized: "请选择出生城市,或在搜索页底部自定义地点"))
+            throw UserFacingError.generic(message: String(localized: "请选择出生城市，或在搜索页底部自定义地点"))
         }
         if let tempPlace, !tempPlace.isCustomLongitudeValid {
             AppLogger.app.warning("op=compatibility.validateTemp skip reason=b_longitude_out_of_range")
@@ -978,7 +978,7 @@ final class CompatibilityViewModel {
         }
         guard selectedChartAIndex < archivedCharts.count else {
             AppLogger.app.warning("compatVM.compute.skip reason=a_index_out_of_bounds selectedAIndex=\(self.selectedChartAIndex)")
-            state = .failed(.generic(message: String(localized: "A 盘选择越界,请重新选择")))
+            state = .failed(.generic(message: String(localized: "A 盘选择越界，请重新选择")))
             return
         }
         // 决策 D13:零勾选拦截(2026-09-03 起名单非空但未勾选同样拦截)
@@ -1539,7 +1539,7 @@ final class CompatibilityViewModel {
             AppLogger.persistence.error(
                 "op=compatibility.rebuildSummaryFromCache missing_b_chart b_hash=\(bHash, privacy: .public)"
             )
-            throw UserFacingError.generic(message: String(localized: "对方命盘快照缺失,请重新选择"))
+            throw UserFacingError.generic(message: String(localized: "对方命盘快照缺失，请重新选择"))
         }
         let baziB = try chartStore.decodeResponse(from: bChartSnapshot)
         // S05:日柱歧义盘日主留白「—」(不猜;S11 roster 不可合盘标记拦截上游)
@@ -1651,7 +1651,7 @@ final class CompatibilityViewModel {
         switch entry {
         case .archived(let bHash):
             guard let bChart = archivedCharts.first(where: { $0.snapshotHash == bHash }) else {
-                throw UserFacingError.generic(message: String(localized: "B 盘存档已不存在,请重新选择"))
+                throw UserFacingError.generic(message: String(localized: "B 盘存档已不存在，请重新选择"))
             }
             // B 盘存档 decode(ensure 入口已删,老快照缺 token 由后端 403 暴露)
             let baziB = try orchestrator.decodeChartResponse(
@@ -1709,7 +1709,7 @@ final class CompatibilityViewModel {
                 throw error
             }
             AppLogger.app.error(
-                "op=compatibility.computePair.rule_refresh_failed_fallback b_hash=\(staleBHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 离线/超时,回落旧规则快照(联网后自愈重算)"
+                "op=compatibility.computePair.rule_refresh_failed_fallback b_hash=\(staleBHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 离线/超时，回落旧规则快照(联网后自愈重算)"
             )
             return try rebuildSummaryFromCache(
                 entry: entry, bHash: staleBHash, snapshot: existing
@@ -1722,7 +1722,7 @@ final class CompatibilityViewModel {
             // 不静默吞:刚隐式落地的 B snapshot 取不回说明持久化失败,
             // 该对无法构造卡片,显式抛错让上层进入对级失败(S01 走整体 failed;S03 隔离)。
             if bSnapshotForUI == nil {
-                throw UserFacingError.generic(message: String(localized: "B 盘隐式落地后取回失败,请重试"))
+                throw UserFacingError.generic(message: String(localized: "B 盘隐式落地后取回失败，请重试"))
             }
         }
         guard let bSnapshot = bSnapshotForUI else {
@@ -1805,14 +1805,14 @@ final class CompatibilityViewModel {
             )
             // 进入 detail 但 interpretState 显式错误(不静默吞;人话文案,原始 error 已记上方日志)
             let response = Self.fallbackResponse(for: summary)
-            state = .detail(summary, response, .failed(message: String(localized: "读取合盘数据失败,请重试")))
+            state = .detail(summary, response, .failed(message: String(localized: "读取合盘数据失败，请重试")))
             return
         }
         guard let snapshot = compatSnapshot else {
             // 不静默吞:快照缺失(理论上不会发生,compute() 刚 upsert 过)
             AppLogger.app.error("op=compatibility.openDetail missing_snapshot hash=\(summary.compatibilityHash, privacy: .public)")
             let response = Self.fallbackResponse(for: summary)
-            state = .detail(summary, response, .failed(message: String(localized: "合盘快照缺失,请重新合盘")))
+            state = .detail(summary, response, .failed(message: String(localized: "合盘快照缺失，请重新合盘")))
             return
         }
 
@@ -1844,7 +1844,7 @@ final class CompatibilityViewModel {
                 "op=compatibility.openDetail decode_failed hash=\(summary.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
             let response = Self.fallbackResponse(for: summary)
-            state = .detail(summary, response, .failed(message: String(localized: "合盘数据异常,请重新计算")))
+            state = .detail(summary, response, .failed(message: String(localized: "合盘数据异常，请重新计算")))
             return
         }
 
@@ -1910,7 +1910,7 @@ final class CompatibilityViewModel {
                     // 不再触发(直接 return 短路尾部)。
                     guard self.interpretInFlight?.compatHash != summaryHash else {
                         AppLogger.app.info(
-                            "op=compatibility.openDetail.cross_language_skip_in_flight hash=\(summaryHash, privacy: .public) — 本对重生成在飞,等其落定(不翻译/不重复起链)"
+                            "op=compatibility.openDetail.cross_language_skip_in_flight hash=\(summaryHash, privacy: .public) — 本对重生成在飞，等其落定(不翻译/不重复起链)"
                         )
                         return
                     }
@@ -1966,7 +1966,7 @@ final class CompatibilityViewModel {
                 guard case .detail(let currentSummary, let response, _) = self.state,
                       currentSummary.id == summary.id else { return }
                 if !Task.isCancelled {
-                    self.state = .detail(currentSummary, response, .failed(message: String(localized: "解读包含不合规绝对结论,请重试")))
+                    self.state = .detail(currentSummary, response, .failed(message: String(localized: "解读包含不合规绝对结论，请重试")))
                 }
             } catch is CancellationError {
                 return
@@ -2010,7 +2010,7 @@ final class CompatibilityViewModel {
                 if case .detail(let current, let currentResponse, .idle) = self.state,
                    current.id == summary.id {
                     AppLogger.app.warning(
-                        "op=compatibility.autoGenerate.deferred reason=engine_rule_stale hash=\(summaryHash, privacy: .public) — 重算未成,不把旧标签写进生成 prompt"
+                        "op=compatibility.autoGenerate.deferred reason=engine_rule_stale hash=\(summaryHash, privacy: .public) — 重算未成，不把旧标签写进生成 prompt"
                     )
                     self.state = .detail(
                         current, currentResponse,
@@ -2053,7 +2053,7 @@ final class CompatibilityViewModel {
                 switch summary.entry {
                 case .archived(let bHash):
                     guard let bChart = try self.chartStore.get(contentHash: bHash) else {
-                        throw UserFacingError.generic(message: String(localized: "对方命盘快照缺失,请重新选择"))
+                        throw UserFacingError.generic(message: String(localized: "对方命盘快照缺失，请重新选择"))
                     }
                     let baziB = try self.orchestrator.decodeChartResponse(
                         snapshot: bChart)
@@ -2119,7 +2119,7 @@ final class CompatibilityViewModel {
                 if !Task.isCancelled {
                     self.engineRefreshOutcomes[summary.compatibilityHash] = .failure(error)
                     AppLogger.persistence.error(
-                        "op=compatibility.refreshStaleEngineAssessment.failed hash=\(summary.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 保留旧渲染,下轮 compute 预查重算"
+                        "op=compatibility.refreshStaleEngineAssessment.failed hash=\(summary.compatibilityHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 保留旧渲染，下轮 compute 预查重算"
                     )
                 }
             }
@@ -2195,7 +2195,7 @@ final class CompatibilityViewModel {
         }
         if case .success? = engineRefreshOutcomes[compatHash] {
             AppLogger.app.warning(
-                "op=compatibility.engineRuleGate.refresh_ok_version_lag hash=\(compatHash, privacy: .public) expected=\(CompatibilitySnapshotStore.expectedEngineRuleVersion, privacy: .public) — 重算成功按放行(服务端版本落后=部署倒挂/缺字段,不拦生成)"
+                "op=compatibility.engineRuleGate.refresh_ok_version_lag hash=\(compatHash, privacy: .public) expected=\(CompatibilitySnapshotStore.expectedEngineRuleVersion, privacy: .public) — 重算成功按放行(服务端版本落后=部署倒挂/缺字段，不拦生成)"
             )
             return true
         }
@@ -2359,7 +2359,7 @@ final class CompatibilityViewModel {
                 compatHash: compatHash,
                 attemptKey: compatHash + "|" + AppLanguage.currentWire
             )
-            state = .detail(summary, response, .failed(message: String(localized: "命盘快照缺失,请重新合盘")))
+            state = .detail(summary, response, .failed(message: String(localized: "命盘快照缺失，请重新合盘")))
             return
         }
 
@@ -2514,7 +2514,7 @@ final class CompatibilityViewModel {
                 //   豁免链 settle 照常。
                 if Task.isCancelled {
                     AppLogger.app.info(
-                        "compatVM.generateInterpretation.cancelled compatibilityHash=\(compatHash, privacy: .public) — 记 interrupted,不落 failed"
+                        "compatVM.generateInterpretation.cancelled compatibilityHash=\(compatHash, privacy: .public) — 记 interrupted，不落 failed"
                     )
                     return
                 }
@@ -2617,7 +2617,7 @@ final class CompatibilityViewModel {
                 // 语义同样会把 .okFree 盖成 .failed);.fetching 在飞链随后落地
                 // 会覆盖本失败态,自愈不积压。
                 AppLogger.app.warning(
-                    "op=compatibility.runGatedGeneration.deferred reason=engine_rule_stale hash=\(summary.compatibilityHash, privacy: .public) — 重算未成,不把旧标签写进生成 prompt"
+                    "op=compatibility.runGatedGeneration.deferred reason=engine_rule_stale hash=\(summary.compatibilityHash, privacy: .public) — 重算未成，不把旧标签写进生成 prompt"
                 )
                 self.state = .detail(
                     current, currentResponse,
@@ -2645,13 +2645,13 @@ final class CompatibilityViewModel {
                 ) != nil
                 if inFlight.isPaid || !nowPaid {
                     AppLogger.app.info(
-                        "op=compatibility.runGatedGeneration skip reason=interpret_in_flight hash=\(summary.compatibilityHash, privacy: .public) in_flight_paid=\(inFlight.isPaid, privacy: .public) now_paid=\(nowPaid, privacy: .public) — 在飞链让位,不重复起链"
+                        "op=compatibility.runGatedGeneration skip reason=interpret_in_flight hash=\(summary.compatibilityHash, privacy: .public) in_flight_paid=\(inFlight.isPaid, privacy: .public) now_paid=\(nowPaid, privacy: .public) — 在飞链让位，不重复起链"
                     )
                     return
                 }
                 // 在飞免费链 + 已付款 → 落穿,付费生成取代免费链
                 AppLogger.app.info(
-                    "op=compatibility.runGatedGeneration supersede_free_in_flight hash=\(summary.compatibilityHash, privacy: .public) — 购买完成,付费生成取代在飞免费链"
+                    "op=compatibility.runGatedGeneration supersede_free_in_flight hash=\(summary.compatibilityHash, privacy: .public) — 购买完成，付费生成取代在飞免费链"
                 )
             }
             // 豁免语义门后重读(三查 R1 / code-review P2):门等待是重算级,
@@ -2743,7 +2743,7 @@ final class CompatibilityViewModel {
         let attemptKey = compatHash + "|" + AppLanguage.currentWire
         guard let chartASnapshot = archivedCharts[safe: selectedChartAIndex]?.snapshot,
               let bSnapshot = try? chartStore.get(contentHash: summary.personBHash) else {
-            state = .detail(summary, response, .failed(message: String(localized: "命盘快照缺失,请重新合盘")))
+            state = .detail(summary, response, .failed(message: String(localized: "命盘快照缺失，请重新合盘")))
             return
         }
         AppLogger.app.info(
@@ -2852,7 +2852,7 @@ final class CompatibilityViewModel {
                     }
                     guard ruleFresh else {
                         AppLogger.app.warning(
-                            "compatVM.acceptTranslation.stale_source_regen_deferred compatibilityHash=\(compatHash, privacy: .public) — 引擎规则过期未重算成,暂不重生成(旧标签不得进 prompt)"
+                            "compatVM.acceptTranslation.stale_source_regen_deferred compatibilityHash=\(compatHash, privacy: .public) — 引擎规则过期未重算成，暂不重生成(旧标签不得进 prompt)"
                         )
                         self.translationFailed = true
                         self.autoTranslationOutcomes[attemptKey] = .failed
@@ -2899,7 +2899,7 @@ final class CompatibilityViewModel {
                         ? .okPaid(text: offer.text, cached: true)
                         : .okFree(text: offer.text, cached: true)
                     AppLogger.app.warning(
-                        "compatVM.acceptTranslation.context_token_expired compatibilityHash=\(compatHash, privacy: .public) — 原文保留,提示条改重新排盘指引"
+                        "compatVM.acceptTranslation.context_token_expired compatibilityHash=\(compatHash, privacy: .public) — 原文保留，提示条改重新排盘指引"
                     )
                     self.translationTokenExpired = true
                     self.translationFailed = true
@@ -3139,7 +3139,7 @@ enum CompatibilityViewModelError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .archivedSnapshotMissing:
-            return String(localized: "命盘数据异常,请重新排盘")
+            return String(localized: "命盘数据异常，请重新排盘")
         }
     }
 }

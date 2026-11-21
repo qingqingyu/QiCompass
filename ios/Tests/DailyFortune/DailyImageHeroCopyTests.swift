@@ -48,7 +48,7 @@ final class DailyImageHeroCopyTests: XCTestCase {
                 guard let insight = templates[relation] else { continue }  // 键集合不等已由上方断言报出
                 let fullText = [insight.work, insight.relationships, insight.energy, insight.reminder]
                     .joined(separator: ",")
-                for clause in fullText.split(whereSeparator: { ",。;；".contains($0) }) {
+                for clause in fullText.split(whereSeparator: { ",，。;；".contains($0) }) {
                     let clauseStr = String(clause)
                     guard cautionMarkers.contains(where: { clauseStr.contains($0) }) else { continue }
                     let hits = cols.yi.filter { clauseStr.contains($0) }
@@ -87,7 +87,7 @@ final class DailyImageHeroCopyTests: XCTestCase {
         XCTAssertEqual(
             label,
             expectEn("Horse", positions: "天干甲 Pillar"),
-            "未识别前缀原样透出(宁可露中文不丢信息),单数 Pillar"
+            "未识别前缀原样透出(宁可露中文不丢信息)，单数 Pillar"
         )
     }
 
@@ -271,7 +271,7 @@ final class DailyImageHeroCopyTests: XCTestCase {
             if let line = DailyHeaderSection.enLunarLine(lunarDate: lunar, dayPillar: pillar) {
                 texts.append(line)
             } else {
-                XCTFail("enLunarLine(\(lunar), \(pillar)) 应可转写")
+                XCTFail("enLunarLine(\(lunar)， \(pillar)) 应可转写")
             }
         }
         // 页脚 2026-10-18 S6 起只留免责段(xcstrings 跟设备语言),原拼音日柱/
@@ -454,7 +454,7 @@ final class DailyImageHeroCopyTests: XCTestCase {
             strength: ["木": 100, "火": 0, "土": 100, "金": 0, "水": 0],
             daySignal: nil)
         XCTAssertEqual(tie.dominant, "木")
-        XCTAssertEqual(tie.borrowElements, [], "day_signal 空(时辰未知/从格)→ 宜借空,不编喜忌语义")
+        XCTAssertEqual(tie.borrowElements, [], "day_signal 空(时辰未知/从格)→ 宜借空，不编喜忌语义")
         // 全零 → 无最高项(宿主空 dict 不渲染;防御性 nil)
         let zero = DailyElementStrengthSection(
             strength: ["木": 0, "火": 0, "土": 0, "金": 0, "水": 0],

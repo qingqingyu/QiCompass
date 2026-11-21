@@ -14,7 +14,7 @@ struct CompatibilityEmptyView: View {
             Text("双人合盘")
                 .font(.title2.weight(.semibold))
                 .foregroundStyle(BaziTheme.ink)
-            Text("需先在深度解析中创建命盘,才能选择 A/B 盘合盘。")
+            Text("需先在深度解析中创建命盘，才能选择 A/B 盘合盘。")
                 .font(.subheadline)
                 .foregroundStyle(BaziTheme.inkMuted)
                 .multilineTextAlignment(.center)

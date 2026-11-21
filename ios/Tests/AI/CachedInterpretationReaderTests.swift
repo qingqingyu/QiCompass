@@ -206,7 +206,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
         )
         do {
             _ = try await reader.readAll(contentHash: "h", modules: Self.v1Modules, language: "zh")
-            XCTFail("health 失败应整体向上抛,不静默返回空字典")
+            XCTFail("health 失败应整体向上抛，不静默返回空字典")
         } catch let error as ReaderTestError {
             XCTAssertEqual(error, .healthUnavailable)
         }
@@ -240,7 +240,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
             cacheStore: store
         )
         let hits = try await reader.readAll(contentHash: "h", modules: ["m1_talent"], language: "zh")
-        XCTAssertNil(hits["m1_talent"], "中毒行不得命中(应删行当 miss,触发上层重新生成)")
+        XCTAssertNil(hits["m1_talent"], "中毒行不得命中(应删行当 miss，触发上层重新生成)")
         // 行确实被删(不是仅当次跳过):绕过 reader 直查 store 应 miss
         let after = try store.getLatest(
             contentHash: "h", module: "m1_talent", targetDate: nil,
@@ -263,7 +263,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
             cacheStore: store
         )
         let hits = try await reader.readAll(contentHash: "h", modules: ["m2_high_low"], language: "zh")
-        XCTAssertNil(hits["m2_high_low"], "全 null 顶层在渲染层 nodes.isEmpty → nil,同属中毒行")
+        XCTAssertNil(hits["m2_high_low"], "全 null 顶层在渲染层 nodes.isEmpty → nil，同属中毒行")
         let after = try store.getLatest(
             contentHash: "h", module: "m2_high_low", targetDate: nil,
             language: "zh", identity: Self.testIdentity
@@ -300,7 +300,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
         try store.upsert(
             contentHash: "h", module: "compatibility", promptVersion: 1, targetDate: nil,
             provider: "anthropic", model: "claude-test",
-            interpretation: "两人整体节奏:一段散文解读,不是 JSON。", generatedAt: .now
+            interpretation: "两人整体节奏:一段散文解读，不是 JSON。", generatedAt: .now
         )
         let date = Date(timeIntervalSince1970: 1_700_000_000)
         try store.upsert(
@@ -316,7 +316,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
             cacheStore: store
         )
         let compat = try await reader.read(contentHash: "h", module: "compatibility", maxAge: 24 * 3600)
-        XCTAssertEqual(compat?.interpretation, "两人整体节奏:一段散文解读,不是 JSON。")
+        XCTAssertEqual(compat?.interpretation, "两人整体节奏:一段散文解读，不是 JSON。")
         let daily = try await reader.read(contentHash: "h", module: "daily_fortune", targetDate: date, maxAge: 24 * 3600)
         XCTAssertEqual(daily?.interpretation, "今日运势:宜沉稳。")
         // 两行仍在库(散文对非 V1 module 是合法内容,不得误删)
@@ -362,7 +362,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
         let result = try await reader.readAllCrossLanguage(
             contentHash: "h8", modules: ["compatibility_free"]
         )
-        XCTAssertEqual(result?.language, "zh", "zh 行命中(en 无行,不额外 resolve)")
+        XCTAssertEqual(result?.language, "zh", "zh 行命中(en 无行，不额外 resolve)")
         XCTAssertEqual(result?.hits["compatibility_free"]?.interpretation, "第一章 基础相处模式")
     }
 
@@ -384,7 +384,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
             contentHash: "h9", module: "daily_fortune", promptVersion: 3,
             targetDate: date, language: "zh",
             provider: "anthropic", model: "claude-test",
-            interpretation: "流日与你的日主同根同气,是自立自守的一天。", generatedAt: .now
+            interpretation: "流日与你的日主同根同气，是自立自守的一天。", generatedAt: .now
         )
         try store.upsert(
             contentHash: "h9", module: "daily_fortune", promptVersion: 4,
@@ -455,7 +455,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
         )
         XCTAssertEqual(
             result?.language, "en",
-            "命中数平手时高 promptVersion 源必须胜出(修复前按 allCases 序取 zh 旧版源,翻译必 409)"
+            "命中数平手时高 promptVersion 源必须胜出(修复前按 allCases 序取 zh 旧版源，翻译必 409)"
         )
         XCTAssertEqual(result?.hits["daily_fortune"]?.promptVersion, 4)
     }
@@ -642,7 +642,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
         XCTAssertEqual(
             cut.migrationRegenModules,
             ["m0_structure", "m1_talent", "m2_high_low"],
-            "三章均为版本迁移重生成(本地有旧版行),重算须豁免本地次数"
+            "三章均为版本迁移重生成(本地有旧版行)，重算须豁免本地次数"
         )
 
         // 2. 版本未知(老后端无 prompt_versions)→ 守卫与迁移集都关闭,
@@ -653,7 +653,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
         XCTAssertNotNil(legacy.hits["m0_structure"])
         XCTAssertNotNil(legacy.hits["m1_talent"])
         XCTAssertNotNil(legacy.hits["m2_high_low"])
-        XCTAssertTrue(legacy.migrationRegenModules.isEmpty, "老后端版本未知,不判迁移")
+        XCTAssertTrue(legacy.migrationRegenModules.isEmpty, "老后端版本未知，不判迁移")
 
         // 3. 对照:全模块版本对齐(服务端 v1 = 本地 v1)→ 全命中,守卫不误伤,
         //    迁移集为空(重算才计费)
@@ -683,7 +683,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
             contentHash: "h-fresh-cut", modules: chain, language: "zh"
         )
         XCTAssertTrue(fresh.hits.isEmpty)
-        XCTAssertTrue(fresh.migrationRegenModules.isEmpty, "无任何本地行 = 首次生成,不豁免")
+        XCTAssertTrue(fresh.migrationRegenModules.isEmpty, "无任何本地行 = 首次生成，不豁免")
     }
 
     /// 依赖判据精度(第十六轮外评 #2):缺行章只切断**真正依赖它**的下游,
@@ -714,7 +714,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
         // M4 缺行,但 M5(deps m0/m1/m3)/M6(m0/m1/m2)/M7(m1/m2/m3/m6)都不依赖 M4
         XCTAssertEqual(
             Set(m4Bumped.hits.keys), Set(Self.v1Modules.filter { $0 != "m4_health" }),
-            "M4 缺行只影响 M4 自己;M5/M6/M7 不依赖 M4,照常回填(旧前缀切断会误伤)"
+            "M4 缺行只影响 M4 自己;M5/M6/M7 不依赖 M4，照常回填(旧前缀切断会误伤)"
         )
         XCTAssertEqual(m4Bumped.migrationRegenModules, ["m4_health"])
 
@@ -760,7 +760,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
         XCTAssertEqual(
             m0Bumped.migrationRegenModules,
             Set(Self.v1Modules),
-            "八章本地都有旧版行,全部为版本迁移重生成(M7 含在内,重算豁免本地次数)"
+            "八章本地都有旧版行，全部为版本迁移重生成(M7 含在内，重算豁免本地次数)"
         )
     }
 
@@ -803,11 +803,11 @@ final class CachedInterpretationReaderTests: XCTestCase {
         XCTAssertEqual(
             Set(m4Missing.hits.keys),
             Set(Self.v1Modules).subtracting(["m4_health"]),
-            "M4 从未生成不得切断任何章(修复前前缀切断:M5-M7 被误跳过),实际命中:\(m4Missing.hits.keys.sorted())"
+            "M4 从未生成不得切断任何章(修复前前缀切断:M5-M7 被误跳过)，实际命中:\(m4Missing.hits.keys.sorted())"
         )
         XCTAssertTrue(
             m4Missing.migrationRegenModules.isEmpty,
-            "M4 无任何版本行 = 首次生成,不豁免;其余章版本对齐不迁移"
+            "M4 无任何版本行 = 首次生成，不豁免;其余章版本对齐不迁移"
         )
 
         // 场景 2:M1 版本落后(服务端 v2,本地 v1 行被版本过滤)→ 只切断
@@ -825,7 +825,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
         XCTAssertEqual(
             Set(m1Stale.hits.keys),
             ["m0_structure"],
-            "M1 miss 切断全部依赖方 m2-m7(v3 起 m3/m4 也依赖 M1),仅 m0 回填(实际:\(m1Stale.hits.keys.sorted()))"
+            "M1 miss 切断全部依赖方 m2-m7(v3 起 m3/m4 也依赖 M1)，仅 m0 回填(实际:\(m1Stale.hits.keys.sorted()))"
         )
         XCTAssertEqual(
             Set(m1Stale.migrationRegenModules),
@@ -900,7 +900,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
         let crossLang = try await reader2.readAllCrossLanguage(
             contentHash: "h-ext", modules: Array(Self.v1Modules.dropFirst())
         )
-        XCTAssertEqual(crossLang?.language, "zh", "跨语言探测:M0 旧版行放行,zh 源照常可探测(切断仅回填模式)")
+        XCTAssertEqual(crossLang?.language, "zh", "跨语言探测:M0 旧版行放行，zh 源照常可探测(切断仅回填模式)")
         XCTAssertEqual(crossLang?.hits.count, 7)
     }
 
@@ -952,7 +952,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
         )
         XCTAssertTrue(
             full.migrationRegenModules.isEmpty,
-            "M0 有其它语言行 = 翻译流接管,不得标迁移豁免(实际:\(full.migrationRegenModules.sorted()))"
+            "M0 有其它语言行 = 翻译流接管，不得标迁移豁免(实际:\(full.migrationRegenModules.sorted()))"
         )
 
         // 2. 部分清单(M0 在清单外,如处于 .dailyLimitReached):清单外上游
@@ -1047,7 +1047,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
         )
         XCTAssertTrue(
             outcome.hits.isEmpty,
-            "本语言有旧版行 = 版本迁移,切断维持(实际:\(outcome.hits.keys.sorted()))"
+            "本语言有旧版行 = 版本迁移，切断维持(实际:\(outcome.hits.keys.sorted()))"
         )
         XCTAssertEqual(
             outcome.migrationRegenModules, ["m0_structure", "m1_talent", "m2_high_low"],
@@ -1104,7 +1104,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
         )
         XCTAssertEqual(
             outcome.migrationRegenModules, ["m1_talent", "m2_high_low"],
-            "下游行是旧血统,切断后照常进迁移豁免(重算非用户过错);M0 本身"
+            "下游行是旧血统，切断后照常进迁移豁免(重算非用户过错);M0 本身"
                 + "无 zh 行不进集(交跨语言探测→409→豁免重生成路径)"
         )
 
@@ -1128,7 +1128,7 @@ final class CachedInterpretationReaderTests: XCTestCase {
         )
         XCTAssertEqual(
             Set(rescued.hits.keys), ["m1_talent", "m2_high_low"],
-            "锚点为当前版本行 → 救援恢复,下游当前语言行照常回填"
+            "锚点为当前版本行 → 救援恢复，下游当前语言行照常回填"
         )
         XCTAssertTrue(
             rescued.migrationRegenModules.isEmpty,

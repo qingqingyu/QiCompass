@@ -352,8 +352,8 @@ final class PurchaseManager {
         var appAccountToken: UUID? = nil
         if let userId {
             guard let parsed = UUID(uuidString: userId) else {
-                AppLogger.app.error("purchase.storekit.appAccountToken_parse_failed userId=\(userId.prefix(8), privacy: .public) — 非 UUID 格式,Keychain 数据损坏")
-                throw PurchaseError.verificationFailed(message: String(localized: "账号凭证异常,请重新登录后再试"))
+                AppLogger.app.error("purchase.storekit.appAccountToken_parse_failed userId=\(userId.prefix(8), privacy: .public) — 非 UUID 格式，Keychain 数据损坏")
+                throw PurchaseError.verificationFailed(message: String(localized: "账号凭证异常，请重新登录后再试"))
             }
             appAccountToken = parsed
         }
@@ -393,7 +393,7 @@ final class PurchaseManager {
                 transaction = tx
             case .unverified(_, let error):
                 AppLogger.app.error("purchase.storekit.verification_failed error=\(String(describing: error), privacy: .public)")
-                throw PurchaseError.verificationFailed(message: String(localized: "购买验证失败,请重试"))
+                throw PurchaseError.verificationFailed(message: String(localized: "购买验证失败，请重试"))
             }
         case .userCancelled:
             AppLogger.app.info("purchase.storekit.user_cancelled product=\(productId, privacy: .public)")
@@ -404,7 +404,7 @@ final class PurchaseManager {
             throw PurchaseError.pending
         @unknown default:
             AppLogger.app.error("purchase.storekit.unknown_result product=\(productId, privacy: .public)")
-            throw PurchaseError.verificationFailed(message: String(localized: "购买未完成,请重试"))
+            throw PurchaseError.verificationFailed(message: String(localized: "购买未完成，请重试"))
         }
 
         // 4. 调后端 redeem(transaction.id 是 UInt64,转 String 对齐后端 schema transaction_id TEXT)
@@ -533,7 +533,7 @@ final class PurchaseManager {
         if let userId {
             guard let parsed = UUID(uuidString: userId) else {
                 AppLogger.app.error("purchase.askpack.appAccountToken_parse_failed userId=\(userId.prefix(8), privacy: .public)")
-                throw PurchaseError.verificationFailed(message: String(localized: "账号凭证异常,请重新登录后再试"))
+                throw PurchaseError.verificationFailed(message: String(localized: "账号凭证异常，请重新登录后再试"))
             }
             appAccountToken = parsed
         }
@@ -568,7 +568,7 @@ final class PurchaseManager {
                 transaction = tx
             case .unverified(_, let error):
                 AppLogger.app.error("purchase.askpack.verification_failed error=\(String(describing: error), privacy: .public)")
-                throw PurchaseError.verificationFailed(message: String(localized: "购买验证失败,请重试"))
+                throw PurchaseError.verificationFailed(message: String(localized: "购买验证失败，请重试"))
             }
         case .userCancelled:
             AppLogger.app.info("purchase.askpack.user_cancelled")
@@ -578,7 +578,7 @@ final class PurchaseManager {
             throw PurchaseError.pending
         @unknown default:
             AppLogger.app.error("purchase.askpack.unknown_result")
-            throw PurchaseError.verificationFailed(message: String(localized: "购买未完成,请重试"))
+            throw PurchaseError.verificationFailed(message: String(localized: "购买未完成，请重试"))
         }
 
         let transactionId = String(transaction.id)
@@ -874,22 +874,22 @@ enum PurchaseError: LocalizedError {
             // 已落 pending 记录:listener/下次启动按原始上下文续接(redeem 幂等
             // 命中 + 重试本地写入);若设备等不到自动续接,重新登录触发
             // synchronizeFromBackend 从后端拉回,文案指向它。
-            return String(localized: "购买已成功,本地记录保存失败,请退出登录后重新登录恢复")
+            return String(localized: "购买已成功，本地记录保存失败，请退出登录后重新登录恢复")
         case .backendRedeemFailed:
             // 后端 redeem 失败:未 finish + 已落 pending 记录,不会丢钱;
             // listener/下次启动自动续接 redeem,重新购买前可先稍候重试
-            return String(localized: "购买验证失败,请稍后重试")
+            return String(localized: "购买验证失败，请稍后重试")
         case .userCancelled:
             // 静默:Apple HIG 建议 IAP 取消不要打扰用户
             return nil
         case .networkFailed:
-            return String(localized: "网络连接失败,请检查网络后重试")
+            return String(localized: "网络连接失败，请检查网络后重试")
         case .verificationFailed(let message):
             return message
         case .productNotFound:
-            return String(localized: "商品暂不可用,请稍后再试")
+            return String(localized: "商品暂不可用，请稍后再试")
         case .pending:
-            return String(localized: "购买请求已提交,等待批准后生效")
+            return String(localized: "购买请求已提交，等待批准后生效")
         }
     }
 

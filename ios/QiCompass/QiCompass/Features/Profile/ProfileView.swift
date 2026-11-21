@@ -922,7 +922,7 @@ struct ProfileView: View {
             CityRecentStore.clear()
             // 用 @AppStorage 写,RootTabView 的 @AppStorage("hasSeenOnboarding") 立即响应触发 onboarding sheet
             hasSeenOnboarding = false
-            AppLogger.app.info("重置命盘完成,hasSeenOnboarding=false,RootTabView 应立即弹 onboarding sheet")
+            AppLogger.app.info("重置命盘完成，hasSeenOnboarding=false，RootTabView 应立即弹 onboarding sheet")
             // 不调 syncManager.push():本地命盘已全删,push 收集到空列表。
             // 后端 sync_push 是 UPSERT-only(无 delete endpoint),空 push 是 no-op,不会清云端。
             // 已知缺口见上方注释,TODO(后端):加 DELETE /api/sync 或 sync_push 改 diff 语义后,
@@ -937,7 +937,7 @@ struct ProfileView: View {
             // 延迟一帧赋值:iOS 17 在同一 runloop 内连续呈现两个 alert(确认 alert dismiss → 错误 alert present)
             // 可能被吞掉。Task { @MainActor in } 让出当前 runloop,经实证可规避此问题。
             // 注意:这不是 SwiftUI 契约保证,而是 iOS 17 实测有效的经验性 workaround。
-            let msg = String(localized: "重置未完成,数据未变更,请重试")
+            let msg = String(localized: "重置未完成，数据未变更，请重试")
             Task { @MainActor in
                 resetError = msg
             }

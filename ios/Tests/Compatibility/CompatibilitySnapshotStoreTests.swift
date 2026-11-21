@@ -65,12 +65,12 @@ final class CompatibilitySnapshotStoreTests: XCTestCase {
     }
 
     func testForbiddenWords_扫描未命中() {
-        let hits = ForbiddenWords.scan("两人性情较合,有所互补")
+        let hits = ForbiddenWords.scan("两人性情较合，有所互补")
         XCTAssertTrue(hits.isEmpty, "无禁词时返回空数组")
     }
 
     func testForbiddenWords_扫描多个去重() {
-        let text = "必成无疑,必定幸福"
+        let text = "必成无疑，必定幸福"
         let hits = ForbiddenWords.scan(text)
         let counts = Dictionary(hits.map { ($0, 1) }, uniquingKeysWith: +)
         XCTAssertEqual(counts["必成"], 1, "去重保序")
@@ -294,11 +294,11 @@ final class CompatibilitySnapshotStoreTests: XCTestCase {
 
         XCTAssertFalse(
             CompatibilitySnapshotStore.isFreshEngineRule(makeSnapshot(ruleVersion: nil)),
-            "nil(2026-10-07 规则版本列引入前的老快照)必须判旧,落穿重算"
+            "nil(2026-10-07 规则版本列引入前的老快照)必须判旧，落穿重算"
         )
         XCTAssertFalse(
             CompatibilitySnapshotStore.isFreshEngineRule(makeSnapshot(ruleVersion: expected - 1)),
-            "version < expected(旧规则算出)必须判旧,落穿重算"
+            "version < expected(旧规则算出)必须判旧，落穿重算"
         )
         XCTAssertTrue(
             CompatibilitySnapshotStore.isFreshEngineRule(makeSnapshot(ruleVersion: expected)),
@@ -306,7 +306,7 @@ final class CompatibilitySnapshotStoreTests: XCTestCase {
         )
         XCTAssertTrue(
             CompatibilitySnapshotStore.isFreshEngineRule(makeSnapshot(ruleVersion: expected + 1)),
-            "version > expected(后端先 bump 的部署窗口期)必须判新鲜,不得每开必重算"
+            "version > expected(后端先 bump 的部署窗口期)必须判新鲜，不得每开必重算"
         )
     }
 

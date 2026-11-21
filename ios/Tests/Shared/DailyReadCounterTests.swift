@@ -152,11 +152,11 @@ final class DailyReadCounterTests: XCTestCase {
 
         XCTAssertEqual(
             counter.remaining(date: today2359), 10,
-            "D 日扣 1 退 1,额度必须归位(修复前退款落 D+1,D 日白扣)"
+            "D 日扣 1 退 1，额度必须归位(修复前退款落 D+1，D 日白扣)"
         )
         XCTAssertEqual(
             counter.remaining(date: tomorrow0001), 9,
-            "D+1 日只含自己的 1 次消耗,不得被 A 的退款多送一次"
+            "D+1 日只含自己的 1 次消耗，不得被 A 的退款多送一次"
         )
     }
 

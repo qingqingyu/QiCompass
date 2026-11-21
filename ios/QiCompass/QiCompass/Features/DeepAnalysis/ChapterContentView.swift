@@ -126,9 +126,9 @@ private struct NodeView: View {
     /// 的键回落 `label(_:)` 短名词),静态 zh 硬编码 key 会永不命中(引导句在
     /// EN 整体静默缺失)。两侧同源后,改译文/加语言都不会漂移。
     private static let sectionGuides: [String: String] = [
-        "innate": String(localized: "用起来不累,反而回血的能力。"),
-        "trained": String(localized: "环境逼出来的本事,好用但有代价。"),
-        "defensive": String(localized: "看着像优点,其实在消耗你。"),
+        "innate": String(localized: "用起来不累，反而回血的能力。"),
+        "trained": String(localized: "环境逼出来的本事，好用但有代价。"),
+        "defensive": String(localized: "看着像优点，其实在消耗你。"),
     ]
 
     /// 引导句 key → 节题本地化值(委托 `ChapterContent.localizedSectionTitle`,

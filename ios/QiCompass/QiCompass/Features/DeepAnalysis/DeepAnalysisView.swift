@@ -69,7 +69,7 @@ struct DeepAnalysisView: View {
                 } else {
                     // 阅读页依赖 .ready;状态机回退时诚实报错不闪空屏
                     ErrorStateView(
-                        error: UserFacingError.generic(message: String(localized: "命盘状态已变化,请返回重进")),
+                        error: UserFacingError.generic(message: String(localized: "命盘状态已变化，请返回重进")),
                         retry: { path = [] }
                     )
                 }
@@ -157,12 +157,12 @@ struct DeepAnalysisView: View {
                 // 用 [weak env] 避免持有 EnvironmentObject 生命周期错乱。
                 newVM.onChartArchived = { [weak env] in
                     guard let env else {
-                        AppLogger.app.error("deepVM.onChartArchived env 已释放,无法消费 pendingReturnTab")
+                        AppLogger.app.error("deepVM.onChartArchived env 已释放，无法消费 pendingReturnTab")
                         return
                     }
                     guard let returnTab = env.pendingReturnTab else {
                         // nil = 用户从深度解析 Tab 直接触发,无切回需求。打 debug 便于排查。
-                        AppLogger.app.debug("deepVM.onChartArchived pendingReturnTab=nil,保持当前 Tab")
+                        AppLogger.app.debug("deepVM.onChartArchived pendingReturnTab=nil，保持当前 Tab")
                         return
                     }
                     env.pendingReturnTab = nil
@@ -203,7 +203,7 @@ struct DeepAnalysisView: View {
         guard let vm else {
             // 不先置 hasResolvedArchive:vm 缺失时保持闸门开启,下次 .task 重试,
             // 避免 UI 永久卡「准备中…」(防御性顺序,理论不可达)
-            AppLogger.app.error("deepView.resolveArchive vm_missing(理论不可达,.task 先建 VM)")
+            AppLogger.app.error("deepView.resolveArchive vm_missing(理论不可达，.task 先建 VM)")
             return
         }
         hasResolvedArchive = true
@@ -229,7 +229,7 @@ struct DeepAnalysisView: View {
                     "op=deepView.resolveArchive snapshot_missing hash=\(snapshotHash, privacy: .public) alias=\(link.alias, privacy: .private)"
                 )
                 archiveLoadFailed = true
-                vm.state = .chartFailed(.generic(message: String(localized: "命盘存档读取失败,请重新排盘")))
+                vm.state = .chartFailed(.generic(message: String(localized: "命盘存档读取失败，请重新排盘")))
                 return
             }
             // 老盘自动重签·加载期入口已删(2026-10-10:「有入参却缺 token」
@@ -243,7 +243,7 @@ struct DeepAnalysisView: View {
                 "op=deepView.resolveArchive failed error=\(String(describing: error), privacy: .public)"
             )
             archiveLoadFailed = true
-            vm.state = .chartFailed(.generic(message: String(localized: "命盘存档读取失败,请重新排盘")))
+            vm.state = .chartFailed(.generic(message: String(localized: "命盘存档读取失败，请重新排盘")))
         }
     }
 

@@ -9,7 +9,7 @@ enum AIIdentityError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .invalidHealthIdentity:
-            return "解读服务暂时不可用,请稍后重试"
+            return "解读服务暂时不可用，请稍后重试"
         }
     }
 }

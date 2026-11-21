@@ -17,7 +17,7 @@ import Foundation
 /// - 进入命盘 success 态不消耗
 /// - 先查本地缓存(命中不扣)→ 未命中 `tryConsume` 全局池 → 后端 `cached=true` 或流程最终未给用户展示成功结果则 `refund`
 /// - AI 失败 → refund(重试不消耗)
-/// - 达上限 → 弹"今日机缘已尽,明日再来" + 倒计时到午夜
+/// - 达上限 → 弹"今日机缘已尽，明日再来" + 倒计时到午夜
 ///
 /// @unchecked Sendable:UserDefaults 单次读写线程安全;读-改-写(tryConsume/refund)
 /// 通过内部 `NSLock` 串行化保证原子,无其他共享可变状态。
@@ -218,7 +218,7 @@ struct InterpretQuotaLedger {
         let moduleKey = module
         guard let date = consumedDate else {
             AppLogger.app.error(
-                "op=interpretQuotaLedger.consume_date_missing module=\(moduleKey, privacy: .public) — 退款跳过(结构不变量违反,人工排查)"
+                "op=interpretQuotaLedger.consume_date_missing module=\(moduleKey, privacy: .public) — 退款跳过(结构不变量违反，人工排查)"
             )
             return
         }

@@ -100,10 +100,10 @@ final class AskPackRedeemTests: XCTestCase {
             if case .backendRedeemFailed = error {
                 // 期望分类
             } else {
-                XCTFail("应为 backendRedeemFailed,实为 \(error)")
+                XCTFail("应为 backendRedeemFailed，实为 \(error)")
             }
         } catch {
-            XCTFail("应为 PurchaseError 系,实为 \(error)")
+            XCTFail("应为 PurchaseError 系，实为 \(error)")
         }
         XCTAssertEqual(wallet.balance, 3, "失败路径不动余额(后端未入账)")
     }
@@ -112,7 +112,7 @@ final class AskPackRedeemTests: XCTestCase {
 
     func testRestoreAskPurchases_Mock_诚实返nothingFound() async throws {
         let outcome = try await purchaseManager.restoreAskPurchases()
-        XCTAssertEqual(outcome, .nothingFound, "Mock 无本地账可查,不碰 StoreKit")
+        XCTAssertEqual(outcome, .nothingFound, "Mock 无本地账可查，不碰 StoreKit")
         XCTAssertTrue(apiClient.recordedAskRedeemRequests.isEmpty, "不发起任何 redeem")
     }
 

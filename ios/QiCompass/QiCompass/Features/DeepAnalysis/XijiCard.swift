@@ -4,7 +4,7 @@ import SwiftUI
 ///
 /// 正常盘:喜用(jade)/忌神(cinnabar)chips + 旺衰 + 调候触发标记 + 算法说明。
 /// 从格(special_pattern):标题改"命局呈现从格特征",不显示喜忌 chips,
-/// 显示"喜忌结论留空,详见命书"(LLM 文本由后端追加降级段)。
+/// 显示"喜忌结论留空，详见命书"(LLM 文本由后端追加降级段)。
 struct XijiCard: View {
     let response: BaziResponse
 
@@ -17,7 +17,7 @@ struct XijiCard: View {
         // (title + trailing 小注);这里只留内容行。从格降级文案保留。
         VStack(alignment: .leading, spacing: 10) {
             if isSpecialPattern {
-                Text("喜忌结论留空,详见命书。")
+                Text("喜忌结论留空，详见命书。")
                     .font(.caption)
                     .foregroundStyle(BaziTheme.inkMuted)
                 if let hint = response.patternHint {

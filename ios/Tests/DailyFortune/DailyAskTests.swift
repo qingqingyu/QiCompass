@@ -32,7 +32,7 @@ final class DailyAskTests: XCTestCase {
     func testComposerVisible_阈值边界严格小于() {
         XCTAssertFalse(
             DailyAskPresentation.composerVisible(remainingToBottom: 64, isChatPresented: false),
-            "阈值 64 本身不可见(HTML remaining < 64 严格小于,px≈pt 1:1)"
+            "阈值 64 本身不可见(HTML remaining < 64 严格小于，px≈pt 1:1)"
         )
         XCTAssertFalse(
             DailyAskPresentation.composerVisible(remainingToBottom: 64.1, isChatPresented: false),
@@ -43,7 +43,7 @@ final class DailyAskTests: XCTestCase {
     func testComposerVisible_内容不满屏算在底部() {
         XCTAssertTrue(
             DailyAskPresentation.composerVisible(remainingToBottom: -50, isChatPresented: false),
-            "剩余为负(视口比内容高)= 已在底部 → 可见,不永不出现"
+            "剩余为负(视口比内容高)= 已在底部 → 可见，不永不出现"
         )
     }
 
@@ -92,7 +92,7 @@ final class DailyAskTests: XCTestCase {
         XCTAssertEqual(
             model.offers,
             ["今天适合去谈判吗？", "单干还是搭伙？", "和同伴分利注意什么？"],
-            "v6 ask_suggestions 存在且非空 → 原样三条(窄条化后候选只在聊天页,不再截前二上条)"
+            "v6 ask_suggestions 存在且非空 → 原样三条(窄条化后候选只在聊天页，不再截前二上条)"
         )
     }
 
@@ -119,7 +119,7 @@ final class DailyAskTests: XCTestCase {
         // zh 基线:开场白 = 已看好 + 十神 + 宜忌词条前二(与 HeroYiJiColumns 同源)
         XCTAssertEqual(
             model.messages.first?.text,
-            "这里的盘我看好了:比肩当值,宜独立、立界,忌争执、攀比。挑一条问,或直接说你的事。",
+            "这里的盘我看好了:比肩当值，宜独立、立界，忌争执、攀比。挑一条问，或直接说你的事。",
             "开场白逐字锁定(zh;词条 = HeroYiJiColumns zh 表比肩前二)"
         )
         XCTAssertEqual(model.messages.first?.role, .ai, "首条恒为 AI 开场白")
@@ -127,7 +127,7 @@ final class DailyAskTests: XCTestCase {
         XCTAssertEqual(
             model.composerLine,
             "比肩当值 · 有事来问",
-            "问事窄条短引导(zh 逐字,今日问事-窄条.html 2026-11-03 定稿)"
+            "问事窄条短引导(zh 逐字，今日问事-窄条.html 2026-11-03 定稿)"
         )
         XCTAssertEqual(
             model.contextLine,
@@ -237,7 +237,7 @@ final class DailyAskTests: XCTestCase {
         model.draft = "第二条草稿"
         model.sendDraft()
         XCTAssertEqual(model.messages.count, 2, "在飞期间新发送一律忽略(HTML busy 守卫)")
-        XCTAssertEqual(model.draft, "第二条草稿", "被拦的草稿保留,不误清")
+        XCTAssertEqual(model.draft, "第二条草稿", "被拦的草稿保留，不误清")
 
         await waitUntilAnswered(model)
     }
@@ -272,7 +272,7 @@ final class DailyAskTests: XCTestCase {
         XCTAssertEqual(
             model.messages.last?.text,
             L10n.DailyFortune.askReplyFailed,
-            "失败走可见失败气泡(原文进日志;断言对 L10n 值,语言无关)"
+            "失败走可见失败气泡(原文进日志;断言对 L10n 值，语言无关)"
         )
     }
 
@@ -391,15 +391,15 @@ final class DailyAskTests: XCTestCase {
 
         // 候选直发:不出网、消息不入流、置卡片态
         model.sendOffer("今天适合去谈判吗？")
-        XCTAssertEqual(answerer.callCount, 0, "本地 0 余额短路,不出网(省一次必 402 往返)")
-        XCTAssertEqual(model.messages.count, 1, "问题未被回答,不入消息流")
+        XCTAssertEqual(answerer.callCount, 0, "本地 0 余额短路，不出网(省一次必 402 往返)")
+        XCTAssertEqual(model.messages.count, 1, "问题未被回答，不入消息流")
         XCTAssertTrue(model.creditsExhausted)
 
         // 草稿:被闸拦时文字保留(买完可直接再发)
         model.draft = "明天呢？"
         model.sendDraft()
         XCTAssertEqual(answerer.callCount, 0)
-        XCTAssertEqual(model.draft, "明天呢？", "短路被拦草稿保留,不误清")
+        XCTAssertEqual(model.draft, "明天呢？", "短路被拦草稿保留，不误清")
 
         // 余额回正 → 卡片复位,发送恢复
         wallet.apply(3)
@@ -408,7 +408,7 @@ final class DailyAskTests: XCTestCase {
         model.sendDraft()
         await waitUntilAnswered(model)
         XCTAssertEqual(answerer.callCount, 1, "复位后正常出网")
-        XCTAssertEqual(model.messages.count, 3, "开场白 + 草稿那条问题 + AI 回答,正常入流作答")
+        XCTAssertEqual(model.messages.count, 3, "开场白 + 草稿那条问题 + AI 回答，正常入流作答")
     }
 
     @MainActor
@@ -450,9 +450,9 @@ final class DailyAskTests: XCTestCase {
     }
 
     func test解读正文_离线v3散文透传() {
-        let prose = "二〇二六年旧版散文快照,一段完整正文。"
+        let prose = "二〇二六年旧版散文快照，一段完整正文。"
         let text = DailyAskContext.interpretationText(for: .offlineLegacy(text: prose, languageNote: nil), relation: "比肩")
-        XCTAssertEqual(text, prose, "v3 散文没有五段可拆,原文即屏上正文")
+        XCTAssertEqual(text, prose, "v3 散文没有五段可拆，原文即屏上正文")
     }
 
     func test解读正文_离线畸形v4快照_回落引擎模板与屏上同路() {
@@ -464,7 +464,7 @@ final class DailyAskTests: XCTestCase {
         XCTAssertEqual(
             text,
             joined(EngineReadingTemplates.insight(for: "比肩")),
-            "畸形 v4 离线快照 → 引擎模板(与屏上 degradedBody 同款),非原文透传"
+            "畸形 v4 离线快照 → 引擎模板(与屏上 degradedBody 同款)，非原文透传"
         )
     }
 
@@ -585,7 +585,7 @@ final class DailyAskTests: XCTestCase {
         )
         XCTAssertTrue(model.isReadOnly, "记录日早于今日 = 只读")
         XCTAssertEqual(model.displayTitle, "昨天的问")
-        XCTAssertEqual(model.contextLine, "乙丑日 · 偏财", "副题用记录定版值,不拿今天现算")
+        XCTAssertEqual(model.contextLine, "乙丑日 · 偏财", "副题用记录定版值，不拿今天现算")
 
         // 只读闸在余额闸之前:不出网、不入流、草稿保留、不置次数尽卡
         model.sendOffer("今天接着问？")
@@ -655,7 +655,7 @@ final class DailyAskTests: XCTestCase {
             persistence: makePersistence(context: context, record: windowLine, dateKey: pageTomorrow),
             todayKeyProvider: { pageTomorrow }
         )
-        XCTAssertFalse(nextDay.isReadOnly, "墙钟追平后 = 今日线,可聊")
+        XCTAssertFalse(nextDay.isReadOnly, "墙钟追平后 = 今日线，可聊")
 
         // store 侧同口径:超前日线归「今天」组、不压只读签;canStartNewThread
         // 在页面超前时为真(新开一问照常可点)
@@ -705,7 +705,7 @@ final class DailyAskTests: XCTestCase {
         XCTAssertEqual(
             String(data: corrupt.messagesData, encoding: .utf8),
             "not-json",
-            "拒追加,残骸原样保留"
+            "拒追加，残骸原样保留"
         )
     }
 
@@ -735,7 +735,7 @@ final class DailyAskTests: XCTestCase {
         )
         reopened.sendOffer("第二问？")
         await waitUntilAnswered(reopened)
-        XCTAssertEqual(record.turns.map(\.role), ["ai", "user", "ai", "user", "ai"], "既有线只追加,顺序不乱")
+        XCTAssertEqual(record.turns.map(\.role), ["ai", "user", "ai", "user", "ai"], "既有线只追加，顺序不乱")
 
         // 失败气泡入库:重开回看可见当时那条失败线
         let failing = DailyAskModel.make(

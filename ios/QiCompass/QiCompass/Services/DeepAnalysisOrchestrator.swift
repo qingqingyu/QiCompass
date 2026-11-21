@@ -319,7 +319,7 @@ final class DeepAnalysisOrchestrator {
         do {
             guard let found = try chartStore.get(contentHash: contentHash) else {
                 AppLogger.persistence.warning(
-                    "op=deepOrchestrator.refreshChartContextTokens snapshot_missing hash=\(contentHash, privacy: .public) — 理论不可达(response 在档必有快照),维持既有 403 出口"
+                    "op=deepOrchestrator.refreshChartContextTokens snapshot_missing hash=\(contentHash, privacy: .public) — 理论不可达(response 在档必有快照)，维持既有 403 出口"
                 )
                 return nil
             }
@@ -649,7 +649,7 @@ final class DeepAnalysisOrchestrator {
             let missing = moduleID.requiredChainFields.filter { chainFields[$0] == nil }
             if !missing.isEmpty {
                 throw DeepAnalysisError.invalidV1ModuleInput(
-                    "module=\(module) 缺链式字段 \(missing.joined(separator: ","))(应随 chainFields 传入,值来自上游模块输出)"
+                    "module=\(module) 缺链式字段 \(missing.joined(separator: ","))(应随 chainFields 传入，值来自上游模块输出)"
                 )
             }
         }
@@ -713,11 +713,11 @@ enum DeepAnalysisError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .dailyLimitReached:
-            return "今日机缘已尽,明日再来"
+            return "今日机缘已尽，明日再来"
         case .invalidV1ModuleInput:
-            return "解读生成失败,请重试"
+            return "解读生成失败，请重试"
         case .translatedContentInvalid:
-            return "翻译失败,请重试"
+            return "翻译失败，请重试"
         }
     }
 }

@@ -198,7 +198,7 @@ final class AddHourFlowTests: XCTestCase {
         XCTAssertNotNil(try chartStore.get(contentHash: old.contentHash), "老盘快照必须保留(归档可查)")
         XCTAssertNotNil(try chartStore.get(contentHash: newResponse.contentHash))
         XCTAssertNil(try linkStore.findAlias(snapshotHash: old.contentHash),
-                     "老盘 link 必须删除(替换语义,防名册残留旧版本盘)")
+                     "老盘 link 必须删除(替换语义，防名册残留旧版本盘)")
         XCTAssertEqual(try linkStore.list(userId: UserIdentity.userLocalId).count, 1,
                        "补时辰后单人名册恒一条 link(新盘)")
     }
@@ -211,7 +211,7 @@ final class AddHourFlowTests: XCTestCase {
         let newResponse = try await XCTUnwrapAsync(await vm.submit())
 
         XCTAssertEqual(try linkStore.findAlias(snapshotHash: newResponse.contentHash), "妈妈",
-                       "新盘 link 继承原 alias(编辑场景隔离,名字不丢)")
+                       "新盘 link 继承原 alias(编辑场景隔离，名字不丢)")
     }
 
     func testSubmit_TempChartWithoutLink_CreatesNoLink() async throws {
@@ -285,7 +285,7 @@ final class AddHourFlowTests: XCTestCase {
 
         XCTAssertNil(result, "hash 未变 → submit 必须失败返回 nil")
         guard case .failed(let message) = vm.phase else {
-            return XCTFail("hash 未变必须显式 failed,实际: \(vm.phase)")
+            return XCTFail("hash 未变必须显式 failed，实际: \(vm.phase)")
         }
         XCTAssertFalse(message.isEmpty, "失败文案必须是人话(非空)")
     }
@@ -349,7 +349,7 @@ final class AddHourFlowTests: XCTestCase {
 
     func testMake_ThrowsWhenTargetSnapshotMissing() {
         XCTAssertThrowsError(try makeVM(hash: "no_such_hash")) { error in
-            XCTAssertTrue(error is AddHourError, "目标盘缺失必须显式抛错,实际: \(error)")
+            XCTAssertTrue(error is AddHourError, "目标盘缺失必须显式抛错，实际: \(error)")
         }
     }
 
@@ -373,7 +373,7 @@ final class AddHourFlowTests: XCTestCase {
         XCTAssertEqual(persisted?.entries,
                        [.archived(snapshotHash: "other_hash"),
                         .archived(snapshotHash: newResponse.contentHash)],
-                       "他人盘补时辰换新盘 → 名单 hash 原地换新(该人留在名单,对级关系自然重算)")
+                       "他人盘补时辰换新盘 → 名单 hash 原地换新(该人留在名单，对级关系自然重算)")
         XCTAssertEqual(persisted?.selectedEntryID, "archived:\(newResponse.contentHash)",
                        "选中 id 内嵌的 archived:<hash> 同步换新")
         XCTAssertEqual(CompatibilityRosterPersistence.loadPersonAHash(), "a_hash", "无关 A 盘不动")
@@ -419,7 +419,7 @@ final class AddHourFlowTests: XCTestCase {
         )
         XCTAssertNotNil(
             DeepUserInputPersistence.loadM4(contentHash: old.contentHash),
-            "老 key 保留(可回溯语义,与 remapHash 契约一致)"
+            "老 key 保留(可回溯语义，与 remapHash 契约一致)"
         )
     }
 
@@ -691,7 +691,7 @@ final class AddHourFlowTests: XCTestCase {
         let persisted = try chartStore.decodeResponse(from: snapshot)
         XCTAssertEqual(persisted.contextTokens?["payload"], "np")
         XCTAssertEqual(persisted.hourUnknownAccepted, true,
-                       "S10 静默偏好随重签覆盖保留(后端不回显,须显式带)")
+                       "S10 静默偏好随重签覆盖保留(后端不回显，须显式带)")
         XCTAssertEqual(persisted.archivedBirthDatetime, "1990-03-15T14:30:00",
                        "重签落档后原料自续(后续失效期重签仍可用)")
     }
@@ -711,7 +711,7 @@ final class AddHourFlowTests: XCTestCase {
         apiClient.calculateResponder = { _ in stranger }
         let refreshed = try await chartStore.refreshContextTokens(
             snapshot: snapshot, apiClient: apiClient)
-        XCTAssertNil(refreshed, "hash 不一致 → nil,不张冠李戴")
+        XCTAssertNil(refreshed, "hash 不一致 → nil，不张冠李戴")
         let persisted = try chartStore.decodeResponse(from: snapshot)
         XCTAssertNil(persisted.contextTokens, "存档不得被「另一张盘」的 token 覆盖")
         XCTAssertEqual(apiClient.recordedCalculateRequests.count, 1)
@@ -732,7 +732,7 @@ final class AddHourFlowTests: XCTestCase {
         }
         let failed = try await chartStore.refreshContextTokens(
             snapshot: snapshot, apiClient: apiClient)
-        XCTAssertNil(failed, "排盘失败 → nil,不是旧 response(调用方判 nil 走既有出口)")
+        XCTAssertNil(failed, "排盘失败 → nil，不是旧 response(调用方判 nil 走既有出口)")
 
         var fresh = Self.knownResponse(contentHash: "resign_refresh")
         fresh.contextTokens = ["v1": "again"]
@@ -791,7 +791,7 @@ final class AddHourFlowTests: XCTestCase {
             snapshot: snapshot, apiClient: apiClient)
         XCTAssertEqual(
             apiClient.recordedCalculateRequests.count, 1,
-            "注定失败(hash 不一致)本会话记忆,不重发"
+            "注定失败(hash 不一致)本会话记忆，不重发"
         )
     }
 
@@ -825,11 +825,11 @@ final class AddHourFlowTests: XCTestCase {
             snapshot: snapshot, apiClient: apiClient)
         XCTAssertEqual(
             ok?.contextTokens?["v1"], "resigned-v1",
-            "落新档后 hopeless 判定必须作废,本会话自动重签恢复可用"
+            "落新档后 hopeless 判定必须作废，本会话自动重签恢复可用"
         )
         XCTAssertEqual(
             apiClient.recordedCalculateRequests.count, 2,
-            "判负作废后重签必须真发排盘(修复前被 hopeless 短路,停在 1)"
+            "判负作废后重签必须真发排盘(修复前被 hopeless 短路，停在 1)"
         )
     }
 

@@ -155,7 +155,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
 
         let laTZ = try XCTUnwrap(TimeZone(identifier: "America/Los_Angeles"))
         XCTAssertEqual(request.birthDatetime, Self.expectedWall(birth, timeZone: laTZ),
-                       "birthDatetime 必须是洛杉矶裸钟面(WYSIWYG),非设备时区钟面")
+                       "birthDatetime 必须是洛杉矶裸钟面(WYSIWYG)，非设备时区钟面")
         XCTAssertEqual(request.timezone, "America/Los_Angeles")
         XCTAssertEqual(request.longitude, Self.losAngeles.longitude, accuracy: 1e-9)
         XCTAssertEqual(request.latitude ?? 0, Self.losAngeles.latitude, accuracy: 1e-9)
@@ -242,7 +242,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
                       "未选择出生日期 → 必须拦截: \(errors)")
         XCTAssertTrue(errors.contains("请选择出生城市"),
                       "日期与城市错误须并列展示: \(errors)")
-        XCTAssertEqual(errors.count, 2, "未选日期 + 未选城市 = 恰两条,不混入其他错误: \(errors)")
+        XCTAssertEqual(errors.count, 2, "未选日期 + 未选城市 = 恰两条，不混入其他错误: \(errors)")
     }
 
     func testValidateRequiresGenderWhenUnselected() {
@@ -264,7 +264,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         vm.selectedPlace = .city(Self.losAngeles)
         vm.calculate()
         guard case .formInvalid(let errors) = vm.state else {
-            return XCTFail("未选日期提交必须停在 formInvalid,实际: \(vm.state)")
+            return XCTFail("未选日期提交必须停在 formInvalid，实际: \(vm.state)")
         }
         XCTAssertTrue(errors.contains(L10n.BirthForm.errorDateRequired), errors.description)
         XCTAssertNil(vm.lastRequest, "校验失败不得构造/发出请求")
@@ -297,7 +297,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
 
         vm.calculate()
         guard case .formInvalid(let calcErrors) = vm.state else {
-            return XCTFail("时刻未选提交必须停在 formInvalid,实际: \(vm.state)")
+            return XCTFail("时刻未选提交必须停在 formInvalid，实际: \(vm.state)")
         }
         XCTAssertTrue(calcErrors.contains(L10n.BirthForm.errorTimeRequired), calcErrors.description)
         XCTAssertNil(vm.lastRequest, "校验失败不得构造/发出请求")
@@ -370,7 +370,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         let result = await addHourVM.submit()
         XCTAssertNil(result, "时刻未选 → submit 必须失败返回 nil")
         guard case .failed(let message) = addHourVM.phase else {
-            return XCTFail("时刻未选必须停 .failed,实际: \(addHourVM.phase)")
+            return XCTFail("时刻未选必须停 .failed，实际: \(addHourVM.phase)")
         }
         XCTAssertEqual(message, L10n.BirthForm.errorTimeRequired, "拦截文案复用时刻必选错误")
 
@@ -405,7 +405,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
     }
 
     func testWallBirthDateStringNilWhenUnselected() {
-        XCTAssertNil(vm.wallBirthDateString, "未选择日期 → nil(调用方展示占位,不伪造默认日期)")
+        XCTAssertNil(vm.wallBirthDateString, "未选择日期 → nil(调用方展示占位，不伪造默认日期)")
         XCTAssertFalse(vm.wallBirthTimeString.isEmpty, "时刻串始终有默认值(默认锚点)")
     }
 
@@ -420,7 +420,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
     func testHourKnownDefaultsToOldPath() throws {
         // 默认 = 老路径:hourKnown true、lateNight 不传(既有盘行为逐字段不变)
         filledForm()
-        XCTAssertTrue(vm.hourKnown, "默认必须 true(老路径),否则存量表单语义漂移")
+        XCTAssertTrue(vm.hourKnown, "默认必须 true(老路径)，否则存量表单语义漂移")
         XCTAssertNil(vm.lateNightChoice)
         let request = try vm.buildRequest()
         XCTAssertTrue(request.hourKnown)
@@ -433,7 +433,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         vm.setHourKnown(false)
         vm.calculate()
         guard case .formInvalid(let errors) = vm.state else {
-            return XCTFail("三态未选提交必须停在 formInvalid,实际: \(vm.state)")
+            return XCTFail("三态未选提交必须停在 formInvalid，实际: \(vm.state)")
         }
         XCTAssertTrue(errors.contains(L10n.BirthForm.errorLateNightRequired), errors.description)
         XCTAssertNil(vm.lastRequest, "三态未选不得构造/发出请求")
@@ -449,7 +449,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         XCTAssertFalse(request.hourKnown)
         XCTAssertEqual(request.lateNight, false)
         XCTAssertTrue(request.birthDatetime.hasSuffix("T12:00:00"),
-                      "hour_known=false 时时辰部分必须显式 12:00(后端归一同值),实际: \(request.birthDatetime)")
+                      "hour_known=false 时时辰部分必须显式 12:00(后端归一同值)，实际: \(request.birthDatetime)")
     }
 
     func testHourUnknownChoiceYesSendsTrue() throws {
@@ -472,7 +472,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         let json = try APICoder.encoder.encode(request)
         let jsonStr = String(data: json, encoding: .utf8) ?? ""
         XCTAssertFalse(jsonStr.contains("late_night"),
-                       "不确定 → late_night key 必须整体省略,不是显式 null: \(jsonStr)")
+                       "不确定 → late_night key 必须整体省略，不是显式 null: \(jsonStr)")
         XCTAssertTrue(jsonStr.contains("\"hour_known\":false"), "hour_known 恒显式传: \(jsonStr)")
     }
 
@@ -489,7 +489,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         XCTAssertTrue(request.hourKnown)
         XCTAssertNil(request.lateNight)
         XCTAssertTrue(request.birthDatetime.hasSuffix("T10:00:00"),
-                      "恢复已知路径后时分必须取 birthTime(10:00),实际: \(request.birthDatetime)")
+                      "恢复已知路径后时分必须取 birthTime(10:00)，实际: \(request.birthDatetime)")
     }
 
     func testHourUnknownFutureCheckUsesDateGranularity() {
@@ -838,7 +838,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
             meta: meta, hourKnown: false
         )
         XCTAssertThrowsError(try PromptContextBuilder.buildV1ChartJSON(response: response)) { error in
-            XCTAssertTrue(error is PromptContextError, "显式错误类型,实际: \(error)")
+            XCTAssertTrue(error is PromptContextError, "显式错误类型，实际: \(error)")
         }
     }
 
@@ -1051,7 +1051,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         XCTAssertEqual(ZodiacRevealMode.resolve(zodiac: ""), .yearAmbiguous,
                        "OnboardingView 对 null 的传参是空串 → 必须降级")
         XCTAssertEqual(ZodiacRevealMode.resolve(zodiac: "Unicorn"), .yearAmbiguous,
-                       "表外生肖名 → 降级不猜,绝不进 full 触发 fatalError")
+                       "表外生肖名 → 降级不猜，绝不进 full 触发 fatalError")
     }
 
     func testS08AvatarModeThreeStates() {
@@ -1062,10 +1062,10 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         XCTAssertEqual(ZodiacAvatarMode.resolve(hasChart: false, zodiac: "Rat"), .hidden,
                        "无命盘 → 不因生肖字段残值复活头像(头像位留空)")
         XCTAssertEqual(ZodiacAvatarMode.resolve(hasChart: true, zodiac: nil), .inkDot,
-                       "立春歧义 → 墨点(不猜属相,命主卡不再整体隐藏)")
+                       "立春歧义 → 墨点(不猜属相，命主卡不再整体隐藏)")
         XCTAssertEqual(ZodiacAvatarMode.resolve(hasChart: true, zodiac: ""), .inkDot)
         XCTAssertEqual(ZodiacAvatarMode.resolve(hasChart: true, zodiac: "Unicorn"), .inkDot,
-                       "表外名 → 墨点,不拼 asset 名猜图")
+                       "表外名 → 墨点，不拼 asset 名猜图")
         XCTAssertEqual(ZodiacAvatarMode.resolve(hasChart: true, zodiac: "Rat"),
                        .zodiac("Zodiac_Rat"), "正常态 asset 名拼接(与 ZodiacRevealView 同族)")
     }
@@ -1136,7 +1136,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
             "day": Self.pillarJSON, "hour": Self.pillarJSON,
         ], includeZodiacKeys: false)
         XCTAssertThrowsError(try APICoder.decoder.decode(BaziResponse.self, from: data)) { error in
-            XCTAssertTrue(error is DecodingError, "兜底不可达 = 显式 DecodingError,实际: \(error)")
+            XCTAssertTrue(error is DecodingError, "兜底不可达 = 显式 DecodingError，实际: \(error)")
         }
     }
 
@@ -1205,7 +1205,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         vm.calculate()
 
         let fetching = await waitUntil { self.vm.moduleStates[.m0] == .fetching }
-        XCTAssertTrue(fetching, "自动起链后 M0 应进入 fetching 窗口,实际:\(String(describing: vm.moduleStates[.m0]))")
+        XCTAssertTrue(fetching, "自动起链后 M0 应进入 fetching 窗口，实际:\(String(describing: vm.moduleStates[.m0]))")
 
         vm.generateV1AllModules()
 
@@ -1224,7 +1224,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         let finished = await waitUntil(timeout: 12) {
             !self.vm.isChainRunning && self.vm.moduleStates[.m1]?.isOk == true
         }
-        XCTAssertTrue(finished, "链完成后标志必须复位,实际 isChainRunning=\(vm.isChainRunning) m1=\(String(describing: vm.moduleStates[.m1]))")
+        XCTAssertTrue(finished, "链完成后标志必须复位，实际 isChainRunning=\(vm.isChainRunning) m1=\(String(describing: vm.moduleStates[.m1]))")
     }
 
     // MARK: - 排盘等待页可收起(2026-09-08:收起回表单 + 横幅,排盘后台继续)
@@ -1239,7 +1239,7 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
             if case .ready = self.vm.state { return true }
             return false
         }
-        XCTAssertTrue(settled, "排盘必须成功落 ready(mock 链路),实际: \(vm.state)")
+        XCTAssertTrue(settled, "排盘必须成功落 ready(mock 链路)，实际: \(vm.state)")
         XCTAssertFalse(vm.isCalculating, "落 ready 后排盘中判定必须翻 false")
     }
 
@@ -1255,12 +1255,12 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         XCTAssertFalse(vm.isCalculating)
 
         try await Task.sleep(nanoseconds: 1_200_000_000)
-        XCTAssertEqual(vm.state, .empty, "迟到结果不得覆盖取消后的 .empty,实际: \(vm.state)")
+        XCTAssertEqual(vm.state, .empty, "迟到结果不得覆盖取消后的 .empty，实际: \(vm.state)")
 
         // 取消守卫(orchestrator checkCancellation):用户取消 → 不落档。
         // 本用例容器为新建,取消路径存了任何 ChartSnapshot = 守卫失效。
         let archived = try container.mainContext.fetch(FetchDescriptor<ChartSnapshot>())
-        XCTAssertTrue(archived.isEmpty, "取消排盘不得落档,实际存了 \(archived.count) 张")
+        XCTAssertTrue(archived.isEmpty, "取消排盘不得落档，实际存了 \(archived.count) 张")
     }
 
     func testCancelCalculationPreservesFormInput() async throws {
@@ -1289,13 +1289,13 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
             if case .ready = self.vm.state { return true }
             return false
         }
-        XCTAssertTrue(settled, "取消后再提交必须成功落 ready,实际: \(vm.state)")
+        XCTAssertTrue(settled, "取消后再提交必须成功落 ready，实际: \(vm.state)")
 
         // 等取消的旧任务彻底收尾(mock sleep 吞取消后会迟到苏醒)再数档,
         // 避免旧任务在断言窗口外落档造成 flaky 计数。
         try await Task.sleep(nanoseconds: 1_200_000_000)
         let archived = try container.mainContext.fetch(FetchDescriptor<ChartSnapshot>())
-        XCTAssertEqual(archived.count, 1, "取消的不落档、再发的恰落 1 张,实际 \(archived.count) 张")
+        XCTAssertEqual(archived.count, 1, "取消的不落档、再发的恰落 1 张，实际 \(archived.count) 张")
     }
 
     func testCancelCalculationNoopWhenNotCalculating() {

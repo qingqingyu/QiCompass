@@ -247,7 +247,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.tempBirthDate = Date(timeIntervalSince1970: 700_000_000)
         vm.tempPlace = .city(Self.makePlace(displayName: "上海", longitude: 121.4737, gid: 1796236))
         try? vm.addTempToRoster()
-        XCTAssertEqual(vm.roster.filter(\.isTemp).count, 2, "S04 改造:多条独立 temp,不再替换")
+        XCTAssertEqual(vm.roster.filter(\.isTemp).count, 2, "S04 改造:多条独立 temp，不再替换")
     }
 
     func testAddTempToRoster_相同临时人_去重拒绝() {
@@ -356,7 +356,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertNil(vm.tempGender, "默认草稿无性别(去默认 male)")
         XCTAssertEqual(vm.tempBirthTime, DeepAnalysisViewModel.defaultBirthTimeAnchor,
                        "时刻独立绑定恒有锚点(镜像深度表单 S03)")
-        XCTAssertNil(vm.tempPlace, "默认草稿无地点(S04 砍默认,必选)")
+        XCTAssertNil(vm.tempPlace, "默认草稿无地点(S04 砍默认，必选)")
         XCTAssertEqual(vm.tempAlias, "")  // alias 永远清空(不持久化)
     }
 
@@ -381,7 +381,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
         XCTAssertEqual(vm.tempAlias, "相亲对象甲")
         XCTAssertEqual(vm.tempGender, "male")
-        XCTAssertEqual(vm.tempPlace?.displayLabel, "北京, 中国")
+        XCTAssertEqual(vm.tempPlace?.displayLabel, "北京， 中国")
         // 钟面回填(2026-09-19 拆双字段):两绑定同一 instant 双写;回填值 =
         // entry input 钟面串按出生地时区反解析(与 tempWallTimeString 互逆,不漂移)。
         // 注意合成口径:时分取锚点钟面、秒归 0 ≠ 添加时塞进表单的裸 instant
@@ -411,7 +411,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             Self.wallClockParse(input.birthDatetime, timeZone: XCTUnwrap(TimeZone(identifier: input.timezone)))
         )
         XCTAssertEqual(vm.tempBirthDate, expected,
-                       "出生地时区互逆解析,round-trip 不漂移")
+                       "出生地时区互逆解析，round-trip 不漂移")
     }
 
     func testBeginEditTempEntry_非tempEntry_返回false表单不动() {
@@ -425,7 +425,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
                        "存档 entry 不可进修改态")
         XCTAssertEqual(vm.tempAlias, "草稿", "失败路径表单不动")
         XCTAssertEqual(vm.tempGender, "female")
-        XCTAssertEqual(vm.tempPlace?.displayLabel, "北京, 中国")
+        XCTAssertEqual(vm.tempPlace?.displayLabel, "北京， 中国")
     }
 
     func testBeginEditTempEntry_钟面串损坏_返回false表单不动() {
@@ -486,9 +486,9 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.tempAlias = "甲改"
         try vm.updateTempEntry(original)
 
-        XCTAssertEqual(vm.roster.count, 2, "原位替换,不新增条目")
+        XCTAssertEqual(vm.roster.count, 2, "原位替换，不新增条目")
         XCTAssertFalse(vm.roster.contains { $0.id == original.id }, "旧 id 不复存在(输入变了)")
-        XCTAssertEqual(vm.roster[0].tempAlias, "甲改", "原位替换保位置(仍在 index 0,不挪队尾)")
+        XCTAssertEqual(vm.roster[0].tempAlias, "甲改", "原位替换保位置(仍在 index 0，不挪队尾)")
         XCTAssertEqual(vm.roster[1].tempAlias, "乙", "其他成员不受影响")
         let updated = vm.roster[0]
         XCTAssertTrue(vm.selectedEntryIds.contains(updated.id), "勾选态随迁(改字不请出本次合盘)")
@@ -578,7 +578,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         try vm.updateTempEntry(entry)
 
         XCTAssertEqual(CompatibilityRosterPersistence.loadTempDraft(), draftAfterAdd,
-                       "修改 ≠ 添加习惯,不写 tempDraft 持久化")
+                       "修改 ≠ 添加习惯，不写 tempDraft 持久化")
     }
 
     // MARK: - tempDraft 持久化(下次添加默认值用上次填过的)
@@ -649,7 +649,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         let loaded = CompatibilityRosterPersistence.loadTempDraft()
         XCTAssertEqual(loaded.birthDate, Date(timeIntervalSince1970: 700_000_000))
         XCTAssertEqual(loaded.gender, "female")
-        XCTAssertEqual(loaded.place?.displayLabel, "上海, 中国")
+        XCTAssertEqual(loaded.place?.displayLabel, "上海， 中国")
     }
 
     @MainActor
@@ -673,8 +673,8 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertEqual(newVM.tempBirthDate, Date(timeIntervalSince1970: 800_000_000))
         XCTAssertEqual(newVM.tempBirthTime, Date(timeIntervalSince1970: 800_123))
         XCTAssertEqual(newVM.tempGender, "female")
-        XCTAssertEqual(newVM.tempPlace?.displayLabel, "广州, 中国")
-        XCTAssertEqual(newVM.tempAlias, "", "alias 不持久化,VM init 后默认空")
+        XCTAssertEqual(newVM.tempPlace?.displayLabel, "广州， 中国")
+        XCTAssertEqual(newVM.tempAlias, "", "alias 不持久化，VM init 后默认空")
     }
 
     @MainActor
@@ -697,7 +697,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         )
         XCTAssertEqual(newVM.tempBirthDate, Date(timeIntervalSince1970: 700_000_000))
         XCTAssertEqual(newVM.tempBirthTime, Date(timeIntervalSince1970: 700_000_000),
-                       "旧草稿无 birthTime → 承接 birthDate 同一 instant(保住上次时分),不是锚点")
+                       "旧草稿无 birthTime → 承接 birthDate 同一 instant(保住上次时分)，不是锚点")
     }
 
     @MainActor
@@ -731,7 +731,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         // reset 后字段应回填本次保存的草稿值(不是硬编码默认)
         XCTAssertEqual(vm.tempBirthDate, Date(timeIntervalSince1970: 750_000_000))
         XCTAssertEqual(vm.tempGender, "female")
-        XCTAssertEqual(vm.tempPlace?.displayLabel, "深圳, 中国")
+        XCTAssertEqual(vm.tempPlace?.displayLabel, "深圳， 中国")
         XCTAssertEqual(vm.tempAlias, "", "alias 永远清空")
     }
 
@@ -748,7 +748,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             resolvedHash: nil,
             place: .custom(longitude: 116.4074, timezone: "Asia/Shanghai")
         )
-        XCTAssertNil(entry.resolvedContentHash, "首次输入 resolvedHash 必须为 nil,等计算后回填")
+        XCTAssertNil(entry.resolvedContentHash, "首次输入 resolvedHash 必须为 nil，等计算后回填")
         XCTAssertEqual(entry.tempAlias, nil)
         XCTAssertNotNil(entry.tempInput)
     }
@@ -789,7 +789,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertEqual(loaded?.selectedEntryID, "archived:h1", "选中持久化(R3)")
         XCTAssertEqual(loaded?.entries.first, .archived(snapshotHash: "h1"))
         guard case .temp(let input, let alias, let resolved, let place)? = loaded?.entries.last else {
-            return XCTFail("第二条应为 .temp,实际:\(String(describing: loaded?.entries.last))")
+            return XCTFail("第二条应为 .temp，实际:\(String(describing: loaded?.entries.last))")
         }
         XCTAssertEqual(input.birthDatetime, "1991-06-18T08:30:00", "临时对方完整出生信息持久化(R1)")
         XCTAssertEqual(input.timezone, "Asia/Shanghai")
@@ -893,7 +893,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertTrue(vm.summaries.isEmpty)
         XCTAssertTrue(vm.archivedCharts.isEmpty)
         if case .empty = vm.state {} else {
-            XCTFail("重置后应落 .empty(存档已全删),实际:\(vm.state)")
+            XCTFail("重置后应落 .empty(存档已全删)，实际:\(vm.state)")
         }
         XCTAssertNil(vm.tempBirthDate, "临时表单内存镜像对齐 defaultTempDraft")
 
@@ -908,7 +908,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         if case .archived(let hash) = persisted.entries.first {
             XCTAssertEqual(hash, "b_new")
         } else {
-            XCTFail("唯一成员应为 .archived(b_new),实际:\(persisted.entries)")
+            XCTFail("唯一成员应为 .archived(b_new)，实际:\(persisted.entries)")
         }
     }
 
@@ -955,7 +955,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertTrue(vm.selectedEntryIds.isEmpty, "无合盘快照 → 不预勾")
         XCTAssertTrue(vm.selectedArchivedHashes.isEmpty)
         if case .detail = vm.state {
-            XCTFail("无快照不得直达 detail,实际:\(vm.state)")
+            XCTFail("无快照不得直达 detail，实际:\(vm.state)")
         }
     }
 
@@ -1013,13 +1013,13 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         if case .detail(let summary, _, _) = vm.state {
             XCTAssertEqual(summary.personBHash, "b_new", "直达最新一对的 detail")
         } else {
-            XCTFail("有快照应直达 .detail,实际:\(vm.state)")
+            XCTFail("有快照应直达 .detail，实际:\(vm.state)")
         }
         XCTAssertEqual(vm.summaries.count, 1, "恢复只装「上次那位」单条 summary")
         // 迁移落 V2 + 老 key 删除(一次性)
         XCTAssertNil(UserDefaults.standard.data(forKey: "compat.roster"), "老 key 迁移后删除")
         XCTAssertEqual(CompatibilityRosterPersistence.loadV2()?.selectedEntryID, "archived:b_new",
-                       "迁移结果含选中,写回 V2")
+                       "迁移结果含选中，写回 V2")
         await drainDetailBackgroundTasks()
     }
 
@@ -1076,7 +1076,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
         vm.restoreRosterStateIfAvailable()
 
-        XCTAssertEqual(vm.roster.count, 0, "无效 hash 应剔除,名单变空")
+        XCTAssertEqual(vm.roster.count, 0, "无效 hash 应剔除，名单变空")
         XCTAssertTrue(vm.selectedArchivedHashes.isEmpty)
 
         // 持久化名单也应已写回干净(V2 entries 空)
@@ -1258,7 +1258,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertEqual(vm.selectedRosterEntries.count, 1)
 
         vm.toggleArchived(hash: "hash_b")
-        XCTAssertTrue(vm.selectedEntryIds.isEmpty, "移出即取消勾选,不留悬空 id")
+        XCTAssertTrue(vm.selectedEntryIds.isEmpty, "移出即取消勾选，不留悬空 id")
     }
 
     func testRemoveRosterEntry_勾选id一并清理() {
@@ -1302,7 +1302,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             XCTAssertTrue(userError.errorDescription?.contains("先点选一位对方") == true,
                           "零勾选拦截文案")
         } else {
-            XCTFail("名单非空零勾选应进入 .failed 态,实际:\(vm.state)")
+            XCTFail("名单非空零勾选应进入 .failed 态，实际:\(vm.state)")
         }
     }
 
@@ -1323,14 +1323,14 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
         // computing 进度同步可断言(compute 返回时 Task 尚未上 MainActor)
         if case .computing(_, let total) = vm.state {
-            XCTAssertEqual(total, 1, "computing total 按勾选子集计,不按名单成员计")
+            XCTAssertEqual(total, 1, "computing total 按勾选子集计，不按名单成员计")
         } else {
-            XCTFail("应进入 .computing 态,实际:\(vm.state)")
+            XCTFail("应进入 .computing 态，实际:\(vm.state)")
             return
         }
 
         let reached = await waitForDetailState()
-        XCTAssertTrue(reached, "单选算成应直达 .detail,实际:\(vm.state)")
+        XCTAssertTrue(reached, "单选算成应直达 .detail，实际:\(vm.state)")
         XCTAssertEqual(vm.summaries.count, 1, "未点选的名单成员不得排盘")
         XCTAssertEqual(vm.summaries.first?.displayName, "B", "只算已点选的存档对方")
         if case .detail(let summary, _, _) = vm.state {
@@ -1352,7 +1352,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         if case .failed(let userError) = vm.state {
             XCTAssertTrue(userError.errorDescription?.contains("先点选一位对方") == true, "零勾选拦截文案")
         } else {
-            XCTFail("空名单应进入 .failed 态,实际:\(vm.state)")
+            XCTFail("空名单应进入 .failed 态，实际:\(vm.state)")
         }
     }
 
@@ -1363,7 +1363,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         if case .empty = vm.state {
             // 期望
         } else {
-            XCTFail("0 存档应进入 .empty 态,实际:\(vm.state)")
+            XCTFail("0 存档应进入 .empty 态，实际:\(vm.state)")
         }
     }
 
@@ -1400,10 +1400,10 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .failed(let msg) = interpret {
                 XCTAssertTrue(msg.contains("合盘"), "detail 快照缺失应显式 .failed interpretState")
             } else {
-                XCTFail("快照缺失应进入 .failed interpretState,实际:\(interpret)")
+                XCTFail("快照缺失应进入 .failed interpretState，实际:\(interpret)")
             }
         } else {
-            XCTFail("openDetail 应进入 .detail 态,实际:\(vm.state)")
+            XCTFail("openDetail 应进入 .detail 态，实际:\(vm.state)")
         }
     }
 
@@ -1444,10 +1444,10 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .idle = interpret {
                 // 期望 idle(后台 cache 查询是 async,本同步断言只看 idle 初始)
             } else {
-                XCTFail("快照存在但无 24h cache 时应进入 .idle,实际:\(interpret)")
+                XCTFail("快照存在但无 24h cache 时应进入 .idle，实际:\(interpret)")
             }
         } else {
-            XCTFail("openDetail 应进入 .detail 态,实际:\(vm.state)")
+            XCTFail("openDetail 应进入 .detail 态，实际:\(vm.state)")
         }
 
         // paywall hash 按对化:detail 态返回该对 hash
@@ -1575,7 +1575,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .okFree = state { return true }
             return false
         }
-        XCTAssertTrue(ok, "缓存未命中 + 次数充足 → 自动起链直达 .okFree,实际:\(vm.state)")
+        XCTAssertTrue(ok, "缓存未命中 + 次数充足 → 自动起链直达 .okFree，实际:\(vm.state)")
         if case .detail(_, _, .okFree(let text, let cached)) = vm.state {
             XCTAssertFalse(text.isEmpty, "应有解读正文")
             XCTAssertFalse(cached, "首次生成非缓存命中")
@@ -1597,10 +1597,10 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .idle = interpret {
                 // 期望:次数耗尽保持 .idle(UI 按 remainingReads 渲染达限卡)
             } else {
-                XCTFail("次数耗尽应保持 .idle,实际:\(interpret)")
+                XCTFail("次数耗尽应保持 .idle，实际:\(interpret)")
             }
         } else {
-            XCTFail("应保持 .detail 态,实际:\(vm.state)")
+            XCTFail("应保持 .detail 态，实际:\(vm.state)")
         }
         await drainDetailBackgroundTasks()
     }
@@ -1629,7 +1629,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .okFree(_, true) = state { return true }
             return false
         }
-        XCTAssertTrue(ok, "24h 缓存行应经自动链以 cached=true 呈现,实际:\(vm.state)")
+        XCTAssertTrue(ok, "24h 缓存行应经自动链以 cached=true 呈现，实际:\(vm.state)")
         XCTAssertEqual(vm.remainingReads, readsBefore, "缓存命中零净消耗(tryConsume 后 refund)")
         await drainDetailBackgroundTasks()
     }
@@ -1661,7 +1661,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .okFree = state { return true }
             return false
         }
-        XCTAssertTrue(ok, "paid 锁定路径应落到自动起链免费层,不停在 idle 死路,实际:\(vm.state)")
+        XCTAssertTrue(ok, "paid 锁定路径应落到自动起链免费层，不停在 idle 死路，实际:\(vm.state)")
         XCTAssertNil(vm.translationOffer, "无权限的付费原文不得触发翻译提议")
         XCTAssertEqual(vm.remainingReads, readsBefore - 1, "免费层生成消耗 1 次全局池")
         await drainDetailBackgroundTasks()
@@ -1702,9 +1702,9 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .okFree = state { return true }
             return false
         }
-        XCTAssertTrue(firstFailed, "跨语言命中应先展示原文 .okFree,实际:\(vm.state)")
+        XCTAssertTrue(firstFailed, "跨语言命中应先展示原文 .okFree，实际:\(vm.state)")
         let failedShown = await Self.waitUntil(timeout: 8) { self.vm.translationFailed }
-        XCTAssertTrue(failedShown, "自动翻译失败必须置 translationFailed(提示条重试入口),实际 offer=\(String(describing: vm.translationOffer)) failed=\(vm.translationFailed)")
+        XCTAssertTrue(failedShown, "自动翻译失败必须置 translationFailed(提示条重试入口)，实际 offer=\(String(describing: vm.translationOffer)) failed=\(vm.translationFailed)")
         let translateCountAfterFirst = apiClient.recordedTranslateRequests.count
         XCTAssertGreaterThan(translateCountAfterFirst, 0)
 
@@ -1714,7 +1714,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         let restored = await Self.waitUntil(timeout: 8) {
             self.vm.translationOffer != nil && self.vm.translationFailed
         }
-        XCTAssertTrue(restored, "重开后必须有 offer + translationFailed(提示条手动重试形态),实际 offer=\(String(describing: vm.translationOffer)) failed=\(vm.translationFailed)")
+        XCTAssertTrue(restored, "重开后必须有 offer + translationFailed(提示条手动重试形态)，实际 offer=\(String(describing: vm.translationOffer)) failed=\(vm.translationFailed)")
         XCTAssertEqual(
             apiClient.recordedTranslateRequests.count, translateCountAfterFirst,
             "去重命中不得新增翻译请求(自动不重试语义不变)"
@@ -1777,7 +1777,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .okFree = state { return true }
             return false
         }
-        XCTAssertTrue(settled, "在飞豁免重生成落定后应写 .okFree,实际:\(vm.state)")
+        XCTAssertTrue(settled, "在飞豁免重生成落定后应写 .okFree，实际:\(vm.state)")
         try? await Task.sleep(nanoseconds: 600_000_000)
 
         XCTAssertEqual(
@@ -1826,7 +1826,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .detail = self.vm.state { return true }
             return self.vm.state == .list
         }
-        XCTAssertTrue(done, "compute 应落成,实际:\(vm.state)")
+        XCTAssertTrue(done, "compute 应落成，实际:\(vm.state)")
 
         let usedHash = vm.summaries.first?.compatibilityHash
         XCTAssertNotEqual(usedHash, canonicalKey, "规则版本过期的快照不得复用(必须落穿 API 重算)")
@@ -1886,7 +1886,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
         // 先渲染旧值(同步):detail 态 + 旧标签,不得因过期而拒绝渲染
         guard case .detail(let s0, let r0, _) = vm.state else {
-            XCTFail("过期快照也应先渲染 detail 旧值,实际:\(vm.state)")
+            XCTFail("过期快照也应先渲染 detail 旧值，实际:\(vm.state)")
             return
         }
         XCTAssertEqual(s0.id, mockKey)
@@ -1897,7 +1897,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             let snap = try? self.compatibilityStore.get(compatibilityHash: mockKey)
             return snap?.engineRuleVersion == CompatibilitySnapshotStore.expectedEngineRuleVersion
         }
-        XCTAssertTrue(recomputed, "后台重算必须落库自愈(修复前任务被取消,快照停留旧版本)")
+        XCTAssertTrue(recomputed, "后台重算必须落库自愈(修复前任务被取消，快照停留旧版本)")
 
         // 原位刷新:仍在本对 detail,评估卡换成新标签(mock 标签 ≠ 旧版标签)
         let refreshed = await Self.waitUntil(timeout: 8) {
@@ -1906,7 +1906,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             }
             return false
         }
-        XCTAssertTrue(refreshed, "重算落定后应原位刷新评估卡,实际:\(vm.state)")
+        XCTAssertTrue(refreshed, "重算落定后应原位刷新评估卡，实际:\(vm.state)")
         await drainDetailBackgroundTasks()
     }
 
@@ -1950,7 +1950,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             }
             return false
         }
-        XCTAssertTrue(ok, "STALE 必须自动转重新生成,不停在失败态,实际:\(vm.state)")
+        XCTAssertTrue(ok, "STALE 必须自动转重新生成，不停在失败态，实际:\(vm.state)")
         XCTAssertEqual(
             apiClient.recordedTranslateRequests.count, 1,
             "必须先尝试过一次翻译(收到 409)"
@@ -1958,11 +1958,11 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         let generatedModules = apiClient.recordedInterpretRequests.map(\.module)
         XCTAssertTrue(
             generatedModules.contains("compatibility_free"),
-            "STALE 后必须落穿网络生成,实际:\(generatedModules)"
+            "STALE 后必须落穿网络生成，实际:\(generatedModules)"
         )
         XCTAssertEqual(
             vm.remainingReads, readsBefore,
-            "降级重生成必须豁免合盘次数(R3:语言切换引起,非用户过错)"
+            "降级重生成必须豁免合盘次数(R3:语言切换引起，非用户过错)"
         )
         XCTAssertNil(vm.translationOffer, "重新生成已取代翻译提议")
         await drainDetailBackgroundTasks()
@@ -2006,7 +2006,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .failed = state { return true }
             return false
         }
-        XCTAssertTrue(failed, "STALE 降级重生成失败必须落 .failed,实际:\(vm.state)")
+        XCTAssertTrue(failed, "STALE 降级重生成失败必须落 .failed，实际:\(vm.state)")
         XCTAssertEqual(vm.remainingReads, readsBefore, "豁免路径失败不得动配额(没扣不退)")
 
         // 重试:透传豁免(修复前走默认 false 正常扣次数)
@@ -2016,7 +2016,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .okFree(let text, _) = state { return text.contains("Mock 命书占位") }
             return false
         }
-        XCTAssertTrue(ok, "重试必须落穿生成成功,实际:\(vm.state)")
+        XCTAssertTrue(ok, "重试必须落穿生成成功，实际:\(vm.state)")
         XCTAssertEqual(
             vm.remainingReads, readsBefore,
             "STALE 降级链的重试必须透传豁免(语言切换成本不转嫁用户配额)"
@@ -2057,7 +2057,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .okFree(let text, _) = state { return text.contains("Mock 命书占位") }
             return false
         }
-        XCTAssertTrue(ok, "前置:STALE 降级重生成必须成功,实际:\(vm.state)")
+        XCTAssertTrue(ok, "前置:STALE 降级重生成必须成功，实际:\(vm.state)")
 
         // 耗尽共享池 + 清掉本对全部解读缓存行(否则重试命中缓存,鉴别失效)
         while counter.tryConsume(module: "test_drain") {}
@@ -2071,10 +2071,10 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .dailyLimitReached = state { return true }
             return false
         }
-        XCTAssertTrue(limitReached, "豁免标记成功已清:耗尽后的重试必须走正常扣次 → 达限拦截,实际:\(vm.state)")
+        XCTAssertTrue(limitReached, "豁免标记成功已清:耗尽后的重试必须走正常扣次 → 达限拦截，实际:\(vm.state)")
         XCTAssertEqual(
             apiClient.recordedInterpretRequests.count, interpretCalls,
-            "不得再发 interpret(豁免不透传,修复前会免配额照常生成)"
+            "不得再发 interpret(豁免不透传，修复前会免配额照常生成)"
         )
         await drainDetailBackgroundTasks()
     }
@@ -2132,13 +2132,13 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         let translateResumed = await Self.waitUntil(timeout: 10) {
             self.apiClient.recordedTranslateRequests.count >= 2 && !self.vm.isTranslating
         }
-        XCTAssertTrue(translateResumed, "重开必须自动重发翻译并译完(修复前 .failed 拦住自动续译,停在 1 次),实际 count=\(apiClient.recordedTranslateRequests.count) translating=\(vm.isTranslating)")
-        XCTAssertFalse(vm.translationFailed, "不得出现假失败提示条(修复前 .failed 提前落定,重开恢复失败态)")
+        XCTAssertTrue(translateResumed, "重开必须自动重发翻译并译完(修复前 .failed 拦住自动续译，停在 1 次)，实际 count=\(apiClient.recordedTranslateRequests.count) translating=\(vm.isTranslating)")
+        XCTAssertFalse(vm.translationFailed, "不得出现假失败提示条(修复前 .failed 提前落定，重开恢复失败态)")
         let translated = await waitForInterpretState { state in
             if case .okFree(let text, _) = state { return text.contains("简体原文") }
             return false
         }
-        XCTAssertTrue(translated, "续译必须落 .okFree(译文透传),实际:\(vm.state)")
+        XCTAssertTrue(translated, "续译必须落 .okFree(译文透传)，实际:\(vm.state)")
         await drainDetailBackgroundTasks()
     }
 
@@ -2159,7 +2159,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .failed = state { return true }
             return false
         }
-        XCTAssertTrue(failed, "基建性取消必须落 .failed(修复前静默 return 死转圈),实际:\(vm.state)")
+        XCTAssertTrue(failed, "基建性取消必须落 .failed(修复前静默 return 死转圈)，实际:\(vm.state)")
 
         // 重试入口必须可用:恢复默认应答 → 重试成功
         apiClient.interpretResponder = nil
@@ -2168,7 +2168,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .okFree = state { return true }
             return false
         }
-        XCTAssertTrue(ok, "失败态重试必须可达 .okFree,实际:\(vm.state)")
+        XCTAssertTrue(ok, "失败态重试必须可达 .okFree，实际:\(vm.state)")
         await drainDetailBackgroundTasks()
     }
 
@@ -2187,12 +2187,12 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .failed = state { return true }
             return false
         }
-        XCTAssertTrue(failed, "门未过必须显式失败(重试入口),实际:\(vm.state)")
+        XCTAssertTrue(failed, "门未过必须显式失败(重试入口)，实际:\(vm.state)")
         // 门拦下自动生成:零 interpret 请求(旧标签不得进生成 prompt)
         try? await Task.sleep(nanoseconds: 800_000_000)
         XCTAssertTrue(
             apiClient.recordedInterpretRequests.isEmpty,
-            "重算失败时不得自动生成(旧标签进 prompt = 正文按旧规则缓存 24h),实际 interpret=\(apiClient.recordedInterpretRequests.count)"
+            "重算失败时不得自动生成(旧标签进 prompt = 正文按旧规则缓存 24h)，实际 interpret=\(apiClient.recordedInterpretRequests.count)"
         )
         await drainDetailBackgroundTasks()
     }
@@ -2234,22 +2234,22 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         }
         XCTAssertTrue(
             bannerShown,
-            "门未过恢复失败提示条(手动重试入口),实际 offer=\(String(describing: vm.translationOffer)) failed=\(vm.translationFailed)"
+            "门未过恢复失败提示条(手动重试入口)，实际 offer=\(String(describing: vm.translationOffer)) failed=\(vm.translationFailed)"
         )
         // 原文展示态保持(门失败不得覆盖跨语言原文)
         if case .detail(_, _, let interpret) = vm.state {
             guard case .okFree(let text, _) = interpret, text.contains("简体原文") else {
-                XCTFail("原文展示态不得被门失败覆盖,实际:\(interpret)")
+                XCTFail("原文展示态不得被门失败覆盖，实际:\(interpret)")
                 return
             }
         } else {
-            XCTFail("应保持 detail 态,实际:\(vm.state)")
+            XCTFail("应保持 detail 态，实际:\(vm.state)")
             return
         }
         try? await Task.sleep(nanoseconds: 800_000_000)
         XCTAssertTrue(
             apiClient.recordedInterpretRequests.isEmpty,
-            "规则过期未重算成时不得重生成(旧标签不得进 prompt),实际 interpret=\(apiClient.recordedInterpretRequests.count)"
+            "规则过期未重算成时不得重生成(旧标签不得进 prompt)，实际 interpret=\(apiClient.recordedInterpretRequests.count)"
         )
         await drainDetailBackgroundTasks()
     }
@@ -2291,7 +2291,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         }
         XCTAssertTrue(
             bannerShown,
-            "前置:首进门失败恢复失败提示条,实际 offer=\(String(describing: vm.translationOffer)) failed=\(vm.translationFailed)"
+            "前置:首进门失败恢复失败提示条，实际 offer=\(String(describing: vm.translationOffer)) failed=\(vm.translationFailed)"
         )
 
         // 网络恢复:重算回落默认 mock(ruleVersion = expected,upsert 覆盖旧快照)
@@ -2304,7 +2304,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         }
         XCTAssertTrue(
             regenerated,
-            "重试必须自愈:复用死任务验旧后补发重算过门,豁免重生成落地,实际:\(vm.state)"
+            "重试必须自愈:复用死任务验旧后补发重算过门，豁免重生成落地，实际:\(vm.state)"
         )
         XCTAssertNil(vm.translationOffer, "重生成落地后翻译提议收口")
         await drainDetailBackgroundTasks()
@@ -2338,11 +2338,11 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .failed = state { return true }
             return false
         }
-        XCTAssertTrue(failed, "门未过必须显式失败(已付款用户有重试入口),实际:\(vm.state)")
+        XCTAssertTrue(failed, "门未过必须显式失败(已付款用户有重试入口)，实际:\(vm.state)")
         try? await Task.sleep(nanoseconds: 800_000_000)
         XCTAssertTrue(
             apiClient.recordedInterpretRequests.isEmpty,
-            "规则过期未重算成时购买回调不得生成(旧标签不得进已购 prompt),实际 interpret=\(apiClient.recordedInterpretRequests.count)"
+            "规则过期未重算成时购买回调不得生成(旧标签不得进已购 prompt)，实际 interpret=\(apiClient.recordedInterpretRequests.count)"
         )
         await drainDetailBackgroundTasks()
     }
@@ -2368,7 +2368,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .okFree = state { return true }
             return false
         }
-        XCTAssertTrue(ok, "重算过门后购买回调必须落地生成,实际:\(vm.state)")
+        XCTAssertTrue(ok, "重算过门后购买回调必须落地生成，实际:\(vm.state)")
         XCTAssertEqual(apiClient.recordedInterpretRequests.count, 1, "恰好一次 interpret 请求")
         if let req = apiClient.recordedInterpretRequests.first {
             let contextJSON = try String(
@@ -2376,11 +2376,11 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             )
             XCTAssertTrue(
                 contextJSON.contains("互补佳"),
-                "prompt 必须携带重算后的新标签,实际:\(contextJSON)"
+                "prompt 必须携带重算后的新标签，实际:\(contextJSON)"
             )
             XCTAssertFalse(
                 contextJSON.contains("旧版五行"),
-                "旧标签不得进已购生成 prompt,实际:\(contextJSON)"
+                "旧标签不得进已购生成 prompt，实际:\(contextJSON)"
             )
         }
         XCTAssertEqual(vm.remainingReads, readsBefore - 1, "购买回调生成消耗 1 次全局池配额")
@@ -2401,7 +2401,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .failed = state { return true }
             return false
         }
-        XCTAssertTrue(gateFailed, "前置:自动链过门失败落 .failed(重试入口出现),实际:\(vm.state)")
+        XCTAssertTrue(gateFailed, "前置:自动链过门失败落 .failed(重试入口出现)，实际:\(vm.state)")
 
         // 重试:门拦截(重算仍离线),旧标签不得进 prompt
         vm.retryInterpretation()
@@ -2409,14 +2409,14 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         if case .detail(_, _, .failed(let message)) = vm.state {
             XCTAssertEqual(
                 message, L10n.Errors.networkTitle,
-                "门失败文案按对透根因(离线 → 网络不可用),实际:\(message)"
+                "门失败文案按对透根因(离线 → 网络不可用)，实际:\(message)"
             )
         } else {
-            XCTFail("重试过门失败应保持 .failed,实际:\(vm.state)")
+            XCTFail("重试过门失败应保持 .failed，实际:\(vm.state)")
         }
         XCTAssertTrue(
             apiClient.recordedInterpretRequests.isEmpty,
-            "重试同样受门限:重算未成不得生成(旧标签不进 prompt),实际 interpret=\(apiClient.recordedInterpretRequests.count)"
+            "重试同样受门限:重算未成不得生成(旧标签不进 prompt)，实际 interpret=\(apiClient.recordedInterpretRequests.count)"
         )
 
         // 网络恢复:重试自愈(门内补发重算 → 过门 → 生成落地)
@@ -2426,7 +2426,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .okFree = state { return true }
             return false
         }
-        XCTAssertTrue(ok, "网络恢复后重试必须自愈(重算成功过门生成),实际:\(vm.state)")
+        XCTAssertTrue(ok, "网络恢复后重试必须自愈(重算成功过门生成)，实际:\(vm.state)")
         await drainDetailBackgroundTasks()
     }
 
@@ -2460,7 +2460,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         }
         XCTAssertTrue(
             ok,
-            "重算成功 + 版本落后(服务端当前口径)必须放行生成,不得永久拦截,实际:\(vm.state)"
+            "重算成功 + 版本落后(服务端当前口径)必须放行生成，不得永久拦截，实际:\(vm.state)"
         )
         XCTAssertEqual(
             apiClient.recordedInterpretRequests.count, 1,
@@ -2473,18 +2473,18 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             )
             XCTAssertTrue(
                 contextJSON.contains("倒挂新版五行"),
-                "版本落后放行时 prompt 必须携带重算后的服务端当前标签(state 已原位刷新),实际:\(contextJSON)"
+                "版本落后放行时 prompt 必须携带重算后的服务端当前标签(state 已原位刷新)，实际:\(contextJSON)"
             )
             XCTAssertFalse(
                 contextJSON.contains("旧版五行"),
-                "旧本地标签不得进放行链 prompt,实际:\(contextJSON)"
+                "旧本地标签不得进放行链 prompt，实际:\(contextJSON)"
             )
         }
         // 评估卡同样随重算原位刷新(卡与正文同源,不再 24h 错配)
         if case .detail(_, let response, _) = vm.state {
             XCTAssertEqual(
                 response.qualitativeAssessment.fiveElements, "倒挂新版五行",
-                "重算成功后评估卡必须原位刷新为服务端当前标签,实际:\(response.qualitativeAssessment.fiveElements)"
+                "重算成功后评估卡必须原位刷新为服务端当前标签，实际:\(response.qualitativeAssessment.fiveElements)"
             )
         }
         await drainDetailBackgroundTasks()
@@ -2507,16 +2507,16 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
         if case .detail(_, _, let interpret) = vm.state {
             guard case .idle = interpret else {
-                XCTFail("次数耗尽必须维持 .idle(UI 渲染达限卡),不得被门失败盖 .failed,实际:\(interpret)")
+                XCTFail("次数耗尽必须维持 .idle(UI 渲染达限卡)，不得被门失败盖 .failed，实际:\(interpret)")
                 return
             }
         } else {
-            XCTFail("应保持 detail 态,实际:\(vm.state)")
+            XCTFail("应保持 detail 态，实际:\(vm.state)")
             return
         }
         XCTAssertTrue(
             apiClient.recordedInterpretRequests.isEmpty,
-            "耗尽时不得发注定 dailyLimitReached 的生成,实际 interpret=\(apiClient.recordedInterpretRequests.count)"
+            "耗尽时不得发注定 dailyLimitReached 的生成，实际 interpret=\(apiClient.recordedInterpretRequests.count)"
         )
         await drainDetailBackgroundTasks()
     }
@@ -2548,7 +2548,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .okFree = state { return true }
             return false
         }
-        XCTAssertTrue(ok, "重进后自动链正常生成,实际:\(vm.state)")
+        XCTAssertTrue(ok, "重进后自动链正常生成，实际:\(vm.state)")
         // 让旧购买门任务的收尾窗口(等被取消的重算落定)跑完再断言
         try? await Task.sleep(nanoseconds: 600_000_000)
         XCTAssertEqual(
@@ -2570,7 +2570,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .fetching = state { return true }
             return false
         }
-        XCTAssertTrue(fetching, "前置:自动链已起生成(.fetching 在飞),实际:\(vm.state)")
+        XCTAssertTrue(fetching, "前置:自动链已起生成(.fetching 在飞)，实际:\(vm.state)")
 
         vm.generateInterpretationAfterPurchase()
 
@@ -2578,7 +2578,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .okFree = state { return true }
             return false
         }
-        XCTAssertTrue(ok, "在飞链落地即内容,实际:\(vm.state)")
+        XCTAssertTrue(ok, "在飞链落地即内容，实际:\(vm.state)")
         XCTAssertEqual(
             apiClient.recordedInterpretRequests.count, 1,
             "购买回调让位在飞链:不得取消再起(修复前=双请求)"
@@ -2607,7 +2607,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .failed = state { return true }
             return false
         }
-        XCTAssertTrue(failed, "前置:门未过显式失败(重试入口),实际:\(vm.state)")
+        XCTAssertTrue(failed, "前置:门未过显式失败(重试入口)，实际:\(vm.state)")
 
         // 仍离线时重试:门再拦(复用死任务验旧 + 补发重算照旧失败),不得生成。
         // 等 800ms 让重试链的重算落定(mock 300ms 窗口)——状态本就 .failed,
@@ -2616,16 +2616,16 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         try? await Task.sleep(nanoseconds: 800_000_000)
         if case .detail(_, _, let interpret) = vm.state {
             guard case .failed = interpret else {
-                XCTFail("离线时重试必须仍被门拦下(维持 .failed),实际:\(interpret)")
+                XCTFail("离线时重试必须仍被门拦下(维持 .failed)，实际:\(interpret)")
                 return
             }
         } else {
-            XCTFail("应保持 detail 态,实际:\(vm.state)")
+            XCTFail("应保持 detail 态，实际:\(vm.state)")
             return
         }
         XCTAssertTrue(
             apiClient.recordedInterpretRequests.isEmpty,
-            "重试不得绕过门直连生成(旧标签进 prompt = 正文按旧规则缓存 24h),实际 interpret=\(apiClient.recordedInterpretRequests.count)"
+            "重试不得绕过门直连生成(旧标签进 prompt = 正文按旧规则缓存 24h)，实际 interpret=\(apiClient.recordedInterpretRequests.count)"
         )
 
         // 网络恢复:重试补发重算 → 门过 → 按重算后的新标签生成
@@ -2636,7 +2636,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .okFree = state { return true }
             return false
         }
-        XCTAssertTrue(ok, "网络恢复后重试必须自愈过门生成,实际:\(vm.state)")
+        XCTAssertTrue(ok, "网络恢复后重试必须自愈过门生成，实际:\(vm.state)")
         XCTAssertEqual(apiClient.recordedInterpretRequests.count, 1, "恰好一次 interpret 请求")
         if let req = apiClient.recordedInterpretRequests.first {
             let contextJSON = try String(
@@ -2644,11 +2644,11 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             )
             XCTAssertTrue(
                 contextJSON.contains("互补佳"),
-                "重试生成必须携带重算后的新标签,实际:\(contextJSON)"
+                "重试生成必须携带重算后的新标签，实际:\(contextJSON)"
             )
             XCTAssertFalse(
                 contextJSON.contains("旧版五行"),
-                "旧标签不得进重试生成 prompt,实际:\(contextJSON)"
+                "旧标签不得进重试生成 prompt，实际:\(contextJSON)"
             )
         }
         XCTAssertEqual(vm.remainingReads, readsBefore - 1, "重试生成消耗 1 次全局池配额(非豁免来源)")
@@ -2690,7 +2690,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .failed = state { return true }
             return false
         }
-        XCTAssertTrue(yFailed, "前置:Y 豁免链失败落 .failed,实际:\(vm.state)")
+        XCTAssertTrue(yFailed, "前置:Y 豁免链失败落 .failed，实际:\(vm.state)")
         XCTAssertEqual(vm.exemptAttemptCompatHash, y.compatibilityHash, "前置:豁免标记指向 Y")
 
         // X 对:非豁免自动生成在「B 快照缺失」守卫处提前 return——标记赋值
@@ -2736,7 +2736,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .failed = state { return true }
             return false
         }
-        XCTAssertTrue(xFailed, "X 快照缺失提前失败应显式 .failed,实际:\(vm.state)")
+        XCTAssertTrue(xFailed, "X 快照缺失提前失败应显式 .failed，实际:\(vm.state)")
         XCTAssertEqual(
             vm.exemptAttemptCompatHash, y.compatibilityHash,
             "X 的非豁免生成不得清 Y 的豁免标记(修复前无条件置 nil)"
@@ -2773,7 +2773,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
         vm.compute()
         let done = await waitForDetailState()
-        XCTAssertTrue(done, "离线回落应直达 detail(旧标签渲染),实际:\(vm.state)")
+        XCTAssertTrue(done, "离线回落应直达 detail(旧标签渲染)，实际:\(vm.state)")
         XCTAssertEqual(vm.summaries.first?.compatibilityHash, canonicalKey, "离线回落旧规则快照")
         if case .detail(_, let r, _) = vm.state {
             XCTAssertEqual(r.qualitativeAssessment.fiveElements, "旧版五行", "回落渲染旧标签(联网后自愈)")
@@ -2810,9 +2810,9 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
         vm.compute()
         let listed = await waitForListState()
-        XCTAssertTrue(listed, "5xx 必须走对级失败(list 兜底),实际:\(vm.state)")
+        XCTAssertTrue(listed, "5xx 必须走对级失败(list 兜底)，实际:\(vm.state)")
         guard case .failed? = vm.summaries.first?.status else {
-            XCTFail("5xx 不得回落旧快照(修复前所有非取消错误都回落),实际:\(String(describing: vm.summaries.first?.status))")
+            XCTFail("5xx 不得回落旧快照(修复前所有非取消错误都回落)，实际:\(String(describing: vm.summaries.first?.status))")
             return
         }
         await drainDetailBackgroundTasks()
@@ -2848,7 +2848,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         if case .configuring = vm.state {
             // 期望一步回配置态
         } else {
-            XCTFail("clearDetailKeepRoster 应回 .configuring 态,实际:\(vm.state)")
+            XCTFail("clearDetailKeepRoster 应回 .configuring 态，实际:\(vm.state)")
         }
         XCTAssertEqual(vm.summaries.count, 1, "clearDetailKeepRoster 后 summaries 应保留")
     }
@@ -2982,10 +2982,10 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertTrue(finished)
         XCTAssertTrue(
             probe.sawCancellation,
-            "修复:retryPair Task 被持有,域重置 cancel 必须传导进在飞重试(修复前 fire-and-forget 观察不到取消)"
+            "修复:retryPair Task 被持有，域重置 cancel 必须传导进在飞重试(修复前 fire-and-forget 观察不到取消)"
         )
         XCTAssertTrue(vm.retryingIds.isEmpty, "defer 清理重试标记")
-        XCTAssertTrue(vm.summaries.isEmpty, "域已清空,无孤儿 summary 回写")
+        XCTAssertTrue(vm.summaries.isEmpty, "域已清空，无孤儿 summary 回写")
     }
 
     func testMakeFailedSummary_可以通过构造验证字段() {
@@ -3177,10 +3177,10 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
         vm.compute()
         let reached = await waitForListState()
-        XCTAssertTrue(reached, "compute 应正常进入 .list,实际:\(vm.state)")
+        XCTAssertTrue(reached, "compute 应正常进入 .list，实际:\(vm.state)")
 
         let summary = try XCTUnwrap(vm.summaries.first)
-        XCTAssertTrue(summary.isHourUnknownBlocked, "A 盘无时辰 → 该对整对拦截(免费亦拦),实际:\(summary.status)")
+        XCTAssertTrue(summary.isHourUnknownBlocked, "A 盘无时辰 → 该对整对拦截(免费亦拦)，实际:\(summary.status)")
         XCTAssertEqual(summary.personBHash, "s07_b_known", "拦截对保留存档对方 hash(roster 持久化需要)")
 
         // 零 API 调用证明:没有产生任何 CompatibilitySnapshot(阶段 1 从未发起)
@@ -3216,7 +3216,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
         vm.compute()
         let reached = await waitForListState()
-        XCTAssertTrue(reached, "compute 应正常进入 .list,实际:\(vm.state)")
+        XCTAssertTrue(reached, "compute 应正常进入 .list，实际:\(vm.state)")
         XCTAssertEqual(vm.summaries.count, 2)
 
         let blocked = vm.summaries.first { $0.displayName == "B无时辰" }
@@ -3240,10 +3240,10 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
         vm.compute()
         let reached = await waitForDetailState()
-        XCTAssertTrue(reached, "单选算成应直达 .detail,实际:\(vm.state)")
+        XCTAssertTrue(reached, "单选算成应直达 .detail，实际:\(vm.state)")
 
         let summary = try XCTUnwrap(vm.summaries.first)
-        XCTAssertTrue(summary.isComputed, "双方有时辰 → 行为与现状完全一致,实际:\(summary.status)")
+        XCTAssertTrue(summary.isComputed, "双方有时辰 → 行为与现状完全一致，实际:\(summary.status)")
         await drainDetailBackgroundTasks()
     }
 
@@ -3290,15 +3290,15 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .detail(_, _, .failed) = vm.state { blocked = true; break }
             try? await Task.sleep(nanoseconds: 30_000_000)
         }
-        XCTAssertTrue(blocked, "任一方无时辰 → 阶段 2(AI 解读)拦截态,实际:\(vm.state)")
+        XCTAssertTrue(blocked, "任一方无时辰 → 阶段 2(AI 解读)拦截态，实际:\(vm.state)")
         if case .detail(_, _, .failed(let message)) = vm.state {
             // 文案走 L10n(zh「时辰」/ en「hour」),断言按 locale 双语兼容
             XCTAssertTrue(
                 message.contains("时辰") || message.lowercased().contains("hour"),
-                "拦截文案须指向补时辰,实际:\(message)"
+                "拦截文案须指向补时辰，实际:\(message)"
             )
         }
-        XCTAssertEqual(vm.remainingReads, readsBefore, "拦截发生在次数检查之前,不得消耗每日配额")
+        XCTAssertEqual(vm.remainingReads, readsBefore, "拦截发生在次数检查之前，不得消耗每日配额")
     }
 
     // MARK: - S11 roster 不可合盘标记(判据 = 本地 payload,零网络;与 S07 拦截同源)
@@ -3323,7 +3323,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         vm.roster = [.archived(snapshotHash: "s11_b2_unknown")]
 
         vm.toggleArchived(hash: "s11_b2_unknown")
-        XCTAssertTrue(vm.roster.isEmpty, "已在名单的无时辰对方,移除照常(toggle 前半段不受 S11 守卫影响)")
+        XCTAssertTrue(vm.roster.isEmpty, "已在名单的无时辰对方，移除照常(toggle 前半段不受 S11 守卫影响)")
     }
 
     func testIsPairHourUnknownBlocked_分支覆盖_对方无时辰_双方有时辰_临时人() throws {
@@ -3350,7 +3350,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         XCTAssertTrue(vm.isPairHourUnknownBlocked(entry: .archived(snapshotHash: "s11_b3_unknown")),
                       "他人无时辰 → 该对标记")
         XCTAssertFalse(vm.isPairHourUnknownBlocked(entry: tempEntry),
-                       "临时人 PersonBInput 恒带完整钟面,无时辰语义不存在 → 不标记")
+                       "临时人 PersonBInput 恒带完整钟面，无时辰语义不存在 → 不标记")
     }
 
     func testIsSelfHourUnknown_自己无时辰_全部对不可用_切换A盘翻转() throws {
@@ -3439,7 +3439,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         // decode 失败显式记日志后按 .hourKnown 放行(对齐 S07 currentDetailHourUnknownGate
         // 先例:标记层不用拦截态掩盖解码故障,发起路径会再 decode 并对级传播错误)
         XCTAssertFalse(vm.isArchivedHourUnknown(hash: "s11_bad_payload"),
-                       "decode 失败 → 放行(日志显式记录,不静默吞)")
+                       "decode 失败 → 放行(日志显式记录，不静默吞)")
     }
 
     // MARK: - S11 发起前拦截 = 唯一防线(2026-09-01 review:S01 已放开 ChartPayload Literal,
@@ -3502,20 +3502,20 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
 
         rvm.compute()
         let reached = await waitForListState(of: rvm)
-        XCTAssertTrue(reached, "拦截对不炸整体:compute 照常落 .list,实际:\(rvm.state)")
+        XCTAssertTrue(reached, "拦截对不炸整体:compute 照常落 .list，实际:\(rvm.state)")
 
         XCTAssertEqual(rvm.summaries.count, 2)
         for summary in rvm.summaries {
             XCTAssertTrue(summary.isHourUnknownBlocked,
-                          "VM 层先拦:无时辰对产拦截卡(免费亦拦),实际:\(summary.status)")
+                          "VM 层先拦:无时辰对产拦截卡(免费亦拦)，实际:\(summary.status)")
         }
         // 错误不外溢:无对级 .failed、无整体 .failed 态
         XCTAssertFalse(rvm.summaries.contains { summary in
             if case .failed = summary.status { return true }
             return false
-        }, "拦截是设计态不是错误,不得以 .failed 外溢")
+        }, "拦截是设计态不是错误，不得以 .failed 外溢")
         if case .failed = rvm.state {
-            XCTFail("整体状态不得因拦截对进入 .failed,实际:\(rvm.state)")
+            XCTFail("整体状态不得因拦截对进入 .failed，实际:\(rvm.state)")
         }
 
         let compatCalls = await recording.compatibilityCallCount()
@@ -3574,7 +3574,7 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
             if case .detail(_, _, .failed) = rvm.state { blocked = true; break }
             try? await Task.sleep(nanoseconds: 30_000_000)
         }
-        XCTAssertTrue(blocked, "无时辰对直调 generateInterpretation → 阶段 2 拦截态,实际:\(rvm.state)")
+        XCTAssertTrue(blocked, "无时辰对直调 generateInterpretation → 阶段 2 拦截态，实际:\(rvm.state)")
 
         let interpretCalls = await recording.interpretCallCount()
         let compatCalls = await recording.compatibilityCallCount()

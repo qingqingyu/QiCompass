@@ -190,7 +190,7 @@ final class CompatibilityRelationDetailTests: XCTestCase {
                           "丁", "巳", "fire", "fire")
         let detail = CompatibilityRelationDetailBuilder.make(pillars: chart)
         XCTAssertEqual(detail.branch?.components(separatedBy: " · ").filter { $0 == "子丑合" }.count, 1,
-                      "同关系多柱位只列一次,实际:\(detail.branch ?? "")")
+                      "同关系多柱位只列一次，实际:\(detail.branch ?? "")")
     }
 
     // MARK: 缺字段回落(时辰未知 / 老盘)
@@ -233,7 +233,7 @@ final class CompatibilityRelationDetailTests: XCTestCase {
         XCTAssertEqual(byElement[.metal]?.1, 2)
         XCTAssertEqual(byElement[.water]?.0, 1)
         XCTAssertEqual(byElement[.water]?.1, 0)
-        XCTAssertEqual(model.rows.count, 5, "五行五行全列(含 0 计数行,不隐藏)")
+        XCTAssertEqual(model.rows.count, 5, "五行五行全列(含 0 计数行，不隐藏)")
     }
 
     func test五行计数_时柱未知_按6字计_脚注置位() {
@@ -279,7 +279,7 @@ final class CompatibilityRelationDetailTests: XCTestCase {
             XCTAssertTrue(note.contains("消耗偏大"), "实际:\(note)")
             XCTAssertFalse(
                 note.contains("习惯与小事") || note.contains("習慣與小事"),
-                "多刑多害不得沿用轻语气,实际:\(note)"
+                "多刑多害不得沿用轻语气，实际:\(note)"
             )
         } else {
             XCTAssertTrue(note.contains("Friction runs high"), "实际:\(note)")

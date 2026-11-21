@@ -461,15 +461,15 @@ enum PromptContextError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingMetaBlock(let hash):
-            return "命盘缺 meta 块(contentHash=\(hash.prefix(8))),可能后端版本未升级到 Stage 1+,或 response 过期"
+            return "命盘缺 meta 块(contentHash=\(hash.prefix(8)))，可能后端版本未升级到 Stage 1+，或 response 过期"
         case .missingCurrentYear(let hash):
-            return "命盘缺 current_year_pillar(contentHash=\(hash.prefix(8))),数据损坏"
+            return "命盘缺 current_year_pillar(contentHash=\(hash.prefix(8)))，数据损坏"
         case .missingDayPillar(let hash):
-            return "命盘日柱未知(日柱歧义,时辰未知所致,contentHash=\(hash.prefix(8))),该盘不应进入内容页(S07 拦截)"
+            return "命盘日柱未知(日柱歧义，时辰未知所致，contentHash=\(hash.prefix(8)))，该盘不应进入内容页(S07 拦截)"
         case .invalidGanZhi(let hash, let field, let value):
             return "命盘 \(field) gan_zhi 长度异常(期望 2 字符):\(value)(contentHash=\(hash.prefix(8)))"
         case .unknownDayMasterStrength(let hash, let value):
-            return "命盘 day_master_strength 未知值:\(value)(contentHash=\(hash.prefix(8))),期望 strong/weak/balanced/special_pattern"
+            return "命盘 day_master_strength 未知值:\(value)(contentHash=\(hash.prefix(8)))，期望 strong/weak/balanced/special_pattern"
         case .jsonEncodingFailed(let hash, let underlying):
             let detail = underlying.map { "(\(type(of: $0)): \($0))" } ?? ""
             return "chart JSON 序列化失败(contentHash=\(hash.prefix(8)))\(detail)"

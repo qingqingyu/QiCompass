@@ -186,7 +186,7 @@ struct OnboardingView: View {
                             AppLogger.app.info("ZodiacRevealView CTA 点击 → 触发 onComplete")
                             Analytics.onboardingStepCompleted(.done)
                         } else {
-                            AppLogger.app.warning("ZodiacRevealView onComplete 已触发过,跳过重复调用")
+                            AppLogger.app.warning("ZodiacRevealView onComplete 已触发过，跳过重复调用")
                         }
                     },
                     // S10:立春降级态补时辰轻提示 → 补时辰 sheet(D7 被迫例外触点)
@@ -318,7 +318,7 @@ struct OnboardingView: View {
         guard let zhi = response.pillars.year?.zhi,  // 如 "辰"
               let zodiac = response.yearBranchZodiac,
               ZodiacHelper.isKnownZodiac(zodiac) else {
-            AppLogger.app.info("OnboardingView.mainLabel year_pillar_ambiguous(年柱歧义 → ZodiacRevealView 降级态,主标不渲染)")
+            AppLogger.app.info("OnboardingView.mainLabel year_pillar_ambiguous(年柱歧义 → ZodiacRevealView 降级态，主标不渲染)")
             return "—"
         }
         // L3:干支字按 §3 保持汉字;生肖名走语言分支(zh 简 / zh-Hant 繁 / en 英文名,
@@ -363,7 +363,7 @@ struct OnboardingView: View {
             kind: node.kind, year: node.year, age: node.age
         ) else {
             AppLogger.app.warning(
-                "past_node kind 未知,节点句不渲染: \(node.kind, privacy: .public)"
+                "past_node kind 未知，节点句不渲染: \(node.kind, privacy: .public)"
             )
             return nil
         }

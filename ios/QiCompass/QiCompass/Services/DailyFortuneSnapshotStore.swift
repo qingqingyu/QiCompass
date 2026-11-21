@@ -217,7 +217,7 @@ final class DailyFortuneSnapshotStore {
         snapshot.contextToken = nil
         try context.save()
         AppLogger.persistence.warning(
-            "op=dailyFortune.clearContextToken hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public) — token 失效,清空落回重签路径"
+            "op=dailyFortune.clearContextToken hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public) — token 失效，清空落回重签路径"
         )
     }
 }
@@ -231,7 +231,7 @@ enum DailyFortuneSnapshotError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .snapshotMissing:
-            return "运势数据已过期,请重新获取"
+            return "运势数据已过期，请重新获取"
         }
     }
 }
