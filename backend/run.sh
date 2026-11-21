@@ -16,18 +16,36 @@ fi
 set -a; source .env; set +a
 
 WORKERS="${WEB_CONCURRENCY:-2}"
-echo "starting uvicorn workers=$WORKERS host=0.0.0.0 port=8000"
+# host env 化(2026-11-18 S2):Docker 形态默认 0.0.0.0(容器内绑定正确,对
+# 公网暴露由 compose 不 publish 8000 兜住);systemd 直跑形态生产设 127.0.0.1,
+# 让唯一入口走本机反代(§2.2)。
+HOST="${UVICORN_HOST:-0.0.0.0}"
+echo "starting uvicorn workers=$WORKERS host=$HOST port=8000"
+
+# uvicorn 解析(2026-11-18 S2):Mac 开发用 venv 的 .venv/bin/uvicorn;容器
+# 内 pip 装在 PATH(/usr/local/bin/uvicorn)且**没有 .venv**——smoke 实测
+# 硬编码 .venv 路径在容器里 No such file or directory 启动即崩。
+if [[ -x ".venv/bin/uvicorn" ]]; then
+    UVICORN_BIN=".venv/bin/uvicorn"
+elif command -v uvicorn >/dev/null 2>&1; then
+    UVICORN_BIN="$(command -v uvicorn)"
+else
+    echo "ERROR: uvicorn 不可用(已找 .venv/bin/uvicorn 与 PATH)" >&2
+    exit 1
+fi
 
 # arch -arm64:Rosetta(x86_64)语境下 venv 的 arm64 编译包(pydantic_core 等)
 # ImportError 启动即崩,显式钉死架构(2026-10-07 本机复现两次)。**仅 macOS +
 # Rosetta** 需要:`arch` 是 macOS 专用命令,Linux 服务器上的 GNU coreutils
 # `arch` 只打印架构、不接受 `-arm64` 参数(2026-10-07 review,部署 Linux 会
 # 直接启动失败)。
-UVICORN_BIN=".venv/bin/uvicorn"
 if [[ "$(uname -s)" == "Darwin" ]] \
     && [[ "$(uname -m)" == "x86_64" ]] \
     && [[ "$(sysctl -n sysctl.proc_translated 2>/dev/null)" == "1" ]]; then
-    UVICORN_BIN="arch -arm64 .venv/bin/uvicorn"
+    # 拼接上方已解析的 UVICORN_BIN(2026-11-18 S2 review):不回退硬编码
+    # .venv 路径,否则 Rosetta 语境 + 无 .venv(用 PATH uvicorn)时把解析
+    # 结果覆盖成不存在的路径。
+    UVICORN_BIN="arch -arm64 $UVICORN_BIN"
 fi
 
 # --proxy-headers --forwarded-allow-ips:匿名免费配额按 request.client.host 计,
@@ -35,15 +53,22 @@ fi
 # 每日配额(2026-10-07 review,部署必须项)。
 # 信任地址经 FORWARDED_ALLOW_IPS 配置(2026-10-08 review):默认 127.0.0.1
 # (反代与后端同机);**Docker Compose 部署时反代在另一容器**,uvicorn 看到的
-# 对端是 Docker 内网地址(如 172.18.0.x)——须在 .env 填 Docker 网段
-# (如 172.18.0.0/16)或反代容器 IP,否则 X-Forwarded-For 不被信任,全站匿名
+# 对端是 Docker 内网地址——须在 .env 填 compose 网段(本仓 docker-compose.yml
+# 已固定 172.28.0.0/16,照抄该值;勿抄 Docker 默认池的 172.18.0.0/16,CIDR
+# 永不命中且无报错)或反代容器 IP,否则 X-Forwarded-For 不被信任,全站匿名
 # 用户仍共享一份配额。uvicorn 支持逗号分隔多值/CIDR 网段/`*`(CIDR 需
 # >=0.31,requirements 已锁;仅信任边界完全可控时才可用 `*`:直连暴露
 # 端口下任意客户端可伪造转发头刷额度)。
 FORWARDED_ALLOW_IPS="${FORWARDED_ALLOW_IPS:-127.0.0.1}"
+# --timeout-graceful-shutdown(2026-11-18 S2):发版重启时让进行中的 LLM 请求
+# (≤150s)在宽限期内跑完再退,否则用户已扣次数的生成被砍断。默认 200s 给
+# 150s 上限留余量;Docker 形态配套 compose stop_grace_period 210s(>200,防
+# SIGKILL 抢在宽限期结束前),两者一起改勿单边调。
+GRACEFUL="${UVICORN_GRACEFUL_SHUTDOWN_SECONDS:-200}"
 exec $UVICORN_BIN app.main:app \
-    --host 0.0.0.0 \
+    --host "$HOST" \
     --port 8000 \
     --workers "$WORKERS" \
     --proxy-headers \
-    --forwarded-allow-ips "$FORWARDED_ALLOW_IPS"
+    --forwarded-allow-ips "$FORWARDED_ALLOW_IPS" \
+    --timeout-graceful-shutdown "$GRACEFUL"
