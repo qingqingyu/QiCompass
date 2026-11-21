@@ -954,6 +954,29 @@
         }
       }
     },
+    "birthConfirm.solarHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For your chart, we convert this to true solar time for your birthplace, so your hour pillar may not match the clock hour. The time you entered is saved as it is."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盘时会按出生地换算成真太阳时，时柱可能和钟表时间所在的时辰不同。你填写的时间会原样保存。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盤時會按出生地換算成真太陽時，時柱可能和鐘錶時間所在的時辰不同。你填寫的時間會原樣保存。"
+          }
+        }
+      }
+    },
     "birthform.alias.default" : {
       "extractionState" : "manual",
       "localizations" : {

@@ -31,6 +31,16 @@ struct BirthInfoConfirmSheet: View {
                 infoRow(label: String(localized: "出生地"), value: vm.selectedPlace?.displayLabel ?? "—")
             }
 
+            // T4(2026-11-22 竞品差评对照):真太阳时预告——第一次看到排盘时间与
+            // 输入不同前先铺认知(说明类信息 inkMuted caption,不用朱红/卡片)。
+            // 时辰未知不显示:时柱对比说明由补时辰链路与页头 ⓘ 承担
+            if vm.hourKnown {
+                Text(L10n.BirthForm.confirmSolarHint)
+                    .font(BaziFont.caption(size: 12))
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+
             VStack(spacing: BaziTheme.Spacing.sm) {
                 Button(action: {
                     HapticEngine.medium()

@@ -237,6 +237,12 @@ enum L10n {
         /// zh: "未选择时刻";en: "Not selected yet"
         static let confirmTimeUnpicked = String(localized: "birthform.confirm.timeUnpicked")
 
+        /// T4(2026-11-22 竞品差评对照):确认 sheet 真太阳时预告——用户第一次看到
+        /// 排盘时间与输入不同前先铺认知(时辰未知不显示,由补时辰链路另行解释)。
+        /// zh: "排盘时会按出生地换算成真太阳时,时柱可能和钟表时间所在的时辰
+        /// 不同。你填写的时间会原样保存。"
+        static let confirmSolarHint = String(localized: "birthConfirm.solarHint")
+
         /// "命盘别名" 字段标签(字段 Micro 标签与 TextField 标题共用同一 key)。
         /// zh: "命盘别名";en: "Chart name"
         static let aliasLabel = String(localized: "birthform.alias.label")
