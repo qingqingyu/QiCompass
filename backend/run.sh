@@ -22,6 +22,22 @@ WORKERS="${WEB_CONCURRENCY:-2}"
 HOST="${UVICORN_HOST:-0.0.0.0}"
 echo "starting uvicorn workers=$WORKERS host=$HOST port=8000"
 
+# data/ 可写自检(2026-11-21 非 root 化配套):SQLite + images 全写这里,
+# 容器内非 root(uid 10001)而宿主 bind mount ./data 属主不符时,首写才炸——
+# 提前到启动即报并带宿主侧修复指引(错误显式传播,不静默降级到别处)。
+# Mac/systemd 直跑形态 data/ 属当前用户,自检恒过零副作用。
+DATA_DIR="$(dirname "${QICOMPASS_DB_PATH:-data/qicompass.db}")"
+# mkdir 一并纳入守卫(2026-11-21 review):set -e 下裸 mkdir 失败(父目录不可写,
+# 如 QICOMPASS_DB_PATH 指向系统路径且非 root 直跑)会以裸错误退出,绕过下方指引。
+if ! mkdir -p "$DATA_DIR" 2>/dev/null || ! touch "$DATA_DIR/.writecheck" 2>/dev/null; then
+    # 路径原样打印(兼容绝对/相对配置),工作目录另附——直接拼 $(pwd)/$DATA_DIR
+    # 在绝对路径配置下会产出 "/app//app/data" 类畸形串
+    echo "ERROR: data 目录不可写(或不可建):$DATA_DIR(工作目录 $(pwd))" >&2
+    echo "  Docker 部署:宿主侧执行 sudo chown -R 10001:10001 ./data(镜像以 uid 10001 非 root 运行)" >&2
+    exit 1
+fi
+rm -f "$DATA_DIR/.writecheck"
+
 # uvicorn 解析(2026-11-18 S2):Mac 开发用 venv 的 .venv/bin/uvicorn;容器
 # 内 pip 装在 PATH(/usr/local/bin/uvicorn)且**没有 .venv**——smoke 实测
 # 硬编码 .venv 路径在容器里 No such file or directory 启动即崩。

@@ -30,6 +30,9 @@
   记录;webhook 按 JWS payload 的 `environment` claim 路由验签器。
   `APP_STORE_ENVIRONMENT` 不再决定客户端环境,只作 production 缺配
   fail-fast 的部署意图声明。
+- **Docker 部署首次起容器前**:`sudo chown -R 10001:10001 ./data`——镜像以
+  非 root uid 10001 运行(2026-11-21),宿主 bind mount 属主不符时 run.sh
+  启动自检 fail-fast 并带该指引(不会静默降级)。已有旧 data/ 换新镜像时同样执行。
 - 部署后核对:`GET /api/health` 的 `prompt_versions` / `lunar_python_version`
   / `ai_provider` 与预期版本一致,再放流量。
 

@@ -16,7 +16,9 @@
 #   无上限会写满盘——盘上还有 entitlement 的钱和账号,写满 = 全站下线
 # - stop_grace_period 210s > 优雅停机 200s(run.sh --timeout-graceful-
 #   shutdown):发版重启让进行中 LLM 请求跑完,防 SIGKILL 抢在宽限期前(§2.3)
-# - ./data 卷 = SQLite + images/(全部单机状态,备份对象;§4)
+# - ./data 卷 = SQLite + images/(全部单机状态,备份对象;§4)。镜像以非 root
+#   uid 10001 运行(2026-11-21):部署时宿主侧 `sudo chown -R 10001:10001 ./data`,
+#   漏做时 run.sh 启动自检 fail-fast 并带该指引(不会静默降级)
 # - ./certs 挂到 app/entitlement/certs:Apple Root CA(.cer)不入 git,部署时
 #   从 apple.com/certificateauthority 下载放入宿主 ./certs(env 配齐而缺失
 #   = 启动 fail-fast)
@@ -79,7 +81,10 @@ services:
       - caddy_data:/data
       - caddy_config:/config
     depends_on:
-      - api
+      api:
+        # 2026-11-21 推前 review 可选项落地:等 api 健康探针通过再起
+        # (api 起不来时 Caddy 不监听 80/443,不出现「域名通但 5xx」中间态)
+        condition: service_healthy
 
 networks:
   default:

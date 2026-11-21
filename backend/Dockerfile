@@ -13,6 +13,11 @@
 #   arm64 镜像,amd64 服务器拉起即 exec format error——Mac 构建须
 #   docker buildx build --platform linux/amd64(按服务器实机架构),或走
 #   rsync 源码到服务器 build 的天然同构路径(§5)
+# - 非 root 运行(2026-11-21 推前 review 可选项落地):固定 uid/gid 10001
+#   (避开常见宿主首位用户 uid 1000,防意外同 id 继承宿主写权限面)。
+#   ./data bind mount 属主是宿主用户,非 root 后容器内首写会 EACCES——
+#   部署时宿主侧 `sudo chown -R 10001:10001 ./data`,run.sh 启动自检
+#   data/ 可写并带该指引 fail-fast(见 run.sh)。
 
 FROM python:3.12-slim
 
@@ -30,7 +35,12 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY app ./app
 COPY run.sh ./
-RUN chmod +x run.sh
+RUN chmod +x run.sh \
+    && groupadd -g 10001 app \
+    && useradd -u 10001 -g 10001 -m app \
+    && chown -R app:app /app
+
+USER app
 
 EXPOSE 8000
 
