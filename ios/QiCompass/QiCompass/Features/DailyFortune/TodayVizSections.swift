@@ -661,9 +661,13 @@ struct TodayBottomColumnsSection: View {
 
     private func a11yLabel(pair: (yi: [String], ji: [String])) -> String {
         let sep = AppLanguage.current.isChinese ? "、" : ", "
+        // EN 干支走拼音(D4 基座零汉字,与明日栏可见层/时辰谱 a11y 同口径)
+        let pillar = isEn
+            ? (BaziTerms.romanizedHyphen(tomorrow.dayPillar) ?? tomorrow.dayPillar)
+            : tomorrow.dayPillar
         return "\(L10n.DailyFortune.yiLabel) \(pair.yi.joined(separator: sep))\(sep)"
             + "\(L10n.DailyFortune.jiLabel) \(pair.ji.joined(separator: sep))\(sep)"
-            + "\(L10n.DailyFortune.tomorrowTitle) \(tomorrow.dayPillar) "
+            + "\(L10n.DailyFortune.tomorrowTitle) \(pillar) "
             + BaziTerms.display(tomorrow.dayRelation)
             + (tomorrow.dayChong.map { " " + chongText($0) } ?? "")
     }
