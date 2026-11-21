@@ -431,35 +431,16 @@ final class DailyImageHeroCopyTests: XCTestCase {
         }
     }
 
-    // MARK: - 今日五行条判定(S3,2026-10-25)
+    // MARK: - 今日五行判定(2026-11-21 改版:DailyElementStrengthSection 退役,
+    // 判定序迁入 TodayVizSections;语义原样迁移——最高项并列取显示序首、
+    // ↑ 保序去重,由 TodayVizLayoutTests 继续钉)
 
-    /// 判定序钉死:最高项 = 过旺(并列取显示序首);宜借 = day_signal ↑
-    /// 保序去重;值对齐后端 2026-10-24 真值(辛未/戌月)。
-    func testElementStrength_dominantAndBorrow() {
-        let section = DailyElementStrengthSection(
-            strength: ["木": 8, "火": 33, "土": 100, "金": 67, "水": 0],
-            daySignal: [
-                DaySignalItemDTO(element: "金", direction: "up"),
-                DaySignalItemDTO(element: "土", direction: "up"),
-                DaySignalItemDTO(element: "金", direction: "up"),  // 去重
-            ]
-        )
-        XCTAssertEqual(section.dominant, "土")
-        XCTAssertEqual(section.borrowElements, ["金", "土"])
-    }
-
-    func testElementStrength_并列取显示序首_空信号宜借空() {
-        // 并列 100(木/土)→ 显示序首个「木」(确定性,不随 dict 序漂)
-        let tie = DailyElementStrengthSection(
-            strength: ["木": 100, "火": 0, "土": 100, "金": 0, "水": 0],
-            daySignal: nil)
-        XCTAssertEqual(tie.dominant, "木")
-        XCTAssertEqual(tie.borrowElements, [], "day_signal 空(时辰未知/从格)→ 宜借空,不编喜忌语义")
-        // 全零 → 无最高项(宿主空 dict 不渲染;防御性 nil)
-        let zero = DailyElementStrengthSection(
-            strength: ["木": 0, "火": 0, "土": 0, "金": 0, "水": 0],
-            daySignal: nil)
-        XCTAssertNil(zero.dominant)
+    /// 迁移锚点:旧 dominant/borrow 语义在 TodayElementRank.ranked 上不变。
+    func testElementStrength_rankSemanticsPreserved() {
+        let ranked = TodayElementRank.ranked(
+            ["木": 8, "火": 33, "土": 100, "金": 67, "水": 0])
+        XCTAssertEqual(ranked.map(\.element), ["土", "金", "火", "木", "水"])
+        XCTAssertEqual(ranked.first?.value, 100)
     }
 
     /// DTO 解码:day_element_strength 缺键(老快照/老后端)→ nil 整块隐藏;

@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>④c · 浅色编辑 · 老历书账本版</title>
+<style>
+  :root{
+    --paper:#f7f3e9; --ink:#26231d; --sub:#8a8374; --line:#d9d2c0; --deep:#6d5a2e;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#e6e1d3;font-family:-apple-system,"PingFang SC",sans-serif;
+       display:flex;justify-content:center;padding:40px 0;}
+  .phone{width:390px;min-height:844px;background:var(--paper);color:var(--ink);padding:26px 24px 60px;
+         border-top:6px solid var(--ink);}
+
+  /* 报头 */
+  .masthead{text-align:center;border-bottom:3px double var(--ink);padding-bottom:12px;}
+  .masthead .t{font-family:Georgia,"Songti SC",serif;font-size:26px;letter-spacing:.45em;text-indent:.45em;}
+  .masthead .d{font-size:10px;color:var(--sub);letter-spacing:.2em;margin-top:6px;}
+
+  .notice{display:flex;justify-content:space-between;font-size:10px;color:var(--sub);
+          border-bottom:1px solid var(--line);padding:8px 2px;letter-spacing:.1em;}
+
+  /* 干支大字 + 四角 */
+  .ganzhi-block{display:grid;grid-template-columns:1fr auto 1fr;align-items:center;
+                padding:26px 0;border-bottom:1px solid var(--line);}
+  .ganzhi-block .side{font-size:11px;color:var(--sub);line-height:2;letter-spacing:.08em;}
+  .ganzhi-block .side.r{text-align:right;}
+  .ganzhi-block .side b{color:var(--ink);font-weight:600;}
+  .ganzhi-block .gz{font-family:Georgia,"Songti SC",serif;font-size:52px;letter-spacing:.05em;
+                    padding:0 20px;border-left:1px solid var(--line);border-right:1px solid var(--line);}
+
+  /* 五行 账目行：虚线引导 + 圆点 */
+  .ledger{padding:16px 0 6px;border-bottom:1px solid var(--line);}
+  .lr{display:flex;align-items:baseline;font-family:Georgia,"Songti SC",serif;font-size:17px;padding:8px 0;}
+  .lr .e{display:flex;align-items:center;gap:9px;}
+  .lr .dot{width:9px;height:9px;border-radius:50%;}
+  .lr .dots-fill{flex:1;border-bottom:1px dotted #b8b09a;margin:0 12px;transform:translateY(-3px);}
+  .lr .n{font-variant-numeric:tabular-nums;font-size:18px;}
+  .lr .note{font-size:10px;color:var(--sub);font-family:-apple-system,sans-serif;letter-spacing:.1em;margin-left:10px;}
+  .lr.fav .n{color:var(--deep);}
+
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  thead th{font-size:9px;letter-spacing:.25em;color:var(--sub);font-weight:400;text-transform:uppercase;
+           border-top:1px solid var(--ink);border-bottom:1px solid var(--line);padding:8px 4px;text-align:left;}
+  tbody td{border-bottom:1px solid var(--line);padding:7px 4px;color:#45412f;}
+  tbody td.gz{font-family:Georgia,"Songti SC",serif;font-size:14px;}
+  tbody td.num{font-variant-numeric:tabular-nums;color:var(--sub);font-size:10px;}
+  tbody tr.now td{color:var(--deep);font-weight:600;}
+  tbody tr.now td:first-child::after{content:"◆";font-size:7px;margin-left:5px;vertical-align:2px;}
+  tbody td .mk{display:inline-block;width:7px;height:7px;border-radius:1px;margin-right:2px;vertical-align:0;}
+
+  .col-head{display:flex;justify-content:space-between;align-items:baseline;
+            border-bottom:1px solid var(--ink);padding:14px 0 8px;}
+  .col-head .t{font-family:Georgia,"Songti SC",serif;font-size:15px;letter-spacing:.2em;}
+  .col-head .s{font-size:9px;color:var(--sub);letter-spacing:.15em;}
+
+  .yj-row{display:flex;padding:10px 0;border-bottom:1px solid var(--line);}
+  .yj-row .k{font-family:Georgia,"Songti SC",serif;width:34px;font-size:16px;}
+  .yj-row .v{flex:1;letter-spacing:.2em;font-size:13px;color:#45412f;}
+
+  .foot-note{margin-top:22px;font-family:Georgia,"Songti SC",serif;font-size:13px;line-height:2;
+             text-align:center;color:#45412f;border-top:3px double var(--ink);padding-top:14px;}
+  .foot-note .tm{display:block;font-family:-apple-system,sans-serif;font-size:9px;color:var(--sub);
+                 letter-spacing:.25em;margin-top:8px;text-transform:uppercase;}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="masthead">
+    <div class="t">每日五行簿</div>
+    <div class="d">丙子日 · 亥月 · 甲木身弱之命 · 食神主事</div>
+  </div>
+
+  <div class="notice"><span>十一月十八 · 星期三</span><span>农历十月初十</span><span>明日 丁丑</span></div>
+
+  <div class="ganzhi-block">
+    <div class="side">
+      喜用 <b>水 · 木</b><br>
+      忌神 <b>火 · 土</b>
+    </div>
+    <div class="gz">丙子</div>
+    <div class="side r">
+      流日干 <b>丙火</b> 忌<br>
+      流日支 <b>子水</b> 喜
+    </div>
+  </div>
+
+  <!-- 五行账目 -->
+  <div class="ledger">
+    <div class="lr fav"><span class="e"><i class="dot" style="background:#5a8db8"></i>水</span><span class="dots-fill"></span><span class="n">100</span><span class="note">当令 · 喜用</span></div>
+    <div class="lr fav"><span class="e"><i class="dot" style="background:#5c8a5e"></i>木</span><span class="dots-fill"></span><span class="n">78</span><span class="note">相 · 喜用</span></div>
+    <div class="lr"><span class="e"><i class="dot" style="background:#7f8ea3"></i>金</span><span class="dots-fill"></span><span class="n">64</span></div>
+    <div class="lr"><span class="e"><i class="dot" style="background:#b08d55"></i>土</span><span class="dots-fill"></span><span class="n">52</span><span class="note">忌</span></div>
+    <div class="lr"><span class="e"><i class="dot" style="background:#c96f4a"></i>火</span><span class="dots-fill"></span><span class="n">35</span><span class="note">忌</span></div>
+  </div>
+
+  <!-- 十二时辰表 -->
+  <div class="col-head" style="margin-top:4px;"><span class="t">十二时辰</span><span class="s">◆ = 现在 巳时</span></div>
+  <table>
+    <thead><tr><th>时辰</th><th>时柱</th><th>十神</th><th style="text-align:right;">刻</th></tr></thead>
+    <tbody>
+      <tr><td class="gz">子</td><td>甲子</td><td>比肩</td><td class="num" style="text-align:right;">23–01</td></tr>
+      <tr><td class="gz">丑</td><td>乙丑</td><td>劫财</td><td class="num" style="text-align:right;">01–03</td></tr>
+      <tr><td class="gz">寅</td><td>丙寅</td><td>食神</td><td class="num" style="text-align:right;">03–05</td></tr>
+      <tr><td class="gz">卯</td><td>丁卯</td><td>伤官</td><td class="num" style="text-align:right;">05–07</td></tr>
+      <tr><td class="gz">辰</td><td>戊辰</td><td>偏财</td><td class="num" style="text-align:right;">07–09</td></tr>
+      <tr class="now"><td class="gz">巳</td><td>己巳</td><td>正财</td><td class="num" style="text-align:right;">09–11</td></tr>
+      <tr><td class="gz">午</td><td>庚午</td><td>七杀</td><td class="num" style="text-align:right;">11–13</td></tr>
+      <tr><td class="gz">未</td><td>辛未</td><td>正官</td><td class="num" style="text-align:right;">13–15</td></tr>
+      <tr><td class="gz">申</td><td>壬申</td><td>偏印</td><td class="num" style="text-align:right;">15–17</td></tr>
+      <tr><td class="gz">酉</td><td>癸酉</td><td>正印</td><td class="num" style="text-align:right;">17–19</td></tr>
+      <tr><td class="gz">戌</td><td>甲戌</td><td>比肩</td><td class="num" style="text-align:right;">19–21</td></tr>
+      <tr><td class="gz">亥</td><td>乙亥</td><td>劫财</td><td class="num" style="text-align:right;">21–23</td></tr>
+    </tbody>
+  </table>
+
+  <!-- 黄历 -->
+  <div class="col-head"><span class="t">黄历</span><span class="s">宜忌</span></div>
+  <div class="yj-row"><span class="k">宜</span><span class="v">会友 · 沐浴 · 立券</span></div>
+  <div class="yj-row"><span class="k">忌</span><span class="v">开市 · 动土 · 远行</span></div>
+
+  <div class="foot-note">
+    水当令而木相，沉静中自有生发。<br>食神泄秀，宜收不宜散。
+    <span class="tm">Tomorrow — 丁丑 · 伤官 · 冲未</span>
+  </div>
+
+</div>
+</body>
+</html>

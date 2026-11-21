@@ -961,6 +961,11 @@ final class MockAPIClient: APIClient {
                 DaySignalItemDTO(element: "木", direction: "up"),
                 DaySignalItemDTO(element: "水", direction: "up"),
             ],
+            // 今日五行力量(2026-11-21 改版补齐,mock 保真):与 mock 流日柱
+            // 甲子(甲=木/子=水)及 daySignal 木↑水↑ 自洽——子水当令 100、
+            // 甲木透干 78;数值同设计稿 11-merged.html,缺省 nil 会让数字对开
+            // + 气泡场在 mock 模式(预览/脚手架)走「老后端」隐藏路径不可见。
+            dayElementStrength: ["木": 78, "火": 35, "土": 52, "金": 64, "水": 100],
             lunarDate: "六月廿八(mock)",
             huangliYi: ["祭祀", "祈福", "求嗣", "开光"],
             huangliJi: ["嫁娶", "栽种"],

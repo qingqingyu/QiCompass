@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>今日页五行可视化 · 五风格方向对比板</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#1a1a1e;font-family:-apple-system,"PingFang SC",sans-serif;padding:36px 24px 80px;}
+  h1{color:#eee;font-weight:600;font-size:20px;margin-bottom:6px;}
+  .sub{color:#999;font-size:13px;margin-bottom:28px;line-height:1.7;}
+  .row{display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start;}
+  .item{width:390px;}
+  .item .meta{margin-bottom:12px;color:#bbb;font-size:13px;line-height:1.6;}
+  .item .meta b{color:#fff;font-size:15px;display:block;margin-bottom:2px;}
+  .item .meta a{color:#7aa2ff;text-decoration:none;}
+  .frame{width:390px;height:844px;border-radius:24px;overflow:hidden;border:1px solid #333;
+         box-shadow:0 20px 60px rgba(0,0,0,.5);}
+  .frame iframe{width:390px;height:844px;border:none;background:#fff;}
+  .note{color:#777;font-size:12px;margin-top:40px;line-height:1.8;}
+</style>
+</head>
+<body>
+<h1>今日页五行可视化 · 风格探索（Mobbin 参考 → 本项目真实数据）</h1>
+<p class="sub">
+  数据统一：甲木日主·身弱 / 喜水木·忌火土 / 丙子流日（食神）/ 亥月水当令 / 五行力量 水100·木78·金64·土52·火35 / 信号 水↑喜·火↓忌<br>
+  字段对应后端 <code style="color:#aaa">DailyFortuneResponse</code>：day_pillar · day_relation · day_elements · day_signal · day_element_strength · hour_pillars · huangli · tomorrow_preview
+</p>
+
+<div class="row">
+
+  <div class="item">
+    <div class="meta"><b>① Co–Star 式 · 暗黑极简</b>
+      参考：<a href="https://mobbin.com/screens/4573e250-44d9-483e-a487-4e4904812528?utm_source=claude-code&utm_medium=ai-assistant&utm_source_platform=mcp">Co–Star</a>
+      — 纯黑底 / 白衬线 / 细网格线 / 零装饰 / 大写小字距标签</div>
+    <div class="frame"><iframe src="01-costar-dark-brutalist.html"></iframe></div>
+  </div>
+
+  <div class="item">
+    <div class="meta"><b>② 深空星象 · 金</b>
+      参考：<a href="https://mobbin.com/screens/b3c5c483-e975-4425-baca-f32e6c75a09c?utm_source=claude-code&utm_medium=ai-assistant&utm_source_platform=mcp">Moonly</a> /
+      <a href="https://mobbin.com/screens/a7044394-53a4-4d94-b654-a320602565b0?utm_source=claude-code&utm_medium=ai-assistant&utm_source_platform=mcp">Stardust</a>
+      — 深靛星空 / 金色细线 / 发光罗盘 / 神秘感</div>
+    <div class="frame"><iframe src="02-celestial-gold.html"></iframe></div>
+  </div>
+
+  <div class="item">
+    <div class="meta"><b>③ 柔彩显化系</b>
+      参考：<a href="https://mobbin.com/screens/62acd665-8d2c-49d7-9602-de9a51496d5a?utm_source=claude-code&utm_medium=ai-assistant&utm_source_platform=mcp">Lovi</a> /
+      <a href="https://mobbin.com/screens/2288f396-ffac-48d9-850f-4809939fd36e?utm_source=claude-code&utm_medium=ai-assistant&utm_source_platform=mcp">Me+</a>
+      — 软渐变 / 大圆角卡 / 肯定语气 / 能量条</div>
+    <div class="frame"><iframe src="03-pastel-manifestation.html"></iframe></div>
+  </div>
+
+  <div class="item">
+    <div class="meta"><b>④ 浅色编辑排版</b>
+      参考：<a href="https://mobbin.com/screens/ae5a112d-be16-464e-82a4-75b63cb96493?utm_source=claude-code&utm_medium=ai-assistant&utm_source_platform=mcp">stoic.</a> / How We Feel
+      — 米白底 / 衬线标题 / 报刊式留白 / 克制刻度</div>
+    <div class="frame"><iframe src="04-editorial-light.html"></iframe></div>
+  </div>
+
+  <div class="item">
+    <div class="meta"><b>⑤ 塔罗牌面 · 饰金</b>
+      参考：Moonly 塔罗流 / <a href="https://mobbin.com/screens/b6f7269a-2db1-4a26-9ec2-b4443880fb7d?utm_source=claude-code&utm_medium=ai-assistant&utm_source_platform=mcp">Stardust</a>
+      — 暗底双金框 / 牌面卡 / 烛台柱 / 对称仪式感</div>
+    <div class="frame"><iframe src="05-tarot-ornate.html"></iframe></div>
+  </div>
+
+</div>
+
+<p class="note">
+  仅风格探索稿，不代表最终视觉方向（当前正轨仍是 DESIGN.md 水墨孤本体系）。样本数据为演示口径：水当令木相。<br>
+  生成于 2026-11-18 · waiguan 分支 · docs/design-ref/wuxing-styles/
+</p>
+</body>
+</html>

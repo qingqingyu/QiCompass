@@ -1,0 +1,144 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>④b · 浅色编辑 · 大字数字版（How We Feel 式色点）</title>
+<style>
+  :root{
+    --paper:#fbf9f4; --ink:#1e1c18; --sub:#8b857a; --line:#e7e1d5;
+    --water:#5a8db8; --wood:#5c8a5e; --earth:#b08d55; --metal:#7f8ea3; --fire:#c96f4a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#e9e5dc;font-family:-apple-system,"PingFang SC",sans-serif;
+       display:flex;justify-content:center;padding:40px 0;}
+  .phone{width:390px;min-height:844px;background:var(--paper);color:var(--ink);padding:28px 26px 60px;}
+
+  .kicker{font-size:10px;letter-spacing:.28em;color:var(--sub);text-transform:uppercase;}
+  .kicker::after{content:"";display:block;width:28px;height:2px;background:var(--ink);margin-top:8px;}
+
+  /* 巨型数字 hero */
+  .hero-num{margin-top:26px;display:flex;align-items:baseline;gap:14px;}
+  .hero-num .n{font-family:Georgia,serif;font-size:120px;line-height:.9;letter-spacing:-.02em;
+               font-variant-numeric:tabular-nums;color:var(--water);}
+  .hero-num .side .e{font-family:Georgia,"Songti SC",serif;font-size:30px;}
+  .hero-num .side .c{font-size:11px;color:var(--sub);letter-spacing:.1em;margin-top:6px;line-height:1.6;}
+  .hero-cap{font-family:Georgia,"Songti SC",serif;font-size:17px;margin-top:20px;line-height:1.8;max-width:30ch;}
+
+  /* 色点行（How We Feel 词汇色） */
+  .dots{display:flex;gap:14px;margin-top:30px;padding:18px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .dt{text-align:center;flex:1;}
+  .dt .c{width:34px;height:34px;border-radius:50%;margin:0 auto;display:flex;align-items:center;justify-content:center;
+         font-family:Georgia,"Songti SC",serif;font-size:15px;color:#fff;}
+  .dt.hollow .c{background:transparent;border:1.5px solid var(--sub);color:var(--sub);}
+  .dt .v{font-size:10px;color:var(--sub);margin-top:8px;font-variant-numeric:tabular-nums;letter-spacing:.05em;}
+  .dt .v b{color:var(--ink);font-weight:600;display:block;font-size:11px;}
+
+  .sec{margin-top:30px;}
+  .sec .kicker{display:block;}
+  .sec .kicker::after{width:20px;height:1px;}
+
+  /* 信号两栏 */
+  .two{display:flex;gap:20px;margin-top:14px;}
+  .two .col{flex:1;}
+  .two .h{font-family:Georgia,"Songti SC",serif;font-size:20px;}
+  .two .h u{text-decoration:none;border-bottom:2px solid var(--water);}
+  .two .h.low u{border-color:var(--fire);}
+  .two p{font-size:12px;line-height:1.8;color:#57524a;margin-top:8px;}
+
+  /* 时辰：横排色块谱 */
+  .spectrum{display:flex;gap:3px;align-items:flex-end;height:96px;margin-top:16px;}
+  .sp{flex:1;display:flex;flex-direction:column;justify-content:flex-end;text-align:center;height:100%;}
+  .sp .bar{background:#ddd6c6;border-radius:2px 2px 0 0;width:100%;}
+  .sp.now .bar{background:var(--ink);}
+  .sp .z{font-family:Georgia,"Songti SC",serif;font-size:11px;color:var(--sub);margin-top:6px;}
+  .sp.now .z{color:var(--ink);font-weight:600;}
+  .sp-cap{font-size:10px;color:var(--sub);margin-top:10px;letter-spacing:.08em;}
+
+  /* 黄历一行式 */
+  .yj-line{display:flex;gap:8px;flex-wrap:wrap;margin-top:14px;}
+  .yj-line .chip{font-size:12px;border:1px solid var(--line);border-radius:3px;padding:5px 10px;color:#4c4841;}
+  .yj-line .chip b{font-family:Georgia,"Songti SC",serif;font-weight:400;margin-right:6px;}
+  .yj-line .chip.yi b{color:#3f6b41;} .yj-line .chip.ji b{color:#a5583a;}
+
+  .close{margin-top:36px;padding-top:14px;border-top:2px solid var(--ink);
+         display:flex;justify-content:space-between;align-items:baseline;}
+  .close .q{font-family:Georgia,"Songti SC",serif;font-size:14px;}
+  .close .tm{font-size:10px;color:var(--sub);letter-spacing:.15em;}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <span class="kicker">十一月十八 · 十月初十 · 丙子日 · 食神</span>
+
+  <div class="hero-num">
+    <div class="n">100</div>
+    <div class="side">
+      <div class="e">水</div>
+      <div class="c">当令 · 喜用<br>正印入命</div>
+    </div>
+  </div>
+  <p class="hero-cap">今日之水满盈，是甲木身弱之命半月里难得的清明日——把重要的事放到今天。</p>
+
+  <div class="dots">
+    <div class="dt"><div class="c" style="background:var(--water)">水</div><div class="v"><b>100</b>当令</div></div>
+    <div class="dt"><div class="c" style="background:var(--wood)">木</div><div class="v"><b>78</b>相</div></div>
+    <div class="dt"><div class="c" style="background:var(--metal)">金</div><div class="v"><b>64</b>&nbsp;</div></div>
+    <div class="dt"><div class="c" style="background:var(--earth)">土</div><div class="v"><b>52</b>忌</div></div>
+    <div class="dt"><div class="c" style="background:var(--fire)">火</div><div class="v"><b>35</b>忌</div></div>
+  </div>
+
+  <div class="sec">
+    <span class="kicker">今日信号</span>
+    <div class="two">
+      <div class="col">
+        <div class="h"><u>↑ 子水</u></div>
+        <p>喜用到位。正印护身，适合读书、复盘、把悬而未决的事想透。</p>
+      </div>
+      <div class="col">
+        <div class="h low"><u>↓ 丙火</u></div>
+        <p>忌神透干。食神泄身，表达欲旺但精力折损，日程留白。</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <span class="kicker">十二时辰 · 柱高 = 时辰吉度</span>
+    <div class="spectrum">
+      <div class="sp"><div class="bar" style="height:92%"></div><span class="z">子</span></div>
+      <div class="sp"><div class="bar" style="height:58%"></div><span class="z">丑</span></div>
+      <div class="sp"><div class="bar" style="height:80%"></div><span class="z">寅</span></div>
+      <div class="sp"><div class="bar" style="height:56%"></div><span class="z">卯</span></div>
+      <div class="sp"><div class="bar" style="height:70%"></div><span class="z">辰</span></div>
+      <div class="sp now"><div class="bar" style="height:86%"></div><span class="z">巳</span></div>
+      <div class="sp"><div class="bar" style="height:38%"></div><span class="z">午</span></div>
+      <div class="sp"><div class="bar" style="height:50%"></div><span class="z">未</span></div>
+      <div class="sp"><div class="bar" style="height:74%"></div><span class="z">申</span></div>
+      <div class="sp"><div class="bar" style="height:82%"></div><span class="z">酉</span></div>
+      <div class="sp"><div class="bar" style="height:64%"></div><span class="z">戌</span></div>
+      <div class="sp"><div class="bar" style="height:76%"></div><span class="z">亥</span></div>
+    </div>
+    <div class="sp-cap">现在巳时（09–11）· 正财 · 全天较吉时辰：子 · 酉 · 寅</div>
+  </div>
+
+  <div class="sec">
+    <span class="kicker">黄历</span>
+    <div class="yj-line">
+      <span class="chip yi"><b>宜</b>会友</span>
+      <span class="chip yi"><b>宜</b>沐浴</span>
+      <span class="chip yi"><b>宜</b>立券</span>
+      <span class="chip ji"><b>忌</b>开市</span>
+      <span class="chip ji"><b>忌</b>动土</span>
+      <span class="chip ji"><b>忌</b>远行</span>
+    </div>
+  </div>
+
+  <div class="close">
+    <span class="q">水当令而木相，沉静中自有生发。</span>
+    <span class="tm">明日 丁丑 · 伤官 · 冲未</span>
+  </div>
+
+</div>
+</body>
+</html>

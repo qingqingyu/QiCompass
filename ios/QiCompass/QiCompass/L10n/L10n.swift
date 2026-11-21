@@ -505,23 +505,21 @@ enum L10n {
         /// 解读区标题 + CTA 按钮标题(zh="今日解读", en="Today's Reading")
         static let interpretTitle = String(localized: "dailyfortune.interpret.title")
 
-        // -- 今日五行条(S3,2026-10-25;docs/design-ref/today-type/今日五行条.html)--
+        // -- 数字对开 + 气泡场 + 时辰谱/明日栏(2026-11-21 改版,
+        //    docs/design-ref/wuxing-styles/11-merged.html;旧今日五行条 L10n
+        //    常量随 DailyElementStrengthSection 退役移除)--
 
-        /// 区标(zh="今日五行", en="Today's Elements")
-        static let elementsTitle = String(localized: "dailyfortune.elements.title")
+        /// 气泡场区标(zh="五行力量 · 能量场", en="Elemental Field")
+        static let fieldTitle = String(localized: "dailyfortune.field.title")
 
-        /// hint 前半:分布最高项(zh="%@气偏旺" / zh-hant="%@氣偏旺" / en="%@ runs strong")
-        static let elementsStrongFormat = String(localized: "dailyfortune.elements.strong")
+        /// 气泡场图例(zh="圆 = 力量", en="circle = strength")
+        static let fieldLegend = String(localized: "dailyfortune.field.legend")
 
-        /// hint 后半:喜用命中(en 语义 = 借力;day_signal 空时整半句收起)
-        /// zh="宜借%@" / en="lean on %@"
-        static let elementsBorrowFormat = String(localized: "dailyfortune.elements.borrow")
+        /// 气泡场小注(图例说明,越大气泡越活跃;喜用指向)
+        static let fieldCaption = String(localized: "dailyfortune.field.caption")
 
-        /// 条顶标签:分布最高项(zh="过旺" / zh-hant="過旺" / en="high")
-        static let elementsTagPeak = String(localized: "dailyfortune.elements.tag.peak")
-
-        /// 条顶标签:喜用命中(zh="宜借" / en="lean")
-        static let elementsTagLean = String(localized: "dailyfortune.elements.tag.lean")
+        /// 底部第三栏标题(zh="明日", en="Tomorrow")
+        static let tomorrowTitle = String(localized: "dailyfortune.tomorrow.title")
 
         /// 缓存标识(zh="24h 内已缓存,不消耗次数")
         static let interpretCached = String(localized: "dailyfortune.interpret.cached")

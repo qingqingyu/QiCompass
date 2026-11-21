@@ -187,6 +187,11 @@ enum BaziTheme {
     /// sheet 底 / 残留卡底。水墨语言下卡片让位 hairline,此 token 逐步收缩到 sheet 与锁框。
     static let cardSurface   = dyn(Color(red: 0xF7/255, green: 0xF5/255, blue: 0xF0/255),
                                    Color(red: 0x21/255, green: 0x1E/255, blue: 0x1B/255))
+    /// 今日 tab 专用暖白纸面(2026-11-21 试点,docs/design-ref/wuxing-styles/11-merged.html;
+    /// 用户拍板仅今日 tab 生效——主页面 + 其 sheet,其余三 tab 维持全局 `paper` 不变;
+    /// Dark 仍夜宣纸,与全局暗色一致。试点验收后再决定是否推全局)。
+    static let todayPaper    = dyn(Color(red: 0xFA/255, green: 0xF8/255, blue: 0xF2/255),
+                                   Color(red: 0x17/255, green: 0x14/255, blue: 0x12/255))
     /// 主文字。Light 浓墨(冷黑)/ Dark 米白(2026-09-25 随暖墨黑同步微暖,#E9E7E2 → #EAE6DF)。
     static let ink           = dyn(Color(red: 0x1C/255, green: 0x1B/255, blue: 0x1E/255),
                                    Color(red: 0xEA/255, green: 0xE6/255, blue: 0xDF/255))

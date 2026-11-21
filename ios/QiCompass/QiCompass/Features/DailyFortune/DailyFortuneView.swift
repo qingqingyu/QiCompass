@@ -30,7 +30,8 @@ struct DailyFortuneView: View {
     var body: some View {
         NavigationStack {
             ZStack {
-                BaziTheme.paper.ignoresSafeArea()
+                // 2026-11-21 今日 tab 试点暖白纸面(仅本 tab,拍板见 DESIGN.md Decisions Log)
+                BaziTheme.todayPaper.ignoresSafeArea()
                 content
             }
             // D2(2026-09-29 拍板):四 tab 统一去系统导航标题,防系统字体与水墨

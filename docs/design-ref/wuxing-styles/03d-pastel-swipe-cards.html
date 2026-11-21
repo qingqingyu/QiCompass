@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>③d · 柔彩显化 · 横滑元素卡版</title>
+<style>
+  :root{ --ink:#4d4470; --sub:#9b8fc0; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#efeaf6;font-family:-apple-system,"PingFang SC",sans-serif;
+       display:flex;justify-content:center;padding:40px 0;}
+  .phone{width:390px;min-height:844px;padding:22px 18px 60px;color:var(--ink);
+    background:linear-gradient(168deg,#f4effc 0%,#fdeef3 55%,#fdf4ec 100%);}
+  .card{background:#fff;border-radius:24px;box-shadow:0 10px 30px rgba(120,90,180,.10);padding:18px;margin-bottom:16px;}
+
+  .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .top .hi{font-size:20px;font-weight:750;}
+  .top .hi span{background:linear-gradient(90deg,#b78bff,#ff9d9d);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .chip{font-size:11px;color:var(--sub);background:rgba(255,255,255,.7);border-radius:20px;padding:6px 12px;}
+
+  /* hero 紧凑条 */
+  .hero{display:flex;align-items:center;gap:16px;padding:18px;
+    background:linear-gradient(120deg,#ffffff,#f9efff);}
+  .hero .gz{font-size:36px;font-weight:800;
+    background:linear-gradient(115deg,#a375ff,#ff8fa8);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .hero .info .rel{font-size:12px;font-weight:700;color:#8e6bd8;}
+  .hero .info .m{font-size:11px;color:var(--sub);margin-top:4px;line-height:1.6;}
+  .hero .go{margin-left:auto;font-size:20px;color:#d8ccf0;}
+
+  .sec-h{display:flex;justify-content:space-between;align-items:baseline;margin:0 4px 12px;}
+  .sec-h .t{font-size:15px;font-weight:800;}
+  .sec-h .more{font-size:11px;color:#a375ff;font-weight:700;}
+
+  /* 横滑五行卡 */
+  .deck{display:flex;gap:12px;overflow-x:auto;padding:2px 2px 8px;scroll-snap-type:x mandatory;}
+  .deck::-webkit-scrollbar{display:none;}
+  .elc{flex:none;width:118px;border-radius:22px;padding:16px 14px;scroll-snap-align:start;position:relative;overflow:hidden;}
+  .elc .e{font-size:30px;font-weight:800;color:rgba(255,255,255,.95);}
+  .elc .nm{font-size:10px;color:rgba(255,255,255,.85);margin-top:2px;font-weight:600;}
+  .elc .n{font-size:26px;font-weight:800;color:#fff;margin-top:12px;font-variant-numeric:tabular-nums;}
+  .elc .track{height:5px;border-radius:3px;background:rgba(255,255,255,.3);margin-top:8px;overflow:hidden;}
+  .elc .f{height:100%;border-radius:3px;background:#fff;}
+  .elc .bd{display:inline-block;font-size:9px;font-weight:800;background:#fff;border-radius:8px;padding:2px 7px;margin-top:10px;}
+  .elc .halo{position:absolute;right:-26px;top:-26px;width:86px;height:86px;border-radius:50%;background:rgba(255,255,255,.18);}
+  .hint{font-size:10px;color:var(--sub);text-align:center;margin-top:6px;}
+
+  /* 信号横幅 */
+  .ban{display:flex;align-items:center;gap:12px;border-radius:18px;padding:14px 16px;}
+  .ban .ic{width:40px;height:40px;border-radius:14px;color:#fff;font-size:17px;font-weight:800;
+           display:flex;align-items:center;justify-content:center;flex:none;}
+  .ban .tx{flex:1;}
+  .ban .t{font-size:13px;font-weight:750;color:#4d4470;}
+  .ban .d{font-size:11px;color:#897db2;margin-top:2px;}
+  .ban .ar{font-size:15px;font-weight:800;flex:none;}
+
+  /* 时辰 时间轴纵向 */
+  .tl{position:relative;padding-left:22px;}
+  .tl::before{content:"";position:absolute;left:7px;top:8px;bottom:8px;width:2px;border-radius:1px;
+              background:linear-gradient(180deg,#e6ddf5,#fde3ea);}
+  .ti{position:relative;padding:7px 0;display:flex;align-items:baseline;gap:10px;}
+  .ti::before{content:"";position:absolute;left:-20px;top:14px;width:8px;height:8px;border-radius:50%;
+              background:#fff;border:2px solid #cdbff0;}
+  .ti.now::before{background:linear-gradient(140deg,#b78bff,#ff9dbb);border-color:transparent;
+                  box-shadow:0 0 0 4px rgba(183,139,255,.18);}
+  .ti .z{font-size:14px;font-weight:750;width:16px;}
+  .ti .r{font-size:11px;color:var(--sub);}
+  .ti .tr{font-size:10px;color:#c2b8de;margin-left:auto;font-variant-numeric:tabular-nums;}
+  .ti.now .z{color:#a375ff;} .ti.now .r{color:#a375ff;font-weight:700;}
+
+  .yj{display:flex;gap:12px;}
+  .yj .card{flex:1;margin-bottom:0;text-align:center;padding:14px 8px;}
+  .yj .h{font-size:13px;font-weight:800;margin-bottom:5px;}
+  .yj li{list-style:none;font-size:12px;font-weight:600;color:#6b5f96;padding:2px 0;}
+  .tmr{text-align:center;font-size:11px;color:var(--sub);margin-top:2px;}
+  .tmr b{color:#a375ff;}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="top">
+    <div class="hi">你好呀，<span>甲木人</span></div>
+    <div class="chip">11.18 · 十月初十</div>
+  </div>
+
+  <div class="card hero" style="margin-bottom:18px;">
+    <div class="gz">丙子日</div>
+    <div class="info">
+      <div class="rel">食神主事 · 水当令</div>
+      <div class="m">喜用水木正在线，顺势而行 ✨</div>
+    </div>
+    <div class="go">›</div>
+  </div>
+
+  <div class="sec-h"><span class="t">🌿 今日五行能量</span><span class="more">滑动查看 ›</span></div>
+  <div class="deck">
+    <div class="elc" style="background:linear-gradient(150deg,#8fc3ea,#4a92c9)">
+      <div class="halo"></div>
+      <div class="e">水</div><div class="nm">当令 · 正印</div>
+      <div class="n">100</div>
+      <div class="track"><div class="f" style="width:100%"></div></div>
+      <span class="bd" style="color:#4a92c9">喜用 ⭐</span>
+    </div>
+    <div class="elc" style="background:linear-gradient(150deg,#9ed4a1,#5cae62)">
+      <div class="halo"></div>
+      <div class="e">木</div><div class="nm">相 · 比劫</div>
+      <div class="n">78</div>
+      <div class="track"><div class="f" style="width:78%"></div></div>
+      <span class="bd" style="color:#5cae62">喜用 ⭐</span>
+    </div>
+    <div class="elc" style="background:linear-gradient(150deg,#b3c3d8,#7f93ad)">
+      <div class="halo"></div>
+      <div class="e">金</div><div class="nm">官杀</div>
+      <div class="n">64</div>
+      <div class="track"><div class="f" style="width:64%"></div></div>
+    </div>
+    <div class="elc" style="background:linear-gradient(150deg,#e0c396,#b8915a)">
+      <div class="halo"></div>
+      <div class="e">土</div><div class="nm">财星</div>
+      <div class="n">52</div>
+      <div class="track"><div class="f" style="width:52%"></div></div>
+      <span class="bd" style="color:#b8915a">忌 ↓</span>
+    </div>
+    <div class="elc" style="background:linear-gradient(150deg,#ffb896,#e2744e)">
+      <div class="halo"></div>
+      <div class="e">火</div><div class="nm">食伤</div>
+      <div class="n">35</div>
+      <div class="track"><div class="f" style="width:35%"></div></div>
+      <span class="bd" style="color:#e2744e">忌 ↓</span>
+    </div>
+  </div>
+  <div class="hint" style="margin-bottom:16px;">卡片颜色越满，今天这股能量越活跃</div>
+
+  <div class="ban" style="background:#eaf6ec;margin-bottom:12px;border-radius:18px;">
+    <div class="ic" style="background:linear-gradient(140deg,#8fc3ea,#5a9fd4)">水</div>
+    <div class="tx"><div class="t">子水入命 · 正印护身</div>
+      <div class="d">直觉在线，重要的事放今天</div></div>
+    <span class="ar" style="color:#3d9e52">↑</span>
+  </div>
+  <div class="ban" style="background:#fdeeea;margin-bottom:16px;border-radius:18px;">
+    <div class="ic" style="background:linear-gradient(140deg,#ffceb3,#ef8360)">火</div>
+    <div class="tx"><div class="t">丙火透干 · 食神泄秀</div>
+      <div class="d">精力易散，少逞强多留白</div></div>
+    <span class="ar" style="color:#e06a6a">↓</span>
+  </div>
+
+  <div class="card">
+    <div class="sec-h" style="margin:0 0 10px;"><span class="t">⏳ 今日时辰轴</span><span class="more">巳时 · 现在</span></div>
+    <div class="tl">
+      <div class="ti"><span class="z">辰</span><span class="r">偏财</span><span class="tr">07–09</span></div>
+      <div class="ti now"><span class="z">巳</span><span class="r">正财</span><span class="tr">09–11</span></div>
+      <div class="ti"><span class="z">午</span><span class="r">七杀</span><span class="tr">11–13</span></div>
+      <div class="ti"><span class="z">未</span><span class="r">正官</span><span class="tr">13–15</span></div>
+      <div class="ti"><span class="z">申</span><span class="r">偏印</span><span class="tr">15–17</span></div>
+      <div class="ti"><span class="z">酉</span><span class="r">正印</span><span class="tr">17–19</span></div>
+    </div>
+  </div>
+
+  <div class="yj" style="margin-bottom:14px;">
+    <div class="card"><div class="h" style="color:#3d9e52">宜</div><ul><li>会友</li><li>沐浴</li><li>立券</li></ul></div>
+    <div class="card"><div class="h" style="color:#e06a6a">忌</div><ul><li>开市</li><li>动土</li><li>远行</li></ul></div>
+  </div>
+
+  <p class="tmr">明天 <b>丁丑日 · 伤官 · 冲未</b> 🌙</p>
+
+</div>
+</body>
+</html>
