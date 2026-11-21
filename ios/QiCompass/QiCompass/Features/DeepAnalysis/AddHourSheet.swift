@@ -336,6 +336,9 @@ struct AddHourSheet: View {
     }
 
     /// 锚点串:「1990-02-04 · 北京」(出生城市钟面日期;无城市名 → 只日期)。
+    /// T5 注:此处可用 birthSolarTime——本 sheet 只服务时辰未知盘,其
+    /// birthSolarTime 是 12:00 占位钟面(日期即用户输入的原值),不是
+    /// 真太阳时校正值,不存在「校正推过午夜差一天」问题;不换 wallBirthDateText。
     private var anchorText: String {
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")

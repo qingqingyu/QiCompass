@@ -413,7 +413,7 @@ final class CompatibilityViewModel {
             name: L10n.Compatibility.selfDisplay,
             dayMaster: dayMaster,
             dayMasterElementKey: dayMaster.flatMap(ElementColors.ofGan),
-            birthDateString: chart.map { Self.displayDateFormatter.string(from: $0.birthDate) }
+            birthDateString: chart.map { Self.birthDateDisplay(of: $0) }
         )
     }
 
@@ -432,6 +432,17 @@ final class CompatibilityViewModel {
             )
         }
         return partnerDisplay(for: entry)
+    }
+
+    /// T5:存档行生日展示——优先快照钟面串;老快照回退 birthDate(ArchivedChart
+    /// 构造时的 birthSolarTime)按设备时区格式化(历史口径,记 info 日志)。
+    static func birthDateDisplay(of chart: ArchivedChart) -> String {
+        if let wall = chart.snapshot.wallBirthDateText {
+            return wall
+        }
+        AppLogger.app.info(
+            "op=compatibility.birthDateDisplay fallback_to_solar_time hash=\(chart.snapshotHash, privacy: .public) — 钟面不可用(老快照缺 key/解析失败),回退 birthDate 设备时区口径")
+        return displayDateFormatter.string(from: chart.birthDate)
     }
 
     /// 头部生日展示格式(设备时区,与名单行历史口径一致)。
@@ -459,7 +470,7 @@ final class CompatibilityViewModel {
                     name: chart.alias,
                     dayMaster: chart.dayMaster,
                     dayMasterElementKey: ElementColors.ofGan(chart.dayMaster),
-                    birthDateString: Self.displayDateFormatter.string(from: chart.birthDate)
+                    birthDateString: Self.birthDateDisplay(of: chart)
                 )
             }
             do {
@@ -468,8 +479,7 @@ final class CompatibilityViewModel {
                 }
                 let bazi = try chartStore.decodeResponse(from: snapshot)
                 let dayMaster = bazi.pillars.day?.gan ?? "—"
-                let dateStr = Self.fallbackDateString(snapshot.birthSolarTime,
-                                                       timezoneName: snapshot.cityTimezone)
+                let dateStr = Self.fallbackDateString(for: snapshot)
                 return PartnerDisplay(
                     entryID: entry.id,
                     name: L10n.CompatibilityPartner.fallbackName(dateStr),
@@ -505,9 +515,7 @@ final class CompatibilityViewModel {
                     }
                     let bazi = try chartStore.decodeResponse(from: snapshot)
                     dayMaster = bazi.pillars.day?.gan
-                    birthDateString = Self.fallbackDateString(
-                        snapshot.birthSolarTime, timezoneName: snapshot.cityTimezone
-                    )
+                    birthDateString = Self.fallbackDateString(for: snapshot)
                 } catch {
                     // 展示层降级(保留钟面前缀)+ 显式日志;快照真错误由 computePair 抛
                     AppLogger.persistence.error(
@@ -1525,6 +1533,18 @@ final class CompatibilityViewModel {
         return f.string(from: date)
     }
 
+    /// T5(2026-11-22 竞品差评对照):兜底名日期优先存档**钟面**(用户当初输入,
+    /// 零时区换算);老 payload 缺 key → 回退真太阳时按出生地时区格式化(上方
+    /// 现状口径,校正推过午夜时会差一天),回退记 info 日志。
+    static func fallbackDateString(for snapshot: ChartSnapshot) -> String {
+        if let wall = snapshot.wallBirthDateText {
+            return wall
+        }
+        AppLogger.app.info(
+            "op=compatibility.fallbackDateString fallback_to_solar_time hash=\(snapshot.contentHash, privacy: .public) — 钟面不可用(老快照缺 key/解析失败),回退真太阳时口径")
+        return fallbackDateString(snapshot.birthSolarTime, timezoneName: snapshot.cityTimezone)
+    }
+
     /// S05:命中本地快照时用其重建 PairSummary(无 API 调用,内容寻址的自然收益)。
     /// 不静默吞:decode 失败 / B ChartSnapshot 缺失 → throw 走该对失败路径(S03 隔离)。
     private func rebuildSummaryFromCache(
@@ -1554,16 +1574,14 @@ final class CompatibilityViewModel {
             if let chart = archivedCharts.first(where: { $0.snapshotHash == bHash }) {
                 displayName = chart.alias
             } else {
-                let dateStr = Self.fallbackDateString(bChartSnapshot.birthSolarTime,
-                                                      timezoneName: bChartSnapshot.cityTimezone)
+                let dateStr = Self.fallbackDateString(for: bChartSnapshot)
                 displayName = L10n.CompatibilityPartner.fallbackName(dateStr)
             }
         case .temp(_, let alias, _, _):
             if let alias, !alias.isEmpty {
                 displayName = alias
             } else {
-                let dateStr = Self.fallbackDateString(bChartSnapshot.birthSolarTime,
-                                                      timezoneName: bChartSnapshot.cityTimezone)
+                let dateStr = Self.fallbackDateString(for: bChartSnapshot)
                 displayName = L10n.CompatibilityPartner.fallbackName(dateStr)
             }
         }
@@ -1743,8 +1761,7 @@ final class CompatibilityViewModel {
                 displayName = alias
             } else {
                 // S04 兜底名:「对方+出生日期」(按出生城市时区格式化真太阳时)
-                let dateStr = Self.fallbackDateString(bSnapshot.birthSolarTime,
-                                                      timezoneName: bSnapshot.cityTimezone)
+                let dateStr = Self.fallbackDateString(for: bSnapshot)
                 displayName = L10n.CompatibilityPartner.fallbackName(dateStr)
             }
         }

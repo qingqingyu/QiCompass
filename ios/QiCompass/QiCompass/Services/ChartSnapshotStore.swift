@@ -451,6 +451,44 @@ extension ChartSnapshot {
         )
     }
 
+    /// T5(2026-11-22 竞品差评对照):出生**钟面**日期组件(年/月/日/时/分)。
+    /// 复用 ArchivedWallClock 读 archived_birth_datetime(用户当初输入的裸墙钟),
+    /// **UTC 锁定**解析(与 ChartHeaderView.heroDate 同口径,不做任何时区换算)。
+    /// 老 payload 缺 key / 字符串非法 → 记日志后 nil(调用方回退 birthSolarTime +
+    /// 出生地时区的现状口径,回退处打 info 日志)。**只作展示用途**(命主行年份 /
+    /// 合盘名单日期),不参与任何计算——birthSolarTime 在校正推过午夜时日期会
+    /// 偏一天(美国夏令时下钟表 00:00–01:40 出生很常见),拿它当「出生日期」
+    /// 显示正是竞品「把我的出生时间改了」差评的同类症状。
+    var wallBirthDateComponents: DateComponents? {
+        var wall: String? = nil
+        do {
+            wall = try APICoder.decoder
+                .decode(ArchivedWallClock.self, from: payload).archivedBirthDatetime
+        } catch {
+            // 对齐 archivedDisplayRequest 写法:带上 error 详情,区分非 JSON/类型不符
+            AppLogger.persistence.error(
+                "op=chartSnapshot.wallBirthDateComponents payload_decode_failed hash=\(self.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 调用方回退真太阳时口径"
+            )
+            return nil
+        }
+        // 缺 key/空串 → 静默 nil(老快照常态,消费方 info 日志留痕);
+        // 字符串非法 → heroDate 内部已记 parse_failed(raw=),此处不重复
+        guard let wall, !wall.isEmpty,
+              let date = ChartHeaderView.heroDate(fromBirthDatetime: wall) else {
+            return nil
+        }
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = TimeZone(identifier: "UTC")!
+        return cal.dateComponents([.year, .month, .day, .hour, .minute], from: date)
+    }
+
+    /// T5 便捷形态:「yyyy-MM-dd」钟面日期串(nil = 老快照,调用方自选回退)。
+    var wallBirthDateText: String? {
+        guard let c = wallBirthDateComponents,
+              let y = c.year, let m = c.month, let d = c.day else { return nil }
+        return String(format: "%04d-%02d-%02d", y, m, d)
+    }
+
     /// S10 补时辰重算请求(编辑场景隔离,生肖决策 Q20:本入口只管补时辰)。
     ///
     /// 「原出生日期 + 新时辰 + 原 gender/place」→ `hourKnown=true`、`lateNight`
@@ -461,6 +499,8 @@ extension ChartSnapshot {
     /// request 的 12:00 占位钟面按出生地时区解析的「出生日期锚点」(S05 存档回退
     /// 路径),取其**日期分量**(出生地钟面)即用户当初输入的真实日期,不经真太阳时
     /// 近似。时辰分量由调用方传入(wheel/时辰快捷选的出生地钟面时分)。
+    /// T5 注:与展示点的 `wallBirthDateText` 无关——时辰未知盘的 birthSolarTime
+    /// 是占位钟面而非校正值,日期即用户输入原值,此处**有意**继续用它。
     ///
     /// `cityTimezone` nil / 非法标识符 → 显式 throw:时辰未知盘不可能早于 S03
     /// (timezone 自 S03 起必存档),出现即数据损坏,不用设备时区静默兜底

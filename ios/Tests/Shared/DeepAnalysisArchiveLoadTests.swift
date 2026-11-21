@@ -1900,3 +1900,137 @@ private final class HealthFailingAPIClient: APIClient {
         try await base.syncPush(request: request)
     }
 }
+
+// MARK: - T5 钟面出生日期展示(2026-11-22 竞品差评对照;wallBirthDate* + 消费方)
+
+extension DeepAnalysisArchiveLoadTests {
+    /// 构造带 archived_birth_datetime 的 payload(用户当初输入的裸墙钟)。
+    /// throws + 调用方 try:编码失败走测试失败信息,不裸强解。
+    private static func wallPayload(_ wall: String) throws -> Data {
+        try JSONSerialization.data(withJSONObject: ["archived_birth_datetime": wall])
+    }
+
+    /// 底特律钟面解析 formatter(en_US_POSIX + America/Detroit,ISO 秒精度)。
+    private static func detroitWallFormatter() -> DateFormatter {
+        let f = DateFormatter()
+        f.locale = Locale(identifier: "en_US_POSIX")
+        f.timeZone = TimeZone(identifier: "America/Detroit")
+        f.dateFormat = "yyyy-MM-dd'T'HH:mm:ss"
+        return f
+    }
+
+    /// T5 用最小字段集构造快照(底特律固定城市字段,payload 由用例注入)。
+    private static func t5Snapshot(
+        contentHash: String, solarTime: Date, payload: Data
+    ) -> ChartSnapshot {
+        ChartSnapshot(
+            contentHash: contentHash,
+            schemaVersion: 1,
+            birthSolarTime: solarTime,
+            gender: "male",
+            cityLongitude: -83.05,
+            cityTimezone: "America/Detroit",
+            cityName: "Detroit",
+            cityLatitude: 42.33,
+            ziHourRule: "zi_next_day",
+            calcRuleSnapshot: Data(),
+            payload: payload,
+            createdAt: .now
+        )
+    }
+
+    /// 底特律夏令时出生快照:钟表 00:30(校正 −98 分 → 真太阳时前一日 22:52)。
+    /// birthSolarTime 存的是校正值——现状口径会把出生日期显示成 07-14。
+    private static func detroitMidnightSnapshot() throws -> ChartSnapshot {
+        let solarTime = try XCTUnwrap(
+            Self.detroitWallFormatter().date(from: "1990-07-14T22:52:00"))
+        return Self.t5Snapshot(
+            contentHash: "t5_detroit",
+            solarTime: solarTime,
+            payload: try Self.wallPayload("1990-07-15T00:30:00"))
+    }
+
+    func testWallBirthDate_detroitMidnightNotShifted() throws {
+        // 钟面 1990-07-15T00:30 → 展示 1990-07-15 / 年份 1990(现状会显示 07-14)
+        let snapshot = try Self.detroitMidnightSnapshot()
+        XCTAssertEqual(snapshot.wallBirthDateText, "1990-07-15")
+        XCTAssertEqual(ProfileView.birthYear(of: snapshot), 1990)
+        let comps = try XCTUnwrap(snapshot.wallBirthDateComponents)
+        XCTAssertEqual([comps.year, comps.month, comps.day], [1990, 7, 15])
+    }
+
+    func testWallBirthDate_newYearMidnightYearNotShifted() throws {
+        // 钟表 1990-01-01T00:20(校正过午夜)→ 年份 1990(现状会显示成 1989)
+        let solarTime = try XCTUnwrap(
+            Self.detroitWallFormatter().date(from: "1989-12-31T23:05:00"))
+        let snapshot = Self.t5Snapshot(
+            contentHash: "t5_newyear",
+            solarTime: solarTime,
+            payload: try Self.wallPayload("1990-01-01T00:20:00"))
+        XCTAssertEqual(snapshot.wallBirthDateText, "1990-01-01")
+        XCTAssertEqual(ProfileView.birthYear(of: snapshot), 1990)
+    }
+
+    func testWallBirthDate_legacyPayloadFallsBack() throws {
+        // 老 payload(无 archived_birth_datetime,解码成功缺 key)→ nil,消费方回退真太阳时口径
+        let snapshot = Self.t5Snapshot(
+            contentHash: "t5_legacy",
+            solarTime: Date(timeIntervalSince1970: 580_262_400),
+            payload: Data("{}".utf8))
+        XCTAssertNil(snapshot.wallBirthDateText)
+        XCTAssertNil(snapshot.wallBirthDateComponents)
+        // 损坏 payload(整体非 JSON)走 catch 分支:error 日志 + nil,不 crash 不产出垃圾
+        let corrupt = Self.t5Snapshot(
+            contentHash: "t5_corrupt",
+            solarTime: Date(timeIntervalSince1970: 580_262_400),
+            payload: Data())
+        XCTAssertNil(corrupt.wallBirthDateText)
+        XCTAssertNil(corrupt.wallBirthDateComponents)
+        // 回退路径:真太阳时按出生地时区格式化(现状口径零变化)
+        let f = DateFormatter()
+        f.dateFormat = "yyyy-MM-dd"
+        f.timeZone = TimeZone(identifier: "America/Detroit")
+        XCTAssertEqual(
+            CompatibilityViewModel.fallbackDateString(for: snapshot),
+            f.string(from: snapshot.birthSolarTime))
+    }
+
+    func testFallbackDateString_prefersWallClock() throws {
+        // 有钟面 → 直接返回钟面串(零时区换算)
+        let snapshot = try Self.detroitMidnightSnapshot()
+        XCTAssertEqual(CompatibilityViewModel.fallbackDateString(for: snapshot), "1990-07-15")
+    }
+
+    func testBirthDateDisplay_prefersWallClock() throws {
+        // ArchivedChart 展示:优先快照钟面串;老快照回退 birthDate 设备时区口径
+        let snapshot = try Self.detroitMidnightSnapshot()
+        let chart = ArchivedChart(
+            snapshotHash: snapshot.contentHash,
+            alias: "对方",
+            birthDate: snapshot.birthSolarTime,
+            gender: "male",
+            dayMaster: "甲",
+            snapshot: snapshot
+        )
+        XCTAssertEqual(CompatibilityViewModel.birthDateDisplay(of: chart), "1990-07-15")
+        // 老快照回退 = 设备时区格式化 birthDate(ArchivedChart 现状口径)
+        let legacySnapshot = Self.t5Snapshot(
+            contentHash: "t5_legacy_display",
+            solarTime: Date(timeIntervalSince1970: 580_262_400),
+            payload: Data("{}".utf8))
+        let legacyChart = ArchivedChart(
+            snapshotHash: legacySnapshot.contentHash,
+            alias: "对方",
+            birthDate: legacySnapshot.birthSolarTime,
+            gender: "male",
+            dayMaster: "甲",
+            snapshot: legacySnapshot
+        )
+        let deviceFmt = DateFormatter()
+        deviceFmt.dateFormat = "yyyy-MM-dd"
+        deviceFmt.timeZone = .current
+        XCTAssertEqual(
+            CompatibilityViewModel.birthDateDisplay(of: legacyChart),
+            deviceFmt.string(from: legacyChart.birthDate))
+    }
+}

@@ -303,11 +303,19 @@ struct ProfileView: View {
 
     // MARK: - 数据装配(单次 decode)
 
-    /// 出生年份(按出生地时区取,A3 纯函数供单测):birthSolarTime 是绝对时刻,
-    /// `Calendar.current` 会在跨年钟面(如北京时间 1 月 1 日凌晨 = 纽约 12 月
-    /// 31 日晚)漂移一年——年份属出生地钟面语义,与 OnboardingView placeCalendar
-    /// 同口径。cityTimezone nil/非法(老快照)兜底设备时区。
+    /// 出生年份(T5,2026-11-22 竞品差评对照):优先存档**钟面**年份
+    /// (archived_birth_datetime,用户当初输入;真太阳时校正推过午夜时年份会
+    /// 偏一年,1 月 1 日凌晨出生在美国夏令时下会显示成前一年)。老 payload
+    /// 缺 key → 回退 birthSolarTime 按出生地时区取(A3 纯函数现状口径):
+    /// birthSolarTime 是绝对时刻,`Calendar.current` 会在跨年钟面漂移——年份
+    /// 属出生地钟面语义,与 OnboardingView placeCalendar 同口径;cityTimezone
+    /// nil/非法(老快照)兜底设备时区。
     static func birthYear(of snapshot: ChartSnapshot) -> Int {
+        if let year = snapshot.wallBirthDateComponents?.year {
+            return year
+        }
+        AppLogger.app.info(
+            "op=profile.birthYear fallback_to_solar_time hash=\(snapshot.contentHash, privacy: .public) — 钟面不可用(老快照缺 key/解析失败),回退真太阳时口径")
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = snapshot.cityTimezone
             .flatMap(TimeZone.init(identifier:)) ?? .current
@@ -513,7 +521,7 @@ struct ProfileView: View {
             return link.alias
         }
         if let chart = chartSnapshots.first(where: { $0.contentHash == hash }) {
-            return L10n.CompatibilityPartner.fallbackName(Self.fallbackBirthDate(chart.birthSolarTime, timezoneName: chart.cityTimezone))
+            return L10n.CompatibilityPartner.fallbackName(Self.fallbackBirthDate(for: chart))
         }
         return String(localized: "对方")
     }
@@ -526,6 +534,18 @@ struct ProfileView: View {
         f.dateFormat = "yyyy-MM-dd"
         f.timeZone = timezoneName.flatMap(TimeZone.init(identifier:)) ?? .current
         return f.string(from: date)
+    }
+
+    /// T5:合盘对象兜底名里的出生日期——优先存档**钟面**日期串(用户当初输入,
+    /// 零时区换算);老 payload 缺 key → 回退真太阳时按出生地时区格式化(现状
+    /// 口径,校正推过午夜时会差一天)。info 日志对齐 birthYear 回退口径。
+    private static func fallbackBirthDate(for snapshot: ChartSnapshot) -> String {
+        if let wall = snapshot.wallBirthDateText {
+            return wall
+        }
+        AppLogger.app.info(
+            "op=profile.fallbackBirthDate fallback_to_solar_time hash=\(snapshot.contentHash, privacy: .public) — 钟面不可用(老快照缺 key/解析失败),回退真太阳时口径")
+        return fallbackBirthDate(snapshot.birthSolarTime, timezoneName: snapshot.cityTimezone)
     }
 
     // MARK: - 设置
