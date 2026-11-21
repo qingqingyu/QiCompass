@@ -13,8 +13,7 @@ struct ChartHeaderView: View {
     let response: BaziResponse
     let request: BaziCalculateRequest
 
-    /// T3:排盘口径说明页(ⓘ 入口)。个性化行(T6 农历新年生肖差异)由
-    /// T6 接线时传入;本页头只负责呈现。
+    /// T3:排盘口径说明页(ⓘ 入口)。
     @State private var showBasisSheet = false
 
     var body: some View {
@@ -85,8 +84,22 @@ struct ChartHeaderView: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 4)
         .sheet(isPresented: $showBasisSheet) {
-            ChartBasisSheet()
+            // T6:命盘页入口也带个性化行——生肖口径不一致的用户从页头 ⓘ 求
+            // 解「为什么和别的网站不一样」时,第二节须给出本人两口径对照
+            // (与 ZodiacRevealView 入口同一拼装函数,单一事实源)
+            ChartBasisSheet(lnyMismatchLine: lnyMismatchLine)
         }
+    }
+
+    /// T6:农历新年 vs 立春生肖不一致对照句(响应带 lunar_new_year_year 且
+    /// 生肖可判 → 拼装;两口径相同 / 老快照 / 歧义 → nil,不猜)。复用
+    /// OnboardingView.lnyMismatchText(静态纯函数,与生肖反馈屏同一拼装口径)。
+    private var lnyMismatchLine: String? {
+        OnboardingView.lnyMismatchText(
+            lny: response.lunarNewYearYear,
+            lichunGanZhi: response.pillars.year?.ganZhi,
+            lichunZodiac: response.yearBranchZodiac,
+            language: AppLanguage.current)
     }
 
     // MARK: - tags
