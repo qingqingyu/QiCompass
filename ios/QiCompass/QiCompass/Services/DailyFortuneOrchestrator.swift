@@ -87,7 +87,7 @@ final class DailyFortuneOrchestrator {
             ) {
             if cached.contextToken == nil {
                 AppLogger.app.warning(
-                    "daily.deterministic.cache_hit_without_token hash=\(chartHash, privacy: .public) targetDate=\(businessDate, privacy: .public) — 视为 miss,落穿后端重签 token"
+                    "daily.deterministic.cache_hit_without_token hash=\(chartHash, privacy: .public) targetDate=\(businessDate, privacy: .public) — 视为 miss，落穿后端重签 token"
                 )
             } else {
                 let response = try dailyStore.response(from: cached)
@@ -559,7 +559,7 @@ final class DailyFortuneOrchestrator {
         // .okFree,自动生成永不触发,用户停在降级模板。
         guard DailyInsight.parse(cached.interpretation) != nil else {
             AppLogger.app.warning(
-                "daily.interpret.prefetch_stale_unparseable hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public) — 视为无缓存,交给自动生成"
+                "daily.interpret.prefetch_stale_unparseable hash=\(chartHash, privacy: .public) targetDate=\(targetDate, privacy: .public) — 视为无缓存，交给自动生成"
             )
             return nil
         }
@@ -595,7 +595,7 @@ enum DailyFortuneError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .chartMissing:
-            return String(localized: "未找到命盘存档,无法查看每日运势")
+            return String(localized: "未找到命盘存档，无法查看每日运势")
         }
     }
 }
@@ -669,12 +669,12 @@ extension ChartPayloadDTO {
         let p = baziResponse.pillars
         if p.day == nil {
             AppLogger.app.warning(
-                "op=chartPayload.from day_pillar_missing hash=\(baziResponse.contentHash, privacy: .public) note=日柱歧义盘,应被 S09/S11 入口拦截"
+                "op=chartPayload.from day_pillar_missing hash=\(baziResponse.contentHash, privacy: .public) note=日柱歧义盘，应被 S09/S11 入口拦截"
             )
         }
         if baziResponse.dayMasterStrength == nil {
             AppLogger.app.warning(
-                "op=chartPayload.from day_master_strength_nil hash=\(baziResponse.contentHash, privacy: .public) note=引擎恒输出五值之一,nil=异常存档,显式降级unknown_hour不伪装special_pattern"
+                "op=chartPayload.from day_master_strength_nil hash=\(baziResponse.contentHash, privacy: .public) note=引擎恒输出五值之一，nil=异常存档，显式降级unknown_hour不伪装special_pattern"
             )
         }
         var fourPillars: [String: PillarRefDTO] = [:]

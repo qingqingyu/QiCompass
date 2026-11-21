@@ -52,20 +52,20 @@ enum AppleAuthError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .credentialMissing:
-            return String(localized: "Apple 登录未完成,请重试")
+            return String(localized: "Apple 登录未完成，请重试")
         case .identityTokenDecodingFailed:
-            return String(localized: "登录凭证读取失败,请重试")
+            return String(localized: "登录凭证读取失败，请重试")
         case .appleUserIdEmpty:
-            return String(localized: "Apple 登录未完成,请重试")
+            return String(localized: "Apple 登录未完成，请重试")
         case .keychainPersistFailed:
-            return String(localized: "登录信息保存失败,请重试")
+            return String(localized: "登录信息保存失败，请重试")
         case .canceled:
             return nil  // 用户取消,静默
         case .appleError:
             // 含模拟器高频的 ASWebAuthenticationSession code 1000(会话中断/取消类):
             // 按非静默处理,显人话提示(2026-08-16 拍板,与 Fix#1 显错精神一致),
             // 原始 domain/code 只进 AccountManager 日志。
-            return String(localized: "Apple 登录未完成,请重试")
+            return String(localized: "Apple 登录未完成，请重试")
         }
     }
 
@@ -92,11 +92,11 @@ enum GoogleAuthError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .notConfigured:
-            return String(localized: "Google 登录未配置(GoogleService-Info.plist 缺失 CLIENT_ID),请先用 Apple 登录")
+            return String(localized: "Google 登录未配置(GoogleService-Info.plist 缺失 CLIENT_ID)，请先用 Apple 登录")
         case .presentingViewControllerMissing:
-            return String(localized: "Google 登录窗口未就绪,请重试")
+            return String(localized: "Google 登录窗口未就绪，请重试")
         case .idTokenMissing:
-            return String(localized: "Google 登录成功但未返回 ID Token,请重试")
+            return String(localized: "Google 登录成功但未返回 ID Token，请重试")
         case .googleUserIdEmpty:
             return String(localized: "Google 返回的用户标识为空")
         case .keychainPersistFailed(let underlying):
@@ -275,7 +275,7 @@ final class AccountManager {
             if let qicompassUserId, !qicompassUserId.isEmpty {
                 exchangeState = .done
             } else {
-                exchangeState = .failed(String(localized: "账号同步未完成,请重新登录"))
+                exchangeState = .failed(String(localized: "账号同步未完成，请重新登录"))
             }
             // OSLogMessage 插值 lazy capture,实例属性先提到 local(项目既有惯例)
             let restoredExchange = exchangeState
@@ -338,7 +338,7 @@ final class AccountManager {
                 AppLogger.app.error(
                     "account.signIn.unknown_error error=\(String(describing: error), privacy: .public)"
                 )
-                state = .failed(String(localized: "Apple 登录未完成,请重试"))
+                state = .failed(String(localized: "Apple 登录未完成，请重试"))
             }
 
         case .failure(let asError):
@@ -469,7 +469,7 @@ final class AccountManager {
     private func exchangeJwtToken(user: AccountUser) async {
         guard let client = apiClient else {
             AppLogger.app.warning("account.exchangeJwtToken.skip reason=no_api_client")
-            exchangeState = .failed(String(localized: "账号同步未就绪,请重新登录"))
+            exchangeState = .failed(String(localized: "账号同步未就绪，请重新登录"))
             return
         }
         var exchangeSucceeded = false
@@ -487,9 +487,9 @@ final class AccountManager {
             // 与网络失败同一降级语义,显式记日志非静默。
             if resp.accessToken.isEmpty {
                 AppLogger.app.error(
-                    "account.exchangeJwtToken.empty_access_token userId=\(resp.userId.prefix(8), privacy: .public) — 拒收,token 保持现值"
+                    "account.exchangeJwtToken.empty_access_token userId=\(resp.userId.prefix(8), privacy: .public) — 拒收，token 保持现值"
                 )
-                exchangeState = .failed(String(localized: "账号同步返回异常,请重新登录重试"))
+                exchangeState = .failed(String(localized: "账号同步返回异常，请重新登录重试"))
             } else {
                 try KeychainHelper.saveString(resp.accessToken, for: .jwtToken)
                 // 同步更新 lastKnownJwtToken(APIClient 后续请求用自家 JWT 而非 identityToken)
@@ -510,7 +510,7 @@ final class AccountManager {
             AppLogger.app.error(
                 "account.exchangeJwtToken.failed error=\(String(describing: error), privacy: .public) — token 保持现值"
             )
-            exchangeState = .failed(String(localized: "账号同步失败,请重新登录重试"))
+            exchangeState = .failed(String(localized: "账号同步失败，请重新登录重试"))
         }
         // PR3.2:仅 exchange 成功才触发 onSignedIn(同步链路端点全部强制登录,
         // 无自家 JWT 时触发只会连串 401)

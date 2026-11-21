@@ -67,7 +67,7 @@ final class ChainCompletionNotifier: NSObject, ChainCompletionNotifying, UNUserN
         // delegate 已在 init 挂上(App 启动即触达 shared),此处不再重复
         let status = await settingsStatus()
         guard status == .notDetermined else {
-            AppLogger.app.info("chainNotifier.requestAuthorization skip status=\(status.rawValue, privacy: .public) — 已定,不再打扰")
+            AppLogger.app.info("chainNotifier.requestAuthorization skip status=\(status.rawValue, privacy: .public) — 已定，不再打扰")
             return
         }
         do {

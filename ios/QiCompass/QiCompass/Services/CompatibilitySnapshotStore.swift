@@ -103,7 +103,7 @@ final class CompatibilitySnapshotStore {
         snapshot.contextToken = nil
         try context.save()
         AppLogger.persistence.warning(
-            "op=compatibilitySnapshot.clearContextToken hash=\(compatibilityHash, privacy: .public) — token 失效,清空落回重算重签路径"
+            "op=compatibilitySnapshot.clearContextToken hash=\(compatibilityHash, privacy: .public) — token 失效，清空落回重算重签路径"
         )
     }
 
@@ -231,7 +231,7 @@ enum CompatibilitySnapshotError: Error, LocalizedError {
     var errorDescription: String? {
         switch self {
         case .snapshotMissing:
-            return "合盘数据未找到,请重新计算"
+            return "合盘数据未找到，请重新计算"
         }
     }
 }

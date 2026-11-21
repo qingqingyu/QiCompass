@@ -60,12 +60,12 @@ enum ModuleID: String, CaseIterable, Codable, Sendable {
         switch self {
         case .m0: return String(localized: "你的盘是什么类型")
         case .m1: return String(localized: "天生就会的 · 后天练出的 · 为自保养成、长期在消耗你的")
-        case .m2: return String(localized: "如有神助和倒霉透顶,差的不是运气")
-        case .m3: return String(localized: "最佳运行条件 · 容易失灵的场景 · 适合你的节奏")
-        case .m4: return String(localized: "精力的起落规律,和最有效的恢复方式")
-        case .m5: return String(localized: "适合你的赚钱方式,和最容易漏钱的地方")
-        case .m6: return String(localized: "你的发力点、薄弱点,以及下一阶段怎么升级")
-        case .m7: return String(localized: "最值得押注的一件事,和接下来 90 天的行动")
+        case .m2: return String(localized: "如有神助和倒霉透顶，差的不是运气")
+        case .m3: return String(localized: "最佳运行条件 · 容易失灵的时候 · 适合你的节奏")
+        case .m4: return String(localized: "精力的起落规律，和最有效的恢复方式")
+        case .m5: return String(localized: "适合你的赚钱方式，和最容易漏钱的地方")
+        case .m6: return String(localized: "你的发力点、薄弱点，以及下一阶段怎么升级")
+        case .m7: return String(localized: "最值得押注的一件事，和接下来 90 天的行动")
         }
     }
 

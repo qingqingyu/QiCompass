@@ -61,14 +61,14 @@ enum PaywallModule {
         switch self {
         case .deepAnalysis: return [
             "同一张盘的最好与最坏活法",
-            "怎样跑最顺,哪里会失灵",
+            "怎样跑最顺，哪里会失灵",
             "精力的起落与最佳回血法",
-            "怎么赚最顺,哪里易漏财",
+            "怎么赚最顺，哪里易漏财",
             "发力点、薄弱点与升级",
-            "押注一件事,90天行动",
+            "押注一件事，90天行动",
         ].map { NSLocalizedString($0, value: $0, comment: "") }
         case .compatibility: return [
-            "谁滋养谁,谁消耗谁",
+            "谁滋养谁，谁消耗谁",
             "共事契合与分工",
             "金钱观与共同财运",
             "未来三年的同频窗口",
@@ -235,7 +235,7 @@ final class PaywallViewModel {
             AppLogger.app.error(
                 "paywall.restore.unknown_error error=\(String(describing: error), privacy: .public)"
             )
-            restoreState = .failed(String(localized: "恢复失败,请稍后重试"))
+            restoreState = .failed(String(localized: "恢复失败，请稍后重试"))
         }
     }
 
@@ -360,7 +360,7 @@ final class PaywallViewModel {
                 "paywall.purchase.unknown_error product=\(productId, privacy: .public) error=\(String(describing: error), privacy: .public)"
             )
             Analytics.purchaseFailed(reason: .unknown)
-            state = .failed(String(localized: "购买未完成,请重试"))
+            state = .failed(String(localized: "购买未完成，请重试"))
         }
     }
 }

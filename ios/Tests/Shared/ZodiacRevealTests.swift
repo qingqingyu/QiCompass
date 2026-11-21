@@ -72,7 +72,7 @@ final class ZodiacRevealTests: XCTestCase {
             }
             XCTAssertGreaterThan(
                 diff, 200,
-                "Zodiac_\(name) dark 与 light 像素相同——dark 变体未注册(UIImageAsset 回落 base 图,notNil 对此无效)"
+                "Zodiac_\(name) dark 与 light 像素相同——dark 变体未注册(UIImageAsset 回落 base 图，notNil 对此无效)"
             )
             let cornerAlpha = { (x: Int, y: Int) in dbuf[(y * dw + x) * 4 + 3] }
             XCTAssertLessThan(cornerAlpha(4, 4), 12, "Zodiac_\(name) dark 左上角不透明——透明底抠图回退")

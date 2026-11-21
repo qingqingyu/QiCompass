@@ -56,11 +56,11 @@ final class CompatibilityForbiddenWordsTests: XCTestCase {
 
     func test扫描_模糊叙事未命中() {
         let texts = [
-            "两人性情较合,有所互补",
-            "运势较佳,宜顺势而为",
-            "需多沟通,稍有摩擦",
-            "倾向和谐,可期",
-            "略有波折,亦见机遇",
+            "两人性情较合，有所互补",
+            "运势较佳，宜顺势而为",
+            "需多沟通，稍有摩擦",
+            "倾向和谐，可期",
+            "略有波折，亦见机遇",
         ]
         for t in texts {
             XCTAssertTrue(ForbiddenWords.scan(t).isEmpty, "模糊叙事不应命中禁词: \(t)")
@@ -70,7 +70,7 @@ final class CompatibilityForbiddenWordsTests: XCTestCase {
     // MARK: - 多词去重
 
     func test扫描_多词命中去重保序() {
-        let text = "必成婚配,必定幸福,注定结合"
+        let text = "必成婚配，必定幸福，注定结合"
         let hits = ForbiddenWords.scan(text)
         XCTAssertEqual(hits, ["必成", "必定", "注定"], "多词命中必须去重保序")
     }
@@ -81,16 +81,16 @@ final class CompatibilityForbiddenWordsTests: XCTestCase {
     // 不含「模式 B」等内部术语(技术上下文由 orchestrator throw 点日志记录)。
     func testCompatibilityError_forbiddenWordsHit_错误描述() {
         let err = CompatibilityError.forbiddenWordsHit(words: ["必成", "必分"])
-        XCTAssertEqual(err.errorDescription, "解读包含不合规绝对结论,请重试")
+        XCTAssertEqual(err.errorDescription, "解读包含不合规绝对结论，请重试")
     }
 
     func testCompatibilityError_modeBMissingPersonBChart_错误描述() {
         let err = CompatibilityError.modeBMissingPersonBChart
-        XCTAssertEqual(err.errorDescription, "合盘数据异常,请重试")
+        XCTAssertEqual(err.errorDescription, "合盘数据异常，请重试")
     }
 
     func testCompatibilityError_modeBMissingPersonBInput_错误描述() {
         let err = CompatibilityError.modeBMissingPersonBInput
-        XCTAssertEqual(err.errorDescription, "合盘数据异常,请重试")
+        XCTAssertEqual(err.errorDescription, "合盘数据异常，请重试")
     }
 }

@@ -68,7 +68,7 @@ enum L10n {
         static let revealClashTitle = String(localized: "onboarding.reveal.clashTitle")
 
         // 立场微文案 2026-10-11 拍板删除(原 key onboarding.reveal.stanceLine):
-        // 工程纪律直译("喜忌由规则判,AI 只润色")生硬且无引导作用,用户母语实测违和
+        // 工程纪律直译("喜忌由规则判，AI 只润色")生硬且无引导作用,用户母语实测违和
         // (EN 侧 09-23 已以"读着像开发备注"修过一轮,zh 留的口子至此收掉);
         // 立场完整版三条仍在 Profile 关于页「为什么可信」(aboutStance1-3)。
 
@@ -161,7 +161,7 @@ enum L10n {
         static let errorTimeRequired = String(localized: "birthform.error.timeRequired")
 
         /// 日期+时刻合成失败防御性错误(理论不可达;错误显式传播用)。
-        /// zh: "出生日期与时刻无法合成,请重新选择";en: "Couldn't combine date and time — please reselect"
+        /// zh: "出生日期与时刻无法合成，请重新选择";en: "Couldn't combine date and time — please reselect"
         static let errorCombineFailed = String(localized: "birthform.error.combineFailed")
 
         /// 日期区教育微文案(D8 把矛盾变成教育;S04 补「时刻可跳过」半句)。
@@ -319,7 +319,7 @@ enum L10n {
         static let hot = String(localized: "city.search.hot")
 
         /// 无结果文案(带查询词)。
-        /// zh: "未找到「%@」,试试拼音或英文名";en: "No results for \"%@\" — try pinyin or English"
+        /// zh: "未找到「%@」，试试拼音或英文名";en: "No results for \"%@\" — try pinyin or English"
         static func noResults(_ query: String) -> String {
             String(format: String(localized: "city.search.noResults"), query)
         }
@@ -403,10 +403,10 @@ enum L10n {
         /// 今日信号行标签(确定性,流日五行对喜忌的 ↑↓)。zh: "今日信号";en: "Today's signal"
         static let insightSignal = String(localized: "dailyfortune.insight.signal")
 
-        /// 信号降级注释:时辰未知(喜忌待补)。zh: "喜忌待补时辰,暂不标方向";en: "Favorable elements pending your birth hour"
+        /// 信号降级注释:时辰未知(喜忌待补)。zh: "喜忌待补时辰，暂不标方向";en: "Favorable elements pending your birth hour"
         static let insightNoteHourUnknown = String(localized: "dailyfortune.insight.noteHourUnknown")
 
-        /// 信号降级注释:从格(喜忌留空)。zh: "特殊格局,不下结论";en: "Special pattern — no elemental call"
+        /// 信号降级注释:从格(喜忌留空)。zh: "特殊格局，不下结论";en: "Special pattern — no elemental call"
         static let insightNoteSpecialPattern = String(localized: "dailyfortune.insight.noteSpecialPattern")
 
         /// 加载态主文案(S6:整屏空白改日期先行 + 骨架)。
@@ -414,8 +414,8 @@ enum L10n {
         static let loadingReading = String(localized: "dailyfortune.loading.reading")
 
         /// v4 解析失败小注(进 accessibilityValue;原文进日志)。
-        /// zh: "解读内容格式异常,已显示通用参考";en: "Reading arrived in an unexpected format — showing the general reference"
-        static let insightFormatDegraded = String(localized: "解读内容格式异常,已显示通用参考")
+        /// zh: "解读内容格式异常，已显示通用参考";en: "Reading arrived in an unexpected format — showing the general reference"
+        static let insightFormatDegraded = String(localized: "解读内容格式异常，已显示通用参考")
 
         /// "冲" 完整格式(2026-09-24 拍板:EN 用生肖动物名替裸地支)。
         /// zh: "冲%@"(@=地支,如 "冲午");en: "Clashes with %@"(@=动物名,如 "Clashes with Goat")
@@ -497,7 +497,7 @@ enum L10n {
         /// 空态副标题 1(zh="未找到你的命盘存档。")
         static let emptySubtitle1 = String(localized: "dailyfortune.empty.subtitle1")
 
-        /// 空态副标题 2(zh="可在「我的」重置命盘,重新填写出生信息。")
+        /// 空态副标题 2(zh="可在「我的」重置命盘，重新填写出生信息。")
         static let emptySubtitle2 = String(localized: "dailyfortune.empty.subtitle2")
 
         // -- Interpretation Section --
@@ -521,7 +521,7 @@ enum L10n {
         /// 底部第三栏标题(zh="明日", en="Tomorrow")
         static let tomorrowTitle = String(localized: "dailyfortune.tomorrow.title")
 
-        /// 缓存标识(zh="24h 内已缓存,不消耗次数")
+        /// 缓存标识(zh="24h 内已缓存，不消耗次数")
         static let interpretCached = String(localized: "dailyfortune.interpret.cached")
 
         /// 重试按钮文案(zh="重试", en="Retry")。按钮 2026-10-06 拍板移除后无
@@ -548,16 +548,16 @@ enum L10n {
 
         // -- VM 内错误 message(2026-09-24 二段:字面量收编,zh 值与旧字面量逐字相同)--
 
-        /// 本地缓存读取失败。zh: "读取解读缓存失败,请重试";en: "Couldn't load your cached reading — please retry"
+        /// 本地缓存读取失败。zh: "读取解读缓存失败，请重试";en: "Couldn't load your cached reading — please retry"
         static let interpretCacheReadFailed = String(localized: "dailyfortune.interpret.cacheReadFailed")
 
-        /// 离线兜底·有历史解读。zh: "已保留历史解读,联网后可确认当前 AI 来源";en: "Your last reading is kept — go online to refresh it"
+        /// 离线兜底·有历史解读。zh: "已保留历史解读，联网后可确认当前 AI 来源";en: "Your last reading is kept — go online to refresh it"
         static let interpretOfflineLegacy = String(localized: "dailyfortune.interpret.offlineLegacy")
 
-        /// chartPayload 缺失(在线路径)。zh: "命盘数据读取失败,请下拉刷新重试";en: "Couldn't read your chart — pull to refresh and retry"
+        /// chartPayload 缺失(在线路径)。zh: "命盘数据读取失败，请下拉刷新重试";en: "Couldn't read your chart — pull to refresh and retry"
         static let interpretChartReadFailed = String(localized: "dailyfortune.interpret.chartReadFailed")
 
-        /// chartPayload 缺失(离线路径)。zh: "命盘数据读取失败,请联网后下拉刷新重试";en: "Couldn't read your chart — get back online, then pull to refresh"
+        /// chartPayload 缺失(离线路径)。zh: "命盘数据读取失败，请联网后下拉刷新重试";en: "Couldn't read your chart — get back online, then pull to refresh"
         static let interpretChartReadFailedOffline = String(localized: "dailyfortune.interpret.chartReadFailedOffline")
 
         // -- Tomorrow Preview --
@@ -572,7 +572,7 @@ enum L10n {
 
         // -- Main View --
 
-        /// 离线标识(zh="离线查看(展示本地缓存,不扣次数)")
+        /// 离线标识(zh="离线查看(展示本地缓存，不扣次数)")
         static let mainOffline = String(localized: "dailyfortune.main.offline")
 
         /// S09 降级版末尾静默提示(D7 触点 2:一行文字,不是弹窗;S10 已接线可点击
@@ -597,7 +597,7 @@ enum L10n {
         static let askComposerLineFormat = String(localized: "dailyfortune.ask.composerLine")
 
         /// 开场白格式(@1=十神显示名,@2=宜词条前二,@3=忌词条前二)。
-        /// zh: "这里的盘我看好了:%1$@当值,宜%2$@,忌%3$@。挑一条问,或直接说你的事。"
+        /// zh: "这里的盘我看好了:%1$@当值，宜%2$@，忌%3$@。挑一条问，或直接说你的事。"
         static let askOpeningFormat = String(localized: "dailyfortune.ask.opening")
 
         /// 输入框占位。zh: "说你的事——时间、对象、纠结的点";
@@ -606,15 +606,15 @@ enum L10n {
 
         /// 作答降级告知(S4c 起 ServicePendingAskAnswerer = 上下文不可组装
         /// 时的降级,离线兜底缺 chartPayload/token;原文案「服务接入中」已失真)。
-        /// zh: "今天的盘面还没就绪——稍候片刻,再回来问。"
+        /// zh: "今天的盘面还没就绪——稍候片刻，再回来问。"
         static let askPendingReply = String(localized: "dailyfortune.ask.pendingReply")
 
         /// 作答失败气泡(网络/端点错误,原文进日志)。
-        /// zh: "这一条没能作答,稍后再试。";en: "That one couldn't be answered — try again in a moment."
+        /// zh: "这一条没能作答，稍后再试。";en: "That one couldn't be answered — try again in a moment."
         static let askReplyFailed = String(localized: "dailyfortune.ask.replyFailed")
 
         /// 盘面凭证过期气泡(403 CONTEXT_TOKEN_*;自愈路径 = 回今日页下拉刷新)。
-        /// zh: "今天的盘面凭证已过期——请回今日页下拉刷新,再接着问。"
+        /// zh: "今天的盘面凭证已过期——请回今日页下拉刷新，再接着问。"
         static let askReplyContextExpired = String(localized: "dailyfortune.ask.replyContextExpired")
 
         /// 余额签(问事窄条行内尾部 + 聊天页 header 副题;%ld = 试用+已购合计)。
@@ -629,11 +629,11 @@ enum L10n {
         /// zh: "问事次数已用完"
         static let askCreditsTitle = String(localized: "dailyfortune.ask.creditsTitle")
 
-        /// 次数尽卡片说明。zh: "装机赠送的三次已用完——加购一包,接着问。"
+        /// 次数尽卡片说明。zh: "装机赠送的三次已用完——加购一包，接着问。"
         static let askCreditsHint = String(localized: "dailyfortune.ask.creditsHint")
 
         /// 加购 CTA(次数尽卡片按钮 + 问事窄条 0 次形态尾部签;价格只在购买墙显示)。
-        /// zh: "+15 问,继续问事"
+        /// zh: "+15 问，继续问事"
         static let askBuyEntryCta = String(localized: "dailyfortune.ask.buyEntryCta")
 
         /// 问事框整体 a11y 标签。zh: "打开问事对话";en: "Open the ask conversation"
@@ -683,7 +683,7 @@ enum L10n {
         /// en: "Threads live with the day's chart, then turn read-only"
         static let askDrawerFoot = String(localized: "dailyfortune.ask.drawerFoot")
 
-        /// 抽屉空态(尚无任何落盘会话)。zh: "首问发出后,会话在这里成线";
+        /// 抽屉空态(尚无任何落盘会话)。zh: "首问发出后，会话在这里成线";
         /// en: "Threads land here after your first question"
         static let askDrawerEmpty = String(localized: "dailyfortune.ask.drawerEmpty")
 
@@ -820,7 +820,7 @@ enum L10n {
         static let balanceElement = String(localized: "hepan.balance.element")
 
         /// 时辰未知脚注。
-        /// zh: "有一方时辰未知时,按实际字数计";en: "Counted over known characters when an hour is missing"
+        /// zh: "有一方时辰未知时，按实际字数计";en: "Counted over known characters when an hour is missing"
         static let balanceHourUnknownNote = String(localized: "hepan.balance.hourUnknownNote")
     }
 
@@ -833,15 +833,15 @@ enum L10n {
         static let aboutStanceTitle = String(localized: "profile.about.stanceTitle")
 
         /// 立场 1(排盘确定性)。
-        /// zh: "同一组生辰,同一张盘";en: "Same birth data, same chart"
+        /// zh: "同一组生辰，同一张盘";en: "Same birth data, same chart"
         static let aboutStance1 = String(localized: "profile.about.stance1")
 
         /// 立场 2(喜忌规则引擎)。
-        /// zh: "喜忌由规则判,AI 只润色";en: "Rules decide, AI polishes"
+        /// zh: "喜忌由规则判，AI 只润色";en: "Rules decide, AI polishes"
         static let aboutStance2 = String(localized: "profile.about.stance2")
 
         /// 立场 3(特例如实标注)。
-        /// zh: "命局有特例,如实标注";en: "Edge cases are labeled honestly"
+        /// zh: "命局有特例，如实标注";en: "Edge cases are labeled honestly"
         static let aboutStance3 = String(localized: "profile.about.stance3")
 
         /// 隐私标题。
@@ -849,17 +849,17 @@ enum L10n {
         static let aboutPrivacyTitle = String(localized: "profile.about.privacyTitle")
 
         /// 隐私 1(无账号无云同步)。
-        /// zh: "命盘只在你手机上,无账号,无云同步"
+        /// zh: "命盘只在你手机上，无账号，无云同步"
         /// en: "Your chart lives on your phone. No account, no cloud sync"
         static let aboutPrivacy1 = String(localized: "profile.about.privacy1")
 
         /// 隐私 2(AI 走后端)。
-        /// zh: "AI 解读走我们服务器,密钥保管在后端"
+        /// zh: "AI 解读走我们服务器，密钥保管在后端"
         /// en: "AI readings run on our servers; keys stay server-side"
         static let aboutPrivacy2 = String(localized: "profile.about.privacy2")
 
         /// 隐私 3(无跟踪)。
-        /// zh: "没有跟踪,没有画像";en: "No tracking, no profiling"
+        /// zh: "没有跟踪，没有画像";en: "No tracking, no profiling"
         static let aboutPrivacy3 = String(localized: "profile.about.privacy3")
 
         // -- S10 补时辰常驻入口(D7:静默态下唯一保留的主动入口)--
@@ -881,7 +881,7 @@ enum L10n {
 
         /// 重置确认弹窗长文案(域定义收口 2026-10-17:不可恢复警告 + 清空范围
         /// + 登录/语言/购买不受影响 + 同生辰重排恢复已购)。
-        /// zh: "此操作不可恢复。所有命盘、合盘记录(含名单)与解读缓存都会被清空;登录状态、语言设置、购买记录不受影响——同一生辰重新排盘后,已购内容自动恢复。"
+        /// zh: "此操作不可恢复。所有命盘、合盘记录(含名单)与解读缓存都会被清空;登录状态、语言设置、购买记录不受影响——同一生辰重新排盘后，已购内容自动恢复。"
         /// en: "This cannot be undone. All charts, compatibility records (including the saved list), and cached interpretations will be cleared. Your sign-in, language settings, and purchases are unaffected — after re-charting the same birth data, purchased content unlocks automatically."
         static let resetConfirmMessage = String(localized: "profile.reset.confirmMessage")
 
@@ -910,7 +910,7 @@ enum L10n {
         static let title = String(localized: "healthform.title")
 
         /// 副题(章题之下)。
-        /// zh: "这一章结合你的年龄与近况推演,答案只影响本章内容。仅供参考,不替代医生。"
+        /// zh: "这一章结合你的年龄与近况推演，答案只影响本章内容。仅供参考，不替代医生。"
         /// en: "This chapter draws on your age and current state. Your answers shape this chapter only. For reference — not medical advice."
         static let subtitle = String(localized: "healthform.subtitle")
 
@@ -971,7 +971,7 @@ enum L10n {
         static let concernMoodDetail = String(localized: "healthform.concern.mood.detail")
 
         /// 「其他」选中 detail 注。
-        /// zh: "暂无法填细节,仅告知大类";en: "No details for now — just the category"
+        /// zh: "暂无法填细节，仅告知大类";en: "No details for now — just the category"
         static let concernOtherDetail = String(localized: "healthform.concern.other.detail")
 
         /// 提交 CTA 标题(M4/M5 共用)。
@@ -1002,7 +1002,7 @@ enum L10n {
         static let title = String(localized: "wealthform.title")
 
         /// 副题(章题之下)。
-        /// zh: "这一章结合你的资产概况与风险偏好推演,答案只影响本章内容。自我认知参考,不构成投资建议。"
+        /// zh: "这一章结合你的资产概况与风险偏好推演，答案只影响本章内容。自我认知参考，不构成投资建议。"
         /// en: "This chapter draws on your assets and risk appetite. Your answers shape this chapter only. Self-knowledge only — not investment advice."
         static let subtitle = String(localized: "wealthform.subtitle")
 
@@ -1011,11 +1011,11 @@ enum L10n {
         static let assetsQuestion = String(localized: "wealthform.assets.question")
 
         /// Q1 输入占位。
-        /// zh: "如:中等收入,有积蓄,无房产";en: "e.g. median income, some savings, no property"
+        /// zh: "如:中等收入，有积蓄，无房产";en: "e.g. median income, some savings, no property"
         static let assetsPlaceholder = String(localized: "wealthform.assets.placeholder")
 
         /// Q1 脚注(计数器左侧)。
-        /// zh: "可粗略,不需精确数字";en: "Rough is fine — no exact numbers"
+        /// zh: "可粗略，不需精确数字";en: "Rough is fine — no exact numbers"
         static let assetsHint = String(localized: "wealthform.assets.hint")
 
         /// Q2 问题名。
@@ -1032,11 +1032,11 @@ enum L10n {
         static let riskAggressive = String(localized: "wealthform.risk.aggressive")
 
         /// 「保守」选中 hint 注。
-        /// zh: "保本为先,不愿承担亏损";en: "Capital first — no losses please"
+        /// zh: "保本为先，不愿承担亏损";en: "Capital first — no losses please"
         static let riskConservativeHint = String(localized: "wealthform.risk.conservative.hint")
 
         /// 「平衡」选中 hint 注。
-        /// zh: "中等风险,稳健增长";en: "Moderate risk, steady growth"
+        /// zh: "中等风险，稳健增长";en: "Moderate risk, steady growth"
         static let riskBalancedHint = String(localized: "wealthform.risk.balanced.hint")
 
         /// 「进攻」选中 hint 注。
@@ -1065,7 +1065,7 @@ enum L10n {
         static let priceNote = String(localized: "paywall.askpack.priceNote")
 
         /// 说明行:消耗型 + 退款扣回口径(与后端 webhook 行为一致的诚实告知)。
-        /// zh: "次数包为消耗型项目,用完为止;退款按 Apple 政策处理,未用次数将被扣回。"
+        /// zh: "次数包为消耗型项目，用完为止;退款按 Apple 政策处理，未用次数将被扣回。"
         static let note = String(localized: "paywall.askpack.note")
     }
 
@@ -1095,11 +1095,11 @@ enum L10n {
         // (S07 一期临时一句话 reason 已由 D9 二期正式版 `paywallReason` 取代,key 删除)
 
         /// 日柱歧义整拦态主句(深度解析不进内容页)。
-        /// zh: "缺出生时辰,暂时无法解读";en: "Your birth hour is needed before this chart can be read"
+        /// zh: "缺出生时辰，暂时无法解读";en: "Your birth hour is needed before this chart can be read"
         static let dayAmbiguousTitle = String(localized: "paywall.hourUnknown.dayAmbiguous.title")
 
         /// 日柱歧义为什么一句:子夜前后无时辰定不了日柱。
-        /// zh: "你的生日落在子夜前后,没有时辰无法确定日柱——日柱是所有解读的起点"
+        /// zh: "你的生日落在子夜前后，没有时辰无法确定日柱——日柱是所有解读的起点"
         /// en: "Born near midnight? Without the hour, the day pillar — the anchor of every reading — can't be settled"
         static let dayAmbiguousReason = String(localized: "paywall.hourUnknown.dayAmbiguous.reason")
 
@@ -1118,7 +1118,7 @@ enum L10n {
 
         /// D9 二期正式版为什么拦(付费墙拦截页):双重收费的人话版——拦的不只是
         /// 精度,更是「先买三柱盘、补时辰换新盘还要再买一次」的必然二次收费。
-        /// zh: "深度解读以时柱与喜忌为根基。为避免你在信息不全时先付费、补上时辰后还要重新购买,先补时辰再解锁。"
+        /// zh: "深度解读以时柱与喜忌为根基。为避免你在信息不全时先付费、补上时辰后还要重新购买，先补时辰再解锁。"
         /// en: "Deep readings are rooted in the hour pillar and favorable elements. So you don't pay now and again after adding the hour, the hour comes first."
         static let paywallReason = String(localized: "paywall.hourUnknown.paywallReason")
 
@@ -1128,7 +1128,7 @@ enum L10n {
         static let silentTitle = String(localized: "paywall.hourUnknown.silentTitle")
 
         /// 静默态为什么一句(中性陈述,无引导语气)。
-        /// zh: "这份命盘先按三柱解读;想起时辰时,随时可以在「我的」里补上。"
+        /// zh: "这份命盘先按三柱解读;想起时辰时，随时可以在「我的」里补上。"
         /// en: "This chart is read with three pillars for now. If the hour comes back to you, add it anytime in Profile."
         static let silentReason = String(localized: "paywall.hourUnknown.silentReason")
 
@@ -1141,11 +1141,11 @@ enum L10n {
         static let backToForm = String(localized: "paywall.hourUnknown.backToForm")
 
         /// 每日运势日柱歧义整拦态主句(S09,D5 全拦:免费降级亦不成立)。
-        /// zh: "缺出生时辰,暂时无法看每日运势";en: "Your birth hour is needed before daily fortune can be read"
+        /// zh: "缺出生时辰，暂时无法看每日运势";en: "Your birth hour is needed before daily fortune can be read"
         static let dailyFortuneTitle = String(localized: "paywall.hourUnknown.dailyFortune.title")
 
         /// 每日运势为什么一句:日柱定不了,运势的起点就没了。
-        /// zh: "你的生日落在子夜前后,没有时辰无法确定日柱——每日运势以日柱为起点"
+        /// zh: "你的生日落在子夜前后，没有时辰无法确定日柱——每日运势以日柱为起点"
         /// en: "Born near midnight? Without the hour, the day pillar — the anchor of daily fortune — can't be settled"
         static let dailyFortuneReason = String(localized: "paywall.hourUnknown.dailyFortune.reason")
     }
@@ -1160,11 +1160,11 @@ enum L10n {
         static let mark = String(localized: "compatibility.roster.hourUnknown.mark")
 
         /// 点击被标记行 / 被拦勾选时的轻提示一句(比发起后报错更早一层 UX)。
-        /// zh: "这位命盘缺出生时辰,补上后即可合盘";en: "This chart is missing its birth hour — add it to unlock pairing"
+        /// zh: "这位命盘缺出生时辰，补上后即可合盘";en: "This chart is missing its birth hour — add it to unlock pairing"
         static let hint = String(localized: "compatibility.roster.hourUnknown.hint")
 
         /// 自己无时辰:名单整体标记解释行(全部对不可用,表单/行置灰)。
-        /// zh: "你的命盘缺出生时辰,所有对暂不可合盘;补上时刻即可恢复"
+        /// zh: "你的命盘缺出生时辰，所有对暂不可合盘;补上时刻即可恢复"
         /// en: "Your chart is missing its birth hour — all pairs are on hold until it's added"
         static let selfBanner = String(localized: "compatibility.roster.hourUnknown.selfBanner")
     }
@@ -1176,7 +1176,7 @@ enum L10n {
     /// 「你/You」,全文一种叫法;hepan.partner.selfLabel key 已删)
     enum CompatibilityPartner {
         /// 对方牌 a11y(点按语义 = 打开换人 sheet)。
-        /// zh: "切换对方,当前 %@";en: "Switch partner, current %@"
+        /// zh: "切换对方，当前 %@";en: "Switch partner, current %@"
         static func switchA11y(_ name: String) -> String {
             String(format: String(localized: "hepan.partner.switchA11y"), name)
         }
@@ -1227,7 +1227,7 @@ enum L10n {
         static let manage = String(localized: "hepan.partner.manage")
 
         /// 满员时添加行副注。%lld = rosterMax(8)。
-        /// zh: "名单已满 %lld 人,先移出一位";en: "Roster is full (%lld people) — remove someone first"
+        /// zh: "名单已满 %lld 人，先移出一位";en: "Roster is full (%lld people) — remove someone first"
         static func rosterFullHint(_ count: Int) -> String {
             String(format: String(localized: "hepan.partner.rosterFullHint"), count)
         }
@@ -1249,7 +1249,7 @@ enum L10n {
         static let rowSwitchHint = String(localized: "hepan.partner.rowSwitchHint")
 
         /// 行 a11y hint(管理模式——行主体不可选,P1-2)。
-        /// zh: "管理名单中,行内修改或移出";en: "Managing list — use edit or remove in the row"
+        /// zh: "管理名单中，行内修改或移出";en: "Managing list — use edit or remove in the row"
         static let rowManageHint = String(localized: "hepan.partner.rowManageHint")
 
         /// 管理模式「修改」按钮 a11y。%@ = 对方称呼。
@@ -1273,7 +1273,7 @@ enum L10n {
         static let removeConfirmAction = String(localized: "hepan.partner.removeConfirm.action")
 
         /// 移出确认弹窗说明。%@ = 对方称呼。
-        /// zh: "「%@」移出后,重新加入需再填一次出生信息。"
+        /// zh: "「%@」移出后，重新加入需再填一次出生信息。"
         /// en: "Once you remove %@, adding them back means re-entering their birth details."
         static func removeConfirmMessage(_ name: String) -> String {
             String(format: String(localized: "hepan.partner.removeConfirm.message"), name)
@@ -1286,7 +1286,7 @@ enum L10n {
         static let formAliasLabel = String(localized: "hepan.partner.form.aliasLabel")
 
         /// 「称呼」占位(可选字段)。
-        /// zh: "可选,如「相亲对象甲」";en: "Optional, e.g. \"Date A\""
+        /// zh: "可选，如「相亲对象甲」";en: "Optional, e.g. \"Date A\""
         static let formAliasPlaceholder = String(localized: "hepan.partner.form.aliasPlaceholder")
 
         /// 表单页标题(添加模式)。
@@ -1311,27 +1311,27 @@ enum L10n {
         static let formFootnoteAdd = String(localized: "hepan.partner.form.footnoteAdd")
 
         /// 表单脚注(修改)。
-        /// zh: "若为当前对方,保存后将自动重新合盘"
+        /// zh: "若为当前对方，保存后将自动重新合盘"
         /// en: "If they're your current partner, saving recalculates the match"
         static let formFootnoteEdit = String(localized: "hepan.partner.form.footnoteEdit")
 
         /// 添加失败兜底文案(意外错误,校验/重复错误走 UserFacingError 原文案)。
-        /// zh: "添加失败,请重试";en: "Couldn't add — please retry"
+        /// zh: "添加失败，请重试";en: "Couldn't add — please retry"
         static let formErrorAdd = String(localized: "hepan.partner.form.errorAdd")
 
         /// 保存失败兜底文案。
-        /// zh: "保存失败,请重试";en: "Couldn't save — please retry"
+        /// zh: "保存失败，请重试";en: "Couldn't save — please retry"
         static let formErrorEdit = String(localized: "hepan.partner.form.errorEdit")
 
         // -- 首次进入 / 无已选态(P5/P6,S3)--
 
         /// P5 名单空时的留白说明(内联表单上方)。
-        /// zh: "不建档案,填出生信息即可。填完即看合盘,以后点右上人物牌换人。"
+        /// zh: "不建档案，填出生信息即可。填完即看合盘，以后点右上人物牌换人。"
         /// en: "No profile needed — just birth details. The reading starts right after; tap the card above to switch partners later."
         static let p5Intro = String(localized: "hepan.partner.p5.intro")
 
         /// P6 名单非空但无已选的一行说明。
-        /// zh: "点右上「选择对方」,挑一位开始合盘"
+        /// zh: "点右上「选择对方」，挑一位开始合盘"
         /// en: "Tap \"Choose a partner\" at the top right to pick someone"
         static let p6Hint = String(localized: "hepan.partner.p6.hint")
     }
@@ -1346,7 +1346,7 @@ enum L10n {
         static let title = String(localized: "addhour.sheet.title")
 
         /// 副题(编辑场景隔离的界面表达:只补时辰,其余不动,重算换新盘)。
-        /// zh: "只补时辰这一个字段。出生日期、性别与出生地保持不变,命盘按新时辰重算,原盘归档保留。"
+        /// zh: "只补时辰这一个字段。出生日期、性别与出生地保持不变，命盘按新时辰重算，原盘归档保留。"
         /// en: "Only the hour changes. Birth date, gender and birthplace stay as they are — the chart recalculates with the new hour, and the old one is kept."
         static let subtitle = String(localized: "addhour.sheet.subtitle")
 
@@ -1378,16 +1378,16 @@ enum L10n {
         }
 
         /// 目标命盘读取失败(存档缺失 / 时区损坏;人话文案,技术细节记日志)。
-        /// zh: "出生信息读取失败,暂时无法补时辰"
+        /// zh: "出生信息读取失败，暂时无法补时辰"
         /// en: "Couldn't read the birth record — can't add the hour right now"
         static let errorRebuild = String(localized: "addhour.error.rebuild")
 
         /// 重算失败(网络 / hash 未变守卫)。
-        /// zh: "重算未完成,请重试";en: "Recalculation didn't finish — please retry"
+        /// zh: "重算未完成，请重试";en: "Recalculation didn't finish — please retry"
         static let errorSubmit = String(localized: "addhour.error.submit")
 
         /// 静默态写档失败。
-        /// zh: "设置未保存,请重试";en: "Couldn't save the setting — please retry"
+        /// zh: "设置未保存，请重试";en: "Couldn't save the setting — please retry"
         static let errorSilenceSave = String(localized: "addhour.error.silenceSave")
 
         /// 补时辰装配失败 alert 标题(五屏同款;2026-09-24 二段收编)。
@@ -1422,7 +1422,7 @@ enum L10n {
         }
 
         /// 横幅副行:可离开提示。
-        /// zh: "可先离开,章成自动点亮";en: "Feel free to leave — chapters light up as they finish"
+        /// zh: "可先离开，章成自动点亮";en: "Feel free to leave — chapters light up as they finish"
         static let bannerLeaveHint = String(localized: "deepchain.banner.leaveHint")
 
         /// 阅读页布算中主提示(2026-09-08 从硬编码迁入:耗时口径 10-20 秒 → 约半分钟)。
@@ -1433,13 +1433,13 @@ enum L10n {
         /// 目录次数小注(2026-09-19 S05:状态行「今日剩余 N 次」下,解释消耗口径)。
         /// 2026-09-23 review #4:删「· 每日重置」尾巴——达限态 tocStatusText 已有
         /// 「明日 HH:mm 重置」,三态恒显的小注再说一遍是重复。
-        /// zh: "已读章节走缓存,不消耗次数"
+        /// zh: "已读章节走缓存，不消耗次数"
         /// en: "Cached chapters don't use reads"
         static let tocQuotaNote = String(localized: "deepchain.toc.quotaNote")
 
         /// 目录节标下命书概念行(S4:「命书」/EN "reading" 首次出现的铺垫,
         /// 未读完 8 章时显示;2026-11-08 目录批:章名引用更新)。
-        /// zh: "命书 = 按章节生成的完整命盘解读:先看人生主线与天赋本事(免费),再展开高配低配、使用说明、生财之道、精力曲线与行动。"
+        /// zh: "命书 = 按章节生成的完整命盘解读:先看人生主线与天赋本事(免费)，再展开高配低配、使用说明、生财之道、精力曲线与行动。"
         /// en: "Your reading, chapter by chapter — your throughline and talents first (free), then high/low configs, your manual, how you earn, energy and next steps."
         static let tocIntro = String(localized: "deepchain.toc.intro")
 
@@ -1463,7 +1463,7 @@ enum L10n {
         // -- 断链残留引导态(B1,2026-11-06)--
 
         /// 引导态状态说明(pending + 链停:本章未生成且无人会来生成)。
-        /// zh: "本章尚未生成。命书生成中断过,点下方继续,从本章接着写。"
+        /// zh: "本章尚未生成。命书生成中断过，点下方继续，从本章接着写。"
         /// en: "This chapter hasn't been written yet. Generation was interrupted — continue below to pick up where it left off."
         static let stalledPendingNote = String(localized: "deepchain.stalled.note")
 
@@ -1476,7 +1476,7 @@ enum L10n {
         static let stalledPendingResuming = String(localized: "deepchain.stalled.resuming")
 
         /// 等待卡可离开说明(点「先去逛逛」前的承诺)。
-        /// zh: "生成在后台继续,可先去浏览其他章节"
+        /// zh: "生成在后台继续，可先去浏览其他章节"
         /// en: "Generation continues in the background — feel free to look around"
         static let waitLeaveHint = String(localized: "deepchain.wait.leaveHint")
 
@@ -1567,7 +1567,7 @@ enum L10n {
         /// zh: "取消";en: "Cancel"
         static let cancel = String(localized: "common.cancel")
 
-        /// 达上限提示(zh="今日机缘已尽,明日再来")
+        /// 达上限提示(zh="今日机缘已尽，明日再来")
         static let limitReached = String(localized: "common.limitReached")
 
         /// 服务端池达限且未登录时的引导行(2026-10-08 拍板,CGNAT 共享出口
@@ -1622,22 +1622,22 @@ enum L10n {
     enum Errors {
         /// 网络不可用标题。zh: "天意未明";en: "No connection"
         static let networkTitle = String(localized: "error.userFacing.network.title")
-        /// 网络不可用副标。zh: "网络不通或服务遥远,请稍后重试";en: "The network is down or the server is far away — try again in a moment"
+        /// 网络不可用副标。zh: "网络不通或服务遥远，请稍后重试";en: "The network is down or the server is far away — try again in a moment"
         static let networkSubtitle = String(localized: "error.userFacing.network.subtitle")
 
         /// 排盘失败标题。zh: "排盘异常";en: "Chart calculation failed"
         static let chartTitle = String(localized: "error.userFacing.chart.title")
-        /// 排盘失败副标。zh: "排盘引擎暂不可用,请稍后重试";en: "The calculation engine is unavailable — please try again shortly"
+        /// 排盘失败副标。zh: "排盘引擎暂不可用，请稍后重试";en: "The calculation engine is unavailable — please try again shortly"
         static let chartSubtitle = String(localized: "error.userFacing.chart.subtitle")
 
         /// AI 解读失败标题。zh: "命书生成失败";en: "Reading failed"
         static let interpretTitle = String(localized: "error.userFacing.interpret.title")
-        /// AI 解读失败副标。zh: "命书暂未能成形,可单独重试(命盘已就绪)";en: "Your reading didn't come through — you can retry it alone (your chart is ready)"
+        /// AI 解读失败副标。zh: "命书暂未能成形，可单独重试(命盘已就绪)";en: "Your reading didn't come through — you can retry it alone (your chart is ready)"
         static let interpretSubtitle = String(localized: "error.userFacing.interpret.subtitle")
 
-        /// 达限标题。zh: "今日机缘已尽,明日再来";en: "Today's allotment is used up — come back tomorrow"
+        /// 达限标题。zh: "今日机缘已尽，明日再来";en: "Today's allotment is used up — come back tomorrow"
         static let limitTitle = String(localized: "error.userFacing.limit.title")
-        /// 达限副标。zh: "今日免费解读次数已用完,重置后自动恢复";en: "Today's free
+        /// 达限副标。zh: "今日免费解读次数已用完，重置后自动恢复";en: "Today's free
         /// readings are used up — they reset automatically"
         /// 2026-10-08 改写:达限有两个来源——本地 10 次/日池(午夜重置)与服务端
         /// 共享池 429(登录 user_id/匿名 IP,UTC 零点重置),文案不再钉死具体
@@ -1675,7 +1675,7 @@ enum L10n {
         static let pillarHour = String(localized: "deepanalysis.pillar.hour")
 
         /// 柱位空缺 VoiceOver 标签(hero 空位;%@ = 柱标显示值)。
-        /// zh: "%@柱未定,点击补时辰";en: "%@ pillar unsettled — tap to add your birth hour"
+        /// zh: "%@柱未定，点击补时辰";en: "%@ pillar unsettled — tap to add your birth hour"
         static func pillarUndetermined(_ label: String) -> String {
             String(format: String(localized: "deepanalysis.hero.pillarUndetermined"), label)
         }
@@ -1766,7 +1766,7 @@ enum L10n {
         static let xijiUnfavorable = String(localized: "deepanalysis.xiji.unfavorable")
 
         /// 喜忌常驻释义(去绝对化:喜忌是五行对命局平衡的方向,不是生活禁忌)。
-        /// zh: "喜忌指五行对命局平衡的助益方向,不是生活禁忌(不涉及颜色、方位、职业的取舍)。"
+        /// zh: "喜忌指五行对命局平衡的助益方向，不是生活禁忌(不涉及颜色、方位、职业的取舍)。"
         /// en: "Favored and less supportive describe how each element balances this chart — not things to avoid in daily life."
         static let xijiDisclaimer = String(localized: "deepanalysis.xiji.disclaimer")
 

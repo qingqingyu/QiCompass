@@ -43,7 +43,7 @@ struct BirthInfoConfirmSheet: View {
                         .padding(.vertical, BaziTheme.Spacing.md)
                         .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
                 }
-                .accessibilityHint("用以上信息排盘,进入今日运势")
+                .accessibilityHint("用以上信息排盘，进入今日运势")
 
                 Button(action: { onCancel() }) {
                     Text("返回修改")

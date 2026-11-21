@@ -124,14 +124,14 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         vm.loadArchivedChart(response: response, request: request)
 
         guard case .ready(let ready, let interpret) = vm.state else {
-            return XCTFail("loadArchivedChart 后必须 .ready,实际 \(vm.state)")
+            return XCTFail("loadArchivedChart 后必须 .ready，实际 \(vm.state)")
         }
         XCTAssertEqual(ready.contentHash, response.contentHash)
-        XCTAssertEqual(interpret, .idle, "AI 命书必须从 .idle 起步(β 点击触发,决策 #4)")
+        XCTAssertEqual(interpret, .idle, "AI 命书必须从 .idle 起步(β 点击触发，决策 #4)")
         XCTAssertEqual(vm.lastRequest, request, "InterpretationSection/付费墙依赖 lastRequest")
         XCTAssertFalse(
             archivedFired,
-            "直读存档非新建存档,不应触发 onChartArchived(否则误消费 pendingReturnTab 切 Tab)"
+            "直读存档非新建存档，不应触发 onChartArchived(否则误消费 pendingReturnTab 切 Tab)"
         )
     }
 
@@ -212,7 +212,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         XCTAssertEqual(rebuilt.longitude, 116.4074, accuracy: 1e-9)
         XCTAssertEqual(rebuilt.latitude ?? 0, 39.9042, accuracy: 1e-9)
         XCTAssertEqual(rebuilt.ziHourRule, "zi_next_day")
-        XCTAssertNil(rebuilt.geonameId, "geonameId 不入存档(展示元数据,不参与计算)")
+        XCTAssertNil(rebuilt.geonameId, "geonameId 不入存档(展示元数据，不参与计算)")
         // A2(2026-11-06):birthDatetime 优先取存档的精确钟面 archived_birth_datetime
         //(= 用户当初输入的裸墙钟);老 payload 缺 key 才回退真太阳时派生近似值。
         // 此请求仍绝不回传 /api/bazi/calculate。
@@ -274,7 +274,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         XCTAssertEqual(
             rebuilt.birthDatetime,
             Self.wallString(snapshot.birthSolarTime, timeZone: .current),
-            "老快照钟面派生用设备时区,与 timezone 兜底同源"
+            "老快照钟面派生用设备时区，与 timezone 兜底同源"
         )
     }
 
@@ -324,7 +324,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         }
         XCTAssertTrue(
             recovered,
-            "403 → 就地重签 → 原位重试成功,实际:\(vm.moduleStates)"
+            "403 → 就地重签 → 原位重试成功，实际:\(vm.moduleStates)"
         )
         // 注:上方 seed 的 calculateBazi 也进录制,断言用相对计数
         XCTAssertEqual(
@@ -409,7 +409,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
     ///
     /// 根因:VM 从 M0 输出提取链式字段进 v1ChainFields 后,从未随请求发送
     /// (orchestrator 只发 chart + structure_fingerprint)→ 真机每次必 422
-    /// "prompt 渲染缺字段:['main_axis','core_loop']"(backend REQUIRED_FIELDS),
+    /// "prompt 渲染缺字段:['main_axis'，'core_loop']"(backend REQUIRED_FIELDS),
     /// 免费预览 M1 卡永远死卡。修复 = runV1Module(chainFields:) 接线。
     /// 修复前本测试必失败(main_axis/core_loop 为 nil)。
     func testV1ChainSendsRequiredChainFieldsInRequest() async throws {
@@ -422,10 +422,10 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             self.vm.moduleStates[.m0]?.isOk == true
                 && self.vm.moduleStates[.m1]?.isOk == true
         }
-        XCTAssertTrue(bothOk, "自动链 M0+M1 必须落定,实际:\(vm.moduleStates)")
+        XCTAssertTrue(bothOk, "自动链 M0+M1 必须落定，实际:\(vm.moduleStates)")
 
         guard let m1Request = apiClient.recordedInterpretRequests.last(where: { $0.module == "m1_talent" }) else {
-            return XCTFail("必须发出 m1_talent 请求,实际模块:\(apiClient.recordedInterpretRequests.map(\.module))")
+            return XCTFail("必须发出 m1_talent 请求，实际模块:\(apiClient.recordedInterpretRequests.map(\.module))")
         }
         XCTAssertNotNil(m1Request.context["chart"], "chart 必带")
         XCTAssertEqual(
@@ -461,10 +461,10 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             self.vm.moduleStates[.m1]?.isOk == true
                 && self.vm.moduleStates[.m2] == .pending
         }
-        XCTAssertTrue(settled, "M1 ok 后 M2 必须因缺 innate/defensive 标 .pending,实际:\(vm.moduleStates)")
+        XCTAssertTrue(settled, "M1 ok 后 M2 必须因缺 innate/defensive 标 .pending，实际:\(vm.moduleStates)")
         XCTAssertFalse(
             apiClient.recordedInterpretRequests.contains { $0.module == "m2_high_low" },
-            "缺链式字段时不得发出 m2 请求(注定 422,浪费每日次数)"
+            "缺链式字段时不得发出 m2 请求(注定 422，浪费每日次数)"
         )
     }
 
@@ -497,17 +497,17 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         }
         XCTAssertTrue(
             settled,
-            "双输入在场时 M4/M5 必须可生成(修复前 invalidV1ModuleInput 全拒),实际:\(vm.moduleStates)"
+            "双输入在场时 M4/M5 必须可生成(修复前 invalidV1ModuleInput 全拒)，实际:\(vm.moduleStates)"
         )
 
         guard let m4Req = apiClient.recordedInterpretRequests.last(where: { $0.module == "m4_health" }) else {
-            return XCTFail("必须发出 m4_health 请求,实际模块:\(apiClient.recordedInterpretRequests.map(\.module))")
+            return XCTFail("必须发出 m4_health 请求，实际模块:\(apiClient.recordedInterpretRequests.map(\.module))")
         }
         XCTAssertEqual(m4Req.m4Age, 41)
         XCTAssertNil(m4Req.m5AssetsSummary, "m4 请求不得携带 m5 输入(修复前无条件直传两份)")
 
         guard let m5Req = apiClient.recordedInterpretRequests.last(where: { $0.module == "m5_wealth" }) else {
-            return XCTFail("必须发出 m5_wealth 请求,实际模块:\(apiClient.recordedInterpretRequests.map(\.module))")
+            return XCTFail("必须发出 m5_wealth 请求，实际模块:\(apiClient.recordedInterpretRequests.map(\.module))")
         }
         XCTAssertEqual(m5Req.m5AssetsSummary, "存款")
         XCTAssertNil(m5Req.m4Age, "m5 请求不得携带 m4 输入")
@@ -533,7 +533,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             if case .dailyLimitReached? = self.vm.moduleStates[.m0] { return true }
             return false
         }
-        XCTAssertTrue(limited, "429 必须映射 .dailyLimitReached(禁重试态),实际:\(vm.moduleStates)")
+        XCTAssertTrue(limited, "429 必须映射 .dailyLimitReached(禁重试态)，实际:\(vm.moduleStates)")
         XCTAssertEqual(
             ChapterRowModel.resolve(
                 module: .m0, state: vm.moduleStates[.m0], hasEntitlement: false),
@@ -579,9 +579,9 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
 
         XCTAssertNil(
             vm.moduleStates[.m0],
-            "M0 不得被 attempt 翻 .failed(空转源),实际:\(vm.moduleStates)"
+            "M0 不得被 attempt 翻 .failed(空转源)，实际:\(vm.moduleStates)"
         )
-        XCTAssertFalse(vm.isChainRunning, "守卫应 skip(reason=daily_limit),不起链")
+        XCTAssertFalse(vm.isChainRunning, "守卫应 skip(reason=daily_limit)，不起链")
     }
 
     /// M1(扣次章)受阻 + M0 已成 + 已购:v3 加粗链条(2026-10-10)后 M3/M4
@@ -632,7 +632,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         let m3Ok = await waitUntil(timeout: 10) {
             self.vm.moduleStates[.m3]?.isOk == true
         }
-        XCTAssertTrue(m3Ok, "付费章免扣本地池,上游已成时链必须续跑到 M3,实际:\(vm.moduleStates)")
+        XCTAssertTrue(m3Ok, "付费章免扣本地池，上游已成时链必须续跑到 M3，实际:\(vm.moduleStates)")
         XCTAssertTrue(
             apiClient.recordedInterpretRequests.contains { $0.module == "m3_system" },
             "M3 必须发出真实请求(免扣 ≠ 不发)"
@@ -695,7 +695,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             if case .failed? = self.vm.moduleStates[.m0] { return true }
             return false
         }
-        XCTAssertTrue(firstFailed, "前置:M0 首次迁移重算失败,实际:\(vm.moduleStates)")
+        XCTAssertTrue(firstFailed, "前置:M0 首次迁移重算失败，实际:\(vm.moduleStates)")
 
         // 用户点开卷:全链重置 .pending → M0 attempt#2 失败 → m1-m7 残留 .pending
         vm.generateV1AllModules()
@@ -703,7 +703,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             self.vm.moduleStates[.m1] == .pending
                 && (self.vm.moduleStates[.m0].map { if case .failed = $0 { return true }; return false } ?? false)
         }
-        XCTAssertTrue(secondFailed, "前置:M0 二连败 + m1 落 .pending(逐出窗口),实际:\(vm.moduleStates)")
+        XCTAssertTrue(secondFailed, "前置:M0 二连败 + m1 落 .pending(逐出窗口)，实际:\(vm.moduleStates)")
 
         // load#2:同 hash 重入,hydrate 查询清单只含 m0(.failed)——修复前
         // 整集替换把 m1 逐出豁免集;修复后并集保留 → M0 attempt#3 成功后续跑
@@ -712,10 +712,10 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         let m1Ok = await waitUntil(timeout: 12) {
             self.vm.moduleStates[.m1]?.isOk == true
         }
-        XCTAssertTrue(m1Ok, "M0 重试成功后 M1 迁移重算必须完成,实际:\(vm.moduleStates)")
+        XCTAssertTrue(m1Ok, "M0 重试成功后 M1 迁移重算必须完成，实际:\(vm.moduleStates)")
         XCTAssertEqual(
             vm.remainingReads, reads0,
-            "M0 三次 attempt(豁免)+ M1 迁移重算(并集保留豁免)全程不得扣本地池,"
+            "M0 三次 attempt(豁免)+ M1 迁移重算(并集保留豁免)全程不得扣本地池，"
             + "扣了 \(reads0 - vm.remainingReads) 次 = m1 被整集替换逐出(十六轮 #1 重开)"
         )
     }
@@ -739,10 +739,10 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             self.vm.moduleStates[.m0] == .ok(text: Self.m0CacheJSON, cached: true)
                 && self.vm.moduleStates[.m1] == .ok(text: Self.m1CacheJSON, cached: true)
         }
-        XCTAssertTrue(restored, "冷启动回填:M0/M1 缓存必须瞬时回填为 .ok(cached: true),实际:\(vm.moduleStates)")
+        XCTAssertTrue(restored, "冷启动回填:M0/M1 缓存必须瞬时回填为 .ok(cached: true)，实际:\(vm.moduleStates)")
         // 免费盘两章已全成 → 无可跑未完成章 → 不起链、不耗次
         XCTAssertFalse(vm.isChainRunning, "全成盘不得自动起链")
-        XCTAssertEqual(vm.remainingReads, readsBefore, "回填零 interpret 调用,次数不得消耗")
+        XCTAssertEqual(vm.remainingReads, readsBefore, "回填零 interpret 调用，次数不得消耗")
     }
 
     func testRestoreRebuildsChainFieldsForDownstream() async throws {
@@ -779,7 +779,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         """)
         XCTAssertEqual(
             vm.moduleStates[.m0], .ok(text: Self.m0CacheJSON, cached: true),
-            "M0 必须以缓存命中回填,不重跑(续跑链跳过已 ok 章)"
+            "M0 必须以缓存命中回填，不重跑(续跑链跳过已 ok 章)"
         )
     }
 
@@ -815,7 +815,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         // 抓 hydrate 在飞窗口:isHydrating=true 覆盖 performRestore 全程(含写回),
         // 600ms 窗口内 30ms 轮询必然先于写回落定
         let inFlight = await waitUntil(timeout: 5) { slowVM.isHydrating }
-        XCTAssertTrue(inFlight, "前置:hydrate 已起,await 窗口打开")
+        XCTAssertTrue(inFlight, "前置:hydrate 已起，await 窗口打开")
 
         // 前置:翻转时 M1 必须尚未被写回(否则窗口未撑开,用例未测到重检,
         // 显式失败优于静默假绿——极端调度停滞 >600ms 时这里会红)
@@ -829,13 +829,13 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             !slowVM.isHydrating
                 && slowVM.moduleStates[.m0] == .ok(text: Self.m0CacheJSON, cached: true)
         }
-        XCTAssertTrue(settled, "前置:M0 缓存回填完成,实际:\(slowVM.moduleStates)")
+        XCTAssertTrue(settled, "前置:M0 缓存回填完成，实际:\(slowVM.moduleStates)")
 
         XCTAssertEqual(
             slowVM.moduleStates[.m1], .ok(text: "M1 在飞重试落定的新正文", cached: false),
             "写回重检:await 窗口内翻 .ok 的章不得被缓存覆盖(老正文/缓存标记都算回归)"
         )
-        XCTAssertFalse(slowVM.isChainRunning, "M0/M1 皆终态、付费章无 entitlement → 无可跑,不起链")
+        XCTAssertFalse(slowVM.isChainRunning, "M0/M1 皆终态、付费章无 entitlement → 无可跑，不起链")
     }
 
     func testHydrateFailureLogsAndSkipsResume() async throws {
@@ -867,10 +867,10 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         // 等 hydrate 失败路径落定(health 超时/失败返回的时间余量)
         try await Task.sleep(nanoseconds: 800_000_000)
 
-        XCTAssertTrue(offlineVM.moduleStates.isEmpty, "health 失败 → 回填跳过,目录保持未读(不半填)")
-        XCTAssertFalse(offlineVM.isChainRunning, "回填失败不得自动续跑(离线必失败,不制造满屏 failed)")
+        XCTAssertTrue(offlineVM.moduleStates.isEmpty, "health 失败 → 回填跳过，目录保持未读(不半填)")
+        XCTAssertFalse(offlineVM.isChainRunning, "回填失败不得自动续跑(离线必失败，不制造满屏 failed)")
         guard case .ready = offlineVM.state else {
-            return XCTFail("hydrate 失败不得打断主状态机,实际:\(offlineVM.state)")
+            return XCTFail("hydrate 失败不得打断主状态机，实际:\(offlineVM.state)")
         }
     }
 
@@ -913,7 +913,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
 
         guard case .contextTokenExpired? = offlineVM.moduleStates[.m0] else {
             return XCTFail(
-                "token 未翻新(同 nil)不得降级——保持失效态等用户重排,实际:\(String(describing: offlineVM.moduleStates[.m0]))"
+                "token 未翻新(同 nil)不得降级——保持失效态等用户重排，实际:\(String(describing: offlineVM.moduleStates[.m0]))"
             )
         }
         XCTAssertEqual(
@@ -991,7 +991,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
 
         // 换盘:链标志必须**同步**复位(不等取消协作落地),否则新盘 resume 被旧标志拦
         vm.loadArchivedChart(response: responseB, request: requestB)
-        XCTAssertFalse(vm.isChainRunning, "换盘必须同步清链标志,防新盘续跑被旧标志误拦")
+        XCTAssertFalse(vm.isChainRunning, "换盘必须同步清链标志，防新盘续跑被旧标志误拦")
         XCTAssertTrue(vm.moduleStates.isEmpty, "换盘清洗:旧盘章节态不得残留")
     }
 
@@ -1256,7 +1256,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
                 && !self.vm.isChainRunning && !self.vm.isHydrating
                 && self.vm.inflightHydrateCount == 0
         }
-        XCTAssertTrue(settled, "前置:免费章回填 .ok 且链静默,实际:\(vm.moduleStates)")
+        XCTAssertTrue(settled, "前置:免费章回填 .ok 且链静默，实际:\(vm.moduleStates)")
         vm.moduleStates[.m2] = .locked
         vm.moduleStates[.m3] = .locked
         return (response, request)
@@ -1286,14 +1286,14 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             self.vm.moduleStates[.m2]?.isOk == true
                 && self.vm.moduleStates[.m3]?.isOk == true
         }
-        XCTAssertTrue(done, "M2/M3 必须凭新 token 跑成,实际:\(vm.moduleStates)")
+        XCTAssertTrue(done, "M2/M3 必须凭新 token 跑成，实际:\(vm.moduleStates)")
 
         let m3Requests = apiClient.recordedInterpretRequests.filter {
             $0.module == ModuleID.m3.rawValue
         }
         XCTAssertEqual(
             m3Requests.count, 1,
-            "M3 必须一次直发成功——修复前持旧 response,先白发一次注定 403 的请求")
+            "M3 必须一次直发成功——修复前持旧 response，先白发一次注定 403 的请求")
         XCTAssertEqual(
             m3Requests.first?.contextToken, "new-v1",
             "M3 必须带重签后的新 token(修复前为 old-v1)")
@@ -1329,7 +1329,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             self.vm.moduleStates[.m2]?.isOk == true
                 && self.vm.moduleStates[.m4]?.isOk == true
         }
-        XCTAssertTrue(done, "两章都必须恢复(修复前第二章落「重新排盘」),实际:\(vm.moduleStates)")
+        XCTAssertTrue(done, "两章都必须恢复(修复前第二章落「重新排盘」)，实际:\(vm.moduleStates)")
         XCTAssertEqual(
             apiClient.recordedCalculateRequests.count - baseCalculates, 1,
             "在飞搭车:同盘两摄入点合并为一次重签排盘(基线含夹具起手排盘)")
@@ -1357,7 +1357,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         _ = try chartStore.upsert(response: renewed, request: request)
 
         apiClient.calculateResponder = { _ in
-            XCTFail("快照已翻新,不得再发重签排盘")
+            XCTFail("快照已翻新，不得再发重签排盘")
             throw APIError.httpError(statusCode: 500, body: nil)
         }
         apiClient.interpretResponder = { req in
@@ -1370,10 +1370,10 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             self.vm.moduleStates[.m2]?.isOk == true
                 && self.vm.moduleStates[.m3]?.isOk == true
         }
-        XCTAssertTrue(done, "M2/M3 必须凭翻新 token 跑成,实际:\(vm.moduleStates)")
+        XCTAssertTrue(done, "M2/M3 必须凭翻新 token 跑成，实际:\(vm.moduleStates)")
         XCTAssertEqual(
             apiClient.recordedCalculateRequests.count, baseCalculates,
-            "快照已翻新时零新增 /calculate(复用别处翻新的 token,重签额度不动;基线含夹具起手排盘)")
+            "快照已翻新时零新增 /calculate(复用别处翻新的 token，重签额度不动;基线含夹具起手排盘)")
         let m2Requests = apiClient.recordedInterpretRequests.filter {
             $0.module == ModuleID.m2.rawValue
         }
@@ -1407,25 +1407,25 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         }
         XCTAssertTrue(
             midRecovery,
-            "重签在飞时不得闪现失效态(修复前此刻已是 .contextTokenExpired),实际:\(String(describing: vm.moduleStates[.m2]))")
+            "重签在飞时不得闪现失效态(修复前此刻已是 .contextTokenExpired)，实际:\(String(describing: vm.moduleStates[.m2]))")
 
         let expired = await waitUntil(timeout: 10) {
             if case .contextTokenExpired? = self.vm.moduleStates[.m2] { return true }
             return false
         }
-        XCTAssertTrue(expired, "重签失败终态必须落失效态(既有「重新排盘」出口),实际:\(String(describing: vm.moduleStates[.m2]))")
+        XCTAssertTrue(expired, "重签失败终态必须落失效态(既有「重新排盘」出口)，实际:\(String(describing: vm.moduleStates[.m2]))")
         // v3 加粗链条(2026-10-10)注:M3 起依赖 M2 的 threshold,M2 失效后
         // M3 被上游守卫拦 .pending(不发注定 422/403 的请求)——原「M3 403
         // 维持失效态」语义已由 M2 自身覆盖,M3 侧锁定改为不发请求。
         XCTAssertEqual(
             vm.moduleStates[.m3], .pending,
-            "M2 失效后 M3 不得发请求(缺 threshold),实际:\(String(describing: vm.moduleStates[.m3]))")
+            "M2 失效后 M3 不得发请求(缺 threshold)，实际:\(String(describing: vm.moduleStates[.m3]))")
         XCTAssertFalse(
             apiClient.recordedInterpretRequests.contains { $0.module == ModuleID.m3.rawValue },
             "M3 零请求 = 不产生第二个 403 摄入点(零二次重签的更强形态)")
         XCTAssertEqual(
             apiClient.recordedCalculateRequests.count - baseCalculates, 1,
-            "重签额度一次/盘/会话,失败后不再重发(基线含夹具起手排盘)")
+            "重签额度一次/盘/会话，失败后不再重发(基线含夹具起手排盘)")
     }
 
     /// 🟡#6(第二十轮外评):豁免集「非 .ok」过滤必须后置于本轮回填写回。
@@ -1479,14 +1479,14 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             if case .failed? = self.vm.moduleStates[.m0] { return true }
             return false
         }
-        XCTAssertTrue(firstFailed, "前置:M0 首次迁移重算失败,实际:\(vm.moduleStates)")
+        XCTAssertTrue(firstFailed, "前置:M0 首次迁移重算失败，实际:\(vm.moduleStates)")
 
         // 用户手动重试 M0:attempt#2 成功 → 当前版本行落库 + m0 出集
         vm.retryV1Module(.m0)
         let m0Ok = await waitUntil(timeout: 10) {
             self.vm.moduleStates[.m0]?.isOk == true
         }
-        XCTAssertTrue(m0Ok, "前置:M0 重试成功,实际:\(vm.moduleStates)")
+        XCTAssertTrue(m0Ok, "前置:M0 重试成功，实际:\(vm.moduleStates)")
 
         // load#2:上游已成 → m1 血统恢复,本轮回填补上 .ok——修复前豁免残留
         vm.loadArchivedChart(response: response, request: request)
@@ -1495,7 +1495,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         }
         XCTAssertTrue(
             m1Backfilled,
-            "前置:m1 本轮回填 .ok(cached)(上游 m0 当前版本行已补),实际:\(String(describing: vm.moduleStates[.m1]))")
+            "前置:m1 本轮回填 .ok(cached)(上游 m0 当前版本行已补)，实际:\(String(describing: vm.moduleStates[.m1]))")
         let idle = await waitUntil(timeout: 10) {
             !self.vm.isChainRunning && !self.vm.isHydrating && self.vm.inflightHydrateCount == 0
         }
@@ -1509,10 +1509,10 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             self.vm.moduleStates[.m0]?.isOk == true
                 && self.vm.moduleStates[.m1]?.isOk == true
         }
-        XCTAssertTrue(regenDone, "再生成必须完成,实际:\(vm.moduleStates)")
+        XCTAssertTrue(regenDone, "再生成必须完成，实际:\(vm.moduleStates)")
         XCTAssertEqual(
             reads0 - vm.remainingReads, 2,
-            "m0 与 m1 再生成各扣 1 次(修复前 m1 一次性豁免残留,只扣 1 次)"
+            "m0 与 m1 再生成各扣 1 次(修复前 m1 一次性豁免残留，只扣 1 次)"
         )
     }
 
@@ -1604,7 +1604,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
             if case .contextTokenExpired = self.vm.moduleStates[.m3] { return true }
             return false
         }
-        XCTAssertTrue(settled, "m3 必须落失效态,实际:\(vm.moduleStates)")
+        XCTAssertTrue(settled, "m3 必须落失效态，实际:\(vm.moduleStates)")
         let idle = await waitUntil(timeout: 10) {
             !self.vm.isChainRunning && !self.vm.isHydrating
         }
@@ -1615,11 +1615,11 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         // m6 需要 threshold(m2 已产)→ 同。两者是断链判定的行为证据。
         XCTAssertFalse(
             modules.contains(ModuleID.m4.rawValue),
-            "m3 失效后 m4(链字段齐备)不得再发请求,实际发了:\(modules.sorted())"
+            "m3 失效后 m4(链字段齐备)不得再发请求，实际发了:\(modules.sorted())"
         )
         XCTAssertFalse(
             modules.contains(ModuleID.m6.rawValue),
-            "m3 失效后 m6(链字段齐备)不得再发请求,实际发了:\(modules.sorted())"
+            "m3 失效后 m6(链字段齐备)不得再发请求，实际发了:\(modules.sorted())"
         )
     }
 
@@ -1650,10 +1650,10 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         }
         XCTAssertTrue(
             settled,
-            "m0 本地池达限必须落 .dailyLimitReached(禁重试态),实际:\(String(describing: vm.moduleStates[.m0]))"
+            "m0 本地池达限必须落 .dailyLimitReached(禁重试态)，实际:\(String(describing: vm.moduleStates[.m0]))"
         )
         if case .dailyLimitReached(let nextReset) = vm.moduleStates[.m0] {
-            XCTAssertGreaterThan(nextReset, Date(), "nextReset = 本地午夜,须在未来")
+            XCTAssertGreaterThan(nextReset, Date(), "nextReset = 本地午夜，须在未来")
         }
         let idle = await waitUntil(timeout: 10) { !self.vm.isChainRunning }
         XCTAssertTrue(idle)
@@ -1661,7 +1661,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         // m1 保持 .pending(链若继续,m1 会跑并同样落 .dailyLimitReached)
         XCTAssertEqual(
             vm.moduleStates[.m1], .pending,
-            "无已购(quotaFreeAhead=false)断链,m1 不被跑(保持 reset 后的 .pending)"
+            "无已购(quotaFreeAhead=false)断链，m1 不被跑(保持 reset 后的 .pending)"
         )
     }
 
@@ -1702,11 +1702,11 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         }
         XCTAssertTrue(
             settled,
-            "已购 + 本地池在 m1 处耗尽:链须继续走完(m4/m5 落 .needsInput),实际:\(vm.moduleStates)"
+            "已购 + 本地池在 m1 处耗尽:链须继续走完(m4/m5 落 .needsInput)，实际:\(vm.moduleStates)"
         )
         guard case .dailyLimitReached = vm.moduleStates[.m1] else {
             return XCTFail(
-                "m1 本地池达限须落 .dailyLimitReached(禁重试态),实际:\(String(describing: vm.moduleStates[.m1]))"
+                "m1 本地池达限须落 .dailyLimitReached(禁重试态)，实际:\(String(describing: vm.moduleStates[.m1]))"
             )
         }
         // m2 缺 m1 链字段(innate/defensive)→ 链内标 .pending 不发请求
@@ -1776,7 +1776,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         XCTAssertEqual(fallback.timezone, "Asia/Shanghai")
         XCTAssertFalse(
             fallback.birthDatetime.isEmpty,
-            "老 payload 回退真太阳时派生,不崩且仍出钟面"
+            "老 payload 回退真太阳时派生，不崩且仍出钟面"
         )
     }
 
@@ -1803,7 +1803,7 @@ final class DeepAnalysisArchiveLoadTests: XCTestCase {
         )
         XCTAssertEqual(
             ProfileView.birthYear(of: snapshot), 1994,
-            "出生年份按出生地钟面取,不随设备时区跨年漂移"
+            "出生年份按出生地钟面取，不随设备时区跨年漂移"
         )
 
         // 老快照 cityTimezone nil:兜底设备时区,只断言不崩且有值

@@ -688,7 +688,7 @@ final class DeepAnalysisViewModel {
             AppLogger.app.warning("deepVM.calculate.buildRequest_failed error=\(String(describing: error), privacy: .public)")
             let message = (error as? UserFacingError)?.errorDescription
                 ?? (error as? LocalizedError)?.errorDescription
-                ?? String(localized: "表单信息不完整,请检查后重试")
+                ?? String(localized: "表单信息不完整，请检查后重试")
             state = .formInvalid([message])
             return
         }
@@ -1078,7 +1078,7 @@ final class DeepAnalysisViewModel {
                 let exemptModules = versionMigrationExempt
                     .map(\.rawValue).sorted().joined(separator: ",")
                 AppLogger.app.info(
-                    "deepVM.hydrateAndResume.version_migration_exempt hash=\(response.contentHash, privacy: .public) modules=\(exemptModules, privacy: .public) — 版本 bump 强制重算,豁免本地次数"
+                    "deepVM.hydrateAndResume.version_migration_exempt hash=\(response.contentHash, privacy: .public) modules=\(exemptModules, privacy: .public) — 版本 bump 强制重算，豁免本地次数"
                 )
             }
 
@@ -1117,7 +1117,7 @@ final class DeepAnalysisViewModel {
                     }
                 } catch {
                     AppLogger.app.warning(
-                        "deepVM.hydrateAndResume.cross_language_failed hash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 跳过翻译提示,走正常生成"
+                        "deepVM.hydrateAndResume.cross_language_failed hash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 跳过翻译提示，走正常生成"
                     )
                 }
             }
@@ -1326,7 +1326,7 @@ final class DeepAnalysisViewModel {
                 // B4 溯源集同步出集:状态已归一 .failed,溯源不再有意义
                 localQuotaLimitedModules.remove(module)
                 AppLogger.app.info(
-                    "deepVM.quotaStateExpired module=\(module.rawValue, privacy: .public) nextReset=\(nextReset.description, privacy: .public) — 服务端配额已重置,达限态解除"
+                    "deepVM.quotaStateExpired module=\(module.rawValue, privacy: .public) nextReset=\(nextReset.description, privacy: .public) — 服务端配额已重置，达限态解除"
                 )
             }
         }
@@ -1544,7 +1544,7 @@ final class DeepAnalysisViewModel {
                     return
                 }
                 AppLogger.app.info(
-                    "deepVM.runV1Chain daily_limit_skip_break module=\(module.rawValue, privacy: .public) — 剩余含免扣本地池章(付费/迁移豁免),链继续"
+                    "deepVM.runV1Chain daily_limit_skip_break module=\(module.rawValue, privacy: .public) — 剩余含免扣本地池章(付费/迁移豁免)，链继续"
                 )
             }
             // 服务端配额达限(2026-10-08 外评 #6):剩余章必再 429,提前断链
@@ -1635,7 +1635,7 @@ final class DeepAnalysisViewModel {
         // 场景:用户在 M4 needsInput 时填了输入 → submitM4Input 自动调 retryV1Module(.m4),
         // 但 M0 可能已失败(网络断 / 日限) → 此处拦回 .pending,不浪费次数。
         // 2026-09-25 扩展:原来只查 structure_fingerprint,漏查 main_axis 等
-        // 链式字段 → m1 真机每次必 422"prompt 渲染缺字段:['main_axis','core_loop']"。
+        // 链式字段 → m1 真机每次必 422"prompt 渲染缺字段:['main_axis'，'core_loop']"。
         if module.requiresParentFingerprint {
             let missing = (v1ChainFields["structure_fingerprint"] == nil ? ["structure_fingerprint"] : [])
                 + module.requiredChainFields.filter { v1ChainFields[$0] == nil }
@@ -1730,7 +1730,7 @@ final class DeepAnalysisViewModel {
                   chainGeneration == nil || translationGeneration == chainGeneration
             else {
                 AppLogger.app.warning(
-                    "deepVM.runSingleV1Module.stale_failure_drop module=\(module.rawValue, privacy: .public) hash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 旧链失败丢弃,不落新链状态"
+                    "deepVM.runSingleV1Module.stale_failure_drop module=\(module.rawValue, privacy: .public) hash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 旧链失败丢弃，不落新链状态"
                 )
                 return
             }
@@ -1750,7 +1750,7 @@ final class DeepAnalysisViewModel {
                   chainGeneration == nil || translationGeneration == chainGeneration
             else {
                 AppLogger.app.warning(
-                    "deepVM.runSingleV1Module.stale_failure_drop module=\(module.rawValue, privacy: .public) hash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 旧链失败丢弃,不落新链状态"
+                    "deepVM.runSingleV1Module.stale_failure_drop module=\(module.rawValue, privacy: .public) hash=\(response.contentHash, privacy: .public) error=\(String(describing: error), privacy: .public) — 旧链失败丢弃，不落新链状态"
                 )
                 return
             }
@@ -1898,7 +1898,7 @@ final class DeepAnalysisViewModel {
            archived.contentHash == hash,
            Self.hasNewerContextTokens(archived, than: response) {
             AppLogger.app.info(
-                "deepVM.recoverFromContextTokenExpiry snapshot_already_renewed hash=\(hash, privacy: .public) — 复用别处翻新的 token,不烧重签额度"
+                "deepVM.recoverFromContextTokenExpiry snapshot_already_renewed hash=\(hash, privacy: .public) — 复用别处翻新的 token，不烧重签额度"
             )
             return finalizeContextTokenRecovery(archived, for: response)
         }
@@ -1914,7 +1914,7 @@ final class DeepAnalysisViewModel {
         let fresh = await task.value
         if fresh != nil {
             AppLogger.app.info(
-                "deepVM.recoverFromContextTokenExpiry token_resigned hash=\(hash, privacy: .public) — 失效章凭新 token 降级,调用方原位重试"
+                "deepVM.recoverFromContextTokenExpiry token_resigned hash=\(hash, privacy: .public) — 失效章凭新 token 降级，调用方原位重试"
             )
         }
         return finalizeContextTokenRecovery(fresh, for: response)
@@ -2101,12 +2101,12 @@ final class DeepAnalysisViewModel {
             // 强判据;isCurrentChart 仍保留(覆盖 state 非 .ready 的中间态)。
             guard translationGeneration == generation else {
                 AppLogger.app.warning(
-                    "deepVM.runTranslationChain.stale_generation_loop hash=\(response.contentHash, privacy: .public) gen=\(generation, privacy: .public) module=\(module.rawValue, privacy: .public) — 旧链中止,剩余原文保留"
+                    "deepVM.runTranslationChain.stale_generation_loop hash=\(response.contentHash, privacy: .public) gen=\(generation, privacy: .public) module=\(module.rawValue, privacy: .public) — 旧链中止，剩余原文保留"
                 )
                 return
             }
             guard isCurrentChart(response) else {
-                AppLogger.app.warning("deepVM.runTranslationChain.stale_chart — 中止,剩余原文保留")
+                AppLogger.app.warning("deepVM.runTranslationChain.stale_chart — 中止，剩余原文保留")
                 return
             }
             if staleM0Downgraded {
@@ -2344,7 +2344,7 @@ final class DeepAnalysisViewModel {
                           isCurrentChart(response)
                     else { return }
                     AppLogger.app.warning(
-                        "deepVM.runTranslationChain.context_token_expired module=\(module.rawValue, privacy: .public) — 原文保留,提示条改重新排盘指引,断链"
+                        "deepVM.runTranslationChain.context_token_expired module=\(module.rawValue, privacy: .public) — 原文保留，提示条改重新排盘指引，断链"
                     )
                     translationTokenExpired = true
                     // 十六轮 #4:记录失败当时那枚,hydrate 重入据此条件清提示条
@@ -2355,7 +2355,7 @@ final class DeepAnalysisViewModel {
                     return
                 }
                 AppLogger.app.warning(
-                    "deepVM.runTranslationChain.failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public) — 原文保留显示,已译成保留,剩余可重试"
+                    "deepVM.runTranslationChain.failed module=\(module.rawValue, privacy: .public) error=\(String(describing: error), privacy: .public) — 原文保留显示，已译成保留，剩余可重试"
                 )
                 // R2(2026-10-02 bug 分支):失败保留原文显示——恢复 .ok(原文),
                 // 不再标 .failed(那会让这一章只剩错误文案,原文从屏幕消失)。
@@ -2743,7 +2743,7 @@ enum DeepStaleM0MarkerPersistence {
             return try JSONDecoder().decode(Set<String>.self, from: data)
         } catch {
             AppLogger.persistence.error(
-                "op=deepStaleM0Marker.decode_failed error=\(String(describing: error), privacy: .public) — 标记集合未知,消费方按已降级处理(安全侧:宁多重生成不混叙事)"
+                "op=deepStaleM0Marker.decode_failed error=\(String(describing: error), privacy: .public) — 标记集合未知，消费方按已降级处理(安全侧:宁多重生成不混叙事)"
             )
             return nil
         }
@@ -2769,7 +2769,7 @@ enum DeepStaleM0MarkerPersistence {
     /// 持续烧钱)且 clear() 恒 no-op、损坏永不自愈」二选一,拍板取一次性修复。
     static func healCorruptedStorage() {
         AppLogger.persistence.error(
-            "op=deepStaleM0Marker.heal_corrupted — 空集合覆写坏数据(一次性修复,当前键由调用方补 mark)"
+            "op=deepStaleM0Marker.heal_corrupted — 空集合覆写坏数据(一次性修复，当前键由调用方补 mark)"
         )
         save([])
     }

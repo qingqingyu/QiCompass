@@ -841,13 +841,13 @@ struct ChapterContent: Equatable {
         "main_axis": "我的十神主线是什么?",
         "core_loop": "哪两个十神形成核心循环结构?",
         "structure_type": "这个结构在命理中属于什么类型?",
-        "capability_source": "这类结构的人,核心能力通常来自哪里?",
+        "capability_source": "这类结构的人，核心能力通常来自哪里?",
         // M1(2026-11-07 贰章拍板,docs/命书贰章标题推敲.md):素材问1/问4
         // 原句 + 模板原句(defensive 转问句、one_leverage 原样不带「为什么」)。
         "innate": "我最自然、不费力的能力是什么?",
         "trained": "哪种能力是后天环境训练出来的?",
-        "defensive": "哪些能力外人看着像优点,其实在消耗你?",
-        "one_leverage": "如果只能保留一项能力当作杠杆,是哪一项?",
+        "defensive": "哪些能力外人看着像优点，其实在消耗你?",
+        "one_leverage": "如果只能保留一项能力当作杠杆，是哪一项?",
         // M2(2026-11-10 叁章拍板,docs/命书叁章标题推敲.md):素材问1-3 原句
         // + 模板问4/5 转问句(剪「3 个」——门头焊死数字,模型条目数一漂移就撒谎)。
         "high_config": "我的命局走高配版会表现成什么样?",
@@ -861,14 +861,14 @@ struct ChapterContent: Equatable {
         "operating_mode": "它最自然的运行模式是什么?",
         "failure_environments": "它最怕什么环境?",
         "ideal_life_structure": "它最适合什么类型的生活结构?",
-        "stability_vs_volatility": "它更适合稳定型人生,还是高变量人生?",
-        "environment_checklist": "换环境前,先问自己什么?",
+        "stability_vs_volatility": "它更适合稳定型人生，还是高变量人生?",
+        "environment_checklist": "换环境前，先问自己什么?",
         // M4(2026-11-18 伍章拍板,docs/命书伍章标题推敲.md):用户原句×2
         // (高分低谷/累了怎么缓)+ 新造只用用户的词;「七天」剪掉随用户口风。
-        "battery_type": "高分在什么时候,低谷在什么时候?",
+        "battery_type": "什么时候状态最好，什么时候最差?",
         "imbalance_risks": "怎么会从高分掉下来?",
         "recovery_levers": "累了怎么缓过来?",
-        "reset_7day": "掉进低谷,怎么爬出来?",
+        "reset_7day": "掉进低谷，怎么爬出来?",
         "weekly_maintenance": "怎么少掉进低谷?",
     ]
 

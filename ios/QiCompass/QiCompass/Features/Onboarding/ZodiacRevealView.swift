@@ -177,7 +177,7 @@ struct ZodiacRevealView: View {
             }
 
             // MARK: 收尾 hairline(2026-10-11 拍板:立场微文案整行删除——原文案
-            // 工程视角直译"喜忌由规则判,AI 只润色",生硬且无引导作用;立场完整版
+            // 工程视角直译"喜忌由规则判，AI 只润色",生硬且无引导作用;立场完整版
             // 三条仍在 Profile 关于页「为什么可信」,此屏只留分隔线收尾)
             Rectangle()
                 .fill(BaziTheme.hairline)

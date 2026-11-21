@@ -73,7 +73,7 @@ struct DailyFortuneView: View {
             // 命盘存档增删的两个时刻(onboarding 提交成功 / Profile 重置)都落到这里。
             // 重解析会按 hash 是否变化决定是否强制重载(见 resolveCurrentChart)。
             AppLogger.app.info(
-                "DailyFortuneView hasSeenOnboarding 变化 →\(newValue, privacy: .public),重新解析命盘"
+                "DailyFortuneView hasSeenOnboarding 变化 →\(newValue, privacy: .public)，重新解析命盘"
             )
             Task { await resolveCurrentChart() }
         }
@@ -137,7 +137,7 @@ struct DailyFortuneView: View {
                 "op=dailyFortune.resolveChart failed error=\(String(describing: error), privacy: .public)"
             )
             // 不静默吞:把失败传给 UI(人话文案,原始 error 已记上方日志)
-            vm?.state = .failed(.generic(message: String(localized: "读取命盘存档失败,请重试")))
+            vm?.state = .failed(.generic(message: String(localized: "读取命盘存档失败，请重试")))
         }
     }
 

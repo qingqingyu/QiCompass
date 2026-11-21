@@ -562,7 +562,7 @@ final class MockAPIClient: APIClient {
         } else if request.module == "daily_fortune" {
             interpretation = "{\"headline\":\"静心开局的一天\",\"work\":\"先做要紧的事。\",\"relationships\":\"话留三分。\",\"energy\":\"按自己的节奏来。\",\"reminder\":\"量力而行。\"}"
         } else {
-            interpretation = "[Mock 命书占位] 此命造五行流转,日主得令,喜忌已由后端确定性规则引擎判定。此为脚手架阶段 Mock 文本,正式解读由后端 AI provider 生成。"
+            interpretation = "[Mock 命书占位] 此命造五行流转，日主得令，喜忌已由后端确定性规则引擎判定。此为脚手架阶段 Mock 文本，正式解读由后端 AI provider 生成。"
         }
         return InterpretResponse(
             interpretation: interpretation,
@@ -687,7 +687,7 @@ final class MockAPIClient: APIClient {
             )
         }
         return DailyAskResponse(
-            answer: "宜先静后动:上午稳住手头事,午后看准再开口。此为脚手架阶段 Mock 文本,正式作答由后端 AI provider 生成。",
+            answer: "宜先静后动:上午稳住手头事，午后看准再开口。此为脚手架阶段 Mock 文本，正式作答由后端 AI provider 生成。",
             followUps: ["几点开口最稳?", "对方不让步怎么办?"],
             cached: false,
             balance: balance,

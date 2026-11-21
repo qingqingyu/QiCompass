@@ -25,7 +25,7 @@ final class DailyFortuneHeroEnTests: XCTestCase {
         for (s, v) in cases {
             XCTAssertEqual(DailyHeaderSection.lunarMonthNumber(s), v, "lunarMonthNumber(\(s)) 应为 \(v)")
         }
-        XCTAssertNil(DailyHeaderSection.lunarMonthNumber("十一"), "月名无「十一」(冬月),不猜")
+        XCTAssertNil(DailyHeaderSection.lunarMonthNumber("十一"), "月名无「十一」(冬月)，不猜")
     }
 
     func testzhNumber_一到三十() {

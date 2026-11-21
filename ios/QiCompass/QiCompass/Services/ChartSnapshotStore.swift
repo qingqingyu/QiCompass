@@ -234,7 +234,7 @@ final class ChartSnapshotStore {
         let hash = snapshot.contentHash
         if reSignHopelessHashes.contains(hash) {
             AppLogger.persistence.info(
-                "op=chartSnapshot.re_sign skip reason=session_hopeless hash=\(hash, privacy: .public) trigger=\(reason, privacy: .public) — 本会话已判注定失败,不再重发(重新排盘即恢复)"
+                "op=chartSnapshot.re_sign skip reason=session_hopeless hash=\(hash, privacy: .public) trigger=\(reason, privacy: .public) — 本会话已判注定失败，不再重发(重新排盘即恢复)"
             )
             return nil
         }
@@ -278,7 +278,7 @@ final class ChartSnapshotStore {
         else {
             reSignHopelessHashes.insert(snapshot.contentHash)
             AppLogger.persistence.info(
-                "op=chartSnapshot.re_sign skip reason=no_materials hash=\(snapshot.contentHash, privacy: .public) trigger=\(reason, privacy: .public) — 更早快照无排盘入参,维持既有「重新排盘」出口"
+                "op=chartSnapshot.re_sign skip reason=no_materials hash=\(snapshot.contentHash, privacy: .public) trigger=\(reason, privacy: .public) — 更早快照无排盘入参，维持既有「重新排盘」出口"
             )
             return nil
         }
@@ -297,14 +297,14 @@ final class ChartSnapshotStore {
             // 结局确定性(后端规则演化)→ 本会话不再重试
             reSignHopelessHashes.insert(snapshot.contentHash)
             AppLogger.app.warning(
-                "op=chartSnapshot.re_sign hash_mismatch old=\(snapshot.contentHash, privacy: .public) new=\(fresh.contentHash, privacy: .public) trigger=\(reason, privacy: .public) — 不接受新 token,既有「重新排盘」出口接管"
+                "op=chartSnapshot.re_sign hash_mismatch old=\(snapshot.contentHash, privacy: .public) new=\(fresh.contentHash, privacy: .public) trigger=\(reason, privacy: .public) — 不接受新 token，既有「重新排盘」出口接管"
             )
             return nil
         }
         guard let freshTokens = fresh.contextTokens, !freshTokens.isEmpty else {
             reSignHopelessHashes.insert(snapshot.contentHash)
             AppLogger.app.info(
-                "op=chartSnapshot.re_sign skip reason=fresh_without_tokens hash=\(snapshot.contentHash, privacy: .public) — 后端未回 token,不覆盖存档"
+                "op=chartSnapshot.re_sign skip reason=fresh_without_tokens hash=\(snapshot.contentHash, privacy: .public) — 后端未回 token，不覆盖存档"
             )
             return nil
         }
@@ -329,7 +329,7 @@ final class ChartSnapshotStore {
             _ = try upsert(response: archivable, request: request)
         } catch {
             AppLogger.persistence.error(
-                "op=chartSnapshot.re_sign persist_failed hash=\(snapshot.contentHash, privacy: .public) trigger=\(reason, privacy: .public) error=\(String(describing: error), privacy: .public) — 新 token 仅本次返回生效,存档未更新(下次加载再试)"
+                "op=chartSnapshot.re_sign persist_failed hash=\(snapshot.contentHash, privacy: .public) trigger=\(reason, privacy: .public) error=\(String(describing: error), privacy: .public) — 新 token 仅本次返回生效，存档未更新(下次加载再试)"
             )
         }
         archivable.lateNight = response.lateNight

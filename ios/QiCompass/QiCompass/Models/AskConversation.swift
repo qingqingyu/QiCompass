@@ -92,7 +92,7 @@ final class AskConversation {
             return try Self.decoder.decode([AskTurnRecord].self, from: messagesData)
         } catch {
             AppLogger.app.error(
-                "op=askConversation.decode failed error=\(String(describing: error), privacy: .public) -> 按空处理(空壳好过崩溃,错误留痕)"
+                "op=askConversation.decode failed error=\(String(describing: error), privacy: .public) -> 按空处理(空壳好过崩溃，错误留痕)"
             )
             return []
         }
@@ -106,7 +106,7 @@ final class AskConversation {
         var all = turns
         guard all.count == messagesTurnCount else {
             AppLogger.app.error(
-                "op=askConversation.append refused reason=corruptPayload(解码失败拒覆写,保残骸)"
+                "op=askConversation.append refused reason=corruptPayload(解码失败拒覆写，保残骸)"
             )
             return
         }
@@ -115,7 +115,7 @@ final class AskConversation {
             messagesData = try Self.encoder.encode(all)
         } catch {
             AppLogger.app.error(
-                "op=askConversation.encode failed error=\(String(describing: error), privacy: .public) -> 本条未入流水(消息仍在内存会话中,重开缺尾)"
+                "op=askConversation.encode failed error=\(String(describing: error), privacy: .public) -> 本条未入流水(消息仍在内存会话中，重开缺尾)"
             )
             return
         }

@@ -34,7 +34,7 @@ struct SwiftDataCRUDView: View {
                 Text("本地存储验证")
                     .font(.title2.weight(.semibold))
                     .foregroundStyle(BaziTheme.ink)
-                Text("覆盖 5 个 SwiftData 模型的 Create / Read / Update / Delete + Assert,验证后自动清理测试数据。")
+                Text("覆盖 5 个 SwiftData 模型的 Create / Read / Update / Delete + Assert，验证后自动清理测试数据。")
                     .font(.subheadline)
                     .foregroundStyle(BaziTheme.inkMuted)
                     .multilineTextAlignment(.center)

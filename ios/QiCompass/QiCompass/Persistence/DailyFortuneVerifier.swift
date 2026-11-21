@@ -149,7 +149,7 @@ final class DailyFortuneVerifier {
                     "buildDailyFortune 缺字段:\(field)")
             }
         }
-        try XCTAssertTrue(context.count >= 17, "至少 17 字段,实际=\(context.count)")
+        try XCTAssertTrue(context.count >= 17, "至少 17 字段，实际=\(context.count)")
         log.append("✓ PromptContextBuilder.buildDailyFortune 17 字段齐")
     }
 

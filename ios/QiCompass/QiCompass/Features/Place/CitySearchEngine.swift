@@ -26,15 +26,15 @@ struct CityRecord: Identifiable, Equatable, Sendable, Codable {
     var id: Int { geonameId }
     /// 结果行主名:中文优先(Q7)
     var displayName: String { nameZh ?? name }
-    /// 结果行副标题:「admin1, 国家」(Cambridge · 马萨诸塞, 美国)
+    /// 结果行副标题:「admin1, 国家」(Cambridge · 马萨诸塞， 美国)
     var subtitle: String {
         if let admin = admin1Name, !admin.isEmpty {
-            return "\(admin), \(countryNameZh)"
+            return "\(admin)， \(countryNameZh)"
         }
         return countryNameZh
     }
-    /// 表单回显:「城市, 国家」(Q8,只显示这两项)
-    var displayLabel: String { "\(displayName), \(countryNameZh)" }
+    /// 表单回显:「城市, 国家」(Q8,只显示这两项;逗号全角 B1,随界面层)
+    var displayLabel: String { "\(displayName)， \(countryNameZh)" }
 }
 
 // MARK: - 出生地选择(城市 / 自定义地点,S05)
@@ -63,7 +63,7 @@ enum PlaceSelection: Equatable, Codable, Sendable {
         }
     }
 
-    /// 表单回显:城市「北京, 中国」/ 自定义「自定义地点 · GMT+8」。
+    /// 表单回显:城市「北京， 中国」/ 自定义「自定义地点 · GMT+8」。
     var displayLabel: String {
         switch self {
         case .city(let record): return record.displayLabel

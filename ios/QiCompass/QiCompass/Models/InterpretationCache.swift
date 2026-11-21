@@ -11,7 +11,7 @@ import SwiftData
 /// 字段类型:`String?`(optional)而非 `String`(required),原因:
 /// - 老缓存行没有 language 字段,SwiftData 加 required 字段会破坏反序列化
 /// - nil 视为 "zh"(Q13 决策:v1 之前的所有缓存都是中文,这是正确的回填值)
-/// - 符合 D1 决策"不用 VersionedSchema / SchemaMigrationPlan,演化靠 lazy 重算"
+/// - 符合 D1 决策"不用 VersionedSchema / SchemaMigrationPlan，演化靠 lazy 重算"
 ///
 /// 注意:SwiftData 不支持复合 unique index。查询时按完整业务键与身份校验,
 /// 不依赖单字段 unique。prompt 改 → promptVersion +1 → 老缓存自然失效。

@@ -126,9 +126,9 @@ struct ChapterReadingInputForm: View {
     private var noteText: String {
         switch module {
         case .m4:
-            return "提交后本章按你的情况生成 · 信息仅用于本命主的健康章,不进入其它章节"
+            return "提交后本章按你的情况生成 · 信息仅用于本命主的健康章，不进入其它章节"
         case .m5:
-            return "提交后本章按你的情况生成 · 信息仅用于本命主的财富章,不进入其它章节"
+            return "提交后本章按你的情况生成 · 信息仅用于本命主的财富章，不进入其它章节"
         default:
             return ""
         }

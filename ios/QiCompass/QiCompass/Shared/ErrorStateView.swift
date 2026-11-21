@@ -30,7 +30,7 @@ struct ErrorStateView: View {
             AppLogger.app.warning(
                 "errorStateView.generic_fallback error=\(String(describing: error), privacy: .public)"
             )
-            self.userFacingError = .generic(message: String(localized: "操作未完成,请重试"))
+            self.userFacingError = .generic(message: String(localized: "操作未完成，请重试"))
         }
         self.retry = retry
     }

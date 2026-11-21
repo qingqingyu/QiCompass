@@ -109,7 +109,7 @@ final class CompatibilityNamesAndChaptersTests: XCTestCase {
         XCTAssertEqual(context["name_b"]?.value as? String, "小林")
 
         let table = try XCTUnwrap(context["synced_fortune_table"]?.value as? String)
-        XCTAssertTrue(table.contains("你「乙亥运 丁未年」"), "流年表 A 侧用称呼,实际:\(table)")
+        XCTAssertTrue(table.contains("你「乙亥运 丁未年」"), "流年表 A 侧用称呼，实际:\(table)")
         XCTAssertTrue(table.contains("小林「丁卯运 丁未年」"), "流年表 B 侧用称呼")
         XCTAssertFalse(table.contains("A「"), "不得残留 A 代号")
         XCTAssertFalse(table.contains("B「"), "不得残留 B 代号")
@@ -164,7 +164,7 @@ final class CompatibilityNamesAndChaptersTests: XCTestCase {
     }
 
     func test_章节解析_无标题行返回nil_调用方退整段() {
-        XCTAssertNil(CompatibilityChapterText.parse("整段散文,没有任何章节标题行。"))
+        XCTAssertNil(CompatibilityChapterText.parse("整段散文，没有任何章节标题行。"))
         XCTAssertNil(CompatibilityChapterText.parse(""))
     }
 }

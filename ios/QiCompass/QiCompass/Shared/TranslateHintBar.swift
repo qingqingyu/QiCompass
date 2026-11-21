@@ -60,7 +60,7 @@ struct TranslateHintBar: View {
                 Text(String(
                     format: String(localized: "此报告以%@生成 · %@"),
                     AppLanguage.displayName(forWire: sourceLanguage),
-                    String(localized: "解读凭证已失效,请重新排盘")
+                    String(localized: "解读凭证已失效，请重新排盘")
                 ))
                 .font(BaziFont.caption(size: 11))
                 .foregroundStyle(BaziTheme.inkMuted)

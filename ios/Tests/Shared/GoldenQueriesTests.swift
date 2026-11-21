@@ -68,7 +68,7 @@ final class GoldenQueriesTests: XCTestCase {
             for e in g.expect {
                 if !top.contains(where: { $0.0 == e.name && $0.1 == e.cc }) {
                     let topNames = results.prefix(6).map { "\($0.displayName)(\($0.countryCode))" }
-                    failures.append("「\(g.query)」(\(g.note)) 期望 \(e.name)/\(e.cc) 进 top\(g.top),实际前 6:\(topNames)")
+                    failures.append("「\(g.query)」(\(g.note)) 期望 \(e.name)/\(e.cc) 进 top\(g.top)，实际前 6:\(topNames)")
                 }
             }
         }

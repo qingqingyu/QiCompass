@@ -43,7 +43,7 @@ final class BaziTermNotesTests: XCTestCase {
 
     func test_pianGuan_aliasMatchesQiSha() {
         XCTAssertEqual(BaziTermNotes.entries["偏官"], BaziTermNotes.entries["七杀"],
-                       "偏官=七杀别名(对齐 BaziTerms.tenGods),释义必须同文")
+                       "偏官=七杀别名(对齐 BaziTerms.tenGods)，释义必须同文")
     }
 
     func test_unknownTerm_returnsNil() {

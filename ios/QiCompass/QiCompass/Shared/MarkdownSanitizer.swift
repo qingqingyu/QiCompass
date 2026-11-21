@@ -43,7 +43,7 @@ enum MarkdownSanitizer {
             return try AttributedString(markdown: cleaned)
         } catch {
             // 不静默吞:记录失败原因便于排查 prompt/LLM 输出异常
-            AppLogger.app.warning("MarkdownSanitizer AttributedString(markdown:) 失败,降级 strip inline error=\(String(describing: error), privacy: .public)")
+            AppLogger.app.warning("MarkdownSanitizer AttributedString(markdown:) 失败，降级 strip inline error=\(String(describing: error), privacy: .public)")
             return AttributedString(stripInlineMarkers(cleaned))
         }
     }

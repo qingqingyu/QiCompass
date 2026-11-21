@@ -24,8 +24,8 @@ final class ChapterContentTests: XCTestCase {
             "leak": "过度求稳",
             "evidence": "月柱比肩"
           },
-          "structure_type": { "name": "财比结构", "one_line": "以稳生财,以财带人" },
-          "structure_fingerprint": "务实积累型:先立住成果,再放大协作"
+          "structure_type": { "name": "财比结构", "one_line": "以稳生财，以财带人" },
+          "structure_fingerprint": "务实积累型:先立住成果，再放大协作"
         }
         """
         guard let content = ChapterContent.parse(json) else {
@@ -36,7 +36,7 @@ final class ChapterContentTests: XCTestCase {
         // 主线:键值组,顺序 = JSON 书写顺序(主导 → 次要 → 潜伏 → 据)
         guard case .section(let title, let children) = content.nodes[0],
               case .fields(let fields)? = children.first else {
-            return XCTFail("main_axis 应为含键值组的小节,实际:\(content.nodes[0])")
+            return XCTFail("main_axis 应为含键值组的小节，实际:\(content.nodes[0])")
         }
         XCTAssertEqual(title, "我的十神主线是什么?")
         XCTAssertEqual(fields.map(\.label), ["主导", "次要", "潜伏", "据"])
@@ -45,9 +45,9 @@ final class ChapterContentTests: XCTestCase {
 
         // structure_fingerprint:顶层标量 → 引言
         guard case .lead(let lead) = content.nodes[3] else {
-            return XCTFail("structure_fingerprint 应为引言,实际:\(content.nodes[3])")
+            return XCTFail("structure_fingerprint 应为引言，实际:\(content.nodes[3])")
         }
-        XCTAssertEqual(lead, "务实积累型:先立住成果,再放大协作")
+        XCTAssertEqual(lead, "务实积累型:先立住成果，再放大协作")
     }
 
     // MARK: - M0 特化组装(2026-10-12 S4-A:行内标签段落化 + 章末据折叠)
@@ -66,12 +66,12 @@ final class ChapterContentTests: XCTestCase {
             "to": "正印",
             "flow": "压力被吸收为方法",
             "driver": "年干丙火七杀透出",
-            "leak": "输出通道窄,水运打开",
+            "leak": "输出通道窄，水运打开",
             "evidence": "水透出计数为 0"
           },
-          "structure_type": { "name": "硬扛聚能型", "one_line": "压力进来,能量聚在事里" },
-          "capability_source": { "text": "你最强的时刻,是硬需求递到手上的时候。", "evidence": "七杀重(6)。" },
-          "structure_fingerprint": "吸收压力转为系统,输出等水木运"
+          "structure_type": { "name": "硬扛聚能型", "one_line": "压力进来，能量聚在事里" },
+          "capability_source": { "text": "你最强的时刻，是硬需求递到手上的时候。", "evidence": "七杀重(6)。" },
+          "structure_fingerprint": "吸收压力转为系统，输出等水木运"
         }
         """
         guard let content = ChapterContent.parse(json, for: .m0) else {
@@ -81,14 +81,14 @@ final class ChapterContentTests: XCTestCase {
         XCTAssertEqual(content.nodes.count, 6)
 
         guard case .section("我的十神主线是什么?", let mainChildren) = content.nodes[0] else {
-            return XCTFail("首节点应为「我的十神主线是什么?」小节,实际:\(content.nodes[0])")
+            return XCTFail("首节点应为「我的十神主线是什么?」小节，实际:\(content.nodes[0])")
         }
         XCTAssertEqual(mainChildren.compactMap { node -> String? in
             if case .inlineLabel(let label, _) = node { return label }
             return nil
         }, ["主导", "次要", "潜伏"], "三层应为行内标签段")
         guard case .inlineLabel(_, let dominantText)? = mainChildren.first else {
-            return XCTFail("dominant 应为 inlineLabel,实际:\(mainChildren)")
+            return XCTFail("dominant 应为 inlineLabel，实际:\(mainChildren)")
         }
         XCTAssertTrue(dominantText.contains("并列最重"))
 
@@ -96,7 +96,7 @@ final class ChapterContentTests: XCTestCase {
             return XCTFail("次节点应为「哪两个十神形成核心循环结构?」小节")
         }
         guard case .loopFromTo(let from, let to)? = loopChildren.first else {
-            return XCTFail("core_loop 首子节点应为 loopFromTo,实际:\(loopChildren)")
+            return XCTFail("core_loop 首子节点应为 loopFromTo，实际:\(loopChildren)")
         }
         XCTAssertEqual(from, "七杀")
         XCTAssertEqual(to, "正印")
@@ -118,7 +118,7 @@ final class ChapterContentTests: XCTestCase {
             return false
         }, "one_line 应作引言段")
 
-        guard case .section("这类结构的人,核心能力通常来自哪里?", let capChildren) = content.nodes[3],
+        guard case .section("这类结构的人，核心能力通常来自哪里?", let capChildren) = content.nodes[3],
               case .lead(let capText)? = capChildren.first else {
             return XCTFail("能力来源 text 应作引言段")
         }
@@ -130,7 +130,7 @@ final class ChapterContentTests: XCTestCase {
         XCTAssertTrue(fingerprint.contains("吸收压力"))
 
         guard case .evidenceFold(let notes) = content.nodes[5] else {
-            return XCTFail("末节点应为据折叠区,实际:\(content.nodes[5])")
+            return XCTFail("末节点应为据折叠区，实际:\(content.nodes[5])")
         }
         XCTAssertEqual(notes.map(\.label), ["主线", "核心循环", "能力来源"])
         XCTAssertTrue(notes[1].text.contains("透出计数"))
@@ -146,7 +146,7 @@ final class ChapterContentTests: XCTestCase {
         }
         guard case .section("我的十神主线是什么?", let children) = content.nodes[0],
               case .fields(let fields)? = children.first else {
-            return XCTFail("回落路径应为通用键值组,实际:\(content.nodes)")
+            return XCTFail("回落路径应为通用键值组，实际:\(content.nodes)")
         }
         XCTAssertEqual(fields.map(\.label), ["主导", "次要", "潜伏"])
     }
@@ -168,7 +168,7 @@ final class ChapterContentTests: XCTestCase {
             return false
         }, "三层全缺不应有空主线节")
         guard case .evidenceFold(let notes)? = content.nodes.last else {
-            return XCTFail("末节点应为据折叠区,实际:\(content.nodes)")
+            return XCTFail("末节点应为据折叠区，实际:\(content.nodes)")
         }
         XCTAssertEqual(notes.map(\.label), ["主线"])
         XCTAssertEqual(notes.first?.text, "七杀 6=劫财 6 并列最高")
@@ -202,11 +202,11 @@ final class ChapterContentTests: XCTestCase {
             "to": "正印",
             "flow": "压力被吸收为方法",
             "driver": "年干丙火七杀透出",
-            "leak": "输出通道窄,水运打开"
+            "leak": "输出通道窄，水运打开"
           },
           "structure_type": "硬扛聚能型",
           "summary": "整体:吸入强输出弱",
-          "structure_fingerprint": "吸收压力转为系统,输出等水木运"
+          "structure_fingerprint": "吸收压力转为系统，输出等水木运"
         }
         """
         guard let content = ChapterContent.parse(json, for: .m0) else {
@@ -215,12 +215,12 @@ final class ChapterContentTests: XCTestCase {
         // main_axis 内多余键:主线节内走通用节点渲染(string → .lead 引言段,
         // node() 不打裸键标签),不丢
         guard case .section("我的十神主线是什么?", let mainChildren)? = content.nodes.first else {
-            return XCTFail("首节点应为「我的十神主线是什么?」小节,实际:\(content.nodes)")
+            return XCTFail("首节点应为「我的十神主线是什么?」小节，实际:\(content.nodes)")
         }
         XCTAssertTrue(mainChildren.contains {
             if case .lead("权重口径见据") = $0 { return true }
             return false
-        }, "main_axis.note 应走通用节点渲染(lead),不得静默丢弃")
+        }, "main_axis.note 应走通用节点渲染(lead)，不得静默丢弃")
 
         // structure_type 退化为字符串:顶层通用节点(引言),不丢
         XCTAssertTrue(content.nodes.contains {
@@ -236,7 +236,7 @@ final class ChapterContentTests: XCTestCase {
 
         // 阅读序不受影响:据折叠仍收尾,fingerprint 仍为引言
         guard case .evidenceFold(let notes)? = content.nodes.last else {
-            return XCTFail("末节点应为据折叠区,实际:\(content.nodes)")
+            return XCTFail("末节点应为据折叠区，实际:\(content.nodes)")
         }
         XCTAssertEqual(notes.map(\.label), ["主线"])
         XCTAssertTrue(content.nodes.contains {
@@ -258,12 +258,12 @@ final class ChapterContentTests: XCTestCase {
             return XCTFail("非 string 层的 M0 应特化解析成功")
         }
         guard case .section("我的十神主线是什么?", let children)? = content.nodes.first else {
-            return XCTFail("首节点应为「我的十神主线是什么?」小节,实际:\(content.nodes)")
+            return XCTFail("首节点应为「我的十神主线是什么?」小节，实际:\(content.nodes)")
         }
         XCTAssertTrue(children.contains {
             if case .lead("6") = $0 { return true }
             return false
-        }, "非 string 的 dominant 应回落通用渲染,不得静默丢弃")
+        }, "非 string 的 dominant 应回落通用渲染，不得静默丢弃")
         XCTAssertTrue(children.contains {
             if case .inlineLabel("次要", _) = $0 { return true }
             return false
@@ -286,7 +286,7 @@ final class ChapterContentTests: XCTestCase {
             return XCTFail("M2 样例应解析成功")
         }
         guard case .section("两者的分界点在哪里?", let children) = content.nodes[0] else {
-            return XCTFail("threshold 应为问句门头,实际:\(content.nodes[0])")
+            return XCTFail("threshold 应为问句门头，实际:\(content.nodes[0])")
         }
         XCTAssertEqual(children.count, 3)
         guard case .section("环境资源", let envChildren) = children[0],
@@ -344,7 +344,7 @@ final class ChapterContentTests: XCTestCase {
         }
         guard case .section("两者的分界点在哪里?", let children)? = content.nodes.first,
               case .section("环境资源", _)? = children.first else {
-            return XCTFail("通用回落应为问句门头+名词嵌套,实际:\(content.nodes)")
+            return XCTFail("通用回落应为问句门头+名词嵌套，实际:\(content.nodes)")
         }
     }
 
@@ -358,7 +358,7 @@ final class ChapterContentTests: XCTestCase {
           ],
           "ideal_life_structure": { "time": "整块时间", "collaboration": "低密度", "feedback_cycle": "长周期", "income_rhythm": "项目制" },
           "stability_vs_volatility": { "verdict": "高变量", "reason": "结构靠变化回血", "precondition": "底仓稳定" },
-          "environment_checklist": ["新环境里,我的判断能直达终点吗?", "失败一次,代价是出局还是学习?"]
+          "environment_checklist": ["新环境里，我的判断能直达终点吗?", "失败一次，代价是出局还是学习?"]
         }
         """
         guard let content = ChapterContent.parse(json, for: .m3) else {
@@ -372,8 +372,8 @@ final class ChapterContentTests: XCTestCase {
             "它最自然的运行模式是什么?",
             "它最怕什么环境?",
             "它最适合什么类型的生活结构?",
-            "它更适合稳定型人生,还是高变量人生?",
-            "换环境前,先问自己什么?",
+            "它更适合稳定型人生，还是高变量人生?",
+            "换环境前，先问自己什么?",
         ])
         // 对象数组节 = 问句门头 + 条目卡;字符串数组节 = 问句门头 + 条目列
         guard case .section(_, let failureChildren)? = content.nodes.dropFirst(1).first,
@@ -398,7 +398,7 @@ final class ChapterContentTests: XCTestCase {
         }
         guard case .section("它最自然的运行模式是什么?", let children)? = content.nodes.first,
               case .fields(let fields)? = children.first else {
-            return XCTFail("通用回落应为问句门头+键值组,实际:\(content.nodes)")
+            return XCTFail("通用回落应为问句门头+键值组，实际:\(content.nodes)")
         }
         XCTAssertEqual(fields.map(\.label), ["输入", "加工", "输出", "回血"])
     }
@@ -418,7 +418,7 @@ final class ChapterContentTests: XCTestCase {
             return XCTFail("M1 样例应解析成功")
         }
         guard case .items(let items) = content.nodes[0] else {
-            return XCTFail("innate 应为条目卡,实际:\(content.nodes[0])")
+            return XCTFail("innate 应为条目卡，实际:\(content.nodes[0])")
         }
         XCTAssertEqual(items.count, 2)
         XCTAssertEqual(items[0].title, "深度理解与转述")
@@ -451,12 +451,12 @@ final class ChapterContentTests: XCTestCase {
             guard case .section(let title, _) = node else { return nil }
             return title
         }
-        XCTAssertEqual(titles.count, content.nodes.count, "四节点应全为节,实际:\(content.nodes)")
+        XCTAssertEqual(titles.count, content.nodes.count, "四节点应全为节，实际:\(content.nodes)")
         XCTAssertEqual(titles, [
             "我最自然、不费力的能力是什么?",
             "哪种能力是后天环境训练出来的?",
-            "哪些能力外人看着像优点,其实在消耗你?",
-            "如果只能保留一项能力当作杠杆,是哪一项?",
+            "哪些能力外人看着像优点，其实在消耗你?",
+            "如果只能保留一项能力当作杠杆，是哪一项?",
         ])
         guard case .section(_, let innateChildren)? = content.nodes.first,
               case .items(let items)? = innateChildren.first else {
@@ -480,7 +480,7 @@ final class ChapterContentTests: XCTestCase {
             return XCTFail("应解析成功")
         }
         guard case .section("我的十神主线是什么?", _)? = content.nodes.first else {
-            return XCTFail("通用回落应为问句门头,实际:\(content.nodes)")
+            return XCTFail("通用回落应为问句门头，实际:\(content.nodes)")
         }
     }
 
@@ -498,9 +498,9 @@ final class ChapterContentTests: XCTestCase {
             return XCTFail("M1 应特化解析")
         }
         // 只有 innate 成节;trained/defensive 空数组被吞(不渲染键名也不算错)
-        XCTAssertEqual(content.nodes.count, 1, "空数组不应产生节点,实际:\(content.nodes)")
+        XCTAssertEqual(content.nodes.count, 1, "空数组不应产生节点，实际:\(content.nodes)")
         guard case .section("我最自然、不费力的能力是什么?", _)? = content.nodes.first else {
-            return XCTFail("唯一节点应为 innate 问句门头,实际:\(content.nodes)")
+            return XCTFail("唯一节点应为 innate 问句门头，实际:\(content.nodes)")
         }
     }
 
@@ -514,26 +514,26 @@ final class ChapterContentTests: XCTestCase {
         }
         """
         guard let content = ChapterContent.parse(json, for: .m1) else {
-            return XCTFail("trained 成节,应特化解析成功")
+            return XCTFail("trained 成节，应特化解析成功")
         }
         XCTAssertEqual(content.nodes.count, 2, "实际:\(content.nodes)")
         guard case .section("哪种能力是后天环境训练出来的?", _)? = content.nodes.first else {
-            return XCTFail("trained 数组应走特化门头,实际:\(content.nodes)")
+            return XCTFail("trained 数组应走特化门头，实际:\(content.nodes)")
         }
         guard case .section("我最自然、不费力的能力是什么?", let children)? = content.nodes.last else {
-            return XCTFail("innate 对象应走 leftover 单层问句门头,实际:\(content.nodes)")
+            return XCTFail("innate 对象应走 leftover 单层问句门头，实际:\(content.nodes)")
         }
         XCTAssertFalse(children.contains { node in
             if case .section = node { return true }
             return false
-        }, "对象形态子层不得再嵌同题 section(双重门头),实际:\(children)")
+        }, "对象形态子层不得再嵌同题 section(双重门头)，实际:\(children)")
     }
 
     // MARK: - M4 精力曲线(2026-11-19 伍章问句门头+无标签 prose)
     func test_m4_specializationWrapsFiveQuestionDoors() {
         let json = """
         {
-          "battery_type": { "type": "爬坡", "evidence": "印星通关", "charge_pattern": "独处半天、睡饱,劲就回来", "drain_pattern": "连续三天高强度对外,必掉" },
+          "battery_type": { "type": "爬坡", "evidence": "印星通关", "charge_pattern": "独处半天、睡饱，劲就回来", "drain_pattern": "连续三天高强度对外，必掉" },
           "imbalance_risks": [
             { "system": "睡眠", "trigger": "连续三天以上高强度对外沟通", "early_sign": "早上醒来看手机" }
           ],
@@ -554,10 +554,10 @@ final class ChapterContentTests: XCTestCase {
             return title
         }
         XCTAssertEqual(titles, [
-            "高分在什么时候,低谷在什么时候?",
+            "什么时候状态最好，什么时候最差?",
             "怎么会从高分掉下来?",
             "累了怎么缓过来?",
-            "掉进低谷,怎么爬出来?",
+            "掉进低谷，怎么爬出来?",
             "怎么少掉进低谷?",
         ])
         // battery_type 节:charge/drain 走无标签 prose(text 同款机制),
@@ -591,9 +591,9 @@ final class ChapterContentTests: XCTestCase {
         guard let content = ChapterContent.parse(json, for: .m4) else {
             return XCTFail("应解析成功")
         }
-        guard case .section("高分在什么时候,低谷在什么时候?", let children)? = content.nodes.first,
+        guard case .section("什么时候状态最好，什么时候最差?", let children)? = content.nodes.first,
               case .lead(let charge)? = children.first else {
-            return XCTFail("通用回落应为问句门头+无标签 prose,实际:\(content.nodes)")
+            return XCTFail("通用回落应为问句门头+无标签 prose，实际:\(content.nodes)")
         }
         XCTAssertEqual(charge, "换环境当天")
     }
@@ -611,7 +611,7 @@ final class ChapterContentTests: XCTestCase {
             return XCTFail("M4 样例应解析成功")
         }
         guard case .items(let items) = content.nodes[0] else {
-            return XCTFail("reset_7day 应为条目卡,实际:\(content.nodes[0])")
+            return XCTFail("reset_7day 应为条目卡，实际:\(content.nodes[0])")
         }
         XCTAssertEqual(items[0].title, "第 1 天")
         XCTAssertEqual(items[0].fields.map(\.label), ["焦点", "动作"])
@@ -622,17 +622,17 @@ final class ChapterContentTests: XCTestCase {
     func test_stringArrayBecomesBullets() {
         let json = """
         { "early_warnings": ["开始讨好难缠的人", "作息漂移", "只做熟悉的杂活"],
-          "medical_note": "若症状持续加重,请就医" }
+          "medical_note": "若症状持续加重，请就医" }
         """
         guard let content = ChapterContent.parse(json) else {
             return XCTFail("M2/M4 混合样例应解析成功")
         }
         guard case .bullets(let bullets) = content.nodes[0] else {
-            return XCTFail("early_warnings 应为条目列,实际:\(content.nodes[0])")
+            return XCTFail("early_warnings 应为条目列，实际:\(content.nodes[0])")
         }
         XCTAssertEqual(bullets.count, 3)
         guard case .note(let label, let text) = content.nodes[1] else {
-            return XCTFail("medical_note 应为小字注,实际:\(content.nodes[1])")
+            return XCTFail("medical_note 应为小字注，实际:\(content.nodes[1])")
         }
         XCTAssertEqual(label, "医嘱")
         XCTAssertTrue(text.contains("就医"))
@@ -695,7 +695,7 @@ final class ChapterContentTests: XCTestCase {
 
     func test_looksLikeJSON_falseForProseAndEmpty() {
         XCTAssertFalse(ChapterContent.looksLikeJSON("这是一段散文解读。"))
-        XCTAssertFalse(ChapterContent.looksLikeJSON("2026 年运势:先立住成果,再放大协作。"))
+        XCTAssertFalse(ChapterContent.looksLikeJSON("2026 年运势:先立住成果，再放大协作。"))
         XCTAssertFalse(ChapterContent.looksLikeJSON(""))
         XCTAssertFalse(ChapterContent.looksLikeJSON("   "))
     }
@@ -706,12 +706,12 @@ final class ChapterContentTests: XCTestCase {
         // "Body/正文" 数据腔标签修复:全标量对象里的 text 按引言段落排版,
         // 不打字段标签;其余标量键照旧键值行(混结构路径本就 .lead)。
         let json = """
-        { "capability_source": { "text": "你最强的时刻,是硬需求递到手上的时候。", "evidence": "七杀重(6)——月支酉金当令。" } }
+        { "capability_source": { "text": "你最强的时刻，是硬需求递到手上的时候。", "evidence": "七杀重(6)——月支酉金当令。" } }
         """
         guard case .section(_, let children)? = ChapterContent.parse(json)?.nodes.first,
               case .lead(let prose)? = children.first,
               case .fields(let fields)? = children.last else {
-            return XCTFail("text 应为引言段 + 其余键值组,实际: \(String(describing: ChapterContent.parse(json)?.nodes))")
+            return XCTFail("text 应为引言段 + 其余键值组，实际: \(String(describing: ChapterContent.parse(json)?.nodes))")
         }
         XCTAssertTrue(prose.contains("硬需求"), "text 值按引言段落全文呈现")
         XCTAssertEqual(fields.map(\.label), ["据"], "text 不再占用字段标签位")
@@ -725,7 +725,7 @@ final class ChapterContentTests: XCTestCase {
         """
         guard case .section(_, let children)? = ChapterContent.parse(json)?.nodes.first,
               case .fields(let fields)? = children.first else {
-            return XCTFail("非 string text 应回落键值组,实际: \(String(describing: ChapterContent.parse(json)?.nodes))")
+            return XCTFail("非 string text 应回落键值组，实际: \(String(describing: ChapterContent.parse(json)?.nodes))")
         }
         XCTAssertEqual(fields.count, 2, "number text 不消失")
         XCTAssertTrue(fields.contains { $0.label == "text" && $0.value == "5" }, "裸 key + 原值透出")
@@ -736,8 +736,8 @@ final class ChapterContentTests: XCTestCase {
     private static let m0V9JSON = """
     {
       "main_axis": {
-        "headline": "压力推着你走,你靠「学规矩、攒资历」接住它。",
-        "body": "主导是七杀,也就是外部压力和硬要求;其次是正印,也就是体系、资质和靠山。",
+        "headline": "压力推着你走，你靠「学规矩、攒资历」接住它。",
+        "body": "主导是七杀，也就是外部压力和硬要求;其次是正印，也就是体系、资质和靠山。",
         "dominant": "七杀、劫财(并列最重)",
         "secondary": "正印",
         "latent": "伤官、偏财",
@@ -747,18 +747,18 @@ final class ChapterContentTests: XCTestCase {
         "headline": "扛压 → 沉淀 → 扛更大的压。",
         "from": "七杀",
         "to": "正印",
-        "flow": "每次被逼着解决难题,你都会把它变成一套方法或一份资历。",
-        "driver": "日主庚金偏旺,官杀旺而有印星化之。",
-        "leak": "不爱表现。约 32 岁起的那十年,表达会变得容易。",
-        "evidence": "月柱辛丑,日支午藏丁火正官。"
+        "flow": "每次被逼着解决难题，你都会把它变成一套方法或一份资历。",
+        "driver": "日主庚金偏旺，官杀旺而有印星化之。",
+        "leak": "不爱表现。约 32 岁起的那十年，表达会变得容易。",
+        "evidence": "月柱辛丑，日支午藏丁火正官。"
       },
       "structure_type": { "name": "被逼出来的专业型", "one_line": "分量靠一件件扛下来的事攒出来。" },
       "capability_source": {
-        "headline": "最强在「给你一个难题,并让你自己搭体系」的时候;最弱在要你公开展示、自己推销自己的时候。",
-        "text": "比如接手一个没人碰过的烂摊子,你会先把它拆成一块块可管的小事。",
-        "evidence": "七杀权重 6,与劫财并列最重。"
+        "headline": "最强在「给你一个难题，并让你自己搭体系」的时候;最弱在要你公开展示、自己推销自己的时候。",
+        "text": "比如接手一个没人碰过的烂摊子，你会先把它拆成一块块可管的小事。",
+        "evidence": "七杀权重 6，与劫财并列最重。"
       },
-      "structure_fingerprint": "杀劫并列,以规矩和资历承压"
+      "structure_fingerprint": "杀劫并列，以规矩和资历承压"
     }
     """
 
@@ -770,11 +770,11 @@ final class ChapterContentTests: XCTestCase {
         XCTAssertEqual(content.nodes.count, 5)
 
         guard case .section("我的十神主线是什么?", let mainChildren) = content.nodes[0] else {
-            return XCTFail("首节点应为「我的十神主线是什么?」,实际:\(content.nodes[0])")
+            return XCTFail("首节点应为「我的十神主线是什么?」，实际:\(content.nodes[0])")
         }
         guard case .headline(let mainHeadline)? = mainChildren.first,
               case .lead(let mainBody)? = mainChildren.dropFirst().first else {
-            return XCTFail("主线应为 结论句→展开 两层,实际:\(mainChildren)")
+            return XCTFail("主线应为 结论句→展开 两层，实际:\(mainChildren)")
         }
         XCTAssertTrue(mainHeadline.contains("压力推着你走"))
         XCTAssertTrue(mainBody.contains("七杀"))
@@ -783,14 +783,14 @@ final class ChapterContentTests: XCTestCase {
             return XCTFail("次节点应为「哪两个十神形成核心循环结构?」")
         }
         guard case .headline(let loopHeadline)? = loopChildren.first else {
-            return XCTFail("循环首子节点应为结论句,实际:\(loopChildren)")
+            return XCTFail("循环首子节点应为结论句，实际:\(loopChildren)")
         }
         XCTAssertTrue(loopHeadline.contains("扛压"))
         let loopProse = loopChildren.dropFirst().compactMap { node -> String? in
             if case .lead(let s) = node { return s }
             return nil
         }
-        XCTAssertEqual(loopProse.count, 2, "flow/leak 应为两段散文,不带「流向/损耗」小标签")
+        XCTAssertEqual(loopProse.count, 2, "flow/leak 应为两段散文，不带「流向/损耗」小标签")
         XCTAssertTrue(loopProse[0].contains("方法"), "flow 在前")
         XCTAssertTrue(loopProse[1].contains("32 岁"), "leak 在后")
         XCTAssertFalse(loopChildren.contains {
@@ -802,7 +802,7 @@ final class ChapterContentTests: XCTestCase {
             return XCTFail("第三节点应为「这个结构在命理中属于什么类型?」")
         }
         guard case .headline(let name)? = typeChildren.first else {
-            return XCTFail("name 应作结论句(无「名称 ·」标签),实际:\(typeChildren)")
+            return XCTFail("name 应作结论句(无「名称 ·」标签)，实际:\(typeChildren)")
         }
         XCTAssertEqual(name, "被逼出来的专业型")
         guard case .lead(let oneLine)? = typeChildren.dropFirst().first else {
@@ -810,19 +810,19 @@ final class ChapterContentTests: XCTestCase {
         }
         XCTAssertTrue(oneLine.contains("攒出来"))
 
-        guard case .section("这类结构的人,核心能力通常来自哪里?", let capChildren) = content.nodes[3] else {
-            return XCTFail("第四节点应为「这类结构的人,核心能力通常来自哪里?」")
+        guard case .section("这类结构的人，核心能力通常来自哪里?", let capChildren) = content.nodes[3] else {
+            return XCTFail("第四节点应为「这类结构的人，核心能力通常来自哪里?」")
         }
         guard case .headline(let capHeadline)? = capChildren.first,
               case .lead(let capText)? = capChildren.dropFirst().first else {
-            return XCTFail("能力来源应为 结论句→展开 两层,实际:\(capChildren)")
+            return XCTFail("能力来源应为 结论句→展开 两层，实际:\(capChildren)")
         }
         XCTAssertTrue(capHeadline.contains("最强在"))
         XCTAssertTrue(capText.contains("烂摊子"))
 
         // 据 fold 固定序:分层 → 起止 → 驱动 → 各节 evidence
         guard case .evidenceFold(let notes) = content.nodes[4] else {
-            return XCTFail("末节点应为据折叠,实际:\(content.nodes[4])")
+            return XCTFail("末节点应为据折叠，实际:\(content.nodes[4])")
         }
         XCTAssertEqual(notes.count, 6)
         XCTAssertEqual(notes[0].label, "主线")
@@ -851,9 +851,9 @@ final class ChapterContentTests: XCTestCase {
         // 某节缺 headline:该节照常渲染其余字段,不丢内容(plan S3-5)
         let json = """
         {
-          "main_axis": { "headline": "压力推着你走。", "body": "主导是七杀,也就是外部压力。" },
+          "main_axis": { "headline": "压力推着你走。", "body": "主导是七杀，也就是外部压力。" },
           "core_loop": { "from": "七杀", "to": "正印", "flow": "压力被吸收为方法。" },
-          "capability_source": { "text": "你最强的时刻,是硬需求递到手上的时候。" }
+          "capability_source": { "text": "你最强的时刻，是硬需求递到手上的时候。" }
         }
         """
         guard let content = ChapterContent.parse(json, for: .m0) else {
@@ -861,14 +861,14 @@ final class ChapterContentTests: XCTestCase {
         }
         guard content.nodes.count > 1,
               case .section("哪两个十神形成核心循环结构?", let loopChildren) = content.nodes[1] else {
-            return XCTFail("核心循环节应在(问句门头),实际:\(content.nodes)")
+            return XCTFail("核心循环节应在(问句门头)，实际:\(content.nodes)")
         }
         XCTAssertTrue(loopChildren.contains {
             if case .lead(let s) = $0 { return s.contains("压力被吸收") }
             return false
         }, "flow 不得因缺 headline 丢失")
         guard content.nodes.count > 2,
-              case .section("这类结构的人,核心能力通常来自哪里?", let capChildren) = content.nodes[2] else {
+              case .section("这类结构的人，核心能力通常来自哪里?", let capChildren) = content.nodes[2] else {
             return XCTFail("能力来源节应在(问句门头)")
         }
         XCTAssertTrue(capChildren.contains {
@@ -903,7 +903,7 @@ final class ChapterContentTests: XCTestCase {
         {
           "main_axis": {
             "headline": "压力推着你走。",
-            "body": "主导是七杀,也就是外部压力。",
+            "body": "主导是七杀，也就是外部压力。",
             "extra_note": "schema 外的键"
           },
           "core_loop": { "headline": "扛压 → 沉淀。" }
@@ -916,7 +916,7 @@ final class ChapterContentTests: XCTestCase {
         XCTAssertTrue(mainChildren.contains {
             if case .lead(let s) = $0 { return s == "schema 外的键" }
             return false
-        }, "schema 外的键应走通用引言段渲染(v7 同款兜底),不静默丢")
+        }, "schema 外的键应走通用引言段渲染(v7 同款兜底)，不静默丢")
     }
 
     // MARK: - 段落拆分与结论句章判定(A′ 2026-10-21,plan
@@ -967,7 +967,7 @@ final class ChapterContentTests: XCTestCase {
             return XCTFail("v9 形态应解析成功")
         }
         XCTAssertTrue(v9Content.containsHeadline,
-                      "v9+ 含结论句(headline 是小节子节点,须递归命中)")
+                      "v9+ 含结论句(headline 是小节子节点，须递归命中)")
     }
 
     func test_containsHeadline_trueEvenWhenSomeSectionMissesHeadline() {
@@ -979,8 +979,8 @@ final class ChapterContentTests: XCTestCase {
         {
           "main_axis": { "headline": "压力推着你走。", "body": "主导是七杀。" },
           "core_loop": { "headline": "扛压 → 沉淀。", "from": "七杀", "to": "正印",
-            "flow": "压力被吸收为方法。", "leak": "不爱表现。\\n约 32 岁起的那十年,表达变易。\\n眼下可以多讲过程。" },
-          "capability_source": { "text": "你最强的时刻,是硬需求递到手上的时候。" }
+            "flow": "压力被吸收为方法。", "leak": "不爱表现。\\n约 32 岁起的那十年，表达变易。\\n眼下可以多讲过程。" },
+          "capability_source": { "text": "你最强的时刻，是硬需求递到手上的时候。" }
         }
         """
         guard let content = ChapterContent.parse(json, for: .m0) else {

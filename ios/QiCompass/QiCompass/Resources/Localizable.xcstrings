@@ -49,7 +49,7 @@
         }
       }
     },
-    "「%@」移出后,重新加入需再填一次出生信息。" : {
+    "「%@」移出后，重新加入需再填一次出生信息。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -60,7 +60,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "「%@」移出後,重新加入需再填一次出生資訊。"
+            "value" : "「%@」移出後，重新加入需再填一次出生資訊。"
           }
         }
       }
@@ -501,7 +501,7 @@
         }
       }
     },
-    "24h 内已缓存,不消耗次数" : {
+    "24h 内已缓存，不消耗次数" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -512,12 +512,12 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "24h 內已緩存,不消耗次數"
+            "value" : "24h 內已緩存，不消耗次數"
           }
         }
       }
     },
-    "A 盘选择越界,请重新选择" : {
+    "A 盘选择越界，请重新选择" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -529,13 +529,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A 盘选择越界,请重新选择"
+            "value" : "A 盘选择越界，请重新选择"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "A 盤選擇越界,請重新選擇"
+            "value" : "A 盤選擇越界，請重新選擇"
           }
         }
       }
@@ -575,13 +575,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "出生信息读取失败,暂时无法补时辰"
+            "value" : "出生信息读取失败，暂时无法补时辰"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "出生資訊讀取失敗,暫時無法補時辰"
+            "value" : "出生資訊讀取失敗，暫時無法補時辰"
           }
         }
       }
@@ -598,13 +598,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "设置未保存,请重试"
+            "value" : "设置未保存，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "設定未保存,請重試"
+            "value" : "設定未保存，請重試"
           }
         }
       }
@@ -621,13 +621,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重算未完成,请重试"
+            "value" : "重算未完成，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重算未完成,請重試"
+            "value" : "重算未完成，請重試"
           }
         }
       }
@@ -782,13 +782,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "只补时辰这一个字段。出生日期、性别与出生地保持不变,命盘按新时辰重算,原盘归档保留。"
+            "value" : "只补时辰这一个字段。出生日期、性别与出生地保持不变，命盘按新时辰重算，原盘归档保留。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "只補時辰這一個欄位。出生日期、性別與出生地保持不變,命盤按新時辰重算,原盤歸檔保留。"
+            "value" : "只補時辰這一個欄位。出生日期、性別與出生地保持不變，命盤按新時辰重算，原盤歸檔保留。"
           }
         }
       }
@@ -816,7 +816,7 @@
         }
       }
     },
-    "Apple 登录未完成,请重试" : {
+    "Apple 登录未完成，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -828,13 +828,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apple 登录未完成,请重试"
+            "value" : "Apple 登录未完成，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Apple 登錄未完成,請重試"
+            "value" : "Apple 登錄未完成，請重試"
           }
         }
       }
@@ -862,7 +862,7 @@
         }
       }
     },
-    "B 盘存档已不存在,请重新选择" : {
+    "B 盘存档已不存在，请重新选择" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -874,13 +874,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "B 盘存档已不存在,请重新选择"
+            "value" : "B 盘存档已不存在，请重新选择"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "B 盤存檔已不存在,請重新選擇"
+            "value" : "B 盤存檔已不存在，請重新選擇"
           }
         }
       }
@@ -931,7 +931,7 @@
         }
       }
     },
-    "B 盘隐式落地后取回失败,请重试" : {
+    "B 盘隐式落地后取回失败，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -943,13 +943,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "B 盘隐式落地后取回失败,请重试"
+            "value" : "B 盘隐式落地后取回失败，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "B 盤隱式落地後取回失敗,請重試"
+            "value" : "B 盤隱式落地後取回失敗，請重試"
           }
         }
       }
@@ -1357,13 +1357,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "出生日期与时刻无法合成,请重新选择"
+            "value" : "出生日期与时刻无法合成，请重新选择"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "出生日期與時刻無法合成,請重新選擇"
+            "value" : "出生日期與時刻無法合成，請重新選擇"
           }
         }
       }
@@ -2553,13 +2553,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "今日机缘已尽,明日再来"
+            "value" : "今日机缘已尽，明日再来"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "今日機緣已盡,明日再來"
+            "value" : "今日機緣已盡，明日再來"
           }
         }
       }
@@ -2645,13 +2645,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这位命盘缺出生时辰,补上后即可合盘"
+            "value" : "这位命盘缺出生时辰，补上后即可合盘"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這位命盤缺出生時辰,補上後即可合盤"
+            "value" : "這位命盤缺出生時辰，補上後即可合盤"
           }
         }
       }
@@ -2691,13 +2691,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你的命盘缺出生时辰,所有对暂不可合盘;补上时刻即可恢复"
+            "value" : "你的命盘缺出生时辰，所有对暂不可合盘;补上时刻即可恢复"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你的命盤缺出生時辰,所有對暫不可合盤;補上時刻即可恢復"
+            "value" : "你的命盤缺出生時辰，所有對暫不可合盤;補上時刻即可恢復"
           }
         }
       }
@@ -2749,13 +2749,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "+15 问,继续问事"
+            "value" : "+15 问，继续问事"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "+15 問,繼續問事"
+            "value" : "+15 問，繼續問事"
           }
         }
       }
@@ -2841,13 +2841,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "装机赠送的三次已用完——加购一包,接着问。"
+            "value" : "装机赠送的三次已用完——加购一包，接着问。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "安裝贈送的三次已用完——加購一包,接著問。"
+            "value" : "安裝贈送的三次已用完——加購一包，接著問。"
           }
         }
       }
@@ -2887,13 +2887,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "首问发出后,会话在这里成线"
+            "value" : "首问发出后，会话在这里成线"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "首問發出後,會話在這裡成線"
+            "value" : "首問發出後，會話在這裡成線"
           }
         }
       }
@@ -3071,13 +3071,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这里的盘我看好了:%1$@当值,宜%2$@,忌%3$@。挑一条问,或直接说你的事。"
+            "value" : "这里的盘我看好了:%1$@当值，宜%2$@，忌%3$@。挑一条问，或直接说你的事。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這裡的盤我看好了:%1$@當值,宜%2$@,忌%3$@。挑一條問,或直接說你的事。"
+            "value" : "這裡的盤我看好了:%1$@當值，宜%2$@，忌%3$@。挑一條問，或直接說你的事。"
           }
         }
       }
@@ -3094,13 +3094,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "今天的盘面还没就绪——稍候片刻,再回来问。"
+            "value" : "今天的盘面还没就绪——稍候片刻，再回来问。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "今天的盤面還沒就緒——稍候片刻,再回來問。"
+            "value" : "今天的盤面還沒就緒——稍候片刻，再回來問。"
           }
         }
       }
@@ -3140,13 +3140,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "往日会话 · 只读——今天的盘已换,接着问请新开一问"
+            "value" : "往日会话 · 只读——今天的盘已换，接着问请新开一问"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "往日會話 · 只讀——今天的盤已換,接著問請新開一問"
+            "value" : "往日會話 · 只讀——今天的盤已換，接著問請新開一問"
           }
         }
       }
@@ -3163,13 +3163,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "往日会话 · 只读——今日盘面尚未获取,联网刷新后可继续问事"
+            "value" : "往日会话 · 只读——今日盘面尚未获取，联网刷新后可继续问事"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "往日會話 · 只讀——今日盤面尚未獲取,聯網刷新後可繼續問事"
+            "value" : "往日會話 · 只讀——今日盤面尚未獲取，聯網刷新後可繼續問事"
           }
         }
       }
@@ -3186,13 +3186,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "今天的盘面凭证已过期——请回今日页下拉刷新,再接着问。"
+            "value" : "今天的盘面凭证已过期——请回今日页下拉刷新，再接着问。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "今天的盤面憑證已過期——請回今日頁下拉刷新,再接著問。"
+            "value" : "今天的盤面憑證已過期——請回今日頁下拉刷新，再接著問。"
           }
         }
       }
@@ -3209,13 +3209,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这一条没能作答,稍后再试。"
+            "value" : "这一条没能作答，稍后再试。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這一條沒能作答,稍後再試。"
+            "value" : "這一條沒能作答，稍後再試。"
           }
         }
       }
@@ -3347,13 +3347,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可在「我的」重置命盘,重新填写出生信息。"
+            "value" : "可在「我的」重置命盘，重新填写出生信息。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可在「我的」重置命盤,重新填寫出生資訊。"
+            "value" : "可在「我的」重置命盤，重新填寫出生資訊。"
           }
         }
       }
@@ -3623,13 +3623,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "喜忌待补时辰,暂不标方向"
+            "value" : "喜忌待补时辰，暂不标方向"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "喜忌待補時辰,暫不標方向"
+            "value" : "喜忌待補時辰，暫不標方向"
           }
         }
       }
@@ -3646,13 +3646,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "特殊格局,不下结论"
+            "value" : "特殊格局，不下结论"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "特殊格局,不下結論"
+            "value" : "特殊格局，不下結論"
           }
         }
       }
@@ -3738,13 +3738,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "24h 内已缓存,不消耗次数"
+            "value" : "24h 内已缓存，不消耗次数"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "24h 內已緩存,不消耗次數"
+            "value" : "24h 內已緩存，不消耗次數"
           }
         }
       }
@@ -3761,13 +3761,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "读取解读缓存失败,请重试"
+            "value" : "读取解读缓存失败，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "讀取解讀緩存失敗,請重試"
+            "value" : "讀取解讀緩存失敗，請重試"
           }
         }
       }
@@ -3784,13 +3784,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盘数据读取失败,请下拉刷新重试"
+            "value" : "命盘数据读取失败，请下拉刷新重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盤資料讀取失敗,請下拉刷新重試"
+            "value" : "命盤資料讀取失敗，請下拉刷新重試"
           }
         }
       }
@@ -3807,13 +3807,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盘数据读取失败,请联网后下拉刷新重试"
+            "value" : "命盘数据读取失败，请联网后下拉刷新重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盤資料讀取失敗,請聯網後下拉刷新重試"
+            "value" : "命盤資料讀取失敗，請聯網後下拉刷新重試"
           }
         }
       }
@@ -3899,13 +3899,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已保留历史解读,联网后可确认当前 AI 来源"
+            "value" : "已保留历史解读，联网后可确认当前 AI 来源"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已保留歷史解讀,聯網後可確認當前 AI 來源"
+            "value" : "已保留歷史解讀，聯網後可確認當前 AI 來源"
           }
         }
       }
@@ -4106,13 +4106,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "离线查看(展示本地缓存,不扣次数)"
+            "value" : "离线查看(展示本地缓存，不扣次数)"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "離線查看(展示本地緩存,不扣次數)"
+            "value" : "離線查看(展示本地緩存，不扣次數)"
           }
         }
       }
@@ -6009,19 +6009,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "When are your highs, and when your lows?"
+            "value" : "When are you at your best, and when at your worst?"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "高分在什么时候,低谷在什么时候?"
+            "value" : "什么时候状态最好，什么时候最差?"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "高分在什麼時候,低谷在什麼時候?"
+            "value" : "什麼時候狀態最好，什麼時候最差?"
           }
         }
       }
@@ -6038,13 +6038,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这类结构的人,核心能力通常来自哪里?"
+            "value" : "这类结构的人，核心能力通常来自哪里?"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這類結構的人,核心能力通常來自哪裡?"
+            "value" : "這類結構的人，核心能力通常來自哪裡?"
           }
         }
       }
@@ -6084,13 +6084,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "哪些能力外人看着像优点,其实在消耗你?"
+            "value" : "哪些能力外人看着像优点，其实在消耗你?"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "哪些能力外人看著像優點,其實在消耗你?"
+            "value" : "哪些能力外人看著像優點，其實在消耗你?"
           }
         }
       }
@@ -6130,13 +6130,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "换环境前,先问自己什么?"
+            "value" : "换环境前，先问自己什么?"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "換環境前,先問自己什麼?"
+            "value" : "換環境前，先問自己什麼?"
           }
         }
       }
@@ -6314,13 +6314,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "如果只能保留一项能力当作杠杆,是哪一项?"
+            "value" : "如果只能保留一项能力当作杠杆，是哪一项?"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "如果只能保留一項能力當作槓桿,是哪一項?"
+            "value" : "如果只能保留一項能力當作槓桿，是哪一項?"
           }
         }
       }
@@ -6383,13 +6383,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "掉进低谷,怎么爬出来?"
+            "value" : "掉进低谷，怎么爬出来?"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "掉進低谷,怎麼爬出來?"
+            "value" : "掉進低谷，怎麼爬出來?"
           }
         }
       }
@@ -6406,13 +6406,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "它更适合稳定型人生,还是高变量人生?"
+            "value" : "它更适合稳定型人生，还是高变量人生?"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "它更適合穩定型人生,還是高變量人生?"
+            "value" : "它更適合穩定型人生，還是高變量人生?"
           }
         }
       }
@@ -7694,13 +7694,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@柱未定,点击补时辰"
+            "value" : "%@柱未定，点击补时辰"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@柱未定,點擊補時辰"
+            "value" : "%@柱未定，點擊補時辰"
           }
         }
       }
@@ -8108,13 +8108,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "喜忌指五行对命局平衡的助益方向,不是生活禁忌(不涉及颜色、方位、职业的取舍)。"
+            "value" : "喜忌指五行对命局平衡的助益方向，不是生活禁忌(不涉及颜色、方位、职业的取舍)。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "喜忌指五行對命局平衡的助益方向,不是生活禁忌(不涉及顏色、方位、職業的取捨)。"
+            "value" : "喜忌指五行對命局平衡的助益方向，不是生活禁忌(不涉及顏色、方位、職業的取捨)。"
           }
         }
       }
@@ -8315,13 +8315,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可先离开,章成自动点亮"
+            "value" : "可先离开，章成自动点亮"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可先離開,章成自動點亮"
+            "value" : "可先離開，章成自動點亮"
           }
         }
       }
@@ -8407,13 +8407,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已读章节走缓存,不消耗次数"
+            "value" : "已读章节走缓存，不消耗次数"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "已讀章節走緩存,不消耗次數"
+            "value" : "已讀章節走緩存，不消耗次數"
           }
         }
       }
@@ -8430,13 +8430,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命书 = 按章节生成的完整命盘解读:先看人生主线与天赋本事(免费),再展开高配低配、使用说明、生财之道、精力曲线与行动。"
+            "value" : "命书 = 按章节生成的完整命盘解读:先看人生主线与天赋本事(免费)，再展开高配低配、使用说明、生财之道、精力曲线与行动。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命書 = 按章節生成的完整命盤解讀:先看人生主線與天賦本事(免費),再展開高配低配、使用說明、生財之道、精力曲線與行動。"
+            "value" : "命書 = 按章節生成的完整命盤解讀:先看人生主線與天賦本事(免費)，再展開高配低配、使用說明、生財之道、精力曲線與行動。"
           }
         }
       }
@@ -8453,13 +8453,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "排盘引擎暂不可用,请稍后重试"
+            "value" : "排盘引擎暂不可用，请稍后重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "排盤引擎暫不可用,請稍後重試"
+            "value" : "排盤引擎暫不可用，請稍後重試"
           }
         }
       }
@@ -8499,13 +8499,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命书暂未能成形,可单独重试(命盘已就绪)"
+            "value" : "命书暂未能成形，可单独重试(命盘已就绪)"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命書暫未能成形,可單獨重試(命盤已就緒)"
+            "value" : "命書暫未能成形，可單獨重試(命盤已就緒)"
           }
         }
       }
@@ -8545,13 +8545,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "今日免费解读次数已用完,重置后自动恢复"
+            "value" : "今日免费解读次数已用完，重置后自动恢复"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "今日免費解讀次數已用完,重置後自動恢復"
+            "value" : "今日免費解讀次數已用完，重置後自動恢復"
           }
         }
       }
@@ -8568,13 +8568,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "今日机缘已尽,明日再来"
+            "value" : "今日机缘已尽，明日再来"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "今日機緣已盡,明日再來"
+            "value" : "今日機緣已盡，明日再來"
           }
         }
       }
@@ -8591,13 +8591,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "网络不通或服务遥远,请稍后重试"
+            "value" : "网络不通或服务遥远，请稍后重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "網絡不通或服務遙遠,請稍後重試"
+            "value" : "網絡不通或服務遙遠，請稍後重試"
           }
         }
       }
@@ -8671,7 +8671,7 @@
         }
       }
     },
-    "Google 登录成功但未返回 ID Token,请重试" : {
+    "Google 登录成功但未返回 ID Token，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -8683,13 +8683,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Google 登录成功但未返回 ID Token,请重试"
+            "value" : "Google 登录成功但未返回 ID Token，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Google 登錄成功但未返回 ID Token,請重試"
+            "value" : "Google 登錄成功但未返回 ID Token，請重試"
           }
         }
       }
@@ -8717,7 +8717,7 @@
         }
       }
     },
-    "Google 登录未配置(GoogleService-Info.plist 缺失 CLIENT_ID),请先用 Apple 登录" : {
+    "Google 登录未配置(GoogleService-Info.plist 缺失 CLIENT_ID)，请先用 Apple 登录" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -8729,18 +8729,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Google 登录未配置(GoogleService-Info.plist 缺失 CLIENT_ID),请先用 Apple 登录"
+            "value" : "Google 登录未配置(GoogleService-Info.plist 缺失 CLIENT_ID)，请先用 Apple 登录"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Google 登錄未配置(GoogleService-Info.plist 缺失 CLIENT_ID),請先用 Apple 登錄"
+            "value" : "Google 登錄未配置(GoogleService-Info.plist 缺失 CLIENT_ID)，請先用 Apple 登錄"
           }
         }
       }
     },
-    "Google 登录窗口未就绪,请重试" : {
+    "Google 登录窗口未就绪，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -8752,13 +8752,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Google 登录窗口未就绪,请重试"
+            "value" : "Google 登录窗口未就绪，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Google 登錄窗口未就緒,請重試"
+            "value" : "Google 登錄窗口未就緒，請重試"
           }
         }
       }
@@ -9021,13 +9021,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "暂无法填细节,仅告知大类"
+            "value" : "暂无法填细节，仅告知大类"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "暫無法填細節,僅告知大類"
+            "value" : "暫無法填細節，僅告知大類"
           }
         }
       }
@@ -9274,13 +9274,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这一章结合你的年龄与近况推演,答案只影响本章内容。仅供参考,不替代医生。"
+            "value" : "这一章结合你的年龄与近况推演，答案只影响本章内容。仅供参考，不替代医生。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這一章結合你的年齡與近況推演,答案只影響本章內容。僅供參考,不替代醫生。"
+            "value" : "這一章結合你的年齡與近況推演，答案只影響本章內容。僅供參考，不替代醫生。"
           }
         }
       }
@@ -9757,13 +9757,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可选,如「相亲对象甲」"
+            "value" : "可选，如「相亲对象甲」"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可選,如「相親對象甲」"
+            "value" : "可選，如「相親對象甲」"
           }
         }
       }
@@ -9826,13 +9826,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "添加失败,请重试"
+            "value" : "添加失败，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "添加失敗,請重試"
+            "value" : "添加失敗，請重試"
           }
         }
       }
@@ -9849,13 +9849,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保存失败,请重试"
+            "value" : "保存失败，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保存失敗,請重試"
+            "value" : "保存失敗，請重試"
           }
         }
       }
@@ -9895,13 +9895,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "若为当前对方,保存后将自动重新合盘"
+            "value" : "若为当前对方，保存后将自动重新合盘"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "若為當前對方,保存後將自動重新合盤"
+            "value" : "若為當前對方，保存後將自動重新合盤"
           }
         }
       }
@@ -9964,13 +9964,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "不建档案,填出生信息即可。填完即看合盘,以后点右上人物牌换人。"
+            "value" : "不建档案，填出生信息即可。填完即看合盘，以后点右上人物牌换人。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "不建檔案,填出生資訊即可。填完即看合盤,以後點右上人物牌換人。"
+            "value" : "不建檔案，填出生資訊即可。填完即看合盤，以後點右上人物牌換人。"
           }
         }
       }
@@ -10033,13 +10033,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "「%@」移出后,重新加入需再填一次出生信息。"
+            "value" : "「%@」移出后，重新加入需再填一次出生信息。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "「%@」移出後,重新加入需再填一次出生資訊。"
+            "value" : "「%@」移出後，重新加入需再填一次出生資訊。"
           }
         }
       }
@@ -10079,13 +10079,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "点右上「选择对方」,挑一位开始合盘"
+            "value" : "点右上「选择对方」，挑一位开始合盘"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "點右上「選擇對方」,挑一位開始合盤"
+            "value" : "點右上「選擇對方」，挑一位開始合盤"
           }
         }
       }
@@ -10125,13 +10125,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "名单已满 %lld 人,先移出一位"
+            "value" : "名单已满 %lld 人，先移出一位"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "名單已滿 %lld 人,先移出一位"
+            "value" : "名單已滿 %lld 人，先移出一位"
           }
         }
       }
@@ -10194,13 +10194,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "管理名单中,行内修改或移出"
+            "value" : "管理名单中，行内修改或移出"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "管理名單中,行內修改或移出"
+            "value" : "管理名單中，行內修改或移出"
           }
         }
       }
@@ -10378,13 +10378,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "有一方时辰未知时,按实际字数计"
+            "value" : "有一方时辰未知时，按实际字数计"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "有一方時辰未知時,按實際字數計"
+            "value" : "有一方時辰未知時，按實際字數計"
           }
         }
       }
@@ -10435,13 +10435,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "切换对方,当前 %@"
+            "value" : "切换对方，当前 %@"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "切換對方,當前 %@"
+            "value" : "切換對方，當前 %@"
           }
         }
       }
@@ -11654,13 +11654,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "深度解读以时柱与喜忌为根基。为避免你在信息不全时先付费、补上时辰后还要重新购买,先补时辰再解锁。"
+            "value" : "深度解读以时柱与喜忌为根基。为避免你在信息不全时先付费、补上时辰后还要重新购买，先补时辰再解锁。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "深度解讀以時柱與喜忌為根基。為避免你在資訊不全時先付費、補上時辰後還要重新購買,先補時辰再解鎖。"
+            "value" : "深度解讀以時柱與喜忌為根基。為避免你在資訊不全時先付費、補上時辰後還要重新購買，先補時辰再解鎖。"
           }
         }
       }
@@ -11700,13 +11700,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这份命盘先按三柱解读;想起时辰时,随时可以在「我的」里补上。"
+            "value" : "这份命盘先按三柱解读;想起时辰时，随时可以在「我的」里补上。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這份命盤先按三柱解讀;想起時辰時,隨時可以在「我的」裡補上。"
+            "value" : "這份命盤先按三柱解讀;想起時辰時，隨時可以在「我的」裡補上。"
           }
         }
       }
@@ -11769,13 +11769,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "次数包为消耗型项目,用完为止;退款按 Apple 政策处理,未用次数将被扣回。"
+            "value" : "次数包为消耗型项目，用完为止;退款按 Apple 政策处理，未用次数将被扣回。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "次數包為消耗型項目,用完為止;退款按 Apple 政策處理,未用次數將被扣回。"
+            "value" : "次數包為消耗型項目，用完為止;退款按 Apple 政策處理，未用次數將被扣回。"
           }
         }
       }
@@ -12222,13 +12222,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可粗略,不需精确数字"
+            "value" : "可粗略，不需精确数字"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可粗略,不需精確數字"
+            "value" : "可粗略，不需精確數字"
           }
         }
       }
@@ -12245,13 +12245,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "如:中等收入,有积蓄,无房产"
+            "value" : "如:中等收入，有积蓄，无房产"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "如:中等收入,有積蓄,無房產"
+            "value" : "如:中等收入，有積蓄，無房產"
           }
         }
       }
@@ -12383,13 +12383,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "中等风险,稳健增长"
+            "value" : "中等风险，稳健增长"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "中等風險,穩健增長"
+            "value" : "中等風險，穩健增長"
           }
         }
       }
@@ -12429,13 +12429,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保本为先,不愿承担亏损"
+            "value" : "保本为先，不愿承担亏损"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保本為先,不願承擔虧損"
+            "value" : "保本為先，不願承擔虧損"
           }
         }
       }
@@ -12475,13 +12475,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "这一章结合你的资产概况与风险偏好推演,答案只影响本章内容。自我认知参考,不构成投资建议。"
+            "value" : "这一章结合你的资产概况与风险偏好推演，答案只影响本章内容。自我认知参考，不构成投资建议。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "這一章結合你的資產概況與風險偏好推演,答案只影響本章內容。自我認知參考,不構成投資建議。"
+            "value" : "這一章結合你的資產概況與風險偏好推演，答案只影響本章內容。自我認知參考，不構成投資建議。"
           }
         }
       }
@@ -12679,7 +12679,7 @@
         }
       }
     },
-    "怎样跑最顺,哪里会失灵" : {
+    "怎样跑最顺，哪里会失灵" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -12691,13 +12691,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "怎样跑最顺,哪里会失灵"
+            "value" : "怎样跑最顺，哪里会失灵"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "怎樣跑最順,哪裡會失靈"
+            "value" : "怎樣跑最順，哪裡會失靈"
           }
         }
       }
@@ -12725,7 +12725,7 @@
         }
       }
     },
-    "怎么赚最顺,哪里易漏财" : {
+    "怎么赚最顺，哪里易漏财" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -12737,13 +12737,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "怎么赚最顺,哪里易漏财"
+            "value" : "怎么赚最顺，哪里易漏财"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "怎麼賺最順,哪裡易漏財"
+            "value" : "怎麼賺最順，哪裡易漏財"
           }
         }
       }
@@ -12771,7 +12771,7 @@
         }
       }
     },
-    "押注一件事,90天行动" : {
+    "押注一件事，90天行动" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -12783,13 +12783,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "押注一件事,90天行动"
+            "value" : "押注一件事，90天行动"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "押注一件事,90天行動"
+            "value" : "押注一件事，90天行動"
           }
         }
       }
@@ -12878,7 +12878,7 @@
         }
       }
     },
-    "从喜忌来看,你们的五行正好补上彼此缺的那部分。" : {
+    "从喜忌来看，你们的五行正好补上彼此缺的那部分。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -12890,13 +12890,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "从喜忌来看,你们的五行正好补上彼此缺的那部分。"
+            "value" : "从喜忌来看，你们的五行正好补上彼此缺的那部分。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "從喜忌來看,你們的五行正好補上彼此缺的那部分。"
+            "value" : "從喜忌來看，你們的五行正好補上彼此缺的那部分。"
           }
         }
       }
@@ -12970,7 +12970,7 @@
         }
       }
     },
-    "从喜忌来看,你们的五行重叠较多,相似多于互补。" : {
+    "从喜忌来看，你们的五行重叠较多，相似多于互补。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -12982,13 +12982,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "从喜忌来看,你们的五行重叠较多,相似多于互补。"
+            "value" : "从喜忌来看，你们的五行重叠较多，相似多于互补。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "從喜忌來看,你們的五行重疊較多,相似多於互補。"
+            "value" : "從喜忌來看，你們的五行重疊較多，相似多於互補。"
           }
         }
       }
@@ -13085,7 +13085,7 @@
         }
       }
     },
-    "付费内容,解锁后可生成" : {
+    "付费内容，解锁后可生成" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -13096,12 +13096,12 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "付費內容,解鎖後可生成"
+            "value" : "付費內容，解鎖後可生成"
           }
         }
       }
     },
-    "价格 %@,买断制,不含订阅" : {
+    "价格 %@，买断制，不含订阅" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -13112,7 +13112,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "價格 %@,買斷制,不含訂閱"
+            "value" : "價格 %@，買斷制，不含訂閱"
           }
         }
       }
@@ -13140,7 +13140,7 @@
         }
       }
     },
-    "最值得押注的一件事,和接下来 90 天的行动" : {
+    "最值得押注的一件事，和接下来 90 天的行动" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -13152,18 +13152,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "最值得押注的一件事,和接下来 90 天的行动"
+            "value" : "最值得押注的一件事，和接下来 90 天的行动"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "最值得押注的一件事,和接下來 90 天的行動"
+            "value" : "最值得押注的一件事，和接下來 90 天的行動"
           }
         }
       }
     },
-    "最佳运行条件 · 容易失灵的场景 · 适合你的节奏" : {
+    "最佳运行条件 · 容易失灵的时候 · 适合你的节奏" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -13175,13 +13175,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "最佳运行条件 · 容易失灵的场景 · 适合你的节奏"
+            "value" : "最佳运行条件 · 容易失灵的时候 · 适合你的节奏"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "最佳運行條件 · 容易失靈的場景 · 適合你的節奏"
+            "value" : "最佳運行條件 · 容易失靈的時候 · 適合你的節奏"
           }
         }
       }
@@ -13280,7 +13280,7 @@
         }
       }
     },
-    "保存失败,请重试" : {
+    "保存失败，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -13292,18 +13292,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保存失败,请重试"
+            "value" : "保存失败，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "保存失敗,請重試"
+            "value" : "保存失敗，請重試"
           }
         }
       }
     },
-    "有一方命局属特殊格局,此项不下结论。" : {
+    "有一方命局属特殊格局，此项不下结论。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -13315,13 +13315,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "有一方命局属特殊格局,此项不下结论。"
+            "value" : "有一方命局属特殊格局，此项不下结论。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "有一方命局屬特殊格局,此項不下結論。"
+            "value" : "有一方命局屬特殊格局，此項不下結論。"
           }
         }
       }
@@ -13599,7 +13599,7 @@
         }
       }
     },
-    "刑害偏多,近距离相处消耗较大。" : {
+    "刑害偏多，近距离相处消耗较大。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -13611,13 +13611,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "刑害偏多,近距离相处消耗较大。"
+            "value" : "刑害偏多，近距离相处消耗较大。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "刑害偏多,近距離相處消耗較大。"
+            "value" : "刑害偏多，近距離相處消耗較大。"
           }
         }
       }
@@ -13732,7 +13732,7 @@
         }
       }
     },
-    "用起来不累,反而回血的能力。" : {
+    "用起来不累，反而回血的能力。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -13744,18 +13744,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "用起来不累,反而回血的能力。"
+            "value" : "用起来不累，反而回血的能力。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "用起來不累,反而回血的能力。"
+            "value" : "用起來不累，反而回血的能力。"
           }
         }
       }
     },
-    "环境逼出来的本事,好用但有代价。" : {
+    "环境逼出来的本事，好用但有代价。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -13767,18 +13767,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "环境逼出来的本事,好用但有代价。"
+            "value" : "环境逼出来的本事，好用但有代价。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "環境逼出來的本事,好用但有代價。"
+            "value" : "環境逼出來的本事，好用但有代價。"
           }
         }
       }
     },
-    "看着像优点,其实在消耗你。" : {
+    "看着像优点，其实在消耗你。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -13790,13 +13790,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "看着像优点,其实在消耗你。"
+            "value" : "看着像优点，其实在消耗你。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "看著像優點,其實在消耗你。"
+            "value" : "看著像優點，其實在消耗你。"
           }
         }
       }
@@ -13881,7 +13881,7 @@
         }
       }
     },
-    "取消勾选,保留在名单" : {
+    "取消勾选，保留在名单" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -13892,12 +13892,12 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "取消勾選,保留在名單"
+            "value" : "取消勾選，保留在名單"
           }
         }
       }
     },
-    "可选,如「相亲对象甲」" : {
+    "可选，如「相亲对象甲」" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -13908,7 +13908,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "可選,如「相親對象甲」"
+            "value" : "可選，如「相親對象甲」"
           }
         }
       }
@@ -14037,7 +14037,7 @@
         }
       }
     },
-    "两人地支见刑害(%1$@):摩擦多在习惯与小事上,早点说开。" : {
+    "两人地支见刑害(%1$@):摩擦多在习惯与小事上，早点说开。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14049,12 +14049,12 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "兩人地支見刑害(%1$@):摩擦多在習慣與小事上,早點說開。"
+            "value" : "兩人地支見刑害(%1$@):摩擦多在習慣與小事上，早點說開。"
           }
         }
       }
     },
-    "两人地支见刑害(%1$@):相处消耗偏大,有摩擦要早点说开,别积压。" : {
+    "两人地支见刑害(%1$@):相处消耗偏大，有摩擦要早点说开，别积压。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14066,7 +14066,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "兩人地支見刑害(%1$@):相處消耗偏大,有摩擦要早點說開,別積壓。"
+            "value" : "兩人地支見刑害(%1$@):相處消耗偏大，有摩擦要早點說開，別積壓。"
           }
         }
       }
@@ -14110,7 +14110,7 @@
         }
       }
     },
-    "合盘快照缺失,请重新合盘" : {
+    "合盘快照缺失，请重新合盘" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14122,18 +14122,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "合盘快照缺失,请重新合盘"
+            "value" : "合盘快照缺失，请重新合盘"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "合盤快照缺失,請重新合盤"
+            "value" : "合盤快照缺失，請重新合盤"
           }
         }
       }
     },
-    "合盘数据异常,请重新计算" : {
+    "合盘数据异常，请重新计算" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14145,18 +14145,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "合盘数据异常,请重新计算"
+            "value" : "合盘数据异常，请重新计算"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "合盤數據異常,請重新計算"
+            "value" : "合盤數據異常，請重新計算"
           }
         }
       }
     },
-    "合盘数据异常,请重试" : {
+    "合盘数据异常，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14168,13 +14168,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "合盘数据异常,请重试"
+            "value" : "合盘数据异常，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "合盤數據異常,請重試"
+            "value" : "合盤數據異常，請重試"
           }
         }
       }
@@ -14195,7 +14195,7 @@
         }
       }
     },
-    "如有神助和倒霉透顶,差的不是运气" : {
+    "如有神助和倒霉透顶，差的不是运气" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14207,18 +14207,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "如有神助和倒霉透顶,差的不是运气"
+            "value" : "如有神助和倒霉透顶，差的不是运气"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "如有神助和倒楣透頂,差的不是運氣"
+            "value" : "如有神助和倒楣透頂，差的不是運氣"
           }
         }
       }
     },
-    "同步上传失败,请稍后重试" : {
+    "同步上传失败，请稍后重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14230,18 +14230,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "同步上传失败,请稍后重试"
+            "value" : "同步上传失败，请稍后重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "同步上傳失敗,請稍後重試"
+            "value" : "同步上傳失敗，請稍後重試"
           }
         }
       }
     },
-    "同步拉取失败,请稍后重试" : {
+    "同步拉取失败，请稍后重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14253,13 +14253,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "同步拉取失败,请稍后重试"
+            "value" : "同步拉取失败，请稍后重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "同步拉取失敗,請稍後重試"
+            "value" : "同步拉取失敗，請稍後重試"
           }
         }
       }
@@ -14303,7 +14303,7 @@
         }
       }
     },
-    "名单已满 %lld 位(含未勾选)。移出一位名单成员后,可再添加新的对方。" : {
+    "名单已满 %lld 位(含未勾选)。移出一位名单成员后，可再添加新的对方。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -14314,7 +14314,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "名單已滿 %lld 位(含未勾選)。移出一位名單成員後,可再添加新的對方。"
+            "value" : "名單已滿 %lld 位(含未勾選)。移出一位名單成員後，可再添加新的對方。"
           }
         }
       }
@@ -14482,7 +14482,7 @@
         }
       }
     },
-    "命盘存档读取失败,请重新排盘" : {
+    "命盘存档读取失败，请重新排盘" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14494,18 +14494,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盘存档读取失败,请重新排盘"
+            "value" : "命盘存档读取失败，请重新排盘"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盤存檔讀取失敗,請重新排盤"
+            "value" : "命盤存檔讀取失敗，請重新排盤"
           }
         }
       }
     },
-    "命盘快照缺失,请重新合盘" : {
+    "命盘快照缺失，请重新合盘" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14517,18 +14517,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盘快照缺失,请重新合盘"
+            "value" : "命盘快照缺失，请重新合盘"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盤快照缺失,請重新合盤"
+            "value" : "命盤快照缺失，請重新合盤"
           }
         }
       }
     },
-    "命盘数据异常,请重新排盘" : {
+    "命盘数据异常，请重新排盘" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14540,18 +14540,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盘数据异常,请重新排盘"
+            "value" : "命盘数据异常，请重新排盘"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盤數據異常,請重新排盤"
+            "value" : "命盤數據異常，請重新排盤"
           }
         }
       }
     },
-    "命盘状态已变化,请返回重进" : {
+    "命盘状态已变化，请返回重进" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14563,18 +14563,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盘状态已变化,请返回重进"
+            "value" : "命盘状态已变化，请返回重进"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盤狀態已變化,請返回重進"
+            "value" : "命盤狀態已變化，請返回重進"
           }
         }
       }
     },
-    "商品暂不可用,请稍后再试" : {
+    "商品暂不可用，请稍后再试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14586,13 +14586,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "商品暂不可用,请稍后再试"
+            "value" : "商品暂不可用，请稍后再试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "商品暫不可用,請稍後再試"
+            "value" : "商品暫不可用，請稍後再試"
           }
         }
       }
@@ -14620,7 +14620,7 @@
         }
       }
     },
-    "喜忌结论留空,详见命书。" : {
+    "喜忌结论留空，详见命书。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -14631,7 +14631,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "喜忌結論留空,詳見命書。"
+            "value" : "喜忌結論留空，詳見命書。"
           }
         }
       }
@@ -14659,7 +14659,7 @@
         }
       }
     },
-    "两人四柱对得上,没有明显的冲撞。" : {
+    "两人四柱对得上，没有明显的冲撞。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14671,13 +14671,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "两人四柱对得上,没有明显的冲撞。"
+            "value" : "两人四柱对得上，没有明显的冲撞。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "兩人四柱對得上,沒有明顯的沖撞。"
+            "value" : "兩人四柱對得上，沒有明顯的沖撞。"
           }
         }
       }
@@ -14744,7 +14744,7 @@
         }
       }
     },
-    "在下方直接填对方出生信息,\n或先去「我的」为 TA 建一个存档命盘。" : {
+    "在下方直接填对方出生信息，\n或先去「我的」为 TA 建一个存档命盘。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -14755,12 +14755,12 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "在下方直接填對方出生資訊,\n或先去「我的」為 TA 建一個存檔命盤。"
+            "value" : "在下方直接填對方出生資訊，\n或先去「我的」為 TA 建一個存檔命盤。"
           }
         }
       }
     },
-    "你们生肖相刑,相处要更多耐心。" : {
+    "你们生肖相刑，相处要更多耐心。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14772,18 +14772,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你们生肖相刑,相处要更多耐心。"
+            "value" : "你们生肖相刑，相处要更多耐心。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你們生肖相刑,相處要更多耐心。"
+            "value" : "你們生肖相刑，相處要更多耐心。"
           }
         }
       }
     },
-    "你们生肖成合,节奏容易踩到一起。" : {
+    "你们生肖成合，节奏容易踩到一起。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14795,18 +14795,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你们生肖成合,节奏容易踩到一起。"
+            "value" : "你们生肖成合，节奏容易踩到一起。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你們生肖成合,節奏容易踩到一起。"
+            "value" : "你們生肖成合，節奏容易踩到一起。"
           }
         }
       }
     },
-    "你们生肖相冲,意见容易正面撞上。" : {
+    "你们生肖相冲，意见容易正面撞上。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14818,18 +14818,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你们生肖相冲,意见容易正面撞上。"
+            "value" : "你们生肖相冲，意见容易正面撞上。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你們生肖相沖,意見容易正面撞上。"
+            "value" : "你們生肖相沖，意見容易正面撞上。"
           }
         }
       }
     },
-    "你们生肖相合,默契来得自然。" : {
+    "你们生肖相合，默契来得自然。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14841,13 +14841,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你们生肖相合,默契来得自然。"
+            "value" : "你们生肖相合，默契来得自然。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你們生肖相合,默契來得自然。"
+            "value" : "你們生肖相合，默契來得自然。"
           }
         }
       }
@@ -14875,7 +14875,7 @@
         }
       }
     },
-    "你们生肖相害,好意容易被误读。" : {
+    "你们生肖相害，好意容易被误读。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14887,18 +14887,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你们生肖相害,好意容易被误读。"
+            "value" : "你们生肖相害，好意容易被误读。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你們生肖相害,好意容易被誤讀。"
+            "value" : "你們生肖相害，好意容易被誤讀。"
           }
         }
       }
     },
-    "精力的起落规律,和最有效的恢复方式" : {
+    "精力的起落规律，和最有效的恢复方式" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -14910,13 +14910,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "精力的起落规律,和最有效的恢复方式"
+            "value" : "精力的起落规律，和最有效的恢复方式"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "精力的起落規律,和最有效的恢復方式"
+            "value" : "精力的起落規律，和最有效的恢復方式"
           }
         }
       }
@@ -14990,7 +14990,7 @@
         }
       }
     },
-    "冲多合少,相处要主动磨合。" : {
+    "冲多合少，相处要主动磨合。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -15002,18 +15002,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "冲多合少,相处要主动磨合。"
+            "value" : "冲多合少，相处要主动磨合。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "沖多合少,相處要主動磨合。"
+            "value" : "沖多合少，相處要主動磨合。"
           }
         }
       }
     },
-    "合多冲少,整体合拍,偶有小摩擦。" : {
+    "合多冲少，整体合拍，偶有小摩擦。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -15025,13 +15025,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "合多冲少,整体合拍,偶有小摩擦。"
+            "value" : "合多冲少，整体合拍，偶有小摩擦。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "合多沖少,整體合拍,偶有小摩擦。"
+            "value" : "合多沖少，整體合拍，偶有小摩擦。"
           }
         }
       }
@@ -15169,7 +15169,7 @@
         }
       }
     },
-    "对方命盘快照缺失,请重新选择" : {
+    "对方命盘快照缺失，请重新选择" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -15181,13 +15181,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "对方命盘快照缺失,请重新选择"
+            "value" : "对方命盘快照缺失，请重新选择"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "對方命盤快照缺失,請重新選擇"
+            "value" : "對方命盤快照缺失，請重新選擇"
           }
         }
       }
@@ -15488,7 +15488,7 @@
         }
       }
     },
-    "恢复失败,请稍后重试" : {
+    "恢复失败，请稍后重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -15500,13 +15500,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "恢复失败,请稍后重试"
+            "value" : "恢复失败，请稍后重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "恢復失敗,請稍後重試"
+            "value" : "恢復失敗，請稍後重試"
           }
         }
       }
@@ -15619,7 +15619,7 @@
         }
       }
     },
-    "推演合盘中,已完成 %lld 对,共 %lld 对" : {
+    "推演合盘中，已完成 %lld 对，共 %lld 对" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -15630,13 +15630,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "推演合盘中,已完成 %1$lld 对,共 %2$lld 对"
+            "value" : "推演合盘中，已完成 %1$lld 对，共 %2$lld 对"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "推演合盤中,已完成 %1$lld 對,共 %2$lld 對"
+            "value" : "推演合盤中，已完成 %1$lld 對，共 %2$lld 對"
           }
         }
       }
@@ -15657,7 +15657,7 @@
         }
       }
     },
-    "操作未完成,请重试" : {
+    "操作未完成，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -15669,18 +15669,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "操作未完成,请重试"
+            "value" : "操作未完成，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "操作未完成,請重試"
+            "value" : "操作未完成，請重試"
           }
         }
       }
     },
-    "适合你的赚钱方式,和最容易漏钱的地方" : {
+    "适合你的赚钱方式，和最容易漏钱的地方" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -15692,13 +15692,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "适合你的赚钱方式,和最容易漏钱的地方"
+            "value" : "适合你的赚钱方式，和最容易漏钱的地方"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "適合你的賺錢方式,和最容易漏錢的地方"
+            "value" : "適合你的賺錢方式，和最容易漏錢的地方"
           }
         }
       }
@@ -15751,7 +15751,7 @@
         }
       }
     },
-    "生肖无合无冲,这一项不加分也不扣分。" : {
+    "生肖无合无冲，这一项不加分也不扣分。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -15763,13 +15763,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "生肖无合无冲,这一项不加分也不扣分。"
+            "value" : "生肖无合无冲，这一项不加分也不扣分。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "生肖無合無沖,這一項不加分也不扣分。"
+            "value" : "生肖無合無沖，這一項不加分也不扣分。"
           }
         }
       }
@@ -15836,7 +15836,7 @@
         }
       }
     },
-    "日主同气,做事方式相近,也容易较劲。" : {
+    "日主同气，做事方式相近，也容易较劲。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -15848,18 +15848,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "日主同气,做事方式相近,也容易较劲。"
+            "value" : "日主同气，做事方式相近，也容易较劲。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "日主同氣,做事方式相近,也容易較勁。"
+            "value" : "日主同氣，做事方式相近，也容易較勁。"
           }
         }
       }
     },
-    "一方的日主容易压住另一方,摩擦来得快。" : {
+    "一方的日主容易压住另一方，摩擦来得快。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -15871,13 +15871,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "一方的日主容易压住另一方,摩擦来得快。"
+            "value" : "一方的日主容易压住另一方，摩擦来得快。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "一方的日主容易壓住另一方,摩擦來得快。"
+            "value" : "一方的日主容易壓住另一方，摩擦來得快。"
           }
         }
       }
@@ -15954,7 +15954,7 @@
         }
       }
     },
-    "时辰影响日柱,补全即恢复全部配对" : {
+    "时辰影响日柱，补全即恢复全部配对" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -15966,13 +15966,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "时辰影响日柱,补全即恢复全部配对"
+            "value" : "时辰影响日柱，补全即恢复全部配对"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "時辰影響日柱,補全即恢復全部配對"
+            "value" : "時辰影響日柱，補全即恢復全部配對"
           }
         }
       }
@@ -16046,7 +16046,7 @@
         }
       }
     },
-    "未找到命盘存档,无法查看每日运势" : {
+    "未找到命盘存档，无法查看每日运势" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -16058,13 +16058,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "未找到命盘存档,无法查看每日运势"
+            "value" : "未找到命盘存档，无法查看每日运势"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "未找到命盤存檔,無法查看每日運勢"
+            "value" : "未找到命盤存檔，無法查看每日運勢"
           }
         }
       }
@@ -16177,7 +16177,7 @@
         }
       }
     },
-    "本章内容生成时出现异常,重新生成即可恢复" : {
+    "本章内容生成时出现异常，重新生成即可恢复" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -16189,13 +16189,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "本章内容生成时出现异常,重新生成即可恢复"
+            "value" : "本章内容生成时出现异常，重新生成即可恢复"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "本章內容生成時出現異常,重新生成即可恢復"
+            "value" : "本章內容生成時出現異常，重新生成即可恢復"
           }
         }
       }
@@ -16232,7 +16232,7 @@
         }
       }
     },
-    "此操作不可恢复。所有命盘、合盘记录(含名单)与解读缓存都会被清空;登录状态、语言与子时设置、购买记录不受影响——同一生辰重新排盘后,已购内容自动恢复。" : {
+    "此操作不可恢复。所有命盘、合盘记录(含名单)与解读缓存都会被清空;登录状态、语言与子时设置、购买记录不受影响——同一生辰重新排盘后，已购内容自动恢复。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -16244,13 +16244,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此操作不可恢复。所有命盘、合盘记录(含名单)与解读缓存都会被清空;登录状态、语言与子时设置、购买记录不受影响——同一生辰重新排盘后,已购内容自动恢复。"
+            "value" : "此操作不可恢复。所有命盘、合盘记录(含名单)与解读缓存都会被清空;登录状态、语言与子时设置、购买记录不受影响——同一生辰重新排盘后，已购内容自动恢复。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此操作不可恢復。所有命盤、合盤記錄(含名單)與解讀緩存都會被清空;登錄狀態、語言與子時設置、購買記錄不受影響——同一生辰重新排盤後,已購內容自動恢復。"
+            "value" : "此操作不可恢復。所有命盤、合盤記錄(含名單)與解讀緩存都會被清空;登錄狀態、語言與子時設置、購買記錄不受影響——同一生辰重新排盤後，已購內容自動恢復。"
           }
         }
       }
@@ -16363,7 +16363,7 @@
         }
       }
     },
-    "添加失败,请重试" : {
+    "添加失败，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -16375,13 +16375,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "添加失败,请重试"
+            "value" : "添加失败，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "添加失敗,請重試"
+            "value" : "添加失敗，請重試"
           }
         }
       }
@@ -16490,7 +16490,7 @@
         }
       }
     },
-    "玄学娱乐,理性参考。\n购买即视为同意 Apple 标准用户协议。" : {
+    "玄学娱乐，理性参考。\n购买即视为同意 Apple 标准用户协议。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -16501,7 +16501,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "玄學娛樂,理性參考。\n購買即視為同意 Apple 標準用戶協議。"
+            "value" : "玄學娛樂，理性參考。\n購買即視為同意 Apple 標準用戶協議。"
           }
         }
       }
@@ -16616,7 +16616,7 @@
         }
       }
     },
-    "用以上信息排盘,进入今日运势" : {
+    "用以上信息排盘，进入今日运势" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -16627,12 +16627,12 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "用以上資訊排盤,進入今日運勢"
+            "value" : "用以上資訊排盤，進入今日運勢"
           }
         }
       }
     },
-    "有冲的地方,也有合的地方,拉扯中平稳。" : {
+    "有冲的地方，也有合的地方，拉扯中平稳。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -16644,18 +16644,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "有冲的地方,也有合的地方,拉扯中平稳。"
+            "value" : "有冲的地方，也有合的地方，拉扯中平稳。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "有沖的地方,也有合的地方,拉扯中平穩。"
+            "value" : "有沖的地方，也有合的地方，拉扯中平穩。"
           }
         }
       }
     },
-    "略有冲刑害,大事上多商量就好。" : {
+    "略有冲刑害，大事上多商量就好。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -16667,18 +16667,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "略有冲刑害,大事上多商量就好。"
+            "value" : "略有冲刑害，大事上多商量就好。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "略有沖刑害,大事上多商量就好。"
+            "value" : "略有沖刑害，大事上多商量就好。"
           }
         }
       }
     },
-    "登录信息保存失败,请重试" : {
+    "登录信息保存失败，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -16690,18 +16690,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "登录信息保存失败,请重试"
+            "value" : "登录信息保存失败，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "登錄資訊保存失敗,請重試"
+            "value" : "登錄資訊保存失敗，請重試"
           }
         }
       }
     },
-    "登录凭证读取失败,请重试" : {
+    "登录凭证读取失败，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -16713,13 +16713,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "登录凭证读取失败,请重试"
+            "value" : "登录凭证读取失败，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "登錄憑證讀取失敗,請重試"
+            "value" : "登錄憑證讀取失敗，請重試"
           }
         }
       }
@@ -17279,7 +17279,7 @@
         }
       }
     },
-    "网络连接失败,请检查网络后重试" : {
+    "网络连接失败，请检查网络后重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -17291,13 +17291,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "网络连接失败,请检查网络后重试"
+            "value" : "网络连接失败，请检查网络后重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "網絡連接失敗,請檢查網絡後重試"
+            "value" : "網絡連接失敗，請檢查網絡後重試"
           }
         }
       }
@@ -17348,7 +17348,7 @@
         }
       }
     },
-    "你的发力点、薄弱点,以及下一阶段怎么升级" : {
+    "你的发力点、薄弱点，以及下一阶段怎么升级" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -17360,13 +17360,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你的发力点、薄弱点,以及下一阶段怎么升级"
+            "value" : "你的发力点、薄弱点，以及下一阶段怎么升级"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你的發力點、薄弱點,以及下一階段怎麼升級"
+            "value" : "你的發力點、薄弱點，以及下一階段怎麼升級"
           }
         }
       }
@@ -17433,7 +17433,7 @@
         }
       }
     },
-    "表单信息不完整,请检查后重试" : {
+    "表单信息不完整，请检查后重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -17445,13 +17445,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "表单信息不完整,请检查后重试"
+            "value" : "表单信息不完整，请检查后重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "表單資訊不完整,請檢查後重試"
+            "value" : "表單資訊不完整，請檢查後重試"
           }
         }
       }
@@ -17594,7 +17594,7 @@
         }
       }
     },
-    "解读内容格式异常,已显示通用参考" : {
+    "解读内容格式异常，已显示通用参考" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -17606,18 +17606,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "解读内容格式异常,已显示通用参考"
+            "value" : "解读内容格式异常，已显示通用参考"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "解讀內容格式異常,已顯示通用參考"
+            "value" : "解讀內容格式異常，已顯示通用參考"
           }
         }
       }
     },
-    "解读凭证已失效,请重新排盘" : {
+    "解读凭证已失效，请重新排盘" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -17629,18 +17629,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "解读凭证已失效,请重新排盘"
+            "value" : "解读凭证已失效，请重新排盘"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "解讀憑證已失效,請重新排盤"
+            "value" : "解讀憑證已失效，請重新排盤"
           }
         }
       }
     },
-    "解读包含不合规绝对结论,请重试" : {
+    "解读包含不合规绝对结论，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -17652,13 +17652,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "解读包含不合规绝对结论,请重试"
+            "value" : "解读包含不合规绝对结论，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "解讀包含不合規絕對結論,請重試"
+            "value" : "解讀包含不合規絕對結論，請重試"
           }
         }
       }
@@ -17817,7 +17817,7 @@
         }
       }
     },
-    "该对方已不在名单中,请重新选择" : {
+    "该对方已不在名单中，请重新选择" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -17829,13 +17829,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "该对方已不在名单中,请重新选择"
+            "value" : "该对方已不在名单中，请重新选择"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "該對方已不在名單中,請重新選擇"
+            "value" : "該對方已不在名單中，請重新選擇"
           }
         }
       }
@@ -17886,7 +17886,7 @@
         }
       }
     },
-    "请选择出生城市,或在搜索页底部自定义地点" : {
+    "请选择出生城市，或在搜索页底部自定义地点" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -17898,18 +17898,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "请选择出生城市,或在搜索页底部自定义地点"
+            "value" : "请选择出生城市，或在搜索页底部自定义地点"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "請選擇出生城市,或在搜索頁底部自定義地點"
+            "value" : "請選擇出生城市，或在搜索頁底部自定義地點"
           }
         }
       }
     },
-    "读取合盘数据失败,请重试" : {
+    "读取合盘数据失败，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -17921,18 +17921,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "读取合盘数据失败,请重试"
+            "value" : "读取合盘数据失败，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "讀取合盤數據失敗,請重試"
+            "value" : "讀取合盤數據失敗，請重試"
           }
         }
       }
     },
-    "读取命盘存档失败,请重试" : {
+    "读取命盘存档失败，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -17944,18 +17944,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "读取命盘存档失败,请重试"
+            "value" : "读取命盘存档失败，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "讀取命盤存檔失敗,請重試"
+            "value" : "讀取命盤存檔失敗，請重試"
           }
         }
       }
     },
-    "谁滋养谁,谁消耗谁" : {
+    "谁滋养谁，谁消耗谁" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -17967,13 +17967,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "谁滋养谁,谁消耗谁"
+            "value" : "谁滋养谁，谁消耗谁"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "誰滋養誰,誰消耗誰"
+            "value" : "誰滋養誰，誰消耗誰"
           }
         }
       }
@@ -18001,7 +18001,7 @@
         }
       }
     },
-    "账号凭证异常,请重新登录后再试" : {
+    "账号凭证异常，请重新登录后再试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -18013,18 +18013,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "账号凭证异常,请重新登录后再试"
+            "value" : "账号凭证异常，请重新登录后再试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "賬號憑證異常,請重新登錄後再試"
+            "value" : "賬號憑證異常，請重新登錄後再試"
           }
         }
       }
     },
-    "账号同步失败,请重新登录重试" : {
+    "账号同步失败，请重新登录重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -18036,18 +18036,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "账号同步失败,请重新登录重试"
+            "value" : "账号同步失败，请重新登录重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "賬號同步失敗,請重新登錄重試"
+            "value" : "賬號同步失敗，請重新登錄重試"
           }
         }
       }
     },
-    "账号同步未完成,请重新登录" : {
+    "账号同步未完成，请重新登录" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -18059,18 +18059,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "账号同步未完成,请重新登录"
+            "value" : "账号同步未完成，请重新登录"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "賬號同步未完成,請重新登錄"
+            "value" : "賬號同步未完成，請重新登錄"
           }
         }
       }
     },
-    "账号同步未就绪,请重新登录" : {
+    "账号同步未就绪，请重新登录" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -18082,18 +18082,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "账号同步未就绪,请重新登录"
+            "value" : "账号同步未就绪，请重新登录"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "賬號同步未就緒,請重新登錄"
+            "value" : "賬號同步未就緒，請重新登錄"
           }
         }
       }
     },
-    "账号同步返回异常,请重新登录重试" : {
+    "账号同步返回异常，请重新登录重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -18105,13 +18105,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "账号同步返回异常,请重新登录重试"
+            "value" : "账号同步返回异常，请重新登录重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "賬號同步返回異常,請重新登錄重試"
+            "value" : "賬號同步返回異常，請重新登錄重試"
           }
         }
       }
@@ -18132,7 +18132,7 @@
         }
       }
     },
-    "购买已成功,本地记录保存失败,请退出登录后重新登录恢复" : {
+    "购买已成功，本地记录保存失败，请退出登录后重新登录恢复" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -18144,18 +18144,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "购买已成功,本地记录保存失败,请退出登录后重新登录恢复"
+            "value" : "购买已成功，本地记录保存失败，请退出登录后重新登录恢复"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "購買已成功,本地記錄保存失敗,請退出登錄後重新登錄恢復"
+            "value" : "購買已成功，本地記錄保存失敗，請退出登錄後重新登錄恢復"
           }
         }
       }
     },
-    "购买未完成,请重试" : {
+    "购买未完成，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -18167,18 +18167,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "购买未完成,请重试"
+            "value" : "购买未完成，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "購買未完成,請重試"
+            "value" : "購買未完成，請重試"
           }
         }
       }
     },
-    "购买请求已提交,等待批准后生效" : {
+    "购买请求已提交，等待批准后生效" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -18190,18 +18190,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "购买请求已提交,等待批准后生效"
+            "value" : "购买请求已提交，等待批准后生效"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "購買請求已提交,等待批准後生效"
+            "value" : "購買請求已提交，等待批准後生效"
           }
         }
       }
     },
-    "购买验证失败,请稍后重试" : {
+    "购买验证失败，请稍后重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -18213,18 +18213,18 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "购买验证失败,请稍后重试"
+            "value" : "购买验证失败，请稍后重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "購買驗證失敗,請稍後重試"
+            "value" : "購買驗證失敗，請稍後重試"
           }
         }
       }
     },
-    "购买验证失败,请重试" : {
+    "购买验证失败，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -18236,13 +18236,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "购买验证失败,请重试"
+            "value" : "购买验证失败，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "購買驗證失敗,請重試"
+            "value" : "購買驗證失敗，請重試"
           }
         }
       }
@@ -18428,7 +18428,7 @@
         }
       }
     },
-    "从喜忌来看,五行有互补,也有重叠的部分。" : {
+    "从喜忌来看，五行有互补，也有重叠的部分。" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -18440,13 +18440,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "从喜忌来看,五行有互补,也有重叠的部分。"
+            "value" : "从喜忌来看，五行有互补，也有重叠的部分。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "從喜忌來看,五行有互補,也有重疊的部分。"
+            "value" : "從喜忌來看，五行有互補，也有重疊的部分。"
           }
         }
       }
@@ -18506,7 +18506,7 @@
         }
       }
     },
-    "重置未完成,数据未变更,请重试" : {
+    "重置未完成，数据未变更，请重试" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
@@ -18518,13 +18518,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重置未完成,数据未变更,请重试"
+            "value" : "重置未完成，数据未变更，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "重置未完成,數據未變更,請重試"
+            "value" : "重置未完成，數據未變更，請重試"
           }
         }
       }
@@ -18688,7 +18688,7 @@
         }
       }
     },
-    "需先在深度解析中创建命盘,才能选择 A/B 盘合盘。" : {
+    "需先在深度解析中创建命盘，才能选择 A/B 盘合盘。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
@@ -18699,7 +18699,7 @@
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "需先在深度解析中創建命盤,才能選擇 A/B 盤合盤。"
+            "value" : "需先在深度解析中創建命盤，才能選擇 A/B 盤合盤。"
           }
         }
       }
@@ -19158,13 +19158,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "生成在后台继续,可先去浏览其他章节"
+            "value" : "生成在后台继续，可先去浏览其他章节"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "生成在後台繼續,可先去瀏覽其他章節"
+            "value" : "生成在後台繼續，可先去瀏覽其他章節"
           }
         }
       }
@@ -19411,13 +19411,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "本章尚未生成。命书生成中断过,点下方继续,从本章接着写。"
+            "value" : "本章尚未生成。命书生成中断过，点下方继续，从本章接着写。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "本章尚未生成。命書生成中斷過,點下方繼續,從本章接著寫。"
+            "value" : "本章尚未生成。命書生成中斷過，點下方繼續，從本章接著寫。"
           }
         }
       }
@@ -19503,13 +19503,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此操作不可恢复。所有命盘、合盘记录(含名单)与解读缓存都会被清空;登录状态、语言设置、购买记录不受影响——同一生辰重新排盘后,已购内容自动恢复。"
+            "value" : "此操作不可恢复。所有命盘、合盘记录(含名单)与解读缓存都会被清空;登录状态、语言设置、购买记录不受影响——同一生辰重新排盘后，已购内容自动恢复。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "此操作不可恢復。所有命盤、合盤記錄(含名單)與解讀緩存都會被清空;登錄狀態、語言設置、購買記錄不受影響——同一生辰重新排盤後,已購內容自動恢復。"
+            "value" : "此操作不可恢復。所有命盤、合盤記錄(含名單)與解讀緩存都會被清空;登錄狀態、語言設置、購買記錄不受影響——同一生辰重新排盤後，已購內容自動恢復。"
           }
         }
       }
@@ -19572,13 +19572,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "登录信息读写失败,请重试"
+            "value" : "登录信息读写失败，请重试"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "登錄信息讀寫失敗,請重試"
+            "value" : "登錄信息讀寫失敗，請重試"
           }
         }
       }

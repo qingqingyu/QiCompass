@@ -256,7 +256,7 @@ final class PaywallContractStepTests: XCTestCase {
             )
         )
         let kept = PendingRedeemStore.get(txId: "tx_001")
-        XCTAssertEqual(kept?.contentHash, "hash_abc", "冲突不覆盖,保留首条")
+        XCTAssertEqual(kept?.contentHash, "hash_abc", "冲突不覆盖，保留首条")
         XCTAssertEqual(kept?.module, EntitlementModule.baziDeep)
 
         // 同上下文重写 = 幂等照常落(不误伤正常路径)

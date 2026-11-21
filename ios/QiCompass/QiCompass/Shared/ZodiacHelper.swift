@@ -128,13 +128,13 @@ enum ZodiacHelper {
     ) -> String {
         if language.isChinese {
             guard let gender else {
-                AppLogger.app.error("ZodiacHelper.revealSubLabel gender_missing(理论不可达,请上报)")
+                AppLogger.app.error("ZodiacHelper.revealSubLabel gender_missing(理论不可达，请上报)")
                 guard let birthYear else { return "\(yearGanZhi)年" }
                 return "\(yearGanZhi)年(\(birthYear))"
             }
             let genderText = genderLabel(forGender: gender)
             guard let birthYear else {
-                AppLogger.app.error("ZodiacHelper.revealSubLabel birthDate_missing(理论不可达,请上报)")
+                AppLogger.app.error("ZodiacHelper.revealSubLabel birthDate_missing(理论不可达，请上报)")
                 return "\(genderText) · \(yearGanZhi)年"
             }
             return "\(genderText) · \(yearGanZhi)年(\(birthYear))"
