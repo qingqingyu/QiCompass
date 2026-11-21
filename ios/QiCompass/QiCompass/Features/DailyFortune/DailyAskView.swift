@@ -580,7 +580,10 @@ struct DailyAskChatView: View {
 
     var body: some View {
         ZStack {
-            BaziTheme.paper.ignoresSafeArea()
+            // 2026-11-21 拍板:问事聊天页由今日 tab 拉起,底色随 todayPaper
+            // (暖白纸试点口径「主页面 + 其 sheet/整页拉起页」);气泡级
+            // cardSurface 是分层 token,不随纸色联动。
+            BaziTheme.todayPaper.ignoresSafeArea()
             VStack(spacing: 0) {
                 header
                 ScrollViewReader { proxy in
