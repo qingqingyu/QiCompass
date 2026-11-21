@@ -327,6 +327,14 @@ struct BaziResponse: Codable, Sendable {
     /// key 带 archived_ 前缀,与未来可能的后端回显字段隔离。
     var archivedBirthDatetime: String? = nil
     var archivedGeonameId: Int? = nil
+    /// T2(2026-11-21 竞品差评对照):不做真太阳时校正、直接按钟表时间排的四柱干支
+    /// (key ∈ year/month/day/hour → 干支)。仅展示对照用,不参与任何计算;
+    /// 时辰未知或柱歧义 → nil(后端不猜)。老响应/老快照缺 key → nil(decodeIfPresent,
+    /// 页头走旧 boundaryWarning 渲染)。
+    var clockTimePillars: [String: String]? = nil
+    /// 夏令时边角结构化码(dst_ambiguous / dst_nonexistent / dst_transition),
+    /// 供三语本地化渲染;老响应缺 key → [](decodeIfPresent)。
+    var dstFlags: [String] = []
 
     /// 存档/响应是否含时柱(时辰未知 S04)。单一事实源是后端
     /// `calc_rule_snapshot.hour_known`;老 payload 缺 key → true(decodeIfPresent ?? true)。
@@ -378,6 +386,8 @@ struct BaziResponse: Codable, Sendable {
         case contextTokens = "context_tokens"
         case archivedBirthDatetime = "archived_birth_datetime"
         case archivedGeonameId = "archived_geoname_id"
+        case clockTimePillars = "clock_time_pillars"
+        case dstFlags = "dst_flags"
     }
 
     // Stage 7b 关键修复:自定义 init(from:) 让 v1 字段真能解码。
@@ -482,6 +492,11 @@ struct BaziResponse: Codable, Sendable {
             String.self, forKey: .archivedBirthDatetime)
         archivedGeonameId = try c.decodeIfPresent(
             Int.self, forKey: .archivedGeonameId)
+        // T2(2026-11-21):钟表时间对照柱 + dst_flags;老响应缺 key → 默认值
+        // (页头按字段缺失走旧 boundaryWarning 渲染,见 ChartHeaderView)
+        clockTimePillars = try c.decodeIfPresent(
+            [String: String].self, forKey: .clockTimePillars)
+        dstFlags = try c.decodeIfPresent([String].self, forKey: .dstFlags) ?? []
     }
 
     // Stage 7b:memberwise init(自定义 init(from:) 后失去合成,手写带默认值
@@ -523,7 +538,9 @@ struct BaziResponse: Codable, Sendable {
         contextTokens: [String: String]? = nil,
         archivedBirthDatetime: String? = nil,
         archivedGeonameId: Int? = nil,
-        pastNode: PastNodeDTO? = nil
+        pastNode: PastNodeDTO? = nil,
+        clockTimePillars: [String: String]? = nil,
+        dstFlags: [String] = []
     ) {
         self.contentHash = contentHash
         self.trueSolarTime = trueSolarTime
@@ -562,6 +579,8 @@ struct BaziResponse: Codable, Sendable {
         self.archivedBirthDatetime = archivedBirthDatetime
         self.archivedGeonameId = archivedGeonameId
         self.pastNode = pastNode
+        self.clockTimePillars = clockTimePillars
+        self.dstFlags = dstFlags
     }
 }
 

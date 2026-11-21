@@ -817,7 +817,12 @@ final class MockAPIClient: APIClient {
             ),
             // 节点句示意(2026-10-19):mock 四柱全甲子(日支子→午年冲),
             // 2014 甲午冲日支为形状保真示例;真实值由后端规则引擎按盘选出
-            pastNode: PastNodeDTO(kind: "chong_day_zhi", year: 2014, age: 30)
+            pastNode: PastNodeDTO(kind: "chong_day_zhi", year: 2014, age: 30),
+            // T2 保真:后端 hour_known=true 恒回对照柱;mock 四柱全甲子 → 柱全同,
+            // 页头对照说明区零行(与 mock 不做真太阳时换算的口径一致)
+            clockTimePillars: req.hourKnown
+                ? ["year": "甲子", "month": "甲子", "day": "甲子", "hour": "甲子"]
+                : nil
         )
     }
 

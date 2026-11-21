@@ -693,7 +693,9 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         dayMasterStrength: String? = "balanced",
         trueSolarTime: Date? = Date(timeIntervalSince1970: 580_262_400),
         meta: MetaBlockDTO? = nil,
-        hourKnown: Bool = true
+        hourKnown: Bool = true,
+        clockTimePillars: [String: String]? = nil,
+        dstFlags: [String] = []
     ) -> BaziResponse {
         BaziResponse(
             contentHash: "s05_ctx",
@@ -722,7 +724,9 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
             yearBranchZodiac: "Rat",
             yearBranchFriends: ["Ox", "Dragon", "Monkey"],
             yearBranchClash: "Horse",
-            meta: meta
+            meta: meta,
+            clockTimePillars: clockTimePillars,
+            dstFlags: dstFlags
         )
     }
 
@@ -882,6 +886,167 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         XCTAssertNil(ChartHeaderView.heroDate(fromBirthDatetime: "not-a-date"))
         XCTAssertNil(ChartHeaderView.heroDateText(fromBirthDatetime: ""))
         XCTAssertNil(ChartHeaderView.heroTimeText(fromBirthDatetime: "1993-03-21"))
+    }
+
+    // MARK: - T2 真太阳时对照说明(2026-11-21 竞品差评对照;solarAdjustNotes 纯函数)
+
+    /// 四柱全甲子的对照柱(fixture 同款):柱全同 → 零说明(无事可说)
+    private static let allSameClock: [String: String] = [
+        "year": "甲子", "month": "甲子", "day": "甲子", "hour": "甲子",
+    ]
+
+    func testSolarAdjustNotesHourPillarDiffersZh() {
+        // 时柱不同:一条 K1(zh 柱名 + 汉字干支);年/月/日同 → 只有这一条
+        let pillars = PillarsDTO(
+            year: Self.fixturePillar, month: Self.fixturePillar, day: Self.fixturePillar,
+            hour: PillarDTO(
+                ganZhi: "乙丑", gan: "乙", zhi: "丑",
+                ganElement: "wood", zhiElement: "earth",
+                hideGan: ["癸", "辛", "己"], shishenGan: "劫财", shishenZhi: ["正印"],
+                nayin: "海中金", dishi: "沐浴", xunkong: "戌亥"))
+        let response = Self.makeResponse(
+            pillars: pillars,
+            clockTimePillars: ["year": "甲子", "month": "甲子", "day": "甲子", "hour": "丙寅"])
+        let notes = ChartHeaderView.solarAdjustNotes(response: response, language: .zh)
+        XCTAssertEqual(notes.count, 1)
+        XCTAssertTrue(notes[0].contains("时柱"), "zh 柱名: \(notes[0])")
+        XCTAssertTrue(notes[0].contains("丙寅"), "钟表柱: \(notes[0])")
+        XCTAssertTrue(notes[0].contains("乙丑"), "本盘柱: \(notes[0])")
+        XCTAssertFalse(notes[0].contains("Yin"), "zh 不带拼音括注")
+    }
+
+    func testSolarAdjustNotesHourPillarDiffersEn() {
+        // en:柱名小写 + 汉字干支 + 带调拼音括注
+        let pillars = PillarsDTO(
+            year: Self.fixturePillar, month: Self.fixturePillar, day: Self.fixturePillar, hour: Self.fixturePillar)
+        let response = Self.makeResponse(
+            pillars: pillars,
+            clockTimePillars: ["year": "甲子", "month": "甲子", "day": "甲子", "hour": "丁卯"])
+        let notes = ChartHeaderView.solarAdjustNotes(response: response, language: .en)
+        XCTAssertEqual(notes.count, 1)
+        XCTAssertTrue(notes[0].contains("hour pillar"), "en 柱名小写: \(notes[0])")
+        XCTAssertTrue(notes[0].contains("丁卯 (Dīng Mǎo)"), "拼音括注: \(notes[0])")
+    }
+
+    func testSolarAdjustNotesDayPillarAndDayMasterDiffers() {
+        // 日柱不同且日干不同 → K1 + K2(zh 日主「乙木」vs「甲木」式对照)
+        let pillars = PillarsDTO(
+            year: Self.fixturePillar, month: Self.fixturePillar, day: Self.fixturePillar, hour: Self.fixturePillar)
+        let response = Self.makeResponse(
+            pillars: pillars,
+            clockTimePillars: ["year": "甲子", "month": "甲子", "day": "乙丑", "hour": "甲子"])
+        let notesZh = ChartHeaderView.solarAdjustNotes(response: response, language: .zh)
+        XCTAssertEqual(notesZh.count, 2, "K1 + K2: \(notesZh)")
+        XCTAssertTrue(notesZh[0].contains("日柱"))
+        XCTAssertTrue(notesZh[1].contains("甲木"), "本盘日主: \(notesZh[1])")
+        XCTAssertTrue(notesZh[1].contains("乙木"), "钟表口径日主: \(notesZh[1])")
+        // en:丁火式「Ding Fire」(revealDayMasterDisplay 同款)
+        let notesEn = ChartHeaderView.solarAdjustNotes(response: response, language: .en)
+        XCTAssertEqual(notesEn.count, 2)
+        XCTAssertTrue(notesEn[1].contains("Jia Wood"), "en 本盘日主: \(notesEn[1])")
+        XCTAssertTrue(notesEn[1].contains("Yi Wood"), "en 钟表口径日主: \(notesEn[1])")
+    }
+
+    func testSolarAdjustNotesAllSameReturnsEmpty() {
+        // 四柱全同 + 无 dst → 零说明(字段在但不渲染)
+        let pillars = PillarsDTO(
+            year: Self.fixturePillar, month: Self.fixturePillar, day: Self.fixturePillar, hour: Self.fixturePillar)
+        let response = Self.makeResponse(
+            pillars: pillars, clockTimePillars: Self.allSameClock)
+        XCTAssertEqual(ChartHeaderView.solarAdjustNotes(response: response, language: .zh), [])
+        XCTAssertEqual(ChartHeaderView.solarAdjustNotes(response: response, language: .en), [])
+    }
+
+    func testSolarAdjustNotesDstFlagsThreeLines() {
+        // 三个 DST 码 → 三条;断言只做逻辑层(单旗单行 / 组合有序 / 互异)——
+        // 译文值断言会跟 bundle 语言分叉假红(2026-09-23 教训),译文归
+        // xcstrings 管,三语齐全由 review checkpoint 把关
+        let pillars = PillarsDTO(
+            year: Self.fixturePillar, month: Self.fixturePillar, day: Self.fixturePillar, hour: Self.fixturePillar)
+        func oneFlag(_ flag: String) -> String {
+            let r = Self.makeResponse(
+                pillars: pillars, clockTimePillars: Self.allSameClock, dstFlags: [flag])
+            let notes = ChartHeaderView.solarAdjustNotes(response: r, language: .zhHant)
+            XCTAssertEqual(notes.count, 1, "单旗单行: \(flag)")
+            return notes[0]
+        }
+        let a = oneFlag("dst_ambiguous")
+        let b = oneFlag("dst_nonexistent")
+        let c = oneFlag("dst_transition")
+        // 未知码:留痕留白,不产行(后端值域关死,防御层)
+        XCTAssertEqual(
+            ChartHeaderView.solarAdjustNotes(
+                response: Self.makeResponse(
+                    pillars: pillars, clockTimePillars: Self.allSameClock,
+                    dstFlags: ["dst_future"]),
+                language: .zhHant).count, 0)
+        // 组合:三条,顺序与后端稳定排序一致(a/b/c),互不相同
+        let combined = Self.makeResponse(
+            pillars: pillars, clockTimePillars: Self.allSameClock,
+            dstFlags: ["dst_ambiguous", "dst_nonexistent", "dst_transition"])
+        let notes = ChartHeaderView.solarAdjustNotes(response: combined, language: .zhHant)
+        XCTAssertEqual(notes, [a, b, c], "组合有序:ambiguous → nonexistent → transition")
+    }
+
+    func testSolarAdjustNotesLegacyPayloadReturnsEmpty() {
+        // 老 payload(clockTimePillars nil + dstFlags 空 + boundaryWarning 非 nil)
+        // → notes 空,渲染走旧 boundaryWarning 分支(视图层分支条件是字段存在性)
+        let pillars = PillarsDTO(
+            year: Self.fixturePillar, month: Self.fixturePillar, day: Self.fixturePillar, hour: Self.fixturePillar)
+        let legacy = BaziResponse(
+            contentHash: "legacy",
+            trueSolarTime: nil,
+            trueSolarOffsetMinutes: -14.4,
+            pillars: pillars,
+            mingGong: GanZhiNaYinDTO(ganZhi: "甲子", nayin: "海中金"),
+            shenGong: GanZhiNaYinDTO(ganZhi: "甲子", nayin: "海中金"),
+            taiYuan: GanZhiNaYinDTO(ganZhi: "甲子", nayin: "海中金"),
+            elementBalance: ElementBalanceDTO(wood: 2, fire: 1, earth: 1, metal: 1, water: 3),
+            favorableElements: [], unfavorableElements: [],
+            dayMasterStrength: nil,
+            tiaoshouApplied: false,
+            xijiMethod: nil, patternHint: nil,
+            shensha: [],
+            luckPillars: [],
+            currentLuckPillar: nil,
+            currentYearPillar: nil, currentDayPillar: nil, currentHourPillar: nil,
+            calcRuleSnapshot: CalcRuleSnapshotDTO(
+                library: "lunar_python", sect: 1, ziHourRule: "zi_next_day",
+                trueSolarLongitude: 116.4, trueSolarOffsetMinutes: -14.4, schemaVersion: 1),
+            boundaryWarning: "真太阳时调整导致跨越边界:时辰",
+            yearBranchZodiac: "Rat",
+            yearBranchFriends: nil,
+            yearBranchClash: nil)
+        XCTAssertTrue(legacy.boundaryWarning != nil)
+        XCTAssertNil(legacy.clockTimePillars)
+        XCTAssertEqual(ChartHeaderView.solarAdjustNotes(response: legacy, language: .zh), [])
+    }
+
+    func testClockTimePillarsAndDstFlagsDecodeContract() throws {
+        // T2 解码契约:生产走自定义 init(from:),memberwise 用例拦不住 CodingKeys
+        // 拼写/类型错——错拼症状是新 payload 永远解 nil,对照说明静默消失回旧
+        // 警告路径(2026-08-15「payload 加字段必 decodeIfPresent」教训同类)。
+        // 夹具按形状用 hourUnknownResponseJSON(decode 不依赖 hour_known,
+        // 语义一致性归 solarAdjustNotes 用例管):有 key 解出 / 缺 key → nil+[]
+        let fullPillars: [String: Any] = [
+            "year": Self.pillarJSON, "month": Self.pillarJSON,
+            "day": Self.pillarJSON, "hour": Self.pillarJSON,
+        ]
+        // 新 payload:对照柱 + dst_flags(后端 _DST_FLAG_ORDER 稳定排序)
+        var json = try JSONSerialization.jsonObject(
+            with: Self.hourUnknownResponseJSON(pillars: fullPillars)) as? [String: Any]
+        json?["clock_time_pillars"] = ["year": "甲子", "month": "甲子", "day": "甲子", "hour": "乙丑"]
+        json?["dst_flags"] = ["dst_ambiguous", "dst_transition"]
+        let newData = try JSONSerialization.data(withJSONObject: XCTUnwrap(json))
+        let decoded = try APICoder.decoder.decode(BaziResponse.self, from: newData)
+        XCTAssertEqual(decoded.clockTimePillars?["hour"], "乙丑", "snake_case key 必须解进 clockTimePillars")
+        XCTAssertEqual(decoded.dstFlags, ["dst_ambiguous", "dst_transition"])
+
+        // 老 payload(T1 之前):两 key 整体缺失 → nil / [],不 crash(decodeIfPresent)
+        let legacyData = try Self.hourUnknownResponseJSON(pillars: fullPillars)
+        let legacy = try APICoder.decoder.decode(BaziResponse.self, from: legacyData)
+        XCTAssertNil(legacy.clockTimePillars)
+        XCTAssertEqual(legacy.dstFlags, [])
     }
 
     func testDualPillarSourceFromHourUnknownPair() throws {

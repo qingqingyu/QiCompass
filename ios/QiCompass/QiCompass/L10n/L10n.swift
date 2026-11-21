@@ -1806,6 +1806,28 @@ enum L10n {
             String(format: String(localized: "deepanalysis.chart.solarOffsetFormat"), sign, minutes)
         }
 
+        // -- T2 真太阳时对照说明(2026-11-21 竞品差评对照;K1/K2 + K3a/b/c)--
+
+        /// K1 钟表时间 vs 真太阳时逐柱差异(%1$@ = 柱名,%2$@ = 钟表柱,%3$@ = 本盘柱;
+        /// %1$@ 在句尾复用,positional 格式)。en 柱名由调用方 lowercased()。
+        static func solarNotePillarDiff(_ pillar: String, clock: String, actual: String) -> String {
+            String(format: String(localized: "chart.solarNote.pillarDiff"), pillar, clock, actual)
+        }
+
+        /// K2 日主差异句(%1$@ = 本盘日主,%2$@ = 钟表口径日主)。
+        static func solarNoteDayMasterDiff(_ actual: String, clock: String) -> String {
+            String(format: String(localized: "chart.solarNote.dayMasterDiff"), actual, clock)
+        }
+
+        /// K3a 夏令时回拨(时间重复出现)。zh: "这个时间在当年出现过两次…"
+        static let dstAmbiguousNote = String(localized: "chart.dst.ambiguous")
+
+        /// K3b 夏令时跳段(时间不存在)。
+        static let dstNonexistentNote = String(localized: "chart.dst.nonexistent")
+
+        /// K3c 出生时间接近夏令时切换点。
+        static let dstTransitionNote = String(localized: "chart.dst.transition")
+
         // -- 当前柱 --
 
         /// zh: "大运";en: "Luck cycle"
