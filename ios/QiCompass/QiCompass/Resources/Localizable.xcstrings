@@ -1943,6 +1943,190 @@
         }
       }
     },
+    "chartBasis.close" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Close"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "关闭"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "關閉"
+          }
+        }
+      }
+    },
+    "chartBasis.dayMaster.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Names like \"Wood Ox\" come from your year pillar: the year's stem gives the element and its branch gives the animal. The heart of a BaZi chart is your Day Master, the stem of the day you were born, which sets your core element. The two often differ. You can be a Wood Ox with a Water Day Master. Both are right; they're different layers of the same chart."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「木牛」这类说法来自年柱：年干定五行，年支定生肖。八字的核心是日主——你出生那一天的天干，它决定命盘的本命五行。两者常常不同，比如年柱是木牛、日主却是水。两个都对，只是同一张盘里的不同层次。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "「木牛」這類說法來自年柱：年干定五行，年支定生肖。八字的核心是日主——你出生那一天的天干，它決定命盤的本命五行。兩者常常不同，例如年柱是木牛、日主卻是水。兩個都對，只是同一張盤裡的不同層次。"
+          }
+        }
+      }
+    },
+    "chartBasis.dayMaster.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Year sign vs. Day Master"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生肖、年份五行和日主有什么区别?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "生肖、年份五行和日主有什麼區別?"
+          }
+        }
+      }
+    },
+    "chartBasis.solar.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "We keep the time you entered exactly as it is. BaZi reads your hour from where the sun actually was at your birthplace, so for the chart we convert clock time to true solar time. That corrects for three things: how far your city sits from the center of its time zone, the sun's seasonal drift, and daylight saving time. Where there's daylight saving and wide time zones, as in most of the US, a difference of about an hour is normal."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你填写的时间我们原样保存，不会改动。八字按太阳在出生地的实际位置论时辰，所以排盘时会把钟表时间换算成「真太阳时」，校正三件事：出生地与时区中心的经度差、太阳的季节性快慢，以及当年的夏令时。在实行夏令时、时区跨度又大的地方（比如美国大部分地区），差一小时左右很常见。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你填寫的時間我們原樣保存，不會改動。八字按太陽在出生地的實際位置論時辰，所以排盤時會把鐘錶時間換算成「真太陽時」，校正三件事：出生地與時區中心的經度差、太陽的季節性快慢，以及當年的夏令時。在實行夏令時、時區跨度又大的地方（例如美國大部分地區），差一小時左右很常見。"
+          }
+        }
+      }
+    },
+    "chartBasis.solar.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Why is the chart time different from what I entered?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为什么排盘时间和我填的不一样?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "為什麼排盤時間和我填的不一樣?"
+          }
+        }
+      }
+    },
+    "chartBasis.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How your chart is calculated"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盘口径说明"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盤口徑說明"
+          }
+        }
+      }
+    },
+    "chartBasis.year.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "BaZi starts each year at the Start of Spring, around February 3–5. Most zodiac websites start it at Lunar New Year, which falls somewhere between January 21 and February 20. If you were born between those two dates, the two methods give you different signs. That's a difference in method, not a mistake, and BaZi charts always use the Start of Spring."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "八字以立春（每年 2 月 3–5 日前后）作为一年的开始；大多数生肖网站以农历新年（正月初一，在 1 月 21 日到 2 月 20 日之间浮动）换年。出生在这两个日子之间的人，两边的生肖会差一年。这是口径不同，不是算错——排八字一律用立春口径。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "八字以立春（每年 2 月 3–5 日前後）作為一年的開始；多數生肖網站以農曆新年（正月初一，在 1 月 21 日到 2 月 20 日之間浮動）換年。出生在這兩個日子之間的人，兩邊的生肖會差一年。這是口徑不同，不是算錯——排八字一律用立春口徑。"
+          }
+        }
+      }
+    },
+    "chartBasis.year.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Why is my zodiac sign different from other sites?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "为什么生肖和其他网站不一样?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "為什麼生肖和其他網站不一樣?"
+          }
+        }
+      }
+    },
     "chartcalc.banner.expandHint" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -7619,19 +7803,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Offset %@%.1f min"
+            "value" : "%@%.0f min vs. clock time"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "较北京时间 %@%.1f 分"
+            "value" : "较钟表时间 %@%.0f 分"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "較北京時間 %1$@%2$.1f 分"
+            "value" : "較鐘錶時間 %1$@%2$.0f 分"
           }
         }
       }

@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 命盘头部(2026-10-14 仿盘面细目 HTML 目标稿三行重构):
 /// ① tags 行(乾造(男) / 癸酉年·属鸡 chip)② 大字出生日期+时刻 ③ meta 行
-/// (真太阳时 · 出生地 · 较北京时间 ±x 分)。
+/// (真太阳时 · 出生地 · 较钟表时间 ±x 分 + ⓘ 排盘口径说明入口,T3)。
 ///
 /// hash 行移除(开发痕迹不进用户界面,2026-10-14 用户拍板);旧版首行右侧
 /// 挤着的「真太阳时偏差」与带前缀的独立行收进 meta 单行;与四柱节标旁的
@@ -12,6 +12,10 @@ import SwiftUI
 struct ChartHeaderView: View {
     let response: BaziResponse
     let request: BaziCalculateRequest
+
+    /// T3:排盘口径说明页(ⓘ 入口)。个性化行(T6 农历新年生肖差异)由
+    /// T6 接线时传入;本页头只负责呈现。
+    @State private var showBasisSheet = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -40,9 +44,26 @@ struct ChartHeaderView: View {
             }
 
             // ③ meta 行(真太阳时 nil → 跳过该段,时辰未知不造时间)
-            Text(metaLine)
-                .font(BaziFont.caption(size: 13))
-                .foregroundStyle(BaziTheme.inkMuted)
+            // T3:行末 ⓘ = 排盘口径说明页入口(真太阳时 / 立春换年 / 生肖 vs 日主)
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(metaLine)
+                    .font(BaziFont.caption(size: 13))
+                    .foregroundStyle(BaziTheme.inkMuted)
+                Button {
+                    showBasisSheet = true
+                } label: {
+                    Image(systemName: "info.circle")
+                        .font(BaziFont.caption(size: 13))
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        // 44pt 最小命中区(HIG,同 DeepAnalysisView 取消钮惯例):
+                        // 13pt 图标在密集 meta 行内误触率高。alignment: .leading
+                        // 让图标贴住 meta 文本,命中区向右伸入行尾空白,不改视觉
+                        .frame(minWidth: 44, minHeight: 44, alignment: .leading)
+                        .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .accessibilityLabel(L10n.ChartBasis.title)
+            }
 
             // T2(2026-11-21 竞品差评对照):新字段(clock_time_pillars / dst_flags)
             // 存在 → 渲染三语对照说明(真太阳时校正是正常行为,不是错误:无 ⚠、
@@ -63,6 +84,9 @@ struct ChartHeaderView: View {
         // (边距由宿主统一 32,这里只留纵向呼吸)
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 4)
+        .sheet(isPresented: $showBasisSheet) {
+            ChartBasisSheet()
+        }
     }
 
     // MARK: - tags
@@ -158,7 +182,8 @@ struct ChartHeaderView: View {
 
     // MARK: - meta 行
 
-    /// 真太阳时 · 出生地 · 较北京时间 ±x 分(中点分隔;真太阳时 nil → 跳过)。
+    /// 真太阳时 · 出生地 · 较钟表时间 ±x 分(中点分隔;真太阳时 nil → 跳过)。
+    /// 偏移口径:相对出生地时区中央经线(含夏令时),T3 前文案误写「较北京时间」。
     /// 真太阳时钟面串(纯函数供单测):按**出生地时区**渲染,不随设备时区
     /// 漂移(A1)——真太阳时是出生地当地时间值,跨时区设备(美东手机看北京
     /// 盘)按 .current 渲染会把钟面/日期错位。tzID nil/非法(老快照)兜底

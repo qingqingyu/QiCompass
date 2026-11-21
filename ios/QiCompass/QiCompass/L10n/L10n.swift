@@ -1800,8 +1800,11 @@ enum L10n {
             String(format: String(localized: "deepanalysis.chart.trueSolarFormat"), formatted)
         }
 
-        /// 真太阳时偏差(%@ = 正负号,%.1f = 分钟;2026-10-14 页头改版「偏差」→「较北京时间」)。
-        /// zh: "较北京时间 %@%.1f 分";zh-Hant: "較北京時間 %@%.1f 分";en: "Offset %@%.1f min"
+        /// 真太阳时偏差(%@ = 正负号,%.0f = 分钟;T3 2026-11-22 改错:偏移相对
+        /// 出生地时区中央经线算,不是北京时间——「较北京时间」对美国出生用户是
+        /// 错误描述;小数点对用户无信息量,改整数)。
+        /// zh: "较钟表时间 %@%.0f 分";zh-Hant: "較鐘錶時間 %1$@%2$.0f 分";
+        /// en: "%@%.0f min vs. clock time"
         static func solarOffset(sign: String, minutes: Double) -> String {
             String(format: String(localized: "deepanalysis.chart.solarOffsetFormat"), sign, minutes)
         }
@@ -1855,5 +1858,37 @@ enum L10n {
 
         /// zh: "胎元";en: "Conception Pillar"
         static let auxTaiYuan = String(localized: "deepanalysis.aux.taiYuan")
+    }
+
+    // MARK: - 排盘口径说明页(T3,2026-11-22 竞品差评对照;ChartBasisSheet 三节)
+
+    /// 三节静态说明:真太阳时 / 立春 vs 农历新年 / 生肖年份五行 vs 日主。
+    /// 文案三语落 xcstrings(chartBasis.*);个性化行(T6 生肖差异 K4)由
+    /// ChartBasisSheet 追加,不在此枚举。
+    enum ChartBasis {
+        /// S0 页标题。zh: "排盘口径说明";zh-Hant: "排盤口徑說明";
+        /// en: "How your chart is calculated"
+        static let title = String(localized: "chartBasis.title")
+
+        /// 第一节标题。zh: "为什么排盘时间和我填的不一样?"
+        static let solarTitle = String(localized: "chartBasis.solar.title")
+
+        /// 第一节正文(你填写的时间原样保存 + 真太阳时校正三件事)。
+        static let solarBody = String(localized: "chartBasis.solar.body")
+
+        /// 第二节标题。zh: "为什么生肖和其他网站不一样?"
+        static let yearTitle = String(localized: "chartBasis.year.title")
+
+        /// 第二节正文(立春换年 vs 农历新年换年,口径不同不是算错)。
+        static let yearBody = String(localized: "chartBasis.year.body")
+
+        /// 第三节标题。zh: "生肖、年份五行和日主有什么区别?"
+        static let dayMasterTitle = String(localized: "chartBasis.dayMaster.title")
+
+        /// 第三节正文(「木牛」来自年柱,日主是本命五行,两个都对)。
+        static let dayMasterBody = String(localized: "chartBasis.dayMaster.body")
+
+        /// 关闭按钮。zh: "关闭";zh-Hant: "關閉";en: "Close"
+        static let close = String(localized: "chartBasis.close")
     }
 }
