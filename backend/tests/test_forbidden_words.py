@@ -51,5 +51,25 @@ def test_all_forbidden_words_detectable():
 
 
 def test_word_list_matches_client_count():
-    """词表数量 = 11(与客户端 ForbiddenWords.absoluteConclusions 一致)。"""
-    assert len(ABSOLUTE_CONCLUSIONS) == 11
+    """词表数量 = 16(与客户端 ForbiddenWords.absoluteConclusions 一致;
+    T9 补繁体 5 词:一定會 / 一定不會 / 鐵定 / 絕對 / 必破財——末者为任务书
+    「其余词简繁同形」前提纠错,review 发现后按任务意图补列)。"""
+    assert len(ABSOLUTE_CONCLUSIONS) == 16
+
+
+def test_traditional_chinese_variants_detected():
+    """T9:zh-Hant 输出的繁体禁词形必须拦截(此前静默放行)。
+
+    精确断言(== [word])与 iOS 侧镜像:若未来新增词与既有繁体词
+    构成子串交叠导致多命中,这里会立即暴露。
+    """
+    for word in ("一定會", "一定不會", "鐵定", "絕對", "必破財"):
+        assert word in ABSOLUTE_CONCLUSIONS
+        hits = scan(f"你們{word}在一起")
+        assert hits == [word], f"繁体禁词 {word!r} 期望唯一命中,实际 {hits!r}"
+
+
+def test_traditional_pass_text_not_overblocked():
+    """T9 反例:繁体正常叙事(模糊语气)不误伤。"""
+    assert scan("兩人性情較合,傾向互補") == []
+    assert scan("此事較難成行,容易生變") == []
