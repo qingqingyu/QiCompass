@@ -19,6 +19,11 @@ from lunar_python import Solar
 
 from ..core.calc_rule_snapshot import build_calc_rule_snapshot
 from ..core.content_hash import compute_content_hash
+from ..core.tz_resolution import (
+    FLAG_AMBIGUOUS,
+    FLAG_NEAR_TRANSITION,
+    FLAG_NONEXISTENT,
+)
 from ..core.true_solar_time import (
     compute_true_solar_time,
     day_pillar_candidate_wall_interval,
@@ -340,6 +345,28 @@ class BaziEngine:
             else:
                 meta_block = None
 
+            # 10. 钟表时间对照柱 + dst_flags 结构化透出(T1,2026-11-21 竞品差评
+            #     对照):hour_known=true 时柱歧义必不存在(pillar_ambiguity 仅
+            #     时辰未知路径产生),故条件即 hour_known。clock_time_pillars 仅
+            #     展示对照用 —— 不参与 content_hash / calc_rule_snapshot /
+            #     喜忌 / 任何判断,不进任何 context token
+            clock_time_pillars = (
+                _clock_time_pillars(calc_birth) if hour_known else None
+            )
+            # dst_flags 稳定排序输出(frozenset → list,同输入同输出)。
+            # 未知值显式抛错不静默丢:dst_flags 是结构化契约(客户端按值
+            # 取本地化文案),漏传一个值 = 该提示永远到不了用户(错误显式
+            # 传播;新 flag 须在 _DST_FLAG_ORDER 与 boundary_warning 文案同步登记)
+            unknown_dst = dst_flags.difference(_DST_FLAG_ORDER)
+            if unknown_dst:
+                raise ValueError(
+                    f"未知 dst_flags 值: {sorted(unknown_dst)};"
+                    "请在 _DST_FLAG_ORDER 与 boundary_warning 文案同步登记"
+                )
+            dst_flags_out = [
+                f for f in _DST_FLAG_ORDER if f in dst_flags
+            ]
+
             return {
                 "content_hash": content_hash,
                 # 时辰未知:真太阳时含时辰信息,占位值不漏到响应
@@ -398,6 +425,11 @@ class BaziEngine:
                 "current_hour_pillar": current_hour,
                 "calc_rule_snapshot": calc_rule_snapshot,
                 "boundary_warning": boundary_warning,
+                # T1(2026-11-21):钟表时间对照柱 + dst_flags 结构化码。
+                # 新客户端渲染 solarAdjustNotes 用;boundary_warning 老串
+                # 保留(老客户端仍读),新客户端不再渲染
+                "clock_time_pillars": clock_time_pillars,
+                "dst_flags": dst_flags_out,
             }
         except Exception as e:
             # 不静默吞:把 lunar_python / 规则引擎 / 任何异常向上抛为结构化错误
@@ -409,6 +441,37 @@ class BaziEngine:
                 f"排盘计算失败: {type(e).__name__}: {e}",
                 content_hash=content_hash,
             ) from e
+
+
+def _clock_time_pillars(birth: datetime) -> dict[str, str]:
+    """按出生地钟面时间(不做真太阳时校正)排四柱干支(T1 对照柱)。
+
+    lunar_python 按本地日历组件算,naive 组件即用户填写的钟面时间(与主
+    排盘 adjusted_naive 同口径);setSect(1) 与主排盘一致(23:00 换日)。
+    用户拿别家不做校正的软件比对时对的就是这组柱。
+
+    仅展示对照用:不参与 content_hash / 喜忌 / 任何判断与 token。
+    调用方保证 hour_known=true(时辰未知时占位时辰冒充钟面属假数据)。
+
+    Raises:
+        BaziCalculationFailedError: 由 calculate() 统一包装(本函数在
+            try 块内调用,不单独吞错)
+    """
+    naive = birth.replace(tzinfo=None)
+    ec = Solar.fromDate(naive).getLunar().getEightChar()
+    ec.setSect(SECT)  # 强制(坑1),与主排盘同规则
+    return {
+        "year": ec.getYear(),
+        "month": ec.getMonth(),
+        "day": ec.getDay(),
+        "hour": ec.getTime(),
+    }
+
+
+# dst_flags 输出稳定排序(同输入同输出;frozenset 迭代序不保证)。
+# 字面量单一事实源在 core/tz_resolution 的 FLAG_* 常量(此处导入拼装,
+# 防止 dst_flags 结构化输出与 boundary_warning 文案的映射被字面量漂移破坏)
+_DST_FLAG_ORDER = (FLAG_AMBIGUOUS, FLAG_NONEXISTENT, FLAG_NEAR_TRANSITION)
 
 
 def _format_boundary_warning(boundary_crossed: set[str],

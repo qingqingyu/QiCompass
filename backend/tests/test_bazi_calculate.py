@@ -11,6 +11,8 @@ S02 契约(docs/城市搜索设计决策.md Q4/Q5):裸钟面 birth_datetime + IA
 - 大运第一个非空(已跳 index=0)
 - calc_rule_snapshot 确定性(无 calculated_at)+ birth_timezone
 - boundary_warning 非空(跨时辰 + 夏令时边角)
+- clock_time_pillars / dst_flags(T1 钟表时间对照柱 + 结构化夏令时码;
+  时辰未知 → None 不猜;同输入确定性)
 - 历史夏令时:1988-07-01 中国夏令时按 +09:00 解释
 - 错误:缺 longitude → 422;birth 带 offset → 422;非法时区名 → 422;
   旧 city 字段残留 → 422(零兼容垫片);longitude/latitude 越界 → 422
@@ -416,6 +418,10 @@ async def test_calculate_china_dst_1988_gap_and_fallback_warned():
     _, body_fb, _ = await _post({**payload_gap, "birth_datetime": fb.isoformat()})
     assert body_fb["boundary_warning"] is not None
     assert "重复出现" in body_fb["boundary_warning"]
+    # T1 结构化码与 boundary_warning 文案一一对应:跳过段/回拨段各自出码
+    # (gap 用例含 + dst_transition 共存,此处断言精确有序列表)
+    assert body_gap["dst_flags"] == ["dst_nonexistent", "dst_transition"]
+    assert body_fb["dst_flags"] == ["dst_ambiguous", "dst_transition"]
 
 
 async def test_calculate_overseas_wall_time_in_birth_timezone():
@@ -557,3 +563,142 @@ async def test_error_response_envelope_structure():
         assert key in err
     assert err["code"] == "INVALID_INPUT"
     assert isinstance(err["message"], str) and err["message"]
+
+
+# ===== T1(2026-11-21 竞品差评对照):钟表时间对照柱 + dst_flags 结构化码 =====
+
+
+def _pillars_gan_zhi(body: dict) -> dict[str, str | None]:
+    """从响应取四柱干支(与 clock_time_pillars 同形状,便于比对)。"""
+    return {
+        pos: body["pillars"][pos]["gan_zhi"] if body["pillars"][pos] else None
+        for pos in ("year", "month", "day", "hour")
+    }
+
+
+async def test_clock_time_pillars_detroit_summer_hour_differs():
+    """底特律夏令时出生:钟表 10:00(巳时)→ 真太阳时 08:22(辰时),时柱不同。
+
+    用户拿不做校正的软件比对时对的就是钟表柱 —— 后端直接给出对照(T1)。
+    """
+    code, body, _ = await _post({
+        "birth_datetime": "1990-07-15T10:00:00",
+        "timezone": "America/Detroit",
+        "gender": "male",
+        "longitude": -83.05,
+    })
+    assert code == 200, body
+    clock = body["clock_time_pillars"]
+    assert clock is not None
+    main_pillars = _pillars_gan_zhi(body)
+    # 时柱必须不同(跨时辰);年/月/日不受影响
+    assert clock["hour"] != main_pillars["hour"]
+    assert clock["year"] == main_pillars["year"]
+    assert clock["month"] == main_pillars["month"]
+    assert clock["day"] == main_pillars["day"]
+    # 底特律 7 月非夏令时切换日,无 dst 边角
+    assert body["dst_flags"] == []
+
+
+async def test_clock_time_pillars_shanghai_all_same():
+    """上海出生(偏移小,不跨任何柱):四柱全相同 → iOS 不显示对照说明。"""
+    code, body, _ = await _post({
+        "birth_datetime": "2000-01-15T10:00:00",
+        "timezone": "Asia/Shanghai",
+        "gender": "male",
+        "longitude": 121.47,
+    })
+    assert code == 200, body
+    clock = body["clock_time_pillars"]
+    assert clock is not None
+    main_pillars = _pillars_gan_zhi(body)
+    for pos in ("year", "month", "day", "hour"):
+        assert clock[pos] == main_pillars[pos], pos
+
+
+async def test_clock_time_pillars_day_differs_without_date_change():
+    """钟表 23:30 → 真太阳时 22:48:日历日期没变,但 sect=1 下日柱不同。
+
+    这正是 boundary_crossed「日」(判日历日期)不能用来推日柱差异的证明
+    —— 对照柱必须独立排盘,不能从 boundary_warning 推导。
+    """
+    code, body, _ = await _post({
+        "birth_datetime": "1990-01-15T23:30:00",
+        "timezone": "America/Detroit",
+        "gender": "male",
+        "longitude": -83.05,
+    })
+    assert code == 200, body
+    clock = body["clock_time_pillars"]
+    assert clock is not None
+    main_pillars = _pillars_gan_zhi(body)
+    assert clock["day"] != main_pillars["day"]
+
+
+async def test_clock_time_pillars_none_when_hour_unknown():
+    """时辰未知 → 对照柱 None(占位时辰冒充钟面属假数据,不猜)。"""
+    code, body, _ = await _post({
+        "birth_datetime": "1990-03-15T14:30:00",
+        "timezone": "Asia/Shanghai",
+        "gender": "male",
+        "longitude": 116.4074,
+        "hour_known": False,
+        "late_night": False,
+    })
+    assert code == 200, body
+    assert body["clock_time_pillars"] is None
+    assert body["dst_flags"] == []
+
+
+async def test_dst_flags_nonexistent_spring_forward():
+    """夏令时跳过段(底特律 2024-03-10 02:30 不存在)→ dst_nonexistent 码。
+
+    跳过段必在切换点附近 → dst_transition 同时命中;精确断言有序列表,
+    锁死 _DST_FLAG_ORDER 稳定排序契约(frozenset 迭代序不保证,改回
+    直接迭代会在此红)。
+    """
+    code, body, _ = await _post({
+        "birth_datetime": "2024-03-10T02:30:00",
+        "timezone": "America/Detroit",
+        "gender": "male",
+        "longitude": -83.05,
+    })
+    assert code == 200, body
+    assert body["dst_flags"] == ["dst_nonexistent", "dst_transition"]
+
+
+async def test_clock_time_pillars_deterministic():
+    """确定性:同输入两次调用,对照柱与 dst_flags 完全相等。"""
+    payload = {
+        "birth_datetime": "1990-07-15T10:00:00",
+        "timezone": "America/Detroit",
+        "gender": "male",
+        "longitude": -83.05,
+    }
+    _, body_a, _ = await _post(payload)
+    _, body_b, _ = await _post(payload)
+    assert body_a["clock_time_pillars"] == body_b["clock_time_pillars"]
+    assert body_a["dst_flags"] == body_b["dst_flags"]
+
+
+def test_dst_flags_unknown_value_raises_loudly():
+    """引擎直调:dst_flags 出现未登记值 → 显式抛错(不静默丢出结构化字段)。
+
+    锁定 unknown-dst 守卫:删掉守卫回退到静默过滤时本用例必红
+    (dst_flags 是结构化契约,漏值 = 客户端本地化提示永远缺失)。
+    ValueError 在 calculate() try 内被包装为 BaziCalculationFailedError。
+    """
+    from zoneinfo import ZoneInfo
+
+    from app.errors import BaziCalculationFailedError
+
+    engine = bazi_engine.BaziEngine()
+    with pytest.raises(BaziCalculationFailedError, match="未知 dst_flags"):
+        engine.calculate(
+            birth=datetime(1990, 3, 15, 14, 30,
+                           tzinfo=ZoneInfo("Asia/Shanghai")),
+            gender="male",
+            longitude=116.4074,
+            zi_hour_rule="zi_next_day",
+            dst_flags=frozenset({"dst_bogus"}),
+        )

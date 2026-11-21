@@ -319,6 +319,15 @@ class BaziCalculateResponse(BaseModel):
 
     calc_rule_snapshot: CalcRuleSnapshot
     boundary_warning: str | None = None
+    # 2026-11-21 T1(竞品差评对照):不做真太阳时校正、直接按钟表时间排的
+    # 四柱干支(仅展示对照用,不参与 content_hash / 喜忌 / 任何判断)。
+    # 时辰未知或柱歧义 → None(占位时辰冒充钟面属假数据,不猜)。
+    # 新客户端据此渲染「不做这项换算的软件会显示不同的柱」;老客户端缺省无感
+    clock_time_pillars: dict[str, str] | None = None
+    # 夏令时边角结构化码(值域 dst_ambiguous / dst_nonexistent /
+    # dst_transition),供客户端本地化;与 boundary_warning 中的中文描述
+    # 一一对应。缺省空列表,老客户端无感
+    dst_flags: list[str] = Field(default_factory=list)
     # 2026-10-07 P0 收口:deep / payload(/v1 可用时有)三族 context_token,
     # interpret/translate 验签用(老客户端 decodeIfPresent 缺省 None → 403,
     # 重排盘即可重取,无孤儿化)
