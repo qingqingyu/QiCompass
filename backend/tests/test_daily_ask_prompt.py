@@ -45,8 +45,9 @@ def _daily_ask_context(**overrides) -> dict:
 
 
 class TestDailyAskRegistration:
-    def test_registered_with_version_1(self):
-        assert PROMPT_VERSIONS["daily_ask"] == 1
+    def test_registered_with_version_2(self):
+        # v2(2026-11-22 T8):一致性约束改窄(只锁盘面判断)+ 用户反驳不争辩条款
+        assert PROMPT_VERSIONS["daily_ask"] == 2
 
     def test_required_fields_shares_daily_fortune_list(self):
         # 同一 list 对象:盘面契约与 daily_fortune 永不分叉
@@ -92,6 +93,25 @@ class TestDailyAskRender:
         assert "今天适合去谈判吗" in rendered          # 问题注入
         assert "{user_question}" not in rendered        # 占位符全部填充
         assert "favorable_elements" not in rendered     # 模板不引用喜忌键名
+
+    @pytest.mark.parametrize("language,acknowledge_marker,scope_marker", [
+        ("zh", "不辩解", "不得推翻"),
+        ("zh-hant", "不辯解", "不得推翻"),
+        ("en", "don't defend the reading", "do not overturn"),
+    ])
+    def test_render_no_arguing_clause_present(self, language,
+                                                 acknowledge_marker,
+                                                 scope_marker):
+        """T8(2026-11-22)两处改动的渲染锚点:不争辩条款 + 一致性约束改窄。
+
+        行为条款只能源于模板文本——LLM 是否照办无法自动化验证,至少锁
+        「条款在场」:防未来 bump 版本时误从 v1 复制基底静默丢条款(版本锁
+        与 parity 测试均拦不住,同 test_render_unknown_hour_relaxed_set 的
+        锚点思路)。"""
+        rendered = render_prompt(
+            "daily_ask", _daily_ask_context(), language=language)
+        assert acknowledge_marker in rendered
+        assert scope_marker in rendered
 
     def test_render_unknown_hour_relaxed_set(self):
         # unknown_hour:S09 放宽的 3 个字段缺失,同一模板仍可渲染
