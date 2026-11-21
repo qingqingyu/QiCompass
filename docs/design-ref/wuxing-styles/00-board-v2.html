@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<title>今日页五行可视化 · 三方向 × 变体对比板</title>
+<style>
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#1a1a1e;font-family:-apple-system,"PingFang SC",sans-serif;padding:36px 24px 80px;}
+  h1{color:#eee;font-weight:600;font-size:20px;margin-bottom:6px;}
+  .sub{color:#999;font-size:13px;margin-bottom:10px;line-height:1.7;}
+  .dir-h{color:#fff;font-size:16px;margin:38px 0 4px;padding-bottom:8px;border-bottom:1px solid #3a3a40;}
+  .dir-sub{color:#888;font-size:12px;margin-bottom:18px;line-height:1.6;}
+  .row{display:flex;gap:24px;flex-wrap:wrap;align-items:flex-start;}
+  .item{width:390px;}
+  .meta{margin-bottom:12px;color:#aaa;font-size:12px;line-height:1.5;}
+  .meta b{color:#fff;display:block;margin-bottom:2px;font-size:13px;}
+  .frame{width:390px;height:760px;border-radius:22px;overflow:hidden;border:1px solid #333;
+         box-shadow:0 16px 44px rgba(0,0,0,.45);}
+  .frame iframe{width:390px;height:844px;border:none;transform:scale(.9);transform-origin:top left;background:#fff;}
+</style>
+</head>
+<body>
+<h1>今日页五行可视化 · 三方向 × 各三变体</h1>
+<p class="sub">数据统一：甲木身弱 · 喜水木忌火土 · 丙子日食神 · 水100 木78 金64 土52 火35 · 水↑喜 火↓忌 · 现在巳时</p>
+
+<div class="dir-h">方向 ① Co–Star 式暗黑极简</div>
+<p class="dir-sub">共同基因：纯黑底 / 白衬线 / 细线网格 / 一点红。变体差在「数据以什么形态出现」。</p>
+<div class="row">
+  <div class="item">
+    <div class="meta"><b>a · 细线条形版（初稿）</b>2px 横条 + 双栏网格，信息密度均衡</div>
+    <div class="frame"><iframe src="01-costar-dark-brutalist.html"></iframe></div>
+  </div>
+  <div class="item">
+    <div class="meta"><b>b · 红字陈述版</b>Co–Star 每日推送卡签名式：居中大干支 + 陈述句 + 红标喜用</div>
+    <div class="frame"><iframe src="01b-costar-red-statement.html"></iframe></div>
+  </div>
+  <div class="item">
+    <div class="meta"><b>c · 数字网格版</b>合盘页式：88px 巨型数字对比 100 vs 35，五行五格纯数字</div>
+    <div class="frame"><iframe src="01c-costar-number-grid.html"></iframe></div>
+  </div>
+  <div class="item">
+    <div class="meta"><b>d · 纯文字流版</b>运势 feed 式：几乎零图形，五行内嵌一行，时辰一句话竖排串</div>
+    <div class="frame"><iframe src="01d-costar-text-stream.html"></iframe></div>
+  </div>
+</div>
+
+<div class="dir-h">方向 ③ 柔彩显化系</div>
+<p class="dir-sub">共同基因：软渐变 / 大圆角卡 / 肯定语气 / 徽章化喜忌。变体差在五行力量的主 viz。</p>
+<div class="row">
+  <div class="item">
+    <div class="meta"><b>a · 能量条版（初稿）</b>渐变横条 + 喜/忌徽章，最稳</div>
+    <div class="frame"><iframe src="03-pastel-manifestation.html"></iframe></div>
+  </div>
+  <div class="item">
+    <div class="meta"><b>b · 圆环仪表版</b>五枚 conic-gradient 圆环，青绿薄荷色系，Calm 感</div>
+    <div class="frame"><iframe src="03b-pastel-rings.html"></iframe></div>
+  </div>
+  <div class="item">
+    <div class="meta"><b>c · 能量气泡版</b>气泡大小 ∝ 五行力量，漂浮在渐变网格上，最有「能量场」感</div>
+    <div class="frame"><iframe src="03c-pastel-orbs.html"></iframe></div>
+  </div>
+  <div class="item">
+    <div class="meta"><b>d · 横滑元素卡版</b>Me+ 习惯卡式横滑 deck + 时辰纵向时间轴</div>
+    <div class="frame"><iframe src="03d-pastel-swipe-cards.html"></iframe></div>
+  </div>
+</div>
+
+<div class="dir-h">方向 ④ 浅色编辑排版</div>
+<p class="dir-sub">共同基因：米白底 / 衬线 / 报刊留白 / 克制配色。变体差在「报刊的哪种版式」。</p>
+<div class="row">
+  <div class="item">
+    <div class="meta"><b>a · 编辑刻度版（初稿）</b>衬线大标题结论句 + 细刻度条 + 两栏时辰表</div>
+    <div class="frame"><iframe src="04-editorial-light.html"></iframe></div>
+  </div>
+  <div class="item">
+    <div class="meta"><b>b · 大字数字版</b>120px 巨型「100 水」开篇 + How We Feel 式五行色点行 + 时辰柱谱</div>
+    <div class="frame"><iframe src="04b-editorial-bignum.html"></iframe></div>
+  </div>
+  <div class="item">
+    <div class="meta"><b>c · 老历书账本版</b>双线报头 + 点线引导账目 + 十二时辰四栏表格，通书气质</div>
+    <div class="frame"><iframe src="04c-editorial-ledger.html"></iframe></div>
+  </div>
+  <div class="item">
+    <div class="meta"><b>d · 杂志封面版</b>The Daily Element 刊头 + 首字下沉 + 五行占比分段条 + 竖排点缀</div>
+    <div class="frame"><iframe src="04d-editorial-magazine.html"></iframe></div>
+  </div>
+</div>
+
+<p style="color:#777;font-size:12px;margin-top:44px;line-height:1.8;">
+  风格探索稿 · 不代表最终视觉方向（正轨仍是 DESIGN.md 水墨孤本体系）· waiguan 分支 · docs/design-ref/wuxing-styles/
+</p>
+</body>
+</html>

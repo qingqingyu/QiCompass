@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>①c · Co–Star 数字网格版（合盘页式大数字）</title>
+<style>
+  :root{ --bg:#000; --fg:#fff; --dim:#6e6e6e; --line:#222; --red:#e8512c; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#111;font-family:-apple-system,"Helvetica Neue","PingFang SC",sans-serif;
+       display:flex;justify-content:center;padding:40px 0;}
+  .phone{width:390px;background:var(--bg);color:var(--fg);min-height:844px;padding:0 0 60px;}
+  .label{font-size:10px;letter-spacing:.25em;color:var(--dim);text-transform:uppercase;}
+
+  .head{text-align:center;padding:26px 0 20px;border-bottom:1px solid var(--line);}
+  .head .date{font-family:Georgia,"Songti SC",serif;font-size:15px;letter-spacing:.15em;margin-top:8px;color:#bbb;}
+  .head .gz{font-family:Georgia,"Songti SC",serif;font-size:46px;letter-spacing:.1em;margin-top:10px;}
+
+  /* 主数字：水 100 满格独占 */
+  .hero{display:grid;grid-template-columns:1fr 1px 1fr;align-items:stretch;
+        border-bottom:1px solid var(--line);}
+  .hero>div{padding:30px 10px;text-align:center;}
+  .hero .vl{border-left:1px solid var(--line);}
+  .big-n{font-family:Georgia,serif;font-size:88px;line-height:1;font-variant-numeric:tabular-nums;}
+  .big-n.red{color:var(--red);}
+  .big-cap{font-size:10px;letter-spacing:.25em;color:var(--dim);margin-top:12px;text-transform:uppercase;}
+  .big-cap b{color:var(--fg);font-weight:400;letter-spacing:.1em;font-size:12px;display:block;margin-top:4px;}
+  .big-cap b.red{color:var(--red);}
+
+  /* 五行网格 5 格 */
+  .grid5{display:grid;grid-template-columns:repeat(5,1fr);}
+  .g5{padding:20px 4px 16px;text-align:center;border-right:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .g5:last-child{border-right:none;}
+  .g5 .e{font-family:Georgia,"Songti SC",serif;font-size:15px;color:#bbb;}
+  .g5 .n{font-family:Georgia,serif;font-size:30px;margin-top:8px;font-variant-numeric:tabular-nums;}
+  .g5.fav .e,.g5.fav .n{color:var(--red);}
+  .g5 .mk{font-size:8px;letter-spacing:.2em;color:#4a4a4a;margin-top:6px;text-transform:uppercase;}
+  .g5.fav .mk{color:#8a3a24;}
+
+  .sect{padding:20px 22px;border-bottom:1px solid var(--line);}
+  .sect .label{display:block;margin-bottom:14px;}
+
+  /* 信号：两行大字 */
+  .sig{display:flex;align-items:baseline;gap:14px;padding:12px 0;}
+  .sig .a{font-family:Georgia,serif;font-size:30px;width:34px;}
+  .sig.up .a{color:var(--red);}
+  .sig .w{font-family:Georgia,"Songti SC",serif;font-size:20px;}
+  .sig .d{font-size:11px;color:var(--dim);margin-left:auto;text-align:right;max-width:14ch;line-height:1.5;}
+
+  /* 时辰横排 12 格纯数据 */
+  .h12{display:grid;grid-template-columns:repeat(6,1fr);}
+  .hcell{padding:12px 0 10px;text-align:center;border-right:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .hcell:nth-child(6n){border-right:none;}
+  .hcell .z{font-family:Georgia,"Songti SC",serif;font-size:18px;}
+  .hcell .r{font-size:9px;color:var(--dim);letter-spacing:.05em;margin-top:4px;}
+  .hcell.now .z,.hcell.now .r{color:var(--red);}
+
+  .almanac{display:grid;grid-template-columns:1fr 1fr;}
+  .almanac>div{padding:18px 22px;}
+  .almanac>div:first-child{border-right:1px solid var(--line);}
+  .almanac li{list-style:none;font-family:Georgia,"Songti SC",serif;font-size:17px;padding:5px 0;}
+  .almanac .label{display:block;margin-bottom:10px;}
+
+  .close{display:flex;justify-content:space-between;padding:22px;font-family:Georgia,"Songti SC",serif;
+         font-size:14px;color:#bbb;letter-spacing:.05em;}
+  .close span:last-child{color:var(--dim);font-family:-apple-system,sans-serif;font-size:10px;letter-spacing:.2em;text-transform:uppercase;align-self:center;}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="head">
+    <div class="label">Today · 十月初十</div>
+    <div class="date">十一月十八 · 亥月</div>
+    <div class="gz">丙 子 日</div>
+  </div>
+
+  <div class="hero">
+    <div>
+      <div class="big-n red">100</div>
+      <div class="big-cap">Peak Element<b class="red">水 · 喜用当令</b></div>
+    </div>
+    <div class="vl"></div>
+    <div>
+      <div class="big-n" style="color:#bbb;">35</div>
+      <div class="big-cap">Lowest Element<b>火 · 忌神透干</b></div>
+    </div>
+  </div>
+
+  <div class="grid5">
+    <div class="g5 fav"><div class="e">水</div><div class="n">100</div><div class="mk">令</div></div>
+    <div class="g5 fav"><div class="e">木</div><div class="n">78</div><div class="mk">相</div></div>
+    <div class="g5"><div class="e">金</div><div class="n">64</div><div class="mk">&nbsp;</div></div>
+    <div class="g5"><div class="e">土</div><div class="n">52</div><div class="mk">&nbsp;</div></div>
+    <div class="g5"><div class="e">火</div><div class="n">35</div><div class="mk">忌</div></div>
+  </div>
+
+  <div class="sect">
+    <span class="label">Day Signal · 日主甲木身弱 · 喜水木 忌火土</span>
+    <div class="sig up"><span class="a">↑</span><span class="w">子水 · 正印</span><span class="d">喜用到位 护身</span></div>
+    <div class="sig"><span class="a" style="color:#6e6e6e;">↓</span><span class="w">丙火 · 食神</span><span class="d">忌神透干 泄身</span></div>
+  </div>
+
+  <div style="padding:20px 22px 14px;"><span class="label">Twelve Hours · 现在巳时</span></div>
+  <div class="h12">
+    <div class="hcell"><div class="z">子</div><div class="r">比肩</div></div>
+    <div class="hcell"><div class="z">丑</div><div class="r">劫财</div></div>
+    <div class="hcell"><div class="z">寅</div><div class="r">食神</div></div>
+    <div class="hcell"><div class="z">卯</div><div class="r">伤官</div></div>
+    <div class="hcell"><div class="z">辰</div><div class="r">偏财</div></div>
+    <div class="hcell now"><div class="z">巳</div><div class="r">正财</div></div>
+    <div class="hcell"><div class="z">午</div><div class="r">七杀</div></div>
+    <div class="hcell"><div class="z">未</div><div class="r">正官</div></div>
+    <div class="hcell"><div class="z">申</div><div class="r">偏印</div></div>
+    <div class="hcell"><div class="z">酉</div><div class="r">正印</div></div>
+    <div class="hcell"><div class="z">戌</div><div class="r">比肩</div></div>
+    <div class="hcell"><div class="z">亥</div><div class="r">劫财</div></div>
+  </div>
+
+  <div class="almanac">
+    <div><span class="label">宜</span><ul><li>会友</li><li>沐浴</li><li>立券</li></ul></div>
+    <div><span class="label">忌</span><ul><li>开市</li><li>动土</li><li>远行</li></ul></div>
+  </div>
+
+  <div class="close"><span>水当令而木相，沉静中自有生发。</span><span>Tomorrow · 丁丑 伤官 冲未</span></div>
+
+</div>
+</body>
+</html>

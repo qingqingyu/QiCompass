@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>③b · 柔彩显化 · 圆环仪表版</title>
+<style>
+  :root{ --ink:#4a3f6b; --sub:#9b8fc0; --card:#fff; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#eef2ea;font-family:-apple-system,"PingFang SC",sans-serif;
+       display:flex;justify-content:center;padding:40px 0;}
+  .phone{width:390px;min-height:844px;padding:22px 18px 60px;color:var(--ink);
+    background:linear-gradient(168deg,#f2f7ee 0%,#eef4f6 50%,#f6f0f4 100%);}
+  .card{background:var(--card);border-radius:28px;box-shadow:0 12px 34px rgba(90,120,90,.10);padding:20px;margin-bottom:16px;}
+
+  .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;}
+  .top .hi{font-size:20px;font-weight:700;}
+  .chip{font-size:11px;color:#7da883;background:#e9f3e9;border-radius:20px;padding:6px 12px;font-weight:600;}
+
+  /* hero：今日能量一句话 */
+  .hero{padding:24px 20px;text-align:center;background:linear-gradient(165deg,#ffffff,#f0f7ee);}
+  .hero .day{font-size:12px;color:#7da883;font-weight:700;letter-spacing:.05em;}
+  .hero .gz{font-size:44px;font-weight:800;margin-top:6px;
+    background:linear-gradient(120deg,#6fae74,#5a9f9c);-webkit-background-clip:text;background-clip:text;color:transparent;}
+  .hero .rel{display:inline-block;font-size:12px;background:#e9f3e9;color:#4f7d54;border-radius:20px;padding:5px 14px;font-weight:600;margin-top:8px;}
+  .hero .mantra{font-size:13px;color:#7a8a78;margin-top:12px;line-height:1.8;}
+
+  /* 五圆环 */
+  .rings{display:flex;justify-content:space-between;padding:6px 2px 2px;}
+  .ring{width:62px;text-align:center;}
+  .ring .circ{width:62px;height:62px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    font-size:17px;font-weight:800;color:#fff;position:relative;}
+  .ring .circ .hole{position:absolute;inset:7px;background:#fff;border-radius:50%;}
+  .ring .circ .ch{position:relative;font-size:16px;}
+  .ring .v{font-size:11px;font-weight:700;color:var(--ink);margin-top:7px;font-variant-numeric:tabular-nums;}
+  .ring .s{font-size:9px;color:var(--sub);margin-top:1px;}
+  .ring.fav .v{color:#4f7d54;}
+  .ring.fav .s{color:#7da883;font-weight:700;}
+
+  .rings-cap{text-align:center;font-size:11px;color:#9aa89a;margin-top:12px;}
+
+  /* 信号 */
+  .duo{display:flex;gap:12px;}
+  .duo .card{flex:1;margin-bottom:0;text-align:center;padding:18px 12px;}
+  .duo .ic{width:46px;height:46px;border-radius:16px;margin:0 auto;display:flex;align-items:center;justify-content:center;font-size:20px;font-weight:800;color:#fff;}
+  .duo .t{font-size:13px;font-weight:700;margin-top:10px;}
+  .duo .ar{font-size:12px;font-weight:800;margin-top:3px;}
+  .up{color:#4f7d54;} .down{color:#d17878;}
+  .duo .d{font-size:11px;color:var(--sub);margin-top:6px;line-height:1.6;}
+
+  /* 时辰 竖列双排软块 */
+  .hgrid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;}
+  .hb{border-radius:16px;padding:10px 0;text-align:center;background:#f4f7f3;}
+  .hb .z{font-size:15px;font-weight:700;}
+  .hb .r{font-size:9px;color:var(--sub);margin-top:2px;}
+  .hb.now{background:linear-gradient(150deg,#8fbe93,#5a9f9c);color:#fff;box-shadow:0 8px 18px rgba(110,150,110,.35);}
+  .hb.now .r{color:rgba(255,255,255,.85);}
+
+  /* 黄历+明日 合一卡 */
+  .yjrow{display:flex;gap:12px;}
+  .yjrow .side{flex:1;text-align:center;}
+  .yjrow .side+.side{border-left:1px dashed #dfe8de;}
+  .yjrow .h{width:32px;height:32px;border-radius:50%;margin:0 auto 6px;display:flex;align-items:center;justify-content:center;
+    font-size:13px;font-weight:800;color:#fff;}
+  .yjrow li{list-style:none;font-size:12px;font-weight:600;color:#67755f;padding:2px 0;}
+  .tmr{margin-top:14px;padding-top:12px;border-top:1px dashed #dfe8de;font-size:11px;color:var(--sub);text-align:center;}
+  .tmr b{color:#5a9f9c;}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="top">
+    <div class="hi">早安 ☀️ 甲木人</div>
+    <div class="chip">11.18 · 十月初十</div>
+  </div>
+
+  <div class="card hero">
+    <div class="day">丙子日 · 食神主事</div>
+    <div class="gz">水能量满格</div>
+    <div class="rel">喜用当令 · 上上信号</div>
+    <p class="mantra">今天流日把最需要的<b>水</b>送满 100%<br>直觉和专注都在线，去做重要的事吧</p>
+  </div>
+
+  <div class="card">
+    <div style="font-size:15px;font-weight:800;margin-bottom:14px;">🌊 今日五行能量环</div>
+    <div class="rings">
+      <div class="ring fav">
+        <div class="circ" style="background:conic-gradient(#5a9fd4 0 100%,#e8eef2 0)">
+          <div class="hole"></div><span class="ch" style="color:#5a9fd4">水</span></div>
+        <div class="v">100</div><div class="s">喜·令</div>
+      </div>
+      <div class="ring fav">
+        <div class="circ" style="background:conic-gradient(#7cba80 0 78%,#e8eef2 0)">
+          <div class="hole"></div><span class="ch" style="color:#7cba80">木</span></div>
+        <div class="v">78</div><div class="s">喜·相</div>
+      </div>
+      <div class="ring">
+        <div class="circ" style="background:conic-gradient(#9aabc4 0 64%,#e8eef2 0)">
+          <div class="hole"></div><span class="ch" style="color:#9aabc4">金</span></div>
+        <div class="v">64</div><div class="s">&nbsp;</div>
+      </div>
+      <div class="ring">
+        <div class="circ" style="background:conic-gradient(#cdb089 0 52%,#e8eef2 0)">
+          <div class="hole"></div><span class="ch" style="color:#cdb089">土</span></div>
+        <div class="v">52</div><div class="s">忌</div>
+      </div>
+      <div class="ring">
+        <div class="circ" style="background:conic-gradient(#e8a184 0 35%,#e8eef2 0)">
+          <div class="hole"></div><span class="ch" style="color:#e8a184">火</span></div>
+        <div class="v">35</div><div class="s">忌</div>
+      </div>
+    </div>
+    <div class="rings-cap">环越满 = 今日该五行越活跃 · 绿标是你的喜用 ✨</div>
+  </div>
+
+  <div class="duo" style="margin-bottom:16px;">
+    <div class="card">
+      <div class="ic" style="background:linear-gradient(140deg,#8fc3ea,#5a9fd4)">水</div>
+      <div class="t">子水 · 正印护身</div>
+      <div class="ar up">↑ 能量加持</div>
+      <div class="d">适合学习复盘<br>给自己留白</div>
+    </div>
+    <div class="card">
+      <div class="ic" style="background:linear-gradient(140deg,#ffc2a8,#e88a68)">火</div>
+      <div class="t">丙火 · 食神泄秀</div>
+      <div class="ar down">↓ 能量消耗</div>
+      <div class="d">表达欲旺但易累<br>别答应太多</div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="font-size:15px;font-weight:800;margin-bottom:14px;">⏳ 十二时辰能量</div>
+    <div class="hgrid">
+      <div class="hb"><div class="z">子</div><div class="r">比肩</div></div>
+      <div class="hb"><div class="z">丑</div><div class="r">劫财</div></div>
+      <div class="hb"><div class="z">寅</div><div class="r">食神</div></div>
+      <div class="hb"><div class="z">卯</div><div class="r">伤官</div></div>
+      <div class="hb"><div class="z">辰</div><div class="r">偏财</div></div>
+      <div class="hb now"><div class="z">巳</div><div class="r">正财</div></div>
+      <div class="hb"><div class="z">午</div><div class="r">七杀</div></div>
+      <div class="hb"><div class="z">未</div><div class="r">正官</div></div>
+      <div class="hb"><div class="z">申</div><div class="r">偏印</div></div>
+      <div class="hb"><div class="z">酉</div><div class="r">正印</div></div>
+      <div class="hb"><div class="z">戌</div><div class="r">比肩</div></div>
+      <div class="hb"><div class="z">亥</div><div class="r">劫财</div></div>
+    </div>
+  </div>
+
+  <div class="card" style="margin-bottom:0;">
+    <div class="yjrow">
+      <div class="side">
+        <div class="h" style="background:linear-gradient(140deg,#8fbe93,#5f9d67)">宜</div>
+        <ul><li>会友</li><li>沐浴</li><li>立券</li></ul>
+      </div>
+      <div class="side">
+        <div class="h" style="background:linear-gradient(140deg,#f0a49b,#d97368)">忌</div>
+        <ul><li>开市</li><li>动土</li><li>远行</li></ul>
+      </div>
+    </div>
+    <div class="tmr">明天 <b>丁丑日 · 伤官 · 冲未</b> —— 今晚适合早点休息 🌙</div>
+  </div>
+
+</div>
+</body>
+</html>

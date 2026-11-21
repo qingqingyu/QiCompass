@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>组合 C · 不对称跨页（左数字右气泡）</title>
+<style>
+  :root{
+    --paper:#faf8f2; --ink:#23211c; --sub:#8b857a; --line:#e6e0d3;
+    --water:#5a8db8; --wood:#5c8a5e; --earth:#b08d55; --metal:#7f8ea3; --fire:#c96f4a;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#e9e5dc;font-family:-apple-system,"PingFang SC",sans-serif;
+       display:flex;justify-content:center;padding:40px 0;}
+  .phone{width:390px;min-height:844px;background:var(--paper);color:var(--ink);padding:0 0 60px;}
+
+  /* 刊头通栏 */
+  .masthead{display:flex;justify-content:space-between;align-items:baseline;
+            padding:26px 26px 12px;border-bottom:1px solid var(--ink);}
+  .masthead .l{font-family:Georgia,"Songti SC",serif;font-size:16px;letter-spacing:.1em;}
+  .masthead .r{font-size:9px;color:var(--sub);letter-spacing:.25em;text-transform:uppercase;}
+
+  /* 跨页：左列数字叙事 / 右列气泡 */
+  .spread{display:grid;grid-template-columns:158px 1fr;min-height:430px;}
+  .col-num{border-right:1px solid var(--line);padding:26px 18px 20px 26px;display:flex;flex-direction:column;}
+  .col-field{position:relative;}
+
+  /* 左列：纵向对比叙事 */
+  .k{font-size:9px;letter-spacing:.25em;color:var(--sub);text-transform:uppercase;}
+  .big{margin-top:10px;}
+  .big .n{font-family:Georgia,serif;font-size:74px;line-height:.9;font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+  .big .z{font-family:Georgia,"Songti SC",serif;font-size:20px;margin-top:4px;}
+  .big.hi .n,.big.hi .z{color:var(--water);}
+  .big.lo .n,.big.lo .z{color:var(--fire);opacity:.9;}
+  .big .c{font-size:9px;color:var(--sub);letter-spacing:.1em;margin-top:5px;line-height:1.6;}
+  .vs-rule{display:flex;align-items:center;gap:8px;margin:20px 0;}
+  .vs-rule::before{content:"";width:14px;height:1px;background:#c9c2b2;}
+  .vs-rule span{font-size:8px;letter-spacing:.3em;color:var(--sub);text-transform:uppercase;}
+  .gap-note{margin-top:auto;padding-top:16px;border-top:1px solid var(--line);
+            font-family:Georgia,"Songti SC",serif;font-size:12px;line-height:1.9;color:#494539;}
+  .gap-note b{font-weight:400;border-bottom:1px solid var(--water);}
+
+  /* 右列：气泡群（贴着分割线，溢出更自然） */
+  .b{position:absolute;border-radius:50%;}
+  .b .zl{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;}
+  .b .z{font-family:Georgia,"Songti SC",serif;}
+  .b .v{font-family:Georgia,serif;font-variant-numeric:tabular-nums;margin-top:1px;}
+  .b .tag{position:absolute;left:50%;transform:translateX(-50%);white-space:nowrap;
+          font-size:8px;letter-spacing:.18em;color:var(--sub);}
+  .b .tag b{font-weight:600;color:var(--ink);}
+
+  /* 正文通栏 */
+  .body{padding:24px 26px 0;border-top:1px solid var(--line);}
+  .lead{font-family:Georgia,"Songti SC",serif;font-size:19px;line-height:1.75;}
+  .lead em{font-style:normal;color:var(--water);}
+  .lead em.lo{color:var(--fire);}
+
+  .sigs{display:flex;gap:20px;margin-top:20px;}
+  .sig{flex:1;border-left:2px solid var(--water);padding-left:12px;}
+  .sig.lo{border-color:var(--fire);}
+  .sig .h{font-family:Georgia,"Songti SC",serif;font-size:15px;}
+  .sig p{font-size:11px;line-height:1.75;color:#57524a;margin-top:5px;}
+
+  /* 时辰单行谱 */
+  .hours-line{margin-top:24px;padding:14px 0;border-top:1px solid var(--ink);border-bottom:1px solid var(--ink);
+    display:flex;justify-content:space-between;font-family:Georgia,"Songti SC",serif;font-size:12px;color:#6a655a;}
+  .hours-line b{font-weight:400;color:var(--ink);}
+  .hours-line .now{color:#6d5a2e;font-weight:600;}
+
+  .bottom{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;padding:20px 26px 0;}
+  .bt .k{font-family:Georgia,"Songti SC",serif;font-size:13px;border-bottom:1px solid var(--line);padding-bottom:4px;}
+  .bt ul{list-style:none;margin-top:6px;}
+  .bt li{font-size:10px;color:#494539;padding:2px 0;letter-spacing:.05em;}
+  .bt .tmr{font-size:9px;color:var(--sub);line-height:1.7;margin-top:6px;}
+  .bt .tmr b{font-family:Georgia,"Songti SC",serif;color:var(--ink);font-weight:400;font-size:12px;}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="masthead"><span class="l">每日五行簿 · 丙子日</span><span class="r">11.18 · 十月初十</span></div>
+
+  <div class="spread">
+    <!-- 左：数字对比叙事 -->
+    <div class="col-num">
+      <span class="k">今日五行力量</span>
+      <div class="big hi">
+        <div class="n">100</div>
+        <div class="z">水</div>
+        <div class="c">当令 · 喜用<br>子水正印入命</div>
+      </div>
+      <div class="vs-rule"><span>vs</span></div>
+      <div class="big lo">
+        <div class="n">35</div>
+        <div class="z">火</div>
+        <div class="c">忌神透干<br>丙火食神泄身</div>
+      </div>
+      <p class="gap-note">峰值与谷值之间，是今天全部的<b>格局</b>——顺水而行，避火而息。</p>
+    </div>
+
+    <!-- 右：气泡群 -->
+    <div class="col-field">
+      <!-- 水 100 -->
+      <div class="b" style="left:96px;top:20px;width:136px;height:136px;
+           background:radial-gradient(circle at 34% 30%, rgba(90,141,184,.29), rgba(90,141,184,.14) 60%, rgba(90,141,184,.05));
+           border:1px solid rgba(90,141,184,.48);box-shadow:0 14px 30px rgba(90,141,184,.17);">
+        <div class="zl"><span class="z" style="font-size:24px;color:var(--water)">水</span>
+          <span class="v" style="font-size:13px;color:var(--water)">100</span></div>
+        <span class="tag" style="bottom:-18px;"><b>喜</b> · 令</span>
+      </div>
+      <!-- 木 78 -->
+      <div class="b" style="left:12px;top:76px;width:106px;height:106px;
+           background:radial-gradient(circle at 34% 30%, rgba(92,138,94,.26), rgba(92,138,94,.12) 60%, rgba(92,138,94,.05));
+           border:1px solid rgba(92,138,94,.44);box-shadow:0 12px 26px rgba(92,138,94,.15);">
+        <div class="zl"><span class="z" style="font-size:20px;color:var(--wood)">木</span>
+          <span class="v" style="font-size:11px;color:var(--wood)">78</span></div>
+        <span class="tag" style="bottom:-16px;"><b>喜</b> · 相</span>
+      </div>
+      <!-- 金 64 -->
+      <div class="b" style="left:150px;top:166px;width:88px;height:88px;
+           background:radial-gradient(circle at 34% 30%, rgba(127,142,163,.24), rgba(127,142,163,.11) 60%, rgba(127,142,163,.05));
+           border:1px solid rgba(127,142,163,.42);box-shadow:0 10px 22px rgba(127,142,163,.13);">
+        <div class="zl"><span class="z" style="font-size:17px;color:var(--metal)">金</span>
+          <span class="v" style="font-size:10px;color:var(--metal)">64</span></div>
+      </div>
+      <!-- 土 52 -->
+      <div class="b" style="left:34px;top:206px;width:72px;height:72px;
+           background:radial-gradient(circle at 34% 30%, rgba(176,141,85,.22), rgba(176,141,85,.10) 60%, rgba(176,141,85,.05));
+           border:1px solid rgba(176,141,85,.42);box-shadow:0 9px 20px rgba(176,141,85,.12);">
+        <div class="zl"><span class="z" style="font-size:15px;color:var(--earth)">土</span>
+          <span class="v" style="font-size:9px;color:var(--earth)">52</span></div>
+        <span class="tag" style="bottom:-14px;">忌</span>
+      </div>
+      <!-- 火 35 -->
+      <div class="b" style="left:158px;top:266px;width:58px;height:58px;
+           background:radial-gradient(circle at 34% 30%, rgba(201,111,74,.23), rgba(201,111,74,.10) 60%, rgba(201,111,74,.05));
+           border:1px solid rgba(201,111,74,.44);box-shadow:0 8px 18px rgba(201,111,74,.12);">
+        <div class="zl"><span class="z" style="font-size:12px;color:var(--fire)">火</span>
+          <span class="v" style="font-size:8px;color:var(--fire)">35</span></div>
+        <span class="tag" style="bottom:-13px;">忌</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- 正文 -->
+  <div class="body">
+    <p class="lead">亥月水令，流日再见子水，<em>喜用满盈</em>；丙火虽透，<em class="lo">泄而不烈</em>。甲木身弱之命，今天宜静中谋动。</p>
+    <div class="sigs">
+      <div class="sig">
+        <div class="h">↑ 子水 · 正印</div>
+        <p>直觉在线，重要的事放今天。</p>
+      </div>
+      <div class="sig lo">
+        <div class="h">↓ 丙火 · 食神</div>
+        <p>精力折损快，日程留白。</p>
+      </div>
+    </div>
+
+    <div class="hours-line">
+      <span>子 同</span><span>丑 劫</span><span>寅 食</span><span>卯 伤</span><span>辰 财</span>
+      <b class="now">巳 财 ◂</b><span>午 杀</span><span>未 官</span><span>申 印</span><span>酉 印</span>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <div class="bt"><div class="k">宜</div><ul><li>会友</li><li>沐浴</li><li>立券</li></ul></div>
+    <div class="bt"><div class="k">忌</div><ul><li>开市</li><li>动土</li><li>远行</li></ul></div>
+    <div class="bt"><div class="k">明日</div><p class="tmr"><b>丁丑</b><br>伤官 · 冲未</p></div>
+  </div>
+
+</div>
+</body>
+</html>

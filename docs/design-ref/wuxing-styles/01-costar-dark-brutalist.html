@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方向一 · Co–Star 式暗黑极简</title>
+<style>
+  :root{
+    --bg:#000; --fg:#fff; --dim:#8a8a8a; --line:#2a2a2a; --accent:#e8512c;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#111;font-family:-apple-system,"Helvetica Neue","PingFang SC",sans-serif;
+       display:flex;justify-content:center;padding:40px 0;}
+  .phone{width:390px;background:var(--bg);color:var(--fg);min-height:844px;padding:24px 22px 60px;}
+  .label{font-size:10px;letter-spacing:.22em;text-transform:uppercase;color:var(--dim);}
+  .hair{border-top:1px solid var(--line);margin:18px 0;}
+  .date{display:flex;justify-content:space-between;align-items:baseline;}
+  .date h1{font-family:Georgia,"Songti SC",serif;font-weight:400;font-size:34px;letter-spacing:.02em;}
+  .grid{display:grid;grid-template-columns:1fr 1fr;border-top:1px solid var(--line);}
+  .grid>div{padding:14px 0;border-bottom:1px solid var(--line);}
+  .grid>div:nth-child(odd){padding-right:16px;}
+  .grid>div:nth-child(even){padding-left:16px;border-left:1px solid var(--line);}
+  .k{font-size:10px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;margin-bottom:6px;}
+  .v{font-family:Georgia,"Songti SC",serif;font-size:20px;}
+  .v small{font-size:12px;color:var(--dim);margin-left:6px;font-family:-apple-system,sans-serif;}
+  /* 五行力量 —— 横向文字条，无图形 */
+  .bars{margin-top:4px;}
+  .bar-row{display:grid;grid-template-columns:28px 1fr 34px;gap:10px;align-items:center;
+           padding:9px 0;border-bottom:1px solid var(--line);}
+  .bar-row .e{font-family:Georgia,"Songti SC",serif;font-size:17px;}
+  .track{height:2px;background:var(--line);position:relative;}
+  .fill{position:absolute;left:0;top:0;bottom:0;background:var(--fg);}
+  .fill.fav{background:var(--accent);}
+  .num{font-size:11px;color:var(--dim);font-variant-numeric:tabular-nums;text-align:right;}
+  /* 今日信号 */
+  .signal{display:flex;gap:12px;margin-top:14px;}
+  .sig{flex:1;border:1px solid var(--line);padding:14px;}
+  .sig .arrow{font-family:Georgia,serif;font-size:26px;line-height:1;}
+  .sig.up .arrow{color:var(--accent);}
+  .sig p{font-size:11px;color:var(--dim);margin-top:8px;line-height:1.5;}
+  .sig .who{font-size:12px;margin-top:2px;}
+  /* 十二时辰 */
+  .hours{display:grid;grid-template-columns:repeat(4,1fr);}
+  .hr{padding:10px 0;border-bottom:1px solid var(--line);border-right:1px solid var(--line);}
+  .hr:nth-child(4n){border-right:none;}
+  .hr .h{font-family:Georgia,"Songti SC",serif;font-size:16px;}
+  .hr .r{font-size:9px;color:var(--dim);letter-spacing:.08em;margin-top:3px;}
+  .hr.now{color:var(--accent);}
+  .hr.now .r{color:var(--accent);}
+  /* 黄历 */
+  .almanac{display:flex;gap:0;border:1px solid var(--line);}
+  .almanac>div{flex:1;padding:14px;}
+  .almanac>div:first-child{border-right:1px solid var(--line);}
+  .almanac li{list-style:none;font-size:13px;padding:3px 0;color:#cfcfcf;}
+  .note{font-family:Georgia,"Songti SC",serif;font-size:16px;line-height:1.7;margin-top:4px;}
+  .tmr{font-size:12px;color:var(--dim);letter-spacing:.05em;}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="date">
+    <div>
+      <div class="label">TODAY · 十月初十</div>
+      <h1>十一月十八</h1>
+    </div>
+    <div style="text-align:right;">
+      <div class="label">DAY PILLAR</div>
+      <div class="v" style="font-size:26px;">丙子<small>食神</small></div>
+    </div>
+  </div>
+
+  <div class="hair"></div>
+
+  <div class="grid">
+    <div><div class="k">Day Master</div><div class="v">甲木<small>身弱</small></div></div>
+    <div><div class="k">Favorable</div><div class="v">水 · 木</div></div>
+    <div><div class="k">Unfavorable</div><div class="v">火 · 土</div></div>
+    <div><div class="k">Season</div><div class="v">亥月<small>水当令</small></div></div>
+  </div>
+
+  <div class="hair"></div>
+  <div class="label">Elemental Force · 五行力量</div>
+  <div class="bars">
+    <div class="bar-row"><span class="e">水</span><div class="track"><div class="fill fav" style="width:100%"></div></div><span class="num">100</span></div>
+    <div class="bar-row"><span class="e">木</span><div class="track"><div class="fill fav" style="width:78%"></div></div><span class="num">78</span></div>
+    <div class="bar-row"><span class="e">金</span><div class="track"><div class="fill" style="width:64%"></div></div><span class="num">64</span></div>
+    <div class="bar-row"><span class="e">土</span><div class="track"><div class="fill" style="width:52%"></div></div><span class="num">52</span></div>
+    <div class="bar-row"><span class="e">火</span><div class="track"><div class="fill" style="width:35%"></div></div><span class="num">35</span></div>
+  </div>
+
+  <div class="signal">
+    <div class="sig up">
+      <div class="arrow">↑</div>
+      <div class="who">子水 · 喜用到位</div>
+      <p>流日地支带来喜用之水，正印护身，思绪清明。</p>
+    </div>
+    <div class="sig">
+      <div class="arrow">↓</div>
+      <div class="who">丙火 · 忌神透出</div>
+      <p>流日天干火为忌，食神泄身，精力易散。</p>
+    </div>
+  </div>
+
+  <div class="hair"></div>
+  <div class="label">Twelve Hours · 十二时辰</div>
+  <div class="hours" style="margin-top:6px;">
+    <div class="hr"><div class="h">子</div><div class="r">23–01 比肩</div></div>
+    <div class="hr"><div class="h">丑</div><div class="r">01–03 劫财</div></div>
+    <div class="hr"><div class="h">寅</div><div class="r">03–05 食神</div></div>
+    <div class="hr"><div class="h">卯</div><div class="r">05–07 伤官</div></div>
+    <div class="hr"><div class="h">辰</div><div class="r">07–09 偏财</div></div>
+    <div class="hr now"><div class="h">巳</div><div class="r">09–11 正财</div></div>
+    <div class="hr"><div class="h">午</div><div class="r">11–13 七杀</div></div>
+    <div class="hr"><div class="h">未</div><div class="r">13–15 正官</div></div>
+    <div class="hr"><div class="h">申</div><div class="r">15–17 偏印</div></div>
+    <div class="hr"><div class="h">酉</div><div class="r">17–19 正印</div></div>
+    <div class="hr"><div class="h">戌</div><div class="r">19–21 比肩</div></div>
+    <div class="hr"><div class="h">亥</div><div class="r">21–23 劫财</div></div>
+  </div>
+
+  <div class="hair"></div>
+  <div class="almanac">
+    <div><div class="k">宜</div><ul><li>会友</li><li>沐浴</li><li>立券</li></ul></div>
+    <div><div class="k">忌</div><ul><li>开市</li><li>动土</li><li>远行</li></ul></div>
+  </div>
+
+  <div class="hair"></div>
+  <p class="note">水当令而木相，沉静之中自有生发。今日宜收不宜散。</p>
+  <p class="tmr" style="margin-top:14px;">TOMORROW — 丁丑 · 伤官 · 冲未</p>
+
+</div>
+</body>
+</html>

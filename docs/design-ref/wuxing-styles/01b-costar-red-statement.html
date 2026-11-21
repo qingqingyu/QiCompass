@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>①b · Co–Star 红字陈述版（每日推送卡式）</title>
+<style>
+  :root{ --bg:#000; --fg:#fff; --dim:#777; --line:#222; --red:#e8512c; }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#111;font-family:-apple-system,"Helvetica Neue","PingFang SC",sans-serif;
+       display:flex;justify-content:center;padding:40px 0;}
+  .phone{width:390px;background:var(--bg);color:var(--fg);min-height:844px;padding:0 0 60px;}
+
+  /* 顶部细条 */
+  .bar{display:flex;justify-content:space-between;padding:18px 22px 14px;
+       font-size:10px;letter-spacing:.2em;color:var(--dim);text-transform:uppercase;
+       border-bottom:1px solid var(--line);}
+
+  /* 居中大陈述 —— Co–Star 每日卡签名式 */
+  .statement{text-align:center;padding:56px 30px 48px;}
+  .statement .pillars{font-family:Georgia,"Songti SC",serif;font-size:64px;letter-spacing:.08em;line-height:1;}
+  .statement .rel{display:inline-block;margin-top:18px;color:var(--red);
+       font-size:11px;letter-spacing:.3em;border:1px solid var(--red);padding:6px 14px;}
+  .statement h2{font-family:Georgia,"Songti SC",serif;font-weight:400;font-size:21px;
+       line-height:1.75;margin-top:34px;}
+  .statement h2 em{font-style:normal;color:var(--red);}
+
+  .rule{height:1px;background:var(--line);margin:0 22px;}
+
+  /* 五行：左字右数字，红=喜用 */
+  .sec{padding:22px;}
+  .sec .t{font-size:10px;letter-spacing:.25em;color:var(--dim);text-transform:uppercase;margin-bottom:14px;}
+  .els{display:flex;flex-direction:column;}
+  .el{display:flex;align-items:baseline;justify-content:space-between;
+      padding:11px 0;border-bottom:1px solid var(--line);}
+  .el:last-child{border-bottom:none;}
+  .el .name{font-family:Georgia,"Songti SC",serif;font-size:22px;}
+  .el .name small{font-size:10px;color:var(--dim);letter-spacing:.15em;margin-left:10px;font-family:-apple-system,sans-serif;}
+  .el .n{font-family:Georgia,serif;font-size:26px;font-variant-numeric:tabular-nums;color:var(--fg);}
+  .el.fav .name,.el.fav .n{color:var(--red);}
+  .el.fav .name small{color:#8a3a24;}
+
+  /* 信号：引用块 */
+  .quotes{display:flex;flex-direction:column;gap:22px;}
+  .q .mark{color:var(--red);font-family:Georgia,serif;font-size:28px;line-height:0;}
+  .q p{font-family:Georgia,"Songti SC",serif;font-size:16px;line-height:1.8;margin-top:12px;}
+  .q .tag{font-size:10px;letter-spacing:.25em;color:var(--dim);margin-top:8px;text-transform:uppercase;}
+  .q .tag b{color:var(--red);font-weight:400;}
+
+  /* 时辰：单列十二行，红点标当前 */
+  .hrs{columns:2;column-gap:26px;}
+  .h{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid var(--line);break-inside:avoid;}
+  .h .z{font-family:Georgia,"Songti SC",serif;font-size:16px;width:20px;}
+  .h .r{font-size:10px;color:var(--dim);letter-spacing:.08em;flex:1;}
+  .h .tr{font-size:9px;color:#555;font-variant-numeric:tabular-nums;}
+  .h .dot{width:5px;height:5px;border-radius:50%;background:transparent;flex:none;}
+  .h.now .dot{background:var(--red);box-shadow:0 0 8px var(--red);}
+  .h.now .z,.h.now .r{color:var(--red);}
+
+  .foot{display:flex;justify-content:space-between;padding:20px 22px 0;
+        font-size:10px;letter-spacing:.15em;color:var(--dim);}
+  .yj{display:flex;gap:24px;}
+  .yj .k{color:var(--fg);}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="bar"><span>QiCompass</span><span>十一月十八 · 十月初十</span></div>
+
+  <div class="statement">
+    <div class="pillars">丙子</div>
+    <div class="rel">食 神</div>
+    <h2>水当令，木得相。<br>今天世界朝你的<em>喜用</em>倾斜，<br>别浪费这份清明。</h2>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="sec">
+    <div class="t">五行力量 · Favorable in red</div>
+    <div class="els">
+      <div class="el fav"><span class="name">水<small>当令 · 喜用</small></span><span class="n">100</span></div>
+      <div class="el fav"><span class="name">木<small>相 · 喜用</small></span><span class="n">78</span></div>
+      <div class="el"><span class="name">金</span><span class="n">64</span></div>
+      <div class="el"><span class="name">土</span><span class="n">52</span></div>
+      <div class="el"><span class="name">火<small>忌神</small></span><span class="n">35</span></div>
+    </div>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="sec">
+    <div class="t">今日信号</div>
+    <div class="quotes">
+      <div class="q">
+        <span class="mark">“</span>
+        <p>子水入命。正印护身，直觉在线，适合把重要决定留到今天。</p>
+        <div class="tag"><b>↑ 子水</b> — 喜用到位</div>
+      </div>
+      <div class="q">
+        <span class="mark">”</span>
+        <p>丙火透干。食神泄身，表达欲旺盛但精力折损，少逞强。</p>
+        <div class="tag"><b style="color:#8a3a24;">↓ 丙火</b> — 忌神透出</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="rule"></div>
+
+  <div class="sec">
+    <div class="t">十二时辰</div>
+    <div class="hrs">
+      <div class="h"><span class="z">子</span><span class="r">比肩</span><span class="tr">23–01</span><span class="dot"></span></div>
+      <div class="h"><span class="z">午</span><span class="r">七杀</span><span class="tr">11–13</span><span class="dot"></span></div>
+      <div class="h"><span class="z">丑</span><span class="r">劫财</span><span class="tr">01–03</span><span class="dot"></span></div>
+      <div class="h"><span class="z">未</span><span class="r">正官</span><span class="tr">13–15</span><span class="dot"></span></div>
+      <div class="h"><span class="z">寅</span><span class="r">食神</span><span class="tr">03–05</span><span class="dot"></span></div>
+      <div class="h"><span class="z">申</span><span class="r">偏印</span><span class="tr">15–17</span><span class="dot"></span></div>
+      <div class="h"><span class="z">卯</span><span class="r">伤官</span><span class="tr">05–07</span><span class="dot"></span></div>
+      <div class="h"><span class="z">酉</span><span class="r">正印</span><span class="tr">17–19</span><span class="dot"></span></div>
+      <div class="h"><span class="z">辰</span><span class="r">偏财</span><span class="tr">07–09</span><span class="dot"></span></div>
+      <div class="h"><span class="z">戌</span><span class="r">比肩</span><span class="tr">19–21</span><span class="dot"></span></div>
+      <div class="h now"><span class="z">巳</span><span class="r">正财</span><span class="tr">09–11</span><span class="dot"></span></div>
+      <div class="h"><span class="z">亥</span><span class="r">劫财</span><span class="tr">21–23</span><span class="dot"></span></div>
+    </div>
+  </div>
+
+  <div class="foot">
+    <div class="yj"><span class="k">宜</span><span>会友 · 沐浴 · 立券</span></div>
+    <div class="yj"><span class="k">忌</span><span>开市 · 动土 · 远行</span></div>
+  </div>
+  <div class="foot" style="padding-top:12px;">
+    <span>TOMORROW</span><span>丁丑 · 伤官 · 冲未</span>
+  </div>
+
+</div>
+</body>
+</html>

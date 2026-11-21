@@ -1,12 +1,12 @@
 import SwiftUI
 
-/// success 态主布局(**2026-10-01 Today 定稿**,事实源 designs/review-fix-20261001/
-/// today-final.html @393px,px≈pt 1:1):
-/// 头部区(大字日 + 三行 meta + 左对齐 chips,出图上纸面)+ 宜忌双列包进
-/// 同一容器,光晕作**衬底**铺在其后(**2026-10-15 贴 B 稿**:去竖排签文,
-/// 光晕不再单独占 340pt 舞台)→ AI 解读(24pt,无卡片直接排纸面,
-/// 2026-09-07 起进入即自动生成)→ 居中页脚 →(时辰未知降级盘)末尾补时辰静默行。
-/// 各块 ink-in 错峰入场(mockup .content>* 0/.08/.16/.24s 同款节奏)。
+/// success 态主布局(**2026-11-21 视觉改版**,事实源 docs/design-ref/
+/// wuxing-styles/11-merged.html;上一版 2026-10-15 B 稿光晕 hero 已退役):
+/// 头部区(大字日 + 三行 meta + chips)→ 数字对开(峰值 vs 谷值,64pt 宋体)
+/// → 纸上气泡场(五行力量,五枚淡染色圆)→ AI 解读(导语段,无卡片直接
+/// 排纸面,2026-09-07 起进入即自动生成)→ 信号双栏 → 十二时辰谱 →
+/// 宜/忌/明日三栏 → 居中页脚 →(时辰未知降级盘)末尾补时辰静默行。
+/// 各块 ink-in 错峰入场(0/.08/.12/.16/.18/.20/.22/.24s)。
 ///
 /// 2026-09-07 历史回看拔除(用户拍板「底部日期选择完全没必要」):
 /// - 第二屏 7 日日期带 + 「更早」锁框 + 历史回看 sheet + 付费墙接线全部移除,
@@ -33,12 +33,31 @@ struct DailyFortuneMainView: View {
     /// Live 作答组装需要 apiClient(PaywallView 同款 EnvironmentObject 取法)
     @EnvironmentObject private var env: AppEnvironment
 
-    /// 光晕衬底顶边低于头部顶边的距离(B 稿:光晕区从页面 y=110 起,头部从
-    /// y=76 起,差 34;真机截图后可微调,但只改这一个常量)。
-    private static let haloTopInset: CGFloat = 34
+    /// (2026-11-21 改版退役)光晕衬底 haloTopInset 随 HaloBackdrop 一并退出
+    /// 布局;常量删除避免死代码。
 
     /// 滚动坐标空间名(S4 问事框距底探针用)。
     private static let scrollSpace = "todayScroll"
+
+    // MARK: - 2026-11-21 改版派生值
+
+    /// businessDate 是否「业务今天」(时辰谱当前标记只在今天显;历史缓存回看不标)。
+    /// 与**业务日**比而非墙钟日:zi_next_day 规则 23:00 即滚日,23:00–00:00 窗口
+    /// 页面已切新盘而墙钟还是昨天,按墙钟判会每小时每晚让当前时辰标记消失
+    /// (2026-11-06 双 review「23:00 滚日窗口」同根 bug 类;该窗口本地时辰算出
+    /// 早子时 0,对已滚日页面语义恰好正确)。
+    private var isToday: Bool {
+        let businessToday = BusinessDateCalculator.businessDate(
+            now: .now, ziHourRule: ziHourRule)
+        return Calendar.current.isDate(businessDate, inSameDayAs: businessToday)
+    }
+
+    /// 当前时辰下标(服务端恒 null,客户端按 ziHourRule 本地算;非今天 → nil)。
+    private var effectiveCurrentHourIndex: Int? {
+        guard isToday else { return nil }
+        return response.currentHourIndex
+            ?? BusinessDateCalculator.currentHourIndex(now: .now, ziHourRule: ziHourRule)
+    }
 
     // MARK: - S4 问事窗状态(2026-10-25)
 
@@ -248,77 +267,43 @@ struct DailyFortuneMainView: View {
                     .background(BaziTheme.ink.opacity(0.05), in: Capsule())
                 }
 
-                // ===== 头部 + 宜忌(2026-10-15 贴 B 稿:光晕是这一块的衬底,
-                // 不再单独占舞台)=====
-                VStack(alignment: .leading, spacing: 0) {
-                    // 头部区(D3 定稿:信息一行看全,页边距 24)
-                    DailyHeaderSection(
-                        businessDate: businessDate,
-                        lunarDate: response.lunarDate,
+                // ===== 头部区(D3 定稿:大字日 + 三行 meta + chips;2026-11-21
+                // 改版:光晕衬底与 hero 宜忌退役出布局——宜忌随底部三栏走,
+                // 对开数字紧随头部,见 DESIGN.md Decisions Log 2026-11-21)=====
+                DailyHeaderSection(
+                    businessDate: businessDate,
+                    lunarDate: response.lunarDate,
+                    dayPillar: response.dayPillar,
+                    dayRelation: response.dayRelationToDayMaster,
+                    dayChong: response.dayChong,
+                    dayChongTargets: response.dayChongTargets,
+                )
+                .padding(.horizontal, 24)
+                .padding(.top, 6)
+                .inkIn()
+
+                // ===== 数字对开 + 纸上气泡场(2026-11-21 改版,11-merged.html
+                // .duel/.field):确定性力量分布(后端 day_element_strength,纯
+                // 历法推算)+ 喜/忌小标(day_signal 规则引擎产物)。老后端/老
+                // 快照缺键 → duel nil → 对开与气泡场一起隐藏(2026-08-15 教训:
+                // payload 加字段必须可缺省)。=====
+                if let strength = response.dayElementStrength,
+                   !strength.isEmpty,
+                   let duel = TodayStrengthDuel.make(strength: strength, daySignal: response.daySignal) {
+                    TodayDuelSection(
+                        duel: duel,
                         dayPillar: response.dayPillar,
                         dayRelation: response.dayRelationToDayMaster,
-                        dayChong: response.dayChong,
-                        dayChongTargets: response.dayChongTargets,
                     )
                     .padding(.horizontal, 24)
-                    .padding(.top, 6)
-                    .inkIn()
-
-                    // 宜忌双列(紧跟 chips,B 稿 .block padding-top 30;水平 24
-                    // = 与头部/解读区同左缘,2026-10-18 S2 统一——原 28 是已删的
-                    // 「光晕舞台 17 + 宜忌内边距 11」遗留)
-                    DailyImageHeroSection(dayRelation: response.dayRelationToDayMaster)
-                        .padding(.horizontal, 24)
-                        .padding(.top, 30)
-                        .inkIn(delay: 0.08)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .background(alignment: .top) {
-                    // 光晕衬底:全屏宽、420pt 高、顶边低于头部 34pt。
-                    // 2026-10-18 S4 修订 10-15「溢出不裁切」:加一层跟着宿主
-                    // 高度走的渐变遮罩,光晕到宜忌底(+16)渐隐至全透明——
-                    // 「今日解读」区域不再洇进光晕(外评 H:绿团压「忌」红字后
-                    // 像污渍)。遮罩是艺术层 mask 非页面背景,不违反禁渐变背景
-                    // (同 bottomFadeLayer 先例)。mask 坐标系跟随被遮罩视图的
-                    // 布置位置(offset 只改渲染不改布局),故 mask 的 offset
-                    // 须与 HaloBackdrop 的 offset 同值对齐。
-                    GeometryReader { host in
-                        let visible = max(host.size.height - Self.haloTopInset + 16, 0)
-                        HaloBackdrop(
-                            dayPillar: response.dayPillar,
-                            dayElements: response.dayElements,
-                            daySignal: response.daySignal,
-                        )
-                        .frame(height: HaloBackdrop.height)
-                        .offset(y: Self.haloTopInset)
-                        .mask(alignment: .top) {
-                            LinearGradient(
-                                stops: [
-                                    .init(color: .black, location: 0),
-                                    .init(color: .black, location: 0.72),
-                                    .init(color: .clear, location: 1),
-                                ],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                            .frame(height: visible)
-                            .offset(y: Self.haloTopInset)
-                        }
-                    }
+                    .padding(.top, 34)
                     .inkIn(delay: 0.08)
-                }
 
-                // 今日五行条(S3,2026-10-25):确定性力量分布(后端
-                // day_element_strength,纯历法推算)+ 宜借标(day_signal ↑
-                // 规则引擎产物)。老后端/老快照缺键 → nil 整块隐藏
-                // (2026-08-15 教训:payload 加字段必须可缺省)。
-                if let strength = response.dayElementStrength, !strength.isEmpty {
-                    DailyElementStrengthSection(
-                        strength: strength,
-                        daySignal: response.daySignal,
+                    TodayBubbleFieldSection(
+                        bubbles: TodayBubbleLayout.make(strength: strength, daySignal: response.daySignal),
                     )
                     .padding(.horizontal, 24)
-                    .padding(.top, 44)
+                    .padding(.top, 30)
                     .inkIn(delay: 0.12)
                 }
 
@@ -341,6 +326,39 @@ struct DailyFortuneMainView: View {
                 .padding(.horizontal, 24)
                 .padding(.top, 40)
                 .inkIn(delay: 0.16)
+
+                // ===== 编辑导语下半(2026-11-21 改版,11-merged.html 下半):
+                // 信号双栏 → 十二时辰谱 → 宜/忌/明日三栏。day_signal 空
+                // (时辰未知/从格)→ 信号区不渲染(喜忌语义不编造);时辰谱与
+                // 三栏是确定性数据,常驻。=====
+                if let daySignal = response.daySignal, !daySignal.isEmpty {
+                    TodaySignalColumnsSection(
+                        daySignal: daySignal,
+                        dayPillar: response.dayPillar,
+                    )
+                    .padding(.horizontal, 24)
+                    .padding(.top, 32)
+                    .inkIn(delay: 0.18)
+                }
+
+                if !response.hourPillars.isEmpty {
+                    TodayHourLineSection(
+                        hourPillars: response.hourPillars,
+                        currentHourIndex: effectiveCurrentHourIndex,
+                        isToday: isToday,
+                    )
+                    .padding(.horizontal, 24)
+                    .padding(.top, 30)
+                    .inkIn(delay: 0.20)
+                }
+
+                TodayBottomColumnsSection(
+                    dayRelation: response.dayRelationToDayMaster,
+                    tomorrow: response.tomorrowPreview,
+                )
+                .padding(.horizontal, 24)
+                .padding(.top, 30)
+                .inkIn(delay: 0.22)
 
                 // 页脚免责声明(2026-10-18 S6 只留「解读仅供参照」——
                 // 「乙丑日 · 偏财 · …」与头部信息重复,外评 L;居中、ink-faint)

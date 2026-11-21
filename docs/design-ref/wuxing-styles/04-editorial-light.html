@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方向四 · 浅色编辑排版（stoic. / How We Feel）</title>
+<style>
+  :root{
+    --paper:#faf7f1; --ink:#22201c; --sub:#8b857a; --line:#e6e0d4;
+    --wood:#5c8a5e; --fire:#c96f4a; --earth:#b08d55; --metal:#7f8ea3; --water:#5a8db8;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#e9e5dc;font-family:-apple-system,"PingFang SC",sans-serif;
+       display:flex;justify-content:center;padding:40px 0;}
+  .phone{width:390px;min-height:844px;background:var(--paper);color:var(--ink);padding:30px 26px 60px;}
+
+  .masthead{display:flex;justify-content:space-between;align-items:baseline;
+            border-bottom:2px solid var(--ink);padding-bottom:10px;}
+  .masthead .t{font-family:Georgia,"Songti SC",serif;font-size:15px;letter-spacing:.08em;}
+  .masthead .d{font-size:11px;color:var(--sub);font-variant-numeric:tabular-nums;}
+
+  .kicker{font-size:10px;letter-spacing:.28em;color:var(--sub);text-transform:uppercase;margin:26px 0 6px;}
+  h1{font-family:Georgia,"Songti SC",serif;font-weight:400;font-size:30px;line-height:1.25;}
+  .dek{font-size:14px;line-height:1.8;color:#57524a;margin-top:12px;max-width:32ch;}
+
+  .facts{display:flex;gap:0;margin-top:22px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);}
+  .fact{flex:1;padding:12px 0;text-align:center;}
+  .fact+.fact{border-left:1px solid var(--line);}
+  .fact .fv{font-family:Georgia,"Songti SC",serif;font-size:19px;}
+  .fact .fk{font-size:10px;letter-spacing:.15em;color:var(--sub);margin-top:4px;}
+
+  /* 五行力量：细线刻度 */
+  .chart{margin-top:8px;}
+  .c-row{display:grid;grid-template-columns:52px 1fr 38px;align-items:center;gap:12px;
+         padding:11px 0;border-bottom:1px solid var(--line);}
+  .c-e{display:flex;align-items:center;gap:8px;font-family:Georgia,"Songti SC",serif;font-size:17px;}
+  .c-dot{width:8px;height:8px;border-radius:50%;flex:none;}
+  .c-track{height:4px;background:#efe9de;border-radius:2px;overflow:hidden;}
+  .c-fill{height:100%;border-radius:2px;}
+  .c-n{font-size:12px;color:var(--sub);text-align:right;font-variant-numeric:tabular-nums;}
+  .c-note{font-size:10px;letter-spacing:.1em;color:var(--sub);margin-top:8px;}
+
+  /* 信号 */
+  .sigs{display:flex;gap:14px;margin-top:8px;}
+  .sig{flex:1;padding:14px 16px;border-radius:4px;}
+  .sig.up{background:#eef3ec;} .sig.down{background:#f7ede8;}
+  .sig .h{font-family:Georgia,"Songti SC",serif;font-size:16px;}
+  .sig.up .h{color:#3f6b41;} .sig.down .h{color:#a5583a;}
+  .sig p{font-size:12px;line-height:1.7;color:#6a6459;margin-top:6px;}
+
+  /* 时辰：编辑式两列 */
+  .hours{column-count:2;column-gap:28px;margin-top:6px;}
+  .h-row{display:flex;justify-content:space-between;align-items:baseline;padding:8px 0;
+         border-bottom:1px solid var(--line);break-inside:avoid;}
+  .h-row .z{font-family:Georgia,"Songti SC",serif;font-size:15px;}
+  .h-row .z small{font-size:10px;color:var(--sub);margin-left:6px;font-family:-apple-system,sans-serif;}
+  .h-row .r{font-size:11px;color:var(--sub);}
+  .h-row.now .z,.h-row.now .r{color:#8a5a2b;font-weight:600;}
+  .h-row.now .z::after{content:"·";color:#8a5a2b;margin-left:4px;}
+
+  /* 黄历 */
+  .al{display:flex;gap:26px;margin-top:6px;}
+  .al .col{flex:1;}
+  .al .h{font-family:Georgia,"Songti SC",serif;font-size:13px;letter-spacing:.3em;
+          border-bottom:1px solid var(--ink);padding-bottom:6px;}
+  .al ul{list-style:none;margin-top:8px;}
+  .al li{font-size:13px;padding:4px 0;color:#4c4841;}
+
+  .close{margin-top:28px;padding-top:16px;border-top:2px solid var(--ink);
+         display:flex;justify-content:space-between;align-items:baseline;}
+  .close .n{font-family:Georgia,"Songti SC",serif;font-size:14px;}
+  .close .tm{font-size:11px;color:var(--sub);}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="masthead"><span class="t">今日 · Today</span><span class="d">11.18 十月初十</span></div>
+
+  <div class="kicker">Day Pillar · 流日</div>
+  <h1>丙子日，食神主事，<br>水当令而木相。</h1>
+  <p class="dek">甲木日主，生于亥月。流日地支子水为喜用正印，天干丙火为忌。宜收束心神，静中谋动。</p>
+
+  <div class="facts">
+    <div class="fact"><div class="fv">甲木</div><div class="fk">日主 · 身弱</div></div>
+    <div class="fact"><div class="fv">水 木</div><div class="fk">喜用</div></div>
+    <div class="fact"><div class="fv">火 土</div><div class="fk">忌神</div></div>
+  </div>
+
+  <div class="kicker">Elemental Balance · 五行力量</div>
+  <div class="chart">
+    <div class="c-row">
+      <span class="c-e"><i class="c-dot" style="background:var(--water)"></i>水</span>
+      <div class="c-track"><div class="c-fill" style="width:100%;background:var(--water)"></div></div><span class="c-n">100</span>
+    </div>
+    <div class="c-row">
+      <span class="c-e"><i class="c-dot" style="background:var(--wood)"></i>木</span>
+      <div class="c-track"><div class="c-fill" style="width:78%;background:var(--wood)"></div></div><span class="c-n">78</span>
+    </div>
+    <div class="c-row">
+      <span class="c-e"><i class="c-dot" style="background:var(--metal)"></i>金</span>
+      <div class="c-track"><div class="c-fill" style="width:64%;background:var(--metal)"></div></div><span class="c-n">64</span>
+    </div>
+    <div class="c-row">
+      <span class="c-e"><i class="c-dot" style="background:var(--earth)"></i>土</span>
+      <div class="c-track"><div class="c-fill" style="width:52%;background:var(--earth)"></div></div><span class="c-n">52</span>
+    </div>
+    <div class="c-row">
+      <span class="c-e"><i class="c-dot" style="background:var(--fire)"></i>火</span>
+      <div class="c-track"><div class="c-fill" style="width:35%;background:var(--fire)"></div></div><span class="c-n">35</span>
+    </div>
+    <div class="c-note">刻度 0–100 · 当令者满格 · 亥月水旺木相</div>
+  </div>
+
+  <div class="kicker">Day Signal · 今日信号</div>
+  <div class="sigs">
+    <div class="sig up">
+      <div class="h">↑ 子水入命</div>
+      <p>正印护身。适合读书、复盘、与信任的人深谈。</p>
+    </div>
+    <div class="sig down">
+      <div class="h">↓ 丙火透干</div>
+      <p>食神泄身。表达欲旺盛，但别把日程排太满。</p>
+    </div>
+  </div>
+
+  <div class="kicker">Twelve Hours · 十二时辰</div>
+  <div class="hours">
+    <div class="h-row"><span class="z">子<small>23–01</small></span><span class="r">比肩</span></div>
+    <div class="h-row"><span class="z">午<small>11–13</small></span><span class="r">七杀</span></div>
+    <div class="h-row"><span class="z">丑<small>01–03</small></span><span class="r">劫财</span></div>
+    <div class="h-row"><span class="z">未<small>13–15</small></span><span class="r">正官</span></div>
+    <div class="h-row"><span class="z">寅<small>03–05</small></span><span class="r">食神</span></div>
+    <div class="h-row"><span class="z">申<small>15–17</small></span><span class="r">偏印</span></div>
+    <div class="h-row"><span class="z">卯<small>05–07</small></span><span class="r">伤官</span></div>
+    <div class="h-row"><span class="z">酉<small>17–19</small></span><span class="r">正印</span></div>
+    <div class="h-row"><span class="z">辰<small>07–09</small></span><span class="r">偏财</span></div>
+    <div class="h-row"><span class="z">戌<small>19–21</small></span><span class="r">比肩</span></div>
+    <div class="h-row now"><span class="z">巳<small>09–11</small></span><span class="r">正财 · 现在</span></div>
+    <div class="h-row"><span class="z">亥<small>21–23</small></span><span class="r">劫财</span></div>
+  </div>
+
+  <div class="kicker">Almanac · 黄历</div>
+  <div class="al">
+    <div class="col"><div class="h">宜</div><ul><li>会友</li><li>沐浴</li><li>立券</li></ul></div>
+    <div class="col"><div class="h">忌</div><ul><li>开市</li><li>动土</li><li>远行</li></ul></div>
+  </div>
+
+  <div class="close">
+    <span class="n">水当令而木相，沉静中自有生发。</span>
+    <span class="tm">明日 丁丑 · 伤官 · 冲未</span>
+  </div>
+
+</div>
+</body>
+</html>

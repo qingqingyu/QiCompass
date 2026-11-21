@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>③c · 柔彩显化 · 能量气泡版</title>
+<style>
+  :root{ --ink:#514a70; --sub:#9b90be; --card:rgba(255,255,255,.82); }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#e9e4f2;font-family:-apple-system,"PingFang SC",sans-serif;
+       display:flex;justify-content:center;padding:40px 0;}
+  .phone{width:390px;min-height:844px;padding:22px 18px 60px;color:var(--ink);position:relative;overflow:hidden;
+    background:
+      radial-gradient(circle 220px at 15% 6%, rgba(183,139,255,.28), transparent 70%),
+      radial-gradient(circle 260px at 95% 22%, rgba(255,157,155,.22), transparent 70%),
+      radial-gradient(circle 300px at 40% 95%, rgba(140,200,235,.25), transparent 70%),
+      linear-gradient(170deg,#f6f0ff 0%,#fdf1f3 60%,#eef6fb 100%);}
+  .card{background:var(--card);backdrop-filter:blur(10px);border-radius:26px;
+         box-shadow:0 10px 30px rgba(120,90,180,.12);padding:20px;margin-bottom:16px;border:1px solid rgba(255,255,255,.8);}
+
+  .top{display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;}
+  .top .hi{font-size:20px;font-weight:750;}
+  .chip{font-size:11px;color:#9a7fd8;background:rgba(255,255,255,.65);border-radius:20px;padding:6px 12px;font-weight:600;}
+
+  /* 星空标题 */
+  .hero{text-align:center;border:none;background:transparent;box-shadow:none;padding:6px 0 2px;}
+  .hero .gz{font-size:56px;font-weight:800;letter-spacing:.04em;
+    background:linear-gradient(115deg,#b78bff 0%,#ff9db0 50%,#8cc8eb 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;}
+  .hero .sub{font-size:12px;color:#8d7fb8;margin-top:4px;font-weight:600;}
+  .hero .sub b{color:#9a7fd8;}
+
+  /* 气泡宇宙：漂浮圆 */
+  .space{position:relative;height:300px;margin:8px 0 4px;}
+  .orb{position:absolute;border-radius:50%;display:flex;flex-direction:column;
+       align-items:center;justify-content:center;color:#fff;font-weight:800;
+       box-shadow:0 12px 28px rgba(100,70,150,.25), inset 0 -8px 20px rgba(0,0,0,.08);}
+  .orb .z{font-size:22px;line-height:1;}
+  .orb .n{font-size:10px;opacity:.9;margin-top:3px;font-variant-numeric:tabular-nums;}
+  .orb .tagg{position:absolute;bottom:-20px;font-size:9px;font-weight:700;color:#9a7fd8;background:rgba(255,255,255,.85);
+             border-radius:10px;padding:2px 8px;white-space:nowrap;}
+  .orb .tagg.bad{color:#e08a8a;}
+  .cap{text-align:center;font-size:11px;color:#9b90be;line-height:1.7;}
+  .cap b{color:#7a68b5;}
+
+  /* 信号 */
+  .sigs .card{margin-bottom:12px;padding:16px 18px;}
+  .sigrow{display:flex;align-items:center;gap:14px;}
+  .sigrow .b{width:44px;height:44px;border-radius:50%;flex:none;display:flex;align-items:center;justify-content:center;
+             font-size:18px;font-weight:800;color:#fff;}
+  .sigrow .tx .t{font-size:14px;font-weight:750;}
+  .sigrow .tx .d{font-size:11px;color:var(--sub);margin-top:3px;line-height:1.55;}
+  .sigrow .ar{margin-left:auto;font-size:13px;font-weight:800;flex:none;}
+  .up{color:#4fae74;} .down{color:#e07c7c;}
+
+  /* 时辰进度线 */
+  .hline{display:flex;flex-direction:column;gap:9px;}
+  .hl{display:flex;align-items:center;gap:10px;}
+  .hl .z{font-size:13px;font-weight:750;width:18px;}
+  .hl .nm{font-size:10px;color:var(--sub);width:30px;}
+  .hl .rail{flex:1;height:8px;border-radius:5px;background:rgba(190,170,230,.25);overflow:hidden;}
+  .hl .f{height:100%;border-radius:5px;background:linear-gradient(90deg,#c9aef5,#b78bff);}
+  .hl.now .z{color:#9a7fd8;} .hl.now .nm{color:#9a7fd8;font-weight:700;}
+  .hl.now .f{background:linear-gradient(90deg,#ff9db0,#b78bff);}
+  .hl .pc{font-size:9px;color:var(--sub);width:56px;text-align:right;}
+
+  .yj{display:flex;gap:12px;}
+  .yj .card{flex:1;margin-bottom:0;text-align:center;padding:14px 8px;}
+  .yj .h{font-size:13px;font-weight:800;margin-bottom:6px;}
+  .yj li{list-style:none;font-size:12px;font-weight:600;color:#71669c;padding:2px 0;}
+
+  .tmr{text-align:center;font-size:11px;color:var(--sub);margin-top:2px;}
+  .tmr b{color:#9a7fd8;}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <div class="top">
+    <div class="hi">今天的能量场 🌌</div>
+    <div class="chip">11.18 · 十月初十</div>
+  </div>
+
+  <div class="hero">
+    <div class="gz">丙子日</div>
+    <div class="sub">食神主事 · 你的<b>水</b>正在发光 ✨</div>
+  </div>
+
+  <div class="card">
+    <div class="space">
+      <!-- 气泡大小 ∝ 五行力量 -->
+      <div class="orb" style="left:118px;top:0;width:150px;height:150px;
+           background:radial-gradient(circle at 33% 30%, #b4dcf7, #6fb1e2 65%, #4a92c9);">
+        <span class="z">水</span><span class="n">100</span>
+        <span class="tagg">喜用 · 当令 ⭐</span>
+      </div>
+      <div class="orb" style="left:6px;top:64px;width:118px;height:118px;
+           background:radial-gradient(circle at 33% 30%, #b9e2bb, #7cba80 65%, #58a05e);">
+        <span class="z">木</span><span class="n">78</span>
+        <span class="tagg">喜用 · 相 ⭐</span>
+      </div>
+      <div class="orb" style="left:236px;top:120px;width:96px;height:96px;
+           background:radial-gradient(circle at 33% 30%, #cfd9e8, #9aabc4 65%, #7c8fa9);">
+        <span class="z">金</span><span class="n">64</span>
+      </div>
+      <div class="orb" style="left:36px;top:190px;width:80px;height:80px;
+           background:radial-gradient(circle at 33% 30%, #ecd9bb, #cdb089 65%, #b3935f);">
+        <span class="z">土</span><span class="n">52</span>
+        <span class="tagg bad">忌 ↓</span>
+      </div>
+      <div class="orb" style="left:170px;top:196px;width:64px;height:64px;
+           background:radial-gradient(circle at 33% 30%, #ffd2bd, #e8a184 65%, #d5815e);">
+        <span class="z">火</span><span class="n">35</span>
+        <span class="tagg bad">忌 ↓</span>
+      </div>
+    </div>
+    <p class="cap">气泡越大，今天这股能量越活跃。<br>大颗的<b>水</b>和<b>木</b>都是你的喜用 —— 顺势而为就好 💫</p>
+  </div>
+
+  <div class="sigs">
+    <div class="card">
+      <div class="sigrow">
+        <div class="b" style="background:linear-gradient(140deg,#8fc3ea,#5a9fd4)">水</div>
+        <div class="tx"><div class="t">子水入命 · 正印护身</div>
+          <div class="d">直觉在线、心思澄明，重要的事放今天</div></div>
+        <span class="ar up">↑ 加持</span>
+      </div>
+    </div>
+    <div class="card">
+      <div class="sigrow">
+        <div class="b" style="background:linear-gradient(140deg,#ffceb3,#ef8360)">火</div>
+        <div class="tx"><div class="t">丙火透干 · 食神泄秀</div>
+          <div class="d">表达欲旺但精力易散，少逞强多留白</div></div>
+        <span class="ar down">↓ 消耗</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="font-size:15px;font-weight:750;margin-bottom:13px;">⏳ 十二时辰节奏</div>
+    <div class="hline">
+      <div class="hl"><span class="z">子</span><span class="nm">比肩</span><div class="rail"><div class="f" style="width:92%"></div></div><span class="pc">23–01</span></div>
+      <div class="hl"><span class="z">丑</span><span class="nm">劫财</span><div class="rail"><div class="f" style="width:64%"></div></div><span class="pc">01–03</span></div>
+      <div class="hl"><span class="z">寅</span><span class="nm">食神</span><div class="rail"><div class="f" style="width:78%"></div></div><span class="pc">03–05</span></div>
+      <div class="hl"><span class="z">卯</span><span class="nm">伤官</span><div class="rail"><div class="f" style="width:58%"></div></div><span class="pc">05–07</span></div>
+      <div class="hl"><span class="z">辰</span><span class="nm">偏财</span><div class="rail"><div class="f" style="width:70%"></div></div><span class="pc">07–09</span></div>
+      <div class="hl now"><span class="z">巳</span><span class="nm">正财</span><div class="rail"><div class="f" style="width:88%"></div></div><span class="pc">09–11 · 现在</span></div>
+      <div class="hl"><span class="z">午</span><span class="nm">七杀</span><div class="rail"><div class="f" style="width:40%"></div></div><span class="pc">11–13</span></div>
+      <div class="hl"><span class="z">未</span><span class="nm">正官</span><div class="rail"><div class="f" style="width:52%"></div></div><span class="pc">13–15</span></div>
+    </div>
+  </div>
+
+  <div class="yj" style="margin-bottom:16px;">
+    <div class="card"><div class="h" style="color:#4fae74">宜 · 种草</div><ul><li>会友</li><li>沐浴</li><li>立券</li></ul></div>
+    <div class="card"><div class="h" style="color:#e07c7c">忌 · 避雷</div><ul><li>开市</li><li>动土</li><li>远行</li></ul></div>
+  </div>
+
+  <p class="tmr">明天 <b>丁丑日 · 伤官 · 冲未</b> · 记得对自己温柔一点 🌙</p>
+
+</div>
+</body>
+</html>

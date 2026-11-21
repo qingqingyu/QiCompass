@@ -1,0 +1,181 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>方向五 · 塔罗牌面饰金（Moonly 塔罗流 / Stardust）</title>
+<style>
+  :root{
+    --bg:#151020; --gold:#c9a45c; --gold-hi:#e8cf96; --gold-dim:rgba(201,164,92,.35);
+    --fg:#e9e2d2; --dim:#9a8f9e;
+  }
+  *{margin:0;padding:0;box-sizing:border-box;}
+  body{background:#0a0812;font-family:-apple-system,"PingFang SC",sans-serif;
+       display:flex;justify-content:center;padding:40px 0;}
+  .phone{width:390px;min-height:844px;color:var(--fg);padding:22px 16px 60px;
+    background:
+      radial-gradient(ellipse 100% 50% at 50% 0%, rgba(90,60,130,.30), transparent 60%),
+      radial-gradient(ellipse 120% 55% at 50% 105%, rgba(201,164,92,.10), transparent 55%),
+      linear-gradient(178deg,#1c1526 0%, var(--bg) 55%, #0e0a18 100%);}
+
+  /* 牌面卡：双细金框 */
+  .tarot{border:1px solid var(--gold);border-radius:16px;position:relative;
+         background:linear-gradient(175deg,rgba(201,164,92,.08),rgba(201,164,92,.02) 40%,rgba(0,0,0,.15));}
+  .tarot::before{content:"";position:absolute;inset:5px;border:1px solid var(--gold-dim);
+                 border-radius:11px;pointer-events:none;}
+  .tarot .corner{position:absolute;width:14px;height:14px;color:var(--gold);font-size:12px;line-height:1;}
+  .corner.tl{top:9px;left:10px;} .corner.tr{top:9px;right:10px;}
+  .corner.bl{bottom:9px;left:10px;} .corner.br{bottom:9px;right:10px;}
+
+  .roman{font-family:Georgia,serif;text-align:center;font-size:11px;letter-spacing:.5em;color:var(--gold);
+         padding:20px 0 4px;text-indent:.5em;}
+  .card-title{font-family:Georgia,"Songti SC",serif;text-align:center;font-size:22px;letter-spacing:.35em;text-indent:.35em;color:var(--gold-hi);}
+
+  /* 主牌：流日 */
+  .hero .ganzhi{font-family:Georgia,"Songti SC",serif;text-align:center;font-size:64px;letter-spacing:.18em;text-indent:.18em;
+                color:var(--fg);text-shadow:0 0 24px rgba(201,164,92,.35);padding:22px 0 6px;}
+  .hero .rel{text-align:center;font-family:Georgia,"Songti SC",serif;font-size:14px;letter-spacing:.3em;text-indent:.3em;color:var(--gold);}
+  .hero .scene{text-align:center;padding:18px 30px 24px;}
+  .hero .scene .disc{width:78px;height:78px;border-radius:50%;margin:0 auto;
+    background:radial-gradient(circle at 34% 32%, #f3e5c0, #c9a45c 58%, #6b4f22);
+    box-shadow:0 0 30px rgba(201,164,92,.45), inset 0 0 18px rgba(0,0,0,.35);
+    display:flex;align-items:center;justify-content:center;
+    font-family:Georgia,"Songti SC",serif;font-size:34px;color:#241a08;}
+  .hero .scene .cap{font-size:11px;letter-spacing:.2em;color:var(--dim);margin-top:12px;}
+
+  /* 双柱：喜/忌 信号 */
+  .pillars{display:flex;gap:12px;margin-top:16px;}
+  .pillar{flex:1;padding:18px 12px 16px;text-align:center;}
+  .pillar .col-head{font-family:Georgia,"Songti SC",serif;font-size:12px;letter-spacing:.35em;text-indent:.35em;color:var(--gold);}
+  .pillar .glyph{font-family:Georgia,"Songti SC",serif;font-size:34px;margin:12px 0 2px;color:var(--fg);}
+  .pillar .e{font-family:Georgia,"Songti SC",serif;font-size:15px;color:var(--gold-hi);letter-spacing:.2em;}
+  .pillar .verdict{font-size:11px;letter-spacing:.25em;margin-top:8px;}
+  .pillar.bless .verdict{color:#9ec89b;} .pillar.hex .verdict{color:#c98b8b;}
+  .pillar p{font-size:11px;color:var(--dim);line-height:1.7;margin-top:8px;padding:0 4px;}
+
+  /* 五行力量：烛台柱 */
+  .candles{display:flex;justify-content:center;align-items:flex-end;gap:0;height:150px;
+           padding:6px 10px 0;border-bottom:1px solid var(--gold-dim);margin:16px 14px 0;}
+  .cd{width:56px;display:flex;flex-direction:column;justify-content:flex-end;align-items:center;height:100%;}
+  .cd .col{width:26px;border-radius:3px 3px 0 0;
+           background:linear-gradient(180deg,var(--gold-hi),rgba(201,164,92,.25));
+           border:1px solid var(--gold-dim);border-bottom:none;}
+  .cd .flame{width:5px;height:5px;border-radius:50%;background:var(--gold-hi);
+             box-shadow:0 0 8px 2px rgba(232,207,150,.6);margin-bottom:3px;opacity:0;}
+  .cd.peak .flame{opacity:1;}
+  .cd .lab{margin-top:0;}
+  .candle-labels{display:flex;justify-content:center;gap:0;margin:8px 14px 0;}
+  .candle-labels .cd2{width:56px;text-align:center;}
+  .cd2 .z{font-family:Georgia,"Songti SC",serif;font-size:15px;color:var(--fg);}
+  .cd2 .n{font-size:10px;color:var(--gold);letter-spacing:.1em;margin-top:2px;font-variant-numeric:tabular-nums;}
+  .cd2.peak .z{color:var(--gold-hi);text-shadow:0 0 8px rgba(232,207,150,.5);}
+
+  /* 时辰横带 */
+  .strip{display:flex;justify-content:space-between;margin:14px 6px 0;position:relative;}
+  .strip::before{content:"";position:absolute;left:14px;right:14px;top:12px;height:1px;background:var(--gold-dim);}
+  .st{width:26px;text-align:center;position:relative;}
+  .st .orb{width:7px;height:7px;border-radius:50%;background:#4a3f5c;margin:9px auto 7px;}
+  .st.now .orb{background:var(--gold-hi);box-shadow:0 0 9px 2px rgba(232,207,150,.65);}
+  .st .z{font-family:Georgia,"Songti SC",serif;font-size:12px;color:var(--dim);}
+  .st.now .z{color:var(--gold-hi);}
+
+  /* 黄历牌 */
+  .yj{display:flex;gap:12px;margin-top:16px;}
+  .yj .tarot{flex:1;padding:14px 10px 16px;text-align:center;}
+  .yj .h{font-family:Georgia,"Songti SC",serif;font-size:12px;letter-spacing:.4em;text-indent:.4em;color:var(--gold);}
+  .yj li{list-style:none;font-size:13px;letter-spacing:.15em;color:#d5cdbd;padding:4px 0;}
+
+  .tomorrow{text-align:center;font-family:Georgia,"Songti SC",serif;font-size:12px;
+            letter-spacing:.25em;color:var(--dim);margin-top:22px;}
+  .tomorrow b{color:var(--gold);font-weight:400;}
+  .orn{text-align:center;color:var(--gold-dim);font-size:11px;letter-spacing:.6em;text-indent:.6em;margin-top:8px;}
+</style>
+</head>
+<body>
+<div class="phone">
+
+  <!-- 主牌：流日 -->
+  <div class="tarot hero">
+    <span class="corner tl">✦</span><span class="corner tr">✦</span>
+    <span class="corner bl">✦</span><span class="corner br">✦</span>
+    <div class="roman">XI · XVIII</div>
+    <div class="card-title">今 日 流 日</div>
+    <div class="ganzhi">丙子</div>
+    <div class="rel">食 神 主 事</div>
+    <div class="scene">
+      <div class="disc">子</div>
+      <div class="cap">十月廿十 · 亥月水令 · 甲木身弱之命遇之</div>
+    </div>
+  </div>
+
+  <!-- 双柱信号 -->
+  <div class="pillars">
+    <div class="tarot pillar bless">
+      <span class="corner tl">✧</span><span class="corner tr">✧</span>
+      <div class="col-head">上 行 之 牌</div>
+      <div class="glyph">壬</div>
+      <div class="e">子水 · 正印</div>
+      <div class="verdict">✧ 喜用降临 ✧</div>
+      <p>印星护身，心思澄明<br>宜谋定，宜静养</p>
+    </div>
+    <div class="tarot pillar hex">
+      <span class="corner tl">✧</span><span class="corner tr">✧</span>
+      <div class="col-head">下 行 之 牌</div>
+      <div class="glyph">丙</div>
+      <div class="e">丙火 · 食神</div>
+      <div class="verdict">✧ 忌神透干 ✧</div>
+      <p>秀气外泄，精力分散<br>宜收敛，忌张扬</p>
+    </div>
+  </div>
+
+  <!-- 五行力量：五烛台 -->
+  <div class="tarot" style="margin-top:16px;padding-bottom:18px;">
+    <span class="corner tl">✦</span><span class="corner tr">✦</span>
+    <span class="corner bl">✦</span><span class="corner br">✦</span>
+    <div class="roman" style="padding-top:16px;">V</div>
+    <div class="card-title" style="font-size:16px;">五 行 之 力</div>
+    <div class="candles">
+      <!-- 顺序 木火土金水 -->
+      <div class="cd"><div class="flame"></div><div class="col" style="height:78%"></div></div>
+      <div class="cd"><div class="flame"></div><div class="col" style="height:35%"></div></div>
+      <div class="cd"><div class="flame"></div><div class="col" style="height:52%"></div></div>
+      <div class="cd"><div class="flame"></div><div class="col" style="height:64%"></div></div>
+      <div class="cd peak"><div class="flame"></div><div class="col" style="height:100%"></div></div>
+    </div>
+    <div class="candle-labels">
+      <div class="cd2"><div class="z">木</div><div class="n">78 相</div></div>
+      <div class="cd2"><div class="z">火</div><div class="n">35</div></div>
+      <div class="cd2"><div class="z">土</div><div class="n">52</div></div>
+      <div class="cd2"><div class="z">金</div><div class="n">64</div></div>
+      <div class="cd2 peak"><div class="z">水</div><div class="n">100 令</div></div>
+    </div>
+  </div>
+
+  <!-- 十二时辰 -->
+  <div class="strip">
+    <div class="st"><div class="orb"></div><span class="z">子</span></div>
+    <div class="st"><div class="orb"></div><span class="z">丑</span></div>
+    <div class="st"><div class="orb"></div><span class="z">寅</span></div>
+    <div class="st"><div class="orb"></div><span class="z">卯</span></div>
+    <div class="st"><div class="orb"></div><span class="z">辰</span></div>
+    <div class="st now"><div class="orb"></div><span class="z">巳</span></div>
+    <div class="st"><div class="orb"></div><span class="z">午</span></div>
+    <div class="st"><div class="orb"></div><span class="z">未</span></div>
+    <div class="st"><div class="orb"></div><span class="z">申</span></div>
+    <div class="st"><div class="orb"></div><span class="z">酉</span></div>
+    <div class="st"><div class="orb"></div><span class="z">戌</span></div>
+    <div class="st"><div class="orb"></div><span class="z">亥</span></div>
+  </div>
+
+  <!-- 黄历 -->
+  <div class="yj">
+    <div class="tarot"><div class="h">宜</div><ul><li>会友</li><li>沐浴</li><li>立券</li></ul></div>
+    <div class="tarot"><div class="h">忌</div><ul><li>开市</li><li>动土</li><li>远行</li></ul></div>
+  </div>
+
+  <p class="tomorrow">明日翻牌 · <b>丁丑</b> 伤官 · 冲未</p>
+  <div class="orn">✦ ✧ ✦</div>
+
+</div>
+</body>
+</html>
