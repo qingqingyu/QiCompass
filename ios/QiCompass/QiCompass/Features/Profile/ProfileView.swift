@@ -314,6 +314,26 @@ struct ProfileView: View {
         return calendar.component(.year, from: snapshot.birthSolarTime)
     }
 
+    /// 命主行年柱段(T7,2026-11-22):zh / zh-Hant = 干支原值;en = "Wood Ox"
+    /// (年干五行 + 生肖,ZodiacHelper.yearSignLabel)。生肖未知/元素缺失 →
+    /// 退干支(信息不丢;裸干支配 "Day Master …" 会拼出「水牛」,故元素可用
+    /// 时优先标签)。language 显式传参:纯函数可单测。
+    static func yearPillarSegment(
+        ganZhi: String,
+        ganElement: String?,
+        zodiac: String?,
+        language: AppLanguage
+    ) -> String {
+        // displayName(forZodiac:) 绑定设备语言,en 分支直接用英文名原值
+        guard case .en = language,
+              let zodiac,
+              ZodiacHelper.isKnownZodiac(zodiac),
+              let label = ZodiacHelper.yearSignLabel(
+                  yearGanElement: ganElement, zodiac: zodiac)
+        else { return ganZhi }
+        return label
+    }
+
     /// 命主块信息(首条可解码 link;decode 失败 → nil,身份块整体不展示,
     /// 具体 error 已由 `ChartSnapshotStore.decodeResponse` 内 Logger.error 记录)。
     private struct PrimaryProfileInfo {
@@ -326,7 +346,8 @@ struct ProfileView: View {
         let needsHour: Bool
         let isSilenced: Bool
 
-        /// 「1995 年生 · 乙亥 · 日主丁火 · 时辰待补」(年柱/日柱歧义 → 对应段省略,不猜)。
+        /// 「1995 年生 · 乙亥 · 日主丁火 · 时辰待补」(年柱/日柱歧义 → 对应段省略,不猜;
+        /// en 年柱段 = "Wood Ox",T7)。
         var metaLine: String {
             var parts: [String] = []
             let year = ProfileView.birthYear(of: snapshot)
@@ -334,7 +355,11 @@ struct ProfileView: View {
             // 退化成「乙亥」(unused-result 警告不拦 CI)。
             parts.append(String(format: String(localized: "%lld 年生"), year))
             if let ygz = response.pillars.year?.ganZhi {
-                parts.append(ygz)
+                parts.append(ProfileView.yearPillarSegment(
+                    ganZhi: ygz,
+                    ganElement: response.pillars.year?.ganElement,
+                    zodiac: response.yearBranchZodiac,
+                    language: AppLanguage.current))
             }
             // S2(2026-09-30 BP 评审 R4):补日主段——命主块只说年份/年柱太浅,
             // 日主是"这是谁"的第一事实。revealDayMasterDisplay 内部判日柱歧义

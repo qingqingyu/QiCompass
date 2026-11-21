@@ -114,19 +114,56 @@ struct ChartHeaderView: View {
             .replacingOccurrences(of: ")", with: "")
     }
 
-    /// 第二枚 chip:「癸酉年 · 属鸡」。年柱干支空(歧义)或生肖未知 → 对应段
-    /// 省略;两段皆无 → 整枚省略(生肖经 isKnownZodiac 挡住未知值,
-    /// animalChar 对未知 fatalError 不触发)。
-    private var yearTag: String? {
+    /// 第二枚 chip(T7 三语):zh / zh-Hant「癸酉年 · 属鸡」;en「Wood Ox ·
+    /// 乙丑 (Yǐ Chǒu)」(元素+生肖 + 干支拼音括注,不再裸露无元素干支——
+    /// 用户再看到别处 "Day Master Water" 会拼成「水牛」,竞品差评对症)。
+    /// 年柱干支空(歧义)或生肖未知 → 对应段省略;两段皆无 → 整枚省略
+    /// (生肖经 isKnownZodiac 挡住未知值,animalChar 对未知 fatalError 不触发)。
+    /// language 显式传参:纯函数可单测(2026-09-23 假红教训)。
+    static func yearTagText(
+        ganZhi: String?,
+        zodiac: String?,
+        ganElement: String?,
+        language: AppLanguage = AppLanguage.current
+    ) -> String? {
         var parts: [String] = []
-        let gz = response.pillars.year?.ganZhi ?? ""
-        if !gz.isEmpty {
-            parts.append(String(format: String(localized: "%@年"), gz))
+        let gz = ganZhi ?? ""
+        // displayName(forZodiac:) 绑定设备语言,显式 language 纯函数里按分支取
+        // (zh=animalChar / zhHant=animalCharHant / en=英文名原值)
+        func zodiacName(_ z: String) -> String {
+            switch language {
+            case .zh: return ZodiacHelper.animalChar(forZodiac: z)
+            case .zhHant: return ZodiacHelper.animalCharHant(forZodiac: z)
+            case .en: return z
+            }
         }
-        if let zodiac = response.yearBranchZodiac, ZodiacHelper.isKnownZodiac(zodiac) {
-            parts.append(L10n.DeepChart.zodiacTag(ZodiacHelper.displayName(forZodiac: zodiac)))
+        if case .en = language {
+            if let zodiac, ZodiacHelper.isKnownZodiac(zodiac) {
+                let name = zodiacName(zodiac)
+                // 元素缺失(理论不可达)退裸生肖,与 revealSubLabel 兜底同约定
+                parts.append(
+                    ZodiacHelper.yearSignLabel(yearGanElement: ganElement, zodiac: name)
+                    ?? name)
+            }
+            if !gz.isEmpty {
+                parts.append(Self.ganzhiDisplay(gz, language: language))
+            }
+        } else {
+            if !gz.isEmpty {
+                parts.append(String(format: String(localized: "%@年"), gz))
+            }
+            if let zodiac, ZodiacHelper.isKnownZodiac(zodiac) {
+                parts.append(L10n.DeepChart.zodiacTag(zodiacName(zodiac)))
+            }
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+
+    private var yearTag: String? {
+        Self.yearTagText(
+            ganZhi: response.pillars.year?.ganZhi,
+            zodiac: response.yearBranchZodiac,
+            ganElement: response.pillars.year?.ganElement)
     }
 
     // MARK: - 大字日期(裸钟面字符串解析,纯函数供单测)

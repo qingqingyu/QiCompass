@@ -374,3 +374,40 @@ final class ZodiacRevealTests: XCTestCase {
         return (w, h, Array(UnsafeBufferPointer(start: buf, count: w * h * 4)))
     }
 }
+
+// MARK: - T7 yearSignLabel(2026-11-22 竞品差评对照;自 revealSubLabel en 分支抽出)
+
+extension ZodiacRevealTests {
+    func test_yearSignLabel_englishElementPlusAnimal() {
+        XCTAssertEqual(
+            ZodiacHelper.yearSignLabel(yearGanElement: "wood", zodiac: "Ox"), "Wood Ox")
+        XCTAssertEqual(
+            ZodiacHelper.yearSignLabel(yearGanElement: "water", zodiac: "Rat"), "Water Rat")
+    }
+
+    func test_yearSignLabel_missingInputsReturnNil() {
+        // 任一缺失 → nil(调用方决定降级,不静默编造)
+        XCTAssertNil(ZodiacHelper.yearSignLabel(yearGanElement: nil, zodiac: "Ox"))
+        XCTAssertNil(ZodiacHelper.yearSignLabel(yearGanElement: "wood", zodiac: ""))
+        XCTAssertNil(ZodiacHelper.yearSignLabel(yearGanElement: "unknown-key", zodiac: "Ox"))
+    }
+
+    /// ProfileView 命主行年柱段(T7):zh 干支原值;en "Wood Ox";降级退干支。
+    func test_yearPillarSegment_threeLanguages() {
+        for language: AppLanguage in [.zh, .zhHant] {
+            XCTAssertEqual(
+                ProfileView.yearPillarSegment(
+                    ganZhi: "乙亥", ganElement: "wood", zodiac: "Pig", language: language),
+                "乙亥")
+        }
+        XCTAssertEqual(
+            ProfileView.yearPillarSegment(
+                ganZhi: "乙亥", ganElement: "wood", zodiac: "Pig", language: .en),
+            "Wood Pig")
+        // en 生肖未知(年柱歧义理论不可达 + 防御)→ 退干支,信息不丢
+        XCTAssertEqual(
+            ProfileView.yearPillarSegment(
+                ganZhi: "乙亥", ganElement: "water", zodiac: nil, language: .en),
+            "乙亥")
+    }
+}

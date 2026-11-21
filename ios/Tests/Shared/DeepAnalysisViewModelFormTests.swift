@@ -895,6 +895,57 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         "year": "甲子", "month": "甲子", "day": "甲子", "hour": "甲子",
     ]
 
+    // MARK: - T7 yearTagText(2026-11-22 竞品差评对照;en 不再裸露无元素干支)
+
+    func testYearTagTextThreeLanguages() {
+        // zh:两段结构 + 干支原值进段 + 简体生肖字(language 参数驱动 animalChar;
+        // 「%@年」「属%@」format 译文随 bundle,不硬编码断言——2026-09-23 假红
+        // 教训,同 DST 用例纪律,三个语言的 format 都是 %@ 收尾故 hasSuffix 稳定)
+        let zh = ChartHeaderView.yearTagText(
+            ganZhi: "乙丑", zodiac: "Ox", ganElement: "wood", language: .zh)
+        XCTAssertEqual(zh?.components(separatedBy: " · ").count, 2, "两段: \(zh ?? "nil")")
+        XCTAssertTrue(zh?.contains("乙丑") == true, "干支原值进段: \(zh ?? "nil")")
+        XCTAssertTrue(zh?.hasSuffix("牛") == true, "zh 简体生肖字: \(zh ?? "nil")")
+        // zh-Hant:生肖字走 animalCharHant(language 参数驱动,不随 bundle)——
+        // 龙/龍 简繁异形,足以锁定分支(屬/属 译文字符随 bundle,不硬编码断言)
+        let hant = ChartHeaderView.yearTagText(
+            ganZhi: "甲辰", zodiac: "Dragon", ganElement: "wood", language: .zhHant)
+        XCTAssertTrue(hant?.hasSuffix("龍") == true, "zh-Hant 繁体生肖字: \(hant ?? "nil")")
+        // en:「Wood Ox · 乙丑 (Yǐ Chǒu)」(元素+生肖 + 干支拼音括注,全代码拼装)
+        XCTAssertEqual(
+            ChartHeaderView.yearTagText(
+                ganZhi: "乙丑", zodiac: "Ox", ganElement: "wood", language: .en),
+            "Wood Ox · 乙丑 (Yǐ Chǒu)")
+    }
+
+    func testYearTagTextDegradations() {
+        // 年柱歧义(干支与生肖皆 nil)→ 整枚省略
+        XCTAssertNil(ChartHeaderView.yearTagText(
+            ganZhi: nil, zodiac: nil, ganElement: nil, language: .zh))
+        XCTAssertNil(ChartHeaderView.yearTagText(
+            ganZhi: nil, zodiac: nil, ganElement: nil, language: .en))
+        // en 元素缺失(理论不可达)→ 裸生肖兜底,干支段照常
+        XCTAssertEqual(
+            ChartHeaderView.yearTagText(
+                ganZhi: "乙丑", zodiac: "Ox", ganElement: nil, language: .en),
+            "Ox · 乙丑 (Yǐ Chǒu)")
+        // en 生肖缺失(理论不可达,防御)→ 干支段照常,单段
+        XCTAssertEqual(
+            ChartHeaderView.yearTagText(
+                ganZhi: "乙丑", zodiac: nil, ganElement: "wood", language: .en),
+            "乙丑 (Yǐ Chǒu)")
+        // zh 部分降级态(重构等价锁:行为零变化承诺覆盖部分态,非仅全有/全无):
+        // 仅干支 → 单段且含干支原值;仅生肖 → 单段且以参数驱动生肖字收尾
+        let zhGzOnly = ChartHeaderView.yearTagText(
+            ganZhi: "乙丑", zodiac: nil, ganElement: nil, language: .zh)
+        XCTAssertEqual(zhGzOnly?.components(separatedBy: " · ").count, 1, "单段: \(zhGzOnly ?? "nil")")
+        XCTAssertTrue(zhGzOnly?.contains("乙丑") == true, "干支原值进段: \(zhGzOnly ?? "nil")")
+        let zhZodiacOnly = ChartHeaderView.yearTagText(
+            ganZhi: nil, zodiac: "Ox", ganElement: "wood", language: .zh)
+        XCTAssertEqual(zhZodiacOnly?.components(separatedBy: " · ").count, 1, "单段: \(zhZodiacOnly ?? "nil")")
+        XCTAssertTrue(zhZodiacOnly?.hasSuffix("牛") == true, "生肖字收尾: \(zhZodiacOnly ?? "nil")")
+    }
+
     func testSolarAdjustNotesHourPillarDiffersZh() {
         // 时柱不同:一条 K1(zh 柱名 + 汉字干支);年/月/日同 → 只有这一条
         let pillars = PillarsDTO(
