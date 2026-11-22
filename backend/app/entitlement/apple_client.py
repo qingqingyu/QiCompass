@@ -79,9 +79,12 @@ class AppleServerAPIClient:
             from appstoreserverlibrary.signed_data_verifier import (
                 SignedDataVerifier,
             )
-            from appstoreserverlibrary.models_library import (
-                Environment,
-            )
+            # SDK 1.x(≥1.0.0)模块布局(2026-11-22 生产实修):0.x 时代的
+            # 平铺模块 models_library 已重构为 models 包,枚举在
+            # models/Environment.py。dev 测试全 mock 未覆盖此 import,
+            # 生产 env 配齐首次真 import 即炸
+            # ——防回归锚 = test_apple_client_certs.py::test_real_sdk_import_surface
+            from appstoreserverlibrary.models.Environment import Environment
         except ImportError as e:
             raise RuntimeError(
                 "app-store-server-library 未安装。"
@@ -95,9 +98,13 @@ class AppleServerAPIClient:
         try:
             roots = _load_apple_root_certs()
 
+            # signing_key 必须 bytes:SDK 内部 load_pem_private_key 对 str
+            # 抛 TypeError(2026-11-22 生产实修实测,≥1.0.0 注解恒为 bytes)
+            signing_key_bytes = private_key.encode("utf-8")
+
             # production 套件(交易查询的第一顺位)
             self._client_prod = AppStoreServerAPIClient(
-                signing_key=private_key,
+                signing_key=signing_key_bytes,
                 key_id=key_id,
                 bundle_id=bundle_id,
                 issuer_id=issuer_id,
@@ -114,7 +121,7 @@ class AppleServerAPIClient:
             # sandbox 套件(App Review / TestFlight 交易的回落顺位;
             # 验签器环境与 JWS payload environment claim 必须一致,选错必失败)
             self._client_sbx = AppStoreServerAPIClient(
-                signing_key=private_key,
+                signing_key=signing_key_bytes,
                 key_id=key_id,
                 bundle_id=bundle_id,
                 issuer_id=issuer_id,
@@ -242,8 +249,10 @@ class AppleServerAPIClient:
             else self._verifier_sbx
         )
         try:
+            # SDK 1.x 方法名(2026-11-22 生产实修):0.x 时代的
+            # verify_and_decode_signed_notification 已更名(去 signed_)
             notification = (
-                verifier.verify_and_decode_signed_notification(jws_body)
+                verifier.verify_and_decode_notification(jws_body)
             )
 
             # notificationType 是 enum,取 .name 或 .value
