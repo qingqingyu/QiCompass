@@ -1084,7 +1084,9 @@ enum L10n {
 
     // MARK: - 付费墙法律注(TASK-04,两付费墙共用)
 
-    /// 付费墙法律注文案(消费方 PaywallLegalFooter)。
+    /// 付费墙法律注文案(免责/条款消费方 PaywallLegalFooter,两付费墙共用;
+    /// bindingNotice 例外——仅命盘绑定型付费墙 PaywallView 直用,禁进 footer,
+    /// 问事次数包不绑命盘)。
     enum PaywallLegal {
         /// 免责一行(命理内容口径,审核要求)。
         /// zh: "内容仅供娱乐参考";en: "For entertainment purposes only"
@@ -1093,6 +1095,13 @@ enum L10n {
         /// 使用条款(EULA)链接标题,跳 Apple 标准许可协议页。
         /// zh: "使用条款";en: "Terms of Use (EULA)"
         static let terms = String(localized: "paywall.legal.terms")
+
+        /// D1-B(2026-11-22 拍板):购买前明示付费内容绑定出生信息——输错
+        /// 更正 = 新命盘 = 重新购买,付费前说清,消灭「没告知就二次扣费」
+        /// 的愤怒点(竞品「一点点抠钱」差评对症)。仅命盘绑定型付费墙消费
+        /// (问事次数包不绑命盘,不用)。
+        /// zh: "付费内容绑定这组出生信息,更正出生信息需重新购买"
+        static let bindingNotice = String(localized: "paywall.binding.notice")
     }
 
     // MARK: - 付费墙时辰未知拦截态(S07,iOS 一期临时态)

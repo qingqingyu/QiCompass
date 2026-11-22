@@ -11780,6 +11780,29 @@
         }
       }
     },
+    "paywall.binding.notice" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "This purchase is tied to the birth details you entered. Correcting them later means buying again."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "付费内容绑定这组出生信息,更正出生信息需重新购买"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "付費內容綁定這組出生資訊,更正出生資訊需重新購買"
+          }
+        }
+      }
+    },
     "paywall.hourUnknown.backToForm" : {
       "extractionState" : "manual",
       "localizations" : {

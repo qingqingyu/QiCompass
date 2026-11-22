@@ -5,7 +5,7 @@ US-COMP-04:后端禁词守卫。词表与客户端 ForbiddenWords.absoluteConclu
 
 from __future__ import annotations
 
-from app.ai.forbidden_words import ABSOLUTE_CONCLUSIONS, scan
+from app.ai.forbidden_words import ABSOLUTE_CONCLUSIONS, ABSOLUTE_ENGLISH_PHRASES, scan
 
 
 def test_clean_text_returns_empty():
@@ -51,10 +51,28 @@ def test_all_forbidden_words_detectable():
 
 
 def test_word_list_matches_client_count():
-    """词表数量 = 16(与客户端 ForbiddenWords.absoluteConclusions 一致;
-    T9 补繁体 5 词:一定會 / 一定不會 / 鐵定 / 絕對 / 必破財——末者为任务书
-    「其余词简繁同形」前提纠错,review 发现后按任务意图补列)。"""
-    assert len(ABSOLUTE_CONCLUSIONS) == 16
+    """词表数量 = 17 中 + 7 英(与客户端 ForbiddenWords 计数锁一致;
+    T9 补繁体 5 词 + 拍板补「註定」台湾异写;D2 英文绝对结论短语)。"""
+    assert len(ABSOLUTE_CONCLUSIONS) == 17
+    assert len(ABSOLUTE_ENGLISH_PHRASES) == 7
+
+
+def test_zhuding_variant_detected():
+    """拍板补列:台湾异写「註定」(zh-Hant 模板自身写「注定」,防漏网)。"""
+    assert scan("你們註定在一起") == ["註定"]
+
+
+def test_english_phrases_word_boundary():
+    """D2:英文短语整词匹配——命中用例与防误杀用例。"""
+    for phrase in ("destined to", "doomed", "guaranteed to", "will definitely",
+                   "will certainly", "without a doubt"):
+        assert scan(f"You are {phrase} succeed.") == [phrase]
+        assert scan(f"you are {phrase.upper()} SUCCEED.") == [phrase]
+    assert scan("a 100% match") == ["100%"]
+    # 防误杀:词边界(子串相同但不成词)+ 正常叙事
+    assert scan("He is willing to try.") == []
+    assert scan("You may be destined.") == []  # destined to 拆开不命中
+    assert scan("The day tends to favor patience.") == []
 
 
 def test_traditional_chinese_variants_detected():

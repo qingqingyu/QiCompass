@@ -132,3 +132,31 @@ extension CompatibilityForbiddenWordsTests {
         }
     }
 }
+
+// MARK: - 拍板落地(2026-11-22):註定 + D2 英文短语整词匹配
+
+extension CompatibilityForbiddenWordsTests {
+    func test扫描_註定_命中() {
+        XCTAssertEqual(ForbiddenWords.scan("你們註定在一起"), ["註定"])
+    }
+
+    func test扫描_英文短语_整词命中() {
+        XCTAssertEqual(ForbiddenWords.scan("You are destined to succeed."), ["destined to"])
+        XCTAssertEqual(ForbiddenWords.scan("This venture is doomed."), ["doomed"])
+        XCTAssertEqual(ForbiddenWords.scan("You are WILL DEFINITELY win."), ["will definitely"])
+        XCTAssertEqual(ForbiddenWords.scan("a 100% match"), ["100%"])
+    }
+
+    func test扫描_英文_词边界防误杀() {
+        // 子串相同但不成词 / 正常叙事 → 不拦截
+        XCTAssertEqual(ForbiddenWords.scan("He is willing to try."), [])
+        XCTAssertEqual(ForbiddenWords.scan("You may be destined."), [])
+        XCTAssertEqual(ForbiddenWords.scan("The day tends to favor patience."), [])
+    }
+
+    func test词表_双端同步计数() {
+        // 与 backend forbidden_words.py 数量锁一致(17 中 + 7 英)
+        XCTAssertEqual(ForbiddenWords.absoluteConclusions.count, 17)
+        XCTAssertEqual(ForbiddenWords.absoluteEnglishPhrases.count, 7)
+    }
+}

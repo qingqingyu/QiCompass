@@ -13,6 +13,7 @@ US-COMP-04 验收标准 4:后端拦截"百分百/一定"等绝对化用语。
 from __future__ import annotations
 
 import logging
+import re
 
 from ..errors import InterpretationForbiddenError
 
@@ -27,7 +28,34 @@ logger = logging.getLogger(__name__)
 ABSOLUTE_CONCLUSIONS: list[str] = [
     "必成", "必分", "必破财", "必定", "一定会", "一定不会",
     "必然", "绝对", "百分之百", "铁定", "注定",
-    "一定會", "一定不會", "鐵定", "絕對", "必破財",
+    "一定會", "一定不會", "鐵定", "絕對", "必破財", "註定",
+]
+
+# D2(2026-11-22 拍板「上,先测误杀率」):英文绝对结论短语,整词匹配
+# (大小写不敏感,空格弹性 \s+)——中文式子串匹配对英文会误杀("will" 命中
+# "willing")。误杀率已实测:evalkit en 全量输出 + 本地缓存 0 命中 0 误杀。
+# 与客户端 ForbiddenWords.absoluteEnglishPhrases 保持一致。
+ABSOLUTE_ENGLISH_PHRASES: list[str] = [
+    "destined to", "doomed", "guaranteed to", "will definitely",
+    "will certainly", "without a doubt", "100%",
+]
+
+# 英文短语预编译正则(模块级一次编译;词边界防误杀;空格弹性 \s+;分词
+# re.escape——未来短语含正则元字符也不会改变语义,转义后恒可编译;
+# 镜像 iOS 侧 escapedPattern(for:) 的逐词转义)。纯符号项("100%")
+# 无词边界语义,单独走字面子串。
+_EN_PHRASE_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
+    (
+        p_,
+        re.compile(
+            r"\b" + r"\s+".join(re.escape(chunk) for chunk in p_.split(" ")) + r"\b",
+            re.IGNORECASE,
+        ),
+    )
+    for p_ in ABSOLUTE_ENGLISH_PHRASES if any(c.isalpha() for c in p_)
+]
+_EN_SUBSTRING_PHRASES: list[str] = [
+    p_ for p_ in ABSOLUTE_ENGLISH_PHRASES if not any(c.isalpha() for c in p_)
 ]
 
 
@@ -36,12 +64,21 @@ def scan(text: str) -> list[str]:
 
     空列表 = 通过;非空 = 拦截。
 
-    与客户端 ForbiddenWords.scan 逻辑一致:简单 `in` 检查,不用正则。
+    与客户端 ForbiddenWords.scan 逻辑一致:中文词简单 `in` 检查;
+    英文短语(D2)整词正则匹配(词边界防误杀)。
     """
     hits: list[str] = []
     for word in ABSOLUTE_CONCLUSIONS:
         if word in text and word not in hits:
             hits.append(word)
+    # 英文短语:整词匹配(词边界防误杀,"willing" 不命中任何词表项);
+    # 纯符号项("100%")无词边界语义,子串匹配。命中返回原词表串。
+    for phrase, pattern in _EN_PHRASE_PATTERNS:
+        if phrase not in hits and pattern.search(text):
+            hits.append(phrase)
+    for phrase in _EN_SUBSTRING_PHRASES:
+        if phrase not in hits and phrase in text:
+            hits.append(phrase)
     return hits
 
 

@@ -596,19 +596,64 @@ enum ForbiddenWords {
     /// T9(2026-11-22 竞品差评对照):补繁体形(zh-Hant 输出的「一定會/絕對」等
     /// 此前不拦截)。review 发现任务书「其余词简繁同形」前提对 必破财 不成立
     /// (繁体作「必破財」),按任务意图一并补列(与后端 forbidden_words.py 同步;
-    /// 缓存全量扫描 0 命中,零翻转风险);「註定」(台湾偶见异写)未列,留拍板。
+    /// 缓存全量扫描 0 命中,零翻转风险);拍板(2026-11-22)补「註定」台湾异写。
     static let absoluteConclusions: [String] = [
         "必成", "必分", "必破财", "必定", "一定会", "一定不会",
         "必然", "绝对", "百分之百", "铁定", "注定",
-        "一定會", "一定不會", "鐵定", "絕對", "必破財",
+        "一定會", "一定不會", "鐵定", "絕對", "必破財", "註定",
     ]
+
+    /// D2(2026-11-22 拍板「上,先测误杀率」):英文绝对结论短语,整词匹配
+    /// (大小写不敏感,空格弹性)——中文式子串匹配对英文会误杀("will" 命中
+    /// "willing")。误杀率已实测:evalkit en 全量输出 + 本地缓存 0 命中 0 误杀。
+    /// 与后端 forbidden_words.ABSOLUTE_ENGLISH_PHRASES 保持一致。
+    static let absoluteEnglishPhrases: [String] = [
+        "destined to", "doomed", "guaranteed to", "will definitely",
+        "will certainly", "without a doubt", "100%",
+    ]
+
+    /// 英文短语预编译匹配器(镜像 backend 模块级一次编译;静态词表编译失败
+    /// 理论不可达,回退字面子串并留痕)。
+    private enum EnglishMatcher {
+        case regex(NSRegularExpression)
+        case literal
+    }
+    private static let englishMatchers: [(phrase: String, matcher: EnglishMatcher)] =
+        absoluteEnglishPhrases.map { phrase in
+            if !phrase.contains(where: { $0.isLetter }) {
+                return (phrase, .literal)
+            }
+            let chunks = phrase.split(separator: " ")
+                .map { NSRegularExpression.escapedPattern(for: String($0)) }
+            let pattern = "\\b" + chunks.joined(separator: "\\s+") + "\\b"
+            if let regex = try? NSRegularExpression(
+                pattern: pattern, options: [.caseInsensitive]) {
+                return (phrase, .regex(regex))
+            }
+            AppLogger.app.error("ForbiddenWords.english_matcher_compile_failed phrase=\(phrase, privacy: .public)")
+            return (phrase, .literal)
+        }
 
     /// 扫描文本,返回所有命中禁词(去重保序)。
     /// 空列表 = 通过;非空 = 拦截。
+    /// 中文词简单 contains;英文短语(D2)整词匹配(词边界防误杀)。
     static func scan(_ text: String) -> [String] {
         var hits: [String] = []
         for word in absoluteConclusions where text.contains(word) {
             if !hits.contains(word) { hits.append(word) }
+        }
+        let range = NSRange(text.startIndex..., in: text)
+        for (phrase, matcher) in englishMatchers where !hits.contains(phrase) {
+            switch matcher {
+            case .regex(let regex):
+                if regex.firstMatch(in: text, range: range) != nil {
+                    hits.append(phrase)
+                }
+            case .literal:
+                if text.contains(phrase) {
+                    hits.append(phrase)
+                }
+            }
         }
         return hits
     }
