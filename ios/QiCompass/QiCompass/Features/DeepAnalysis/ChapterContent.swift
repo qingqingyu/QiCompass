@@ -74,7 +74,7 @@ struct ChapterContent: Equatable {
         parse(text, for: nil)
     }
 
-    /// 按模块解析(2026-10-12 S4-A):M0/M1 各自特化组装,M2/M3/M4 共用问句
+    /// 按模块解析(2026-10-12 S4-A):M0/M1 各自特化组装,M2-M5 共用问句
     /// 门头数组装配,其余模块走通用节点树。module 为 nil = 通用(中毒判读
     /// 等不关心排版)。特化章缺关键结构(老缓存/违约)→ 回落通用渲染,
     /// 不静默丢内容。
@@ -86,7 +86,7 @@ struct ChapterContent: Equatable {
             nodes = specialized
         } else if module == .m1, let specialized = m1Nodes(from: pairs) {
             nodes = specialized
-        } else if (module == .m2 || module == .m3 || module == .m4),
+        } else if (module == .m2 || module == .m3 || module == .m4 || module == .m5),
                   let specialized = questionArrayNodes(from: pairs) {
             nodes = specialized
         } else {
@@ -341,7 +341,7 @@ struct ChapterContent: Equatable {
         return nodes
     }
 
-    /// 问句门头数组装配(M2/M3/M4 共用;2026-11-10 叁章拍板引入,2026-11-12
+    /// 问句门头数组装配(M2-M5 共用;2026-11-10 叁章拍板引入,2026-11-12
     /// 肆章复用并自 m2Nodes 改名,2026-11-19 伍章并入):对象节走通用构造器
     /// 已自动获得问句门头;字符串/
     /// 对象数组在通用路径渲染成裸 .bullets/.items 无门(M1 同款病)——本装配按
@@ -870,6 +870,12 @@ struct ChapterContent: Equatable {
         "recovery_levers": "累了怎么缓过来?",
         "reset_7day": "掉进低谷，怎么爬出来?",
         "weekly_maintenance": "怎么少掉进低谷?",
+        // M5(2026-11-22 陆章拍板,docs/命书陆章标题推敲.md):外部 AI 骨架+
+        // 用户三处改词(伤了我/止损/让它替我挣钱);①双问=排序节 fit+friction。
+        "income_forms": "我最该靠哪种钱吃饭?哪种钱挣了反倒伤了我?",
+        "leaks": "钱最容易从哪儿漏?漏了怎么止损?",
+        "strategies": "我该求稳，还是能搏一把?",
+        "asset_ideas": "我能攒下什么家底，让它替我挣钱?",
     ]
 
     /// 小节门头取题:有问句用问句,无问句回落短名词标签(其余章维持名词门头)。
