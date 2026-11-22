@@ -59,7 +59,8 @@ class _StubVerifier:
         self.decode_tx_calls.append(signed)
         return _payload()
 
-    def verify_and_decode_signed_notification(self, body: str):
+    # 方法名对齐 SDK 1.x(2026-11-22 生产实修;0.x 旧名带 signed_ 前缀)
+    def verify_and_decode_notification(self, body: str):
         self.decode_notification_calls.append(body)
         # 内层交易 JWS 也走同一 verifier(与实现的环境路由一致)
         return SimpleNamespace(
