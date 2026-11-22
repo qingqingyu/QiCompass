@@ -6003,6 +6003,29 @@
         }
       }
     },
+    "deepanalysis.chapter.q.asset_ideas" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What can I build up that earns for me?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我能攒下什么家底，让它替我挣钱?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我能攢下什麼家底，讓它替我掙錢?"
+          }
+        }
+      }
+    },
     "deepanalysis.chapter.q.battery_type" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6233,6 +6256,29 @@
         }
       }
     },
+    "deepanalysis.chapter.q.income_forms" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Which kind of money should I live on, and which hurts me?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我最该靠哪种钱吃饭?哪种钱挣了反倒伤了我?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我最該靠哪種錢吃飯?哪種錢掙了反倒傷了我?"
+          }
+        }
+      }
+    },
     "deepanalysis.chapter.q.innate" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6252,6 +6298,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "我最自然、不費力的能力是什麼?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.leaks" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where does the money leak out? How do you stop it?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "钱最容易从哪儿漏?漏了怎么止损?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "錢最容易從哪裡漏?漏了怎麼止損?"
           }
         }
       }
@@ -6413,6 +6482,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "它更適合穩定型人生，還是高變量人生?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.strategies" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Should I play it safe, or take a swing?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我该求稳，还是能搏一把?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我該求穩，還是能搏一把?"
           }
         }
       }
@@ -15680,25 +15772,25 @@
         }
       }
     },
-    "适合你的赚钱方式，和最容易漏钱的地方" : {
+    "适合你的赚钱方式，攒什么家底替你挣钱" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "How you earn best, and where money slips away"
+            "value" : "How you earn, and what to build so it earns for you"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "适合你的赚钱方式，和最容易漏钱的地方"
+            "value" : "适合你的赚钱方式，攒什么家底替你挣钱"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "適合你的賺錢方式，和最容易漏錢的地方"
+            "value" : "適合你的賺錢方式，攢什麼家底替你掙錢"
           }
         }
       }

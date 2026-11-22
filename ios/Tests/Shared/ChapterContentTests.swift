@@ -403,6 +403,69 @@ final class ChapterContentTests: XCTestCase {
         XCTAssertEqual(fields.map(\.label), ["输入", "加工", "输出", "回血"])
     }
 
+    // MARK: - M5 生财之道(2026-11-22 陆章问句门头)
+    func test_m5_specializationWrapsFourQuestionDoors() {
+        let json = """
+        {
+          "income_forms": [
+            { "form": "项目", "rank": 1, "fit": "整块交付配你的节奏", "friction": "", "evidence": "食伤生财" },
+            { "form": "工资", "rank": 2, "fit": "", "friction": "层级稀释判断", "evidence": "官杀轻" }
+          ],
+          "leaks": [
+            { "type": "人情", "how_it_shows": "朋友开口就接", "rule": "如果三天内答,就先睡一晚再回" }
+          ],
+          "strategies": {
+            "conservative": { "label": "稳着走", "detail": "保住现金流" },
+            "balanced": { "label": "两头配", "detail": "七三开" },
+            "aggressive": { "label": "押上行", "detail": "上限筹码" }
+          },
+          "asset_ideas": [
+            { "idea": "把交付过的方案做成模板库", "uses_talent": "食伤", "fits_life_structure": "项目制", "startup_cost": "低", "likely_blocker": "懒得整理" }
+          ]
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m5) else {
+            return XCTFail("M5 应特化解析")
+        }
+        let titles = content.nodes.compactMap { node -> String? in
+            guard case .section(let title, _) = node else { return nil }
+            return title
+        }
+        XCTAssertEqual(titles, [
+            "我最该靠哪种钱吃饭?哪种钱挣了反倒伤了我?",
+            "钱最容易从哪儿漏?漏了怎么止损?",
+            "我该求稳，还是能搏一把?",
+            "我能攒下什么家底，让它替我挣钱?",
+        ])
+        guard case .section(_, let incomeChildren)? = content.nodes.first,
+              case .items(let forms)? = incomeChildren.first else {
+            return XCTFail("income_forms 节内应为条目卡")
+        }
+        XCTAssertEqual(forms.count, 2)
+        // strategies 对象节走通用构造器:门头为问句,嵌套三档为名词
+        guard case .section(_, let stratChildren)? = content.nodes.dropFirst(2).first else {
+            return XCTFail("strategies 应为节")
+        }
+        let nested = stratChildren.compactMap { node -> String? in
+            guard case .section(let t, _) = node else { return nil }
+            return t
+        }
+        XCTAssertEqual(nested, ["保守", "平衡", "进攻"])
+    }
+
+    func test_m5_specializationFallsBackWithoutQuestionArrays() {
+        // 无问题表内数组 → 装配返 nil 落回通用;strategies 对象照样获问句门头
+        let json = """
+        { "strategies": { "conservative": { "label": "a", "detail": "b" } } }
+        """
+        guard let content = ChapterContent.parse(json, for: .m5) else {
+            return XCTFail("应解析成功")
+        }
+        guard case .section("我该求稳，还是能搏一把?", _)? = content.nodes.first else {
+            return XCTFail("通用回落应为问句门头,实际:\(content.nodes)")
+        }
+    }
+
     // MARK: - 对象数组 → 条目卡(M1 天赋 / M4 七天复位)
 
     func test_m1_itemsWithTitleFromName() {
