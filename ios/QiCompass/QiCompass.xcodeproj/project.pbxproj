@@ -196,6 +196,7 @@
 		B36D4647A938BC37E999E702 /* DailyReadCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23C84BD0B1E670AC7EF54B93 /* DailyReadCounter.swift */; };
 		D26047CCB90DDAA99C1B6D7D /* InterpretationCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AF74383AEB02A4F7ED0C689 /* InterpretationCacheStore.swift */; };
 		9C4F2C3D4E5F6A7B8C9D0E2F /* TranslateHintBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C4F2C3D4E5F6A7B8C9D0E1F /* TranslateHintBar.swift */; };
+		C0449122832E9F13973A75F5 /* ChartBasisSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE1FC4001A1E34DE50083307 /* ChartBasisSheet.swift */; };
 		E22A4DA18C53C38BBC80783C /* ChartHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */; };
 		E40D46498BC532F986012E83 /* ShenshaChips.swift in Sources */ = {isa = PBXBuildFile; fileRef = D91C4716AE1411C309FEBE65 /* ShenshaChips.swift */; };
 		F5DE2EFF3006596F0089996B /* OnboardingView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F5DE2EFE3006596F0089996B /* OnboardingView.swift */; };
@@ -405,6 +406,7 @@
 		F5DE2EFE3006596F0089996B /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OnboardingView.swift; path = QiCompass/Features/Onboarding/OnboardingView.swift; sourceTree = SOURCE_ROOT; };
 		F8BC4D749648FC864F2EDB38 /* LuckPillarsTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LuckPillarsTimeline.swift; path = QiCompass/Features/DeepAnalysis/LuckPillarsTimeline.swift; sourceTree = SOURCE_ROOT; };
 		F9AB427085FC26BB41BE756E /* PillarsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PillarsTable.swift; path = QiCompass/Features/DeepAnalysis/PillarsTable.swift; sourceTree = SOURCE_ROOT; };
+		CE1FC4001A1E34DE50083307 /* ChartBasisSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartBasisSheet.swift; path = QiCompass/Features/DeepAnalysis/ChartBasisSheet.swift; sourceTree = SOURCE_ROOT; };
 		F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartHeaderView.swift; path = QiCompass/Features/DeepAnalysis/ChartHeaderView.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
@@ -474,6 +476,7 @@
 				7C2700000000000000000001 /* CitySearchEngine.swift */,
 				7C2700000000000000000002 /* CityPickerField.swift */,
 				7C2700000000000000000003 /* CitySearchSheet.swift */,
+				CE1FC4001A1E34DE50083307 /* ChartBasisSheet.swift */,
 				F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */,
 				F9AB427085FC26BB41BE756E /* PillarsTable.swift */,
 				9C1000000000000000000090 /* AddHourSheet.swift */,
@@ -908,6 +911,7 @@ A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				7C1700000000000000000001 /* CitySearchEngine.swift in Sources */,
 				7C1700000000000000000002 /* CityPickerField.swift in Sources */,
 				7C1700000000000000000003 /* CitySearchSheet.swift in Sources */,
+				C0449122832E9F13973A75F5 /* ChartBasisSheet.swift in Sources */,
 				E22A4DA18C53C38BBC80783C /* ChartHeaderView.swift in Sources */,
 				4CBA413486050C87638346A8 /* PillarsTable.swift in Sources */,
 				9C0000000000000000000090 /* AddHourSheet.swift in Sources */,

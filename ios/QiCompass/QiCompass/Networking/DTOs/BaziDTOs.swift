@@ -236,6 +236,23 @@ struct PastNodeDTO: Codable, Sendable, Equatable {
     let age: Int
 }
 
+// MARK: - 农历新年口径年柱对照(T6,2026-11-22 竞品差评对照)
+
+/// 农历新年(正月初一)口径的年干支 + 生肖。后端仅当与立春口径年柱**不同**
+/// 才透出(相同 / 年柱歧义 → null):大众生肖网站按农历新年换年,八字按
+/// 立春换年,出生在两者之间的人两边生肖差一年——K4 对照句的原料。
+/// 仅展示对照用,不参与任何计算与 token。
+struct LunarNewYearYearDTO: Codable, Sendable, Equatable {
+    let ganZhi: String
+    /// 英文生肖名(与 yearBranchZodiac 同值域,如 "Ox")
+    let zodiac: String
+
+    enum CodingKeys: String, CodingKey {
+        case ganZhi = "gan_zhi"
+        case zodiac
+    }
+}
+
 // MARK: - Response
 
 /// POST /api/bazi/calculate 响应。对齐 backend BaziCalculateResponse
@@ -284,6 +301,10 @@ struct BaziResponse: Codable, Sendable {
     /// (D5 纯陈述零交互)。nil = 空池/规则缺席/老响应与老快照
     /// (decodeIfPresent,2026-08-15 keyNotFound 教训)→ OnboardingView 不渲染,不猜。
     var pastNode: PastNodeDTO? = nil
+    /// T6(2026-11-22 竞品差评对照):农历新年口径年柱对照(仅当与立春口径
+    /// 年柱不同才给;相同 / 年柱歧义 → null)。仅展示对照用;老响应缺 key →
+    /// nil(decodeIfPresent,生肖屏不渲染 K4 行,不猜)。
+    var lunarNewYearYear: LunarNewYearYearDTO? = nil
 
     // v1 prompt 系统 chart 注入字段(Stage 1 后端引入,iOS Stage 7b 接入)
     // 不在声明处给默认值(否则 init(from decoder:) + 默认值会触发"immutable value
@@ -327,6 +348,14 @@ struct BaziResponse: Codable, Sendable {
     /// key 带 archived_ 前缀,与未来可能的后端回显字段隔离。
     var archivedBirthDatetime: String? = nil
     var archivedGeonameId: Int? = nil
+    /// T2(2026-11-21 竞品差评对照):不做真太阳时校正、直接按钟表时间排的四柱干支
+    /// (key ∈ year/month/day/hour → 干支)。仅展示对照用,不参与任何计算;
+    /// 时辰未知或柱歧义 → nil(后端不猜)。老响应/老快照缺 key → nil(decodeIfPresent,
+    /// 页头走旧 boundaryWarning 渲染)。
+    var clockTimePillars: [String: String]? = nil
+    /// 夏令时边角结构化码(dst_ambiguous / dst_nonexistent / dst_transition),
+    /// 供三语本地化渲染;老响应缺 key → [](decodeIfPresent)。
+    var dstFlags: [String] = []
 
     /// 存档/响应是否含时柱(时辰未知 S04)。单一事实源是后端
     /// `calc_rule_snapshot.hour_known`;老 payload 缺 key → true(decodeIfPresent ?? true)。
@@ -368,6 +397,7 @@ struct BaziResponse: Codable, Sendable {
         case yearBranchFriends = "year_branch_friends"
         case yearBranchClash = "year_branch_clash"
         case pastNode = "past_node"
+        case lunarNewYearYear = "lunar_new_year_year"
         case tenGodWeights = "ten_god_weights"
         case usefulGodCandidates = "useful_god_candidates"
         case meta
@@ -378,6 +408,8 @@ struct BaziResponse: Codable, Sendable {
         case contextTokens = "context_tokens"
         case archivedBirthDatetime = "archived_birth_datetime"
         case archivedGeonameId = "archived_geoname_id"
+        case clockTimePillars = "clock_time_pillars"
+        case dstFlags = "dst_flags"
     }
 
     // Stage 7b 关键修复:自定义 init(from:) 让 v1 字段真能解码。
@@ -461,6 +493,9 @@ struct BaziResponse: Codable, Sendable {
         // 节点句(2026-10-19):老响应/老快照缺 key → nil(该行不渲染);
         // 显式 null(空池/规则缺席)同透传 nil——两者都是诚实留白,无兜底语义
         pastNode = try c.decodeIfPresent(PastNodeDTO.self, forKey: .pastNode)
+        // T6(2026-11-22):农历新年口径年柱对照;老响应缺 key → nil
+        lunarNewYearYear = try c.decodeIfPresent(
+            LunarNewYearYearDTO.self, forKey: .lunarNewYearYear)
         // v1 字段:decodeIfPresent + 默认值,缺 key 走默认(对齐 backend Stage 1+ 语义)
         tenGodWeights = try c.decodeIfPresent([String: Int].self, forKey: .tenGodWeights) ?? [:]
         usefulGodCandidates = try c.decodeIfPresent([String].self, forKey: .usefulGodCandidates) ?? []
@@ -482,6 +517,11 @@ struct BaziResponse: Codable, Sendable {
             String.self, forKey: .archivedBirthDatetime)
         archivedGeonameId = try c.decodeIfPresent(
             Int.self, forKey: .archivedGeonameId)
+        // T2(2026-11-21):钟表时间对照柱 + dst_flags;老响应缺 key → 默认值
+        // (页头按字段缺失走旧 boundaryWarning 渲染,见 ChartHeaderView)
+        clockTimePillars = try c.decodeIfPresent(
+            [String: String].self, forKey: .clockTimePillars)
+        dstFlags = try c.decodeIfPresent([String].self, forKey: .dstFlags) ?? []
     }
 
     // Stage 7b:memberwise init(自定义 init(from:) 后失去合成,手写带默认值
@@ -523,7 +563,10 @@ struct BaziResponse: Codable, Sendable {
         contextTokens: [String: String]? = nil,
         archivedBirthDatetime: String? = nil,
         archivedGeonameId: Int? = nil,
-        pastNode: PastNodeDTO? = nil
+        pastNode: PastNodeDTO? = nil,
+        clockTimePillars: [String: String]? = nil,
+        dstFlags: [String] = [],
+        lunarNewYearYear: LunarNewYearYearDTO? = nil
     ) {
         self.contentHash = contentHash
         self.trueSolarTime = trueSolarTime
@@ -562,6 +605,9 @@ struct BaziResponse: Codable, Sendable {
         self.archivedBirthDatetime = archivedBirthDatetime
         self.archivedGeonameId = archivedGeonameId
         self.pastNode = pastNode
+        self.clockTimePillars = clockTimePillars
+        self.dstFlags = dstFlags
+        self.lunarNewYearYear = lunarNewYearYear
     }
 }
 

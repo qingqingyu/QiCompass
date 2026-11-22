@@ -113,6 +113,13 @@ enum L10n {
         /// zh: "继续";en: "Continue"
         static let revealCTADegraded = String(localized: "onboarding.reveal.cta.degraded")
 
+        /// T6 农历新年口径生肖差异句(K4,2026-11-22 竞品差评对照;
+        /// %1$@ = 农历口径生肖,%2$@ = 立春口径年柱对照,拼装见
+        /// `OnboardingView.lnyMismatchText`)。
+        static func lnyMismatch(_ lnyZodiac: String, yearPillar: String) -> String {
+            String(format: String(localized: "zodiac.lnyMismatch"), lnyZodiac, yearPillar)
+        }
+
         // -- 12 生肖人格文案(静态善意正面画像,Q6 锁定:1-2 句,不吹天命不写负面)--
 
         static let personalityRat = String(localized: "onboarding.personality.rat")
@@ -229,6 +236,12 @@ enum L10n {
         /// 与日期「—」/半夜未答同口径,提交被 formInvalid 拦)。
         /// zh: "未选择时刻";en: "Not selected yet"
         static let confirmTimeUnpicked = String(localized: "birthform.confirm.timeUnpicked")
+
+        /// T4(2026-11-22 竞品差评对照):确认 sheet 真太阳时预告——用户第一次看到
+        /// 排盘时间与输入不同前先铺认知(时辰未知不显示,由补时辰链路另行解释)。
+        /// zh: "排盘时会按出生地换算成真太阳时,时柱可能和钟表时间所在的时辰
+        /// 不同。你填写的时间会原样保存。"
+        static let confirmSolarHint = String(localized: "birthConfirm.solarHint")
 
         /// "命盘别名" 字段标签(字段 Micro 标签与 TextField 标题共用同一 key)。
         /// zh: "命盘别名";en: "Chart name"
@@ -1071,7 +1084,9 @@ enum L10n {
 
     // MARK: - 付费墙法律注(TASK-04,两付费墙共用)
 
-    /// 付费墙法律注文案(消费方 PaywallLegalFooter)。
+    /// 付费墙法律注文案(免责/条款消费方 PaywallLegalFooter,两付费墙共用;
+    /// bindingNotice 例外——仅命盘绑定型付费墙 PaywallView 直用,禁进 footer,
+    /// 问事次数包不绑命盘)。
     enum PaywallLegal {
         /// 免责一行(命理内容口径,审核要求)。
         /// zh: "内容仅供娱乐参考";en: "For entertainment purposes only"
@@ -1080,6 +1095,13 @@ enum L10n {
         /// 使用条款(EULA)链接标题,跳 Apple 标准许可协议页。
         /// zh: "使用条款";en: "Terms of Use (EULA)"
         static let terms = String(localized: "paywall.legal.terms")
+
+        /// D1-B(2026-11-22 拍板):购买前明示付费内容绑定出生信息——输错
+        /// 更正 = 新命盘 = 重新购买,付费前说清,消灭「没告知就二次扣费」
+        /// 的愤怒点(竞品「一点点抠钱」差评对症)。仅命盘绑定型付费墙消费
+        /// (问事次数包不绑命盘,不用)。
+        /// zh: "付费内容绑定这组出生信息,更正出生信息需重新购买"
+        static let bindingNotice = String(localized: "paywall.binding.notice")
     }
 
     // MARK: - 付费墙时辰未知拦截态(S07,iOS 一期临时态)
@@ -1800,11 +1822,36 @@ enum L10n {
             String(format: String(localized: "deepanalysis.chart.trueSolarFormat"), formatted)
         }
 
-        /// 真太阳时偏差(%@ = 正负号,%.1f = 分钟;2026-10-14 页头改版「偏差」→「较北京时间」)。
-        /// zh: "较北京时间 %@%.1f 分";zh-Hant: "較北京時間 %@%.1f 分";en: "Offset %@%.1f min"
+        /// 真太阳时偏差(%@ = 正负号,%.0f = 分钟;T3 2026-11-22 改错:偏移相对
+        /// 出生地时区中央经线算,不是北京时间——「较北京时间」对美国出生用户是
+        /// 错误描述;小数点对用户无信息量,改整数)。
+        /// zh: "较钟表时间 %@%.0f 分";zh-Hant: "較鐘錶時間 %1$@%2$.0f 分";
+        /// en: "%@%.0f min vs. clock time"
         static func solarOffset(sign: String, minutes: Double) -> String {
             String(format: String(localized: "deepanalysis.chart.solarOffsetFormat"), sign, minutes)
         }
+
+        // -- T2 真太阳时对照说明(2026-11-21 竞品差评对照;K1/K2 + K3a/b/c)--
+
+        /// K1 钟表时间 vs 真太阳时逐柱差异(%1$@ = 柱名,%2$@ = 钟表柱,%3$@ = 本盘柱;
+        /// %1$@ 在句尾复用,positional 格式)。en 柱名由调用方 lowercased()。
+        static func solarNotePillarDiff(_ pillar: String, clock: String, actual: String) -> String {
+            String(format: String(localized: "chart.solarNote.pillarDiff"), pillar, clock, actual)
+        }
+
+        /// K2 日主差异句(%1$@ = 本盘日主,%2$@ = 钟表口径日主)。
+        static func solarNoteDayMasterDiff(_ actual: String, clock: String) -> String {
+            String(format: String(localized: "chart.solarNote.dayMasterDiff"), actual, clock)
+        }
+
+        /// K3a 夏令时回拨(时间重复出现)。zh: "这个时间在当年出现过两次…"
+        static let dstAmbiguousNote = String(localized: "chart.dst.ambiguous")
+
+        /// K3b 夏令时跳段(时间不存在)。
+        static let dstNonexistentNote = String(localized: "chart.dst.nonexistent")
+
+        /// K3c 出生时间接近夏令时切换点。
+        static let dstTransitionNote = String(localized: "chart.dst.transition")
 
         // -- 当前柱 --
 
@@ -1833,5 +1880,37 @@ enum L10n {
 
         /// zh: "胎元";en: "Conception Pillar"
         static let auxTaiYuan = String(localized: "deepanalysis.aux.taiYuan")
+    }
+
+    // MARK: - 排盘口径说明页(T3,2026-11-22 竞品差评对照;ChartBasisSheet 三节)
+
+    /// 三节静态说明:真太阳时 / 立春 vs 农历新年 / 生肖年份五行 vs 日主。
+    /// 文案三语落 xcstrings(chartBasis.*);个性化行(T6 生肖差异 K4)由
+    /// ChartBasisSheet 追加,不在此枚举。
+    enum ChartBasis {
+        /// S0 页标题。zh: "排盘口径说明";zh-Hant: "排盤口徑說明";
+        /// en: "How your chart is calculated"
+        static let title = String(localized: "chartBasis.title")
+
+        /// 第一节标题。zh: "为什么排盘时间和我填的不一样?"
+        static let solarTitle = String(localized: "chartBasis.solar.title")
+
+        /// 第一节正文(你填写的时间原样保存 + 真太阳时校正三件事)。
+        static let solarBody = String(localized: "chartBasis.solar.body")
+
+        /// 第二节标题。zh: "为什么生肖和其他网站不一样?"
+        static let yearTitle = String(localized: "chartBasis.year.title")
+
+        /// 第二节正文(立春换年 vs 农历新年换年,口径不同不是算错)。
+        static let yearBody = String(localized: "chartBasis.year.body")
+
+        /// 第三节标题。zh: "生肖、年份五行和日主有什么区别?"
+        static let dayMasterTitle = String(localized: "chartBasis.dayMaster.title")
+
+        /// 第三节正文(「木牛」来自年柱,日主是本命五行,两个都对)。
+        static let dayMasterBody = String(localized: "chartBasis.dayMaster.body")
+
+        /// 关闭按钮。zh: "关闭";zh-Hant: "關閉";en: "Close"
+        static let close = String(localized: "chartBasis.close")
     }
 }

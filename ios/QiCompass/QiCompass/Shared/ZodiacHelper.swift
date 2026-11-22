@@ -143,11 +143,27 @@ enum ZodiacHelper {
         // 降级态本就不渲染副标,此分支仅保参数完备)
         var parts: [String] = []
         if !zodiac.isEmpty, yearGanZhi != "—" {
-            let elementName = yearGanElement.flatMap(ElementColors.from)?.englishLabel
-            parts.append(elementName.map { "\($0) \(zodiac)" } ?? zodiac)
+            // T7(2026-11-22):抽出的 yearSignLabel(单一事实源);五行 key 缺失
+            // → 裸生肖兜底(既有行为,test_revealSubLabel_englishWithoutElementFallsBack 锁定)
+            if let label = yearSignLabel(yearGanElement: yearGanElement, zodiac: zodiac) {
+                parts.append(label)
+            } else {
+                parts.append(zodiac)
+            }
         }
         if let birthYear { parts.append("\(birthYear)") }
         return parts.isEmpty ? "—" : parts.joined(separator: " · ")
+    }
+
+    /// 年柱系英标签「Wood Ox」(年干五行 + 生肖;T7 2026-11-22 自 revealSubLabel
+    /// en 分支抽出,反馈屏副标 / ChartHeaderView yearTag / ProfileView metaLine /
+    /// T6 农历新年对照句共用)。
+    /// 任一缺失(五行 key 未知 / 生肖空)→ nil,调用方决定降级,不静默编造。
+    static func yearSignLabel(yearGanElement: String?, zodiac: String) -> String? {
+        guard !zodiac.isEmpty,
+              let element = yearGanElement.flatMap(ElementColors.from)?.englishLabel
+        else { return nil }
+        return "\(element) \(zodiac)"
     }
 
     /// 反馈屏个人化 teaser 的日主展示串(2026-09-23 EN review:第一屏只露年柱层

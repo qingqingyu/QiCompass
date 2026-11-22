@@ -19,6 +19,11 @@ from lunar_python import Solar
 
 from ..core.calc_rule_snapshot import build_calc_rule_snapshot
 from ..core.content_hash import compute_content_hash
+from ..core.tz_resolution import (
+    FLAG_AMBIGUOUS,
+    FLAG_NEAR_TRANSITION,
+    FLAG_NONEXISTENT,
+)
 from ..core.true_solar_time import (
     compute_true_solar_time,
     day_pillar_candidate_wall_interval,
@@ -44,7 +49,7 @@ from ..engine.shensha import compute_shensha
 from ..engine.verification import pick_past_node
 from ..engine.xiji import compute_xiji
 from ..errors import BaziCalculationFailedError
-from ..models.bazi import MetaBlock
+from ..models.bazi import LunarNewYearYear, MetaBlock
 
 logger = logging.getLogger(__name__)
 
@@ -186,10 +191,21 @@ class BaziEngine:
                 )
                 year_branch_friends = [compute_year_zodiac(z) for z in friends_zhi]
                 year_branch_clash = compute_year_zodiac(clash_zhi)
+
+                # 3.3 农历新年口径年柱对照(T6,2026-11-22 竞品差评对照):
+                # 大众生肖网站按正月初一换年,与立春口径年柱不一致时透出,
+                # 供 iOS 解释「为什么和别的网站不一样」。时辰未知也照算
+                # (正月初一按日期换年,不依赖时辰);仅展示对照用——不参与
+                # content_hash / calc_rule_snapshot / 任何判断与 token
+                lunar_new_year_year = _lunar_new_year_year(
+                    calc_birth, lichun_gan_zhi=pillars.year.gan_zhi,
+                )
             else:
                 year_branch_zodiac = None
                 year_branch_friends = None
                 year_branch_clash = None
+                # 年柱歧义(立春日 + 时辰未知)→ 两侧口径都不可信,不猜
+                lunar_new_year_year = None
 
             # 3.5 contentHash(提前算,供后续日志关联;用输入时间,非真太阳时。
             # 时辰未知时 birth 为区间中点占位归一值:时辰桶不参与,
@@ -340,6 +356,28 @@ class BaziEngine:
             else:
                 meta_block = None
 
+            # 10. 钟表时间对照柱 + dst_flags 结构化透出(T1,2026-11-21 竞品差评
+            #     对照):hour_known=true 时柱歧义必不存在(pillar_ambiguity 仅
+            #     时辰未知路径产生),故条件即 hour_known。clock_time_pillars 仅
+            #     展示对照用 —— 不参与 content_hash / calc_rule_snapshot /
+            #     喜忌 / 任何判断,不进任何 context token
+            clock_time_pillars = (
+                _clock_time_pillars(calc_birth) if hour_known else None
+            )
+            # dst_flags 稳定排序输出(frozenset → list,同输入同输出)。
+            # 未知值显式抛错不静默丢:dst_flags 是结构化契约(客户端按值
+            # 取本地化文案),漏传一个值 = 该提示永远到不了用户(错误显式
+            # 传播;新 flag 须在 _DST_FLAG_ORDER 与 boundary_warning 文案同步登记)
+            unknown_dst = dst_flags.difference(_DST_FLAG_ORDER)
+            if unknown_dst:
+                raise ValueError(
+                    f"未知 dst_flags 值: {sorted(unknown_dst)};"
+                    "请在 _DST_FLAG_ORDER 与 boundary_warning 文案同步登记"
+                )
+            dst_flags_out = [
+                f for f in _DST_FLAG_ORDER if f in dst_flags
+            ]
+
             return {
                 "content_hash": content_hash,
                 # 时辰未知:真太阳时含时辰信息,占位值不漏到响应
@@ -379,6 +417,12 @@ class BaziEngine:
                 # 年柱歧义时随年支系派生一并置 null
                 "year_branch_friends": year_branch_friends,
                 "year_branch_clash": year_branch_clash,
+                # T6(2026-11-22):农历新年口径年柱对照(仅当与立春口径年柱不同
+                # 才给;相同 / 年柱歧义 → None)。仅展示用,不参与任何判断与 hash
+                "lunar_new_year_year": (
+                    lunar_new_year_year.model_dump()
+                    if lunar_new_year_year is not None else None
+                ),
                 # 生肖屏节点句(2026-10-19 拍板):结构化过去节点,文案在
                 # iOS xcstrings;空池/规则缺席 → None(该行不渲染)
                 "past_node": (
@@ -398,6 +442,11 @@ class BaziEngine:
                 "current_hour_pillar": current_hour,
                 "calc_rule_snapshot": calc_rule_snapshot,
                 "boundary_warning": boundary_warning,
+                # T1(2026-11-21):钟表时间对照柱 + dst_flags 结构化码。
+                # 新客户端渲染 solarAdjustNotes 用;boundary_warning 老串
+                # 保留(老客户端仍读),新客户端不再渲染
+                "clock_time_pillars": clock_time_pillars,
+                "dst_flags": dst_flags_out,
             }
         except Exception as e:
             # 不静默吞:把 lunar_python / 规则引擎 / 任何异常向上抛为结构化错误
@@ -409,6 +458,70 @@ class BaziEngine:
                 f"排盘计算失败: {type(e).__name__}: {e}",
                 content_hash=content_hash,
             ) from e
+
+
+def _clock_time_pillars(birth: datetime) -> dict[str, str]:
+    """按出生地钟面时间(不做真太阳时校正)排四柱干支(T1 对照柱)。
+
+    lunar_python 按本地日历组件算,naive 组件即用户填写的钟面时间(与主
+    排盘 adjusted_naive 同口径);setSect(1) 与主排盘一致(23:00 换日)。
+    用户拿别家不做校正的软件比对时对的就是这组柱。
+
+    仅展示对照用:不参与 content_hash / 喜忌 / 任何判断与 token。
+    调用方保证 hour_known=true(时辰未知时占位时辰冒充钟面属假数据)。
+
+    Raises:
+        BaziCalculationFailedError: 由 calculate() 统一包装(本函数在
+            try 块内调用,不单独吞错)
+    """
+    naive = birth.replace(tzinfo=None)
+    ec = Solar.fromDate(naive).getLunar().getEightChar()
+    ec.setSect(SECT)  # 强制(坑1),与主排盘同规则
+    return {
+        "year": ec.getYear(),
+        "month": ec.getMonth(),
+        "day": ec.getDay(),
+        "hour": ec.getTime(),
+    }
+
+
+def _lunar_new_year_year(
+    birth: datetime, lichun_gan_zhi: str | None,
+) -> LunarNewYearYear | None:
+    """农历新年(正月初一)口径的年干支 + 生肖对照(T6)。
+
+    大众生肖网站按农历新年换年,八字按立春换年——出生在两者之间的人两
+    边生肖差一年(lunar_python 1.4.8 实测:1986-02-05 农历口径乙丑牛、
+    立春口径丙寅虎)。与立春口径年柱相同 / 年柱歧义(lichun_gan_zhi
+    None)→ None(无事可说 / 不猜)。生肖经 pillars.compute_year_zodiac
+    查表(地支 → 英文名,与 year_branch_zodiac 同值域)。
+
+    用出生地钟面日期(lunar_python 按本地日历组件算,naive 即钟面;大众
+    口径按钟表日期,不用真太阳时);时辰未知时 calc_birth 已归一为区间
+    中点占位,正月初一按日期换年、不依赖时辰,占位不影响结果。
+
+    仅展示对照用:不参与 content_hash / 喜忌 / 任何判断与 token。
+
+    Raises:
+        BaziCalculationFailedError: 由 calculate() 统一包装;年支不在
+            生肖表 → compute_year_zodiac ValueError(干支恒在表内,防御)
+    """
+    if lichun_gan_zhi is None:
+        return None
+    naive = birth.replace(tzinfo=None)
+    lunar_year_gz = Solar.fromDate(naive).getLunar().getYearInGanZhi()
+    if lunar_year_gz == lichun_gan_zhi:
+        return None
+    return LunarNewYearYear(
+        gan_zhi=lunar_year_gz,
+        zodiac=compute_year_zodiac(lunar_year_gz[1]),
+    )
+
+
+# dst_flags 输出稳定排序(同输入同输出;frozenset 迭代序不保证)。
+# 字面量单一事实源在 core/tz_resolution 的 FLAG_* 常量(此处导入拼装,
+# 防止 dst_flags 结构化输出与 boundary_warning 文案的映射被字面量漂移破坏)
+_DST_FLAG_ORDER = (FLAG_AMBIGUOUS, FLAG_NONEXISTENT, FLAG_NEAR_TRANSITION)
 
 
 def _format_boundary_warning(boundary_crossed: set[str],

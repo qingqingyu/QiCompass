@@ -374,3 +374,93 @@ final class ZodiacRevealTests: XCTestCase {
         return (w, h, Array(UnsafeBufferPointer(start: buf, count: w * h * 4)))
     }
 }
+
+// MARK: - T7 yearSignLabel(2026-11-22 竞品差评对照;自 revealSubLabel en 分支抽出)
+
+extension ZodiacRevealTests {
+    func test_yearSignLabel_englishElementPlusAnimal() {
+        XCTAssertEqual(
+            ZodiacHelper.yearSignLabel(yearGanElement: "wood", zodiac: "Ox"), "Wood Ox")
+        XCTAssertEqual(
+            ZodiacHelper.yearSignLabel(yearGanElement: "water", zodiac: "Rat"), "Water Rat")
+    }
+
+    func test_yearSignLabel_missingInputsReturnNil() {
+        // 任一缺失 → nil(调用方决定降级,不静默编造)
+        XCTAssertNil(ZodiacHelper.yearSignLabel(yearGanElement: nil, zodiac: "Ox"))
+        XCTAssertNil(ZodiacHelper.yearSignLabel(yearGanElement: "wood", zodiac: ""))
+        XCTAssertNil(ZodiacHelper.yearSignLabel(yearGanElement: "unknown-key", zodiac: "Ox"))
+    }
+
+    /// ProfileView 命主行年柱段(T7):zh 干支原值;en "Wood Ox";降级退干支。
+    func test_yearPillarSegment_threeLanguages() {
+        for language: AppLanguage in [.zh, .zhHant] {
+            XCTAssertEqual(
+                ProfileView.yearPillarSegment(
+                    ganZhi: "乙亥", ganElement: "wood", zodiac: "Pig", language: language),
+                "乙亥")
+        }
+        XCTAssertEqual(
+            ProfileView.yearPillarSegment(
+                ganZhi: "乙亥", ganElement: "wood", zodiac: "Pig", language: .en),
+            "Wood Pig")
+        // en 生肖未知(年柱歧义理论不可达 + 防御)→ 退干支,信息不丢
+        XCTAssertEqual(
+            ProfileView.yearPillarSegment(
+                ganZhi: "乙亥", ganElement: "water", zodiac: nil, language: .en),
+            "乙亥")
+    }
+}
+
+// MARK: - T6 农历新年口径对照句(2026-11-22 竞品差评对照;lnyMismatchText 拼串)
+
+extension ZodiacRevealTests {
+    /// 期望值用与生产同源的 format 运行时拼接(设备语言无关,2026-09-23 教训
+    /// 范式,同 test_revealNodeSentenceText_*):模板随 bundle 双侧同变,断言
+    /// 只锁**参数与槽位**——抓得住 %1$@/%2$@ 对调,不锁 xcstrings 译文。
+    private static let lnyMismatchTemplate =
+        String(localized: String.LocalizationValue("zodiac.lnyMismatch"))
+
+    func test_lnyMismatchText_chineseAnimalsAndGanZhi() throws {
+        // zh / zh-Hant:%1$@ = 生肖字,%2$@ = 干支 + 全角括号生肖「丙寅（虎）」
+        let zh = try XCTUnwrap(OnboardingView.lnyMismatchText(
+            lny: LunarNewYearYearDTO(ganZhi: "乙丑", zodiac: "Ox"),
+            lichunGanZhi: "丙寅", lichunZodiac: "Tiger", language: .zh))
+        XCTAssertEqual(
+            zh, String(format: Self.lnyMismatchTemplate, "牛", "丙寅（虎）"),
+            "zh 参数拼装或槽位断裂: \(zh)")
+        // zh-Hant:生肖字走 animalCharHant(龙/龍 异形足以锁定分支)
+        let hant = try XCTUnwrap(OnboardingView.lnyMismatchText(
+            lny: LunarNewYearYearDTO(ganZhi: "庚辰", zodiac: "Dragon"),
+            lichunGanZhi: "丙寅", lichunZodiac: "Tiger", language: .zhHant))
+        XCTAssertEqual(
+            hant, String(format: Self.lnyMismatchTemplate, "龍", "丙寅（虎）"),
+            "zh-Hant 繁体生肖字/槽位断裂: \(hant)")
+    }
+
+    func test_lnyMismatchText_englishElementPlusAnimal() throws {
+        // en:两侧都是「元素 + 动物」(yearSignLabel 复用,干支天干查五行;
+        // 乙=wood / 丙=fire);同源 format 拼接等值,锁槽位不锁译文
+        let en = try XCTUnwrap(OnboardingView.lnyMismatchText(
+            lny: LunarNewYearYearDTO(ganZhi: "乙丑", zodiac: "Ox"),
+            lichunGanZhi: "丙寅", lichunZodiac: "Tiger", language: .en))
+        XCTAssertEqual(
+            en, String(format: Self.lnyMismatchTemplate, "Wood Ox", "Fire Tiger"),
+            "en 参数拼装或槽位断裂: \(en)")
+    }
+
+    func test_lnyMismatchText_missingInputsReturnNil() {
+        // 两口径相同 → 后端本就不透出(lny nil);字段缺失/生肖未知 → nil 不猜
+        XCTAssertNil(OnboardingView.lnyMismatchText(
+            lny: nil, lichunGanZhi: "丙寅", lichunZodiac: "Tiger", language: .zh))
+        XCTAssertNil(OnboardingView.lnyMismatchText(
+            lny: LunarNewYearYearDTO(ganZhi: "乙丑", zodiac: "Ox"),
+            lichunGanZhi: nil, lichunZodiac: "Tiger", language: .zh))
+        XCTAssertNil(OnboardingView.lnyMismatchText(
+            lny: LunarNewYearYearDTO(ganZhi: "乙丑", zodiac: "Ox"),
+            lichunGanZhi: "丙寅", lichunZodiac: nil, language: .zh))
+        XCTAssertNil(OnboardingView.lnyMismatchText(
+            lny: LunarNewYearYearDTO(ganZhi: "乙丑", zodiac: "NotAZodiac"),
+            lichunGanZhi: "丙寅", lichunZodiac: "Tiger", language: .zh))
+    }
+}

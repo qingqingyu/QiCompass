@@ -25,9 +25,15 @@ enum PromptContextBuilder {
     ) -> [String: AnyCodableJSON] {
         let p = response.pillars
         let placeholder = Self.hourUnknownPlaceholder
-        // S05:hour_known=false → 后端 true_solar_time=null,柱缺失走占位
+        // S05:hour_known=false → 后端 true_solar_time=null,柱缺失走占位。
+        // T10(2026-11-22 竞品差评对照):按**出生地时区**渲染(birthClockText,
+        // 同合盘 birth_a/birth_b 口径)——此前 dateTimeFormatter 用设备时区,
+        // 手机时区 ≠ 出生地时区时 prompt 里的出生时刻会差几个小时。
+        // true_solar_time 不在任何 context token 绑定字段集
+        // (backend context_binding.py:19/:167 显式排除),本修复不触碰绑定口径
         let trueSolarTimeStr = response.trueSolarTime
-            .map(Self.dateTimeFormatter.string(from:)) ?? placeholder
+            .map { Self.birthClockText($0, timezoneID: response.calcRuleSnapshot.birthTimezone) }
+            ?? placeholder
         // S03:city key 保留(prompt 契约不变),取值换物理真值来源(Q4)
         let cityDisplay = request.placeName ?? "自定义地点(经度 \(request.longitude))"
 
@@ -378,13 +384,6 @@ enum PromptContextBuilder {
 
     // MARK: - Internal helpers(供 +Compatibility extension 复用)
 
-    static let dateTimeFormatter: DateFormatter = {
-        let f = DateFormatter()
-        f.dateFormat = "yyyy-MM-dd HH:mm"
-        f.timeZone = .current
-        return f
-    }()
-
     static let dateOnlyFormatter: DateFormatter = {
         let f = DateFormatter()
         f.dateFormat = "yyyy年M月d日"
@@ -396,9 +395,11 @@ enum PromptContextBuilder {
     /// (trueSolarTime 派生)按**出生地时区**渲染,不随设备时区漂移——美东
     /// 设备看北京盘,按 .current 渲染会把钟面/日期错位喂进 prompt。tzID
     /// nil/非法(老快照)兜底 .current(维持既有行为)。formatter 按调用新建
-    /// (timeZone 异构不共享;chartContext 每次合盘生成才调,频度可忽略)。
-    /// **注意边界**:deep 族 token 绑定字段 `true_solar_time` 仍走
-    /// `dateTimeFormatter`(.current),绑定口径不随本修复改动。
+    /// (timeZone 异构不共享;调用方均为低频路径——合盘 chartContext 生成
+    /// 与 bazi_deep build() 单次解读,频度可忽略)。
+    /// T10(2026-11-22):bazi_deep 的 true_solar_time 注入也走本函数(deep 族
+    /// token 绑定字段集**不含** true_solar_time——backend context_binding.py
+    /// :19/:167 显式排除设备时区相关字段,故此改动不触碰验签口径)。
     static func birthClockText(_ date: Date, timezoneID: String?) -> String {
         let f = DateFormatter()
         f.locale = Locale(identifier: "en_US_POSIX")

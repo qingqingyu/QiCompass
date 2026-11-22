@@ -150,6 +150,16 @@ struct PaywallView: View {
                 errorCaption(message)
             }
 
+            // D1-B(2026-11-22 拍板):购买前明示——付费内容绑定这组出生信息,
+            // 更正需重新购买(输错更正 = 新命盘 = 新 content_hash;付费前说清,
+            // 竞品「一点点抠钱」差评对症)。仅命盘绑定型付费墙,问事次数包不绑
+            // 命盘不加此行
+            Text(L10n.PaywallLegal.bindingNotice)
+                .font(BaziFont.caption(size: 10.5))
+                .foregroundStyle(BaziTheme.inkMuted)
+                .multilineTextAlignment(.center)
+                .padding(.bottom, BaziTheme.Spacing.xs)
+
             // CTA:常驻(登录与否都可买)。购买判据在 PurchaseManager 内部
             // (StoreKit 验签 + 后端 redeem),与登录态解耦。
             PrimaryCTAButton(
