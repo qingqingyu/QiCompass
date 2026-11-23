@@ -609,7 +609,8 @@ def test_daily_fortune_version_bumped_s09_then_s6():
     → S2(2026-10-25 问事窗)5→6(headline 两短句 \n 分隔去逗号 + 新增
     可选第六键 ask_suggestions 三条候选;五键契约不变,老 v5 缓存照常
     解析、候选回落 iOS 确定性表)。"""
-    assert PROMPT_VERSIONS["daily_fortune"] == 6
+    # v7(F2,2026-11-23):en 加显式语言指令;zh/zh-hant 内容不变
+    assert PROMPT_VERSIONS["daily_fortune"] == 7
 
 
 # ===== validate_context 单元测试 =====

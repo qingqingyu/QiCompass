@@ -674,10 +674,11 @@ _DAILY_FORTUNE_ELEMENT_LIST_FIELDS: Final[tuple[str, ...]] = (
     "unfavorable_elements",
 )
 
-# daily_fortune context 里"不翻译"字段(保留中文)
-# - date / lunar_date: 日期格式,不翻译
-# - hour_pillars_with_relations: 复杂拼接(Slice 1 暂留中文,LLM 可理解)
-# - huangli_yi / huangli_ji: 黄历项目,Slice 1 阶段不翻译(工作量大,且英文用户可能不关心)
+# daily_fortune context 里"不翻译"字段(保留原文)
+# F2(2026-11-23)起 date / lunar_date / hour_pillars_with_relations /
+# huangli_yi / huangli_ji 均已纳入翻译(见 _translate_daily_fortune_context
+# 对应段落);剩余保留原文的只有 ask 专属字段(user_question 等,用户自己
+# 的语言)与解析失败时的保守回退。
 
 
 def translate_context(context: dict, language: str, module: str) -> dict:
@@ -734,7 +735,10 @@ def translate_context(context: dict, language: str, module: str) -> dict:
         # (raw key 是 render_prompt 的降级分支控制信号)。copy-on-write
         # 不修改调用方 context(本函数既有契约)。
         return _normalize_element_keys(context)
-    if module == "daily_fortune":
+    if module in ("daily_fortune", "daily_ask"):
+        # F2(2026-11-23):问事上下文与每日同款字段(17 项盘面字段),复用同一
+        # 翻译器;ask 专属字段(user_question / daily_interpretation /
+        # ask_conversation / ask_mode_note)不在翻译字段集,原样透传
         return _translate_daily_fortune_context(context, language)
     if module in _V1_DEEP_MODULES:
         return _translate_deep_context(context, language)
@@ -883,6 +887,270 @@ def _translate_day_chong(
     return f"{branch} ({wire['冲']} {joined})"
 
 
+
+# ---------- 黄历宜忌词表(修复批 F2,2026-11-23)----------
+# 来源:lunar_python getDayYi/getDayJi 全量值域(2023-2027 五年窗口实测 114 种,
+# 三年窗口同为 114,稳定)。en 为传统黄历术语通行英译;未收录值(词表演化)
+# 由 _translate_huangli_list 保守保留原文 + warning。
+HUANGLI_TERMS_EN: Final[dict[str, str]] = {
+    "上梁": "raise the roof beam", "乘船": "boat travel",
+    "习艺": "learning a craft", "交易": "trade and dealings",
+    "伐木": "felling trees", "会亲友": "meeting family and friends",
+    "作梁": "making beams", "作灶": "building a stove",
+    "修坟": "tending a grave", "修造": "building and repairs",
+    "修门": "installing a door", "修饰垣墙": "plastering walls",
+    "入学": "starting school", "入宅": "moving into a new home",
+    "入殓": "encoffining the deceased", "冠笄": "coming-of-age rites",
+    "出火": "moving the sacred fire", "出行": "travel",
+    "出货财": "shipping out goods", "分居": "living apart",
+    "割蜜": "harvesting honey", "动土": "starting construction",
+    "取渔": "fishing", "合寿木": "preparing a coffin",
+    "合帐": "sewing the bed canopy", "合脊": "roofing the ridge",
+    "启钻": "opening a grave for reburial", "坏垣": "demolishing walls",
+    "塑绘": "sculpting and painting", "塞穴": "filling holes",
+    "嫁娶": "marriage", "安床": "setting the bed",
+    "安机械": "installing machinery", "安碓磑": "setting up a mill",
+    "安葬": "burial", "安门": "hanging a door",
+    "安香": "installing the ancestral altar", "定磉": "setting foundation stones",
+    "平治道涂": "repairing roads", "开仓": "opening the granary",
+    "开光": "consecration", "开厕": "building a latrine",
+    "开市": "opening for business", "开柱眼": "mortising columns",
+    "开池": "digging a pond", "开渠": "digging channels",
+    "开生坟": "opening a new grave", "归宁": "a bride visiting her parents",
+    "归岫": "returning to the family home", "成服": "wearing mourning dress",
+    "扫舍": "sweeping the house", "拆卸": "dismantling structures",
+    "挂匾": "hanging a plaque", "捕捉": "catching pests",
+    "掘井": "digging a well", "探病": "visiting the sick",
+    "放水": "letting out water", "教牛马": "training cattle and horses",
+    "整手足甲": "trimming nails", "斋醮": "fasting and offering rites",
+    "断蚁": "getting rid of ants", "无": "none",
+    "普渡": "rites for wandering spirits", "架马": "setting up scaffolding",
+    "栽种": "planting", "求医": "seeking medical treatment",
+    "求嗣": "praying for an heir", "沐浴": "bathing",
+    "治病": "treating illness", "牧养": "raising livestock",
+    "理发": "haircut", "畋猎": "hunting",
+    "盖屋": "building a house", "破土": "breaking ground for a burial",
+    "破屋": "demolishing a house", "祈福": "praying for blessings",
+    "祭祀": "ancestor worship", "移徙": "moving house",
+    "移柩": "moving the coffin", "立券": "signing contracts",
+    "立碑": "erecting a stele", "竖柱": "raising the pillars",
+    "筑堤": "building dikes", "纳婿": "taking in a son-in-law",
+    "纳畜": "buying in livestock", "纳财": "receiving money",
+    "纳采": "presenting betrothal gifts", "经络": "meridian acupuncture",
+    "结网": "making nets", "置产": "buying property",
+    "行丧": "holding a funeral", "补垣": "patching walls",
+    "裁衣": "tailoring", "解除": "cleansing rites",
+    "订盟": "sealing an engagement", "词讼": "litigation",
+    "诸事不宜": "nothing advisable today", "谢土": "thanking the earth",
+    "赴任": "taking up a post", "起基": "laying the foundation",
+    "进人口": "taking in people", "造仓": "building a granary",
+    "造庙": "building a temple", "造桥": "building a bridge",
+    "造畜稠": "building livestock pens", "造船": "building a ship",
+    "造车器": "making vehicles", "酬神": "thanking the deities",
+    "针灸": "acupuncture", "问名": "betrothal inquiry",
+    "除服": "removing mourning dress", "雇佣": "hiring workers",
+    "雕刻": "carving", "馀事勿取": "no other matters advisable",
+}
+# 繁体形(简→繁逐词显式登记;与 en 键集一致由测试锁定)
+HUANGLI_TERMS_ZH_HANT: Final[dict[str, str]] = {
+    "上梁": "上樑", "乘船": "乘船", "习艺": "習藝", "交易": "交易",
+    "伐木": "伐木", "会亲友": "會親友", "作梁": "作樑", "作灶": "作灶",
+    "修坟": "修墳", "修造": "修造", "修门": "修門", "修饰垣墙": "修飾垣牆",
+    "入学": "入學", "入宅": "入宅", "入殓": "入殮", "冠笄": "冠笄",
+    "出火": "出火", "出行": "出行", "出货财": "出貨財", "分居": "分居",
+    "割蜜": "割蜜", "动土": "動土", "取渔": "取漁", "合寿木": "合壽木",
+    "合帐": "合帳", "合脊": "合脊", "启钻": "啓鑽", "坏垣": "壞垣",
+    "塑绘": "塑繪", "塞穴": "塞穴", "嫁娶": "嫁娶", "安床": "安床",
+    "安机械": "安機械", "安碓磑": "安碓磑", "安葬": "安葬", "安门": "安門",
+    "安香": "安香", "定磉": "定磉", "平治道涂": "平治道塗", "开仓": "開倉",
+    "开光": "開光", "开厕": "開廁", "开市": "開市", "开柱眼": "開柱眼",
+    "开池": "開池", "开渠": "開渠", "开生坟": "開生墳", "归宁": "歸寧",
+    "归岫": "歸岫", "成服": "成服", "扫舍": "掃舍", "拆卸": "拆卸",
+    "挂匾": "掛匾", "捕捉": "捕捉", "掘井": "掘井", "探病": "探病",
+    "放水": "放水", "教牛马": "教牛馬", "整手足甲": "整手足甲",
+    "斋醮": "齋醮", "断蚁": "斷蟻", "无": "無", "普渡": "普渡",
+    "架马": "架馬", "栽种": "栽種", "求医": "求醫", "求嗣": "求嗣",
+    "沐浴": "沐浴", "治病": "治病", "牧养": "牧養", "理发": "理髮",
+    "畋猎": "畋獵", "盖屋": "蓋屋", "破土": "破土", "破屋": "破屋",
+    "祈福": "祈福", "祭祀": "祭祀", "移徙": "移徙", "移柩": "移柩",
+    "立券": "立券", "立碑": "立碑", "竖柱": "豎柱", "筑堤": "築堤",
+    "纳婿": "納婿", "纳畜": "納畜", "纳财": "納財", "纳采": "納采",
+    "经络": "經絡", "结网": "結網", "置产": "置產", "行丧": "行喪",
+    "补垣": "補垣", "裁衣": "裁衣", "解除": "解除", "订盟": "訂盟",
+    "词讼": "詞訟", "诸事不宜": "諸事不宜", "谢土": "謝土", "赴任": "赴任",
+    "起基": "起基", "进人口": "進人口", "造仓": "造倉", "造庙": "造廟",
+    "造桥": "造橋", "造畜稠": "造畜稠", "造船": "造船",
+    "造车器": "造車器", "酬神": "酬神", "针灸": "針灸", "问名": "問名",
+    "除服": "除服", "雇佣": "雇傭", "雕刻": "雕刻", "馀事勿取": "餘事勿取",
+}
+
+# 农历月名(lunar_python getMonthInChinese:正/二/.../十/冬/腊,闰月带「闰」前缀)
+_LUNAR_MONTH_NUM: Final[dict[str, int]] = {
+    "正": 1, "二": 2, "三": 3, "四": 4, "五": 5, "六": 6,
+    "七": 7, "八": 8, "九": 9, "十": 10, "冬": 11, "腊": 12,
+}
+_LUNAR_DAY_CHAR: Final[dict[str, int]] = {
+    "一": 1, "二": 2, "三": 3, "四": 4, "五": 5,
+    "六": 6, "七": 7, "八": 8, "九": 9,
+}
+
+# 12 时辰条 wire 行格式(context_binding.daily_fields 镜像):
+# "- {地支}时({range}):{干支} {十神}" [+ " 冲{地支}" [+ "(冲{位置、位置})"]]
+_HOUR_LINE_RE = re.compile(
+    r"^- (?P<hour>.)时\((?P<range>[^)]+)\):(?P<pillar>..) (?P<relation>..)"
+    r"(?: 冲(?P<chong>.)(?:\((?P<targets>[^)]+)\))?)?$")
+
+
+def _translate_huangli_list(value: str, language: str) -> str:
+    """黄历宜/忌列表(wire「、」连接)→ 目标语言;未收录词条保守保留 + warning。"""
+    table = (HUANGLI_TERMS_ZH_HANT if language == "zh-hant"
+             else HUANGLI_TERMS_EN)
+    out = []
+    for term in value.split("、"):
+        translated = table.get(term)
+        if translated is None:
+            logger.warning(
+                "translate_context: 黄历词条 %r 未注册 %s 翻译,保留原文",
+                term, language)
+            out.append(term)
+        else:
+            out.append(translated)
+    return "、".join(out) if language == "zh-hant" else ", ".join(out)
+
+
+def _ordinal_en(n: int) -> str:
+    """1/2/3 → 1st/2nd/3rd,其余 Nth(农历日期序数用)。"""
+    if n % 100 in (11, 12, 13):
+        return f"{n}th"
+    return f"{n}{ {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th') }"
+
+
+def _parse_lunar_day(day: str) -> int | None:
+    """农历日中文(初一..三十)→ 数字;无法解析 → None。"""
+    if day == "三十":
+        return 30
+    if day == "二十":
+        return 20
+    if day == "初十":
+        return 10
+    if day.startswith("初") and len(day) == 2:
+        n = _LUNAR_DAY_CHAR.get(day[1:])
+        return n
+    if day.startswith("十") and len(day) == 2:
+        n = _LUNAR_DAY_CHAR.get(day[1:])
+        return n + 10 if n is not None else None
+    if day.startswith("廿") and len(day) == 2:
+        n = _LUNAR_DAY_CHAR.get(day[1:])
+        return n + 20 if n is not None else None
+    return None
+
+
+def _translate_lunar_date(value: str, language: str) -> str:
+    """农历日期「十月十五」→ en "10th month, 15th day";zh-hant 仅繁化(闰→閏、腊→臘)。
+
+    解析失败 → 保留原文(字段属「格式化日期」类,保守不猜)。
+    """
+    if language == "zh-hant":
+        return value.replace("闰", "閏").replace("腊", "臘")
+    leap = value.startswith("闰")
+    body = value[1:] if leap else value
+    # wire 格式:{单字月名}月{两字日名}(engine:f"{月中文}月{日中文}")
+    if len(body) < 4 or body[1] != "月":
+        return value
+    month_zh, day_zh = body[0], body[2:]
+    month = _LUNAR_MONTH_NUM.get(month_zh)
+    day = _parse_lunar_day(day_zh)
+    if month is None or day is None:
+        return value
+    return (f"{'leap ' if leap else ''}{_ordinal_en(month)} month, "
+            f"{_ordinal_en(day)} day")
+
+
+_MONTH_NAME_EN = ("January", "February", "March", "April", "May", "June",
+                  "July", "August", "September", "October", "November",
+                  "December")
+_GREGORIAN_DATE_RE = re.compile(r"^(\d{4})年(\d{1,2})月(\d{1,2})日$")
+
+
+def _translate_gregorian_date(value: str, language: str) -> str:
+    """iOS dateOnlyFormatter 的「2026年11月23日」→ en "November 23, 2026"。
+
+    zh-hant 恒 identity(年月日字形相同);解析失败保留原文。
+    """
+    if language == "zh-hant":
+        return value
+    m = _GREGORIAN_DATE_RE.match(value)
+    if not m:
+        return value
+    year, month, day = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    # 日也做范围把关:畸形值(如「99日」)不一律照译成 "January 99, 2026",
+    # 保留原文(月日都来自 iOS dateOnlyFormatter,合法值恒过)
+    if not 1 <= month <= 12 or not 1 <= day <= 31:
+        return value
+    return f"{_MONTH_NAME_EN[month - 1]} {day}, {year}"
+
+
+def _translate_hour_pillars_block(value: str, language: str,
+                                  table: dict[str, str]) -> str:
+    """12 时辰条 wire 块 → 目标语言;逐行解析,坏行保守保留 + warning。"""
+    out = []
+    for line in value.split("\n"):
+        m = _HOUR_LINE_RE.match(line)
+        if m is None:
+            logger.warning(
+                "translate_context: 时辰条 %r 非预期 wire 格式,保留原文", line)
+            out.append(line)
+            continue
+        if language == "zh-hant":
+            out.append(line.replace("时", "時").replace("冲", "沖"))
+            continue
+        hour = table.get(m.group("hour"))
+        pillar = _translate_pillar(m.group("pillar"), table, " ")
+        relation = table.get(m.group("relation"))
+        if hour is None or pillar is _TRANSLATION_FAILED or relation is None:
+            logger.warning(
+                "translate_context: 时辰条 %r 含未注册术语,保留原文", line)
+            out.append(line)
+            continue
+        wire = _DAILY_WIRE_TERMS_EN
+        en = f"- {hour} hour ({m.group('range')}): {pillar} {relation}"
+        if m.group("chong"):
+            chong = table.get(m.group("chong"))
+            if chong is None:
+                logger.warning(
+                    "translate_context: 时辰条 %r 冲支未注册,保留原文", line)
+                out.append(line)
+                continue
+            en += f" {wire['冲']} {chong}"
+            # 镜像格式 "(冲{位置、位置})":括号内含前导「冲」,剥掉再逐段译。
+            # 非「冲」前缀的畸形括号 → 整行保留 + warning(day_chong 同款
+            # 纪律),不静默丢弃括号内容后照译
+            targets_raw = m.group("targets")
+            if targets_raw is not None and not targets_raw.startswith("冲"):
+                logger.warning(
+                    "translate_context: 时辰条 %r 括号内非「冲」前缀形态,"
+                    "保留原文", line)
+                out.append(line)
+                continue
+            if targets_raw:
+                positions = []
+                for pos in targets_raw[1:].split("、"):
+                    if (len(pos) != _CHONG_POSITION_LEN
+                            or pos[:2] not in wire or pos[2:] not in table):
+                        positions = None
+                        break
+                    positions.append(f"{wire[pos[:2]]} {table[pos[2:]]}")
+                if positions is None:
+                    logger.warning(
+                        "translate_context: 时辰条 %r 位置串无法翻译,保留原文",
+                        line)
+                    out.append(line)
+                    continue
+                en += f" ({', '.join(positions)})"
+        out.append(en)
+    return "\n".join(out)
+
+
 def _translate_daily_fortune_context(context: dict, language: str) -> dict:
     """daily_fortune context 字段级翻译。
 
@@ -953,6 +1221,28 @@ def _translate_daily_fortune_context(context: dict, language: str) -> dict:
                     )
                 else:
                     translated[field] = result
+
+    # F2(2026-11-23):以下字段此前在「不翻译」清单(Slice 1 决策),现为
+    # 修复 en 问事/每日输出语言漂移(用户拍板「彻底版」)纳入翻译;全部
+    # 保守策略——解析/词条失败保留原文 + warning,不猜不 500。
+    # - 黄历宜/忌列表(lunar_python 全量 114 词)
+    # - 12 时辰条 wire 块(含冲与命中位置)
+    # - 农历日期(十月十五 → 10th month, 15th day / 繁化)
+    # - 公历日期(iOS dateOnlyFormatter「2026年11月23日」→ November 23, 2026)
+    for field in ("huangli_yi", "huangli_ji"):
+        v = translated.get(field)
+        if isinstance(v, str) and v:
+            translated[field] = _translate_huangli_list(v, language)
+    v = translated.get("hour_pillars_with_relations")
+    if isinstance(v, str) and v:
+        translated["hour_pillars_with_relations"] = _translate_hour_pillars_block(
+            v, language, table)
+    v = translated.get("lunar_date")
+    if isinstance(v, str) and v:
+        translated["lunar_date"] = _translate_lunar_date(v, language)
+    v = translated.get("date")
+    if isinstance(v, str) and v:
+        translated["date"] = _translate_gregorian_date(v, language)
 
     return translated
 

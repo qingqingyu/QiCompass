@@ -580,3 +580,87 @@ class TestChargedFrom:
                 "SELECT balance, trial_balance FROM ask_wallet "
                 "WHERE owner = 'ulid:ulid-test-1'").fetchone()
         assert row == (3, 3)  # 回补退回试用来源,两本账复原
+
+
+# ===== 修复批 F2(2026-11-23):问事上下文本地化 + en 语言指令 =====
+
+_EN_WIRE_CONTEXT = {
+    # 真实 wire 形态(iOS buildDailyFortune / context_binding.daily_fields 同款)
+    "day_master": "庚", "day_master_element": "metal",
+    "day_master_strength": "weak",
+    "favorable_elements": "金, 土", "unfavorable_elements": "水, 木, 火",
+    "date": "2026年11月23日", "lunar_date": "十月十五",
+    "day_pillar": "辛丑", "day_stem": "辛", "day_stem_element": "金",
+    "day_branch": "丑", "day_branch_element": "土",
+    "day_relation": "劫财", "day_chong": "未(冲日支未)",
+    "hour_pillars_with_relations":
+        "- 子时(23:00-01:00):戊子 偏印 冲午(冲年支午)\n"
+        "- 丑时(01:00-03:00):己丑 正印",
+    "huangli_yi": "祭祀、会亲友", "huangli_ji": "动土、开市",
+}
+
+
+class TestAskContextLocalization:
+    """F2:en 请求的渲染 prompt 不再是中文上下文块 + mode note 三语化。"""
+
+    async def test_en_ask_prompt_fully_localized(self, ask_client):
+        ac, _, ai, _, _ = ask_client
+        resp = await ac.post(
+            "/api/bazi/daily-ask",
+            json=_body(context=_EN_WIRE_CONTEXT,
+                       question="Should I have a hard talk today?",
+                       daily_interpretation="Rob Wealth day, keep your gains "
+                                           "signed for."),
+            headers={"X-QiCompass-Lang": "en"})
+        assert resp.status_code == 200, resp.text
+        p = ai.last_prompt
+        assert "Metal" in p and "metal" not in p.replace("Metal", "")
+        assert "Rob Wealth" in p                    # day_relation
+        assert "Wei (clashes day branch Wei)" in p  # day_chong 拼接串
+        assert "November 23, 2026" in p             # date
+        assert "10th month, 15th day" in p          # lunar_date
+        assert "ancestor worship, meeting family and friends" in p
+        assert "starting construction, opening for business" in p
+        assert "First question in this conversation" in p  # mode note 三语化
+        # 时辰条虽不进问事模板,翻译层也处理(上下文字段级,与模板引用无关)
+        assert "祭祀" not in p and "动土" not in p
+
+    async def test_zh_hant_ask_prompt_traditionalized(self, ask_client):
+        ac, _, ai, _, _ = ask_client
+        resp = await ac.post(
+            "/api/bazi/daily-ask",
+            json=_body(context=_EN_WIRE_CONTEXT,
+                       question="今天適合談判嗎?",
+                       daily_interpretation="劫財當值。"),
+            headers={"X-QiCompass-Lang": "zh-hant"})
+        assert resp.status_code == 200, resp.text
+        p = ai.last_prompt
+        assert "劫財" in p and "劫财" not in p.replace("劫財", "")
+        assert "沖日支未" in p
+        assert "祭祀、會親友" in p
+        assert "首次提問" in p
+
+    async def test_zh_ask_prompt_element_normalized(self, ask_client):
+        ac, _, ai, _, _ = ask_client
+        resp = await ac.post(
+            "/api/bazi/daily-ask",
+            json=_body(context=_EN_WIRE_CONTEXT),
+            headers={"X-QiCompass-Lang": "zh"})
+        assert resp.status_code == 200, resp.text
+        p = ai.last_prompt
+        assert "（金）" in p and "metal" not in p
+
+    async def test_translate_keyerror_structured_500_refunds(self, ask_client):
+        """F2 回归锚点:translate_context 严格 KeyError(术语表漂移,后端
+        代码 bug)发生在扣费之后、IP 闸之前——须回补次数 + 结构化 500
+        (BAZI_CALCULATION_FAILED,对齐 interpret 端点),不裸抛不白扣。"""
+        ac, store, ai, _, _ = ask_client
+        ctx = dict(_EN_WIRE_CONTEXT)
+        ctx["day_chong"] = "乒"  # 裸地支未注册 → translate_context KeyError
+        resp = await ac.post(
+            "/api/bazi/daily-ask",
+            json=_body(context=ctx, question="Should I ask today?"),
+            headers={"X-QiCompass-Lang": "en"})
+        assert resp.status_code == 500, resp.text
+        assert resp.json()["error"]["code"] == "BAZI_CALCULATION_FAILED"
+        assert store.get_balance(owner="ulid:ulid-test-1") == 3  # 回补

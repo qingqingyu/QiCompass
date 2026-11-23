@@ -65,7 +65,7 @@ struct LiveDailyAskAnswerer: DailyAskAnswering {
 /// 一致,追新反而错位。
 struct DailyAskContext: Sendable {
     let contentHash: String
-    /// daily_fortune 同契约 15 字段(PromptContextBuilder.buildDailyFortune 产出,
+    /// daily_fortune 同契约 17 字段(PromptContextBuilder.buildDailyFortune 产出,
     /// 核心字段须与 context_token 绑定集一致)
     let context: [String: AnyCodableJSON]
     /// daily 族 token(daily-fortune 响应签发,当日有效)

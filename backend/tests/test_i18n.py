@@ -636,14 +636,24 @@ class TestTranslateContext:
         assert result["favorable_elements"] == "Wood, Water"
         assert result["unfavorable_elements"] == "Earth, Metal"
 
-    def test_en_preserves_non_translatable_fields(self, daily_fortune_context):
-        """en 不翻译字段保留原文(date / lunar_date / hour_pillars / huangli)。"""
+    def test_en_translates_wire_format_fields(self, daily_fortune_context):
+        """F2:此前「不翻译」的四个字段已纳入翻译(保守,失败保留原文)。"""
         result = translate_context(daily_fortune_context, "en", "daily_fortune")
+        # date:夹具用 ISO 形态(非 iOS dateOnlyFormatter 中文形态),解析失败保留
         assert result["date"] == "2026-08-12"
-        assert result["lunar_date"] == "七月初十"
+        assert result["lunar_date"] == "7th month, 10th day"
+        # 夹具时辰条非 wire 单行格式(旧格式冒号后有空格),整行保留
         assert result["hour_pillars_with_relations"] == "子时(23-01): 甲子 比肩"
-        assert result["huangli_yi"] == "祈福"
-        assert result["huangli_ji"] == "动土"
+        assert result["huangli_yi"] == "praying for blessings"
+        assert result["huangli_ji"] == "starting construction"
+
+    def test_en_translates_wire_format_date(self):
+        """iOS dateOnlyFormatter 的中文日期 → 英文;ISO 形态保留原文。"""
+        ctx = {"date": "2026年11月23日"}
+        assert translate_context(ctx, "en", "daily_fortune")["date"] == \
+            "November 23, 2026"
+        assert translate_context(
+            {"date": "2026-08-12"}, "en", "daily_fortune")["date"] == "2026-08-12"
 
     def test_en_does_not_mutate_original(self, daily_fortune_context):
         """en 翻译不修改原 context(返回新 dict)。"""
@@ -1277,3 +1287,122 @@ class TestZhHantTemplateFileParity:
                     / f"{module}_v{version}.md").read_text(encoding="utf-8")
             assert "繁體中文" in text, (
                 f"zh-hant/{module} 缺「繁體中文」输出指令(D5:模板须显式写明)")
+
+
+class TestDailyF2FieldLocalization:
+    """修复批 F2(2026-11-23):黄历/时辰条/农历/公历四类字段翻译。
+
+    背景:这四个字段此前在「不翻译」清单,en/zh-hant 的每日与问事 prompt
+    里全是中文块,是 en 输出语言漂移(回答整段中文)的主要拉力。全部
+    保守策略:词条/行/格式解析失败保留原文 + warning。
+    """
+
+    def test_huangli_list_en(self):
+        ctx = {"huangli_yi": "祭祀、会亲友、嫁娶", "huangli_ji": "动土、开市"}
+        r = translate_context(ctx, "en", "daily_fortune")
+        assert r["huangli_yi"] == ("ancestor worship, meeting family and "
+                                   "friends, marriage")
+        assert r["huangli_ji"] == "starting construction, opening for business"
+
+    def test_huangli_list_zh_hant(self):
+        ctx = {"huangli_yi": "祭祀、会亲友、理发"}
+        r = translate_context(ctx, "zh-hant", "daily_fortune")
+        assert r["huangli_yi"] == "祭祀、會親友、理髮"
+
+    def test_huangli_unknown_term_kept(self):
+        ctx = {"huangli_yi": "祭祀、未来新词"}
+        r = translate_context(ctx, "en", "daily_fortune")
+        assert r["huangli_yi"] == "ancestor worship, 未来新词"
+
+    def test_huangli_tables_keysets_equal(self):
+        """en / zh-hant 黄历词表键集一致(114 词,lunar_python 全量值域)。"""
+        from app.engine.term_translations import (HUANGLI_TERMS_EN,
+                                                  HUANGLI_TERMS_ZH_HANT)
+        assert set(HUANGLI_TERMS_EN) == set(HUANGLI_TERMS_ZH_HANT)
+        assert len(HUANGLI_TERMS_EN) == 114
+
+    def test_hour_block_en(self):
+        block = ("- 子时(23:00-01:00):戊子 偏印 冲午(冲年支午)\n"
+                 "- 丑时(01:00-03:00):己丑 正印 冲未\n"
+                 "- 亥时(21:00-23:00):己亥 正印 冲巳(冲月支巳、时支巳)")
+        r = translate_context({"hour_pillars_with_relations": block}, "en",
+                              "daily_fortune")
+        assert r["hour_pillars_with_relations"] == (
+            "- Zi hour (23:00-01:00): Wu Zi Indirect Resource clashes Wu "
+            "(year branch Wu)\n"
+            "- Chou hour (01:00-03:00): Ji Chou Direct Resource clashes Wei\n"
+            "- Hai hour (21:00-23:00): Ji Hai Direct Resource clashes Si "
+            "(month branch Si, hour branch Si)")
+
+    def test_hour_block_zh_hant(self):
+        block = "- 子时(23:00-01:00):戊子 偏印 冲午(冲年支午)\n- 丑时(01:00-03:00):己丑 正印"
+        r = translate_context({"hour_pillars_with_relations": block}, "zh-hant",
+                              "daily_fortune")
+        assert r["hour_pillars_with_relations"] == (
+            "- 子時(23:00-01:00):戊子 偏印 沖午(沖年支午)\n"
+            "- 丑時(01:00-03:00):己丑 正印")
+
+    def test_hour_block_bad_line_kept(self):
+        block = "- 正常时(00:00-01:00):甲子 比肩\n完全不是时辰条"
+        r = translate_context({"hour_pillars_with_relations": block}, "en",
+                              "daily_fortune")
+        lines = r["hour_pillars_with_relations"].split("\n")
+        assert lines[1] == "完全不是时辰条"
+
+    def test_hour_block_malformed_targets_keeps_line(self):
+        """括号内非「冲」前缀(畸形)→ 整行保留 + warning,不静默丢括号
+        内容后照译(day_chong 拼接串同款纪律)。"""
+        block = "- 子时(23:00-01:00):戊子 偏印 冲午(年支午)"
+        r = translate_context({"hour_pillars_with_relations": block}, "en",
+                              "daily_fortune")
+        assert r["hour_pillars_with_relations"] == block
+
+    def test_day_chong_bare_hour_char_strict(self):
+        """wire 词表不含裸「时」键:垃圾值照走单术语严格 KeyError(不被
+        「时」→hour 的杂键静默吞掉)。"""
+        with pytest.raises(KeyError, match="day_chong"):
+            translate_context({"day_chong": "时"}, "en", "daily_fortune")
+
+    @pytest.mark.parametrize("raw,expected", [
+        ("十月十五", "10th month, 15th day"),
+        ("正月初一", "1st month, 1st day"),
+        ("冬月三十", "11th month, 30th day"),
+        ("腊月廿九", "12th month, 29th day"),
+        ("闰六月初一", "leap 6th month, 1st day"),
+        ("二月初十", "2nd month, 10th day"),
+        ("十二月廿一", "十二月廿一"),  # 双字月名非 wire(lunar_python 月名恒单字),保留
+    ])
+    def test_lunar_date_en(self, raw, expected):
+        r = translate_context({"lunar_date": raw}, "en", "daily_fortune")
+        assert r["lunar_date"] == expected
+
+    def test_lunar_date_zh_hant(self):
+        r = translate_context({"lunar_date": "闰腊月廿九"}, "zh-hant",
+                              "daily_fortune")
+        assert r["lunar_date"] == "閏臘月廿九"
+
+    def test_gregorian_date_en(self):
+        r = translate_context({"date": "2026年11月23日"}, "en", "daily_fortune")
+        assert r["date"] == "November 23, 2026"
+        # iOS dateOnlyFormatter 无补零形态
+        r = translate_context({"date": "2026年3月5日"}, "en", "daily_fortune")
+        assert r["date"] == "March 5, 2026"
+        # 非 iOS 形态(ISO 等)保留
+        r = translate_context({"date": "2026-07-12"}, "en", "daily_fortune")
+        assert r["date"] == "2026-07-12"
+        # 畸形日(非 1-31)保留原文,不译出 "January 99, 2026"
+        r = translate_context({"date": "2026年1月99日"}, "en", "daily_fortune")
+        assert r["date"] == "2026年1月99日"
+        # 畸形月同理
+        r = translate_context({"date": "2026年13月5日"}, "en", "daily_fortune")
+        assert r["date"] == "2026年13月5日"
+
+    def test_daily_ask_module_uses_same_rules(self):
+        """daily_ask 模块注册:同款字段翻译,ask 专属字段透传。"""
+        ctx = {"day_master_element": "metal", "huangli_yi": "祭祀",
+               "user_question": "今天适合谈判吗?", "ask_mode_note": "首次提问。"}
+        r = translate_context(ctx, "en", "daily_ask")
+        assert r["day_master_element"] == "Metal"
+        assert r["huangli_yi"] == "ancestor worship"
+        assert r["user_question"] == "今天适合谈判吗?"
+        assert r["ask_mode_note"] == "首次提问。"

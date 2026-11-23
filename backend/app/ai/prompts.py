@@ -80,7 +80,10 @@ PROMPT_VERSIONS: dict[str, int] = {
     # prompt_version,老缓存自然 miss 重生成)。
     "compatibility_free": 6,
     "compatibility_paid": 6,
-    "daily_fortune": 6,    # v6 主句两短句\n分隔去逗号 + ask_suggestions 三条候选问题(2026-10-25 问事窗 S2)
+    # v7(F2,2026-11-23):en 变体加「全文用英文作答」显式指令(en 上下文
+    # 本地化后仍可能随历史中文上文漂移,双保险);zh/zh-hant 模板内容不变
+    # (zh-hant 原有繁体指令);unknown_hour 变体共用本版本号同步 v7。
+    "daily_fortune": 7,    # v6 主句两短句\n分隔去逗号 + ask_suggestions 三条候选问题(2026-10-25 问事窗 S2)
     # v6(2026-10-25 字号梯度+问事窗):headline 改两个短句,之间不用逗号/顿号、
     # 写 JSON 转义 \n(修外评「全角逗号在大字号里留洞」+小屏主句排满换行;
     # iOS 渲染层按换行拆行呈现(AttributedString(markdown:) 会把软换行折叠
@@ -116,7 +119,11 @@ PROMPT_VERSIONS: dict[str, int] = {
     # 其中的盘面判断(喜忌、日柱关系、宜忌)」——约束盘面结论,不约束命主
     # 的现实;②新增「命主说解读不符合实际情况时不争辩」条款(先承认、不
     # 辩解、不说理解错了,顺着真实处境给可做建议)。三语同步建 v2。
-    "daily_ask": 2,
+    # v3(F2,2026-11-23):①en 加「全文用英文作答」显式指令(修 en 回答
+    # 漂中文,用户拍板「彻底版」);②端点渲染前接 translate_context
+    # (黄历/时辰/日期/农历本地化,上下文不再全中文)。缓存键含版本号,
+    # v2 时代按中文上下文生成的 en 答案自然失效。
+    "daily_ask": 3,
     # 每日运势插画(gpt-image-2):prompt 由 image_prompt.py 代码拼装(无 .md 模板),
     # 版本号仍是缓存键维度——意象表/风格后缀改动时 bump 此处。
     # v1 纯水墨 / v2 2026-08-31 底色换轨锁 #E7E2D5(与 App paper 同值)/

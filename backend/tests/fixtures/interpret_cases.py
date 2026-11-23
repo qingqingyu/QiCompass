@@ -140,12 +140,17 @@ DAILY_FORTUNE_CONTEXT = {
     # wire 真实形态:日冲命中本命柱时是拼接串(context_binding.daily_fields
     # 同款;修复批 F1 前此处填裸「寅」未覆盖拼接路径)
     "day_chong": "寅(冲年支寅)",
+    # wire 真实形态(context_binding.daily_fields 镜像:首列 "- "、冒号后
+    # 无空格、冲与命中位置拼接;F2 起进入翻译覆盖)
     "hour_pillars_with_relations": (
-        "子(23-1): 甲子 正官 冲午 | 丑(1-3): 乙丑 偏官 | "
-        "寅(3-5): 丙寅 正印 冲申 | ..."
+        "- 子时(23:00-01:00):甲子 正官 冲午(冲年支午)\n"
+        "- 丑时(01:00-03:00):乙丑 偏官"
     ),
-    "huangli_yi": "嫁娶, 祭祀, 祈福",
-    "huangli_ji": "赴任, 出行",
+    # wire 真实形态(iOS buildDailyFortune / context_binding.daily_fields
+    # 同款:huangli 列表「、」连接——F2 前此处填逗号连接形态,en 路径的黄历
+    # 翻译从未被本夹具覆盖)
+    "huangli_yi": "嫁娶、祭祀、祈福",
+    "huangli_ji": "赴任、出行",
 }
 
 # 每日运势时辰未知版(S09 降级,docs/时辰未知-slices/S09):
