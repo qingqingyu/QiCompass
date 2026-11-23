@@ -1555,6 +1555,10 @@ enum L10n {
         /// zh: "成书后将通知你";en: "We'll notify you when it's ready"
         static let waitNotifyOn = String(localized: "deepchain.wait.notifyOn")
 
+        /// T19(2026-11-23):未决定态的「成书时通知我」按钮(用户点了才弹
+        /// 系统权限框;先解释再申请)。zh: "成书时通知我"
+        static let waitNotifyAsk = String(localized: "deepchain.wait.notifyAsk")
+
         /// 等待卡「先去逛逛」CTA(回目录,横幅继续报进度)。
         /// zh: "先去逛逛";en: "Keep browsing"
         static let waitBrowse = String(localized: "deepchain.wait.browse")

@@ -19974,6 +19974,29 @@
         }
       }
     },
+    "deepchain.wait.notifyAsk" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notify me when it's ready"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "成书时通知我"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "成書時通知我"
+          }
+        }
+      }
+    },
     "deepchain.wait.notifyOn" : {
       "extractionState" : "manual",
       "localizations" : {
