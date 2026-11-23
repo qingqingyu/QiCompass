@@ -48,6 +48,12 @@
   10. 续跑前置校验:meta 里记录的两个 prompt_version 与当前 PROMPT_VERSIONS 不一致即
       显式报错退出(续跑版不校验,模板 bump 后续跑会静默混用版本、meta 仍记旧版本号)。
       产出本次证据的两段运行版本一致(daily_ask v2 / daily_fortune v6)。
+
+入库说明(修复批 F2,2026-11-23,随端点演化同步——**这一条改变渲染行为**):
+  11. ask_mode_note 改用 _FRESH_NOTES[language](端点三语化;旧行为恒中文)。
+  12. 渲染前先 translate_context(ctx, language, "daily_ask")(镜像 F2 后的产线路径;
+      旧行为直接渲染 raw 中文上下文)。
+  因此 2026-11-23 原件(旧行为产出)与本脚本复跑结果不可比;F2 验收需重跑并另存。
 """
 
 import asyncio
@@ -63,7 +69,8 @@ sys.path.insert(0, ".")
 
 from app.ai.prompts import PROMPT_VERSIONS, render_prompt
 from app.ai.router import resolve_ai_client
-from app.api.daily_ask import _FRESH_NOTE, _build_conversation, _parse_daily_ask_output
+from app.api.daily_ask import (_FRESH_NOTES, _build_conversation,
+                                _parse_daily_ask_output)
 from app.api.interpret import _strip_code_fences
 from app.engine.bazi_engine import BaziEngine
 from app.engine.daily_fortune import compute_daily_fortune
@@ -227,9 +234,13 @@ async def ask(client, context: dict, interpretation: str, language: str,
         "user_question": question,
         "daily_interpretation": interpretation,
         "ask_conversation": _build_conversation(history),
-        "ask_mode_note": _FRESH_NOTE,
+        "ask_mode_note": _FRESH_NOTES.get(language, _FRESH_NOTES["zh"]),
     })
-    prompt = render_prompt("daily_ask", ctx, language=language)
+    # F2 后产线路径:渲染前先翻译盘面字段(镜像 daily_ask 端点)
+    from app.engine.term_translations import translate_context
+    prompt = render_prompt(
+        "daily_ask", translate_context(ctx, language, "daily_ask"),
+        language=language)
     raw = await llm(client, prompt, "daily_ask")
     return _parse_daily_ask_output(raw)
 

@@ -29,9 +29,10 @@ token 格式(自包含 claims,服务端签发、无需查库):
   客户端重排盘即可重取,无孤儿化)。
 - canonical_json = json.dumps(sort_keys, ensure_ascii=False, separators=(",",":"))
 
-语言维度:context 在 wire 上恒为中文(术语转换由后端 translate_context 做,
-见 interpret.py _prepare_prompt_and_key),绑定字段不含随语言本地化项,
-故 token 与语言无关、三语请求共用。
+语言维度:context 在 wire 上不随语言本地化(术语是 lunar_python 的中文值,
+外加少量 iOS 侧派生的英文 key,如 daily 的 day_master_element="metal";术语
+转换由后端 translate_context 做,见 interpret.py _prepare_prompt_and_key),
+绑定字段不含随语言本地化项,故 token 与语言无关、三语请求共用。
 """
 
 from __future__ import annotations

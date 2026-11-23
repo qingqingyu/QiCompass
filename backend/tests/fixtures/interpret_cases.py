@@ -116,13 +116,16 @@ COMPATIBILITY_CONTEXT = {
     "synced_fortune_table": "2026: A 入火运/B 入水运 | 2027: 同步好转 | 2028: A 平稳/B 波动",
 }
 
-# 每日运势 context
+# 每日运势 context(镜像真实 wire:对齐 iOS PromptContextBuilder.buildDailyFortune
+# / 后端 context_binding.daily_fields 的实际发送形态)
 DAILY_FORTUNE_CONTEXT = {
     "day_master": "己",
-    "day_master_element": "土",
+    # wire 真实形态:iOS ChartPayloadDTO 透传后端英文 key(修复批 F1 前此处填
+    # 中文「土」,en/zh-hant 翻译全绿但产线恒 500——假绿夹具,勿回退)
+    "day_master_element": "earth",
     "day_master_strength": "weak",
-    "favorable_elements": "火,土",
-    "unfavorable_elements": "水,金",
+    "favorable_elements": "火, 土",
+    "unfavorable_elements": "水, 金",
     "date": "2026-07-12",
     "lunar_date": "五月廿八",
     "day_pillar": "甲申",
@@ -134,13 +137,20 @@ DAILY_FORTUNE_CONTEXT = {
     # (如「偏官日」)未注册术语表,会让 zh-hant/en 的 translate_context 500;
     # 夹具必须镜像真实 wire 值(L5 测试实测踩过)。
     "day_relation": "偏官",
-    "day_chong": "寅",
+    # wire 真实形态:日冲命中本命柱时是拼接串(context_binding.daily_fields
+    # 同款;修复批 F1 前此处填裸「寅」未覆盖拼接路径)
+    "day_chong": "寅(冲年支寅)",
+    # wire 真实形态(context_binding.daily_fields 镜像:首列 "- "、冒号后
+    # 无空格、冲与命中位置拼接;F2 起进入翻译覆盖)
     "hour_pillars_with_relations": (
-        "子(23-1): 甲子 正官 冲午 | 丑(1-3): 乙丑 偏官 | "
-        "寅(3-5): 丙寅 正印 冲申 | ..."
+        "- 子时(23:00-01:00):甲子 正官 冲午(冲年支午)\n"
+        "- 丑时(01:00-03:00):乙丑 偏官"
     ),
-    "huangli_yi": "嫁娶, 祭祀, 祈福",
-    "huangli_ji": "赴任, 出行",
+    # wire 真实形态(iOS buildDailyFortune / context_binding.daily_fields
+    # 同款:huangli 列表「、」连接——F2 前此处填逗号连接形态,en 路径的黄历
+    # 翻译从未被本夹具覆盖)
+    "huangli_yi": "嫁娶、祭祀、祈福",
+    "huangli_ji": "赴任、出行",
 }
 
 # 每日运势时辰未知版(S09 降级,docs/时辰未知-slices/S09):

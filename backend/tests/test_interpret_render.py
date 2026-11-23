@@ -68,15 +68,22 @@ def test_compatibility_render_replaces_placeholders():
 
 
 def test_daily_fortune_render_replaces_placeholders():
-    """daily_fortune context → render_prompt 输出含预期占位符值。"""
-    prompt = render_prompt("daily_fortune", DAILY_FORTUNE_CONTEXT)
-    assert DAILY_FORTUNE_CONTEXT["day_master"] in prompt
-    assert DAILY_FORTUNE_CONTEXT["day_master_element"] in prompt
-    assert DAILY_FORTUNE_CONTEXT["date"] in prompt
-    assert DAILY_FORTUNE_CONTEXT["lunar_date"] in prompt
-    assert DAILY_FORTUNE_CONTEXT["day_pillar"] in prompt
-    assert DAILY_FORTUNE_CONTEXT["day_relation"] in prompt
-    assert DAILY_FORTUNE_CONTEXT["day_chong"] in prompt
+    """daily_fortune context → render_prompt 输出含预期占位符值。
+
+    对齐产线路径(修复批 F1):端点先 translate_context(zh 也走——五行英文
+    key 归一)再渲染。夹具已切真实 wire(day_master_element="earth"),直接渲染
+    会让 zh prompt 含英文 key,不是产线形态;此处先翻译再断言。
+    """
+    from app.engine.term_translations import translate_context
+    translated = translate_context(DAILY_FORTUNE_CONTEXT, "zh", "daily_fortune")
+    prompt = render_prompt("daily_fortune", translated)
+    assert translated["day_master"] in prompt
+    assert translated["day_master_element"] in prompt
+    assert translated["date"] in prompt
+    assert translated["lunar_date"] in prompt
+    assert translated["day_pillar"] in prompt
+    assert translated["day_relation"] in prompt
+    assert translated["day_chong"] in prompt
     assert DAILY_FORTUNE_CONTEXT["hour_pillars_with_relations"] in prompt
     assert DAILY_FORTUNE_CONTEXT["huangli_yi"] in prompt
     assert DAILY_FORTUNE_CONTEXT["huangli_ji"] in prompt
@@ -602,7 +609,8 @@ def test_daily_fortune_version_bumped_s09_then_s6():
     → S2(2026-10-25 问事窗)5→6(headline 两短句 \n 分隔去逗号 + 新增
     可选第六键 ask_suggestions 三条候选;五键契约不变,老 v5 缓存照常
     解析、候选回落 iOS 确定性表)。"""
-    assert PROMPT_VERSIONS["daily_fortune"] == 6
+    # v7(F2,2026-11-23):en 加显式语言指令;zh/zh-hant 内容不变
+    assert PROMPT_VERSIONS["daily_fortune"] == 7
 
 
 # ===== validate_context 单元测试 =====

@@ -523,8 +523,15 @@ async def test_daily_fortune_poisoned_cache_row_falls_through_and_regenerates(
     app.state.ai_client = mock
 
     content_hash = "test-hash-daily-v4-poison"
+    # 键对齐端点真实路径(修复批 F1):zh 也走 translate_context(五行英文 key
+    # 归一后渲染),手工算 hash 须同样先翻译——否则预置坏行落在旧键下,
+    # 端点命不中,自愈路径根本不被触发(假失败)
+    from app.engine.term_translations import translate_context
     prompt_hash = hashlib.sha256(
-        render_prompt("daily_fortune", DAILY_FORTUNE_CONTEXT).encode("utf-8")
+        render_prompt(
+            "daily_fortune",
+            translate_context(DAILY_FORTUNE_CONTEXT, "zh", "daily_fortune"),
+        ).encode("utf-8")
     ).hexdigest()
 
     # 预置畸形五键行(半截 JSON,旁路写入形态)

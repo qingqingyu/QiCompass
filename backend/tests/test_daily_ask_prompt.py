@@ -45,9 +45,9 @@ def _daily_ask_context(**overrides) -> dict:
 
 
 class TestDailyAskRegistration:
-    def test_registered_with_version_2(self):
-        # v2(2026-11-22 T8):一致性约束改窄(只锁盘面判断)+ 用户反驳不争辩条款
-        assert PROMPT_VERSIONS["daily_ask"] == 2
+    def test_registered_with_version_3(self):
+        # v3(F2,2026-11-23):en 加「全文用英文作答」指令 + 端点渲染前翻译上下文
+        assert PROMPT_VERSIONS["daily_ask"] == 3
 
     def test_required_fields_shares_daily_fortune_list(self):
         # 同一 list 对象:盘面契约与 daily_fortune 永不分叉

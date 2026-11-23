@@ -2793,3 +2793,71 @@ async def test_m2_contract_failure_injected_not_refunded(
     assert any(b.startswith("paid:") and c == 1 for b, c in rows), \
         f"m2 契约失败不退付费桶配额(豁免注入面),实际 {rows}"
     assert not any(c == 0 for _, c in rows), "不得出现退款后的零计数行"
+
+
+# ===== 修复批 F1(2026-11-23):真实 wire 形态端到端回归 =====
+# 背景:iOS 发送的 day_master_element 是英文 key、day_chong 是拼接串,修复前
+# en/zh-hant 的 daily_fortune interpret 恒 500(夹具曾填中文形态,三语全绿假绿)。
+# 端到端矩阵与证据:docs/竞品差评对照-T8问事手测对话-2026-11-22.md §4-A。
+
+class TestDailyRealWireE2E:
+    """DAILY_FORTUNE_CONTEXT(已切真实 wire 形态)× 三语 → 全部 200。
+
+    回归锚点:若翻译层退回只认中文单术语,本组 en/zh-hant 两用例即 500。
+    """
+
+    @pytest.mark.parametrize("lang", ["zh", "en", "zh-hant"])
+    async def test_daily_interpret_real_wire_all_languages(
+            self, interpret_client, mock_ai_client, lang):
+        from tests.fixtures.interpret_cases import DAILY_FORTUNE_CONTEXT
+        mock_ai_client.set_response(_DAILY_ZH_JSON)
+        resp = await interpret_client.post(
+            "/api/interpret",
+            json={
+                "content_hash": "hash-tr-daily",
+                "module": "daily_fortune",
+                "target_date": "2026-07-12",
+                "context": DAILY_FORTUNE_CONTEXT,
+            },
+            headers={"X-QiCompass-Lang": lang})
+        assert resp.status_code == 200, resp.text
+
+    async def test_daily_interpret_en_prompt_fully_translated(
+            self, interpret_client, mock_ai_client):
+        """en 请求的渲染 prompt 不含 wire 原始形态(英文 key / 拼接冲串)。"""
+        from tests.fixtures.interpret_cases import DAILY_FORTUNE_CONTEXT
+        mock_ai_client.set_response(_DAILY_ZH_JSON)
+        resp = await interpret_client.post(
+            "/api/interpret",
+            json={
+                "content_hash": "hash-tr-daily",
+                "module": "daily_fortune",
+                "target_date": "2026-07-12",
+                "context": DAILY_FORTUNE_CONTEXT,
+            },
+            headers={"X-QiCompass-Lang": "en"})
+        assert resp.status_code == 200, resp.text
+        prompt = mock_ai_client.last_prompt
+        assert "Earth" in prompt, "五行英文 key 应归一后译为 Earth"
+        assert "Yin (clashes year branch Yin)" in prompt, \
+            f"拼接冲串应译为复合短语,实际 prompt 片段:\n{prompt[:400]}"
+        assert "earth" not in prompt.replace("Earth", "")
+        assert "寅(冲年支寅)" not in prompt
+
+    async def test_daily_interpret_zh_prompt_element_normalized(
+            self, interpret_client, mock_ai_client):
+        """zh 请求的 prompt 不再直出英文五行 key(此前「日主 己（earth）」)。"""
+        from tests.fixtures.interpret_cases import DAILY_FORTUNE_CONTEXT
+        mock_ai_client.set_response(_DAILY_ZH_JSON)
+        resp = await interpret_client.post(
+            "/api/interpret",
+            json={
+                "content_hash": "hash-tr-daily",
+                "module": "daily_fortune",
+                "target_date": "2026-07-12",
+                "context": DAILY_FORTUNE_CONTEXT,
+            },
+            headers={"X-QiCompass-Lang": "zh"})
+        assert resp.status_code == 200, resp.text
+        assert "（土）" in mock_ai_client.last_prompt
+        assert "earth" not in mock_ai_client.last_prompt

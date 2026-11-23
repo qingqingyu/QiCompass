@@ -33,6 +33,7 @@ from starlette.concurrency import run_in_threadpool
 from ..ai.forbidden_words import scan as scan_forbidden_words
 from ..ai.forbidden_words import validate_interpretation
 from ..ai.prompts import PROMPT_VERSIONS, render_prompt
+from ..engine.term_translations import translate_context
 from ..ai.router import resolve_ai_client
 from ..ask.service import AskGrantService
 from ..ask.store import AskCreditsStore
@@ -50,6 +51,7 @@ from ..errors import (
     AIProviderError,
     AppleVerificationError,
     AskCreditsRequiredError,
+    BaziCalculationFailedError,
     EntitlementError,
     InvalidInputError,
 )
@@ -75,11 +77,25 @@ logger = logging.getLogger(__name__)
 _MAX_HISTORY_TURNS = 20
 _INJECT_TURNS = 6
 
-# ask_mode_note(端点拼装,S4b-1 模板占位符)
-_FRESH_NOTE = "首次提问，直接作答。"
-_REPEAT_NOTE = (
-    "命主今天已问过同一问题——点破重复，温和追问其真正犹豫的点，"
-    "不要原样重复上一轮答案。")
+# ask_mode_note(端点拼装,S4b-1 模板占位符;F2 2026-11-23 起按请求语言取,
+# en prompt 不再混中文提示语)
+_FRESH_NOTES = {
+    "zh": "首次提问，直接作答。",
+    "zh-hant": "首次提問，直接作答。",
+    "en": "First question in this conversation; answer directly.",
+}
+_REPEAT_NOTES = {
+    "zh": (
+        "命主今天已问过同一问题——点破重复，温和追问其真正犹豫的点，"
+        "不要原样重复上一轮答案。"),
+    "zh-hant": (
+        "命主今天已問過同一問題——點破重複，溫和追問其真正猶豫的點，"
+        "不要原樣重複上一輪答案。"),
+    "en": (
+        "The chart holder already asked this same question today — name the "
+        "repeat, gently probe what they are really unsure about, and do not "
+        "repeat the previous answer verbatim."),
+}
 
 # follow_up_suggestions 契约(与 v6 ask_suggestions 同口径)
 _MAX_FOLLOW_UPS = 3
@@ -232,7 +248,10 @@ async def daily_ask(
         ask_store.has_asked, owner=owner, chart_hash=req.content_hash,
         day=day, question_hash=question_hash)
     variant = "repeat" if repeat else "fresh"
-    mode_note = _REPEAT_NOTE if repeat else _FRESH_NOTE
+    # 兜底取自同一张表:跨表兜底会让 repeat 变体在语言未登记时静默拿到
+    # fresh 文案(今天 resolve_language 只回三语,属防御性写法)
+    mode_notes = _REPEAT_NOTES if repeat else _FRESH_NOTES
+    mode_note = mode_notes.get(language) or mode_notes["zh"]
 
     # 4. 共享缓存查(跨用户;命中 = 不调 LLM 不扣次数,免费秒回)
     prompt_version = PROMPT_VERSIONS["daily_ask"]
@@ -289,7 +308,14 @@ async def daily_ask(
         "ask_conversation": conversation,
         "ask_mode_note": mode_note,
     })
+    # F2(2026-11-23):渲染前翻译盘面字段(与 interpret 端点同款收口;验签
+    # 与指纹均以 raw 值计算,不受影响)。此前 en/zh-hant 的问事 prompt 里
+    # 黄历/日期/农历全是中文,是 en 回答整段漂成中文的主要拉力。
+    # 放在渲染 try 内:翻译层单术语严格策略抛 KeyError(术语表漂移,后端
+    # 代码 bug)时本请求已扣 1 次——与 422 同样回补次数(扣费只对「真作答」
+    # 负责),并包装成结构化 500(对齐 interpret 端点同场景,不裸抛 KeyError)
     try:
+        context = translate_context(context, language, "daily_ask")
         prompt = render_prompt("daily_ask", context, language=language)
     except InvalidInputError:
         # 渲染 422:回补次数即可——IP 闸在下一步,本路径从未消耗 IP 名额,
@@ -297,6 +323,17 @@ async def daily_ask(
         await _refund_charge(
             request, owner=owner, day=day, charged_from=charged_from)
         raise
+    except KeyError as e:
+        # 翻译层术语未注册(后端配置问题,非用户错误)→ 回补 + 结构化 500。
+        # IP 闸同样尚未消耗,只退次数(与 422 路径同款,不碰 IP 名额)
+        logger.error(
+            "daily.ask.translate_context_failed %s error=%r", log_ctx, e,
+            exc_info=True)
+        await _refund_charge(
+            request, owner=owner, day=day, charged_from=charged_from)
+        raise BaziCalculationFailedError(
+            f"术语翻译失败({e}),需补齐 term_translations.py 翻译表",
+            request_id=request_id, content_hash=req.content_hash) from e
 
     # 7. IP 硬闸(纯防脚本,300/日;真烧 LLM 路径才计)。拒绝路径同样
     #    不退 IP:try_consume 条件 UPDATE 失败时不写计数,本请求零消耗
