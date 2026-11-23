@@ -90,6 +90,8 @@ struct ChapterContent: Equatable {
                   || module == .m6),
                   let specialized = questionArrayNodes(from: pairs) {
             nodes = specialized
+        } else if module == .m7, let specialized = m7Nodes(from: pairs) {
+            nodes = specialized
         } else {
             nodes = pairs.compactMap { node(key: $0.0, value: $0.1) }
         }
@@ -359,6 +361,52 @@ struct ChapterContent: Equatable {
             return node(key: key, value: value)
         }
         return wrappedAny ? nodes : nil
+    }
+
+    /// M7 专属装配(2026-11-24 捌章拍板,docs/命书捌章标题推敲.md):行动第一,
+    /// 两问结构。①true_leverage 对象节问句门,use_cases 条目卡并入其 children
+    /// 尾部(门头被毙但内容不丢:杠杆的答案在前、实战场景随后);②next_90_days
+    /// 对象节问句门;③falsification_signals **显式消费不渲染**——用户拍板
+    /// 「这章节就不应该要」,这是记录在案的产品决策,不走 leftover 兜底(那是
+    /// 防静默丢的通用纪律;backend 仍生成,真停产在 D 攒批)。双核心键全缺
+    /// (非 M7 形态)→ 返 nil 落回通用渲染(退化输入不适用产品决策,照旧全量)。
+    private static func m7Nodes(from pairs: [(String, JSONValue)]) -> [ChapterNode]? {
+        var consumed: Set<String> = []
+        var nodes: [ChapterNode] = []
+
+        if let (_, leverageValue) = pairs.first(where: { $0.0 == "true_leverage" }),
+           let leverageSection = node(key: "true_leverage", value: leverageValue),
+           case .section(let title, var children) = leverageSection {
+            consumed.insert("true_leverage")
+            if let (_, casesValue) = pairs.first(where: { $0.0 == "use_cases" }) {
+                consumed.insert("use_cases")
+                if let casesNode = node(key: "use_cases", value: casesValue) {
+                    children.append(casesNode)
+                }
+            }
+            nodes.append(.section(title, children))
+        }
+
+        if let (_, daysValue) = pairs.first(where: { $0.0 == "next_90_days" }),
+           let daysSection = node(key: "next_90_days", value: daysValue) {
+            consumed.insert("next_90_days")
+            nodes.append(daysSection)
+        }
+
+        // 推翻信号:显式消费,不渲染(拍板见函数头注释)
+        if pairs.contains(where: { $0.0 == "falsification_signals" }) {
+            consumed.insert("falsification_signals")
+        }
+
+        guard !nodes.isEmpty else { return nil }
+        var extras: [String] = []
+        nodes += leftoverNodes(from: pairs, skipping: consumed, path: "m7", extras: &extras)
+        if !extras.isEmpty {
+            // OSLog 插值约束:privacy 参数须在单一字面量内,不可拼接
+            AppLogger.app.info(
+                "m7 chapter rendered \(extras.count) non-contract field(s) via generic nodes: \(extras.joined(separator: ","), privacy: .public)")
+        }
+        return nodes
     }
 
     private static func m0V9Nodes(
@@ -899,6 +947,10 @@ struct ChapterContent: Equatable {
         "leverage": "我的优势杠杆在哪里?",
         "vulnerability": "往上走的时候，最容易卡在哪?",
         "upgrade_path": "我的升级路线是什么?",
+        // M7(2026-11-24 捌章拍板,docs/命书捌章标题推敲.md):行动第一两问结构;
+        // use_cases/falsification_signals 不进门头表(场景并入①、推翻信号隐藏)。
+        "true_leverage": "拿哪一样本事去行动?",
+        "next_90_days": "接下来的 90 天，只做哪一件事?",
     ]
 
     /// 小节门头取题:有问句用问句,无问句回落短名词标签(其余章维持名词门头)。
@@ -919,7 +971,8 @@ struct ChapterContent: Equatable {
     /// 条目卡取题优先级(对象数组首字段作题)。
     static let titleKeys: [String] = [
         "name", "idea", "form", "system", "env", "stage", "phase",
-        "day", "type", "point", "action", "focus",
+        // scene 先于 action(M7 使用场景卡:何时作题、做什么作内容,2026-11-24)
+        "day", "type", "point", "scene", "action", "focus",
     ]
 
     /// 小字注键(「据 · 」/「注 · 」排版)。

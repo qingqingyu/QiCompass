@@ -35,11 +35,13 @@ final class PaywallContractStepTests: XCTestCase {
     }
 
     func test_chapterTeasers_nonEmpty_andShort() {
-        // 预告行是 caption 9.5pt 单行——空串或超长都会破版式;≤12 字
+        // 预告行是 caption 9.5pt 单行——空串或超长都会破版式;≤16 字
+        // (2026-11-24 捌章 teaser 换拍板原句:M2 副题/ M6 改写句各 16 字,
+        // 9.5pt 单行约 160pt 远小于可用宽度,版式安全——阈值随拍板对齐)
         for module in [PaywallModule.deepAnalysis, .compatibility] {
             for teaser in module.chapterTeasers {
                 XCTAssertFalse(teaser.isEmpty, "teaser 不得为空")
-                XCTAssertLessThanOrEqual(teaser.count, 12, "teaser 过长:\(teaser)")
+                XCTAssertLessThanOrEqual(teaser.count, 16, "teaser 过长:\(teaser)")
             }
         }
     }

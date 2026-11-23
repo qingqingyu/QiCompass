@@ -526,6 +526,55 @@ final class ChapterContentTests: XCTestCase {
         }
     }
 
+    // MARK: - M7 落地手册(2026-11-24 捌章两问门头+推翻信号隐藏)
+    func test_m7_twoActionDoorsWithCasesFoldedAndSignalsHidden() {
+        let json = """
+        {
+          "true_leverage": { "name": "深度理解与转述", "why": "它是其他能力的放大器" },
+          "use_cases": [
+            { "scene": "接新需求时", "action": "先复述一遍再动手" },
+            { "scene": "带新人时", "action": "让他讲给你听" }
+          ],
+          "next_90_days": { "thing": "把复述习惯固化", "done_signal": "连续三周不用提醒" },
+          "falsification_signals": ["照做三月越来越糟", "完成标志达成但状态更差"]
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m7) else {
+            return XCTFail("M7 应特化解析")
+        }
+        let titles = content.nodes.compactMap { node -> String? in
+            guard case .section(let title, _) = node else { return nil }
+            return title
+        }
+        XCTAssertEqual(titles, ["拿哪一样本事去行动?", "接下来的 90 天" + "，" + "只做哪一件事?"])
+        // ①节:杠杆内容 + 场景卡并入(场景在尾部)
+        guard case .section(_, let firstChildren)? = content.nodes.first else {
+            return XCTFail("true_leverage 应为节")
+        }
+        guard case .items(let cases)? = firstChildren.last,
+              cases.count == 2 else {
+            return XCTFail("use_cases 应并入①节尾部为条目卡,实际:\(firstChildren)")
+        }
+        XCTAssertEqual(cases.first?.title, "接新需求时")
+        // 推翻信号:负向断言——任何节点里不得出现
+        let allText = content.nodes.description
+        XCTAssertFalse(allText.contains("照做三月"), "推翻信号不应被渲染,实际:\(allText)")
+    }
+
+    func test_m7_fallsBackWithoutCoreKeys() {
+        // 双核心键全缺 → m7Nodes 返 nil 落回通用(退化输入不适用产品决策,照旧全量)
+        let json = """
+        { "falsification_signals": ["仅此一节"] }
+        """
+        guard let content = ChapterContent.parse(json, for: .m7) else {
+            return XCTFail("应解析成功")
+        }
+        guard case .bullets(let signals)? = content.nodes.first else {
+            return XCTFail("通用回落应渲染裸列表,实际:\(content.nodes)")
+        }
+        XCTAssertEqual(signals, ["仅此一节"])
+    }
+
     // MARK: - 对象数组 → 条目卡(M1 天赋 / M4 七天复位)
 
     func test_m1_itemsWithTitleFromName() {

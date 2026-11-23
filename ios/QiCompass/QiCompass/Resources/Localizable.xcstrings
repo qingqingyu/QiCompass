@@ -6739,6 +6739,29 @@
         }
       }
     },
+    "deepanalysis.chapter.q.next_90_days" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "For the next 90 days, what's the one thing?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接下来的 90 天，只做哪一件事?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "接下來的 90 天，只做哪一件事?"
+          }
+        }
+      }
+    },
     "deepanalysis.chapter.q.one_leverage" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6965,6 +6988,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "哪種能力是後天環境訓練出來的?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.true_leverage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Which ability do you act on?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拿哪一样本事去行动?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "拿哪一樣本事去行動?"
           }
         }
       }
@@ -11999,13 +12045,13 @@
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "付费内容绑定这组出生信息,更正出生信息需重新购买"
+            "value" : "付费内容绑定这组出生信息，更正出生信息需重新购买"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "付費內容綁定這組出生資訊,更正出生資訊需重新購買"
+            "value" : "付費內容綁定這組出生資訊，更正出生資訊需重新購買"
           }
         }
       }
@@ -13231,25 +13277,25 @@
         }
       }
     },
-    "同一张盘的最好与最坏活法" : {
+    "如有神助和倒霉透顶，差的不是运气" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "The same chart at its best and worst"
+            "value" : "When everything clicks and when nothing does — the difference isn't luck"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "同一张盘的最好与最坏活法"
+            "value" : "如有神助和倒霉透顶，差的不是运气"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "同一張盤的最好與最壞活法"
+            "value" : "如有神助和倒楣透頂，差的不是運氣"
           }
         }
       }
@@ -13323,25 +13369,25 @@
         }
       }
     },
-    "发力点、薄弱点与升级" : {
+    "在哪儿使一分力，能得到三分的效果" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Leverage, weak spots, leveling up"
+            "value" : "Where does one unit of effort pay back three?"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "发力点、薄弱点与升级"
+            "value" : "在哪儿使一分力，能得到三分的效果"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "發力點、薄弱點與升級"
+            "value" : "在哪裡使一分力，能得到三分的效果"
           }
         }
       }
