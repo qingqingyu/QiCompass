@@ -66,7 +66,7 @@ Organizer 里选刚生成的 archive → 右上 **Distribute App** → 选 **App
 ## 5. 验证(TestFlight 可见)
 
 1. App Store Connect → App → **TestFlight** 标签页 → 左侧 **iOS** → 看新 build 是否出现,状态是否 "Available"
-2. **首次上传**会被要求填 **App Privacy**(数据采集声明):App Store Connect → App → App 隐私 → 按实际填。如实申报清单(2026-10-28 拍板,与 `MONETIZATION.md` 及 app 内 `PrivacyInfo.xcprivacy` 口径一致):
+2. **首次上传**会被要求填 **App Privacy**(数据采集声明):App Store Connect → App → App 隐私 → 按实际填。如实申报清单(2026-10-28 拍板,与 `MONETIZATION.md` 及 app 内 `PrivacyInfo.xcprivacy` 口径一致;**隐私政策正文与审核描述以 `tmp/app-store-launch/privacy-policy.md` v0.2(2026-11-23 T20 纠错)为准**——出生信息发后端与第三方 AI、问事原文/合盘称呼发 AI、TelemetryDeck 埋点、后端缓存与问事记录无 TTL 持久保留等均已在政策正文如实披露):
    - **Other User Content** — 出生信息:发往后端排盘与 LLM 生成解读;登录后 `SyncManager.push` 上传命盘到后端
    - **User ID** — Sign in with Apple 用户 ID
    - **Email Address** — 仅登录用户(Apple 首次登录返回 / Google 每次返回,含 Apple 私密转发地址——后者亦属此项);后端 user 表 email 列落库,fullName 不上后端(仅本机 Keychain)故不申报 Name
