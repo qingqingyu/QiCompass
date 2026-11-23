@@ -512,6 +512,53 @@ final class DeepAnalysisViewModel {
         return formatter
     }
 
+    /// T15(2026-11-23):确认弹窗「当地时制」行的判定时刻(展示用,非抛):
+    /// 日期未选 → nil(调用方不显示该行);时辰未知内部按 12:00 占位合成
+    /// (与提交口径一致)。合成失败 → nil + 日志(不吞)。
+    var combinedBirthDateForDisplay: Date? {
+        guard let date = try? combinedBirthDate() else {
+            if birthDate != nil {
+                AppLogger.app.error("op=vm.combinedBirthDateForDisplay 合成失败(理论不可达)")
+            }
+            return nil
+        }
+        return date
+    }
+
+    /// T15(2026-11-23):确认弹窗「当地时制」行文本(纯函数供单测)。
+    ///
+    /// - 偏移格式 `UTC−4` / `UTC+5:30` / `UTC+8`(负号 U+2212,整点不带分钟)
+    /// - hourKnown=true → 按 `timeZone.isDaylightSavingTime(for:)` 选 dst/std 文案;
+    ///   false → 只显示偏移(12:00 占位的时刻不足以声称夏令时与否)
+    /// - language 显式传参(测试不依赖设备语言)
+    /// Note: 不设 `language` 参数——dst/std 文案经 NSLocalizedString 走 bundle
+    /// (D9 单一语言开关:设备语言即 App 语言);显式 language 参数会在
+    /// xcstrings 值上撒谎(bundle 分叉,2026-09-23 假红教训同源)。测试断言
+    /// 结构(UTC 前缀/U+2212 负号/偏移数字)而非具体译文。
+    static func localTimeRuleText(
+        date: Date, timeZone: TimeZone, hourKnown: Bool
+    ) -> String {
+        let offset = timeZone.secondsFromGMT(for: date)
+        let hours = offset / 3600
+        let minutes = abs(offset) % 3600 / 60
+        let sign = offset < 0 ? "\u{2212}" : "+"
+        // 整点不带分钟(UTC+8);半点带(UTC+5:30);负数分钟按绝对值拼(符号在小时上)
+        let hourPart = minutes == 0 ? "\(sign)\(abs(hours))" : "\(sign)\(abs(hours)):\(String(format: "%02d", minutes))"
+        let offsetText = "UTC\(hourPart)"
+        if !hourKnown {
+            return String(
+                format: NSLocalizedString("birthConfirm.tz.offsetOnly",
+                                          comment: "T15 tz offset only"),
+                offsetText)
+        }
+        // 动态 key 不能用 String(localized:)( LocalizationValue 需字面量);
+        // NSLocalizedString 走同一 xcstrings 表(bundle 解析同源)
+        let isDST = timeZone.isDaylightSavingTime(for: date)
+        let key = isDST ? "birthConfirm.tz.dst" : "birthConfirm.tz.std"
+        return String(
+            format: NSLocalizedString(key, comment: "T15 tz rule"), offsetText)
+    }
+
     /// 合并日期行 + 时刻行 → 完整出生 Date(出生地钟面:Y/M/D 取 birthDate,H/M 取 birthTime,秒归 0)。
     /// birthDate 未选择 / Calendar 合成失败 → 显式抛错(错误显式传播,禁止 `?? Date()` 静默兜底);
     /// 提交路径(validateForm 先行)保证走到这里时 birthDate 已非空。

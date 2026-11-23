@@ -30,6 +30,26 @@ struct BirthInfoConfirmSheet: View {
                 infoRow(label: L10n.BirthForm.birthDateLabel, value: vm.wallBirthDateString ?? "—")
                 // S04 时辰未知:无时辰态明示「未知(半夜:是/否/不确定)」,防误提交
                 infoRow(label: L10n.BirthForm.birthTimeLabel, value: vm.confirmBirthTimeText)
+                // T15(2026-11-23):当地时制行(偏移 + 当时夏令时/标准时间;
+                // 时辰未知只显示偏移——12:00 占位不足以声称夏令时与否)。
+                // 取不到时区 → 整行不显示并记日志(不猜设备时区)
+                if let tzName = BirthPlaceResolver.effectiveTimezoneName(vm.selectedPlace),
+                   let tz = TimeZone(identifier: tzName),
+                   let ruleDate = vm.combinedBirthDateForDisplay {
+                    let ruleText = DeepAnalysisViewModel.localTimeRuleText(
+                        date: ruleDate, timeZone: tz, hourKnown: vm.hourKnown)
+                    infoRow(label: L10n.BirthForm.tzLabel, value: ruleText)
+                } else if vm.birthDate != nil {
+                    // body 内不能裸调非 View 表达式:日志移入 Color.clear 的
+                    // task(一次性,视图重算不重放)——对齐仓内 degradedBody
+                    /// onAppear 打点范式
+                    Color.clear
+                        .frame(height: 0)
+                        .task {
+                            AppLogger.app.warning(
+                                "op=birthConfirm.tzRow missing_timezone_or_date place=\(vm.selectedPlace?.displayLabel ?? "nil", privacy: .public)")
+                        }
+                }
                 // 性别未选(2026-09-19 去默认值):此 sheet 弹在 validateForm 之前,
                 // 诚实展示「未选择」,提交在 calculate 内被 formInvalid 拦截(与日期「—」同口径)
                 infoRow(label: String(localized: "性别"), value: genderText)

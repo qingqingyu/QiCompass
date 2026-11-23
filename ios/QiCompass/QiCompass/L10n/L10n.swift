@@ -262,6 +262,10 @@ enum L10n {
         /// T14(P1):出生地为什么必填(时区/夏令时/真太阳时)。
         static let placeHint = String(localized: "birthform.place.hint")
 
+        /// T15(2026-11-23):确认弹窗「当地时制」行标签。
+        /// zh: "当地时制";en: "Local time"
+        static let tzLabel = String(localized: "birthConfirm.tz.label")
+
         /// T12(2026-11-23,D4=B 拍板:必勾复选框):AI 数据授权说明(复选框标签)。
         /// zh: "我同意:出生信息发送到我们的服务器排盘;生成解读时,命盘数据
         /// 会交给第三方 AI 服务处理。我们不跟踪、不卖数据。"

@@ -1529,3 +1529,99 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         XCTAssertGreaterThan(size.width, 0)
     }
 }
+
+// MARK: - T15 当地时制行(localTimeRuleText 纯函数,2026-11-23)
+
+extension DeepAnalysisViewModelFormTests {
+    func testLocalTimeRuleNewYorkSummerDST() {
+        // 纽约 1990-07-15 10:00 当地 → UTC−4 · 夏令时
+        let tz = TimeZone(identifier: "America/New_York")!
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        let date = cal.date(from: DateComponents(year: 1990, month: 7, day: 15, hour: 10))!
+        let text = DeepAnalysisViewModel.localTimeRuleText(
+            date: date, timeZone: tz, hourKnown: true)
+        XCTAssertTrue(text.unicodeScalars.contains(UnicodeScalar(0x2212)!), "负号须为 U+2212:\(text)")
+        XCTAssertTrue(text.contains("UTC"), text)
+        XCTAssertTrue(text.contains("4"), "整点不带分钟:\(text)")
+        XCTAssertTrue(text.contains("夏令时"), text)
+        // dst/std 译文走 bundle(不设 language 参数,见 VM 注释)——
+        // 结构断言:带分隔符的完整形态而非裸偏移
+        XCTAssertTrue(text.contains(" · "), text)
+    }
+
+    func testLocalTimeRuleNewYorkWinterSTD() {
+        // 纽约 1990-01-15 → UTC−5 · 标准时间
+        let tz = TimeZone(identifier: "America/New_York")!
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        let date = cal.date(from: DateComponents(year: 1990, month: 1, day: 15, hour: 10))!
+        let text = DeepAnalysisViewModel.localTimeRuleText(
+            date: date, timeZone: tz, hourKnown: true)
+        XCTAssertTrue(text.contains("UTC\u{2212}5"), text)
+        XCTAssertTrue(text.contains("标准时间"), text)
+    }
+
+    func testLocalTimeRuleShanghai1988ChinaDST() {
+        // 上海 1988-07-15(中国 1986-91 夏令时)→ UTC+9 · 夏令时
+        let tz = TimeZone(identifier: "Asia/Shanghai")!
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        let date = cal.date(from: DateComponents(year: 1988, month: 7, day: 15, hour: 10))!
+        let text = DeepAnalysisViewModel.localTimeRuleText(
+            date: date, timeZone: tz, hourKnown: true)
+        XCTAssertTrue(text.contains("UTC+9"), text)
+        XCTAssertTrue(text.contains("夏令时"), text)
+    }
+
+    func testLocalTimeRuleKolkataHalfHour() {
+        // 加尔各答 → UTC+5:30(半点带分钟)
+        let tz = TimeZone(identifier: "Asia/Kolkata")!
+        let date = Date(timeIntervalSince1970: 600_000_000)
+        let text = DeepAnalysisViewModel.localTimeRuleText(
+            date: date, timeZone: tz, hourKnown: true)
+        XCTAssertTrue(text.contains("UTC+5:30"), text)
+    }
+
+    func testLocalTimeRuleHourUnknownOffsetOnly() {
+        // 时辰未知 → 只有偏移,不声称夏令时与否
+        let tz = TimeZone(identifier: "America/New_York")!
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        let date = cal.date(from: DateComponents(year: 1990, month: 7, day: 15, hour: 12))!
+        let text = DeepAnalysisViewModel.localTimeRuleText(
+            date: date, timeZone: tz, hourKnown: false)
+        XCTAssertTrue(text.hasPrefix("UTC"), text)
+        XCTAssertFalse(text.contains("夏令时"), text)
+        XCTAssertFalse(text.contains("标准"), text)
+    }
+
+    func testCombinedBirthDateForDisplay() throws {
+        // 日期已选 → 合成时刻(与提交口径一致);未选 → nil。
+        // extension 访问不到类内 private var vm——用 Optional 链直测:
+        // combinedBirthDateForDisplay 只依赖 birthDate/hourKnown/birthTime,
+        // 单独构造最小 VM(同 setUp 范式,内存容器)
+        let container = try ModelContainerFactory.makeInMemory()
+        let context = container.mainContext
+        let apiClient = MockAPIClient()
+        let chartStore = ChartSnapshotStore(context: context)
+        let interpretStore = InterpretationCacheStore(context: context)
+        let identityResolver = AIIdentityResolver(apiClient: apiClient)
+        let counter = DailyReadCounter.makeIsolatedForTesting()
+        let reader = CachedInterpretationReader(
+            identityResolver: identityResolver,
+            cacheStore: interpretStore)
+        let orchestrator = DeepAnalysisOrchestrator(
+            apiClient: apiClient, chartStore: chartStore,
+            interpretStore: interpretStore, counter: counter,
+            interpretationReader: reader,
+            userLinkStore: UserSnapshotLinkStore(context: context))
+        let vm = DeepAnalysisViewModel(
+            orchestrator: orchestrator,
+            entitlementStore: EntitlementStore(modelContext: context))
+        vm.birthDate = Date(timeIntervalSince1970: 600_000_000)
+        XCTAssertNotNil(vm.combinedBirthDateForDisplay)
+        vm.birthDate = nil
+        XCTAssertNil(vm.combinedBirthDateForDisplay)
+    }
+}
