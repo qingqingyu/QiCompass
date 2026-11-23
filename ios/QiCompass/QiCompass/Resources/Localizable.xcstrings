@@ -2357,6 +2357,52 @@
         }
       }
     },
+    "chartBasis.zi.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Zi hour runs from 11 PM to 1 AM in true solar time. Schools differ on when the new day starts: some start it at 11 PM, which is what this app does; others wait until midnight (the \"early and late Zi\" method). If you were born in this window, other apps may show a different day pillar. That's a difference in method, not a mistake."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "夜里 23:00 到次日 1:00（按真太阳时）是子时。流派对它有两种处理：一种从 23:00 起就算作第二天，本 App 采用这种；另一种到 0:00 才换日，俗称「早晚子时」。在这段时间出生的人，不同软件给出的日柱可能不同，这是口径差异，不是算错。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "夜裡 23:00 到次日 1:00（按真太陽時）是子時。流派對它有兩種處理：一種從 23:00 起就算作第二天，本 App 採用這種；另一種到 0:00 才換日，俗稱「早晚子時」。在這段時間出生的人，不同軟體給出的日柱可能不同，這是口徑差異，不是算錯。"
+          }
+        }
+      }
+    },
+    "chartBasis.zi.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How is the Zi hour handled?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "子时怎么算？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "子時怎麼算？"
+          }
+        }
+      }
+    },
     "chartcalc.banner.expandHint" : {
       "extractionState" : "manual",
       "localizations" : {

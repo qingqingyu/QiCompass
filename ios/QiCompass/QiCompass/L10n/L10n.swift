@@ -1950,9 +1950,9 @@ enum L10n {
         static let agree = String(localized: "dataConsent.agree")
     }
 
-    // MARK: - 排盘口径说明页(T3,2026-11-22 竞品差评对照;ChartBasisSheet 三节)
+    // MARK: - 排盘口径说明页(T3,2026-11-22 竞品差评对照;ChartBasisSheet 四节)
 
-    /// 三节静态说明:真太阳时 / 立春 vs 农历新年 / 生肖年份五行 vs 日主。
+    /// 四节静态说明:真太阳时 / 立春 vs 农历新年 / 生肖年份五行 vs 日主 / 子时换日。
     /// 文案三语落 xcstrings(chartBasis.*);个性化行(T6 生肖差异 K4)由
     /// ChartBasisSheet 追加,不在此枚举。
     enum ChartBasis {
@@ -1977,6 +1977,14 @@ enum L10n {
 
         /// 第三节正文(「木牛」来自年柱,日主是本命五行,两个都对)。
         static let dayMasterBody = String(localized: "chartBasis.dayMaster.body")
+
+        /// T18(2026-11-23)第四节标题:「子时怎么算?」。
+        /// zh: "子时怎么算?";en: "How is the Zi hour handled?"
+        static let ziTitle = String(localized: "chartBasis.zi.title")
+
+        /// T18 第四节正文(23:00 换日 vs 早晚子时两派;本 App 用前者;
+        /// **不得提及可在设置中更改**——子时设置行已于 2026-10-18 拔除)。
+        static let ziBody = String(localized: "chartBasis.zi.body")
 
         /// 关闭按钮。zh: "关闭";zh-Hant: "關閉";en: "Close"
         static let close = String(localized: "chartBasis.close")
