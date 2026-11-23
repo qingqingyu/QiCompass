@@ -249,7 +249,8 @@ extension ModuleID {
         case .m6:
             return ["energy_path", "leverage", "vulnerability", "upgrade_path"]
         case .m7:
-            return ["true_leverage", "use_cases", "falsification_signals"]
+            // 2026-11-24 捌章拍板:推翻信号节整节隐藏,反馈 chip 随摘
+            return ["true_leverage", "use_cases"]
         }
     }
 }

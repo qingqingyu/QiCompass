@@ -56,15 +56,16 @@ enum PaywallModule {
     /// 章节静态预告行(2026-09-27 review:只有标题没信息量)。
     /// 与 paidChapters 平行排列,count 一致性由测试守护
     /// (PaywallContractStepTests);2026-09-30 S4 对齐 M2-M7 新副标题口径,
-    /// 短句(≤12 字,PaywallContractStepTests 守护)、不推销、不绝对化。
+    /// 短句(≤16 字,PaywallContractStepTests 守护;2026-11-24 捌章 teaser
+    /// 换拍板原句后 12→16)、不推销、不绝对化。
     var chapterTeasers: [String] {
         switch self {
         case .deepAnalysis: return [
-            "同一张盘的最好与最坏活法",
+            "如有神助和倒霉透顶，差的不是运气",
             "怎样跑最顺，哪里会失灵",
             "精力的起落与最佳回血法",
             "怎么赚最顺，哪里易漏财",
-            "发力点、薄弱点与升级",
+            "在哪儿使一分力，能得到三分的效果",
             "押注一件事，90天行动",
         ].map { NSLocalizedString($0, value: $0, comment: "") }
         case .compatibility: return [
