@@ -969,6 +969,9 @@ struct ProfileView: View {
             // 名单)都会被清空」;CityRecentStore 是表单便利,"从零开始"一并清。
             CompatibilityRosterPersistence.clear()
             CityRecentStore.clear()
+            // T12(2026-11-23):AI 数据授权记录归入设置域清除——重走 onboarding
+            // 时确认 sheet 重新要求勾选(Apple 5.1.2(i) 审计口径:重置 = 撤回)
+            DataConsent.clear()
             // 用 @AppStorage 写,RootTabView 的 @AppStorage("hasSeenOnboarding") 立即响应触发 onboarding sheet
             hasSeenOnboarding = false
             AppLogger.app.info("重置命盘完成,hasSeenOnboarding=false,RootTabView 应立即弹 onboarding sheet")

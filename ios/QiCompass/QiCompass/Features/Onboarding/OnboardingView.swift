@@ -63,7 +63,13 @@ struct OnboardingView: View {
                         showSubmitConfirm = false
                     }
                 )
-                .presentationDetents([.medium])
+                // T12:授权复选框块加入后内容 ~600pt,medium(≈334-425pt)任何
+                // 机型都装不下且为 VStack 不可滚——复选框/CTA 被截断 = 流程死锁。
+                // 选 [.large] 而非包 ScrollView:授权复选框与「确认排盘」必须
+                // 同屏可见(合规要求先见披露再同意),ScrollView 在 medium 下首屏
+                // 看不到 CTA;且与同批 DataConsentSheet/PrivacyInfoSheet 均
+                // [.large] 一致。
+                .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
             }
         }

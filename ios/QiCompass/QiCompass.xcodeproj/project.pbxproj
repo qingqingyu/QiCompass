@@ -196,6 +196,8 @@
 		B36D4647A938BC37E999E702 /* DailyReadCounter.swift in Sources */ = {isa = PBXBuildFile; fileRef = 23C84BD0B1E670AC7EF54B93 /* DailyReadCounter.swift */; };
 		D26047CCB90DDAA99C1B6D7D /* InterpretationCacheStore.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2AF74383AEB02A4F7ED0C689 /* InterpretationCacheStore.swift */; };
 		9C4F2C3D4E5F6A7B8C9D0E2F /* TranslateHintBar.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C4F2C3D4E5F6A7B8C9D0E1F /* TranslateHintBar.swift */; };
+		3ACDE62AF31A0E0CD84446EC /* DataConsentSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = FCA535A24812D6318E6A62DD /* DataConsentSheet.swift */; };
+		4E6B29B2EF7DC1A3CBC6BFB7 /* DataConsent.swift in Sources */ = {isa = PBXBuildFile; fileRef = A806F5B50733414CE0943365 /* DataConsent.swift */; };
 		A7262FBAF4AD572AF437BD9A /* PrivacyInfoSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = 552D718A9BE7490F1319E11E /* PrivacyInfoSheet.swift */; };
 		C0449122832E9F13973A75F5 /* ChartBasisSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE1FC4001A1E34DE50083307 /* ChartBasisSheet.swift */; };
 		E22A4DA18C53C38BBC80783C /* ChartHeaderView.swift in Sources */ = {isa = PBXBuildFile; fileRef = F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */; };
@@ -407,6 +409,8 @@
 		F5DE2EFE3006596F0089996B /* OnboardingView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = OnboardingView.swift; path = QiCompass/Features/Onboarding/OnboardingView.swift; sourceTree = SOURCE_ROOT; };
 		F8BC4D749648FC864F2EDB38 /* LuckPillarsTimeline.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = LuckPillarsTimeline.swift; path = QiCompass/Features/DeepAnalysis/LuckPillarsTimeline.swift; sourceTree = SOURCE_ROOT; };
 		F9AB427085FC26BB41BE756E /* PillarsTable.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PillarsTable.swift; path = QiCompass/Features/DeepAnalysis/PillarsTable.swift; sourceTree = SOURCE_ROOT; };
+		FCA535A24812D6318E6A62DD /* DataConsentSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DataConsentSheet.swift; path = QiCompass/Features/Onboarding/DataConsentSheet.swift; sourceTree = SOURCE_ROOT; };
+		A806F5B50733414CE0943365 /* DataConsent.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = DataConsent.swift; path = QiCompass/Shared/DataConsent.swift; sourceTree = SOURCE_ROOT; };
 		552D718A9BE7490F1319E11E /* PrivacyInfoSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = PrivacyInfoSheet.swift; path = QiCompass/Shared/PrivacyInfoSheet.swift; sourceTree = SOURCE_ROOT; };
 		CE1FC4001A1E34DE50083307 /* ChartBasisSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartBasisSheet.swift; path = QiCompass/Features/DeepAnalysis/ChartBasisSheet.swift; sourceTree = SOURCE_ROOT; };
 		F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = ChartHeaderView.swift; path = QiCompass/Features/DeepAnalysis/ChartHeaderView.swift; sourceTree = SOURCE_ROOT; };
@@ -478,6 +482,8 @@
 				7C2700000000000000000001 /* CitySearchEngine.swift */,
 				7C2700000000000000000002 /* CityPickerField.swift */,
 				7C2700000000000000000003 /* CitySearchSheet.swift */,
+				FCA535A24812D6318E6A62DD /* DataConsentSheet.swift */,
+				A806F5B50733414CE0943365 /* DataConsent.swift */,
 				552D718A9BE7490F1319E11E /* PrivacyInfoSheet.swift */,
 				CE1FC4001A1E34DE50083307 /* ChartBasisSheet.swift */,
 				F9EE467989C2B1743385FA14 /* ChartHeaderView.swift */,
@@ -914,6 +920,8 @@ A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				7C1700000000000000000001 /* CitySearchEngine.swift in Sources */,
 				7C1700000000000000000002 /* CityPickerField.swift in Sources */,
 				7C1700000000000000000003 /* CitySearchSheet.swift in Sources */,
+				3ACDE62AF31A0E0CD84446EC /* DataConsentSheet.swift in Sources */,
+				4E6B29B2EF7DC1A3CBC6BFB7 /* DataConsent.swift in Sources */,
 				A7262FBAF4AD572AF437BD9A /* PrivacyInfoSheet.swift in Sources */,
 				C0449122832E9F13973A75F5 /* ChartBasisSheet.swift in Sources */,
 				E22A4DA18C53C38BBC80783C /* ChartHeaderView.swift in Sources */,

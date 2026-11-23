@@ -14,6 +14,11 @@ struct BirthInfoConfirmSheet: View {
     let onConfirm: () -> Void
     let onCancel: () -> Void
 
+    /// T12(D4=B 拍板:必勾复选框):未勾选时「确认排盘」置灰。
+    /// 点击确认时写入同意记录后才调 onConfirm(顺序保证:先落盘再排盘)。
+    @State private var consentChecked = false
+    @State private var showPrivacySheet = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.xl) {
             Text("确认出生信息")
@@ -41,9 +46,19 @@ struct BirthInfoConfirmSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            // T12(2026-11-23,D4=B 拍板):AI 数据授权——必勾复选框 + 隐私说明
+            // 链接(与老用户补授权 sheet 共用 DataConsentBlock,单一实现)。
+            // Apple 5.1.2(i):交第三方 AI 前明确披露 + 明确许可。
+            DataConsentBlock(isOn: $consentChecked) {
+                showPrivacySheet = true
+            }
+            .padding(.bottom, BaziTheme.Spacing.xs)
+
             VStack(spacing: BaziTheme.Spacing.sm) {
                 Button(action: {
+                    guard consentChecked else { return }
                     HapticEngine.medium()
+                    DataConsent.recordConsent()
                     onConfirm()
                 }) {
                     Text("确认排盘")
@@ -51,8 +66,11 @@ struct BirthInfoConfirmSheet: View {
                         .foregroundStyle(BaziTheme.onInkDeep)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, BaziTheme.Spacing.md)
-                        .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
+                        .background(
+                            consentChecked ? BaziTheme.inkDeep : BaziTheme.inkDeep.opacity(0.3),
+                            in: RoundedRectangle(cornerRadius: 5))
                 }
+                .disabled(!consentChecked)
                 .accessibilityHint("用以上信息排盘,进入今日运势")
 
                 Button(action: { onCancel() }) {
@@ -68,6 +86,9 @@ struct BirthInfoConfirmSheet: View {
         .padding(BaziTheme.Spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(BaziTheme.paper)
+        .sheet(isPresented: $showPrivacySheet) {
+            PrivacyInfoSheet()
+        }
         .onAppear {
             // 规则 1:用户主动触发的入口日志(便于排查"sheet 没弹 / 反复弹")
             AppLogger.app.info("BirthInfoConfirmSheet.shown birth=\(vm.wallBirthDateString ?? "nil") time=\(vm.confirmBirthTimeText, privacy: .public) gender=\(vm.gender ?? "nil", privacy: .public) place=\(vm.selectedPlace?.displayLabel ?? "nil", privacy: .public)")

@@ -954,6 +954,52 @@
         }
       }
     },
+    "birthConfirm.dataConsent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I agree that we send your birth details to our servers to calculate your chart, and that your chart data is shared with a third-party AI service to write your readings. We don't track you or sell your data."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我同意：出生信息发送到我们的服务器排盘；生成解读时，命盘数据会交给第三方 AI 服务处理。我们不跟踪、不卖数据。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我同意：出生資訊傳送到我們的伺服器排盤；生成解讀時，命盤資料會交給第三方 AI 服務處理。我們不追蹤、不賣資料。"
+          }
+        }
+      }
+    },
+    "birthConfirm.privacyLink" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy details ›"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私说明 ›"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隱私說明 ›"
+          }
+        }
+      }
+    },
     "birthConfirm.solarHint" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -4481,6 +4527,75 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "明日"
+          }
+        }
+      }
+    },
+    "dataConsent.agree" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agree & continue"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同意并继续"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同意並繼續"
+          }
+        }
+      }
+    },
+    "dataConsent.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your chart is calculated on our servers, and your chart data is shared with a third-party AI service to write your readings. By continuing, you agree to this. We don't track you or sell your data."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盘在我们的服务器完成；生成解读时，命盘数据会交给第三方 AI 服务处理。继续使用即表示你同意。我们不跟踪、不卖数据。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盤在我們的伺服器完成；生成解讀時，命盤資料會交給第三方 AI 服務處理。繼續使用即表示你同意。我們不追蹤、不賣資料。"
+          }
+        }
+      }
+    },
+    "dataConsent.sheetTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How we use your data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据使用说明"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "資料使用說明"
           }
         }
       }

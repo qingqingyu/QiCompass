@@ -33,6 +33,11 @@ struct RootTabView: View {
     /// 冷启动品牌转场(水墨孤本开机页,DESIGN.md §Motion)。每次冷启动播放,1.6s 内淡出。
     @State private var showSplash = true
 
+    /// T12(2026-11-23):老用户 AI 数据授权补授权(Apple 5.1.2(i))。
+    /// 启动时 onboarding 已完成但同意记录缺/落后 → 弹不可下滑关闭的
+    /// DataConsentSheet;同意后落盘不再弹(重置全部数据会清记录重弹)。
+    @State private var showDataConsent = false
+
     enum Tab: Hashable {
         case dailyFortune
         case deepAnalysis
@@ -109,6 +114,14 @@ struct RootTabView: View {
             if !hasSeenOnboarding {
                 showOnboarding = true
             }
+            // T12(2026-11-23):老用户补授权——onboarding 已完成但同意记录
+            // 缺失/版本落后(Apple 5.1.2(i))。只在 onboarding 不弹时弹:
+            // 新用户在确认排盘 sheet 里勾选授权,不走补授权路径。
+            // 判据抽纯函数(DataConsent.needsRetroConsent,对齐 CompleteOnceGate
+            // 范式)供单测——测试 target 无 ViewInspector,@State 分流不可断言。
+            if DataConsent.needsRetroConsent(hasSeenOnboarding: hasSeenOnboarding) {
+                showDataConsent = true
+            }
             // PR3.2:App 启动(若已登录)→ 后台静默 pull(同步云端命盘)
             Task { await env.syncManager.pull() }
             // D1 冷启动补同步:keychain 恢复登录态的路径不触发 onSignedIn
@@ -139,6 +152,13 @@ struct RootTabView: View {
             )
             .environmentObject(env)
             .interactiveDismissDisabled()
+        }
+        .sheet(isPresented: $showDataConsent) {
+            DataConsentSheet {
+                DataConsent.recordConsent()
+                showDataConsent = false
+                AppLogger.app.info("DataConsentSheet 同意 → 记录落盘 version=\(DataConsent.currentVersion, privacy: .public)")
+            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchTab)) { note in
             // guard 失败也要打日志:之前 silent return,出问题排查无据

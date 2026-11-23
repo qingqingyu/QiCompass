@@ -244,6 +244,14 @@ enum L10n {
         /// 不同。你填写的时间会原样保存。"
         static let confirmSolarHint = String(localized: "birthConfirm.solarHint")
 
+        /// T12(2026-11-23,D4=B 拍板:必勾复选框):AI 数据授权说明(复选框标签)。
+        /// zh: "我同意:出生信息发送到我们的服务器排盘;生成解读时,命盘数据
+        /// 会交给第三方 AI 服务处理。我们不跟踪、不卖数据。"
+        static let dataConsentText = String(localized: "birthConfirm.dataConsent")
+
+        /// T12:「隐私说明 ›」链接(打开 PrivacyInfoSheet)。
+        static let privacyLink = String(localized: "birthConfirm.privacyLink")
+
         /// "命盘别名" 字段标签(字段 Micro 标签与 TextField 标题共用同一 key)。
         /// zh: "命盘别名";en: "Chart name"
         static let aliasLabel = String(localized: "birthform.alias.label")
@@ -1891,6 +1899,20 @@ enum L10n {
 
         /// zh: "胎元";en: "Conception Pillar"
         static let auxTaiYuan = String(localized: "deepanalysis.aux.taiYuan")
+    }
+
+    // MARK: - AI 数据授权(T12,2026-11-23;老用户补授权 sheet)
+
+    /// 老用户补授权(D4=B:sheet 也带复选框,勾选后「同意并继续」可用)。
+    enum DataConsentCopy {
+        /// sheet 标题。zh: "数据使用说明";en: "How we use your data"
+        static let sheetTitle = String(localized: "dataConsent.sheetTitle")
+
+        /// 说明正文(继续使用即表示同意的口径;复选框标签复用 BirthForm.dataConsentText)。
+        static let body = String(localized: "dataConsent.body")
+
+        /// 主按钮。zh: "同意并继续";en: "Agree & continue"
+        static let agree = String(localized: "dataConsent.agree")
     }
 
     // MARK: - 排盘口径说明页(T3,2026-11-22 竞品差评对照;ChartBasisSheet 三节)
