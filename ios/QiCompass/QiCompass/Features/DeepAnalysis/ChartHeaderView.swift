@@ -91,15 +91,23 @@ struct ChartHeaderView: View {
         }
     }
 
-    /// T6:农历新年 vs 立春生肖不一致对照句(响应带 lunar_new_year_year 且
-    /// 生肖可判 → 拼装;两口径相同 / 老快照 / 歧义 → nil,不猜)。复用
-    /// OnboardingView.lnyMismatchText(静态纯函数,与生肖反馈屏同一拼装口径)。
+    /// T6/T17:生肖口径说明行(K4 农历新年差异优先,否则 K5 立春前出生);
+    /// 复用 OnboardingView 的两个静态纯函数(与揭晓屏同一拼装口径/优先级)。
+    /// 两条都不命中 / 老快照 / 歧义 → nil,不猜。
     private var lnyMismatchLine: String? {
         OnboardingView.lnyMismatchText(
             lny: response.lunarNewYearYear,
             lichunGanZhi: response.pillars.year?.ganZhi,
             lichunZodiac: response.yearBranchZodiac,
             language: AppLanguage.current)
+            ?? OnboardingView.beforeLichunText(
+                bornBeforeLichun: response.bornBeforeLichun,
+                // 钟面串前 4 位即钟面公历年(与 OnboardingView 的
+                // placeCalendar 口径一致);解析失败 → nil 该行不渲染,不猜
+                birthYear: Int(request.birthDatetime.prefix(4)),
+                lichunGanZhi: response.pillars.year?.ganZhi,
+                lichunZodiac: response.yearBranchZodiac,
+                language: AppLanguage.current)
     }
 
     // MARK: - tags

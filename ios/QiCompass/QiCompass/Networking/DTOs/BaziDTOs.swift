@@ -305,6 +305,10 @@ struct BaziResponse: Codable, Sendable {
     /// 年柱不同才给;相同 / 年柱歧义 → null)。仅展示对照用;老响应缺 key →
     /// nil(decodeIfPresent,生肖屏不渲染 K4 行,不猜)。
     var lunarNewYearYear: LunarNewYearYearDTO? = nil
+    /// T17(2026-11-23 竞品差评对照):出生在其公历年的立春之前(年柱属上一
+    /// 公历年)→ true;年柱歧义 → nil;立春后 → false。老响应缺 key → nil
+    /// (decodeIfPresent)。仅展示对照用。
+    var bornBeforeLichun: Bool? = nil
 
     // v1 prompt 系统 chart 注入字段(Stage 1 后端引入,iOS Stage 7b 接入)
     // 不在声明处给默认值(否则 init(from decoder:) + 默认值会触发"immutable value
@@ -398,6 +402,7 @@ struct BaziResponse: Codable, Sendable {
         case yearBranchClash = "year_branch_clash"
         case pastNode = "past_node"
         case lunarNewYearYear = "lunar_new_year_year"
+        case bornBeforeLichun = "born_before_lichun"
         case tenGodWeights = "ten_god_weights"
         case usefulGodCandidates = "useful_god_candidates"
         case meta
@@ -496,6 +501,8 @@ struct BaziResponse: Codable, Sendable {
         // T6(2026-11-22):农历新年口径年柱对照;老响应缺 key → nil
         lunarNewYearYear = try c.decodeIfPresent(
             LunarNewYearYearDTO.self, forKey: .lunarNewYearYear)
+        bornBeforeLichun = try c.decodeIfPresent(
+            Bool.self, forKey: .bornBeforeLichun)
         // v1 字段:decodeIfPresent + 默认值,缺 key 走默认(对齐 backend Stage 1+ 语义)
         tenGodWeights = try c.decodeIfPresent([String: Int].self, forKey: .tenGodWeights) ?? [:]
         usefulGodCandidates = try c.decodeIfPresent([String].self, forKey: .usefulGodCandidates) ?? []
@@ -566,7 +573,8 @@ struct BaziResponse: Codable, Sendable {
         pastNode: PastNodeDTO? = nil,
         clockTimePillars: [String: String]? = nil,
         dstFlags: [String] = [],
-        lunarNewYearYear: LunarNewYearYearDTO? = nil
+        lunarNewYearYear: LunarNewYearYearDTO? = nil,
+        bornBeforeLichun: Bool? = nil
     ) {
         self.contentHash = contentHash
         self.trueSolarTime = trueSolarTime
@@ -608,6 +616,7 @@ struct BaziResponse: Codable, Sendable {
         self.clockTimePillars = clockTimePillars
         self.dstFlags = dstFlags
         self.lunarNewYearYear = lunarNewYearYear
+        self.bornBeforeLichun = bornBeforeLichun
     }
 }
 

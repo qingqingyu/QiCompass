@@ -44,6 +44,7 @@ from ..engine.pillars import (
     build_pillars,
     compute_element_balance,
     compute_year_zodiac,
+    year_pillar_ganzhi,
 )
 from ..engine.shensha import compute_shensha
 from ..engine.verification import pick_past_node
@@ -200,12 +201,22 @@ class BaziEngine:
                 lunar_new_year_year = _lunar_new_year_year(
                     calc_birth, lichun_gan_zhi=pillars.year.gan_zhi,
                 )
+
+                # 3.4 出生在公历年立春之前(T17,2026-11-23 竞品差评对照):
+                # 年柱属上一公历年。按公历年理解生肖的用户会看到
+                # 「生于 1986 却是 1985 的木牛」而以为算错。时辰未知照算
+                # (比较按日期粒度);仅展示用,不进 hash / token
+                born_before_lichun = (
+                    pillars.year.gan_zhi
+                    != year_pillar_ganzhi(calc_birth.year)
+                )
             else:
                 year_branch_zodiac = None
                 year_branch_friends = None
                 year_branch_clash = None
                 # 年柱歧义(立春日 + 时辰未知)→ 两侧口径都不可信,不猜
                 lunar_new_year_year = None
+                born_before_lichun = None
 
             # 3.5 contentHash(提前算,供后续日志关联;用输入时间,非真太阳时。
             # 时辰未知时 birth 为区间中点占位归一值:时辰桶不参与,
@@ -423,6 +434,9 @@ class BaziEngine:
                     lunar_new_year_year.model_dump()
                     if lunar_new_year_year is not None else None
                 ),
+                # T17(2026-11-23):出生在其公历年的立春之前(年柱属上一公历年)。
+                # 年柱歧义 → None。仅展示用,不进 hash / token
+                "born_before_lichun": born_before_lichun,
                 # 生肖屏节点句(2026-10-19 拍板):结构化过去节点,文案在
                 # iOS xcstrings;空池/规则缺席 → None(该行不渲染)
                 "past_node": (

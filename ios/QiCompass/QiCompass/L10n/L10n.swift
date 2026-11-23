@@ -129,6 +129,13 @@ enum L10n {
             String(format: String(localized: "zodiac.lnyMismatch"), lnyZodiac, yearPillar)
         }
 
+        /// T17(2026-11-23):1 月 1 日到立春之间出生的生肖说明(K5;拼装见
+        /// `OnboardingView.beforeLichunText`)。zh 的 %2$@ = 干支+生肖
+        /// 「乙丑(牛)」;en = "Wood Ox"(yearSignLabel)。
+        static func beforeLichun(_ year: Int, yearPillar: String) -> String {
+            String(format: String(localized: "zodiac.beforeLichun"), year, yearPillar)
+        }
+
         // -- 12 生肖人格文案(静态善意正面画像,Q6 锁定:1-2 句,不吹天命不写负面)--
 
         static let personalityRat = String(localized: "onboarding.personality.rat")

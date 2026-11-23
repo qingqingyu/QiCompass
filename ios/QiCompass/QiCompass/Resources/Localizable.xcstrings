@@ -13245,6 +13245,29 @@
         }
       }
     },
+    "zodiac.beforeLichun" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You were born in %1$lld, but in BaZi that year doesn't begin until the Start of Spring (around February 4), so your year pillar belongs to the year before: %2$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你生于 %1$lld 年，但八字的 %1$lld 年要到立春（2 月 4 日前后）才开始，所以你的年柱属于上一年：%2$@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你生於 %1$lld 年，但八字的 %1$lld 年要到立春（2 月 4 日前後）才開始，所以你的年柱屬於上一年：%2$@。"
+          }
+        }
+      }
+    },
     "zodiac.lnyMismatch" : {
       "extractionState" : "manual",
       "localizations" : {

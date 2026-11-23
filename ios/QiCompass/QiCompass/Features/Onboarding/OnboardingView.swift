@@ -173,24 +173,36 @@ struct OnboardingView: View {
                 // 降级态完成 onboarding 不重复触发,Q7 onChartArchived 在提交成功即回调)
                 // S10:.id(contentHash) —— 补时辰换新盘后 reveal 换身份重建:
                 // 降级态翻转为完整 reveal(哇时刻补上),盖章动效随新身份重放。
+                // 出生年按出生城市钟面取(S03 WYSIWYG;Calendar.current 会跨年漂移)。
+                // birthDate 已 Optional 化(S03 日期必选):.ready 前置 validateForm 已保证
+                // 非空。单值提出:subLabel(「…· 1986」)与 K5(「你生于 1986…」)同屏
+                // 并列,口径必须恒一致,不各自求值(T17)
+                let birthWallYear = vm.birthDate.map {
+                    vm.placeCalendar.component(.year, from: $0)
+                }
                 ZodiacRevealView(
                     zodiac: response.yearBranchZodiac ?? "",
                     mainLabel: mainLabel(from: response),
                     subLabel: subLabel(
                         from: response,
                         gender: vm.gender,
-                        // 年份按出生城市钟面取(S03 WYSIWYG;Calendar.current 会跨年漂移)。
-                        // birthDate 已 Optional 化(S03 日期必选):.ready 前置 validateForm 已保证非空
-                        birthYear: vm.birthDate.map { vm.placeCalendar.component(.year, from: $0) }
+                        birthYear: birthWallYear
                     ),
                     friendZodiacs: response.yearBranchFriends ?? [],
                     clashZodiac: response.yearBranchClash ?? "",
                     nodeSentence: nodeSentenceText(from: response),
+                    // T6/T17 优先级:K4(农历新年口径差异)优先,否则 K5(立春前)
                     lnyMismatchLine: Self.lnyMismatchText(
                         lny: response.lunarNewYearYear,
                         lichunGanZhi: response.pillars.year?.ganZhi,
                         lichunZodiac: response.yearBranchZodiac,
-                        language: AppLanguage.current),
+                        language: AppLanguage.current)
+                        ?? Self.beforeLichunText(
+                            bornBeforeLichun: response.bornBeforeLichun,
+                            birthYear: birthWallYear,
+                            lichunGanZhi: response.pillars.year?.ganZhi,
+                            lichunZodiac: response.yearBranchZodiac,
+                            language: AppLanguage.current),
                     onComplete: {
                         // Q7 闸门:降级态「继续」与正常态 CTA 同一放行逻辑,只放行第一次
                         if completeGate.fire(onComplete) {
@@ -379,6 +391,36 @@ struct OnboardingView: View {
             return nil
         }
         return text
+    }
+
+    /// T17(2026-11-23 竞品差评对照):1 月 1 日到立春之间出生的说明句(K5)。
+    /// %2$@:zh/zh-Hant = 干支 + 生肖「乙丑（牛）」,全角括号(对齐 K4);en = "Wood Ox"(yearSignLabel)。
+    static func beforeLichunText(
+        bornBeforeLichun: Bool?,
+        birthYear: Int?,
+        lichunGanZhi: String?,
+        lichunZodiac: String?,
+        language: AppLanguage
+    ) -> String? {
+        guard bornBeforeLichun == true, let birthYear,
+              let lichunGanZhi, !lichunGanZhi.isEmpty,
+              let lichunZodiac, ZodiacHelper.isKnownZodiac(lichunZodiac)
+        else { return nil }
+        let yearPillar: String
+        switch language {
+        case .zh, .zhHant:
+            let animal = (language == .zhHant
+                          ? ZodiacHelper.animalCharHant(forZodiac: lichunZodiac)
+                          : ZodiacHelper.animalChar(forZodiac: lichunZodiac))
+            yearPillar = "\(lichunGanZhi)（\(animal)）"
+        case .en:
+            let gan = String(lichunGanZhi.prefix(1))
+            guard let label = ZodiacHelper.yearSignLabel(
+                yearGanElement: ElementColors.ofGan(gan), zodiac: lichunZodiac)
+            else { return nil }
+            yearPillar = label
+        }
+        return L10n.Onboarding.beforeLichun(birthYear, yearPillar: yearPillar)
     }
 
     /// T6(2026-11-22 竞品差评对照):农历新年 vs 立春生肖不一致对照句(K4)。
