@@ -1619,3 +1619,28 @@ extension DeepAnalysisViewModelFormTests {
         XCTAssertNil(vm.combinedBirthDateForDisplay)
     }
 }
+
+// MARK: - T16 排盘等待文案(LoadingStage,2026-11-23)
+
+extension DeepAnalysisViewModelFormTests {
+    func testLoadingStageChartSolarByHourKnown() {
+        // 已知时辰 → 真太阳时文案;时辰未知 → 原「排盘」文案(bundle 结构断言:
+        // 两态不等即证分流;恒等文案下退化为弱断言——当前两文案确实不同)。
+        // 裸 key 断言:String(localized:) 缺 key 时回退返回 key 本身,不加这条
+        // 则「xcstrings 漏录/键名笔误」在两条断言下仍全绿(语言无关,任意 host 语言成立)
+        let known = LoadingStage.calculatingChart(hourKnown: true).text
+        let unknown = LoadingStage.calculatingChart(hourKnown: false).text
+        XCTAssertNotEqual(known, unknown, "两态文案应分流")
+        XCTAssertFalse(known.isEmpty)
+        XCTAssertFalse(unknown.isEmpty)
+        XCTAssertNotEqual(known, "chartcalc.stage.chartSolar", "key 应在 catalog 解析,不得回退裸 key")
+        XCTAssertNotEqual(unknown, "chartcalc.stage.chart", "key 应在 catalog 解析,不得回退裸 key")
+        // Equatable:同 case 同关联值相等;不同关联值不等(状态机安全前提)
+        XCTAssertEqual(
+            LoadingStage.calculatingChart(hourKnown: true),
+            LoadingStage.calculatingChart(hourKnown: true))
+        XCTAssertNotEqual(
+            LoadingStage.calculatingChart(hourKnown: true),
+            LoadingStage.calculatingChart(hourKnown: false))
+    }
+}

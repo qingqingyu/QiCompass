@@ -1616,6 +1616,11 @@ enum L10n {
         /// zh: "排盘中…";en: "Charting…"
         static let stageChart = String(localized: "chartcalc.stage.chart")
 
+        /// T16(2026-11-23,P2):已知时辰的排盘等待文案——说真太阳时换算
+        /// (与 T4 确认页预告、T3 说明页同一叙事线)。zh: "按出生地换算真太阳时,
+        /// 排定四柱…";en: "Converting to true solar time and setting your four pillars…"
+        static let stageChartSolar = String(localized: "chartcalc.stage.chartSolar")
+
         /// zh: "存档中…";en: "Archiving…"
         static let stageArchiving = String(localized: "chartcalc.stage.archiving")
 

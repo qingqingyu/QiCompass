@@ -34,13 +34,21 @@ enum DeepAnalysisViewState: Equatable {
 /// 阶段文案走 L10n.ChartCalc(2026-09-08 可收起改造收敛:banner 与全屏等待页
 /// 展示同一状态,双源必漂移;text 是计算属性不参与 Equatable,迁移无行为影响)。
 enum LoadingStage: Equatable {
-    case calculatingChart
+    /// T16(2026-11-23):calculatingChart 带 hourKnown——已知时辰的等待文案
+    /// 说真太阳时换算(用户刚在确认页见过预告);时辰未知保持原「排盘」
+    /// 文案(不做真太阳时换算,无从说起)。关联值不参与 Equatable 判等是
+    /// 误读:同 case 不同关联值会不等——但 calculatingChart 状态期间
+    /// hourKnown 恒定(表单提交后不再变),无中间翻转,判等语义安全。
+    case calculatingChart(hourKnown: Bool)
     case archiving
     case generatingInterpret
 
     var text: String {
         switch self {
-        case .calculatingChart:   return L10n.ChartCalc.stageChart
+        case .calculatingChart(let hourKnown):
+            return hourKnown
+                ? L10n.ChartCalc.stageChartSolar
+                : L10n.ChartCalc.stageChart
         case .archiving:          return L10n.ChartCalc.stageArchiving
         case .generatingInterpret: return L10n.ChartCalc.stageGenerating
         }
@@ -739,7 +747,7 @@ final class DeepAnalysisViewModel {
             return
         }
         lastRequest = request
-        state = .calculating(stage: .calculatingChart)
+        state = .calculating(stage: .calculatingChart(hourKnown: hourKnown))
 
         calculateTask = Task {
             do {

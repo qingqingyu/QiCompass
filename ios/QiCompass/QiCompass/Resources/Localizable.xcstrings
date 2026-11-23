@@ -2495,6 +2495,29 @@
         }
       }
     },
+    "chartcalc.stage.chartSolar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Converting to true solar time and setting your four pillars…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按出生地换算真太阳时，排定四柱…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按出生地換算真太陽時，排定四柱…"
+          }
+        }
+      }
+    },
     "chartcalc.stage.generating" : {
       "extractionState" : "manual",
       "localizations" : {
