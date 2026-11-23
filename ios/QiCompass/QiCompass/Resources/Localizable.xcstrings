@@ -1558,7 +1558,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gender"
+            "value" : "Sex at birth"
           }
         },
         "zh-Hans" : {
@@ -1755,6 +1755,75 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "確定"
+          }
+        }
+      }
+    },
+    "birthform.gender.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traditional BaZi uses your sex at birth to set the direction of your luck cycles."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "传统八字用出生时的性别决定大运顺排还是逆排。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "傳統八字用出生時的性別決定大運順排還是逆排。"
+          }
+        }
+      }
+    },
+    "birthform.place.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your birthplace sets the time zone, daylight saving and true solar time for your chart."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生地用来确定当时的时区、夏令时和真太阳时。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生地用來確定當時的時區、夏令時和真太陽時。"
+          }
+        }
+      }
+    },
+    "birthform.time.clockHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the clock time from your birth certificate. We handle daylight saving and true solar time, so don't adjust it yourself."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按出生证明上的钟表时间填写即可。夏令时和真太阳时由我们换算，请不要自己调整。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按出生證明上的鐘錶時間填寫即可。夏令時和真太陽時由我們換算，請不要自己調整。"
           }
         }
       }

@@ -252,6 +252,16 @@ enum L10n {
         /// 不同。你填写的时间会原样保存。"
         static let confirmSolarHint = String(localized: "birthConfirm.solarHint")
 
+        /// T14(2026-11-23,P0):时间栏「填钟表时间,别自己调整」防重复校正。
+        /// zh: "按出生证明上的钟表时间填写即可。夏令时和真太阳时由我们换算,请不要自己调整。"
+        static let timeClockHint = String(localized: "birthform.time.clockHint")
+
+        /// T14(P1):性别栏为什么必选(大运顺逆的引擎输入)。
+        static let genderHint = String(localized: "birthform.gender.hint")
+
+        /// T14(P1):出生地为什么必填(时区/夏令时/真太阳时)。
+        static let placeHint = String(localized: "birthform.place.hint")
+
         /// T12(2026-11-23,D4=B 拍板:必勾复选框):AI 数据授权说明(复选框标签)。
         /// zh: "我同意:出生信息发送到我们的服务器排盘;生成解读时,命盘数据
         /// 会交给第三方 AI 服务处理。我们不跟踪、不卖数据。"
@@ -300,8 +310,9 @@ enum L10n {
         /// zh: "时辰快捷选(可选)";en: "Quick hour pick (optional)"
         static let hourQuickPickLabel = String(localized: "birthform.hourQuickPick.label")
 
-        /// 性别字段标签。
-        /// zh: "性别";en: "Gender"
+        /// 性别字段标签。D5(2026-11-24 拍板):算法输入是出生时的生理性别,
+        /// en 标签改 "Sex at birth" 与 T14 hint 措辞一致;zh 不变。
+        /// zh: "性别";en: "Sex at birth"
         static let genderLabel = String(localized: "birthform.gender.label")
 
         /// 性别 chip「男」显示文案(tag 值 "male" 是后端契约,不本地化)。

@@ -123,6 +123,15 @@ struct BirthFormView: View {
                 .font(BaziFont.caption(size: 10))
                 .tracking(AppLanguage.current.isChinese ? 1 : 0)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
+            // T14(2026-11-23,P0):时间栏防重复校正——用户自算夏令时/真太阳时
+            // 再填会与我们的换算叠加(竞品「出生时间被改」差评同类根因)。
+            // 时辰未知不显示(没有钟表时刻可谈)
+            if vm.hourKnown {
+                Text(L10n.BirthForm.timeClockHint)
+                    .font(BaziFont.caption(size: 10))
+                    .tracking(AppLanguage.current.isChinese ? 1 : 0)
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+            }
         }
         .animation(.easeOut(duration: 0.25), value: vm.hourKnown)
     }
@@ -299,9 +308,10 @@ struct BirthFormView: View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.md) {
             WheelSheetHeader(
                 title: L10n.BirthForm.datePickerTitleTime,
-                // 「未选择」提示由 exact 空态本体承担(2026-09-23 二段),
-                // 不再叠头部副题;日期 sheet 仍用 dateUnselectedHint
-                subtitle: nil,
+                // T14(2026-11-23):exact 模式头部带「填钟表时间」提示(与
+                // 表单行同文,选时场景再钉一次);二段化后 exact 无空态副题
+                // 可叠。shichen/unknown 不显示(没有钟表时刻)
+                subtitle: timeMode == .exact ? L10n.BirthForm.timeClockHint : nil,
                 confirm: { showTimePicker = false }
             )
             HStack(spacing: 10) {
@@ -549,6 +559,11 @@ struct BirthFormView: View {
             // 2026-09-19:换共享 GenderChipRow(原私有 genderChip 抽取)+ 性别去默认值
             // ——vm.gender 改 String?,nil = 两 chip 均未选的初始态,提交被 validateForm 拦
             GenderChipRow(selection: $vm.gender)
+            // T14(2026-11-23,P1):为什么必选——大运顺逆的引擎输入,不是隐私问卷
+            Text(L10n.BirthForm.genderHint)
+                .font(BaziFont.caption(size: 10))
+                .tracking(AppLanguage.current.isChinese ? 1 : 0)
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
         }
     }
 
@@ -559,6 +574,12 @@ struct BirthFormView: View {
             fieldLabel(L10n.BirthForm.birthplaceLabel)
             // S05:全球城市搜索 + sheet 内「自定义地点」(经度+时区必填)
             CityPickerField(selection: $vm.selectedPlace, style: .underlined)
+            // T14(2026-11-23,P1):出生地为什么必填——时区/夏令时/真太阳时的
+            // 引擎输入(竞品「出生地错=全盘错」差评的预防针)
+            Text(L10n.BirthForm.placeHint)
+                .font(BaziFont.caption(size: 10))
+                .tracking(AppLanguage.current.isChinese ? 1 : 0)
+                .foregroundStyle(BaziTheme.inkMutedSecondary)
             Text(L10n.CitySearch.customEntryHint)
                 .font(BaziFont.caption(size: 10))
                 .tracking(AppLanguage.current.isChinese ? 1 : 0)
