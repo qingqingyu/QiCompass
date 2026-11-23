@@ -74,7 +74,7 @@ struct ChapterContent: Equatable {
         parse(text, for: nil)
     }
 
-    /// 按模块解析(2026-10-12 S4-A):M0/M1 各自特化组装,M2-M5 共用问句
+    /// 按模块解析(2026-10-12 S4-A):M0/M1 各自特化组装,M2-M6 共用问句
     /// 门头数组装配,其余模块走通用节点树。module 为 nil = 通用(中毒判读
     /// 等不关心排版)。特化章缺关键结构(老缓存/违约)→ 回落通用渲染,
     /// 不静默丢内容。
@@ -86,7 +86,8 @@ struct ChapterContent: Equatable {
             nodes = specialized
         } else if module == .m1, let specialized = m1Nodes(from: pairs) {
             nodes = specialized
-        } else if (module == .m2 || module == .m3 || module == .m4 || module == .m5),
+        } else if (module == .m2 || module == .m3 || module == .m4 || module == .m5
+                  || module == .m6),
                   let specialized = questionArrayNodes(from: pairs) {
             nodes = specialized
         } else {
@@ -341,7 +342,7 @@ struct ChapterContent: Equatable {
         return nodes
     }
 
-    /// 问句门头数组装配(M2-M5 共用;2026-11-10 叁章拍板引入,2026-11-12
+    /// 问句门头数组装配(M2-M6 共用;2026-11-10 叁章拍板引入,2026-11-12
     /// 肆章复用并自 m2Nodes 改名,2026-11-19 伍章并入):对象节走通用构造器
     /// 已自动获得问句门头;字符串/
     /// 对象数组在通用路径渲染成裸 .bullets/.items 无门(M1 同款病)——本装配按
@@ -584,7 +585,7 @@ struct ChapterContent: Equatable {
                     }
                 }
                 children = proseNodes
-                    + (rest.isEmpty ? [] : [.fields(rest.map { field(key: $0.0, value: $0.1) })])
+                    + (rest.isEmpty ? [] : [.fields(rest.map { field(key: $0.0, value: $0.1, parent: key) })])
             } else {
                 children = pairs.compactMap { node(key: $0.0, value: $0.1) }
             }
@@ -637,12 +638,28 @@ struct ChapterContent: Equatable {
         return ChapterItem(title: title, fields: fields, bullets: bullets)
     }
 
-    private static func field(key: String, value: JSONValue) -> ChapterField {
+    private static func field(key: String, value: JSONValue, parent: String? = nil) -> ChapterField {
         ChapterField(
-            label: Self.label(key),
+            label: fieldLabel(parent: parent, key: key),
             value: Self.scalarText(key: key, value: value),
             isNote: noteKeys.contains(key)
         )
+    }
+
+    /// 字段标签的父子消歧(labels 按裸 key 全局映射,一词两义时无法区分;
+    /// 2026-11-23 柒章门头测试暴露:vulnerability.point 渲染成杠杆的「支点」)。
+    /// 覆盖表按「父键.字段键」查,en/zh-Hant 走同款 dot-key 本地化。
+    static let fieldLabelOverrides: [String: String] = [
+        "vulnerability.point": "易损点",
+    ]
+
+    private static func fieldLabel(parent: String?, key: String) -> String {
+        if let parent, let override = fieldLabelOverrides["\(parent).\(key)"] {
+            return NSLocalizedString(
+                "deepanalysis.chapter.\(parent).\(key)", value: override,
+                comment: "字段标签父子消歧")
+        }
+        return label(key)
     }
 
     // MARK: - 标量文案化
@@ -876,6 +893,12 @@ struct ChapterContent: Equatable {
         "leaks": "钱最容易从哪儿漏?漏了怎么止损?",
         "strategies": "我该求稳，还是能搏一把?",
         "asset_ideas": "我能攒下什么家底，让它替我挣钱?",
+        // M6(2026-11-23 柒章拍板,docs/命书柒章标题推敲.md):素材高阶原句×3+
+        // 融合句(「往上走」错开短处话题);「折→卡」随副题口径。
+        "energy_path": "我的命局能量循环路径是什么?",
+        "leverage": "我的优势杠杆在哪里?",
+        "vulnerability": "往上走的时候，最容易卡在哪?",
+        "upgrade_path": "我的升级路线是什么?",
     ]
 
     /// 小节门头取题:有问句用问句,无问句回落短名词标签(其余章维持名词门头)。

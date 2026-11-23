@@ -466,6 +466,66 @@ final class ChapterContentTests: XCTestCase {
         }
     }
 
+    // MARK: - M6 升级路线(2026-11-23 柒章问句门头)
+    func test_m6_specializationWrapsFourQuestionDoors() {
+        let json = """
+        {
+          "energy_path": [
+            { "stage": "输入", "gain_or_loss": "gain", "mechanism": "印星滋养" },
+            { "stage": "输出", "gain_or_loss": "loss", "mechanism": "食伤外泄" }
+          ],
+          "leverage": { "point": "深度理解", "input": "整块时间", "output": "成型的方案", "why": "印食相生" },
+          "vulnerability": { "point": "连续对外", "condition": "三天以上高强度沟通", "mechanism": "气散不收", "self_check": "早上醒来看手机" },
+          "upgrade_path": [
+            { "phase": "第一阶", "entry_condition": "稳定交付三单", "work": "固化流程", "done_signal": "不靠猛冲也能交付" }
+          ]
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m6) else {
+            return XCTFail("M6 应特化解析")
+        }
+        let titles = content.nodes.compactMap { node -> String? in
+            guard case .section(let title, _) = node else { return nil }
+            return title
+        }
+        XCTAssertEqual(titles, [
+            "我的命局能量循环路径是什么?",
+            "我的优势杠杆在哪里?",
+            "往上走的时候，最容易卡在哪?",
+            "我的升级路线是什么?",
+        ])
+        // 数组节=问句门头+条目卡;对象节走通用构造器
+        guard case .section(_, let energyChildren)? = content.nodes.first,
+              case .items(let stages)? = energyChildren.first else {
+            return XCTFail("energy_path 节内应为条目卡")
+        }
+        XCTAssertEqual(stages.count, 2)
+        // 消歧边界:override 只作用于 vulnerability.point,杠杆的 point 仍是「支点」
+        guard case .section(_, let levChildren)? = content.nodes.dropFirst().first,
+              case .fields(let levFields)? = levChildren.first else {
+            return XCTFail("leverage 节内应为键值组")
+        }
+        XCTAssertEqual(levFields.map(\.label), ["支点", "输入", "输出", "原理"])
+        guard case .section(_, let vulnChildren)? = content.nodes.dropFirst(2).first,
+              case .fields(let vulnFields)? = vulnChildren.first else {
+            return XCTFail("vulnerability 节内应为键值组")
+        }
+        XCTAssertEqual(vulnFields.map(\.label), ["易损点", "条件", "失效机制", "自查"])
+    }
+
+    func test_m6_specializationFallsBackWithoutQuestionArrays() {
+        // 无问题表内数组 → 装配返 nil 落回通用;leverage 对象照样获问句门头
+        let json = """
+        { "leverage": { "point": "a", "input": "b", "output": "c", "why": "d" } }
+        """
+        guard let content = ChapterContent.parse(json, for: .m6) else {
+            return XCTFail("应解析成功")
+        }
+        guard case .section("我的优势杠杆在哪里?", _)? = content.nodes.first else {
+            return XCTFail("通用回落应为问句门头,实际:\(content.nodes)")
+        }
+    }
+
     // MARK: - 对象数组 → 条目卡(M1 天赋 / M4 七天复位)
 
     func test_m1_itemsWithTitleFromName() {
