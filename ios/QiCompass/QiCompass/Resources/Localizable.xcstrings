@@ -1000,71 +1000,25 @@
         }
       }
     },
-    "birthConfirm.tz.std" : {
+    "birthConfirm.solarHint" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ · standard time"
+            "value" : "For your chart, we convert this to true solar time for your birthplace, so your hour pillar may not match the clock hour. The time you entered is saved as it is."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ · 当时为标准时间"
+            "value" : "排盘时会按出生地换算成真太阳时，时柱可能和钟表时间所在的时辰不同。你填写的时间会原样保存。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "%@ · 當時為標準時間"
-          }
-        }
-      }
-    },
-    "birthConfirm.tz.offsetOnly" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "%@"
-          }
-        }
-      }
-    },
-    "birthConfirm.tz.label" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Local time"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "当地时制"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "當地時制"
+            "value" : "排盤時會按出生地換算成真太陽時，時柱可能和鐘錶時間所在的時辰不同。你填寫的時間會原樣保存。"
           }
         }
       }
@@ -1092,25 +1046,71 @@
         }
       }
     },
-    "birthConfirm.solarHint" : {
+    "birthConfirm.tz.label" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "For your chart, we convert this to true solar time for your birthplace, so your hour pillar may not match the clock hour. The time you entered is saved as it is."
+            "value" : "Local time"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "排盘时会按出生地换算成真太阳时，时柱可能和钟表时间所在的时辰不同。你填写的时间会原样保存。"
+            "value" : "当地时制"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "排盤時會按出生地換算成真太陽時，時柱可能和鐘錶時間所在的時辰不同。你填寫的時間會原樣保存。"
+            "value" : "當地時制"
+          }
+        }
+      }
+    },
+    "birthConfirm.tz.offsetOnly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@"
+          }
+        }
+      }
+    },
+    "birthConfirm.tz.std" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · standard time"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 当时为标准时间"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 當時為標準時間"
           }
         }
       }
@@ -1644,6 +1644,29 @@
         }
       }
     },
+    "birthform.gender.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traditional BaZi uses your sex at birth to set the direction of your luck cycles."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "传统八字用出生时的性别决定大运顺排还是逆排。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "傳統八字用出生時的性別決定大運順排還是逆排。"
+          }
+        }
+      }
+    },
     "birthform.gender.label" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -1847,29 +1870,6 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "確定"
-          }
-        }
-      }
-    },
-    "birthform.gender.hint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Traditional BaZi uses your sex at birth to set the direction of your luck cycles."
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "传统八字用出生时的性别决定大运顺排还是逆排。"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "傳統八字用出生時的性別決定大運順排還是逆排。"
           }
         }
       }
@@ -12033,52 +12033,6 @@
         }
       }
     },
-    "onboarding.welcome.swipeHint" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Swipe to enter birth details ›"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "左滑录入生辰 ›"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "左滑錄入生辰 ›"
-          }
-        }
-      }
-    },
-    "onboarding.welcome.tagline" : {
-      "extractionState" : "manual",
-      "localizations" : {
-        "en" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "Know your chart"
-          }
-        },
-        "zh-Hans" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "读懂你的命局"
-          }
-        },
-        "zh-Hant" : {
-          "stringUnit" : {
-            "state" : "translated",
-            "value" : "讀懂你的命局"
-          }
-        }
-      }
-    },
     "onboarding.welcome.pricing" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12121,6 +12075,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "看結構與傾向，不判吉凶"
+          }
+        }
+      }
+    },
+    "onboarding.welcome.swipeHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Swipe to enter birth details ›"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左滑录入生辰 ›"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "左滑錄入生辰 ›"
+          }
+        }
+      }
+    },
+    "onboarding.welcome.tagline" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Know your chart"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "读懂你的命局"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "讀懂你的命局"
           }
         }
       }
