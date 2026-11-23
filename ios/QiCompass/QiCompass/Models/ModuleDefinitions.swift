@@ -64,7 +64,7 @@ enum ModuleID: String, CaseIterable, Codable, Sendable {
         case .m3: return String(localized: "最佳运行条件 · 容易失灵的时候 · 适合你的节奏")
         case .m4: return String(localized: "精力的起落规律，和最有效的恢复方式")
         case .m5: return String(localized: "适合你的赚钱方式，攒什么家底替你挣钱")
-        case .m6: return String(localized: "你的发力点、薄弱点，以及下一阶段怎么升级")
+        case .m6: return String(localized: "能量怎么转、能量在哪儿使用最值得、往上走卡在哪、分几步走")
         case .m7: return String(localized: "最值得押注的一件事，和接下来 90 天的行动")
         }
     }

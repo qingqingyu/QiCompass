@@ -6463,6 +6463,29 @@
         }
       }
     },
+    "deepanalysis.chapter.q.energy_path" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What's my chart's energy loop?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的命局能量循环路径是什么?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的命局能量循環路徑是什麼?"
+          }
+        }
+      }
+    },
     "deepanalysis.chapter.q.environment_checklist" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -6643,6 +6666,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "錢最容易從哪裡漏?漏了怎麼止損?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.leverage" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Where's my leverage?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的优势杠杆在哪里?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的優勢槓桿在哪裡?"
           }
         }
       }
@@ -6919,6 +6965,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "哪種能力是後天環境訓練出來的?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.upgrade_path" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "What's my upgrade path?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的升级路线是什么?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我的升級路線是什麼?"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.q.vulnerability" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Climbing upward — where are you most likely to jam?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "往上走的时候，最容易卡在哪?"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "往上走的時候，最容易卡在哪裡?"
           }
         }
       }
@@ -7597,6 +7689,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "Vulnerability"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "易损点"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "易損點"
+          }
+        }
+      }
+    },
+    "deepanalysis.chapter.vulnerability.point" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Weak point"
           }
         },
         "zh-Hans" : {
@@ -17808,25 +17923,25 @@
         }
       }
     },
-    "你的发力点、薄弱点，以及下一阶段怎么升级" : {
+    "能量怎么转、能量在哪儿使用最值得、往上走卡在哪、分几步走" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your leverage, your weak spots, and how to level up"
+            "value" : "How your energy turns, where it pays off most, where you jam on the way up, and the steps"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你的发力点、薄弱点，以及下一阶段怎么升级"
+            "value" : "能量怎么转、能量在哪儿使用最值得、往上走卡在哪、分几步走"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "你的發力點、薄弱點，以及下一階段怎麼升級"
+            "value" : "能量怎麼轉、能量在哪裡使用最值得、往上走卡在哪、分幾步走"
           }
         }
       }
