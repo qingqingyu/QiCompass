@@ -1542,8 +1542,7 @@ extension DeepAnalysisViewModelFormTests {
         let text = DeepAnalysisViewModel.localTimeRuleText(
             date: date, timeZone: tz, hourKnown: true)
         XCTAssertTrue(text.unicodeScalars.contains(UnicodeScalar(0x2212)!), "负号须为 U+2212:\(text)")
-        XCTAssertTrue(text.contains("UTC"), text)
-        XCTAssertTrue(text.contains("4"), "整点不带分钟:\(text)")
+        XCTAssertTrue(text.contains("UTC\u{2212}4"), "整点负偏移不带分钟:\(text)")
         XCTAssertTrue(text.contains("夏令时"), text)
         // dst/std 译文走 bundle(不设 language 参数,见 VM 注释)——
         // 结构断言:带分隔符的完整形态而非裸偏移
@@ -1583,6 +1582,20 @@ extension DeepAnalysisViewModelFormTests {
         XCTAssertTrue(text.contains("UTC+5:30"), text)
     }
 
+    func testLocalTimeRuleStJohnsNegativeHalfHour() {
+        // 负半点偏移专项(T15 review):St_Johns 1988-01-15 标准时间 −3:30。
+        // Swift `/` 向零截断 → hours=-3、minutes=30 → UTC−3:30;
+        // 若被重构成 floor 语义会得 −4:30,本用例拦截
+        let tz = TimeZone(identifier: "America/St_Johns")!
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        let date = cal.date(from: DateComponents(year: 1988, month: 1, day: 15, hour: 10))!
+        let text = DeepAnalysisViewModel.localTimeRuleText(
+            date: date, timeZone: tz, hourKnown: true)
+        XCTAssertTrue(text.contains("UTC\u{2212}3:30"), "负半点:符号在小时、分钟按绝对值:\(text)")
+        XCTAssertTrue(text.contains("标准时间"), text)
+    }
+
     func testLocalTimeRuleHourUnknownOffsetOnly() {
         // 时辰未知 → 只有偏移,不声称夏令时与否
         let tz = TimeZone(identifier: "America/New_York")!
@@ -1592,33 +1605,14 @@ extension DeepAnalysisViewModelFormTests {
         let text = DeepAnalysisViewModel.localTimeRuleText(
             date: date, timeZone: tz, hourKnown: false)
         XCTAssertTrue(text.hasPrefix("UTC"), text)
+        XCTAssertTrue(text.contains("UTC\u{2212}4"), text)
         XCTAssertFalse(text.contains("夏令时"), text)
         XCTAssertFalse(text.contains("标准"), text)
     }
 
-    func testCombinedBirthDateForDisplay() throws {
+    func testCombinedBirthDateForDisplay() {
         // 日期已选 → 合成时刻(与提交口径一致);未选 → nil。
-        // extension 访问不到类内 private var vm——用 Optional 链直测:
-        // combinedBirthDateForDisplay 只依赖 birthDate/hourKnown/birthTime,
-        // 单独构造最小 VM(同 setUp 范式,内存容器)
-        let container = try ModelContainerFactory.makeInMemory()
-        let context = container.mainContext
-        let apiClient = MockAPIClient()
-        let chartStore = ChartSnapshotStore(context: context)
-        let interpretStore = InterpretationCacheStore(context: context)
-        let identityResolver = AIIdentityResolver(apiClient: apiClient)
-        let counter = DailyReadCounter.makeIsolatedForTesting()
-        let reader = CachedInterpretationReader(
-            identityResolver: identityResolver,
-            cacheStore: interpretStore)
-        let orchestrator = DeepAnalysisOrchestrator(
-            apiClient: apiClient, chartStore: chartStore,
-            interpretStore: interpretStore, counter: counter,
-            interpretationReader: reader,
-            userLinkStore: UserSnapshotLinkStore(context: context))
-        let vm = DeepAnalysisViewModel(
-            orchestrator: orchestrator,
-            entitlementStore: EntitlementStore(modelContext: context))
+        // 同文件 extension 可见类内 private vm(Swift 4 起),复用 setUp 脚手架
         vm.birthDate = Date(timeIntervalSince1970: 600_000_000)
         XCTAssertNotNil(vm.combinedBirthDateForDisplay)
         vm.birthDate = nil

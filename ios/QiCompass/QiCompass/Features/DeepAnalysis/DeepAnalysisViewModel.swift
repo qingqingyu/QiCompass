@@ -530,7 +530,6 @@ final class DeepAnalysisViewModel {
     /// - 偏移格式 `UTC−4` / `UTC+5:30` / `UTC+8`(负号 U+2212,整点不带分钟)
     /// - hourKnown=true → 按 `timeZone.isDaylightSavingTime(for:)` 选 dst/std 文案;
     ///   false → 只显示偏移(12:00 占位的时刻不足以声称夏令时与否)
-    /// - language 显式传参(测试不依赖设备语言)
     /// Note: 不设 `language` 参数——dst/std 文案经 NSLocalizedString 走 bundle
     /// (D9 单一语言开关:设备语言即 App 语言);显式 language 参数会在
     /// xcstrings 值上撒谎(bundle 分叉,2026-09-23 假红教训同源)。测试断言
