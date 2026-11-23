@@ -754,12 +754,12 @@ struct ProfileView: View {
             .multilineTextAlignment(.center)
             .padding(.vertical, BaziTheme.Spacing.md)
 
-            // 隐私与数据(折叠;点开展开三行)
+            // 隐私与数据(折叠;点开展开四行,T11 起 privacy1-4)
             Button {
                 withAnimation { showPrivacy.toggle() }
             } label: {
                 HStack {
-                    Text("隐私与数据")
+                    Text(L10n.Profile.aboutPrivacyTitle)
                         .font(BaziFont.caption(size: 11))
                         .foregroundStyle(BaziTheme.inkMuted)
                     Spacer()
@@ -771,14 +771,18 @@ struct ProfileView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            // 箭头字符对 VoiceOver 是噪音,统一读按钮语义
-            .accessibilityLabel("隐私与数据")
+            // 箭头字符对 VoiceOver 是噪音,统一读按钮语义(T11:裸中文改 key,
+            // 三语同源)
+            .accessibilityLabel(L10n.Profile.aboutPrivacyTitle)
 
             if showPrivacy {
+                // T11(2026-11-23):第四条(合盘称呼与问事原文也发给 AI)——
+                // 与 PrivacyInfoSheet 共用同一组 key,不复制文案
                 VStack(spacing: 3) {
                     Text(L10n.Profile.aboutPrivacy1)
                     Text(L10n.Profile.aboutPrivacy2)
                     Text(L10n.Profile.aboutPrivacy3)
+                    Text(L10n.Profile.aboutPrivacy4)
                 }
                 .font(BaziFont.caption(size: 11))
                 .foregroundStyle(BaziTheme.ink)

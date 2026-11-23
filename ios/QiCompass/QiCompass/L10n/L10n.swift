@@ -44,7 +44,8 @@ enum L10n {
         static let formSubtitle = String(localized: "onboarding.form.subtitle")
 
         /// 隐私微文案(表单页底部,Q1 拆分下沉:隐私信息在用户交出生信息那一刻出现)。
-        /// zh: "命盘只存你手机 · 无账号";en: "Your chart stays on your phone · No account"
+        /// T11(2026-11-23)改错:排盘在后端完成、登录后有云同步,旧文案不实。
+        /// zh: "不需要账号 · 不跟踪 · 不卖数据";en: "No account needed · No tracking · We never sell your data"
         static let formPrivacyLine = String(localized: "onboarding.form.privacyLine")
 
         // -- 排盘布算屏(O3,水墨孤本 InkCalculatingView)--
@@ -861,19 +862,29 @@ enum L10n {
         /// zh: "隐私与数据";en: "Privacy & data"
         static let aboutPrivacyTitle = String(localized: "profile.about.privacyTitle")
 
-        /// 隐私 1(无账号无云同步)。
-        /// zh: "命盘只在你手机上,无账号,无云同步"
-        /// en: "Your chart lives on your phone. No account, no cloud sync"
+        /// 隐私 1(T11 改错:登录后命盘会同步到服务器,旧「只在你手机上」不实)。
+        /// zh: "不登录也能使用全部功能；登录后，命盘会同步到我们的服务器，换手机也能恢复。"
+        /// en: "Everything works without an account. If you sign in, your charts sync to our servers…"
         static let aboutPrivacy1 = String(localized: "profile.about.privacy1")
 
-        /// 隐私 2(AI 走后端)。
-        /// zh: "AI 解读走我们服务器,密钥保管在后端"
-        /// en: "AI readings run on our servers; keys stay server-side"
+        /// 隐私 2(T11 改错:排盘在后端、解读是第三方 AI 生成且收到出生时间
+        /// 与性别,旧「密钥保管在后端」只说了一半)。服务商按 D4 拍板点名
+        /// (Z.ai 与 DeepSeek)——**以生产 .env 实际配置为准**,换服务商须
+        /// 同步改三语值。
+        /// zh: "排盘在我们的服务器完成；解读由第三方 AI 服务（Z.ai 与 DeepSeek）生成，它会收到命盘数据、出生时间和性别。"
+        /// en: "Charts are calculated on our servers. Readings are written by third-party AI services (Z.ai and DeepSeek), which receive…"
         static let aboutPrivacy2 = String(localized: "profile.about.privacy2")
 
-        /// 隐私 3(无跟踪)。
-        /// zh: "没有跟踪,没有画像";en: "No tracking, no profiling"
+        /// 隐私 3(T11 改错:接了 TelemetryDeck 匿名统计,旧「没有跟踪」
+        /// 不完整;事件参数只有 enum/bool,出生信息与解读内容类型层进不来)。
+        /// zh: "只做匿名使用统计，不包含出生信息和解读内容；不跨 App 跟踪，不卖数据。"
+        /// en: "We collect anonymous usage stats only, never your birth details or readings. No cross-app tracking…"
         static let aboutPrivacy3 = String(localized: "profile.about.privacy3")
+
+        /// 隐私 4(T11 新增:合盘称呼与问事原文也发给 AI——对齐 Apple 5.1.2(i)
+        /// 「清楚披露发给谁」)。
+        /// zh: "合盘时填写的称呼、问事时输入的问题,也会发给 AI 服务用于生成回答。"
+        static let aboutPrivacy4 = String(localized: "profile.about.privacy4")
 
         // -- S10 补时辰常驻入口(D7:静默态下唯一保留的主动入口)--
 

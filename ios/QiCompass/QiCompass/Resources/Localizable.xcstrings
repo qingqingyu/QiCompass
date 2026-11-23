@@ -11119,19 +11119,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your chart stays on your phone · No account"
+            "value" : "No account needed · No tracking · We never sell your data"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盘只存你手机 · 无账号"
+            "value" : "不需要账号 · 不跟踪 · 不卖数据"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盤只存你手機 · 無帳號"
+            "value" : "不需要帳號 · 不追蹤 · 不賣資料"
           }
         }
       }
@@ -12223,19 +12223,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your chart lives on your phone. No account, no cloud sync"
+            "value" : "Everything works without an account. If you sign in, your charts sync to our servers so you can restore them on a new phone."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盘只在你手机上，无账号，无云同步"
+            "value" : "不登录也能使用全部功能；登录后，命盘会同步到我们的服务器，换手机也能恢复。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盤只在你手機上，無帳號，無雲同步"
+            "value" : "不登入也能使用全部功能；登入後，命盤會同步到我們的伺服器，換手機也能恢復。"
           }
         }
       }
@@ -12246,19 +12246,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI readings run on our servers; keys stay server-side"
+            "value" : "Charts are calculated on our servers. Readings are written by third-party AI services (Z.ai and DeepSeek), which receive your chart data, birth time and gender."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI 解读走我们服务器，密钥保管在后端"
+            "value" : "排盘在我们的服务器完成；解读由第三方 AI 服务（Z.ai 与 DeepSeek）生成，它会收到命盘数据、出生时间和性别。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI 解讀走我們伺服器，密鑰保管在後端"
+            "value" : "排盤在我們的伺服器完成；解讀由第三方 AI 服務（Z.ai 與 DeepSeek）生成，它會收到命盤資料、出生時間和性別。"
           }
         }
       }
@@ -12269,19 +12269,42 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tracking, no profiling"
+            "value" : "We collect anonymous usage stats only, never your birth details or readings. No cross-app tracking, and we never sell data."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "没有跟踪，没有画像"
+            "value" : "只做匿名使用统计，不包含出生信息和解读内容；不跨 App 跟踪，不卖数据。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "沒有跟蹤，沒有畫像"
+            "value" : "只做匿名使用統計，不包含出生資訊和解讀內容；不跨 App 追蹤，不賣資料。"
+          }
+        }
+      }
+    },
+    "profile.about.privacy4" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Names you enter for compatibility readings and questions you ask are also sent to the AI service to write your answers."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合盘时填写的称呼、问事时输入的问题，也会发给 AI 服务用于生成回答。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合盤時填寫的稱呼、問事時輸入的問題，也會發給 AI 服務用於生成回答。"
           }
         }
       }
