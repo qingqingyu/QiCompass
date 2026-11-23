@@ -449,14 +449,19 @@ struct CompleteOnceGate {
 // 参考 docs/design-ref/shuimo/onboarding-o1-welcome.html:
 // 墨圆居中承接开机转场 → 玄印落于圆心 → 宋体标题 → QICOMPASS 字距标 →
 // 副标题 → 竖排经文(版心左 hairline)。壁画佛手背景图退役(与新语言冲突)。
-// 错峰时序(承接 splash 后从简):enso 0s → 标题 0.2s → 副标 0.35s → 经文 0.55s → 印 0.9s。
+// 错峰时序(承接 splash 后从简):enso 0s → 标题 0.2s → 副标 0.35s →
+// 定调/计价句 0.55/0.65s(T13;0.55 与经文同拍,分处上下两域不互扰) → 印 0.9s。
 private struct WelcomePage: View {
     var body: some View {
         ZStack {
             BaziTheme.paper.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                Spacer().frame(height: 92)
+                // 顶距 92→80(T13 布局收窄,2026-11-24):T13 加两行 caption 后
+                // 全页内容 ≈922pt,Pro Max 可用 860pt → 居中溢出 ±31pt(实测墨圆
+                // 被顶高 28pt、滑动提示侵入底部安全区)。80 + 下两处 minLength 20
+                // 共收 68pt → 853.7pt ≤ 860(余 6.3pt);宽裕布局零视觉变化。
+                Spacer().frame(height: 80)
 
                 // 墨圆 + 玄印居中(stamp 落定在墨圆成形之后)
                 EnsoView(size: 172, breathing: true)
@@ -482,16 +487,32 @@ private struct WelcomePage: View {
                         .tracking(3)
                         .foregroundStyle(BaziTheme.inkMuted)
                         .riseIn(delay: 0.45)
+                    // T13(2026-11-23):定调 + 免费/付费边界,各一行
+                    // (caption 11 + inkMuted;tracking 对齐仓内 isChinese ? N : 0
+                    //  语言分支惯例——PairSummaryCard/BirthFormView 等 8+ 处,
+                    //  非 tagline:tagline 是 .tracking(3) 固定无分支)
+                    Text(L10n.Onboarding.welcomeStance)
+                        .font(BaziFont.caption(size: 11))
+                        .tracking(AppLanguage.current.isChinese ? 2 : 0)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .riseIn(delay: 0.55)
+                    Text(L10n.Onboarding.welcomePricing)
+                        .font(BaziFont.caption(size: 11))
+                        .tracking(AppLanguage.current.isChinese ? 2 : 0)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .riseIn(delay: 0.65)
                 }
                 .padding(.top, 30)
 
                 // 留白拆分(2026-09-23 review #9):原单个 Spacer 让标语与经文之间
                 // 空出整段屏高、像内容没加载;拆成上下两段均分,经文上提与品牌块成组。
-                Spacer(minLength: 48)
+                // minLength 48→20(T13 布局收窄,2026-11-24):饥饿态下限让位,只在
+                // 内容逼近可用高时收窄;宽裕布局 Spacer 自然扩张,视觉零变化。
+                Spacer(minLength: 20)
 
                 SutraView()
 
-                Spacer(minLength: 48)
+                Spacer(minLength: 20)
 
                 // 左滑提示(经文之下、系统翻页点之上;bottom 44 留足圆点空域,
                 // 修复圆点压字,2026-09-23 review #1)

@@ -33,6 +33,14 @@ enum L10n {
         /// zh: "左滑录入生辰 ›";en: "Swipe to enter birth details ›"
         static let welcomeSwipeHint = String(localized: "onboarding.welcome.swipeHint")
 
+        /// T13(2026-11-23):欢迎页定调句——「专业不忽悠」的第一次落地。
+        /// zh: "看结构与倾向,不判吉凶";en: "Patterns and tendencies, not good or bad luck"
+        static let welcomeStance = String(localized: "onboarding.welcome.stance")
+
+        /// T13:免费/付费边界前置(竞品「付费墙过多」差评的预防针)。
+        /// zh: "命盘与前两章免费 · 完整命书一次买断,无订阅";en: "Your chart and first two chapters are free · The full reading is a one-time purchase, no subscription"
+        static let welcomePricing = String(localized: "onboarding.welcome.pricing")
+
         // -- 表单页(第 2 屏)--
 
         /// 表单页标题。

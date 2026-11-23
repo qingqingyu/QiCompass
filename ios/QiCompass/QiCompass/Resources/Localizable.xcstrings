@@ -11849,6 +11849,52 @@
         }
       }
     },
+    "onboarding.welcome.pricing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your chart and first two chapters are free · The full reading is a one-time purchase, no subscription"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盘与前两章免费 · 完整命书一次买断，无订阅"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盤與前兩章免費 · 完整命書一次買斷，無訂閱"
+          }
+        }
+      }
+    },
+    "onboarding.welcome.stance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Patterns and tendencies, not good or bad luck"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "看结构与倾向，不判吉凶"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "看結構與傾向，不判吉凶"
+          }
+        }
+      }
+    },
     "paywall.legal.disclaimer" : {
       "extractionState" : "manual",
       "localizations" : {
