@@ -44,6 +44,7 @@ from .chart_builder import (
     enrich_v1_chart_ten_gods,
     enrich_v1_chart_xiji_detail,
 )
+from .pillars import EN2ZH
 
 logger = logging.getLogger(__name__)
 
@@ -654,12 +655,13 @@ _DAILY_FORTUNE_SINGLE_TERM_FIELDS: Final[tuple[str, ...]] = (
     "day_master",         # 日主(单天干)
     "day_stem",           # 流日天干
     "day_branch",         # 流日地支
-    "day_chong",          # 流日冲(单地支)
-    "day_master_element",   # 五行
-    "day_stem_element",    # 五行
-    "day_branch_element",   # 五行
+    "day_master_element",   # 五行(先经 EN2ZH 归一:iOS 透传英文 key)
+    "day_stem_element",    # 五行(iOS elementToChinese,恒中文;归一为 no-op)
+    "day_branch_element",   # 五行(同上)
     "day_relation",       # 十神
 )
+# day_chong 不在此表:wire 上是拼接串,单独走 _translate_day_chong
+# (裸地支 / 「午(冲年支午)」 / 「无」三种形态,见该函数注释)
 
 # daily_fortune context 里"复合术语"字段(逐字符翻译,"甲子" → "Jia Zi")
 _DAILY_FORTUNE_COMPOSITE_FIELDS: Final[tuple[str, ...]] = (
@@ -681,12 +683,15 @@ _DAILY_FORTUNE_ELEMENT_LIST_FIELDS: Final[tuple[str, ...]] = (
 def translate_context(context: dict, language: str, module: str) -> dict:
     """翻译 prompt context 里的术语到目标语言(i18n 决策 1:方案 3b)。
 
-    context 数据来自 lunar_python 输出(永远是中文),此函数按 module 字段规则
+    context 数据主要来自 lunar_python 输出(中文),另有 iOS 派生的少量英文
+    key(如 daily 的 day_master_element="metal",翻译前先经
+    _normalize_element_keys 归一到中文),此函数按 module 字段规则
     翻译到目标语言,让 LLM 拿到全目标语言的 prompt。
 
     策略:
     - v1 deep module 且带 chart → 先注入大运运神十神(见下方注释,zh 也不例外)
-    - language == "zh" → 返回 context(注入后;除 chart 注入外 identity)
+    - language == "zh" → 返回 context(注入/归一后;除 chart 注入与
+      daily 五行英文 key 归一外 identity)
     - module 已实现翻译规则 → 按 rule 翻译
     - module 未实现 → log warning,返回原 context(Slice 2/3/4 逐步覆盖)
 
@@ -723,7 +728,12 @@ def translate_context(context: dict, language: str, module: str) -> dict:
         else:
             context = {**context, "chart": enriched}
     if language == "zh":
-        return context
+        # F1(2026-11-23):五行英文 key 归一同样作用于 zh——wire 上
+        # day_master_element 是 iOS 透传的英文 key,zh prompt 此前直出
+        # 「日主 庚（metal）」;归一到中文。day_master_strength 不动
+        # (raw key 是 render_prompt 的降级分支控制信号)。copy-on-write
+        # 不修改调用方 context(本函数既有契约)。
+        return _normalize_element_keys(context)
     if module == "daily_fortune":
         return _translate_daily_fortune_context(context, language)
     if module in _V1_DEEP_MODULES:
@@ -742,6 +752,137 @@ def translate_context(context: dict, language: str, module: str) -> dict:
     return context
 
 
+# ---------- daily wire 形态辅助(修复批 F1,2026-11-23)----------
+# 背景:context_binding.daily_fields 镜像(= iOS buildDailyFortune 实际发送)里,
+# day_master_element 是 ChartPayload 透传的后端英文 key("metal"),day_chong 是
+# 拼接串("午(冲年支午)" / "巳(冲月支巳、时支巳)")或裸地支;此前翻译层只认
+# 中文单术语,en/zh-hant 的 daily_fortune interpret 恒 500(测试夹具填的是
+# iOS 从不发送的中文形态,三语全绿假绿——见 docs/竞品差评对照-T8问事手测
+# 对话-2026-11-22.md §4-A)。本节让翻译层接受真实 wire 形态。
+
+# 五行英文 key → 中文归一复用 pillars.EN2ZH(单一事实源,context_binding
+# .daily_fields 同源查表;值域对齐 GAN_ELEMENT / ZHI_ELEMENT)
+
+# 归一作用的 daily 字段(zh 直通分支与 _translate_daily_fortune_context
+# 共用一份清单——两处各写一遍会漂移)
+_ELEMENT_KEY_FIELDS: Final[tuple[str, ...]] = (
+    "day_master_element", "day_stem_element", "day_branch_element",
+)
+
+
+def _normalize_element_keys(context: dict) -> dict:
+    """daily 五行字段的英文 key → 中文归一(copy-on-write)。
+
+    未命中任何 key 时原 dict 原样返回(调用方 identity 语义保持);
+    命中才浅拷贝改写,不修改调用方 dict。中文值不在 EN2ZH
+    (no-op),iOS elementToChinese 派生的 day_stem/branch_element 与
+    ChartPayload 透传的英文 key 两种 wire 形态统一归一到中文。
+    """
+    hits = [
+        f for f in _ELEMENT_KEY_FIELDS
+        if isinstance(context.get(f), str) and context[f] in EN2ZH
+    ]
+    if not hits:
+        return context
+    normalized = dict(context)
+    for f in hits:
+        normalized[f] = EN2ZH[normalized[f]]
+    return normalized
+
+# day_chong 拼接串的固定词汇(仅 wire 解析用;不进 TERM_TRANSLATIONS 主表
+# ——不服务 UI 展示与 translate_term,不触发 check_term_sync ①③ 组比对)
+_DAILY_WIRE_TERMS_EN: Final[dict[str, str]] = {
+    "无": "None",
+    "冲": "clashes",
+    "年支": "year branch", "月支": "month branch",
+    "日支": "day branch", "时支": "hour branch",
+}
+_DAILY_WIRE_TERMS_ZH_HANT: Final[dict[str, str]] = {
+    "无": "無", "冲": "沖",
+    "年支": "年支", "月支": "月支", "日支": "日支", "时支": "時支",
+}
+
+# day_chong 内层位置串的长度(「年支」2 字 + 地支 1 字,如 "年支午")
+_CHONG_POSITION_LEN = 3
+
+
+def _translate_day_chong(
+        value: str, language: str, table: dict[str, str]) -> str:
+    """day_chong wire 形态翻译(修复批 F1)。
+
+    wire 三形态(context_binding.daily_fields 同款):
+    - 裸地支 "未"(日冲未命中本命柱):走主表单术语,未注册**抛 KeyError**
+      (对齐单术语严格策略)
+    - 拼接串 "午(冲年支午)" / "巳(冲月支巳、时支巳)"(命中):解析为
+      「地支 + (冲 位置、位置)」逐段翻译——en "Wu (clashes year branch Wu)" /
+      "Si (clashes month branch Si, hour branch Si)",zh-hant 仅 冲→沖、
+      时支→時支 其余汉字不变;解析失败(片段不在表)保留原文 + warning
+      (对齐复合字段保守策略,不让 en/zh-hant 因形态演化再 500)
+    - "无"(防御分支:引擎日冲恒有值,镜像对 response.day_chong 为 None
+      时才产出):查 wire 词表
+
+    Args:
+        value: 客户端发来的 day_chong 原值
+        language: 目标语言
+        table: 主术语表(language 对应)
+    """
+    wire = (_DAILY_WIRE_TERMS_ZH_HANT if language == "zh-hant"
+            else _DAILY_WIRE_TERMS_EN)
+    if value in wire:
+        return wire[value]
+    if "(" not in value:
+        # 裸地支:严格查表(未注册抛 KeyError 交由调用方转 500——代码 bug 显式
+        # 暴露;报错带字段名,对齐单术语循环格式)
+        if value not in table:
+            raise KeyError(
+                f"术语 {value!r}(字段 'day_chong')未注册 {language} 翻译"
+                f"(需在 term_translations.py 补齐,"
+                f"当前 {language} 表共 {len(table)} 项)")
+        return table[value]
+    branch_part, sep, inner = value.partition("(")
+    # 括号严格配对:恰好一个收尾 ")" 且内部无其它 ")"——畸形形态
+    # (「午(冲年支午」缺收尾 / 「午(冲年支午))」多收尾)不一律静默
+    # 修复,保守保留 + warning,维持「严格抛错 / 保守保留」两态纪律
+    inner = inner[:-1] if (sep and value.endswith(")")
+                           and ")" not in inner[:-1]) else None
+    if (inner is None
+            or not inner.startswith("冲")
+            or not branch_part
+            or len(inner) <= 1):
+        logger.warning(
+            "translate_context: day_chong 值 %r 非预期拼接形态,保留原文", value)
+        return value
+    # 地支对两种语言都校验(zh-hant 地支表是恒等映射,校验即形态把关:
+    # 垃圾字当「地支」的畸形值与 en 同款保守保留,不静默照搬)
+    if branch_part not in table:
+        logger.warning(
+            "translate_context: day_chong 地支 %r 无法翻译,保留原文", value)
+        return value
+    branch = branch_part if language == "zh-hant" else table[branch_part]
+    position_strs = inner[1:].split("、")
+    translated_positions = []
+    for pos in position_strs:
+        # 位置串两语言同款校验:「位置词 2 字 + 地支 1 字」,位置词查 wire
+        # 词表、地支查主表(zh-hant 地支表恒等,对表校验即形态把关,
+        # 拒绝垃圾分支字——不因语言不同而放宽)
+        if (len(pos) != _CHONG_POSITION_LEN or pos[:2] not in wire
+                or pos[2:] not in table):
+            logger.warning(
+                "translate_context: day_chong 位置串 %r 无法翻译,保留原文",
+                value)
+            return value
+        if language == "zh-hant":
+            translated_positions.append(wire[pos[:2]] + pos[2:])
+        else:
+            translated_positions.append(
+                f"{wire[pos[:2]]} {table[pos[2:]]}")
+    if language == "zh-hant":
+        joined = "、".join(translated_positions)
+        return f"{branch}({wire['冲']}{joined})"
+    joined = ", ".join(translated_positions)
+    return f"{branch} ({wire['冲']} {joined})"
+
+
 def _translate_daily_fortune_context(context: dict, language: str) -> dict:
     """daily_fortune context 字段级翻译。
 
@@ -749,7 +890,7 @@ def _translate_daily_fortune_context(context: dict, language: str) -> dict:
     - 字段值非字符串 → 保留原值(防御,不抛错)
     - 字段值是字符串但未注册 → **抛 KeyError**(不静默保留中文,
       避免英文 prompt 混入中文术语导致 LLM 输出降级且无日志可查)
-    复合术语 / 五行列表字段遇未知字符 → 保留原文 + log warning
+    复合术语 / 五行列表 / day_chong 拼接串遇未知片段 → 保留原文 + log warning
     (这些字段结构复杂,部分字符不在表里时保守保留比误翻更安全)
     """
     table = TERM_TRANSLATIONS.get(language)
@@ -757,7 +898,13 @@ def _translate_daily_fortune_context(context: dict, language: str) -> dict:
         # 已注册语言但缺翻译表(不应发生,语言支持在 is_language_supported 拦)
         raise KeyError(f"语言 {language!r} 翻译表缺失")
     joiner = _term_joiner(language)
-    translated = dict(context)  # shallow copy,不修改原 context
+    # shallow copy(不修改原 context)+ 五行英文 key 归一(修复批 F1,
+    # 2026-11-23):wire 上 day_master_element 是 iOS ChartPayload 透传的后端
+    # 英文 key("metal" 等,context_binding.daily_fields 同款),day_stem/
+    # branch_element 是 iOS elementToChinese 的中文——先统一到中文再走单术语
+    # 查表(中文值 no-op),两侧形态都能通过。归一字段清单与 zh 直通分支
+    # 共用 _normalize_element_keys(单一事实源)
+    translated = _normalize_element_keys(dict(context))
 
     # 单术语字段(严格:未注册抛 KeyError)
     for field in _DAILY_FORTUNE_SINGLE_TERM_FIELDS:
@@ -771,6 +918,11 @@ def _translate_daily_fortune_context(context: dict, language: str) -> dict:
                     f"(需在 term_translations.py 补齐,"
                     f"当前 {language} 表共 {len(table)} 项)")
             translated[field] = table[v]
+
+    # day_chong(wire 拼接串,单独处理;修复批 F1)
+    v = translated.get("day_chong")
+    if isinstance(v, str):
+        translated["day_chong"] = _translate_day_chong(v, language, table)
 
     # 复合术语字段(逐字符翻译 + 按语言连接:en 空格 / zh-hant 连写)
     for field in _DAILY_FORTUNE_COMPOSITE_FIELDS:

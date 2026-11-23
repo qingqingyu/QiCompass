@@ -19,7 +19,9 @@ import re
 import sqlite3
 import tempfile
 import os
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi import Request
@@ -674,6 +676,153 @@ class TestTranslateContext:
         ctx = {"favorable_elements": "木火未知"}
         result = translate_context(ctx, "en", "daily_fortune")
         assert result["favorable_elements"] == "木火未知"  # "未知" 不在表里
+
+
+class TestDailyRealWireShapes:
+    """修复批 F1(2026-11-23):daily context 真实 wire 形态回归。
+
+    背景:wire 上 day_master_element 是 iOS ChartPayload 透传的后端英文 key
+    ("metal" 等),day_chong 是拼接串("午(冲年支午)")或裸地支——此前翻译层
+    只认中文单术语,en/zh-hant 的 daily_fortune interpret 恒 500(测试夹具
+    填中文形态,三语全绿假绿)。证据与端到端矩阵见
+    docs/竞品差评对照-T8问事手测对话-2026-11-22.md §4-A。
+    """
+
+    def test_element_english_key_normalized_en(self):
+        """五个五行英文 key 全部归一后查表(iOS 实际发送形态)。"""
+        for key, expected in (("wood", "Wood"), ("fire", "Fire"),
+                              ("earth", "Earth"), ("metal", "Metal"),
+                              ("water", "Water")):
+            ctx = {"day_master": "庚", "day_master_element": key,
+                   "day_stem_element": "金", "day_branch_element": "土"}
+            result = translate_context(ctx, "en", "daily_fortune")
+            assert result["day_master_element"] == expected, key
+
+    def test_element_english_key_normalized_zh(self):
+        """zh 路径同样归一——zh prompt 此前直出「日主 庚（metal）」。"""
+        ctx = {"day_master": "庚", "day_master_element": "metal"}
+        result = translate_context(ctx, "zh", "daily_fortune")
+        assert result["day_master_element"] == "金"
+        # copy-on-write 契约:调用方原 dict 不被修改
+        assert ctx["day_master_element"] == "metal"
+        # 已是中文的值不受影响,且不修改原 dict
+        ctx2 = {"day_master_element": "金"}
+        assert translate_context(ctx2, "zh", "daily_fortune") == ctx2
+
+    @pytest.mark.parametrize("raw,expected", [
+        ("未", "Wei"),
+        ("午(冲年支午)", "Wu (clashes year branch Wu)"),
+        ("巳(冲月支巳、时支巳)", "Si (clashes month branch Si, hour branch Si)"),
+        ("无", "None"),
+    ])
+    def test_day_chong_wire_shapes_en(self, raw, expected):
+        """day_chong 三种 wire 形态的 en 翻译。"""
+        result = translate_context({"day_chong": raw}, "en", "daily_fortune")
+        assert result["day_chong"] == expected
+
+    @pytest.mark.parametrize("raw,expected", [
+        ("未", "未"),
+        ("午(冲年支午)", "午(沖年支午)"),
+        ("巳(冲月支巳、时支巳)", "巳(沖月支巳、時支巳)"),
+        ("无", "無"),
+    ])
+    def test_day_chong_wire_shapes_zh_hant(self, raw, expected):
+        """day_chong 三种 wire 形态的 zh-hant 翻译(冲→沖、时→時,其余汉字不变)。"""
+        result = translate_context({"day_chong": raw}, "zh-hant", "daily_fortune")
+        assert result["day_chong"] == expected
+
+    def test_day_chong_unknown_bare_branch_still_strict(self):
+        """裸地支未知值仍严格抛 KeyError(单术语纪律,不静默)。"""
+        with pytest.raises(KeyError, match="day_chong"):
+            translate_context({"day_chong": "乒"}, "en", "daily_fortune")
+
+    @pytest.mark.parametrize("raw", [
+        "午(冲突乱)",       # 位置串长度 ≠ 3
+        "午()",             # 空括号
+        "午(冲年支午",      # 缺收尾括号(不得静默修复后照翻)
+        "午(冲年支午))",    # 多收尾括号(同上)
+        "(冲年支午)",       # 空地支
+        "午(冲年支)午)",    # 括号错位
+    ])
+    def test_day_chong_malformed_composite_kept_as_is(self, raw):
+        """拼接串形态解析失败 → 保留原文 + warning(复合字段保守策略)。"""
+        result = translate_context({"day_chong": raw}, "en", "daily_fortune")
+        assert result["day_chong"] == raw
+
+    @pytest.mark.parametrize("language", ["en", "zh-hant"])
+    @pytest.mark.parametrize("raw", [
+        "乒(冲年支午)",     # 外层地支是垃圾字
+        "午(冲年支乒)",     # 位置串分支字是垃圾字
+        "午(冲年支午、月支乒)",  # 多位置中某一段分支字是垃圾字
+    ])
+    def test_day_chong_garbage_branch_kept_as_is(self, language, raw):
+        """拼接串地支段是垃圾字 → 两语言同款保守保留(zh-hant 不静默照搬)。"""
+        result = translate_context(
+            {"day_chong": raw}, language, "daily_fortune")
+        assert result["day_chong"] == raw
+
+    def test_mirror_output_translates_for_all_languages(self):
+        """绑定镜像真实输出喂翻译层,三语全通过(防 wire 形态再次漂移)。
+
+        用真实引擎排盘 + 真实今日运势,取 context_binding.daily_fields
+        (= iOS buildDailyFortune 的绑定镜像)的输出直接喂 translate_context。
+        F1 修复前,en/zh-hant 在 day_master_element 处必抛 KeyError。
+        """
+        from datetime import date as _date
+
+        from app.context_binding import build_chart_tokens, daily_fields, verify_token
+        from app.engine.bazi_engine import BaziEngine
+        from app.engine.daily_fortune import compute_daily_fortune
+        from app.models.daily_fortune import ChartPayload, PillarRef
+
+        birth = datetime(1990, 5, 15, 10, 30,
+                          tzinfo=ZoneInfo("Asia/Shanghai"))
+        result = BaziEngine().calculate(
+            birth=birth, gender="male", longitude=121.47,
+            zi_hour_rule="zi_next_day", birth_timezone="Asia/Shanghai")
+        payload = ChartPayload(
+            day_master=result["pillars"]["day"]["gan"],
+            day_master_element=result["pillars"]["day"]["gan_element"],
+            day_master_strength=result["day_master_strength"],
+            favorable_elements=result["favorable_elements"],
+            unfavorable_elements=result["unfavorable_elements"],
+            four_pillars={
+                pos: PillarRef(gan=p["gan"], zhi=p["zhi"])
+                for pos, p in result["pillars"].items()})
+        claims = verify_token(
+            build_chart_tokens(result)["payload"],
+            content_hash=result["content_hash"], family="payload")["fields"]
+
+        # 多取几天覆盖 day_chong 的裸地支与拼接串两种命中形态
+        # (确定性引擎:两选日实测 11-23 裸「未」/ 12-04 拼接「午(冲年支午)」;
+        # 断言钉住覆盖不丢——历法/选日漂移让某形态消失时,此测试要重审选日)
+        chong_forms = set()
+        for target in (_date(2026, 11, 23), _date(2026, 12, 4)):
+            fortune = compute_daily_fortune(
+                chart_hash=result["content_hash"],
+                target_date=target, chart_payload=payload)
+            fields = daily_fields(
+                claims=claims, response=fortune,
+                target_date_iso=target.isoformat())
+            # 断言 wire 形态假设仍然成立(镜像变了此测试要跟着重审)
+            assert fields["day_master_element"] in (
+                "wood", "fire", "earth", "metal", "water")
+            raw_chong = fields["day_chong"]
+            if raw_chong == "无":
+                chong_forms.add("none")
+            elif "(" in raw_chong:
+                chong_forms.add("composite")
+            else:
+                chong_forms.add("bare")
+            for language in ("zh", "en", "zh-hant"):
+                translated = translate_context(
+                    fields, language, "daily_fortune")
+                # 不抛 KeyError 即通过;再钉住关键字段确已翻出
+                assert translated["day_master_element"] not in (
+                    "wood", "fire", "earth", "metal", "water"), language
+        assert chong_forms >= {"bare", "composite"}, (
+            f"镜像测试选日未同时覆盖裸地支与拼接串形态(实际 {chong_forms}),"
+            f"须重选 target_date")
 
 
 class TestEndToEndI18nFullFlow:
