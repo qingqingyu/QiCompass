@@ -33,6 +33,14 @@ enum L10n {
         /// zh: "左滑录入生辰 ›";en: "Swipe to enter birth details ›"
         static let welcomeSwipeHint = String(localized: "onboarding.welcome.swipeHint")
 
+        /// T13(2026-11-23):欢迎页定调句——「专业不忽悠」的第一次落地。
+        /// zh: "看结构与倾向,不判吉凶";en: "Patterns and tendencies, not good or bad luck"
+        static let welcomeStance = String(localized: "onboarding.welcome.stance")
+
+        /// T13:免费/付费边界前置(竞品「付费墙过多」差评的预防针)。
+        /// zh: "命盘与前两章免费 · 完整命书一次买断,无订阅";en: "Your chart and first two chapters are free · The full reading is a one-time purchase, no subscription"
+        static let welcomePricing = String(localized: "onboarding.welcome.pricing")
+
         // -- 表单页(第 2 屏)--
 
         /// 表单页标题。
@@ -44,7 +52,8 @@ enum L10n {
         static let formSubtitle = String(localized: "onboarding.form.subtitle")
 
         /// 隐私微文案(表单页底部,Q1 拆分下沉:隐私信息在用户交出生信息那一刻出现)。
-        /// zh: "命盘只存你手机 · 无账号";en: "Your chart stays on your phone · No account"
+        /// T11(2026-11-23)改错:排盘在后端完成、登录后有云同步,旧文案不实。
+        /// zh: "不需要账号 · 不跟踪 · 不卖数据";en: "No account needed · No tracking · We never sell your data"
         static let formPrivacyLine = String(localized: "onboarding.form.privacyLine")
 
         // -- 排盘布算屏(O3,水墨孤本 InkCalculatingView)--
@@ -118,6 +127,13 @@ enum L10n {
         /// `OnboardingView.lnyMismatchText`)。
         static func lnyMismatch(_ lnyZodiac: String, yearPillar: String) -> String {
             String(format: String(localized: "zodiac.lnyMismatch"), lnyZodiac, yearPillar)
+        }
+
+        /// T17(2026-11-23):1 月 1 日到立春之间出生的生肖说明(K5;拼装见
+        /// `OnboardingView.beforeLichunText`)。zh 的 %2$@ = 干支+生肖
+        /// 「乙丑(牛)」;en = "Wood Ox"(yearSignLabel)。
+        static func beforeLichun(_ year: Int, yearPillar: String) -> String {
+            String(format: String(localized: "zodiac.beforeLichun"), year, yearPillar)
         }
 
         // -- 12 生肖人格文案(静态善意正面画像,Q6 锁定:1-2 句,不吹天命不写负面)--
@@ -243,6 +259,28 @@ enum L10n {
         /// 不同。你填写的时间会原样保存。"
         static let confirmSolarHint = String(localized: "birthConfirm.solarHint")
 
+        /// T14(2026-11-23,P0):时间栏「填钟表时间,别自己调整」防重复校正。
+        /// zh: "按出生证明上的钟表时间填写即可。夏令时和真太阳时由我们换算,请不要自己调整。"
+        static let timeClockHint = String(localized: "birthform.time.clockHint")
+
+        /// T14(P1):性别栏为什么必选(大运顺逆的引擎输入)。
+        static let genderHint = String(localized: "birthform.gender.hint")
+
+        /// T14(P1):出生地为什么必填(时区/夏令时/真太阳时)。
+        static let placeHint = String(localized: "birthform.place.hint")
+
+        /// T15(2026-11-23):确认弹窗「当地时制」行标签。
+        /// zh: "当地时制";en: "Local time"
+        static let tzLabel = String(localized: "birthConfirm.tz.label")
+
+        /// T12(2026-11-23,D4=B 拍板:必勾复选框):AI 数据授权说明(复选框标签)。
+        /// zh: "我同意:出生信息发送到我们的服务器排盘;生成解读时,命盘数据
+        /// 会交给第三方 AI 服务处理。我们不跟踪、不卖数据。"
+        static let dataConsentText = String(localized: "birthConfirm.dataConsent")
+
+        /// T12:「隐私说明 ›」链接(打开 PrivacyInfoSheet)。
+        static let privacyLink = String(localized: "birthConfirm.privacyLink")
+
         /// "命盘别名" 字段标签(字段 Micro 标签与 TextField 标题共用同一 key)。
         /// zh: "命盘别名";en: "Chart name"
         static let aliasLabel = String(localized: "birthform.alias.label")
@@ -283,8 +321,9 @@ enum L10n {
         /// zh: "时辰快捷选(可选)";en: "Quick hour pick (optional)"
         static let hourQuickPickLabel = String(localized: "birthform.hourQuickPick.label")
 
-        /// 性别字段标签。
-        /// zh: "性别";en: "Gender"
+        /// 性别字段标签。D5(2026-11-24 拍板):算法输入是出生时的生理性别,
+        /// en 标签改 "Sex at birth" 与 T14 hint 措辞一致;zh 不变。
+        /// zh: "性别";en: "Sex at birth"
         static let genderLabel = String(localized: "birthform.gender.label")
 
         /// 性别 chip「男」显示文案(tag 值 "male" 是后端契约,不本地化)。
@@ -861,19 +900,29 @@ enum L10n {
         /// zh: "隐私与数据";en: "Privacy & data"
         static let aboutPrivacyTitle = String(localized: "profile.about.privacyTitle")
 
-        /// 隐私 1(无账号无云同步)。
-        /// zh: "命盘只在你手机上，无账号，无云同步"
-        /// en: "Your chart lives on your phone. No account, no cloud sync"
+        /// 隐私 1(T11 改错:登录后命盘会同步到服务器,旧「只在你手机上」不实)。
+        /// zh: "不登录也能使用全部功能；登录后，命盘会同步到我们的服务器，换手机也能恢复。"
+        /// en: "Everything works without an account. If you sign in, your charts sync to our servers…"
         static let aboutPrivacy1 = String(localized: "profile.about.privacy1")
 
-        /// 隐私 2(AI 走后端)。
-        /// zh: "AI 解读走我们服务器，密钥保管在后端"
-        /// en: "AI readings run on our servers; keys stay server-side"
+        /// 隐私 2(T11 改错:排盘在后端、解读是第三方 AI 生成且收到出生时间
+        /// 与性别,旧「密钥保管在后端」只说了一半)。服务商按 D4 拍板点名
+        /// (Z.ai 与 DeepSeek)——**以生产 .env 实际配置为准**,换服务商须
+        /// 同步改三语值。
+        /// zh: "排盘在我们的服务器完成；解读由第三方 AI 服务（Z.ai 与 DeepSeek）生成，它会收到命盘数据、出生时间和性别。"
+        /// en: "Charts are calculated on our servers. Readings are written by third-party AI services (Z.ai and DeepSeek), which receive…"
         static let aboutPrivacy2 = String(localized: "profile.about.privacy2")
 
-        /// 隐私 3(无跟踪)。
-        /// zh: "没有跟踪，没有画像";en: "No tracking, no profiling"
+        /// 隐私 3(T11 改错:接了 TelemetryDeck 匿名统计,旧「没有跟踪」
+        /// 不完整;事件参数只有 enum/bool,出生信息与解读内容类型层进不来)。
+        /// zh: "只做匿名使用统计，不包含出生信息和解读内容；不跨 App 跟踪，不卖数据。"
+        /// en: "We collect anonymous usage stats only, never your birth details or readings. No cross-app tracking…"
         static let aboutPrivacy3 = String(localized: "profile.about.privacy3")
+
+        /// 隐私 4(T11 新增:合盘称呼与问事原文也发给 AI——对齐 Apple 5.1.2(i)
+        /// 「清楚披露发给谁」)。
+        /// zh: "合盘时填写的称呼、问事时输入的问题,也会发给 AI 服务用于生成回答。"
+        static let aboutPrivacy4 = String(localized: "profile.about.privacy4")
 
         // -- S10 补时辰常驻入口(D7:静默态下唯一保留的主动入口)--
 
@@ -1506,6 +1555,10 @@ enum L10n {
         /// zh: "成书后将通知你";en: "We'll notify you when it's ready"
         static let waitNotifyOn = String(localized: "deepchain.wait.notifyOn")
 
+        /// T19(2026-11-23):未决定态的「成书时通知我」按钮(用户点了才弹
+        /// 系统权限框;先解释再申请)。zh: "成书时通知我"
+        static let waitNotifyAsk = String(localized: "deepchain.wait.notifyAsk")
+
         /// 等待卡「先去逛逛」CTA(回目录,横幅继续报进度)。
         /// zh: "先去逛逛";en: "Keep browsing"
         static let waitBrowse = String(localized: "deepchain.wait.browse")
@@ -1573,6 +1626,11 @@ enum L10n {
         /// 展示同一状态,统一走本组 key 防双源漂移)。
         /// zh: "排盘中…";en: "Charting…"
         static let stageChart = String(localized: "chartcalc.stage.chart")
+
+        /// T16(2026-11-23,P2):已知时辰的排盘等待文案——说真太阳时换算
+        /// (与 T4 确认页预告、T3 说明页同一叙事线)。zh: "按出生地换算真太阳时,
+        /// 排定四柱…";en: "Converting to true solar time and setting your four pillars…"
+        static let stageChartSolar = String(localized: "chartcalc.stage.chartSolar")
 
         /// zh: "存档中…";en: "Archiving…"
         static let stageArchiving = String(localized: "chartcalc.stage.archiving")
@@ -1882,9 +1940,23 @@ enum L10n {
         static let auxTaiYuan = String(localized: "deepanalysis.aux.taiYuan")
     }
 
-    // MARK: - 排盘口径说明页(T3,2026-11-22 竞品差评对照;ChartBasisSheet 三节)
+    // MARK: - AI 数据授权(T12,2026-11-23;老用户补授权 sheet)
 
-    /// 三节静态说明:真太阳时 / 立春 vs 农历新年 / 生肖年份五行 vs 日主。
+    /// 老用户补授权(D4=B:sheet 也带复选框,勾选后「同意并继续」可用)。
+    enum DataConsentCopy {
+        /// sheet 标题。zh: "数据使用说明";en: "How we use your data"
+        static let sheetTitle = String(localized: "dataConsent.sheetTitle")
+
+        /// 说明正文(继续使用即表示同意的口径;复选框标签复用 BirthForm.dataConsentText)。
+        static let body = String(localized: "dataConsent.body")
+
+        /// 主按钮。zh: "同意并继续";en: "Agree & continue"
+        static let agree = String(localized: "dataConsent.agree")
+    }
+
+    // MARK: - 排盘口径说明页(T3,2026-11-22 竞品差评对照;ChartBasisSheet 四节)
+
+    /// 四节静态说明:真太阳时 / 立春 vs 农历新年 / 生肖年份五行 vs 日主 / 子时换日。
     /// 文案三语落 xcstrings(chartBasis.*);个性化行(T6 生肖差异 K4)由
     /// ChartBasisSheet 追加,不在此枚举。
     enum ChartBasis {
@@ -1909,6 +1981,14 @@ enum L10n {
 
         /// 第三节正文(「木牛」来自年柱,日主是本命五行,两个都对)。
         static let dayMasterBody = String(localized: "chartBasis.dayMaster.body")
+
+        /// T18(2026-11-23)第四节标题:「子时怎么算?」。
+        /// zh: "子时怎么算?";en: "How is the Zi hour handled?"
+        static let ziTitle = String(localized: "chartBasis.zi.title")
+
+        /// T18 第四节正文(23:00 换日 vs 早晚子时两派;本 App 用前者;
+        /// **不得提及可在设置中更改**——子时设置行已于 2026-10-18 拔除)。
+        static let ziBody = String(localized: "chartBasis.zi.body")
 
         /// 关闭按钮。zh: "关闭";zh-Hant: "關閉";en: "Close"
         static let close = String(localized: "chartBasis.close")

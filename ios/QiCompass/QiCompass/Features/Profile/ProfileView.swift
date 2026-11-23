@@ -754,12 +754,12 @@ struct ProfileView: View {
             .multilineTextAlignment(.center)
             .padding(.vertical, BaziTheme.Spacing.md)
 
-            // 隐私与数据(折叠;点开展开三行)
+            // 隐私与数据(折叠;点开展开四行,T11 起 privacy1-4)
             Button {
                 withAnimation { showPrivacy.toggle() }
             } label: {
                 HStack {
-                    Text("隐私与数据")
+                    Text(L10n.Profile.aboutPrivacyTitle)
                         .font(BaziFont.caption(size: 11))
                         .foregroundStyle(BaziTheme.inkMuted)
                     Spacer()
@@ -771,14 +771,18 @@ struct ProfileView: View {
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
-            // 箭头字符对 VoiceOver 是噪音,统一读按钮语义
-            .accessibilityLabel("隐私与数据")
+            // 箭头字符对 VoiceOver 是噪音,统一读按钮语义(T11:裸中文改 key,
+            // 三语同源)
+            .accessibilityLabel(L10n.Profile.aboutPrivacyTitle)
 
             if showPrivacy {
+                // T11(2026-11-23):第四条(合盘称呼与问事原文也发给 AI)——
+                // 与 PrivacyInfoSheet 共用同一组 key,不复制文案
                 VStack(spacing: 3) {
                     Text(L10n.Profile.aboutPrivacy1)
                     Text(L10n.Profile.aboutPrivacy2)
                     Text(L10n.Profile.aboutPrivacy3)
+                    Text(L10n.Profile.aboutPrivacy4)
                 }
                 .font(BaziFont.caption(size: 11))
                 .foregroundStyle(BaziTheme.ink)
@@ -965,6 +969,9 @@ struct ProfileView: View {
             // 名单)都会被清空」;CityRecentStore 是表单便利,"从零开始"一并清。
             CompatibilityRosterPersistence.clear()
             CityRecentStore.clear()
+            // T12(2026-11-23):AI 数据授权记录归入设置域清除——重走 onboarding
+            // 时确认 sheet 重新要求勾选(Apple 5.1.2(i) 审计口径:重置 = 撤回)
+            DataConsent.clear()
             // 用 @AppStorage 写,RootTabView 的 @AppStorage("hasSeenOnboarding") 立即响应触发 onboarding sheet
             hasSeenOnboarding = false
             AppLogger.app.info("重置命盘完成，hasSeenOnboarding=false，RootTabView 应立即弹 onboarding sheet")

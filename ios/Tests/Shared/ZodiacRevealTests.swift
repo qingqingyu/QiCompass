@@ -464,3 +464,61 @@ extension ZodiacRevealTests {
             lichunGanZhi: "丙寅", lichunZodiac: "Tiger", language: .zh))
     }
 }
+
+// MARK: - T17 立春前出生说明(2026-11-23 竞品差评对照;beforeLichunText 拼串)
+
+extension ZodiacRevealTests {
+    func test_beforeLichunText_chineseGanZhiWithAnimal() {
+        let zh = OnboardingView.beforeLichunText(
+            bornBeforeLichun: true, birthYear: 1986,
+            lichunGanZhi: "乙丑", lichunZodiac: "Ox", language: .zh)
+        XCTAssertNotNil(zh)
+        XCTAssertTrue(zh?.contains("1986") == true, zh ?? "")
+        XCTAssertTrue(zh?.contains("乙丑（牛）") == true, "干支+生肖,全角括号对齐 K4:\(zh ?? "")")
+        let hant = OnboardingView.beforeLichunText(
+            bornBeforeLichun: true, birthYear: 1986,
+            lichunGanZhi: "乙丑", lichunZodiac: "Ox", language: .zhHant)
+        XCTAssertTrue(hant?.contains("乙丑（牛）") == true, "简繁同形:\(hant ?? "")")
+    }
+
+    func test_beforeLichunText_englishYearSignLabel() {
+        let en = OnboardingView.beforeLichunText(
+            bornBeforeLichun: true, birthYear: 1986,
+            lichunGanZhi: "乙丑", lichunZodiac: "Ox", language: .en)
+        XCTAssertNotNil(en)
+        XCTAssertTrue(en?.contains("Wood Ox") == true, "en 用 yearSignLabel:\(en ?? "")")
+        XCTAssertTrue(en?.contains("1986") == true, en ?? "")
+    }
+
+    func test_beforeLichunText_missingInputsReturnNil() {
+        for flag in [nil, false] {
+            XCTAssertNil(OnboardingView.beforeLichunText(
+                bornBeforeLichun: flag, birthYear: 1986,
+                lichunGanZhi: "乙丑", lichunZodiac: "Ox", language: .zh))
+        }
+        XCTAssertNil(OnboardingView.beforeLichunText(
+            bornBeforeLichun: true, birthYear: nil,
+            lichunGanZhi: "乙丑", lichunZodiac: "Ox", language: .zh))
+        XCTAssertNil(OnboardingView.beforeLichunText(
+            bornBeforeLichun: true, birthYear: 1986,
+            lichunGanZhi: nil, lichunZodiac: "Ox", language: .zh))
+        XCTAssertNil(OnboardingView.beforeLichunText(
+            bornBeforeLichun: true, birthYear: 1986,
+            lichunGanZhi: "乙丑", lichunZodiac: nil, language: .zh))
+    }
+
+    func test_beforeLichunText_priorityK4Wins() {
+        // 任务书第二批 Review 检查点 5:K4(农历新年差异)与 K5(立春前)
+        // 同屏最多一条,K4 优先。两个纯函数都命中时消费方取 K4(?? 链)——
+        // 此处锁两函数各自可产出,优先级由调用点 ?? 保证(见 OnboardingView)
+        let k4 = OnboardingView.lnyMismatchText(
+            lny: LunarNewYearYearDTO(ganZhi: "乙丑", zodiac: "Ox"),
+            lichunGanZhi: "丙寅", lichunZodiac: "Tiger", language: .zh)
+        let k5 = OnboardingView.beforeLichunText(
+            bornBeforeLichun: true, birthYear: 1986,
+            lichunGanZhi: "乙丑", lichunZodiac: "Ox", language: .zh)
+        XCTAssertNotNil(k4)
+        XCTAssertNotNil(k5)
+        XCTAssertNotEqual(k4, k5)
+    }
+}

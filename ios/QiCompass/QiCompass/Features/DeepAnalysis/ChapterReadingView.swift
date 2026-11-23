@@ -34,8 +34,13 @@ struct ChapterReadingView: View {
 
     @Environment(\.dismiss) private var dismiss
 
-    /// 通知授权状态(等待卡条件文案「成书后将通知你」用):进生成中态时刷新。
+    /// 通知授权状态(等待卡条件文案「成书后将通知你」用):等待卡 onAppear
+    /// 与「成书时通知我」按钮回执后刷新(T19)。
     @State private var notifyAuthorized = false
+    /// T19(2026-11-23):未决定态 → 显示「成书时通知我」按钮(用户点了才弹
+    /// 系统框);已授权 → 现有 waitNotifyOn 行;已拒绝 → 都不显示(不引导
+    /// 去设置)。@State 的初值在属性初始化时求值,onAppear 里刷新。
+    @State private var notifyUndetermined = false
 
     /// 本地 entitlement 查询:VM 单源方法(与付费守卫/主页目录行同口径),只读。
     /// 翻章条 🔒 判定用——已购用户的付费章翻章不弹墙,进章布算/原地重试。
@@ -340,8 +345,8 @@ struct ChapterReadingView: View {
     /// 等待卡把三件事说显性:①后台正在生成(全本进度行,仅链在跑时显示——
     /// 单章重试时其余章不在生成,报全本 ETA 是虚诺);②可以先走(可离开说明
     /// + 「先去逛逛」CTA 回目录,横幅继续报进度);③成书会通知(仅已授权时
-    /// 显示——未授权不虚诺)。权限请求也挂在这里:第一次进生成中章节时
-    /// 上下文式请求一次(等待卡文案就是铺垫),已定则静默。
+    /// 显示——未授权不虚诺)。权限申请 T19 改走「成书时通知我」按钮:等待卡
+    /// onAppear 只读状态,用户点了才弹系统框(先解释再申请)。
     private var calculatingBody: some View {
         VStack(spacing: 0) {
             Spacer(minLength: 90)
@@ -374,6 +379,30 @@ struct ChapterReadingView: View {
                 }
             }
             .padding(.top, 14)
+            // T19:未决定 + 链在跑 → 「成书时通知我」(样式与「先去逛逛」
+            // 同款 dashed ghost,临时态语言);点击 → 申请权限 → 刷新状态:
+            // 已授权 → 按钮隐藏、显示 waitNotifyOn;已拒绝 → 按钮隐藏不再出现
+            if notifyUndetermined && vm.isChainRunning {
+                Button {
+                    Task { @MainActor in
+                        await ChainCompletionNotifier.shared.requestAuthorizationOnce()
+                        await refreshNotifyState()
+                    }
+                } label: {
+                    Text(L10n.DeepChain.waitNotifyAsk)
+                        .font(BaziFont.caption(size: 11))
+                        .tracking(2)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .padding(.horizontal, 26)
+                        .padding(.vertical, 10)
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 5)
+                                .stroke(BaziTheme.hairlineDashed, style: StrokeStyle(lineWidth: 1, dash: [4, 3]))
+                        )
+                }
+                .buttonStyle(.plain)
+                .padding(.top, 24)
+            }
             // 「先去逛逛」:dashed ghost(临时态语言,DESIGN.md §Layout);
             // 「留在本页等待」是默认行为,不做无动作的对称按钮
             Button {
@@ -395,18 +424,28 @@ struct ChapterReadingView: View {
             Spacer(minLength: 90)
         }
         .frame(maxWidth: .infinity)
-        .onAppear { requestNotificationAuthorizationIfChainRunning() }
+        .onAppear { refreshNotifyStateIfChainRunning() }
     }
 
-    /// 等待卡出现时的上下文式权限请求(方案二):链在跑才问——单章重试
-    /// 半分钟即成,为它要通知权限是打扰;状态已定(授权/拒绝)iOS 不再弹,
-    /// 本方法静默返回。
-    private func requestNotificationAuthorizationIfChainRunning() {
+    /// T19(2026-11-23)改:等待卡出现时**只读状态不申请**——系统框盖住
+    /// 卡片,用户还没读到「生成在后台继续」。申请移到「成书时通知我」
+    /// 按钮点击。链没在跑不读(单章重试半分钟即成,与通知无关)。
+    private func refreshNotifyStateIfChainRunning() {
         guard vm.isChainRunning else { return }
         Task { @MainActor in
-            await ChainCompletionNotifier.shared.requestAuthorizationOnce()
-            notifyAuthorized = await ChainCompletionNotifier.shared.isAuthorized()
+            await refreshNotifyState()
         }
+    }
+
+    /// 读完整授权状态并刷新两态:notifyAuthorized(已授权行)/
+    /// notifyUndetermined(未决定按钮)。三态矩阵由 ChainNotifyUI.resolve
+    /// 单点收口(ChainCompletionNotifierTests.test_notifyButtonVisibilityMatrix
+    /// 直接断言该生产函数):已拒绝 → 双 false(都不显示)。
+    private func refreshNotifyState() async {
+        let status = await ChainCompletionNotifier.shared.authorizationStatus()
+        let ui = ChainNotifyUI.resolve(status: status)
+        notifyAuthorized = ui.showsAuthorizedRow
+        notifyUndetermined = ui.showsAskButton
     }
 
     /// 等待卡说明行统一样式(4 行同款,单点收口防漂移)。

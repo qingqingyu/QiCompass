@@ -794,3 +794,47 @@ async def test_lunar_new_year_year_ambiguous_returns_none():
     assert code == 200, body
     assert body["year_branch_zodiac"] is None, "本例应触发年柱歧义(若不触发须换日期)"
     assert body["lunar_new_year_year"] is None
+
+
+# ===== T17(2026-11-23 竞品差评对照):立春前出生标记 =====
+
+
+async def test_born_before_lichun_true_1986_01_25():
+    """1 月 25 日(公历 1986 年内、立春前)→ True;年柱属 1985(乙丑)。"""
+    code, body, _ = await _post({
+        "birth_datetime": "1986-01-25T10:00:00",
+        "timezone": "Asia/Shanghai",
+        "gender": "male",
+        "longitude": 116.4074,
+    })
+    assert code == 200, body
+    assert body["born_before_lichun"] is True
+    assert body["pillars"]["year"]["gan_zhi"] == "乙丑"
+
+
+async def test_born_before_lichun_false_1986_03_01():
+    """3 月 1 日(立春后)→ False;年柱属 1986(丙寅)。"""
+    code, body, _ = await _post({
+        "birth_datetime": "1986-03-01T10:00:00",
+        "timezone": "Asia/Shanghai",
+        "gender": "male",
+        "longitude": 116.4074,
+    })
+    assert code == 200, body
+    assert body["born_before_lichun"] is False
+    assert body["pillars"]["year"]["gan_zhi"] == "丙寅"
+
+
+async def test_born_before_lichun_ambiguous_returns_none():
+    """立春日 + 时辰未知(年柱歧义)→ None(不猜)。"""
+    code, body, _ = await _post({
+        "birth_datetime": "1986-02-04T00:00:00",
+        "timezone": "Asia/Shanghai",
+        "gender": "male",
+        "longitude": 116.4074,
+        "hour_known": False,
+        "late_night": None,
+    })
+    assert code == 200, body
+    assert body["year_branch_zodiac"] is None
+    assert body["born_before_lichun"] is None

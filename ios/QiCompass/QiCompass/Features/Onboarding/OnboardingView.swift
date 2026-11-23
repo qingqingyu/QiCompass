@@ -63,7 +63,13 @@ struct OnboardingView: View {
                         showSubmitConfirm = false
                     }
                 )
-                .presentationDetents([.medium])
+                // T12:授权复选框块加入后内容 ~600pt,medium(≈334-425pt)任何
+                // 机型都装不下且为 VStack 不可滚——复选框/CTA 被截断 = 流程死锁。
+                // 选 [.large] 而非包 ScrollView:授权复选框与「确认排盘」必须
+                // 同屏可见(合规要求先见披露再同意),ScrollView 在 medium 下首屏
+                // 看不到 CTA;且与同批 DataConsentSheet/PrivacyInfoSheet 均
+                // [.large] 一致。
+                .presentationDetents([.large])
                 .presentationDragIndicator(.visible)
             }
         }
@@ -167,24 +173,36 @@ struct OnboardingView: View {
                 // 降级态完成 onboarding 不重复触发,Q7 onChartArchived 在提交成功即回调)
                 // S10:.id(contentHash) —— 补时辰换新盘后 reveal 换身份重建:
                 // 降级态翻转为完整 reveal(哇时刻补上),盖章动效随新身份重放。
+                // 出生年按出生城市钟面取(S03 WYSIWYG;Calendar.current 会跨年漂移)。
+                // birthDate 已 Optional 化(S03 日期必选):.ready 前置 validateForm 已保证
+                // 非空。单值提出:subLabel(「…· 1986」)与 K5(「你生于 1986…」)同屏
+                // 并列,口径必须恒一致,不各自求值(T17)
+                let birthWallYear = vm.birthDate.map {
+                    vm.placeCalendar.component(.year, from: $0)
+                }
                 ZodiacRevealView(
                     zodiac: response.yearBranchZodiac ?? "",
                     mainLabel: mainLabel(from: response),
                     subLabel: subLabel(
                         from: response,
                         gender: vm.gender,
-                        // 年份按出生城市钟面取(S03 WYSIWYG;Calendar.current 会跨年漂移)。
-                        // birthDate 已 Optional 化(S03 日期必选):.ready 前置 validateForm 已保证非空
-                        birthYear: vm.birthDate.map { vm.placeCalendar.component(.year, from: $0) }
+                        birthYear: birthWallYear
                     ),
                     friendZodiacs: response.yearBranchFriends ?? [],
                     clashZodiac: response.yearBranchClash ?? "",
                     nodeSentence: nodeSentenceText(from: response),
+                    // T6/T17 优先级:K4(农历新年口径差异)优先,否则 K5(立春前)
                     lnyMismatchLine: Self.lnyMismatchText(
                         lny: response.lunarNewYearYear,
                         lichunGanZhi: response.pillars.year?.ganZhi,
                         lichunZodiac: response.yearBranchZodiac,
-                        language: AppLanguage.current),
+                        language: AppLanguage.current)
+                        ?? Self.beforeLichunText(
+                            bornBeforeLichun: response.bornBeforeLichun,
+                            birthYear: birthWallYear,
+                            lichunGanZhi: response.pillars.year?.ganZhi,
+                            lichunZodiac: response.yearBranchZodiac,
+                            language: AppLanguage.current),
                     onComplete: {
                         // Q7 闸门:降级态「继续」与正常态 CTA 同一放行逻辑,只放行第一次
                         if completeGate.fire(onComplete) {
@@ -375,6 +393,36 @@ struct OnboardingView: View {
         return text
     }
 
+    /// T17(2026-11-23 竞品差评对照):1 月 1 日到立春之间出生的说明句(K5)。
+    /// %2$@:zh/zh-Hant = 干支 + 生肖「乙丑（牛）」,全角括号(对齐 K4);en = "Wood Ox"(yearSignLabel)。
+    static func beforeLichunText(
+        bornBeforeLichun: Bool?,
+        birthYear: Int?,
+        lichunGanZhi: String?,
+        lichunZodiac: String?,
+        language: AppLanguage
+    ) -> String? {
+        guard bornBeforeLichun == true, let birthYear,
+              let lichunGanZhi, !lichunGanZhi.isEmpty,
+              let lichunZodiac, ZodiacHelper.isKnownZodiac(lichunZodiac)
+        else { return nil }
+        let yearPillar: String
+        switch language {
+        case .zh, .zhHant:
+            let animal = (language == .zhHant
+                          ? ZodiacHelper.animalCharHant(forZodiac: lichunZodiac)
+                          : ZodiacHelper.animalChar(forZodiac: lichunZodiac))
+            yearPillar = "\(lichunGanZhi)（\(animal)）"
+        case .en:
+            let gan = String(lichunGanZhi.prefix(1))
+            guard let label = ZodiacHelper.yearSignLabel(
+                yearGanElement: ElementColors.ofGan(gan), zodiac: lichunZodiac)
+            else { return nil }
+            yearPillar = label
+        }
+        return L10n.Onboarding.beforeLichun(birthYear, yearPillar: yearPillar)
+    }
+
     /// T6(2026-11-22 竞品差评对照):农历新年 vs 立春生肖不一致对照句(K4)。
     /// 两口径年柱相同 / 老响应无字段 / 任一生肖未知 → nil(不渲染,不猜)。
     /// 拼装纯函数,language 显式传参可单测:
@@ -443,14 +491,19 @@ struct CompleteOnceGate {
 // 参考 docs/design-ref/shuimo/onboarding-o1-welcome.html:
 // 墨圆居中承接开机转场 → 玄印落于圆心 → 宋体标题 → QICOMPASS 字距标 →
 // 副标题 → 竖排经文(版心左 hairline)。壁画佛手背景图退役(与新语言冲突)。
-// 错峰时序(承接 splash 后从简):enso 0s → 标题 0.2s → 副标 0.35s → 经文 0.55s → 印 0.9s。
+// 错峰时序(承接 splash 后从简):enso 0s → 标题 0.2s → 副标 0.35s →
+// 定调/计价句 0.55/0.65s(T13;0.55 与经文同拍,分处上下两域不互扰) → 印 0.9s。
 private struct WelcomePage: View {
     var body: some View {
         ZStack {
             BaziTheme.paper.ignoresSafeArea()
 
             VStack(spacing: 0) {
-                Spacer().frame(height: 92)
+                // 顶距 92→80(T13 布局收窄,2026-11-24):T13 加两行 caption 后
+                // 全页内容 ≈922pt,Pro Max 可用 860pt → 居中溢出 ±31pt(实测墨圆
+                // 被顶高 28pt、滑动提示侵入底部安全区)。80 + 下两处 minLength 20
+                // 共收 68pt → 853.7pt ≤ 860(余 6.3pt);宽裕布局零视觉变化。
+                Spacer().frame(height: 80)
 
                 // 墨圆 + 玄印居中(stamp 落定在墨圆成形之后)
                 EnsoView(size: 172, breathing: true)
@@ -476,16 +529,32 @@ private struct WelcomePage: View {
                         .tracking(3)
                         .foregroundStyle(BaziTheme.inkMuted)
                         .riseIn(delay: 0.45)
+                    // T13(2026-11-23):定调 + 免费/付费边界,各一行
+                    // (caption 11 + inkMuted;tracking 对齐仓内 isChinese ? N : 0
+                    //  语言分支惯例——PairSummaryCard/BirthFormView 等 8+ 处,
+                    //  非 tagline:tagline 是 .tracking(3) 固定无分支)
+                    Text(L10n.Onboarding.welcomeStance)
+                        .font(BaziFont.caption(size: 11))
+                        .tracking(AppLanguage.current.isChinese ? 2 : 0)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .riseIn(delay: 0.55)
+                    Text(L10n.Onboarding.welcomePricing)
+                        .font(BaziFont.caption(size: 11))
+                        .tracking(AppLanguage.current.isChinese ? 2 : 0)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .riseIn(delay: 0.65)
                 }
                 .padding(.top, 30)
 
                 // 留白拆分(2026-09-23 review #9):原单个 Spacer 让标语与经文之间
                 // 空出整段屏高、像内容没加载;拆成上下两段均分,经文上提与品牌块成组。
-                Spacer(minLength: 48)
+                // minLength 48→20(T13 布局收窄,2026-11-24):饥饿态下限让位,只在
+                // 内容逼近可用高时收窄;宽裕布局 Spacer 自然扩张,视觉零变化。
+                Spacer(minLength: 20)
 
                 SutraView()
 
-                Spacer(minLength: 48)
+                Spacer(minLength: 20)
 
                 // 左滑提示(经文之下、系统翻页点之上;bottom 44 留足圆点空域,
                 // 修复圆点压字,2026-09-23 review #1)

@@ -16,11 +16,15 @@ import UserNotifications
 /// MainActor 隔离(spy 的 completions 写读同线程,消除数据竞争)。
 @MainActor
 protocol ChainCompletionNotifying: AnyObject {
-    /// 上下文式权限请求(第一次点开「生成中」章节时调用一次;状态已定则
-    /// 静默返回,不重复打扰——iOS 权限弹窗本身只出一次,这里补的是调用侧幂等)。
+    /// 上下文式权限请求(T19 起由用户点「成书时通知我」按钮触发——先解释
+    /// 再申请,onAppear 不再自动弹;状态已定则静默返回,不重复打扰——
+    /// iOS 权限弹窗本身只出一次,这里补的是调用侧幂等)。
     func requestAuthorizationOnce() async
     /// 当前是否已授权(等待卡/横幅的条件文案与投递判定用)。
     func isAuthorized() async -> Bool
+    /// 完整授权状态(T19:区分「未决定/已拒绝」——未决定显示「成书时通知我」
+    /// 按钮,已拒绝不再出现、不引导去设置)。
+    func authorizationStatus() async -> UNAuthorizationStatus
     /// 整链完成:按前台/后台与授权状态决定投递渠道。
     func notifyBookComplete(chapterCount: Int, isOwned: Bool) async
 }
@@ -37,6 +41,22 @@ enum ChainCompletionDelivery: Equatable {
         guard authorized else { return .suppressed }
         guard let appState else { return .inAppToast }
         return appState == .active ? .inAppToast : .systemNotification
+    }
+}
+
+/// 等待卡通知 UI 决策(T19,纯函数,测试直接断言矩阵——同上方
+/// ChainCompletionDelivery.resolve 模式):授权三态 → 已授权行;
+/// 未决定 → 「成书时通知我」按钮;已拒绝 → 都不显示(不引导去设置)。
+enum ChainNotifyUI {
+    /// 已授权行(waitNotifyOn)与「成书时通知我」按钮双布尔。
+    static func resolve(status: UNAuthorizationStatus) -> (showsAuthorizedRow: Bool, showsAskButton: Bool) {
+        if ChainCompletionNotifier.isAuthorizedStatus(status) {
+            return (true, false)
+        }
+        if status == .notDetermined {
+            return (false, true)
+        }
+        return (false, false)
     }
 }
 
@@ -81,7 +101,18 @@ final class ChainCompletionNotifier: NSObject, ChainCompletionNotifying, UNUserN
 
     func isAuthorized() async -> Bool {
         let status = await settingsStatus()
-        return status == .authorized || status == .provisional || status == .ephemeral
+        return Self.isAuthorizedStatus(status)
+    }
+
+    /// 授权三态判定(authorized/provisional/ephemeral 视同已授权)——
+    /// isAuthorized 与 ChainNotifyUI.resolve 共用的单点口径(T19 收口防漂移)。
+    /// nonisolated 纯函数:测试与视图均可直接调。
+    nonisolated static func isAuthorizedStatus(_ status: UNAuthorizationStatus) -> Bool {
+        status == .authorized || status == .provisional || status == .ephemeral
+    }
+
+    func authorizationStatus() async -> UNAuthorizationStatus {
+        return await settingsStatus()
     }
 
     func notifyBookComplete(chapterCount: Int, isOwned: Bool) async {

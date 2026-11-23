@@ -954,6 +954,52 @@
         }
       }
     },
+    "birthConfirm.dataConsent" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "I agree that we send your birth details to our servers to calculate your chart, and that your chart data is shared with a third-party AI service to write your readings. We don't track you or sell your data."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我同意：出生信息发送到我们的服务器排盘；生成解读时，命盘数据会交给第三方 AI 服务处理。我们不跟踪、不卖数据。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "我同意：出生資訊傳送到我們的伺服器排盤；生成解讀時，命盤資料會交給第三方 AI 服務處理。我們不追蹤、不賣資料。"
+          }
+        }
+      }
+    },
+    "birthConfirm.privacyLink" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Privacy details ›"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隐私说明 ›"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "隱私說明 ›"
+          }
+        }
+      }
+    },
     "birthConfirm.solarHint" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -973,6 +1019,98 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "排盤時會按出生地換算成真太陽時，時柱可能和鐘錶時間所在的時辰不同。你填寫的時間會原樣保存。"
+          }
+        }
+      }
+    },
+    "birthConfirm.tz.dst" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · daylight saving time"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 当时为夏令时"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 當時為夏令時"
+          }
+        }
+      }
+    },
+    "birthConfirm.tz.label" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Local time"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "当地时制"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "當地時制"
+          }
+        }
+      }
+    },
+    "birthConfirm.tz.offsetOnly" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@"
+          }
+        }
+      }
+    },
+    "birthConfirm.tz.std" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · standard time"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 当时为标准时间"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "%@ · 當時為標準時間"
           }
         }
       }
@@ -1506,13 +1644,36 @@
         }
       }
     },
+    "birthform.gender.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Traditional BaZi uses your sex at birth to set the direction of your luck cycles."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "传统八字用出生时的性别决定大运顺排还是逆排。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "傳統八字用出生時的性別決定大運順排還是逆排。"
+          }
+        }
+      }
+    },
     "birthform.gender.label" : {
       "extractionState" : "manual",
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gender"
+            "value" : "Sex at birth"
           }
         },
         "zh-Hans" : {
@@ -1709,6 +1870,52 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "確定"
+          }
+        }
+      }
+    },
+    "birthform.place.hint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your birthplace sets the time zone, daylight saving and true solar time for your chart."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生地用来确定当时的时区、夏令时和真太阳时。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "出生地用來確定當時的時區、夏令時和真太陽時。"
+          }
+        }
+      }
+    },
+    "birthform.time.clockHint" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Enter the clock time from your birth certificate. We handle daylight saving and true solar time, so don't adjust it yourself."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按出生证明上的钟表时间填写即可。夏令时和真太阳时由我们换算，请不要自己调整。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按出生證明上的鐘錶時間填寫即可。夏令時和真太陽時由我們換算，請不要自己調整。"
           }
         }
       }
@@ -2150,6 +2357,52 @@
         }
       }
     },
+    "chartBasis.zi.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "The Zi hour runs from 11 PM to 1 AM in true solar time. Schools differ on when the new day starts: some start it at 11 PM, which is what this app does; others wait until midnight (the \"early and late Zi\" method). If you were born in this window, other apps may show a different day pillar. That's a difference in method, not a mistake."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "夜里 23:00 到次日 1:00（按真太阳时）是子时。流派对它有两种处理：一种从 23:00 起就算作第二天，本 App 采用这种；另一种到 0:00 才换日，俗称「早晚子时」。在这段时间出生的人，不同软件给出的日柱可能不同，这是口径差异，不是算错。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "夜裡 23:00 到次日 1:00（按真太陽時）是子時。流派對它有兩種處理：一種從 23:00 起就算作第二天，本 App 採用這種；另一種到 0:00 才換日，俗稱「早晚子時」。在這段時間出生的人，不同軟體給出的日柱可能不同，這是口徑差異，不是算錯。"
+          }
+        }
+      }
+    },
+    "chartBasis.zi.title" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How is the Zi hour handled?"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "子时怎么算？"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "子時怎麼算？"
+          }
+        }
+      }
+    },
     "chartcalc.banner.expandHint" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -2284,6 +2537,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "排盤中…"
+          }
+        }
+      }
+    },
+    "chartcalc.stage.chartSolar" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Converting to true solar time and setting your four pillars…"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按出生地换算真太阳时，排定四柱…"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "按出生地換算真太陽時，排定四柱…"
           }
         }
       }
@@ -4481,6 +4757,75 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "明日"
+          }
+        }
+      }
+    },
+    "dataConsent.agree" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Agree & continue"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同意并继续"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "同意並繼續"
+          }
+        }
+      }
+    },
+    "dataConsent.body" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your chart is calculated on our servers, and your chart data is shared with a third-party AI service to write your readings. By continuing, you agree to this. We don't track you or sell your data."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盘在我们的服务器完成；生成解读时，命盘数据会交给第三方 AI 服务处理。继续使用即表示你同意。我们不跟踪、不卖数据。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "排盤在我們的伺服器完成；生成解讀時，命盤資料會交給第三方 AI 服務處理。繼續使用即表示你同意。我們不追蹤、不賣資料。"
+          }
+        }
+      }
+    },
+    "dataConsent.sheetTitle" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "How we use your data"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "数据使用说明"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "資料使用說明"
           }
         }
       }
@@ -11372,19 +11717,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your chart stays on your phone · No account"
+            "value" : "No account needed · No tracking · We never sell your data"
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盘只存你手机 · 无账号"
+            "value" : "不需要账号 · 不跟踪 · 不卖数据"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盤只存你手機 · 無帳號"
+            "value" : "不需要帳號 · 不追蹤 · 不賣資料"
           }
         }
       }
@@ -11941,6 +12286,52 @@
         }
       }
     },
+    "onboarding.welcome.pricing" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your chart and first two chapters are free · The full reading is a one-time purchase, no subscription"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盘与前两章免费 · 完整命书一次买断，无订阅"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "命盤與前兩章免費 · 完整命書一次買斷，無訂閱"
+          }
+        }
+      }
+    },
+    "onboarding.welcome.stance" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Patterns and tendencies, not good or bad luck"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "看结构与倾向，不判吉凶"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "看結構與傾向，不判吉凶"
+          }
+        }
+      }
+    },
     "onboarding.welcome.swipeHint" : {
       "extractionState" : "manual",
       "localizations" : {
@@ -12476,19 +12867,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your chart lives on your phone. No account, no cloud sync"
+            "value" : "Everything works without an account. If you sign in, your charts sync to our servers so you can restore them on a new phone."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盘只在你手机上，无账号，无云同步"
+            "value" : "不登录也能使用全部功能；登录后，命盘会同步到我们的服务器，换手机也能恢复。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "命盤只在你手機上，無帳號，無雲同步"
+            "value" : "不登入也能使用全部功能；登入後，命盤會同步到我們的伺服器，換手機也能恢復。"
           }
         }
       }
@@ -12499,19 +12890,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI readings run on our servers; keys stay server-side"
+            "value" : "Charts are calculated on our servers. Readings are written by third-party AI services (Z.ai and DeepSeek), which receive your chart data, birth time and gender."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI 解读走我们服务器，密钥保管在后端"
+            "value" : "排盘在我们的服务器完成；解读由第三方 AI 服务（Z.ai 与 DeepSeek）生成，它会收到命盘数据、出生时间和性别。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "AI 解讀走我們伺服器，密鑰保管在後端"
+            "value" : "排盤在我們的伺服器完成；解讀由第三方 AI 服務（Z.ai 與 DeepSeek）生成，它會收到命盤資料、出生時間和性別。"
           }
         }
       }
@@ -12522,19 +12913,42 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "No tracking, no profiling"
+            "value" : "We collect anonymous usage stats only, never your birth details or readings. No cross-app tracking, and we never sell data."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "没有跟踪，没有画像"
+            "value" : "只做匿名使用统计，不包含出生信息和解读内容；不跨 App 跟踪，不卖数据。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "沒有跟蹤，沒有畫像"
+            "value" : "只做匿名使用統計，不包含出生資訊和解讀內容；不跨 App 追蹤，不賣資料。"
+          }
+        }
+      }
+    },
+    "profile.about.privacy4" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Names you enter for compatibility readings and questions you ask are also sent to the AI service to write your answers."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合盘时填写的称呼、问事时输入的问题，也会发给 AI 服务用于生成回答。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "合盤時填寫的稱呼、問事時輸入的問題，也會發給 AI 服務用於生成回答。"
           }
         }
       }
@@ -13126,6 +13540,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "不知命，無以為君子也"
+          }
+        }
+      }
+    },
+    "zodiac.beforeLichun" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "You were born in %1$lld, but in BaZi that year doesn't begin until the Start of Spring (around February 4), so your year pillar belongs to the year before: %2$@."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你生于 %1$lld 年，但八字的 %1$lld 年要到立春（2 月 4 日前后）才开始，所以你的年柱属于上一年：%2$@。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "你生於 %1$lld 年，但八字的 %1$lld 年要到立春（2 月 4 日前後）才開始，所以你的年柱屬於上一年：%2$@。"
           }
         }
       }
@@ -19786,6 +20223,29 @@
           "stringUnit" : {
             "state" : "translated",
             "value" : "生成在後台繼續，可先去瀏覽其他章節"
+          }
+        }
+      }
+    },
+    "deepchain.wait.notifyAsk" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Notify me when it's ready"
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "成书时通知我"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "成書時通知我"
           }
         }
       }

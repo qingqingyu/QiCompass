@@ -839,3 +839,85 @@ final class AddHourFlowTests: XCTestCase {
         return try XCTUnwrap(value, message)
     }
 }
+
+// MARK: - T12 AI 数据授权(D4=B 复选框拍板)
+
+final class DataConsentRecordTests: XCTestCase {
+    override func tearDown() {
+        let suite = UserDefaults(suiteName: "test-data-consent")!
+        suite.removePersistentDomain(forName: "test-data-consent")
+        super.tearDown()
+    }
+
+    private func makeDefaults() -> UserDefaults {
+        let suite = UserDefaults(suiteName: "test-data-consent")!
+        suite.removePersistentDomain(forName: "test-data-consent")
+        return suite
+    }
+
+    func test_recordConsent_writesBothKeys() throws {
+        let d = makeDefaults()
+        XCTAssertFalse(DataConsent.isCurrent(defaults: d), "未同意 → 非当前")
+        DataConsent.recordConsent(defaults: d)
+        XCTAssertTrue(DataConsent.isCurrent(defaults: d))
+        XCTAssertEqual(d.integer(forKey: DataConsent.versionKey), 1)
+        let at = try XCTUnwrap(d.string(forKey: DataConsent.atKey))
+        XCTAssertNotNil(ISO8601DateFormatter().date(from: at), "at 键为 ISO 8601:\(at)")
+    }
+
+    func test_clear_removesBothKeys() {
+        let d = makeDefaults()
+        DataConsent.recordConsent(defaults: d)
+        DataConsent.clear(defaults: d)
+        XCTAssertFalse(DataConsent.isCurrent(defaults: d))
+        XCTAssertNil(d.string(forKey: DataConsent.atKey))
+    }
+
+    func test_versionBelowCurrent_isNotCurrent() {
+        // 老版本同意(文案实质变化 bump 后):必须重新弹补授权
+        let d = makeDefaults()
+        d.set(0, forKey: DataConsent.versionKey)
+        XCTAssertFalse(DataConsent.isCurrent(defaults: d))
+        DataConsent.recordConsent(defaults: d)
+        XCTAssertTrue(DataConsent.isCurrent(defaults: d))
+    }
+
+    // MARK: 启动分流判据(needsRetroConsent,对齐 CompleteOnceGate 纯函数范式;
+    // 测试 target 无 ViewInspector,RootTabView @State 分流本身待真机走查)。
+    // 任务书护栏四场景在判据层的映射:
+    // ① 未授权老用户启动弹 sheet ② 同意后不再弹
+    // ③ 新用户走 onboarding 确认后不弹 ④ 重置后需重新授权
+
+    func test_needsRetroConsent_legacyUserWithoutConsent_isTrue() {
+        // ① 老用户(hasSeenOnboarding=true)无同意记录 → 需要补授权
+        let d = makeDefaults()
+        XCTAssertTrue(DataConsent.needsRetroConsent(hasSeenOnboarding: true, defaults: d))
+    }
+
+    func test_needsRetroConsent_afterConsent_isFalse() {
+        // ② 同意(写入两键)后 → 不再弹
+        let d = makeDefaults()
+        DataConsent.recordConsent(defaults: d)
+        XCTAssertFalse(DataConsent.needsRetroConsent(hasSeenOnboarding: true, defaults: d))
+    }
+
+    func test_needsRetroConsent_newUser_isFalse_onboardingCoversIt() {
+        // ③ 新用户(hasSeenOnboarding=false):不走补授权路径——由确认 sheet
+        // 的必勾复选框覆盖(分流条件互斥,补授权 sheet 不与 onboarding 冲突)
+        let d = makeDefaults()
+        XCTAssertFalse(DataConsent.needsRetroConsent(hasSeenOnboarding: false, defaults: d))
+    }
+
+    func test_needsRetroConsent_afterReset_goesOnboardingNotRetroSheet() {
+        // ④ 重置全部数据:两键被清 + hasSeenOnboarding=false → 判据 false,
+        // 走 onboarding(确认 sheet 重新要求勾选),不直接弹补授权 sheet
+        let d = makeDefaults()
+        DataConsent.recordConsent(defaults: d)
+        DataConsent.clear(defaults: d)
+        XCTAssertFalse(DataConsent.isCurrent(defaults: d))
+        XCTAssertFalse(DataConsent.needsRetroConsent(hasSeenOnboarding: false, defaults: d))
+        // 对照:若只清键而 hasSeenOnboarding 仍为 true(异常态),判据 true
+        // 会弹补授权——不产生「无授权可用 AI」的漏洞
+        XCTAssertTrue(DataConsent.needsRetroConsent(hasSeenOnboarding: true, defaults: d))
+    }
+}

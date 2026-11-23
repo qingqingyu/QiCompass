@@ -1529,3 +1529,118 @@ final class DeepAnalysisViewModelFormTests: XCTestCase {
         XCTAssertGreaterThan(size.width, 0)
     }
 }
+
+// MARK: - T15 当地时制行(localTimeRuleText 纯函数,2026-11-23)
+
+extension DeepAnalysisViewModelFormTests {
+    func testLocalTimeRuleNewYorkSummerDST() {
+        // 纽约 1990-07-15 10:00 当地 → UTC−4 · 夏令时
+        let tz = TimeZone(identifier: "America/New_York")!
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        let date = cal.date(from: DateComponents(year: 1990, month: 7, day: 15, hour: 10))!
+        let text = DeepAnalysisViewModel.localTimeRuleText(
+            date: date, timeZone: tz, hourKnown: true)
+        XCTAssertTrue(text.unicodeScalars.contains(UnicodeScalar(0x2212)!), "负号须为 U+2212:\(text)")
+        XCTAssertTrue(text.contains("UTC\u{2212}4"), "整点负偏移不带分钟:\(text)")
+        XCTAssertTrue(text.contains("夏令时"), text)
+        // dst/std 译文走 bundle(不设 language 参数,见 VM 注释)——
+        // 结构断言:带分隔符的完整形态而非裸偏移
+        XCTAssertTrue(text.contains(" · "), text)
+    }
+
+    func testLocalTimeRuleNewYorkWinterSTD() {
+        // 纽约 1990-01-15 → UTC−5 · 标准时间
+        let tz = TimeZone(identifier: "America/New_York")!
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        let date = cal.date(from: DateComponents(year: 1990, month: 1, day: 15, hour: 10))!
+        let text = DeepAnalysisViewModel.localTimeRuleText(
+            date: date, timeZone: tz, hourKnown: true)
+        XCTAssertTrue(text.contains("UTC\u{2212}5"), text)
+        XCTAssertTrue(text.contains("标准时间"), text)
+    }
+
+    func testLocalTimeRuleShanghai1988ChinaDST() {
+        // 上海 1988-07-15(中国 1986-91 夏令时)→ UTC+9 · 夏令时
+        let tz = TimeZone(identifier: "Asia/Shanghai")!
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        let date = cal.date(from: DateComponents(year: 1988, month: 7, day: 15, hour: 10))!
+        let text = DeepAnalysisViewModel.localTimeRuleText(
+            date: date, timeZone: tz, hourKnown: true)
+        XCTAssertTrue(text.contains("UTC+9"), text)
+        XCTAssertTrue(text.contains("夏令时"), text)
+    }
+
+    func testLocalTimeRuleKolkataHalfHour() {
+        // 加尔各答 → UTC+5:30(半点带分钟)
+        let tz = TimeZone(identifier: "Asia/Kolkata")!
+        let date = Date(timeIntervalSince1970: 600_000_000)
+        let text = DeepAnalysisViewModel.localTimeRuleText(
+            date: date, timeZone: tz, hourKnown: true)
+        XCTAssertTrue(text.contains("UTC+5:30"), text)
+    }
+
+    func testLocalTimeRuleStJohnsNegativeHalfHour() {
+        // 负半点偏移专项(T15 review):St_Johns 1988-01-15 标准时间 −3:30。
+        // Swift `/` 向零截断 → hours=-3、minutes=30 → UTC−3:30;
+        // 若被重构成 floor 语义会得 −4:30,本用例拦截
+        let tz = TimeZone(identifier: "America/St_Johns")!
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        let date = cal.date(from: DateComponents(year: 1988, month: 1, day: 15, hour: 10))!
+        let text = DeepAnalysisViewModel.localTimeRuleText(
+            date: date, timeZone: tz, hourKnown: true)
+        XCTAssertTrue(text.contains("UTC\u{2212}3:30"), "负半点:符号在小时、分钟按绝对值:\(text)")
+        XCTAssertTrue(text.contains("标准时间"), text)
+    }
+
+    func testLocalTimeRuleHourUnknownOffsetOnly() {
+        // 时辰未知 → 只有偏移,不声称夏令时与否
+        let tz = TimeZone(identifier: "America/New_York")!
+        var cal = Calendar(identifier: .gregorian)
+        cal.timeZone = tz
+        let date = cal.date(from: DateComponents(year: 1990, month: 7, day: 15, hour: 12))!
+        let text = DeepAnalysisViewModel.localTimeRuleText(
+            date: date, timeZone: tz, hourKnown: false)
+        XCTAssertTrue(text.hasPrefix("UTC"), text)
+        XCTAssertTrue(text.contains("UTC\u{2212}4"), text)
+        XCTAssertFalse(text.contains("夏令时"), text)
+        XCTAssertFalse(text.contains("标准"), text)
+    }
+
+    func testCombinedBirthDateForDisplay() {
+        // 日期已选 → 合成时刻(与提交口径一致);未选 → nil。
+        // 同文件 extension 可见类内 private vm(Swift 4 起),复用 setUp 脚手架
+        vm.birthDate = Date(timeIntervalSince1970: 600_000_000)
+        XCTAssertNotNil(vm.combinedBirthDateForDisplay)
+        vm.birthDate = nil
+        XCTAssertNil(vm.combinedBirthDateForDisplay)
+    }
+}
+
+// MARK: - T16 排盘等待文案(LoadingStage,2026-11-23)
+
+extension DeepAnalysisViewModelFormTests {
+    func testLoadingStageChartSolarByHourKnown() {
+        // 已知时辰 → 真太阳时文案;时辰未知 → 原「排盘」文案(bundle 结构断言:
+        // 两态不等即证分流;恒等文案下退化为弱断言——当前两文案确实不同)。
+        // 裸 key 断言:String(localized:) 缺 key 时回退返回 key 本身,不加这条
+        // 则「xcstrings 漏录/键名笔误」在两条断言下仍全绿(语言无关,任意 host 语言成立)
+        let known = LoadingStage.calculatingChart(hourKnown: true).text
+        let unknown = LoadingStage.calculatingChart(hourKnown: false).text
+        XCTAssertNotEqual(known, unknown, "两态文案应分流")
+        XCTAssertFalse(known.isEmpty)
+        XCTAssertFalse(unknown.isEmpty)
+        XCTAssertNotEqual(known, "chartcalc.stage.chartSolar", "key 应在 catalog 解析,不得回退裸 key")
+        XCTAssertNotEqual(unknown, "chartcalc.stage.chart", "key 应在 catalog 解析,不得回退裸 key")
+        // Equatable:同 case 同关联值相等;不同关联值不等(状态机安全前提)
+        XCTAssertEqual(
+            LoadingStage.calculatingChart(hourKnown: true),
+            LoadingStage.calculatingChart(hourKnown: true))
+        XCTAssertNotEqual(
+            LoadingStage.calculatingChart(hourKnown: true),
+            LoadingStage.calculatingChart(hourKnown: false))
+    }
+}

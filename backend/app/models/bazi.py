@@ -317,6 +317,10 @@ class BaziCalculateResponse(BaseModel):
     # 年柱不同才给(相同 / 年柱歧义 → None)。仅展示用,不参与任何判断与
     # hash;老响应缺 key → None(客户端 decodeIfPresent 不猜)
     lunar_new_year_year: LunarNewYearYear | None = None
+    # T17(2026-11-23 竞品差评对照):出生在其公历年的立春之前(年柱属上一
+    # 公历年)。年柱歧义 → None。仅展示用,不进 hash / token;老响应缺 key
+    # → None(客户端 decodeIfPresent 不猜)
+    born_before_lichun: bool | None = None
     # 2026-10-20 生肖屏节点句:过去命局节点(四规则取最强 1 个,冷读排除窗后
     # 空池 → None 诚实留白不放宽;只回望 ≤ 上一完整公历年,不预言)。日/月柱
     # 歧义时对应规则自然缺席(不猜);老响应无此字段,Optional 不破坏回显

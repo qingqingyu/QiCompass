@@ -14,6 +14,11 @@ struct BirthInfoConfirmSheet: View {
     let onConfirm: () -> Void
     let onCancel: () -> Void
 
+    /// T12(D4=B 拍板:必勾复选框):未勾选时「确认排盘」置灰。
+    /// 点击确认时写入同意记录后才调 onConfirm(顺序保证:先落盘再排盘)。
+    @State private var consentChecked = false
+    @State private var showPrivacySheet = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: BaziTheme.Spacing.xl) {
             Text("确认出生信息")
@@ -25,6 +30,26 @@ struct BirthInfoConfirmSheet: View {
                 infoRow(label: L10n.BirthForm.birthDateLabel, value: vm.wallBirthDateString ?? "—")
                 // S04 时辰未知:无时辰态明示「未知(半夜:是/否/不确定)」,防误提交
                 infoRow(label: L10n.BirthForm.birthTimeLabel, value: vm.confirmBirthTimeText)
+                // T15(2026-11-23):当地时制行(偏移 + 当时夏令时/标准时间;
+                // 时辰未知只显示偏移——12:00 占位不足以声称夏令时与否)。
+                // 取不到时区 → 整行不显示并记日志(不猜设备时区)
+                if let tzName = BirthPlaceResolver.effectiveTimezoneName(vm.selectedPlace),
+                   let tz = TimeZone(identifier: tzName),
+                   let ruleDate = vm.combinedBirthDateForDisplay {
+                    let ruleText = DeepAnalysisViewModel.localTimeRuleText(
+                        date: ruleDate, timeZone: tz, hourKnown: vm.hourKnown)
+                    infoRow(label: L10n.BirthForm.tzLabel, value: ruleText)
+                } else if vm.birthDate != nil {
+                    // body 内不能裸调非 View 表达式:日志移入 Color.clear 的
+                    // task(一次性,视图重算不重放)——对齐仓内 degradedBody
+                    /// onAppear 打点范式
+                    Color.clear
+                        .frame(height: 0)
+                        .task {
+                            AppLogger.app.warning(
+                                "op=birthConfirm.tzRow missing_timezone_or_date place=\(vm.selectedPlace?.displayLabel ?? "nil", privacy: .public)")
+                        }
+                }
                 // 性别未选(2026-09-19 去默认值):此 sheet 弹在 validateForm 之前,
                 // 诚实展示「未选择」,提交在 calculate 内被 formInvalid 拦截(与日期「—」同口径)
                 infoRow(label: String(localized: "性别"), value: genderText)
@@ -41,9 +66,19 @@ struct BirthInfoConfirmSheet: View {
                     .fixedSize(horizontal: false, vertical: true)
             }
 
+            // T12(2026-11-23,D4=B 拍板):AI 数据授权——必勾复选框 + 隐私说明
+            // 链接(与老用户补授权 sheet 共用 DataConsentBlock,单一实现)。
+            // Apple 5.1.2(i):交第三方 AI 前明确披露 + 明确许可。
+            DataConsentBlock(isOn: $consentChecked) {
+                showPrivacySheet = true
+            }
+            .padding(.bottom, BaziTheme.Spacing.xs)
+
             VStack(spacing: BaziTheme.Spacing.sm) {
                 Button(action: {
+                    guard consentChecked else { return }
                     HapticEngine.medium()
+                    DataConsent.recordConsent()
                     onConfirm()
                 }) {
                     Text("确认排盘")
@@ -51,8 +86,11 @@ struct BirthInfoConfirmSheet: View {
                         .foregroundStyle(BaziTheme.onInkDeep)
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, BaziTheme.Spacing.md)
-                        .background(BaziTheme.inkDeep, in: RoundedRectangle(cornerRadius: 5))
+                        .background(
+                            consentChecked ? BaziTheme.inkDeep : BaziTheme.inkDeep.opacity(0.3),
+                            in: RoundedRectangle(cornerRadius: 5))
                 }
+                .disabled(!consentChecked)
                 .accessibilityHint("用以上信息排盘，进入今日运势")
 
                 Button(action: { onCancel() }) {
@@ -68,6 +106,9 @@ struct BirthInfoConfirmSheet: View {
         .padding(BaziTheme.Spacing.lg)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(BaziTheme.paper)
+        .sheet(isPresented: $showPrivacySheet) {
+            PrivacyInfoSheet()
+        }
         .onAppear {
             // 规则 1:用户主动触发的入口日志(便于排查"sheet 没弹 / 反复弹")
             AppLogger.app.info("BirthInfoConfirmSheet.shown birth=\(vm.wallBirthDateString ?? "nil") time=\(vm.confirmBirthTimeText, privacy: .public) gender=\(vm.gender ?? "nil", privacy: .public) place=\(vm.selectedPlace?.displayLabel ?? "nil", privacy: .public)")

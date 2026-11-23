@@ -1,5 +1,6 @@
 import SwiftData
 import UIKit
+import UserNotifications
 import XCTest
 @testable import QiCompass
 
@@ -119,6 +120,11 @@ final class ChainCompletionNotifierTests: XCTestCase {
         func requestAuthorizationOnce() async {}
 
         func isAuthorized() async -> Bool { false }
+
+        // T19:协议扩了完整授权状态;spy 默认未决定(按钮可见路径)
+        func authorizationStatus() async -> UNAuthorizationStatus {
+            .notDetermined
+        }
 
         func notifyBookComplete(chapterCount: Int, isOwned: Bool) async {
             completions.append((chapterCount, isOwned))
@@ -250,5 +256,35 @@ final class ChainCompletionNotifierTests: XCTestCase {
             try? await Task.sleep(nanoseconds: 30_000_000)
         }
         return condition()
+    }
+}
+
+// MARK: - T19 未决定态按钮显隐(2026-11-23)
+
+extension ChainCompletionNotifierTests {
+    /// 三态 → 视图两布尔(refreshNotifyState 的判定矩阵)。视图 @State 不可
+    /// 直测(无 ViewInspector),判定收口在生产纯函数 ChainNotifyUI.resolve
+    /// ——直接断言它:授权三态(provisional/ephemeral 视同 authorized,
+    /// isAuthorized 同口径)+ notDetermined + denied。
+    func test_notifyButtonVisibilityMatrix() {
+        let cases: [(UNAuthorizationStatus, authorized: Bool, undetermined: Bool)] = [
+            (.authorized, true, false),
+            (.provisional, true, false),
+            (.ephemeral, true, false),
+            (.notDetermined, false, true),
+            (.denied, false, false),
+        ]
+        for (status, authorized, undetermined) in cases {
+            let ui = ChainNotifyUI.resolve(status: status)
+            XCTAssertEqual(ui.showsAuthorizedRow, authorized, "\(status)")
+            XCTAssertEqual(ui.showsAskButton, undetermined, "\(status)")
+        }
+    }
+
+    /// spy 默认未决定(T19 路径:按钮可见)。
+    func test_spyDefaultAuthorizationStatusNotDetermined() async {
+        let spy = SpyChainNotifier()
+        let status = await spy.authorizationStatus()
+        XCTAssertEqual(status, .notDetermined)
     }
 }

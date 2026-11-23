@@ -2,7 +2,8 @@ import SwiftUI
 
 /// 排盘口径说明页(T3,2026-11-22 竞品差评对照)。
 ///
-/// 三节静态说明:真太阳时校正 / 立春 vs 农历新年换年 / 生肖年份五行 vs 日主——
+/// 四节静态说明:真太阳时校正 / 立春 vs 农历新年换年 / 生肖年份五行 vs 日主 /
+/// 子时换日(T18)——
 /// 用户拿别家 App 或生肖网站对照本盘出现差异时,「不是算错,是口径不同」的
 /// 解释页。正文三语在 xcstrings(chartBasis.*)。样式:hairline 分节,不用
 /// 卡片、不用朱红(DESIGN.md 说明类信息纪律)。
@@ -18,7 +19,7 @@ struct ChartBasisSheet: View {
     @Environment(\.dismiss) private var dismiss
 
     var body: some View {
-        // ScrollView:三节长文(EN 正文最长约 570 字符)在 SE 级小屏默认字号下
+        // ScrollView:四节长文(单节 EN 正文最长 433 字符)在 SE 级小屏默认字号下
         // 即超出 sheet 视口,不滚动会裁掉尾部与关闭按钮(BaziFont 定字号不随
         // Dynamic Type 缩放,同 AddHourSheet/PartnerPickerSheet 均滚动)。
         ScrollView {
@@ -53,6 +54,15 @@ struct ChartBasisSheet: View {
             section(
                 title: L10n.ChartBasis.dayMasterTitle,
                 bodyText: L10n.ChartBasis.dayMasterBody)
+
+            hairline
+
+            // T18(2026-11-23):第四节「子时怎么算」(扩展 T3;文案不提
+            // 「可在设置中更改」——子时设置已于 2026-10-18 拔除,v1 锁
+            // 23:00 换日)
+            section(
+                title: L10n.ChartBasis.ziTitle,
+                bodyText: L10n.ChartBasis.ziBody)
 
             Button {
                 dismiss()

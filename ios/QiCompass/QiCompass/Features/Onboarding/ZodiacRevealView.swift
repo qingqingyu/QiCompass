@@ -50,9 +50,10 @@ struct ZodiacRevealView: View {
     /// `L10n.Onboarding.revealNodeSentenceText` 按拼好传入)。
     /// nil = 空池/规则缺席/老响应/kind 未知,该行诚实不渲染。默认 nil 兼容既有测试直构。
     var nodeSentence: String? = nil
-    /// T6(2026-11-22 竞品差评对照):农历新年 vs 立春生肖不一致对照句(K4,
-    /// 已拼好,`OnboardingView.lnyMismatchText`)。nil = 两口径相同 / 老响应 /
-    /// 年柱歧义 → 不渲染,不猜。点击打开排盘口径说明页(带个性化行)。
+    /// T6/T17(竞品差评对照):生肖口径说明行——K4(农历新年≠立春,优先)或
+    /// K5(生于公历年立春前),**同屏最多一条**(任务书第二批 Review 检查点 5);
+    /// 已拼好(`OnboardingView.lnyMismatchText` / `beforeLichunText`)。
+    /// nil = 两条都不命中 → 不渲染,不猜。点击打开排盘口径说明页(带个性化行)。
     var lnyMismatchLine: String? = nil
     /// CTA 点击回调(进深度解析 tab,2026-08-31 改)。
     let onComplete: () -> Void
