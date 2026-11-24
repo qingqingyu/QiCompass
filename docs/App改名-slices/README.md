@@ -1,0 +1,24 @@
+# App 改名 KnowFate · 知命 — 实施分割索引
+
+Parent 决策:`docs/App改名KnowFate设计决策.md`(拍板 3 项 + 落点总表 + 默认取舍 + 风险)。
+6 个 slice。**S01 是前置关卡**:名称与商标核查通过之前,S02–S06 一律不开工。
+
+## 实施顺序
+
+| Slice | 标题 | 类型 | Blocked by | 一句话 |
+|---|---|---|---|---|
+| S01 | [名称与商标核查](S01-名称与商标核查.md) | **HITL** | 无 | App Store 里能否占到 KnowFate / 知命,有没有同名产品或商标冲突;结论写回决策文档 |
+| S02 | [新图标与品牌印「知」](S02-新图标与品牌印.md) | AFK + HITL 选稿 | S01 | 按现有「玄」图标构图出 3 版「知」图标,用户选定后替换 AppIcon |
+| S03 | [iOS 界面品牌字样](S03-iOS界面品牌字样.md) | AFK + HITL 选文案 | S01(可与 S02 并行) | 主屏幕名、启动页、引导页、喜忌行印、「我的」页、重启提示;三语词条;字体子集校验 |
+| S04 | [App Store 资料与法务页](S04-AppStore资料与法务页.md) | AFK 起草 + HITL 提交 | S01、S02(截图需新图标) | 三语商店名 / 副标题 / 描述 / 关键词 / 截图文案;隐私政策与支持页 |
+| S05 | [设计系统、官网与文档同步](S05-设计系统官网与文档同步.md) | AFK | S01 | DESIGN.md、官网设计稿印章「玄」→「知」、项目文档 |
+| S06 | [真机走查与送测](S06-真机走查与送测.md) | **HITL** | S02、S03、S04 | 真机 / 三语 / 亮暗截图走查,TestFlight 送测说明 |
+
+## 全系列红线
+
+- **不改任何内部标识**(Bundle ID、内购 ID、App Group、苹果登录 ID、`QICOMPASS_*` 环境变量、数据库表、`X-QiCompass-Lang`、工程 / 模块 / 文件名)。`check_sku_sync.py` 必须保持 PASS 且 diff 中不出现 `com.qicompass` 的改动
+- **只换字,不改设计**:印章、竖排、字距标的尺寸 / 动效 / 构图沿用现状(两字的「知命」替换四字的「玄机问道」时,只调字距和留白,在 S03 里给出截图对比)
+- **新增中文界面字后**必须 `python3 tools/build_songti_fonts.py --verify` PASS(CLAUDE.md 字体护栏);「知」「命」在 GBK 子集内,但新副题文案的字要验
+- **新 .swift / .xcstrings 文件须 pbxproj 4 处登记**(CLAUDE.md iOS 约束,漏登记 = 静默不编译)
+- 文案红线同 App:不写「算命 / 预测 / 准确 / 改运」
+- commit 三段式;每个 slice 至少一个独立 commit
