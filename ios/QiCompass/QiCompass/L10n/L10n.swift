@@ -1940,6 +1940,42 @@ enum L10n {
         static let auxTaiYuan = String(localized: "deepanalysis.aux.taiYuan")
     }
 
+    // MARK: - 账号删除(2026-11-24,Apple 5.1.1(v);ProfileView 设置区行)
+
+    enum AccountDelete {
+        /// 行标签。zh: "删除账号"
+        static let row = String(localized: "account.delete.row")
+
+        /// 确认标题。zh: "永久删除账号?"
+        static let confirmTitle = String(localized: "account.delete.confirmTitle")
+
+        /// 确认正文(外评 3.4 条件 3:明示本机保留 + 指引重置命盘;含 3.1 的
+        /// 「已购章节与问事余额无法恢复」明示——Apple 允许删号丢内容,须说清)。
+        static let confirmBody = String(localized: "account.delete.confirmBody")
+
+        /// 确认按钮(destructive)。zh: "永久删除"
+        static let confirmButton = String(localized: "account.delete.confirmButton")
+
+        /// 取消。zh: "取消"
+        static let cancel = String(localized: "account.delete.cancel")
+
+        /// 成功提示。zh: "账号已删除。手机上的命盘已保留。"
+        static let done = String(localized: "account.delete.done")
+
+        /// 失败标题。zh: "删除失败"
+        static let failed = String(localized: "account.delete.failed")
+
+        /// Apple 重认证失败文案(format 串,%@ = 错误描述)。
+        /// zh: "Apple 认证失败:%@"
+        static let appleAuthFailedFormat = String(localized: "account.delete.appleAuthFailed")
+
+        /// DELETE 网络失败兜底。zh: "网络错误,账号未删除,请重试"
+        static let networkFailed = String(localized: "account.delete.networkFailed")
+
+        /// Apple 未返回认证码。zh: "Apple 未返回认证码,请重试"
+        static let noAuthCode = String(localized: "account.delete.noAuthCode")
+    }
+
     // MARK: - AI 数据授权(T12,2026-11-23;老用户补授权 sheet)
 
     /// 老用户补授权(D4=B:sheet 也带复选框,勾选后「同意并继续」可用)。

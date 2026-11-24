@@ -119,6 +119,17 @@ enum APICoder {
 /// 深度模块长文实际生成 ~3000-4000 token 预计 40-90s。
 /// 不重试(脚手架阶段,重试策略留待各模块 slice)。
 /// 返回 DTO,不直接返回 SwiftData @Model;DTO 与 @Model 转换由调用方显式映射。
+
+extension APIClient {
+    /// 2026-11-24 账号删除(Apple 5.1.1(v))。默认实现显式抛错——
+    /// Live/Mock 各自覆盖;不关心删号路径的测试替身走到此处 = 契约缺口
+    /// 被测试捕获(不静默返回假成功)。
+    func deleteAccount(appleAuthorizationCode: String?) async throws -> DeleteAccountResponse {
+        throw UserFacingError.generic(
+            message: "此 APIClient 实现未提供账号删除(仅 Live/Mock 实现;测试替身不应触达)")
+    }
+}
+
 final class LiveAPIClient: APIClient {
     private let session: URLSession
     private let baseURL: URL
@@ -231,6 +242,15 @@ final class LiveAPIClient: APIClient {
     func askRedeem(request: AskRedeemRequest) async throws -> AskRedeemResponse {
         let (data, _) = try await send(.askRedeem, body: request)
         return try decode(data, as: AskRedeemResponse.self, endpoint: .askRedeem)
+    }
+
+    // 2026-11-24 账号删除(Apple 5.1.1(v)):Apple 账号须先重认证拿新鲜
+    // authorizationCode(后端换 token 验归属后吊销再删);Google 账号 code 传 nil
+    func deleteAccount(appleAuthorizationCode: String?) async throws -> DeleteAccountResponse {
+        let (data, _) = try await send(
+            .accountDelete,
+            body: DeleteAccountRequest(appleAuthorizationCode: appleAuthorizationCode))
+        return try decode(data, as: DeleteAccountResponse.self, endpoint: .accountDelete)
     }
 
     // 章末「准 / 不准」反馈(2026-11-15):调用方 fire-and-forget,失败记日志不重试
@@ -623,6 +643,13 @@ final class MockAPIClient: APIClient {
         AppLogger.networking.debug("mock.entitlementList 返空")
         try? await Task.sleep(nanoseconds: 100_000_000)
         return EntitlementListResponse(entitlements: [])
+    }
+
+    // 2026-11-24:Mock 删号返成功(Mock 模式后端不存在,本地登出照常)
+    func deleteAccount(appleAuthorizationCode: String?) async throws -> DeleteAccountResponse {
+        AppLogger.networking.debug("mock.deleteAccount code_present=\(appleAuthorizationCode != nil)")
+        try? await Task.sleep(nanoseconds: 150_000_000)
+        return DeleteAccountResponse(deleted: true, userIdPrefix: "mockuser", tables: [:])
     }
 
     // PR2.5:Mock sign-in 返 fake JWT(测试用,不真调后端 /api/auth/sign-in)

@@ -125,6 +125,22 @@ class UserStore:
             conn.execute(CREATE_TABLE_SQL)
             conn.execute(CREATE_INDEX_PROVIDER_SQL)
 
+    def user_exists(self, user_id: str) -> bool:
+        """账号是否存在(删号后 JWT 残留的拒判用,2026-11-24)。"""
+        with self._connect() as conn:
+            return conn.execute(
+                "SELECT 1 FROM qicompass_user WHERE id = ?", (user_id,)
+            ).fetchone() is not None
+
+    def delete_account_data(self, user_id: str) -> dict[str, int]:
+        """删除该账号全部服务端数据(委托 account_deletion 单事务)。
+
+        挂在本 store 是为了测试可注入(路由经 app.state.user_store 拿到
+        tmp 路径实例,无需另开 DB_PATH 注入口)。
+        """
+        from .account_deletion import delete_user_data
+        return delete_user_data(self._db_path, user_id)
+
     def upsert_by_provider(
         self, provider: str, provider_user_id: str, email: str | None = None,
     ) -> User:

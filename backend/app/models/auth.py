@@ -37,3 +37,30 @@ class SignInResponse(BaseModel):
     token_type: str = Field(default="Bearer")
     user_id: str = Field(..., description="服务端 User.id(UUID)")
     expires_at: str = Field(..., description="access_token 过期时间(ISO 8601 UTC)")
+
+
+class DeleteAccountRequest(BaseModel):
+    """DELETE /api/auth/account 请求体(2026-11-24,Apple 5.1.1(v))。
+
+    Apple 用户必带 apple_authorization_code:删号前 iOS 先让用户重新
+    Sign in with Apple 拿新鲜 code,后端换 token 并吊销(Apple 硬性要求;
+    重新认证同时证明操作者掌握被删账号的 Apple 凭据)。Google 用户无需
+    (后端不存 Google token,无可吊销)。
+    """
+
+    apple_authorization_code: str | None = Field(
+        default=None,
+        description="iOS 重新 Sign in with Apple 拿到的一次性 authorization "
+                    "code(Apple 账号必填;Google 账号不带)",
+        min_length=1,
+    )
+
+
+class DeleteAccountResponse(BaseModel):
+    """DELETE /api/auth/account 响应体。"""
+
+    deleted: bool = Field(default=True, description="恒 true(失败走错误响应)")
+    user_id_prefix: str = Field(
+        ..., description="被删账号 id 前 8 位(审计显示用,不含完整标识)")
+    tables: dict[str, int] = Field(
+        ..., description="各表受影响行数(审计摘要;不含任何身份数据)")

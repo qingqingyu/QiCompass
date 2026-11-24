@@ -55,6 +55,26 @@ ON chapter_feedback (content_hash, module, client_ip, substr(created_at, 1, 10))
 _LOOKUP_COLUMNS = "prompt_version, provider, model"
 
 
+def _hash_ip(ip: str) -> str:
+    """client_ip → HMAC 摘要(2026-11-24 账号删除批,外评 3.3 拍板)。
+
+    原先存明文 IP 且无过期,隐私政策须永久披露;改 HMAC 后去重/防刷语义
+    不变(同 IP 同日恒撞同一摘要),服务端不再持有可识读的 IP。密钥从
+    JWT_SECRET_KEY 域分隔派生(与 context_token 同先例:轮换 JWT 密钥 =
+    轮换本摘要密钥;轮换后旧行的去重窗口最多损失当日一次,可接受)。
+    """
+    import hashlib
+    import hmac as _hmac
+
+    from ..config import JWT_SECRET_KEY
+
+    return _hmac.new(
+        JWT_SECRET_KEY.encode("utf-8"),
+        b"chapter-feedback-ip-v1:" + ip.encode("utf-8"),
+        hashlib.sha256,
+    ).hexdigest()
+
+
 class FeedbackOutcome(str, enum.Enum):
     """record() 的三种结果(端点按值记日志;三者对客户端回应相同)。"""
 
@@ -69,10 +89,23 @@ class ChapterFeedbackStore:
         self._daily_ip_limit = daily_ip_limit
 
     def init_schema(self) -> None:
-        """建表 + 唯一索引(幂等)。失败向上抛 → lifespan 启动报错(不吞)。"""
+        """建表 + 唯一索引(幂等)+ 存量明文 IP 一次性 HMAC 清洗。
+
+        清洗判据:明文 IPv4/IPv6 含 '.' 或 ':',十六进制摘要两者皆无。
+        失败向上抛 → lifespan 启动报错(不吞)。
+        """
         with sqlite3.connect(self._db_path) as conn:
             conn.execute(CREATE_TABLE_SQL)
             conn.execute(CREATE_DEDUP_INDEX_SQL)
+            rows = conn.execute(
+                "SELECT id, client_ip FROM chapter_feedback "
+                "WHERE client_ip LIKE '%.%' OR client_ip LIKE '%:%'"
+            ).fetchall()
+            for row_id, raw_ip in rows:
+                conn.execute(
+                    "UPDATE chapter_feedback SET client_ip=? WHERE id=?",
+                    (_hash_ip(raw_ip), row_id),
+                )
 
     def record(
         self,
@@ -91,6 +124,8 @@ class ChapterFeedbackStore:
         """
         now = datetime.now(timezone.utc)
         today = now.strftime("%Y-%m-%d")
+        # 2026-11-24:入库与两道闸统一用 HMAC 摘要(不存明文 IP)
+        ip_key = _hash_ip(client_ip)
 
         with sqlite3.connect(self._db_path) as conn:
             # 幂等闸:同 (hash, module, ip, 日) 已有 → 不再落
@@ -98,7 +133,7 @@ class ChapterFeedbackStore:
                 "SELECT 1 FROM chapter_feedback "
                 "WHERE content_hash=? AND module=? AND client_ip=? "
                 "AND substr(created_at, 1, 10)=? LIMIT 1",
-                (content_hash, module, client_ip, today),
+                (content_hash, module, ip_key, today),
             ).fetchone()
             if dup is not None:
                 return FeedbackOutcome.DUPLICATE
@@ -107,7 +142,7 @@ class ChapterFeedbackStore:
             ip_count = conn.execute(
                 "SELECT COUNT(*) FROM chapter_feedback "
                 "WHERE client_ip=? AND substr(created_at, 1, 10)=?",
-                (client_ip, today),
+                (ip_key, today),
             ).fetchone()[0]
             if ip_count >= self._daily_ip_limit:
                 return FeedbackOutcome.RATE_LIMITED
@@ -128,7 +163,7 @@ class ChapterFeedbackStore:
                         meta.get("prompt_version"),
                         meta.get("provider"),
                         meta.get("model"),
-                        client_ip,
+                        ip_key,
                         now.isoformat(),
                     ),
                 )
