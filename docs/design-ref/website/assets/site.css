@@ -1,5 +1,5 @@
 /* ==========================================================================
-   QiCompass Web — 水墨孤本 (Ink-Wash Folio) design tokens + components
+   KnowFate Web — 水墨孤本 (Ink-Wash Folio) design tokens + components
    Source of truth for values: /DESIGN.md (iOS). This file is the WEB mapping.
    Mockup only: the implementing agent ports these tokens to Astro (site/).
    ========================================================================== */
@@ -107,7 +107,7 @@ img, svg { display: block; max-width: 100%; }
 .el-metal { color: var(--metal); } .el-water { color: var(--water); }
 
 /* ---------- 3. Type roles ---------- */
-.kicker {               /* latinCaps — QICOMPASS 字距标 */
+.kicker {               /* latinCaps — KNOWFATE 字距标 */
   font: 500 11px/1.4 var(--f-sans); letter-spacing: .32em; text-transform: uppercase; color: var(--ink-muted);
 }
 .kicker .dot { display: inline-block; width: 5px; height: 5px; background: var(--cinnabar); transform: rotate(45deg); margin: 0 .9em 2px; vertical-align: middle; }

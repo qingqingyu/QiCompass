@@ -1,4 +1,4 @@
-# QiCompass 官网设计稿 · 水墨孤本 × SEO(2026-11-24)
+# KnowFate 官网设计稿 · 水墨孤本 × SEO(2026-11-24)
 
 > 交付对象:负责实现的 AI / 工程师。本目录是**设计稿 + 实现规格**,不是生产代码。
 > 上游决策:`docs/SEO站设计决策.md`(11-02 拍板 8 项,本稿全部沿用)、`DESIGN.md`(水墨孤本视觉事实源)、`docs/后端部署设计决策.md` D4(域名 `knowfate.app`)。
@@ -20,7 +20,7 @@
 
 ---
 
-## 1. 从 Rasty / Vault Air 案例提炼的原则 → 落到 QiCompass
+## 1. 从 Rasty / Vault Air 案例提炼的原则 → 落到 KnowFate(原 QiCompass)
 
 | 案例里的做法 | 为什么有效 | 本站怎么落地 |
 |---|---|---|
@@ -146,7 +146,7 @@ JSON-LD:`Article`(含 `dateModified`、`citation`)+ `BreadcrumbList` + `FAQPage`
 ## 6. 技术 SEO 清单
 
 - **Astro 静态输出**(决策 5),页面内容在 HTML 里;JS 只做增强。看板宣称的「关闭 JS 可读」是验收项
-- title 模式:`{主词}: {副词} | QiCompass`,主词放最前,≤60 字符(超出时去掉品牌后缀);meta description 140–160 字符,写成一句完整的回答
+- title 模式:`{主词}: {副词} | KnowFate`,主词放最前,≤60 字符(超出时去掉品牌后缀);meta description 140–160 字符,写成一句完整的回答
 - 每页:`canonical`、`hreflang`(en / zh-Hant / x-default)、OG / Twitter 标签、`og:image` 自动生成(看板里的 1200×630 模板:左标题、右墨圆大字,Satori 构建时渲染)
 - `sitemap-index.xml` 按类型分片(`sitemap-day-master.xml`…),带 `lastmod`;`robots.txt` 屏蔽 `/*?d=` 这类参数 URL
 - 结构化数据见 §4;`Organization`、`WebSite` 放在全站 `@graph`;App 上架后首页加 `MobileApplication`
@@ -221,9 +221,26 @@ Web 字号阶梯(桌面 → 手机,用 clamp):Display 76→40 / H1 54→34 / H2 
 - 引入 Astro 已获同意(决策 5);**Newsreader 字体、Satori(OG 图)属于新依赖,按 CLAUDE.md 要先征得同意**
 - zh-hant 版:同一模板换 `--f-zh-tc`、`lang="zh-Hant"`;中文页面的 H1 可以改成竖排题签 + 横排标题双写(竖排部分 `aria-hidden`,H1 文本保持横排)
 
-## 12. 待你拍板
+## 12. 已拍板(2026-11-24)
 
-1. **品牌名与域名**:页面上写 QiCompass,域名是 knowfate.app——要不要在站内统一成同一个名字(例如 "QiCompass · Know Fate")?
-2. 英文标题字体用 **Newsreader**(开源,需要你同意引入),还是换成更古典的 EB Garamond?
-3. 上线顺序:按决策 7,先上内容页 + 邮箱表单,排盘器等后端部署后再开——维持不变?
-4. 公开联系邮箱(隐私政策页需要)。
+| # | 问题 | 结论 | 设计稿上的落地 |
+|---|---|---|---|
+| 1 | 品牌名 vs 域名 | **网站和 App 之后都改名 KnowFate** | 设计稿全部品牌字样已换成 KnowFate / KNOWFATE;App 侧改名(显示名、App Store 名称、元数据)另行立项,不在本稿范围 |
+| 2 | 英文标题字体 | **Newsreader**(已同意引入) | 上线时自托管 woff2 子集,只 preload 一个字重;Satori(OG 图生成)仍需单独征得同意 |
+| 3 | 上线顺序 | **先上内容页**(维持决策 7) | 见下方「分期上线」 |
+| 4 | 公开联系邮箱 | **域名邮箱 `hello@knowfate.app`** | Cloudflare Email Routing 转发到私人邮箱(私人邮箱不出现在任何页面);已写进全站页脚与首页 FAQ;隐私政策页同用此地址 |
+
+### 分期上线(问题 3 的展开)
+
+后端服务器还没采购,排盘器上线前**任何页面都不能出排盘结果**(客户端禁止历法计算)。所以第一期:
+
+| 页面 / 组件 | 第一期(仅内容) | 第二期(后端就绪) |
+|---|---|---|
+| 首页 hero 表单 | 换成「Notify me when the calculator opens」邮箱表单 + 「Browse the library」次按钮;右侧时辰盘保留(纯本地时间,不涉及排盘) | 换回排盘表单 |
+| `/en/bazi-calculator` | **第一期就上线**,让这个最重要的 URL 早点开始积累收录:保留 H1、答案段、方法论四格、FAQ;生辰帖换成虚线锁框 + 「Opening soon」+ 邮箱表单;没有结果区 | 打开完整工具 |
+| 日主查询小工具(知识页右栏 / `/en/day-master-calculator`) | 隐藏右栏小工具,换成「附日主速查」:列出 10 个日主入口;独立页暂不上 | 接 `/api/public/chart` |
+| 知识页 / Library / 指南 | 全部上线 | — |
+| 「今日」条 / `/en/today` | 构建时由后端脚本离线生成静态数据(构建期调用,不在浏览器计算)。如果构建环境调不到引擎,就整块隐藏 | 正常 |
+| App CTA | 「Notify me at launch」 | App 上架后切成 App Store 徽章 |
+
+两期之间只是改配置开关(`features.calculator`、`cta.state`),模板不分叉。

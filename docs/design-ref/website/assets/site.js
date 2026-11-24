@@ -1,4 +1,4 @@
-/* QiCompass Web — shared progressive enhancements (mockup).
+/* KnowFate Web — shared progressive enhancements (mockup).
    Rule: every page must be fully readable & crawlable with this file disabled.
    Everything here is enhancement: popovers, scrollspy, reveal, sticky CTA, mini tools. */
 (function () {
