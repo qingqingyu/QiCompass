@@ -12,10 +12,11 @@
    |---|---|---|
    | zh-Hans | 观命 KnowFate · 八字命书 | 专业排盘 · 深度命书 · 今日宜忌(不变) |
    | zh-Hant | 觀命 KnowFate · 八字命書 | 專業排盤 · 深度命書 · 今日宜忌(不变) |
-   | en | KnowFate: Bazi Reading | (沿用现有英文副标题) |
+   | en | **KnowFate - Chinese Astrology**(28,用户指定,决策 4) | Your chart, read like a book(28,沿用) |
 
    - 名称以 S01 实测能保存的为准;字数逐个复核
    - 关键词:**不得重复名称里已有的词**(App Store 规则),原关键词里如有「观命」「KnowFate」相关词要删;腾出的字数补长尾词
+   - **en 关键词必改**:现有 `four pillars,chinese astrology,compatibility,daily horoscope,wuxing,heavenly stems,daily fortune` 里的 `chinese astrology` 与新名称重复,要删;新名称不含 Bazi,而 bazi 是本品类核心搜索词,**必须补进关键词**(例如 `bazi,four pillars,compatibility,daily horoscope,wuxing,heavenly stems,day master,ten gods`,以 ≤100 字符实测为准)
    - 描述首句「QiCompass 是一本认真排盘的八字命书」→「观命(KnowFate)是一本……」(繁体「觀命」);en 同理
    - 截图标题(6 张)里如有品牌名同步替换
    - 版权:`2026 KnowFate`
