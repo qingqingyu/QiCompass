@@ -13,7 +13,7 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - `i18n-zh-hant-plan.md` — 繁体 + App 内语言切换方案(2026-09-07,D1-D10 决策 + S1-S7 slice,修订 08-12 plan 两项;10-01 增补 D9 单一语言开关 + D10 切语言翻译原文)
 - `docs/后端部署设计决策.md` — 后端生产部署方案(2026-09-30 草案,10-10 更新;D1-D6 已拍板 2026-11-15:Vultr 东京 2c2g / Docker Compose / knowfate.app / R2;S1-S2 已落地,S4 服务器实操待采购)
 - `docs/design-ref/website/` + `docs/官网实现-slices/` — 官网 knowfate.app 设计稿与实现规格(2026-11-24;README.md 为规格事实源)+ 12 个实施 slice(一期内容站 S01-S08,二期排盘器 S09-S12)
-- `docs/App改名KnowFate设计决策.md` + `docs/App改名-slices/` — App 改名 KnowFate · 知命(2026-11-24 拍板:中文名知命 / 图标与品牌印「知」/ 内部标识全部不改;S01 名称商标核查为前置关卡)
+- `docs/App改名KnowFate设计决策.md` + `docs/App改名-slices/` — App 改名 KnowFate · 观命(2026-11-24 拍板:中文名观命(繁 觀命;初定知命因同品类撞名放弃)/ 图标与品牌印「观」/ 内部标识全部不改;S01 名称商标核查为前置关卡,待用户 App Store Connect 实测)
 
 ## 全局约束（继承 ~/.claude/CLAUDE.md）
 
