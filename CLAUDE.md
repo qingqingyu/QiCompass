@@ -12,6 +12,7 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - `i18n-implementation-plan.md` — i18n 战略与执行决策(2026-08-12,v1 中英)
 - `i18n-zh-hant-plan.md` — 繁体 + App 内语言切换方案(2026-09-07,D1-D10 决策 + S1-S7 slice,修订 08-12 plan 两项;10-01 增补 D9 单一语言开关 + D10 切语言翻译原文)
 - `docs/后端部署设计决策.md` — 后端生产部署方案(2026-09-30 草案,10-10 更新;D1-D6 已拍板 2026-11-15:Vultr 东京 2c2g / Docker Compose / knowfate.app / R2;S1-S2 已落地,S4 服务器实操待采购)
+- `docs/design-ref/website/` + `docs/官网实现-slices/` — 官网 knowfate.app 设计稿与实现规格(2026-11-24;README.md 为规格事实源)+ 12 个实施 slice(一期内容站 S01-S08,二期排盘器 S09-S12)
 
 ## 全局约束（继承 ~/.claude/CLAUDE.md）
 
