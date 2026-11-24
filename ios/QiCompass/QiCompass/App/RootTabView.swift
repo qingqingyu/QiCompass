@@ -33,10 +33,13 @@ struct RootTabView: View {
     /// 冷启动品牌转场(水墨孤本开机页,DESIGN.md §Motion)。每次冷启动播放,1.6s 内淡出。
     @State private var showSplash = true
 
-    /// T12(2026-11-23):老用户 AI 数据授权补授权(Apple 5.1.2(i))。
-    /// 启动时 onboarding 已完成但同意记录缺/落后 → 弹不可下滑关闭的
-    /// DataConsentSheet;同意后落盘不再弹(重置全部数据会清记录重弹)。
-    @State private var showDataConsent = false
+    /// T12 + P1 修复(2026-11-24 外评):补授权未完成时**不挂载 TabView**——
+    /// 此前 .sheet 悬浮时 Today tab 已 onAppear 自动起链生成解读,出生数据
+    /// 先于同意外发到 AI。改为根级条件渲染:gate=true 只渲染 DataConsentSheet
+    /// (全屏,无主 UI 可交互),同意后落盘翻 false 才挂载主界面。初始化直读
+    /// UserDefaults(@AppStorage 包装属性在同类属性初始化时不可引用)。
+    @State private var dataConsentGate = UserDefaults.standard.bool(
+        forKey: "hasSeenOnboarding") && !DataConsent.isCurrent()
 
     enum Tab: Hashable {
         case dailyFortune
@@ -57,6 +60,24 @@ struct RootTabView: View {
     }
 
     var body: some View {
+        if dataConsentGate {
+            // P1(2026-11-24):同意门——补授权完成前不挂载任何 tab/AI 链路。
+            // DataConsentSheet 自带不可拒绝语义(原 sheet 形态 interactiveDismissDisabled),
+            // 全屏渲染等价;背景铺 paper(Sheet 内部底色是 cardSurface)。
+            ZStack {
+                BaziTheme.paper.ignoresSafeArea()
+                DataConsentSheet {
+                    DataConsent.recordConsent()
+                    dataConsentGate = false
+                    AppLogger.app.info("DataConsentSheet 同意 → 记录落盘 version=\(DataConsent.currentVersion, privacy: .public),挂载主界面")
+                }
+            }
+        } else {
+            rootTabs
+        }
+    }
+
+    private var rootTabs: some View {
         TabView(selection: $selectedTab) {
             DailyFortuneView()
                 .tag(Tab.dailyFortune)
@@ -114,13 +135,11 @@ struct RootTabView: View {
             if !hasSeenOnboarding {
                 showOnboarding = true
             }
-            // T12(2026-11-23):老用户补授权——onboarding 已完成但同意记录
-            // 缺失/版本落后(Apple 5.1.2(i))。只在 onboarding 不弹时弹:
-            // 新用户在确认排盘 sheet 里勾选授权,不走补授权路径。
-            // 判据抽纯函数(DataConsent.needsRetroConsent,对齐 CompleteOnceGate
-            // 范式)供单测——测试 target 无 ViewInspector,@State 分流不可断言。
-            if DataConsent.needsRetroConsent(hasSeenOnboarding: hasSeenOnboarding) {
-                showDataConsent = true
+            // T12 + P1(2026-11-24):补授权分流已上移到 body 根级
+            // (dataConsentGate 条件渲染)——sheet 形态挡不住 Today tab
+            // 的自动起链,数据先于同意外发。此处仅留日志锚点。
+            if dataConsentGate {
+                AppLogger.app.warning("RootTabView.onAppear dataConsentGate=true 但主界面已挂载(理论不可达,检查 gate 初始化)")
             }
             // PR3.2:App 启动(若已登录)→ 后台静默 pull(同步云端命盘)
             Task { await env.syncManager.pull() }
@@ -152,13 +171,6 @@ struct RootTabView: View {
             )
             .environmentObject(env)
             .interactiveDismissDisabled()
-        }
-        .sheet(isPresented: $showDataConsent) {
-            DataConsentSheet {
-                DataConsent.recordConsent()
-                showDataConsent = false
-                AppLogger.app.info("DataConsentSheet 同意 → 记录落盘 version=\(DataConsent.currentVersion, privacy: .public)")
-            }
         }
         .onReceive(NotificationCenter.default.publisher(for: .switchTab)) { note in
             // guard 失败也要打日志:之前 silent return,出问题排查无据

@@ -425,6 +425,15 @@ struct ChapterReadingView: View {
         }
         .frame(maxWidth: .infinity)
         .onAppear { refreshNotifyStateIfChainRunning() }
+        // P3(2026-11-24 外评):页面已打开、链稍后才启动 → onAppear 时
+        // isChainRunning=false 没刷新状态,按钮永不出现。监听链状态翻转补刷。
+        .onChange(of: vm.isChainRunning) { _, running in
+            if running {
+                Task { @MainActor in
+                    await refreshNotifyState()
+                }
+            }
+        }
     }
 
     /// T19(2026-11-23)改:等待卡出现时**只读状态不申请**——系统框盖住
