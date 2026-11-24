@@ -27,6 +27,7 @@ enum APIEndpoint: Sendable {
     case askBalance          // S4c 新增(问事余额;首查懒铸造 3 次试用)
     case askRedeem           // S4c 新增(次数包购买入账,幂等)
     case chapterFeedback     // 章末「准 / 不准」反馈(2026-11-15 拍板,尽力而为,幂等)
+    case accountDelete       // 账号删除(2026-11-24,Apple 5.1.1(v);DELETE)
 
     var path: String {
         switch self {
@@ -45,6 +46,7 @@ enum APIEndpoint: Sendable {
         case .askBalance:        return "/api/ask/balance"
         case .askRedeem:         return "/api/ask/redeem"
         case .chapterFeedback:   return "/api/interpret/feedback"
+        case .accountDelete:     return "/api/auth/account"
         }
     }
 
@@ -53,6 +55,7 @@ enum APIEndpoint: Sendable {
         case .health:            return "GET"
         case .entitlementList:   return "GET"
         case .askBalance:        return "GET"
+        case .accountDelete:     return "DELETE"
         default:                 return "POST"
         }
     }

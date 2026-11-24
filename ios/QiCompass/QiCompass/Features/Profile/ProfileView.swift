@@ -1,5 +1,8 @@
 import SwiftUI
 import SwiftData
+import AuthenticationServices
+import ObjectiveC
+import UIKit
 
 /// "我的" Tab(2026-08-01 grill-me 决策 #17 新增的第 4 个 Tab)。
 ///
@@ -63,6 +66,14 @@ struct ProfileView: View {
 
     /// 重置命盘失败时显示的错误 alert 文案(CLAUDE.md 错误显式传播:不静默吞)。
     @State private var resetError: String?
+
+    // MARK: - 账号删除(2026-11-24,Apple 5.1.1(v) 应用内删账号)
+    /// 二次确认 confirmationDialog 触发。
+    @State private var showDeleteAccountConfirm = false
+    /// 删除流程错误 alert 文案(Apple 重认证取消/失败、后端 401/403/503、网络错)。
+    @State private var deleteAccountError: String?
+    /// 删除成功提示(登出后行已隐藏,toast 型一次性 alert)。
+    @State private var deleteAccountDone = false
 
     /// 关于节「隐私与数据」折叠态(默认收起,立场三行常驻)。
     @State private var showPrivacy = false
@@ -179,6 +190,30 @@ struct ProfileView: View {
                 // D2(2026-11-06):标题/长文案迁 L10n(en/zh-hant 此前漏收,裸中文
                 // 直出)。按钮沿用既有通用键(cancel/下方 resetConfirmAction)。
                 Text(L10n.Profile.resetConfirmMessage)
+            }
+            // 账号删除三 alert(同区双 alert iOS 17.2+ 支持,对齐 reset 系)
+            .confirmationDialog(
+                L10n.AccountDelete.confirmTitle,
+                isPresented: $showDeleteAccountConfirm,
+                titleVisibility: .visible
+            ) {
+                Button(L10n.AccountDelete.confirmButton, role: .destructive) {
+                    Task { @MainActor in await performAccountDeletion() }
+                }
+                Button(L10n.AccountDelete.cancel, role: .cancel) {}
+            } message: {
+                Text(L10n.AccountDelete.confirmBody)
+            }
+            .alert(L10n.AccountDelete.failed, isPresented: Binding(
+                get: { deleteAccountError != nil },
+                set: { newValue in if !newValue { deleteAccountError = nil } }
+            )) {
+                Button(L10n.Common.ok, role: .cancel) {}
+            } message: {
+                Text(deleteAccountError ?? "")
+            }
+            .alert(L10n.AccountDelete.done, isPresented: $deleteAccountDone) {
+                Button(L10n.Common.ok, role: .cancel) {}
             }
             .alert(L10n.Profile.resetFailedTitle, isPresented: Binding(
                 get: { resetError != nil },
@@ -598,6 +633,27 @@ struct ProfileView: View {
                 Text(languageRestartAlertMessage)
             }
             .overlay(alignment: .bottom) { sectionDivider }
+
+            // 账号删除(2026-11-24,Apple 5.1.1(v)):登录态才显示——无账号
+            // 即无 App 内删除义务。行样式对齐语言/重置行(caption 13 ink);
+            // destructive 语义用 shenshaInauspicious(暗朱,非大面积朱红)
+            if UserIdentity.isAuthenticated {
+                Button {
+                    showDeleteAccountConfirm = true
+                } label: {
+                    HStack {
+                        Text(L10n.AccountDelete.row)
+                            .font(BaziFont.caption(size: 13))
+                            .foregroundStyle(BaziTheme.shenshaInauspicious)
+                        Spacer()
+                    }
+                    .padding(.vertical, 11)
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .overlay(alignment: .bottom) { sectionDivider }
+            }
+
             // L1/F2:选择已存、快照未变(未重启)→ 行下常驻小注,直到重启生效
             if languageRestartPending {
                 Text(languageRestartPendingNote)
@@ -942,6 +998,154 @@ struct ProfileView: View {
     /// 后端 sync_push 是 UPSERT-only(无 delete endpoint),客户端无法单方面清空云端。
     /// TODO(后端):加 DELETE /api/sync 或 sync_push 改 diff 语义。
     /// 暂不阻断本功能:v1 sync 后端尚未上线生产,且重置是低频操作。
+    // MARK: - 账号删除(2026-11-24)
+
+    /// 删除流程(确认 dialog 的 destructive 按钮):Apple 重认证 → DELETE →
+    /// 本地清理 → 成功提示。Google 账号(UI 已只留 SIWA,休眠态)后端不要求
+    /// 重认证;客户端不知道 provider(Keychain 只存 id)——Apple UI 会弹系统
+    /// 认证框,后端按账号 provider 分支处理,Google 账号在 code=nil 路径删除。
+    private func performAccountDeletion() async {
+        // 1. Apple 重认证拿新鲜 authorizationCode(一次性,10 分钟有效)
+        let authCode: String?
+        do {
+            authCode = try await requestFreshAppleAuthorizationCode()
+        } catch is CancellationError {
+            // 用户取消系统认证框 = 放弃删除,不算错误
+            AppLogger.app.info("account.delete.apple_reauth_cancelled")
+            return
+        } catch {
+            deleteAccountError = String(
+                format: L10n.AccountDelete.appleAuthFailedFormat,
+                error.localizedDescription)
+            return
+        }
+
+        // 2. DELETE(强登录路由:Keychain JWT 注入由 APIClient send 统一处理)
+        do {
+            _ = try await env.apiClient.deleteAccount(appleAuthorizationCode: authCode)
+        } catch {
+            deleteAccountError = (error as? LocalizedError)?.errorDescription
+                ?? L10n.AccountDelete.networkFailed
+            return
+        }
+
+        // 3. 本地清理(外评 3.4 三条件:登出清 Keychain / 本地 entitlement
+        //    失效 / 本机命盘保留——文案已明示)
+        env.entitlementStore.deactivateAllForAccount(
+            userId: UserIdentity.currentUserId,
+            userLocalId: UserIdentity.userLocalId)
+        env.accountManager.signOut()
+        Analytics.accountDeleted()
+
+        // 4. 成功提示(一帧延迟,对齐 resetError 的 iOS 17 alert workaround)
+        Task { @MainActor in
+            deleteAccountDone = true
+        }
+    }
+
+    /// 重新 Sign in with Apple 拿新鲜 authorizationCode(删号前重认证,
+    /// Apple 5.1.1(v) + 后端吊销链路的客户端半边)。
+    ///
+    /// 抛 CancellationError = 用户取消;其他错误原样抛(调用方区分展示)。
+    private func requestFreshAppleAuthorizationCode() async throws -> String? {
+        try await withCheckedThrowingContinuation { continuation in
+            let provider = ASAuthorizationAppleIDProvider()
+            let request = provider.createRequest()
+            request.requestedScopes = []  // 删号重认证不需要 fullName/email
+            let controller = ASAuthorizationController(authorizationRequests: [request])
+            let delegate = ReauthDelegate(continuation: continuation)
+            // delegate 必须挂上(controller.delegate / presentationContextProvider
+            // 都是 weak 引用)——漏挂 delegate = 回调永不送达,continuation 泄漏
+            controller.delegate = delegate
+            controller.presentationContextProvider = delegate
+            // framework 不保证在请求飞行期间持有 controller(局部变量出作用域
+            // 即可能释放,系统认证框照常弹但回调丢失)——静态槽位强引用保活,
+            // 回调首达时清空(单值槽,重入覆盖,不累积)
+            ReauthDelegate.activeController = controller
+            controller.performRequests()
+            // delegate 保活:挂在 controller 上的 objc 关联 RETAIN(controller
+            // 由静态槽保活 → delegate 随之存活到回调)
+            objc_setAssociatedObject(controller, &ReauthDelegate.associationKey,
+                                     delegate, .OBJC_ASSOCIATION_RETAIN)
+        }
+    }
+
+    /// ASAuthorizationController 回调桥(一次性,删号重认证专用)。
+    private final class ReauthDelegate: NSObject,
+        ASAuthorizationControllerDelegate, ASAuthorizationControllerPresentationContextProviding {
+        nonisolated(unsafe) static var associationKey: UInt8 = 0
+        /// 回调前对 controller 的强引用(见 requestFreshAppleAuthorizationCode)。
+        nonisolated(unsafe) static var activeController: ASAuthorizationController?
+        private let continuation: CheckedContinuation<String?, Error>
+        private var hasResumed = false  // 防双回调(理论一次,防御)
+
+        init(continuation: CheckedContinuation<String?, Error>) {
+            self.continuation = continuation
+        }
+
+        /// 首达回调统一收口:清保活槽 + 只 resume 一次。
+        private func resumeOnce(_ body: () -> Void) {
+            guard !hasResumed else { return }
+            hasResumed = true
+            Self.activeController = nil
+            body()
+        }
+
+        func authorizationController(
+            controller: ASAuthorizationController,
+            didCompleteWithAuthorization authorization: ASAuthorization
+        ) {
+            resumeOnce {
+                guard let credential = authorization.credential
+                        as? ASAuthorizationAppleIDCredential,
+                      let codeData = credential.authorizationCode,
+                      let code = String(data: codeData, encoding: .utf8),
+                      !code.isEmpty else {
+                    continuation.resume(throwing: AccountDeleteError.missingAuthorizationCode)
+                    return
+                }
+                continuation.resume(returning: code)
+            }
+        }
+
+        func authorizationController(
+            controller: ASAuthorizationController, didCompleteWithError error: Error
+        ) {
+            resumeOnce {
+                if let authError = error as? ASAuthorizationError,
+                   authError.code == .canceled {
+                    // 用户取消系统认证框:Apple 侧是 ASAuthorizationError.canceled,
+                    // 统一翻译成 CancellationError(调用方按「放弃删除」处理,
+                    // 不弹错误 alert)
+                    continuation.resume(throwing: CancellationError())
+                } else {
+                    continuation.resume(throwing: error)
+                }
+            }
+        }
+
+        func presentationAnchor(
+            for controller: ASAuthorizationController
+        ) -> ASPresentationAnchor {
+            // 前台 scene 的 key window——ASPresentationAnchor() 空构造是不挂
+            // scene 的隐藏窗口,锚点语境不完整;取不到时才回退空构造
+            UIApplication.shared.connectedScenes
+                .compactMap { ($0 as? UIWindowScene)?.keyWindow }
+                .first ?? ASPresentationAnchor()
+        }
+    }
+
+    private enum AccountDeleteError: LocalizedError {
+        case missingAuthorizationCode
+
+        var errorDescription: String? {
+            switch self {
+            case .missingAuthorizationCode:
+                return L10n.AccountDelete.noAuthCode
+            }
+        }
+    }
+
     private func resetAllData() {
         do {
             // 显式逐类型 fetch + delete(对齐项目其他 Store 范式)。

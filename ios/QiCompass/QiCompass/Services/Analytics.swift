@@ -130,6 +130,10 @@ enum Analytics {
         signal("purchase_failed", ["reason": reason.rawValue])
     }
 
+    static func accountDeleted() {
+        signal("account_deleted", [:])
+    }
+
     static func restoreTapped() {
         signal("restore_tapped")
     }

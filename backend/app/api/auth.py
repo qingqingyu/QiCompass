@@ -21,17 +21,36 @@ from __future__ import annotations
 import logging
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Depends, Request
 from fastapi.concurrency import run_in_threadpool
 
+from ..auth.apple_revocation import revoke_apple_tokens
 from ..auth.apple_signin import verify_apple_identity_token
+from ..auth.dependencies import require_authenticated_user
 from ..auth.google_signin import verify_google_identity_token
 from ..auth.jwt_service import create_access_token
 from ..config import APPLE_SIGN_IN_CLIENT_ID, GOOGLE_SIGN_IN_CLIENT_ID, JWT_EXP_MINUTES
-from ..models.auth import SignInRequest, SignInResponse
+from ..errors import BaziError
+from ..models.auth import (
+    DeleteAccountRequest,
+    DeleteAccountResponse,
+    SignInRequest,
+    SignInResponse,
+)
 
 router = APIRouter(tags=["auth"])
 logger = logging.getLogger(__name__)
+
+
+class AccountNotFoundError(BaziError):
+    """删除时账号已不存在(require_authenticated_user 核验后被并发删除)。
+
+    BaziError 构造器只收 message(code/http_status 是子类类属性,不走
+    kwargs)——本类即「404 语义 + ACCOUNT_NOT_FOUND code」的正确载体。
+    """
+
+    code = "ACCOUNT_NOT_FOUND"
+    http_status = 404
 
 
 @router.post("/api/auth/sign-in", response_model=SignInResponse)
@@ -110,4 +129,52 @@ async def sign_in(req: SignInRequest, request: Request) -> SignInResponse:
         access_token=access_token,
         user_id=user.id,
         expires_at=expires_at,
+    )
+
+
+@router.delete("/api/auth/account", response_model=DeleteAccountResponse)
+async def delete_account(
+    req: DeleteAccountRequest,
+    request: Request,
+    user_id: str = Depends(require_authenticated_user),
+) -> DeleteAccountResponse:
+    """DELETE /api/auth/account:删除账号及全部服务端数据(2026-11-24)。
+
+    Apple 5.1.1(v) 硬性要求(应用内删账号)。次序(**先吊销后删除**——
+    Apple 侧吊销失败则本地不删,不做半删):
+    1. require_authenticated_user(JWT 验签 + 账号存在性核验)
+    2. Apple 用户:revoke_apple_tokens(换 code → 验归属 sub → 吊销);
+       配置缺失 → 503 拒删;sub 不匹配 → 403
+    3. delete_user_data(单事务:出生数据整删 / 交易台账匿名化保留 /
+       含自输入文本缓存清 / 其余账号行删;失败回滚)
+    4. 响应返回审计摘要(各表行数;完整数据见服务端 account.deleted 日志)
+
+    Google 用户:后端不存 Google token,无可吊销,直接走第 3 步。
+    """
+    user_store = request.app.state.user_store
+    # 账号存在性再核验(require_authenticated_user 已查过;此处取 provider)
+    user = await run_in_threadpool(user_store.get_by_id, user_id)
+    if user is None:
+        raise AccountNotFoundError(
+            f"账号不存在或已删除(user_id={user_id[:8]}…)")
+
+    # Apple:先吊销 Apple 侧 token(失败 → 显式错,不进入删除)
+    if user.provider == "apple":
+        await revoke_apple_tokens(
+            authorization_code=req.apple_authorization_code or "",
+            expected_apple_user_id=user.provider_user_id,
+        )
+
+    # 跨表删除(同步 SQLite 事务 → 线程池)
+    stats = await run_in_threadpool(
+        user_store.delete_account_data, user_id)
+
+    logger.info(
+        "auth.account.deleted user_id_prefix=%s provider=%s tables=%s",
+        user_id[:8], user.provider, stats,
+    )
+    return DeleteAccountResponse(
+        deleted=True,
+        user_id_prefix=user_id[:8],
+        tables=stats,
     )

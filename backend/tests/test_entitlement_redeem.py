@@ -79,16 +79,44 @@ def other_user_auth_headers() -> dict[str, str]:
 
 
 @pytest.fixture
-async def redeem_client(interpret_client, mock_apple):
+async def redeem_client(interpret_client, mock_apple, tmp_path):
     """interpret_client 已替换 cache + entitlement_store + ai_client,
     这里再替换 apple_server_api 为 mock_apple。
+
+    2026-11-24 账号删除加固:require_authenticated_user 现核验账号存在
+    (user 表查无此行 → 401)。既有测试的 JWT sub 是硬编码常量、库里无行,
+    → 换 user_store 为 tmp 库并播种两个常量用户(与生产 user 表同构,
+    不动测试断言)。
     """
+    from app.auth.user_store import UserStore
+
     saved = app.state.apple_server_api
+    saved_store = getattr(app.state, "user_store", None)
     app.state.apple_server_api = mock_apple
+    # 按**显式 id**插行(直插 SQL):测试 JWT 的 sub 是常量 id,而
+    # upsert_by_provider 生成 UUID——两者不等会让存在性核验落空(根因,
+    # 2026-11-24 实证)。测试世界里 id=常量 即可,无需走生产 upsert。
+    import sqlite3
+    from datetime import datetime, timezone
+
+    users_db = str(tmp_path / "users.db")
+    user_store = UserStore(users_db)
+    user_store.init_schema()
+    now = datetime.now(timezone.utc).isoformat()
+    conn = sqlite3.connect(users_db)
+    for uid in (TEST_USER_ID, OTHER_USER_ID):
+        conn.execute(
+            "INSERT INTO qicompass_user (id, provider, provider_user_id,"
+            " email, created_at, last_login_at) VALUES (?,?,?,?,?,?)",
+            (uid, "google", f"sub-{uid}", None, now, now))
+    conn.commit()
+    conn.close()
+    app.state.user_store = user_store
     try:
         yield interpret_client
     finally:
         app.state.apple_server_api = saved
+        app.state.user_store = saved_store
 
 
 def _redeem_payload(

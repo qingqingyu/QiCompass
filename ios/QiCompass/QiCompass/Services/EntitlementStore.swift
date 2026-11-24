@@ -210,6 +210,34 @@ final class EntitlementStore {
     ///
     /// **错误处理**:失败不阻断 onSignedIn 链路(对齐 SyncManager 现有模式),记日志,
     /// 下次 App 启动 onAppear 时 syncManager.pull() 再次触发本方法重试。
+    /// 账号删除后的本地 entitlement 失效(2026-11-24,外评 3.4 条件 2)。
+    ///
+    /// 后端台账已匿名化(is_active=0/user_id=NULL),本地副本若不同步失效,
+    /// 界面仍显示章节已解锁而后端 403。按 **userId 轨** deactivate(对齐后端
+    /// 匿名化只动 user_id 命中行;userLocalId 轨是设备本地身份,匿名时期的
+    /// 购买在账号删除语义下同样失效——本账号的 localId 行一并处理,取自
+    /// 已关联行而非客户端任意上报,对齐后端 §5.3 防伪造口径:这里由
+    /// 调用方传入 DB 关联过的 localId,即 UserIdentity.userLocalId 恒定值)。
+    /// 错误显式传播:失败返回 -1(整体异常,已记日志);0 = 全部成功。
+    @discardableResult
+    func deactivateAllForAccount(userId: String, userLocalId: String) -> Int {
+        var failed = 0
+        do {
+            let all = try modelContext.fetch(FetchDescriptor<Entitlement>())
+            let targets = all.filter { $0.userId == userId || $0.userLocalId == userLocalId }
+            for entitlement in targets where entitlement.isActive {
+                entitlement.isActive = false
+            }
+            try modelContext.save()
+        } catch {
+            failed = -1
+            AppLogger.persistence.error(
+                "op=entitlementStore.deactivateAllForAccount failed error=\(String(describing: error), privacy: .public)"
+            )
+        }
+        return failed
+    }
+
     func synchronizeFromBackend(apiClient: APIClient) async {
         AppLogger.app.info("entitlementStore.syncFromBackend.start")
         let remoteEntitlements: [EntitlementListItemDTO]

@@ -298,6 +298,17 @@ APPLE_PUBLIC_KEYS_CACHE_TTL = int(
     os.environ.get("APPLE_PUBLIC_KEYS_CACHE_TTL") or "3600"
 )
 
+# Sign in with Apple token 吊销(账号删除,Apple 5.1.1(v) 硬性要求;2026-11-24)
+# 换 code 换 token + 调 revoke 端点需要 .p8 私钥签 ES256 client_secret JWT。
+# 三者齐备才启用 Apple 账号删除(不齐 → 显式 503,不静默跳过吊销)。
+APPLE_AUTH_TEAM_ID: str = (os.environ.get("APPLE_AUTH_TEAM_ID") or "").strip()
+APPLE_AUTH_KEY_ID: str = (os.environ.get("APPLE_AUTH_KEY_ID") or "").strip()
+# PEM 全文(含 BEGIN/END 行;换行用字面 \n 转义亦可——下方归一化处理)
+APPLE_AUTH_PRIVATE_KEY: str = (
+    os.environ.get("APPLE_AUTH_PRIVATE_KEY") or "").strip().replace("\\n", "\n")
+APPLE_REVOKE_TIMEOUT_SECONDS = float(
+    os.environ.get("APPLE_REVOKE_TIMEOUT_SECONDS") or "10.0")
+
 # Sign in with Google ID Token 验证
 # 无兜底默认(与 Apple 不同):Google client ID 是 Google Cloud Console 发的
 # 一串 .apps.googleusercontent.com,没有可推导的默认值。未配置时
