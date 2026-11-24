@@ -1,6 +1,6 @@
 # App 改名 KnowFate · 知命 — 设计决策(2026-11-24)
 
-Status: 拍板 3 项(下表);**S01 名称与商标核查是前置关卡,未通过前不动代码**
+Status: 拍板 3 项(下表);**S01 名称与商标核查是前置关卡,未通过前不动代码**。2026-11-24 AI 检索完成:**「知命」有同品类撞名,决策 1 待用户复议**(见文末「S01 核查报告」)
 关联:`docs/SEO站设计决策.md` 11-24 增补(网站先行改名 KnowFate)/ `docs/appstore-metadata.md` / `DESIGN.md`(品牌指纹)/ `docs/官网实现-slices/`
 实施分割:`docs/App改名-slices/`
 
@@ -54,6 +54,34 @@ Status: 拍板 3 项(下表);**S01 名称与商标核查是前置关卡,未通�
 1. **「知命」可能与现有产品撞名**:`DESIGN.md` 第 11 行把「知命」列为国内对标产品。2026-11-24 网页搜索 App Store 没找到同名 App,但无法确认是否已下架、是否注册了商标。→ **S01 必须核查**;撞名时的备选见 S01
 2. **「KnowFate」在 App Store 的可用性未知**:App Store 名称全局唯一,只能在 App Store Connect 里实际填写时才知道是否被占用 → S01
 3. **英文名与中文名语义一致但不是音译**:英文用户不会知道「知命」怎么读。这是有意为之(中文名服务中文用户),不作为问题处理
+
+## S01 核查报告(AI 公开检索部分,2026-11-24)
+
+> 方法限制:本环境网络策略拦截 `itunes.apple.com`(iTunes Search API 返回 403 / DNS 不可解析),App Store 检索只能通过网页搜索间接完成,**可能有遗漏**;USPTO / TIPO / 香港 IPD 商标库没有直接查询途径,商标部分只有网页搜索到的公开记录,**不构成法律意见**。用户在 App Store Connect 的实测(S01 第 5 步)仍然必须做。
+
+### 「知命」:有冲突(高风险)
+
+| 发现 | 类别 | 证据 |
+|---|---|---|
+| iOS 在架「知命算命大师-周易八字风水妙算」 | 命理,同品类 | [App Store id544144271](https://apps.apple.com/de/app/知命算命大师-周易八字风水妙算/id544144271?l=en) |
+| iOS 在架「知命元亨利贞命理」(深圳市明日空间信息技术有限公司) | 命理,同品类 | [App Store id1104092777](https://apps.apple.com/us/app/%E5%85%83%E4%BA%A8%E5%88%A9%E8%B4%9E%E5%91%BD%E7%90%86/id1104092777) |
+| 安卓「知命」(深圳市云卓数码科技,`com.mrkj.sm`,v7.5.2):八字排盘、运势、周公解梦、一对一大师 | 命理,同品类;很可能就是 DESIGN.md 第 11 行列的对标产品 | [应用宝](https://sj.qq.com/appdetail/com.mrkj.sm)、[360 应用](https://m.app.so.com/detail/index?id=702468)、[7273](http://www.7273.com/down/47236.html) |
+| Google Play「知命 - AI八字命盘分析」 | AI 八字,同品类 | [Google Play](https://play.google.com/store/apps/details?id=com.zhiming99.app&hl=en_US) |
+| 网站「知命 AI算命」zhiming.life:「程序计算八字,AI 只围绕已排好的盘解释」 | **定位与本产品几乎相同** | [zhiming.life](https://zhiming.life/) |
+| 网页「知命 · 三系統命理諮詢」 | 命理 | [vercel 页面](https://zhiming-tawny.vercel.app/) |
+| 商标「知命者」第 45 类(社会服务,命理通常落在此类),厦门知命者文化产业有限公司,2025-03 申请,检索时为待审 | 近似商标 | [阿里云商标](https://tm.aliyun.com/detail/e059_84314162_45) |
+
+判断:同品类里已有至少两个 iOS App 以「知命」开头,另有安卓老牌产品和一个定位几乎相同的 AI 八字网站。即使 App Store 允许保存「知命 KnowFate · 八字命书」(名称按全称判重),中文用户搜「知命」会先看到这些产品,品牌难以建立;其中「算命大师」类产品与「专业不忽悠」的定位相冲。「知命」本身未查到第 9 / 45 类注册记录,但近似商标「知命者」在审。**建议重新考虑中文名**(决策 1 待用户复议)。
+
+### 「KnowFate」:未见冲突
+
+网页搜索未找到名为 KnowFate / Know Fate 的 App 或商标记录。同品类相近名称有 FateAlert、FateSeek、FateSnap、FateKit、OpenFate(均为不同名称,不构成撞名)。仍需用户在 App Store Connect 实测能否保存,以及上线前自行到 [USPTO](https://tmsearch.uspto.gov/) 复核。
+
+### 结论与下一步
+
+- KnowFate:可继续(待 App Store Connect 实测)
+- 知命:**不建议继续**,等用户复议决策 1;S02–S06 继续阻塞(S02 的图标字、S03 的界面字样都依赖中文名)
+- S01 第 5、6 步(App Store Connect 实测、最终结论)仍由用户完成
 
 ## 不做
 
