@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<!-- MOCKUP fonts via Google Fonts. PRODUCTION: self-host woff2 subsets (Source Han Serif = QiSongti subset, Newsreader), font-display: swap, preload the Latin serif only. -->
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,300..500;1,6..72,300..400&family=Noto+Serif+SC:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="assets/site.css">
+<meta name="theme-color" content="#E7E2D5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#171412" media="(prefers-color-scheme: dark)">
+<title>QiCompass 官网设计稿</title>
+<meta name="robots" content="noindex">
+<style>
+  .board-head { padding: 64px 0 40px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: end; border-bottom: 1px solid var(--hairline); }
+  .board-head .vtext { font-size: 30px; letter-spacing: .5em; }
+  .board-head p { font: 16px/1.8 var(--f-zh); max-width: 44em; color: var(--ink-muted); }
+  @media (max-width: 760px) { .board-head { grid-template-columns: 1fr; } .board-head .vtext { display: none; } }
+  .zhbody { font-family: var(--f-zh); }
+  .pages { display: grid; gap: 72px; padding: 64px 0; }
+  .page-row { display: grid; grid-template-columns: minmax(0, 1fr) 150px 340px; gap: 32px; align-items: start; }
+  .frame { border: 1px solid var(--hairline); border-radius: var(--r-md); overflow: hidden; background: var(--paper); position: relative; aspect-ratio: 1440 / 900; }
+  .frame iframe { position: absolute; top: 0; left: 0; width: 1440px; height: 900px; border: 0; transform-origin: 0 0; pointer-events: none; }
+  .frame.m { aspect-ratio: 390 / 844; border-radius: 18px; }
+  .frame.m iframe { width: 390px; height: 844px; }
+  .frame a.cover { position: absolute; inset: 0; z-index: 2; }
+  .note { font: 15px/1.75 var(--f-zh); }
+  .note h2 { font: 400 26px/1.2 var(--f-serif); margin: 10px 0 6px; }
+  .note .url { font: 13px var(--f-sans); color: var(--dai); }
+  .note ul { padding-left: 1.1em; margin: 14px 0; } .note li { margin-bottom: 6px; }
+  .note b { font-weight: 500; }
+  .kw { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .kw span { font: 12px var(--f-sans); border: 1px solid var(--hairline); border-radius: 999px; padding: 3px 9px; color: var(--ink-muted); }
+  @media (max-width: 1100px) { .page-row { grid-template-columns: minmax(0, 1fr) 130px; } .page-row .note { grid-column: 1 / -1; } }
+  @media (max-width: 640px) { .page-row { grid-template-columns: 1fr; } .frame.m { display: none; } }
+
+  .blk { padding: 72px 0; border-top: 1px solid var(--hairline); }
+  .blk > h2 { font: 400 32px/1.2 var(--f-serif); margin-bottom: 8px; display: flex; gap: 14px; align-items: baseline; }
+  .blk > h2 .zh { font-size: 16px; letter-spacing: .3em; color: var(--ink-muted); }
+  .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0 40px; margin-top: 32px; }
+  .grid3 > div { border-top: 1px solid var(--hairline); padding: 22px 0; font: 15px/1.75 var(--f-zh); }
+  .grid3 h3 { font: 400 20px/1.3 var(--f-serif); margin-bottom: 8px; display: flex; gap: 10px; align-items: center; }
+  @media (max-width: 900px) { .grid3 { grid-template-columns: 1fr; } }
+
+  .sw { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; margin-top: 28px; }
+  .sw div { font: 12.5px/1.5 var(--f-sans); color: var(--ink-muted); }
+  .sw i { display: block; height: 64px; border-radius: var(--r-sm); margin-bottom: 8px; box-shadow: inset 0 0 0 1px var(--hairline); }
+  .sw b { display: block; color: var(--ink); font-weight: 500; }
+
+  .og-wrap { margin-top: 28px; width: 100%; max-width: 720px; aspect-ratio: 1200 / 630; position: relative; overflow: hidden; border-radius: var(--r-md); box-shadow: 0 0 0 1px var(--hairline); }
+  .og { position: absolute; top: 0; left: 0; width: 1200px; height: 630px; transform-origin: 0 0; background: #E7E2D5; color: #1C1B1E; display: grid; grid-template-columns: 1fr 470px; padding: 72px 80px; }
+  .og-l { display: flex; flex-direction: column; }
+  .og .kicker { font-size: 18px; color: #77726A; }
+  .og-t { font: 400 74px/1.05 var(--f-serif); margin-top: 26px; letter-spacing: -.02em; }
+  .og-s { font: 300 30px/1.35 var(--f-serif); font-style: italic; color: #77726A; margin-top: 18px; max-width: 16em; }
+  .og-b { margin-top: auto; display: flex; gap: 18px; align-items: center; }
+  .og-b .brand-word { font-size: 16px; }
+  .og-r { position: relative; } .og-r svg { width: 100%; height: 100%; } .og-r .enso path.stroke { stroke: #17161A; }
+  .og-r .zh { position: absolute; inset: 0; display: grid; place-items: center; font: 400 210px/1 var(--f-zh); }
+
+  .refs { columns: 2; column-gap: 40px; margin-top: 24px; font: 15px/1.7 var(--f-zh); }
+  .refs p { break-inside: avoid; border-top: 1px solid var(--hairline); padding: 12px 0; margin: 0; }
+  @media (max-width: 760px) { .refs { columns: 1; } }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="board-head">
+    <div>
+      <p class="kicker" style="font-family:var(--f-sans)">Design board<span class="dot"></span>knowfate.app</p>
+      <h1 class="h1" style="margin:16px 0 18px">QiCompass 官网 · 水墨孤本 × SEO</h1>
+      <p>四个页面模板的高保真可交互稿，加上一套 Web 设计 token。所有页面都在<b>关闭 JS 时完整可读、可抓取</b>，交互只做渐进增强。实现规格（信息架构、URL、结构化数据、内链规则、CTA 位置、性能预算、内容红线）见同目录 <a href="README.md">README.md</a>。蓝色虚线小框 = 设计注释，不上线。</p>
+      <button class="btn btn-ghost btn-sm" data-toggle-anno style="margin-top:6px">显示 / 隐藏注释</button>
+    </div>
+    <span class="vtext" aria-hidden="true">一页一印</span>
+  </header>
+
+  <section class="pages">
+    <div class="page-row">
+      <div class="frame"><iframe src="home.html" title="Home" tabindex="-1"></iframe><a class="cover" href="home.html" aria-label="Open home"></a></div>
+      <div class="frame m"><iframe src="home.html" title="Home mobile" tabindex="-1"></iframe></div>
+      <div class="note">
+        <span class="numeral">壹</span>
+        <h2>Home · 首页</h2>
+        <span class="url">/en/ · /zh-hant/</span>
+        <ul>
+          <li><b>H1 带主词</b>「Free BaZi Calculator」，首屏就是能直接提交的排盘表单（原生 GET 表单，无 JS 也能用）。</li>
+          <li><b>时辰盘 hero</b>：墨圆逐笔画出，外圈十二地支，当前时辰落朱点；每个地支都是指向时辰指南的内链。</li>
+          <li><b>今日条</b>：今日干支 + 节气，每天自动更新的确定性内容，承接 “chinese calendar today” 类搜索。</li>
+          <li>十日主矩阵 + 五行生克图是全站最核心的<b>内链枢纽</b>。</li>
+        </ul>
+        <div class="kw"><span>bazi calculator</span><span>four pillars of destiny</span><span>chinese calendar today</span></div>
+      </div>
+    </div>
+
+    <div class="page-row">
+      <div class="frame"><iframe src="calculator.html" title="Calculator" tabindex="-1"></iframe><a class="cover" href="calculator.html" aria-label="Open calculator"></a></div>
+      <div class="frame m"><iframe src="calculator.html" title="Calculator mobile" tabindex="-1"></iframe></div>
+      <div class="note">
+        <span class="numeral">贰</span>
+        <h2>Calculator · 免费排盘器</h2>
+        <span class="url">/en/bazi-calculator</span>
+        <ul>
+          <li>左「生辰帖」+ 右结果，提交后四柱按 年→月→日→时 依次<b>墨迹晕开</b>。</li>
+          <li>结果里每个干支、十神、神煞都是内链，悬停弹出释义卡（<b>结果页本身也是内链分发器</b>）。</li>
+          <li>AI 解读不在网页里生成：虚线锁框列出命书捌章 → 引导下载 App。</li>
+          <li>带出生参数的 URL 一律 <code>noindex</code>，个人数据不做成页面。</li>
+        </ul>
+        <div class="kw"><span>bazi calculator</span><span>bazi true solar time</span><span>bazi chart free</span></div>
+      </div>
+    </div>
+
+    <div class="page-row">
+      <div class="frame"><iframe src="article.html" title="Article" tabindex="-1"></iframe><a class="cover" href="article.html" aria-label="Open article"></a></div>
+      <div class="frame m"><iframe src="article.html" title="Article mobile" tabindex="-1"></iframe></div>
+      <div class="note">
+        <span class="numeral">叁</span>
+        <h2>Knowledge page · 知识页模板</h2>
+        <span class="url">/en/day-master/jia-wood（程序化模板）</span>
+        <ul>
+          <li><b>答案先行</b>：开头「In short」50 字左右的定义，用来争取精选摘要和 AI 概览引用；下面是速查表。</li>
+          <li>左侧壹–捌章节轨，墨线随阅读进度生长，当前章节用朱红聚焦线标出。</li>
+          <li><b>两个退出点 CTA</b>：读完「长 / 短」两栏后放一个，文末「批」印之后放一个；手机端再加一条可关闭的吸底条。</li>
+          <li>右栏放「日主查询」小工具：只填生日，十秒出结果，再导流到排盘器。</li>
+          <li>「与其他日主」十行列表直通合盘页（10×10 程序化矩阵）。</li>
+        </ul>
+        <div class="kw"><span>jia wood day master</span><span>jia wood personality</span><span>jia wood compatibility</span></div>
+      </div>
+    </div>
+
+    <div class="page-row">
+      <div class="frame"><iframe src="library.html" title="Library" tabindex="-1"></iframe><a class="cover" href="library.html" aria-label="Open library"></a></div>
+      <div class="frame m"><iframe src="library.html" title="Library mobile" tabindex="-1"></iframe></div>
+      <div class="note">
+        <span class="numeral">肆</span>
+        <h2>Library · 命理辞典</h2>
+        <span class="url">/en/library</span>
+        <ul>
+          <li>把全部程序化页面挂在一个页面上：日主 10 / 十神 10 / 五行 5×3 / 神煞 20 / <b>六十甲子 60</b> / 术语 A–Z。</li>
+          <li>十神按五族（比劫、食伤、财、官杀、印）排列，一眼看清它们之间的关系。</li>
+          <li>六十甲子矩阵：悬停显示纳音，「今日」用朱点标出；搜索时不匹配的格子会淡出模糊。</li>
+          <li>搜索只是对静态 HTML 做过滤，每一项本身都是可抓取的真实链接。</li>
+        </ul>
+        <div class="kw"><span>60 jiazi</span><span>ten gods bazi</span><span>peach blossom star bazi</span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="blk">
+    <h2>Signature interactions <span class="zh">新颖但克制</span></h2>
+    <p class="zhbody muted">全部服从 DESIGN.md 的动效三式（墨迹晕开 / 落印 / 呼吸），不用视差、不用自动轮播、不做装饰性发光；开启「减少动态效果」时全部降级。</p>
+    <div class="grid3">
+      <div><h3><span class="numeral">壹</span>时辰盘 Hero</h3>墨圆用 stroke-dashoffset 逐笔画出（2.2 秒），外圈十二地支按本地时间亮起当前时辰，朱点是 DESIGN 允许的「当前时辰点」。</div>
+      <div><h3><span class="numeral">贰</span>排盘晕墨</h3>提交后四柱依次 blur 7→0 显现，间隔 0.3 秒，模拟「布算」的节奏；结果下方的「解」印按 stamp 动效落下。</div>
+      <div><h3><span class="numeral">叁</span>五行生克图</h3>点任意一行：生的关系用墨青实线、克的关系用浓墨实线，其余淡到 14%；右侧释义同步切换，并给出对应专题的内链。</div>
+      <div><h3><span class="numeral">肆</span>术语释义卡</h3>正文里的术语用虚下划线标出，悬停时释义卡墨迹晕开；触屏设备不弹卡，直接跳转（内链优先于提示）。</div>
+      <div><h3><span class="numeral">伍</span>章节墨线</h3>文章左栏的细线随阅读进度从上往下「洇」满，当前章节用朱红聚焦线标出，章号用大写数字。</div>
+      <div><h3><span class="numeral">陆</span>甲子矩阵检索</h3>输入关键词后，不匹配的格子淡出并轻微模糊，命中的格子保持清晰，像在宣纸上圈出要找的那一格。</div>
+    </div>
+  </section>
+
+  <section class="blk">
+    <h2>OG image template <span class="zh">分享卡</span></h2>
+    <p class="zhbody muted">1200×630，构建时为每个程序化页面自动生成（Satori 或无头浏览器截图）。版式：左边标题，右边墨圆里放一个大字。</p>
+    <div class="og-wrap" id="ogw"><div class="og">
+  <div class="og-l">
+    <span class="kicker">Day Master · 日主</span>
+    <div class="og-t">Jia Wood Day Master</div>
+    <div class="og-s">The tall tree — personality, strengths &amp; compatibility</div>
+    <div class="og-b"><span class="seal" style="--size:40px">玄</span><span class="brand-word">QICOMPASS · KNOWFATE.APP</span></div>
+  </div>
+  <div class="og-r">
+    <svg viewBox="0 0 300 300" class="enso"><defs><filter id="r9"><feTurbulence type="fractalNoise" baseFrequency="0.05" numOctaves="4" seed="11" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="8"/></filter></defs><path class="stroke" d="M214,52 A112,112 0 1,0 258,170" stroke-width="12" filter="url(#r9)"/></svg>
+    <span class="zh el-wood">甲</span>
+  </div>
+</div>
+</div>
+  </section>
+
+  <section class="blk">
+    <h2>Tokens <span class="zh">色板</span></h2>
+    <div class="sw">
+      <div><i style="background:#E7E2D5"></i><b>paper</b>#E7E2D5 国画旧宣纸</div>
+      <div><i style="background:#F7F5F0"></i><b>paper-raised</b>#F7F5F0 浅纸</div>
+      <div><i style="background:#1C1B1E"></i><b>ink</b>#1C1B1E 浓墨</div>
+      <div><i style="background:#17161A"></i><b>ink-deep</b>#17161A 焦墨 · CTA</div>
+      <div><i style="background:#77726A"></i><b>ink-muted</b>#77726A 灰墨</div>
+      <div><i style="background:#A83226"></i><b>cinnabar</b>#A83226 仅印章级</div>
+      <div><i style="background:#2F5E4A"></i><b>jade</b>#2F5E4A 墨青 · 吉</div>
+      <div><i style="background:#3D4A5C"></i><b>dai</b>#3D4A5C 黛墨蓝</div>
+      <div><i style="background:#466F46"></i><b>wood</b>#466F46</div>
+      <div><i style="background:#A85A42"></i><b>fire</b>#A85A42</div>
+      <div><i style="background:#A6801E"></i><b>earth</b>#A6801E</div>
+      <div><i style="background:#807E76"></i><b>metal</b>#807E76</div>
+      <div><i style="background:#3C5568"></i><b>water</b>#3C5568</div>
+      <div><i style="background:#171412"></i><b>dark paper</b>#171412 夜宣纸</div>
+    </div>
+  </section>
+
+  <section class="blk">
+    <h2>Mobbin references <span class="zh">参考</span></h2>
+    <p class="zhbody muted">只借结构，不借皮相。视觉一律回到水墨孤本。</p>
+    <div class="refs">
+      <p><a href="https://mobbin.com/sites/sections/7866659c-1438-4186-8ec4-500d137ba8b1?utm_source=claude&utm_medium=ai-assistant&utm_source_platform=mcp">Attio · Blog「On this page」</a> → 知识页右侧目录的克制做法，改成左侧竖排章节轨。</p>
+      <p><a href="https://mobbin.com/sites/sections/d8b28f9f-a640-4d0e-95a7-db737d105f1e?utm_source=claude&utm_medium=ai-assistant&utm_source_platform=mcp">Harvest · 编号目录指南</a> → 编号目录 + 高亮当前项，改为壹–捌和朱红聚焦线。</p>
+      <p><a href="https://mobbin.com/sites/sections/e7e957c6-5a4a-4cd8-831b-7f0a65f19d87?utm_source=claude&utm_medium=ai-assistant&utm_source_platform=mcp">Better Stack · Guides</a> → 指南页右栏常驻产品卡，对应右栏的日主查询 + App 卡。</p>
+      <p><a href="https://mobbin.com/sites/sections/86c7887a-aa09-42b6-9767-f25e607d0a9f?utm_source=claude&utm_medium=ai-assistant&utm_source_platform=mcp">Upwork · 计算器 + 使用说明 + FAQ</a> → 工具页下方接方法论和 FAQ，承接长尾词。</p>
+      <p><a href="https://mobbin.com/sites/sections/a89d203c-0a40-48a4-a442-e632fb3784e7?utm_source=claude&utm_medium=ai-assistant&utm_source_platform=mcp">incident.io · Cost calculator</a> → 输入在左、结果在右的双栏结构，改成「生辰帖」。</p>
+      <p><a href="https://mobbin.com/sites/sections/49889df1-19ce-4e22-9eb8-0cd43fc65914?utm_source=claude&utm_medium=ai-assistant&utm_source_platform=mcp">Upwork · Free tools hub</a> → 免费工具聚合页（第二批做 /en/tools）。</p>
+      <p><a href="https://mobbin.com/sites/sections/fb536641-c294-4fcd-9798-57838862b58b?utm_source=claude&utm_medium=ai-assistant&utm_source_platform=mcp">Intercom · Glossary 字母跳转</a> / <a href="https://mobbin.com/sites/sections/91888d9a-461a-4d84-885c-106b33eff91e?utm_source=claude&utm_medium=ai-assistant&utm_source_platform=mcp">Going · 侧栏术语表</a> → Library 的分区子导航和 A–Z 术语表。</p>
+      <p><a href="https://mobbin.com/sites/sections/5262f136-e0e1-4d69-bb6b-19673552612f?utm_source=claude&utm_medium=ai-assistant&utm_source_platform=mcp">Cosmos · 极简 hero</a> / <a href="https://mobbin.com/sites/sections/ad7f86d6-e3ff-4c51-97cc-b98da2bde3bb?utm_source=claude&utm_medium=ai-assistant&utm_source_platform=mcp">Grail · 编辑式大衬线</a> → 大衬线、大留白、少元素的 hero 气质。</p>
+      <p><a href="https://mobbin.com/sites/sections/0c19121c-1011-49e4-99b7-9569cc45fd0a?utm_source=claude&utm_medium=ai-assistant&utm_source_platform=mcp">ElevenLabs · 下载区二维码</a> → 桌面端 App CTA 可以加二维码（上架后再做）。</p>
+    </div>
+  </section>
+</main>
+<script src="assets/site.js" defer></script>
+<script>
+  /* scale iframes / OG card to their frames */
+  function fit() {
+    document.querySelectorAll(".frame").forEach(function (f) {
+      var i = f.querySelector("iframe"); i.style.transform = "scale(" + (f.clientWidth / i.offsetWidth) + ")";
+    });
+    var w = document.getElementById("ogw"); if (w) w.firstElementChild.style.transform = "scale(" + (w.clientWidth / 1200) + ")";
+  }
+  window.addEventListener("resize", fit); window.addEventListener("load", fit); fit();
+</script>
+</body>
+</html>
