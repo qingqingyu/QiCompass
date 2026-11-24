@@ -52,3 +52,12 @@ Status: 拍板 8 项(下表);域名可用性待用户自查;实现未开始
 - 排盘器:后端生产部署(D1-D5)+ 公开端点实现
 - 隐私政策页:公开联系邮箱(用户待提供)
 - App Store CTA:App 上架
+
+## 增补(2026-11-24,官网设计稿评审)
+
+设计稿与实现规格见 `docs/design-ref/website/`(README.md 为规格事实源)。本轮拍板:
+
+- **品牌**:网站和 App 之后统一改名 **KnowFate**(域名 `knowfate.app`,修订本文决策 6「qicompass.com 优先」);App 侧改名另行立项
+- **英文标题字体**:Newsreader(已同意引入,自托管子集)
+- **上线顺序**:维持决策 7,先上内容页;排盘器页面第一期就上线(锁框 +「Opening soon」+ 邮箱表单),后端就绪后打开工具
+- **公开联系邮箱**:`hello@knowfate.app`(Cloudflare Email Routing 转发),补齐「依赖的前置」中隐私政策页的邮箱
