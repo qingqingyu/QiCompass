@@ -150,7 +150,7 @@ JSON-LD:`Article`(含 `dateModified`、`citation`)+ `BreadcrumbList` + `FAQPage`
 - title 模式:`{主词}: {副词} | KnowFate`,主词放最前,≤60 字符(超出时去掉品牌后缀);meta description 140–160 字符,写成一句完整的回答
 - 每页:`canonical`、`hreflang`(en / zh-Hant / x-default)、OG / Twitter 标签、`og:image` 自动生成(看板里的 1200×630 模板:左标题、右墨圆大字,Satori 构建时渲染)
 - `sitemap-index.xml` 按类型分片(`sitemap-day-master.xml`…),带 `lastmod`;`robots.txt` 屏蔽 `/*?d=` 这类参数 URL
-- 结构化数据见 §4;`Organization`、`WebSite` 放在全站 `@graph`;App 上架后首页加 `MobileApplication`
+- 结构化数据见 §4;`Organization`、`WebSite` 放在全站 `@graph`(`Organization.name` = KnowFate,`alternateName` = ["觀命", "观命"]);App 上架后首页加 `MobileApplication`(`name` = App Store 英文名「KnowFate - Chinese Astrology」,见 §13)
 - `llms.txt`:站点简介 + 各类型总览链接 + 方法说明(写清「确定性规则 + 不预测」)
 - **性能预算**(手机 4G):LCP < 2.0s,CLS < 0.02,INP < 150ms,首屏 JS < 15KB gzip
   - 字体:中文 = 思源宋体子集 woff2(复用 `tools/build_songti_fonts.py` 的字表,Web 端再按页面实际用字做子集),`font-display: swap`;英文标题 Newsreader 子集只 preload 一个字重;正文用系统无衬线,零下载
@@ -226,7 +226,7 @@ Web 字号阶梯(桌面 → 手机,用 clamp):Display 76→40 / H1 54→34 / H2 
 
 | # | 问题 | 结论 | 设计稿上的落地 |
 |---|---|---|---|
-| 1 | 品牌名 vs 域名 | **网站和 App 之后都改名 KnowFate** | 设计稿全部品牌字样已换成 KnowFate / KNOWFATE;App 侧改名(显示名、App Store 名称、元数据)另行立项,不在本稿范围 |
+| 1 | 品牌名 vs 域名 | **网站和 App 之后都改名 KnowFate**;中文名 **观命**(繁 觀命),品牌印「观」(11-24 改名规划拍板) | 设计稿品牌字样已换成 KnowFate / KNOWFATE,品牌印「玄」→「观」;App 侧改名见 `docs/App改名KnowFate设计决策.md`;站点联动规则见 §13 |
 | 2 | 英文标题字体 | **Newsreader**(已同意引入) | 上线时自托管 woff2 子集,只 preload 一个字重;Satori(OG 图生成)仍需单独征得同意 |
 | 3 | 上线顺序 | **先上内容页**(维持决策 7) | 见下方「分期上线」 |
 | 4 | 公开联系邮箱 | **域名邮箱 `hello@knowfate.app`** | Cloudflare Email Routing 转发到私人邮箱(私人邮箱不出现在任何页面);已写进全站页脚与首页 FAQ;隐私政策页同用此地址 |
@@ -241,7 +241,35 @@ Web 字号阶梯(桌面 → 手机,用 clamp):Display 76→40 / H1 54→34 / H2 
 | `/en/bazi-calculator` | **第一期就上线**,让这个最重要的 URL 早点开始积累收录:保留 H1、答案段、方法论四格、FAQ;生辰帖换成虚线锁框 + 「Opening soon」+ 邮箱表单;没有结果区 | 打开完整工具 |
 | 日主查询小工具(知识页右栏 / `/en/day-master-calculator`) | 隐藏右栏小工具,换成「附日主速查」:列出 10 个日主入口;独立页暂不上 | 接 `/api/public/chart` |
 | 知识页 / Library / 指南 | 全部上线 | — |
-| 「今日」条 / `/en/today` | 构建时由后端脚本离线生成静态数据(构建期调用,不在浏览器计算)。如果构建环境调不到引擎,就整块隐藏 | 正常 |
+| 「今日」条 / `/en/today` | 构建时由后端脚本离线生成静态数据(构建期调用,不在浏览器计算)。构建环境调不到引擎 → **构建失败**,不静默隐藏(CLAUDE.md 错误显式传播;11-25 修正此前「整块隐藏」的写法,与官网 S04 统一) | 正常 |
 | App CTA | 「Notify me at launch」 | App 上架后切成 App Store 徽章 |
 
 两期之间只是改配置开关(`features.calculator`、`cta.state`),模板不分叉。
+
+## 13. App 改名联动(2026-11-25)
+
+App 改名规划(`docs/App改名KnowFate设计决策.md`)拍板后,官网需要同步的规则。改名 S01 还差用户在 App Store Connect 实测两个中文名;若实测失败、中文名再变,本节随之修改。
+
+### 品牌呈现
+
+| 位置 | en 页面 | zh-hant 页面 |
+|---|---|---|
+| 页头品牌字 | 墨圆小标 + `KNOWFATE` 字距标 | 墨圆小标 +「觀命」(宋体)+ 小号 `KNOWFATE` |
+| 品牌印(页脚、首页时辰盘、OG 卡) | 「观」 | 「觀」 |
+| `<title>` 后缀 | `\| KnowFate` | `\| 觀命 KnowFate` |
+| 页脚版权 | © 2026 KnowFate | © 2026 觀命 KnowFate |
+| 功能印 | 「解」「批」「木」等不变 | 繁体字形(「批」「解」同形) |
+
+- 简体中文站(以后再做)用「观命」「观」
+- 字体:「觀」在繁体子集(Big5)内;「观」在简体子集(GBK)内。站点字体子集脚本(官网 S01)的字表要包含这两个字
+
+### App Store 相关
+
+- App Store 英文名:**KnowFate - Chinese Astrology**(已在 App Store Connect 保存)。`/en/app` 页、`MobileApplication` 结构化数据、App Store 徽章的 `aria-label` 用这个全称
+- **隐私政策页与技术支持页是 App 提交审核的前置条件**:App Store Connect 要求填写隐私政策网址和技术支持网址,二者都指向本站(`/en/privacy`、`/en/support`)。所以这两页必须在 App 首次提交前上线,哪怕其余页面还没准备好(官网 S05、S08 已据此调整)
+- 隐私政策只有一份正文(本站页面),App 内和 App Store 都链接它,不另写副本
+
+### 待拍板:是否增加「Chinese astrology」关键词方向
+
+App 英文名带上了「Chinese Astrology」。这是比「BaZi」大得多、竞争也激烈得多的词,搜它的人很多是在找生肖运势。官网目前只围绕 BaZi 长尾词布局,生肖页排在第三批。是否要为「chinese astrology」单独加一组页面、并把生肖页提前,需要用户决定(见本次对话的问题)。
+

@@ -4,6 +4,7 @@ Parent 设计事实源:
 - `docs/design-ref/website/README.md` — **实现规格**(IA / URL / 模板区块 / 内链 / 技术 SEO / CTA / 交互参数 / §12 已拍板)
 - `docs/design-ref/website/*.html` + `assets/site.css` — **高保真视觉稿**(像素与交互以此为准;用浏览器打开 `index.html` 看总览)
 - `docs/SEO站设计决策.md` — 11-02 拍板 8 项 + 11-24 增补(品牌 KnowFate / Newsreader / 先上内容页 / hello@knowfate.app)
+- `docs/App改名KnowFate设计决策.md` — App 改名(中文名观命 / 繁 觀命、品牌印「观」、英文商店名 KnowFate - Chinese Astrology);官网联动规则见 `design-ref/website/README.md` §13
 - `DESIGN.md` — 水墨孤本视觉系统(任何视觉偏离须用户批准)
 - `CLAUDE.md` — 全局约束(commit 三段式 / 错误显式传播 / 不擅自加依赖 / 术语与 LLM 边界)
 
@@ -36,6 +37,8 @@ Parent 设计事实源:
 
 关键路径:S01 → S02 → S03 → (S04 ∥ S05 ∥ S06 ∥ S07) → S08。S09 可以从第一天就并行做。
 
+**与 App 上架的硬依赖**:App Store 提交审核必须填隐私政策网址和技术支持网址,两者都在本站。若 App 准备提交时官网还没整体上线,就按 S08「最小上线」先把 `/en/privacy`、`/en/support`(含繁中版)部署到 knowfate.app。
+
 ## 依赖批准状态(CLAUDE.md「不擅自加依赖」)
 
 | 依赖 | 状态 | 依据 |
@@ -57,7 +60,7 @@ Parent 设计事实源:
 - **内容红线**:不写「准 / 灵验 / 预测 / 转运 / 改命 / 化解」;禁止格局硬分类(正官格、偏印格等),只写「命局呈现××倾向」;喜忌只引用后端规则结论,从格写「Special pattern · left open」不猜;每页底部免责
 - **个人数据不成页**:带出生参数的 URL 一律 `noindex,follow` + canonical 到干净 URL;结果不落任何存储
 - **朱红只做印章级**:印章 / 付费标 / TOC 聚焦线 / 当前时辰点 / 今日日柱 / CTA 内菱形小点。禁止 CTA 底色和大面积
-- **品牌**:站内一律 KnowFate / KNOWFATE(App 改名另行立项,网站先行)
+- **品牌**:en 页面 KnowFate / KNOWFATE + 品牌印「观」;zh-hant 页面「觀命」+ 品牌印「觀」(规则见规格 README §13)。站内不再出现「玄机问道」「QiCompass」和「玄」字品牌印
 - **错误显式传播**:构建期数据导出失败、术语缺失、内容校验不过 → 构建失败退出,不要用默认值兜底
 - **commit 三段式**(Why / What / Impact),每个 slice 至少一个独立 commit
 
