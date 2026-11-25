@@ -66,7 +66,7 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 ### 三语模板/术语同步守护栏（2026-10-01，yuyan S2-S7）
 
 - **强制**：动 `backend/app/ai/prompts.py` 或 bump 任何 `PROMPT_VERSIONS`（含 `translate`），新版本模板文件须 **zh / zh-hant / en 三语同步创建**——`backend/tests/test_i18n.py::TestZhHantTemplateFileParity` 锁定（漏一语 → zh-hant 用户版本切换后直接 FileNotFoundError → 500）
-- **强制**：动 `backend/app/engine/term_translations.py` 的 zh-hant 表或 iOS `BaziTerms.swift` 的 zhHant 列任一，必须 `python3 tools/check_term_sync.py` PASS——①③ 组已升级为 **en/zh-hant 值三相等**（双端任一侧改词即 FAIL）；zh-hant 术语用词以 iOS 人工校对稿为锚（信息不足→信息不足 是有意锁定，勿单侧改 資訊不足）
+- **强制**：动 `backend/app/engine/term_translations.py` 的 zh-hant 表或 iOS `BaziTerms.swift` 的 zhHant 列任一，必须 `arch -arm64 backend/.venv/bin/python tools/check_term_sync.py` PASS（backend 表经 chart_builder 依赖 pydantic；系统 python3 是 x86_64 装不上 arm64 pydantic_core，裸 python3 跑不了，脚本会给出引导报错）——①③ 组已升级为 **en/zh-hant 值三相等**（双端任一侧改词即 FAIL）；zh-hant 术语用词以 iOS 人工校对稿为锚（信息不足→信息不足 是有意锁定，勿单侧改 資訊不足）
 - 翻译端点 `POST /api/interpret/translate`（D10）：译后内容落**目标语言正常生成的缓存键**（`_prepare_prompt_and_key` 共享函数，双端点共用，禁止复制粘贴）；动 iOS 翻译链时 `TranslationFlowTests` 的「译后 M0 fingerprint 驱动 M1 请求」用例是键对齐的回归锚点
 - 全仓语言来源唯一：iOS 只经 `AppLanguage.current` / `currentWire` 取语言（D9）；zh-hant 干支术语连写无空格（`_TERM_JOINERS`），en 拼音空格分隔——加语言时在 `_TERM_JOINERS` / `_UNKNOWN_HOUR_SUFFIXES` / `_match_language` 三处登记
 
@@ -75,6 +75,13 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - **强制**：动了以下任一，必须 `python3 tools/check_sku_sync.py` 且 PASS 才算完成——backend `app/models/entitlement.py`（`PRODUCT_MODULE_MAP` / `ProductId` / `EntitlementModule`）、iOS `PurchaseManager.swift`（`module(forProductID:)` switch / restore `productIds` 集合）、`EntitlementDTOs.swift`（`AppleProductID` / `EntitlementModule` 常量）、`PaywallViewModel.swift`（`PaywallModule` 的 `productId` / `entitlementModule` 配对）
 - 为什么拦：同一 SKU 双端 module 值不同 → 客户端 guard 放行 → 后端 403 `ENTITLEMENT_ERROR` → 客户端当终态 `finish()` 销毁已付款消耗型交易（不可逆资损）。加新 SKU 只加一边不致命（502 非终态 / 返 nil 跳过）但同样算漂移
 - 脚本纯 stdlib 静态解析（不 import backend，无 venv 也能跑）；不接 GitHub Actions，拦截靠本规则
+
+### 官网内容守护栏(2026-11-25,官网 S02)
+
+- **强制**：动了 `site/src/content/**`、`site/src/plugins/**`、`site/src/data/term-defs.json` 或 `tools/check_site_content.py` 任一，必须 `python3 tools/check_site_content.py` PASS（禁词 / frontmatter 长度与 reviewedBy / 内链 ≥8 且无死链 / 术语键取值）+ `cd site && npm run build` 通过才算完成
+- **强制**：动了 `site/src/data/terms.json`（或 backend 术语表变更波及站点），必须重跑 `python3 tools/export_site_terms.py`（幂等,勿手改 JSON）且 `arch -arm64 backend/.venv/bin/python tools/check_term_sync.py` PASS——⑤ 组锁 terms.json ↔ backend 七组三相等 + branchRelations 直算一致
+- 写作规范事实源:`site/CONTENT_GUIDE.md`(H2 章节约定 `## 壹|标题`、禁词清单、术语自动内链的匹配面);`published: true` 必须带 `reviewedBy`,缺审 = Astro 构建失败(非警告)
+- 不接 GitHub Actions(本地优先),拦截靠本规则
 
 ### 引擎规则版本 × 合盘 prompt 版本联动守护栏(2026-10-07,第九轮外评)
 

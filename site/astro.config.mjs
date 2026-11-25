@@ -1,5 +1,17 @@
 import { defineConfig } from 'astro/config';
+import { readFileSync } from 'node:fs';
+import remarkTermLinks from './src/plugins/remark-term-links.mjs';
 import { SITE } from './src/data/site';
+
+// 术语自动内链数据(S02):terms.json 由 tools/export_site_terms.py 生成(进 git);
+// defs = term-defs.json(释义卡文案,S03/S07 逐术语补,缺 → 链接无 data-def)
+const terms = JSON.parse(readFileSync(new URL('./src/data/terms.json', import.meta.url), 'utf-8'));
+let termDefs = {};
+try {
+  termDefs = JSON.parse(readFileSync(new URL('./src/data/term-defs.json', import.meta.url), 'utf-8'));
+} catch {
+  termDefs = {}; // 文件尚不存在 = 无释义卡,链接照常(不静默造词)
+}
 
 // knowfate.app — 静态输出;URL 无尾斜杠(规格 README §3)。
 // 根路径 / → /en 302 由 public/_redirects(Cloudflare Pages)处理,不用 JS 跳转。
@@ -16,4 +28,7 @@ export default defineConfig({
   output: 'static',
   trailingSlash: 'never',
   build: { format: 'file' },
+  markdown: {
+    remarkPlugins: [[remarkTermLinks, { terms, defs: termDefs }]],
+  },
 });

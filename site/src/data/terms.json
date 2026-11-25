@@ -1,0 +1,622 @@
+{
+  "_meta": {
+    "source": "backend/app/engine/term_translations.py(AST 静态解析)+ pillars.py GAN_ELEMENT + branch_relations.py compute_friends_and_clash(venv subprocess)",
+    "generator": "tools/export_site_terms.py",
+    "order": "键序 = backend 源码字典序(干支/神煞正典顺序);勿手改,重跑生成器",
+    "branchNote": "earthlyBranches.path 临时挂地支拼音;生肖动物名不在 backend 表内,S11 导出时改挂 animal slug"
+  },
+  "groups": {
+    "heavenlyStems": {
+      "甲": {
+        "en": "Jia",
+        "zhHant": "甲",
+        "path": "/day-master/jia-wood"
+      },
+      "乙": {
+        "en": "Yi",
+        "zhHant": "乙",
+        "path": "/day-master/yi-wood"
+      },
+      "丙": {
+        "en": "Bing",
+        "zhHant": "丙",
+        "path": "/day-master/bing-fire"
+      },
+      "丁": {
+        "en": "Ding",
+        "zhHant": "丁",
+        "path": "/day-master/ding-fire"
+      },
+      "戊": {
+        "en": "Wu",
+        "zhHant": "戊",
+        "path": "/day-master/wu-earth"
+      },
+      "己": {
+        "en": "Ji",
+        "zhHant": "己",
+        "path": "/day-master/ji-earth"
+      },
+      "庚": {
+        "en": "Geng",
+        "zhHant": "庚",
+        "path": "/day-master/geng-metal"
+      },
+      "辛": {
+        "en": "Xin",
+        "zhHant": "辛",
+        "path": "/day-master/xin-metal"
+      },
+      "壬": {
+        "en": "Ren",
+        "zhHant": "壬",
+        "path": "/day-master/ren-water"
+      },
+      "癸": {
+        "en": "Gui",
+        "zhHant": "癸",
+        "path": "/day-master/gui-water"
+      }
+    },
+    "earthlyBranches": {
+      "子": {
+        "en": "Zi",
+        "zhHant": "子",
+        "path": "/zodiac/zi"
+      },
+      "丑": {
+        "en": "Chou",
+        "zhHant": "丑",
+        "path": "/zodiac/chou"
+      },
+      "寅": {
+        "en": "Yin",
+        "zhHant": "寅",
+        "path": "/zodiac/yin"
+      },
+      "卯": {
+        "en": "Mao",
+        "zhHant": "卯",
+        "path": "/zodiac/mao"
+      },
+      "辰": {
+        "en": "Chen",
+        "zhHant": "辰",
+        "path": "/zodiac/chen"
+      },
+      "巳": {
+        "en": "Si",
+        "zhHant": "巳",
+        "path": "/zodiac/si"
+      },
+      "午": {
+        "en": "Wu",
+        "zhHant": "午",
+        "path": "/zodiac/wu"
+      },
+      "未": {
+        "en": "Wei",
+        "zhHant": "未",
+        "path": "/zodiac/wei"
+      },
+      "申": {
+        "en": "Shen",
+        "zhHant": "申",
+        "path": "/zodiac/shen"
+      },
+      "酉": {
+        "en": "You",
+        "zhHant": "酉",
+        "path": "/zodiac/you"
+      },
+      "戌": {
+        "en": "Xu",
+        "zhHant": "戌",
+        "path": "/zodiac/xu"
+      },
+      "亥": {
+        "en": "Hai",
+        "zhHant": "亥",
+        "path": "/zodiac/hai"
+      }
+    },
+    "fiveElements": {
+      "木": {
+        "en": "Wood",
+        "zhHant": "木",
+        "path": "/five-elements/wood"
+      },
+      "火": {
+        "en": "Fire",
+        "zhHant": "火",
+        "path": "/five-elements/fire"
+      },
+      "土": {
+        "en": "Earth",
+        "zhHant": "土",
+        "path": "/five-elements/earth"
+      },
+      "金": {
+        "en": "Metal",
+        "zhHant": "金",
+        "path": "/five-elements/metal"
+      },
+      "水": {
+        "en": "Water",
+        "zhHant": "水",
+        "path": "/five-elements/water"
+      }
+    },
+    "tenGods": {
+      "比肩": {
+        "en": "Companion",
+        "zhHant": "比肩",
+        "path": "/ten-gods/companion"
+      },
+      "劫财": {
+        "en": "Rob Wealth",
+        "zhHant": "劫財",
+        "path": "/ten-gods/rob-wealth"
+      },
+      "食神": {
+        "en": "Eating God",
+        "zhHant": "食神",
+        "path": "/ten-gods/eating-god"
+      },
+      "伤官": {
+        "en": "Hurting Officer",
+        "zhHant": "傷官",
+        "path": "/ten-gods/hurting-officer"
+      },
+      "偏财": {
+        "en": "Indirect Wealth",
+        "zhHant": "偏財",
+        "path": "/ten-gods/indirect-wealth"
+      },
+      "正财": {
+        "en": "Direct Wealth",
+        "zhHant": "正財",
+        "path": "/ten-gods/direct-wealth"
+      },
+      "正官": {
+        "en": "Direct Officer",
+        "zhHant": "正官",
+        "path": "/ten-gods/direct-officer"
+      },
+      "七杀": {
+        "en": "Seven Killings",
+        "zhHant": "七殺",
+        "path": "/ten-gods/seven-killings"
+      },
+      "偏官": {
+        "en": "Seven Killings",
+        "zhHant": "偏官",
+        "path": "/ten-gods/seven-killings"
+      },
+      "正印": {
+        "en": "Direct Resource",
+        "zhHant": "正印",
+        "path": "/ten-gods/direct-resource"
+      },
+      "偏印": {
+        "en": "Indirect Resource",
+        "zhHant": "偏印",
+        "path": "/ten-gods/indirect-resource"
+      }
+    },
+    "nayin": {
+      "海中金": {
+        "en": "Sea Metal",
+        "zhHant": "海中金",
+        "path": null
+      },
+      "炉中火": {
+        "en": "Furnace Fire",
+        "zhHant": "爐中火",
+        "path": null
+      },
+      "大林木": {
+        "en": "Great Forest Wood",
+        "zhHant": "大林木",
+        "path": null
+      },
+      "路旁土": {
+        "en": "Roadside Earth",
+        "zhHant": "路旁土",
+        "path": null
+      },
+      "剑锋金": {
+        "en": "Sword Metal",
+        "zhHant": "劍鋒金",
+        "path": null
+      },
+      "山头火": {
+        "en": "Mountain-Top Fire",
+        "zhHant": "山頭火",
+        "path": null
+      },
+      "涧下水": {
+        "en": "Stream Water",
+        "zhHant": "澗下水",
+        "path": null
+      },
+      "城头土": {
+        "en": "Rampart Earth",
+        "zhHant": "城頭土",
+        "path": null
+      },
+      "白蜡金": {
+        "en": "White Wax Metal",
+        "zhHant": "白蠟金",
+        "path": null
+      },
+      "杨柳木": {
+        "en": "Willow Wood",
+        "zhHant": "楊柳木",
+        "path": null
+      },
+      "泉中水": {
+        "en": "Spring Water",
+        "zhHant": "泉中水",
+        "path": null
+      },
+      "屋上土": {
+        "en": "Rooftop Earth",
+        "zhHant": "屋上土",
+        "path": null
+      },
+      "霹雳火": {
+        "en": "Thunderbolt Fire",
+        "zhHant": "霹靂火",
+        "path": null
+      },
+      "松柏木": {
+        "en": "Pine-Cypress Wood",
+        "zhHant": "松柏木",
+        "path": null
+      },
+      "长流水": {
+        "en": "Long-Running Water",
+        "zhHant": "長流水",
+        "path": null
+      },
+      "沙中金": {
+        "en": "Sand Metal",
+        "zhHant": "沙中金",
+        "path": null
+      },
+      "山下火": {
+        "en": "Foothill Fire",
+        "zhHant": "山下火",
+        "path": null
+      },
+      "平地木": {
+        "en": "Plains Wood",
+        "zhHant": "平地木",
+        "path": null
+      },
+      "壁上土": {
+        "en": "Wall Earth",
+        "zhHant": "壁上土",
+        "path": null
+      },
+      "金箔金": {
+        "en": "Gold-Leaf Metal",
+        "zhHant": "金箔金",
+        "path": null
+      },
+      "覆灯火": {
+        "en": "Lantern Fire",
+        "zhHant": "覆燈火",
+        "path": null
+      },
+      "天河水": {
+        "en": "Heavenly River Water",
+        "zhHant": "天河水",
+        "path": null
+      },
+      "大驿土": {
+        "en": "Post-Road Earth",
+        "zhHant": "大驛土",
+        "path": null
+      },
+      "钗钏金": {
+        "en": "Hairpin Metal",
+        "zhHant": "釵釧金",
+        "path": null
+      },
+      "桑柘木": {
+        "en": "Mulberry Wood",
+        "zhHant": "桑柘木",
+        "path": null
+      },
+      "大溪水": {
+        "en": "Great Stream Water",
+        "zhHant": "大溪水",
+        "path": null
+      },
+      "沙中土": {
+        "en": "Sand Earth",
+        "zhHant": "沙中土",
+        "path": null
+      },
+      "天上火": {
+        "en": "Sky Fire",
+        "zhHant": "天上火",
+        "path": null
+      },
+      "石榴木": {
+        "en": "Pomegranate Wood",
+        "zhHant": "石榴木",
+        "path": null
+      },
+      "大海水": {
+        "en": "Great Sea Water",
+        "zhHant": "大海水",
+        "path": null
+      }
+    },
+    "twelveStages": {
+      "长生": {
+        "en": "Growth",
+        "zhHant": "長生",
+        "path": null
+      },
+      "沐浴": {
+        "en": "Bathing",
+        "zhHant": "沐浴",
+        "path": null
+      },
+      "冠带": {
+        "en": "Crowning",
+        "zhHant": "冠帶",
+        "path": null
+      },
+      "临官": {
+        "en": "Officer",
+        "zhHant": "臨官",
+        "path": null
+      },
+      "帝旺": {
+        "en": "Emperor",
+        "zhHant": "帝旺",
+        "path": null
+      },
+      "衰": {
+        "en": "Decline",
+        "zhHant": "衰",
+        "path": null
+      },
+      "病": {
+        "en": "Sickness",
+        "zhHant": "病",
+        "path": null
+      },
+      "死": {
+        "en": "Death",
+        "zhHant": "死",
+        "path": null
+      },
+      "墓": {
+        "en": "Grave",
+        "zhHant": "墓",
+        "path": null
+      },
+      "绝": {
+        "en": "Extinction",
+        "zhHant": "絕",
+        "path": null
+      },
+      "胎": {
+        "en": "Womb",
+        "zhHant": "胎",
+        "path": null
+      },
+      "养": {
+        "en": "Nurture",
+        "zhHant": "養",
+        "path": null
+      }
+    },
+    "shensha": {
+      "天乙贵人": {
+        "en": "Nobleman",
+        "zhHant": "天乙貴人",
+        "path": "/stars/nobleman"
+      },
+      "太极贵人": {
+        "en": "Supreme Nobleman",
+        "zhHant": "太極貴人",
+        "path": "/stars/supreme-nobleman"
+      },
+      "文昌": {
+        "en": "Academic Star",
+        "zhHant": "文昌",
+        "path": "/stars/academic-star"
+      },
+      "天德": {
+        "en": "Heavenly Virtue",
+        "zhHant": "天德",
+        "path": "/stars/heavenly-virtue"
+      },
+      "月德": {
+        "en": "Monthly Virtue",
+        "zhHant": "月德",
+        "path": "/stars/monthly-virtue"
+      },
+      "驿马": {
+        "en": "Travelling Horse",
+        "zhHant": "驛馬",
+        "path": "/stars/travelling-horse"
+      },
+      "桃花": {
+        "en": "Peach Blossom",
+        "zhHant": "桃花",
+        "path": "/stars/peach-blossom"
+      },
+      "将星": {
+        "en": "General Star",
+        "zhHant": "將星",
+        "path": "/stars/general-star"
+      },
+      "华盖": {
+        "en": "Canopy Star",
+        "zhHant": "華蓋",
+        "path": "/stars/canopy-star"
+      },
+      "金舆": {
+        "en": "Golden Carriage",
+        "zhHant": "金輿",
+        "path": "/stars/golden-carriage"
+      },
+      "禄神": {
+        "en": "Prosperity Star",
+        "zhHant": "祿神",
+        "path": "/stars/prosperity-star"
+      },
+      "羊刃": {
+        "en": "Goat Blade",
+        "zhHant": "羊刃",
+        "path": "/stars/goat-blade"
+      },
+      "劫煞": {
+        "en": "Robbery Star",
+        "zhHant": "劫煞",
+        "path": "/stars/robbery-star"
+      },
+      "亡神": {
+        "en": "Loss Spirit",
+        "zhHant": "亡神",
+        "path": "/stars/loss-spirit"
+      },
+      "孤辰": {
+        "en": "Solitary Star",
+        "zhHant": "孤辰",
+        "path": "/stars/solitary-star"
+      },
+      "寡宿": {
+        "en": "Widowhood Star",
+        "zhHant": "寡宿",
+        "path": "/stars/widowhood-star"
+      },
+      "元辰": {
+        "en": "Grievance Star",
+        "zhHant": "元辰",
+        "path": "/stars/grievance-star"
+      },
+      "灾煞": {
+        "en": "Calamity Star",
+        "zhHant": "災煞",
+        "path": "/stars/calamity-star"
+      },
+      "天罗地网": {
+        "en": "Heaven Net, Earth Snare",
+        "zhHant": "天羅地網",
+        "path": "/stars/heaven-net-earth-snare"
+      },
+      "红艳": {
+        "en": "Red Beauty",
+        "zhHant": "紅艷",
+        "path": "/stars/red-beauty"
+      }
+    },
+    "branchRelations": {
+      "子": {
+        "friends": [
+          "丑",
+          "辰",
+          "申"
+        ],
+        "clash": "午"
+      },
+      "丑": {
+        "friends": [
+          "子",
+          "巳",
+          "酉"
+        ],
+        "clash": "未"
+      },
+      "寅": {
+        "friends": [
+          "亥",
+          "午",
+          "戌"
+        ],
+        "clash": "申"
+      },
+      "卯": {
+        "friends": [
+          "戌",
+          "未",
+          "亥"
+        ],
+        "clash": "酉"
+      },
+      "辰": {
+        "friends": [
+          "酉",
+          "子",
+          "申"
+        ],
+        "clash": "戌"
+      },
+      "巳": {
+        "friends": [
+          "申",
+          "丑",
+          "酉"
+        ],
+        "clash": "亥"
+      },
+      "午": {
+        "friends": [
+          "未",
+          "寅",
+          "戌"
+        ],
+        "clash": "子"
+      },
+      "未": {
+        "friends": [
+          "午",
+          "卯",
+          "亥"
+        ],
+        "clash": "丑"
+      },
+      "申": {
+        "friends": [
+          "巳",
+          "子",
+          "辰"
+        ],
+        "clash": "寅"
+      },
+      "酉": {
+        "friends": [
+          "辰",
+          "丑",
+          "巳"
+        ],
+        "clash": "卯"
+      },
+      "戌": {
+        "friends": [
+          "卯",
+          "寅",
+          "午"
+        ],
+        "clash": "辰"
+      },
+      "亥": {
+        "friends": [
+          "寅",
+          "卯",
+          "未"
+        ],
+        "clash": "巳"
+      }
+    }
+  }
+}

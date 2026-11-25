@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""术语表一致性校验:backend term_translations.py ↔ iOS BaziTerms.swift(U3d,2026-09-27)。
+"""术语表一致性校验:backend term_translations.py ↔ iOS BaziTerms.swift ↔ 官网 terms.json。
 
 背景(i18n-display-layer-handoff.md 决策 B):排盘响应保持中文术语作稳定 id,
 iOS 建展示层三语表(BaziTerms.swift)——两边各一份术语表,有漂移风险,本脚本拦截。
@@ -16,6 +16,9 @@ iOS 建展示层三语表(BaziTerms.swift)——两边各一份术语表,有漂�
      en 值仍须与 backend 相等)
      MISC_TERMS_EN ⊆ misc;shensha.py _PILLAR_LABELS 标签 ⊆ pillarPositions
   ④ iOS 自检:跨表键冲突 / 三语字段空值 / zh ≠ 键 / en 值与 backend ① 组相等
+  ⑤ 官网 terms.json(S02,2026-11-25):七组术语 键集合 + en + zh-hant 值三相等
+     (tools/export_site_terms.py 产物,进 git;站点任何译名只许来自它);
+     branchRelations 与 backend compute_friends_and_clash 直算比对(防手改 JSON)
 
 范围外(显式记录,不算缺口):GENDER_EN / STRENGTH_LABEL_EN
 (raw key)只服务后端 prompt context 翻译,iOS 展示不消费;
@@ -23,12 +26,15 @@ COMPAT_TERMS_EN 已入 ① 组(AssessmentCardGrid 展示消费);xijiMethods 值�
 backend/app/engine/xiji.py 的代码字面量,后端无表,无法机器比对(改值时人工同步)。
 
 用法:
-    python3 tools/check_term_sync.py          # 在 repo 根执行
+    arch -arm64 backend/.venv/bin/python tools/check_term_sync.py   # repo 根执行
+    (backend 表经 chart_builder 依赖 pydantic;本机 venv 是 arm64,系统 python3
+    是 x86_64,直接 python3 会 dlopen 失败——2026-11-25 实测,脚本会给出明确报错)
 退出码:0 = 全部一致;1 = 有 FAIL;2 = 脚本自身错误(文件缺失等)。
 """
 
 from __future__ import annotations
 
+import json
 import re
 import sys
 from pathlib import Path
@@ -37,6 +43,19 @@ ROOT = Path(__file__).resolve().parent.parent
 BACKEND = ROOT / "backend"
 
 sys.path.insert(0, str(BACKEND))
+
+try:
+    import pydantic  # noqa: F401  触发架构探测:arm64 pydantic_core 在 x86_64 python 下 dlopen 即失败
+except ImportError as _e:
+    if "incompatible architecture" in str(_e):
+        print(
+            "FAIL(脚本自身错误):backend 表依赖 pydantic,当前 python 架构与 pydantic_core 不符。\n"
+            "改用:arch -arm64 backend/.venv/bin/python tools/check_term_sync.py\n"
+            f"(原始错误: {_e})",
+            file=sys.stderr,
+        )
+        sys.exit(2)
+    raise
 
 from app.engine.shensha import _PILLAR_LABELS  # noqa: E402
 from app.engine.term_translations import (  # noqa: E402
@@ -231,6 +250,80 @@ def main() -> int:
         print(f"  全部 {sum(len(t) for t in ios_tables.values())} 条 / "
               f"{len(ios_tables)} 表无冲突,无空值"
               + ("" if not [f for f in failures if "空值" in f] else " —— 见上方 FAIL"))
+
+    print("=" * 64)
+    print("⑤ 官网 terms.json(键集合 + en + zh-hant 值三相等;branchRelations 对 backend 直算)")
+    print("=" * 64)
+    terms_path = ROOT / "site" / "src" / "data" / "terms.json"
+    try:
+        site_groups = json.loads(terms_path.read_text(encoding="utf-8"))["groups"]
+    except (OSError, json.JSONDecodeError, KeyError) as e:
+        failures.append(f"terms.json 读取失败: {e}(先跑 python3 tools/export_site_terms.py)")
+        print("  terms.json FAIL 读取/结构失败")
+        site_groups = {}
+    site_group_tables = {
+        "五行": (FIVE_ELEMENTS_EN, FIVE_ELEMENTS_ZH_HANT, "fiveElements"),
+        "十神": (TEN_GODS_EN, TEN_GODS_ZH_HANT, "tenGods"),
+        "纳音": (NAYIN_EN, NAYIN_ZH_HANT, "nayin"),
+        "十二长生": (TWELVE_STAGES_EN, TWELVE_STAGES_ZH_HANT, "twelveStages"),
+        "神煞": (SHENSHA_EN, SHENSHA_ZH_HANT, "shensha"),
+        "天干": (HEAVENLY_STEMS_EN, HEAVENLY_STEMS_ZH_HANT, "heavenlyStems"),
+        "地支": (EARTHLY_BRANCHES_EN, EARTHLY_BRANCHES_ZH_HANT, "earthlyBranches"),
+    }
+    for label, (backend_table, backend_hant, group_name) in site_group_tables.items():
+        site = site_groups.get(group_name)
+        out = f"  {label:<6} terms.json:{group_name}"
+        if site is None:
+            failures.append(f"terms.json 缺组 {group_name}")
+            print(f"{out} FAIL 缺组")
+            continue
+        if set(site) != set(backend_table):
+            failures.append(
+                f"terms.json {group_name} 键集合漂移: 仅backend={sorted(set(backend_table) - set(site))} "
+                f"仅terms.json={sorted(set(site) - set(backend_table))}"
+            )
+            print(f"{out} FAIL 键集合漂移")
+            continue
+        drift = [
+            k for k in backend_table
+            if site[k].get("en") != backend_table[k] or site[k].get("zhHant") != backend_hant[k]
+        ]
+        if drift:
+            failures.append(
+                f"terms.json {group_name} en/zh-hant 值漂移: "
+                + "; ".join(
+                    f"{k}: backend en={backend_table[k]!r} hant={backend_hant[k]!r}"
+                    f" site en={site[k].get('en')!r} hant={site[k].get('zhHant')!r}"
+                    for k in drift[:5])
+            )
+            print(f"{out} FAIL en/zh-hant 值漂移 {len(drift)} 条")
+        else:
+            print(f"{out} OK   {len(backend_table)} 条键值全等")
+
+    # branchRelations:terms.json 必须与 backend compute_friends_and_clash 直算一致
+    from app.engine.branch_relations import compute_friends_and_clash  # noqa: E402
+
+    site_relations = site_groups.get("branchRelations")
+    if not isinstance(site_relations, dict):
+        failures.append("terms.json 缺组 branchRelations")
+        print("  地支关系 terms.json:branchRelations FAIL 缺组")
+    else:
+        expected = {
+            z: {"friends": list(fs), "clash": c}
+            for z, (fs, c) in (
+                (zhi, compute_friends_and_clash(zhi)) for zhi in "子丑寅卯辰巳午未申酉戌亥"
+            )
+        }
+        rel_drift = [z for z in expected if site_relations.get(z) != expected[z]]
+        if set(site_relations) != set(expected) or rel_drift:
+            failures.append(
+                f"terms.json branchRelations 与 backend 直算漂移: "
+                f"键差={sorted(set(site_relations) ^ set(expected))[:12]} "
+                f"值漂移={rel_drift[:5]}"
+            )
+            print("  地支关系 terms.json:branchRelations FAIL 与 backend 直算不一致")
+        else:
+            print(f"  地支关系 terms.json:branchRelations OK   {len(expected)} 支与 backend 直算全等")
 
     print("=" * 64)
     if failures:
