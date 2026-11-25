@@ -2,7 +2,7 @@ import SwiftUI
 
 /// 深度解析主页(2026-10-01 按 mock「QiCompass Chart」重构):
 /// hero 四柱横排四列(年|月|日|时,日列 1.35 倍宽;干支分字五行着色;
-/// 柱底 hairline 十神块;墨圆居中垫底)→ 喜忌一行(玄印 + 五行着色)→
+/// 柱底 hairline 十神块;墨圆居中垫底)→ 喜忌一行(品牌印 + 五行着色)→
 /// 锚句 → 捌章目录(命书大标题 + 已读进度条)→ 沉底 CTA → 盘面细目入口。
 ///
 /// 读查分离:「读」push ChapterReadingView,「查」push ChartDetailView。
@@ -350,14 +350,14 @@ struct DeepAnalysisHomeView: View {
         }
     }
 
-    // MARK: - 喜忌行(玄印 + 五行着色)
+    // MARK: - 喜忌行(品牌印 + 五行着色)
 
-    /// 喜忌一行:左「玄」印(从 09-01 版 hero 左下移来),右单行「喜 火 土 · 忌 木」,
+    /// 喜忌一行:左品牌印(从 09-01 版 hero 左下移来;2026-11-25 改名「玄」→「观 / 觀」),右单行「喜 火 土 · 忌 木」,
     /// 每个元素字各自五行着色。从格 → 整行降级文案(喜忌留空,详见命书)。
     /// 替代 09-01 版右下竖排喜忌小注。
     private var xijiLine: some View {
         HStack(alignment: .center, spacing: 12) {
-            SealStamp(character: "玄", size: 30, rotation: -4, stampDelay: 0.3)
+            SealStamp(character: BrandMark.sealCharacter, size: 30, rotation: -4, stampDelay: 0.3)
             if isSpecialPattern {
                 Text(L10n.DeepChart.sideNoteSpecialPattern)
                     .font(BaziFont.body(size: 14.5))

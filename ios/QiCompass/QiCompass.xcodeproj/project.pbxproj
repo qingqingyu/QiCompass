@@ -113,6 +113,7 @@
 		9C30AE0F1DBA8FC49EAC16C6 /* BaziTermNotes.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C2CD61D235F57B0BF2CCD28 /* BaziTermNotes.swift */; };
 		9C000000000000000000005A /* L10n.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005A /* L10n.swift */; };
 		9C000000000000000000005B /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005B /* Localizable.xcstrings */; };
+		9C000000000000000000016A /* InfoPlist.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000016A /* InfoPlist.xcstrings */; };
 		9C000000000000000000005C /* cities.sqlite in Resources */ = {isa = PBXBuildFile; fileRef = 9C100000000000000000005C /* cities.sqlite */; };
 		9C00000000000000000000FE /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = 9C10000000000000000000FE /* PrivacyInfo.xcprivacy */; };
 		9C00000000000000000000F3 /* QiSongti-Regular.otf in Resources */ = {isa = PBXBuildFile; fileRef = 9C1000000000000000000F3 /* QiSongti-Regular.otf */; };
@@ -329,6 +330,7 @@
 		9C2CD61D235F57B0BF2CCD28 /* BaziTermNotes.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = BaziTermNotes.swift; path = QiCompass/L10n/BaziTermNotes.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000005A /* L10n.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = L10n.swift; path = QiCompass/L10n/L10n.swift; sourceTree = SOURCE_ROOT; };
 		9C100000000000000000005B /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
+		9C100000000000000000016A /* InfoPlist.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = InfoPlist.xcstrings; sourceTree = "<group>"; };
 		9C100000000000000000005C /* cities.sqlite */ = {isa = PBXFileReference; lastKnownFileType = file; path = cities.sqlite; sourceTree = "<group>"; };
 		9C10000000000000000000FE /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml.xcprivacy; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
 		9C1000000000000000000F3 /* QiSongti-Regular.otf */ = {isa = PBXFileReference; lastKnownFileType = file; path = QiSongti-Regular.otf; sourceTree = "<group>"; };
@@ -677,6 +679,7 @@
 			children = (
 				9C100000000000000000001A /* Assets.xcassets */,
 				9C100000000000000000005B /* Localizable.xcstrings */,
+				9C100000000000000000016A /* InfoPlist.xcstrings */,
 				9C100000000000000000005C /* cities.sqlite */,
 				9C10000000000000000000FE /* PrivacyInfo.xcprivacy */,
 				9C1000000000000000000F3 /* QiSongti-Regular.otf */,
@@ -859,6 +862,7 @@ A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 			files = (
 				9C000000000000000000001A /* Assets.xcassets in Resources */,
 				9C000000000000000000005B /* Localizable.xcstrings in Resources */,
+				9C000000000000000000016A /* InfoPlist.xcstrings in Resources */,
 				9C000000000000000000005C /* cities.sqlite in Resources */,
 				9C00000000000000000000FE /* PrivacyInfo.xcprivacy in Resources */,
 				9C00000000000000000000F3 /* QiSongti-Regular.otf in Resources */,
@@ -1222,7 +1226,7 @@ A0000000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = QiCompass/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = QiCompass;
+				INFOPLIST_KEY_CFBundleDisplayName = KnowFate;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;
@@ -1263,7 +1267,7 @@ A0000000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				ENABLE_PREVIEWS = YES;
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = QiCompass/Resources/Info.plist;
-				INFOPLIST_KEY_CFBundleDisplayName = QiCompass;
+				INFOPLIST_KEY_CFBundleDisplayName = KnowFate;
 				INFOPLIST_KEY_UIApplicationSceneManifest_Generation = YES;
 				INFOPLIST_KEY_UIApplicationSupportsIndirectInputEvents = YES;
 				INFOPLIST_KEY_UILaunchScreen_Generation = YES;

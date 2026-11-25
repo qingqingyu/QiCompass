@@ -13344,18 +13344,18 @@
         }
       }
     },
-    "QICOMPASS" : {
+    "KNOWFATE" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "QICOMPASS"
+            "value" : "KNOWFATE"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "QICOMPASS"
+            "value" : "KNOWFATE"
           }
         }
       }
@@ -17794,50 +17794,50 @@
         }
       }
     },
-    "玄机问道" : {
+    "观命" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "QICOMPASS"
+            "value" : "KNOWFATE"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "玄機問道"
+            "value" : "觀命"
           }
         }
       }
     },
-    "玄机问道 · 专业不忽悠" : {
+    "观命 · 专业不忽悠" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "QICOMPASS · Classical craft, no guesswork"
+            "value" : "KNOWFATE · Classical craft, no guesswork"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "玄機問道 · 專業不忽悠"
+            "value" : "觀命 · 專業不忽悠"
           }
         }
       }
     },
-    "玄机问道印章" : {
+    "观命印章" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "QICOMPASS seal"
+            "value" : "KnowFate seal"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "玄機問道印章"
+            "value" : "觀命印章"
           }
         }
       }
@@ -20159,34 +20159,34 @@
         }
       }
     },
-    "请从后台上滑关闭 QiCompass 后重新打开，界面与命书、合盘、每日运势将全部切换为%@。" : {
+    "请从后台上滑关闭 观命 后重新打开，界面与命书、合盘、每日运势将全部切换为%@。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Swipe up to close QiCompass from the app switcher and reopen it. The interface, the book, compatibility, and daily fortune will all switch to %@."
+            "value" : "Swipe up to close KnowFate from the app switcher and reopen it. The interface, the book, compatibility, and daily fortune will all switch to %@."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "請從後台上滑關閉 QiCompass 後重新打開，介面與命書、合盤、每日運勢將全部切換為%@。"
+            "value" : "請從後台上滑關閉 觀命 後重新打開，介面與命書、合盤、每日運勢將全部切換為%@。"
           }
         }
       }
     },
-    "请从后台上滑关闭 QiCompass 后重新打开，界面与命书、合盘、每日运势将恢复跟随系统语言。" : {
+    "请从后台上滑关闭 观命 后重新打开，界面与命书、合盘、每日运势将恢复跟随系统语言。" : {
       "localizations" : {
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Swipe up to close QiCompass from the app switcher and reopen it. The interface, the book, compatibility, and daily fortune will follow your system language again."
+            "value" : "Swipe up to close KnowFate from the app switcher and reopen it. The interface, the book, compatibility, and daily fortune will follow your system language again."
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "請從後台上滑關閉 QiCompass 後重新打開，介面與命書、合盤、每日運勢將恢復跟隨系統語言。"
+            "value" : "請從後台上滑關閉 觀命 後重新打開，介面與命書、合盤、每日運勢將恢復跟隨系統語言。"
           }
         }
       }

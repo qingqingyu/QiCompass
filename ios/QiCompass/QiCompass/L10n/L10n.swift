@@ -25,7 +25,7 @@ enum L10n {
     enum Onboarding {
         // -- Welcome 屏(O1,第 1 屏;i18n 补录 2026-08-29)--
 
-        /// Welcome 副标题(墨圆/玄印之下)。
+        /// Welcome 副标题(墨圆/品牌印之下)。
         /// zh: "读懂你的命局";en: "Know your chart"
         static let welcomeTagline = String(localized: "onboarding.welcome.tagline")
 
@@ -155,7 +155,7 @@ enum L10n {
     // MARK: - 出生信息表单(BirthFormView;i18n 补录 2026-08-29)
 
     /// 出生信息表单(onboarding O2 / 深度解析无存档兜底两处复用)。
-    /// 品牌/规则类字串不进本表:「问命」「玄」「玄机问道」、干支字符
+    /// 品牌/规则类字串不进本表:「问命」「观 / 觀」「观命」(2026-11-25 前为「玄」「玄机问道」)、干支字符
     /// (时辰名走 `ShichenDisplay`,2026-09-23 起 EN 显拼音+时段)。
     enum BirthForm {
         /// "出生日期" 字段标签(日期行 + 确认 sheet 日期行共用;S03 拆双 picker)。

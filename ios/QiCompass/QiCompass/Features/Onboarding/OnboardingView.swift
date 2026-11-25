@@ -489,7 +489,7 @@ struct CompleteOnceGate {
 // MARK: - Page 1: Welcome(水墨孤本 O1,2026-08-26 重写)
 //
 // 参考 docs/design-ref/shuimo/onboarding-o1-welcome.html:
-// 墨圆居中承接开机转场 → 玄印落于圆心 → 宋体标题 → QICOMPASS 字距标 →
+// 墨圆居中承接开机转场 → 品牌印落于圆心 → 宋体标题 → KNOWFATE 字距标 →
 // 副标题 → 竖排经文(版心左 hairline)。壁画佛手背景图退役(与新语言冲突)。
 // 错峰时序(承接 splash 后从简):enso 0s → 标题 0.2s → 副标 0.35s →
 // 定调/计价句 0.55/0.65s(T13;0.55 与经文同拍,分处上下两域不互扰) → 印 0.9s。
@@ -505,21 +505,21 @@ private struct WelcomePage: View {
                 // 共收 68pt → 853.7pt ≤ 860(余 6.3pt);宽裕布局零视觉变化。
                 Spacer().frame(height: 80)
 
-                // 墨圆 + 玄印居中(stamp 落定在墨圆成形之后)
+                // 墨圆 + 品牌印居中(stamp 落定在墨圆成形之后;2026-11-25 玄→观)
                 EnsoView(size: 172, breathing: true)
                     .overlay {
-                        SealStamp(character: "玄", size: 34, rotation: 3, stampDelay: 0.9)
+                        SealStamp(character: BrandMark.sealCharacter, size: 34, rotation: 3, stampDelay: 0.9)
                     }
                     .accessibilityElement(children: .combine)
-                    .accessibilityLabel("玄机问道印章")
+                    .accessibilityLabel("观命印章")
 
                 VStack(spacing: 12) {
-                    Text("玄机问道")
+                    Text("观命")
                         .font(BaziFont.display(size: 27))
-                        .tracking(8)
+                        .tracking(14) // 2026-11-25 四字→两字,字距 8→14(真机构图待 S06 走查)
                         .foregroundStyle(BaziTheme.ink)
                         .riseIn(delay: 0.2)
-                    Text("QICOMPASS")
+                    Text("KNOWFATE")
                         .font(BaziFont.latinCaps(size: 8.5))
                         .tracking(5)
                         .foregroundStyle(BaziTheme.inkMuted)

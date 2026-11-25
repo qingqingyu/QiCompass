@@ -45,6 +45,22 @@
 - `grep -rn "玄机问道\|QICOMPASS" ios/Tests`:当前无断言;若有 UI 测试或快照测试引用旧字样,同步更新
 - 现有测试全绿
 
+## 进度(2026-11-25)
+
+代码改动已完成(在 Linux 环境完成,**未编译、未截图**,须在 Mac 上验证):
+
+- **品牌字单一入口**:`Shared/InkKit.swift` 新增 `enum BrandMark`(`sealCharacter` 繁体界面「觀」/ 其余「观」;`chineseName` 繁体「觀命」/ 其余「观命」),语言只经 `AppLanguage.current` 取。放在现有文件内,未新增 .swift 文件
+- **启动页** `SplashTransitionView`:印 → `BrandMark.sealCharacter`;竖题 → `BrandMark.chineseName`(字距 11→16);副题 →「知人者智 · 自知者明」;KNOWFATE
+- **引导页** `OnboardingView`:印 → `BrandMark.sealCharacter`;`Text("观命")`(字距 8→14,走 xcstrings);KNOWFATE;无障碍标签「观命印章」
+- **深度解析主页**喜忌行印 → `BrandMark.sealCharacter`
+- **「我的」页**:KNOWFATE;「观命 · 专业不忽悠」;两条重启提示改用「观命」
+- **`Localizable.xcstrings`**:6 条词条按文本原位改名(文件里有一个重复键,不能用 JSON 读写,否则会丢条目)
+- **主屏幕名**:`Info.plist` 加 `CFBundleDisplayName = KnowFate`;新增 `Resources/InfoPlist.xcstrings`(zh-Hans 观命 / zh-Hant 觀命 / en KnowFate),pbxproj 4 处登记(ID `9C…016A`);pbxproj 两处 `INFOPLIST_KEY_CFBundleDisplayName` 改为 KnowFate
+- 描述现状的注释同步;历史记录性质的注释保留
+- 守护脚本:`check_sku_sync.py` PASS;`build_songti_fonts.py --verify` PASS;「觀」及副题八字在 TC 子集内已逐字确认。`check_term_sync.py` 未跑(需后端依赖;本次未动术语表,非必跑项)
+
+**待 Mac 上验证**(并入 S06):Xcode 编译通过;`InfoPlist.xcstrings` 生效(三种系统语言主屏名);两字竖题与字距的构图;下面验收项的 24 张截图
+
 ## Acceptance criteria
 
 - [ ] 三个系统语言下主屏幕名分别为 观命 / 觀命 / KnowFate(截图)
