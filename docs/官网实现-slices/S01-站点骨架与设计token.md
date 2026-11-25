@@ -12,9 +12,9 @@
 3. **全局样式**:把 `docs/design-ref/website/assets/site.css` 搬为 `site/src/styles/global.css`。token(§1)原样保留;删掉 `.anno` 相关样式;字体变量改成自托管字体名
 4. **自托管字体**(删掉 Google Fonts 外链):
    - 英文标题:Newsreader(OFL),只取用到的字重(300 / 400,含 italic 300),Latin 子集,woff2(若 `brotli` 未获批准则输出 woff)
-   - 中文:从 `ios/QiCompass/QiCompass/Resources/QiSongti-Regular.otf`(简)与 `QiSongtiTC-Regular.otf`(繁)用 `fontTools.subset` 做 **Web 子集**。字表 = 站点全部内容 + 术语表实际用到的汉字(构建脚本扫描 `site/src/**` 与导出的术语 JSON 生成),脚本放 `tools/build_site_fonts.py`,风格对齐 `tools/build_songti_fonts.py`(确定性产出、`--verify` 模式)
+   - 中文:从 `ios/QiCompass/QiCompass/Resources/QiSongti-Regular.otf`(简)与 `QiSongtiTC-Regular.otf`(繁)用 `fontTools.subset` 做 **Web 子集**。字表 = 站点全部内容 + 术语表实际用到的汉字 + 品牌字「观」「觀」「命」(构建脚本扫描 `site/src/**` 与导出的术语 JSON 生成),脚本放 `tools/build_site_fonts.py`,风格对齐 `tools/build_songti_fonts.py`(确定性产出、`--verify` 模式)
    - `font-display: swap`;只 `<link rel=preload>` Newsreader 400 一个文件
-5. **基础组件**(`site/src/components/`):`BaseHead`(title / description / canonical / hreflang 三条 / OG / Twitter / theme-color / JSON-LD 插槽)、`Header`(含移动端菜单、语言切换、当前页朱点)、`Footer`(全站内链枢纽,内容与设计稿一致,链接列表从数据生成)、`Enso`(SVG,带 draw 动画开关)、`Seal`(朱印,stamp 动画)、`Numeral`(壹–捌,实线 / 虚线)、`Brush`、`Kicker`
+5. **基础组件**(`site/src/components/`):`BaseHead`(title / description / canonical / hreflang 三条 / OG / Twitter / theme-color / JSON-LD 插槽;title 后缀按语言:en `| KnowFate`、zh-hant `| 觀命 KnowFate`)、`Header`(含移动端菜单、语言切换、当前页朱点;品牌字按语言:en `KNOWFATE`、zh-hant「觀命」+ 小号 `KNOWFATE`,见规格 README §13)、`Footer`(全站内链枢纽,内容与设计稿一致,链接列表从数据生成)、`Enso`(SVG,带 draw 动画开关)、`Seal`(朱印,stamp 动画;品牌印默认字按语言取 en「观」/ zh-hant「觀」)、`Numeral`(壹–捌,实线 / 虚线)、`Brush`、`Kicker`
 6. **增强脚本**:把 `site.js` 中通用部分(header 滚动线、菜单、reveal、seal stamp)改写成一个小模块 `site/src/scripts/enhance.ts`,`<script>` 由 Astro 打包;页面专属交互放到后续 slice
 7. **一张示例页** `/en/_kitchen-sink`(构建产物里 `noindex`,不进 sitemap):展示所有基础组件、色板、字号阶梯、亮暗两种主题,用来做视觉回归
 

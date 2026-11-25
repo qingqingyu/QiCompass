@@ -11,13 +11,14 @@
 2. **robots.txt**:允许全部;`Disallow: /*?d=`、`/*?t=`、`/*?c=`(出生参数);写 sitemap 地址
 3. **noindex 规则**:任何带出生参数的 URL 输出 `noindex,follow` + canonical 到干净 URL(二期排盘器用,一期先把机制做好)
 4. **重定向**(`site/public/_redirects`):`/` → `/en/`;配对页 `b-and-a` → `a-and-b`(规则生成,二期才有页面,一期先写好生成逻辑);旧路径占位
-5. **`llms.txt`**:站点简介 + 方法说明(确定性规则、不预测、术语中英)+ 各类型总览链接
-6. **OG 图**:设计稿 `index.html` 里的 1200×630 模板(左标题 / 右墨圆大字 / 底部朱印 + KNOWFATE.APP)
+5. **结构化数据品牌字段**:全站 `Organization` 的 `name` = KnowFate、`alternateName` = ["觀命", "观命"];App 上架后 `MobileApplication.name` = 「KnowFate - Chinese Astrology」
+6. **`llms.txt`**:站点简介 + 方法说明(确定性规则、不预测、术语中英)+ 各类型总览链接
+7. **OG 图**:设计稿 `index.html` 里的 1200×630 模板(左标题 / 右墨圆大字 / 底部朱印 + KNOWFATE.APP;朱印 en「观」/ zh-hant「觀」)
    - **Satori 未获批准前的降级方案**:为每个**页面类型**手工做一张静态 OG 图(用设计稿模板在本地 Playwright 截图生成 PNG,脚本放 `tools/`,产物进 `site/public/og/`),每页按类型引用
    - 获批后:构建期每页生成专属 OG 图
-7. **TelemetryDeck**:**先向用户确认**(见 README 依赖表);确认后接入 Web SDK,无 cookie;记录事件:CTA 点击(带 slot)、邮箱提交、排盘提交(二期)
-8. **404 页**:水墨风格,给出 Library / 首页 / 排盘器入口
-9. **校验脚本** `tools/check_site_seo.py`(跑在构建产物 `site/dist/` 上):每页 title 唯一且 ≤60 字符、description 140–160、canonical 唯一、hreflang 互指闭合、JSON-LD 可解析、无 `noindex` 页出现在 sitemap、内链无 404
+8. **TelemetryDeck**:**先向用户确认**(见 README 依赖表);确认后接入 Web SDK,无 cookie;记录事件:CTA 点击(带 slot)、邮箱提交、排盘提交(二期)
+9. **404 页**:水墨风格,给出 Library / 首页 / 排盘器入口
+10. **校验脚本** `tools/check_site_seo.py`(跑在构建产物 `site/dist/` 上):每页 title 唯一且 ≤60 字符、description 140–160、canonical 唯一、hreflang 互指闭合、JSON-LD 可解析、无 `noindex` 页出现在 sitemap、内链无 404
 
 ## HITL 步骤
 
