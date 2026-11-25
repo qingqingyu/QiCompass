@@ -8,7 +8,7 @@ import UIKit
 ///
 /// 2026-10-01 Me 页合并版(外评「排版回设计稿 + 内容保真机」,spec:
 /// `~/.gstack/projects/qingqingyu-QiCompass/designs/review-fix-20261001/me-final-spec.md`):
-/// - **字距收敛(F1)**:全页 tracking 只剩 owner kicker 与 footer QICOMPASS
+/// - **字距收敛(F1)**:全页 tracking 只剩 owner kicker 与 footer KNOWFATE
 ///   两处品牌指纹;区块标题从宽字距小标升级为 `display(17)` 浓墨锚点
 ///   (EN serif medium / zh 宋体),层级靠字号不靠字距
 /// - **头部去徽章(F3)**:落款角标移除(EN 下挤断 metaLine 的 "Day/Master"),
@@ -246,7 +246,7 @@ struct ProfileView: View {
 
                     VStack(alignment: .leading, spacing: 4) {
                         // F1(2026-10-01)tracking 豁免之一:owner kicker 品牌指纹保留字距
-                        //(全页仅此处与 footer QICOMPASS 两处)
+                        //(全页仅此处与 footer KNOWFATE 两处)
                         Text("我的命盘 · 命主")
                             .font(BaziFont.caption(size: 10.5))
                             .tracking(3)
@@ -744,10 +744,10 @@ struct ProfileView: View {
     /// 需从多任务上滑杀进程,仅切后台不算;旧文案未讲清,用户以为已重启)。
     private var languageRestartAlertMessage: String {
         if currentLanguageOverride == .system {
-            return String(localized: "请从后台上滑关闭 QiCompass 后重新打开，界面与命书、合盘、每日运势将恢复跟随系统语言。")
+            return String(localized: "请从后台上滑关闭 观命 后重新打开，界面与命书、合盘、每日运势将恢复跟随系统语言。")
         }
         return String(
-            format: String(localized: "请从后台上滑关闭 QiCompass 后重新打开，界面与命书、合盘、每日运势将全部切换为%@。"),
+            format: String(localized: "请从后台上滑关闭 观命 后重新打开，界面与命书、合盘、每日运势将全部切换为%@。"),
             currentLanguageOverride.displayLabel
         )
     }
@@ -868,13 +868,13 @@ struct ProfileView: View {
 
     private var footer: some View {
         VStack(spacing: 3) {
-            // F1(2026-10-01)tracking 豁免之二:QICOMPASS 品牌字 LatinCaps
+            // F1(2026-10-01)tracking 豁免之二:KNOWFATE 品牌字 LatinCaps
             // 大字距是 DESIGN.md 指纹(全页仅此处与 owner kicker 保留)
-            Text("QICOMPASS")
+            Text("KNOWFATE")
                 .font(BaziFont.latinCaps(size: 8))
                 .tracking(4.5)
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
-            Text("玄机问道 · 专业不忽悠")
+            Text("观命 · 专业不忽悠")
                 .font(BaziFont.caption(size: 9.5))
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
         }

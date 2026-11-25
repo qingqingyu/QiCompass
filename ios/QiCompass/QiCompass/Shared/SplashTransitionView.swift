@@ -4,9 +4,9 @@ import SwiftUI
 //
 // 视觉事实源:DESIGN.md §Motion + docs/design-ref/shuimo/variant-c-shuimo.html。
 // Launch Screen 本身是静态的(Info.plist UIColorName = 冷宣纸),本视图承担
-// 启动后的品牌瞬间:墨圆 ink-in → 竖题「玄机问道」→ 玄印 stamp → 整体淡出。
+// 启动后的品牌瞬间:墨圆 ink-in → 竖题「观命」→ 品牌印 stamp → 整体淡出。
 //
-// 时序(正常):enso ink-in 1.2s 起 0.1s;竖题 0.7s 起;玄印 0.9s 落;
+// 时序(正常):enso ink-in 1.2s 起 0.1s;竖题 0.7s 起;品牌印 0.9s 落;
 // 1.4s 开始 0.25s 淡出,1.65s onFinished 收场。全程 allowsHitTesting(false),
 // 不阻塞任何交互。reduce-motion:静态呈现 0.35s 直接收场。
 struct SplashTransitionView: View {
@@ -29,12 +29,14 @@ struct SplashTransitionView: View {
                 HStack(alignment: .center, spacing: 34) {
                     EnsoView(size: 196, breathing: true)
                         .overlay {
-                            SealStamp(character: "玄", size: 36, rotation: 3, stampDelay: 0.9)
+                            SealStamp(character: BrandMark.sealCharacter, size: 36, rotation: 3, stampDelay: 0.9)
                         }
 
                     VStack(spacing: 18) {
-                        VText(phrase: "玄机问道", size: 25, tracking: 11)
-                        VText(phrase: "问道于心 · 观命如水", size: 11, tracking: 6,
+                        // 2026-11-25 改名:四字「玄机问道」→ 两字「观命」,字距 11→16 收拢留白
+                        // (真机构图待 S06 走查确认);副题换《道德经》「知人者智 · 自知者明」
+                        VText(phrase: BrandMark.chineseName, size: 25, tracking: 16)
+                        VText(phrase: "知人者智 · 自知者明", size: 11, tracking: 6,
                               color: BaziTheme.inkMuted)
                             .padding(.leading, 34) // 右列再让一档,呼应非对称构图
                     }
@@ -44,12 +46,12 @@ struct SplashTransitionView: View {
 
                 Spacer()
 
-                // 页脚:hairline + QICOMPASS 字距标
+                // 页脚:hairline + KNOWFATE 字距标
                 VStack(spacing: 12) {
                     Rectangle()
                         .fill(BaziTheme.hairline)
                         .frame(width: 54, height: 0.5)
-                    Text("QICOMPASS")
+                    Text("KNOWFATE")
                         .font(BaziFont.latinCaps(size: 9))
                         .tracking(5.5)
                         .foregroundStyle(BaziTheme.inkMutedSecondary)

@@ -17,7 +17,7 @@ import SwiftUI
 ///
 /// **英文回退(2026-08-26,DESIGN.md Decisions Log)**:拉丁字母逐字竖排不可读,
 /// 短语不含 CJK 字符时自动横排 italic(沿用 SutraView 非中文分支的文学感处理)。
-/// 品牌字(玄机问道/干支)始终中文,不受影响。
+/// 品牌字(观命/干支)始终中文,不受影响。
 struct VText: View {
     let phrase: String
     var size: CGFloat
@@ -478,5 +478,26 @@ struct BreatheModifier: ViewModifier {
 extension View {
     func breathe() -> some View {
         modifier(BreatheModifier())
+    }
+}
+
+// MARK: 品牌字
+
+/// 品牌字单一入口(2026-11-25 改名 KnowFate · 观命,见 docs/App改名KnowFate设计决策.md)。
+///
+/// - 品牌印与中文名**不翻译**:en 界面同样显示中文(与原「玄」印 / 竖排题字口径一致)
+/// - 繁体界面必须用繁体字形:`SealStamp` / `VText` 经 `BaziFont` 在 zhHant 下切到
+///   QiSongtiTC(Big5 子集),该字体**不含简体「观」**,传简体会回落系统字体
+/// - 语言只经 `AppLanguage.current` 取(D9 全仓唯一入口)
+/// - 走 xcstrings 的 `Text("观命")` / `Text("KNOWFATE")` 等不经此处(词条里已配三语值)
+enum BrandMark {
+    /// 品牌印字:繁体界面「觀」,简体与英文界面「观」。
+    static var sealCharacter: String {
+        AppLanguage.current == .zhHant ? "觀" : "观"
+    }
+
+    /// 中文品牌名(竖排题字等非 xcstrings 场景):繁体「觀命」,其余「观命」。
+    static var chineseName: String {
+        AppLanguage.current == .zhHant ? "觀命" : "观命"
     }
 }

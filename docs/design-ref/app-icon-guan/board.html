@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>观命图标对比</title>
+<style>
+  :root { --paper: #E7E2D5; --ink: #1C1B1E; --muted: #77726A; --hair: rgba(28,27,30,.18); }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--paper); color: var(--ink); font: 15px/1.7 "Songti SC", "Noto Serif SC", serif; padding: 40px 24px 64px; }
+  .wrap { max-width: 1200px; margin: 0 auto; }
+  h1 { font-weight: 400; font-size: 30px; margin: 0 0 6px; }
+  .muted { color: var(--muted); }
+  table { border-collapse: collapse; width: 100%; margin-top: 28px; }
+  th, td { border-top: 1px solid var(--hair); padding: 16px 10px; text-align: center; vertical-align: middle; }
+  th { font-weight: 400; font-size: 13px; color: var(--muted); }
+  td.l { text-align: left; white-space: nowrap; }
+  .ic { display: inline-block; border-radius: 22.37%; overflow: hidden; vertical-align: middle; box-shadow: 0 0 0 .5px rgba(0,0,0,.12); }
+  .ic img { display: block; width: 100%; height: 100%; }
+  .s180 { width: 180px; height: 180px; } .s60 { width: 60px; height: 60px; } .s40 { width: 40px; height: 40px; }
+  .screens { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-top: 40px; }
+  .screen { border-radius: 28px; padding: 28px 22px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 22px 10px; }
+  .screen.light { background: linear-gradient(160deg, #cfd8dc, #eceff1); }   /* 模拟壁纸，仅为对比用 */
+  .screen.dark { background: linear-gradient(160deg, #1b1f2a, #2c3140); }
+  .cell { display: grid; justify-items: center; gap: 6px; font: 11px -apple-system, "Helvetica Neue", sans-serif; }
+  .light .cell { color: #111; } .dark .cell { color: #f2f2f2; }
+  .ph { width: 60px; height: 60px; border-radius: 22.37%; background: rgba(255,255,255,.45); }
+  .dark .ph { background: rgba(255,255,255,.12); }
+  .notes { margin-top: 36px; border-top: 1px solid var(--hair); padding-top: 18px; }
+  @media (max-width: 760px) { .screens { grid-template-columns: 1fr; } .s180 { width: 96px; height: 96px; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>观命 · App 图标对比</h1>
+  <p class="muted">3 个版本 × 简体「观」/ 繁体「觀」。字体为 App 打包的思源宋体子集，配色沿用现有「玄」图标（米色底 #F5EFE1、朱红 #C33B3B）。圆角是 iOS 实际遮罩效果的近似。</p>
+
+  <table>
+    <tr><th></th><th>大图 180</th><th>主屏 60</th><th>设置 / 通知 40</th></tr>
+    <tr><td class="l">现有 · 玄</td><td><span class="ic s180"><img src="png/OLD-xuan.png" alt=""></span></td><td><span class="ic s60"><img src="png/OLD-xuan.png" alt=""></span></td><td><span class="ic s40"><img src="png/OLD-xuan.png" alt=""></span></td></tr>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <div class="screens">
+    <div class="screen light" id="light"></div>
+    <div class="screen dark" id="dark"></div>
+  </div>
+
+  <div class="notes">
+    <p><b>A 同构</b>：和现在的「玄」图标完全一样的构图，只换字。改动最小，用户最容易认出是同一个 App。</p>
+    <p><b>B 朱印</b>：整块朱红方印 + 米色阴文，和 App 内的品牌印 SealStamp 是同一种视觉语言；在主屏上最醒目，但朱红面积大，偏离「朱红只做小元素」的规矩（图标是否算例外需要你定）。</p>
+    <p><b>C 墨圆</b>：焦墨墨圆环绕朱字，把品牌指纹（墨圆）带进图标；细节最多，小尺寸下墨圆的毛边会糊。</p>
+    <p><b>观 vs 觀</b>：「觀」有 25 画，60px 以下明显发糊；「观」只有 6 画，小尺寸清楚。图标全球只有一个，不能按语言切换。</p>
+  </div>
+</div>
+<script>
+  var V = [["A", "A 同构"], ["B", "B 朱印"], ["C", "C 墨圆"]], G = [["sc", "观"], ["tc", "觀"]];
+  var rows = document.getElementById("rows"), cells = [];
+  V.forEach(function (v) { G.forEach(function (g) {
+    var src = "png/" + v[0] + "-" + g[0] + ".png", label = v[1] + " · " + g[1];
+    rows.insertAdjacentHTML("beforeend", '<tr><td class="l">' + label + '</td><td><span class="ic s180"><img src="' + src + '" alt="' + label + '"></span></td><td><span class="ic s60"><img src="' + src + '" alt=""></span></td><td><span class="ic s40"><img src="' + src + '" alt=""></span></td></tr>');
+    cells.push([src, label]);
+  }); });
+  ["light", "dark"].forEach(function (id) {
+    var el = document.getElementById(id), html = "";
+    cells.forEach(function (c) { html += '<div class="cell"><span class="ic s60"><img src="' + c[0] + '" alt=""></span>' + c[1].replace(/^. /, "").replace(" · ", "") + '</div>'; });
+    html += '<div class="cell"><span class="ph"></span>天气</div><div class="cell"><span class="ph"></span>相机</div>';
+    el.innerHTML = html;
+  });
+</script>
+</body>
+</html>

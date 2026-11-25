@@ -15,9 +15,9 @@ import UIKit
 ///   探测序后半作回退。
 /// - **英文 locale 路由(2026-08-26)**:宋体拉丁可读,但英文正文走系统 serif
 ///   (New York 系)更利阅读——display 回退系统 `.serif`,body 走系统 sans。
-///   品牌字(玄机问道/干支/印章)不走本路由,始终宋体(中文不翻译,决策 7)。
+///   品牌字(观命/干支/印章)不走本路由,始终宋体(中文不翻译,决策 7)。
 /// - **Numeric / Tabular**:系统默认 + `.monospacedDigit()`(SF Pro Text)。
-/// - **LatinCaps**:QICOMPASS 字距标(system + 调用侧 .tracking 大间距)。
+/// - **LatinCaps**:KNOWFATE 字距标(system + 调用侧 .tracking 大间距)。
 ///
 /// 历史:宋瓷时代 display 走系统 `.serif`(Songti SC)——2026-08-26 换轨楷体
 /// (孤本手抄);真机无楷宋字体 + Apple 下载 API 空成功(S1.0 实证),2026-10-18
@@ -92,7 +92,7 @@ enum BaziFont {
     }
 
     /// 品牌层字体(**始终宋体,不走 EN 路由**):干支题款/印章/品牌字用。
-    /// display 在 EN locale 落系统衬线,而 DESIGN.md「品牌字(玄机问道/干支/
+    /// display 在 EN locale 落系统衬线,而 DESIGN.md「品牌字(观命/干支/
     /// 印章)不走本路由,始终中文字形」——hero 落款竖排汉字(2026-10-01 Today
     /// 定稿 D1)需要跨语言稳定的字形。探测失败同 songti() 回退衬线,永不裸奔。
     static func brush(size: CGFloat, weight: Font.Weight = .medium) -> Font {
@@ -119,7 +119,7 @@ enum BaziFont {
             .monospacedDigit()
     }
 
-    /// Latin 大字距小标(QICOMPASS 类,8.5-10pt + 调用侧 .tracking(≈字号的 0.55 倍))。
+    /// Latin 大字距小标(KNOWFATE 类,8.5-10pt + 调用侧 .tracking(≈字号的 0.55 倍))。
     static func latinCaps(size: CGFloat = 9.5) -> Font {
         .system(size: size, weight: .regular)
     }
