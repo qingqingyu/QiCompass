@@ -61,3 +61,4 @@ Status: 拍板 8 项(下表);域名可用性待用户自查;实现未开始
 - **英文标题字体**:Newsreader(已同意引入,自托管子集)
 - **上线顺序**:维持决策 7,先上内容页;排盘器页面第一期就上线(锁框 +「Opening soon」+ 邮箱表单),后端就绪后打开工具
 - **公开联系邮箱**:`hello@knowfate.app`(Cloudflare Email Routing 转发),补齐「依赖的前置」中隐私政策页的邮箱
+- **Chinese astrology 方向**(11-25):App 英文名定为「KnowFate - Chinese Astrology」后,官网首批 BaZi 布局不变;新增入口指南 `chinese-astrology-and-bazi` 进第一批;生肖页(地支合一)+ 生肖年份页回到本文原定的**第二批**(设计稿规格一度排到第三批,已改回)。细节见 `docs/design-ref/website/README.md` §13
