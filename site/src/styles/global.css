@@ -170,6 +170,12 @@ img, svg { display: block; max-width: 100%; }
 .tc { font-family: var(--f-zh-tc); }
 .num { font-family: var(--f-sans); font-variant-numeric: tabular-nums; }
 .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* 跳转链接聚焦时现身(WCAG 2.4.1:clip 隐藏的 skip link 键盘聚焦时必须可见) */
+.sr-only:focus-visible {
+  position: fixed; top: 12px; left: 12px; width: auto; height: auto; clip: auto;
+  background: var(--paper); color: var(--ink); padding: 10px 16px;
+  border-radius: var(--r-sm); box-shadow: inset 0 0 0 1px var(--hairline); z-index: 100;
+}
 
 .wrap { width: 100%; max-width: var(--wrap); margin: 0 auto; padding: 0 var(--gutter); }
 @media (max-width: 640px) { :root { --gutter: 16px; } body { font-size: 16.5px; } }

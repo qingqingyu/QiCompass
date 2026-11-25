@@ -1,7 +1,7 @@
 ---
 // 页头:品牌字按语言(规格 README §13)+ 主导航 + 语言切换 + 移动端菜单按钮。
 // 当前页朱点 = aria-current="page" 的 ::after 菱形(global.css §6,DESIGN 允许的当前时辰点级朱红)。
-import { SITE, UI, NAV, langPath, stripLang, type Lang } from "../data/site";
+import { SITE, UI, NAV, langPath, stripLang, zhFamily, type Lang } from "../data/site";
 
 interface Props {
   lang: Lang;
@@ -13,8 +13,6 @@ const { lang, path } = Astro.props;
 const t = UI[lang];
 const brand = SITE.brand[lang];
 const { rest } = stripLang(path);
-const otherLang: Lang = lang === "en" ? "zh-hant" : "en";
-const siblingHref = langPath(otherLang, rest);
 
 const currentPath = path.replace(/\/+$/, "");
 ---
@@ -41,17 +39,19 @@ const currentPath = path.replace(/\/+$/, "");
     </nav>
     <div class="header-right">
       <div class="lang">
-        <a href={siblingHref} aria-current={lang === "en" ? "true" : undefined} hreflang={otherLang === "en" ? "en" : "zh-Hant"}>
+        {/* 语言切换:每枚标签链到自己语言的对应页(与页脚同一套语义);
+            aria-current 标在「当前语言」那枚上。EN 标签恒在左,繁在右。 */}
+        <a href={langPath("en", rest)} hreflang="en" aria-current={lang === "en" ? "true" : undefined}>
           {lang === "en" ? t.langSwitch.current : t.langSwitch.other}
         </a>
         <span aria-hidden="true">·</span>
         {/* en 页面繁字用 SC 腿渲染(.tc 会拉起 241KB TC 字体,为一枚字不值得);
             zh-hant 页面整页已是 TC 字体族 */}
-        <a href={siblingHref} aria-current={lang === "zh-hant" ? "true" : undefined} hreflang={otherLang === "en" ? "en" : "zh-Hant"} lang={lang === "en" ? "zh-Hant" : undefined} class={lang === "zh-hant" ? "tc" : "zh"}>
+        <a href={langPath("zh-hant", rest)} hreflang="zh-Hant" aria-current={lang === "zh-hant" ? "true" : undefined} lang={lang === "en" ? "zh-Hant" : undefined} class={zhFamily(lang)}>
           {lang === "en" ? t.langSwitch.other : t.langSwitch.current}
         </a>
       </div>
-      <a class="btn btn-sm" href={langPath(lang, "/en/app")}>{t.getTheApp}<span class="seal-dot" aria-hidden="true"></span></a>
+      <a class="btn btn-sm" href={langPath(lang, "/app")}>{t.getTheApp}<span class="seal-dot" aria-hidden="true"></span></a>
       <button class="menu-btn" aria-controls="nav" aria-expanded="false" aria-label={t.menuLabel}><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M3 7h16M3 15h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
     </div>
   </div>

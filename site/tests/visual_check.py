@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """S01 验收测试(Playwright):canonical/hreflang、无 Google Fonts、关 JS 可读、
-390px 无横向滚动、reduced-motion 降级、亮暗双主题截图。
+390px 无横向滚动、reduced-motion 降级、内链健康(禁双语言前缀 + 语言切换语义)、
+zh 页渲染文本 ⊆ TC 字体(防简体字泄漏进繁体页)、404.html 存在、亮暗双主题截图。
 
 用法(仓库根或 site/):
   python3 site/tests/visual_check.py --dist site/dist --out site/tests/screenshots
@@ -12,12 +13,13 @@ from __future__ import annotations
 
 import argparse
 import http.server
-import os
+import mimetypes
 import socketserver
 import sys
 import threading
 from pathlib import Path
 
+from fontTools.ttLib import TTFont
 from playwright.sync_api import sync_playwright
 
 REPO = Path(__file__).resolve().parent.parent.parent
@@ -70,6 +72,48 @@ REDUCED_MOTION_CHECK = """
 }
 """
 
+# 内链健康:双语言前缀曾让全站导航/页脚断链(/en/en/...),语言切换曾互相指错;
+# 此处锁死两类别:页头 .lang 与页脚 .foot-base 语义一致(当前语言指本页 + aria-current,
+# 兄弟语言指兄弟页),全站 a[href^="/"] 禁止 /en/en、/zh-hant/zh-hant 等二次前缀。
+LANG_LINKS_CHECK = """
+() => {
+  const problems = [];
+  const here = location.pathname.replace(/\\/+$/, '') || '/';
+  const m = here.match(/^\\/(en|zh-hant)(\\/.*)?$/);
+  const bad = [...document.querySelectorAll('a[href^="/"]')]
+    .map(a => a.getAttribute('href') || '')
+    .filter(h => /^\\/(?:en|zh-hant)\\/(?:en|zh-hant)(?:\\/|$)/.test(h));
+  if (bad.length) problems.push('双语言前缀链接 ' + bad.length + ' 个: ' + bad.slice(0, 5).join(', '));
+  for (const sel of ['.lang', '.foot-base']) {
+    const links = [...document.querySelectorAll(sel + ' a[href^="/en"], ' + sel + ' a[href^="/zh-hant"]')];
+    if (links.length !== 2) { problems.push(sel + ' 语言链接应 2 枚,实际 ' + links.length); continue; }
+    if (!m) { problems.push('当前路径无法解析语言: ' + here); continue; }
+    const rest = m[2] || '';
+    const otherLang = m[1] === 'en' ? 'zh-hant' : 'en';
+    const cur = links.filter(a => a.getAttribute('aria-current') === 'true');
+    if (cur.length !== 1) { problems.push(sel + ' aria-current 应恰 1 枚,实际 ' + cur.length); continue; }
+    const curHref = cur[0].getAttribute('href');
+    if (curHref !== here) problems.push(sel + ' 当前语言链接应指本页 ' + here + ',实际 ' + curHref);
+    const other = links.find(a => a.getAttribute('aria-current') !== 'true').getAttribute('href');
+    if (other !== '/' + otherLang + rest) problems.push(sel + ' 兄弟语言链接应为 /' + otherLang + rest + ',实际 ' + other);
+  }
+  return problems;
+}
+"""
+
+
+def check_zh_font_coverage(text: str, tc_cmap: dict, page_path: str) -> list[str]:
+    """zh-hant 页面渲染文本的每个 CJK 字必须命中 TC 子集 cmap。
+    非 Big5 的简体字(TC 构建时被 hant_subset 过滤掉)一旦写进 zh 页就会系统回退混排,
+    此处机械拦截(曾两次发生:排盘、贰)。"""
+    chars = {ch for ch in text
+             if 0x3000 <= ord(ch) <= 0x9FFF or 0xF900 <= ord(ch) <= 0xFAFF or 0xFF00 <= ord(ch) <= 0xFFEF}
+    missing = sorted(ch for ch in chars if ord(ch) not in tc_cmap)
+    if missing:
+        return [f"{page_path}: TC 字体缺渲染字符 {len(missing)} 个: {''.join(missing[:30])}"
+                "(zh 页出现了 TC 子集外的 CJK,简体字泄漏或字表缺字)"]
+    return []
+
 
 def find_executable(explicit: str | None) -> str:
     if explicit:
@@ -84,10 +128,47 @@ def find_executable(explicit: str | None) -> str:
     raise SystemExit("FAIL: 找不到可用的 Chromium(用 --executable 指定)")
 
 
+class _RouteHandler(http.server.BaseHTTPRequestHandler):
+    """format:'file' 产物路由:无扩展名路径映射到同名 .html,对齐 Cloudflare Pages 行为
+    (/en → en.html;带扩展名的静态资产按原路径直取)。"""
+
+    routes: dict[str, str] = {}
+    dist: Path | None = None
+
+    def do_GET(self) -> None:  # noqa: N802 — http.server 的 API 命名
+        path = self.path.split("?", 1)[0].split("#", 1)[0]
+        rel = _RouteHandler.routes.get(path.rstrip("/") or "/")
+        if rel is None:
+            rel = path.lstrip("/")
+            if "." not in rel.rsplit("/", 1)[-1]:
+                rel += ".html"
+        fs = _RouteHandler.dist / rel if _RouteHandler.dist else None
+        # 包含校验:拒绝 ../ 逃逸 dist(测试服务器也不做任意文件读)
+        if fs is None or not fs.resolve().is_relative_to(_RouteHandler.dist) or not fs.is_file():
+            self.send_error(404)
+            return
+        body = fs.read_bytes()
+        ctype = mimetypes.guess_type(str(fs))[0] or "application/octet-stream"
+        self.send_response(200)
+        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        self.wfile.write(body)
+
+    def log_message(self, *args) -> None:  # 静默访问日志
+        pass
+
+
 def serve(dist: Path, port: int):
-    handler = lambda *args, **kw: http.server.SimpleHTTPRequestHandler(*args, directory=str(dist), **kw)
+    routes: dict[str, str] = {}
+    for html in dist.rglob("*.html"):
+        rel = html.relative_to(dist).as_posix()
+        route = "/" if rel == "index.html" else "/" + rel.removesuffix(".html")
+        routes[route] = rel
+    _RouteHandler.routes = routes
+    _RouteHandler.dist = dist
     socketserver.TCPServer.allow_reuse_address = True
-    httpd = socketserver.TCPServer(("127.0.0.1", port), handler)
+    httpd = socketserver.TCPServer(("127.0.0.1", port), _RouteHandler)
     threading.Thread(target=httpd.serve_forever, daemon=True).start()
     return httpd
 
@@ -158,12 +239,22 @@ def main() -> int:
     dist = Path(args.dist).resolve()
     out = Path(args.out)
     out.mkdir(parents=True, exist_ok=True)
-    if not (dist / "index.html").exists() and not (dist / "en").exists():
-        raise SystemExit(f"FAIL: {dist} 不是构建产物(先 npm run build)")
+    if not (dist / "en.html").exists():
+        raise SystemExit(f"FAIL: {dist} 不是 format:'file' 构建产物(缺 en.html,先 npm run build)")
 
     base = f"http://127.0.0.1:{args.port}"
     httpd = serve(dist, args.port)
     problems: list[str] = []
+
+    tc_font = dist / "fonts" / "knowfate-tc.woff2"
+    tc_cmap = TTFont(str(tc_font)).getBestCmap() if tc_font.exists() else None
+
+    # 0. 404.html 必须存在(缺它 Cloudflare Pages 走 SPA fallback,未知路径 200 返回根内容)
+    f404 = dist / "404.html"
+    if not f404.exists():
+        problems.append("dist 缺 404.html(Cloudflare Pages 将按 SPA fallback 处理未知路径)")
+    elif "noindex" not in f404.read_text(encoding="utf-8"):
+        problems.append("404.html 缺 noindex(404 页不应被收录)")
 
     try:
         with sync_playwright() as p:
@@ -198,6 +289,13 @@ def main() -> int:
                     problems.append(f"{page_path}: Newsreader 未加载")
                 if not fonts["zh"]:
                     problems.append(f"{page_path}: 中文子集未加载(QiSongti Web / Web TC)")
+
+                for msg in page.evaluate(LANG_LINKS_CHECK):
+                    problems.append(f"{page_path}[links]: {msg}")
+
+                if page_path.startswith("/zh-hant") and tc_cmap is not None:
+                    rendered = page.evaluate("() => document.body.innerText")
+                    problems += check_zh_font_coverage(rendered, tc_cmap, page_path)
                 ctx.close()
 
             # ---------- 2. 关 JS 可读性 ----------

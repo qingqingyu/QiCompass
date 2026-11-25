@@ -6,6 +6,7 @@ import Kicker from "./Kicker.astro";
 import Enso from "./Enso.astro";
 import Seal from "./Seal.astro";
 import Numeral from "./Numeral.astro";
+import Brush from "./Brush.astro";
 import { SITE, type Lang } from "../data/site";
 
 interface Props {
@@ -54,11 +55,13 @@ const L = en
       lockedTitle: "The reading — eight chapters, in the app",
       lockedBody: "This is the structure. The app reads it to you.",
       elCap: "Example chart: 18 Apr 1992, 09:30, Beijing. Day Master Jia Wood.",
-      senseY: "Roots & family background",
-      senseM: "Upbringing & working environment",
-      senseD: "You — the Day Master — and close partnership",
-      senseH: "Inner aims & later years",
-      dmTag: "Day Master",
+      typeLede: "Lede 20 — the intro paragraph role, max-width 36em.",
+      typeBodyPrefix: "Body 17 (article 18) — regular paragraph with ",
+      typeBodyLink: "an inline link",
+      darkNote: "夜宣紙 #171412 — warm dark, not inverted.",
+      lockedKicker: "Locked",
+      motionInkIn: "ink-in load: blur 7→0, delays d1–d5",
+      revealTarget: "Reveal target — gets .in via IntersectionObserver.",
     }
   : {
       title: "元件樣張頁",
@@ -96,18 +99,20 @@ const L = en
       lockedTitle: "解讀——命書捌章,在 App",
       lockedBody: "這是結構。App 把它讀給你聽。",
       elCap: "示例命盤:1992 年 4 月 18 日 09:30,北京。日主甲木。",
-      senseY: "根與出身",
-      senseM: "成長與工作環境",
-      senseD: "你——日主——與親密關係",
-      senseH: "內心志向與晚年",
-      dmTag: "日主",
+      typeLede: "Lede 20——引言段落角色,最大寬 36em。",
+      typeBodyPrefix: "Body 17(文章 18)——一般段落,含",
+      typeBodyLink: "內連結",
+      darkNote: "夜宣紙 #171412——暖黑,而非反色。",
+      lockedKicker: "鎖定",
+      motionInkIn: "ink-in 載入:blur 7→0,延遲 d1–d5",
+      revealTarget: "揭示目標——進入視口後取得 .in。",
     };
 
 const swatches: Array<{ varName: string; hex: string; label: string }> = [
   { varName: "--paper", hex: "#E7E2D5", label: "paper" },
   { varName: "--paper-raised", hex: "#F7F5F0", label: "paper-raised" },
   { varName: "--ink", hex: "#1C1B1E", label: "ink" },
-  { varName: "--ink-muted", hex: "#77726A", label: "ink-muted" },
+  { varName: "--ink-muted", hex: "#68635B", label: "ink-muted" },
   { varName: "--ink-muted-2", hex: "#A5A098", label: "ink-muted-2" },
   { varName: "--ink-deep", hex: "#17161A", label: "ink-deep" },
   { varName: "--cinnabar", hex: "#A83226", label: "cinnabar" },
@@ -121,7 +126,11 @@ const swatches: Array<{ varName: string; hex: string; label: string }> = [
   { varName: "dark paper", hex: "#171412", label: "dark paper" },
 ];
 
-const numerals = ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"];
+// 大写数字按语言腿:en 页走 SC 腿用简体大写;zh-hant 页走 TC 腿,贰/叁/陆 非 Big5
+// (TC 子集无此三字形,会系统回退混排),用 Big5 内的 貳/參/陸。
+const numerals = en
+  ? ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"]
+  : ["壹", "貳", "參", "肆", "伍", "陸", "柒", "捌"];
 ---
 
 <style>
@@ -150,8 +159,8 @@ const numerals = ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"];
       <p class="h1">Heading 1 54→34</p>
       <p class="h2">Heading 2 38→28</p>
       <p class="h3">Heading 3 22</p>
-      <p class="lede" style="margin-top:16px">Lede 20 — the intro paragraph role, max-width 36em.</p>
-      <p>Body 17(文章 18)— regular paragraph with <a href="#">an inline link</a>.</p>
+      <p class="lede" style="margin-top:16px">{L.typeLede}</p>
+      <p>{L.typeBodyPrefix}<a href="#">{L.typeBodyLink}</a>.</p>
       <p class="caption">Caption 13.5 — captions and figure notes.</p>
       <p class="micro">Micro 12 — micro annotations.</p>
       <div style="display:flex;gap:24px;align-items:center;margin-top:24px">
@@ -174,7 +183,7 @@ const numerals = ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"];
         {numerals.slice(0, 3).map((n) => <Numeral char={n} />)}
         <Numeral char={numerals[2]} locked />
         <span class="numeral locked">{numerals[3]}</span>
-        <hr class="brush" />
+        <Brush />
       </div>
     </div>
   </section>
@@ -200,11 +209,11 @@ const numerals = ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"];
       <h2 class="h2">{L.secDark}</h2>
       <div class="dark-scope" style="margin-top:28px;border:1px solid var(--hairline);border-radius:8px;padding:28px;background:var(--paper)">
         <p class="kicker">Dark island · <span class="zh">{L.vtextZh}</span></p>
-        <p class="h3" style="margin-top:12px">夜宣紙 #171412 — warm dark, not inverted</p>
+        <p class="h3" style="margin-top:12px">{L.darkNote}</p>
         <div style="display:flex;gap:20px;align-items:center;margin-top:16px;flex-wrap:wrap">
-          <span class="seal">观</span>
-          <span class="numeral">壹</span>
-          <span class="numeral locked">叁</span>
+          <span class="seal">{brand.seal}</span>
+          <span class="numeral">{numerals[0]}</span>
+          <span class="numeral locked">{numerals[2]}</span>
           <span class="zh el-wood" style="font-size:34px">甲</span>
           <span class="zh el-fire" style="font-size:34px">丙</span>
           <span class="zh el-earth" style="font-size:34px">戊</span>
@@ -259,7 +268,7 @@ const numerals = ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"];
         {" — term links get dotted underlines and (later slices) hover cards."}
       </p>
       <div class="cta-inline">
-        <span class="numeral">壹</span>
+        <span class="numeral">{numerals[0]}</span>
         <div>
           <p>{L.ctaInlineTitle}</p>
           <span class="caption">{L.ctaInlineCap}</span>
@@ -267,7 +276,7 @@ const numerals = ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"];
         <a class="btn" href="#">{L.ctaBtn}<span class="seal-dot" aria-hidden="true"></span></a>
       </div>
       <div class="locked-box" style="margin-top:24px">
-        <p class="kicker">Locked</p>
+        <p class="kicker">{L.lockedKicker}</p>
         <p class="h3" style="margin-top:10px">{L.lockedTitle}</p>
         <p class="muted" style="margin-top:8px">{L.lockedBody}</p>
       </div>
@@ -282,11 +291,11 @@ const numerals = ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"];
       </div>
       <div class="faq" style="margin-top:40px">
         <details open>
-          <summary><span class="numeral">壹</span>{L.faqQ1}</summary>
+          <summary><span class="numeral">{numerals[0]}</span>{L.faqQ1}</summary>
           <div class="ans">{L.faqA1}</div>
         </details>
         <details>
-          <summary><span class="numeral">贰</span>{L.faqQ2}</summary>
+          <summary><span class="numeral">{numerals[1]}</span>{L.faqQ2}</summary>
           <div class="ans">{L.faqA2}</div>
         </details>
       </div>
@@ -302,11 +311,11 @@ const numerals = ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"];
         <div class="hd">Month</div>
         <div class="hd">Day</div>
         <div class="hd">Hour</div>
-        <div class="rl"><span class="zh">{en ? "十神" : "十神"}</span></div>
+        <div class="rl"><span class="zh">十神</span></div>
         <div class="god"><span class="zh">偏印</span></div>
         <div class="god"><span class="zh">比肩</span></div>
         <div class="god dm-tag"><span class="zh">日主</span></div>
-        <div class="god"><span class="zh">正财</span></div>
+        <div class="god"><span class="zh">{en ? "正财" : "正財"}</span></div>
         <div class="rl"><span class="zh">四柱</span></div>
         <div class="gz"><span class="el-water">壬</span><span class="el-metal">申</span></div>
         <div class="gz"><span class="el-wood">甲</span><span class="el-earth">辰</span></div>
@@ -334,7 +343,7 @@ const numerals = ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"];
   <section class="section-tight" aria-label={L.secMotion}>
     <div class="wrap" style="padding-bottom:72px">
       <h2 class="h2">{L.secMotion}</h2>
-      <p class="caption" style="margin-top:16px">ink-in load: blur 7→0, delays d1–d5</p>
+      <p class="caption" style="margin-top:16px">{L.motionInkIn}</p>
       <div style="display:flex;gap:18px;align-items:center;margin-top:16px;flex-wrap:wrap">
         {numerals.map((n, i) => (
           <span class={`numeral ink-in ${i > 0 ? `d${Math.min(i + 1, 5)}` : ""}`}>{n}</span>
@@ -342,8 +351,8 @@ const numerals = ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"];
       </div>
       <p class="caption" style="margin-top:32px">{L.secReveal}</p>
       <div class="reveal" style="margin-top:16px">
-        <span class="numeral">壹</span>
-        <span style="margin-left:12px">Reveal target — gets .in via IntersectionObserver.</span>
+        <span class="numeral">{numerals[0]}</span>
+        <span style="margin-left:12px">{L.revealTarget}</span>
       </div>
       <div class="reveal" style="margin-top:12px">
         <Seal char="解" size={30} />

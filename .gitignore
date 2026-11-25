@@ -88,3 +88,6 @@ __pycache__/
 .agents/
 AGENTS.md
 skills-lock.json
+
+# Cloudflare wrangler 本地运行状态(worktree 根或 site/ 下都可能产生)
+.wrangler/

@@ -3,3 +3,9 @@ dist/
 .astro/
 tests/screenshots/
 tests/results/
+# 根 .gitignore 的裸 `data/`(挡 backend SQLite 缓存)会误伤本目录;
+# 深层 .gitignore 优先,显式豁免站点源码目录(site.ts 被 7 个文件 import)
+!src/data/
+
+# wrangler 本地探测状态(pages dev 会在此建 state)
+.wrangler/

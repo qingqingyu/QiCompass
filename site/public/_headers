@@ -1,3 +1,7 @@
-# Cloudflare Pages headers(S01:字体子集内容寻址式缓存)
+# Cloudflare Pages headers
+/*
+  X-Frame-Options: DENY
 /fonts/*
-  Cache-Control: public, max-age=31536000, immutable
+  Cache-Control: public, max-age=604800
+# 注:文件名固定(无内容哈希),不能 immutable max-age=1y——字表随 slice 增长,
+# 守护栏会重建同名 woff2;7 天后走 Etag 304 复验,更新可在 ≤7 天内生效。

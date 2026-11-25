@@ -3,23 +3,24 @@
 // variant "display":大圆 + 毛笔边(feTurbulence),可带 draw 描边动画与 breathe 呼吸。
 //   stroke 路径与 home.html 时辰盘同源(pathLength=1 → dashoffset 1→0,2.2s)。
 // variant "mark":页头/页脚小标(32 viewBox 墨弧 + 朱印方块由调用方组合)。
-// 同页多个 display 圆时 filter id 冲突 → 用 id prop 区分。
+// display 变体恒引用 feTurbulence filter → id 必传且同页唯一,不传直接报错
+// (旧实现 id 默认 "enso" 使守卫永假,两枚 display 圆同页时 filter 静默冲突)。
 interface Props {
   variant?: "display" | "mark";
   draw?: boolean;
   breathe?: boolean;
   title?: string;
-  /** display 变体的 filter id;传 title 时必传,保证唯一 */
+  /** display 变体的 filter id,同页必须唯一 */
   id?: string;
   class?: string;
 }
 
-const { variant = "display", draw = false, breathe = false, title, id = "enso", class: className = "" } = Astro.props;
+const { variant = "display", draw = false, breathe = false, title, id, class: className = "" } = Astro.props;
 
 const cls = ["enso", draw && "draw", breathe && "breathe", className].filter(Boolean).join(" ");
 
-if (variant === "display" && title && !id) {
-  throw new Error("Enso: display 变体带 title 时必须传唯一 id(filter 引用会跨 SVG 冲突)");
+if (variant === "display" && !id) {
+  throw new Error("Enso: display 变体必须传唯一 id(filter 引用会跨 SVG 冲突;mark 变体不引用 filter 可不传)");
 }
 ---
 
