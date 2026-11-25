@@ -56,18 +56,21 @@ URL 规则:`/{lang}/{type}/{slug}`,全小写、拼音加连字符、无尾斜杠
 | 十神 | `/en/ten-gods/eating-god` | 10 + 总览 | 一 | eating god bazi · seven killings meaning |
 | 五行 | `/en/five-elements/wood`、`/too-much-wood`、`/missing-wood` | 15 + 总览 | 一(先做 5 个总览) | too much fire bazi · missing water bazi |
 | 神煞 | `/en/stars/peach-blossom` | 20 + 总览 | 一(先做 6–8 个高搜索量的) | peach blossom bazi · nobleman star |
-| 指南 | `/en/guides/how-to-read-a-bazi-chart` | 持续 | 一(3–5 篇) | how to read bazi chart · bazi unknown birth time |
+| 指南 | `/en/guides/how-to-read-a-bazi-chart` | 持续 | 一(3–5 篇 + 入口指南 1 篇) | how to read bazi chart · bazi unknown birth time |
+| 入口指南(11-25 新增) | `/en/guides/chinese-astrology-and-bazi` | 1 | **一** | chinese astrology · chinese astrology vs bazi · what is chinese astrology |
 | 辞典 | `/en/library` | 1 | 一 | bazi terms |
 | 术语 | `/en/glossary/day-master` | ~20 | 二 | hidden stems bazi · luck pillar meaning |
 | 日柱 | `/en/day-pillar/jia-zi` | 60 | 二 | jia zi day pillar · ren yin day |
 | 今日 | `/en/today` | 1(每日更新) | 二 | chinese calendar today · today's day pillar |
 | 日主 × 月令 | `/en/day-master/jia-wood/born-in-yin-month` | 120 | 二 | jia wood born in spring |
 | 日主配对 | `/en/compatibility/jia-wood-and-ji-earth` | 55(无序对) | 二 | jia wood and ji earth compatibility |
-| 地支 / 生肖 | `/en/branches/zi`、`/en/zodiac/horse-2026` | 12 + 年份 | 三 | year of the horse 2026 bazi |
+| 生肖(= 地支,11-25 由第三批提前) | `/en/zodiac/horse`(12 页,地支与生肖合一) | 12 + 总览 | **二** | chinese zodiac horse · horse personality chinese zodiac · horse compatibility |
+| 生肖年份 | `/en/zodiac/year-of-the-horse-2026`、`/en/zodiac/year-of-the-goat-2027` | 当年 + 次年,每年滚动新增 | **二** | year of the horse 2026 · chinese zodiac 2027 |
 | 关于 / 隐私 / App | `/en/about` `/en/privacy` `/en/app` | 3 | 一 | — |
 
 规范化规则:
 - **天干不单独建页**:「甲」的落点就是 `/en/day-master/jia-wood`,避免内容重复(设计稿里所有天干链接已按此处理)。
+- **地支不单独建页**:地支与生肖合一,「申」的落点就是 `/en/zodiac/monkey`(页面同时讲地支与生肖);设计稿里所有地支链接已按此处理(11-25)。
 - 配对页只建无序对,`b-and-a` 301 到 `a-and-b`(按天干顺序)。
 - 排盘结果、查询结果**永远不生成可收录的 URL**:带出生参数的地址一律 `noindex,follow`,canonical 指向干净 URL。个人数据不能做成「内容」。
 
@@ -125,6 +128,9 @@ Hero:墨圆 + 大字(五行色)+ 落印 | kicker / H1 / 副题 / 署名行(编�
 | 神煞 | 查法(按日干或年支查表)/ 在各柱 / 常见误读 / FAQ | 《三命通会》单一查表 |
 | 日柱 | 干支与纳音 / 自坐十神与长生 / 近期日期(未来 12 个同柱日)/ 名人不写 / FAQ | 引擎生成日期表 |
 | 配对 | 十神关系 / 天干合冲 / 只看日主的局限 / 用合盘真正看什么 → App 合盘 | 规则生成 |
+| 生肖 | 地支与五行 / 性格倾向(善意、不贴标签)/ 好朋友(六合 1 + 三合 2)与需磨合(六冲 1)/ 生肖年份列表 / **生肖按立春换年,不按春节**(很多网站按春节算,这是本站的差异化内容)/ 生肖只是八字的一个字 → 引向排盘器 / FAQ | 关系取后端 `branch_relations.py`(与 App 生肖屏、合盘引擎同一事实源);措辞沿用 App「好朋友 / 需磨合」,不用「不和谐」「相克」等恐吓词 |
+| 生肖年份 | 该年年柱干支与纳音 / 起止时间(立春到次年立春)/ 与各生肖的关系 / 本命年说明(不写「犯太岁化解」)/ FAQ | 引擎导出 |
+| 入口指南 | Chinese astrology 有哪些体系(生肖、八字、紫微等)/ 生肖只是年柱一个字,八字用全部八个字 / 什么时候看生肖、什么时候要排盘 → 链向生肖总览与排盘器 | 人工写作 |
 
 JSON-LD:`Article`(含 `dateModified`、`citation`)+ `BreadcrumbList` + `FAQPage`;日主 / 十神 / 神煞的 `about` 写成 `DefinedTerm`。
 
@@ -269,7 +275,11 @@ App 改名规划(`docs/App改名KnowFate设计决策.md`)拍板后,官网需要�
 - **隐私政策页与技术支持页是 App 提交审核的前置条件**:App Store Connect 要求填写隐私政策网址和技术支持网址,二者都指向本站(`/en/privacy`、`/en/support`)。所以这两页必须在 App 首次提交前上线,哪怕其余页面还没准备好(官网 S05、S08 已据此调整)
 - 隐私政策只有一份正文(本站页面),App 内和 App Store 都链接它,不另写副本
 
-### 待拍板:是否增加「Chinese astrology」关键词方向
+### 已拍板:「Chinese astrology」关键词方向(2026-11-25)
 
-App 英文名带上了「Chinese Astrology」。这是比「BaZi」大得多、竞争也激烈得多的词,搜它的人很多是在找生肖运势。官网目前只围绕 BaZi 长尾词布局,生肖页排在第三批。是否要为「chinese astrology」单独加一组页面、并把生肖页提前,需要用户决定(见本次对话的问题)。
+App 英文名带上了「Chinese Astrology」,官网据此调整,但**首批 BaZi 布局不变**(长尾词仍是起步阶段最容易拿到排名的地方):
 
+1. **新增入口指南** `/en/guides/chinese-astrology-and-bazi`,放进**第一批**:讲清 Chinese astrology 的几个体系、生肖和八字的关系,把搜「chinese astrology」的人引向生肖总览和排盘器。首页「What is BaZi?」区块和 `/en/app` 页链接它
+2. **生肖页从第三批提前到第二批**:12 个生肖页(地支与生肖合一,不再单建地支页)+ 当年和次年的生肖年份页(2026 马年、2027 羊年),每年滚动新增
+3. 生肖内容的差异化:**按立春换年**(与 App 和排盘引擎一致),并解释它和按春节算的区别
+4. 不做:生肖每日 / 每月运势、「犯太岁」「化解」类内容(违反内容红线)
