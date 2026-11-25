@@ -453,3 +453,88 @@ def test_feedback_ip_hmac_migrates_existing_plaintext(shared_db):
     rows = _table_rows(shared_db, "chapter_feedback")
     assert rows[0][9] == _hash_ip("9.9.9.9")
     assert rows[0][9] != "9.9.9.9"
+
+
+# ---------- 合盘缓存归属联动(2026-11-25 拍板 #1) ----------
+
+
+def test_compat_ownership_link_and_cleanup(shared_db):
+    """生成期记录 → 删号反查清 compat 缓存行(免费+付费+翻译)→ 归属清零。"""
+    from app.ai.cache import InterpretationCache
+
+    user_id = str(uuid.uuid4())
+    _seed_full_account(shared_db, user_id)
+    cache = InterpretationCache(shared_db)
+    now = datetime.now(timezone.utc).isoformat()
+
+    # 模拟生成期:登录用户的合盘(免费 + 付费 + 翻译行,同一 compat_hash)
+    conn = sqlite3.connect(shared_db)
+    compat_hash = "comp-hash-me"
+    # 三行:免费 zh / 付费 zh / 免费翻译 en(PK 含 language 维度,不撞键)
+    for module, lang in [("compatibility_free", "zh"),
+                         ("compatibility_paid", "zh"),
+                         ("compatibility_free", "en")]:
+        conn.execute(
+            "INSERT INTO interpretation_cache (content_hash, module,"
+            " prompt_version, target_date, prompt_hash, provider, model,"
+            " parent_hash, user_input_hash, language, interpretation,"
+            " generated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+            (compat_hash, module, 5, "2026-11-25", "ph", "anthropic",
+             "glm-5.3", "", "", lang,
+             "含对方称呼的解读", now))
+    # 他人的合盘缓存(不在删除范围)
+    conn.execute(
+        "INSERT INTO interpretation_cache (content_hash, module,"
+        " prompt_version, target_date, prompt_hash, provider, model,"
+        " parent_hash, user_input_hash, language, interpretation,"
+        " generated_at) VALUES (?,?,?,?,?,?,?,?,?,?,?,?)",
+        ("comp-hash-other", "compatibility_free", 5, "2026-11-25", "ph",
+         "anthropic", "glm-5.3", "", "", "zh", "他人合盘", now))
+    conn.commit()
+    conn.close()
+
+    # 生成期归属记录(interpret/translate 两路各记一次——幂等)
+    cache.link_compat_ownership(compat_hash, user_id)
+    cache.link_compat_ownership(compat_hash, user_id)
+    assert cache.compat_hashes_for_user(user_id) == [compat_hash]
+
+    stats = delete_user_data(shared_db, user_id)
+
+    # 全部 3 行含对方称呼的 compat 缓存被清;他人的保留
+    assert stats["compat_cache"] == 3
+    assert stats["compat_cache_ownership"] == 1
+    assert len(_table_rows(shared_db, "interpretation_cache",
+                           "content_hash='comp-hash-other'")) == 1
+    assert cache.compat_hashes_for_user(user_id) == []
+    # 该用户非 compat 的缓存(M4 等)在主流程已测;此处确认 compat-hash 下零行
+    assert len(_table_rows(
+        shared_db, "interpretation_cache",
+        "content_hash='comp-hash-me'")) == 0
+
+
+def test_compat_ownership_anonymous_not_recorded(shared_db):
+    """匿名(无 user_id)不记归属——无账号可删,表不堆无主行。"""
+    from app.ai.cache import InterpretationCache
+
+    cache = InterpretationCache(shared_db)
+    # 调用方(interpret.py)在 current_user_id 为 None 时不调 link——
+    # 这里测试的是:如果意外调了带空 user_id,应能优雅处理(不炸)
+    # 但实际不会发生(guard 在调用方);只验证表本身不因空查询出错
+    assert cache.compat_hashes_for_user("nonexistent-user") == []
+    assert cache.drop_compat_ownership("nonexistent-user") == 0
+
+
+def test_link_compat_ownership_idempotent(shared_db):
+    """同一 (hash, user) 重复记录不堆行(PK 双列幂等)。"""
+    from app.ai.cache import InterpretationCache
+
+    cache = InterpretationCache(shared_db)
+    cache.link_compat_ownership("h1", "u1")
+    cache.link_compat_ownership("h1", "u1")
+    cache.link_compat_ownership("h1", "u1")
+    rows = _table_rows(shared_db, "compat_cache_ownership")
+    assert len(rows) == 1
+    # 不同 hash / 不同 user 各自行
+    cache.link_compat_ownership("h2", "u1")
+    cache.link_compat_ownership("h1", "u2")
+    assert len(_table_rows(shared_db, "compat_cache_ownership")) == 3
