@@ -1232,6 +1232,20 @@ async def interpret(
             )
             raise InterpretationCacheError(
                 f"后端缓存写失败({type(e).__name__}): {e}") from e
+        # 合盘缓存归属联动(2026-11-25 账号删除批):compat 模块 + 登录用户
+        # 才记(匿名无账号可删)。best-effort——失败记日志不阻断生成,回退到
+        # 改造前状态(该行缓存不随删号清)
+        if req.module in COMPATIBILITY_MODULES and current_user_id:
+            try:
+                await run_in_threadpool(
+                    cache.link_compat_ownership,
+                    req.content_hash, current_user_id,
+                )
+            except Exception as link_err:
+                logger.warning(
+                    "interpret.compat_ownership_link_failed %s error=%s",
+                    log_ctx, link_err,
+                )
         return interpretation, now_iso
 
     try:
@@ -2315,6 +2329,18 @@ async def interpret_translate(
             )
             raise InterpretationCacheError(
                 f"后端缓存写失败({type(e).__name__}): {e}") from e
+        # 合盘缓存归属联动(同生成路;翻译行同样含对方称呼)
+        if req.module in COMPATIBILITY_MODULES and current_user_id:
+            try:
+                await run_in_threadpool(
+                    cache.link_compat_ownership,
+                    req.content_hash, current_user_id,
+                )
+            except Exception as link_err:
+                logger.warning(
+                    "interpret.translate.compat_ownership_link_failed %s error=%s",
+                    log_ctx, link_err,
+                )
         return translated, now_iso
 
     try:

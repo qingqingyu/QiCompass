@@ -25,6 +25,7 @@
 from __future__ import annotations
 
 import sqlite3
+from datetime import datetime, timezone
 from typing import Any
 
 from .cache_key import CacheKey
@@ -51,6 +52,20 @@ CREATE TABLE IF NOT EXISTS interpretation_cache (
         content_hash, module, prompt_version, target_date, prompt_hash,
         provider, model, parent_hash, user_input_hash, language
     )
+);
+"""
+
+
+# 合盘缓存归属联动(2026-11-25 账号删除批):compat 模块的 content_hash 是
+# 组合哈希(A+B 盘),无 per-user 维度——删号时无法反查含对方称呼的缓存行。
+# 生成期在此表记 (compatibility_hash, user_id),删号反查清理(仅登录用户;
+# 匿名无账号可删,不记)。PK 双列幂等(同 user 同 hash 重复生成不堆行)。
+CREATE_COMPAT_OWNERSHIP_SQL = """
+CREATE TABLE IF NOT EXISTS compat_cache_ownership (
+    compatibility_hash TEXT NOT NULL,
+    user_id            TEXT NOT NULL,
+    created_at         TEXT NOT NULL,
+    PRIMARY KEY (compatibility_hash, user_id)
 );
 """
 
@@ -87,9 +102,43 @@ class InterpretationCache:
         """
         with self._connect() as conn:
             conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute(CREATE_COMPAT_OWNERSHIP_SQL)
             _drop_legacy_cache_if_needed(conn)
             conn.execute(CREATE_TABLE_SQL)
             conn.commit()
+
+    def link_compat_ownership(
+        self, compatibility_hash: str, user_id: str,
+    ) -> None:
+        """记录合盘缓存归属(登录用户;INSERT OR REPLACE 幂等)。
+
+        生成期 best-effort 调用(interpret/translate 两路),失败记日志不阻断
+        生成——归属缺失的最坏后果是该行缓存不随账号删除(回退到改造前的
+        状态),优于因记账失败丢整个解读。
+        Raises: sqlite3.Error(向上抛,调用方决定降级)
+        """
+        now = datetime.now(timezone.utc).isoformat()
+        with self._connect() as conn:
+            conn.execute(
+                "INSERT OR REPLACE INTO compat_cache_ownership "
+                "(compatibility_hash, user_id, created_at) VALUES (?,?,?)",
+                (compatibility_hash, user_id, now),
+            )
+
+    def compat_hashes_for_user(self, user_id: str) -> list[str]:
+        """该用户关联的全部合盘缓存哈希(删号反查用)。"""
+        with self._connect() as conn:
+            return [r[0] for r in conn.execute(
+                "SELECT compatibility_hash FROM compat_cache_ownership "
+                "WHERE user_id = ?", (user_id,))]
+
+    def drop_compat_ownership(self, user_id: str) -> int:
+        """删除该用户的归属记录(缓存行已清后调用;返行数供审计)。"""
+        with self._connect() as conn:
+            n = conn.execute(
+                "DELETE FROM compat_cache_ownership WHERE user_id = ?",
+                (user_id,)).rowcount
+        return n
 
     def get(self, key: CacheKey) -> dict[str, Any] | None:
         """查缓存。

@@ -137,6 +137,27 @@ def delete_user_data(db_path: str, user_id: str) -> dict[str, int]:
         else:
             stats["interpretation_cache"] = 0
 
+        # ---- 6b. 合盘缓存归属联动清理(2026-11-25 拍板 #1):生成期记了
+        #      (compat_hash, user_id),这里反查并删含对方称呼的 compat 缓存行
+        #      (免费 + 付费 + 翻译行),再清归属记录本身
+        compat_hashes = [
+            r[0] for r in conn.execute(
+                "SELECT compatibility_hash FROM compat_cache_ownership "
+                "WHERE user_id = ?", (user_id,))
+        ]
+        if compat_hashes:
+            compat_ph = ", ".join("?" * len(compat_hashes))
+            stats["compat_cache"] = conn.execute(
+                f"DELETE FROM interpretation_cache "
+                f"WHERE content_hash IN ({compat_ph}) "
+                f"AND module IN ({', '.join('?' * len(_COMPAT_MODULES_FOR_DELETION))})",
+                (*compat_hashes, *_COMPAT_MODULES_FOR_DELETION)).rowcount
+        else:
+            stats["compat_cache"] = 0
+        stats["compat_cache_ownership"] = conn.execute(
+            "DELETE FROM compat_cache_ownership WHERE user_id = ?",
+            (user_id,)).rowcount
+
         # ---- 7. ask 钱包(铸造表 ask_trial_mints 按 (ip, day) 计数,无 owner
         #      列、与账号无挂钩,不属账号数据,不动)----
         stats["ask_wallet"] = conn.execute(

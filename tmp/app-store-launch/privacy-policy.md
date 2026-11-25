@@ -3,24 +3,6 @@
 > 状态:可发布正文 v0.2(2026-11-23 T20 纠错重写)。上架前需部署为可公开访问的 URL
 > (候选:SEO 站 / 任意静态托管),并把 URL 填入 App Store Connect。
 > 「生效日期」与「联系方式」两处占位待定稿。
-> 事实依据(T20 逐句核对后,与当前实现一致):
-> - 排盘在后端完成;lunar_python 历法计算
-> - 解读由第三方 AI 服务生成:Z.ai(智谱,api.z.ai)与 DeepSeek——以生产
->   backend/.env 实际启用的路由为准(默认走 Z.ai,深度命书长章模块 M1-M7
->   可路由 DeepSeek,.env.example 示例口径);发给 AI 的字段:命盘数据
->   (四柱/五行/十神/大运)、出生时间、出生地(城市)、性别、黄历/时辰等
->   排盘产物、合盘称呼(name_a/name_b)、问事提问原文与对话上文
-> - 登录后(Sign in with Apple / Google)命盘通过 SyncManager 同步到后端
-> - TelemetryDeck 匿名使用统计(事件名 + 枚举参数,随机会话 ID,不含出生
->   信息与解读正文,不跨 App 追踪)
-> - 问事记录:本地 SwiftData 会话簿 + 后端 SQLite(ask_history 存问题哈希与
->   归属、ask_answer_cache 存答案 JSON;**均无 TTL,持久保留**,账号删除时
->   含用户文本的行随账号清,见 §4)
-> - 解读缓存(后端 interpretation_cache)**无 TTL,持久保留**,按内容哈希寻址
-> - 章末反馈(后端 chapter_feedback):匿名「准/不准」枚举 + client_ip 防刷,
->   无 TTL 持久保留(feedback_store.py)
-> - 每日插画:IMAGE_API_* 配置启用时走第三方图像服务,prompt = 流日干支/
->   十神查表意象(daily_image.py + image_prompt.py),不含出生原文
 
 ---
 
