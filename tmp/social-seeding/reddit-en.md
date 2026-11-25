@@ -18,7 +18,7 @@ Independent developer studying BaZi seriously — built a deterministic engine +
 > - "Master" framings with fatalistic language (注定-type talk)
 > - Zero explanation of WHERE a conclusion comes from
 >
-> So I built QiCompass around three rules:
+> So I built KnowFate around three rules:
 > 1. **Deterministic calculation.** True solar time correction, early/late Zi handling, same input → same chart, always. No vibes.
 > 2. **Every claim cites the chart.** Ten Gods structure, hidden stems, element balance — each interpretation point traces back to a specific pillar.
 > 3. **No fortune-telling language.** It describes structure (how you gain/spend energy, how you operate), not fate. Banned-words system literally blocks 必然/注定-type output.

@@ -1,4 +1,4 @@
-# QiCompass — 玄机问道
+# QiCompass — KnowFate · 观命(产品名 KnowFate · 观命;内部工程名仍为 QiCompass)
 
 AI 八字命理 iOS App:深度解析 / 合盘 / 每日运势 三模块。Python FastAPI 后端(`lunar_python` 排盘 + Anthropic/OpenAI 解读代理)+ SwiftUI 前端(iOS 17.2+,SwiftData 持久化)。
 

@@ -1,4 +1,4 @@
-# Design System — 玄机问道 QiCompass
+# Design System — 观命 KnowFate(内部工程名仍为 QiCompass)
 
 > 全局视觉事实源。任何 UI 决策(颜色 / 字体 / 间距 / 圆角 / 动效)都必须先读这里,偏离须用户明确批准。
 >
@@ -26,7 +26,7 @@
 - **Mood:** 冷宣纸 / 焦墨 / 竖排古书 / 印章落定。让命理内容自己说话,UI 不抢戏。
 - **Signature elements(品牌指纹,跨模块复用):**
   - **墨圆 EnsoView** — 开机转场 / onboarding 承接 / 生肖揭晓 hero / 排盘布算
-  - **朱印 SealStamp** — 品牌印「玄」、付费墙「解」印、合盘「合」印、批语「批」印
+  - **朱印 SealStamp** — 品牌印「观」(繁体界面「觀」)、付费墙「解」印、合盘「合」印、批语「批」印
   - **竖排宋体 VText** — 标题、经文、批语、加载文案
   - **大写数字编号 壹-捌** — 深度解析捌章卷轴、付费章清单
 - **Reference:** 探索产物 24 屏 HTML(`docs/design-ref/shuimo/`);精神参考不变(Co-Star 的克制 + 东方古籍气质)
@@ -37,7 +37,7 @@
 
 - **Display/Hero/Heading/Ganzhi/品牌层:** `QiSongti`(思源宋体)— 宋体扛全部中文展示层,宋刻本气质呼应水墨孤本;竖排/朱印/墨圆指纹不变
 - **Body(正文):** `QiSongti` — 阅读页宋体 16pt 行距 ~1.65×(2026-10-09 改版,收 09-01 的 2.15× 疏朗口径),不缩进、段间距 16pt(2026-10-21 A′ 修订「首行缩进 2em」,文内换行按段拆分)
-- **Latin caps(QICOMPASS 标):** system + `.tracking(大间距)`(约 0.55em),8.5-10pt
+- **Latin caps(KNOWFATE 标):** system + `.tracking(大间距)`(约 0.55em),8.5-10pt
 - **Numeric/Data:** `SF Pro Text` + `tabular-nums` — 西文数字对齐(排盘表格 / 日期)
 - **两族纪律(2026-09-25 成文):** 任何界面同时在场字族 ≤2(中文宋体 + 数字 SF Pro 视为基准族)。EN 路由 = 衬线标题(New York serif)+ 无衬线正文/按钮;mono 已除(2026-09-24)。登录按钮(Apple/Google 官方组件)字体锁定,豁免
 - **zh-Hant 字形分流(2026-10-01,i18n-zh-hant-plan D7 对中文字体条款的显式扩展):** 繁体语言下取繁体字形——全宋体起为打包的 **QiSongtiTC**(Big5 子集;缺失回落 QiSongti 简形 → Songti TC)——zh-Hant 用户显示简体字形是错的。实现单一入口 `BaziFont.songtiName`(按 `AppLanguage.current` 分流),品牌层 `brush` 同口径。zh / en 路径不变。
@@ -54,12 +54,12 @@
 | Body | 15.5-16pt | Regular | 正文(宋体;深度阅读页 16pt 行距 ~1.65×,2026-10-09 改版;2026-10-21 起不缩进、段间距 16pt) |
 | Caption | 13pt | Regular | 说明 |
 | Micro | 10-11pt | Regular | 标签 / 元信息 |
-| LatinCaps | 8.5-10pt | Regular | QICOMPASS 字距标 |
+| LatinCaps | 8.5-10pt | Regular | KNOWFATE 字距标 |
 | Ganzhi-L | 30-32pt | Medium | 八字天干地支(主显) |
 | Ganzhi-M | 22pt | Medium | 大运干支 |
 | Ganzhi-S | 14pt | Medium | 时辰干支 |
 
-**SwiftUI 落地:** `BaziFont.display(size:)` 等既有 API 不变,内部换宋体(2026-10-18 前为 Kaiti);另有 `BaziFont.latinCaps(size:)`(QICOMPASS 字距标)。
+**SwiftUI 落地:** `BaziFont.display(size:)` 等既有 API 不变,内部换宋体(2026-10-18 前为 Kaiti);另有 `BaziFont.latinCaps(size:)`(KNOWFATE 字距标)。
 
 ## Color
 
@@ -250,3 +250,4 @@ enum BaziTheme {
 | 2026-11-06 | **问事多会话落地修订:11-04 定稿的三处事实校正(只读判定 / 数据形态 / 陈旧页死控件)** | 双 review(Three Check + code-review-expert)对 56a8513 落地批的补记。①**只读判定 = `AskDayKey.isPastDay`(早于墙钟今日才只读),非「≠ 今日」**——`zi_next_day`(APIClient 硬编码产品默认)23:00 滚日窗口 23:00–00:00 页面 businessDate 已前移而墙钟未跨日,该窗口新线踩的是已解锁的新盘必须可聊,判 `!=` 会每晚一小时全部 born-readonly、「+ 新开一问」成死控件;模型 isReadOnly / store 归组与 resolveRecord / 抽屉往日签四处同源。②**数据形态**:11-04 定稿写「消息子实体」,落地为 **JSON payload 列**(`AskConversation.messagesData`,D1 哲学同 DailyFortuneSnapshot 易变结构:整取整存免关系排序/级联删除簿记,SwiftData to-many 无序是纯负担),SchemaRegistry 登记。③**离线陈旧页**(页面日落后墙钟日)新线必只读,「+ 新开一问」chip 按 store.canStartNewThread 隐藏(pageDateKey 由 syncDay 注入)。S1-S3 已合 main(56a8513),S4 真机走查待做 |
 | 2026-11-15 | **章末「说得准吗」反馈控件定稿:B6 极简 × B9 三拍退场(HTML 对比稿 12 画框 5 轮拍板)** | 对比稿 `tmp/chapter-feedback-compare/`(A 现状 + B1-B9 结构变体 + C1/C2 定稿候选,全部可交互)。**定稿口径**:①位置 = 章末落款行左侧,与「批」印同一行、同一条 closing hairline,每章一组,仅在 `.ok` 正常成文态出现(与批印同生命周期);②静默态 = 只放「准 · 不准」两词,11.5pt 墨灰 tracking 1 纯文字,**无问句无底色无边框**(拍板 B6:刚读完一章的人不需要被问);③选中态 = 点中字浓墨、另一字退淡墨、中点最淡,**不用朱红**(旁边已有一枚印);④**三拍反馈**(拍板修订 2:选中即消失无回执 =「点下来跟失败一样」)——选中标志停拍 ~0.4s → 词组位换「收到」小字(ink-in 淡入)→ 停 ~0.9s 整组消失,章末回到批印独处,**不留常驻回执**(「已记·准」被否决);⑤「不准」= 展开小节 chip(**单选、无提示词、无确认按钮**,拍板修订:「既可多选又可不选」提示与「收起」按钮均砍),选中一枚即三拍收场;展开态再点「不准」= 只记总评收场;⑥反馈一次性:本地标记(ChapterFeedbackStore,UserDefaults,超 2000 整清),选后不可改、本章不再显示;⑦触觉 = 有效点击 HapticEngine.light(真机层,HTML 演示不了);⑧上报 = 后端 `POST /api/interpret/feedback` 落 chapter_feedback 表(prompt_version/provider/model 由后端从缓存行 best-effort 反查,客户端只报展示层事实),免鉴权幂等,IP 日限 100。**不采纳**:B2 分离式(多占一行)、B5 合并式(M1-M7 无据折叠区两章结构不一致)、B7 竖排式(问句立答案躺,真机待验不急于 v1)、B8 量表式(调研工具语言与命书气质冲突,五档数据对两动作是浪费)、朱点小圆点选中回执(B9 原案,被「整组消失不留痕」覆盖)。视觉零新增:无新色、无新字体、chip 复用 Capsule+hairline 语言 |
 | 2026-11-21 | **今日 tab 视觉改版试点:暖白纸 `#FAF8F2`(仅今日 tab,`todayPaper` token;Dark 仍夜宣纸)+ 数字对开(峰/谷 64pt 宋体数字)+ 纸上气泡场(五行力量五枚淡染色圆)+ 编辑导语下半(信号双栏/十二时辰谱/宜忌明日三栏)。光晕 hero(HaloBackdrop)与五行条(DailyElementStrengthSection)退役出布局,代码保留;HaloColors 转为气泡/对开取色源。宜忌沿用 HeroYiJiColumns 静态十神查表(不换后端黄历)。事实源 `docs/design-ref/wuxing-styles/11-merged.html`(Mobbin 三方向组合,用户四项拍板);测试 TodayVizLayoutTests 11 例守护判定序迁移 | 用户在 Mobbin 风格探索(五流派 × 变体 × 三组合)后拍板;72pt 大日期保留(10-25 字号梯度锚点不动);试点验收后再决定纸色是否推全局 |
+| 2026-11-24 | **改名 KnowFate · 观命:品牌印玄→观,内部标识全不改** | `docs/App改名KnowFate设计决策.md`(S01 核查:初定「知命」与同品类产品撞名放弃;用户 App Store Connect 实测定「观命」/「KnowFate - Chinese Astrology」)。现行规范段落同步:标题、品牌印、KNOWFATE 字距标(本表);历史条目里的「玄」「QiCompass」保留(当时事实)。Memorable Thing 不变(宣纸、焦墨圆、一枚朱印、一行竖排宋体) |
