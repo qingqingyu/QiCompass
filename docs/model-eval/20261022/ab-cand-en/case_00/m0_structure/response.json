@@ -1,0 +1,29 @@
+{
+  "main_axis": {
+    "headline": "You are pushed by a need to study things on your own terms, and that pull is stronger than any push toward money or position.",
+    "body": "The lead force is Indirect Resource — offbeat knowledge and researching alone; it is the heaviest single weight in the chart. Next come Direct Wealth — steady income built bit by bit — and Rob Wealth — competition among peers, scrambling for resources — tied at the same weight. Sitting unused is Direct Officer — rules, positions, and formal standing — which carries no weight at all, so formal hierarchy is not what moves you.",
+    "dominant": "Indirect Resource",
+    "secondary": "Direct Wealth, Rob Wealth (jointly heaviest in the secondary layer)",
+    "latent": "Direct Officer",
+    "evidence": "Indirect Resource is the single heaviest god (10): it shows on the month stem and repeats in the hidden stems of the month, day, and hour branches. Direct Wealth and Rob Wealth are tied at 6: Direct Wealth shows on the year stem plus hidden stems in the year and day branches; Rob Wealth shows on the hour stem plus a hidden stem in the year branch. Direct Officer carries 0 — no stem or hidden stem classifies under it."
+  },
+  "core_loop": {
+    "headline": "You dig into a subject alone, turn that into steady income, then peers compete for the same ground and you go back to digging.",
+    "from": "Indirect Resource",
+    "to": "Rob Wealth",
+    "flow": "You start by researching something on your own — reading, testing, going deeper than the people around you. That knowledge gets converted into steady, incremental income rather than a single big score. Then peers notice the ground you have opened and start competing for the same resources, which pushes you back into private study to stay ahead.",
+    "driver": "The Day Master is balanced (strength label 中和), with metal and earth listed as the favorable elements. Indirect Resource is the heaviest god at 10, and Rob Wealth at 6 sits on the hour stem, so the loop runs from private research into peer competition rather than from output into wealth.",
+    "leak": "The cost is that you keep reinvesting in research and defending your ground against peers, so visible results accumulate slowly and you rarely get to point at something finished and say it is done.\nIn the ten years starting around age 48 (the Gui Wei pillar), the pull toward private study loosens and it becomes easier to let work leave your desk and reach other people.\nFor now, set a fixed date on each piece of research and hand it over on that date even if it feels unfinished.",
+    "evidence": "Indirect Resource 10 (month stem plus hidden stems in month, day, and hour branches) feeds the loop; Rob Wealth 6 (hour stem plus hidden stem in the year branch) closes it. Direct Wealth 6 (year stem plus hidden stems in year and day branches) is the middle step. Day Master strength is 中和, favorable elements metal and earth. Age-48 stretch: Gui Wei pillar."
+  },
+  "structure_type": {
+    "name": "the private researcher who keeps getting pulled into peer competition",
+    "one_line": "You run on self-directed study first, convert it into steady income second, and then find yourself defending the same ground against people who want what you have built."
+  },
+  "capability_source": {
+    "headline": "Strongest when you have to figure out an unfamiliar subject alone with no one telling you how; weakest when you have to hold a formal position and enforce rules on other people.",
+    "text": "Your strength comes from Indirect Resource being the heaviest force in the chart: you go deeper than the brief requires, and that depth is what others end up relying on. A concrete scene: a client hands you a field you have never worked in, and by the second meeting you have already mapped the key terms, found the two papers that matter, and sketched a working approach while the rest of the room is still asking what the field even covers.",
+    "evidence": "Indirect Resource 10 — month stem plus hidden stems in the month, day, and hour branches. Direct Officer 0 — no stem or hidden stem classifies under it, so formal rule-enforcement has no weight behind it. Day Master strength 中和 with metal and earth favorable."
+  },
+  "structure_fingerprint": "Researches alone, converts findings into incremental income, then defends the ground against peers and returns to research."
+}

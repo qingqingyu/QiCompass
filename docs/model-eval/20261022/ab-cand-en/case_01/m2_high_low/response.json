@@ -1,0 +1,43 @@
+{
+  "high_config": {
+    "portrait": "In high-spec mode, you run as a producer who ships early and often. You walk into a meeting with a rough draft already sketched, say the blunt version of the problem before anyone asks, and use that output to get real reactions instead of abstract discussion. When pushback comes, you do not freeze — you pull a past case, a template, or a standard you already know and anchor the next version on it. You work best next to someone who is also building: you split tasks, check in at short intervals, and keep momentum because someone is moving with you. The loop turns cleanly because your output is fed by a base you keep topping up, and the base is refreshed by new input rather than recycled from the same store.",
+    "observable_signals": [
+      "You send a working draft before the requirements are finalized, and the draft becomes the thing the team reacts to. Colleagues forward your rough version because it is concrete enough to critique, not because it is polished.",
+      "When a debate stalls, you end it by citing a past project, a standard, or a certification you hold. You say 'we solved something like this before' and pull up the old document, and the conversation moves to the next step.",
+      "You pair with a colleague on a stalled task, split the work, and check in within the same day. You are the one who calls the person who will actually do something rather than the one who will only discuss it."
+    ]
+  },
+  "low_config": {
+    "portrait": "In low-spec mode, the same producing energy gets stuck behind a filter. You still see the fix and the blunt version, but you soften it, wait for one more source, and top up a base that is already sufficient. The output still happens, but it happens later and in a lower-energy channel: the sharp email gets drafted in the evening instead of said in the meeting, and the finished draft sits in a folder while you check one more reference. You keep drawing on the same store of knowledge and backing without adding new input, so the work starts to repeat itself and the range of what you produce stops widening. The loop is not broken — it is running on recycled material.",
+    "observable_signals": [
+      "You leave a meeting having said the softened version, then spend the evening drafting the sharp one you did not say. The draft is good, but it arrives after the decision has already been made without it.",
+      "You delay shipping a finished piece because you want to check one more source. The piece is done, but it sits in a folder for days while you top up a base that would already carry the output.",
+      "You notice that your last three outputs — a document, a fix, a recommendation — are variations of the same template. You have not added a new tool or framework to your kit in months, and the work feels like recycling."
+    ]
+  },
+  "threshold": {
+    "environment": {
+      "enables": "An environment that rewards early drafts and fast feedback lets this structure open up. If your team reacts to a rough prototype within a day, if a colleague is building alongside you, and if new input — a course, a different project, a unfamiliar problem — arrives on a regular cadence, the loop turns cleanly. The Eating God output at the leading weight gets used immediately, the Companion energy finds a co-producer, and the Direct Resource base gets refreshed instead of recycled. You produce more, and the range of what you produce widens because the base is growing.",
+      "suppresses": "An environment that punishes the blunt version and rewards waiting suppresses the structure. If every draft must be pre-approved, if the culture treats a rough prototype as a mistake, and if you are the only one pushing while others only discuss, the output gets filtered and delayed. The Seven Killings filter in the year stem — the earliest position — gets trained harder, and the Eating God output goes underground. The base stops growing because new input never gets used, and the loop starts recycling the same store."
+    },
+    "belief": {
+      "limiting_belief": "The limiting belief is: 'I cannot ship until the base is perfect.' It sounds like professionalism, but it is a trained reflex. You wait for one more source, one more certification, one more precedent before you let the output out. The belief lowers the ceiling because it turns the Direct Resource base from a store you draw on into a gate you must pass through. The output gets delayed, the range narrows, and the new input you collected never gets used because the gate never opens.",
+      "origin": "The belief grows out of the defensive ability 'Waiting for the base to be perfect.' Direct Resource weighs six and the Day Master is slightly strong, so the base is already sufficient — it is a store, not a shortage. But the Seven Killings filter in the year stem, the earliest position, trained you to check before you speak. The two together produce a habit: top up the base, then top it up again, and treat the waiting as a requirement rather than a reflex.",
+      "ceiling_effect": "The ceiling effect is that your output stops widening. You keep producing from the same store of knowledge and backing, so the work starts to repeat itself. The Eating God output at the leading weight is still there, but it runs through a narrower channel. The new input you collect — the course, the different project, the unfamiliar problem — never gets used because the gate stays closed. The loop turns, but it turns on recycled material, and the range of what you can produce stops growing."
+    },
+    "awareness": {
+      "key_moment": "The switch point is when you notice that your last few outputs are variations of the same template, and that the new input you collected has not changed what you produce. That is the moment to check whether you are topping up without drawing. The Bing Zi luck pillar starting around age forty-two brings water into the branch, which makes new input easier to absorb — but the defensive habit is what resists it. The awareness is not 'I should try harder'; it is 'I am waiting for a base that is already sufficient.'",
+      "what_to_notice": "Notice the gap between the sharp version you drafted in the evening and the softened version you said in the meeting. Notice the finished draft sitting in a folder while you check one more source. Notice when your last three outputs share the same structure. These are the signals that the loop is recycling rather than growing. The moment you see the pattern, you can choose to ship the draft, say the sharp version, or use the new input — and the loop starts turning on fresh material again."
+    }
+  },
+  "early_warnings": [
+    "You leave a meeting having said the softened version, then spend the evening drafting the sharp one. The draft is good, but it arrives after the decision has been made without it. This is the Seven Killings filter running on top of the Eating God output, and it costs you energy every time.",
+    "A finished piece sits in a folder for days while you check one more source. The piece is done, but you are topping up a base that would already carry the output. The Direct Resource store is sufficient, and the waiting is a trained reflex, not a real requirement.",
+    "Your last three outputs — a document, a fix, a recommendation — are variations of the same template. You have not added a new tool or framework to your kit in months. The loop is drawing on the same store without topping it up, and the range of what you produce is narrowing."
+  ],
+  "switch_actions": [
+    "Set a fixed block each week to study something outside your current toolkit, and finish one small piece of output from it before the week ends. This tops up the Direct Resource base with new input and forces the Eating God output to use it. Start with a topic you have been curious about but have not touched, and ship a one-page note or a small prototype by the end of the week.",
+    "In your next meeting, say the blunt version first and let the room react. Do not soften it, do not wait for one more source. The Eating God output is the leading force, and the Seven Killings filter is a trained layer — you can choose to run the output first and filter later. Notice what happens: the reaction gives you concrete feedback, and the loop turns faster.",
+    "Pick one stalled task and pair with a colleague who will actually do something. Split the work, check in within the same day, and ship a rough version by the end of the week. The Companion energy is jointly heaviest with Eating God, and co-production is a natural mode for you. The rough version does not need to be perfect — it needs to be concrete enough for someone to react to."
+  ]
+}

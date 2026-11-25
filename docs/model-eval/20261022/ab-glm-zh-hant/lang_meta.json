@@ -1,0 +1,10 @@
+{
+  "language": "zh-hant",
+  "original_case_indices": [
+    0,
+    4,
+    15,
+    17
+  ],
+  "note": "case_XX 按抽样后的顺序重新编号,对应原 CASES 下标见 original_case_indices"
+}

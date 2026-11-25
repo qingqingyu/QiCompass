@@ -1,0 +1,106 @@
+{
+  "income_forms": [
+    {
+      "form": "projects",
+      "rank": 1,
+      "fit": "You are paid for a shipped deliverable, and the loop closes fast enough to keep your output from recycling. A project with a defined scope and a short feedback cycle lets you draft first, get a reaction within days, and ship a second version before the first one goes stale. The Eating God leading weight means the act of producing is the value; the Companion weight means you can co-produce with one or two builders and split the work without losing momentum. A project fee tied to a delivered outcome matches how you actually generate value.",
+      "friction": "Projects with long approval chains or quarterly review gates starve the loop. If the client wants a proposal, then a committee, then a revised proposal, your output goes underground and the Seven Killings filter starts editing before you ship. You also tend to underprice the first draft because it comes easily to you — the ease is the skill, not a reason to discount.",
+      "evidence": "Eating God is the leading force and jointly heaviest with Companion (nine and eight). The month stem is Eating God, the day branch is Eating God, and the year branch hidden stems include Eating God. The Day Master is slightly strong, so output drains excess rather than depleting you. Companion sits in the hour stem and in the year branch hidden stems, which supports co-production on a project."
+    },
+    {
+      "form": "consulting",
+      "rank": 2,
+      "fit": "Consulting fits because you speak the blunt version before someone asks, and clients pay for that. You walk into a room where the problem is still being described, sketch the fix on the whiteboard, and give the honest opinion. The Direct Resource weight at six means you can anchor the advice in a framework, a past case, or a standard you already hold — you are not just opinionated, you have a store to draw on. A short engagement with a defined question and a fast reaction cycle matches your rhythm.",
+      "friction": "Consulting engagements that require you to sell the work for months before delivering anything will drain you. The Seven Killings weight at five means you can handle a demanding client, but if the client only wants validation and not a working answer, your output gets filtered and the loop stalls. You also risk repeating the same advice from the same store if you do not protect a new-input block.",
+      "evidence": "Eating God leads at nine, and the month stem is Eating God — you produce and speak first. Direct Resource weighs six, carried by the month and hour branch hidden stems (both 巳 hold 正印), so you have a base to anchor advice. Seven Killings weighs five from the year stem, which gives you tolerance for a demanding counterpart but also a filter that can suppress output if the environment is punitive."
+    },
+    {
+      "form": "content",
+      "rank": 3,
+      "fit": "Content suits you when it is a byproduct of shipping — a write-up of a fix you already built, a short explainer of a problem you already solved. The Eating God output at the leading weight means you generate rough drafts naturally, and the Companion weight means you can co-produce with an editor or a collaborator who reacts fast. A weekly cadence — input early, ship one piece by the end — matches the short-cycle rhythm your structure prefers.",
+      "friction": "Content as a primary income form conflicts with your need for a fast reaction loop. A platform that rewards volume over a long horizon, with no co-producer and no immediate feedback, will train the Seven Killings filter and push your output underground. You also tend to produce from the same store, so without a protected study block the content starts to repeat itself.",
+      "evidence": "Eating God is the leading weight at nine, and the day branch is Eating God — output is the natural mode. Companion weighs eight and sits in the hour stem, so co-production is available. Direct Resource at six means the store is there, but the Five Elements show no Water at all, so the input that refreshes the store has to be deliberately scheduled rather than assumed."
+    },
+    {
+      "form": "salary",
+      "rank": 4,
+      "fit": "A salary fits the steadying part of your structure: the Direct Resource weight at six means you can draw on credentials and standards, and a base retainer matches the store you already hold. A role that pays for shipped work — a product launch, a fix, a delivered engagement — with a short internal feedback cycle can work, especially if you have one co-producer on the team.",
+      "friction": "A salary tied to tenure and waiting conflicts with the Eating God leading weight. If the role rewards seniority and long approval chains, your output gets filtered through layers and the loop stalls. The Companion weight at eight means you need a co-producer, not a large committee; a salary role with no builder next to you will feel like solo grinding.",
+      "evidence": "Direct Resource weighs six, carried by the month and hour branch hidden stems, so a base is available. Eating God leads at nine, which means you are paid for what you produce, not for waiting. Companion weighs eight, so co-production is part of the value. The Day Master is slightly strong, so Resource adds weight rather than relieving it — a salary that only accumulates credentials without output will feel heavy."
+    },
+    {
+      "form": "equity",
+      "rank": 5,
+      "fit": "Equity fits only when it is tied to a shipped output you co-produced — a project stake, a product share, a consulting engagement with upside. The Companion weight at eight means you can co-produce with one or two builders, and the Eating God weight means the value you bring is the shipped work. A hybrid rhythm — a base retainer plus output-based upside — matches the structure better than pure equity.",
+      "friction": "Pure equity with a long vesting horizon and no fast feedback cycle conflicts with your short-cycle rhythm. The Seven Killings weight at five means you can tolerate a demanding counterpart, but if the equity is filtered through layers of approval and you are the only one pushing, momentum drops. You also tend to underprice your first draft, which in equity terms means taking a smaller stake than the work warrants.",
+      "evidence": "Companion weighs eight and sits in the hour stem, so co-production is natural. Eating God leads at nine, so the value is the shipped work. Direct Resource at six means you can anchor a stake in a standard or a credential. The current luck pillar starting at thirty-two is 丁丑, and the current year is 甲辰 — neither changes the structural preference for short cycles over long vesting."
+    },
+    {
+      "form": "investing",
+      "rank": 6,
+      "fit": "Investing fits the store part of your structure: the Direct Resource weight at six means you can hold a base and draw on it, and a conservative allocation matches the steadying function. A hybrid rhythm — a base retainer plus output-based upside — is the closest match, where the retainer is the store and the upside is the output.",
+      "friction": "Investing as a primary income form conflicts with your short-cycle output rhythm. The Eating God leading weight means you are paid for what you produce, and investing produces no visible output in the short term. The Five Elements show no Water at all, so the input that refreshes the store has to be deliberate; a long-horizon position with no reaction loop will train the Seven Killings filter and push your output underground. You also have no 正财 weight and only a small 偏财 weight, so the structure does not favor waiting on a fixed return.",
+      "evidence": "Direct Resource weighs six, so a store is available. Eating God leads at nine, so output is the natural mode, not waiting. 正财 is absent and 偏财 weighs one, so the structure does not favor a fixed-return posture. The Five Elements show no Water, so the input that refreshes the store is not automatic. The useful-god candidates are metal, water, and wood — a conservative allocation that respects the store is the only fit."
+    }
+  ],
+  "leaks": [
+    {
+      "type": "partnerships",
+      "how_it_shows": "You co-produce easily, so you say yes to a partner before the split is written down. The Companion weight at eight means working alongside someone is natural, and the Eating God weight means you ship the first draft fast — often before the terms are settled. You then find yourself doing the work while the split is still verbal, and the Seven Killings filter starts editing your output to avoid conflict. The leak is not the partnership; it is the unwritten split.",
+      "rule": "If you are about to start co-producing with someone, then write the split and the deliverable in one page before the first draft ships; if the other person will not sign the one page, then do not ship the first draft."
+    },
+    {
+      "type": "social obligations",
+      "how_it_shows": "You give the honest opinion before someone asks, and you are the one who calls the colleague who will actually do something. That makes you the default fixer in your circle. The Companion weight at eight means you are comfortable being the first to move if someone is moving with you, so you say yes to the request before you check your own shipping block. The leak shows up as a week where you produced for everyone else and shipped nothing of your own.",
+      "rule": "If a request arrives that is not on your shipping block for the week, then reply with a specific later date and do not start it before that date; if the request cannot wait, then name the one piece of your own output that will slip and decide which one to drop."
+    },
+    {
+      "type": "impulses",
+      "how_it_shows": "You draft the email before the requirements are finalized and build the rough prototype before the budget is approved. That same speed applies to money: you commit to a tool, a course, or a project fee before the terms are checked. The Eating God leading weight means the first version comes easily, and the ease makes the commitment feel small. The leak is the commitment made at draft speed and paid at full speed.",
+      "rule": "If a commitment costs more than a day of your output, then wait one full shipping cycle before you commit; if the commitment still looks right after you have shipped one piece of your own work, then commit."
+    },
+    {
+      "type": "risk exposure",
+      "how_it_shows": "You have no 正财 weight and only a small 偏财 weight, so the structure does not favor waiting on a fixed return. The Seven Killings weight at five means you can tolerate a demanding counterpart, which can read as tolerance for a demanding position. The leak is not a single bad bet; it is a posture that treats a long-horizon position as if it were a short-cycle project, with no reaction loop to tell you it is not working.",
+      "rule": "If a position has no reaction loop you can check within one week, then cap it at the amount you would spend on one project fee; if you cannot state the cap before you commit, then do not commit."
+    }
+  ],
+  "strategies": {
+    "conservative": {
+      "description": "Keep a base retainer that covers your fixed costs and protect a weekly study block before you take on any output-based work. The Direct Resource weight at six means the store is available; the conservative move is to treat the retainer as the store and the study block as the input that keeps the store from recycling. Ship one small piece of output from the study block before the week ends. The Five Elements show no Water, so the input is not automatic — it has to be scheduled. This strategy fits if you have a stable retainer and one co-producer who reacts within days.",
+      "preconditions": "A retainer that covers fixed costs, one co-producer who will react within a day, and a calendar with a protected study block and a protected shipping block each week."
+    },
+    "balanced": {
+      "description": "Run a hybrid rhythm: a base retainer plus output-based upside on projects with a defined scope and a short feedback cycle. The Eating God leading weight means you are paid for what you produce, and the Companion weight means co-production is part of the value. Keep one or two builders next to you, not a large committee. The Direct Resource weight at six means the retainer is the store and the upside is the output. This strategy fits if you can hold the retainer while shipping one project per cycle and keep the study block intact.",
+      "preconditions": "A retainer that covers fixed costs, a pipeline of at least two projects with defined scope, one or two co-producers, and a weekly study block that is not traded away for project work."
+    },
+    "aggressive": {
+      "description": "Take a project stake or a product share tied to a shipped output you co-produced, while keeping a base retainer as the store. The Companion weight at eight means you can co-produce with one or two builders, and the Eating God weight means the value is the shipped work. The aggressive move is to trade part of the retainer for upside on work you control the shipping of. This fits only if the split is written before the first draft ships and the feedback cycle stays short. The Seven Killings weight at five means you can tolerate a demanding counterpart, but not a long vesting horizon with no reaction loop.",
+      "preconditions": "A written split before the first draft ships, a co-producer who reacts within a day, a retainer that still covers fixed costs, and a reaction loop you can check within one week."
+    }
+  },
+  "asset_ideas": [
+    {
+      "idea": "A fixed-scope diagnostic engagement: a one-week sprint where you walk into a team, sketch the fix on the whiteboard, and deliver a working draft plus a written standard the team can reuse. You sell the sprint, not the hours, and you co-produce with one builder who reacts within a day.",
+      "uses_talent": "You draft the email before the requirements are finalized and give the honest opinion before someone asks. The Eating God leading weight means the output is the value, and the Direct Resource weight at six means you can anchor the draft in a standard or a past case. The Companion weight at eight means you can co-produce the sprint with one builder.",
+      "fits_life_structure": "The feedback cycle is days, not months, and the collaboration density is one co-producer — both match your life structure. The income rhythm is project-based, and the study block feeds the next sprint so the output does not recycle.",
+      "startup_cost": "Low: a one-page scope template, a standard you already hold, and one co-producer. The cost is the first week of your own shipping block.",
+      "likely_blocker": "You underprice the first draft because it comes easily, and you start the sprint before the scope is written. The Seven Killings filter then edits your output to avoid conflict with the client."
+    },
+    {
+      "idea": "A co-produced product launch: you and one builder take a rough prototype to a shipped version in a short cycle, with a written split before the first draft ships. The product is the output, and the launch is the reaction loop. You keep a base retainer as the store and take upside on the launch.",
+      "uses_talent": "You build the rough prototype before the budget is approved, and you do your best work next to someone who is also building. The Eating God leading weight means the prototype is the value, and the Companion weight at eight means co-production is natural. The Direct Resource weight at six means you can anchor the launch in a standard.",
+      "fits_life_structure": "The collaboration density is one or two builders, and the feedback cycle is short enough to ship, react, and ship again within the same week. The hybrid rhythm — retainer plus upside — matches the structure.",
+      "startup_cost": "Medium: one builder, a one-page split, and the first shipping cycle. The cost is the retainer you trade for the upside.",
+      "likely_blocker": "The split is verbal when the first draft ships, and the Seven Killings filter starts editing your output to avoid conflict. You also tend to take a smaller stake than the work warrants."
+    },
+    {
+      "idea": "A weekly written output: a short explainer of a fix you already built, co-produced with an editor who reacts within a day. The cadence is input early, ship one piece by the end of the week. The output is a byproduct of shipping, not a volume play.",
+      "uses_talent": "You produce rough drafts naturally and you speak the blunt version first. The Eating God leading weight means the draft is the value, and the Direct Resource weight at six means you can anchor the explainer in a standard or a past case. The Companion weight at eight means an editor who reacts fast is a co-producer.",
+      "fits_life_structure": "The feedback cycle is days, and the collaboration density is one editor. The weekly cadence matches the short-cycle rhythm, and the study block keeps the output from repeating.",
+      "startup_cost": "Low: one editor, a weekly shipping block, and a study block. The cost is the first week of your own output.",
+      "likely_blocker": "You produce from the same store and the content starts to repeat. The Five Elements show no Water, so the input block has to be scheduled rather than assumed."
+    }
+  ],
+  "disclaimer": "This is a structural self-knowledge analysis based on your chart's Ten Gods, Five Element weights, Day Master strength, and luck pillars. It describes the fit between income forms and your personal structure; it is not investment advice and it does not predict market moves, returns, or specific outcomes. For any major financial decision, consult a licensed professional who can review your full circumstances."
+}

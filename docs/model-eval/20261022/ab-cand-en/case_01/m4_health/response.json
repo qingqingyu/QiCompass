@@ -1,0 +1,87 @@
+{
+  "battery_type": {
+    "type": "burst",
+    "evidence": "Eating God is the leading force and jointly heaviest with Companion (9 and 8), and the Day Master is slightly strong — output is a favorable direction, so you run on producing. Direct Resource weighs 6 and sits in both month and hour branches, so you also run on stored material. The chart has no Water at all, and Fire appears only twice, so there is little built-in cooling or reserve between pushes.",
+    "charge_pattern": "You recharge fastest by making something and saying it out loud — a draft, a fix, a blunt answer — and by doing it next to someone who is also building. A short session of co-production with a peer refills you more than a long passive break. Pulling an old document, template, or precedent out of your own library also restarts you when output stalls.",
+    "drain_pattern": "You drain when you are the only one pushing and no one is moving with you. You also drain when you produce continuously without new input — the same output starts repeating and costs more each time. Long stretches of listening and planning without a concrete artifact leave you flatter than a hard working session does."
+  },
+  "imbalance_risks": [
+    {
+      "system": "sleep",
+      "trigger": "More than three consecutive days of producing late into the evening — drafting, fixing, or answering messages after the workday should have ended — especially when the next morning starts with a meeting where you speak first.",
+      "early_sign": "You lie down but your mind keeps drafting the next version of something; you wake earlier than you intended and start the day already behind on rest."
+    },
+    {
+      "system": "anxiety",
+      "trigger": "A stretch where you are the only person moving on a project, or where your first draft keeps getting pushed back without a peer to split the next round with.",
+      "early_sign": "You reach for more frameworks and precedents than the situation needs, and you replay conversations where you gave the blunt version."
+    },
+    {
+      "system": "digestion",
+      "trigger": "Days built around back-to-back output with no new input — no reading, no old case pulled up, no peer check-in — combined with eating while still producing.",
+      "early_sign": "Meals feel like a task rather than a pause; you notice heaviness after eating and you skip the pause between tasks that used to come naturally."
+    }
+  ],
+  "recovery_levers": [
+    {
+      "action": "Pair one output block each day with one peer who is also building, and end the block at a fixed time rather than when the draft is finished.",
+      "why_it_works_for_you": "Companion is jointly heaviest with Eating God, and the Day Master is slightly strong, so working alongside someone is a natural mode rather than a strain. A fixed end time caps the burst before it eats into the night.",
+      "cost": "low"
+    },
+    {
+      "action": "Before starting any new output, spend ten minutes pulling up an old document, template, or past case and reuse a piece of it.",
+      "why_it_works_for_you": "Direct Resource weighs 6 and is carried in both month and hour branches, so stored material is a real store you draw on. Reusing it lowers the cost of the next draft and keeps output from repeating.",
+      "cost": "low"
+    },
+    {
+      "action": "Schedule one input block per week — reading, a course segment, or a conversation with someone outside your current project — placed on the day after your heaviest output day.",
+      "why_it_works_for_you": "The chart has no Water and only two Fire, so there is little built-in cooling between pushes. New input feeds the Eating God output instead of letting it run on the same material.",
+      "cost": "mid"
+    }
+  ],
+  "reset_7day": [
+    {
+      "day": 1,
+      "focus": "Cap the burst",
+      "action": "Pick one output task for the day, do it next to a peer or with a short check-in, and stop at a set time even if the draft is unfinished."
+    },
+    {
+      "day": 2,
+      "focus": "Reuse before producing",
+      "action": "Before any new draft, spend ten minutes pulling an old template or past case and start from it."
+    },
+    {
+      "day": 3,
+      "focus": "Protect the evening",
+      "action": "No drafting, fixing, or answering work messages after your chosen evening cutoff; leave the next version for the morning."
+    },
+    {
+      "day": 4,
+      "focus": "Input block",
+      "action": "Spend one focused block reading or watching something outside your current project, with no output expected from it."
+    },
+    {
+      "day": 5,
+      "focus": "Eat away from the desk",
+      "action": "Take at least one meal with no screen and no draft open, and leave a short pause before the next task."
+    },
+    {
+      "day": 6,
+      "focus": "Peer co-production",
+      "action": "Work alongside someone on a task you would otherwise push alone, and split the next round with them."
+    },
+    {
+      "day": 7,
+      "focus": "Review and set the week",
+      "action": "Look back at which day you slept worst and which output block ran longest, then set one fixed end time for the coming week."
+    }
+  ],
+  "weekly_maintenance": [
+    "Keep one fixed end time for output blocks on at least four days of the week, and treat it as the boundary of the burst rather than a target to beat.",
+    "Place one input block each week on the day after your heaviest output day, so new material feeds the next round of production.",
+    "Pair at least two output blocks per week with a peer who is also building, and split the work rather than pushing alone.",
+    "Keep one meal each day away from the desk with no screen, and leave a short pause before the next task.",
+    "Once a week, note which day you slept worst and which output block ran longest, and adjust the next week's end times from that."
+  ],
+  "medical_note": "You describe poor sleep quality and long-term weekday fatigue. This plan only adjusts rest rhythm and intensity; it does not diagnose or treat anything. If the sleep problems or fatigue persist or get worse, see a doctor."
+}

@@ -1,0 +1,285 @@
+You are a chart-structure analyst. You work like a systems analyst, not a fortune teller.
+
+[Your input]
+The user's BaZi chart has already been computed by a deterministic engine and is provided as JSON. You only interpret structure. Never recompute, correct, or second-guess the stems and branches, Ten Gods, strength, or luck pillars and annual cycles. If a field is missing, say so.
+
+[Your worldview] (must run through all output)
+1. The chart is the chassis; luck is timing. Structure describes tendencies and energy distribution, not a fixed outcome.
+2. The same structure produces completely different results under different environments, resources, and inner beliefs.
+3. Some people are not without talent — they lack the room to let it develop. The ceiling of expression is affected by self-awareness and is not fully determined by the chart.
+4. Your goal is to help the user "see clearly how they run", so they can make more lucid choices — not to make them wait for or accept an outcome.
+
+[Prohibited]
+- No narratives of auspicious or inauspicious fortune, Shen Sha, or the perils of clashes and punishments
+- Do not predict specific events, dates, amounts, or lifespan
+- Do not make assertions about marriage, life and death, or illness; no medical diagnosis; no specific investment recommendations
+- Do not use: destined, fated, unavoidable, doomed, financial ruin, calamity, curse, fatal illness, guaranteed profit, sure win, cure-all
+- No comfort talk or vague encouragement; if there is no basis for a statement, do not write it
+
+[Expression requirements]
+- Every judgment must trace back to a specific input field (a Ten God, a Five Element weight, Day Master strength, a luck pillar), stated in the evidence field
+- Describe abilities with observable behavior, not piles of adjectives
+  ✗ "You are very creative"  ✓ "While others are still confirming requirements, you already have a working version running"
+- Use second person "you", short sentences, no archaic literary tone
+- Output strictly in the requested JSON: no markdown code fences, no preamble or postscript
+
+[Self-check before output] (done internally — never write out the checking process)
+- Check sentence by sentence: any sentence that would also hold true on a different chart must not appear — every sentence must trace back to specific fields of THIS chart
+- No "sometimes you're outgoing, but deep down…" / "you seem calm on the surface, yet…" patterns that apply to anyone; behaviors must carry situation, object, and action
+- No absolute-fate wording: destined / fated / inevitable / doomed / inescapable / absolutely must
+- When quoting a term inside a string value, use Chinese corner brackets 「」 or single quotes — never an unescaped double quote ", which breaks the JSON
+- The output contains only the final, clean JSON: no drafts, no self-check notes, no before/after comparisons, no text outside the JSON
+
+[Evidence citation discipline] (violating any rule means redo)
+- No output string may contain machine field names from the input JSON. ten_god_weights, ten_gods, five_elements, year_stem, hour_branch, day_branch, pillars — none of them may appear anywhere in the JSON you return. Never use a field name as a sentence prefix either:
+  ✗ "ten_god_weights: Companion 9, Direct Wealth 9…"  ✓ "Companion and Direct Wealth are jointly heaviest (9) — month pillar Yi Mao, stem and branch both Companion"
+- Never write raw-data phrasing such as "weight 6", "Eating God = 0", "Earth count 2", "Body: 2". If a figure must be cited, it appears only inside an evidence-style sentence — "Seven Killings is strong (6) — the month branch You holds it". Prose fields (portraits, behaviors, signals, advice) contain no numerals and no equals signs at all.
+
+[English style basis] (applies to every output string)
+- Plain English for a reader who has never heard of BaZi. Full sentences with complete predicates and subject–verb agreement: "The Geng day master is slightly strong, supported by…" — never "Day master Geng slightly strong with…".
+- One metaphor family per chapter: energy as flow (runs through, feeds, drains, carries, blocks). Do not stack loop / chain / bridge / leg / segment / channel imagery in the same chapter.
+- Plain verbs over borrowed jargon: "produces little visible output" rather than "exports little visible output"; "how much load it can carry" rather than "carrying capacity"; "Bing in the year stem acts as Seven Killings to the day master" rather than "sits on the day master".
+
+
+===== Module M5: Wealth Structure =====
+
+{
+  "meta": {
+    "locale": "zh-CN",
+    "gender": "male",
+    "birth_local": "1985-05-10T10:30:00+08:00",
+    "true_solar_time": "1985-05-10T10:33:40",
+    "late_zishi_rule": "day_change_at_23",
+    "solar_term_boundary": "立夏后"
+  },
+  "pillars": {
+    "year": {
+      "gan_zhi": "乙丑",
+      "gan": "乙",
+      "zhi": "丑",
+      "gan_element": "wood",
+      "zhi_element": "earth",
+      "hide_gan": [
+        "己",
+        "癸",
+        "辛"
+      ],
+      "shishen_gan": "七杀",
+      "shishen_zhi": [
+        "比肩",
+        "偏财",
+        "食神"
+      ],
+      "nayin": "海中金",
+      "dishi": "墓",
+      "xunkong": "戌亥"
+    },
+    "month": {
+      "gan_zhi": "辛巳",
+      "gan": "辛",
+      "zhi": "巳",
+      "gan_element": "metal",
+      "zhi_element": "fire",
+      "hide_gan": [
+        "丙",
+        "庚",
+        "戊"
+      ],
+      "shishen_gan": "食神",
+      "shishen_zhi": [
+        "正印",
+        "伤官",
+        "劫财"
+      ],
+      "nayin": "白蜡金",
+      "dishi": "帝旺",
+      "xunkong": "申酉"
+    },
+    "day": {
+      "gan_zhi": "己酉",
+      "gan": "己",
+      "zhi": "酉",
+      "gan_element": "earth",
+      "zhi_element": "metal",
+      "hide_gan": [
+        "辛"
+      ],
+      "shishen_gan": "日主",
+      "shishen_zhi": [
+        "食神"
+      ],
+      "nayin": "大驿土",
+      "dishi": "长生",
+      "xunkong": "寅卯"
+    },
+    "hour": {
+      "gan_zhi": "己巳",
+      "gan": "己",
+      "zhi": "巳",
+      "gan_element": "earth",
+      "zhi_element": "fire",
+      "hide_gan": [
+        "丙",
+        "庚",
+        "戊"
+      ],
+      "shishen_gan": "比肩",
+      "shishen_zhi": [
+        "正印",
+        "伤官",
+        "劫财"
+      ],
+      "nayin": "大林木",
+      "dishi": "帝旺",
+      "xunkong": "戌亥"
+    }
+  },
+  "day_master": {
+    "stem": "己",
+    "element": "土",
+    "strength_score": null,
+    "strength_label": "偏旺"
+  },
+  "ten_gods": {
+    "year_stem": "七杀",
+    "month_stem": "食神",
+    "hour_stem": "比肩",
+    "hidden": {
+      "year_branch": [
+        "比肩",
+        "偏财",
+        "食神"
+      ],
+      "month_branch": [
+        "正印",
+        "伤官",
+        "劫财"
+      ],
+      "day_branch": [
+        "食神"
+      ],
+      "hour_branch": [
+        "正印",
+        "伤官",
+        "劫财"
+      ]
+    }
+  },
+  "ten_god_weights": {
+    "比肩": 8,
+    "劫财": 2,
+    "食神": 9,
+    "伤官": 2,
+    "偏财": 1,
+    "正财": 0,
+    "七杀": 5,
+    "正官": 0,
+    "偏印": 0,
+    "正印": 6
+  },
+  "five_elements": {
+    "木": 1,
+    "火": 2,
+    "土": 3,
+    "金": 2,
+    "水": 0
+  },
+  "useful_god_candidates": [
+    "金",
+    "水",
+    "木"
+  ],
+  "luck_pillars": [
+    {
+      "start_age": 2,
+      "stem": "庚",
+      "branch": "辰"
+    },
+    {
+      "start_age": 12,
+      "stem": "己",
+      "branch": "卯"
+    },
+    {
+      "start_age": 22,
+      "stem": "戊",
+      "branch": "寅"
+    },
+    {
+      "start_age": 32,
+      "stem": "丁",
+      "branch": "丑"
+    },
+    {
+      "start_age": 42,
+      "stem": "丙",
+      "branch": "子"
+    },
+    {
+      "start_age": 52,
+      "stem": "乙",
+      "branch": "亥"
+    },
+    {
+      "start_age": 62,
+      "stem": "甲",
+      "branch": "戌"
+    },
+    {
+      "start_age": 72,
+      "stem": "癸",
+      "branch": "酉"
+    },
+    {
+      "start_age": 82,
+      "stem": "壬",
+      "branch": "申"
+    }
+  ],
+  "current_luck": {
+    "start_age": 32,
+    "stem": "丁",
+    "branch": "丑",
+    "ten_god": null
+  },
+  "current_year": {
+    "stem": "甲",
+    "branch": "辰",
+    "ten_god": null
+  }
+}
+
+Structure: Absorbs pressure, answers with finished craft, repeats; converts little of the work into money or standing for himself.
+Innate talents: [{"behavior":"While others are still confirming requirements, you already have a working version running. Given a rough brief, you go quiet, sit down, and the first draft, prototype, or finished piece appears sooner than anyone expected. You do not need mood, inspiration, or perfect conditions to start — the month stem Xin as Eating God sits right beside you, and hidden Xin in the day branch You means the craft literally sits under your feet. In daily life this looks like: cooking a full meal rather than describing one, fixing the thing rather than writing a report about fixing it, teaching by demonstrating rather than lecturing. When you finish a piece you feel lighter, not emptier — that is the signature of this talent: using it drains the excess load of a strong self rather than draining you.","energy":"gain","evidence":"Eating God is the joint-heaviest force — the month stem Xin, plus hidden Xin in the day branch You and in the year branch Chou, giving it the top weight in the chart. The Day Master Ji earth is listed as strong, so a heavy output god is the healthy release valve: making things literally takes pressure off you. Direct Resource at six weight, from hidden Bing fire in both Si branches, keeps the craft grounded in method rather than chaos.","name":"Craft output that flows without forcing — Eating God production"},{"behavior":"When a deadline drops or someone sets a harsh standard, you do not argue, stall, or escalate. You go silent, take the spec, and return with the thing done. In a meeting where others push back on scope, you are the one who simply recalibrates quietly and delivers. This is not passive endurance: hidden Bing fire in the month and hour branches Si acts as Direct Resource, a buffer that converts the incoming demand into method and structure before it hits you raw. You can sit with a difficult requirement far longer than most people, break it into steps, and outlast it. Peers learn quickly that handing you the hard task works — which is exactly how the loop tightens.","energy":"gain","evidence":"The year stem Yi stands as Seven Killings — external pressure arrives through the front door. But Direct Resource carries solid weight, fed by hidden Bing in the month branch Si and the hour branch Si, and the chart's fire count of two runs through both. The classic pressure-to-buffer pairing is fully present: the demand comes in, the resource layer softens it, and the strong Ji earth self holds the load. Eating God then answers it — the whole chain from pressure to finished work is wired in the visible characters.","name":"Absorbing and metabolizing hard demands — pressure tolerance under Seven Killings"},{"behavior":"You default to doing it yourself or splitting it evenly with people at your own level. In a team you are the reliable equal, not the one maneuvering for the lead chair. When a task stalls, your reflex is to pick it up personally at the hour stem Ji, your mirror self, rather than route it through authority. You keep commitments to peers with unusual consistency — if you said Friday, it is Friday. This earns deep trust from people who work next to you, and it is effortless because it is literally your own element replicated. The cost side is handled elsewhere; the ability itself costs you nothing to run.","energy":"gain","evidence":"Companion ties Eating God for heaviest weight — the hour stem Ji matches the day master, and hidden Ji in the year branch Chou plus hidden Wu earth in both Si branches stack the same element; the earth count of three confirms it. With a strong Day Master, this self-replication reads as natural peer-mode operation: your energy lives in equals-and-craft territory, not in hierarchy.","name":"Self-reliant peer judgment — working alongside rather than managing upward"}]　Life structure: {"collaboration":"Dense horizontal, thin vertical — with one exception. Work in small teams of equals where each peer owns a craft; that is where Companion operates at full efficiency and where trust flows back to you naturally. Keep the vertical axis deliberately short: you need direct access to whoever approves the budget and sets the terms, because your empty Direct Officer channel means anything routed through intermediaries gets priced by someone else, usually at zero. One decision-maker, a handful of equals, no layers between — in that shape, the person who watches you deliver can also pay you for it, and the loop's return end gets wired without you having to become a negotiator overnight.","feedback_cycle":"Two clocks running at different speeds. The fast clock is craft feedback: you need to see your output working — the prototype running, the thing fixed, the student demonstrating — within days, because Eating God release is also your recovery; long gaps without visible results starve both. The slow clock is the terms clock: quarterly, not daily, sit down and check whether the last cycle of work converted into anything banked — a rate change, a title, a named credit. The chart will not prompt this check on its own, since the Wealth family carries almost nothing, so the slow clock must be externalized: a recurring calendar entry, or an equal who asks you the question each quarter.","income_rhythm":"Prefer income tied to delivered objects, not to elapsed presence. Project rates, piece pricing, retainers scoped to output — anything where the finished thing itself carries the number. A pure salary paid for time rewards exactly the channel you lack and punishes your heaviest one: you would absorb unlimited demands at one flat price. Water, your Wealth carrier, is absent from the visible chart, so money does not flow to you incidentally; it must be attached structurally to what you already produce. The stretches beginning around age forty-two and fifty-two, when water branches finally run through the luck cycle, make terms-and-price conversations feel less foreign — build the attachment habit now so the channel is ready when the flow arrives.","time":"Structure your time in maker blocks, not meeting grids. Long unbroken stretches — half-days at minimum — where you sit down with a spec and come back with the thing. Eating God production works without mood or perfect conditions, so the value comes from volume of finished output, and every interruption to the block cuts directly into your one working release valve. Schedule the absorbing part — reading requirements, studying method, the Direct Resource activity of both Snake branches — as its own quiet block, separate from making. Administrative time, especially anything about terms or price, deserves its own named slot: because that channel is unweighted in the chart, it will never happen spontaneously and must be put on the calendar by force."}
+Current assets / income overview: 中等收入,有些积蓄,无房产　My preference: 平衡(中等风险)
+
+Use my Ten Gods structure for a wealth-system analysis:
+
+1) Which income form suits me best? Rank all six of [salary / projects / consulting / investing / equity / content] (none omitted) — for each, explain where it matches or conflicts with my structure, not just the conclusion.
+2) Where does my money leak? (partnerships / social obligations / impulses / risk exposure) For each leak, give one rule-based stop-loss in if-then form, directly executable.
+3) My optimal wealth-growth strategy: give one conservative, one balanced, one aggressive — each with its applicable preconditions.
+4) Give me 3 actionable "asset-ized product / service" ideas. Hard requirement: each must match both my innate talents and my life structure; note the startup cost and where I am most likely to get stuck.
+
+Strict constraints:
+- Do not recommend any specific stock, fund, cryptocurrency, platform, or instrument
+- Do not predict market rises or falls; no returns, payback periods, or amount promises
+- Discuss only "the fit between income forms and personal structure" — this is self-knowledge, not investment advice
+- For major financial decisions, state in disclaimer that a licensed professional should be consulted
+
+Output JSON:
+{
+  "income_forms": [{ "form": "", "rank": 1, "fit": "", "friction": "", "evidence": "" }],
+  "leaks": [{ "type": "", "how_it_shows": "", "rule": "If ... then ..." }],
+  "strategies": { "conservative": {}, "balanced": {}, "aggressive": {} },
+  "asset_ideas": [{ "idea": "", "uses_talent": "", "fits_life_structure": "", "startup_cost": "", "likely_blocker": "" }],
+  "disclaimer": ""
+}
+
+
+Length requirements (mandatory):
+- Total output for this module: 900-1500 words
+- Each field value 90-180 words, with concrete scenes / cases / basis; no empty conclusions
+- evidence fields must be detailed: cite the chart's actual data (specific Ten Gods, Five Element weights, Day Master strength, luck pillars) in plain human language — never as machine field names or bare numbers
+- Behavioral descriptions (behavior / how_it_shows / trigger, etc.) must be at least 60% of the output
+- Every judgment should let the user "see how they run" — not abstract adjectives
+- List fields: at least 2-3 complete items, 60-120 words each

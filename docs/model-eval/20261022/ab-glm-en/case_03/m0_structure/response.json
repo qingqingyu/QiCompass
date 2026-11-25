@@ -1,0 +1,29 @@
+{
+  "main_axis": {
+    "headline": "You move toward tangible results and usable resources; nearly all your energy points at what can be measured and held.",
+    "body": "The lead force is the Wealth family — Indirect Wealth, a nose for opportunities and mobilizing resources, together with Direct Wealth, steady income and savings built bit by bit; the two run jointly through almost every part of the chart. Behind them sits a small but real layer of Direct Resource — the ability to study a system and find backing — and below that a thin thread of Officer-Killings, rules and external pressure. There is no Output family voice in the chart: craft or self-expression produced for its own sake is not what drives you.",
+    "dominant": "Direct Wealth, Indirect Wealth (jointly heaviest)",
+    "secondary": "Direct Resource",
+    "latent": "Seven Killings, Direct Officer",
+    "evidence": "Direct Wealth is heaviest (12) — the month stem Ding, plus Direct Wealth hidden in the year branch Wu, hour branch Wu, and day branch Xu. Indirect Wealth is nearly as heavy (10) — the year stem Bing and hour stem Bing both show as Indirect Wealth to the Ren day master. Direct Resource follows (4), from Xin hidden in the month branch You and the day branch Xu. Seven Killings (3) comes from Wu hidden in the day branch Xu; Direct Officer (2) from Ji hidden in the year and hour branches Wu. Output family and Companion family both weigh zero across stems and hidden stems. Visible eight characters: five fire, one earth, one metal, one water."
+  },
+  "core_loop": {
+    "headline": "Spot a resource → commit yourself to it → hold the position under pressure → spot the next one.",
+    "from": "Indirect Wealth",
+    "to": "Direct Officer",
+    "flow": "You scan for what is worth taking hold of — an opportunity, a deal, a person with resources — and once you judge it real, you put yourself entirely behind it. Because your own footing is light, holding what you grabbed depends on the small backing of systems and credentials you have gathered. Pressure from obligations then tightens the grip, and the loop starts again with the next opportunity you spot.",
+    "driver": "Day Master strength is labeled special-pattern: a single Ren water day master with no Companion-family support, one visible water among five fire, one earth, one metal; the engine withholds favorable-element conclusions, and the chart leans into the dominant Wealth family rather than resisting it.",
+    "leak": "The cost is that you run on almost nothing of your own: no peers to share the load and no natural urge to make things for enjoyment means every gain is held by will alone, and rest, play, and craft get postponed indefinitely.\nThis shifts in stretches where wood runs stronger — the ten years starting around age 53 (the 辛卯 pillar) and the ten years starting around age 63 (the 庚寅 pillar) — when a channel for expression opens and the grip can loosen somewhat.\nRight now, schedule one recurring block each week that produces nothing usable — a craft, a meal, a long walk with no goal — so the habit exists before the timing does.",
+    "evidence": "Companion and Rob Wealth both weigh zero (no 比肩 or 劫财 in any stem or hidden stem); Output family — Eating God and Hurting Officer — also zero, and wood count is zero in the visible eight characters, so Output is missing rather than hidden. Direct Resource (4) is the only support, from Xin in the month branch You and the day branch Xu. Age-53 stretch: 辛卯 (卯 is a wood branch); age-63 stretch: 庚寅 (寅 is a wood branch)."
+  },
+  "structure_type": {
+    "name": "the resource-committing operator",
+    "one_line": "This chart does not follow the regular framework; the engine withholds favorable-element conclusions. You run by attaching yourself to real, holdable resources and working them with total commitment, reading worth in what can be seen and counted rather than in credentials or talk."
+  },
+  "capability_source": {
+    "headline": "Strongest when something concrete must be identified, secured, and worked to the end; weakest when you must build from peers, play, or self-expression.",
+    "text": "Your strength comes from the sheer weight of the Wealth family running through the year, month, day, and hour: where others deliberate, you are already committing. A scene: at a family gathering where an old property question comes up, within the evening you have the numbers, the contacts, and a next step drafted, while relatives are still arguing about who should look into it.",
+    "evidence": "Wealth family dominates the chart — Direct Wealth (12) via the month stem Ding and hidden Direct Wealth in the year branch Wu, hour branch Wu, day branch Xu; Indirect Wealth (10) via the year and hour stems Bing. The day master Ren sits on Xu with Direct Wealth among its hidden stems, so the pull toward tangible results is present even at the day's root. Companion family and Output family both weigh zero."
+  },
+  "structure_fingerprint": "Spots concrete resources, commits fully, secures them through systems, runs alone with no output valve."
+}

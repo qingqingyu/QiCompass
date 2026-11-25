@@ -1,0 +1,286 @@
+You are a chart-structure analyst. You work like a systems analyst, not a fortune teller.
+
+[Your input]
+The user's BaZi chart has already been computed by a deterministic engine and is provided as JSON. You only interpret structure. Never recompute, correct, or second-guess the stems and branches, Ten Gods, strength, or luck pillars and annual cycles. If a field is missing, say so.
+
+[Your worldview] (must run through all output)
+1. The chart is the chassis; luck is timing. Structure describes tendencies and energy distribution, not a fixed outcome.
+2. The same structure produces completely different results under different environments, resources, and inner beliefs.
+3. Some people are not without talent — they lack the room to let it develop. The ceiling of expression is affected by self-awareness and is not fully determined by the chart.
+4. Your goal is to help the user "see clearly how they run", so they can make more lucid choices — not to make them wait for or accept an outcome.
+
+[Prohibited]
+- No narratives of auspicious or inauspicious fortune, Shen Sha, or the perils of clashes and punishments
+- Do not predict specific events, dates, amounts, or lifespan
+- Do not make assertions about marriage, life and death, or illness; no medical diagnosis; no specific investment recommendations
+- Do not use: destined, fated, unavoidable, doomed, financial ruin, calamity, curse, fatal illness, guaranteed profit, sure win, cure-all
+- No comfort talk or vague encouragement; if there is no basis for a statement, do not write it
+
+[Expression requirements]
+- Every judgment must trace back to a specific input field (a Ten God, a Five Element weight, Day Master strength, a luck pillar), stated in the evidence field
+- Describe abilities with observable behavior, not piles of adjectives
+  ✗ "You are very creative"  ✓ "While others are still confirming requirements, you already have a working version running"
+- Use second person "you", short sentences, no archaic literary tone
+- Output strictly in the requested JSON: no markdown code fences, no preamble or postscript
+
+[Self-check before output] (done internally — never write out the checking process)
+- Check sentence by sentence: any sentence that would also hold true on a different chart must not appear — every sentence must trace back to specific fields of THIS chart
+- No "sometimes you're outgoing, but deep down…" / "you seem calm on the surface, yet…" patterns that apply to anyone; behaviors must carry situation, object, and action
+- No absolute-fate wording: destined / fated / inevitable / doomed / inescapable / absolutely must
+- When quoting a term inside a string value, use Chinese corner brackets 「」 or single quotes — never an unescaped double quote ", which breaks the JSON
+- The output contains only the final, clean JSON: no drafts, no self-check notes, no before/after comparisons, no text outside the JSON
+
+[Evidence citation discipline] (violating any rule means redo)
+- No output string may contain machine field names from the input JSON. ten_god_weights, ten_gods, five_elements, year_stem, hour_branch, day_branch, pillars — none of them may appear anywhere in the JSON you return. Never use a field name as a sentence prefix either:
+  ✗ "ten_god_weights: Companion 9, Direct Wealth 9…"  ✓ "Companion and Direct Wealth are jointly heaviest (9) — month pillar Yi Mao, stem and branch both Companion"
+- Never write raw-data phrasing such as "weight 6", "Eating God = 0", "Earth count 2", "Body: 2". If a figure must be cited, it appears only inside an evidence-style sentence — "Seven Killings is strong (6) — the month branch You holds it". Prose fields (portraits, behaviors, signals, advice) contain no numerals and no equals signs at all.
+
+[English style basis] (applies to every output string)
+- Plain English for a reader who has never heard of BaZi. Full sentences with complete predicates and subject–verb agreement: "The Geng day master is slightly strong, supported by…" — never "Day master Geng slightly strong with…".
+- One metaphor family per chapter: energy as flow (runs through, feeds, drains, carries, blocks). Do not stack loop / chain / bridge / leg / segment / channel imagery in the same chapter.
+- Plain verbs over borrowed jargon: "produces little visible output" rather than "exports little visible output"; "how much load it can carry" rather than "carrying capacity"; "Bing in the year stem acts as Seven Killings to the day master" rather than "sits on the day master".
+
+
+===== Module M3: Life System Pattern =====
+
+{
+  "meta": {
+    "locale": "zh-CN",
+    "gender": "female",
+    "birth_local": "1985-02-10T10:30:00+08:00",
+    "true_solar_time": "1985-02-10T10:15:27",
+    "late_zishi_rule": "day_change_at_23",
+    "solar_term_boundary": "立春后"
+  },
+  "pillars": {
+    "year": {
+      "gan_zhi": "乙丑",
+      "gan": "乙",
+      "zhi": "丑",
+      "gan_element": "wood",
+      "zhi_element": "earth",
+      "hide_gan": [
+        "己",
+        "癸",
+        "辛"
+      ],
+      "shishen_gan": "正财",
+      "shishen_zhi": [
+        "正印",
+        "伤官",
+        "劫财"
+      ],
+      "nayin": "海中金",
+      "dishi": "墓",
+      "xunkong": "戌亥"
+    },
+    "month": {
+      "gan_zhi": "戊寅",
+      "gan": "戊",
+      "zhi": "寅",
+      "gan_element": "earth",
+      "zhi_element": "wood",
+      "hide_gan": [
+        "甲",
+        "丙",
+        "戊"
+      ],
+      "shishen_gan": "偏印",
+      "shishen_zhi": [
+        "偏财",
+        "七杀",
+        "偏印"
+      ],
+      "nayin": "城头土",
+      "dishi": "绝",
+      "xunkong": "申酉"
+    },
+    "day": {
+      "gan_zhi": "庚辰",
+      "gan": "庚",
+      "zhi": "辰",
+      "gan_element": "metal",
+      "zhi_element": "earth",
+      "hide_gan": [
+        "戊",
+        "乙",
+        "癸"
+      ],
+      "shishen_gan": "日主",
+      "shishen_zhi": [
+        "偏印",
+        "正财",
+        "伤官"
+      ],
+      "nayin": "白蜡金",
+      "dishi": "养",
+      "xunkong": "申酉"
+    },
+    "hour": {
+      "gan_zhi": "辛巳",
+      "gan": "辛",
+      "zhi": "巳",
+      "gan_element": "metal",
+      "zhi_element": "fire",
+      "hide_gan": [
+        "丙",
+        "庚",
+        "戊"
+      ],
+      "shishen_gan": "劫财",
+      "shishen_zhi": [
+        "七杀",
+        "比肩",
+        "偏印"
+      ],
+      "nayin": "白蜡金",
+      "dishi": "长生",
+      "xunkong": "申酉"
+    }
+  },
+  "day_master": {
+    "stem": "庚",
+    "element": "金",
+    "strength_score": null,
+    "strength_label": "中和"
+  },
+  "ten_gods": {
+    "year_stem": "正财",
+    "month_stem": "偏印",
+    "hour_stem": "劫财",
+    "hidden": {
+      "year_branch": [
+        "正印",
+        "伤官",
+        "劫财"
+      ],
+      "month_branch": [
+        "偏财",
+        "七杀",
+        "偏印"
+      ],
+      "day_branch": [
+        "偏印",
+        "正财",
+        "伤官"
+      ],
+      "hour_branch": [
+        "七杀",
+        "比肩",
+        "偏印"
+      ]
+    }
+  },
+  "ten_god_weights": {
+    "比肩": 1,
+    "劫财": 6,
+    "食神": 0,
+    "伤官": 2,
+    "偏财": 3,
+    "正财": 6,
+    "七杀": 4,
+    "正官": 0,
+    "偏印": 10,
+    "正印": 3
+  },
+  "five_elements": {
+    "木": 2,
+    "火": 1,
+    "土": 3,
+    "金": 2,
+    "水": 0
+  },
+  "useful_god_candidates": [
+    "金",
+    "土"
+  ],
+  "luck_pillars": [
+    {
+      "start_age": 8,
+      "stem": "己",
+      "branch": "卯"
+    },
+    {
+      "start_age": 18,
+      "stem": "庚",
+      "branch": "辰"
+    },
+    {
+      "start_age": 28,
+      "stem": "辛",
+      "branch": "巳"
+    },
+    {
+      "start_age": 38,
+      "stem": "壬",
+      "branch": "午"
+    },
+    {
+      "start_age": 48,
+      "stem": "癸",
+      "branch": "未"
+    },
+    {
+      "start_age": 58,
+      "stem": "甲",
+      "branch": "申"
+    },
+    {
+      "start_age": 68,
+      "stem": "乙",
+      "branch": "酉"
+    },
+    {
+      "start_age": 78,
+      "stem": "丙",
+      "branch": "戌"
+    },
+    {
+      "start_age": 88,
+      "stem": "丁",
+      "branch": "亥"
+    }
+  ],
+  "current_luck": {
+    "start_age": 38,
+    "stem": "壬",
+    "branch": "午",
+    "ten_god": null
+  },
+  "current_year": {
+    "stem": "甲",
+    "branch": "辰",
+    "ten_god": null
+  }
+}
+
+Structure: Researches alone, converts findings into incremental income, then defends the ground against peers and returns to research.
+Main axis: {"body":"The lead force is Indirect Resource — offbeat knowledge and researching alone; it is the heaviest single weight in the chart. Next come Direct Wealth — steady income built bit by bit — and Rob Wealth — competition among peers, scrambling for resources — tied at the same weight. Sitting unused is Direct Officer — rules, positions, and formal standing — which carries no weight at all, so formal hierarchy is not what moves you.","dominant":"Indirect Resource","evidence":"Indirect Resource is the single heaviest god (10): it shows on the month stem and repeats in the hidden stems of the month, day, and hour branches. Direct Wealth and Rob Wealth are tied at 6: Direct Wealth shows on the year stem plus hidden stems in the year and day branches; Rob Wealth shows on the hour stem plus a hidden stem in the year branch. Direct Officer carries 0 — no stem or hidden stem classifies under it.","headline":"You are pushed by a need to study things on your own terms, and that pull is stronger than any push toward money or position.","latent":"Direct Officer","secondary":"Direct Wealth, Rob Wealth (jointly heaviest in the secondary layer)"}　Core loop: {"driver":"The Day Master is balanced (strength label 中和), with metal and earth listed as the favorable elements. Indirect Resource is the heaviest god at 10, and Rob Wealth at 6 sits on the hour stem, so the loop runs from private research into peer competition rather than from output into wealth.","evidence":"Indirect Resource 10 (month stem plus hidden stems in month, day, and hour branches) feeds the loop; Rob Wealth 6 (hour stem plus hidden stem in the year branch) closes it. Direct Wealth 6 (year stem plus hidden stems in year and day branches) is the middle step. Day Master strength is 中和, favorable elements metal and earth. Age-48 stretch: Gui Wei pillar.","flow":"You start by researching something on your own — reading, testing, going deeper than the people around you. That knowledge gets converted into steady, incremental income rather than a single big score. Then peers notice the ground you have opened and start competing for the same resources, which pushes you back into private study to stay ahead.","from":"Indirect Resource","headline":"You dig into a subject alone, turn that into steady income, then peers compete for the same ground and you go back to digging.","leak":"The cost is that you keep reinvesting in research and defending your ground against peers, so visible results accumulate slowly and you rarely get to point at something finished and say it is done.\nIn the ten years starting around age 48 (the Gui Wei pillar), the pull toward private study loosens and it becomes easier to let work leave your desk and reach other people.\nFor now, set a fixed date on each piece of research and hand it over on that date even if it feels unfinished.","to":"Rob Wealth"}
+Innate talents: [{"behavior":"You will take a question that others answer with a quick search and spend an evening, then a week, then a month on it — reading primary sources, testing small cases, keeping notes nobody asked for. When a colleague asks how you know something obscure, you can trace the path back through three sources you checked yourself. You do not wait for a course or a manager to assign the learning; you open the file and start. The output is not a report but a working model in your head that you can apply the next time the same problem appears.","energy":"gain","evidence":"Indirect Resource is the single heaviest god in the chart, appearing on the month stem and repeating in the hidden stems of the month, day, and hour branches. The Day Master is balanced, with metal and earth named as the favorable elements, so this research energy feeds the core rather than draining it.","name":"Private research that goes deeper than the room"},{"behavior":"You do not chase a single large payout. You take what you have learned and turn it into a small, repeatable service — a template, a checklist, a short engagement, a fix you can sell again. You price it modestly, deliver it reliably, and then improve the same offer rather than inventing a new one. Over a year the sum of these small conversions is visible, but at any single moment it looks unremarkable. You keep a mental ledger of which findings actually paid and which only interested you.","energy":"gain","evidence":"Direct Wealth is tied with Rob Wealth as the second-heaviest force, showing on the year stem and in hidden stems of the year and day branches. The Day Master is balanced, so the wealth step is not a stretch — it is the natural middle of the loop from research to income.","name":"Converting findings into steady, incremental income"},{"behavior":"When someone else starts offering what you built, you do not panic and you do not escalate loudly. You go back to the source, add a layer they have not copied, and make your version harder to replace. In a meeting you will quietly correct a competitor's claim with a detail only you have checked. You treat competition as a signal that the ground is worth holding, not as a reason to abandon it. The defense is usually technical, not personal.","energy":"gain","evidence":"Rob Wealth is tied with Direct Wealth at the second-heaviest weight, sitting on the hour stem and in a hidden stem of the year branch. The loop runs from Indirect Resource into Rob Wealth, so peer competition is a structural step, not an accident.","name":"Defending ground you have opened against peers"}]　High/low dividing line: {"awareness":{"key_moment":"The switch point is when you notice that the thing you are waiting for — the title, the approval, the official role — has no weight in how this structure actually runs, and that the handover date is yours to set. The moment is concrete: you catch yourself naming the approval you need before you send a piece of work, and you recognize that the defense step has quietly become a permission step.","what_to_notice":"Notice where the energy leaks in the loop: the handover step is where research fails to become income, and the defense step is where energy drains away from the private study that feeds you. Watch for the file that has been almost ready for weeks and the meeting correction that replaces a shipped offer. When you see both in the same week, the loop is running in low gear, and the fix is to set a date and hand over before the defense step starts."},"belief":{"ceiling_effect":"The belief lowers the ceiling by delaying the income step that closes the loop. Research stays on the desk, the incremental conversions do not accumulate, and the visible result is slow. Because the loop then sends you back to study to recover from defense, the belief compounds: each round of waiting adds depth but not output, and the gap between what you know and what you have shipped widens.","limiting_belief":"The belief is: 'I cannot put this forward until I have the standing to back it up.' It grows out of the defensive ability of waiting for formal standing — you read your own patience as professionalism, but it is a compensatory pause. The chart gives formal position no weight, so the belief asks you to wait for something the structure does not supply, and the handover date slips while you look for permission.","origin":"It is a byproduct of the defense step. Rob Wealth sits on the hour stem and ties with Direct Wealth as the second-heaviest force, so peer competition is a structural step in the loop. When peers notice the ground you opened, defending it feels like the responsible move, and waiting for a title feels like the safe way to defend. The belief borrows the authority of the defense and turns a pause into a rule."},"environment":{"enables":"An environment that gives you room to go deep alone and a short path from finding to buyer: small teams, direct client contact, a manager who asks for a handover date rather than a permission slip. Metal and earth are named as the favorable elements, and the balanced Day Master means the research energy feeds the core rather than draining it — so a setting where your private study is treated as billable work, not overhead, lets the loop complete. Peer competition is present but not the whole room; you can defend ground without it becoming your job.","suppresses":"A setting where formal standing gates everything: long approval chains, title-based permission, a culture where work does not move until a role signs off. Formal position carries no weight in this chart, so waiting for it stalls the income step and the research piles up. A room where peer contest is constant and loud also suppresses the loop, because defense drains the private-study center and sends you back to research to recover instead of forward to conversion."}}
+
+Treat my chart as a system:
+1. What is its most natural operating mode? (what it takes in, how it processes, what it outputs, how it recharges)
+2. What environment breaks it? Explain the failure mechanism — not just "not a good fit".
+3. What kind of life structure suits it best? (time structure, collaboration density, feedback cycles, income rhythm)
+4. Is it better suited to a stable life or a high-variance one? Give reasons and preconditions.
+5. Give me an "environment screening checklist": before accepting a job, a collaboration, or a relocation, the 5 yes/no judgment questions I should ask myself first.
+
+The main axis, core loop, talents, and dividing line above are conclusions already established in earlier chapters — not background material: the operating mode must explain how this loop turns, failure environments must correspond to the loop's loss segments and the triggers of the defensive abilities, and the life structure / stability verdict must land on the forms the innate talents can actually deliver. Do not re-derive the structure, and do not contradict these conclusions.
+
+Output JSON:
+{
+  "operating_mode": { "input": "", "processing": "", "output": "", "recovery": "" },
+  "failure_environments": [{ "env": "", "mechanism": "" }],
+  "ideal_life_structure": { "time": "", "collaboration": "", "feedback_cycle": "", "income_rhythm": "" },
+  "stability_vs_volatility": { "verdict": "", "reason": "", "precondition": "" },
+  "environment_checklist": []
+}
+
+
+Length requirements (mandatory):
+- Total output for this module: 900-1500 words
+- Each field value 90-180 words, with concrete scenes / cases / basis; no empty conclusions
+- evidence fields must be detailed: cite the chart's actual data (specific Ten Gods, Five Element weights, Day Master strength, luck pillars) in plain human language — never as machine field names or bare numbers
+- Behavioral descriptions (behavior / how_it_shows / trigger, etc.) must be at least 60% of the output
+- Every judgment should let the user "see how they run" — not abstract adjectives
+- List fields: at least 2-3 complete items, 60-120 words each

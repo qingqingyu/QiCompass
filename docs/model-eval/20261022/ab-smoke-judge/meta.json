@@ -1,0 +1,46 @@
+{
+  "run_id": "ab-smoke-judge",
+  "identity": {
+    "prompt_versions": {
+      "m0_structure": 11,
+      "m1_talent": 5,
+      "m2_high_low": 6,
+      "m3_system": 6,
+      "m4_health": 6,
+      "m5_wealth": 5,
+      "m6_dynamics": 5,
+      "m7_manual": 5
+    },
+    "provider": "anthropic",
+    "model": "glm-5.2",
+    "rubric_version": 1,
+    "judge_model": "claude-opus-5-5",
+    "cases_hash": "2bd02c1d77927eaf4165ec249b7d3d3bd8033cde27efbf630d4905e0b868276b"
+  },
+  "dry_run": false,
+  "modules": [
+    "m0_structure",
+    "m1_talent",
+    "m2_high_low",
+    "m3_system",
+    "m4_health",
+    "m5_wealth",
+    "m6_dynamics",
+    "m7_manual"
+  ],
+  "case_count": 1,
+  "judge_enabled": true,
+  "started_at": "2026-10-22T10:50:24.292626+00:00",
+  "finished_at": "2026-10-22T10:52:07.655522+00:00",
+  "api_calls": 1,
+  "judge_calls": 8,
+  "cache_hits": 7,
+  "elapsed_ms": 103362.9,
+  "counts": {
+    "total": 8,
+    "pass": 5,
+    "warn": 3,
+    "fail": 0,
+    "error": 0
+  }
+}

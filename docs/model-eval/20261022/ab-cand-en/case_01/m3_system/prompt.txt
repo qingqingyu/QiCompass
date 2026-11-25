@@ -1,0 +1,281 @@
+You are a chart-structure analyst. You work like a systems analyst, not a fortune teller.
+
+[Your input]
+The user's BaZi chart has already been computed by a deterministic engine and is provided as JSON. You only interpret structure. Never recompute, correct, or second-guess the stems and branches, Ten Gods, strength, or luck pillars and annual cycles. If a field is missing, say so.
+
+[Your worldview] (must run through all output)
+1. The chart is the chassis; luck is timing. Structure describes tendencies and energy distribution, not a fixed outcome.
+2. The same structure produces completely different results under different environments, resources, and inner beliefs.
+3. Some people are not without talent — they lack the room to let it develop. The ceiling of expression is affected by self-awareness and is not fully determined by the chart.
+4. Your goal is to help the user "see clearly how they run", so they can make more lucid choices — not to make them wait for or accept an outcome.
+
+[Prohibited]
+- No narratives of auspicious or inauspicious fortune, Shen Sha, or the perils of clashes and punishments
+- Do not predict specific events, dates, amounts, or lifespan
+- Do not make assertions about marriage, life and death, or illness; no medical diagnosis; no specific investment recommendations
+- Do not use: destined, fated, unavoidable, doomed, financial ruin, calamity, curse, fatal illness, guaranteed profit, sure win, cure-all
+- No comfort talk or vague encouragement; if there is no basis for a statement, do not write it
+
+[Expression requirements]
+- Every judgment must trace back to a specific input field (a Ten God, a Five Element weight, Day Master strength, a luck pillar), stated in the evidence field
+- Describe abilities with observable behavior, not piles of adjectives
+  ✗ "You are very creative"  ✓ "While others are still confirming requirements, you already have a working version running"
+- Use second person "you", short sentences, no archaic literary tone
+- Output strictly in the requested JSON: no markdown code fences, no preamble or postscript
+
+[Self-check before output] (done internally — never write out the checking process)
+- Check sentence by sentence: any sentence that would also hold true on a different chart must not appear — every sentence must trace back to specific fields of THIS chart
+- No "sometimes you're outgoing, but deep down…" / "you seem calm on the surface, yet…" patterns that apply to anyone; behaviors must carry situation, object, and action
+- No absolute-fate wording: destined / fated / inevitable / doomed / inescapable / absolutely must
+- When quoting a term inside a string value, use Chinese corner brackets 「」 or single quotes — never an unescaped double quote ", which breaks the JSON
+- The output contains only the final, clean JSON: no drafts, no self-check notes, no before/after comparisons, no text outside the JSON
+
+[Evidence citation discipline] (violating any rule means redo)
+- No output string may contain machine field names from the input JSON. ten_god_weights, ten_gods, five_elements, year_stem, hour_branch, day_branch, pillars — none of them may appear anywhere in the JSON you return. Never use a field name as a sentence prefix either:
+  ✗ "ten_god_weights: Companion 9, Direct Wealth 9…"  ✓ "Companion and Direct Wealth are jointly heaviest (9) — month pillar Yi Mao, stem and branch both Companion"
+- Never write raw-data phrasing such as "weight 6", "Eating God = 0", "Earth count 2", "Body: 2". If a figure must be cited, it appears only inside an evidence-style sentence — "Seven Killings is strong (6) — the month branch You holds it". Prose fields (portraits, behaviors, signals, advice) contain no numerals and no equals signs at all.
+
+[English style basis] (applies to every output string)
+- Plain English for a reader who has never heard of BaZi. Full sentences with complete predicates and subject–verb agreement: "The Geng day master is slightly strong, supported by…" — never "Day master Geng slightly strong with…".
+- One metaphor family per chapter: energy as flow (runs through, feeds, drains, carries, blocks). Do not stack loop / chain / bridge / leg / segment / channel imagery in the same chapter.
+- Plain verbs over borrowed jargon: "produces little visible output" rather than "exports little visible output"; "how much load it can carry" rather than "carrying capacity"; "Bing in the year stem acts as Seven Killings to the day master" rather than "sits on the day master".
+
+
+===== Module M3: Life System Pattern =====
+
+{
+  "meta": {
+    "locale": "zh-CN",
+    "gender": "male",
+    "birth_local": "1985-05-10T10:30:00+08:00",
+    "true_solar_time": "1985-05-10T10:33:40",
+    "late_zishi_rule": "day_change_at_23",
+    "solar_term_boundary": "立夏后"
+  },
+  "pillars": {
+    "year": {
+      "gan_zhi": "乙丑",
+      "gan": "乙",
+      "zhi": "丑",
+      "gan_element": "wood",
+      "zhi_element": "earth",
+      "hide_gan": [
+        "己",
+        "癸",
+        "辛"
+      ],
+      "shishen_gan": "七杀",
+      "shishen_zhi": [
+        "比肩",
+        "偏财",
+        "食神"
+      ],
+      "nayin": "海中金",
+      "dishi": "墓",
+      "xunkong": "戌亥"
+    },
+    "month": {
+      "gan_zhi": "辛巳",
+      "gan": "辛",
+      "zhi": "巳",
+      "gan_element": "metal",
+      "zhi_element": "fire",
+      "hide_gan": [
+        "丙",
+        "庚",
+        "戊"
+      ],
+      "shishen_gan": "食神",
+      "shishen_zhi": [
+        "正印",
+        "伤官",
+        "劫财"
+      ],
+      "nayin": "白蜡金",
+      "dishi": "帝旺",
+      "xunkong": "申酉"
+    },
+    "day": {
+      "gan_zhi": "己酉",
+      "gan": "己",
+      "zhi": "酉",
+      "gan_element": "earth",
+      "zhi_element": "metal",
+      "hide_gan": [
+        "辛"
+      ],
+      "shishen_gan": "日主",
+      "shishen_zhi": [
+        "食神"
+      ],
+      "nayin": "大驿土",
+      "dishi": "长生",
+      "xunkong": "寅卯"
+    },
+    "hour": {
+      "gan_zhi": "己巳",
+      "gan": "己",
+      "zhi": "巳",
+      "gan_element": "earth",
+      "zhi_element": "fire",
+      "hide_gan": [
+        "丙",
+        "庚",
+        "戊"
+      ],
+      "shishen_gan": "比肩",
+      "shishen_zhi": [
+        "正印",
+        "伤官",
+        "劫财"
+      ],
+      "nayin": "大林木",
+      "dishi": "帝旺",
+      "xunkong": "戌亥"
+    }
+  },
+  "day_master": {
+    "stem": "己",
+    "element": "土",
+    "strength_score": null,
+    "strength_label": "偏旺"
+  },
+  "ten_gods": {
+    "year_stem": "七杀",
+    "month_stem": "食神",
+    "hour_stem": "比肩",
+    "hidden": {
+      "year_branch": [
+        "比肩",
+        "偏财",
+        "食神"
+      ],
+      "month_branch": [
+        "正印",
+        "伤官",
+        "劫财"
+      ],
+      "day_branch": [
+        "食神"
+      ],
+      "hour_branch": [
+        "正印",
+        "伤官",
+        "劫财"
+      ]
+    }
+  },
+  "ten_god_weights": {
+    "比肩": 8,
+    "劫财": 2,
+    "食神": 9,
+    "伤官": 2,
+    "偏财": 1,
+    "正财": 0,
+    "七杀": 5,
+    "正官": 0,
+    "偏印": 0,
+    "正印": 6
+  },
+  "five_elements": {
+    "木": 1,
+    "火": 2,
+    "土": 3,
+    "金": 2,
+    "水": 0
+  },
+  "useful_god_candidates": [
+    "金",
+    "水",
+    "木"
+  ],
+  "luck_pillars": [
+    {
+      "start_age": 2,
+      "stem": "庚",
+      "branch": "辰"
+    },
+    {
+      "start_age": 12,
+      "stem": "己",
+      "branch": "卯"
+    },
+    {
+      "start_age": 22,
+      "stem": "戊",
+      "branch": "寅"
+    },
+    {
+      "start_age": 32,
+      "stem": "丁",
+      "branch": "丑"
+    },
+    {
+      "start_age": 42,
+      "stem": "丙",
+      "branch": "子"
+    },
+    {
+      "start_age": 52,
+      "stem": "乙",
+      "branch": "亥"
+    },
+    {
+      "start_age": 62,
+      "stem": "甲",
+      "branch": "戌"
+    },
+    {
+      "start_age": 72,
+      "stem": "癸",
+      "branch": "酉"
+    },
+    {
+      "start_age": 82,
+      "stem": "壬",
+      "branch": "申"
+    }
+  ],
+  "current_luck": {
+    "start_age": 32,
+    "stem": "丁",
+    "branch": "丑",
+    "ten_god": null
+  },
+  "current_year": {
+    "stem": "甲",
+    "branch": "辰",
+    "ten_god": null
+  }
+}
+
+Structure: Produces and speaks first, steadies with accumulated knowledge, and needs new input to keep the output from repeating.
+Main axis: {"body":"The leading force is Eating God — output that flows naturally, craft and enjoyment; it is jointly heaviest with Companion, your own judgment and peers who move with you. Next comes Direct Resource — systems, credentials, and backing — which gives you something solid to draw on. Sitting unused is Indirect Wealth — a nose for opportunities, mobilizing resources — present only in hidden stems and thin.","dominant":"Eating God, Companion (jointly heaviest)","evidence":"Eating God and Companion are jointly heaviest (9 and 8): the month stem is Eating God, the day branch is Eating God, the hour stem is Companion, and the year branch hidden stems include Companion and Eating God. Direct Resource weighs 6, carried by the month and hour branch hidden stems. Indirect Wealth weighs 1, appearing only in the year branch hidden stems.","headline":"You are pushed by the need to make things and say what you think, and that output is what carries you.","latent":"Indirect Wealth","secondary":"Direct Resource"}　Core loop: {"driver":"The Day Master is slightly strong (偏旺), so output and wealth are the favorable directions; Resource and Companion add weight rather than relieve it. Eating God at 9 and Companion at 8 dominate, with Direct Resource at 6 feeding the base.","evidence":"Day Master is slightly strong (偏旺), favoring output, wealth, and officer-killings. Eating God weighs 9, Companion 8, Direct Resource 6, Seven Killings 5, Hurting Officer 2, Rob Wealth 2, Indirect Wealth 1. The ten years starting around age 42 are the Bing Zi pillar (丙子), where water appears in the branch.","flow":"You start by producing — a draft, a fix, a straight opinion — and that output is how you engage with work and people. When the output runs into a wall, you fall back on what you have already learned or on the backing you have secured, and that base lets you produce again. The loop turns smoothly as long as the base keeps growing; when it does not, you keep producing from the same store.","from":"Eating God","headline":"You make things and speak your mind, then lean on what you already know, then make more.","leak":"The cost is that you keep drawing on the same store of knowledge and backing without topping it up, so the work starts to repeat itself and the range of what you can produce stops widening.\nIn the ten years starting around age 42 (the Bing Zi pillar), water runs stronger and the base gets a chance to deepen, which makes it easier to learn something new instead of recycling what you know.\nFor now, set aside a fixed block each week to study something outside your current toolkit, and finish one small piece of output from it before the week ends.","to":"Direct Resource"}
+Innate talents: [{"behavior":"In a meeting where the problem is still being described, you are already sketching the fix on the whiteboard or saying the blunt version out loud. You draft the email before the requirements are finalized, you build the rough prototype before the budget is approved, and you give the honest opinion before someone asks for it. The output is not polished — it is a working version that lets everyone else react to something concrete instead of a discussion. You feel more alive after a session where you produced a draft, a fix, or a straight answer than after a day of listening and planning.","energy":"gain","evidence":"Eating God is the leading force and jointly heaviest with Companion (9 and 8). The month stem is Eating God, the day branch is Eating God, and the year branch hidden stems include Eating God. The Day Master is slightly strong (偏旺), so output is a favorable direction — producing drains the excess rather than depleting you.","name":"Making and speaking first"},{"behavior":"When the first draft gets pushback, you do not panic — you reach for a framework, a past case, or a credential you already hold and use it to anchor the next version. You say 'we solved something like this before' and pull up the old document. You cite a standard or a certification to end a debate. You keep a personal library of notes, templates, and precedents, and you return to it when the output runs into a wall. The base is what lets you produce again without starting from zero.","energy":"gain","evidence":"Direct Resource weighs 6, carried by the month and hour branch hidden stems (both 巳 hold 正印). The Day Master is slightly strong, so Resource adds weight rather than relieving it — it functions as a store you draw on, not a source that overwhelms you.","name":"Steadying with what you already know"},{"behavior":"You do your best work next to someone who is also building. You pair on a task, split the work, and check in at short intervals. When a project stalls, you call the one colleague who will actually do something rather than the one who will only discuss it. You are comfortable being the first to move if someone is moving with you, and you lose momentum when you are the only one pushing. The Companion energy shows up as co-production, not solo grinding.","energy":"gain","evidence":"Companion is jointly heaviest with Eating God (8). The hour stem is Companion, and the year branch hidden stems include Companion. The Day Master is slightly strong, so Companion is not a lifeline you lack — it is a natural mode of working alongside others.","name":"Moving with peers who act"}]　High/low dividing line: {"awareness":{"key_moment":"The switch point is when you notice that your last few outputs are variations of the same template, and that the new input you collected has not changed what you produce. That is the moment to check whether you are topping up without drawing. The Bing Zi luck pillar starting around age forty-two brings water into the branch, which makes new input easier to absorb — but the defensive habit is what resists it. The awareness is not 'I should try harder'; it is 'I am waiting for a base that is already sufficient.'","what_to_notice":"Notice the gap between the sharp version you drafted in the evening and the softened version you said in the meeting. Notice the finished draft sitting in a folder while you check one more source. Notice when your last three outputs share the same structure. These are the signals that the loop is recycling rather than growing. The moment you see the pattern, you can choose to ship the draft, say the sharp version, or use the new input — and the loop starts turning on fresh material again."},"belief":{"ceiling_effect":"The ceiling effect is that your output stops widening. You keep producing from the same store of knowledge and backing, so the work starts to repeat itself. The Eating God output at the leading weight is still there, but it runs through a narrower channel. The new input you collect — the course, the different project, the unfamiliar problem — never gets used because the gate stays closed. The loop turns, but it turns on recycled material, and the range of what you can produce stops growing.","limiting_belief":"The limiting belief is: 'I cannot ship until the base is perfect.' It sounds like professionalism, but it is a trained reflex. You wait for one more source, one more certification, one more precedent before you let the output out. The belief lowers the ceiling because it turns the Direct Resource base from a store you draw on into a gate you must pass through. The output gets delayed, the range narrows, and the new input you collected never gets used because the gate never opens.","origin":"The belief grows out of the defensive ability 'Waiting for the base to be perfect.' Direct Resource weighs six and the Day Master is slightly strong, so the base is already sufficient — it is a store, not a shortage. But the Seven Killings filter in the year stem, the earliest position, trained you to check before you speak. The two together produce a habit: top up the base, then top it up again, and treat the waiting as a requirement rather than a reflex."},"environment":{"enables":"An environment that rewards early drafts and fast feedback lets this structure open up. If your team reacts to a rough prototype within a day, if a colleague is building alongside you, and if new input — a course, a different project, a unfamiliar problem — arrives on a regular cadence, the loop turns cleanly. The Eating God output at the leading weight gets used immediately, the Companion energy finds a co-producer, and the Direct Resource base gets refreshed instead of recycled. You produce more, and the range of what you produce widens because the base is growing.","suppresses":"An environment that punishes the blunt version and rewards waiting suppresses the structure. If every draft must be pre-approved, if the culture treats a rough prototype as a mistake, and if you are the only one pushing while others only discuss, the output gets filtered and delayed. The Seven Killings filter in the year stem — the earliest position — gets trained harder, and the Eating God output goes underground. The base stops growing because new input never gets used, and the loop starts recycling the same store."}}
+
+Treat my chart as a system:
+1. What is its most natural operating mode? (what it takes in, how it processes, what it outputs, how it recharges)
+2. What environment breaks it? Explain the failure mechanism — not just "not a good fit".
+3. What kind of life structure suits it best? (time structure, collaboration density, feedback cycles, income rhythm)
+4. Is it better suited to a stable life or a high-variance one? Give reasons and preconditions.
+5. Give me an "environment screening checklist": before accepting a job, a collaboration, or a relocation, the 5 yes/no judgment questions I should ask myself first.
+
+The main axis, core loop, talents, and dividing line above are conclusions already established in earlier chapters — not background material: the operating mode must explain how this loop turns, failure environments must correspond to the loop's loss segments and the triggers of the defensive abilities, and the life structure / stability verdict must land on the forms the innate talents can actually deliver. Do not re-derive the structure, and do not contradict these conclusions.
+
+Output JSON:
+{
+  "operating_mode": { "input": "", "processing": "", "output": "", "recovery": "" },
+  "failure_environments": [{ "env": "", "mechanism": "" }],
+  "ideal_life_structure": { "time": "", "collaboration": "", "feedback_cycle": "", "income_rhythm": "" },
+  "stability_vs_volatility": { "verdict": "", "reason": "", "precondition": "" },
+  "environment_checklist": []
+}
+
+
+Length requirements (mandatory):
+- Total output for this module: 900-1500 words
+- Each field value 90-180 words, with concrete scenes / cases / basis; no empty conclusions
+- evidence fields must be detailed: cite the chart's actual data (specific Ten Gods, Five Element weights, Day Master strength, luck pillars) in plain human language — never as machine field names or bare numbers
+- Behavioral descriptions (behavior / how_it_shows / trigger, etc.) must be at least 60% of the output
+- Every judgment should let the user "see how they run" — not abstract adjectives
+- List fields: at least 2-3 complete items, 60-120 words each

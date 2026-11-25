@@ -1,0 +1,39 @@
+{
+  "true_leverage": {
+    "statement": "Your true lever is the ability to make and speak first — to produce a draft, a fix, or a straight answer before the room is ready — driven by the Eating God output that is the leading force in your chart.",
+    "why_not_others": "The Companion energy is jointly heavy, but it works as momentum for the output, not as the output itself; without the Eating God leading, the peer energy has nothing concrete to push. The Direct Resource base is sufficient but is a store, not a producer — it feeds the output but does not replace it. The Seven Killings filter is a trained layer that delays and shapes the output, not a source of it. The Eating God at the leading weight is the one ability that gains energy while you use it, and the slightly strong Day Master gives it the drive to run.",
+    "evidence": "Eating God is the leading weight (9), jointly heaviest with Companion (8). The Day Master is slightly strong (偏旺), which favors output. Direct Resource weighs 6 — a sufficient base, not a shortage. Seven Killings is present as a filter, not the lead. The Bing Zi luck pillar starting around age 42 brings water into the branch, making new input easier to absorb and feed the output."
+  },
+  "use_cases": [
+    {
+      "scene": "A team meeting where a decision is stuck because everyone is waiting for more data.",
+      "action": "Say the blunt version of your recommendation first, before the data is complete. Do not soften it or wait for one more source. Let the room react, then adjust based on their feedback. This uses the Eating God output as the leading force and treats the Seven Killings filter as a later step, not a gate.",
+      "why_it_works": "The Eating God output is the leading weight, and the slightly strong Day Master gives you the drive to speak first. The Seven Killings filter is trained but not fixed — you can choose to run the output first and filter later. The reaction gives you concrete feedback, and the loop turns faster."
+    },
+    {
+      "scene": "A stalled project that needs a rough version to get moving.",
+      "action": "Pick one stalled task and pair with a colleague who will actually do something. Split the work, check in within the same day, and ship a rough version by the end of the week. The rough version does not need to be perfect — it needs to be concrete enough for someone to react to.",
+      "why_it_works": "Companion is jointly heaviest with Eating God, so co-production is a natural mode for you. The peer energy gives the output momentum, and the Eating God produces the draft. The rough version is the output, and the same-day check-in keeps the loop tight."
+    },
+    {
+      "scene": "A weekly routine that feels like recycling the same store of knowledge.",
+      "action": "Set a fixed block each week to study something outside your current toolkit, and finish one small piece of output from it before the week ends. Start with a topic you have been curious about but have not touched, and ship a one-page note or a small prototype by the end of the week.",
+      "why_it_works": "Direct Resource weighs 6 and the Day Master is slightly strong, so the base is sufficient — it is a store, not a shortage. The bottleneck is whether new input passes through the gate. The Bing Zi luck pillar starting around age 42 brings water into the branch, which makes new input easier to absorb. One unit of input used immediately moves the output from recycled to fresh."
+    }
+  ],
+  "next_90_days": {
+    "one_thing": "For the next 90 days, do only one thing: every week, take one new piece of input — a course, a different project, an unfamiliar problem — and use it in a piece of output within the same week. This tops up the Direct Resource base with new input and forces the Eating God output to use it.",
+    "completion_signal": "You have shipped twelve weekly outputs, each built on a new piece of input you did not have the week before. Each output is concrete enough for someone to react to — a one-page note, a small prototype, or a working draft. You can point to the input and the output for each week, and the output is not a recycled version of the same store.",
+    "evidence": "Direct Resource weighs 6 and the Day Master is slightly strong, so the base is already sufficient — it is a store, not a shortage. The bottleneck is not the size of the base but whether new input passes through the gate. The Bing Zi luck pillar starting around age 42 brings water into the branch, which makes new input easier to absorb. The Eating God output is already the leading force and does not need to be built — it needs to be fed."
+  },
+  "falsification_signals": [
+    {
+      "signal": "If you consistently ship the weekly output but the output never changes in kind — it is always the same format, the same topic, the same audience — then the lever is not being amplified; it is being recycled. The Eating God output is running, but the Direct Resource base is not growing. This analysis assumes new input passes through the gate; if it does not, the lever is not the bottleneck.",
+      "what_it_means": "Throw out the analysis if the weekly output is not fed by new input. The lever is still the Eating God output, but the amplification strategy is wrong. You need a different way to bring new input through the gate, or the base will keep recycling the same store."
+    },
+    {
+      "signal": "If you speak first in meetings and the room consistently reacts with silence or deferral — no concrete feedback, no adjustment, no movement — then the environment is not reacting to the output. The Seven Killings filter is being trained harder, and the Eating God output goes underground. This analysis assumes the environment reacts to a rough draft within a day; if it does not, the lever is not the bottleneck.",
+      "what_it_means": "Throw out the analysis if the environment does not react to the output. The lever is still the Eating God output, but the environment is suppressing it. You need a different environment, or a different way to get feedback, or the output will go underground and the lever will not amplify."
+    }
+  ]
+}

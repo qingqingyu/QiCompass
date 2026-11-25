@@ -1,0 +1,61 @@
+{
+  "energy_path": [
+    {
+      "stage": "Private research that goes deeper than the room",
+      "gain_or_loss": "gain",
+      "mechanism": "Indirect Resource is the heaviest force in the chart (10), appearing on the month stem and repeating in hidden stems of the month, day, and hour branches. The Day Master is balanced and metal and earth are named as favorable, so this research energy feeds the core rather than draining it. You open a question and stay with it past the point others stop, building a working model you can apply later."
+    },
+    {
+      "stage": "Converting findings into steady, incremental income",
+      "gain_or_loss": "gain",
+      "mechanism": "Direct Wealth is tied with Rob Wealth as the second-heaviest force (6), showing on the year stem and in hidden stems of the year and day branches. The balanced Day Master means this wealth step is not a stretch — it is the natural middle of the loop. You turn what you learned into a small, repeatable service and improve the same offer rather than inventing a new one."
+    },
+    {
+      "stage": "Defending ground you have opened against peers",
+      "gain_or_loss": "loss",
+      "mechanism": "Rob Wealth is tied with Direct Wealth at the second-heaviest weight (6), sitting on the hour stem and in a hidden stem of the year branch. The loop runs from Indirect Resource into Rob Wealth, so peer competition is a structural step. Each round of defending territory pulls you away from the private study that feeds you, and the loop then sends you back to study to recover — so you spend energy on the defense and then more energy rebuilding the depth you lost."
+    },
+    {
+      "stage": "Returning to private study to stay ahead",
+      "gain_or_loss": "gain",
+      "mechanism": "Indirect Resource is the heaviest force and repeats across four positions, so the pull back into research is strong and reliable. The return restores the depth that the defense step drained, but it also delays the handover of finished work, which is why visible results accumulate slowly."
+    }
+  ],
+  "leverage": {
+    "point": "The handover step between research and income — the moment you decide a finding is finished enough to sell.",
+    "input": "One fixed handover date set at the start of each piece of research, plus a modest price and a repeatable format for the offer.",
+    "output": "The income step completes and the loop advances to defense with something already shipped, instead of stalling in research while you wait for permission.",
+    "why": "Direct Wealth is tied with Rob Wealth as the second-heaviest force (6) and sits on the year stem, so the income step is structurally ready to carry load. The bottleneck is not capacity for wealth — it is the handover decision. Because Indirect Resource is the heaviest force (10), research will expand to fill whatever time you give it unless a date is set externally. A fixed date converts the research energy into a shipped offer, which is the only step that closes the loop."
+  },
+  "vulnerability": {
+    "point": "Waiting for formal standing before releasing work.",
+    "condition": "You catch yourself naming the title, approval, or official role you need before you send a piece of work forward — especially in a setting where long approval chains or title-based permission gate everything.",
+    "mechanism": "Direct Officer carries no weight at all in the chart — no stem or hidden stem classifies under it. The lead force is Indirect Resource, which operates outside formal hierarchy, and the secondary forces are Direct Wealth and Rob Wealth, neither of which is a position of authority. So the belief 'I cannot put this forward until I have the standing to back it up' asks you to wait for something the structure does not supply. The handover date slips, research piles up on your desk, and the income step that closes the loop is delayed. Because the loop then sends you back to study to recover from defense, each round of waiting adds depth but not output, and the gap between what you know and what you have shipped widens."
+  },
+  "upgrade_path": [
+    {
+      "phase": "Phase 1 — Set the handover date before the research starts",
+      "entry_condition": "You notice a file that has been almost ready for weeks, or you catch yourself naming an approval you need before sending work.",
+      "work": "At the start of each piece of research, write a fixed handover date and a modest price on the same page. When the date arrives, hand over the work even if it feels unfinished. Do not wait for a title or a sign-off that the chart gives no weight to.",
+      "done_signal": "You have shipped three pieces of work on their stated dates without waiting for formal permission, and you can point to income that arrived from them."
+    },
+    {
+      "phase": "Phase 2 — Build a repeatable offer instead of a new one each time",
+      "entry_condition": "You have shipped at least one piece of research and seen it convert into income.",
+      "work": "Take the finding that paid and turn it into a template, checklist, or short engagement you can sell again. Improve the same offer rather than inventing a new one. Keep a mental ledger of which findings actually paid and which only interested you.",
+      "done_signal": "The same offer has been sold more than once without rebuilding it from scratch, and you can name which findings paid and which did not."
+    },
+    {
+      "phase": "Phase 3 — Defend with a layer, not with a pause",
+      "entry_condition": "A peer starts offering what you built, or you notice someone angling for the same budget, client, or credit.",
+      "work": "Go back to the source and add a layer they have not copied, then ship the improved version on a date you set. Treat competition as a signal that the ground is worth holding, not as a reason to wait for a title. Keep the defense technical and time-boxed so it does not replace the research that feeds you.",
+      "done_signal": "You have responded to peer competition by shipping an improved version within a set time, and the defense step did not push your next handover date back."
+    },
+    {
+      "phase": "Phase 4 — Let the loop run without the permission step",
+      "entry_condition": "You have completed Phases 1 through 3 at least once each, and the handover date is now something you set rather than something you wait for.",
+      "work": "Run the full loop — research, convert, defend, return — with the handover date fixed at the start of each cycle. Use the return to research as recovery and depth-building, not as a place to hide from the next handover. In the ten years starting around age 48 (the Gui Wei pillar), the pull toward private study loosens, so use that stretch to let work leave your desk and reach other people more easily.",
+      "done_signal": "You can point to a finished, shipped body of work that accumulated over multiple cycles, and the gap between what you know and what you have shipped has stopped widening."
+    }
+  ]
+}

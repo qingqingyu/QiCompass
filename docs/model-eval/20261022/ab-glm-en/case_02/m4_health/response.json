@@ -1,0 +1,88 @@
+{
+  "battery_type": {
+    "type": "burst",
+    "evidence": "Water fills almost the entire chart — the year, month and day stems are all Gui water, the hour stem is Ren, and the Hai, Hai and Zi branches are water too — while the only outlet is the small Yi wood in the year branch, with a thread of Jia wood hidden in the two Hai branches. The engine has very high idle volume and one narrow exit, so energy arrives in surges and leaves only when the outlet is open. Officer and Killings carry no weight, which means external pressure rarely charges you; interest does.",
+    "charge_pattern": "You recharge fastest doing self-directed, hands-on work you find intrinsically interesting — writing, cooking, building, tuning a process — the Eating God mode where you go quiet, work long stretches, and finish something polished. Equally, being among peers who mirror and confirm your reads tops you up quickly, because Companion and Rob Wealth are the heaviest forces in the chart.",
+    "drain_pattern": "The battery drains fastest on assigned work you find dull: the surge has no interest-shaped outlet, so the effort barely starts and the drain is pure loss. Long stretches of high-intensity external communication also drain you, because there is no Officer-or-Killings-shaped buffer built into the structure — you absorb external demands directly instead of routing them through a protocol."
+  },
+  "imbalance_risks": [
+    {
+      "system": "sleep",
+      "trigger": "Doing intrinsically interesting work late into the evening without a fixed stop point — the narrow Eating God outlet opens, the full water volume pours through it, and you lose track of time; or deciding something contentious among peers just before bed, so the judgment mode that runs all day keeps replaying the exchange.",
+      "early_sign": "You lie down tired but your head is still running the work or the conversation; you wake after a full night feeling like the tank was never refilled."
+    },
+    {
+      "system": "anxiety",
+      "trigger": "More than three consecutive days of high-intensity external communication or work you find dull — the water volume keeps rising with nowhere to leave as visible output, so it turns inward as restless pressure instead of outward as finished work.",
+      "early_sign": "You re-check decisions you already committed to, snap positions faster in discussion than the situation needs, and feel a constant hum of urgency with nothing concrete to point at."
+    },
+    {
+      "system": "inflammation",
+      "trigger": "Weeks of burst-sprint rhythm with no deliberate cool-down — long sitting sessions during absorbed craft work, skipped meals while in flow, and no physical channel to carry the excess charge out of the head and through the body, since Fire and Earth carry no weight in this chart and the warming, grounding rhythm has to be built by habit rather than by temperament.",
+      "early_sign": "Persistent low-grade body heat and tightness — jaw, shoulders, lower back — that shows up in the evening of every deep-work day and eases on days you move your body."
+    }
+  ],
+  "recovery_levers": [
+    {
+      "action": "Protect a daily window — even thirty minutes — of Eating God work: something you do with your hands for the feel of doing it well, with a hard stop time set before you start.",
+      "why_it_works_for_you": "Visible, self-pleasing output is the only channel through which your enormous water volume can leave as finished work; opening it daily on purpose prevents the backup that becomes restlessness. Setting the stop time before you start keeps the burst from eating your sleep.",
+      "cost": "low"
+    },
+    {
+      "action": "Convert inner recharge to outer movement: a brisk walk or a swim at a fixed time on workdays, ideally right after your most draining block of external communication.",
+      "why_it_works_for_you": "Water is the dominant current in this chart, and movement gives it a physical channel; Fire and Earth carry no weight, so the warming and grounding that your rhythm lacks has to come from habitual body use. Fast judgment mode also unloads when the legs are moving and the mouth is closed.",
+      "cost": "low"
+    },
+    {
+      "action": "Schedule one structured peer session per week — a real discussion with people whose reads you respect — but time-box it and end on a concrete next step.",
+      "why_it_works_for_you": "Companions and peers are your fastest charge because they mirror and confirm your judgment; one deliberate session replaces many scattered confirmations through the week. Ending on a concrete step stops the exchange from replaying at night.",
+      "cost": "mid"
+    }
+  ],
+  "reset_7day": [
+    {
+      "day": 1,
+      "focus": "Stop the leak",
+      "action": "Write down every block of the past week you spent on work you find dull or high-intensity communication. Nothing to fix today — just see where the water backed up."
+    },
+    {
+      "day": 2,
+      "focus": "Fixed sleep gate",
+      "action": "Set a hard stop time ninety minutes before bed tonight. After that, no work and no replaying discussions. Note tomorrow how the night went."
+    },
+    {
+      "day": 3,
+      "focus": "Open the outlet",
+      "action": "Do thirty minutes of hands-on Eating God work — cooking, writing, building — with a timer running. Stop when it rings, even mid-flow."
+    },
+    {
+      "day": 4,
+      "focus": "Physical channel",
+      "action": "Take a brisk walk or a swim immediately after your most draining block today. Twenty minutes is enough; the point is carrying charge out through the body."
+    },
+    {
+      "day": 5,
+      "focus": "Dull-work containment",
+      "action": "Batch every dull task into one single block with a visible finish line, and attach a small reward of interesting work right after it."
+    },
+    {
+      "day": 6,
+      "focus": "Peer charge",
+      "action": "Hold one time-boxed discussion with peers you respect. End with one concrete next step written down, so your head can close the file."
+    },
+    {
+      "day": 7,
+      "focus": "Lock the rhythm",
+      "action": "Review the week: which day's night felt most refilled. Keep that day's pattern and write it into next week's calendar as a fixed slot."
+    }
+  ],
+  "weekly_maintenance": [
+    "Every workday: one hard stop time before bed, held without exception — your absorbed-work mode does not self-terminate, so the boundary must come from outside the flow.",
+    "Every workday: at least thirty minutes of hands-on Eating God work at a fixed slot, with the stop time set before you start.",
+    "Four times a week: brisk walk or swim, placed right after your heaviest communication block so the drain discharges physically instead of accumulating as night-time mental replay.",
+    "Once a week: one time-boxed peer discussion ending on a written next step — a deliberate charge instead of scattered confirmations all week.",
+    "Once a week: batch all dull assigned work into a single contained block with a visible finish line, so it drains once instead of leaking across five days.",
+    "Once a week, ten minutes: review which blocks drained you most and which refilled you, and adjust the next week's placement of interesting versus dull work accordingly — your structure runs on interest as fuel, so workload design is energy management, not just time management."
+  ],
+  "medical_note": "You describe long-term poor sleep and persistent weekday fatigue that has already lasted for a while. Chart structure can describe rhythm and recovery tendencies, but it cannot explain physical causes — please see a doctor for the fatigue and sleep problems, and do not use recovery plans as a substitute for a medical check-up."
+}

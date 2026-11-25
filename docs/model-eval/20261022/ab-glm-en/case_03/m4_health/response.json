@@ -1,0 +1,88 @@
+{
+  "battery_type": {
+    "type": "burst",
+    "evidence": "Your chart is dominated by the Wealth family — fire fills five of the eight visible positions, Direct Wealth and Indirect Wealth together outweigh everything else, while Wood, the Output family that would release energy through expression and play, counts zero, and Companion also counts zero. This is a chassis built for short, full-power pushes toward a concrete target, with no release valve for the spent energy and no companion load-sharing.",
+    "charge_pattern": "You recharge by winning something tangible. Closing a small deal, securing a resource, watching a balance or stockpile grow — these refill you faster than rest does. When you are mid-pursuit, you feel energized even on short sleep, because the whole flow runs toward acquisition.",
+    "drain_pattern": "You drain in two ways: the long middle of a pursuit once the object is secured and only management remains — that phase feels flat and quietly exhausting; and any period with nothing concrete to chase, where the scanning engine keeps running at night with no target to absorb it. Because Wood counts zero, you have almost no natural channel for letting pressure out through making, writing, or playing — tension that others discharge, you store."
+  },
+  "imbalance_risks": [
+    {
+      "system": "sleep",
+      "trigger": "Going to bed with an unresolved deal or an unpriced opportunity in your head — the same scanning habit that serves you by day keeps running after lights-out. Also more than two consecutive days of late-night ledger-checking or order-tracking.",
+      "early_sign": "You fall asleep slowly despite physical tiredness, and wake early with deal thoughts already loading, not feeling rested."
+    },
+    {
+      "system": "anxiety and tension",
+      "trigger": "Carrying a whole venture alone for weeks — Companion counts zero in your chart, so no one shares the load by default; and any stretch where you must obey external rules or authority you did not set, since Seven Killings sits in your day branch and pressure from above lands directly on you.",
+      "early_sign": "Shoulders and jaw tight by evening, irritability over small costs or small delays, a constant low hum of 'what am I missing' even when nothing is wrong."
+    },
+    {
+      "system": "digestion",
+      "trigger": "Skipping or rushing meals during a hot pursuit phase — Earth is the thinnest supporting element in your chart while fire runs heaviest, and when you commit fully you routinely drop routines, eating included. Irregular hours plus intense focus is the specific combination.",
+      "early_sign": "Appetite disappears when you are deep in a deal, stomach feels off after late heavy dinners, and you notice you ate once the whole day only when dizzy at dusk."
+    }
+  ],
+  "recovery_levers": [
+    {
+      "action": "Convert one acquisition impulse per day into a small physical act of handling or counting: physically organize stock, count cash, tidy the ledger, reconcile accounts by hand. Ten to twenty minutes.",
+      "why_it_works_for_you": "Your two innate recharge behaviors are spotting value and disciplined bookkeeping. This lever borrows the exact same circuit — hands on something tangible, numbers adding up — but at a scale the body can close out and finish, which lets the nervous system stand down the way a completed deal does.",
+      "cost": "low"
+    },
+    {
+      "action": "End every workday with a two-minute written close-out: what was secured today, what is owed, what waits for tomorrow. Then the day is officially finished — no deal thoughts after the notebook closes.",
+      "why_it_works_for_you": "Because Wood counts zero you lack a natural expression valve, and because the Wealth force is heaviest your mind will not stop scanning on command. Writing the open loops down gives them a container outside your head, which is the cheapest available substitute for the missing output channel.",
+      "cost": "low"
+    },
+    {
+      "action": "Spend one fixed weekly slot handling money or resources together with one trusted person — reviewing the books with a partner, helping someone price something, browsing a market with a friend.",
+      "why_it_works_for_you": "Companion counts zero, so your default is running alone, and solitary carrying is your main long-term drain. Anchoring contact to an activity you already find energizing — resource work — means connection costs you almost no willpower, unlike generic socializing.",
+      "cost": "mid"
+    }
+  ],
+  "reset_7day": [
+    {
+      "day": 1,
+      "focus": "Stop the night scan",
+      "action": "Tonight, before bed, write down every open deal and unanswered question in one list. Close the notebook. If thoughts return, tell yourself it is on the list. No ledger-checking in bed."
+    },
+    {
+      "day": 2,
+      "focus": "Rebuild the meal floor",
+      "action": "Set three fixed rough meal times regardless of what you are chasing. Eat before evening work, not after. Keep it this week even on a deal day."
+    },
+    {
+      "day": 3,
+      "focus": "Give the hands a finished task",
+      "action": "Do twenty minutes of physical counting or organizing — stock, tools, records. Something with a visible finished state at the end."
+    },
+    {
+      "day": 4,
+      "focus": "Lower the flame at dusk",
+      "action": "After eight in the evening, no negotiation, no pricing, no messages about deals. Dim lights, slow physical tasks only. Your chart runs hot; evening heat is what steals your sleep."
+    },
+    {
+      "day": 5,
+      "focus": "Share one load",
+      "action": "Take one thing you would normally carry alone — a decision, a calculation, a worry about a cost — and talk it through with one person, preferably while doing something practical together."
+    },
+    {
+      "day": 6,
+      "focus": "Move without a target",
+      "action": "Thirty to forty minutes of steady walking or light labor with no productive goal — not counting steps, not listening to business content. Let the body spend the stored tension."
+    },
+    {
+      "day": 7,
+      "focus": "Lock the rhythm",
+      "action": "Review the week: which night you slept best and what you did that evening. Write two rules — one wind-down rule, one meal rule — and post them where you work."
+    }
+  ],
+  "weekly_maintenance": [
+    "Every evening: two-minute written close-out of open deals, then no business input after that point.",
+    "Every day: three rough meal anchors held even during a hot pursuit; the pursuit does not authorize skipping them.",
+    "Three times a week: twenty minutes of hands-on tangible work — counting, organizing, repairing — as your version of switching off.",
+    "Once a week: one shared session of resource work or planning with a person you trust, so the solo-run default gets a regular exception.",
+    "Once a week: one longer no-target movement block — walking, garden work, anything with nothing to acquire at the end.",
+    "Each quarter: schedule one deliberately empty weekend with no deals, no ledger, no scanning, and treat guarding it as protecting an asset, the same way you protect a position."
+  ],
+  "medical_note": "You describe long-term poor sleep and persistent weekday fatigue. These are persistent symptoms, and a chart reading cannot substitute for medical evaluation — please see a doctor to have them properly assessed, and follow the doctor's guidance rather than relying on the rhythm adjustments above alone."
+}

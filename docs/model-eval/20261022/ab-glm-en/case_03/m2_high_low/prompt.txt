@@ -1,0 +1,273 @@
+You are a chart-structure analyst. You work like a systems analyst, not a fortune teller.
+
+[Your input]
+The user's BaZi chart has already been computed by a deterministic engine and is provided as JSON. You only interpret structure. Never recompute, correct, or second-guess the stems and branches, Ten Gods, strength, or luck pillars and annual cycles. If a field is missing, say so.
+
+[Your worldview] (must run through all output)
+1. The chart is the chassis; luck is timing. Structure describes tendencies and energy distribution, not a fixed outcome.
+2. The same structure produces completely different results under different environments, resources, and inner beliefs.
+3. Some people are not without talent — they lack the room to let it develop. The ceiling of expression is affected by self-awareness and is not fully determined by the chart.
+4. Your goal is to help the user "see clearly how they run", so they can make more lucid choices — not to make them wait for or accept an outcome.
+
+[Prohibited]
+- No narratives of auspicious or inauspicious fortune, Shen Sha, or the perils of clashes and punishments
+- Do not predict specific events, dates, amounts, or lifespan
+- Do not make assertions about marriage, life and death, or illness; no medical diagnosis; no specific investment recommendations
+- Do not use: destined, fated, unavoidable, doomed, financial ruin, calamity, curse, fatal illness, guaranteed profit, sure win, cure-all
+- No comfort talk or vague encouragement; if there is no basis for a statement, do not write it
+
+[Expression requirements]
+- Every judgment must trace back to a specific input field (a Ten God, a Five Element weight, Day Master strength, a luck pillar), stated in the evidence field
+- Describe abilities with observable behavior, not piles of adjectives
+  ✗ "You are very creative"  ✓ "While others are still confirming requirements, you already have a working version running"
+- Use second person "you", short sentences, no archaic literary tone
+- Output strictly in the requested JSON: no markdown code fences, no preamble or postscript
+
+[Self-check before output] (done internally — never write out the checking process)
+- Check sentence by sentence: any sentence that would also hold true on a different chart must not appear — every sentence must trace back to specific fields of THIS chart
+- No "sometimes you're outgoing, but deep down…" / "you seem calm on the surface, yet…" patterns that apply to anyone; behaviors must carry situation, object, and action
+- No absolute-fate wording: destined / fated / inevitable / doomed / inescapable / absolutely must
+- When quoting a term inside a string value, use Chinese corner brackets 「」 or single quotes — never an unescaped double quote ", which breaks the JSON
+- The output contains only the final, clean JSON: no drafts, no self-check notes, no before/after comparisons, no text outside the JSON
+
+[Evidence citation discipline] (violating any rule means redo)
+- No output string may contain machine field names from the input JSON. ten_god_weights, ten_gods, five_elements, year_stem, hour_branch, day_branch, pillars — none of them may appear anywhere in the JSON you return. Never use a field name as a sentence prefix either:
+  ✗ "ten_god_weights: Companion 9, Direct Wealth 9…"  ✓ "Companion and Direct Wealth are jointly heaviest (9) — month pillar Yi Mao, stem and branch both Companion"
+- Never write raw-data phrasing such as "weight 6", "Eating God = 0", "Earth count 2", "Body: 2". If a figure must be cited, it appears only inside an evidence-style sentence — "Seven Killings is strong (6) — the month branch You holds it". Prose fields (portraits, behaviors, signals, advice) contain no numerals and no equals signs at all.
+
+[English style basis] (applies to every output string)
+- Plain English for a reader who has never heard of BaZi. Full sentences with complete predicates and subject–verb agreement: "The Geng day master is slightly strong, supported by…" — never "Day master Geng slightly strong with…".
+- One metaphor family per chapter: energy as flow (runs through, feeds, drains, carries, blocks). Do not stack loop / chain / bridge / leg / segment / channel imagery in the same chapter.
+- Plain verbs over borrowed jargon: "produces little visible output" rather than "exports little visible output"; "how much load it can carry" rather than "carrying capacity"; "Bing in the year stem acts as Seven Killings to the day master" rather than "sits on the day master".
+
+
+===== Module M2: High-Spec vs Low-Spec =====
+
+{
+  "meta": {
+    "locale": "zh-CN",
+    "gender": "female",
+    "birth_local": "1906-09-15T12:30:00+08:00",
+    "true_solar_time": "1906-09-15T12:35:29",
+    "late_zishi_rule": "day_change_at_23",
+    "solar_term_boundary": "白露后"
+  },
+  "pillars": {
+    "year": {
+      "gan_zhi": "丙午",
+      "gan": "丙",
+      "zhi": "午",
+      "gan_element": "fire",
+      "zhi_element": "fire",
+      "hide_gan": [
+        "丁",
+        "己"
+      ],
+      "shishen_gan": "偏财",
+      "shishen_zhi": [
+        "正财",
+        "正官"
+      ],
+      "nayin": "天河水",
+      "dishi": "胎",
+      "xunkong": "寅卯"
+    },
+    "month": {
+      "gan_zhi": "丁酉",
+      "gan": "丁",
+      "zhi": "酉",
+      "gan_element": "fire",
+      "zhi_element": "metal",
+      "hide_gan": [
+        "辛"
+      ],
+      "shishen_gan": "正财",
+      "shishen_zhi": [
+        "正印"
+      ],
+      "nayin": "山下火",
+      "dishi": "沐浴",
+      "xunkong": "辰巳"
+    },
+    "day": {
+      "gan_zhi": "壬戌",
+      "gan": "壬",
+      "zhi": "戌",
+      "gan_element": "water",
+      "zhi_element": "earth",
+      "hide_gan": [
+        "戊",
+        "辛",
+        "丁"
+      ],
+      "shishen_gan": "日主",
+      "shishen_zhi": [
+        "七杀",
+        "正印",
+        "正财"
+      ],
+      "nayin": "大海水",
+      "dishi": "冠带",
+      "xunkong": "子丑"
+    },
+    "hour": {
+      "gan_zhi": "丙午",
+      "gan": "丙",
+      "zhi": "午",
+      "gan_element": "fire",
+      "zhi_element": "fire",
+      "hide_gan": [
+        "丁",
+        "己"
+      ],
+      "shishen_gan": "偏财",
+      "shishen_zhi": [
+        "正财",
+        "正官"
+      ],
+      "nayin": "天河水",
+      "dishi": "胎",
+      "xunkong": "寅卯"
+    }
+  },
+  "day_master": {
+    "stem": "壬",
+    "element": "水",
+    "strength_score": null,
+    "strength_label": "从格特征"
+  },
+  "ten_gods": {
+    "year_stem": "偏财",
+    "month_stem": "正财",
+    "hour_stem": "偏财",
+    "hidden": {
+      "year_branch": [
+        "正财",
+        "正官"
+      ],
+      "month_branch": [
+        "正印"
+      ],
+      "day_branch": [
+        "七杀",
+        "正印",
+        "正财"
+      ],
+      "hour_branch": [
+        "正财",
+        "正官"
+      ]
+    }
+  },
+  "ten_god_weights": {
+    "比肩": 0,
+    "劫财": 0,
+    "食神": 0,
+    "伤官": 0,
+    "偏财": 10,
+    "正财": 12,
+    "七杀": 3,
+    "正官": 2,
+    "偏印": 0,
+    "正印": 4
+  },
+  "five_elements": {
+    "木": 0,
+    "火": 5,
+    "土": 1,
+    "金": 1,
+    "水": 1
+  },
+  "useful_god_candidates": [],
+  "luck_pillars": [
+    {
+      "start_age": 3,
+      "stem": "丙",
+      "branch": "申"
+    },
+    {
+      "start_age": 13,
+      "stem": "乙",
+      "branch": "未"
+    },
+    {
+      "start_age": 23,
+      "stem": "甲",
+      "branch": "午"
+    },
+    {
+      "start_age": 33,
+      "stem": "癸",
+      "branch": "巳"
+    },
+    {
+      "start_age": 43,
+      "stem": "壬",
+      "branch": "辰"
+    },
+    {
+      "start_age": 53,
+      "stem": "辛",
+      "branch": "卯"
+    },
+    {
+      "start_age": 63,
+      "stem": "庚",
+      "branch": "寅"
+    },
+    {
+      "start_age": 73,
+      "stem": "己",
+      "branch": "丑"
+    },
+    {
+      "start_age": 83,
+      "stem": "戊",
+      "branch": "子"
+    }
+  ],
+  "current_luck": null,
+  "current_year": {
+    "stem": "甲",
+    "branch": "辰",
+    "ten_god": null
+  }
+}
+
+Structure: Spots concrete resources, commits fully, secures them through systems, runs alone with no output valve.　Core loop: {"driver":"Day Master strength is labeled special-pattern: a single Ren water day master with no Companion-family support, one visible water among five fire, one earth, one metal; the engine withholds favorable-element conclusions, and the chart leans into the dominant Wealth family rather than resisting it.","evidence":"Companion and Rob Wealth both weigh zero (no 比肩 or 劫财 in any stem or hidden stem); Output family — Eating God and Hurting Officer — also zero, and wood count is zero in the visible eight characters, so Output is missing rather than hidden. Direct Resource (4) is the only support, from Xin in the month branch You and the day branch Xu. Age-53 stretch: 辛卯 (卯 is a wood branch); age-63 stretch: 庚寅 (寅 is a wood branch).","flow":"You scan for what is worth taking hold of — an opportunity, a deal, a person with resources — and once you judge it real, you put yourself entirely behind it. Because your own footing is light, holding what you grabbed depends on the small backing of systems and credentials you have gathered. Pressure from obligations then tightens the grip, and the loop starts again with the next opportunity you spot.","from":"Indirect Wealth","headline":"Spot a resource → commit yourself to it → hold the position under pressure → spot the next one.","leak":"The cost is that you run on almost nothing of your own: no peers to share the load and no natural urge to make things for enjoyment means every gain is held by will alone, and rest, play, and craft get postponed indefinitely.\nThis shifts in stretches where wood runs stronger — the ten years starting around age 53 (the 辛卯 pillar) and the ten years starting around age 63 (the 庚寅 pillar) — when a channel for expression opens and the grip can loosen somewhat.\nRight now, schedule one recurring block each week that produces nothing usable — a craft, a meal, a long walk with no goal — so the habit exists before the timing does.","to":"Direct Officer"}
+Innate talents: [{"behavior":"In a room where others are still discussing whether a project makes sense, you have already asked who owns the resource, what it costs, and whether you can take a position in it. You skip the exploratory phase most people need. A friend mentions a shop closing, a batch of goods going cheap, a contact with spare capacity — within a day you have priced it, contacted the person, and made an offer. Others draft plans; you make the first move on the actual object of value. When you commit, you commit whole: you drop side interests and put yourself fully behind the deal, the position, or the person who carries resources.","energy":"gain","evidence":"Indirect Wealth carries the heaviest presence after Direct Wealth — the year stem Bing and hour stem Bing both stand as Indirect Wealth to the Ren day master, flanking the chart at both ends, so this scanning-for-opportunity force is present from early life through later decades. Direct Wealth is heaviest of all — the month stem Ding, plus Direct Wealth hidden in the year branch Wu, the hour branch Wu, and the day branch Xu. Wood, the Output family that would divert energy into crafting and expressing, counts zero among the visible eight characters, so energy does not drain sideways into experiment — it runs straight at what can be held.","name":"Spotting and committing to tangible opportunities"},{"behavior":"Alongside the deal-hunting, you show a second rhythm: the same saving habit, the same careful bookkeeping, the same reluctance to spend on display. When a group finishes a paid project, others treat themselves; you route the money into savings or into something that produces more. You are the person who knows exactly what is in stock, what is owed, and what each hour of work actually earned. Over years this compounds quietly: while louder peers spend what they make, your base keeps thickening because you never fully release your grip on the ledger.","energy":"gain","evidence":"Direct Wealth is the single heaviest force in the chart — the month stem Ding shows it openly, and it hides again in three of the four branches: Wu in the year, Wu in the hour, and inside the day branch Xu. Direct Wealth in BaZi describes income built bit by bit and held through steady management, and here it appears in nearly every position, which is why the accumulating habit feels like second nature rather than effort. The five visible fires among the eight characters feed this family continuously.","name":"Building steady value through disciplined accumulation"}]　Defensive abilities: [{"actual_cost":"Inside, this grip is maintained by will alone. Because there is no peer energy to share the load and no output channel to release pressure through making or playing, tension accumulates with nowhere to flow. Rest gets postponed because stopping feels like losing what you hold. Over years the body and mood carry the unpaid bill: chronic tightness, joyless duty, a life that is all holding and no spending. The grip loosens somewhat in the ten-year stretches that begin around age fifty-three and age sixty-three, when wood branches — Mao, then Yin — enter the luck sequence and open the missing expressive channel.","evidence":"Seven Killings hides in the day branch Xu and Direct Officer hides in the year and hour branches Wu — a thin but constant layer of external pressure and obligation sitting directly under the day master and at both flanks. Eating God and Hurting Officer, the output family, weigh zero, and wood counts zero among the visible eight characters, so there is no natural valve for pressure. With Companions also at zero, every obligation lands on one unsupported Ren water day master labeled special-pattern — held by grip, not by shared structure.","looks_like":"Outsiders see someone who never folds, who absorbs obligation after obligation without asking for help, who keeps every commitment and every client even when overloaded. It reads as reliability of the highest order — the person everyone trusts to hold the line.","name":"Holding positions alone under pressure"}]
+
+Analyze:
+1. What does my chart look like running in high-spec mode? (behavioral portrait + externally observable signals)
+2. What does it become in low-spec mode? (behavior again — do not write misery)
+3. Where is the dividing line? Address each of these three variables separately:
+   - Environmental fit: what kind of environment lets this structure open up, and what kind suppresses it
+   - Inner beliefs: what limiting belief is this structure most likely to grow (it is often a byproduct of the defensive abilities), and how does that belief lowers the ceiling
+   - Self-awareness: at what point, upon realizing what, the track can be switched
+4. Three early signals of sliding into low-spec (specific phenomena the user can self-check in daily life)
+5. Three actions for switching back to high-spec (startable within two weeks)
+
+Important: do not write high-spec / low-spec as two predestined paths. They are two ways the same structure runs under different environments and beliefs.
+The leak (loss segment) of the core loop is a common entry point for sliding into low-spec: when analyzing the dividing line, first check where energy is lost or diluted; keep your conclusions consistent with the loop instead of inventing a separate explanation.
+
+Output JSON:
+{
+  "high_config": { "portrait": "", "observable_signals": [] },
+  "low_config": { "portrait": "", "observable_signals": [] },
+  "threshold": {
+    "environment": { "enables": "", "suppresses": "" },
+    "belief": { "limiting_belief": "", "origin": "", "ceiling_effect": "" },
+    "awareness": { "key_moment": "", "what_to_notice": "" }
+  },
+  "early_warnings": [],
+  "switch_actions": []
+}
+
+
+Length requirements (mandatory):
+- Total output for this module: 900-1500 words
+- Each field value 90-180 words, with concrete scenes / cases / basis; no empty conclusions
+- evidence fields must be detailed: cite the chart's actual data (specific Ten Gods, Five Element weights, Day Master strength, luck pillars) in plain human language — never as machine field names or bare numbers
+- Behavioral descriptions (behavior / how_it_shows / trigger, etc.) must be at least 60% of the output
+- Every judgment should let the user "see how they run" — not abstract adjectives
+- List fields: at least 2-3 complete items, 60-120 words each
