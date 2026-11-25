@@ -12867,19 +12867,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Charts are calculated on our servers. Readings are written by third-party AI services (Z.ai and DeepSeek), which receive your chart data, birth time and gender."
+            "value" : "Charts are calculated on our servers. Readings are written by third-party AI services (Z.ai and DeepSeek), which receive your chart data, birth time, birthplace and gender."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "排盘在我们的服务器完成；解读由第三方 AI 服务（Z.ai 与 DeepSeek）生成，它会收到命盘数据、出生时间和性别。"
+            "value" : "排盘在我们的服务器完成；解读由第三方 AI 服务（Z.ai 与 DeepSeek）生成，它会收到命盘数据、出生时间、出生地和性别。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "排盤在我們的伺服器完成；解讀由第三方 AI 服務（Z.ai 與 DeepSeek）生成，它會收到命盤資料、出生時間和性別。"
+            "value" : "排盤在我們的伺服器完成；解讀由第三方 AI 服務（Z.ai 與 DeepSeek）生成，它會收到命盤資料、出生時間、出生地和性別。"
           }
         }
       }
@@ -16473,7 +16473,7 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Gender"
+            "value" : "Sex at birth"
           }
         },
         "zh-Hant" : {
