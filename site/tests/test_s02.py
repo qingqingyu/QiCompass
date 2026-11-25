@@ -12,7 +12,6 @@ from __future__ import annotations
 import hashlib
 import json
 import re
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -55,6 +54,10 @@ def sha(path: Path) -> str:
 def test_export_idempotent() -> None:
     before = sha(TERMS_JSON)
     r1 = run(["python3", "tools/export_site_terms.py"])
+    if r1.returncode == 2 and "venv" in r1.stderr.lower():
+        skipped.append("export_site_terms 幂等(backend venv 不可用)")
+        print("  ⊘ export_site_terms 幂等 — backend venv 不可用,SKIP")
+        return
     r2 = run(["python3", "tools/export_site_terms.py"])
     ok = r1.returncode == 0 and r2.returncode == 0 and sha(TERMS_JSON) == before
     record("export_site_terms 幂等(两次运行字节不变)", ok, r1.stderr.strip()[:120] if not ok else "")
@@ -93,6 +96,37 @@ def test_dead_link_fail() -> None:
         record("死链 → FAIL 且指出链接", ok, "" if ok else f"exit={r.returncode}")
 
 
+def test_zodiac_friends_mismatch_fail() -> None:
+    """zodiac friends/clash 手填值必须与 terms.json 导出一致;两种形态都要拦:
+    块状列表错值 → 逐值比对 FAIL;行内 [未, 寅, 戌](mini-YAML 解析成裸字符串)→ 类型拦截。"""
+    base = (FIXTURES / "day-master" / "en" / "zz-fixture-b.md").read_text(encoding="utf-8")
+    # 换成 zodiac 形态:branch = 午(terms.json 导出 friends=['未','寅','戌'],clash='子')
+    base = re.sub(r"^stem: .*$", "branch: 午\nanimal: Horse", base, count=1, flags=re.M)
+    base = re.sub(r"^element: .*$", "element: 火", base, count=1, flags=re.M)
+    base = re.sub(r"^polarity: .*$", "polarity: yang", base, count=1, flags=re.M)
+    with tempfile.TemporaryDirectory() as td:
+        fixture = Path(td) / "zodiac" / "en" / "zz-zodiac-horse.md"
+        fixture.parent.mkdir(parents=True)
+
+        def inject(fields: str) -> str:
+            # 字段必须插进 frontmatter(第一个 "\n---\n" 是收尾围栏),追加到文件尾只是正文
+            return base.replace("\n---\n", "\n" + fields + "---\n", 1)
+
+        # 形态一:块状列表,错值(把戌写成卯)
+        fixture.write_text(inject("friends:\n  - 未\n  - 寅\n  - 卯\nclash: 子\n"), encoding="utf-8")
+        r = run(["python3", "tools/check_site_content.py", "--dir", td])
+        ok1 = r.returncode == 1 and "friends 手填" in r.stdout and "卯" in r.stdout
+        # 形态二:行内列表(mini-YAML 解析成裸字符串,必须拦,不许静默跳过)
+        fixture.write_text(inject("friends: [未, 寅, 戌]\nclash: 子\n"), encoding="utf-8")
+        r = run(["python3", "tools/check_site_content.py", "--dir", td])
+        ok2 = r.returncode == 1 and "解析成 str" in r.stdout
+        record(
+            "zodiac friends 手填错值/行内列表 → FAIL",
+            ok1 and ok2,
+            "" if (ok1 and ok2) else f"块状错值={ok1} 行内列表={ok2} out={(r.stdout + r.stderr)[-300:]}",
+        )
+
+
 def test_missing_reviewed_by_breaks_build() -> None:
     bad = SITE / "src" / "content" / "day-master" / "en" / "zz-test-unreviewed.md"
     source = (FIXTURES / "day-master" / "en" / "zz-fixture-a.md").read_text(encoding="utf-8")
@@ -112,6 +146,10 @@ def test_missing_reviewed_by_breaks_build() -> None:
         record("构建错误信息点名 reviewedBy", "reviewedBy" in err, "" if "reviewedBy" in err else err[-200:])
     finally:
         bad.unlink(missing_ok=True)
+        # 清掉测试 mkdir 出来的空 en/ 目录(git 不追空目录,留着只会给 git clean 添垃圾;
+        # 目录非空 = 有他人文件,原样保留)
+        if bad.parent.is_dir() and not any(bad.parent.iterdir()):
+            bad.parent.rmdir()
         run(["npm", "run", "build"], cwd=str(SITE))  # 恢复绿色构建产物
 
 
@@ -143,6 +181,7 @@ def main() -> int:
     test_compliant_pass()
     test_banned_fail_with_location()
     test_dead_link_fail()
+    test_zodiac_friends_mismatch_fail()
     test_missing_reviewed_by_breaks_build()
     test_term_sync_negative()
     print(f"=== {len(passed)} 过 / {len(failed)} 败 / {len(skipped)} 跳过 ===")

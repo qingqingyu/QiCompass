@@ -256,10 +256,16 @@ def main() -> int:
     print("=" * 64)
     terms_path = ROOT / "site" / "src" / "data" / "terms.json"
     try:
-        site_groups = json.loads(terms_path.read_text(encoding="utf-8"))["groups"]
-    except (OSError, json.JSONDecodeError, KeyError) as e:
+        raw = json.loads(terms_path.read_text(encoding="utf-8"))
+        # 形状校验:groups 非对象也算脚本错误(isinstance 先行,避免后面 .get TypeError 逃逸)
+        site_groups = raw["groups"] if isinstance(raw, dict) and isinstance(raw.get("groups"), dict) else None
+    except (OSError, json.JSONDecodeError, KeyError, TypeError) as e:
         failures.append(f"terms.json 读取失败: {e}(先跑 python3 tools/export_site_terms.py)")
         print("  terms.json FAIL 读取/结构失败")
+        site_groups = {}
+    if site_groups is None:
+        failures.append("terms.json 结构异常: groups 不是对象(勿手改,重跑 export_site_terms.py)")
+        print("  terms.json FAIL 结构异常(groups 非对象)")
         site_groups = {}
     site_group_tables = {
         "五行": (FIVE_ELEMENTS_EN, FIVE_ELEMENTS_ZH_HANT, "fiveElements"),
@@ -286,14 +292,21 @@ def main() -> int:
             continue
         drift = [
             k for k in backend_table
-            if site[k].get("en") != backend_table[k] or site[k].get("zhHant") != backend_hant[k]
+            if not isinstance(site[k], dict)
+            or site[k].get("en") != backend_table[k]
+            or site[k].get("zhHant") != backend_hant[k]
         ]
         if drift:
+            def site_show(k: str):
+                # 值可能是手改坏的非 dict,消息生成不得再抛(检测已守卫,此处同样守卫)
+                if not isinstance(site[k], dict):
+                    return repr(site[k])
+                return f"en={site[k].get('en')!r} hant={site[k].get('zhHant')!r}"
+
             failures.append(
                 f"terms.json {group_name} en/zh-hant 值漂移: "
                 + "; ".join(
-                    f"{k}: backend en={backend_table[k]!r} hant={backend_hant[k]!r}"
-                    f" site en={site[k].get('en')!r} hant={site[k].get('zhHant')!r}"
+                    f"{k}: backend en={backend_table[k]!r} hant={backend_hant[k]!r} site {site_show(k)}"
                     for k in drift[:5])
             )
             print(f"{out} FAIL en/zh-hant 值漂移 {len(drift)} 条")

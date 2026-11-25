@@ -80,6 +80,7 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 
 - **强制**：动了 `site/src/content/**`、`site/src/plugins/**`、`site/src/data/term-defs.json` 或 `tools/check_site_content.py` 任一，必须 `python3 tools/check_site_content.py` PASS（禁词 / frontmatter 长度与 reviewedBy / 内链 ≥8 且无死链 / 术语键取值）+ `cd site && npm run build` 通过才算完成
 - **强制**：动了 `site/src/data/terms.json`（或 backend 术语表变更波及站点），必须重跑 `python3 tools/export_site_terms.py`（幂等,勿手改 JSON）且 `arch -arm64 backend/.venv/bin/python tools/check_term_sync.py` PASS——⑤ 组锁 terms.json ↔ backend 七组三相等 + branchRelations 直算一致
+- **强制**：构建只用 `cd site && npm run build`（勿绕过 npm 直接调 astro build）——prebuild 钩子 `site/scripts/invalidate-render-cache.mjs` 按「插件 + terms.json + term-defs.json + astro.config.mjs」指纹失效 content-layer 渲染缓存；这组文件变更 Astro 自己不感知（失效判据只有内容 digest），绕过钩子 = build 全绿但 dist 静默复用旧 HTML（2026-11-25 实测）
 - 写作规范事实源:`site/CONTENT_GUIDE.md`(H2 章节约定 `## 壹|标题`、禁词清单、术语自动内链的匹配面);`published: true` 必须带 `reviewedBy`,缺审 = Astro 构建失败(非警告)
 - 不接 GitHub Actions(本地优先),拦截靠本规则
 

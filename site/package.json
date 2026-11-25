@@ -7,7 +7,8 @@
     "dev": "astro dev",
     "build": "astro build",
     "preview": "astro preview",
-    "astro": "astro"
+    "astro": "astro",
+    "prebuild": "node scripts/invalidate-render-cache.mjs"
   },
   "dependencies": {
     "astro": "^5.0.0"

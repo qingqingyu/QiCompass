@@ -46,6 +46,9 @@ test("同一术语只链首次出现", async () => {
   assert.equal(links.length, 1);
   assert.equal(links[0].url, "/en/ten-gods/companion");
   assert.match(plainText(tree), /Another Companion appears later/);
+  // roundtrip 相等:链接包入不得增删或重复任何正文文本(回归:splice 曾用字符偏移当
+  // 数组下标,越界追加导致整段重复渲染,弱断言拦不住)
+  assert.equal(plainText(tree), EN_BODY);
 });
 
 test("标题里不链,正文链", async () => {
@@ -57,12 +60,21 @@ test("标题里不链,正文链", async () => {
   assert.ok(!termLinks(heading).length);
 });
 
+test("标题里的加粗术语也不链(阻断沿子树传播)", async () => {
+  const tree = await transform("## The **Companion** is here.\n\nBody text with Companion too.");
+  const heading = tree.children[0];
+  assert.ok(!termLinks(heading).length, "heading > strong > text 也不得包链");
+  const links = termLinks(tree);
+  assert.equal(links.length, 1, "正文里的同一术语照常包链");
+  assert.equal(links[0].url, "/en/ten-gods/companion");
+});
+
 test("已有链接不重复包,且消耗首次出现", async () => {
   const md = "Read [Companion](/en/ten-gods/companion) first; a later Companion stays plain.";
   const tree = await transform(md);
   const links = termLinks(tree);
   assert.equal(links.length, 0, "手写链接已消耗该术语,后文不再自动包链");
-  assert.ok(plainText(tree).includes("a later Companion stays plain"));
+  assert.equal(plainText(tree), "Read Companion first; a later Companion stays plain.");
 });
 
 test("本页自身不链(按文件路径推导)", async () => {
@@ -80,13 +92,14 @@ test("selfTermKeys 也能屏蔽", async () => {
 });
 
 test("data-zh / data-title / data-def 齐全;缺 def 时不带 data-def", async () => {
-  const withDef = termLinks(await transform("The Companion is here."))[0];
+  const body = "The Companion is here.";
+  const withDef = termLinks(await transform(body))[0];
   assert.equal(withDef.data.hProperties["data-zh"], "比肩");
   assert.equal(withDef.data.hProperties["data-title"], "Companion");
   assert.equal(withDef.data.hProperties["data-def"], "The stem equal to the Day Master.");
 
   const noDefs = unified().use(remarkParse).use(remarkTermLinks, { terms, defs: {} });
-  const vfile = new VFile({ value: "The Companion is here.", path: "/p/src/content/guides/en/x.md" });
+  const vfile = new VFile({ value: body, path: "/p/src/content/guides/en/x.md" });
   const noDef = termLinks(await noDefs.run(noDefs.parse(vfile), vfile))[0];
   assert.equal(noDef.data.hProperties["data-def"], undefined);
 });
@@ -97,7 +110,8 @@ test("英文整词边界:companionship 不链", async () => {
 });
 
 test("zh-hant 页面按 zhHant 匹配", async () => {
-  const tree = await transform("比肩在命盤裡出現,後面又一次比肩不重複。", {
+  const body = "比肩在命盤裡出現,後面又一次比肩不重複。";
+  const tree = await transform(body, {
     path: "/proj/src/content/guides/zh-hant/x.md",
     frontmatter: { lang: "zh-hant" },
   });
@@ -105,12 +119,36 @@ test("zh-hant 页面按 zhHant 匹配", async () => {
   assert.equal(links.length, 1);
   assert.equal(links[0].url, "/zh-hant/ten-gods/companion");
   assert.equal(links[0].data.hProperties["data-zh"], "比肩");
-  assert.ok(plainText(tree).includes("後面又一次比肩不重複"));
+  assert.equal(plainText(tree), body, "zh-hant 链接包入后正文逐字不变");
 });
 
 test("最长匹配优先,术语不嵌套", async () => {
   // "Direct Wealth" 与 "Direct Officer" 共享前缀词 "Direct";都命中时各自独立成链
-  const tree = await transform("Direct Wealth and Direct Officer both appear.");
+  const body = "Direct Wealth and Direct Officer both appear.";
+  const tree = await transform(body);
   const links = termLinks(tree);
   assert.equal(links.length, 2);
+  assert.equal(plainText(tree), body, "两个术语链入后正文逐字不变");
+});
+
+test("段中首次出现(多子节点兄弟)不吞不重:roundtrip 逐字相等", async () => {
+  // 手写链接占 child[1];术语在其后兄弟文本节点里 hitAt=9 ≠ child 下标 2
+  // (回归:splice 曾用 hitAt 当数组下标,吞兄弟/越界追加)
+  const body = "See [the library](/en/library); then Companion appears here.";
+  const tree = await transform(body);
+  assert.equal(plainText(tree), "See the library; then Companion appears here.");
+  const links = termLinks(tree);
+  assert.equal(links.length, 1);
+  assert.equal(links[0].url, "/en/ten-gods/companion");
+});
+
+test("位置更早的术语不被后评估匹配器丢弃", async () => {
+  // "Direct Officer" 首个出现比 "Eating God" 晚;评估序按长度倒序,
+  // 早出现者仍应先链(回归:非全局正则首个命中 < best.index 即 -1 曾整页漏链)
+  const body = "The Eating God meets a Direct Officer.";
+  const tree = await transform(body);
+  const links = termLinks(tree);
+  assert.equal(links.length, 2, "两个术语各自链首次出现");
+  assert.equal(links[0].url, "/en/ten-gods/eating-god", "先链位置更早的");
+  assert.equal(plainText(tree), body);
 });

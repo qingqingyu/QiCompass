@@ -56,25 +56,25 @@ export default function remarkTermLinks({ terms, defs = {} }) {
     walk(tree, (node, parent, index) => {
       if (node.type !== "text" || !node.value) return false;
       const text = node.value;
-      let best = null; // { index, matcher }
+      let best = null; // { index, length, matcher };length = 实际匹配跨度(en 词间 \s+ 可能比规范串长)
       for (const m of active) {
         if (alreadyLinked.has(m.key) || selfKeys.has(m.key)) continue;
         if (selfUrl && m.href(lang) === selfUrl) continue; // 本页自身不链
-        const at = findMatch(text, m, best ? best.index : 0);
-        if (at === -1) continue;
-        if (!best || at < best.index || (at === best.index && m.match.length > best.matcher.match.length)) {
-          best = { index: at, matcher: m };
+        const at = findMatch(text, m);
+        if (at === null) continue;
+        if (!best || at.index < best.index || (at.index === best.index && at.length > best.length)) {
+          best = { index: at.index, length: at.length, matcher: m };
         }
       }
       if (!best) return false;
-      const { index: hitAt, matcher } = best;
+      const { index: hitAt, length: hitLen, matcher } = best;
       alreadyLinked.add(matcher.key);
 
       const linkNode = {
         type: "link",
         url: matcher.href(lang),
         title: null,
-        children: [{ type: "text", value: text.slice(hitAt, hitAt + matcher.match.length) }],
+        children: [{ type: "text", value: text.slice(hitAt, hitAt + hitLen) }],
         data: {
           hName: "a",
           hProperties: {
@@ -88,10 +88,12 @@ export default function remarkTermLinks({ terms, defs = {} }) {
       const nodes = [];
       if (hitAt > 0) nodes.push({ type: "text", value: text.slice(0, hitAt) });
       nodes.push(linkNode);
-      if (hitAt + matcher.match.length < text.length) {
-        nodes.push({ type: "text", value: text.slice(hitAt + matcher.match.length) });
+      if (hitAt + hitLen < text.length) {
+        nodes.push({ type: "text", value: text.slice(hitAt + hitLen) });
       }
-      parent.children.splice(hitAt, 1, ...nodes);
+      // ⚠️ 必须用 child 下标(index 参数)splice;hitAt 是**字符偏移**,拿它当数组
+      // 下标会越界追加(整段重复渲染)或吞掉兄弟节点——曾在此翻过车,勿回退
+      parent.children.splice(index, 1, ...nodes);
       return true; // 重建过,当前节点作废
     });
   };
@@ -113,7 +115,8 @@ function buildMatchers(terms, lang, groups, defs) {
         title: t.en,
         def: defs[key] ?? null,
         ascii: lang === "en",
-        // en 名含空格(Rob Wealth)→ 词边界正则逐段转义
+        // en 名含空格(Rob Wealth)→ 词边界正则逐段转义;非 global(exec 恒从 0 起,
+        // 无 lastIndex 共享状态)
         re: lang === "en" ? new RegExp(`\\b${match.split(" ").map(escapeRe).join("\\s+")}\\b`) : null,
         href: (l) => `/${l}${t.path}`,
       });
@@ -123,15 +126,17 @@ function buildMatchers(terms, lang, groups, defs) {
   return out.sort((a, b) => b.match.length - a.match.length);
 }
 
-/** 返回首个未越界的命中位置;fromLeft = 只认这个位置之后的命中(保序推进)。
- *  注意:m.re 是**非 global** 正则——exec 恒返回首个命中且 lastIndex 不前进,
- *  首个命中 < fromLeft 即代表本节点没有更靠后的命中(直接 -1,不能循环 exec)。 */
-function findMatch(text, m, fromLeft) {
+/** 返回 m 在 text 内的首个命中 {index, length},无则 null。
+ *  语义恒为「全文首个命中」(不接 fromLeft)——外层每轮链接后拆分节点重扫,
+ *  拆出的前缀/尾段各自再取全局最小首现,无需位移参数。
+ *  en 命中可能是 m.match 的 `\s+` 变体,length 必须取实际匹配跨度而非规范串长。 */
+function findMatch(text, m) {
   if (m.ascii) {
     const hit = m.re.exec(text);
-    return hit && hit.index >= fromLeft ? hit.index : -1;
+    return hit ? { index: hit.index, length: hit[0].length } : null;
   }
-  return text.indexOf(m.match, fromLeft);
+  const at = text.indexOf(m.match);
+  return at === -1 ? null : { index: at, length: m.match.length };
 }
 
 function escapeRe(s) {
@@ -147,31 +152,31 @@ function walkPass(node, cb) {
 }
 
 /**
- * 深度优先遍历;进入 heading/link/image/code 子树与 frontmatter 无关节点照常走,
- * 但只有「文本类父节点」下的 text 才参与链接。
+ * 深度优先遍历;heading/link/image/code/inlineCode 子树内(含嵌套容器,如
+ * 标题里的加粗)不参与链接,阻断状态沿递归向下传播。
  * cb 返回 true 表示 children 被重建,当前 index 的节点已是下一个,不前进。
  */
 function walk(node, cb) {
   const skipSubtree = new Set(["heading", "link", "image", "code", "inlineCode"]);
-  const visitChildren = (parent) => {
+  const visitChildren = (parent, blockedAbove) => {
     if (!parent.children || !Array.isArray(parent.children)) return;
-    const childBlocked = skipSubtree.has(parent.type);
+    const blocked = blockedAbove || skipSubtree.has(parent.type);
     for (let i = 0; i < parent.children.length; ) {
       const child = parent.children[i];
       let replaced = false;
-      if (!childBlocked) {
+      if (!blocked) {
         replaced = cb(child, parent, i);
         if (replaced) {
-          // cb 在 i 处 splice 了 1→N 个节点;对插入的 text 继续尝试匹配
-          // (同一节点拆出的尾部文本可能还有下一个术语)
+          // cb 在 index 处 splice 了 1→N 个节点;对拆出的前缀 text 继续尝试匹配
+          // (尾部文本会在后续迭代里被 cb 再处理)
           continue;
         }
       }
-      visitChildren(child);
+      visitChildren(child, blocked);
       i += 1;
     }
   };
-  visitChildren(node);
+  visitChildren(node, false);
 }
 
 /** src/content/{type}/{lang}/{slug}.md → /{lang}/{type}/{slug};非该形态返回 null。 */

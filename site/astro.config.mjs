@@ -9,8 +9,9 @@ const terms = JSON.parse(readFileSync(new URL('./src/data/terms.json', import.me
 let termDefs = {};
 try {
   termDefs = JSON.parse(readFileSync(new URL('./src/data/term-defs.json', import.meta.url), 'utf-8'));
-} catch {
-  termDefs = {}; // 文件尚不存在 = 无释义卡,链接照常(不静默造词)
+} catch (e) {
+  if (e.code !== 'ENOENT') throw e; // 文件尚不存在 = 无释义卡(合法);JSON 损坏/权限错误显式失败
+  termDefs = {};
 }
 
 // knowfate.app — 静态输出;URL 无尾斜杠(规格 README §3)。

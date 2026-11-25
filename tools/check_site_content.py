@@ -31,7 +31,7 @@ ROOT = Path(__file__).resolve().parent.parent
 BACKEND = ROOT / "backend"
 CONTENT = ROOT / "site" / "src" / "content"
 TERMS_JSON = ROOT / "site" / "src" / "data" / "terms.json"
-COLLECTIONS = ("day-master", "ten-gods", "stars", "guides", "zodiac", "zodiac-year")
+COLLECTIONS = ("day-master", "ten-gods", "five-elements", "stars", "guides", "zodiac", "zodiac-year")
 CJK_RE = re.compile(r"[　-鿿豈-﫿]")
 
 sys.path.insert(0, str(BACKEND))
@@ -258,47 +258,69 @@ def check_file(path: Path, content_dir: Path, terms: dict, routes: set[str],
             failures.append(f"{rel}: slug 重复(同 {collection}/{dir_lang} 已有 {slugs_seen[key]})")
         slugs_seen[key] = rel
 
-    # 4. 术语键取值必须在 terms.json 对应组内
+    # 4. 术语键取值必须在 terms.json 对应组内(非字符串取值同样 FAIL,不靠异常兜底)
     field_groups = {"stem": "heavenlyStems", "god": "tenGods", "star": "shensha",
                     "element": "fiveElements", "branch": "earthlyBranches"}
     for field, group in field_groups.items():
         value = fm.get(field)
-        if value is not None and value not in terms["groups"].get(group, {}):
-            failures.append(f"{rel}: {field}={value!r} 不在 terms.json 组 {group} 内(译名/键必须来自单一事实源)")
+        if value is not None and (not isinstance(value, str) or value not in terms["groups"].get(group, {})):
+            failures.append(
+                f"{rel}: {field}={value!r} 不在 terms.json 组 {group} 内(译名/键必须来自单一事实源,且为字符串)"
+            )
 
-    # 5. zodiac friends/clash 手填值必须与导出一致
-    if isinstance(fm.get("friends"), list) or isinstance(fm.get("clash"), str):
+    # 5. zodiac friends/clash 手填值必须与导出一致(字段只要出现就比对;
+    #    mini-YAML 只支持块状 `- ` 列表,行内 [丑, 辰] 会解析成裸字符串,同样要拦)
+    if "friends" in fm or "clash" in fm:
         branch = fm.get("branch")
         exported = terms["groups"]["branchRelations"].get(branch) if isinstance(branch, str) else None
         if exported is None:
             failures.append(f"{rel}: friends/clash 手填但 branch={branch!r} 无导出关系可比对")
         else:
-            if fm.get("friends") is not None and fm["friends"] != exported["friends"]:
-                failures.append(f"{rel}: friends 手填 {fm['friends']!r} ≠ 导出 {exported['friends']!r}(关系字段由构建期导出,不手填)")
-            if fm.get("clash") is not None and fm["clash"] != exported["clash"]:
-                failures.append(f"{rel}: clash 手填 {fm['clash']!r} ≠ 导出 {exported['clash']!r}(关系字段由构建期导出,不手填)")
+            friends_val = fm.get("friends")
+            if friends_val is not None and not isinstance(friends_val, list):
+                failures.append(
+                    f"{rel}: friends 手填值解析成 {type(friends_val).__name__}"
+                    f"(应为块状 `- ` 字符串列表),无法比对导出 {exported['friends']!r}"
+                )
+            elif friends_val is not None and friends_val != exported["friends"]:
+                failures.append(f"{rel}: friends 手填 {friends_val!r} ≠ 导出 {exported['friends']!r}(关系字段由构建期导出,不手填)")
+            clash_val = fm.get("clash")
+            if clash_val is not None and not isinstance(clash_val, str):
+                failures.append(
+                    f"{rel}: clash 手填值解析成 {type(clash_val).__name__}(应为字符串),无法比对导出"
+                )
+            elif clash_val is not None and clash_val != exported["clash"]:
+                failures.append(f"{rel}: clash 手填 {clash_val!r} ≠ 导出 {exported['clash']!r}(关系字段由构建期导出,不手填)")
 
     # 6. 禁词(backend scan + 额外英文 + 格局),命中报 文件:行
+    #    行号按「命中原文」定位;词类标签随行展示(标签不是原文,直接拿它回查会丢行号)
     scan_targets = [x for x in (title, description, in_short, body) if isinstance(x, str)]
     if isinstance(faq, list):
         scan_targets += [f"{item.get('q', '')} {item.get('a', '')}" for item in faq if isinstance(item, dict)]
-    hits: list[str] = []
+    word_hits: list[tuple[str, str]] = []  # (命中原文——用于行定位, 词类标签)
     for target in scan_targets:
-        hits.extend(backend_scan(target))
+        word_hits.extend((w, w) for w in backend_scan(target))
     for pattern, label in EXTRA_EN_BANNED:
         for target in scan_targets:
-            if re.search(pattern, target, re.IGNORECASE):
-                hits.append(label)
+            m2 = re.search(pattern, target, re.IGNORECASE)
+            if m2:
+                word_hits.append((m2.group(0), label))
     for target in scan_targets:
-        if _STRUCTURE_BANNED.search(target):
-            hits.append("…+structure(格局硬分类)")
-        if GE_ZH_BANNED.search(target):
-            hits.append("中文「……格」(格局硬分类)")
-    for hit in dict.fromkeys(hits):  # 去重保序
-        failures.append(f"{rel}:{line_of(hit)}: 禁词命中 {hit!r}")
+        m2 = _STRUCTURE_BANNED.search(target)
+        if m2:
+            word_hits.append((m2.group(0), "…+structure(格局硬分类)"))
+        m3 = GE_ZH_BANNED.search(target)
+        if m3:
+            word_hits.append((m3.group(0), "中文「……格」(格局硬分类)"))
+    seen: set[tuple[str, str]] = set()
+    for locate, label in word_hits:
+        if (locate, label) in seen:  # 去重保序
+            continue
+        seen.add((locate, label))
+        failures.append(f"{rel}:{line_of(locate)}: 禁词命中 {label}(原文 {locate!r})")
 
-    # 7. 内链 ≥ 8 且全部可解析
-    links = re.findall(r"\[[^\]]*\]\((/[^)]+)\)", body)
+    # 7. 内链 ≥ 8 且全部可解析(图片 ![alt](/x) 不算内链也不按路由校验)
+    links = re.findall(r"(?<!\!)\[[^\]]*\]\((/[^)]+)\)", body)
     internal = [l for l in links if not l.startswith(("http://", "https://", "mailto:", "#"))]
     if len(internal) < 8:
         failures.append(f"{rel}: 站内链接 {len(internal)} 条,要求 ≥ 8")

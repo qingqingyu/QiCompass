@@ -88,6 +88,16 @@ const tenGods = defineCollection({
     .superRefine(refineBase),
 });
 
+const fiveElements = defineCollection({
+  loader: glob({ pattern: '**/*.md', base: './src/content/five-elements' }),
+  schema: base
+    .extend({
+      /** 五行(木火土金水;规格 §3 一批含 5 个总览页,S07 产出) */
+      element: z.enum(elementKeys),
+    })
+    .superRefine(refineBase),
+});
+
 const stars = defineCollection({
   loader: glob({ pattern: '**/*.md', base: './src/content/stars' }),
   schema: base
@@ -146,6 +156,7 @@ const zodiacYear = defineCollection({
 export const collections = {
   'day-master': dayMaster,
   'ten-gods': tenGods,
+  'five-elements': fiveElements,
   stars,
   guides,
   zodiac,

@@ -3,11 +3,12 @@
 给写内容的人(或 AI)看。事实源:`docs/design-ref/website/README.md`(规格)、
 `docs/SEO站设计决策.md`(拍板)、backend 引擎与《三命通会》查表。本指南是它们的写作层落地。
 
-## 守护栏(每次动内容必跑,不过不算完成)
+## 守护栏(每次动内容必跑,不过不算完成;全部从仓库根跑)
 
 ```bash
 python3 tools/check_site_content.py            # 内容校验(禁词/长度/frontmatter/内链)
-cd site && npm run build                        # schema 校验(reviewedBy 缺审 = 构建失败)
+cd site && npm run build                        # schema 校验(reviewedBy 缺审 = 构建失败;
+                                                # prebuild 自动失效渲染缓存,见下)
 python3 tools/check_site_content.py --dir site/tests/fixtures/content   # fixtures 回归
 ```
 
@@ -17,10 +18,16 @@ python3 tools/check_site_content.py --dir site/tests/fixtures/content   # fixtur
 arch -arm64 backend/.venv/bin/python tools/check_term_sync.py
 ```
 
+**渲染缓存陷阱**:Astro content layer 把条目渲染结果缓存在 `node_modules/.astro/`,
+失效判据只有内容文件 digest——**插件 / terms.json / term-defs.json / astro.config.mjs
+的变更不会触发重渲染**,build 照样全绿但 dist 静默复用旧 HTML。`npm run build` 的
+prebuild 钩子(`site/scripts/invalidate-render-cache.mjs`)会对这组文件取指纹自动
+失效,所以**永远用 `npm run build`,不要绕过 npm 直接调 astro build**。
+
 ## 文件布局与 frontmatter
 
 - 路径:`site/src/content/{collection}/{lang}/{slug}.md`,collection ∈
-  `day-master / ten-gods / stars / guides / zodiac / zodiac-year`;lang ∈ `en / zh-hant`。
+  `day-master / ten-gods / five-elements / stars / guides / zodiac / zodiac-year`;lang ∈ `en / zh-hant`。
 - `slug` = 文件名 = URL 末段(小写字母数字连字符);`lang` 必须与目录段一致。
 - 必填:`title`(≤60 字符)、`description`(140–160 字符,一句完整回答,主词放最前)、
   `inShort`(答案框定义句:en ≤60 词 / 中文 ≤120 字)、`updated`("YYYY-MM-DD" **带引号**,

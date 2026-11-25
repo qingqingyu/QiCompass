@@ -62,7 +62,16 @@ def resolve_venv_python() -> Path:
     )
 
 
-VENV_PY = resolve_venv_python()
+# venv 解析放懒加载(__main__ 的 try 覆盖得到 ValueError → 干净的 exit 2;
+# 顶层即抛会变裸 traceback + exit 1,违背 docstring 退出码约定)
+VENV_PY: Path | None = None
+
+
+def venv_python() -> Path:
+    global VENV_PY
+    if VENV_PY is None:
+        VENV_PY = resolve_venv_python()
+    return VENV_PY
 
 TERM_TRANS = BACKEND / "app" / "engine" / "term_translations.py"
 PILLARS = BACKEND / "app" / "engine" / "pillars.py"
@@ -106,29 +115,7 @@ def extract_gan_element() -> dict[str, str]:
     return extract_dict_literal(PILLARS, "GAN_ELEMENT")
 
 
-def extract_branch_relations_tables() -> tuple[frozenset, tuple, frozenset, dict[str, int]]:
-    """branch_relations.py 的 LIUHE / SANHE / LIUCHONG / ZHI_ORDER(校验 ⑤ 组用后端直算,此处仅兜底导出)。"""
-    tree = ast.parse(
-        (BACKEND / "app" / "engine" / "branch_relations.py").read_text(encoding="utf-8"),
-        filename="branch_relations.py",
-    )
-    found: dict[str, object] = {}
-    for node in tree.body:
-        names = []
-        if isinstance(node, ast.Assign):
-            names = [t.id for t in node.targets if isinstance(t, ast.Name)]
-        elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
-            names = [node.target.id]
-        for n in ("LIUHE", "SANHE", "LIUCHONG", "ZHI_ORDER"):
-            if n in names and node.value is not None:
-                found[n] = ast.literal_eval(node.value)
-    missing = {"LIUHE", "SANHE", "LIUCHONG", "ZHI_ORDER"} - set(found)
-    if missing:
-        raise ValueError(f"branch_relations.py 缺常量: {sorted(missing)}")
-    return found["LIUHE"], found["SANHE"], found["LIUCHONG"], found["ZHI_ORDER"]
-
-
-def backend_branch_relations(venv_py: Path) -> dict[str, dict]:
+def backend_branch_relations() -> dict[str, dict]:
     """经 backend venv 调 compute_friends_and_clash(权威逻辑,不复制算法)。"""
     code = (
         "import json,sys; sys.path.insert(0, %r); "
@@ -138,7 +125,7 @@ def backend_branch_relations(venv_py: Path) -> dict[str, dict]:
     ) % str(BACKEND)
     try:
         proc = subprocess.run(
-            ["arch", "-arm64", str(VENV_PY), "-c", code],
+            ["arch", "-arm64", str(venv_python()), "-c", code],
             capture_output=True, text=True, timeout=60,
         )
     except (OSError, subprocess.TimeoutExpired) as e:
@@ -196,7 +183,7 @@ def build_terms() -> dict:
             }
         groups[name] = group
 
-    groups["branchRelations"] = backend_branch_relations(VENV_PY)
+    groups["branchRelations"] = backend_branch_relations()
     return {
         "_meta": {
             "source": "backend/app/engine/term_translations.py(AST 静态解析)+ pillars.py GAN_ELEMENT"
@@ -230,6 +217,8 @@ def main() -> int:
 if __name__ == "__main__":
     try:
         sys.exit(main())
-    except (ValueError, KeyError) as e:
+    except (ValueError, KeyError, SyntaxError, OSError) as e:
+        # SyntaxError: backend 源码损坏时 ast.parse 即抛;OSError: 输出文件不可写
+        # —— 都是脚本错误,统一走 exit 2,不裸 traceback(见 docstring 退出码约定)
         print(f"FAIL(脚本错误/backend 结构变化): {e}", file=sys.stderr)
         sys.exit(2)
