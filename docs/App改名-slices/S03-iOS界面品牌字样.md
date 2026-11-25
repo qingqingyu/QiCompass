@@ -59,7 +59,21 @@
 - 描述现状的注释同步;历史记录性质的注释保留
 - 守护脚本:`check_sku_sync.py` PASS;`build_songti_fonts.py --verify` PASS;「觀」及副题八字在 TC 子集内已逐字确认。`check_term_sync.py` 未跑(需后端依赖;本次未动术语表,非必跑项)
 
-**待 Mac 上验证**(并入 S06):Xcode 编译通过;`InfoPlist.xcstrings` 生效(三种系统语言主屏名);两字竖题与字距的构图;下面验收项的 24 张截图
+**Mac 验证结果(2026-11-25,Xcode 26.6 / rename 分支)**:
+- ✅ 编译一次通过(exit 0)——Linux 侧代码无编译错误;`InfoPlist.xcstrings` pbxproj 四处登记
+  (PBXBuildFile / PBXFileReference / group children / Resources phase)静态核对齐全,
+  `Info.plist` CFBundleDisplayName + 两处 `INFOPLIST_KEY_CFBundleDisplayName = KnowFate` 在位
+- ✅ iOS 单元测试 842/843 过(私有设备 DA0476D9,zh 语言,全量单跑)
+- ⚠️ 唯一失败 `LegacyStoreMigratorTests.test_persistentGroupContainerStoreLocationPin`
+  与改名**无关**(改名 diff 零触碰 Persistence/迁移/schema;文件清单已核):
+  本机 11-21 前后的工具链更新(新模拟器 runtime 构建)把 SwiftData groupContainer
+  的 store 从容器根改落到 `Library/Application Support/`(同标称版本 18.3.1,
+  EE9F307E 旧布局根 / DA0476D9 新布局 App Support,两台实证)——迁移器
+  `destinationDirectory = groupRoot` 会把迁移数据写进 SwiftData 读不到的位置,
+  **迁移路径在新 runtime 上存在数据丢失风险**。这是 pin 测试设计要抓的场景,
+  属 main 既有问题,修法(迁移目标适配布局 / 双写 / 探测)涉及用户数据兼容
+  策略,留用户拍板。真机覆盖安装验证(S06)恰好能实测该风险。
+- 截图验收(24 张)与主屏幕名三语言验证仍待 S06 真机走查
 
 ## Acceptance criteria
 
