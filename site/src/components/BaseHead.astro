@@ -1,0 +1,59 @@
+---
+// 每页 <head> 唯一入口:title / description / canonical / hreflang 三条 / OG / Twitter /
+// theme-color 双值 / robots / JSON-LD 插槽 / 字体 preload。
+// canonical 与 hreflang 一律无尾斜杠(规格 README §3;设计稿 home.html 的 `/en/` 带斜杠以规格为准)。
+import { SITE, stripLang, langPath, type Lang } from "../data/site";
+
+interface Props {
+  title: string;
+  description: string;
+  /** 当前页完整路径(带语言前缀,可带尾斜杠,内部归一化) */
+  path: string;
+  lang: Lang;
+  /** 构建产物示例页等:robots noindex */
+  noindex?: boolean;
+  /** og:image 绝对 URL(S06 生成后传入);缺省不出 og:image */
+  ogImage?: string;
+}
+
+const { title, description, path, lang, noindex = false, ogImage } = Astro.props;
+
+const canonicalPath = path.replace(/\/+$/, "") === "" ? "/" : path.replace(/\/+$/, "");
+const canonical = SITE.domain + (canonicalPath === "/" ? "" : canonicalPath);
+const { rest } = stripLang(path);
+const altEn = SITE.domain + langPath("en", rest);
+const altHant = SITE.domain + langPath("zh-hant", rest);
+
+const brand = SITE.brand[lang];
+const fullTitle = title.includes(brand.titleSuffix) ? title : `${title} ${brand.titleSuffix}`;
+
+const themeLight = "#E7E2D5";
+const themeDark = "#171412";
+---
+
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>{fullTitle}</title>
+<meta name="description" content={description} />
+{noindex && <meta name="robots" content="noindex, nofollow" />}
+<link rel="canonical" href={canonical} />
+<link rel="alternate" hreflang="en" href={altEn} />
+<link rel="alternate" hreflang="zh-Hant" href={altHant} />
+<link rel="alternate" hreflang="x-default" href={altEn} />
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+<meta name="theme-color" content={themeLight} media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content={themeDark} media="(prefers-color-scheme: dark)" />
+<meta property="og:type" content="website" />
+<meta property="og:site_name" content={lang === "en" ? "KnowFate" : "觀命 KnowFate"} />
+<meta property="og:title" content={fullTitle} />
+<meta property="og:description" content={description} />
+<meta property="og:url" content={canonical} />
+<meta property="og:locale" content={lang === "en" ? "en_US" : "zh_TW"} />
+{ogImage && <meta property="og:image" content={ogImage} />}
+<meta name="twitter:card" content={ogImage ? "summary_large_image" : "summary"} />
+{ogImage && <meta name="twitter:image" content={ogImage} />}
+{/* Newsreader 400 是标题字体,唯一 preload;中文子集 swap,不 preload */}
+<link rel="preload" href="/fonts/newsreader-400.woff2" as="font" type="font/woff2" crossorigin />
+{/* 尽早打上 .js 标记,滚动揭示(.js .reveal)才不会闪烁;真正的增强在打包后的 enhance.ts */}
+<script is:inline>document.documentElement.classList.add("js");</script>
+<slot />

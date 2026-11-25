@@ -1,0 +1,58 @@
+---
+// 页头:品牌字按语言(规格 README §13)+ 主导航 + 语言切换 + 移动端菜单按钮。
+// 当前页朱点 = aria-current="page" 的 ::after 菱形(global.css §6,DESIGN 允许的当前时辰点级朱红)。
+import { SITE, UI, NAV, langPath, stripLang, type Lang } from "../data/site";
+
+interface Props {
+  lang: Lang;
+  /** 当前页路径(带语言前缀),用于 aria-current 与语言切换目标 */
+  path: string;
+}
+
+const { lang, path } = Astro.props;
+const t = UI[lang];
+const brand = SITE.brand[lang];
+const { rest } = stripLang(path);
+const otherLang: Lang = lang === "en" ? "zh-hant" : "en";
+const siblingHref = langPath(otherLang, rest);
+
+const currentPath = path.replace(/\/+$/, "");
+---
+
+<header class="site-header">
+  <div class="wrap">
+    <a class="brand" href={langPath(lang, "/")} aria-label={t.homeAria}>
+      <svg viewBox="0 0 32 32" aria-hidden="true"><path d="M23.5 6.2A12 12 0 1 0 27.6 19" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/><rect x="21.5" y="20.5" width="6" height="6" rx="1" fill="var(--cinnabar)" transform="rotate(-4 24.5 23.5)"/></svg>
+      {lang === "en" ? (
+        <span class="brand-word">{brand.word}</span>
+      ) : (
+        <span style="display:grid;gap:4px">
+          <span class="brand-zh">{brand.word}</span>
+          <span class="brand-sub">KNOWFATE</span>
+        </span>
+      )}
+    </a>
+    <nav class="nav" id="nav" aria-label={lang === "en" ? "Primary" : "主選單"}>
+      {NAV.map((item) => (
+        <a href={langPath(lang, item.path)} aria-current={currentPath === langPath(lang, item.path) ? "page" : undefined}>
+          {t.nav[item.key]}
+        </a>
+      ))}
+    </nav>
+    <div class="header-right">
+      <div class="lang">
+        <a href={siblingHref} aria-current={lang === "en" ? "true" : undefined} hreflang={otherLang === "en" ? "en" : "zh-Hant"}>
+          {lang === "en" ? t.langSwitch.current : t.langSwitch.other}
+        </a>
+        <span aria-hidden="true">·</span>
+        {/* en 页面繁字用 SC 腿渲染(.tc 会拉起 241KB TC 字体,为一枚字不值得);
+            zh-hant 页面整页已是 TC 字体族 */}
+        <a href={siblingHref} aria-current={lang === "zh-hant" ? "true" : undefined} hreflang={otherLang === "en" ? "en" : "zh-Hant"} lang={lang === "en" ? "zh-Hant" : undefined} class={lang === "zh-hant" ? "tc" : "zh"}>
+          {lang === "en" ? t.langSwitch.other : t.langSwitch.current}
+        </a>
+      </div>
+      <a class="btn btn-sm" href={langPath(lang, "/en/app")}>{t.getTheApp}<span class="seal-dot" aria-hidden="true"></span></a>
+      <button class="menu-btn" aria-controls="nav" aria-expanded="false" aria-label={t.menuLabel}><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M3 7h16M3 15h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
+    </div>
+  </div>
+</header>

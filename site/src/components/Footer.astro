@@ -1,0 +1,143 @@
+---
+// 页脚 = 全站内链枢纽(设计稿 home.html §14;链接列表从数据生成)。
+// 注:术语列的显示名 S01 暂用设计稿英文写法;zh-hant 术语名等 S02 导出 term_translations
+// JSON 后接入(术语译名单一事实源红线,不在站点另起译名)。
+import { SITE, UI, langPath, stripLang, type Lang } from "../data/site";
+
+interface Props {
+  lang: Lang;
+  path: string;
+}
+
+const { lang, path } = Astro.props;
+const t = UI[lang];
+const brand = SITE.brand[lang];
+const { rest } = stripLang(path);
+const otherLang: Lang = lang === "en" ? "zh-hant" : "en";
+
+const P = (p: string) => langPath(lang, p);
+
+const dayMasters = [
+  { zh: "甲", slug: "jia-wood", name: "Jia Wood" },
+  { zh: "乙", slug: "yi-wood", name: "Yi Wood" },
+  { zh: "丙", slug: "bing-fire", name: "Bing Fire" },
+  { zh: "丁", slug: "ding-fire", name: "Ding Fire" },
+  { zh: "戊", slug: "wu-earth", name: "Wu Earth" },
+  { zh: "己", slug: "ji-earth", name: "Ji Earth" },
+  { zh: "庚", slug: "geng-metal", name: "Geng Metal" },
+  { zh: "辛", slug: "xin-metal", name: "Xin Metal" },
+  { zh: "壬", slug: "ren-water", name: "Ren Water" },
+  { zh: "癸", slug: "gui-water", name: "Gui Water" },
+];
+
+const tenGods = [
+  { slug: "companion", name: "Companion" },
+  { slug: "rob-wealth", name: "Rob Wealth" },
+  { slug: "eating-god", name: "Eating God" },
+  { slug: "hurting-officer", name: "Hurting Officer" },
+  { slug: "indirect-wealth", name: "Indirect Wealth" },
+  { slug: "direct-wealth", name: "Direct Wealth" },
+  { slug: "direct-officer", name: "Direct Officer" },
+  { slug: "seven-killings", name: "Seven Killings" },
+  { slug: "direct-resource", name: "Direct Resource" },
+  { slug: "indirect-resource", name: "Indirect Resource" },
+];
+
+const elements = [
+  { slug: "wood", name: "Wood" },
+  { slug: "fire", name: "Fire" },
+  { slug: "earth", name: "Earth" },
+  { slug: "metal", name: "Metal" },
+  { slug: "water", name: "Water" },
+];
+
+const stars = [
+  { slug: "nobleman", name: "Nobleman Star" },
+  { slug: "peach-blossom", name: "Peach Blossom" },
+  { slug: "travelling-horse", name: "Travelling Horse" },
+  { slug: "academic-star", name: "Academic Star" },
+  { slug: "canopy-star", name: "Canopy Star" },
+];
+
+const tools = [
+  { p: "/en/bazi-calculator", name: "BaZi calculator" },
+  { p: "/en/day-master-calculator", name: "Day Master finder" },
+  { p: "/en/today", name: "Chinese calendar today" },
+  { p: "/en/guides/how-to-read-a-bazi-chart", name: "How to read a chart" },
+  { p: "/en/guides/unknown-birth-time", name: "Unknown birth time" },
+  { p: "/en/guides/true-solar-time", name: "True solar time" },
+  { p: "/en/about", name: "About & method" },
+  { p: "/en/privacy", name: "Privacy" },
+];
+---
+
+<footer class="site-footer">
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <a class="brand" href={langPath(lang, "/")} aria-label={t.homeAria}>
+          <svg viewBox="0 0 32 32" aria-hidden="true" style="width:26px;height:26px"><path d="M23.5 6.2A12 12 0 1 0 27.6 19" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"/></svg>
+          {lang === "en" ? (
+            <span class="brand-word">KNOWFATE</span>
+          ) : (
+            <span style="display:grid;gap:4px">
+              <span class="brand-zh">{brand.word}</span>
+              <span class="brand-sub">KNOWFATE</span>
+            </span>
+          )}
+        </a>
+        <p class="caption" style="margin-top:18px;max-width:26em">{t.footer.tagline}</p>
+        <div style="display:flex;gap:14px;align-items:center;margin-top:20px">
+          <span class="seal" style="--size:30px">{brand.seal}</span>
+          <span class="micro">knowfate.app</span>
+        </div>
+      </div>
+      <div>
+        <h2 class="foot-h">{t.footer.colDayMasters}</h2>
+        <ul>
+          {dayMasters.map((dm) => (
+            <li><a href={P(`/en/day-master/${dm.slug}`)}><span class="zh-l">{dm.zh}</span>{dm.name}</a></li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <h2 class="foot-h">{t.footer.colTenGods}</h2>
+        <ul>
+          {tenGods.map((g) => (
+            <li><a href={P(`/en/ten-gods/${g.slug}`)}>{g.name}</a></li>
+          ))}
+        </ul>
+      </div>
+      <div>
+        <h2 class="foot-h">{t.footer.colElements}</h2>
+        <ul>
+          <li>{elements.slice(0, 3).map((e, i) => (<>{i > 0 && " · "}<a href={P(`/en/five-elements/${e.slug}`)}>{e.name}</a></>))}</li>
+          <li>{elements.slice(3).map((e, i) => (<>{i > 0 && " · "}<a href={P(`/en/five-elements/${e.slug}`)}>{e.name}</a></>))}</li>
+          {stars.slice(0, 2).map((s) => <li><a href={P(`/en/stars/${s.slug}`)}>{s.name}</a></li>)}
+          {stars.slice(2).map((s) => <li><a href={P(`/en/stars/${s.slug}`)}>{s.name}</a></li>)}
+          <li><a href={P("/en/day-pillars")}>{t.footer.allDayPillars}</a></li>
+        </ul>
+      </div>
+      <div>
+        <h2 class="foot-h">{t.footer.colTools}</h2>
+        <ul>
+          {tools.map((tool) => (
+            <li><a href={P(tool.p)}>{tool.name}</a></li>
+          ))}
+        </ul>
+      </div>
+    </div>
+    <div class="foot-base">
+      <span>{t.footer.disclaimer}</span>
+      <span>
+        <a href={`mailto:${SITE.email}`}>{SITE.email}</a>
+        {" · "}{brand.copyright}
+        {" · "}
+        <a href={langPath("en", rest)} hreflang="en" aria-current={lang === "en" ? "true" : undefined}>English</a>
+        {" · "}
+        {/* 繁體中文字样:仅 zh-hant 页面(当前语言)用 .tc;en 页面走 SC 腿,避免 en 页拉 241KB TC 字体 */}
+        <a href={langPath(otherLang, rest)} hreflang="zh-Hant" lang={otherLang === "en" ? undefined : "zh-Hant"} class={lang === "zh-hant" ? "tc" : "zh"} aria-current={lang === "zh-hant" ? "true" : undefined}>繁體中文</a>
+      </span>
+    </div>
+  </div>
+</footer>

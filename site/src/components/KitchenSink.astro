@@ -1,0 +1,353 @@
+---
+// 组件样张页(视觉回归基准):所有 S01 基础组件、色板、字号阶梯、亮暗双主题。
+// en 与 zh-hant 两个路由共用;noindex,不进 sitemap(S01 规格 #7)。
+import Base from "../layouts/Base.astro";
+import Kicker from "./Kicker.astro";
+import Enso from "./Enso.astro";
+import Seal from "./Seal.astro";
+import Numeral from "./Numeral.astro";
+import { SITE, type Lang } from "../data/site";
+
+interface Props {
+  lang: Lang;
+}
+
+const { lang } = Astro.props;
+const brand = SITE.brand[lang];
+const en = lang === "en";
+
+const L = en
+  ? {
+      title: "Component kitchen sink",
+      description: "Internal visual-regression page. Not indexed.",
+      h1: "Kitchen sink",
+      lede: "Every S01 base component, token and type role on one page — the visual-regression baseline.",
+      secType: "Type roles",
+      secSig: "Signature elements",
+      secColor: "Palette",
+      secDark: "Dark island",
+      secCtl: "Controls",
+      secContent: "Content blocks",
+      secChart: "Chart pieces",
+      secMotion: "Motion",
+      secReveal: "Scroll reveal (needs JS, invisible without .in only)",
+      heroZh: "八字排盘",
+      vtextZh: "水墨孤本",
+      ensoTitle: "An ink circle drawn with a single brush stroke",
+      swatchZhNote: "夜宣纸 · dark",
+      chipOff: "Chip",
+      chipOn: "Pressed",
+      chipJade: "Jade",
+      notifyCap: "One email when the app is on the App Store. Nothing else.",
+      notifyBtn: "Notify me at launch",
+      ctaPanelTitle: "This page describes every Jia. Your chart describes you.",
+      ctaInlineTitle: "Is your Day Master Jia?",
+      ctaInlineCap: "Cast your chart free — deterministic, no sign-up.",
+      ctaBtn: "Cast my chart",
+      faqQ1: "Is this BaZi calculator free?",
+      faqA1: "Yes. The chart, element balance, ten gods, hidden stems, luck pillars and symbolic stars are free with no sign-up.",
+      faqQ2: "Do I need my exact birth time?",
+      faqA2: "No. Without a time you still get the year, month and day pillars — including your Day Master.",
+      answerKicker: "In short",
+      answerText:
+        'BaZi (八字, "eight characters") describes the moment you were born as four pillars — year, month, day and hour.',
+      lockedTitle: "The reading — eight chapters, in the app",
+      lockedBody: "This is the structure. The app reads it to you.",
+      elCap: "Example chart: 18 Apr 1992, 09:30, Beijing. Day Master Jia Wood.",
+      senseY: "Roots & family background",
+      senseM: "Upbringing & working environment",
+      senseD: "You — the Day Master — and close partnership",
+      senseH: "Inner aims & later years",
+      dmTag: "Day Master",
+    }
+  : {
+      title: "元件樣張頁",
+      description: "內部視覺回歸頁,不收錄。",
+      h1: "元件樣張",
+      lede: "S01 全部基礎元件、色票與字階集中在一頁——視覺回歸基準。",
+      secType: "字階",
+      secSig: "品牌指紋",
+      secColor: "色板",
+      secDark: "夜宣紙孤島",
+      secCtl: "控件",
+      secContent: "內容塊",
+      secChart: "盤面部件",
+      secMotion: "動效",
+      secReveal: "滾動揭示(有 JS 才觸發,無 JS 恆可見)",
+      heroZh: "八字排盤",
+      vtextZh: "水墨孤本",
+      ensoTitle: "一筆畫出的墨圓",
+      swatchZhNote: "夜宣紙 · 暗",
+      chipOff: "未選",
+      chipOn: "已選",
+      chipJade: "墨青",
+      notifyCap: "App 上架時通知一次,再無其他。",
+      notifyBtn: "上架通知我",
+      ctaPanelTitle: "這一頁寫的是每一個甲。你的命盤寫的是你。",
+      ctaInlineTitle: "你的日主是甲嗎?",
+      ctaInlineCap: "免費排盤——確定性、免註冊。",
+      ctaBtn: "去排盤",
+      faqQ1: "這個排盤器免費嗎?",
+      faqA1: "免費。命盤、五行比例、十神、藏干、大運與神煞都不收費、免註冊。",
+      faqQ2: "需要確切的出生時間嗎?",
+      faqA2: "不需要。沒有時間也能排出年、月、日三柱——包括你的日主。",
+      answerKicker: "簡答",
+      answerText: "八字把出生那一刻寫成四柱——年、月、日、時,每柱一天干一地支,共八個字。",
+      lockedTitle: "解讀——命書捌章,在 App",
+      lockedBody: "這是結構。App 把它讀給你聽。",
+      elCap: "示例命盤:1992 年 4 月 18 日 09:30,北京。日主甲木。",
+      senseY: "根與出身",
+      senseM: "成長與工作環境",
+      senseD: "你——日主——與親密關係",
+      senseH: "內心志向與晚年",
+      dmTag: "日主",
+    };
+
+const swatches: Array<{ varName: string; hex: string; label: string }> = [
+  { varName: "--paper", hex: "#E7E2D5", label: "paper" },
+  { varName: "--paper-raised", hex: "#F7F5F0", label: "paper-raised" },
+  { varName: "--ink", hex: "#1C1B1E", label: "ink" },
+  { varName: "--ink-muted", hex: "#77726A", label: "ink-muted" },
+  { varName: "--ink-muted-2", hex: "#A5A098", label: "ink-muted-2" },
+  { varName: "--ink-deep", hex: "#17161A", label: "ink-deep" },
+  { varName: "--cinnabar", hex: "#A83226", label: "cinnabar" },
+  { varName: "--jade", hex: "#2F5E4A", label: "jade" },
+  { varName: "--dai", hex: "#3D4A5C", label: "dai" },
+  { varName: "--wood", hex: "#466F46", label: "wood" },
+  { varName: "--fire", hex: "#A85A42", label: "fire" },
+  { varName: "--earth", hex: "#A6801E", label: "earth" },
+  { varName: "--metal", hex: "#807E76", label: "metal" },
+  { varName: "--water", hex: "#3C5568", label: "water" },
+  { varName: "dark paper", hex: "#171412", label: "dark paper" },
+];
+
+const numerals = ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"];
+---
+
+<style>
+  /* 色板网格:源样式在设计看板 index.html 内联(不上线),样张页在此重建同款 */
+  .sw { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 16px; margin-top: 28px; }
+  .sw div { font: 12.5px/1.5 var(--f-sans); color: var(--ink-muted); }
+  .sw i { display: block; height: 64px; border-radius: var(--r-sm); margin-bottom: 8px; }
+  .sw b { display: block; color: var(--ink); font-weight: 500; }
+</style>
+
+
+<Base {lang} title={L.title} description={L.description} path={`/${lang}/kitchen-sink`} noindex>
+  <section class="section" aria-label={L.h1}>
+    <div class="wrap">
+      <Kicker text="KnowFate · S01" zh={L.heroZh} dot />
+      <h1 class="h1 ink-in" style="margin-top:18px">{L.h1}</h1>
+      <p class="lede ink-in d1" style="margin-top:20px">{L.lede}</p>
+      <hr class="brush" />
+    </div>
+  </section>
+
+  <section class="section-tight" aria-label={L.secType}>
+    <div class="wrap">
+      <h2 class="h2">{L.secType}</h2>
+      <p class="display" style="margin-top:24px">Display 76→40</p>
+      <p class="h1">Heading 1 54→34</p>
+      <p class="h2">Heading 2 38→28</p>
+      <p class="h3">Heading 3 22</p>
+      <p class="lede" style="margin-top:16px">Lede 20 — the intro paragraph role, max-width 36em.</p>
+      <p>Body 17(文章 18)— regular paragraph with <a href="#">an inline link</a>.</p>
+      <p class="caption">Caption 13.5 — captions and figure notes.</p>
+      <p class="micro">Micro 12 — micro annotations.</p>
+      <div style="display:flex;gap:24px;align-items:center;margin-top:24px">
+        <span class="vtext" style="font-size:22px" aria-hidden="true">{L.vtextZh}</span>
+        <span class="kicker">LatinCaps 11 · KNOWFATE</span>
+        <span class="num" style="font-size:17px">0123456789</span>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-tight" aria-label={L.secSig}>
+    <div class="wrap">
+      <h2 class="h2">{L.secSig}</h2>
+      <div style="display:flex;gap:28px;align-items:center;flex-wrap:wrap;margin-top:32px">
+        <span style="width:120px"><Enso variant="display" draw breathe title={L.ensoTitle} id="sink-enso" /></span>
+        <span style="width:80px"><Enso variant="display" id="sink-enso-static" /></span>
+        <Seal char={brand.seal} />
+        <Seal char="解" size={30} />
+        <Seal char="批" size={38} stamp />
+        {numerals.slice(0, 3).map((n) => <Numeral char={n} />)}
+        <Numeral char={numerals[2]} locked />
+        <span class="numeral locked">{numerals[3]}</span>
+        <hr class="brush" />
+      </div>
+    </div>
+  </section>
+
+  <section class="section-tight" aria-label={L.secColor}>
+    <div class="wrap">
+      <h2 class="h2">{L.secColor}</h2>
+      <div class="sw" style="margin-top:28px">
+        {swatches.map((s) => (
+          <div>
+            <i style={`background:${s.hex};box-shadow:inset 0 0 0 1px var(--hairline)`} aria-hidden="true"></i>
+            <b>{s.label}</b>
+            <span>{s.hex}</span>
+            {s.label === "dark paper" && <span class="zh">{L.swatchZhNote}</span>}
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section-tight" aria-label={L.secDark}>
+    <div class="wrap">
+      <h2 class="h2">{L.secDark}</h2>
+      <div class="dark-scope" style="margin-top:28px;border:1px solid var(--hairline);border-radius:8px;padding:28px;background:var(--paper)">
+        <p class="kicker">Dark island · <span class="zh">{L.vtextZh}</span></p>
+        <p class="h3" style="margin-top:12px">夜宣紙 #171412 — warm dark, not inverted</p>
+        <div style="display:flex;gap:20px;align-items:center;margin-top:16px;flex-wrap:wrap">
+          <span class="seal">观</span>
+          <span class="numeral">壹</span>
+          <span class="numeral locked">叁</span>
+          <span class="zh el-wood" style="font-size:34px">甲</span>
+          <span class="zh el-fire" style="font-size:34px">丙</span>
+          <span class="zh el-earth" style="font-size:34px">戊</span>
+          <span class="zh el-metal" style="font-size:34px">庚</span>
+          <span class="zh el-water" style="font-size:34px">壬</span>
+          <a class="btn" href="#">Button</a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-tight" aria-label={L.secCtl}>
+    <div class="wrap">
+      <h2 class="h2">{L.secCtl}</h2>
+      <div style="display:flex;gap:16px;align-items:center;flex-wrap:wrap;margin-top:28px">
+        <a class="btn" href="#">{L.ctaBtn}<span class="seal-dot" aria-hidden="true"></span></a>
+        <a class="btn btn-ghost" href="#">Ghost</a>
+        <a class="btn btn-sm" href="#">Small</a>
+        <a class="link-arrow" href="#">Link arrow</a>
+        <button class="chip">{L.chipOff}</button>
+        <button class="chip" aria-pressed="true">{L.chipOn}</button>
+        <button class="chip jade">{L.chipJade}</button>
+      </div>
+      <div style="display:flex;gap:16px;align-items:end;flex-wrap:wrap;margin-top:28px">
+        <div class="field">
+          <label for="ks-d">Birth date</label>
+          <input class="input num" id="ks-d" type="date" value="1992-04-18" />
+        </div>
+        <div class="field">
+          <label for="ks-c">Birthplace</label>
+          <input class="input" id="ks-c" placeholder="City" />
+        </div>
+        <label class="check"><input type="checkbox" /> I don't know my birth time</label>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-tight" aria-label={L.secContent}>
+    <div class="wrap" style="max-width:880px">
+      <h2 class="h2">{L.secContent}</h2>
+      <ol class="crumbs">
+        <li><a href="#">Library</a></li>
+        <li><a href="#">Day Masters</a></li>
+        <li aria-current="page">Jia Wood</li>
+      </ol>
+      <div class="answer" style="margin-top:28px">
+        <span class="kicker">{L.answerKicker}</span>
+        <p>{L.answerText}</p>
+      </div>
+      <p>
+        <a class="term" href="#" data-title="Day Master" data-zh="日主" data-def="The Heavenly Stem of your day pillar.">Day Master</a>
+        {" — term links get dotted underlines and (later slices) hover cards."}
+      </p>
+      <div class="cta-inline">
+        <span class="numeral">壹</span>
+        <div>
+          <p>{L.ctaInlineTitle}</p>
+          <span class="caption">{L.ctaInlineCap}</span>
+        </div>
+        <a class="btn" href="#">{L.ctaBtn}<span class="seal-dot" aria-hidden="true"></span></a>
+      </div>
+      <div class="locked-box" style="margin-top:24px">
+        <p class="kicker">Locked</p>
+        <p class="h3" style="margin-top:10px">{L.lockedTitle}</p>
+        <p class="muted" style="margin-top:8px">{L.lockedBody}</p>
+      </div>
+      <div class="cta-panel" style="margin-top:24px">
+        <p class="h3" style="margin:0">{L.ctaPanelTitle}</p>
+        <form class="notify" action="https://buttondown.com/api/emails/embed-subscribe/qicompass" method="post">
+          <label for="ks-n" class="sr-only">Email</label>
+          <input class="input" id="ks-n" type="email" name="email" placeholder="you@example.com" required />
+          <button class="btn" type="submit">{L.notifyBtn}</button>
+        </form>
+        <p class="caption" style="margin:0">{L.notifyCap}</p>
+      </div>
+      <div class="faq" style="margin-top:40px">
+        <details open>
+          <summary><span class="numeral">壹</span>{L.faqQ1}</summary>
+          <div class="ans">{L.faqA1}</div>
+        </details>
+        <details>
+          <summary><span class="numeral">贰</span>{L.faqQ2}</summary>
+          <div class="ans">{L.faqA2}</div>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-tight" aria-label={L.secChart}>
+    <div class="wrap" style="max-width:880px">
+      <h2 class="h2">{L.secChart}</h2>
+      <div class="pillars" style="margin-top:28px">
+        <div class="rl hd"></div>
+        <div class="hd">Year</div>
+        <div class="hd">Month</div>
+        <div class="hd">Day</div>
+        <div class="hd">Hour</div>
+        <div class="rl"><span class="zh">{en ? "十神" : "十神"}</span></div>
+        <div class="god"><span class="zh">偏印</span></div>
+        <div class="god"><span class="zh">比肩</span></div>
+        <div class="god dm-tag"><span class="zh">日主</span></div>
+        <div class="god"><span class="zh">正财</span></div>
+        <div class="rl"><span class="zh">四柱</span></div>
+        <div class="gz"><span class="el-water">壬</span><span class="el-metal">申</span></div>
+        <div class="gz"><span class="el-wood">甲</span><span class="el-earth">辰</span></div>
+        <div class="gz dm"><span class="el-wood">甲</span><span class="el-water">子</span></div>
+        <div class="gz"><span class="el-earth">己</span><span class="el-fire">巳</span></div>
+      </div>
+      <p class="caption" style="margin-top:14px">{L.elCap}</p>
+      <div class="elbar" style="margin-top:32px" role="img" aria-label="Five elements balance example">
+        <span style="width:30%;background:var(--wood)"></span>
+        <span style="width:10%;background:var(--fire)"></span>
+        <span style="width:25%;background:var(--earth)"></span>
+        <span style="width:15%;background:var(--metal)"></span>
+        <span style="width:20%;background:var(--water)"></span>
+      </div>
+      <div class="ellegend">
+        <div><b class="num">30</b><span>Wood <span class="zh">木</span></span></div>
+        <div><b class="num">10</b><span>Fire <span class="zh">火</span></span></div>
+        <div><b class="num">25</b><span>Earth <span class="zh">土</span></span></div>
+        <div><b class="num">15</b><span>Metal <span class="zh">金</span></span></div>
+        <div><b class="num">20</b><span>Water <span class="zh">水</span></span></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-tight" aria-label={L.secMotion}>
+    <div class="wrap" style="padding-bottom:72px">
+      <h2 class="h2">{L.secMotion}</h2>
+      <p class="caption" style="margin-top:16px">ink-in load: blur 7→0, delays d1–d5</p>
+      <div style="display:flex;gap:18px;align-items:center;margin-top:16px;flex-wrap:wrap">
+        {numerals.map((n, i) => (
+          <span class={`numeral ink-in ${i > 0 ? `d${Math.min(i + 1, 5)}` : ""}`}>{n}</span>
+        ))}
+      </div>
+      <p class="caption" style="margin-top:32px">{L.secReveal}</p>
+      <div class="reveal" style="margin-top:16px">
+        <span class="numeral">壹</span>
+        <span style="margin-left:12px">Reveal target — gets .in via IntersectionObserver.</span>
+      </div>
+      <div class="reveal" style="margin-top:12px">
+        <Seal char="解" size={30} />
+      </div>
+    </div>
+  </section>
+</Base>

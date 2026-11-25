@@ -1,0 +1,12 @@
+---
+// 大写数字编号(壹–捌)。实线 = 可读章节;locked 虚线 = 锁定章节(付费)。
+interface Props {
+  char: string;
+  locked?: boolean;
+  class?: string;
+}
+
+const { char, locked = false, class: className = "" } = Astro.props;
+---
+
+<span class={`numeral ${locked ? "locked" : ""} ${className}`.trim()} aria-hidden="true">{char}</span>

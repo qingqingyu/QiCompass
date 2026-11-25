@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- KnowFate 品牌标:墨弧 + 朱印方块(与 Header 品牌标同构) -->
+  <path d="M23.5 6.2A12 12 0 1 0 27.6 19" fill="none" stroke="#1C1B1E" stroke-width="2.6" stroke-linecap="round"/>
+  <rect x="21.5" y="20.5" width="6" height="6" rx="1" fill="#A83226" transform="rotate(-4 24.5 23.5)"/>
+</svg>

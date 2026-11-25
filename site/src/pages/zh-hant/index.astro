@@ -1,0 +1,26 @@
+---
+// S01 占位首页(zh-hant):僅為 /zh-hant 路由與 hreflang 互指存在;S04 重建完整首頁。
+import Base from "../../layouts/Base.astro";
+import Kicker from "../../components/Kicker.astro";
+import { type Lang } from "../../data/site";
+
+const lang: Lang = "zh-hant";
+---
+
+<Base
+  {lang}
+  title="觀命 KnowFate — 八字排盤,誠實解讀"
+  description="確定性八字排盤(真太陽時修正),附日主、十神、五行的繁中知識庫。不作預測,不貼標籤。"
+  path="/zh-hant"
+>
+  <section class="section">
+    <div class="wrap">
+      <Kicker text="KnowFate" zh="八字排盤" dot />
+      <h1 class="display ink-in" style="margin-top:18px">四柱之上,<em style="font-style:italic;color:var(--ink-muted);font-weight:300;display:block">誠實解讀。</em></h1>
+      <p class="lede ink-in d1" style="margin-top:24px">
+        八字知識站與免費排盤器正在逐頁上線。確定性排盤、真太陽時修正、措辭克制——不作預測,不貼標籤。
+      </p>
+      <hr class="brush" style="margin-top:8px" />
+    </div>
+  </section>
+</Base>

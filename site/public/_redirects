@@ -1,0 +1,5 @@
+# Cloudflare Pages redirects(S01 规格:#2 根路径跳默认语言,不用 JS)
+# 注意:_redirects 规则先于静态资源匹配;目标一律无尾斜杠(规格 README §3)
+/                /en      302
+/en/             /en      308
+/zh-hant/        /zh-hant 308

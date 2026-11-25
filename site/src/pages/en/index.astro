@@ -1,0 +1,27 @@
+---
+// S01 占位首页:仅为 /en 路由与 _redirects 目标存在;S04 按设计稿重建完整首页。
+// 可收录(为 Lighthouse SEO=100 提供真实目标;示例页才 noindex)。
+import Base from "../../layouts/Base.astro";
+import Kicker from "../../components/Kicker.astro";
+import { type Lang } from "../../data/site";
+
+const lang: Lang = "en";
+---
+
+<Base
+  {lang}
+  title="KnowFate — BaZi (Four Pillars of Destiny), read honestly"
+  description="Deterministic BaZi charts with True Solar Time, plus a plain-English library of Day Masters, Ten Gods and the Five Elements. No predictions, no labels."
+  path="/en"
+>
+  <section class="section">
+    <div class="wrap">
+      <Kicker text="KnowFate" zh="八字排盘" dot />
+      <h1 class="display ink-in" style="margin-top:18px">The Four Pillars, <em style="font-style:italic;color:var(--ink-muted);font-weight:300;display:block">read honestly.</em></h1>
+      <p class="lede ink-in d1" style="margin-top:24px">
+        A BaZi reference and free calculator is on its way — the library opens page by page. Deterministic charts with True Solar Time, careful words, no predictions.
+      </p>
+      <hr class="brush" style="margin-top:8px" />
+    </div>
+  </section>
+</Base>

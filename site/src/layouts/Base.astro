@@ -1,0 +1,41 @@
+---
+// 全站唯一 html 布局:head 走 BaseHead;页头/页脚按语言;enhance.ts 由 Astro 打包。
+import BaseHead from "../components/BaseHead.astro";
+import Header from "../components/Header.astro";
+import Footer from "../components/Footer.astro";
+import { UI, type Lang } from "../data/site";
+import "../styles/global.css";
+
+interface Props {
+  lang: Lang;
+  title: string;
+  description: string;
+  path: string;
+  noindex?: boolean;
+  ogImage?: string;
+}
+
+const { lang, title, description, path, noindex, ogImage } = Astro.props;
+const t = UI[lang];
+const htmlLang = lang === "en" ? "en" : "zh-Hant";
+---
+
+<!doctype html>
+<html lang={htmlLang}>
+  <head>
+    <BaseHead {title} {description} {path} {lang} {noindex} {ogImage}>
+      <slot name="head" />
+    </BaseHead>
+  </head>
+  <body>
+    <a class="sr-only" href="#main">{t.skipToContent}</a>
+    <Header {lang} {path} />
+    <main id="main">
+      <slot />
+    </main>
+    <Footer {lang} {path} />
+    <script>
+      import "../scripts/enhance";
+    </script>
+  </body>
+</html>

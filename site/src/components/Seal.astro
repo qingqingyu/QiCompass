@@ -1,0 +1,15 @@
+---
+// 朱印 SealStamp(DESIGN.md 品牌指纹)。朱红仅印章级;stamp 动效由 enhance.ts 进入视口 60% 触发。
+interface Props {
+  /** 印文:品牌印按语言取「观」/「觀」(Header/Footer 已处理);功能印「解」「批」等由调用方传 */
+  char: string;
+  size?: number;
+  /** 进入视口时落印 */
+  stamp?: boolean;
+  class?: string;
+}
+
+const { char, size = 34, stamp = false, class: className = "" } = Astro.props;
+---
+
+<span class={`seal ${className}`.trim()} style={`--size:${size}px`} data-stamp={stamp ? "" : undefined} aria-hidden="true">{char}</span>

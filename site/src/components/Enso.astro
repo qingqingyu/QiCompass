@@ -1,0 +1,43 @@
+---
+// 墨圆(DESIGN.md 品牌指纹)。
+// variant "display":大圆 + 毛笔边(feTurbulence),可带 draw 描边动画与 breathe 呼吸。
+//   stroke 路径与 home.html 时辰盘同源(pathLength=1 → dashoffset 1→0,2.2s)。
+// variant "mark":页头/页脚小标(32 viewBox 墨弧 + 朱印方块由调用方组合)。
+// 同页多个 display 圆时 filter id 冲突 → 用 id prop 区分。
+interface Props {
+  variant?: "display" | "mark";
+  draw?: boolean;
+  breathe?: boolean;
+  title?: string;
+  /** display 变体的 filter id;传 title 时必传,保证唯一 */
+  id?: string;
+  class?: string;
+}
+
+const { variant = "display", draw = false, breathe = false, title, id = "enso", class: className = "" } = Astro.props;
+
+const cls = ["enso", draw && "draw", breathe && "breathe", className].filter(Boolean).join(" ");
+
+if (variant === "display" && title && !id) {
+  throw new Error("Enso: display 变体带 title 时必须传唯一 id(filter 引用会跨 SVG 冲突)");
+}
+---
+
+{
+  variant === "display" ? (
+    <svg class={cls} viewBox="0 0 440 440" role={title ? "img" : undefined} aria-hidden={title ? undefined : "true"}>
+      {title && <title>{title}</title>}
+      <defs>
+        <filter id={id} x="-10%" y="-10%" width="120%" height="120%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="4" seed="3" result="n" />
+          <feDisplacementMap in="SourceGraphic" in2="n" scale="9" />
+        </filter>
+      </defs>
+      <path class="stroke" pathLength="1" d="M285.7,96.4 A140,140 0 1,0 356.9,249.1" stroke-width="13" filter={`url(#${id})`} />
+    </svg>
+  ) : (
+    <svg class={cls} viewBox="0 0 32 32" aria-hidden="true">
+      <path d="M23.5 6.2A12 12 0 1 0 27.6 19" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" />
+    </svg>
+  )
+}

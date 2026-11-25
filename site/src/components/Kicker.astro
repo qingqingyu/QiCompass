@@ -1,0 +1,17 @@
+---
+// latinCaps 字距标:KNOWFATE 级小标 + 可选朱红菱形点 + 可选中文并置。
+interface Props {
+  text: string;
+  zh?: string;
+  dot?: boolean;
+  class?: string;
+}
+
+const { text, zh, dot = false, class: className = "" } = Astro.props;
+---
+
+<p class={`kicker ${className}`.trim()}>
+  {text}
+  {dot && <span class="dot" aria-hidden="true"></span>}
+  {zh && <span class="zh" style="letter-spacing:.3em">{zh}</span>}
+</p>
