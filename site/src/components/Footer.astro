@@ -1,8 +1,11 @@
 ---
 // 页脚 = 全站内链枢纽(设计稿 home.html §14;链接列表从数据生成)。
-// 注:术语列的显示名 S01 暂用设计稿英文写法;zh-hant 术语名等 S02 导出 term_translations
-// JSON 后接入(术语译名单一事实源红线,不在站点另起译名)。
-import { SITE, UI, langPath, stripLang, zhFamily, type Lang } from "../data/site";
+// 术语列(日主/十神/五行/神煞)自 S02 起取 terms.json 单一事实源(2026-11-27
+// 外评修复兑现 S01 预留注释):名字按语言取 en / zhHant,路径取后端导出值,
+// 不在站点另起译名(术语单一事实源红线)。
+// 未上线区块灰显不出 <a>(LAUNCH 开关,同 Header;防搜索引擎首抓撞 404)。
+import { SITE, UI, LAUNCH, langPath, stripLang, zhFamily, type Lang } from "../data/site";
+import terms from "../data/terms.json";
 
 interface Props {
   lang: Lang;
@@ -17,58 +20,34 @@ const { rest } = stripLang(path);
 // 链接路径一律 rest 形态(不带语言前缀),经 langPath 补当前语言前缀
 const P = (p: string) => langPath(lang, p);
 
-const dayMasters = [
-  { zh: "甲", slug: "jia-wood", name: "Jia Wood" },
-  { zh: "乙", slug: "yi-wood", name: "Yi Wood" },
-  { zh: "丙", slug: "bing-fire", name: "Bing Fire" },
-  { zh: "丁", slug: "ding-fire", name: "Ding Fire" },
-  { zh: "戊", slug: "wu-earth", name: "Wu Earth" },
-  { zh: "己", slug: "ji-earth", name: "Ji Earth" },
-  { zh: "庚", slug: "geng-metal", name: "Geng Metal" },
-  { zh: "辛", slug: "xin-metal", name: "Xin Metal" },
-  { zh: "壬", slug: "ren-water", name: "Ren Water" },
-  { zh: "癸", slug: "gui-water", name: "Gui Water" },
-];
+const g = terms.groups;
+const nameOf = (e: { en: string; zhHant: string }) => (lang === "en" ? e.en : e.zhHant);
+const dayMasters = Object.values(g.heavenlyStems);
+// 偏官与七杀同页(en 名与 path 均同 /ten-gods/seven-killings)——按 path 去重
+// 取首个(七杀在前),页脚保持 10 条;全量渲染会出现两条同名同址链接。
+const tenGods = [...new Map(Object.values(g.tenGods).map((x) => [x.path, x])).values()];
+const elements = Object.values(g.fiveElements);
+// 页脚只列 5 个代表神煞(设计稿口径);按导出 path 稳定挑选,不依赖中文键名。
+// 挑选是契约而非过滤:后端导出改 path 后失配 = 构建期报错,不静默缺条。
+const starPaths = ["/stars/nobleman", "/stars/peach-blossom", "/stars/travelling-horse", "/stars/academic-star", "/stars/canopy-star"];
+const stars = Object.values(g.shensha).filter((e) => starPaths.includes(e.path));
+if (stars.length !== starPaths.length) {
+  throw new Error(`Footer 神煞挑选失配:期望 ${starPaths.length} 条,terms.json 只匹配到 ${stars.length} 条(后端导出 path 变更后须同步 starPaths)`);
+}
 
-const tenGods = [
-  { slug: "companion", name: "Companion" },
-  { slug: "rob-wealth", name: "Rob Wealth" },
-  { slug: "eating-god", name: "Eating God" },
-  { slug: "hurting-officer", name: "Hurting Officer" },
-  { slug: "indirect-wealth", name: "Indirect Wealth" },
-  { slug: "direct-wealth", name: "Direct Wealth" },
-  { slug: "direct-officer", name: "Direct Officer" },
-  { slug: "seven-killings", name: "Seven Killings" },
-  { slug: "direct-resource", name: "Direct Resource" },
-  { slug: "indirect-resource", name: "Indirect Resource" },
-];
-
-const elements = [
-  { slug: "wood", name: "Wood" },
-  { slug: "fire", name: "Fire" },
-  { slug: "earth", name: "Earth" },
-  { slug: "metal", name: "Metal" },
-  { slug: "water", name: "Water" },
-];
-
-const stars = [
-  { slug: "nobleman", name: "Nobleman Star" },
-  { slug: "peach-blossom", name: "Peach Blossom" },
-  { slug: "travelling-horse", name: "Travelling Horse" },
-  { slug: "academic-star", name: "Academic Star" },
-  { slug: "canopy-star", name: "Canopy Star" },
-];
-
+// 工具列是站点 UI 文案(排盘器/指南页名),非后端术语——双语内联;
+// launch 键对齐 LAUNCH 开关(逐条控制,不同批次可分开发)。
 const tools = [
-  { p: "/bazi-calculator", name: "BaZi calculator" },
-  { p: "/day-master-calculator", name: "Day Master finder" },
-  { p: "/today", name: "Chinese calendar today" },
-  { p: "/guides/how-to-read-a-bazi-chart", name: "How to read a chart" },
-  { p: "/guides/unknown-birth-time", name: "Unknown birth time" },
-  { p: "/guides/true-solar-time", name: "True solar time" },
-  { p: "/about", name: "About & method" },
-  { p: "/privacy", name: "Privacy" },
-];
+  { p: "/bazi-calculator", name: "BaZi calculator", nameHant: "八字排盤", launch: "tools" },
+  { p: "/day-master-calculator", name: "Day Master finder", nameHant: "日主查詢", launch: "tools" },
+  { p: "/today", name: "Chinese calendar today", nameHant: "今日黃曆", launch: "tools" },
+  { p: "/guides/how-to-read-a-bazi-chart", name: "How to read a chart", nameHant: "如何讀盤", launch: "guides" },
+  { p: "/guides/unknown-birth-time", name: "Unknown birth time", nameHant: "時辰未知怎麼辦", launch: "guides" },
+  { p: "/guides/true-solar-time", name: "True solar time", nameHant: "真太陽時", launch: "guides" },
+  { p: "/about", name: "About & method", nameHant: "關於與方法", launch: "about" },
+  { p: "/privacy", name: "Privacy", nameHant: "隱私", launch: "privacy" },
+] as const;
+const toolName = (x: { name: string; nameHant: string }) => (lang === "en" ? x.name : x.nameHant);
 ---
 
 <footer class="site-footer">
@@ -95,34 +74,53 @@ const tools = [
       <div>
         <h2 class="foot-h">{t.footer.colDayMasters}</h2>
         <ul>
-          {dayMasters.map((dm) => (
-            <li><a href={P(`/day-master/${dm.slug}`)}><span class="zh-l">{dm.zh}</span>{dm.name}</a></li>
+          {/* zh-l 汉字点缀仅 en 渲染(zh-hant 名字本身就是该字,再点缀会「甲甲」) */}
+          {dayMasters.map((dm) => LAUNCH.dayMaster ? (
+            <li><a href={P(dm.path)}>{lang === "en" && <span class="zh-l">{dm.zhHant}</span>}{nameOf(dm)}</a></li>
+          ) : (
+            <li class="not-launched">{lang === "en" && <span class="zh-l">{dm.zhHant}</span>}{nameOf(dm)}</li>
           ))}
         </ul>
       </div>
       <div>
         <h2 class="foot-h">{t.footer.colTenGods}</h2>
         <ul>
-          {tenGods.map((g) => (
-            <li><a href={P(`/ten-gods/${g.slug}`)}>{g.name}</a></li>
+          {tenGods.map((x) => LAUNCH.tenGods ? (
+            <li><a href={P(x.path)}>{nameOf(x)}</a></li>
+          ) : (
+            <li class="not-launched">{nameOf(x)}</li>
           ))}
         </ul>
       </div>
       <div>
         <h2 class="foot-h">{t.footer.colElements}</h2>
         <ul>
-          <li>{elements.slice(0, 3).map((e, i) => (<>{i > 0 && " · "}<a href={P(`/five-elements/${e.slug}`)}>{e.name}</a></>))}</li>
-          <li>{elements.slice(3).map((e, i) => (<>{i > 0 && " · "}<a href={P(`/five-elements/${e.slug}`)}>{e.name}</a></>))}</li>
-          {stars.slice(0, 2).map((s) => <li><a href={P(`/stars/${s.slug}`)}>{s.name}</a></li>)}
-          {stars.slice(2).map((s) => <li><a href={P(`/stars/${s.slug}`)}>{s.name}</a></li>)}
-          <li><a href={P("/day-pillars")}>{t.footer.allDayPillars}</a></li>
+          {/* 两行五行各占一个 <li>(ul 只允许 li 子节点);灰显同其余列在 li 级
+              门控——分隔符 " · " 一并降透明度,不裸留在 li 里 */}
+          {[elements.slice(0, 3), elements.slice(3)].map((row) => LAUNCH.fiveElements ? (
+            <li>{row.map((e, i) => (<>{i > 0 && " · "}<a href={P(e.path)}>{nameOf(e)}</a></>))}</li>
+          ) : (
+            <li class="not-launched">{row.map((e, i) => (<>{i > 0 && " · "}{nameOf(e)}</>))}</li>
+          ))}
+          {stars.map((s) => LAUNCH.stars ? (
+            <li><a href={P(s.path)}>{nameOf(s)}</a></li>
+          ) : (
+            <li class="not-launched">{nameOf(s)}</li>
+          ))}
+          {LAUNCH.dayPillars ? (
+            <li><a href={P("/day-pillars")}>{t.footer.allDayPillars}</a></li>
+          ) : (
+            <li class="not-launched">{t.footer.allDayPillars}</li>
+          )}
         </ul>
       </div>
       <div>
         <h2 class="foot-h">{t.footer.colTools}</h2>
         <ul>
-          {tools.map((tool) => (
-            <li><a href={P(tool.p)}>{tool.name}</a></li>
+          {tools.map((tool) => LAUNCH[tool.launch] ? (
+            <li><a href={P(tool.p)}>{toolName(tool)}</a></li>
+          ) : (
+            <li class="not-launched">{toolName(tool)}</li>
           ))}
         </ul>
       </div>

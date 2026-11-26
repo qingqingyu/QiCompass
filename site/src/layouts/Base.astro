@@ -12,10 +12,12 @@ interface Props {
   description: string;
   path: string;
   noindex?: boolean;
+  /** 透传 BaseHead:noindex 页默认 noindex,nofollow;需 noindex, follow(S06 排盘结果页)时传 false */
+  nofollow?: boolean;
   ogImage?: string;
 }
 
-const { lang, title, description, path, noindex, ogImage } = Astro.props;
+const { lang, title, description, path, noindex, nofollow, ogImage } = Astro.props;
 const t = UI[lang];
 const htmlLang = lang === "en" ? "en" : "zh-Hant";
 ---
@@ -23,7 +25,7 @@ const htmlLang = lang === "en" ? "en" : "zh-Hant";
 <!doctype html>
 <html lang={htmlLang}>
   <head>
-    <BaseHead {title} {description} {path} {lang} {noindex} {ogImage}>
+    <BaseHead {title} {description} {path} {lang} {noindex} {nofollow} {ogImage}>
       <slot name="head" />
     </BaseHead>
   </head>

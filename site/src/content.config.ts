@@ -21,10 +21,14 @@ const urlSlug = z.string().regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'slug 格式:小�
 // H2 章节约定(详见 CONTENT_GUIDE.md):正文用 `## 壹|人生主线` 形式,
 // 模板按 `{中文数字}|{标题}` 拆分渲染大写数字编号;不用 frontmatter sections 数组。
 const base = z.object({
-  /** 页面主词(en ≤60 字符;zh-hant 同限,含标点) */
+  /** 页面主词(en ≤60 字符;zh-hant 同限,含标点)。品牌后缀「| 觀命 KnowFate」
+   *  由布局层拼接,**超 60 时布局不加后缀**(规格 §6;拼接规则见 Base.astro →
+   *  BaseHead.astro 的 fullTitle)——此处 60 是主词自身上限,不含后缀。 */
   title: z.string().min(1).max(60),
-  /** meta description:一句完整回答,140–160 字符(规格 §6) */
-  description: z.string().min(140).max(160),
+  /** meta description:一句完整回答,长度按语言分档(refineBase 校验)——
+   *  en 140–160 字符(规格原口径);zh-hant 60–90 字(2026-11-27 外评修订:
+   *  140–160 是英文搜索摘要口径,中文这么长会被搜索引擎截断,规格原稿未分语言) */
+  description: z.string().min(1),
   /** URL slug;须与文件名一致(由 check_site_content.py 校验) */
   slug: urlSlug,
   /** 语言;须与目录段一致(src/content/{type}/{lang}/{slug}.md) */
@@ -54,7 +58,20 @@ function refineBase(data, ctx) {
       message: 'published: true 需要 reviewedBy(人工过目:日期 + 审阅人);缺审不许发布',
     });
   }
-  const hasCJK = /[　-鿿豈-﫿]/.test(data.inShort);
+  // 长度分语言(2026-11-27 外评修订,原 140–160 为英文口径套全员)
+  const descLimit = data.lang === 'zh-hant'
+    ? { min: 60, max: 90, label: '60–90 字' }
+    : { min: 140, max: 160, label: '140–160 字符' };
+  if (data.description.length < descLimit.min || data.description.length > descLimit.max) {
+    ctx.addIssue({
+      code: z.ZodIssueCode.custom,
+      path: ['description'],
+      message: `description ${data.lang} 需 ${descLimit.label}(当前 ${data.description.length})`,
+    });
+  }
+  // 正则端点一律用 \u 转义(2026-11-27 外评修复):字面区间端点(U+9FFF/U+FAFF
+  // 等非映射码位)会被 build_site_fonts.py 当正文用字扫进硬性要求,字体必缺。
+  const hasCJK = /[\u3000-\u9FFF\uF900-\uFAFF]/.test(data.inShort);
   if (hasCJK) {
     if (data.inShort.length > 120) {
       ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['inShort'], message: 'inShort 中文 ≤120 字(答案框定义句)' });
@@ -144,8 +161,8 @@ const zodiacYear = defineCollection({
     .extend({
       /** 年份(公历) */
       year: z.number().int(),
-      /** 该年年柱干支(2 字,如 丙午) */
-      yearPillar: z.string().regex(/^[一-鿿]{2}$/, '年柱干支 2 个汉字'),
+      /** 该年年柱干支(2 字,如 丙午;端点 \u 转义,同上) */
+      yearPillar: z.string().regex(/^[\u4e00-\u9fff]{2}$/, '年柱干支 2 个汉字(区间端点用转义写法,同 hasCJK 注)'),
       /** 起止 = 立春到次年立春(北京时间;引擎导出,不手填) */
       startsAt: isoMoment,
       endsAt: isoMoment,

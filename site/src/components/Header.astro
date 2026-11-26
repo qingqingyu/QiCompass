@@ -1,7 +1,7 @@
 ---
 // 页头:品牌字按语言(规格 README §13)+ 主导航 + 语言切换 + 移动端菜单按钮。
 // 当前页朱点 = aria-current="page" 的 ::after 菱形(global.css §6,DESIGN 允许的当前时辰点级朱红)。
-import { SITE, UI, NAV, langPath, stripLang, zhFamily, type Lang } from "../data/site";
+import { SITE, UI, NAV, LAUNCH, langPath, stripLang, zhFamily, type Lang } from "../data/site";
 
 interface Props {
   lang: Lang;
@@ -30,12 +30,17 @@ const currentPath = path.replace(/\/+$/, "");
         </span>
       )}
     </a>
-    <nav class="nav" id="nav" aria-label={lang === "en" ? "Primary" : "主選單"}>
-      {NAV.map((item) => (
-        <a href={langPath(lang, item.path)} aria-current={currentPath === langPath(lang, item.path) ? "page" : undefined}>
-          {t.nav[item.key]}
-        </a>
-      ))}
+    <nav class="nav" id="nav" aria-label={t.navAria}>
+      {/* 未上线区块灰显不出链接(2026-11-27 外评修复:LAUNCH 开关,防搜索引擎撞 404) */}
+      {NAV.map((item) =>
+        LAUNCH[item.key] ? (
+          <a href={langPath(lang, item.path)} aria-current={currentPath === langPath(lang, item.path) ? "page" : undefined}>
+            {t.nav[item.key]}
+          </a>
+        ) : (
+          <span class="nav-item not-launched" aria-disabled="true" title={t.comingSoon}>{t.nav[item.key]}</span>
+        ),
+      )}
     </nav>
     <div class="header-right">
       <div class="lang">
@@ -51,7 +56,11 @@ const currentPath = path.replace(/\/+$/, "");
           {lang === "en" ? t.langSwitch.other : t.langSwitch.current}
         </a>
       </div>
-      <a class="btn btn-sm" href={langPath(lang, "/app")}>{t.getTheApp}<span class="seal-dot" aria-hidden="true"></span></a>
+      {LAUNCH.app ? (
+        <a class="btn btn-sm" href={langPath(lang, "/app")}>{t.getTheApp}<span class="seal-dot" aria-hidden="true"></span></a>
+      ) : (
+        <span class="btn btn-sm not-launched" aria-disabled="true" title={t.comingSoon}>{t.getTheApp}<span class="seal-dot" aria-hidden="true"></span></span>
+      )}
       <button class="menu-btn" aria-controls="nav" aria-expanded="false" aria-label={t.menuLabel}><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M3 7h16M3 15h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
     </div>
   </div>

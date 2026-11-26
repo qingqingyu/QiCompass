@@ -43,6 +43,10 @@ export function langPath(lang: Lang, rest: string): string {
 type UiStrings = {
   nav: { calculator: string; library: string; guides: string; today: string; app: string };
   getTheApp: string;
+  /** 未上线灰显占位的悬停提示(Header 导航) */
+  comingSoon: string;
+  /** 主导航 aria-label(Header <nav>) */
+  navAria: string;
   skipToContent: string;
   langSwitch: { current: string; other: string };
   menuLabel: string;
@@ -62,6 +66,8 @@ export const UI: Record<Lang, UiStrings> = {
   en: {
     nav: { calculator: 'Calculator', library: 'Library', guides: 'Guides', today: 'Today', app: 'The App' },
     getTheApp: 'Get the app',
+    comingSoon: 'Coming soon',
+    navAria: 'Primary',
     skipToContent: 'Skip to content',
     langSwitch: { current: 'EN', other: '繁' },
     menuLabel: 'Menu',
@@ -79,6 +85,8 @@ export const UI: Record<Lang, UiStrings> = {
   'zh-hant': {
     nav: { calculator: '排盤器', library: '辭典', guides: '指南', today: '今日', app: 'App' },
     getTheApp: '取得 App',
+    comingSoon: '即將上線',
+    navAria: '主選單',
     skipToContent: '跳到主要內容',
     langSwitch: { current: '繁', other: 'EN' },
     menuLabel: '選單',
@@ -94,6 +102,16 @@ export const UI: Record<Lang, UiStrings> = {
     },
   },
 };
+
+// 上线开关(2026-11-27 外评修复:页头/页脚只链已上线区块,未上线条目灰显
+// 不出 <a>——防 S08 最小上线时搜索引擎首抓即撞 404;规格 S04「未发布页面
+// 灰色不出链」提前到导航层)。键对齐 NAV.key 与页脚各列;建一批发一批,
+// 某区块内容页 + 模板就绪后翻 true 并同步 check_site_content.py 白名单。
+export const LAUNCH = {
+  calculator: false, library: false, guides: false, today: false, app: false,
+  dayMaster: false, tenGods: false, fiveElements: false, stars: false,
+  dayPillars: false, tools: false, about: false, privacy: false,
+} as const;
 
 /** 页头主导航(hreflang 互指 + 面包屑都以这些路径为骨架)。
  * path 一律存「rest 形态」(不带语言前缀)——langPath(lang, path) 的契约如此,
