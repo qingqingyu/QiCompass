@@ -256,7 +256,8 @@ img, svg { display: block; max-width: 100%; }
 .brand-zh { font: 500 15px/1 var(--f-zh); letter-spacing: .18em; }
 .brand-sub { font: 500 9px/1 var(--f-sans); letter-spacing: .34em; color: var(--ink-muted); }
 .nav { display: flex; gap: 26px; margin-left: 12px; }
-.nav a { font-size: 14.5px; text-decoration: none; color: var(--ink); padding: 6px 0; position: relative; }
+/* a 与灰显 span.nav-item 同一套排版:未上线占位与链接同行高同字号(仅无链接/降透明度) */
+.nav a, .nav .nav-item { font-size: 14.5px; text-decoration: none; color: var(--ink); padding: 6px 0; position: relative; }
 .nav a[aria-current="page"]::after { content: ""; position: absolute; left: 50%; bottom: -2px; width: 4px; height: 4px; background: var(--cinnabar); transform: translateX(-50%) rotate(45deg); }
 .header-right { margin-left: auto; display: flex; align-items: center; gap: 16px; }
 .lang { font-size: 13px; color: var(--ink-muted); display: flex; gap: 6px; align-items: center; }
@@ -268,7 +269,7 @@ img, svg { display: block; max-width: 100%; }
   .site-header .btn { display: none; }
   .nav.open { display: flex; position: absolute; top: 68px; left: 0; right: 0; flex-direction: column; gap: 0; margin: 0;
     background: var(--paper); border-bottom: 1px solid var(--hairline); padding: 8px var(--gutter) 20px; }
-  .nav.open a { padding: 14px 0; border-bottom: 1px solid var(--hairline); font-size: 17px; }
+  .nav.open a, .nav.open .nav-item { padding: 14px 0; border-bottom: 1px solid var(--hairline); font-size: 17px; }
 }
 
 /* ---------- 7. Buttons / chips / inputs ---------- */
@@ -421,3 +422,17 @@ img, svg { display: block; max-width: 100%; }
 .js .reveal.in { animation: inkIn 1.2s var(--ease-ink) forwards; }
 @media (prefers-reduced-motion: reduce) { .js .reveal { opacity: 1; filter: none; } }
 
+
+/* 未上线区块(2026-11-27 外评修复):页头/页脚灰显占位,无链接无指针 */
+.nav-item.not-launched,
+li.not-launched,
+span.not-launched {
+  opacity: 0.45;
+  cursor: default;
+}
+/* 灰显占位不吃交互反馈:hover 提亮 / active 按压会假装可点,压回占位态 */
+.btn.not-launched:hover,
+.btn.not-launched:active {
+  opacity: 0.45;
+  transform: none;
+}

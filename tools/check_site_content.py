@@ -6,8 +6,9 @@
      (accurate / predict 家族 / guarantee / lucky charm / cure / remedy /
      change your fate)+ 格局硬分类(十神/五行 en 名 + "structure" 结论式;
      中文「正官格 / 偏印格 / ……格」。从格/专旺是 App 诚实降级概念,**不**禁)
-  2. frontmatter:必填字段、长度规则(title ≤60 / description 140–160 /
-     inShort en ≤60 词或中文 ≤120 字 / faq 2–4)、lang 与目录一致、
+  2. frontmatter:必填字段、长度规则(title ≤60 / description 分语言
+     en 140–160 字符、zh-hant 60–90 字 / inShort en ≤60 词或中文 ≤120 字 /
+     faq 2–4)、lang 与目录一致、
      slug 与文件名一致且唯一、reviewedBy 非空才可 published: true
   3. 内链:每页正文站内链接 ≥ 8 条,且全部指向存在的路由
      (内容页路由由 content/** 推导;固定路由 = 站点骨架页清单)
@@ -230,8 +231,13 @@ def check_file(path: Path, content_dir: Path, terms: dict, routes: set[str],
     # 2. 长度与取值规则
     if isinstance(title, str) and len(title) > 60:
         failures.append(f"{rel}: title 超 60 字符({len(title)})")
-    if isinstance(description, str) and not (140 <= len(description) <= 160):
-        failures.append(f"{rel}: description 长度 {len(description)},要求 140–160")
+    if isinstance(description, str):
+        # 分语言分档(与 content.config.ts refineBase 同口径;2026-11-27 外评修订)
+        if lang == "zh-hant":
+            if not (60 <= len(description) <= 90):
+                failures.append(f"{rel}: description 长度 {len(description)},zh-hant 要求 60–90 字")
+        elif not (140 <= len(description) <= 160):
+            failures.append(f"{rel}: description 长度 {len(description)},en 要求 140–160 字符")
     if isinstance(in_short, str):
         if CJK_RE.search(in_short):
             if len(in_short) > 120:

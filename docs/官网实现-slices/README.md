@@ -49,7 +49,7 @@ Parent 设计事实源:
 | Buttondown 嵌入表单(纯 HTML POST,无 JS 库) | ✅ 已同意 | 决策 #8 |
 | TelemetryDeck Web SDK | ⚠️ 决策文档「默认取舍」写了,**实施前跟用户确认一次** | SEO站设计决策「默认取舍」 |
 | Satori / `@vercel/og`(OG 图生成) | ❌ **待批准** | 未批准前 S06 走降级方案 |
-| `brotli`(Python,生成 woff2 用) | ❌ **待批准** | 未批准前输出 woff(zlib,体积大约 +30%) |
+| `brotli`(Python,生成 woff2 用) | ✅ **已批准(2026-11-25,用户口头批准,见 build_site_fonts.py 注释)** | 依赖装在 backend venv(fontTools ≥4.39 + brotli) |
 | 其他一切(UI 框架 / CSS 框架 / 动画库 / MDX / 搜索库 / 分析库) | ❌ 不要加 | 交互全部手写原生 JS(设计稿已经证明够用) |
 
 ## 全系列红线(每个 slice 都适用)

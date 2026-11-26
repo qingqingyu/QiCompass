@@ -32,6 +32,7 @@ from __future__ import annotations
 
 import argparse
 import hashlib
+import json
 import sys
 import tempfile
 from pathlib import Path
@@ -49,6 +50,7 @@ NEWSREADER_DIR = REPO / "tools" / "site-fonts-src"
 NEWSREADER_VAR = NEWSREADER_DIR / "Newsreader-var.ttf"
 NEWSREADER_ITALIC_VAR = NEWSREADER_DIR / "Newsreader-Italic-var.ttf"
 TERM_TRANSLATIONS = REPO / "backend" / "app" / "engine" / "term_translations.py"
+TERMS_JSON = SITE / "src" / "data" / "terms.json"
 
 FONTS_OUT = SITE / "public" / "fonts"
 
@@ -132,6 +134,13 @@ def scan_site_chars() -> tuple[set[str], set[str]]:
             rel = path.relative_to(SITE).as_posix()
             if rel.startswith("src/pages/zh-hant"):
                 tc |= chars
+            elif rel.startswith("src/data/terms"):
+                # 术语数据只进 TC(2026-11-27 外评修复):S02 新增的 terms.json
+                # 是 zh-hant 内容的数据源,en 页不背全量术语字表——此前按共享
+                # 文件同时灌进 SC(S01 trace 实测曾撑到 304KB)。
+                # 例外:en 页确实渲染的天干 zh-l 点缀由 en_rendered_term_chars()
+                # 显式补进 SC 硬性集合(勿因本分支「只进 TC」而误删)。
+                tc |= chars
             else:
                 # en 页面与共享文件:两个腿都可能渲染(共享组件出现在 zh-hant 页上)
                 sc |= chars
@@ -139,18 +148,34 @@ def scan_site_chars() -> tuple[set[str], set[str]]:
     return sc, tc
 
 
+def en_rendered_term_chars() -> set[str]:
+    """en 页实际渲染的 terms.json 派生 CJK —— 十天干 zhHant(Footer 共享组件
+    的 zh-l 点缀,terms 数据只进 TC 腿后这是唯一落在 en 页上的术语字面)。
+    2026-11-27 复核:terms.json 改道只进 TC 后,丁/辛曾实际缺字(其余 8 干靠
+    别的共享文件巧合覆盖)——SC 硬性集合必须显式收录,不靠巧合。
+    后续共享组件若在 en 页渲染更多 terms 派生 CJK(如五行字),须同步扩这里;
+    读取/解析失败直接抛(错误显式传播,不静默降级)。"""
+    data = json.loads(TERMS_JSON.read_text(encoding="utf-8"))
+    chars: set[str] = set()
+    for entry in data["groups"]["heavenlyStems"].values():
+        # 严格取键:导出条目缺 zhHant 直接 KeyError 炸出,不静默空集
+        chars |= {ch for ch in entry["zhHant"] if is_cjk(ch)}
+    return chars
+
+
 def scan_hard_chars(sc_chars: set[str], tc_chars: set[str]) -> tuple[set[str], set[str]]:
     """返回 (SC 硬性要求, TC 硬性要求)。
 
-    SC = en 页/共享文件实际用字 ∪ 品牌字(简体);
+    SC = en 页/共享文件实际用字 ∪ en 页渲染的天干点缀 ∪ 品牌字(简体);
     TC = zh-hant 页/共享文件用字 ∪ 术语表全部 CJK(术语单一事实源)∪ 品牌字(繁体)。
-    术语表不再进 SC:简中站「以后再做」,SC 在站内只服务 en 页点缀,
+    术语表不再整体进 SC:简中站「以后再做」,SC 在站内只服务 en 页点缀,
     全量术语字表曾把 SC 撑到 1179 字形(304KB),en 页为此背 300KB + 364ms 的
-    一次性 CFF 应用开销(S01 trace 实测),与规格 §6「按页面实际用字做子集」冲突。
+    一次性 CFF 应用开销(S01 trace 实测),与规格 §6「按页面实际用字做子集」冲突;
+    但 en 页**确实渲染**的天干 zh-l 点缀必须收录(en_rendered_term_chars)。
     """
     term = {ch for ch in TERM_TRANSLATIONS.read_text(encoding="utf-8") if is_cjk(ch)}
     brand = set("观觀命")
-    return sc_chars | brand, tc_chars | term | brand
+    return sc_chars | brand | en_rendered_term_chars(), tc_chars | term | brand
 
 
 def rename_family(font: TTFont, family: str, style: str) -> None:

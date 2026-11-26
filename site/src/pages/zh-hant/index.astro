@@ -16,7 +16,10 @@ const lang: Lang = "zh-hant";
   <section class="section">
     <div class="wrap">
       <Kicker text="KnowFate" zh="八字排盤" dot />
-      <h1 class="display ink-in" style="margin-top:18px">四柱之上,<em style="font-style:italic;color:var(--ink-muted);font-weight:300;display:block">誠實解讀。</em></h1>
+      <!-- 2026-11-27 外评修复:中文无斜体字形,italic 会触发浏览器合成倾斜(伪斜体);
+           设计稿斜体只用于英文。UA 对 <em> 默认 font-style:italic,global.css 无
+           em reset——必须显式 normal 才真正去斜,仅删 inline italic 是无效修复 -->
+      <h1 class="display ink-in" style="margin-top:18px">四柱之上,<em style="font-style:normal;color:var(--ink-muted);font-weight:300;display:block">誠實解讀。</em></h1>
       <p class="lede ink-in d1" style="margin-top:24px">
         八字知識站與免費排盤器正在逐頁上線。確定性排盤、真太陽時修正、措辭克制——不作預測,不貼標籤。
       </p>
