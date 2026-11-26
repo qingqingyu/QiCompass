@@ -29,9 +29,12 @@ const altHant = SITE.domain + langPath("zh-hant", rest);
 const brand = SITE.brand[lang];
 // 品牌后缀拼接(规格 §6):主词 ≤60 字符才加后缀;超长(60+)裸出主词——
 // 加了必超搜索摘要截断线,且规格要求超长时去后缀(2026-11-27 外评修复)。
-const fullTitle = title.length > 60 || title.includes(brand.titleSuffix)
+// 拼接后总长(主词 + 空格 + 后缀)≤ 60 才加后缀(2026-11-28 外评更正:
+// 原实现只看主词自身,55 字符主词 + 后缀 = 66 超限;规格原义是整体不超 60)
+const withSuffix = `${title} ${brand.titleSuffix}`;
+const fullTitle = title.includes(brand.titleSuffix) || withSuffix.length > 60
   ? title
-  : `${title} ${brand.titleSuffix}`;
+  : withSuffix;
 
 const themeLight = "#E7E2D5";
 const themeDark = "#171412";
