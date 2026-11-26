@@ -8,6 +8,7 @@ import SwiftData
 @main
 struct QiCompassApp: App {
     @StateObject private var env: AppEnvironment
+    @Environment(\.scenePhase) private var scenePhase
 
     init() {
         // L1/F2(2026-10-01 语言切换走查):进程启动第一件事冻结生效语言快照
@@ -45,6 +46,10 @@ struct QiCompassApp: App {
             modelContainer: container, apiClient: client, useMockClient: useMock
         ))
         AppLogger.app.info("QiCompassApp.init 完成 mock_client=\(useMock, privacy: .public) base_url=\(AppEnvironment.backendBaseURL().absoluteString, privacy: .public)")
+        // 503/429 长周期自动重试心跳(2026-11-26 拍板:前台定时 + 冷启补试,
+        // 间隔 65 分钟):启动即起 60s tick 并立即检查一轮;回前台补试在
+        // body 的 scenePhase onChange(iOS 后台执行不可靠,不依赖后台任务)。
+        GenerationRetryScheduler.shared.startHeartbeat()
     }
 
     var body: some Scene {
@@ -52,6 +57,11 @@ struct QiCompassApp: App {
             RootTabView()
                 .environmentObject(env)
                 .modelContainer(env.modelContainer)
+                .onChange(of: scenePhase) { _, phase in
+                    if phase == .active {
+                        GenerationRetryScheduler.shared.fireDue()
+                    }
+                }
         }
     }
 }

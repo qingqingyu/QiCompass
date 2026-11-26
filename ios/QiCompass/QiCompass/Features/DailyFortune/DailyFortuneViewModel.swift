@@ -107,6 +107,18 @@ final class DailyFortuneViewModel {
 
     private var silentRetryTask: Task<Void, Never>?
 
+    /// 503/429 长周期重试到期监听(2026-11-26;block observer 须持有防释放,
+    /// deinit 移除见下)。`nonisolated(unsafe)`:deinit 在 @MainActor isolation
+    /// 外要读此属性——@Observable 宏把存储属性展开为 tracked var,Swift 6.2
+    /// 的 `nonisolated` 不允许用于可变存储属性,只能走 unsafe(编译器会提示
+    /// "has no effect" 警告,与 AccountManager.lastKnownJwtToken 既有两条同款
+    /// 警告一致,项目现状收编)。并发安全 = 仅 init 写 + deinit 读两点。
+    nonisolated(unsafe) private var retryDueObserver: NSObjectProtocol?
+
+    /// 最近一次解读的 chartHash(65 分钟到期重发时取用;冷启后 VM 重建走
+    /// onAppear 全量管线,此值只服务「本会话内失败后挂起重发」)。
+    private var lastInterpretHash: String?
+
     /// 当前展示用的 chartPayload(在阶段 1 后缓存,阶段 2 复用)
     private var cachedChartPayload: ChartPayloadDTO?
 
@@ -140,6 +152,66 @@ final class DailyFortuneViewModel {
         self.orchestrator = orchestrator
         self.chartStore = chartStore
         self.dailyStore = dailyStore
+        // 503/429 长周期自动重试(2026-11-26 拍板:前台定时 + 冷启补试,间隔
+        // 65 分钟):到期通知 → handleRetryDue 仅在失败/达限态重发(trigger
+        // =.silentRetry,不叠 6s 单次层);再失败由 general catch 重新顺延。
+        // 注册走 observeDue 共享订阅助手(四 VM/controller 同构收编)。
+        retryDueObserver = GenerationRetryScheduler.observeDue(.dailyFortune) { [weak self] in
+            self?.handleRetryDue()
+        }
+    }
+
+    deinit {
+        // block observer 须显式移除:不移除则 NotificationCenter 永久持有该
+        // block(weak self → VM 释放后成 no-op 空壳),VM 随视图重建逐次累积
+        // (PurchaseManager deinit 同款纪律)。
+        if let observer = retryDueObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
+    /// 65 分钟到期重发(2026-11-26):仅失败/达限态重发,其余态清条目退出。
+    /// 重发前先顺延一轮(防「重发在飞时用户杀 App」丢重试);成功则下次
+    /// 到期在此被非失败态清掉——自愈,无需在成功路径插桩。
+    /// 本地池达限(serverPool:false):重发被 orchestrator 的本地池检查
+    /// (网络之前)以 DeepAnalysisError 拦下、不经 general catch 不再顺延——
+    /// 但本函数重发前已顺延一轮,后续到期仍会再走 handleRetryDue。循环有界
+    /// 且无害:不烧配额(检查在网络前),本地池日重置 / 业务日翻转重载 /
+    /// 跨语言翻译路径(L5,不扣次数)三者任一都能让链恢复或清掉。
+    /// 已知接受风险(低概率):到期落进业务日翻转后 ≤60s、TimelineView tick
+    /// 重载前的窗口,会为旧业务日重发一次(一次生成浪费,缓存进旧日期键);
+    /// 自动路径有 isBusinessDateStillCurrent 守卫,重试路径补同款需向此处
+    /// plumbing ziHourRule,代价与风险不成比例,显式接受。
+    private func handleRetryDue() {
+        guard case .ready(_, let interpretState, _) = state else {
+            GenerationRetryScheduler.shared.clear(.dailyFortune)
+            return
+        }
+        switch interpretState {
+        case .failed, .dailyLimitReached:
+            // 预检 generateInterpretation 的前置(断 65 分钟空转环):失败态可
+            // 达而本会话从未生成过解读(冷启管线缓存读失败 → .failed 且
+            // lastInterpretHash == nil)或离线兜底 payload 解档失败——这两种
+            // 请求根本发不出去,条目留着只会每 65 分钟空转一轮。
+            guard let hash = lastInterpretHash, cachedChartPayload != nil else {
+                GenerationRetryScheduler.shared.clear(.dailyFortune)
+                AppLogger.app.warning(
+                    "op=dailyFortune.retry.due_drop reason=missing_prerequisites hash=\(self.lastInterpretHash ?? "-", privacy: .public) hasPayload=\(self.cachedChartPayload != nil, privacy: .public) state=\(String(describing: self.state), privacy: .public)"
+                )
+                return
+            }
+            GenerationRetryScheduler.shared.schedule(.dailyFortune)
+            // 对齐 6s 单发静默重试的呈现:在飞期间失败卡显示「重试中」小注
+            // (全部结果路径——成功/迟到成功/DeepAnalysisError/失败落态/
+            // 凭证失效——都会复位 isSilentRetrying,无残留)。
+            isSilentRetrying = true
+            AppLogger.app.notice(
+                "op=dailyFortune.retry.due hash=\(hash, privacy: .public)"
+            )
+            generateInterpretation(currentChartHash: hash, trigger: .silentRetry)
+        default:
+            GenerationRetryScheduler.shared.clear(.dailyFortune)
+        }
     }
 
     // MARK: - onAppear
@@ -223,6 +295,7 @@ final class DailyFortuneViewModel {
             AppLogger.app.error("op=dailyFortune.generateInterpretation missing_chartHash state=\(String(describing: self.state), privacy: .public)")
             return
         }
+        lastInterpretHash = hash
         // S09 纵深防御(D5 全拦,S07 PaywallViewModel.purchase 同款第二把锁):
         // 日柱歧义盘不发起 interpret。runFullPipeline 已拦在阶段 1 之前
         // (.hourAmbiguousBlocked 进不了下面的 .ready 分支),能走到这里说明
@@ -321,6 +394,13 @@ final class DailyFortuneViewModel {
                 }
             } catch {
                 if !Task.isCancelled, pipelineGeneration == generation {
+                    // 503/429(2026-11-26):登记 65 分钟自动重试。QUOTA_EXCEEDED
+                    // 随后转 .dailyLimitReached(serverPool:true)、裸 503 转
+                    // .failed——两态都由 GenerationRetryScheduler 到期重发,
+                    // 此处是唯一登记点(到期重发前再顺延,见 handleRetryDue)。
+                    if APIError.isRetryable503Or429(error) {
+                        GenerationRetryScheduler.shared.schedule(.dailyFortune)
+                    }
                     // 凭证失效(2026-10-08):403 重试无意义,不走 enterInterpretFailed
                     // (那会再排一次静默重试白打 403)——独立态渲染「重新排盘」出口。
                     // 同时清 daily 快照的失效 token(外评 #5):快照复用判据只看
@@ -465,6 +545,13 @@ final class DailyFortuneViewModel {
         pipelineGeneration &+= 1
         let generation = pipelineGeneration
         cachedChartPayload = nil
+        // 65 分钟重发的 hash 同步作废(P1,跨盘污染防线):lastInterpretHash 只在
+        // generateInterpretation 顶部更新,而 .failed(cacheReadFailed) 等失败态
+        // 由本管线直接落成、不经生成——不重置的话,换盘后带着旧盘 hash 到期
+        // 重发,会把新盘内容写进旧盘 (hash, module, date) 缓存键(与上方
+        // cachedChartPayload = nil 同一纪律)。重置后不经生成的失败态在
+        // handleRetryDue 预检处被丢弃(nil hash → clear + log)。
+        lastInterpretHash = nil
         // 静默重试配额随管线重置(load / refresh / 跨业务日都过这里):
         // 新一轮管线允许失败后再静默重试一次;残留调度取消,防旧延迟任务
         // 在新管线成功后凭空再发一次 interpret。

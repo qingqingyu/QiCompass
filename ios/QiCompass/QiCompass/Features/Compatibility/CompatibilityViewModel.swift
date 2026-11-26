@@ -221,6 +221,10 @@ final class CompatibilityViewModel {
     /// clearDetailKeepRoster 取消。
     private var interpretGateTask: Task<Void, Never>?
 
+    /// 503/429 长周期重试到期监听(2026-11-26;`nonisolated(unsafe)` 说明
+    /// 与 DailyFortuneViewModel 同款,并发安全 = 仅 init 写 + deinit 读)。
+    nonisolated(unsafe) private var retryDueObserver: NSObjectProtocol?
+
     /// 最近一次引擎重算(refreshStaleEngineAssessment)的**按对**结局;
     /// 重算成功记 .success、真失败记 .failure,取消不记(那是换对,不是重算
     /// 失败,2026-10-07 review #2)。引擎规则门拦下生成时按对透出真实根因
@@ -309,6 +313,47 @@ final class CompatibilityViewModel {
         // UX:临时表单默认值改"上次填过的"(加第二个临时人时只改称呼/时间)。
         // alias 不持久化(每次默认空,避免连续加多个相同 alias)。
         applyTempDraft(CompatibilityRosterPersistence.loadTempDraft())
+        // 503/429 长周期自动重试(2026-11-26 拍板):到期 → handleRetryDue
+        // 走 retryInterpretation(与手动重试同门同豁免透传,引擎规则门内
+        // 补发重算)。注册走 observeDue 共享订阅助手(四 VM/controller
+        // 同构收编)。
+        retryDueObserver = GenerationRetryScheduler.observeDue(.compatibility) { [weak self] in
+            self?.handleRetryDue()
+        }
+    }
+
+    deinit {
+        if let observer = retryDueObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
+    /// 65 分钟到期重发(2026-11-26):仅 .failed / .dailyLimitReached 态重发,
+    /// 重发前先顺延一轮(防在飞杀 App 丢轮);其余态清条目自愈。次数耗尽
+    /// (remainingReads==0 维持 .idle 渲染达限卡)不在此列——那是购买语义,
+    /// 自动重试只会反复 429 且与达限卡抢态。
+    /// 本地池达限(.dailyLimitReached serverPool:false):重发被 orchestrator
+    /// 的本地池检查(网络之前,InterpretQuotaLedger.consume)以
+    /// DeepAnalysisError 拦下、不进 general catch 不再顺延——但本函数重发前
+    /// 已顺延一轮,后续到期仍会再走 handleRetryDue。循环有界且无害(镜像
+    /// DailyFortuneViewModel.handleRetryDue 口径):不烧配额不烧 LLM(检查在
+    /// 网络前),本地池日重置后下一轮到期自动恢复生成,恢复成功再下轮到期
+    /// 被非失败态清掉。
+    private func handleRetryDue() {
+        guard case .detail(let summary, _, let interpret) = state else {
+            GenerationRetryScheduler.shared.clear(.compatibility)
+            return
+        }
+        switch interpret {
+        case .failed, .dailyLimitReached:
+            GenerationRetryScheduler.shared.schedule(.compatibility)
+            AppLogger.app.notice(
+                "op=compatibility.retry.due pair=\(summary.id, privacy: .public)"
+            )
+            retryInterpretation()
+        default:
+            GenerationRetryScheduler.shared.clear(.compatibility)
+        }
     }
 
     // MARK: - 常量
@@ -2560,6 +2605,12 @@ final class CompatibilityViewModel {
                         }
                         self.state = .detail(current, currentResponse, .contextTokenExpired)
                         return
+                    }
+                    // 503/429(2026-11-26):登记 65 分钟自动重试(服务端 429
+                    // 随后落 .dailyLimitReached、裸 503 落 .failed——两态都由
+                    // 到期经 retryInterpretation 门内重发)。
+                    if APIError.isRetryable503Or429(error) {
+                        GenerationRetryScheduler.shared.schedule(.compatibility)
                     }
                     let userError = UserFacingError.from(error, stage: .interpret)
                     if case .dailyLimitReached(let reset, let serverPool) = userError {
