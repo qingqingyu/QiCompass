@@ -74,4 +74,24 @@ extension APIError {
         }
         return code == "ASK_CREDITS_REQUIRED"
     }
+
+    /// 503/429 自动重试判定(2026-11-26 拍板:生成类请求 65 分钟前台自动重试,
+    /// GenerationRetryScheduler 消费)。
+    ///
+    /// 覆盖两种形态:
+    /// - 裸 `.httpError(503/429)`:反代/网关层(服务重启瞬间、上游不可达),
+    ///   无结构化 body 时 APIClient 落到这条分支
+    /// - 结构化 `.backendError(QUOTA_EXCEEDED)`:服务端免费/付费每日配额
+    ///   (2026-10-08 的「达限不重试」口径由本判定演化为「达限挂 65 分钟
+    ///   自动重试」——每日桶 UTC 重置,65 分钟轮询自然跨过重置窗恢复)
+    ///
+    /// 其余错误不参与:409 STALE_SOURCE / 403 CONTEXT_TOKEN_* / 402 各有
+    /// 专属语义与恢复路径(重新排盘 / 购买),自动重试只会掩盖真实动作。
+    static func isRetryable503Or429(_ error: Error) -> Bool {
+        if case .httpError(let status, _)? = error as? APIError {
+            return status == 503 || status == 429
+        }
+        // QUOTA_EXCEEDED 复用 isQuotaExceeded(单一事实源,字面量不留两份)
+        return isQuotaExceeded(error)
+    }
 }

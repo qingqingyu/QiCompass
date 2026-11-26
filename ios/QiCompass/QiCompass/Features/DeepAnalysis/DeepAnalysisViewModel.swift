@@ -448,6 +448,12 @@ final class DeepAnalysisViewModel {
     private(set) var lastRequest: BaziCalculateRequest?
     private var calculateTask: Task<Void, Never>?
 
+    /// 503/429 长周期重试到期监听(2026-11-26;block observer 须持有防释放,
+    /// deinit 移除;`nonisolated(unsafe)` 说明与 DailyFortuneViewModel 同款——
+    /// @Observable 宏下 deinit 跨 isolation 读存储属性的唯一通路,并发安全 =
+    /// 仅 init 写 + deinit 读两点)。
+    nonisolated(unsafe) private var retryDueObserver: NSObjectProtocol?
+
     /// 排盘连续失败计数(仅日志用,成功一次即归零)。
     /// 2026-09-07 拔除「≥3 次切 persistentFailure 隐藏 retry」死胡同:真机用户网络
     /// 短暂不佳连点三次就被锁死、只能重启 App,体验差于让用户继续重试;重试入口永久保留。
@@ -466,6 +472,74 @@ final class DeepAnalysisViewModel {
         self.orchestrator = orchestrator
         self.entitlementStore = entitlementStore
         self.chainCompletionNotifier = chainCompletionNotifier
+        // 503/429 长周期自动重试(2026-11-26 拍板):到期 → handleRetryDue 重跑
+        // 失败/达限章(串行,镜像 retryLockedV1Modules 的世代号 + 403 同步点)。
+        // 注册走 observeDue 共享订阅助手(四 VM/controller 同构收编)。
+        retryDueObserver = GenerationRetryScheduler.observeDue(.deepModule) { [weak self] in
+            self?.handleRetryDue()
+        }
+    }
+
+    deinit {
+        if let observer = retryDueObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
+    /// 65 分钟到期重发(2026-11-26):重跑全部失败/达限章。重发前先顺延一轮
+    /// (防在飞杀 App 丢轮);无失败章或 state 非 .ready(换盘/排盘中)清条目
+    /// 退出——自愈,无需在成功路径插桩。循环内每章执行前重查状态(在飞让位,
+    /// 见循环内注释)。注:本地池达限章重发一次后由
+    /// DeepAnalysisError 分支返回(不进 general catch 不再顺延),链自然停。
+    private func handleRetryDue() {
+        guard case .ready(let response, _) = state else {
+            GenerationRetryScheduler.shared.clear(.deepModule)
+            return
+        }
+        let retryModules = ModuleID.allCases.filter {
+            switch moduleStates[$0] {
+            case .failed, .dailyLimitReached: return true
+            default: return false
+            }
+        }
+        guard !retryModules.isEmpty else {
+            GenerationRetryScheduler.shared.clear(.deepModule)
+            return
+        }
+        GenerationRetryScheduler.shared.schedule(.deepModule)
+        AppLogger.app.notice(
+            "op=deepAnalysis.retry.due modules=\(retryModules.map(\.rawValue), privacy: .public)"
+        )
+        // 世代号快照 + 403 重签同步点(镜像 retryLockedV1Modules,第二十轮 #1)
+        let generation = translationGeneration
+        Task { @MainActor [weak self] in
+            guard let self else { return }
+            var current = response
+            for module in retryModules {
+                // 执行前重查(在飞让位,镜像 runV1Chain L1587-1599):retryModules
+                // 是 fire 时刻快照,本章 await(LLM 30-60s)期间该章可能已被
+                // resume 链(回前台与 fireDue 同触发源)或用户「重试本章」接管
+                // (.fetching)/跑成(.ok)——不重查会同章并发双发,双烧 LLM +
+                // 双扣本地池/服务端每日桶(refund 只覆盖失败,双发皆成功不退)。
+                // 只重跑仍处失败/达限态的章;重查→.fetching 置位间无 await
+                // (MainActor 同步序),窗口闭合。
+                switch self.moduleStates[module] {
+                case .failed, .dailyLimitReached:
+                    break
+                default:
+                    AppLogger.app.info(
+                        "op=deepAnalysis.retry.due.defer module=\(module.rawValue, privacy: .public) state=\(String(describing: self.moduleStates[module]), privacy: .public) — 已被其它路径接管或态已变,让位"
+                    )
+                    continue
+                }
+                await self.runSingleV1Module(
+                    module, response: current, chainGeneration: generation)
+                if case .ready(let latest, _) = self.state,
+                   latest.contentHash == current.contentHash {
+                    current = latest
+                }
+            }
+        }
     }
 
     // MARK: - 出生地时区(WYSIWYG)
@@ -1836,6 +1910,13 @@ final class DeepAnalysisViewModel {
                             forModule: module.rawValue))
                 }
                 return
+            }
+            // 503/429(2026-11-26):登记 65 分钟自动重试。服务端 429 随后落
+            // .dailyLimitReached(nextReset:)、裸 503 落 .failed——两态都由
+            // GenerationRetryScheduler 到期重发;本地池达限在上方
+            // DeepAnalysisError 分支先行落态,不进此处不续链。
+            if APIError.isRetryable503Or429(error) {
+                GenerationRetryScheduler.shared.schedule(.deepModule)
             }
             let userError = UserFacingError.from(error, stage: .interpret)
             // 服务端免费配额 429(2026-10-08 外评 #6):与本地 10 次/日池不同源,

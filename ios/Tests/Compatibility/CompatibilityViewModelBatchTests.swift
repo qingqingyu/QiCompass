@@ -1634,6 +1634,103 @@ final class CompatibilityViewModelBatchTests: XCTestCase {
         await drainDetailBackgroundTasks()
     }
 
+    // MARK: - 503/429 长周期自动重试(2026-11-26 Compat 接入)
+
+    /// 构造带期望引擎规则版本的 detail 态 response(镜像 makeAutoGenFixture
+    /// 的 response 形态;不经 openDetail,避免自动起链与后台任务干扰注入态)。
+    private func expectedRuleVersionResponse(for summary: PairSummary)
+        -> CompatibilityResponse {
+        CompatibilityResponse(
+            compatibilityHash: summary.compatibilityHash,
+            personAChart: nil, personBChart: nil,
+            qualitativeAssessment: QualitativeAssessmentDTO(
+                fiveElements: "互补佳", dayMasterRelation: "同气",
+                zodiacMatch: "六合", branchHarmony: "无冲无刑"
+            ),
+            syncedFortune: [], calcRuleSnapshot: nil,
+            ruleVersion: CompatibilitySnapshotStore.expectedEngineRuleVersion
+        )
+    }
+
+    /// 到期通知(kind=compatibility)在 .failed 态 → 重发链走通:
+    /// observer kind 过滤 → handleRetryDue 状态门 → retryInterpretation
+    /// 门内生成 → .okFree;且重发前先顺延(条目重置,防在飞杀 App 丢轮)。
+    /// 用通知驱动(而非直调私有 handleRetryDue),同时锁定 observer 注册与
+    /// userInfo kind 载荷的消费端契约。
+    func testRetryDue_FailedState_RefiresThroughGate() async throws {
+        defer { GenerationRetryScheduler.shared.clear(.compatibility) }
+        let summary = try makeAutoGenFixture(tag: "dueretry")
+        GenerationRetryScheduler.shared.clear(.compatibility)
+        // 直接注入 503 落态形态(general catch 的 .failed),不经 openDetail
+        vm.state = .detail(summary, expectedRuleVersionResponse(for: summary), .failed(message: "服务暂不可用"))
+        let readsBefore = vm.remainingReads
+
+        NotificationCenter.default.post(
+            name: GenerationRetryScheduler.dueNotification, object: nil,
+            userInfo: [GenerationRetryScheduler.kindUserInfoKey:
+                        GenerationRetryScheduler.Kind.compatibility.rawValue]
+        )
+
+        let ok = await waitForInterpretState { state in
+            if case .okFree = state { return true } else { return false }
+        }
+        XCTAssertTrue(ok, "到期重发应经 retryInterpretation 门内重新生成直达 .okFree，实际:\(vm.state)")
+        XCTAssertNotNil(
+            GenerationRetryScheduler.shared.nextRetryAt(.compatibility),
+            "到期命中应先顺延一轮(handleRetryDue 先 schedule 再重发)"
+        )
+        XCTAssertEqual(
+            vm.remainingReads, readsBefore - 1,
+            "重发经正常计费链消耗 1 次(无豁免标记,非豁免透传)"
+        )
+        await drainDetailBackgroundTasks()
+    }
+
+    /// 到期通知在 .idle 态(次数耗尽的达限卡形态)→ 清条目自愈、不重发
+    /// (购买语义,2026-11-26 拍板);异 kind(dailyFortune)通知被 observer
+    /// 过滤,条目与状态都不动。
+    func testRetryDue_IdleState_ClearsEntryWithoutRefire() async throws {
+        defer { GenerationRetryScheduler.shared.clear(.compatibility) }
+        let summary = try makeAutoGenFixture(tag: "dueidle")
+        GenerationRetryScheduler.shared.clear(.compatibility)
+        vm.state = .detail(summary, expectedRuleVersionResponse(for: summary), .idle)
+        let readsBefore = vm.remainingReads
+        GenerationRetryScheduler.shared.schedule(.compatibility, retryAfter: 3900)
+
+        // 异 kind:compat observer 必须忽略(不.Clear 不重发)
+        NotificationCenter.default.post(
+            name: GenerationRetryScheduler.dueNotification, object: nil,
+            userInfo: [GenerationRetryScheduler.kindUserInfoKey:
+                        GenerationRetryScheduler.Kind.dailyFortune.rawValue]
+        )
+        try? await Task.sleep(nanoseconds: 400_000_000)
+        XCTAssertNotNil(
+            GenerationRetryScheduler.shared.nextRetryAt(.compatibility),
+            "异 kind 通知不得触发 compat 清条目"
+        )
+        guard case .detail(_, _, let afterForeignKind) = vm.state,
+              case .idle = afterForeignKind else {
+            XCTFail("异 kind 不得引起状态变化,实际:\(vm.state)"); return
+        }
+
+        // 本 kind + .idle → 清条目、仍不重发
+        NotificationCenter.default.post(
+            name: GenerationRetryScheduler.dueNotification, object: nil,
+            userInfo: [GenerationRetryScheduler.kindUserInfoKey:
+                        GenerationRetryScheduler.Kind.compatibility.rawValue]
+        )
+        let cleared = await Self.waitUntil {
+            GenerationRetryScheduler.shared.nextRetryAt(.compatibility) == nil
+        }
+        XCTAssertTrue(cleared, ".idle 态到期应清条目自愈(购买语义,不自动重试)")
+        guard case .detail(_, _, let afterIdle) = vm.state,
+              case .idle = afterIdle else {
+            XCTFail(".idle 达限卡形态不得自动重发,实际:\(vm.state)"); return
+        }
+        XCTAssertEqual(vm.remainingReads, readsBefore, ".idle 态不得发起生成(零消耗)")
+        await drainDetailBackgroundTasks()
+    }
+
     func testOpenDetail_跨语言付费原文无权限_不早退卡死_自动起链免费层() async throws {
         // 2026-10-01 合并语义修复(match #13 自动起链 × yuyan D10.5 跨语言守卫):
         // 仅有其它语言(en)的付费层缓存 + 无 entitlement → 不展示付费原文(越权)、

@@ -186,6 +186,21 @@ final class DailyAskTests: XCTestCase {
         XCTAssertFalse(model.isAnswering, "2s 内作答应已结束(假服务立即回话)")
     }
 
+    /// 轮询等待条件成立(到期通知 → observer block → Task { @MainActor }
+    /// 两跳异步入 MainActor,条件断言前须让跑道)。
+    @MainActor
+    private func waitUntil(
+        timeout: TimeInterval = 2,
+        _ condition: @MainActor () -> Bool
+    ) async -> Bool {
+        let deadline = Date().addingTimeInterval(timeout)
+        while !condition() && Date() < deadline {
+            await Task.yield()
+            try? await Task.sleep(nanoseconds: 10_000_000)
+        }
+        return condition()
+    }
+
     @MainActor
     private func makeChatModel(
         answerer: FakeAnswerer = FakeAnswerer(),
@@ -274,6 +289,165 @@ final class DailyAskTests: XCTestCase {
             L10n.DailyFortune.askReplyFailed,
             "失败走可见失败气泡(原文进日志;断言对 L10n 值，语言无关)"
         )
+    }
+
+    // MARK: - 503/429 长周期自动重试(2026-11-26 Ask 接入)
+
+    /// 503 失败登记调度与档案;到期重发(通知驱动,锁定 observer kind 过滤
+    /// 与 userInfo 消费端契约)用原问题 + 原上文,成功后档案与条目同清。
+    @MainActor
+    func test对话流_503失败_到期重发成功_复用原上文并清档案() async {
+        defer { GenerationRetryScheduler.shared.clear(.askAnswer) }
+        let answerer = FakeAnswerer(
+            error: APIError.httpError(statusCode: 503, body: nil)
+        )
+        let model = makeChatModel(answerer: answerer)
+        GenerationRetryScheduler.shared.clear(.askAnswer)
+
+        model.sendOffer("今天适合去谈判吗？")
+        await waitUntilAnswered(model)
+        XCTAssertEqual(model.messages.count, 3, "开场 + 用户问 + 失败气泡")
+        XCTAssertNotNil(
+            GenerationRetryScheduler.shared.nextRetryAt(.askAnswer),
+            "503 失败应登记 65 分钟自动重试"
+        )
+        XCTAssertEqual(answerer.recordedHistories.last, [], "首发 history 为空(开场白排除)")
+
+        // 服务恢复 + 到期:重发必须用当初的 history(消息流里已含失败回合)
+        answerer.error = nil
+        NotificationCenter.default.post(
+            name: GenerationRetryScheduler.dueNotification, object: nil,
+            userInfo: [GenerationRetryScheduler.kindUserInfoKey:
+                        GenerationRetryScheduler.Kind.askAnswer.rawValue]
+        )
+
+        let answered = await waitUntil { model.messages.count == 4 }
+        XCTAssertTrue(answered, "到期重发成功后 AI 回答应入流,实际:\(model.messages)")
+        XCTAssertEqual(
+            model.messages.last?.text, "已按盘面作答", "重发成功的回答正常入流"
+        )
+        XCTAssertEqual(
+            answerer.recordedHistories.last, [],
+            "重发复用原 history——不把失败回合(问题+失败气泡)重复注入对话上下文"
+        )
+        XCTAssertFalse(model.isAnswering, "重发后 isAnswering 复位(defer 路径)")
+        XCTAssertNil(
+            GenerationRetryScheduler.shared.nextRetryAt(.askAnswer),
+            "成功清重试档案(clearAskRetry 条目与档案同清)"
+        )
+    }
+
+    /// 余额打空后到期:本地短路(镜像 send 第三道闸)不出网、置购买卡片、
+    /// 清档案——必 402 的往返没有意义。
+    @MainActor
+    func test对话流_余额打空后到期_本地短路不出网_置卡片清档案() async {
+        defer { GenerationRetryScheduler.shared.clear(.askAnswer) }
+        let answerer = FakeAnswerer(
+            error: APIError.httpError(statusCode: 503, body: nil)
+        )
+        let wallet = makeWallet(1)
+        let model = makeChatModel(answerer: answerer, wallet: wallet)
+        GenerationRetryScheduler.shared.clear(.askAnswer)
+
+        model.sendOffer("今天适合去谈判吗？")
+        await waitUntilAnswered(model)
+        XCTAssertEqual(answerer.callCount, 1, "首发一次")
+        XCTAssertNotNil(
+            GenerationRetryScheduler.shared.nextRetryAt(.askAnswer), "503 登记重试"
+        )
+
+        // 失败挂起期间余额被其它消耗打空
+        wallet.apply(0)
+        NotificationCenter.default.post(
+            name: GenerationRetryScheduler.dueNotification, object: nil,
+            userInfo: [GenerationRetryScheduler.kindUserInfoKey:
+                        GenerationRetryScheduler.Kind.askAnswer.rawValue]
+        )
+
+        let cardShown = await waitUntil { model.creditsExhausted }
+        XCTAssertTrue(cardShown, "0 余额到期应本地短路置购买卡片态")
+        XCTAssertNil(
+            GenerationRetryScheduler.shared.nextRetryAt(.askAnswer),
+            "终态清档案"
+        )
+        XCTAssertEqual(
+            answerer.callCount, 1, "不得出网——重发被本地 0 余额闸短路"
+        )
+        XCTAssertFalse(model.isAnswering, "短路路径不置在飞态")
+    }
+
+    /// 到期重发再失败:不叠失败气泡(流型呈现防累积,镜像其它 VM 的
+    /// silentRetry 状态型单卡口径);调度先顺延一轮等下一轮。
+    @MainActor
+    func test对话流_到期重发再失败_不叠失败气泡_调度顺延() async {
+        defer { GenerationRetryScheduler.shared.clear(.askAnswer) }
+        let answerer = FakeAnswerer(
+            error: APIError.httpError(statusCode: 503, body: nil)
+        )
+        let model = makeChatModel(answerer: answerer)
+        GenerationRetryScheduler.shared.clear(.askAnswer)
+
+        model.sendOffer("今天适合去谈判吗？")
+        await waitUntilAnswered(model)
+        XCTAssertEqual(model.messages.count, 3, "首发失败:一条失败气泡")
+
+        NotificationCenter.default.post(
+            name: GenerationRetryScheduler.dueNotification, object: nil,
+            userInfo: [GenerationRetryScheduler.kindUserInfoKey:
+                        GenerationRetryScheduler.Kind.askAnswer.rawValue]
+        )
+
+        let retried = await waitUntil { answerer.callCount == 2 }
+        XCTAssertTrue(retried, "到期应触发一次重发")
+        await waitUntilAnswered(model)
+        XCTAssertEqual(
+            model.messages.count, 3,
+            "重发再失败不得叠加第二条失败气泡(每 65 分钟一条会随会话永久累积)"
+        )
+        XCTAssertEqual(
+            answerer.recordedHistories.count, 2,
+            "重发恰好一次,失败气泡抑制不吞请求本身"
+        )
+        XCTAssertNotNil(
+            GenerationRetryScheduler.shared.nextRetryAt(.askAnswer),
+            "重发前先顺延一轮(再失败继续等下一轮,防在飞杀 App 丢轮)"
+        )
+    }
+
+    /// 档案时效(拍板口径):旧失败未到期时新问题成功 → 清旧档案,
+    /// 到期通知空发不得再重发旧问题。
+    @MainActor
+    func test对话流_旧失败未重发_新问题成功清档案_到期空发不重发() async {
+        defer { GenerationRetryScheduler.shared.clear(.askAnswer) }
+        let answerer = FakeAnswerer(
+            error: APIError.httpError(statusCode: 503, body: nil)
+        )
+        let model = makeChatModel(answerer: answerer)
+        GenerationRetryScheduler.shared.clear(.askAnswer)
+
+        model.sendOffer("今天适合去谈判吗？")
+        await waitUntilAnswered(model)
+        XCTAssertNotNil(
+            GenerationRetryScheduler.shared.nextRetryAt(.askAnswer), "失败登记"
+        )
+
+        // 新问题成功(旧失败未到 65 分钟):clearAskRetry 清旧档案
+        answerer.error = nil
+        model.sendOffer("换个问法行吗？")
+        await waitUntilAnswered(model)
+        XCTAssertNil(
+            GenerationRetryScheduler.shared.nextRetryAt(.askAnswer),
+            "新问题成功后清旧失败档案——旧失败不再重发(对话已前进)"
+        )
+
+        // 到期通知空发:无档案不重发
+        NotificationCenter.default.post(
+            name: GenerationRetryScheduler.dueNotification, object: nil,
+            userInfo: [GenerationRetryScheduler.kindUserInfoKey:
+                        GenerationRetryScheduler.Kind.askAnswer.rawValue]
+        )
+        let refired = await waitUntil(timeout: 0.5) { answerer.callCount == 3 }
+        XCTAssertFalse(refired, "档案已清,到期通知不得再触发重发")
     }
 
     @MainActor

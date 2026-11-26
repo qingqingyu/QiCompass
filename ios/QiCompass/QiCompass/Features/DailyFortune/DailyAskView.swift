@@ -112,6 +112,19 @@ final class DailyAskModel {
     /// 周期;@Observable 的观察本身不持引用,weak 不再是防观察环;nil = 测试无钱包注入)
     weak var wallet: AskWalletModel?
 
+    /// 503/429 长周期重试到期监听(2026-11-26;`nonisolated(unsafe)` 与
+    /// DailyFortuneViewModel 同款说明——@Observable 宏下 deinit 跨 isolation
+    /// 读存储属性的唯一通路)。
+    nonisolated(unsafe) private var retryDueObserver: NSObjectProtocol?
+
+    /// 65 分钟重发档案:失败(503/429)时的原问题 + **当轮**上文。重发必须
+    /// 用当初的 history——messages 流里已含该问题与失败气泡,现取会把失败
+    /// 回合重复注入对话上下文。**会话作用域**(镜像 lastInterpretHash 口径):
+    /// 纯内存随模型销毁,冷启后新模型无档案——残留 .askAnswer 条目到期
+    /// 空发 no-op(单发即消费,不空转);跨重启重发需持久化档案,超拍板范围。
+    private var lastFailedQuestion: String?
+    private var lastFailedHistory: [DailyAskTurn] = []
+
     init(
         opening: String,
         offers: [String],
@@ -146,6 +159,124 @@ final class DailyAskModel {
         self.todayKeyProvider = todayKeyProvider ?? { key }
         self.answerer = answerer
         self.wallet = wallet
+        // 503/429 长周期自动重试(2026-11-26 拍板):到期 → handleRetryDue
+        // 用原问题 + 原上文重发(不重复入流用户气泡)。注册走 observeDue
+        // 共享订阅助手(四 VM/controller 同构收编)。
+        retryDueObserver = GenerationRetryScheduler.observeDue(.askAnswer) { [weak self] in
+            self?.handleRetryDue()
+        }
+    }
+
+    deinit {
+        if let observer = retryDueObserver {
+            NotificationCenter.default.removeObserver(observer)
+        }
+    }
+
+    /// 65 分钟到期重发(2026-11-26):无失败档案/作答在飞/往日只读时不动
+    /// (在飞结果自身会决定 schedule/clear);有档案则先顺延一轮再重发——
+    /// 与前三个 VM 不同,Ask 的失败态是消息气泡非持久 state,故成功/终态
+    /// 路径必须显式 clearAskRetry(performReply 内统一)。
+    ///
+    /// guard else return 不清档案的安全性:条目已被 fireDue 单发消费(不再
+    /// 有后续通知,无空转);档案残留随模型销毁(deinit 摘除 observer,调度
+    /// 器不持模型引用);isPastDay 对给定 dateKey 单向翻转,只读线永不复可写
+    /// ——档案永不再被消费,滞留无后果。
+    private func handleRetryDue() {
+        guard let question = lastFailedQuestion, !isAnswering, !isReadOnly
+        else { return }
+        // 本地 0 余额短路(镜像 send 同款第三道闸,双入口同语义):余额打空
+        // 后重发必 402,白跑网络——直接置购买卡片态(未答问题的恢复出口)+
+        // 清档案(终态;购买后由用户重发,与 402 路径结局一致)。不重复记
+        // askTrialExhausted(余额打空那一刻已记,此处重记会双计)。
+        if wallet?.balance == 0 {
+            AppLogger.app.notice(
+                "op=dailyAsk.retry.due_short_circuit_zero_balance — 置购买卡片并清档案(不出网)"
+            )
+            creditsExhausted = true
+            clearAskRetry()
+            return
+        }
+        GenerationRetryScheduler.shared.schedule(.askAnswer)
+        AppLogger.app.notice(
+            "op=dailyAsk.retry.due question=\(String(question.prefix(40)))"
+        )
+        isAnswering = true
+        let history = lastFailedHistory
+        Task { [weak self] in
+            await self?.performReply(to: question, history: history, isAutoRetry: true)
+        }
+    }
+
+    /// 作答统一执行体(send 与 65 分钟到期重发共用,2026-11-26):
+    /// 成功清重试档案;402/403 专属语义(购买卡片/引导刷新)不自动重试;
+    /// 通用失败且 503/429 时保存问题+上文并登记调度器;其余失败清档案。
+    ///
+    /// 档案时效口径(2026-11-26 拍板确认):新问题成功 → clearAskRetry 清
+    /// 旧档案 = 旧失败不再重发(对话已前进,旧气泡留在流里作历史,合理);
+    /// 新问题也失败 → 档案 + schedule 覆盖 = 只重发最新失败(旧失败的上文
+    /// 已进新 history,重发旧的会把同一问答重复注入)。
+    ///
+    /// - Parameter isAutoRetry: true = 65 分钟到期重发路径。通用失败分支
+    ///   不叠失败气泡(原失败气泡已在流里/已落盘,每 65 分钟一条会随会话
+    ///   永久累积——流型呈现与其它三 VM 的状态型 silentRetry 单卡不同);
+    ///   成功照常入流,402/403 终态照常呈现(各只发生一次)。
+    private func performReply(
+        to question: String, history: [DailyAskTurn], isAutoRetry: Bool = false
+    ) async {
+        defer { isAnswering = false }
+        do {
+            let reply = try await answerer.reply(to: question, history: history)
+            // TASK-12:paid 精确归因——服务端返回本次实扣来源
+            // (缓存命中/免费重放 chargedFrom=nil 记 paid=false)
+            Analytics.askSent(paid: reply.chargedFrom == "purchased")
+            messages.append(.init(role: .ai, text: reply.text))
+            persistAITurn(reply.text)
+            // 追问候选复用 offers 通道(点选直发;发起下一条时用过即收)
+            offers = reply.followUps
+            if let balance = reply.balance {
+                wallet?.apply(balance)
+            }
+            clearAskRetry()
+        } catch {
+            // 错误显式传播 + 分型(2026-10-26 拍板:402 = 内嵌购买卡片,
+            // 不自动弹墙;context_token 过期 = 引导回今日页刷新;其余 =
+            // 通用失败气泡)。question 是用户私事自由文本,不标 .public
+            // ——os_log 默认 .private 脱敏,对齐全仓口径。
+            AppLogger.app.error(
+                "op=dailyAsk.reply failed question=\(String(question.prefix(40))) error=\(String(describing: error), privacy: .public)"
+            )
+            if APIError.isAskCreditsRequired(error) {
+                // 用户消息保留(已发出),无失败气泡——卡片就是回应
+                creditsExhausted = true
+                wallet?.apply(0)
+                clearAskRetry()
+            } else if APIError.isContextTokenError(error) {
+                messages.append(.init(role: .ai, text: L10n.DailyFortune.askReplyContextExpired))
+                persistAITurn(L10n.DailyFortune.askReplyContextExpired)
+                clearAskRetry()
+            } else {
+                // 到期重发再失败:不叠气泡(见 isAutoRetry 参数注释)——
+                // 用户发起的失败才走可见气泡(错误显式呈现不吞)。
+                if !isAutoRetry {
+                    messages.append(.init(role: .ai, text: L10n.DailyFortune.askReplyFailed))
+                    persistAITurn(L10n.DailyFortune.askReplyFailed)
+                }
+                if APIError.isRetryable503Or429(error) {
+                    lastFailedQuestion = question
+                    lastFailedHistory = history
+                    GenerationRetryScheduler.shared.schedule(.askAnswer)
+                } else {
+                    clearAskRetry()
+                }
+            }
+        }
+    }
+
+    private func clearAskRetry() {
+        lastFailedQuestion = nil
+        lastFailedHistory = []
+        GenerationRetryScheduler.shared.clear(.askAnswer)
     }
 
     /// 往日只读(抽屉回看旧线;send 全闸不出网不入流——拍板不跨天续聊)。
@@ -209,41 +340,10 @@ final class DailyAskModel {
         messages.append(.init(role: .user, text: text))
         persistUserTurn(text)
         isAnswering = true
+        // 作答统一执行体(2026-11-26):do/catch 分型与 65 分钟到期重发
+        // 共用 performReply,失败档案/调度登记在那里统一管理
         Task { [weak self] in
-            guard let self else { return }
-            do {
-                let reply = try await self.answerer.reply(to: text, history: history)
-                // TASK-12:paid 精确归因——服务端返回本次实扣来源
-                // (缓存命中/免费重放 chargedFrom=nil 记 paid=false)
-                Analytics.askSent(paid: reply.chargedFrom == "purchased")
-                self.messages.append(.init(role: .ai, text: reply.text))
-                self.persistAITurn(reply.text)
-                // 追问候选复用 offers 通道(点选直发;发起下一条时用过即收)
-                self.offers = reply.followUps
-                if let balance = reply.balance {
-                    self.wallet?.apply(balance)
-                }
-            } catch {
-                // 错误显式传播 + 分型(2026-10-26 拍板:402 = 内嵌购买卡片,
-                // 不自动弹墙;context_token 过期 = 引导回今日页刷新;其余 =
-                // 通用失败气泡)。question 是用户私事自由文本,不标 .public
-                // ——os_log 默认 .private 脱敏,对齐全仓口径。
-                AppLogger.app.error(
-                    "op=dailyAsk.reply failed question=\(String(text.prefix(40))) error=\(String(describing: error), privacy: .public)"
-                )
-                if APIError.isAskCreditsRequired(error) {
-                    // 用户消息保留(已发出),无失败气泡——卡片就是回应
-                    self.creditsExhausted = true
-                    self.wallet?.apply(0)
-                } else if APIError.isContextTokenError(error) {
-                    self.messages.append(.init(role: .ai, text: L10n.DailyFortune.askReplyContextExpired))
-                    self.persistAITurn(L10n.DailyFortune.askReplyContextExpired)
-                } else {
-                    self.messages.append(.init(role: .ai, text: L10n.DailyFortune.askReplyFailed))
-                    self.persistAITurn(L10n.DailyFortune.askReplyFailed)
-                }
-            }
-            self.isAnswering = false
+            await self?.performReply(to: text, history: history)
         }
         return true
     }
