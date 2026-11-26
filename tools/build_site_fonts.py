@@ -124,7 +124,39 @@ def scan_site_chars() -> tuple[set[str], set[str]]:
                  —— zh-hant 页是正文主消费者。
       术语表(term_translations.py)只进 TC(zh-hant 内容的术语以它为事实源)。
     """
+    # ---- SC 腿:改扫构建产物(2026-11-28 外评根治)----
+    # 扫源码时 content.config.ts / global.css / remark 插件里的中文注释与
+    # 报错文案全被当"正文用字"收进 SC(en 页实显 113 字 vs 收 795 字,en
+    # 访客白背 ~100KB)。产物是渲染面的真值:en 页 html = SC 腿全部实显
+    # (含共享组件渲染结果,如语言切换「繁體中文」与天干 zh-l 点缀);
+    # zh-hant 页 html 中 Big5 外字符也由 SC 腿兜底渲染(hant_subset 同口径)。
+    dist = SITE / "dist"
+    if not dist.is_dir():
+        raise RuntimeError(
+            f"site/dist 不存在:{dist}。SC 腿按构建产物取字(2026-11-28),"
+            f"先 `cd site && npm run build` 再跑本脚本(--verify 同样要求;)"
+            f"——不静默回落源码扫描,那正是本修复要消灭的口径。")
     sc: set[str] = set()
+    big5 = big5_chars() | set(WEB_SYMBOLS)
+    # 产物两种布局都要扫:dist/<lang>/**.html 与顶层 dist/<lang>.html
+    # (首页是 en.html 文件而非 en/index.html——2026-11-28 实测漏扫首页,
+    # 品牌字兜底巧合盖住,不靠巧合)
+    pages: list[tuple[str, Path]] = []
+    for sub in ("en", "zh-hant"):
+        base = dist / sub
+        if base.is_dir():
+            pages += [(sub, p) for p in sorted(base.rglob("*.html"))]
+        top = dist / f"{sub}.html"
+        if top.is_file():
+            pages.append((sub, top))
+    for sub, path in pages:
+        chars = {ch for ch in path.read_text(encoding="utf-8") if is_cjk(ch)}
+        if sub == "en":
+            sc |= chars
+        else:
+            sc |= {ch for ch in chars if ch not in big5}
+
+    # ---- TC 腿:源码扫描 + 术语表全量(事实源;占位页未显示的术语字也须备好)----
     tc: set[str] = set()
     for base in (SITE / "src", SITE / "public"):
         for path in sorted(base.rglob("*")):
@@ -135,15 +167,12 @@ def scan_site_chars() -> tuple[set[str], set[str]]:
             if rel.startswith("src/pages/zh-hant"):
                 tc |= chars
             elif rel.startswith("src/data/terms"):
-                # 术语数据只进 TC(2026-11-27 外评修复):S02 新增的 terms.json
-                # 是 zh-hant 内容的数据源,en 页不背全量术语字表——此前按共享
-                # 文件同时灌进 SC(S01 trace 实测曾撑到 304KB)。
-                # 例外:en 页确实渲染的天干 zh-l 点缀由 en_rendered_term_chars()
-                # 显式补进 SC 硬性集合(勿因本分支「只进 TC」而误删)。
+                # 术语数据只进 TC(2026-11-27):en 页不背全量术语字表;
+                # en 页实显的天干点缀已随产物扫描进 SC(en_rendered_term_chars
+                # 的兜底并集保留,双保险无害)
                 tc |= chars
             else:
-                # en 页面与共享文件:两个腿都可能渲染(共享组件出现在 zh-hant 页上)
-                sc |= chars
+                # 共享文件只灌 TC(SC 腿已走产物,源码注释/报错文案不是渲染面)
                 tc |= chars
     return sc, tc
 

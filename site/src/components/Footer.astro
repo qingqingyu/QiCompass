@@ -22,7 +22,15 @@ const P = (p: string) => langPath(lang, p);
 
 const g = terms.groups;
 const nameOf = (e: { en: string; zhHant: string }) => (lang === "en" ? e.en : e.zhHant);
-const dayMasters = Object.values(g.heavenlyStems);
+const dayMasters = Object.entries(g.heavenlyStems) as [string, { en: string; zhHant: string; path: string }][];
+// 天干按五行拼展示名(2026-11-28 外评建议):术语表天干值是单字(甲),
+// 页脚列拼成「甲木 / Jia Wood」更好懂。干支→五行为常识映射,非译名,
+// 不属术语单一事实源管辖(值仍取 terms.json 的 element 译名)。
+const STEM_ELEMENT: Record<string, string> = { 甲: "木", 乙: "木", 丙: "火", 丁: "火", 戊: "土", 己: "土", 庚: "金", 辛: "金", 壬: "水", 癸: "水" };
+const stemName = (key: string, e: { en: string; zhHant: string }) => {
+  const el = g.fiveElements[STEM_ELEMENT[key]];
+  return lang === "en" ? `${e.en} ${el.en}` : `${e.zhHant}${el.zhHant}`;
+};
 // 偏官与七杀同页(en 名与 path 均同 /ten-gods/seven-killings)——按 path 去重
 // 取首个(七杀在前),页脚保持 10 条;全量渲染会出现两条同名同址链接。
 const tenGods = [...new Map(Object.values(g.tenGods).map((x) => [x.path, x])).values()];
@@ -75,10 +83,10 @@ const toolName = (x: { name: string; nameHant: string }) => (lang === "en" ? x.n
         <h2 class="foot-h">{t.footer.colDayMasters}</h2>
         <ul>
           {/* zh-l 汉字点缀仅 en 渲染(zh-hant 名字本身就是该字,再点缀会「甲甲」) */}
-          {dayMasters.map((dm) => LAUNCH.dayMaster ? (
-            <li><a href={P(dm.path)}>{lang === "en" && <span class="zh-l">{dm.zhHant}</span>}{nameOf(dm)}</a></li>
+          {dayMasters.map(([key, dm]) => LAUNCH.dayMaster ? (
+            <li><a href={P(dm.path)}>{lang === "en" && <span class="zh-l">{dm.zhHant}</span>}{stemName(key, dm)}</a></li>
           ) : (
-            <li class="not-launched">{lang === "en" && <span class="zh-l">{dm.zhHant}</span>}{nameOf(dm)}</li>
+            <li class="not-launched">{lang === "en" && <span class="zh-l">{dm.zhHant}</span>}{stemName(key, dm)}</li>
           ))}
         </ul>
       </div>

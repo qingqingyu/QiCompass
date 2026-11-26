@@ -64,6 +64,42 @@ GE_ZH_BANNED = re.compile(
     r"建禄|建祿|羊刃|魁罡|曲直|炎上|稼穑|稼穡|从革|從革|润下|潤下|从儿|從兒|从旺|從旺|化气|化氣)格"
 )
 
+# LAUNCH 上线开关键 → 路由前缀(2026-11-28 外评修复:内容校验感知上线状态,
+# 未上线区块的目标页不算「存在的路由」——否则第一批内容链到未上线页,校验
+# 能过、上线即死链。键与 site/src/data/site.ts 的 LAUNCH 表一致,翻开关时
+# 两处同改;映射关系与 Footer/Header 消费口径对齐)。
+LAUNCH_ROUTE_PREFIXES: dict[str, tuple[str, ...]] = {
+    "calculator": ("/bazi-calculator",),
+    "library": ("/library",),
+    "guides": ("/guides",),
+    "today": ("/today",),
+    "app": ("/app",),
+    "dayMaster": ("/day-master",),
+    "tenGods": ("/ten-gods",),
+    "fiveElements": ("/five-elements",),
+    "stars": ("/stars",),
+    "dayPillars": ("/day-pillars",),
+    "tools": ("/day-master-calculator",),
+    "about": ("/about",),
+    "privacy": ("/privacy",),
+}
+
+SITE_TS = Path(__file__).resolve().parent.parent / "site" / "src" / "data" / "site.ts"
+
+
+def parse_launch_false() -> set[str]:
+    """静态解析 site.ts 的 LAUNCH 表,返回值为 false 的键(漂移 = FAIL 不猜)。"""
+    m = re.search(r"export const LAUNCH = \{(.*?)\} as const;", SITE_TS.read_text(encoding="utf-8"), re.S)
+    if not m:
+        raise RuntimeError(f"{SITE_TS} 里找不到 LAUNCH 表——键名漂移须同步本脚本 LAUNCH_ROUTE_PREFIXES")
+    false_keys = {k for k, v in re.findall(r"(\w+):\s*(true|false)", m.group(1)) if v == "false"}
+    known = set(LAUNCH_ROUTE_PREFIXES)
+    unknown = false_keys - known
+    if unknown:
+        raise RuntimeError(f"LAUNCH 出现未登记键 {sorted(unknown)}——须在 LAUNCH_ROUTE_PREFIXES 补映射")
+    return false_keys
+
+
 # 站点骨架固定路由(与 Header/Footer/nav 常量同步;内容页只许链这些 + 其他内容页)
 KNOWN_STATIC_ROUTES = {
     "/", "/en", "/zh-hant",
@@ -194,6 +230,15 @@ def parse_frontmatter(text: str) -> tuple[dict, str]:
 
 
 # ---------- 各项检查 ----------
+
+
+def _route_offline(route: str, offline_prefixes: list[str]) -> bool:
+    """路由形如 /<lang>/<rest…>(或 /<lang>);rest 命中未上线前缀即不在线。"""
+    parts = route.split("/", 2)
+    if len(parts) < 2 or parts[1] not in ("en", "zh-hant"):
+        return False
+    rest = "/" + (parts[2] if len(parts) > 2 else "")
+    return any(rest == p or rest.startswith(p + "/") or rest.startswith(p + "-") for p in offline_prefixes)
 
 
 def check_file(path: Path, content_dir: Path, terms: dict, routes: set[str],
@@ -359,11 +404,40 @@ def main() -> int:
         for p in files
         if len(parts := p.relative_to(content_dir).parts) == 3
     })
+    # 上线开关感知(2026-11-28):未上线区块的路由不算存在,内容内链到它们 = 死链
+    offline_prefixes: list[str] = []
+    for key in parse_launch_false():
+        offline_prefixes.extend(LAUNCH_ROUTE_PREFIXES[key])
+    routes = {
+        r for r in routes
+        if not any(
+            seg := False for _ in ()
+        ) and not _route_offline(r, offline_prefixes)
+    }
 
     failures: list[str] = []
     slugs_seen: dict = {}
     for path in files:
         check_file(path, content_dir, terms, routes, slugs_seen, failures)
+
+    # 产物死链扫描(2026-11-28 外评修复:此前「死链为 0」只是手工验证,
+    # 未进守护栏;现扫 dist 全部 html 的站内 href,目标不存在 = FAIL)
+    dist = content_dir.parent.parent / "dist"
+    if not dist.is_dir():
+        print(f"FAIL: site/dist 不存在({dist})——先 `cd site && npm run build`,"
+              f"产物死链校验是本脚本的一部分,不静默跳过", file=sys.stderr)
+        return 1
+    static_exts = (".css", ".js", ".ico", ".svg", ".png", ".jpg", ".webp",
+                   ".woff2", ".txt", ".xml", ".webmanifest", ".map", ".json")
+    for page in sorted(dist.rglob("*.html")):
+        html = page.read_text(encoding="utf-8", errors="replace")
+        for href in re.findall(r'href="(/[^"#?]*)', html):
+            if href.endswith(static_exts):
+                continue
+            target = dist / href.lstrip("/")
+            if not (target.exists() or target.with_suffix(".html").exists()
+                    or (target / "index.html").exists()):
+                failures.append(f"{page.relative_to(dist)} -> {href}(产物死链)")
 
     print("=" * 64)
     print(f"内容校验:{len(files)} 个文件({content_dir})")
