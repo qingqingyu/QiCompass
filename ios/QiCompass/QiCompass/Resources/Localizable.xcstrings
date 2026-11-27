@@ -1029,19 +1029,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Account deleted. The charts on this device were kept."
+            "value" : "Your account has been deleted. Charts on this phone were kept; purchased chapters are no longer unlocked."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "账号已删除。手机上的命盘已保留。"
+            "value" : "账号已删除。手机上的命盘已保留,已购章节已失效。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "帳號已刪除。手機上的命盤已保留。"
+            "value" : "帳號已刪除。手機上的命盤已保留,已購章節已失效。"
           }
         }
       }
@@ -1098,19 +1098,19 @@
         "en" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "Your account data on our servers (synced charts, purchase records, question credits) will be permanently deleted. Purchased chapters and question credits cannot be restored after deletion. Data on this device is not affected — use Me → Reset charts to clear it separately."
+            "value" : "The data linked to your account on our servers will be permanently deleted: synced charts, question credits and question history. Purchase records will be unlinked from your account and deactivated, so purchased chapters and question credits can't be restored. Charts on this phone are kept; use Me → Reset charts to clear them."
           }
         },
         "zh-Hans" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "服务器上的账号数据(已同步命盘、购买记录、问事余额)将被永久删除,已购章节与问事余额删除后无法恢复。本机数据不受影响,可在「我的 → 重置命盘」单独清除。"
+            "value" : "服务器上与账号关联的数据将被永久删除:已同步的命盘、问事余额与问事记录。购买记录会与账号解除关联并失效,已购章节与问事余额删除后无法恢复。手机上的命盘会保留,可在「我的 → 重置命盘」单独清除。"
           }
         },
         "zh-Hant" : {
           "stringUnit" : {
             "state" : "translated",
-            "value" : "伺服器上的帳號資料(已同步命盤、購買記錄、問事餘額)將被永久刪除,已購章節與問事餘額刪除後無法恢復。本機資料不受影響,可在「我的 → 重置命盤」單獨清除。"
+            "value" : "伺服器上與帳號關聯的資料將被永久刪除:已同步的命盤、問事餘額與問事記錄。購買記錄會與帳號解除關聯並失效,已購章節與問事餘額刪除後無法恢復。手機上的命盤會保留,可在「我的 → 重置命盤」單獨清除。"
           }
         }
       }
