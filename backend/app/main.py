@@ -29,6 +29,7 @@ from .api import interpret as interpret_api
 from .api import webhooks as webhooks_api
 from .api import auth as auth_api
 from .api import sync as sync_api
+from .auth.apple_revocation import missing_apple_auth_vars
 from .config import (
     AI_PROVIDER,
     AI_ROUTES,
@@ -110,6 +111,20 @@ async def lifespan(app: FastAPI):
     - 构造 InterpretationCache + EntitlementStore 挂 app.state
     - M2a 阶段 apple_server_api 挂 Mock(M2b 切真 SDK 包装)
     """
+    # TASK-17(2026-11-27):Apple 吊销密钥缺配警告——仅提醒不阻断(本地开发
+    # 不需要);生产缺三者任一,**每一次删号都会 503**
+    # (AppleRevocationNotConfiguredError,App Review 实测删号遇 503 =
+    # 5.1.1(v) 拒审)。
+    # 判定与 apple_revocation 的 503 门同源(missing_apple_auth_vars);
+    # 发版自检含「启动日志无此 warning」(docs/后端部署设计决策.md §5)。
+    missing_apple_auth = missing_apple_auth_vars()
+    if missing_apple_auth:
+        logger.warning(
+            "apple.revocation.not_configured missing=%s —— 删号将全部 503"
+            "(生产必须配齐,见 docs/后端部署设计决策.md §3 / TASK-17)",
+            missing_apple_auth,
+        )
+
     db_dir = os.path.dirname(DB_PATH)
     if db_dir:
         os.makedirs(db_dir, exist_ok=True)
@@ -157,6 +172,14 @@ async def lifespan(app: FastAPI):
     from app.ask.store import AskCreditsStore
     ask_store = AskCreditsStore(DB_PATH)
     ask_store.init_schema()
+    # TASK-13(2026-11-27):配额/限铸旧行 7 天保留到期即清——启动显式跑一次
+    # (写路径另有当日首次顺带)。清理是非关键路径:失败记全量日志不阻断
+    # 启动,下个写日自愈(与 store._maybe_purge 同口径)。
+    try:
+        free_quota_store.purge_old_rows(force=True)
+        ask_store.purge_old_mints(force=True)
+    except Exception:
+        logger.exception("TASK-13 startup purge failed(非关键路径,不阻断启动)")
     app.state.ask_store = ask_store
     app.state.devicecheck_client = DeviceCheckClient.build_from_config(
         team_id=DEVICECHECK_TEAM_ID, key_id=DEVICECHECK_KEY_ID,

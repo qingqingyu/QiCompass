@@ -298,14 +298,26 @@ APPLE_PUBLIC_KEYS_CACHE_TTL = int(
     os.environ.get("APPLE_PUBLIC_KEYS_CACHE_TTL") or "3600"
 )
 
+
+def normalize_pem_private_key(raw: str) -> str:
+    """PEM 私钥归一化:strip + 字面 \\n 转回真换行。
+
+    单一事实源(TASK-15):模块常量 APPLE_AUTH_PRIVATE_KEY 与
+    tests/test_apple_revocation.py 的字面 \\n 用例共用——部署平台/env
+    常把 .p8 压成单行(换行写成字面 \\n),归一化若被回归破坏,
+    测试直接打在这个函数上报警,而不是测试自己 replace 自证。
+    """
+    return (raw or "").strip().replace("\\n", "\n")
+
+
 # Sign in with Apple token 吊销(账号删除,Apple 5.1.1(v) 硬性要求;2026-11-24)
 # 换 code 换 token + 调 revoke 端点需要 .p8 私钥签 ES256 client_secret JWT。
 # 三者齐备才启用 Apple 账号删除(不齐 → 显式 503,不静默跳过吊销)。
 APPLE_AUTH_TEAM_ID: str = (os.environ.get("APPLE_AUTH_TEAM_ID") or "").strip()
 APPLE_AUTH_KEY_ID: str = (os.environ.get("APPLE_AUTH_KEY_ID") or "").strip()
 # PEM 全文(含 BEGIN/END 行;换行用字面 \n 转义亦可——下方归一化处理)
-APPLE_AUTH_PRIVATE_KEY: str = (
-    os.environ.get("APPLE_AUTH_PRIVATE_KEY") or "").strip().replace("\\n", "\n")
+APPLE_AUTH_PRIVATE_KEY: str = normalize_pem_private_key(
+    os.environ.get("APPLE_AUTH_PRIVATE_KEY") or "")
 APPLE_REVOKE_TIMEOUT_SECONDS = float(
     os.environ.get("APPLE_REVOKE_TIMEOUT_SECONDS") or "10.0")
 

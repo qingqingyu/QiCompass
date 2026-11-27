@@ -13,6 +13,7 @@ from __future__ import annotations
 
 from fastapi import Header, Request
 
+from ..errors import BaziError
 from .jwt_service import extract_user_id
 from .jwt_service import (
     JWTExpiredError,
@@ -62,15 +63,23 @@ async def require_authenticated_user(
     (/api/entitlement 列表、/api/auth/account)全部拒绝——可选登录路由
     (get_current_user_id → None 兜底)不加此查询(每请求一查的成本
     不值得;残余写面 = 重建幽灵配额桶,低危害,见设计文档 §2.1)。
+
+    TASK-16(2026-11-27):user_store 未初始化 = 服务端配置错误 →
+    BaziError 500(fail-closed,不放行也不冒充 401 凭证问题)。
     """
     user_id = await get_current_user_id(authorization)
     if user_id is None:
         raise JWTMalformedError(message="此接口要求登录,缺 Authorization header")
+    # TASK-16(2026-11-27):user_store 缺失 = 配置错误,必须报错而非放行
+    # (fail-open 曾让「账号存在」核验被静默跳过——错误显式传播红线)
     user_store = getattr(request.app.state, "user_store", None)
-    if user_store is not None:
-        from fastapi.concurrency import run_in_threadpool
-        exists = await run_in_threadpool(user_store.user_exists, user_id)
-        if not exists:
-            raise JWTMalformedError(
-                message="账号已删除或不存在(残留登录凭证被拒绝,请重新登录)")
+    if user_store is None:
+        raise BaziError(
+            "服务端配置错误:app.state.user_store 未初始化"
+            "(强登录路由拒绝放行)")
+    from fastapi.concurrency import run_in_threadpool
+    exists = await run_in_threadpool(user_store.user_exists, user_id)
+    if not exists:
+        raise JWTMalformedError(
+            message="账号已删除或不存在(残留登录凭证被拒绝,请重新登录)")
     return user_id

@@ -198,6 +198,95 @@ final class EntitlementStore {
 
     // MARK: - Slice 6:登录后批量同步(跨设备 / 重装 / 退登回登)
 
+    /// 账号删除后的本地 entitlement 失效(2026-11-24,外评 3.4 条件 2;TASK-16 throws 化)。
+    ///
+    /// 后端台账已匿名化(is_active=0/user_id=NULL),本地副本若不同步失效,
+    /// 界面仍显示章节已解锁而后端 403。按 **userId 轨** deactivate(对齐后端
+    /// 匿名化只动 user_id 命中行;userLocalId 轨是设备本地身份,匿名时期的
+    /// 购买在账号删除语义下同样失效——本账号的 localId 行一并处理,取自
+    /// 已关联行而非客户端任意上报,对齐后端 §5.3 防伪造口径:这里由
+    /// 调用方传入 DB 关联过的 localId,即 UserIdentity.userLocalId 恒定值)。
+    /// 错误显式传播(TASK-16):失败 throws(不再用 -1 返回值——调用方曾以
+    /// @discardableResult 忽略,导致删号后本机章节仍显示解锁、点开 403 的
+    /// 静默失败)。调用方负责补偿(待办标记下次启动重试)。
+    /// 账号行归属谓词单一出处:本方法 = transactionIdsMatching(谓词)→
+    /// deactivateTransactionIds(失效),T0 失效与快照补偿永不漂移。
+    func deactivateAllForAccount(userId: String, userLocalId: String) throws {
+        try deactivateTransactionIds(
+            try transactionIdsMatching(userId: userId, userLocalId: userLocalId))
+    }
+
+    // MARK: - 账号删除补偿(TASK-16,2026-11-27)
+
+    /// 删号时本机 entitlement 失效未完成的待办标记键。
+    /// 值 = `["userId": …, "userLocalId": …, "txIds": […]?]`;
+    /// RootTabView 启动时消费。
+    static let pendingLocalEntitlementDeactivationKey =
+        "pendingLocalEntitlementDeactivation"
+
+    /// 当前会匹配 `deactivateAllForAccount(userId:userLocalId:)` 的行 tx 快照。
+    /// 失败瞬间调用——补偿重试精确按快照失效,不误伤删号后的新购买。
+    func transactionIdsMatching(userId: String, userLocalId: String) throws -> [String] {
+        let all = try modelContext.fetch(FetchDescriptor<Entitlement>())
+        return all.filter { $0.userId == userId || $0.userLocalId == userLocalId }
+            .map(\.transactionId)
+    }
+
+    /// 按快照精确失效(标记重试路径;与 deactivateAllForAccount 同款写法)。
+    func deactivateTransactionIds(_ transactionIds: [String]) throws {
+        let all = try modelContext.fetch(FetchDescriptor<Entitlement>())
+        for entitlement in all
+        where transactionIds.contains(entitlement.transactionId)
+            && entitlement.isActive {
+            entitlement.isActive = false
+        }
+        try modelContext.save()
+    }
+
+    /// 删号失效失败时写待办标记(TASK-16)。快照优先(精确补偿);
+    /// 连快照 fetch 都失败 → 不写 txIds,重试回落 userId/userLocalId 对。
+    func markPendingLocalDeactivation(userId: String, userLocalId: String) {
+        var info: [String: Any] = ["userId": userId, "userLocalId": userLocalId]
+        do {
+            info["txIds"] = try transactionIdsMatching(
+                userId: userId, userLocalId: userLocalId)
+        } catch {
+            AppLogger.persistence.error(
+                "op=entitlementStore.markPendingDeactivation.snapshot_failed fallback=pair error=\(String(describing: error), privacy: .public)"
+            )
+        }
+        UserDefaults.standard.set(
+            info, forKey: Self.pendingLocalEntitlementDeactivationKey)
+    }
+
+    /// 消费待办标记(启动重试失效):成功清除,失败保留下次再试。
+    /// 标记带 txIds → 精确按快照失效(防误伤删号后的新购买/新账号同步行);
+    /// 不带(写标记时 fetch 也失败)→ 回落按 userId/userLocalId 对全量失效。
+    func retryPendingLocalDeactivation() {
+        let defaults = UserDefaults.standard
+        guard let info = defaults.dictionary(
+            forKey: Self.pendingLocalEntitlementDeactivationKey),
+            let userId = info["userId"] as? String,
+            let userLocalId = info["userLocalId"] as? String
+        else { return }
+        do {
+            if let txIds = info["txIds"] as? [String] {
+                try deactivateTransactionIds(txIds)
+            } else {
+                try deactivateAllForAccount(userId: userId, userLocalId: userLocalId)
+            }
+            defaults.removeObject(
+                forKey: Self.pendingLocalEntitlementDeactivationKey)
+            AppLogger.app.notice(
+                "op=entitlement.pendingDeactivation.retry_ok"
+            )
+        } catch {
+            AppLogger.persistence.error(
+                "op=entitlement.pendingDeactivation.retry_failed keepMark error=\(String(describing: error), privacy: .public)"
+            )
+        }
+    }
+
     /// 从后端批量拉当前 user 的全部 entitlement 写入本地 SwiftData。
     ///
     /// 触发时机:`AppEnvironment.accountManager.onSignedIn` 回调里调,登录成功后立即同步,
@@ -210,34 +299,6 @@ final class EntitlementStore {
     ///
     /// **错误处理**:失败不阻断 onSignedIn 链路(对齐 SyncManager 现有模式),记日志,
     /// 下次 App 启动 onAppear 时 syncManager.pull() 再次触发本方法重试。
-    /// 账号删除后的本地 entitlement 失效(2026-11-24,外评 3.4 条件 2)。
-    ///
-    /// 后端台账已匿名化(is_active=0/user_id=NULL),本地副本若不同步失效,
-    /// 界面仍显示章节已解锁而后端 403。按 **userId 轨** deactivate(对齐后端
-    /// 匿名化只动 user_id 命中行;userLocalId 轨是设备本地身份,匿名时期的
-    /// 购买在账号删除语义下同样失效——本账号的 localId 行一并处理,取自
-    /// 已关联行而非客户端任意上报,对齐后端 §5.3 防伪造口径:这里由
-    /// 调用方传入 DB 关联过的 localId,即 UserIdentity.userLocalId 恒定值)。
-    /// 错误显式传播:失败返回 -1(整体异常,已记日志);0 = 全部成功。
-    @discardableResult
-    func deactivateAllForAccount(userId: String, userLocalId: String) -> Int {
-        var failed = 0
-        do {
-            let all = try modelContext.fetch(FetchDescriptor<Entitlement>())
-            let targets = all.filter { $0.userId == userId || $0.userLocalId == userLocalId }
-            for entitlement in targets where entitlement.isActive {
-                entitlement.isActive = false
-            }
-            try modelContext.save()
-        } catch {
-            failed = -1
-            AppLogger.persistence.error(
-                "op=entitlementStore.deactivateAllForAccount failed error=\(String(describing: error), privacy: .public)"
-            )
-        }
-        return failed
-    }
-
     func synchronizeFromBackend(apiClient: APIClient) async {
         AppLogger.app.info("entitlementStore.syncFromBackend.start")
         let remoteEntitlements: [EntitlementListItemDTO]

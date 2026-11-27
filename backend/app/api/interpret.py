@@ -773,7 +773,9 @@ def _free_quota_bucket(request: Request, current_user_id: str | None) -> str:
     if current_user_id:
         return f"user:{current_user_id}"
     host = request.client.host if request.client else "unknown"
-    return f"ip:{_normalize_client_ip(host)}"
+    # TASK-13:桶值存带密钥摘要(前缀保留区分桶类型);先归一再摘要
+    from ..core.ip_digest import FREE_QUOTA_IP_PURPOSE, ip_digest
+    return f"ip:{ip_digest(_normalize_client_ip(host), FREE_QUOTA_IP_PURPOSE)}"
 
 
 def _quota_tier(req: InterpretRequest) -> tuple[str, int]:

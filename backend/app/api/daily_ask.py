@@ -176,9 +176,11 @@ async def daily_ask(
     owner = _owner_for(current_user_id, req.user_local_id)
     language = resolve_language(request)
     day = _utc_day()
+    from ..core.ip_digest import ASK_IP_PURPOSE, ip_digest
     ip = _normalize_client_ip(
         request.client.host if request.client else "unknown")
-    ip_bucket = f"ask-ip:{ip}"
+    # TASK-13:防脚本桶存带密钥摘要(前缀保留)
+    ip_bucket = f"ask-ip:{ip_digest(ip, ASK_IP_PURPOSE)}"
 
     log_ctx = {
         "request_id": request_id, "owner": owner[:13],
@@ -448,11 +450,14 @@ async def ask_balance(
     ask_store: AskCreditsStore = request.app.state.ask_store
     grant_service: AskGrantService = request.app.state.ask_grant_service
     if not await run_in_threadpool(ask_store.wallet_row_exists, owner=owner):
-        ip = _normalize_client_ip(
-            request.client.host if request.client else "unknown")
+        from ..core.ip_digest import ASK_MINT_IP_PURPOSE, ip_digest
+        mint_ip = ip_digest(  # TASK-13:限铸列存带密钥摘要,先归一再摘要
+            _normalize_client_ip(
+                request.client.host if request.client else "unknown"),
+            ASK_MINT_IP_PURPOSE)
         await run_in_threadpool(
             grant_service.grant_trial,
-            owner=owner, ip=ip, day=_utc_day(),
+            owner=owner, ip=mint_ip, day=_utc_day(),
             credits=ASK_TRIAL_CREDITS,
             mint_limit=ASK_MINT_LIMIT_PER_IP, device_token=device_token)
         # device_blocked / mint_limited:余额仍是 0,如实返回(iOS 引导购买)
