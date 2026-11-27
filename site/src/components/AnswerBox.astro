@@ -1,0 +1,18 @@
+---
+// In short 答案框(§4.3 红线:≤60 词的完整定义句,无营销语)。
+// data-sticky-trigger:吸底条在该元素滚出视口后才出现(site.js 同名约定;
+// 无 JS 时不出现吸底条 = 正确退化)。
+import Kicker from "./Kicker.astro";
+
+interface Props {
+  /** kicker 文案(en「In short」/ zh-hant「簡答」) */
+  label: string;
+  text: string;
+}
+const { label, text } = Astro.props;
+---
+
+<div class="answer" data-sticky-trigger>
+  <Kicker text={label} />
+  <p>{text}</p>
+</div>

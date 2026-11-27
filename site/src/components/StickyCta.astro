@@ -1,0 +1,19 @@
+---
+// 移动端吸底条(≤900px,规格 §7 行为四条):答案框滚出视口后出现、接近页脚
+// 隐藏、点 × 永久关闭(sessionStorage)、默认不显示(JS 增强才有 .show)。
+// 文案与目标由页面传入;无 JS = 恒不出现(正确退化)。
+interface Props {
+  text: string;
+  href: string;
+  goLabel: string;
+  /** × 的 aria-label(en「Dismiss」/ zh-hant「關閉」) */
+  dismissLabel: string;
+}
+const { text, href, goLabel, dismissLabel } = Astro.props;
+---
+
+<div class="sticky-cta">
+  <p>{text}</p>
+  <a class="go" href={href}>{goLabel}</a>
+  <button class="x" type="button" aria-label={dismissLabel}>×</button>
+</div>

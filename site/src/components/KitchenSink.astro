@@ -7,6 +7,7 @@ import Enso from "./Enso.astro";
 import Seal from "./Seal.astro";
 import Numeral from "./Numeral.astro";
 import Brush from "./Brush.astro";
+import TermLink from "./TermLink.astro";
 import { SITE, type Lang } from "../data/site";
 
 interface Props {
@@ -264,8 +265,8 @@ const numerals = en
         <p>{L.answerText}</p>
       </div>
       <p>
-        <a class="term" href="#" data-title="Day Master" data-zh="日主" data-def="The Heavenly Stem of your day pillar.">Day Master</a>
-        {" — term links get dotted underlines and (later slices) hover cards."}
+        <TermLink title="Day Master" zh="日主" def="The Heavenly Stem of your day pillar." href="#">Day Master</TermLink>
+        {" — term links get dotted underlines and hover cards."}
       </p>
       <div class="cta-inline">
         <span class="numeral">{numerals[0]}</span>

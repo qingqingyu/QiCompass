@@ -1,0 +1,279 @@
+---
+// 日主页(day-master 集合)页面层:从 frontmatter(stem/element/polarity)
+// + terms.json(单一事实源)派生全部展示数据;lang 相关文案集中在本文件的
+// L 表。模板 ArticleLayout 不写死任何日主内容(红线),内容都从这里喂。
+import ArticleLayout from "./ArticleLayout.astro";
+import { SITE, langPath, type Lang } from "../data/site";
+import { CONFIG } from "../config.mjs";
+import { STEM_ORDER, STEM_ELEMENT, ELEMENT_SEASON, STEM_COMBINE, stemNeighbor, type ElementKey } from "../lib/daymaster.mjs";
+import { sectionTocFromBody } from "../lib/headings.mjs";
+import terms from "../data/terms.json";
+import type { CollectionEntry } from "astro:content";
+
+const EL_CLASS: Record<string, string> = {
+  木: "el-wood", 火: "el-fire", 土: "el-earth", 金: "el-metal", 水: "el-water",
+};
+const term = (group: string, key: string): { en: string; zhHant: string; path: string } => {
+  const hit = (terms.groups as Record<string, Record<string, { en: string; zhHant: string; path: string }>>)[group]?.[key];
+  if (!hit) throw new Error(`DayMasterPage: terms.json 缺 ${group}.${key}`);
+  return hit;
+};
+
+interface Props {
+  entry: CollectionEntry<"day-master">;
+}
+const { entry } = Astro.props as Props;
+const data = entry.data;
+const lang = data.lang as Lang;
+const zh = lang === "en" ? false : true; // 是否中文腿排版口径
+const stemKey = data.stem; // 甲…
+const stemT = term("heavenlyStems", stemKey);
+const elementKey = STEM_ELEMENT[stemKey] as ElementKey;
+const elT = term("fiveElements", elementKey);
+const elClass = EL_CLASS[elementKey];
+if (!elClass) throw new Error(`DayMasterPage: 未知五行 ${elementKey}`);
+const slug = data.slug;
+
+// 错误显式传播:正文或渲染结果缺失时抛错,不用 ?? "" 产出空文章页
+const body = entry.body;
+if (typeof body !== "string" || body.trim() === "") {
+  throw new Error(`DayMasterPage(${slug}): entry.body 缺失,拒绝渲染空文章页`);
+}
+const articleHtml = entry.rendered?.html;
+if (typeof articleHtml !== "string" || articleHtml.trim() === "") {
+  throw new Error(`DayMasterPage(${slug}): entry.rendered.html 缺失(渲染失败?),拒绝渲染空文章页`);
+}
+
+const live = CONFIG.cta.state === "live";
+const ctaTarget = live ? "/bazi-calculator" : "/library";
+const ctHref = (slotName: string) => `${langPath(lang, ctaTarget)}?ct=day-master-${slug}-${slotName}`;
+
+// 阅读时长:CJK 按 400 字/分,拉丁词按 200 词/分,加权求和
+const readMinutes = (() => {
+  // 端点用 \u 转义(build_site_fonts.py 会把字面区间端点当正文用字扫进字体硬性要求)
+  const cjkRe = /[\u3000-\u9fff\uf900-\ufaff]/g;
+  const cjk = (body.match(cjkRe) ?? []).length;
+  const words = body.replace(cjkRe, " ").split(/\s+/).filter(Boolean).length;
+  return Math.max(1, Math.round(cjk / 400 + words / 200));
+})();
+
+// 文案表(en / zh-hant 全部页面串)
+const nameEn = `${stemT.en} ${elT.en}`; // Jia Wood
+const nameZh = `${stemKey}${elT.zhHant}`; // 甲木
+const season = ELEMENT_SEASON[elementKey];
+const combineKey = STEM_COMBINE[stemKey]; // 五合对象天干
+const combineT = term("heavenlyStems", combineKey);
+const polarityLabel = data.polarity === "yang"
+  ? { en: "Yang stem", zhHant: "陽干" }
+  : { en: "Yin stem", zhHant: "陰干" };
+
+// 邻页:天干环形(癸→甲 回绕),href 取 terms.json path(单一事实源)
+const neighbor = (delta: number) => {
+  const s = stemNeighbor(stemKey, delta);
+  const t = term("heavenlyStems", s);
+  return {
+    href: langPath(lang, t.path),
+    zh: s,
+    elClass: EL_CLASS[STEM_ELEMENT[s]],
+    name: lang === "en" ? `${t.en} ${term("fiveElements", STEM_ELEMENT[s]).en}` : `${s}${term("fiveElements", STEM_ELEMENT[s]).zhHant}`,
+  };
+};
+const prev = neighbor(-1);
+const next = neighbor(1);
+
+// 事实格(值是受控枚举派生的 HTML,不是正文)
+const facts = [
+  {
+    dt: zh ? "五行" : "Element",
+    html: `<span class="zh ${elClass}">${elementKey}</span> ${zh ? elT.zhHant : elT.en}`,
+  },
+  {
+    dt: zh ? "當令" : "Season",
+    html: zh ? season.zhHant : season.en,
+  },
+  {
+    dt: zh ? "陰陽" : "Polarity",
+    html: zh ? polarityLabel.zhHant : polarityLabel.en,
+  },
+  {
+    dt: zh ? "五合" : "Combines with",
+    html: `<a href="${langPath(lang, combineT.path)}"><span class="zh">${combineKey}</span> ${zh ? combineT.zhHant : combineT.en}</a>`,
+  },
+];
+
+const L = {
+  en: {
+    homeCrumb: "Home",
+    crumbs: [{ label: "Library", href: langPath(lang, "/library") }],
+    toc: "On this page",
+    answer: "In short",
+    faqHeading: "Frequently asked",
+    byline: ["KnowFate editors", "Checked against the Sanming Tonghui", `Updated ${data.updated}`, `${readMinutes} min read`],
+    kicker: "Day Master",
+    inline: {
+      question: `Is ${stemKey} (${nameEn}) your day master?`,
+      caption: "The app reads it from a birth date and hour — free, no sign-up.",
+      labelLive: "Check your chart",
+      labelPrelaunch: "Explore the library",
+    },
+    panel: {
+      kicker: "Next",
+      title: `This page describes every ${nameEn}. Your chart describes you.`,
+      bodyLive: "Enter a birth date and hour; the chart takes about a minute.",
+      buttonLive: "Calculate my chart",
+      buttonApp: "Get the app",
+      emailPlaceholder: "you@example.com",
+      formButton: "Notify me",
+      formCaption: "One email when the app launches. No spam.",
+    },
+    sticky: { text: `Is ${stemKey} your day master?`, goLabel: "Find out", dismissLabel: "Dismiss" },
+    neighborsLabel: "Ten day masters",
+    railLabel: "All ten day masters",
+    sourcesHtml: `<strong>Sources.</strong> <em>Sanming Tonghui</em> (《三命通会》, Ming dynasty), cross-checked against the app's own engine rules. For entertainment and self-reflection only.`,
+    aboutTerm: `${nameEn} (${stemKey}${elementKey})`,
+    citation: "Sanming Tonghui 三命通会 (Ming dynasty)",
+  },
+  "zh-hant": {
+    homeCrumb: "首頁",
+    crumbs: [{ label: "知識庫", href: langPath(lang, "/library") }],
+    toc: "本頁目錄",
+    answer: "簡答",
+    faqHeading: "常見問題",
+    byline: ["觀命編輯部", "以《三命通會》為底本校對", `${data.updated} 更新`, `閱讀約 ${readMinutes} 分鐘`],
+    kicker: "日主",
+    inline: {
+      question: `你的日主是${stemKey}(${nameZh})嗎?`,
+      caption: "App 從出生日期與時辰讀出——免費、免註冊。",
+      labelLive: "排我的命盤",
+      labelPrelaunch: "瀏覽知識庫",
+    },
+    panel: {
+      kicker: "下一步",
+      title: `本頁說的是每一個${nameZh}。你的命盤說的才是你。`,
+      bodyLive: "輸入出生日期與時辰,一分鐘左右排好。",
+      buttonLive: "排我的命盤",
+      buttonApp: "取得 App",
+      emailPlaceholder: "you@example.com",
+      formButton: "上線通知我",
+      formCaption: "上線時一封信,不發垃圾郵件。",
+    },
+    sticky: { text: `你的日主是${stemKey}嗎?`, goLabel: "去看看", dismissLabel: "關閉" },
+    neighborsLabel: "十日主速查",
+    railLabel: "十日主速查",
+    sourcesHtml: `<strong>資料來源。</strong>《三命通會》(明代),與 App 引擎規則交叉核對。內容僅供娛樂與自我省思。`,
+    aboutTerm: `${nameZh}`,
+    citation: "《三命通會》(明代)",
+  },
+} as const;
+const t = L[lang];
+
+// 目录:与 rehype 插件同一解析源(lib/headings.mjs),id 必然一致
+const toc = sectionTocFromBody(body);
+// 护栏:约定外标题(如含内联元素的 h2)会被 rehype 插件刻意跳过、不赋 id,
+// 而 TOC 推导照常收录 → 锚点静默失效。这里逐条断言渲染产物里有对应 id,
+// 缺失即抛错(错误显式传播,不让坏锚点进 dist)
+for (const it of toc) {
+  if (!articleHtml.includes(`id="${it.id}"`)) {
+    throw new Error(
+      `DayMasterPage(${slug}): 章节「${it.numeral}|${it.title}」渲染后无锚点 id="${it.id}"(标题含内联元素?请改纯文本标题)`
+    );
+  }
+}
+---
+
+<ArticleLayout
+  lang={lang}
+  collection="day-master"
+  {slug}
+  title={data.title}
+  description={data.description}
+  published={data.published}
+  updated={data.updated}
+  inShort={data.inShort}
+  faq={data.faq}
+  html={articleHtml}
+  {toc}
+  {readMinutes}
+  hero={{
+    kicker: t.kicker,
+    kickerZh: lang === "en" ? `日主 · ${nameZh}` : nameZh,
+    glyph: stemKey,
+    elClass,
+    sealChar: elementKey,
+    vtext: data.vtext,
+  }}
+  byline={[...t.byline]}
+  crumbs={[...t.crumbs]}
+  texts={{ homeCrumb: t.homeCrumb, toc: t.toc, answer: t.answer, faqHeading: t.faqHeading }}
+  {facts}
+  cta={{
+    inline: { type: "day-master", ...t.inline, glyphClass: elClass, glyphChar: stemKey },
+    panel: { type: "day-master", ...t.panel },
+    sticky: { text: t.sticky.text, href: ctHref("sticky"), goLabel: t.sticky.goLabel, dismissLabel: t.sticky.dismissLabel },
+  }}
+  neighbors={{ prev: { ...prev, dirLabel: zh ? "上一篇" : "Previous" }, next: { ...next, dirLabel: zh ? "下一篇" : "Next" } }}
+  neighborsLabel={t.neighborsLabel}
+  sourcesHtml={t.sourcesHtml}
+  aboutTerm={t.aboutTerm}
+  citation={t.citation}
+>
+  <nav class="rail-list" slot="rail" aria-label={t.railLabel}>
+    <p class="kicker rail-h">{t.railLabel}</p>
+    <ul>
+      {STEM_ORDER.map((s) => {
+        const st = term("heavenlyStems", s);
+        const ek = STEM_ELEMENT[s];
+        return (
+          <li class={s === stemKey ? "cur" : undefined}>
+            <a href={langPath(lang, st.path)}>
+              <span class={`zh s ${EL_CLASS[ek]}`}>{s}</span>
+              <span class="rn">{lang === "en" ? `${st.en} ${term("fiveElements", ek).en}` : `${s}${term("fiveElements", ek).zhHant}`}</span>
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  </nav>
+</ArticleLayout>
+
+<style>
+  .rail-list .rail-h {
+    font: 500 11px/1 var(--f-sans);
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin: 0 0 14px;
+  }
+  .rail-list ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+  .rail-list a {
+    display: grid;
+    grid-template-columns: 30px 1fr;
+    gap: 10px;
+    align-items: baseline;
+    padding: 9px 0;
+    text-decoration: none;
+    border-bottom: 1px dashed var(--hairline);
+  }
+  .rail-list .s {
+    font-size: 20px;
+  }
+  .rail-list .rn {
+    font-size: 12.5px;
+    color: var(--ink-muted);
+  }
+  .rail-list a:hover .rn {
+    color: var(--ink);
+  }
+  .rail-list li.cur a {
+    border-bottom-style: solid;
+    border-bottom-color: var(--ink);
+  }
+  .rail-list li.cur .rn {
+    color: var(--ink);
+    font-weight: 600;
+  }
+</style>

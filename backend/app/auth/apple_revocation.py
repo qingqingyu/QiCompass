@@ -104,6 +104,19 @@ def revocation_configured() -> bool:
     return not missing_apple_auth_vars()
 
 
+def verify_key_signs() -> None:
+    """启动自检(2026-11-27 外评,用户拍板):三元组配齐 ≠ key 内容可用。
+
+    此前只查环境变量非空,粘贴损坏的 .p8 要到第一次删号才炸(用户已受损)。
+    配齐时试签一次 client_secret(与删号共用 _client_secret 单一事实源):
+    坏 key 当场抛错,由 main.py lifespan 记 ERROR(不阻断启动,与缺配
+    warning 同口径);未配齐直接返回(本地开发保持安静)。
+    """
+    if not revocation_configured():
+        return
+    _client_secret()
+
+
 def _client_secret() -> str:
     """签 ES256 client_secret JWT(Apple /auth/token 与 /auth/revoke 共用)。
 

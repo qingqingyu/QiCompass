@@ -1,6 +1,7 @@
 import { defineConfig } from 'astro/config';
 import { readFileSync } from 'node:fs';
 import remarkTermLinks from './src/plugins/remark-term-links.mjs';
+import rehypeArticleHeadings from './src/plugins/rehype-article-headings.mjs';
 import { SITE } from './src/data/site';
 
 // 术语自动内链数据(S02):terms.json 由 tools/export_site_terms.py 生成(进 git);
@@ -31,5 +32,7 @@ export default defineConfig({
   build: { format: 'file' },
   markdown: {
     remarkPlugins: [[remarkTermLinks, { terms, defs: termDefs }]],
+    // `## 壹|标题` → 锚点 id + 大写数字圆(S03;Astro 内建 heading id 尊重已有 id)
+    rehypePlugins: [rehypeArticleHeadings],
   },
 });

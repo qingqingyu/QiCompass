@@ -16,9 +16,14 @@ interface Props {
   nofollow?: boolean;
   /** og:image 绝对 URL(S06 生成后传入);缺省不出 og:image */
   ogImage?: string;
+  /** og:type;知识文章页传 "article"(S03 ArticleLayout),其余保持默认 website */
+  ogType?: "website" | "article";
+  /** ogType = article 时的 article:modified_time(日期 YYYY-MM-DD,补 T00:00:00Z) */
+  articleModified?: string;
 }
 
-const { title, description, path, lang, noindex = false, nofollow = true, ogImage } = Astro.props;
+const { title, description, path, lang, noindex = false, nofollow = true, ogImage,
+        ogType = "website", articleModified } = Astro.props;
 
 const canonicalPath = path.replace(/\/+$/, "") === "" ? "/" : path.replace(/\/+$/, "");
 const canonical = SITE.domain + (canonicalPath === "/" ? "" : canonicalPath);
@@ -52,7 +57,10 @@ const themeDark = "#171412";
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <meta name="theme-color" content={themeLight} media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content={themeDark} media="(prefers-color-scheme: dark)" />
-<meta property="og:type" content="website" />
+<meta property="og:type" content={ogType} />
+{ogType === "article" && articleModified && (
+  <meta property="article:modified_time" content={`${articleModified}T00:00:00Z`} />
+)}
 <meta property="og:site_name" content={lang === "en" ? "KnowFate" : "觀命 KnowFate"} />
 <meta property="og:title" content={fullTitle} />
 <meta property="og:description" content={description} />

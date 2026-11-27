@@ -1,0 +1,22 @@
+---
+// FAQ 区(模板渲染 h2 + details;global.css 已有 .faq 形态)。
+// 答案是纯文本——要内链时由批量 review 时人工改 markdown 详页;JSON-LD
+// FAQPage 与这里的条目一一对应(同源 frontmatter faq)。
+interface Props {
+  /** 编号(正文节数 + 1,超出壹–捌由 ArticleLayout 抛错) */
+  numeral: string;
+  heading: string;
+  items: { q: string; a: string }[];
+}
+const { numeral, heading, items } = Astro.props;
+---
+
+<section class="faq">
+  <h2 id="faq"><span class="numeral">{numeral}</span>{heading}</h2>
+  {items.map((it) => (
+    <details>
+      <summary>{it.q}</summary>
+      <div class="ans">{it.a}</div>
+    </details>
+  ))}
+</section>

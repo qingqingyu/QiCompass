@@ -29,7 +29,7 @@ from .api import interpret as interpret_api
 from .api import webhooks as webhooks_api
 from .api import auth as auth_api
 from .api import sync as sync_api
-from .auth.apple_revocation import missing_apple_auth_vars
+from .auth.apple_revocation import missing_apple_auth_vars, verify_key_signs
 from .config import (
     AI_PROVIDER,
     AI_ROUTES,
@@ -124,6 +124,16 @@ async def lifespan(app: FastAPI):
             "(生产必须配齐,见 docs/后端部署设计决策.md §3 / TASK-17)",
             missing_apple_auth,
         )
+    else:
+        # 2026-11-27 外评(用户拍板):配齐 ≠ key 可用,试签一次防「坏 .p8
+        # 拖到删号才炸」;失败记 ERROR 不阻断启动(与上方缺配 warning 同口径)
+        try:
+            verify_key_signs()
+        except Exception:
+            logger.exception(
+                "apple.revocation.key_invalid —— APPLE_AUTH_PRIVATE_KEY 配置了"
+                "但签不出 client_secret(检查 .p8 内容与换行是否完整);"
+                "删号将全部 503")
 
     db_dir = os.path.dirname(DB_PATH)
     if db_dir:

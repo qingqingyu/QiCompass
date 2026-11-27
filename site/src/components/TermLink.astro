@@ -1,0 +1,34 @@
+---
+// 术语释义链接(非 markdown 场景)。正文 markdown 里的术语由 remark-term-links
+// 自动包链接,不走这里;模板/Facts 等组件化输出里手工标注术语时用本组件。
+// 渲染与全局 .term 样式一致;data-* 属性供 enhance.ts 的 hover 释义卡读取。
+interface Props {
+  /** en 术语名(popover 标题) */
+  title: string;
+  /** 中文字(popover 里的展示字) */
+  zh?: string;
+  /** 一句「是什么」定义(缺省无 data-def,enhance 不弹卡) */
+  def?: string;
+  /** 目标路由;缺省渲染为 span(纯释义标注,不可点) */
+  href?: string;
+  class?: string;
+}
+const { title, zh, def, href, class: className } = Astro.props;
+const dataAttrs = {
+  "data-title": title,
+  ...(zh ? { "data-zh": zh } : {}),
+  ...(def ? { "data-def": def } : {}),
+};
+---
+
+{
+  href ? (
+    <a class={className ? `term ${className}` : "term"} href={href} {...dataAttrs}>
+      <slot />
+    </a>
+  ) : (
+    <span class={className ? `term ${className}` : "term"} {...dataAttrs}>
+      <slot />
+    </span>
+  )
+}

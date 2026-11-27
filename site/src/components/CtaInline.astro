@@ -1,0 +1,56 @@
+---
+// 文中 CTA(第贰章后,规格 §7):形态固定,文案与两态目标全部由页面传入。
+// 归因 ?ct={type}-{slug}-inline(本文内 CTA 槽位固定为 inline;不设 slot prop,
+// Astro 里 slot 是保留属性,传了也进不了 props);一期 prelaunch 指向
+// Library(排盘器未上线),live 指向排盘器页——切 config.mjs 全站同步换。
+import { CONFIG } from "../config.mjs";
+import { langPath, type Lang } from "../data/site";
+
+interface Props {
+  lang: Lang;
+  /** 归因用页面类型(day-master / ten-gods / …),与集合目录同名 */
+  type: string;
+  slug: string;
+  /** 问句(en 页拼好完整句,模板不写死日主/十神内容——红线) */
+  question: string;
+  caption: string;
+  /** 两态按钮文案 */
+  labelLive: string;
+  labelPrelaunch: string;
+  /** 左侧字形(甲/壹…):class + 字符,kitchen-sink 用 numeral、文章用天干字 */
+  glyphClass?: string;
+  glyphChar?: string;
+}
+const { lang, type, slug, question, caption, labelLive, labelPrelaunch,
+        glyphClass, glyphChar } = Astro.props;
+
+const live = CONFIG.cta.state === "live";
+const target = live ? "/bazi-calculator" : "/library";
+const href = `${langPath(lang, target)}?ct=${type}-${slug}-inline`;
+const label = live ? labelLive : labelPrelaunch;
+---
+
+<aside class="cta-inline">
+  {
+    glyphChar && (
+      <span class={`gi ${glyphClass ?? ""}`} aria-hidden="true">
+        {glyphChar}
+      </span>
+    )
+  }
+  <div class="tx">
+    <p>{question}</p>
+    <span class="caption">{caption}</span>
+  </div>
+  <a class="btn" href={href}>{label}<span class="seal-dot" aria-hidden="true"></span></a>
+</aside>
+
+<style>
+  .gi {
+    font-size: 44px;
+    line-height: 1;
+  }
+  .gi.numeral {
+    font-size: 34px;
+  }
+</style>
