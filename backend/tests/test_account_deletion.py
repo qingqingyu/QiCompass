@@ -7,6 +7,8 @@
   Apple 换 code 验 sub 后删 / sub 不匹配 403 且不删 / 残留 JWT 拒判)
 - chapter_feedback IP HMAC(明文不落库 / 去重防刷语义不变 / 存量清洗)
 - compat 模块清单与 prompts.COMPATIBILITY_MODULES 漂移锁定
+- TASK-17(2026-11-27):lifespan 启动 APPLE_AUTH_* 缺配 warning(缺则打 /
+  配齐不打;明细与 503 门同源 missing_apple_auth_vars)
 """
 
 from __future__ import annotations
@@ -538,3 +540,79 @@ def test_link_compat_ownership_idempotent(shared_db):
     cache.link_compat_ownership("h2", "u1")
     cache.link_compat_ownership("h1", "u2")
     assert len(_table_rows(shared_db, "compat_cache_ownership")) == 3
+
+
+# ---------- TASK-17(2026-11-27):启动缺配 warning(lifespan 顶部) ----------
+
+
+def _set_apple_auth(monkeypatch, values: dict[str, str]) -> None:
+    """把 apple_revocation 模块级三元组替换为给定值(monkeypatch 自动还原)。"""
+    for name, value in values.items():
+        monkeypatch.setattr(f"app.auth.apple_revocation.{name}", value)
+
+
+async def test_lifespan_warns_when_apple_auth_missing(
+        monkeypatch, tmp_path, caplog):
+    """缺 APPLE_AUTH_* 三元组 → lifespan 顶部打 apple.revocation.not_configured。
+
+    回归锚点:warning 明细(missing 变量名)与 503 判定同源
+    (missing_apple_auth_vars),任何一侧改清单这里都要跟着红。
+    """
+    import logging
+
+    from fastapi import FastAPI
+
+    import app.main as main_mod
+    from app.main import lifespan
+
+    monkeypatch.setattr(main_mod, "DB_PATH", str(tmp_path / "lifespan.db"))
+    _set_apple_auth(monkeypatch, {
+        "APPLE_AUTH_TEAM_ID": "",
+        "APPLE_AUTH_KEY_ID": "",
+        "APPLE_AUTH_PRIVATE_KEY": "",
+    })
+    with caplog.at_level(logging.WARNING, logger="app.main"):
+        # 全新 FastAPI 实例:不污染单例 app 的 app.state(ASGITransport
+        # 单测不触发 lifespan,别的测试不依赖这里挂上的 store)
+        async with lifespan(FastAPI()):
+            pass
+    warns = [
+        r for r in caplog.records
+        if r.name == "app.main"
+        and "apple.revocation.not_configured" in r.getMessage()
+    ]
+    assert warns, "缺配 APPLE_AUTH_* 时 lifespan 必须打 not_configured warning"
+    message = warns[0].getMessage()
+    for name in ("APPLE_AUTH_TEAM_ID", "APPLE_AUTH_KEY_ID",
+                 "APPLE_AUTH_PRIVATE_KEY"):
+        assert name in message, f"warning 明细应列出缺失变量 {name}: {message}"
+    assert "503" in message
+
+
+async def test_lifespan_no_warning_when_apple_auth_configured(
+        monkeypatch, tmp_path, caplog):
+    """三元组配齐 → 启动日志干净(发版自检「无此 warning」的判据)。"""
+    import logging
+
+    from fastapi import FastAPI
+
+    import app.main as main_mod
+    from app.main import lifespan
+
+    monkeypatch.setattr(main_mod, "DB_PATH", str(tmp_path / "lifespan.db"))
+    _set_apple_auth(monkeypatch, {
+        "APPLE_AUTH_TEAM_ID": "TEAM123XXXX",
+        "APPLE_AUTH_KEY_ID": "KEYABC1234",
+        "APPLE_AUTH_PRIVATE_KEY": (
+            "-----BEGIN PRIVATE KEY-----\nMIGTAgEAMBMGByqGSM49AgEG"
+            "CCqGSM49AwEHBHkwdwIBAQQg\n-----END PRIVATE KEY-----"),
+    })
+    with caplog.at_level(logging.WARNING, logger="app.main"):
+        async with lifespan(FastAPI()):
+            pass
+    leftovers = [
+        r for r in caplog.records
+        if r.name == "app.main"
+        and "apple.revocation.not_configured" in r.getMessage()
+    ]
+    assert not leftovers, f"配齐后不应再打 warning: {leftovers}"

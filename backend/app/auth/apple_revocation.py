@@ -83,9 +83,25 @@ class AppleRevocationEndpointError(AppleRevocationError):
     code = "APPLE_REVOCATION_ENDPOINT_FAILED"
 
 
+def missing_apple_auth_vars() -> list[str]:
+    """未配置(空)的 APPLE_AUTH_* 变量名列表。
+
+    单一事实源:API 层 503 判定(revocation_configured)与 main.py lifespan
+    启动 warning 的 missing 明细共用本函数——两处不各写一份清单,防单侧
+    漂移(启动说配齐了 / 删号却 503,或反过来)。
+    """
+    return [
+        name for name, value in (
+            ("APPLE_AUTH_TEAM_ID", APPLE_AUTH_TEAM_ID),
+            ("APPLE_AUTH_KEY_ID", APPLE_AUTH_KEY_ID),
+            ("APPLE_AUTH_PRIVATE_KEY", APPLE_AUTH_PRIVATE_KEY),
+        ) if not value
+    ]
+
+
 def revocation_configured() -> bool:
-    """Apple 吊销三元组是否配齐(启动日志与 API 层 503 判定共用)。"""
-    return bool(APPLE_AUTH_TEAM_ID and APPLE_AUTH_KEY_ID and APPLE_AUTH_PRIVATE_KEY)
+    """Apple 吊销三元组是否配齐(启动 warning 与 API 层 503 判定共用)。"""
+    return not missing_apple_auth_vars()
 
 
 def _client_secret() -> str:

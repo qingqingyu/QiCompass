@@ -29,6 +29,7 @@ from .api import interpret as interpret_api
 from .api import webhooks as webhooks_api
 from .api import auth as auth_api
 from .api import sync as sync_api
+from .auth.apple_revocation import missing_apple_auth_vars
 from .config import (
     AI_PROVIDER,
     AI_ROUTES,
@@ -110,6 +111,20 @@ async def lifespan(app: FastAPI):
     - 构造 InterpretationCache + EntitlementStore 挂 app.state
     - M2a 阶段 apple_server_api 挂 Mock(M2b 切真 SDK 包装)
     """
+    # TASK-17(2026-11-27):Apple 吊销密钥缺配警告——仅提醒不阻断(本地开发
+    # 不需要);生产缺三者任一,**每一次删号都会 503**
+    # (AppleRevocationNotConfiguredError,App Review 实测删号遇 503 =
+    # 5.1.1(v) 拒审)。
+    # 判定与 apple_revocation 的 503 门同源(missing_apple_auth_vars);
+    # 发版自检含「启动日志无此 warning」(docs/后端部署设计决策.md §5)。
+    missing_apple_auth = missing_apple_auth_vars()
+    if missing_apple_auth:
+        logger.warning(
+            "apple.revocation.not_configured missing=%s —— 删号将全部 503"
+            "(生产必须配齐,见 docs/后端部署设计决策.md §3 / TASK-17)",
+            missing_apple_auth,
+        )
+
     db_dir = os.path.dirname(DB_PATH)
     if db_dir:
         os.makedirs(db_dir, exist_ok=True)
