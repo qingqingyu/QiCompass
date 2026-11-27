@@ -1,0 +1,72 @@
+---
+// 两态转化组件(规格 README §7;config.mjs 的 cta.state 切换,S05):
+// prelaunch = Buttondown 邮箱表单(原生 POST,关 JS 可提交;隐藏字段记录来源页);
+// live = App Store 徽章链接(appStoreUrl)。供首页 #notify 锚点与排盘器锁框等
+// 独立 CTA 位使用;文末面板的同类两态在 CtaPanel(带标题槽位),表单端点
+// 两处共用 config.mjs 的 BUTTONDOWN_ACTION,不复制第二份 URL。
+import { BUTTONDOWN_ACTION, CONFIG } from "../config.mjs";
+import { type Lang } from "../data/site";
+
+interface Props {
+  lang: Lang;
+  /** 表单隐藏 source 字段(转化归因;如 "home-notify" / "calculator-lock") */
+  source: string;
+  /** 覆盖默认文案(一般不传,组件内双语缺省) */
+  emailPlaceholder?: string;
+  formButton?: string;
+  formCaption?: string;
+}
+const { lang, source, emailPlaceholder, formButton, formCaption } = Astro.props;
+
+const COPY = {
+  en: {
+    placeholder: "you@example.com",
+    button: "Notify me at launch",
+    caption:
+      "One email when the app and the free calculator go live — no marketing, unsubscribe anytime.",
+  },
+  "zh-hant": {
+    placeholder: "you@example.com",
+    button: "上架通知我",
+    caption: "App 與免費排盤器上線時寄一封信通知你——不行銷、不群發,隨時可退訂。",
+  },
+} as const;
+const c = COPY[lang];
+const live = CONFIG.cta.state === "live";
+const inputId = `notify-email-${source}`;
+---
+
+{
+  live ? (
+    <a class="appstore" href={CONFIG.appStoreUrl} rel="noopener">
+      <small>{lang === "en" ? "Download on the" : "下載於"}</small>
+      <b>App Store</b>
+    </a>
+  ) : (
+    <>
+      <form class="notify" method="post" action={BUTTONDOWN_ACTION}>
+        <label class="sr-only" for={inputId}>
+          Email
+        </label>
+        <input
+          class="input"
+          id={inputId}
+          type="email"
+          name="email"
+          placeholder={emailPlaceholder ?? c.placeholder}
+          required
+        />
+        <input type="hidden" name="source" value={source} />
+        <button class="btn" type="submit">{formButton ?? c.button}</button>
+      </form>
+      <p class="caption notify-cap">{formCaption ?? c.caption}</p>
+    </>
+  )
+}
+
+<style>
+  .notify-cap {
+    margin: 10px 0 0;
+    max-width: 34em;
+  }
+</style>

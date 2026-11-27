@@ -13,7 +13,8 @@
      真实开关状态影响);
   4. 开关一致性:「只开 calculator」「全关」两种组合各构建一次,页头与页脚
      中 /bazi-calculator 出链状态必须一致(临时改真实 launch.json,finally
-     还原;构建顺序先开后关,测试结束时 dist 停在全关产物,与默认状态一致)。
+     还原)。calculator 自 S05 起默认开启,「全关」相是显式写入 false 的测试
+     态而非默认态——测试结束后须重跑默认 build 再做依赖 dist 的校验。
 """
 from __future__ import annotations
 
@@ -160,15 +161,15 @@ def _href_parts(html: str, href: str) -> tuple[bool, bool]:
 def test_header_footer_consistency() -> None:
     original = LAUNCH_JSON.read_text(encoding="utf-8")
     try:
-        # 顺序先「只开 calculator」后「全关」:结束时 dist 停在全关产物,与默认状态一致。
-        for label, calc_on in (("只开 calculator", True), ("全关(还原默认)", False)):
-            if calc_on:
-                data = json.loads(original)
-                data["sections"]["calculator"]["enabled"] = True
-                LAUNCH_JSON.write_text(
-                    json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-            else:
-                LAUNCH_JSON.write_text(original, encoding="utf-8")
+        # 顺序先「只开 calculator」后「全关」:结束时 dist 停在 calculator 关闭的
+        # 产物。两相都以显式开关写入:calculator 自 S05 起默认为 true,「全关」相
+        # 不能原样还原(会把默认的 true 带进断言「出链消失」的一相,假红);
+        # 因此「全关」是测试态而非默认态,测试后依赖 dist 的校验前须重跑默认 build。
+        for label, calc_on in (("只开 calculator", True), ("全关(显式关闭)", False)):
+            data = json.loads(original)
+            data["sections"]["calculator"]["enabled"] = calc_on
+            LAUNCH_JSON.write_text(
+                json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
             r = run(["npm", "run", "build"], cwd=str(SITE))
             ok = r.returncode == 0
             detail = f"build exit={r.returncode}"

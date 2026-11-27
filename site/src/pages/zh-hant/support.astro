@@ -1,0 +1,60 @@
+---
+// 技術支援頁(zh-hant;對稱 en 版,S05,App Store Connect 必填 URL)。
+import Base from "../../layouts/Base.astro";
+import FaqBlock from "../../components/FaqBlock.astro";
+
+const lang = "zh-hant" as const;
+const path = "/zh-hant/support";
+
+const faq = [
+  {
+    q: "怎麼恢復已購買的章節?",
+    a: "在同一個 Apple ID 登入的裝置上安裝 App,開啟「我的 → 設定 → 恢復購買」即可。購買綁定在你的 Apple ID 上,不需要其他憑證,章節立即解鎖。",
+  },
+  {
+    q: "怎麼刪除帳號與我的資料?",
+    a: "登入使用者可自助刪除:「我的 → 設定 → 刪除帳號」。刪除範圍包括帳號、已同步命盤(含出生資料)、問事餘額與記錄、以及你親自輸入的文字與其伺服器快取。具體保留項(匿名化交易帳本)見隱私政策 §4。",
+  },
+  {
+    q: "我的命盤和別家 App 排得不一樣,誰對?",
+    a: "多半是真太陽時或 23:00 換日的差異——出生時刻靠近奇數整點時尤其明顯。我們的規則固定且公開在「關於與方法」頁;出生正好落在規則邊界上時,嚴謹的引擎本就可能不同,我們會明說這種情況。",
+  },
+  {
+    q: "解讀裡發現錯誤,能修嗎?",
+    a: "能——附截圖寫信給我們。命盤由規則引擎算出,所以事實性錯誤(某柱錯了、某神煞錯了)在引擎層修復,同樣輸入的所有命盤會一併修正。",
+  },
+  {
+    q: "怎麼退款?",
+    a: "購買由 Apple 收款,退款也走 Apple:在 App Store 點你的姓名 →「購買記錄」→「請求退款」,或前往 reportaproblem.apple.com。我們無法代 Apple 退款,但會協助你整理憑證。",
+  },
+];
+---
+
+<Base
+  {lang}
+  title="技術支援"
+  description="觀命技術支援:恢復購買、刪除帳號、命盤差異說明,聯絡信箱 hello@knowfate.app。"
+  path={path}
+>
+  <div class="wrap">
+    <ol class="crumbs">
+      <li><a href="/zh-hant">首頁</a></li>
+      <li aria-current="page">技術支援</li>
+    </ol>
+
+    <header class="calc-head">
+      <div>
+        <h1 class="h1">技術支援<span class="muted" style="font-weight:300;display:block">每一封信我們都讀。</span></h1>
+        <p class="lede muted">寫信到 <a href="mailto:hello@knowfate.app">hello@knowfate.app</a>,通常一至兩個工作天內回覆。常見問題先看下面。</p>
+      </div>
+      <span class="vtext" aria-hidden="true">技術支援</span>
+    </header>
+  </div>
+
+  <section class="section-tight" style="padding-top:0">
+    <div class="wrap" style="max-width:880px">
+      <FaqBlock {lang} items={faq} />
+      <p class="caption" style="margin-top:26px">資料如何處理:<a href="/zh-hant/privacy">隱私</a>。命盤如何排出:<a href="/zh-hant/about">關於與方法</a>。</p>
+    </div>
+  </section>
+</Base>

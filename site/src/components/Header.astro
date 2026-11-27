@@ -1,6 +1,7 @@
 ---
 // 页头:品牌字按语言(规格 README §13)+ 主导航 + 语言切换 + 移动端菜单按钮。
 // 当前页朱点 = aria-current="page" 的 ::after 菱形(global.css §6,DESIGN 允许的当前时辰点级朱红)。
+import { CONFIG } from "../config.mjs";
 import { SITE, UI, NAV, isLaunched, langPath, stripLang, zhFamily, type Lang } from "../data/site";
 
 interface Props {
@@ -15,6 +16,11 @@ const brand = SITE.brand[lang];
 const { rest } = stripLang(path);
 
 const currentPath = path.replace(/\/+$/, "");
+// 右上按钮只随 cta.state 切(TASK-19,规格 §7 两态 CTA),不再读 /app 上线开关——
+// 上架前渲染「上架通知我」锚到首页邮箱表单;上架后「取得 App」直链 App Store。
+// 两态都是可点的 <a>,不再出现灰色 aria-disabled 假按钮。
+const ctaLive = CONFIG.cta.state === "live";
+const ctaHref = ctaLive ? CONFIG.appStoreUrl : langPath(lang, "/") + "#notify";
 ---
 
 <header class="site-header">
@@ -57,11 +63,7 @@ const currentPath = path.replace(/\/+$/, "");
           {lang === "en" ? t.langSwitch.other : t.langSwitch.current}
         </a>
       </div>
-      {isLaunched("/app") ? (
-        <a class="btn btn-sm" href={langPath(lang, "/app")}>{t.getTheApp}<span class="seal-dot" aria-hidden="true"></span></a>
-      ) : (
-        <span class="btn btn-sm not-launched" aria-disabled="true" title={t.comingSoon}>{t.getTheApp}<span class="seal-dot" aria-hidden="true"></span></span>
-      )}
+      <a class="btn btn-sm" href={ctaHref} rel={ctaLive ? "noopener" : undefined}>{ctaLive ? t.getTheApp : t.notifyMe}<span class="seal-dot" aria-hidden="true"></span></a>
       <button class="menu-btn" aria-controls="nav" aria-expanded="false" aria-label={t.menuLabel}><svg width="22" height="22" viewBox="0 0 22 22" aria-hidden="true"><path d="M3 7h16M3 15h11" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"/></svg></button>
     </div>
   </div>

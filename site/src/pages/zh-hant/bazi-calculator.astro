@@ -1,0 +1,126 @@
+---
+// 排盘器一期页(zh-hant;對稱 en 版,S05)。鎖框版:生辰帖整體換虛線鎖框,
+// JSON-LD 只出 BreadcrumbList + FAQPage。繁體大寫數字用 貳/參(TC 子集無 贰/叁)。
+import Base from "../../layouts/Base.astro";
+import FaqBlock from "../../components/FaqBlock.astro";
+import NotifyOrAppStore from "../../components/NotifyOrAppStore.astro";
+import { SITE, type Lang } from "../../data/site";
+
+const lang: Lang = "zh-hant";
+const path = "/zh-hant/bazi-calculator";
+const canonical = SITE.domain + path;
+
+const faq = [
+  {
+    q: "排盤器什麼時候開放?",
+    a: "免費排盤器與 KnowFate App 同步開放。在上方留下信箱,開放當天我們會寄一封信通知你——不行銷、不群發。",
+  },
+  {
+    q: "為什麼我的時辰柱和別家排盤器不一樣?",
+    a: "多數是真太陽時或 23:00 換日的差異。若出生時刻落在奇數整點(23:00、01:00、03:00……)前後約半小時,採用不同規則的引擎本來就可能不同。",
+  },
+  {
+    q: "排盤器會顯示哪些內容?",
+    a: "四柱、日主、十神、藏干、五行強弱、大運與神煞——以真太陽時修正、由確定性引擎計算。免費,免註冊。",
+  },
+];
+
+const jsonld = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "首頁", item: `${SITE.domain}/zh-hant` },
+        { "@type": "ListItem", position: 2, name: "八字排盤", item: canonical },
+      ],
+    },
+    {
+      "@type": "FAQPage",
+      mainEntity: faq.map((f) => ({
+        "@type": "Question",
+        name: f.q,
+        acceptedAnswer: { "@type": "Answer", text: f.a },
+      })),
+    },
+  ],
+};
+// set:html 不轉義:`</script>` 序列會截斷標籤,統一轉 <(JSON 等價)
+const jsonldJson = JSON.stringify(jsonld).replace(/</g, "\\u003c");
+---
+
+<Base
+  {lang}
+  title="八字排盤——免費四柱命盤,真太陽時修正"
+  description="免費八字排盤器即將開放:四柱、日主、十神、藏干、五行強弱、大運與神煞,以真太陽時修正、確定性引擎計算。留下信箱,開放當天通知你。"
+  path={path}
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={jsonldJson} />
+  </Fragment>
+
+  <div class="wrap">
+    <ol class="crumbs">
+      <li><a href="/zh-hant">首頁</a></li>
+      <li aria-current="page">八字排盤</li>
+    </ol>
+
+    <header class="calc-head">
+      <div>
+        <h1 class="h1">八字排盤<span class="muted" style="font-weight:300;display:block">免費四柱命盤,真太陽時修正</span></h1>
+        <p class="lede muted">八個字、日主、十神、藏干、五行強弱、大運與神煞——以真太陽時修正。免費,免註冊。</p>
+      </div>
+      <span class="vtext" aria-hidden="true">四柱排盤</span>
+    </header>
+  </div>
+
+  <!-- 一期:生辰帖 + 結果區整體換成鎖框(dashed = 鎖定,DESIGN.md 虛線語義) -->
+  <section class="section-tight" style="padding-top:0">
+    <div class="wrap">
+      <div class="locked-box" style="max-width:680px">
+        <p class="kicker" style="margin:0">Opening soon<span class="dot" aria-hidden="true"></span></p>
+        <p class="h3" style="margin:16px 0 10px">排盤器與 App 同步開放。</p>
+        <p class="muted" style="margin:0 0 22px;max-width:36em">輸入出生日期與地點,命盤由確定性引擎排出——真太陽時修正、23:00 換日。完整解讀在 App 裡,分捌章呈現。</p>
+        <NotifyOrAppStore {lang} source="calculator-lock" />
+      </div>
+    </div>
+  </section>
+
+  <!-- 方法論(E-E-A-T;指南長文未上線前只鏈站內已存在的 /zh-hant/about) -->
+  <section class="section" id="method">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="vmark" aria-hidden="true">排盤法度</span>
+        <div>
+          <span class="kicker">Method</span>
+          <h2 class="h2" style="margin-top:14px">這個排盤器怎麼算</h2>
+        </div>
+      </div>
+      <div class="method">
+        <div>
+          <h3>真太陽時 <span class="zh">True Solar Time</span></h3>
+          <p>先依出生地經度與均時差,把鐘錶時換算成當地太陽時,再定時辰柱;歷史時區與夏令時間先行處理。<a href="/zh-hant/about">了解更多</a></p>
+        </div>
+        <div>
+          <h3>子初換日 <span class="zh">23:00 boundary</span></h3>
+          <p>亥時結束、子時開始的 23:00 即換一日:23:30 出生屬次日日柱。有些排盤器分「早晚子時」,這裡不分。<a href="/zh-hant/about">了解更多</a></p>
+        </div>
+        <div>
+          <h3>節氣定月 <span class="zh">Solar terms</span></h3>
+          <p>月柱以十二節氣換月,不看陰曆初一:2 月 3 日出生,年柱仍可能屬前一年。</p>
+        </div>
+        <div>
+          <h3>出處 <span class="zh">Sources</span></h3>
+          <p>曆法轉換由開源引擎完成,並對照公開參考命盤核驗;神煞只取《三命通會》一張固定查表,同一張盤絕不混用流派。<a href="/zh-hant/about">關於與方法</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-tight" style="padding-top:0">
+    <div class="wrap" style="max-width:880px">
+      <h2 class="h2" style="margin-bottom:28px">排盤器常見問題</h2>
+      <FaqBlock {lang} items={faq} />
+    </div>
+  </section>
+</Base>

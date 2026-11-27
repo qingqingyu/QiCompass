@@ -1,0 +1,128 @@
+---
+// 排盘器一期页(S05;设计稿 calculator.html 的头部/方法论/FAQ 三块)。
+// features.calculator='off':生辰帖整体换成虚线锁框「Opening soon」+ 邮箱表单
+// (NotifyOrAppStore),右侧结果区不渲染;S09-S12 后端就绪后按设计稿补全。
+// JSON-LD 一期只出 BreadcrumbList + FAQPage——不声明一个还不能用的 WebApplication。
+import Base from "../../layouts/Base.astro";
+import FaqBlock from "../../components/FaqBlock.astro";
+import NotifyOrAppStore from "../../components/NotifyOrAppStore.astro";
+import { SITE, type Lang } from "../../data/site";
+
+const lang: Lang = "en";
+const path = "/en/bazi-calculator";
+const canonical = SITE.domain + path;
+
+const faq = [
+  {
+    q: "When does the calculator open?",
+    a: "The free calculator opens together with the KnowFate app. Leave your email above and we will send one note on the day it does — no marketing.",
+  },
+  {
+    q: "Why is my hour pillar different on another site?",
+    a: "Most often True Solar Time or the 23:00 day boundary. If you were born within about half an hour of an odd hour (23:00, 01:00, 03:00 …), engines that treat these differently can legitimately disagree.",
+  },
+  {
+    q: "What will the calculator show?",
+    a: "Your four pillars, Day Master, Ten Gods, hidden stems, Five Elements balance, luck pillars and symbolic stars — corrected to True Solar Time and computed by a deterministic engine. Free, no sign-up.",
+  },
+];
+
+const jsonld = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: [
+        { "@type": "ListItem", position: 1, name: "Home", item: `${SITE.domain}/en` },
+        { "@type": "ListItem", position: 2, name: "BaZi Calculator", item: canonical },
+      ],
+    },
+    {
+      "@type": "FAQPage",
+      mainEntity: faq.map((f) => ({
+        "@type": "Question",
+        name: f.q,
+        acceptedAnswer: { "@type": "Answer", text: f.a },
+      })),
+    },
+  ],
+};
+// set:html 不转义:文案里的 `</script>` 序列会截断标签,统一转 <(JSON 等价)
+const jsonldJson = JSON.stringify(jsonld).replace(/</g, "\\u003c");
+---
+
+<Base
+  {lang}
+  title="BaZi Calculator — free Four Pillars chart with True Solar Time"
+  description="A free BaZi calculator is opening soon: four pillars, Day Master, Ten Gods, Five Elements balance, luck pillars and symbolic stars — corrected to True Solar Time. Leave an email to hear the day it opens."
+  path={path}
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={jsonldJson} />
+  </Fragment>
+
+  <div class="wrap">
+    <ol class="crumbs">
+      <li><a href="/en">Home</a></li>
+      <li aria-current="page">BaZi Calculator</li>
+    </ol>
+
+    <header class="calc-head">
+      <div>
+        <h1 class="h1">BaZi Calculator <span class="muted" style="font-style:italic;font-weight:300">— Four Pillars of Destiny</span></h1>
+        <p class="lede muted">Your eight characters, Day Master, Ten Gods, hidden stems, Five Elements balance, luck pillars and symbolic stars — corrected to True Solar Time. Free, no sign-up.</p>
+      </div>
+      <span class="vtext" aria-hidden="true">四柱排盘</span>
+    </header>
+  </div>
+
+  <!-- 一期:生辰帖 + 结果区整体换成锁框(dashed = 锁定,DESIGN.md 虚线语义) -->
+  <section class="section-tight" style="padding-top:0">
+    <div class="wrap">
+      <div class="locked-box" style="max-width:680px">
+        <p class="kicker" style="margin:0">Opening soon<span class="dot" aria-hidden="true"></span></p>
+        <p class="h3" style="margin:16px 0 10px">The calculator opens with the app.</p>
+        <p class="muted" style="margin:0 0 22px;max-width:36em">Enter a birth date and place, and the chart is cast on a deterministic engine — corrected to True Solar Time, with the day changing at 23:00. The full reading arrives in the app, in eight chapters.</p>
+        <NotifyOrAppStore {lang} source="calculator-lock" />
+      </div>
+    </div>
+  </section>
+
+  <!-- 方法论(E-E-A-T;guides 长文未上线前一律只链站内已存在的 /about) -->
+  <section class="section" id="method">
+    <div class="wrap">
+      <div class="section-head">
+        <span class="vmark" aria-hidden="true">排盘法度</span>
+        <div>
+          <span class="kicker">Method</span>
+          <h2 class="h2" style="margin-top:14px">How this calculator works</h2>
+        </div>
+      </div>
+      <div class="method">
+        <div>
+          <h3>True Solar Time <span class="zh">真太阳时</span></h3>
+          <p>Clock time is converted to local solar time from your birthplace's longitude and the equation of time, then the hour pillar is picked. Historical time zones and daylight saving are applied first. <a href="/en/about">Read more</a></p>
+        </div>
+        <div>
+          <h3>The 23:00 day boundary <span class="zh">子初换日</span></h3>
+          <p>The Chinese day begins at the start of the Rat hour, 23:00. A birth at 23:30 belongs to the next day's pillar. Some calculators split "early" and "late" Rat hours; this one doesn't. <a href="/en/about">Read more</a></p>
+        </div>
+        <div>
+          <h3>Solar-term months <span class="zh">节气定月</span></h3>
+          <p>The month pillar changes on the 12 "jie" solar terms, not on the lunar month or the 1st. A birth on 3 February may still belong to the previous year's pillar.</p>
+        </div>
+        <div>
+          <h3>Sources <span class="zh">出处</span></h3>
+          <p>Calendar conversion runs on an open-source engine checked against published reference charts. Symbolic stars follow one fixed table from <em>Sanming Tonghui</em> (三命通会). Schools are never mixed on one chart. <a href="/en/about">About &amp; method</a></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section-tight" style="padding-top:0">
+    <div class="wrap" style="max-width:880px">
+      <h2 class="h2" style="margin-bottom:28px">Calculator questions</h2>
+      <FaqBlock {lang} items={faq} />
+    </div>
+  </section>
+</Base>

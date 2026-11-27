@@ -1,0 +1,111 @@
+---
+// 關於與方法頁(zh-hant;對稱 en 版,S05,E-E-A-T 核心)。
+import Base from "../../layouts/Base.astro";
+
+const lang = "zh-hant" as const;
+const path = "/zh-hant/about";
+
+const method = [
+  {
+    h: "確定性引擎",
+    zh: "deterministic",
+    p: "每張命盤由規則算出,不由感覺:同一份出生資料永遠排出同一張盤,計算規則釘死在版本號上。規則若有變更,我們會明說。",
+  },
+  {
+    h: "真太陽時",
+    zh: "True Solar Time",
+    p: "先依出生地經度與均時差,把鐘錶時換算成當地太陽時,再定時辰柱;歷史時區與夏令時間先行處理。",
+  },
+  {
+    h: "子初換日",
+    zh: "23:00 boundary",
+    p: "亥時結束、子時開始的 23:00 即換一日,不分「早晚子時」:23:30 出生屬次日日柱。一條規則,通行全盤。",
+  },
+  {
+    h: "節氣定月",
+    zh: "Solar terms",
+    p: "月柱以十二節氣換月,不看陰曆初一:2 月 3 日出生,年柱仍可能屬前一年。",
+  },
+] as const;
+
+const honesty = [
+  "語言模型從不判斷喜忌。它只把規則引擎算出的結果說成人話;若它與引擎相左,以引擎為準。",
+  "不給「正官格」「偏印格」這類硬格局標籤。命局以平實的傾向描述;懂傳統的人自然認得出形狀,我們不蓋章。",
+  "命局落入規則特別處理的邊界(從格、專旺),App 會明說,而不是硬猜一個喜用神。",
+  "不說狠話。不報死期、不中獎號碼、不「你三十歲必婚」。怎麼說都對的話,不是解讀。",
+] as const;
+---
+
+<Base
+  {lang}
+  title="關於與方法——怎麼排盤與解讀"
+  description="KnowFate · 觀命 的方法:確定性排盤引擎、真太陽時修正、23:00 換日、《三命通會》神煞查表;解讀由 AI 起草、引擎逐條核對、人工過目後出稿。"
+  path={path}
+>
+  <div class="wrap">
+    <ol class="crumbs">
+      <li><a href="/zh-hant">首頁</a></li>
+      <li aria-current="page">關於與方法</li>
+    </ol>
+
+    <header class="calc-head">
+      <div>
+        <h1 class="h1">關於與方法<span class="muted" style="font-weight:300;display:block">專業,而不是算命。</span></h1>
+        <p class="lede muted">KnowFate · 觀命 用確定性引擎排盤,用心思讀盤。這頁記錄:命盤怎麼排出來、解讀怎麼寫成、以及哪些話我們拒絕說。</p>
+      </div>
+      <span class="vtext" aria-hidden="true">觀命</span>
+    </header>
+  </div>
+
+  <section class="section-tight" style="padding-top:0">
+    <div class="wrap" style="max-width:880px">
+      <div class="section-head">
+        <span class="vmark" aria-hidden="true">排盤法度</span>
+        <div>
+          <span class="kicker">Method</span>
+          <h2 class="h2" style="margin-top:14px">命盤怎麼排出來</h2>
+        </div>
+      </div>
+      <div class="method" style="max-width:none">
+        {method.map((m) => (
+          <div>
+            <h3>{m.h} <span class="zh">{m.zh}</span></h3>
+            <p>{m.p}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  </section>
+
+  <section class="section-tight" style="padding-top:0">
+    <div class="wrap" style="max-width:760px">
+      <div class="section-head">
+        <span class="vmark" aria-hidden="true">解讀成文</span>
+        <div>
+          <span class="kicker">The reading</span>
+          <h2 class="h2" style="margin-top:14px">解讀怎麼寫成</h2>
+        </div>
+      </div>
+      <p class="muted" style="max-width:40em">章節由語言模型起草,再對照引擎輸出逐條核對——十神、五行強弱、神煞,一條不能對不上;定稿前另有一道人工過目。三道工序,一條規矩:盤說了算,文字聽盤的。</p>
+      <ul class="honesty" style="margin:26px 0 0;padding:0;list-style:none">
+        {honesty.map((h) => (
+          <li style="border-top:1px solid var(--hairline);padding:16px 0;color:var(--ink-muted);font-size:15.5px">{h}</li>
+        ))}
+      </ul>
+    </div>
+  </section>
+
+  <section class="section-tight" style="padding-top:0">
+    <div class="wrap" style="max-width:760px">
+      <div class="section-head">
+        <span class="vmark" aria-hidden="true">出處</span>
+        <div>
+          <span class="kicker">Sources</span>
+          <h2 class="h2" style="margin-top:14px">出處與參考</h2>
+        </div>
+      </div>
+      <p class="muted" style="max-width:40em">曆法轉換由持續維護的開源引擎完成,每次發版前對照一批公開參考命盤核驗。神煞只取《三命通會》一張固定查表——十一吉、九凶,不臨時加減;同一張盤絕不混用流派。</p>
+      <p class="caption" style="margin-top:18px">可在<a href="/zh-hant/bazi-calculator">免費排盤器</a>親自試引擎,或看<a href="/zh-hant/app">App 讀哪些章</a>。資料處理:<a href="/zh-hant/privacy">隱私</a>。</p>
+    </div>
+  </section>
+</Base>

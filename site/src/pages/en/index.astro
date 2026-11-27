@@ -1,8 +1,11 @@
 ---
-// S01 占位首页:仅为 /en 路由与 _redirects 目标存在;S04 按设计稿重建完整首页。
-// 可收录(为 Lighthouse SEO=100 提供真实目标;示例页才 noindex)。
+// 占位首页:仅为 /en 路由与 _redirects 目标存在;S04 按设计稿重建完整首页。
+// S05(TASK-19)先补 #notify 锚点区:页头「Notify me」按钮落点(S08 最小上线
+// 的「一句话介绍 + Notify me 邮箱表单」形态)。可收录(为 Lighthouse SEO=100
+// 提供真实目标;示例页才 noindex)。
 import Base from "../../layouts/Base.astro";
 import Kicker from "../../components/Kicker.astro";
+import NotifyOrAppStore from "../../components/NotifyOrAppStore.astro";
 import { type Lang } from "../../data/site";
 
 const lang: Lang = "en";
@@ -22,6 +25,13 @@ const lang: Lang = "en";
         A BaZi reference and free calculator is on its way — the library opens page by page. Deterministic charts with True Solar Time, careful words, no predictions.
       </p>
       <hr class="brush" style="margin-top:8px" />
+    </div>
+  </section>
+
+  <section class="section-tight" id="notify" style="padding-top:0">
+    <div class="wrap" style="max-width:640px">
+      <h2 class="h3" style="margin-bottom:18px">Be first through the door</h2>
+      <NotifyOrAppStore {lang} source="home-notify" />
     </div>
   </section>
 </Base>

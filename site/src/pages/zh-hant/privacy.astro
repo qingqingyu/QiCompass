@@ -1,0 +1,91 @@
+---
+// 隱私政策頁(zh-hant;對稱 en 版,S05)。事實源 = tmp/app-store-launch/privacy-policy.md
+// v0.3(中文定稿稿)的繁體版 + 兩處增補(Buttondown 訂閱/伺服器日誌披露)。
+import Base from "../../layouts/Base.astro";
+
+const lang = "zh-hant" as const;
+const path = "/zh-hant/privacy";
+---
+
+<Base
+  {lang}
+  title="隱私政策"
+  description="觀命收集什麼、去了哪裡、怎麼存、怎麼刪,以及我們承諾不做的事。不做廣告追蹤、不出售資料、不建用戶畫像。"
+  path={path}
+>
+  <div class="wrap">
+    <ol class="crumbs">
+      <li><a href="/zh-hant">首頁</a></li>
+      <li aria-current="page">隱私</li>
+    </ol>
+
+    <div class="policy">
+      <h1 class="h1">隱私政策</h1>
+      <p class="caption">生效日期:上架前公布。聯絡:<a href="mailto:hello@knowfate.app">hello@knowfate.app</a></p>
+
+      <p>我們開發觀命(KnowFate,下稱「本應用」)的原則是:<strong>只收集執行功能必需的資訊,如實告訴你它們去了哪裡</strong>。本政策說明我們收集什麼、怎麼用、存在哪裡、怎麼刪,以及我們承諾不做的事。</p>
+
+      <h2>1. 我們收集什麼</h2>
+      <p>本應用不要求註冊帳號即可使用全部功能;登入(Sign in with Apple / Google)是可選項,用於跨裝置恢復命盤與購買。為了排盤與解讀,你需要提供:</p>
+      <ul>
+        <li><strong>出生資訊</strong>:出生日期、時間、性別、出生地(城市或經度/時區)。</li>
+        <li><strong>問事內容</strong>:你在問事窗輸入的問題與對話上文。</li>
+        <li><strong>合盤稱呼</strong>:你為合盤對象填寫的名字(如「媽媽」「男友」)。</li>
+        <li><strong>章末回饋</strong>:你對章節點「準 / 不準」的評價(匿名提交);後端為防重複提交與防刷,保存 IP 的帶密鑰摘要,不保存原始 IP。</li>
+        <li><strong>防濫用</strong>:免費額度與問事試用按 IP 的帶密鑰摘要計數,不保存原始 IP,計數記錄保留 7 天。</li>
+        <li><strong>內容快取標識</strong>:由出生資訊生成的內容雜湊(不等於出生資訊本身)。</li>
+      </ul>
+      <p>登入後,後端另存你的使用者 ID 與信箱(Apple 首次登入返回 / Google 每次返回),用於帳號與購買歸屬。</p>
+      <p>支付相關:應用內購買由 Apple App Store 處理,我們收不到你的卡片資訊,只收到購買憑證校驗結果。</p>
+
+      <h2>2. 資訊怎麼被使用、去了哪裡</h2>
+      <ul>
+        <li><strong>排盤計算</strong>:出生資訊傳送到我們的伺服器完成八字排盤(干支、五行、大運等曆法計算)。計算在請求過程中完成,排盤過程本身不保存你的出生資訊(登入後的雲同步存檔除外,見「雲同步」);但計算結果(命盤資料)會作為解讀的輸入(見下)。</li>
+        <li><strong>AI 解讀生成</strong>:解讀由第三方 AI 服務生成——目前為 <strong>Z.ai(智譜)與 DeepSeek</strong>。傳送給 AI 服務的內容包括:命盤資料(四柱、五行、十神、大運)、出生時間、出生地(城市)、性別、黃曆與時辰等排盤產物;做合盤時包括你填寫的稱呼;問事時包括你的提問原文與此前對話。<strong>出生時間、出生地與性別本身屬個人資料</strong>;合盤稱呼與問事原文由你輸入,請避免填寫你不願意傳給 AI 服務的內容。</li>
+        <li><strong>每日運勢插畫(按服務配置啟用)</strong>:啟用時由第三方圖像生成服務產出,傳送內容為當日干支、十神等排盤派生意象經固定查表得到的描述文案,不含出生時間、性別或出生地原文。</li>
+        <li><strong>快取</strong>:解讀結果與其內容雜湊存在伺服器快取中,用於再次開啟時快速顯示。<strong>快取無過期時間,持久保留</strong>,刪除方式見 §4。該雜湊不直接包含你的出生資訊,但在出生地城市庫已知的假設下不排除被窮舉比對還原的可能(組合空間約千億級)。</li>
+        <li><strong>雲同步(僅登入使用者)</strong>:登入後,命盤檔案透過同步服務上傳到我們的伺服器,用於在新裝置恢復;登出後新資料不再上傳。</li>
+        <li><strong>匿名統計</strong>:我們接入 TelemetryDeck 收集匿名使用統計(事件名與列舉參數,隨機會話 ID),<strong>不包含</strong>出生資訊、解讀正文或問事內容,不跨 App 追蹤。</li>
+        <li><strong>官網郵件訂閱</strong>:本官網的「上架通知」表單收集你輸入的信箱位址,僅用於寄送上線通知這一封信。信箱由我們的郵件服務商 Buttondown 代為管理,可隨時退訂,退訂後位址即從訂閱清單移除。</li>
+        <li><strong>伺服器運行日誌</strong>:伺服器保留短期存取日誌,含請求時間與原始 IP,按大小自動輪換;僅用於排障與防濫用,不與你的帳號關聯。</li>
+        <li><strong>本機資料</strong>:命盤檔案、解讀記錄與問事會話簿儲存在你的裝置本地。</li>
+      </ul>
+
+      <h2>3. 我們不做的事</h2>
+      <ul>
+        <li><strong>不出售</strong>任何資料給第三方。</li>
+        <li><strong>不做廣告追蹤</strong>,不接入廣告網絡。</li>
+        <li><strong>不建立用戶畫像</strong>,匿名統計與身份不關聯。</li>
+        <li><strong>不用於</strong>任何與產品功能無關的用途。</li>
+      </ul>
+
+      <h2>4. 資料儲存與刪除</h2>
+      <ul>
+        <li><strong>裝置本地</strong>:命盤檔案、解讀記錄、問事會話簿保存在你的裝置上。可在 App 內「我的 → 重置命盤」清除(登入狀態、語言設定與購買記錄保留,見 App 內確認彈窗),或<strong>解除安裝應用即全部刪除</strong>(以上本機資料;登入憑證存於系統鑰匙圈,解除安裝後可能殘留)。</li>
+        <li><strong>伺服器快取與問事記錄</strong>:後端保存解讀快取(按內容雜湊定址)與問事的提問/答案記錄(提問按問題雜湊與你的帳號/裝置歸屬定址),<strong>均無自動過期,持久保留</strong>。</li>
+        <li><strong>刪除帳號</strong>(2026-11-24 起):登入使用者可在「我的 → 設定 → 刪除帳號」自助刪除。刪除範圍:帳號與登入憑證、已同步命盤(含出生資料)、問事餘額與記錄、<strong>你親自輸入的文字</strong>(問事提問原文、合盤稱呼、健康/財富章節的自由輸入)及其快取、配額計數。<strong>保留</strong>(匿名化交易帳本):購買交易的流水號、產品與日期(用於退款核對與防重複入賬,已去除帳號與命盤標識)。純按命盤派生、他人可複用的解讀快取不隨帳號刪除。已購章節與問事餘額刪除後無法恢復(確認彈窗已明示)。</li>
+        <li><strong>雲同步資料(登入使用者)</strong>:上傳的命盤檔案保存在後端,隨「刪除帳號」一併清除(見上);若只想清雲端命盤而保留帳號,聯絡我們(§8)處理。</li>
+      </ul>
+
+      <h2>5. AI 生成內容說明</h2>
+      <p>本應用的解讀由 AI 基於確定性排盤結果生成,屬於傳統命理框架下的參考內容,不構成醫療、心理、法律或投資建議。相關免責聲明在應用內各結果頁展示。</p>
+
+      <h2>6. 兒童</h2>
+      <p>本應用內容分級為 4+,不面向兒童做定向收集。任何年齡層的使用者都只提供上述出生資訊。</p>
+
+      <h2>7. 政策變更</h2>
+      <p>若本政策有實質變更,我們會在應用內顯著位置提示後再生效。</p>
+
+      <h2>8. 聯絡我們</h2>
+      <p>信箱:<a href="mailto:hello@knowfate.app">hello@knowfate.app</a></p>
+    </div>
+  </div>
+
+  <style>
+    .policy { max-width: 760px; padding-bottom: 72px; }
+    .policy h2 { font-size: 21px; margin: 40px 0 14px; }
+    .policy ul { margin: 0; padding: 0 0 0 1.2em; }
+    .policy li { margin-bottom: 10px; color: var(--ink-muted); font-size: 15.5px; line-height: 1.7; }
+    .policy li strong, .policy p strong { color: var(--ink); }
+  </style>
+</Base>

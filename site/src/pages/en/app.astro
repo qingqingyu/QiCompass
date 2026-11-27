@@ -1,0 +1,74 @@
+---
+// App 介绍页(S05 站务页)。页内 App 名用 App Store 英文名(S05 明文)。
+// prelaunch 态 CTA = NotifyOrAppStore(通知表单);live 态同一组件切 App Store 徽章。
+// 捌章名称与免费/解锁标记沿用设计稿 calculator.html 的 reading 清单(与 App 一致)。
+import Base from "../../layouts/Base.astro";
+import Numeral from "../../components/Numeral.astro";
+import NotifyOrAppStore from "../../components/NotifyOrAppStore.astro";
+import { type Lang } from "../../data/site";
+
+const lang: Lang = "en";
+const path = "/en/app";
+
+const chapters = [
+  { zh: "壹", name: "Your main thread", note: "Free in the app" },
+  { zh: "贰", name: "Native talents", note: "Free in the app" },
+  { zh: "叁", name: "High gear vs. low gear", note: "One-time unlock", locked: true },
+  { zh: "肆", name: "Operating manual", note: "One-time unlock", locked: true },
+  { zh: "伍", name: "Energy curve", note: "One-time unlock", locked: true },
+  { zh: "陆", name: "How you make money", note: "One-time unlock", locked: true },
+  { zh: "柒", name: "Upgrade path", note: "One-time unlock", locked: true },
+  { zh: "捌", name: "Field manual — the next 90 days", note: "One-time unlock", locked: true },
+] as const;
+---
+
+<Base
+  {lang}
+  title="KnowFate - Chinese Astrology — your BaZi chart, read as a book"
+  description="KnowFate - Chinese Astrology reads your BaZi chart as a book in eight chapters — from your main thread to a field manual for the next 90 days. Deterministic charts, careful words."
+  path={path}
+>
+  <div class="wrap">
+    <ol class="crumbs">
+      <li><a href="/en">Home</a></li>
+      <li aria-current="page">The App</li>
+    </ol>
+
+    <header class="calc-head">
+      <div>
+        <h1 class="h1">KnowFate - Chinese Astrology <span class="muted" style="font-style:italic;font-weight:300;display:block">Your chart, read as a book.</span></h1>
+        <p class="lede muted">Enter a birth date and place once. The engine casts your Four Pillars, then reads them with you — eight chapters, from the shape of your life to what to do next quarter. No accounts required; your charts stay on your device.</p>
+      </div>
+      <span class="vtext" aria-hidden="true">观命</span>
+    </header>
+  </div>
+
+  <section class="section-tight" style="padding-top:0">
+    <div class="wrap" style="max-width:760px">
+      <div class="section-head">
+        <span class="vmark" aria-hidden="true">捌章</span>
+        <div>
+          <span class="kicker">Eight chapters</span>
+          <h2 class="h2" style="margin-top:14px">What the app reads to you</h2>
+        </div>
+      </div>
+      <ol class="chapters" style="list-style:none;margin:0;padding:0">
+        {chapters.map((ch) => (
+          <li style="display:grid;grid-template-columns:34px 1fr auto;gap:14px;align-items:baseline;padding:16px 0;border-top:1px solid var(--hairline)">
+            <Numeral char={ch.zh} locked={ch.locked} />
+            <span style="font-family:var(--f-serif);font-size:18px">{ch.name}</span>
+            <span class="caption">{ch.note}</span>
+          </li>
+        ))}
+      </ol>
+      <p class="caption" style="margin-top:18px">Chapters 1–2 are free with every chart. The remaining six are a single one-time unlock — no subscription. How the engine works, what it refuses to claim: see <a href="/en/about">About &amp; method</a>. Data handling: <a href="/en/privacy">Privacy</a>.</p>
+    </div>
+  </section>
+
+  <section class="section-tight" id="get" style="padding-top:0">
+    <div class="wrap" style="max-width:640px">
+      <h2 class="h3" style="margin-bottom:18px">Get the app</h2>
+      <NotifyOrAppStore {lang} source="app-page" />
+    </div>
+  </section>
+</Base>
