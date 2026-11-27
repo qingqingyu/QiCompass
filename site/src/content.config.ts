@@ -48,6 +48,8 @@ const base = z.object({
     .default(null),
   /** 本页自身的术语键(自动内链跳过;一般不需要手填——插件按页面 URL 自动跳过) */
   selfTermKeys: z.array(z.string()).default([]),
+  /** 竖排题签(hero 右侧装饰,如「参天之木」;可选,≤8 字) */
+  vtext: z.string().min(1).max(8).optional(),
 });
 
 function refineBase(data, ctx) {

@@ -1,0 +1,93 @@
+---
+// 左栏目录:墨线进度(track + fill,JS 按 scrollTop 缩放)+ 朱红聚焦线
+// ([aria-current] 的 ::before,唯一允许朱红的两处之一)。
+// 无 JS 退化 = 普通目录链接(fill scaleY(0) 不可见、aria-current 不出现)。
+export interface TocItem {
+  id: string;
+  numeral: string;
+  title: string;
+}
+interface Props {
+  items: TocItem[];
+  /** aria-label 与栏顶小标(en「On this page」/ zh-hant「本頁章節」) */
+  label: string;
+}
+const { items, label } = Astro.props;
+---
+
+<nav class="toc" aria-label={label}>
+  <div class="track" aria-hidden="true"><span class="fill" data-progress></span></div>
+  <p class="toc-h">{label}</p>
+  {items.map((it) => (
+    <a href={`#${it.id}`}>
+      <span class="n zh">{it.numeral}</span>
+      <span class="t">{it.title}</span>
+    </a>
+  ))}
+</nav>
+
+<style>
+  .toc {
+    position: sticky;
+    top: 100px;
+    padding-left: 18px;
+    font-size: 14px;
+  }
+  .toc-h {
+    margin: 0 0 10px;
+    font: 500 11px/1.4 var(--f-sans);
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+  .track {
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 1px;
+    background: var(--hairline);
+  }
+  .fill {
+    position: absolute;
+    inset: 0;
+    background: var(--ink);
+    transform: scaleY(0);
+    transform-origin: top;
+  }
+  .toc a {
+    display: grid;
+    grid-template-columns: 22px 1fr;
+    gap: 10px;
+    padding: 7px 0;
+    color: var(--ink-muted);
+    text-decoration: none;
+    line-height: 1.45;
+    position: relative;
+  }
+  .toc a:hover {
+    color: var(--ink);
+  }
+  .toc a .n {
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .toc a[aria-current] {
+    color: var(--ink);
+  }
+  /* 朱红聚焦线:当前节的墨轨上叠一段朱红——朱红仅允许 TOC 聚焦线与印章(规格 §4.3) */
+  .toc a[aria-current]::before {
+    content: "";
+    position: absolute;
+    left: -19px;
+    top: 9px;
+    bottom: 9px;
+    width: 1.5px;
+    background: var(--cinnabar);
+  }
+  @media (max-width: 860px) {
+    .toc {
+      display: none;
+    }
+  }
+</style>

@@ -1,0 +1,68 @@
+---
+// 页面事实速览(8 格 dl,对齐设计稿 article.html 的 .facts)。
+// 单元格内容由页面层组装(lang 相关 + terms.json 路径),本组件只负责形态。
+// dd 内容经 set:html 注入——数据全部来自 frontmatter 与 terms.json(非用户输入),
+// 页面层拼 HTML 时对动态值自行转义(本仓值域是受控枚举)。
+export interface FactCell {
+  /** 小标(uppercase) */
+  dt: string;
+  /** 值的 HTML(可含 .zh / .el-* / 链接) */
+  html: string;
+}
+interface Props {
+  cells: FactCell[];
+}
+const { cells } = Astro.props;
+---
+
+<dl class="facts">
+  {
+    cells.map((c) => (
+      <div>
+        <dt>{c.dt}</dt>
+        <dd set:html={c.html} />
+      </div>
+    ))
+  }
+</dl>
+
+<style>
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    border-top: 1px solid var(--hairline);
+    margin: 36px 0 8px;
+  }
+  .facts div {
+    padding: 14px 14px 14px 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+  dt {
+    font: 500 12px/1.4 var(--f-sans);
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    margin: 0 0 6px;
+  }
+  dd {
+    margin: 0;
+    font: 400 18px/1.4 var(--f-serif);
+    color: var(--ink);
+  }
+  dd :global(a) {
+    text-decoration: none;
+  }
+  dd :global(a:hover) {
+    text-decoration: underline;
+    text-decoration-color: var(--hairline);
+  }
+  dd :global(.zh) {
+    margin-right: 6px;
+    font-size: 20px;
+  }
+  @media (max-width: 640px) {
+    .facts {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+</style>

@@ -1,3 +1,8 @@
 {
-  "_meta": "术语释义卡文案(术语键 → 英文一句定义)。remark-term-links 消费:有 def 才渲染 data-def(悬停释义卡)。S03/S07 写内容时逐术语补;只写「是什么」的定义句,不写判断,遵守 CONTENT_GUIDE.md 禁语。"
+  "_meta": "术语释义卡文案(术语键 → 英文一句定义)。remark-term-links 消费:有 def 才渲染 data-def(悬停释义卡)。S03/S07 写内容时逐术语补;只写「是什么」的定义句,不写判断,遵守 CONTENT_GUIDE.md 禁语。",
+  "木": "Wood — the phase of growth and outward expansion; in a chart it reads as initiative and development.",
+  "火": "Fire — the phase of peak expression; in a chart it reads as expression, visibility and warmth.",
+  "土": "Earth — the phase of stability and seasonal transition; in a chart it reads as grounding and mediation.",
+  "金": "Metal — the phase of contraction and structure; in a chart it reads as order, precision and resolve.",
+  "水": "Water — the phase of stillness and storage; in a chart it reads as thought, adaptability and resource."
 }

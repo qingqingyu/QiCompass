@@ -1,0 +1,86 @@
+---
+// 文末上一篇/下一篇(设计稿 article.html .neighbors):两列,右列右对齐;
+// 目标与文案由页面传入(日主页 = 天干环形前驱/后继)。
+export interface NeighborLink {
+  href: string;
+  /** 中文字(干支大字) */
+  zh: string;
+  /** 五行色 class(el-wood …),可空 */
+  elClass?: string;
+  /** 组合名(Jia Wood / 甲木) */
+  name: string;
+  /** 方向小标(Previous / 上一篇) */
+  dirLabel: string;
+}
+interface Props {
+  label: string;
+  prev?: NeighborLink;
+  next?: NeighborLink;
+}
+const { label, prev, next } = Astro.props;
+---
+
+<nav class="neighbors" aria-label={label}>
+  {
+    prev && (
+      <a href={prev.href}>
+        <span class="dir">{prev.dirLabel}</span>
+        <span class={`nzh zh ${prev.elClass ?? ""}`}>{prev.zh}</span>
+        <span class="name">{prev.name}</span>
+      </a>
+    )
+  }
+  {
+    next && (
+      <a class="r" href={next.href}>
+        <span class="dir">{next.dirLabel}</span>
+        <span class={`nzh zh ${next.elClass ?? ""}`}>{next.zh}</span>
+        <span class="name">{next.name}</span>
+      </a>
+    )
+  }
+</nav>
+
+<style>
+  .neighbors {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-top: 1px solid var(--hairline);
+    border-bottom: 1px solid var(--hairline);
+    margin: 0;
+  }
+  .neighbors a {
+    display: grid;
+    gap: 6px;
+    padding: 22px 0;
+    text-decoration: none;
+  }
+  .neighbors a.r {
+    border-left: 1px solid var(--hairline);
+    padding-left: 28px;
+    justify-items: end;
+    text-align: right;
+  }
+  .dir {
+    font: 500 11px/1 var(--f-sans);
+    letter-spacing: 0.24em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+  }
+  .nzh {
+    font-size: 40px;
+    line-height: 1.1;
+  }
+  .name {
+    font: 400 15px/1.4 var(--f-serif);
+    color: var(--ink-muted);
+  }
+  .neighbors a:hover .name {
+    color: var(--ink);
+  }
+  @media (max-width: 640px) {
+    .neighbors a.r {
+      padding-left: 18px;
+    }
+  }
+</style>

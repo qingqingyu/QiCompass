@@ -1,0 +1,564 @@
+---
+// 知识文章页模板(S03,§4.3):整页文档级布局,供 day-master / ten-gods /
+// five-elements / stars / guides 等内容集合共用。
+//
+// 模板只认数据形状,不写死任何日主/十神内容(红线);文案、事实格、CTA、
+// 邻页导航全部由页面层(lang 相关)传入。正文 HTML 来自 collection 的
+// entry.rendered.html(remark 术语内链 + rehype H2 处理已生效);文中 CTA
+// 由模板在第三个 h2 前插入(§4.3 顺序:answer → facts → 章节 → cta-inline
+// 在第贰章后 → FAQ → 批印 → cta-panel → 邻页 → sources)。
+//
+// 草稿(published: false)→ noindex;页面层 getStaticPaths 同时按 published
+// 过滤(草稿不进 dist,tools/check_site_content.py 规则 8 兜底)。
+import Base from "../layouts/Base.astro";
+import Enso from "./Enso.astro";
+import Seal from "./Seal.astro";
+import AnswerBox from "./AnswerBox.astro";
+import Facts, { type FactCell } from "./Facts.astro";
+import Toc, { type TocItem } from "./Toc.astro";
+import FaqList from "./FaqList.astro";
+import CtaInline from "./CtaInline.astro";
+import CtaPanel from "./CtaPanel.astro";
+import StickyCta from "./StickyCta.astro";
+import NeighborsNav, { type NeighborLink } from "./NeighborsNav.astro";
+import { SITE, langPath, type Lang } from "../data/site";
+
+interface Props {
+  lang: Lang;
+  /** 集合名(= URL rest 首段:day-master / ten-gods / …) */
+  collection: string;
+  slug: string;
+  title: string;
+  description: string;
+  published: boolean;
+  /** 更新日期 YYYY-MM-DD(JSON-LD dateModified / byline) */
+  updated: string;
+  inShort: string;
+  faq: { q: string; a: string }[];
+  /** 正文渲染后的 HTML(entry.rendered.html) */
+  html: string;
+  /** 目录(页面用 lib/headings.mjs 从 raw body 推导,与 rehype id 同源) */
+  toc: TocItem[];
+  /** 阅读时长(分钟;页面从 body 词数算) */
+  readMinutes: number;
+  hero: {
+    kicker: string;
+    /** kicker 里的中文点缀(如「日主 · 甲木」) */
+    kickerZh: string;
+    /** 大字(天干/十神首字) */
+    glyph: string;
+    /** 字的五行色 class(el-wood …) */
+    elClass: string;
+    /** 印章字(元素字 木) */
+    sealChar: string;
+    /** 竖排题签(frontmatter vtext,可选) */
+    vtext?: string;
+  };
+  /** byline 行(editors / reviewed against / updated / min read,按 lang) */
+  byline: string[];
+  /** 中间层面包屑(Home 恒为第一层;当前页 = title) */
+  crumbs: { label: string; href: string }[];
+  texts: {
+    homeCrumb: string;
+    toc: string;
+    answer: string;
+    faqHeading: string;
+  };
+  facts: FactCell[];
+  cta: {
+    inline: {
+      type: string;
+      question: string;
+      caption: string;
+      labelLive: string;
+      labelPrelaunch: string;
+      glyphClass?: string;
+      glyphChar?: string;
+    };
+    panel: {
+      type: string;
+      kicker: string;
+      title: string;
+      bodyLive?: string;
+      buttonLive?: string;
+      emailPlaceholder: string;
+      formButton: string;
+      formCaption: string;
+      buttonApp?: string;
+    };
+    sticky: { text: string; href: string; goLabel: string; dismissLabel: string };
+  };
+  neighbors?: { prev?: NeighborLink; next?: NeighborLink };
+  neighborsLabel: string;
+  sourcesHtml: string;
+  /** JSON-LD about DefinedTerm 的 name(如「Jia Wood (甲木)」) */
+  aboutTerm: string;
+  citation?: string;
+}
+const props = Astro.props as Props;
+const {
+  lang, collection, slug, title, description, published, updated, inShort, faq,
+  html, toc, readMinutes, hero, byline, crumbs, texts, facts, cta,
+  neighbors, neighborsLabel, sourcesHtml, aboutTerm, citation,
+} = props;
+
+// 大写数字按语言腿(TC 子集无 贰/叁/陆;与 KitchenSink 同表)
+const NUMS = lang === "en"
+  ? ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"]
+  : ["壹", "貳", "參", "肆", "伍", "陸", "柒", "捌"];
+if (toc.length > 7) {
+  throw new Error(
+    `ArticleLayout(${collection}/${slug}): 正文 ${toc.length} 节 + FAQ,超出壹–捌编号上限;超过 7 节请拆页`
+  );
+}
+if (toc.some((s) => s.id === "faq")) {
+  throw new Error(
+    `ArticleLayout(${collection}/${slug}): 章节锚点 "faq" 与 FAQ 区固定 id 冲突,请改该章标题`
+  );
+}
+const faqNumeral = NUMS[toc.length] ?? NUMS[NUMS.length - 1];
+
+// 文中 CTA:第 3 个 h2 前插入(即第贰章结束后);不足 3 个 h2 则不插
+const [htmlBefore, htmlAfter] = (() => {
+  let idx = -1;
+  for (let i = 0; i < 3; i++) {
+    idx = html.indexOf("<h2", idx + 1);
+    if (idx === -1) return [html, ""] as const;
+  }
+  return [html.slice(0, idx), html.slice(idx)] as const;
+})();
+
+// ---- JSON-LD(同一 frontmatter 单一来源) ----
+const pagePath = langPath(lang, `/${collection}/${slug}`);
+const canonical = SITE.domain + pagePath;
+const wireLang = lang === "en" ? "en" : "zh-Hant";
+const crumbItems = [
+  { label: texts.homeCrumb, href: langPath(lang, "/") },
+  ...crumbs,
+  { label: title, href: pagePath },
+];
+const jsonld = {
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "Article",
+      headline: title,
+      inLanguage: wireLang,
+      datePublished: updated,
+      dateModified: updated,
+      author: { "@type": "Organization", "@id": `${SITE.domain}/#org`, name: "KnowFate" },
+      publisher: { "@id": `${SITE.domain}/#org` },
+      mainEntityOfPage: { "@type": "WebPage", "@id": canonical },
+      about: {
+        "@type": "DefinedTerm",
+        name: aboutTerm,
+        inDefinedTermSet: SITE.domain + langPath(lang, "/library"),
+      },
+      ...(citation ? { citation } : {}),
+    },
+    {
+      "@type": "BreadcrumbList",
+      itemListElement: crumbItems.map((c, i) => ({
+        "@type": "ListItem",
+        position: i + 1,
+        name: c.label,
+        item: SITE.domain + c.href,
+      })),
+    },
+    {
+      "@type": "FAQPage",
+      mainEntity: faq.map((f) => ({
+        "@type": "Question",
+        name: f.q,
+        acceptedAnswer: { "@type": "Answer", text: f.a },
+      })),
+    },
+  ],
+};
+// set:html 不做任何转义:frontmatter 文案进 JSON-LD,`</script>` 序列会截断
+// 标签;统一把 < 转成 <(JSON 字符串转义,解析等价)
+const jsonldJson = JSON.stringify(jsonld).replace(/</g, "\\u003c");
+---
+
+<Base {lang} title={title} description={description} path={pagePath} noindex={!published} ogType="article" articleModified={updated}>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={jsonldJson} />
+  </Fragment>
+
+  <div class="wrap">
+    <ol class="crumbs">
+      {crumbItems.map((c, i) => (
+        <li>
+          {i === crumbItems.length - 1
+            ? <span aria-current="page">{c.label}</span>
+            : <a href={c.href}>{c.label}</a>}
+        </li>
+      ))}
+    </ol>
+
+    <header class="art-hero">
+      <div class="glyph" aria-hidden="true">
+        <Enso variant="display" draw breathe title={title} id={`enso-${collection}-${slug}`} />
+        <span class={`ch zh ${hero.elClass} ink-in d2`}>{hero.glyph}</span>
+        <Seal char={hero.sealChar} size={44} stamp />
+      </div>
+      <div>
+        <p class="kicker ink-in">
+          {hero.kicker}
+          <span class="dot" aria-hidden="true"></span>
+          <span class="zh kzh">{hero.kickerZh}</span>
+        </p>
+        <h1 class="h1 ink-in d1">{title}</h1>
+        <p class="lede ink-in d2">{description}</p>
+        <div class="byline ink-in d3">
+          {byline.map((line) => <span>{line}</span>)}
+        </div>
+      </div>
+      {hero.vtext && <span class="vtext art-vtext" aria-hidden="true">{hero.vtext}</span>}
+    </header>
+
+    <div class="art-layout">
+      <aside class="rail-l">
+        <Toc items={toc} label={texts.toc} />
+      </aside>
+
+      <article class="prose" data-article>
+        <AnswerBox label={texts.answer} text={inShort} />
+        <Facts cells={facts} />
+        <Fragment set:html={htmlBefore} />
+        {htmlAfter && (
+          <CtaInline
+            lang={lang}
+            type={cta.inline.type}
+            slug={slug}
+            question={cta.inline.question}
+            caption={cta.inline.caption}
+            labelLive={cta.inline.labelLive}
+            labelPrelaunch={cta.inline.labelPrelaunch}
+            glyphClass={cta.inline.glyphClass}
+            glyphChar={cta.inline.glyphChar}
+          />
+        )}
+        <Fragment set:html={htmlAfter} />
+
+        <FaqList numeral={faqNumeral} heading={texts.faqHeading} items={faq} />
+
+        <div class="endmark">
+          <Seal char="批" size={38} stamp />
+        </div>
+
+        <CtaPanel
+          lang={lang}
+          type={cta.panel.type}
+          slug={slug}
+          kicker={cta.panel.kicker}
+          title={cta.panel.title}
+          bodyLive={cta.panel.bodyLive}
+          buttonLive={cta.panel.buttonLive}
+          emailPlaceholder={cta.panel.emailPlaceholder}
+          formButton={cta.panel.formButton}
+          formCaption={cta.panel.formCaption}
+          buttonApp={cta.panel.buttonApp}
+        />
+
+        {neighbors && <NeighborsNav label={neighborsLabel} prev={neighbors.prev} next={neighbors.next} />}
+
+        <p class="sources" set:html={sourcesHtml} />
+      </article>
+
+      <aside class="rail-r">
+        <div class="stick">
+          <slot name="rail" />
+        </div>
+      </aside>
+    </div>
+  </div>
+
+  <StickyCta text={cta.sticky.text} href={cta.sticky.href} goLabel={cta.sticky.goLabel} dismissLabel={cta.sticky.dismissLabel} />
+</Base>
+
+<style>
+  /* ---------- hero(设计稿 article.html .art-hero) ---------- */
+  .art-hero {
+    display: grid;
+    grid-template-columns: 300px minmax(0, 1fr) auto;
+    gap: 56px;
+    align-items: start;
+    padding: 40px 0 56px;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .glyph {
+    position: relative;
+    width: 300px;
+    aspect-ratio: 1;
+    display: grid;
+    place-items: center;
+  }
+  .glyph :global(svg.enso) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+  .glyph .ch {
+    position: relative;
+    font-size: 150px;
+    line-height: 1;
+  }
+  .glyph :global(.seal) {
+    position: absolute;
+    right: 22px;
+    bottom: 34px;
+  }
+  .art-hero h1 {
+    margin: 18px 0 20px;
+  }
+  .art-hero .lede {
+    margin-bottom: 28px;
+  }
+  .kzh {
+    letter-spacing: 0.18em;
+  }
+  .byline {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px 18px;
+    font-size: 13.5px;
+    color: var(--ink-muted);
+  }
+  .byline span + span::before {
+    content: "·";
+    margin-right: 18px;
+    color: var(--ink-muted-2);
+  }
+  .art-vtext {
+    font-size: 24px;
+    letter-spacing: 0.5em;
+    color: var(--ink-muted);
+    padding-top: 8px;
+  }
+  @media (max-width: 1000px) {
+    .art-hero {
+      grid-template-columns: 1fr;
+      gap: 32px;
+    }
+    .glyph {
+      width: 200px;
+      order: -1;
+    }
+    .glyph .ch {
+      font-size: 100px;
+    }
+    .art-vtext {
+      display: none;
+    }
+  }
+
+  /* ---------- 三栏(200 | 680 | 260) ---------- */
+  .art-layout {
+    display: grid;
+    grid-template-columns: 200px minmax(0, 680px) 260px;
+    gap: 56px;
+    padding: 8px 0 72px;
+  }
+  .rail-r .stick {
+    position: sticky;
+    top: 100px;
+    display: grid;
+    gap: 20px;
+  }
+  @media (max-width: 1180px) {
+    .art-layout {
+      grid-template-columns: 180px minmax(0, 1fr);
+    }
+    .rail-r {
+      display: none;
+    }
+  }
+  @media (max-width: 860px) {
+    .art-layout {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  /* ---------- 正文排版(设计稿 .prose) ---------- */
+  .prose :global(h2) {
+    font: 400 30px/1.25 var(--f-serif);
+    letter-spacing: -0.01em;
+    margin: 72px 0 20px;
+    display: grid;
+    grid-template-columns: 44px 1fr;
+    gap: 0 14px;
+    align-items: start;
+  }
+  .prose :global(h2 .numeral) {
+    width: 32px;
+    height: 32px;
+    font-size: 14px;
+    margin-top: -4px;
+  }
+  .prose :global(h3) {
+    font-size: 21px;
+    margin: 40px 0 14px;
+  }
+  .prose :global(.duo h3) {
+    margin: 0 0 10px;
+    font-size: 18px;
+    display: flex;
+    gap: 10px;
+    align-items: baseline;
+  }
+  .prose :global(.duo h3 .zh) {
+    font-size: 14px;
+    letter-spacing: 0.2em;
+  }
+  .prose :global(p) {
+    font-size: 18px;
+    line-height: 1.7;
+    margin: 0 0 1.2em;
+  }
+  .prose :global(ul),
+  .prose :global(ol) {
+    padding-left: 1.1em;
+    margin: 0 0 1.2em;
+  }
+  .prose :global(li) {
+    font-size: 18px;
+    line-height: 1.7;
+    margin-bottom: 0.5em;
+  }
+  .prose :global(li::marker) {
+    color: var(--ink-muted);
+  }
+  /* 只管正文内容链接;排除 .btn(否则 0,1,1 压过全局 .btn 的 on-ink-deep 字色,
+     墨底墨字不可读)与 .term(下划线形态归术语样式管) */
+  .prose :global(a:not(.btn):not(.term)) {
+    color: var(--ink);
+    text-decoration-color: var(--ink-muted-2);
+  }
+  .prose :global(a:not(.btn):not(.term):hover) {
+    text-decoration-color: var(--ink);
+  }
+  /* 邻页导航的文形自带颜色,prose 链接的下划线不进邻页块 */
+  .prose :global(.neighbors a) {
+    text-decoration: none;
+  }
+  @media (max-width: 640px) {
+    .prose :global(h2) {
+      font-size: 25px;
+      margin: 56px 0 16px;
+    }
+    .prose :global(p),
+    .prose :global(li) {
+      font-size: 17px;
+    }
+  }
+
+  /* 正文内的区块:duo(优势/短板两栏,形制同设计稿:容器一条顶线 + 栏间竖线)、
+     表格(章节 markdown 表)、rel(十日主关系表) */
+  .prose :global(.duo) {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    border-top: 1px solid var(--hairline);
+    margin: 28px 0;
+  }
+  .prose :global(.duo > div) {
+    padding: 20px 24px 4px 0;
+  }
+  .prose :global(.duo > div + div) {
+    padding-left: 24px;
+    border-left: 1px solid var(--hairline);
+  }
+  @media (max-width: 640px) {
+    .prose :global(.duo) {
+      grid-template-columns: 1fr;
+    }
+    .prose :global(.duo > div + div) {
+      padding-left: 0;
+      border-left: 0;
+      border-top: 1px solid var(--hairline);
+    }
+  }
+  .prose :global(.duo ul) {
+    margin: 0;
+  }
+  .prose :global(table) {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 28px 0;
+    font-size: 15px;
+  }
+  .prose :global(th) {
+    text-align: left;
+    font: 500 11px/1.4 var(--f-sans);
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--ink-muted);
+    padding: 14px 12px 14px 0;
+    border-bottom: 1px solid var(--hairline);
+  }
+  .prose :global(td) {
+    padding: 14px 12px 14px 0;
+    border-bottom: 1px solid var(--hairline);
+    vertical-align: top;
+    line-height: 1.6;
+  }
+  .prose :global(td:first-child) {
+    font-family: var(--f-serif);
+    font-size: 18px;
+    white-space: nowrap;
+  }
+  .prose :global(td a) {
+    font-family: var(--f-zh);
+    font-size: 19px;
+  }
+  .prose :global(.rel) {
+    list-style: none;
+    padding: 0;
+    margin: 8px 0 0;
+  }
+  .prose :global(.rel a) {
+    display: grid;
+    grid-template-columns: 48px 1fr auto;
+    gap: 16px;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--hairline);
+    text-decoration: none;
+  }
+  .prose :global(.rel .zh) {
+    font-size: 28px;
+    line-height: 1.2;
+  }
+  .prose :global(.rel .god) {
+    color: var(--ink-muted);
+    font-size: 14px;
+  }
+  .prose :global(.rel .hl) {
+    color: var(--jade);
+  }
+
+  /* ---------- 文末 ---------- */
+  .endmark {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+    margin: 64px 0 32px;
+  }
+  .endmark::before,
+  .endmark::after {
+    content: "";
+    flex: 1;
+    height: 1px;
+    background: var(--hairline);
+  }
+  .sources {
+    font-size: 13.5px;
+    color: var(--ink-muted);
+    margin: 0 0 24px;
+  }
+  .sources :global(strong) {
+    color: var(--ink);
+    font-weight: 600;
+  }
+</style>

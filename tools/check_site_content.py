@@ -10,10 +10,14 @@
      en 140–160 字符、zh-hant 60–90 字 / inShort en ≤60 词或中文 ≤120 字 /
      faq 2–4)、lang 与目录一致、
      slug 与文件名一致且唯一、reviewedBy 非空才可 published: true
-  3. 内链:每页正文站内链接 ≥ 8 条,且全部指向存在的路由
-     (内容页路由由 content/** 推导;固定路由 = 站点骨架页清单)
+  3. 内链:每页正文站内链接 ≥ 8 条;published: true 的页面逐条解析路由
+     (内容页路由由 content/** 推导,经 LAUNCH 上线开关过滤;固定路由 =
+     站点骨架页清单);published: false 的草稿豁免逐条解析(草稿区块可能
+     整段未上线,2026-11-27 S03 拍板),但草稿绝不进 dist(规则 8)
   4. zodiac 的 friends/clash 若手填,必须与 terms.json branchRelations 一致
   5. 关键字段取值必须在 terms.json 对应组内(stem/god/star/element/branch)
+  8. 草稿不进 dist:published: false 的页面路由出现在 dist = FAIL
+     (SITE_PREVIEW_DRAFTS=1 预览构建后忘了重跑默认 build 的兜底)
 
 用法(仓库根):
     python3 tools/check_site_content.py                 # 校验 site/src/content
@@ -242,7 +246,7 @@ def _route_offline(route: str, offline_prefixes: list[str]) -> bool:
 
 
 def check_file(path: Path, content_dir: Path, terms: dict, routes: set[str],
-               slugs_seen: dict, failures: list[str]) -> None:
+               slugs_seen: dict, failures: list[str], draft_routes: set[str]) -> None:
     text = path.read_text(encoding="utf-8")
 
     def line_of(needle: str) -> int | None:
@@ -308,6 +312,10 @@ def check_file(path: Path, content_dir: Path, terms: dict, routes: set[str],
         if key in slugs_seen:
             failures.append(f"{rel}: slug 重复(同 {collection}/{dir_lang} 已有 {slugs_seen[key]})")
         slugs_seen[key] = rel
+        # 规则 8 的数据源:草稿路由登记(页面层 getStaticPaths 按 published 正向过滤,
+        # 这里登记给 main() 对 dist 反向兜底)
+        if not published and isinstance(slug, str) and isinstance(lang, str):
+            draft_routes.add(f"/{lang}/{collection}/{slug}")
 
     # 4. 术语键取值必须在 terms.json 对应组内(非字符串取值同样 FAIL,不靠异常兜底)
     field_groups = {"stem": "heavenlyStems", "god": "tenGods", "star": "shensha",
@@ -370,11 +378,13 @@ def check_file(path: Path, content_dir: Path, terms: dict, routes: set[str],
         seen.add((locate, label))
         failures.append(f"{rel}:{line_of(locate)}: 禁词命中 {label}(原文 {locate!r})")
 
-    # 7. 内链 ≥ 8 且全部可解析(图片 ![alt](/x) 不算内链也不按路由校验)
+    # 7. 内链 ≥ 8;published: true 逐条解析路由,草稿豁免解析(见 docstring 规则 3)
     links = re.findall(r"(?<!\!)\[[^\]]*\]\((/[^)]+)\)", body)
     internal = [l for l in links if not l.startswith(("http://", "https://", "mailto:", "#"))]
     if len(internal) < 8:
         failures.append(f"{rel}: 站内链接 {len(internal)} 条,要求 ≥ 8")
+    if not published:
+        return
     for link in internal:
         clean = link.split("#")[0].rstrip("/") or "/"
         if clean not in routes:
@@ -417,8 +427,9 @@ def main() -> int:
 
     failures: list[str] = []
     slugs_seen: dict = {}
+    draft_routes: set[str] = set()
     for path in files:
-        check_file(path, content_dir, terms, routes, slugs_seen, failures)
+        check_file(path, content_dir, terms, routes, slugs_seen, failures, draft_routes)
 
     # 产物死链扫描(2026-11-28 外评修复:此前「死链为 0」只是手工验证,
     # 未进守护栏;现扫 dist 全部 html 的站内 href,目标不存在 = FAIL)
@@ -438,6 +449,18 @@ def main() -> int:
             if not (target.exists() or target.with_suffix(".html").exists()
                     or (target / "index.html").exists()):
                 failures.append(f"{page.relative_to(dist)} -> {href}(产物死链)")
+
+    # 8. 草稿不进 dist(S03 草稿豁免的前提,2026-11-27):published:false 的页面
+    #    内链未按路由解析,进 dist 就是上线死链。getStaticPaths 按 published 过滤是
+    #    正向防线;这里反向兜底——dist 出现草稿路由 = 过滤失效(典型现场:本地
+    #    SITE_PREVIEW_DRAFTS=1 预览构建后忘了重跑默认 build 就交校验)。
+    for dr in sorted(draft_routes):
+        draft_html = dr.lstrip("/") + ".html"
+        if (dist / draft_html).exists():
+            failures.append(
+                f"{draft_html}: 草稿页(published:false)进了 dist —— "
+                f"预览构建(SITE_PREVIEW_DRAFTS=1)后须重跑默认 build 再过校验"
+            )
 
     print("=" * 64)
     print(f"内容校验:{len(files)} 个文件({content_dir})")

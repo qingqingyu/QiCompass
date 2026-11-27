@@ -1,0 +1,82 @@
+---
+// 文末转化面板(§7):prelaunch = Buttondown 邮箱表单(原生 POST,关 JS 可提交,
+// 隐藏字段记录来源页);live = 排盘 CTA + App 按钮。两态由 config.mjs 切,
+// 全站同步;文案由页面传入(模板不写死内容)。
+import { CONFIG } from "../config.mjs";
+import { langPath, type Lang } from "../data/site";
+
+interface Props {
+  lang: Lang;
+  type: string;
+  slug: string;
+  /** kicker(「Next」/「下一步」) */
+  kicker: string;
+  /** 面板主句(两态共用,如「This page describes every Jia. Your chart describes you.」) */
+  title: string;
+  /** live 态说明文字 */
+  bodyLive?: string;
+  /** live 态按钮 */
+  buttonLive?: string;
+  /** prelaunch 表单 */
+  emailPlaceholder: string;
+  formButton: string;
+  formCaption: string;
+  /** live 态 App 入口文案(ghost 按钮,指向 /app) */
+  buttonApp?: string;
+}
+const { lang, type, slug, kicker, title, bodyLive, buttonLive,
+        emailPlaceholder, formButton, formCaption, buttonApp } = Astro.props;
+
+const live = CONFIG.cta.state === "live";
+const list = CONFIG.buttondownList;
+// 文末面板槽位固定 end(不设 slot prop:Astro 里 slot 是保留属性)
+const ct = (name: string) => `${langPath(lang, name)}?ct=${type}-${slug}-end`;
+---
+
+<section class="cta-panel">
+  <p class="kicker">{kicker}</p>
+  <p class="title">{title}</p>
+  {
+    live ? (
+      <>
+        {bodyLive && <p class="caption body-live">{bodyLive}</p>}
+        <div class="row">
+          {CONFIG.features.calculator === "on" && buttonLive && (
+            <a class="btn" href={ct("/bazi-calculator")}>
+              {buttonLive}
+              <span class="seal-dot" aria-hidden="true" />
+            </a>
+          )}
+          {buttonApp && <a class="btn btn-ghost" href={ct("/app")}>{buttonApp}</a>}
+        </div>
+      </>
+    ) : (
+      <>
+        <form class="notify" method="post" action={`https://buttondown.com/api/emails/embed-subscribe/${list}`}>
+          <label class="sr-only" for="cta-panel-email">Email</label>
+          <input class="input" id="cta-panel-email" type="email" name="email" placeholder={emailPlaceholder} required />
+          <input type="hidden" name="source" value={`${type}-${slug}-end`} />
+          <button class="btn" type="submit">{formButton}</button>
+        </form>
+        <p class="caption form-cap">{formCaption}</p>
+      </>
+    )
+  }
+</section>
+
+<style>
+  .title {
+    font: 400 21px/1.35 var(--f-serif);
+    margin: 0;
+    max-width: 30em;
+  }
+  .row {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+  }
+  .form-cap,
+  .body-live {
+    margin: 0;
+  }
+</style>

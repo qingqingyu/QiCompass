@@ -16,11 +16,11 @@ import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 
-function listPluginFiles() {
-  // withFileTypes 过滤:目录名碰巧以 .mjs 结尾时 readFileSync 会 EISDIR 炸掉 build
-  return readdirSync(SITE_ROOT + "src/plugins", { withFileTypes: true })
-    .filter((e) => e.isFile() && (e.name.endsWith(".mjs") || e.name.endsWith(".js")))
-    .map((e) => e.name)
+function listFilesIn(relDir, exts) {
+  // withFileTypes 过滤:目录名碰巧以目标扩展名结尾时 readFileSync 会 EISDIR 炸掉 build
+  return readdirSync(SITE_ROOT + relDir, { withFileTypes: true })
+    .filter((e) => e.isFile() && exts.some((x) => e.name.endsWith(x)))
+    .map((e) => `${relDir}/${e.name}`)
     .sort();
 }
 
@@ -28,13 +28,16 @@ const SITE_ROOT = fileURLToPath(new URL("..", import.meta.url));
 const STORE_DIR = fileURLToPath(new URL("../node_modules/.astro/", import.meta.url));
 const DEPS_FILE = STORE_DIR + ".render-deps.json";
 
-// 渲染输出的全部输入(除内容文件本身):config 装配管线,plugins 决定链接,两个
-// data 文件喂插件。glob 按目录展开,新增插件文件无需登记。
+// 渲染输出的全部输入(除内容文件本身):config 装配管线,plugins 决定链接,
+// src/lib 是插件的依赖库(headings.mjs 等被插件 import,改它=改插件行为,
+// 但不在指纹里就会静默复用旧渲染——2026-11-27 实测),两个 data 文件喂插件。
+// 按目录展开,新增文件无需登记。
 const RENDER_DEPS = [
   "astro.config.mjs",
   "src/data/terms.json",
   "src/data/term-defs.json",
-  ...listPluginFiles().map((f) => `src/plugins/${f}`),
+  ...listFilesIn("src/plugins", [".mjs", ".js"]),
+  ...listFilesIn("src/lib", [".mjs", ".js"]),
 ];
 
 function fingerprint() {

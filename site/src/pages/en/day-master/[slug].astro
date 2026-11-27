@@ -1,0 +1,17 @@
+---
+// 日主页 en 腿。草稿(published:false)不进 dist;SITE_PREVIEW_DRAFTS=1
+// 仅用于本地预览构建(构建后须重跑默认 build 再过 check_site_content.py)。
+import { getCollection } from "astro:content";
+import DayMasterPage from "../../../components/DayMasterPage.astro";
+
+export async function getStaticPaths() {
+  const all = await getCollection("day-master");
+  const preview = process.env.SITE_PREVIEW_DRAFTS === "1";
+  return all
+    .filter((e) => e.data.lang === "en" && (preview || e.data.published))
+    .map((entry) => ({ params: { slug: entry.data.slug }, props: { entry } }));
+}
+const { entry } = Astro.props;
+---
+
+<DayMasterPage {entry} />
