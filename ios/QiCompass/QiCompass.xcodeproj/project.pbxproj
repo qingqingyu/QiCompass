@@ -157,6 +157,7 @@
 		9C4F3D4E5F6A7B8C9D0E1F2B /* Shared/TranslationFlowTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C4F3D4E5F6A7B8C9D0E1F2A /* Shared/TranslationFlowTests.swift */; };
 		A0000000000000000000050 /* Shared/ChainCompletionNotifierTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000050 /* Shared/ChainCompletionNotifierTests.swift */; };
 		A0000000000000000000054 /* Shared/GenerationRetrySchedulerTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1100000000000000000054 /* Shared/GenerationRetrySchedulerTests.swift */; };
+		D0104374C5B41442E17BBC59 /* Shared/DeleteReauthDecisionTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 85131499CCA149BB7EE5C179 /* Shared/DeleteReauthDecisionTests.swift */; };
 		8AE8C0B9D496FF55EC3A1388 /* Shared/AccountDeleteLocalDeactivationTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 92102EE2EC18780B685AA5CD /* Shared/AccountDeleteLocalDeactivationTests.swift */; };
 		9C4F1A2B3C5D7E9F0A1B2C3E /* Shared/AppLanguageTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C4F1A2B3C5D7E9F0A1B2C3D /* Shared/AppLanguageTests.swift */; };
 		A00000000000000000000021 /* Shared/ZodiacRevealTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = A11000000000000000000021 /* Shared/ZodiacRevealTests.swift */; };
@@ -377,6 +378,7 @@
 		9C4F3D4E5F6A7B8C9D0E1F2A /* Shared/TranslationFlowTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/TranslationFlowTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000050 /* Shared/ChainCompletionNotifierTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ChainCompletionNotifierTests.swift; sourceTree = "<group>"; };
 		A1100000000000000000054 /* Shared/GenerationRetrySchedulerTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/GenerationRetrySchedulerTests.swift; sourceTree = "<group>"; };
+		85131499CCA149BB7EE5C179 /* Shared/DeleteReauthDecisionTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/DeleteReauthDecisionTests.swift; sourceTree = "<group>"; };
 		92102EE2EC18780B685AA5CD /* Shared/AccountDeleteLocalDeactivationTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/AccountDeleteLocalDeactivationTests.swift; sourceTree = "<group>"; };
 		9C4F1A2B3C5D7E9F0A1B2C3D /* Shared/AppLanguageTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/AppLanguageTests.swift; sourceTree = "<group>"; };
 		A11000000000000000000021 /* Shared/ZodiacRevealTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Shared/ZodiacRevealTests.swift; sourceTree = "<group>"; };
@@ -753,6 +755,7 @@ A1100000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				9C4F3D4E5F6A7B8C9D0E1F2A /* Shared/TranslationFlowTests.swift */,
 				A1100000000000000000050 /* Shared/ChainCompletionNotifierTests.swift */,
 				A1100000000000000000054 /* Shared/GenerationRetrySchedulerTests.swift */,
+				85131499CCA149BB7EE5C179 /* Shared/DeleteReauthDecisionTests.swift */,
 				92102EE2EC18780B685AA5CD /* Shared/AccountDeleteLocalDeactivationTests.swift */,
 				9C4F1A2B3C5D7E9F0A1B2C3D /* Shared/AppLanguageTests.swift */,
 				A11000000000000000000011 /* Paywall/PaywallHourUnknownGateTests.swift */,
@@ -1072,6 +1075,7 @@ A0000000000000000000004E /* Compatibility/CompatibilityRelationDetailTests.swift
 				9C4F3D4E5F6A7B8C9D0E1F2B /* Shared/TranslationFlowTests.swift in Sources */,
 				A0000000000000000000050 /* Shared/ChainCompletionNotifierTests.swift in Sources */,
 				A0000000000000000000054 /* Shared/GenerationRetrySchedulerTests.swift in Sources */,
+				D0104374C5B41442E17BBC59 /* Shared/DeleteReauthDecisionTests.swift in Sources */,
 				8AE8C0B9D496FF55EC3A1388 /* Shared/AccountDeleteLocalDeactivationTests.swift in Sources */,
 				9C4F1A2B3C5D7E9F0A1B2C3E /* Shared/AppLanguageTests.swift in Sources */,
 				A00000000000000000000021 /* Shared/ZodiacRevealTests.swift in Sources */,

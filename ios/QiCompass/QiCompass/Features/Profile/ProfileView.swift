@@ -1008,18 +1008,61 @@ struct ProfileView: View {
     /// 暂不阻断本功能:v1 sync 后端尚未上线生产,且重置是低频操作。
     // MARK: - 账号删除(2026-11-24)
 
-    /// 删除流程(确认 dialog 的 destructive 按钮):Apple 重认证 → DELETE →
-    /// 本地清理 → 成功提示。Google 账号(UI 已只留 SIWA,休眠态)后端不要求
-    /// 重认证;客户端不知道 provider(Keychain 只存 id)——Apple UI 会弹系统
-    /// 认证框,后端按账号 provider 分支处理,Google 账号在 code=nil 路径删除。
+    /// 删除流程(确认 dialog 的 destructive 按钮):重认证 → DELETE →
+    /// 本地清理 → 成功提示。TASK-15 起按 AccountManager.state 的 provider
+    /// 分流:Apple → 弹系统认证框拿新鲜 authorizationCode(一次性,10 分钟
+    /// 有效,吊销链路用);其他 provider(Google 登录 UI 已只留 SIWA,休眠态)
+    /// 后端不要求重认证,直接 code=nil 删除;取不到当前用户 = 状态异常,
+    /// 显式报错(不默认当 Apple 处理)。
+    enum DeleteReauthDecision {
+        case needsAppleReauth
+        case skipReauth
+    }
+
+    static func deleteReauthDecision(
+        provider: AuthProvider?
+    ) throws -> DeleteReauthDecision {
+        guard let provider else {
+            throw AccountDeleteStateError.noSignedInUser
+        }
+        return provider == .apple ? .needsAppleReauth : .skipReauth
+    }
+
+    /// 删号流程状态错误(TASK-15):纯函数抛给调用方转 failed 弹窗。
+    enum AccountDeleteStateError: LocalizedError {
+        case noSignedInUser
+
+        var errorDescription: String? {
+            switch self {
+            case .noSignedInUser:
+                return L10n.AccountDelete.failed
+            }
+        }
+    }
+
     private func performAccountDeletion() async {
-        // 1. Apple 重认证拿新鲜 authorizationCode(一次性,10 分钟有效)
+        // 0. TASK-15:按 provider 分流(Apple → 重认证;其他 → 直接删)
+        let provider: AuthProvider?
+        if case .signedIn(let user) = env.accountManager.state {
+            provider = user.provider
+        } else {
+            provider = nil
+        }
         let authCode: String?
         do {
-            authCode = try await requestFreshAppleAuthorizationCode()
+            switch try Self.deleteReauthDecision(provider: provider) {
+            case .needsAppleReauth:
+                // 1. Apple 重认证拿新鲜 authorizationCode(一次性,10 分钟有效)
+                authCode = try await requestFreshAppleAuthorizationCode()
+            case .skipReauth:
+                authCode = nil
+            }
         } catch is CancellationError {
             // 用户取消系统认证框 = 放弃删除,不算错误
             AppLogger.app.info("account.delete.apple_reauth_cancelled")
+            return
+        } catch let e as AccountDeleteStateError {
+            deleteAccountError = e.errorDescription
             return
         } catch {
             deleteAccountError = String(

@@ -196,7 +196,12 @@ async def revoke_apple_tokens(
 
         # 3. 吊销 refresh_token(无 refresh_token 时吊销 access_token——
         #    短期内重签发窗口更小,仍是 Apple 认可的吊销形态)
-        token_to_revoke = tokens.get("refresh_token") or tokens.get("access_token")
+        # TASK-15(2026-11-27):hint 跟随实际发送的 token 类型——回退发
+        # access_token 时 hint 仍是 refresh_token,与载荷不符(Apple 按提示
+        # 优化查找,错 hint 降低吊销命中但不报错,属静默质量缺陷)
+        refresh_token = tokens.get("refresh_token")
+        revoke_refresh = isinstance(refresh_token, str) and bool(refresh_token)
+        token_to_revoke = refresh_token if revoke_refresh else tokens.get("access_token")
         if not isinstance(token_to_revoke, str) or not token_to_revoke:
             raise AppleRevocationEndpointError(
                 message="Apple /auth/token 响应既无 refresh_token 也无 "
@@ -207,7 +212,7 @@ async def revoke_apple_tokens(
                 "client_id": APPLE_SIGN_IN_CLIENT_ID,
                 "client_secret": secret,
                 "token": token_to_revoke,
-                "token_type_hint": "refresh_token",
+                "token_type_hint": "refresh_token" if revoke_refresh else "access_token",
             },
         )
         if revoke_resp.status_code != 200:
