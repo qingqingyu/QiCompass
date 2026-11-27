@@ -1,0 +1,72 @@
+---
+// App 介紹頁(zh-hant;對稱 en 版,S05)。頁內 App 名維持 KnowFate(與 App Store 一致),
+// 品牌中文名 觀命。捌章名稱與免費/解鎖標記沿用設計稿 reading 清單。
+import Base from "../../layouts/Base.astro";
+import Numeral from "../../components/Numeral.astro";
+import NotifyOrAppStore from "../../components/NotifyOrAppStore.astro";
+
+const lang = "zh-hant" as const;
+const path = "/zh-hant/app";
+
+const chapters = [
+  { zh: "壹", name: "人生主線", note: "App 內免費" },
+  { zh: "貳", name: "原生天賦", note: "App 內免費" },
+  { zh: "參", name: "高檔與低檔", note: "一次性解鎖", locked: true },
+  { zh: "肆", name: "操作手冊", note: "一次性解鎖", locked: true },
+  { zh: "伍", name: "能量曲線", note: "一次性解鎖", locked: true },
+  { zh: "陸", name: "你怎麼賺錢", note: "一次性解鎖", locked: true },
+  { zh: "柒", name: "升級路徑", note: "一次性解鎖", locked: true },
+  { zh: "捌", name: "實戰手冊——未來九十天", note: "一次性解鎖", locked: true },
+] as const;
+---
+
+<Base
+  {lang}
+  title="KnowFate · 觀命——把你的八字命盤當一本書讀"
+  description="KnowFate · 觀命 把八字命盤當一本書讀:捌章,從人生主線到未來九十天的實戰手冊。命盤由確定性引擎排出,措辭有分寸。"
+  path={path}
+>
+  <div class="wrap">
+    <ol class="crumbs">
+      <li><a href="/zh-hant">首頁</a></li>
+      <li aria-current="page">App</li>
+    </ol>
+
+    <header class="calc-head">
+      <div>
+        <h1 class="h1">KnowFate · 觀命<span class="muted" style="font-weight:300;display:block">把命盤當一本書讀。</span></h1>
+        <p class="lede muted">輸入一次出生日期與地點,引擎排出四柱,再與你一同讀它——捌章,從人生的形狀到下一季該做的事。免註冊;命盤留在你的裝置上。</p>
+      </div>
+      <span class="vtext" aria-hidden="true">觀命</span>
+    </header>
+  </div>
+
+  <section class="section-tight" style="padding-top:0">
+    <div class="wrap" style="max-width:760px">
+      <div class="section-head">
+        <span class="vmark" aria-hidden="true">捌章</span>
+        <div>
+          <span class="kicker">Eight chapters</span>
+          <h2 class="h2" style="margin-top:14px">App 為你讀哪些章</h2>
+        </div>
+      </div>
+      <ol class="chapters" style="list-style:none;margin:0;padding:0">
+        {chapters.map((ch) => (
+          <li style="display:grid;grid-template-columns:34px 1fr auto;gap:14px;align-items:baseline;padding:16px 0;border-top:1px solid var(--hairline)">
+            <Numeral char={ch.zh} locked={ch.locked} />
+            <span style="font-size:18px">{ch.name}</span>
+            <span class="caption">{ch.note}</span>
+          </li>
+        ))}
+      </ol>
+      <p class="caption" style="margin-top:18px">每張命盤免費附第壹、貳章;其餘陸章一次解鎖,無訂閱。引擎怎麼算、哪些話它拒絕說:見<a href="/zh-hant/about">關於與方法</a>。資料處理:<a href="/zh-hant/privacy">隱私</a>。</p>
+    </div>
+  </section>
+
+  <section class="section-tight" id="get" style="padding-top:0">
+    <div class="wrap" style="max-width:640px">
+      <h2 class="h3" style="margin-bottom:18px">取得 App</h2>
+      <NotifyOrAppStore {lang} source="app-page" />
+    </div>
+  </section>
+</Base>

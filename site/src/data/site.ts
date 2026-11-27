@@ -45,6 +45,8 @@ export function langPath(lang: Lang, rest: string): string {
 type UiStrings = {
   nav: { calculator: string; library: string; guides: string; today: string; app: string };
   getTheApp: string;
+  /** 页头按钮 prelaunch 态(TASK-19):锚到首页 #notify 表单 */
+  notifyMe: string;
   /** 未上线灰显占位的悬停提示(Header 导航) */
   comingSoon: string;
   /** 主导航 aria-label(Header <nav>) */
@@ -68,6 +70,7 @@ export const UI: Record<Lang, UiStrings> = {
   en: {
     nav: { calculator: 'Calculator', library: 'Library', guides: 'Guides', today: 'Today', app: 'The App' },
     getTheApp: 'Get the app',
+    notifyMe: 'Notify me',
     comingSoon: 'Coming soon',
     navAria: 'Primary',
     skipToContent: 'Skip to content',
@@ -87,6 +90,7 @@ export const UI: Record<Lang, UiStrings> = {
   'zh-hant': {
     nav: { calculator: '排盤器', library: '辭典', guides: '指南', today: '今日', app: 'App' },
     getTheApp: '取得 App',
+    notifyMe: '上架通知我',
     comingSoon: '即將上線',
     navAria: '主選單',
     skipToContent: '跳到主要內容',

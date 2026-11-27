@@ -15,6 +15,10 @@ export const CONFIG = {
   buttondownList: "qicompass",
 };
 
+// Buttondown 嵌入订阅端点(S05):两处邮箱表单(CtaPanel / NotifyOrAppStore)
+// 共用这一个常量——换服务商或改路径只动这里,不复制第二份 URL。
+export const BUTTONDOWN_ACTION = `https://buttondown.com/api/emails/embed-subscribe/${CONFIG.buttondownList}`;
+
 // 错误显式传播:翻到 live 却没配 App Store 链接 = 全站 CTA 指向空地址,宁可构建期炸
 if (CONFIG.cta.state === "live" && !CONFIG.appStoreUrl) {
   throw new Error(

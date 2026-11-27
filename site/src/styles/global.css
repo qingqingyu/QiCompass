@@ -352,7 +352,20 @@ img, svg { display: block; max-width: 100%; }
 .sticky-cta .x { background: none; border: 0; color: inherit; opacity: .6; font-size: 18px; cursor: pointer; padding: 4px; }
 @media (max-width: 900px) { .sticky-cta { display: flex; } }
 
-/* ---------- 11. Glossary popover (internal link + definition) ---------- */
+/* ---------- 11. Calculator page(S05 一期锁框版;移植设计稿 calculator.html) ---------- */
+.calc-head { padding: 8px 0 48px; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 40px; align-items: end; }
+.calc-head .lede { margin-top: 18px; }
+.calc-head .vtext { font-size: 30px; color: var(--ink); letter-spacing: .5em; }
+@media (max-width: 900px) { .calc-head { grid-template-columns: 1fr; } .calc-head .vtext { display: none; } }
+
+.method { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0 56px; }
+.method > div { border-top: 1px solid var(--hairline); padding: 26px 0; }
+.method h3 { font-size: 20px; margin-bottom: 10px; display: flex; gap: 12px; align-items: baseline; }
+.method h3 .zh { font-size: 14px; color: var(--ink-muted); letter-spacing: .2em; }
+.method p { color: var(--ink-muted); font-size: 15.5px; margin: 0; }
+@media (max-width: 900px) { .method { grid-template-columns: 1fr; } }
+
+/* ---------- 12. Glossary popover (internal link + definition) ---------- */
 .term { text-decoration: underline dotted var(--ink-muted); text-underline-offset: .25em; cursor: help; }
 .term:hover { text-decoration-color: var(--ink); }
 .pop {
@@ -368,7 +381,7 @@ img, svg { display: block; max-width: 100%; }
 .pop .pt { margin: 0 0 8px; display: flex; align-items: baseline; font: 400 18px var(--f-serif); color: var(--ink); }
 .pop p { margin: 0 0 10px; color: var(--ink-muted); }
 
-/* ---------- 12. FAQ ---------- */
+/* ---------- 13. FAQ ---------- */
 .faq details { border-top: 1px solid var(--hairline); }
 .faq details:last-child { border-bottom: 1px solid var(--hairline); }
 .faq summary { list-style: none; cursor: pointer; display: flex; gap: 18px; align-items: baseline; padding: 22px 0; font: 400 20px/1.35 var(--f-serif); }
@@ -379,7 +392,7 @@ img, svg { display: block; max-width: 100%; }
 .faq summary .numeral { width: 28px; height: 28px; font-size: 13px; }
 @media (max-width: 640px) { .faq .ans { padding-left: 0; } }
 
-/* ---------- 13. Pillars table (chart) ---------- */
+/* ---------- 14. Pillars table (chart) ---------- */
 .pillars { display: grid; grid-template-columns: 92px repeat(4, 1fr); border-top: 1px solid var(--hairline); }
 .pillars > div { padding: 12px 6px; border-bottom: 1px solid var(--hairline); text-align: center; display: grid; place-items: center; }
 .pillars .rl { justify-items: start; text-align: left; font-size: 12.5px; color: var(--ink-muted); letter-spacing: .04em; padding-left: 0; }
@@ -401,7 +414,7 @@ img, svg { display: block; max-width: 100%; }
 .ellegend b { font: 400 30px/1 var(--f-sans); font-variant-numeric: tabular-nums; }
 .ellegend span { font-size: 12.5px; color: var(--ink-muted); }
 
-/* ---------- 14. Footer ---------- */
+/* ---------- 15. Footer ---------- */
 .site-footer { border-top: 1px solid var(--hairline); padding: 72px 0 40px; margin-top: 40px; font-size: 14px; }
 .foot-grid { display: grid; grid-template-columns: 1.3fr repeat(4, 1fr); gap: 32px; }
 .foot-grid .foot-h { font: 500 11px/1 var(--f-sans); letter-spacing: .28em; text-transform: uppercase; color: var(--ink-muted); margin-bottom: 18px; }
@@ -411,7 +424,7 @@ img, svg { display: block; max-width: 100%; }
 .foot-base { display: flex; flex-wrap: wrap; gap: 16px 32px; justify-content: space-between; margin-top: 56px; padding-top: 24px; border-top: 1px solid var(--hairline); color: var(--ink-muted); font-size: 13px; }
 @media (max-width: 900px) { .foot-grid { grid-template-columns: 1fr 1fr; } .foot-grid > :first-child { grid-column: 1 / -1; } }
 
-/* ---------- 15. Motion safety ---------- */
+/* ---------- 16. Motion safety ---------- */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: .3s !important; animation-delay: 0s !important; animation-iteration-count: 1 !important; transition-duration: .2s !important; }
   /* 全降级:动画整条禁掉(只压时长会让 forwards 填充的 blur(0) 留在计算值里,
@@ -423,7 +436,7 @@ img, svg { display: block; max-width: 100%; }
   html { scroll-behavior: auto; }
 }
 
-/* ---------- 16. Scroll reveal (progressive: content is visible without JS — crawlers & no-JS see everything) ---------- */
+/* ---------- 17. Scroll reveal (progressive: content is visible without JS — crawlers & no-JS see everything) ---------- */
 .js .reveal { opacity: 0; filter: blur(7px); }
 .js .reveal.in { animation: inkIn 1.2s var(--ease-ink) forwards; }
 @media (prefers-reduced-motion: reduce) { .js .reveal { opacity: 1; filter: none; } }
@@ -436,9 +449,6 @@ span.not-launched {
   opacity: 0.45;
   cursor: default;
 }
-/* 灰显占位不吃交互反馈:hover 提亮 / active 按压会假装可点,压回占位态 */
-.btn.not-launched:hover,
-.btn.not-launched:active {
-  opacity: 0.45;
-  transform: none;
-}
+/* 灰显占位不吃交互反馈:hover 提亮 / active 按压会假装可点,压回占位态
+   (TASK-19 后页头右上不再产出 .btn.not-launched——假按钮分支已删,只剩
+   .nav-item / li / span 三种灰显形态;此规则随之移除,勿在模板再产 .btn.not-launched) */

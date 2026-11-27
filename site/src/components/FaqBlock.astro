@@ -1,0 +1,28 @@
+---
+// 锁框页/站务页 FAQ 块(S05):details/summary + 每条大写数字编号。
+// 编号按语言腿取表(SC 腿 贰/叁/陆,TC 腿 貳/參/陸;与 ArticleLayout/KitchenSink 同表)。
+// 超出壹–捌显式抛错(与 ArticleLayout 同一约定),禁止静默丢编号。
+import { type Lang } from "../data/site";
+
+interface Props {
+  lang: Lang;
+  items: readonly { q: string; a: string }[];
+}
+
+const { lang, items } = Astro.props;
+const NUMS = lang === "en"
+  ? ["壹", "贰", "叁", "肆", "伍", "陆", "柒", "捌"]
+  : ["壹", "貳", "參", "肆", "伍", "陸", "柒", "捌"];
+if (items.length > NUMS.length) {
+  throw new Error(`FaqBlock: ${items.length} 条 FAQ 超出壹–捌编号上限`);
+}
+---
+
+<div class="faq">
+  {items.map((f, i) => (
+    <details>
+      <summary><span class="numeral" aria-hidden="true">{NUMS[i]}</span>{f.q}</summary>
+      <div class="ans">{f.a}</div>
+    </details>
+  ))}
+</div>

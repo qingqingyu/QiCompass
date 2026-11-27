@@ -2,7 +2,7 @@
 // 文末转化面板(§7):prelaunch = Buttondown 邮箱表单(原生 POST,关 JS 可提交,
 // 隐藏字段记录来源页);live = 排盘 CTA + App 按钮。两态由 config.mjs 切,
 // 全站同步;文案由页面传入(模板不写死内容)。
-import { CONFIG } from "../config.mjs";
+import { BUTTONDOWN_ACTION, CONFIG } from "../config.mjs";
 import { langPath, type Lang } from "../data/site";
 
 interface Props {
@@ -28,7 +28,6 @@ const { lang, type, slug, kicker, title, bodyLive, buttonLive,
         emailPlaceholder, formButton, formCaption, buttonApp } = Astro.props;
 
 const live = CONFIG.cta.state === "live";
-const list = CONFIG.buttondownList;
 // 文末面板槽位固定 end(不设 slot prop:Astro 里 slot 是保留属性)
 const ct = (name: string) => `${langPath(lang, name)}?ct=${type}-${slug}-end`;
 ---
@@ -52,7 +51,7 @@ const ct = (name: string) => `${langPath(lang, name)}?ct=${type}-${slug}-end`;
       </>
     ) : (
       <>
-        <form class="notify" method="post" action={`https://buttondown.com/api/emails/embed-subscribe/${list}`}>
+        <form class="notify" method="post" action={BUTTONDOWN_ACTION}>
           <label class="sr-only" for="cta-panel-email">Email</label>
           <input class="input" id="cta-panel-email" type="email" name="email" placeholder={emailPlaceholder} required />
           <input type="hidden" name="source" value={`${type}-${slug}-end`} />

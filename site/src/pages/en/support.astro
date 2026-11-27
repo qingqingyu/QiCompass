@@ -1,0 +1,62 @@
+---
+// 技术支持页(S05 站务页,App Store Connect 必填 URL /en/support):
+// FAQ + 恢复购买说明 + 删号指引 + 联系邮箱 hello@knowfate.app。
+// 不承诺做不到的响应时限;退款引导走 Apple 官方渠道。
+import Base from "../../layouts/Base.astro";
+import FaqBlock from "../../components/FaqBlock.astro";
+
+const lang = "en" as const;
+const path = "/en/support";
+
+const faq = [
+  {
+    q: "How do I restore my purchases?",
+    a: "Install the app on any device signed in to the same Apple ID, then open My → Settings → Restore purchases. Purchases are bound to your Apple ID — nothing else is needed, and chapters unlock immediately.",
+  },
+  {
+    q: "How do I delete my account and my data?",
+    a: "Signed-in users can delete everything themselves: My → Settings → Delete account. This removes the account, synced charts (including birth data), ask credits and records, and text you personally entered, along with their server caches. Details of exactly what is kept (an anonymized transaction ledger) are in the Privacy Policy, §4.",
+  },
+  {
+    q: "My chart looks different from another app's chart. Who is right?",
+    a: "Most often the difference is True Solar Time or the 23:00 day boundary — especially for births near an odd hour. Our rules are fixed and documented on the About & method page; if a birth sits exactly on a rule boundary, reasonable engines can disagree, and we tell you when that applies.",
+  },
+  {
+    q: "I found a mistake in a reading. Can it be fixed?",
+    a: "Yes — write to us with a screenshot. The chart is computed by a rules engine, so a factual mismatch (a wrong pillar, a wrong star) is fixed at the engine level, which means every chart with the same input gets corrected too.",
+  },
+  {
+    q: "How do I get a refund?",
+    a: "Purchases are billed by Apple, so refunds go through Apple: open the App Store, tap your name, choose Purchase History, and use “Request a Refund”, or visit reportaproblem.apple.com. We cannot issue refunds on Apple's behalf, but we will help you document the case if needed.",
+  },
+];
+---
+
+<Base
+  {lang}
+  title="Support"
+  description="Support for KnowFate - Chinese Astrology: restoring purchases, deleting your account, chart differences, and how to reach us at hello@knowfate.app."
+  path={path}
+>
+  <div class="wrap">
+    <ol class="crumbs">
+      <li><a href="/en">Home</a></li>
+      <li aria-current="page">Support</li>
+    </ol>
+
+    <header class="calc-head">
+      <div>
+        <h1 class="h1">Support <span class="muted" style="font-style:italic;font-weight:300;display:block">We read every mail.</span></h1>
+        <p class="lede muted">Write to <a href="mailto:hello@knowfate.app">hello@knowfate.app</a> — usually we reply within a couple of business days. Most questions are answered below.</p>
+      </div>
+      <span class="vtext" aria-hidden="true">技术支援</span>
+    </header>
+  </div>
+
+  <section class="section-tight" style="padding-top:0">
+    <div class="wrap" style="max-width:880px">
+      <FaqBlock {lang} items={faq} />
+      <p class="caption" style="margin-top:26px">More on how we handle data: <a href="/en/privacy">Privacy</a>. More on how charts are cast: <a href="/en/about">About &amp; method</a>.</p>
+    </div>
+  </section>
+</Base>
