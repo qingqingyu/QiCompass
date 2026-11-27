@@ -4,10 +4,10 @@ description: "Jia Wood is the tall tree of the ten Day Masters: upright, steady,
 slug: zz-fixture-a
 lang: en
 inShort: "Jia Wood is the Yang Wood Day Master — the tall tree that grows toward a clear direction."
-updated: "2026-11-25"
+updated: "2026-11-27"
 published: true
 reviewedBy:
-  date: "2026-11-25"
+  date: "2026-11-27"
   reviewer: "S01 双 review"
 faq:
   - q: "What is a Day Master?"
@@ -22,14 +22,14 @@ selfTermKeys: []
 
 ## 壹|What it describes
 
-Jia Wood sits at the center of this page. Start from the [home page](/en), browse the
-[library](/en/library) where every entry is collected, or jump straight to the
-[calculator](/en/bazi-calculator) to cast a chart. The [app](/en/app) reads the chart as
-eight chapters; the [about](/en/about) page explains the method, the
-[privacy](/en/privacy) note explains how birth data is handled, and [support](/en/support)
-takes questions. The [guides](/en/guides) section collects step-by-step reading help.
+Jia Wood sits at the center of this page. Start from the [home page](/en), switch to the
+[traditional-Chinese mirror](/zh-hant) of the whole site, or open the [style guide](/en/kitchen-sink)
+to see how entries are typeset; the [style guide in Chinese](/zh-hant/kitchen-sink) shows the same
+layout in 繁體中文.
 
-## 贰|Strong and weak
+## 贰|How to read on
 
-Compare with [fixture B](/en/day-master/zz-fixture-b), the traditional-Chinese mirror of
-this page at [zh-hant](/zh-hant), and the [today](/en/today) strip for the current pillars.
+Read this entry alongside the [English home](/en) and the [Chinese home](/zh-hant); the
+[EN kitchen-sink](/en/kitchen-sink) and the [繁體 kitchen-sink](/zh-hant/kitchen-sink) pages
+collect the shared components. Fixture pages exist for the content checker, so they only link
+to routes that stay live under every launch-switch combination.

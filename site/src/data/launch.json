@@ -1,0 +1,21 @@
+{
+  "sections": {
+    "calculator":      { "enabled": false, "prefixes": ["/bazi-calculator"] },
+    "dayMasterFinder": { "enabled": false, "prefixes": ["/day-master-calculator"] },
+    "today":           { "enabled": false, "prefixes": ["/today"] },
+    "library":         { "enabled": false, "prefixes": ["/library"] },
+    "guides":          { "enabled": false, "prefixes": ["/guides"] },
+    "app":             { "enabled": false, "prefixes": ["/app"] },
+    "about":           { "enabled": false, "prefixes": ["/about"] },
+    "privacy":         { "enabled": false, "prefixes": ["/privacy"] },
+    "support":         { "enabled": false, "prefixes": ["/support"] },
+    "dayMaster":       { "enabled": false, "prefixes": ["/day-master"] },
+    "tenGods":         { "enabled": false, "prefixes": ["/ten-gods"] },
+    "fiveElements":    { "enabled": false, "prefixes": ["/five-elements"] },
+    "stars":           { "enabled": false, "prefixes": ["/stars"] },
+    "dayPillars":      { "enabled": false, "prefixes": ["/day-pillars", "/day-pillar"] },
+    "zodiac":          { "enabled": false, "prefixes": ["/zodiac"] },
+    "compatibility":   { "enabled": false, "prefixes": ["/compatibility"] },
+    "glossary":        { "enabled": false, "prefixes": ["/glossary"] }
+  }
+}

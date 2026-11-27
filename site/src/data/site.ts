@@ -1,4 +1,6 @@
 // 站点常量与 i18n UI 词条(S01 基础版;术语译名一律等 S02 从 backend 导出,不在这里另起)。
+import launchJson from "./launch.json";
+import { matchSection, type LaunchSections } from "./launch.mjs";
 
 export const SITE = {
   domain: 'https://knowfate.app',
@@ -103,15 +105,18 @@ export const UI: Record<Lang, UiStrings> = {
   },
 };
 
-// 上线开关(2026-11-27 外评修复:页头/页脚只链已上线区块,未上线条目灰显
-// 不出 <a>——防 S08 最小上线时搜索引擎首抓即撞 404;规格 S04「未发布页面
-// 灰色不出链」提前到导航层)。键对齐 NAV.key 与页脚各列;建一批发一批,
-// 某区块内容页 + 模板就绪后翻 true 并同步 check_site_content.py 白名单。
-export const LAUNCH = {
-  calculator: false, library: false, guides: false, today: false, app: false,
-  dayMaster: false, tenGods: false, fiveElements: false, stars: false,
-  dayPillars: false, tools: false, about: false, privacy: false,
-} as const;
+// 上线开关(TASK-18,2026-11-27):唯一事实源是 site/src/data/launch.json——
+// 翻开关只改那一个文件;页头/页脚/校验脚本(check_site_content.py)都消费它,
+// 不再有任何「两处同改」的白名单。匹配核心在 launch.mjs(TS 与裸 Node 测试
+// 共用),Python 侧按同一规则另有一份实现,行为一致性由两侧共读的
+// site/tests/fixtures/launch-cases.json 锁定。页头/页脚不再按开关键门控,
+// 统一对每条链接的 rest 路径调 isLaunched;未上线条目照旧灰显不出 <a>
+// (防 S08 最小上线时搜索引擎首抓即撞 404)。
+
+/** rest(不带语言前缀的路径)是否已上线;未登记路径(首页、语言根等)恒 true。 */
+export function isLaunched(rest: string): boolean {
+  return matchSection(launchJson.sections as LaunchSections, rest);
+}
 
 /** 页头主导航(hreflang 互指 + 面包屑都以这些路径为骨架)。
  * path 一律存「rest 形态」(不带语言前缀)——langPath(lang, path) 的契约如此,

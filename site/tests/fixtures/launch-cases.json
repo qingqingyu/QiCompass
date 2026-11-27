@@ -1,0 +1,34 @@
+{
+  "comment": "TASK-18 共享行为向量(2026-11-27):launch.mjs 的 matchSection(TS/Node 侧)与 tools/check_site_content.py 的 is_launched(Python 侧)各有一份匹配实现,两侧测试(site/tests/launch.test.mjs × site/tests/test_launch.py)共读本文件锁定行为一致——改动匹配规则必须两侧同步并同步补用例。匹配规则:命中 prefix ⇔ rest === prefix 或 rest.startsWith(prefix + \"/\");不做「前缀+连字符」匹配;多条命中取最长 prefix 所属区块;未命中任何区块视为已上线。sections 只声明 prefixes,每条用例的 enabled 名单决定哪些区块开启(其余全关);zzGuideDeep 是测「最长前缀胜出」的测试专用区块,不对应真实站点路由。",
+  "sections": {
+    "calculator":      { "prefixes": ["/bazi-calculator"] },
+    "dayMasterFinder": { "prefixes": ["/day-master-calculator"] },
+    "today":           { "prefixes": ["/today"] },
+    "library":         { "prefixes": ["/library"] },
+    "guides":          { "prefixes": ["/guides"] },
+    "app":             { "prefixes": ["/app"] },
+    "dayMaster":       { "prefixes": ["/day-master"] },
+    "dayPillars":      { "prefixes": ["/day-pillars", "/day-pillar"] },
+    "zodiac":          { "prefixes": ["/zodiac"] },
+    "zzGuideDeep":     { "prefixes": ["/guides/true-solar-time"] }
+  },
+  "cases": [
+    { "name": "dayMaster 关 + dayMasterFinder 开:/day-master-calculator 不被 /day-master 连字误伤(外评第 1 条)", "enabled": ["dayMasterFinder"], "rest": "/day-master-calculator", "expect": true },
+    { "name": "dayMaster 关:日主子页 /day-master/jia-wood 未上线", "enabled": ["dayMasterFinder"], "rest": "/day-master/jia-wood", "expect": false },
+    { "name": "dayMasterFinder 关 + dayMaster 开:查询页精确命中自己的区块", "enabled": ["dayMaster"], "rest": "/day-master-calculator", "expect": false },
+    { "name": "dayMaster 开:根路径精确命中", "enabled": ["dayMaster"], "rest": "/day-master", "expect": true },
+    { "name": "dayMaster 开:子页上线", "enabled": ["dayMaster"], "rest": "/day-master/jia-wood", "expect": true },
+    { "name": "dayPillars 关:复数 /day-pillars 被门控", "enabled": [], "rest": "/day-pillars", "expect": false },
+    { "name": "dayPillars 关:单数 /day-pillar/jia-zi 同区块也门控(外评第 2 条)", "enabled": [], "rest": "/day-pillar/jia-zi", "expect": false },
+    { "name": "dayPillars 开:单数子页上线", "enabled": ["dayPillars"], "rest": "/day-pillar/jia-zi", "expect": true },
+    { "name": "calculator 开:/bazi-calculator 上线", "enabled": ["calculator"], "rest": "/bazi-calculator", "expect": true },
+    { "name": "calculator 关:不牵连其他未登记路径", "enabled": [], "rest": "/tomorrow", "expect": true },
+    { "name": "全关:首页 / 恒已上线", "enabled": [], "rest": "/", "expect": true },
+    { "name": "全关:未登记路径 /kitchen-sink 恒已上线", "enabled": [], "rest": "/kitchen-sink", "expect": true },
+    { "name": "仅字符串前缀相同:/guides-x 不被 guides 门控", "enabled": ["guides"], "rest": "/guides-x", "expect": true },
+    { "name": "guides 开:普通子指南页上线", "enabled": ["guides"], "rest": "/guides/unknown-birth-time", "expect": true },
+    { "name": "最长前缀胜出:父开子关,深页按自己的区块判", "enabled": ["guides"], "rest": "/guides/true-solar-time", "expect": false },
+    { "name": "最长前缀胜出:父关子开,深页上线", "enabled": ["zzGuideDeep"], "rest": "/guides/true-solar-time", "expect": true },
+    { "name": "app 关:精确命中被门控", "enabled": [], "rest": "/app", "expect": false }
+  ]
+}
