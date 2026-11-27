@@ -1,7 +1,7 @@
 ---
 // 页头:品牌字按语言(规格 README §13)+ 主导航 + 语言切换 + 移动端菜单按钮。
 // 当前页朱点 = aria-current="page" 的 ::after 菱形(global.css §6,DESIGN 允许的当前时辰点级朱红)。
-import { SITE, UI, NAV, LAUNCH, langPath, stripLang, zhFamily, type Lang } from "../data/site";
+import { SITE, UI, NAV, isLaunched, langPath, stripLang, zhFamily, type Lang } from "../data/site";
 
 interface Props {
   lang: Lang;
@@ -31,9 +31,10 @@ const currentPath = path.replace(/\/+$/, "");
       )}
     </a>
     <nav class="nav" id="nav" aria-label={t.navAria}>
-      {/* 未上线区块灰显不出链接(2026-11-27 外评修复:LAUNCH 开关,防搜索引擎撞 404) */}
+      {/* 未上线区块灰显不出链接(TASK-18:开关唯一事实源 launch.json,
+          按每条链接的 rest 路径判 isLaunched;防搜索引擎撞 404) */}
       {NAV.map((item) =>
-        LAUNCH[item.key] ? (
+        isLaunched(item.path) ? (
           <a href={langPath(lang, item.path)} aria-current={currentPath === langPath(lang, item.path) ? "page" : undefined}>
             {t.nav[item.key]}
           </a>
@@ -56,7 +57,7 @@ const currentPath = path.replace(/\/+$/, "");
           {lang === "en" ? t.langSwitch.other : t.langSwitch.current}
         </a>
       </div>
-      {LAUNCH.app ? (
+      {isLaunched("/app") ? (
         <a class="btn btn-sm" href={langPath(lang, "/app")}>{t.getTheApp}<span class="seal-dot" aria-hidden="true"></span></a>
       ) : (
         <span class="btn btn-sm not-launched" aria-disabled="true" title={t.comingSoon}>{t.getTheApp}<span class="seal-dot" aria-hidden="true"></span></span>

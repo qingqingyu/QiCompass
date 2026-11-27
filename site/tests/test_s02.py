@@ -89,7 +89,8 @@ def test_dead_link_fail() -> None:
         fixture = Path(td) / "day-master" / "en" / "zz-deadlink.md"
         fixture.parent.mkdir(parents=True)
         source = (FIXTURES / "day-master" / "en" / "zz-fixture-a.md").read_text(encoding="utf-8")
-        source = source.replace("[today](/en/today)", "[nothing](/en/day-master/does-not-exist)")
+        # TASK-18 后 /today 受开关门控(默认关),不再做死链锚点;换用恒在线的 /en
+        source = source.replace("[home page](/en)", "[nothing](/en/day-master/does-not-exist)")
         fixture.write_text(source, encoding="utf-8")
         r = run(["python3", "tools/check_site_content.py", "--dir", td])
         ok = r.returncode == 1 and "死链" in r.stdout and "does-not-exist" in r.stdout

@@ -3,8 +3,9 @@
 // 术语列(日主/十神/五行/神煞)自 S02 起取 terms.json 单一事实源(2026-11-27
 // 外评修复兑现 S01 预留注释):名字按语言取 en / zhHant,路径取后端导出值,
 // 不在站点另起译名(术语单一事实源红线)。
-// 未上线区块灰显不出 <a>(LAUNCH 开关,同 Header;防搜索引擎首抓撞 404)。
-import { SITE, UI, LAUNCH, langPath, stripLang, zhFamily, type Lang } from "../data/site";
+// 未上线区块灰显不出 <a>(TASK-18:每条链接的 rest 路径过 isLaunched,
+// 开关唯一事实源 launch.json;同 Header;防搜索引擎首抓撞 404)。
+import { SITE, UI, isLaunched, langPath, stripLang, zhFamily, type Lang } from "../data/site";
 import terms from "../data/terms.json";
 
 interface Props {
@@ -44,16 +45,16 @@ if (stars.length !== starPaths.length) {
 }
 
 // 工具列是站点 UI 文案(排盘器/指南页名),非后端术语——双语内联;
-// launch 键对齐 LAUNCH 开关(逐条控制,不同批次可分开发)。
+// 上线与否不再带键,统一按各自 rest 路径过 isLaunched(不同批次可分开发)。
 const tools = [
-  { p: "/bazi-calculator", name: "BaZi calculator", nameHant: "八字排盤", launch: "tools" },
-  { p: "/day-master-calculator", name: "Day Master finder", nameHant: "日主查詢", launch: "tools" },
-  { p: "/today", name: "Chinese calendar today", nameHant: "今日黃曆", launch: "tools" },
-  { p: "/guides/how-to-read-a-bazi-chart", name: "How to read a chart", nameHant: "如何讀盤", launch: "guides" },
-  { p: "/guides/unknown-birth-time", name: "Unknown birth time", nameHant: "時辰未知怎麼辦", launch: "guides" },
-  { p: "/guides/true-solar-time", name: "True solar time", nameHant: "真太陽時", launch: "guides" },
-  { p: "/about", name: "About & method", nameHant: "關於與方法", launch: "about" },
-  { p: "/privacy", name: "Privacy", nameHant: "隱私", launch: "privacy" },
+  { p: "/bazi-calculator", name: "BaZi calculator", nameHant: "八字排盤" },
+  { p: "/day-master-calculator", name: "Day Master finder", nameHant: "日主查詢" },
+  { p: "/today", name: "Chinese calendar today", nameHant: "今日黃曆" },
+  { p: "/guides/how-to-read-a-bazi-chart", name: "How to read a chart", nameHant: "如何讀盤" },
+  { p: "/guides/unknown-birth-time", name: "Unknown birth time", nameHant: "時辰未知怎麼辦" },
+  { p: "/guides/true-solar-time", name: "True solar time", nameHant: "真太陽時" },
+  { p: "/about", name: "About & method", nameHant: "關於與方法" },
+  { p: "/privacy", name: "Privacy", nameHant: "隱私" },
 ] as const;
 const toolName = (x: { name: string; nameHant: string }) => (lang === "en" ? x.name : x.nameHant);
 ---
@@ -83,7 +84,7 @@ const toolName = (x: { name: string; nameHant: string }) => (lang === "en" ? x.n
         <h2 class="foot-h">{t.footer.colDayMasters}</h2>
         <ul>
           {/* zh-l 汉字点缀仅 en 渲染(zh-hant 名字本身就是该字,再点缀会「甲甲」) */}
-          {dayMasters.map(([key, dm]) => LAUNCH.dayMaster ? (
+          {dayMasters.map(([key, dm]) => isLaunched(dm.path) ? (
             <li><a href={P(dm.path)}>{lang === "en" && <span class="zh-l">{dm.zhHant}</span>}{stemName(key, dm)}</a></li>
           ) : (
             <li class="not-launched">{lang === "en" && <span class="zh-l">{dm.zhHant}</span>}{stemName(key, dm)}</li>
@@ -93,7 +94,7 @@ const toolName = (x: { name: string; nameHant: string }) => (lang === "en" ? x.n
       <div>
         <h2 class="foot-h">{t.footer.colTenGods}</h2>
         <ul>
-          {tenGods.map((x) => LAUNCH.tenGods ? (
+          {tenGods.map((x) => isLaunched(x.path) ? (
             <li><a href={P(x.path)}>{nameOf(x)}</a></li>
           ) : (
             <li class="not-launched">{nameOf(x)}</li>
@@ -105,17 +106,17 @@ const toolName = (x: { name: string; nameHant: string }) => (lang === "en" ? x.n
         <ul>
           {/* 两行五行各占一个 <li>(ul 只允许 li 子节点);灰显同其余列在 li 级
               门控——分隔符 " · " 一并降透明度,不裸留在 li 里 */}
-          {[elements.slice(0, 3), elements.slice(3)].map((row) => LAUNCH.fiveElements ? (
+          {[elements.slice(0, 3), elements.slice(3)].map((row) => row.every((e) => isLaunched(e.path)) ? (
             <li>{row.map((e, i) => (<>{i > 0 && " · "}<a href={P(e.path)}>{nameOf(e)}</a></>))}</li>
           ) : (
             <li class="not-launched">{row.map((e, i) => (<>{i > 0 && " · "}{nameOf(e)}</>))}</li>
           ))}
-          {stars.map((s) => LAUNCH.stars ? (
+          {stars.map((s) => isLaunched(s.path) ? (
             <li><a href={P(s.path)}>{nameOf(s)}</a></li>
           ) : (
             <li class="not-launched">{nameOf(s)}</li>
           ))}
-          {LAUNCH.dayPillars ? (
+          {isLaunched("/day-pillars") ? (
             <li><a href={P("/day-pillars")}>{t.footer.allDayPillars}</a></li>
           ) : (
             <li class="not-launched">{t.footer.allDayPillars}</li>
@@ -125,7 +126,7 @@ const toolName = (x: { name: string; nameHant: string }) => (lang === "en" ? x.n
       <div>
         <h2 class="foot-h">{t.footer.colTools}</h2>
         <ul>
-          {tools.map((tool) => LAUNCH[tool.launch] ? (
+          {tools.map((tool) => isLaunched(tool.p) ? (
             <li><a href={P(tool.p)}>{toolName(tool)}</a></li>
           ) : (
             <li class="not-launched">{toolName(tool)}</li>

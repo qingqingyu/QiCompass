@@ -11,9 +11,10 @@
      faq 2–4)、lang 与目录一致、
      slug 与文件名一致且唯一、reviewedBy 非空才可 published: true
   3. 内链:每页正文站内链接 ≥ 8 条;published: true 的页面逐条解析路由
-     (内容页路由由 content/** 推导,经 LAUNCH 上线开关过滤;固定路由 =
-     站点骨架页清单);published: false 的草稿豁免逐条解析(草稿区块可能
-     整段未上线,2026-11-27 S03 拍板),但草稿绝不进 dist(规则 8)
+     (内容页路由由 content/** 中 published: true 的文件推导,经 launch.json
+     上线开关过滤;固定路由 = 站点骨架页清单,同样过开关过滤);
+     published: false 的草稿豁免逐条解析(草稿区块可能整段未上线,
+     2026-11-27 S03 拍板),但草稿绝不进 dist(规则 8)
   4. zodiac 的 friends/clash 若手填,必须与 terms.json branchRelations 一致
   5. 关键字段取值必须在 terms.json 对应组内(stem/god/star/element/branch)
   8. 草稿不进 dist:published: false 的页面路由出现在 dist = FAIL
@@ -68,40 +69,76 @@ GE_ZH_BANNED = re.compile(
     r"建禄|建祿|羊刃|魁罡|曲直|炎上|稼穑|稼穡|从革|從革|润下|潤下|从儿|從兒|从旺|從旺|化气|化氣)格"
 )
 
-# LAUNCH 上线开关键 → 路由前缀(2026-11-28 外评修复:内容校验感知上线状态,
-# 未上线区块的目标页不算「存在的路由」——否则第一批内容链到未上线页,校验
-# 能过、上线即死链。键与 site/src/data/site.ts 的 LAUNCH 表一致,翻开关时
-# 两处同改;映射关系与 Footer/Header 消费口径对齐)。
-LAUNCH_ROUTE_PREFIXES: dict[str, tuple[str, ...]] = {
-    "calculator": ("/bazi-calculator",),
-    "library": ("/library",),
-    "guides": ("/guides",),
-    "today": ("/today",),
-    "app": ("/app",),
-    "dayMaster": ("/day-master",),
-    "tenGods": ("/ten-gods",),
-    "fiveElements": ("/five-elements",),
-    "stars": ("/stars",),
-    "dayPillars": ("/day-pillars",),
-    "tools": ("/day-master-calculator",),
-    "about": ("/about",),
-    "privacy": ("/privacy",),
-}
-
-SITE_TS = Path(__file__).resolve().parent.parent / "site" / "src" / "data" / "site.ts"
+# 上线开关(TASK-18,2026-11-27):唯一事实源是 site/src/data/launch.json——
+# 翻开关只改那一个文件。本脚本与 TS 侧(site/src/data/launch.mjs 的
+# matchSection,经 site.ts isLaunched 消费)按同一匹配规则各有一份实现:
+#   命中 prefix ⇔ rest === prefix 或 rest.startsWith(prefix + "/"),
+#   多条命中取最长 prefix 所属区块,未命中视为已上线;
+# 行为一致性由两侧共读的 site/tests/fixtures/launch-cases.json 锁定
+# (site/tests/launch.test.mjs × site/tests/test_launch.py)。
+# 内容校验感知上线状态:未上线区块的目标页不算「存在的路由」——否则
+# 第一批内容链到未上线页,校验能过、上线即死链(2026-11-27 外评修复)。
+LAUNCH_JSON = ROOT / "site" / "src" / "data" / "launch.json"
 
 
-def parse_launch_false() -> set[str]:
-    """静态解析 site.ts 的 LAUNCH 表,返回值为 false 的键(漂移 = FAIL 不猜)。"""
-    m = re.search(r"export const LAUNCH = \{(.*?)\} as const;", SITE_TS.read_text(encoding="utf-8"), re.S)
-    if not m:
-        raise RuntimeError(f"{SITE_TS} 里找不到 LAUNCH 表——键名漂移须同步本脚本 LAUNCH_ROUTE_PREFIXES")
-    false_keys = {k for k, v in re.findall(r"(\w+):\s*(true|false)", m.group(1)) if v == "false"}
-    known = set(LAUNCH_ROUTE_PREFIXES)
-    unknown = false_keys - known
-    if unknown:
-        raise RuntimeError(f"LAUNCH 出现未登记键 {sorted(unknown)}——须在 LAUNCH_ROUTE_PREFIXES 补映射")
-    return false_keys
+def load_launch_sections() -> dict[str, dict]:
+    """读取并结构校验 launch.json(读取失败或结构不符 → RuntimeError,上层 exit 2)。"""
+    try:
+        data = json.loads(LAUNCH_JSON.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as e:
+        raise RuntimeError(f"launch.json 读取失败: {e}") from e
+    sections = data.get("sections") if isinstance(data, dict) else None
+    if not isinstance(sections, dict) or not sections:
+        raise RuntimeError(
+            f"{LAUNCH_JSON} 结构不符:须为 {{\"sections\": {{<区块名>: "
+            "{{enabled: bool, prefixes: […]}}}}}}(至少一个区块)")
+    seen_prefixes: dict[str, str] = {}
+    for name, sec in sections.items():
+        ok = (
+            isinstance(sec, dict)
+            and isinstance(sec.get("enabled"), bool)
+            and isinstance(sec.get("prefixes"), list)
+            and len(sec["prefixes"]) > 0
+            and all(isinstance(p, str) and p.startswith("/") and len(p) > 1
+                    for p in sec["prefixes"])
+        )
+        if not ok:
+            raise RuntimeError(
+                f"launch.json 区块 {name!r} 结构不符:"
+                "enabled 须为 bool,prefixes 须为非空列表且每项是 \"/…\" 形态的字符串")
+        for p in sec["prefixes"]:
+            # 尾斜杠前缀(如 "/guides/")永远不会被匹配规则命中(rest==p 不成立、
+            # rest 也不会以 "/guides//" 开头)→ 区块静默变 no-op,必须显式拒绝
+            if p.endswith("/"):
+                raise RuntimeError(f"launch.json 区块 {name!r} 前缀 {p!r} 以 / 结尾——匹配规则永远不命中(静默 no-op),去掉尾斜杠")
+            # 跨区块重复前缀会让「最长前缀胜出」按 JSON 键序静默仲裁,须显式拒绝
+            if p in seen_prefixes:
+                raise RuntimeError(
+                    f"launch.json 前缀 {p!r} 重复登记于区块 {seen_prefixes[p]!r} 与 {name!r}"
+                    "——一个路由前缀只能归属一个区块")
+            seen_prefixes[p] = name
+    return sections
+
+
+def is_launched(rest: str, sections: dict[str, dict]) -> bool:
+    """TS 侧 matchSection(launch.mjs)的 Python 镜像(匹配规则见 LAUNCH_JSON 注释)。"""
+    launched = True
+    best_len = -1
+    for sec in sections.values():
+        for p in sec["prefixes"]:
+            if (rest == p or rest.startswith(p + "/")) and len(p) > best_len:
+                launched = bool(sec["enabled"])
+                best_len = len(p)
+    return launched
+
+
+def _route_launched(route: str, sections: dict[str, dict]) -> bool:
+    """路由形如 /<lang>/<rest…>(或 /<lang>);rest 过 is_launched,无语言前缀视为已上线。"""
+    parts = route.split("/", 2)
+    if len(parts) < 2 or parts[1] not in ("en", "zh-hant"):
+        return True
+    rest = "/" + (parts[2] if len(parts) > 2 else "")
+    return is_launched(rest, sections)
 
 
 # 站点骨架固定路由(与 Header/Footer/nav 常量同步;内容页只许链这些 + 其他内容页)
@@ -236,13 +273,14 @@ def parse_frontmatter(text: str) -> tuple[dict, str]:
 # ---------- 各项检查 ----------
 
 
-def _route_offline(route: str, offline_prefixes: list[str]) -> bool:
-    """路由形如 /<lang>/<rest…>(或 /<lang>);rest 命中未上线前缀即不在线。"""
-    parts = route.split("/", 2)
-    if len(parts) < 2 or parts[1] not in ("en", "zh-hant"):
+def _fm_published(path: Path) -> bool:
+    """文件 frontmatter 的 published 取值(解析失败按未发布——该文件会由
+    check_file 报解析 FAIL,路由推导侧保守跳过)。"""
+    try:
+        fm, _ = parse_frontmatter(path.read_text(encoding="utf-8"))
+    except YamlError:
         return False
-    rest = "/" + (parts[2] if len(parts) > 2 else "")
-    return any(rest == p or rest.startswith(p + "/") or rest.startswith(p + "-") for p in offline_prefixes)
+    return fm.get("published") is True
 
 
 def check_file(path: Path, content_dir: Path, terms: dict, routes: set[str],
@@ -407,23 +445,26 @@ def main() -> int:
         print(f"脚本自身错误: 内容目录不存在 {content_dir}", file=sys.stderr)
         return 2
 
+    try:
+        sections = load_launch_sections()
+    except RuntimeError as e:
+        print(f"脚本自身错误: {e}", file=sys.stderr)
+        return 2
+
     files = sorted(p for p in content_dir.rglob("*.md") if not p.name.startswith("."))
     routes = set(KNOWN_STATIC_ROUTES)
+    # 内容路由只算已发布页面(TASK-18 外评第 5 条:published:false 的草稿
+    # 不算「存在的路由」,发布页链到草稿 = 死链)。frontmatter 解析失败的
+    # 文件跳过推导——check_file 会把它报成 FAIL,不静默。
     routes.update({
         f"/{parts[1]}/{parts[0]}/{parts[2][:-3]}"
         for p in files
         if len(parts := p.relative_to(content_dir).parts) == 3
+        and _fm_published(p)
     })
-    # 上线开关感知(2026-11-28):未上线区块的路由不算存在,内容内链到它们 = 死链
-    offline_prefixes: list[str] = []
-    for key in parse_launch_false():
-        offline_prefixes.extend(LAUNCH_ROUTE_PREFIXES[key])
-    routes = {
-        r for r in routes
-        if not any(
-            seg := False for _ in ()
-        ) and not _route_offline(r, offline_prefixes)
-    }
+    # 上线开关感知:未上线区块的路由不算存在,内容内链到它们 = 死链;
+    # KNOWN_STATIC_ROUTES 一并过滤(/support 等随之受开关约束)。
+    routes = {r for r in routes if _route_launched(r, sections)}
 
     failures: list[str] = []
     slugs_seen: dict = {}
@@ -431,36 +472,43 @@ def main() -> int:
     for path in files:
         check_file(path, content_dir, terms, routes, slugs_seen, failures, draft_routes)
 
-    # 产物死链扫描(2026-11-28 外评修复:此前「死链为 0」只是手工验证,
-    # 未进守护栏;现扫 dist 全部 html 的站内 href,目标不存在 = FAIL)
-    dist = content_dir.parent.parent / "dist"
-    if not dist.is_dir():
-        print(f"FAIL: site/dist 不存在({dist})——先 `cd site && npm run build`,"
-              f"产物死链校验是本脚本的一部分,不静默跳过", file=sys.stderr)
-        return 1
-    static_exts = (".css", ".js", ".ico", ".svg", ".png", ".jpg", ".webp",
-                   ".woff2", ".txt", ".xml", ".webmanifest", ".map", ".json")
-    for page in sorted(dist.rglob("*.html")):
-        html = page.read_text(encoding="utf-8", errors="replace")
-        for href in re.findall(r'href="(/[^"#?]*)', html):
-            if href.endswith(static_exts):
-                continue
-            target = dist / href.lstrip("/")
-            if not (target.exists() or target.with_suffix(".html").exists()
-                    or (target / "index.html").exists()):
-                failures.append(f"{page.relative_to(dist)} -> {href}(产物死链)")
+    # 产物死链扫描 + 草稿 dist 兜底只在真实内容目录运行时执行(2026-11-27
+    # TASK-18 修:此前 dist 路径按 content_dir 相对推导,--dir 指到 fixtures
+    # 时算出 site/tests/dist → 恒「dist 不存在」FAIL,test_s02 合规用例被误红)。
+    # 测试模式显式打印跳过,不静默。
+    if content_dir.resolve() != CONTENT.resolve():
+        print("--dir 测试模式:跳过产物死链扫描与草稿 dist 兜底(仅真实内容目录执行)")
+    else:
+        # 产物死链扫描(2026-11-28 外评修复:此前「死链为 0」只是手工验证,
+        # 未进守护栏;现扫 dist 全部 html 的站内 href,目标不存在 = FAIL)
+        dist = content_dir.parent.parent / "dist"
+        if not dist.is_dir():
+            print(f"FAIL: site/dist 不存在({dist})——先 `cd site && npm run build`,"
+                  f"产物死链校验是本脚本的一部分,不静默跳过", file=sys.stderr)
+            return 1
+        static_exts = (".css", ".js", ".ico", ".svg", ".png", ".jpg", ".webp",
+                       ".woff2", ".txt", ".xml", ".webmanifest", ".map", ".json")
+        for page in sorted(dist.rglob("*.html")):
+            html = page.read_text(encoding="utf-8", errors="replace")
+            for href in re.findall(r'href="(/[^"#?]*)', html):
+                if href.endswith(static_exts):
+                    continue
+                target = dist / href.lstrip("/")
+                if not (target.exists() or target.with_suffix(".html").exists()
+                        or (target / "index.html").exists()):
+                    failures.append(f"{page.relative_to(dist)} -> {href}(产物死链)")
 
-    # 8. 草稿不进 dist(S03 草稿豁免的前提,2026-11-27):published:false 的页面
-    #    内链未按路由解析,进 dist 就是上线死链。getStaticPaths 按 published 过滤是
-    #    正向防线;这里反向兜底——dist 出现草稿路由 = 过滤失效(典型现场:本地
-    #    SITE_PREVIEW_DRAFTS=1 预览构建后忘了重跑默认 build 就交校验)。
-    for dr in sorted(draft_routes):
-        draft_html = dr.lstrip("/") + ".html"
-        if (dist / draft_html).exists():
-            failures.append(
-                f"{draft_html}: 草稿页(published:false)进了 dist —— "
-                f"预览构建(SITE_PREVIEW_DRAFTS=1)后须重跑默认 build 再过校验"
-            )
+        # 8. 草稿不进 dist(S03 草稿豁免的前提,2026-11-27):published:false 的页面
+        #    内链未按路由解析,进 dist 就是上线死链。getStaticPaths 按 published 过滤是
+        #    正向防线;这里反向兜底——dist 出现草稿路由 = 过滤失效(典型现场:本地
+        #    SITE_PREVIEW_DRAFTS=1 预览构建后忘了重跑默认 build 就交校验)。
+        for dr in sorted(draft_routes):
+            draft_html = dr.lstrip("/") + ".html"
+            if (dist / draft_html).exists():
+                failures.append(
+                    f"{draft_html}: 草稿页(published:false)进了 dist —— "
+                    f"预览构建(SITE_PREVIEW_DRAFTS=1)后须重跑默认 build 再过校验"
+                )
 
     print("=" * 64)
     print(f"内容校验:{len(files)} 个文件({content_dir})")
