@@ -224,3 +224,28 @@ async def test_private_key_literal_newline_normalized(monkeypatch, p256_pair):
         audience="https://appleid.apple.com",
         options={"verify_exp": False})
     assert decoded["iss"] == "TEAM123"
+
+
+# ---- verify_key_signs(2026-11-27 外评:启动自检,坏 .p8 不拖到删号才炸)----
+
+
+def test_verify_key_signs_ok(configured):
+    """配齐 + 可用私钥:自检安静通过。"""
+    ar.verify_key_signs()
+
+
+def test_verify_key_signs_silent_when_unconfigured(monkeypatch):
+    """未配齐(缺 TEAM_ID):直接返回,不尝试解析 key(本地开发安静)。"""
+    monkeypatch.setattr(ar, "APPLE_AUTH_TEAM_ID", "")
+    monkeypatch.setattr(ar, "APPLE_AUTH_KEY_ID", "KEYID99")
+    monkeypatch.setattr(ar, "APPLE_AUTH_PRIVATE_KEY", "not a pem at all")
+    ar.verify_key_signs()
+
+
+def test_verify_key_signs_bad_key_raises(monkeypatch, configured):
+    """配齐但 key 内容损坏:当场抛错(main.py lifespan 记 ERROR 不阻断启动)。"""
+    monkeypatch.setattr(
+        ar, "APPLE_AUTH_PRIVATE_KEY",
+        "-----BEGIN PRIVATE KEY-----\ngarbage\n-----END PRIVATE KEY-----")
+    with pytest.raises(Exception):
+        ar.verify_key_signs()
