@@ -172,6 +172,14 @@ async def lifespan(app: FastAPI):
     from app.ask.store import AskCreditsStore
     ask_store = AskCreditsStore(DB_PATH)
     ask_store.init_schema()
+    # TASK-13(2026-11-27):配额/限铸旧行 7 天保留到期即清——启动显式跑一次
+    # (写路径另有当日首次顺带)。清理是非关键路径:失败记全量日志不阻断
+    # 启动,下个写日自愈(与 store._maybe_purge 同口径)。
+    try:
+        free_quota_store.purge_old_rows(force=True)
+        ask_store.purge_old_mints(force=True)
+    except Exception:
+        logger.exception("TASK-13 startup purge failed(非关键路径,不阻断启动)")
     app.state.ask_store = ask_store
     app.state.devicecheck_client = DeviceCheckClient.build_from_config(
         team_id=DEVICECHECK_TEAM_ID, key_id=DEVICECHECK_KEY_ID,

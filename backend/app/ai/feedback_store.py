@@ -56,23 +56,11 @@ _LOOKUP_COLUMNS = "prompt_version, provider, model"
 
 
 def _hash_ip(ip: str) -> str:
-    """client_ip → HMAC 摘要(2026-11-24 账号删除批,外评 3.3 拍板)。
+    """client_ip → HMAC 摘要(2026-11-24 账号删除批;TASK-13 起实现收编
+    core.ip_digest 单一事实源——消息格式/purpose 逐字节不变,存量摘要不重洗)。"""
+    from ..core.ip_digest import ip_digest
 
-    原先存明文 IP 且无过期,隐私政策须永久披露;改 HMAC 后去重/防刷语义
-    不变(同 IP 同日恒撞同一摘要),服务端不再持有可识读的 IP。密钥从
-    JWT_SECRET_KEY 域分隔派生(与 context_token 同先例:轮换 JWT 密钥 =
-    轮换本摘要密钥;轮换后旧行的去重窗口最多损失当日一次,可接受)。
-    """
-    import hashlib
-    import hmac as _hmac
-
-    from ..config import JWT_SECRET_KEY
-
-    return _hmac.new(
-        JWT_SECRET_KEY.encode("utf-8"),
-        b"chapter-feedback-ip-v1:" + ip.encode("utf-8"),
-        hashlib.sha256,
-    ).hexdigest()
+    return ip_digest(ip, "chapter-feedback-ip-v1")
 
 
 class FeedbackOutcome(str, enum.Enum):

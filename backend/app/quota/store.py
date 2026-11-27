@@ -26,7 +26,10 @@ iOS 本地 UserDefaults(DailyReadCounter),服务端零感知。
 
 from __future__ import annotations
 
+import logging
 import sqlite3
+
+from ..core.ip_digest import ASK_IP_PURPOSE, FREE_QUOTA_IP_PURPOSE, ip_digest
 
 CREATE_TABLE_SQL = """
 CREATE TABLE IF NOT EXISTS free_llm_quota (
@@ -49,20 +52,108 @@ CREATE TABLE IF NOT EXISTS free_llm_quota_refunds (
 """
 
 
+# TASK-13(2026-11-27):配额/退款行保留天数。配额与限铸只看当天(day 等值
+# 查询,全仓无 >当天的读取——已 grep 确认);保留一周仅供排障,到期删。
+RETENTION_DAYS = 7
+
+# bucket 前缀 → ip_digest purpose(ip:/ask-ip: 两族明文存量迁移用;
+# 值取 core.ip_digest 单一事实源,与调用点同源防漂移)
+_BUCKET_PURPOSE = {"ip": FREE_QUOTA_IP_PURPOSE, "ask-ip": ASK_IP_PURPOSE}
+
+
 class FreeLLMQuotaStore:
     """free_llm_quota 表:单方法 try_consume(原子条件自增)。"""
 
     def __init__(self, db_path: str):
         self._db_path = db_path
+        self._last_purge_day: str | None = None  # 进程内;每 worker 独立,漏一天无害
+
+    def _migrate_plaintext_buckets(self, conn: sqlite3.Connection) -> int:
+        """存量明文 IP 桶 → 带密钥摘要(幂等;与建表同事务,失败上抛)。
+
+        判据:bucket 形如 <前缀>:<值> 且剥前缀后的值含 '.' 或 ':'(明文
+        IPv4/IPv6);十六进制摘要两者皆无,重跑自然空集。user: 桶前缀不在
+        _BUCKET_PURPOSE,不动。
+
+        撞键合并(2026-11-27 review):部署重叠窗口内旧进程可能给同一
+        (IP, day) 写回明文行,与新代码已写的摘要行同 PK——直接 UPDATE 撞
+        UNIQUE 会让启动永久失败(行不老化:purge 排在 init_schema 之后)。
+        故用 INSERT..SELECT..ON CONFLICT 把计数**相加**进摘要行再删源行
+        (两侧都是真实用量,相加是防滥用护栏的保守方向)。
+        """
+        migrated = 0
+        for table in ("free_llm_quota", "free_llm_quota_refunds"):
+            rows = conn.execute(
+                f"SELECT rowid, bucket FROM {table} "
+                f"WHERE bucket LIKE 'ip:%' OR bucket LIKE 'ask-ip:%'"
+            ).fetchall()
+            updates: list[tuple[str, int]] = []
+            for rowid, bucket in rows:
+                prefix, _, rest = bucket.partition(":")
+                if prefix in _BUCKET_PURPOSE and ("." in rest or ":" in rest):
+                    updates.append(
+                        (f"{prefix}:{ip_digest(rest, _BUCKET_PURPOSE[prefix])}",
+                         rowid))
+            for new_bucket, rowid in updates:
+                conn.execute(
+                    f"INSERT INTO {table} (bucket, day, count) "
+                    f"SELECT ?, day, count FROM {table} WHERE rowid = ? "
+                    f"ON CONFLICT(bucket, day) DO UPDATE SET "
+                    f"count = count + excluded.count",
+                    (new_bucket, rowid))
+                conn.execute(
+                    f"DELETE FROM {table} WHERE rowid = ?", (rowid,))
+            migrated += len(updates)
+        return migrated
+
+    def purge_old_rows(self, *, force: bool = False) -> int:
+        """删 day < 今天(UTC)−RETENTION_DAYS 的行。幂等,返回删除数。
+
+        force=True 跳过进程内当日去重(lifespan 启动显式调);写路径经
+        _maybe_purge 每天最多顺带一次,不逐请求 DELETE。
+        """
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc)  # 单次取值:today/cutoff 不跨午夜错位
+        today = now.strftime("%Y-%m-%d")
+        if not force and self._last_purge_day == today:
+            return 0
+        self._last_purge_day = today
+        cutoff = (
+            now - timedelta(days=RETENTION_DAYS)
+        ).strftime("%Y-%m-%d")
+        deleted = 0
+        with self._connect() as conn:
+            for table in ("free_llm_quota", "free_llm_quota_refunds"):
+                cursor = conn.execute(
+                    f"DELETE FROM {table} WHERE day < ?", (cutoff,))
+                deleted += cursor.rowcount
+        return deleted
+
+    def _maybe_purge(self) -> None:
+        """写路径顺带清理(当日首次写触发,见 purge_old_rows 去重闸)。
+
+        清理走独立连接,成败均不影响主写事务;清理属非关键路径(TASK-13
+        任务书允许的显式传播例外):失败记全量 traceback 日志,下一写日
+        自愈——不吞进主语义、也不让 DELETE 故障放大成配额 500。"""
+        try:
+            self.purge_old_rows()
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "quota.purge_old_rows failed(下个写日重试)")
 
     def _connect(self) -> sqlite3.Connection:
         return sqlite3.connect(self._db_path, timeout=5.0)
 
     def init_schema(self) -> None:
-        """建表(幂等)。 Raises: sqlite3.Error(不吞)。"""
+        """建表(幂等)+ TASK-13 存量明文桶迁移(同事务,失败启动报错)。
+
+        Raises: sqlite3.Error(不吞)。
+        """
         with self._connect() as conn:
             conn.execute(CREATE_TABLE_SQL)
             conn.execute(CREATE_REFUND_TABLE_SQL)
+            self._migrate_plaintext_buckets(conn)
             conn.commit()
 
     def try_consume(self, *, bucket: str, day: str, limit: int) -> bool:
@@ -71,6 +162,7 @@ class FreeLLMQuotaStore:
         Raises:
             sqlite3.Error: 读写失败(向上抛,路由层包 500,不静默放行)
         """
+        self._maybe_purge()
         with self._connect() as conn:
             conn.execute(
                 "INSERT OR IGNORE INTO free_llm_quota (bucket, day, count) "
@@ -117,6 +209,7 @@ class FreeLLMQuotaStore:
         Raises:
             sqlite3.Error: 写失败(向上抛,不静默吞)
         """
+        self._maybe_purge()
         with self._connect() as conn:
             conn.execute(
                 "INSERT OR IGNORE INTO free_llm_quota_refunds (bucket, day, count) "

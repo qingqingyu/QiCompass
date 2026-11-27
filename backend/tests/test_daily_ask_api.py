@@ -519,11 +519,13 @@ def ask_client_state_set_ai(new_ai):
 
 
 def _ip_ask_count() -> int:
-    """读端点实际使用的 ask-ip 桶当日计数(autouse fixture 已隔离到 tmp)。"""
+    """读端点实际使用的 ask-ip 桶当日计数(autouse fixture 已隔离到 tmp)。
+    TASK-13:桶值是带密钥摘要,helper 与实现同口径构造。"""
+    from app.core.ip_digest import ip_digest
     from app.main import app
     host = "127.0.0.1"  # httpx ASGITransport 默认 client host
     return app.state.free_quota_store.get_count(
-        bucket=f"ask-ip:{host}", day=_utc_day())
+        bucket=f"ask-ip:{ip_digest(host, 'ask-ip-v1')}", day=_utc_day())
 
 
 class TestChargedFrom:

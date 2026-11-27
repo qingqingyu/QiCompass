@@ -22,6 +22,7 @@ UPDATE 模式;sqlite3.Error 一律向上抛(路由层包 500,不静默放行)。
 
 from __future__ import annotations
 
+import logging
 import sqlite3
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -186,6 +187,10 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# TASK-13(2026-11-27):限铸行保留天数——只看当天,保留一周仅供排障。
+MINT_RETENTION_DAYS = 7
+
+
 @dataclass(frozen=True)
 class TrialGrantResult:
     """try_grant_trial 的显式结果(outcome 单一事实源,调用方只认这里)。"""
@@ -200,6 +205,7 @@ class AskCreditsStore:
 
     def __init__(self, db_path: str):
         self._db_path = db_path
+        self._last_purge_day: str | None = None  # 进程内;每 worker 独立,漏一天无害
 
     def _connect(self) -> sqlite3.Connection:
         return sqlite3.connect(self._db_path, timeout=5.0)
@@ -214,6 +220,7 @@ class AskCreditsStore:
             conn.execute(_CREATE_PURCHASES_SQL)
             conn.execute(_CREATE_HISTORY_SQL)
             conn.execute(_CREATE_ANSWER_CACHE_SQL)
+            self._migrate_plaintext_mint_ips(conn)  # TASK-13 明文 IP → 摘要
             conn.commit()
 
     # ---------- 钱包 ----------
@@ -263,6 +270,57 @@ class AskCreditsStore:
             conn.commit()
             return "purchased" if cursor.rowcount > 0 else None
 
+    # TASK-13(2026-11-27):限铸行明文 IP 迁移 + 7 天清理(与 quota/store 同款)
+
+    def _migrate_plaintext_mint_ips(self, conn) -> int:
+        """ask_trial_mints.ip 明文 → 带密钥摘要(幂等;与建表同事务)。
+
+        撞键合并(2026-11-27 review,同 quota/store._migrate_plaintext_buckets):
+        部署重叠窗口旧进程写回的明文行可能与新代码摘要行同 (ip, day) PK,
+        直接 UPDATE 撞 UNIQUE 会让启动永久失败;计数相加合并后删源行。
+        """
+        from ..core.ip_digest import ASK_MINT_IP_PURPOSE, ip_digest
+
+        rows = conn.execute(
+            "SELECT rowid, ip FROM ask_trial_mints "
+            "WHERE ip LIKE '%.%' OR ip LIKE '%:%'").fetchall()
+        for rowid, raw in rows:
+            conn.execute(
+                "INSERT INTO ask_trial_mints (ip, day, count) "
+                "SELECT ?, day, count FROM ask_trial_mints WHERE rowid = ? "
+                "ON CONFLICT(ip, day) DO UPDATE SET "
+                "count = count + excluded.count",
+                (ip_digest(raw, ASK_MINT_IP_PURPOSE), rowid))
+            conn.execute(
+                "DELETE FROM ask_trial_mints WHERE rowid = ?", (rowid,))
+        return len(rows)
+
+    def purge_old_mints(self, *, force: bool = False) -> int:
+        """删 day < 今天(UTC)−MINT_RETENTION_DAYS 的限铸行(幂等,返回删除数)。"""
+        from datetime import datetime, timedelta, timezone
+
+        now = datetime.now(timezone.utc)  # 单次取值:today/cutoff 不跨午夜错位
+        today = now.strftime("%Y-%m-%d")
+        if not force and self._last_purge_day == today:
+            return 0
+        self._last_purge_day = today
+        cutoff = (
+            now - timedelta(days=MINT_RETENTION_DAYS)
+        ).strftime("%Y-%m-%d")
+        with self._connect() as conn:
+            cursor = conn.execute(
+                "DELETE FROM ask_trial_mints WHERE day < ?", (cutoff,))
+            return cursor.rowcount
+
+    def _maybe_purge_mints(self) -> None:
+        """写路径顺带清理(当日首次写触发);清理走独立连接,失败记全量
+        traceback 日志不阻断主写(非关键路径例外,下一写日自愈)。"""
+        try:
+            self.purge_old_mints()
+        except Exception:
+            logging.getLogger(__name__).exception(
+                "ask.purge_old_mints failed(下个写日重试)")
+
     # ---------- 试用铸造(IP 限铸闸) ----------
 
     def try_grant_trial(
@@ -277,11 +335,13 @@ class AskCreditsStore:
 
         Args:
             owner: user:/ulid: 前缀身份
-            ip: 归一化客户端 IP(_normalize_client_ip 同款口径,调用方传)
+            ip: 客户端 IP 的带密钥摘要(TASK-13:调用方先 _normalize_client_ip
+                归一再 ip_digest(·, 'ask-mint-ip-v1'),本表不存明文 IP)
             day: UTC 日期串(调用方一次性算出,与计数/退款共用)
             credits: 试用次数(MONETIZATION 拍板 3)
             mint_limit: 每 IP 每日新试用铸造上限(默认 25)
         """
+        self._maybe_purge_mints()
         with self._connect() as conn:
             existing = conn.execute(
                 "SELECT balance FROM ask_wallet WHERE owner = ?", (owner,)
