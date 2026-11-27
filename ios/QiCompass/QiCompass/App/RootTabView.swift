@@ -128,6 +128,11 @@ struct RootTabView: View {
             }
         }
         .onAppear {
+            // TASK-16(2026-11-27):删号时本机 entitlement 失效未完成的启动
+            // 补偿——成功清标记,失败保留下次再试(删号后用户已是匿名态,
+            // synchronizeFromBackend 不会再跑,不补偿则错误状态永久留存;
+            // 标记带失败瞬间 txIds 快照,精确失效不误伤删号后的新购买)。
+            env.entitlementStore.retryPendingLocalDeactivation()
             // 首启 / 后续启动分流日志,便于定位"onboarding 没弹 / 反复弹"等异常
             AppLogger.app.info("RootTabView.onAppear hasSeenOnboarding=\(hasSeenOnboarding, privacy: .public) selectedTab=\(selectedTab.switchKey, privacy: .public)")
             // 2026-08-13:首启(未看过 onboarding)弹三屏 onboarding sheet。

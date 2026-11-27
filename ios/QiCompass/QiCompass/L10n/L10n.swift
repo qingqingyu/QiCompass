@@ -1962,6 +1962,10 @@ enum L10n {
         /// 成功提示。zh: "账号已删除。手机上的命盘已保留。"
         static let done = String(localized: "account.delete.done")
 
+        /// 成功但本机 entitlement 失效未完成(待下次启动重试)。TASK-16。
+        /// zh: "账号已删除。本机已购章节的状态会在下次打开 App 时更新。"
+        static let doneLocalPending = String(localized: "account.delete.doneLocalPending")
+
         /// 失败标题。zh: "删除失败"
         static let failed = String(localized: "account.delete.failed")
 

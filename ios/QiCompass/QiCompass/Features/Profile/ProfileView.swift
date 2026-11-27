@@ -74,6 +74,8 @@ struct ProfileView: View {
     @State private var deleteAccountError: String?
     /// 删除成功提示(登出后行已隐藏,toast 型一次性 alert)。
     @State private var deleteAccountDone = false
+    /// TASK-16:删号成功但本机 entitlement 失效未完成(待下次启动重试)。
+    @State private var deleteAccountLocalPending = false
 
     /// 关于节「隐私与数据」折叠态(默认收起,立场三行常驻)。
     @State private var showPrivacy = false
@@ -212,7 +214,13 @@ struct ProfileView: View {
             } message: {
                 Text(deleteAccountError ?? "")
             }
-            .alert(L10n.AccountDelete.done, isPresented: $deleteAccountDone) {
+            // TASK-16:本机失效未完成时整句「改用」doneLocalPending 文案
+            // (任务书语义 = 替换,不是叠加 message——否则「账号已删除。」读两遍)
+            .alert(
+                deleteAccountLocalPending
+                    ? L10n.AccountDelete.doneLocalPending : L10n.AccountDelete.done,
+                isPresented: $deleteAccountDone
+            ) {
                 Button(L10n.Common.ok, role: .cancel) {}
             }
             .alert(L10n.Profile.resetFailedTitle, isPresented: Binding(
@@ -1030,15 +1038,31 @@ struct ProfileView: View {
         }
 
         // 3. 本地清理(外评 3.4 三条件:登出清 Keychain / 本地 entitlement
-        //    失效 / 本机命盘保留——文案已明示)
-        env.entitlementStore.deactivateAllForAccount(
-            userId: UserIdentity.currentUserId,
-            userLocalId: UserIdentity.userLocalId)
+        //    失效 / 本机命盘保留——文案已明示)。TASK-16:失效不再静默——
+        //    失败写待办标记(含命中行 txIds 快照,精确补偿)下次启动重试;
+        //    身份先取局部(登出后取不到)。
+        let userId = UserIdentity.currentUserId
+        let userLocalId = UserIdentity.userLocalId
+        var localDeactivationPending = false
+        do {
+            try env.entitlementStore.deactivateAllForAccount(
+                userId: userId, userLocalId: userLocalId)
+        } catch {
+            localDeactivationPending = true
+            env.entitlementStore.markPendingLocalDeactivation(
+                userId: userId, userLocalId: userLocalId)
+            AppLogger.persistence.error(
+                "op=profile.deleteAccount.localDeactivation_failed pendingMarked error=\(String(describing: error), privacy: .public)"
+            )
+        }
         env.accountManager.signOut()
         Analytics.accountDeleted()
 
-        // 4. 成功提示(一帧延迟,对齐 resetError 的 iOS 17 alert workaround)
+        // 4. 成功提示(一帧延迟,对齐 resetError 的 iOS 17 alert workaround;
+        //    本机失效未完成时换「下次打开时更新」文案 TASK-16)
+        let pending = localDeactivationPending
         Task { @MainActor in
+            deleteAccountLocalPending = pending
             deleteAccountDone = true
         }
     }

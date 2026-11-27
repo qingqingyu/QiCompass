@@ -977,6 +977,29 @@
         }
       }
     },
+    "account.delete.doneLocalPending" : {
+      "extractionState" : "manual",
+      "localizations" : {
+        "en" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "Your account has been deleted. Purchased chapters on this phone will be updated next time you open the app."
+          }
+        },
+        "zh-Hans" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "账号已删除。本机已购章节的状态会在下次打开 App 时更新。"
+          }
+        },
+        "zh-Hant" : {
+          "stringUnit" : {
+            "state" : "translated",
+            "value" : "帳號已刪除。本機已購章節的狀態會在下次開啟 App 時更新。"
+          }
+        }
+      }
+    },
     "account.delete.failed" : {
       "extractionState" : "manual",
       "localizations" : {

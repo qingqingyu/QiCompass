@@ -616,3 +616,24 @@ async def test_lifespan_no_warning_when_apple_auth_configured(
         and "apple.revocation.not_configured" in r.getMessage()
     ]
     assert not leftovers, f"配齐后不应再打 warning: {leftovers}"
+
+
+async def test_require_authenticated_user_rejects_missing_user_store(
+    auth_client, monkeypatch,
+):
+    """TASK-16:user_store 缺失 = 配置错误 → 500 且不放行(fail-closed)。
+
+    修前 getattr(..., None) 为 None 时静默跳过「账号存在」核验直接放行。
+    """
+    from app.main import app
+
+    ac, store = auth_client
+    user = _make_user(store)
+    token = create_access_token(user.id)
+    monkeypatch.setattr(app.state, "user_store", None)
+    resp = await ac.request(
+        "DELETE", "/api/auth/account",
+        headers={"Authorization": f"Bearer {token}"}, json={},
+    )
+    assert resp.status_code == 500
+    assert "user_store" in resp.json()["error"]["message"]
