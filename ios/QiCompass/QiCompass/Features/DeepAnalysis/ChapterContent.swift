@@ -41,6 +41,22 @@ enum ChapterNode: Equatable {
     case loopFromTo(from: String, to: String)
     /// 章末「据」折叠区(M0 专用):各小节的 evidence 收拢,默认收起。
     case evidenceFold([ChapterNote])
+    /// 十神分层格(M0 v9+ 主线节专用,2026-11-28 排版改版「结论即标题 +
+    /// 三栏十神」):主导/次要/潜伏从「据」折叠里拆出,结论句之下、展开段
+    /// 之上一眼扫完。仅当各层值全部识别为十神名时产出,否则照旧进据 fold。
+    case layers([ChapterLayer])
+}
+
+/// 十神分层格的一栏(主导 / 次要 / 潜伏)。
+struct ChapterLayer: Equatable {
+    /// 层名(已本地化:主导/次要/潜伏)。
+    let role: String
+    /// 模型输出的十神名(原样,已是用户语言;并列时多个)。
+    let names: [String]
+    /// 对应的稳定术语 id(BaziTerms zh 键),供释义查表;与 names 一一对应。
+    let termKeys: [String]
+    /// 是否标注了「并列最重」。
+    let tied: Bool
 }
 
 /// 折叠区里的单条注(M0 evidence 收拢用)。
@@ -425,21 +441,33 @@ struct ChapterContent: Equatable {
             mainConsumed.insert("headline")
             mainChildren.append(.headline(h))
         }
-        if let body = m0String(mainAxis, "body") {
-            mainConsumed.insert("body")
-            mainChildren.append(.lead(body))
-        }
+        // 分层(2026-11-28 排版改版):全部识别为十神名 → 结论句之下的
+        // 三栏分层格(.layers),据 fold 不再重复;任一层不是纯十神名
+        // (老缓存长句 / 违约形态)→ 照旧拼成据 fold 首行,内容不丢。
         var layerParts: [String] = []
+        var parsedLayers: [ChapterLayer] = []
+        var allLayersParsed = true
         for key in ["dominant", "secondary", "latent"] {
             if let s = m0String(mainAxis, key) {
                 mainConsumed.insert(key)
                 layerParts.append("\(label(key)) \(s)")
+                if let layer = parseLayer(role: label(key), raw: s) {
+                    parsedLayers.append(layer)
+                } else {
+                    allLayersParsed = false
+                }
             }
         }
-        if !layerParts.isEmpty {
+        if allLayersParsed, !parsedLayers.isEmpty {
+            mainChildren.append(.layers(parsedLayers))
+        } else if !layerParts.isEmpty {
             layerLine = ChapterNote(
                 label: label("main_axis"),
                 text: layerParts.joined(separator: " · "))
+        }
+        if let body = m0String(mainAxis, "body") {
+            mainConsumed.insert("body")
+            mainChildren.append(.lead(body))
         }
         if let ev = m0String(mainAxis, "evidence") {
             mainConsumed.insert("evidence")
@@ -555,6 +583,40 @@ struct ChapterContent: Equatable {
                 "m0 v9 chapter rendered \(extras.count) non-contract field(s) via generic nodes: \(extras.joined(separator: ","), privacy: .public)")
         }
         return nodes.isEmpty ? nil : nodes
+    }
+
+    /// 分层值解析:「七杀」/「七杀、劫财（并列最重）」/「Seven Killings, Rob
+    /// Wealth (jointly heaviest)」→ ChapterLayer。去掉末尾括注(含「并列 /
+    /// 並列 / jointly」即记为并列),按「、 , ，」切分,每个名字必须是
+    /// BaziTerms 十神表里任一语言的写法;任一不识别 → nil(调用方回落据 fold)。
+    static func parseLayer(role: String, raw: String) -> ChapterLayer? {
+        var text = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        var tied = false
+        for (open, close) in [("（", "）"), ("(", ")")] where text.hasSuffix(close) {
+            guard let openRange = text.range(of: open, options: .backwards) else { continue }
+            let note = String(text[openRange.upperBound..<text.index(before: text.endIndex)])
+            if note.contains("并列") || note.contains("並列")
+                || note.lowercased().contains("jointly") || note.lowercased().contains("tied") {
+                tied = true
+            }
+            text = String(text[..<openRange.lowerBound])
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            break
+        }
+        let names = text
+            .components(separatedBy: CharacterSet(charactersIn: "、,，"))
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .filter { !$0.isEmpty }
+        guard !names.isEmpty else { return nil }
+        var keys: [String] = []
+        for name in names {
+            guard let term = BaziTerms.tenGods.first(where: {
+                $0.zh == name || $0.zhHant == name
+                    || $0.en.caseInsensitiveCompare(name) == .orderedSame
+            }) else { return nil }
+            keys.append(term.zh)
+        }
+        return ChapterLayer(role: role, names: names, termKeys: keys, tied: tied)
     }
 
     /// m0 特化键取值:顶层对象(非对象形态返回 nil,交由通用渲染不丢内容)。

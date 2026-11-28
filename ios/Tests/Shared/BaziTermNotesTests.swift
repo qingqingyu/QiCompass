@@ -46,6 +46,21 @@ final class BaziTermNotesTests: XCTestCase {
                        "偏官=七杀别名(对齐 BaziTerms.tenGods)，释义必须同文")
     }
 
+    func test_shortGlosses_coverAllTenGods_threeLanguages() {
+        // 命书分层格(2026-11-28):十神 11 键(含偏官别名)全部有短释,三语非空
+        for term in BaziTerms.tenGods {
+            guard let entry = BaziTermNotes.shortGlosses[term.zh] else {
+                XCTFail("十神缺短释: \(term.zh)")
+                continue
+            }
+            XCTAssertFalse(entry.zh.isEmpty || entry.zhHant.isEmpty || entry.en.isEmpty,
+                           "短释三语须非空: \(term.zh)")
+        }
+        XCTAssertEqual(BaziTermNotes.shortGlosses["偏官"], BaziTermNotes.shortGlosses["七杀"])
+        XCTAssertEqual(BaziTermNotes.shortGloss(for: "七杀", language: .zhHant), "外部壓力")
+        XCTAssertNil(BaziTermNotes.shortGloss(for: "日主"), "非十神不给短释")
+    }
+
     func test_unknownTerm_returnsNil() {
         XCTAssertNil(BaziTermNotes.note(for: "不存在的术语"))
         XCTAssertNil(BaziTermNotes.note(for: ""))

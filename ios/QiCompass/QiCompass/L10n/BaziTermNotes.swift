@@ -151,6 +151,35 @@ enum BaziTermNotes {
         case .en: return entry.en
         }
     }
+
+    // MARK: - 十神短释(2026-11-28 命书阅读页「三栏十神」)
+    //
+    // 分层格每栏名字下的一行小字(≤6 字 / 2-3 词),只说这股力量「是什么」,
+    // 不带吉凶;口径取 M0 prompt 白话释义表(backend m0_structure 模板),
+    // 与上方整句释义互补——整句给释义 sheet,短释给窄栏。偏官=七杀别名。
+    static let shortGlosses: [String: Entry] = [
+        "比肩": .init(zh: "自己的主见", zhHant: "自己的主見", en: "Your own stance"),
+        "劫财": .init(zh: "同辈竞争", zhHant: "同輩競爭", en: "Peer rivalry"),
+        "食神": .init(zh: "自然产出", zhHant: "自然產出", en: "Easy output"),
+        "伤官": .init(zh: "表达与锋芒", zhHant: "表達與鋒芒", en: "Voice and edge"),
+        "偏财": .init(zh: "抓机会", zhHant: "抓機會", en: "Seizing chances"),
+        "正财": .init(zh: "稳定积累", zhHant: "穩定積累", en: "Steady savings"),
+        "七杀": .init(zh: "外部压力", zhHant: "外部壓力", en: "Outside pressure"),
+        "偏官": .init(zh: "外部压力", zhHant: "外部壓力", en: "Outside pressure"),
+        "正官": .init(zh: "规则与名分", zhHant: "規則與名分", en: "Rules and rank"),
+        "偏印": .init(zh: "独自钻研", zhHant: "獨自鑽研", en: "Solo study"),
+        "正印": .init(zh: "体系与靠山", zhHant: "體系與靠山", en: "Systems and backing"),
+    ]
+
+    /// 短释查询(zh 稳定 key)。未收录 → nil(调用方不显示短释行)。
+    static func shortGloss(for term: String, language: AppLanguage = AppLanguage.current) -> String? {
+        guard let entry = shortGlosses[term] else { return nil }
+        switch language {
+        case .zh: return entry.zh
+        case .zhHant: return entry.zhHant
+        case .en: return entry.en
+        }
+    }
 }
 
 // MARK: - 释义 sheet 请求(挂载点 @State 载体)

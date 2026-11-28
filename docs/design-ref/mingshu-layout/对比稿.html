@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>人生主线排版对比</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;500;600;700&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/*
+VOICE: 安静、书卷气，像一本排得很讲究的命书
+IDEA: 两台手机并排——左边是现在的稿子，右边按信息层级重排
+PICTURE: 两个真实尺寸的 iPhone 屏幕，右侧可开关层级标注
+COLOUR and TYPE: 墨黑底 #141312，暖白文字，一点旧金 #c9a86a 只给结论；Noto Serif SC 正文 + Noto Sans SC 标签
+LAYOUT: 宽屏两机并排，窄屏上下堆叠，下方是层级说明
+*/
+:root{color-scheme:dark;--bg:#0d0c0b;--ink:#ece6da;--mute:#8a847a;--gold:#c9a86a;--screen:#141312;--line:#2a2825}
+*{box-sizing:border-box;min-width:0}
+body{margin:0;background:var(--bg);color:var(--ink);font:16px/1.55 "Noto Sans SC",system-ui,sans-serif;overflow-x:clip}
+.serif{font-family:"Noto Serif SC","Songti SC",serif}
+header{padding:32px max(5vw,16px) 8px;max-width:1100px;margin:0 auto}
+header h1{font:600 30px/1.15 "Noto Serif SC",serif;margin:0 0 8px;text-wrap:balance}
+header p{margin:0;color:var(--mute);font-size:14px}
+.toggle{margin-top:16px;display:inline-flex;align-items:center;gap:10px;min-height:44px;padding:0 16px;border:1px solid var(--line);border-radius:22px;background:transparent;color:var(--ink);font:500 14px "Noto Sans SC",sans-serif;cursor:pointer}
+.toggle:focus-visible{outline:2px solid var(--gold);outline-offset:2px}
+.toggle i{width:30px;height:18px;border-radius:9px;background:#3a3732;position:relative;transition:.2s}
+.toggle i::after{content:"";position:absolute;left:2px;top:2px;width:14px;height:14px;border-radius:50%;background:#ece6da;transition:.2s}
+.toggle[aria-pressed=true] i{background:var(--gold)}.toggle[aria-pressed=true] i::after{left:14px}
+.stage{display:flex;flex-wrap:wrap;justify-content:center;gap:40px;padding:24px 16px 40px;max-width:1700px;margin:0 auto}
+figure{margin:0;display:flex;flex-direction:column;align-items:center;gap:14px}
+figcaption{font-size:14px;color:var(--mute)}figcaption b{color:var(--ink);font-weight:500}
+.phone{width:min(375px,calc(100vw - 32px));height:760px;border-radius:44px;background:var(--screen);border:10px solid #2b2926;box-shadow:0 30px 60px -20px #000,inset 0 0 0 1px #000;position:relative;overflow:hidden;display:flex;flex-direction:column}
+.status{height:44px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 26px;font:600 14px "Noto Sans SC",sans-serif}
+.nav{height:44px;flex:none;display:flex;justify-content:space-between;align-items:center;padding:0 18px;color:var(--mute);font-size:15px}
+.nav svg{width:22px;height:22px}
+.nav .mini{font:500 15px "Noto Serif SC",serif;color:var(--ink);opacity:0;transition:.2s}
+.scrollv{flex:1;overflow-y:auto;scrollbar-width:none;position:relative}.scrollv::-webkit-scrollbar{display:none}
+
+/* ---- 现在的版本 ---- */
+.old .body{display:flex;flex:1;min-height:0}
+.old .rail{width:34px;flex:none;border-right:1px solid var(--line);position:relative}
+.old .rail span{position:absolute;left:-8px;top:120px;font:400 36px "Noto Serif SC",serif}
+.old .col{padding:40px 22px 0 20px;overflow:hidden}
+.old h2{font:400 46px/1.1 "Noto Serif SC",serif;margin:0 0 10px;letter-spacing:.02em}
+.old .sub{font:700 12px "Noto Sans SC",sans-serif;color:var(--mute);letter-spacing:.15em;padding-bottom:18px;border-bottom:1px solid var(--line)}
+.old .q{font:700 12px "Noto Sans SC",sans-serif;color:var(--mute);letter-spacing:.25em;margin:26px 0 14px}
+.old .quote{font:400 25px/1.75 "Noto Serif SC",serif;margin:0 0 12px}
+.old .p{font:400 18px/2.15 "Noto Serif SC",serif;margin:0}
+.old .next{flex:none;border-top:1px solid var(--line);padding:16px 22px;text-align:right;color:var(--mute);font:700 15px "Noto Sans SC",sans-serif;letter-spacing:.1em}
+.old .tab{flex:none;margin:0 12px 14px;height:62px;border-radius:31px;background:#2a2826;display:grid;grid-template-columns:repeat(4,1fr);align-items:center;text-align:center;font:700 11px "Noto Sans SC",sans-serif}
+.old .tab span:nth-child(2){background:#1a1918;border-radius:24px;margin:0 4px;padding:14px 0}
+
+/* ---- 优化后的版本 ---- */
+.new .wrap{padding:20px 26px 40px}
+.chap{display:flex;align-items:center;gap:10px;color:var(--mute);font:500 13px "Noto Sans SC",sans-serif;margin-bottom:14px}
+.chap b{font:500 20px "Noto Serif SC",serif;color:var(--gold);font-weight:500}
+.chap::after{content:"";flex:1;height:1px;background:var(--line)}
+.new h2{font:500 34px/1.1 "Noto Serif SC",serif;margin:0 0 40px;letter-spacing:.04em}
+.new .q{font:400 13px "Noto Sans SC",sans-serif;color:var(--mute);margin:0 0 12px}
+.new .quote{font:500 23px/1.6 "Noto Serif SC",serif;color:#f3e7cf;margin:0 0 36px;text-wrap:pretty}
+.new .quote em{font-style:normal;color:var(--gold)}
+.gods{display:grid;gap:4px;margin:0 0 36px;padding:6px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.god{display:grid;grid-template-columns:44px minmax(0,1fr);gap:4px 12px;padding:14px 0;align-items:baseline}
+.god+.god{border-top:1px dashed #252320}
+.god .r{font:400 12px "Noto Sans SC",sans-serif;color:var(--mute)}
+.god .n{font:600 18px "Noto Serif SC",serif;display:flex;align-items:center;gap:10px}
+.god .bar{height:3px;border-radius:2px;background:var(--gold);flex:none}
+.god .d{grid-column:2;font:400 14px/1.6 "Noto Sans SC",sans-serif;color:#b3ab9e}
+.new .p{font:400 16.5px/1.85 "Noto Serif SC",serif;color:rgba(236,230,218,.78);margin:0 0 18px;text-align:justify}
+.new .end{margin-top:30px;padding:18px;border:1px solid var(--line);border-radius:14px;display:flex;justify-content:space-between;align-items:center}
+.new .end small{display:block;color:var(--mute);font-size:12px;margin-bottom:4px}
+.new .end span{font:500 17px "Noto Serif SC",serif}
+.new .end svg{width:18px;height:18px;color:var(--gold)}
+.sample{color:#5d5850;font-size:12px;margin-top:20px;text-align:center}
+
+/* ---- 从零设计 ---- */
+.v3 .nav{position:relative}
+.v3 .nav .ctr{position:absolute;left:50%;transform:translateX(-50%);font:500 14px "Noto Serif SC",serif;color:var(--ink);letter-spacing:.08em}
+.v3 .nav .ctr b{color:var(--gold);font-weight:500;margin-right:6px}
+.hero{position:relative;padding:54px 28px 44px;min-height:440px;display:flex;flex-direction:column;justify-content:flex-end;overflow:hidden}
+.hero .wm{position:absolute;right:-30px;top:-20px;font:400 260px/1 "Noto Serif SC",serif;color:#fff;opacity:.035;pointer-events:none}
+.hero .q{font:400 14px "Noto Sans SC",sans-serif;color:var(--mute);margin:0 0 18px;display:flex;align-items:center;gap:10px}
+.hero .q::before{content:"";width:18px;height:1px;background:var(--gold)}
+.hero .quote{font:500 29px/1.55 "Noto Serif SC",serif;color:#f5ead4;margin:0;text-wrap:pretty;letter-spacing:.01em}
+.hero .quote em{font-style:normal;color:var(--gold)}
+.hero .hint{margin-top:30px;color:#5d5850;font-size:12px;display:flex;align-items:center;gap:6px}
+.card{margin:0 18px;padding:20px 18px 8px;border-radius:18px;background:#1b1a18;border:1px solid #262421}
+.card h4{margin:0 0 6px;font:500 13px "Noto Sans SC",sans-serif;color:var(--mute)}
+.g3{display:grid;grid-template-columns:40px minmax(0,1fr);gap:2px 12px;padding:14px 0;align-items:center}
+.g3+.g3{border-top:1px solid #262421}
+.g3 .r{font:400 12px "Noto Sans SC",sans-serif;color:var(--mute)}
+.g3 .n{font:600 19px "Noto Serif SC",serif;display:flex;justify-content:space-between;align-items:center;gap:12px}
+.g3 .n small{font:400 12px "Noto Sans SC",sans-serif;color:var(--mute)}
+.g3 .meter{grid-column:2;height:4px;border-radius:2px;background:#2c2a26;overflow:hidden;margin-top:6px}
+.g3 .meter i{display:block;height:100%;background:var(--gold);border-radius:2px}
+.read{padding:40px 28px 36px}
+.read h5{font:600 17px "Noto Serif SC",serif;margin:0 0 8px;display:flex;gap:8px;align-items:baseline}
+.read h5 span{font:400 12px "Noto Sans SC",sans-serif;color:var(--mute)}
+.read p{font:400 16.5px/1.85 "Noto Serif SC",serif;color:rgba(236,230,218,.78);margin:0 0 30px;text-align:justify}
+.v3 .end{margin:0 18px 30px;padding:20px;border-radius:18px;background:#1b1a18;display:flex;justify-content:space-between;align-items:center}
+.v3 .end small{display:block;color:var(--mute);font-size:12px;margin-bottom:4px}
+.v3 .end span{font:500 18px "Noto Serif SC",serif}
+.v3 .end svg{width:18px;height:18px;color:var(--gold)}
+
+/* ---- 第四版：结论即标题 ---- */
+.v4 .nav{position:relative}
+.v4 .nav .ctr{position:absolute;left:50%;transform:translateX(-50%);font:500 14px "Noto Serif SC",serif;color:var(--ink);letter-spacing:.08em}
+.v4 .nav .ctr b{color:var(--gold);font-weight:500;margin-right:6px}
+.h4{padding:70px 30px 34px;text-align:center;position:relative}
+.h4::before{content:"";position:absolute;left:50%;top:0;width:1px;height:44px;background:linear-gradient(transparent,var(--gold))}
+.h4 h2{font:500 30px/1.5 "Noto Serif SC",serif;color:#f5ead4;margin:0;text-wrap:balance;letter-spacing:.02em}
+.h4 h2 em{font-style:normal;color:var(--gold)}
+.tri{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));margin:0 18px;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}
+.tri div{text-align:center;padding:18px 4px 16px}
+.tri div+div{border-left:1px solid var(--line)}
+.tri .r{display:block;font:400 11px "Noto Sans SC",sans-serif;color:var(--mute);letter-spacing:.1em}
+.tri .n{display:block;font:600 21px/1.3 "Noto Serif SC",serif;margin:6px 0 4px}
+.tri div:first-child .n{color:var(--gold)}
+.tri .d{display:block;font:400 12px "Noto Sans SC",sans-serif;color:#a39b8e}
+.dash{width:1px;height:46px;margin:26px auto;background:repeating-linear-gradient(var(--mute) 0 4px,transparent 4px 8px);opacity:.6}
+.sec{padding:0 30px}
+.sec h5{text-align:center;font:500 15px "Noto Serif SC",serif;margin:0 0 14px;letter-spacing:.2em}
+.sec h5 span{display:block;font:400 11px "Noto Sans SC",sans-serif;color:var(--mute);letter-spacing:.1em;margin-bottom:4px}
+.sec p{font:400 16.5px/1.85 "Noto Serif SC",serif;color:rgba(236,230,218,.78);margin:0;text-align:justify}
+.v4 .end{margin:40px 18px 0;padding:22px 20px;border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center}
+.v4 .end small{display:block;color:var(--mute);font-size:12px;margin-bottom:4px}
+.v4 .end span{font:500 18px "Noto Serif SC",serif}
+.v4 .end svg{width:18px;height:18px;color:var(--gold)}
+
+/* 层级标注 */
+.tag{display:none;position:absolute;right:6px;font:700 10px "Noto Sans SC",sans-serif;background:var(--gold);color:#141312;border-radius:4px;padding:1px 5px;z-index:3}
+.lv{position:relative}
+.show .tag{display:block}
+.show .lv{outline:1px dashed rgba(201,168,106,.55);outline-offset:3px}
+
+/* 说明 */
+.notes{max-width:1100px;margin:0 auto;padding:0 max(5vw,16px) 56px}
+.notes h3{font:600 20px "Noto Serif SC",serif;margin:0 0 16px}
+.ladder{display:grid;gap:0;border-top:1px solid var(--line)}
+.row{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:14px;padding:14px 0;border-bottom:1px solid var(--line);align-items:baseline}
+.row b{color:var(--gold);font:700 13px "Noto Sans SC",sans-serif}
+.row div{font-size:15px}.row div small{display:block;color:var(--mute);font-size:13px;margin-top:2px}
+.row code{font:500 13px "Noto Sans SC",sans-serif;color:var(--mute);white-space:nowrap}
+@media(max-width:600px){header h1{font-size:24px}.stage{gap:32px}.row{grid-template-columns:36px minmax(0,1fr)}.row code{grid-column:2}}
+@media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header>
+  <h1>「人生主线」页：现在 · 重排 · 从零设计 · 结论即标题</h1>
+  <p>右侧手机可以滚动；打开标注可以看到每块内容属于哪一层。</p>
+  <button class="toggle" id="tg" aria-pressed="false"><i></i>显示层级标注</button>
+</header>
+
+<div class="stage">
+  <figure>
+    <div class="phone old">
+      <div class="status"><span>01:04</span><span>5G ▮</span></div>
+      <div class="nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg><span>目录</span></div>
+      <div class="body">
+        <div class="rail"><span>壹</span></div>
+        <div class="col">
+          <h2>人生主线</h2>
+          <div class="sub">你的盘是什么类型</div>
+          <div class="q">— 我的十神主线是什么？</div>
+          <p class="quote">外面不断加码的要求，逼着你用一套自己的办法扛下来。</p>
+          <p class="p">主导力量是七杀，也就是外部压力和硬要求，它和正官（规则、职位和名分）一起构成你生活里最主要的推力：事情压过来，你得接住。其次是偏印……</p>
+        </div>
+      </div>
+      <div class="next">贰 天赋本事 ›</div>
+      <div class="tab"><span>今日</span><span>深度</span><span>合盘</span><span>我的</span></div>
+    </div>
+    <figcaption><b>现在</b>：标题最大，结论第二，十神结构埋在段落里</figcaption>
+  </figure>
+
+  <figure>
+    <div class="phone new" id="np">
+      <div class="status"><span>01:04</span><span>5G ▮</span></div>
+      <div class="nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg><span class="mini" id="mini">壹 · 人生主线</span><span>目录</span></div>
+      <div class="scrollv" id="sv">
+        <div class="wrap">
+          <div class="lv"><span class="tag" style="top:-4px">L4 定位</span>
+            <div class="chap"><b>壹</b>第一章</div>
+            <h2 id="ttl">人生主线</h2>
+          </div>
+
+          <div class="lv"><span class="tag" style="top:-4px">L5 引子</span>
+            <p class="q">我的十神主线是什么？</p>
+          </div>
+
+          <div class="lv"><span class="tag" style="top:-4px">L1 结论</span>
+            <p class="quote">外面不断加码的要求，逼着你用<em>一套自己的办法</em>扛下来。</p>
+          </div>
+
+          <div class="lv"><span class="tag" style="top:2px">L2 结构</span>
+            <div class="gods">
+              <div class="god"><span class="r">主导</span><span class="n">七杀<i class="bar" style="width:72px"></i></span><span class="d">外部压力和硬要求，与正官一起推着你走</span></div>
+              <div class="god"><span class="r">其次</span><span class="n">偏印<i class="bar" style="width:46px;opacity:.75"></i></span><span class="d">偏门学识，一个人钻研，自己找办法消化压力</span></div>
+              <div class="god"><span class="r">潜伏</span><span class="n">正财<i class="bar" style="width:22px;opacity:.5"></i></span><span class="d">稳定收入，一点点攒下来的积累</span></div>
+            </div>
+          </div>
+
+          <div class="lv"><span class="tag" style="top:-4px">L3 解释</span>
+            <p class="p">主导力量是七杀，也就是外部压力和硬要求，它和正官（规则、职位和名分）一起构成你生活里最主要的推力：事情压过来，你得接住。</p>
+            <p class="p">其次是偏印，偏门的学识、一个人钻研的路子。你习惯自己找方法消化压力，而不是等别人给答案。</p>
+            <p class="p">潜伏的是正财。它不显眼，却会在你一次次扛住压力之后，慢慢变成看得见的积累。</p>
+          </div>
+
+          <div class="lv"><span class="tag" style="top:-4px">L6 导航</span>
+            <div class="end"><div><small>下一章</small><span>贰 · 天赋本事</span></div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+          </div>
+          <p class="sample">最后两段正文为示例文案</p>
+        </div>
+      </div>
+    </div>
+    <figcaption><b>重排后</b>：先结论，再结构，最后解释；隐藏 Tab 栏</figcaption>
+  </figure>
+
+  <figure>
+    <div class="phone v3" id="p3">
+      <div class="status"><span>01:04</span><span>5G ▮</span></div>
+      <div class="nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg><span class="ctr"><b>壹</b>人生主线</span><span>目录</span></div>
+      <div class="scrollv">
+        <div class="lv"><span class="tag" style="top:8px">L4 定位 → 导航栏</span></div>
+        <div class="hero lv"><span class="tag" style="top:46px">L1 结论</span>
+          <span class="wm">壹</span>
+          <p class="q">我的十神主线是什么</p>
+          <p class="quote">外面不断加码的要求，逼着你用<em>一套自己的办法</em>扛下来。</p>
+          <div class="hint">向下看构成 ↓</div>
+        </div>
+
+        <div class="card lv"><span class="tag" style="top:10px">L2 结构</span>
+          <h4>你的盘由这三股力量构成</h4>
+          <div class="g3"><span class="r">主导</span><span class="n">七杀<small>外部压力 · 硬要求</small></span><span class="meter"><i style="width:88%"></i></span></div>
+          <div class="g3"><span class="r">其次</span><span class="n">偏印<small>独自钻研 · 自我消化</small></span><span class="meter"><i style="width:58%;opacity:.8"></i></span></div>
+          <div class="g3"><span class="r">潜伏</span><span class="n">正财<small>稳定收入 · 慢积累</small></span><span class="meter"><i style="width:28%;opacity:.6"></i></span></div>
+        </div>
+
+        <div class="read lv"><span class="tag" style="top:30px">L3 解释</span>
+          <h5>七杀<span>主导</span></h5>
+          <p>外部压力和硬要求，它和正官（规则、职位和名分）一起构成你生活里最主要的推力：事情压过来，你得接住。</p>
+          <h5>偏印<span>其次</span></h5>
+          <p>偏门的学识、一个人钻研的路子。你习惯自己找方法消化压力，而不是等别人给答案。</p>
+          <h5>正财<span>潜伏</span></h5>
+          <p>它不显眼，却会在你一次次扛住压力之后，慢慢变成看得见的积累。</p>
+        </div>
+
+        <div class="end lv"><span class="tag" style="top:-8px">L6 导航</span><div><small>下一章</small><span>贰 · 天赋本事</span></div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+        <p class="sample" style="margin-bottom:24px">部分正文为示例文案</p>
+      </div>
+    </div>
+    <figcaption><b>从零设计</b>：结论是全页最大的字，章节名收进导航栏</figcaption>
+  </figure>
+
+  <figure>
+    <div class="phone v4" id="p4">
+      <div class="status"><span>01:04</span><span>5G ▮</span></div>
+      <div class="nav"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 5l-7 7 7 7"/></svg><span class="ctr"><b>壹</b>人生主线</span><span>目录</span></div>
+      <div class="scrollv">
+        <div class="lv"><span class="tag" style="top:8px">L4 定位 → 导航栏</span></div>
+        <div class="h4 lv"><span class="tag" style="top:62px">L1 结论 = 标题</span>
+          <h2>外面不断加码的要求，逼着你用<em>一套自己的办法</em>扛下来。</h2>
+        </div>
+
+        <div class="tri lv"><span class="tag" style="top:-10px">L2 结构</span>
+          <div><span class="r">主导</span><span class="n">七杀</span><span class="d">外部压力</span></div>
+          <div><span class="r">其次</span><span class="n">偏印</span><span class="d">独自钻研</span></div>
+          <div><span class="r">潜伏</span><span class="n">正财</span><span class="d">慢慢积累</span></div>
+        </div>
+
+        <div class="dash"></div>
+        <div class="sec lv"><span class="tag" style="top:-4px">L3 解释</span>
+          <h5><span>主导</span>七杀</h5>
+          <p>外部压力和硬要求，它和正官（规则、职位和名分）一起构成你生活里最主要的推力：事情压过来，你得接住。</p>
+        </div>
+        <div class="dash"></div>
+        <div class="sec">
+          <h5><span>其次</span>偏印</h5>
+          <p>偏门的学识、一个人钻研的路子。你习惯自己找方法消化压力，而不是等别人给答案。</p>
+        </div>
+        <div class="dash"></div>
+        <div class="sec">
+          <h5><span>潜伏</span>正财</h5>
+          <p>它不显眼，却会在你一次次扛住压力之后，慢慢变成看得见的积累。</p>
+        </div>
+
+        <div class="end lv"><span class="tag" style="top:-8px">L6 导航</span><div><small>下一章</small><span>贰 · 天赋本事</span></div><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg></div>
+        <p class="sample" style="margin-bottom:24px">部分正文为示例文案</p>
+      </div>
+    </div>
+    <figcaption><b>第四版</b>：结论即标题 + 三栏十神（参考 Stardust、Co–Star）</figcaption>
+  </figure>
+</div>
+
+<section class="notes">
+  <h3>层级与字号阶梯</h3>
+  <div class="ladder">
+    <div class="row"><b>L1</b><div>结论金句<small>全页最亮，关键短语用金色，上下留白最多</small></div><code>23pt · 暖白</code></div>
+    <div class="row"><b>L2</b><div>十神结构<small>从段落里拆出来，主导/其次/潜伏一眼扫完，条长表示强弱</small></div><code>18pt 粗 + 14pt</code></div>
+    <div class="row"><b>L3</b><div>解释正文<small>颜色降到 78%，行距 1.85，每行 16–17 字</small></div><code>16.5pt · 78%</code></div>
+    <div class="row"><b>L4</b><div>章节定位<small>开篇时大，往下滚后收进导航栏</small></div><code>34pt</code></div>
+    <div class="row"><b>L5</b><div>问题引子<small>原来的副标题删掉，只保留这一句，作用是引出结论</small></div><code>13pt · 灰</code></div>
+    <div class="row"><b>L6</b><div>导航<small>下一章入口放在文末，二级页面不显示 Tab 栏</small></div><code>卡片</code></div>
+  </div>
+</section>
+
+<script>
+{
+  const tg=document.getElementById('tg'),np=document.getElementById('np'),sv=document.getElementById('sv'),mini=document.getElementById('mini'),ttl=document.getElementById('ttl');
+  tg.addEventListener('click',()=>{const on=tg.getAttribute('aria-pressed')!=='true';tg.setAttribute('aria-pressed',String(on));np.classList.toggle('show',on);document.getElementById('p3').classList.toggle('show',on);document.getElementById('p4').classList.toggle('show',on)});
+  sv.addEventListener('scroll',()=>{mini.style.opacity=sv.scrollTop>ttl.offsetTop+30?'1':'0'},{passive:true});
+}
+</script>
+</body>
+</html>

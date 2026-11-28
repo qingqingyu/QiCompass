@@ -944,12 +944,20 @@ final class ChapterContentTests: XCTestCase {
         guard case .section("我的十神主线是什么?", let mainChildren) = content.nodes[0] else {
             return XCTFail("首节点应为「我的十神主线是什么?」，实际:\(content.nodes[0])")
         }
-        guard case .headline(let mainHeadline)? = mainChildren.first,
-              case .lead(let mainBody)? = mainChildren.dropFirst().first else {
-            return XCTFail("主线应为 结论句→展开 两层，实际:\(mainChildren)")
+        // 2026-11-28 排版改版:结论句 → 十神分层格 → 展开(分层不再进据 fold)
+        guard mainChildren.count == 3,
+              case .headline(let mainHeadline) = mainChildren[0],
+              case .layers(let layers) = mainChildren[1],
+              case .lead(let mainBody) = mainChildren[2] else {
+            return XCTFail("主线应为 结论句→分层格→展开 三层，实际:\(mainChildren)")
         }
         XCTAssertTrue(mainHeadline.contains("压力推着你走"))
         XCTAssertTrue(mainBody.contains("七杀"))
+        XCTAssertEqual(layers, [
+            ChapterLayer(role: "主导", names: ["七杀", "劫财"], termKeys: ["七杀", "劫财"], tied: true),
+            ChapterLayer(role: "次要", names: ["正印"], termKeys: ["正印"], tied: false),
+            ChapterLayer(role: "潜伏", names: ["伤官", "偏财"], termKeys: ["伤官", "偏财"], tied: false),
+        ])
 
         guard case .section("哪两个十神形成核心循环结构?", let loopChildren) = content.nodes[1] else {
             return XCTFail("次节点应为「哪两个十神形成核心循环结构?」")
@@ -992,19 +1000,18 @@ final class ChapterContentTests: XCTestCase {
         XCTAssertTrue(capHeadline.contains("最强在"))
         XCTAssertTrue(capText.contains("烂摊子"))
 
-        // 据 fold 固定序:分层 → 起止 → 驱动 → 各节 evidence
+        // 据 fold 固定序:起止 → 驱动 → 各节 evidence(分层已上移为分层格,
+        // 据里不再重复)
         guard case .evidenceFold(let notes) = content.nodes[4] else {
             return XCTFail("末节点应为据折叠，实际:\(content.nodes[4])")
         }
-        XCTAssertEqual(notes.count, 6)
-        XCTAssertEqual(notes[0].label, "主线")
-        XCTAssertEqual(notes[0].text, "主导 七杀、劫财(并列最重) · 次要 正印 · 潜伏 伤官、偏财")
-        XCTAssertEqual(notes[1].label, "核心循环")
-        XCTAssertEqual(notes[1].text, "起点 七杀　终点 正印")
-        XCTAssertEqual(notes[2].label, "驱动")
-        XCTAssertEqual(notes[3].label, "主线", "evidence 段开始")
-        XCTAssertEqual(notes[4].label, "核心循环")
-        XCTAssertEqual(notes[5].label, "能力来源")
+        XCTAssertEqual(notes.count, 5)
+        XCTAssertEqual(notes[0].label, "核心循环")
+        XCTAssertEqual(notes[0].text, "起点 七杀　终点 正印")
+        XCTAssertEqual(notes[1].label, "驱动")
+        XCTAssertEqual(notes[2].label, "主线", "evidence 段开始")
+        XCTAssertEqual(notes[3].label, "核心循环")
+        XCTAssertEqual(notes[4].label, "能力来源")
     }
 
     func test_m0_v9FingerprintHidden() {
@@ -1054,8 +1061,8 @@ final class ChapterContentTests: XCTestCase {
         XCTAssertTrue(notes.contains { $0.text.contains("起点 七杀") })
     }
 
-    func test_m0_v9PartialLayersKeptInFoldLine() {
-        // 分层行:缺的层跳过,不写「主导 —」占位
+    func test_m0_v9PartialLayersSkipMissingColumn() {
+        // 分层格:缺的层跳过,不出「主导 —」空栏
         let json = """
         {
           "main_axis": { "headline": "机会推着你走。", "secondary": "食神", "latent": "比肩" },
@@ -1063,10 +1070,59 @@ final class ChapterContentTests: XCTestCase {
         }
         """
         guard let content = ChapterContent.parse(json, for: .m0),
-              case .evidenceFold(let notes)? = content.nodes.last else {
-            return XCTFail("应解析出据折叠")
+              case .section(_, let mainChildren)? = content.nodes.first,
+              case .layers(let layers)? = mainChildren.dropFirst().first else {
+            return XCTFail("应解析出分层格")
         }
-        XCTAssertEqual(notes.first?.text, "次要 食神 · 潜伏 比肩", "缺 dominant 不占位")
+        XCTAssertEqual(layers.map(\.role), ["次要", "潜伏"], "缺 dominant 不占位")
+        XCTAssertFalse(content.nodes.contains {
+            if case .evidenceFold = $0 { return true }
+            return false
+        }, "分层已成格且无其他据 → 不出空据折叠")
+    }
+
+    func test_m0_v9NonNameLayersFallBackToFoldLine() {
+        // 老缓存/违约:分层值是长句(非纯十神名)→ 不成格,照旧进据 fold 首行
+        let json = """
+        {
+          "main_axis": {
+            "headline": "压力推着你走。",
+            "body": "主导是七杀。",
+            "dominant": "七杀，权重最高，月干透出",
+            "secondary": "正印"
+          }
+        }
+        """
+        guard let content = ChapterContent.parse(json, for: .m0),
+              case .section(_, let mainChildren)? = content.nodes.first,
+              case .evidenceFold(let notes)? = content.nodes.last else {
+            return XCTFail("应解析出主线节 + 据折叠")
+        }
+        XCTAssertFalse(mainChildren.contains {
+            if case .layers = $0 { return true }
+            return false
+        }, "任一层不识别 → 整组不成格(不半格半句)")
+        XCTAssertEqual(notes.first?.text, "主导 七杀，权重最高，月干透出 · 次要 正印")
+    }
+
+    func test_parseLayer_tieMarkersAndLanguages() {
+        XCTAssertEqual(
+            ChapterContent.parseLayer(role: "主导", raw: "七杀、正官（并列最重）"),
+            ChapterLayer(role: "主导", names: ["七杀", "正官"], termKeys: ["七杀", "正官"], tied: true))
+        XCTAssertEqual(
+            ChapterContent.parseLayer(role: "主導", raw: "七殺、劫財（並列最重）"),
+            ChapterLayer(role: "主導", names: ["七殺", "劫財"], termKeys: ["七杀", "劫财"], tied: true),
+            "zh-hant 写法识别并映射到稳定 id")
+        XCTAssertEqual(
+            ChapterContent.parseLayer(role: "Dominant", raw: "Seven Killings, Rob Wealth (jointly heaviest)"),
+            ChapterLayer(role: "Dominant", names: ["Seven Killings", "Rob Wealth"],
+                         termKeys: ["七杀", "劫财"], tied: true),
+            "en 写法识别(大小写不敏感)")
+        XCTAssertEqual(
+            ChapterContent.parseLayer(role: "潜伏", raw: " 正财 "),
+            ChapterLayer(role: "潜伏", names: ["正财"], termKeys: ["正财"], tied: false))
+        XCTAssertNil(ChapterContent.parseLayer(role: "主导", raw: "七杀为主"), "非十神名 → nil")
+        XCTAssertNil(ChapterContent.parseLayer(role: "主导", raw: "（并列最重）"), "只有括注 → nil")
     }
 
     func test_m0_v9ExtraKeysNotSilentlyDropped() {
