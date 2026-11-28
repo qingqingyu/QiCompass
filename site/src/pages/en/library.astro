@@ -1,0 +1,291 @@
+---
+// 知識庫頁(S04,library.html 移植):檢索 + 錨點副導航 + 六分區。
+// 一期形態(day-master/ten-gods/five-elements/stars/glossary/day-pillar
+// 目標頁均未上線,launch.json):全部词条 div.not-launched 非链接灰显,
+// 六十甲子格为纯参照数据(JiaziGrid,含 today 标记);无 DefinedTermSet
+// JSON-LD(零条已上线词条,不虚构)。搜索/scrollspy JS 仅做高亮过滤,
+// 无 JS 时全部内容静态可达。
+import Base from "../../layouts/Base.astro";
+import JiaziGrid from "../../components/JiaziGrid.astro";
+import { todayEntry } from "../../data/calendar";
+import { type Lang } from "../../data/site";
+
+const lang: Lang = "en";
+const todayGz = todayEntry().d;
+
+// 十日主(en 设计稿逐字)
+const DMS = [
+  { ch: "甲", el: "wood", en: "Jia Wood", q: "jia wood yang tree 甲" },
+  { ch: "乙", el: "wood", en: "Yi Wood", q: "yi wood yin vine 乙" },
+  { ch: "丙", el: "fire", en: "Bing Fire", q: "bing fire yang sun 丙" },
+  { ch: "丁", el: "fire", en: "Ding Fire", q: "ding fire yin lamp candle 丁" },
+  { ch: "戊", el: "earth", en: "Wu Earth", q: "wu earth yang mountain 戊" },
+  { ch: "己", el: "earth", en: "Ji Earth", q: "ji earth yin soil garden 己" },
+  { ch: "庚", el: "metal", en: "Geng Metal", q: "geng metal yang ore axe 庚" },
+  { ch: "辛", el: "metal", en: "Xin Metal", q: "xin metal yin jewel 辛" },
+  { ch: "壬", el: "water", en: "Ren Water", q: "ren water yang river ocean 壬" },
+  { ch: "癸", el: "water", en: "Gui Water", q: "gui water yin rain dew 癸" },
+];
+
+// 十神五族(en 设计稿逐字;data-q 保留设计稿关键词,检索面含简体)
+const FAMS = [
+  { name: "Peers", sub: "Same element as you", gods: [
+    { en: "Companion", zh: "比肩", q: "companion 比肩 friend peer", pol: "Same polarity" },
+    { en: "Rob Wealth", zh: "劫财", q: "rob wealth 劫财 competitor", pol: "Opposite polarity" },
+  ] },
+  { name: "Output", sub: "What you produce", gods: [
+    { en: "Eating God", zh: "食神", q: "eating god 食神 output expression", pol: "Same polarity" },
+    { en: "Hurting Officer", zh: "伤官", q: "hurting officer 伤官 output rebel", pol: "Opposite polarity" },
+  ] },
+  { name: "Wealth", sub: "What you control", gods: [
+    { en: "Indirect Wealth", zh: "偏财", q: "indirect wealth 偏财 money", pol: "Same polarity" },
+    { en: "Direct Wealth", zh: "正财", q: "direct wealth 正财 money", pol: "Opposite polarity" },
+  ] },
+  { name: "Power", sub: "What controls you", gods: [
+    { en: "Seven Killings", zh: "七杀", q: "seven killings 七杀 偏官 power pressure", pol: "Same polarity" },
+    { en: "Direct Officer", zh: "正官", q: "direct officer 正官 authority", pol: "Opposite polarity" },
+  ] },
+  { name: "Resource", sub: "What produces you", gods: [
+    { en: "Indirect Resource", zh: "偏印", q: "indirect resource 偏印 learning", pol: "Same polarity" },
+    { en: "Direct Resource", zh: "正印", q: "direct resource 正印 support mother", pol: "Opposite polarity" },
+  ] },
+];
+
+const ELS = [
+  { ch: "木", el: "wood", en: "Wood" },
+  { ch: "火", el: "fire", en: "Fire" },
+  { ch: "土", el: "earth", en: "Earth" },
+  { ch: "金", el: "metal", en: "Metal" },
+  { ch: "水", el: "water", en: "Water" },
+];
+
+// 20 神煞(《三命通会》固定清单,en 设计稿逐字)
+const JI = [
+  { zh: "天乙贵人", en: "Nobleman", q: "nobleman 天乙贵人 helpful people" },
+  { zh: "太极贵人", en: "Supreme Nobleman", q: "supreme nobleman 太极贵人" },
+  { zh: "文昌", en: "Academic Star", q: "academic star 文昌 study exam" },
+  { zh: "天德", en: "Heavenly Virtue", q: "heavenly virtue 天德" },
+  { zh: "月德", en: "Monthly Virtue", q: "monthly virtue 月德" },
+  { zh: "驿马", en: "Travelling Horse", q: "travelling horse 驿马 travel move" },
+  { zh: "桃花", en: "Peach Blossom", q: "peach blossom 桃花 romance love" },
+  { zh: "将星", en: "General Star", q: "general star 将星" },
+  { zh: "华盖", en: "Canopy Star", q: "canopy star 华盖 solitude art" },
+  { zh: "金舆", en: "Golden Carriage", q: "golden carriage 金舆" },
+  { zh: "禄神", en: "Prosperity Star", q: "prosperity star 禄神" },
+];
+const SHA = [
+  { zh: "羊刃", en: "Goat Blade", q: "goat blade 羊刃" },
+  { zh: "劫煞", en: "Robbery Star", q: "robbery star 劫煞" },
+  { zh: "亡神", en: "Loss Spirit", q: "loss spirit 亡神" },
+  { zh: "孤辰", en: "Solitary Star", q: "solitary star 孤辰" },
+  { zh: "寡宿", en: "Widowhood Star", q: "widowhood star 寡宿" },
+  { zh: "元辰", en: "Grievance Star", q: "grievance star 元辰" },
+  { zh: "灾煞", en: "Calamity Star", q: "calamity star 灾煞" },
+  { zh: "天罗地网", en: "Heaven Net, Earth Snare", q: "heaven net earth snare 天罗地网" },
+  { zh: "红艳", en: "Red Beauty", q: "red beauty 红艳 romance" },
+];
+
+// 辞典 A–Z(13 条,en 设计稿逐字)
+const GLOSS: { letter: string; en: string; zh: string; q: string }[] = [
+  { letter: "B", en: "BaZi", zh: "八字", q: "bazi 八字" },
+  { letter: "B", en: "Branch, Earthly", zh: "地支", q: "branch earthly 地支" },
+  { letter: "C", en: "Clash", zh: "冲", q: "clash 冲" },
+  { letter: "C", en: "Combination", zh: "合", q: "combination 合" },
+  { letter: "D", en: "Day Master", zh: "日主", q: "day master 日主" },
+  { letter: "F", en: "Favourable element", zh: "喜用", q: "favourable element 喜用神" },
+  { letter: "F", en: "Following (special) pattern", zh: "从格", q: "follow pattern 从格 special" },
+  { letter: "H", en: "Hidden stems", zh: "藏干", q: "hidden stems 藏干" },
+  { letter: "L", en: "Luck pillar", zh: "大运", q: "luck pillar 大运" },
+  { letter: "L", en: "Life stages, twelve", zh: "长生", q: "life stages 十二长生" },
+  { letter: "N", en: "Na Yin", zh: "纳音", q: "na yin 纳音" },
+  { letter: "S", en: "Solar term", zh: "节气", q: "solar term 节气" },
+  { letter: "S", en: "Stem, Heavenly", zh: "天干", q: "stem heavenly 天干" },
+  { letter: "T", en: "True Solar Time", zh: "真太阳时", q: "true solar time 真太阳时" },
+];
+
+// 按首字母分组(letter div 只在组首渲染一次)
+const GLOSS_GROUPS: { letter: string; items: typeof GLOSS }[] = [];
+for (const g of GLOSS) {
+  const last = GLOSS_GROUPS[GLOSS_GROUPS.length - 1];
+  if (last && last.letter === g.letter) last.items.push(g);
+  else GLOSS_GROUPS.push({ letter: g.letter, items: [g] });
+}
+
+// CollectionPage only:词条详情页零上线,不出 DefinedTermSet(不虚构 URL)
+const jsonld = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  name: "The BaZi Library",
+  url: "https://knowfate.app/en/library",
+  inLanguage: "en",
+  description: "Every term in a BaZi chart, explained plainly: the ten Day Masters, the Ten Gods, the Five Elements, 20 symbolic stars and all 60 day pillars (Jia Zi to Gui Hai).",
+};
+const jsonldJson = JSON.stringify(jsonld).replace(/</g, "\\u003c");
+
+const SUBNAV = [
+  { href: "#day-masters", label: "Day Masters", n: "10" },
+  { href: "#ten-gods", label: "Ten Gods", n: "10" },
+  { href: "#elements", label: "Five Elements", n: "5" },
+  { href: "#stars", label: "Symbolic Stars", n: "20" },
+  { href: "#pillars", label: "60 Day Pillars", n: "60" },
+  { href: "#glossary", label: "Glossary A–Z", n: null },
+];
+---
+
+<Base
+  {lang}
+  title="The BaZi Library — Day Masters, Ten Gods, Five Elements"
+  description="Every term in a BaZi chart, explained plainly: the ten Day Masters, the Ten Gods, the Five Elements, 20 symbolic stars and all 60 day pillars (Jia Zi to Gui Hai)."
+  path="/en/library"
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={jsonldJson} />
+  </Fragment>
+
+  <div class="wrap">
+    <ol class="crumbs">
+      <li><a href="/en">Home</a></li>
+      <li aria-current="page">Library</li>
+    </ol>
+
+    <header class="lib-head">
+      <div>
+        <p class="kicker">Reference<span class="dot" aria-hidden="true"></span><span class="zh" style="letter-spacing:.3em">命理辞典</span></p>
+        <h1 class="h1" style="margin-top:16px">The BaZi Library</h1>
+        <p class="lede muted" style="margin-top:16px">Every character and term in a Four Pillars chart, explained plainly — 10 Day Masters, 10 Ten Gods, 5 elements, 20 symbolic stars and all 60 day pillars.</p>
+        <div class="search" role="search">
+          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M12 12l4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <label for="lib-q" class="sr-only">Search the library</label>
+          <input class="input" id="lib-q" type="search" placeholder="Try “peach blossom”, “jia zi” or 七杀" autocomplete="off" />
+          <span class="count" data-count aria-live="polite"></span>
+        </div>
+      </div>
+      <span class="vtext" aria-hidden="true">万象有名</span>
+    </header>
+  </div>
+
+  <nav class="subnav" aria-label="Library sections">
+    <div class="wrap">
+      {SUBNAV.map((s, i) => (
+        <a class={`chip${i === 0 ? " on" : ""}`} href={s.href}>{s.label}{s.n && <span class="muted"> {s.n}</span>}</a>
+      ))}
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <!-- 1. 十日主:一期灰显卡(目标页未上线) -->
+    <section class="lib-sec" id="day-masters">
+      <header><h2 class="h2">Day Masters <span class="zh">日主</span></h2></header>
+      <div class="dm-row">
+        {DMS.map((d) => (
+          <div class="dm lib-item not-launched" data-q={d.q}>
+            <span class={`zh el-${d.el}`}>{d.ch}</span><span class="l">{d.en}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- 2. 十神:五族灰显条目 -->
+    <section class="lib-sec" id="ten-gods">
+      <header><h2 class="h2">Ten Gods <span class="zh">十神</span></h2></header>
+      <div class="gods">
+        {FAMS.map((f) => (
+          <div class="fam"><span>{f.name}</span><small>{f.sub}</small>
+            {f.gods.map((g) => (
+              <div class="entry lib-item not-launched" data-q={g.q}><b>{g.en}<span class="zh">{g.zh}</span></b><i>{g.pol}</i></div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- 3. 五行:灰显卡(概览/过多/缺失页一期未上线,不渲染链接行) -->
+    <section class="lib-sec" id="elements">
+      <header><h2 class="h2">Five Elements <span class="zh">五行</span></h2></header>
+      <div class="els">
+        {ELS.map((e) => (
+          <div class="lib-item not-launched" data-q={`${e.en.toLowerCase()} ${e.ch} element`}>
+            <span class={`zh el-${e.el}`}>{e.ch}</span><b>{e.en}</b>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- 4. 神煞:吉 11 + 煞 9,单一固定表 -->
+    <section class="lib-sec" id="stars">
+      <header><h2 class="h2">Symbolic Stars <span class="zh">神煞</span></h2><span class="caption">One fixed table, from <em>Sanming Tonghui</em></span></header>
+      <div class="stars">
+        <div><h3><span class="zh" style="color:var(--jade);letter-spacing:.1em">吉</span>Supportive · 11</h3><ul>
+          {JI.map((s) => (
+            <li><div class="entry lib-item not-launched" data-q={s.q}><span class="zh">{s.zh}</span>{s.en}</div></li>
+          ))}
+        </ul></div>
+        <div><h3><span class="zh" style="letter-spacing:.1em">煞</span>Challenging · 9</h3><ul>
+          {SHA.map((s) => (
+            <li><div class="entry lib-item not-launched" data-q={s.q}><span class="zh">{s.zh}</span>{s.en}</div></li>
+          ))}
+        </ul></div>
+      </div>
+    </section>
+
+    <!-- 5. 六十甲子:纯参照数据(JiaziGrid,today = 构建日日柱) -->
+    <section class="lib-sec" id="pillars">
+      <header><h2 class="h2">The 60 Day Pillars <span class="zh">六十甲子</span></h2><span class="caption">Hover for the Na Yin · <span style="color:var(--cinnabar)">●</span> today is <span class="zh">{todayGz}</span></span></header>
+      <JiaziGrid {lang} />
+    </section>
+
+    <!-- 6. 辞典 A–Z:灰显条目 -->
+    <section class="lib-sec" id="glossary">
+      <header><h2 class="h2">Glossary A–Z</h2></header>
+      <div class="gloss">
+        {GLOSS_GROUPS.map((grp) => (
+          [
+            <div class="letter">{grp.letter}</div>,
+            ...grp.items.map((g) => (
+              <div class="entry lib-item not-launched" data-q={g.q}>{g.en}<span class="zh">{g.zh}</span></div>
+            )),
+          ]
+        ))}
+      </div>
+    </section>
+  </div>
+</Base>
+
+<script>
+  // 检索 = 静态 HTML 过滤(设计稿 site.js 同款;六十甲子格按 .cell 淡出),
+  // 无 JS 时页面完整;计数后缀随语言。
+  const q = document.getElementById("lib-q") as HTMLInputElement | null;
+  const count = document.querySelector("[data-count]");
+  const grid = document.querySelector(".jiazi");
+  const items = Array.from(document.querySelectorAll<HTMLElement>(".lib-item, .jiazi .cell"));
+  if (q && count) {
+    items.forEach((el) => { if (!el.dataset.q) el.dataset.q = (el.textContent ?? "").toLowerCase(); });
+    q.addEventListener("input", () => {
+      const v = q.value.trim().toLowerCase();
+      let n = 0;
+      grid?.classList.toggle("filtering", !!v);
+      items.forEach((el) => {
+        const hit = !v || (el.dataset.q ?? "").toLowerCase().includes(v) || (el.textContent ?? "").toLowerCase().includes(v);
+        if (hit && v) n++;
+        if (el.closest(".jiazi")) el.classList.toggle("hit", hit);
+        else {
+          el.classList.toggle("is-hidden", !hit);
+          // 神煞条目在 li 内:条目藏起后 li 的 border-bottom 会留空行,一并藏
+          el.closest("li")?.classList.toggle("is-hidden", !hit);
+        }
+      });
+      count.textContent = v ? `${n} found` : "";
+    });
+  }
+  // subnav:视口所在分区高亮(设计稿同款 scrollY+160)
+  const chips = Array.from(document.querySelectorAll<HTMLElement>(".subnav .chip"));
+  window.addEventListener("scroll", () => {
+    const y = window.scrollY + 160;
+    let cur = 0;
+    chips.forEach((c, i) => {
+      const s = document.querySelector(c.getAttribute("href") ?? "");
+      if (s && s.offsetTop <= y) cur = i;
+    });
+    chips.forEach((c, i) => c.classList.toggle("on", i === cur));
+  }, { passive: true });
+</script>

@@ -1,0 +1,286 @@
+---
+// 知識庫頁(zh-hant,S04,library.html 移植):與 en 版同構。
+// 翻轉約定:各區主名 = 繁中,次要注音位(.zh span)放英文——繁中用戶直接
+// 讀中文,英文檢索仍可命中(data-q 保留設計稿簡體+英文關鍵詞,檢索面
+// 雙語覆蓋)。其餘形態約定見 en/library.astro 頭註。
+import Base from "../../layouts/Base.astro";
+import JiaziGrid from "../../components/JiaziGrid.astro";
+import { todayEntry } from "../../data/calendar";
+import { type Lang } from "../../data/site";
+
+const lang: Lang = "zh-hant";
+const todayGz = todayEntry().d;
+
+// 十日主(繁中主名;data-q 與 en 版逐字一致)
+const DMS = [
+  { ch: "甲", el: "wood", nm: "甲木", q: "jia wood yang tree 甲" },
+  { ch: "乙", el: "wood", nm: "乙木", q: "yi wood yin vine 乙" },
+  { ch: "丙", el: "fire", nm: "丙火", q: "bing fire yang sun 丙" },
+  { ch: "丁", el: "fire", nm: "丁火", q: "ding fire yin lamp candle 丁" },
+  { ch: "戊", el: "earth", nm: "戊土", q: "wu earth yang mountain 戊" },
+  { ch: "己", el: "earth", nm: "己土", q: "ji earth yin soil garden 己" },
+  { ch: "庚", el: "metal", nm: "庚金", q: "geng metal yang ore axe 庚" },
+  { ch: "辛", el: "metal", nm: "辛金", q: "xin metal yin jewel 辛" },
+  { ch: "壬", el: "water", nm: "壬水", q: "ren water yang river ocean 壬" },
+  { ch: "癸", el: "water", nm: "癸水", q: "gui water yin rain dew 癸" },
+];
+
+// 十神五族(繁中主名 + 同性/異性)
+const FAMS = [
+  { name: "同我者", sub: "與你同一五行", gods: [
+    { nm: "比肩", en: "Companion", q: "companion 比肩 friend peer", pol: "同性" },
+    { nm: "劫財", en: "Rob Wealth", q: "rob wealth 劫财 competitor", pol: "異性" },
+  ] },
+  { name: "我生者", sub: "你所生", gods: [
+    { nm: "食神", en: "Eating God", q: "eating god 食神 output expression", pol: "同性" },
+    { nm: "傷官", en: "Hurting Officer", q: "hurting officer 伤官 output rebel", pol: "異性" },
+  ] },
+  { name: "我剋者", sub: "你所剋", gods: [
+    { nm: "偏財", en: "Indirect Wealth", q: "indirect wealth 偏财 money", pol: "同性" },
+    { nm: "正財", en: "Direct Wealth", q: "direct wealth 正财 money", pol: "異性" },
+  ] },
+  { name: "剋我者", sub: "剋你的", gods: [
+    { nm: "七殺", en: "Seven Killings", q: "seven killings 七杀 偏官 power pressure", pol: "同性" },
+    { nm: "正官", en: "Direct Officer", q: "direct officer 正官 authority", pol: "異性" },
+  ] },
+  { name: "生我者", sub: "生你的", gods: [
+    { nm: "偏印", en: "Indirect Resource", q: "indirect resource 偏印 learning", pol: "同性" },
+    { nm: "正印", en: "Direct Resource", q: "direct resource 正印 support mother", pol: "異性" },
+  ] },
+];
+
+const ELS = [
+  { ch: "木", en: "Wood", el: "wood" },
+  { ch: "火", en: "Fire", el: "fire" },
+  { ch: "土", en: "Earth", el: "earth" },
+  { ch: "金", en: "Metal", el: "metal" },
+  { ch: "水", en: "Water", el: "water" },
+];
+
+// 20 神煞(《三命通會》固定清單,繁中主名)
+const JI = [
+  { nm: "天乙貴人", en: "Nobleman", q: "nobleman 天乙贵人 helpful people" },
+  { nm: "太極貴人", en: "Supreme Nobleman", q: "supreme nobleman 太极贵人" },
+  { nm: "文昌", en: "Academic Star", q: "academic star 文昌 study exam" },
+  { nm: "天德", en: "Heavenly Virtue", q: "heavenly virtue 天德" },
+  { nm: "月德", en: "Monthly Virtue", q: "monthly virtue 月德" },
+  { nm: "驛馬", en: "Travelling Horse", q: "travelling horse 驿马 travel move" },
+  { nm: "桃花", en: "Peach Blossom", q: "peach blossom 桃花 romance love" },
+  { nm: "將星", en: "General Star", q: "general star 将星" },
+  { nm: "華蓋", en: "Canopy Star", q: "canopy star 华盖 solitude art" },
+  { nm: "金輿", en: "Golden Carriage", q: "golden carriage 金舆" },
+  { nm: "祿神", en: "Prosperity Star", q: "prosperity star 禄神" },
+];
+const SHA = [
+  { nm: "羊刃", en: "Goat Blade", q: "goat blade 羊刃" },
+  { nm: "劫煞", en: "Robbery Star", q: "robbery star 劫煞" },
+  { nm: "亡神", en: "Loss Spirit", q: "loss spirit 亡神" },
+  { nm: "孤辰", en: "Solitary Star", q: "solitary star 孤辰" },
+  { nm: "寡宿", en: "Widowhood Star", q: "widowhood star 寡宿" },
+  { nm: "元辰", en: "Grievance Star", q: "grievance star 元辰" },
+  { nm: "災煞", en: "Calamity Star", q: "calamity star 灾煞" },
+  { nm: "天羅地網", en: "Heaven Net, Earth Snare", q: "heaven net earth snare 天罗地网" },
+  { nm: "紅艷", en: "Red Beauty", q: "red beauty 红艳 romance" },
+];
+
+// 辭典(繁中主名;data-q 與 en 版一致)
+const GLOSS: { letter: string; nm: string; en: string; q: string }[] = [
+  { letter: "B", nm: "八字", en: "BaZi", q: "bazi 八字" },
+  { letter: "B", nm: "地支", en: "Branch, Earthly", q: "branch earthly 地支" },
+  { letter: "C", nm: "沖", en: "Clash", q: "clash 冲" },
+  { letter: "C", nm: "合", en: "Combination", q: "combination 合" },
+  { letter: "D", nm: "日主", en: "Day Master", q: "day master 日主" },
+  { letter: "F", nm: "喜用", en: "Favourable element", q: "favourable element 喜用神" },
+  { letter: "F", nm: "從格", en: "Following (special) pattern", q: "follow pattern 从格 special" },
+  { letter: "H", nm: "藏干", en: "Hidden stems", q: "hidden stems 藏干" },
+  { letter: "L", nm: "大運", en: "Luck pillar", q: "luck pillar 大运" },
+  { letter: "L", nm: "長生", en: "Life stages, twelve", q: "life stages 十二长生" },
+  { letter: "N", nm: "納音", en: "Na Yin", q: "na yin 纳音" },
+  { letter: "S", nm: "節氣", en: "Solar term", q: "solar term 节气" },
+  { letter: "S", nm: "天干", en: "Stem, Heavenly", q: "stem heavenly 天干" },
+  { letter: "T", nm: "真太陽時", en: "True Solar Time", q: "true solar time 真太阳时" },
+];
+
+const GLOSS_GROUPS: { letter: string; items: typeof GLOSS }[] = [];
+for (const g of GLOSS) {
+  const last = GLOSS_GROUPS[GLOSS_GROUPS.length - 1];
+  if (last && last.letter === g.letter) last.items.push(g);
+  else GLOSS_GROUPS.push({ letter: g.letter, items: [g] });
+}
+
+// CollectionPage only(零條已上線詞條,不出 DefinedTermSet)
+const jsonld = {
+  "@context": "https://schema.org",
+  "@type": "CollectionPage",
+  name: "八字知識庫",
+  url: "https://knowfate.app/zh-hant/library",
+  inLanguage: "zh-Hant",
+  description: "命盤裡的每一個字與每一個術語,平實解釋:十天干日主、十神、五行、20 顆神煞與六十甲子。",
+};
+const jsonldJson = JSON.stringify(jsonld).replace(/</g, "\\u003c");
+
+const SUBNAV = [
+  { href: "#day-masters", label: "日主", n: "10" },
+  { href: "#ten-gods", label: "十神", n: "10" },
+  { href: "#elements", label: "五行", n: "5" },
+  { href: "#stars", label: "神煞", n: "20" },
+  { href: "#pillars", label: "六十甲子", n: "60" },
+  { href: "#glossary", label: "辭典 A–Z", n: null },
+];
+---
+
+<Base
+  {lang}
+  title="八字知識庫——日主、十神、五行、神煞"
+  description="命盤裡的每一個字與每一個術語,平實解釋:十天干日主、十神、五行、20 顆神煞與六十甲子。"
+  path="/zh-hant/library"
+>
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={jsonldJson} />
+  </Fragment>
+
+  <div class="wrap">
+    <ol class="crumbs">
+      <li><a href="/zh-hant">首頁</a></li>
+      <li aria-current="page">知識庫</li>
+    </ol>
+
+    <header class="lib-head">
+      <div>
+        <p class="kicker">知識庫<span class="dot" aria-hidden="true"></span><span class="zh" style="letter-spacing:.3em">命理辭典</span></p>
+        <h1 class="h1" style="margin-top:16px">八字知識庫</h1>
+        <p class="lede muted" style="margin-top:16px">命盤裡的每一個字與每一個術語,平實解釋——10 個日主、10 個十神、5 行、20 顆神煞,與全部 60 個日柱。</p>
+        <div class="search" role="search">
+          <svg width="18" height="18" viewBox="0 0 18 18" aria-hidden="true"><circle cx="7.5" cy="7.5" r="5.5" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M12 12l4 4" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+          <label for="lib-q" class="sr-only">搜尋知識庫</label>
+          <input class="input" id="lib-q" type="search" placeholder="試試「桃花」、「jia zi」或 七殺" autocomplete="off" />
+          <span class="count" data-count aria-live="polite"></span>
+        </div>
+      </div>
+      <span class="vtext" aria-hidden="true">萬象有名</span>
+    </header>
+  </div>
+
+  <nav class="subnav" aria-label="知識庫分區">
+    <div class="wrap">
+      {SUBNAV.map((s, i) => (
+        <a class={`chip${i === 0 ? " on" : ""}`} href={s.href}>{s.label}{s.n && <span class="muted"> {s.n}</span>}</a>
+      ))}
+    </div>
+  </nav>
+
+  <div class="wrap">
+    <!-- 1. 十日主:一期灰顯卡 -->
+    <section class="lib-sec" id="day-masters">
+      <header><h2 class="h2">日主 <span class="zh">Day Masters</span></h2></header>
+      <div class="dm-row">
+        {DMS.map((d) => (
+          <div class="dm lib-item not-launched" data-q={d.q}>
+            <span class={`zh el-${d.el}`}>{d.ch}</span><span class="l">{d.nm}</span>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- 2. 十神:五族灰顯條目 -->
+    <section class="lib-sec" id="ten-gods">
+      <header><h2 class="h2">十神 <span class="zh">Ten Gods</span></h2></header>
+      <div class="gods">
+        {FAMS.map((f) => (
+          <div class="fam"><span>{f.name}</span><small>{f.sub}</small>
+            {f.gods.map((g) => (
+              <div class="entry lib-item not-launched" data-q={g.q}><b>{g.nm}<span class="zh">{g.en}</span></b><i>{g.pol}</i></div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- 3. 五行:灰顯卡(概覽/過多/缺失頁一期未上線) -->
+    <section class="lib-sec" id="elements">
+      <header><h2 class="h2">五行 <span class="zh">Five Elements</span></h2></header>
+      <div class="els">
+        {ELS.map((e) => (
+          <div class="lib-item not-launched" data-q={`${e.en.toLowerCase()} ${e.ch} element`}>
+            <span class={`zh el-${e.el}`}>{e.ch}</span><b>{e.ch}行</b>
+          </div>
+        ))}
+      </div>
+    </section>
+
+    <!-- 4. 神煞:吉 11 + 煞 9 -->
+    <section class="lib-sec" id="stars">
+      <header><h2 class="h2">神煞 <span class="zh">Symbolic Stars</span></h2><span class="caption">單一固定表,源自《三命通會》</span></header>
+      <div class="stars">
+        <div><h3><span class="zh" style="color:var(--jade);letter-spacing:.1em">吉</span>扶助 · 11</h3><ul>
+          {JI.map((s) => (
+            <li><div class="entry lib-item not-launched" data-q={s.q}><span class="zh">{s.en}</span>{s.nm}</div></li>
+          ))}
+        </ul></div>
+        <div><h3><span class="zh" style="letter-spacing:.1em">煞</span>挑戰 · 9</h3><ul>
+          {SHA.map((s) => (
+            <li><div class="entry lib-item not-launched" data-q={s.q}><span class="zh">{s.en}</span>{s.nm}</div></li>
+          ))}
+        </ul></div>
+      </div>
+    </section>
+
+    <!-- 5. 六十甲子:純參照數據(JiaziGrid,today = 構建日日柱) -->
+    <section class="lib-sec" id="pillars">
+      <header><h2 class="h2">六十甲子 <span class="zh">The 60 Day Pillars</span></h2><span class="caption">懸停看納音 · <span style="color:var(--cinnabar)">●</span> 今日日柱 <span class="zh">{todayGz}</span></span></header>
+      <JiaziGrid {lang} />
+    </section>
+
+    <!-- 6. 辭典:灰顯條目(字母分組隨英文次名) -->
+    <section class="lib-sec" id="glossary">
+      <header><h2 class="h2">辭典 A–Z <span class="zh">Glossary</span></h2></header>
+      <div class="gloss">
+        {GLOSS_GROUPS.map((grp) => (
+          [
+            <div class="letter">{grp.letter}</div>,
+            ...grp.items.map((g) => (
+              <div class="entry lib-item not-launched" data-q={g.q}>{g.nm}<span class="zh">{g.en}</span></div>
+            )),
+          ]
+        ))}
+      </div>
+    </section>
+  </div>
+</Base>
+
+<script>
+  // 檢索 = 靜態 HTML 過濾(與 en 版同款;計數後缀隨語言)
+  const q = document.getElementById("lib-q") as HTMLInputElement | null;
+  const count = document.querySelector("[data-count]");
+  const grid = document.querySelector(".jiazi");
+  const items = Array.from(document.querySelectorAll<HTMLElement>(".lib-item, .jiazi .cell"));
+  if (q && count) {
+    items.forEach((el) => { if (!el.dataset.q) el.dataset.q = (el.textContent ?? "").toLowerCase(); });
+    q.addEventListener("input", () => {
+      const v = q.value.trim().toLowerCase();
+      let n = 0;
+      grid?.classList.toggle("filtering", !!v);
+      items.forEach((el) => {
+        const hit = !v || (el.dataset.q ?? "").toLowerCase().includes(v) || (el.textContent ?? "").toLowerCase().includes(v);
+        if (hit && v) n++;
+        if (el.closest(".jiazi")) el.classList.toggle("hit", hit);
+        else {
+          el.classList.toggle("is-hidden", !hit);
+          // 神煞條目在 li 內:條目藏起後 li 的 border-bottom 會留空行,一併藏
+          el.closest("li")?.classList.toggle("is-hidden", !hit);
+        }
+      });
+      count.textContent = v ? `${n} 筆` : "";
+    });
+  }
+  const chips = Array.from(document.querySelectorAll<HTMLElement>(".subnav .chip"));
+  window.addEventListener("scroll", () => {
+    const y = window.scrollY + 160;
+    let cur = 0;
+    chips.forEach((c, i) => {
+      const s = document.querySelector(c.getAttribute("href") ?? "");
+      if (s && s.offsetTop <= y) cur = i;
+    });
+    chips.forEach((c, i) => c.classList.toggle("on", i === cur));
+  }, { passive: true });
+</script>

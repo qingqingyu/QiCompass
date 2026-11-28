@@ -69,8 +69,12 @@ const themeDark = "#171412";
 {ogImage && <meta property="og:image" content={ogImage} />}
 <meta name="twitter:card" content={ogImage ? "summary_large_image" : "summary"} />
 {ogImage && <meta name="twitter:image" content={ogImage} />}
-{/* Newsreader 400 是标题字体,唯一 preload;中文子集 swap,不 preload */}
+{/* Newsreader 400 是标题字体,en 页 LCP 元素即它,全页 preload。
+    zh-hant 页 LCP 是中文 h1(knowfate-tc 渲染,365KB):浏览器要等 CSS 解析 +
+    首次排版才知道需要该字体,S04 Lighthouse 实测 ~550ms 才起跑,preload 提前到
+    t≈0;en 页 SC 子集只点缀 kicker 字样(非 LCP),不 preload 避免抢首屏带宽。 */}
 <link rel="preload" href="/fonts/newsreader-400.woff2" as="font" type="font/woff2" crossorigin />
+{lang === "zh-hant" && <link rel="preload" href="/fonts/knowfate-tc.woff2" as="font" type="font/woff2" crossorigin />}
 {/* 尽早打上 .js 标记,滚动揭示(.js .reveal)才不会闪烁;真正的增强在打包后的 enhance.ts */}
 <script is:inline>document.documentElement.classList.add("js");</script>
 <slot />

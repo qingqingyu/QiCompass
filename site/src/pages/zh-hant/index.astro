@@ -1,12 +1,82 @@
 ---
-// 占位首頁(zh-hant):僅為 /zh-hant 路由與 hreflang 互指存在;S04 重建完整首頁。
-// S05(TASK-19)先補 #notify 錨點區:頁頭「上架通知我」按鈕落點(對稱 en 版)。
+// 首頁(zh-hant,S04,home.html 移植):與 en 版同構,文案繁中對譯。
+// 差異點:h1 em 走 :lang(zh-Hant) 去斜(中文無斜體字形,見 global.css);
+// 數字符號用繁體(壹貳叁肆伍);節氣名經 jieqiHant 映射(谷雨→穀雨等 5 個)。
+// 今日條數據 build 期生成(calendar.json,lunar_python + setSect(1))。
 import Base from "../../layouts/Base.astro";
 import Kicker from "../../components/Kicker.astro";
+import Numeral from "../../components/Numeral.astro";
+import Seal from "../../components/Seal.astro";
 import NotifyOrAppStore from "../../components/NotifyOrAppStore.astro";
+import ShichenDial from "../../components/ShichenDial.astro";
+import WuxingCycle from "../../components/WuxingCycle.astro";
+import DayMasterGrid from "../../components/DayMasterGrid.astro";
+import { todayEntry, shortDateZh, weekdayZh, lunarMonthZh, lunarDayZh, jieqiHant } from "../../data/calendar";
 import { type Lang } from "../../data/site";
 
 const lang: Lang = "zh-hant";
+const today = todayEntry();
+const todayDate = `週${weekdayZh(today.date)}, ${shortDateZh(today.date)}`;
+
+const faq = [
+  {
+    q: "排盤器是免費的嗎?",
+    a: "是。命盤、五行平衡、十神、藏干、大運與神煞全部免費,無需註冊。八章命書解讀在 iPhone App 裡。",
+  },
+  {
+    q: "出生時辰不準確也可以嗎?",
+    a: "可以。沒有時辰仍然有年、月、日三柱——包括你的日主。讀法邊界見指南《沒有出生時辰,八字還能讀什麼》。",
+  },
+  {
+    q: "為什麼我的命盤和別的網站不一樣?",
+    a: "通常是真太陽時、23:00 換日規則或時區歷史造成的。我們在每一張盤上標明用了哪條規則。",
+  },
+  {
+    q: "八字是算命嗎?",
+    a: "我們把它當作一套自省的傳統框架:描述命局裡的傾向,不作事件預測,不許諾結果。",
+  },
+  {
+    q: "我的出生資料會被保存嗎?",
+    a: "網頁排盤器畫完命盤後不保留你的出生資料。詳見隱私政策,或來信 hello@knowfate.app。",
+  },
+];
+
+// JSON-LD:WebSite + Organization + FAQPage(鏡像頁面可見 FAQ)
+const jsonld = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "觀命 KnowFate",
+    alternateName: "KnowFate",
+    url: "https://knowfate.app/zh-hant",
+    inLanguage: "zh-Hant",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "KnowFate",
+    url: "https://knowfate.app",
+    email: "hello@knowfate.app",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faq.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  },
+];
+const jsonldJson = JSON.stringify(jsonld).replace(/</g, "\\u003c");
+
+const guides = [
+  { n: "壹", h: "一步步教讀八字命盤", p: "從日主往外讀:五行、十神,再看大運。", t: "12 分鐘" },
+  { n: "貳", h: "沒有出生時辰,八字還能讀什麼", p: "八個字裡六個仍然確定——能讀什麼、不能讀什麼。", t: "7 分鐘" },
+  { n: "叁", h: "真太陽時:為什麼你的時柱可能移位", p: "經度、時區與夏令時,附一個完整算例。", t: "6 分鐘" },
+  { n: "肆", h: "日主強 vs 弱,一次講清", p: "月令、通根與生扶:強弱怎麼判,為什麼重要。", t: "9 分鐘" },
+  { n: "伍", h: "八字 vs 西方占星,到底差在哪", p: "一套曆法系統,不是一張星圖——平靜的並排對照。", t: "8 分鐘" },
+];
 ---
 
 <Base
@@ -15,24 +85,168 @@ const lang: Lang = "zh-hant";
   description="確定性八字排盤(真太陽時修正),附日主、十神、五行的繁中知識庫。不作預測,不貼標籤。"
   path="/zh-hant"
 >
-  <section class="section">
-    <div class="wrap">
-      <Kicker text="KnowFate" zh="八字排盤" dot />
-      <!-- 2026-11-27 外评修复:中文无斜体字形,italic 会触发浏览器合成倾斜(伪斜体);
-           设计稿斜体只用于英文。UA 对 <em> 默认 font-style:italic,global.css 无
-           em reset——必须显式 normal 才真正去斜,仅删 inline italic 是无效修复 -->
-      <h1 class="display ink-in" style="margin-top:18px">四柱之上,<em style="font-style:normal;color:var(--ink-muted);font-weight:300;display:block">誠實解讀。</em></h1>
-      <p class="lede ink-in d1" style="margin-top:24px">
-        八字知識站與免費排盤器正在逐頁上線。確定性排盤、真太陽時修正、措辭克制——不作預測,不貼標籤。
-      </p>
-      <hr class="brush" style="margin-top:8px" />
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={jsonldJson} />
+  </Fragment>
+
+  <!-- 1. HERO -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <Kicker text="KnowFate" zh="八字排盤" dot class="ink-in" />
+        <h1 class="display ink-in d1" style="margin-top:18px">免費八字排盤<em>——四柱,誠實解讀。</em></h1>
+        <p class="lede ink-in d2">輸入出生日期、時辰與地點。同一輸入永遠得到同一張盤——經真太陽時修正——並附上每個部分的白話釋義。不作預測,不貼標籤。</p>
+        <div class="hero-cta ink-in d3" id="notify">
+          <NotifyOrAppStore {lang} source="home-notify" />
+          <a class="btn btn-ghost" href="/zh-hant/library">瀏覽知識庫</a>
+        </div>
+      </div>
+      <div class="dial-col">
+        <ShichenDial {lang} />
+      </div>
     </div>
   </section>
 
-  <section class="section-tight" id="notify" style="padding-top:0">
-    <div class="wrap" style="max-width:640px">
-      <h2 class="h3" style="margin-bottom:18px">搶先一步知道上線</h2>
-      <NotifyOrAppStore {lang} source="home-notify" />
+  <!-- 2. 今日條(build 期生成;一期無 day-pillar 鏈接) -->
+  <section class="today" aria-label="今日干支曆">
+    <div class="wrap">
+      <div><span class="kicker">今日</span><div class="num" style="font-size:15px;margin-top:4px">{todayDate}</div></div>
+      <div class="today-gz">
+        <span class="p">{today.y}<small>年</small></span>
+        <span class="p">{today.m}<small>月</small></span>
+        <span class="p">{today.d}<small>日</small></span>
+        <span class="caption">農曆{lunarMonthZh(today.lunarM)}{lunarDayZh(today.lunarD)} · 節氣 <span class="zh">{jieqiHant(today.jieqi)}</span> → <span class="zh">{jieqiHant(today.nextJieqi)}</span> {shortDateZh(today.nextDate)}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. 什麼是八字 -->
+  <section class="section" id="what-is-bazi">
+    <div class="wrap two">
+      <div class="reveal">
+        <div style="display:flex;gap:14px;align-items:center;margin-bottom:24px"><Numeral char="壹" /><span class="kicker">基礎</span></div>
+        <h2 class="h2">什麼是八字?</h2>
+        <div class="answer">
+          <p>八字把出生的那一刻寫成四柱——年、月、日、時。每柱由一個天干與一個地支組成,合為八個字,顯示五行在你命局中的平衡。</p>
+        </div>
+        <p class="muted">日柱的天干是你的<span class="term" data-title="日主" data-zh="日主" data-def="日柱的天干。命盤中其餘七字都相對它而讀。">日主</span>——整張盤都以它為參照點。其餘七字與它的關係,歸為<span class="term" data-title="十神" data-zh="十神" data-def="日主與其餘各干之間的十種關係類型:比肩、食神、正官等。">十神</span>。</p>
+      </div>
+      <figure class="reveal" style="margin:0">
+        <div class="four">
+          <div><div class="lbl">年柱</div><span class="g"><span class="el-water">壬</span><br><span class="el-metal">申</span></span><div class="sense">根源與家庭背景</div></div>
+          <div><div class="lbl">月柱</div><span class="g"><span class="el-wood">甲</span><br><span class="el-earth">辰</span></span><div class="sense">成長環境與工作場域</div></div>
+          <div class="dm"><div class="lbl">日柱</div><span class="g"><span class="el-wood">甲</span><br><span class="el-water">子</span></span><div class="sense">你自己(日主)與親密關係</div></div>
+          <div><div class="lbl">時柱</div><span class="g"><span class="el-earth">己</span><br><span class="el-fire">巳</span></span><div class="sense">內在志向與晚年</div></div>
+        </div>
+        <figcaption class="caption" style="margin-top:14px">示例命盤:1992 年 4 月 18 日 09:30,北京。日主 <span class="zh">甲</span> 木。顏色隨五行。</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- 4. 三承諾 -->
+  <section class="section-tight" aria-labelledby="promise-h">
+    <div class="wrap">
+      <h2 id="promise-h" class="sr-only">這個排盤器如何工作</h2>
+      <div class="promises reveal">
+        <div><span class="zh">同盤 · 壹</span><h3 class="h3">同一輸入,同一命盤</h3><p>每一張盤都由同一個確定性引擎計算。問兩次,得到同樣的八個字——與同樣的解讀。</p></div>
+        <div><span class="zh">真時 · 貳</span><h3 class="h3">真太陽時</h3><p>鐘錶時間按出生地的經度修正,出生在時辰邊界附近也能落對柱。</p></div>
+        <div><span class="zh">不玄 · 叁</span><h3 class="h3">不算命</h3><p>我們描述命局裡的傾向。不許諾結果,不賣化解,不給你蓋一個固定的「型」。</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. 十日主(一期非鏈接灰顯卡) -->
+  <section class="section" id="day-masters">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="vmark" aria-hidden="true">十天干</span>
+        <div>
+          <div style="display:flex;gap:14px;align-items:center;margin-bottom:20px"><Numeral char="貳" /><span class="kicker">知識庫</span></div>
+          <h2 class="h2">十天干日主</h2>
+          <p class="lede muted" style="margin-top:14px">日主是你出生那天的天干——其餘七字都相對它而讀。</p>
+        </div>
+      </div>
+      <DayMasterGrid {lang} />
+    </div>
+  </section>
+
+  <!-- 6. 五行 -->
+  <section class="section" id="five-elements" style="padding-top:0">
+    <div class="wrap">
+      <div style="display:flex;gap:14px;align-items:center;margin-bottom:32px"><Numeral char="叁" /><span class="kicker">五行</span></div>
+      <WuxingCycle {lang} />
+    </div>
+  </section>
+
+  <!-- 7. 指南(一期非鏈接灰顯行) -->
+  <section class="section" id="guides" style="padding-top:0">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="vmark" aria-hidden="true">讀盤指南</span>
+        <div>
+          <div style="display:flex;gap:14px;align-items:center;margin-bottom:20px"><Numeral char="肆" /><span class="kicker">指南</span></div>
+          <h2 class="h2">讀你自己的命盤</h2>
+        </div>
+      </div>
+      <ol class="guides reveal">
+        {guides.map((g) => (
+          <li class="not-launched">
+            <div class="row">
+              <span class="n">{g.n}</span>
+              <div><h3>{g.h}</h3><p>{g.p}</p></div>
+              <span class="t">{g.t}</span>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <!-- 8. APP -->
+  <section class="section app" id="app">
+    <div class="wrap app-grid">
+      <div class="reveal">
+        <div style="display:flex;gap:14px;align-items:center;margin-bottom:20px"><Seal char="解" size={30} stamp /><span class="kicker">KnowFate for iPhone</span></div>
+        <h2 class="h2">一張盤不夠,就把它讀成一本書。</h2>
+        <p class="lede muted" style="margin-top:16px">App 把你的命盤寫成八章,專為你而寫。規則做判斷,AI 只找措辭。前兩章免費。</p>
+        <ul class="chapters">
+          <li><Numeral char="壹" />人生主線——這張盤被什麼驅動<span class="free">免費</span></li>
+          <li><Numeral char="貳" />天賦本事——以及悄悄消耗你的東西<span class="free">免費</span></li>
+          <li><Numeral char="叁" locked />高配 vs 低配<span class="paid">付費</span></li>
+          <li><Numeral char="肆" locked />使用說明<span class="paid">付費</span></li>
+          <li style="color:var(--ink-muted)"><Numeral char="伍" locked />…還有四章,外加每日宜忌與兩人合盤</li>
+        </ul>
+        <NotifyOrAppStore {lang} source="app-notify" />
+      </div>
+      <div class="reveal" aria-hidden="true">
+        <div class="phone"><div class="screen">
+          <div class="kicker">觀命</div>
+          <div class="scr-p"><span><span class="el-water">壬</span><br><span class="el-metal">申</span><small>偏印</small></span><span><span class="el-wood">甲</span><br><span class="el-earth">辰</span><small>比肩</small></span><span class="d"><span class="el-wood">甲</span><br><span class="el-water">子</span><small style="color:#A83226">日主</small></span><span><span class="el-earth">己</span><br><span class="el-fire">巳</span><small>正財</small></span></div>
+          <div class="scr-line"></div>
+          <div class="scr-anchor">一棵春天的樹,根扎在水裡,枝葉伸向火光。</div>
+          <div class="scr-book">命書 <small>0 / 8</small></div>
+          <div class="scr-ch"><Numeral char="壹" />人生主線<span class="chev" /></div>
+          <div class="scr-ch"><Numeral char="貳" />天賦本事<span class="chev" /></div>
+          <div class="scr-ch"><Numeral char="叁" locked />高配 vs 低配<span class="paid">付費</span></div>
+          <div class="scr-ch"><Numeral char="肆" locked />使用說明<span class="paid">付費</span></div>
+          <div class="scr-cta">開 卷</div>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. FAQ -->
+  <section class="section" id="faq">
+    <div class="wrap" style="max-width:880px">
+      <div style="display:flex;gap:14px;align-items:center;margin-bottom:20px"><Numeral char="伍" /><span class="kicker">常見問題</span></div>
+      <h2 class="h2" style="margin-bottom:36px">常見問題</h2>
+      <div class="faq">
+        <details open><summary><Numeral char="壹" />{faq[0].q}</summary><div class="ans">{faq[0].a}</div></details>
+        <details><summary><Numeral char="貳" />{faq[1].q}</summary><div class="ans">{faq[1].a}</div></details>
+        <details><summary><Numeral char="叁" />{faq[2].q}</summary><div class="ans">{faq[2].a}</div></details>
+        <details><summary><Numeral char="肆" />{faq[3].q}</summary><div class="ans">{faq[3].a}</div></details>
+        <details><summary><Numeral char="伍" />{faq[4].q}</summary><div class="ans">網頁排盤器畫完命盤後不保留你的出生資料。詳見<a href="/zh-hant/privacy">隱私政策</a>,或來信 <a href="mailto:hello@knowfate.app">hello@knowfate.app</a>。</div></details>
+      </div>
     </div>
   </section>
 </Base>

@@ -1,0 +1,48 @@
+---
+// 首页十天干日主卡(S04,home.html 移植)。
+// 一期形态:day-master/* 目标页未上线 → div 非链接 + not-launched 灰显;
+// hover/聚焦的 blur 释义浮现是设计动作,保留(tabindex=0 保键盘可达)。
+import { type Lang } from "../data/site";
+
+const { lang }: { lang: Lang } = Astro.props;
+const tc = lang === "zh-hant";
+
+// en 文案逐字设计稿;zh-hant 对译
+const DMS = tc
+  ? [
+      { ch: "甲", el: "wood", yy: "陽", nm: "甲木", im: "參天大樹", more: "正直穩健,朝明確的方向生長。" },
+      { ch: "乙", el: "wood", yy: "陰", nm: "乙木", im: "攀緣藤蔓", more: "靈活圓融,繞過障礙找到路。" },
+      { ch: "丙", el: "fire", yy: "陽", nm: "丙火", im: "太陽", more: "開朗溫暖,不求回報地發光。" },
+      { ch: "丁", el: "fire", yy: "陰", nm: "丁火", im: "燈燭", more: "專注細心,照亮身邊的一小片。" },
+      { ch: "戊", el: "earth", yy: "陽", nm: "戊土", im: "高山", more: "穩重厚實,動得慢卻撼不動。" },
+      { ch: "己", el: "earth", yy: "陰", nm: "己土", im: "田園土", more: "養分充足,讓萬物生長。" },
+      { ch: "庚", el: "metal", yy: "陽", nm: "庚金", im: "礦石", more: "直接果斷,越壓煉越利。" },
+      { ch: "辛", el: "metal", yy: "陰", nm: "辛金", im: "珠玉", more: "精細講究,在意品質與細節。" },
+      { ch: "壬", el: "water", yy: "陽", nm: "壬水", im: "江河", more: "遼闊奔湧,載著想法走很遠。" },
+      { ch: "癸", el: "water", yy: "陰", nm: "癸水", im: "雨水", more: "安靜細膩,能到別人到不了的地方。" },
+    ]
+  : [
+      { ch: "甲", el: "wood", yy: "YANG", nm: "Jia Wood", im: "The tall tree", more: "Upright, steady, grows toward a clear direction." },
+      { ch: "乙", el: "wood", yy: "YIN", nm: "Yi Wood", im: "The climbing vine", more: "Flexible, social, finds a way around obstacles." },
+      { ch: "丙", el: "fire", yy: "YANG", nm: "Bing Fire", im: "The sun", more: "Open, warm, visible — gives light without asking." },
+      { ch: "丁", el: "fire", yy: "YIN", nm: "Ding Fire", im: "The lamp", more: "Focused, attentive, lights what is close at hand." },
+      { ch: "戊", el: "earth", yy: "YANG", nm: "Wu Earth", im: "The mountain", more: "Stable, protective, slow to move and hard to shake." },
+      { ch: "己", el: "earth", yy: "YIN", nm: "Ji Earth", im: "The garden soil", more: "Nurturing, practical, makes things grow." },
+      { ch: "庚", el: "metal", yy: "YANG", nm: "Geng Metal", im: "The raw ore", more: "Direct, decisive, sharpened by pressure." },
+      { ch: "辛", el: "metal", yy: "YIN", nm: "Xin Metal", im: "The jewel", more: "Refined, exacting, values quality and detail." },
+      { ch: "壬", el: "water", yy: "YANG", nm: "Ren Water", im: "The river", more: "Expansive, restless, carries ideas a long way." },
+      { ch: "癸", el: "water", yy: "YIN", nm: "Gui Water", im: "The rain", more: "Perceptive, quiet, reaches places others can't." },
+    ];
+---
+
+<div class="dms reveal">
+  {DMS.map((d) => (
+    <div class="dm not-launched" tabindex="0">
+      <span class="yy">{d.yy}</span>
+      <span class={`ch zh el-${d.el}`}>{d.ch}</span>
+      <span class="nm">{d.nm}</span>
+      <span class="im">{d.im}</span>
+      <span class="more">{d.more}</span>
+    </div>
+  ))}
+</div>

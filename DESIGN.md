@@ -123,7 +123,7 @@
 
 | 名称 | 参数 | 用途 |
 |---|---|---|
-| ink-in | opacity 0→1 + blur 7→0,1.2-1.6s easeOut | 墨圆 / 大标题入场 |
+| ink-in | blur 7→0,1.2-1.6s easeOut(2026-11-28 拍板去掉 opacity 淡入——`opacity:0` 挡 LCP paint,官网首页模拟 LCP 3.8s→1.1s;墨晕感不变,文字第一帧即模糊可见) | 墨圆 / 大标题入场 |
 | stamp | scale 1.9→1,spring 回弹,0.5s | 印章落定(SealStamp) |
 | breathe | opacity 1↔0.92,7-8s 循环 | 常驻元素微呼吸(墨圆/水印) |
 
