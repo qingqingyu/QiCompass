@@ -176,6 +176,47 @@
     document.body.appendChild(pop);
   }
 
+  /* ---- TelemetryDeck 轻量事件(S06)----
+     SDK 由 BaseHead 按 config.mjs telemetry.appId 条件加载;页面浏览信号 SDK
+     自动上报,这里只补两类转化事件:CTA 点击(带槽位)与邮箱提交(带 source)。
+     appId 为空 / SDK 未加载 / 被拦截器拦下时 tdSignal 静默不发——统计是增强,
+     不是页面功能,关掉不该有任何感知。全局名以 TelemetryDeck 官方 websdk 为准,
+     注册 appId 后真机核验一次 signal 是否真的到达(HITL,见 slice doc)。 */
+  function tdSignal(name: string, data?: Record<string, string>): void {
+    type TdGlobal = { signal?: (name: string, data?: Record<string, string>) => void };
+    const td = (window as unknown as { TelemetryDeck?: TdGlobal; td?: TdGlobal });
+    const signal = td.TelemetryDeck?.signal ?? td.td?.signal;
+    if (typeof signal === "function") signal(name, data ?? {});
+  }
+
+  function ctaSlot(el: Element | null): string {
+    if (!el) return "other";
+    if (el.closest(".cta-inline")) return "inline";
+    if (el.closest(".cta-panel")) return "panel";
+    if (el.closest(".sticky-cta")) return "sticky";
+    if (el.closest(".hero-cta")) return "hero";
+    return "other";
+  }
+
+  document.addEventListener("click", function (e) {
+    const target = e.target as Element | null;
+    const cta = target?.closest("a.btn, .sticky-cta .go, a.appstore");
+    if (!cta) return;
+    const href = cta.getAttribute("href") ?? "";
+    tdSignal("ctaClick", {
+      slot: ctaSlot(cta),
+      // 目标页路径(href 去 query;ct 归因参数是 live 态二期排盘器落点的事,见 S06 遗留)
+      to: href.split("?")[0],
+    });
+  });
+
+  document.addEventListener("submit", function (e) {
+    const form = e.target as Element | null;
+    if (!form?.matches("form.notify")) return;
+    const source = form.querySelector<HTMLInputElement>('input[name="source"]')?.value ?? "";
+    tdSignal("notifySubmit", { source });
+  });
+
   /* ---- mobile sticky CTA (S03 规格四条) ----
      sessionStorage 是全局规则里唯一认可的 try/catch 例外:隐私模式会抛,
      关不掉吸底条不是错误路径,吞掉并按「未关闭」处理。 */

@@ -1,0 +1,25 @@
+# KnowFate
+
+> KnowFate (Chinese name 觀命 / 观命) is an honest BaZi (Four Pillars of Destiny, 八字) site: deterministic chart calculation plus a plain-language knowledge library of Day Masters, Ten Gods, the Five Elements, symbolic stars and the 60 day pillars. No predictions, no fortune-telling, no remedies to sell.
+
+## Method
+
+- Charts are computed by a deterministic engine, not a language model: True Solar Time correction, a 23:00 day boundary, month pillars set by solar terms. The same birth data always yields the same chart.
+- Favorable/unfavorable elements (喜忌) come from a fixed rule engine (support-and-suppress plus climate adjustment, with special patterns left open rather than guessed).
+- Symbolic stars (神煞) are looked up from a fixed list of 20, single-sourced from Sanming Tonghui (《三命通会》).
+- A language model only phrases the wording of interpretations; it never judges chart outcomes, and hard "structure" classifications are deliberately avoided.
+- English-Chinese terminology is anchored to one translation table shared with the app and this site's glossary.
+- Content is for entertainment and self-reflection only.
+
+## Library overviews
+
+- [The BaZi Library (all terms)](https://knowfate.app/en/library): index of every term explained on the site
+- [Day Masters overview](https://knowfate.app/en/library): the ten Day Masters (Jia Wood through Gui Water)
+- [Ten Gods overview](https://knowfate.app/en/library): the ten relationship types read against the Day Master
+- [Five Elements overview](https://knowfate.app/en/library): Wood, Fire, Earth, Metal, Water and their generating/overcoming cycle
+- [About and method](https://knowfate.app/en/about): how charts are cast and read
+- [BaZi calculator](https://knowfate.app/en/bazi-calculator): free four-pillars chart with True Solar Time
+
+## Traditional Chinese pages
+
+The full library is also published in Traditional Chinese: [觀命知識庫](https://knowfate.app/zh-hant/library).

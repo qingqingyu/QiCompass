@@ -14,7 +14,7 @@ import ShichenDial from "../../components/ShichenDial.astro";
 import WuxingCycle from "../../components/WuxingCycle.astro";
 import DayMasterGrid from "../../components/DayMasterGrid.astro";
 import { todayEntry, shortDateEn, longDateEn, weekdayEn, lunarMonthEn, lunarDayEn } from "../../data/calendar";
-import { type Lang } from "../../data/site";
+import { SITE, ogPath, type Lang } from "../../data/site";
 
 const lang: Lang = "en";
 const today = todayEntry();
@@ -87,6 +87,7 @@ const guides = [
   title="BaZi (Four Pillars of Destiny), read honestly"
   description="Deterministic BaZi charts with True Solar Time, plus a plain-English library of Day Masters, Ten Gods and the Five Elements. No predictions, no labels."
   path="/en"
+  ogImage={SITE.domain + ogPath("home", lang)}
 >
   <Fragment slot="head">
     <script type="application/ld+json" set:html={jsonldJson} />

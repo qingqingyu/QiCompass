@@ -6,7 +6,7 @@
 import Base from "../../layouts/Base.astro";
 import FaqBlock from "../../components/FaqBlock.astro";
 import NotifyOrAppStore from "../../components/NotifyOrAppStore.astro";
-import { SITE, type Lang } from "../../data/site";
+import { SITE, ogPath, type Lang } from "../../data/site";
 
 const lang: Lang = "en";
 const path = "/en/bazi-calculator";
@@ -53,9 +53,10 @@ const jsonldJson = JSON.stringify(jsonld).replace(/</g, "\\u003c");
 
 <Base
   {lang}
-  title="BaZi Calculator — free Four Pillars chart with True Solar Time"
-  description="A free BaZi calculator is opening soon: four pillars, Day Master, Ten Gods, Five Elements balance, luck pillars and symbolic stars — corrected to True Solar Time. Leave an email to hear the day it opens."
+  title="BaZi Calculator — free Four Pillars, True Solar Time"
+  description="A free BaZi calculator is coming: four pillars, Day Master, Ten Gods, Five Elements, luck cycles — all on True Solar Time. Leave an email to hear opening day."
   path={path}
+  ogImage={SITE.domain + ogPath("calculator", lang)}
 >
   <Fragment slot="head">
     <script type="application/ld+json" set:html={jsonldJson} />

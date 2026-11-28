@@ -2,6 +2,7 @@
 // 隱私政策頁(zh-hant;對稱 en 版,S05)。事實源 = tmp/app-store-launch/privacy-policy.md
 // v0.3(中文定稿稿)的繁體版 + 兩處增補(Buttondown 訂閱/伺服器日誌披露)。
 import Base from "../../layouts/Base.astro";
+import { SITE, ogPath } from "../../data/site";
 
 const lang = "zh-hant" as const;
 const path = "/zh-hant/privacy";
@@ -10,8 +11,9 @@ const path = "/zh-hant/privacy";
 <Base
   {lang}
   title="隱私政策"
-  description="觀命收集什麼、去了哪裡、怎麼存、怎麼刪,以及我們承諾不做的事。不做廣告追蹤、不出售資料、不建用戶畫像。"
+  description="觀命收集什麼、去了哪裡、怎麼存、怎麼刪,以及我們承諾不做的事:不做廣告追蹤、不出售資料、不建立用戶畫像;匿名統計不設 Cookie。"
   path={path}
+  ogImage={SITE.domain + ogPath("page", lang)}
 >
   <div class="wrap">
     <ol class="crumbs">
@@ -45,7 +47,7 @@ const path = "/zh-hant/privacy";
         <li><strong>每日運勢插畫(按服務配置啟用)</strong>:啟用時由第三方圖像生成服務產出,傳送內容為當日干支、十神等排盤派生意象經固定查表得到的描述文案,不含出生時間、性別或出生地原文。</li>
         <li><strong>快取</strong>:解讀結果與其內容雜湊存在伺服器快取中,用於再次開啟時快速顯示。<strong>快取無過期時間,持久保留</strong>,刪除方式見 §4。該雜湊不直接包含你的出生資訊,但在出生地城市庫已知的假設下不排除被窮舉比對還原的可能(組合空間約千億級)。</li>
         <li><strong>雲同步(僅登入使用者)</strong>:登入後,命盤檔案透過同步服務上傳到我們的伺服器,用於在新裝置恢復;登出後新資料不再上傳。</li>
-        <li><strong>匿名統計</strong>:我們接入 TelemetryDeck 收集匿名使用統計(事件名與列舉參數,隨機會話 ID),<strong>不包含</strong>出生資訊、解讀正文或問事內容,不跨 App 追蹤。</li>
+        <li><strong>匿名統計</strong>:我們接入 TelemetryDeck 收集匿名使用統計(事件名與列舉參數,隨機會話 ID),<strong>不包含</strong>出生資訊、解讀正文或問事內容,不跨 App 追蹤。本網站使用同一家供應商的無 Cookie 網站統計——頁面瀏覽、點了哪個連結、通知表單是否送出;不設任何 Cookie。</li>
         <li><strong>官網郵件訂閱</strong>:本官網的「上架通知」表單收集你輸入的信箱位址,僅用於寄送上線通知這一封信。信箱由我們的郵件服務商 Buttondown 代為管理,可隨時退訂,退訂後位址即從訂閱清單移除。</li>
         <li><strong>伺服器運行日誌</strong>:伺服器保留短期存取日誌,含請求時間與原始 IP,按大小自動輪換;僅用於排障與防濫用,不與你的帳號關聯。</li>
         <li><strong>本機資料</strong>:命盤檔案、解讀記錄與問事會話簿儲存在你的裝置本地。</li>

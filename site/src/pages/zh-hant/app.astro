@@ -4,6 +4,7 @@
 import Base from "../../layouts/Base.astro";
 import Numeral from "../../components/Numeral.astro";
 import NotifyOrAppStore from "../../components/NotifyOrAppStore.astro";
+import { SITE, ogPath } from "../../data/site";
 
 const lang = "zh-hant" as const;
 const path = "/zh-hant/app";
@@ -25,6 +26,7 @@ const chapters = [
   title="KnowFate · 觀命——把你的八字命盤當一本書讀"
   description="KnowFate · 觀命 把八字命盤當一本書讀:捌章,從人生主線到未來九十天的實戰手冊。命盤由確定性引擎排出,措辭有分寸。"
   path={path}
+  ogImage={SITE.domain + ogPath("page", lang)}
 >
   <div class="wrap">
     <ol class="crumbs">

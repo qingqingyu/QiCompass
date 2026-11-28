@@ -5,7 +5,7 @@
 import Base from "../../layouts/Base.astro";
 import Numeral from "../../components/Numeral.astro";
 import NotifyOrAppStore from "../../components/NotifyOrAppStore.astro";
-import { type Lang } from "../../data/site";
+import { SITE, ogPath, type Lang } from "../../data/site";
 
 const lang: Lang = "en";
 const path = "/en/app";
@@ -24,9 +24,10 @@ const chapters = [
 
 <Base
   {lang}
-  title="KnowFate - Chinese Astrology — your BaZi chart, read as a book"
-  description="KnowFate - Chinese Astrology reads your BaZi chart as a book in eight chapters — from your main thread to a field manual for the next 90 days. Deterministic charts, careful words."
+  title="KnowFate Chinese Astrology — your BaZi chart, read as a book"
+  description="KnowFate reads your BaZi chart as a book in eight chapters — from your main thread to a field manual for the next 90 days. Deterministic charts, careful words."
   path={path}
+  ogImage={SITE.domain + ogPath("page", lang)}
 >
   <div class="wrap">
     <ol class="crumbs">

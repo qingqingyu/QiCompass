@@ -4,6 +4,7 @@
 // 原始 IP 披露——2026-11-27 拍板走披露不动日志)。中/繁版对称维护于同目录。
 // 「玄机问道」「QiCompass」一律不出现(HITL:定稿须用户过目后方可视为 published)。
 import Base from "../../layouts/Base.astro";
+import { SITE, ogPath } from "../../data/site";
 
 const lang = "en" as const;
 const path = "/en/privacy";
@@ -14,6 +15,7 @@ const path = "/en/privacy";
   title="Privacy Policy"
   description="What KnowFate collects, where it goes, how it is stored and deleted — and what we promise not to do. No ad tracking, no data sales, no profiling."
   path={path}
+  ogImage={SITE.domain + ogPath("page", lang)}
 >
   <div class="wrap">
     <ol class="crumbs">
@@ -47,7 +49,7 @@ const path = "/en/privacy";
         <li><strong>Daily-fortune artwork (when enabled by configuration)</strong> — produced by a third-party image service from day-pillar and Ten-God imagery passed through a fixed lookup; it never includes birth time, sex, or birthplace as entered.</li>
         <li><strong>Cache</strong> — readings are stored in a server cache keyed by their content hash so they re-open instantly. <strong>The cache has no expiry and is kept indefinitely</strong>; deletion is described in §4. The hash does not directly contain your birth information, but if the birthplace were known to be one of the cities in our database, exhaustive matching cannot be fully ruled out (a space on the order of hundreds of billions).</li>
         <li><strong>Cloud sync (signed-in users only)</strong> — chart archives are uploaded to our server so a new device can restore them; after signing out, new data is not uploaded.</li>
-        <li><strong>Anonymous statistics</strong> — we use TelemetryDeck for anonymous usage statistics (event names and enum parameters, random session IDs). It never contains birth information, reading text, or questions, and does not track across apps.</li>
+        <li><strong>Anonymous statistics</strong> — we use TelemetryDeck for anonymous usage statistics (event names and enum parameters, random session IDs). It never contains birth information, reading text, or questions, and does not track across apps. This website uses the same provider's cookieless web analytics — page views, which link was tapped, and mailing-list form submissions; no cookies are set.</li>
         <li><strong>Website mailing list</strong> — the launch-notification form on this website collects the email address you enter, used solely to send the one launch notice. It is handled by Buttondown, our newsletter provider; you can unsubscribe at any time, and unsubscribing removes the address from the list.</li>
         <li><strong>Server operation logs</strong> — the server keeps short-lived access logs that contain request time and the raw IP address, rotated automatically by size. They are used only for troubleshooting and abuse prevention and are not linked to your account.</li>
         <li><strong>On-device data</strong> — chart archives, reading history and ask-session records live on your device.</li>

@@ -3,7 +3,8 @@
 import BaseHead from "../components/BaseHead.astro";
 import Header from "../components/Header.astro";
 import Footer from "../components/Footer.astro";
-import { UI, type Lang } from "../data/site";
+import { SITE, UI, type Lang } from "../data/site";
+import { CONFIG } from "../config.mjs";
 import "../styles/global.css";
 
 interface Props {
@@ -23,12 +24,48 @@ interface Props {
 const { lang, title, description, path, noindex, nofollow, ogImage, ogType, articleModified } = Astro.props;
 const t = UI[lang];
 const htmlLang = lang === "en" ? "en" : "zh-Hant";
+
+// S06 结构化数据:全站 @graph(Organization + WebSite);App 上架后首页
+// 追加 MobileApplication(规格 §6:name 用 App Store 英文名)。
+// appStoreUrl 为空(prelaunch)时该节点不输出,翻 live 配 URL 即自动出现。
+const isHome = path.replace(/\/+$/, "") === `/${lang}`;
+const graph: object[] = [
+  {
+    "@type": "Organization",
+    "@id": `${SITE.domain}/#org`,
+    name: "KnowFate",
+    alternateName: ["觀命", "观命"],
+    url: SITE.domain,
+  },
+  {
+    "@type": "WebSite",
+    "@id": `${SITE.domain}/#website`,
+    url: SITE.domain,
+    name: "KnowFate",
+    inLanguage: ["en", "zh-Hant"],
+    publisher: { "@id": `${SITE.domain}/#org` },
+  },
+];
+if (CONFIG.appStoreUrl && isHome) {
+  graph.push({
+    "@type": "MobileApplication",
+    name: "KnowFate - Chinese Astrology",
+    operatingSystem: "iOS",
+    applicationCategory: "LifestyleApplication",
+    url: CONFIG.appStoreUrl,
+    offers: { "@type": "Offer", price: "0", priceCurrency: "USD" },
+  });
+}
+// JSON-LD 里用户可见字符串(站名/文章题)可能含 <;set:html 直插不转义,
+// </script> 逃逸 = 注入面。与页面级 jsonldJson 同口径: stringify 后把 < 换 <
+const siteJsonLd = JSON.stringify({ "@context": "https://schema.org", "@graph": graph }).replace(/</g, "\\u003c");
 ---
 
 <!doctype html>
 <html lang={htmlLang}>
   <head>
     <BaseHead {title} {description} {path} {lang} {noindex} {nofollow} {ogImage} {ogType} {articleModified}>
+      <script type="application/ld+json" set:html={siteJsonLd} />
       <slot name="head" />
     </BaseHead>
   </head>

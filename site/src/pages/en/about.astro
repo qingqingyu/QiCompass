@@ -2,7 +2,7 @@
 // 关于与方法页(S05 站务页,E-E-A-T 核心):确定性引擎 / 真太阳时 / 23:00 换日 /
 // 三命通会查表 / AI 起草 + 引擎核对 + 人工过目。只陈述、不玄夸。
 import Base from "../../layouts/Base.astro";
-import { type Lang } from "../../data/site";
+import { SITE, ogPath, type Lang } from "../../data/site";
 
 const lang: Lang = "en";
 const path = "/en/about";
@@ -41,8 +41,9 @@ const honesty = [
 <Base
   {lang}
   title="About & method — how KnowFate casts and reads a BaZi chart"
-  description="How KnowFate - Chinese Astrology works: a deterministic chart engine with True Solar Time and the 23:00 day boundary, symbolic stars from Sanming Tonghui, and readings where the language model phrases but never judges."
+  description="How KnowFate works: a deterministic engine with True Solar Time and the 23:00 day boundary, Sanming Tonghui stars, and AI that phrases but never judges."
   path={path}
+  ogImage={SITE.domain + ogPath("page", lang)}
 >
   <div class="wrap">
     <ol class="crumbs">

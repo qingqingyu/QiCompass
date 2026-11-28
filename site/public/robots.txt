@@ -1,0 +1,16 @@
+# knowfate.app — S06
+# Birth-parameter URLs (?d= birth date, ?t= birth time, ?c= city) are personal
+# chart inputs, never content: excluded from crawling here and from indexing
+# via client-side noindex,follow (pages canonical to the clean URL).
+User-agent: *
+Allow: /
+Disallow: /*?d=
+Disallow: /*?t=
+Disallow: /*?c=
+# Same params in non-first position (?utm=…&d=…): prefix already matched above
+# only when the param leads the query string.
+Disallow: /*&d=
+Disallow: /*&t=
+Disallow: /*&c=
+
+Sitemap: https://knowfate.app/sitemap-index.xml

@@ -3,6 +3,7 @@
 // theme-color 双值 / robots / JSON-LD 插槽 / 字体 preload。
 // canonical 与 hreflang 一律无尾斜杠(规格 README §3;设计稿 home.html 的 `/en/` 带斜杠以规格为准)。
 import { SITE, stripLang, langPath, type Lang } from "../data/site";
+import { CONFIG } from "../config.mjs";
 
 interface Props {
   title: string;
@@ -54,6 +55,27 @@ const themeDark = "#171412";
 <link rel="alternate" hreflang="en" href={altEn} />
 <link rel="alternate" hreflang="zh-Hant" href={altHant} />
 <link rel="alternate" hreflang="x-default" href={altEn} />
+{/* S06 规格第 3 条:带出生参数的 URL(?d= 日期 / ?t= 时辰 / ?c= 城市)
+    输出 noindex,follow + canonical 指向干净 URL(上面 canonical 渲染的
+    就是干净 URL)。二期排盘器才产生这类地址,一期先把机制备好:客户端
+    检测到参数即注入 robots meta;页面自身已有 robots meta(如 noindex
+    示例页)则不覆盖。检测走 URLSearchParams(2026-11-28 review:原 regex
+    [?&](d|t|c)= 已覆盖 ?d= 与 &d= 两种位置,漏的是百分号编码键——%64=
+    这种形态 regex 不认,URLSearchParams 解码后 has("d") 命中)。注释与
+    文案只用英文——本内联脚本会随 en 页面进产物,中文字面会被字体 SC 腿
+    (扫 dist)当正文用字收进子集。 */}
+<script is:inline>
+(function () {
+  if (typeof URLSearchParams !== "function") return;
+  var q = new URLSearchParams(location.search);
+  if (!(q.has("d") || q.has("t") || q.has("c"))) return;
+  if (document.querySelector('meta[name="robots"]')) return;
+  var m = document.createElement("meta");
+  m.name = "robots";
+  m.setAttribute("content", "noindex, follow");
+  document.head.appendChild(m);
+})();
+</script>
 <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 <meta name="theme-color" content={themeLight} media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content={themeDark} media="(prefers-color-scheme: dark)" />
@@ -77,4 +99,10 @@ const themeDark = "#171412";
 {lang === "zh-hant" && <link rel="preload" href="/fonts/knowfate-tc.woff2" as="font" type="font/woff2" crossorigin />}
 {/* 尽早打上 .js 标记,滚动揭示(.js .reveal)才不会闪烁;真正的增强在打包后的 enhance.ts */}
 <script is:inline>document.documentElement.classList.add("js");</script>
+{/* S06 TelemetryDeck Web SDK(无 cookie):appId 空占位时不输出标签,
+    页面零第三方外联;注册后只填 config.mjs 一处。自定义事件(CTA 点击/
+    邮箱提交)在 enhance.ts 里经 tdSignal 发,SDK 未加载时静默不发。 */}
+{CONFIG.telemetry.appId && (
+  <script is:inline async src="https://cdn.telemetrydeck.com/websdk/telemetrydeck.min.js" data-app-id={CONFIG.telemetry.appId}></script>
+)}
 <slot />

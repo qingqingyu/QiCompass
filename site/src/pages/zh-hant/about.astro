@@ -1,6 +1,7 @@
 ---
 // 關於與方法頁(zh-hant;對稱 en 版,S05,E-E-A-T 核心)。
 import Base from "../../layouts/Base.astro";
+import { SITE, ogPath } from "../../data/site";
 
 const lang = "zh-hant" as const;
 const path = "/zh-hant/about";
@@ -41,6 +42,7 @@ const honesty = [
   title="關於與方法——怎麼排盤與解讀"
   description="KnowFate · 觀命 的方法:確定性排盤引擎、真太陽時修正、23:00 換日、《三命通會》神煞查表;解讀由 AI 起草、引擎逐條核對、人工過目後出稿。"
   path={path}
+  ogImage={SITE.domain + ogPath("page", lang)}
 >
   <div class="wrap">
     <ol class="crumbs">

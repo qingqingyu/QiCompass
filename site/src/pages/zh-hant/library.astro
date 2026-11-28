@@ -6,7 +6,7 @@
 import Base from "../../layouts/Base.astro";
 import JiaziGrid from "../../components/JiaziGrid.astro";
 import { todayEntry } from "../../data/calendar";
-import { type Lang } from "../../data/site";
+import { SITE, ogPath, type Lang } from "../../data/site";
 
 const lang: Lang = "zh-hant";
 const todayGz = todayEntry().d;
@@ -132,8 +132,9 @@ const SUBNAV = [
 <Base
   {lang}
   title="八字知識庫——日主、十神、五行、神煞"
-  description="命盤裡的每一個字與每一個術語,平實解釋:十天干日主、十神、五行、20 顆神煞與六十甲子。"
+  description="命盤裡的每一個字、每一個術語,用平實的話解釋:十天干日主的性格底色、十神、五行、20 顆神煞,以及六十甲子日柱,持續增補。"
   path="/zh-hant/library"
+  ogImage={SITE.domain + ogPath("library", lang)}
 >
   <Fragment slot="head">
     <script type="application/ld+json" set:html={jsonldJson} />

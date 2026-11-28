@@ -21,7 +21,7 @@ import CtaInline from "./CtaInline.astro";
 import CtaPanel from "./CtaPanel.astro";
 import StickyCta from "./StickyCta.astro";
 import NeighborsNav, { type NeighborLink } from "./NeighborsNav.astro";
-import { SITE, langPath, type Lang } from "../data/site";
+import { SITE, langPath, ogPath, OG_TYPES, type Lang, type OgType } from "../data/site";
 
 interface Props {
   lang: Lang;
@@ -30,6 +30,9 @@ interface Props {
   slug: string;
   title: string;
   description: string;
+  /** OG 图绝对 URL(S06);缺省按集合名推页面类型(day-master 等),
+   *  推不出的集合必须显式传——静默缺 og:image 会被 check_site_seo 拦。 */
+  ogImage?: string;
   published: boolean;
   /** 更新日期 YYYY-MM-DD(JSON-LD dateModified / byline) */
   updated: string;
@@ -97,10 +100,20 @@ interface Props {
 }
 const props = Astro.props as Props;
 const {
-  lang, collection, slug, title, description, published, updated, inShort, faq,
+  lang, collection, slug, title, description, ogImage, published, updated, inShort, faq,
   html, toc, readMinutes, hero, byline, crumbs, texts, facts, cta,
   neighbors, neighborsLabel, sourcesHtml, aboutTerm, citation,
 } = props;
+
+// OG 图:显式传 ogImage 优先;否则按集合名推页面类型,推不出直接抛错
+// (错误显式传播——静默缺 og:image 到 check_site_seo 才红,不如构建期炸)。
+const resolvedOgImage = ogImage ?? (() => {
+  if (!(OG_TYPES as readonly string[]).includes(collection)) {
+    throw new Error(
+      `ArticleLayout: collection "${collection}" 不在 OG_TYPES 里,须显式传 ogImage 或先补类型(S06)`);
+  }
+  return SITE.domain + ogPath(collection as OgType, lang);
+})();
 
 // 大写数字按语言腿(TC 子集无 贰/叁/陆;与 KitchenSink 同表)
 const NUMS = lang === "en"
@@ -180,7 +193,7 @@ const jsonld = {
 const jsonldJson = JSON.stringify(jsonld).replace(/</g, "\\u003c");
 ---
 
-<Base {lang} title={title} description={description} path={pagePath} noindex={!published} ogType="article" articleModified={updated}>
+<Base {lang} title={title} description={description} path={pagePath} noindex={!published} ogImage={resolvedOgImage} ogType="article" articleModified={updated}>
   <Fragment slot="head">
     <script type="application/ld+json" set:html={jsonldJson} />
   </Fragment>

@@ -12,7 +12,7 @@ import ShichenDial from "../../components/ShichenDial.astro";
 import WuxingCycle from "../../components/WuxingCycle.astro";
 import DayMasterGrid from "../../components/DayMasterGrid.astro";
 import { todayEntry, shortDateZh, weekdayZh, lunarMonthZh, lunarDayZh, jieqiHant } from "../../data/calendar";
-import { type Lang } from "../../data/site";
+import { SITE, ogPath, type Lang } from "../../data/site";
 
 const lang: Lang = "zh-hant";
 const today = todayEntry();
@@ -82,8 +82,9 @@ const guides = [
 <Base
   {lang}
   title="八字排盤,誠實解讀"
-  description="確定性八字排盤(真太陽時修正),附日主、十神、五行的繁中知識庫。不作預測,不貼標籤。"
+  description="確定性八字排盤(真太陽時修正、23:00 換日),附日主、十神、五行、神煞的繁體中文知識庫;AI 只潤色不判斷,不作預測,不貼標籤。"
   path="/zh-hant"
+  ogImage={SITE.domain + ogPath("home", lang)}
 >
   <Fragment slot="head">
     <script type="application/ld+json" set:html={jsonldJson} />

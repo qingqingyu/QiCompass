@@ -4,7 +4,7 @@
 import Base from "../../layouts/Base.astro";
 import FaqBlock from "../../components/FaqBlock.astro";
 import NotifyOrAppStore from "../../components/NotifyOrAppStore.astro";
-import { SITE, type Lang } from "../../data/site";
+import { SITE, ogPath, type Lang } from "../../data/site";
 
 const lang: Lang = "zh-hant";
 const path = "/zh-hant/bazi-calculator";
@@ -54,6 +54,7 @@ const jsonldJson = JSON.stringify(jsonld).replace(/</g, "\\u003c");
   title="八字排盤——免費四柱命盤,真太陽時修正"
   description="免費八字排盤器即將開放:四柱、日主、十神、藏干、五行強弱、大運與神煞,以真太陽時修正、確定性引擎計算。留下信箱,開放當天通知你。"
   path={path}
+  ogImage={SITE.domain + ogPath("calculator", lang)}
 >
   <Fragment slot="head">
     <script type="application/ld+json" set:html={jsonldJson} />

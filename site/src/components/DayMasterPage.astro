@@ -3,7 +3,7 @@
 // + terms.json(单一事实源)派生全部展示数据;lang 相关文案集中在本文件的
 // L 表。模板 ArticleLayout 不写死任何日主内容(红线),内容都从这里喂。
 import ArticleLayout from "./ArticleLayout.astro";
-import { SITE, langPath, type Lang } from "../data/site";
+import { SITE, langPath, ogPath, type Lang } from "../data/site";
 import { CONFIG } from "../config.mjs";
 import { STEM_ORDER, STEM_ELEMENT, ELEMENT_SEASON, STEM_COMBINE, stemNeighbor, type ElementKey } from "../lib/daymaster.mjs";
 import { sectionTocFromBody } from "../lib/headings.mjs";
@@ -187,6 +187,7 @@ for (const it of toc) {
   {slug}
   title={data.title}
   description={data.description}
+  ogImage={SITE.domain + ogPath("day-master", lang)}
   published={data.published}
   updated={data.updated}
   inShort={data.inShort}

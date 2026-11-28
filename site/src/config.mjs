@@ -13,6 +13,11 @@ export const CONFIG = {
   appStoreUrl: "",
   /** Buttondown 邮件列表名(HITL,S05:用户注册后替换成真实 list 名)。 */
   buttondownList: "qicompass",
+  /**
+   * TelemetryDeck Web SDK 的 App ID(S06 HITL:用户在 telemetrydeck.com 注册
+   * Web App 后填入)。空 = BaseHead 不输出 <script> 标签,页面零第三方外联。
+   */
+  telemetry: { appId: "" },
 };
 
 // Buttondown 嵌入订阅端点(S05):两处邮箱表单(CtaPanel / NotifyOrAppStore)

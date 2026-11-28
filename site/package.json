@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "astro build && node scripts/gen-sitemap.mjs && node scripts/gen-pair-redirects.mjs && python3 ../tools/check_site_seo.py",
     "preview": "astro preview",
     "astro": "astro",
     "prebuild": "node scripts/invalidate-render-cache.mjs"

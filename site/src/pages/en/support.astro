@@ -4,6 +4,7 @@
 // 不承诺做不到的响应时限;退款引导走 Apple 官方渠道。
 import Base from "../../layouts/Base.astro";
 import FaqBlock from "../../components/FaqBlock.astro";
+import { SITE, ogPath } from "../../data/site";
 
 const lang = "en" as const;
 const path = "/en/support";
@@ -37,6 +38,7 @@ const faq = [
   title="Support"
   description="Support for KnowFate - Chinese Astrology: restoring purchases, deleting your account, chart differences, and how to reach us at hello@knowfate.app."
   path={path}
+  ogImage={SITE.domain + ogPath("page", lang)}
 >
   <div class="wrap">
     <ol class="crumbs">

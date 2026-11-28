@@ -42,6 +42,17 @@ export function langPath(lang: Lang, rest: string): string {
   return '/' + lang + (clean === '' || clean === '/' ? '' : clean);
 }
 
+/** OG 静态图的页面类型(S06 降级方案:每类型 × 语言一张 1200×630,
+ *  由 tools/build_site_og.py 生成到 site/public/og/;guides 等 S07 落地时
+ *  再入列)。Satori 获批改构建期逐页生成后此枚举退役。 */
+export const OG_TYPES = ['home', 'library', 'calculator', 'day-master', 'page'] as const;
+export type OgType = (typeof OG_TYPES)[number];
+
+/** OG 图站点路径(相对);BaseHead 要绝对 URL,由调用方拼 SITE.domain。 */
+export function ogPath(type: OgType, lang: Lang): string {
+  return `/og/${type}-${lang}.png`;
+}
+
 type UiStrings = {
   nav: { calculator: string; library: string; guides: string; today: string; app: string };
   getTheApp: string;

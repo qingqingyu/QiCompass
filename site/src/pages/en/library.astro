@@ -8,7 +8,7 @@
 import Base from "../../layouts/Base.astro";
 import JiaziGrid from "../../components/JiaziGrid.astro";
 import { todayEntry } from "../../data/calendar";
-import { type Lang } from "../../data/site";
+import { SITE, ogPath, type Lang } from "../../data/site";
 
 const lang: Lang = "en";
 const todayGz = todayEntry().d;
@@ -135,8 +135,9 @@ const SUBNAV = [
 <Base
   {lang}
   title="The BaZi Library — Day Masters, Ten Gods, Five Elements"
-  description="Every term in a BaZi chart, explained plainly: the ten Day Masters, the Ten Gods, the Five Elements, 20 symbolic stars and all 60 day pillars (Jia Zi to Gui Hai)."
+  description="Every term in a BaZi chart, explained plainly: ten Day Masters, the Ten Gods, the Five Elements, 20 symbolic stars and all 60 day pillars (Jia Zi to Gui Hai)."
   path="/en/library"
+  ogImage={SITE.domain + ogPath("library", lang)}
 >
   <Fragment slot="head">
     <script type="application/ld+json" set:html={jsonldJson} />

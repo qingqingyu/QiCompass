@@ -2,6 +2,7 @@
 // 技術支援頁(zh-hant;對稱 en 版,S05,App Store Connect 必填 URL)。
 import Base from "../../layouts/Base.astro";
 import FaqBlock from "../../components/FaqBlock.astro";
+import { SITE, ogPath } from "../../data/site";
 
 const lang = "zh-hant" as const;
 const path = "/zh-hant/support";
@@ -33,8 +34,9 @@ const faq = [
 <Base
   {lang}
   title="技術支援"
-  description="觀命技術支援:恢復購買、刪除帳號、命盤差異說明,聯絡信箱 hello@knowfate.app。"
+  description="觀命技術支援:恢復購買、刪除帳號的入口與後果、同一生日排盤結果不同的原因;找不到答案就寫信到 hello@knowfate.app。"
   path={path}
+  ogImage={SITE.domain + ogPath("page", lang)}
 >
   <div class="wrap">
     <ol class="crumbs">
