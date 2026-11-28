@@ -16,7 +16,8 @@
   newsreader-italic-300.woff2  italic 300
 
 字表(中文,规格 S01 #4 + §6「按页面实际用字做子集」,按语言腿拆分):
-  SC = en 页面 + 共享文件扫描 CJK ∪ 品牌字(简体腿只服务 en 页点缀);
+  SC = en 页面产物扫描 CJK ∪ 品牌字 ∪ 天干点缀 ∪ 日期变字(节气名/干支,
+       2026-11-28:产物只含构建当天的值,随日期变化的字从 calendar.json 整体收);
   TC = zh-hant 页面 + 共享文件扫描 CJK ∪ 术语表全部 CJK ∪ 品牌字(繁)。
   硬性要求字符缺失 → FAIL(错误显式传播;TC 腿沿用 build_songti_fonts 的 hant_subset 口径:
   Big5 外字符多为简体,由 SC 腿渲染,不算 TC 缺字)。
@@ -192,10 +193,49 @@ def en_rendered_term_chars() -> set[str]:
     return chars
 
 
+CALENDAR_JSON = SITE / "src" / "data" / "calendar.json"
+SOLAR_TERM_COUNT = 24  # 二十四节气
+GANZHI_CHAR_COUNT = 22  # 十天干 + 十二地支(干支组合的字元全集)
+
+
+def en_date_varying_chars() -> set[str]:
+    """en 首页「今日」条随日期变化的 CJK —— 年/月/日三柱干支 + 当前/下一节气名。
+
+    SC 腿按构建产物取字,而产物只含**构建当天**的值:2026-11-28 外评发现
+    24 个节气名缺 20 个字(12-21「冬至」会掉系统字体),每天重建也抓不到
+    (重建只换页面不换字体,verify 也只看当天)。修法与 en_rendered_term_chars
+    同思路:从 calendar.json(后端引擎导出的确定性数据)整体收全部可能值。
+    TC 腿不受此坑:calendar.json 作为共享文件已整体进 TC 源码扫描。
+    断言节气 24 个 / 干支字 22 个——导出窗缩短导致覆盖不全时 FAIL,
+    不静默产出缺字字体(错误显式传播)。"""
+    data = json.loads(CALENDAR_JSON.read_text(encoding="utf-8"))
+    days = data["days"] if isinstance(data, dict) else data
+    if not days:
+        raise RuntimeError(f"{CALENDAR_JSON} 无任何日条目,en 首页「今日」条将渲染空")
+    jieqi = {d["jieqi"] for d in days} | {d["nextJieqi"] for d in days}
+    jieqi.discard(None)
+    if len(jieqi) != SOLAR_TERM_COUNT:
+        raise RuntimeError(
+            f"{CALENDAR_JSON} 只覆盖 {len(jieqi)} 个节气(期望 {SOLAR_TERM_COUNT}),"
+            f"导出窗须含完整一年;缺:{sorted(jieqi)}")
+    ganzhi: set[str] = set()
+    for d in days:
+        for k in ("y", "m", "d"):
+            for ch in d[k]:
+                if is_cjk(ch):
+                    ganzhi.add(ch)
+    if len(ganzhi) != GANZHI_CHAR_COUNT:
+        raise RuntimeError(
+            f"{CALENDAR_JSON} 干支字只出现 {len(ganzhi)} 个(期望 {GANZHI_CHAR_COUNT} = "
+            f"十干+十二支),导出窗须 ≥60 天;缺字集合见:'{''.join(sorted(ganzhi))}'")
+    chars = set("".join(jieqi)) | ganzhi
+    return {ch for ch in chars if is_cjk(ch)}
+
+
 def scan_hard_chars(sc_chars: set[str], tc_chars: set[str]) -> tuple[set[str], set[str]]:
     """返回 (SC 硬性要求, TC 硬性要求)。
 
-    SC = en 页/共享文件实际用字 ∪ en 页渲染的天干点缀 ∪ 品牌字(简体);
+    SC = en 页/共享文件实际用字 ∪ en 页渲染的天干点缀 ∪ 日期变字(节气/干支)∪ 品牌字(简体);
     TC = zh-hant 页/共享文件用字 ∪ 术语表全部 CJK(术语单一事实源)∪ 品牌字(繁体)。
     术语表不再整体进 SC:简中站「以后再做」,SC 在站内只服务 en 页点缀,
     全量术语字表曾把 SC 撑到 1179 字形(304KB),en 页为此背 300KB + 364ms 的
@@ -204,7 +244,8 @@ def scan_hard_chars(sc_chars: set[str], tc_chars: set[str]) -> tuple[set[str], s
     """
     term = {ch for ch in TERM_TRANSLATIONS.read_text(encoding="utf-8") if is_cjk(ch)}
     brand = set("观觀命")
-    return sc_chars | brand | en_rendered_term_chars(), tc_chars | term | brand
+    # 日期变字(节气名/干支)必须进 SC 硬性集合:SC 腿扫产物只含构建当天的值
+    return sc_chars | brand | en_rendered_term_chars() | en_date_varying_chars(), tc_chars | term | brand
 
 
 def rename_family(font: TTFont, family: str, style: str) -> None:

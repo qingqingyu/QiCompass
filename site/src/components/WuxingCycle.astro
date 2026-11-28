@@ -105,9 +105,11 @@ const CY: Record<string, number> = { fire: 60.0, earth: 156.7, metal: 313.3, wat
   document.querySelectorAll<HTMLElement>(".wx-grid").forEach((grid) => {
     const svg = grid.querySelector<SVGSVGElement>(".wx-svg");
     const raw = grid.dataset.wxData;
-    if (!raw) throw new Error(".wx-grid 缺 data-wx-data——组件模板被改坏");
+    // 客户端脚本报错只写英文:中文文案会随内联脚本打进 en 页面产物,
+    // 又被字体 SC 腿(扫 dist)当成正文用字收进子集(2026-11-28 外评)
+    if (!raw) throw new Error("WuxingCycle: .wx-grid is missing data-wx-data — component template corrupted");
     const data = JSON.parse(raw) as Record<string, Record<string, string>>;
-    if (!svg || !data.wood) throw new Error(".wx-grid 缺 .wx-svg 或 wood 文案——组件模板被改坏");
+    if (!svg || !data.wood) throw new Error("WuxingCycle: .wx-grid is missing .wx-svg or wood copy — component template corrupted");
 
     function pick(k: string) {
       const row = data[k];
