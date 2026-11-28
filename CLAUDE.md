@@ -85,6 +85,12 @@ AI 八字命理 iOS App：深度解析 / 合盘 / 每日运势 三模块。
 - 写作规范事实源:`site/CONTENT_GUIDE.md`(H2 章节约定 `## 壹|标题`、禁词清单、术语自动内链的匹配面);`published: true` 必须带 `reviewedBy`,缺审 = Astro 构建失败(非警告)
 - 不接 GitHub Actions(本地优先),拦截靠本规则
 
+### 官网 SEO 守护栏(2026-11-28,官网 S06)
+
+- **强制**:动了 `tools/check_site_seo.py`、`site/scripts/gen-sitemap.mjs`、`site/scripts/gen-pair-redirects.mjs`、`site/public/robots.txt`/`llms.txt`、`site/src/data/site.ts` 的 `OG_TYPES` 任一,必须 `cd site && npm run build` PASS(构建链末尾已自动挂 seo checker,见 `site/package.json`)+ `python3 -I site/tests/test_s06.py` 全绿(负向夹具:重复 title / hreflang 语言映射错位 / 幽灵重定向目标 / og:image 语言腿 / OG 枚举双源漂移 / 未知天干抛错)才算完成
+- **强制**:OG 图与站点字体是连体产物——动 `tools/build_site_og.py`(文案/版式/字体栈)或 OG 用字波及字集时,必须按序:`python3 tools/build_site_fonts.py`(TC 硬性集含 `og_image_chars()`)→ `python3 tools/build_site_og.py`(重渲染,含排版探针:标题折行/与副题间距 <12px 即抛)→ `python3 tools/build_site_og.py --check`(manifest 三向哈希 script/fonts/pngs + woff2 cmap 覆盖);跳步 = --check 按漂移源点名。**注意**:共享组件/布局里中文**注释**的字也进 TC 硬性集(TC 腿源码扫描口径,2026-11-28 实测「逃逸/百分号」3 字逼一次字体重建),注释引入新汉字后同样须重跑字体脚本
+- sitemap/pair 重定向以 dist 产物为单一事实源(构建后扫),页面 canonical/hreflang/noindex 变更靠重跑 build 链生效,不手改产物
+
 ### 引擎规则版本 × 合盘 prompt 版本联动守护栏(2026-10-07,第九轮外评)
 
 - **强制**:bump `backend/app/models/compatibility.py::COMPATIBILITY_RULE_VERSION` 时,必须同一次变更里同步做三件事,缺一不可:
