@@ -244,8 +244,13 @@ def scan_hard_chars(sc_chars: set[str], tc_chars: set[str]) -> tuple[set[str], s
     """
     term = {ch for ch in TERM_TRANSLATIONS.read_text(encoding="utf-8") if is_cjk(ch)}
     brand = set("观觀命")
+    # OG 分享图用字(tools/build_site_og.py 的 OG 表是单一事实源,这里导入消费):
+    # 图上是 PNG 渲染,不进 dist 扫描,必须在硬性集合显式收,否则掉系统字体
+    from build_site_og import og_image_chars
+    og_sc, og_tc = og_image_chars()
     # 日期变字(节气名/干支)必须进 SC 硬性集合:SC 腿扫产物只含构建当天的值
-    return sc_chars | brand | en_rendered_term_chars() | en_date_varying_chars(), tc_chars | term | brand
+    return (sc_chars | brand | en_rendered_term_chars() | en_date_varying_chars() | og_sc,
+            tc_chars | term | brand | og_tc)
 
 
 def rename_family(font: TTFont, family: str, style: str) -> None:

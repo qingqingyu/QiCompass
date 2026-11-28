@@ -1,0 +1,21 @@
+{
+  "fonts": {
+    "knowfate-sc.woff2": "0a5b9c1032e3885b906c806e773404c98e3435fd3fcf071eb5c06a43ccd5402f",
+    "knowfate-tc.woff2": "f165e6073d1c1df40ebb21aa085f074c2037e60c780c73ec65efb535cb7591e4",
+    "newsreader-400.woff2": "b4e63b460149d3bc2a2c6bd25d8f360253d8817558d56f47f2e861af03f8929a",
+    "newsreader-italic-300.woff2": "550d4278e091a87ca5d332b47e088489a47d8675ca4445d939940153a5255cf2"
+  },
+  "pngs": {
+    "calculator-en.png": "a20d2bc51955dd03a2fa6b6682535bcd2c477aece0d4a2430d4a2b7a909e3fcb",
+    "calculator-zh-hant.png": "92e24f7bead6e4eb48463e98c04a6b868886a4d188a0135789d7a5a054173aaa",
+    "day-master-en.png": "b94518ad9698b728dd81b075bf890df1ba90955c74cd4e1bcf0a8b69d8b42e97",
+    "day-master-zh-hant.png": "c918cf94e07c45ba1201f036aba76e399b91eca6500912126b9b190d987927bb",
+    "home-en.png": "8ee692d05b4379215a16a2aeb077a4bdcb333e03ba0ffb8dac9013a9b02eaddf",
+    "home-zh-hant.png": "28cc0ccc50a136103f47dbd73e95fa09599841bd022f190a82df1a7cc23ef854",
+    "library-en.png": "7bf36f6d52fec20c273e99b9058e4aaf6857b668bde52ab974d2f641822efbce",
+    "library-zh-hant.png": "ab17d50f6d6dfb7b6720560661de35f729ffea17d09cbd3c23c7f26504fbed6d",
+    "page-en.png": "a2b8cc3af184444151cfa9d0021382bf1499ae39283a41c9810be974b302082c",
+    "page-zh-hant.png": "5a0be51fde44042839cb31afc74841837c4ed6b299ee1f79d43b8be05ce360fc"
+  },
+  "script_sha": "9851d2417a2607fb7a3e5d4ab28ed30764e9f1e19ce34490e42daa84557e5bce"
+}
