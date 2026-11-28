@@ -48,3 +48,13 @@ S05 会建立全局配置 `site/src/config.ts` 的 `cta.state: 'prelaunch' | 'li
 - UI 改动先读 `DESIGN.md`:CTA 一律焦墨底、radius 5,朱红只做按钮里的菱形小点
 - commit 必须三段式 body:Why / What / Impact
 - 错误显式传播;不得新增任何依赖(Buttondown 是纯 HTML 表单,已批准)
+
+## 实施记录(2026-11-28 收口)
+
+- 实现 commit `ccb35d8`(经 `c3cec6d` 合入主线,与官网 S05 同批):页头「取得 App」
+  预上架态切「Notify me / 上架通知我」链到首页邮箱表单(无灰按钮);页脚补
+  Support / 技術支援 入口;support 区块进 launch.json。
+- 2026-11-28 独立复核确认:两态 CTA 与页脚入口均到位。
+- **遗留(HITL,S08 前做)**:`site/src/config.mjs` 里 Buttondown 列表名仍是占位
+  `qicompass`——用户注册 Buttondown 时建议列表起名 `knowfate`(该名会出现在订阅
+  确认邮件里),注册后把占位换成真实列表名。

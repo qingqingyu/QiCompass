@@ -9,6 +9,7 @@ import Numeral from "./Numeral.astro";
 import Brush from "./Brush.astro";
 import TermLink from "./TermLink.astro";
 import { SITE, type Lang } from "../data/site";
+import { BUTTONDOWN_ACTION } from "../config.mjs";
 
 interface Props {
   lang: Lang;
@@ -283,7 +284,7 @@ const numerals = en
       </div>
       <div class="cta-panel" style="margin-top:24px">
         <p class="h3" style="margin:0">{L.ctaPanelTitle}</p>
-        <form class="notify" action="https://buttondown.com/api/emails/embed-subscribe/qicompass" method="post">
+        <form class="notify" action={BUTTONDOWN_ACTION} method="post">
           <label for="ks-n" class="sr-only">Email</label>
           <input class="input" id="ks-n" type="email" name="email" placeholder="you@example.com" required />
           <button class="btn" type="submit">{L.notifyBtn}</button>

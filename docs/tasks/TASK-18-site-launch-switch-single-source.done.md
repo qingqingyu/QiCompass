@@ -92,3 +92,12 @@
 - 错误显式传播:禁止空 catch / 吞异常 / 用默认值掩盖失败
 - 不得新增任何依赖
 - 构建只用 `cd site && npm run build`;字体守护栏 `build_site_fonts.py --verify` 依赖构建产物,改完后一并重跑
+
+## 实施记录(2026-11-28 收口)
+
+- 实现 commit `2b23450`(经 `694e3ba` 合入主线):开关表唯一落 `site/src/data/launch.json`,
+  TS 侧 `launch.mjs` 与 Python 侧 checker 共读;`launch-cases.json` 双端 parity 测试
+  (node 18 过 / python 5 过);复核发现的五个问题(前缀误伤日主查询、单数 `/day-pillar/`
+  漏判、tools 三处语义不一致等)均已修。
+- 2026-11-28 独立复核确认:开关表/页头/页脚/校验脚本全部只读 launch.json;TS 与 Python
+  匹配逻辑逐行一致;内容校验只把已发布页面算作存在。
