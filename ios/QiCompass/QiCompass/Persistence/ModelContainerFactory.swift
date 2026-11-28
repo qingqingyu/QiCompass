@@ -5,6 +5,8 @@ import SwiftData
 ///
 /// 持久化库放共享容器的动机:v2 做「今日宜忌」Widget 时免二次迁移;
 /// TestFlight 既有用户的**必须**老数据迁移见 `LegacyStoreMigrator`。
+/// store 在容器内的**具体子目录由 SwiftData 运行时决定**(TASK-20:一律以
+/// `ModelConfiguration.url` 为准,不假设容器根)。
 ///
 /// ⚠️ 上线前置(真人步骤,已写入 PR 描述):Apple Developer 后台注册
 /// 该 App Group + App ID 能力 + provisioning profile 刷新——未注册前
@@ -26,6 +28,12 @@ enum ModelContainerFactoryError: Error {
 /// D1 决策:**不用** VersionedSchema / SchemaMigrationPlan。核心 schema 几乎不变,
 /// 易变结构靠 `payload` JSON Data 承载 + lazy 重算。SwiftData 默认轻量迁移处理字段增删。
 ///
+/// TASK-20(2026-11-28):迁移目标不再假设「共享容器根」,一律取
+/// `ModelConfiguration.url` 所在目录——SwiftData 自己报告的落盘位置。
+/// 2026-11-25 实测新模拟器运行时把 store 放 `<共享容器>/Library/Application
+/// Support/`,写死容器根会让迁移搬错位置、SwiftData 在新位置建空库,
+/// 用户看到「命盘全没了」。
+///
 /// 错误显式传播:构造失败直接 throw,不吞不返回默认值。
 enum ModelContainerFactory {
     static func make() throws -> ModelContainer {
@@ -33,8 +41,6 @@ enum ModelContainerFactory {
         AppLogger.persistence.info("ModelContainerFactory.make 开始")
         let schema = SchemaRegistry.makeSchema()
 
-        // TASK-05:持久化库迁入 App Group 共享容器。先搬老数据再开容器——
-        // 容器一旦在共享容器新建空库,老数据就再无自动迁移窗口。
         guard let groupRoot = FileManager.default.containerURL(
             forSecurityApplicationGroupIdentifier: AppGroup.identifier,
         ) else {
@@ -43,14 +49,9 @@ enum ModelContainerFactory {
             )
             throw ModelContainerFactoryError.appGroupUnavailable(AppGroup.identifier)
         }
-        let outcome = try LegacyStoreMigrator.migrate(
-            sourceDirectory: legacyStoreDirectory(),
-            destinationDirectory: groupRoot,
-        )
-        AppLogger.persistence.info(
-            "legacy store 迁移完成 action=\(outcome.action.rawValue, privacy: .public)"
-        )
 
+        // TASK-05 + TASK-20:先构造配置问 SwiftData 实际落盘位置,再搬老数据——
+        // 容器一旦在落盘目录新建空库,老数据就再无自动迁移窗口。
         let config = ModelConfiguration(
             schema: schema,
             isStoredInMemoryOnly: false,
@@ -58,6 +59,29 @@ enum ModelContainerFactory {
             groupContainer: .identifier(AppGroup.identifier),
             cloudKitDatabase: .none,
         )
+        let storeDirectory = migrationDestination(for: config)
+        AppLogger.persistence.info(
+            "SwiftData store 实际落盘目录 \(storeDirectory.path, privacy: .private)"
+        )
+
+        // TASK-20 §2:先归位 TestFlight 旧版已搬进共享容器根的库(若错位),
+        // 再做 TASK-05 的老本地库迁移——归位优先,两步都走同一套搬运语义。
+        let remediation = try remediateMisplacedGroupStore(
+            groupRoot: groupRoot,
+            actualStoreDirectory: storeDirectory,
+        )
+        AppLogger.persistence.info(
+            "groupRoot 错位库补救 action=\(remediation?.action.rawValue ?? "notApplicable", privacy: .public)"
+        )
+
+        let outcome = try LegacyStoreMigrator.migrate(
+            sourceDirectory: legacyStoreDirectory(),
+            destinationDirectory: storeDirectory,
+        )
+        AppLogger.persistence.info(
+            "legacy store 迁移完成 action=\(outcome.action.rawValue, privacy: .public)"
+        )
+
         do {
             let container = try ModelContainer(for: schema, configurations: [config])
             AppLogger.persistence.info("ModelContainerFactory.make 完成")
@@ -66,6 +90,56 @@ enum ModelContainerFactory {
             AppLogger.persistence.error("ModelContainer 构造失败: \(String(describing: error), privacy: .public)")
             throw error
         }
+    }
+
+    /// TASK-20:迁移目标 = `ModelConfiguration.url` 所在目录。
+    /// 单独成函数是给 pin 测试锁契约:make() 传给迁移器的目录必须与
+    /// SwiftData 实际落盘目录同源(都出自 config.url),不靠平行实现。
+    static func migrationDestination(for config: ModelConfiguration) -> URL {
+        config.url.deletingLastPathComponent()
+    }
+
+    /// TASK-20 §2(2026-11-28 用户拍板实施):归位被旧版搬进共享容器根的库。
+    ///
+    /// 条件与动作:
+    /// - groupRoot 无 `default.store`,或落盘目录就是 groupRoot(旧布局运行时)
+    ///   → 不触发,返回 nil;
+    /// - 落盘目录已有 store → **两份数据都保留**,fault 日志留人工排查,
+    ///   返回 `destinationExists`,不做自动合并;
+    /// - 否则复用 `LegacyStoreMigrator.migrate` 同一套「全部拷贝成功才删源 /
+    ///   失败回滚」逻辑归位,不另写一份搬运。
+    ///
+    /// 源/目标目录可注入,单元测试用临时目录,不依赖真 App Group。
+    static func remediateMisplacedGroupStore(
+        groupRoot: URL,
+        actualStoreDirectory: URL,
+        fileManager: FileManager = .default,
+    ) throws -> LegacyStoreMigrator.Outcome? {
+        let misplacedStore = groupRoot.appendingPathComponent("default.store")
+        guard fileManager.fileExists(atPath: misplacedStore.path) else {
+            return nil
+        }
+        guard actualStoreDirectory.standardizedFileURL
+            != groupRoot.standardizedFileURL else {
+            // 旧布局运行时:store 本就落容器根,groupRoot 的库不是错位
+            return nil
+        }
+        let actualStore = actualStoreDirectory.appendingPathComponent("default.store")
+        if fileManager.fileExists(atPath: actualStore.path) {
+            AppLogger.persistence.fault(
+                "共享容器根与实际落盘目录各有一份 store,两份都保留不自动合并 actual=\(actualStore.path, privacy: .private)——留人工排查"
+            )
+            return LegacyStoreMigrator.Outcome(
+                action: .destinationExists, movedFiles: [], leftoverSourceFiles: [])
+        }
+        AppLogger.persistence.info(
+            "检测到 groupRoot 错位库,归位到实际落盘目录"
+        )
+        return try LegacyStoreMigrator.migrate(
+            sourceDirectory: groupRoot,
+            destinationDirectory: actualStoreDirectory,
+            fileManager: fileManager,
+        )
     }
 
     /// 仅供 Debug 验证 / 测试用:内存容器,不污染磁盘。

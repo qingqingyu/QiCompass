@@ -3,12 +3,12 @@ import SwiftData
 import XCTest
 @testable import QiCompass
 
-/// LegacyStoreMigrator 单元测试(TASK-05,任务书四场景 + 布局锚定)。
+/// LegacyStoreMigrator 单元测试(TASK-05 四场景 + TASK-11 两边界 + TASK-20 布局锚定与补救)。
 ///
-/// 迁移函数源/目标目录可注入,全部用临时目录,不依赖真 App Group;
-/// 唯独布局锚定测试(共享容器根 = default.store 所在地)在模拟器上
-/// 实测,锁定「迁移目标目录 == SwiftData groupContainer 实际落盘目录」
-/// 这一假设——SwiftData 若改内部布局,此测试先红。
+/// 迁移函数与补救函数的源/目标目录可注入,全部用临时目录,不依赖真 App Group;
+/// 唯独布局锚定测试在模拟器上实测,锁定「迁移目标目录 == `ModelConfiguration.url`
+/// 实际落盘目录」(TASK-20 起以 config.url 为准,新旧两种运行时布局都必须成立)
+/// ——SwiftData 若再改内部布局,此测试先红。
 final class LegacyStoreMigratorTests: XCTestCase {
     private var source: URL!
     private var destination: URL!
@@ -123,22 +123,24 @@ final class LegacyStoreMigratorTests: XCTestCase {
         XCTAssertFalse(destinationExists("default.store"))
     }
 
-    // MARK: - 布局锚定:groupContainer 落盘位置 == 迁移目标目录
+    // MARK: - 布局锚定(TASK-20 改写):迁移目标 == SwiftData 实际落盘位置
 
-    /// 实测 SwiftData `groupContainer: .identifier(...)` 把 default.store
-    /// 放在**共享容器根**——这正是 migrate 的 destinationDirectory。
-    /// 该假设被 SwiftData 内部布局变化打破时,此测试先于用户数据变红。
+    /// TASK-20:迁移目标不再假设「共享容器根」,而是取 `ModelConfiguration.url`
+    /// 所在目录。锚定两件事:
+    /// 1. `migrationDestination(for:)` 确实返回 config.url 所在目录(make() 用
+    ///    它当迁移目标——契约不被平行实现漂移);
+    /// 2. 打开容器后 store 文件**确实出现在 config.url**(新布局落
+    ///    `<group>/Library/Application Support/`,旧布局落容器根——两种
+    ///    运行时都必须成立,SwiftData 再改布局此测试先红,数据不会丢)。
     @MainActor
-    func test_persistentGroupContainerStoreLocationPin() throws {
-        guard let groupRoot = FileManager.default.containerURL(
-            forSecurityApplicationGroupIdentifier: AppGroup.identifier) else {
+    func test_storeLocationPin_migrationTargetMatchesActualLandingDirectory() throws {
+        guard FileManager.default.containerURL(
+            forSecurityApplicationGroupIdentifier: AppGroup.identifier) != nil else {
             // 模拟器无 entitlement 场景 containerURL 也可用;真拿到 nil
             // 说明环境异常,显式失败而非跳过(布局假设未被验证)
             XCTFail("App Group 容器不可用，布局锚定无法验证")
             return
         }
-        let storeURL = groupRoot.appendingPathComponent("default.store")
-        let preExisting = FileManager.default.fileExists(atPath: storeURL.path)
 
         let schema = SchemaRegistry.makeSchema()
         let config = ModelConfiguration(
@@ -148,25 +150,92 @@ final class LegacyStoreMigratorTests: XCTestCase {
             groupContainer: .identifier(AppGroup.identifier),
             cloudKitDatabase: .none,
         )
+
+        // 契约 1:迁移目标 == config.url 所在目录
+        XCTAssertEqual(
+            ModelContainerFactory.migrationDestination(for: config),
+            config.url.deletingLastPathComponent(),
+            "migrationDestination 必须与 config.url 所在目录同源")
+
+        let preExisting = FileManager.default.fileExists(atPath: config.url.path)
         let container = try ModelContainer(for: schema, configurations: [config])
 
-        // 容器初始化即落盘 store 文件(或本就存在);断言位置假设成立
+        // 契约 2:容器初始化即落盘 store 文件(或本就存在)于 config.url
         XCTAssertTrue(
-            FileManager.default.fileExists(atPath: storeURL.path),
-            "SwiftData groupContainer 落盘位置与迁移目标不一致，布局假设被打破"
-        )
+            FileManager.default.fileExists(atPath: config.url.path),
+            "SwiftData 实际落盘位置与迁移目标(config.url)不一致，布局假设被打破")
 
         // 清理:仅删除本次测试新建的文件(既有文件不动——可能是别的
         // 测试/迁移留下的合法库)。容器先释放再删,避免 SQLite 句柄未关。
         if !preExisting {
             container.deleteAllData()
             for name in LegacyStoreMigrator.storeFileNames {
-                let url = groupRoot.appendingPathComponent(name)
+                let url = config.url.deletingLastPathComponent()
+                    .appendingPathComponent(name)
                 if FileManager.default.fileExists(atPath: url.path) {
                     try? FileManager.default.removeItem(at: url)
                 }
             }
         }
+    }
+
+    // MARK: - TASK-20 §2:groupRoot 错位库补救
+
+    /// groupRoot 有 store、实际落盘目录没有 → 归位(源删除、目标内容完整)。
+    func test_remediationMovesMisplacedGroupStoreToActualDirectory() throws {
+        try writeStoreFiles(["default.store", "default.store-wal"],
+                            content: "TestFlight 命盘")
+
+        let outcome = try ModelContainerFactory.remediateMisplacedGroupStore(
+            groupRoot: source, actualStoreDirectory: destination)
+
+        XCTAssertEqual(outcome?.action, .migrated)
+        XCTAssertTrue(destinationExists("default.store"))
+        XCTAssertTrue(destinationExists("default.store-wal"))
+        XCTAssertFalse(sourceExists("default.store"))
+        // 内容真搬过去了(不是空文件)
+        let moved = try String(contentsOf: destination
+            .appendingPathComponent("default.store"), encoding: .utf8)
+        XCTAssertEqual(moved, "TestFlight 命盘")
+    }
+
+    /// 两处都有 store → 都不动、不自动合并,显式返回 destinationExists。
+    func test_remediationKeepsBothStoresWhenActualDirectoryAlreadyHasOne() throws {
+        try writeStoreFiles(["default.store"], content: "错位库")
+        try "实际库".write(to: destination.appendingPathComponent("default.store"),
+                          atomically: true, encoding: .utf8)
+
+        let outcome = try ModelContainerFactory.remediateMisplacedGroupStore(
+            groupRoot: source, actualStoreDirectory: destination)
+
+        XCTAssertEqual(outcome?.action, .destinationExists)
+        // 两份数据都原封保留,内容不被覆盖
+        XCTAssertTrue(sourceExists("default.store"))
+        let keptActual = try String(contentsOf: destination
+            .appendingPathComponent("default.store"), encoding: .utf8)
+        XCTAssertEqual(keptActual, "实际库")
+        let keptMisplaced = try String(contentsOf: source
+            .appendingPathComponent("default.store"), encoding: .utf8)
+        XCTAssertEqual(keptMisplaced, "错位库")
+    }
+
+    /// 旧布局运行时(落盘目录 == groupRoot)→ 补救不触发,返回 nil。
+    func test_remediationNotTriggeredWhenActualDirectoryIsGroupRoot() throws {
+        try writeStoreFiles(["default.store"])
+
+        let outcome = try ModelContainerFactory.remediateMisplacedGroupStore(
+            groupRoot: source, actualStoreDirectory: source)
+
+        XCTAssertNil(outcome)
+        XCTAssertTrue(sourceExists("default.store"))
+    }
+
+    /// groupRoot 没有 store → 无从归位,返回 nil(常态路径:干净设备)。
+    func test_remediationNotTriggeredWhenGroupRootHasNoStore() throws {
+        let outcome = try ModelContainerFactory.remediateMisplacedGroupStore(
+            groupRoot: source, actualStoreDirectory: destination)
+
+        XCTAssertNil(outcome)
     }
 
     // MARK: - TASK-11(2026-11-02 复核小问题):两处边界
