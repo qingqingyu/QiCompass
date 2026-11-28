@@ -1083,6 +1083,10 @@ final class ChapterContentTests: XCTestCase {
 
     func test_m0_v9NonNameLayersFallBackToFoldLine() {
         // 老缓存/违约:分层值是长句(非纯十神名)→ 不成格,照旧进据 fold 首行
+        // fixture 须含 core_loop:m0Nodes 入口 guard 要求 main_axis 与
+        // core_loop 都是对象才走特化路径(60f3a2e 写此用例时漏了,
+        // 缺它整条特化路径被 guard 拒绝、走通用渲染,断言必挂)。
+        // 真实契约(main_axis/core_loop 均为 REQUIRED)本就两者齐出。
         let json = """
         {
           "main_axis": {
@@ -1090,6 +1094,9 @@ final class ChapterContentTests: XCTestCase {
             "body": "主导是七杀。",
             "dominant": "七杀，权重最高，月干透出",
             "secondary": "正印"
+          },
+          "core_loop": {
+            "headline": "看见 → 做出 → 再看。"
           }
         }
         """
