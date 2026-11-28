@@ -1,0 +1,93 @@
+---
+// 十二时辰墨圈表盘(S04 首页,home.html 移植)。
+// 一期形态:十二支为纯展示 g.b(指南页未上线,无链接);JS 只做「当前时辰」
+// 高亮——读访客本地时钟(读钟表,非历法计算),无 JS 时表盘静态完整。
+// 坐标与 rough 滤镜逐字取自设计稿 home.html(design-ref 事实源)。
+import Seal from "./Seal.astro";
+import { type Lang } from "../data/site";
+
+const { lang }: { lang: Lang } = Astro.props;
+const tc = lang === "zh-hant";
+
+// 12 支文本/朱点坐标(设计稿逐字);nowdot = DESIGN 批准的「当前时辰点」
+const B = [
+  { b: "子", an: tc ? "鼠" : "Rat", tx: 220.0, ty: 20.0, cx: 220.0, cy: 2.0 },
+  { b: "丑", an: tc ? "牛" : "Ox", tx: 320.0, ty: 46.8, cx: 329.0, cy: 31.2 },
+  { b: "寅", an: tc ? "虎" : "Tiger", tx: 393.2, ty: 120.0, cx: 408.8, cy: 111.0 },
+  { b: "卯", an: tc ? "兔" : "Rabbit", tx: 420.0, ty: 220.0, cx: 438.0, cy: 220.0 },
+  { b: "辰", an: tc ? "龍" : "Dragon", tx: 393.2, ty: 320.0, cx: 408.8, cy: 329.0 },
+  { b: "巳", an: tc ? "蛇" : "Snake", tx: 320.0, ty: 393.2, cx: 329.0, cy: 408.8 },
+  { b: "午", an: tc ? "馬" : "Horse", tx: 220.0, ty: 420.0, cx: 220.0, cy: 438.0 },
+  { b: "未", an: tc ? "羊" : "Goat", tx: 120.0, ty: 393.2, cx: 111.0, cy: 408.8 },
+  { b: "申", an: tc ? "猴" : "Monkey", tx: 46.8, ty: 320.0, cx: 31.2, cy: 329.0 },
+  { b: "酉", an: tc ? "雞" : "Rooster", tx: 20.0, ty: 220.0, cx: 2.0, cy: 220.0 },
+  { b: "戌", an: tc ? "狗" : "Dog", tx: 46.8, ty: 120.0, cx: 31.2, cy: 111.0 },
+  { b: "亥", an: tc ? "豬" : "Pig", tx: 120.0, ty: 46.8, cx: 111.0, cy: 31.2 },
+] as const;
+
+const hour = tc ? "時" : "时";
+const dialTitle = tc
+  ? "十二時辰圍繞墨圈排布"
+  : "The twelve Chinese double-hours (shichen) arranged around an ink circle";
+const capLead = tc ? "現在:" : "Now:";
+const capTail = tc
+  ? "——時柱背後的十二時辰。"
+  : " — the twelve double-hours behind your hour pillar.";
+
+// 12 支时段标注(与 B 一一对应,子 = 23:00 起)
+const RANGES = ["23:00–01:00","01:00–03:00","03:00–05:00","05:00–07:00","07:00–09:00","09:00–11:00","11:00–13:00","13:00–15:00","15:00–17:00","17:00–19:00","19:00–21:00","21:00–23:00"] as const;
+---
+
+<div class="dial-col">
+  <div class="dial" data-shichen-dial>
+    <svg class="dial-svg enso draw" viewBox="0 0 440 440" role="img" aria-labelledby="dial-t">
+      <title id="dial-t">{dialTitle}</title>
+      <defs><filter id="rough" x="-10%" y="-10%" width="120%" height="120%"><feTurbulence type="fractalNoise" baseFrequency="0.045" numOctaves="4" seed="3" result="n"/><feDisplacementMap in="SourceGraphic" in2="n" scale="9"/></filter></defs>
+      <circle cx="220" cy="220" r="176" fill="none" stroke="var(--hairline)" stroke-width="1"></circle>
+      <line x1="176.0" y1="55.8" x2="172.9" y2="44.2" stroke="var(--hairline)"></line>
+      <line x1="264.0" y1="55.8" x2="267.1" y2="44.2" stroke="var(--hairline)"></line>
+      <line x1="340.2" y1="99.8" x2="348.7" y2="91.3" stroke="var(--hairline)"></line>
+      <line x1="384.2" y1="176.0" x2="395.8" y2="172.9" stroke="var(--hairline)"></line>
+      <line x1="384.2" y1="264.0" x2="395.8" y2="267.1" stroke="var(--hairline)"></line>
+      <line x1="340.2" y1="340.2" x2="348.7" y2="348.7" stroke="var(--hairline)"></line>
+      <line x1="264.0" y1="384.2" x2="267.1" y2="395.8" stroke="var(--hairline)"></line>
+      <line x1="176.0" y1="384.2" x2="172.9" y2="395.8" stroke="var(--hairline)"></line>
+      <line x1="99.8" y1="340.2" x2="91.3" y2="348.7" stroke="var(--hairline)"></line>
+      <line x1="55.8" y1="264.0" x2="44.2" y2="267.1" stroke="var(--hairline)"></line>
+      <line x1="55.8" y1="176.0" x2="44.2" y2="172.9" stroke="var(--hairline)"></line>
+      <line x1="99.8" y1="99.8" x2="91.3" y2="91.3" stroke="var(--hairline)"></line>
+      <path class="stroke" pathLength="1" d="M285.7,96.4 A140,140 0 1,0 356.9,249.1" stroke-width="13" filter="url(#rough)"></path>
+      {B.map((x, i) => {
+        const lbl = `${x.b}${hour} · ${RANGES[i]} · ${x.an}`;
+        return (
+          <g class="b" data-b={i} data-label={lbl}>
+            <title>{lbl}</title>
+            <text x={x.tx} y={x.ty} text-anchor="middle" dominant-baseline="central">{x.b}</text>
+            <circle class="nowdot" cx={x.cx} cy={x.cy} r="3.2"></circle>
+          </g>
+        );
+      })}
+    </svg>
+    <div class="dial-center" aria-hidden="true">
+      <span class={`vtext sub ink-in d4 ${tc ? "tc" : "zh"}`}>{tc ? "解讀有度" : "解读有度"}</span>
+      <span class={`vtext ink-in d3 ${tc ? "tc" : "zh"}`}>{tc ? "排盤有據" : "排盘有据"}</span>
+    </div>
+    <Seal char={tc ? "觀" : "观"} size={38} />
+  </div>
+  <p class="caption dial-cap">
+    {capLead} <b data-shichen-label>{tc ? "巳時 · 09:00–11:00 · 蛇" : "巳时 · 09:00–11:00 · Snake"}</b>{capTail}
+  </p>
+</div>
+
+<script>
+  // 当前时辰高亮(设计稿 site.js 同款算法):子 = 23:00–00:59。
+  // 读访客本地时钟是展示行为,不涉历法计算;无 JS 时表盘静态渲染。
+  document.querySelectorAll<HTMLElement>("[data-shichen-dial]").forEach((dial) => {
+    const h = new Date().getHours();
+    const idx = Math.floor(((h + 1) % 24) / 2);
+    const node = dial.querySelector<HTMLElement>(`[data-b="${idx}"]`);
+    if (node) node.classList.add("now");
+    const label = dial.parentElement?.querySelector("[data-shichen-label]");
+    if (label && node) label.textContent = node.getAttribute("data-label") ?? "";
+  });
+</script>

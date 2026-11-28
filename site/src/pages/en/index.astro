@@ -1,14 +1,85 @@
 ---
-// 占位首页:仅为 /en 路由与 _redirects 目标存在;S04 按设计稿重建完整首页。
-// S05(TASK-19)先补 #notify 锚点区:页头「Notify me」按钮落点(S08 最小上线
-// 的「一句话介绍 + Notify me 邮箱表单」形态)。可收录(为 Lighthouse SEO=100
-// 提供真实目标;示例页才 noindex)。
+// 首页(S04,home.html 移植):hero + 今日条 + 什么是八字 + 三承诺 +
+// 十日主 + 五行 + 指南 + App + FAQ。
+// 一期形态(day-master/ten-gods/guides/day-pillar 未上线,launch.json):
+// 词条卡/指南行一律非链接灰显;.term 弹层无箭头;死链规则见 checker。
+// 今日条数据 build 期生成(calendar.json,lunar_python + setSect(1)),
+// 本页只做展示格式化,浏览器不算历法。
 import Base from "../../layouts/Base.astro";
 import Kicker from "../../components/Kicker.astro";
+import Numeral from "../../components/Numeral.astro";
+import Seal from "../../components/Seal.astro";
 import NotifyOrAppStore from "../../components/NotifyOrAppStore.astro";
+import ShichenDial from "../../components/ShichenDial.astro";
+import WuxingCycle from "../../components/WuxingCycle.astro";
+import DayMasterGrid from "../../components/DayMasterGrid.astro";
+import { todayEntry, shortDateEn, longDateEn, weekdayEn, lunarMonthEn, lunarDayEn } from "../../data/calendar";
 import { type Lang } from "../../data/site";
 
 const lang: Lang = "en";
+const today = todayEntry();
+const todayDate = `${weekdayEn(today.date)}, ${longDateEn(today.date)}`;
+
+const faq = [
+  {
+    q: "Is this BaZi calculator free?",
+    a: "Yes. The chart, element balance, Ten Gods, hidden stems, luck pillars and symbolic stars are free with no sign-up. The written eight-chapter reading lives in the iPhone app.",
+  },
+  {
+    q: "Do I need my exact birth time?",
+    a: "No. Without a time you still get the year, month and day pillars — including your Day Master. See BaZi without a birth time in the guides.",
+  },
+  {
+    q: "Why does my chart differ from another site?",
+    a: "Usually True Solar Time, the 23:00 day boundary, or time-zone history. We show which rule we used on every chart.",
+  },
+  {
+    q: "Is BaZi fortune-telling?",
+    a: "We treat it as a traditional framework for self-reflection. We describe tendencies; we don't predict events or promise results.",
+  },
+  {
+    q: "Do you store my birth data?",
+    a: "The web calculator doesn't keep your birth details after the chart is drawn. See Privacy, or write to hello@knowfate.app.",
+  },
+];
+
+// JSON-LD:WebSite + Organization + FAQPage(镜像页面可见 FAQ;无 WebApplication,
+// 排盘器一期为锁框版,不虚构软件交互)
+const jsonld = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "KnowFate",
+    alternateName: "觀命 KnowFate",
+    url: "https://knowfate.app/en",
+    inLanguage: "en",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "Organization",
+    name: "KnowFate",
+    url: "https://knowfate.app",
+    email: "hello@knowfate.app",
+  },
+  {
+    "@context": "https://schema.org",
+    "@type": "FAQPage",
+    mainEntity: faq.map((f) => ({
+      "@type": "Question",
+      name: f.q,
+      acceptedAnswer: { "@type": "Answer", text: f.a },
+    })),
+  },
+];
+const jsonldJson = JSON.stringify(jsonld).replace(/</g, "\\u003c");
+
+const guides = [
+  { n: "壹", h: "How to read a BaZi chart, step by step", p: "From the Day Master outward: elements, Ten Gods, then luck pillars.", t: "12 min" },
+  { n: "贰", h: "BaZi without a birth time: what still works", p: "Six of eight characters stay certain. Here's what you can and can't read.", t: "7 min" },
+  { n: "叁", h: "True Solar Time, and why your hour pillar may shift", p: "Longitude, time zones and daylight saving — with a worked example.", t: "6 min" },
+  { n: "肆", h: "Strong vs. weak Day Master, explained", p: "Season, roots and support: how strength is judged, and why it matters.", t: "9 min" },
+  { n: "伍", h: "BaZi vs. Western astrology: what's actually different", p: "A calendar system, not a sky map — a calm side-by-side.", t: "8 min" },
+];
 ---
 
 <Base
@@ -17,21 +88,168 @@ const lang: Lang = "en";
   description="Deterministic BaZi charts with True Solar Time, plus a plain-English library of Day Masters, Ten Gods and the Five Elements. No predictions, no labels."
   path="/en"
 >
-  <section class="section">
-    <div class="wrap">
-      <Kicker text="KnowFate" zh="八字排盘" dot />
-      <h1 class="display ink-in" style="margin-top:18px">The Four Pillars, <em style="font-style:italic;color:var(--ink-muted);font-weight:300;display:block">read honestly.</em></h1>
-      <p class="lede ink-in d1" style="margin-top:24px">
-        A BaZi reference and free calculator is on its way — the library opens page by page. Deterministic charts with True Solar Time, careful words, no predictions.
-      </p>
-      <hr class="brush" style="margin-top:8px" />
+  <Fragment slot="head">
+    <script type="application/ld+json" set:html={jsonldJson} />
+  </Fragment>
+
+  <!-- 1. HERO -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <Kicker text="Four Pillars of Destiny" zh="八字排盘" dot class="ink-in" />
+        <h1 class="display ink-in d1" style="margin-top:18px">Free BaZi Calculator <em>— the Four Pillars, read honestly.</em></h1>
+        <p class="lede ink-in d2">Enter your birth date, time and place. You get the same chart every time — corrected to True Solar Time — and plain-English notes on what each part means. No predictions. No labels.</p>
+        <div class="hero-cta ink-in d3" id="notify">
+          <NotifyOrAppStore {lang} source="home-notify" />
+          <a class="btn btn-ghost" href="/en/library">Browse the library</a>
+        </div>
+      </div>
+      <div class="dial-col">
+        <ShichenDial {lang} />
+      </div>
     </div>
   </section>
 
-  <section class="section-tight" id="notify" style="padding-top:0">
-    <div class="wrap" style="max-width:640px">
-      <h2 class="h3" style="margin-bottom:18px">Be first through the door</h2>
-      <NotifyOrAppStore {lang} source="home-notify" />
+  <!-- 2. TODAY STRIP(build 期生成;一期无 day-pillar 链接) -->
+  <section class="today" aria-label="Chinese calendar today">
+    <div class="wrap">
+      <div><span class="kicker">Today</span><div class="num" style="font-size:15px;margin-top:4px">{todayDate}</div></div>
+      <div class="today-gz">
+        <span class="p">{today.y}<small>Year</small></span>
+        <span class="p">{today.m}<small>Month</small></span>
+        <span class="p">{today.d}<small>Day</small></span>
+        <span class="caption">Lunar {lunarMonthEn(today.lunarM)}, {lunarDayEn(today.lunarD)} · Solar term <span class="zh">{today.jieqi}</span> {today.jieqiEn} → <span class="zh">{today.nextJieqi}</span> {shortDateEn(today.nextDate)}</span>
+      </div>
+    </div>
+  </section>
+
+  <!-- 3. WHAT IS BAZI -->
+  <section class="section" id="what-is-bazi">
+    <div class="wrap two">
+      <div class="reveal">
+        <div style="display:flex;gap:14px;align-items:center;margin-bottom:24px"><Numeral char="壹" /><span class="kicker">The basics</span></div>
+        <h2 class="h2">What is BaZi?</h2>
+        <div class="answer">
+          <p>BaZi (八字, "eight characters") describes the moment you were born as four pillars — year, month, day and hour. Each pillar holds a Heavenly Stem and an Earthly Branch, giving eight characters that show how the Five Elements are balanced in your chart.</p>
+        </div>
+        <p class="muted">The day pillar's stem is your <span class="term" data-title="Day Master" data-zh="日主" data-def="The Heavenly Stem of your day pillar. Every other character in the chart is read in relation to it.">Day Master</span> — the reference point the rest of the chart is read against. The other seven characters relate to it as one of the <span class="term" data-title="Ten Gods" data-zh="十神" data-def="Ten relationship types between the Day Master and every other stem: Companion, Eating God, Direct Officer and so on.">Ten Gods</span>.</p>
+      </div>
+      <figure class="reveal" style="margin:0">
+        <div class="four">
+          <div><div class="lbl">Year</div><span class="g"><span class="el-water">壬</span><br><span class="el-metal">申</span></span><div class="sense">Roots &amp; family background</div></div>
+          <div><div class="lbl">Month</div><span class="g"><span class="el-wood">甲</span><br><span class="el-earth">辰</span></span><div class="sense">Upbringing &amp; working environment</div></div>
+          <div class="dm"><div class="lbl">Day</div><span class="g"><span class="el-wood">甲</span><br><span class="el-water">子</span></span><div class="sense">You — the Day Master — and close partnership</div></div>
+          <div><div class="lbl">Hour</div><span class="g"><span class="el-earth">己</span><br><span class="el-fire">巳</span></span><div class="sense">Inner aims &amp; later years</div></div>
+        </div>
+        <figcaption class="caption" style="margin-top:14px">Example chart: 18 Apr 1992, 09:30, Beijing. Day Master <span class="zh">甲</span> Jia Wood. Colours follow the Five Elements.</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <!-- 4. THREE PROMISES -->
+  <section class="section-tight" aria-labelledby="promise-h">
+    <div class="wrap">
+      <h2 id="promise-h" class="sr-only">How this calculator works</h2>
+      <div class="promises reveal">
+        <div><span class="zh">同盘 · 壹</span><h3 class="h3">Same input, same chart</h3><p>Every chart is computed by one deterministic engine. Ask twice, get the same eight characters — and the same app reading.</p></div>
+        <div><span class="zh">真时 · 贰</span><h3 class="h3">True Solar Time</h3><p>Clock time is corrected for your birthplace's longitude, so a birth near an hour boundary lands in the right pillar.</p></div>
+        <div><span class="zh">不玄 · 叁</span><h3 class="h3">No fortune-telling</h3><p>We describe tendencies in the chart. We don't promise outcomes, sell remedies, or stamp you with a fixed "type".</p></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 5. DAY MASTERS(一期非链接灰显卡) -->
+  <section class="section" id="day-masters">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="vmark" aria-hidden="true">十天干</span>
+        <div>
+          <div style="display:flex;gap:14px;align-items:center;margin-bottom:20px"><Numeral char="贰" /><span class="kicker">Library</span></div>
+          <h2 class="h2">The ten Day Masters</h2>
+          <p class="lede muted" style="margin-top:14px">Your Day Master is the stem of the day you were born — the reference point every other character is read against.</p>
+        </div>
+      </div>
+      <DayMasterGrid {lang} />
+    </div>
+  </section>
+
+  <!-- 6. FIVE ELEMENTS -->
+  <section class="section" id="five-elements" style="padding-top:0">
+    <div class="wrap">
+      <div style="display:flex;gap:14px;align-items:center;margin-bottom:32px"><Numeral char="叁" /><span class="kicker">Five Elements · <span class="zh">五行</span></span></div>
+      <WuxingCycle {lang} />
+    </div>
+  </section>
+
+  <!-- 7. GUIDES(一期非链接灰显行) -->
+  <section class="section" id="guides" style="padding-top:0">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="vmark" aria-hidden="true">读盘指南</span>
+        <div>
+          <div style="display:flex;gap:14px;align-items:center;margin-bottom:20px"><Numeral char="肆" /><span class="kicker">Guides</span></div>
+          <h2 class="h2">Read your own chart</h2>
+        </div>
+      </div>
+      <ol class="guides reveal">
+        {guides.map((g) => (
+          <li class="not-launched">
+            <div class="row">
+              <span class="n">{g.n}</span>
+              <div><h3>{g.h}</h3><p>{g.p}</p></div>
+              <span class="t">{g.t}</span>
+            </div>
+          </li>
+        ))}
+      </ol>
+    </div>
+  </section>
+
+  <!-- 8. THE APP -->
+  <section class="section app" id="app">
+    <div class="wrap app-grid">
+      <div class="reveal">
+        <div style="display:flex;gap:14px;align-items:center;margin-bottom:20px"><Seal char="解" size={30} stamp /><span class="kicker">KnowFate for iPhone</span></div>
+        <h2 class="h2">When a chart isn't enough, read it as a book.</h2>
+        <p class="lede muted" style="margin-top:16px">The app turns your chart into eight chapters written for you. The rules decide; the AI only finds the words. The first two chapters are free.</p>
+        <ul class="chapters">
+          <li><Numeral char="壹" />Your main thread — what drives this chart<span class="free">FREE</span></li>
+          <li><Numeral char="贰" />Native talents — and what quietly drains you<span class="free">FREE</span></li>
+          <li><Numeral char="叁" locked />High gear vs. low gear<span class="paid">付费</span></li>
+          <li><Numeral char="肆" locked />Your operating manual<span class="paid">付费</span></li>
+          <li style="color:var(--ink-muted)"><Numeral char="伍" locked />…and four more, plus daily do's &amp; don'ts and two-person compatibility</li>
+        </ul>
+        <NotifyOrAppStore {lang} source="app-notify" />
+      </div>
+      <div class="reveal" aria-hidden="true">
+        <div class="phone"><div class="screen">
+          <div class="kicker">KNOWFATE</div>
+          <div class="scr-p"><span><span class="el-water">壬</span><br><span class="el-metal">申</span><small>偏印</small></span><span><span class="el-wood">甲</span><br><span class="el-earth">辰</span><small>比肩</small></span><span class="d"><span class="el-wood">甲</span><br><span class="el-water">子</span><small style="color:#A83226">日主</small></span><span><span class="el-earth">己</span><br><span class="el-fire">巳</span><small>正财</small></span></div>
+          <div class="scr-line"></div>
+          <div class="scr-anchor">一棵春天的树，根扎在水里，枝叶伸向火光。</div>
+          <div class="scr-book">命书 <small>0 / 8</small></div>
+          <div class="scr-ch"><Numeral char="壹" />人生主线<span class="chev" /></div>
+          <div class="scr-ch"><Numeral char="贰" />天赋本事<span class="chev" /></div>
+          <div class="scr-ch"><Numeral char="叁" locked />高配 vs 低配<span class="paid">付费</span></div>
+          <div class="scr-ch"><Numeral char="肆" locked />使用说明<span class="paid">付费</span></div>
+          <div class="scr-cta">开 卷</div>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- 9. FAQ -->
+  <section class="section" id="faq">
+    <div class="wrap" style="max-width:880px">
+      <div style="display:flex;gap:14px;align-items:center;margin-bottom:20px"><Numeral char="伍" /><span class="kicker">Questions</span></div>
+      <h2 class="h2" style="margin-bottom:36px">Frequently asked</h2>
+      <div class="faq">
+        <details open><summary><Numeral char="壹" />{faq[0].q}</summary><div class="ans">{faq[0].a}</div></details>
+        <details><summary><Numeral char="贰" />{faq[1].q}</summary><div class="ans">{faq[1].a}</div></details>
+        <details><summary><Numeral char="叁" />{faq[2].q}</summary><div class="ans">{faq[2].a}</div></details>
+        <details><summary><Numeral char="肆" />{faq[3].q}</summary><div class="ans">{faq[3].a}</div></details>
+        <details><summary><Numeral char="伍" />{faq[4].q}</summary><div class="ans">The web calculator doesn't keep your birth details after the chart is drawn. See <a href="/en/privacy">Privacy</a>, or write to <a href="mailto:hello@knowfate.app">hello@knowfate.app</a>.</div></details>
+      </div>
     </div>
   </section>
 </Base>

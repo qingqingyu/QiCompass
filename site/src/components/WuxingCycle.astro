@@ -1,0 +1,146 @@
+---
+// 五行生克交互图(S04 首页,home.html 移植)。
+// 相生环(外圈实线弧)+ 相剋星(内五角虚线);JS 只切高亮与面板文案,
+// 无 JS 时静态渲染木的默认面板。一期形态:面板详情链接未上线,不渲染。
+// SVG 坐标逐字取自设计稿 home.html。
+import { type Lang } from "../data/site";
+
+const { lang }: { lang: Lang } = Astro.props;
+const tc = lang === "zh-hant";
+
+const ELS = [
+  { k: "wood", ch: "木", en: "Wood" },
+  { k: "fire", ch: "火", en: "Fire" },
+  { k: "earth", ch: "土", en: "Earth" },
+  { k: "metal", ch: "金", en: "Metal" },
+  { k: "water", ch: "水", en: "Water" },
+] as const;
+
+// 生克关系文案(en 设计稿逐字;zh-hant 对译)。一期无详情链接,不设 link。
+const D = tc
+  ? {
+      wood:  { feeds: "火——木是柴薪", fedby: "水——樹根飲水", checks: "土——樹根破土", checkedby: "金——斧斤伐木" },
+      fire:  { feeds: "土——灰燼成土", fedby: "木——柴薪", checks: "金——火能煉金", checkedby: "水——水能滅火" },
+      earth: { feeds: "金——礦藏於土", fedby: "火——灰燼", checks: "水——堤岸束水", checkedby: "木——樹根破土" },
+      metal: { feeds: "水——寒金凝露", fedby: "土——礦出於土", checks: "木——斧斤", checkedby: "火——爐火" },
+      water: { feeds: "木——雨潤根", fedby: "金——凝露", checks: "火——熄火", checkedby: "土——堤壩" },
+    }
+  : {
+      wood:  { feeds: "Fire — wood is fuel", fedby: "Water — roots drink", checks: "Earth — roots break soil", checkedby: "Metal — the axe fells the tree" },
+      fire:  { feeds: "Earth — ash becomes soil", fedby: "Wood — fuel", checks: "Metal — fire melts metal", checkedby: "Water — water puts fire out" },
+      earth: { feeds: "Metal — ore forms in the earth", fedby: "Fire — ash", checks: "Water — banks hold the river", checkedby: "Wood — roots break soil" },
+      metal: { feeds: "Water — condensation on cold metal", fedby: "Earth — ore", checks: "Wood — the axe", checkedby: "Fire — the forge" },
+      water: { feeds: "Wood — rain feeds roots", fedby: "Metal — condensation", checks: "Fire — puts it out", checkedby: "Earth — the dam" },
+    };
+
+const wxTitle = tc
+  ? "五行:外圈為相生環,內五角為相剋"
+  : "Five Elements: the generating cycle (outer arcs) and the controlling cycle (inner star)";
+const h2 = tc ? "五行如何相生相剋" : "How the Five Elements feed and check each other";
+const lede = tc
+  ? "木生火,火生土,土生金,金生水,水生木;彼此之間又互相剋制。命盤讀的是這些流動是否平衡——不是單純數個數。"
+  : "Wood feeds Fire, Fire makes Earth, Earth bears Metal, Metal carries Water, Water feeds Wood. Each also checks another. A chart is read by how these flows are balanced — not by counting alone.";
+const L = tc
+  ? { feeds: "所生", fedby: "受生", checks: "所剋", checkedby: "受剋" }
+  : { feeds: "Feeds", fedby: "Fed by", checks: "Checks", checkedby: "Checked by" };
+// 图例第二元素 = 汉字注音(en 页专用);中文页无外语可注,置空不渲染
+const genLegend = tc ? ["相生", ""] : ["Generating", "生"];
+const ctlLegend = tc ? ["相剋", ""] : ["Controlling", "克"];
+
+// 节点圆心(设计稿逐字)
+const CX: Record<string, number> = { fire: 200.0, earth: 333.1, metal: 282.3, water: 117.7, wood: 66.9 };
+const CY: Record<string, number> = { fire: 60.0, earth: 156.7, metal: 313.3, water: 313.3, wood: 156.7 };
+---
+
+<div class="wx-grid" data-wx-data={JSON.stringify(D)}>
+  <div class="reveal">
+    <svg class="wx-svg" viewBox="0 0 400 400" role="img" aria-labelledby="wx-t">
+      <title id="wx-t">{wxTitle}</title>
+      <defs><marker id="arr" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,1 L9,5 L0,9" fill="none" stroke="context-stroke" stroke-width="1.4"></path></marker></defs>
+      <path class="gen" data-from="fire" data-to="earth" d="M240.9,66.1 A140,140 0 0,1 314.7,119.7" fill="none" stroke="var(--ink-muted)" stroke-width="1.2" marker-end="url(#arr)"></path>
+      <path class="gen" data-from="earth" data-to="metal" d="M340.0,197.6 A140,140 0 0,1 311.8,284.3" fill="none" stroke="var(--ink-muted)" stroke-width="1.2" marker-end="url(#arr)"></path>
+      <path class="gen" data-from="metal" data-to="water" d="M245.6,332.4 A140,140 0 0,1 154.4,332.4" fill="none" stroke="var(--ink-muted)" stroke-width="1.2" marker-end="url(#arr)"></path>
+      <path class="gen" data-from="water" data-to="wood" d="M88.2,284.3 A140,140 0 0,1 60.0,197.6" fill="none" stroke="var(--ink-muted)" stroke-width="1.2" marker-end="url(#arr)"></path>
+      <path class="gen" data-from="wood" data-to="fire" d="M85.3,119.7 A140,140 0 0,1 159.1,66.1" fill="none" stroke="var(--ink-muted)" stroke-width="1.2" marker-end="url(#arr)"></path>
+      <line class="ctl" data-from="fire" data-to="metal" x1="212.4" y1="98.0" x2="269.3" y2="273.4" stroke="var(--ink-muted)" stroke-width="1" stroke-dasharray="3 4" marker-end="url(#arr)"></line>
+      <line class="ctl" data-from="earth" data-to="water" x1="300.7" y1="180.2" x2="151.7" y2="288.6" stroke="var(--ink-muted)" stroke-width="1" stroke-dasharray="3 4" marker-end="url(#arr)"></line>
+      <line class="ctl" data-from="metal" data-to="wood" x1="249.9" y1="289.8" x2="100.9" y2="181.4" stroke="var(--ink-muted)" stroke-width="1" stroke-dasharray="3 4" marker-end="url(#arr)"></line>
+      <line class="ctl" data-from="water" data-to="fire" x1="130.1" y1="275.3" x2="187.0" y2="99.9" stroke="var(--ink-muted)" stroke-width="1" stroke-dasharray="3 4" marker-end="url(#arr)"></line>
+      <line class="ctl" data-from="wood" data-to="earth" x1="106.9" y1="156.7" x2="291.1" y2="156.7" stroke="var(--ink-muted)" stroke-width="1" stroke-dasharray="3 4" marker-end="url(#arr)"></line>
+      {ELS.map((e) => (
+        <g class="node" data-el={e.k} tabindex="0" role="button" aria-label={tc ? e.ch : e.en}>
+          <circle cx={CX[e.k]} cy={CY[e.k]} r="32" fill="var(--paper)" stroke={`var(--${e.k})`} stroke-width="1.4"></circle>
+          <text x={CX[e.k]} y={CY[e.k]} text-anchor="middle" dominant-baseline="central" fill={`var(--${e.k})`}>{e.ch}</text>
+        </g>
+      ))}
+    </svg>
+  </div>
+  <div class="reveal">
+    <h2 class="h2">{h2}</h2>
+    <p class="muted" style="margin-top:14px">{lede}</p>
+    <div class="wx-tabs" role="group" aria-label={tc ? "選一個五行" : "Choose an element"}>
+      {ELS.map((e, i) => (
+        <button class="chip" data-wx={e.k} aria-pressed={String(i === 0)}>
+          {/* 注音空格须与 span 同行:.chip 是 inline-flex,折行空白会进文本节点 */}
+          <span class={`zh el-${e.k}`}>{e.ch}</span>{!tc && ` ${e.en}`}
+        </button>
+      ))}
+    </div>
+    <div class="wx-panel" aria-live="polite">
+      <dl>
+        <dt>{L.feeds}</dt><dd data-f="feeds">{D.wood.feeds}</dd>
+        <dt>{L.fedby}</dt><dd data-f="fedby">{D.wood.fedby}</dd>
+        <dt>{L.checks}</dt><dd data-f="checks">{D.wood.checks}</dd>
+        <dt>{L.checkedby}</dt><dd data-f="checkedby">{D.wood.checkedby}</dd>
+      </dl>
+      <div class="wx-legend caption">
+        <span><i></i>{genLegend[0]}{genLegend[1] && <span class="zh"> {genLegend[1]}</span>}</span>
+        <span><i class="c"></i>{ctlLegend[0]}{ctlLegend[1] && <span class="zh"> {ctlLegend[1]}</span>}</span>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  document.querySelectorAll<HTMLElement>(".wx-grid").forEach((grid) => {
+    const svg = grid.querySelector<SVGSVGElement>(".wx-svg");
+    const raw = grid.dataset.wxData;
+    if (!raw) throw new Error(".wx-grid 缺 data-wx-data——组件模板被改坏");
+    const data = JSON.parse(raw) as Record<string, Record<string, string>>;
+    if (!svg || !data.wood) throw new Error(".wx-grid 缺 .wx-svg 或 wood 文案——组件模板被改坏");
+
+    function pick(k: string) {
+      const row = data[k];
+      if (!row) return;
+      svg!.classList.add("focus");
+      svg!.querySelectorAll(".on").forEach((n) => n.classList.remove("on"));
+      svg!.querySelectorAll(`[data-from="${k}"], [data-to="${k}"]`).forEach((n) => n.classList.add("on"));
+      svg!.querySelectorAll<SVGElement>('.on[data-from], .on[data-to]').forEach((l) => {
+        [l.getAttribute("data-from"), l.getAttribute("data-to")].forEach((e) => {
+          if (e) svg!.querySelector(`.node[data-el="${e}"]`)?.classList.add("on");
+        });
+      });
+      grid.querySelectorAll<HTMLElement>("[data-wx]").forEach((b) => {
+        b.setAttribute("aria-pressed", String(b.dataset.wx === k));
+      });
+      (["feeds", "fedby", "checks", "checkedby"] as const).forEach((f) => {
+        const dd = grid.querySelector(`[data-f="${f}"]`);
+        if (dd && row[f] !== undefined) dd.textContent = row[f];
+      });
+    }
+
+    grid.querySelectorAll<HTMLElement>("[data-wx]").forEach((b) => {
+      b.addEventListener("click", () => pick(b.dataset.wx ?? ""));
+    });
+    svg.querySelectorAll<SVGElement>(".node").forEach((n) => {
+      n.addEventListener("click", () => pick(n.getAttribute("data-el") ?? ""));
+      n.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          pick(n.getAttribute("data-el") ?? "");
+        }
+      });
+    });
+    pick("wood");
+  });
+</script>

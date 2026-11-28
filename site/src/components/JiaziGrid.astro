@@ -1,0 +1,38 @@
+---
+// 六十甲子格(S04 Library,library.html 移植)。
+// 数据源 calendar.json(构建期 lunar_python 导出,禁浏览器算历);
+// 一期形态:day-pillar/* 未上线 → 纯参照数据非链接 div(不加灰显:
+// 纳音表 + today 标记是页面的活数据,不是待上线入口)。
+// today 标记 = 构建日的日柱干支(设计稿按 href 后缀匹配,这里按干支直接对)。
+import { jiazi, todayEntry } from "../data/calendar";
+import { type Lang } from "../data/site";
+
+interface Props {
+  lang: Lang;
+  class?: string;
+}
+
+const { lang, class: className = "" } = Astro.props;
+const tc = lang === "zh-hant";
+const todayGz = todayEntry().d;
+
+const num = (i: number) => String(i).padStart(2, "0");
+---
+
+<div class={`jiazi ${className}`.trim()}>
+  {jiazi.map((e) => {
+    const q = `${e.en.toLowerCase()} ${e.gz} ${e.nayinEn.toLowerCase()}`;
+    const title = tc ? `${e.gz} · ${e.nayinHant}` : `${e.gz} ${e.en} · ${e.nayinEn}`;
+    return (
+      <div class={`cell${e.gz === todayGz ? " today" : ""}`} data-q={q} title={title}>
+        <span class="n num">{num(e.i)}</span>
+        <span class="g zh">
+          <span class={`el-${e.elS}`}>{e.gz[0]}</span>
+          <span class={`el-${e.elB}`}>{e.gz[1]}</span>
+        </span>
+        <span class="p">{e.en}</span>
+        <span class="ny">{tc ? e.nayinHant : e.nayinEn}</span>
+      </div>
+    );
+  })}
+</div>
