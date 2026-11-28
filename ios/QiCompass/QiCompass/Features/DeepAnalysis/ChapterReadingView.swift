@@ -2,10 +2,12 @@ import SwiftUI
 
 /// 章节沉浸阅读页(盘面小景 ⑤-⑧):长文排版的唯一去处。
 ///
-/// 结构:自定义顶 bar(‹ + 目录,2026-10-08 去中央章题防与正文大标题复读)+
-/// 左缘竖章号栏(36pt,hairline 分隔,
-/// 章号 28pt 宋体,随页贯穿)+ 正文区 + 底部翻章条(hairline 上边)+
-/// 全屏右滑回目录手势(2026-10-13)。
+/// 结构(2026-11-28 排版改版,用户选定「人生主线排版对比」第三/四版,稿存
+/// docs/design-ref/mingshu-layout/对比稿.html):自定义顶 bar(‹ + 中央
+/// 「章号 章名」+ 目录——章名收进导航栏,正文不再有 30pt 章题,故 10-08
+/// 「顶 bar 与正文大标题复读」的顾虑随之消失)+ 正文区(右上淡墨章号水印)
+/// + 文末「下一章」行(取代底部固定翻章条;Tab 栏在阅读页隐藏)+ 全屏右滑
+/// 回目录手势(2026-10-13)。左缘竖章号栏退役(章号进顶 bar 与水印)。
 ///
 /// 正文排版(2026-10-09 按用户 HTML 目标稿「QiCompass Chart Redesign」改版,
 /// 修订 09-01 §Body 古籍行距口径;2026-10-21 A′ 修订段首不缩进):章题 30 ·
@@ -66,14 +68,13 @@ struct ChapterReadingView: View {
     var body: some View {
         VStack(spacing: 0) {
             topBar
-            HStack(spacing: 0) {
-                edgeNumeral
-                contentArea
-            }
-            pager
+            contentArea
         }
         .background(BaziTheme.paper.ignoresSafeArea())
         .toolbar(.hidden, for: .navigationBar)
+        // 2026-11-28:二级阅读页不显示 Tab 栏(沉浸阅读;出口 = ‹ / 目录 /
+        // 右滑 / 文末下一章)。
+        .toolbar(.hidden, for: .tabBar)
         // 右滑回目录(2026-10-13):导航栏隐藏后系统左缘右滑返回失效,全屏
         // 右滑补同等出口,动作与「‹ / 目录」一致(dismiss())。挂
         // simultaneousGesture 不截获正文纵向滚动;起手 25pt 后才开始跟踪,
@@ -104,9 +105,6 @@ struct ChapterReadingView: View {
                     .padding(6)
             }
             Spacer()
-            // 2026-10-08 外评:顶 bar 中央章题与正文 21pt 大章题同屏重复(且
-            // 12.5pt 小字在 EN 下反而抢层级)。顶 bar 只留「‹ / 目录」两个动作,
-            // 章名章号由竖章号栏 + 正文大标题表达(2026-09-25 #11 同向收束)。
             Button {
                 dismiss()
             } label: {
@@ -117,7 +115,26 @@ struct ChapterReadingView: View {
             }
         }
         .padding(.horizontal, 12)
-        .frame(height: 42)
+        .frame(height: 44)
+        // 中央「壹 人生主线」(2026-11-28):章名唯一出处(正文不再重复章题)。
+        // 绝对居中(overlay),不随左右按钮宽度漂移;两侧各留 64pt 防 EN 长
+        // 章名压到按钮。
+        .overlay {
+            HStack(spacing: 6) {
+                Text(chapterNumeral)
+                    .foregroundStyle(BaziTheme.ink)
+                Text(chapterTitle)
+                    .foregroundStyle(BaziTheme.ink)
+            }
+            .font(BaziFont.display(size: 15))
+            .tracking(1)
+            .lineLimit(1)
+            .minimumScaleFactor(0.8)
+            .padding(.horizontal, 64)
+            .allowsHitTesting(false)
+            .accessibilityElement(children: .combine)
+            .accessibilityAddTraits(.isHeader)
+        }
     }
 
     /// 章名(displayName 去「M{N} · 」前缀;S4 收敛到 ModuleID.chapterName)。
@@ -125,82 +142,75 @@ struct ChapterReadingView: View {
         module.chapterName
     }
 
-    // MARK: - 左缘竖章号
-
-    private var edgeNumeral: some View {
-        Text(chapterNumeral)
-            .font(BaziFont.display(size: 28))
-            .foregroundStyle(BaziTheme.ink)
-            // 2026-10-08 external review: main text is visually right-shifted as a whole (left 44pt column + leading24 vs trailing26);
-            // narrowed to 36pt (user decision: "just narrowing is enough", do not delete), vertical chapter number semantics retained.
-            .frame(width: 36)
-            .frame(maxHeight: .infinity, alignment: .top)
-            .padding(.top, 50)
-            .overlay(alignment: .trailing) {
-                Rectangle()
-                    .fill(BaziTheme.hairline)
-                    .frame(width: 0.5)
-            }
-            .background(BaziTheme.cardSurface.opacity(0.5))
-            .accessibilityHidden(true)
-    }
-
     // MARK: - 正文区(四态)
 
     @ViewBuilder
     private var contentArea: some View {
         ScrollView {
-            switch chapterState {
-            case .ok(let text, _):
-                chapterBody(text: text)
-            case .fetching:
-                calculatingBody
-            case .pending:
-                // B1(断链残留死页):pending + 链停 = 无人生成的残留(上游断链/
-                // 达限后),三墨点「布算中」是虚假承诺且无 CTA 无自愈。改渲染
-                // 引导态(状态说明 + 「继续生成」,复用 resumeV1ChainIfNeeded
-                // 既有续跑入口);链在跑(排队章)维持等待观感。
-                switch PendingChapterBody.resolve(
-                    state: chapterState, chainRunning: vm.isChainRunning) {
-                case .calculating:
+            VStack(spacing: 0) {
+                switch chapterState {
+                case .ok(let text, _):
+                    chapterBody(text: text)
+                case .fetching:
                     calculatingBody
-                case .stalledGuide:
-                    stalledPendingBody
+                case .pending:
+                    // B1(断链残留死页):pending + 链停 = 无人生成的残留(上游断链/
+                    // 达限后),三墨点「布算中」是虚假承诺且无 CTA 无自愈。改渲染
+                    // 引导态(状态说明 + 「继续生成」,复用 resumeV1ChainIfNeeded
+                    // 既有续跑入口);链在跑(排队章)维持等待观感。
+                    switch PendingChapterBody.resolve(
+                        state: chapterState, chainRunning: vm.isChainRunning) {
+                    case .calculating:
+                        calculatingBody
+                    case .stalledGuide:
+                        stalledPendingBody
+                    }
+                case .failed(let message):
+                    failedBody(message: message)
+                case .contextTokenExpired:
+                    contextTokenExpiredBody
+                case .dailyLimitReached(let nextReset):
+                    dailyLimitReachedBody(nextReset: nextReset)
+                case .locked:
+                    lockedBody
+                case .needsInput:
+                    needsInputBody
                 }
-            case .failed(let message):
-                failedBody(message: message)
-            case .contextTokenExpired:
-                contextTokenExpiredBody
-            case .dailyLimitReached(let nextReset):
-                dailyLimitReachedBody(nextReset: nextReset)
-            case .locked:
-                lockedBody
-            case .needsInput:
-                needsInputBody
+                // 文末下一章(2026-11-28,取代底部固定翻章条):各态都在内容末尾
+                // 给出口,失败/布算中态也能直接翻章(与旧翻章条同语义)。
+                nextChapterRow
             }
         }
         .frame(maxWidth: .infinity)
     }
 
-    /// 正文态:章题 + 副题 + hairline + 正文(模块 JSON → ChapterContentView 结构化
-    /// 排版;散文退回 16/~1.65× 按换行拆段不缩进;JSON 形态但解析失败 → 显式异常态)
-    /// + 章末批印。
+    /// 正文态(2026-11-28 改版):章名已在顶 bar,正文不再有章题。
+    /// - 含结论句章(M0 v9+):直接以开篇起头(问句引子 + 28pt 结论句,
+    ///   见 ChapterContentView),副题不显示(问句接替其「进门」作用)
+    /// - 其余章:副题作章首引子(朱红短聚焦线 + 13.5pt 墨灰),再接正文
+    /// 正文 = 模块 JSON → ChapterContentView 结构化排版;散文退回 16/~1.65×
+    /// 按换行拆段不缩进;JSON 形态但解析失败 → 显式异常态;+ 章末批印。
+    /// 右上淡墨章号水印(4% 墨,breathe;DESIGN.md 动效「常驻元素微呼吸
+    /// (墨圆/水印)」)垫底,不参与布局、读屏隐藏。
     private func chapterBody(text: String) -> some View {
-        VStack(alignment: .leading, spacing: 0) {
-            Text(chapterTitle)
-                .font(BaziFont.display(size: 30))
-                .tracking(1)
-                .foregroundStyle(BaziTheme.ink)
-                .padding(.top, 42)
-            Text(module.subtitle)
-                .font(BaziFont.caption(size: 13))
-                .tracking(1)
-                .foregroundStyle(BaziTheme.inkMutedSecondary)
-                .padding(.top, 6)
-            Rectangle()
-                .fill(BaziTheme.hairline)
-                .frame(height: 0.5)
-                .padding(.top, 20)
+        let content = ChapterContent.parse(text, for: module)
+        let opensWithHeadline = content.map { parsed in
+            parsed.containsHeadline
+                && parsed.nodes.first.map(ChapterContentView.opensWithHeadline) == true
+        } ?? false
+        return VStack(alignment: .leading, spacing: 0) {
+            if !opensWithHeadline {
+                HStack(spacing: 10) {
+                    Rectangle()
+                        .fill(BaziTheme.cinnabar)
+                        .frame(width: 18, height: 1)
+                    Text(module.subtitle)
+                        .font(BaziFont.caption(size: 13.5))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.inkMuted)
+                        .fixedSize(horizontal: false, vertical: true)
+                }
+            }
             // L3/F1:本章仍是待译原文且翻译链在飞 → 章首小注(原文照常展示,
             // 译完整章替换)。视觉:hairline ink@18% 级弱提示,不用朱红。
             if vm.isChapterTranslationPending(module) {
@@ -239,9 +249,9 @@ struct ChapterReadingView: View {
             // 解析失败(非 JSON/非法 JSON,如老缓存散文或 LLM 违约)退回散文并记日志。
             // 2026-10-01 加固:parse 失败且内容呈 JSON 形态(截断半截/契约破坏)→
             // 显式异常态,不再把 JSON 原文当散文排版(裸奔)。
-            if let content = ChapterContent.parse(text, for: module) {
+            if let content {
                 ChapterContentView(content: content)
-                    .padding(.top, 24)
+                    .padding(.top, opensWithHeadline ? 0 : 28)
                     .padding(.bottom, 18)
                 chapterSeal
             } else if ChapterContent.looksLikeJSON(text) {
@@ -274,13 +284,23 @@ struct ChapterReadingView: View {
                     }
                 }
                 .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.top, 24)
+                .padding(.top, 28)
                 .padding(.bottom, 18)
                 chapterSeal
             }
         }
-        .padding(.leading, 24)
-        .padding(.trailing, 26)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.top, 48)
+        .padding(.horizontal, 28)
+        .background(alignment: .topTrailing) {
+            Text(chapterNumeral)
+                .font(BaziFont.display(size: 220))
+                .foregroundStyle(BaziTheme.ink.opacity(0.04))
+                .offset(x: 34, y: -30)
+                .breathe()
+                .allowsHitTesting(false)
+                .accessibilityHidden(true)
+        }
     }
 
     /// 章末落款(hairline + 朱批印;朱字批语依赖 prompt 输出,backlog)。
@@ -481,11 +501,8 @@ struct ChapterReadingView: View {
     /// 幂等;不新写生成逻辑)。视觉与 .failed 态同构(章题 + 说明 + CTA)。
     private var stalledPendingBody: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(chapterTitle)
-                .font(BaziFont.display(size: 30))
-                .tracking(1)
-                .foregroundStyle(BaziTheme.ink)
-                .padding(.top, 42)
+            // 章名在顶 bar(2026-11-28),此处不再重复 30pt 章题
+            Color.clear.frame(height: 28)
             Text(L10n.DeepChain.stalledPendingNote)
                 .font(BaziFont.caption(size: 13))
                 .foregroundStyle(BaziTheme.inkMuted)
@@ -498,18 +515,15 @@ struct ChapterReadingView: View {
             )
             Spacer()
         }
-        .padding(.horizontal, 26)
+        .padding(.horizontal, 28)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
     /// 失败:人话错误 + 原地重试(失败 refund,重试不耗次数)。
     private func failedBody(message: String) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(chapterTitle)
-                .font(BaziFont.display(size: 30))
-                .tracking(1)
-                .foregroundStyle(BaziTheme.ink)
-                .padding(.top, 42)
+            // 章名在顶 bar(2026-11-28),此处不再重复 30pt 章题
+            Color.clear.frame(height: 28)
             Text(message)
                 .font(BaziFont.caption(size: 13))
                 .foregroundStyle(BaziTheme.destructive)
@@ -525,7 +539,7 @@ struct ChapterReadingView: View {
                 .foregroundStyle(BaziTheme.inkMutedSecondary)
             Spacer()
         }
-        .padding(.horizontal, 26)
+        .padding(.horizontal, 28)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -536,11 +550,8 @@ struct ChapterReadingView: View {
     /// token,链自动自愈。
     private var contextTokenExpiredBody: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(chapterTitle)
-                .font(BaziFont.display(size: 30))
-                .tracking(1)
-                .foregroundStyle(BaziTheme.ink)
-                .padding(.top, 42)
+            // 章名在顶 bar(2026-11-28),此处不再重复 30pt 章题
+            Color.clear.frame(height: 28)
             Text(L10n.Errors.contextTokenTitle)
                 .font(BaziFont.caption(size: 13))
                 .foregroundStyle(BaziTheme.destructive)
@@ -552,7 +563,7 @@ struct ChapterReadingView: View {
             RecalculateChartButton(action: onRecalculateChart)
             Spacer()
         }
-        .padding(.horizontal, 26)
+        .padding(.horizontal, 28)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -562,11 +573,8 @@ struct ChapterReadingView: View {
     /// 服务端池);nextReset 取下一个 UTC 零点(后端 bucket 按 UTC 日)。
     private func dailyLimitReachedBody(nextReset: Date) -> some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(chapterTitle)
-                .font(BaziFont.display(size: 30))
-                .tracking(1)
-                .foregroundStyle(BaziTheme.ink)
-                .padding(.top, 42)
+            // 章名在顶 bar(2026-11-28),此处不再重复 30pt 章题
+            Color.clear.frame(height: 28)
             Text(L10n.Errors.limitTitle)
                 .font(BaziFont.caption(size: 13))
                 .foregroundStyle(BaziTheme.destructive)
@@ -579,7 +587,7 @@ struct ChapterReadingView: View {
                 .padding(.top, 2)
             Spacer()
         }
-        .padding(.horizontal, 26)
+        .padding(.horizontal, 28)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -597,11 +605,8 @@ struct ChapterReadingView: View {
     /// 防御 locked 态(目录不推锁章;购买回退/状态错乱时诚实呈现)。
     private var lockedBody: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(chapterTitle)
-                .font(BaziFont.display(size: 30))
-                .tracking(1)
-                .foregroundStyle(BaziTheme.ink)
-                .padding(.top, 42)
+            // 章名在顶 bar(2026-11-28),此处不再重复 30pt 章题
+            Color.clear.frame(height: 28)
             HStack(spacing: 8) {
                 Image(systemName: "lock.fill")
                     .font(.caption)
@@ -625,7 +630,7 @@ struct ChapterReadingView: View {
             )
             Spacer()
         }
-        .padding(.horizontal, 26)
+        .padding(.horizontal, 28)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
@@ -636,11 +641,8 @@ struct ChapterReadingView: View {
     @ViewBuilder
     private var needsInputBody: some View {
         VStack(alignment: .leading, spacing: 14) {
-            Text(chapterTitle)
-                .font(BaziFont.display(size: 30))
-                .tracking(1)
-                .foregroundStyle(BaziTheme.ink)
-                .padding(.top, 42)
+            // 章名在顶 bar(2026-11-28),此处不再重复 30pt 章题
+            Color.clear.frame(height: 28)
             Text(module.subtitle)
                 .font(BaziFont.caption(size: 13))
                 .tracking(1)
@@ -663,86 +665,72 @@ struct ChapterReadingView: View {
             }
             Spacer()
         }
-        .padding(.horizontal, 26)
+        .padding(.horizontal, 28)
         .frame(maxWidth: .infinity, alignment: .leading)
     }
 
-    // MARK: - 底部翻章条
+    // MARK: - 文末下一章(2026-11-28,取代底部固定翻章条)
 
-    private var pager: some View {
-        let prev = chapterIndex > 0 ? ModuleID.allCases[chapterIndex - 1] : nil
-        let next = chapterIndex < ModuleID.allCases.count - 1 ? ModuleID.allCases[chapterIndex + 1] : nil
-        return HStack {
-            if let prev {
-                pagerButton("‹ \(pagerTitle(prev))", module: prev)
-            } else {
-                Spacer()
-            }
-            Spacer()
+    /// 文末出口行:上 hairline +「下一章 / 贰 · 天赋本事」+ ›。
+    /// - 下一章未购付费章 → 锁 icon,点击弹付费墙(🔒 判定走 ChapterRowModel
+    ///   单一事实源,与主页目录行同语义:已购用户的付费章不锁)
+    /// - 末章(捌)→「回到目录」(dismiss)
+    /// 上一章入口随固定翻章条退役:回看走「目录」/ 右滑(用户选定稿只保留下一章)。
+    private var nextChapterRow: some View {
+        let next = chapterIndex < ModuleID.allCases.count - 1
+            ? ModuleID.allCases[chapterIndex + 1] : nil
+        let nextLocked = next.map { target in
+            ChapterRowModel.resolve(
+                module: target,
+                state: vm.moduleStates[target],
+                hasEntitlement: hasEntitlementForPaid
+            ) == .lockedPaid
+        } ?? false
+        return Button {
             if let next {
-                // 🔒 判定走 ChapterRowModel 单一事实源(与主页目录行同语义):
-                // 已购用户的付费章不锁(进章布算/原地重试),未购才弹付费墙
-                let nextLocked = ChapterRowModel.resolve(
-                    module: next,
-                    state: vm.moduleStates[next],
-                    hasEntitlement: hasEntitlementForPaid
-                ) == .lockedPaid
-                if nextLocked {
-                    Button {
-                        onShowPaywall()
-                    } label: {
-                        // 2026-09-25 暗色走查 #11:🔒 彩色 emoji 与水墨单色语言冲突,
-                        // 换单色 SF Symbol(继承 inkMutedSecondary,深浅色自适应)。
-                        HStack(spacing: 3) {
-                            // lineLimit(1) 与 pagerButton 同规格(2026-10-10
-                            // review):字号 11.5→15 后 EN 长标题在 375pt 宽会
-                            // 折两三行,翻章条左右两侧错位。
-                            Text(pagerTitle(next))
-                                .lineLimit(1)
-                            Image(systemName: "lock.fill")
-                                .font(.system(size: 10))
-                        }
-                        // 与 pagerButton 同规格(15pt / tracking 0.5,DESIGN.md
-                        // 「翻章条 15pt」单口径;锁 icon 10pt 小一号表锁定态)。
-                        .font(BaziFont.caption(size: 15))
-                        .tracking(0.5)
-                        .foregroundStyle(BaziTheme.inkMutedSecondary)
-                        .padding(6)
-                    }
-                    .buttonStyle(.plain)
-                } else {
-                    pagerButton("\(pagerTitle(next)) ›", module: next)
-                }
+                if nextLocked { onShowPaywall() } else { onNavigate(next) }
+            } else {
+                dismiss()
             }
+        } label: {
+            HStack(alignment: .center, spacing: 12) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(next == nil ? String(localized: "读完了") : String(localized: "下一章"))
+                        .font(BaziFont.caption(size: 12))
+                        .tracking(1)
+                        .foregroundStyle(BaziTheme.inkMutedSecondary)
+                    Text(next.map { pagerTitle($0) } ?? String(localized: "回到目录"))
+                        .font(BaziFont.display(size: 18))
+                        .tracking(0.5)
+                        .foregroundStyle(nextLocked ? BaziTheme.inkMuted : BaziTheme.ink)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.8)
+                }
+                Spacer(minLength: 8)
+                // 2026-09-25 暗色走查 #11:锁用单色 SF Symbol(不用彩色 emoji)
+                Image(systemName: nextLocked ? "lock.fill" : "chevron.right")
+                    .font(.system(size: nextLocked ? 12 : 14, weight: .medium))
+                    .foregroundStyle(BaziTheme.inkMuted)
+            }
+            .padding(.vertical, 22)
+            .contentShape(Rectangle())
         }
-        .padding(.horizontal, 20)
-        .padding(.vertical, 11)
+        .buttonStyle(.plain)
         .overlay(alignment: .top) {
             Rectangle()
                 .fill(BaziTheme.hairline)
                 .frame(height: 0.5)
         }
+        .padding(.horizontal, 28)
+        .padding(.top, 12)
+        .padding(.bottom, 28)
     }
 
-    private func pagerButton(_ label: String, module target: ModuleID) -> some View {
-        Button {
-            onNavigate(target)
-        } label: {
-            Text(label)
-                .font(BaziFont.caption(size: 15))
-                .tracking(0.5)
-                .foregroundStyle(BaziTheme.inkMuted)
-                .lineLimit(1)
-                .padding(6)
-        }
-        .buttonStyle(.plain)
-    }
-
-    /// 翻章条标题:「贰 天赋本事」(M0=壹 … M7=捌,与章号同口径 +1)。
+    /// 下一章标题:「贰 · 天赋本事」(M0=壹 … M7=捌,与章号同口径 +1)。
     private func pagerTitle(_ module: ModuleID) -> String {
         let idx = ModuleID.allCases.firstIndex(of: module) ?? 0
         let name = module.displayName
         let title = name.range(of: "· ").map { String(name[$0.upperBound...]) } ?? name
-        return "\(NumeralBadge.numeral(idx + 1)) \(title)"
+        return "\(NumeralBadge.numeral(idx + 1)) · \(title)"
     }
 }

@@ -13,6 +13,15 @@ import SwiftUI
 // - 条目列   = 「·」条目宋体 15
 // - 条目卡   = 题宋体 16 + 字段,卡间 hairline 分隔(卡片让位 hairline)
 // 无卡片底 / 无渐变 / 朱红不进。纯展示,数据源单一(ChapterContent)。
+//
+// 2026-11-28 排版改版(用户在「人生主线排版对比」四版稿中选定第三/四版,
+// 稿存 docs/design-ref/mingshu-layout/对比稿.html;版式取稿,颜色仍走
+// 水墨 token,稿中旧金不进):含结论句章的**首节**升为开篇——
+// - 问句引子 13.5pt 墨灰 + 前置 18×1 朱红聚焦线(DESIGN.md 印章级授权场景)
+// - 结论句 28pt(全页最大的字,「结论即标题」;其余节结论句仍 21pt)
+// - 十神分层格(.layers):主导/次要/潜伏三栏,上下 hairline + 栏间竖
+//   hairline,名字 21pt(主导浓墨,其余墨灰表强弱)+ 短释小字
+// - 展开段照常 16pt
 
 struct ChapterContentView: View {
     let content: ChapterContent
@@ -21,11 +30,24 @@ struct ChapterContentView: View {
         // 含结论句的章节(M0 v9+)小节间距放大 44,只用留白不加线(A′);
         // 其余章节(含 v7/v8 老缓存)照旧 28。
         VStack(alignment: .leading, spacing: content.containsHeadline ? 44 : 28) {
-            ForEach(Array(content.nodes.enumerated()), id: \.offset) { _, node in
-                NodeView(node: node, depth: 0, chapterHasHeadline: content.containsHeadline)
+            ForEach(Array(content.nodes.enumerated()), id: \.offset) { index, node in
+                NodeView(
+                    node: node,
+                    depth: 0,
+                    chapterHasHeadline: content.containsHeadline,
+                    isOpening: index == 0 && content.containsHeadline
+                        && Self.opensWithHeadline(node))
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    /// 节点是否为「以结论句开头的小节」(开篇判定用:首节须真有结论句,
+    /// 漏写 headline 的首节不升开篇,照常小标渲染)。
+    static func opensWithHeadline(_ node: ChapterNode) -> Bool {
+        guard case .section(_, let children) = node,
+              case .headline? = children.first else { return false }
+        return true
     }
 }
 
@@ -35,9 +57,13 @@ private struct NodeView: View {
     let node: ChapterNode
     let depth: CGFloat
     let chapterHasHeadline: Bool
+    /// 含结论句章的首节(2026-11-28):渲染为开篇(问句引子 + 28pt 结论句)。
+    var isOpening: Bool = false
 
     var body: some View {
         switch node {
+        case .section(let title, let children) where isOpening:
+            openingSection(title: title, children: children)
         case .lead(let text):
             leadParagraph(text)
         case .note(let label, let text):
@@ -112,7 +138,114 @@ private struct NodeView: View {
             loopFromToLine(from: from, to: to)
         case .evidenceFold(let notes):
             EvidenceFoldView(notes: notes)
+        case .layers(let layers):
+            layersGrid(layers)
         }
+    }
+
+    // MARK: - 开篇(含结论句章首节,2026-11-28)
+
+    /// 开篇:问句引子(朱红聚焦线)→ 28pt 结论句 → 分层格 → 展开段。
+    /// 子节点间距按种类给:结论句距引子 18、分层格上下 32/28、段间 16。
+    private func openingSection(title: String, children: [ChapterNode]) -> some View {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(spacing: 10) {
+                Rectangle()
+                    .fill(BaziTheme.cinnabar)
+                    .frame(width: 18, height: 1)
+                Text(title)
+                    .font(BaziFont.caption(size: 13.5))
+                    .tracking(1)
+                    .foregroundStyle(BaziTheme.inkMuted)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            ForEach(Array(children.enumerated()), id: \.offset) { index, child in
+                Group {
+                    if index == 0, case .headline(let text) = child {
+                        Text(text)
+                            .font(BaziFont.display(size: 28))
+                            .tracking(0.5)
+                            .foregroundStyle(BaziTheme.ink)
+                            .lineSpacing(10)
+                            .fixedSize(horizontal: false, vertical: true)
+                            .accessibilityAddTraits(.isHeader)
+                    } else {
+                        NodeView(node: child, depth: depth + 1, chapterHasHeadline: chapterHasHeadline)
+                    }
+                }
+                .padding(.top, Self.openingSpacing(
+                    child: child, previous: index > 0 ? children[index - 1] : nil))
+            }
+        }
+    }
+
+    /// 开篇子节点的上间距(首个结论句 18;分层格 32;紧随分层格 28;其余 16)。
+    private static func openingSpacing(child: ChapterNode, previous: ChapterNode?) -> CGFloat {
+        if case .layers = child { return 32 }
+        if case .layers? = previous { return 28 }
+        if previous == nil { return 18 }
+        return 16
+    }
+
+    // MARK: - 十神分层格(2026-11-28)
+
+    /// 三栏分层格:上下 hairline + 栏间竖 hairline,等高(fixedSize 撑齐)。
+    private func layersGrid(_ layers: [ChapterLayer]) -> some View {
+        HStack(alignment: .top, spacing: 0) {
+            ForEach(Array(layers.enumerated()), id: \.offset) { index, layer in
+                layerCell(layer, isLead: index == 0)
+                    .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                    .overlay(alignment: .leading) {
+                        if index > 0 {
+                            Rectangle()
+                                .fill(BaziTheme.hairline)
+                                .frame(width: 0.5)
+                        }
+                    }
+            }
+        }
+        .fixedSize(horizontal: false, vertical: true)
+        .overlay(alignment: .top) {
+            Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
+        }
+        .overlay(alignment: .bottom) {
+            Rectangle().fill(BaziTheme.hairline).frame(height: 0.5)
+        }
+    }
+
+    /// 单栏:层名 → 十神名(并列多名换行)→ 短释 / 「并列最重」。
+    /// 主导浓墨、次要/潜伏墨灰——强弱只靠墨色深浅表达,不加新颜色。
+    private func layerCell(_ layer: ChapterLayer, isLead: Bool) -> some View {
+        VStack(spacing: 6) {
+            Text(layer.role)
+                .font(BaziFont.caption(size: 11))
+                .tracking(1.5)
+                .foregroundStyle(BaziTheme.inkMuted)
+            Text(layer.names.joined(separator: "\n"))
+                .font(BaziFont.display(size: AppLanguage.current == .en ? 15 : 21))
+                .tracking(AppLanguage.current == .en ? 0 : 1)
+                .foregroundStyle(isLead ? BaziTheme.ink : BaziTheme.inkMuted)
+                .multilineTextAlignment(.center)
+                .minimumScaleFactor(0.75)
+                .fixedSize(horizontal: false, vertical: true)
+            if let note = Self.layerNote(layer) {
+                Text(note)
+                    .font(BaziFont.caption(size: 11.5))
+                    .foregroundStyle(BaziTheme.inkMutedSecondary)
+                    .multilineTextAlignment(.center)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+        }
+        .padding(.vertical, 18)
+        .padding(.horizontal, 6)
+        .accessibilityElement(children: .combine)
+    }
+
+    /// 栏底小字:并列 → 「并列最重」;单名 → 十神短释;多名非并列 → 无。
+    private static func layerNote(_ layer: ChapterLayer) -> String? {
+        if layer.tied { return String(localized: "并列最重") }
+        guard layer.termKeys.count == 1, let key = layer.termKeys.first else { return nil }
+        return BaziTermNotes.shortGloss(for: key)
     }
 
     // MARK: - 原子
