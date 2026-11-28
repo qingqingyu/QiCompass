@@ -68,3 +68,23 @@ App 尚未上架,受影响的只有 TestFlight 用户,但上架前不修,首批�
 - commit 必须三段式 body:Why / What / Impact
 - 错误显式传播:禁止空 catch / 吞异常 / 用默认值掩盖失败;迁移失败一律上抛,不静默回落本地库
 - 不得新增任何依赖;新 .swift 文件须 `project.pbxproj` 4 处登记一致 24 位 ID
+
+## 实施记录(2026-11-28 收口,commit `a5d589a`)
+
+按任务书全套实施(含 §2 补救步骤,2026-11-28 用户拍板「全套实施」):
+
+- `make()` 顺序改为:构造 `ModelConfiguration` → `migrationDestination(for:)`
+  (= `config.url` 所在目录)→ 错位库归位 → TASK-05 老本地库迁移 → 打开容器。
+  归位先于迁移:容器一旦在落盘目录建空库,老数据再无自动迁移窗口。
+- `remediateMisplacedGroupStore` 比任务书多两条不触发路径的显式测试:
+  groupRoot 无 store(干净设备常态)、落盘目录即 groupRoot(旧布局运行时)。
+- pin 测试改写为**布局无关锚定**(不再断言任何具体目录):迁移目标 ==
+  `config.url` 所在目录 + 容器初始化后 store 确实出现在 `config.url`;
+  新(容器根)/旧(`<group>/Library/Application Support/`)两种布局都必须成立,
+  SwiftData 再改布局此测试先红。清理只删本次新建文件,不动既有库。
+- 验证:`LegacyStoreMigratorTests` 11/11(模拟器 DA0476D9,zh-Hans);全量
+  875 用例绿(其中 1 个 M0 fixture 回归系 main 侧 60f3a2e 自带,另以
+  `ed15dc9` 单独修复,与本任务无交集)。遗留:4 条 SwiftData 控制台
+  save-failed 权限日志,不挂任何断言,归属待观察。
+- **真人步骤(HITL,未做)**:真机老设备覆盖安装走查——按任务书验收条款
+  并入改名 S06 走查;日志核对 store 实际路径与 remediation action。
